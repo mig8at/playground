@@ -7,6 +7,13 @@ import '@vue-flow/core/dist/theme-default.css'
 
 // summary = { repos: [{alias, node_count, langs}], links: [{from,to,kind,count}] }
 const props = defineProps({ summary: { type: Object, default: () => ({ repos: [], links: [] }) } })
+const emit = defineEmits(['pick'])
+
+// click en un nodo-repo → pedir su array de archivos (rankeado)
+function onNodeClick({ node }) {
+  const d = node?.data
+  if (d?.repo) emit('pick', { repo: d.repo, lang: d.lang || '', label: d.title || node.id })
+}
 
 const repoMap = computed(() => {
   const m = {}
@@ -44,10 +51,10 @@ const nodes = computed(() => [
     style: { width: '320px', height: '250px' } },
   { id: 'legacy-backend', type: 'repo', parentNode: 'originaciones', extent: 'parent',
     position: { x: 20, y: 62 },
-    data: { title: 'legacy-backend', sub: 'Laravel · API', n: count('legacy-backend'), accent: '#f0883e' } },
+    data: { title: 'legacy-backend', sub: 'Laravel · API', n: count('legacy-backend'), accent: '#f0883e', repo: 'legacy-backend' } },
   { id: 'frontend-monorepo', type: 'repo', parentNode: 'originaciones', extent: 'parent',
     position: { x: 20, y: 158 },
-    data: { title: 'frontend-monorepo', sub: 'React · wizard', n: count('frontend-monorepo'), accent: '#4c9aff' } },
+    data: { title: 'frontend-monorepo', sub: 'React · wizard', n: count('frontend-monorepo'), accent: '#4c9aff', repo: 'frontend-monorepo' } },
 
   // ── grupo ALIADOS (derecha) ──
   { id: 'aliados', type: 'group', position: { x: 560, y: 80 },
@@ -55,10 +62,10 @@ const nodes = computed(() => [
     style: { width: '320px', height: '250px' } },
   { id: 'app-vue', type: 'repo', parentNode: 'aliados', extent: 'parent',
     position: { x: 20, y: 62 },
-    data: { title: 'Vue · aliados', sub: 'resources/js', n: lang('application', 'vue'), accent: '#42b883' } },
+    data: { title: 'Vue · aliados', sub: 'resources/js', n: lang('application', 'vue'), accent: '#42b883', repo: 'application', lang: 'vue' } },
   { id: 'app-backend', type: 'repo', parentNode: 'aliados', extent: 'parent',
     position: { x: 20, y: 158 },
-    data: { title: 'Backend · Laravel', sub: 'app/', n: lang('application', 'php'), accent: '#f0883e' } },
+    data: { title: 'Backend · Laravel', sub: 'app/', n: lang('application', 'php'), accent: '#f0883e', repo: 'application', lang: 'php' } },
 ])
 
 const edges = computed(() => [
@@ -78,7 +85,8 @@ const edges = computed(() => [
 <template>
   <div class="mapwrap">
     <VueFlow :nodes="nodes" :edges="edges" fit-view-on-init :min-zoom="0.4" :max-zoom="1.5"
-             :zoom-on-scroll="false" :pan-on-scroll="false" :prevent-scrolling="false">
+             :zoom-on-scroll="false" :pan-on-scroll="false" :prevent-scrolling="false"
+             @node-click="onNodeClick">
       <Background pattern-color="#2a3340" :gap="20" />
 
       <!-- nodo grupo (contenedor) -->
@@ -124,7 +132,9 @@ const edges = computed(() => [
 .repo-node {
   width: 280px; background: var(--panel2); border: 1px solid var(--border);
   border-left: 3px solid var(--accent); border-radius: 8px; padding: 10px 12px;
+  cursor: pointer; transition: border-color .15s;
 }
+.repo-node:hover { border-color: var(--accent); }
 .repo-title { font-size: 14px; font-weight: 600; color: var(--text); }
 .repo-sub { font-size: 11px; color: var(--muted); margin-top: 2px; font-family: ui-monospace, monospace; }
 .repo-n { font-size: 11px; color: var(--muted); margin-top: 6px; }

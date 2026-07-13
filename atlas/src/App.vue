@@ -14,6 +14,7 @@ const nodeCount = ref(0)
 
 const selected = ref(null)   // { flow, nodes }
 const edges = ref({})        // nodeId -> edges[]
+const nodeFiles = ref(null)  // { repo, lang, label, total, files, loading }
 
 let ws = null
 let retry = null
@@ -44,6 +45,11 @@ function connect() {
       case 'connections':
         if (d.ok) edges.value = { ...edges.value, [d.id]: d.edges || [] }
         break
+      case 'node_files':
+        if (d.ok && nodeFiles.value && nodeFiles.value.repo === d.repo && nodeFiles.value.lang === d.lang) {
+          nodeFiles.value = { ...nodeFiles.value, total: d.total, files: d.files || [], loading: false }
+        }
+        break
     }
   }
   ws.onclose = () => { status.value = 'desconectado'; retry = setTimeout(connect, 1500) }
@@ -51,6 +57,12 @@ function connect() {
 }
 
 function send(obj) { if (online.value) ws.send(JSON.stringify(obj)) }
+
+function onPick({ repo, lang, label }) {
+  nodeFiles.value = { repo, lang, label, total: null, files: null, loading: true }
+  send({ type: 'node_files', repo, lang: lang || '' })
+}
+function closeNodeFiles() { nodeFiles.value = null }
 
 function openFlow(id) { send({ type: 'flow', id }) }
 function delFlow(id) { if (confirm('¿Borrar este flujo?')) send({ type: 'delete_flow', id }) }
@@ -93,7 +105,35 @@ onBeforeUnmount(() => { clearTimeout(retry); ws && ws.close() })
     </header>
 
     <template v-if="view === 'mapa'">
-      <MapView :summary="summary" />
+      <MapView :summary="summary" @pick="onPick" />
+
+      <section v-if="nodeFiles" class="nodefiles">
+        <div class="nf-head">
+          <div>
+            <h2>{{ nodeFiles.label }}</h2>
+            <p class="nf-sub" v-if="!nodeFiles.loading">
+              top {{ nodeFiles.files.length }} de {{ nodeFiles.total }} archivos · por relevancia
+            </p>
+            <p class="nf-sub" v-else>cargando…</p>
+          </div>
+          <button class="x" @click="closeNodeFiles" title="cerrar">×</button>
+        </div>
+        <ul class="files" v-if="nodeFiles.files">
+          <li v-for="n in nodeFiles.files" :key="n.id">
+            <div class="file-row">
+              <code class="path">{{ n.path }}</code>
+              <span class="lang">{{ n.lang }}</span>
+              <span v-if="n.routes && n.routes.length" class="sig route">{{ n.routes.length }} rutas</span>
+              <span v-if="n.tables && n.tables.length" class="sig table">{{ n.tables.length }} tablas</span>
+              <span class="muted">{{ shortId(n.id) }}</span>
+            </div>
+            <div v-if="n.definitions && n.definitions.length" class="defs">
+              <span v-for="d in n.definitions.slice(0, 8)" :key="d" class="def">{{ d }}</span>
+            </div>
+          </li>
+        </ul>
+      </section>
+
       <FlowCatalog />
     </template>
 

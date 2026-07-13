@@ -228,6 +228,62 @@ func (e *Engine) Summary() Summary {
 	return out
 }
 
+// RepoFiles devuelve los archivos de un repo (opcionalmente filtrados por lang)
+// RANKEADOS por relevancia — como los "pesos" de Rino: rutas, modelos, servicios,
+// controladores y archivos de infra primero. Devuelve el top `limit` y el total.
+// Sirve para "entender el nodo" sin volcar los ~2000 archivos crudos.
+func (e *Engine) RepoFiles(repo, lang string, limit int) (files []scan.Node, total int) {
+	if limit <= 0 {
+		limit = 80
+	}
+	var matched []scan.Node
+	for _, n := range e.Nodes() {
+		if n.Repo != repo {
+			continue
+		}
+		if lang != "" && n.Lang != lang {
+			continue
+		}
+		matched = append(matched, n)
+	}
+	total = len(matched)
+	sort.SliceStable(matched, func(i, j int) bool {
+		return importance(matched[i]) > importance(matched[j])
+	})
+	if len(matched) > limit {
+		matched = matched[:limit]
+	}
+	return matched, total
+}
+
+// importance puntúa qué tan "central" es un archivo para entender el nodo.
+func importance(n scan.Node) int {
+	p := strings.ToLower(n.Path)
+	score := len(n.Routes)*12 +
+		len(n.Tables)*8 + len(n.TableAnchors)*6 +
+		len(n.Renders)*6 + len(n.RouteNames)*4 +
+		len(n.Definitions) + len(n.Imports)*2
+	switch {
+	case strings.Contains(p, "/routes/"), strings.HasSuffix(p, "routes.ts"):
+		score += 14
+	}
+	if strings.Contains(p, "service") || strings.Contains(p, "controller") {
+		score += 10
+	}
+	if strings.Contains(p, "/models/") || strings.Contains(p, "migration") {
+		score += 8
+	}
+	if strings.Contains(p, "repository") || strings.Contains(p, "/pages/") {
+		score += 6
+	}
+	// hunde el ruido de test/spec/mock (proporcional: un test con muchas tablas
+	// no debe superar al código real que sí importa para entender el nodo)
+	if strings.Contains(p, "test") || strings.Contains(p, "spec") || strings.Contains(p, "mock") || strings.Contains(p, "__fixtures__") {
+		score = score/5 - 25
+	}
+	return score
+}
+
 // Search filtra nodos cuyo path contenga q (case-insensitive). Límite 100.
 func (e *Engine) Search(q string) []scan.Node {
 	q = strings.ToLower(q)

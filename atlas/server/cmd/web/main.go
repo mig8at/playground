@@ -96,6 +96,8 @@ type inbound struct {
 	Type string `json:"type"`
 	Path string `json:"path"`
 	ID   string `json:"id"`
+	Repo string `json:"repo"`
+	Lang string `json:"lang"`
 }
 
 func (s *server) handle(ctx context.Context, c *websocket.Conn, msg inbound) {
@@ -119,6 +121,12 @@ func (s *server) handle(ctx context.Context, c *websocket.Conn, msg inbound) {
 		send(ctx, c, map[string]any{"type": "flow_detail", "ok": true, "flow": f, "nodes": nodes})
 	case "connections":
 		send(ctx, c, map[string]any{"type": "connections", "ok": true, "id": msg.ID, "edges": s.eng.Connections(msg.ID)})
+	case "node_files":
+		files, total := s.eng.RepoFiles(msg.Repo, msg.Lang, 80)
+		send(ctx, c, map[string]any{
+			"type": "node_files", "ok": true, "repo": msg.Repo, "lang": msg.Lang,
+			"total": total, "files": files,
+		})
 	case "delete_flow":
 		_ = s.eng.DeleteFlow(msg.ID)
 		s.broadcastState()
