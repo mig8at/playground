@@ -15,9 +15,8 @@ func (e *Engine) FlowTree(flowID string) string {
 	return e.Tree(f.NodeIDs)
 }
 
-// ComboTree arma el árbol Rino del FLUJO COMPLETO de una combinación: la UNIÓN
-// (dedup) de los archivos de todos sus flujos, de punta a punta. Es lo que copia
-// el botón (copiar) del pipeline.
+// ComboTree arma el árbol Rino de TODOS los flujos de una combinación (unión
+// dedup). Útil para el MCP (atlas_tree combination).
 func (e *Engine) ComboTree(comboID string) string {
 	seen := map[string]bool{}
 	var ids []string
@@ -33,6 +32,42 @@ func (e *Engine) ComboTree(comboID string) string {
 		}
 	}
 	return e.Tree(ids)
+}
+
+// groupOf devuelve la fila/flujo de negocio de un flujo (fallback: su id).
+func groupOf(f Flow) string {
+	if f.Group != "" {
+		return f.Group
+	}
+	return f.ID
+}
+
+// ComboGroupTrees arma, POR FILA (group), el árbol Rino del flujo completo de
+// esa fila: la unión dedup de las etapas de esa fila. Cada fila tiene su propio
+// (copiar). Mapa group→árbol.
+func (e *Engine) ComboGroupTrees(comboID string) map[string]string {
+	byGroup := map[string][]string{}
+	seen := map[string]map[string]bool{}
+	for _, f := range e.Flows() {
+		if f.Combination != comboID {
+			continue
+		}
+		g := groupOf(f)
+		if seen[g] == nil {
+			seen[g] = map[string]bool{}
+		}
+		for _, id := range f.NodeIDs {
+			if !seen[g][id] {
+				seen[g][id] = true
+				byGroup[g] = append(byGroup[g], id)
+			}
+		}
+	}
+	out := map[string]string{}
+	for g, ids := range byGroup {
+		out[g] = e.Tree(ids)
+	}
+	return out
 }
 
 // Tree arma, para un set de archivos, el "árbol estilo Rino": la estructura de

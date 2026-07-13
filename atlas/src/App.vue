@@ -13,8 +13,8 @@ const flows = ref([])
 const combinations = ref([])
 const branches = ref({})
 const selectedCombo = ref('')
-const comboTree = ref('') // árbol Rino del flujo completo de la combinación seleccionada
-const copied = ref(false)
+const comboTrees = ref({}) // group → árbol Rino de esa fila/flujo
+const copiedGroup = ref('') // fila recién copiada
 const summary = ref({ repos: [], links: [] })
 const nodeCount = ref(0)
 
@@ -47,14 +47,14 @@ function connect() {
         if (selectedCombo.value && !combinations.value.find((c) => c.id === selectedCombo.value)) {
           selectedCombo.value = ''
         } else if (selectedCombo.value) {
-          requestComboTree() // los flujos pudieron cambiar → refrescar el árbol
+          requestComboTrees() // los flujos pudieron cambiar → refrescar los árboles
         }
         break
       case 'repo_branches':
         if (d.ok) branches.value = d.branches || {}
         break
-      case 'combo_tree':
-        if (d.ok && d.id === selectedCombo.value) comboTree.value = d.text || ''
+      case 'combo_trees':
+        if (d.ok && d.id === selectedCombo.value) comboTrees.value = d.trees || {}
         break
     }
   }
@@ -70,15 +70,15 @@ function onSaveCombination({ name, targets }) { send({ type: 'save_combination',
 function onDeleteCombination(id) { if (confirm('¿Borrar esta combinación?')) send({ type: 'delete_combination', id }) }
 function onSelectCombo(id) {
   selectedCombo.value = selectedCombo.value === id ? '' : id
-  comboTree.value = ''
-  copied.value = false
-  if (selectedCombo.value) requestComboTree()
+  comboTrees.value = {}
+  copiedGroup.value = ''
+  if (selectedCombo.value) requestComboTrees()
 }
-function requestComboTree() { if (selectedCombo.value) send({ type: 'combo_tree', id: selectedCombo.value }) }
+function requestComboTrees() { if (selectedCombo.value) send({ type: 'combo_trees', id: selectedCombo.value }) }
 
-// copiar el árbol completo del flujo (todas las etapas de la combinación)
-async function copyTree() {
-  const text = comboTree.value
+// copiar el árbol completo de UNA fila/flujo (todas sus etapas)
+async function copyTree(group) {
+  const text = comboTrees.value[group]
   if (!text) return
   let ok = false
   try {
@@ -97,8 +97,8 @@ async function copyTree() {
     } catch { ok = false }
   }
   if (ok) {
-    copied.value = true
-    setTimeout(() => (copied.value = false), 1500)
+    copiedGroup.value = group
+    setTimeout(() => (copiedGroup.value = ''), 1500)
   }
 }
 
@@ -139,8 +139,8 @@ onBeforeUnmount(() => { clearTimeout(retry); ws && ws.close() })
       v-if="selectedCombo"
       :combo-name="selectedComboName"
       :flows="comboFlows"
-      :tree-ready="!!comboTree"
-      :copied="copied"
+      :trees="comboTrees"
+      :copied-group="copiedGroup"
       @copy="copyTree"
     />
   </div>
