@@ -232,3 +232,75 @@ func registerGetContent(s *mcp.Server, eng *engine.Engine) {
 		return ok(b.String(), GetContentOutput{Contents: contents})
 	})
 }
+
+// ── atlas_export_analysis ────────────────────────────────────────────────────
+
+type ExportAnalysisInput struct {
+	ID string `json:"id" jsonschema:"id del flujo a exportar; el JSON va a <ATLAS_DATA_DIR>/analysis/<id>.json"`
+}
+type ExportAnalysisOutput struct {
+	ID   string `json:"id"`
+	Path string `json:"path"`
+}
+
+func registerExportAnalysis(s *mcp.Server, eng *engine.Engine) {
+	mcp.AddTool(s, &mcp.Tool{
+		Name:        "atlas_export_analysis",
+		Description: "Guarda el 'primer análisis' de un flujo como JSON en la carpeta analysis/ (flujo + archivos node-lite + slots de enriquecimiento role/note/summary). PRESERVA el enriquecimiento previo si el archivo ya existe. Base para enriquecer luego.",
+	}, func(ctx context.Context, _ *mcp.CallToolRequest, in ExportAnalysisInput) (*mcp.CallToolResult, ExportAnalysisOutput, error) {
+		path, err := eng.ExportAnalysis(in.ID)
+		if err != nil {
+			return fail[ExportAnalysisOutput](err)
+		}
+		return ok(fmt.Sprintf("Análisis guardado en %s", path), ExportAnalysisOutput{ID: in.ID, Path: path})
+	})
+}
+
+// ── atlas_get_analysis ───────────────────────────────────────────────────────
+
+type GetAnalysisInput struct {
+	ID string `json:"id" jsonschema:"id del flujo"`
+}
+
+func registerGetAnalysis(s *mcp.Server, eng *engine.Engine) {
+	mcp.AddTool(s, &mcp.Tool{
+		Name:        "atlas_get_analysis",
+		Description: "Devuelve el JSON de análisis guardado de un flujo (con el enriquecimiento acumulado). Úsalo para leer y luego enriquecer.",
+	}, func(ctx context.Context, _ *mcp.CallToolRequest, in GetAnalysisInput) (*mcp.CallToolResult, engine.Analysis, error) {
+		a, err := eng.GetAnalysis(in.ID)
+		if err != nil {
+			return fail[engine.Analysis](err)
+		}
+		return ok(jsonText(a), a)
+	})
+}
+
+// ── atlas_enrich_analysis ────────────────────────────────────────────────────
+
+type EnrichFile struct {
+	ID   string `json:"id" jsonschema:"id del archivo dentro del flujo"`
+	Role string `json:"role,omitempty" jsonschema:"qué hace ese archivo en el flujo"`
+	Note string `json:"note,omitempty" jsonschema:"nota libre"`
+}
+type EnrichAnalysisInput struct {
+	ID      string       `json:"id" jsonschema:"id del flujo"`
+	Summary string       `json:"summary,omitempty" jsonschema:"análisis libre del flujo (reemplaza el summary si se envía)"`
+	Files   []EnrichFile `json:"files,omitempty" jsonschema:"enriquecimiento por archivo (role/note)"`
+}
+
+func registerEnrichAnalysis(s *mcp.Server, eng *engine.Engine) {
+	mcp.AddTool(s, &mcp.Tool{
+		Name:        "atlas_enrich_analysis",
+		Description: "Enriquece el análisis guardado de un flujo: fija un summary y/o role/note por archivo. Fusiona (no pisa lo no enviado). Si no existe el análisis, lo exporta primero.",
+	}, func(ctx context.Context, _ *mcp.CallToolRequest, in EnrichAnalysisInput) (*mcp.CallToolResult, engine.Analysis, error) {
+		fm := map[string][2]string{}
+		for _, f := range in.Files {
+			fm[f.ID] = [2]string{f.Role, f.Note}
+		}
+		a, err := eng.EnrichAnalysis(in.ID, in.Summary, fm)
+		if err != nil {
+			return fail[engine.Analysis](err)
+		}
+		return ok(fmt.Sprintf("Análisis de %s enriquecido (%d archivos con role/note).", a.Name, len(in.Files)), a)
+	})
+}

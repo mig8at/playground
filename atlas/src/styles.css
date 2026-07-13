@@ -118,5 +118,6 @@ code { font-family: ui-monospace, "SF Mono", Menlo, monospace; }
 .js-copy { background: var(--chip); color: var(--text); border: 1px solid var(--border); border-radius: 6px; padding: 4px 10px; font-size: 12px; cursor: pointer; }
 .js-copy:hover:not(:disabled) { border-color: var(--accent); }
 .js-copy:disabled { opacity: .5; cursor: default; }
+.js-saved { margin: 0; padding: 8px 18px; font-size: 12px; color: var(--green); background: rgba(63,185,80,.08); border-bottom: 1px solid var(--border); font-family: ui-monospace, monospace; }
 .js-body { flex: 1; overflow: auto; margin: 0; padding: 14px 18px; font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 12px; line-height: 1.55; color: #b9c6d3; white-space: pre; tab-size: 2; }
 .js-body code { color: inherit; }

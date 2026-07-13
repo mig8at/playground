@@ -137,6 +137,14 @@ func (s *server) handle(ctx context.Context, c *websocket.Conn, msg inbound) {
 			"type": "flow_files", "ok": true, "id": f.ID, "name": f.Name,
 			"description": f.Description, "files": s.eng.NodesByID(f.NodeIDs),
 		})
+	case "save_analysis":
+		path, err := s.eng.ExportAnalysis(msg.ID)
+		if err != nil {
+			send(ctx, c, map[string]any{"type": "analysis_saved", "ok": false, "id": msg.ID, "error": err.Error()})
+			return
+		}
+		log.Printf("análisis guardado · %s → %s", msg.ID, path)
+		send(ctx, c, map[string]any{"type": "analysis_saved", "ok": true, "id": msg.ID, "path": path})
 	case "delete_flow":
 		_ = s.eng.DeleteFlow(msg.ID)
 		s.broadcastState()

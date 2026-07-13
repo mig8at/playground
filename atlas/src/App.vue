@@ -57,6 +57,14 @@ function connect() {
           else panel.value = { ...panel.value, files: [], error: d.error, loading: false }
         }
         break
+      case 'analysis_saved':
+        if (d.ok) {
+          savedMsg.value = '✓ guardado en ' + (d.path || '').replace(/^.*\/analysis\//, 'analysis/')
+          setTimeout(() => (savedMsg.value = ''), 4000)
+        } else {
+          savedMsg.value = '✗ ' + (d.error || 'error')
+        }
+        break
     }
   }
   ws.onclose = () => { status.value = 'desconectado'; retry = setTimeout(connect, 1500) }
@@ -66,6 +74,11 @@ function connect() {
 function send(obj) { if (online.value) ws.send(JSON.stringify(obj)) }
 
 const copied = ref(false)
+const savedMsg = ref('')
+
+function saveAnalysis() {
+  if (panel.value?.kind === 'flow') send({ type: 'save_analysis', id: panel.value.id })
+}
 
 // click en un nodo del mapa → JSON de sus archivos (rankeado)
 function onPick({ repo, lang, label }) {
@@ -265,12 +278,16 @@ onBeforeUnmount(() => { clearTimeout(retry); ws && ws.close() })
           <p class="js-sub">{{ panelSub }}</p>
         </div>
         <div class="js-actions">
+          <button v-if="panel.kind === 'flow'" class="js-copy" @click="saveAnalysis" :disabled="panel.loading">
+            guardar
+          </button>
           <button class="js-copy" @click="copyJson" :disabled="panel.loading">
             {{ copied ? '✓ copiado' : 'copiar' }}
           </button>
           <button class="x" @click="closePanel" title="cerrar">×</button>
         </div>
       </div>
+      <p v-if="savedMsg" class="js-saved">{{ savedMsg }}</p>
       <pre class="js-body"><code>{{ nodeJson }}</code></pre>
     </aside>
   </div>
