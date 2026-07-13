@@ -22,6 +22,7 @@ const repoMap = computed(() => {
 })
 function count(alias) { return repoMap.value[alias]?.node_count || 0 }
 function lang(alias, l) { return repoMap.value[alias]?.langs?.[l] || 0 }
+function branch(alias) { return repoMap.value[alias]?.branch || '' }
 
 // suma de links cross-repo entre los dos grupos (aliados → originaciones)
 const bridge = computed(() => {
@@ -51,10 +52,10 @@ const nodes = computed(() => [
     style: { width: '320px', height: '250px' } },
   { id: 'legacy-backend', type: 'repo', parentNode: 'originaciones', extent: 'parent',
     position: { x: 20, y: 62 },
-    data: { title: 'legacy-backend', sub: 'Laravel · API', n: count('legacy-backend'), accent: '#f0883e', repo: 'legacy-backend' } },
+    data: { title: 'legacy-backend', sub: 'Laravel · API', n: count('legacy-backend'), accent: '#f0883e', repo: 'legacy-backend', branch: branch('legacy-backend') } },
   { id: 'frontend-monorepo', type: 'repo', parentNode: 'originaciones', extent: 'parent',
     position: { x: 20, y: 158 },
-    data: { title: 'frontend-monorepo', sub: 'React · wizard', n: count('frontend-monorepo'), accent: '#4c9aff', repo: 'frontend-monorepo' } },
+    data: { title: 'frontend-monorepo', sub: 'React · wizard', n: count('frontend-monorepo'), accent: '#4c9aff', repo: 'frontend-monorepo', branch: branch('frontend-monorepo') } },
 
   // ── grupo ALIADOS (derecha) ──
   { id: 'aliados', type: 'group', position: { x: 560, y: 80 },
@@ -62,10 +63,10 @@ const nodes = computed(() => [
     style: { width: '320px', height: '250px' } },
   { id: 'app-vue', type: 'repo', parentNode: 'aliados', extent: 'parent',
     position: { x: 20, y: 62 },
-    data: { title: 'Vue · aliados', sub: 'resources/js', n: lang('application', 'vue'), accent: '#42b883', repo: 'application', lang: 'vue' } },
+    data: { title: 'Vue · aliados', sub: 'resources/js', n: lang('application', 'vue'), accent: '#42b883', repo: 'application', lang: 'vue', branch: branch('application') } },
   { id: 'app-backend', type: 'repo', parentNode: 'aliados', extent: 'parent',
     position: { x: 20, y: 158 },
-    data: { title: 'Backend · Laravel', sub: 'app/', n: lang('application', 'php'), accent: '#f0883e', repo: 'application', lang: 'php' } },
+    data: { title: 'Backend · Laravel', sub: 'app/', n: lang('application', 'php'), accent: '#f0883e', repo: 'application', lang: 'php', branch: branch('application') } },
 ])
 
 const edges = computed(() => [
@@ -108,7 +109,10 @@ const edges = computed(() => [
         <div class="repo-node" :style="{ borderLeftColor: data.accent }">
           <div class="repo-title">{{ data.title }}</div>
           <div class="repo-sub">{{ data.sub }}</div>
-          <div class="repo-n">{{ data.n }} nodos</div>
+          <div class="repo-foot">
+            <span class="repo-n">{{ data.n }} nodos</span>
+            <span v-if="data.branch" class="repo-branch">⑂ {{ data.branch }}</span>
+          </div>
         </div>
         <Handle type="target" :position="Position.Left" />
         <Handle type="source" :position="Position.Right" />
@@ -137,7 +141,9 @@ const edges = computed(() => [
 .repo-node:hover { border-color: var(--accent); }
 .repo-title { font-size: 14px; font-weight: 600; color: var(--text); }
 .repo-sub { font-size: 11px; color: var(--muted); margin-top: 2px; font-family: ui-monospace, monospace; }
-.repo-n { font-size: 11px; color: var(--muted); margin-top: 6px; }
+.repo-foot { display: flex; align-items: center; justify-content: space-between; margin-top: 6px; gap: 8px; }
+.repo-n { font-size: 11px; color: var(--muted); }
+.repo-branch { font-size: 10px; color: #bc8cff; background: rgba(188,140,255,.12); padding: 1px 7px; border-radius: 999px; font-family: ui-monospace, monospace; white-space: nowrap; }
 
 :deep(.vue-flow__handle) { opacity: 0; }
 </style>

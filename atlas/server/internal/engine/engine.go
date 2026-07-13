@@ -18,6 +18,7 @@ import (
 	"sync"
 	"time"
 
+	"creditop/atlas/server/internal/gitinfo"
 	"creditop/atlas/server/internal/graph"
 	"creditop/atlas/server/internal/scan"
 )
@@ -90,14 +91,17 @@ func (e *Engine) Dir() string { return e.dir }
 func (e *Engine) indexPath() string { return filepath.Join(e.dir, "index.json") }
 func (e *Engine) flowsPath() string { return filepath.Join(e.dir, "flows.json") }
 
-// ModTimes devuelve el mtime de index.json y flows.json (para que el web
+// ModTimes devuelve el mtime de index/flows/combinations (para que el web
 // detecte cambios hechos por el MCP y refresque la UI). Cero si no existen.
-func (e *Engine) ModTimes() (idx, flows time.Time) {
+func (e *Engine) ModTimes() (idx, flows, combos time.Time) {
 	if fi, err := os.Stat(e.indexPath()); err == nil {
 		idx = fi.ModTime()
 	}
 	if fi, err := os.Stat(e.flowsPath()); err == nil {
 		flows = fi.ModTime()
+	}
+	if fi, err := os.Stat(e.combsPath()); err == nil {
+		combos = fi.ModTime()
 	}
 	return
 }
@@ -182,11 +186,13 @@ func (e *Engine) Connections(id string) []graph.Edge {
 	return graph.Connections(e.Nodes(), id)
 }
 
-// RepoSummary es un repo con su desglose por lenguaje (para el mapa de alto nivel).
+// RepoSummary es un repo con su desglose por lenguaje + estado git (para el mapa).
 type RepoSummary struct {
 	Alias     string         `json:"alias"`
 	NodeCount int            `json:"node_count"`
 	Langs     map[string]int `json:"langs"`
+	Branch    string         `json:"branch"`
+	Commit    string         `json:"commit"`
 }
 
 // RepoLink es la agregación de edges cross-repo entre dos repos por tipo.
@@ -232,7 +238,11 @@ func (e *Engine) Summary() Summary {
 
 	var out Summary
 	for _, r := range idx.Repos {
-		out.Repos = append(out.Repos, RepoSummary{Alias: r.Alias, NodeCount: r.NodeCount, Langs: langs[r.Alias]})
+		branch, commit := gitinfo.State(r.Root)
+		out.Repos = append(out.Repos, RepoSummary{
+			Alias: r.Alias, NodeCount: r.NodeCount, Langs: langs[r.Alias],
+			Branch: branch, Commit: commit,
+		})
 	}
 	for k, c := range agg {
 		p := strings.SplitN(k, "\x00", 3)

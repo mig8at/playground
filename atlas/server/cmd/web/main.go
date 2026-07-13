@@ -93,12 +93,14 @@ func (s *server) handleWS(w http.ResponseWriter, r *http.Request) {
 }
 
 type inbound struct {
-	Type string   `json:"type"`
-	Path string   `json:"path"`
-	ID   string   `json:"id"`
-	Repo string   `json:"repo"`
-	Lang string   `json:"lang"`
-	IDs  []string `json:"ids"`
+	Type    string            `json:"type"`
+	Path    string            `json:"path"`
+	ID      string            `json:"id"`
+	Repo    string            `json:"repo"`
+	Lang    string            `json:"lang"`
+	IDs     []string          `json:"ids"`
+	Name    string            `json:"name"`
+	Targets map[string]string `json:"targets"`
 }
 
 func (s *server) handle(ctx context.Context, c *websocket.Conn, msg inbound) {
@@ -150,11 +152,29 @@ func (s *server) handle(ctx context.Context, c *websocket.Conn, msg inbound) {
 		send(ctx, c, map[string]any{"type": "analysis_saved", "ok": true, "id": msg.ID, "path": path})
 	case "tree":
 		send(ctx, c, map[string]any{"type": "tree", "ok": true, "text": s.eng.Tree(msg.IDs)})
-	case "delete_flow":
-		_ = s.eng.DeleteFlow(msg.ID)
+	case "repo_branches":
+		out := map[string][]string{}
+		for _, r := range s.eng.Repos() {
+			out[r.Alias] = s.eng.RepoBranches(r.Alias)
+		}
+		send(ctx, c, map[string]any{"type": "repo_branches", "ok": true, "branches": out})
+	case "save_combination":
+		cb, err := s.eng.SaveCombination(msg.ID, msg.Name, msg.Targets)
+		if err != nil {
+			send(ctx, c, map[string]any{"type": "combination_saved", "ok": false, "error": err.Error()})
+			return
+		}
+		log.Printf("combinación guardada · %s", cb.Name)
+		send(ctx, c, map[string]any{"type": "combination_saved", "ok": true, "id": cb.ID})
+		s.broadcastState()
+	case "delete_combination":
+		_ = s.eng.DeleteCombination(msg.ID)
 		s.broadcastState()
 	case "refresh":
 		s.sendState(ctx, c)
+	case "delete_flow":
+		_ = s.eng.DeleteFlow(msg.ID)
+		s.broadcastState()
 	}
 }
 
@@ -199,13 +219,25 @@ func (s *server) stateMsg() map[string]any {
 		})
 	}
 
+	// combinaciones de ramas con su estado de alineación
+	type combo struct {
+		engine.Combination
+		Status engine.CombStatus `json:"status"`
+	}
+	var combos []combo
+	for _, c := range s.eng.Combinations() {
+		st, _ := s.eng.CombinationStatus(c.ID)
+		combos = append(combos, combo{Combination: c, Status: st})
+	}
+
 	return map[string]any{
-		"type":    "state",
-		"repos":   repos,
-		"flows":   summaries,
-		"nodes":   len(nodes),
-		"summary": s.eng.Summary(),
-		"server":  "server on",
+		"type":         "state",
+		"repos":        repos,
+		"flows":        summaries,
+		"nodes":        len(nodes),
+		"summary":      s.eng.Summary(),
+		"combinations": combos,
+		"server":       "server on",
 	}
 }
 
@@ -221,15 +253,15 @@ func (s *server) broadcastState() {
 // watchDisk observa el mtime de los archivos de datos; si el MCP (u otro
 // proceso) los cambia, reenvía el estado a todos los clientes.
 func (s *server) watchDisk() {
-	var lastIdx, lastFlows time.Time
+	var lastIdx, lastFlows, lastCombos time.Time
 	for {
 		time.Sleep(1 * time.Second)
-		idx, flows := s.eng.ModTimes()
-		if idx.After(lastIdx) || flows.After(lastFlows) {
-			if !lastIdx.IsZero() || !lastFlows.IsZero() {
+		idx, flows, combos := s.eng.ModTimes()
+		if idx.After(lastIdx) || flows.After(lastFlows) || combos.After(lastCombos) {
+			if !lastIdx.IsZero() || !lastFlows.IsZero() || !lastCombos.IsZero() {
 				s.broadcastState()
 			}
-			lastIdx, lastFlows = idx, flows
+			lastIdx, lastFlows, lastCombos = idx, flows, combos
 		}
 	}
 }

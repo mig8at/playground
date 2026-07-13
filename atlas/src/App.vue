@@ -1,13 +1,14 @@
 <script setup>
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import MapView from './MapView.vue'
-import FlowCatalog from './FlowCatalog.vue'
+import CombinationPanel from './CombinationPanel.vue'
 
 const WS_URL = 'ws://localhost:8788/ws'
 
 const status = ref('conectando…')
 const repos = ref([])
-const flows = ref([])
+const combinations = ref([])
+const branches = ref({})
 const summary = ref({ repos: [], links: [] })
 const nodeCount = ref(0)
 // sidebar JSON: kind 'node' (click en el mapa) | 'flow' (click en el catálogo)
@@ -28,9 +29,12 @@ function connect() {
       case 'state':
         status.value = d.server || 'server on'
         repos.value = d.repos || []
-        flows.value = d.flows || []
+        combinations.value = d.combinations || []
         summary.value = d.summary || { repos: [], links: [] }
         nodeCount.value = d.nodes || 0
+        break
+      case 'repo_branches':
+        if (d.ok) branches.value = d.branches || {}
         break
       case 'node_files':
         if (d.ok && panel.value?.kind === 'node' && panel.value.repo === d.repo && panel.value.lang === d.lang) {
@@ -76,6 +80,11 @@ function onOpenFlow(flow) {
   send({ type: 'flow_files', id: flow.id })
 }
 function closePanel() { panel.value = null }
+
+// combinaciones de ramas
+function requestBranches() { send({ type: 'repo_branches' }) }
+function onSaveCombination({ name, targets }) { send({ type: 'save_combination', name, targets }) }
+function onDeleteCombination(id) { if (confirm('¿Borrar esta combinación?')) send({ type: 'delete_combination', id }) }
 
 // ids con contenido cambiado desde el análisis (para marcarlos)
 const changedSet = computed(() => {
@@ -158,12 +167,19 @@ onBeforeUnmount(() => { clearTimeout(retry); ws && ws.close() })
         <span class="pill" :class="online ? 'on' : 'off'">{{ status }}</span>
         <span class="stat">{{ repos.length }} repos</span>
         <span class="stat">{{ nodeCount }} nodos</span>
-        <span class="stat">{{ flows.length }} flujos</span>
+        <span class="stat">{{ combinations.length }} combinaciones</span>
       </div>
     </header>
 
     <MapView :summary="summary" @pick="onPick" />
-    <FlowCatalog :flows="flows" @open="onOpenFlow" />
+    <CombinationPanel
+      :combinations="combinations"
+      :repos="summary.repos"
+      :branches="branches"
+      @save="onSaveCombination"
+      @delete="onDeleteCombination"
+      @need-branches="requestBranches"
+    />
 
     <!-- sidebar JSON (click en un nodo del mapa o en una card del catálogo) -->
     <aside v-if="panel" class="json-side">

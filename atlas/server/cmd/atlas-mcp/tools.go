@@ -353,3 +353,46 @@ func registerFlowStatus(s *mcp.Server, eng *engine.Engine) {
 		return ok(jsonText(out), out)
 	})
 }
+
+// ── atlas_combinations ───────────────────────────────────────────────────────
+
+type CombinationsInput struct{}
+
+func registerCombinations(s *mcp.Server, eng *engine.Engine) {
+	mcp.AddTool(s, &mcp.Tool{
+		Name:        "atlas_combinations",
+		Description: "Lista las combinaciones de ramas guardadas con su estado de alineación vs el git actual: por repo, si está en la rama objetivo (aligned), en otra rama (off) o avanzó commits (moved). Úsalo para saber si el 'mapa' de ramas sigue vigente.",
+	}, func(ctx context.Context, _ *mcp.CallToolRequest, _ CombinationsInput) (*mcp.CallToolResult, any, error) {
+		type combo struct {
+			engine.Combination
+			Status engine.CombStatus `json:"status"`
+		}
+		var out []combo
+		for _, c := range eng.Combinations() {
+			st, _ := eng.CombinationStatus(c.ID)
+			out = append(out, combo{Combination: c, Status: st})
+		}
+		return ok(jsonText(out), any(out))
+	})
+}
+
+// ── atlas_save_combination ───────────────────────────────────────────────────
+
+type SaveCombinationInput struct {
+	ID      string            `json:"id,omitempty" jsonschema:"id; vacío para crear (se genera del nombre)"`
+	Name    string            `json:"name" jsonschema:"nombre de la combinación, ej 'Producción' o 'Staging'"`
+	Targets map[string]string `json:"targets" jsonschema:"mapa repo→rama objetivo, ej {\"legacy-backend\":\"main\",\"application\":\"main\"}"`
+}
+
+func registerSaveCombination(s *mcp.Server, eng *engine.Engine) {
+	mcp.AddTool(s, &mcp.Tool{
+		Name:        "atlas_save_combination",
+		Description: "Guarda una combinación de ramas (repo→rama). Captura la línea base (commit por repo que ya esté en su rama objetivo). Aparece en vivo en la UI de Atlas.",
+	}, func(ctx context.Context, _ *mcp.CallToolRequest, in SaveCombinationInput) (*mcp.CallToolResult, engine.Combination, error) {
+		cb, err := eng.SaveCombination(in.ID, in.Name, in.Targets)
+		if err != nil {
+			return fail[engine.Combination](err)
+		}
+		return ok(fmt.Sprintf("Combinación guardada: %s (%d repos).", cb.Name, len(cb.Targets)), cb)
+	})
+}
