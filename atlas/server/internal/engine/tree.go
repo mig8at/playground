@@ -112,6 +112,95 @@ func (e *Engine) ComboTree(comboID string) string {
 	return e.Tree(ids)
 }
 
+// StageInfo describe una etapa (nodo) del grafo del flujo.
+type StageInfo struct {
+	ID    string `json:"id"`
+	Name  string `json:"name"`
+	Files int    `json:"files"`
+	Kind  string `json:"kind"`
+}
+
+// GroupGraph es un flujo de negocio como GRAFO: un canal (tronco) → varios
+// lenders (ramas). `Trees` tiene el árbol Rino por camino: un key por lender
+// (= canal ∪ ese lender) y "__all__" (= canal ∪ todos los lenders).
+type GroupGraph struct {
+	Group   string            `json:"group"`
+	Channel *StageInfo        `json:"channel"`
+	Lenders []StageInfo       `json:"lenders"`
+	Trees   map[string]string `json:"trees"`
+}
+
+// pathTree arma el árbol (con header de contexto) de la unión de unos flujos.
+func (e *Engine) pathTree(flows []Flow) string {
+	seen := map[string]bool{}
+	var ids []string
+	for _, f := range flows {
+		for _, id := range f.NodeIDs {
+			if !seen[id] {
+				seen[id] = true
+				ids = append(ids, id)
+			}
+		}
+	}
+	return e.groupHeader(flows, e.NodesByID(ids)) + e.Tree(ids)
+}
+
+// ComboGraphs devuelve, por flujo de negocio (group), el grafo canal→lenders con
+// el árbol por camino. Es lo que permite "copiar según el flujo".
+func (e *Engine) ComboGraphs(comboID string) []GroupGraph {
+	flowsByGroup := map[string][]Flow{}
+	var order []string
+	for _, f := range e.Flows() {
+		if f.Combination != comboID {
+			continue
+		}
+		g := groupOf(f)
+		if _, ok := flowsByGroup[g]; !ok {
+			order = append(order, g)
+		}
+		flowsByGroup[g] = append(flowsByGroup[g], f)
+	}
+	info := func(f Flow) StageInfo { return StageInfo{ID: f.ID, Name: f.Name, Files: len(f.NodeIDs), Kind: f.Kind} }
+
+	var out []GroupGraph
+	for _, g := range order {
+		fls := flowsByGroup[g]
+		sort.SliceStable(fls, func(i, j int) bool { return fls[i].Created.Before(fls[j].Created) })
+
+		var channel *Flow
+		var branches []Flow
+		for i := range fls {
+			if fls[i].Kind == "channel" && channel == nil {
+				f := fls[i]
+				channel = &f
+			} else {
+				branches = append(branches, fls[i])
+			}
+		}
+
+		gg := GroupGraph{Group: g, Lenders: []StageInfo{}, Trees: map[string]string{}}
+		if channel != nil {
+			ci := info(*channel)
+			gg.Channel = &ci
+			for _, b := range branches {
+				gg.Lenders = append(gg.Lenders, info(b))
+				gg.Trees[b.ID] = e.pathTree([]Flow{*channel, b}) // camino: canal + ese lender
+			}
+			all := append([]Flow{*channel}, branches...)
+			gg.Trees["__all__"] = e.pathTree(all)
+		} else {
+			// sin canal explícito: cada flujo es un nodo suelto
+			for _, b := range fls {
+				gg.Lenders = append(gg.Lenders, info(b))
+				gg.Trees[b.ID] = e.pathTree([]Flow{b})
+			}
+			gg.Trees["__all__"] = e.pathTree(fls)
+		}
+		out = append(out, gg)
+	}
+	return out
+}
+
 // groupOf devuelve la fila/flujo de negocio de un flujo (fallback: su id).
 func groupOf(f Flow) string {
 	if f.Group != "" {

@@ -152,8 +152,8 @@ func (s *server) handle(ctx context.Context, c *websocket.Conn, msg inbound) {
 		send(ctx, c, map[string]any{"type": "analysis_saved", "ok": true, "id": msg.ID, "path": path})
 	case "tree":
 		send(ctx, c, map[string]any{"type": "tree", "ok": true, "text": s.eng.Tree(msg.IDs)})
-	case "combo_trees":
-		send(ctx, c, map[string]any{"type": "combo_trees", "ok": true, "id": msg.ID, "trees": s.eng.ComboGroupTrees(msg.ID)})
+	case "combo_graphs":
+		send(ctx, c, map[string]any{"type": "combo_graphs", "ok": true, "id": msg.ID, "graphs": s.eng.ComboGraphs(msg.ID)})
 	case "repo_branches":
 		out := map[string][]string{}
 		for _, r := range s.eng.Repos() {

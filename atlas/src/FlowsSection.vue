@@ -1,87 +1,99 @@
 <script setup>
-import { computed } from 'vue'
-
-// una FILA por flujo de negocio (group). Dentro, las etapas (canal → lender).
-// Cada fila termina en su propio (copiar árbol).
+// cada flujo de negocio como GRAFO: canal (tronco) → lenders (ramas).
+// Copia por camino: cada lender copia (canal + ese lender); "todo" copia canal+todos.
 const props = defineProps({
   comboName: { type: String, default: '' },
-  flows: { type: Array, default: () => [] }, // [{id,name,files,group,created,...}]
-  trees: { type: Object, default: () => ({}) }, // group → árbol
-  copiedGroup: { type: String, default: '' },
+  graphs: { type: Array, default: () => [] }, // [{group, channel, lenders, trees}]
+  copiedKey: { type: String, default: '' },
 })
 const emit = defineEmits(['copy'])
 
-// agrupa por group (fallback: id del flujo), preservando el orden de aparición
-const rows = computed(() => {
-  const map = new Map()
-  for (const f of props.flows) {
-    const g = f.group || f.id
-    if (!map.has(g)) map.set(g, [])
-    map.get(g).push(f)
-  }
-  return [...map.entries()].map(([group, stages]) => ({ group, stages }))
-})
+function isCopied(group, key) { return props.copiedKey === group + '::' + key }
+function label(group, key, def) { return isCopied(group, key) ? '✓ copiado' : def }
 </script>
 
 <template>
   <section class="flows">
     <div class="fl-head">
       <h2>Flujos</h2>
-      <span class="muted">de <b>{{ comboName }}</b> · cada fila es un flujo (canal → lender); (copiar) baja el árbol completo de esa fila</span>
+      <span class="muted">de <b>{{ comboName }}</b> · canal → lenders (grafo). Cada (copiar) baja el árbol de ese camino</span>
     </div>
 
-    <p v-if="!flows.length" class="fl-empty">
-      Sin flujos en esta combinación. Se crean vía el MCP (<code>atlas_save_flow</code> con <code>combination</code> + <code>group</code>).
+    <p v-if="!graphs.length" class="fl-empty">
+      Sin flujos en esta combinación. Se crean vía el MCP (<code>atlas_save_flow</code> con <code>group</code> + <code>kind</code>).
     </p>
 
-    <div v-for="row in rows" :key="row.group" class="fl-row">
-      <template v-for="(f, i) in row.stages" :key="f.id">
-        <span v-if="i > 0" class="fl-arrow">→</span>
-        <div class="fl-stage" :title="f.description">
-          <span class="fl-idx">{{ i + 1 }}</span>
-          <span class="fl-body">
-            <span class="fl-name">{{ f.name }}</span>
-            <span class="fl-meta">{{ f.files }} archivos</span>
-          </span>
+    <div v-for="g in graphs" :key="g.group" class="fl-graph">
+      <!-- tronco: canal -->
+      <div v-if="g.channel" class="fl-trunk">
+        <div class="fl-node channel">
+          <span class="fl-tag">canal</span>
+          <span class="fl-name">{{ g.channel.name }}</span>
+          <span class="fl-meta">{{ g.channel.files }} archivos</span>
         </div>
-      </template>
+        <button
+          class="fl-copy"
+          :class="{ ghost: (g.lenders || []).length }"
+          :disabled="!g.trees['__all__']"
+          @click="emit('copy', { group: g.group, key: '__all__' })"
+        >
+          {{ label(g.group, '__all__', (g.lenders || []).length ? '⧉ todo el flujo' : '⧉ copiar árbol') }}
+        </button>
+      </div>
 
-      <span class="fl-arrow">→</span>
-      <button class="fl-copy" :disabled="!trees[row.group]" @click="emit('copy', row.group)"
-              :title="trees[row.group] ? 'copiar el árbol completo (estructura + contenido) de este flujo' : 'preparando árbol…'">
-        {{ copiedGroup === row.group ? '✓ copiado' : '⧉ copiar árbol' }}
-      </button>
+      <!-- ramas: lenders -->
+      <div class="fl-branches">
+        <div v-for="l in (g.lenders || [])" :key="l.id" class="fl-branch">
+          <span v-if="g.channel" class="fl-connector">→</span>
+          <div class="fl-node lender">
+            <span class="fl-tag lender">lender</span>
+            <span class="fl-name">{{ l.name }}</span>
+            <span class="fl-meta">{{ l.files }} archivos</span>
+          </div>
+          <button
+            class="fl-copy"
+            :disabled="!g.trees[l.id]"
+            :title="g.channel ? 'copia el árbol del canal + este lender' : 'copia el árbol de este flujo'"
+            @click="emit('copy', { group: g.group, key: l.id })"
+          >
+            {{ label(g.group, l.id, '⧉ copiar') }}
+          </button>
+        </div>
+      </div>
     </div>
   </section>
 </template>
 
 <style scoped>
 .flows { margin-top: 16px; background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 18px; }
-.fl-head { display: flex; align-items: baseline; gap: 12px; margin-bottom: 14px; flex-wrap: wrap; }
+.fl-head { display: flex; align-items: baseline; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; }
 .fl-head h2 { font-size: 16px; }
 .fl-empty { color: var(--muted); font-size: 13px; line-height: 1.5; }
 .fl-empty code { background: var(--chip); padding: 1px 5px; border-radius: 4px; font-size: 12px; }
 
-.fl-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 12px; }
-.fl-row:last-child { margin-bottom: 0; }
-.fl-arrow { color: var(--muted); font-size: 20px; flex: none; }
-.fl-stage {
-  display: flex; align-items: center; gap: 10px;
-  background: var(--panel2); border: 1px solid var(--border); border-radius: 10px;
-  padding: 10px 14px;
+.fl-graph { display: flex; align-items: flex-start; gap: 14px; padding: 14px 0; border-top: 1px solid var(--border); flex-wrap: wrap; }
+.fl-graph:first-of-type { border-top: 0; padding-top: 0; }
+
+.fl-trunk { display: flex; flex-direction: column; gap: 8px; flex: none; }
+.fl-branches { display: flex; flex-direction: column; gap: 8px; }
+.fl-branch { display: flex; align-items: center; gap: 10px; }
+.fl-connector { color: var(--muted); font-size: 18px; flex: none; }
+
+.fl-node {
+  display: flex; flex-direction: column; min-width: 150px;
+  background: var(--panel2); border: 1px solid var(--border); border-radius: 10px; padding: 9px 13px;
 }
-.fl-idx {
-  flex: none; width: 22px; height: 22px; border-radius: 50%;
-  background: var(--chip); color: var(--muted); font-size: 12px; font-weight: 600;
-  display: flex; align-items: center; justify-content: center;
-}
-.fl-body { display: flex; flex-direction: column; }
-.fl-name { font-size: 14px; font-weight: 600; color: var(--text); }
+.fl-node.channel { border-left: 3px solid var(--accent); }
+.fl-node.lender { border-left: 3px solid #3fb950; }
+.fl-tag { font-size: 9px; text-transform: uppercase; letter-spacing: .5px; color: var(--accent); }
+.fl-tag.lender { color: #3fb950; }
+.fl-name { font-size: 14px; font-weight: 600; color: var(--text); margin-top: 1px; }
 .fl-meta { font-size: 11px; color: var(--muted); }
 
 .fl-copy {
-  background: var(--accent); color: #06101f; border: 0; border-radius: 10px;
-  padding: 10px 16px; font-weight: 600; font-size: 13px; cursor: pointer; white-space: nowrap;
+  background: var(--accent); color: #06101f; border: 0; border-radius: 8px;
+  padding: 8px 12px; font-weight: 600; font-size: 12px; cursor: pointer; white-space: nowrap; flex: none;
 }
+.fl-copy.ghost { background: var(--chip); color: var(--text); border: 1px solid var(--border); }
 .fl-copy:disabled { opacity: .5; cursor: default; }
 </style>

@@ -1,5 +1,5 @@
 <script setup>
-// Atlas — mapa cross-repo + combinaciones de ramas + flujos por combinación
+// Atlas — mapa cross-repo + combinaciones de ramas + flujos-grafo (canal→lenders)
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import MapView from './MapView.vue'
 import CombinationPanel from './CombinationPanel.vue'
@@ -13,8 +13,8 @@ const flows = ref([])
 const combinations = ref([])
 const branches = ref({})
 const selectedCombo = ref('')
-const comboTrees = ref({}) // group → árbol Rino de esa fila/flujo
-const copiedGroup = ref('') // fila recién copiada
+const comboGraphs = ref([]) // [GroupGraph] canal→lenders con árboles por camino
+const copiedKey = ref('') // `${group}::${key}` recién copiado
 const summary = ref({ repos: [], links: [] })
 const nodeCount = ref(0)
 
@@ -47,14 +47,14 @@ function connect() {
         if (selectedCombo.value && !combinations.value.find((c) => c.id === selectedCombo.value)) {
           selectedCombo.value = ''
         } else if (selectedCombo.value) {
-          requestComboTrees() // los flujos pudieron cambiar → refrescar los árboles
+          requestComboGraphs() // los flujos pudieron cambiar → refrescar los grafos
         }
         break
       case 'repo_branches':
         if (d.ok) branches.value = d.branches || {}
         break
-      case 'combo_trees':
-        if (d.ok && d.id === selectedCombo.value) comboTrees.value = d.trees || {}
+      case 'combo_graphs':
+        if (d.ok && d.id === selectedCombo.value) comboGraphs.value = d.graphs || []
         break
     }
   }
@@ -70,15 +70,16 @@ function onSaveCombination({ name, targets }) { send({ type: 'save_combination',
 function onDeleteCombination(id) { if (confirm('¿Borrar esta combinación?')) send({ type: 'delete_combination', id }) }
 function onSelectCombo(id) {
   selectedCombo.value = selectedCombo.value === id ? '' : id
-  comboTrees.value = {}
-  copiedGroup.value = ''
-  if (selectedCombo.value) requestComboTrees()
+  comboGraphs.value = []
+  copiedKey.value = ''
+  if (selectedCombo.value) requestComboGraphs()
 }
-function requestComboTrees() { if (selectedCombo.value) send({ type: 'combo_trees', id: selectedCombo.value }) }
+function requestComboGraphs() { if (selectedCombo.value) send({ type: 'combo_graphs', id: selectedCombo.value }) }
 
-// copiar el árbol completo de UNA fila/flujo (todas sus etapas)
-async function copyTree(group) {
-  const text = comboTrees.value[group]
+// copiar el árbol de UN camino del grafo (canal + ese lender, o todo)
+async function copyTree({ group, key }) {
+  const g = comboGraphs.value.find((x) => x.group === group)
+  const text = g?.trees?.[key]
   if (!text) return
   let ok = false
   try {
@@ -97,8 +98,8 @@ async function copyTree(group) {
     } catch { ok = false }
   }
   if (ok) {
-    copiedGroup.value = group
-    setTimeout(() => (copiedGroup.value = ''), 1500)
+    copiedKey.value = group + '::' + key
+    setTimeout(() => (copiedKey.value = ''), 1500)
   }
 }
 
@@ -138,9 +139,8 @@ onBeforeUnmount(() => { clearTimeout(retry); ws && ws.close() })
     <FlowsSection
       v-if="selectedCombo"
       :combo-name="selectedComboName"
-      :flows="comboFlows"
-      :trees="comboTrees"
-      :copied-group="copiedGroup"
+      :graphs="comboGraphs"
+      :copied-key="copiedKey"
       @copy="copyTree"
     />
   </div>

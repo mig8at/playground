@@ -38,7 +38,8 @@ type Flow struct {
 	Name        string    `json:"name"`
 	Description string    `json:"description,omitempty"`
 	Combination string    `json:"combination,omitempty"` // id de la combinación a la que pertenece
-	Group       string    `json:"group,omitempty"`       // fila/flujo de negocio (agrupa etapas: canal→lender)
+	Group       string    `json:"group,omitempty"`       // fila/flujo de negocio (grafo: canal→lenders)
+	Kind        string    `json:"kind,omitempty"`        // "channel" (tronco) | "lender" (rama)
 	NodeIDs     []string  `json:"node_ids"`
 	// Hashes = snapshot del hash de contenido de cada archivo al momento de
 	// guardar (la línea base del análisis). Al re-escanear los repos, comparar
@@ -360,7 +361,7 @@ func (e *Engine) Content(ids []string) (map[string]string, error) {
 
 // SaveFlow crea o actualiza un flujo. Si id vacío, crea uno nuevo (slug del
 // nombre). Devuelve el flujo guardado.
-func (e *Engine) SaveFlow(id, name, description, combination, group string, nodeIDs []string) (Flow, error) {
+func (e *Engine) SaveFlow(id, name, description, combination, group, kind string, nodeIDs []string) (Flow, error) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 
@@ -383,6 +384,7 @@ func (e *Engine) SaveFlow(id, name, description, combination, group string, node
 			ff.Flows[i].Description = description
 			ff.Flows[i].Combination = combination
 			ff.Flows[i].Group = group
+			ff.Flows[i].Kind = kind
 			ff.Flows[i].NodeIDs = nodeIDs
 			ff.Flows[i].Hashes = hashes
 			ff.Flows[i].Updated = now
@@ -392,7 +394,7 @@ func (e *Engine) SaveFlow(id, name, description, combination, group string, node
 	}
 	var saved Flow
 	if !updated {
-		saved = Flow{ID: id, Name: name, Description: description, Combination: combination, Group: group, NodeIDs: nodeIDs, Hashes: hashes, Created: now, Updated: now}
+		saved = Flow{ID: id, Name: name, Description: description, Combination: combination, Group: group, Kind: kind, NodeIDs: nodeIDs, Hashes: hashes, Created: now, Updated: now}
 		ff.Flows = append(ff.Flows, saved)
 	}
 	if err := writeJSON(e.flowsPath(), ff); err != nil {
