@@ -1,18 +1,96 @@
 package engine
 
 import (
+	"fmt"
 	"regexp"
 	"sort"
 	"strings"
+
+	"creditop/atlas/server/internal/scan"
 )
 
-// FlowTree devuelve el árbol Rino de un flujo (sus archivos).
+// FlowTree devuelve el árbol Rino de un flujo (sus archivos) con header de contexto.
 func (e *Engine) FlowTree(flowID string) string {
 	f, ok := e.Flow(flowID)
 	if !ok {
 		return ""
 	}
-	return e.Tree(f.NodeIDs)
+	nodes := e.NodesByID(f.NodeIDs)
+	return e.groupHeader([]Flow{f}, nodes) + e.Tree(f.NodeIDs)
+}
+
+// groupHeader arma el bloque de CONTEXTO TÉCNICO que abre el árbol: qué
+// representa el flujo (descripciones + summary del enriquecimiento), los repos
+// que usa y las tablas/BD involucradas. Es lo que un LLM lee primero.
+func (e *Engine) groupHeader(flows []Flow, nodes []scan.Node) string {
+	var stages []string
+	descSeen := map[string]bool{}
+	var descs, summaries []string
+	for _, f := range flows {
+		stages = append(stages, f.Name)
+		if d := strings.TrimSpace(f.Description); d != "" && !descSeen[d] {
+			descSeen[d] = true
+			descs = append(descs, d)
+		}
+		if a, err := e.GetAnalysis(f.ID); err == nil && strings.TrimSpace(a.Summary) != "" {
+			summaries = append(summaries, strings.TrimSpace(a.Summary))
+		}
+	}
+	repoSet, tblSet := map[string]bool{}, map[string]bool{}
+	var repos, tbls []string
+	for _, n := range nodes {
+		if !repoSet[n.Repo] {
+			repoSet[n.Repo] = true
+			repos = append(repos, n.Repo)
+		}
+		for _, t := range n.Tables {
+			if !tblSet[t] {
+				tblSet[t] = true
+				tbls = append(tbls, t)
+			}
+		}
+	}
+	sort.Strings(repos)
+	sort.Strings(tbls)
+
+	rule := strings.Repeat("═", 74)
+	var b strings.Builder
+	b.WriteString("# " + rule + "\n")
+	b.WriteString("# FLUJO: " + strings.Join(stages, " → ") + "\n")
+	b.WriteString("# " + rule + "\n#\n")
+	for _, d := range descs {
+		b.WriteString(wrapComment(d) + "#\n")
+	}
+	for _, s := range summaries {
+		b.WriteString(wrapComment(s) + "#\n")
+	}
+	b.WriteString("# Repos:    " + strings.Join(repos, ", ") + "\n")
+	if len(tbls) > 0 {
+		b.WriteString(wrapComment("Tablas/BD: " + strings.Join(tbls, ", ")))
+	}
+	b.WriteString("# Etapas:   " + strings.Join(stages, " → ") + "\n")
+	b.WriteString(fmt.Sprintf("# Archivos: %d\n", len(nodes)))
+	b.WriteString("# " + rule + "\n\n")
+	return b.String()
+}
+
+// wrapComment envuelve un texto largo a ~78 cols con prefijo "# ".
+func wrapComment(s string) string {
+	const width = 78
+	var b strings.Builder
+	for _, para := range strings.Split(s, "\n") {
+		words := strings.Fields(para)
+		line := "# "
+		for _, w := range words {
+			if len(line)+len(w)+1 > width && line != "# " {
+				b.WriteString(strings.TrimRight(line, " ") + "\n")
+				line = "# "
+			}
+			line += w + " "
+		}
+		b.WriteString(strings.TrimRight(line, " ") + "\n")
+	}
+	return b.String()
 }
 
 // ComboTree arma el árbol Rino de TODOS los flujos de una combinación (unión
@@ -46,7 +124,8 @@ func groupOf(f Flow) string {
 // esa fila: la unión dedup de las etapas de esa fila. Cada fila tiene su propio
 // (copiar). Mapa group→árbol.
 func (e *Engine) ComboGroupTrees(comboID string) map[string]string {
-	byGroup := map[string][]string{}
+	flowsByGroup := map[string][]Flow{}
+	idsByGroup := map[string][]string{}
 	seen := map[string]map[string]bool{}
 	for _, f := range e.Flows() {
 		if f.Combination != comboID {
@@ -56,16 +135,20 @@ func (e *Engine) ComboGroupTrees(comboID string) map[string]string {
 		if seen[g] == nil {
 			seen[g] = map[string]bool{}
 		}
+		flowsByGroup[g] = append(flowsByGroup[g], f)
 		for _, id := range f.NodeIDs {
 			if !seen[g][id] {
 				seen[g][id] = true
-				byGroup[g] = append(byGroup[g], id)
+				idsByGroup[g] = append(idsByGroup[g], id)
 			}
 		}
 	}
 	out := map[string]string{}
-	for g, ids := range byGroup {
-		out[g] = e.Tree(ids)
+	for g, ids := range idsByGroup {
+		fls := flowsByGroup[g]
+		sort.SliceStable(fls, func(i, j int) bool { return fls[i].Created.Before(fls[j].Created) }) // etapas en orden canal→lender
+		header := e.groupHeader(fls, e.NodesByID(ids))
+		out[g] = header + e.Tree(ids)
 	}
 	return out
 }
