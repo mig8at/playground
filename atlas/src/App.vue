@@ -1,11 +1,14 @@
 <script setup>
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
+import MapView from './MapView.vue'
 
 const WS_URL = 'ws://localhost:8788/ws'
 
 const status = ref('conectando…')
+const view = ref('mapa')          // 'mapa' | 'lista'
 const repos = ref([])
 const flows = ref([])
+const summary = ref({ repos: [], links: [] })
 const nodeCount = ref(0)
 const scanPath = ref('')
 const scanning = ref(false)
@@ -30,6 +33,7 @@ function connect() {
         status.value = d.server || 'server on'
         repos.value = d.repos || []
         flows.value = d.flows || []
+        summary.value = d.summary || { repos: [], links: [] }
         nodeCount.value = d.nodes || 0
         // si el flujo abierto sigue existiendo, refrescar su detalle
         if (selected.value && !flows.value.find(f => f.id === selected.value.flow.id)) {
@@ -93,6 +97,10 @@ onBeforeUnmount(() => { clearTimeout(retry); ws && ws.close() })
         </div>
       </div>
       <div class="stats">
+        <div class="toggle">
+          <button :class="{ sel: view === 'mapa' }" @click="view = 'mapa'">Mapa</button>
+          <button :class="{ sel: view === 'lista' }" @click="view = 'lista'">Lista</button>
+        </div>
         <span class="pill" :class="online ? 'on' : 'off'">{{ status }}</span>
         <span class="stat">{{ repos.length }} repos</span>
         <span class="stat">{{ nodeCount }} nodos</span>
@@ -112,7 +120,9 @@ onBeforeUnmount(() => { clearTimeout(retry); ws && ws.close() })
       <span v-if="scanMsg" class="scanmsg">{{ scanMsg }}</span>
     </div>
 
-    <main class="cols">
+    <MapView v-if="view === 'mapa'" :summary="summary" />
+
+    <main v-else class="cols">
       <!-- IZQ: repos + flujos -->
       <aside class="side">
         <section>

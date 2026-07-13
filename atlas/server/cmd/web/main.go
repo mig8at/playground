@@ -161,11 +161,12 @@ func (s *server) stateMsg() map[string]any {
 	}
 
 	return map[string]any{
-		"type":   "state",
-		"repos":  repos,
-		"flows":  summaries,
-		"nodes":  len(nodes),
-		"server": "server on",
+		"type":    "state",
+		"repos":   repos,
+		"flows":   summaries,
+		"nodes":   len(nodes),
+		"summary": s.eng.Summary(),
+		"server":  "server on",
 	}
 }
 

@@ -169,6 +169,65 @@ func (e *Engine) Connections(id string) []graph.Edge {
 	return graph.Connections(e.Nodes(), id)
 }
 
+// RepoSummary es un repo con su desglose por lenguaje (para el mapa de alto nivel).
+type RepoSummary struct {
+	Alias     string         `json:"alias"`
+	NodeCount int            `json:"node_count"`
+	Langs     map[string]int `json:"langs"`
+}
+
+// RepoLink es la agregación de edges cross-repo entre dos repos por tipo.
+type RepoLink struct {
+	From  string `json:"from"`
+	To    string `json:"to"`
+	Kind  string `json:"kind"`
+	Count int    `json:"count"`
+}
+
+// Summary es la vista de nivel-repo del ecosistema: repos con lenguajes +
+// enlaces cross-repo agregados. Alimenta el mapa Vue Flow.
+type Summary struct {
+	Repos []RepoSummary `json:"repos"`
+	Links []RepoLink    `json:"links"`
+}
+
+// Summary calcula el resumen nivel-repo (lenguajes por repo + edges cross-repo
+// agregados por par y tipo).
+func (e *Engine) Summary() Summary {
+	e.mu.Lock()
+	idx := e.loadIndex()
+	e.mu.Unlock()
+
+	repoOf := map[string]string{}
+	langs := map[string]map[string]int{}
+	for _, n := range idx.Nodes {
+		repoOf[n.ID] = n.Repo
+		if langs[n.Repo] == nil {
+			langs[n.Repo] = map[string]int{}
+		}
+		langs[n.Repo][n.Lang]++
+	}
+
+	agg := map[string]int{} // from\x00to\x00kind -> count
+	for _, ed := range graph.Build(idx.Nodes) {
+		a, b := repoOf[ed.From], repoOf[ed.To]
+		if a == "" || b == "" || a == b {
+			continue // solo cross-repo
+		}
+		agg[a+"\x00"+b+"\x00"+ed.Kind]++
+	}
+
+	var out Summary
+	for _, r := range idx.Repos {
+		out.Repos = append(out.Repos, RepoSummary{Alias: r.Alias, NodeCount: r.NodeCount, Langs: langs[r.Alias]})
+	}
+	for k, c := range agg {
+		p := strings.SplitN(k, "\x00", 3)
+		out.Links = append(out.Links, RepoLink{From: p[0], To: p[1], Kind: p[2], Count: c})
+	}
+	return out
+}
+
 // Search filtra nodos cuyo path contenga q (case-insensitive). Límite 100.
 func (e *Engine) Search(q string) []scan.Node {
 	q = strings.ToLower(q)
