@@ -14,7 +14,8 @@ const nodeCount = ref(0)
 
 const selected = ref(null)   // { flow, nodes }
 const edges = ref({})        // nodeId -> edges[]
-const nodeFiles = ref(null)  // { repo, lang, label, total, files, loading }
+// sidebar JSON unificado: kind 'node' (click en el mapa) | 'flow' (click en el catálogo)
+const panel = ref(null)
 
 let ws = null
 let retry = null
@@ -46,8 +47,14 @@ function connect() {
         if (d.ok) edges.value = { ...edges.value, [d.id]: d.edges || [] }
         break
       case 'node_files':
-        if (d.ok && nodeFiles.value && nodeFiles.value.repo === d.repo && nodeFiles.value.lang === d.lang) {
-          nodeFiles.value = { ...nodeFiles.value, total: d.total, files: d.files || [], loading: false }
+        if (d.ok && panel.value?.kind === 'node' && panel.value.repo === d.repo && panel.value.lang === d.lang) {
+          panel.value = { ...panel.value, total: d.total, files: d.files || [], loading: false }
+        }
+        break
+      case 'flow_files':
+        if (panel.value?.kind === 'flow' && panel.value.id === d.id) {
+          if (d.ok) panel.value = { ...panel.value, files: d.files || [], description: d.description, loading: false }
+          else panel.value = { ...panel.value, files: [], error: d.error, loading: false }
         }
         break
     }
@@ -60,30 +67,43 @@ function send(obj) { if (online.value) ws.send(JSON.stringify(obj)) }
 
 const copied = ref(false)
 
+// click en un nodo del mapa → JSON de sus archivos (rankeado)
 function onPick({ repo, lang, label }) {
-  nodeFiles.value = { repo, lang, label, total: null, files: null, loading: true }
+  panel.value = { kind: 'node', repo, lang, label, total: null, files: null, loading: true }
   copied.value = false
   send({ type: 'node_files', repo, lang: lang || '' })
 }
-function closeNodeFiles() { nodeFiles.value = null }
+// click en una card del catálogo → JSON de los archivos del flujo
+function onOpenFlow(flow) {
+  panel.value = { kind: 'flow', id: flow.id, label: flow.name, files: null, loading: true }
+  copied.value = false
+  send({ type: 'flow_files', id: flow.id })
+}
+function closePanel() { panel.value = null }
 
-// payload node-lite compacto (lo que consumiría el MCP/LLM)
+function compact(n) {
+  const o = { id: n.id, path: n.path }
+  if (n.definitions?.length) o.definitions = n.definitions
+  if (n.routes?.length) o.routes = n.routes.map((r) => `${r.method} ${r.path}`)
+  if (n.tables?.length) o.tables = n.tables
+  return o
+}
+
+// sub-título del sidebar según el tipo
+const panelSub = computed(() => {
+  const p = panel.value
+  if (!p || p.loading) return 'cargando…'
+  if (p.kind === 'flow') return `${p.files.length} archivos involucrados`
+  return `top ${p.files.length} de ${p.total} · por relevancia`
+})
+
+// payload compacto (lo que consumiría el MCP/LLM)
 const nodeJson = computed(() => {
-  const nf = nodeFiles.value
-  if (!nf || !nf.files) return ''
-  const payload = {
-    node: nf.label,
-    scope: nf.lang ? `${nf.repo} · ${nf.lang}` : nf.repo,
-    total: nf.total,
-    shown: nf.files.length,
-    files: nf.files.map((n) => {
-      const o = { id: n.id, path: n.path }
-      if (n.definitions?.length) o.definitions = n.definitions
-      if (n.routes?.length) o.routes = n.routes.map((r) => `${r.method} ${r.path}`)
-      if (n.tables?.length) o.tables = n.tables
-      return o
-    }),
-  }
+  const p = panel.value
+  if (!p || !p.files) return ''
+  const payload = p.kind === 'flow'
+    ? { flow: p.label, description: p.description || undefined, files: p.files.map(compact) }
+    : { node: p.label, scope: p.lang ? `${p.repo} · ${p.lang}` : p.repo, total: p.total, shown: p.files.length, files: p.files.map(compact) }
   return JSON.stringify(payload, null, 2)
 })
 
@@ -154,7 +174,7 @@ onBeforeUnmount(() => { clearTimeout(retry); ws && ws.close() })
 
     <template v-if="view === 'mapa'">
       <MapView :summary="summary" @pick="onPick" />
-      <FlowCatalog />
+      <FlowCatalog :flows="flows" @open="onOpenFlow" />
     </template>
 
     <main v-else class="cols">
@@ -237,21 +257,18 @@ onBeforeUnmount(() => { clearTimeout(retry); ws && ws.close() })
       </section>
     </main>
 
-    <!-- sidebar JSON (click en un nodo del mapa) -->
-    <aside v-if="nodeFiles" class="json-side">
+    <!-- sidebar JSON (click en un nodo del mapa o en una card del catálogo) -->
+    <aside v-if="panel" class="json-side">
       <div class="js-head">
         <div>
-          <h2>{{ nodeFiles.label }}</h2>
-          <p class="js-sub" v-if="!nodeFiles.loading">
-            top {{ nodeFiles.files.length }} de {{ nodeFiles.total }} · por relevancia
-          </p>
-          <p class="js-sub" v-else>cargando…</p>
+          <h2>{{ panel.label }}</h2>
+          <p class="js-sub">{{ panelSub }}</p>
         </div>
         <div class="js-actions">
-          <button class="js-copy" @click="copyJson" :disabled="nodeFiles.loading">
+          <button class="js-copy" @click="copyJson" :disabled="panel.loading">
             {{ copied ? '✓ copiado' : 'copiar' }}
           </button>
-          <button class="x" @click="closeNodeFiles" title="cerrar">×</button>
+          <button class="x" @click="closePanel" title="cerrar">×</button>
         </div>
       </div>
       <pre class="js-body"><code>{{ nodeJson }}</code></pre>

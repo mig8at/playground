@@ -127,6 +127,16 @@ func (s *server) handle(ctx context.Context, c *websocket.Conn, msg inbound) {
 			"type": "node_files", "ok": true, "repo": msg.Repo, "lang": msg.Lang,
 			"total": total, "files": files,
 		})
+	case "flow_files":
+		f, found := s.eng.Flow(msg.ID)
+		if !found {
+			send(ctx, c, map[string]any{"type": "flow_files", "ok": false, "id": msg.ID, "error": "flujo no encontrado"})
+			return
+		}
+		send(ctx, c, map[string]any{
+			"type": "flow_files", "ok": true, "id": f.ID, "name": f.Name,
+			"description": f.Description, "files": s.eng.NodesByID(f.NodeIDs),
+		})
 	case "delete_flow":
 		_ = s.eng.DeleteFlow(msg.ID)
 		s.broadcastState()
