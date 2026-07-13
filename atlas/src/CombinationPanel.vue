@@ -19,6 +19,7 @@ const currentBranch = computed(() => {
 })
 
 const creating = ref(false)
+const confirmId = ref('') // combinación con borrado pendiente de confirmar
 const form = ref({ name: '', targets: {} })
 
 function startCreate() {
@@ -47,9 +48,10 @@ function stateLabel(s) {
 </script>
 
 <template>
-  <section class="combos">
-    <div class="cb-head">
+  <section class="combos panel-section">
+    <div class="section-head cb-head">
       <h2>Combinaciones de ramas</h2>
+      <span class="section-hint">click en una card → alinea repos y dibuja su flujo</span>
       <button v-if="!creating" class="cb-new" @click="startCreate">+ nueva</button>
     </div>
 
@@ -90,9 +92,14 @@ function stateLabel(s) {
               {{ c.status.aligned ? '✓ alineada' : '⚠ drift' }}
             </span>
           </div>
-          <button class="x" @click.stop="emit('delete', c.id)" title="borrar">×</button>
+          <button class="x" @click.stop="confirmId = confirmId === c.id ? '' : c.id" title="borrar">×</button>
         </div>
-        <ul class="cb-rows">
+        <div v-if="confirmId === c.id" class="cb-confirm" @click.stop>
+          ¿Borrar <b>{{ c.name }}</b>?
+          <button class="cb-yes" @click="emit('delete', c.id); confirmId = ''">sí, borrar</button>
+          <button class="cb-no" @click="confirmId = ''">cancelar</button>
+        </div>
+        <ul v-else class="cb-rows">
           <li v-for="r in c.status.repos" :key="r.alias" :class="r.state">
             <span class="cb-alias">{{ r.alias }}</span>
             <span class="cb-arrow">⑂ {{ r.target }}</span>
@@ -109,10 +116,12 @@ function stateLabel(s) {
 </template>
 
 <style scoped>
-.combos { margin-top: 16px; background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 18px; }
-.cb-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
-.cb-head h2 { font-size: 16px; }
+.cb-head .cb-new { margin-left: auto; }
 .cb-new { background: var(--accent); color: #06101f; border: 0; border-radius: 8px; padding: 6px 14px; font-weight: 600; font-size: 13px; cursor: pointer; }
+.cb-new:hover { filter: brightness(1.08); }
+.cb-confirm { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--muted); padding: 4px 0; }
+.cb-yes { background: rgba(248,81,73,.15); color: var(--red); border: 1px solid rgba(248,81,73,.4); border-radius: 6px; padding: 3px 10px; font-size: 12px; cursor: pointer; }
+.cb-no { background: transparent; border: 1px solid var(--border); color: var(--muted); border-radius: 6px; padding: 3px 10px; font-size: 12px; cursor: pointer; }
 
 .cb-form { background: var(--panel2); border: 1px solid var(--border); border-radius: 10px; padding: 14px; margin-bottom: 14px; }
 .cb-name { width: 100%; background: var(--bg); border: 1px solid var(--border); color: var(--text); padding: 9px 12px; border-radius: 8px; font-size: 14px; margin-bottom: 10px; box-sizing: border-box; }
@@ -139,14 +148,14 @@ function stateLabel(s) {
 .cb-title b { font-size: 14px; }
 .cb-badge { font-size: 10px; padding: 2px 8px; border-radius: 999px; }
 .cb-badge.ok { color: var(--green); background: rgba(63,185,80,.14); }
-.cb-badge.drift { color: #e3b341; background: rgba(227,179,65,.16); }
+.cb-badge.drift { color: var(--amber); background: rgba(227,179,65,.16); }
 .cb-rows { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
 .cb-rows li { display: flex; align-items: center; gap: 8px; font-size: 12px; }
 .cb-alias { flex: 0 0 130px; font-family: ui-monospace, monospace; color: var(--text); }
-.cb-arrow { color: #bc8cff; font-family: ui-monospace, monospace; }
+.cb-arrow { color: var(--violet); font-family: ui-monospace, monospace; }
 .cb-state { color: var(--muted); }
 .cb-rows li.aligned .cb-state { color: var(--green); }
-.cb-rows li.off .cb-state, .cb-rows li.moved .cb-state { color: #e3b341; }
+.cb-rows li.off .cb-state, .cb-rows li.moved .cb-state { color: var(--amber); }
 .cb-state code { background: var(--chip); padding: 0 4px; border-radius: 3px; }
 .x { background: none; border: 0; color: var(--muted); font-size: 18px; cursor: pointer; line-height: 1; }
 .x:hover { color: var(--red); }

@@ -1,6 +1,6 @@
 <script setup>
 // Atlas — mapa cross-repo + combinaciones de ramas + flujos-grafo (canal→lenders)
-import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import MapView from './MapView.vue'
 import CombinationPanel from './CombinationPanel.vue'
 import FlowGraph from './FlowGraph.vue'
@@ -19,13 +19,13 @@ const aligning = ref(false) // checkout+pull en curso
 const alignResults = ref([]) // reporte por repo
 const summary = ref({ repos: [], links: [] })
 const nodeCount = ref(0)
+const mapCollapsed = ref(false)
+const toast = ref('')
+let scrollPending = false
 
-const comboFlows = computed(() =>
-  flows.value
-    .filter((f) => f.combination === selectedCombo.value)
-    .slice()
-    .sort((a, b) => new Date(a.created) - new Date(b.created)),
-)
+const flowsAnchor = ref(null)
+const combosAnchor = ref(null)
+
 const selectedComboObj = computed(() => combinations.value.find((c) => c.id === selectedCombo.value) || null)
 const selectedComboName = computed(() => selectedComboObj.value?.name || '')
 const selectedComboStatus = computed(() => selectedComboObj.value?.status || { repos: [] })
@@ -36,7 +36,11 @@ const online = computed(() => status.value === 'server on')
 
 function connect() {
   ws = new WebSocket(WS_URL)
-  ws.onopen = () => { status.value = 'server on' }
+  // watchdog: si queda colgado en CONNECTING (no dispara onopen/onerror), reintenta
+  const watchdog = setTimeout(() => {
+    if (ws && ws.readyState === WebSocket.CONNECTING) { try { ws.close() } catch {} ; scheduleRetry() }
+  }, 2000)
+  ws.onopen = () => { clearTimeout(watchdog); status.value = 'server on' }
   ws.onmessage = (e) => {
     let d
     try { d = JSON.parse(e.data) } catch { return }
@@ -51,34 +55,43 @@ function connect() {
         if (selectedCombo.value && !combinations.value.find((c) => c.id === selectedCombo.value)) {
           selectedCombo.value = ''
         } else if (selectedCombo.value) {
-          requestComboGraphs() // los flujos pudieron cambiar → refrescar los grafos
+          requestComboGraphs()
         }
         break
       case 'repo_branches':
         if (d.ok) branches.value = d.branches || {}
         break
       case 'combo_graphs':
-        if (d.ok && d.id === selectedCombo.value) comboGraphs.value = d.graphs || []
+        if (d.ok && d.id === selectedCombo.value) {
+          comboGraphs.value = d.graphs || []
+          if (scrollPending) { scrollPending = false; nextTick(scrollToFlows) }
+        }
         break
       case 'alignment':
         if (d.id === selectedCombo.value) {
           aligning.value = false
           alignResults.value = d.results || []
-          requestComboGraphs() // el índice cambió tras el pull → recomputar el grafo
+          requestComboGraphs()
         }
         break
     }
   }
-  ws.onclose = () => { status.value = 'desconectado'; retry = setTimeout(connect, 1500) }
-  ws.onerror = () => ws && ws.close()
+  ws.onclose = () => { status.value = 'desconectado'; scheduleRetry() }
+  ws.onerror = () => { try { ws.close() } catch {} ; scheduleRetry() }
 }
+function scheduleRetry() { clearTimeout(retry); retry = setTimeout(connect, 1500) }
 
 function send(obj) { if (online.value) ws.send(JSON.stringify(obj)) }
+
+function scrollToFlows() { flowsAnchor.value?.scrollIntoView({ behavior: 'smooth', block: 'start' }) }
+function scrollToCombos() { combosAnchor.value?.scrollIntoView({ behavior: 'smooth', block: 'start' }) }
+
+function showToast(msg) { toast.value = msg; setTimeout(() => (toast.value = ''), 2200) }
 
 // combinaciones de ramas
 function requestBranches() { send({ type: 'repo_branches' }) }
 function onSaveCombination({ name, targets }) { send({ type: 'save_combination', name, targets }) }
-function onDeleteCombination(id) { if (confirm('¿Borrar esta combinación?')) send({ type: 'delete_combination', id }) }
+function onDeleteCombination(id) { send({ type: 'delete_combination', id }) }
 function onSelectCombo(id) {
   selectedCombo.value = selectedCombo.value === id ? '' : id
   comboGraphs.value = []
@@ -86,49 +99,51 @@ function onSelectCombo(id) {
   alignResults.value = []
   aligning.value = false
   if (selectedCombo.value) {
-    // alinear repos (checkout + pull) y luego dibujar el grafo con el índice al día
     aligning.value = true
+    scrollPending = true
     send({ type: 'align_combination', id: selectedCombo.value })
   }
 }
 function requestComboGraphs() { if (selectedCombo.value) send({ type: 'combo_graphs', id: selectedCombo.value }) }
 
+async function writeClipboard(text) {
+  try { await navigator.clipboard.writeText(text); return true } catch {}
+  try {
+    const ta = document.createElement('textarea')
+    ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0'
+    document.body.appendChild(ta); ta.select()
+    const ok = document.execCommand('copy'); document.body.removeChild(ta)
+    return ok
+  } catch { return false }
+}
+
 // copiar el árbol de UN camino del grafo (canal + ese lender, o todo)
-async function copyTree({ group, key }) {
+async function copyTree({ group, key, label }) {
   const g = comboGraphs.value.find((x) => x.group === group)
   const text = g?.trees?.[key]
   if (!text) return
-  let ok = false
-  try {
-    await navigator.clipboard.writeText(text)
-    ok = true
-  } catch {
-    try {
-      const ta = document.createElement('textarea')
-      ta.value = text
-      ta.style.position = 'fixed'
-      ta.style.opacity = '0'
-      document.body.appendChild(ta)
-      ta.select()
-      ok = document.execCommand('copy')
-      document.body.removeChild(ta)
-    } catch { ok = false }
-  }
-  if (ok) {
+  if (await writeClipboard(text)) {
     copiedKey.value = group + '::' + key
     setTimeout(() => (copiedKey.value = ''), 1500)
+    showToast(`✓ ${label || 'árbol'} copiado · ${Math.round(text.length / 1000)}k caracteres`)
   }
 }
-
-onMounted(connect)
-onBeforeUnmount(() => { clearTimeout(retry); ws && ws.close() })
+async function copyText(text, label) {
+  if (await writeClipboard(text)) showToast(`✓ ${label} copiado`)
+}
 </script>
 
 <template>
   <div class="wrap">
     <header class="top">
       <div class="brand">
-        <span class="logo">🗺️</span>
+        <svg class="logo-mark" viewBox="0 0 32 32" fill="none">
+          <circle cx="16" cy="16" r="14" stroke="var(--accent)" stroke-width="1.5" opacity=".5" />
+          <circle cx="16" cy="7" r="2.6" fill="var(--accent)" />
+          <circle cx="8" cy="22" r="2.6" fill="var(--green)" />
+          <circle cx="24" cy="22" r="2.6" fill="var(--violet)" />
+          <path d="M16 9.5 9.5 20M16 9.5 22.5 20M10.5 22h11" stroke="var(--muted)" stroke-width="1.3" />
+        </svg>
         <div>
           <h1>Atlas</h1>
           <p class="tag">mapa de flujos cross-repo · CreditOp</p>
@@ -138,30 +153,69 @@ onBeforeUnmount(() => { clearTimeout(retry); ws && ws.close() })
         <span class="pill" :class="online ? 'on' : 'off'">{{ status }}</span>
         <span class="stat">{{ repos.length }} repos</span>
         <span class="stat">{{ nodeCount }} nodos</span>
-        <span class="stat">{{ combinations.length }} combinaciones</span>
+        <span class="stat live" @click="scrollToCombos">{{ combinations.length }} combinaciones</span>
       </div>
     </header>
 
-    <MapView :summary="summary" />
-    <CombinationPanel
-      :combinations="combinations"
-      :repos="summary.repos"
-      :branches="branches"
-      :selected="selectedCombo"
-      @save="onSaveCombination"
-      @delete="onDeleteCombination"
-      @need-branches="requestBranches"
-      @select="onSelectCombo"
-    />
-    <FlowGraph
-      v-if="selectedCombo"
-      :combo-name="selectedComboName"
-      :graphs="comboGraphs"
-      :status="selectedComboStatus"
-      :copied-key="copiedKey"
-      :aligning="aligning"
-      :align-results="alignResults"
-      @copy="copyTree"
-    />
+    <div class="map-bar" @click="mapCollapsed = !mapCollapsed">
+      <span class="map-caret">{{ mapCollapsed ? '▸' : '▾' }}</span>
+      <b>Mapa del ecosistema</b>
+      <span class="section-hint">{{ repos.length }} repos · {{ nodeCount }} nodos · datos compartidos</span>
+    </div>
+    <MapView v-show="!mapCollapsed" :summary="summary" />
+
+    <div ref="combosAnchor">
+      <CombinationPanel
+        :combinations="combinations"
+        :repos="summary.repos"
+        :branches="branches"
+        :selected="selectedCombo"
+        @save="onSaveCombination"
+        @delete="onDeleteCombination"
+        @need-branches="requestBranches"
+        @select="onSelectCombo"
+      />
+    </div>
+
+    <div ref="flowsAnchor">
+      <FlowGraph
+        v-if="selectedCombo"
+        :combo-name="selectedComboName"
+        :graphs="comboGraphs"
+        :status="selectedComboStatus"
+        :copied-key="copiedKey"
+        :aligning="aligning"
+        :align-results="alignResults"
+        @copy="copyTree"
+        @copy-text="copyText"
+      />
+      <div v-else-if="combinations.length" class="flow-placeholder panel-section">
+        <div class="ph-steps">
+          <span class="ph-step"><b>1</b> Elegí una combinación de ramas ↑</span>
+          <span class="ph-arrow">→</span>
+          <span class="ph-step"><b>2</b> Mirá su flujo como grafo (canal → lenders)</span>
+          <span class="ph-arrow">→</span>
+          <span class="ph-step"><b>3</b> Copiá el árbol de un camino para pegarlo a un LLM</span>
+        </div>
+      </div>
+    </div>
+
+    <Teleport to="body">
+      <div class="toast-wrap">
+        <div v-if="toast" class="toast">{{ toast }}</div>
+      </div>
+    </Teleport>
   </div>
 </template>
+
+<style scoped>
+.map-bar { display: flex; align-items: center; gap: 10px; margin-top: 4px; padding: 6px 4px; cursor: pointer; user-select: none; }
+.map-bar:hover .map-caret { color: var(--accent); }
+.map-caret { color: var(--muted); font-size: 12px; width: 14px; }
+.map-bar b { font-size: 14px; }
+
+.flow-placeholder { display: flex; align-items: center; justify-content: center; padding: 26px 18px; }
+.ph-steps { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; color: var(--muted); font-size: 13px; }
+.ph-step b { display: inline-flex; width: 20px; height: 20px; border-radius: 50%; background: var(--chip); color: var(--accent); align-items: center; justify-content: center; font-size: 12px; margin-right: 6px; }
+.ph-arrow { color: var(--border); }
+</style>

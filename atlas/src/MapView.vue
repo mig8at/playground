@@ -116,7 +116,7 @@ const edges = computed(() => [
 </template>
 
 <style scoped>
-.mapwrap { height: 560px; background: var(--panel); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+.mapwrap { height: 440px; background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; margin-top: 8px; }
 
 .group-node {
   width: 100%; height: 100%;
