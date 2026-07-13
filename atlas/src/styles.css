@@ -104,11 +104,19 @@ code { font-family: ui-monospace, "SF Mono", Menlo, monospace; }
   .cols { grid-template-columns: 1fr; }
 }
 
-/* panel de archivos del nodo (click en el mapa) */
-.nodefiles { margin-top: 16px; background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 18px; max-height: 560px; overflow-y: auto; }
-.nf-head { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 1px solid var(--border); padding-bottom: 12px; margin-bottom: 12px; position: sticky; top: -18px; background: var(--panel); }
-.nf-head h2 { font-size: 16px; }
-.nf-sub { color: var(--muted); font-size: 12px; margin: 4px 0 0; }
-.sig { font-size: 10px; text-transform: uppercase; padding: 1px 6px; border-radius: 4px; }
-.sig.route { background: rgba(63,185,80,.15); color: var(--green); }
-.sig.table { background: rgba(227,179,65,.12); color: #e3b341; }
+/* sidebar JSON (click en un nodo del mapa) */
+.json-side {
+  position: fixed; top: 0; right: 0; height: 100vh; width: 440px; max-width: 90vw;
+  background: var(--panel); border-left: 1px solid var(--border);
+  box-shadow: -12px 0 32px rgba(0,0,0,.4); z-index: 50;
+  display: flex; flex-direction: column;
+}
+.js-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; padding: 16px 18px; border-bottom: 1px solid var(--border); }
+.js-head h2 { font-size: 15px; }
+.js-sub { color: var(--muted); font-size: 12px; margin: 4px 0 0; }
+.js-actions { display: flex; align-items: center; gap: 8px; flex: none; }
+.js-copy { background: var(--chip); color: var(--text); border: 1px solid var(--border); border-radius: 6px; padding: 4px 10px; font-size: 12px; cursor: pointer; }
+.js-copy:hover:not(:disabled) { border-color: var(--accent); }
+.js-copy:disabled { opacity: .5; cursor: default; }
+.js-body { flex: 1; overflow: auto; margin: 0; padding: 14px 18px; font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 12px; line-height: 1.55; color: #b9c6d3; white-space: pre; tab-size: 2; }
+.js-body code { color: inherit; }

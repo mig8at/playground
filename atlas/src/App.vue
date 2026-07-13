@@ -58,11 +58,59 @@ function connect() {
 
 function send(obj) { if (online.value) ws.send(JSON.stringify(obj)) }
 
+const copied = ref(false)
+
 function onPick({ repo, lang, label }) {
   nodeFiles.value = { repo, lang, label, total: null, files: null, loading: true }
+  copied.value = false
   send({ type: 'node_files', repo, lang: lang || '' })
 }
 function closeNodeFiles() { nodeFiles.value = null }
+
+// payload node-lite compacto (lo que consumiría el MCP/LLM)
+const nodeJson = computed(() => {
+  const nf = nodeFiles.value
+  if (!nf || !nf.files) return ''
+  const payload = {
+    node: nf.label,
+    scope: nf.lang ? `${nf.repo} · ${nf.lang}` : nf.repo,
+    total: nf.total,
+    shown: nf.files.length,
+    files: nf.files.map((n) => {
+      const o = { id: n.id, path: n.path }
+      if (n.definitions?.length) o.definitions = n.definitions
+      if (n.routes?.length) o.routes = n.routes.map((r) => `${r.method} ${r.path}`)
+      if (n.tables?.length) o.tables = n.tables
+      return o
+    }),
+  }
+  return JSON.stringify(payload, null, 2)
+})
+
+async function copyJson() {
+  const text = nodeJson.value
+  let ok = false
+  try {
+    await navigator.clipboard.writeText(text)
+    ok = true
+  } catch {
+    // fallback para contextos donde el Clipboard API está bloqueado
+    try {
+      const ta = document.createElement('textarea')
+      ta.value = text
+      ta.style.position = 'fixed'
+      ta.style.opacity = '0'
+      document.body.appendChild(ta)
+      ta.select()
+      ok = document.execCommand('copy')
+      document.body.removeChild(ta)
+    } catch { ok = false }
+  }
+  if (ok) {
+    copied.value = true
+    setTimeout(() => (copied.value = false), 1500)
+  }
+}
 
 function openFlow(id) { send({ type: 'flow', id }) }
 function delFlow(id) { if (confirm('¿Borrar este flujo?')) send({ type: 'delete_flow', id }) }
@@ -106,34 +154,6 @@ onBeforeUnmount(() => { clearTimeout(retry); ws && ws.close() })
 
     <template v-if="view === 'mapa'">
       <MapView :summary="summary" @pick="onPick" />
-
-      <section v-if="nodeFiles" class="nodefiles">
-        <div class="nf-head">
-          <div>
-            <h2>{{ nodeFiles.label }}</h2>
-            <p class="nf-sub" v-if="!nodeFiles.loading">
-              top {{ nodeFiles.files.length }} de {{ nodeFiles.total }} archivos · por relevancia
-            </p>
-            <p class="nf-sub" v-else>cargando…</p>
-          </div>
-          <button class="x" @click="closeNodeFiles" title="cerrar">×</button>
-        </div>
-        <ul class="files" v-if="nodeFiles.files">
-          <li v-for="n in nodeFiles.files" :key="n.id">
-            <div class="file-row">
-              <code class="path">{{ n.path }}</code>
-              <span class="lang">{{ n.lang }}</span>
-              <span v-if="n.routes && n.routes.length" class="sig route">{{ n.routes.length }} rutas</span>
-              <span v-if="n.tables && n.tables.length" class="sig table">{{ n.tables.length }} tablas</span>
-              <span class="muted">{{ shortId(n.id) }}</span>
-            </div>
-            <div v-if="n.definitions && n.definitions.length" class="defs">
-              <span v-for="d in n.definitions.slice(0, 8)" :key="d" class="def">{{ d }}</span>
-            </div>
-          </li>
-        </ul>
-      </section>
-
       <FlowCatalog />
     </template>
 
@@ -216,5 +236,25 @@ onBeforeUnmount(() => { clearTimeout(retry); ws && ws.close() })
         </template>
       </section>
     </main>
+
+    <!-- sidebar JSON (click en un nodo del mapa) -->
+    <aside v-if="nodeFiles" class="json-side">
+      <div class="js-head">
+        <div>
+          <h2>{{ nodeFiles.label }}</h2>
+          <p class="js-sub" v-if="!nodeFiles.loading">
+            top {{ nodeFiles.files.length }} de {{ nodeFiles.total }} · por relevancia
+          </p>
+          <p class="js-sub" v-else>cargando…</p>
+        </div>
+        <div class="js-actions">
+          <button class="js-copy" @click="copyJson" :disabled="nodeFiles.loading">
+            {{ copied ? '✓ copiado' : 'copiar' }}
+          </button>
+          <button class="x" @click="closeNodeFiles" title="cerrar">×</button>
+        </div>
+      </div>
+      <pre class="js-body"><code>{{ nodeJson }}</code></pre>
+    </aside>
   </div>
 </template>
