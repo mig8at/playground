@@ -3,7 +3,7 @@
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import MapView from './MapView.vue'
 import CombinationPanel from './CombinationPanel.vue'
-import FlowsSection from './FlowsSection.vue'
+import FlowGraph from './FlowGraph.vue'
 
 const WS_URL = 'ws://localhost:8788/ws'
 
@@ -24,7 +24,9 @@ const comboFlows = computed(() =>
     .slice()
     .sort((a, b) => new Date(a.created) - new Date(b.created)),
 )
-const selectedComboName = computed(() => combinations.value.find((c) => c.id === selectedCombo.value)?.name || '')
+const selectedComboObj = computed(() => combinations.value.find((c) => c.id === selectedCombo.value) || null)
+const selectedComboName = computed(() => selectedComboObj.value?.name || '')
+const selectedComboStatus = computed(() => selectedComboObj.value?.status || { repos: [] })
 
 let ws = null
 let retry = null
@@ -136,10 +138,11 @@ onBeforeUnmount(() => { clearTimeout(retry); ws && ws.close() })
       @need-branches="requestBranches"
       @select="onSelectCombo"
     />
-    <FlowsSection
+    <FlowGraph
       v-if="selectedCombo"
       :combo-name="selectedComboName"
       :graphs="comboGraphs"
+      :status="selectedComboStatus"
       :copied-key="copiedKey"
       @copy="copyTree"
     />

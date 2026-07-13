@@ -114,10 +114,11 @@ func (e *Engine) ComboTree(comboID string) string {
 
 // StageInfo describe una etapa (nodo) del grafo del flujo.
 type StageInfo struct {
-	ID    string `json:"id"`
-	Name  string `json:"name"`
-	Files int    `json:"files"`
-	Kind  string `json:"kind"`
+	ID    string   `json:"id"`
+	Name  string   `json:"name"`
+	Files int      `json:"files"`
+	Kind  string   `json:"kind"`
+	Repos []string `json:"repos"` // repos que toca la etapa
 }
 
 // GroupGraph es un flujo de negocio como GRAFO: un canal (tronco) → varios
@@ -160,7 +161,18 @@ func (e *Engine) ComboGraphs(comboID string) []GroupGraph {
 		}
 		flowsByGroup[g] = append(flowsByGroup[g], f)
 	}
-	info := func(f Flow) StageInfo { return StageInfo{ID: f.ID, Name: f.Name, Files: len(f.NodeIDs), Kind: f.Kind} }
+	info := func(f Flow) StageInfo {
+		repoSet := map[string]bool{}
+		var repos []string
+		for _, n := range e.NodesByID(f.NodeIDs) {
+			if !repoSet[n.Repo] {
+				repoSet[n.Repo] = true
+				repos = append(repos, n.Repo)
+			}
+		}
+		sort.Strings(repos)
+		return StageInfo{ID: f.ID, Name: f.Name, Files: len(f.NodeIDs), Kind: f.Kind, Repos: repos}
+	}
 
 	var out []GroupGraph
 	for _, g := range order {
