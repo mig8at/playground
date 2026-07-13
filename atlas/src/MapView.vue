@@ -77,7 +77,8 @@ const edges = computed(() => [
 
 <template>
   <div class="mapwrap">
-    <VueFlow :nodes="nodes" :edges="edges" fit-view-on-init :min-zoom="0.4" :max-zoom="1.5">
+    <VueFlow :nodes="nodes" :edges="edges" fit-view-on-init :min-zoom="0.4" :max-zoom="1.5"
+             :zoom-on-scroll="false" :pan-on-scroll="false" :prevent-scrolling="false">
       <Background pattern-color="#2a3340" :gap="20" />
 
       <!-- nodo grupo (contenedor) -->

@@ -1,6 +1,7 @@
 <script setup>
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import MapView from './MapView.vue'
+import FlowCatalog from './FlowCatalog.vue'
 
 const WS_URL = 'ws://localhost:8788/ws'
 
@@ -10,9 +11,6 @@ const repos = ref([])
 const flows = ref([])
 const summary = ref({ repos: [], links: [] })
 const nodeCount = ref(0)
-const scanPath = ref('')
-const scanning = ref(false)
-const scanMsg = ref('')
 
 const selected = ref(null)   // { flow, nodes }
 const edges = ref({})        // nodeId -> edges[]
@@ -40,13 +38,6 @@ function connect() {
           selected.value = null
         }
         break
-      case 'scan_result':
-        scanning.value = false
-        scanMsg.value = d.ok
-          ? `✓ ${d.repo.alias} · ${d.repo.node_count} nodos`
-          : `✗ ${d.error}`
-        if (d.ok) scanPath.value = ''
-        break
       case 'flow_detail':
         if (d.ok) { selected.value = { flow: d.flow, nodes: d.nodes || [] }; edges.value = {} }
         break
@@ -61,13 +52,6 @@ function connect() {
 
 function send(obj) { if (online.value) ws.send(JSON.stringify(obj)) }
 
-function scan() {
-  const p = scanPath.value.trim()
-  if (!p) return
-  scanning.value = true
-  scanMsg.value = ''
-  send({ type: 'scan', path: p })
-}
 function openFlow(id) { send({ type: 'flow', id }) }
 function delFlow(id) { if (confirm('¿Borrar este flujo?')) send({ type: 'delete_flow', id }) }
 function loadConns(id) { send({ type: 'connections', id }) }
@@ -108,19 +92,10 @@ onBeforeUnmount(() => { clearTimeout(retry); ws && ws.close() })
       </div>
     </header>
 
-    <div class="scanbar">
-      <input
-        v-model="scanPath"
-        placeholder="/Users/…/CREDITOP/github/legacy-backend  → indexar repo"
-        @keyup.enter="scan"
-      />
-      <button :disabled="scanning || !online" @click="scan">
-        {{ scanning ? 'indexando…' : 'Indexar repo' }}
-      </button>
-      <span v-if="scanMsg" class="scanmsg">{{ scanMsg }}</span>
-    </div>
-
-    <MapView v-if="view === 'mapa'" :summary="summary" />
+    <template v-if="view === 'mapa'">
+      <MapView :summary="summary" />
+      <FlowCatalog />
+    </template>
 
     <main v-else class="cols">
       <!-- IZQ: repos + flujos -->
