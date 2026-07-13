@@ -1,0 +1,80 @@
+# atlas — mapa de flujos cross-repo (CreditOp)
+
+Un solo proyecto. `npm run dev` levanta **el server (Go) y el frontend (Vue) juntos**;
+el server dice **`server on`** y habla con la UI por **WebSocket**. La misma lógica se
+expone como **conector MCP (stdio)** para que un host (Claude/Cursor) cree los flujos.
+
+> Hermano de **Carto** (node-lite + IDs) y **Rino** (arrays de archivos por flujo),
+> pero apuntado a **varios repos a la vez** y a **guardar flujos** que los cruzan
+> (el caso CreditOp: lógica dispersa en `legacy-backend` + `frontend-monorepo` + `application` + micros).
+
+## Idea
+
+1. **Escanear** uno o varios repos → por cada archivo, `node-lite` (imports, definiciones,
+   rutas) con un **ID estable**. Sin código: barato.
+2. **Conectar**: edges `import` (intra-repo) y `route` (cross-repo, match cliente↔servidor
+   por método + path). Ese es el salto frontend↔backend que ningún import expresa.
+3. **Guardar flujos**: un flujo = un **array de IDs** con nombre (ej *"Onboarding CreditopX rt=2"*),
+   posiblemente de varios repos. Lo crea el MCP; la UI lo muestra **en vivo**.
+
+```
+atlas/
+├── package.json  vite.config.js  index.html   ← frontend (Vue, :5193)
+├── src/ App.vue  main.js  styles.css           ← UI: repos + flujos + detalle
+└── server/                                      ← Go (module creditop/atlas/server)
+    ├── cmd/web/         ← WebSocket (:8788): estado a la UI, poll de disco
+    ├── cmd/atlas-mcp/  ← conector MCP (stdio): scan / map / flows / content
+    └── internal/
+        ├── scan/    ← extractor node-lite (ts, go, php, py, vue…)
+        ├── graph/   ← edges import + route (cross-repo)
+        └── engine/  ← estado en disco (JSON atómico), compartido web+MCP
+```
+
+**Estado compartido en disco.** Web y MCP apuntan al mismo `ATLAS_DATA_DIR`
+(por defecto `~/.creditop-atlas`): `index.json` (repos + nodos) y `flows.json`
+(flujos). El MCP escribe, el web detecta el cambio (poll de mtime) y refresca la UI.
+
+## Correr
+
+```bash
+cd atlas
+npm install
+npm run dev
+```
+
+- **server** → `go run ./cmd/web` en `:8788` · imprime `server on · ws://… · datos: ~/.creditop-atlas`
+- **web** → Vite en `http://localhost:5193`
+
+En la UI pegá la ruta de un repo (ej `…/CREDITOP/github/legacy-backend`) y **Indexar**.
+Repetí por cada repo. Los **flujos** aparecen cuando el MCP los guarda.
+
+## Conector MCP
+
+```bash
+npm run server:build       # server/bin/{web,atlas-mcp}
+npm run server:mcp         # corre el MCP por stdio
+```
+
+Tools expuestas:
+
+| Tool | Qué hace |
+|------|----------|
+| `atlas_scan` | indexa (o re-indexa) un repo |
+| `atlas_map` | catálogo node-lite (barato, sin código); filtro por path |
+| `atlas_connections` | edges de un nodo (import + route cross-repo) |
+| `atlas_save_flow` | **guarda** un flujo = array de IDs (aparece en la UI) |
+| `atlas_list_flows` / `atlas_get_flow` | lee flujos guardados |
+| `atlas_get_content` | hidrata: código real de unos IDs |
+
+Registrarlo (ejemplo, ruta al binario):
+
+```bash
+claude mcp add atlas -- /ruta/a/atlas/server/bin/atlas-mcp
+```
+
+## Estado
+
+MVP. El scan y los edges `route`/`import` son heurísticos (regex), no AST — cubren la
+mayoría; el resto lo absorbe la **curación** (los flujos guardados son también
+ground-truth de las conexiones que la estática no infiere). Ver el análisis de viabilidad
+en los docs del playground.

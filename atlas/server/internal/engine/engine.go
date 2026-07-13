@@ -1,0 +1,360 @@
+// Package engine es el núcleo compartido por el server web (WebSocket) y el
+// conector MCP (stdio). Ambos apuntan al MISMO directorio de datos en disco:
+//
+//	el MCP CREA flujos  →  escribe flows.json
+//	la UI los MUESTRA   →  el web lee flows.json y hace push por WS
+//
+// Por eso el estado vive en disco (JSON atómico) y no en memoria de un solo
+// proceso. DataDir por defecto: ~/.creditop-atlas (override con ATLAS_DATA_DIR).
+package engine
+
+import (
+	"encoding/json"
+	"fmt"
+	"os"
+	"path/filepath"
+	"sort"
+	"strings"
+	"sync"
+	"time"
+
+	"creditop/atlas/server/internal/graph"
+	"creditop/atlas/server/internal/scan"
+)
+
+// Repo es un repo indexado.
+type Repo struct {
+	Alias     string    `json:"alias"`
+	Root      string    `json:"root"`
+	Scanned   time.Time `json:"scanned"`
+	NodeCount int       `json:"node_count"`
+}
+
+// Flow es un flujo guardado: un array de IDs de nodo (posiblemente de varios
+// repos) con nombre. Es la pieza "Rino": una selección curada y persistida.
+type Flow struct {
+	ID          string    `json:"id"`
+	Name        string    `json:"name"`
+	Description string    `json:"description,omitempty"`
+	NodeIDs     []string  `json:"node_ids"`
+	Created     time.Time `json:"created"`
+	Updated     time.Time `json:"updated"`
+}
+
+type index struct {
+	Repos []Repo      `json:"repos"`
+	Nodes []scan.Node `json:"nodes"`
+}
+type flowFile struct {
+	Flows []Flow `json:"flows"`
+}
+
+// Engine da acceso concurrente-seguro al estado en disco.
+type Engine struct {
+	mu  sync.Mutex
+	dir string
+}
+
+// New abre (o crea) el engine sobre el directorio de datos.
+func New() (*Engine, error) {
+	dir := os.Getenv("ATLAS_DATA_DIR")
+	if dir == "" {
+		home, err := os.UserHomeDir()
+		if err != nil {
+			return nil, err
+		}
+		dir = filepath.Join(home, ".creditop-atlas")
+	}
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return nil, err
+	}
+	return &Engine{dir: dir}, nil
+}
+
+// Dir es el directorio de datos (para logs).
+func (e *Engine) Dir() string { return e.dir }
+
+func (e *Engine) indexPath() string { return filepath.Join(e.dir, "index.json") }
+func (e *Engine) flowsPath() string { return filepath.Join(e.dir, "flows.json") }
+
+// ModTimes devuelve el mtime de index.json y flows.json (para que el web
+// detecte cambios hechos por el MCP y refresque la UI). Cero si no existen.
+func (e *Engine) ModTimes() (idx, flows time.Time) {
+	if fi, err := os.Stat(e.indexPath()); err == nil {
+		idx = fi.ModTime()
+	}
+	if fi, err := os.Stat(e.flowsPath()); err == nil {
+		flows = fi.ModTime()
+	}
+	return
+}
+
+// ── scan ─────────────────────────────────────────────────────────────────────
+
+// Scan indexa (o re-indexa) un repo y persiste el índice. Devuelve el repo.
+func (e *Engine) Scan(root string) (Repo, error) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+
+	root = filepath.Clean(expandHome(root))
+	fi, err := os.Stat(root)
+	if err != nil || !fi.IsDir() {
+		return Repo{}, fmt.Errorf("no es un directorio: %s", root)
+	}
+	alias := filepath.Base(root)
+
+	nodes, err := scan.Repo(root, alias)
+	if err != nil {
+		return Repo{}, err
+	}
+
+	idx := e.loadIndex()
+	// reemplaza nodos y repo previos con el mismo alias
+	kept := idx.Nodes[:0]
+	for _, n := range idx.Nodes {
+		if n.Repo != alias {
+			kept = append(kept, n)
+		}
+	}
+	idx.Nodes = append(kept, nodes...)
+
+	repo := Repo{Alias: alias, Root: root, Scanned: time.Now(), NodeCount: len(nodes)}
+	repos := idx.Repos[:0]
+	for _, r := range idx.Repos {
+		if r.Alias != alias {
+			repos = append(repos, r)
+		}
+	}
+	idx.Repos = append(repos, repo)
+
+	if err := writeJSON(e.indexPath(), idx); err != nil {
+		return Repo{}, err
+	}
+	return repo, nil
+}
+
+// Repos lista los repos indexados.
+func (e *Engine) Repos() []Repo {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	return e.loadIndex().Repos
+}
+
+// Nodes devuelve todos los nodos (node-lite).
+func (e *Engine) Nodes() []scan.Node {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	return e.loadIndex().Nodes
+}
+
+// NodesByID resuelve un set de IDs a sus node-lite (en el orden dado).
+func (e *Engine) NodesByID(ids []string) []scan.Node {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	byID := map[string]scan.Node{}
+	for _, n := range e.loadIndex().Nodes {
+		byID[n.ID] = n
+	}
+	out := make([]scan.Node, 0, len(ids))
+	for _, id := range ids {
+		if n, ok := byID[id]; ok {
+			out = append(out, n)
+		}
+	}
+	return out
+}
+
+// Connections devuelve los edges de un nodo.
+func (e *Engine) Connections(id string) []graph.Edge {
+	return graph.Connections(e.Nodes(), id)
+}
+
+// Search filtra nodos cuyo path contenga q (case-insensitive). Límite 100.
+func (e *Engine) Search(q string) []scan.Node {
+	q = strings.ToLower(q)
+	var out []scan.Node
+	for _, n := range e.Nodes() {
+		if q == "" || strings.Contains(strings.ToLower(n.Path), q) {
+			out = append(out, n)
+			if len(out) >= 100 {
+				break
+			}
+		}
+	}
+	return out
+}
+
+// Content lee el código real de los IDs pedidos. Mapa id→contenido.
+func (e *Engine) Content(ids []string) (map[string]string, error) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	idx := e.loadIndex()
+	rootByAlias := map[string]string{}
+	for _, r := range idx.Repos {
+		rootByAlias[r.Alias] = r.Root
+	}
+	byID := map[string]scan.Node{}
+	for _, n := range idx.Nodes {
+		byID[n.ID] = n
+	}
+	out := map[string]string{}
+	for _, id := range ids {
+		n, ok := byID[id]
+		if !ok {
+			continue
+		}
+		root, ok := rootByAlias[n.Repo]
+		if !ok {
+			continue
+		}
+		b, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(n.Path)))
+		if err != nil {
+			continue
+		}
+		out[id] = string(b)
+	}
+	return out, nil
+}
+
+// ── flows ────────────────────────────────────────────────────────────────────
+
+// SaveFlow crea o actualiza un flujo. Si id vacío, crea uno nuevo (slug del
+// nombre). Devuelve el flujo guardado.
+func (e *Engine) SaveFlow(id, name, description string, nodeIDs []string) (Flow, error) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+
+	name = strings.TrimSpace(name)
+	if name == "" {
+		return Flow{}, fmt.Errorf("el flujo necesita un nombre")
+	}
+	if id == "" {
+		id = slug(name)
+	}
+	ff := e.loadFlows()
+	now := time.Now()
+	updated := false
+	for i := range ff.Flows {
+		if ff.Flows[i].ID == id {
+			ff.Flows[i].Name = name
+			ff.Flows[i].Description = description
+			ff.Flows[i].NodeIDs = nodeIDs
+			ff.Flows[i].Updated = now
+			updated = true
+			break
+		}
+	}
+	var saved Flow
+	if !updated {
+		saved = Flow{ID: id, Name: name, Description: description, NodeIDs: nodeIDs, Created: now, Updated: now}
+		ff.Flows = append(ff.Flows, saved)
+	}
+	if err := writeJSON(e.flowsPath(), ff); err != nil {
+		return Flow{}, err
+	}
+	for _, f := range ff.Flows {
+		if f.ID == id {
+			return f, nil
+		}
+	}
+	return saved, nil
+}
+
+// Flows lista los flujos guardados (más recientes primero).
+func (e *Engine) Flows() []Flow {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	ff := e.loadFlows()
+	sort.Slice(ff.Flows, func(i, j int) bool { return ff.Flows[i].Updated.After(ff.Flows[j].Updated) })
+	return ff.Flows
+}
+
+// Flow devuelve un flujo por id.
+func (e *Engine) Flow(id string) (Flow, bool) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	for _, f := range e.loadFlows().Flows {
+		if f.ID == id {
+			return f, true
+		}
+	}
+	return Flow{}, false
+}
+
+// DeleteFlow elimina un flujo por id.
+func (e *Engine) DeleteFlow(id string) error {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	ff := e.loadFlows()
+	out := ff.Flows[:0]
+	for _, f := range ff.Flows {
+		if f.ID != id {
+			out = append(out, f)
+		}
+	}
+	ff.Flows = out
+	return writeJSON(e.flowsPath(), ff)
+}
+
+// ── persistencia ─────────────────────────────────────────────────────────────
+
+func (e *Engine) loadIndex() index {
+	var idx index
+	readJSON(e.indexPath(), &idx)
+	return idx
+}
+func (e *Engine) loadFlows() flowFile {
+	var ff flowFile
+	readJSON(e.flowsPath(), &ff)
+	return ff
+}
+
+func readJSON(path string, v any) {
+	b, err := os.ReadFile(path)
+	if err != nil {
+		return
+	}
+	_ = json.Unmarshal(b, v)
+}
+
+// writeJSON escribe atómicamente (temp + rename) para que un lector nunca vea
+// un archivo a medio escribir.
+func writeJSON(path string, v any) error {
+	b, err := json.MarshalIndent(v, "", "  ")
+	if err != nil {
+		return err
+	}
+	tmp := path + ".tmp"
+	if err := os.WriteFile(tmp, b, 0o644); err != nil {
+		return err
+	}
+	return os.Rename(tmp, path)
+}
+
+func expandHome(p string) string {
+	if strings.HasPrefix(p, "~/") {
+		if home, err := os.UserHomeDir(); err == nil {
+			return filepath.Join(home, p[2:])
+		}
+	}
+	return p
+}
+
+func slug(s string) string {
+	s = strings.ToLower(strings.TrimSpace(s))
+	var b strings.Builder
+	prevDash := false
+	for _, r := range s {
+		switch {
+		case r >= 'a' && r <= 'z', r >= '0' && r <= '9':
+			b.WriteRune(r)
+			prevDash = false
+		default:
+			if !prevDash {
+				b.WriteByte('-')
+				prevDash = true
+			}
+		}
+	}
+	return strings.Trim(b.String(), "-")
+}

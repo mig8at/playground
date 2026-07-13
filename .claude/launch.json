@@ -16,6 +16,13 @@
       "port": 5192
     },
     {
+      "name": "atlas",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev"],
+      "cwd": "atlas",
+      "port": 5193
+    },
+    {
       "name": "merchant-config",
       "runtimeExecutable": "node",
       "runtimeArgs": ["-e", "const http=require('http'),fs=require('fs'),path=require('path');const root=path.join(process.env.HOME,'Desktop/CREDITOP/playground/merchant-config');http.createServer((q,s)=>{let f=path.join(root,q.url==='/'?'index.html':decodeURIComponent(q.url.split('?')[0]));fs.readFile(f,(e,d)=>{if(e){s.writeHead(404);s.end('nf')}else{const t=f.endsWith('.html')?'text/html':f.endsWith('.css')?'text/css':f.endsWith('.js')?'text/javascript':'text/plain';s.writeHead(200,{'content-type':t+'; charset=utf-8'});s.end(d)}})}).listen(5191,()=>console.log('merchant-config up on 5191'));"],
