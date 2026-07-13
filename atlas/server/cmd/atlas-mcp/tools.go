@@ -61,6 +61,7 @@ type MapNode struct {
 	Lines       int      `json:"lines"`
 	Definitions []string `json:"definitions,omitempty"`
 	Routes      []string `json:"routes,omitempty"`
+	Tables      []string `json:"tables,omitempty"`
 }
 type MapOutput struct {
 	Count int       `json:"count"`
@@ -81,7 +82,7 @@ func registerMap(s *mcp.Server, eng *engine.Engine) {
 			}
 			out.Nodes = append(out.Nodes, MapNode{
 				ID: n.ID, Repo: n.Repo, Path: n.Path, Lang: n.Lang,
-				Lines: n.Lines, Definitions: n.Definitions, Routes: routes,
+				Lines: n.Lines, Definitions: n.Definitions, Routes: routes, Tables: n.Tables,
 			})
 		}
 		return ok(jsonText(out), out)
@@ -200,7 +201,7 @@ func registerGetFlow(s *mcp.Server, eng *engine.Engine) {
 		}
 		out := GetFlowOutput{ID: f.ID, Name: f.Name, NodeIDs: f.NodeIDs}
 		for _, n := range eng.NodesByID(f.NodeIDs) {
-			out.Nodes = append(out.Nodes, MapNode{ID: n.ID, Repo: n.Repo, Path: n.Path, Lang: n.Lang, Lines: n.Lines, Definitions: n.Definitions})
+			out.Nodes = append(out.Nodes, MapNode{ID: n.ID, Repo: n.Repo, Path: n.Path, Lang: n.Lang, Lines: n.Lines, Definitions: n.Definitions, Tables: n.Tables})
 		}
 		return ok(jsonText(out), out)
 	})

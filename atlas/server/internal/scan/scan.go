@@ -29,6 +29,11 @@ type Node struct {
 	Imports     []string `json:"imports,omitempty"`
 	Definitions []string `json:"definitions,omitempty"`
 	Routes      []Route  `json:"routes,omitempty"`
+	// Tables = tablas SQL que el archivo referencia (DB::table, ->from, $table, Schema…).
+	// TableAnchors = tablas que el archivo DEFINE (migración Schema::create o modelo $table);
+	// se usan como extremos preferidos del edge cross-repo por tabla compartida.
+	Tables       []string `json:"tables,omitempty"`
+	TableAnchors []string `json:"table_anchors,omitempty"`
 }
 
 // Route es una ruta HTTP detectada. "ingress" = definición en el servidor;
@@ -110,6 +115,8 @@ func extractFile(repo, rel, lang, abs string) Node {
 	sc.Buffer(make([]byte, 0, 64*1024), 1024*1024)
 	defsSeen := map[string]bool{}
 	impSeen := map[string]bool{}
+	tblSeen := map[string]bool{}
+	anchSeen := map[string]bool{}
 	for sc.Scan() {
 		line := sc.Text()
 		n.Lines++
@@ -126,6 +133,19 @@ func extractFile(repo, rel, lang, abs string) Node {
 			}
 		}
 		n.Routes = append(n.Routes, matchRoutes(lang, line)...)
+		refs, anchors := matchTables(lang, line)
+		for _, t := range refs {
+			if !tblSeen[t] {
+				tblSeen[t] = true
+				n.Tables = append(n.Tables, t)
+			}
+		}
+		for _, t := range anchors {
+			if !anchSeen[t] {
+				anchSeen[t] = true
+				n.TableAnchors = append(n.TableAnchors, t)
+			}
+		}
 	}
 	return n
 }
@@ -269,6 +289,62 @@ func matchRoutes(lang, line string) []Route {
 			if strings.HasPrefix(p, "/api") || strings.HasPrefix(p, "/v1") || strings.HasPrefix(p, "/v2") {
 				push("candidate", "ANY", p)
 			}
+		}
+	}
+	return out
+}
+
+// ── tablas SQL ───────────────────────────────────────────────────────────────
+
+var (
+	// anclas: el archivo DEFINE la tabla
+	reModelTable = regexp.MustCompile(`\$table\s*=\s*['"]([a-zA-Z_][a-zA-Z0-9_]*)['"]`)
+	reSchema     = regexp.MustCompile(`Schema::(?:create|table|dropIfExists|rename)\(\s*['"]([a-zA-Z_][a-zA-Z0-9_]*)['"]`)
+	// referencias: el archivo CONSULTA la tabla por nombre
+	reDBTable = regexp.MustCompile(`(?:DB::table|->table|->from|->join|->leftJoin|->rightJoin|->crossJoin)\(\s*['"]([a-zA-Z_][a-zA-Z0-9_]*)['"]`)
+	reSQLFrom = regexp.MustCompile(`(?i)\b(?:from|join|into|update)\s+["'` + "`" + `]?([a-zA-Z_][a-zA-Z0-9_]*)`)
+)
+
+// palabras que reSQLFrom captura pero no son tablas.
+var notTable = map[string]bool{
+	"select": true, "where": true, "set": true, "values": true, "duplicate": true,
+	"dual": true, "table": true, "only": true, "as": true,
+}
+
+func matchTables(lang, line string) (refs, anchors []string) {
+	norm := func(s string) string { return strings.ToLower(s) }
+	switch lang {
+	case "php":
+		if m := reModelTable.FindStringSubmatch(line); m != nil {
+			anchors = append(anchors, norm(m[1]))
+			refs = append(refs, norm(m[1]))
+		}
+		if m := reSchema.FindStringSubmatch(line); m != nil {
+			anchors = append(anchors, norm(m[1]))
+			refs = append(refs, norm(m[1]))
+		}
+		for _, m := range reDBTable.FindAllStringSubmatch(line, -1) {
+			refs = append(refs, norm(m[1]))
+		}
+	case "sql":
+		for _, m := range reSQLFrom.FindAllStringSubmatch(line, -1) {
+			t := norm(m[1])
+			if !notTable[t] && len(t) >= 3 {
+				refs = append(refs, t)
+			}
+		}
+	}
+	// descarta ruido: nombres muy cortos
+	refs = filterTables(refs)
+	anchors = filterTables(anchors)
+	return
+}
+
+func filterTables(in []string) []string {
+	out := in[:0]
+	for _, t := range in {
+		if len(t) >= 3 && !notTable[t] {
+			out = append(out, t)
 		}
 	}
 	return out

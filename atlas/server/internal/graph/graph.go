@@ -11,6 +11,7 @@ package graph
 import (
 	"path"
 	"regexp"
+	"sort"
 	"strings"
 
 	"creditop/atlas/server/internal/scan"
@@ -41,6 +42,7 @@ func Build(nodes []scan.Node) []Edge {
 	var edges []Edge
 	edges = append(edges, importEdges(nodes)...)
 	edges = append(edges, routeEdges(nodes)...)
+	edges = append(edges, tableEdges(nodes)...)
 	return edges
 }
 
@@ -161,6 +163,96 @@ func hasStrongSegment(norm string) bool {
 		}
 	}
 	return false
+}
+
+// ── table edges (cross-repo) ─────────────────────────────────────────────────
+
+// tableEdges conecta nodos de repos distintos que comparten una tabla SQL. Es
+// el puente REAL para los monolitos (application ↔ legacy en el parallel-run del
+// strangler): no se hablan por HTTP, comparten la BD.
+//
+// Para no explotar (una tabla popular tocada por 50 archivos = 2500 edges),
+// los extremos son las ANCLAS (migración/modelo que define la tabla); si un repo
+// no tiene ancla para esa tabla, cae a unos pocos archivos que la referencian.
+func tableEdges(nodes []scan.Node) []Edge {
+	refs := map[string]map[string][]string{}    // tabla -> repo -> ids
+	anchors := map[string]map[string][]string{} // tabla -> repo -> ids
+	add := func(m map[string]map[string][]string, t, repo, id string) {
+		if m[t] == nil {
+			m[t] = map[string][]string{}
+		}
+		m[t][repo] = append(m[t][repo], id)
+	}
+	for _, n := range nodes {
+		for _, t := range n.Tables {
+			add(refs, t, n.Repo, n.ID)
+		}
+		for _, t := range n.TableAnchors {
+			add(anchors, t, n.Repo, n.ID)
+		}
+	}
+
+	var out []Edge
+	seen := map[string]bool{}
+	for t, byRepo := range refs {
+		var repos []string
+		for r := range byRepo {
+			repos = append(repos, r)
+		}
+		if len(repos) < 2 {
+			continue // tabla local a un solo repo: no es puente
+		}
+		sort.Strings(repos)
+		for i := 0; i < len(repos); i++ {
+			for j := i + 1; j < len(repos); j++ {
+				ra, rb := repos[i], repos[j]
+				ea := endpoints(anchors[t][ra], byRepo[ra])
+				eb := endpoints(anchors[t][rb], byRepo[rb])
+				for _, a := range ea {
+					for _, b := range eb {
+						if a == b {
+							continue
+						}
+						key := a + "|" + b + "|" + t
+						if seen[key] {
+							continue
+						}
+						seen[key] = true
+						out = append(out, Edge{From: a, To: b, Kind: "table", Detail: "tabla " + t})
+					}
+				}
+			}
+		}
+	}
+	return out
+}
+
+// endpoints elige los extremos de un edge por tabla en un repo: las anclas
+// (hasta 4) o, si no hay, unas pocas referencias (hasta 3).
+func endpoints(anchors, refs []string) []string {
+	if len(anchors) > 0 {
+		return capN(uniq(anchors), 4)
+	}
+	return capN(uniq(refs), 3)
+}
+
+func uniq(in []string) []string {
+	seen := map[string]bool{}
+	var out []string
+	for _, s := range in {
+		if !seen[s] {
+			seen[s] = true
+			out = append(out, s)
+		}
+	}
+	return out
+}
+
+func capN(in []string, n int) []string {
+	if len(in) > n {
+		return in[:n]
+	}
+	return in
 }
 
 func stripExt(p string) string {

@@ -174,6 +174,9 @@ onBeforeUnmount(() => { clearTimeout(retry); ws && ws.close() })
                 <div v-if="n.definitions && n.definitions.length" class="defs">
                   <span v-for="d in n.definitions.slice(0, 8)" :key="d" class="def">{{ d }}</span>
                 </div>
+                <div v-if="n.tables && n.tables.length" class="tables">
+                  <span v-for="t in n.tables.slice(0, 10)" :key="t" class="tbl">🗄 {{ t }}</span>
+                </div>
                 <div v-if="edges[n.id]" class="edges">
                   <p v-if="!edges[n.id].length" class="muted small">sin conexiones detectadas</p>
                   <div v-for="(e, i) in edges[n.id]" :key="i" class="edge" :class="e.kind">
