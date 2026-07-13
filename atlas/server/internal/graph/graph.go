@@ -43,6 +43,7 @@ func Build(nodes []scan.Node) []Edge {
 	edges = append(edges, importEdges(nodes)...)
 	edges = append(edges, routeEdges(nodes)...)
 	edges = append(edges, tableEdges(nodes)...)
+	edges = append(edges, inertiaEdges(nodes)...)
 	return edges
 }
 
@@ -253,6 +254,69 @@ func capN(in []string, n int) []string {
 		return in[:n]
 	}
 	return in
+}
+
+// ── inertia edges (Laravel ↔ Vue, monolito) ──────────────────────────────────
+
+// inertiaEdges conecta el backend con el frontend en un monolito Inertia, que
+// no usa HTTP/api explícito:
+//   - render : un controlador `inertia('X')` → la página `resources/js/pages/X.vue`.
+//   - route  : un Vue `route('nombre')` (Ziggy) → el archivo que define `->name('nombre')`.
+func inertiaEdges(nodes []scan.Node) []Edge {
+	// índice de páginas Vue por su "page key" (lo que va tras pages/ sin .vue), por repo
+	pageIdx := map[string][]string{} // repo\x00pagekey -> ids
+	nameIdx := map[string][]string{} // repo\x00routename -> ids (definiciones)
+	for _, n := range nodes {
+		if n.Lang == "vue" {
+			if k := pageKey(n.Path); k != "" {
+				pageIdx[n.Repo+"\x00"+k] = append(pageIdx[n.Repo+"\x00"+k], n.ID)
+			}
+		}
+		for _, name := range n.RouteNames {
+			nameIdx[n.Repo+"\x00"+name] = append(nameIdx[n.Repo+"\x00"+name], n.ID)
+		}
+	}
+
+	var out []Edge
+	seen := map[string]bool{}
+	emit := func(from, to, kind, detail string) {
+		if from == to {
+			return
+		}
+		key := from + ">" + to + ">" + detail
+		if seen[key] {
+			return
+		}
+		seen[key] = true
+		out = append(out, Edge{From: from, To: to, Kind: kind, Detail: detail})
+	}
+
+	for _, n := range nodes {
+		for _, r := range n.Renders {
+			k := strings.ToLower(strings.Trim(r, "/"))
+			for _, to := range pageIdx[n.Repo+"\x00"+k] {
+				emit(n.ID, to, "inertia", "render "+r)
+			}
+		}
+		for _, ref := range n.RouteRefs {
+			for _, to := range nameIdx[n.Repo+"\x00"+ref] {
+				emit(n.ID, to, "inertia", "route('"+ref+"')")
+			}
+		}
+	}
+	return out
+}
+
+// pageKey deriva la clave de una página Vue de Inertia desde su path:
+// resources/js/pages/customer/survey/Thanks.vue → "customer/survey/thanks".
+func pageKey(p string) string {
+	low := strings.ToLower(p)
+	i := strings.Index(low, "pages/")
+	if i < 0 {
+		return ""
+	}
+	rest := low[i+len("pages/"):]
+	return strings.TrimSuffix(rest, ".vue")
 }
 
 func stripExt(p string) string {

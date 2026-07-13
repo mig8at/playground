@@ -34,6 +34,13 @@ type Node struct {
 	// se usan como extremos preferidos del edge cross-repo por tabla compartida.
 	Tables       []string `json:"tables,omitempty"`
 	TableAnchors []string `json:"table_anchors,omitempty"`
+	// Inertia (monolito Laravel+Vue):
+	// Renders    = páginas Vue que este backend pinta (inertia('X') / Inertia::render('X')).
+	// RouteNames = nombres de ruta que este archivo DEFINE (->name('X')).
+	// RouteRefs  = nombres de ruta que este Vue USA (Ziggy route('X')).
+	Renders    []string `json:"renders,omitempty"`
+	RouteNames []string `json:"route_names,omitempty"`
+	RouteRefs  []string `json:"route_refs,omitempty"`
 }
 
 // Route es una ruta HTTP detectada. "ingress" = definición en el servidor;
@@ -117,6 +124,9 @@ func extractFile(repo, rel, lang, abs string) Node {
 	impSeen := map[string]bool{}
 	tblSeen := map[string]bool{}
 	anchSeen := map[string]bool{}
+	inSeen := map[string]bool{}
+	nameSeen := map[string]bool{}
+	refSeen := map[string]bool{}
 	for sc.Scan() {
 		line := sc.Text()
 		n.Lines++
@@ -144,6 +154,25 @@ func extractFile(repo, rel, lang, abs string) Node {
 			if !anchSeen[t] {
 				anchSeen[t] = true
 				n.TableAnchors = append(n.TableAnchors, t)
+			}
+		}
+		renders, names, rrefs := matchInertia(lang, line)
+		for _, r := range renders {
+			if !inSeen[r] {
+				inSeen[r] = true
+				n.Renders = append(n.Renders, r)
+			}
+		}
+		for _, r := range names {
+			if !nameSeen[r] {
+				nameSeen[r] = true
+				n.RouteNames = append(n.RouteNames, r)
+			}
+		}
+		for _, r := range rrefs {
+			if !refSeen[r] {
+				refSeen[r] = true
+				n.RouteRefs = append(n.RouteRefs, r)
 			}
 		}
 	}
@@ -348,4 +377,29 @@ func filterTables(in []string) []string {
 		}
 	}
 	return out
+}
+
+// ── Inertia (Laravel + Vue) ──────────────────────────────────────────────────
+
+var (
+	reRender    = regexp.MustCompile(`(?:Inertia::render|inertia)\(\s*['"]([^'"]+)['"]`)
+	reRouteName = regexp.MustCompile(`->name\(\s*['"]([^'"]+)['"]`)
+	reRouteRef  = regexp.MustCompile(`\broute\(\s*['"]([^'"]+)['"]`)
+)
+
+func matchInertia(lang, line string) (renders, names, refs []string) {
+	switch lang {
+	case "php":
+		for _, m := range reRender.FindAllStringSubmatch(line, -1) {
+			renders = append(renders, m[1])
+		}
+		for _, m := range reRouteName.FindAllStringSubmatch(line, -1) {
+			names = append(names, m[1])
+		}
+	case "vue", "js", "ts":
+		for _, m := range reRouteRef.FindAllStringSubmatch(line, -1) {
+			refs = append(refs, m[1])
+		}
+	}
+	return
 }
