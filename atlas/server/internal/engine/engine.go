@@ -68,8 +68,9 @@ type flowFile struct {
 
 // Engine da acceso concurrente-seguro al estado en disco.
 type Engine struct {
-	mu  sync.Mutex
-	dir string
+	mu       sync.Mutex
+	dir      string // runtime: índice, combinaciones, baselines (~/.creditop-atlas)
+	flowsDir string // definiciones EDITABLES de flujos (server/data/flows)
 }
 
 // New abre (o crea) el engine sobre el directorio de datos.
@@ -85,7 +86,7 @@ func New() (*Engine, error) {
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return nil, err
 	}
-	return &Engine{dir: dir}, nil
+	return &Engine{dir: dir, flowsDir: resolveFlowsDir()}, nil
 }
 
 // Dir es el directorio de datos (para logs).
@@ -100,7 +101,19 @@ func (e *Engine) ModTimes() (idx, flows, combos time.Time) {
 	if fi, err := os.Stat(e.indexPath()); err == nil {
 		idx = fi.ModTime()
 	}
-	if fi, err := os.Stat(e.flowsPath()); err == nil {
+	// flujos: el mtime más reciente entre las defs editables (server/data/flows)
+	// y baselines.json, para refrescar la UI al editar a mano.
+	if fi, err := os.Stat(e.flowsDir); err == nil {
+		flows = fi.ModTime()
+	}
+	if entries, err := os.ReadDir(e.flowsDir); err == nil {
+		for _, en := range entries {
+			if info, e2 := en.Info(); e2 == nil && info.ModTime().After(flows) {
+				flows = info.ModTime()
+			}
+		}
+	}
+	if fi, err := os.Stat(e.baselinesPath()); err == nil && fi.ModTime().After(flows) {
 		flows = fi.ModTime()
 	}
 	if fi, err := os.Stat(e.combsPath()); err == nil {
@@ -372,40 +385,11 @@ func (e *Engine) SaveFlow(id, name, description, combination, group, kind string
 	if id == "" {
 		id = slug(name)
 	}
-	// snapshot de hashes actuales = línea base del análisis
-	hashes := e.hashesFor(nodeIDs)
-
-	ff := e.loadFlows()
-	now := time.Now()
-	updated := false
-	for i := range ff.Flows {
-		if ff.Flows[i].ID == id {
-			ff.Flows[i].Name = name
-			ff.Flows[i].Description = description
-			ff.Flows[i].Combination = combination
-			ff.Flows[i].Group = group
-			ff.Flows[i].Kind = kind
-			ff.Flows[i].NodeIDs = nodeIDs
-			ff.Flows[i].Hashes = hashes
-			ff.Flows[i].Updated = now
-			updated = true
-			break
-		}
-	}
-	var saved Flow
-	if !updated {
-		saved = Flow{ID: id, Name: name, Description: description, Combination: combination, Group: group, Kind: kind, NodeIDs: nodeIDs, Hashes: hashes, Created: now, Updated: now}
-		ff.Flows = append(ff.Flows, saved)
-	}
-	if err := writeJSON(e.flowsPath(), ff); err != nil {
+	def := FlowDef{Name: name, Description: description, Combination: combination, Group: group, Kind: kind}
+	if err := e.saveFlowDef(id, def, nodeIDs); err != nil {
 		return Flow{}, err
 	}
-	for _, f := range ff.Flows {
-		if f.ID == id {
-			return f, nil
-		}
-	}
-	return saved, nil
+	return Flow{ID: id, Name: name, Description: description, Combination: combination, Group: group, Kind: kind, NodeIDs: nodeIDs, Hashes: e.hashesFor(nodeIDs)}, nil
 }
 
 // hashesFor devuelve el hash de contenido actual de cada id (los que existan en
@@ -461,13 +445,11 @@ func (e *Engine) FlowStatus(id string) (FlowStatus, bool) {
 	return st, ok
 }
 
-// Flows lista los flujos guardados (más recientes primero).
+// Flows lista los flujos definidos (orden de creación).
 func (e *Engine) Flows() []Flow {
 	e.mu.Lock()
 	defer e.mu.Unlock()
-	ff := e.loadFlows()
-	sort.Slice(ff.Flows, func(i, j int) bool { return ff.Flows[i].Updated.After(ff.Flows[j].Updated) })
-	return ff.Flows
+	return e.loadFlows().Flows
 }
 
 // Flow devuelve un flujo por id.
@@ -482,19 +464,11 @@ func (e *Engine) Flow(id string) (Flow, bool) {
 	return Flow{}, false
 }
 
-// DeleteFlow elimina un flujo por id.
+// DeleteFlow elimina un flujo por id (borra su archivo de definición).
 func (e *Engine) DeleteFlow(id string) error {
 	e.mu.Lock()
 	defer e.mu.Unlock()
-	ff := e.loadFlows()
-	out := ff.Flows[:0]
-	for _, f := range ff.Flows {
-		if f.ID != id {
-			out = append(out, f)
-		}
-	}
-	ff.Flows = out
-	return writeJSON(e.flowsPath(), ff)
+	return e.deleteFlowDef(id)
 }
 
 // ── persistencia ─────────────────────────────────────────────────────────────
@@ -505,9 +479,7 @@ func (e *Engine) loadIndex() index {
 	return idx
 }
 func (e *Engine) loadFlows() flowFile {
-	var ff flowFile
-	readJSON(e.flowsPath(), &ff)
-	return ff
+	return e.loadFlowsFromDefs()
 }
 
 func readJSON(path string, v any) {

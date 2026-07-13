@@ -1,5 +1,6 @@
 <script setup>
 import { ref, computed } from 'vue'
+import { X, GitBranch, Plus } from 'lucide-vue-next'
 
 // combinations = [{id, name, targets:{alias:branch}, status:{aligned, repos:[{alias,target,current,commit,state}]}}]
 // repos = summary.repos [{alias, branch, commit}]  ·  branches = {alias:[branch,...]}
@@ -52,7 +53,7 @@ function stateLabel(s) {
     <div class="section-head cb-head">
       <h2>Combinaciones de ramas</h2>
       <span class="section-hint">click en una card → alinea repos y dibuja su flujo</span>
-      <button v-if="!creating" class="cb-new" @click="startCreate">+ nueva</button>
+      <button v-if="!creating" class="cb-new" @click="startCreate"><Plus :size="14" /> nueva</button>
     </div>
 
     <!-- formulario nueva combinación -->
@@ -92,7 +93,7 @@ function stateLabel(s) {
               {{ c.status.aligned ? '✓ alineada' : '⚠ drift' }}
             </span>
           </div>
-          <button class="x" @click.stop="confirmId = confirmId === c.id ? '' : c.id" title="borrar">×</button>
+          <button class="x" @click.stop="confirmId = confirmId === c.id ? '' : c.id" title="borrar"><X :size="15" /></button>
         </div>
         <div v-if="confirmId === c.id" class="cb-confirm" @click.stop>
           ¿Borrar <b>{{ c.name }}</b>?
@@ -102,7 +103,7 @@ function stateLabel(s) {
         <ul v-else class="cb-rows">
           <li v-for="r in c.status.repos" :key="r.alias" :class="r.state">
             <span class="cb-alias">{{ r.alias }}</span>
-            <span class="cb-arrow">⑂ {{ r.target }}</span>
+            <span class="cb-arrow"><GitBranch :size="12" /> {{ r.target }}</span>
             <span class="cb-state">
               <template v-if="r.state === 'aligned'">✓</template>
               <template v-else-if="r.state === 'off'">✗ está en <code>{{ r.current }}</code></template>
@@ -117,7 +118,9 @@ function stateLabel(s) {
 
 <style scoped>
 .cb-head .cb-new { margin-left: auto; }
-.cb-new { background: var(--accent); color: #06101f; border: 0; border-radius: 8px; padding: 6px 14px; font-weight: 600; font-size: 13px; cursor: pointer; }
+.cb-new { display: inline-flex; align-items: center; gap: 4px; background: var(--accent); color: #06101f; border: 0; border-radius: 8px; padding: 6px 14px; font-weight: 600; font-size: 13px; cursor: pointer; }
+.cb-arrow { display: inline-flex; align-items: center; gap: 4px; }
+.x { display: inline-flex; align-items: center; }
 .cb-new:hover { filter: brightness(1.08); }
 .cb-confirm { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--muted); padding: 4px 0; }
 .cb-yes { background: rgba(248,81,73,.15); color: var(--red); border: 1px solid rgba(248,81,73,.4); border-radius: 6px; padding: 3px 10px; font-size: 12px; cursor: pointer; }

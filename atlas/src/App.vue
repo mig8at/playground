@@ -4,6 +4,7 @@ import { ref, computed, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import MapView from './MapView.vue'
 import CombinationPanel from './CombinationPanel.vue'
 import FlowGraph from './FlowGraph.vue'
+import { Waypoints, ChevronRight, ChevronDown } from 'lucide-vue-next'
 
 const WS_URL = 'ws://localhost:8788/ws'
 
@@ -137,13 +138,7 @@ async function copyText(text, label) {
   <div class="wrap">
     <header class="top">
       <div class="brand">
-        <svg class="logo-mark" viewBox="0 0 32 32" fill="none">
-          <circle cx="16" cy="16" r="14" stroke="var(--accent)" stroke-width="1.5" opacity=".5" />
-          <circle cx="16" cy="7" r="2.6" fill="var(--accent)" />
-          <circle cx="8" cy="22" r="2.6" fill="var(--green)" />
-          <circle cx="24" cy="22" r="2.6" fill="var(--violet)" />
-          <path d="M16 9.5 9.5 20M16 9.5 22.5 20M10.5 22h11" stroke="var(--muted)" stroke-width="1.3" />
-        </svg>
+        <Waypoints class="logo-mark" :size="28" :stroke-width="1.6" />
         <div>
           <h1>Atlas</h1>
           <p class="tag">mapa de flujos cross-repo · CreditOp</p>
@@ -158,7 +153,7 @@ async function copyText(text, label) {
     </header>
 
     <div class="map-bar" @click="mapCollapsed = !mapCollapsed">
-      <span class="map-caret">{{ mapCollapsed ? '▸' : '▾' }}</span>
+      <component :is="mapCollapsed ? ChevronRight : ChevronDown" class="map-caret" :size="16" />
       <b>Mapa del ecosistema</b>
       <span class="section-hint">{{ repos.length }} repos · {{ nodeCount }} nodos · datos compartidos</span>
     </div>

@@ -64,7 +64,7 @@ code { font-family: var(--mono); }
 .pill.on::before { animation: pulse 1.8s infinite; }
 .pill.off { background: rgba(248,81,73,.15); color: var(--red); }
 @keyframes pulse { 0%,100% { opacity: 1; box-shadow: 0 0 0 0 rgba(63,185,80,.5); } 50% { opacity: .6; box-shadow: 0 0 0 4px rgba(63,185,80,0); } }
-.logo-mark { width: 30px; height: 30px; display: block; }
+.logo-mark { display: block; color: var(--accent); }
 .stat.live { cursor: pointer; transition: border-color .15s, color .15s; }
 .stat.live:hover { border-color: var(--accent); color: var(--text); }
 

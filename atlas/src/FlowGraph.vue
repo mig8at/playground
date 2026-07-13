@@ -2,6 +2,7 @@
 import { computed } from 'vue'
 import { VueFlow, Handle, Position } from '@vue-flow/core'
 import { Background } from '@vue-flow/background'
+import { Copy, Check, GitBranch, AlertTriangle } from 'lucide-vue-next'
 import '@vue-flow/core/dist/style.css'
 import '@vue-flow/core/dist/theme-default.css'
 
@@ -96,7 +97,7 @@ const layout = computed(() => {
     <div v-if="status?.repos?.length" class="fg-legend">
       <span class="fg-legend-lbl">ramas:</span>
       <span v-for="r in status.repos" :key="r.alias" class="fg-branch" :class="r.state === 'aligned' ? 'ok' : 'drift'">
-        <b>{{ r.alias }}</b>⑂{{ r.current }}<template v-if="r.state === 'off'"> ⚠→{{ r.target }}</template>
+        <b>{{ r.alias }}</b><GitBranch :size="12" />{{ r.current }}<template v-if="r.state === 'off'"> →{{ r.target }}</template>
       </span>
     </div>
 
@@ -123,8 +124,9 @@ const layout = computed(() => {
             <button class="gcopy" :disabled="!data.hasTree"
                     :title="'copiar: ' + data.copyLabel + ' · ' + data.files + ' archivos · ' + data.size"
                     @click="emit('copy', { group: data.copyGroup, key: data.copyKey, label: data.copyLabel })">
-              <template v-if="isCopied(data.copyGroup, data.copyKey)">✓ copiado</template>
-              <template v-else>⧉ {{ data.kind === 'channel' ? (data.allLabel || 'copiar') : 'copiar' }} · {{ data.size }}</template>
+              <Check v-if="isCopied(data.copyGroup, data.copyKey)" :size="13" />
+              <Copy v-else :size="13" />
+              <span>{{ isCopied(data.copyGroup, data.copyKey) ? 'copiado' : (data.kind === 'channel' ? (data.allLabel || 'copiar') : 'copiar') + ' · ' + data.size }}</span>
             </button>
           </div>
           <Handle v-if="data.kind === 'channel'" type="source" :position="Position.Right" />
@@ -172,7 +174,8 @@ const layout = computed(() => {
 .grepo { font-size: 9px; padding: 1px 6px; border-radius: 4px; background: var(--chip); color: var(--muted); }
 .grepo.ok { color: var(--green); background: rgba(63,185,80,.12); }
 .grepo.drift { color: var(--amber); background: rgba(227,179,65,.14); }
-.gcopy { width: 100%; background: var(--accent); color: #06101f; border: 0; border-radius: 6px; padding: 6px; font-weight: 600; font-size: 11px; cursor: pointer; }
+.gcopy { width: 100%; display: inline-flex; align-items: center; justify-content: center; gap: 5px; background: var(--accent); color: #06101f; border: 0; border-radius: 6px; padding: 6px; font-weight: 600; font-size: 11px; cursor: pointer; }
+.fg-branch { display: inline-flex; align-items: center; gap: 3px; }
 .gcopy:hover:not(:disabled) { filter: brightness(1.08); }
 .gcopy:disabled { opacity: .5; cursor: default; }
 :deep(.vue-flow__handle) { opacity: 0; }
