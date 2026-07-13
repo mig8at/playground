@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Panel de decisión del comercio — CreditOp</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3/dist/tabler-icons.min.css">
+<style>
+:root{
+  --surface-0:#f4f3ee; --surface-1:#faf9f5; --surface-2:#ffffff;
+  --text-primary:#1f1e1c; --text-secondary:#5f5e5a; --text-muted:#8f8d85;
+  --border:#e4e2d9; --border-strong:#d0cec4;
+  --accent:#2f6ad9; --bg-accent:#e6f1fb; --text-accent:#185fa5; --border-accent:#85b7eb;
+  --bg-ok:#e1f5ee; --text-ok:#0f6e56; --border-ok:#5dcaa5;
+  --bg-warn:#faeeda; --text-warn:#854f0b; --border-warn:#efa927;
+  --bg-bad:#fcebeb; --text-bad:#a32d2d; --border-bad:#e24b4a;
+  --radius:8px; --font-sans:"Inter",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  --shadow:0 1px 2px rgba(0,0,0,.04);
+}
+html[data-theme="dark"]{
+  --surface-0:#1a1a18; --surface-1:#232320; --surface-2:#2b2b28;
+  --text-primary:#f2f0ea; --text-secondary:#b4b2a9; --text-muted:#8f8d85;
+  --border:#3a3a36; --border-strong:#4a4a45;
+  --accent:#378add; --bg-accent:#12283b; --text-accent:#85b7eb; --border-accent:#185fa5;
+  --bg-ok:#0f2b24; --text-ok:#5dcaa5; --border-ok:#0f6e56;
+  --bg-warn:#3a2c12; --text-warn:#efa927; --border-warn:#854f0b;
+  --bg-bad:#301414; --text-bad:#f09595; --border-bad:#a32d2d;
+  --shadow:none;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--surface-0);color:var(--text-primary);font-family:var(--font-sans);line-height:1.5;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1080px;margin:0 auto;padding:24px 20px 64px}
+.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+h1{font-size:19px;font-weight:500;margin:0}
+.sub{font-size:13px;color:var(--text-secondary);margin:2px 0 0}
+.cols{display:grid;grid-template-columns:320px 1fr;gap:16px;align-items:start}
+@media(max-width:760px){.cols{grid-template-columns:1fr}}
+.card{background:var(--surface-2);border:0.5px solid var(--border);border-radius:12px;box-shadow:var(--shadow)}
+.qhead{font-size:12.5px;color:var(--text-secondary);padding:12px 14px;border-bottom:0.5px solid var(--border);display:flex;align-items:center;gap:8px}
+.qitem{padding:12px 14px;border-bottom:0.5px solid var(--border);cursor:pointer;transition:background .1s}
+.qitem:last-child{border-bottom:none}
+.qitem:hover{background:var(--surface-1)}
+.qitem.sel{background:var(--bg-accent)}
+.qitem.done{opacity:.55;cursor:default}
+.qitem.done:hover{background:transparent}
+.av{width:34px;height:34px;border-radius:50%;background:var(--bg-accent);color:var(--text-accent);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:500;flex:none}
+.pill{font-size:11px;font-weight:500;padding:2px 9px;border-radius:999px;white-space:nowrap;display:inline-flex;align-items:center;gap:4px}
+.pill.ok{background:var(--bg-ok);color:var(--text-ok)}
+.pill.warn{background:var(--bg-warn);color:var(--text-warn)}
+.pill.bad{background:var(--bg-bad);color:var(--text-bad)}
+.pill.mut{background:var(--surface-1);color:var(--text-secondary);border:0.5px solid var(--border)}
+.pill.acc{background:var(--bg-accent);color:var(--text-accent)}
+.sec2{padding:16px 18px;border-bottom:0.5px solid var(--border)}
+.sec2:last-child{border-bottom:none}
+.lbl{font-size:11.5px;color:var(--text-muted);text-transform:none;margin:0 0 2px}
+.metric{background:var(--surface-1);border-radius:var(--radius);padding:10px 12px}
+.metric .v{font-size:16px;font-weight:500;margin:2px 0 0}
+.chk{display:flex;align-items:center;gap:10px;padding:7px 0;font-size:13.5px;border-bottom:0.5px solid var(--border)}
+.chk:last-child{border-bottom:none}
+.chk i{font-size:17px;flex:none}
+.chk .val{margin-left:auto;color:var(--text-secondary);font-size:12.5px}
+.banner{border-radius:var(--radius);padding:11px 13px;font-size:13.5px;display:flex;align-items:center;gap:9px}
+button{font-family:inherit;font-size:13.5px;border-radius:var(--radius);height:40px;padding:0 16px;cursor:pointer;border:0.5px solid var(--border-strong);background:transparent;color:var(--text-primary);transition:background .1s,transform .06s}
+button:hover{background:var(--surface-1)}
+button:active{transform:scale(.98)}
+button.ok{background:var(--text-ok);color:#fff;border:none}
+button.warn{background:var(--bg-warn);color:var(--text-warn);border:0.5px solid var(--border-warn)}
+button.bad{background:transparent;color:var(--text-bad);border:0.5px solid var(--border-bad)}
+button:disabled{opacity:.5;cursor:default;transform:none}
+textarea{width:100%;font-family:inherit;font-size:13px;color:var(--text-primary);background:var(--surface-1);border:0.5px solid var(--border-strong);border-radius:var(--radius);padding:8px 10px;resize:vertical;min-height:40px}
+.iconbtn{width:38px;height:38px;padding:0;border-radius:var(--radius);display:inline-flex;align-items:center;justify-content:center}
+</style>
+</head>
+<body>
+<main class="wrap">
+<h2 class="sr-only">Consola de decisión del administrador del comercio: bandeja de solicitudes de renting y panel de aprobación.</h2>
+
+<div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:0 0 18px">
+  <div style="flex:1;min-width:220px">
+    <h1><i class="ti ti-gavel" style="vertical-align:-3px;color:var(--text-secondary)" aria-hidden="true"></i> Panel de decisión</h1>
+    <p class="sub">Motai · modo <b style="font-weight:500">mixto</b> — las reglas sugieren, el administrador confirma.</p>
+  </div>
+  <span class="pill acc"><i class="ti ti-user-shield" aria-hidden="true"></i> Admin del comercio</span>
+  <button id="themeBtn" class="iconbtn" aria-label="Cambiar tema"><i class="ti ti-moon" aria-hidden="true"></i></button>
+</div>
+
+<div class="cols">
+  <div class="card" style="overflow:hidden">
+    <div class="qhead"><i class="ti ti-inbox" aria-hidden="true"></i> Esperando decisión <span id="pend" style="margin-left:auto;background:var(--bg-accent);color:var(--text-accent);border-radius:999px;padding:1px 8px;font-weight:500"></span></div>
+    <div id="queue"></div>
+  </div>
+  <div class="card" id="detail"></div>
+</div>
+
+</main>
+<script>
+var $=function(id){return document.getElementById(id)};
+var money=function(n){return '$'+Math.round(n).toLocaleString('es-CO')};
+
+var SOL=[
+ {id:1,nombre:'Juan Pérez',ini:'JP',doc:'CC 1.032.xxx',tel:'+57 300 xxx',prod:'Rent-to-own',monto:4534000,plan:'semanal · 24 sem',fuente:'abaco',plataformas:'Rappi · Uber',ingM:3200000,score:520,mora:0,deudas:300000,cuotaSem:180000,refs:2,hace:'hace 20 min'},
+ {id:2,nombre:'María Gómez',ini:'MG',doc:'CC 52.114.xxx',tel:'+57 311 xxx',prod:'Renting',monto:3800000,plan:'semanal · 18 sem',fuente:'abaco',plataformas:'DiDi',ingM:2400000,score:610,mora:0,deudas:250000,cuotaSem:170000,refs:2,hace:'hace 1 h'},
+ {id:3,nombre:'Carlos Ruiz',ini:'CR',doc:'CE 921.xxx',tel:'+57 320 xxx',prod:'Rent-to-own',monto:5200000,plan:'semanal · 24 sem',fuente:'centrales',plataformas:'AgilData · TusDatos',ingM:2100000,score:360,mora:12000000,deudas:900000,cuotaSem:210000,refs:1,hace:'hace 3 h'}
+];
+
+function evaluate(s){
+ var ingSem=s.ingM/4.33, cuotaMes=s.cuotaSem*4.33;
+ var checks=[
+  {t:'Referencias registradas', ok:s.refs>=2, val:s.refs+' de 2'},
+  {t:'Score Datacrédito titular ≥ 400', ok:s.score>=400, val:s.score},
+  {t:'Mora vigente ≤ $10.000.000', ok:s.mora<=10000000, val:money(s.mora)},
+  {t:'Canon semanal entre $150k y $300k', ok:s.cuotaSem>=150000&&s.cuotaSem<=300000, val:money(s.cuotaSem)},
+  {t:'Cuota ≤ 25% del ingreso semanal', ok:s.cuotaSem<=0.25*ingSem, val:Math.round(s.cuotaSem/ingSem*100)+'%'},
+  {t:'Deudas + cuota ≤ 40% del ingreso', ok:(s.deudas+cuotaMes)<=0.40*s.ingM, val:Math.round((s.deudas+cuotaMes)/s.ingM*100)+'%'}
+ ];
+ var hardFail=!checks[1].ok||!checks[2].ok||!checks[3].ok;
+ var rec;
+ if(hardFail) rec={k:'bad',txt:'Rechazar',why:'No cumple una regla dura (score, mora o canon fuera de rango).'};
+ else if(s.ingM<2900000||!checks[4].ok||!checks[5].ok) rec={k:'warn',txt:'Validar codeudor',why:'Cumple lo básico, pero el ingreso no alcanza solo. Requiere codeudor (score > 650).'};
+ else rec={k:'ok',txt:'Aprobar',why:'Cumple todas las reglas y el ingreso alcanza. Aprobación directa.'};
+ return {checks:checks,rec:rec,ingSem:ingSem};
+}
+
+var selId=1;
+function renderQueue(){
+ var q=$('queue');q.innerHTML='';
+ var pending=0;
+ SOL.forEach(function(s){
+  if(!s.decision)pending++;
+  var e=evaluate(s);
+  var d=document.createElement('div');
+  d.className='qitem'+(s.id===selId?' sel':'')+(s.decision?' done':'');
+  var recPill=s.decision
+   ? '<span class="pill '+({Aprobar:'ok','Validar codeudor':'warn',Rechazar:'bad'})[s.decision]+'"><i class="ti ti-check"></i> '+s.decision+'</span>'
+   : '<span class="pill '+e.rec.k+'">sugerido: '+e.rec.txt+'</span>';
+  d.innerHTML='<div style="display:flex;gap:10px;align-items:center"><div class="av">'+s.ini+'</div>'
+   +'<div style="min-width:0;flex:1"><div style="font-size:14px;font-weight:500">'+s.nombre+'</div>'
+   +'<div style="font-size:12px;color:var(--text-muted)">'+s.prod+' · '+money(s.monto)+'</div></div></div>'
+   +'<div style="display:flex;gap:6px;align-items:center;margin-top:9px;flex-wrap:wrap">'+recPill
+   +'<span class="pill mut"><i class="ti ti-'+(s.fuente==='abaco'?'device-mobile':'building-bank')+'"></i> '+(s.fuente==='abaco'?'Ábaco':'centrales')+'</span>'
+   +'<span style="font-size:11.5px;color:var(--text-muted);margin-left:auto">'+(s.decidedAt||s.hace)+'</span></div>';
+  if(!s.decision)d.onclick=function(){selId=s.id;render()};
+  q.appendChild(d);
+ });
+ $('pend').textContent=pending;
+}
+
+function gate(txt){return '<span class="pill ok"><i class="ti ti-check"></i> '+txt+'</span>'}
+
+function renderDetail(){
+ var s=SOL.filter(function(x){return x.id===selId})[0]||SOL[0];
+ var e=evaluate(s);
+ var checksHtml=e.checks.map(function(c){
+  return '<div class="chk"><i class="ti ti-'+(c.ok?'circle-check':'alert-triangle')+'" style="color:var(--text-'+(c.ok?'ok':'warn')+')"></i>'
+   +'<span>'+c.t+'</span><span class="val">'+c.val+'</span></div>';
+ }).join('');
+ var decided=!!s.decision;
+ var codeudorBlock = e.rec.k==='warn' ? '<div class="sec2"><p class="lbl">Codeudor</p>'
+   +'<div class="banner" style="background:var(--bg-warn);color:var(--text-warn)"><i class="ti ti-user-plus"></i> Requiere codeudor con score > 650. '
+   +(decided&&s.decision==='Validar codeudor'?'Se envió solicitud de codeudor.':'Aún no adjuntado.')+'</div></div>' : '';
+
+ $('detail').innerHTML=
+  '<div class="sec2" style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">'
+   +'<div class="av" style="width:44px;height:44px;font-size:15px">'+s.ini+'</div>'
+   +'<div style="flex:1;min-width:160px"><div style="font-size:16px;font-weight:500">'+s.nombre+'</div>'
+   +'<div style="font-size:12.5px;color:var(--text-muted)">'+s.doc+' · '+s.tel+'</div></div>'
+   +'<div style="display:flex;gap:6px;flex-wrap:wrap">'+gate('Ábaco')+gate('Identidad (AML)')+gate('ADO')+'</div></div>'
+
+  +'<div class="sec2"><p class="lbl">Perfil financiero</p>'
+   +'<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px">'
+   +'<div class="metric"><p class="lbl">Ingreso mensual</p><p class="v">'+money(s.ingM)+'</p><span class="pill mut" style="margin-top:4px"><i class="ti ti-'+(s.fuente==='abaco'?'device-mobile':'building-bank')+'"></i> '+(s.fuente==='abaco'?'Ábaco · '+s.plataformas:'centrales')+'</span></div>'
+   +'<div class="metric"><p class="lbl">Ingreso semanal</p><p class="v">'+money(e.ingSem)+'</p></div>'
+   +'<div class="metric"><p class="lbl">Score Datacrédito</p><p class="v">'+s.score+'</p></div>'
+   +'<div class="metric"><p class="lbl">Mora vigente</p><p class="v">'+money(s.mora)+'</p></div></div></div>'
+
+  +'<div class="sec2"><p class="lbl">Producto solicitado</p>'
+   +'<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;font-size:14px">'
+   +'<span class="pill acc">'+s.prod+'</span><span>'+money(s.monto)+'</span><span style="color:var(--text-muted)">·</span>'
+   +'<span style="color:var(--text-secondary)">'+s.plan+'</span><span style="color:var(--text-muted)">·</span>'
+   +'<span>cuota '+money(s.cuotaSem)+'/sem</span></div></div>'
+
+  +'<div class="sec2"><p class="lbl">Evaluación de reglas</p>'+checksHtml
+   +'<div class="banner" style="margin-top:12px;background:var(--bg-'+e.rec.k+');color:var(--text-'+e.rec.k+')">'
+   +'<i class="ti ti-'+(e.rec.k==='ok'?'thumb-up':e.rec.k==='warn'?'user-plus':'ban')+'"></i>'
+   +'<span><b style="font-weight:500">Recomendación del sistema: '+e.rec.txt+'.</b> '+e.rec.why+'</span></div></div>'
+
+  +codeudorBlock
+
+  +'<div class="sec2">'
+   +(decided
+     ? '<div class="banner" style="background:var(--bg-'+({Aprobar:'ok','Validar codeudor':'warn',Rechazar:'bad'})[s.decision]+');color:var(--text-'+({Aprobar:'ok','Validar codeudor':'warn',Rechazar:'bad'})[s.decision]+')"><i class="ti ti-check"></i> Decisión registrada: <b style="font-weight:500">'+s.decision+'</b> · por Admin del comercio · '+s.decidedAt+'</div>'
+     : '<p class="lbl">Decisión del administrador</p>'
+       +'<textarea id="nota" placeholder="Nota u observación (opcional)"></textarea>'
+       +'<div style="display:flex;gap:10px;margin-top:12px;flex-wrap:wrap">'
+       +'<button class="ok" onclick="decide(1)"><i class="ti ti-check" style="vertical-align:-2px"></i> Aprobar</button>'
+       +'<button class="warn" onclick="decide(2)"><i class="ti ti-user-plus" style="vertical-align:-2px"></i> Validar codeudor</button>'
+       +'<button class="bad" onclick="decide(3)"><i class="ti ti-x" style="vertical-align:-2px"></i> Rechazar</button>'
+       +'</div><p style="font-size:11.5px;color:var(--text-muted);margin:10px 0 0"><i class="ti ti-history" style="vertical-align:-2px"></i> Queda auditado: quién decide, cuándo y con qué datos a la vista.</p>')
+   +'</div>';
+}
+
+window.decide=function(k){
+ var s=SOL.filter(function(x){return x.id===selId})[0];
+ s.decision=({1:'Aprobar',2:'Validar codeudor',3:'Rechazar'})[k];
+ s.decidedAt='ahora';
+ var next=SOL.filter(function(x){return !x.decision})[0];
+ if(next)selId=next.id;
+ render();
+};
+function render(){renderQueue();renderDetail()}
+
+$('themeBtn').onclick=function(){var h=document.documentElement,d=h.getAttribute('data-theme')==='dark';h.setAttribute('data-theme',d?'light':'dark');this.innerHTML='<i class="ti ti-'+(d?'moon':'sun')+'"></i>'};
+if(window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches){document.documentElement.setAttribute('data-theme','dark');$('themeBtn').innerHTML='<i class="ti ti-sun"></i>'}
+
+render();
+</script>
+</body>
+</html>

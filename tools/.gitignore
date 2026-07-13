@@ -1,0 +1,10 @@
+# Frontend (Vue)
+/node_modules/
+/dist/
+
+# Server (Go) — binarios compilados
+server/bin/
+
+# Secretos: NUNCA commitear (.env en cualquier carpeta)
+.env
+.env.local

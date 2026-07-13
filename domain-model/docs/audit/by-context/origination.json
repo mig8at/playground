@@ -1,0 +1,828 @@
+[
+ {
+  "key": "loanApplication",
+  "name": "LoanApplication",
+  "tipo": "aggregateRoot",
+  "estado": "mapeada_ok",
+  "descripcion": "Es la solicitud de crédito y la pieza central de la originación: reúne quién pide el crédito, en qué comercio aliado y sucursal, con qué lender y bajo qué condiciones de monto, plazo y cuotas. Acompaña a la solicitud a lo largo de todo su recorrido, desde que se captura hasta que se desembolsa o se rechaza, sin importar si entró de forma presencial, por ecommerce, por un link de pago o con un código de compra.",
+  "legacy": {
+   "tabla": "user_requests"
+  },
+  "atributos": [
+   {
+    "n": "request_number",
+    "t": "varchar(255)",
+    "legacy": null
+   },
+   {
+    "n": "customer_id",
+    "t": "bigint",
+    "legacy": "user_id"
+   },
+   {
+    "n": "merchant_id",
+    "t": "int",
+    "legacy": "allied_id"
+   },
+   {
+    "n": "merchant_branch_id",
+    "t": "int",
+    "legacy": "allied_branch_id"
+   },
+   {
+    "n": "lender_id",
+    "t": "int",
+    "legacy": null
+   },
+   {
+    "n": "credit_line_id",
+    "t": "int",
+    "legacy": null
+   },
+   {
+    "n": "corporate_user_id",
+    "t": "int",
+    "legacy": null
+   },
+   {
+    "n": "status_id",
+    "t": "int",
+    "legacy": "user_request_status_id"
+   },
+   {
+    "n": "is_active",
+    "t": "tinyint(1)",
+    "legacy": "status"
+   },
+   {
+    "n": "amount",
+    "t": "decimal(15,4)",
+    "legacy": null
+   },
+   {
+    "n": "original_amount",
+    "t": "decimal(15,4)",
+    "legacy": null
+   },
+   {
+    "n": "final_amount",
+    "t": "decimal(15,4)",
+    "legacy": null
+   },
+   {
+    "n": "purchase_amount",
+    "t": "double(19,4)",
+    "legacy": null
+   },
+   {
+    "n": "amount_available",
+    "t": "decimal(15,4)",
+    "legacy": null
+   },
+   {
+    "n": "initial_fee",
+    "t": "decimal(15,4)",
+    "legacy": null
+   },
+   {
+    "n": "fee_number",
+    "t": "int",
+    "legacy": null
+   },
+   {
+    "n": "fee_value",
+    "t": "decimal(15,4)",
+    "legacy": null
+   },
+   {
+    "n": "rate",
+    "t": "double(8,2)",
+    "legacy": null
+   },
+   {
+    "n": "payment_amount",
+    "t": "bigint",
+    "legacy": null
+   },
+   {
+    "n": "selected_payment_date",
+    "t": "date",
+    "legacy": null
+   },
+   {
+    "n": "payment_method_id",
+    "t": "int",
+    "legacy": null
+   },
+   {
+    "n": "remaining_bonus",
+    "t": "decimal(15,4)",
+    "legacy": null
+   },
+   {
+    "n": "order_number",
+    "t": "varchar(255)",
+    "legacy": null
+   },
+   {
+    "n": "invoice_number",
+    "t": "varchar(255)",
+    "legacy": null
+   },
+   {
+    "n": "manual_register",
+    "t": "tinyint(1)",
+    "legacy": null
+   },
+   {
+    "n": "self_management",
+    "t": "tinyint(1)",
+    "legacy": null
+   },
+   {
+    "n": "dispatched",
+    "t": "tinyint(1)",
+    "legacy": null
+   },
+   {
+    "n": "created_at",
+    "t": "timestamp",
+    "legacy": null
+   }
+  ]
+ },
+ {
+  "key": "applicationLineItem",
+  "name": "ApplicationLineItem",
+  "tipo": "entity",
+  "estado": "mapeada_ok",
+  "descripcion": "Representa cada producto o bien que el cliente busca financiar dentro de una solicitud. Detalla qué se compra, en qué cantidad y con qué condiciones, de modo que el crédito quede ligado a aquello que realmente se está adquiriendo.",
+  "legacy": {
+   "tabla": "user_request_products"
+  },
+  "atributos": [
+   {
+    "n": "loan_application_id",
+    "t": "bigint unsigned",
+    "legacy": "user_request_id"
+   },
+   {
+    "n": "product_id",
+    "t": "bigint unsigned",
+    "legacy": null
+   },
+   {
+    "n": "amount",
+    "t": "decimal(12,2)",
+    "legacy": null
+   },
+   {
+    "n": "quantity",
+    "t": "int",
+    "legacy": null
+   },
+   {
+    "n": "initial_fee",
+    "t": "decimal(5,2)",
+    "legacy": null
+   },
+   {
+    "n": "max_fee_number",
+    "t": "smallint unsigned",
+    "legacy": null
+   },
+   {
+    "n": "imei",
+    "t": "varchar(20)",
+    "legacy": null
+   }
+  ]
+ },
+ {
+  "key": "applicationDocument",
+  "name": "ApplicationDocument",
+  "tipo": "entity",
+  "estado": "mapeada_ok",
+  "descripcion": "Representa un documento que el cliente aporta para respaldar su solicitud según lo que exige el lender. Cada documento se revisa por separado y su validación es parte del proceso de aprobación del crédito.",
+  "legacy": {
+   "tabla": "user_request_documentations"
+  },
+  "atributos": [
+   {
+    "n": "loan_application_id",
+    "t": "bigint",
+    "legacy": "user_request_id"
+   },
+   {
+    "n": "customer_id",
+    "t": "bigint",
+    "legacy": "user_id"
+   },
+   {
+    "n": "lender_documentation_id",
+    "t": "bigint",
+    "legacy": null
+   },
+   {
+    "n": "value",
+    "t": "text",
+    "legacy": null
+   },
+   {
+    "n": "status",
+    "t": "tinyint(1)",
+    "legacy": null
+   }
+  ]
+ },
+ {
+  "key": "additionalInformation",
+  "name": "AdditionalInformation",
+  "tipo": "entity",
+  "estado": "mapeada_ok",
+  "descripcion": "Recoge información complementaria que el comercio aliado captura sobre una solicitud cuando el crédito o el canal lo requieren, más allá de los datos básicos. Sirve para completar el expediente con datos y soportes adicionales que ayudan a evaluar y procesar la solicitud.",
+  "legacy": {
+   "tabla": "user_request_additional_information"
+  },
+  "atributos": [
+   {
+    "n": "loan_application_id",
+    "t": "bigint",
+    "legacy": "user_request_id"
+   },
+   {
+    "n": "corporate_user_id",
+    "t": "bigint",
+    "legacy": null
+   },
+   {
+    "n": "type_data",
+    "t": "varchar(255)",
+    "legacy": null
+   },
+   {
+    "n": "data_json",
+    "t": "longtext",
+    "legacy": null
+   },
+   {
+    "n": "data_files",
+    "t": "longtext",
+    "legacy": null
+   },
+   {
+    "n": "status",
+    "t": "tinyint(1)",
+    "legacy": null
+   }
+  ]
+ },
+ {
+  "key": "applicationComment",
+  "name": "ApplicationComment",
+  "tipo": "entity",
+  "estado": "mapeada_ok",
+  "descripcion": "Registra las observaciones y validaciones que el gestor del comercio aliado deja sobre una solicitud. Documenta el criterio humano aplicado durante la revisión y deja constancia del seguimiento que se hace al caso.",
+  "legacy": {
+   "tabla": "user_request_comments"
+  },
+  "atributos": [
+   {
+    "n": "loan_application_id",
+    "t": "bigint",
+    "legacy": "user_request_id"
+   },
+   {
+    "n": "corporate_user_id",
+    "t": "bigint",
+    "legacy": null
+   },
+   {
+    "n": "response_validation",
+    "t": "varchar(255)",
+    "legacy": null
+   },
+   {
+    "n": "comment",
+    "t": "text",
+    "legacy": null
+   },
+   {
+    "n": "status",
+    "t": "tinyint(1)",
+    "legacy": null
+   }
+  ]
+ },
+ {
+  "key": "statusTransition",
+  "name": "StatusTransition",
+  "tipo": "entity",
+  "estado": "mapeada_ok",
+  "descripcion": "Lleva el historial de cómo ha ido cambiando de estado una solicitud a lo largo de su recorrido, anotando quién hizo cada cambio, cuándo y por qué. Da trazabilidad y permite auditar el avance de la originación.",
+  "legacy": {
+   "tabla": "user_request_records"
+  },
+  "atributos": [
+   {
+    "n": "loan_application_id",
+    "t": "bigint",
+    "legacy": "user_request_id"
+   },
+   {
+    "n": "customer_id",
+    "t": "bigint",
+    "legacy": "user_id"
+   },
+   {
+    "n": "status_id",
+    "t": "int",
+    "legacy": "user_request_status_id"
+   },
+   {
+    "n": "updated_by",
+    "t": "varchar(255)",
+    "legacy": "update_by"
+   },
+   {
+    "n": "comment",
+    "t": "text",
+    "legacy": null
+   },
+   {
+    "n": "created_at",
+    "t": "timestamp",
+    "legacy": null
+   }
+  ]
+ },
+ {
+  "key": "requestAuthorization",
+  "name": "RequestAuthorization",
+  "tipo": "entity",
+  "estado": "mapeada_ok",
+  "descripcion": "Representa una autorización explícita que una solicitud necesita dentro del flujo de aprobación, junto con las observaciones de quien la otorga. Deja constancia de que se dio un visto bueno necesario para que el crédito pueda continuar.",
+  "legacy": {
+   "tabla": "request_authorizations"
+  },
+  "atributos": [
+   {
+    "n": "loan_application_id",
+    "t": "bigint",
+    "legacy": "user_request_id"
+   },
+   {
+    "n": "customer_id",
+    "t": "bigint",
+    "legacy": "user_id"
+   },
+   {
+    "n": "observations",
+    "t": "text",
+    "legacy": null
+   },
+   {
+    "n": "status",
+    "t": "tinyint(1)",
+    "legacy": null
+   }
+  ]
+ },
+ {
+  "key": "draftRequest",
+  "name": "DraftRequest",
+  "tipo": "aggregateRoot",
+  "estado": "mapeada_ok",
+  "descripcion": "Es el borrador de una solicitud aún sin confirmar: guarda los datos capturados del posible cliente antes de que se conviertan en una solicitud formal de crédito. Permite retomar y completar el proceso, y solo cuando se confirma da origen a una solicitud propiamente dicha.",
+  "legacy": {
+   "tabla": "temporal_requests"
+  },
+  "atributos": [
+   {
+    "n": "identity_id",
+    "t": "varchar(255)",
+    "legacy": null
+   },
+   {
+    "n": "verification_id",
+    "t": "varchar(255)",
+    "legacy": null
+   },
+   {
+    "n": "total_amount",
+    "t": "int",
+    "legacy": null
+   },
+   {
+    "n": "data_request",
+    "t": "longtext",
+    "legacy": null
+   }
+  ]
+ },
+ {
+  "key": "ecommerceRequest",
+  "name": "EcommerceRequest",
+  "tipo": "aggregateRoot",
+  "estado": "mapeada_ok",
+  "descripcion": "Representa una solicitud que entra por el canal de ecommerce, cuando un cliente decide financiar su compra desde la tienda en línea del comercio aliado sin la intervención de un asesor. Recoge los datos de la orden y los productos a financiar y da origen a la solicitud de crédito correspondiente.",
+  "legacy": {
+   "tabla": "ecommerce_requests",
+   "absorbe": [
+    "user_requests_by_ecommerce_request"
+   ],
+   "unificacion": "La tabla puente que ligaba cada pedido de ecommerce con las solicitudes que originaba dejó de ser una tabla aparte: esa relación ahora se expresa directamente como el vínculo entre la solicitud de ecommerce y las solicitudes de crédito que genera."
+  },
+  "atributos": [
+   {
+    "n": "order_key",
+    "t": "varchar(255)",
+    "legacy": null
+   },
+   {
+    "n": "order_identifier",
+    "t": "varchar(255)",
+    "legacy": null
+   },
+   {
+    "n": "ecommerce_id",
+    "t": "bigint unsigned",
+    "legacy": null
+   },
+   {
+    "n": "merchant_id",
+    "t": "bigint unsigned",
+    "legacy": "allied_id"
+   },
+   {
+    "n": "merchant_branch_id",
+    "t": "bigint unsigned",
+    "legacy": "allied_branch_id"
+   },
+   {
+    "n": "customer_id",
+    "t": "bigint unsigned",
+    "legacy": "user_id"
+   },
+   {
+    "n": "loan_application_id",
+    "t": "bigint unsigned",
+    "legacy": "user_request_id"
+   },
+   {
+    "n": "original_loan_application_id",
+    "t": "bigint unsigned",
+    "legacy": "original_user_request_id"
+   },
+   {
+    "n": "data",
+    "t": "text",
+    "legacy": null
+   },
+   {
+    "n": "products",
+    "t": "text",
+    "legacy": null
+   },
+   {
+    "n": "return_url",
+    "t": "varchar(255)",
+    "legacy": null
+   },
+   {
+    "n": "process_url",
+    "t": "varchar(255)",
+    "legacy": null
+   },
+   {
+    "n": "processed",
+    "t": "tinyint(1)",
+    "legacy": null
+   }
+  ]
+ },
+ {
+  "key": "paymentLink",
+  "name": "PaymentLink",
+  "tipo": "aggregateRoot",
+  "estado": "mapeada_ok",
+  "descripcion": "Representa un link de pago que un comercio aliado o su sucursal emite para que un cliente inicie su solicitud de crédito a distancia. Tiene su propia vigencia y puede generarse de forma individual o masiva, y es la puerta de entrada de las solicitudes originadas por este canal.",
+  "legacy": {
+   "tabla": "payment_links"
+  },
+  "atributos": [
+   {
+    "n": "amount",
+    "t": "decimal(15,4)",
+    "legacy": null
+   },
+   {
+    "n": "merchant_id",
+    "t": "bigint unsigned",
+    "legacy": "allied_id"
+   },
+   {
+    "n": "merchant_branch_id",
+    "t": "bigint unsigned",
+    "legacy": "allied_branch_id"
+   },
+   {
+    "n": "is_bulk",
+    "t": "tinyint(1)",
+    "legacy": "masive"
+   },
+   {
+    "n": "expiration_date",
+    "t": "timestamp",
+    "legacy": null
+   },
+   {
+    "n": "created_by",
+    "t": "bigint unsigned",
+    "legacy": null
+   },
+   {
+    "n": "status",
+    "t": "tinyint(1)",
+    "legacy": null
+   }
+  ]
+ },
+ {
+  "key": "purchaseCode",
+  "name": "PurchaseCode",
+  "tipo": "entity",
+  "estado": "mapeada_ok",
+  "descripcion": "Es el código de compra que se entrega al cliente una vez aprobada su solicitud para que la redima en el punto de venta. Conecta el crédito otorgado con el momento en que el cliente efectivamente realiza la compra en el comercio.",
+  "legacy": {
+   "tabla": "purchase_codes"
+  },
+  "atributos": [
+   {
+    "n": "loan_application_id",
+    "t": "bigint",
+    "legacy": "user_request_id"
+   },
+   {
+    "n": "barcode_url",
+    "t": "varchar(255)",
+    "legacy": null
+   },
+   {
+    "n": "barcode_checked",
+    "t": "tinyint(1)",
+    "legacy": null
+   }
+  ]
+ },
+ {
+  "key": "onboardingForm",
+  "name": "OnboardingForm",
+  "tipo": "aggregateRoot",
+  "estado": "mapeada_ok",
+  "descripcion": "Define el formulario con el que se le piden datos al cliente durante la originación, según las necesidades de cada lender y país. Determina qué información se solicita y cómo se presenta, de manera que cada mercado pueda adaptar la captura de datos sin rehacer el proceso.",
+  "legacy": {
+   "tabla": "form_types"
+  },
+  "atributos": [
+   {
+    "n": "id",
+    "t": "bigint unsigned",
+    "legacy": null
+   },
+   {
+    "n": "name",
+    "t": "varchar(255)",
+    "legacy": null
+   },
+   {
+    "n": "description",
+    "t": "text",
+    "legacy": null
+   },
+   {
+    "n": "lender_id",
+    "t": "bigint unsigned",
+    "legacy": null
+   },
+   {
+    "n": "country_id",
+    "t": "bigint unsigned",
+    "legacy": null
+   },
+   {
+    "n": "status",
+    "t": "tinyint(1)",
+    "legacy": null
+   }
+  ]
+ },
+ {
+  "key": "formFieldPlacement",
+  "name": "FormFieldPlacement",
+  "tipo": "entity",
+  "estado": "mapeada_ok",
+  "descripcion": "Define cómo se ubica un campo dentro de un formulario concreto: en qué orden aparece, si se muestra u oculta y si el cliente puede editarlo. Permite armar y ajustar la composición de cada formulario sin alterar la definición de los campos en sí.",
+  "legacy": {
+   "tabla": "forms"
+  },
+  "atributos": [
+   {
+    "n": "id",
+    "t": "bigint unsigned",
+    "legacy": null
+   },
+   {
+    "n": "form_type_id",
+    "t": "int",
+    "legacy": null
+   },
+   {
+    "n": "field_id",
+    "t": "bigint",
+    "legacy": null
+   },
+   {
+    "n": "hidden",
+    "t": "tinyint(1)",
+    "legacy": null
+   },
+   {
+    "n": "editable",
+    "t": "tinyint(1)",
+    "legacy": null
+   },
+   {
+    "n": "sort",
+    "t": "int",
+    "legacy": null
+   },
+   {
+    "n": "status",
+    "t": "tinyint(1)",
+    "legacy": null
+   }
+  ]
+ },
+ {
+  "key": "formField",
+  "name": "FormField",
+  "tipo": "entity",
+  "estado": "mapeada_ok",
+  "descripcion": "Representa la definición de un dato que se puede pedir al cliente en los formularios: qué es, cómo se valida y cuándo aplica, incluyendo casos en que un campo solo se solicita en función de la respuesta a otro. Es el catálogo de preguntas disponibles para construir los formularios de originación.",
+  "legacy": {
+   "tabla": "fields"
+  },
+  "atributos": [
+   {
+    "n": "id",
+    "t": "bigint unsigned",
+    "legacy": null
+   },
+   {
+    "n": "category_id",
+    "t": "bigint",
+    "legacy": "field_category_id"
+   },
+   {
+    "n": "parent_id",
+    "t": "bigint",
+    "legacy": null
+   },
+   {
+    "n": "related_field_id",
+    "t": "bigint",
+    "legacy": null
+   },
+   {
+    "n": "parent_value",
+    "t": "varchar(255)",
+    "legacy": null
+   },
+   {
+    "n": "name",
+    "t": "varchar(255)",
+    "legacy": null
+   },
+   {
+    "n": "semantic_role",
+    "t": "varchar(40)",
+    "legacy": null
+   },
+   {
+    "n": "help_message",
+    "t": "varchar(500)",
+    "legacy": null
+   },
+   {
+    "n": "appearance",
+    "t": "varchar(255)",
+    "legacy": "field_appearance"
+   },
+   {
+    "n": "field_group",
+    "t": "varchar(255)",
+    "legacy": null
+   },
+   {
+    "n": "type",
+    "t": "varchar(255)",
+    "legacy": null
+   },
+   {
+    "n": "validation",
+    "t": "varchar(255)",
+    "legacy": null
+   },
+   {
+    "n": "data_source",
+    "t": "varchar(255)",
+    "legacy": null
+   },
+   {
+    "n": "status",
+    "t": "tinyint(1)",
+    "legacy": null
+   }
+  ]
+ },
+ {
+  "key": "fieldAnswer",
+  "name": "FieldAnswer",
+  "tipo": "entity",
+  "estado": "mapeada_ok",
+  "descripcion": "Es la respuesta concreta que un cliente da a un campo del formulario dentro de una solicitud. Guarda la información capturada, ya sea un valor o un archivo adjunto, y constituye el contenido real que se evalúa en la originación.",
+  "legacy": {
+   "tabla": "user_field_values"
+  },
+  "atributos": [
+   {
+    "n": "id",
+    "t": "bigint unsigned",
+    "legacy": null
+   },
+   {
+    "n": "field_id",
+    "t": "bigint",
+    "legacy": null
+   },
+   {
+    "n": "customer_id",
+    "t": "bigint",
+    "legacy": "user_id"
+   },
+   {
+    "n": "loan_application_id",
+    "t": "bigint",
+    "legacy": "user_request_id"
+   },
+   {
+    "n": "form_field_placement_id",
+    "t": "int",
+    "legacy": "form_id"
+   },
+   {
+    "n": "value",
+    "t": "text",
+    "legacy": null
+   },
+   {
+    "n": "file",
+    "t": "text",
+    "legacy": null
+   },
+   {
+    "n": "file_name",
+    "t": "text",
+    "legacy": null
+   },
+   {
+    "n": "status",
+    "t": "tinyint(1)",
+    "legacy": null
+   }
+  ]
+ },
+ {
+  "key": "ecommerce",
+  "name": "Ecommerce",
+  "tipo": "entity",
+  "estado": "mapeada_ok",
+  "descripcion": "Identifica las plataformas de tienda en línea desde las cuales un comercio aliado puede recibir solicitudes de crédito por el canal de ecommerce. Sirve para reconocer el origen de cada solicitud self-service según la tecnología de la tienda.",
+  "legacy": {
+   "tabla": "ecommerces"
+  },
+  "atributos": [
+   {
+    "n": "id",
+    "t": "bigint unsigned",
+    "legacy": null
+   },
+   {
+    "n": "name",
+    "t": "varchar(255)",
+    "legacy": null
+   }
+  ]
+ }
+]

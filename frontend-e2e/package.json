@@ -1,0 +1,27 @@
+{
+  "name": "creditop-frontend-e2e",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "E2E del onboarding (loan-request-wizard) con Playwright. Autosuficiente en TS: acceso a DB (mysql2) + inyección de KYC armado (incl. crypto Laravel). Apunta a DEV por defecto; local opcional.",
+  "scripts": {
+    "test": "playwright test",
+    "e2e:steps": "FORCE_COLOR=1 playwright test --workers=1",
+    "test:headed": "playwright test --headed",
+    "test:debug": "playwright test --debug",
+    "test:ui": "playwright test --ui",
+    "test:onboarding": "playwright test tests/onboarding",
+    "show-report": "playwright show-report",
+    "typecheck": "tsc --noEmit",
+    "db": "node bin/dbops.ts"
+  },
+  "dependencies": {
+    "@clack/prompts": "^1.6.0",
+    "mysql2": "^3.11.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.48.0",
+    "@types/node": "^22.0.0",
+    "typescript": "^5.6.0"
+  }
+}

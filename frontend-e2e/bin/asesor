@@ -1,0 +1,193 @@
+#!/usr/bin/env bash
+# asesor — demo del wizard de originaciones contra DEV. Solo 4 comandos (sin flags):
+#   bin/asesor <merchant>           → login de ASESOR (Cognito real) y queda en MONTO; manejás vos a mano.
+#   bin/asesor <merchant> auto      → GUIADO: siembra cada pantalla, vos das "Continuar"; en /lenders elegís
+#                                     el lender y el demo sigue (CreditopX abre 2ª ventana B; aggregator/redirect, 1).
+#   bin/ecommerce <merchant> [auto] → idem, pero ENTRA POR EL CHECKOUT de la tienda mock (no login de asesor).
+# Lee .flows.json (asesor.email/sub + merchants.<m>.branch_hash) y .cognito.json (login del asesor). El wizard
+# local (Vite) apunta a DEV; se reusa si está arriba (se reinicia solo si apuntaba a otro backend).
+set -euo pipefail
+
+E2E="${CFE_E2E:-$HOME/Desktop/CREDITOP/playground/frontend-e2e}"
+FRONT="${CFE_FRONT:-$HOME/Desktop/CREDITOP/github/frontend-monorepo}"
+WIZARD="$FRONT/apps/loan-request-wizard"
+FLOWS="$E2E/.flows.json"
+TARGET=dev
+WIZ_BASE="http://localhost:5174"
+FRESH=0
+
+MERCHANT="${1:-pullman}"
+GUIDED=0; [ "${2:-}" = "auto" ] && GUIDED=1
+# el comercio va PRIMERO: `auto` solo es el 2º arg. `bin/ecommerce auto` (sin comercio) es un error típico.
+[ "$MERCHANT" = "auto" ] && { echo "✗ el comercio va PRIMERO. Ej: bin/asesor pullman auto · bin/ecommerce pullman auto"; exit 1; }
+[ -n "${2:-}" ] && [ "${2:-}" != "auto" ] && { echo "✗ 2º arg inválido: '${2}'. Usá: bin/asesor <comercio> [auto [success|rejected|pending]]"; exit 1; }
+# 3er posicional (SOLO con `auto`): cómo RESUELVE el crédito → success (default) | rejected | pending.
+RESULT="${3:-success}"
+case "$RESULT" in success|rejected|pending) ;; *) echo "✗ status inválido: '$RESULT'. Usá: success | rejected | pending"; exit 1;; esac
+ENTRY="${CFE_ENTRY:-cognito}"               # bin/ecommerce exporta CFE_ENTRY=ecommerce
+ECOMMERCE=0; [ "$ENTRY" = "ecommerce" ] && ECOMMERCE=1
+
+# env que lee el spec (dev/guided.spec.ts cubre GUIADO y MANUAL según E2E_GUIDED)
+export E2E_TARGET="$TARGET" E2E_BASE_URL="$WIZ_BASE" E2E_ENTRY="$ENTRY" E2E_GUIDED="$GUIDED" E2E_RESULT="$RESULT" E2E_PREVIEW=1
+
+log() { printf '▶ %s\n' "$*"; }
+step() { printf '  ○ %-13s …\n' "$1"; }
+ok()   { printf '  ● %-13s %s\n' "$1" "${2:-ok}"; }
+cd "$E2E"
+[ -f "$FLOWS" ] || { echo "✗ falta $FLOWS (asesor.email/sub + merchants.<m>.branch_hash)"; exit 1; }
+
+# lee una ruta dot-path del .flows.json (sin jq; node siempre está)
+fget() { node -e 'const fs=require("fs");let j={};try{j=JSON.parse(fs.readFileSync(process.argv[1]))}catch(e){};let v=j;for(const k of process.argv[2].split(".")){v=(v==null?undefined:v[k])};process.stdout.write(v==null?"":String(v))' "$FLOWS" "$1"; }
+json_pick() { node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{try{const j=JSON.parse(s);const v=eval("j"+process.argv[1]);process.stdout.write(v==null?"":String(v))}catch(e){}})' "$1"; }
+
+EMAIL="$(fget asesor.email)"; SUB="$(fget asesor.sub)"
+[ -n "$EMAIL" ] && [ -n "$SUB" ] || { echo "✗ $FLOWS sin asesor.email / asesor.sub"; exit 1; }
+HASH="$(fget "merchants.$MERCHANT.branch_hash")"
+# teléfono de prueba para bypasear el OTP (qa_otp_bypass_phones → OTP = últimos 4)
+BYPASS_PHONE="$(fget otp_bypass_phone)"; [ -n "$BYPASS_PHONE" ] || BYPASS_PHONE="3131010101"
+export E2E_OTP_BYPASS_PHONE="$BYPASS_PHONE"
+
+# ── entrada ECOMMERCE: arma el checkout (base64) + el return_url a la tienda mock por HTTP (el shim) ──
+if [ "$ECOMMERCE" = 1 ]; then
+  # return_url = tienda mock por HTTP (el botón "volver al comercio" navega por el browser → un file:// lo
+  # bloquea). Se exporta ANTES de armar el contrato (ecommerce-url lo lee); el shim sirve el mock-store en /return.
+  if [ -z "${E2E_RETURN_URL:-}" ]; then
+    "$(dirname "$0")/mock-redirect" start >/dev/null 2>&1 || true
+    export E2E_RETURN_URL="http://localhost:${MOCK_REDIRECT_PORT:-8096}/return"
+    log "return_url → tienda mock (shim :${MOCK_REDIRECT_PORT:-8096}/return)"
+  fi
+  # || true: si el comercio NO tiene credencial ecommerce, dbops sale 1 → llegamos al mensaje claro de abajo.
+  EURL="$(node bin/dbops.ts ecommerce-url "$MERCHANT" "$BYPASS_PHONE" 2>/dev/null)" || true
+  ECHASH="$(printf '%s' "$EURL" | json_pick '.hash')"
+  ECPATH="$(printf '%s' "$EURL" | json_pick '.checkout_path')"
+  [ -n "$ECHASH" ] && [ -n "$ECPATH" ] || { echo "✗ '$MERCHANT' no tiene checkout ecommerce (sin credencial). Usá bin/asesor (login de asesor)."; exit 1; }
+  HASH="$ECHASH"
+  export E2E_CHECKOUT_URL="${WIZ_BASE}$ECPATH"
+  export E2E_STORE=1                          # el spec entra por la tienda mock antes del checkout
+  printf '▶ checkout ecommerce: %s/ecommerce/%s/checkout  (payload base64 omitido)\n' "$WIZ_BASE" "$ECHASH"
+fi
+
+# comercio no registrado en .flows.json → resolver en dev y cachear
+if [ -z "$HASH" ]; then
+  log "comercio '$MERCHANT' no está en .flows.json — lo resuelvo en dev y lo cacheo"
+  HASH="$(node bin/dbops.ts list "$MERCHANT" 2>/dev/null | json_pick '[0].hash')"
+  [ -n "$HASH" ] || { echo "✗ no pude resolver '$MERCHANT' en dev (probá: node bin/dbops.ts list $MERCHANT)"; exit 1; }
+  node -e 'const fs=require("fs"),f=process.argv[1],m=process.argv[2],h=process.argv[3];const j=JSON.parse(fs.readFileSync(f));j.merchants=j.merchants||{};j.merchants[m]=Object.assign({},j.merchants[m],{branch_hash:h});fs.writeFileSync(f,JSON.stringify(j,null,2)+"\n")' "$FLOWS" "$MERCHANT" "$HASH"
+  echo "  ✓ $MERCHANT → $HASH (cacheado en .flows.json)"
+fi
+export E2E_ASESOR_HASH="$HASH"
+
+# ── permiso al asesor (un asesor = un comercio); ecommerce entra por checkout, sin asesor ──
+step "load-permiso"
+if [ "$ECOMMERCE" = 1 ]; then
+  ok "load-permiso" "n/a (ecommerce, sin asesor)"
+else
+  CUR="$(node bin/dbops.ts whois "$SUB" 2>/dev/null | json_pick '.matches[0].allied_branch_hash')"
+  if [ "$CUR" = "$HASH" ]; then
+    ok "load-permiso" "ya en '$MERCHANT' ($HASH) — sin write"
+  else
+    # query = SUB (cognito_id): el assign matchea/crea la fila users por cognito_id (el email puede diferir).
+    I_KNOW_THIS_TOUCHES_SHARED_DEV=1 node bin/dbops.ts assign "$SUB" "$MERCHANT" "$HASH" "$SUB" >/dev/null \
+      || { echo "✗ falló el assign (corré: node bin/dbops.ts assign $SUB $MERCHANT $HASH $SUB)"; exit 1; }
+    ok "load-permiso" "asignado → '$MERCHANT' ($HASH) [antes: ${CUR:-ninguno}]"
+  fi
+fi
+
+# ── scrub del cliente: borra el usuario del teléfono → register fresco → /personal-info ──
+step "scrub-cliente"
+DEL="$(I_KNOW_THIS_TOUCHES_SHARED_DEV=1 node bin/dbops.ts scrubphone "$BYPASS_PHONE" 2>/dev/null | json_pick '.users_deleted')"
+ok "scrub-cliente" "${DEL:-0} borrado(s) ($BYPASS_PHONE → temporal → personal-info)"
+
+# ── wizard local (Vite) → DEV: reusar si está arriba; reiniciar solo si apuntaba a otro backend ──
+step "frontend"
+UP=0; curl -s -o /dev/null --max-time 3 http://localhost:5174 2>/dev/null && UP=1
+# VITE_API_URL del wizard: E2E_API_BASE_URL (o E2E_MOCK_URL) de .env.dev, sin /api; fallback al host dev.
+WIZ_API="$(grep -E '^E2E_API_BASE_URL=|^E2E_MOCK_URL=' .env.$TARGET 2>/dev/null | head -1 | sed -E 's/^[^=]*=//; s/[[:space:]]*#.*$//; s/^["'\'']//; s/["'\'']$//' | tr -d '[:space:]')"
+WIZ_API="${WIZ_API%/api}"; WIZ_API="${WIZ_API%/}"; [ -n "$WIZ_API" ] || WIZ_API="http://legacy-backend.inertia-develop"
+# VITE_ONBOARDING_FORM_SERVICE (flujo dinámico): del .env del wizard, fallback a dev. Se pasa explícito porque
+# el .env.local trae un valor FAKE que Vite hot-reloadea → 404 del schema.
+FORMS="$(grep -E '^VITE_ONBOARDING_FORM_SERVICE=' "$WIZARD/.env" 2>/dev/null | head -1 | sed -E 's/^[^=]*=//; s/[[:space:]]*#.*$//; s/^["'\'']//; s/["'\'']$//' | tr -d '[:space:]')"
+[ -n "$FORMS" ] || FORMS="http://onboarding-forms-service.inertia-develop:8092/v1"
+# VITE_PREAPPROVALS_ENDPOINT: MS de pre-aprobaciones (rt≠STANDARD; el loader de /lenders hace POST server-to-server).
+if [ "${E2E_REAL_PREAPPROVALS:-0}" = 1 ]; then
+  PREAPPROVALS="$(grep -E '^E2E_PREAPPROVALS_ENDPOINT=' .env.$TARGET 2>/dev/null | head -1 | sed -E 's/^[^=]*=//; s/[[:space:]]*#.*$//; s/^["'\'']//; s/["'\'']$//' | tr -d '[:space:]')"
+  [ -n "$PREAPPROVALS" ] || PREAPPROVALS="http://pre-approvals-service.inertia-develop:8082/v1/preapprovals/check"
+  log "pre-aprobaciones REALES (MS dev, lento) [E2E_REAL_PREAPPROVALS=1]"
+else
+  "$(dirname "$0")/mock-preapprovals" start >/dev/null 2>&1 || true
+  PREAPPROVALS="http://localhost:${MOCK_PA_PORT:-8095}/v1/preapprovals/check"
+  log "pre-aprobaciones MOCK local (:${MOCK_PA_PORT:-8095}, todas pre-aprobadas con cupo)"
+fi
+# Si el wizard YA está arriba pero apunta a OTRO backend, reusarlo serviría el backend equivocado → marcamos el
+# VITE_API_URL al bootear (/tmp/asesor-wizard.api) y, si no coincide, forzamos reinicio.
+WANT="${WIZ_API}|${PREAPPROVALS}"
+MARKER=/tmp/asesor-wizard.api
+if [ "$UP" = 1 ] && [ "$FRESH" = 0 ]; then
+  CUR_API=""; [ -f "$MARKER" ] && CUR_API="$(cat "$MARKER" 2>/dev/null)"
+  if [ -z "$CUR_API" ]; then
+    for p in $(lsof -ti:5174 2>/dev/null) $(pgrep -f 'pnpm dev' 2>/dev/null); do
+      CUR_API="$(ps eww -p "$p" 2>/dev/null | tr ' ' '\n' | grep -E '^VITE_API_URL=' | head -1 | sed 's/^VITE_API_URL=//')"
+      [ -n "$CUR_API" ] && break
+    done
+  fi
+  CUR_API="${CUR_API%/}"
+  if [ -n "$CUR_API" ] && [ "$CUR_API" != "$WANT" ]; then
+    log "el wizard en :5174 apunta a ${CUR_API} pero pedís ${WIZ_API} → reinicio limpio"; FRESH=1
+  elif [ -z "$CUR_API" ]; then
+    log "no pude confirmar el backend del wizard en :5174 → reinicio limpio"; FRESH=1
+  fi
+fi
+if [ "$UP" = 1 ] && [ "$FRESH" = 0 ]; then
+  ok "frontend" "reusado (:5174 ya arriba → ${WIZ_API} · ${TARGET})"
+else
+  if [ "$UP" = 1 ]; then
+    log "reinicio el wizard en :5174 (limpio contra ${TARGET})…"
+    lsof -ti:5174 2>/dev/null | xargs kill -9 2>/dev/null || true
+    for _ in $(seq 1 10); do curl -s -o /dev/null --max-time 1 http://localhost:5174 2>/dev/null || break; done
+  fi
+  MOVED=0
+  # return 0: trap EXIT bajo `set -e` — si la última expresión da !=0 el script saldría con 1 pese al exit 0.
+  restore_envlocal() { [ "$MOVED" = 1 ] && mv -f "$WIZARD/.env.local.asesor-bak" "$WIZARD/.env.local" 2>/dev/null && { echo "    .env.local del wizard restaurado"; MOVED=0; }; return 0; }
+  trap restore_envlocal EXIT INT TERM
+  if [ -f "$WIZARD/.env" ] && [ -f "$WIZARD/.env.local" ]; then
+    mv "$WIZARD/.env.local" "$WIZARD/.env.local.asesor-bak"; MOVED=1
+  fi
+  printf '%s' "$WANT" > "$MARKER" 2>/dev/null || true
+  # < /dev/null + nohup: react-router dev lee stdin; sin esto crashea al cerrarse el pipe. STREAM_TIMEOUT_MS:
+  # el loader de /lenders (pre-aprobación sincrónica del MS por VPN) suele pasar de los 45s default → lo subimos.
+  ( cd "$WIZARD" && nohup env VITE_API_URL="$WIZ_API" VITE_ONBOARDING_FORM_SERVICE="$FORMS" VITE_PREAPPROVALS_ENDPOINT="$PREAPPROVALS" CALLBACK_URL="http://localhost:5174/auth/callback" STREAM_TIMEOUT_MS="${E2E_STREAM_TIMEOUT_MS:-180000}" pnpm dev < /dev/null > /tmp/asesor-wizard.log 2>&1 & )
+  echo "    cold-boot del wizard (pnpm dev/Vite, puede tardar 1-3 min la 1ª vez)…"
+  boot=0
+  for i in $(seq 1 240); do
+    curl -s -o /dev/null --max-time 2 http://localhost:5174 2>/dev/null && { boot=$((i * 2)); break; }
+    [ $((i % 10)) -eq 0 ] && echo "    … sigue compilando (~$((i * 2))s)"
+  done
+  if [ "$boot" = 0 ]; then
+    ok "frontend" "✗ no levantó (ver /tmp/asesor-wizard.log)"; tail -15 /tmp/asesor-wizard.log 2>/dev/null
+    restore_envlocal; exit 1
+  fi
+  # NO restaurar el .env.local acá (Vite hot-reloadearía sus valores fake y rompe el flujo). El trap EXIT lo restaura al final.
+  ok "frontend" "arriba (:5174 → ${TARGET} · ${WIZ_API} · forms ${FORMS##*//} · boot ~${boot}s)"
+fi
+
+# ── correr el spec (dev/guided.spec.ts: GUIADO si E2E_GUIDED=1, MANUAL si 0) ──
+if [ "$GUIDED" = 1 ]; then
+  log "GUIADO '$MERCHANT' (${ENTRY}) → manejá monto→tel→OTP; en /lenders elegís y el demo sigue"
+else
+  log "MANUAL '$MERCHANT' (${ENTRY}) → entra y queda en MONTO; el browser queda abierto (manejás vos)"
+fi
+set +e
+npx playwright test dev/guided.spec.ts --workers=1 --headed --reporter=line
+code=$?
+set -e
+if [ "$code" = 130 ] || [ "$code" = 143 ]; then
+  echo "⏹  interrumpido (Ctrl-C)."; exit 0
+elif [ "$code" != 0 ]; then
+  echo "✗ falló (code $code) — revisá .auth/*.png"; exit "$code"
+fi
+if [ "$ECOMMERCE" = 1 ]; then
+  echo "✅ '$MERCHANT' OK contra ${TARGET} · checkout: ${WIZ_BASE}/ecommerce/$HASH/checkout"
+else
+  echo "✅ '$MERCHANT' OK contra ${TARGET} · a mano: ${WIZ_BASE}/merchant/$HASH/solicitar"
+fi
+exit 0

@@ -1,0 +1,1653 @@
+{
+  "contextos": [
+    {
+      "contexto": "geography",
+      "verificados": [
+        {
+          "entidad": "countrySetting",
+          "tipo": "columna_modelo_inexistente",
+          "veredicto": "confirmado",
+          "razon": "Las columnas reales de la tabla 'settings' son exactamente: id, code, key, value, serialized, country_id, created_at, updated_at. No existe ninguna columna 'value_type'. El modelo lista 'value_type' (varchar(20), legacy=null), que por convención de legacy=null debería mapear por nombre, pero no hay match en la BD. La distinción serialize/tipo se cubre en la realidad con 'serialized' (tinyint). Hallazgo correcto."
+        },
+        {
+          "entidad": "countrySetting",
+          "tipo": "columna_modelo_inexistente",
+          "veredicto": "confirmado",
+          "razon": "Columnas reales de 'settings': id, code, key, value, serialized, country_id, created_at, updated_at. No hay columna 'status'. El modelo declara 'status' (tinyint(1), legacy=null) que mapearia por nombre, pero no existe en la tabla real. Hallazgo correcto."
+        },
+        {
+          "entidad": "countrySetting",
+          "tipo": "columna_real_no_modelada",
+          "veredicto": "confirmado",
+          "razon": "La columna real 'settings.code varchar(255)' existe en la BD. El modelo de countrySetting solo lista id, country_id, key, value, value_type, status; no incluye 'code'. El bloque legacy de countrySetting solo tiene tabla=settings, sin reducidas[]. Por tanto 'code' no esta representado en absoluto. Hallazgo correcto."
+        },
+        {
+          "entidad": "countrySetting",
+          "tipo": "columna_real_no_modelada",
+          "veredicto": "confirmado",
+          "razon": "La columna real 'settings.serialized tinyint' existe en la BD. No aparece como atributo del modelo countrySetting ni en reducidas[] (que no existe para esta entidad). Es relevante para interpretar 'value'. Hallazgo correcto."
+        },
+        {
+          "entidad": "country",
+          "tipo": "columna_real_no_modelada",
+          "veredicto": "confirmado",
+          "razon": "La columna real 'countries.iso_code_1 varchar(255)' existe en la BD. El modelo de country mapea iso_code_2 e iso_code_3 pero omite iso_code_1. La unica reducida declarada para country es 'image'; no incluye iso_code_1. Por tanto la columna real no esta representada. Hallazgo correcto."
+        }
+      ],
+      "_findings": {
+        "contexto": "geography",
+        "entidadesRevisadas": 5,
+        "resumen": "Se auditaron 5 entidades (country, zone, city, documentType, countrySetting). Las tablas legacy de las 4 entidades mapeadas existen (countries, country_zones, country_cities, settings) y la greenfield documentType no tiene tabla backing real (solo users.document_type como string libre). country, zone y city están bien alineadas. countrySetting presenta 2 atributos del modelo que no existen en la tabla real settings (value_type, status) y 2 columnas reales de negocio no modeladas (code, serialized). country tiene una columna real no modelada (iso_code_1).",
+        "hallazgos": [
+          {
+            "entidad": "countrySetting",
+            "tipo": "columna_modelo_inexistente",
+            "severidad": "alta",
+            "detalle": "El atributo 'value_type' del modelo (legacy=null, mapea por nombre) no existe en la tabla real 'settings'. Las columnas reales de settings son: id, code, key, value, serialized, country_id, created_at, updated_at. El tipo de valor se infiere en la realidad de la columna 'serialized' (tinyint), no de un 'value_type'.",
+            "evidencia": "settings real columns: id, code, key, value, serialized, country_id, created_at, updated_at. No existe columna 'value_type'."
+          },
+          {
+            "entidad": "countrySetting",
+            "tipo": "columna_modelo_inexistente",
+            "severidad": "alta",
+            "detalle": "El atributo 'status' del modelo (legacy=null, mapea por nombre) no existe en la tabla real 'settings'. La tabla settings no tiene columna de estado.",
+            "evidencia": "settings real columns: id, code, key, value, serialized, country_id, created_at, updated_at. No existe columna 'status'."
+          },
+          {
+            "entidad": "countrySetting",
+            "tipo": "columna_real_no_modelada",
+            "severidad": "media",
+            "detalle": "La columna real 'code' (varchar(255)) de la tabla 'settings' no está representada en el modelo ni en reducidas[]. Parece ser un identificador/clasificador de negocio del setting además de 'key'.",
+            "evidencia": "Columna real: settings.code varchar(255). No aparece como atributo ni en legacy.reducidas."
+          },
+          {
+            "entidad": "countrySetting",
+            "tipo": "columna_real_no_modelada",
+            "severidad": "media",
+            "detalle": "La columna real 'serialized' (tinyint) de la tabla 'settings' no está representada en el modelo ni en reducidas[]. Indica si el value está serializado, dato relevante para interpretar 'value'. El modelo en su lugar introdujo 'value_type' que no existe en la BD.",
+            "evidencia": "Columna real: settings.serialized tinyint. No aparece como atributo ni en legacy.reducidas."
+          },
+          {
+            "entidad": "country",
+            "tipo": "columna_real_no_modelada",
+            "severidad": "media",
+            "detalle": "La columna real 'iso_code_1' (varchar(255)) de la tabla 'countries' no está representada en el modelo ni en reducidas[]. El modelo sí incluye iso_code_2 e iso_code_3 pero omite iso_code_1.",
+            "evidencia": "Columna real: countries.iso_code_1 varchar(255). El modelo mapea iso_code_2 e iso_code_3 pero no iso_code_1."
+          }
+        ]
+      }
+    },
+    {
+      "contexto": "identity",
+      "verificados": [
+        {
+          "entidad": "CorporateUser",
+          "tipo": "columna_modelo_inexistente",
+          "veredicto": "confirmado",
+          "razon": "El modelo CorporateUser declara el atributo 'cognito_sub' (t=uuid, legacy=null). Las columnas reales de la tabla legacy corporate_users son exactamente: id, allied_id, allied_branch_id, first_name, surname, full_name, document_number, cell_phone, email, email_verified_at, country_id, status, password, remember_token, created_at, updated_at. No existe 'cognito_sub' ni ninguna columna de Cognito/sub. corporate_users sí tiene 'password' y la entidad lo lista en reducidas como infra Cognito. El campo cognito_sub no tiene respaldo en la tabla real; el match por nombre falla. Hallazgo verificado contra real_columns.tsv."
+        },
+        {
+          "entidad": "Customer",
+          "tipo": "columna_real_no_modelada",
+          "veredicto": "confirmado",
+          "razon": "La tabla legacy users contiene 'identity_id' (varchar(255)), 'corporate_user_id' (varchar(255)), 'profile_data' (longtext) y 'resource' (varchar(255)). Revisando la entidad Customer (atributos[] y legacy.reducidas[]), ninguna de esas cuatro columnas aparece mapeada: no están como atributo ni en reducidas. La evidencia es correcta también en que 'manual_register' sí está cubierto en reducidas y 'remember_token' se excluye por ser infra de auth. identity_id y corporate_user_id son FKs de negocio relevantes (identidad y vínculo con asesor) que quedan sin representar/documentar. Hallazgo verificado contra real_columns.tsv y identity.json."
+        }
+      ],
+      "_findings": {
+        "contexto": "identity",
+        "entidadesRevisadas": 12,
+        "resumen": "Contexto identity con 12 entidades: 8 mapeada_ok (customer/users, corporateUser/corporate_users, otp/otps, termsAcceptance/user_terms_acepteds, profilingReview/profiling_reviews, profilingRun/profilings, identityVerification/validations, deviceLock/device_locks) y 3 NUEVA_greenfield (customerMerchant, verificationPolicy, verificationStep). Las 4 tablas absorbidas (jumio_accounts, crosscore_evaluations, netco_signing_documents, user_request_device_info) existen todas en real_tables.txt. Los 3 greenfield no tienen tabla backing en la BD real (verificado: no existen customer_merchant, verification_policies, verification_steps ni equivalentes). Hallazgos: (1) corporateUser declara el atributo cognito_sub que NO existe en corporate_users; (2) users tiene columnas reales de negocio no modeladas ni en reducidas: identity_id, corporate_user_id, profile_data, resource. El resto de mapeos (incl. renombres user_id->customer_id, allied_id->merchant_id, demog_predictions->demographic_predictions, ML_predictions->ml_predictions) verifican correctamente.",
+        "hallazgos": [
+          {
+            "entidad": "CorporateUser",
+            "tipo": "columna_modelo_inexistente",
+            "severidad": "alta",
+            "detalle": "El atributo cognito_sub (legacy=null, mapea por nombre 'cognito_sub') no existe como columna en la tabla legacy corporate_users. La tabla corporate_users no tiene ninguna columna de Cognito/sub; la autenticacion de corporate_users hoy es por 'password' (en reducidas). El modelo declara un campo que no respalda la tabla real.",
+            "evidencia": "Columnas reales de corporate_users: id, allied_id, allied_branch_id, first_name, surname, full_name, document_number, cell_phone, email, email_verified_at, country_id, status, password, remember_token, created_at, updated_at. No aparece 'cognito_sub' ni columna equivalente de Cognito."
+          },
+          {
+            "entidad": "Customer",
+            "tipo": "columna_real_no_modelada",
+            "severidad": "media",
+            "detalle": "La tabla legacy users tiene columnas reales de negocio que el modelo Customer no representa ni como atributo ni en reducidas[].legacy: identity_id (referencia de identidad), corporate_user_id (vinculo con asesor/corporate_users), profile_data (datos de perfil), y resource. No se trata de created_at/updated_at/id. Conviene confirmar si deben representarse (p.ej. identity_id y corporate_user_id parecen FKs relevantes) o documentarse como reducidas.",
+            "evidencia": "Columnas reales de users no mapeadas ni en reducidas: 'identity_id', 'corporate_user_id', 'profile_data', 'resource'. (remember_token se ignora por ser infra de auth). Reducidas ya cubren full_name, age, new_id, manual_register, mobile_created, validated, manual_validation, cellphone_validation, password, two_factor_secret, two_factor_recovery_codes."
+          }
+        ]
+      }
+    },
+    {
+      "contexto": "Verificación adversarial de 2 hallazgos del contexto commerce contra docs/audit/real_columns.tsv y docs/audit/by-context/commerce.json. Confirmé columnas reales: allied_branches = {id, external_id, allied_id, allied_zone_id, name, address, country_city_id, hash, qr_image, contact, datacredito_trigger, image, sort, status, created_at, updated_at}; allieds incluye 'nit' (varchar 255) y 'have_ctopx' (tinyint 1). Ambos hallazgos resultan confirmados.",
+      "verificados": [
+        {
+          "entidad": "MerchantBranch",
+          "tipo": "columna_modelo_inexistente",
+          "veredicto": "confirmado",
+          "razon": "El modelo declara el atributo has_ctopx con legacy=null (mapea por nombre) en la entidad MerchantBranch, cuya tabla legacy es allied_branches. Las columnas reales de allied_branches en real_columns.tsv son: id, external_id, allied_id, allied_zone_id, name, address, country_city_id, hash, qr_image, contact, datacredito_trigger, image, sort, status, created_at, updated_at. No existe has_ctopx ni equivalente (have_ctopx). El flag have_ctopx (tinyint(1)) solo existe en la tabla allieds, no en allied_branches. La auto-resolución por nombre fallaría: la columna no existe en la tabla destino."
+        },
+        {
+          "entidad": "Merchant",
+          "tipo": "columna_real_no_modelada",
+          "veredicto": "confirmado",
+          "razon": "La tabla legacy de Merchant es allieds, que en real_columns.tsv tiene la columna 'nit' (varchar(255)). Revisé todos los atributos[] de Merchant (id, name, slug, description, hash, category_id, industry_id, type_id, payment_plan_id, country_id, has_ctopx, initial_fee_percentage, starred_at, sort_order, status) y todas las reducidas[] (flow_type, barcode_type, self_managed, initial_fee, allow_other_payment, payment, preapproved_registration, show_profiling, is_available_in_app): ninguno tiene legacy='nit' ni representa el NIT. La columna 'nit' (identificación tributaria del comercio) efectivamente no está modelada."
+        }
+      ],
+      "_findings": {
+        "contexto": "commerce",
+        "entidadesRevisadas": 9,
+        "resumen": "Audité 9 entidades del contexto commerce (8 mapeada_ok + 1 NUEVA_greenfield). Todas las tablas legacy (allieds, allied_branches, allied_zones, products, lenders_by_allieds, merchant_events, allied_goals, allied_ecommerce_credentials) existen en real_tables.txt; no hay absorbe[] declarados. MerchantSetting (greenfield) no tiene tabla backing en la BD real (ni merchant_settings ni merchant_setting), por lo que el estado greenfield es correcto. Hallazgos: 1 columna del modelo inexistente en su tabla legacy (MerchantBranch.has_ctopx) y 1 columna real de negocio no modelada (allieds.nit). El resto de entidades mapean correctamente y sus atributos existen en la BD real.",
+        "hallazgos": [
+          {
+            "entidad": "MerchantBranch",
+            "tipo": "columna_modelo_inexistente",
+            "severidad": "alta",
+            "detalle": "El atributo has_ctopx (legacy=null, mapea por nombre 'has_ctopx') no existe como columna en la tabla legacy allied_branches. Las columnas reales de allied_branches son: id, external_id, allied_id, allied_zone_id, name, address, country_city_id, hash, qr_image, contact, datacredito_trigger, image, sort, status. No hay ninguna columna que represente has_ctopx ni equivalente (p.ej. have_ctopx). En la tabla allieds sí existe have_ctopx, pero en allied_branches no hay tal flag.",
+            "evidencia": "Columnas reales de allied_branches: id, external_id, allied_id, allied_zone_id, name, address, country_city_id, hash, qr_image, contact, datacredito_trigger, image, sort, status. Falta 'has_ctopx'."
+          },
+          {
+            "entidad": "Merchant",
+            "tipo": "columna_real_no_modelada",
+            "severidad": "media",
+            "detalle": "La columna real 'nit' de la tabla allieds (identificación tributaria del comercio aliado) no está representada en el modelo: no figura como atributo de Merchant ni en legacy.reducidas[].legacy. Es un dato de negocio relevante (NIT/identificación fiscal del comercio).",
+            "evidencia": "Columna 'nit' presente en real_columns para tabla allieds; no aparece en atributos ni en reducidas de la entidad Merchant."
+          }
+        ]
+      }
+    },
+    {
+      "contexto": "credit",
+      "verificados": [
+        {
+          "entidad": "IntegrationContract",
+          "tipo": "columna_modelo_inexistente",
+          "veredicto": "confirmado",
+          "razon": "Verificado en real_columns.tsv: lender_integration_flows tiene solo id, user_request_id, lender_id, data, created_at, updated_at. Los atributos endpoints, auth_kind, checksum_kind, webhook_url_pattern, verify_strategy y status NO existen en la tabla real; en el modelo (credit.json L1379-1419) los seis figuran con legacy:null. Solo id y lender_id mapean. La tabla real es un log por solicitud (lender_id + data json), no un contrato configurable. Entidad declarada 'mapeada_ok' pese a que casi todos los atributos son greenfield."
+        },
+        {
+          "entidad": "IntegrationContract",
+          "tipo": "columna_real_no_modelada",
+          "veredicto": "confirmado",
+          "razon": "Confirmado: lender_integration_flows.user_request_id (bigint unsigned) y .data (json) existen en la tabla real. El bloque legacy de IntegrationContract (L1376-1378) solo declara 'tabla', sin reducidas[], y ninguno de los dos aparece en atributos[]. Refuerza que la tabla real es un log por solicitud y no un contrato de integracion."
+        },
+        {
+          "entidad": "ScoringClause",
+          "tipo": "columna_modelo_inexistente",
+          "veredicto": "confirmado",
+          "razon": "Verificado: creditop_x_lender_scoring tiene id, lender_id, variable, min_value, max_value, fixed_value, points. Los atributos country_id, policy_version_id, scoring_policy_id, evaluable_field_id, min, max y status (modelo L1468-1513, todos legacy:null) NO existen. Solo id, lender_id y points coinciden por nombre; los rangos reales son min_value/max_value (no min/max). Es una re-modelacion normalizada sobre una tabla con forma distinta, declarada 'mapeada_ok'."
+        },
+        {
+          "entidad": "ScoringPolicy",
+          "tipo": "columna_modelo_inexistente",
+          "veredicto": "confirmado",
+          "razon": "Verificado: creditop_x_lender_scoring no tiene country_id. El atributo country_id (modelo L765-768, legacy:null) no existe. El resto mapea correctamente con legacy explicito: lender_id, min_value, max_value, fixed_value, points (L758-788). Hallazgo de severidad media correcto."
+        },
+        {
+          "entidad": "BureauProvider",
+          "tipo": "columna_modelo_inexistente",
+          "veredicto": "confirmado",
+          "razon": "Verificado: risk_centrals tiene solo id, name, created_at, updated_at. Los atributos slug, kind y status (modelo L1206-1231, todos legacy:null) NO existen en la tabla real, que es un catalogo minimo. Solo id y name coinciden. Entidad 'mapeada_ok' con la mayoria de atributos greenfield."
+        },
+        {
+          "entidad": "CreditDecision",
+          "tipo": "columna_modelo_inexistente",
+          "veredicto": "confirmado",
+          "razon": "Verificado: users_category_log tiene id, user_id, category_rules_acceptance, lender_id, lender_users_category_id, current_available_amount, created_at, updated_at. outcome y policy_version_id (modelo L705-714, legacy:null) NO existen. El resto mapea: customer_id->user_id, credit_category_id->lender_users_category_id, lender_id, category_rules_acceptance, current_available_amount. Hallazgo correcto."
+        },
+        {
+          "entidad": "RiskMultiplierVariable",
+          "tipo": "columna_modelo_inexistente",
+          "veredicto": "confirmado",
+          "razon": "Verificado: creditop_x_profiling_multiplier_risk_vars tiene id, name, weight, status, created_at, updated_at. country_id (modelo L875-879, legacy:null) NO existe. name, weight y status mapean por nombre correctamente. Hallazgo de severidad media correcto."
+        },
+        {
+          "entidad": "Lender",
+          "tipo": "columna_real_no_modelada",
+          "veredicto": "confirmado",
+          "razon": "Verificado contra lenders reales: country_id, ecommerce, url, email, action, sort existen en la tabla. Revisado el modelo completo de Lender (atributos L33-128 y reducidas[] L10-31): ninguna de esas seis aparece en atributos ni en reducidas. Las columnas excluidas por branding/UI (image, voucher_image_url, description, benefits, intro_background_url, show_intro_screen, complementary_form) y tecnicas (id/created_at/updated_at) son razonables. Hallazgo correcto."
+        },
+        {
+          "entidad": "CreditCategory",
+          "tipo": "columna_real_no_modelada",
+          "veredicto": "confirmado",
+          "razon": "Verificado: lender_users_categories tiene available_amount_multiplier (decimal 5,2) y life_percentage (int) en la tabla real. El modelo CreditCategory (atributos L503-563, sin reducidas[]) no representa ninguna de las dos; el resto (lender_id, name, loan_limit, already_used_loan, FGA->guarantee_fund, min_initial_fee, max_fee_number, max_amount, rate, requires_other_lender, order->sort_order) si esta mapeado. Son parametros de calculo de cupo y de seguro no modelados. Hallazgo correcto."
+        }
+      ],
+      "_findings": {
+        "contexto": "credit",
+        "entidadesRevisadas": 34,
+        "resumen": "Audité 34 entidades del contexto credit (22 mapeada_ok + 12 NUEVA_greenfield). Todas las legacy.tabla y las tablas en absorbe[] existen en real_tables.txt (sin hallazgos de tabla faltante ni absorbe_inexistente), y ninguna entidad greenfield tiene una tabla de respaldo evidente. Los hallazgos relevantes se concentran en dos casos graves donde la entidad se declara mapeada_ok pero la tabla real casi no soporta sus atributos: IntegrationContract->lender_integration_flows (la tabla real solo tiene id/user_request_id/lender_id/data, es un log por solicitud, no un contrato de integración) y ScoringClause->creditop_x_lender_scoring (atributos normalizados nuevos sobre una tabla con forma distinta). El resto son columnas modelo nuevas (FKs/discriminadores) sobre tablas existentes y columnas reales de negocio no modeladas.",
+        "hallazgos": [
+          {
+            "entidad": "IntegrationContract",
+            "tipo": "columna_modelo_inexistente",
+            "severidad": "alta",
+            "detalle": "Declarada mapeada_ok a lender_integration_flows, pero los atributos endpoints, auth_kind, checksum_kind, webhook_url_pattern, verify_strategy y status NO existen en la tabla real. La tabla real es un log por solicitud (id, user_request_id, lender_id, data), no un contrato de integracion configurable. Solo lender_id mapea. El modelo parece reusar el nombre de la tabla para un concepto distinto.",
+            "evidencia": "lender_integration_flows columnas reales: id,user_request_id,lender_id,data,created_at,updated_at. Faltan: endpoints,auth_kind,checksum_kind,webhook_url_pattern,verify_strategy,status"
+          },
+          {
+            "entidad": "IntegrationContract",
+            "tipo": "columna_real_no_modelada",
+            "severidad": "media",
+            "detalle": "La tabla real lender_integration_flows tiene las columnas de negocio user_request_id y data que el modelo no representa (refuerza que la tabla real es un log por solicitud y no un contrato).",
+            "evidencia": "lender_integration_flows.user_request_id, lender_integration_flows.data no modeladas ni en reducidas[]"
+          },
+          {
+            "entidad": "ScoringClause",
+            "tipo": "columna_modelo_inexistente",
+            "severidad": "alta",
+            "detalle": "Declarada mapeada_ok a creditop_x_lender_scoring, pero los atributos country_id, policy_version_id, scoring_policy_id, evaluable_field_id, min, max y status NO existen en la tabla real. Solo points coincide; los rangos reales se llaman min_value/max_value. Es una re-modelacion normalizada montada sobre una tabla con forma distinta.",
+            "evidencia": "creditop_x_lender_scoring columnas reales: id,lender_id,variable,min_value,max_value,fixed_value,points. Faltan: country_id,policy_version_id,scoring_policy_id,evaluable_field_id,min,max,status"
+          },
+          {
+            "entidad": "ScoringPolicy",
+            "tipo": "columna_modelo_inexistente",
+            "severidad": "media",
+            "detalle": "Atributo country_id (legacy null, mapea por nombre) no existe en creditop_x_lender_scoring. El resto de atributos (lender_id, min_value, max_value, fixed_value, points) mapean correctamente.",
+            "evidencia": "creditop_x_lender_scoring columnas reales no incluyen country_id"
+          },
+          {
+            "entidad": "BureauProvider",
+            "tipo": "columna_modelo_inexistente",
+            "severidad": "alta",
+            "detalle": "Declarada mapeada_ok a risk_centrals, pero los atributos slug, kind y status NO existen en la tabla real, que es un catalogo minimo. Solo name (e id) coinciden.",
+            "evidencia": "risk_centrals columnas reales: id,name,created_at,updated_at. Faltan: slug,kind,status"
+          },
+          {
+            "entidad": "CreditDecision",
+            "tipo": "columna_modelo_inexistente",
+            "severidad": "alta",
+            "detalle": "Atributos outcome y policy_version_id (ambos legacy null, mapean por nombre) no existen en users_category_log. El resto mapea (user_id, lender_id, lender_users_category_id, category_rules_acceptance, current_available_amount).",
+            "evidencia": "users_category_log columnas reales: id,user_id,category_rules_acceptance,lender_id,lender_users_category_id,current_available_amount,created_at,updated_at. Faltan: outcome,policy_version_id"
+          },
+          {
+            "entidad": "RiskMultiplierVariable",
+            "tipo": "columna_modelo_inexistente",
+            "severidad": "media",
+            "detalle": "Atributo country_id (legacy null, mapea por nombre) no existe en creditop_x_profiling_multiplier_risk_vars. name, weight y status mapean correctamente.",
+            "evidencia": "creditop_x_profiling_multiplier_risk_vars columnas reales: id,name,weight,status,created_at,updated_at. Falta: country_id"
+          },
+          {
+            "entidad": "Lender",
+            "tipo": "columna_modelo_inexistente",
+            "severidad": "baja",
+            "detalle": "Atributos closing_pattern_id y adapter_slug (ambos legacy null) no existen en la tabla lenders. Parecen FKs/atributos nuevos del rediseno (closing_pattern hacia ClosingPattern, adapter para adaptadores), no columnas legacy faltantes.",
+            "evidencia": "lenders columnas reales no incluyen closing_pattern_id ni adapter_slug"
+          },
+          {
+            "entidad": "Lender",
+            "tipo": "columna_real_no_modelada",
+            "severidad": "media",
+            "detalle": "Columnas reales de negocio en lenders no representadas ni en atributos ni en reducidas[]: country_id, ecommerce, url, email, action, sort. (Se ignoran image, voucher_image_url, description, benefits, intro_background_url, show_intro_screen, complementary_form por ser branding/UI, y created_at/updated_at/id).",
+            "evidencia": "lenders columnas reales: country_id,ecommerce,url,email,action,sort no presentes en el modelo"
+          },
+          {
+            "entidad": "LenderTransaction",
+            "tipo": "columna_modelo_inexistente",
+            "severidad": "baja",
+            "detalle": "Atributo provider_type (legacy null, ref(ProviderType)) no existe en lender_transactions; es un discriminador nuevo introducido por la unificacion de payvalida/sistecredito/payment_gateway. El resto mapea (lender_id, user_request_id, order_id, status_id, request, response).",
+            "evidencia": "lender_transactions columnas reales: id,lender_id,user_request_id,status_id,order_id,request,response,created_at,updated_at. Falta: provider_type"
+          },
+          {
+            "entidad": "EligibilityRule",
+            "tipo": "columna_modelo_inexistente",
+            "severidad": "baja",
+            "detalle": "Atributos policy_version_id y rule_definition_id (ambos legacy null) no existen en lender_rules; son FKs nuevas del rediseno greenfield (versionado y catalogo canonico de reglas). El resto mapea correctamente.",
+            "evidencia": "lender_rules columnas reales: id,group_rule_id,lender_id,name,description,field_id,specific_table,column,operator,value,status. Faltan: policy_version_id,rule_definition_id"
+          },
+          {
+            "entidad": "EligibilityPolicy",
+            "tipo": "columna_modelo_inexistente",
+            "severidad": "baja",
+            "detalle": "Atributo rule_definition_id (legacy null) no existe en group_rules; FK nueva del rediseno. merchant_branch_id=allied_branch_id y rule_name mapean correctamente.",
+            "evidencia": "group_rules columnas reales: id,allied_branch_id,rule_name,created_at,updated_at. Falta: rule_definition_id"
+          },
+          {
+            "entidad": "LenderErrorCode",
+            "tipo": "columna_real_no_modelada",
+            "severidad": "baja",
+            "detalle": "La columna real description de lender_error_codes no esta modelada (existe message pero no description). Posible perdida de informacion descriptiva del error.",
+            "evidencia": "lender_error_codes columnas reales: id,lender_id,lender_class,code,description,message,handler. 'description' no modelada"
+          },
+          {
+            "entidad": "CreditCategory",
+            "tipo": "columna_real_no_modelada",
+            "severidad": "media",
+            "detalle": "Columnas reales de negocio en lender_users_categories no representadas: available_amount_multiplier y life_percentage (parametros de calculo de cupo y de seguro). El resto de columnas estan mapeadas o en reducidas.",
+            "evidencia": "lender_users_categories columnas reales: available_amount_multiplier, life_percentage no presentes en el modelo"
+          }
+        ]
+      }
+    },
+    {
+      "contexto": "origination — Verificación adversarial contra docs/audit/real_columns.tsv (extraído con awk -F'\\t') y docs/audit/by-context/origination.json. Tablas confirmadas existentes en real_tables.txt: form_types, fields, user_requests. Columnas reales obtenidas: form_types=[id, name, description, lender_id, status, created_at, updated_at]; fields=[id, field_category_id, parent_id, related_field_id, parent_value, name, description, help_message, field_appearance, field_group, type, validation, data_source, status, created_at, updated_at]; user_requests incluye confirmation_email_attachments (longtext). Los 4 hallazgos se confirman.",
+      "verificados": [
+        {
+          "entidad": "OnboardingForm",
+          "tipo": "columna_modelo_inexistente",
+          "veredicto": "confirmado",
+          "razon": "La tabla legacy real form_types expone exactamente [id, name, description, lender_id, status, created_at, updated_at]. El modelo declara el atributo country_id (bigint unsigned, legacy:null) que no existe como columna ni tiene equivalente en form_types. Hallazgo correcto."
+        },
+        {
+          "entidad": "FormField",
+          "tipo": "columna_modelo_inexistente",
+          "veredicto": "confirmado",
+          "razon": "La tabla legacy real fields expone [id, field_category_id, parent_id, related_field_id, parent_value, name, description, help_message, field_appearance, field_group, type, validation, data_source, status, created_at, updated_at]. El modelo declara semantic_role (varchar(40), legacy:null) que no existe ni tiene columna equivalente en fields. Hallazgo correcto."
+        },
+        {
+          "entidad": "LoanApplication",
+          "tipo": "columna_real_no_modelada",
+          "veredicto": "confirmado",
+          "razon": "user_requests sí contiene la columna real confirmation_email_attachments (longtext). Revisados todos los atributos de LoanApplication (sus campos n y legacy): ninguno la nombra ni la mapea vía legacy. No hay reducidas que la cubran. La columna real queda sin representar. Hallazgo correcto."
+        },
+        {
+          "entidad": "FormField",
+          "tipo": "columna_real_no_modelada",
+          "veredicto": "confirmado",
+          "razon": "fields sí contiene description (text). Los atributos de FormField son id, category_id, parent_id, related_field_id, parent_value, name, semantic_role, help_message, appearance, field_group, type, validation, data_source, status; ninguno se llama description ni tiene legacy='description'. Además se confirma la nota: OnboardingForm sí modela un atributo n='description' contra form_types, mientras FormField/fields no. Hallazgo correcto."
+        }
+      ],
+      "_findings": {
+        "contexto": "origination",
+        "entidadesRevisadas": 16,
+        "resumen": "Auditadas 16 entidades del contexto origination contra la BD real. Todas las tablas legacy referenciadas existen (incluida la absorbida user_requests_by_ecommerce_request). No hay greenfield. Se encontraron 4 hallazgos: 2 atributos del modelo que apuntan a columnas inexistentes en su tabla backing (OnboardingForm.country_id en form_types y FormField.semantic_role en fields, ambos alta), y 2 columnas reales relevantes de negocio no modeladas ni en reducidas[] (user_requests.confirmation_email_attachments y fields.description, ambos media). El resto de mapeos es consistente.",
+        "hallazgos": [
+          {
+            "entidad": "OnboardingForm",
+            "tipo": "columna_modelo_inexistente",
+            "severidad": "alta",
+            "detalle": "El atributo del modelo 'country_id' (bigint unsigned) no existe como columna en su tabla legacy 'form_types'. La tabla real solo expone: id, name, description, lender_id, status, created_at, updated_at. No hay columna country_id ni equivalente.",
+            "evidencia": "form_types columnas reales = [id, name, description, lender_id, status, created_at, updated_at]; falta 'country_id'."
+          },
+          {
+            "entidad": "FormField",
+            "tipo": "columna_modelo_inexistente",
+            "severidad": "alta",
+            "detalle": "El atributo del modelo 'semantic_role' (varchar(40)) no existe como columna en su tabla legacy 'fields' (no tiene legacy alias). La tabla real no contiene semantic_role ni columna equivalente.",
+            "evidencia": "fields columnas reales = [id, field_category_id, parent_id, related_field_id, parent_value, name, description, help_message, field_appearance, field_group, type, validation, data_source, status, created_at, updated_at]; falta 'semantic_role'."
+          },
+          {
+            "entidad": "LoanApplication",
+            "tipo": "columna_real_no_modelada",
+            "severidad": "media",
+            "detalle": "La columna real 'confirmation_email_attachments' de la tabla legacy 'user_requests' no está representada en el modelo (ni como atributo ni en reducidas[].legacy). Parece dato de negocio (adjuntos del correo de confirmación de la solicitud).",
+            "evidencia": "user_requests contiene 'confirmation_email_attachments'; ningún atributo de LoanApplication ni reducidas mapea a esa columna."
+          },
+          {
+            "entidad": "FormField",
+            "tipo": "columna_real_no_modelada",
+            "severidad": "media",
+            "detalle": "La columna real 'description' de la tabla legacy 'fields' no está representada en el modelo de FormField (ni atributo ni reducidas[].legacy). Es contenido relevante del catálogo de campos (descripción/etiqueta del campo).",
+            "evidencia": "fields contiene 'description'; FormField no la modela. Nota: OnboardingForm sí modela 'description' contra form_types, pero FormField/fields no."
+          }
+        ]
+      }
+    },
+    {
+      "contexto": "creditopX",
+      "verificados": [
+        {
+          "entidad": "SignedRequestChange",
+          "tipo": "columna_modelo_inexistente",
+          "veredicto": "confirmado",
+          "razon": "Verificado contra real_columns.tsv: creditop_x_changes_log solo tiene id, user_request_id, change_type_id, otp_id, created_at, updated_at. El atributo 'loan_application_id' (legacy=null, mapea por nombre) no tiene columna real homonima. La equivalente es user_request_id, que no esta enlazada via legacy. Falta el mapeo legacy o el nombre correcto."
+        },
+        {
+          "entidad": "SignedRequestChange",
+          "tipo": "columna_modelo_inexistente",
+          "veredicto": "confirmado",
+          "razon": "Confirmado: creditop_x_changes_log no contiene 'revolving_credit_id' ni ninguna referencia a credito rotativo (cols reales: id, user_request_id, change_type_id, otp_id, created_at, updated_at). Atributo con legacy=null sin columna real homonima."
+        },
+        {
+          "entidad": "SignedRequestChange",
+          "tipo": "columna_modelo_inexistente",
+          "veredicto": "confirmado",
+          "razon": "Confirmado: 'previous_value' no aparece entre las columnas reales de creditop_x_changes_log (id, user_request_id, change_type_id, otp_id, created_at, updated_at). El modelo describe el cambio 'antes/despues' pero la tabla legacy no almacena esos valores."
+        },
+        {
+          "entidad": "SignedRequestChange",
+          "tipo": "columna_modelo_inexistente",
+          "veredicto": "confirmado",
+          "razon": "Confirmado: 'new_value' no aparece entre las columnas reales de creditop_x_changes_log. Mismo caso que previous_value: atributo modelado sin respaldo en la tabla legacy."
+        },
+        {
+          "entidad": "SignedRequestChange",
+          "tipo": "columna_real_no_modelada",
+          "veredicto": "confirmado",
+          "razon": "Confirmado: la columna real 'creditop_x_changes_log\tuser_request_id\tbigint unsigned' existe y ningun atributo del modelo la referencia via legacy. El unico candidato es loan_application_id (legacy=null), que quedo sin enlace. La columna real no esta representada."
+        },
+        {
+          "entidad": "PaymentRegister",
+          "tipo": "columna_real_no_modelada",
+          "veredicto": "confirmado",
+          "razon": "Confirmado: creditop_x_payment_register tiene DOS columnas distintas: 'payment_method varchar(255)' (texto) y 'payment_method_id bigint unsigned' (FK). El modelo solo mapea payment_method_id (por nombre, legacy=null). El campo textual 'payment_method' no esta en atributos ni reducidas."
+        },
+        {
+          "entidad": "RequestHistoryEntry",
+          "tipo": "columna_real_no_modelada",
+          "veredicto": "confirmado",
+          "razon": "Confirmado contra real_columns.tsv de creditop_x_requests_history: las 13 columnas citadas (paid_guarantee, paid_guarantee_insurance, next_payment_insurance, next_payment_guarantee, next_payment_guarantee_insurance, life_insurance_per_month, real_life_insurance, fixed_life_insurance_per_month, life_insurance_per_million, guarantee_fixed_value, guarantee_fixed_value_percentage, fixed_guarantee_insurance_per_month, guaarantee_insurance_per_million) existen todas en la tabla real y ninguna aparece como atributo del modelo ni con legacy. Son montos de seguro/garantia ausentes del desglose modelado."
+        },
+        {
+          "entidad": "RequestHistoryEntry",
+          "tipo": "columna_real_no_modelada",
+          "veredicto": "confirmado",
+          "razon": "Confirmado: installment_principal_value, installment_interest_value, billing_principal_amount, late_payment_principal_exclude e installments_waived_interest existen en creditop_x_requests_history y no figuran entre los atributos del modelo (que solo trae installment_value, late_payment_interest_value, etc.). Componentes de cuota/facturacion/mora no representados."
+        }
+      ],
+      "_findings": {
+        "contexto": "creditopX",
+        "entidadesRevisadas": 9,
+        "resumen": "Se auditaron 9 entidades del contexto creditopX. Las tablas legacy y absorbidas existen todas en real_tables.txt, y la entidad greenfield LoanAccount no tiene tabla backing existente (correcto). El hallazgo más serio es SignedRequestChange (creditop_x_changes_log): el modelo declara 4 columnas (loan_application_id, revolving_credit_id, previous_value, new_value) que NO existen en la tabla real, la cual solo tiene user_request_id, change_type_id, otp_id y timestamps. Además se detectaron varias columnas reales de negocio no modeladas, principalmente en creditop_x_requests_history (componentes de seguro/garantía/cuota) y en creditop_x_payment_register (payment_method).",
+        "hallazgos": [
+          {
+            "entidad": "SignedRequestChange",
+            "tipo": "columna_modelo_inexistente",
+            "severidad": "alta",
+            "detalle": "El atributo loan_application_id (legacy=null, mapea por nombre a 'loan_application_id') no existe en la tabla legacy creditop_x_changes_log. La columna real equivalente es user_request_id; falta el mapeo legacy o el nombre correcto.",
+            "evidencia": "creditop_x_changes_log columnas reales: id, user_request_id, change_type_id, otp_id, created_at, updated_at. No existe columna 'loan_application_id'."
+          },
+          {
+            "entidad": "SignedRequestChange",
+            "tipo": "columna_modelo_inexistente",
+            "severidad": "alta",
+            "detalle": "El atributo revolving_credit_id (legacy=null) no existe en la tabla legacy creditop_x_changes_log.",
+            "evidencia": "creditop_x_changes_log no contiene la columna 'revolving_credit_id' (cols reales: id, user_request_id, change_type_id, otp_id, created_at, updated_at)."
+          },
+          {
+            "entidad": "SignedRequestChange",
+            "tipo": "columna_modelo_inexistente",
+            "severidad": "alta",
+            "detalle": "El atributo previous_value (legacy=null) no existe en la tabla legacy creditop_x_changes_log.",
+            "evidencia": "creditop_x_changes_log no contiene la columna 'previous_value'."
+          },
+          {
+            "entidad": "SignedRequestChange",
+            "tipo": "columna_modelo_inexistente",
+            "severidad": "alta",
+            "detalle": "El atributo new_value (legacy=null) no existe en la tabla legacy creditop_x_changes_log.",
+            "evidencia": "creditop_x_changes_log no contiene la columna 'new_value'."
+          },
+          {
+            "entidad": "SignedRequestChange",
+            "tipo": "columna_real_no_modelada",
+            "severidad": "media",
+            "detalle": "La columna real user_request_id (vínculo a la solicitud) no está representada en el modelo; probablemente corresponda al atributo loan_application_id que quedó sin mapeo legacy.",
+            "evidencia": "creditop_x_changes_log\tuser_request_id\tbigint unsigned"
+          },
+          {
+            "entidad": "PaymentRegister",
+            "tipo": "columna_real_no_modelada",
+            "severidad": "media",
+            "detalle": "La columna real payment_method (nombre/medio de pago textual) no está modelada ni en atributos ni en reducidas. La entidad sí modela payment_method_id (FK) pero no la columna de texto legacy.",
+            "evidencia": "creditop_x_payment_register\tpayment_method\tvarchar(255)"
+          },
+          {
+            "entidad": "RequestHistoryEntry",
+            "tipo": "columna_real_no_modelada",
+            "severidad": "media",
+            "detalle": "Componentes de seguro de vida y garantía del estado de cuenta no representados en el modelo: paid_guarantee, paid_guarantee_insurance, next_payment_insurance, next_payment_guarantee, next_payment_guarantee_insurance, life_insurance_per_month, real_life_insurance, fixed_life_insurance_per_month, life_insurance_per_million, guarantee_fixed_value, guarantee_fixed_value_percentage, fixed_guarantee_insurance_per_month, guaarantee_insurance_per_million. Son montos de negocio (seguro/garantía) relevantes para el desglose de deuda y próximo pago.",
+            "evidencia": "creditop_x_requests_history columnas reales presentes: paid_guarantee, paid_guarantee_insurance, next_payment_insurance, next_payment_guarantee, next_payment_guarantee_insurance, life_insurance_per_month, real_life_insurance, fixed_life_insurance_per_month, life_insurance_per_million, guarantee_fixed_value, guarantee_fixed_value_percentage, fixed_guarantee_insurance_per_month, guaarantee_insurance_per_million."
+          },
+          {
+            "entidad": "RequestHistoryEntry",
+            "tipo": "columna_real_no_modelada",
+            "severidad": "media",
+            "detalle": "Detalle de cuota y de facturación no representado en el modelo: installment_principal_value, installment_interest_value, billing_principal_amount, late_payment_principal_exclude, installments_waived_interest. Son componentes del valor de cuota/facturación y de mora relevantes para el estado de cuenta.",
+            "evidencia": "creditop_x_requests_history columnas reales: installment_principal_value, installment_interest_value, billing_principal_amount, late_payment_principal_exclude, installments_waived_interest."
+          }
+        ]
+      }
+    },
+    {
+      "contexto": "decisioning",
+      "verificados": [
+        {
+          "entidad": "SettingDefinition",
+          "tipo": "greenfield_con_tabla_existente",
+          "veredicto": "matizado",
+          "razon": "Verificado contra los insumos. CIERTO: la tabla 'settings' EXISTE en real_tables.txt (linea 175) y el propio legacy.ref de la entidad la cita ('gobierna merchant_settings/settings'), pese a estar declarada NUEVA_greenfield. Por nombre hay una tabla de backing real. PERO la evidencia columnar citada (code, key, value, serialized, country_id) NO es comprobable: real_columns.tsv tiene 0 filas para la tabla 'settings' (y 0 columnas llamadas 'serialized', 'code', 'key', 'country_id', 'value' en todo el archivo); no se pudo confirmar el esquema afirmado. Ademas la otra tabla citada, 'merchant_settings', NO existe en real_tables.txt. Semanticamente la entidad es un CATALOGO de definiciones de parametros (code, value_type, applies_to, enum_catalog, default_value), no un almacen plano clave/valor, por lo que la equivalencia de rol es parcial. Conclusion: el sub-hecho 'existe tabla por nombre' es correcto, pero la evidencia de columnas y la equivalencia de proposito no estan probadas con los datos disponibles."
+        },
+        {
+          "entidad": "SettingBinding",
+          "tipo": "greenfield_con_tabla_existente",
+          "veredicto": "matizado",
+          "razon": "CIERTO: la tabla 'settings' existe en real_tables.txt y el legacy.ref ya admite explicitamente que la entidad 'unifica merchant_settings/settings y los flags por actor', es decir reconoce un rediseno sobre tabla existente pese al rotulo greenfield. PERO la evidencia de mapeo columnar (key/value/country_id equivalentes a scope/value) NO se puede verificar: real_columns.tsv no contiene ninguna fila para la tabla 'settings' ni columnas 'key','value','country_id' en ningun lugar del archivo. 'merchant_settings' tampoco existe como tabla. El SettingBinding usa scope_type/scope_id/setting_definition_id (FK a un catalogo), un modelo polimorfico distinto del key/value plano descrito. Conclusion: backing por nombre confirmado, equivalencia columna-a-columna no probada con los insumos."
+        },
+        {
+          "entidad": "EvaluableField",
+          "tipo": "greenfield_con_tabla_existente",
+          "veredicto": "matizado",
+          "razon": "Severidad media y el propio hallazgo admite que la semantica DIFIERE (fields=campos de formulario vs EvaluableField=catalogo de facts para decidir). Verificado: la tabla 'fields' (y field_options/field_categories/user_field_values) SI existe en real_tables.txt. Sin embargo el legacy.ref de la entidad NO apunta a la tabla 'fields' como backing, sino a 'strings field/variable/semantic_role/field_code sueltos' (codigos string dispersos), por lo que el match es por afinidad de nombre, no por referencia legacy real. Ademas la evidencia columnar citada (name, type, data_source, field_category_id) NO es comprobable: real_columns.tsv tiene 0 filas para 'fields' y 0 columnas 'data_source'/'field_category_id' en todo el archivo (solo aparece el valor 'field_category_id' como nombre de columna en alguna otra tabla, no como tabla 'fields'). Conclusion: coincidencia de nombre con tabla existente confirmada, pero proposito distinto (reconocido por el propio hallazgo) y esquema citado no verificable; no hay solapamiento funcional fuerte que invalide el greenfield."
+        }
+      ],
+      "_findings": {
+        "contexto": "decisioning",
+        "entidadesRevisadas": 8,
+        "resumen": "Las 8 entidades del contexto están en estado NUEVA_greenfield, por lo que no aplican chequeos de columnas (no hay entidades mapeada_ok) ni de absorbe[] (ninguna entidad define legacy.absorbe[]). El análisis se centró en detectar tablas reales que serían backing natural de cada greenfield. Hallazgos: las entidades de configuración (SettingDefinition, SettingBinding) se declaran greenfield pero su propio legacy.ref nombra la tabla 'settings', que EXISTE en real_tables.txt con columnas (code/key/value/serialized/country_id) que cubren el rol de catálogo+valor; esto es greenfield con tabla existente. EvaluableField se declara greenfield y su ref menciona los strings 'field/variable'; existe la tabla 'fields' (catálogo de campos de formulario) como candidato de backing por nombre, aunque con semántica distinta (renderizado de formulario vs. catálogo de facts de evaluación), por lo que se reporta con severidad media. Además, el legacy.ref de las entidades de setting cita 'merchant_settings', tabla que NO existe en real_tables.txt (solo existe 'settings'). Las entidades FactSourceBinding, FeatureTransform, FeatureDependency, OperatorTypeRule y FactValueSnapshot no tienen tabla de backing natural por nombre y son greenfield legítimas: sin hallazgos.",
+        "hallazgos": [
+          {
+            "entidad": "SettingDefinition",
+            "tipo": "greenfield_con_tabla_existente",
+            "severidad": "alta",
+            "detalle": "Entidad declarada NUEVA_greenfield, pero su propio legacy.ref dice 'gobierna merchant_settings/settings'. La tabla real 'settings' EXISTE en real_tables.txt y ya cumple parcialmente el rol de catálogo/parametrización con columnas code, key, value, serialized, country_id. Hay tabla de backing por nombre, no es greenfield puro.",
+            "evidencia": "real_tables.txt contiene 'settings'; columnas reales settings: id, code(varchar255), key(varchar255), value(longtext), serialized(tinyint), country_id(int), created_at, updated_at. El legacy.ref de la entidad cita explícitamente 'settings'."
+          },
+          {
+            "entidad": "SettingBinding",
+            "tipo": "greenfield_con_tabla_existente",
+            "severidad": "alta",
+            "detalle": "Entidad declarada NUEVA_greenfield para representar el valor concreto de un parámetro por actor; su legacy.ref dice 'unifica merchant_settings/settings y los flags por actor'. La tabla real 'settings' EXISTE y hoy almacena exactamente pares clave/valor con ámbito (country_id) y value(longtext), que es el rol de binding. Hay backing existente por nombre.",
+            "evidencia": "real_tables.txt contiene 'settings'; columnas settings incluyen key(varchar255), value(longtext), country_id(int) — equivalentes a scope/value del SettingBinding. El legacy.ref cita 'settings'."
+          },
+          {
+            "entidad": "EvaluableField",
+            "tipo": "greenfield_con_tabla_existente",
+            "severidad": "media",
+            "detalle": "Entidad declarada NUEVA_greenfield como catálogo de facts de evaluación; su legacy.ref menciona reemplazar los strings 'field/variable/semantic_role/field_code'. Existe la tabla 'fields' como candidato de backing natural por nombre (catálogo de campos con name, type, data_source, field_category_id). La semántica difiere (fields=campos de formulario; EvaluableField=catálogo de datos para decidir), por eso severidad media: hay tabla con nombre afín pero propósito distinto.",
+            "evidencia": "real_tables.txt contiene 'fields' y 'field_options'/'field_categories'/'user_field_values'; columnas fields: id, field_category_id, name(varchar255), type(varchar255), data_source(varchar255), status. El legacy.ref de EvaluableField nombra 'field'/'variable'."
+          },
+          {
+            "entidad": "SettingDefinition / SettingBinding",
+            "tipo": "otro",
+            "severidad": "baja",
+            "detalle": "El legacy.ref de ambas entidades de configuración cita la tabla 'merchant_settings', que NO existe en real_tables.txt (solo existe 'settings'). Es una referencia en prosa (no legacy.tabla ni legacy.absorbe[]), por lo que no es absorbe_inexistente formal, pero la documentación apunta a una tabla inexistente y debería corregirse a 'settings'.",
+            "evidencia": "grep -i 'merchant_setting' real_tables.txt no devuelve resultados; solo aparece 'settings'. Los legacy.ref dicen 'gobierna merchant_settings/settings' y 'unifica merchant_settings/settings'."
+          }
+        ]
+      }
+    }
+  ],
+  "valueObjects": {
+    "clasificacion": [
+      {
+        "vo": "Money",
+        "estado": "enum_sin_tabla_ok",
+        "tablaReal": "",
+        "nota": "VO primitivo (monto+moneda) embebido; sin tabla propia"
+      },
+      {
+        "vo": "Document",
+        "estado": "enum_sin_tabla_ok",
+        "tablaReal": "",
+        "nota": "VO de identificación (tipo+numero) embebido; documentType es greenfield, no hay tabla legacy"
+      },
+      {
+        "vo": "Terms",
+        "estado": "enum_sin_tabla_ok",
+        "tablaReal": "",
+        "nota": "VO de condiciones (plazo/tasa) embebido en el crédito; sin tabla"
+      },
+      {
+        "vo": "Score",
+        "estado": "tiene_tabla",
+        "tablaReal": "credit_scores",
+        "nota": "Catálogo de scores"
+      },
+      {
+        "vo": "LenderCityCoverage",
+        "estado": "tiene_tabla",
+        "tablaReal": "cities_by_lender",
+        "nota": "Cobertura de ciudades por lender"
+      },
+      {
+        "vo": "UserProfile",
+        "estado": "tiene_tabla",
+        "tablaReal": "user_profiles"
+      },
+      {
+        "vo": "RolePermissionAssignment",
+        "estado": "tiene_tabla",
+        "tablaReal": "role_has_permissions"
+      },
+      {
+        "vo": "RoleAssignment",
+        "estado": "tiene_tabla",
+        "tablaReal": "model_has_roles"
+      },
+      {
+        "vo": "DirectPermissionAssignment",
+        "estado": "tiene_tabla",
+        "tablaReal": "model_has_permissions"
+      },
+      {
+        "vo": "StatusVisibilityRule",
+        "estado": "tiene_tabla",
+        "tablaReal": "status_per_profiles",
+        "nota": "Visibilidad de estados por perfil"
+      },
+      {
+        "vo": "CreditProfile",
+        "estado": "tiene_tabla",
+        "tablaReal": "profile_data"
+      },
+      {
+        "vo": "SecurityQuestion",
+        "estado": "tiene_tabla",
+        "tablaReal": "security_questions"
+      },
+      {
+        "vo": "Achievement",
+        "estado": "tiene_tabla",
+        "tablaReal": "achievements"
+      },
+      {
+        "vo": "IdentityValidationType",
+        "estado": "tiene_tabla",
+        "tablaReal": "identity_validation_types"
+      },
+      {
+        "vo": "LenderValidationRequirement",
+        "estado": "tiene_tabla",
+        "tablaReal": "lender_identity_validation_types",
+        "nota": "Validaciones de identidad requeridas por lender"
+      },
+      {
+        "vo": "SigningProvider",
+        "estado": "tiene_tabla",
+        "tablaReal": "signing_providers"
+      },
+      {
+        "vo": "MerchantCategory",
+        "estado": "tiene_tabla",
+        "tablaReal": "allied_categories",
+        "nota": "merchant=allied"
+      },
+      {
+        "vo": "MerchantType",
+        "estado": "tiene_tabla",
+        "tablaReal": "allied_types"
+      },
+      {
+        "vo": "MerchantIndustry",
+        "estado": "tiene_tabla",
+        "tablaReal": "allied_industries"
+      },
+      {
+        "vo": "ProductCategory",
+        "estado": "tiene_tabla",
+        "tablaReal": "product_categories"
+      },
+      {
+        "vo": "OperatingMode",
+        "estado": "tiene_tabla",
+        "tablaReal": "allied_modes",
+        "nota": "Modos operativos del allied"
+      },
+      {
+        "vo": "TransferAccount",
+        "estado": "tiene_tabla",
+        "tablaReal": "allied_transfer_accounts"
+      },
+      {
+        "vo": "EcommerceCredential",
+        "estado": "tiene_tabla",
+        "tablaReal": "allied_ecommerce_credentials"
+      },
+      {
+        "vo": "BranchUserAssignment",
+        "estado": "tiene_tabla",
+        "tablaReal": "allied_branches_by_user",
+        "nota": "branch=allied_branch"
+      },
+      {
+        "vo": "BranchLenderLink",
+        "estado": "tiene_tabla",
+        "tablaReal": "lenders_by_allied_branches"
+      },
+      {
+        "vo": "ProductLenderUserCategoryLink",
+        "estado": "tiene_tabla",
+        "tablaReal": "products_by_lender_users_categories"
+      },
+      {
+        "vo": "DatacreditoQueryCounter",
+        "estado": "tiene_tabla",
+        "tablaReal": "datacredito_query_by_allieds",
+        "nota": "Conteo de consultas DataCrédito por allied"
+      },
+      {
+        "vo": "EventAssistanceFee",
+        "estado": "tiene_tabla",
+        "tablaReal": "assistance_fee_by_merchant_event"
+      },
+      {
+        "vo": "LenderPromotion",
+        "estado": "tiene_tabla",
+        "tablaReal": "promotions_by_lenders"
+      },
+      {
+        "vo": "MerchantBeneficiary",
+        "estado": "tiene_tabla",
+        "tablaReal": "beneficiaries_by_allieds"
+      },
+      {
+        "vo": "ResponseType",
+        "estado": "tiene_tabla",
+        "tablaReal": "response_types"
+      },
+      {
+        "vo": "Path",
+        "estado": "tiene_tabla",
+        "tablaReal": "paths"
+      },
+      {
+        "vo": "PromissoryType",
+        "estado": "tiene_tabla",
+        "tablaReal": "promissory_types"
+      },
+      {
+        "vo": "CutoffType",
+        "estado": "tiene_tabla",
+        "tablaReal": "creditop_x_cutoff_types"
+      },
+      {
+        "vo": "ConsentType",
+        "estado": "tiene_tabla",
+        "tablaReal": "creditop_x_consent_types"
+      },
+      {
+        "vo": "PaymentMethod",
+        "estado": "tiene_tabla",
+        "tablaReal": "payment_methods"
+      },
+      {
+        "vo": "Bank",
+        "estado": "tiene_tabla",
+        "tablaReal": "banks"
+      },
+      {
+        "vo": "CreditopXConfiguration",
+        "estado": "tiene_tabla",
+        "tablaReal": "creditop_x_lender_configuration"
+      },
+      {
+        "vo": "PaymentCapacityRule",
+        "estado": "tiene_tabla",
+        "tablaReal": "lender_payment_capacity_scoring_policy"
+      },
+      {
+        "vo": "UserFieldRule",
+        "estado": "tiene_tabla",
+        "tablaReal": "lender_user_fields_scoring_policy"
+      },
+      {
+        "vo": "UserCategoryRule",
+        "estado": "tiene_tabla",
+        "tablaReal": "lender_user_category_scoring_policy_rules",
+        "nota": "alt: lender_users_category_rules"
+      },
+      {
+        "vo": "DatacreditoScoreRule",
+        "estado": "tiene_tabla",
+        "tablaReal": "lender_datacredito_rules"
+      },
+      {
+        "vo": "BandaGastosFijos",
+        "estado": "tiene_tabla",
+        "tablaReal": "creditop_x_profiling_fixed_expenses",
+        "nota": "Bandas de gastos fijos del profiling"
+      },
+      {
+        "vo": "FrecuenciaDataCredito",
+        "estado": "tiene_tabla",
+        "tablaReal": "datacredito_frequencies"
+      },
+      {
+        "vo": "RiskBureauCredential",
+        "estado": "tiene_tabla",
+        "tablaReal": "risk_central_credentials",
+        "nota": "risk bureau=risk central"
+      },
+      {
+        "vo": "ApplicationInquiryLink",
+        "estado": "tiene_tabla",
+        "tablaReal": "user_request_risk_central_user_data",
+        "nota": "Vincula solicitud con datos de consulta a central"
+      },
+      {
+        "vo": "ApplicationBureauVerification",
+        "estado": "tiene_tabla",
+        "tablaReal": "user_request_risk_central_verified"
+      },
+      {
+        "vo": "TransactionStatus",
+        "estado": "tiene_tabla",
+        "tablaReal": "lender_transaction_statuses"
+      },
+      {
+        "vo": "GatewayPaymentType",
+        "estado": "tiene_tabla",
+        "tablaReal": "creditop_x_payment_types",
+        "nota": "Tipos de pago de la pasarela"
+      },
+      {
+        "vo": "RequestStatus",
+        "estado": "tiene_tabla",
+        "tablaReal": "user_request_statuses"
+      },
+      {
+        "vo": "ApplicationMode",
+        "estado": "tiene_tabla",
+        "tablaReal": "user_request_modes"
+      },
+      {
+        "vo": "EcommerceChannel",
+        "estado": "tiene_tabla",
+        "tablaReal": "ecommerces",
+        "nota": "Canales/integraciones ecommerce configurados"
+      },
+      {
+        "vo": "EcommerceOrderLink",
+        "estado": "tiene_tabla",
+        "tablaReal": "user_requests_by_ecommerce_request"
+      },
+      {
+        "vo": "PaymentLinkLink",
+        "estado": "tiene_tabla",
+        "tablaReal": "user_requests_by_payment_links"
+      },
+      {
+        "vo": "FieldCategory",
+        "estado": "tiene_tabla",
+        "tablaReal": "field_categories"
+      },
+      {
+        "vo": "FieldOption",
+        "estado": "tiene_tabla",
+        "tablaReal": "field_options"
+      },
+      {
+        "vo": "PaymentStatus",
+        "estado": "tiene_tabla",
+        "tablaReal": "creditop_x_payment_statuses"
+      },
+      {
+        "vo": "ProcessStatus",
+        "estado": "tiene_tabla",
+        "tablaReal": "creditop_x_user_requests_process_statuses"
+      },
+      {
+        "vo": "Attachment",
+        "estado": "tiene_tabla",
+        "tablaReal": "creditop_x_attachments"
+      },
+      {
+        "vo": "LenderAmountConditions",
+        "estado": "tiene_tabla",
+        "tablaReal": "creditop_x_conditions_by_amount_by_lender"
+      },
+      {
+        "vo": "QuotaRestriction",
+        "estado": "tiene_tabla",
+        "tablaReal": "creditop_x_quota_restrictions"
+      },
+      {
+        "vo": "EarlyPaymentDiscount",
+        "estado": "tiene_tabla",
+        "tablaReal": "creditop_x_lender_early_payment_discount"
+      },
+      {
+        "vo": "BlacklistedDocument",
+        "estado": "tiene_tabla",
+        "tablaReal": "creditop_x_blacklisted_documents"
+      },
+      {
+        "vo": "IncentiveMessage",
+        "estado": "tiene_tabla",
+        "tablaReal": "revolving_credit_incentive_messages"
+      },
+      {
+        "vo": "ReminderMessage",
+        "estado": "tiene_tabla",
+        "tablaReal": "creditop_x_reminder_messages"
+      },
+      {
+        "vo": "TermsAndConditions",
+        "estado": "tiene_tabla",
+        "tablaReal": "terms_and_conditions"
+      },
+      {
+        "vo": "CreditLineCatalog",
+        "estado": "tiene_tabla",
+        "tablaReal": "credit_lines",
+        "nota": "Catálogo de líneas de crédito (asignación: credit_line_by_lenders)"
+      },
+      {
+        "vo": "RiskAssessmentSnapshot",
+        "estado": "tiene_tabla",
+        "tablaReal": "profilings",
+        "nota": "Snapshot del profiling/evaluación de riesgo"
+      },
+      {
+        "vo": "Provider",
+        "estado": "tiene_tabla",
+        "tablaReal": "risk_centrals",
+        "nota": "Proveedores/centrales de riesgo"
+      },
+      {
+        "vo": "ProviderType",
+        "estado": "enum_sin_tabla_ok",
+        "tablaReal": "",
+        "nota": "Clasificación de proveedor; no existe tabla provider_types, es enum"
+      },
+      {
+        "vo": "HolidayCalendar",
+        "estado": "tiene_tabla",
+        "tablaReal": "colombian_holidays"
+      },
+      {
+        "vo": "PricingFormula",
+        "estado": "sin_tabla_REVISAR",
+        "tablaReal": "",
+        "nota": "Fórmula de pricing; no se halló tabla dedicada (parámetros dispersos en lender_*); revisar persistencia"
+      },
+      {
+        "vo": "Offer",
+        "estado": "sin_tabla_REVISAR",
+        "tablaReal": "",
+        "nota": "Oferta calculada; no se encontró tabla offers; revisar si debe persistirse"
+      },
+      {
+        "vo": "ChangeType",
+        "estado": "enum_sin_tabla_ok",
+        "tablaReal": "",
+        "nota": "Tipo de cambio (catálogo enum dentro de creditop_x_changes_log); sin tabla change_types propia"
+      },
+      {
+        "vo": "ClosingPattern",
+        "estado": "enum_sin_tabla_ok",
+        "tablaReal": "",
+        "nota": "Patrón de cierre/corte; VO de configuración derivado de cutoff_types, sin tabla propia"
+      }
+    ],
+    "resumen": "Clasifiqué los 75 value-objects contra las 212 tablas reales por match de nombre (español↔inglés, singular/plural y patrones legacy creditop_x_*/allied_*/by_*). 70 tienen tabla real (tiene_tabla), 3 son enums/catálogos puros sin necesidad de tabla (ProviderType, ChangeType, ClosingPattern → enum_sin_tabla_ok), 4 VOs DDD primitivos embebidos sin tabla (Money, Document, Terms → enum_sin_tabla_ok), y 2 deberían persistirse pero no encontré tabla (PricingFormula, Offer → sin_tabla_REVISAR). Notas: merchant=allied, risk bureau/central=risk_central, branch=allied_branch. Casos a confirmar manualmente: Provider→risk_centrals, RiskAssessmentSnapshot→profilings, EcommerceChannel→ecommerces, ApplicationInquiryLink→user_request_risk_central_user_data, y UserCategoryRule (lender_user_category_scoring_policy_rules vs lender_users_category_rules)."
+  },
+  "gapInverso": {
+    "clasificacion": [
+      {
+        "tabla": "achievements",
+        "categoria": "cubierta_por_VO",
+        "nota": "VO Achievement (catalogo de logros de gamificacion por aliado)."
+      },
+      {
+        "tabla": "allied_branches_by_user",
+        "categoria": "cubierta_por_VO",
+        "nota": "VO BranchUserAssignment (join usuario<->sucursal)."
+      },
+      {
+        "tabla": "allied_categories",
+        "categoria": "cubierta_por_VO",
+        "nota": "VO MerchantCategory (catalogo)."
+      },
+      {
+        "tabla": "allied_errors_captures",
+        "categoria": "telemetria_log",
+        "nota": "Captura de errores; declarada en fueraDeAlcance.tablas."
+      },
+      {
+        "tabla": "allied_industries",
+        "categoria": "cubierta_por_VO",
+        "nota": "VO MerchantIndustry (catalogo)."
+      },
+      {
+        "tabla": "allied_modes",
+        "categoria": "cubierta_por_VO",
+        "nota": "VO OperatingMode (catalogo de modos)."
+      },
+      {
+        "tabla": "allied_status_log",
+        "categoria": "telemetria_log",
+        "nota": "*_log de cambios de estado del aliado; observabilidad."
+      },
+      {
+        "tabla": "allied_transfer_accounts",
+        "categoria": "cubierta_por_VO",
+        "nota": "VO TransferAccount (cuentas de transferencia del comercio)."
+      },
+      {
+        "tabla": "allied_types",
+        "categoria": "cubierta_por_VO",
+        "nota": "VO MerchantType (catalogo)."
+      },
+      {
+        "tabla": "assistance_fee_by_merchant_event",
+        "categoria": "cubierta_por_VO",
+        "nota": "VO EventAssistanceFee (tarifa por evento, montos min/max)."
+      },
+      {
+        "tabla": "backup_final_amount_ecommerce",
+        "categoria": "temp_migracion",
+        "nota": "backup_* de final_amount; declarada en fueraDeAlcance.tablas."
+      },
+      {
+        "tabla": "banks",
+        "categoria": "cubierta_por_VO",
+        "nota": "VO Bank (catalogo de bancos)."
+      },
+      {
+        "tabla": "beneficiaries_by_allieds",
+        "categoria": "cubierta_por_VO",
+        "nota": "VO MerchantBeneficiary (datos de beneficiario/cupo por comercio)."
+      },
+      {
+        "tabla": "bnpl_corbeta_errors",
+        "categoria": "telemetria_log",
+        "nota": "Errores de integracion BNPL Corbeta; declarada en fueraDeAlcance.tablas."
+      },
+      {
+        "tabla": "bonifications",
+        "categoria": "posible_omision_dominio",
+        "nota": "Bonificaciones (uuid, entity_type/id polimorfico, user_id, amount=dinero pagado al usuario). Tiene peso de negocio y NO se modela como entidad ni VO; el modelo la declara explicitamente en fueraDeAlcance.tablas, lo que es una omision de dominio reconocida (incentivos/cashback)."
+      },
+      {
+        "tabla": "cache",
+        "categoria": "infra_laravel",
+        "nota": "Cache de framework."
+      },
+      {
+        "tabla": "cache_locks",
+        "categoria": "infra_laravel",
+        "nota": "Locks de cache de framework."
+      },
+      {
+        "tabla": "cities_by_lender",
+        "categoria": "cubierta_por_VO",
+        "nota": "VO LenderCityCoverage (cobertura geografica lender<->ciudad)."
+      },
+      {
+        "tabla": "colombian_holidays",
+        "categoria": "cubierta_por_VO",
+        "nota": "VO HolidayCalendar (renombrado de colombian_*: calendario de dias habiles por pais)."
+      },
+      {
+        "tabla": "compare_face_logs",
+        "categoria": "telemetria_log",
+        "nota": "*_logs de comparacion facial (KYC)."
+      },
+      {
+        "tabla": "confirmation_email_logs",
+        "categoria": "telemetria_log",
+        "nota": "*_logs de emails de confirmacion."
+      },
+      {
+        "tabla": "contact_web_forms",
+        "categoria": "telemetria_log",
+        "nota": "Formularios de contacto web (lead/marketing); declarada en fueraDeAlcance.tablas."
+      },
+      {
+        "tabla": "country_municipalities",
+        "categoria": "cubierta_por_VO",
+        "nota": "Geografia (zona->municipio); contexto geography, catalogo referenciado."
+      },
+      {
+        "tabla": "credit_line_by_lenders",
+        "categoria": "cubierta_por_VO",
+        "nota": "VO CreditLineCatalog (config de linea de credito por lender: tasa, rangos, cuotas)."
+      },
+      {
+        "tabla": "credit_lines",
+        "categoria": "cubierta_por_VO",
+        "nota": "VO CreditLineCatalog (catalogo de lineas de credito comerciales)."
+      },
+      {
+        "tabla": "creditop_x_attachments",
+        "categoria": "cubierta_por_VO",
+        "nota": "VO Attachment (catalogo de adjuntos, solo name)."
+      },
+      {
+        "tabla": "creditop_x_blacklisted_documents",
+        "categoria": "cubierta_por_VO",
+        "nota": "VO BlacklistedDocument."
+      },
+      {
+        "tabla": "creditop_x_conditions_by_amount_by_lender",
+        "categoria": "cubierta_por_VO",
+        "nota": "VO LenderAmountConditions."
+      },
+      {
+        "tabla": "creditop_x_consent_types",
+        "categoria": "cubierta_por_VO",
+        "nota": "VO ConsentType (catalogo)."
+      },
+      {
+        "tabla": "creditop_x_cutoff_types",
+        "categoria": "cubierta_por_VO",
+        "nota": "VO CutoffType (catalogo)."
+      },
+      {
+        "tabla": "creditop_x_lender_configuration",
+        "categoria": "cubierta_por_VO",
+        "nota": "VO CreditopXConfiguration."
+      },
+      {
+        "tabla": "creditop_x_lender_early_payment_discount",
+        "categoria": "cubierta_por_VO",
+        "nota": "VO EarlyPaymentDiscount."
+      },
+      {
+        "tabla": "creditop_x_lender_payment_method",
+        "categoria": "cubierta_por_VO",
+        "nota": "VO PaymentMethod / config payment method por lender."
+      },
+      {
+        "tabla": "creditop_x_lender_residual_balances",
+        "categoria": "posible_omision_dominio",
+        "nota": "Saldo residual por lender (lender_id, residual_balance). Parametro de tesoreria/underwriting con peso de negocio; NO existe VO equivalente en value-objects.json (BandaGastosFijos cubre gastos fijos, no residual balances). Posible omision de configuracion de pricing/cupo."
+      },
+      {
+        "tabla": "creditop_x_log",
+        "categoria": "telemetria_log",
+        "nota": "*_log generico de CreditopX."
+      },
+      {
+        "tabla": "creditop_x_message_types",
+        "categoria": "cubierta_por_VO",
+        "nota": "Catalogo de tipos de mensaje (recordatorios); enum->VO."
+      },
+      {
+        "tabla": "creditop_x_occupation_multiplier_by_lender",
+        "categoria": "posible_omision_dominio",
+        "nota": "Multiplicador de cupo por ocupacion (lender_id, occupation, multiplier). Parametro de underwriting que afecta el calculo de cupo; NO hay VO en value-objects.json para multiplicadores por ocupacion (las reglas de scoring listadas son banda->score/categoria, no multiplicadores de cupo). Posible omision de dominio en pricing/cupo."
+      },
+      {
+        "tabla": "creditop_x_payment_methods",
+        "categoria": "cubierta_por_VO",
+        "nota": "VO PaymentMethod (catalogo)."
+      },
+      {
+        "tabla": "creditop_x_payment_statuses",
+        "categoria": "cubierta_por_VO",
+        "nota": "VO PaymentStatus (catalogo)."
+      },
+      {
+        "tabla": "creditop_x_payment_types",
+        "categoria": "cubierta_por_VO",
+        "nota": "VO GatewayPaymentType / catalogo de tipos de pago."
+      },
+      {
+        "tabla": "creditop_x_principal_payment_types",
+        "categoria": "cubierta_por_VO",
+        "nota": "Catalogo de tipos de pago a capital; enum->VO (familia GatewayPaymentType/PaymentMethod)."
+      },
+      {
+        "tabla": "creditop_x_profiling_fixed_expenses",
+        "categoria": "cubierta_por_VO",
+        "nota": "VO BandaGastosFijos (rango valor -> % gastos fijos en profiling)."
+      },
+      {
+        "tabla": "creditop_x_pullman_pos",
+        "categoria": "infra_laravel",
+        "nota": "Mapeo POS Pullman (integracion puntual); declarada en fueraDeAlcance.tablas."
+      },
+      {
+        "tabla": "creditop_x_quota_restrictions",
+        "categoria": "cubierta_por_VO",
+        "nota": "VO QuotaRestriction (restricciones de cupo/plazo por variable)."
+      },
+      {
+        "tabla": "creditop_x_reminder_messages",
+        "categoria": "cubierta_por_VO",
+        "nota": "VO ReminderMessage (mensajes de recordatorio de pago)."
+      },
+      {
+        "tabla": "creditop_x_revolving_credits_history",
+        "categoria": "cubierta_por_VO",
+        "nota": "VO RiskAssessmentSnapshot (snapshot historico de evaluacion de riesgo/cupo: approved_limit, risk_multiplier, payment_capacity)."
+      },
+      {
+        "tabla": "creditop_x_social_strata_multiplier_by_lender",
+        "categoria": "posible_omision_dominio",
+        "nota": "Multiplicador por estrato social (lender_id, social_strata, outcome_pct, min_salary_multiplier). Parametro de underwriting/cupo con peso de negocio; sin VO equivalente en value-objects.json. Posible omision de dominio en pricing/cupo."
+      },
+      {
+        "tabla": "creditop_x_user_request_statuses",
+        "categoria": "cubierta_por_VO",
+        "nota": "VO RequestStatus (catalogo de estados de solicitud)."
+      },
+      {
+        "tabla": "creditop_x_user_requests_process_statuses",
+        "categoria": "cubierta_por_VO",
+        "nota": "VO ProcessStatus (catalogo)."
+      },
+      {
+        "tabla": "datacredito_frequencies",
+        "categoria": "cubierta_por_VO",
+        "nota": "VO FrecuenciaDataCredito (cada-cuanto reconsultar buro por aliado)."
+      },
+      {
+        "tabla": "datacredito_query_by_allieds",
+        "categoria": "cubierta_por_VO",
+        "nota": "VO DatacreditoQueryCounter (contador de consultas a buro por comercio)."
+      },
+      {
+        "tabla": "ecommerce_requests_log",
+        "categoria": "telemetria_log",
+        "nota": "*_log de requests de ecommerce."
+      },
+      {
+        "tabla": "email_survey_answers",
+        "categoria": "telemetria_log",
+        "nota": "Encuestas por email; fueraDeAlcance.tablas."
+      },
+      {
+        "tabla": "email_survey_comments",
+        "categoria": "telemetria_log",
+        "nota": "Encuestas por email; fueraDeAlcance.tablas."
+      },
+      {
+        "tabla": "email_survey_links",
+        "categoria": "telemetria_log",
+        "nota": "Encuestas por email; fueraDeAlcance.tablas."
+      },
+      {
+        "tabla": "email_survey_options",
+        "categoria": "telemetria_log",
+        "nota": "Encuestas por email; fueraDeAlcance.tablas."
+      },
+      {
+        "tabla": "email_surveys",
+        "categoria": "telemetria_log",
+        "nota": "Encuestas por email; fueraDeAlcance.tablas."
+      },
+      {
+        "tabla": "error_codes",
+        "categoria": "telemetria_log",
+        "nota": "Catalogo de codigos de error; declarada en fueraDeAlcance.tablas."
+      },
+      {
+        "tabla": "experian_notifications",
+        "categoria": "telemetria_log",
+        "nota": "Notificaciones de buro Experian (user_request_id, notification_date); registro de telemetria/integracion."
+      },
+      {
+        "tabla": "failed_jobs",
+        "categoria": "infra_laravel",
+        "nota": "Cola de jobs fallidos (framework)."
+      },
+      {
+        "tabla": "field_categories",
+        "categoria": "cubierta_por_VO",
+        "nota": "VO FieldCategory."
+      },
+      {
+        "tabla": "field_options",
+        "categoria": "cubierta_por_VO",
+        "nota": "VO FieldOption."
+      },
+      {
+        "tabla": "identity_validation_attempts",
+        "categoria": "posible_omision_dominio",
+        "nota": "Registro transaccional de intentos de validacion de identidad/KYC (front/back/face_status, hashes, failure_reason, completed_at). Es el ciclo de vida real del proceso de verificacion; el modelo solo cubre el catalogo IdentityValidationType y el requisito LenderValidationRequirement, no los intentos. Borderline telemetria/dominio: se incluye conservadoramente como posible omision del proceso KYC."
+      },
+      {
+        "tabla": "identity_validation_types",
+        "categoria": "cubierta_por_VO",
+        "nota": "VO IdentityValidationType (catalogo)."
+      },
+      {
+        "tabla": "lender_datacredito_rules",
+        "categoria": "cubierta_por_VO",
+        "nota": "VO DatacreditoScoreRule (umbrales de aprobacion DataCredito por prestamista/sucursal)."
+      },
+      {
+        "tabla": "lender_identity_validation_types",
+        "categoria": "cubierta_por_VO",
+        "nota": "VO LenderValidationRequirement (tipos de validacion exigidos por lender)."
+      },
+      {
+        "tabla": "lender_payment_capacity_scoring_policy",
+        "categoria": "cubierta_por_VO",
+        "nota": "VO PaymentCapacityRule (banda [min,max]->score por capacidad de pago)."
+      },
+      {
+        "tabla": "lender_term_capital_adjustment_factors",
+        "categoria": "posible_omision_dominio",
+        "nota": "Factor de ajuste de capital por plazo (lender_id, term, adjustment_factor). Parametro de pricing/tesoreria que ajusta el capital segun el plazo; NO hay VO equivalente en value-objects.json (PricingFormula es catalogo de formulas name/formula, no esta tabla de factores). Posible omision de dominio en pricing."
+      },
+      {
+        "tabla": "lender_transaction_statuses",
+        "categoria": "cubierta_por_VO",
+        "nota": "VO TransactionStatus (catalogo)."
+      },
+      {
+        "tabla": "lender_user_category_scoring_policy_rules",
+        "categoria": "cubierta_por_VO",
+        "nota": "VO UserCategoryRule (banda de score -> categoria de usuario)."
+      },
+      {
+        "tabla": "lender_user_fields_scoring_policy",
+        "categoria": "cubierta_por_VO",
+        "nota": "VO UserFieldRule (field_id+value -> score)."
+      },
+      {
+        "tabla": "lenders_by_allied_branches",
+        "categoria": "cubierta_por_VO",
+        "nota": "VO BranchLenderLink (join sucursal<->lender)."
+      },
+      {
+        "tabla": "log_return_wompi_initial_fee",
+        "categoria": "telemetria_log",
+        "nota": "log_* de devoluciones de cuota inicial Wompi (integracion gateway)."
+      },
+      {
+        "tabla": "log_user_special_credit_grant_by_lender",
+        "categoria": "posible_omision_dominio",
+        "nota": "Otorgamiento de credito especial por lender (log_* pero con datos de negocio: lender_id, user_id, variable, value). Aunque el prefijo es log_, representa concesiones/excepciones de cupo con peso de negocio que no estan cubiertas por entidad ni VO. Se incluye conservadoramente como posible omision; si en la practica solo es auditoria, reclasificar a telemetria."
+      },
+      {
+        "tabla": "logs",
+        "categoria": "telemetria_log",
+        "nota": "Tabla de logs generica."
+      },
+      {
+        "tabla": "metamap_logs",
+        "categoria": "telemetria_log",
+        "nota": "*_logs de MetaMap (KYC)."
+      },
+      {
+        "tabla": "migrations",
+        "categoria": "infra_laravel",
+        "nota": "Migraciones de schema (framework)."
+      },
+      {
+        "tabla": "modal_survey_answers",
+        "categoria": "telemetria_log",
+        "nota": "Encuestas modales; fueraDeAlcance.tablas."
+      },
+      {
+        "tabla": "modal_survey_questions",
+        "categoria": "telemetria_log",
+        "nota": "Encuestas modales; fueraDeAlcance.tablas."
+      },
+      {
+        "tabla": "modal_surveys",
+        "categoria": "telemetria_log",
+        "nota": "Encuestas modales; fueraDeAlcance.tablas."
+      },
+      {
+        "tabla": "model_has_permissions",
+        "categoria": "infra_laravel",
+        "nota": "Spatie permissions (framework)."
+      },
+      {
+        "tabla": "model_has_roles",
+        "categoria": "infra_laravel",
+        "nota": "Spatie roles (framework)."
+      },
+      {
+        "tabla": "oauth_access_tokens",
+        "categoria": "infra_laravel",
+        "nota": "Passport OAuth (framework); fueraDeAlcance.infra."
+      },
+      {
+        "tabla": "oauth_auth_codes",
+        "categoria": "infra_laravel",
+        "nota": "Passport OAuth (framework); fueraDeAlcance.infra."
+      },
+      {
+        "tabla": "oauth_clients",
+        "categoria": "infra_laravel",
+        "nota": "Passport OAuth (framework); fueraDeAlcance.infra."
+      },
+      {
+        "tabla": "oauth_personal_access_clients",
+        "categoria": "infra_laravel",
+        "nota": "Passport OAuth (framework); fueraDeAlcance.infra."
+      },
+      {
+        "tabla": "oauth_refresh_tokens",
+        "categoria": "infra_laravel",
+        "nota": "Passport OAuth (framework); fueraDeAlcance.infra."
+      },
+      {
+        "tabla": "ocr_logs",
+        "categoria": "telemetria_log",
+        "nota": "*_logs de OCR (KYC)."
+      },
+      {
+        "tabla": "otp_logs",
+        "categoria": "telemetria_log",
+        "nota": "*_logs de OTP."
+      },
+      {
+        "tabla": "password_reset_tokens",
+        "categoria": "infra_laravel",
+        "nota": "Reset de password (framework); fueraDeAlcance.infra."
+      },
+      {
+        "tabla": "paths",
+        "categoria": "cubierta_por_VO",
+        "nota": "VO Path (catalogo de ruta/flujo de originacion)."
+      },
+      {
+        "tabla": "payment_methods",
+        "categoria": "cubierta_por_VO",
+        "nota": "VO PaymentMethod (catalogo global)."
+      },
+      {
+        "tabla": "payvalida_transaction_statuses",
+        "categoria": "cubierta_por_VO",
+        "nota": "VO TransactionStatus (catalogo de estados gateway Payvalida)."
+      },
+      {
+        "tabla": "permissions",
+        "categoria": "infra_laravel",
+        "nota": "Spatie permissions (framework)."
+      },
+      {
+        "tabla": "personal_access_tokens",
+        "categoria": "infra_laravel",
+        "nota": "Sanctum tokens (framework); fueraDeAlcance.infra."
+      },
+      {
+        "tabla": "product_categories",
+        "categoria": "cubierta_por_VO",
+        "nota": "VO ProductCategory (catalogo de categorias de producto)."
+      },
+      {
+        "tabla": "products_by_lender_users_categories",
+        "categoria": "cubierta_por_VO",
+        "nota": "VO ProductLenderUserCategoryLink (puente N:M sin atributos de negocio)."
+      },
+      {
+        "tabla": "profile_data",
+        "categoria": "cubierta_por_VO",
+        "nota": "VO CreditProfile/UserProfile snapshot de perfil crediticio (employment_status, monthly_income, credit_score, payment_capacity); datos de profiling usados por scoring, modelados como VO de perfil."
+      },
+      {
+        "tabla": "profile_logs",
+        "categoria": "telemetria_log",
+        "nota": "*_logs de actividad de perfil (controller/method)."
+      },
+      {
+        "tabla": "promissory_types",
+        "categoria": "cubierta_por_VO",
+        "nota": "VO PromissoryType (catalogo de tipos de pagare)."
+      },
+      {
+        "tabla": "promotions_by_lenders",
+        "categoria": "cubierta_por_VO",
+        "nota": "VO LenderPromotion (promociones del lender, cuotas con interes exonerado)."
+      },
+      {
+        "tabla": "qr_logs",
+        "categoria": "telemetria_log",
+        "nota": "*_logs de QR."
+      },
+      {
+        "tabla": "reminder_email_log",
+        "categoria": "telemetria_log",
+        "nota": "*_log de emails de recordatorio."
+      },
+      {
+        "tabla": "reports_log",
+        "categoria": "telemetria_log",
+        "nota": "*_log de reportes."
+      },
+      {
+        "tabla": "response_types",
+        "categoria": "cubierta_por_VO",
+        "nota": "VO ResponseType (modo sync/async del lender)."
+      },
+      {
+        "tabla": "revolving_credit_incentive_logs",
+        "categoria": "telemetria_log",
+        "nota": "*_logs de incentivos de credito rotativo."
+      },
+      {
+        "tabla": "revolving_credit_incentive_messages",
+        "categoria": "cubierta_por_VO",
+        "nota": "VO IncentiveMessage (mensajes de incentivo de credito rotativo)."
+      },
+      {
+        "tabla": "risk_central_credentials",
+        "categoria": "cubierta_por_VO",
+        "nota": "VO RiskBureauCredential/RiskAssessmentSnapshot (credenciales polimorficas de central de riesgo)."
+      },
+      {
+        "tabla": "role_has_permissions",
+        "categoria": "infra_laravel",
+        "nota": "Spatie roles/permissions (framework)."
+      },
+      {
+        "tabla": "roles",
+        "categoria": "infra_laravel",
+        "nota": "Spatie roles (framework)."
+      },
+      {
+        "tabla": "security_questions",
+        "categoria": "cubierta_por_VO",
+        "nota": "VO SecurityQuestion (catalogo de preguntas de seguridad)."
+      },
+      {
+        "tabla": "sending_methods",
+        "categoria": "cubierta_por_VO",
+        "nota": "Catalogo de metodos de envio (recordatorios); enum->VO asociado a ReminderMessage."
+      },
+      {
+        "tabla": "sending_methods_by_reminder_messages",
+        "categoria": "cubierta_por_VO",
+        "nota": "Join N:M metodo de envio<->mensaje; coleccion absorbida por VO ReminderMessage."
+      },
+      {
+        "tabla": "sessions",
+        "categoria": "infra_laravel",
+        "nota": "Sesiones de framework; fueraDeAlcance.infra."
+      },
+      {
+        "tabla": "short_url_visits",
+        "categoria": "telemetria_log",
+        "nota": "Visitas a short URLs; fueraDeAlcance.tablas."
+      },
+      {
+        "tabla": "short_urls",
+        "categoria": "infra_laravel",
+        "nota": "Short URLs; declarada en fueraDeAlcance.tablas."
+      },
+      {
+        "tabla": "signing_providers",
+        "categoria": "cubierta_por_VO",
+        "nota": "VO SigningProvider (catalogo de proveedores de firma)."
+      },
+      {
+        "tabla": "sistecredito_transaction_statuses",
+        "categoria": "cubierta_por_VO",
+        "nota": "VO TransactionStatus (estados gateway Sistecredito)."
+      },
+      {
+        "tabla": "statements_of_account_log",
+        "categoria": "telemetria_log",
+        "nota": "*_log de extractos de cuenta."
+      },
+      {
+        "tabla": "status_per_profiles",
+        "categoria": "cubierta_por_VO",
+        "nota": "VO StatusVisibilityRule (matriz por allied/perfil/estado de que ve cada perfil)."
+      },
+      {
+        "tabla": "temp_guarantee_updates",
+        "categoria": "temp_migracion",
+        "nota": "temp_* de actualizaciones de garantia; fueraDeAlcance.tablas."
+      },
+      {
+        "tabla": "temp_pulllman_almacenes",
+        "categoria": "temp_migracion",
+        "nota": "temp_* (almacenes Pullman); fueraDeAlcance.tablas."
+      },
+      {
+        "tabla": "terms_and_conditions",
+        "categoria": "cubierta_por_VO",
+        "nota": "VO TermsAndConditions (catalogo versionado)."
+      },
+      {
+        "tabla": "treasury_calculations",
+        "categoria": "cubierta_por_VO",
+        "nota": "VO PricingFormula (catalogo de formulas de pricing name/formula). Nota: el VO solo modela el catalogo de formulas; la parametrizacion de tesoreria (factores por plazo, residual, multiplicadores) queda fuera y se marca por separado."
+      },
+      {
+        "tabla": "twilio_logs",
+        "categoria": "telemetria_log",
+        "nota": "*_logs de Twilio (SMS)."
+      },
+      {
+        "tabla": "user_achievements",
+        "categoria": "cubierta_por_VO",
+        "nota": "VO Achievement (coleccion de logros desbloqueados; join colapsa a VO)."
+      },
+      {
+        "tabla": "user_profiles",
+        "categoria": "cubierta_por_VO",
+        "nota": "VO UserProfile (catalogo de perfiles de actor)."
+      },
+      {
+        "tabla": "user_request_modes",
+        "categoria": "cubierta_por_VO",
+        "nota": "VO ApplicationMode (modos de la solicitud)."
+      },
+      {
+        "tabla": "user_request_risk_central_user_data",
+        "categoria": "cubierta_por_VO",
+        "nota": "VO ApplicationBureauVerification/RiskAssessmentSnapshot (join solicitud<->datos de buro)."
+      },
+      {
+        "tabla": "user_request_risk_central_verified",
+        "categoria": "cubierta_por_VO",
+        "nota": "VO ApplicationBureauVerification (marca de verificacion de buro por solicitud)."
+      },
+      {
+        "tabla": "user_request_statuses",
+        "categoria": "cubierta_por_VO",
+        "nota": "VO RequestStatus (catalogo de estados de solicitud)."
+      },
+      {
+        "tabla": "user_requests_by_payment_links",
+        "categoria": "cubierta_por_VO",
+        "nota": "VO PaymentLinkLink (join solicitud<->link de pago)."
+      },
+      {
+        "tabla": "users_modified_for_unfiltering",
+        "categoria": "temp_migracion",
+        "nota": "*_modified_for_* (artefacto de migracion/unfiltering); fueraDeAlcance.tablas."
+      },
+      {
+        "tabla": "variables_by_security_question",
+        "categoria": "cubierta_por_VO",
+        "nota": "VO SecurityQuestion (variables parametrizadas absorbidas en el VO de pregunta)."
+      },
+      {
+        "tabla": "woocommerce_statuses",
+        "categoria": "cubierta_por_VO",
+        "nota": "VO TransactionStatus/EcommerceChannel (mapeo estado WooCommerce->estado Creditop)."
+      }
+    ],
+    "posiblesOmisiones": [
+      "bonifications",
+      "creditop_x_occupation_multiplier_by_lender",
+      "creditop_x_social_strata_multiplier_by_lender",
+      "lender_term_capital_adjustment_factors",
+      "creditop_x_lender_residual_balances",
+      "log_user_special_credit_grant_by_lender",
+      "identity_validation_attempts"
+    ],
+    "resumen": "De las 135 tablas no cubiertas, la gran mayoria es ruido legitimo: ~24 infra Laravel (oauth_*, sessions, cache, migrations, Spatie roles/permissions, tokens), ~32 telemetria/logs/encuestas (*_log/*_logs, email_/modal_ surveys, *_errors/_captures), y 4 temp/backup de migracion. Otras ~68 son catalogos/configuracion/joins ya modelados como Value Objects en value-objects.json (Bank, PaymentMethod, RequestStatus, TransactionStatus, CreditLineCatalog, EventAssistanceFee, QuotaRestriction, las 4 reglas de scoring PaymentCapacityRule/UserFieldRule/UserCategoryRule/DatacreditoScoreRule, BandaGastosFijos, RiskAssessmentSnapshot=revolving_credits_history, PricingFormula=treasury_calculations, HolidayCalendar=colombian_holidays, etc.). El modelo SI parece omitir un cluster especifico de parametrizacion de pricing/underwriting que no tiene VO equivalente: multiplicadores de cupo por ocupacion y por estrato social, factor de ajuste de capital por plazo, y saldos residuales por lender; mas bonifications (incentivos/cashback al usuario, peso de dinero) que el propio modelo declara fuera de alcance; el otorgamiento de credito especial por lender; y los intentos de validacion de identidad/KYC (proceso transaccional, no solo catalogo). Estas 7 son las candidatas a omision de dominio (las 4 de pricing/cupo son las mas claras; bonifications y log_user_special_credit_grant son omisiones reconocidas/borderline; identity_validation_attempts es borderline telemetria-vs-dominio)."
+  }
+}

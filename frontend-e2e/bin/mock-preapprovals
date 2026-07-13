@@ -1,0 +1,32 @@
+#!/usr/bin/env bash
+# Mock del MS de pre-aprobaciones → happy path determinista (todas las cards pre-aprobadas con cupo).
+# Apuntá el wizard con VITE_PREAPPROVALS_ENDPOINT=http://localhost:$PORT/v1/preapprovals/check
+# (o usá `bin/asesor <comercio> lenders --mock-pa`, que lo levanta y cablea solo).
+#
+# uso: bin/mock-preapprovals [start|stop|status|logs]
+#   env: MOCK_PA_PORT (8095) · MOCK_PA_STATUS (approved|rejected|pending) · MOCK_PA_CUPO · MOCK_PA_RATE
+set -euo pipefail
+DIR="$(cd "$(dirname "$0")/.." && pwd)"
+PORT="${MOCK_PA_PORT:-8095}"
+LOG=/tmp/mock-preapprovals.log
+
+up() { curl -s -o /dev/null --max-time 2 "http://localhost:$PORT" 2>/dev/null; }
+
+case "${1:-start}" in
+  start)
+    if up; then echo "✓ mock-preapprovals ya arriba (:$PORT)"; exit 0; fi
+    rm -f "$LOG"
+    nohup env MOCK_PA_PORT="$PORT" MOCK_PA_STATUS="${MOCK_PA_STATUS:-approved}" \
+      MOCK_PA_CUPO="${MOCK_PA_CUPO:-25000000}" MOCK_PA_RATE="${MOCK_PA_RATE:-0.0188}" \
+      node "$DIR/mock-preapprovals/server.mjs" < /dev/null > "$LOG" 2>&1 &
+    for _ in $(seq 1 25); do up && { echo "✓ mock-preapprovals :$PORT (happy path)"; exit 0; }; sleep 0.3; done
+    echo "✗ no levantó"; tail -8 "$LOG" 2>/dev/null; exit 1;;
+  stop)
+    lsof -ti:"$PORT" 2>/dev/null | xargs kill -9 2>/dev/null && echo "⏹ detenido (:$PORT)" || echo "no estaba corriendo";;
+  status)
+    if up; then curl -s --max-time 2 "http://localhost:$PORT" 2>/dev/null; echo ""; else echo "○ off (:$PORT)"; fi;;
+  logs)
+    tail -n "${2:-40}" "$LOG" 2>/dev/null || echo "(sin log)";;
+  *)
+    echo "uso: bin/mock-preapprovals [start|stop|status|logs]";;
+esac

@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Renting — qué se configura en el comercio y qué en CreditopX</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3/dist/tabler-icons.min.css">
+<style>
+:root{
+  --surface-0:#f4f3ee; --surface-1:#faf9f5; --surface-2:#ffffff;
+  --text-primary:#1f1e1c; --text-secondary:#5f5e5a; --text-muted:#8f8d85;
+  --border:#e4e2d9; --border-strong:#d0cec4;
+  --accent:#2f6ad9; --bg-accent:#e6f1fb; --text-accent:#185fa5; --border-accent:#85b7eb;
+  --bg-teal:#e1f5ee; --text-teal:#0f6e56; --border-teal:#5dcaa5;
+  --bg-ok:#eaf3de; --text-ok:#3b6d11;
+  --bg-ext:#faeeda; --text-ext:#854f0b;
+  --bg-new:#eeedfe; --text-new:#3c3489;
+  --radius:8px; --font-sans:"Inter",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  --shadow:0 1px 2px rgba(0,0,0,.04);
+}
+html[data-theme="dark"]{
+  --surface-0:#1a1a18; --surface-1:#232320; --surface-2:#2b2b28;
+  --text-primary:#f2f0ea; --text-secondary:#b4b2a9; --text-muted:#8f8d85;
+  --border:#3a3a36; --border-strong:#4a4a45;
+  --accent:#378add; --bg-accent:#12283b; --text-accent:#85b7eb; --border-accent:#185fa5;
+  --bg-teal:#0f2b24; --text-teal:#5dcaa5; --border-teal:#0f6e56;
+  --bg-ok:#1c2a10; --text-ok:#97c459;
+  --bg-ext:#3a2c12; --text-ext:#efa927;
+  --bg-new:#211d3a; --text-new:#afa9ec;
+  --shadow:none;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--surface-0);color:var(--text-primary);font-family:var(--font-sans);line-height:1.5;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1240px;margin:0 auto;padding:24px 20px 64px}
+.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+h1{font-size:20px;font-weight:500;margin:0}
+.sub{font-size:13.5px;color:var(--text-secondary);margin:2px 0 0}
+.legend{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.st{font-size:11px;font-weight:500;padding:2px 9px;border-radius:999px;white-space:nowrap}
+.st.ok{background:var(--bg-ok);color:var(--text-ok)}
+.st.ext{background:var(--bg-ext);color:var(--text-ext)}
+.st.new{background:var(--bg-new);color:var(--text-new)}
+.cols{display:grid;grid-template-columns:1fr 1fr;gap:18px;align-items:start;margin-top:18px}
+@media(max-width:920px){.cols{grid-template-columns:1fr}}
+.panel{border-radius:14px;padding:6px}
+.panel.left{background:var(--bg-accent)}
+.panel.right{background:var(--bg-teal)}
+.phead{display:flex;align-items:center;gap:10px;padding:10px 12px 12px}
+.phead .ic{width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;flex:none;font-size:18px}
+.left .ic{background:var(--accent);color:#fff}
+.right .ic{background:var(--text-teal);color:#fff}
+.phead .t{font-size:15px;font-weight:500;line-height:1.2}
+.phead .s{font-size:12px;color:var(--text-secondary)}
+.left .s,.left .t{color:var(--text-accent)}
+.right .s,.right .t{color:var(--text-teal)}
+.sec{background:var(--surface-2);border:0.5px solid var(--border);border-radius:12px;padding:14px 16px;margin:0 6px 8px}
+.sec:last-child{margin-bottom:6px}
+.h3x{font-size:14.5px;font-weight:500;margin:0;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.h3x>.ti{color:var(--text-secondary);font-size:17px}
+.h3x .st{margin-left:auto}
+.hint{font-size:12px;color:var(--text-muted);margin:5px 0 12px}
+.lbl{font-size:12px;color:var(--text-secondary);display:block;margin:0 0 4px}
+input,select{font-family:inherit;font-size:13px;color:var(--text-primary);background:var(--surface-1);border:0.5px solid var(--border-strong);border-radius:var(--radius);height:34px;padding:0 9px;transition:border-color .12s,box-shadow .12s;max-width:100%}
+input:focus,select:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--bg-accent)}
+input[type=color]{padding:2px;cursor:pointer;width:48px}
+button{font-family:inherit;font-size:13px;color:var(--text-primary);background:transparent;border:0.5px solid var(--border-strong);border-radius:var(--radius);height:34px;padding:0 12px;cursor:pointer;transition:background .1s,transform .06s}
+button:hover{background:var(--surface-1)}
+button:active{transform:scale(.98)}
+.chip{font-size:11.5px;padding:2px 9px;border-radius:999px;border:0.5px solid var(--border);color:var(--text-secondary);white-space:nowrap}
+.chip.on{border-color:var(--border-accent);color:var(--text-accent);background:var(--bg-accent)}
+.tg{display:inline-flex;align-items:center;gap:8px;position:relative}
+.tg input{position:absolute;opacity:0;width:0;height:0}
+.tg .sw{width:32px;height:19px;border-radius:10px;background:var(--border-strong);display:inline-block;position:relative;transition:background .15s;flex:none}
+.tg .sw:after{content:'';width:15px;height:15px;border-radius:50%;background:#fff;position:absolute;top:2px;left:2px;transition:left .15s;box-shadow:0 1px 2px rgba(0,0,0,.2)}
+.tg input:checked+.sw{background:var(--accent)}
+.tg input:checked+.sw:after{left:15px}
+.rr{display:grid;grid-template-columns:minmax(0,1fr) 58px 92px 30px;gap:6px;align-items:center;margin:0 0 7px}
+.rr input,.rr select{height:30px;font-size:12.5px}
+.dec label{flex:1;position:relative}
+.dec input{position:absolute;opacity:0}
+.dec .bx{border:0.5px solid var(--border);border-radius:var(--radius);padding:8px 10px;text-align:center}
+.dec input:checked+.bx{border-color:var(--border-accent);background:var(--bg-accent)}
+.dec input:checked+.bx .t1{color:var(--text-accent)}
+.mini{background:var(--surface-1);border-radius:var(--radius);padding:8px 10px;flex:1;min-width:96px}
+.note{font-size:11.5px;color:var(--text-muted);margin:8px 0 0;line-height:1.5}
+.iconbtn{width:34px;padding:0;flex:none}
+.tabs{display:flex;gap:8px;flex-wrap:wrap}
+.tab{flex:1;min-width:132px;border:0.5px solid var(--border);border-radius:var(--radius);padding:9px 10px;cursor:pointer;background:var(--surface-1);transition:border-color .12s,background .12s}
+.tab:hover{border-color:var(--border-strong)}
+.tab.act{border-color:var(--border-teal);background:var(--bg-teal)}
+.tab .nm{font-size:12.5px;font-weight:500;display:flex;align-items:center;gap:6px}
+.tab.act .nm{color:var(--text-teal)}
+.tab .d{font-size:11px;color:var(--text-muted);margin-top:2px}
+.tab .code{font-size:10.5px;color:var(--text-muted);font-family:var(--font-mono,ui-monospace,monospace);margin-top:3px}
+.tab .badges{display:flex;gap:4px;flex-wrap:wrap;margin-top:6px}
+.tab .bdg{font-size:10px;padding:1px 6px;border-radius:999px;background:var(--surface-2);border:0.5px solid var(--border);color:var(--text-secondary);white-space:nowrap}
+.tab .off{margin-left:auto;font-size:10px}
+.typeNote{font-size:11.5px;background:var(--bg-teal);color:var(--text-teal);border-radius:var(--radius);padding:7px 10px;margin:8px 0 0}
+.typeNote b{font-weight:500}
+</style>
+</head>
+<body>
+<main class="wrap">
+<h2 class="sr-only">Configuración del modelo de renting dividida en dos: lo que declara el comercio y lo que se configura en el lender CreditopX.</h2>
+
+<div style="display:flex;align-items:flex-start;gap:14px;flex-wrap:wrap">
+  <div style="flex:1;min-width:240px">
+    <h1>Modelo de renting — ¿comercio o CreditopX?</h1>
+    <p class="sub">Izquierda: lo que declara el <b style="font-weight:500">comercio</b>. Derecha: <b style="font-weight:500">tres lenders CreditopX</b> (uno por producto) que comparten la misma maquinaria. Casi todo ya existe.</p>
+  </div>
+  <select id="selM" style="min-width:210px;height:36px"><option value="motai" selected>Motai — allied 158</option><option value="alta">Alta — comercio nuevo</option><option value="nuevo">+ Dar de alta comercio</option></select>
+  <button id="themeBtn" class="iconbtn" style="height:36px;width:36px" aria-label="Cambiar tema"><i class="ti ti-moon" aria-hidden="true"></i></button>
+</div>
+<div class="legend" style="margin-top:12px">
+  <span style="font-size:12px;color:var(--text-muted)">Trabajo:</span>
+  <span class="st ok">existe · se reutiliza</span>
+  <span class="st ext">existe · hay que extender</span>
+  <span class="st new">nuevo · hay que construir</span>
+</div>
+
+<div class="cols">
+
+  <div class="panel left">
+    <div class="phead"><span class="ic"><i class="ti ti-building-store" aria-hidden="true"></i></span>
+      <div><div class="t" id="mTitle">Comercio · Motai</div><div class="s">lo que declara el aliado (nivel <code>allieds</code>)</div></div>
+    </div>
+
+    <div class="sec">
+      <p class="h3x"><i class="ti ti-id" aria-hidden="true"></i> Identidad y marca <span class="st ok">existe</span></p>
+      <p class="hint">Nombre, logo y colores. Ya están en la tabla del comercio; hoy el front los tiene quemados en vez de leerlos.</p>
+      <div style="display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap">
+        <div id="logo" style="width:40px;height:40px;border-radius:50%;background:var(--bg-accent);display:flex;align-items:center;justify-content:center;font-weight:500;font-size:13px;color:var(--text-accent);flex:none">MO</div>
+        <div style="flex:1;min-width:140px"><span class="lbl">Nombre</span><input id="fName" value="Motai" style="width:100%"></div>
+        <div><span class="lbl">Primario</span><input id="fC1" type="color" value="#010C4E"></div>
+        <div><span class="lbl">Secund.</span><input id="fC2" type="color" value="#55DD92"></div>
+      </div>
+    </div>
+
+    <div class="sec">
+      <p class="h3x"><i class="ti ti-checklist" aria-hidden="true"></i> Qué productos ofrece <span class="st ok">existe</span></p>
+      <p class="hint">Cada producto es un <b>lender CreditopX</b> que el comercio habilita (cobertura, tabla <code>lenders_by_allieds</code>).</p>
+      <div style="display:flex;flex-direction:column;gap:9px">
+        <label class="tg" style="justify-content:space-between"><span style="font-size:13.5px"><i class="ti ti-shopping-cart" style="color:var(--text-muted);vertical-align:-2px;margin-right:6px"></i>Compra</span><span style="display:inline-flex"><input id="oCompra" type="checkbox"><span class="sw"></span></span></label>
+        <label class="tg" style="justify-content:space-between"><span style="font-size:13.5px"><i class="ti ti-rotate-2" style="color:var(--text-teal);vertical-align:-2px;margin-right:6px"></i>Renting</span><span style="display:inline-flex"><input id="oRent" type="checkbox" checked><span class="sw"></span></span></label>
+        <label class="tg" style="justify-content:space-between"><span style="font-size:13.5px"><i class="ti ti-key" style="color:var(--text-new);vertical-align:-2px;margin-right:6px"></i>Rent-to-own</span><span style="display:inline-flex"><input id="oRto" type="checkbox" checked><span class="sw"></span></span></label>
+      </div>
+    </div>
+
+    <div class="sec">
+      <p class="h3x"><i class="ti ti-gavel" aria-hidden="true"></i> Cómo decide <span class="st new">nuevo</span></p>
+      <p class="hint">CreditopX hoy decide solo con reglas. Que <b>una persona del comercio</b> apruebe cada caso no existe: hay que construirlo.</p>
+      <div class="dec" style="display:flex;gap:8px;flex-wrap:wrap">
+        <label><input type="radio" name="dec" value="manual" checked><div class="bx"><div class="t1" style="font-size:13px;font-weight:500">Manual</div><div style="font-size:11px;color:var(--text-muted)">una persona revisa</div></div></label>
+        <label><input type="radio" name="dec" value="mixta"><div class="bx"><div class="t1" style="font-size:13px;font-weight:500">Mixta</div><div style="font-size:11px;color:var(--text-muted)">reglas sugieren</div></div></label>
+        <label><input type="radio" name="dec" value="auto"><div class="bx"><div class="t1" style="font-size:13px;font-weight:500">Automática</div><div style="font-size:11px;color:var(--text-muted)">reglas deciden</div></div></label>
+      </div>
+      <p class="note"><i class="ti ti-user-shield" style="vertical-align:-2px;margin-right:4px"></i>Requiere un rol de administrador del comercio (login, permisos, pantalla, auditoría).</p>
+    </div>
+  </div>
+
+  <div class="panel right">
+    <div class="phead"><span class="ic"><i class="ti ti-adjustments-alt" aria-hidden="true"></i></span>
+      <div style="flex:1"><div class="t">CreditopX · el motor in-platform</div><div class="s">tres lenders distintos comparten esta maquinaria (rt=2)</div></div>
+    </div>
+    <div class="sec" style="padding:11px 12px">
+      <div class="lbl" style="margin:0 0 8px"><i class="ti ti-list-details" style="vertical-align:-2px;margin-right:4px" aria-hidden="true"></i>Lista de lenders del comercio — cada uno es una entrada aparte del catálogo</div>
+      <div id="tabs" class="tabs"></div>
+      <div id="typeNote" class="typeNote"></div>
+    </div>
+
+    <div class="sec">
+      <p class="h3x"><i class="ti ti-list-check" aria-hidden="true"></i> Reglas de aprobación <span class="st ok">existe</span></p>
+      <p class="hint">Reglas por lender (<code>lender_rules</code>, <code>lender_datacredito_rules</code>) con pantalla de admin. En rt=2 corren las reglas <b>genéricas</b> del lender; hoy en renting <b>no se ejecutan</b> por el bypass del buró (ver Ingresos).</p>
+      <div class="rr" style="margin-bottom:5px"><span class="lbl" style="margin:0">condición</span><span class="lbl" style="margin:0">oper.</span><span class="lbl" style="margin:0">valor</span><span></span></div>
+      <div id="rules"></div>
+      <button id="addRule" style="font-size:12.5px;height:30px;margin-top:2px"><i class="ti ti-plus" style="font-size:13px;vertical-align:-2px"></i> Agregar regla</button>
+    </div>
+
+    <div class="sec">
+      <p class="h3x"><i class="ti ti-calculator" aria-hidden="true"></i> Precio y planes <span class="st ext" id="stPrice">existe · extender</span></p>
+      <p class="hint">La tabla <code>credit_line_by_lenders</code> existe. <span id="priceExt">Pero la fórmula de renting hoy está <b>quemada y duplicada en el frontend</b> (getMotaiTotalAmount); hay que moverla a BD. Y la frecuencia <b>semanal</b> tampoco está modelada.</span></p>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(96px,1fr));gap:10px;margin:0 0 12px">
+        <div><span class="lbl">Alistamiento</span><input id="iAlist" type="number" value="1500000" style="width:100%"></div>
+        <div><span class="lbl">Margen (%)</span><input id="iMarg" type="number" value="100" style="width:100%"></div>
+        <div><span class="lbl">IVA (%)</span><input id="iIva" type="number" value="19" style="width:100%"></div>
+        <div><span class="lbl">Tasa mensual (%)</span><input id="iTasa" type="number" step="0.1" value="1.8" style="width:100%"></div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:0 0 12px">
+        <span class="lbl" style="margin:0">Planes</span>
+        <span class="chip on">semanal <span class="st ext" style="margin-left:4px">extender</span></span>
+        <span class="chip">mensual</span><span class="chip">trimestral</span>
+      </div>
+      <div style="border-top:0.5px solid var(--border);padding-top:11px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+        <span class="lbl" style="margin:0">Costo del bien</span><input id="iCosto" type="number" value="4534000" style="width:130px">
+        <span style="font-size:13px;color:var(--text-secondary)">total:</span><span id="oTotal" style="font-size:16px;font-weight:500">$0</span>
+      </div>
+    </div>
+
+    <div class="sec">
+      <p class="h3x"><i class="ti ti-database-search" aria-hidden="true"></i> Ingresos y buró <span class="st ext">extender</span></p>
+      <p class="hint">Consultar buró o no = regla de datacrédito del lender (existe). <b>Ábaco</b> (ingresos por apps) es plomería nueva.</p>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <label class="tg"><input id="sAbaco" type="checkbox" checked><span class="sw"></span><span style="font-size:13px">Ingresos por apps (Ábaco) <span class="st new" style="margin-left:2px">nuevo</span></span></label>
+        <label class="tg"><input id="sCent" type="checkbox" checked><span class="sw"></span><span style="font-size:13px">Centrales (AgilData · Mareigua · TusDatos)</span></label>
+        <label class="tg"><input id="sBuro" type="checkbox" checked><span class="sw"></span><span style="font-size:13px">Reactivar buró en renting <span class="st ext" style="margin-left:2px">extender</span></span></label>
+        <p class="hint" style="margin:0 0 0 42px">Hoy el renting <b>saltea</b> el buró (bypass <code>isMotaiRenting</code>, OnboardingController:1279/1311). El PRD lo quiere al 100% → hay que revertirlo.</p>
+        <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:2px"><span class="lbl" style="margin:0">Documentos</span><span class="chip">CC</span><span class="chip">CE</span><span class="chip on">PEP</span></div>
+      </div>
+    </div>
+
+    <div class="sec">
+      <p class="h3x"><i class="ti ti-file-text" aria-hidden="true"></i> Documentos del producto <span class="st ext">extender</span></p>
+      <p class="hint">Se firman vía el servicio de PDF/firma que ya existe; falta atarlos al <b>tipo de producto</b>, no al lender fijo.</p>
+      <div id="docs" style="display:flex;gap:6px;flex-wrap:wrap"></div>
+    </div>
+
+    <div class="sec">
+      <p class="h3x"><i class="ti ti-users" aria-hidden="true"></i> Codeudor <span class="st new">nuevo</span></p>
+      <p class="hint">No existe en ningún repo. Se exige solo cuando el ingreso del titular no alcanza.</p>
+      <div style="display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap">
+        <label class="tg" style="height:34px"><input id="cOn" type="checkbox" checked><span class="sw"></span><span style="font-size:13px">Habilitar</span></label>
+        <div><span class="lbl">Si ingreso menor a</span><input id="cUmb" type="number" value="2900000" style="width:130px"></div>
+        <div><span class="lbl">Score codeudor ≥</span><input id="cScore" type="number" value="650" style="width:84px"></div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<p class="note" style="max-width:760px;margin:16px auto 0;text-align:center"><i class="ti ti-bulb" style="vertical-align:-2px;margin-right:4px"></i>Lo verde ya existe en el sistema (config de comercio o de lender CreditopX). Lo ámbar existe pero hay que ampliarlo. Solo lo violeta —decisión manual, Ábaco y codeudor— es construcción nueva.</p>
+
+</main>
+<script>
+var $=function(id){return document.getElementById(id)};
+var fmt=function(n){return '$'+Math.round(n).toLocaleString('es-CO')};
+
+var M={
+ motai:{name:'Motai',ini:'MO',c1:'#010C4E',c2:'#55DD92',offers:{compra:false,renting:true,rto:true},dec:'manual'},
+ alta:{name:'Alta',ini:'AL',c1:'#0F6E56',c2:'#FAC775',offers:{compra:false,renting:true,rto:true},dec:'mixta'},
+ nuevo:{name:'',ini:'?',c1:'#888780',c2:'#d3d1c7',offers:{compra:false,renting:false,rto:false},dec:'manual'}
+};
+var RENT=[['referencias registradas','≥','2'],['score Datacrédito titular','≥','400'],['mora vigente (COP)','≤','10000000'],['canon semanal (COP)','≥','150000'],['canon semanal (COP)','≤','300000'],['cuota / ingreso semanal (%)','≤','25'],['deudas + cuota / ingreso mes (%)','≤','40']];
+var P={
+ renting:{docs:['contrato','pagaré'],alist:1500000,marg:100,iva:19,tasa:1.8,costo:4534000,rules:RENT,priceOk:false},
+ rto:{docs:['contrato','pagaré','garantía mobiliaria'],alist:1500000,marg:100,iva:19,tasa:1.8,costo:4534000,rules:RENT,priceOk:false},
+ compra:{docs:['contrato','pagaré'],alist:0,marg:0,iva:0,tasa:1.8,costo:4534000,rules:[['score Datacrédito titular','≥','640'],['mora vigente (COP)','≤','0'],['cuota / ingreso mes (%)','≤','30'],['antigüedad laboral (meses)','≥','6']],priceOk:true}
+};
+
+function ruleRow(r){
+ var d=document.createElement('div');d.className='rr';
+ var mk=function(c){var o='';['≥','≤','=','≠'].forEach(function(x){o+='<option'+(x===c?' selected':'')+'>'+x+'</option>'});return o};
+ d.innerHTML='<input value="'+r[0]+'" placeholder="condición"><select>'+mk(r[1])+'</select><input value="'+r[2]+'" placeholder="valor">'
+  +'<button class="iconbtn" aria-label="Eliminar" style="height:30px;color:var(--text-muted)"><i class="ti ti-trash"></i></button>';
+ d.lastChild.onclick=function(){d.remove()};
+ return d;
+}
+function calc(){
+ var c=+$('iCosto').value||0,a=+$('iAlist').value||0,m=(+$('iMarg').value||0)/100,v=(+$('iIva').value||0)/100;
+ $('oTotal').textContent=fmt((c+a)*(1+m)*(1+v));
+}
+function loadProduct(k){
+ var p=P[k];
+ $('iAlist').value=p.alist;$('iMarg').value=p.marg;$('iIva').value=p.iva;$('iTasa').value=p.tasa;$('iCosto').value=p.costo;
+ var c=$('rules');c.innerHTML='';p.rules.forEach(function(r){c.appendChild(ruleRow(r))});
+ var dd=$('docs');dd.innerHTML='';p.docs.forEach(function(x){var s=document.createElement('span');s.className='chip'+(x==='garantía mobiliaria'?' on':'');s.textContent=x;dd.appendChild(s)});
+ if(k==='compra'){$('stPrice').className='st ok';$('stPrice').textContent='existe';$('priceExt').style.display='none';}
+ else{$('stPrice').className='st ext';$('stPrice').textContent='existe · extender';$('priceExt').style.display='inline';}
+ var cat=PT[k].cat;
+ $('typeNote').innerHTML=(cat==='arrendamiento'
+   ? '<i class="ti ti-arrow-down-right" aria-hidden="true"></i> Comportamiento de la categoría <b>arrendamiento</b>: decisión manual · documentos de arrendamiento · Ábaco.'
+   : '<i class="ti ti-arrow-down-right" aria-hidden="true"></i> Categoría <b>crédito</b>: underwriting estándar (score/mora), sin Ábaco.')+' <b>Objetivo:</b> que lo dispare la categoría. Hoy lo dispara el id 158 (front) y el flag isMotaiRenting (back) — construir la categoría es parte del trabajo.';
+ calc();
+}
+function loadMerchant(k){
+ var d=M[k];
+ $('fName').value=d.name;$('logo').textContent=d.ini;$('fC1').value=d.c1;$('fC2').value=d.c2;
+ $('mTitle').textContent='Comercio · '+(d.name||'nuevo');
+ $('oCompra').checked=d.offers.compra;$('oRent').checked=d.offers.renting;$('oRto').checked=d.offers.rto;
+ document.querySelectorAll('input[name=dec]').forEach(function(r){r.checked=r.value===d.dec});
+ if(typeof renderTabs==='function')renderTabs();
+}
+
+var PT={
+ compra:{nm:'Buy-creditop',code:'CTPX-BUY',ic:'shopping-cart',cat:'crédito',off:'oCompra'},
+ renting:{nm:'Renting-creditop',code:'CTPX-RENT',ic:'rotate-2',cat:'arrendamiento',off:'oRent'},
+ rto:{nm:'Rent-to-own-creditop',code:'CTPX-RTO',ic:'key',cat:'arrendamiento',off:'oRto'}
+};
+var curP='renting';
+function renderTabs(){var t=$('tabs');t.innerHTML='';['compra','renting','rto'].forEach(function(k){var p=PT[k];var offered=$(p.off)&&$(p.off).checked;var d=document.createElement('div');d.className='tab'+(k===curP?' act':'');
+ d.innerHTML='<div class="nm"><i class="ti ti-'+p.ic+'" aria-hidden="true"></i>'+p.nm+'<span class="off" style="color:'+(offered?'var(--text-teal)':'var(--text-muted)')+'">'+(offered?'✓ ofrecido':'no ofrecido')+'</span></div>'
+  +'<div class="code">'+p.code+'</div>'
+  +'<div class="badges"><span class="bdg">CreditopX · rt=2</span><span class="bdg">categoría: '+p.cat+'</span></div>';
+ d.onclick=function(){curP=k;loadProduct(k);renderTabs()};t.appendChild(d)})}
+$('selM').addEventListener('change',function(){loadMerchant(this.value)});
+$('addRule').onclick=function(){$('rules').appendChild(ruleRow(['','≥','']))};
+['oCompra','oRent','oRto'].forEach(function(id){$(id).addEventListener('change',renderTabs)});
+['iCosto','iAlist','iMarg','iIva'].forEach(function(id){$(id).addEventListener('input',calc)});
+$('themeBtn').onclick=function(){var h=document.documentElement,d=h.getAttribute('data-theme')==='dark';h.setAttribute('data-theme',d?'light':'dark');this.innerHTML='<i class="ti ti-'+(d?'moon':'sun')+'"></i>'};
+if(window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches){document.documentElement.setAttribute('data-theme','dark');$('themeBtn').innerHTML='<i class="ti ti-sun"></i>'}
+
+loadMerchant('motai');renderTabs();loadProduct('renting');
+</script>
+</body>
+</html>

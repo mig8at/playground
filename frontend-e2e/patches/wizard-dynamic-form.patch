@@ -1,0 +1,21 @@
+diff --git a/apps/loan-request-wizard/package.json b/apps/loan-request-wizard/package.json
+index 5e08b5c9..bfa06278 100644
+--- a/apps/loan-request-wizard/package.json
++++ b/apps/loan-request-wizard/package.json
+@@ -18,7 +18,6 @@
+     "@creditop/bancolombia-origination": "workspace:*",
+     "@creditop/consumer-hub": "workspace:^",
+     "@creditop/customer-profile": "workspace:*",
+-    "@creditop/consumer-hub": "workspace:^",
+     "@creditop/hooks": "workspace:*",
+     "@creditop/identity-validation": "workspace:*",
+     "@creditop/landing-wizard": "workspace:*",
+@@ -28,7 +27,7 @@
+     "@creditop/shared-assets": "workspace:*",
+     "@creditop/shared-components": "workspace:*",
+     "@creditop/shared-utils": "workspace:*",
+-    "@creditop/abaco": "workspace:*",
++    "@creditop/dynamic-form": "workspace:*",
+     "@creditop/ui": "workspace:*",
+     "@headlessui/react": "^2.1.0",
+     "@opentelemetry/api": "1.9.1",

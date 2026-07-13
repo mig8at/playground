@@ -1,0 +1,640 @@
+[
+ {
+  "key": "revolvingCredit",
+  "name": "RevolvingCredit",
+  "tipo": "aggregateRoot",
+  "estado": "mapeada_ok",
+  "descripcion": "Representa la línea de crédito rotativo que Creditop X aprueba a un cliente: su cupo aprobado, lo que tiene utilizado y disponible, las condiciones del lender que lo financia y la cuota y próximo pago vigentes. Es el punto de partida de la originación propia, donde el cliente reutiliza su cupo a medida que paga.",
+  "legacy": {
+   "tabla": "creditop_x_revolving_credits"
+  },
+  "atributos": [
+   {
+    "n": "id",
+    "t": "bigint unsigned",
+    "legacy": null
+   },
+   {
+    "n": "customer_id",
+    "t": "bigint unsigned",
+    "legacy": "user_id"
+   },
+   {
+    "n": "lender_id",
+    "t": "bigint unsigned",
+    "legacy": null
+   },
+   {
+    "n": "merchant_id",
+    "t": "bigint unsigned",
+    "legacy": "allied_id"
+   },
+   {
+    "n": "approved_limit",
+    "t": "double(19,4)",
+    "legacy": null
+   },
+   {
+    "n": "calculated_limit",
+    "t": "double(19,4)",
+    "legacy": "calc_limit"
+   },
+   {
+    "n": "used_limit",
+    "t": "double(19,4)",
+    "legacy": null
+   },
+   {
+    "n": "billing_used_limit",
+    "t": "double(19,4)",
+    "legacy": null
+   },
+   {
+    "n": "installment_amount",
+    "t": "double(19,4)",
+    "legacy": null
+   },
+   {
+    "n": "next_payment_amount",
+    "t": "double(19,4)",
+    "legacy": null
+   },
+   {
+    "n": "total_payment_amount",
+    "t": "double(19,4)",
+    "legacy": null
+   },
+   {
+    "n": "fee_number",
+    "t": "double(19,4)",
+    "legacy": null
+   },
+   {
+    "n": "min_fee_number",
+    "t": "double(19,4)",
+    "legacy": null
+   },
+   {
+    "n": "initial_fee",
+    "t": "double(19,4)",
+    "legacy": null
+   },
+   {
+    "n": "guarantee_fund",
+    "t": "double(19,4)",
+    "legacy": "fga"
+   },
+   {
+    "n": "next_payment_date",
+    "t": "date",
+    "legacy": null
+   },
+   {
+    "n": "next_billing_date",
+    "t": "date",
+    "legacy": null
+   },
+   {
+    "n": "request_status_id",
+    "t": "bigint unsigned",
+    "legacy": "creditop_x_requests_status_id"
+   },
+   {
+    "n": "status",
+    "t": "tinyint(1)",
+    "legacy": null
+   }
+  ]
+ },
+ {
+  "key": "requestHistoryEntry",
+  "name": "RequestHistoryEntry",
+  "tipo": "entity",
+  "estado": "mapeada_ok",
+  "descripcion": "Estado de cuenta del crédito: deja constancia, movimiento a movimiento, de cómo evoluciona la deuda del cliente —saldos de capital, intereses, seguro y garantía, próximo pago desglosado y días en mora—. Sirve para saber en cualquier momento cuánto debe el cliente y cómo va su cobranza.",
+  "legacy": {
+   "tabla": "creditop_x_requests_history"
+  },
+  "atributos": [
+   {
+    "n": "id",
+    "t": "bigint unsigned",
+    "legacy": null
+   },
+   {
+    "n": "loan_application_id",
+    "t": "bigint unsigned",
+    "legacy": "user_request_id"
+   },
+   {
+    "n": "revolving_credit_id",
+    "t": "bigint unsigned",
+    "legacy": null
+   },
+   {
+    "n": "movement_type",
+    "t": "varchar(255)",
+    "legacy": null
+   },
+   {
+    "n": "principal_amount_balance",
+    "t": "double(15,4)",
+    "legacy": null
+   },
+   {
+    "n": "interest_amount_balance",
+    "t": "double(15,4)",
+    "legacy": null
+   },
+   {
+    "n": "insurance_amount_balance",
+    "t": "double(15,4)",
+    "legacy": null
+   },
+   {
+    "n": "guarantee_amount_balance",
+    "t": "double(15,4)",
+    "legacy": null
+   },
+   {
+    "n": "guarantee_insurance_amount_balance",
+    "t": "decimal(15,4)",
+    "legacy": null
+   },
+   {
+    "n": "total_payment_amount",
+    "t": "double(15,4)",
+    "legacy": null
+   },
+   {
+    "n": "paid_principal_amount",
+    "t": "double(15,4)",
+    "legacy": null
+   },
+   {
+    "n": "paid_interest",
+    "t": "double(15,4)",
+    "legacy": null
+   },
+   {
+    "n": "next_payment_amount",
+    "t": "double(15,4)",
+    "legacy": null
+   },
+   {
+    "n": "next_payment_principal",
+    "t": "double(15,4)",
+    "legacy": null
+   },
+   {
+    "n": "next_payment_interest",
+    "t": "double(15,4)",
+    "legacy": null
+   },
+   {
+    "n": "installment_number",
+    "t": "int unsigned",
+    "legacy": null
+   },
+   {
+    "n": "installment_value",
+    "t": "double(15,4)",
+    "legacy": null
+   },
+   {
+    "n": "daily_interest",
+    "t": "double(15,4)",
+    "legacy": null
+   },
+   {
+    "n": "late_payment_interest_value",
+    "t": "double(15,4)",
+    "legacy": null
+   },
+   {
+    "n": "days_past_due",
+    "t": "int unsigned",
+    "legacy": null
+   },
+   {
+    "n": "billing_day",
+    "t": "int unsigned",
+    "legacy": null
+   },
+   {
+    "n": "next_payment_date",
+    "t": "date",
+    "legacy": null
+   },
+   {
+    "n": "next_billing_date",
+    "t": "date",
+    "legacy": null
+   },
+   {
+    "n": "last_payment_date",
+    "t": "date",
+    "legacy": null
+   },
+   {
+    "n": "request_status_id",
+    "t": "int unsigned",
+    "legacy": "creditop_x_requests_status_id"
+   },
+   {
+    "n": "status",
+    "t": "int unsigned",
+    "legacy": null
+   }
+  ]
+ },
+ {
+  "key": "payment",
+  "name": "Payment",
+  "tipo": "entity",
+  "estado": "mapeada_ok",
+  "descripcion": "Un pago que el cliente hizo y que ya quedó aplicado al crédito, mostrando cómo se distribuyó entre capital, intereses, mora, seguro y garantía. Permite entender a qué se abonó cada peso recibido y dejar la deuda actualizada.",
+  "legacy": {
+   "tabla": "creditop_x_payments"
+  },
+  "atributos": [
+   {
+    "n": "id",
+    "t": "bigint unsigned",
+    "legacy": null
+   },
+   {
+    "n": "customer_id",
+    "t": "bigint",
+    "legacy": "user_id"
+   },
+   {
+    "n": "loan_application_id",
+    "t": "bigint",
+    "legacy": "user_request_id"
+   },
+   {
+    "n": "payment_type_id",
+    "t": "bigint unsigned",
+    "legacy": null
+   },
+   {
+    "n": "payment_register_id",
+    "t": "bigint unsigned",
+    "legacy": null
+   },
+   {
+    "n": "request_history_id",
+    "t": "int",
+    "legacy": null
+   },
+   {
+    "n": "paid_amount",
+    "t": "decimal(15,4)",
+    "legacy": null
+   },
+   {
+    "n": "paid_principal_amount",
+    "t": "decimal(15,4)",
+    "legacy": null
+   },
+   {
+    "n": "paid_interest",
+    "t": "decimal(15,4)",
+    "legacy": null
+   },
+   {
+    "n": "paid_late_payment_interest",
+    "t": "decimal(15,4)",
+    "legacy": null
+   },
+   {
+    "n": "paid_life_insurance",
+    "t": "decimal(15,4)",
+    "legacy": null
+   },
+   {
+    "n": "paid_guarantee",
+    "t": "decimal(15,4)",
+    "legacy": null
+   },
+   {
+    "n": "paid_guarantee_insurance",
+    "t": "decimal(15,4)",
+    "legacy": null
+   },
+   {
+    "n": "reference",
+    "t": "text",
+    "legacy": null
+   }
+  ]
+ },
+ {
+  "key": "paymentRegister",
+  "name": "PaymentRegister",
+  "tipo": "entity",
+  "estado": "mapeada_ok",
+  "descripcion": "El registro de una transacción de cobro tal como llega desde el medio de pago: cuánto se cobró, por qué canal o sucursal aliada y en qué estado quedó. Es el cobro recibido antes de conciliarse y aplicarse formalmente al crédito del cliente.",
+  "legacy": {
+   "tabla": "creditop_x_payment_register"
+  },
+  "atributos": [
+   {
+    "n": "id",
+    "t": "bigint unsigned",
+    "legacy": null
+   },
+   {
+    "n": "customer_id",
+    "t": "bigint unsigned",
+    "legacy": "user_id"
+   },
+   {
+    "n": "loan_application_id",
+    "t": "bigint unsigned",
+    "legacy": "user_request_id"
+   },
+   {
+    "n": "payment_type_id",
+    "t": "bigint unsigned",
+    "legacy": null
+   },
+   {
+    "n": "payment_method_id",
+    "t": "bigint unsigned",
+    "legacy": null
+   },
+   {
+    "n": "status_id",
+    "t": "int",
+    "legacy": null
+   },
+   {
+    "n": "payment_gateway_transaction_id",
+    "t": "varchar(255)",
+    "legacy": null
+   },
+   {
+    "n": "merchant_branch_id",
+    "t": "bigint unsigned",
+    "legacy": "allied_branch_id"
+   },
+   {
+    "n": "revolving_credit_payment_id",
+    "t": "bigint unsigned",
+    "legacy": "creditop_x_revolving_credit_payment_id"
+   },
+   {
+    "n": "paid_amount",
+    "t": "double(14,2)",
+    "legacy": null
+   },
+   {
+    "n": "reference",
+    "t": "text",
+    "legacy": null
+   }
+  ]
+ },
+ {
+  "key": "revolvingCreditPayment",
+  "name": "RevolvingCreditPayment",
+  "tipo": "entity",
+  "estado": "mapeada_ok",
+  "descripcion": "Un abono que el cliente hace directamente sobre su cupo rotativo para liberar capacidad de crédito, distinto del pago de una cuota. Refleja la recarga del cupo disponible para que el cliente pueda volver a comprar.",
+  "legacy": {
+   "tabla": "creditop_x_revolving_credit_payments"
+  },
+  "atributos": [
+   {
+    "n": "id",
+    "t": "bigint unsigned",
+    "legacy": null
+   },
+   {
+    "n": "customer_id",
+    "t": "bigint unsigned",
+    "legacy": "user_id"
+   },
+   {
+    "n": "revolving_credit_id",
+    "t": "bigint unsigned",
+    "legacy": "creditop_x_revolving_credit_id"
+   },
+   {
+    "n": "paid_amount",
+    "t": "decimal(15,4)",
+    "legacy": null
+   },
+   {
+    "n": "reference",
+    "t": "text",
+    "legacy": null
+   }
+  ]
+ },
+ {
+  "key": "requestProcessRecord",
+  "name": "RequestProcessRecord",
+  "tipo": "entity",
+  "estado": "mapeada_ok",
+  "descripcion": "La traza del avance de una solicitud de Creditop X a lo largo del proceso de originación: registra cada etapa por la que pasa y la sucursal aliada involucrada. Permite seguir en qué punto del proceso se encuentra cada solicitud.",
+  "legacy": {
+   "tabla": "creditop_x_user_requests_records"
+  },
+  "atributos": [
+   {
+    "n": "id",
+    "t": "bigint unsigned",
+    "legacy": null
+   },
+   {
+    "n": "loan_application_id",
+    "t": "bigint unsigned",
+    "legacy": "user_request_id"
+   },
+   {
+    "n": "customer_id",
+    "t": "bigint unsigned",
+    "legacy": "user_id"
+   },
+   {
+    "n": "merchant_branch_id",
+    "t": "bigint unsigned",
+    "legacy": "allied_branch_id"
+   },
+   {
+    "n": "process_status_id",
+    "t": "bigint unsigned",
+    "legacy": "creditop_x_user_requests_process_statuses_id"
+   },
+   {
+    "n": "status",
+    "t": "tinyint(1)",
+    "legacy": null
+   }
+  ]
+ },
+ {
+  "key": "signedLegalDocument",
+  "name": "SignedLegalDocument",
+  "tipo": "entity",
+  "estado": "mapeada_ok",
+  "descripcion": "Los documentos legales firmados por el cliente que respaldan el crédito —pagaré, consentimientos y aceptación de la garantía—, junto con su firma digital y el plan de pagos asociado. Son la prueba formal del compromiso adquirido y soportan la exigibilidad de la deuda.",
+  "legacy": {
+   "tabla": "promissory_notes",
+   "absorbe": [
+    "creditop_x_consents",
+    "guarantee_acceptances"
+   ],
+   "unificacion": "El pagaré, los consentimientos y las aceptaciones de garantía estaban dispersos. Se unifican porque todos son documentos legales que el cliente firma dentro de una solicitud y conviene tratarlos y conservarlos de forma homogénea."
+  },
+  "atributos": [
+   {
+    "n": "id",
+    "t": "bigint unsigned",
+    "legacy": null
+   },
+   {
+    "n": "loan_application_id",
+    "t": "bigint unsigned",
+    "legacy": "user_request_id"
+   },
+   {
+    "n": "revolving_credit_id",
+    "t": "bigint unsigned",
+    "legacy": "creditop_x_revolving_credit_id"
+   },
+   {
+    "n": "customer_id",
+    "t": "bigint unsigned",
+    "legacy": "user_id"
+   },
+   {
+    "n": "otp_id",
+    "t": "bigint unsigned",
+    "legacy": null
+   },
+   {
+    "n": "signing_method",
+    "t": "enum('traditional','deceval')",
+    "legacy": null
+   },
+   {
+    "n": "deceval_promissory_note_id",
+    "t": "varchar(255)",
+    "legacy": null
+   },
+   {
+    "n": "deceval_response_data",
+    "t": "json",
+    "legacy": null
+   },
+   {
+    "n": "url",
+    "t": "text",
+    "legacy": "promissory_note_url"
+   },
+   {
+    "n": "payment_schedule_url",
+    "t": "text",
+    "legacy": null
+   }
+  ]
+ },
+ {
+  "key": "loanAccount",
+  "name": "LoanAccount",
+  "tipo": "aggregateRoot",
+  "estado": "NUEVA_greenfield",
+  "descripcion": "La cuenta de un préstamo individual originado dentro del cupo rotativo, una por cada desembolso al cliente. Concentra la cobranza y el saldo de ese desembolso en particular, de modo que un mismo cupo rotativo puede financiar varios préstamos y cada uno se sigue por separado.",
+  "legacy": {
+   "ref": "green-field (1 por LoanApplication desembolsada; agrupa el ledger per-desembolso)"
+  },
+  "atributos": [
+   {
+    "n": "id",
+    "t": "bigint unsigned",
+    "legacy": null
+   },
+   {
+    "n": "revolving_credit_id",
+    "t": "bigint unsigned",
+    "legacy": null
+   },
+   {
+    "n": "loan_application_id",
+    "t": "bigint unsigned",
+    "legacy": null
+   },
+   {
+    "n": "lender_id",
+    "t": "bigint unsigned",
+    "legacy": null
+   },
+   {
+    "n": "status",
+    "t": "tinyint(1)",
+    "legacy": null
+   },
+   {
+    "n": "disbursed_at",
+    "t": "timestamp",
+    "legacy": null
+   }
+  ]
+ },
+ {
+  "key": "signedRequestChange",
+  "name": "SignedRequestChange",
+  "tipo": "entity",
+  "estado": "mapeada_ok",
+  "descripcion": "El registro de un cambio en las condiciones o términos de un crédito que el cliente autorizó mediante firma, dejando claro qué valor tenía antes y cuál quedó después. Es la prueba del consentimiento del cliente al cambio, con plena validez frente al negocio y el cliente.",
+  "legacy": {
+   "tabla": "creditop_x_changes_log"
+  },
+  "atributos": [
+   {
+    "n": "id",
+    "t": "bigint unsigned",
+    "legacy": null
+   },
+   {
+    "n": "loan_application_id",
+    "t": "bigint unsigned",
+    "legacy": null
+   },
+   {
+    "n": "revolving_credit_id",
+    "t": "bigint unsigned",
+    "legacy": null
+   },
+   {
+    "n": "change_type_id",
+    "t": "bigint unsigned",
+    "legacy": null
+   },
+   {
+    "n": "otp_id",
+    "t": "bigint unsigned",
+    "legacy": null
+   },
+   {
+    "n": "previous_value",
+    "t": "varchar(255)",
+    "legacy": null
+   },
+   {
+    "n": "new_value",
+    "t": "varchar(255)",
+    "legacy": null
+   },
+   {
+    "n": "created_at",
+    "t": "timestamp",
+    "legacy": null
+   }
+  ]
+ }
+]

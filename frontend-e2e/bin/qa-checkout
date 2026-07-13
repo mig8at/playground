@@ -1,0 +1,43 @@
+#!/usr/bin/env bash
+# qa-checkout — genera la URL de CHECKOUT ecommerce (contrato base64) para que QA pruebe el flujo a mano.
+# Pregunta comercio (hash/nombre/slug), monto, teléfono y target; arma el contrato con `bin/dbops.ts
+# ecommerce-url` (TS + mysql2, read-only) y devuelve la URL lista para pegar en el navegador.
+#
+#   bin/qa-checkout                                          (interactivo: pregunta todo)
+#   bin/qa-checkout <comercio> [monto] [telefono] [dev|local]  (con args, sin preguntar)
+#
+# El teléfono va en el billing del contrato; si está en qa_otp_bypass_phones, el OTP = sus últimos 4.
+# Base del wizard configurable con E2E_WIZARD_URL (default: dev → originaciones.dev.creditop.com).
+set -euo pipefail
+cd "$(cd "$(dirname "$0")/.." && pwd)"   # → frontend-e2e
+
+ask() { local p="$1" d="$2" v=""; read -r -p "  $p [$d]: " v < /dev/tty || true; printf '%s' "${v:-$d}"; }
+
+MERCHANT="${1:-}"; AMOUNT="${2:-}"; PHONE="${3:-}"; TARGET="${4:-}"
+if [ -z "$MERCHANT" ]; then echo "── QA · generar URL de checkout ecommerce ──"; fi
+[ -n "$MERCHANT" ] || MERCHANT="$(ask 'Comercio (hash/nombre/slug)' 'pullman')"
+[ -n "$AMOUNT" ]   || AMOUNT="$(ask 'Monto' '600000')"
+[ -n "$PHONE" ]    || PHONE="$(ask 'Telefono (OTP = ultimos 4 si esta en bypass)' '3131010101')"
+[ -n "$TARGET" ]   || TARGET="$(ask 'Target (dev|local)' 'dev')"
+
+case "$TARGET" in
+  local) WIZ="${E2E_WIZARD_URL:-http://localhost:5174}";;
+  *)     WIZ="${E2E_WIZARD_URL:-https://originaciones.dev.creditop.com}";;
+esac
+
+echo "▶ armando contrato base64 para '$MERCHANT' (target=$TARGET · monto=$AMOUNT · tel=$PHONE)…" >&2
+OUT="$(E2E_TARGET="$TARGET" node bin/dbops.ts ecommerce-url "$MERCHANT" "$PHONE" "$AMOUNT" 2>&1)" \
+  || { echo "✗ falló dbops ecommerce-url:" >&2; echo "$OUT" >&2; exit 1; }
+
+# extrae un campo del JSON de salida (sin jq; node siempre está)
+pick() { printf '%s' "$OUT" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{try{const j=JSON.parse(s);process.stdout.write(String(j[process.argv[1]]??""))}catch(e){}})' "$1"; }
+HASH="$(pick hash)"; CPATH="$(pick checkout_path)"; MNAME="$(pick merchant)"
+[ -n "$CPATH" ] || { echo "✗ no pude armar el contrato (¿el comercio tiene credencial ecommerce?):" >&2; echo "$OUT" >&2; exit 1; }
+
+echo
+echo "  Comercio: ${MNAME:-?}  ·  branch: $HASH"
+echo "  Monto: $AMOUNT  ·  Telefono: $PHONE  ·  OTP bypass: ${PHONE: -4}  ·  Target: $TARGET"
+echo
+echo "  URL de checkout (pegá en el navegador):"
+echo "  ${WIZ}${CPATH}"
+echo

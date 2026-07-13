@@ -1,0 +1,1958 @@
+{
+  "generado": "audit-legacy-refs.mjs",
+  "modelVersion": "4.0",
+  "totalEntidades": 105,
+  "totalTablasReales": 212,
+  "resumen": {
+    "mapeada_ok": 71,
+    "NUEVA_greenfield": 27,
+    "externo": 7
+  },
+  "referenciasRotas": [],
+  "nuevasGreenfield": [
+    "creditPolicy",
+    "policyVersion",
+    "loanAccount",
+    "customerMerchant",
+    "documentType",
+    "ruleDefinition",
+    "verificationPolicy",
+    "verificationStep",
+    "countryProviderBinding",
+    "countryBureauPolicy",
+    "bureauFieldMapping",
+    "integrationContract",
+    "lenderStatusMapping",
+    "merchantSetting",
+    "evaluableField",
+    "factSourceBinding",
+    "featureTransform",
+    "featureDependency",
+    "ruleGroup",
+    "ruleGroupMember",
+    "operatorTypeRule",
+    "factValueSnapshot",
+    "ruleBinding",
+    "settingDefinition",
+    "settingBinding",
+    "integrationProfile",
+    "integrationCapability"
+  ],
+  "nuevasSinMarcar": [],
+  "entidades": [
+    {
+      "key": "country",
+      "name": "Country",
+      "contexto": "geography",
+      "tipo": "aggregateRoot",
+      "nAtributos": 14,
+      "estado": "mapeada_ok",
+      "greenfield": false,
+      "tableRefs": [
+        {
+          "kind": "tabla",
+          "name": "countries",
+          "exists": true
+        }
+      ],
+      "broken": [],
+      "columnasReducidas": [
+        "image"
+      ]
+    },
+    {
+      "key": "zone",
+      "name": "Zone",
+      "contexto": "geography",
+      "tipo": "entity",
+      "nAtributos": 5,
+      "estado": "mapeada_ok",
+      "greenfield": false,
+      "tableRefs": [
+        {
+          "kind": "tabla",
+          "name": "country_zones",
+          "exists": true
+        }
+      ],
+      "broken": [],
+      "columnasReducidas": []
+    },
+    {
+      "key": "city",
+      "name": "City",
+      "contexto": "geography",
+      "tipo": "entity",
+      "nAtributos": 5,
+      "estado": "mapeada_ok",
+      "greenfield": false,
+      "tableRefs": [
+        {
+          "kind": "tabla",
+          "name": "country_cities",
+          "exists": true
+        }
+      ],
+      "broken": [],
+      "columnasReducidas": []
+    },
+    {
+      "key": "customer",
+      "name": "Customer",
+      "contexto": "identity",
+      "tipo": "aggregateRoot",
+      "nAtributos": 28,
+      "estado": "mapeada_ok",
+      "greenfield": false,
+      "tableRefs": [
+        {
+          "kind": "tabla",
+          "name": "users",
+          "exists": true
+        }
+      ],
+      "broken": [],
+      "columnasReducidas": [
+        "full_name",
+        "age",
+        "new_id",
+        "manual_register",
+        "mobile_created",
+        "validated",
+        "manual_validation",
+        "cellphone_validation",
+        "users.password",
+        "users.two_factor_secret",
+        "users.two_factor_recovery_codes",
+        "allied_id",
+        "allied_branch_id",
+        "profile_data",
+        "resource",
+        "remember_token"
+      ]
+    },
+    {
+      "key": "corporateUser",
+      "name": "CorporateUser",
+      "contexto": "identity",
+      "tipo": "entity",
+      "nAtributos": 12,
+      "estado": "mapeada_ok",
+      "greenfield": false,
+      "tableRefs": [
+        {
+          "kind": "tabla",
+          "name": "corporate_users",
+          "exists": true
+        }
+      ],
+      "broken": [],
+      "columnasReducidas": [
+        "full_name",
+        "password"
+      ]
+    },
+    {
+      "key": "otp",
+      "name": "Otp",
+      "contexto": "identity",
+      "tipo": "entity",
+      "nAtributos": 7,
+      "estado": "mapeada_ok",
+      "greenfield": false,
+      "tableRefs": [
+        {
+          "kind": "tabla",
+          "name": "otps",
+          "exists": true
+        }
+      ],
+      "broken": [],
+      "columnasReducidas": []
+    },
+    {
+      "key": "termsAcceptance",
+      "name": "TermsAcceptance",
+      "contexto": "identity",
+      "tipo": "entity",
+      "nAtributos": 7,
+      "estado": "mapeada_ok",
+      "greenfield": false,
+      "tableRefs": [
+        {
+          "kind": "tabla",
+          "name": "user_terms_acepteds",
+          "exists": true
+        }
+      ],
+      "broken": [],
+      "columnasReducidas": []
+    },
+    {
+      "key": "profilingReview",
+      "name": "ProfilingReview",
+      "contexto": "identity",
+      "tipo": "entity",
+      "nAtributos": 13,
+      "estado": "mapeada_ok",
+      "greenfield": false,
+      "tableRefs": [
+        {
+          "kind": "tabla",
+          "name": "profiling_reviews",
+          "exists": true
+        }
+      ],
+      "broken": [],
+      "columnasReducidas": []
+    },
+    {
+      "key": "profilingRun",
+      "name": "ProfilingRun",
+      "contexto": "identity",
+      "tipo": "entity",
+      "nAtributos": 7,
+      "estado": "mapeada_ok",
+      "greenfield": false,
+      "tableRefs": [
+        {
+          "kind": "tabla",
+          "name": "profilings",
+          "exists": true
+        }
+      ],
+      "broken": [],
+      "columnasReducidas": []
+    },
+    {
+      "key": "identityVerification",
+      "name": "IdentityVerification",
+      "contexto": "identity",
+      "tipo": "aggregateRoot",
+      "nAtributos": 8,
+      "estado": "mapeada_ok",
+      "greenfield": false,
+      "tableRefs": [
+        {
+          "kind": "tabla",
+          "name": "validations",
+          "exists": true
+        },
+        {
+          "kind": "absorbe",
+          "name": "jumio_accounts",
+          "exists": true
+        },
+        {
+          "kind": "absorbe",
+          "name": "crosscore_evaluations",
+          "exists": true
+        },
+        {
+          "kind": "absorbe",
+          "name": "netco_signing_documents",
+          "exists": true
+        }
+      ],
+      "broken": [],
+      "columnasReducidas": []
+    },
+    {
+      "key": "deviceLock",
+      "name": "DeviceLock",
+      "contexto": "identity",
+      "tipo": "entity",
+      "nAtributos": 7,
+      "estado": "mapeada_ok",
+      "greenfield": false,
+      "tableRefs": [
+        {
+          "kind": "tabla",
+          "name": "device_locks",
+          "exists": true
+        },
+        {
+          "kind": "absorbe",
+          "name": "user_request_device_info",
+          "exists": true
+        }
+      ],
+      "broken": [],
+      "columnasReducidas": []
+    },
+    {
+      "key": "merchant",
+      "name": "Merchant",
+      "contexto": "commerce",
+      "tipo": "aggregateRoot",
+      "nAtributos": 16,
+      "estado": "mapeada_ok",
+      "greenfield": false,
+      "tableRefs": [
+        {
+          "kind": "tabla",
+          "name": "allieds",
+          "exists": true
+        }
+      ],
+      "broken": [],
+      "columnasReducidas": [
+        "flow_type",
+        "barcode_type",
+        "self_managed",
+        "initial_fee",
+        "allow_other_payment",
+        "payment",
+        "preapproved_registration",
+        "show_profiling",
+        "is_available_in_app",
+        "image",
+        "qr_image",
+        "banner_url",
+        "background_url",
+        "app_ecommerce_url",
+        "new_screens",
+        "primary_color",
+        "secondary_color",
+        "font_color",
+        "quaternary_color",
+        "quinary_color",
+        "senary_color",
+        "aws_arn",
+        "price"
+      ]
+    },
+    {
+      "key": "merchantBranch",
+      "name": "MerchantBranch",
+      "contexto": "commerce",
+      "tipo": "entity",
+      "nAtributos": 13,
+      "estado": "mapeada_ok",
+      "greenfield": false,
+      "tableRefs": [
+        {
+          "kind": "tabla",
+          "name": "allied_branches",
+          "exists": true
+        }
+      ],
+      "broken": [],
+      "columnasReducidas": []
+    },
+    {
+      "key": "merchantZone",
+      "name": "MerchantZone",
+      "contexto": "commerce",
+      "tipo": "entity",
+      "nAtributos": 3,
+      "estado": "mapeada_ok",
+      "greenfield": false,
+      "tableRefs": [
+        {
+          "kind": "tabla",
+          "name": "allied_zones",
+          "exists": true
+        }
+      ],
+      "broken": [],
+      "columnasReducidas": []
+    },
+    {
+      "key": "product",
+      "name": "Product",
+      "contexto": "commerce",
+      "tipo": "entity",
+      "nAtributos": 18,
+      "estado": "mapeada_ok",
+      "greenfield": false,
+      "tableRefs": [
+        {
+          "kind": "tabla",
+          "name": "products",
+          "exists": true
+        }
+      ],
+      "broken": [],
+      "columnasReducidas": []
+    },
+    {
+      "key": "lenderTerms",
+      "name": "LenderTerms",
+      "contexto": "commerce",
+      "tipo": "entity",
+      "nAtributos": 31,
+      "estado": "mapeada_ok",
+      "greenfield": false,
+      "tableRefs": [
+        {
+          "kind": "tabla",
+          "name": "lenders_by_allieds",
+          "exists": true
+        }
+      ],
+      "broken": [],
+      "columnasReducidas": []
+    },
+    {
+      "key": "merchantEvent",
+      "name": "MerchantEvent",
+      "contexto": "commerce",
+      "tipo": "entity",
+      "nAtributos": 8,
+      "estado": "mapeada_ok",
+      "greenfield": false,
+      "tableRefs": [
+        {
+          "kind": "tabla",
+          "name": "merchant_events",
+          "exists": true
+        }
+      ],
+      "broken": [],
+      "columnasReducidas": []
+    },
+    {
+      "key": "merchantGoal",
+      "name": "MerchantGoal",
+      "contexto": "commerce",
+      "tipo": "entity",
+      "nAtributos": 9,
+      "estado": "mapeada_ok",
+      "greenfield": false,
+      "tableRefs": [
+        {
+          "kind": "tabla",
+          "name": "allied_goals",
+          "exists": true
+        }
+      ],
+      "broken": [],
+      "columnasReducidas": []
+    },
+    {
+      "key": "lender",
+      "name": "Lender",
+      "contexto": "credit",
+      "tipo": "aggregateRoot",
+      "nAtributos": 22,
+      "estado": "mapeada_ok",
+      "greenfield": false,
+      "tableRefs": [
+        {
+          "kind": "tabla",
+          "name": "lenders",
+          "exists": true
+        }
+      ],
+      "broken": [],
+      "columnasReducidas": [
+        "response_type",
+        "path_id",
+        "requires_restrictive_list_check",
+        "signing_provider_id",
+        "image",
+        "voucher_image_url",
+        "description",
+        "benefits",
+        "show_intro_screen",
+        "intro_background_url",
+        "complementary_form",
+        "ecommerce",
+        "action",
+        "sort"
+      ]
+    },
+    {
+      "key": "lenderAlliedCredential",
+      "name": "LenderAlliedCredential",
+      "contexto": "credit",
+      "tipo": "entity",
+      "nAtributos": 5,
+      "estado": "mapeada_ok",
+      "greenfield": false,
+      "tableRefs": [
+        {
+          "kind": "tabla",
+          "name": "lender_allied_credentials",
+          "exists": true
+        }
+      ],
+      "broken": [],
+      "columnasReducidas": []
+    },
+    {
+      "key": "lenderErrorCode",
+      "name": "LenderErrorCode",
+      "contexto": "credit",
+      "tipo": "entity",
+      "nAtributos": 7,
+      "estado": "mapeada_ok",
+      "greenfield": false,
+      "tableRefs": [
+        {
+          "kind": "tabla",
+          "name": "lender_error_codes",
+          "exists": true
+        }
+      ],
+      "broken": [],
+      "columnasReducidas": []
+    },
+    {
+      "key": "lenderGuaranteeCriterion",
+      "name": "LenderGuaranteeCriterion",
+      "contexto": "credit",
+      "tipo": "entity",
+      "nAtributos": 7,
+      "estado": "mapeada_ok",
+      "greenfield": false,
+      "tableRefs": [
+        {
+          "kind": "tabla",
+          "name": "lender_guarantee_criteria",
+          "exists": true
+        }
+      ],
+      "broken": [],
+      "columnasReducidas": []
+    },
+    {
+      "key": "lenderDocumentationRequirement",
+      "name": "LenderDocumentationRequirement",
+      "contexto": "credit",
+      "tipo": "entity",
+      "nAtributos": 8,
+      "estado": "mapeada_ok",
+      "greenfield": false,
+      "tableRefs": [
+        {
+          "kind": "tabla",
+          "name": "lender_documentations",
+          "exists": true
+        }
+      ],
+      "broken": [],
+      "columnasReducidas": []
+    },
+    {
+      "key": "lenderRevenue",
+      "name": "LenderRevenue",
+      "contexto": "credit",
+      "tipo": "entity",
+      "nAtributos": 4,
+      "estado": "mapeada_ok",
+      "greenfield": false,
+      "tableRefs": [
+        {
+          "kind": "tabla",
+          "name": "lender_revenue",
+          "exists": true
+        }
+      ],
+      "broken": [],
+      "columnasReducidas": []
+    },
+    {
+      "key": "lenderPaymentChannel",
+      "name": "LenderPaymentChannel",
+      "contexto": "credit",
+      "tipo": "entity",
+      "nAtributos": 5,
+      "estado": "mapeada_ok",
+      "greenfield": false,
+      "tableRefs": [
+        {
+          "kind": "tabla",
+          "name": "payment_methods_by_lender",
+          "exists": true
+        }
+      ],
+      "broken": [],
+      "columnasReducidas": [
+        "image"
+      ]
+    },
+    {
+      "key": "eligibilityPolicy",
+      "name": "EligibilityPolicy",
+      "contexto": "credit",
+      "tipo": "entity",
+      "nAtributos": 4,
+      "estado": "mapeada_ok",
+      "greenfield": false,
+      "tableRefs": [
+        {
+          "kind": "tabla",
+          "name": "group_rules",
+          "exists": true
+        }
+      ],
+      "broken": [],
+      "columnasReducidas": []
+    },
+    {
+      "key": "eligibilityRule",
+      "name": "EligibilityRule",
+      "contexto": "credit",
+      "tipo": "entity",
+      "nAtributos": 13,
+      "estado": "mapeada_ok",
+      "greenfield": false,
+      "tableRefs": [
+        {
+          "kind": "tabla",
+          "name": "lender_rules",
+          "exists": true
+        }
+      ],
+      "broken": [],
+      "columnasReducidas": []
+    },
+    {
+      "key": "creditCategory",
+      "name": "CreditCategory",
+      "contexto": "credit",
+      "tipo": "entity",
+      "nAtributos": 14,
+      "estado": "mapeada_ok",
+      "greenfield": false,
+      "tableRefs": [
+        {
+          "kind": "tabla",
+          "name": "lender_users_categories",
+          "exists": true
+        }
+      ],
+      "broken": [],
+      "columnasReducidas": []
+    },
+    {
+      "key": "categoryEligibilityCriteria",
+      "name": "CategoryEligibilityCriteria",
+      "contexto": "credit",
+      "tipo": "entity",
+      "nAtributos": 3,
+      "estado": "mapeada_ok",
+      "greenfield": false,
+      "tableRefs": [
+        {
+          "kind": "tabla",
+          "name": "lender_users_category_rules",
+          "exists": true
+        }
+      ],
+      "broken": [],
+      "columnasReducidas": [
+        "occupation",
+        "min_age",
+        "max_age",
+        "monthly_income",
+        "verified_income",
+        "special_granting",
+        "gender",
+        "negative_reports_last_12_months",
+        "current_delinquencies",
+        "excluded_current_delinquencies",
+        "financial_history_length",
+        "min_score",
+        "employment_continuity",
+        "min_credit_cards",
+        "min_debt_capacity",
+        "debt_capacity_amount_validation",
+        "tc_vector_validation",
+        "consulted_last_6_months",
+        "overdue_vector_validation"
+      ]
+    },
+    {
+      "key": "creditDecision",
+      "name": "CreditDecision",
+      "contexto": "credit",
+      "tipo": "aggregateRoot",
+      "nAtributos": 8,
+      "estado": "mapeada_ok",
+      "greenfield": false,
+      "tableRefs": [
+        {
+          "kind": "tabla",
+          "name": "users_category_log",
+          "exists": true
+        }
+      ],
+      "broken": [],
+      "columnasReducidas": []
+    },
+    {
+      "key": "scoringPolicy",
+      "name": "ScoringPolicy",
+      "contexto": "credit",
+      "tipo": "entity",
+      "nAtributos": 6,
+      "estado": "mapeada_ok",
+      "greenfield": false,
+      "tableRefs": [
+        {
+          "kind": "tabla",
+          "name": "creditop_x_lender_scoring",
+          "exists": true
+        }
+      ],
+      "broken": [],
+      "columnasReducidas": [
+        "variable"
+      ]
+    },
+    {
+      "key": "scoreAdjustmentBand",
+      "name": "ScoreAdjustmentBand",
+      "contexto": "credit",
+      "tipo": "entity",
+      "nAtributos": 4,
+      "estado": "mapeada_ok",
+      "greenfield": false,
+      "tableRefs": [
+        {
+          "kind": "tabla",
+          "name": "creditop_x_adjustments_by_lender_scoring",
+          "exists": true
+        }
+      ],
+      "broken": [],
+      "columnasReducidas": []
+    },
+    {
+      "key": "riskProfilingTier",
+      "name": "RiskProfilingTier",
+      "contexto": "credit",
+      "tipo": "entity",
+      "nAtributos": 5,
+      "estado": "mapeada_ok",
+      "greenfield": false,
+      "tableRefs": [
+        {
+          "kind": "tabla",
+          "name": "creditop_x_profiling_down_payment_FGA",
+          "exists": true
+        }
+      ],
+      "broken": [],
+      "columnasReducidas": []
+    },
+    {
+      "key": "riskMultiplierVariable",
+      "name": "RiskMultiplierVariable",
+      "contexto": "credit",
+      "tipo": "entity",
+      "nAtributos": 4,
+      "estado": "mapeada_ok",
+      "greenfield": false,
+      "tableRefs": [
+        {
+          "kind": "tabla",
+          "name": "creditop_x_profiling_multiplier_risk_vars",
+          "exists": true
+        }
+      ],
+      "broken": [],
+      "columnasReducidas": []
+    },
+    {
+      "key": "riskMultiplierRange",
+      "name": "RiskMultiplierRange",
+      "contexto": "credit",
+      "tipo": "entity",
+      "nAtributos": 5,
+      "estado": "mapeada_ok",
+      "greenfield": false,
+      "tableRefs": [
+        {
+          "kind": "tabla",
+          "name": "creditop_x_profiling_multiplier_risk_rangs",
+          "exists": true
+        }
+      ],
+      "broken": [],
+      "columnasReducidas": []
+    },
+    {
+      "key": "bureauInquiry",
+      "name": "BureauInquiry",
+      "contexto": "credit",
+      "tipo": "aggregateRoot",
+      "nAtributos": 8,
+      "estado": "mapeada_ok",
+      "greenfield": false,
+      "tableRefs": [
+        {
+          "kind": "tabla",
+          "name": "risk_central_user_data",
+          "exists": true
+        },
+        {
+          "kind": "absorbe",
+          "name": "credit_scores",
+          "exists": true
+        },
+        {
+          "kind": "absorbe",
+          "name": "user_summaries",
+          "exists": true
+        }
+      ],
+      "broken": [],
+      "columnasReducidas": []
+    },
+    {
+      "key": "lenderTransaction",
+      "name": "LenderTransaction",
+      "contexto": "credit",
+      "tipo": "aggregateRoot",
+      "nAtributos": 8,
+      "estado": "mapeada_ok",
+      "greenfield": false,
+      "tableRefs": [
+        {
+          "kind": "tabla",
+          "name": "lender_transactions",
+          "exists": true
+        },
+        {
+          "kind": "absorbe",
+          "name": "payvalida_transactions",
+          "exists": true
+        },
+        {
+          "kind": "absorbe",
+          "name": "sistecredito_transactions",
+          "exists": true
+        },
+        {
+          "kind": "absorbe",
+          "name": "payment_gateway_transactions",
+          "exists": true
+        }
+      ],
+      "broken": [],
+      "columnasReducidas": []
+    },
+    {
+      "key": "loanApplication",
+      "name": "LoanApplication",
+      "contexto": "origination",
+      "tipo": "aggregateRoot",
+      "nAtributos": 28,
+      "estado": "mapeada_ok",
+      "greenfield": false,
+      "tableRefs": [
+        {
+          "kind": "tabla",
+          "name": "user_requests",
+          "exists": true
+        }
+      ],
+      "broken": [],
+      "columnasReducidas": [
+        "confirmation_email_attachments"
+      ]
+    },
+    {
+      "key": "applicationLineItem",
+      "name": "ApplicationLineItem",
+      "contexto": "origination",
+      "tipo": "entity",
+      "nAtributos": 7,
+      "estado": "mapeada_ok",
+      "greenfield": false,
+      "tableRefs": [
+        {
+          "kind": "tabla",
+          "name": "user_request_products",
+          "exists": true
+        }
+      ],
+      "broken": [],
+      "columnasReducidas": []
+    },
+    {
+      "key": "applicationDocument",
+      "name": "ApplicationDocument",
+      "contexto": "origination",
+      "tipo": "entity",
+      "nAtributos": 5,
+      "estado": "mapeada_ok",
+      "greenfield": false,
+      "tableRefs": [
+        {
+          "kind": "tabla",
+          "name": "user_request_documentations",
+          "exists": true
+        }
+      ],
+      "broken": [],
+      "columnasReducidas": []
+    },
+    {
+      "key": "additionalInformation",
+      "name": "AdditionalInformation",
+      "contexto": "origination",
+      "tipo": "entity",
+      "nAtributos": 6,
+      "estado": "mapeada_ok",
+      "greenfield": false,
+      "tableRefs": [
+        {
+          "kind": "tabla",
+          "name": "user_request_additional_information",
+          "exists": true
+        }
+      ],
+      "broken": [],
+      "columnasReducidas": []
+    },
+    {
+      "key": "applicationComment",
+      "name": "ApplicationComment",
+      "contexto": "origination",
+      "tipo": "entity",
+      "nAtributos": 5,
+      "estado": "mapeada_ok",
+      "greenfield": false,
+      "tableRefs": [
+        {
+          "kind": "tabla",
+          "name": "user_request_comments",
+          "exists": true
+        }
+      ],
+      "broken": [],
+      "columnasReducidas": []
+    },
+    {
+      "key": "statusTransition",
+      "name": "StatusTransition",
+      "contexto": "origination",
+      "tipo": "entity",
+      "nAtributos": 6,
+      "estado": "mapeada_ok",
+      "greenfield": false,
+      "tableRefs": [
+        {
+          "kind": "tabla",
+          "name": "user_request_records",
+          "exists": true
+        }
+      ],
+      "broken": [],
+      "columnasReducidas": []
+    },
+    {
+      "key": "requestAuthorization",
+      "name": "RequestAuthorization",
+      "contexto": "origination",
+      "tipo": "entity",
+      "nAtributos": 4,
+      "estado": "mapeada_ok",
+      "greenfield": false,
+      "tableRefs": [
+        {
+          "kind": "tabla",
+          "name": "request_authorizations",
+          "exists": true
+        }
+      ],
+      "broken": [],
+      "columnasReducidas": []
+    },
+    {
+      "key": "draftRequest",
+      "name": "DraftRequest",
+      "contexto": "origination",
+      "tipo": "aggregateRoot",
+      "nAtributos": 4,
+      "estado": "mapeada_ok",
+      "greenfield": false,
+      "tableRefs": [
+        {
+          "kind": "tabla",
+          "name": "temporal_requests",
+          "exists": true
+        }
+      ],
+      "broken": [],
+      "columnasReducidas": []
+    },
+    {
+      "key": "ecommerceRequest",
+      "name": "EcommerceRequest",
+      "contexto": "origination",
+      "tipo": "aggregateRoot",
+      "nAtributos": 13,
+      "estado": "mapeada_ok",
+      "greenfield": false,
+      "tableRefs": [
+        {
+          "kind": "tabla",
+          "name": "ecommerce_requests",
+          "exists": true
+        },
+        {
+          "kind": "absorbe",
+          "name": "user_requests_by_ecommerce_request",
+          "exists": true
+        }
+      ],
+      "broken": [],
+      "columnasReducidas": []
+    },
+    {
+      "key": "paymentLink",
+      "name": "PaymentLink",
+      "contexto": "origination",
+      "tipo": "aggregateRoot",
+      "nAtributos": 7,
+      "estado": "mapeada_ok",
+      "greenfield": false,
+      "tableRefs": [
+        {
+          "kind": "tabla",
+          "name": "payment_links",
+          "exists": true
+        }
+      ],
+      "broken": [],
+      "columnasReducidas": []
+    },
+    {
+      "key": "purchaseCode",
+      "name": "PurchaseCode",
+      "contexto": "origination",
+      "tipo": "entity",
+      "nAtributos": 3,
+      "estado": "mapeada_ok",
+      "greenfield": false,
+      "tableRefs": [
+        {
+          "kind": "tabla",
+          "name": "purchase_codes",
+          "exists": true
+        }
+      ],
+      "broken": [],
+      "columnasReducidas": []
+    },
+    {
+      "key": "onboardingForm",
+      "name": "OnboardingForm",
+      "contexto": "origination",
+      "tipo": "aggregateRoot",
+      "nAtributos": 6,
+      "estado": "mapeada_ok",
+      "greenfield": false,
+      "tableRefs": [
+        {
+          "kind": "tabla",
+          "name": "form_types",
+          "exists": true
+        }
+      ],
+      "broken": [],
+      "columnasReducidas": []
+    },
+    {
+      "key": "formFieldPlacement",
+      "name": "FormFieldPlacement",
+      "contexto": "origination",
+      "tipo": "entity",
+      "nAtributos": 7,
+      "estado": "mapeada_ok",
+      "greenfield": false,
+      "tableRefs": [
+        {
+          "kind": "tabla",
+          "name": "forms",
+          "exists": true
+        }
+      ],
+      "broken": [],
+      "columnasReducidas": []
+    },
+    {
+      "key": "formField",
+      "name": "FormField",
+      "contexto": "origination",
+      "tipo": "entity",
+      "nAtributos": 15,
+      "estado": "mapeada_ok",
+      "greenfield": false,
+      "tableRefs": [
+        {
+          "kind": "tabla",
+          "name": "fields",
+          "exists": true
+        }
+      ],
+      "broken": [],
+      "columnasReducidas": []
+    },
+    {
+      "key": "fieldAnswer",
+      "name": "FieldAnswer",
+      "contexto": "origination",
+      "tipo": "entity",
+      "nAtributos": 9,
+      "estado": "mapeada_ok",
+      "greenfield": false,
+      "tableRefs": [
+        {
+          "kind": "tabla",
+          "name": "user_field_values",
+          "exists": true
+        }
+      ],
+      "broken": [],
+      "columnasReducidas": []
+    },
+    {
+      "key": "revolvingCredit",
+      "name": "RevolvingCredit",
+      "contexto": "creditopX",
+      "tipo": "aggregateRoot",
+      "nAtributos": 19,
+      "estado": "mapeada_ok",
+      "greenfield": false,
+      "tableRefs": [
+        {
+          "kind": "tabla",
+          "name": "creditop_x_revolving_credits",
+          "exists": true
+        }
+      ],
+      "broken": [],
+      "columnasReducidas": []
+    },
+    {
+      "key": "requestHistoryEntry",
+      "name": "RequestHistoryEntry",
+      "contexto": "creditopX",
+      "tipo": "entity",
+      "nAtributos": 45,
+      "estado": "mapeada_ok",
+      "greenfield": false,
+      "tableRefs": [
+        {
+          "kind": "tabla",
+          "name": "creditop_x_requests_history",
+          "exists": true
+        }
+      ],
+      "broken": [],
+      "columnasReducidas": []
+    },
+    {
+      "key": "payment",
+      "name": "Payment",
+      "contexto": "creditopX",
+      "tipo": "entity",
+      "nAtributos": 14,
+      "estado": "mapeada_ok",
+      "greenfield": false,
+      "tableRefs": [
+        {
+          "kind": "tabla",
+          "name": "creditop_x_payments",
+          "exists": true
+        }
+      ],
+      "broken": [],
+      "columnasReducidas": []
+    },
+    {
+      "key": "paymentRegister",
+      "name": "PaymentRegister",
+      "contexto": "creditopX",
+      "tipo": "entity",
+      "nAtributos": 11,
+      "estado": "mapeada_ok",
+      "greenfield": false,
+      "tableRefs": [
+        {
+          "kind": "tabla",
+          "name": "creditop_x_payment_register",
+          "exists": true
+        }
+      ],
+      "broken": [],
+      "columnasReducidas": [
+        "payment_method"
+      ]
+    },
+    {
+      "key": "revolvingCreditPayment",
+      "name": "RevolvingCreditPayment",
+      "contexto": "creditopX",
+      "tipo": "entity",
+      "nAtributos": 5,
+      "estado": "mapeada_ok",
+      "greenfield": false,
+      "tableRefs": [
+        {
+          "kind": "tabla",
+          "name": "creditop_x_revolving_credit_payments",
+          "exists": true
+        }
+      ],
+      "broken": [],
+      "columnasReducidas": []
+    },
+    {
+      "key": "requestProcessRecord",
+      "name": "RequestProcessRecord",
+      "contexto": "creditopX",
+      "tipo": "entity",
+      "nAtributos": 6,
+      "estado": "mapeada_ok",
+      "greenfield": false,
+      "tableRefs": [
+        {
+          "kind": "tabla",
+          "name": "creditop_x_user_requests_records",
+          "exists": true
+        }
+      ],
+      "broken": [],
+      "columnasReducidas": []
+    },
+    {
+      "key": "signedLegalDocument",
+      "name": "SignedLegalDocument",
+      "contexto": "creditopX",
+      "tipo": "entity",
+      "nAtributos": 10,
+      "estado": "mapeada_ok",
+      "greenfield": false,
+      "tableRefs": [
+        {
+          "kind": "tabla",
+          "name": "promissory_notes",
+          "exists": true
+        },
+        {
+          "kind": "absorbe",
+          "name": "creditop_x_consents",
+          "exists": true
+        },
+        {
+          "kind": "absorbe",
+          "name": "guarantee_acceptances",
+          "exists": true
+        }
+      ],
+      "broken": [],
+      "columnasReducidas": []
+    },
+    {
+      "key": "creditPolicy",
+      "name": "CreditPolicy",
+      "contexto": "credit",
+      "tipo": "aggregateRoot",
+      "nAtributos": 5,
+      "estado": "NUEVA_greenfield",
+      "greenfield": true,
+      "tableRefs": [],
+      "broken": [],
+      "columnasReducidas": []
+    },
+    {
+      "key": "policyVersion",
+      "name": "PolicyVersion",
+      "contexto": "credit",
+      "tipo": "entity",
+      "nAtributos": 8,
+      "estado": "NUEVA_greenfield",
+      "greenfield": true,
+      "tableRefs": [],
+      "broken": [],
+      "columnasReducidas": []
+    },
+    {
+      "key": "loanAccount",
+      "name": "LoanAccount",
+      "contexto": "creditopX",
+      "tipo": "aggregateRoot",
+      "nAtributos": 6,
+      "estado": "NUEVA_greenfield",
+      "greenfield": true,
+      "tableRefs": [],
+      "broken": [],
+      "columnasReducidas": []
+    },
+    {
+      "key": "customerMerchant",
+      "name": "CustomerMerchant",
+      "contexto": "identity",
+      "tipo": "entity",
+      "nAtributos": 6,
+      "estado": "NUEVA_greenfield",
+      "greenfield": true,
+      "tableRefs": [],
+      "broken": [],
+      "columnasReducidas": []
+    },
+    {
+      "key": "documentType",
+      "name": "DocumentType",
+      "contexto": "geography",
+      "tipo": "entity",
+      "nAtributos": 6,
+      "estado": "NUEVA_greenfield",
+      "greenfield": true,
+      "tableRefs": [],
+      "broken": [],
+      "columnasReducidas": []
+    },
+    {
+      "key": "ruleDefinition",
+      "name": "RuleDefinition",
+      "contexto": "credit",
+      "tipo": "entity",
+      "nAtributos": 9,
+      "estado": "NUEVA_greenfield",
+      "greenfield": true,
+      "tableRefs": [],
+      "broken": [],
+      "columnasReducidas": [
+        "value_type"
+      ]
+    },
+    {
+      "key": "signedRequestChange",
+      "name": "SignedRequestChange",
+      "contexto": "creditopX",
+      "tipo": "entity",
+      "nAtributos": 8,
+      "estado": "mapeada_ok",
+      "greenfield": false,
+      "tableRefs": [
+        {
+          "kind": "tabla",
+          "name": "creditop_x_changes_log",
+          "exists": true
+        }
+      ],
+      "broken": [],
+      "columnasReducidas": []
+    },
+    {
+      "key": "verificationPolicy",
+      "name": "VerificationPolicy",
+      "contexto": "identity",
+      "tipo": "aggregateRoot",
+      "nAtributos": 7,
+      "estado": "NUEVA_greenfield",
+      "greenfield": true,
+      "tableRefs": [],
+      "broken": [],
+      "columnasReducidas": []
+    },
+    {
+      "key": "verificationStep",
+      "name": "VerificationStep",
+      "contexto": "identity",
+      "tipo": "entity",
+      "nAtributos": 7,
+      "estado": "NUEVA_greenfield",
+      "greenfield": true,
+      "tableRefs": [],
+      "broken": [],
+      "columnasReducidas": []
+    },
+    {
+      "key": "bureauProvider",
+      "name": "BureauProvider",
+      "contexto": "credit",
+      "tipo": "aggregateRoot",
+      "nAtributos": 5,
+      "estado": "mapeada_ok",
+      "greenfield": false,
+      "tableRefs": [
+        {
+          "kind": "tabla",
+          "name": "risk_centrals",
+          "exists": true
+        }
+      ],
+      "broken": [],
+      "columnasReducidas": []
+    },
+    {
+      "key": "countryProviderBinding",
+      "name": "CountryProviderBinding",
+      "contexto": "credit",
+      "tipo": "entity",
+      "nAtributos": 7,
+      "estado": "NUEVA_greenfield",
+      "greenfield": true,
+      "tableRefs": [],
+      "broken": [],
+      "columnasReducidas": []
+    },
+    {
+      "key": "countryBureauPolicy",
+      "name": "CountryBureauPolicy",
+      "contexto": "credit",
+      "tipo": "entity",
+      "nAtributos": 7,
+      "estado": "NUEVA_greenfield",
+      "greenfield": true,
+      "tableRefs": [],
+      "broken": [],
+      "columnasReducidas": []
+    },
+    {
+      "key": "bureauFieldMapping",
+      "name": "BureauFieldMapping",
+      "contexto": "credit",
+      "tipo": "entity",
+      "nAtributos": 6,
+      "estado": "NUEVA_greenfield",
+      "greenfield": true,
+      "tableRefs": [],
+      "broken": [],
+      "columnasReducidas": []
+    },
+    {
+      "key": "integrationContract",
+      "name": "IntegrationContract",
+      "contexto": "credit",
+      "tipo": "entity",
+      "nAtributos": 8,
+      "estado": "NUEVA_greenfield",
+      "greenfield": true,
+      "tableRefs": [],
+      "broken": [],
+      "columnasReducidas": []
+    },
+    {
+      "key": "lenderStatusMapping",
+      "name": "LenderStatusMapping",
+      "contexto": "credit",
+      "tipo": "entity",
+      "nAtributos": 5,
+      "estado": "NUEVA_greenfield",
+      "greenfield": true,
+      "tableRefs": [],
+      "broken": [],
+      "columnasReducidas": []
+    },
+    {
+      "key": "countrySetting",
+      "name": "CountrySetting",
+      "contexto": "geography",
+      "tipo": "entity",
+      "nAtributos": 8,
+      "estado": "mapeada_ok",
+      "greenfield": false,
+      "tableRefs": [
+        {
+          "kind": "tabla",
+          "name": "settings",
+          "exists": true
+        }
+      ],
+      "broken": [],
+      "columnasReducidas": []
+    },
+    {
+      "key": "merchantSetting",
+      "name": "MerchantSetting",
+      "contexto": "commerce",
+      "tipo": "entity",
+      "nAtributos": 6,
+      "estado": "NUEVA_greenfield",
+      "greenfield": true,
+      "tableRefs": [],
+      "broken": [],
+      "columnasReducidas": []
+    },
+    {
+      "key": "evaluableField",
+      "name": "EvaluableField",
+      "contexto": "decisioning",
+      "tipo": "aggregateRoot",
+      "nAtributos": 12,
+      "estado": "NUEVA_greenfield",
+      "greenfield": true,
+      "tableRefs": [],
+      "broken": [],
+      "columnasReducidas": []
+    },
+    {
+      "key": "factSourceBinding",
+      "name": "FactSourceBinding",
+      "contexto": "decisioning",
+      "tipo": "entity",
+      "nAtributos": 14,
+      "estado": "NUEVA_greenfield",
+      "greenfield": true,
+      "tableRefs": [],
+      "broken": [],
+      "columnasReducidas": []
+    },
+    {
+      "key": "featureTransform",
+      "name": "FeatureTransform",
+      "contexto": "decisioning",
+      "tipo": "entity",
+      "nAtributos": 7,
+      "estado": "NUEVA_greenfield",
+      "greenfield": true,
+      "tableRefs": [],
+      "broken": [],
+      "columnasReducidas": []
+    },
+    {
+      "key": "featureDependency",
+      "name": "FeatureDependency",
+      "contexto": "decisioning",
+      "tipo": "entity",
+      "nAtributos": 3,
+      "estado": "NUEVA_greenfield",
+      "greenfield": true,
+      "tableRefs": [],
+      "broken": [],
+      "columnasReducidas": []
+    },
+    {
+      "key": "scoringClause",
+      "name": "ScoringClause",
+      "contexto": "credit",
+      "tipo": "entity",
+      "nAtributos": 9,
+      "estado": "mapeada_ok",
+      "greenfield": false,
+      "tableRefs": [
+        {
+          "kind": "tabla",
+          "name": "creditop_x_lender_scoring",
+          "exists": true
+        }
+      ],
+      "broken": [],
+      "columnasReducidas": []
+    },
+    {
+      "key": "ruleGroup",
+      "name": "RuleGroup",
+      "contexto": "credit",
+      "tipo": "entity",
+      "nAtributos": 5,
+      "estado": "NUEVA_greenfield",
+      "greenfield": true,
+      "tableRefs": [],
+      "broken": [],
+      "columnasReducidas": []
+    },
+    {
+      "key": "ruleGroupMember",
+      "name": "RuleGroupMember",
+      "contexto": "credit",
+      "tipo": "entity",
+      "nAtributos": 5,
+      "estado": "NUEVA_greenfield",
+      "greenfield": true,
+      "tableRefs": [],
+      "broken": [],
+      "columnasReducidas": []
+    },
+    {
+      "key": "operatorTypeRule",
+      "name": "OperatorTypeRule",
+      "contexto": "decisioning",
+      "tipo": "entity",
+      "nAtributos": 4,
+      "estado": "NUEVA_greenfield",
+      "greenfield": true,
+      "tableRefs": [],
+      "broken": [],
+      "columnasReducidas": []
+    },
+    {
+      "key": "factValueSnapshot",
+      "name": "FactValueSnapshot",
+      "contexto": "decisioning",
+      "tipo": "aggregateRoot",
+      "nAtributos": 8,
+      "estado": "NUEVA_greenfield",
+      "greenfield": true,
+      "tableRefs": [],
+      "broken": [],
+      "columnasReducidas": []
+    },
+    {
+      "key": "ruleBinding",
+      "name": "RuleBinding",
+      "contexto": "credit",
+      "tipo": "entity",
+      "nAtributos": 10,
+      "estado": "NUEVA_greenfield",
+      "greenfield": true,
+      "tableRefs": [],
+      "broken": [],
+      "columnasReducidas": []
+    },
+    {
+      "key": "settingDefinition",
+      "name": "SettingDefinition",
+      "contexto": "decisioning",
+      "tipo": "aggregateRoot",
+      "nAtributos": 9,
+      "estado": "NUEVA_greenfield",
+      "greenfield": true,
+      "tableRefs": [],
+      "broken": [],
+      "columnasReducidas": []
+    },
+    {
+      "key": "settingBinding",
+      "name": "SettingBinding",
+      "contexto": "decisioning",
+      "tipo": "entity",
+      "nAtributos": 6,
+      "estado": "NUEVA_greenfield",
+      "greenfield": true,
+      "tableRefs": [],
+      "broken": [],
+      "columnasReducidas": []
+    },
+    {
+      "key": "integrationProfile",
+      "name": "IntegrationProfile",
+      "contexto": "credit",
+      "tipo": "entity",
+      "nAtributos": 8,
+      "estado": "NUEVA_greenfield",
+      "greenfield": true,
+      "tableRefs": [],
+      "broken": [],
+      "columnasReducidas": []
+    },
+    {
+      "key": "integrationCapability",
+      "name": "IntegrationCapability",
+      "contexto": "credit",
+      "tipo": "entity",
+      "nAtributos": 6,
+      "estado": "NUEVA_greenfield",
+      "greenfield": true,
+      "tableRefs": [],
+      "broken": [],
+      "columnasReducidas": []
+    },
+    {
+      "key": "cognito",
+      "name": "AWS Cognito",
+      "contexto": "platform",
+      "tipo": "external",
+      "nAtributos": 4,
+      "estado": "externo",
+      "greenfield": false,
+      "tableRefs": [],
+      "broken": [],
+      "columnasReducidas": []
+    },
+    {
+      "key": "s3",
+      "name": "Amazon S3",
+      "contexto": "platform",
+      "tipo": "external",
+      "nAtributos": 6,
+      "estado": "externo",
+      "greenfield": false,
+      "tableRefs": [],
+      "broken": [],
+      "columnasReducidas": []
+    },
+    {
+      "key": "secretsManager",
+      "name": "AWS Secrets Manager",
+      "contexto": "platform",
+      "tipo": "external",
+      "nAtributos": 4,
+      "estado": "externo",
+      "greenfield": false,
+      "tableRefs": [],
+      "broken": [],
+      "columnasReducidas": []
+    },
+    {
+      "key": "eventBridge",
+      "name": "Amazon EventBridge",
+      "contexto": "platform",
+      "tipo": "external",
+      "nAtributos": 4,
+      "estado": "externo",
+      "greenfield": false,
+      "tableRefs": [],
+      "broken": [],
+      "columnasReducidas": []
+    },
+    {
+      "key": "sns",
+      "name": "Amazon SNS / SES",
+      "contexto": "platform",
+      "tipo": "external",
+      "nAtributos": 3,
+      "estado": "externo",
+      "greenfield": false,
+      "tableRefs": [],
+      "broken": [],
+      "columnasReducidas": []
+    },
+    {
+      "key": "dynamoDB",
+      "name": "Amazon DynamoDB",
+      "contexto": "platform",
+      "tipo": "external",
+      "nAtributos": 4,
+      "estado": "externo",
+      "greenfield": false,
+      "tableRefs": [],
+      "broken": [],
+      "columnasReducidas": []
+    },
+    {
+      "key": "ecommerce",
+      "name": "Ecommerce",
+      "contexto": "origination",
+      "tipo": "entity",
+      "nAtributos": 2,
+      "estado": "mapeada_ok",
+      "greenfield": false,
+      "tableRefs": [
+        {
+          "kind": "tabla",
+          "name": "ecommerces",
+          "exists": true
+        }
+      ],
+      "broken": [],
+      "columnasReducidas": []
+    },
+    {
+      "key": "alliedEcommerceCredential",
+      "name": "AlliedEcommerceCredential",
+      "contexto": "commerce",
+      "tipo": "entity",
+      "nAtributos": 8,
+      "estado": "mapeada_ok",
+      "greenfield": false,
+      "tableRefs": [
+        {
+          "kind": "tabla",
+          "name": "allied_ecommerce_credentials",
+          "exists": true
+        }
+      ],
+      "broken": [],
+      "columnasReducidas": []
+    },
+    {
+      "key": "cloudWatch",
+      "name": "Amazon CloudWatch",
+      "contexto": "platform",
+      "tipo": "external",
+      "nAtributos": 5,
+      "estado": "externo",
+      "greenfield": false,
+      "tableRefs": [],
+      "broken": [],
+      "columnasReducidas": []
+    },
+    {
+      "key": "occupationMultiplier",
+      "name": "OccupationMultiplier",
+      "contexto": "credit",
+      "tipo": "entity",
+      "nAtributos": 6,
+      "estado": "mapeada_ok",
+      "greenfield": false,
+      "tableRefs": [
+        {
+          "kind": "tabla",
+          "name": "creditop_x_occupation_multiplier_by_lender",
+          "exists": true
+        }
+      ],
+      "broken": [],
+      "columnasReducidas": []
+    },
+    {
+      "key": "socialStrataMultiplier",
+      "name": "SocialStrataMultiplier",
+      "contexto": "credit",
+      "tipo": "entity",
+      "nAtributos": 7,
+      "estado": "mapeada_ok",
+      "greenfield": false,
+      "tableRefs": [
+        {
+          "kind": "tabla",
+          "name": "creditop_x_social_strata_multiplier_by_lender",
+          "exists": true
+        }
+      ],
+      "broken": [],
+      "columnasReducidas": []
+    },
+    {
+      "key": "termCapitalAdjustmentFactor",
+      "name": "TermCapitalAdjustmentFactor",
+      "contexto": "credit",
+      "tipo": "entity",
+      "nAtributos": 6,
+      "estado": "mapeada_ok",
+      "greenfield": false,
+      "tableRefs": [
+        {
+          "kind": "tabla",
+          "name": "lender_term_capital_adjustment_factors",
+          "exists": true
+        }
+      ],
+      "broken": [],
+      "columnasReducidas": []
+    },
+    {
+      "key": "lenderResidualBalance",
+      "name": "LenderResidualBalance",
+      "contexto": "credit",
+      "tipo": "entity",
+      "nAtributos": 5,
+      "estado": "mapeada_ok",
+      "greenfield": false,
+      "tableRefs": [
+        {
+          "kind": "tabla",
+          "name": "creditop_x_lender_residual_balances",
+          "exists": true
+        }
+      ],
+      "broken": [],
+      "columnasReducidas": []
+    },
+    {
+      "key": "bonification",
+      "name": "Bonification",
+      "contexto": "creditopX",
+      "tipo": "aggregateRoot",
+      "nAtributos": 8,
+      "estado": "mapeada_ok",
+      "greenfield": false,
+      "tableRefs": [
+        {
+          "kind": "tabla",
+          "name": "bonifications",
+          "exists": true
+        }
+      ],
+      "broken": [],
+      "columnasReducidas": []
+    },
+    {
+      "key": "identityValidationAttempt",
+      "name": "IdentityValidationAttempt",
+      "contexto": "identity",
+      "tipo": "entity",
+      "nAtributos": 15,
+      "estado": "mapeada_ok",
+      "greenfield": false,
+      "tableRefs": [
+        {
+          "kind": "tabla",
+          "name": "identity_validation_attempts",
+          "exists": true
+        }
+      ],
+      "broken": [],
+      "columnasReducidas": []
+    }
+  ],
+  "valueObjects": [
+    "Money",
+    "Document",
+    "Terms",
+    "Score",
+    "LenderCityCoverage",
+    "UserProfile",
+    "RolePermissionAssignment",
+    "RoleAssignment",
+    "DirectPermissionAssignment",
+    "StatusVisibilityRule",
+    "CreditProfile",
+    "SecurityQuestion",
+    "Achievement",
+    "IdentityValidationType",
+    "LenderValidationRequirement",
+    "SigningProvider",
+    "MerchantCategory",
+    "MerchantType",
+    "MerchantIndustry",
+    "ProductCategory",
+    "OperatingMode",
+    "TransferAccount",
+    "EcommerceCredential",
+    "BranchUserAssignment",
+    "BranchLenderLink",
+    "ProductLenderUserCategoryLink",
+    "DatacreditoQueryCounter",
+    "EventAssistanceFee",
+    "LenderPromotion",
+    "MerchantBeneficiary",
+    "ResponseType",
+    "Path",
+    "PromissoryType",
+    "CutoffType",
+    "ConsentType",
+    "PaymentMethod",
+    "Bank",
+    "CreditopXConfiguration",
+    "PaymentCapacityRule",
+    "UserFieldRule",
+    "UserCategoryRule",
+    "DatacreditoScoreRule",
+    "BandaGastosFijos",
+    "FrecuenciaDataCredito",
+    "RiskBureauCredential",
+    "ApplicationInquiryLink",
+    "ApplicationBureauVerification",
+    "TransactionStatus",
+    "GatewayPaymentType",
+    "RequestStatus",
+    "ApplicationMode",
+    "EcommerceChannel",
+    "EcommerceOrderLink",
+    "PaymentLinkLink",
+    "FieldCategory",
+    "FieldOption",
+    "PaymentStatus",
+    "ProcessStatus",
+    "Attachment",
+    "LenderAmountConditions",
+    "QuotaRestriction",
+    "EarlyPaymentDiscount",
+    "BlacklistedDocument",
+    "IncentiveMessage",
+    "ReminderMessage",
+    "TermsAndConditions",
+    "CreditLineCatalog",
+    "RiskAssessmentSnapshot",
+    "Provider",
+    "ProviderType",
+    "HolidayCalendar",
+    "PricingFormula",
+    "Offer",
+    "ChangeType",
+    "ClosingPattern"
+  ]
+}

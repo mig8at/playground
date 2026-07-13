@@ -1,0 +1,743 @@
+[
+ {
+  "key": "customer",
+  "name": "Customer",
+  "tipo": "aggregateRoot",
+  "estado": "mapeada_ok",
+  "descripcion": "El cliente titular, persona natural que solicita y recibe el crédito. Reúne sus datos personales, su documento de identidad y el resultado de la verificación de identidad, y es la referencia central para saber quién es la persona y si está validada para originar un crédito.",
+  "legacy": {
+   "tabla": "users",
+   "reducidas": [
+    {
+     "n": "full_name",
+     "legacy": "full_name",
+     "via": "derivada: first_name+surname"
+    },
+    {
+     "n": "age",
+     "legacy": "age",
+     "via": "derivada: date_of_birth"
+    },
+    {
+     "n": "new_id",
+     "legacy": "new_id",
+     "via": "derivada: DocumentType.format por país"
+    },
+    {
+     "n": "manual_register",
+     "legacy": "manual_register",
+     "via": "telemetría (canal de origen)"
+    },
+    {
+     "n": "mobile_created",
+     "legacy": "mobile_created",
+     "via": "telemetría (canal de origen)"
+    },
+    {
+     "n": "validated",
+     "legacy": "validated",
+     "via": "derivada: cumplimiento de VerificationPolicy"
+    },
+    {
+     "n": "manual_validation",
+     "legacy": "manual_validation",
+     "via": "derivada: VerificationPolicy (paso manual)"
+    },
+    {
+     "n": "cell_phone_validation",
+     "legacy": "cellphone_validation",
+     "via": "derivada: Otp validado"
+    },
+    {
+     "n": "password",
+     "legacy": "users.password",
+     "via": "infra Cognito (no dominio): autenticación y MFA en el IdP"
+    },
+    {
+     "n": "two_factor_secret",
+     "legacy": "users.two_factor_secret",
+     "via": "infra Cognito (no dominio): autenticación y MFA en el IdP"
+    },
+    {
+     "n": "two_factor_recovery_codes",
+     "legacy": "users.two_factor_recovery_codes",
+     "via": "infra Cognito (no dominio): autenticación y MFA en el IdP"
+    }
+   ]
+  },
+  "atributos": [
+   {
+    "n": "id",
+    "t": "bigint unsigned",
+    "legacy": "users.id"
+   },
+   {
+    "n": "cognito_id",
+    "t": "char(36)",
+    "legacy": "users.cognito_id"
+   },
+   {
+    "n": "profile_id",
+    "t": "int",
+    "legacy": "users.user_profile_id"
+   },
+   {
+    "n": "lender_id",
+    "t": "bigint",
+    "legacy": "users.lender_id"
+   },
+   {
+    "n": "merchant_id",
+    "t": "int",
+    "legacy": "users.allied_id"
+   },
+   {
+    "n": "multiple_allieds",
+    "t": "varchar(255)",
+    "legacy": "multiple_allieds"
+   },
+   {
+    "n": "merchant_branch_id",
+    "t": "int",
+    "legacy": "users.allied_branch_id"
+   },
+   {
+    "n": "first_name",
+    "t": "varchar(255)",
+    "legacy": "users.first_name"
+   },
+   {
+    "n": "surname",
+    "t": "varchar(255)",
+    "legacy": "users.surname"
+   },
+   {
+    "n": "document_type",
+    "t": "varchar(255)",
+    "legacy": "users.document_type"
+   },
+   {
+    "n": "document_number",
+    "t": "varchar(255)",
+    "legacy": "users.document_number"
+   },
+   {
+    "n": "expedition_date",
+    "t": "date",
+    "legacy": "users.expedition_date"
+   },
+   {
+    "n": "date_of_birth",
+    "t": "date",
+    "legacy": "users.date_of_birth"
+   },
+   {
+    "n": "gender",
+    "t": "char(1)",
+    "legacy": "users.gender"
+   },
+   {
+    "n": "issue_country",
+    "t": "varchar(255)",
+    "legacy": "users.issue_country"
+   },
+   {
+    "n": "place_of_birth",
+    "t": "varchar(255)",
+    "legacy": "users.place_of_birth"
+   },
+   {
+    "n": "country_id",
+    "t": "int",
+    "legacy": "users.country_id"
+   },
+   {
+    "n": "face_model_url",
+    "t": "text",
+    "legacy": "users.face_model_url"
+   },
+   {
+    "n": "front_url",
+    "t": "text",
+    "legacy": "users.front_url"
+   },
+   {
+    "n": "back_url",
+    "t": "text",
+    "legacy": "users.back_url"
+   },
+   {
+    "n": "cell_phone",
+    "t": "varchar(255)",
+    "legacy": "users.cell_phone"
+   },
+   {
+    "n": "email",
+    "t": "varchar(255)",
+    "legacy": "users.email"
+   },
+   {
+    "n": "email_verified_at",
+    "t": "timestamp",
+    "legacy": "users.email_verified_at"
+   },
+   {
+    "n": "status",
+    "t": "tinyint(1)",
+    "legacy": "users.status"
+   },
+   {
+    "n": "last_validation",
+    "t": "datetime",
+    "legacy": "users.last_validation"
+   }
+  ]
+ },
+ {
+  "key": "corporateUser",
+  "name": "CorporateUser",
+  "tipo": "entity",
+  "estado": "mapeada_ok",
+  "descripcion": "El asesor o colaborador del comercio aliado, quien atiende a los clientes en el punto de venta y gestiona sus solicitudes de crédito. Tiene su propia cuenta y vigencia, vinculada al comercio y a la sucursal donde trabaja.",
+  "legacy": {
+   "tabla": "corporate_users",
+   "reducidas": [
+    {
+     "n": "full_name",
+     "legacy": "full_name",
+     "via": "derivada: first_name+surname"
+    },
+    {
+     "n": "password",
+     "legacy": "password",
+     "via": "infra Cognito (no dominio): autenticación y MFA en el IdP"
+    }
+   ]
+  },
+  "atributos": [
+   {
+    "n": "id",
+    "t": "bigint unsigned",
+    "legacy": null
+   },
+   {
+    "n": "merchant_id",
+    "t": "int",
+    "legacy": "allied_id"
+   },
+   {
+    "n": "merchant_branch_id",
+    "t": "int",
+    "legacy": "allied_branch_id"
+   },
+   {
+    "n": "first_name",
+    "t": "varchar(255)",
+    "legacy": null
+   },
+   {
+    "n": "surname",
+    "t": "varchar(255)",
+    "legacy": null
+   },
+   {
+    "n": "document_number",
+    "t": "varchar(255)",
+    "legacy": null
+   },
+   {
+    "n": "cell_phone",
+    "t": "varchar(255)",
+    "legacy": null
+   },
+   {
+    "n": "email",
+    "t": "varchar(255)",
+    "legacy": null
+   },
+   {
+    "n": "cognito_sub",
+    "t": "uuid",
+    "legacy": null
+   },
+   {
+    "n": "email_verified_at",
+    "t": "timestamp",
+    "legacy": null
+   },
+   {
+    "n": "country_id",
+    "t": "int",
+    "legacy": null
+   },
+   {
+    "n": "status",
+    "t": "tinyint(1)",
+    "legacy": null
+   }
+  ]
+ },
+ {
+  "key": "otp",
+  "name": "Otp",
+  "tipo": "entity",
+  "estado": "mapeada_ok",
+  "descripcion": "El código de un solo uso que se envía al celular del cliente para confirmar que es él quien actúa en un momento clave del proceso, como autenticarse o aceptar términos. Lleva el control de si fue emitido, validado o ya venció.",
+  "legacy": {
+   "tabla": "otps"
+  },
+  "atributos": [
+   {
+    "n": "id",
+    "t": "bigint unsigned",
+    "legacy": null
+   },
+   {
+    "n": "customer_id",
+    "t": "bigint",
+    "legacy": "user_id"
+   },
+   {
+    "n": "cell_phone",
+    "t": "varchar(255)",
+    "legacy": null
+   },
+   {
+    "n": "otp",
+    "t": "text",
+    "legacy": null
+   },
+   {
+    "n": "response",
+    "t": "longtext",
+    "legacy": null
+   },
+   {
+    "n": "validated",
+    "t": "tinyint(1)",
+    "legacy": null
+   },
+   {
+    "n": "status",
+    "t": "tinyint(1)",
+    "legacy": null
+   }
+  ]
+ },
+ {
+  "key": "termsAcceptance",
+  "name": "TermsAcceptance",
+  "tipo": "entity",
+  "estado": "mapeada_ok",
+  "descripcion": "El registro de que un cliente aceptó los términos y condiciones dentro de una solicitud de crédito, respaldado por el código de confirmación y el documento firmado. Sirve como evidencia y soporte de auditoría del consentimiento otorgado.",
+  "legacy": {
+   "tabla": "user_terms_acepteds"
+  },
+  "atributos": [
+   {
+    "n": "id",
+    "t": "bigint unsigned",
+    "legacy": null
+   },
+   {
+    "n": "customer_id",
+    "t": "bigint",
+    "legacy": "user_id"
+   },
+   {
+    "n": "loan_application_id",
+    "t": "bigint",
+    "legacy": "user_request_id"
+   },
+   {
+    "n": "terms_and_conditions_id",
+    "t": "int",
+    "legacy": null
+   },
+   {
+    "n": "otp_id",
+    "t": "bigint unsigned",
+    "legacy": null
+   },
+   {
+    "n": "accepted_document",
+    "t": "text",
+    "legacy": null
+   },
+   {
+    "n": "status",
+    "t": "tinyint(1)",
+    "legacy": null
+   }
+  ]
+ },
+ {
+  "key": "profilingReview",
+  "name": "ProfilingReview",
+  "tipo": "entity",
+  "estado": "mapeada_ok",
+  "descripcion": "La decisión de perfilamiento de una solicitud: qué entidades financieras se le recomendaron y mostraron al cliente, cuál terminó desembolsando y qué reglas y predicciones de scoring intervinieron. Deja trazabilidad de cómo se enrutó la solicitud hacia el lender más adecuado.",
+  "legacy": {
+   "tabla": "profiling_reviews"
+  },
+  "atributos": [
+   {
+    "n": "id",
+    "t": "bigint unsigned",
+    "legacy": null
+   },
+   {
+    "n": "customer_id",
+    "t": "int",
+    "legacy": "user_id"
+   },
+   {
+    "n": "merchant_id",
+    "t": "int",
+    "legacy": "allied_id"
+   },
+   {
+    "n": "loan_application_id",
+    "t": "int",
+    "legacy": "user_request_id"
+   },
+   {
+    "n": "recommended_lender",
+    "t": "int",
+    "legacy": null
+   },
+   {
+    "n": "disbursed_lender",
+    "t": "int",
+    "legacy": null
+   },
+   {
+    "n": "displayed_lenders",
+    "t": "json",
+    "legacy": null
+   },
+   {
+    "n": "hard_rules",
+    "t": "json",
+    "legacy": null
+   },
+   {
+    "n": "selected_lenders",
+    "t": "text",
+    "legacy": null
+   },
+   {
+    "n": "datacredito_query",
+    "t": "tinyint(1)",
+    "legacy": null
+   },
+   {
+    "n": "demographic_predictions",
+    "t": "json",
+    "legacy": "demog_predictions"
+   },
+   {
+    "n": "matrix_predictions",
+    "t": "json",
+    "legacy": null
+   },
+   {
+    "n": "ml_predictions",
+    "t": "json",
+    "legacy": "ML_predictions"
+   }
+  ]
+ },
+ {
+  "key": "profilingRun",
+  "name": "ProfilingRun",
+  "tipo": "entity",
+  "estado": "mapeada_ok",
+  "descripcion": "Una ejecución masiva del perfilamiento crediticio sobre un conjunto de clientes o solicitudes en una ventana de tiempo. Permite calcular y actualizar de forma agrupada las predicciones de scoring que alimentan las decisiones de elegibilidad.",
+  "legacy": {
+   "tabla": "profilings"
+  },
+  "atributos": [
+   {
+    "n": "id",
+    "t": "bigint unsigned",
+    "legacy": null
+   },
+   {
+    "n": "initial_date",
+    "t": "date",
+    "legacy": null
+   },
+   {
+    "n": "final_date",
+    "t": "date",
+    "legacy": null
+   },
+   {
+    "n": "processing_time",
+    "t": "double(8,2)",
+    "legacy": null
+   },
+   {
+    "n": "number_of_samples",
+    "t": "int",
+    "legacy": null
+   },
+   {
+    "n": "profiling",
+    "t": "longtext",
+    "legacy": null
+   },
+   {
+    "n": "status",
+    "t": "tinyint(1)",
+    "legacy": null
+   }
+  ]
+ },
+ {
+  "key": "identityVerification",
+  "name": "IdentityVerification",
+  "tipo": "aggregateRoot",
+  "estado": "mapeada_ok",
+  "descripcion": "La verificación de identidad de un solicitante a lo largo de su solicitud de crédito, que unifica las distintas validaciones de KYC, biometría y firma realizadas con proveedores externos. Concentra el resultado y la evidencia de cada validación para determinar si la persona es quien dice ser y puede continuar.",
+  "legacy": {
+   "tabla": "validations",
+   "absorbe": [
+    "jumio_accounts",
+    "crosscore_evaluations",
+    "netco_signing_documents"
+   ],
+   "unificacion": "Antes cada proveedor de verificación tenía su propia tabla (Jumio, CrossCore, Netco). Se unifican porque todos cumplen la misma función de negocio —comprobar la identidad del cliente—, de modo que cada verificación queda como un único registro, sin importar qué proveedor la realice."
+  },
+  "atributos": [
+   {
+    "n": "id",
+    "t": "bigint",
+    "legacy": null
+   },
+   {
+    "n": "provider",
+    "t": "ref(Provider)",
+    "legacy": null
+   },
+   {
+    "n": "evidence",
+    "t": "json",
+    "legacy": null
+   },
+   {
+    "n": "external_ref",
+    "t": "varchar(255)",
+    "legacy": null
+   },
+   {
+    "n": "customer_id",
+    "t": "bigint",
+    "legacy": "user_id"
+   },
+   {
+    "n": "loan_application_id",
+    "t": "bigint",
+    "legacy": "user_request_id"
+   },
+   {
+    "n": "validation",
+    "t": "string",
+    "legacy": null
+   },
+   {
+    "n": "comment",
+    "t": "string",
+    "legacy": null
+   }
+  ]
+ },
+ {
+  "key": "deviceLock",
+  "name": "DeviceLock",
+  "tipo": "entity",
+  "estado": "mapeada_ok",
+  "descripcion": "El control de bloqueo y liberación del dispositivo financiado en una operación de Creditop X. Permite bloquear el equipo ante mora y liberarlo una vez el cliente se pone al día, como mecanismo de garantía sobre el bien financiado.",
+  "legacy": {
+   "tabla": "device_locks",
+   "absorbe": [
+    "user_request_device_info"
+   ],
+   "unificacion": "La información del dispositivo y su bloqueo estaban en tablas distintas. Se unifican porque ambas describen el mismo elemento —el equipo financiado y su estado de bloqueo o desbloqueo— a lo largo del crédito."
+  },
+  "atributos": [
+   {
+    "n": "id",
+    "t": "bigint",
+    "legacy": null
+   },
+   {
+    "n": "user_request_product_id",
+    "t": "bigint",
+    "legacy": null
+   },
+   {
+    "n": "imei",
+    "t": "string",
+    "legacy": null
+   },
+   {
+    "n": "status",
+    "t": "enum",
+    "legacy": null
+   },
+   {
+    "n": "locked_at",
+    "t": "timestamp",
+    "legacy": null
+   },
+   {
+    "n": "unlocked_at",
+    "t": "timestamp",
+    "legacy": null
+   },
+   {
+    "n": "api_response",
+    "t": "json",
+    "legacy": null
+   }
+  ]
+ },
+ {
+  "key": "customerMerchant",
+  "name": "CustomerMerchant",
+  "tipo": "entity",
+  "estado": "NUEVA_greenfield",
+  "descripcion": "El vínculo entre un cliente y los comercios aliados con los que ha operado, señalando cuál es su comercio principal. Permite reconocer en qué aliados el cliente tiene relación y por dónde llegó al ecosistema.",
+  "legacy": {
+   "ref": "green-field (normaliza users.multiple_allieds [array JSON] + users.merchant_id [primario])"
+  },
+  "atributos": [
+   {
+    "n": "id",
+    "t": "bigint unsigned",
+    "legacy": null
+   },
+   {
+    "n": "customer_id",
+    "t": "bigint unsigned",
+    "legacy": null
+   },
+   {
+    "n": "merchant_id",
+    "t": "bigint unsigned",
+    "legacy": null
+   },
+   {
+    "n": "is_primary",
+    "t": "tinyint(1)",
+    "legacy": null
+   },
+   {
+    "n": "status",
+    "t": "tinyint(1)",
+    "legacy": null
+   },
+   {
+    "n": "created_at",
+    "t": "timestamp",
+    "legacy": null
+   }
+  ]
+ },
+ {
+  "key": "verificationPolicy",
+  "name": "VerificationPolicy",
+  "tipo": "aggregateRoot",
+  "estado": "NUEVA_greenfield",
+  "descripcion": "La configuración que define, según el país, la entidad financiera, el comercio, la sucursal o el tipo de documento, qué documentos se aceptan y qué controles de verificación de identidad se exigen. Permite ajustar las exigencias de KYC por contexto sin depender de reglas fijas, aplicando siempre la configuración más específica.",
+  "legacy": {
+   "ref": "green-field (configurador; reemplaza bypass_centrales + flags de KYC, hoy en código/SP)"
+  },
+  "atributos": [
+   {
+    "n": "id",
+    "t": "bigint unsigned",
+    "legacy": null
+   },
+   {
+    "n": "country_id",
+    "t": "bigint unsigned",
+    "legacy": null
+   },
+   {
+    "n": "lender_id",
+    "t": "bigint unsigned",
+    "legacy": null
+   },
+   {
+    "n": "merchant_id",
+    "t": "bigint unsigned",
+    "legacy": null
+   },
+   {
+    "n": "merchant_branch_id",
+    "t": "bigint unsigned",
+    "legacy": null
+   },
+   {
+    "n": "document_type_id",
+    "t": "bigint unsigned",
+    "legacy": null
+   },
+   {
+    "n": "status",
+    "t": "tinyint(1)",
+    "legacy": null
+   }
+  ]
+ },
+ {
+  "key": "verificationStep",
+  "name": "VerificationStep",
+  "tipo": "entity",
+  "estado": "NUEVA_greenfield",
+  "descripcion": "Cada control concreto que compone una política de verificación, por ejemplo la consulta a buró, la validación AML, la comparación facial o la firma. Define qué se exige, si es obligatorio u opcional y qué hacer si falla, permitiendo armar excepciones regulatorias como ajustes de configuración.",
+  "legacy": {
+   "ref": "green-field (los pasos hoy viven en SP_Update_User_Request_Risk_Centrals y clases Action)"
+  },
+  "atributos": [
+   {
+    "n": "id",
+    "t": "bigint unsigned",
+    "legacy": null
+   },
+   {
+    "n": "verification_policy_id",
+    "t": "bigint unsigned",
+    "legacy": null
+   },
+   {
+    "n": "step_kind",
+    "t": "enum('bureau','aml_restrictive_list','facial_match','doc_verification','ocr','e_signature')",
+    "legacy": null
+   },
+   {
+    "n": "provider_kind",
+    "t": "varchar(40)",
+    "legacy": null
+   },
+   {
+    "n": "required",
+    "t": "enum('mandatory','skip','optional')",
+    "legacy": null
+   },
+   {
+    "n": "on_fail",
+    "t": "enum('block','skip','manual')",
+    "legacy": null
+   },
+   {
+    "n": "sort",
+    "t": "int",
+    "legacy": null
+   }
+  ]
+ }
+]

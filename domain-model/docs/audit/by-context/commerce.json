@@ -1,0 +1,712 @@
+[
+ {
+  "key": "merchant",
+  "name": "Merchant",
+  "tipo": "aggregateRoot",
+  "estado": "mapeada_ok",
+  "descripcion": "El comercio aliado que ofrece crédito a sus clientes en el punto de venta, con su red de sucursales y zonas, su catálogo de productos, los términos negociados con cada entidad financiera y su configuración operativa. Define quién vende y bajo qué condiciones financieras se origina el crédito, e indica si cuenta con su propia línea Creditop X.",
+  "legacy": {
+   "tabla": "allieds",
+   "reducidas": [
+    {
+     "n": "flow_type",
+     "legacy": "flow_type",
+     "via": "MerchantSetting"
+    },
+    {
+     "n": "barcode_type",
+     "legacy": "barcode_type",
+     "via": "MerchantSetting"
+    },
+    {
+     "n": "self_managed",
+     "legacy": "self_managed",
+     "via": "MerchantSetting"
+    },
+    {
+     "n": "initial_fee",
+     "legacy": "initial_fee",
+     "via": "MerchantSetting"
+    },
+    {
+     "n": "allows_other_payment",
+     "legacy": "allow_other_payment",
+     "via": "MerchantSetting"
+    },
+    {
+     "n": "payment",
+     "legacy": "payment",
+     "via": "MerchantSetting"
+    },
+    {
+     "n": "preapproved_registration",
+     "legacy": "preapproved_registration",
+     "via": "MerchantSetting"
+    },
+    {
+     "n": "show_profiling",
+     "legacy": "show_profiling",
+     "via": "MerchantSetting"
+    },
+    {
+     "n": "is_available_in_app",
+     "legacy": "is_available_in_app",
+     "via": "MerchantSetting"
+    }
+   ]
+  },
+  "atributos": [
+   {
+    "n": "id",
+    "t": "bigint unsigned",
+    "legacy": "id"
+   },
+   {
+    "n": "name",
+    "t": "varchar(255)",
+    "legacy": "name"
+   },
+   {
+    "n": "slug",
+    "t": "varchar(255)",
+    "legacy": "slug"
+   },
+   {
+    "n": "description",
+    "t": "varchar(255)",
+    "legacy": "description"
+   },
+   {
+    "n": "hash",
+    "t": "varchar(255)",
+    "legacy": "hash"
+   },
+   {
+    "n": "category_id",
+    "t": "int",
+    "legacy": "allied_caterogy_id"
+   },
+   {
+    "n": "industry_id",
+    "t": "int",
+    "legacy": "allied_industry_id"
+   },
+   {
+    "n": "type_id",
+    "t": "int",
+    "legacy": "allied_type_id"
+   },
+   {
+    "n": "payment_plan_id",
+    "t": "int",
+    "legacy": "payment_plan_id"
+   },
+   {
+    "n": "country_id",
+    "t": "int",
+    "legacy": "country_id"
+   },
+   {
+    "n": "has_ctopx",
+    "t": "tinyint(1)",
+    "legacy": "have_ctopx"
+   },
+   {
+    "n": "initial_fee_percentage",
+    "t": "int",
+    "legacy": "initial_fee_percentage"
+   },
+   {
+    "n": "starred_at",
+    "t": "timestamp",
+    "legacy": "star_allied"
+   },
+   {
+    "n": "sort_order",
+    "t": "int",
+    "legacy": "order"
+   },
+   {
+    "n": "status",
+    "t": "tinyint(1)",
+    "legacy": "status"
+   }
+  ]
+ },
+ {
+  "key": "merchantBranch",
+  "name": "MerchantBranch",
+  "tipo": "entity",
+  "estado": "mapeada_ok",
+  "descripcion": "La sucursal o punto de venta del comercio aliado donde se origina el crédito, con su ubicación, datos de contacto y vigencia propios. Determina dónde se atiende al cliente y puede habilitar de forma independiente la oferta de Creditop X.",
+  "legacy": {
+   "tabla": "allied_branches"
+  },
+  "atributos": [
+   {
+    "n": "id",
+    "t": "bigint unsigned",
+    "legacy": null
+   },
+   {
+    "n": "external_id",
+    "t": "varchar(255)",
+    "legacy": null
+   },
+   {
+    "n": "merchant_id",
+    "t": "int",
+    "legacy": "allied_id"
+   },
+   {
+    "n": "has_ctopx",
+    "t": "tinyint(1)",
+    "legacy": null
+   },
+   {
+    "n": "merchant_zone_id",
+    "t": "bigint unsigned",
+    "legacy": "allied_zone_id"
+   },
+   {
+    "n": "name",
+    "t": "varchar(255)",
+    "legacy": null
+   },
+   {
+    "n": "address",
+    "t": "varchar(255)",
+    "legacy": null
+   },
+   {
+    "n": "city_id",
+    "t": "bigint",
+    "legacy": "country_city_id"
+   },
+   {
+    "n": "hash",
+    "t": "varchar(255)",
+    "legacy": null
+   },
+   {
+    "n": "contact",
+    "t": "longtext",
+    "legacy": null
+   },
+   {
+    "n": "datacredito_trigger",
+    "t": "json",
+    "legacy": null
+   },
+   {
+    "n": "sort",
+    "t": "int",
+    "legacy": null
+   },
+   {
+    "n": "status",
+    "t": "tinyint(1)",
+    "legacy": null
+   }
+  ]
+ },
+ {
+  "key": "merchantZone",
+  "name": "MerchantZone",
+  "tipo": "entity",
+  "estado": "mapeada_ok",
+  "descripcion": "La agrupación geográfica o comercial de sucursales de un comercio aliado. Sirve para organizar la red del comercio por regiones o segmentos en la gestión y el seguimiento comercial.",
+  "legacy": {
+   "tabla": "allied_zones"
+  },
+  "atributos": [
+   {
+    "n": "id",
+    "t": "bigint unsigned",
+    "legacy": null
+   },
+   {
+    "n": "merchant_id",
+    "t": "bigint unsigned",
+    "legacy": "allied_id"
+   },
+   {
+    "n": "name",
+    "t": "varchar(255)",
+    "legacy": null
+   }
+  ]
+ },
+ {
+  "key": "product",
+  "name": "Product",
+  "tipo": "entity",
+  "estado": "mapeada_ok",
+  "descripcion": "El producto que el comercio aliado ofrece a crédito, con su precio y sus condiciones de financiación como monto máximo, plazo, cuota inicial y cargos asociados. Es lo que el cliente financia en una solicitud y define los límites comerciales de esa operación.",
+  "legacy": {
+   "tabla": "products"
+  },
+  "atributos": [
+   {
+    "n": "id",
+    "t": "bigint unsigned",
+    "legacy": null
+   },
+   {
+    "n": "name",
+    "t": "varchar(255)",
+    "legacy": null
+   },
+   {
+    "n": "brand",
+    "t": "varchar(255)",
+    "legacy": null
+   },
+   {
+    "n": "model",
+    "t": "varchar(255)",
+    "legacy": null
+   },
+   {
+    "n": "category_id",
+    "t": "bigint unsigned",
+    "legacy": "product_category_id"
+   },
+   {
+    "n": "merchant_id",
+    "t": "bigint unsigned",
+    "legacy": "allied_id"
+   },
+   {
+    "n": "lender_id",
+    "t": "bigint unsigned",
+    "legacy": null
+   },
+   {
+    "n": "merchant_event_id",
+    "t": "bigint unsigned",
+    "legacy": null
+   },
+   {
+    "n": "price",
+    "t": "int",
+    "legacy": null
+   },
+   {
+    "n": "max_amount",
+    "t": "decimal(12,2)",
+    "legacy": null
+   },
+   {
+    "n": "max_term",
+    "t": "smallint unsigned",
+    "legacy": null
+   },
+   {
+    "n": "initial_fee",
+    "t": "decimal(15,4)",
+    "legacy": null
+   },
+   {
+    "n": "booking_fee",
+    "t": "double(8,2)",
+    "legacy": null
+   },
+   {
+    "n": "delivery_fee",
+    "t": "double(8,2)",
+    "legacy": null
+   },
+   {
+    "n": "max_quantity",
+    "t": "int",
+    "legacy": "max_cant"
+   },
+   {
+    "n": "requires_imei",
+    "t": "tinyint(1)",
+    "legacy": null
+   },
+   {
+    "n": "sort_order",
+    "t": "int",
+    "legacy": "order"
+   },
+   {
+    "n": "status",
+    "t": "tinyint(1)",
+    "legacy": null
+   }
+  ]
+ },
+ {
+  "key": "lenderTerms",
+  "name": "LenderTerms",
+  "tipo": "entity",
+  "estado": "mapeada_ok",
+  "descripcion": "Las condiciones comerciales y financieras pactadas entre una entidad financiera y un comercio aliado: comisiones, seguros, aporte al fondo de garantía, costos de originación, montos y cuotas iniciales admitidos. Gobiernan el costo y los límites bajo los cuales esa entidad financia las ventas de ese comercio.",
+  "legacy": {
+   "tabla": "lenders_by_allieds"
+  },
+  "atributos": [
+   {
+    "n": "id",
+    "t": "bigint unsigned",
+    "legacy": null
+   },
+   {
+    "n": "lender_id",
+    "t": "int",
+    "legacy": null
+   },
+   {
+    "n": "merchant_id",
+    "t": "int",
+    "legacy": "allied_id"
+   },
+   {
+    "n": "bank_id",
+    "t": "int",
+    "legacy": null
+   },
+   {
+    "n": "url_utm",
+    "t": "text",
+    "legacy": null
+   },
+   {
+    "n": "confirmation_emails",
+    "t": "longtext",
+    "legacy": null
+   },
+   {
+    "n": "expense_penalties_percentage",
+    "t": "double",
+    "legacy": null
+   },
+   {
+    "n": "administrative_costs_percentage",
+    "t": "double",
+    "legacy": null
+   },
+   {
+    "n": "administrative_fixed_value",
+    "t": "double(8,2)",
+    "legacy": null
+   },
+   {
+    "n": "life_insurance_percentage",
+    "t": "double",
+    "legacy": null
+   },
+   {
+    "n": "life_insurance_fixed",
+    "t": "double",
+    "legacy": null
+   },
+   {
+    "n": "insurance_fixed_monthly_percentage",
+    "t": "double(8,2)",
+    "legacy": null
+   },
+   {
+    "n": "insurance_percentage_per_million",
+    "t": "int",
+    "legacy": null
+   },
+   {
+    "n": "guarantee_fund_percentage",
+    "t": "double",
+    "legacy": null
+   },
+   {
+    "n": "guarantee_fixed_monthly_percentage",
+    "t": "double(8,2)",
+    "legacy": null
+   },
+   {
+    "n": "guarantee_insurance_per_million",
+    "t": "decimal(10,2)",
+    "legacy": null
+   },
+   {
+    "n": "origination_cost_fixed",
+    "t": "decimal(10,2)",
+    "legacy": null
+   },
+   {
+    "n": "commission_percentage",
+    "t": "int",
+    "legacy": "comission_percentage"
+   },
+   {
+    "n": "vat_percentage",
+    "t": "double",
+    "legacy": "iva"
+   },
+   {
+    "n": "initial_fee_percentage",
+    "t": "double(8,2)",
+    "legacy": null
+   },
+   {
+    "n": "min_initial_fee",
+    "t": "int",
+    "legacy": null
+   },
+   {
+    "n": "min_amount",
+    "t": "int",
+    "legacy": null
+   },
+   {
+    "n": "max_amount",
+    "t": "int",
+    "legacy": null
+   },
+   {
+    "n": "min_product_amount",
+    "t": "decimal(19,2)",
+    "legacy": null
+   },
+   {
+    "n": "multiple_of_maximum_amount",
+    "t": "double",
+    "legacy": null
+   },
+   {
+    "n": "credit_note_calculation_id",
+    "t": "int",
+    "legacy": null
+   },
+   {
+    "n": "starting_value_calculation_id",
+    "t": "int",
+    "legacy": null
+   },
+   {
+    "n": "enable_collection",
+    "t": "tinyint(1)",
+    "legacy": null
+   },
+   {
+    "n": "user_self_management",
+    "t": "tinyint(1)",
+    "legacy": null
+   },
+   {
+    "n": "sort",
+    "t": "int",
+    "legacy": null
+   },
+   {
+    "n": "status",
+    "t": "tinyint(1)",
+    "legacy": null
+   }
+  ]
+ },
+ {
+  "key": "merchantEvent",
+  "name": "MerchantEvent",
+  "tipo": "entity",
+  "estado": "mapeada_ok",
+  "descripcion": "Un evento comercial del comercio aliado, como una feria o activación, con su ventana de fechas y ubicación. Agrupa los productos y condiciones especiales de financiación disponibles durante esa actividad.",
+  "legacy": {
+   "tabla": "merchant_events"
+  },
+  "atributos": [
+   {
+    "n": "id",
+    "t": "bigint unsigned",
+    "legacy": null
+   },
+   {
+    "n": "name",
+    "t": "varchar(255)",
+    "legacy": null
+   },
+   {
+    "n": "description",
+    "t": "text",
+    "legacy": null
+   },
+   {
+    "n": "start_time",
+    "t": "datetime",
+    "legacy": null
+   },
+   {
+    "n": "end_time",
+    "t": "datetime",
+    "legacy": null
+   },
+   {
+    "n": "location",
+    "t": "varchar(255)",
+    "legacy": null
+   },
+   {
+    "n": "merchant_id",
+    "t": "bigint unsigned",
+    "legacy": "allied_id"
+   },
+   {
+    "n": "merchant_branch_id",
+    "t": "bigint unsigned",
+    "legacy": "allied_branch_id"
+   }
+  ]
+ },
+ {
+  "key": "merchantGoal",
+  "name": "MerchantGoal",
+  "tipo": "entity",
+  "estado": "mapeada_ok",
+  "descripcion": "La meta comercial de un comercio aliado para un periodo, fijada por su ejecutivo de cuenta en términos de desembolsos, volumen transaccional, ingresos por servicio y originación de Creditop X. Sirve para planear y medir el desempeño comercial de la relación con el aliado.",
+  "legacy": {
+   "tabla": "allied_goals"
+  },
+  "atributos": [
+   {
+    "n": "id",
+    "t": "int",
+    "legacy": null
+   },
+   {
+    "n": "merchant_id",
+    "t": "bigint unsigned",
+    "legacy": "allied_id"
+   },
+   {
+    "n": "kam",
+    "t": "varchar(100)",
+    "legacy": "KAM"
+   },
+   {
+    "n": "period",
+    "t": "date",
+    "legacy": null
+   },
+   {
+    "n": "disbursement_goal",
+    "t": "decimal(19,2)",
+    "legacy": "goal_desembolsos"
+   },
+   {
+    "n": "transactional_goal",
+    "t": "decimal(19,2)",
+    "legacy": "goal_transaccional"
+   },
+   {
+    "n": "saas_goal",
+    "t": "decimal(19,2)",
+    "legacy": "goal_saas"
+   },
+   {
+    "n": "billed_saas",
+    "t": "decimal(19,2)",
+    "legacy": null
+   },
+   {
+    "n": "goal_ctopx",
+    "t": "decimal(19,2)",
+    "legacy": null
+   }
+  ]
+ },
+ {
+  "key": "merchantSetting",
+  "name": "MerchantSetting",
+  "tipo": "entity",
+  "estado": "NUEVA_greenfield",
+  "descripcion": "Las preferencias y capacidades configurables de un comercio aliado, que ajustan cómo opera dentro de la plataforma. Permiten calibrar el comportamiento del comercio mediante parámetros gobernados por catálogo en lugar de condiciones rígidas.",
+  "legacy": {
+   "ref": "green-field (hoy son columnas-flag en allieds)"
+  },
+  "atributos": [
+   {
+    "n": "id",
+    "t": "bigint unsigned",
+    "legacy": null
+   },
+   {
+    "n": "merchant_id",
+    "t": "bigint unsigned",
+    "legacy": null
+   },
+   {
+    "n": "key",
+    "t": "varchar(80)",
+    "legacy": null
+   },
+   {
+    "n": "value",
+    "t": "varchar(255)",
+    "legacy": null
+   },
+   {
+    "n": "value_type",
+    "t": "varchar(20)",
+    "legacy": null
+   },
+   {
+    "n": "status",
+    "t": "tinyint(1)",
+    "legacy": null
+   }
+  ]
+ },
+ {
+  "key": "alliedEcommerceCredential",
+  "name": "AlliedEcommerceCredential",
+  "tipo": "entity",
+  "estado": "mapeada_ok",
+  "descripcion": "Las credenciales que conectan a un comercio aliado y su sucursal con su tienda en línea, habilitando la originación de crédito por el canal de ecommerce. Permiten que la tienda y la plataforma se comuniquen de forma segura durante el proceso de compra.",
+  "legacy": {
+   "tabla": "allied_ecommerce_credentials"
+  },
+  "atributos": [
+   {
+    "n": "id",
+    "t": "bigint unsigned",
+    "legacy": null
+   },
+   {
+    "n": "allied_id",
+    "t": "bigint unsigned",
+    "legacy": null
+   },
+   {
+    "n": "allied_branch_id",
+    "t": "bigint unsigned",
+    "legacy": null
+   },
+   {
+    "n": "ecommerce_type_id",
+    "t": "varchar(255)",
+    "legacy": null
+   },
+   {
+    "n": "credential",
+    "t": "text",
+    "legacy": null
+   },
+   {
+    "n": "customer_key",
+    "t": "text",
+    "legacy": null
+   },
+   {
+    "n": "customer_secret",
+    "t": "text",
+    "legacy": null
+   },
+   {
+    "n": "headers",
+    "t": "text",
+    "legacy": null
+   }
+  ]
+ }
+]

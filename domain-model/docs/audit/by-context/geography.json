@@ -1,0 +1,244 @@
+[
+ {
+  "key": "country",
+  "name": "Country",
+  "tipo": "aggregateRoot",
+  "estado": "mapeada_ok",
+  "descripcion": "Representa cada país en el que opera Creditop y concentra las reglas y referencias propias de ese mercado: su moneda, idioma, prefijos y formatos de teléfono y dirección. Es la base sobre la que se sostiene la operación multi-país y permite saber dónde se originan y cobran los créditos.",
+  "legacy": {
+   "tabla": "countries",
+   "reducidas": [
+    {
+     "n": "image",
+     "legacy": "image",
+     "via": "branding (no dominio)"
+    }
+   ]
+  },
+  "atributos": [
+   {
+    "n": "id",
+    "t": "bigint unsigned",
+    "legacy": "id"
+   },
+   {
+    "n": "name",
+    "t": "varchar(255)",
+    "legacy": "name"
+   },
+   {
+    "n": "iso_code_2",
+    "t": "varchar(255)",
+    "legacy": "iso_code_2"
+   },
+   {
+    "n": "iso_code_3",
+    "t": "varchar(255)",
+    "legacy": "iso_code_3"
+   },
+   {
+    "n": "dial_code",
+    "t": "varchar(255)",
+    "legacy": "dial_code"
+   },
+   {
+    "n": "phone_code",
+    "t": "varchar(5)",
+    "legacy": "phone_code"
+   },
+   {
+    "n": "cell_phone_length",
+    "t": "varchar(255)",
+    "legacy": "cell_phone_lenght"
+   },
+   {
+    "n": "address_format",
+    "t": "varchar(255)",
+    "legacy": "address_format"
+   },
+   {
+    "n": "locale",
+    "t": "varchar(255)",
+    "legacy": "locale"
+   },
+   {
+    "n": "currency",
+    "t": "varchar(255)",
+    "legacy": "currency"
+   },
+   {
+    "n": "is_operating",
+    "t": "tinyint(1)",
+    "legacy": null
+   },
+   {
+    "n": "operational_since",
+    "t": "date",
+    "legacy": null
+   },
+   {
+    "n": "status",
+    "t": "tinyint(1)",
+    "legacy": "status"
+   }
+  ]
+ },
+ {
+  "key": "zone",
+  "name": "Zone",
+  "tipo": "entity",
+  "estado": "mapeada_ok",
+  "descripcion": "Representa una región o departamento dentro de un país. Organiza el territorio en un nivel intermedio que ordena ciudades y direcciones, y sirve de referencia para definir cobertura y localización en el negocio.",
+  "legacy": {
+   "tabla": "country_zones"
+  },
+  "atributos": [
+   {
+    "n": "id",
+    "t": "bigint unsigned",
+    "legacy": null
+   },
+   {
+    "n": "country_id",
+    "t": "bigint",
+    "legacy": null
+   },
+   {
+    "n": "name",
+    "t": "varchar(255)",
+    "legacy": null
+   },
+   {
+    "n": "code",
+    "t": "varchar(255)",
+    "legacy": null
+   },
+   {
+    "n": "status",
+    "t": "tinyint(1)",
+    "legacy": null
+   }
+  ]
+ },
+ {
+  "key": "city",
+  "name": "City",
+  "tipo": "entity",
+  "estado": "mapeada_ok",
+  "descripcion": "Representa una ciudad o municipio dentro de una región. Es la unidad geográfica más usada al ubicar a un cliente o un comercio aliado y al determinar hasta dónde llega la cobertura de cada lender.",
+  "legacy": {
+   "tabla": "country_cities"
+  },
+  "atributos": [
+   {
+    "n": "id",
+    "t": "bigint unsigned",
+    "legacy": null
+   },
+   {
+    "n": "zone_id",
+    "t": "bigint",
+    "legacy": "country_zone_id"
+   },
+   {
+    "n": "name",
+    "t": "varchar(255)",
+    "legacy": null
+   },
+   {
+    "n": "code",
+    "t": "varchar(255)",
+    "legacy": null
+   },
+   {
+    "n": "status",
+    "t": "tinyint(1)",
+    "legacy": null
+   }
+  ]
+ },
+ {
+  "key": "documentType",
+  "name": "DocumentType",
+  "tipo": "entity",
+  "estado": "NUEVA_greenfield",
+  "descripcion": "Representa los tipos de documento de identidad válidos en cada país, con las reglas de cómo debe lucir su número y los tratamientos especiales que algunos requieren. Habilita que el onboarding acepte la identificación correcta según el mercado en el que se opera.",
+  "legacy": {
+   "ref": "green-field (cataloga tiposDocumento; hoy users.document_type es string libre)"
+  },
+  "atributos": [
+   {
+    "n": "id",
+    "t": "bigint unsigned",
+    "legacy": null
+   },
+   {
+    "n": "country_id",
+    "t": "bigint unsigned",
+    "legacy": null
+   },
+   {
+    "n": "code",
+    "t": "varchar(10)",
+    "legacy": null
+   },
+   {
+    "n": "name",
+    "t": "varchar(255)",
+    "legacy": null
+   },
+   {
+    "n": "format",
+    "t": "enum('numeric','alphanumeric')",
+    "legacy": null
+   },
+   {
+    "n": "status",
+    "t": "tinyint(1)",
+    "legacy": null
+   }
+  ]
+ },
+ {
+  "key": "countrySetting",
+  "name": "CountrySetting",
+  "tipo": "entity",
+  "estado": "mapeada_ok",
+  "descripcion": "Guarda los parámetros que afinan la operación en cada país, como los decimales y el redondeo de la moneda, la longitud del celular o el formato de las direcciones. Permite calibrar el comportamiento de la plataforma por mercado sin tratar estas reglas como algo fijo.",
+  "legacy": {
+   "tabla": "settings"
+  },
+  "atributos": [
+   {
+    "n": "id",
+    "t": "bigint unsigned",
+    "legacy": null
+   },
+   {
+    "n": "country_id",
+    "t": "bigint unsigned",
+    "legacy": null
+   },
+   {
+    "n": "key",
+    "t": "varchar(80)",
+    "legacy": null
+   },
+   {
+    "n": "value",
+    "t": "varchar(255)",
+    "legacy": null
+   },
+   {
+    "n": "value_type",
+    "t": "varchar(20)",
+    "legacy": null
+   },
+   {
+    "n": "status",
+    "t": "tinyint(1)",
+    "legacy": null
+   }
+  ]
+ }
+]

@@ -1,0 +1,44 @@
+# Repo LOCAL único del playground. Nunca se pushea (sin remoto).
+
+# Dependencias / builds (JS/TS · Vue)
+node_modules/
+dist/
+.vite/
+.cache/
+build/
+*.tsbuildinfo
+
+# Go (binarios compilados; NO usar *-e2e — colisiona con las carpetas backend-e2e/frontend-e2e)
+vendor/
+/backend-e2e/woocommerce-e2e
+/backend-e2e/motai-e2e
+/backend-mcp/creditop-mcp
+*.test
+*.out
+
+# Playwright
+playwright-report/
+test-results/
+.playwright/
+
+# Dumps de BD (pesados — se regeneran con db-dump/dump-dev.sh)
+*.sql.gz
+*.sql.dump
+
+# Secrets / entorno
+.env
+.env.*
+!.env.example
+# Artefactos de sesión/tokens del login Cognito (frontend-e2e/.auth/) — nunca commitear
+.auth/
+# Ledger de recursos creados en BD (backend-e2e/.created-resources.json) — estado local por máquina
+.created-resources.json
+
+# Permisos locales de Claude Code (regla del wrapper dev) — machine-local, no commitear
+.claude/settings.local.json
+
+# SO / editor
+.DS_Store
+*.log
+.idea/
+.vscode/

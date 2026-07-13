@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+# menu — front interactivo (clack) de los runners e2e: Modo → Entrada → Comercio → Lender, y lanza
+# bin/asesor / bin/ecommerce con la combinación elegida. Requiere terminal interactiva (TTY).
+exec node "$(cd "$(dirname "$0")" && pwd)/menu.ts" "$@"

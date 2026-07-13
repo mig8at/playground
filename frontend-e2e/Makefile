@@ -1,0 +1,106 @@
+# frontend-e2e · atajos `make` — flujo E2E (wizard real) hasta /lenders con inyección de KYC armado.
+# Apunta a DEV por defecto; `local` lo corre contra el legacy local (mismo flujo, --target local).
+#
+#   ── entorno listo ──
+#   make up                                   levanta el legacy local (NO modifica su .env)
+#   make wizard                               levanta el wizard (loan-request-wizard) en :5174
+#   make ready                                up + wizard → entorno listo para probar a mano
+#   make down                                 apaga el legacy local
+#   make env                                  health del wizard (:5174) y del backend (:80)
+#   ── pruebas ──
+#   make scenario <name>                      combo nombrado de presets.json (vtex/ecommerce/asesor-local/asesor-dev/checkout)
+#   make scenarios                            lista los scenarios   ·   presets.json: defaults (phone/otp/webhook) + alias
+#   make run  <asesor|ecommerce> <merchant>   MANUAL: entra y queda en monto (manejás vos a mano)
+#   make auto <asesor|ecommerce> <merchant>   GUIADO: seed + Continuar; en /lenders elegís y sigue
+#   make checkout [<comercio> [monto] [tel] [dev|local]]   genera la URL de checkout ecommerce (base64) para QA
+#   make vtex [merchant=pullman]              flujo VTEX por UI: vtexInit (legacy crea la URL base64) → wizard → /lenders
+#   make test [specs...]                      corre los specs con Playwright
+#   make help
+#
+# Equivale a los bins: `make auto asesor pullman` ≡ `bin/asesor pullman auto` · `make run ecommerce pullman` ≡ `bin/ecommerce pullman`.
+SHELL := /bin/bash
+.DEFAULT_GOAL := help
+LEGACY ?= $(HOME)/Desktop/CREDITOP/github/legacy-backend
+FRONT  ?= $(HOME)/Desktop/CREDITOP/github/frontend-monorepo
+WIZARD := $(FRONT)/apps/loan-request-wizard
+
+CMDS := scenario scenarios run auto checkout vtex ready test up down wizard env help
+ARGS := $(filter-out $(CMDS),$(MAKECMDGOALS))
+
+.PHONY: $(CMDS)
+
+# ─────────────────────────── entorno listo ───────────────────────────
+up: ## levanta el legacy local (make -C legacy up) — NO modifica su .env
+	@[ -d "$(LEGACY)" ] || { echo "✗ no encuentro legacy en $(LEGACY) (export LEGACY=...)"; exit 1; }
+	@echo "▶ levantando legacy local (sin tocar su .env)…"
+	@$(MAKE) -C "$(LEGACY)" up
+
+down: ## apaga el legacy local
+	@$(MAKE) -C "$(LEGACY)" down
+
+wizard: ## levanta el wizard (loan-request-wizard) en :5174
+	@if curl -s -o /dev/null --max-time 3 http://localhost:5174 2>/dev/null; then echo "wizard ya en :5174"; else \
+		[ -d "$(WIZARD)" ] || { echo "✗ no encuentro el wizard en $(WIZARD) (export FRONT=...)"; exit 1; }; \
+		echo "▶ pnpm dev (wizard)…"; ( cd "$(WIZARD)" && pnpm dev >/tmp/fe-wizard.log 2>&1 & ); \
+		for i in $$(seq 1 40); do curl -s -o /dev/null --max-time 2 http://localhost:5174 2>/dev/null && break; done; \
+		curl -s -o /dev/null --max-time 3 http://localhost:5174 2>/dev/null && echo "  ✓ wizard listo en :5174" || echo "  ✗ no levantó (ver /tmp/fe-wizard.log)"; fi
+
+ready: ## up legacy + wizard → entorno listo para probar a mano en el navegador
+	@$(MAKE) --no-print-directory up
+	@$(MAKE) --no-print-directory wizard
+	@echo "✅ entorno listo · wizard http://localhost:5174 · backend http://localhost"
+	@echo "   flujo completo:  make auto ecommerce pullman   (= bin/ecommerce pullman auto)"
+
+env: ## health del wizard (:5174) y del backend (:80)
+	@echo "frontend-e2e: wizard http://localhost:5174 · backend http://localhost (siempre localhost)"
+	@code=$$(curl -s -o /dev/null -w '%{http_code}' --max-time 5 http://localhost:5174 2>/dev/null); \
+	 case "$$code" in 2*|3*|4*) echo "wizard :5174 → HTTP $$code (arriba)";; *) echo "wizard :5174 → HTTP $${code:-000} (no responde — make wizard)";; esac
+	@code=$$(curl -s -o /dev/null -w '%{http_code}' -H 'Host: legacy-backend.inertia-develop' --max-time 5 http://127.0.0.1:80/api 2>/dev/null); \
+	 case "$$code" in 2*|3*|4*) echo "backend :80 → HTTP $$code (arriba)";; *) echo "backend :80 → HTTP $${code:-000} (no responde — make up)";; esac
+
+# ─────────────────────────── pruebas ───────────────────────────
+run: ## <asesor|ecommerce> <merchant> — MANUAL: entra y queda en monto (manejás vos a mano)
+	@origen="$(word 1,$(ARGS))"; m="$(word 2,$(ARGS))"; [ -n "$$m" ] || m="pullman"; \
+	case "$$origen" in \
+	  ecommerce) echo "▶ bin/ecommerce $$m   (manual)"; bin/ecommerce "$$m";; \
+	  asesor|*)  echo "▶ bin/asesor $$m   (manual)";    bin/asesor "$$m";; \
+	esac
+
+auto: ## <asesor|ecommerce> <merchant> — GUIADO: seed cada pantalla, vos das Continuar; en /lenders elegís y sigue
+	@origen="$(word 1,$(ARGS))"; m="$(word 2,$(ARGS))"; [ -n "$$m" ] || m="pullman"; \
+	case "$$origen" in \
+	  ecommerce) echo "▶ bin/ecommerce $$m auto"; bin/ecommerce "$$m" auto;; \
+	  asesor|*)  echo "▶ bin/asesor $$m auto";    bin/asesor "$$m" auto;; \
+	esac
+
+checkout: ## [<comercio> [monto] [tel] [dev|local]] — genera la URL de checkout ecommerce (base64) para QA (interactivo si no das args)
+	@bin/qa-checkout $(ARGS)
+
+vtex: ## [merchant=pullman] — flujo VTEX por UI: vtexInit (legacy crea la URL base64 vía /vtex/init) → wizard → /lenders
+	@m="$(word 1,$(ARGS))"; [ -n "$$m" ] || m="pullman"; \
+	echo "▶ VTEX checkout por UI (merchant=$$m) — requiere wizard :5174 + legacy local en modo mock"; \
+	E2E_MERCHANT="$$m" npx playwright test channel/vtex-checkout.spec.ts
+
+scenario: ## <name> [preview] — corre un combo de presets.json (preview = headed para ver el navegador)
+	@n="$(word 1,$(ARGS))"; p="$(word 2,$(ARGS))"; [ -n "$$n" ] || { bin/scenario --list; exit 0; }; bin/scenario "$$n" $$p
+
+scenarios: ## lista los scenarios disponibles (presets.json)
+	@bin/scenario --list
+
+test: ## [specs...] — corre los specs con Playwright
+	@npx playwright test $(ARGS)
+
+help: ## muestra esta ayuda
+	@echo "frontend-e2e · atajos make (flujo inject hasta /lenders · dev por defecto, local opcional)"
+	@echo
+	@grep -hE '^[a-zA-Z_-]+:.*## ' $(MAKEFILE_LIST) | awk 'BEGIN{FS=":.*## "}{printf "  make %-9s %s\n", $$1, $$2}'
+	@echo
+	@echo "  ej:  make auto asesor pullman                  (GUIADO asesor · DEV · Cognito real)"
+	@echo "       make auto ecommerce pullman               (GUIADO desde la tienda · checkout)"
+	@echo "       make run  asesor pullman                  (MANUAL · login asesor, manejás vos)"
+	@echo "       make run  ecommerce pullman               (MANUAL desde la tienda)"
+	@echo "       make scenarios                            (lista los combos de presets.json)"
+
+# catch-all: vuelve no-op los args posicionales. Los targets reales tienen prioridad.
+%:
+	@:

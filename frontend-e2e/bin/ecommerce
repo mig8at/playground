@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+# ecommerce — igual que bin/asesor pero ENTRA POR EL CHECKOUT de la tienda mock (no el login de asesor):
+#   bin/ecommerce <merchant>        → checkout → MONTO (a mano; el monto viene del contrato)
+#   bin/ecommerce <merchant> auto   → GUIADO desde la tienda: vos das "Continuar"; en /lenders elegís y sigue
+# Es un wrapper: exporta CFE_ENTRY=ecommerce y delega en bin/asesor.
+set -euo pipefail
+DIR="$(cd "$(dirname "$0")" && pwd)"
+exec env CFE_ENTRY=ecommerce "$DIR/asesor" "$@"

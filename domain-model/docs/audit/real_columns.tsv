@@ -1,0 +1,2582 @@
+VW_CtopX_Credits_Summary	user_request_id	bigint unsigned
+VW_CtopX_Credits_Summary	pagare	bigint unsigned
+VW_CtopX_Credits_Summary	deceval_obligation_id	longtext
+VW_CtopX_Credits_Summary	deceval_pagare	varchar(255)
+VW_CtopX_Credits_Summary	fecha_originacion	timestamp
+VW_CtopX_Credits_Summary	es_ecommerce	varchar(2)
+VW_CtopX_Credits_Summary	con_seguro	varchar(2)
+VW_CtopX_Credits_Summary	estado_credito	varchar(255)
+VW_CtopX_Credits_Summary	dias_mora	int unsigned
+VW_CtopX_Credits_Summary	dias_mora_rango	varchar(15)
+VW_CtopX_Credits_Summary	monto_financiado	bigint
+VW_CtopX_Credits_Summary	capital_inicial	double
+VW_CtopX_Credits_Summary	tasa_originacion	double(8,2)
+VW_CtopX_Credits_Summary	guarantee_amount_balance	double
+VW_CtopX_Credits_Summary	cuotas_pactadas	int
+VW_CtopX_Credits_Summary	cuota_inicial	decimal(15,4)
+VW_CtopX_Credits_Summary	ciclo_pago_inicial	int
+VW_CtopX_Credits_Summary	ciclo_pago_actual	int
+VW_CtopX_Credits_Summary	saldo_total	double
+VW_CtopX_Credits_Summary	saldo_capital	double
+VW_CtopX_Credits_Summary	saldo_capital_w_fga	double
+VW_CtopX_Credits_Summary	saldo_intereses	double
+VW_CtopX_Credits_Summary	saldo_seguros	double
+VW_CtopX_Credits_Summary	saldo_intereses_mora	double
+VW_CtopX_Credits_Summary	saldo_fga	double
+VW_CtopX_Credits_Summary	paid_guarantee	double
+VW_CtopX_Credits_Summary	valor_cuota	double
+VW_CtopX_Credits_Summary	pago_minimo	double
+VW_CtopX_Credits_Summary	pago_minimo_capital	double
+VW_CtopX_Credits_Summary	pago_minimo_intereses	double
+VW_CtopX_Credits_Summary	pago_minimo_seguros	double
+VW_CtopX_Credits_Summary	pago_minimo_intereses_mora	double
+VW_CtopX_Credits_Summary	pago_minimo_fga	double
+VW_CtopX_Credits_Summary	cuota_actual	bigint unsigned
+VW_CtopX_Credits_Summary	fecha_ultimo_pago	date
+VW_CtopX_Credits_Summary	tiene_AgilData	varchar(2)
+VW_CtopX_Credits_Summary	tiene_Mareigua	varchar(2)
+VW_CtopX_Credits_Summary	tiene_Datacredito	varchar(2)
+VW_CtopX_Credits_Summary	EX_Model	longtext
+VW_CtopX_Credits_Summary	EX_score	json
+VW_CtopX_Credits_Summary	EX_total_debt_balance	double
+VW_CtopX_Credits_Summary	EX_monthly_payment	double
+VW_CtopX_Credits_Summary	EX_current_negative_credits	json
+VW_CtopX_Credits_Summary	EX_negative_historical_last_12_months	json
+VW_CtopX_Credits_Summary	EX_consulted_last_6_months	json
+VW_CtopX_Credits_Summary	INCOMES_AVERAGE	bigint
+VW_CtopX_Credits_Summary	CONTINUITY	int
+VW_CtopX_Credits_Summary	OCCUPATION	json
+VW_CtopX_Credits_Summary	CAPACIDAD_PAGO	double
+VW_CtopX_Credits_Summary	allied_id	int
+VW_CtopX_Credits_Summary	allied	varchar(255)
+VW_CtopX_Credits_Summary	allied_branch_id	int
+VW_CtopX_Credits_Summary	allied_branch	varchar(255)
+VW_CtopX_Credits_Summary	allied_branch_city_id	bigint unsigned
+VW_CtopX_Credits_Summary	allied_branch_city	varchar(255)
+VW_CtopX_Credits_Summary	lender_id	int
+VW_CtopX_Credits_Summary	lender	varchar(255)
+VW_CtopX_Credits_Summary	user_id	bigint
+VW_CtopX_Credits_Summary	user_document_type	varchar(255)
+VW_CtopX_Credits_Summary	user_document_number	varchar(255)
+VW_CtopX_Credits_Summary	user_names	varchar(255)
+VW_CtopX_Credits_Summary	user_surnames	varchar(255)
+VW_CtopX_Credits_Summary	user_cell_phone	varchar(255)
+VW_CtopX_Credits_Summary	user_email	varchar(255)
+VW_CtopX_Credits_Summary	user_gender	char(1)
+VW_CtopX_Credits_Summary	user_date_of_birth	date
+VW_CtopX_Credits_Summary	user_age	int
+VW_CtopX_Credits_Summary	user_category	varchar(255)
+VW_CtopX_Credits_Summary	FGA_percentage	double(22,4)
+VW_CtopX_Credits_Summary	corporate_document_type	varchar(255)
+VW_CtopX_Credits_Summary	corporate_document_number	varchar(255)
+VW_CtopX_Credits_Summary	corporate_user_names	varchar(255)
+VW_CtopX_Credits_Summary	corporate_user_surnames	varchar(255)
+VW_CtopX_Credits_Summary	fecha_reporte	datetime
+VW_CtopX_Credits_Summary_by_Month	user_request_id	bigint unsigned
+VW_CtopX_Credits_Summary_by_Month	pagare	bigint unsigned
+VW_CtopX_Credits_Summary_by_Month	fecha_originacion	timestamp
+VW_CtopX_Credits_Summary_by_Month	es_ecommerce	varchar(2)
+VW_CtopX_Credits_Summary_by_Month	con_seguro	varchar(2)
+VW_CtopX_Credits_Summary_by_Month	estado_credito	varchar(255)
+VW_CtopX_Credits_Summary_by_Month	dias_mora	int unsigned
+VW_CtopX_Credits_Summary_by_Month	dias_mora_rango	varchar(15)
+VW_CtopX_Credits_Summary_by_Month	monto_financiado	decimal(16,4)
+VW_CtopX_Credits_Summary_by_Month	capital_inicial	double(15,4)
+VW_CtopX_Credits_Summary_by_Month	tasa_originacion	double(8,2)
+VW_CtopX_Credits_Summary_by_Month	guarantee_amount_balance	double(15,4)
+VW_CtopX_Credits_Summary_by_Month	cuotas_pactadas	int
+VW_CtopX_Credits_Summary_by_Month	cuota_inicial	decimal(15,4)
+VW_CtopX_Credits_Summary_by_Month	ciclo_pago_inicial	int
+VW_CtopX_Credits_Summary_by_Month	ciclo_pago_actual	int
+VW_CtopX_Credits_Summary_by_Month	saldo_total	double(15,4)
+VW_CtopX_Credits_Summary_by_Month	saldo_capital	double(22,4)
+VW_CtopX_Credits_Summary_by_Month	saldo_intereses	double(15,4)
+VW_CtopX_Credits_Summary_by_Month	saldo_seguros	double(15,4)
+VW_CtopX_Credits_Summary_by_Month	saldo_intereses_mora	double(15,4)
+VW_CtopX_Credits_Summary_by_Month	saldo_fga	double(15,4)
+VW_CtopX_Credits_Summary_by_Month	valor_cuota	double(15,4)
+VW_CtopX_Credits_Summary_by_Month	pago_minimo	double(15,4)
+VW_CtopX_Credits_Summary_by_Month	pago_minimo_capital	double(22,4)
+VW_CtopX_Credits_Summary_by_Month	pago_minimo_intereses	double(15,4)
+VW_CtopX_Credits_Summary_by_Month	pago_minimo_seguros	double(15,4)
+VW_CtopX_Credits_Summary_by_Month	pago_minimo_intereses_mora	double(15,4)
+VW_CtopX_Credits_Summary_by_Month	pago_minimo_fga	double(8,2)
+VW_CtopX_Credits_Summary_by_Month	cuota_actual	int unsigned
+VW_CtopX_Credits_Summary_by_Month	cuotas_pagadas	bigint
+VW_CtopX_Credits_Summary_by_Month	tiene_AgilData	varchar(2)
+VW_CtopX_Credits_Summary_by_Month	tiene_Mareigua	varchar(2)
+VW_CtopX_Credits_Summary_by_Month	tiene_Datacredito	varchar(2)
+VW_CtopX_Credits_Summary_by_Month	EX_score	json
+VW_CtopX_Credits_Summary_by_Month	EX_total_debt_balance	double
+VW_CtopX_Credits_Summary_by_Month	EX_monthly_payment	double
+VW_CtopX_Credits_Summary_by_Month	INCOMES_AVERAGE	decimal(19,2)
+VW_CtopX_Credits_Summary_by_Month	CONTINUITY	int
+VW_CtopX_Credits_Summary_by_Month	OCCUPATION	json
+VW_CtopX_Credits_Summary_by_Month	allied_id	int
+VW_CtopX_Credits_Summary_by_Month	allied	varchar(255)
+VW_CtopX_Credits_Summary_by_Month	allied_branch_id	int
+VW_CtopX_Credits_Summary_by_Month	allied_branch	varchar(255)
+VW_CtopX_Credits_Summary_by_Month	allied_branch_address	varchar(255)
+VW_CtopX_Credits_Summary_by_Month	allied_branch_city_id	bigint unsigned
+VW_CtopX_Credits_Summary_by_Month	allied_branch_city	varchar(255)
+VW_CtopX_Credits_Summary_by_Month	lender_id	int
+VW_CtopX_Credits_Summary_by_Month	lender	varchar(255)
+VW_CtopX_Credits_Summary_by_Month	user_id	bigint
+VW_CtopX_Credits_Summary_by_Month	user_document_type	varchar(255)
+VW_CtopX_Credits_Summary_by_Month	user_document_number	varchar(255)
+VW_CtopX_Credits_Summary_by_Month	user_names	varchar(255)
+VW_CtopX_Credits_Summary_by_Month	user_surnames	varchar(255)
+VW_CtopX_Credits_Summary_by_Month	user_cell_phone	varchar(255)
+VW_CtopX_Credits_Summary_by_Month	user_email	varchar(255)
+VW_CtopX_Credits_Summary_by_Month	user_gender	char(1)
+VW_CtopX_Credits_Summary_by_Month	user_date_of_birth	date
+VW_CtopX_Credits_Summary_by_Month	user_age	int
+VW_CtopX_Credits_Summary_by_Month	user_category	varchar(255)
+VW_CtopX_Credits_Summary_by_Month	user_category_FGA	double
+VW_CtopX_Credits_Summary_by_Month	user_category_min_initial_fee	int
+VW_CtopX_Credits_Summary_by_Month	user_category_max_fee_number	int
+VW_CtopX_Credits_Summary_by_Month	user_category_max_amount	int
+VW_CtopX_Credits_Summary_by_Month	corporate_document_type	varchar(255)
+VW_CtopX_Credits_Summary_by_Month	corporate_document_number	varchar(255)
+VW_CtopX_Credits_Summary_by_Month	corporate_user_names	varchar(255)
+VW_CtopX_Credits_Summary_by_Month	corporate_user_surnames	varchar(255)
+VW_CtopX_Credits_Summary_by_Month	fecha_reporte	datetime
+VW_CtopX_Credits_Summary_by_Month	rh_id	bigint unsigned
+VW_CtopX_Credits_Summary_by_Month	mes_reporte	varchar(10)
+VW_CtopX_Experian_Report	user_request_id	bigint unsigned
+VW_CtopX_Experian_Report	user_id	bigint unsigned
+VW_CtopX_Experian_Report	TIPO DE IDENTIFICACION	int
+VW_CtopX_Experian_Report	NUMERO DE IDENTIFICACION	varchar(255)
+VW_CtopX_Experian_Report	NOMBRE COMPLETO	text
+VW_CtopX_Experian_Report	NUMERO DE LA CUENTA U OBLIGACION	bigint unsigned
+VW_CtopX_Experian_Report	FECHA APERTURA	varchar(8)
+VW_CtopX_Experian_Report	FECHA VENCIMIENTO	varchar(8)
+VW_CtopX_Experian_Report	RESPONSABLE	varchar(1)
+VW_CtopX_Experian_Report	NOVEDAD	int
+VW_CtopX_Experian_Report	SITUACION CARTERA	varchar(1)
+VW_CtopX_Experian_Report	VALOR INICIAL	double
+VW_CtopX_Experian_Report	VALOR SALDO DEUDA	double
+VW_CtopX_Experian_Report	VALOR DISPONIBLE	int
+VW_CtopX_Experian_Report	V. CUOTA MENSUAL	double
+VW_CtopX_Experian_Report	VALOR SALDO MORA	double
+VW_CtopX_Experian_Report	TOTAL CUOTAS	int
+VW_CtopX_Experian_Report	CUOTAS CANCELADAS	decimal(23,0)
+VW_CtopX_Experian_Report	CUOTAS EN MORA	decimal(11,0)
+VW_CtopX_Experian_Report	FECHA LIMITE DE PAGO	varchar(8)
+VW_CtopX_Experian_Report	FECHA DE PAGO	varchar(8)
+VW_CtopX_Experian_Report	CIUDAD CORRESPONDENCIA	text
+VW_CtopX_Experian_Report	DIRECCION DE CORRESPONDENCIA	varchar(1)
+VW_CtopX_Experian_Report	CORREO ELECTRONICO	varchar(255)
+VW_CtopX_Experian_Report	CELULAR	varchar(255)
+VW_CtopX_Insurances_Credits	user_request_id	bigint unsigned
+VW_CtopX_Insurances_Credits	pagare	bigint unsigned
+VW_CtopX_Insurances_Credits	fecha_originacion	timestamp
+VW_CtopX_Insurances_Credits	es_ecommerce	varchar(2)
+VW_CtopX_Insurances_Credits	con_seguro	varchar(2)
+VW_CtopX_Insurances_Credits	estado_credito	varchar(255)
+VW_CtopX_Insurances_Credits	saldo_total	double(15,4)
+VW_CtopX_Insurances_Credits	saldo_capital	double(22,4)
+VW_CtopX_Insurances_Credits	allied_id	int
+VW_CtopX_Insurances_Credits	allied	varchar(255)
+VW_CtopX_Insurances_Credits	allied_branch_id	int
+VW_CtopX_Insurances_Credits	allied_branch	varchar(255)
+VW_CtopX_Insurances_Credits	allied_branch_city_id	bigint unsigned
+VW_CtopX_Insurances_Credits	allied_branch_city	varchar(255)
+VW_CtopX_Insurances_Credits	lender_id	int
+VW_CtopX_Insurances_Credits	lender	varchar(255)
+VW_CtopX_Insurances_Credits	user_id	bigint
+VW_CtopX_Insurances_Credits	user_document_type	varchar(255)
+VW_CtopX_Insurances_Credits	user_document_number	varchar(255)
+VW_CtopX_Insurances_Credits	user_names	varchar(255)
+VW_CtopX_Insurances_Credits	user_surnames	varchar(255)
+VW_CtopX_Insurances_Credits	user_gender	char(1)
+VW_CtopX_Insurances_Credits	user_date_of_birth	date
+VW_CtopX_Insurances_Credits	user_age	int
+VW_CtopX_Insurances_Credits	fecha_reporte	datetime
+VW_CtopX_Payments_Report	pr_id	bigint unsigned
+VW_CtopX_Payments_Report	metodo_pago	varchar(255)
+VW_CtopX_Payments_Report	estado_pago	varchar(255)
+VW_CtopX_Payments_Report	reference_voucher	text
+VW_CtopX_Payments_Report	reference_wompi	varchar(255)
+VW_CtopX_Payments_Report	valor_pagado	double(14,2)
+VW_CtopX_Payments_Report	fecha_pago	timestamp
+VW_CtopX_Payments_Report	RETENIDO	decimal(37,4)
+VW_CtopX_Payments_Report	ABONO_CAPITAL	decimal(37,4)
+VW_CtopX_Payments_Report	ABONO_CAPITAL_principal	decimal(38,4)
+VW_CtopX_Payments_Report	ABONO_CAPITAL_paid_guarantee	decimal(37,4)
+VW_CtopX_Payments_Report	PAGO_A_CUOTA	decimal(37,4)
+VW_CtopX_Payments_Report	PAGO_A_CUOTA_principal	decimal(38,4)
+VW_CtopX_Payments_Report	PAGO_A_CUOTA_interest	decimal(37,4)
+VW_CtopX_Payments_Report	PAGO_A_CUOTA_late_interest	decimal(37,4)
+VW_CtopX_Payments_Report	PAGO_A_CUOTA_life_insurance	decimal(37,4)
+VW_CtopX_Payments_Report	PAGO_A_CUOTA_paid_guarantee	decimal(37,4)
+VW_CtopX_Payments_Report	PAGO_TOTAL	decimal(37,4)
+VW_CtopX_Payments_Report	PAGO_TOTAL_principal	decimal(38,4)
+VW_CtopX_Payments_Report	PAGO_TOTAL_interest	decimal(37,4)
+VW_CtopX_Payments_Report	PAGO_TOTAL_late_interest	decimal(37,4)
+VW_CtopX_Payments_Report	PAGO_TOTAL_life_insurance	decimal(37,4)
+VW_CtopX_Payments_Report	PAGO_TOTAL_paid_guarantee	decimal(37,4)
+VW_CtopX_Payments_Report	VALOR_PAGO_CUOTA_INICIAL	double(22,2)
+VW_CtopX_Payments_Report	CONDONACION_INTERES	decimal(37,4)
+VW_CtopX_Payments_Report	DESC_5_POR_CIENTO	decimal(37,4)
+VW_CtopX_Payments_Report	VALOR_REVERSADO	decimal(37,4)
+VW_CtopX_Payments_Report	user_request_id	bigint unsigned
+VW_CtopX_Payments_Report	pagare	bigint unsigned
+VW_CtopX_Payments_Report	fecha_originacion	timestamp
+VW_CtopX_Payments_Report	estado_credito	varchar(255)
+VW_CtopX_Payments_Report	capital_inicial	double(15,4)
+VW_CtopX_Payments_Report	cuotas_pactadas	int
+VW_CtopX_Payments_Report	saldo_capital	double(15,4)
+VW_CtopX_Payments_Report	ciclo_pago_inicial	int
+VW_CtopX_Payments_Report	ciclo_pago_actual	int
+VW_CtopX_Payments_Report	allied_id	int
+VW_CtopX_Payments_Report	allied	varchar(255)
+VW_CtopX_Payments_Report	allied_branch_id	int
+VW_CtopX_Payments_Report	allied_branch	varchar(255)
+VW_CtopX_Payments_Report	allied_branch_address	varchar(255)
+VW_CtopX_Payments_Report	allied_branch_city_id	bigint unsigned
+VW_CtopX_Payments_Report	allied_branch_city	varchar(255)
+VW_CtopX_Payments_Report	user_id	bigint
+VW_CtopX_Payments_Report	user_document_type	varchar(255)
+VW_CtopX_Payments_Report	user_document_number	varchar(255)
+VW_CtopX_Payments_Report	user_names	varchar(255)
+VW_CtopX_Payments_Report	user_surnames	varchar(255)
+VW_CtopX_Payments_Report	user_cell_phone	varchar(255)
+VW_CtopX_Payments_Report	user_email	varchar(255)
+VW_CtopX_Payments_Report	user_gender	char(1)
+VW_CtopX_Payments_Report	user_date_of_birth	date
+VW_CtopX_Payments_Report	user_age	int
+VW_CtopX_Payments_Report	corporate_document_type	varchar(255)
+VW_CtopX_Payments_Report	corporate_document_number	varchar(255)
+VW_CtopX_Payments_Report	corporate_user_names	varchar(255)
+VW_CtopX_Payments_Report	corporate_user_surnames	varchar(255)
+VW_CtopX_Payments_Report	date_report	datetime
+VW_OTPs	id	bigint unsigned
+VW_OTPs	user_id	bigint
+VW_OTPs	cell_phone	varchar(255)
+VW_OTPs	otp	json
+VW_OTPs	response	longtext
+VW_OTPs	validated	tinyint(1)
+VW_OTPs	status	tinyint(1)
+VW_OTPs	created_at	timestamp
+VW_OTPs	updated_at	timestamp
+VW_Profiling_Metrics	user_request_id	bigint unsigned
+VW_Profiling_Metrics	user_request_status	varchar(255)
+VW_Profiling_Metrics	amount	decimal(15,4)
+VW_Profiling_Metrics	final_amount	decimal(15,4)
+VW_Profiling_Metrics	user_id	bigint
+VW_Profiling_Metrics	user_document_type	varchar(255)
+VW_Profiling_Metrics	user_document_number	varchar(255)
+VW_Profiling_Metrics	user_full_name	varchar(255)
+VW_Profiling_Metrics	allied_id	bigint unsigned
+VW_Profiling_Metrics	allied_name	varchar(255)
+VW_Profiling_Metrics	allied_branch_id	bigint unsigned
+VW_Profiling_Metrics	allied_branch_name	varchar(255)
+VW_Profiling_Metrics	lender_id	bigint unsigned
+VW_Profiling_Metrics	lender_name	varchar(255)
+VW_Profiling_Metrics	Matrice_probability	varchar(50)
+VW_Profiling_Metrics	Matrice_weighted_score	decimal(10,5)
+VW_Profiling_Metrics	Matrice_profiling_percentage	float
+VW_Profiling_Metrics	ML_model_name	varchar(100)
+VW_Profiling_Metrics	ML_prediction	decimal(10,5)
+VW_Profiling_Metrics	created_at	timestamp
+VW_Profiling_Metrics	updated_at	timestamp
+VW_Profiling_Predictions	pr_id	bigint unsigned
+VW_Profiling_Predictions	user_id	int
+VW_Profiling_Predictions	allied_id	int
+VW_Profiling_Predictions	recommended_lender_id	int
+VW_Profiling_Predictions	is_recommended_lender	int
+VW_Profiling_Predictions	disbursed_lender_id	int
+VW_Profiling_Predictions	is_disbursed_lender	int
+VW_Profiling_Predictions	lender_id	bigint unsigned
+VW_Profiling_Predictions	lender_name	varchar(100)
+VW_Profiling_Predictions	probability	varchar(50)
+VW_Profiling_Predictions	weighted_score	decimal(10,5)
+VW_Profiling_Predictions	profiling_percentage	float
+VW_Profiling_Predictions	created_at	timestamp
+VW_Profiling_Predictions	updated_at	timestamp
+VW_Profiling_Predictions_ML	pr_id	bigint unsigned
+VW_Profiling_Predictions_ML	user_id	int
+VW_Profiling_Predictions_ML	allied_id	int
+VW_Profiling_Predictions_ML	recommended_lender_id	int
+VW_Profiling_Predictions_ML	is_recommended_lender	int
+VW_Profiling_Predictions_ML	disbursed_lender_id	int
+VW_Profiling_Predictions_ML	is_disbursed_lender	int
+VW_Profiling_Predictions_ML	lender_id	bigint unsigned
+VW_Profiling_Predictions_ML	lender_name	varchar(100)
+VW_Profiling_Predictions_ML	model_name	varchar(100)
+VW_Profiling_Predictions_ML	prediction	decimal(10,5)
+VW_Profiling_Predictions_ML	created_at	timestamp
+VW_Profiling_Predictions_ML	updated_at	timestamp
+VW_Profiling_Predictions_Only_New	pr_id	bigint unsigned
+VW_Profiling_Predictions_Only_New	user_id	int
+VW_Profiling_Predictions_Only_New	user_request_id	int
+VW_Profiling_Predictions_Only_New	allied_id	int
+VW_Profiling_Predictions_Only_New	recommended_lender_id	int
+VW_Profiling_Predictions_Only_New	is_recommended_lender	int
+VW_Profiling_Predictions_Only_New	disbursed_lender_id	int
+VW_Profiling_Predictions_Only_New	is_disbursed_lender	int
+VW_Profiling_Predictions_Only_New	lender_id	bigint unsigned
+VW_Profiling_Predictions_Only_New	lender_name	varchar(100)
+VW_Profiling_Predictions_Only_New	is_creditopX	varchar(2)
+VW_Profiling_Predictions_Only_New	probability	varchar(50)
+VW_Profiling_Predictions_Only_New	weighted_score	decimal(10,5)
+VW_Profiling_Predictions_Only_New	profiling_percentage	float
+VW_Profiling_Predictions_Only_New	created_at	timestamp
+VW_Profiling_Predictions_Only_New	updated_at	timestamp
+VW_Profiling_Predictions_V2	pr_id	bigint unsigned
+VW_Profiling_Predictions_V2	user_id	int
+VW_Profiling_Predictions_V2	allied_id	int
+VW_Profiling_Predictions_V2	user_request_id	int
+VW_Profiling_Predictions_V2	recommended_lender_id	int
+VW_Profiling_Predictions_V2	is_recommended_lender	int
+VW_Profiling_Predictions_V2	disbursed_lender_id	int
+VW_Profiling_Predictions_V2	is_disbursed_lender	int
+VW_Profiling_Predictions_V2	lender_id	bigint unsigned
+VW_Profiling_Predictions_V2	lender_name	varchar(100)
+VW_Profiling_Predictions_V2	probability	varchar(50)
+VW_Profiling_Predictions_V2	weighted_score	decimal(10,5)
+VW_Profiling_Predictions_V2	profiling_percentage	float
+VW_Profiling_Predictions_V2	created_at	timestamp
+VW_Profiling_Predictions_V2	updated_at	timestamp
+VW_Profiling_Predictions_V2	deleted_at	timestamp
+VW_Revolving_Payments_Report	allied_id	bigint unsigned
+VW_Revolving_Payments_Report	fecha_pago	timestamp
+VW_Revolving_Payments_Report	valor_pagado	double(14,2)
+VW_Revolving_Payments_Report	pr_id	bigint unsigned
+VW_Revolving_Payments_Report	user_document_type	varchar(255)
+VW_Revolving_Payments_Report	user_document_number	varchar(255)
+VW_Revolving_Payments_Report	user_names	varchar(255)
+VW_Revolving_Payments_Report	user_surnames	varchar(255)
+VW_Revolving_Payments_Report	PAGO_A_CUOTA_principal	decimal(37,4)
+VW_Revolving_Payments_Report	ABONO_CAPITAL_principal	decimal(37,4)
+VW_Revolving_Payments_Report	PAGO_TOTAL_principal	decimal(37,4)
+VW_Revolving_Payments_Report	PAGO_A_CUOTA_paid_guarantee	decimal(37,4)
+VW_Revolving_Payments_Report	PAGO_TOTAL_paid_guarantee	decimal(37,4)
+VW_Revolving_Payments_Report	ABONO_CAPITAL_paid_guarantee	decimal(37,4)
+VW_Revolving_Payments_Report	PAGO_A_CUOTA_interest	decimal(37,4)
+VW_Revolving_Payments_Report	PAGO_TOTAL_interest	decimal(37,4)
+VW_Revolving_Payments_Report	PAGO_A_CUOTA_late_interest	decimal(37,4)
+VW_Revolving_Payments_Report	PAGO_TOTAL_late_interest	decimal(37,4)
+VW_Revolving_Payments_Report	PAGO_A_CUOTA_life_insurance	decimal(37,4)
+VW_Revolving_Payments_Report	PAGO_TOTAL_life_insurance	decimal(37,4)
+VW_Revolving_Payments_Report	RETENIDO	decimal(37,4)
+VW_Revolving_Payments_Report	metodo_pago	varchar(255)
+VW_Revolving_Payments_Report	reference_voucher	text
+VW_Risk_Central_ADO	ADO_id	bigint unsigned
+VW_Risk_Central_ADO	ADO_user_id	bigint unsigned
+VW_Risk_Central_ADO	ADO_data	json
+VW_Risk_Central_ADO	ADO_request	json
+VW_Risk_Central_ADO	ADO_response_id	longtext
+VW_Risk_Central_ADO	ADO_response_description	longtext
+VW_Risk_Central_ADO	ADO_document_type	longtext
+VW_Risk_Central_ADO	ADO_document_number	longtext
+VW_Risk_Central_ADO	ADO_full_name	longtext
+VW_Risk_Central_ADO	ADO_gender	longtext
+VW_Risk_Central_ADO	deleted_at	timestamp
+VW_Risk_Central_ADO	created_at	timestamp
+VW_Risk_Central_ADO	updated_at	timestamp
+VW_Risk_Central_AML	AML_id	bigint unsigned
+VW_Risk_Central_AML	AML_user_id	bigint unsigned
+VW_Risk_Central_AML	AML_data	json
+VW_Risk_Central_AML	AML_request	json
+VW_Risk_Central_AML	AML_response_id	char(0)
+VW_Risk_Central_AML	AML_response_description	longtext
+VW_Risk_Central_AML	AML_document_type	longtext
+VW_Risk_Central_AML	AML_document_number	longtext
+VW_Risk_Central_AML	AML_full_name	longtext
+VW_Risk_Central_AML	AML_hallazgo	longtext
+VW_Risk_Central_AML	AML_hallazgos	longtext
+VW_Risk_Central_AML	AML_results	longtext
+VW_Risk_Central_AML	AML_error	longtext
+VW_Risk_Central_AML	AML_errores	longtext
+VW_Risk_Central_AML	deleted_at	timestamp
+VW_Risk_Central_AML	created_at	timestamp
+VW_Risk_Central_AML	updated_at	timestamp
+VW_Risk_Central_AgilData	AD_id	bigint unsigned
+VW_Risk_Central_AgilData	AD_user_id	bigint unsigned
+VW_Risk_Central_AgilData	AD_data	json
+VW_Risk_Central_AgilData	AD_request	json
+VW_Risk_Central_AgilData	AD_response_id	longtext
+VW_Risk_Central_AgilData	AD_response_description	longtext
+VW_Risk_Central_AgilData	AD_document_type	longtext
+VW_Risk_Central_AgilData	AD_document_number	longtext
+VW_Risk_Central_AgilData	AD_full_name	longtext
+VW_Risk_Central_AgilData	AD_age	json
+VW_Risk_Central_AgilData	AD_genre	longtext
+VW_Risk_Central_AgilData	AD_average_income	decimal(19,2)
+VW_Risk_Central_AgilData	AD_continuity	int
+VW_Risk_Central_AgilData	deleted_at	timestamp
+VW_Risk_Central_AgilData	created_at	timestamp
+VW_Risk_Central_AgilData	updated_at	timestamp
+VW_Risk_Central_Experian	EX_id	bigint unsigned
+VW_Risk_Central_Experian	EX_user_id	bigint unsigned
+VW_Risk_Central_Experian	EX_data	json
+VW_Risk_Central_Experian	EX_additional_info	json
+VW_Risk_Central_Experian	EX_request	json
+VW_Risk_Central_Experian	EX_Model	longtext
+VW_Risk_Central_Experian	EX_response_id	longtext
+VW_Risk_Central_Experian	EX_response_description	longtext
+VW_Risk_Central_Experian	EX_document_type	json
+VW_Risk_Central_Experian	EX_document_number	json
+VW_Risk_Central_Experian	EX_full_name	longtext
+VW_Risk_Central_Experian	EX_gender	longtext
+VW_Risk_Central_Experian	EX_Score	json
+VW_Risk_Central_Experian	EX_total_debt_balance	double
+VW_Risk_Central_Experian	EX_monthly_payment	double
+VW_Risk_Central_Experian	EX_current_disputes	json
+VW_Risk_Central_Experian	EX_current_negative_credits	json
+VW_Risk_Central_Experian	EX_negative_historical_last_12_Months	json
+VW_Risk_Central_Experian	EX_consulted_last_6_months	json
+VW_Risk_Central_Experian	EX_savings_quantity	bigint
+VW_Risk_Central_Experian	EX_savings_active	int
+VW_Risk_Central_Experian	EX_savings_seized	int
+VW_Risk_Central_Experian	EX_cc_quantity	bigint
+VW_Risk_Central_Experian	EX_cc_active	int
+VW_Risk_Central_Experian	EX_cc_active_delinquent	int
+VW_Risk_Central_Experian	EX_cc_initial_value_average	decimal(19,4)
+VW_Risk_Central_Experian	EX_cc_initial_value	decimal(19,4)
+VW_Risk_Central_Experian	EX_cc_debt_balance	decimal(19,4)
+VW_Risk_Central_Experian	EX_cc_available_balance	decimal(19,4)
+VW_Risk_Central_Experian	EX_cc_monthly_payment	decimal(19,4)
+VW_Risk_Central_Experian	EX_cc_vector_payed	int
+VW_Risk_Central_Experian	EX_cc_vector_overdue	int
+VW_Risk_Central_Experian	EX_liabilities_quantity	bigint
+VW_Risk_Central_Experian	EX_liabilities_active	int
+VW_Risk_Central_Experian	EX_liabilities_active_delinquent	int
+VW_Risk_Central_Experian	EX_liabilities_initial_value_average	decimal(19,4)
+VW_Risk_Central_Experian	EX_liabilities_initial_value	decimal(19,4)
+VW_Risk_Central_Experian	EX_liabilities_debt_balance	decimal(19,4)
+VW_Risk_Central_Experian	EX_liabilities_monthly_payment	decimal(19,4)
+VW_Risk_Central_Experian	deleted_at	timestamp
+VW_Risk_Central_Experian	created_at	timestamp
+VW_Risk_Central_Experian	updated_at	timestamp
+VW_Risk_Central_Mareigua	MG_id	bigint unsigned
+VW_Risk_Central_Mareigua	MG_user_id	bigint unsigned
+VW_Risk_Central_Mareigua	MG_data	json
+VW_Risk_Central_Mareigua	MG_request	json
+VW_Risk_Central_Mareigua	MG_response_id	json
+VW_Risk_Central_Mareigua	MG_response_description	varchar(119)
+VW_Risk_Central_Mareigua	MG_document_type	json
+VW_Risk_Central_Mareigua	MG_document_number	longtext
+VW_Risk_Central_Mareigua	MG_full_name	longtext
+VW_Risk_Central_Mareigua	MG_age_range	longtext
+VW_Risk_Central_Mareigua	MG_genre	longtext
+VW_Risk_Central_Mareigua	MG_average_income	decimal(19,2)
+VW_Risk_Central_Mareigua	MG_average_income_reported	decimal(19,4)
+VW_Risk_Central_Mareigua	MG_continuity	int
+VW_Risk_Central_Mareigua	MG_continuity_reported	json
+VW_Risk_Central_Mareigua	MG_occupation	json
+VW_Risk_Central_Mareigua	deleted_at	timestamp
+VW_Risk_Central_Mareigua	created_at	timestamp
+VW_Risk_Central_Mareigua	updated_at	timestamp
+VW_Risk_Central_TusDatos	TD_id	bigint unsigned
+VW_Risk_Central_TusDatos	TD_user_id	bigint unsigned
+VW_Risk_Central_TusDatos	TD_data	json
+VW_Risk_Central_TusDatos	TD_request	json
+VW_Risk_Central_TusDatos	TD_response_id	longtext
+VW_Risk_Central_TusDatos	TD_response_description	longtext
+VW_Risk_Central_TusDatos	TD_first_name_match	longtext
+VW_Risk_Central_TusDatos	TD_second_name_match	longtext
+VW_Risk_Central_TusDatos	TD_first_surname_match	longtext
+VW_Risk_Central_TusDatos	TD_second_surname_match	longtext
+VW_Risk_Central_TusDatos	TD_issue_date_match	longtext
+VW_Risk_Central_TusDatos	TD_error_code	longtext
+VW_Risk_Central_TusDatos	TD_error_message	longtext
+VW_Risk_Central_TusDatos	TD_error_details	longtext
+VW_Risk_Central_TusDatos	deleted_at	timestamp
+VW_Risk_Central_TusDatos	created_at	timestamp
+VW_Risk_Central_TusDatos	updated_at	timestamp
+VW_Risk_Central_User_Request_Resume	rcud_id	bigint unsigned
+VW_Risk_Central_User_Request_Resume	user_id	bigint unsigned
+VW_Risk_Central_User_Request_Resume	risk_central	varchar(255)
+VW_Risk_Central_User_Request_Resume	response_description	longtext
+VW_Risk_Central_User_Request_Resume	rcud_created_at	timestamp
+VW_Risk_Central_User_Request_Resume	matched_user_request_id	bigint unsigned
+VW_Risk_Central_User_Request_Resume	allied	varchar(255)
+VW_Risk_Central_User_Request_Resume	allied_branch	varchar(255)
+VW_Risk_Central_User_Request_Resume	user_request_date	timestamp
+VW_Risk_Central_User_Request_Resume	days_diff	bigint
+VW_User_Field_Values_Resume	user_id	bigint
+VW_User_Field_Values_Resume	average_income	decimal(19,4)
+VW_User_Field_Values_Resume	occupation	varchar(50)
+VW_User_Field_Values_Resume	created_at	timestamp
+VW_User_Field_Values_Resume	updated_at	timestamp
+VW_User_Request_Costs	user_request_id	bigint unsigned
+VW_User_Request_Costs	user_request_status	varchar(255)
+VW_User_Request_Costs	created_at	timestamp
+VW_User_Request_Costs	updated_at	timestamp
+VW_User_Request_Costs	allied_id	int
+VW_User_Request_Costs	allied	varchar(255)
+VW_User_Request_Costs	allied_branch_id	int
+VW_User_Request_Costs	allied_branch	varchar(255)
+VW_User_Request_Costs	es_ecommerce	varchar(2)
+VW_User_Request_Costs	lender_id	int
+VW_User_Request_Costs	lender	varchar(255)
+VW_User_Request_Costs	user_id	bigint
+VW_User_Request_Costs	user_document_type	varchar(255)
+VW_User_Request_Costs	user_document_number	varchar(255)
+VW_User_Request_Costs	user_names	varchar(255)
+VW_User_Request_Costs	user_surnames	varchar(255)
+VW_User_Request_Costs	wompi_pending	decimal(23,0)
+VW_User_Request_Costs	wompi_approved	decimal(23,0)
+VW_User_Request_Costs	wompi_declined	decimal(23,0)
+VW_User_Request_Costs	wompi_error	decimal(23,0)
+VW_User_Request_Costs	consultas_twilio	bigint
+VW_User_Request_Costs	fecha_reporte	datetime
+VW_User_Request_Costs_Risk_Centrals	id	bigint unsigned
+VW_User_Request_Costs_Risk_Centrals	risk_central	varchar(255)
+VW_User_Request_Costs_Risk_Centrals	user_document_type	varchar(255)
+VW_User_Request_Costs_Risk_Centrals	user_document_number	varchar(255)
+VW_User_Request_Costs_Risk_Centrals	created_at	date
+VW_User_Request_Costs_Risk_Centrals	time_created_at	time
+VW_User_Request_Track	user_request_id	bigint unsigned
+VW_User_Request_Track	user_id	bigint
+VW_User_Request_Track	user_document_type	varchar(255)
+VW_User_Request_Track	user_document_number	varchar(255)
+VW_User_Request_Track	user_full_name	varchar(255)
+VW_User_Request_Track	age	int
+VW_User_Request_Track	gender	char(1)
+VW_User_Request_Track	allied_id	int
+VW_User_Request_Track	allied_name	varchar(255)
+VW_User_Request_Track	allied_branch_id	int
+VW_User_Request_Track	allied_branch_name	varchar(255)
+VW_User_Request_Track	lender_id	int
+VW_User_Request_Track	lender_name	varchar(255)
+VW_User_Request_Track	original_amount	decimal(15,4)
+VW_User_Request_Track	amount	decimal(15,4)
+VW_User_Request_Track	final_amount	decimal(15,4)
+VW_User_Request_Track	user_request_status	varchar(255)
+VW_User_Request_Track	INCOMES_AVERAGE	bigint
+VW_User_Request_Track	CONTINUITY	bigint
+VW_User_Request_Track	OCCUPATION	json
+VW_User_Request_Track	FIXED_EXPENSES_PERCENTAGE	tinyint
+VW_User_Request_Track	FIXED_EXPENSES	decimal(21,0)
+VW_User_Request_Track	PAYMENT_CAPACITY	bigint
+VW_User_Request_Track	REVOLVING_LOAN	bigint
+VW_User_Request_Track	REVOLVING_LOAN_MULTIPLIER	double
+VW_User_Request_Track	EX_id	bigint unsigned
+VW_User_Request_Track	EX_score	json
+VW_User_Request_Track	EX_total_debt_balance	double
+VW_User_Request_Track	EX_monthly_payment	double
+VW_User_Request_Track	EX_current_disputes	json
+VW_User_Request_Track	EX_current_negative_credits	json
+VW_User_Request_Track	EX_negative_historical_last_12_months	json
+VW_User_Request_Track	EX_consulted_last_6_months	json
+VW_User_Request_Track	EX_savings_quantity	bigint
+VW_User_Request_Track	EX_savings_active	int
+VW_User_Request_Track	EX_savings_seized	int
+VW_User_Request_Track	EX_cc_quantity	bigint
+VW_User_Request_Track	EX_cc_active	int
+VW_User_Request_Track	EX_cc_active_delinquent	int
+VW_User_Request_Track	EX_cc_initial_value_average	decimal(19,4)
+VW_User_Request_Track	EX_cc_initial_value	decimal(19,4)
+VW_User_Request_Track	EX_cc_debt_balance	decimal(19,4)
+VW_User_Request_Track	EX_cc_available_balance	decimal(19,4)
+VW_User_Request_Track	EX_cc_monthly_payment	decimal(19,4)
+VW_User_Request_Track	EX_cc_vector_payed	int
+VW_User_Request_Track	EX_cc_vector_overdue	int
+VW_User_Request_Track	EX_liabilities_quantity	bigint
+VW_User_Request_Track	EX_liabilities_active	int
+VW_User_Request_Track	EX_liabilities_active_delinquent	int
+VW_User_Request_Track	EX_liabilities_initial_value_average	decimal(19,4)
+VW_User_Request_Track	EX_liabilities_initial_value	decimal(19,4)
+VW_User_Request_Track	EX_liabilities_debt_balance	decimal(19,4)
+VW_User_Request_Track	EX_liabilities_monthly_payment	decimal(19,4)
+VW_User_Request_Track	created_at	timestamp
+VW_User_Request_Track	updated_at	timestamp
+VW_Users_Filtered	id	bigint unsigned
+VW_Users_Filtered	full_name	varchar(255)
+VW_Users_Filtered	document_number	varchar(255)
+VW_Users_Filtered	validated	tinyint(1)
+VW_request_w_Profiling_Predictions	user_request_id	bigint unsigned
+VW_request_w_Profiling_Predictions	user_request_status	varchar(255)
+VW_request_w_Profiling_Predictions	amount	decimal(15,4)
+VW_request_w_Profiling_Predictions	final_amount	decimal(15,4)
+VW_request_w_Profiling_Predictions	user_document_type	varchar(255)
+VW_request_w_Profiling_Predictions	user_document_number	varchar(255)
+VW_request_w_Profiling_Predictions	user_full_name	varchar(255)
+VW_request_w_Profiling_Predictions	allied_name	varchar(255)
+VW_request_w_Profiling_Predictions	w_ctopX	varchar(2)
+VW_request_w_Profiling_Predictions	allied_branch_name	varchar(255)
+VW_request_w_Profiling_Predictions	es_ecommerce	varchar(2)
+VW_request_w_Profiling_Predictions	lender_name	varchar(255)
+VW_request_w_Profiling_Predictions	profiled_lenders	bigint
+VW_request_w_Profiling_Predictions	displayed_lenders	json
+VW_request_w_Profiling_Predictions	Bancolombia - Compra y paga después	varchar(15)
+VW_request_w_Profiling_Predictions	CrediPullman	varchar(17)
+VW_request_w_Profiling_Predictions	Sistecrédito	varchar(16)
+VW_request_w_Profiling_Predictions	Addi	varchar(8)
+VW_request_w_Profiling_Predictions	Vanti	varchar(9)
+VW_request_w_Profiling_Predictions	Meddipay	varchar(12)
+VW_request_w_Profiling_Predictions	displayed_lenders_names	longtext
+VW_request_w_Profiling_Predictions	user_category	varchar(255)
+VW_request_w_Profiling_Predictions	user_category_FGA	double
+VW_request_w_Profiling_Predictions	user_category_min_initial_fee	int
+VW_request_w_Profiling_Predictions	user_category_max_fee_number	int
+VW_request_w_Profiling_Predictions	user_category_max_amount	int
+VW_request_w_Profiling_Predictions	created_at	date
+VW_request_w_Profiling_Predictions	updated_at	date
+VW_request_w_Profiling_Predictions	ADO_response_description	longtext
+achievements	id	bigint unsigned
+achievements	allied_id	bigint unsigned
+achievements	name	varchar(255)
+achievements	description	varchar(255)
+achievements	hook	varchar(255)
+achievements	image	varchar(255)
+achievements	reward	int
+achievements	query	text
+achievements	timespan	text
+achievements	goal	decimal(20,2)
+achievements	deleted_at	timestamp
+achievements	created_at	timestamp
+achievements	updated_at	timestamp
+allied_branches	id	bigint unsigned
+allied_branches	external_id	varchar(255)
+allied_branches	allied_id	int
+allied_branches	allied_zone_id	bigint unsigned
+allied_branches	name	varchar(255)
+allied_branches	address	varchar(255)
+allied_branches	country_city_id	bigint
+allied_branches	hash	varchar(255)
+allied_branches	qr_image	varchar(255)
+allied_branches	contact	longtext
+allied_branches	datacredito_trigger	json
+allied_branches	image	text
+allied_branches	sort	int
+allied_branches	status	tinyint(1)
+allied_branches	created_at	timestamp
+allied_branches	updated_at	timestamp
+allied_branches_by_user	id	bigint unsigned
+allied_branches_by_user	allied_branch_id	bigint unsigned
+allied_branches_by_user	user_id	bigint unsigned
+allied_branches_by_user	created_at	timestamp
+allied_branches_by_user	updated_at	timestamp
+allied_categories	id	bigint unsigned
+allied_categories	name	varchar(255)
+allied_categories	description	varchar(255)
+allied_categories	image	varchar(255)
+allied_categories	icon	varchar(255)
+allied_categories	banner_image	varchar(255)
+allied_categories	visits	int
+allied_categories	primary_color	varchar(255)
+allied_categories	secondary_color	varchar(255)
+allied_categories	order	int
+allied_categories	slug	varchar(255)
+allied_categories	country_id	int
+allied_categories	status	tinyint(1)
+allied_categories	created_at	timestamp
+allied_categories	updated_at	timestamp
+allied_ecommerce_credentials	id	bigint unsigned
+allied_ecommerce_credentials	allied_id	bigint unsigned
+allied_ecommerce_credentials	allied_branch_id	bigint unsigned
+allied_ecommerce_credentials	credential	text
+allied_ecommerce_credentials	ecommerce_type_id	varchar(255)
+allied_ecommerce_credentials	customer_key	text
+allied_ecommerce_credentials	customer_secret	text
+allied_ecommerce_credentials	headers	text
+allied_ecommerce_credentials	created_at	timestamp
+allied_ecommerce_credentials	updated_at	timestamp
+allied_errors_captures	id	bigint unsigned
+allied_errors_captures	user_id	bigint unsigned
+allied_errors_captures	user_request_id	bigint unsigned
+allied_errors_captures	order_key	varchar(255)
+allied_errors_captures	controller	varchar(255)
+allied_errors_captures	method	varchar(255)
+allied_errors_captures	request	longtext
+allied_errors_captures	response	longtext
+allied_errors_captures	code_error	varchar(255)
+allied_errors_captures	description_code_error	longtext
+allied_errors_captures	description	text
+allied_errors_captures	created_at	timestamp
+allied_errors_captures	updated_at	timestamp
+allied_goals	id	int
+allied_goals	allied_id	bigint unsigned
+allied_goals	KAM	varchar(100)
+allied_goals	goal_desembolsos	decimal(19,2)
+allied_goals	goal_transaccional	decimal(19,2)
+allied_goals	goal_saas	decimal(19,2)
+allied_goals	billed_saas	decimal(19,2)
+allied_goals	goal_ctopx	decimal(19,2)
+allied_goals	period	date
+allied_industries	id	bigint unsigned
+allied_industries	name	varchar(255)
+allied_industries	description	varchar(255)
+allied_industries	country_id	int
+allied_industries	status	tinyint(1)
+allied_industries	created_at	timestamp
+allied_industries	updated_at	timestamp
+allied_industries	banner_url	varchar(255)
+allied_modes	id	bigint unsigned
+allied_modes	allied_id	bigint unsigned
+allied_modes	code	varchar(255)
+allied_modes	name	varchar(255)
+allied_modes	order	int unsigned
+allied_modes	is_enabled	tinyint(1)
+allied_modes	config	json
+allied_modes	created_at	timestamp
+allied_modes	updated_at	timestamp
+allied_status_log	id	bigint unsigned
+allied_status_log	user_id	bigint
+allied_status_log	allied_id	bigint
+allied_status_log	previous_status	tinyint(1)
+allied_status_log	new_status	tinyint(1)
+allied_status_log	reason	enum('Churn','No implementado','Activacion')
+allied_status_log	description	longtext
+allied_status_log	created_at	timestamp
+allied_status_log	updated_at	timestamp
+allied_transfer_accounts	id	bigint unsigned
+allied_transfer_accounts	allied_id	int
+allied_transfer_accounts	business_name	varchar(255)
+allied_transfer_accounts	nit	varchar(255)
+allied_transfer_accounts	account_type	varchar(255)
+allied_transfer_accounts	name_bank	varchar(255)
+allied_transfer_accounts	account_number	varchar(255)
+allied_transfer_accounts	status	tinyint(1)
+allied_transfer_accounts	created_at	timestamp
+allied_transfer_accounts	updated_at	timestamp
+allied_types	id	bigint unsigned
+allied_types	name	varchar(255)
+allied_types	description	varchar(255)
+allied_types	country_id	int
+allied_types	status	tinyint(1)
+allied_types	created_at	timestamp
+allied_types	updated_at	timestamp
+allied_zones	id	bigint unsigned
+allied_zones	allied_id	bigint unsigned
+allied_zones	name	varchar(255)
+allied_zones	created_at	timestamp
+allied_zones	updated_at	timestamp
+allieds	id	bigint unsigned
+allieds	allied_caterogy_id	int
+allieds	allied_industry_id	int
+allieds	allied_type_id	int
+allieds	payment_plan_id	int
+allieds	star_allied	timestamp
+allieds	name	varchar(255)
+allieds	nit	varchar(255)
+allieds	description	varchar(255)
+allieds	image	varchar(255)
+allieds	hash	varchar(255)
+allieds	aws_arn	varchar(255)
+allieds	qr_image	varchar(255)
+allieds	price	int
+allieds	payment	tinyint(1)
+allieds	slug	varchar(255)
+allieds	self_managed	tinyint(1)
+allieds	initial_fee	tinyint(1)
+allieds	initial_fee_percentage	int
+allieds	allow_other_payment	tinyint(1)
+allieds	flow_type	int
+allieds	new_screens	tinyint(1)
+allieds	have_ctopx	tinyint(1)
+allieds	show_profiling	tinyint(1)
+allieds	barcode_type	enum('ean13','ean128','qr')
+allieds	preapproved_registration	tinyint(1)
+allieds	primary_color	varchar(255)
+allieds	secondary_color	varchar(255)
+allieds	font_color	varchar(255)
+allieds	quaternary_color	varchar(255)
+allieds	quinary_color	varchar(255)
+allieds	senary_color	varchar(255)
+allieds	order	int
+allieds	country_id	int
+allieds	status	tinyint(1)
+allieds	created_at	timestamp
+allieds	updated_at	timestamp
+allieds	banner_url	varchar(255)
+allieds	background_url	varchar(255)
+allieds	app_ecommerce_url	varchar(255)
+allieds	is_available_in_app	tinyint(1)
+assistance_fee_by_merchant_event	id	bigint unsigned
+assistance_fee_by_merchant_event	merchant_event_id	bigint unsigned
+assistance_fee_by_merchant_event	assistance_fee	double(8,2)
+assistance_fee_by_merchant_event	minimum_order_amount	double(8,2)
+assistance_fee_by_merchant_event	maximum_order_amount	double(8,2)
+assistance_fee_by_merchant_event	created_at	timestamp
+assistance_fee_by_merchant_event	updated_at	timestamp
+backup_final_amount_ecommerce	id	bigint unsigned
+backup_final_amount_ecommerce	final_amount	decimal(15,4)
+backup_final_amount_ecommerce	initial_fee	decimal(15,4)
+banks	id	bigint unsigned
+banks	name	varchar(255)
+banks	description	varchar(255)
+banks	sort	int
+banks	status	tinyint(1)
+banks	created_at	timestamp
+banks	updated_at	timestamp
+beneficiaries_by_allieds	id	bigint unsigned
+beneficiaries_by_allieds	allied_id	bigint
+beneficiaries_by_allieds	user_request_id	bigint
+beneficiaries_by_allieds	name	text
+beneficiaries_by_allieds	document_type	varchar(255)
+beneficiaries_by_allieds	document_number	varchar(255)
+beneficiaries_by_allieds	credit_value	decimal(15,4)
+beneficiaries_by_allieds	apply_discount	varchar(255)
+beneficiaries_by_allieds	discount_percent	int
+beneficiaries_by_allieds	debit_card	varchar(255)
+beneficiaries_by_allieds	card_number	varchar(255)
+beneficiaries_by_allieds	budget	varchar(255)
+beneficiaries_by_allieds	observation	text
+beneficiaries_by_allieds	attached_conditions	text
+beneficiaries_by_allieds	status	tinyint(1)
+beneficiaries_by_allieds	created_at	timestamp
+beneficiaries_by_allieds	updated_at	timestamp
+bnpl_corbeta_errors	id	bigint unsigned
+bnpl_corbeta_errors	user_id	bigint unsigned
+bnpl_corbeta_errors	user_request_id	bigint unsigned
+bnpl_corbeta_errors	order_key	varchar(255)
+bnpl_corbeta_errors	controller	varchar(255)
+bnpl_corbeta_errors	method	varchar(255)
+bnpl_corbeta_errors	request	longtext
+bnpl_corbeta_errors	response	longtext
+bnpl_corbeta_errors	code_error	varchar(255)
+bnpl_corbeta_errors	description_code_error	longtext
+bnpl_corbeta_errors	description	text
+bnpl_corbeta_errors	created_at	timestamp
+bnpl_corbeta_errors	updated_at	timestamp
+bonifications	id	bigint unsigned
+bonifications	uuid	char(36)
+bonifications	entity_type	varchar(255)
+bonifications	entity_id	bigint unsigned
+bonifications	user_id	bigint unsigned
+bonifications	amount	decimal(15,4)
+bonifications	created_at	timestamp
+bonifications	updated_at	timestamp
+cache	key	varchar(255)
+cache	value	mediumtext
+cache	expiration	int
+cache_locks	key	varchar(255)
+cache_locks	owner	varchar(255)
+cache_locks	expiration	int
+cities_by_lender	id	bigint unsigned
+cities_by_lender	lender_id	bigint unsigned
+cities_by_lender	country_city_id	bigint unsigned
+cities_by_lender	created_at	timestamp
+cities_by_lender	updated_at	timestamp
+colombian_holidays	id	bigint unsigned
+colombian_holidays	holiday_date	date
+colombian_holidays	holiday_name	varchar(255)
+colombian_holidays	created_at	timestamp
+colombian_holidays	updated_at	timestamp
+compare_face_logs	id	bigint unsigned
+compare_face_logs	user_id	bigint
+compare_face_logs	user_request_id	bigint
+compare_face_logs	name	varchar(255)
+compare_face_logs	image_1	longtext
+compare_face_logs	image_2	longtext
+compare_face_logs	response	longtext
+compare_face_logs	status	tinyint(1)
+compare_face_logs	created_at	timestamp
+compare_face_logs	updated_at	timestamp
+confirmation_email_logs	id	bigint unsigned
+confirmation_email_logs	user_request_id	bigint
+confirmation_email_logs	status	varchar(255)
+confirmation_email_logs	allied_id	bigint
+confirmation_email_logs	lender_id	bigint
+confirmation_email_logs	authorized_receivers	longtext
+confirmation_email_logs	email_recipients	longtext
+confirmation_email_logs	created_at	timestamp
+confirmation_email_logs	updated_at	timestamp
+contact_web_forms	id	bigint unsigned
+contact_web_forms	company_name	varchar(255)
+contact_web_forms	name	varchar(255)
+contact_web_forms	email	varchar(255)
+contact_web_forms	cellphone	varchar(255)
+contact_web_forms	message	text
+contact_web_forms	industry	varchar(255)
+contact_web_forms	nit	varchar(255)
+contact_web_forms	amount_allied_branch	int
+contact_web_forms	validate	int
+contact_web_forms	status	tinyint(1)
+contact_web_forms	created_at	timestamp
+contact_web_forms	updated_at	timestamp
+corporate_users	id	bigint unsigned
+corporate_users	allied_id	int
+corporate_users	allied_branch_id	int
+corporate_users	first_name	varchar(255)
+corporate_users	surname	varchar(255)
+corporate_users	full_name	varchar(255)
+corporate_users	document_number	varchar(255)
+corporate_users	cell_phone	varchar(255)
+corporate_users	email	varchar(255)
+corporate_users	email_verified_at	timestamp
+corporate_users	country_id	int
+corporate_users	status	tinyint(1)
+corporate_users	password	varchar(255)
+corporate_users	remember_token	varchar(100)
+corporate_users	created_at	timestamp
+corporate_users	updated_at	timestamp
+countries	id	bigint unsigned
+countries	name	varchar(255)
+countries	dial_code	varchar(255)
+countries	iso_code_1	varchar(255)
+countries	iso_code_2	varchar(255)
+countries	iso_code_3	varchar(255)
+countries	address_format	varchar(255)
+countries	cell_phone_lenght	varchar(255)
+countries	image	varchar(255)
+countries	phone_code	varchar(5)
+countries	locale	varchar(255)
+countries	currency	varchar(255)
+countries	status	tinyint(1)
+countries	created_at	timestamp
+countries	updated_at	timestamp
+country_cities	id	bigint unsigned
+country_cities	country_zone_id	bigint
+country_cities	name	varchar(255)
+country_cities	code	varchar(255)
+country_cities	status	tinyint(1)
+country_cities	created_at	timestamp
+country_cities	updated_at	timestamp
+country_municipalities	id	bigint unsigned
+country_municipalities	zone_id	bigint unsigned
+country_municipalities	name	varchar(255)
+country_municipalities	code	varchar(255)
+country_municipalities	status	tinyint(1)
+country_municipalities	created_at	timestamp
+country_municipalities	updated_at	timestamp
+country_zones	id	bigint unsigned
+country_zones	country_id	bigint
+country_zones	name	varchar(255)
+country_zones	code	varchar(255)
+country_zones	status	tinyint(1)
+country_zones	created_at	timestamp
+country_zones	updated_at	timestamp
+credit_line_by_lenders	id	bigint unsigned
+credit_line_by_lenders	credit_line_id	int
+credit_line_by_lenders	lender_id	int
+credit_line_by_lenders	min_fee_number	int
+credit_line_by_lenders	max_fee_number	int
+credit_line_by_lenders	fee_numbers	varchar(255)
+credit_line_by_lenders	fee_interval	int
+credit_line_by_lenders	rate	double(8,2)
+credit_line_by_lenders	rate_suffix	varchar(255)
+credit_line_by_lenders	min_amount	int
+credit_line_by_lenders	max_amount	int
+credit_line_by_lenders	fee_name	varchar(255)
+credit_line_by_lenders	sort	int
+credit_line_by_lenders	status	tinyint(1)
+credit_line_by_lenders	created_at	timestamp
+credit_line_by_lenders	updated_at	timestamp
+credit_lines	id	bigint unsigned
+credit_lines	name	varchar(255)
+credit_lines	description	varchar(255)
+credit_lines	copy	varchar(255)
+credit_lines	image	varchar(255)
+credit_lines	fee_name	varchar(255)
+credit_lines	visits	int
+credit_lines	sort	int
+credit_lines	slug	varchar(255)
+credit_lines	country_id	int
+credit_lines	status	tinyint(1)
+credit_lines	created_at	timestamp
+credit_lines	updated_at	timestamp
+credit_scores	id	bigint unsigned
+credit_scores	user_id	bigint
+credit_scores	age_range	varchar(255)
+credit_scores	credit_score	varchar(255)
+credit_scores	document_number	varchar(255)
+credit_scores	full_name	varchar(255)
+credit_scores	error_message	longtext
+credit_scores	response	longtext
+credit_scores	status	tinyint(1)
+credit_scores	created_at	timestamp
+credit_scores	updated_at	timestamp
+creditop_x_adjustments_by_lender_scoring	id	bigint unsigned
+creditop_x_adjustments_by_lender_scoring	lender_id	bigint unsigned
+creditop_x_adjustments_by_lender_scoring	min_score	int
+creditop_x_adjustments_by_lender_scoring	max_score	int
+creditop_x_adjustments_by_lender_scoring	adjustment_percentage	decimal(8,2)
+creditop_x_adjustments_by_lender_scoring	created_at	timestamp
+creditop_x_adjustments_by_lender_scoring	updated_at	timestamp
+creditop_x_attachments	id	bigint unsigned
+creditop_x_attachments	name	varchar(255)
+creditop_x_attachments	created_at	timestamp
+creditop_x_attachments	updated_at	timestamp
+creditop_x_blacklisted_documents	id	bigint unsigned
+creditop_x_blacklisted_documents	lender_id	bigint unsigned
+creditop_x_blacklisted_documents	document_type	varchar(20)
+creditop_x_blacklisted_documents	document_number	varchar(50)
+creditop_x_blacklisted_documents	full_name	varchar(255)
+creditop_x_blacklisted_documents	created_at	timestamp
+creditop_x_blacklisted_documents	updated_at	timestamp
+creditop_x_changes_log	id	bigint unsigned
+creditop_x_changes_log	user_request_id	bigint unsigned
+creditop_x_changes_log	change_type_id	bigint unsigned
+creditop_x_changes_log	otp_id	bigint unsigned
+creditop_x_changes_log	created_at	timestamp
+creditop_x_changes_log	updated_at	timestamp
+creditop_x_conditions_by_amount_by_lender	id	bigint unsigned
+creditop_x_conditions_by_amount_by_lender	min_amount	int
+creditop_x_conditions_by_amount_by_lender	max_amount	int
+creditop_x_conditions_by_amount_by_lender	lender_id	bigint unsigned
+creditop_x_conditions_by_amount_by_lender	initial_fee_percentage	int
+creditop_x_conditions_by_amount_by_lender	max_fee_number	int
+creditop_x_conditions_by_amount_by_lender	mandatory_fee_number	tinyint(1)
+creditop_x_conditions_by_amount_by_lender	created_at	timestamp
+creditop_x_conditions_by_amount_by_lender	updated_at	timestamp
+creditop_x_consent_types	id	bigint unsigned
+creditop_x_consent_types	name	varchar(255)
+creditop_x_consent_types	created_at	timestamp
+creditop_x_consent_types	updated_at	timestamp
+creditop_x_consents	id	bigint unsigned
+creditop_x_consents	user_request_id	bigint unsigned
+creditop_x_consents	creditop_x_revolving_credit_id	bigint unsigned
+creditop_x_consents	creditop_x_consent_type_id	bigint unsigned
+creditop_x_consents	user_id	bigint unsigned
+creditop_x_consents	otp_id	bigint unsigned
+creditop_x_consents	consent_url	text
+creditop_x_consents	created_at	timestamp
+creditop_x_consents	updated_at	timestamp
+creditop_x_cutoff_types	id	bigint unsigned
+creditop_x_cutoff_types	name	varchar(255)
+creditop_x_cutoff_types	created_at	timestamp
+creditop_x_cutoff_types	updated_at	timestamp
+creditop_x_lender_configuration	id	bigint unsigned
+creditop_x_lender_configuration	lender_id	bigint unsigned
+creditop_x_lender_configuration	late_payment_interest_rate	double(8,2)
+creditop_x_lender_configuration	installments_waived_interest	int
+creditop_x_lender_configuration	created_at	timestamp
+creditop_x_lender_configuration	updated_at	timestamp
+creditop_x_lender_early_payment_discount	id	bigint unsigned
+creditop_x_lender_early_payment_discount	lender_id	bigint unsigned
+creditop_x_lender_early_payment_discount	installment_number	bigint unsigned
+creditop_x_lender_early_payment_discount	discount_pct	decimal(10,2)
+creditop_x_lender_early_payment_discount	created_at	timestamp
+creditop_x_lender_early_payment_discount	updated_at	timestamp
+creditop_x_lender_payment_method	id	bigint unsigned
+creditop_x_lender_payment_method	lender_id	bigint unsigned
+creditop_x_lender_payment_method	payment_method_id	bigint unsigned
+creditop_x_lender_payment_method	lender_payment_method_code	int unsigned
+creditop_x_lender_payment_method	created_at	timestamp
+creditop_x_lender_payment_method	updated_at	timestamp
+creditop_x_lender_residual_balances	id	bigint unsigned
+creditop_x_lender_residual_balances	lender_id	bigint unsigned
+creditop_x_lender_residual_balances	residual_balance	double(15,2)
+creditop_x_lender_residual_balances	created_at	timestamp
+creditop_x_lender_residual_balances	updated_at	timestamp
+creditop_x_lender_scoring	id	bigint unsigned
+creditop_x_lender_scoring	lender_id	bigint unsigned
+creditop_x_lender_scoring	variable	varchar(255)
+creditop_x_lender_scoring	min_value	decimal(12,2)
+creditop_x_lender_scoring	max_value	decimal(12,2)
+creditop_x_lender_scoring	fixed_value	varchar(255)
+creditop_x_lender_scoring	points	decimal(8,2)
+creditop_x_lender_scoring	created_at	timestamp
+creditop_x_lender_scoring	updated_at	timestamp
+creditop_x_log	id	bigint unsigned
+creditop_x_log	type	varchar(255)
+creditop_x_log	creditop_x_request_history_id	bigint unsigned
+creditop_x_log	creditop_x_revolving_credit_id	bigint unsigned
+creditop_x_log	user_request_id	bigint unsigned
+creditop_x_log	corporate_user_id	bigint unsigned
+creditop_x_log	controller	varchar(255)
+creditop_x_log	method	varchar(255)
+creditop_x_log	name	varchar(255)
+creditop_x_log	description	text
+creditop_x_log	headers	text
+creditop_x_log	request	longtext
+creditop_x_log	response	longtext
+creditop_x_log	created_at	timestamp
+creditop_x_log	updated_at	timestamp
+creditop_x_message_types	id	bigint unsigned
+creditop_x_message_types	code	varchar(32)
+creditop_x_message_types	name	varchar(255)
+creditop_x_message_types	date_field	varchar(32)
+creditop_x_message_types	status	tinyint(1)
+creditop_x_message_types	created_at	timestamp
+creditop_x_message_types	updated_at	timestamp
+creditop_x_occupation_multiplier_by_lender	id	bigint unsigned
+creditop_x_occupation_multiplier_by_lender	lender_id	bigint unsigned
+creditop_x_occupation_multiplier_by_lender	occupation	varchar(255)
+creditop_x_occupation_multiplier_by_lender	multiplier	decimal(5,3)
+creditop_x_occupation_multiplier_by_lender	created_at	timestamp
+creditop_x_occupation_multiplier_by_lender	updated_at	timestamp
+creditop_x_payment_methods	id	bigint unsigned
+creditop_x_payment_methods	code	varchar(10)
+creditop_x_payment_methods	name	varchar(50)
+creditop_x_payment_methods	description	text
+creditop_x_payment_methods	created_at	timestamp
+creditop_x_payment_methods	updated_at	timestamp
+creditop_x_payment_register	id	bigint unsigned
+creditop_x_payment_register	payment_method	varchar(255)
+creditop_x_payment_register	status_id	int
+creditop_x_payment_register	payment_type_id	bigint unsigned
+creditop_x_payment_register	payment_method_id	bigint unsigned
+creditop_x_payment_register	payment_gateway_transaction_id	varchar(255)
+creditop_x_payment_register	user_request_id	bigint unsigned
+creditop_x_payment_register	user_id	bigint unsigned
+creditop_x_payment_register	allied_branch_id	bigint unsigned
+creditop_x_payment_register	reference	text
+creditop_x_payment_register	paid_amount	double(14,2)
+creditop_x_payment_register	creditop_x_revolving_credit_payment_id	bigint unsigned
+creditop_x_payment_register	created_at	timestamp
+creditop_x_payment_register	updated_at	timestamp
+creditop_x_payment_statuses	id	bigint unsigned
+creditop_x_payment_statuses	name	varchar(255)
+creditop_x_payment_statuses	created_at	timestamp
+creditop_x_payment_statuses	updated_at	timestamp
+creditop_x_payment_types	id	bigint unsigned
+creditop_x_payment_types	name	varchar(255)
+creditop_x_payment_types	created_at	timestamp
+creditop_x_payment_types	updated_at	timestamp
+creditop_x_payments	id	bigint unsigned
+creditop_x_payments	paid_amount	decimal(15,4)
+creditop_x_payments	user_id	bigint
+creditop_x_payments	user_request_id	bigint
+creditop_x_payments	payment_type_id	bigint unsigned
+creditop_x_payments	payment_register_id	bigint unsigned
+creditop_x_payments	reference	text
+creditop_x_payments	request_history_id	int
+creditop_x_payments	created_at	timestamp
+creditop_x_payments	updated_at	timestamp
+creditop_x_payments	paid_principal_amount	decimal(15,4)
+creditop_x_payments	paid_interest	decimal(15,4)
+creditop_x_payments	paid_late_payment_interest	decimal(15,4)
+creditop_x_payments	paid_life_insurance	decimal(15,4)
+creditop_x_payments	paid_guarantee	decimal(15,4)
+creditop_x_payments	paid_guarantee_insurance	decimal(15,4)
+creditop_x_principal_payment_types	id	bigint unsigned
+creditop_x_principal_payment_types	name	varchar(255)
+creditop_x_principal_payment_types	description	text
+creditop_x_principal_payment_types	created_at	timestamp
+creditop_x_principal_payment_types	updated_at	timestamp
+creditop_x_profiling_down_payment_FGA	id	bigint unsigned
+creditop_x_profiling_down_payment_FGA	lender_id	bigint unsigned
+creditop_x_profiling_down_payment_FGA	multiplier_risk	tinyint
+creditop_x_profiling_down_payment_FGA	down_payment	tinyint
+creditop_x_profiling_down_payment_FGA	FGA	tinyint
+creditop_x_profiling_down_payment_FGA	status	tinyint
+creditop_x_profiling_down_payment_FGA	created_at	timestamp
+creditop_x_profiling_down_payment_FGA	updated_at	timestamp
+creditop_x_profiling_fixed_expenses	id	bigint unsigned
+creditop_x_profiling_fixed_expenses	min_value	decimal(19,2)
+creditop_x_profiling_fixed_expenses	max_value	decimal(19,2)
+creditop_x_profiling_fixed_expenses	min_perc	tinyint
+creditop_x_profiling_fixed_expenses	max_perc	tinyint
+creditop_x_profiling_fixed_expenses	status	tinyint
+creditop_x_profiling_fixed_expenses	created_at	timestamp
+creditop_x_profiling_fixed_expenses	updated_at	timestamp
+creditop_x_profiling_multiplier_risk_rangs	id	bigint unsigned
+creditop_x_profiling_multiplier_risk_rangs	variable_id	bigint unsigned
+creditop_x_profiling_multiplier_risk_rangs	min_range	decimal(10,2)
+creditop_x_profiling_multiplier_risk_rangs	max_range	decimal(10,2)
+creditop_x_profiling_multiplier_risk_rangs	value	tinyint
+creditop_x_profiling_multiplier_risk_rangs	status	tinyint
+creditop_x_profiling_multiplier_risk_rangs	created_at	timestamp
+creditop_x_profiling_multiplier_risk_rangs	updated_at	timestamp
+creditop_x_profiling_multiplier_risk_vars	id	bigint unsigned
+creditop_x_profiling_multiplier_risk_vars	name	varchar(100)
+creditop_x_profiling_multiplier_risk_vars	weight	tinyint
+creditop_x_profiling_multiplier_risk_vars	status	tinyint
+creditop_x_profiling_multiplier_risk_vars	created_at	timestamp
+creditop_x_profiling_multiplier_risk_vars	updated_at	timestamp
+creditop_x_pullman_pos	id	bigint unsigned
+creditop_x_pullman_pos	allied_branch_id	bigint unsigned
+creditop_x_pullman_pos	name	varchar(255)
+creditop_x_pullman_pos	code	varchar(255)
+creditop_x_pullman_pos	created_at	timestamp
+creditop_x_pullman_pos	updated_at	timestamp
+creditop_x_quota_restrictions	id	bigint unsigned
+creditop_x_quota_restrictions	lender_id	bigint unsigned
+creditop_x_quota_restrictions	variable	varchar(255)
+creditop_x_quota_restrictions	min_value	decimal(15,2)
+creditop_x_quota_restrictions	max_value	decimal(15,2)
+creditop_x_quota_restrictions	min_quota	decimal(15,2)
+creditop_x_quota_restrictions	max_quota	decimal(15,2)
+creditop_x_quota_restrictions	max_term	int
+creditop_x_quota_restrictions	fee_value	decimal(15,2)
+creditop_x_quota_restrictions	operator	varchar(255)
+creditop_x_quota_restrictions	created_at	timestamp
+creditop_x_quota_restrictions	updated_at	timestamp
+creditop_x_reminder_messages	id	bigint unsigned
+creditop_x_reminder_messages	creditop_x_message_type_id	bigint unsigned
+creditop_x_reminder_messages	creditop_x_user_request_status_id	bigint
+creditop_x_reminder_messages	days_remaining_for_payment	int
+creditop_x_reminder_messages	attachment_id	bigint
+creditop_x_reminder_messages	message	text
+creditop_x_reminder_messages	sid	text
+creditop_x_reminder_messages	status	tinyint(1)
+creditop_x_reminder_messages	created_at	timestamp
+creditop_x_reminder_messages	updated_at	timestamp
+creditop_x_requests_history	id	bigint unsigned
+creditop_x_requests_history	user_id	bigint unsigned
+creditop_x_requests_history	user_request_id	bigint unsigned
+creditop_x_requests_history	next_payment_date	date
+creditop_x_requests_history	next_billing_date	date
+creditop_x_requests_history	last_payment_date	date
+creditop_x_requests_history	creditop_x_requests_status_id	int unsigned
+creditop_x_requests_history	principal_amount_balance	double(15,4)
+creditop_x_requests_history	interest_amount_balance	double(15,4)
+creditop_x_requests_history	insurance_amount_balance	double(15,4)
+creditop_x_requests_history	guarantee_amount_balance	double(15,4)
+creditop_x_requests_history	guarantee_insurance_amount_balance	decimal(15,4)
+creditop_x_requests_history	total_payment_amount	double(15,4)
+creditop_x_requests_history	installments_waived_interest	int
+creditop_x_requests_history	paid_principal_amount	double(15,4)
+creditop_x_requests_history	paid_interest	double(15,4)
+creditop_x_requests_history	paid_guarantee	double(15,4)
+creditop_x_requests_history	paid_guarantee_insurance	decimal(15,4)
+creditop_x_requests_history	next_payment_amount	double(15,4)
+creditop_x_requests_history	next_payment_principal	double(15,4)
+creditop_x_requests_history	next_payment_interest	double(15,4)
+creditop_x_requests_history	next_payment_insurance	double(15,4)
+creditop_x_requests_history	next_payment_guarantee	double(8,2)
+creditop_x_requests_history	next_payment_guarantee_insurance	decimal(15,4)
+creditop_x_requests_history	installment_principal_value	double(15,4)
+creditop_x_requests_history	installment_interest_value	double(15,4)
+creditop_x_requests_history	installment_number	int unsigned
+creditop_x_requests_history	life_insurance_per_month	double(15,4)
+creditop_x_requests_history	installment_value	double(15,4)
+creditop_x_requests_history	guarantee_fixed_value	double(15,4)
+creditop_x_requests_history	guarantee_fixed_value_percentage	double(15,4)
+creditop_x_requests_history	fixed_guarantee_insurance_per_month	decimal(15,4)
+creditop_x_requests_history	guaarantee_insurance_per_million	decimal(15,4)
+creditop_x_requests_history	late_payment_interest_value	double(15,4)
+creditop_x_requests_history	late_payment_principal_exclude	double(8,2)
+creditop_x_requests_history	days_past_due	int unsigned
+creditop_x_requests_history	billing_principal_amount	double(15,4)
+creditop_x_requests_history	billing_day	int unsigned
+creditop_x_requests_history	daily_interest	double(15,4)
+creditop_x_requests_history	status	int unsigned
+creditop_x_requests_history	movement_type	varchar(255)
+creditop_x_requests_history	revolving_credit_id	bigint unsigned
+creditop_x_requests_history	created_at	timestamp
+creditop_x_requests_history	updated_at	timestamp
+creditop_x_requests_history	real_life_insurance	double(15,4)
+creditop_x_requests_history	fixed_life_insurance_per_month	double(8,2)
+creditop_x_requests_history	life_insurance_per_million	double(8,2)
+creditop_x_revolving_credit_payments	id	bigint unsigned
+creditop_x_revolving_credit_payments	paid_amount	int
+creditop_x_revolving_credit_payments	user_id	bigint unsigned
+creditop_x_revolving_credit_payments	creditop_x_revolving_credit_id	bigint unsigned
+creditop_x_revolving_credit_payments	reference	text
+creditop_x_revolving_credit_payments	created_at	timestamp
+creditop_x_revolving_credit_payments	updated_at	timestamp
+creditop_x_revolving_credits	id	bigint unsigned
+creditop_x_revolving_credits	user_id	bigint unsigned
+creditop_x_revolving_credits	approved_limit	double(19,4)
+creditop_x_revolving_credits	calc_limit	double(19,4)
+creditop_x_revolving_credits	used_limit	double(19,4)
+creditop_x_revolving_credits	billing_used_limit	double(19,4)
+creditop_x_revolving_credits	installment_amount	double(19,4)
+creditop_x_revolving_credits	next_payment_amount	double(19,4)
+creditop_x_revolving_credits	total_payment_amount	double(19,4)
+creditop_x_revolving_credits	creditop_x_requests_status_id	bigint unsigned
+creditop_x_revolving_credits	fee_number	double(19,4)
+creditop_x_revolving_credits	next_payment_date	date
+creditop_x_revolving_credits	next_billing_date	date
+creditop_x_revolving_credits	initial_fee	double(19,4)
+creditop_x_revolving_credits	fga	double(19,4)
+creditop_x_revolving_credits	min_fee_number	double(19,4)
+creditop_x_revolving_credits	status	tinyint(1)
+creditop_x_revolving_credits	allied_id	bigint unsigned
+creditop_x_revolving_credits	lender_id	bigint unsigned
+creditop_x_revolving_credits	created_at	timestamp
+creditop_x_revolving_credits	updated_at	timestamp
+creditop_x_revolving_credits_history	id	bigint unsigned
+creditop_x_revolving_credits_history	user_id	bigint unsigned
+creditop_x_revolving_credits_history	lender_id	bigint unsigned
+creditop_x_revolving_credits_history	approved_limit	int
+creditop_x_revolving_credits_history	calc_limit	int
+creditop_x_revolving_credits_history	risk_multiplier	double(19,4)
+creditop_x_revolving_credits_history	initial_fee	double(19,4)
+creditop_x_revolving_credits_history	fga	double(19,4)
+creditop_x_revolving_credits_history	min_fee_number	double(19,4)
+creditop_x_revolving_credits_history	payment_capacity	double(19,4)
+creditop_x_revolving_credits_history	created_at	timestamp
+creditop_x_revolving_credits_history	updated_at	timestamp
+creditop_x_social_strata_multiplier_by_lender	id	bigint unsigned
+creditop_x_social_strata_multiplier_by_lender	lender_id	bigint unsigned
+creditop_x_social_strata_multiplier_by_lender	social_strata	int
+creditop_x_social_strata_multiplier_by_lender	outcome_pct	decimal(5,3)
+creditop_x_social_strata_multiplier_by_lender	min_salary_multiplier	decimal(5,3)
+creditop_x_social_strata_multiplier_by_lender	created_at	timestamp
+creditop_x_social_strata_multiplier_by_lender	updated_at	timestamp
+creditop_x_user_request_statuses	id	bigint unsigned
+creditop_x_user_request_statuses	description	varchar(255)
+creditop_x_user_request_statuses	created_at	timestamp
+creditop_x_user_request_statuses	updated_at	timestamp
+creditop_x_user_requests_process_statuses	id	bigint unsigned
+creditop_x_user_requests_process_statuses	name	varchar(255)
+creditop_x_user_requests_process_statuses	description	varchar(255)
+creditop_x_user_requests_process_statuses	step_number	int
+creditop_x_user_requests_process_statuses	status	tinyint(1)
+creditop_x_user_requests_process_statuses	created_at	timestamp
+creditop_x_user_requests_process_statuses	updated_at	timestamp
+creditop_x_user_requests_records	id	bigint unsigned
+creditop_x_user_requests_records	user_request_id	bigint unsigned
+creditop_x_user_requests_records	user_id	bigint unsigned
+creditop_x_user_requests_records	allied_branch_id	bigint unsigned
+creditop_x_user_requests_records	creditop_x_user_requests_process_statuses_id	bigint unsigned
+creditop_x_user_requests_records	status	tinyint(1)
+creditop_x_user_requests_records	created_at	timestamp
+creditop_x_user_requests_records	updated_at	timestamp
+crosscore_evaluations	id	bigint unsigned
+crosscore_evaluations	uuid	char(36)
+crosscore_evaluations	user_id	bigint
+crosscore_evaluations	user_request_id	bigint
+crosscore_evaluations	lender_id	bigint
+crosscore_evaluations	client_reference_id	varchar(255)
+crosscore_evaluations	event_id	varchar(255)
+crosscore_evaluations	exp_request_id	varchar(255)
+crosscore_evaluations	account_id_jm	varchar(255)
+crosscore_evaluations	workflow_id_jm	varchar(255)
+crosscore_evaluations	tenant_id	varchar(255)
+crosscore_evaluations	request_type	varchar(255)
+crosscore_evaluations	decision	varchar(255)
+crosscore_evaluations	decision_text	varchar(255)
+crosscore_evaluations	decision_reasons	json
+crosscore_evaluations	response_code	varchar(255)
+crosscore_evaluations	response_type	varchar(255)
+crosscore_evaluations	response_message	text
+crosscore_evaluations	orchestration_decisions	json
+crosscore_evaluations	decision_elements	json
+crosscore_evaluations	request_payload	longtext
+crosscore_evaluations	response_payload	longtext
+crosscore_evaluations	error_payload	longtext
+crosscore_evaluations	http_status	smallint unsigned
+crosscore_evaluations	status	varchar(255)
+crosscore_evaluations	duration_ms	int unsigned
+crosscore_evaluations	error_code	varchar(255)
+crosscore_evaluations	error_message	text
+crosscore_evaluations	requested_at	timestamp
+crosscore_evaluations	responded_at	timestamp
+crosscore_evaluations	created_at	timestamp
+crosscore_evaluations	updated_at	timestamp
+datacredito_frequencies	id	bigint unsigned
+datacredito_frequencies	allied_id	int
+datacredito_frequencies	frequency	int
+datacredito_frequencies	every	int
+datacredito_frequencies	created_at	timestamp
+datacredito_frequencies	updated_at	timestamp
+datacredito_query_by_allieds	id	bigint unsigned
+datacredito_query_by_allieds	allied_id	int
+datacredito_query_by_allieds	count	int
+datacredito_query_by_allieds	created_at	timestamp
+datacredito_query_by_allieds	updated_at	timestamp
+device_locks	id	bigint unsigned
+device_locks	user_request_product_id	bigint unsigned
+device_locks	imei	varchar(20)
+device_locks	status	enum('pending','locked','unlocked','failed','unlock_failed','pending_release','released','release_failed')
+device_locks	locked_at	timestamp
+device_locks	unlocked_at	timestamp
+device_locks	api_response	json
+device_locks	created_at	timestamp
+device_locks	updated_at	timestamp
+ecommerce_requests	id	bigint unsigned
+ecommerce_requests	order_key	varchar(255)
+ecommerce_requests	order_identifier	varchar(255)
+ecommerce_requests	allied_id	bigint unsigned
+ecommerce_requests	allied_branch_id	bigint unsigned
+ecommerce_requests	user_id	bigint unsigned
+ecommerce_requests	user_request_id	bigint unsigned
+ecommerce_requests	original_user_request_id	bigint unsigned
+ecommerce_requests	ecommerce_id	bigint unsigned
+ecommerce_requests	data	text
+ecommerce_requests	products	text
+ecommerce_requests	return_url	varchar(255)
+ecommerce_requests	process_url	varchar(255)
+ecommerce_requests	processed	tinyint(1)
+ecommerce_requests	created_at	timestamp
+ecommerce_requests	updated_at	timestamp
+ecommerce_requests_log	id	bigint unsigned
+ecommerce_requests_log	user_id	bigint
+ecommerce_requests_log	ecommerce_request_id	bigint
+ecommerce_requests_log	user_request_id	bigint unsigned
+ecommerce_requests_log	controller	varchar(255)
+ecommerce_requests_log	method	varchar(255)
+ecommerce_requests_log	headers	text
+ecommerce_requests_log	request	longtext
+ecommerce_requests_log	response	longtext
+ecommerce_requests_log	created_at	timestamp
+ecommerce_requests_log	updated_at	timestamp
+ecommerces	id	bigint unsigned
+ecommerces	name	varchar(255)
+ecommerces	created_at	timestamp
+ecommerces	updated_at	timestamp
+email_survey_answers	email_survey_link_id	bigint unsigned
+email_survey_answers	email_survey_option_id	bigint unsigned
+email_survey_answers	created_at	timestamp
+email_survey_answers	updated_at	timestamp
+email_survey_comments	email_survey_link_id	bigint unsigned
+email_survey_comments	comment	text
+email_survey_comments	created_at	timestamp
+email_survey_comments	updated_at	timestamp
+email_survey_links	id	bigint unsigned
+email_survey_links	uuid	char(36)
+email_survey_links	email_survey_id	bigint unsigned
+email_survey_links	user_id	bigint unsigned
+email_survey_links	deleted_at	timestamp
+email_survey_links	created_at	timestamp
+email_survey_links	updated_at	timestamp
+email_survey_options	id	bigint unsigned
+email_survey_options	uuid	char(36)
+email_survey_options	email_survey_id	bigint unsigned
+email_survey_options	name	varchar(255)
+email_survey_options	description	text
+email_survey_options	created_at	timestamp
+email_survey_options	updated_at	timestamp
+email_surveys	id	bigint unsigned
+email_surveys	name	varchar(255)
+email_surveys	description	text
+email_surveys	created_at	timestamp
+email_surveys	updated_at	timestamp
+error_codes	id	bigint unsigned
+error_codes	code	varchar(255)
+error_codes	description	varchar(255)
+error_codes	created_at	timestamp
+error_codes	updated_at	timestamp
+experian_notifications	id	int
+experian_notifications	user_request_id	bigint unsigned
+experian_notifications	notification_date	date
+failed_jobs	id	bigint unsigned
+failed_jobs	uuid	varchar(255)
+failed_jobs	connection	text
+failed_jobs	queue	text
+failed_jobs	payload	longtext
+failed_jobs	exception	longtext
+failed_jobs	failed_at	timestamp
+field_categories	id	bigint unsigned
+field_categories	name	varchar(255)
+field_categories	description	text
+field_categories	image	varchar(255)
+field_categories	status	tinyint(1)
+field_categories	created_at	timestamp
+field_categories	updated_at	timestamp
+field_options	id	bigint unsigned
+field_options	field_id	bigint
+field_options	key	varchar(255)
+field_options	name	varchar(255)
+field_options	sort	int
+field_options	status	tinyint(1)
+field_options	created_at	timestamp
+field_options	updated_at	timestamp
+fields	id	bigint unsigned
+fields	field_category_id	bigint
+fields	parent_id	bigint
+fields	related_field_id	bigint
+fields	parent_value	varchar(255)
+fields	name	varchar(255)
+fields	description	text
+fields	help_message	varchar(500)
+fields	field_appearance	varchar(255)
+fields	field_group	varchar(255)
+fields	type	varchar(255)
+fields	validation	varchar(255)
+fields	data_source	varchar(255)
+fields	status	tinyint(1)
+fields	created_at	timestamp
+fields	updated_at	timestamp
+form_types	id	bigint unsigned
+form_types	name	varchar(255)
+form_types	description	text
+form_types	lender_id	bigint unsigned
+form_types	status	tinyint(1)
+form_types	created_at	timestamp
+form_types	updated_at	timestamp
+forms	id	bigint unsigned
+forms	form_type_id	int
+forms	field_id	bigint
+forms	hidden	tinyint(1)
+forms	editable	tinyint(1)
+forms	sort	int
+forms	status	tinyint(1)
+forms	created_at	timestamp
+forms	updated_at	timestamp
+group_rules	id	bigint unsigned
+group_rules	allied_branch_id	int
+group_rules	rule_name	varchar(255)
+group_rules	created_at	timestamp
+group_rules	updated_at	timestamp
+guarantee_acceptances	id	bigint unsigned
+guarantee_acceptances	user_request_id	bigint unsigned
+guarantee_acceptances	creditop_x_revolving_credit_id	bigint unsigned
+guarantee_acceptances	user_id	bigint unsigned
+guarantee_acceptances	otp_id	bigint unsigned
+guarantee_acceptances	guarantee_acceptance_url	text
+guarantee_acceptances	created_at	timestamp
+guarantee_acceptances	updated_at	timestamp
+identity_validation_attempts	id	bigint unsigned
+identity_validation_attempts	user_request_id	bigint unsigned
+identity_validation_attempts	user_id	bigint unsigned
+identity_validation_attempts	active	tinyint(1)
+identity_validation_attempts	front_status	varchar(255)
+identity_validation_attempts	back_status	varchar(255)
+identity_validation_attempts	face_status	varchar(255)
+identity_validation_attempts	front_hash	varchar(64)
+identity_validation_attempts	back_hash	varchar(64)
+identity_validation_attempts	face_hash	varchar(64)
+identity_validation_attempts	failure_reason	text
+identity_validation_attempts	trace	json
+identity_validation_attempts	completed_at	timestamp
+identity_validation_attempts	created_at	timestamp
+identity_validation_attempts	updated_at	timestamp
+identity_validation_types	id	bigint unsigned
+identity_validation_types	name	varchar(255)
+identity_validation_types	slug	varchar(255)
+identity_validation_types	label	varchar(255)
+identity_validation_types	status	tinyint(1)
+identity_validation_types	created_at	timestamp
+identity_validation_types	updated_at	timestamp
+jumio_accounts	id	bigint unsigned
+jumio_accounts	uuid	char(36)
+jumio_accounts	user_id	bigint
+jumio_accounts	user_request_id	bigint
+jumio_accounts	lender_id	bigint
+jumio_accounts	client_reference_id	varchar(255)
+jumio_accounts	customer_internal_reference	varchar(255)
+jumio_accounts	user_reference	varchar(255)
+jumio_accounts	account_id_jm	varchar(255)
+jumio_accounts	workflow_id_jm	varchar(255)
+jumio_accounts	status	varchar(255)
+jumio_accounts	web_href	text
+jumio_accounts	sdk_token	longtext
+jumio_accounts	request_payload	longtext
+jumio_accounts	response_payload	longtext
+jumio_accounts	callback_payload	longtext
+jumio_accounts	error_code	varchar(255)
+jumio_accounts	error_message	text
+jumio_accounts	http_status	smallint unsigned
+jumio_accounts	requested_at	timestamp
+jumio_accounts	callback_received_at	timestamp
+jumio_accounts	completed_at	timestamp
+jumio_accounts	created_at	timestamp
+jumio_accounts	updated_at	timestamp
+lender_allied_credentials	id	bigint unsigned
+lender_allied_credentials	lender_id	bigint unsigned
+lender_allied_credentials	allied_type	varchar(255)
+lender_allied_credentials	allied_id	bigint unsigned
+lender_allied_credentials	credential	text
+lender_allied_credentials	created_at	timestamp
+lender_allied_credentials	updated_at	timestamp
+lender_datacredito_rules	id	bigint unsigned
+lender_datacredito_rules	allied_branch_id	int
+lender_datacredito_rules	lender_id	int
+lender_datacredito_rules	score	int
+lender_datacredito_rules	allow_0_score	tinyint(1)
+lender_datacredito_rules	current_dues	int
+lender_datacredito_rules	time_finance_sector	int
+lender_datacredito_rules	negative_historical_last_12_months	int
+lender_datacredito_rules	consulted_last_6_months	int
+lender_datacredito_rules	probability_levels	json
+lender_datacredito_rules	created_at	timestamp
+lender_datacredito_rules	updated_at	timestamp
+lender_documentations	id	bigint unsigned
+lender_documentations	allied_id	int
+lender_documentations	lender_id	int
+lender_documentations	name	varchar(255)
+lender_documentations	help_message	varchar(500)
+lender_documentations	field_appearance	varchar(255)
+lender_documentations	type	varchar(255)
+lender_documentations	validation	varchar(255)
+lender_documentations	status	tinyint(1)
+lender_documentations	created_at	timestamp
+lender_documentations	updated_at	timestamp
+lender_error_codes	id	bigint unsigned
+lender_error_codes	lender_id	bigint unsigned
+lender_error_codes	lender_class	varchar(255)
+lender_error_codes	code	varchar(255)
+lender_error_codes	description	varchar(255)
+lender_error_codes	message	varchar(255)
+lender_error_codes	handler	varchar(255)
+lender_error_codes	created_at	timestamp
+lender_error_codes	updated_at	timestamp
+lender_guarantee_criteria	id	bigint unsigned
+lender_guarantee_criteria	lender_id	bigint
+lender_guarantee_criteria	variable	varchar(255)
+lender_guarantee_criteria	condition	varchar(255)
+lender_guarantee_criteria	value	varchar(255)
+lender_guarantee_criteria	originator_nit	int
+lender_guarantee_criteria	originator_legal_name	varchar(255)
+lender_guarantee_criteria	created_at	timestamp
+lender_guarantee_criteria	updated_at	timestamp
+lender_identity_validation_types	id	bigint unsigned
+lender_identity_validation_types	lender_id	bigint unsigned
+lender_identity_validation_types	identity_validation_type_id	bigint unsigned
+lender_identity_validation_types	order	int
+lender_identity_validation_types	status	tinyint(1)
+lender_identity_validation_types	created_at	timestamp
+lender_identity_validation_types	updated_at	timestamp
+lender_integration_flows	id	bigint unsigned
+lender_integration_flows	user_request_id	bigint unsigned
+lender_integration_flows	lender_id	bigint unsigned
+lender_integration_flows	data	json
+lender_integration_flows	created_at	timestamp
+lender_integration_flows	updated_at	timestamp
+lender_payment_capacity_scoring_policy	id	bigint unsigned
+lender_payment_capacity_scoring_policy	lender_id	bigint
+lender_payment_capacity_scoring_policy	min	int
+lender_payment_capacity_scoring_policy	max	int
+lender_payment_capacity_scoring_policy	score	int
+lender_payment_capacity_scoring_policy	created_at	timestamp
+lender_payment_capacity_scoring_policy	updated_at	timestamp
+lender_revenue	id	int
+lender_revenue	lender_id	bigint unsigned
+lender_revenue	revenue	float
+lender_revenue	period	date
+lender_rules	id	bigint unsigned
+lender_rules	group_rule_id	int
+lender_rules	lender_id	int
+lender_rules	name	varchar(255)
+lender_rules	description	varchar(255)
+lender_rules	field_id	int
+lender_rules	specific_table	varchar(255)
+lender_rules	column	varchar(255)
+lender_rules	operator	varchar(255)
+lender_rules	value	varchar(255)
+lender_rules	status	tinyint(1)
+lender_rules	created_at	timestamp
+lender_rules	updated_at	timestamp
+lender_term_capital_adjustment_factors	id	bigint unsigned
+lender_term_capital_adjustment_factors	lender_id	bigint unsigned
+lender_term_capital_adjustment_factors	term	int
+lender_term_capital_adjustment_factors	adjustment_factor	decimal(10,6)
+lender_term_capital_adjustment_factors	created_at	timestamp
+lender_term_capital_adjustment_factors	updated_at	timestamp
+lender_transaction_statuses	id	bigint unsigned
+lender_transaction_statuses	lender_id	bigint unsigned
+lender_transaction_statuses	name	varchar(255)
+lender_transaction_statuses	description	varchar(255)
+lender_transaction_statuses	created_at	timestamp
+lender_transaction_statuses	updated_at	timestamp
+lender_transactions	id	bigint unsigned
+lender_transactions	lender_id	bigint unsigned
+lender_transactions	user_request_id	bigint unsigned
+lender_transactions	status_id	bigint unsigned
+lender_transactions	order_id	varchar(255)
+lender_transactions	request	json
+lender_transactions	response	json
+lender_transactions	created_at	timestamp
+lender_transactions	updated_at	timestamp
+lender_user_category_scoring_policy_rules	id	bigint unsigned
+lender_user_category_scoring_policy_rules	lender_id	bigint unsigned
+lender_user_category_scoring_policy_rules	lender_user_category_id	bigint unsigned
+lender_user_category_scoring_policy_rules	min_score	int
+lender_user_category_scoring_policy_rules	max_score	int
+lender_user_category_scoring_policy_rules	created_at	timestamp
+lender_user_category_scoring_policy_rules	updated_at	timestamp
+lender_user_fields_scoring_policy	id	bigint unsigned
+lender_user_fields_scoring_policy	lender_id	bigint unsigned
+lender_user_fields_scoring_policy	field_id	bigint unsigned
+lender_user_fields_scoring_policy	value	varchar(255)
+lender_user_fields_scoring_policy	score	int
+lender_user_fields_scoring_policy	created_at	timestamp
+lender_user_fields_scoring_policy	updated_at	timestamp
+lender_users_categories	id	bigint unsigned
+lender_users_categories	lender_id	bigint unsigned
+lender_users_categories	name	varchar(255)
+lender_users_categories	loan_limit	int
+lender_users_categories	already_used_loan	int
+lender_users_categories	FGA	double
+lender_users_categories	min_initial_fee	int
+lender_users_categories	max_fee_number	int
+lender_users_categories	available_amount_multiplier	decimal(5,2)
+lender_users_categories	life_percentage	int
+lender_users_categories	max_amount	int
+lender_users_categories	rate	decimal(5,2)
+lender_users_categories	requires_other_lender	tinyint(1)
+lender_users_categories	order	int
+lender_users_categories	created_at	timestamp
+lender_users_categories	updated_at	timestamp
+lender_users_category_rules	id	bigint unsigned
+lender_users_category_rules	lender_id	bigint unsigned
+lender_users_category_rules	lender_users_category_id	bigint unsigned
+lender_users_category_rules	priority	int
+lender_users_category_rules	occupation	varchar(255)
+lender_users_category_rules	min_age	int
+lender_users_category_rules	max_age	int
+lender_users_category_rules	monthly_income	int
+lender_users_category_rules	verified_income	tinyint(1)
+lender_users_category_rules	special_granting	tinyint(1)
+lender_users_category_rules	gender	varchar(255)
+lender_users_category_rules	negative_reports_last_12_months	int
+lender_users_category_rules	current_delinquencies	int
+lender_users_category_rules	excluded_current_delinquencies	varchar(255)
+lender_users_category_rules	financial_history_length	int
+lender_users_category_rules	min_score	int
+lender_users_category_rules	employment_continuity	int
+lender_users_category_rules	min_credit_cards	int
+lender_users_category_rules	min_debt_capacity	int
+lender_users_category_rules	debt_capacity_amount_validation	tinyint(1)
+lender_users_category_rules	tc_vector_validation	tinyint(1)
+lender_users_category_rules	consulted_last_6_months	int
+lender_users_category_rules	overdue_vector_validation	tinyint(1)
+lender_users_category_rules	created_at	timestamp
+lender_users_category_rules	updated_at	timestamp
+lenders	id	bigint unsigned
+lenders	pdf_mapper_project_slug	varchar(255)
+lenders	name	varchar(255)
+lenders	image	varchar(255)
+lenders	voucher_image_url	varchar(255)
+lenders	description	varchar(255)
+lenders	benefits	text
+lenders	response_type	int
+lenders	ecommerce	tinyint(1)
+lenders	url	varchar(255)
+lenders	email	varchar(255)
+lenders	slug	varchar(255)
+lenders	action	varchar(255)
+lenders	sort	int
+lenders	country_id	int
+lenders	path_id	bigint unsigned
+lenders	show_intro_screen	tinyint(1)
+lenders	intro_background_url	varchar(2048)
+lenders	additional_data	longtext
+lenders	complementary_form	tinyint(1)
+lenders	originator_nit	text
+lenders	validation_type	int
+lenders	amount_to_lend	int
+lenders	max_rev_credit	decimal(19,2)
+lenders	status	tinyint(1)
+lenders	promissory_type_id	bigint unsigned
+lenders	created_at	timestamp
+lenders	updated_at	timestamp
+lenders	allow_payment_date_selection	tinyint(1)
+lenders	cutoff_type_id	bigint unsigned
+lenders	requires_payment_schedule_signature	tinyint(1)
+lenders	available_until	time
+lenders	is_fallback_lender	tinyint(1)
+lenders	fallback_removal_min_amount	decimal(15,2)
+lenders	requires_restrictive_list_check	tinyint(1)
+lenders	signing_provider_id	bigint unsigned
+lenders_by_allied_branches	id	bigint unsigned
+lenders_by_allied_branches	lender_id	int
+lenders_by_allied_branches	allied_branch_id	int
+lenders_by_allied_branches	url_utm	text
+lenders_by_allied_branches	sort	int
+lenders_by_allied_branches	status	tinyint(1)
+lenders_by_allied_branches	created_at	timestamp
+lenders_by_allied_branches	updated_at	timestamp
+lenders_by_allieds	id	bigint unsigned
+lenders_by_allieds	lender_id	int
+lenders_by_allieds	allied_id	int
+lenders_by_allieds	url_utm	text
+lenders_by_allieds	confirmation_emails	longtext
+lenders_by_allieds	expense_penalties_percentage	double
+lenders_by_allieds	administrative_costs_percentage	double
+lenders_by_allieds	life_insurance_percentage	double
+lenders_by_allieds	life_insurance_fixed	double
+lenders_by_allieds	guarantee_fund_percentage	double
+lenders_by_allieds	iva	double
+lenders_by_allieds	multiple_of_maximum_amount	double
+lenders_by_allieds	sort	int
+lenders_by_allieds	user_self_management	tinyint(1)
+lenders_by_allieds	initial_fee_percentage	double(8,2)
+lenders_by_allieds	guarantee_fixed_monthly_percentage	double(8,2)
+lenders_by_allieds	insurance_fixed_monthly_percentage	double(8,2)
+lenders_by_allieds	guarantee_insurance_per_million	decimal(10,2)
+lenders_by_allieds	insurance_percentage_per_million	int
+lenders_by_allieds	administrative_fixed_value	double(8,2)
+lenders_by_allieds	origination_cost_fixed	decimal(10,2)
+lenders_by_allieds	bank_id	int
+lenders_by_allieds	comission_percentage	int
+lenders_by_allieds	credit_note_calculation_id	int
+lenders_by_allieds	starting_value_calculation_id	int
+lenders_by_allieds	min_amount	int
+lenders_by_allieds	max_amount	int
+lenders_by_allieds	min_initial_fee	int
+lenders_by_allieds	min_product_amount	decimal(19,2)
+lenders_by_allieds	enable_collection	tinyint(1)
+lenders_by_allieds	status	tinyint(1)
+lenders_by_allieds	created_at	timestamp
+lenders_by_allieds	updated_at	timestamp
+log_return_wompi_initial_fee	id	bigint unsigned
+log_return_wompi_initial_fee	user_request_id	bigint unsigned
+log_return_wompi_initial_fee	payment_gateway_transaction_id	bigint unsigned
+log_return_wompi_initial_fee	returned	tinyint(1)
+log_return_wompi_initial_fee	created_at	timestamp
+log_return_wompi_initial_fee	updated_at	timestamp
+log_user_special_credit_grant_by_lender	id	bigint unsigned
+log_user_special_credit_grant_by_lender	lender_id	bigint unsigned
+log_user_special_credit_grant_by_lender	user_id	bigint unsigned
+log_user_special_credit_grant_by_lender	variable	varchar(255)
+log_user_special_credit_grant_by_lender	value	varchar(255)
+log_user_special_credit_grant_by_lender	created_at	timestamp
+log_user_special_credit_grant_by_lender	updated_at	timestamp
+logs	id	bigint unsigned
+logs	user_id	bigint
+logs	user_request_id	bigint
+logs	controller	varchar(255)
+logs	method	varchar(255)
+logs	name	varchar(255)
+logs	description	text
+logs	headers	text
+logs	request	longtext
+logs	response	longtext
+logs	created_at	timestamp
+logs	updated_at	timestamp
+merchant_events	id	bigint unsigned
+merchant_events	name	varchar(255)
+merchant_events	description	text
+merchant_events	start_time	datetime
+merchant_events	end_time	datetime
+merchant_events	location	varchar(255)
+merchant_events	allied_id	bigint unsigned
+merchant_events	allied_branch_id	bigint unsigned
+merchant_events	created_at	timestamp
+merchant_events	updated_at	timestamp
+metamap_logs	id	bigint unsigned
+metamap_logs	user_id	bigint
+metamap_logs	flow_id	varchar(255)
+metamap_logs	verification_number	varchar(255)
+metamap_logs	resource	varchar(255)
+metamap_logs	event_name	text
+metamap_logs	step_id	text
+metamap_logs	headers	text
+metamap_logs	request	longtext
+metamap_logs	response	longtext
+metamap_logs	created_at	timestamp
+metamap_logs	updated_at	timestamp
+migrations	id	int unsigned
+migrations	migration	varchar(255)
+migrations	batch	int
+modal_survey_answers	id	bigint unsigned
+modal_survey_answers	modal_survey_question_id	bigint unsigned
+modal_survey_answers	user_id	bigint unsigned
+modal_survey_answers	answer	text
+modal_survey_answers	created_at	timestamp
+modal_survey_answers	updated_at	timestamp
+modal_survey_questions	id	bigint unsigned
+modal_survey_questions	modal_survey_id	bigint unsigned
+modal_survey_questions	name	varchar(255)
+modal_survey_questions	type	varchar(255)
+modal_survey_questions	description	text
+modal_survey_questions	config	json
+modal_survey_questions	created_at	timestamp
+modal_survey_questions	updated_at	timestamp
+modal_surveys	id	bigint unsigned
+modal_surveys	title	varchar(255)
+modal_surveys	hook	varchar(255)
+modal_surveys	description	text
+modal_surveys	chances	int
+modal_surveys	out_of	int
+modal_surveys	timespan	varchar(255)
+modal_surveys	component	varchar(255)
+modal_surveys	deleted_at	timestamp
+modal_surveys	created_at	timestamp
+modal_surveys	updated_at	timestamp
+model_has_permissions	permission_id	bigint unsigned
+model_has_permissions	model_type	varchar(255)
+model_has_permissions	model_id	bigint unsigned
+model_has_roles	role_id	bigint unsigned
+model_has_roles	model_type	varchar(255)
+model_has_roles	model_id	bigint unsigned
+netco_signing_documents	id	bigint unsigned
+netco_signing_documents	user_request_id	bigint unsigned
+netco_signing_documents	document_type	varchar(64)
+netco_signing_documents	netco_uid	varchar(128)
+netco_signing_documents	status	enum('generated','pending_sign','signed','failed')
+netco_signing_documents	signed_pdf_url	text
+netco_signing_documents	signed_at	timestamp
+netco_signing_documents	last_error_code	varchar(255)
+netco_signing_documents	correlation_id	char(36)
+netco_signing_documents	otp_id	bigint unsigned
+netco_signing_documents	response_data	json
+netco_signing_documents	signed_base64	longtext
+netco_signing_documents	created_at	timestamp
+netco_signing_documents	updated_at	timestamp
+oauth_access_tokens	id	varchar(100)
+oauth_access_tokens	user_id	bigint unsigned
+oauth_access_tokens	client_id	bigint unsigned
+oauth_access_tokens	name	varchar(255)
+oauth_access_tokens	scopes	text
+oauth_access_tokens	revoked	tinyint(1)
+oauth_access_tokens	created_at	timestamp
+oauth_access_tokens	updated_at	timestamp
+oauth_access_tokens	expires_at	datetime
+oauth_auth_codes	id	varchar(100)
+oauth_auth_codes	user_id	bigint unsigned
+oauth_auth_codes	client_id	bigint unsigned
+oauth_auth_codes	scopes	text
+oauth_auth_codes	revoked	tinyint(1)
+oauth_auth_codes	expires_at	datetime
+oauth_clients	id	bigint unsigned
+oauth_clients	user_id	bigint unsigned
+oauth_clients	name	varchar(255)
+oauth_clients	secret	varchar(100)
+oauth_clients	provider	varchar(255)
+oauth_clients	redirect	text
+oauth_clients	personal_access_client	tinyint(1)
+oauth_clients	password_client	tinyint(1)
+oauth_clients	revoked	tinyint(1)
+oauth_clients	created_at	timestamp
+oauth_clients	updated_at	timestamp
+oauth_personal_access_clients	id	bigint unsigned
+oauth_personal_access_clients	client_id	bigint unsigned
+oauth_personal_access_clients	created_at	timestamp
+oauth_personal_access_clients	updated_at	timestamp
+oauth_refresh_tokens	id	varchar(100)
+oauth_refresh_tokens	access_token_id	varchar(100)
+oauth_refresh_tokens	revoked	tinyint(1)
+oauth_refresh_tokens	expires_at	datetime
+ocr_logs	id	bigint unsigned
+ocr_logs	user_id	bigint
+ocr_logs	user_request_id	bigint
+ocr_logs	side	varchar(255)
+ocr_logs	name	varchar(255)
+ocr_logs	image	longtext
+ocr_logs	format_response	longtext
+ocr_logs	response	longtext
+ocr_logs	status	tinyint(1)
+ocr_logs	created_at	timestamp
+ocr_logs	updated_at	timestamp
+otp_logs	id	bigint unsigned
+otp_logs	user_id	bigint
+otp_logs	user_request_id	bigint
+otp_logs	controller	varchar(255)
+otp_logs	method	varchar(255)
+otp_logs	name	varchar(255)
+otp_logs	description	text
+otp_logs	headers	text
+otp_logs	request	longtext
+otp_logs	response	longtext
+otp_logs	created_at	timestamp
+otp_logs	updated_at	timestamp
+otps	id	bigint unsigned
+otps	user_id	bigint
+otps	cell_phone	varchar(255)
+otps	otp	text
+otps	response	longtext
+otps	validated	tinyint(1)
+otps	status	tinyint(1)
+otps	created_at	timestamp
+otps	updated_at	timestamp
+password_reset_tokens	email	varchar(255)
+password_reset_tokens	token	varchar(255)
+password_reset_tokens	created_at	timestamp
+paths	id	bigint unsigned
+paths	name	varchar(255)
+paths	description	varchar(255)
+paths	status	tinyint(1)
+paths	created_at	timestamp
+paths	updated_at	timestamp
+payment_gateway_transactions	id	bigint unsigned
+payment_gateway_transactions	lender_id	bigint unsigned
+payment_gateway_transactions	user_request_id	bigint unsigned
+payment_gateway_transactions	creditop_x_revolving_credit_id	bigint unsigned
+payment_gateway_transactions	status_id	bigint unsigned
+payment_gateway_transactions	principal_payment_type_id	bigint unsigned
+payment_gateway_transactions	creditop_x_payment_type_id	int
+payment_gateway_transactions	order_id	varchar(255)
+payment_gateway_transactions	request	json
+payment_gateway_transactions	response	json
+payment_gateway_transactions	created_at	timestamp
+payment_gateway_transactions	updated_at	timestamp
+payment_links	id	bigint unsigned
+payment_links	amount	decimal(15,4)
+payment_links	allied_id	bigint unsigned
+payment_links	allied_branch_id	bigint unsigned
+payment_links	masive	tinyint(1)
+payment_links	expiration_date	timestamp
+payment_links	created_by	bigint unsigned
+payment_links	status	tinyint(1)
+payment_links	created_at	timestamp
+payment_links	updated_at	timestamp
+payment_methods	id	bigint unsigned
+payment_methods	name	varchar(255)
+payment_methods	description	varchar(255)
+payment_methods	sort	int
+payment_methods	status	tinyint(1)
+payment_methods	created_at	timestamp
+payment_methods	updated_at	timestamp
+payment_methods_by_lender	id	bigint unsigned
+payment_methods_by_lender	lender_id	bigint
+payment_methods_by_lender	url	varchar(255)
+payment_methods_by_lender	name	varchar(255)
+payment_methods_by_lender	message	text
+payment_methods_by_lender	image	text
+payment_methods_by_lender	created_at	timestamp
+payment_methods_by_lender	updated_at	timestamp
+payvalida_transaction_statuses	id	bigint unsigned
+payvalida_transaction_statuses	name	varchar(255)
+payvalida_transaction_statuses	description	varchar(255)
+payvalida_transaction_statuses	created_at	timestamp
+payvalida_transaction_statuses	updated_at	timestamp
+payvalida_transactions	id	bigint unsigned
+payvalida_transactions	order_uuid	char(36)
+payvalida_transactions	user_id	bigint unsigned
+payvalida_transactions	user_request_id	bigint unsigned
+payvalida_transactions	transaction_status_id	bigint unsigned
+payvalida_transactions	request	json
+payvalida_transactions	response	json
+payvalida_transactions	created_at	timestamp
+payvalida_transactions	updated_at	timestamp
+permissions	id	bigint unsigned
+permissions	name	varchar(255)
+permissions	guard_name	varchar(255)
+permissions	created_at	timestamp
+permissions	updated_at	timestamp
+personal_access_tokens	id	bigint unsigned
+personal_access_tokens	tokenable_type	varchar(255)
+personal_access_tokens	tokenable_id	bigint unsigned
+personal_access_tokens	name	varchar(255)
+personal_access_tokens	token	varchar(64)
+personal_access_tokens	abilities	text
+personal_access_tokens	last_used_at	timestamp
+personal_access_tokens	expires_at	timestamp
+personal_access_tokens	created_at	timestamp
+personal_access_tokens	updated_at	timestamp
+product_categories	id	bigint unsigned
+product_categories	name	varchar(255)
+product_categories	description	varchar(255)
+product_categories	allied_id	bigint unsigned
+product_categories	merchant_event_id	bigint unsigned
+product_categories	created_at	timestamp
+product_categories	updated_at	timestamp
+products	id	bigint unsigned
+products	name	varchar(255)
+products	brand	varchar(255)
+products	model	varchar(255)
+products	product_category_id	bigint unsigned
+products	initial_fee	decimal(15,4)
+products	max_term	smallint unsigned
+products	max_amount	decimal(12,2)
+products	lender_id	bigint unsigned
+products	allied_id	bigint unsigned
+products	status	tinyint(1)
+products	requires_imei	tinyint(1)
+products	created_at	timestamp
+products	updated_at	timestamp
+products	price	int
+products	booking_fee	double(8,2)
+products	delivery_fee	double(8,2)
+products	max_cant	int
+products	merchant_event_id	bigint unsigned
+products	order	int
+products_by_lender_users_categories	id	bigint unsigned
+products_by_lender_users_categories	product_id	bigint unsigned
+products_by_lender_users_categories	lender_users_category_id	bigint unsigned
+products_by_lender_users_categories	created_at	timestamp
+products_by_lender_users_categories	updated_at	timestamp
+profile_data	id	bigint unsigned
+profile_data	employment_status	varchar(255)
+profile_data	monthly_income	int
+profile_data	is_reported	tinyint(1)
+profile_data	age	int
+profile_data	gender	tinyint(1)
+profile_data	credit_score	int
+profile_data	inquiry_footprints_last_6_months	int
+profile_data	negative_history_last_12_months	int
+profile_data	payment_capacity	double(8,2)
+profile_data	total_credit_on_credit_cards	int
+profile_data	available_credit_on_credit_cards	int
+profile_data	active_credit_cards	int
+profile_data	active_savings	int
+profile_data	created_at	timestamp
+profile_data	updated_at	timestamp
+profile_logs	id	bigint unsigned
+profile_logs	user_id	bigint
+profile_logs	controller	varchar(255)
+profile_logs	method	varchar(255)
+profile_logs	name	varchar(255)
+profile_logs	description	text
+profile_logs	created_at	timestamp
+profile_logs	updated_at	timestamp
+profiling_reviews	id	bigint unsigned
+profiling_reviews	user_id	int
+profiling_reviews	allied_id	int
+profiling_reviews	user_request_id	int
+profiling_reviews	recommended_lender	int
+profiling_reviews	disbursed_lender	int
+profiling_reviews	displayed_lenders	json
+profiling_reviews	hard_rules	json
+profiling_reviews	selected_lenders	text
+profiling_reviews	datacredito_query	tinyint(1)
+profiling_reviews	demog_predictions	json
+profiling_reviews	matrix_predictions	json
+profiling_reviews	ML_predictions	json
+profiling_reviews	created_at	timestamp
+profiling_reviews	updated_at	timestamp
+profiling_reviews	deleted_at	timestamp
+profilings	id	bigint unsigned
+profilings	initial_date	date
+profilings	final_date	date
+profilings	processing_time	double(8,2)
+profilings	number_of_samples	int
+profilings	profiling	longtext
+profilings	status	tinyint(1)
+profilings	created_at	timestamp
+profilings	updated_at	timestamp
+promissory_notes	id	bigint unsigned
+promissory_notes	user_request_id	bigint unsigned
+promissory_notes	creditop_x_revolving_credit_id	bigint unsigned
+promissory_notes	user_id	bigint unsigned
+promissory_notes	otp_id	bigint unsigned
+promissory_notes	deceval_promissory_note_id	varchar(255)
+promissory_notes	deceval_response_data	json
+promissory_notes	signing_method	enum('traditional','deceval')
+promissory_notes	promissory_note_url	text
+promissory_notes	payment_schedule_url	text
+promissory_notes	created_at	timestamp
+promissory_notes	updated_at	timestamp
+promissory_types	id	bigint unsigned
+promissory_types	name	varchar(255)
+promissory_types	created_at	timestamp
+promissory_types	updated_at	timestamp
+promotions_by_lenders	id	bigint unsigned
+promotions_by_lenders	lender_id	bigint
+promotions_by_lenders	installments_waived_interest	int
+promotions_by_lenders	initial_date	date
+promotions_by_lenders	final_date	date
+promotions_by_lenders	status	tinyint(1)
+promotions_by_lenders	created_at	timestamp
+promotions_by_lenders	updated_at	timestamp
+purchase_codes	id	bigint unsigned
+purchase_codes	user_request_id	bigint
+purchase_codes	barcode_url	varchar(255)
+purchase_codes	barcode_checked	tinyint(1)
+purchase_codes	created_at	timestamp
+purchase_codes	updated_at	timestamp
+qr_logs	id	bigint unsigned
+qr_logs	allied_id	bigint
+qr_logs	allied_branch_id	bigint
+qr_logs	hash	varchar(255)
+qr_logs	created_at	timestamp
+qr_logs	updated_at	timestamp
+reminder_email_log	id	bigint unsigned
+reminder_email_log	lender_id	bigint
+reminder_email_log	user_id	bigint
+reminder_email_log	user_request_id	bigint unsigned
+reminder_email_log	creditop_x_request_history_id	bigint unsigned
+reminder_email_log	reminder_message_id	bigint unsigned
+reminder_email_log	creditop_x_message_type_id	bigint unsigned
+reminder_email_log	channel	varchar(16)
+reminder_email_log	sid	varchar(64)
+reminder_email_log	status	varchar(16)
+reminder_email_log	provider_response	json
+reminder_email_log	error_message	text
+reminder_email_log	description	varchar(255)
+reminder_email_log	created_at	timestamp
+reminder_email_log	updated_at	timestamp
+reports_log	id	bigint unsigned
+reports_log	user_id	bigint
+reports_log	controller	varchar(255)
+reports_log	method	varchar(255)
+reports_log	report_name	varchar(255)
+reports_log	headers	text
+reports_log	request	longtext
+reports_log	response	longtext
+reports_log	created_at	timestamp
+reports_log	updated_at	timestamp
+request_authorizations	id	bigint unsigned
+request_authorizations	user_request_id	bigint
+request_authorizations	user_id	bigint
+request_authorizations	observations	text
+request_authorizations	status	tinyint(1)
+request_authorizations	created_at	timestamp
+request_authorizations	updated_at	timestamp
+response_types	id	bigint unsigned
+response_types	name	varchar(255)
+response_types	status	tinyint(1)
+revolving_credit_incentive_logs	id	bigint unsigned
+revolving_credit_incentive_logs	revolving_credit_id	bigint unsigned
+revolving_credit_incentive_logs	message_number	int
+revolving_credit_incentive_logs	sent_at	timestamp
+revolving_credit_incentive_logs	created_at	timestamp
+revolving_credit_incentive_logs	updated_at	timestamp
+revolving_credit_incentive_messages	id	bigint unsigned
+revolving_credit_incentive_messages	order	int
+revolving_credit_incentive_messages	message	text
+revolving_credit_incentive_messages	twilio_sid	varchar(255)
+revolving_credit_incentive_messages	status	tinyint
+revolving_credit_incentive_messages	created_at	timestamp
+revolving_credit_incentive_messages	updated_at	timestamp
+risk_central_credentials	id	bigint unsigned
+risk_central_credentials	risk_central_id	bigint unsigned
+risk_central_credentials	credentialable_type	varchar(255)
+risk_central_credentials	credentialable_id	bigint unsigned
+risk_central_credentials	credential	text
+risk_central_credentials	deleted_at	timestamp
+risk_central_credentials	created_at	timestamp
+risk_central_credentials	updated_at	timestamp
+risk_central_user_data	id	bigint unsigned
+risk_central_user_data	uuid	char(36)
+risk_central_user_data	user_id	bigint unsigned
+risk_central_user_data	risk_central_id	bigint unsigned
+risk_central_user_data	score	decimal(8,2) unsigned
+risk_central_user_data	data	longtext
+risk_central_user_data	additional_info	json
+risk_central_user_data	request	json
+risk_central_user_data	deleted_at	timestamp
+risk_central_user_data	created_at	timestamp
+risk_central_user_data	updated_at	timestamp
+risk_centrals	id	bigint unsigned
+risk_centrals	name	varchar(255)
+risk_centrals	created_at	timestamp
+risk_centrals	updated_at	timestamp
+role_has_permissions	permission_id	bigint unsigned
+role_has_permissions	role_id	bigint unsigned
+roles	id	bigint unsigned
+roles	name	varchar(255)
+roles	guard_name	varchar(255)
+roles	created_at	timestamp
+roles	updated_at	timestamp
+security_questions	id	bigint unsigned
+security_questions	description	varchar(255)
+security_questions	answer_type	varchar(255)
+security_questions	cant_variables	int
+security_questions	created_at	timestamp
+security_questions	updated_at	timestamp
+sending_methods	id	bigint unsigned
+sending_methods	name	varchar(255)
+sending_methods	created_at	timestamp
+sending_methods	updated_at	timestamp
+sending_methods_by_reminder_messages	id	bigint unsigned
+sending_methods_by_reminder_messages	sending_method_id	bigint
+sending_methods_by_reminder_messages	reminder_message_id	bigint
+sending_methods_by_reminder_messages	created_at	timestamp
+sending_methods_by_reminder_messages	updated_at	timestamp
+sessions	id	varchar(255)
+sessions	user_id	bigint unsigned
+sessions	ip_address	varchar(255)
+sessions	user_agent	text
+sessions	payload	longtext
+sessions	last_activity	int
+settings	id	bigint unsigned
+settings	code	varchar(255)
+settings	key	varchar(255)
+settings	value	longtext
+settings	serialized	tinyint
+settings	country_id	int
+settings	created_at	timestamp
+settings	updated_at	timestamp
+short_url_visits	id	bigint unsigned
+short_url_visits	short_url_id	bigint unsigned
+short_url_visits	ip_address	varchar(255)
+short_url_visits	operating_system	varchar(255)
+short_url_visits	operating_system_version	varchar(255)
+short_url_visits	browser	varchar(255)
+short_url_visits	browser_version	varchar(255)
+short_url_visits	referer_url	varchar(255)
+short_url_visits	device_type	varchar(255)
+short_url_visits	visited_at	timestamp
+short_url_visits	created_at	timestamp
+short_url_visits	updated_at	timestamp
+short_urls	id	bigint unsigned
+short_urls	destination_url	text
+short_urls	url_key	varchar(255)
+short_urls	default_short_url	varchar(255)
+short_urls	single_use	tinyint(1)
+short_urls	forward_query_params	tinyint(1)
+short_urls	track_visits	tinyint(1)
+short_urls	redirect_status_code	int
+short_urls	track_ip_address	tinyint(1)
+short_urls	track_operating_system	tinyint(1)
+short_urls	track_operating_system_version	tinyint(1)
+short_urls	track_browser	tinyint(1)
+short_urls	track_browser_version	tinyint(1)
+short_urls	track_referer_url	tinyint(1)
+short_urls	track_device_type	tinyint(1)
+short_urls	activated_at	timestamp
+short_urls	deactivated_at	timestamp
+short_urls	created_at	timestamp
+short_urls	updated_at	timestamp
+signing_providers	id	bigint unsigned
+signing_providers	name	varchar(64)
+signing_providers	created_at	timestamp
+signing_providers	updated_at	timestamp
+sistecredito_transaction_statuses	id	bigint unsigned
+sistecredito_transaction_statuses	name	varchar(255)
+sistecredito_transaction_statuses	description	varchar(255)
+sistecredito_transaction_statuses	created_at	timestamp
+sistecredito_transaction_statuses	updated_at	timestamp
+sistecredito_transactions	id	bigint unsigned
+sistecredito_transactions	order_uuid	varchar(255)
+sistecredito_transactions	transaction_uuid	varchar(255)
+sistecredito_transactions	user_id	bigint unsigned
+sistecredito_transactions	user_request_id	bigint unsigned
+sistecredito_transactions	transaction_status_id	bigint unsigned
+sistecredito_transactions	request	json
+sistecredito_transactions	response	json
+sistecredito_transactions	created_at	timestamp
+sistecredito_transactions	updated_at	timestamp
+statements_of_account_log	id	bigint unsigned
+statements_of_account_log	url	varchar(255)
+statements_of_account_log	user_id	bigint unsigned
+statements_of_account_log	user_request_id	bigint unsigned
+statements_of_account_log	created_at	timestamp
+statements_of_account_log	updated_at	timestamp
+status_per_profiles	id	bigint unsigned
+status_per_profiles	allied_id	int
+status_per_profiles	user_profile_id	int
+status_per_profiles	user_request_status_id	int
+status_per_profiles	value	tinyint(1)
+status_per_profiles	description	varchar(500)
+status_per_profiles	sort	int
+status_per_profiles	status	tinyint(1)
+status_per_profiles	created_at	timestamp
+status_per_profiles	updated_at	timestamp
+temp_guarantee_updates	user_request_id	bigint
+temp_guarantee_updates	guarantee_amount_balance	varchar(50)
+temp_pulllman_almacenes	Código	int
+temp_pulllman_almacenes	Nombre	varchar(100)
+temporal_requests	id	bigint unsigned
+temporal_requests	identity_id	varchar(255)
+temporal_requests	verification_id	varchar(255)
+temporal_requests	total_amount	int
+temporal_requests	data_request	longtext
+temporal_requests	created_at	timestamp
+temporal_requests	updated_at	timestamp
+terms_and_conditions	id	bigint unsigned
+terms_and_conditions	version	int
+terms_and_conditions	description	text
+terms_and_conditions	url	longtext
+terms_and_conditions	status	tinyint(1)
+terms_and_conditions	created_at	timestamp
+terms_and_conditions	updated_at	timestamp
+treasury_calculations	id	bigint unsigned
+treasury_calculations	name	varchar(255)
+treasury_calculations	description	varchar(255)
+treasury_calculations	formula	text
+treasury_calculations	sort	int
+treasury_calculations	status	tinyint(1)
+treasury_calculations	created_at	timestamp
+treasury_calculations	updated_at	timestamp
+twilio_logs	id	bigint unsigned
+twilio_logs	user_id	bigint
+twilio_logs	user_request_id	bigint
+twilio_logs	controller	varchar(255)
+twilio_logs	method	varchar(255)
+twilio_logs	name	varchar(255)
+twilio_logs	description	text
+twilio_logs	headers	text
+twilio_logs	request	longtext
+twilio_logs	response	longtext
+twilio_logs	created_at	timestamp
+twilio_logs	updated_at	timestamp
+user_achievements	id	bigint unsigned
+user_achievements	user_id	bigint unsigned
+user_achievements	achievement_id	bigint unsigned
+user_achievements	created_at	timestamp
+user_achievements	updated_at	timestamp
+user_field_values	id	bigint unsigned
+user_field_values	field_id	bigint
+user_field_values	user_id	bigint
+user_field_values	user_request_id	bigint
+user_field_values	form_id	int
+user_field_values	value	text
+user_field_values	file	text
+user_field_values	file_name	text
+user_field_values	status	tinyint(1)
+user_field_values	created_at	timestamp
+user_field_values	updated_at	timestamp
+user_profiles	id	bigint unsigned
+user_profiles	name	varchar(255)
+user_profiles	description	varchar(255)
+user_profiles	image	varchar(255)
+user_profiles	icon	varchar(255)
+user_profiles	modular	tinyint(1)
+user_profiles	status	tinyint(1)
+user_profiles	created_at	timestamp
+user_profiles	updated_at	timestamp
+user_request_additional_information	id	bigint unsigned
+user_request_additional_information	user_request_id	bigint
+user_request_additional_information	corporate_user_id	bigint
+user_request_additional_information	type_data	varchar(255)
+user_request_additional_information	data_json	longtext
+user_request_additional_information	data_files	longtext
+user_request_additional_information	status	tinyint(1)
+user_request_additional_information	created_at	timestamp
+user_request_additional_information	updated_at	timestamp
+user_request_comments	id	bigint unsigned
+user_request_comments	user_request_id	bigint
+user_request_comments	corporate_user_id	bigint
+user_request_comments	response_validation	varchar(255)
+user_request_comments	comment	text
+user_request_comments	status	tinyint(1)
+user_request_comments	created_at	timestamp
+user_request_comments	updated_at	timestamp
+user_request_device_info	id	bigint unsigned
+user_request_device_info	user_request_id	bigint unsigned
+user_request_device_info	imei	varchar(20)
+user_request_device_info	nit	varchar(20)
+user_request_device_info	nit_name	varchar(255)
+user_request_device_info	trustonic_device_id	varchar(255)
+user_request_device_info	enrollment_status	varchar(30)
+user_request_device_info	created_at	timestamp
+user_request_device_info	updated_at	timestamp
+user_request_documentations	id	bigint unsigned
+user_request_documentations	user_id	bigint
+user_request_documentations	user_request_id	bigint
+user_request_documentations	lender_documentation_id	bigint
+user_request_documentations	value	text
+user_request_documentations	status	tinyint(1)
+user_request_documentations	created_at	timestamp
+user_request_documentations	updated_at	timestamp
+user_request_modes	id	bigint unsigned
+user_request_modes	user_request_id	bigint unsigned
+user_request_modes	allied_mode_id	bigint unsigned
+user_request_modes	is_active	tinyint(1)
+user_request_modes	created_at	timestamp
+user_request_modes	updated_at	timestamp
+user_request_products	id	bigint unsigned
+user_request_products	user_request_id	bigint unsigned
+user_request_products	product_id	bigint unsigned
+user_request_products	amount	decimal(12,2)
+user_request_products	initial_fee	decimal(5,2)
+user_request_products	max_fee_number	smallint unsigned
+user_request_products	created_at	timestamp
+user_request_products	updated_at	timestamp
+user_request_products	quantity	int
+user_request_products	imei	varchar(20)
+user_request_records	id	bigint unsigned
+user_request_records	user_id	bigint
+user_request_records	user_request_id	bigint
+user_request_records	user_request_status_id	int
+user_request_records	update_by	varchar(255)
+user_request_records	comment	text
+user_request_records	status	tinyint(1)
+user_request_records	created_at	timestamp
+user_request_records	updated_at	timestamp
+user_request_risk_central_user_data	id	bigint unsigned
+user_request_risk_central_user_data	user_request_id	bigint unsigned
+user_request_risk_central_user_data	risk_central_user_data_id	bigint unsigned
+user_request_risk_central_user_data	created_at	timestamp
+user_request_risk_central_user_data	updated_at	timestamp
+user_request_risk_central_verified	id	bigint unsigned
+user_request_risk_central_verified	user_request_id	bigint unsigned
+user_request_risk_central_verified	created_at	timestamp
+user_request_risk_central_verified	updated_at	timestamp
+user_request_statuses	id	bigint unsigned
+user_request_statuses	name	varchar(255)
+user_request_statuses	description	varchar(500)
+user_request_statuses	sort	int
+user_request_statuses	modular	tinyint(1)
+user_request_statuses	status	tinyint(1)
+user_request_statuses	created_at	timestamp
+user_request_statuses	updated_at	timestamp
+user_requests	id	bigint unsigned
+user_requests	user_id	bigint
+user_requests	allied_id	int
+user_requests	lender_id	int
+user_requests	allied_branch_id	int
+user_requests	corporate_user_id	int
+user_requests	credit_line_id	int
+user_requests	request_number	varchar(255)
+user_requests	original_amount	decimal(15,4)
+user_requests	order_number	varchar(255)
+user_requests	user_request_status_id	int
+user_requests	amount	decimal(15,4)
+user_requests	final_amount	decimal(15,4)
+user_requests	purchase_amount	double(19,4)
+user_requests	invoice_number	varchar(255)
+user_requests	amount_available	decimal(15,4)
+user_requests	fee_number	int
+user_requests	fee_value	decimal(15,4)
+user_requests	initial_fee	decimal(15,4)
+user_requests	rate	double(8,2)
+user_requests	selected_payment_date	date
+user_requests	payment_amount	bigint
+user_requests	payment_method_id	int
+user_requests	manual_register	tinyint(1)
+user_requests	dispatched	tinyint(1)
+user_requests	confirmation_email_attachments	longtext
+user_requests	status	tinyint(1)
+user_requests	created_at	timestamp
+user_requests	updated_at	timestamp
+user_requests	remaining_bonus	decimal(15,4)
+user_requests	self_management	tinyint(1)
+user_requests_by_ecommerce_request	id	bigint unsigned
+user_requests_by_ecommerce_request	ecommerce_request_id	bigint unsigned
+user_requests_by_ecommerce_request	user_request_id	bigint unsigned
+user_requests_by_ecommerce_request	created_at	timestamp
+user_requests_by_ecommerce_request	updated_at	timestamp
+user_requests_by_payment_links	id	bigint unsigned
+user_requests_by_payment_links	user_request_id	bigint unsigned
+user_requests_by_payment_links	payment_link_id	bigint unsigned
+user_requests_by_payment_links	created_at	timestamp
+user_requests_by_payment_links	updated_at	timestamp
+user_summaries	id	bigint unsigned
+user_summaries	user_id	bigint
+user_summaries	agildata	json
+user_summaries	mareigua	json
+user_summaries	tusdatos	json
+user_summaries	datacredito	json
+user_summaries	quanto	json
+user_summaries	abaco	json
+user_summaries	deleted_at	timestamp
+user_summaries	created_at	timestamp
+user_summaries	updated_at	timestamp
+user_terms_acepteds	id	bigint unsigned
+user_terms_acepteds	user_id	bigint
+user_terms_acepteds	user_request_id	bigint
+user_terms_acepteds	terms_and_conditions_id	int
+user_terms_acepteds	otp_id	bigint unsigned
+user_terms_acepteds	accepted_document	text
+user_terms_acepteds	status	tinyint(1)
+user_terms_acepteds	created_at	timestamp
+user_terms_acepteds	updated_at	timestamp
+users	id	bigint unsigned
+users	cognito_id	char(36)
+users	mobile_created	tinyint(1)
+users	user_profile_id	int
+users	lender_id	bigint
+users	identity_id	varchar(255)
+users	resource	varchar(255)
+users	corporate_user_id	varchar(255)
+users	allied_id	int
+users	multiple_allieds	varchar(255)
+users	allied_branch_id	int
+users	first_name	varchar(255)
+users	surname	varchar(255)
+users	full_name	varchar(255)
+users	expedition_date	date
+users	document_number	varchar(255)
+users	document_type	varchar(255)
+users	new_id	tinyint(1)
+users	date_of_birth	date
+users	age	int
+users	issue_country	varchar(255)
+users	gender	char(1)
+users	place_of_birth	varchar(255)
+users	face_model_url	text
+users	front_url	text
+users	back_url	text
+users	cell_phone	varchar(255)
+users	email	varchar(255)
+users	email_verified_at	timestamp
+users	country_id	int
+users	status	tinyint(1)
+users	validated	tinyint(1)
+users	cellphone_validation	tinyint(1)
+users	manual_validation	tinyint(1)
+users	last_validation	datetime
+users	password	varchar(255)
+users	two_factor_secret	text
+users	two_factor_recovery_codes	text
+users	remember_token	varchar(100)
+users	profile_data	longtext
+users	manual_register	tinyint(1)
+users	created_at	timestamp
+users	updated_at	timestamp
+users_category_log	id	bigint unsigned
+users_category_log	user_id	bigint unsigned
+users_category_log	category_rules_acceptance	text
+users_category_log	lender_id	bigint unsigned
+users_category_log	lender_users_category_id	bigint unsigned
+users_category_log	current_available_amount	bigint
+users_category_log	created_at	timestamp
+users_category_log	updated_at	timestamp
+users_modified_for_unfiltering	user_id	bigint unsigned
+users_modified_for_unfiltering	document_number_original	varchar(255)
+users_modified_for_unfiltering	document_number_modified	varchar(255)
+validations	id	bigint unsigned
+validations	user_id	bigint unsigned
+validations	user_request_id	bigint unsigned
+validations	validation	varchar(255)
+validations	comment	varchar(255)
+validations	created_at	timestamp
+validations	updated_at	timestamp
+variables_by_security_question	id	bigint unsigned
+variables_by_security_question	security_question_id	bigint
+variables_by_security_question	name	varchar(255)
+variables_by_security_question	variable	char(255)
+variables_by_security_question	created_at	timestamp
+variables_by_security_question	updated_at	timestamp
+woocommerce_statuses	id	bigint unsigned
+woocommerce_statuses	woocommerce_status	varchar(255)
+woocommerce_statuses	creditop_status_id	bigint unsigned
+woocommerce_statuses	created_at	timestamp
+woocommerce_statuses	updated_at	timestamp

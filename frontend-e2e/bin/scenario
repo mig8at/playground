@@ -1,0 +1,99 @@
+#!/usr/bin/env bash
+# scenario — corre un combo nombrado de presets.json (defaults + alias de merchant + scenarios).
+# Misma ergonomía que `make scenario` del backend-e2e, adaptado a la UI (specs Playwright + bin/asesor).
+#
+#   bin/scenario <name>           corre el scenario (despacha a bin/asesor | playwright | qa-checkout)
+#   bin/scenario <name> preview   igual, pero HEADED (ver el navegador) — sirve para cualquier scenario
+#   bin/scenario --list           lista los scenarios disponibles
+#
+# presets.json NO cachea la BD: el frontend resuelve el merchant por nombre en runtime. El JSON solo
+# quita fricción (defaults E2E_*, alias por entorno, combos nombrados). Si un alias queda stale, el
+# flujo falla fuerte en la resolución, no silencioso.
+set -euo pipefail
+
+E2E="$(cd "$(dirname "$0")/.." && pwd)"
+PRESETS="$E2E/presets.json"
+cd "$E2E"
+[ -f "$PRESETS" ] || { echo "✗ no encuentro presets.json en $E2E"; exit 1; }
+
+py() { PRESETS="$PRESETS" python3 -c "$1"; }
+
+list() {
+	echo "SCENARIOS (presets.json)"
+	py "import json,os
+d=json.load(open(os.environ['PRESETS']))['scenarios']
+for n in sorted(d):
+    s=d[n]
+    extra='lender='+s['lender'] if s.get('lender') else ''
+    print('  %-14s %-6s %-11s %-10s %s' % (n, s.get('env','local'), s.get('tool','asesor'), s.get('merchant',''), extra))"
+	echo
+	echo "  corré uno con:  make scenario <name>   ·   agregá 'preview' para verlo: make scenario <name> preview"
+}
+
+name="${1:-}"
+case "$name" in
+	""|--list|-l|list) list; exit 0;;
+esac
+
+# preview: 2º arg (preview|-p|--headed) o env PREVIEW=1 / E2E_PREVIEW=1 → headed + slowMo. Sirve para
+# CUALQUIER scenario sin tocar el JSON (ej: bin/scenario vtex preview).
+WANT_PREVIEW=0
+case "${2:-}" in preview|--preview|-p|headed|--headed) WANT_PREVIEW=1;; esac
+[ "${PREVIEW:-}" = 1 ] && WANT_PREVIEW=1
+[ "${E2E_PREVIEW:-}" = 1 ] && WANT_PREVIEW=1
+
+exists=$(py "import json,os;print('1' if '$name' in json.load(open(os.environ['PRESETS']))['scenarios'] else '')")
+[ -n "$exists" ] || { echo "✗ scenario '$name' no existe"; echo; list; exit 2; }
+
+# Campos del scenario (con alias de merchant aplicado por entorno) → variables shell, quoteadas.
+eval "$(py "import json,os,shlex
+p=json.load(open(os.environ['PRESETS']))
+s=p['scenarios']['$name']
+env=s.get('env','local')
+mer=s.get('merchant','pullman')
+al=p.get('merchants',{}).get(mer,{}).get(env)
+if al: mer=al
+v={'TOOL':s.get('tool','asesor'),'ENV':env,'MERCHANT':mer,'LENDER':s.get('lender',''),
+   'FLOW':'1' if s.get('flow') else '','ECOM':'1' if s.get('ecommerce') else '',
+   'PREVIEW':'1' if s.get('preview') else '','SPEC':s.get('spec','')}
+for k,val in v.items(): print('%s=%s' % (k, shlex.quote(str(val))))")"
+
+# el campo preview del scenario también prende el modo (el override del 2º arg ya lo pudo prender).
+[ -n "$PREVIEW" ] && WANT_PREVIEW=1
+
+# Defaults → E2E_* (sin pisar lo que ya venga del entorno).
+eval "$(py "import json,os,shlex
+d=json.load(open(os.environ['PRESETS'])).get('defaults',{})
+# webhook/return_url NO salen de acá: viven en .env.<target> (E2E_WEBHOOK_URL/E2E_RETURN_URL), que lee db.ts env().
+mp={'phone':'E2E_PHONE','otp':'E2E_OTP','amount':'E2E_AMOUNT'}
+for k,ev in mp.items():
+    if k in d and not os.environ.get(ev): print('export %s=%s' % (ev, shlex.quote(str(d[k]))))")"
+
+pv=""; [ "$WANT_PREVIEW" = 1 ] && pv=" · preview (headed)"
+echo "▶ scenario '$name' → env=$ENV · tool=$TOOL · merchant=$MERCHANT${LENDER:+ · lender=$LENDER}$pv"
+
+case "$TOOL" in
+	asesor)
+		args=("$MERCHANT")
+		[ -n "$FLOW" ]         && args+=(--flow)
+		[ -n "$ECOM" ]         && args+=(--ecommerce)
+		[ "$ENV" = local ]     && args+=(--local)
+		[ "$WANT_PREVIEW" = 1 ] && args+=(--preview)
+		[ -n "$LENDER" ]       && args+=("--lender=$LENDER")
+		exec bin/asesor "${args[@]}"
+		;;
+	playwright)
+		[ -n "$SPEC" ] || { echo "✗ scenario '$name' es playwright pero sin 'spec'"; exit 2; }
+		export E2E_MERCHANT="$MERCHANT"
+		[ "$ENV" != local ] && export E2E_TARGET="$ENV"
+		pwargs=("$SPEC")
+		if [ "$WANT_PREVIEW" = 1 ]; then export E2E_PREVIEW=1; pwargs+=(--headed); fi
+		exec npx playwright test "${pwargs[@]}"
+		;;
+	checkout)
+		[ "$WANT_PREVIEW" = 1 ] && echo "  (preview no aplica: 'checkout' solo genera la URL, no abre navegador)"
+		exec bin/qa-checkout "$MERCHANT" "${E2E_AMOUNT:-600000}" "${E2E_PHONE:-3131010101}" "$ENV"
+		;;
+	*)
+		echo "✗ tool '$TOOL' desconocido (usa asesor|playwright|checkout)"; exit 2;;
+esac

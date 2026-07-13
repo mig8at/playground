@@ -1,0 +1,1 @@
+go run ./pdf-mapper-service --duration 5m

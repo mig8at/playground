@@ -1,0 +1,222 @@
+[
+ {
+  "key": "cognito",
+  "name": "AWS Cognito",
+  "tipo": "external",
+  "estado": "externo",
+  "descripcion": "Proveedor de identidad externo (AWS Cognito). Autentica usuarios y emite un JWT; sus \"columnas\" son los claims del token, no campos de la BD. Reemplaza el RBAC en tablas: los antiguos roles son Cognito Groups y los permisos, scopes/claims.",
+  "legacy": null,
+  "atributos": [
+   {
+    "n": "sub",
+    "t": "uuid",
+    "legacy": null
+   },
+   {
+    "n": "email",
+    "t": "string",
+    "legacy": null
+   },
+   {
+    "n": "cognito:groups",
+    "t": "string[]",
+    "legacy": null
+   },
+   {
+    "n": "scope",
+    "t": "string[]",
+    "legacy": null
+   }
+  ]
+ },
+ {
+  "key": "s3",
+  "name": "Amazon S3",
+  "tipo": "external",
+  "estado": "externo",
+  "descripcion": "Almacén de objetos para binarios/documentos. La BD guarda solo la key + metadata; el archivo (imágenes KYC, PDFs firmados, adjuntos, sobres crudos de integración) vive aquí. Bucket privado, SSE-KMS, presigned URLs efímeras; Object Lock/WORM para documentos legales.",
+  "legacy": null,
+  "atributos": [
+   {
+    "n": "key",
+    "t": "string",
+    "legacy": null
+   },
+   {
+    "n": "bucket",
+    "t": "string",
+    "legacy": null
+   },
+   {
+    "n": "content_type",
+    "t": "string",
+    "legacy": null
+   },
+   {
+    "n": "size_bytes",
+    "t": "number",
+    "legacy": null
+   },
+   {
+    "n": "sha256",
+    "t": "string",
+    "legacy": null
+   },
+   {
+    "n": "sse_kms",
+    "t": "boolean",
+    "legacy": null
+   }
+  ]
+ },
+ {
+  "key": "secretsManager",
+  "name": "AWS Secrets Manager",
+  "tipo": "external",
+  "estado": "externo",
+  "descripcion": "Custodia de secretos de integración (credenciales/tokens de lenders y proveedores). La BD guarda solo el ARN/referencia, nunca el secreto. Rotación gestionada.",
+  "legacy": null,
+  "atributos": [
+   {
+    "n": "secret_arn",
+    "t": "arn",
+    "legacy": null
+   },
+   {
+    "n": "secret_value",
+    "t": "secret",
+    "legacy": null
+   },
+   {
+    "n": "rotation",
+    "t": "policy",
+    "legacy": null
+   },
+   {
+    "n": "version",
+    "t": "string",
+    "legacy": null
+   }
+  ]
+ },
+ {
+  "key": "eventBridge",
+  "name": "Amazon EventBridge",
+  "tipo": "external",
+  "estado": "externo",
+  "descripcion": "Bus de eventos de dominio: desacopla los contextos (origination → credit → creditopX → cobranza). La transición se escribe primero en la BD (patrón Outbox) y el evento la propaga; el payload lleva IDs, los consumidores releen la BD.",
+  "legacy": null,
+  "atributos": [
+   {
+    "n": "detail_type",
+    "t": "string",
+    "legacy": null
+   },
+   {
+    "n": "source",
+    "t": "string",
+    "legacy": null
+   },
+   {
+    "n": "detail",
+    "t": "json",
+    "legacy": null
+   },
+   {
+    "n": "event_bus",
+    "t": "string",
+    "legacy": null
+   }
+  ]
+ },
+ {
+  "key": "sns",
+  "name": "Amazon SNS / SES",
+  "tipo": "external",
+  "estado": "externo",
+  "descripcion": "Fan-out de notificaciones (SMS/email/push) suscrito a los eventos de dominio. El modelo ya excluyó emails/SMS de las tablas: aquí se entrega, no se persiste. Email transaccional vía SES.",
+  "legacy": null,
+  "atributos": [
+   {
+    "n": "topic_arn",
+    "t": "arn",
+    "legacy": null
+   },
+   {
+    "n": "channel",
+    "t": "enum",
+    "legacy": null
+   },
+   {
+    "n": "message",
+    "t": "string",
+    "legacy": null
+   }
+  ]
+ },
+ {
+  "key": "dynamoDB",
+  "name": "Amazon DynamoDB",
+  "tipo": "external",
+  "estado": "externo",
+  "descripcion": "Serving key-value de los facts evaluables (factValueSnapshot) para el scorecard: lectura O(1) por solicitud, TTL si es efímero. La reproducibilidad histórica se ancla en S3/Parquet (Athena); el catálogo de facts/políticas se queda en la BD relacional.",
+  "legacy": null,
+  "atributos": [
+   {
+    "n": "pk",
+    "t": "string",
+    "legacy": null
+   },
+   {
+    "n": "sk",
+    "t": "string",
+    "legacy": null
+   },
+   {
+    "n": "value",
+    "t": "any",
+    "legacy": null
+   },
+   {
+    "n": "ttl",
+    "t": "number",
+    "legacy": null
+   }
+  ]
+ },
+ {
+  "key": "cloudWatch",
+  "name": "Amazon CloudWatch",
+  "tipo": "external",
+  "estado": "externo",
+  "descripcion": "Observabilidad técnica gestionada: logs, métricas, trazas y alarmas. Es el destino de la telemetría que el sistema anterior guardaba en ~15 tablas *_logs (envíos de SMS/OTP, webhooks de verificación, OCR, biometría, integraciones y errores); como es telemetría y no dato de negocio, no se modela como tabla.",
+  "legacy": null,
+  "atributos": [
+   {
+    "n": "log_group",
+    "t": "string",
+    "legacy": null
+   },
+   {
+    "n": "log_stream",
+    "t": "string",
+    "legacy": null
+   },
+   {
+    "n": "metric",
+    "t": "string",
+    "legacy": null
+   },
+   {
+    "n": "trace",
+    "t": "string",
+    "legacy": null
+   },
+   {
+    "n": "alarm",
+    "t": "policy",
+    "legacy": null
+   }
+  ]
+ }
+]

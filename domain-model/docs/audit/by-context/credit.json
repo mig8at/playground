@@ -1,0 +1,1746 @@
+[
+ {
+  "key": "lender",
+  "name": "Lender",
+  "tipo": "aggregateRoot",
+  "estado": "mapeada_ok",
+  "descripcion": "Representa a la entidad financiera u originador que pone el dinero y aprueba los créditos que se ofrecen en la plataforma. Concentra todo lo que define cómo opera ese financiador —los montos y cupos que está dispuesto a fondear, los requisitos de garantía y documentación que exige y sus condiciones particulares— y es la referencia que cada solicitud consulta para saber a quién enrutarla, cómo validarla y cómo desembolsarla; incluye tanto financiadores externos como las líneas propias de Creditop X originadas por cada comercio aliado.",
+  "legacy": {
+   "tabla": "lenders",
+   "reducidas": [
+    {
+     "n": "response_type",
+     "legacy": "response_type",
+     "via": "derivada: ClosingPattern+IntegrationContract"
+    },
+    {
+     "n": "path_id",
+     "legacy": "path_id",
+     "via": "derivada: ClosingPattern"
+    },
+    {
+     "n": "requires_restrictive_list_check",
+     "legacy": "requires_restrictive_list_check",
+     "via": "derivada: VerificationPolicy"
+    },
+    {
+     "n": "signing_provider_id",
+     "legacy": "signing_provider_id",
+     "via": "derivada: VerificationPolicy + registro de proveedores"
+    }
+   ]
+  },
+  "atributos": [
+   {
+    "n": "id",
+    "t": "bigint",
+    "legacy": "lenders.id"
+   },
+   {
+    "n": "name",
+    "t": "string",
+    "legacy": "lenders.name"
+   },
+   {
+    "n": "slug",
+    "t": "string",
+    "legacy": "lenders.slug"
+   },
+   {
+    "n": "status",
+    "t": "bool",
+    "legacy": "lenders.status"
+   },
+   {
+    "n": "closing_pattern_id",
+    "t": "int",
+    "legacy": null
+   },
+   {
+    "n": "adapter_slug",
+    "t": "varchar(60)",
+    "legacy": null
+   },
+   {
+    "n": "promissory_type_id",
+    "t": "ref(PromissoryType)",
+    "legacy": "lenders.promissory_type_id"
+   },
+   {
+    "n": "validation_type",
+    "t": "int",
+    "legacy": "lenders.validation_type"
+   },
+   {
+    "n": "amount_to_lend",
+    "t": "int",
+    "legacy": "lenders.amount_to_lend"
+   },
+   {
+    "n": "max_rev_credit",
+    "t": "decimal",
+    "legacy": "lenders.max_rev_credit"
+   },
+   {
+    "n": "originator_nit",
+    "t": "string",
+    "legacy": "lenders.originator_nit"
+   },
+   {
+    "n": "is_fallback_lender",
+    "t": "bool",
+    "legacy": "lenders.is_fallback_lender"
+   },
+   {
+    "n": "fallback_removal_min_amount",
+    "t": "decimal",
+    "legacy": "lenders.fallback_removal_min_amount"
+   },
+   {
+    "n": "requires_payment_schedule_signature",
+    "t": "bool",
+    "legacy": "lenders.requires_payment_schedule_signature"
+   },
+   {
+    "n": "allow_payment_date_selection",
+    "t": "bool",
+    "legacy": "lenders.allow_payment_date_selection"
+   },
+   {
+    "n": "cutoff_type_id",
+    "t": "ref(CutoffType)",
+    "legacy": "lenders.cutoff_type_id"
+   },
+   {
+    "n": "available_until",
+    "t": "time",
+    "legacy": "lenders.available_until"
+   },
+   {
+    "n": "pdf_mapper_project_slug",
+    "t": "string",
+    "legacy": "lenders.pdf_mapper_project_slug"
+   },
+   {
+    "n": "additional_data",
+    "t": "json",
+    "legacy": "lenders.additional_data"
+   }
+  ]
+ },
+ {
+  "key": "lenderAlliedCredential",
+  "name": "LenderAlliedCredential",
+  "tipo": "entity",
+  "estado": "mapeada_ok",
+  "descripcion": "Guarda las credenciales con las que la plataforma se identifica ante un financiador o aliado para operar en su nombre, asociándolas al comercio correspondiente cuando aplica. Permite que la originación con cada financiador se haga de forma segura y diferenciada por aliado.",
+  "legacy": {
+   "tabla": "lender_allied_credentials"
+  },
+  "atributos": [
+   {
+    "n": "id",
+    "t": "bigint",
+    "legacy": null
+   },
+   {
+    "n": "lender_id",
+    "t": "bigint",
+    "legacy": null
+   },
+   {
+    "n": "allied_type",
+    "t": "string",
+    "legacy": null
+   },
+   {
+    "n": "merchant_id",
+    "t": "bigint",
+    "legacy": "allied_id"
+   },
+   {
+    "n": "credential",
+    "t": "text",
+    "legacy": null
+   }
+  ]
+ },
+ {
+  "key": "lenderErrorCode",
+  "name": "LenderErrorCode",
+  "tipo": "entity",
+  "estado": "mapeada_ok",
+  "descripcion": "Traduce los errores que devuelve un financiador durante la operación a un significado y un manejo internos claros, para que el negocio entienda por qué una solicitud no avanzó y se pueda actuar en consecuencia.",
+  "legacy": {
+   "tabla": "lender_error_codes"
+  },
+  "atributos": [
+   {
+    "n": "id",
+    "t": "bigint",
+    "legacy": null
+   },
+   {
+    "n": "lender_id",
+    "t": "bigint",
+    "legacy": null
+   },
+   {
+    "n": "lender_class",
+    "t": "string",
+    "legacy": null
+   },
+   {
+    "n": "code",
+    "t": "string",
+    "legacy": null
+   },
+   {
+    "n": "message",
+    "t": "string",
+    "legacy": null
+   },
+   {
+    "n": "handler",
+    "t": "string",
+    "legacy": null
+   }
+  ]
+ },
+ {
+  "key": "lenderGuaranteeCriterion",
+  "name": "LenderGuaranteeCriterion",
+  "tipo": "entity",
+  "estado": "mapeada_ok",
+  "descripcion": "Define las condiciones de elegibilidad y garantía que un financiador (u originador específico) exige al solicitante para respaldar un crédito, expresadas como variables del cliente que deben cumplir ciertos umbrales. Sirve para filtrar quién califica según la política de riesgo del financiador.",
+  "legacy": {
+   "tabla": "lender_guarantee_criteria"
+  },
+  "atributos": [
+   {
+    "n": "id",
+    "t": "bigint",
+    "legacy": null
+   },
+   {
+    "n": "lender_id",
+    "t": "bigint",
+    "legacy": null
+   },
+   {
+    "n": "variable",
+    "t": "string",
+    "legacy": null
+   },
+   {
+    "n": "condition",
+    "t": "string",
+    "legacy": null
+   },
+   {
+    "n": "value",
+    "t": "string",
+    "legacy": null
+   },
+   {
+    "n": "originator_nit",
+    "t": "int",
+    "legacy": null
+   },
+   {
+    "n": "originator_legal_name",
+    "t": "string",
+    "legacy": null
+   }
+  ]
+ },
+ {
+  "key": "lenderDocumentationRequirement",
+  "name": "LenderDocumentationRequirement",
+  "tipo": "entity",
+  "estado": "mapeada_ok",
+  "descripcion": "Establece qué datos o documentos exige un financiador —y opcionalmente un comercio aliado en particular— al cliente para poder tramitar una solicitud. Determina la información que se le pide al solicitante durante la originación.",
+  "legacy": {
+   "tabla": "lender_documentations"
+  },
+  "atributos": [
+   {
+    "n": "id",
+    "t": "bigint",
+    "legacy": null
+   },
+   {
+    "n": "lender_id",
+    "t": "int",
+    "legacy": null
+   },
+   {
+    "n": "merchant_id",
+    "t": "int",
+    "legacy": "allied_id"
+   },
+   {
+    "n": "name",
+    "t": "string",
+    "legacy": null
+   },
+   {
+    "n": "type",
+    "t": "string",
+    "legacy": null
+   },
+   {
+    "n": "field_appearance",
+    "t": "string",
+    "legacy": null
+   },
+   {
+    "n": "validation",
+    "t": "string",
+    "legacy": null
+   },
+   {
+    "n": "status",
+    "t": "bool",
+    "legacy": null
+   }
+  ]
+ },
+ {
+  "key": "lenderRevenue",
+  "name": "LenderRevenue",
+  "tipo": "entity",
+  "estado": "mapeada_ok",
+  "descripcion": "Registra el ingreso que la plataforma devenga por su relación con cada financiador en un periodo determinado. Sustenta el seguimiento comercial y la liquidación de la operación con cada lender.",
+  "legacy": {
+   "tabla": "lender_revenue"
+  },
+  "atributos": [
+   {
+    "n": "id",
+    "t": "int",
+    "legacy": null
+   },
+   {
+    "n": "lender_id",
+    "t": "bigint",
+    "legacy": null
+   },
+   {
+    "n": "revenue",
+    "t": "float",
+    "legacy": null
+   },
+   {
+    "n": "period",
+    "t": "date",
+    "legacy": null
+   }
+  ]
+ },
+ {
+  "key": "lenderPaymentChannel",
+  "name": "LenderPaymentChannel",
+  "tipo": "entity",
+  "estado": "mapeada_ok",
+  "descripcion": "Define los canales por los que un financiador específico recibe los pagos de las cuotas del cliente, con sus instrucciones y enlaces propios. Orienta al usuario sobre dónde y cómo pagar su crédito.",
+  "legacy": {
+   "tabla": "payment_methods_by_lender",
+   "reducidas": [
+    {
+     "n": "image",
+     "legacy": "image",
+     "via": "branding (no dominio)"
+    }
+   ]
+  },
+  "atributos": [
+   {
+    "n": "id",
+    "t": "bigint",
+    "legacy": null
+   },
+   {
+    "n": "lender_id",
+    "t": "bigint",
+    "legacy": null
+   },
+   {
+    "n": "name",
+    "t": "string",
+    "legacy": null
+   },
+   {
+    "n": "url",
+    "t": "string",
+    "legacy": null
+   },
+   {
+    "n": "message",
+    "t": "text",
+    "legacy": null
+   }
+  ]
+ },
+ {
+  "key": "eligibilityPolicy",
+  "name": "EligibilityPolicy",
+  "tipo": "entity",
+  "estado": "mapeada_ok",
+  "descripcion": "Agrupa las reglas de elegibilidad que un comercio aliado o sucursal impone sobre quién puede acceder al crédito, reutilizando el mismo catálogo de condiciones que usan los financiadores. Permite que cada aliado ajuste a quién atiende dentro de su operación.",
+  "legacy": {
+   "tabla": "group_rules"
+  },
+  "atributos": [
+   {
+    "n": "id",
+    "t": "bigint",
+    "legacy": null
+   },
+   {
+    "n": "rule_definition_id",
+    "t": "bigint unsigned",
+    "legacy": null
+   },
+   {
+    "n": "merchant_branch_id",
+    "t": "int",
+    "legacy": "allied_branch_id"
+   },
+   {
+    "n": "rule_name",
+    "t": "varchar",
+    "legacy": null
+   }
+  ]
+ },
+ {
+  "key": "eligibilityRule",
+  "name": "EligibilityRule",
+  "tipo": "entity",
+  "estado": "mapeada_ok",
+  "descripcion": "Es cada condición concreta que debe cumplir un solicitante para ser elegible —por ejemplo una edad mínima o una ocupación—, definida una sola vez y reutilizada en las distintas políticas. Constituye la unidad básica con la que el motor de elegibilidad decide quién califica para un crédito.",
+  "legacy": {
+   "tabla": "lender_rules"
+  },
+  "atributos": [
+   {
+    "n": "id",
+    "t": "bigint",
+    "legacy": null
+   },
+   {
+    "n": "policy_version_id",
+    "t": "bigint unsigned",
+    "legacy": null
+   },
+   {
+    "n": "rule_definition_id",
+    "t": "bigint unsigned",
+    "legacy": null
+   },
+   {
+    "n": "eligibility_policy_id",
+    "t": "int",
+    "legacy": "group_rule_id"
+   },
+   {
+    "n": "lender_id",
+    "t": "int",
+    "legacy": null
+   },
+   {
+    "n": "name",
+    "t": "varchar",
+    "legacy": null
+   },
+   {
+    "n": "description",
+    "t": "varchar",
+    "legacy": null
+   },
+   {
+    "n": "field_id",
+    "t": "int",
+    "legacy": null
+   },
+   {
+    "n": "specific_table",
+    "t": "varchar",
+    "legacy": null
+   },
+   {
+    "n": "column",
+    "t": "varchar",
+    "legacy": null
+   },
+   {
+    "n": "operator",
+    "t": "varchar",
+    "legacy": null
+   },
+   {
+    "n": "value",
+    "t": "varchar",
+    "legacy": null
+   },
+   {
+    "n": "status",
+    "t": "boolean",
+    "legacy": null
+   }
+  ]
+ },
+ {
+  "key": "creditCategory",
+  "name": "CreditCategory",
+  "tipo": "entity",
+  "estado": "mapeada_ok",
+  "descripcion": "Representa un nivel o tramo de cupo que un cliente puede alcanzar con un financiador, con sus condiciones propias: límite de monto, tasa, cuota inicial, número de cuotas y fondo de garantía. Define las distintas ofertas de crédito a las que el cliente puede acceder según su perfil.",
+  "legacy": {
+   "tabla": "lender_users_categories"
+  },
+  "atributos": [
+   {
+    "n": "id",
+    "t": "bigint",
+    "legacy": null
+   },
+   {
+    "n": "lender_id",
+    "t": "bigint",
+    "legacy": null
+   },
+   {
+    "n": "name",
+    "t": "varchar",
+    "legacy": null
+   },
+   {
+    "n": "loan_limit",
+    "t": "int",
+    "legacy": null
+   },
+   {
+    "n": "already_used_loan",
+    "t": "int",
+    "legacy": null
+   },
+   {
+    "n": "guarantee_fund",
+    "t": "double",
+    "legacy": "FGA"
+   },
+   {
+    "n": "min_initial_fee",
+    "t": "int",
+    "legacy": null
+   },
+   {
+    "n": "max_fee_number",
+    "t": "int",
+    "legacy": null
+   },
+   {
+    "n": "max_amount",
+    "t": "int",
+    "legacy": null
+   },
+   {
+    "n": "rate",
+    "t": "decimal",
+    "legacy": null
+   },
+   {
+    "n": "requires_other_lender",
+    "t": "boolean",
+    "legacy": null
+   },
+   {
+    "n": "sort_order",
+    "t": "int",
+    "legacy": "order"
+   }
+  ]
+ },
+ {
+  "key": "categoryEligibilityCriteria",
+  "name": "CategoryEligibilityCriteria",
+  "tipo": "entity",
+  "estado": "mapeada_ok",
+  "descripcion": "Define el perfil de riesgo que un cliente debe cumplir para acceder a una categoría de cupo determinada —edad, ingresos, score, historial de mora, entre otros—. Determina, según el riesgo del solicitante, a qué nivel de crédito puede aspirar.",
+  "legacy": {
+   "tabla": "lender_users_category_rules",
+   "reducidas": [
+    {
+     "n": "occupation",
+     "legacy": "occupation",
+     "via": "RuleDefinition binding scope=category"
+    },
+    {
+     "n": "min_age",
+     "legacy": "min_age",
+     "via": "RuleDefinition binding scope=category"
+    },
+    {
+     "n": "max_age",
+     "legacy": "max_age",
+     "via": "RuleDefinition binding scope=category"
+    },
+    {
+     "n": "monthly_income",
+     "legacy": "monthly_income",
+     "via": "RuleDefinition binding scope=category"
+    },
+    {
+     "n": "verified_income",
+     "legacy": "verified_income",
+     "via": "RuleDefinition binding scope=category"
+    },
+    {
+     "n": "special_granting",
+     "legacy": "special_granting",
+     "via": "RuleDefinition binding scope=category"
+    },
+    {
+     "n": "gender",
+     "legacy": "gender",
+     "via": "RuleDefinition binding scope=category"
+    },
+    {
+     "n": "negative_reports_last_12_months",
+     "legacy": "negative_reports_last_12_months",
+     "via": "RuleDefinition binding scope=category"
+    },
+    {
+     "n": "current_delinquencies",
+     "legacy": "current_delinquencies",
+     "via": "RuleDefinition binding scope=category"
+    },
+    {
+     "n": "excluded_current_delinquencies",
+     "legacy": "excluded_current_delinquencies",
+     "via": "RuleDefinition binding scope=category"
+    },
+    {
+     "n": "financial_history_length",
+     "legacy": "financial_history_length",
+     "via": "RuleDefinition binding scope=category"
+    },
+    {
+     "n": "min_score",
+     "legacy": "min_score",
+     "via": "RuleDefinition binding scope=category"
+    },
+    {
+     "n": "employment_continuity",
+     "legacy": "employment_continuity",
+     "via": "RuleDefinition binding scope=category"
+    },
+    {
+     "n": "min_credit_cards",
+     "legacy": "min_credit_cards",
+     "via": "RuleDefinition binding scope=category"
+    },
+    {
+     "n": "min_debt_capacity",
+     "legacy": "min_debt_capacity",
+     "via": "RuleDefinition binding scope=category"
+    },
+    {
+     "n": "debt_capacity_amount_validation",
+     "legacy": "debt_capacity_amount_validation",
+     "via": "RuleDefinition binding scope=category"
+    },
+    {
+     "n": "tc_vector_validation",
+     "legacy": "tc_vector_validation",
+     "via": "RuleDefinition binding scope=category"
+    },
+    {
+     "n": "consulted_last_6_months",
+     "legacy": "consulted_last_6_months",
+     "via": "RuleDefinition binding scope=category"
+    },
+    {
+     "n": "overdue_vector_validation",
+     "legacy": "overdue_vector_validation",
+     "via": "RuleDefinition binding scope=category"
+    }
+   ]
+  },
+  "atributos": [
+   {
+    "n": "id",
+    "t": "bigint",
+    "legacy": null
+   },
+   {
+    "n": "lender_id",
+    "t": "bigint",
+    "legacy": null
+   },
+   {
+    "n": "credit_category_id",
+    "t": "bigint",
+    "legacy": "lender_users_category_id"
+   }
+  ]
+ },
+ {
+  "key": "creditDecision",
+  "name": "CreditDecision",
+  "tipo": "aggregateRoot",
+  "estado": "mapeada_ok",
+  "descripcion": "Deja constancia de la decisión de crédito tomada sobre un cliente para un financiador —la categoría de cupo resuelta, el monto disponible y los criterios que se evaluaron— y bajo qué versión de la política se decidió. Permite sustentar y auditar después por qué un cliente fue aprobado, negado o limitado.",
+  "legacy": {
+   "tabla": "users_category_log"
+  },
+  "atributos": [
+   {
+    "n": "id",
+    "t": "bigint",
+    "legacy": null
+   },
+   {
+    "n": "outcome",
+    "t": "enum('approved','rejected','counteroffer','pending')",
+    "legacy": null
+   },
+   {
+    "n": "policy_version_id",
+    "t": "bigint unsigned",
+    "legacy": null
+   },
+   {
+    "n": "customer_id",
+    "t": "bigint",
+    "legacy": "user_id"
+   },
+   {
+    "n": "lender_id",
+    "t": "bigint",
+    "legacy": null
+   },
+   {
+    "n": "credit_category_id",
+    "t": "bigint",
+    "legacy": "lender_users_category_id"
+   },
+   {
+    "n": "category_rules_acceptance",
+    "t": "text",
+    "legacy": null
+   },
+   {
+    "n": "current_available_amount",
+    "t": "bigint",
+    "legacy": null
+   }
+  ]
+ },
+ {
+  "key": "scoringPolicy",
+  "name": "ScoringPolicy",
+  "tipo": "entity",
+  "estado": "mapeada_ok",
+  "descripcion": "Define, para cada financiador, cómo se puntúa y perfila a un solicitante: las reglas de scoring que otorgan o restan puntos según las características del cliente y la consulta a las centrales de riesgo. Es la base con la que se calcula el riesgo y el puntaje que sustentan la decisión de crédito.",
+  "legacy": {
+   "tabla": "creditop_x_lender_scoring",
+   "reducidas": [
+    {
+     "n": "variable",
+     "legacy": "variable",
+     "via": "ScoringClause.evaluable_field_id (FK al fact)"
+    }
+   ]
+  },
+  "atributos": [
+   {
+    "n": "lender_id",
+    "t": "bigint",
+    "legacy": "creditop_x_lender_scoring.lender_id"
+   },
+   {
+    "n": "country_id",
+    "t": "bigint unsigned",
+    "legacy": null
+   },
+   {
+    "n": "min_value",
+    "t": "decimal(12,2)",
+    "legacy": "creditop_x_lender_scoring.min_value"
+   },
+   {
+    "n": "max_value",
+    "t": "decimal(12,2)",
+    "legacy": "creditop_x_lender_scoring.max_value"
+   },
+   {
+    "n": "fixed_value",
+    "t": "varchar(255)",
+    "legacy": "creditop_x_lender_scoring.fixed_value"
+   },
+   {
+    "n": "points",
+    "t": "decimal(8,2)",
+    "legacy": "creditop_x_lender_scoring.points"
+   }
+  ]
+ },
+ {
+  "key": "scoreAdjustmentBand",
+  "name": "ScoreAdjustmentBand",
+  "tipo": "entity",
+  "estado": "mapeada_ok",
+  "descripcion": "Define tramos de puntaje a los que un financiador aplica un ajuste porcentual sobre el score obtenido. Permite afinar el puntaje final del cliente según la franja en que cae, calibrando el apetito de riesgo del financiador.",
+  "legacy": {
+   "tabla": "creditop_x_adjustments_by_lender_scoring"
+  },
+  "atributos": [
+   {
+    "n": "lender_id",
+    "t": "bigint",
+    "legacy": null
+   },
+   {
+    "n": "min_score",
+    "t": "int",
+    "legacy": null
+   },
+   {
+    "n": "max_score",
+    "t": "int",
+    "legacy": null
+   },
+   {
+    "n": "adjustment_percentage",
+    "t": "decimal(8,2)",
+    "legacy": null
+   }
+  ]
+ },
+ {
+  "key": "riskProfilingTier",
+  "name": "RiskProfilingTier",
+  "tipo": "entity",
+  "estado": "mapeada_ok",
+  "descripcion": "Define, para la originación propia de Creditop X, los niveles de perfilamiento de riesgo y qué exige cada uno al cliente: el porcentaje de cuota inicial y el fondo de garantía requeridos. Traduce el nivel de riesgo de un solicitante en condiciones concretas para otorgarle el crédito.",
+  "legacy": {
+   "tabla": "creditop_x_profiling_down_payment_FGA"
+  },
+  "atributos": [
+   {
+    "n": "lender_id",
+    "t": "bigint",
+    "legacy": null
+   },
+   {
+    "n": "multiplier_risk",
+    "t": "tinyint",
+    "legacy": null
+   },
+   {
+    "n": "down_payment",
+    "t": "tinyint",
+    "legacy": null
+   },
+   {
+    "n": "guarantee_fund",
+    "t": "tinyint",
+    "legacy": "FGA"
+   },
+   {
+    "n": "status",
+    "t": "tinyint",
+    "legacy": null
+   }
+  ]
+ },
+ {
+  "key": "riskMultiplierVariable",
+  "name": "RiskMultiplierVariable",
+  "tipo": "entity",
+  "estado": "mapeada_ok",
+  "descripcion": "Representa cada variable que pesa en el cálculo del nivel de riesgo de un solicitante —como ocupación o estrato—, con la importancia relativa que se le asigna. Permite componer el perfil de riesgo del cliente a partir de varios factores ponderados.",
+  "legacy": {
+   "tabla": "creditop_x_profiling_multiplier_risk_vars"
+  },
+  "atributos": [
+   {
+    "n": "name",
+    "t": "varchar(100)",
+    "legacy": null
+   },
+   {
+    "n": "country_id",
+    "t": "bigint unsigned",
+    "legacy": null
+   },
+   {
+    "n": "weight",
+    "t": "tinyint",
+    "legacy": null
+   },
+   {
+    "n": "status",
+    "t": "tinyint",
+    "legacy": null
+   }
+  ]
+ },
+ {
+  "key": "riskMultiplierRange",
+  "name": "RiskMultiplierRange",
+  "tipo": "entity",
+  "estado": "mapeada_ok",
+  "descripcion": "Define, dentro de una variable de riesgo, los rangos de valores y el aporte que cada uno hace al cálculo del riesgo del solicitante. Traduce el valor concreto de una característica del cliente en su contribución al perfil de riesgo.",
+  "legacy": {
+   "tabla": "creditop_x_profiling_multiplier_risk_rangs"
+  },
+  "atributos": [
+   {
+    "n": "variable_id",
+    "t": "bigint",
+    "legacy": null
+   },
+   {
+    "n": "min_range",
+    "t": "decimal(10,2)",
+    "legacy": null
+   },
+   {
+    "n": "max_range",
+    "t": "decimal(10,2)",
+    "legacy": null
+   },
+   {
+    "n": "value",
+    "t": "tinyint",
+    "legacy": null
+   },
+   {
+    "n": "status",
+    "t": "tinyint",
+    "legacy": null
+   }
+  ]
+ },
+ {
+  "key": "bureauInquiry",
+  "name": "BureauInquiry",
+  "tipo": "aggregateRoot",
+  "estado": "mapeada_ok",
+  "descripcion": "Recoge el resultado de consultar a una central de riesgo sobre un cliente, incluyendo el puntaje y la información devuelta. Aporta la evidencia externa sobre el comportamiento crediticio del solicitante que alimenta la evaluación y la decisión de crédito.",
+  "legacy": {
+   "tabla": "risk_central_user_data",
+   "absorbe": [
+    "credit_scores",
+    "user_summaries"
+   ],
+   "unificacion": "Las consultas a las distintas centrales de riesgo y el cálculo de score vivían por separado. Se unifican porque todas responden a lo mismo —consultar el comportamiento crediticio del cliente en una central—, dejando cada consulta como un registro comparable e independiente de la central."
+  },
+  "atributos": [
+   {
+    "n": "uuid",
+    "t": "char(36)",
+    "legacy": null
+   },
+   {
+    "n": "customer_id",
+    "t": "bigint",
+    "legacy": "user_id"
+   },
+   {
+    "n": "risk_central_id",
+    "t": "bigint",
+    "legacy": null
+   },
+   {
+    "n": "score",
+    "t": "decimal(8,2)",
+    "legacy": null
+   },
+   {
+    "n": "data",
+    "t": "longtext",
+    "legacy": null
+   },
+   {
+    "n": "additional_info",
+    "t": "json",
+    "legacy": null
+   },
+   {
+    "n": "request",
+    "t": "json",
+    "legacy": null
+   },
+   {
+    "n": "deleted_at",
+    "t": "timestamp",
+    "legacy": null
+   }
+  ]
+ },
+ {
+  "key": "lenderTransaction",
+  "name": "LenderTransaction",
+  "tipo": "aggregateRoot",
+  "estado": "mapeada_ok",
+  "descripcion": "Registra cada interacción que la plataforma tiene con un proveedor externo durante la operación de una solicitud —un financiador, un agregador de crédito o una pasarela de pago— dejando constancia de qué se pidió, qué se respondió y en qué estado quedó. Permite trazar y auditar el ida y vuelta con cada proveedor a lo largo de la originación y el desembolso.",
+  "legacy": {
+   "tabla": "lender_transactions",
+   "absorbe": [
+    "payvalida_transactions",
+    "sistecredito_transactions",
+    "payment_gateway_transactions"
+   ],
+   "unificacion": "Cada integración de cierre (lenders propios, PayValida, Sistecrédito, pasarela de pago) guardaba sus transacciones aparte. Se unifican porque todas son lo mismo —el ida y vuelta con un proveedor para originar o desembolsar el crédito—, y se distinguen únicamente por cuál proveedor las ejecuta."
+  },
+  "atributos": [
+   {
+    "n": "id",
+    "t": "bigint unsigned",
+    "legacy": null
+   },
+   {
+    "n": "provider_type",
+    "t": "ref(ProviderType)",
+    "legacy": null
+   },
+   {
+    "n": "lender_id",
+    "t": "bigint unsigned",
+    "legacy": null
+   },
+   {
+    "n": "loan_application_id",
+    "t": "bigint unsigned",
+    "legacy": "user_request_id"
+   },
+   {
+    "n": "order_id",
+    "t": "varchar(255)",
+    "legacy": "order_id | order_uuid"
+   },
+   {
+    "n": "status_id",
+    "t": "bigint unsigned",
+    "legacy": "status_id | transaction_status_id"
+   },
+   {
+    "n": "request",
+    "t": "json",
+    "legacy": null
+   },
+   {
+    "n": "response",
+    "t": "json",
+    "legacy": null
+   }
+  ]
+ },
+ {
+  "key": "creditPolicy",
+  "name": "CreditPolicy",
+  "tipo": "aggregateRoot",
+  "estado": "NUEVA_greenfield",
+  "descripcion": "Reúne, para un financiador y país, toda la política de crédito —reglas de elegibilidad, categorías de cupo, scoring y perfilamiento de riesgo— en un único cuerpo coherente que puede activarse de forma controlada y auditable. Es el marco que gobierna cómo se decide a quién y bajo qué condiciones se otorga crédito.",
+  "legacy": {
+   "ref": "green-field (raíz organizadora; sus miembros conservan sus tablas legacy)"
+  },
+  "atributos": [
+   {
+    "n": "id",
+    "t": "bigint unsigned",
+    "legacy": null
+   },
+   {
+    "n": "lender_id",
+    "t": "bigint unsigned",
+    "legacy": null
+   },
+   {
+    "n": "country_id",
+    "t": "bigint unsigned",
+    "legacy": null
+   },
+   {
+    "n": "current_version_id",
+    "t": "bigint unsigned",
+    "legacy": null
+   },
+   {
+    "n": "status",
+    "t": "tinyint(1)",
+    "legacy": null
+   }
+  ]
+ },
+ {
+  "key": "policyVersion",
+  "name": "PolicyVersion",
+  "tipo": "entity",
+  "estado": "NUEVA_greenfield",
+  "descripcion": "Representa una versión congelada de una política de crédito: las reglas y condiciones vigentes en un momento dado no cambian, sino que se publica una nueva versión. Permite saber con qué reglas exactas se tomó cada decisión, simular cambios antes de aplicarlos y mantener la trazabilidad regulatoria.",
+  "legacy": {
+   "ref": "green-field (versionado materializable)"
+  },
+  "atributos": [
+   {
+    "n": "id",
+    "t": "bigint unsigned",
+    "legacy": null
+   },
+   {
+    "n": "credit_policy_id",
+    "t": "bigint unsigned",
+    "legacy": null
+   },
+   {
+    "n": "version",
+    "t": "int",
+    "legacy": null
+   },
+   {
+    "n": "status",
+    "t": "enum('draft','active','retired')",
+    "legacy": null
+   },
+   {
+    "n": "effective_from",
+    "t": "timestamp",
+    "legacy": null
+   },
+   {
+    "n": "effective_to",
+    "t": "timestamp",
+    "legacy": null
+   },
+   {
+    "n": "published_by",
+    "t": "bigint unsigned",
+    "legacy": null
+   },
+   {
+    "n": "published_at",
+    "t": "timestamp",
+    "legacy": null
+   }
+  ]
+ },
+ {
+  "key": "ruleDefinition",
+  "name": "RuleDefinition",
+  "tipo": "entity",
+  "estado": "NUEVA_greenfield",
+  "descripcion": "Es la definición canónica de una condición de crédito —qué se evalúa, con qué operador y contra qué valor— escrita una sola vez y reutilizada por financiadores y comercios en lugar de repetirla. Sirve como catálogo común de reglas para evaluar la elegibilidad y el scoring de un solicitante.",
+  "legacy": {
+   "ref": "green-field (canonicaliza lender_rules.{column,operator,value} y group_rules, hoy copiados por lender/merchant)",
+   "reducidas": [
+    {
+     "n": "value_type",
+     "legacy": "value_type",
+     "via": "derivado del fact (EvaluableField.value_type)"
+    }
+   ]
+  },
+  "atributos": [
+   {
+    "n": "id",
+    "t": "bigint unsigned",
+    "legacy": null
+   },
+   {
+    "n": "evaluable_field_id",
+    "t": "bigint unsigned",
+    "legacy": null
+   },
+   {
+    "n": "code",
+    "t": "varchar(80)",
+    "legacy": null
+   },
+   {
+    "n": "name",
+    "t": "varchar(255)",
+    "legacy": null
+   },
+   {
+    "n": "field",
+    "t": "varchar(120)",
+    "legacy": null
+   },
+   {
+    "n": "operator",
+    "t": "enum('eq','neq','gt','gte','lt','lte','in','between','exists')",
+    "legacy": null
+   },
+   {
+    "n": "default_value",
+    "t": "varchar(255)",
+    "legacy": null
+   },
+   {
+    "n": "applies_to",
+    "t": "enum('lender','merchant','both')",
+    "legacy": null
+   },
+   {
+    "n": "description",
+    "t": "varchar(255)",
+    "legacy": null
+   }
+  ]
+ },
+ {
+  "key": "bureauProvider",
+  "name": "BureauProvider",
+  "tipo": "aggregateRoot",
+  "estado": "mapeada_ok",
+  "descripcion": "Representa a un proveedor de central de riesgo o de verificación de identidad disponible para la plataforma, identificado por el tipo de servicio que presta. Permite que la evaluación de crédito pueda apoyarse en distintas fuentes externas según lo que se necesite consultar.",
+  "legacy": {
+   "tabla": "risk_centrals"
+  },
+  "atributos": [
+   {
+    "n": "id",
+    "t": "bigint unsigned",
+    "legacy": null
+   },
+   {
+    "n": "slug",
+    "t": "varchar(40)",
+    "legacy": null
+   },
+   {
+    "n": "name",
+    "t": "varchar(255)",
+    "legacy": null
+   },
+   {
+    "n": "kind",
+    "t": "enum('credit_score','antifraud','pep_aml','identity')",
+    "legacy": null
+   },
+   {
+    "n": "status",
+    "t": "tinyint(1)",
+    "legacy": null
+   }
+  ]
+ },
+ {
+  "key": "countryProviderBinding",
+  "name": "CountryProviderBinding",
+  "tipo": "entity",
+  "estado": "NUEVA_greenfield",
+  "descripcion": "Resuelve, para cada país, qué proveedor real cubre cada servicio de verificación o consulta de riesgo. Permite que la evaluación de crédito funcione igual en todos los países usando los proveedores disponibles en cada uno.",
+  "legacy": {
+   "ref": "green-field (hoy el ruteo a centrales está quemado en SP_Update_User_Request_Risk_Centrals)"
+  },
+  "atributos": [
+   {
+    "n": "id",
+    "t": "bigint unsigned",
+    "legacy": null
+   },
+   {
+    "n": "country_id",
+    "t": "bigint unsigned",
+    "legacy": null
+   },
+   {
+    "n": "provider_kind",
+    "t": "varchar(40)",
+    "legacy": null
+   },
+   {
+    "n": "bureau_provider_id",
+    "t": "bigint unsigned",
+    "legacy": null
+   },
+   {
+    "n": "credential_ref",
+    "t": "varchar(255)",
+    "legacy": null
+   },
+   {
+    "n": "priority",
+    "t": "int",
+    "legacy": null
+   },
+   {
+    "n": "status",
+    "t": "tinyint(1)",
+    "legacy": null
+   }
+  ]
+ },
+ {
+  "key": "countryBureauPolicy",
+  "name": "CountryBureauPolicy",
+  "tipo": "entity",
+  "estado": "NUEVA_greenfield",
+  "descripcion": "Define, por país, qué centrales de riesgo se consultan y con qué umbrales de puntaje. Determina las fuentes de información crediticia que sustentan la evaluación de un solicitante en cada mercado.",
+  "legacy": {
+   "ref": "green-field (hoy en los 6 bloques de SP_Update_User_Request_Risk_Centrals)"
+  },
+  "atributos": [
+   {
+    "n": "id",
+    "t": "bigint unsigned",
+    "legacy": null
+   },
+   {
+    "n": "country_id",
+    "t": "bigint unsigned",
+    "legacy": null
+   },
+   {
+    "n": "bureau_provider_id",
+    "t": "bigint unsigned",
+    "legacy": null
+   },
+   {
+    "n": "enabled",
+    "t": "tinyint(1)",
+    "legacy": null
+   },
+   {
+    "n": "dedup_window_days",
+    "t": "int",
+    "legacy": null
+   },
+   {
+    "n": "min_score_required",
+    "t": "decimal(8,2)",
+    "legacy": null
+   },
+   {
+    "n": "status",
+    "t": "tinyint(1)",
+    "legacy": null
+   }
+  ]
+ },
+ {
+  "key": "bureauFieldMapping",
+  "name": "BureauFieldMapping",
+  "tipo": "entity",
+  "estado": "NUEVA_greenfield",
+  "descripcion": "Establece cómo obtener cada dato de negocio relevante —puntaje, ingresos, continuidad— de la respuesta que entrega cada central de riesgo. Asegura que la información de las distintas centrales se interprete de forma consistente para evaluar el crédito.",
+  "legacy": {
+   "ref": "green-field (hoy en FN_User_Income_Average/Continuity y CASE WHEN por central)"
+  },
+  "atributos": [
+   {
+    "n": "id",
+    "t": "bigint unsigned",
+    "legacy": null
+   },
+   {
+    "n": "bureau_provider_id",
+    "t": "bigint unsigned",
+    "legacy": null
+   },
+   {
+    "n": "field_code",
+    "t": "varchar(60)",
+    "legacy": null
+   },
+   {
+    "n": "evaluable_field_id",
+    "t": "bigint unsigned",
+    "legacy": null
+   },
+   {
+    "n": "json_path",
+    "t": "varchar(255)",
+    "legacy": null
+   },
+   {
+    "n": "status",
+    "t": "tinyint(1)",
+    "legacy": null
+   }
+  ]
+ },
+ {
+  "key": "integrationContract",
+  "name": "IntegrationContract",
+  "tipo": "entity",
+  "estado": "mapeada_ok",
+  "descripcion": "Define cómo se integra operativamente con un financiador: por dónde se origina, consulta y cierra un crédito, cómo se autentica la comunicación y cómo se reciben sus notificaciones. Es el acuerdo operativo que permite que las solicitudes fluyan de forma confiable hacia ese financiador.",
+  "legacy": {
+   "tabla": "lender_integration_flows"
+  },
+  "atributos": [
+   {
+    "n": "id",
+    "t": "bigint unsigned",
+    "legacy": null
+   },
+   {
+    "n": "lender_id",
+    "t": "bigint unsigned",
+    "legacy": null
+   },
+   {
+    "n": "endpoints",
+    "t": "json",
+    "legacy": null
+   },
+   {
+    "n": "auth_kind",
+    "t": "varchar(40)",
+    "legacy": null
+   },
+   {
+    "n": "checksum_kind",
+    "t": "varchar(40)",
+    "legacy": null
+   },
+   {
+    "n": "webhook_url_pattern",
+    "t": "varchar(255)",
+    "legacy": null
+   },
+   {
+    "n": "verify_strategy",
+    "t": "varchar(40)",
+    "legacy": null
+   },
+   {
+    "n": "status",
+    "t": "tinyint(1)",
+    "legacy": null
+   }
+  ]
+ },
+ {
+  "key": "lenderStatusMapping",
+  "name": "LenderStatusMapping",
+  "tipo": "entity",
+  "estado": "NUEVA_greenfield",
+  "descripcion": "Traduce los estados que devuelve un financiador a los estados internos del recorrido de una solicitud. Mantiene alineado el seguimiento de la solicitud en la plataforma con la realidad de lo que ocurre del lado del financiador.",
+  "legacy": {
+   "ref": "green-field (hoy en constantes STATUS_MAP por clase Action)"
+  },
+  "atributos": [
+   {
+    "n": "id",
+    "t": "bigint unsigned",
+    "legacy": null
+   },
+   {
+    "n": "lender_id",
+    "t": "bigint unsigned",
+    "legacy": null
+   },
+   {
+    "n": "external_status",
+    "t": "varchar(80)",
+    "legacy": null
+   },
+   {
+    "n": "internal_status_id",
+    "t": "bigint unsigned",
+    "legacy": null
+   },
+   {
+    "n": "status",
+    "t": "tinyint(1)",
+    "legacy": null
+   }
+  ]
+ },
+ {
+  "key": "scoringClause",
+  "name": "ScoringClause",
+  "tipo": "entity",
+  "estado": "mapeada_ok",
+  "descripcion": "Define tramos de puntaje para una característica del solicitante y los puntos que aporta cada tramo. Es la pieza con la que se construye el score del cliente que sustenta la decisión de crédito.",
+  "legacy": {
+   "tabla": "creditop_x_lender_scoring"
+  },
+  "atributos": [
+   {
+    "n": "id",
+    "t": "bigint unsigned",
+    "legacy": null
+   },
+   {
+    "n": "country_id",
+    "t": "bigint unsigned",
+    "legacy": null
+   },
+   {
+    "n": "policy_version_id",
+    "t": "bigint unsigned",
+    "legacy": null
+   },
+   {
+    "n": "scoring_policy_id",
+    "t": "bigint unsigned",
+    "legacy": null
+   },
+   {
+    "n": "evaluable_field_id",
+    "t": "bigint unsigned",
+    "legacy": null
+   },
+   {
+    "n": "min",
+    "t": "decimal(15,4)",
+    "legacy": null
+   },
+   {
+    "n": "max",
+    "t": "decimal(15,4)",
+    "legacy": null
+   },
+   {
+    "n": "points",
+    "t": "decimal(8,2)",
+    "legacy": null
+   },
+   {
+    "n": "status",
+    "t": "tinyint(1)",
+    "legacy": null
+   }
+  ]
+ },
+ {
+  "key": "ruleGroup",
+  "name": "RuleGroup",
+  "tipo": "entity",
+  "estado": "NUEVA_greenfield",
+  "descripcion": "Agrupa condiciones de crédito combinándolas con lógica de 'y'/'o' y permitiendo anidarlas. Permite expresar políticas de elegibilidad complejas, como exigir que se cumplan varias condiciones a la vez o alguna entre varias.",
+  "legacy": {
+   "ref": "green-field (hoy las reglas se evalúan planas, sin AND/OR explícito)"
+  },
+  "atributos": [
+   {
+    "n": "id",
+    "t": "bigint unsigned",
+    "legacy": null
+   },
+   {
+    "n": "name",
+    "t": "varchar(120)",
+    "legacy": null
+   },
+   {
+    "n": "combinator",
+    "t": "enum('and','or')",
+    "legacy": null
+   },
+   {
+    "n": "parent_group_id",
+    "t": "bigint unsigned",
+    "legacy": null
+   },
+   {
+    "n": "status",
+    "t": "tinyint(1)",
+    "legacy": null
+   }
+  ]
+ },
+ {
+  "key": "ruleGroupMember",
+  "name": "RuleGroupMember",
+  "tipo": "entity",
+  "estado": "NUEVA_greenfield",
+  "descripcion": "Representa cada elemento que compone un grupo de reglas, ya sea una condición individual o un subgrupo de condiciones. Materializa la estructura con la que se arman las políticas de elegibilidad compuestas.",
+  "legacy": {
+   "ref": "green-field"
+  },
+  "atributos": [
+   {
+    "n": "id",
+    "t": "bigint unsigned",
+    "legacy": null
+   },
+   {
+    "n": "rule_group_id",
+    "t": "bigint unsigned",
+    "legacy": null
+   },
+   {
+    "n": "rule_definition_id",
+    "t": "bigint unsigned",
+    "legacy": null
+   },
+   {
+    "n": "child_group_id",
+    "t": "bigint unsigned",
+    "legacy": null
+   },
+   {
+    "n": "sort",
+    "t": "int",
+    "legacy": null
+   }
+  ]
+ },
+ {
+  "key": "ruleBinding",
+  "name": "RuleBinding",
+  "tipo": "entity",
+  "estado": "NUEVA_greenfield",
+  "descripcion": "Es la calibración de una condición de crédito por parte de un actor concreto —un financiador o un comercio aliado—: declara qué valor exige, si la condición habilita o bloquea al solicitante, si rechaza de plano o solo penaliza el puntaje, y su prioridad frente a otras. Permite combinar las exigencias de financiador y comercio en una sola evaluación, donde el comercio solo puede endurecer las condiciones del financiador, nunca relajarlas.",
+  "legacy": {
+   "ref": "green-field (unifica el binding de lender_rules y group_rules con la semántica de combinación lender+comercio que hoy es código/prosa)"
+  },
+  "atributos": [
+   {
+    "n": "id",
+    "t": "bigint unsigned",
+    "legacy": null
+   },
+   {
+    "n": "rule_definition_id",
+    "t": "bigint unsigned",
+    "legacy": null
+   },
+   {
+    "n": "policy_version_id",
+    "t": "bigint unsigned",
+    "legacy": null
+   },
+   {
+    "n": "scope_type",
+    "t": "enum('country','lender','merchant','merchant_branch','category')",
+    "legacy": null
+   },
+   {
+    "n": "scope_id",
+    "t": "bigint unsigned",
+    "legacy": null
+   },
+   {
+    "n": "effect",
+    "t": "enum('allow','deny')",
+    "legacy": null
+   },
+   {
+    "n": "severity",
+    "t": "enum('hard','soft')",
+    "legacy": null
+   },
+   {
+    "n": "override_value",
+    "t": "varchar(255)",
+    "legacy": null
+   },
+   {
+    "n": "precedence",
+    "t": "int",
+    "legacy": null
+   },
+   {
+    "n": "status",
+    "t": "tinyint",
+    "legacy": null
+   }
+  ]
+ },
+ {
+  "key": "integrationProfile",
+  "name": "IntegrationProfile",
+  "tipo": "entity",
+  "estado": "NUEVA_greenfield",
+  "descripcion": "Refleja el estado de avance de la integración de un financiador o comercio aliado y qué le falta para empezar a operar. Convierte la puesta en marcha de un nuevo aliado en un proceso gobernado y verificable, desde su configuración inicial hasta que queda listo para producción.",
+  "legacy": {
+   "ref": "green-field (hoy el onboarding es un proceso manual sin estado modelado)"
+  },
+  "atributos": [
+   {
+    "n": "id",
+    "t": "bigint unsigned",
+    "legacy": null
+   },
+   {
+    "n": "scope_type",
+    "t": "enum('lender','merchant')",
+    "legacy": null
+   },
+   {
+    "n": "scope_id",
+    "t": "bigint unsigned",
+    "legacy": null
+   },
+   {
+    "n": "readiness",
+    "t": "enum('draft','configuring','validated','live','suspended')",
+    "legacy": null
+   },
+   {
+    "n": "active_policy_version_id",
+    "t": "bigint unsigned",
+    "legacy": null
+   },
+   {
+    "n": "missing_requirements",
+    "t": "json",
+    "legacy": null
+   },
+   {
+    "n": "went_live_at",
+    "t": "timestamp",
+    "legacy": null
+   },
+   {
+    "n": "status",
+    "t": "tinyint",
+    "legacy": null
+   }
+  ]
+ },
+ {
+  "key": "integrationCapability",
+  "name": "IntegrationCapability",
+  "tipo": "entity",
+  "estado": "NUEVA_greenfield",
+  "descripcion": "Declara qué operaciones sabe ejecutar la integración con un financiador —como desembolsar, recibir notificaciones de estado, firmar, recaudar o reversar—. Permite saber explícitamente qué puede hacer cada financiador y verificar que esté completo antes de habilitarlo para operar.",
+  "legacy": {
+   "ref": "green-field (hoy las capacidades están implícitas en las clases Action por lender)"
+  },
+  "atributos": [
+   {
+    "n": "id",
+    "t": "bigint unsigned",
+    "legacy": null
+   },
+   {
+    "n": "integration_contract_id",
+    "t": "bigint unsigned",
+    "legacy": null
+   },
+   {
+    "n": "capability",
+    "t": "enum('disbursement','status_callback','e_signature','payment_collection','refund','balance_inquiry')",
+    "legacy": null
+   },
+   {
+    "n": "direction",
+    "t": "enum('inbound','outbound')",
+    "legacy": null
+   },
+   {
+    "n": "provider_type",
+    "t": "enum('own_lender','external_lender','payment_gateway')",
+    "legacy": null
+   },
+   {
+    "n": "status",
+    "t": "tinyint",
+    "legacy": null
+   }
+  ]
+ }
+]

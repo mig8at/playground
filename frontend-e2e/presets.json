@@ -1,0 +1,21 @@
+{
+  "_comment": "Presets de frontend-e2e (UI): fixtures (phone/otp/monto) + alias de merchant por entorno + scenarios. El WEBHOOK y el RETURN_URL NO viven acá: se setean en .env.local / .env.dev (E2E_WEBHOOK_URL / E2E_RETURN_URL). NO cachea la BD. Lo consume bin/scenario.",
+
+  "defaults": {
+    "phone": "3131010101",
+    "otp": "0101",
+    "amount": 600000
+  },
+
+  "merchants": {
+    "pullman": { "local": "pullman", "dev": "pullman" }
+  },
+
+  "scenarios": {
+    "vtex":         { "tool": "playwright", "spec": "channel/vtex-checkout.spec.ts", "merchant": "pullman", "env": "local" },
+    "ecommerce":    { "tool": "asesor", "merchant": "pullman", "flow": true, "ecommerce": true, "lender": "credipullman", "env": "local" },
+    "asesor-local": { "tool": "asesor", "merchant": "pullman", "flow": true, "preview": true, "env": "local" },
+    "asesor-dev":   { "tool": "asesor", "merchant": "pullman", "flow": true, "env": "dev" },
+    "checkout":     { "tool": "checkout", "merchant": "pullman", "env": "dev" }
+  }
+}

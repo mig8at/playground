@@ -1,0 +1,31 @@
+#!/usr/bin/env bash
+# Shim local del redirect de borde de infra (cutover ecommerce):
+#   /checkout/{hash}?<q>  →  302  →  {target}/ecommerce/{hash}/checkout?<q>
+# Lo usa `bin/asesor … --via-redirect` para modelar tienda → (URL estilo-plugin) → redirect → originaciones.
+#
+# uso: bin/mock-redirect [start [target]|stop|status|logs]    env: MOCK_REDIRECT_PORT (8096)
+set -euo pipefail
+DIR="$(cd "$(dirname "$0")/.." && pwd)"
+PORT="${MOCK_REDIRECT_PORT:-8096}"
+LOG=/tmp/mock-redirect.log
+
+up() { curl -s -o /dev/null --max-time 2 "http://localhost:$PORT" 2>/dev/null; }
+
+case "${1:-start}" in
+  start)
+    TARGET="${2:-${MOCK_REDIRECT_TARGET:-http://localhost:5174}}"
+    if up; then echo "✓ mock-redirect ya arriba (:$PORT)"; exit 0; fi
+    rm -f "$LOG"
+    nohup env MOCK_REDIRECT_PORT="$PORT" MOCK_REDIRECT_TARGET="$TARGET" \
+      node "$DIR/mock-redirect/server.mjs" < /dev/null > "$LOG" 2>&1 &
+    for _ in $(seq 1 25); do up && { echo "✓ mock-redirect :$PORT → $TARGET"; exit 0; }; sleep 0.3; done
+    echo "✗ no levantó"; tail -8 "$LOG" 2>/dev/null; exit 1;;
+  stop)
+    lsof -ti:"$PORT" 2>/dev/null | xargs kill -9 2>/dev/null && echo "⏹ detenido (:$PORT)" || echo "no estaba corriendo";;
+  status)
+    if up; then curl -s --max-time 2 "http://localhost:$PORT"; echo ""; else echo "○ off (:$PORT)"; fi;;
+  logs)
+    tail -n "${2:-40}" "$LOG" 2>/dev/null || echo "(sin log)";;
+  *)
+    echo "uso: bin/mock-redirect [start [target]|stop|status|logs]";;
+esac

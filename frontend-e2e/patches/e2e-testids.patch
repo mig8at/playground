@@ -1,0 +1,72 @@
+diff --git a/modules/loan-request-wizard/lenders-marketplace/src/components/lender-card/LenderCard.tsx b/modules/loan-request-wizard/lenders-marketplace/src/components/lender-card/LenderCard.tsx
+index 5339e696..7b3d3553 100644
+--- a/modules/loan-request-wizard/lenders-marketplace/src/components/lender-card/LenderCard.tsx
++++ b/modules/loan-request-wizard/lenders-marketplace/src/components/lender-card/LenderCard.tsx
+@@ -311,6 +311,7 @@ function CollapsibleLenderCard({
+                         >
+                               <button
+                                     type="button"
++                                    data-testid={`lender-toggle-${lenderData.id}`}
+                                     className={cn(
+                                           "w-full p-4 flex items-center justify-between cursor-pointer text-left focus:outline-none",
+                                           isExpanded && "pb-0",
+diff --git a/modules/loan-request-wizard/loan-application-form/src/components/amount-form.tsx b/modules/loan-request-wizard/loan-application-form/src/components/amount-form.tsx
+index 9da2526e..8322b53b 100644
+--- a/modules/loan-request-wizard/loan-application-form/src/components/amount-form.tsx
++++ b/modules/loan-request-wizard/loan-application-form/src/components/amount-form.tsx
+@@ -107,6 +107,7 @@ export function AmountForm({
+                                                 placeholder="Monto a solicitar"
+                                                 className="bg-white h-12 text-lg"
+                                                 autoComplete="off"
++                                                data-testid="amount-input"
+                                           />
+                                     </FormControl>
+                                     <FormMessage />
+@@ -120,6 +121,7 @@ export function AmountForm({
+                         disabled={!isValid}
+                         className="w-full"
+                         style={getThemedButtonStyle(theme, !isValid)}
++                        data-testid="amount-submit"
+                   >
+                         {isSubmitting ? <Loader /> : "Iniciar solicitud"}
+                   </Button>
+diff --git a/modules/loan-request-wizard/loan-application-form/src/components/phone-number-step-form.tsx b/modules/loan-request-wizard/loan-application-form/src/components/phone-number-step-form.tsx
+index 323e9524..15ad9671 100644
+--- a/modules/loan-request-wizard/loan-application-form/src/components/phone-number-step-form.tsx
++++ b/modules/loan-request-wizard/loan-application-form/src/components/phone-number-step-form.tsx
+@@ -43,6 +43,7 @@ export function PhoneNumberStepForm({
+                                     <FormControl>
+                                           <Input
+                                                 {...field}
++                                                data-testid="phone-input"
+                                                 onChange={(e) => {
+                                                       const value = e.target.value.replace(/[^0-9]/g, "");
+                                                       field.onChange(value);
+@@ -89,6 +90,7 @@ export function PhoneNumberStepForm({
+                               disabled={!isValid}
+                               className="w-full"
+                               style={getThemedButtonStyle(theme, !isValid)}
++                              data-testid="phone-submit"
+                         >
+                               {isSubmitting ? <Loader /> : "Continuar"}
+                         </Button>
+diff --git a/packages/shared/components/src/components/otp.tsx b/packages/shared/components/src/components/otp.tsx
+index 550676f5..2f73fa19 100644
+--- a/packages/shared/components/src/components/otp.tsx
++++ b/packages/shared/components/src/components/otp.tsx
+@@ -256,6 +256,7 @@ export function Otp({
+                                     autoComplete="off"
+                                     autoFocus
+                                     disabled={resendConfig?.isResending || isSubmitting}
++                                    data-testid="otp-input"
+                               >
+                                     <InputOTPGroup>
+                                           {Array.from({ length: pinLength }).map((_, index: number) => (
+@@ -287,6 +288,7 @@ export function Otp({
+                                     disabled={isDisabled}
+                                     loading={isSubmitting}
+                                     className="w-full"
++                                    data-testid="otp-submit"
+                                     style={
+                                           primaryColor
+                                                 ? {

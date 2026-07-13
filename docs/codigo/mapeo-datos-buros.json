@@ -1,0 +1,357 @@
+{
+  "_meta": {
+    "titulo": "Mapa unificado de datos por buró/proveedor (CreditOp v2) — ÚNICO diccionario concepto→buró",
+    "descripcion": "Diccionario canónico y ÚNICO: cada campo tiene UNA clave unificada y la RUTA COMPLETA de cada proveedor (en `sources`). Los valores de ejemplo del fixture viven en `ejemplos_fixture` (sin duplicar rutas → sin riesgo de desync). Consolidó y reemplazó a `mapeo-datos-por-buro.json` (borrado 2026-07-08; su vista por-buró es derivable de `sources` + `proveedores`). Validado contra mocks/fixtures + código + BD local (2026-07-03).",
+    "convenciones": {
+      "presente_en": "proveedores que ENTREGAN el dato",
+      "sources": "RUTA CRUDA COMPLETA por proveedor (dot-path desde la raíz de la respuesta del buró)",
+      "normalizado_en": "ruta donde queda el value ya limpio/derivado (user_summaries.* / additional_info.* / EAV), listo para consumir",
+      "consumido": "si | no | parcial — si el value influye en alguna decisión del listado/cupo hoy",
+      "usado_en": "en qué decisión se usa (o '—')",
+      "nota_x1000": "los montos de Experian vienen en miles; el parser multiplica x1000 al persistir"
+    },
+    "tipos_de_ruta": {
+      "cruda": "se lee directo del JSON de respuesta del buró (sources)",
+      "normalizada": "para valores derivados (ingreso, continuidad, ocupación, score) el escalar listo vive en normalizado_en; la ruta cruda es un array/cálculo"
+    },
+    "advertencias": [
+      "Experian tiene 3 productos con FORMA distinta: Acierta trae models[] (score) sin productValueList; Quanto trae productValueList[0][] (ingreso) sin models; Acierta+Quanto trae AMBOS (modelCode 'Z0').",
+      "field 160 ('¿reportes negativos?') es AUTO-DECLARADO por el usuario, NO viene del buró.",
+      "El modelo ML (H2O) que consume ~20 campos EX_* está DESACTIVADO (makePrediction retorna 404): esos campos se calculan y se tiran."
+    ]
+  },
+
+  "proveedores": {
+    "experian_acierta":   { "rc_id": 1, "rol": "buró: score + comportamiento crediticio", "alimenta_listado": "si (decisivo)", "raiz_respuesta": "ReportHDCplus", "bd_local": "258 filas (257 con score)" },
+    "experian_quanto":    { "rc_id": 8, "rol": "estimación de ingreso", "alimenta_listado": "si (ingreso fallback)", "raiz_respuesta": "ReportHDCplus.productValueList[0][*] (productCode==62)", "bd_local": "va encriptado bajo rc 1" },
+    "experian_combinado": { "rc_id": 9, "rol": "Acierta + Quanto", "alimenta_listado": "si", "raiz_respuesta": "ReportHDCplus (models[] + productValueList)", "bd_local": "0 (combinado vive bajo rc 1)" },
+    "agildata":           { "rc_id": 3, "rol": "ingreso + empleo (seguridad social)", "alimenta_listado": "si", "raiz_respuesta": "respuesta.* (+ codRespuesta top-level)", "bd_local": "202 filas" },
+    "mareigua":           { "rc_id": 6, "rol": "ingreso + empleo (fallback de agildata)", "alimenta_listado": "si (fallback)", "raiz_respuesta": "(top-level: genero, aportantes[], resumen_general_ingresos, ...)", "bd_local": "0 filas rc; 20.449 en user_summaries" },
+    "tusdatos_identidad": { "rc_id": 2, "rol": "KYC: validación de identidad CC/CE", "alimenta_listado": "no", "raiz_respuesta": "data.* / status", "bd_local": "0 filas" },
+    "tusdatos_aml":       { "rc_id": 4, "rol": "KYC: background/listas AML", "alimenta_listado": "no", "raiz_respuesta": "hallazgo / hallazgos / data.dict_hallazgos", "bd_local": "0 filas" },
+    "ado":                { "rc_id": 5, "rol": "KYC: validación biométrica/documental", "alimenta_listado": "no", "raiz_respuesta": "Extras.* / IdNumber / TransactionId", "bd_local": "0 filas" },
+    "deceval":            { "rc_id": 7, "rol": "NO es identidad/AML — firma SOAP de pagaré", "alimenta_listado": "no", "raiz_respuesta": "(XML SOAP pagaré)", "bd_local": "0 filas" }
+  },
+
+  "cascadas": {
+    "ingreso_mensual": {
+      "descripcion": "orden de precedencia real para obtener el ingreso (getSalary)",
+      "orden": ["user_summaries.agildata.approximate_real_salary", "user_summaries.mareigua.approximate_real_salary", "user_summaries.quanto.average_monthly_income", "user_field_values[field_id=87] (declarado)", "0"]
+    },
+    "continuidad_laboral": { "orden": ["user_summaries.agildata.continuity_*_months", "user_summaries.mareigua.continuity_*_months"] },
+    "genero": { "orden": ["agildata.genero", "mareigua.genero", "experian.gender", "declarado"], "nota": "se persiste en users.gender; es gate duro" },
+    "edad": { "orden": ["agildata.edad (exacta)", "experian.age (rango)", "declarado→users.age"], "nota": "users.age es gate duro" }
+  },
+
+  "campos": {
+    "documento_tipo": {
+      "label": "Tipo de documento", "grupo": "identidad", "tipo": "enum",
+      "presente_en": ["agildata", "mareigua", "experian_acierta"],
+      "sources": {
+        "agildata": "respuesta.datosBasicos.tipoId",
+        "mareigua": "tipo_identificacion_persona_natural_id",
+        "experian_acierta": "ReportHDCplus.basicInformation.personId.personIdType"
+      },
+      "normalizado_en": "users.document_type", "consumido": "si", "usado_en": "ruteo KYC / reglas"
+    },
+    "documento_numero": {
+      "label": "Número de documento", "grupo": "identidad", "tipo": "string",
+      "presente_en": ["agildata", "mareigua", "experian_acierta", "ado"],
+      "sources": {
+        "agildata": "respuesta.datosBasicos.numeroId",
+        "mareigua": "numero_identificacion_persona_natural",
+        "experian_acierta": "ReportHDCplus.basicInformation.personId.personIdNumber",
+        "ado": "IdNumber"
+      },
+      "consumido": "parcial", "usado_en": "ado compara OCR vs documento del usuario (KYC)"
+    },
+    "nombre_completo": {
+      "label": "Nombre completo", "grupo": "identidad", "tipo": "string",
+      "presente_en": ["agildata", "experian_acierta", "tusdatos_identidad"],
+      "sources": {
+        "agildata": "respuesta.datosBasicos.nombre",
+        "experian_acierta": "ReportHDCplus.basicInformation.fullName",
+        "tusdatos_identidad": "data.nombre_completo"
+      },
+      "consumido": "parcial", "usado_en": "validación de coincidencia de nombre (KYC)"
+    },
+    "primer_nombre":   { "label": "Primer nombre", "grupo": "identidad", "tipo": "string", "presente_en": ["mareigua", "experian_acierta"], "sources": { "mareigua": "primer_nombre_persona_natural", "experian_acierta": "ReportHDCplus.basicInformation.names" }, "consumido": "parcial", "usado_en": "armar nombre / KYC" },
+    "segundo_nombre":  { "label": "Segundo nombre", "grupo": "identidad", "tipo": "string", "presente_en": ["mareigua"], "sources": { "mareigua": "segundo_nombre_persona_natural" }, "consumido": "parcial", "usado_en": "armar nombre" },
+    "primer_apellido": { "label": "Primer apellido", "grupo": "identidad", "tipo": "string", "presente_en": ["mareigua", "experian_acierta"], "sources": { "mareigua": "primer_apellido_persona_natural", "experian_acierta": "ReportHDCplus.basicInformation.firstLastName" }, "consumido": "parcial", "usado_en": "armar nombre / KYC" },
+    "segundo_apellido":{ "label": "Segundo apellido", "grupo": "identidad", "tipo": "string", "presente_en": ["mareigua", "experian_acierta"], "sources": { "mareigua": "segundo_apellido_persona_natural", "experian_acierta": "ReportHDCplus.basicInformation.secondLastName" }, "consumido": "parcial", "usado_en": "armar nombre / KYC" },
+    "genero": {
+      "label": "Género", "grupo": "identidad", "tipo": "enum(M/F)",
+      "presente_en": ["agildata", "mareigua", "experian_acierta"],
+      "sources": {
+        "agildata": "respuesta.datosBasicos.genero",
+        "mareigua": "genero",
+        "experian_acierta": "ReportHDCplus.basicInformation.gender"
+      },
+      "normalizado_en": "users.gender", "consumido": "si", "usado_en": "regla dura (gate por género en algunos lenders)", "nota": "experian codificado (4=Hombre) — ver ReportHDCplus.basicInformation.genderDesc"
+    },
+    "edad": {
+      "label": "Edad", "grupo": "identidad", "tipo": "int | rango",
+      "presente_en": ["agildata", "experian_acierta", "mareigua"],
+      "sources": {
+        "agildata": "respuesta.datosBasicos.edad",
+        "experian_acierta": "ReportHDCplus.basicInformation.age.min | ReportHDCplus.basicInformation.age.max",
+        "mareigua": "rango_edad"
+      },
+      "normalizado_en": "users.age", "consumido": "si", "usado_en": "regla dura (banda de edad por lender)", "nota": "agildata=exacta; experian=rango; mareigua suele null"
+    },
+    "fecha_expedicion": {
+      "label": "Fecha de expedición del documento", "grupo": "identidad", "tipo": "date",
+      "presente_en": ["experian_acierta", "tusdatos_identidad"],
+      "sources": {
+        "experian_acierta": "ReportHDCplus.basicInformation.identification.issueDate",
+        "tusdatos_identidad": "data.findings.issue_date.match_code"
+      },
+      "consumido": "parcial", "usado_en": "perfil Experian / KYC (tusdatos solo valida coincidencia)"
+    },
+    "lugar_expedicion": {
+      "label": "Lugar de expedición", "grupo": "identidad", "tipo": "string",
+      "presente_en": ["experian_acierta"],
+      "sources": { "experian_acierta": "ReportHDCplus.basicInformation.identification.issuingCityName | ReportHDCplus.basicInformation.identification.issuingStateName" },
+      "consumido": "parcial", "usado_en": "perfil Experian (display)"
+    },
+    "estado_documento": {
+      "label": "Estado/vigencia del documento", "grupo": "identidad", "tipo": "enum",
+      "presente_en": ["experian_acierta", "tusdatos_identidad"],
+      "sources": {
+        "experian_acierta": "ReportHDCplus.basicInformation.identification.statusId",
+        "tusdatos_identidad": "data.status  (CC)  |  data.estado  (CE)"
+      },
+      "consumido": "parcial", "usado_en": "KYC (bloquea si no vigente); 00=vigente en experian"
+    },
+
+    "ingreso_mensual": {
+      "label": "Ingreso mensual estimado", "grupo": "ingreso", "tipo": "money",
+      "presente_en": ["agildata", "mareigua", "experian_quanto"],
+      "sources": {
+        "agildata": "respuesta.detalladoEmpleos[].pagos[].ibc  (promedio → approximate_real_salary)",
+        "mareigua": "aportantes[].resultado_pagos[].ingresos  (→ approximate_real_salary)",
+        "experian_quanto": "ReportHDCplus.productValueList[0][*].value  (productCode==62, posición 0)  x1000"
+      },
+      "normalizado_en": "user_summaries.agildata.approximate_real_salary | user_summaries.mareigua.approximate_real_salary | user_summaries.quanto.average_monthly_income | user_field_values[field_id=87]",
+      "consumido": "si", "usado_en": "cupo (getSalary), capacidad de endeudamiento, perfilamiento", "cascada": "ingreso_mensual"
+    },
+    "ingreso_limite_inferior": {
+      "label": "Ingreso estimado (límite inferior)", "grupo": "ingreso", "tipo": "money",
+      "presente_en": ["experian_quanto"],
+      "sources": { "experian_quanto": "ReportHDCplus.productValueList[0][*].value  (productCode==62, posición 1)  x1000" },
+      "normalizado_en": "user_summaries.quanto.lower_limit_monthly_income", "consumido": "parcial", "usado_en": "banda de confianza del ingreso"
+    },
+    "ingreso_limite_superior": {
+      "label": "Ingreso estimado (límite superior)", "grupo": "ingreso", "tipo": "money",
+      "presente_en": ["experian_quanto"],
+      "sources": { "experian_quanto": "ReportHDCplus.productValueList[0][*].value  (productCode==62, posición 2)  x1000" },
+      "normalizado_en": "user_summaries.quanto.upper_limit_monthly_income", "consumido": "parcial", "usado_en": "banda de confianza del ingreso"
+    },
+    "ibc_mensual": {
+      "label": "Ingreso Base de Cotización (por mes)", "grupo": "ingreso", "tipo": "money[]",
+      "presente_en": ["agildata"],
+      "sources": { "agildata": "respuesta.detalladoEmpleos[].pagos[].ibc" },
+      "consumido": "si", "usado_en": "base del cálculo de ingreso promedio (FN_Agildata_Incomes_Average)"
+    },
+    "ultimo_pago": {
+      "label": "Valor del último pago", "grupo": "ingreso", "tipo": "money",
+      "presente_en": ["agildata", "mareigua"],
+      "sources": { "agildata": "respuesta.detalladoEmpleos[].pagos[]  (más reciente → last_payment_value)", "mareigua": "aportantes[].resultado_pagos[]  (→ last_payment_value)" },
+      "normalizado_en": "user_summaries.agildata.last_payment_value | user_summaries.mareigua.last_payment_value", "consumido": "no", "usado_en": "—"
+    },
+    "menor_pago": {
+      "label": "Valor del menor pago", "grupo": "ingreso", "tipo": "money",
+      "presente_en": ["agildata", "mareigua"],
+      "sources": { "agildata": "respuesta.detalladoEmpleos[].pagos[]  (→ lowest_payment_value)", "mareigua": "aportantes[].resultado_pagos[]  (→ lowest_payment_value)" },
+      "normalizado_en": "user_summaries.agildata.lowest_payment_value | user_summaries.mareigua.lowest_payment_value", "consumido": "no", "usado_en": "—"
+    },
+    "ocupacion": {
+      "label": "Situación laboral / ocupación", "grupo": "empleo", "tipo": "enum(Empleado/Independiente/Pensionado)",
+      "presente_en": ["agildata", "mareigua", "experian_quanto"],
+      "sources": {
+        "agildata": "codRespuesta (01=empleado,21=pensionado) + coincidencia respuesta.detalladoEmpleos[].nombreEmpleador",
+        "mareigua": "aportantes[].tipo_cotizante_persona_natural (1=Empleado,2=Independiente,3=Pensionado)",
+        "experian_quanto": "(hardcode 'Empleado' al procesar Quanto → field 29)"
+      },
+      "normalizado_en": "user_summaries.agildata.{employed,self_employed,retired} | user_summaries.mareigua.{...} | user_field_values[field_id=29]",
+      "consumido": "parcial", "usado_en": "perfilamiento (ProfilingRulesService); regla field 29 casi no-op"
+    },
+    "continuidad_laboral": {
+      "label": "Continuidad laboral (3/6/12 meses)", "grupo": "empleo", "tipo": "bool x3",
+      "presente_en": ["agildata", "mareigua"],
+      "sources": {
+        "agildata": "respuesta.detalladoEmpleos[].pagos[].periodo  (→ continuity_3/6/12_months)",
+        "mareigua": "aportantes[].resultado_pagos[].{ano,mes}_periodo_validado + realizo_pago  (→ continuity_3/6/12_months)"
+      },
+      "normalizado_en": "user_summaries.agildata.continuity_3_months|_6_months|_12_months | user_summaries.mareigua.continuity_3_months|_6_months|_12_months",
+      "consumido": "si", "usado_en": "cupo (getContinuity), perfilamiento; field 161 casi sin adopción"
+    },
+    "empleador_nombre": {
+      "label": "Nombre del empleador/aportante", "grupo": "empleo", "tipo": "string",
+      "presente_en": ["agildata", "mareigua"],
+      "sources": { "agildata": "respuesta.detalladoEmpleos[].nombreEmpleador", "mareigua": "aportantes[].razón_social_aportante" },
+      "consumido": "parcial", "usado_en": "agildata: detectar empleado vs independiente por coincidencia con el nombre del afiliado"
+    },
+    "empleador_nit": {
+      "label": "NIT del empleador/aportante", "grupo": "empleo", "tipo": "string",
+      "presente_en": ["agildata", "mareigua"],
+      "sources": { "agildata": "respuesta.detalladoEmpleos[].identifiacionEmpleador", "mareigua": "aportantes[].numero_identificacion_aportante" },
+      "consumido": "no", "usado_en": "—", "nota": "agildata: typo en origen (falta 'c')"
+    },
+    "gastos_fijos": {
+      "label": "Gastos fijos estimados", "grupo": "ingreso", "tipo": "money",
+      "presente_en": ["agildata", "mareigua", "experian_acierta"],
+      "sources": { "agildata": "SP_AgilData_Mareigua_Extract_Data → Fixed_Expenses", "mareigua": "SP_AgilData_Mareigua_Extract_Data → Fixed_Expenses", "experian_acierta": "ReportHDCplus.agregatedInfo.overview.balances.valueMonthlyPayment (aporta al cálculo)" },
+      "consumido": "parcial", "usado_en": "capacidad de pago (paymentCapacity = ingreso - gastos); el consumidor ML está muerto"
+    },
+    "afp_eps": { "label": "AFP / EPS", "grupo": "empleo", "tipo": "string", "presente_en": ["mareigua"], "sources": { "mareigua": "AFP | EPS" }, "consumido": "no", "usado_en": "—" },
+    "nivel_educativo": { "label": "Nivel educativo", "grupo": "empleo", "tipo": "string", "presente_en": ["mareigua"], "sources": { "mareigua": "nivel_educativo" }, "consumido": "no", "usado_en": "—" },
+    "servidor_publico": { "label": "Servidor público / contratos con el Estado", "grupo": "empleo", "tipo": "bool+montos", "presente_en": ["mareigua"], "sources": { "mareigua": "servidor_publico | tiene_contratos_estado | valor_contratos | valor_facturado | valor_pendiente | meses_remanentes | numero_contratos" }, "consumido": "no", "usado_en": "—" },
+    "estadisticas_ingreso_mareigua": {
+      "label": "Estadísticas de ingreso (Mareigua)", "grupo": "ingreso", "tipo": "objeto",
+      "presente_en": ["mareigua"],
+      "sources": { "mareigua": "resumen_general_ingresos.{maximo,minimo,desvest,tendencia,percentil_general,promedio_ingresos,promedio_ingresos_neto,razon_ingreso_neto,cantidad_aportantes,decision,...}" },
+      "consumido": "parcial", "usado_en": "resumen_general_ingresos.promedio_ingresos SOLO en cupo rotativo; el resto se descarta"
+    },
+
+    "score_datacredito": {
+      "label": "Score de crédito", "grupo": "buro", "tipo": "int(0-1000)",
+      "presente_en": ["experian_acierta", "experian_combinado"],
+      "sources": {
+        "experian_acierta": "ReportHDCplus.models[].scoreValue  (avg; modelCode 67 'Acierta+')",
+        "experian_combinado": "ReportHDCplus.models[].scoreValue  (avg; modelCode 'Z0' 'Advance Score')"
+      },
+      "normalizado_en": "risk_central_user_data.score | user_summaries.datacredito.score",
+      "consumido": "si", "usado_en": "FILTRO DURO datacrédito (DatacreditoRuleEvaluator rt=2 y RiskCentralValidationService rt≠2)"
+    },
+    "consultas_ultimos_6m": {
+      "label": "Consultas al buró (últimos 6 meses)", "grupo": "buro", "tipo": "int",
+      "presente_en": ["experian_acierta", "experian_combinado"],
+      "sources": { "experian_acierta": "ReportHDCplus.agregatedInfo.overview.principals.consultedLast6Months" },
+      "consumido": "si", "usado_en": "regla datacrédito + castigo de probabilidad"
+    },
+    "negativos_ultimos_12m": {
+      "label": "Obligaciones con historia negativa (12 meses)", "grupo": "buro", "tipo": "int",
+      "presente_en": ["experian_acierta", "experian_combinado"],
+      "sources": { "experian_acierta": "ReportHDCplus.agregatedInfo.overview.principals.negativeHistoricalLast12Months" },
+      "consumido": "si", "usado_en": "regla datacrédito (rt=2)"
+    },
+    "creditos_negativos_actuales": {
+      "label": "Créditos actualmente en negativo", "grupo": "buro", "tipo": "int",
+      "presente_en": ["experian_acierta", "experian_combinado"],
+      "sources": { "experian_acierta": "ReportHDCplus.agregatedInfo.overview.principals.currentNegativeCredits" },
+      "normalizado_en": "risk_central_user_data.additional_info.negativeAccounts.total",
+      "consumido": "si", "usado_en": "regla datacrédito (current_dues, RiskCentralValidationService)"
+    },
+    "maduracion_desde": {
+      "label": "Antigüedad en el sector financiero (desde)", "grupo": "buro", "tipo": "date",
+      "presente_en": ["experian_acierta", "experian_combinado"],
+      "sources": { "experian_acierta": "ReportHDCplus.agregatedInfo.overview.principals.maturationSince" },
+      "normalizado_en": "risk_central_user_data.additional_info.maturationSince",
+      "consumido": "si", "usado_en": "regla datacrédito (time_finance_sector: meses de maduración)"
+    },
+    "disputas_actuales": { "label": "Disputas/reclamos vigentes", "grupo": "buro", "tipo": "int", "presente_en": ["experian_acierta", "experian_combinado"], "sources": { "experian_acierta": "ReportHDCplus.agregatedInfo.overview.principals.currentDisputes" }, "consumido": "parcial", "usado_en": "solo ML (muerto) EX_current_disputes" },
+    "disputas_totales": { "label": "Disputas totales", "grupo": "buro", "tipo": "int", "presente_en": ["experian_acierta"], "sources": { "experian_acierta": "ReportHDCplus.agregatedInfo.overview.principals.totalDisputes" }, "consumido": "no", "usado_en": "—" },
+    "creditos_vigentes": { "label": "Créditos vigentes", "grupo": "buro", "tipo": "int", "presente_en": ["experian_acierta"], "sources": { "experian_acierta": "ReportHDCplus.agregatedInfo.overview.principals.currentCredits" }, "consumido": "no", "usado_en": "—" },
+    "creditos_cerrados": { "label": "Créditos cerrados", "grupo": "buro", "tipo": "int", "presente_en": ["experian_acierta"], "sources": { "experian_acierta": "ReportHDCplus.agregatedInfo.overview.principals.closedCredits" }, "consumido": "no", "usado_en": "—" },
+    "cuota_mensual_deuda": {
+      "label": "Cuota mensual de deudas reportadas", "grupo": "deuda", "tipo": "money",
+      "presente_en": ["experian_acierta", "experian_combinado"],
+      "sources": { "experian_acierta": "ReportHDCplus.agregatedInfo.overview.balances.valueMonthlyPayment  (x1000)" },
+      "normalizado_en": "user_summaries.datacredito.value_monthly_payment | user_field_values[field_id=90]",
+      "consumido": "si", "usado_en": "capacidad de endeudamiento (cuota/ingreso) → castigo de probabilidad"
+    },
+    "saldo_total_deuda": { "label": "Saldo total de deuda", "grupo": "deuda", "tipo": "money", "presente_en": ["experian_acierta"], "sources": { "experian_acierta": "ReportHDCplus.agregatedInfo.overview.balances.totaldebtBalance  (x1000)" }, "consumido": "parcial", "usado_en": "solo ML (muerto) EX_total_debt_balance" },
+    "saldo_en_mora": {
+      "label": "Saldo total en mora", "grupo": "deuda", "tipo": "money",
+      "presente_en": ["experian_acierta"],
+      "sources": { "experian_acierta": "ReportHDCplus.agregatedInfo.overview.balances.totalValueBalanceOverdue  (x1000)" },
+      "normalizado_en": "risk_central_user_data.additional_info.negativeAccounts.amount",
+      "consumido": "parcial", "usado_en": "additional_info (display/soporte)"
+    },
+    "saldo_mora_por_altura": { "label": "Saldo en mora 30/60/90", "grupo": "deuda", "tipo": "money x3", "presente_en": ["experian_acierta"], "sources": { "experian_acierta": "ReportHDCplus.agregatedInfo.overview.balances.debtBalanceD30 | debtBalanceD60 | debtBalanceD90" }, "consumido": "no", "usado_en": "—" },
+    "vector_saldos_24m": { "label": "Vector mensual de saldos (24m)", "grupo": "comportamiento", "tipo": "array", "presente_en": ["experian_acierta"], "sources": { "experian_acierta": "ReportHDCplus.agregatedInfo.overview.balances.month[] | ReportHDCplus.agregatedInfo.overview.behavior.month[]" }, "consumido": "no", "usado_en": "—" },
+    "saldo_por_sector": { "label": "Saldo de deuda por sector económico", "grupo": "deuda", "tipo": "array", "presente_en": ["experian_acierta"], "sources": { "experian_acierta": "ReportHDCplus.agregatedInfo.overview.balances.sector[].economicSector | .debtBalance" }, "consumido": "parcial", "usado_en": "perfil Experian (ExperianProfileService agrupa FinCoop/Real/Telco)" },
+    "pasivos": {
+      "label": "Obligaciones/pasivos (detalle por cuenta)", "grupo": "deuda", "tipo": "array_detalle",
+      "presente_en": ["experian_acierta", "experian_combinado"],
+      "sources": { "experian_acierta": "ReportHDCplus.liabilities[]  (subcampos usados: liabilities[].values.valueMonthlyPayment, liabilities[].values.installmentsOverdue, liabilities[].account.economicSector, liabilities[].status.account.businessAccountStatus)" },
+      "consumido": "parcial", "usado_en": "cupo rt=2 (validateOverdueVectors/DebtCapacity), Credifamilia 0%, perfil; el 90% del detalle se ignora"
+    },
+    "tarjetas_credito": {
+      "label": "Tarjetas de crédito (detalle)", "grupo": "deuda", "tipo": "array_detalle",
+      "presente_en": ["experian_acierta", "experian_combinado"],
+      "sources": { "experian_acierta": "ReportHDCplus.creditCard[]  (subcampos: creditCard[].values[0].{valueMonthlyPayment,debtBalance,availableBalance,initialValue}, creditCard[].status.account.businessAccountStatus, creditCard[].status.payment.businessBureauEvent, creditCard[].creditCardAccount.businessBehaviourVectorProduct)" },
+      "consumido": "si", "usado_en": "cupo rt=2 (deuda a ignorar 70%), capacidad de pago, detección de mora histórica",
+      "nota": "no aparece en el fixture de producción pero el SP y LenderUserCategoryService/DebtSummaryService sí lo leen"
+    },
+    "ahorros": {
+      "label": "Productos de ahorro", "grupo": "buro", "tipo": "array_detalle",
+      "presente_en": ["experian_acierta"],
+      "sources": { "experian_acierta": "ReportHDCplus.savings[].status.businessBureauEvent" },
+      "consumido": "parcial", "usado_en": "solo ML (muerto): EX_savings_active / EX_savings_seized",
+      "nota": "ausente del fixture; leído por SP"
+    },
+    "perfil_microcredito": {
+      "label": "Perfil de microcrédito (por sector/rol)", "grupo": "buro", "tipo": "objeto",
+      "presente_en": ["experian_acierta"],
+      "sources": { "experian_acierta": "ReportHDCplus.agregatedInfoMicrocredit.overview.generalProfile.{closedDebts,currentCredits,inquiredLast6Months,disputes,RestructuredDebts,refinancedDebts,Antiquity}" },
+      "consumido": "parcial", "usado_en": "ExperianProfileService (openDebts/closedDebts para display de perfil)"
+    },
+    "evolucion_deuda": { "label": "Evolución de deuda (promedio/trimestral)", "grupo": "deuda", "tipo": "objeto", "presente_en": ["experian_acierta"], "sources": { "experian_acierta": "ReportHDCplus.agregatedInfo.debtEvolution.averageAnalysis | ReportHDCplus.agregatedInfo.debtEvolution.trimester[]" }, "consumido": "no", "usado_en": "—" },
+    "huellas_consulta": { "label": "Huellas de consulta (quién consultó)", "grupo": "buro", "tipo": "array", "presente_en": ["experian_acierta"], "sources": { "experian_acierta": "ReportHDCplus.inquiryFootprints[]" }, "consumido": "no", "usado_en": "—" },
+    "reportes_negativos_declarado": {
+      "label": "¿Reportes negativos? (AUTO-DECLARADO)", "grupo": "declarado", "tipo": "enum(si/no)",
+      "presente_en": ["formulario", "experian_quanto", "agildata", "mareigua"],
+      "sources": { "formulario": "user_field_values[field_id=160]", "experian_quanto": "(hardcode 'no' al procesar Quanto → field 160)", "agildata": "(hardcode 'no')", "mareigua": "(hardcode 'no')" },
+      "consumido": "parcial", "usado_en": "regla dura field 160 — mayormente no-op (acepta 'no|si'); NO es el buró real"
+    },
+
+    "identidad_match": {
+      "label": "Coincidencia de identidad (CC)", "grupo": "kyc", "tipo": "match_code (0/1/2)",
+      "presente_en": ["tusdatos_identidad"],
+      "sources": { "tusdatos_identidad": "data.findings.first_name.match_code | data.findings.middle_name.match_code | data.findings.first_surname.match_code | data.findings.second_surname.match_code | data.findings.issue_date.match_code" },
+      "consumido": "si (solo KYC)", "usado_en": "rechazo/aprobación de validación de identidad — NO alimenta el listado"
+    },
+    "identidad_hallazgos_ce": { "label": "Hallazgos de cédula de extranjería", "grupo": "kyc", "tipo": "array", "presente_en": ["tusdatos_identidad"], "sources": { "tusdatos_identidad": "findings[]  (CE) | data.estado" }, "consumido": "si (solo KYC)", "usado_en": "validación CE" },
+    "aml_hallazgo": {
+      "label": "Hallazgo AML (listas/PEP)", "grupo": "kyc", "tipo": "bool + nivel",
+      "presente_en": ["tusdatos_aml"],
+      "sources": { "tusdatos_aml": "hallazgo  (bool) | hallazgos  (nivel: 'alto'/'ninguno')" },
+      "consumido": "si (solo KYC)", "usado_en": "background check — NO alimenta el listado"
+    },
+    "aml_detalle": {
+      "label": "Detalle de hallazgos AML", "grupo": "kyc", "tipo": "objeto",
+      "presente_en": ["tusdatos_aml"],
+      "sources": { "tusdatos_aml": "data.dict_hallazgos.altos[] | .medios[] | .bajos[] | .infos[]  (cada uno: {codigo,cantidad,fuente,hallazgo,descripcion})" },
+      "consumido": "no", "usado_en": "— (se entrega el detalle rico pero solo se usa el booleano de nivel)"
+    },
+    "aml_job": { "label": "Job AML (async)", "grupo": "kyc", "tipo": "id+estado", "presente_en": ["tusdatos_aml"], "sources": { "tusdatos_aml": "jobid | id | estado" }, "consumido": "si (control de flujo)", "usado_en": "polling del background" },
+    "biometria_estado": {
+      "label": "Estado de validación biométrica/documental", "grupo": "kyc", "tipo": "enum(18 códigos)",
+      "presente_en": ["ado"],
+      "sources": { "ado": "Extras.IdState | Extras.StateName | TransactionId" },
+      "consumido": "si (solo KYC)", "usado_en": "validación de identidad ADO (mapAdoState) — NO alimenta el listado"
+    },
+
+    "pagare": {
+      "label": "Firma de pagaré (Deceval SOAP) — NO es identidad/AML", "grupo": "no_aplica", "tipo": "objeto",
+      "presente_en": ["deceval"],
+      "sources": { "deceval": "estadoPagare | exitoso | idPagareDeceval | contenido (PDF base64) | nombreArchivo" },
+      "consumido": "si (servicing)", "usado_en": "firma del pagaré post-aprobación; no es dato de riesgo"
+    }
+  },
+
+  "ejemplos_fixture": {
+    "_meta": "Valores de EJEMPLO del mock/fixture (2026-07-03), por buró→concepto. Las RUTAS canónicas viven en `campos[*].sources`; acá NO se repiten rutas (solo el value de muestra) para no reintroducir el desync que tenían los dos JSON separados. Absorbe mapeo-datos-por-buro.json.",
+    "experian_acierta": { "documento_tipo": 1, "documento_numero": "888888881", "nombre_completo": "PRUEBAS PEREZ JUAN", "genero": "4 (codif: 4=Hombre)", "edad": { "min": 56, "max": 65 }, "fecha_expedicion": "1988-10-05", "lugar_expedicion": "BOGOTA DC", "estado_documento": "00 (vigente)", "score": 654, "consultas_ultimos_6m": 59, "negativos_ultimos_12m": 0, "creditos_negativos_actuales": 0, "maduracion_desde": "2006-08-01", "disputas_actuales": 7, "creditos_vigentes": 0, "creditos_cerrados": 30, "cuota_mensual_deuda": 0, "saldo_total_deuda": 0, "saldo_en_mora": 0, "pasivos": "[array detalle por obligación]", "tarjetas_credito": "[array; ausente en fixture, leído por SP]" },
+    "experian_quanto": { "ingreso_mensual": 2320000, "ingreso_limite_inferior": 1624000, "ingreso_limite_superior": 3016000, "ocupacion": "Empleado (hardcode)", "reportes_negativos_declarado": "no (hardcode)" },
+    "experian_combinado": { "score": 707, "ingreso_mensual": 2320000, "consultas_ultimos_6m": 60, "_nota": "trae TODAS las secciones de Acierta + productValueList de Quanto" },
+    "agildata": { "documento_tipo": "CC", "documento_numero": "1023456789", "nombre_completo": "FAKE EMPLOYEE NAME", "genero": "M", "edad": 30, "ingreso_mensual": 1300000, "ibc_mensual": 2910715, "ocupacion": "Empleado", "continuidad_laboral": { "m3": true, "m6": true, "m12": true }, "empleador_nombre": "STANGERSON SAS", "empleador_nit": "900101010 (typo origen: falta 'c')", "ultimo_pago": 1300000, "menor_pago": 1160000 },
+    "mareigua": { "genero": "F", "edad": "null (suele venir null)", "ingreso_mensual": 3361414, "ocupacion": "1=Empleado", "continuidad_laboral": { "m3": true, "m6": true, "m12": true }, "primer_nombre": "BETTY", "primer_apellido": "ESTELLA", "empleador_nombre": "CREDITOP SAS", "afp_eps": "COLPENSIONES | COMPENSAR", "estadisticas_ingreso": { "promedio_ingresos": 5889081, "tendencia": "Creciente", "percentil_general": 91 } },
+    "tusdatos_identidad": { "identidad_match": "1 (1=coincide, 2=parcial, 0=no)", "estado_documento": "Vigente", "nombre_completo": "USUARIO MOCK (solo CE)" },
+    "tusdatos_aml": { "aml_hallazgo": false, "aml_nivel": "ninguno", "aml_job_estado": "finalizado (procesando/en_proceso/finalizado)", "aml_detalle": "[detalle rico NO parseado]" },
+    "ado": { "documento_numero": "12345678 (OCR del documento)", "biometria_estado": "2 (éxito; 18 códigos, mapAdoState)", "biometria_estado_nombre": "Completado", "transaccion_id": "tx-test" },
+    "deceval": { "pagare_estado": "- (dominio servicing, no riesgo)", "pagare_exitoso": "true", "pagare_pdf": "- (base64 + nombreArchivo)" }
+  }
+}

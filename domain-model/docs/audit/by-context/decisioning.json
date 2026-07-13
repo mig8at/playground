@@ -1,0 +1,413 @@
+[
+ {
+  "key": "evaluableField",
+  "name": "EvaluableField",
+  "tipo": "aggregateRoot",
+  "estado": "NUEVA_greenfield",
+  "descripcion": "El catálogo único de datos que el negocio puede tener en cuenta para decidir un crédito —como ingresos, edad, score de buró o comportamiento de pago—, definido una sola vez para todo el proceso. Establece qué información existe y de qué tipo es, de modo que reglas y scoring siempre hablen el mismo lenguaje.",
+  "legacy": {
+   "ref": "green-field (registro de facts; reemplaza los strings field/variable/semantic_role/field_code sueltos)"
+  },
+  "atributos": [
+   {
+    "n": "id",
+    "t": "bigint unsigned",
+    "legacy": null
+   },
+   {
+    "n": "code",
+    "t": "varchar(80)",
+    "legacy": null
+   },
+   {
+    "n": "name",
+    "t": "varchar(160)",
+    "legacy": null
+   },
+   {
+    "n": "value_type",
+    "t": "enum('number','integer','money','percent','date','bool','string','enum','list')",
+    "legacy": null
+   },
+   {
+    "n": "cardinality",
+    "t": "enum('scalar','list')",
+    "legacy": null
+   },
+   {
+    "n": "source_kind",
+    "t": "enum('form_input','customer_attribute','bureau_derived','computed','constant')",
+    "legacy": null
+   },
+   {
+    "n": "unit",
+    "t": "varchar(24)",
+    "legacy": null
+   },
+   {
+    "n": "enum_catalog",
+    "t": "varchar(80)",
+    "legacy": null
+   },
+   {
+    "n": "domain",
+    "t": "enum('customer','credit','identity','geography')",
+    "legacy": null
+   },
+   {
+    "n": "freshness_ttl_seconds",
+    "t": "int",
+    "legacy": null
+   },
+   {
+    "n": "is_pii",
+    "t": "tinyint(1)",
+    "legacy": null
+   },
+   {
+    "n": "status",
+    "t": "tinyint(1)",
+    "legacy": null
+   }
+  ]
+ },
+ {
+  "key": "factSourceBinding",
+  "name": "FactSourceBinding",
+  "tipo": "entity",
+  "estado": "NUEVA_greenfield",
+  "descripcion": "Define de dónde se obtiene cada dato de evaluación según el país (y, si aplica, el lender): si viene de un formulario, de los datos del cliente, de una consulta a buró, de un cálculo o de un valor fijo. También determina qué hacer cuando el dato no está disponible, para que la decisión nunca se tome con información en blanco.",
+  "legacy": {
+   "ref": "green-field (hoy el ruteo de obtención del dato vive en SQL/código)"
+  },
+  "atributos": [
+   {
+    "n": "id",
+    "t": "bigint unsigned",
+    "legacy": null
+   },
+   {
+    "n": "evaluable_field_id",
+    "t": "bigint unsigned",
+    "legacy": null
+   },
+   {
+    "n": "country_id",
+    "t": "bigint unsigned",
+    "legacy": null
+   },
+   {
+    "n": "lender_id",
+    "t": "bigint unsigned",
+    "legacy": null
+   },
+   {
+    "n": "resolver_kind",
+    "t": "enum('form_field','customer_column','bureau_mapping','domain_function','constant')",
+    "legacy": null
+   },
+   {
+    "n": "form_field_semantic_role",
+    "t": "varchar(40)",
+    "legacy": null
+   },
+   {
+    "n": "customer_attribute_path",
+    "t": "varchar(120)",
+    "legacy": null
+   },
+   {
+    "n": "bureau_provider_kind",
+    "t": "varchar(40)",
+    "legacy": null
+   },
+   {
+    "n": "transform_id",
+    "t": "bigint unsigned",
+    "legacy": null
+   },
+   {
+    "n": "const_value",
+    "t": "varchar(255)",
+    "legacy": null
+   },
+   {
+    "n": "transform",
+    "t": "varchar(120)",
+    "legacy": null
+   },
+   {
+    "n": "on_missing",
+    "t": "enum('treat_as_false','block','skip','use_default')",
+    "legacy": null
+   },
+   {
+    "n": "priority",
+    "t": "smallint",
+    "legacy": null
+   },
+   {
+    "n": "status",
+    "t": "tinyint(1)",
+    "legacy": null
+   }
+  ]
+ },
+ {
+  "key": "featureTransform",
+  "name": "FeatureTransform",
+  "tipo": "entity",
+  "estado": "NUEVA_greenfield",
+  "descripcion": "La definición de un dato de evaluación que se calcula a partir de otros —por ejemplo, un promedio de ingresos o una banda de riesgo—, expresada como una fórmula de negocio. Cada vez que cambia se publica una nueva versión en lugar de modificarse, para poder reconstruir con qué criterio se decidió en el pasado.",
+  "legacy": {
+   "ref": "green-field (hoy en las 42 funciones SQL: FN_User_Income_Average/Continuity, profiling…)"
+  },
+  "atributos": [
+   {
+    "n": "id",
+    "t": "bigint unsigned",
+    "legacy": null
+   },
+   {
+    "n": "evaluable_field_id",
+    "t": "bigint unsigned",
+    "legacy": null
+   },
+   {
+    "n": "transform_kind",
+    "t": "enum('expression','aggregate','lookup_band','sql_routine')",
+    "legacy": null
+   },
+   {
+    "n": "expression",
+    "t": "text",
+    "legacy": null
+   },
+   {
+    "n": "version",
+    "t": "int",
+    "legacy": null
+   },
+   {
+    "n": "policy_version_id",
+    "t": "bigint unsigned",
+    "legacy": null
+   },
+   {
+    "n": "status",
+    "t": "tinyint(1)",
+    "legacy": null
+   }
+  ]
+ },
+ {
+  "key": "featureDependency",
+  "name": "FeatureDependency",
+  "tipo": "entity",
+  "estado": "NUEVA_greenfield",
+  "descripcion": "Indica qué datos necesita un cálculo de evaluación para poder producirse, encadenando unos cálculos con otros. Garantiza que todo se calcule en el orden correcto y que no existan dependencias circulares que rompan la decisión.",
+  "legacy": {
+   "ref": "green-field"
+  },
+  "atributos": [
+   {
+    "n": "id",
+    "t": "bigint unsigned",
+    "legacy": null
+   },
+   {
+    "n": "feature_transform_id",
+    "t": "bigint unsigned",
+    "legacy": null
+   },
+   {
+    "n": "depends_on_evaluable_field_id",
+    "t": "bigint unsigned",
+    "legacy": null
+   }
+  ]
+ },
+ {
+  "key": "operatorTypeRule",
+  "name": "OperatorTypeRule",
+  "tipo": "entity",
+  "estado": "NUEVA_greenfield",
+  "descripcion": "El catálogo que define qué comparaciones son válidas para cada tipo de dato —por ejemplo, que a un ingreso se le pueda exigir 'mayor que' pero a un género solo 'igual a'—. Evita que se configuren reglas mal formuladas que no tendrían sentido al evaluar a un cliente.",
+  "legacy": {
+   "ref": "green-field (catálogo; hoy implícito en código)"
+  },
+  "atributos": [
+   {
+    "n": "id",
+    "t": "bigint unsigned",
+    "legacy": null
+   },
+   {
+    "n": "operator",
+    "t": "enum('eq','neq','gt','gte','lt','lte','in','between','exists')",
+    "legacy": null
+   },
+   {
+    "n": "value_type",
+    "t": "varchar(20)",
+    "legacy": null
+   },
+   {
+    "n": "allowed",
+    "t": "tinyint(1)",
+    "legacy": null
+   }
+  ]
+ },
+ {
+  "key": "factValueSnapshot",
+  "name": "FactValueSnapshot",
+  "tipo": "aggregateRoot",
+  "estado": "NUEVA_greenfield",
+  "descripcion": "Conserva el valor que tomó cada dato de evaluación en una solicitud puntual, dejando registro de con qué información se tomó la decisión. Da trazabilidad y reproducibilidad de cada crédito y permite analizar a volumen el desempeño del scoring.",
+  "legacy": {
+   "ref": "green-field (materialización; hoy se recalcula en SQL en cada consulta)"
+  },
+  "atributos": [
+   {
+    "n": "id",
+    "t": "bigint unsigned",
+    "legacy": null
+   },
+   {
+    "n": "loan_application_id",
+    "t": "bigint unsigned",
+    "legacy": null
+   },
+   {
+    "n": "evaluable_field_id",
+    "t": "bigint unsigned",
+    "legacy": null
+   },
+   {
+    "n": "value_number",
+    "t": "decimal(20,6)",
+    "legacy": null
+   },
+   {
+    "n": "value_string",
+    "t": "varchar(255)",
+    "legacy": null
+   },
+   {
+    "n": "value_date",
+    "t": "date",
+    "legacy": null
+   },
+   {
+    "n": "resolved_from_version",
+    "t": "int",
+    "legacy": null
+   },
+   {
+    "n": "resolved_at",
+    "t": "timestamp",
+    "legacy": null
+   }
+  ]
+ },
+ {
+  "key": "settingDefinition",
+  "name": "SettingDefinition",
+  "tipo": "aggregateRoot",
+  "estado": "NUEVA_greenfield",
+  "descripcion": "El catálogo único de parámetros ajustables de la operación —como montos máximos, proveedor de firma, lista restrictiva o tipo de flujo—, definido una sola vez con su tipo y los valores permitidos. Permite que sumar o configurar un nuevo país, lender o comercio aliado sea cuestión de calibrar estos parámetros, sin intervenir el producto.",
+  "legacy": {
+   "ref": "green-field (gobierna merchant_settings/settings y las columnas-flag de allieds/lenders, hoy sin catálogo)"
+  },
+  "atributos": [
+   {
+    "n": "id",
+    "t": "bigint unsigned",
+    "legacy": null
+   },
+   {
+    "n": "code",
+    "t": "varchar(80)",
+    "legacy": null
+   },
+   {
+    "n": "name",
+    "t": "varchar(255)",
+    "legacy": null
+   },
+   {
+    "n": "value_type",
+    "t": "enum('number','string','bool','date','enum','money')",
+    "legacy": null
+   },
+   {
+    "n": "enum_catalog",
+    "t": "varchar(255)",
+    "legacy": null
+   },
+   {
+    "n": "applies_to",
+    "t": "enum('country','lender','merchant','merchant_branch','any')",
+    "legacy": null
+   },
+   {
+    "n": "default_value",
+    "t": "varchar(255)",
+    "legacy": null
+   },
+   {
+    "n": "is_required",
+    "t": "tinyint",
+    "legacy": null
+   },
+   {
+    "n": "description",
+    "t": "varchar(255)",
+    "legacy": null
+   }
+  ]
+ },
+ {
+  "key": "settingBinding",
+  "name": "SettingBinding",
+  "tipo": "entity",
+  "estado": "NUEVA_greenfield",
+  "descripcion": "El valor concreto con que un actor —país, lender, comercio aliado o sucursal— calibra un parámetro de la operación dentro de su ámbito. Es el mecanismo por el que cada participante define cómo opera, dando de alta o ajustando su configuración sin necesidad de cambios en el producto.",
+  "legacy": {
+   "ref": "green-field (unifica merchant_settings/settings y los flags por actor bajo el catálogo SettingDefinition)"
+  },
+  "atributos": [
+   {
+    "n": "id",
+    "t": "bigint unsigned",
+    "legacy": null
+   },
+   {
+    "n": "setting_definition_id",
+    "t": "bigint unsigned",
+    "legacy": null
+   },
+   {
+    "n": "scope_type",
+    "t": "enum('country','lender','merchant','merchant_branch')",
+    "legacy": null
+   },
+   {
+    "n": "scope_id",
+    "t": "bigint unsigned",
+    "legacy": null
+   },
+   {
+    "n": "value",
+    "t": "varchar(255)",
+    "legacy": null
+   },
+   {
+    "n": "status",
+    "t": "tinyint",
+    "legacy": null
+   }
+  ]
+ }
+]

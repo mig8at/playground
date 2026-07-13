@@ -1,0 +1,152 @@
+<!doctype html>
+<!--
+  mock-bank — portal externo SIMULADO de un lender, DINÁMICO por ?lender= (Bancolombia, Sistecrédito,
+  Addi, Brilla, Davivienda, …). Es el destino del HANDOFF cuando se selecciona un lender que NO cierra
+  in-platform: rt=1 (integración) redirige a su portal; rt=0 (estándar/agregador) continúa por fuera. Como
+  los sandboxes reales están gated, este mock REPRESENTA ese flujo para el demo (A asesor espera ⟷ B en el
+  portal del lender). Marca/colores/textos salen del lender pedido; los pasos (bienvenida → plazo → aprobado)
+  y las etiquetas de los botones son estables para que el spec los maneje igual con cualquier lender.
+
+  Uso:
+    • Demo split-view: el spec abre este index.html en el 2º navegador (B).
+      ?lender=Sistecredito&monto=600000&volver=<url>&comercio=Amoblando.co  (todos opcionales)
+    • A mano: abrí el index.html con ?lender=Addi y recorré los pasos.
+  Es una SIMULACIÓN (banner DEMO) — NO es la integración real del lender.
+-->
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title id="title">Portal del lender (demo)</title>
+  <style>
+    :root { --brand: #4F46E5; --on: #ffffff; --ink: #2C2A29; --gris: #6b6a66; --linea: #e9e7df; --bg: #fbfaf6; --ok: #16a34a; }
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      color: var(--ink); background: var(--bg); min-height: 100vh; }
+    .demo-banner { background: repeating-linear-gradient(45deg, #ffe9a8, #ffe9a8 12px, #ffe08a 12px, #ffe08a 24px);
+      color: #6b4e00; font-weight: 700; text-align: center; padding: 7px; font-size: 13px; }
+    header { background: var(--brand); color: var(--on); }
+    .bar { max-width: 480px; margin: 0 auto; display: flex; align-items: center; gap: 10px; padding: 14px 20px; }
+    .logo { width: 30px; height: 30px; border-radius: 50%; background: var(--on); color: var(--brand);
+      display: inline-flex; align-items: center; justify-content: center; font-weight: 900; font-size: 16px; }
+    .bar b { font-size: 16px; }
+    .bar .tag { opacity: .85; font-size: 13px; }
+    .wrap { max-width: 480px; margin: 0 auto; padding: 24px 20px 60px; }
+    .card { background: #fff; border: 1px solid var(--linea); border-radius: 16px; padding: 22px; box-shadow: 0 8px 30px rgba(0,0,0,.04); }
+    h1 { font-size: 20px; margin: 0 0 6px; }
+    p.sub { color: var(--gris); margin: 0 0 18px; line-height: 1.5; font-size: 14px; }
+    .field { background: #f7f6f1; border-radius: 12px; padding: 12px 14px; display: flex; justify-content: space-between; align-items: center; margin: 10px 0; }
+    .field .k { color: var(--gris); font-size: 13px; }
+    .field .v { font-weight: 800; }
+    select { border: 1px solid var(--linea); border-radius: 8px; padding: 6px 8px; font-weight: 700; background: #fff; }
+    .btn { width: 100%; margin-top: 18px; border: 0; border-radius: 999px; padding: 14px; font-weight: 800; font-size: 15px;
+      background: var(--brand); color: var(--on); cursor: pointer; }
+    .btn.alt { background: var(--ink); color: #fff; }
+    .btn:disabled { opacity: .5; cursor: default; }
+    .steps { display: flex; gap: 6px; justify-content: center; margin: 0 0 18px; }
+    .dot { width: 8px; height: 8px; border-radius: 50%; background: #e2e0d6; }
+    .dot.on { background: var(--brand); }
+    .center { text-align: center; }
+    .spinner { width: 46px; height: 46px; border-radius: 50%; border: 5px solid #eee; border-top-color: var(--brand); margin: 8px auto 18px; animation: spin 1s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .check { width: 64px; height: 64px; border-radius: 18px; background: var(--ok); color: #fff; font-size: 34px;
+      display: flex; align-items: center; justify-content: center; margin: 4px auto 16px; }
+    .hidden { display: none; }
+    .legal { color: var(--gris); font-size: 11px; text-align: center; margin-top: 14px; line-height: 1.5; }
+  </style>
+</head>
+<body>
+  <div class="demo-banner" id="banner">🧪 DEMO · portal de lender SIMULADO (representa el handoff) — no es el portal real</div>
+  <header><div class="bar"><span class="logo" id="logo">L</span><b id="brandName">Lender</b> <span class="tag" id="brandTag">· financia tu compra</span></div></header>
+  <div class="wrap">
+    <div class="steps"><span class="dot on" data-d="1"></span><span class="dot" data-d="2"></span><span class="dot" data-d="3"></span></div>
+
+    <!-- paso 1: bienvenida -->
+    <div class="card" id="s1">
+      <h1>Hola 👋 continuá tu compra</h1>
+      <p class="sub" id="sub1">Tu comercio te redirigió a <b id="name1">el lender</b> para financiar tu compra. Validá los datos y aprobá.</p>
+      <div class="field"><span class="k">Comercio</span><span class="v" id="comercio">Amoblando.co</span></div>
+      <div class="field"><span class="k">Monto</span><span class="v" id="monto">$ 600.000</span></div>
+      <button class="btn" onclick="go(2)">Continuar</button>
+    </div>
+
+    <!-- paso 2: confirmar plazo -->
+    <div class="card hidden" id="s2">
+      <h1>Elegí tu plazo</h1>
+      <p class="sub">Seleccioná en cuántas cuotas querés pagar.</p>
+      <div class="field"><span class="k">Cuotas</span>
+        <select id="cuotas"><option>3 cuotas</option><option selected>12 cuotas</option><option>24 cuotas</option></select></div>
+      <div class="field"><span class="k">Total a financiar</span><span class="v" id="monto2">$ 600.000</span></div>
+      <button class="btn alt" onclick="aprobar()">Aprobar financiación</button>
+    </div>
+
+    <!-- paso 3: procesando → aprobado -->
+    <div class="card hidden center" id="s3">
+      <div id="proc">
+        <div class="spinner"></div>
+        <h1>Procesando tu solicitud…</h1>
+        <p class="sub" id="sub3">Estamos validando con <b id="name3">el lender</b>. Esto puede tardar unos segundos.</p>
+      </div>
+      <div id="done" class="hidden">
+        <div class="check">✓</div>
+        <h1>¡Aprobado!</h1>
+        <p class="sub" id="sub4">Tu financiación fue aprobada. <b id="name4">El lender</b> le notificará el resultado al comercio.</p>
+        <button class="btn" onclick="volver()">Volver al comercio</button>
+      </div>
+    </div>
+
+    <p class="legal">Simulación con fines de demostración. El resultado real llega al comercio por webhook.</p>
+  </div>
+
+  <script>
+    // Registro de lenders → marca (color, texto sobre la marca, tagline). Claves normalizadas (sin acentos/espacios).
+    var LENDERS = {
+      bancolombia:    { name: 'Bancolombia',     brand: '#FDDA24', on: '#2C2A29', tag: 'Compra y paga después' },
+      sistecredito:   { name: 'Sistecrédito',    brand: '#E2001A', on: '#ffffff', tag: 'Compra hoy, paga después' },
+      addi:           { name: 'Addi',            brand: '#1B1A3A', on: '#ffffff', tag: 'Paga a tu ritmo' },
+      brilla:         { name: 'Brilla',          brand: '#F47216', on: '#ffffff', tag: 'Crédito para tu hogar' },
+      davivienda:     { name: 'Davivienda',      brand: '#ED1C27', on: '#ffffff', tag: 'Tu crédito al instante' },
+      bancodebogota:  { name: 'Banco de Bogotá', brand: '#0033A0', on: '#ffffff', tag: 'Financia tu compra' },
+      meddipay:       { name: 'Meddipay',        brand: '#00B5A5', on: '#ffffff', tag: 'Salud a cuotas' },
+      credifamilia:   { name: 'Credifamilia',    brand: '#005CB9', on: '#ffffff', tag: 'Crédito a tu medida' },
+      lagobo:         { name: 'Lagobo',          brand: '#6D28D9', on: '#ffffff', tag: 'Financiación a tu medida' }
+    };
+    var p = new URLSearchParams(location.search);
+    var raw = p.get('lender') || 'Bancolombia';
+    var norm = function (x) { return x.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]/g, ''); };
+    var key = norm(raw);
+    // match exacto y, si no, PARCIAL: la clave del registro contenida en el nombre (ej. "Bancolombia - Compra
+    // y paga después" → bancolombia). Preferimos la clave más larga que matchee.
+    var L = LENDERS[key];
+    if (!L) {
+      var hit = Object.keys(LENDERS).filter(function (k) { return key.indexOf(k) >= 0; }).sort(function (a, b) { return b.length - a.length; })[0];
+      L = hit ? LENDERS[hit] : { name: raw, brand: '#4F46E5', on: '#ffffff', tag: 'Financia tu compra' };
+    }
+
+    // aplicar marca
+    var root = document.documentElement.style;
+    root.setProperty('--brand', L.brand); root.setProperty('--on', L.on);
+    document.title = L.name + ' · ' + L.tag + ' (demo)';
+    document.getElementById('logo').textContent = L.name.trim().charAt(0).toUpperCase();
+    document.getElementById('brandName').textContent = L.name;
+    document.getElementById('brandTag').textContent = '· ' + L.tag;
+    document.getElementById('banner').textContent = '🧪 DEMO · portal de ' + L.name + ' SIMULADO (representa el handoff) — no es el portal real';
+    ['name1', 'name3', 'name4'].forEach(function (id) { document.getElementById(id).textContent = L.name; });
+
+    var monto = p.get('monto'), volverUrl = p.get('volver'), comercio = p.get('comercio');
+    if (comercio) document.getElementById('comercio').textContent = comercio;
+    if (monto) { var f = '$ ' + Number(monto).toLocaleString('es-CO');
+      document.getElementById('monto').textContent = f; document.getElementById('monto2').textContent = f; }
+    function setDots(n) { document.querySelectorAll('.dot').forEach(function (d) { d.classList.toggle('on', Number(d.dataset.d) <= n); }); }
+    function go(n) {
+      ['s1', 's2', 's3'].forEach(function (id, i) { document.getElementById(id).classList.toggle('hidden', i !== n - 1); });
+      setDots(n);
+    }
+    function aprobar() {
+      go(3);
+      setTimeout(function () { document.getElementById('proc').classList.add('hidden'); document.getElementById('done').classList.remove('hidden'); }, 2200);
+    }
+    function volver() { if (volverUrl) { try { location.href = decodeURIComponent(volverUrl); } catch (e) {} } else { history.back(); } }
+  </script>
+</body>
+</html>

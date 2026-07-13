@@ -1,0 +1,46 @@
+#!/usr/bin/env bash
+# testids — aplica/quita los data-testid del e2e como capa LOCAL (patch sobre frontend-monorepo), sin
+# commitear ni pushear. Útil en ramas que no los traen (p.ej. main). Mapa de ubicaciones: docs/E2E-DATA-TESTIDS.md
+#   testids on      git apply del patch (agrega los data-testid al working tree del monorepo)
+#   testids off     git apply -R (los quita) → monorepo limpio
+#   testids status  ¿están aplicados?
+#   testids regen   regenera el patch desde los testids que tengas en el working tree (tras editar a mano)
+set -euo pipefail
+E2E="$(cd "$(dirname "$0")/.." && pwd)"
+FRONT="${CFE_FRONT:-$HOME/Desktop/CREDITOP/github/frontend-monorepo}"
+PATCH="$E2E/patches/e2e-testids.patch"
+# archivos que pueden hospedar testids (ver docs/E2E-DATA-TESTIDS.md) — los usa `regen`.
+FILES="modules/loan-request-wizard/loan-application-form/src/components/amount-form.tsx \
+modules/loan-request-wizard/loan-application-form/src/components/phone-number-step-form.tsx \
+modules/loan-request-wizard/loan-application-form/src/components/forms/personal-info-form.tsx \
+modules/loan-request-wizard/loan-application-form/src/components/forms/employment-info-form.tsx \
+modules/loan-request-wizard/loan-application-form/src/components/document-expedition-date.tsx \
+modules/loan-request-wizard/lenders-marketplace/src/components/lender-card/LenderCard.tsx \
+packages/shared/components/src/components/otp.tsx \
+packages/ui/src/components/date-selector.tsx"
+
+[ -d "$FRONT/.git" ] || { echo "✗ no es repo git: $FRONT (exportá CFE_FRONT)"; exit 1; }
+cd "$FRONT"
+CMD="${1:-status}"
+applied() { git apply --reverse --check "$PATCH" 2>/dev/null; }  # reversa aplica limpio ⇒ ya está aplicado
+
+case "$CMD" in
+  on)
+    [ -f "$PATCH" ] || { echo "✗ no existe $PATCH (corré 'testids regen' tras agregar los testids a mano)"; exit 1; }
+    if applied; then echo "● ya aplicados (testids on) en $(git branch --show-current)"; exit 0; fi
+    git apply --check "$PATCH" 2>/dev/null || { echo "✗ el patch NO aplica limpio (¿cambió el componente?). Ver docs/E2E-DATA-TESTIDS.md y reubicá a mano + 'testids regen'."; exit 1; }
+    git apply "$PATCH"
+    echo "● testids ON en $(git branch --show-current) — NO commitear. 'bin/testids off' para quitar."
+    ;;
+  off)
+    if [ -f "$PATCH" ] && applied; then git apply -R "$PATCH"; echo "● testids OFF (revertidos)"; else echo "○ no estaban aplicados"; fi
+    ;;
+  status)
+    if [ -f "$PATCH" ] && applied; then echo "● ON (aplicados) en $(git branch --show-current)"; else echo "○ OFF (no aplicados)"; fi
+    ;;
+  regen)
+    git diff -- $FILES > "$PATCH"
+    echo "● patch regenerado ($(wc -l < "$PATCH" | tr -d ' ') líneas) → $PATCH"
+    ;;
+  *) echo "uso: testids on|off|status|regen"; exit 1;;
+esac
