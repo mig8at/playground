@@ -12,6 +12,8 @@ const props = defineProps({
   graphs: { type: Array, default: () => [] }, // [{group, channel, lenders, trees}]
   status: { type: Object, default: () => ({ repos: [] }) }, // combinación: {aligned, repos:[{alias,target,current,state}]}
   copiedKey: { type: String, default: '' },
+  aligning: { type: Boolean, default: false },
+  alignResults: { type: Array, default: () => [] }, // [{alias,was,now,target,switched,pulled,error,manual}]
 })
 const emit = defineEmits(['copy'])
 
@@ -65,6 +67,19 @@ const layout = computed(() => {
       <span class="muted">grafo canal → lenders · click en un nodo copia el árbol de ese camino</span>
     </div>
 
+    <!-- alineación: checkout + pull al seleccionar -->
+    <div v-if="aligning" class="fg-align loading">⟳ alineando repos a {{ comboName }} (checkout + git pull)…</div>
+    <div v-else-if="alignResults.length" class="fg-align">
+      <template v-for="r in alignResults" :key="r.alias">
+        <span v-if="r.error" class="fg-align-err">
+          ✗ <b>{{ r.alias }}</b>: {{ r.error }} · <code>{{ r.manual }}</code>
+        </span>
+        <span v-else class="fg-align-ok">
+          ✓ <b>{{ r.alias }}</b> {{ r.was !== r.now ? r.was + '→' + r.now : r.now }}{{ r.pulled ? ' · pull' : '' }}
+        </span>
+      </template>
+    </div>
+
     <!-- ramas actuales por repo (drift vs la combinación) -->
     <div v-if="status?.repos?.length" class="fg-legend">
       <span v-for="r in status.repos" :key="r.alias" class="fg-branch" :class="r.state === 'aligned' ? 'ok' : 'drift'">
@@ -110,6 +125,13 @@ const layout = computed(() => {
 .fl-head h2 { font-size: 16px; }
 .fl-empty { color: var(--muted); font-size: 13px; line-height: 1.5; }
 .fl-empty code { background: var(--chip); padding: 1px 5px; border-radius: 4px; font-size: 12px; }
+
+.fg-align { display: flex; flex-direction: column; gap: 5px; margin-bottom: 12px; font-size: 12px; }
+.fg-align.loading { color: #e3b341; font-family: ui-monospace, monospace; }
+.fg-align-ok { color: var(--green); font-family: ui-monospace, monospace; }
+.fg-align-ok b, .fg-align-err b { color: var(--text); }
+.fg-align-err { color: var(--red); font-family: ui-monospace, monospace; }
+.fg-align-err code { background: var(--panel2); border: 1px solid var(--border); padding: 1px 6px; border-radius: 4px; color: var(--text); margin-left: 4px; }
 
 .fg-legend { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
 .fg-branch { font-size: 12px; font-family: ui-monospace, monospace; background: var(--panel2); border: 1px solid var(--border); border-radius: 6px; padding: 3px 9px; }

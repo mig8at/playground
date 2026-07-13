@@ -34,6 +34,82 @@ func (e *Engine) loadCombs() combFile {
 	return cf
 }
 
+// RepoRoot resuelve la raíz en disco de un repo por alias (con lock).
+func (e *Engine) RepoRoot(alias string) string {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	return e.repoRoot(alias)
+}
+
+// AlignResult reporta qué pasó al alinear un repo. Si Error != "", el usuario
+// debe resolverlo manual (Manual trae el comando sugerido).
+type AlignResult struct {
+	Alias    string `json:"alias"`
+	Target   string `json:"target"`
+	Was      string `json:"was"`
+	Now      string `json:"now"`
+	Switched bool   `json:"switched"`
+	Pulled   bool   `json:"pulled"`
+	Error    string `json:"error,omitempty"`
+	Manual   string `json:"manual,omitempty"`
+}
+
+// AlignCombination alinea los repos a las ramas de la combinación: checkout a la
+// rama objetivo + git pull --ff-only, y re-escanea si el contenido cambió. Si el
+// árbol está sucio o el checkout/pull falla, NO fuerza nada: devuelve el error y
+// el comando manual sugerido. Nunca genera merges/conflictos (ff-only).
+func (e *Engine) AlignCombination(comboID string) []AlignResult {
+	c, ok := e.Combination(comboID)
+	if !ok {
+		return nil
+	}
+	var aliases []string
+	for a := range c.Targets {
+		aliases = append(aliases, a)
+	}
+	sort.Strings(aliases)
+
+	var results []AlignResult
+	for _, alias := range aliases {
+		target := c.Targets[alias]
+		root := e.RepoRoot(alias)
+		r := AlignResult{Alias: alias, Target: target, Manual: fmt.Sprintf("cd %s && git checkout %s && git pull", root, target)}
+		if root == "" {
+			r.Error = "repo no indexado"
+			results = append(results, r)
+			continue
+		}
+		beforeBranch, beforeCommit := gitinfo.State(root)
+		r.Was, r.Now = beforeBranch, beforeBranch
+
+		if !gitinfo.IsClean(root) {
+			r.Error = "cambios sin commitear — hacelo manual"
+			results = append(results, r)
+			continue
+		}
+		if beforeBranch != target {
+			if err := gitinfo.Checkout(root, target); err != nil {
+				r.Error = "checkout falló: " + err.Error()
+				results = append(results, r)
+				continue
+			}
+			r.Switched = true
+		}
+		if err := gitinfo.Pull(root); err != nil {
+			r.Error = "pull falló: " + err.Error() // el checkout quedó; el pull no
+		} else {
+			r.Pulled = true
+		}
+		afterBranch, afterCommit := gitinfo.State(root)
+		r.Now = afterBranch
+		if r.Switched || afterCommit != beforeCommit {
+			e.Scan(root) // el contenido cambió → re-index para el drift/hashes
+		}
+		results = append(results, r)
+	}
+	return results
+}
+
 // repoRoot resuelve la raíz en disco de un repo por alias (sin lock).
 func (e *Engine) repoRoot(alias string) string {
 	for _, r := range e.loadIndex().Repos {

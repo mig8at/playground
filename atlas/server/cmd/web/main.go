@@ -154,6 +154,18 @@ func (s *server) handle(ctx context.Context, c *websocket.Conn, msg inbound) {
 		send(ctx, c, map[string]any{"type": "tree", "ok": true, "text": s.eng.Tree(msg.IDs)})
 	case "combo_graphs":
 		send(ctx, c, map[string]any{"type": "combo_graphs", "ok": true, "id": msg.ID, "graphs": s.eng.ComboGraphs(msg.ID)})
+	case "align_combination":
+		log.Printf("alineando repos a la combinación %s…", msg.ID)
+		results := s.eng.AlignCombination(msg.ID)
+		for _, r := range results {
+			if r.Error != "" {
+				log.Printf("  ✗ %s: %s", r.Alias, r.Error)
+			} else {
+				log.Printf("  ✓ %s → %s%s", r.Alias, r.Now, map[bool]string{true: " (pull)"}[r.Pulled])
+			}
+		}
+		send(ctx, c, map[string]any{"type": "alignment", "ok": true, "id": msg.ID, "results": results})
+		s.broadcastState()
 	case "repo_branches":
 		out := map[string][]string{}
 		for _, r := range s.eng.Repos() {

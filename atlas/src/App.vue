@@ -15,6 +15,8 @@ const branches = ref({})
 const selectedCombo = ref('')
 const comboGraphs = ref([]) // [GroupGraph] canal→lenders con árboles por camino
 const copiedKey = ref('') // `${group}::${key}` recién copiado
+const aligning = ref(false) // checkout+pull en curso
+const alignResults = ref([]) // reporte por repo
 const summary = ref({ repos: [], links: [] })
 const nodeCount = ref(0)
 
@@ -58,6 +60,13 @@ function connect() {
       case 'combo_graphs':
         if (d.ok && d.id === selectedCombo.value) comboGraphs.value = d.graphs || []
         break
+      case 'alignment':
+        if (d.id === selectedCombo.value) {
+          aligning.value = false
+          alignResults.value = d.results || []
+          requestComboGraphs() // el índice cambió tras el pull → recomputar el grafo
+        }
+        break
     }
   }
   ws.onclose = () => { status.value = 'desconectado'; retry = setTimeout(connect, 1500) }
@@ -74,7 +83,13 @@ function onSelectCombo(id) {
   selectedCombo.value = selectedCombo.value === id ? '' : id
   comboGraphs.value = []
   copiedKey.value = ''
-  if (selectedCombo.value) requestComboGraphs()
+  alignResults.value = []
+  aligning.value = false
+  if (selectedCombo.value) {
+    // alinear repos (checkout + pull) y luego dibujar el grafo con el índice al día
+    aligning.value = true
+    send({ type: 'align_combination', id: selectedCombo.value })
+  }
 }
 function requestComboGraphs() { if (selectedCombo.value) send({ type: 'combo_graphs', id: selectedCombo.value }) }
 
@@ -144,6 +159,8 @@ onBeforeUnmount(() => { clearTimeout(retry); ws && ws.close() })
       :graphs="comboGraphs"
       :status="selectedComboStatus"
       :copied-key="copiedKey"
+      :aligning="aligning"
+      :align-results="alignResults"
       @copy="copyTree"
     />
   </div>
