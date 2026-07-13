@@ -1,6 +1,6 @@
 <script setup>
 import { computed } from 'vue'
-import { VueFlow, Handle, Position } from '@vue-flow/core'
+import { VueFlow, Handle, Position, MarkerType } from '@vue-flow/core'
 import { Background } from '@vue-flow/background'
 import '@vue-flow/core/dist/style.css'
 import '@vue-flow/core/dist/theme-default.css'
@@ -54,18 +54,20 @@ const nodes = computed(() => [
   { id: 'aliados', type: 'group', position: { x: 560, y: 80 },
     data: { label: 'ALIADOS', sub: 'application · Inertia' },
     style: { width: '320px', height: '250px' } },
-  { id: 'app-vue', type: 'repo', parentNode: 'aliados', extent: 'parent',
-    position: { x: 20, y: 62 },
-    data: { title: 'Vue · aliados', sub: 'resources/js', n: lang('application', 'vue'), accent: '#42b883', repo: 'application', lang: 'vue', branch: branch('application') } },
   { id: 'app-backend', type: 'repo', parentNode: 'aliados', extent: 'parent',
-    position: { x: 20, y: 158 },
+    position: { x: 20, y: 62 },
     data: { title: 'Backend · Laravel', sub: 'app/', n: lang('application', 'php'), accent: '#f0883e', repo: 'application', lang: 'php', branch: branch('application') } },
+  { id: 'app-vue', type: 'repo', parentNode: 'aliados', extent: 'parent',
+    position: { x: 20, y: 158 },
+    data: { title: 'Vue · aliados', sub: 'resources/js', n: lang('application', 'vue'), accent: '#42b883', repo: 'application', lang: 'vue', branch: branch('application') } },
 ])
 
 const edges = computed(() => [
-  // aliados → originaciones (derecha → izquierda): el puente de datos
+  // aliados ↔ originaciones: el puente de datos, BIDIRECCIONAL (entrantes/salientes)
   { id: 'bridge', source: 'aliados', target: 'originaciones', type: 'smoothstep',
     animated: true, label: `🗄 ${bridge.value.tables} tablas compartidas`,
+    markerStart: { type: MarkerType.ArrowClosed, color: '#e3b341', width: 18, height: 18 },
+    markerEnd: { type: MarkerType.ArrowClosed, color: '#e3b341', width: 18, height: 18 },
     style: { stroke: '#e3b341', strokeWidth: 2 },
     labelStyle: { fill: '#e3b341', fontWeight: 600 },
     labelBgStyle: { fill: '#1c232d' } },
