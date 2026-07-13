@@ -4,6 +4,7 @@ import MapView from './MapView.vue'
 import CombinationPanel from './CombinationPanel.vue'
 import FlowsSection from './FlowsSection.vue'
 
+// Atlas — mapa cross-repo + combinaciones de ramas + flujos por combinación
 const WS_URL = 'ws://localhost:8788/ws'
 
 const status = ref('conectando…')
@@ -15,7 +16,12 @@ const selectedCombo = ref('')
 const summary = ref({ repos: [], links: [] })
 const nodeCount = ref(0)
 
-const comboFlows = computed(() => flows.value.filter((f) => f.combination === selectedCombo.value))
+const comboFlows = computed(() =>
+  flows.value
+    .filter((f) => f.combination === selectedCombo.value)
+    .slice()
+    .sort((a, b) => new Date(a.created) - new Date(b.created)),
+)
 const selectedComboName = computed(() => combinations.value.find((c) => c.id === selectedCombo.value)?.name || '')
 // sidebar JSON: kind 'node' (click en el mapa) | 'flow' (click en el catálogo)
 const panel = ref(null)
