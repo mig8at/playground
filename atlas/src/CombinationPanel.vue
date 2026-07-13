@@ -7,8 +7,9 @@ const props = defineProps({
   combinations: { type: Array, default: () => [] },
   repos: { type: Array, default: () => [] },
   branches: { type: Object, default: () => ({}) },
+  selected: { type: String, default: '' },
 })
-const emit = defineEmits(['save', 'delete', 'need-branches'])
+const emit = defineEmits(['save', 'delete', 'need-branches', 'select'])
 
 const repoAliases = computed(() => props.repos.map((r) => r.alias))
 const currentBranch = computed(() => {
@@ -81,7 +82,7 @@ function stateLabel(s) {
 
     <!-- lista de combinaciones -->
     <div class="cb-list">
-      <article v-for="c in combinations" :key="c.id" class="cb-card" :class="{ off: !c.status.aligned }">
+      <article v-for="c in combinations" :key="c.id" class="cb-card" :class="{ off: !c.status.aligned, sel: c.id === selected }" @click="emit('select', c.id)">
         <div class="cb-card-head">
           <div class="cb-title">
             <b>{{ c.name }}</b>
@@ -89,7 +90,7 @@ function stateLabel(s) {
               {{ c.status.aligned ? '✓ alineada' : '⚠ drift' }}
             </span>
           </div>
-          <button class="x" @click="emit('delete', c.id)" title="borrar">×</button>
+          <button class="x" @click.stop="emit('delete', c.id)" title="borrar">×</button>
         </div>
         <ul class="cb-rows">
           <li v-for="r in c.status.repos" :key="r.alias" :class="r.state">
@@ -130,8 +131,9 @@ function stateLabel(s) {
 
 .cb-empty { color: var(--muted); font-size: 13px; }
 .cb-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; }
-.cb-card { background: var(--panel2); border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; }
+.cb-card { background: var(--panel2); border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; cursor: pointer; transition: border-color .15s; }
 .cb-card.off { border-color: rgba(227,179,65,.4); }
+.cb-card.sel { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
 .cb-card-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
 .cb-title { display: flex; align-items: center; gap: 8px; }
 .cb-title b { font-size: 14px; }

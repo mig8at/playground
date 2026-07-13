@@ -37,6 +37,7 @@ type Flow struct {
 	ID          string    `json:"id"`
 	Name        string    `json:"name"`
 	Description string    `json:"description,omitempty"`
+	Combination string    `json:"combination,omitempty"` // id de la combinación a la que pertenece
 	NodeIDs     []string  `json:"node_ids"`
 	// Hashes = snapshot del hash de contenido de cada archivo al momento de
 	// guardar (la línea base del análisis). Al re-escanear los repos, comparar
@@ -358,7 +359,7 @@ func (e *Engine) Content(ids []string) (map[string]string, error) {
 
 // SaveFlow crea o actualiza un flujo. Si id vacío, crea uno nuevo (slug del
 // nombre). Devuelve el flujo guardado.
-func (e *Engine) SaveFlow(id, name, description string, nodeIDs []string) (Flow, error) {
+func (e *Engine) SaveFlow(id, name, description, combination string, nodeIDs []string) (Flow, error) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 
@@ -379,6 +380,7 @@ func (e *Engine) SaveFlow(id, name, description string, nodeIDs []string) (Flow,
 		if ff.Flows[i].ID == id {
 			ff.Flows[i].Name = name
 			ff.Flows[i].Description = description
+			ff.Flows[i].Combination = combination
 			ff.Flows[i].NodeIDs = nodeIDs
 			ff.Flows[i].Hashes = hashes
 			ff.Flows[i].Updated = now
@@ -388,7 +390,7 @@ func (e *Engine) SaveFlow(id, name, description string, nodeIDs []string) (Flow,
 	}
 	var saved Flow
 	if !updated {
-		saved = Flow{ID: id, Name: name, Description: description, NodeIDs: nodeIDs, Hashes: hashes, Created: now, Updated: now}
+		saved = Flow{ID: id, Name: name, Description: description, Combination: combination, NodeIDs: nodeIDs, Hashes: hashes, Created: now, Updated: now}
 		ff.Flows = append(ff.Flows, saved)
 	}
 	if err := writeJSON(e.flowsPath(), ff); err != nil {
@@ -535,8 +537,12 @@ func expandHome(p string) string {
 	return p
 }
 
+var accents = strings.NewReplacer(
+	"á", "a", "é", "e", "í", "i", "ó", "o", "ú", "u", "ü", "u", "ñ", "n",
+)
+
 func slug(s string) string {
-	s = strings.ToLower(strings.TrimSpace(s))
+	s = accents.Replace(strings.ToLower(strings.TrimSpace(s)))
 	var b strings.Builder
 	prevDash := false
 	for _, r := range s {

@@ -2,15 +2,21 @@
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import MapView from './MapView.vue'
 import CombinationPanel from './CombinationPanel.vue'
+import FlowsSection from './FlowsSection.vue'
 
 const WS_URL = 'ws://localhost:8788/ws'
 
 const status = ref('conectando…')
 const repos = ref([])
+const flows = ref([])
 const combinations = ref([])
 const branches = ref({})
+const selectedCombo = ref('')
 const summary = ref({ repos: [], links: [] })
 const nodeCount = ref(0)
+
+const comboFlows = computed(() => flows.value.filter((f) => f.combination === selectedCombo.value))
+const selectedComboName = computed(() => combinations.value.find((c) => c.id === selectedCombo.value)?.name || '')
 // sidebar JSON: kind 'node' (click en el mapa) | 'flow' (click en el catálogo)
 const panel = ref(null)
 
@@ -29,9 +35,14 @@ function connect() {
       case 'state':
         status.value = d.server || 'server on'
         repos.value = d.repos || []
+        flows.value = d.flows || []
         combinations.value = d.combinations || []
         summary.value = d.summary || { repos: [], links: [] }
         nodeCount.value = d.nodes || 0
+        // si la combinación seleccionada dejó de existir, deseleccionar
+        if (selectedCombo.value && !combinations.value.find((c) => c.id === selectedCombo.value)) {
+          selectedCombo.value = ''
+        }
         break
       case 'repo_branches':
         if (d.ok) branches.value = d.branches || {}
@@ -85,6 +96,7 @@ function closePanel() { panel.value = null }
 function requestBranches() { send({ type: 'repo_branches' }) }
 function onSaveCombination({ name, targets }) { send({ type: 'save_combination', name, targets }) }
 function onDeleteCombination(id) { if (confirm('¿Borrar esta combinación?')) send({ type: 'delete_combination', id }) }
+function onSelectCombo(id) { selectedCombo.value = selectedCombo.value === id ? '' : id }
 
 // ids con contenido cambiado desde el análisis (para marcarlos)
 const changedSet = computed(() => {
@@ -176,9 +188,17 @@ onBeforeUnmount(() => { clearTimeout(retry); ws && ws.close() })
       :combinations="combinations"
       :repos="summary.repos"
       :branches="branches"
+      :selected="selectedCombo"
       @save="onSaveCombination"
       @delete="onDeleteCombination"
       @need-branches="requestBranches"
+      @select="onSelectCombo"
+    />
+    <FlowsSection
+      v-if="selectedCombo"
+      :combo-name="selectedComboName"
+      :flows="comboFlows"
+      @open="onOpenFlow"
     />
 
     <!-- sidebar JSON (click en un nodo del mapa o en una card del catálogo) -->

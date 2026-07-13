@@ -130,6 +130,7 @@ type SaveFlowInput struct {
 	ID          string   `json:"id,omitempty" jsonschema:"id del flujo; vacío para crear uno nuevo (se genera del nombre)"`
 	Name        string   `json:"name" jsonschema:"nombre del flujo, ej 'Onboarding CreditopX rt=2'"`
 	Description string   `json:"description,omitempty" jsonschema:"qué representa el flujo"`
+	Combination string   `json:"combination,omitempty" jsonschema:"id de la combinación de ramas a la que pertenece (ej 'produccion')"`
 	NodeIDs     []string `json:"node_ids" jsonschema:"array de IDs de nodo que componen el flujo (pueden ser de varios repos)"`
 }
 type SaveFlowOutput struct {
@@ -143,7 +144,7 @@ func registerSaveFlow(s *mcp.Server, eng *engine.Engine) {
 		Name:        "atlas_save_flow",
 		Description: "Guarda un flujo: un array curado de IDs de archivo (posiblemente de varios repos) con nombre. Aparece en vivo en la UI de Atlas. Es la forma de persistir 'este flujo = estos archivos'.",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in SaveFlowInput) (*mcp.CallToolResult, SaveFlowOutput, error) {
-		f, err := eng.SaveFlow(in.ID, in.Name, in.Description, in.NodeIDs)
+		f, err := eng.SaveFlow(in.ID, in.Name, in.Description, in.Combination, in.NodeIDs)
 		if err != nil {
 			return fail[SaveFlowOutput](err)
 		}
