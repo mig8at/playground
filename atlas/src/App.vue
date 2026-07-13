@@ -1,10 +1,10 @@
 <script setup>
+// Atlas — mapa cross-repo + combinaciones de ramas + flujos por combinación
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import MapView from './MapView.vue'
 import CombinationPanel from './CombinationPanel.vue'
 import FlowsSection from './FlowsSection.vue'
 
-// Atlas — mapa cross-repo + combinaciones de ramas + flujos por combinación
 const WS_URL = 'ws://localhost:8788/ws'
 
 const status = ref('conectando…')
@@ -13,6 +13,8 @@ const flows = ref([])
 const combinations = ref([])
 const branches = ref({})
 const selectedCombo = ref('')
+const comboTree = ref('') // árbol Rino del flujo completo de la combinación seleccionada
+const copied = ref(false)
 const summary = ref({ repos: [], links: [] })
 const nodeCount = ref(0)
 
@@ -23,12 +25,9 @@ const comboFlows = computed(() =>
     .sort((a, b) => new Date(a.created) - new Date(b.created)),
 )
 const selectedComboName = computed(() => combinations.value.find((c) => c.id === selectedCombo.value)?.name || '')
-// sidebar JSON: kind 'node' (click en el mapa) | 'flow' (click en el catálogo)
-const panel = ref(null)
 
 let ws = null
 let retry = null
-
 const online = computed(() => status.value === 'server on')
 
 function connect() {
@@ -45,28 +44,17 @@ function connect() {
         combinations.value = d.combinations || []
         summary.value = d.summary || { repos: [], links: [] }
         nodeCount.value = d.nodes || 0
-        // si la combinación seleccionada dejó de existir, deseleccionar
         if (selectedCombo.value && !combinations.value.find((c) => c.id === selectedCombo.value)) {
           selectedCombo.value = ''
+        } else if (selectedCombo.value) {
+          requestComboTree() // los flujos pudieron cambiar → refrescar el árbol
         }
         break
       case 'repo_branches':
         if (d.ok) branches.value = d.branches || {}
         break
-      case 'node_files':
-        if (d.ok && panel.value?.kind === 'node' && panel.value.repo === d.repo && panel.value.lang === d.lang) {
-          panel.value = { ...panel.value, total: d.total, files: d.files || [], loading: false }
-          requestTree(d.files)
-        }
-        break
-      case 'flow_files':
-        if (panel.value?.kind === 'flow' && panel.value.id === d.id) {
-          if (d.ok) { panel.value = { ...panel.value, files: d.files || [], description: d.description, status: d.status, loading: false }; requestTree(d.files) }
-          else panel.value = { ...panel.value, files: [], error: d.error, loading: false }
-        }
-        break
-      case 'tree':
-        if (d.ok && panel.value) panel.value = { ...panel.value, tree: d.text }
+      case 'combo_tree':
+        if (d.ok && d.id === selectedCombo.value) comboTree.value = d.text || ''
         break
     }
   }
@@ -76,80 +64,27 @@ function connect() {
 
 function send(obj) { if (online.value) ws.send(JSON.stringify(obj)) }
 
-const copied = ref(false)
-
-// pide el árbol estilo Rino (estructura + contenido) de los archivos abiertos
-function requestTree(files) {
-  const ids = (files || []).map((n) => n.id)
-  if (ids.length) send({ type: 'tree', ids })
-}
-
-// click en un nodo del mapa → JSON de sus archivos (rankeado)
-function onPick({ repo, lang, label }) {
-  panel.value = { kind: 'node', repo, lang, label, total: null, files: null, loading: true }
-  copied.value = false
-  send({ type: 'node_files', repo, lang: lang || '' })
-}
-// click en una card del catálogo → JSON de los archivos del flujo
-function onOpenFlow(flow) {
-  panel.value = { kind: 'flow', id: flow.id, label: flow.name, files: null, loading: true }
-  copied.value = false
-  send({ type: 'flow_files', id: flow.id })
-}
-function closePanel() { panel.value = null }
-
 // combinaciones de ramas
 function requestBranches() { send({ type: 'repo_branches' }) }
 function onSaveCombination({ name, targets }) { send({ type: 'save_combination', name, targets }) }
 function onDeleteCombination(id) { if (confirm('¿Borrar esta combinación?')) send({ type: 'delete_combination', id }) }
-function onSelectCombo(id) { selectedCombo.value = selectedCombo.value === id ? '' : id }
-
-// ids con contenido cambiado desde el análisis (para marcarlos)
-const changedSet = computed(() => {
-  const st = panel.value?.status
-  if (!st) return new Set()
-  return new Set([...(st.changed || []), ...(st.removed || [])])
-})
-
-function compact(n) {
-  const o = { id: n.id, path: n.path }
-  if (changedSet.value.has(n.id)) o.changed = true
-  if (n.definitions?.length) o.definitions = n.definitions
-  if (n.routes?.length) o.routes = n.routes.map((r) => `${r.method} ${r.path}`)
-  if (n.tables?.length) o.tables = n.tables
-  return o
+function onSelectCombo(id) {
+  selectedCombo.value = selectedCombo.value === id ? '' : id
+  comboTree.value = ''
+  copied.value = false
+  if (selectedCombo.value) requestComboTree()
 }
+function requestComboTree() { if (selectedCombo.value) send({ type: 'combo_tree', id: selectedCombo.value }) }
 
-// sub-título del sidebar según el tipo
-const panelSub = computed(() => {
-  const p = panel.value
-  if (!p || p.loading) return 'cargando…'
-  if (p.kind === 'flow') {
-    const n = changedSet.value.size
-    return n ? `${p.files.length} archivos · ⚠ ${n} cambió desde el análisis` : `${p.files.length} archivos · ✓ al día`
-  }
-  return `top ${p.files.length} de ${p.total} · por relevancia`
-})
-
-// payload compacto (lo que consumiría el MCP/LLM)
-const nodeJson = computed(() => {
-  const p = panel.value
-  if (!p || !p.files) return ''
-  const payload = p.kind === 'flow'
-    ? { flow: p.label, description: p.description || undefined, files: p.files.map(compact) }
-    : { node: p.label, scope: p.lang ? `${p.repo} · ${p.lang}` : p.repo, total: p.total, shown: p.files.length, files: p.files.map(compact) }
-  return JSON.stringify(payload, null, 2)
-})
-
+// copiar el árbol completo del flujo (todas las etapas de la combinación)
 async function copyTree() {
-  const text = panel.value?.tree || ''
+  const text = comboTree.value
   if (!text) return
   let ok = false
   try {
     await navigator.clipboard.writeText(text)
     ok = true
   } catch {
-    // fallback para contextos donde el Clipboard API está bloqueado
     try {
       const ta = document.createElement('textarea')
       ta.value = text
@@ -189,7 +124,7 @@ onBeforeUnmount(() => { clearTimeout(retry); ws && ws.close() })
       </div>
     </header>
 
-    <MapView :summary="summary" @pick="onPick" />
+    <MapView :summary="summary" />
     <CombinationPanel
       :combinations="combinations"
       :repos="summary.repos"
@@ -204,24 +139,9 @@ onBeforeUnmount(() => { clearTimeout(retry); ws && ws.close() })
       v-if="selectedCombo"
       :combo-name="selectedComboName"
       :flows="comboFlows"
-      @open="onOpenFlow"
+      :tree-ready="!!comboTree"
+      :copied="copied"
+      @copy="copyTree"
     />
-
-    <!-- sidebar JSON (click en un nodo del mapa o en una card del catálogo) -->
-    <aside v-if="panel" class="json-side">
-      <div class="js-head">
-        <div>
-          <h2>{{ panel.label }}</h2>
-          <p class="js-sub">{{ panelSub }}</p>
-        </div>
-        <div class="js-actions">
-          <button class="js-copy" @click="copyTree" :disabled="panel.loading || !panel.tree" :title="panel.tree ? 'copiar el árbol (estructura + contenido)' : 'preparando árbol…'">
-            {{ copied ? '✓ copiado' : 'copiar' }}
-          </button>
-          <button class="x" @click="closePanel" title="cerrar">×</button>
-        </div>
-      </div>
-      <pre class="js-body"><code>{{ nodeJson }}</code></pre>
-    </aside>
   </div>
 </template>

@@ -7,13 +7,6 @@ import '@vue-flow/core/dist/theme-default.css'
 
 // summary = { repos: [{alias, node_count, langs}], links: [{from,to,kind,count}] }
 const props = defineProps({ summary: { type: Object, default: () => ({ repos: [], links: [] }) } })
-const emit = defineEmits(['pick'])
-
-// click en un nodo-repo → pedir su array de archivos (rankeado)
-function onNodeClick({ node }) {
-  const d = node?.data
-  if (d?.repo) emit('pick', { repo: d.repo, lang: d.lang || '', label: d.title || node.id })
-}
 
 const repoMap = computed(() => {
   const m = {}
@@ -86,8 +79,7 @@ const edges = computed(() => [
 <template>
   <div class="mapwrap">
     <VueFlow :nodes="nodes" :edges="edges" fit-view-on-init :min-zoom="0.4" :max-zoom="1.5"
-             :zoom-on-scroll="false" :pan-on-scroll="false" :prevent-scrolling="false"
-             @node-click="onNodeClick">
+             :zoom-on-scroll="false" :pan-on-scroll="false" :prevent-scrolling="false">
       <Background pattern-color="#2a3340" :gap="20" />
 
       <!-- nodo grupo (contenedor) -->
@@ -136,9 +128,7 @@ const edges = computed(() => [
 .repo-node {
   width: 280px; background: var(--panel2); border: 1px solid var(--border);
   border-left: 3px solid var(--accent); border-radius: 8px; padding: 10px 12px;
-  cursor: pointer; transition: border-color .15s;
 }
-.repo-node:hover { border-color: var(--accent); }
 .repo-title { font-size: 14px; font-weight: 600; color: var(--text); }
 .repo-sub { font-size: 11px; color: var(--muted); margin-top: 2px; font-family: ui-monospace, monospace; }
 .repo-foot { display: flex; align-items: center; justify-content: space-between; margin-top: 6px; gap: 8px; }

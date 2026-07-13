@@ -6,6 +6,35 @@ import (
 	"strings"
 )
 
+// FlowTree devuelve el árbol Rino de un flujo (sus archivos).
+func (e *Engine) FlowTree(flowID string) string {
+	f, ok := e.Flow(flowID)
+	if !ok {
+		return ""
+	}
+	return e.Tree(f.NodeIDs)
+}
+
+// ComboTree arma el árbol Rino del FLUJO COMPLETO de una combinación: la UNIÓN
+// (dedup) de los archivos de todos sus flujos, de punta a punta. Es lo que copia
+// el botón (copiar) del pipeline.
+func (e *Engine) ComboTree(comboID string) string {
+	seen := map[string]bool{}
+	var ids []string
+	for _, f := range e.Flows() {
+		if f.Combination != comboID {
+			continue
+		}
+		for _, id := range f.NodeIDs {
+			if !seen[id] {
+				seen[id] = true
+				ids = append(ids, id)
+			}
+		}
+	}
+	return e.Tree(ids)
+}
+
 // Tree arma, para un set de archivos, el "árbol estilo Rino": la estructura de
 // carpetas con box-drawing (├─/└─) y el CONTENIDO de cada archivo inline y
 // colapsado (saltos de línea → ↵, espacios colapsados). Es el blob pegable a un

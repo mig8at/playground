@@ -1,17 +1,20 @@
 <script setup>
-// flujos de la combinación seleccionada, como una fila-pipeline: A → B → …
+// flujos de la combinación como fila-pipeline que termina en (copiar):
+//   ① Pullman → ② CrediPullman → [copiar árbol completo]
 const props = defineProps({
   comboName: { type: String, default: '' },
-  flows: { type: Array, default: () => [] }, // [{id,name,files,repos,up_to_date,has_base,changed}]
+  flows: { type: Array, default: () => [] },
+  treeReady: { type: Boolean, default: false },
+  copied: { type: Boolean, default: false },
 })
-const emit = defineEmits(['open'])
+const emit = defineEmits(['copy'])
 </script>
 
 <template>
   <section class="flows">
     <div class="fl-head">
-      <h2>Flujos</h2>
-      <span class="muted">de <b>{{ comboName }}</b> · click en una etapa → JSON + copiar árbol (Rino)</span>
+      <h2>Flujo completo</h2>
+      <span class="muted">de <b>{{ comboName }}</b> · el árbol pasa por todas las etapas (onboarding → selección → cierre)</span>
     </div>
 
     <p v-if="!flows.length" class="fl-empty">
@@ -21,16 +24,20 @@ const emit = defineEmits(['open'])
     <div v-else class="fl-row">
       <template v-for="(f, i) in flows" :key="f.id">
         <span v-if="i > 0" class="fl-arrow">→</span>
-        <button class="fl-stage" @click="emit('open', { id: f.id, name: f.name })">
+        <div class="fl-stage" :title="f.description">
           <span class="fl-idx">{{ i + 1 }}</span>
           <span class="fl-body">
             <span class="fl-name">{{ f.name }}</span>
             <span class="fl-meta">{{ f.files }} archivos</span>
           </span>
-          <span v-if="f.changed" class="fl-dot stale" title="archivos cambiados">⚠</span>
-          <span v-else-if="f.has_base" class="fl-dot ok" title="al día">✓</span>
-        </button>
+        </div>
       </template>
+
+      <span class="fl-arrow">→</span>
+      <button class="fl-copy" :disabled="!treeReady" @click="emit('copy')"
+              :title="treeReady ? 'copiar el árbol completo (estructura + contenido) de todo el flujo' : 'preparando árbol…'">
+        {{ copied ? '✓ copiado' : '⧉ copiar árbol' }}
+      </button>
     </div>
   </section>
 </template>
@@ -47,9 +54,8 @@ const emit = defineEmits(['open'])
 .fl-stage {
   display: flex; align-items: center; gap: 10px;
   background: var(--panel2); border: 1px solid var(--border); border-radius: 10px;
-  padding: 10px 14px; cursor: pointer; transition: border-color .15s; text-align: left;
+  padding: 10px 14px;
 }
-.fl-stage:hover { border-color: var(--accent); }
 .fl-idx {
   flex: none; width: 22px; height: 22px; border-radius: 50%;
   background: var(--chip); color: var(--muted); font-size: 12px; font-weight: 600;
@@ -58,7 +64,10 @@ const emit = defineEmits(['open'])
 .fl-body { display: flex; flex-direction: column; }
 .fl-name { font-size: 14px; font-weight: 600; color: var(--text); }
 .fl-meta { font-size: 11px; color: var(--muted); }
-.fl-dot { font-size: 12px; }
-.fl-dot.ok { color: var(--green); }
-.fl-dot.stale { color: #e3b341; }
+
+.fl-copy {
+  background: var(--accent); color: #06101f; border: 0; border-radius: 10px;
+  padding: 11px 18px; font-weight: 600; font-size: 14px; cursor: pointer; white-space: nowrap;
+}
+.fl-copy:disabled { opacity: .5; cursor: default; }
 </style>

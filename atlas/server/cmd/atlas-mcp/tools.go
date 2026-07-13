@@ -397,3 +397,31 @@ func registerSaveCombination(s *mcp.Server, eng *engine.Engine) {
 		return ok(fmt.Sprintf("Combinación guardada: %s (%d repos).", cb.Name, len(cb.Targets)), cb)
 	})
 }
+
+// ── atlas_tree ───────────────────────────────────────────────────────────────
+
+type TreeInput struct {
+	Flow        string `json:"flow,omitempty" jsonschema:"id de un flujo → árbol de ese flujo"`
+	Combination string `json:"combination,omitempty" jsonschema:"id de una combinación → árbol del FLUJO COMPLETO (unión de sus flujos)"`
+}
+type TreeOutput struct {
+	Text string `json:"text"`
+}
+
+func registerTree(s *mcp.Server, eng *engine.Engine) {
+	mcp.AddTool(s, &mcp.Tool{
+		Name:        "atlas_tree",
+		Description: "Devuelve el árbol estilo Rino (estructura de carpetas + contenido inline colapsado) de un flujo (flow) o del flujo completo de una combinación (combination = unión dedup de sus flujos). Es el blob pegable a un LLM. Sin UI.",
+	}, func(ctx context.Context, _ *mcp.CallToolRequest, in TreeInput) (*mcp.CallToolResult, TreeOutput, error) {
+		var text string
+		switch {
+		case in.Combination != "":
+			text = eng.ComboTree(in.Combination)
+		case in.Flow != "":
+			text = eng.FlowTree(in.Flow)
+		default:
+			return fail[TreeOutput](fmt.Errorf("indicá 'flow' o 'combination'"))
+		}
+		return ok(text, TreeOutput{Text: text})
+	})
+}
