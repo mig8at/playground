@@ -28,6 +28,7 @@ type AnalysisFile struct {
 	Repo        string   `json:"repo"`
 	Path        string   `json:"path"`
 	Lang        string   `json:"lang"`
+	Hash        string   `json:"hash"` // hash de contenido al exportar (para detectar cambios)
 	Definitions []string `json:"definitions,omitempty"`
 	Routes      []string `json:"routes,omitempty"`
 	Tables      []string `json:"tables,omitempty"`
@@ -80,7 +81,7 @@ func (e *Engine) ExportAnalysis(flowID string) (string, error) {
 			routes = append(routes, fmt.Sprintf("%s %s", r.Method, r.Path))
 		}
 		a.Files = append(a.Files, AnalysisFile{
-			ID: n.ID, Repo: n.Repo, Path: n.Path, Lang: n.Lang,
+			ID: n.ID, Repo: n.Repo, Path: n.Path, Lang: n.Lang, Hash: n.Hash,
 			Definitions: n.Definitions, Routes: routes, Tables: n.Tables,
 			Role: prevRole[n.ID], Note: prevNote[n.ID],
 		})

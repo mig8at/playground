@@ -9,6 +9,7 @@ package scan
 
 import (
 	"bufio"
+	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
 	"os"
@@ -25,6 +26,7 @@ type Node struct {
 	Repo        string   `json:"repo"`  // alias del repo (nombre de la carpeta)
 	Path        string   `json:"path"`  // relativo a la raíz del repo
 	Lang        string   `json:"lang"`  // ts, go, php, py, vue…
+	Hash        string   `json:"hash"`  // hash del CONTENIDO (cambia si el archivo cambia)
 	Lines       int      `json:"lines"`
 	Imports     []string `json:"imports,omitempty"`
 	Definitions []string `json:"definitions,omitempty"`
@@ -112,13 +114,15 @@ func Repo(root, alias string) ([]Node, error) {
 
 func extractFile(repo, rel, lang, abs string) Node {
 	n := Node{ID: NodeID(repo, rel), Repo: repo, Path: rel, Lang: lang}
-	f, err := os.Open(abs)
+	data, err := os.ReadFile(abs)
 	if err != nil {
 		return n
 	}
-	defer f.Close()
+	// hash del contenido: la firma para detectar cambios en un re-scan.
+	sum := sha256.Sum256(data)
+	n.Hash = hex.EncodeToString(sum[:])[:12]
 
-	sc := bufio.NewScanner(f)
+	sc := bufio.NewScanner(bytes.NewReader(data))
 	sc.Buffer(make([]byte, 0, 64*1024), 1024*1024)
 	defsSeen := map[string]bool{}
 	impSeen := map[string]bool{}

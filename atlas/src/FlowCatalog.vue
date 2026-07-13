@@ -63,7 +63,11 @@ function onClick(item) {
             <div class="card-name">{{ it.name }}</div>
             <div class="card-sub">{{ it.sub }}</div>
           </div>
-          <span v-if="mapped(it)" class="card-tag on">{{ mapped(it).files }} archivos</span>
+          <template v-if="mapped(it)">
+            <span v-if="mapped(it).changed" class="card-tag stale" title="archivos cambiados desde el análisis">⚠ {{ mapped(it).changed }} cambió</span>
+            <span v-else-if="mapped(it).has_base" class="card-tag on" title="al día con los repos">✓ {{ mapped(it).files }}</span>
+            <span v-else class="card-tag on">{{ mapped(it).files }} archivos</span>
+          </template>
           <span v-else class="card-tag">por mapear</span>
         </article>
       </div>
@@ -95,6 +99,7 @@ function onClick(item) {
 .card-sub { font-size: 11px; color: var(--muted); margin-top: 2px; font-family: ui-monospace, monospace; }
 .card-tag { font-size: 10px; color: var(--muted); background: var(--chip); padding: 2px 8px; border-radius: 999px; flex: none; }
 .card-tag.on { color: var(--green); background: rgba(63,185,80,.14); }
+.card-tag.stale { color: #e3b341; background: rgba(227,179,65,.16); }
 
 @media (max-width: 640px) {
   .cards { grid-template-columns: 1fr; }

@@ -134,9 +134,11 @@ func (s *server) handle(ctx context.Context, c *websocket.Conn, msg inbound) {
 			send(ctx, c, map[string]any{"type": "flow_files", "ok": false, "id": msg.ID, "error": "flujo no encontrado"})
 			return
 		}
+		st, _ := s.eng.FlowStatus(f.ID)
 		send(ctx, c, map[string]any{
 			"type": "flow_files", "ok": true, "id": f.ID, "name": f.Name,
 			"description": f.Description, "files": s.eng.NodesByID(f.NodeIDs),
+			"status": st,
 		})
 	case "save_analysis":
 		path, err := s.eng.ExportAnalysis(msg.ID)
@@ -166,16 +168,20 @@ func (s *server) stateMsg() map[string]any {
 	flows := s.eng.Flows()
 	nodes := s.eng.Nodes()
 
-	// resumen por flujo: cuántos archivos y de qué repos
+	// resumen por flujo: cuántos archivos, de qué repos, y si está al día
 	type flowSummary struct {
 		engine.Flow
-		Files int      `json:"files"`
-		Repos []string `json:"repos"`
+		Files    int      `json:"files"`
+		Repos    []string `json:"repos"`
+		UpToDate bool     `json:"up_to_date"`
+		HasBase  bool     `json:"has_base"`
+		Changed  int      `json:"changed"`
 	}
 	repoOf := map[string]string{}
 	for _, n := range nodes {
 		repoOf[n.ID] = n.Repo
 	}
+	statuses := s.eng.FlowStatuses()
 	summaries := make([]flowSummary, 0, len(flows))
 	for _, f := range flows {
 		seen := map[string]bool{}
@@ -186,7 +192,11 @@ func (s *server) stateMsg() map[string]any {
 				rs = append(rs, r)
 			}
 		}
-		summaries = append(summaries, flowSummary{Flow: f, Files: len(f.NodeIDs), Repos: rs})
+		st := statuses[f.ID]
+		summaries = append(summaries, flowSummary{
+			Flow: f, Files: len(f.NodeIDs), Repos: rs,
+			UpToDate: st.UpToDate, HasBase: st.HasBase, Changed: len(st.Changed) + len(st.Removed),
+		})
 	}
 
 	return map[string]any{

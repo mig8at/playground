@@ -40,7 +40,7 @@ function connect() {
         break
       case 'flow_files':
         if (panel.value?.kind === 'flow' && panel.value.id === d.id) {
-          if (d.ok) { panel.value = { ...panel.value, files: d.files || [], description: d.description, loading: false }; requestTree(d.files) }
+          if (d.ok) { panel.value = { ...panel.value, files: d.files || [], description: d.description, status: d.status, loading: false }; requestTree(d.files) }
           else panel.value = { ...panel.value, files: [], error: d.error, loading: false }
         }
         break
@@ -77,8 +77,16 @@ function onOpenFlow(flow) {
 }
 function closePanel() { panel.value = null }
 
+// ids con contenido cambiado desde el análisis (para marcarlos)
+const changedSet = computed(() => {
+  const st = panel.value?.status
+  if (!st) return new Set()
+  return new Set([...(st.changed || []), ...(st.removed || [])])
+})
+
 function compact(n) {
   const o = { id: n.id, path: n.path }
+  if (changedSet.value.has(n.id)) o.changed = true
   if (n.definitions?.length) o.definitions = n.definitions
   if (n.routes?.length) o.routes = n.routes.map((r) => `${r.method} ${r.path}`)
   if (n.tables?.length) o.tables = n.tables
@@ -89,7 +97,10 @@ function compact(n) {
 const panelSub = computed(() => {
   const p = panel.value
   if (!p || p.loading) return 'cargando…'
-  if (p.kind === 'flow') return `${p.files.length} archivos involucrados`
+  if (p.kind === 'flow') {
+    const n = changedSet.value.size
+    return n ? `${p.files.length} archivos · ⚠ ${n} cambió desde el análisis` : `${p.files.length} archivos · ✓ al día`
+  }
   return `top ${p.files.length} de ${p.total} · por relevancia`
 })
 

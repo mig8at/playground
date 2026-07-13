@@ -37,8 +37,21 @@ type Flow struct {
 	Name        string    `json:"name"`
 	Description string    `json:"description,omitempty"`
 	NodeIDs     []string  `json:"node_ids"`
-	Created     time.Time `json:"created"`
-	Updated     time.Time `json:"updated"`
+	// Hashes = snapshot del hash de contenido de cada archivo al momento de
+	// guardar (la línea base del análisis). Al re-escanear los repos, comparar
+	// contra los hashes actuales dice qué cambió → flujo desactualizado.
+	Hashes  map[string]string `json:"hashes,omitempty"`
+	Created time.Time         `json:"created"`
+	Updated time.Time         `json:"updated"`
+}
+
+// FlowStatus reporta si un flujo sigue al día respecto de los repos indexados.
+type FlowStatus struct {
+	ID       string   `json:"id"`
+	UpToDate bool     `json:"up_to_date"`
+	HasBase  bool     `json:"has_base"` // ¿tiene línea base (snapshot de hashes)?
+	Changed  []string `json:"changed"`  // ids cuyo contenido cambió
+	Removed  []string `json:"removed"`  // ids que ya no están en el índice
 }
 
 type index struct {
@@ -346,6 +359,9 @@ func (e *Engine) SaveFlow(id, name, description string, nodeIDs []string) (Flow,
 	if id == "" {
 		id = slug(name)
 	}
+	// snapshot de hashes actuales = línea base del análisis
+	hashes := e.hashesFor(nodeIDs)
+
 	ff := e.loadFlows()
 	now := time.Now()
 	updated := false
@@ -354,6 +370,7 @@ func (e *Engine) SaveFlow(id, name, description string, nodeIDs []string) (Flow,
 			ff.Flows[i].Name = name
 			ff.Flows[i].Description = description
 			ff.Flows[i].NodeIDs = nodeIDs
+			ff.Flows[i].Hashes = hashes
 			ff.Flows[i].Updated = now
 			updated = true
 			break
@@ -361,7 +378,7 @@ func (e *Engine) SaveFlow(id, name, description string, nodeIDs []string) (Flow,
 	}
 	var saved Flow
 	if !updated {
-		saved = Flow{ID: id, Name: name, Description: description, NodeIDs: nodeIDs, Created: now, Updated: now}
+		saved = Flow{ID: id, Name: name, Description: description, NodeIDs: nodeIDs, Hashes: hashes, Created: now, Updated: now}
 		ff.Flows = append(ff.Flows, saved)
 	}
 	if err := writeJSON(e.flowsPath(), ff); err != nil {
@@ -373,6 +390,59 @@ func (e *Engine) SaveFlow(id, name, description string, nodeIDs []string) (Flow,
 		}
 	}
 	return saved, nil
+}
+
+// hashesFor devuelve el hash de contenido actual de cada id (los que existan en
+// el índice). Debe llamarse con el lock tomado (usa loadIndex sin bloquear).
+func (e *Engine) hashesFor(ids []string) map[string]string {
+	byID := map[string]string{}
+	for _, n := range e.loadIndex().Nodes {
+		byID[n.ID] = n.Hash
+	}
+	out := map[string]string{}
+	for _, id := range ids {
+		if h, ok := byID[id]; ok {
+			out[id] = h
+		}
+	}
+	return out
+}
+
+// FlowStatuses computa, con una sola lectura del índice, el estado de todos los
+// flujos: si siguen al día vs la línea base o qué archivos cambiaron/desaparecieron.
+func (e *Engine) FlowStatuses() map[string]FlowStatus {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	cur := map[string]string{}
+	for _, n := range e.loadIndex().Nodes {
+		cur[n.ID] = n.Hash
+	}
+	out := map[string]FlowStatus{}
+	for _, f := range e.loadFlows().Flows {
+		st := FlowStatus{ID: f.ID, HasBase: len(f.Hashes) > 0, UpToDate: true}
+		if !st.HasBase {
+			out[f.ID] = st // sin línea base: no podemos afirmar que esté desactualizado
+			continue
+		}
+		for _, id := range f.NodeIDs {
+			base, hadBase := f.Hashes[id]
+			now, inIndex := cur[id]
+			if !inIndex {
+				st.Removed = append(st.Removed, id)
+			} else if hadBase && base != now {
+				st.Changed = append(st.Changed, id)
+			}
+		}
+		st.UpToDate = len(st.Changed) == 0 && len(st.Removed) == 0
+		out[f.ID] = st
+	}
+	return out
+}
+
+// FlowStatus computa el estado de un flujo puntual.
+func (e *Engine) FlowStatus(id string) (FlowStatus, bool) {
+	st, ok := e.FlowStatuses()[id]
+	return st, ok
 }
 
 // Flows lista los flujos guardados (más recientes primero).

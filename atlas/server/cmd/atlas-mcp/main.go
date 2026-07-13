@@ -45,6 +45,7 @@ func main() {
 	registerExportAnalysis(server, eng)
 	registerGetAnalysis(server, eng)
 	registerEnrichAnalysis(server, eng)
+	registerFlowStatus(server, eng)
 
 	log.Printf("iniciado (datos: %s); esperando peticiones MCP por stdio…", eng.Dir())
 	if err := server.Run(context.Background(), &mcp.StdioTransport{}); err != nil {

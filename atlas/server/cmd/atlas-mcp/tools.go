@@ -304,3 +304,52 @@ func registerEnrichAnalysis(s *mcp.Server, eng *engine.Engine) {
 		return ok(fmt.Sprintf("Análisis de %s enriquecido (%d archivos con role/note).", a.Name, len(in.Files)), a)
 	})
 }
+
+// ── atlas_flow_status ────────────────────────────────────────────────────────
+
+type FlowStatusInput struct {
+	ID string `json:"id,omitempty" jsonschema:"id del flujo; vacío = estado de TODOS los flujos"`
+}
+type FlowStatusOne struct {
+	ID       string   `json:"id"`
+	Name     string   `json:"name"`
+	UpToDate bool     `json:"up_to_date"`
+	HasBase  bool     `json:"has_base"`
+	Changed  []string `json:"changed,omitempty"`
+	Removed  []string `json:"removed,omitempty"`
+}
+type FlowStatusOutput struct {
+	Flows []FlowStatusOne `json:"flows"`
+}
+
+func registerFlowStatus(s *mcp.Server, eng *engine.Engine) {
+	mcp.AddTool(s, &mcp.Tool{
+		Name:        "atlas_flow_status",
+		Description: "Dice si un flujo (o todos) sigue AL DÍA vs la línea base guardada, comparando el hash de contenido de cada archivo con el índice actual. Úsalo tras re-escanear los repos para saber qué flujos necesitan re-análisis (Changed/Removed). Re-guardar el flujo (atlas_save_flow) refresca la línea base.",
+	}, func(ctx context.Context, _ *mcp.CallToolRequest, in FlowStatusInput) (*mcp.CallToolResult, FlowStatusOutput, error) {
+		names := map[string]string{}
+		for _, f := range eng.Flows() {
+			names[f.ID] = f.Name
+		}
+		statuses := eng.FlowStatuses()
+		var out FlowStatusOutput
+		add := func(id string) {
+			st, ok := statuses[id]
+			if !ok {
+				return
+			}
+			out.Flows = append(out.Flows, FlowStatusOne{
+				ID: id, Name: names[id], UpToDate: st.UpToDate, HasBase: st.HasBase,
+				Changed: st.Changed, Removed: st.Removed,
+			})
+		}
+		if in.ID != "" {
+			add(in.ID)
+		} else {
+			for _, f := range eng.Flows() {
+				add(f.ID)
+			}
+		}
+		return ok(jsonText(out), out)
+	})
+}
