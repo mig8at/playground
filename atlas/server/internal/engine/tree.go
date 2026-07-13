@@ -114,14 +114,16 @@ func (e *Engine) ComboTree(comboID string) string {
 
 // StageInfo describe una etapa (nodo) del grafo del flujo.
 type StageInfo struct {
-	ID       string   `json:"id"`
-	Name     string   `json:"name"`
-	Files    int      `json:"files"`
-	Kind     string   `json:"kind"`
-	Repos    []string `json:"repos"`   // repos que toca la etapa
-	UpToDate bool     `json:"up_to_date"`
-	HasBase  bool     `json:"has_base"`
-	Changed  int      `json:"changed"` // archivos cambiados desde el análisis
+	ID        string         `json:"id"`
+	Name      string         `json:"name"`
+	Files     int            `json:"files"`
+	Kind      string         `json:"kind"`
+	Desc      string         `json:"desc"`       // descripción del flujo (narra las etapas)
+	Repos     []string       `json:"repos"`      // repos que toca, EN ORDEN DE FLUJO
+	RepoFiles map[string]int `json:"repo_files"` // archivos por repo
+	UpToDate  bool           `json:"up_to_date"`
+	HasBase   bool           `json:"has_base"`
+	Changed   int            `json:"changed"` // archivos cambiados desde el análisis
 }
 
 // GroupGraph es un flujo de negocio como GRAFO: un canal (tronco) → varios
@@ -168,16 +170,18 @@ func (e *Engine) ComboGraphs(comboID string) []GroupGraph {
 	info := func(f Flow) StageInfo {
 		repoSet := map[string]bool{}
 		var repos []string
+		counts := map[string]int{}
 		for _, n := range e.NodesByID(f.NodeIDs) {
 			if !repoSet[n.Repo] {
 				repoSet[n.Repo] = true
-				repos = append(repos, n.Repo)
+				repos = append(repos, n.Repo) // orden de aparición = orden de flujo
 			}
+			counts[n.Repo]++
 		}
-		sort.Strings(repos)
 		st := statuses[f.ID]
 		return StageInfo{
-			ID: f.ID, Name: f.Name, Files: len(f.NodeIDs), Kind: f.Kind, Repos: repos,
+			ID: f.ID, Name: f.Name, Files: len(f.NodeIDs), Kind: f.Kind,
+			Desc: f.Description, Repos: repos, RepoFiles: counts,
 			UpToDate: st.UpToDate, HasBase: st.HasBase, Changed: len(st.Changed) + len(st.Removed),
 		}
 	}
