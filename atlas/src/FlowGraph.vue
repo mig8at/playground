@@ -44,9 +44,9 @@ const layout = computed(() => {
       nodes.push({
         id: `${g.group}:channel`, type: 'stage', position: { x: 0, y: laneY + (laneH - NODE_H) / 2 },
         data: {
-          ...g.channel, kind: 'channel', drift: drift.value, copyGroup: g.group, copyKey: '__all__',
+          ...g.channel, kind: 'channel', lone: !lenders.length, drift: drift.value, copyGroup: g.group, copyKey: '__all__',
           size: kb(allTree), hasTree: !!allTree,
-          allLabel: lenders.length ? 'todo el flujo' : 'copiar árbol',
+          allLabel: 'copiar todo el flujo',
           copyLabel: lenders.length ? `${chLabel} (completo)` : chLabel,
         },
       })
@@ -78,7 +78,7 @@ const layout = computed(() => {
   <section class="flows panel-section fade-in">
     <div class="section-head">
       <h2>Flujo de {{ comboName }}</h2>
-      <span class="section-hint">grafo canal → lenders · el botón copiar baja el árbol completo de ese camino</span>
+      <span class="section-hint">flujo completo cross-repo · un solo copy baja todo el árbol para pegar a un LLM</span>
     </div>
 
     <!-- alineación: checkout + pull al seleccionar -->
@@ -115,7 +115,7 @@ const layout = computed(() => {
             <span v-if="stale(data)" class="gdot" :class="stale(data)"
                   :title="stale(data) === 'stale' ? data.changed + ' archivos cambiaron desde el análisis' : 'al día'"></span>
             <div class="gnode-head">
-              <span class="gtag" :class="data.kind">{{ data.kind === 'channel' ? 'canal' : 'lender' }}</span>
+              <span class="gtag" :class="data.kind">{{ data.lone ? 'flujo' : (data.kind === 'channel' ? 'canal' : 'lender') }}</span>
               <span class="gname">{{ data.name }}</span>
             </div>
             <div class="grepos">
