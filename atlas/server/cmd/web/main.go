@@ -93,11 +93,12 @@ func (s *server) handleWS(w http.ResponseWriter, r *http.Request) {
 }
 
 type inbound struct {
-	Type string `json:"type"`
-	Path string `json:"path"`
-	ID   string `json:"id"`
-	Repo string `json:"repo"`
-	Lang string `json:"lang"`
+	Type string   `json:"type"`
+	Path string   `json:"path"`
+	ID   string   `json:"id"`
+	Repo string   `json:"repo"`
+	Lang string   `json:"lang"`
+	IDs  []string `json:"ids"`
 }
 
 func (s *server) handle(ctx context.Context, c *websocket.Conn, msg inbound) {
@@ -145,6 +146,8 @@ func (s *server) handle(ctx context.Context, c *websocket.Conn, msg inbound) {
 		}
 		log.Printf("análisis guardado · %s → %s", msg.ID, path)
 		send(ctx, c, map[string]any{"type": "analysis_saved", "ok": true, "id": msg.ID, "path": path})
+	case "tree":
+		send(ctx, c, map[string]any{"type": "tree", "ok": true, "text": s.eng.Tree(msg.IDs)})
 	case "delete_flow":
 		_ = s.eng.DeleteFlow(msg.ID)
 		s.broadcastState()

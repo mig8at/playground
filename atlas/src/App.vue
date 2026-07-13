@@ -35,21 +35,17 @@ function connect() {
       case 'node_files':
         if (d.ok && panel.value?.kind === 'node' && panel.value.repo === d.repo && panel.value.lang === d.lang) {
           panel.value = { ...panel.value, total: d.total, files: d.files || [], loading: false }
+          requestTree(d.files)
         }
         break
       case 'flow_files':
         if (panel.value?.kind === 'flow' && panel.value.id === d.id) {
-          if (d.ok) panel.value = { ...panel.value, files: d.files || [], description: d.description, loading: false }
+          if (d.ok) { panel.value = { ...panel.value, files: d.files || [], description: d.description, loading: false }; requestTree(d.files) }
           else panel.value = { ...panel.value, files: [], error: d.error, loading: false }
         }
         break
-      case 'analysis_saved':
-        if (d.ok) {
-          savedMsg.value = '✓ guardado en ' + (d.path || '').replace(/^.*\/analysis\//, 'analysis/')
-          setTimeout(() => (savedMsg.value = ''), 4000)
-        } else {
-          savedMsg.value = '✗ ' + (d.error || 'error')
-        }
+      case 'tree':
+        if (d.ok && panel.value) panel.value = { ...panel.value, tree: d.text }
         break
     }
   }
@@ -60,10 +56,11 @@ function connect() {
 function send(obj) { if (online.value) ws.send(JSON.stringify(obj)) }
 
 const copied = ref(false)
-const savedMsg = ref('')
 
-function saveAnalysis() {
-  if (panel.value?.kind === 'flow') send({ type: 'save_analysis', id: panel.value.id })
+// pide el árbol estilo Rino (estructura + contenido) de los archivos abiertos
+function requestTree(files) {
+  const ids = (files || []).map((n) => n.id)
+  if (ids.length) send({ type: 'tree', ids })
 }
 
 // click en un nodo del mapa → JSON de sus archivos (rankeado)
@@ -106,8 +103,9 @@ const nodeJson = computed(() => {
   return JSON.stringify(payload, null, 2)
 })
 
-async function copyJson() {
-  const text = nodeJson.value
+async function copyTree() {
+  const text = panel.value?.tree || ''
+  if (!text) return
   let ok = false
   try {
     await navigator.clipboard.writeText(text)
@@ -164,16 +162,12 @@ onBeforeUnmount(() => { clearTimeout(retry); ws && ws.close() })
           <p class="js-sub">{{ panelSub }}</p>
         </div>
         <div class="js-actions">
-          <button v-if="panel.kind === 'flow'" class="js-copy" @click="saveAnalysis" :disabled="panel.loading">
-            guardar
-          </button>
-          <button class="js-copy" @click="copyJson" :disabled="panel.loading">
+          <button class="js-copy" @click="copyTree" :disabled="panel.loading || !panel.tree" :title="panel.tree ? 'copiar el árbol (estructura + contenido)' : 'preparando árbol…'">
             {{ copied ? '✓ copiado' : 'copiar' }}
           </button>
           <button class="x" @click="closePanel" title="cerrar">×</button>
         </div>
       </div>
-      <p v-if="savedMsg" class="js-saved">{{ savedMsg }}</p>
       <pre class="js-body"><code>{{ nodeJson }}</code></pre>
     </aside>
   </div>
