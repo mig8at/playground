@@ -17,8 +17,9 @@ import (
 type Combination struct {
 	ID       string            `json:"id"`
 	Name     string            `json:"name"`
-	Targets  map[string]string `json:"targets"`  // alias → rama objetivo
-	Baseline map[string]string `json:"baseline"` // alias → commit corto capturado
+	Parent   string            `json:"parent,omitempty"` // id del workspace padre (deriva sus ramas)
+	Targets  map[string]string `json:"targets"`          // alias → rama objetivo
+	Baseline map[string]string `json:"baseline"`         // alias → commit corto capturado
 	Created  time.Time         `json:"created"`
 	Updated  time.Time         `json:"updated"`
 }
@@ -142,15 +143,17 @@ func (e *Engine) RepoBranches(alias string) []string {
 	return gitinfo.Branches(root)
 }
 
-// SaveCombination crea/actualiza una combinación. Captura la línea base: para
+// SaveCombination crea/actualiza un workspace. Captura la línea base: para
 // cada repo cuya rama ACTUAL coincide con la objetivo, graba su commit actual.
-func (e *Engine) SaveCombination(id, name string, targets map[string]string) (Combination, error) {
+// parent (opcional) enlaza el workspace a su padre: hereda su flujo si no tiene
+// uno propio.
+func (e *Engine) SaveCombination(id, name, parent string, targets map[string]string) (Combination, error) {
 	name = strings.TrimSpace(name)
 	if name == "" {
-		return Combination{}, fmt.Errorf("la combinación necesita un nombre")
+		return Combination{}, fmt.Errorf("el workspace necesita un nombre")
 	}
 	if len(targets) == 0 {
-		return Combination{}, fmt.Errorf("la combinación necesita al menos un repo→rama")
+		return Combination{}, fmt.Errorf("el workspace necesita al menos un repo→rama")
 	}
 	if id == "" {
 		id = slug(name)
@@ -172,6 +175,7 @@ func (e *Engine) SaveCombination(id, name string, targets map[string]string) (Co
 	for i := range cf.Combinations {
 		if cf.Combinations[i].ID == id {
 			cf.Combinations[i].Name = name
+			cf.Combinations[i].Parent = parent
 			cf.Combinations[i].Targets = targets
 			cf.Combinations[i].Baseline = baseline
 			cf.Combinations[i].Updated = now
@@ -181,7 +185,7 @@ func (e *Engine) SaveCombination(id, name string, targets map[string]string) (Co
 	}
 	var saved Combination
 	if !updated {
-		saved = Combination{ID: id, Name: name, Targets: targets, Baseline: baseline, Created: now, Updated: now}
+		saved = Combination{ID: id, Name: name, Parent: parent, Targets: targets, Baseline: baseline, Created: now, Updated: now}
 		cf.Combinations = append(cf.Combinations, saved)
 	}
 	if err := writeJSON(e.combsPath(), cf); err != nil {

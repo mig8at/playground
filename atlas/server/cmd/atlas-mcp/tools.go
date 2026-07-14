@@ -392,7 +392,7 @@ func registerSaveCombination(s *mcp.Server, eng *engine.Engine) {
 		Name:        "atlas_save_combination",
 		Description: "Guarda una combinación de ramas (repo→rama). Captura la línea base (commit por repo que ya esté en su rama objetivo). Aparece en vivo en la UI de Atlas.",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in SaveCombinationInput) (*mcp.CallToolResult, engine.Combination, error) {
-		cb, err := eng.SaveCombination(in.ID, in.Name, in.Targets)
+		cb, err := eng.SaveCombination(in.ID, in.Name, "", in.Targets)
 		if err != nil {
 			return fail[engine.Combination](err)
 		}

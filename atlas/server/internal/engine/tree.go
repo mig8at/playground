@@ -151,15 +151,89 @@ func (e *Engine) pathTree(flows []Flow) string {
 	return e.groupHeader(flows, e.NodesByID(ids)) + e.Tree(ids)
 }
 
+// flowsForCombo resuelve los flujos de un workspace: los suyos por combinación, o
+// —si es un hijo derivado sin flujo propio— los del ancestro más cercano que sí
+// tenga (sube por la cadena de padres). Así un workspace hijo hereda el flujo del
+// padre, resuelto contra las ramas del hijo.
+func (e *Engine) flowsForCombo(comboID string) []Flow {
+	all := e.Flows()
+	byCombo := func(id string) []Flow {
+		var out []Flow
+		for _, f := range all {
+			if f.Combination == id {
+				out = append(out, f)
+			}
+		}
+		return out
+	}
+	seen := map[string]bool{}
+	id := comboID
+	for id != "" && !seen[id] {
+		seen[id] = true
+		if fs := byCombo(id); len(fs) > 0 {
+			return fs
+		}
+		c, ok := e.Combination(id)
+		if !ok {
+			break
+		}
+		id = c.Parent
+	}
+	return nil
+}
+
+// ComboFlow devuelve el resumen LIVIANO del flujo de un workspace (sin leer
+// contenido: sin árboles): nombre, archivos, repos y conteo por repo + staleness.
+// Es lo que alimenta la tarjeta del nodo en el grafo de workspaces.
+func (e *Engine) ComboFlow(comboID string) *StageInfo {
+	flows := e.flowsForCombo(comboID)
+	if len(flows) == 0 {
+		return nil
+	}
+	seen := map[string]bool{}
+	var ids []string
+	for _, f := range flows {
+		for _, id := range f.NodeIDs {
+			if !seen[id] {
+				seen[id] = true
+				ids = append(ids, id)
+			}
+		}
+	}
+	repoSet := map[string]bool{}
+	var repos []string
+	counts := map[string]int{}
+	for _, n := range e.NodesByID(ids) {
+		if !repoSet[n.Repo] {
+			repoSet[n.Repo] = true
+			repos = append(repos, n.Repo)
+		}
+		counts[n.Repo]++
+	}
+	statuses := e.FlowStatuses()
+	changed, hasBase, upToDate := 0, false, true
+	for _, f := range flows {
+		st := statuses[f.ID]
+		if st.HasBase {
+			hasBase = true
+		}
+		changed += len(st.Changed) + len(st.Removed)
+		if !st.UpToDate {
+			upToDate = false
+		}
+	}
+	return &StageInfo{
+		Name: flows[0].Name, Files: len(ids), Desc: flows[0].Description,
+		Repos: repos, RepoFiles: counts, UpToDate: upToDate, HasBase: hasBase, Changed: changed,
+	}
+}
+
 // ComboGraphs devuelve, por flujo de negocio (group), el grafo canal→lenders con
 // el árbol por camino. Es lo que permite "copiar según el flujo".
 func (e *Engine) ComboGraphs(comboID string) []GroupGraph {
 	flowsByGroup := map[string][]Flow{}
 	var order []string
-	for _, f := range e.Flows() {
-		if f.Combination != comboID {
-			continue
-		}
+	for _, f := range e.flowsForCombo(comboID) {
 		g := groupOf(f)
 		if _, ok := flowsByGroup[g]; !ok {
 			order = append(order, g)

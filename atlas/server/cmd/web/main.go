@@ -100,6 +100,7 @@ type inbound struct {
 	Lang    string            `json:"lang"`
 	IDs     []string          `json:"ids"`
 	Name    string            `json:"name"`
+	Parent  string            `json:"parent"`
 	Targets map[string]string `json:"targets"`
 }
 
@@ -173,7 +174,7 @@ func (s *server) handle(ctx context.Context, c *websocket.Conn, msg inbound) {
 		}
 		send(ctx, c, map[string]any{"type": "repo_branches", "ok": true, "branches": out})
 	case "save_combination":
-		cb, err := s.eng.SaveCombination(msg.ID, msg.Name, msg.Targets)
+		cb, err := s.eng.SaveCombination(msg.ID, msg.Name, msg.Parent, msg.Targets)
 		if err != nil {
 			send(ctx, c, map[string]any{"type": "combination_saved", "ok": false, "error": err.Error()})
 			return
@@ -233,15 +234,17 @@ func (s *server) stateMsg() map[string]any {
 		})
 	}
 
-	// combinaciones de ramas con su estado de alineación
+	// workspaces (combinaciones de ramas) con su estado de alineación + el
+	// resumen liviano de su flujo (heredado del padre si es un hijo derivado)
 	type combo struct {
 		engine.Combination
 		Status engine.CombStatus `json:"status"`
+		Flow   *engine.StageInfo `json:"flow"`
 	}
 	var combos []combo
 	for _, c := range s.eng.Combinations() {
 		st, _ := s.eng.CombinationStatus(c.ID)
-		combos = append(combos, combo{Combination: c, Status: st})
+		combos = append(combos, combo{Combination: c, Status: st, Flow: s.eng.ComboFlow(c.ID)})
 	}
 
 	return map[string]any{
