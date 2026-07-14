@@ -1,35 +1,40 @@
 <script setup>
 import { computed } from 'vue'
 import { Handle, Position } from '@vue-flow/core'
-import { ui, merchant, branchStatusOf, toggleBranchStatus, openFieldInfo } from '../store'
+import { ui, merchant, customLenders, branchStatusOf, setBranchStatus, openFieldInfo } from '../store'
 import { Power } from 'lucide-vue-next'
 
-// STATUS de la entidad en la sucursal (lenders_by_allied_branches.status) = 1ª compuerta de la 2ª capa.
-// El comercio habilita la entidad en su catálogo (merchant.enabled ≈ lenders_by_allieds); CADA sucursal
-// la ACTIVA o DESACTIVA por separado. Inactiva → NO se ofrece en esa sucursal (filtro duro del listado).
-const name = computed(() => ui.selected)
-const on = computed(() => (name.value ? branchStatusOf(name.value) : true))
+// STATUS por sucursal (lenders_by_allied_branches.status) = 1ª compuerta dura de la 2ª capa.
+// El comercio TIENE su catálogo de entidades ("Entidades del comercio"); CADA sucursal ACTIVA o
+// DESACTIVA cada una por separado acá. Inactiva → NO se ofrece en esta sucursal (filtro duro del
+// listado, igual que getLenders, que solo devuelve las filas activas de lenders_by_allied_branches).
+const RT_NAME = { 0: 'Redirect', 1: 'Agregador', 2: 'CreditopX', 3: 'Rotativo' }
+const PROD = { credito: 'Crédito', renting: 'Renting', rto: 'Renting con compra' }
+const entities = computed(() => [...customLenders])
+const onCount = computed(() => entities.value.filter(l => branchStatusOf(l.name)).length)
 </script>
 
 <template>
-  <div class="node node--branchstatus prov-node" v-if="name">
-    <div class="node__hd nhd-doc" :class="on ? 'node__hd--green' : 'node__hd--red'"
-         title="clic: dónde vive y por qué (status por sucursal)" @click="openFieldInfo('suc.status')">
+  <div class="node node--branchstatus prov-node">
+    <div class="node__hd node__hd--green nhd-doc" title="clic: dónde vive y por qué (status por sucursal)" @click="openFieldInfo('suc.status')">
       <div class="node__title"><Power :size="13" /> Estado en sucursal</div>
-      <span class="pl-cat">status · por sucursal</span>
+      <span class="cfg-count">{{ onCount }}/{{ entities.length }}</span>
     </div>
     <div class="node__body">
-      <div class="node__desc"><b>{{ name }}</b> en {{ merchant.sucursal }}</div>
-      <div class="bs-row">
-        <span class="bs-state" :class="on ? 'on' : 'off'">{{ on ? 'activa' : 'inactiva' }}</span>
-        <span class="dc-sw nodrag" :class="{ on }" @click.stop="toggleBranchStatus(name)"
-              :title="on ? 'clic: desactivar en esta sucursal' : 'clic: activar en esta sucursal'">
-          {{ on ? 'desactivar' : 'activar' }}
-        </span>
-      </div>
-      <div class="dn-hint">
-        El comercio habilita la entidad en su catálogo; cada sucursal la activa o desactiva por separado.
-        <template v-if="!on"><br><b class="bs-warn">Inactiva → no aparece en el listado de {{ merchant.sucursal }}.</b></template>
+      <div class="dn-hint">Activá o desactivá cada entidad del comercio <b>en {{ merchant.sucursal }}</b>. Inactiva = no se ofrece en esta sucursal.</div>
+      <div v-if="!entities.length" class="cfg-empty">Sin entidades — creá alguna en “Entidades del comercio”.</div>
+      <div v-for="l in entities" :key="l.name" class="cfg-row cfg-erow bs-erow"
+           :class="['erow--rt' + l.rt, { 'cfg-row--on': branchStatusOf(l.name), 'cfg-row--cur': ui.selected === l.name }]" :title="l.name">
+        <input type="checkbox" class="nodrag" :checked="branchStatusOf(l.name)" @change="e => setBranchStatus(l.name, e.target.checked)" />
+        <div class="erow__main bs-pick" title="ver su config de sucursal" @click.stop="ui.selected = l.name">
+          <div class="erow__top">
+            <span class="erow__nm">{{ l.name }}</span>
+            <span class="cfg-rt" :class="'rt' + l.rt">{{ RT_NAME[l.rt] || ('rt' + l.rt) }}</span>
+          </div>
+          <div class="erow__sub" v-if="l.producto">
+            <span class="cfg-cat" :class="'cfg-cat--' + l.producto">{{ PROD[l.producto] }}</span>
+          </div>
+        </div>
       </div>
     </div>
     <Handle id="down" type="source" :position="Position.Bottom" />

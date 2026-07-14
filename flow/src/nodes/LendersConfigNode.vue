@@ -1,7 +1,7 @@
 <script setup>
 import { computed, ref } from 'vue'
 import { Handle, Position } from '@vue-flow/core'
-import { merchant, customLenders, addCustomLender, removeCustomLender, duplicateCustomLender, ui, openFieldInfo } from '../store'
+import { customLenders, addCustomLender, removeCustomLender, duplicateCustomLender, ui, openFieldInfo } from '../store'
 import { Plus, Trash2, Copy } from 'lucide-vue-next'
 
 // Listado ÚNICO de entidades del comercio, TODAS creadas por el usuario (persisten en localStorage).
@@ -14,8 +14,6 @@ const RT_WHO = { 0: 'redirige a su sitio', 1: 'decide su API', 2: 'decide Credit
 const rtName = (rt) => RT_NAME[rt] || ('rt' + rt)
 const rtWho = (rt) => RT_WHO[rt] || ''
 const entities = computed(() => [...customLenders]) // catálogo = solo lo que creó el usuario
-const onCount = computed(() => entities.value.filter(l => merchant.enabled[l.name]).length)
-const toggle = (name, e) => { merchant.enabled[name] = e.target.checked }
 const baseSel = (l) => ui.selected === l.name
 
 // Crear entidad propia: Nombre + Tipo de respuesta (categoría) + Producto. Persiste en localStorage.
@@ -35,14 +33,13 @@ function dup(name) { const l = duplicateCustomLender(name); if (l) ui.selected =
   <div class="node node--cfg">
     <div class="node__hd node__hd--blue nhd-doc" title="clic: detalle del nodo" @click="openFieldInfo('node.lendersCfg')">
       <div class="node__title">Entidades del comercio</div>
-      <span class="cfg-count">{{ onCount }}/{{ entities.length }}</span>
+      <span class="cfg-count">{{ entities.length }}</span>
     </div>
     <div class="node__body">
-      <div class="cfg-hint">CreditopX, agregador y redirect son lenders (por response_type). Creá las que ofrece la sucursal, una a una.</div>
+      <div class="cfg-hint">Catálogo del comercio: CreditopX, agregador y redirect son lenders (por response_type). Creá las que ofrece el comercio, una a una. Cada sucursal decide cuáles activa (“Estado en sucursal”).</div>
       <div v-if="!entities.length" class="cfg-empty">Sin entidades — creá la primera con “+ Agregar entidad”.</div>
-      <label v-for="l in entities" :key="l.name" class="cfg-row cfg-erow" :class="['erow--rt' + l.rt, { 'cfg-row--on': merchant.enabled[l.name], 'cfg-row--cur': baseSel(l) }]" :title="l.name">
+      <div v-for="l in entities" :key="l.name" class="cfg-row cfg-erow cfg-pick" :class="['erow--rt' + l.rt, { 'cfg-row--cur': baseSel(l) }]" :title="l.name" @click="ui.selected = l.name">
         <Handle :id="'tpl-base-' + l.name" type="target" :position="Position.Left" class="row-h" />
-        <input type="checkbox" class="nodrag" :checked="merchant.enabled[l.name]" @change="e => toggle(l.name, e)" />
         <div class="erow__main">
           <div class="erow__top">
             <span class="erow__nm">{{ l.name }}</span>
@@ -57,7 +54,7 @@ function dup(name) { const l = duplicateCustomLender(name); if (l) ui.selected =
           <button class="cfg-dup nodrag" title="duplicar entidad" @click.stop.prevent="dup(l.name)"><Copy :size="12" /></button>
           <button class="cfg-del nodrag" title="borrar entidad" @click.stop.prevent="removeCustomLender(l.name)"><Trash2 :size="12" /></button>
         </div>
-      </label>
+      </div>
 
       <button v-if="!creating" class="cfg-add nodrag" @click.stop="creating = true"><Plus :size="13" /> Agregar entidad</button>
       <div v-else class="cfg-new nodrag">

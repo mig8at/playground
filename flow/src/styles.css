@@ -328,16 +328,13 @@ body {
 .node--tramo .node__body { padding: 10px 13px; }
 .node--grouprules { border-color: var(--green); min-width: 264px; max-width: 300px; }
 .node--grouprules .vue-flow__handle { border-color: var(--green); }
-/* estado en sucursal (lenders_by_allied_branches.status) */
-.node--branchstatus { border-color: var(--green); min-width: 210px; max-width: 250px; }
+/* estado en sucursal (lenders_by_allied_branches.status) — lista de entidades con checkbox por sucursal */
+.node--branchstatus { border-color: var(--green); min-width: 248px; max-width: 288px; }
 .node--branchstatus .vue-flow__handle { border-color: var(--green); }
-.node__hd--red { background: var(--tint-red); }
-.node__hd--red .node__title { color: var(--red); }
-.bs-row { display: flex; align-items: center; gap: 8px; margin: 6px 0 7px; }
-.bs-state { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .03em; }
-.bs-state.on { color: var(--green); }
-.bs-state.off { color: var(--red); }
-.bs-warn { color: var(--red); }
+.node--branchstatus .cfg-row input { accent-color: var(--green); }
+.node--branchstatus .cfg-row--on { border-color: var(--bd-green); background: var(--tint-green); }
+.node--branchstatus .cfg-erow:not(.cfg-row--on) { opacity: .6; } /* inactiva = no se ofrece en la sucursal */
+.bs-pick { cursor: pointer; }
 /* nota "↑ arriba" en el hub, guía hacia las categorías/tramos */
 .pl-updo { font-size: 10px; color: var(--teal); line-height: 1.4; margin-top: 8px; padding: 6px 8px; border: 0.5px dashed color-mix(in srgb, var(--teal) 45%, var(--line)); border-radius: 6px; background: var(--tint-green2); }
 .pl-updo b { color: var(--green); }
