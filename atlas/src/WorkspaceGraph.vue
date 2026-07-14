@@ -179,7 +179,7 @@ watch(() => layout.value.nodes.length, () => refit(300))
               </span>
             </div>
 
-            <div class="wstasks" @click.stop>
+            <div v-if="data.isChild" class="wstasks" @click.stop>
               <div class="wstasks-head">
                 <span>Tareas</span>
                 <span v-if="data.tasks.length" class="wstasks-prog" :class="{ full: doneCount(data.tasks) === data.tasks.length }">{{ doneCount(data.tasks) }}/{{ data.tasks.length }}</span>
