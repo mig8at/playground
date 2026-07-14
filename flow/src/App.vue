@@ -150,10 +150,10 @@ watch([() => ui.selected, isDark, selPasses], ([sel]) => {
     addE.push({ id: 'e-tramo', source: 'tramo', sourceHandle: 'down', target: 'perfil', targetHandle: 'fromcats', animated: false, style: { stroke: ec('base'), strokeWidth: 1.4, strokeDasharray: '5 4' } })
   }
   // Estado en sucursal (lenders_by_allied_branches.status): 1ª compuerta dura de la 2ª capa. Nodo propio
-  // arriba del hub "Configurar sucursal" (relacion en y=900), a la derecha del de group_rules. y=700 → base
-  // ~840, por encima del hub con aire; x=-300 (alineado con la sucursal) para leerse como su compuerta de entrada.
-  add.push({ id: 'branchstatus', type: 'branchstatus', position: { x: -300, y: 700 } })
-  addE.push({ id: 'e-bs', source: 'branchstatus', sourceHandle: 'down', target: 'relacion', targetHandle: 'fromstatus', animated: false, style: { stroke: ec('cfg'), strokeWidth: 1.4, strokeDasharray: '6 5' } })
+  // a la IZQUIERDA del hub "Configurar sucursal" (relacion en x=-300, y=900), conectado lado-con-lado:
+  // costado derecho de "Estado en sucursal" → costado izquierdo de "Configurar sucursal" (flujo horizontal).
+  add.push({ id: 'branchstatus', type: 'branchstatus', position: { x: -640, y: 900 } })
+  addE.push({ id: 'e-bs', source: 'branchstatus', sourceHandle: 'out', target: 'relacion', targetHandle: 'fromstatus', animated: false, style: { stroke: ec('cfg'), strokeWidth: 1.4, strokeDasharray: '6 5' } })
   // group_rules por sucursal: nodo propio (~220px) arriba-izquierda del hub "Configurar sucursal"
   // (relacion en y=900). y=620 → base ~840, por encima del hub con aire; a la izquierda (x=-680) para no pisar comercio.
   add.push({ id: 'grouprules', type: 'grouprules', position: { x: -680, y: 620 } })

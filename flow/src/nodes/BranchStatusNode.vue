@@ -37,6 +37,6 @@ const onCount = computed(() => entities.value.filter(l => branchStatusOf(l.name)
         </div>
       </div>
     </div>
-    <Handle id="down" type="source" :position="Position.Bottom" />
+    <Handle id="out" type="source" :position="Position.Right" />
   </div>
 </template>
