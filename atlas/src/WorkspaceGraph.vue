@@ -20,7 +20,27 @@ const props = defineProps({
   alignResults: { type: Array, default: () => [] },
   creating: { type: Boolean, default: false },
 })
-const emit = defineEmits(['create-root', 'derive', 'delete', 'select', 'need-branches', 'copy', 'copy-text', 'close-create'])
+const emit = defineEmits(['create-root', 'derive', 'delete', 'select', 'need-branches', 'copy', 'copy-text', 'close-create', 'set-tasks'])
+
+// checklist por workspace: input de "nueva tarea" por nodo + toggles/borrado que persisten
+const newTask = ref({})
+function cleanTasks(tasks) { return (tasks || []).map((t) => ({ text: t.text, done: !!t.done })) }
+function toggleTask(data, i) {
+  const tasks = cleanTasks(data.tasks)
+  if (tasks[i]) tasks[i].done = !tasks[i].done
+  emit('set-tasks', { id: data.id, tasks })
+}
+function addTask(data) {
+  const txt = (newTask.value[data.id] || '').trim()
+  if (!txt) return
+  const tasks = [...cleanTasks(data.tasks), { text: txt, done: false }]
+  newTask.value = { ...newTask.value, [data.id]: '' }
+  emit('set-tasks', { id: data.id, tasks })
+}
+function removeTask(data, i) {
+  emit('set-tasks', { id: data.id, tasks: cleanTasks(data.tasks).filter((_, idx) => idx !== i) })
+}
+function doneCount(tasks) { return (tasks || []).filter((t) => t.done).length }
 
 const repoAliases = computed(() => props.repos.map((r) => r.alias))
 const currentBranch = computed(() => {
@@ -33,7 +53,7 @@ function staleOf(flow) { if (!flow || !flow.has_base) return ''; return flow.cha
 function alignClass(r) { return r.error ? (r.error.includes('sin commitear') ? 'warn' : 'err') : 'ok' }
 
 // ── layout: árbol por profundidad (padre → hijos a la derecha) ──
-const COL_W = 348, ROW_H = 208
+const COL_W = 348, ROW_H = 250
 const layout = computed(() => {
   const combos = props.combinations
   const idset = new Set(combos.map((c) => c.id))
@@ -72,6 +92,7 @@ function nodeData(c, depth) {
     stale: staleOf(flow),
     changed: flow?.changed || 0,
     hasFlow: !!flow,
+    tasks: c.tasks || [],
     alignResults: props.selected === c.id ? props.alignResults : [],
   }
 }
@@ -156,6 +177,21 @@ watch(() => layout.value.nodes.length, () => refit(300))
                     @click.stop="r.error && emit('copy-text', r.manual, 'comando')">
                 <b>{{ r.alias.split('-')[0] }}</b><template v-if="r.error">✗</template><template v-else>✓</template>
               </span>
+            </div>
+
+            <div class="wstasks" @click.stop>
+              <div class="wstasks-head">
+                <span>Tareas</span>
+                <span v-if="data.tasks.length" class="wstasks-prog" :class="{ full: doneCount(data.tasks) === data.tasks.length }">{{ doneCount(data.tasks) }}/{{ data.tasks.length }}</span>
+              </div>
+              <div v-if="data.tasks.length" class="wstasks-list">
+                <label v-for="(t, i) in data.tasks" :key="i" class="wstask" :class="{ done: t.done }">
+                  <input type="checkbox" :checked="t.done" @change="toggleTask(data, i)" />
+                  <span class="wstask-txt">{{ t.text }}</span>
+                  <button class="wstask-x" title="quitar" @click.stop="removeTask(data, i)"><X :size="11" /></button>
+                </label>
+              </div>
+              <input v-model="newTask[data.id]" class="wstask-in" placeholder="+ agregar tarea" @keyup.enter="addTask(data)" />
             </div>
 
             <div class="wsbtns">
@@ -268,6 +304,23 @@ watch(() => layout.value.nodes.length, () => refit(300))
 .wsachip.ok { color: var(--green); }
 .wsachip.warn { color: var(--amber); cursor: pointer; }
 .wsachip.err { color: var(--red); cursor: pointer; }
+
+/* ── checklist de la tarea ── */
+.wstasks { margin-bottom: 8px; border-top: 1px solid var(--border); padding-top: 8px; }
+.wstasks-head { display: flex; align-items: center; justify-content: space-between; font-size: 10px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); margin-bottom: 5px; font-weight: 600; }
+.wstasks-prog { font-family: var(--mono); color: var(--amber); background: var(--chip); border-radius: 4px; padding: 0 6px; }
+.wstasks-prog.full { color: var(--green); }
+.wstasks-list { display: flex; flex-direction: column; gap: 2px; max-height: 132px; overflow-y: auto; margin-bottom: 5px; }
+.wstask { display: flex; align-items: flex-start; gap: 6px; font-size: 11px; color: var(--text); padding: 2px 2px; border-radius: 4px; cursor: pointer; }
+.wstask:hover { background: var(--bg); }
+.wstask input { margin-top: 1px; accent-color: var(--green); cursor: pointer; flex: none; }
+.wstask-txt { flex: 1; line-height: 1.35; }
+.wstask.done .wstask-txt { color: var(--muted); text-decoration: line-through; }
+.wstask-x { background: none; border: 0; color: var(--muted); cursor: pointer; padding: 0; opacity: 0; display: inline-flex; flex: none; }
+.wstask:hover .wstask-x { opacity: 1; }
+.wstask-x:hover { color: var(--red); }
+.wstask-in { width: 100%; background: var(--bg); border: 1px solid var(--border); color: var(--text); padding: 4px 8px; border-radius: 6px; font-size: 11px; box-sizing: border-box; }
+.wstask-in:focus { outline: none; border-color: var(--accent); }
 
 .wsbtns { display: flex; gap: 6px; }
 .wscopy { flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 5px; background: var(--accent); color: #06101f; border: 0; border-radius: 6px; padding: 6px; font-weight: 600; font-size: 11px; cursor: pointer; }

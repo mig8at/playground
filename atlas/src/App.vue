@@ -85,6 +85,7 @@ function onDeriveChild({ parent, name }) {
   send({ type: 'save_combination', name, parent, targets })
 }
 function onDeleteWorkspace(id) { send({ type: 'delete_combination', id }) }
+function onSetTasks({ id, tasks }) { send({ type: 'set_tasks', id, tasks }) }
 
 // seleccionar un nodo = alinear (checkout+pull) + cargar su árbol
 function onSelect(id) {
@@ -162,6 +163,7 @@ connect()
       @create-root="onCreateRoot"
       @derive="onDeriveChild"
       @delete="onDeleteWorkspace"
+      @set-tasks="onSetTasks"
       @select="onSelect"
       @need-branches="requestBranches"
       @copy="copyTree"

@@ -20,8 +20,15 @@ type Combination struct {
 	Parent   string            `json:"parent,omitempty"` // id del workspace padre (deriva sus ramas)
 	Targets  map[string]string `json:"targets"`          // alias → rama objetivo
 	Baseline map[string]string `json:"baseline"`         // alias → commit corto capturado
+	Tasks    []Task            `json:"tasks,omitempty"`  // checklist de la tarea del workspace (progreso)
 	Created  time.Time         `json:"created"`
 	Updated  time.Time         `json:"updated"`
+}
+
+// Task es un ítem del checklist de un workspace: para saber en qué parte de la tarea se quedó.
+type Task struct {
+	Text string `json:"text"`
+	Done bool   `json:"done"`
 }
 
 type combFile struct {
@@ -231,6 +238,24 @@ func (e *Engine) DeleteCombination(id string) error {
 	}
 	cf.Combinations = out
 	return writeJSON(e.combsPath(), cf)
+}
+
+// SetTasks reemplaza el checklist de un workspace (persistido en combinations.json).
+func (e *Engine) SetTasks(id string, tasks []Task) (Combination, error) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	cf := e.loadCombs()
+	for i := range cf.Combinations {
+		if cf.Combinations[i].ID == id {
+			cf.Combinations[i].Tasks = tasks
+			cf.Combinations[i].Updated = time.Now()
+			if err := writeJSON(e.combsPath(), cf); err != nil {
+				return Combination{}, err
+			}
+			return cf.Combinations[i], nil
+		}
+	}
+	return Combination{}, fmt.Errorf("workspace %q no existe", id)
 }
 
 // RepoAlign es el estado de alineación de un repo dentro de una combinación.

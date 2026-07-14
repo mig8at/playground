@@ -102,6 +102,7 @@ type inbound struct {
 	Name    string            `json:"name"`
 	Parent  string            `json:"parent"`
 	Targets map[string]string `json:"targets"`
+	Tasks   []engine.Task     `json:"tasks"`
 }
 
 func (s *server) handle(ctx context.Context, c *websocket.Conn, msg inbound) {
@@ -185,6 +186,10 @@ func (s *server) handle(ctx context.Context, c *websocket.Conn, msg inbound) {
 	case "delete_combination":
 		_ = s.eng.DeleteCombination(msg.ID)
 		s.broadcastState()
+	case "set_tasks":
+		if _, err := s.eng.SetTasks(msg.ID, msg.Tasks); err == nil {
+			s.broadcastState()
+		}
 	case "refresh":
 		s.sendState(ctx, c)
 	case "delete_flow":
