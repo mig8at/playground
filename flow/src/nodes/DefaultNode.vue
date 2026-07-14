@@ -1,7 +1,7 @@
 <script setup>
 import { computed } from 'vue'
 import { Handle, Position } from '@vue-flow/core'
-import { ui, findLenderDef, entidadCfg, setEntidadProducto, setEntidadMonto, setEntidadRate, setEntidadDues, setEntidad, openFieldInfo, montoVsEntidad } from '../store'
+import { ui, findLenderDef, entidadCfg, setEntidadProducto, setEntidadMonto, setEntidadRate, setEntidadDues, setEntidad, setEntidadAbaco, openFieldInfo, montoVsEntidad } from '../store'
 import { Building2, X } from 'lucide-vue-next'
 import MoneyInput from '../MoneyInput.vue'
 import AffixField from '../AffixField.vue'
@@ -45,6 +45,12 @@ const who = computed(() => lender.value ? lender.value.name : '')
       </div>
       <div class="ent-row"><span class="fld-doc" title="clic: dónde vive y por qué" @click="openFieldInfo('ent.tasa')">Tasa</span>
         <AffixField suffix="% M.V." class="afld--rate"><input class="nodrag afld__in" type="number" step="0.01" :value="econ.rate" @input="e => setEntidadRate(lender, e.target.value)" /></AffixField>
+      </div>
+      <div class="ent-row ent-row--flag"><span class="fld-doc" title="clic: dónde vive y por qué" @click="openFieldInfo('ent.abaco')">Ingresos extras (Ábaco)</span>
+        <label class="ent-toggle nodrag" :title="econ.abacoExtra ? 'Ábaco activo: valida ingreso extra gig en el nodo Ingresos extras' : 'Ábaco inactivo para esta entidad'">
+          <input type="checkbox" :checked="econ.abacoExtra" @change="e => setEntidadAbaco(lender, e.target.checked)" />
+          <span>{{ econ.abacoExtra ? 'activo' : 'inactivo' }}</span>
+        </label>
       </div>
       <div class="ent-row cfg-servicing"><span class="fld-doc" title="clic: por qué NO baja la cuota de la oferta" @click="openFieldInfo('ent.condonadas')">Cuotas condonadas <span class="fld-tag fld-tag--servicing">servicing</span></span>
         <AffixField suffix="cuotas" class="afld--cuo"><input class="nodrag afld__in" type="number" :value="econ.condonedDues" @input="e => setEntidad(lender, 'condonedDues', e.target.value)" /></AffixField>

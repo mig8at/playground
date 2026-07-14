@@ -86,6 +86,7 @@ export function entidadCfg(lender) {
     rate: t.rate ?? null,
     lateRate: e.lateRate ?? (t.rate != null ? +(t.rate + 1.5).toFixed(2) : null),
     condonedDues: e.condonedDues ?? 0,
+    abacoExtra: !!e.abacoExtra, // ¿la entidad valida ingresos extra vía Ábaco? (flag del nodo "Ingresos extras")
   }
 }
 // Setters de la Config de entidad (editable desde el nodo Config de lender).
@@ -111,6 +112,8 @@ export function setEntidadDues(lender, str) {
   if (arr.length) { lender.terms = lender.terms || {}; lender.terms.maxFee = Math.max(...arr) }
 }
 export function setEntidad(lender, key, val) { if (lender) { lender.entidad = lender.entidad || {}; lender.entidad[key] = val === '' ? null : Number(val) } }
+// Flag "ingresos extras vía Ábaco" de la entidad (booleano; no numérico → setter aparte de setEntidad).
+export function setEntidadAbaco(lender, on) { if (lender) { lender.entidad = lender.entidad || {}; lender.entidad.abacoExtra = !!on; editTick.n++ } }
 
 // UI: lender seleccionado + campo inerte inspeccionado (sidebar "por qué no tiene efecto").
 export const ui = reactive({ selected: null, fieldInfo: null })
@@ -319,7 +322,7 @@ const PROVIDER_OF = {
   agilIncome: 'agil', employment: 'agil', agilContinuity: 'agil', edad: 'agil', gender: 'agil',
   // Mareigua (ingreso/empleo, fallback de Ágil Data)
   mareiguaIncome: 'mareigua', mareiguaContinuity: 'mareigua', incomeTrend: 'mareigua',
-  // Ábaco (ingreso gig — SOLO trae ingreso, fuente alternativa)
+  // Ábaco (ingreso EXTRA gig — nodo "Ingresos extras", informativo; ya no es buró de la cascada)
   abacoIncome: 'abaco',
   // TusDatos (KYC) — identidad + AML (listas movidas desde Mareigua)
   identidad: 'tusdatos', docStatus: 'tusdatos', listas: 'tusdatos',
@@ -344,7 +347,7 @@ export const BURO_DESC = {
   mareiguaIncome: 'Tu ingreso mensual según Mareigua (fuente alternativa, si ÁgilData no reporta).',
   mareiguaContinuity: 'Continuidad laboral según Mareigua.',
   incomeTrend: 'Tendencia de tu ingreso: creciente, estable o decreciente.',
-  abacoIncome: 'Tu ingreso mensual por trabajos gig/informales según Ábaco (fuente alternativa de ingreso).',
+  abacoIncome: 'Ingreso EXTRA por trabajos gig/informales (Rappi/DiDi/Uber) que valida Ábaco. Se suma aparte al ingreso base — es informativo, no lo reemplaza.',
   identidad: 'Si se pudo confirmar que sos vos (validación de identidad). sí/no.',
   docStatus: 'Estado de tu documento: vigente o cancelado.',
   listas: 'AML (anti-lavado): si aparecés en listas restrictivas de lavado/terrorismo. "limpio" o "hit".',
@@ -377,7 +380,7 @@ function profile(numDocStr) {
   const edad = 18 + rnd(52)                       // Ágil Data (dato exacto)
   const agilIncome = 1000000 + rnd(70) * 100000   // Ágil Data — 1ª prioridad de ingreso
   const mareiguaIncome = 900000 + rnd(55) * 100000 // Mareigua — 2ª prioridad
-  const abacoIncome = 850000 + rnd(60) * 100000   // Ábaco — ingreso gig (3ª prioridad, fuente alternativa)
+  const abacoIncome = 850000 + rnd(60) * 100000   // Ábaco — ingreso EXTRA gig (informativo, no entra en la cascada base)
   const quantoIncome = 950000 + rnd(60) * 100000  // Experian · Quanto — 4ª prioridad (estimación)
   const identidad = rnd(100) < 92                 // TusDatos
   const listas = rnd(100) < 6 ? 'hit' : 'limpio'  // TusDatos · AML
@@ -417,13 +420,13 @@ export const perfil = computed(() => {
   const declarado = parseInt(String(state.salario).replace(/\D/g, '')) || 0
   const agil = fieldNull('agilIncome') ? null : bureau.agilIncome
   const mare = fieldNull('mareiguaIncome') ? null : bureau.mareiguaIncome
-  const abaco = fieldNull('abacoIncome') ? null : bureau.abacoIncome
+  const abaco = fieldNull('abacoIncome') ? null : bureau.abacoIncome // ingreso EXTRA (Ábaco · gig): informativo, NO entra en la cascada base
   const quanto = fieldNull('quantoIncome') ? null : bureau.quantoIncome
-  // Cascada real de ingreso: Ágil Data → Mareigua → Ábaco (gig) → Quanto (Experian) → declarado → 0
+  // Cascada de ingreso BASE: Ágil Data → Mareigua → Quanto (Experian) → declarado → 0.
+  // Ábaco queda FUERA de la cascada: valida un ingreso extra aparte (nodo "Ingresos extras"), sin reemplazar el base.
   let salario, salarioFuente
   if (agil != null) { salario = agil; salarioFuente = 'Ágil Data' }
   else if (mare != null) { salario = mare; salarioFuente = 'Mareigua' }
-  else if (abaco != null) { salario = abaco; salarioFuente = 'Ábaco' }
   else if (quanto != null) { salario = quanto; salarioFuente = 'Quanto' }
   else if (declarado > 0) { salario = declarado; salarioFuente = 'declarado' }
   else { salario = 0; salarioFuente = '—' }
@@ -454,7 +457,7 @@ const subject = computed(() => {
     gender: p.gender, employment: p.employment,
     amlClean: p.listas == null ? null : p.listas === 'limpio',
     identityVerified: p.identidad,
-    incomeVerified: !['declarado', '—'].includes(p.salarioFuente), // ingreso de buró (Ágil/Mareigua/Ábaco/Quanto) vs declarado
+    incomeVerified: !['declarado', '—'].includes(p.salarioFuente), // ingreso de buró (Ágil/Mareigua/Quanto) vs declarado
     continuityMonths: contB == null ? null : (CONT_M[contB] ?? null), // continuidad laboral (Ágil→Mareigua)
   }
 })

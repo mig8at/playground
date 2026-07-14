@@ -5,13 +5,13 @@ import { perfil, money, state, ui, lenders, providerDown, openFieldInfo } from '
 import { Check, X, Gauge } from 'lucide-vue-next'
 import { useFails } from '../useFails'
 
-// Estado de los 5 burós (color = edge del proveedor). "Caído" = API apagada → no aporta a la cascada.
+// Estado de los 4 burós (color = edge del proveedor). "Caído" = API apagada → no aporta a la cascada.
+// Ábaco YA NO es buró: vive aparte en el nodo "Ingresos extras" (ingreso extra informativo).
 const PROVS = [
   { k: 'experian', short: 'Exp', label: 'Datacrédito · Experian', color: '#6aa9e2' },
   { k: 'agil', short: 'Ágil', label: 'Ágil Data', color: '#5dcaa5' },
   { k: 'tusdatos', short: 'TusD', label: 'TusDatos', color: '#b6afe8' },
   { k: 'mareigua', short: 'Mare', label: 'Mareigua', color: '#e0a94e' },
-  { k: 'abaco', short: 'Ábaco', label: 'Ábaco', color: '#9ccc65' },
 ]
 
 const montoNum = computed(() => parseInt(String(state.monto).replace(/\D/g, '')) || 0)

@@ -12,7 +12,7 @@ import ExperianNode from './nodes/ExperianNode.vue'
 import AgilDataNode from './nodes/AgilDataNode.vue'
 import TusDatosNode from './nodes/TusDatosNode.vue'
 import MareiguaNode from './nodes/MareiguaNode.vue'
-import AbacoNode from './nodes/AbacoNode.vue'
+import IngresosExtrasNode from './nodes/IngresosExtrasNode.vue'
 import BuroNode from './nodes/BuroNode.vue'
 import LendersNode from './nodes/LendersNode.vue'
 import SettingsBar from './nodes/SettingsBar.vue'
@@ -62,7 +62,6 @@ const nodes = ref([
   { id: 'agil', type: 'agildata', position: { x: 1050, y: 20 } },
   { id: 'tus', type: 'tusdatos', position: { x: 1300, y: 20 } },
   { id: 'mareigua', type: 'mareigua', position: { x: 1550, y: 20 } },
-  { id: 'abaco', type: 'abaco', position: { x: 1800, y: 20 } },
   { id: 'buro', type: 'buro', position: { x: 1100, y: 380 } },
   { id: 'out', type: 'lenders', position: { x: 1430, y: 380 } },
 ])
@@ -77,7 +76,6 @@ const EDGE_C = {
   agil:  ['#5dcaa5', '#178067'],
   tus:   ['#b6afe8', '#8379d6'],
   mare:  ['#e0a94e', '#9a6510'],
-  abaco: ['#9ccc65', '#5f8a2e'],
   base:  ['#5dcaa5', '#178067'], // config de lender → fila (teal, punteado)
 }
 const ec = (k) => EDGE_C[k][isDark.value ? 0 : 1]
@@ -93,7 +91,6 @@ function baseEdges() {
     { id: 'pe2', source: 'agil', target: 'buro', targetHandle: 'top', animated: false, style: { stroke: ec('agil'), strokeWidth: 1.5 } },
     { id: 'pe3', source: 'tus', target: 'buro', targetHandle: 'top', animated: false, style: { stroke: ec('tus'), strokeWidth: 1.5 } },
     { id: 'pe4', source: 'mareigua', target: 'buro', targetHandle: 'top', animated: false, style: { stroke: ec('mare'), strokeWidth: 1.5 } },
-    { id: 'pe5', source: 'abaco', target: 'buro', targetHandle: 'top', animated: false, style: { stroke: ec('abaco'), strokeWidth: 1.5 } },
   ]
 }
 const edges = ref(baseEdges())
@@ -114,7 +111,7 @@ const DYN = ['default', 'comercio', 'relacion', 'perfil']
 // usuario con scroll para zoom y arrastrando para mover).
 // Depende también de isDark → al cambiar de tema los edges se reconstruyen con el color adecuado.
 watch([() => ui.selected, isDark, selPasses], ([sel]) => {
-  const base = nodes.value.filter(n => !DYN.includes(n.id) && !n.id.startsWith('cat-') && n.id !== 'tramo' && n.id !== 'grouprules' && n.id !== 'branchstatus' && n.id !== 'lifecycle' && n.id !== 'cstatus')
+  const base = nodes.value.filter(n => !DYN.includes(n.id) && !n.id.startsWith('cat-') && n.id !== 'tramo' && n.id !== 'grouprules' && n.id !== 'branchstatus' && n.id !== 'extra' && n.id !== 'lifecycle' && n.id !== 'cstatus')
   const def = sel ? findLenderDef(sel) : null
   if (!def) { nodes.value = base; edges.value = baseEdges(); return } // cerrar: quita la plantilla, sin mover la cámara
   // Cadena config-de-lender → comercio → sucursal, para CUALQUIER lender (CreditopX o externo).
@@ -164,16 +161,18 @@ watch([() => ui.selected, isDark, selPasses], ([sel]) => {
   add.push({ id: 'grouprules', type: 'grouprules', position: { x: -680, y: 620 } })
   addE.push({ id: 'e-gr', source: 'grouprules', sourceHandle: 'down', target: 'relacion', targetHandle: 'fromgr', animated: false, style: { stroke: ec('cfg'), strokeWidth: 1.4, strokeDasharray: '6 5' } })
 
-  // ── Formalización a la DERECHA del listado (espejo de la config que cuelga a la izquierda):
-  // UN nodo stepper "Formalización" (pasos del rt adentro) + el nodo "Estado del crédito" al lado.
-  // Solo si la entidad REALMENTE se ofrece (pasó el listado): si no pasa, no hay nada que formalizar.
-  // El edge sale de la FILA del lender seleccionado en el listado (handle psel-<name>). Separaciones
-  // (~110px de aire) alineadas con las del resto del grafo para que se vea armónico.
+  // ── A la DERECHA del listado (espejo de la config que cuelga a la izquierda), en cadena:
+  // "Ingresos extras" (Ábaco valida ingreso extra si la entidad lo tiene activo) → "Formalización"
+  // (stepper del rt) → "Estado del crédito". Solo si la entidad REALMENTE se ofrece (pasó el listado):
+  // si no pasa, no hay ingreso extra que validar ni nada que formalizar. El edge inicial sale de la FILA
+  // del lender seleccionado en el listado (handle psel-<name>). Separaciones (~110px de aire) alineadas.
   if (selPasses.value) {
-    const LIFE_X = 1860, LIFE_Y = 380
+    const EXTRA_X = 1860, LIFE_X = 2210, LIFE_Y = 380
+    add.push({ id: 'extra', type: 'ingresosextras', position: { x: EXTRA_X, y: LIFE_Y } })
     add.push({ id: 'lifecycle', type: 'lifecycle', position: { x: LIFE_X, y: LIFE_Y } })
     add.push({ id: 'cstatus', type: 'cstatus', position: { x: LIFE_X + 350, y: LIFE_Y } })
-    addE.push({ id: 'e-life-in', source: 'out', sourceHandle: 'psel-' + sel, target: 'lifecycle', targetHandle: 'in', animated: false, style: { stroke: ec('green'), strokeWidth: 1.6 } })
+    addE.push({ id: 'e-extra-in', source: 'out', sourceHandle: 'psel-' + sel, target: 'extra', targetHandle: 'in', animated: false, style: { stroke: ec('green'), strokeWidth: 1.6 } })
+    addE.push({ id: 'e-extra-out', source: 'extra', sourceHandle: 'out', target: 'lifecycle', targetHandle: 'in', animated: false, style: { stroke: ec('green'), strokeWidth: 1.6 } })
     addE.push({ id: 'e-life-out', source: 'lifecycle', sourceHandle: 'out', target: 'cstatus', targetHandle: 'in', animated: false, style: { stroke: ec('green'), strokeWidth: 1.6 } })
   }
 
@@ -195,7 +194,7 @@ watch([() => ui.selected, isDark, selPasses], ([sel]) => {
           <template #node-agildata="props"><AgilDataNode v-bind="props" /></template>
           <template #node-tusdatos="props"><TusDatosNode v-bind="props" /></template>
           <template #node-mareigua="props"><MareiguaNode v-bind="props" /></template>
-          <template #node-abaco="props"><AbacoNode v-bind="props" /></template>
+          <template #node-ingresosextras="props"><IngresosExtrasNode v-bind="props" /></template>
           <template #node-buro="props"><BuroNode v-bind="props" /></template>
           <template #node-lenders="props"><LendersNode v-bind="props" /></template>
           <template #node-basetpl="props"><DefaultNode v-bind="props" /></template>

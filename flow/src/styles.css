@@ -124,14 +124,32 @@ body {
 .node--agil { border-color: var(--teal); }
 .node--tus { border-color: var(--purple); }
 .node--mareigua { border-color: var(--amber); }
-.node--abaco { border-color: var(--green); }
+.node--extra { border-color: var(--green); }
 .node--plantilla { border-color: var(--teal); }
 .node--plantilla .vue-flow__handle { border-color: var(--teal); }
 .node--exp .vue-flow__handle { border-color: var(--blue); }
 .node--agil .vue-flow__handle { border-color: var(--teal); }
 .node--tus .vue-flow__handle { border-color: var(--purple); }
 .node--mareigua .vue-flow__handle { border-color: var(--amber); }
-.node--abaco .vue-flow__handle { border-color: var(--green); }
+.node--extra .vue-flow__handle { border-color: var(--green); }
+/* Nodo "Ingresos extras" (Ábaco, ingreso extra informativo) */
+.ex-flag { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--ink); margin-bottom: 7px; cursor: pointer; }
+.ex-flag .ex-chk { -webkit-appearance: none; appearance: none; box-sizing: border-box; width: 14px; height: 14px; flex: 0 0 14px; padding: 0; border: 2px solid var(--green); border-radius: 3px; background: transparent; cursor: pointer; position: relative; outline: none; }
+.ex-flag .ex-chk:checked { background: var(--green); }
+.ex-flag .ex-chk:checked::after { content: '✓'; position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 10px; line-height: 1; color: var(--card); }
+.ex-src { margin-left: auto; font-size: 9.5px; color: var(--mut); font-style: italic; }
+.ex-off { font-size: 10.5px; color: var(--mut); line-height: 1.45; padding: 4px 0 2px; }
+.ex-sum { margin-top: 7px; border-top: 1px dashed var(--line); padding-top: 6px; }
+.ex-row { display: flex; align-items: center; justify-content: space-between; font-size: 11px; color: var(--mut); margin: 2px 0; }
+.ex-row span { display: inline-flex; align-items: center; gap: 3px; }
+.ex-row b { color: var(--ink); font-variant-numeric: tabular-nums; }
+.ex-row--extra { color: var(--green); }
+.ex-row--extra b { color: var(--green); }
+.ex-row--tot { margin-top: 3px; padding-top: 4px; border-top: 1px solid var(--line); font-weight: 600; color: var(--ink); }
+.ex-note { margin-top: 6px; font-size: 9.5px; color: var(--mut); font-style: italic; line-height: 1.4; }
+/* Toggle "Ingresos extras (Ábaco)" en Configurar entidad */
+.ent-row--flag .ent-toggle { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; color: var(--mut); cursor: pointer; }
+.ent-row--flag .ent-toggle input { width: 13px; height: 13px; accent-color: var(--green); cursor: pointer; }
 .chk--sim { margin-top: 2px; font-size: 11px; color: var(--mut); gap: 6px; }
 .chk--sim select { font: inherit; font-size: 11px; padding: 2px 5px; border: 1px solid var(--line); border-radius: 5px; background: var(--card2); color: var(--ink); }
 /* toggle "API caída" en el header del buró: ícono a la derecha del título; rojo cuando el proveedor no responde */
