@@ -1,0 +1,1489 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#F1F5F3">
+  <title>Motai v2 · simulador interactivo Renting & Rent-to-Own</title>
+  <meta name="description"
+    content="Prototipo interactivo del flujo Motai v2: digitá monto, documento, ingreso y score y las tarjetas reaccionan — calculadora por producto, rama Ábaco por PEP, reglas R1–R8 y veredicto del asesor.">
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    :root {
+      --ink: #0D1C1A;
+      --paper: #FFFFFF;
+      --surface: #F1F5F3;
+      --surface-2: #E7EEEA;
+      --line: #DCE5E0;
+      --line-2: #CBD8D1;
+      --muted: #5E6E68;
+      --muted-2: #8A968F;
+      --brand: #0E6E63;
+      --brand-ink: #0A4B44;
+      --brand-bg: #E1EEEB;
+      --accent: #C97E14;
+      --accent-ink: #7A5210;
+      --accent-bg: #FAF0DC;
+      --info: #3E7CB1;
+      --info-ink: #24507A;
+      --info-bg: #E7F0F8;
+      --violet: #6D5FB8;
+      --violet-ink: #453B84;
+      --violet-bg: #EEEBF8;
+      --ok: #14915F;
+      --ok-bg: #E4F2EB;
+      --warn: #C0492F;
+      --warn-bg: #FAE7E1;
+      --sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      --mono: ui-monospace, "SF Mono", "Cascadia Code", Menlo, Consolas, monospace;
+      --r: 16px;
+      --r-sm: 9px;
+      --shadow: 0 1px 2px rgba(13, 28, 26, .05), 0 8px 24px -12px rgba(13, 28, 26, .18);
+    }
+
+    html,
+    body {
+      margin: 0;
+    }
+
+    body {
+      font-family: var(--sans);
+      color: var(--ink);
+      -webkit-font-smoothing: antialiased;
+      line-height: 1.5;
+      background:
+        radial-gradient(900px 420px at 88% -8%, color-mix(in srgb, var(--brand) 8%, transparent), transparent 60%),
+        radial-gradient(760px 400px at -6% 14%, color-mix(in srgb, var(--info) 7%, transparent), transparent 55%),
+        var(--surface);
+    }
+
+    ::selection {
+      background: color-mix(in srgb, var(--brand) 22%, transparent);
+    }
+
+    .wrap {
+      padding: clamp(20px, 3vw, 44px) clamp(16px, 3vw, 44px) 60px;
+      max-width: 1560px;
+      margin: 0 auto;
+    }
+
+    /* header */
+    header {
+      max-width: 1100px;
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+      color: var(--brand);
+      background: var(--brand-bg);
+      padding: 5px 11px;
+      border-radius: 100px;
+    }
+
+    h1 {
+      font-size: clamp(23px, 3.2vw, 34px);
+      line-height: 1.12;
+      letter-spacing: -.02em;
+      margin: 14px 0 6px;
+      font-weight: 800;
+      text-wrap: balance;
+    }
+
+    .lede {
+      font-size: clamp(13.5px, 1.4vw, 15.5px);
+      color: var(--muted);
+      max-width: 78ch;
+      margin: 0;
+      text-wrap: pretty;
+    }
+
+    .lede b {
+      color: var(--ink);
+      font-weight: 650;
+    }
+
+    header::after {
+      content: '';
+      display: block;
+      height: 1px;
+      margin-top: 22px;
+      background: linear-gradient(90deg, var(--line-2), transparent 70%);
+    }
+
+    .summary {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+      margin: 18px 0 0;
+      font-size: 13px;
+    }
+
+    .summary .chip {
+      background: var(--paper);
+      border: 1px solid var(--line);
+      border-radius: 100px;
+      padding: 5px 12px;
+      box-shadow: var(--shadow);
+    }
+
+    .summary .chip b {
+      color: var(--brand-ink);
+    }
+
+    .summary .verdict {
+      font-weight: 800;
+      padding: 5px 14px;
+      border-radius: 100px;
+    }
+
+    .verdict.v-ok {
+      color: var(--ok);
+      background: var(--ok-bg);
+    }
+
+    .verdict.v-cond {
+      color: var(--accent-ink);
+      background: var(--accent-bg);
+    }
+
+    .verdict.v-no {
+      color: var(--warn);
+      background: var(--warn-bg);
+    }
+
+    .legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px 18px;
+      margin: 18px 0 0;
+      padding: 12px 15px;
+      background: var(--paper);
+      border: 1px solid var(--line);
+      border-radius: var(--r);
+      box-shadow: var(--shadow);
+    }
+
+    .legend__item {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .legend__item b {
+      color: var(--ink);
+      font-weight: 650;
+    }
+
+    .tag {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: .02em;
+      text-transform: uppercase;
+      padding: 2px 7px;
+      border-radius: 6px;
+      white-space: nowrap;
+    }
+
+    .tag--reuse {
+      color: var(--ok);
+      background: var(--ok-bg);
+    }
+
+    .tag--config {
+      color: var(--info-ink);
+      background: var(--info-bg);
+    }
+
+    .tag--new {
+      color: var(--accent-ink);
+      background: var(--accent-bg);
+    }
+
+    .tag--fix {
+      color: var(--warn);
+      background: var(--warn-bg);
+    }
+
+    .tag--next {
+      color: var(--muted);
+      background: var(--surface-2);
+    }
+
+    .callouts {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin: 14px 0 0;
+    }
+
+    .callout {
+      display: flex;
+      gap: 9px;
+      align-items: flex-start;
+      border: 1px solid var(--line);
+      border-left: 3px solid var(--warn);
+      background: var(--paper);
+      border-radius: 10px;
+      padding: 9px 13px;
+      max-width: 470px;
+      box-shadow: var(--shadow);
+    }
+
+    .callout--ok {
+      border-left-color: var(--brand);
+    }
+
+    .callout .ic {
+      font-size: 14px;
+    }
+
+    .callout p {
+      margin: 0;
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .callout b {
+      color: var(--ink);
+    }
+
+    /* flow track — lienzo punteado; wrap 1→11 respetando el orden */
+    .scroller {
+      margin: 20px -14px 0;
+      padding: 18px 14px 22px;
+      border-radius: 14px;
+      background-image: radial-gradient(color-mix(in srgb, var(--ink) 8%, transparent) 1px, transparent 1.2px);
+      background-size: 20px 20px;
+    }
+
+    .flow {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: stretch;
+      gap: 32px 30px;
+    }
+
+    .card {
+      position: relative;
+      flex: 0 0 300px;
+      width: 300px;
+      background: var(--paper);
+      border: 1px solid var(--line);
+      border-radius: var(--r);
+      padding: 0 0 15px;
+      box-shadow: var(--shadow);
+      display: flex;
+      flex-direction: column;
+      transition: transform .18s ease, box-shadow .18s ease;
+    }
+
+    @media (hover: hover) {
+      .card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 2px 4px rgba(13, 28, 26, .06), 0 18px 34px -16px rgba(13, 28, 26, .28);
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .card {
+        transition: none;
+      }
+    }
+
+    /* conector: línea punteada + flecha hacia la card siguiente (se oculta en la última) */
+    .card:not(:last-child)::before {
+      content: '';
+      position: absolute;
+      right: -27px;
+      top: 37px;
+      width: 24px;
+      height: 2px;
+      background: repeating-linear-gradient(90deg, var(--line-2) 0 5px, transparent 5px 9px);
+    }
+
+    .card:not(:last-child)::after {
+      content: '';
+      position: absolute;
+      right: -29px;
+      top: 32px;
+      width: 0;
+      height: 0;
+      border-left: 9px solid var(--line-2);
+      border-top: 6px solid transparent;
+      border-bottom: 6px solid transparent;
+    }
+
+    .card__strip {
+      height: 4px;
+      border-radius: var(--r) var(--r) 0 0;
+      background: linear-gradient(90deg, var(--pc, var(--line-2)), color-mix(in srgb, var(--pc, var(--line-2)) 30%, #fff));
+    }
+
+    .card__hd {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      padding: 13px 15px 0;
+    }
+
+    .num {
+      flex: 0 0 auto;
+      width: 25px;
+      height: 25px;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      font-size: 12.5px;
+      font-weight: 800;
+      color: #fff;
+      background: var(--ink);
+    }
+
+    .phase {
+      font-size: 10px;
+      font-weight: 800;
+      letter-spacing: .05em;
+      text-transform: uppercase;
+      padding: 3px 8px;
+      border-radius: 6px;
+    }
+
+    .card__t {
+      font-size: 15.5px;
+      font-weight: 750;
+      margin: 10px 15px 3px;
+      letter-spacing: -.01em;
+    }
+
+    .card__d {
+      font-size: 12px;
+      color: var(--muted);
+      margin: 0 15px 10px;
+    }
+
+    .pts {
+      list-style: none;
+      margin: 0 0 12px;
+      padding: 0 15px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .pts li {
+      font-size: 11.5px;
+      color: var(--ink);
+      padding-left: 14px;
+      position: relative;
+      line-height: 1.4;
+    }
+
+    .pts li::before {
+      content: '';
+      position: absolute;
+      left: 1px;
+      top: 6px;
+      width: 5px;
+      height: 5px;
+      border-radius: 50%;
+      background: var(--brand);
+    }
+
+    .pts li b {
+      font-weight: 650;
+    }
+
+    .pts li.warn::before {
+      background: var(--warn);
+    }
+
+    .pts li.warn {
+      color: var(--warn);
+    }
+
+    .k {
+      font-family: var(--mono);
+      font-size: 10.5px;
+      background: var(--surface-2);
+      padding: 0 5px;
+      border-radius: 4px;
+      color: var(--brand-ink);
+    }
+
+    /* form controls */
+    .fld {
+      margin: 0 15px 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .fld>label {
+      font-size: 10.5px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .03em;
+      color: var(--muted-2);
+    }
+
+    .inp {
+      width: 100%;
+      font: inherit;
+      font-size: 13px;
+      padding: 7px 10px;
+      border: 1px solid var(--line-2);
+      border-radius: 8px;
+      background: var(--surface);
+      color: var(--ink);
+    }
+
+    .inp:focus {
+      outline: none;
+      border-color: var(--brand);
+      background: var(--paper);
+      box-shadow: 0 0 0 3px color-mix(in srgb, var(--brand) 18%, transparent);
+    }
+
+    select.inp {
+      cursor: pointer;
+    }
+
+    .money {
+      position: relative;
+    }
+
+    .money .inp {
+      padding-left: 23px;
+    }
+
+    .money::before {
+      content: '$';
+      position: absolute;
+      left: 10px;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--muted-2);
+      pointer-events: none;
+    }
+
+    .chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin: 0 15px 10px;
+    }
+
+    .chip-btn {
+      font: inherit;
+      font-size: 11.5px;
+      font-weight: 650;
+      padding: 6px 11px;
+      border: 1px solid var(--line-2);
+      border-radius: 100px;
+      background: var(--surface);
+      color: var(--muted);
+      cursor: pointer;
+      transition: border-color .15s, background .15s, color .15s, transform .08s;
+    }
+
+    .chip-btn:hover {
+      border-color: var(--muted);
+    }
+
+    .chip-btn:active {
+      transform: scale(.96);
+    }
+
+    .chip-btn:focus-visible {
+      outline: 2px solid var(--brand);
+      outline-offset: 2px;
+    }
+
+    .chip-btn.on {
+      color: #fff;
+      background: var(--brand);
+      border-color: var(--brand);
+    }
+
+    .cc {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin: 0 15px 8px;
+      font-size: 12px;
+      cursor: pointer;
+    }
+
+    .cc input {
+      width: 15px;
+      height: 15px;
+      accent-color: var(--brand);
+      cursor: pointer;
+    }
+
+    /* cascada de fuentes de ingreso */
+    .cascade {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+
+    .src-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 5px 8px;
+      border-radius: 8px;
+      font-size: 12px;
+      cursor: pointer;
+      border: 1px solid transparent;
+    }
+
+    .src-row input {
+      width: 15px;
+      height: 15px;
+      accent-color: var(--brand);
+      cursor: pointer;
+      flex: 0 0 auto;
+    }
+
+    .src-ord {
+      flex: 0 0 auto;
+      width: 15px;
+      height: 15px;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      font-size: 9px;
+      font-weight: 800;
+      color: var(--muted);
+      background: var(--surface-2);
+    }
+
+    .src-nm {
+      flex: 1 1 auto;
+      font-weight: 600;
+    }
+
+    .src-tag {
+      flex: 0 0 auto;
+      font-size: 9px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .03em;
+      padding: 1px 6px;
+      border-radius: 5px;
+    }
+
+    .src-tag--used {
+      color: var(--brand-ink);
+      background: var(--brand-bg);
+    }
+
+    .src-tag--no {
+      color: var(--warn);
+      background: var(--warn-bg);
+    }
+
+    .src-tag--skip {
+      color: var(--muted-2);
+      background: var(--surface-2);
+    }
+
+    .src-row.used {
+      background: var(--brand-bg);
+      border-color: color-mix(in srgb, var(--brand) 35%, transparent);
+    }
+
+    .src-row.used .src-ord {
+      color: #fff;
+      background: var(--brand);
+    }
+
+    .src-row.skip {
+      opacity: .5;
+    }
+
+    /* lender picker */
+    .lender {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      margin: 0 15px 7px;
+      padding: 9px 11px;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      cursor: pointer;
+      transition: .12s;
+    }
+
+    .lender:hover {
+      border-color: var(--muted);
+      box-shadow: var(--shadow);
+    }
+
+    .lender:active {
+      transform: scale(.985);
+    }
+
+    .lender.on {
+      border-color: var(--brand);
+      background: var(--brand-bg);
+      box-shadow: inset 3px 0 0 var(--brand);
+    }
+
+    .lender.dim {
+      cursor: default;
+      opacity: .6;
+    }
+
+    .lender__dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      flex: 0 0 auto;
+    }
+
+    .lender__nm {
+      font-size: 12.5px;
+      font-weight: 650;
+    }
+
+    .lender__cat {
+      font-size: 10.5px;
+      color: var(--muted);
+      margin-left: auto;
+    }
+
+    /* mini data */
+    .mini {
+      margin: 0 15px 11px;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      overflow: hidden;
+    }
+
+    .mini__h {
+      font-size: 10px;
+      font-weight: 750;
+      text-transform: uppercase;
+      letter-spacing: .04em;
+      color: var(--muted);
+      padding: 6px 10px;
+      background: color-mix(in srgb, var(--pc, var(--ink)) 7%, var(--surface));
+      border-bottom: 1px solid var(--line);
+    }
+
+    .row {
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 6px 10px;
+      font-size: 11.5px;
+      border-bottom: 1px solid var(--line);
+      align-items: center;
+    }
+
+    .row:last-child {
+      border-bottom: 0;
+    }
+
+    .row>span:first-child {
+      color: var(--muted);
+    }
+
+    .row>span:last-child {
+      font-weight: 650;
+      font-variant-numeric: tabular-nums;
+      text-align: right;
+    }
+
+    .row.hl {
+      background: var(--brand-bg);
+    }
+
+    .row.hl>span:last-child {
+      color: var(--brand-ink);
+    }
+
+    .row .big {
+      font-size: 13px;
+    }
+
+    /* rules */
+    .rule {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin: 0 12px 5px;
+      padding: 2px 4px;
+      font-size: 11.5px;
+      border-radius: 7px;
+    }
+
+    .rule--no {
+      background: var(--warn-bg);
+    }
+
+    .rmk {
+      flex: 0 0 auto;
+      width: 18px;
+      height: 18px;
+      border-radius: 5px;
+      display: grid;
+      place-items: center;
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    .rmk.ok {
+      color: var(--ok);
+      background: var(--ok-bg);
+    }
+
+    .rmk.no {
+      color: var(--warn);
+      background: var(--warn-bg);
+    }
+
+    .rmk.na {
+      color: var(--muted);
+      background: var(--surface-2);
+    }
+
+    .rule__t {
+      flex: 1 1 auto;
+    }
+
+    .rule__t b {
+      font-weight: 650;
+    }
+
+    .rule__v {
+      color: var(--muted);
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* branch */
+    .branch {
+      margin: 0 15px 11px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .branch__row {
+      border: 1px solid var(--line);
+      border-radius: 9px;
+      padding: 8px 10px;
+      border-left: 3px solid var(--line-2);
+      transition: .12s;
+    }
+
+    .branch__row.on {
+      background: var(--brand-bg);
+      border-left-color: var(--brand);
+    }
+
+    .branch__row.dim {
+      opacity: .42;
+    }
+
+    .branch__row.v2.on {
+      background: var(--violet-bg);
+      border-left-color: var(--violet);
+    }
+
+    .branch__row b {
+      font-size: 12px;
+      display: block;
+      margin-bottom: 2px;
+    }
+
+    .branch__row small {
+      font-size: 11px;
+      color: var(--muted);
+    }
+
+    .plus {
+      color: var(--violet-ink);
+      background: var(--violet-bg);
+      font-weight: 700;
+      font-size: 10px;
+      padding: 1px 6px;
+      border-radius: 5px;
+    }
+
+    /* actions (asesor) */
+    .acts {
+      display: flex;
+      flex-direction: column;
+      gap: 7px;
+      margin: 0 15px 10px;
+    }
+
+    .act {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12.5px;
+      font-weight: 650;
+      padding: 9px 11px;
+      border: 1px solid var(--line);
+      border-radius: 9px;
+      color: var(--muted);
+    }
+
+    .act .adot {
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      background: var(--line-2);
+    }
+
+    .act.on {
+      color: var(--ink);
+      box-shadow: var(--shadow);
+    }
+
+    .act:not(.on) {
+      opacity: .78;
+    }
+
+    .act.on.a-ok {
+      border-color: var(--ok);
+      background: var(--ok-bg);
+    }
+
+    .act.on.a-ok .adot {
+      background: var(--ok);
+    }
+
+    .act.on.a-cond {
+      border-color: var(--accent);
+      background: var(--accent-bg);
+    }
+
+    .act.on.a-cond .adot {
+      background: var(--accent);
+    }
+
+    .act.on.a-no {
+      border-color: var(--warn);
+      background: var(--warn-bg);
+    }
+
+    .act.on.a-no .adot {
+      background: var(--warn);
+    }
+
+    .motivo {
+      font-size: 11px;
+      color: var(--muted);
+      margin: 0 15px 6px;
+    }
+
+    .motivo b {
+      color: var(--ink);
+    }
+
+    #motivo {
+      border-left: 3px solid var(--line-2);
+      padding: 3px 0 3px 9px;
+    }
+
+    .motivo--a-ok {
+      border-left-color: var(--ok) !important;
+    }
+
+    .motivo--a-cond {
+      border-left-color: var(--accent) !important;
+    }
+
+    .motivo--a-no {
+      border-left-color: var(--warn) !important;
+    }
+
+    /* chip "usa Datacrédito" en el header de las cards que consultan el buró */
+    .dc-chip {
+      margin-left: auto;
+      font-size: 9px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .03em;
+      color: var(--info-ink);
+      background: var(--info-bg);
+      padding: 2px 7px;
+      border-radius: 6px;
+    }
+
+    /* badge "requerido / no requerido" del codeudor */
+    .cod-badge {
+      margin-left: auto;
+      font-size: 9px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .03em;
+      padding: 2px 7px;
+      border-radius: 6px;
+    }
+
+    .cod-badge--req {
+      color: var(--accent-ink);
+      background: var(--accent-bg);
+    }
+
+    .cod-badge--no {
+      color: var(--muted);
+      background: var(--surface-2);
+    }
+
+    /* leyenda-pregunta para PEP (footer); visible solo cuando la card queda atenuada por PEP */
+    .pep-q {
+      display: none;
+      margin: auto 15px 0;
+      padding: 8px 10px;
+      border-radius: 9px;
+      font-size: 10.5px;
+      line-height: 1.4;
+      color: var(--warn);
+      background: var(--warn-bg);
+      border: 1px dashed color-mix(in srgb, var(--warn) 42%, transparent);
+    }
+
+    .pep-q b {
+      color: var(--warn);
+      font-weight: 750;
+    }
+
+    /* PEP: card desactivada — contenido atenuado y sin interacción; la pregunta queda en primer plano */
+    .pep-dim>*:not(.card__strip):not(.pep-q) {
+      opacity: .38;
+      pointer-events: none;
+    }
+
+    .pep-dim .pep-q {
+      display: block;
+    }
+
+    .tags {
+      margin: auto 15px 0;
+      padding-top: 4px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 5px;
+    }
+
+    /* connectors */
+
+    /* phase palettes */
+    /* color de fase vía --pc: pinta strip, chip, número (con halo) y bullets */
+    .p-orig {
+      --pc: var(--brand);
+      --pc-ink: var(--brand-ink);
+      --pc-bg: var(--brand-bg);
+    }
+
+    .p-eval {
+      --pc: var(--info);
+      --pc-ink: var(--info-ink);
+      --pc-bg: var(--info-bg);
+    }
+
+    .p-form {
+      --pc: var(--violet);
+      --pc-ink: var(--violet-ink);
+      --pc-bg: var(--violet-bg);
+    }
+
+    .p-post {
+      --pc: var(--accent);
+      --pc-ink: var(--accent-ink);
+      --pc-bg: var(--accent-bg);
+    }
+
+    .phase {
+      color: var(--pc-ink);
+      background: var(--pc-bg);
+    }
+
+    .num {
+      background: var(--pc);
+      box-shadow: 0 0 0 4px color-mix(in srgb, var(--pc) 14%, transparent);
+    }
+
+    .pts li::before {
+      background: var(--pc, var(--brand));
+    }
+
+    .foot {
+      margin: 32px 0 0;
+      max-width: 900px;
+    }
+
+    .foot h2 {
+      font-size: 15px;
+      margin: 0 0 10px;
+    }
+
+    .foot .outs {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .out {
+      font-size: 12px;
+      color: var(--muted);
+      background: var(--paper);
+      border: 1px dashed var(--line-2);
+      border-radius: 8px;
+      padding: 6px 11px;
+    }
+
+    .foot__src {
+      margin-top: 16px;
+      font-size: 11.5px;
+      color: var(--muted-2);
+    }
+
+    .foot__src code {
+      font-family: var(--mono);
+      font-size: 11px;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="wrap">
+    <header>
+      <span class="eyebrow">◈ Motai v2 · simulador interactivo</span>
+      <h1>Renting &amp; Rent-to-Own — jugá con el flujo</h1>
+      <p class="lede">
+        Digitá <b>monto, documento, ingreso y score</b> en las tarjetas y el resto <b>reacciona</b>:
+        la calculadora cambia según el <b>lender elegido</b>, la fuente de ingresos según las <b>fuentes marcadas</b>,
+        y las reglas <b>R1–R8</b> arman el veredicto del asesor. Sobre el PRD MVP2 + la des-motaización.
+      </p>
+    </header>
+
+    <div class="scroller">
+      <div class="flow">
+
+        <!-- 1 · Solicitud -->
+        <article class="card p-orig">
+          <div class="card__strip"></div>
+          <div class="card__hd"><span class="num">1</span><span class="phase">Originación · asesor</span></div>
+          <h3 class="card__t">Solicitud</h3>
+          <p class="card__d">Onboarding estándar — sin pantalla de "modos".</p>
+          <div class="fld"><label for="i-nombre">Nombre del cliente</label>
+            <input class="inp" id="i-nombre" type="text" placeholder="p. ej. Camila"
+              oninput="set('nombre', this.value)">
+          </div>
+          <div class="fld"><label for="i-doc">Tipo de documento</label>
+            <select class="inp" id="i-doc" onchange="set('tipoDoc', this.value)">
+              <option value="CC">CC · Cédula</option>
+              <option value="CE">CE · Extranjería</option>
+              <option value="PEP">PEP · Permiso Especial de Permanencia</option>
+            </select>
+          </div>
+          <div class="fld"><label for="i-monto">Monto · costo contable moto</label>
+            <div class="money"><input class="inp" id="i-monto" type="number" step="100000" value="4534000"
+                oninput="set('monto', this.value)"></div>
+          </div>
+          <div class="fld"><label>Fuente de ingreso — cascada (elegí la que respondió)</label>
+            <div id="fuentes"></div>
+          </div>
+          <ul class="pts">
+            <li>Se usa la <b>1ª que responde</b>, en orden. Si ninguna automática → <b>Manual</b>.</li>
+            <li>El <b>PEP no dispara consulta</b> adicional en el buró.</li>
+          </ul>
+        </article>
+
+        <!-- 2 · Lenders -->
+        <article class="card p-orig">
+          <div class="card__strip"></div>
+          <div class="card__hd"><span class="num">2</span><span class="phase">Originación</span></div>
+          <h3 class="card__t">Lenders (marketplace)</h3>
+          <p class="card__d">Salen <b>todos</b>. Elegí el lender — los productos Motai son lenders del catálogo (rt=2).
+          </p>
+          <div id="lenders"></div>
+          <ul class="pts">
+            <li>Decide la <b>categoría</b>, no <span class="k">if id==158</span>.</li>
+          </ul>
+        </article>
+
+        <!-- 3 · Ingresos -->
+        <article class="card p-orig">
+          <div class="card__strip"></div>
+          <div class="card__hd"><span class="num">3</span><span class="phase">Originación</span></div>
+          <h3 class="card__t">Ingresos</h3>
+          <p class="card__d">Ingreso del cliente según las <b>fuentes marcadas</b> en Solicitud — <b>independiente del
+              PEP</b>.</p>
+          <div class="branch" id="pep"></div>
+          <div class="fld"><label for="i-ingreso">Ingreso mensual</label>
+            <div class="money"><input class="inp" id="i-ingreso" type="number" step="100000" value="3000000"
+                oninput="set('ingreso', this.value)"></div>
+          </div>
+        </article>
+
+        <!-- 4 · Calculadora -->
+        <article class="card p-orig">
+          <div class="card__strip"></div>
+          <div class="card__hd"><span class="num">4</span><span class="phase">Originación · asesor</span></div>
+          <h3 class="card__t">Selección → calculadora</h3>
+          <p class="card__d" id="calc-d"></p>
+          <div id="calc"></div>
+        </article>
+
+        <!-- 5 · Identidad -->
+        <article class="card p-orig dc-flow" id="c-identidad">
+          <div class="card__strip"></div>
+          <div class="card__hd"><span class="num">5</span><span class="phase">Originación · paralelo</span><span class="dc-chip">Datacrédito</span></div>
+          <h3 class="card__t">Identidad</h3>
+          <p class="card__d">Corre en paralelo con los ingresos; alimenta la pantalla del asesor.</p>
+          <label class="cc"><input type="checkbox" id="c-ado" checked onchange="set('adoOk', this.checked)"> <b>ADO</b>
+            — biométrico OK</label>
+          <label class="cc"><input type="checkbox" id="c-aml" checked onchange="set('amlOk', this.checked)"> <b>AML</b>
+            — listas OK</label>
+          <div id="idstatus"></div>
+          <div class="pep-q">PEP · probablemente no figura en los burós de identidad. <b>¿Validamos con otro documento o pasamos a verificación manual?</b></div>
+        </article>
+
+        <!-- 6 · R1–R8 -->
+        <article class="card p-eval dc-flow" id="c-viab">
+          <div class="card__strip"></div>
+          <div class="card__hd"><span class="num">6</span><span class="phase">Evaluación</span><span class="dc-chip">Datacrédito</span></div>
+          <h3 class="card__t">Viabilidad · R1–R8</h3>
+          <p class="card__d">Reglas con <b>clave + valor</b> en el motor existente. Evalúa en vivo.</p>
+          <div class="fld"><label for="i-score">Score titular (Datacrédito)</label>
+            <input class="inp" id="i-score" type="number" step="10" value="500" oninput="set('score', this.value)">
+          </div>
+          <div class="fld"><label for="i-ref">N.º de referencias</label>
+            <input class="inp" id="i-ref" type="number" step="1" value="2" oninput="set('referencias', this.value)">
+          </div>
+          <div class="fld"><label for="i-deudas">Deudas actuales (cuota mensual)</label>
+            <div class="money"><input class="inp" id="i-deudas" type="number" step="50000" value="0"
+                oninput="set('deudas', this.value)"></div>
+          </div>
+          <div id="rules"></div>
+          <div class="pep-q">PEP · no se puede consultar Datacrédito (R2/R3). <b>¿Se exime la política, se pide codeudor o se avala con garantía?</b></div>
+        </article>
+
+        <!-- 7 · Decisión perfil & codeudor -->
+        <article class="card p-eval dc-flow">
+          <div class="card__strip"></div>
+          <div class="card__hd"><span class="num">7</span><span class="phase">Evaluación</span></div>
+          <h3 class="card__t">Decisión por perfil &amp; codeudor</h3>
+          <p class="card__d">El ingreso define si aprueba directo o exige codeudor.</p>
+          <div id="decision"></div>
+          <div class="pep-q">PEP · sin score de Datacrédito no hay perfil de riesgo. <b>¿Cómo se decide la aprobación / el codeudor?</b></div>
+        </article>
+
+        <!-- 8 · Codeudor (formulario) -->
+        <article class="card p-eval dc-flow" id="c-codeudor">
+          <div class="card__strip"></div>
+          <div class="card__hd"><span class="num">8</span><span class="phase">Evaluación · codeudor</span><span class="cod-badge" id="cod-badge"></span></div>
+          <h3 class="card__t">Codeudor</h3>
+          <p class="card__d" id="cod-d"></p>
+          <div class="fld"><label for="i-codnom">Nombre del codeudor</label>
+            <input class="inp" id="i-codnom" type="text" placeholder="nombre y apellido" oninput="set('codNombre', this.value)"></div>
+          <div class="fld"><label for="i-coddoc">Documento</label>
+            <input class="inp" id="i-coddoc" type="text" placeholder="cédula / extranjería" oninput="set('codDoc', this.value)"></div>
+          <div class="fld"><label for="i-cod">Score Datacrédito del codeudor</label>
+            <input class="inp" id="i-cod" type="number" step="10" value="700" oninput="set('codeudorScore', this.value)"></div>
+          <div class="fld"><label for="i-coding">Ingreso mensual del codeudor</label>
+            <div class="money"><input class="inp" id="i-coding" type="number" step="100000" value="0" oninput="set('codIngreso', this.value)"></div>
+          </div>
+          <div class="fld"><label for="i-codrel">Relación con el titular</label>
+            <select class="inp" id="i-codrel" onchange="set('codRelacion', this.value)">
+              <option value="conyuge">Cónyuge</option>
+              <option value="familiar">Familiar</option>
+              <option value="amigo">Amigo / conocido</option>
+              <option value="otro">Otro</option>
+            </select></div>
+          <div id="cod-status"></div>
+          <div class="pep-q">PEP · el codeudor sí puede consultarse en el buró. <b>¿El codeudor cubre la falta de historial del titular?</b></div>
+        </article>
+
+        <!-- 9 · Asesor -->
+        <article class="card p-eval dc-flow">
+          <div class="card__strip"></div>
+          <div class="card__hd"><span class="num">9</span><span class="phase">Evaluación · asesor</span></div>
+          <h3 class="card__t">Pantalla del asesor</h3>
+          <p class="card__d">Acción recomendada según todo lo anterior.</p>
+          <div class="acts" id="acts"></div>
+          <p class="motivo" id="motivo"></p>
+          <div class="pep-q">PEP · el asesor no tiene resultado de buró. <b>¿Con qué criterio aprueba o rechaza?</b></div>
+        </article>
+
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    // ── estado ────────────────────────────────────────────
+    const S = {
+      nombre: '', tipoDoc: 'CC', monto: 4534000,
+      fuente: 'agildata',          // fuente de ingreso usada (radio): 1ª de la cascada que respondió
+      lender: 'renting',            // credit | renting | rto
+      planRenting: 'trimestral', planRto: '52',
+      ingreso: 3000000, score: 500, referencias: 2, deudas: 0,
+      adoOk: true, amlOk: true, codeudorScore: 700,
+      codNombre: '', codDoc: '', codIngreso: 0, codRelacion: 'conyuge',
+    };
+    const NUM = new Set(['monto', 'ingreso', 'score', 'referencias', 'deudas', 'codeudorScore', 'codIngreso']);
+    function set(k, v) { S[k] = NUM.has(k) ? (v === '' ? 0 : +v) : v; render(); }
+
+    // ── constantes / cálculo — fórmulas EXACTAS de "Calculadora Renting VF.xlsx" ──
+    const ALIST = 1500000, IVA = 0.19, MRATE = 0.018;
+    const WRATE = Math.pow(1 + MRATE, 12 / 52) - 1;          // tasa semanal exacta (hoja RTO C13) ≈ 0,412539%
+    const RTO_CUOTA_INI = -2000000, RTO_EXTRAS = 1000000;    // fijos del ejemplo; el asesor solo varía el costo
+    const RFACT = { semanal: 1.25, mensual: 1.0, trimestral: 0.94 };
+    const RTO_WEEKS = { '52': '12 meses', '78': '18 meses', '104': '24 meses' };
+    const PROD = {
+      credit: { nm: 'Motai Credit', cat: 'crédito', color: 'var(--info)' },
+      renting: { nm: 'Motai Renting', cat: 'arrendamiento', color: 'var(--brand)' },
+      rto: { nm: 'Motai RTO', cat: 'renting c/ opción de compra', color: 'var(--violet)' },
+    };
+    const fmt = n => '$' + Math.round(n || 0).toLocaleString('es-CO');
+    const annuity = (P, i, n) => P * i / (1 - Math.pow(1 + i, -n));   // = -PMT (pago que amortiza P)
+    // Renting: margen 1x + IVA → precio de venta; tarifa "Mes" = PMT(1,8%,24,precio)/30*7 × factor del plan
+    const precioVenta = m => (m + ALIST) * 2 * (1 + IVA);
+    const rentBaseWeekly = m => annuity(precioVenta(m), MRATE, 24) / 30 * 7;
+    const rentTariff = (m, p) => rentBaseWeekly(m) * RFACT[p];
+    // Rent-to-Own: el margen absorbe la cuota inicial; anualidad semanal a 52/78/104 semanas
+    function valorFinanciar(m) {
+      const margen = (m + RTO_CUOTA_INI + ALIST);            // C7 = SUM(C4:C6)*1
+      const base = m + RTO_CUOTA_INI + ALIST + margen + RTO_EXTRAS;  // SUM(C4:C8)
+      return base * (1 + IVA);                               // + IVA 19% = valor a financiar
+    }
+    const rtoWeekly = (m, w) => annuity(valorFinanciar(m), WRATE, +w);
+    const creditMonthly = m => annuity(m * (1 + IVA), MRATE, 12);
+
+    // fuente de ingresos = CASCADA ordenada; se usa la 1ª que responde → perfil App / No-App
+    const SRC_ORDER = ['agildata', 'mareigua', 'tusdatos', 'abaco', 'manual'];
+    const SRC_LBL = { agildata: 'AgilData', mareigua: 'Mareigua', tusdatos: 'TusDatos', abaco: 'Ábaco', manual: 'Manual' };
+    const SRC_DESC = {
+      agildata: 'fuente tradicional (empleados/independientes).', mareigua: 'fuente tradicional (empleados/independientes).',
+      tusdatos: 'fuente tradicional (empleados/independientes).', abaco: 'ingresos de plataformas (Rappi/Didi/Uber).',
+      manual: 'el asesor carga el ingreso a mano.',
+    };
+    const activeSource = () => S.fuente || null;
+    const usaAbaco = () => activeSource() === 'abaco';
+    const perfil = () => usaAbaco() ? 'App' : 'No-App';
+
+    // canon/cuota semanal del producto (base de las reglas de canon/capacidad)
+    function canonSemanal() {
+      if (S.lender === 'renting') return rentTariff(S.monto, S.planRenting);
+      if (S.lender === 'rto') return rtoWeekly(S.monto, S.planRto);
+      return creditMonthly(S.monto) / 4.345;
+    }
+
+    // ── R1–R8 · SOLO Renting y Rent-to-Own (Motai Credit = política de crédito estándar) ──
+    const aplicaPolitica = () => S.lender !== 'credit';
+    function rulesEval() {
+      const canon = canonSemanal();
+      const ingSem = S.ingreso / 4.345;
+      const cuotaMes = canon * 4.345;
+      return [
+        { id: 'R1', t: '2 referencias', v: S.referencias + ' ref.', ok: S.referencias >= 2 },
+        { id: 'R2', t: 'Datacrédito consultado', v: 'sí', ok: true },
+        { id: 'R3', t: 'Score titular ≥ 400', v: S.score, ok: S.score >= 400 },
+        { id: 'R4', t: 'Canon mín. $150k', v: fmt(canon), ok: canon >= 150000 },
+        { id: 'R5', t: 'Canon máx. $300k', v: fmt(canon), ok: canon <= 300000 },
+        { id: 'R6', t: 'Cuota ≤ 25% ing. sem.', v: fmt(canon) + ' / ' + fmt(ingSem), ok: canon <= 0.25 * ingSem },
+        { id: 'R7', t: 'Deuda ≤ 40% ing. mes', v: fmt(S.deudas + cuotaMes), ok: (S.deudas + cuotaMes) <= 0.40 * S.ingreso },
+        { id: 'R8', t: 'Endeud. total < 50% patrim.', v: '—', ok: null },
+      ];
+    }
+
+    // ── veredicto ──────────────────────────────────────────
+    function verdict() {
+      const idOk = S.adoOk && S.amlOk;
+      const codOk = S.codeudorScore > 650;
+      // PRD: la decisión depende del INGRESO, no de la fuente/perfil (App y No-App igual). ≥$3M directa; si no, codeudor.
+      const directa = S.ingreso >= 3000000;
+      const hard = aplicaPolitica() ? rulesEval().filter(r => r.ok === false) : [];
+      let action, motivo, cls;
+      if (!idOk) { action = 'Rechazar'; cls = 'a-no'; motivo = 'No pasa identidad (' + (!S.adoOk ? 'ADO' : 'AML') + ').'; }
+      else if (hard.length) { action = 'Rechazar'; cls = 'a-no'; motivo = 'Falla ' + hard.map(r => r.id).join(', ') + '.'; }
+      else if (directa) { action = 'Aprobar'; cls = 'a-ok'; motivo = 'Ingreso ≥ $3.000.000 → aprobación directa (App y No-App igual).'; }
+      else if (codOk) { action = 'Validar codeudor'; cls = 'a-cond'; motivo = 'Ingreso < $3.000.000 → codeudor obligatorio (score ' + S.codeudorScore + ' > 650).'; }
+      else { action = 'Rechazar'; cls = 'a-no'; motivo = 'Requiere codeudor y su score (' + S.codeudorScore + ') no supera 650.'; }
+      return { action, motivo, cls, directa };
+    }
+
+    // ── render ─────────────────────────────────────────────
+    const $ = id => document.getElementById(id);
+    const esc = s => (s || '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+    function render() {
+      const p = PROD[S.lender];
+
+      const vd = verdict();
+
+      // PEP: desde Identidad en adelante el flujo depende del buró/Datacrédito (probablemente no consultable) → desactivar toda la cadena
+      const isPep = S.tipoDoc === 'PEP';
+      document.querySelectorAll('.dc-flow').forEach(el => el.classList.toggle('pep-dim', isPep));
+
+      // card 2 · lenders
+      const lenderRow = (key) => {
+        const d = PROD[key];
+        return '<div class="lender ' + (S.lender === key ? 'on' : '') + '" onclick="set(\'lender\',\'' + key + '\')">' +
+          '<span class="lender__dot" style="background:' + d.color + '"></span>' +
+          '<span class="lender__nm">' + d.nm + '</span><span class="lender__cat">' + d.cat + '</span></div>';
+      };
+      $('lenders').innerHTML = lenderRow('credit') + lenderRow('renting') + lenderRow('rto') +
+        '<div class="lender dim"><span class="lender__dot" style="background:var(--muted-2)"></span>' +
+        '<span class="lender__nm">… otros</span><span class="lender__cat">CrediPullman…</span></div>';
+
+      // card 4 · calculadora por producto
+      renderCalc();
+
+      // card 1 · cascada de fuentes (interactiva) + card 3 · resolución de la fuente
+      renderFuentes();
+      const active = activeSource();
+      const ai = active ? SRC_ORDER.indexOf(active) : SRC_ORDER.length;
+      const cayeron = SRC_ORDER.slice(0, ai).map(k => SRC_LBL[k]);   // consultadas que no respondieron
+      $('pep').innerHTML = active
+        ? '<div class="branch__row ' + (usaAbaco() ? 'v2 ' : '') + 'on"><b>' + SRC_LBL[active] + ' · perfil ' + perfil() + '</b>' +
+        '<small>' + SRC_DESC[active] + '</small></div>' +
+        (cayeron.length ? '<p class="motivo" style="margin:2px 15px 0">Sin respuesta antes: ' + cayeron.join(' → ') + '.</p>' : '')
+        : '<div class="branch__row on" style="border-left-color:var(--warn)"><b>Sin fuente de ingresos</b>' +
+        '<small>ninguna respondió y Manual está apagado — marcá una fuente.</small></div>';
+
+      // card 5 · identidad
+      const idOk = S.adoOk && S.amlOk;
+      $('idstatus').innerHTML = '<div class="motivo" style="margin-top:2px">' +
+        (idOk ? '✅ Pasa <b>Ábaco + AML + ADO</b> → se actualiza la pantalla del asesor.'
+          : '⛔ Identidad incompleta → el asesor no puede aprobar.') + '</div>';
+
+      // card 6 · reglas (SOLO Renting/RTO; Motai Credit = política estándar)
+      if (!aplicaPolitica()) {
+        $('rules').innerHTML = '<p class="motivo" style="margin:2px 15px 8px">Motai Credit usa la <b>política de crédito estándar</b>. Las reglas <b>R1–R8 aplican solo a Renting y Rent-to-Own</b>.</p>';
+      } else {
+        $('rules').innerHTML = rulesEval().map(r => {
+          const mk = r.ok === true ? '<span class="rmk ok">✓</span>'
+            : r.ok === false ? '<span class="rmk no">✕</span>'
+              : '<span class="rmk na">–</span>';
+          return '<div class="rule' + (r.ok === false ? ' rule--no' : '') + '">' + mk + '<span class="rule__t"><b>' + r.id + '</b> ' + r.t +
+            '</span><span class="rule__v">' + r.v + '</span></div>';
+        }).join('');
+      }
+
+      // card 7 · decisión por INGRESO (PRD: la fuente/perfil NO cambia la decisión — App y No-App igual)
+      $('decision').innerHTML =
+        '<div class="mini"><div class="mini__h">' + (aplicaPolitica() ? 'Ingreso mensual → decisión' : 'Crédito estándar · ingreso') + '</div>' +
+        '<div class="row ' + (vd.directa ? 'hl' : '') + '"><span>≥ $3.000.000</span><span>Directa</span></div>' +
+        '<div class="row ' + (!vd.directa ? 'hl' : '') + '"><span>&lt; $2.900.000</span><span>Codeudor obligatorio</span></div></div>' +
+        (aplicaPolitica() ? '<p class="motivo" style="margin:2px 15px 6px">Mismo criterio para <b>App y No-App</b> — decide el <b>ingreso</b> (PRD).</p>' : '');
+
+      // card 8 · codeudor — SOLO aparece cuando la decisión lo requiere (ingreso < $3M)
+      const reqCod = !vd.directa;
+      $('c-codeudor').style.display = reqCod ? '' : 'none';
+      if (reqCod) {
+        const codOk = S.codeudorScore > 650;
+        $('cod-badge').textContent = 'requerido';
+        $('cod-badge').className = 'cod-badge cod-badge--req';
+        $('cod-d').innerHTML = 'Ingreso < $3.000.000 → se <b>solicitan los datos del codeudor</b>.';
+        $('cod-status').innerHTML = codOk
+          ? '<p class="motivo motivo--a-ok" style="margin:2px 15px 0"><b>✓ Codeudor válido</b> — score ' + S.codeudorScore + ' &gt; 650.</p>'
+          : '<p class="motivo motivo--a-no" style="margin:2px 15px 0"><b>✕ Score insuficiente</b> — ' + S.codeudorScore + ' ≤ 650, no habilita.</p>';
+      }
+      // renumerar las cards VISIBLES (1..N) para que no quede hueco cuando Codeudor se oculta
+      let _n = 1;
+      document.querySelectorAll('.flow .card').forEach(c => { if (c.style.display !== 'none') c.querySelector('.num').textContent = _n++; });
+
+      // card 9 · asesor
+      const mkAct = (label, cls) => '<div class="act ' + (vd.action === label ? 'on ' + cls : '') + '">' +
+        '<span class="adot"></span>' + label + '</div>';
+      $('acts').innerHTML = mkAct('Aprobar', 'a-ok') + mkAct('Validar codeudor', 'a-cond') + mkAct('Rechazar', 'a-no');
+      $('motivo').className = 'motivo motivo--' + vd.cls;
+      $('motivo').innerHTML = '<b>' + vd.action + '.</b> ' + vd.motivo;
+      // El flujo Motai (MVP2) termina en la decisión del asesor; firma/desembolso/cobranza son post-aprobación (fuera de alcance).
+    }
+
+    // cascada interactiva (card 1): RADIO — elegís la fuente que respondió; las de arriba caen "sin respuesta"
+    function renderFuentes() {
+      const ai = SRC_ORDER.indexOf(activeSource());
+      $('fuentes').innerHTML = '<div class="cascade">' + SRC_ORDER.map((k, i) => {
+        const tag = i === ai ? '<span class="src-tag src-tag--used">usada</span>'
+          : i < ai ? '<span class="src-tag src-tag--no">sin respuesta</span>'
+            : '<span class="src-tag src-tag--skip">no evaluada</span>';
+        const cls = i === ai ? ' used' : i > ai ? ' skip' : '';
+        return '<label class="src-row' + cls + '">' +
+          '<input type="radio" name="fuente"' + (i === ai ? ' checked' : '') + ' onchange="set(\'fuente\', \'' + k + '\')">' +
+          '<span class="src-ord">' + (i + 1) + '</span><span class="src-nm">' + SRC_LBL[k] + '</span>' + tag + '</label>';
+      }).join('') + '</div>';
+    }
+
+    function renderCalc() {
+      const m = S.monto;
+      $('calc-d').innerHTML = 'Calculadora de <b>' + PROD[S.lender].nm + '</b>. Precio calculado en backend (una sola fuente).';
+      let html = '';
+
+      if (S.lender === 'renting') {
+        html += chipRow(['semanal', 'mensual', 'trimestral'], S.planRenting, 'planRenting',
+          { semanal: 'Semanal', mensual: 'Mensual', trimestral: 'Trimestral' });
+        html += '<div class="mini"><div class="mini__h">Renting · tarifa semanal</div>' +
+          ['semanal', 'mensual', 'trimestral'].map(pl =>
+            '<div class="row ' + (S.planRenting === pl ? 'hl' : '') + '"><span>' +
+            ({ semanal: 'Semanal · 1,25×', mensual: 'Mensual · 1,0×', trimestral: 'Trimestral · 0,94×' }[pl]) +
+            '</span><span>' + fmt(rentTariff(m, pl)) + '</span></div>').join('') + '</div>';
+        html += kv('Precio de venta', fmt(precioVenta(m)));
+
+      } else if (S.lender === 'rto') {
+        html += chipRow(['52', '78', '104'], S.planRto, 'planRto', RTO_WEEKS);
+        const w = +S.planRto, cuota = rtoWeekly(m, w), P = valorFinanciar(m);
+        const interes = P * WRATE, capital = cuota - interes;
+        html += '<div class="mini"><div class="mini__h">Rent-to-Own · financiación</div>' +
+          ['52', '78', '104'].map(ww =>
+            '<div class="row ' + (S.planRto === ww ? 'hl' : '') + '"><span>' + RTO_WEEKS[ww] + ' · ' + ww + ' sem</span><span>' +
+            fmt(rtoWeekly(m, ww)) + '</span></div>').join('') + '</div>';
+        html += '<div class="mini"><div class="mini__h">Amortización · semana 1 (' + w + ' sem)</div>' +
+          '<div class="row"><span>Saldo inicial</span><span>' + fmt(P) + '</span></div>' +
+          '<div class="row"><span>Interés (0,4125%)</span><span>' + fmt(interes) + '</span></div>' +
+          '<div class="row"><span>Capital</span><span>' + fmt(capital) + '</span></div>' +
+          '<div class="row hl"><span>Cuota semanal</span><span class="big">' + fmt(cuota) + '</span></div>' +
+          '<div class="row"><span>Saldo final</span><span>' + fmt(P - capital) + '</span></div></div>';
+
+      } else {
+        html += '<div class="mini"><div class="mini__h">Crédito · cuota mensual (12 m)</div>' +
+          '<div class="row"><span>Valor con IVA</span><span>' + fmt(m * (1 + IVA)) + '</span></div>' +
+          '<div class="row hl"><span>Cuota mensual</span><span class="big">' + fmt(creditMonthly(m)) + '</span></div></div>' +
+          '<p class="motivo" style="margin-left:0">Usa la <b>calculadora de crédito estándar</b> (no la política de canon de renting).</p>';
+      }
+      $('calc').innerHTML = html;
+    }
+
+    function chipRow(opts, sel, key, labels) {
+      return '<div class="chips">' + opts.map(o =>
+        '<button class="chip-btn ' + (sel === o ? 'on' : '') + '" onclick="set(\'' + key + '\',\'' + o + '\')">' +
+        (labels[o] || o) + '</button>').join('') + '</div>';
+    }
+
+    function kv(label, val) {
+      return '<div class="mini"><div class="row"><span>' + label + '</span><span>' + val + '</span></div></div>';
+    }
+
+    render();
+  </script>
+</body>
+
+</html>
