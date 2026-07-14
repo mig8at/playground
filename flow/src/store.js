@@ -193,6 +193,17 @@ export function relationOf(lender) {
   return rel
 }
 
+// ── Nivel 2 · SUCURSAL: STATUS de la entidad en la sucursal (lenders_by_allied_branches.status).
+// El comercio habilita la entidad en su catálogo (merchant.enabled ≈ lenders_by_allieds); CADA sucursal
+// la ACTIVA o DESACTIVA por separado. Inactiva = NO se ofrece en esa sucursal → filtro DURO del listado
+// (igual que getLenders, que solo devuelve las filas activas de lenders_by_allied_branches). Keyed por
+// nombre = la sucursal vigente (mismo criterio que los overlays de datacrédito/group_rules de esta capa).
+// Ausente = activa (default): las entidades nuevas nacen ofrecidas sin sembrar nada.
+export const branchStatus = reactive({})
+export function branchStatusOf(name) { return branchStatus[name] !== false }
+export function setBranchStatus(name, on) { branchStatus[name] = !!on; editTick.n++ }
+export function toggleBranchStatus(name) { branchStatus[name] = !branchStatusOf(name); editTick.n++ }
+
 // El "monto máximo" (terms.amountMax, editable como "Monto") debe ENFORZAR el rango: sembramos la
 // regla `amount` desde terms si el lender aún no tiene override propio, para que monto > máx dispare
 // rojo. Antes terms.amountMax era solo display y NO se cruzaba con la
@@ -760,7 +771,7 @@ export function activeTramoIndex(name) {
 const PROB_RANK = { alta: 0, media: 1, baja: 2 }
 export const lenders = computed(() => {
   const s = subjectOf()
-  const active = customLenders.filter(l => merchant.enabled[l.name]) // catálogo = entidades creadas por el usuario
+  const active = customLenders.filter(l => merchant.enabled[l.name] && branchStatusOf(l.name)) // catálogo del comercio (lenders_by_allieds) ∩ activas en la sucursal (lenders_by_allied_branches.status)
   return active.map(l => {
     // Tope del comercio (lenders_by_allieds.max_amount) POR entidad: hereda el máx de ESA entidad
     // (credit_line_by_lenders) salvo que el comercio lo haya pisado con un override propio.
@@ -894,7 +905,8 @@ function graphSnapshot() {
     merchantCalc: clone(merchantCalc),
     relations: Object.fromEntries(Object.entries(relationDefs).map(([n, r]) => [n, clone(r.overrides)])), // overlays de sucursal
     perfiles: perfilSnapshot(), // categorías de perfilamiento editadas por lender
-    sucursal: { // 2ª capa por sucursal (group_rules + datacrédito)
+    sucursal: { // 2ª capa por sucursal (status + group_rules + datacrédito)
+      status: { ...branchStatus }, // lenders_by_allied_branches.status (activa/inactiva por sucursal)
       datacredito: Object.fromEntries(Object.entries(sucDatacredito).map(([n, d]) => [n, { ...d }])),
       groups: Object.fromEntries(Object.entries(sucGroups).map(([n, g]) => [n, clone(g)])),
     },
@@ -922,6 +934,7 @@ function restoreGraph() {
     if (snap.relations) for (const [n, ov] of Object.entries(snap.relations)) { const l = findLenderDef(n); if (l) Object.assign(relationOf(l).overrides, ov) }
     if (snap.perfiles) perfilRestore(snap.perfiles)
     if (snap.sucursal) {
+      if (snap.sucursal.status) Object.assign(branchStatus, snap.sucursal.status)
       if (snap.sucursal.datacredito) for (const [n, d] of Object.entries(snap.sucursal.datacredito)) Object.assign(sucursalDatacreditoOf(n), d)
       if (snap.sucursal.groups) for (const [n, g] of Object.entries(snap.sucursal.groups)) { const cur = sucursalGroupsOf(n); cur.splice(0, cur.length, ...g) }
     }

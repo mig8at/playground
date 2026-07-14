@@ -219,7 +219,10 @@ export const FIELD_DOCS = {
     summary: 'Último ajuste del cascade rt=2: según el monto pedido recorta plazos y topea el cupo. NO toca el enganche.',
     detail: 'El initial_fee_percentage del tramo es fantasma (nunca leído). min_amount/max_amount/max_fee_number/mandatory_fee_number sí deciden. Monto por debajo del 1er "desde" → rechazo.' },
 
-  // ── 2ª CAPA · Config de sucursal (group_rules + datacrédito, COPIADAS) ──────
+  // ── 2ª CAPA · Config de sucursal (status + group_rules + datacrédito, COPIADAS) ──────
+  'suc.status': { label: 'Estado en sucursal', tables: ['lenders_by_allied_branches.status'], layers: ['application', 'legacy-backend'], status: 'decide',
+    summary: 'Activa/desactiva la entidad EN ESA sucursal. Es la 1ª compuerta dura de getLenders: base = lenders_by_allied_branches (por sucursal, no por comercio).',
+    detail: 'El comercio habilita la entidad en su catálogo (lenders_by_allieds); cada sucursal la prende o apaga por separado vía status. getLenders solo lista las filas activas → inactiva = NO se ofrece en la sucursal (filtro duro, antes de perfilar). La fila se COPIA por sucursal al habilitar la entidad (junto con url_utm/sort).' },
   'suc.datacredito': { label: 'Datacrédito por sucursal', tables: ['lender_datacredito_rules (allied_branch_id)'], layers: ['application', 'legacy-backend'], status: 'decide',
     summary: 'Umbrales de buró por sucursal. Se COPIAN al habilitar la entidad (no se heredan).',
     detail: '⚠️ Miles de filas por entidad (7.183 totales; solo 107 con allied_branch_id NULL). Fallback silencioso a los umbrales de BdB (lender 5) si no hay plantilla. rt=2 que falla se EXCLUYE; rt≠2 solo se reordena.' },

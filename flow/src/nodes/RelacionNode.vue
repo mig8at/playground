@@ -32,7 +32,8 @@ const dcHeredar = (k) => resetDatacredito(name.value, k)
 <template>
   <div class="node node--relacion prov-node" v-if="lender">
     <Handle id="in" type="target" :position="Position.Right" />
-    <Handle id="fromgr" type="target" :position="Position.Top" />
+    <Handle id="fromstatus" type="target" :position="Position.Top" :style="{ left: '32%' }" />
+    <Handle id="fromgr" type="target" :position="Position.Top" :style="{ left: '68%' }" />
     <div class="node__hd node__hd--green nhd-doc" title="clic: detalle del nodo" @click="openFieldInfo('node.relacion')">
       <div class="hd-left"><div class="node__title"><SlidersHorizontal :size="13" /> Configurar sucursal</div></div>
       <div class="hd-right">

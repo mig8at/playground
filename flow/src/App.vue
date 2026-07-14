@@ -23,6 +23,7 @@ import PerfilamientoNode from './nodes/PerfilamientoNode.vue'
 import CategoryNode from './nodes/CategoryNode.vue'
 import TramoNode from './nodes/TramoNode.vue'
 import GroupRulesNode from './nodes/GroupRulesNode.vue'
+import BranchStatusNode from './nodes/BranchStatusNode.vue'
 import LifecycleNode from './nodes/LifecycleNode.vue'
 import CreditStatusNode from './nodes/CreditStatusNode.vue'
 import FieldInfoPanel from './nodes/FieldInfoPanel.vue'
@@ -108,7 +109,7 @@ const DYN = ['default', 'comercio', 'relacion', 'perfil']
 // usuario con scroll para zoom y arrastrando para mover).
 // Depende también de isDark → al cambiar de tema los edges se reconstruyen con el color adecuado.
 watch([() => ui.selected, isDark, selPasses], ([sel]) => {
-  const base = nodes.value.filter(n => !DYN.includes(n.id) && !n.id.startsWith('cat-') && n.id !== 'tramo' && n.id !== 'grouprules' && n.id !== 'lifecycle' && n.id !== 'cstatus')
+  const base = nodes.value.filter(n => !DYN.includes(n.id) && !n.id.startsWith('cat-') && n.id !== 'tramo' && n.id !== 'grouprules' && n.id !== 'branchstatus' && n.id !== 'lifecycle' && n.id !== 'cstatus')
   const def = sel ? findLenderDef(sel) : null
   if (!def) { nodes.value = base; edges.value = baseEdges(); return } // cerrar: quita la plantilla, sin mover la cámara
   // Cadena config-de-lender → comercio → sucursal, para CUALQUIER lender (CreditopX o externo).
@@ -148,6 +149,11 @@ watch([() => ui.selected, isDark, selPasses], ([sel]) => {
     add.push({ id: 'tramo', type: 'tramo', position: { x: x0 + cats.length * dx, y: rowY } })
     addE.push({ id: 'e-tramo', source: 'tramo', sourceHandle: 'down', target: 'perfil', targetHandle: 'fromcats', animated: false, style: { stroke: ec('base'), strokeWidth: 1.4, strokeDasharray: '5 4' } })
   }
+  // Estado en sucursal (lenders_by_allied_branches.status): 1ª compuerta dura de la 2ª capa. Nodo propio
+  // arriba del hub "Configurar sucursal" (relacion en y=900), a la derecha del de group_rules. y=700 → base
+  // ~840, por encima del hub con aire; x=-300 (alineado con la sucursal) para leerse como su compuerta de entrada.
+  add.push({ id: 'branchstatus', type: 'branchstatus', position: { x: -300, y: 700 } })
+  addE.push({ id: 'e-bs', source: 'branchstatus', sourceHandle: 'down', target: 'relacion', targetHandle: 'fromstatus', animated: false, style: { stroke: ec('cfg'), strokeWidth: 1.4, strokeDasharray: '6 5' } })
   // group_rules por sucursal: nodo propio (~220px) arriba-izquierda del hub "Configurar sucursal"
   // (relacion en y=900). y=620 → base ~840, por encima del hub con aire; a la izquierda (x=-680) para no pisar comercio.
   add.push({ id: 'grouprules', type: 'grouprules', position: { x: -680, y: 620 } })
@@ -193,6 +199,7 @@ watch([() => ui.selected, isDark, selPasses], ([sel]) => {
           <template #node-categoria="props"><CategoryNode v-bind="props" /></template>
           <template #node-tramo="props"><TramoNode v-bind="props" /></template>
           <template #node-grouprules="props"><GroupRulesNode v-bind="props" /></template>
+          <template #node-branchstatus="props"><BranchStatusNode v-bind="props" /></template>
           <template #node-lifecycle="props"><LifecycleNode v-bind="props" /></template>
           <template #node-cstatus="props"><CreditStatusNode v-bind="props" /></template>
           <Background :pattern-color="isDark ? '#2f2e27' : '#cfcabd'" :gap="22" />
