@@ -1102,8 +1102,8 @@
             </select>
           </div>
           <div class="fld"><label for="i-monto">Monto · costo contable moto</label>
-            <div class="money"><input class="inp" id="i-monto" type="number" step="100000" value="4534000"
-                oninput="set('monto', this.value)"></div>
+            <div class="money"><input class="inp" id="i-monto" type="text" inputmode="numeric" value="4534000"
+                oninput="onMoney(this, 'monto')"></div>
           </div>
           <div class="fld"><label>Fuente de ingreso — cascada (elegí la que respondió)</label>
             <div id="fuentes"></div>
@@ -1136,8 +1136,8 @@
               PEP</b>.</p>
           <div class="branch" id="pep"></div>
           <div class="fld"><label for="i-ingreso">Ingreso mensual</label>
-            <div class="money"><input class="inp" id="i-ingreso" type="number" step="100000" value="3000000"
-                oninput="set('ingreso', this.value)"></div>
+            <div class="money"><input class="inp" id="i-ingreso" type="text" inputmode="numeric" value="3000000"
+                oninput="onMoney(this, 'ingreso')"></div>
           </div>
         </article>
 
@@ -1147,6 +1147,9 @@
           <div class="card__hd"><span class="num">4</span><span class="phase">Originación · asesor</span></div>
           <h3 class="card__t">Selección → calculadora</h3>
           <p class="card__d" id="calc-d"></p>
+          <div class="fld" id="cuotaini-fld"><label for="i-cuotaini">Cuota inicial (rent-to-own)</label>
+            <div class="money"><input class="inp" id="i-cuotaini" type="text" inputmode="numeric" value="2000000" oninput="onMoney(this, 'cuotaInicial')"></div>
+          </div>
           <div id="calc"></div>
         </article>
 
@@ -1177,8 +1180,8 @@
             <input class="inp" id="i-ref" type="number" step="1" value="2" oninput="set('referencias', this.value)">
           </div>
           <div class="fld"><label for="i-deudas">Deudas actuales (cuota mensual)</label>
-            <div class="money"><input class="inp" id="i-deudas" type="number" step="50000" value="0"
-                oninput="set('deudas', this.value)"></div>
+            <div class="money"><input class="inp" id="i-deudas" type="text" inputmode="numeric" value="0"
+                oninput="onMoney(this, 'deudas')"></div>
           </div>
           <div id="rules"></div>
           <div class="pep-q">PEP · no se puede consultar Datacrédito (R2/R3). <b>¿Se exime la política, se pide codeudor o se avala con garantía?</b></div>
@@ -1207,7 +1210,7 @@
           <div class="fld"><label for="i-cod">Score Datacrédito del codeudor</label>
             <input class="inp" id="i-cod" type="number" step="10" value="700" oninput="set('codeudorScore', this.value)"></div>
           <div class="fld"><label for="i-coding">Ingreso mensual del codeudor</label>
-            <div class="money"><input class="inp" id="i-coding" type="number" step="100000" value="0" oninput="set('codIngreso', this.value)"></div>
+            <div class="money"><input class="inp" id="i-coding" type="text" inputmode="numeric" value="0" oninput="onMoney(this, 'codIngreso')"></div>
           </div>
           <div class="fld"><label for="i-codrel">Relación con el titular</label>
             <select class="inp" id="i-codrel" onchange="set('codRelacion', this.value)">
@@ -1246,14 +1249,34 @@
       ingreso: 3000000, score: 500, referencias: 2, deudas: 0,
       adoOk: true, amlOk: true, codeudorScore: 700,
       codNombre: '', codDoc: '', codIngreso: 0, codRelacion: 'conyuge',
+      cuotaInicial: 2000000,        // rent-to-own: lo que el cliente paga por adelantado (reduce lo financiado)
     };
-    const NUM = new Set(['monto', 'ingreso', 'score', 'referencias', 'deudas', 'codeudorScore', 'codIngreso']);
+    const NUM = new Set(['monto', 'ingreso', 'score', 'referencias', 'deudas', 'codeudorScore', 'codIngreso', 'cuotaInicial']);
     function set(k, v) { S[k] = NUM.has(k) ? (v === '' ? 0 : +v) : v; render(); }
+
+    // inputs de dinero: formato con separador de miles (.) en vivo, cursor estable
+    const nfmt = new Intl.NumberFormat('es-CO');
+    function onMoney(el, k) {
+      const caretDigits = el.value.slice(0, el.selectionStart).replace(/\D/g, '').length;  // dígitos a la izquierda del cursor
+      const digits = el.value.replace(/\D/g, '');
+      S[k] = digits ? +digits : 0;
+      el.value = digits ? nfmt.format(+digits) : '';
+      let pos = 0, seen = 0;                                                                // reponer el cursor tras los mismos dígitos
+      while (pos < el.value.length && seen < caretDigits) { if (el.value[pos] >= '0' && el.value[pos] <= '9') seen++; pos++; }
+      el.setSelectionRange(pos, pos);
+      render();
+    }
+    function fmtMoneyInputs() {
+      ['i-monto', 'i-ingreso', 'i-deudas', 'i-coding', 'i-cuotaini'].forEach(id => {
+        const el = document.getElementById(id); if (!el) return;
+        const d = el.value.replace(/\D/g, ''); el.value = d ? nfmt.format(+d) : '';
+      });
+    }
 
     // ── constantes / cálculo — fórmulas EXACTAS de "Calculadora Renting VF.xlsx" ──
     const ALIST = 1500000, IVA = 0.19, MRATE = 0.018;
     const WRATE = Math.pow(1 + MRATE, 12 / 52) - 1;          // tasa semanal exacta (hoja RTO C13) ≈ 0,412539%
-    const RTO_CUOTA_INI = -2000000, RTO_EXTRAS = 1000000;    // fijos del ejemplo; el asesor solo varía el costo
+    const RTO_EXTRAS = 1000000;    // fijo del ejemplo; la cuota inicial ahora es editable (S.cuotaInicial)
     const RFACT = { semanal: 1.25, mensual: 1.0, trimestral: 0.94 };
     const RTO_WEEKS = { '52': '12 meses', '78': '18 meses', '104': '24 meses' };
     const PROD = {
@@ -1269,8 +1292,9 @@
     const rentTariff = (m, p) => rentBaseWeekly(m) * RFACT[p];
     // Rent-to-Own: el margen absorbe la cuota inicial; anualidad semanal a 52/78/104 semanas
     function valorFinanciar(m) {
-      const margen = (m + RTO_CUOTA_INI + ALIST);            // C7 = SUM(C4:C6)*1
-      const base = m + RTO_CUOTA_INI + ALIST + margen + RTO_EXTRAS;  // SUM(C4:C8)
+      const ci = -Math.abs(S.cuotaInicial);                  // cuota inicial: entra en negativo (resta)
+      const margen = (m + ci + ALIST);                       // C7 = SUM(C4:C6)*1
+      const base = m + ci + ALIST + margen + RTO_EXTRAS;     // SUM(C4:C8)
       return base * (1 + IVA);                               // + IVA 19% = valor a financiar
     }
     const rtoWeekly = (m, w) => annuity(valorFinanciar(m), WRATE, +w);
@@ -1436,6 +1460,7 @@
     function renderCalc() {
       const m = S.monto;
       $('calc-d').innerHTML = 'Calculadora de <b>' + PROD[S.lender].nm + '</b>. Precio calculado en backend (una sola fuente).';
+      $('cuotaini-fld').style.display = S.lender === 'rto' ? '' : 'none';   // cuota inicial: solo rent-to-own
       let html = '';
 
       if (S.lender === 'renting') {
@@ -1452,6 +1477,15 @@
         html += chipRow(['52', '78', '104'], S.planRto, 'planRto', RTO_WEEKS);
         const w = +S.planRto, cuota = rtoWeekly(m, w), P = valorFinanciar(m);
         const interes = P * WRATE, capital = cuota - interes;
+        const ci = Math.abs(S.cuotaInicial), margen = m - ci + ALIST, iva = (m - ci + ALIST + margen + RTO_EXTRAS) * IVA;
+        html += '<div class="mini"><div class="mini__h">Estructura del valor a financiar</div>' +
+          '<div class="row"><span>Costo moto</span><span>' + fmt(m) + '</span></div>' +
+          '<div class="row"><span>Cuota inicial</span><span>− ' + fmt(ci) + '</span></div>' +
+          '<div class="row"><span>Alistamiento</span><span>+ ' + fmt(ALIST) + '</span></div>' +
+          '<div class="row"><span>Margen (1×)</span><span>+ ' + fmt(margen) + '</span></div>' +
+          '<div class="row"><span>Extras</span><span>+ ' + fmt(RTO_EXTRAS) + '</span></div>' +
+          '<div class="row"><span>IVA (19%)</span><span>+ ' + fmt(iva) + '</span></div>' +
+          '<div class="row hl"><span>Valor a financiar</span><span>' + fmt(P) + '</span></div></div>';
         html += '<div class="mini"><div class="mini__h">Rent-to-Own · financiación</div>' +
           ['52', '78', '104'].map(ww =>
             '<div class="row ' + (S.planRto === ww ? 'hl' : '') + '"><span>' + RTO_WEEKS[ww] + ' · ' + ww + ' sem</span><span>' +
@@ -1483,6 +1517,7 @@
     }
 
     render();
+    fmtMoneyInputs();
   </script>
 </body>
 
