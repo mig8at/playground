@@ -6,6 +6,7 @@ import '@vue-flow/core/dist/style.css'
 import '@vue-flow/core/dist/theme-default.css'
 
 import MerchantNode from './nodes/MerchantNode.vue'
+import CanalNode from './nodes/CanalNode.vue'
 import SolicitudNode from './nodes/SolicitudNode.vue'
 import ExperianNode from './nodes/ExperianNode.vue'
 import AgilDataNode from './nodes/AgilDataNode.vue'
@@ -53,14 +54,17 @@ const nodes = ref([
   // Config del comercio: "Entidades del comercio" (incluye los productos CreditopX) entra al merchant desde arriba.
   { id: 'lenders-cfg', type: 'lenderscfg', position: { x: 20, y: 40 } },
   { id: 'merch', type: 'merchant', position: { x: 20, y: 540 } },
-  { id: 'sol', type: 'solicitud', position: { x: 340, y: 380 } },
-  { id: 'exp', type: 'experian', position: { x: 460, y: 20 } },
-  { id: 'agil', type: 'agildata', position: { x: 710, y: 20 } },
-  { id: 'tus', type: 'tusdatos', position: { x: 960, y: 20 } },
-  { id: 'mareigua', type: 'mareigua', position: { x: 1210, y: 20 } },
-  { id: 'abaco', type: 'abaco', position: { x: 1460, y: 20 } },
-  { id: 'buro', type: 'buro', position: { x: 760, y: 380 } },
-  { id: 'out', type: 'lenders', position: { x: 1090, y: 380 } },
+  // Canal (asesor | ecommerce): entre el comercio y la solicitud. El resto del spine + burós se corrió
+  // +340 a la derecha para hacerle lugar sin apretar el layout.
+  { id: 'canal', type: 'canal', position: { x: 320, y: 380 } },
+  { id: 'sol', type: 'solicitud', position: { x: 680, y: 380 } },
+  { id: 'exp', type: 'experian', position: { x: 800, y: 20 } },
+  { id: 'agil', type: 'agildata', position: { x: 1050, y: 20 } },
+  { id: 'tus', type: 'tusdatos', position: { x: 1300, y: 20 } },
+  { id: 'mareigua', type: 'mareigua', position: { x: 1550, y: 20 } },
+  { id: 'abaco', type: 'abaco', position: { x: 1800, y: 20 } },
+  { id: 'buro', type: 'buro', position: { x: 1100, y: 380 } },
+  { id: 'out', type: 'lenders', position: { x: 1430, y: 380 } },
 ])
 
 // Colores de los conectores por tema [oscuro, claro]: en claro se oscurecen para no perder contraste.
@@ -81,7 +85,8 @@ const ec = (k) => EDGE_C[k][isDark.value ? 0 : 1]
 function baseEdges() {
   return [
     { id: 'e-lenders-cfg', source: 'lenders-cfg', sourceHandle: 'tomerch', target: 'merch', targetHandle: 'top', animated: false, style: { stroke: ec('cfg'), strokeWidth: 1.5, strokeDasharray: '5 4' } },
-    { id: 'e0', source: 'merch', sourceHandle: 'toflow', target: 'sol', animated: false, style: { stroke: ec('flow'), strokeWidth: 2 } },
+    { id: 'e0', source: 'merch', sourceHandle: 'toflow', target: 'canal', targetHandle: 'in', animated: false, style: { stroke: ec('flow'), strokeWidth: 2 } },
+    { id: 'e0b', source: 'canal', sourceHandle: 'out', target: 'sol', animated: false, style: { stroke: ec('flow'), strokeWidth: 2 } },
     { id: 'e1', source: 'sol', target: 'buro', targetHandle: 'in', animated: false, style: { stroke: ec('purp'), strokeWidth: 2 } },
     { id: 'e2', source: 'buro', sourceHandle: 'out', target: 'out', animated: false, style: { stroke: ec('green'), strokeWidth: 2 } },
     { id: 'pe1', source: 'exp', target: 'buro', targetHandle: 'top', animated: false, style: { stroke: ec('exp'), strokeWidth: 1.5 } },
@@ -165,7 +170,7 @@ watch([() => ui.selected, isDark, selPasses], ([sel]) => {
   // El edge sale de la FILA del lender seleccionado en el listado (handle psel-<name>). Separaciones
   // (~110px de aire) alineadas con las del resto del grafo para que se vea armónico.
   if (selPasses.value) {
-    const LIFE_X = 1520, LIFE_Y = 380
+    const LIFE_X = 1860, LIFE_Y = 380
     add.push({ id: 'lifecycle', type: 'lifecycle', position: { x: LIFE_X, y: LIFE_Y } })
     add.push({ id: 'cstatus', type: 'cstatus', position: { x: LIFE_X + 350, y: LIFE_Y } })
     addE.push({ id: 'e-life-in', source: 'out', sourceHandle: 'psel-' + sel, target: 'lifecycle', targetHandle: 'in', animated: false, style: { stroke: ec('green'), strokeWidth: 1.6 } })
@@ -183,6 +188,7 @@ watch([() => ui.selected, isDark, selPasses], ([sel]) => {
       <div class="canvas">
         <VueFlow :class="{ dark: isDark }" :nodes="nodes" :edges="edges" :min-zoom="0.2" :max-zoom="2" :nodes-draggable="true" :fit-view-on-init="true" :fit-view-options="{ padding: 0.14 }" @pane-click="closeFieldInfo">
           <template #node-merchant="props"><MerchantNode v-bind="props" /></template>
+          <template #node-canal="props"><CanalNode v-bind="props" /></template>
           <template #node-lenderscfg="props"><LendersConfigNode v-bind="props" /></template>
           <template #node-solicitud="props"><SolicitudNode v-bind="props" /></template>
           <template #node-experian="props"><ExperianNode v-bind="props" /></template>

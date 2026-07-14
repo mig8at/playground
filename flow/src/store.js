@@ -131,6 +131,17 @@ export const merchant = reactive({
 })
 
 /* ============================================================================
+ * CANAL: por dónde ENTRA la solicitud. Hoy dos opciones — asesor (en el comercio)
+ * o ecommerce (checkout de la tienda). Por ahora es etiqueta de contexto (nombre del
+ * asesor o de la tienda); más adelante el nodo ramifica el flujo (wizard vs checkout).
+ * ========================================================================== */
+export const canal = reactive({
+  tipo: 'asesor',        // 'asesor' | 'ecommerce'
+  asesorNombre: 'Camila',
+  tiendaNombre: '',
+})
+
+/* ============================================================================
  * Plantillas de PRODUCTO CreditopX (crédito / renting / rent-to-own): las SEMILLAS
  * que usa "Agregar entidad" (addCustomLender) para prellenar terms + overrides al
  * crear una entidad de ese producto. No son un motor: solo defaults de arranque.
@@ -898,6 +909,7 @@ function graphSnapshot() {
   return {
     version: GRAPH_VERSION,
     merchant: { nombre: merchant.nombre, sucursal: merchant.sucursal, enabled: { ...merchant.enabled } },
+    canal: { ...canal },
     state: { ...state },
     bureau: { ...bureau },
     nulls: { ...nulls },
@@ -926,6 +938,7 @@ function restoreGraph() {
   restoring = true // evita que el watch de numDoc re-siembre el buró encima de lo persistido
   try {
     if (snap.merchant) { merchant.nombre = snap.merchant.nombre; merchant.sucursal = snap.merchant.sucursal; Object.assign(merchant.enabled, snap.merchant.enabled) }
+    if (snap.canal) Object.assign(canal, snap.canal)
     if (snap.state) Object.assign(state, snap.state)
     if (snap.bureau) Object.assign(bureau, snap.bureau)
     if (snap.nulls) { Object.keys(nulls).forEach(k => delete nulls[k]); Object.assign(nulls, snap.nulls) }
@@ -949,7 +962,7 @@ function restoreGraph() {
 }
 restoreGraph() // rehidrata al cargar el módulo (después de que todo está definido)
 let saveTimer
-watch([merchant, state, bureau, nulls, providerDown, merchantCalc, () => ui.selected, () => editTick.n],
+watch([merchant, canal, state, bureau, nulls, providerDown, merchantCalc, () => ui.selected, () => editTick.n],
   () => { if (restoring) return; clearTimeout(saveTimer); saveTimer = setTimeout(saveGraph, 400) },
   { deep: true })
 // "Reiniciar": borra escenario + entidades custom y recarga (tema/toggles se conservan).

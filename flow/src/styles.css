@@ -107,6 +107,15 @@ body {
 }
 .vue-flow__node:hover > .node { box-shadow: var(--shadow-2); } /* lift sutil al pasar / arrastrar */
 .node--merchant { border-color: var(--blue); min-width: 244px; }
+/* canal (asesor | ecommerce) */
+.node--canal { border-color: var(--blue); min-width: 210px; max-width: 240px; }
+.node--canal .vue-flow__handle { border-color: var(--blue); }
+.cn-opts { display: flex; gap: 6px; margin-bottom: 9px; }
+.cn-opt { flex: 1 1 0; display: flex; align-items: center; justify-content: center; gap: 5px; cursor: pointer;
+  font-size: 11px; font-weight: 600; color: var(--mut); padding: 6px 4px; border: 1px solid var(--line); border-radius: 7px; background: var(--card2); }
+.cn-opt input { position: absolute; opacity: 0; width: 0; height: 0; }
+.cn-opt:hover { border-color: var(--mut); }
+.cn-opt--on { color: var(--blue); border-color: var(--bd-blue); background: var(--tint-blue); }
 .node--sol { border-color: var(--purple); }
 .node--buro { border-color: var(--teal); min-width: 230px; }
 .node--lenders { border-color: var(--green); min-width: 300px; }
