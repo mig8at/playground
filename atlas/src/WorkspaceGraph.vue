@@ -107,25 +107,24 @@ function saveRoot() {
 // abrir el form cuando el padre activa "creating"
 watch(() => props.creating, (v) => { if (v) initCreate() })
 
-// re-encuadrar el canvas cuando cambia la cantidad de nodos (derivar/borrar/crear)
-const { fitView } = useVueFlow()
-watch(() => layout.value.nodes.length, () => { setTimeout(() => { try { fitView({ padding: 0.18, duration: 300 }) } catch {} }, 80) })
+// re-encuadrar el canvas (con zoom tope 0.8 para no acercar de más) al iniciar y
+// cuando cambia la cantidad de nodos (derivar/borrar/crear)
+const { fitView, onNodesInitialized } = useVueFlow()
+function refit(duration = 0) { setTimeout(() => { try { fitView({ padding: 0.2, maxZoom: 0.8, duration }) } catch {} }, 60) }
+onNodesInitialized(() => refit())
+watch(() => layout.value.nodes.length, () => refit(300))
 </script>
 
 <template>
-  <section class="ws panel-section fade-in">
-    <div class="section-head">
-      <h2>Workspaces</h2>
-      <span class="section-hint">cada nodo = una combinación de ramas · seleccioná para alinear y copiar · derivá un hijo para trabajar aislado</span>
-    </div>
-
+  <section class="ws fade-in">
     <p v-if="!combinations.length" class="ws-empty">
       Sin workspaces. Creá uno con <b>+ nuevo workspace</b> (arriba a la derecha) para atar cada repo a una rama.
     </p>
 
-    <div v-else class="ws-canvas" :style="{ height: layout.height + 'px' }">
-      <VueFlow :nodes="layout.nodes" :edges="layout.edges" fit-view-on-init :nodes-draggable="false"
-               :min-zoom="0.35" :max-zoom="1.4" :zoom-on-scroll="false" :pan-on-scroll="false" :prevent-scrolling="false">
+    <div v-else class="ws-canvas">
+      <VueFlow :nodes="layout.nodes" :edges="layout.edges" :nodes-draggable="false"
+               :min-zoom="0.25" :max-zoom="1.4" :default-viewport="{ x: 40, y: 40, zoom: 0.75 }"
+               :zoom-on-scroll="false" :pan-on-scroll="false" :prevent-scrolling="false">
         <Background pattern-color="#2a3340" :gap="18" />
         <template #node-ws="{ data }">
           <div class="wsnode" :class="{ sel: data.selected, child: data.isChild }" @click="emit('select', data.id)">
@@ -232,8 +231,9 @@ watch(() => layout.value.nodes.length, () => { setTimeout(() => { try { fitView(
 </template>
 
 <style scoped>
+.ws { flex: 1; min-height: 0; display: flex; flex-direction: column; }
 .ws-empty { color: var(--muted); font-size: 13px; }
-.ws-canvas { background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+.ws-canvas { flex: 1; min-height: 0; background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
 
 .wsnode { position: relative; width: 296px; background: var(--panel2); border: 1px solid var(--border); border-left: 3px solid var(--accent); border-radius: 10px; padding: 11px 13px; cursor: pointer; transition: border-color .15s, box-shadow .15s; }
 .wsnode.child { border-left-color: var(--violet); }
