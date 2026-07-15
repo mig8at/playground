@@ -670,6 +670,45 @@
       margin-left: auto;
     }
 
+    /* filas de CONFIG (card 1): no se seleccionan; llevan el check de Ábaco a la derecha */
+    .lender--cfg {
+      cursor: default;
+    }
+
+    .lender--cfg:hover {
+      border-color: var(--line);
+      box-shadow: none;
+    }
+
+    .cfg-abaco {
+      margin-left: auto;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--muted);
+      cursor: pointer;
+    }
+
+    .cfg-abaco input {
+      width: 14px;
+      height: 14px;
+      accent-color: var(--brand);
+      cursor: pointer;
+    }
+
+    /* chip "Ábaco" en el picker (card 3): marca qué lender trae info. complementaria */
+    .ab-chip {
+      font-size: 9px;
+      font-weight: 700;
+      padding: 1px 6px;
+      border-radius: 5px;
+      background: var(--violet-bg);
+      color: var(--violet-ink);
+      margin-left: 8px;
+    }
+
     /* mini data */
     .mini {
       margin: 0 15px 11px;
@@ -1089,23 +1128,20 @@
           <div class="card__strip"></div>
           <div class="card__hd"><span class="num">1</span><span class="phase">Configuración · comercio</span></div>
           <h3 class="card__t">Comercio &amp; lender</h3>
-          <p class="card__d">El comercio <b>Motai</b> (aliado 158) y sus productos como lenders del catálogo (rt=2).
-            Elegí el lender y su configuración.</p>
+          <p class="card__d">Config del admin: el comercio <b>Motai</b> (aliado 158) y sus productos como lenders del
+            catálogo (rt=2), con su <b>información complementaria</b>. La <b>selección</b> la hace el asesor en la card Lenders.</p>
           <div class="fld"><label>Comercio</label>
             <div class="lender on" style="cursor:default">
               <span class="lender__dot" style="background:var(--brand)"></span>
               <span class="lender__nm">Motai</span><span class="lender__cat">aliado 158 · PRINCIPAL</span>
             </div>
           </div>
-          <div class="fld"><label>Lender (producto del catálogo)</label>
-            <div id="lenders"></div>
+          <div class="fld"><label>Lenders del comercio · información complementaria</label>
+            <div id="lender-config"></div>
           </div>
-          <label class="cc"><input type="checkbox" id="c-abaco" onchange="setAbaco(this.checked)"> <b>Ábaco activo</b>
-            — información complementaria del lender (ingreso extra gig · Rappi/Didi/Uber)</label>
-          <div id="abaco-cfg"></div>
           <ul class="pts">
             <li>Decide la <b>categoría</b>, no <span class="k">if id==158</span>.</li>
-            <li><b>Información complementaria</b>: datos que la entidad le pide al cliente tras elegirla (hoy Ábaco = ingreso extra), <b>no</b> una fuente de la cascada de ingreso.</li>
+            <li><b>Ábaco</b> (info. complementaria): ingreso extra gig que la entidad pide tras elegirla, <b>no</b> una fuente de la cascada de ingreso.</li>
           </ul>
         </article>
 
@@ -1139,7 +1175,20 @@
           </ul>
         </article>
 
-        <!-- 3 · Ingresos -->
+        <!-- 3 · Lenders (marketplace · selección) -->
+        <article class="card p-orig">
+          <div class="card__strip"></div>
+          <div class="card__hd"><span class="num">3</span><span class="phase">Originación</span></div>
+          <h3 class="card__t">Lenders (marketplace)</h3>
+          <p class="card__d">Salen <b>todos</b>. Acá el asesor/cliente <b>elige</b> el lender — los productos Motai son
+            lenders del catálogo (rt=2). La selección se hace <b>acá</b>, no en configuración.</p>
+          <div id="lenders"></div>
+          <ul class="pts">
+            <li>Lo elegido acá alimenta la calculadora, las reglas y el veredicto.</li>
+          </ul>
+        </article>
+
+        <!-- 4 · Ingresos -->
         <article class="card p-orig">
           <div class="card__strip"></div>
           <div class="card__hd"><span class="num">3</span><span class="phase">Originación</span></div>
@@ -1330,7 +1379,7 @@
     // Ábaco = config POR LENDER (ingreso extra gig), ya NO una fuente de la cascada. Define el perfil App/No-App.
     const usaAbaco = () => !!S.abacoBy[S.lender];
     const perfil = () => usaAbaco() ? 'App' : 'No-App';
-    function setAbaco(on) { S.abacoBy[S.lender] = !!on; render(); }
+    function setAbaco(key, on) { S.abacoBy[key] = !!on; render(); }  // config POR lender (card 1), no depende de la selección
     // Ingreso CONSOLIDADO = base (buró/fuente elegida) + extra Ábaco (solo si el lender tiene Ábaco activo).
     // Es el ingreso del cliente que usan la decisión (≥$3M) y las reglas de capacidad R6/R7.
     const ingresoConsol = () => S.ingresoBase + (usaAbaco() ? S.ingresoAbaco : 0);
@@ -1389,22 +1438,27 @@
       const isPep = S.tipoDoc === 'PEP';
       document.querySelectorAll('.dc-flow').forEach(el => el.classList.toggle('pep-dim', isPep));
 
-      // card 2 · lenders
+      // card 1 · config del comercio: cada lender con su Ábaco (información complementaria). NO se selecciona acá.
+      const cfgRow = (key) => {
+        const d = PROD[key];
+        return '<label class="lender lender--cfg"><span class="lender__dot" style="background:' + d.color + '"></span>' +
+          '<span class="lender__nm">' + d.nm + '</span>' +
+          '<span class="cfg-abaco"><input type="checkbox" ' + (S.abacoBy[key] ? 'checked' : '') +
+          ' onchange="setAbaco(\'' + key + '\', this.checked)"> Ábaco</span></label>';
+      };
+      $('lender-config').innerHTML = cfgRow('credit') + cfgRow('renting') + cfgRow('rto');
+
+      // card 3 · lenders (marketplace): acá se SELECCIONA el lender
       const lenderRow = (key) => {
         const d = PROD[key];
+        const ab = S.abacoBy[key] ? '<span class="ab-chip">Ábaco</span>' : '';
         return '<div class="lender ' + (S.lender === key ? 'on' : '') + '" onclick="set(\'lender\',\'' + key + '\')">' +
           '<span class="lender__dot" style="background:' + d.color + '"></span>' +
-          '<span class="lender__nm">' + d.nm + '</span><span class="lender__cat">' + d.cat + '</span></div>';
+          '<span class="lender__nm">' + d.nm + '</span>' + ab + '<span class="lender__cat">' + d.cat + '</span></div>';
       };
       $('lenders').innerHTML = lenderRow('credit') + lenderRow('renting') + lenderRow('rto') +
         '<div class="lender dim"><span class="lender__dot" style="background:var(--muted-2)"></span>' +
         '<span class="lender__nm">… otros</span><span class="lender__cat">CrediPullman…</span></div>';
-
-      // card 1 · Ábaco = config del lender (ingreso extra): sincroniza el toggle + nota
-      $('c-abaco').checked = usaAbaco();
-      $('abaco-cfg').innerHTML = usaAbaco()
-        ? '<p class="motivo motivo--a-ok" style="margin:2px 15px 8px"><b>Ábaco activo</b> — ' + PROD[S.lender].nm + ' suma un ingreso extra gig al <b>consolidado</b> (perfil App). Editá el monto en la card Ingresos.</p>'
-        : '<p class="motivo" style="margin:2px 15px 8px">Ábaco inactivo para ' + PROD[S.lender].nm + ' — sin ingreso extra (perfil No-App).</p>';
 
       // card 4 · calculadora por producto
       renderCalc();
