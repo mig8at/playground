@@ -7,7 +7,7 @@
   <meta name="theme-color" content="#F1F5F3">
   <title>Motai v2 · simulador interactivo Renting & Rent-to-Own</title>
   <meta name="description"
-    content="Prototipo interactivo del flujo Motai v2: digitá monto, documento, ingreso y score y las tarjetas reaccionan — calculadora por producto, rama Ábaco por PEP, reglas R1–R8 y veredicto del asesor.">
+    content="Prototipo interactivo del flujo Motai v2: digitá monto, documento, ingreso y score y las tarjetas reaccionan — config de comercio y lender, calculadora por producto, Ábaco como ingreso extra del lender, reglas R1–R8 y veredicto del asesor.">
   <style>
     * {
       box-sizing: border-box;
@@ -1084,10 +1084,35 @@
     <div class="scroller">
       <div class="flow">
 
-        <!-- 1 · Solicitud -->
+        <!-- 1 · Comercio & lender (config) -->
         <article class="card p-orig">
           <div class="card__strip"></div>
-          <div class="card__hd"><span class="num">1</span><span class="phase">Originación · asesor</span></div>
+          <div class="card__hd"><span class="num">1</span><span class="phase">Configuración · comercio</span></div>
+          <h3 class="card__t">Comercio &amp; lender</h3>
+          <p class="card__d">El comercio <b>Motai</b> (aliado 158) y sus productos como lenders del catálogo (rt=2).
+            Elegí el lender y su configuración.</p>
+          <div class="fld"><label>Comercio</label>
+            <div class="lender on" style="cursor:default">
+              <span class="lender__dot" style="background:var(--brand)"></span>
+              <span class="lender__nm">Motai</span><span class="lender__cat">aliado 158 · PRINCIPAL</span>
+            </div>
+          </div>
+          <div class="fld"><label>Lender (producto del catálogo)</label>
+            <div id="lenders"></div>
+          </div>
+          <label class="cc"><input type="checkbox" id="c-abaco" onchange="setAbaco(this.checked)"> <b>Ábaco activo</b>
+            — ingresos extras del lender (gig · Rappi/Didi/Uber)</label>
+          <div id="abaco-cfg"></div>
+          <ul class="pts">
+            <li>Decide la <b>categoría</b>, no <span class="k">if id==158</span>.</li>
+            <li><b>Ábaco</b> es config del lender (ingreso extra), <b>no</b> una fuente de la cascada de ingreso.</li>
+          </ul>
+        </article>
+
+        <!-- 2 · Solicitud -->
+        <article class="card p-orig">
+          <div class="card__strip"></div>
+          <div class="card__hd"><span class="num">2</span><span class="phase">Originación · asesor</span></div>
           <h3 class="card__t">Solicitud</h3>
           <p class="card__d">Onboarding estándar — sin pantalla de "modos".</p>
           <div class="fld"><label for="i-nombre">Nombre del cliente</label>
@@ -1111,19 +1136,6 @@
           <ul class="pts">
             <li>Se usa la <b>1ª que responde</b>, en orden. Si ninguna automática → <b>Manual</b>.</li>
             <li>El <b>PEP no dispara consulta</b> adicional en el buró.</li>
-          </ul>
-        </article>
-
-        <!-- 2 · Lenders -->
-        <article class="card p-orig">
-          <div class="card__strip"></div>
-          <div class="card__hd"><span class="num">2</span><span class="phase">Originación</span></div>
-          <h3 class="card__t">Lenders (marketplace)</h3>
-          <p class="card__d">Salen <b>todos</b>. Elegí el lender — los productos Motai son lenders del catálogo (rt=2).
-          </p>
-          <div id="lenders"></div>
-          <ul class="pts">
-            <li>Decide la <b>categoría</b>, no <span class="k">if id==158</span>.</li>
           </ul>
         </article>
 
@@ -1245,6 +1257,7 @@
       nombre: '', tipoDoc: 'CC', monto: 4534000,
       fuente: 'agildata',          // fuente de ingreso usada (radio): 1ª de la cascada que respondió
       lender: 'renting',            // credit | renting | rto
+      abacoBy: { credit: false, renting: true, rto: false }, // Ábaco activo POR lender (ingreso extra gig); default ON en renting
       planRenting: 'trimestral', planRto: '52',
       ingreso: 3000000, score: 500, referencias: 2, deudas: 0,
       adoOk: true, amlOk: true, codeudorScore: 700,
@@ -1300,17 +1313,19 @@
     const rtoWeekly = (m, w) => annuity(valorFinanciar(m), WRATE, +w);
     const creditMonthly = m => annuity(m * (1 + IVA), MRATE, 12);
 
-    // fuente de ingresos = CASCADA ordenada; se usa la 1ª que responde → perfil App / No-App
-    const SRC_ORDER = ['agildata', 'mareigua', 'tusdatos', 'abaco', 'manual'];
-    const SRC_LBL = { agildata: 'AgilData', mareigua: 'Mareigua', tusdatos: 'TusDatos', abaco: 'Ábaco', manual: 'Manual' };
+    // fuente de ingresos = CASCADA ordenada; se usa la 1ª que responde (define el ingreso BASE, no el perfil)
+    const SRC_ORDER = ['agildata', 'mareigua', 'tusdatos', 'manual'];
+    const SRC_LBL = { agildata: 'AgilData', mareigua: 'Mareigua', tusdatos: 'TusDatos', manual: 'Manual' };
     const SRC_DESC = {
       agildata: 'fuente tradicional (empleados/independientes).', mareigua: 'fuente tradicional (empleados/independientes).',
-      tusdatos: 'fuente tradicional (empleados/independientes).', abaco: 'ingresos de plataformas (Rappi/Didi/Uber).',
+      tusdatos: 'fuente tradicional (empleados/independientes).',
       manual: 'el asesor carga el ingreso a mano.',
     };
     const activeSource = () => S.fuente || null;
-    const usaAbaco = () => activeSource() === 'abaco';
+    // Ábaco = config POR LENDER (ingreso extra gig), ya NO una fuente de la cascada. Define el perfil App/No-App.
+    const usaAbaco = () => !!S.abacoBy[S.lender];
     const perfil = () => usaAbaco() ? 'App' : 'No-App';
+    function setAbaco(on) { S.abacoBy[S.lender] = !!on; render(); }
 
     // canon/cuota semanal del producto (base de las reglas de canon/capacidad)
     function canonSemanal() {
@@ -1377,25 +1392,37 @@
         '<div class="lender dim"><span class="lender__dot" style="background:var(--muted-2)"></span>' +
         '<span class="lender__nm">… otros</span><span class="lender__cat">CrediPullman…</span></div>';
 
+      // card 1 · Ábaco = config del lender (ingreso extra): sincroniza el toggle + nota
+      $('c-abaco').checked = usaAbaco();
+      $('abaco-cfg').innerHTML = usaAbaco()
+        ? '<p class="motivo motivo--a-ok" style="margin:2px 15px 8px"><b>Ábaco activo</b> — ' + PROD[S.lender].nm + ' valida un ingreso extra gig (perfil App). Informativo: no cambia la calculadora ni R1–R8.</p>'
+        : '<p class="motivo" style="margin:2px 15px 8px">Ábaco inactivo para ' + PROD[S.lender].nm + ' — sin ingreso extra (perfil No-App).</p>';
+
       // card 4 · calculadora por producto
       renderCalc();
 
-      // card 1 · cascada de fuentes (interactiva) + card 3 · resolución de la fuente
+      // card 2 · cascada de fuentes (interactiva) + card 3 · resolución de la fuente
       renderFuentes();
       const active = activeSource();
       const ai = active ? SRC_ORDER.indexOf(active) : SRC_ORDER.length;
       const cayeron = SRC_ORDER.slice(0, ai).map(k => SRC_LBL[k]);   // consultadas que no respondieron
-      $('pep').innerHTML = active
-        ? '<div class="branch__row ' + (usaAbaco() ? 'v2 ' : '') + 'on"><b>' + SRC_LBL[active] + ' · perfil ' + perfil() + '</b>' +
+      const baseRow = active
+        ? '<div class="branch__row on"><b>' + SRC_LBL[active] + ' · ingreso base</b>' +
         '<small>' + SRC_DESC[active] + '</small></div>' +
         (cayeron.length ? '<p class="motivo" style="margin:2px 15px 0">Sin respuesta antes: ' + cayeron.join(' → ') + '.</p>' : '')
         : '<div class="branch__row on" style="border-left-color:var(--warn)"><b>Sin fuente de ingresos</b>' +
         '<small>ninguna respondió y Manual está apagado — marcá una fuente.</small></div>';
+      // Ábaco solo aparece si el LENDER lo tiene activo: ingreso extra gig, se suma aparte al base (informativo)
+      const abacoRow = usaAbaco()
+        ? '<div class="branch__row v2 on"><b>Ábaco · ingreso extra <span class="plus">perfil ' + perfil() + '</span></b>' +
+        '<small>ingresos de plataformas (Rappi/Didi/Uber) — se suma aparte al base; informativo, no cambia la decisión.</small></div>'
+        : '';
+      $('pep').innerHTML = baseRow + abacoRow;
 
       // card 5 · identidad
       const idOk = S.adoOk && S.amlOk;
       $('idstatus').innerHTML = '<div class="motivo" style="margin-top:2px">' +
-        (idOk ? '✅ Pasa <b>Ábaco + AML + ADO</b> → se actualiza la pantalla del asesor.'
+        (idOk ? '✅ Pasa <b>' + (usaAbaco() ? 'Ábaco + ' : '') + 'AML + ADO</b> → se actualiza la pantalla del asesor.'
           : '⛔ Identidad incompleta → el asesor no puede aprobar.') + '</div>';
 
       // card 6 · reglas (SOLO Renting/RTO; Motai Credit = política estándar)
@@ -1443,7 +1470,7 @@
       // El flujo Motai (MVP2) termina en la decisión del asesor; firma/desembolso/cobranza son post-aprobación (fuera de alcance).
     }
 
-    // cascada interactiva (card 1): RADIO — elegís la fuente que respondió; las de arriba caen "sin respuesta"
+    // cascada interactiva (card 2 · Solicitud): RADIO — elegís la fuente que respondió; las de arriba caen "sin respuesta"
     function renderFuentes() {
       const ai = SRC_ORDER.indexOf(activeSource());
       $('fuentes').innerHTML = '<div class="cascade">' + SRC_ORDER.map((k, i) => {
