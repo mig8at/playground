@@ -1319,11 +1319,11 @@
     const creditMonthly = m => annuity(m * (1 + IVA), MRATE, 12);
 
     // fuente de ingresos = CASCADA ordenada; se usa la 1ª que responde (define el ingreso BASE, no el perfil)
-    const SRC_ORDER = ['agildata', 'mareigua', 'tusdatos', 'manual'];
-    const SRC_LBL = { agildata: 'AgilData', mareigua: 'Mareigua', tusdatos: 'TusDatos', manual: 'Manual' };
+    const SRC_ORDER = ['agildata', 'mareigua', 'quanto', 'manual'];
+    const SRC_LBL = { agildata: 'AgilData', mareigua: 'Mareigua', quanto: 'Quanto', manual: 'Manual' };
     const SRC_DESC = {
       agildata: 'fuente tradicional (empleados/independientes).', mareigua: 'fuente tradicional (empleados/independientes).',
-      tusdatos: 'fuente tradicional (empleados/independientes).',
+      quanto: 'ingreso estimado por Experian (modelo Quanto).',
       manual: 'el asesor carga el ingreso a mano.',
     };
     const activeSource = () => S.fuente || null;
