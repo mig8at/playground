@@ -1,7 +1,7 @@
 <script setup>
 import { computed } from 'vue'
 import { Handle, Position } from '@vue-flow/core'
-import { ui, findLenderDef, entidadCfg, setEntidadProducto, setEntidadMonto, setEntidadRate, setEntidadDues, setEntidad, setEntidadAbaco, setEntidadManual, openFieldInfo, montoVsEntidad } from '../store'
+import { ui, findLenderDef, entidadCfg, setEntidadProducto, setEntidadMonto, setEntidadRate, setEntidadDues, setEntidad, setEntidadAbaco, openFieldInfo, montoVsEntidad } from '../store'
 import { Building2, X } from 'lucide-vue-next'
 import MoneyInput from '../MoneyInput.vue'
 import AffixField from '../AffixField.vue'
@@ -60,11 +60,6 @@ const who = computed(() => lender.value ? lender.value.name : '')
           <input type="checkbox" :checked="econ.abacoExtra" @change="e => setEntidadAbaco(lender, e.target.checked)" />
           <span class="ic-nm fld-doc" @click.stop="openFieldInfo('ent.abaco')">Ábaco</span>
           <small>ingreso extra gig (Rappi/DiDi/Uber)</small>
-        </label>
-        <label class="ic-check nodrag" :title="econ.manualIncome ? 'La entidad acepta ingreso declarado a mano' : 'La entidad NO acepta ingreso manual'">
-          <input type="checkbox" :checked="econ.manualIncome" @change="e => setEntidadManual(lender, e.target.checked)" />
-          <span class="ic-nm fld-doc" @click.stop="openFieldInfo('ent.manual')">Ingreso manual</span>
-          <small>declararlo si no hay centrales de riesgo</small>
         </label>
       </div>
     </div>

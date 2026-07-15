@@ -134,14 +134,7 @@ body {
 .node--tus .vue-flow__handle { border-color: var(--purple); }
 .node--mareigua .vue-flow__handle { border-color: var(--amber); }
 .node--extra .vue-flow__handle { border-color: var(--green); }
-/* Nodo "Información complementaria" (config post-selección; hoy Ábaco = ingreso extra informativo) */
-.ex-lead { font-size: 10.5px; color: var(--mut); line-height: 1.45; margin-bottom: 8px; }
-.ex-flag { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--ink); margin-bottom: 7px; cursor: pointer; }
-.ex-flag .ex-chk { -webkit-appearance: none; appearance: none; box-sizing: border-box; width: 14px; height: 14px; flex: 0 0 14px; padding: 0; border: 2px solid var(--green); border-radius: 3px; background: transparent; cursor: pointer; position: relative; outline: none; }
-.ex-flag .ex-chk:checked { background: var(--green); }
-.ex-flag .ex-chk:checked::after { content: '✓'; position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 10px; line-height: 1; color: var(--card); }
-.ex-src { margin-left: auto; font-size: 9.5px; color: var(--mut); font-style: italic; }
-.ex-off { font-size: 10.5px; color: var(--mut); line-height: 1.45; padding: 4px 0 2px; }
+/* Nodo "Información complementaria" (solo aparece si la entidad activó Ábaco; ingreso extra informativo) */
 .ex-sum { margin-top: 7px; border-top: 1px dashed var(--line); padding-top: 6px; }
 .ex-row { display: flex; align-items: center; justify-content: space-between; font-size: 11px; color: var(--mut); margin: 2px 0; }
 .ex-row span { display: inline-flex; align-items: center; gap: 3px; }
@@ -150,13 +143,12 @@ body {
 .ex-row--extra b { color: var(--green); }
 .ex-row--tot { margin-top: 3px; padding-top: 4px; border-top: 1px solid var(--line); font-weight: 600; color: var(--ink); }
 .ex-note { margin-top: 6px; font-size: 9.5px; color: var(--mut); font-style: italic; line-height: 1.4; }
-/* Apartado "Información complementaria" en Configurar entidad (checkboxes Ábaco + Ingreso manual) */
+/* Apartado "Información complementaria" en Configurar entidad (checkbox Ábaco) */
 .ic-sec { display: flex; flex-direction: column; gap: 6px; margin-top: 4px; }
 .ic-check { display: grid; grid-template-columns: auto auto; align-items: center; gap: 3px 7px; cursor: pointer; font-size: 11.5px; }
 .ic-check input { grid-row: span 2; width: 14px; height: 14px; accent-color: var(--green); cursor: pointer; }
 .ic-check .ic-nm { font-weight: 600; color: var(--ink); }
 .ic-check small { grid-column: 2; font-size: 9.5px; color: var(--mut); line-height: 1.2; }
-.pv-hint--warn { color: var(--amber); cursor: help; }
 .chk--sim { margin-top: 2px; font-size: 11px; color: var(--mut); gap: 6px; }
 .chk--sim select { font: inherit; font-size: 11px; padding: 2px 5px; border: 1px solid var(--line); border-radius: 5px; background: var(--card2); color: var(--ink); }
 /* toggle "API caída" en el header del buró: ícono a la derecha del título; rojo cuando el proveedor no responde */

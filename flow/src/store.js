@@ -86,10 +86,7 @@ export function entidadCfg(lender) {
     rate: t.rate ?? null,
     lateRate: e.lateRate ?? (t.rate != null ? +(t.rate + 1.5).toFixed(2) : null),
     condonedDues: e.condonedDues ?? 0,
-    // Información complementaria (config por entidad): Ábaco (ingreso extra gig) + ingreso manual
-    // (declararlo cuando no hay centrales). Manual arranca PERMITIDO (default true) = fallback real de onboarding.
-    abacoExtra: !!e.abacoExtra,
-    manualIncome: e.ingresoManual !== false,
+    abacoExtra: !!e.abacoExtra, // Información complementaria (config por entidad): ¿pide ingreso extra vía Ábaco?
   }
 }
 // Setters de la Config de entidad (editable desde el nodo Config de lender).
@@ -115,9 +112,8 @@ export function setEntidadDues(lender, str) {
   if (arr.length) { lender.terms = lender.terms || {}; lender.terms.maxFee = Math.max(...arr) }
 }
 export function setEntidad(lender, key, val) { if (lender) { lender.entidad = lender.entidad || {}; lender.entidad[key] = val === '' ? null : Number(val) } }
-// Flags de "Información complementaria" de la entidad (booleanos; setters aparte de setEntidad, que es numérico).
+// Flag "Ábaco (info. complementaria)" de la entidad (booleano; setter aparte de setEntidad, que es numérico).
 export function setEntidadAbaco(lender, on) { if (lender) { lender.entidad = lender.entidad || {}; lender.entidad.abacoExtra = !!on; editTick.n++ } }
-export function setEntidadManual(lender, on) { if (lender) { lender.entidad = lender.entidad || {}; lender.entidad.ingresoManual = !!on; editTick.n++ } }
 
 // UI: lender seleccionado + campo inerte inspeccionado (sidebar "por qué no tiene efecto").
 export const ui = reactive({ selected: null, fieldInfo: null })

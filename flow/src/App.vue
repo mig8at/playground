@@ -29,7 +29,7 @@ import BranchStatusNode from './nodes/BranchStatusNode.vue'
 import LifecycleNode from './nodes/LifecycleNode.vue'
 import CreditStatusNode from './nodes/CreditStatusNode.vue'
 import FieldInfoPanel from './nodes/FieldInfoPanel.vue'
-import { ui, findLenderDef, perfilOf, lenders, closeFieldInfo } from './store'
+import { ui, findLenderDef, entidadCfg, perfilOf, lenders, closeFieldInfo } from './store'
 import { settings } from './settings'
 
 // El tema/visibilidad los maneja la barra "Configuraciones" (settings.js). Acá solo derivamos isDark
@@ -38,6 +38,9 @@ const isDark = computed(() => settings.theme === 'dark')
 // ¿La entidad seleccionada realmente se OFRECE (pasó el listado)? Si no pasa, no tiene sentido mostrar
 // la formalización post-selección. Es dependencia del watch para que aparezca/desaparezca al cambiar el escenario.
 const selPasses = computed(() => { const s = ui.selected; return s ? !!lenders.value.find(l => l.name === s)?.ok : false })
+// ¿La entidad seleccionada activó Ábaco (Información complementaria)? Solo entonces se muestra ese nodo.
+// Dependencia del watch para que aparezca/desaparezca al togglear el flag en Configurar entidad.
+const selAbaco = computed(() => { const s = ui.selected; if (!s) return false; const d = findLenderDef(s); return !!(d && entidadCfg(d).abacoExtra) })
 
 // Esc: 1º cierra el sidebar de detalle; 2º deselecciona la entidad (cierra el cluster de config).
 // Clic en el canvas (pane) cierra solo el sidebar. Sin robar Esc cuando se está tipeando en un input.
@@ -114,7 +117,7 @@ const DYN = ['default', 'comercio', 'relacion', 'perfil']
 // todo, no un zoom en la esquina. Al SELECCIONAR: NO se re-encuadra solo (la cámara la maneja el
 // usuario con scroll para zoom y arrastrando para mover).
 // Depende también de isDark → al cambiar de tema los edges se reconstruyen con el color adecuado.
-watch([() => ui.selected, isDark, selPasses], ([sel]) => {
+watch([() => ui.selected, isDark, selPasses, selAbaco], ([sel]) => {
   const base = nodes.value.filter(n => !DYN.includes(n.id) && !n.id.startsWith('cat-') && n.id !== 'tramo' && n.id !== 'grouprules' && n.id !== 'branchstatus' && n.id !== 'extra' && n.id !== 'lifecycle' && n.id !== 'cstatus')
   const def = sel ? findLenderDef(sel) : null
   if (!def) { nodes.value = base; edges.value = baseEdges(); return } // cerrar: quita la plantilla, sin mover la cámara
@@ -166,17 +169,23 @@ watch([() => ui.selected, isDark, selPasses], ([sel]) => {
   addE.push({ id: 'e-gr', source: 'grouprules', sourceHandle: 'down', target: 'relacion', targetHandle: 'fromgr', animated: false, style: { stroke: ec('cfg'), strokeWidth: 1.4, strokeDasharray: '6 5' } })
 
   // ── A la DERECHA del listado (espejo de la config que cuelga a la izquierda), en cadena:
-  // "Información complementaria" (Ábaco pide ingreso extra si la entidad lo tiene activo) → "Formalización"
-  // (stepper del rt) → "Estado del crédito". Solo si la entidad REALMENTE se ofrece (pasó el listado):
-  // si no pasa, no hay ingreso extra que validar ni nada que formalizar. El edge inicial sale de la FILA
-  // del lender seleccionado en el listado (handle psel-<name>). Separaciones (~110px de aire) alineadas.
+  // ["Información complementaria" SOLO si la entidad activó Ábaco] → "Formalización" (stepper del rt) →
+  // "Estado del crédito". Solo si la entidad REALMENTE se ofrece (pasó el listado). Si no hay Ábaco, el
+  // listado va DIRECTO a la formalización (que se corre a donde iría el nodo extra). El edge inicial sale
+  // de la FILA del lender seleccionado en el listado (handle psel-<name>).
   if (selPasses.value) {
-    const EXTRA_X = 1860, LIFE_X = 2210, LIFE_Y = 380
-    add.push({ id: 'extra', type: 'ingresosextras', position: { x: EXTRA_X, y: LIFE_Y } })
+    const LIFE_Y = 380
+    const abacoOn = selAbaco.value                 // "Información complementaria" solo si la entidad activó Ábaco
+    const LIFE_X = abacoOn ? 2210 : 1860           // sin Ábaco: la formalización ocupa el lugar del nodo extra
+    if (abacoOn) {
+      add.push({ id: 'extra', type: 'ingresosextras', position: { x: 1860, y: LIFE_Y } })
+      addE.push({ id: 'e-extra-in', source: 'out', sourceHandle: 'psel-' + sel, target: 'extra', targetHandle: 'in', animated: false, style: { stroke: ec('green'), strokeWidth: 1.6 } })
+      addE.push({ id: 'e-extra-out', source: 'extra', sourceHandle: 'out', target: 'lifecycle', targetHandle: 'in', animated: false, style: { stroke: ec('green'), strokeWidth: 1.6 } })
+    } else {
+      addE.push({ id: 'e-life-in', source: 'out', sourceHandle: 'psel-' + sel, target: 'lifecycle', targetHandle: 'in', animated: false, style: { stroke: ec('green'), strokeWidth: 1.6 } })
+    }
     add.push({ id: 'lifecycle', type: 'lifecycle', position: { x: LIFE_X, y: LIFE_Y } })
     add.push({ id: 'cstatus', type: 'cstatus', position: { x: LIFE_X + 350, y: LIFE_Y } })
-    addE.push({ id: 'e-extra-in', source: 'out', sourceHandle: 'psel-' + sel, target: 'extra', targetHandle: 'in', animated: false, style: { stroke: ec('green'), strokeWidth: 1.6 } })
-    addE.push({ id: 'e-extra-out', source: 'extra', sourceHandle: 'out', target: 'lifecycle', targetHandle: 'in', animated: false, style: { stroke: ec('green'), strokeWidth: 1.6 } })
     addE.push({ id: 'e-life-out', source: 'lifecycle', sourceHandle: 'out', target: 'cstatus', targetHandle: 'in', animated: false, style: { stroke: ec('green'), strokeWidth: 1.6 } })
   }
 
