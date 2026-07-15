@@ -1144,13 +1144,18 @@
           <div class="card__strip"></div>
           <div class="card__hd"><span class="num">3</span><span class="phase">Originación</span></div>
           <h3 class="card__t">Ingresos</h3>
-          <p class="card__d">Ingreso del cliente según las <b>fuentes marcadas</b> en Solicitud — <b>independiente del
-              PEP</b>.</p>
+          <p class="card__d">Ingreso del cliente = <b>base</b> (buró/fuente elegida) + <b>extra Ábaco</b>
+            (si el lender lo tiene activo) → <b>consolidado</b>.</p>
           <div class="branch" id="pep"></div>
-          <div class="fld"><label for="i-ingreso">Ingreso mensual</label>
-            <div class="money"><input class="inp" id="i-ingreso" type="text" inputmode="numeric" value="3000000"
-                oninput="onMoney(this, 'ingreso')"></div>
+          <div class="fld"><label id="lbl-ingbase" for="i-ingreso-base">Ingreso base</label>
+            <div class="money"><input class="inp" id="i-ingreso-base" type="text" inputmode="numeric" value="3000000"
+                oninput="onMoney(this, 'ingresoBase')"></div>
           </div>
+          <div class="fld" id="fld-abaco"><label for="i-ingreso-abaco">Ingreso extra · Ábaco (gig)</label>
+            <div class="money"><input class="inp" id="i-ingreso-abaco" type="text" inputmode="numeric" value="800000"
+                oninput="onMoney(this, 'ingresoAbaco')"></div>
+          </div>
+          <div id="ingreso-consolidado"></div>
         </article>
 
         <!-- 4 · Calculadora -->
@@ -1259,12 +1264,12 @@
       lender: 'renting',            // credit | renting | rto
       abacoBy: { credit: false, renting: true, rto: false }, // Ábaco activo POR lender (ingreso extra gig); default ON en renting
       planRenting: 'trimestral', planRto: '52',
-      ingreso: 3000000, score: 500, referencias: 2, deudas: 0,
+      ingresoBase: 3000000, ingresoAbaco: 800000, score: 500, referencias: 2, deudas: 0,
       adoOk: true, amlOk: true, codeudorScore: 700,
       codNombre: '', codDoc: '', codIngreso: 0, codRelacion: 'conyuge',
       cuotaInicial: 2000000,        // rent-to-own: lo que el cliente paga por adelantado (reduce lo financiado)
     };
-    const NUM = new Set(['monto', 'ingreso', 'score', 'referencias', 'deudas', 'codeudorScore', 'codIngreso', 'cuotaInicial']);
+    const NUM = new Set(['monto', 'ingresoBase', 'ingresoAbaco', 'score', 'referencias', 'deudas', 'codeudorScore', 'codIngreso', 'cuotaInicial']);
     function set(k, v) { S[k] = NUM.has(k) ? (v === '' ? 0 : +v) : v; render(); }
 
     // inputs de dinero: formato con separador de miles (.) en vivo, cursor estable
@@ -1280,7 +1285,7 @@
       render();
     }
     function fmtMoneyInputs() {
-      ['i-monto', 'i-ingreso', 'i-deudas', 'i-coding', 'i-cuotaini'].forEach(id => {
+      ['i-monto', 'i-ingreso-base', 'i-ingreso-abaco', 'i-deudas', 'i-coding', 'i-cuotaini'].forEach(id => {
         const el = document.getElementById(id); if (!el) return;
         const d = el.value.replace(/\D/g, ''); el.value = d ? nfmt.format(+d) : '';
       });
@@ -1326,6 +1331,9 @@
     const usaAbaco = () => !!S.abacoBy[S.lender];
     const perfil = () => usaAbaco() ? 'App' : 'No-App';
     function setAbaco(on) { S.abacoBy[S.lender] = !!on; render(); }
+    // Ingreso CONSOLIDADO = base (buró/fuente elegida) + extra Ábaco (solo si el lender tiene Ábaco activo).
+    // Es el ingreso del cliente que usan la decisión (≥$3M) y las reglas de capacidad R6/R7.
+    const ingresoConsol = () => S.ingresoBase + (usaAbaco() ? S.ingresoAbaco : 0);
 
     // canon/cuota semanal del producto (base de las reglas de canon/capacidad)
     function canonSemanal() {
@@ -1338,7 +1346,7 @@
     const aplicaPolitica = () => S.lender !== 'credit';
     function rulesEval() {
       const canon = canonSemanal();
-      const ingSem = S.ingreso / 4.345;
+      const ingSem = ingresoConsol() / 4.345;
       const cuotaMes = canon * 4.345;
       return [
         { id: 'R1', t: '2 referencias', v: S.referencias + ' ref.', ok: S.referencias >= 2 },
@@ -1347,7 +1355,7 @@
         { id: 'R4', t: 'Canon mín. $150k', v: fmt(canon), ok: canon >= 150000 },
         { id: 'R5', t: 'Canon máx. $300k', v: fmt(canon), ok: canon <= 300000 },
         { id: 'R6', t: 'Cuota ≤ 25% ing. sem.', v: fmt(canon) + ' / ' + fmt(ingSem), ok: canon <= 0.25 * ingSem },
-        { id: 'R7', t: 'Deuda ≤ 40% ing. mes', v: fmt(S.deudas + cuotaMes), ok: (S.deudas + cuotaMes) <= 0.40 * S.ingreso },
+        { id: 'R7', t: 'Deuda ≤ 40% ing. mes', v: fmt(S.deudas + cuotaMes), ok: (S.deudas + cuotaMes) <= 0.40 * ingresoConsol() },
         { id: 'R8', t: 'Endeud. total < 50% patrim.', v: '—', ok: null },
       ];
     }
@@ -1357,7 +1365,7 @@
       const idOk = S.adoOk && S.amlOk;
       const codOk = S.codeudorScore > 650;
       // PRD: la decisión depende del INGRESO, no de la fuente/perfil (App y No-App igual). ≥$3M directa; si no, codeudor.
-      const directa = S.ingreso >= 3000000;
+      const directa = ingresoConsol() >= 3000000;
       const hard = aplicaPolitica() ? rulesEval().filter(r => r.ok === false) : [];
       let action, motivo, cls;
       if (!idOk) { action = 'Rechazar'; cls = 'a-no'; motivo = 'No pasa identidad (' + (!S.adoOk ? 'ADO' : 'AML') + ').'; }
@@ -1395,7 +1403,7 @@
       // card 1 · Ábaco = config del lender (ingreso extra): sincroniza el toggle + nota
       $('c-abaco').checked = usaAbaco();
       $('abaco-cfg').innerHTML = usaAbaco()
-        ? '<p class="motivo motivo--a-ok" style="margin:2px 15px 8px"><b>Ábaco activo</b> — ' + PROD[S.lender].nm + ' valida un ingreso extra gig (perfil App). Informativo: no cambia la calculadora ni R1–R8.</p>'
+        ? '<p class="motivo motivo--a-ok" style="margin:2px 15px 8px"><b>Ábaco activo</b> — ' + PROD[S.lender].nm + ' suma un ingreso extra gig al <b>consolidado</b> (perfil App). Editá el monto en la card Ingresos.</p>'
         : '<p class="motivo" style="margin:2px 15px 8px">Ábaco inactivo para ' + PROD[S.lender].nm + ' — sin ingreso extra (perfil No-App).</p>';
 
       // card 4 · calculadora por producto
@@ -1406,18 +1414,20 @@
       const active = activeSource();
       const ai = active ? SRC_ORDER.indexOf(active) : SRC_ORDER.length;
       const cayeron = SRC_ORDER.slice(0, ai).map(k => SRC_LBL[k]);   // consultadas que no respondieron
-      const baseRow = active
+      $('pep').innerHTML = active
         ? '<div class="branch__row on"><b>' + SRC_LBL[active] + ' · ingreso base</b>' +
         '<small>' + SRC_DESC[active] + '</small></div>' +
         (cayeron.length ? '<p class="motivo" style="margin:2px 15px 0">Sin respuesta antes: ' + cayeron.join(' → ') + '.</p>' : '')
         : '<div class="branch__row on" style="border-left-color:var(--warn)"><b>Sin fuente de ingresos</b>' +
         '<small>ninguna respondió y Manual está apagado — marcá una fuente.</small></div>';
-      // Ábaco solo aparece si el LENDER lo tiene activo: ingreso extra gig, se suma aparte al base (informativo)
-      const abacoRow = usaAbaco()
-        ? '<div class="branch__row v2 on"><b>Ábaco · ingreso extra <span class="plus">perfil ' + perfil() + '</span></b>' +
-        '<small>ingresos de plataformas (Rappi/Didi/Uber) — se suma aparte al base; informativo, no cambia la decisión.</small></div>'
-        : '';
-      $('pep').innerHTML = baseRow + abacoRow;
+      // card 3 · ingresos editables (base del buró/fuente + extra Ábaco) → consolidado
+      $('lbl-ingbase').textContent = 'Ingreso base' + (active ? ' · ' + SRC_LBL[active] : '');
+      $('fld-abaco').style.display = usaAbaco() ? '' : 'none';  // el input de Ábaco solo si el lender lo tiene activo
+      $('ingreso-consolidado').innerHTML = '<div class="mini"><div class="mini__h">Ingreso consolidado' +
+        (usaAbaco() ? ' · perfil ' + perfil() : '') + '</div>' +
+        '<div class="row"><span>Base' + (active ? ' · ' + SRC_LBL[active] : '') + '</span><span>' + fmt(S.ingresoBase) + '</span></div>' +
+        (usaAbaco() ? '<div class="row"><span>+ Ábaco · gig (Rappi/Didi/Uber)</span><span>' + fmt(S.ingresoAbaco) + '</span></div>' : '') +
+        '<div class="row hl"><span>Consolidado (ingreso del cliente)</span><span class="big">' + fmt(ingresoConsol()) + '</span></div></div>';
 
       // card 5 · identidad
       const idOk = S.adoOk && S.amlOk;
