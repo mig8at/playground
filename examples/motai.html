@@ -7,7 +7,7 @@
   <meta name="theme-color" content="#F1F5F3">
   <title>Motai v2 · simulador interactivo Renting & Rent-to-Own</title>
   <meta name="description"
-    content="Prototipo interactivo del flujo Motai v2: digitá monto, documento, ingreso y score y las tarjetas reaccionan — config de comercio y lender, calculadora por producto, Ábaco como ingreso extra del lender, reglas R1–R8 y veredicto del asesor.">
+    content="Prototipo interactivo del flujo Motai v2: digitá monto, documento, ingreso y score y las tarjetas reaccionan — config de comercio y lender, calculadora por producto, Ábaco como información complementaria del lender (ingreso extra), reglas R1–R8 y veredicto del asesor.">
   <style>
     * {
       box-sizing: border-box;
@@ -1101,11 +1101,11 @@
             <div id="lenders"></div>
           </div>
           <label class="cc"><input type="checkbox" id="c-abaco" onchange="setAbaco(this.checked)"> <b>Ábaco activo</b>
-            — ingresos extras del lender (gig · Rappi/Didi/Uber)</label>
+            — información complementaria del lender (ingreso extra gig · Rappi/Didi/Uber)</label>
           <div id="abaco-cfg"></div>
           <ul class="pts">
             <li>Decide la <b>categoría</b>, no <span class="k">if id==158</span>.</li>
-            <li><b>Ábaco</b> es config del lender (ingreso extra), <b>no</b> una fuente de la cascada de ingreso.</li>
+            <li><b>Información complementaria</b>: datos que la entidad le pide al cliente tras elegirla (hoy Ábaco = ingreso extra), <b>no</b> una fuente de la cascada de ingreso.</li>
           </ul>
         </article>
 
