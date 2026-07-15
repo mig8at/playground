@@ -11,6 +11,8 @@
 //	{type:"connections", id:"nodeId"}     → edges de un nodo
 //	{type:"delete_flow", id:"..."}        → borra un flujo
 //	{type:"refresh"}                      → reenvía el estado
+//	{type:"jira_status"}                  → estado de la conexión Jira (cableada, ver internal/jira)
+//	{type:"sync_tasks", jql:"..."}        → STUB: valida Jira; el sync tareas↔ramas está pendiente
 package main
 
 import (
@@ -25,10 +27,13 @@ import (
 	"github.com/coder/websocket"
 
 	"creditop/context/server/internal/engine"
+	"creditop/context/server/internal/env"
+	"creditop/context/server/internal/jira"
 )
 
 type server struct {
-	eng *engine.Engine
+	eng  *engine.Engine
+	jira *jira.Client // conexión Jira CABLEADA (ATLASSIAN_*); lista para el futuro sync tareas↔ramas. nil si no hay credenciales.
 
 	mu      sync.Mutex
 	clients map[*websocket.Conn]context.Context
@@ -38,11 +43,13 @@ func main() {
 	log.SetFlags(0)
 	log.SetPrefix("[context-web] ")
 
+	env.LoadDefaults() // carga context/server/.env (ATLASSIAN_* para la conexión Jira), sin pisar el entorno
+
 	eng, err := engine.New()
 	if err != nil {
 		log.Fatalf("engine: %v", err)
 	}
-	s := &server{eng: eng, clients: map[*websocket.Conn]context.Context{}}
+	s := &server{eng: eng, clients: map[*websocket.Conn]context.Context{}, jira: jira.FromEnv()}
 
 	port := envDefault("CONTEXT_WEB_PORT", "8788")
 
@@ -52,10 +59,25 @@ func main() {
 
 	go s.watchDisk() // detecta cambios que hace el MCP y refresca la UI
 
-	log.Printf("server on · ws://localhost:%s/ws · datos: %s", port, eng.Dir())
+	log.Printf("server on · ws://localhost:%s/ws · datos: %s · Jira: %s", port, eng.Dir(), s.jiraStatusLine())
 	if err := http.ListenAndServe(":"+port, mux); err != nil {
 		log.Fatalf("server error: %v", err)
 	}
+}
+
+// jiraStatusLine describe el estado de la conexión Jira para el log de arranque.
+// La conexión queda CABLEADA para el futuro sync de tareas↔ramas; hoy solo se valida.
+func (s *server) jiraStatusLine() string {
+	if s.jira == nil {
+		return "sin credenciales (definí ATLASSIAN_SITE/EMAIL/API_TOKEN en context/server/.env)"
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 8*time.Second)
+	defer cancel()
+	me, err := s.jira.GetMyself(ctx)
+	if err != nil {
+		return "credenciales presentes pero la validación falló: " + err.Error()
+	}
+	return "conectado como " + me.DisplayName + " (" + s.jira.Site() + ")"
 }
 
 func (s *server) handleWS(w http.ResponseWriter, r *http.Request) {
@@ -103,6 +125,7 @@ type inbound struct {
 	Parent  string            `json:"parent"`
 	Targets map[string]string `json:"targets"`
 	Tasks   []engine.Task     `json:"tasks"`
+	JQL     string            `json:"jql"` // consulta para el (futuro) sync de tareas desde Jira
 }
 
 func (s *server) handle(ctx context.Context, c *websocket.Conn, msg inbound) {
@@ -190,12 +213,56 @@ func (s *server) handle(ctx context.Context, c *websocket.Conn, msg inbound) {
 		if _, err := s.eng.SetTasks(msg.ID, msg.Tasks); err == nil {
 			s.broadcastState()
 		}
+	case "jira_status":
+		s.handleJiraStatus(ctx, c)
+	case "sync_tasks":
+		s.handleSyncTasks(ctx, c, msg)
 	case "refresh":
 		s.sendState(ctx, c)
 	case "delete_flow":
 		_ = s.eng.DeleteFlow(msg.ID)
 		s.broadcastState()
 	}
+}
+
+// handleJiraStatus reporta si la conexión Jira está viva (valida con GetMyself).
+// Es la prueba de que la integración quedó CABLEADA; la UI todavía no la consume.
+func (s *server) handleJiraStatus(ctx context.Context, c *websocket.Conn) {
+	if s.jira == nil {
+		send(ctx, c, map[string]any{"type": "jira_status", "ok": true, "connected": false,
+			"error": "Jira no configurado (faltan ATLASSIAN_SITE / ATLASSIAN_EMAIL / ATLASSIAN_API_TOKEN)"})
+		return
+	}
+	me, err := s.jira.GetMyself(ctx)
+	if err != nil {
+		send(ctx, c, map[string]any{"type": "jira_status", "ok": false, "connected": false, "error": err.Error()})
+		return
+	}
+	send(ctx, c, map[string]any{"type": "jira_status", "ok": true, "connected": true,
+		"site": s.jira.Site(), "user": me.DisplayName, "account_id": me.AccountID})
+}
+
+// handleSyncTasks es el STUB del futuro sync tareas↔ramas: la conexión Jira ya
+// está CABLEADA, pero el mapeo issue↔workspace↔rama todavía NO está implementado.
+// TODO(sync): traer los issues del sprint/tablero (s.jira.SearchIssues con el JQL
+// del board activo), mapearlos a las tareas del workspace (s.eng.SetTasks) y/o a
+// sus ramas (Combination.Targets), y devolver el diff. Por ahora valida la conexión
+// (opcionalmente lista issues si viene un JQL) y responde "pendiente".
+func (s *server) handleSyncTasks(ctx context.Context, c *websocket.Conn, msg inbound) {
+	if s.jira == nil {
+		send(ctx, c, map[string]any{"type": "sync_tasks", "ok": false, "pending": true, "connected": false,
+			"message": "conexión Jira NO configurada; definí ATLASSIAN_* para habilitar el sync"})
+		return
+	}
+	var sample []jira.Issue
+	if msg.JQL != "" {
+		if iss, err := s.jira.SearchIssues(ctx, msg.JQL, 25); err == nil {
+			sample = iss
+		}
+	}
+	send(ctx, c, map[string]any{"type": "sync_tasks", "ok": true, "pending": true, "connected": true,
+		"message": "conexión Jira lista; la sincronización tarea↔rama está pendiente de cablear",
+		"sample": sample})
 }
 
 // state es el snapshot que ve la UI: repos + resumen de flujos.

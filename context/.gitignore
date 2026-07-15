@@ -2,3 +2,5 @@ node_modules/
 dist/
 server/bin/
 *.log
+.env
+server/.env

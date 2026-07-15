@@ -1,53 +1,28 @@
 <script setup>
-import { ref, computed, watch } from 'vue'
+import { ref, computed } from 'vue'
 import { VueFlow, Handle, Position, useVueFlow } from '@vue-flow/core'
 import { Background } from '@vue-flow/background'
 import { Copy, Check, GitBranch, GitFork, X, Plus, AlertTriangle } from 'lucide-vue-next'
 import '@vue-flow/core/dist/style.css'
 import '@vue-flow/core/dist/theme-default.css'
 
-// Árbol de WORKSPACES: cada nodo es una combinación de ramas (resumen + copy);
-// desde un nodo se DERIVA un hijo que ramifica sobre el padre (mismo nombre en
-// los 3 repos). Seleccionar un nodo lo alinea (checkout+pull) y carga su árbol.
+// Árbol de WORKSPACES: cada nodo es una combinación de ramas (resumen + copy del
+// flujo). Desde un nodo se DERIVA un hijo que ramifica sobre el padre (mismo
+// nombre en los 3 repos). Seleccionar un nodo lo alinea (checkout+pull) y carga
+// su árbol. El nodo raíz (CreditOp) trae el contexto del ecosistema; sus hijos
+// son flujos específicos (solo contexto, sin checklist de tareas).
 const props = defineProps({
   combinations: { type: Array, default: () => [] },
   repos: { type: Array, default: () => [] }, // [{alias,branch,commit}]
-  branches: { type: Object, default: () => ({}) },
   selected: { type: String, default: '' },
   graphs: { type: Array, default: () => [] },
   copiedKey: { type: String, default: '' },
   aligning: { type: String, default: '' },
   alignResults: { type: Array, default: () => [] },
-  creating: { type: Boolean, default: false },
 })
-const emit = defineEmits(['create-root', 'derive', 'delete', 'select', 'need-branches', 'copy', 'copy-text', 'close-create', 'set-tasks'])
-
-// checklist por workspace: input de "nueva tarea" por nodo + toggles/borrado que persisten
-const newTask = ref({})
-function cleanTasks(tasks) { return (tasks || []).map((t) => ({ text: t.text, done: !!t.done })) }
-function toggleTask(data, i) {
-  const tasks = cleanTasks(data.tasks)
-  if (tasks[i]) tasks[i].done = !tasks[i].done
-  emit('set-tasks', { id: data.id, tasks })
-}
-function addTask(data) {
-  const txt = (newTask.value[data.id] || '').trim()
-  if (!txt) return
-  const tasks = [...cleanTasks(data.tasks), { text: txt, done: false }]
-  newTask.value = { ...newTask.value, [data.id]: '' }
-  emit('set-tasks', { id: data.id, tasks })
-}
-function removeTask(data, i) {
-  emit('set-tasks', { id: data.id, tasks: cleanTasks(data.tasks).filter((_, idx) => idx !== i) })
-}
-function doneCount(tasks) { return (tasks || []).filter((t) => t.done).length }
+const emit = defineEmits(['derive', 'delete', 'select', 'copy', 'copy-text'])
 
 const repoAliases = computed(() => props.repos.map((r) => r.alias))
-const currentBranch = computed(() => {
-  const m = {}
-  for (const r of props.repos) m[r.alias] = r.branch
-  return m
-})
 
 function staleOf(flow) { if (!flow || !flow.has_base) return ''; return flow.changed ? 'stale' : 'fresh' }
 function alignClass(r) { return r.error ? (r.error.includes('sin commitear') ? 'warn' : 'err') : 'ok' }
@@ -92,7 +67,6 @@ function nodeData(c, depth) {
     stale: staleOf(flow),
     changed: flow?.changed || 0,
     hasFlow: !!flow,
-    tasks: c.tasks || [],
     alignResults: props.selected === c.id ? props.alignResults : [],
   }
 }
@@ -116,30 +90,17 @@ function confirmDerive() {
 const deleteTarget = ref(null)
 function confirmDelete() { if (deleteTarget.value) { emit('delete', deleteTarget.value.id); deleteTarget.value = null } }
 
-// crear raíz
-const form = ref({ name: '', targets: {} })
-function initCreate() { form.value = { name: '', targets: { ...currentBranch.value } } }
-function preset(branch) { const t = {}; for (const a of repoAliases.value) t[a] = branch; form.value.targets = t }
-function captureCurrent() { form.value.targets = { ...currentBranch.value } }
-function saveRoot() {
-  if (!form.value.name.trim()) return
-  emit('create-root', { name: form.value.name.trim(), targets: { ...form.value.targets } })
-}
-// abrir el form cuando el padre activa "creating"
-watch(() => props.creating, (v) => { if (v) initCreate() })
-
 // re-encuadrar el canvas (con zoom tope 0.8 para no acercar de más) al iniciar y
-// cuando cambia la cantidad de nodos (derivar/borrar/crear)
+// cuando cambia la cantidad de nodos (derivar/borrar)
 const { fitView, onNodesInitialized } = useVueFlow()
 function refit(duration = 0) { setTimeout(() => { try { fitView({ padding: 0.2, maxZoom: 0.8, duration }) } catch {} }, 60) }
 onNodesInitialized(() => refit())
-watch(() => layout.value.nodes.length, () => refit(300))
 </script>
 
 <template>
   <section class="ws fade-in">
     <p v-if="!combinations.length" class="ws-empty">
-      Sin workspaces. Creá uno con <b>+ nuevo workspace</b> (arriba a la derecha) para atar cada repo a una rama.
+      Sin workspaces. Derivá uno desde un nodo existente con el botón <b>derivar</b>.
     </p>
 
     <div v-else class="ws-canvas">
@@ -179,21 +140,6 @@ watch(() => layout.value.nodes.length, () => refit(300))
               </span>
             </div>
 
-            <div v-if="data.isChild" class="wstasks" @click.stop>
-              <div class="wstasks-head">
-                <span>Tareas</span>
-                <span v-if="data.tasks.length" class="wstasks-prog" :class="{ full: doneCount(data.tasks) === data.tasks.length }">{{ doneCount(data.tasks) }}/{{ data.tasks.length }}</span>
-              </div>
-              <div v-if="data.tasks.length" class="wstasks-list">
-                <label v-for="(t, i) in data.tasks" :key="i" class="wstask" :class="{ done: t.done }">
-                  <input type="checkbox" :checked="t.done" @change="toggleTask(data, i)" />
-                  <span class="wstask-txt">{{ t.text }}</span>
-                  <button class="wstask-x" title="quitar" @click.stop="removeTask(data, i)"><X :size="11" /></button>
-                </label>
-              </div>
-              <input v-model="newTask[data.id]" class="wstask-in" placeholder="+ agregar tarea" @keyup.enter="addTask(data)" />
-            </div>
-
             <div class="wsbtns">
               <button class="wscopy" :disabled="!data.hasFlow" @click.stop="emit('copy', { combo: data.id, label: data.name })">
                 <Check v-if="data.isCopied" :size="13" /><Copy v-else :size="13" />
@@ -208,34 +154,8 @@ watch(() => layout.value.nodes.length, () => refit(300))
       </VueFlow>
     </div>
 
-    <!-- modal: crear workspace raíz -->
+    <!-- modales (derivar / borrar) fuera del canvas -->
     <Teleport to="body">
-      <div v-if="creating" class="modal-back" @click.self="emit('close-create')">
-        <div class="modal">
-          <div class="modal-head"><h3>Nuevo workspace</h3><button class="wsx" @click="emit('close-create')"><X :size="16" /></button></div>
-          <input v-model="form.name" class="modal-in" placeholder="nombre (ej Producción, Staging, feature-x)" @keyup.enter="saveRoot" autofocus />
-          <div class="modal-presets">
-            <span class="muted">rápido:</span>
-            <button @click="preset('main')">todos main</button>
-            <button @click="preset('staging')">todos staging</button>
-            <button @click="captureCurrent">estado actual</button>
-          </div>
-          <div class="modal-repos">
-            <div v-for="a in repoAliases" :key="a" class="modal-repo">
-              <span class="modal-repo-name">{{ a }}</span>
-              <select v-model="form.targets[a]" class="modal-sel">
-                <option v-for="b in (branches[a] || [currentBranch[a]])" :key="b" :value="b">{{ b }}</option>
-              </select>
-            </div>
-          </div>
-          <div class="modal-actions">
-            <button class="modal-save" :disabled="!form.name.trim()" @click="saveRoot">crear</button>
-            <button class="modal-cancel" @click="emit('close-create')">cancelar</button>
-          </div>
-        </div>
-      </div>
-
-      <!-- modal: derivar hijo -->
       <div v-if="deriveParent" class="modal-back" @click.self="deriveParent = null">
         <div class="modal">
           <div class="modal-head"><h3>Derivar de «{{ deriveParent.name }}»</h3><button class="wsx" @click="deriveParent = null"><X :size="16" /></button></div>
@@ -251,7 +171,6 @@ watch(() => layout.value.nodes.length, () => refit(300))
         </div>
       </div>
 
-      <!-- modal: borrar -->
       <div v-if="deleteTarget" class="modal-back" @click.self="deleteTarget = null">
         <div class="modal modal-sm">
           <div class="modal-head"><h3><AlertTriangle :size="16" /> Borrar workspace</h3></div>
@@ -305,23 +224,6 @@ watch(() => layout.value.nodes.length, () => refit(300))
 .wsachip.warn { color: var(--amber); cursor: pointer; }
 .wsachip.err { color: var(--red); cursor: pointer; }
 
-/* ── checklist de la tarea ── */
-.wstasks { margin-bottom: 8px; border-top: 1px solid var(--border); padding-top: 8px; }
-.wstasks-head { display: flex; align-items: center; justify-content: space-between; font-size: 10px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); margin-bottom: 5px; font-weight: 600; }
-.wstasks-prog { font-family: var(--mono); color: var(--amber); background: var(--chip); border-radius: 4px; padding: 0 6px; }
-.wstasks-prog.full { color: var(--green); }
-.wstasks-list { display: flex; flex-direction: column; gap: 2px; max-height: 132px; overflow-y: auto; margin-bottom: 5px; }
-.wstask { display: flex; align-items: flex-start; gap: 6px; font-size: 11px; color: var(--text); padding: 2px 2px; border-radius: 4px; cursor: pointer; }
-.wstask:hover { background: var(--bg); }
-.wstask input { margin-top: 1px; accent-color: var(--green); cursor: pointer; flex: none; }
-.wstask-txt { flex: 1; line-height: 1.35; }
-.wstask.done .wstask-txt { color: var(--muted); text-decoration: line-through; }
-.wstask-x { background: none; border: 0; color: var(--muted); cursor: pointer; padding: 0; opacity: 0; display: inline-flex; flex: none; }
-.wstask:hover .wstask-x { opacity: 1; }
-.wstask-x:hover { color: var(--red); }
-.wstask-in { width: 100%; background: var(--bg); border: 1px solid var(--border); color: var(--text); padding: 4px 8px; border-radius: 6px; font-size: 11px; box-sizing: border-box; }
-.wstask-in:focus { outline: none; border-color: var(--accent); }
-
 .wsbtns { display: flex; gap: 6px; }
 .wscopy { flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 5px; background: var(--accent); color: #06101f; border: 0; border-radius: 6px; padding: 6px; font-weight: 600; font-size: 11px; cursor: pointer; }
 .wscopy:hover:not(:disabled) { filter: brightness(1.08); }
@@ -340,14 +242,6 @@ watch(() => layout.value.nodes.length, () => refit(300))
 .modal-note { font-size: 12px; color: var(--muted); line-height: 1.5; margin: 0 0 12px; }
 .modal-in { width: 100%; background: var(--bg); border: 1px solid var(--border); color: var(--text); padding: 9px 12px; border-radius: 8px; font-size: 14px; box-sizing: border-box; margin-bottom: 10px; }
 .modal-in:focus { outline: none; border-color: var(--accent); }
-.modal-presets { display: flex; align-items: center; gap: 6px; margin-bottom: 12px; flex-wrap: wrap; }
-.modal-presets .muted { font-size: 12px; }
-.modal-presets button { background: var(--chip); border: 1px solid var(--border); color: var(--text); padding: 3px 10px; border-radius: 999px; font-size: 12px; cursor: pointer; }
-.modal-presets button:hover { border-color: var(--accent); }
-.modal-repos { display: flex; flex-direction: column; gap: 8px; margin-bottom: 14px; }
-.modal-repo { display: flex; align-items: center; gap: 10px; }
-.modal-repo-name { flex: 0 0 150px; font-size: 13px; font-family: var(--mono); }
-.modal-sel { flex: 1; background: var(--bg); border: 1px solid var(--border); color: var(--text); padding: 6px 10px; border-radius: 6px; font-size: 13px; font-family: var(--mono); }
 .modal-preview { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 14px; }
 .modal-prev-chip { display: inline-flex; align-items: center; gap: 3px; font-size: 11px; font-family: var(--mono); color: var(--violet); background: rgba(188,140,255,.1); padding: 3px 8px; border-radius: 6px; }
 .modal-prev-chip b { color: var(--text); margin-right: 2px; }

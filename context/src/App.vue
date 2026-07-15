@@ -3,14 +3,13 @@
 // copy del flujo) del que se pueden DERIVAR hijos que ramifican sobre el padre.
 import { ref, computed } from 'vue'
 import WorkspaceGraph from './WorkspaceGraph.vue'
-import { Waypoints, Plus } from 'lucide-vue-next'
+import { Waypoints } from 'lucide-vue-next'
 
 const WS_URL = 'ws://localhost:8788/ws'
 
 const status = ref('conectando…')
 const repos = ref([])
 const combinations = ref([]) // [{id,name,parent,targets,status,flow}]
-const branches = ref({})
 const selectedCombo = ref('')
 const graphsByCombo = ref({}) // comboId → graphs (caché de árboles para copiar por nodo)
 const copiedKey = ref('') // `${combo}::${group}::${key}` recién copiado
@@ -18,7 +17,6 @@ const aligning = ref('') // comboId que está alineando
 const alignResults = ref([]) // reporte por repo del último align
 const summary = ref({ repos: [], links: [] })
 const nodeCount = ref(0)
-const creating = ref(false) // modal crear workspace raíz
 const toast = ref('')
 
 let pendingCopy = null // {combo,group,key,label} esperando su árbol
@@ -62,9 +60,6 @@ function connect() {
           requestComboGraphs(d.id)
         }
         break
-      case 'combination_saved':
-        if (d.ok && creating.value) creating.value = false
-        break
     }
   }
   ws.onclose = () => { status.value = 'desconectado'; scheduleRetry() }
@@ -76,8 +71,6 @@ function send(obj) { if (online.value) ws.send(JSON.stringify(obj)) }
 function showToast(msg) { toast.value = msg; setTimeout(() => (toast.value = ''), 2200) }
 
 // ── workspaces ──
-function requestBranches() { send({ type: 'repo_branches' }) }
-function onCreateRoot({ name, targets }) { send({ type: 'save_combination', name, targets }) }
 function onDeriveChild({ parent, name }) {
   // "los 3, mismo nombre": una rama nueva con el mismo nombre en cada repo
   const targets = {}
@@ -85,7 +78,6 @@ function onDeriveChild({ parent, name }) {
   send({ type: 'save_combination', name, parent, targets })
 }
 function onDeleteWorkspace(id) { send({ type: 'delete_combination', id }) }
-function onSetTasks({ id, tasks }) { send({ type: 'set_tasks', id, tasks }) }
 
 // seleccionar un nodo = alinear (checkout+pull) + cargar su árbol
 function onSelect(id) {
@@ -144,31 +136,22 @@ connect()
         <span class="pill" :class="online ? 'on' : 'off'">{{ status }}</span>
         <span class="stat">{{ repos.length }} repos</span>
         <span class="stat">{{ combinations.length }} workspaces</span>
-        <button class="new-ws" :disabled="!online" @click="creating = true; requestBranches()">
-          <Plus :size="15" /> nuevo workspace
-        </button>
       </div>
     </header>
 
     <WorkspaceGraph
       :combinations="combinations"
       :repos="summary.repos"
-      :branches="branches"
       :selected="selectedCombo"
       :graphs="comboGraphs"
       :copied-key="copiedKey"
       :aligning="aligning"
       :align-results="alignResults"
-      :creating="creating"
-      @create-root="onCreateRoot"
       @derive="onDeriveChild"
       @delete="onDeleteWorkspace"
-      @set-tasks="onSetTasks"
       @select="onSelect"
-      @need-branches="requestBranches"
       @copy="copyTree"
       @copy-text="copyText"
-      @close-create="creating = false"
     />
 
     <Teleport to="body">
@@ -180,7 +163,4 @@ connect()
 </template>
 
 <style scoped>
-.new-ws { display: inline-flex; align-items: center; gap: 5px; background: var(--accent); color: #06101f; border: 0; border-radius: 8px; padding: 6px 13px; font-weight: 600; font-size: 13px; cursor: pointer; }
-.new-ws:hover:not(:disabled) { filter: brightness(1.08); }
-.new-ws:disabled { opacity: .5; cursor: default; }
 </style>
