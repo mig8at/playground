@@ -12,7 +12,7 @@ import (
 // Analysis es el documento persistido por flujo: el "primer análisis" (auto,
 // desde node-lite) MÁS los campos de enriquecimiento (role/note por archivo y
 // un summary libre) que se conservan entre re-exportaciones. Vive en
-// <ATLAS_DATA_DIR>/analysis/<id>.json para acumular conocimiento con el tiempo.
+// <CONTEXT_DATA_DIR>/analysis/<id>.json para acumular conocimiento con el tiempo.
 type Analysis struct {
 	ID          string         `json:"id"`
 	Name        string         `json:"name"`

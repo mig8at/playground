@@ -1,5 +1,5 @@
 <script setup>
-// Atlas — árbol de WORKSPACES: cada nodo es una combinación de ramas (resumen +
+// Context — árbol de WORKSPACES: cada nodo es una combinación de ramas (resumen +
 // copy del flujo) del que se pueden DERIVAR hijos que ramifican sobre el padre.
 import { ref, computed } from 'vue'
 import WorkspaceGraph from './WorkspaceGraph.vue'
@@ -136,7 +136,7 @@ connect()
       <div class="brand">
         <Waypoints class="logo-mark" :size="28" :stroke-width="1.6" />
         <div>
-          <h1>Atlas</h1>
+          <h1>Context</h1>
           <p class="tag">workspaces de ramas cross-repo · CreditOp</p>
         </div>
       </div>

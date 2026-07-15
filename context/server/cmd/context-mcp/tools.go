@@ -8,7 +8,7 @@ import (
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
-	"creditop/atlas/server/internal/engine"
+	"creditop/context/server/internal/engine"
 )
 
 // ok arma un CallToolResult de texto + el output tipado.
@@ -24,7 +24,7 @@ func jsonText(v any) string {
 	return string(b)
 }
 
-// ── atlas_scan ───────────────────────────────────────────────────────────────
+// ── context_scan ───────────────────────────────────────────────────────────────
 
 type ScanInput struct {
 	Path string `json:"path" jsonschema:"ruta absoluta a la raíz del repo a indexar (se puede usar ~)"`
@@ -36,7 +36,7 @@ type ScanOutput struct {
 
 func registerScan(s *mcp.Server, eng *engine.Engine) {
 	mcp.AddTool(s, &mcp.Tool{
-		Name:        "atlas_scan",
+		Name:        "context_scan",
 		Description: "Indexa (o re-indexa) un repo: extrae node-lite (imports, definiciones, rutas) de cada archivo de código. Llamar una vez por repo. Los IDs son estables entre escaneos.",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in ScanInput) (*mcp.CallToolResult, ScanOutput, error) {
 		repo, err := eng.Scan(in.Path)
@@ -48,7 +48,7 @@ func registerScan(s *mcp.Server, eng *engine.Engine) {
 	})
 }
 
-// ── atlas_map ────────────────────────────────────────────────────────────────
+// ── context_map ────────────────────────────────────────────────────────────────
 
 type MapInput struct {
 	Query string `json:"query,omitempty" jsonschema:"filtro opcional por substring del path. Vacío = todo el mapa"`
@@ -70,8 +70,8 @@ type MapOutput struct {
 
 func registerMap(s *mcp.Server, eng *engine.Engine) {
 	mcp.AddTool(s, &mcp.Tool{
-		Name:        "atlas_map",
-		Description: "Devuelve el catálogo node-lite (barato, sin código): id, path, definiciones y rutas por archivo. Úsalo para ubicar archivos por ID antes de pedir su contenido con atlas_get_content.",
+		Name:        "context_map",
+		Description: "Devuelve el catálogo node-lite (barato, sin código): id, path, definiciones y rutas por archivo. Úsalo para ubicar archivos por ID antes de pedir su contenido con context_get_content.",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in MapInput) (*mcp.CallToolResult, MapOutput, error) {
 		nodes := eng.Search(in.Query)
 		out := MapOutput{Count: len(nodes)}
@@ -89,7 +89,7 @@ func registerMap(s *mcp.Server, eng *engine.Engine) {
 	})
 }
 
-// ── atlas_connections ────────────────────────────────────────────────────────
+// ── context_connections ────────────────────────────────────────────────────────
 
 type ConnInput struct {
 	ID string `json:"id" jsonschema:"ID de nodo (ej legacy-backend:a1b2c3d4)"`
@@ -106,7 +106,7 @@ type ConnOutput struct {
 
 func registerConnections(s *mcp.Server, eng *engine.Engine) {
 	mcp.AddTool(s, &mcp.Tool{
-		Name:        "atlas_connections",
+		Name:        "context_connections",
 		Description: "Edges de un nodo: imports (intra-repo) y rutas (cross-repo, match cliente↔servidor por método+path). Sirve para trazar un flujo saltando entre repos.",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in ConnInput) (*mcp.CallToolResult, ConnOutput, error) {
 		edges := eng.Connections(in.ID)
@@ -124,7 +124,7 @@ func registerConnections(s *mcp.Server, eng *engine.Engine) {
 	})
 }
 
-// ── atlas_save_flow ──────────────────────────────────────────────────────────
+// ── context_save_flow ──────────────────────────────────────────────────────────
 
 type SaveFlowInput struct {
 	ID          string   `json:"id,omitempty" jsonschema:"id del flujo; vacío para crear uno nuevo (se genera del nombre)"`
@@ -143,8 +143,8 @@ type SaveFlowOutput struct {
 
 func registerSaveFlow(s *mcp.Server, eng *engine.Engine) {
 	mcp.AddTool(s, &mcp.Tool{
-		Name:        "atlas_save_flow",
-		Description: "Guarda un flujo: un array curado de IDs de archivo (posiblemente de varios repos) con nombre. Aparece en vivo en la UI de Atlas. Es la forma de persistir 'este flujo = estos archivos'.",
+		Name:        "context_save_flow",
+		Description: "Guarda un flujo: un array curado de IDs de archivo (posiblemente de varios repos) con nombre. Aparece en vivo en la UI de Context. Es la forma de persistir 'este flujo = estos archivos'.",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in SaveFlowInput) (*mcp.CallToolResult, SaveFlowOutput, error) {
 		f, err := eng.SaveFlow(in.ID, in.Name, in.Description, in.Combination, in.Group, in.Kind, in.NodeIDs)
 		if err != nil {
@@ -155,7 +155,7 @@ func registerSaveFlow(s *mcp.Server, eng *engine.Engine) {
 	})
 }
 
-// ── atlas_list_flows ─────────────────────────────────────────────────────────
+// ── context_list_flows ─────────────────────────────────────────────────────────
 
 type ListFlowsInput struct{}
 type FlowLite struct {
@@ -170,7 +170,7 @@ type ListFlowsOutput struct {
 
 func registerListFlows(s *mcp.Server, eng *engine.Engine) {
 	mcp.AddTool(s, &mcp.Tool{
-		Name:        "atlas_list_flows",
+		Name:        "context_list_flows",
 		Description: "Lista los flujos guardados (id, nombre, nº de archivos).",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, _ ListFlowsInput) (*mcp.CallToolResult, ListFlowsOutput, error) {
 		var out ListFlowsOutput
@@ -181,7 +181,7 @@ func registerListFlows(s *mcp.Server, eng *engine.Engine) {
 	})
 }
 
-// ── atlas_get_flow ───────────────────────────────────────────────────────────
+// ── context_get_flow ───────────────────────────────────────────────────────────
 
 type GetFlowInput struct {
 	ID string `json:"id" jsonschema:"id del flujo"`
@@ -195,8 +195,8 @@ type GetFlowOutput struct {
 
 func registerGetFlow(s *mcp.Server, eng *engine.Engine) {
 	mcp.AddTool(s, &mcp.Tool{
-		Name:        "atlas_get_flow",
-		Description: "Devuelve un flujo con sus nodos resueltos (node-lite). Combínalo con atlas_get_content para hidratar el código.",
+		Name:        "context_get_flow",
+		Description: "Devuelve un flujo con sus nodos resueltos (node-lite). Combínalo con context_get_content para hidratar el código.",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in GetFlowInput) (*mcp.CallToolResult, GetFlowOutput, error) {
 		f, found := eng.Flow(in.ID)
 		if !found {
@@ -210,7 +210,7 @@ func registerGetFlow(s *mcp.Server, eng *engine.Engine) {
 	})
 }
 
-// ── atlas_get_content ────────────────────────────────────────────────────────
+// ── context_get_content ────────────────────────────────────────────────────────
 
 type GetContentInput struct {
 	IDs []string `json:"ids" jsonschema:"array de IDs de nodo a hidratar (leer código real)"`
@@ -221,7 +221,7 @@ type GetContentOutput struct {
 
 func registerGetContent(s *mcp.Server, eng *engine.Engine) {
 	mcp.AddTool(s, &mcp.Tool{
-		Name:        "atlas_get_content",
+		Name:        "context_get_content",
 		Description: "Hidrata: lee el código real de los IDs pedidos. Este es el paso 'caro'; pídelo solo para los pocos archivos que de verdad necesitas.",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in GetContentInput) (*mcp.CallToolResult, GetContentOutput, error) {
 		contents, err := eng.Content(in.IDs)
@@ -236,10 +236,10 @@ func registerGetContent(s *mcp.Server, eng *engine.Engine) {
 	})
 }
 
-// ── atlas_export_analysis ────────────────────────────────────────────────────
+// ── context_export_analysis ────────────────────────────────────────────────────
 
 type ExportAnalysisInput struct {
-	ID string `json:"id" jsonschema:"id del flujo a exportar; el JSON va a <ATLAS_DATA_DIR>/analysis/<id>.json"`
+	ID string `json:"id" jsonschema:"id del flujo a exportar; el JSON va a <CONTEXT_DATA_DIR>/analysis/<id>.json"`
 }
 type ExportAnalysisOutput struct {
 	ID   string `json:"id"`
@@ -248,7 +248,7 @@ type ExportAnalysisOutput struct {
 
 func registerExportAnalysis(s *mcp.Server, eng *engine.Engine) {
 	mcp.AddTool(s, &mcp.Tool{
-		Name:        "atlas_export_analysis",
+		Name:        "context_export_analysis",
 		Description: "Guarda el 'primer análisis' de un flujo como JSON en la carpeta analysis/ (flujo + archivos node-lite + slots de enriquecimiento role/note/summary). PRESERVA el enriquecimiento previo si el archivo ya existe. Base para enriquecer luego.",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in ExportAnalysisInput) (*mcp.CallToolResult, ExportAnalysisOutput, error) {
 		path, err := eng.ExportAnalysis(in.ID)
@@ -259,7 +259,7 @@ func registerExportAnalysis(s *mcp.Server, eng *engine.Engine) {
 	})
 }
 
-// ── atlas_get_analysis ───────────────────────────────────────────────────────
+// ── context_get_analysis ───────────────────────────────────────────────────────
 
 type GetAnalysisInput struct {
 	ID string `json:"id" jsonschema:"id del flujo"`
@@ -267,7 +267,7 @@ type GetAnalysisInput struct {
 
 func registerGetAnalysis(s *mcp.Server, eng *engine.Engine) {
 	mcp.AddTool(s, &mcp.Tool{
-		Name:        "atlas_get_analysis",
+		Name:        "context_get_analysis",
 		Description: "Devuelve el JSON de análisis guardado de un flujo (con el enriquecimiento acumulado). Úsalo para leer y luego enriquecer.",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in GetAnalysisInput) (*mcp.CallToolResult, engine.Analysis, error) {
 		a, err := eng.GetAnalysis(in.ID)
@@ -278,7 +278,7 @@ func registerGetAnalysis(s *mcp.Server, eng *engine.Engine) {
 	})
 }
 
-// ── atlas_enrich_analysis ────────────────────────────────────────────────────
+// ── context_enrich_analysis ────────────────────────────────────────────────────
 
 type EnrichFile struct {
 	ID   string `json:"id" jsonschema:"id del archivo dentro del flujo"`
@@ -293,7 +293,7 @@ type EnrichAnalysisInput struct {
 
 func registerEnrichAnalysis(s *mcp.Server, eng *engine.Engine) {
 	mcp.AddTool(s, &mcp.Tool{
-		Name:        "atlas_enrich_analysis",
+		Name:        "context_enrich_analysis",
 		Description: "Enriquece el análisis guardado de un flujo: fija un summary y/o role/note por archivo. Fusiona (no pisa lo no enviado). Si no existe el análisis, lo exporta primero.",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in EnrichAnalysisInput) (*mcp.CallToolResult, engine.Analysis, error) {
 		fm := map[string][2]string{}
@@ -308,7 +308,7 @@ func registerEnrichAnalysis(s *mcp.Server, eng *engine.Engine) {
 	})
 }
 
-// ── atlas_flow_status ────────────────────────────────────────────────────────
+// ── context_flow_status ────────────────────────────────────────────────────────
 
 type FlowStatusInput struct {
 	ID string `json:"id,omitempty" jsonschema:"id del flujo; vacío = estado de TODOS los flujos"`
@@ -327,8 +327,8 @@ type FlowStatusOutput struct {
 
 func registerFlowStatus(s *mcp.Server, eng *engine.Engine) {
 	mcp.AddTool(s, &mcp.Tool{
-		Name:        "atlas_flow_status",
-		Description: "Dice si un flujo (o todos) sigue AL DÍA vs la línea base guardada, comparando el hash de contenido de cada archivo con el índice actual. Úsalo tras re-escanear los repos para saber qué flujos necesitan re-análisis (Changed/Removed). Re-guardar el flujo (atlas_save_flow) refresca la línea base.",
+		Name:        "context_flow_status",
+		Description: "Dice si un flujo (o todos) sigue AL DÍA vs la línea base guardada, comparando el hash de contenido de cada archivo con el índice actual. Úsalo tras re-escanear los repos para saber qué flujos necesitan re-análisis (Changed/Removed). Re-guardar el flujo (context_save_flow) refresca la línea base.",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in FlowStatusInput) (*mcp.CallToolResult, FlowStatusOutput, error) {
 		names := map[string]string{}
 		for _, f := range eng.Flows() {
@@ -357,13 +357,13 @@ func registerFlowStatus(s *mcp.Server, eng *engine.Engine) {
 	})
 }
 
-// ── atlas_combinations ───────────────────────────────────────────────────────
+// ── context_combinations ───────────────────────────────────────────────────────
 
 type CombinationsInput struct{}
 
 func registerCombinations(s *mcp.Server, eng *engine.Engine) {
 	mcp.AddTool(s, &mcp.Tool{
-		Name:        "atlas_combinations",
+		Name:        "context_combinations",
 		Description: "Lista las combinaciones de ramas guardadas con su estado de alineación vs el git actual: por repo, si está en la rama objetivo (aligned), en otra rama (off) o avanzó commits (moved). Úsalo para saber si el 'mapa' de ramas sigue vigente.",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, _ CombinationsInput) (*mcp.CallToolResult, any, error) {
 		type combo struct {
@@ -379,7 +379,7 @@ func registerCombinations(s *mcp.Server, eng *engine.Engine) {
 	})
 }
 
-// ── atlas_save_combination ───────────────────────────────────────────────────
+// ── context_save_combination ───────────────────────────────────────────────────
 
 type SaveCombinationInput struct {
 	ID      string            `json:"id,omitempty" jsonschema:"id; vacío para crear (se genera del nombre)"`
@@ -389,8 +389,8 @@ type SaveCombinationInput struct {
 
 func registerSaveCombination(s *mcp.Server, eng *engine.Engine) {
 	mcp.AddTool(s, &mcp.Tool{
-		Name:        "atlas_save_combination",
-		Description: "Guarda una combinación de ramas (repo→rama). Captura la línea base (commit por repo que ya esté en su rama objetivo). Aparece en vivo en la UI de Atlas.",
+		Name:        "context_save_combination",
+		Description: "Guarda una combinación de ramas (repo→rama). Captura la línea base (commit por repo que ya esté en su rama objetivo). Aparece en vivo en la UI de Context.",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in SaveCombinationInput) (*mcp.CallToolResult, engine.Combination, error) {
 		cb, err := eng.SaveCombination(in.ID, in.Name, "", in.Targets)
 		if err != nil {
@@ -400,7 +400,7 @@ func registerSaveCombination(s *mcp.Server, eng *engine.Engine) {
 	})
 }
 
-// ── atlas_tree ───────────────────────────────────────────────────────────────
+// ── context_tree ───────────────────────────────────────────────────────────────
 
 type TreeInput struct {
 	Flow        string `json:"flow,omitempty" jsonschema:"id de un flujo → árbol de ese flujo"`
@@ -412,7 +412,7 @@ type TreeOutput struct {
 
 func registerTree(s *mcp.Server, eng *engine.Engine) {
 	mcp.AddTool(s, &mcp.Tool{
-		Name:        "atlas_tree",
+		Name:        "context_tree",
 		Description: "Devuelve el árbol estilo Rino (estructura de carpetas + contenido inline colapsado) de un flujo (flow) o del flujo completo de una combinación (combination = unión dedup de sus flujos). Es el blob pegable a un LLM. Sin UI.",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in TreeInput) (*mcp.CallToolResult, TreeOutput, error) {
 		var text string

@@ -1,5 +1,5 @@
 // Package gitinfo lee estado de git de un repo (solo lectura: nunca hace
-// checkout ni modifica nada). Atlas observa qué rama/commit tiene cada repo para
+// checkout ni modifica nada). Context observa qué rama/commit tiene cada repo para
 // rastrear "combinaciones de ramas".
 package gitinfo
 

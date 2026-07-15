@@ -1,4 +1,4 @@
-module creditop/atlas/server
+module creditop/context/server
 
 go 1.25.5
 

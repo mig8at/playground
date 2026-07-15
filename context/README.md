@@ -1,4 +1,4 @@
-# atlas — mapa de flujos cross-repo (CreditOp)
+# context — mapa de flujos cross-repo (CreditOp)
 
 Un solo proyecto. `npm run dev` levanta **el server (Go) y el frontend (Vue) juntos**;
 el server dice **`server on`** y habla con la UI por **WebSocket**. La misma lógica se
@@ -18,31 +18,31 @@ expone como **conector MCP (stdio)** para que un host (Claude/Cursor) cree los f
    posiblemente de varios repos. Lo crea el MCP; la UI lo muestra **en vivo**.
 
 ```
-atlas/
+context/
 ├── package.json  vite.config.js  index.html   ← frontend (Vue, :5193)
 ├── src/ App.vue  main.js  styles.css           ← UI: repos + flujos + detalle
-└── server/                                      ← Go (module creditop/atlas/server)
+└── server/                                      ← Go (module creditop/context/server)
     ├── cmd/web/         ← WebSocket (:8788): estado a la UI, poll de disco
-    ├── cmd/atlas-mcp/  ← conector MCP (stdio): scan / map / flows / content
+    ├── cmd/context-mcp/  ← conector MCP (stdio): scan / map / flows / content
     └── internal/
         ├── scan/    ← extractor node-lite (ts, go, php, py, vue…)
         ├── graph/   ← edges import + route (cross-repo)
         └── engine/  ← estado en disco (JSON atómico), compartido web+MCP
 ```
 
-**Estado compartido en disco.** Web y MCP apuntan al mismo `ATLAS_DATA_DIR`
-(por defecto `~/.creditop-atlas`): `index.json` (repos + nodos) y `flows.json`
+**Estado compartido en disco.** Web y MCP apuntan al mismo `CONTEXT_DATA_DIR`
+(por defecto `~/.creditop-context`): `index.json` (repos + nodos) y `flows.json`
 (flujos). El MCP escribe, el web detecta el cambio (poll de mtime) y refresca la UI.
 
 ## Correr
 
 ```bash
-cd atlas
+cd context
 npm install
 npm run dev
 ```
 
-- **server** → `go run ./cmd/web` en `:8788` · imprime `server on · ws://… · datos: ~/.creditop-atlas`
+- **server** → `go run ./cmd/web` en `:8788` · imprime `server on · ws://… · datos: ~/.creditop-context`
 - **web** → Vite en `http://localhost:5193`
 
 En la UI pegá la ruta de un repo (ej `…/CREDITOP/github/legacy-backend`) y **Indexar**.
@@ -51,7 +51,7 @@ Repetí por cada repo. Los **flujos** aparecen cuando el MCP los guarda.
 ## Conector MCP
 
 ```bash
-npm run server:build       # server/bin/{web,atlas-mcp}
+npm run server:build       # server/bin/{web,context-mcp}
 npm run server:mcp         # corre el MCP por stdio
 ```
 
@@ -59,17 +59,17 @@ Tools expuestas:
 
 | Tool | Qué hace |
 |------|----------|
-| `atlas_scan` | indexa (o re-indexa) un repo |
-| `atlas_map` | catálogo node-lite (barato, sin código); filtro por path |
-| `atlas_connections` | edges de un nodo (import + route cross-repo) |
-| `atlas_save_flow` | **guarda** un flujo = array de IDs (aparece en la UI) |
-| `atlas_list_flows` / `atlas_get_flow` | lee flujos guardados |
-| `atlas_get_content` | hidrata: código real de unos IDs |
+| `context_scan` | indexa (o re-indexa) un repo |
+| `context_map` | catálogo node-lite (barato, sin código); filtro por path |
+| `context_connections` | edges de un nodo (import + route cross-repo) |
+| `context_save_flow` | **guarda** un flujo = array de IDs (aparece en la UI) |
+| `context_list_flows` / `context_get_flow` | lee flujos guardados |
+| `context_get_content` | hidrata: código real de unos IDs |
 
 Registrarlo (ejemplo, ruta al binario):
 
 ```bash
-claude mcp add atlas -- /ruta/a/atlas/server/bin/atlas-mcp
+claude mcp add context -- /ruta/a/context/server/bin/context-mcp
 ```
 
 ## Estado

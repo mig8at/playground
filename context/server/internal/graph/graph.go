@@ -14,7 +14,7 @@ import (
 	"sort"
 	"strings"
 
-	"creditop/atlas/server/internal/scan"
+	"creditop/context/server/internal/scan"
 )
 
 // Edge conecta dos nodos. From/To son IDs de nodo.

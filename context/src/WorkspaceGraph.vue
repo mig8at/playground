@@ -239,7 +239,7 @@ watch(() => layout.value.nodes.length, () => refit(300))
       <div v-if="deriveParent" class="modal-back" @click.self="deriveParent = null">
         <div class="modal">
           <div class="modal-head"><h3>Derivar de «{{ deriveParent.name }}»</h3><button class="wsx" @click="deriveParent = null"><X :size="16" /></button></div>
-          <p class="modal-note">Crea un workspace hijo con una rama nueva del mismo nombre en los {{ repoAliases.length }} repos. Solo registra los nombres; las ramas las creás vos (Atlas alinea si existen).</p>
+          <p class="modal-note">Crea un workspace hijo con una rama nueva del mismo nombre en los {{ repoAliases.length }} repos. Solo registra los nombres; las ramas las creás vos (Context alinea si existen).</p>
           <input v-model="deriveName" class="modal-in" placeholder="nombre de rama (ej feature/motai-x)" @keyup.enter="confirmDerive" autofocus />
           <div class="modal-preview">
             <span v-for="a in repoAliases" :key="a" class="modal-prev-chip"><b>{{ a.split('-')[0] }}</b><GitBranch :size="10" />{{ deriveName.trim() || '…' }}</span>
@@ -255,7 +255,7 @@ watch(() => layout.value.nodes.length, () => refit(300))
       <div v-if="deleteTarget" class="modal-back" @click.self="deleteTarget = null">
         <div class="modal modal-sm">
           <div class="modal-head"><h3><AlertTriangle :size="16" /> Borrar workspace</h3></div>
-          <p class="modal-note">¿Borrar <b>{{ deleteTarget.name }}</b>? No toca git; solo quita el workspace de Atlas.</p>
+          <p class="modal-note">¿Borrar <b>{{ deleteTarget.name }}</b>? No toca git; solo quita el workspace de Context.</p>
           <div class="modal-actions">
             <button class="modal-del" @click="confirmDelete">sí, borrar</button>
             <button class="modal-cancel" @click="deleteTarget = null">cancelar</button>

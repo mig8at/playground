@@ -6,7 +6,7 @@ import (
 	"sort"
 	"strings"
 
-	"creditop/atlas/server/internal/scan"
+	"creditop/context/server/internal/scan"
 )
 
 // FlowTree devuelve el árbol Rino de un flujo (sus archivos) con header de contexto.
@@ -94,7 +94,7 @@ func wrapComment(s string) string {
 }
 
 // ComboTree arma el árbol Rino de TODOS los flujos de una combinación (unión
-// dedup). Útil para el MCP (atlas_tree combination).
+// dedup). Útil para el MCP (context_tree combination).
 func (e *Engine) ComboTree(comboID string) string {
 	seen := map[string]bool{}
 	var ids []string

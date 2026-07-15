@@ -1,5 +1,5 @@
 {
-  "name": "creditop-atlas",
+  "name": "creditop-context",
   "private": true,
   "version": "0.1.0",
   "type": "module",
@@ -9,8 +9,8 @@
     "dev:web": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "server:build": "cd server && go build -o bin/web ./cmd/web && go build -o bin/atlas-mcp ./cmd/atlas-mcp",
-    "server:mcp": "cd server && go run ./cmd/atlas-mcp"
+    "server:build": "cd server && go build -o bin/web ./cmd/web && go build -o bin/context-mcp ./cmd/context-mcp",
+    "server:mcp": "cd server && go run ./cmd/context-mcp"
   },
   "dependencies": {
     "@vue-flow/background": "^1.3.2",

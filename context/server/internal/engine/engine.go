@@ -5,7 +5,7 @@
 //	la UI los MUESTRA   →  el web lee flows.json y hace push por WS
 //
 // Por eso el estado vive en disco (JSON atómico) y no en memoria de un solo
-// proceso. DataDir por defecto: ~/.creditop-atlas (override con ATLAS_DATA_DIR).
+// proceso. DataDir por defecto: ~/.creditop-context (override con CONTEXT_DATA_DIR).
 package engine
 
 import (
@@ -18,9 +18,9 @@ import (
 	"sync"
 	"time"
 
-	"creditop/atlas/server/internal/gitinfo"
-	"creditop/atlas/server/internal/graph"
-	"creditop/atlas/server/internal/scan"
+	"creditop/context/server/internal/gitinfo"
+	"creditop/context/server/internal/graph"
+	"creditop/context/server/internal/scan"
 )
 
 // Repo es un repo indexado.
@@ -69,19 +69,19 @@ type flowFile struct {
 // Engine da acceso concurrente-seguro al estado en disco.
 type Engine struct {
 	mu       sync.Mutex
-	dir      string // runtime: índice, combinaciones, baselines (~/.creditop-atlas)
+	dir      string // runtime: índice, combinaciones, baselines (~/.creditop-context)
 	flowsDir string // definiciones EDITABLES de flujos (server/data/flows)
 }
 
 // New abre (o crea) el engine sobre el directorio de datos.
 func New() (*Engine, error) {
-	dir := os.Getenv("ATLAS_DATA_DIR")
+	dir := os.Getenv("CONTEXT_DATA_DIR")
 	if dir == "" {
 		home, err := os.UserHomeDir()
 		if err != nil {
 			return nil, err
 		}
-		dir = filepath.Join(home, ".creditop-atlas")
+		dir = filepath.Join(home, ".creditop-context")
 	}
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return nil, err

@@ -1,4 +1,4 @@
-// Command web es el servidor de Atlas para la UI local.
+// Command web es el servidor de Context para la UI local.
 //
 // Levanta un WebSocket (:8788). La UI se conecta y recibe el estado (repos +
 // flujos). El estado vive en disco, así que cuando el conector MCP crea un
@@ -24,7 +24,7 @@ import (
 
 	"github.com/coder/websocket"
 
-	"creditop/atlas/server/internal/engine"
+	"creditop/context/server/internal/engine"
 )
 
 type server struct {
@@ -36,7 +36,7 @@ type server struct {
 
 func main() {
 	log.SetFlags(0)
-	log.SetPrefix("[atlas-web] ")
+	log.SetPrefix("[context-web] ")
 
 	eng, err := engine.New()
 	if err != nil {
@@ -44,7 +44,7 @@ func main() {
 	}
 	s := &server{eng: eng, clients: map[*websocket.Conn]context.Context{}}
 
-	port := envDefault("ATLAS_WEB_PORT", "8788")
+	port := envDefault("CONTEXT_WEB_PORT", "8788")
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/ws", s.handleWS)

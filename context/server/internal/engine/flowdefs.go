@@ -21,10 +21,10 @@ type FlowDef struct {
 	Files       []string `json:"files"` // "repo/relpath", ej "legacy-backend/Modules/Onboarding/App/Http/Controllers/AbacoController.php"
 }
 
-// resolveFlowsDir ubica server/data/flows: env ATLAS_FLOWS_DIR, o relativo al
-// binario (server/bin/atlas-mcp → ../data/flows), o al cwd (web corre en server/).
+// resolveFlowsDir ubica server/data/flows: env CONTEXT_FLOWS_DIR, o relativo al
+// binario (server/bin/context-mcp → ../data/flows), o al cwd (web corre en server/).
 func resolveFlowsDir() string {
-	if d := os.Getenv("ATLAS_FLOWS_DIR"); d != "" {
+	if d := os.Getenv("CONTEXT_FLOWS_DIR"); d != "" {
 		return d
 	}
 	var cands []string

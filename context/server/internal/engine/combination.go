@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"creditop/atlas/server/internal/gitinfo"
+	"creditop/context/server/internal/gitinfo"
 )
 
 // Combination es un "mapa" del estado deseado del monorepo distribuido: qué rama

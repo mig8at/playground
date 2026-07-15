@@ -1,15 +1,15 @@
-// Command atlas-mcp es un servidor MCP (stdio) que expone el mapa de repos y
-// los flujos de Atlas. Un host MCP (Claude, Cursor…) lo usa para:
+// Command context-mcp es un servidor MCP (stdio) que expone el mapa de repos y
+// los flujos de Context. Un host MCP (Claude, Cursor…) lo usa para:
 //
-//  1. escanear uno o varios repos          → atlas_scan
-//  2. ver el mapa barato (node-lite)        → atlas_map
-//  3. seguir conexiones entre archivos/repos→ atlas_connections
-//  4. GUARDAR un flujo (array de IDs)       → atlas_save_flow
-//  5. leer/listar flujos ya guardados       → atlas_list_flows / atlas_get_flow
-//  6. hidratar el código de unos IDs        → atlas_get_content
+//  1. escanear uno o varios repos          → context_scan
+//  2. ver el mapa barato (node-lite)        → context_map
+//  3. seguir conexiones entre archivos/repos→ context_connections
+//  4. GUARDAR un flujo (array de IDs)       → context_save_flow
+//  5. leer/listar flujos ya guardados       → context_list_flows / context_get_flow
+//  6. hidratar el código de unos IDs        → context_get_content
 //
-// Comparte el directorio de datos con el server web (ATLAS_DATA_DIR, por
-// defecto ~/.creditop-atlas): lo que el host guarda aquí, la UI lo muestra.
+// Comparte el directorio de datos con el server web (CONTEXT_DATA_DIR, por
+// defecto ~/.creditop-context): lo que el host guarda aquí, la UI lo muestra.
 package main
 
 import (
@@ -18,12 +18,12 @@ import (
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
-	"creditop/atlas/server/internal/engine"
+	"creditop/context/server/internal/engine"
 )
 
 func main() {
 	log.SetFlags(0)
-	log.SetPrefix("[atlas-mcp] ")
+	log.SetPrefix("[context-mcp] ")
 
 	eng, err := engine.New()
 	if err != nil {
@@ -31,7 +31,7 @@ func main() {
 	}
 
 	server := mcp.NewServer(&mcp.Implementation{
-		Name:    "creditop-atlas",
+		Name:    "creditop-context",
 		Version: "0.1.0",
 	}, nil)
 
