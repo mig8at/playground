@@ -6,7 +6,7 @@ import { Check, X, Gauge } from 'lucide-vue-next'
 import { useFails } from '../useFails'
 
 // Estado de los 4 burós (color = edge del proveedor). "Caído" = API apagada → no aporta a la cascada.
-// Ábaco YA NO es buró: vive aparte en el nodo "Ingresos extras" (ingreso extra informativo).
+// Ábaco YA NO es buró: vive aparte en el nodo "Información complementaria" (ingreso extra informativo).
 const PROVS = [
   { k: 'experian', short: 'Exp', label: 'Datacrédito · Experian', color: '#6aa9e2' },
   { k: 'agil', short: 'Ágil', label: 'Ágil Data', color: '#5dcaa5' },

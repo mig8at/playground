@@ -46,8 +46,8 @@ const who = computed(() => lender.value ? lender.value.name : '')
       <div class="ent-row"><span class="fld-doc" title="clic: dónde vive y por qué" @click="openFieldInfo('ent.tasa')">Tasa</span>
         <AffixField suffix="% M.V." class="afld--rate"><input class="nodrag afld__in" type="number" step="0.01" :value="econ.rate" @input="e => setEntidadRate(lender, e.target.value)" /></AffixField>
       </div>
-      <div class="ent-row ent-row--flag"><span class="fld-doc" title="clic: dónde vive y por qué" @click="openFieldInfo('ent.abaco')">Ingresos extras (Ábaco)</span>
-        <label class="ent-toggle nodrag" :title="econ.abacoExtra ? 'Ábaco activo: valida ingreso extra gig en el nodo Ingresos extras' : 'Ábaco inactivo para esta entidad'">
+      <div class="ent-row ent-row--flag"><span class="fld-doc" title="clic: dónde vive y por qué" @click="openFieldInfo('ent.abaco')">Info. complementaria · Ábaco</span>
+        <label class="ent-toggle nodrag" :title="econ.abacoExtra ? 'Ábaco activo: pide ingreso extra gig en el nodo Información complementaria' : 'Ábaco inactivo para esta entidad'">
           <input type="checkbox" :checked="econ.abacoExtra" @change="e => setEntidadAbaco(lender, e.target.checked)" />
           <span>{{ econ.abacoExtra ? 'activo' : 'inactivo' }}</span>
         </label>

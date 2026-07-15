@@ -1,14 +1,15 @@
 <script setup>
 import { computed } from 'vue'
 import { Handle, Position } from '@vue-flow/core'
-import { AlertTriangle, Wifi, WifiOff, Coins, Plus } from 'lucide-vue-next'
+import { AlertTriangle, Wifi, WifiOff, ClipboardList, Plus } from 'lucide-vue-next'
 import { ui, findLenderDef, entidadCfg, bureau, nulls, perfil, providerDown, setNull, fieldNull, setEntidadAbaco, openFieldInfo, money } from '../store'
 import MoneyInput from '../MoneyInput.vue'
 
-// "Ingresos extras" — vive DESPUÉS del listado y ANTES de la formalización. Ábaco valida un ingreso
-// ADICIONAL de economía gig (Rappi/DiDi/Uber) que se SUMA al ingreso base (no lo reemplaza). Solo aplica
-// si la entidad seleccionada tiene el flag "Ábaco" activo (Configurar entidad). Es INFORMATIVO: no cambia
-// el cupo, la cuota ni la decisión — fiel al legacy, donde el resultado de Ábaco no está cableado.
+// "Información complementaria" — vive DESPUÉS del listado y ANTES de la formalización: datos/validaciones
+// que la ENTIDAD elegida le pide al cliente una vez seleccionada (config por entidad). Hoy el único ítem
+// es Ábaco (ingreso EXTRA gig Rappi/DiDi/Uber, se SUMA al base); mañana pueden entrar codeudor, garantía,
+// documentos, etc. Es INFORMATIVO: no cambia el cupo, la cuota ni la decisión — fiel al legacy (Ábaco no
+// está cableado). Solo aparece si la entidad tiene el flag de Ábaco activo (Configurar entidad).
 const lender = computed(() => findLenderDef(ui.selected))
 const active = computed(() => !!entidadCfg(lender.value)?.abacoExtra)
 const extra = computed(() => fieldNull('abacoIncome') ? null : bureau.abacoIncome)
@@ -20,7 +21,7 @@ const total = computed(() => base.value + (extra.value || 0))
   <div class="node node--extra prov-node" :class="{ 'node--down': active && providerDown.abaco }">
     <Handle id="in" type="target" :position="Position.Left" />
     <div class="node__hd node__hd--green nhd-doc" title="clic: detalle del nodo" @click="openFieldInfo('node.ingresosextras')">
-      <div class="node__title"><Coins :size="13" /> Ingresos extras</div>
+      <div class="node__title"><ClipboardList :size="13" /> Información complementaria</div>
       <button v-if="active" class="prov__api nodrag" :class="{ 'prov__api--down': providerDown.abaco }"
               @click.stop="providerDown.abaco = !providerDown.abaco"
               :title="providerDown.abaco ? 'API caída (timeout/5xx) — clic para revivir' : 'simular API caída (timeout/5xx)'">
@@ -29,15 +30,16 @@ const total = computed(() => base.value + (extra.value || 0))
       </button>
     </div>
     <div class="node__body">
-      <!-- Flag POR ENTIDAD: ¿valida ingresos extra vía Ábaco? (mismo flag que Configurar entidad) -->
-      <label class="ex-flag nodrag" :title="'Ábaco valida ingresos extra para ' + (lender ? lender.name : 'la entidad')">
+      <div class="ex-lead">Lo que la entidad le pide al cliente tras elegirla. Ítem disponible: <b>Ábaco</b> (ingreso extra gig).</div>
+      <!-- Flag POR ENTIDAD: ¿pide el ingreso extra vía Ábaco? (mismo flag que Configurar entidad) -->
+      <label class="ex-flag nodrag" :title="'Ábaco valida ingreso extra para ' + (lender ? lender.name : 'la entidad')">
         <input type="checkbox" class="ex-chk" :checked="active" @change="e => setEntidadAbaco(lender, e.target.checked)" />
         <span class="fld-doc" @click.stop="openFieldInfo('ent.abaco')">Ábaco activo</span>
         <span class="ex-src">config de entidad</span>
       </label>
 
       <div v-if="!active" class="ex-off">
-        Sin ingresos extra para esta entidad. Activá <b>Ábaco</b> (acá o en Configurar entidad) para validar ingreso gig adicional.
+        Esta entidad no pide información complementaria. Activá <b>Ábaco</b> (acá o en Configurar entidad) para validar un ingreso gig adicional.
       </div>
       <template v-else>
         <div v-if="providerDown.abaco" class="api-down"><AlertTriangle :size="13" /> API no responde</div>

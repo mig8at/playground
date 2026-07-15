@@ -86,7 +86,7 @@ export function entidadCfg(lender) {
     rate: t.rate ?? null,
     lateRate: e.lateRate ?? (t.rate != null ? +(t.rate + 1.5).toFixed(2) : null),
     condonedDues: e.condonedDues ?? 0,
-    abacoExtra: !!e.abacoExtra, // ¿la entidad valida ingresos extra vía Ábaco? (flag del nodo "Ingresos extras")
+    abacoExtra: !!e.abacoExtra, // ¿la entidad pide ingreso extra vía Ábaco? (flag del nodo "Información complementaria")
   }
 }
 // Setters de la Config de entidad (editable desde el nodo Config de lender).
@@ -112,7 +112,7 @@ export function setEntidadDues(lender, str) {
   if (arr.length) { lender.terms = lender.terms || {}; lender.terms.maxFee = Math.max(...arr) }
 }
 export function setEntidad(lender, key, val) { if (lender) { lender.entidad = lender.entidad || {}; lender.entidad[key] = val === '' ? null : Number(val) } }
-// Flag "ingresos extras vía Ábaco" de la entidad (booleano; no numérico → setter aparte de setEntidad).
+// Flag Ábaco (info. complementaria) de la entidad (booleano; no numérico → setter aparte de setEntidad).
 export function setEntidadAbaco(lender, on) { if (lender) { lender.entidad = lender.entidad || {}; lender.entidad.abacoExtra = !!on; editTick.n++ } }
 
 // UI: lender seleccionado + campo inerte inspeccionado (sidebar "por qué no tiene efecto").
@@ -322,7 +322,7 @@ const PROVIDER_OF = {
   agilIncome: 'agil', employment: 'agil', agilContinuity: 'agil', edad: 'agil', gender: 'agil',
   // Mareigua (ingreso/empleo, fallback de Ágil Data)
   mareiguaIncome: 'mareigua', mareiguaContinuity: 'mareigua', incomeTrend: 'mareigua',
-  // Ábaco (ingreso EXTRA gig — nodo "Ingresos extras", informativo; ya no es buró de la cascada)
+  // Ábaco (ingreso EXTRA gig — nodo "Información complementaria", informativo; ya no es buró de la cascada)
   abacoIncome: 'abaco',
   // TusDatos (KYC) — identidad + AML (listas movidas desde Mareigua)
   identidad: 'tusdatos', docStatus: 'tusdatos', listas: 'tusdatos',
@@ -423,7 +423,7 @@ export const perfil = computed(() => {
   const abaco = fieldNull('abacoIncome') ? null : bureau.abacoIncome // ingreso EXTRA (Ábaco · gig): informativo, NO entra en la cascada base
   const quanto = fieldNull('quantoIncome') ? null : bureau.quantoIncome
   // Cascada de ingreso BASE: Ágil Data → Mareigua → Quanto (Experian) → declarado → 0.
-  // Ábaco queda FUERA de la cascada: valida un ingreso extra aparte (nodo "Ingresos extras"), sin reemplazar el base.
+  // Ábaco queda FUERA de la cascada: es un ingreso extra aparte (nodo "Información complementaria"), sin reemplazar el base.
   let salario, salarioFuente
   if (agil != null) { salario = agil; salarioFuente = 'Ágil Data' }
   else if (mare != null) { salario = mare; salarioFuente = 'Mareigua' }

@@ -162,7 +162,7 @@ watch([() => ui.selected, isDark, selPasses], ([sel]) => {
   addE.push({ id: 'e-gr', source: 'grouprules', sourceHandle: 'down', target: 'relacion', targetHandle: 'fromgr', animated: false, style: { stroke: ec('cfg'), strokeWidth: 1.4, strokeDasharray: '6 5' } })
 
   // ── A la DERECHA del listado (espejo de la config que cuelga a la izquierda), en cadena:
-  // "Ingresos extras" (Ábaco valida ingreso extra si la entidad lo tiene activo) → "Formalización"
+  // "Información complementaria" (Ábaco pide ingreso extra si la entidad lo tiene activo) → "Formalización"
   // (stepper del rt) → "Estado del crédito". Solo si la entidad REALMENTE se ofrece (pasó el listado):
   // si no pasa, no hay ingreso extra que validar ni nada que formalizar. El edge inicial sale de la FILA
   // del lender seleccionado en el listado (handle psel-<name>). Separaciones (~110px de aire) alineadas.

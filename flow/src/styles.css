@@ -132,7 +132,8 @@ body {
 .node--tus .vue-flow__handle { border-color: var(--purple); }
 .node--mareigua .vue-flow__handle { border-color: var(--amber); }
 .node--extra .vue-flow__handle { border-color: var(--green); }
-/* Nodo "Ingresos extras" (Ábaco, ingreso extra informativo) */
+/* Nodo "Información complementaria" (config post-selección; hoy Ábaco = ingreso extra informativo) */
+.ex-lead { font-size: 10.5px; color: var(--mut); line-height: 1.45; margin-bottom: 8px; }
 .ex-flag { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--ink); margin-bottom: 7px; cursor: pointer; }
 .ex-flag .ex-chk { -webkit-appearance: none; appearance: none; box-sizing: border-box; width: 14px; height: 14px; flex: 0 0 14px; padding: 0; border: 2px solid var(--green); border-radius: 3px; background: transparent; cursor: pointer; position: relative; outline: none; }
 .ex-flag .ex-chk:checked { background: var(--green); }
@@ -147,7 +148,7 @@ body {
 .ex-row--extra b { color: var(--green); }
 .ex-row--tot { margin-top: 3px; padding-top: 4px; border-top: 1px solid var(--line); font-weight: 600; color: var(--ink); }
 .ex-note { margin-top: 6px; font-size: 9.5px; color: var(--mut); font-style: italic; line-height: 1.4; }
-/* Toggle "Ingresos extras (Ábaco)" en Configurar entidad */
+/* Toggle "Info. complementaria · Ábaco" en Configurar entidad */
 .ent-row--flag .ent-toggle { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; color: var(--mut); cursor: pointer; }
 .ent-row--flag .ent-toggle input { width: 13px; height: 13px; accent-color: var(--green); cursor: pointer; }
 .chk--sim { margin-top: 2px; font-size: 11px; color: var(--mut); gap: 6px; }
