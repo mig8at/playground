@@ -1,7 +1,7 @@
 <script setup>
 import { computed } from 'vue'
 import { Handle, Position } from '@vue-flow/core'
-import { ui, findLenderDef, entidadCfg, setEntidadProducto, setEntidadMonto, setEntidadRate, setEntidadDues, setEntidad, setEntidadAbaco, openFieldInfo, montoVsEntidad } from '../store'
+import { ui, findLenderDef, entidadCfg, setEntidadProducto, setEntidadMonto, setEntidadRate, setEntidadDues, setEntidad, setEntidadAbaco, setEntidadManual, openFieldInfo, montoVsEntidad } from '../store'
 import { Building2, X } from 'lucide-vue-next'
 import MoneyInput from '../MoneyInput.vue'
 import AffixField from '../AffixField.vue'
@@ -46,17 +46,26 @@ const who = computed(() => lender.value ? lender.value.name : '')
       <div class="ent-row"><span class="fld-doc" title="clic: dónde vive y por qué" @click="openFieldInfo('ent.tasa')">Tasa</span>
         <AffixField suffix="% M.V." class="afld--rate"><input class="nodrag afld__in" type="number" step="0.01" :value="econ.rate" @input="e => setEntidadRate(lender, e.target.value)" /></AffixField>
       </div>
-      <div class="ent-row ent-row--flag"><span class="fld-doc" title="clic: dónde vive y por qué" @click="openFieldInfo('ent.abaco')">Info. complementaria · Ábaco</span>
-        <label class="ent-toggle nodrag" :title="econ.abacoExtra ? 'Ábaco activo: pide ingreso extra gig en el nodo Información complementaria' : 'Ábaco inactivo para esta entidad'">
-          <input type="checkbox" :checked="econ.abacoExtra" @change="e => setEntidadAbaco(lender, e.target.checked)" />
-          <span>{{ econ.abacoExtra ? 'activo' : 'inactivo' }}</span>
-        </label>
-      </div>
       <div class="ent-row cfg-servicing"><span class="fld-doc" title="clic: por qué NO baja la cuota de la oferta" @click="openFieldInfo('ent.condonadas')">Cuotas condonadas <span class="fld-tag fld-tag--servicing">servicing</span></span>
         <AffixField suffix="cuotas" class="afld--cuo"><input class="nodrag afld__in" type="number" :value="econ.condonedDues" @input="e => setEntidad(lender, 'condonedDues', e.target.value)" /></AffixField>
       </div>
       <div class="ent-row cfg-servicing"><span class="fld-doc" title="clic: por qué no toca la oferta (es servicing)" @click="openFieldInfo('ent.mora')">Tasa de mora <span class="fld-tag fld-tag--servicing">servicing</span></span>
         <AffixField suffix="%" class="afld--pct"><input class="nodrag afld__in" type="number" step="0.01" :value="econ.lateRate" @input="e => setEntidad(lender, 'lateRate', e.target.value)" /></AffixField>
+      </div>
+
+      <!-- Apartado aparte: qué info EXTRA le pide la entidad al cliente tras la selección -->
+      <div class="pl-sec">Información complementaria <span class="pl-hint">· post-selección</span></div>
+      <div class="ic-sec">
+        <label class="ic-check nodrag" :title="econ.abacoExtra ? 'Ábaco activo para esta entidad' : 'Ábaco inactivo'">
+          <input type="checkbox" :checked="econ.abacoExtra" @change="e => setEntidadAbaco(lender, e.target.checked)" />
+          <span class="ic-nm fld-doc" @click.stop="openFieldInfo('ent.abaco')">Ábaco</span>
+          <small>ingreso extra gig (Rappi/DiDi/Uber)</small>
+        </label>
+        <label class="ic-check nodrag" :title="econ.manualIncome ? 'La entidad acepta ingreso declarado a mano' : 'La entidad NO acepta ingreso manual'">
+          <input type="checkbox" :checked="econ.manualIncome" @change="e => setEntidadManual(lender, e.target.checked)" />
+          <span class="ic-nm fld-doc" @click.stop="openFieldInfo('ent.manual')">Ingreso manual</span>
+          <small>declararlo si no hay centrales de riesgo</small>
+        </label>
       </div>
     </div>
     <Handle id="tocat" type="source" :position="Position.Right" />

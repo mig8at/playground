@@ -30,7 +30,7 @@ const total = computed(() => base.value + (extra.value || 0))
       </button>
     </div>
     <div class="node__body">
-      <div class="ex-lead">Lo que la entidad le pide al cliente tras elegirla. Ítem disponible: <b>Ábaco</b> (ingreso extra gig).</div>
+      <div class="ex-lead">Lo que la entidad le pide al cliente tras elegirla (se configura en Configurar entidad). Acá: <b>Ábaco</b> (ingreso extra); el <b>ingreso manual</b> se declara en Solicitud si no hay centrales.</div>
       <!-- Flag POR ENTIDAD: ¿pide el ingreso extra vía Ábaco? (mismo flag que Configurar entidad) -->
       <label class="ex-flag nodrag" :title="'Ábaco valida ingreso extra para ' + (lender ? lender.name : 'la entidad')">
         <input type="checkbox" class="ex-chk" :checked="active" @change="e => setEntidadAbaco(lender, e.target.checked)" />

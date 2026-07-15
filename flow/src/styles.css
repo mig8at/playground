@@ -148,9 +148,13 @@ body {
 .ex-row--extra b { color: var(--green); }
 .ex-row--tot { margin-top: 3px; padding-top: 4px; border-top: 1px solid var(--line); font-weight: 600; color: var(--ink); }
 .ex-note { margin-top: 6px; font-size: 9.5px; color: var(--mut); font-style: italic; line-height: 1.4; }
-/* Toggle "Info. complementaria · Ábaco" en Configurar entidad */
-.ent-row--flag .ent-toggle { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; color: var(--mut); cursor: pointer; }
-.ent-row--flag .ent-toggle input { width: 13px; height: 13px; accent-color: var(--green); cursor: pointer; }
+/* Apartado "Información complementaria" en Configurar entidad (checkboxes Ábaco + Ingreso manual) */
+.ic-sec { display: flex; flex-direction: column; gap: 6px; margin-top: 4px; }
+.ic-check { display: grid; grid-template-columns: auto auto; align-items: center; gap: 3px 7px; cursor: pointer; font-size: 11.5px; }
+.ic-check input { grid-row: span 2; width: 14px; height: 14px; accent-color: var(--green); cursor: pointer; }
+.ic-check .ic-nm { font-weight: 600; color: var(--ink); }
+.ic-check small { grid-column: 2; font-size: 9.5px; color: var(--mut); line-height: 1.2; }
+.pv-hint--warn { color: var(--amber); cursor: help; }
 .chk--sim { margin-top: 2px; font-size: 11px; color: var(--mut); gap: 6px; }
 .chk--sim select { font: inherit; font-size: 11px; padding: 2px 5px; border: 1px solid var(--line); border-radius: 5px; background: var(--card2); color: var(--ink); }
 /* toggle "API caída" en el header del buró: ícono a la derecha del título; rojo cuando el proveedor no responde */
