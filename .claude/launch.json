@@ -16,10 +16,10 @@
       "port": 5192
     },
     {
-      "name": "atlas",
+      "name": "context",
       "runtimeExecutable": "npm",
       "runtimeArgs": ["run", "dev"],
-      "cwd": "atlas",
+      "cwd": "context",
       "port": 5193
     },
     {
