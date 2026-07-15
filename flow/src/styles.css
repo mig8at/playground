@@ -121,6 +121,7 @@ body {
 .node--lenders { border-color: var(--green); min-width: 300px; }
 .prov-node { min-width: 200px; max-width: 232px; }
 .node--exp { border-color: var(--blue); }
+.node--quanto { border-color: var(--blue); }
 .node--agil { border-color: var(--teal); }
 .node--tus { border-color: var(--purple); }
 .node--mareigua { border-color: var(--amber); }
@@ -128,6 +129,7 @@ body {
 .node--plantilla { border-color: var(--teal); }
 .node--plantilla .vue-flow__handle { border-color: var(--teal); }
 .node--exp .vue-flow__handle { border-color: var(--blue); }
+.node--quanto .vue-flow__handle { border-color: var(--blue); }
 .node--agil .vue-flow__handle { border-color: var(--teal); }
 .node--tus .vue-flow__handle { border-color: var(--purple); }
 .node--mareigua .vue-flow__handle { border-color: var(--amber); }

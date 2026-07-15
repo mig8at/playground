@@ -317,11 +317,14 @@ export const bureau = reactive({})
 export const nulls = reactive({})
 export function setNull(key, on) { if (on) nulls[key] = true; else delete nulls[key] }
 // API caída por proveedor: anula TODOS sus campos (timeout/5xx → sin datos).
-export const providerDown = reactive({ experian: false, agil: false, tusdatos: false, mareigua: false, abaco: false })
+export const providerDown = reactive({ experian: false, quanto: false, agil: false, tusdatos: false, mareigua: false, abaco: false })
 const PROVIDER_OF = {
-  // Datacrédito · Experian (buró)
+  // Experian · Acierta (datacrédito/score) — risk_central "Experian - Acierta"
   score: 'experian', negatives12m: 'experian', currentArrears: 'experian', inquiries6m: 'experian', creditHistoryMonths: 'experian',
-  monthlyDebtPayment: 'experian', totalDebt: 'experian', disputes: 'experian', quantoIncome: 'experian',
+  monthlyDebtPayment: 'experian', totalDebt: 'experian', disputes: 'experian',
+  // Experian · Quanto (ingreso estimado) — risk_central "Experian - Quanto": mismo host/OAuth y misma llamada
+  // /hdcplus, pero PRODUCTO aparte (productCode 62), credenciales y summary propios → proveedor separado.
+  quantoIncome: 'quanto',
   // Ágil Data (ingreso/empleo) — FUENTE REAL de edad y género (corrección: antes estaban en TusDatos)
   agilIncome: 'agil', employment: 'agil', agilContinuity: 'agil', edad: 'agil', gender: 'agil',
   // Mareigua (ingreso/empleo, fallback de Ágil Data)

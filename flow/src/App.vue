@@ -9,6 +9,7 @@ import MerchantNode from './nodes/MerchantNode.vue'
 import CanalNode from './nodes/CanalNode.vue'
 import SolicitudNode from './nodes/SolicitudNode.vue'
 import ExperianNode from './nodes/ExperianNode.vue'
+import QuantoNode from './nodes/QuantoNode.vue'
 import AgilDataNode from './nodes/AgilDataNode.vue'
 import TusDatosNode from './nodes/TusDatosNode.vue'
 import MareiguaNode from './nodes/MareiguaNode.vue'
@@ -59,9 +60,10 @@ const nodes = ref([
   { id: 'canal', type: 'canal', position: { x: 320, y: 380 } },
   { id: 'sol', type: 'solicitud', position: { x: 680, y: 380 } },
   { id: 'exp', type: 'experian', position: { x: 800, y: 20 } },
-  { id: 'agil', type: 'agildata', position: { x: 1050, y: 20 } },
-  { id: 'tus', type: 'tusdatos', position: { x: 1300, y: 20 } },
-  { id: 'mareigua', type: 'mareigua', position: { x: 1550, y: 20 } },
+  { id: 'quanto', type: 'quanto', position: { x: 1050, y: 20 } },
+  { id: 'agil', type: 'agildata', position: { x: 1300, y: 20 } },
+  { id: 'tus', type: 'tusdatos', position: { x: 1550, y: 20 } },
+  { id: 'mareigua', type: 'mareigua', position: { x: 1800, y: 20 } },
   { id: 'buro', type: 'buro', position: { x: 1100, y: 380 } },
   { id: 'out', type: 'lenders', position: { x: 1430, y: 380 } },
 ])
@@ -73,6 +75,7 @@ const EDGE_C = {
   purp:  ['#7F77DD', '#6157cf'], // solicitud → perfil
   green: ['#0F6E56', '#178067'], // perfil → entidades
   exp:   ['#6aa9e2', '#3f7fb0'],
+  quanto:['#8ec0ee', '#5a90c4'], // Experian · Quanto (familia azul, un poco más claro que Acierta)
   agil:  ['#5dcaa5', '#178067'],
   tus:   ['#b6afe8', '#8379d6'],
   mare:  ['#e0a94e', '#9a6510'],
@@ -88,6 +91,7 @@ function baseEdges() {
     { id: 'e1', source: 'sol', target: 'buro', targetHandle: 'in', animated: false, style: { stroke: ec('purp'), strokeWidth: 2 } },
     { id: 'e2', source: 'buro', sourceHandle: 'out', target: 'out', animated: false, style: { stroke: ec('green'), strokeWidth: 2 } },
     { id: 'pe1', source: 'exp', target: 'buro', targetHandle: 'top', animated: false, style: { stroke: ec('exp'), strokeWidth: 1.5 } },
+    { id: 'pe1b', source: 'quanto', target: 'buro', targetHandle: 'top', animated: false, style: { stroke: ec('quanto'), strokeWidth: 1.5 } },
     { id: 'pe2', source: 'agil', target: 'buro', targetHandle: 'top', animated: false, style: { stroke: ec('agil'), strokeWidth: 1.5 } },
     { id: 'pe3', source: 'tus', target: 'buro', targetHandle: 'top', animated: false, style: { stroke: ec('tus'), strokeWidth: 1.5 } },
     { id: 'pe4', source: 'mareigua', target: 'buro', targetHandle: 'top', animated: false, style: { stroke: ec('mare'), strokeWidth: 1.5 } },
@@ -191,6 +195,7 @@ watch([() => ui.selected, isDark, selPasses], ([sel]) => {
           <template #node-lenderscfg="props"><LendersConfigNode v-bind="props" /></template>
           <template #node-solicitud="props"><SolicitudNode v-bind="props" /></template>
           <template #node-experian="props"><ExperianNode v-bind="props" /></template>
+          <template #node-quanto="props"><QuantoNode v-bind="props" /></template>
           <template #node-agildata="props"><AgilDataNode v-bind="props" /></template>
           <template #node-tusdatos="props"><TusDatosNode v-bind="props" /></template>
           <template #node-mareigua="props"><MareiguaNode v-bind="props" /></template>

@@ -5,10 +5,12 @@ import { perfil, money, state, ui, lenders, providerDown, openFieldInfo } from '
 import { Check, X, Gauge } from 'lucide-vue-next'
 import { useFails } from '../useFails'
 
-// Estado de los 4 burós (color = edge del proveedor). "Caído" = API apagada → no aporta a la cascada.
+// Estado de los proveedores (color = edge del proveedor). "Caído" = API apagada → no aporta a la cascada.
+// Experian se abre en 2 productos/risk_centrals: Acierta (score) y Quanto (ingreso), independientes.
 // Ábaco YA NO es buró: vive aparte en el nodo "Información complementaria" (ingreso extra informativo).
 const PROVS = [
-  { k: 'experian', short: 'Exp', label: 'Datacrédito · Experian', color: '#6aa9e2' },
+  { k: 'experian', short: 'Exp', label: 'Experian · Acierta (datacrédito)', color: '#6aa9e2' },
+  { k: 'quanto', short: 'Qto', label: 'Experian · Quanto (ingreso est.)', color: '#8ec0ee' },
   { k: 'agil', short: 'Ágil', label: 'Ágil Data', color: '#5dcaa5' },
   { k: 'tusdatos', short: 'TusD', label: 'TusDatos', color: '#b6afe8' },
   { k: 'mareigua', short: 'Mare', label: 'Mareigua', color: '#e0a94e' },
