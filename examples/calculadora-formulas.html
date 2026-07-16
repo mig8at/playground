@@ -1,0 +1,232 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Calculadora por lender (fórmulas en BD) — procesador seguro</title>
+  <style>
+    :root { --bg:#0d1117; --panel:#161b22; --panel2:#1c2330; --border:#2a3340; --ink:#e6edf3;
+            --mut:#8b98a5; --accent:#4c9aff; --green:#3fb950; --amber:#d29922; --red:#f85149;
+            --violet:#bc8cff; --mono:'SF Mono',ui-monospace,Menlo,Consolas,monospace; }
+    * { box-sizing:border-box; }
+    body { margin:0; background:var(--bg); color:var(--ink); font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
+           line-height:1.5; padding:24px; max-width:960px; margin:0 auto; }
+    h1 { font-size:20px; margin:0 0 4px; }
+    .lede { color:var(--mut); font-size:13px; margin:0 0 20px; }
+    .lede code { color:var(--violet); }
+    .grid { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+    @media (max-width:720px){ .grid { grid-template-columns:1fr; } }
+    .card { background:var(--panel); border:1px solid var(--border); border-radius:10px; padding:14px; }
+    .card h2 { font-size:12px; text-transform:uppercase; letter-spacing:.05em; color:var(--mut); margin:0 0 10px; font-weight:600; }
+    .tag { font-size:10px; font-weight:700; padding:1px 7px; border-radius:5px; margin-left:6px; vertical-align:middle; }
+    .tag.db { background:rgba(76,154,255,.15); color:var(--accent); }
+    .tag.in { background:rgba(63,185,80,.15); color:var(--green); }
+    label { display:block; font-size:11px; color:var(--mut); margin:8px 0 4px; }
+    textarea, input, select { width:100%; background:var(--bg); border:1px solid var(--border); color:var(--ink);
+                      border-radius:7px; padding:8px 10px; font-family:var(--mono); font-size:12.5px; }
+    textarea { resize:vertical; }
+    textarea:focus, input:focus, select:focus { outline:none; border-color:var(--accent); }
+    .money-in { font-family:system-ui; font-size:16px; }
+    .err { color:var(--red); font-size:11.5px; font-family:var(--mono); margin-top:4px; min-height:14px; }
+    .out { margin-top:16px; }
+    .step { background:var(--panel2); border:1px solid var(--border); border-left:3px solid var(--violet);
+            border-radius:8px; padding:10px 12px; margin-bottom:8px; }
+    .step .k { font-weight:700; color:var(--violet); font-family:var(--mono); }
+    .step .f { font-family:var(--mono); font-size:12px; color:var(--mut); margin:3px 0; word-break:break-word; }
+    .step .subst { font-family:var(--mono); font-size:11.5px; color:var(--ink); opacity:.8; }
+    .step .v { font-size:18px; font-weight:700; color:var(--green); margin-top:4px; }
+    .final { background:var(--bg); border:1px dashed var(--border); border-radius:8px; padding:10px 12px; margin-top:6px;
+             font-family:var(--mono); font-size:12.5px; color:var(--ink); white-space:pre; overflow-x:auto; }
+    .note { font-size:11.5px; color:var(--mut); margin-top:14px; line-height:1.55; }
+    .note b { color:var(--ink); }
+    .presets { display:flex; gap:8px; flex-wrap:wrap; margin:0 0 10px; }
+    .presets button { background:var(--panel2); border:1px solid var(--border); color:var(--ink); border-radius:6px;
+                      padding:6px 10px; font-size:11.5px; cursor:pointer; }
+    .presets button:hover { border-color:var(--accent); }
+    .safe { display:flex; gap:8px; flex-wrap:wrap; margin-top:8px; }
+    .safe button { background:var(--panel2); border:1px solid var(--border); color:var(--ink); border-radius:6px;
+                   padding:6px 10px; font-size:11.5px; cursor:pointer; }
+    .safe button:hover { border-color:var(--accent); }
+    .pill { font-size:10px; font-family:var(--mono); padding:1px 6px; border-radius:4px; background:var(--panel2); color:var(--mut); }
+    .identity { color:var(--amber); }
+  </style>
+</head>
+<body>
+  <h1>Calculadora por lender (fórmulas en BD) → procesador seguro</h1>
+  <p class="lede">Cada lender guarda su fórmula en <b>una columna json</b> <code>lenders.calculator</code>.
+    El backend la pasa por un <b>procesador sandbox</b> (en el server real: <code>App\Support\FormulaCalculator</code>, sin <code>eval</code>)
+    — acá replicado en JS con un <b>parser de aritmética</b>. Elegí un lender de ejemplo o editá cualquier cosa; recalcula solo.
+    <br><b class="identity">Default = null → identidad</b>: si el lender no tiene calculadora, devuelve lo que llega tal cual (todos los <code>credit</code>).
+    Solo las entidades editadas transforman el monto (ej. <code>renting</code> = Motai). Todas las keys en <b>inglés</b>.</p>
+
+  <div class="presets">
+    <span style="font-size:11px;color:var(--mut);align-self:center">lender de ejemplo →</span>
+    <button data-preset="identity">credit (sin calculadora · identidad)</button>
+    <button data-preset="renting">renting — Motai (158)</button>
+    <button data-preset="multi">renting con cuota (amount + installment)</button>
+  </div>
+
+  <div class="grid">
+    <div class="card">
+      <h2>lenders.calculator <span class="tag db">columna json en BD</span></h2>
+      <label>formulas (json · las keys = lo que retorna la calculadora · vacío = identidad)</label>
+      <textarea id="formulas" rows="5">{
+  "amount": "(amount + setup_fee) * (1 + margin) * (1 + tax)"
+}</textarea>
+      <div class="err" id="err-formulas"></div>
+      <label>params (json · los números; editables sin tocar la fórmula)</label>
+      <textarea id="params" rows="4">{
+  "setup_fee": 1500000,
+  "margin": 1.0,
+  "tax": 0.19
+}</textarea>
+      <div class="err" id="err-params"></div>
+    </div>
+
+    <div class="card">
+      <h2>input <span class="tag in">lo que llega (monto solicitado)</span></h2>
+      <label for="amount">amount (monto solicitado / costo del bien)</label>
+      <input class="money-in" id="amount" type="number" value="4534000" />
+      <div class="out" id="out"></div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:14px">
+    <h2>¿Por qué es seguro? (no es <code>eval</code>)</h2>
+    <p class="note">El procesador es un <b>parser de aritmética</b>: solo entiende números, las variables del <span class="pill">scope</span>
+      (params + input + resultados previos) y los operadores <span class="pill">+ - * / ** ( )</span>. Cualquier otra cosa la <b>rechaza</b>.
+      Probá pegar algo "malicioso" en la fórmula de <code>amount</code> y mirá el error:</p>
+    <div class="safe">
+      <button data-x="alert(1)">alert(1)</button>
+      <button data-x="amount.constructor">amount.constructor</button>
+      <button data-x="window">window</button>
+      <button data-x="amount + secret_balance">variable no permitida</button>
+      <button data-x="(amount + setup_fee) * (1 + margin) * (1 + tax)">↩ restaurar fórmula válida</button>
+    </div>
+    <p class="note">En el back es igual: <b>solo escalares</b> como variables, sin registrar funciones → aritmética pura, sin ejecución de código.
+      El <b>número autoritativo lo calcula el back</b> y manda el objeto <code>calculated</code>; el front solo lo muestra. Se aplica
+      <b>por lender</b> (cada uno resuelve su <code>calculator</code>) → una entidad nueva = una fila de config, sin código ni deploy.</p>
+  </div>
+
+  <script>
+    // Presets = ejemplos de lo que guardaría cada lender en la columna `calculator`.
+    const PRESETS = {
+      identity: { formulas: {}, params: {} },                                   // credit: null → identidad
+      renting:  { formulas: { amount: "(amount + setup_fee) * (1 + margin) * (1 + tax)" },
+                  params:   { setup_fee: 1500000, margin: 1.0, tax: 0.19 } },    // Motai (158)
+      multi:    { formulas: { amount: "(amount + setup_fee) * (1 + margin) * (1 + tax)", installment: "amount / term" },
+                  params:   { setup_fee: 1500000, margin: 1.0, tax: 0.19, term: 52 } },
+    };
+
+    // ── El "procesador": parser de aritmética SEGURO (descenso recursivo). NO usa eval. ──
+    // Gramática: expr := term (('+'|'-') term)*  ·  term := power (('*'|'/') power)*
+    //            power := unary ('**' power)?    ·  unary := '-' unary | primary
+    //            primary := number | ident | '(' expr ')'
+    function tokenize(src) {
+      const toks = []; let i = 0;
+      while (i < src.length) {
+        const c = src[i];
+        if (/\s/.test(c)) { i++; continue; }
+        if (c === '*' && src[i + 1] === '*') { toks.push({ t: 'op', v: '**' }); i += 2; continue; }
+        if ('+-*/()'.includes(c)) { toks.push({ t: 'op', v: c }); i++; continue; }
+        if (/[0-9.]/.test(c)) { let j = i; while (j < src.length && /[0-9.]/.test(src[j])) j++; toks.push({ t: 'num', v: parseFloat(src.slice(i, j)) }); i = j; continue; }
+        if (/[A-Za-z_]/.test(c)) { let j = i; while (j < src.length && /[A-Za-z0-9_]/.test(src[j])) j++; toks.push({ t: 'id', v: src.slice(i, j) }); i = j; continue; }
+        throw new Error('carácter inválido: "' + c + '"');   // ← rechaza cualquier cosa rara
+      }
+      return toks;
+    }
+    function evalFormula(src, scope) {
+      const toks = tokenize(src); let p = 0;
+      const peek = () => toks[p];
+      const eat = (v) => { if (!toks[p] || (v && toks[p].v !== v)) throw new Error('esperaba "' + (v || 'token') + '"'); return toks[p++]; };
+      function expr() { let x = term(); while (peek() && (peek().v === '+' || peek().v === '-')) { const op = eat().v; const y = term(); x = op === '+' ? x + y : x - y; } return x; }
+      function term() { let x = power(); while (peek() && (peek().v === '*' || peek().v === '/')) { const op = eat().v; const y = power(); x = op === '*' ? x * y : x / y; } return x; }
+      function power() { const x = unary(); if (peek() && peek().v === '**') { eat('**'); return Math.pow(x, power()); } return x; }
+      function unary() { if (peek() && peek().v === '-') { eat('-'); return -unary(); } return primary(); }
+      function primary() {
+        const tk = peek();
+        if (!tk) throw new Error('expresión incompleta');
+        if (tk.t === 'num') { p++; return tk.v; }
+        if (tk.t === 'id') { p++; if (!(tk.v in scope)) throw new Error('variable no permitida: "' + tk.v + '"'); return scope[tk.v]; }
+        if (tk.v === '(') { eat('('); const x = expr(); eat(')'); return x; }
+        throw new Error('token inesperado: "' + tk.v + '"');
+      }
+      const r = expr();
+      if (p < toks.length) throw new Error('sobra: "' + toks[p].v + '"');  // rechaza basura al final (ej. llamadas foo(...))
+      return r;
+    }
+
+    // Corre la calculadora: si no hay fórmulas → IDENTIDAD (devuelve los inputs tal cual, igual que el back).
+    // Si hay, evalúa cada output EN ORDEN agregando el resultado al scope (así 'installment' puede usar 'amount').
+    function runCalculator(formulas, params, inputs) {
+      const keys = Object.keys(formulas || {});
+      if (keys.length === 0) {
+        // identidad: cada input es un "step" pass-through
+        const steps = Object.entries(inputs).map(([key, value]) => ({ key, formula: '(identidad)', value, scopeSnapshot: { ...inputs }, identity: true }));
+        return { result: { ...inputs }, steps };
+      }
+      const scope = { ...params, ...inputs };
+      const steps = [];
+      for (const [key, formula] of Object.entries(formulas)) {
+        const value = evalFormula(formula, scope);
+        scope[key] = value;                       // disponible para las siguientes
+        steps.push({ key, formula, value, scopeSnapshot: { ...scope } });
+      }
+      return { result: Object.fromEntries(steps.map(s => [s.key, s.value])), steps };
+    }
+
+    const fmt = (n) => Number.isFinite(n) ? '$' + Math.round(n).toLocaleString('es-CO') : String(n);
+    const $ = (id) => document.getElementById(id);
+
+    function render() {
+      $('err-formulas').textContent = ''; $('err-params').textContent = '';
+      let formulas, params;
+      try { formulas = JSON.parse($('formulas').value); } catch (e) { $('err-formulas').textContent = 'JSON inválido: ' + e.message; return; }
+      try { params = JSON.parse($('params').value); } catch (e) { $('err-params').textContent = 'JSON inválido: ' + e.message; return; }
+      const amount = parseFloat($('amount').value) || 0;
+
+      const out = $('out');
+      try {
+        const { steps, result } = runCalculator(formulas, params, { amount });
+        out.innerHTML = steps.map(s => {
+          if (s.identity) {
+            return `<div class="step" style="border-left-color:var(--amber)">
+              <div><span class="k identity">${s.key}</span> <span class="pill">identidad · sin calculadora</span></div>
+              <div class="f">devuelve lo que llega, sin transformar</div>
+              <div class="v">${fmt(s.value)}</div>
+            </div>`;
+          }
+          // muestra la fórmula con las variables sustituidas, para ver "cómo se procesa"
+          const subst = s.formula.replace(/[A-Za-z_]\w*/g, (name) => (name in s.scopeSnapshot && name !== s.key) ? String(s.scopeSnapshot[name]) : name);
+          return `<div class="step">
+            <div><span class="k">${s.key}</span></div>
+            <div class="f">${s.formula}</div>
+            <div class="subst">= ${subst}</div>
+            <div class="v">${fmt(s.value)}</div>
+          </div>`;
+        }).join('') + `<div class="final">objeto calculated que devuelve el back → front:\n${JSON.stringify(
+            Object.fromEntries(Object.entries(result).map(([k, v]) => [k, Math.round(v)])), null, 2)}</div>`;
+      } catch (e) {
+        out.innerHTML = `<div class="err" style="min-height:auto">✗ el procesador rechazó la fórmula: ${e.message}</div>`;
+      }
+    }
+
+    // presets de lender
+    document.querySelectorAll('.presets button').forEach(b => b.addEventListener('click', () => {
+      const p = PRESETS[b.dataset.preset];
+      $('formulas').value = JSON.stringify(p.formulas, null, 2);
+      $('params').value = JSON.stringify(p.params, null, 2);
+      render();
+    }));
+    ['formulas', 'params', 'amount'].forEach(id => $(id).addEventListener('input', render));
+    // botones de la demo de seguridad: reemplazan la fórmula de 'amount'
+    document.querySelectorAll('.safe button').forEach(b => b.addEventListener('click', () => {
+      try {
+        const f = JSON.parse($('formulas').value); f.amount = b.dataset.x; $('formulas').value = JSON.stringify(f, null, 2);
+      } catch { /* si el json está roto, no hace nada */ }
+      render();
+    }));
+    render();
+  </script>
+</body>
+</html>

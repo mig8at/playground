@@ -261,7 +261,7 @@ Columna `lenders.response_type`. Catálogo `response_types` = filas **0-3**. `rt
 
 > Fuente de verdad única del conocimiento de dominio. Cada doc es **dueño** de su tema; los demás lo referencian. Verificado contra `application` / `legacy-backend` / `frontend-monorepo`.
 
-### Cómo está organizada la carpeta — las 5 intenciones
+### Cómo está organizada la carpeta — las intenciones
 
 La carpeta separa **qué es cada documento** para no mezclar realidad con propuestas:
 
@@ -270,6 +270,7 @@ La carpeta separa **qué es cada documento** para no mezclar realidad con propue
 | **[codigo/](./codigo/)** | **LA REALIDAD** — cómo funciona HOY, verificado contra el código y la BD (citas `archivo:línea`) | "¿cómo ES?" |
 | **[negocio/](./negocio/)** | El **lenguaje y las reglas de negocio**, independiente de la implementación | "¿cómo se LLAMA / qué significa?" |
 | **[mejoras/](./mejoras/)** | **Planes accionables** y propuestas concretas (deber-ser por etapas) | "¿qué hacemos AHORA?" |
+| **[chages/](./chages/)** | **Registro de cambios EJECUTADOS** en los repos reales (qué se hizo, veredicto del barrido, pendientes) | "¿qué se HIZO ya?" |
 | **[vision/](./vision/)** | El **modelo estructural a futuro** (unificación + separación de responsabilidades) | "¿hacia DÓNDE va?" |
 | **[operacion/](./operacion/)** | Cómo operar este workspace: harness E2E, convenciones, testids, bitácora | "¿cómo TRABAJO acá?" |
 | **[lenders/](./lenders/)** | **Vista transversal por ENTIDAD** (fichas + tabla comparativa) — resume lo verificado y apunta a los dueños en `codigo/` | "¿en qué se diferencia X de Y?" |
@@ -343,6 +344,11 @@ La carpeta separa **qué es cada documento** para no mezclar realidad con propue
 | [MODELO-RENTING-PROPUESTA.md](./mejoras/MODELO-RENTING-PROPUESTA.md) | **Doc para Confluence** (negocio+tec, simple): hoy vs deber-ser del renting, cuellos de botella (el "modo" primero), camino a un flujo reutilizable. |
 | [MOTAI-V2-TIPOS-DOCUMENTO-POR-SUCURSAL.md](./mejoras/MOTAI-V2-TIPOS-DOCUMENTO-POR-SUCURSAL.md) | **Spec cerrado de 1 pieza** (des-hardcode del PEP): `document_types` por sucursal en `lenders_by_allied_branches` → el backend resuelve `allowed_document_types` (unión, CC de piso) en `getPersonalInfoConfig` y el front deja de quemar `if merchantMode==='motai-renting'`. Contrato API, cambios front/back, costo (+índice pendiente en `allied_branch_id`). |
 | [MAPA-ATRIBUTOS-POR-NIVEL.md](./mejoras/MAPA-ATRIBUTOS-POR-NIVEL.md) | **Reubicación de config**: cada atributo (economía/reglas/flags) contra los 4 niveles (entidad/comercio/sucursal/categoría) — dónde vive hoy vs dónde debería, qué se pisa, qué es fantasma, qué decisión está quemada. Antes→después + prioridad P0-P3. |
+
+### 📁 chages/ — registro de cambios ejecutados
+| Doc | Dueño de |
+|---|---|
+| [MOTAI-V2-DES-MOTAIZACION-EJECUTADA.md](./chages/MOTAI-V2-DES-MOTAIZACION-EJECUTADA.md) | **Des-motaización ejecutada (2026-07-15, rama `feature/motai-v2`)**: eliminación verificada de la página de modos + `isMotaiRenting`/`merchant_mode`/`MOTAI_LENDER_IDS` (0 refs front+back); lo especial pasó a config (`product`/`calculator`/`abaco`/`document_types`); flujo Motai = flujo estándar. Incluye veredicto del barrido, migración única y pendientes. ⚠ Actualiza el estado descrito en [codigo/MOTAI-FLUJO-ANALISIS.md](./codigo/MOTAI-FLUJO-ANALISIS.md). |
 
 ### 📁 vision/ — el modelo estructural a futuro
 | Doc | Dueño de |
