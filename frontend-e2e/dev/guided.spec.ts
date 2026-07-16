@@ -55,6 +55,7 @@ test.afterAll(async () => { await close(); });
 
 let SHOT = 0;
 async function shot(page: Page, label: string) {
+    if (process.env.E2E_SHOTS !== '1') return;   // sin fotos por defecto (activar con E2E_SHOTS=1)
     const name = `guided-${String(++SHOT).padStart(2, '0')}-${label}.png`;
     await page.screenshot({ path: join(AUTH, name), fullPage: true }).catch(() => {});
     console.log(`  📸 ${name}`);
@@ -82,6 +83,9 @@ test('guided (semiautomático)', async ({ browser }) => {
     mkdirSync(AUTH, { recursive: true });
 
     const { page, context: ctxA } = await openA(browser, { baseURL: config.feBaseUrl, userAgent: IPHONE_UA }); // A (mitad izq); ctxA → sesión para la ventana B (celular)
+    // React Scan (overlay FPS/inspección del wizard en dev): se bloquea acá — cortamos su script — SIN tocar
+    // el frontend. Para verlo igual: E2E_REACT_SCAN=1.
+    if (process.env.E2E_REACT_SCAN !== '1') await page.route(/react-scan|react-grab/, (r) => r.abort()).catch(() => {});
     // log de navegaciones (revela a dónde manda el wizard tras cada Continuar / la selección) + captura de
     // redirect EXTERNO (portal del lender fuera de localhost, same-tab o popup). La continuación detecta por
     // CONDUCTA (modal / nav in-platform / redirect externo), NO por rt.
@@ -133,9 +137,43 @@ test('guided (semiautomático)', async ({ browser }) => {
     }
     log(`entrada OK → ${hereOf(page)}`);
 
-    // ── MODO MANUAL (bin/asesor <m> / bin/ecommerce <m> SIN `auto`): el browser queda acá (monto) y VOS
-    //    manejás TODO el flujo a mano. El Inspector de Playwright deja seguir; Resume ▶ termina. ──
+    // perfil del usuario sintético desde el panel (bin/panel) vía env. Sin env → {} (comportamiento previo).
+    const synthOptsFromEnv = () => ({
+        income: Number(process.env.E2E_SYNTH_INCOME) || undefined,
+        score: Number(process.env.E2E_SYNTH_SCORE) || undefined,
+        name: process.env.E2E_SYNTH_NAME || undefined,
+        documentType: process.env.E2E_SYNTH_DOCTYPE || undefined,
+        document: process.env.E2E_SYNTH_DOC || undefined,
+        gender: process.env.E2E_SYNTH_GENDER || undefined,
+        age: Number(process.env.E2E_SYNTH_AGE) || undefined,
+        negatives: process.env.E2E_SYNTH_NEG ? Number(process.env.E2E_SYNTH_NEG) : undefined,
+        consulted: process.env.E2E_SYNTH_CONS ? Number(process.env.E2E_SYNTH_CONS) : undefined,
+        occupation: process.env.E2E_SYNTH_OCC || undefined,
+        dob: process.env.E2E_SYNTH_DOB || undefined,
+        expeditionDate: process.env.E2E_SYNTH_EXP || undefined,
+        email: process.env.E2E_SYNTH_EMAIL || undefined,
+    });
+
+    // ── MODO MANUAL (bin/asesor <m> SIN `auto`): el browser queda en monto y VOS manejás TODO a mano. ──
+    //    Con E2E_INJECT=1: igual manual (nada de auto-relleno), pero al llegar a personal-info inyecto el buró
+    //    (invisible) para que listen los rt=2. Sin E2E_INJECT: manual puro (buró real / sin inyección). ──
     if (process.env.E2E_GUIDED === '0') {
+        if (process.env.E2E_INJECT === '1') {
+            tip('MANUAL: manejá desde monto. Al llegar a personal-info inyecto el buró (invisible); después seguí a /lenders.');
+            await shot(page, 'manual-monto');
+            await page.waitForURL(/\/(personal-info|employment-info)(\?|$)/, { timeout: PICK_TIMEOUT }).catch(() => {});
+            const ur = page.url().match(/\/(?:merchant|ecommerce)\/[^/]+\/(\d+)\//)?.[1] ?? '';
+            if (ur) {
+                // skipIdentity: NO auto-rellenamos personal-info; solo inyectamos el buró (invisible).
+                const r = await synthFill(Number(ur), { ...synthOptsFromEnv(), skipIdentity: true });
+                log(`buró inyectado para uReq ${ur} (Experian ${r.datacredito_forged}) — identidad la ponés vos; seguí a /lenders`);
+                tip('Buró inyectado (invisible). Seguí el wizard hasta /lenders. (Resume ▶ para terminar.)');
+            } else {
+                log('no pude leer el uReq en personal-info — seguí igual (sin buró inyectado)');
+            }
+            await page.pause().catch(() => {});
+            return;
+        }
         tip('MANUAL: el browser quedó en monto. Manejá vos todo el flujo a mano. (Resume ▶ en el Inspector para terminar.)');
         await shot(page, 'manual-monto');
         await page.pause().catch(() => {});
@@ -177,18 +215,7 @@ test('guided (semiautomático)', async ({ browser }) => {
     const base = url.replace(/\/(personal-info|employment-info|lenders).*$/, '');
     if (/personal-info|employment-info/.test(url) && uReqID) {
         log(`personal-info: BYPASS datacrédito (synthFill: KYC + Experian forjado) — invisible, no toques nada acá`);
-        // Perfil del usuario sintético desde el panel (bin/panel) vía env. Sin env → {} (comportamiento previo).
-        const r = await synthFill(Number(uReqID), {
-            income: Number(process.env.E2E_SYNTH_INCOME) || undefined,
-            score: Number(process.env.E2E_SYNTH_SCORE) || undefined,
-            name: process.env.E2E_SYNTH_NAME || undefined,
-            documentType: process.env.E2E_SYNTH_DOCTYPE || undefined,
-            document: process.env.E2E_SYNTH_DOC || undefined,
-            gender: process.env.E2E_SYNTH_GENDER || undefined,
-            age: Number(process.env.E2E_SYNTH_AGE) || undefined,
-            negatives: process.env.E2E_SYNTH_NEG ? Number(process.env.E2E_SYNTH_NEG) : undefined,
-            consulted: process.env.E2E_SYNTH_CONS ? Number(process.env.E2E_SYNTH_CONS) : undefined,
-        });
+        const r = await synthFill(Number(uReqID), synthOptsFromEnv());
         // el monto a /lenders = el que VOS ingresaste en /solicitar (guardado en user_requests.amount al darle
         // Continuar), NO el AMOUNT sembrado por defecto. Si no se pudo leer, cae al default.
         const reqAmt = (await one<{ amount: number | string }>('SELECT amount FROM user_requests WHERE id=? LIMIT 1', [Number(uReqID)]).catch(() => null))?.amount;

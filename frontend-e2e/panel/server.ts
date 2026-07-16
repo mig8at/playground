@@ -17,7 +17,13 @@ const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(HERE, '..');              // raíz de frontend-e2e
 const PORT = Number(process.env.PANEL_PORT || 5195);
 const RUN_LOG = '/tmp/asesor-panel-run.log';
-const LOCAL_ENV = { ...process.env, E2E_TARGET: 'local', CFE_TARGET: 'local' };
+const TARGETS = new Set(['local', 'dev']);     // staging: pendiente (.env.staging)
+
+// env por target: local = seguro; dev = DATA COMPARTIDA → habilita el guard de escritura de pkg/db (synthFill).
+function envFor(target: string): NodeJS.ProcessEnv {
+    const t = TARGETS.has(target) ? target : 'local';
+    return { ...process.env, E2E_TARGET: t, CFE_TARGET: t, ...(t === 'dev' ? { I_KNOW_THIS_TOUCHES_SHARED_DEV: '1' } : {}) };
+}
 
 // una sola corrida a la vez (un browser headed a la vez).
 let current: { child: ReturnType<typeof spawn>; slug: string; startedAt: number; done: boolean; code: number | null } | null = null;
@@ -36,24 +42,29 @@ function readBody(req: IncomingMessage): Promise<any> {
     });
 }
 
-// dbops list <q> → JSON (comercios que matchean). E2E_TARGET=local.
-function dbopsList(q: string): Promise<any[]> {
+// dbops list <q> → JSON (comercios que matchean) contra el target elegido (dev es remoto → timeout más largo).
+function dbopsList(q: string, target: string): Promise<any[]> {
     return new Promise((ok) => {
-        execFile('node', ['bin/dbops.ts', 'list', q], { cwd: ROOT, env: LOCAL_ENV, timeout: 15000 }, (err, stdout) => {
+        execFile('node', ['bin/dbops.ts', 'list', q], { cwd: ROOT, env: envFor(target), timeout: 30000 }, (err, stdout) => {
             if (err) return ok([]);
             try { ok(JSON.parse(stdout)); } catch { ok([]); }
         });
     });
 }
 
-// lanza `bin/asesor <slug> auto` (assign + scrub + guiado; inyecta buró en personal-info) con el perfil por env.
-interface Profile { income?: number; score?: number; name?: string; documentType?: string; document?: string; gender?: string; age?: number; negatives?: number; consulted?: number; }
+// lanza `bin/asesor <slug>` en MODO MANUAL (sin `auto` → no auto-rellena; vos manejás desde monto) con
+// E2E_INJECT=1 (inyecta el buró invisible al llegar a personal-info) + el perfil por env, contra el target.
+interface Profile { income?: number; score?: number; name?: string; documentType?: string; document?: string; gender?: string; age?: number; negatives?: number; consulted?: number; occupation?: string; dob?: string; expeditionDate?: string; email?: string; }
 
-function launch(slug: string, profile: Profile): { ok: boolean; msg: string } {
+function launch(slug: string, profile: Profile, target: string, inject: boolean): { ok: boolean; msg: string } {
     if (current && !current.done) return { ok: false, msg: `ya hay una corrida activa (${current.slug}). Parala primero.` };
-    writeFileSync(RUN_LOG, `▶ lanzando '${slug}' (local) · perfil ${JSON.stringify(profile)}\n`);
+    const t = TARGETS.has(target) ? target : 'local';
+    const mode = inject ? 'manual + inyección de buró' : 'manual REAL (consulta buró real, sin inyección)';
+    writeFileSync(RUN_LOG, `▶ lanzando '${slug}' (${t}) · ${mode} · perfil ${JSON.stringify(profile)}\n`);
     const env = {
-        ...LOCAL_ENV,
+        ...envFor(t),
+        // switch del panel: ON → inyecta el buró (salta la consulta real); OFF → sin inyección (consulta real).
+        E2E_INJECT: inject ? '1' : '',
         E2E_SYNTH_INCOME: profile.income ? String(profile.income) : '',
         E2E_SYNTH_SCORE: profile.score ? String(profile.score) : '',
         E2E_SYNTH_NAME: profile.name || '',
@@ -63,14 +74,20 @@ function launch(slug: string, profile: Profile): { ok: boolean; msg: string } {
         E2E_SYNTH_AGE: profile.age ? String(profile.age) : '',
         E2E_SYNTH_NEG: profile.negatives != null ? String(profile.negatives) : '',
         E2E_SYNTH_CONS: profile.consulted != null ? String(profile.consulted) : '',
+        E2E_SYNTH_OCC: profile.occupation || '',
+        E2E_SYNTH_DOB: profile.dob || '',
+        E2E_SYNTH_EXP: profile.expeditionDate || '',
+        E2E_SYNTH_EMAIL: profile.email || '',
     };
-    const child = spawn('/bin/bash', [join(ROOT, 'bin', 'asesor'), slug, 'auto'], { cwd: ROOT, env });
+    // detached → el hijo lidera su propio grupo de procesos; así "Detener" mata el ÁRBOL entero
+    // (bash → npx playwright → node → chromium), no solo el bash.
+    const child = spawn('/bin/bash', [join(ROOT, 'bin', 'asesor'), slug], { cwd: ROOT, env, detached: true });  // sin `auto` → manual
     current = { child, slug, startedAt: Date.now(), done: false, code: null };
     const append = (b: Buffer) => { try { writeFileSync(RUN_LOG, b.toString(), { flag: 'a' }); } catch {} };
     child.stdout?.on('data', append);
     child.stderr?.on('data', append);
     child.on('close', (code) => { if (current) { current.done = true; current.code = code; } append(Buffer.from(`\n✓ corrida terminada (code ${code})\n`)); });
-    return { ok: true, msg: `lanzado '${slug}' — mirá el browser (login → monto)` };
+    return { ok: true, msg: `lanzado '${slug}' (${t}) — ${mode}. Login → monto; manejás vos desde ahí.` };
 }
 
 function tailLog(): string {
@@ -78,6 +95,13 @@ function tailLog(): string {
     // sin colores ANSI, últimas ~120 líneas
     const raw = readFileSync(RUN_LOG, 'utf8').replace(/\x1b\[[0-9;]*[A-Za-z]/g, '');
     return raw.split('\n').slice(-120).join('\n');
+}
+
+// mata el ÁRBOL de procesos de la corrida (grupo entero, gracias a detached). SIGTERM y luego SIGKILL.
+function killRun(sig: NodeJS.Signals): void {
+    if (!current || current.done || !current.child.pid) return;
+    try { process.kill(-current.child.pid, sig); }        // -pid = grupo entero
+    catch { try { current.child.kill(sig); } catch {} }   // fallback: solo el proceso
 }
 
 const server = createServer(async (req, res) => {
@@ -93,8 +117,9 @@ const server = createServer(async (req, res) => {
 
     if (path === '/api/merchants') {
         const q = (url.searchParams.get('q') || '').trim();
+        const target = (url.searchParams.get('target') || 'local').trim();
         if (!q) return json(res, 200, []);
-        return json(res, 200, await dbopsList(q));
+        return json(res, 200, await dbopsList(q, target));
     }
 
     if (path === '/api/launch' && req.method === 'POST') {
@@ -110,7 +135,11 @@ const server = createServer(async (req, res) => {
             age: Number(b.age) || undefined,
             negatives: b.negatives !== undefined && b.negatives !== '' ? Number(b.negatives) : undefined,
             consulted: b.consulted !== undefined && b.consulted !== '' ? Number(b.consulted) : undefined,
-        }));
+            occupation: b.occupation ? String(b.occupation) : undefined,
+            dob: b.dob ? String(b.dob) : undefined,
+            expeditionDate: b.expeditionDate ? String(b.expeditionDate) : undefined,
+            email: b.email ? String(b.email) : undefined,
+        }, String(b.target || 'local'), b.inject !== false));
     }
 
     if (path === '/api/status') {
@@ -123,7 +152,12 @@ const server = createServer(async (req, res) => {
     }
 
     if (path === '/api/stop' && req.method === 'POST') {
-        if (current && !current.done) { try { current.child.kill('SIGTERM'); } catch {} return json(res, 200, { ok: true }); }
+        if (current && !current.done) {
+            writeFileSync(RUN_LOG, '\n■ detenido por el usuario\n', { flag: 'a' });
+            killRun('SIGTERM');
+            setTimeout(() => killRun('SIGKILL'), 2500);   // escalá si no murió en 2.5s
+            return json(res, 200, { ok: true });
+        }
         return json(res, 200, { ok: false, msg: 'no hay corrida activa' });
     }
 
@@ -140,5 +174,5 @@ server.on('error', (err: NodeJS.ErrnoException) => {
 });
 
 server.listen(PORT, () => {
-    console.log(`\n  🎛  Panel del harness → http://localhost:${PORT}   (SOLO local)\n`);
+    console.log(`\n  🎛  Panel del harness → http://localhost:${PORT}   (local · dev)\n`);
 });

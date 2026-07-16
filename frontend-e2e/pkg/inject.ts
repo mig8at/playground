@@ -137,16 +137,16 @@ async function ensureLenderCredential(alliedID: number, lenderID: number): Promi
     return 'sembrada (copiada de plantilla)';
 }
 
-async function setSynthIdentity(userID: number, doc: string, email: string, gender: string, age: number, name?: string, documentType = 'CC'): Promise<void> {
+async function setSynthIdentity(userID: number, doc: string, email: string, gender: string, age: number, name?: string, documentType = 'CC', dob = '1990-01-01', expeditionDate = '2010-01-01'): Promise<void> {
     // name opcional (del panel): "Juan Perez" → first_name "Juan", surname "Perez". Default = SYNTH TEST USER.
     const parts = (name ?? '').trim().split(/\s+/).filter(Boolean);
     const first = parts[0] ?? 'SYNTH';
     const surname = parts.slice(1).join(' ') || 'TEST USER';
     await exec(
         `UPDATE users SET document_type=?, document_number=?, first_name=?, surname=?,
-         full_name=?, email=?, date_of_birth='1990-01-01', expedition_date='2010-01-01',
+         full_name=?, email=?, date_of_birth=?, expedition_date=?,
          age=?, gender=?, updated_at=NOW() WHERE id=?`,
-        [documentType, doc, first, surname, `${first} ${surname}`, email, age, gender, userID],
+        [documentType, doc, first, surname, `${first} ${surname}`, email, dob, expeditionDate, age, gender, userID],
     );
 }
 
@@ -214,6 +214,11 @@ export interface SynthFillOpts {
     age?: number;
     negatives?: number;      // negativeHistoricalLast12Months del buró (default 0)
     consulted?: number;      // consultedLast6Months del buró (default 1)
+    occupation?: string;     // field 29 (Empleado | Independiente | Pensionado) — default Empleado
+    dob?: string;            // date_of_birth (YYYY-MM-DD) — default 1990-01-01
+    expeditionDate?: string; // expedition_date (YYYY-MM-DD) — default 2010-01-01
+    email?: string;          // default auto (synth-<ur>@creditop.com)
+    skipIdentity?: boolean;  // MANUAL: NO escribir identidad (name/doc/dob/email) → personal-info lo llena el usuario; solo inyecta el buró
 }
 
 /** Orquesta el KYC armado sobre un user_request existente. Port de opSynthFill. */
@@ -246,6 +251,7 @@ export async function synthFill(uReqID: number, opts: SynthFillOpts = {}): Promi
     if (opts.score && opts.score > 0) req.score = opts.score;
     if (opts.gender) req.gender = opts.gender;               // override del panel (ojo: puede no pasar group rules)
     if (opts.age && opts.age > 0) req.age = opts.age;
+    if (opts.occupation) req.fields[29] = opts.occupation;   // ocupación editable (field 29)
 
     const documentType = (opts.documentType || 'CC').toUpperCase();
     const hasBuro = documentType !== 'PEP';                  // PEP = migrante sin buró → se salta la consulta
@@ -253,8 +259,11 @@ export async function synthFill(uReqID: number, opts: SynthFillOpts = {}): Promi
     const consulted = opts.consulted ?? 1;
 
     const doc = (opts.document && opts.document.trim()) || String(2_900_000_000 + uReqID);
-    const email = `synth-${uReqID}@creditop.com`;
-    await setSynthIdentity(userID, doc, email, req.gender, req.age, opts.name, documentType);
+    const email = (opts.email && opts.email.trim()) || `synth-${uReqID}@creditop.com`;
+    const dob = opts.dob || '1990-01-01';
+    const expeditionDate = opts.expeditionDate || '2010-01-01';
+    // skipIdentity (manual): no pisamos la identidad → personal-info lo llena el usuario. Igual inyectamos el buró.
+    if (!opts.skipIdentity) await setSynthIdentity(userID, doc, email, req.gender, req.age, opts.name, documentType, dob, expeditionDate);
     await injectSummary(userID, req.income, req.score, negatives, consulted, hasBuro);
     await injectIncomeFields(userID, uReqID, req.fields);
     let dc: string;

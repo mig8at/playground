@@ -1,315 +1,701 @@
 <!doctype html>
 <html lang="es">
+
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Panel del harness · CreditOp</title>
-<style>
-  :root{
-    --bg:#0f1115; --panel:#171a21; --panel2:#1e222b; --line:#2a2f3a;
-    --txt:#e7eaf0; --mut:#9aa4b2; --acc:#22c55e; --acc-d:#16a34a;
-    --warn:#f59e0b; --danger:#ef4444; --radius:14px;
-  }
-  *{box-sizing:border-box}
-  body{margin:0;font:15px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
-    background:var(--bg);color:var(--txt);-webkit-font-smoothing:antialiased}
-  a{color:var(--acc)}
-  .wrap{max-width:920px;margin:0 auto;padding:28px 20px 60px}
-  header{display:flex;align-items:center;gap:14px;margin-bottom:6px}
-  .logo{width:38px;height:38px;border-radius:11px;background:linear-gradient(135deg,var(--acc),#0ea5e9);
-    display:grid;place-items:center;font-weight:800;color:#03130a;font-size:20px}
-  h1{font-size:20px;margin:0;letter-spacing:.2px}
-  .sub{color:var(--mut);font-size:13px;margin:2px 0 0}
-  .targets{margin-left:auto;display:flex;gap:6px}
-  .pill{padding:6px 12px;border-radius:999px;border:1px solid var(--line);background:var(--panel);
-    color:var(--mut);font-size:12.5px;font-weight:600;cursor:not-allowed}
-  .pill.on{color:#03130a;background:var(--acc);border-color:var(--acc);cursor:default}
-  .pill.dim{opacity:.55}
-  .card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:18px 18px;margin-bottom:16px}
-  .card h2{font-size:13px;text-transform:uppercase;letter-spacing:.8px;color:var(--mut);margin:0 0 14px;font-weight:700}
-  .card h2 b{color:var(--acc);margin-right:7px}
-  .row{display:flex;gap:10px;flex-wrap:wrap}
-  input[type=text],input[type=number]{background:var(--panel2);border:1px solid var(--line);color:var(--txt);
-    padding:10px 12px;border-radius:10px;font-size:14px;width:100%}
-  input:focus{outline:none;border-color:var(--acc)}
-  .search{flex:1;min-width:200px}
-  .chips{display:flex;gap:7px;margin:12px 0 4px;flex-wrap:wrap}
-  .chip{padding:5px 12px;border-radius:999px;border:1px solid var(--line);background:var(--panel2);
-    color:var(--mut);font-size:12.5px;cursor:pointer}
-  .chip:hover{border-color:var(--acc);color:var(--txt)}
-  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:11px;margin-top:14px}
-  .m{background:var(--panel2);border:1.5px solid var(--line);border-radius:12px;padding:13px 14px;cursor:pointer;
-    transition:.12s;position:relative}
-  .m:hover{border-color:var(--acc-d);transform:translateY(-1px)}
-  .m.sel{border-color:var(--acc);background:#132018}
-  .m.miss{opacity:.55}
-  .m.miss .meta{color:var(--warn)}
-  .m .nm{font-weight:700;font-size:15px}
-  .m .meta{color:var(--mut);font-size:12px;margin-top:3px;font-variant-numeric:tabular-nums}
-  .m .tick{position:absolute;top:10px;right:11px;color:var(--acc);font-weight:800;display:none}
-  .m.sel .tick{display:block}
-  .empty{color:var(--mut);font-size:13px;padding:8px 2px}
-  .field{margin-bottom:12px}
-  .field label{display:block;font-size:12px;color:var(--mut);margin-bottom:5px;font-weight:600}
-  .two{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-  .seg{display:inline-flex;border:1px solid var(--line);border-radius:10px;overflow:hidden}
-  .seg button{background:var(--panel2);color:var(--mut);border:none;border-right:1px solid var(--line);
-    padding:9px 20px;font-size:14px;font-weight:700;cursor:pointer;transition:.1s}
-  .seg button:last-child{border-right:none}
-  .seg button.on{background:var(--acc);color:#03130a}
-  .seg button:hover:not(.on){color:var(--txt)}
-  .buro-off{opacity:.38;pointer-events:none;filter:grayscale(.4)}
-  details.adv{margin:6px 0 4px;border-top:1px solid var(--line);padding-top:12px}
-  details.adv summary{cursor:pointer;color:var(--mut);font-size:12.5px;font-weight:700;list-style:none;user-select:none}
-  details.adv summary::-webkit-details-marker{display:none}
-  details.adv summary:before{content:'▸ ';color:var(--acc)}
-  details.adv[open] summary:before{content:'▾ '}
-  .ro{display:flex;align-items:center;gap:8px;background:var(--panel2);border:1px dashed var(--line);
-    border-radius:10px;padding:9px 12px}
-  .ro .k{color:var(--mut);font-size:12px;min-width:78px}
-  .ro .v{font-weight:600;font-variant-numeric:tabular-nums}
-  .copy{margin-left:auto;background:none;border:1px solid var(--line);color:var(--mut);border-radius:7px;
-    padding:3px 9px;font-size:11.5px;cursor:pointer}
-  .copy:hover{color:var(--txt);border-color:var(--acc)}
-  .ficha{background:var(--panel2);border:1px solid var(--line);border-radius:12px;overflow:hidden}
-  .fgroup{padding:12px 16px}
-  .fgroup + .fgroup{border-top:1px solid var(--line)}
-  .fgroup h3{font-size:11px;text-transform:uppercase;letter-spacing:.6px;color:var(--acc);margin:0 0 8px;font-weight:700}
-  .frow{display:flex;justify-content:space-between;gap:14px;padding:3px 0;font-size:13px}
-  .frow .fk{color:var(--mut)}
-  .frow .fv{font-weight:600;font-variant-numeric:tabular-nums;text-align:right}
-  .frow .fv.off{opacity:.55;font-weight:500}
-  .fix{color:var(--mut);font-weight:500;font-size:10.5px;border:1px solid var(--line);border-radius:5px;padding:1px 5px;margin-left:6px;vertical-align:middle}
-  .launch{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
-  .go{background:var(--acc);color:#03130a;border:none;border-radius:11px;padding:13px 22px;font-size:15px;
-    font-weight:800;cursor:pointer}
-  .go:hover{background:var(--acc-d)}
-  .go:disabled{background:var(--panel2);color:var(--mut);cursor:not-allowed}
-  .stop{background:none;border:1px solid var(--danger);color:var(--danger);border-radius:10px;padding:11px 16px;
-    font-weight:700;cursor:pointer;display:none}
-  .stop.on{display:inline-block}
-  .sumry{color:var(--mut);font-size:13px}
-  .sumry b{color:var(--txt)}
-  pre#log{background:#0a0c10;border:1px solid var(--line);border-radius:10px;padding:12px 14px;margin-top:14px;
-    color:#cdd6e4;font:12px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace;max-height:260px;overflow:auto;
-    white-space:pre-wrap;display:none}
-</style>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Panel del harness · CreditOp</title>
+  <style>
+    :root {
+      --bg: #0f1115;
+      --panel: #171a21;
+      --panel2: #1e222b;
+      --line: #2a2f3a;
+      --txt: #e7eaf0;
+      --mut: #9aa4b2;
+      --acc: #22c55e;
+      --acc-d: #16a34a;
+      --warn: #f59e0b;
+      --danger: #ef4444;
+      --radius: 14px;
+    }
+
+    * {
+      box-sizing: border-box
+    }
+
+    body {
+      margin: 0;
+      font: 15px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background: var(--bg);
+      color: var(--txt);
+      -webkit-font-smoothing: antialiased
+    }
+
+    a {
+      color: var(--acc)
+    }
+
+    .wrap {
+      max-width: 920px;
+      margin: 0 auto;
+      padding: 28px 20px 60px
+    }
+
+    header {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      margin-bottom: 6px
+    }
+
+    .logo {
+      width: 38px;
+      height: 38px;
+      border-radius: 11px;
+      background: linear-gradient(135deg, var(--acc), #0ea5e9);
+      display: grid;
+      place-items: center;
+      font-weight: 800;
+      color: #03130a;
+      font-size: 20px
+    }
+
+    h1 {
+      font-size: 20px;
+      margin: 0;
+      letter-spacing: .2px
+    }
+
+    .sub {
+      color: var(--mut);
+      font-size: 13px;
+      margin: 2px 0 0
+    }
+
+    .targets {
+      margin-left: auto;
+      display: flex;
+      gap: 6px
+    }
+
+    .pill {
+      padding: 6px 12px;
+      border-radius: 999px;
+      border: 1px solid var(--line);
+      background: var(--panel);
+      color: var(--mut);
+      font-size: 12.5px;
+      font-weight: 600;
+      cursor: pointer;
+      font-family: inherit
+    }
+
+    .pill.on {
+      color: #03130a;
+      background: var(--acc);
+      border-color: var(--acc)
+    }
+
+    .pill.dim {
+      opacity: .55;
+      cursor: not-allowed
+    }
+
+    .pill:hover:not(.on):not(.dim) {
+      color: var(--txt);
+      border-color: var(--acc-d)
+    }
+
+    .warnbar {
+      margin: 14px 0 0;
+      padding: 10px 14px;
+      border-radius: 10px;
+      border: 1px solid #4a3a16;
+      background: #241a08;
+      color: #f6c667;
+      font-size: 12.5px
+    }
+
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 18px 18px;
+      margin-bottom: 16px
+    }
+
+    .card h2 {
+      font-size: 13px;
+      text-transform: uppercase;
+      letter-spacing: .8px;
+      color: var(--mut);
+      margin: 0 0 14px;
+      font-weight: 700
+    }
+
+    .card h2 b {
+      color: var(--acc);
+      margin-right: 7px
+    }
+
+    input[type=text],
+    input[type=number],
+    input[type=date],
+    select {
+      background: var(--panel2);
+      border: 1px solid var(--line);
+      color: var(--txt);
+      padding: 10px 12px;
+      border-radius: 10px;
+      font-size: 14px;
+      width: 100%
+    }
+
+    input[type=date],
+    select {
+      color-scheme: dark;
+      cursor: pointer
+    }
+
+    input:focus,
+    select:focus {
+      outline: none;
+      border-color: var(--acc)
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+      gap: 11px;
+      margin-top: 14px
+    }
+
+    .m {
+      background: var(--panel2);
+      border: 1.5px solid var(--line);
+      border-radius: 12px;
+      padding: 13px 14px;
+      cursor: pointer;
+      transition: .12s;
+      position: relative
+    }
+
+    .m:hover {
+      border-color: var(--acc-d);
+      transform: translateY(-1px)
+    }
+
+    .m.sel {
+      border-color: var(--acc);
+      background: #132018
+    }
+
+    .m.miss {
+      opacity: .55
+    }
+
+    .m.miss .meta {
+      color: var(--warn)
+    }
+
+    .m .nm {
+      font-weight: 700;
+      font-size: 15px
+    }
+
+    .m .meta {
+      color: var(--mut);
+      font-size: 12px;
+      margin-top: 3px;
+      font-variant-numeric: tabular-nums
+    }
+
+    .m .tick {
+      position: absolute;
+      top: 10px;
+      right: 11px;
+      color: var(--acc);
+      font-weight: 800;
+      display: none
+    }
+
+    .m.sel .tick {
+      display: block
+    }
+
+    .field {
+      margin-bottom: 12px
+    }
+
+    .field label {
+      display: block;
+      font-size: 12px;
+      color: var(--mut);
+      margin-bottom: 5px;
+      font-weight: 600
+    }
+
+    .two {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px
+    }
+
+    .grouplbl {
+      font-size: 11px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: .6px;
+      color: var(--acc);
+      margin: 18px 0 10px
+    }
+
+    .grouplbl:first-of-type {
+      margin-top: 2px
+    }
+
+    .money {
+      position: relative
+    }
+
+    .money input {
+      padding-left: 24px
+    }
+
+    .money::before {
+      content: '$';
+      position: absolute;
+      left: 11px;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--mut);
+      pointer-events: none
+    }
+
+    .seg {
+      display: inline-flex;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      overflow: hidden
+    }
+
+    .seg button {
+      background: var(--panel2);
+      color: var(--mut);
+      border: none;
+      border-right: 1px solid var(--line);
+      padding: 9px 20px;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: .1s
+    }
+
+    .seg button:last-child {
+      border-right: none
+    }
+
+    .seg button.on {
+      background: var(--acc);
+      color: #03130a
+    }
+
+    .seg button:hover:not(.on) {
+      color: var(--txt)
+    }
+
+    .seg button:disabled {
+      opacity: .4;
+      cursor: not-allowed
+    }
+
+    .buro-off {
+      opacity: .38;
+      pointer-events: none;
+      filter: grayscale(.4)
+    }
+
+    .ro {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--panel2);
+      border: 1px dashed var(--line);
+      border-radius: 10px;
+      padding: 9px 12px
+    }
+
+    .ro .k {
+      color: var(--mut);
+      font-size: 12px;
+      min-width: 78px
+    }
+
+    .ro .v {
+      font-weight: 600;
+      font-variant-numeric: tabular-nums
+    }
+
+    .copy {
+      margin-left: auto;
+      background: none;
+      border: 1px solid var(--line);
+      color: var(--mut);
+      border-radius: 7px;
+      padding: 3px 9px;
+      font-size: 11.5px;
+      cursor: pointer
+    }
+
+    .copy:hover {
+      color: var(--txt);
+      border-color: var(--acc)
+    }
+
+    .launch {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      flex-wrap: wrap
+    }
+
+    .go {
+      background: var(--acc);
+      color: #03130a;
+      border: none;
+      border-radius: 11px;
+      padding: 13px 22px;
+      font-size: 15px;
+      font-weight: 800;
+      cursor: pointer
+    }
+
+    .go:hover {
+      background: var(--acc-d)
+    }
+
+    .go:disabled {
+      background: var(--panel2);
+      color: var(--mut);
+      cursor: not-allowed
+    }
+
+    .stop {
+      background: none;
+      border: 1px solid var(--danger);
+      color: var(--danger);
+      border-radius: 10px;
+      padding: 11px 16px;
+      font-weight: 700;
+      cursor: pointer;
+      display: none
+    }
+
+    .stop.on {
+      display: inline-block
+    }
+
+    .sumry {
+      color: var(--mut);
+      font-size: 13px
+    }
+
+    .sumry b {
+      color: var(--txt)
+    }
+
+    pre#log {
+      background: #0a0c10;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 12px 14px;
+      margin-top: 14px;
+      color: #cdd6e4;
+      font: 12px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace;
+      max-height: 260px;
+      overflow: auto;
+      white-space: pre-wrap;
+      display: none
+    }
+  </style>
 </head>
+
 <body>
-<div class="wrap">
-  <header>
-    <div class="logo">C</div>
-    <div>
-      <h1>Panel del harness</h1>
-      <p class="sub">Elegí comercio → definí el usuario (y el buró) → abre el wizard en monto.</p>
-    </div>
-    <div class="targets">
-      <span class="pill on">local</span>
-      <span class="pill dim" title="Data compartida — se sumará con guardas">dev</span>
-      <span class="pill dim" title="Falta .env.staging">staging</span>
-    </div>
-  </header>
-
-  <!-- 1 · Comercio (pruebas, configurado a mano en MERCHANTS) -->
-  <section class="card">
-    <h2><b>1</b> Comercio de prueba</h2>
-    <div class="grid" id="results"></div>
-  </section>
-
-  <!-- 2 · Usuario sintético -->
-  <section class="card">
-    <h2><b>2</b> Usuario sintético</h2>
-
-    <div class="field">
-      <label>Tipo de documento</label>
-      <div class="seg" id="doctype">
-        <button class="on" data-v="CC">CC</button>
-        <button data-v="CE">CE</button>
-        <button data-v="PEP">PEP</button>
+  <div class="wrap">
+    <header>
+      <div class="logo">C</div>
+      <div>
+        <h1>Panel del harness</h1>
+        <p class="sub">Elegí comercio → definí el usuario (y el buró) → abre el wizard en monto.</p>
       </div>
+      <div class="targets" id="targets">
+        <button class="pill on" data-t="local">local</button>
+        <button class="pill" data-t="dev" title="Data COMPARTIDA — escribe datos sintéticos en dev">dev</button>
+        <span class="pill dim" title="Falta .env.staging">staging</span>
+      </div>
+    </header>
+
+    <div class="warnbar" id="devwarn" style="display:none">⚠ <b>dev</b> = data COMPARTIDA: el flujo escribe datos
+      sintéticos (assign · scrub · buró) en la DB de dev. El login es Cognito real y podés tardar más (RDS remoto).
     </div>
 
-    <div class="field"><label>Nombre</label><input id="name" type="text" placeholder="SYNTH TEST USER" /></div>
+    <!-- 1 · Comercio (pruebas, configurado a mano en MERCHANTS) -->
+    <section class="card">
+      <h2><b>1</b> Comercio de prueba</h2>
+      <div class="grid" id="results"></div>
+    </section>
 
-    <div class="two">
-      <div class="field"><label>Ingreso mensual (COP)</label><input id="income" type="number" value="2500000" step="100000" /></div>
-      <div class="field buro"><label>Score datacrédito</label><input id="score" type="number" value="700" step="10" /></div>
-    </div>
+    <!-- 2 · Usuario sintético — todo editable, con defaults sensatos -->
+    <section class="card">
+      <h2><b>2</b> Usuario sintético</h2>
 
-    <div class="field">
-      <div class="ro"><span class="k">Celular</span><span class="v" id="phone">3131010101</span><span style="color:var(--mut);font-size:11.5px">bypass OTP</span><button class="copy" data-copy="phone">copiar</button></div>
-    </div>
+      <div class="field">
+        <label>Modo del buró</label>
+        <div class="seg" id="injmode">
+          <button class="on" data-i="1">Sintético · inyecta buró</button>
+          <button data-i="0">Real · consulta buró</button>
+        </div>
+        <p id="injhint" style="color:var(--mut);font-size:12px;margin:8px 0 0"></p>
+      </div>
 
-    <details class="adv">
-      <summary>Avanzado (opcional) — defaults sensatos</summary>
-      <div class="two" style="margin-top:14px">
-        <div class="field"><label>Documento / cédula</label><input id="document" type="text" placeholder="auto (2.9B + ur)" /></div>
-        <div class="field"><label>Género</label>
-          <div class="seg" id="gender"><button class="on" data-v="M">M</button><button data-v="F">F</button></div>
+      <div id="synthbody">
+        <p class="grouplbl">Identidad</p>
+      <div class="field">
+        <label>Tipo de documento</label>
+        <div class="seg" id="doctype">
+          <button class="on" data-v="CC">CC</button>
+          <button data-v="CE">CE</button>
+          <button data-v="PEP">PEP</button>
         </div>
       </div>
       <div class="two">
+        <div class="field"><label>Nombre</label><input id="name" type="text" placeholder="SYNTH TEST USER" /></div>
+        <div class="field"><label>Documento / cédula</label><input id="document" type="text"
+            placeholder="auto (2.9B + ur)" /></div>
+      </div>
+      <div class="two">
+        <div class="field"><label>Género</label>
+          <div class="seg" id="gender"><button class="on" data-v="M">M</button><button data-v="F">F</button></div>
+        </div>
         <div class="field"><label>Edad</label><input id="age" type="number" value="35" step="1" min="18" /></div>
-        <div class="field"></div>
+      </div>
+      <div class="two">
+        <div class="field"><label>Fecha nacimiento</label><input id="dob" type="date" value="1990-01-01" /></div>
+        <div class="field"><label>Fecha expedición</label><input id="expedition" type="date" value="2010-01-01" /></div>
+      </div>
+      <div class="field"><label>Email</label><input id="email" type="text"
+          placeholder="auto · synth-&lt;ur&gt;@creditop.com" /></div>
+
+      <p class="grouplbl">Ingreso y empleo</p>
+      <div class="two">
+        <div class="field"><label>Ingreso mensual (COP)</label>
+          <div class="money"><input id="income" type="text" inputmode="numeric" value="2.500.000"
+              oninput="onMoney(this)" /></div>
+        </div>
+        <div class="field"><label>Ocupación</label>
+          <select id="occupation">
+            <option>Empleado</option>
+            <option>Independiente</option>
+            <option>Pensionado</option>
+          </select>
+        </div>
+      </div>
+
+      <p class="grouplbl buro">Buró · Datacrédito</p>
+      <div class="two buro">
+        <div class="field"><label>Score</label><input id="score" type="number" value="700" step="10" /></div>
+        <div class="field"><label>Negativos 12m</label><input id="negatives" type="number" value="0" step="1" min="0" />
+        </div>
       </div>
       <div class="two buro">
-        <div class="field"><label>Negativos 12m (buró)</label><input id="negatives" type="number" value="0" step="1" min="0" /></div>
-        <div class="field"><label>Consultas 6m (buró)</label><input id="consulted" type="number" value="1" step="1" min="0" /></div>
+        <div class="field"><label>Consultas 6m</label><input id="consulted" type="number" value="1" step="1" min="0" />
+        </div>
+        <div class="field"></div>
       </div>
-    </details>
 
-  </section>
+      <div class="field" style="margin-top:14px">
+        <div class="ro"><span class="k">Celular</span><span class="v" id="phone">3131010101</span><span
+            style="color:var(--mut);font-size:11.5px">bypass OTP · no editable</span><button class="copy"
+            data-copy="phone">copiar</button></div>
+      </div>
+      </div><!-- /synthbody -->
+    </section>
 
-  <!-- 2·5 · Ficha (preview read-only) -->
-  <section class="card">
-    <h2><b>✦</b> Ficha — se creará este usuario</h2>
-    <div class="ficha" id="ficha"></div>
-  </section>
+    <!-- 3 · Lanzar -->
+    <section class="card">
+      <h2><b>3</b> Lanzar</h2>
+      <div class="launch">
+        <button class="go" id="go" disabled>Preparar + Lanzar ▶</button>
+        <button class="stop" id="stopBtn">Detener</button>
+        <span class="sumry" id="sumry">Elegí un comercio primero.</span>
+      </div>
+      <pre id="log"></pre>
+    </section>
+  </div>
 
-  <!-- 3 · Lanzar -->
-  <section class="card">
-    <h2><b>3</b> Lanzar</h2>
-    <div class="launch">
-      <button class="go" id="go" disabled>Preparar + Lanzar ▶</button>
-      <button class="stop" id="stopBtn">Detener</button>
-      <span class="sumry" id="sumry">Elegí un comercio primero.</span>
-    </div>
-    <pre id="log"></pre>
-  </section>
-</div>
+  <script>
+    const $ = (id) => document.getElementById(id);
 
-<script>
-const $ = (id) => document.getElementById(id);
+    // Comercios de prueba CONFIGURADOS a mano. Agregá más acá cuando los necesites: { slug, name }.
+    const MERCHANTS = [
+      { slug: 'motai', name: 'Motai' },
+      { slug: 'pullman', name: 'Pullman' },
+    ];
+    let sel = MERCHANTS[0];      // Motai por defecto
+    let target = 'local';        // local | dev (staging pendiente)
+    let inject = true;           // true = inyecta buró sintético (salta consulta real) · false = prueba real
+    let doctype = 'CC';
+    let gender = 'M';
+    let poll = null;
 
-// Comercios de prueba CONFIGURADOS a mano. Agregá más acá cuando los necesites: { slug, name }.
-const MERCHANTS = [
-  { slug: 'motai',   name: 'Motai' },
-  { slug: 'pullman', name: 'Pullman' },
-];
-let sel = MERCHANTS[0];      // Motai por defecto
-let doctype = 'CC';
-let gender = 'M';
-let poll = null;
+    const fmt = (n) => (n || 0).toLocaleString('es-CO');
+    const nfmt = new Intl.NumberFormat('es-CO');
+    const moneyNum = id => +((($(id).value) || '').replace(/\D/g, '') || 0);   // número crudo de un input money
+    function onMoney(el) {                                                    // formatea miles (.) manteniendo el cursor
+      const caret = el.value.slice(0, el.selectionStart).replace(/\D/g, '').length;
+      const digits = el.value.replace(/\D/g, '');
+      el.value = digits ? nfmt.format(+digits) : '';
+      let pos = 0, seen = 0;
+      while (pos < el.value.length && seen < caret) { if (el.value[pos] >= '0' && el.value[pos] <= '9') seen++; pos++; }
+      el.setSelectionRange(pos, pos);
+      refresh();
+    }
 
-const fmt = (n) => (n||0).toLocaleString('es-CO');
-
-function renderMerchants(){
-  const g = $('results');
-  g.innerHTML = '';
-  for(const m of MERCHANTS){
-    const d = document.createElement('div');
-    d.className = 'm' + (sel && sel.slug===m.slug ? ' sel' : '') + (m.missing ? ' miss' : '');
-    d.innerHTML = `<span class="tick">✓</span><div class="nm">${m.name}</div>
+    function renderMerchants() {
+      const g = $('results');
+      g.innerHTML = '';
+      for (const m of MERCHANTS) {
+        const d = document.createElement('div');
+        d.className = 'm' + (sel && sel.slug === m.slug ? ' sel' : '') + (m.missing ? ' miss' : '');
+        d.innerHTML = `<span class="tick">✓</span><div class="nm">${m.name}</div>
       <div class="meta">${m.meta || m.slug}</div>`;
-    d.onclick = () => { sel = m; renderMerchants(); refresh(); };
-    g.appendChild(d);
-  }
-}
+        d.onclick = () => { sel = m; renderMerchants(); refresh(); };
+        g.appendChild(d);
+      }
+    }
 
-// enriquece cada card con #id·hash desde el backend (resiliente: si no está en local, lo marca).
-async function enrichMerchants(){
-  for(const m of MERCHANTS){
-    try {
-      const list = await (await fetch('/api/merchants?q='+encodeURIComponent(m.slug))).json();
-      const hit = list.find(x => x.slug===m.slug) || list[0];
-      if(hit){ m.meta = `${hit.slug} · #${hit.allied_id} · ${hit.hash}`; m.missing = false; }
-      else { m.meta = '— no está en local'; m.missing = true; }
-    } catch { m.meta = m.slug; }
-  }
-  renderMerchants();
-}
+    // enriquece cada card con #id·hash desde el backend (resiliente: si no está en local, lo marca).
+    async function enrichMerchants() {
+      for (const m of MERCHANTS) {
+        try {
+          const list = await (await fetch('/api/merchants?q=' + encodeURIComponent(m.slug) + '&target=' + target)).json();
+          const hit = list.find(x => x.slug === m.slug) || list[0];
+          if (hit) { m.meta = `${hit.slug} · #${hit.allied_id} · ${hit.hash}`; m.missing = false; }
+          else { m.meta = '— no está en local'; m.missing = true; }
+        } catch { m.meta = m.slug; }
+      }
+      renderMerchants();
+    }
 
-function setSeg(groupId, val){
-  document.querySelectorAll('#'+groupId+' button').forEach(b => b.classList.toggle('on', b.dataset.v===val));
-}
+    function setSeg(groupId, val) {
+      document.querySelectorAll('#' + groupId + ' button').forEach(b => b.classList.toggle('on', b.dataset.v === val));
+    }
 
-function togglePep(){
-  const pep = doctype==='PEP';
-  document.querySelectorAll('.buro').forEach(el => el.classList.toggle('buro-off', pep));
-}
+    function togglePep() {                                       // PEP = sin buró → atenúa score/negativos/consultas
+      const pep = doctype === 'PEP';
+      document.querySelectorAll('.buro').forEach(el => el.classList.toggle('buro-off', pep));
+    }
 
-function updateGo(){
-  $('go').disabled = !sel;
-  const buro = doctype==='PEP'
-    ? ' · <b>sin buró</b>'
-    : ` · ingreso <b>$${fmt(+$('income').value)}</b> · score <b>${$('score').value}</b>`;
-  $('sumry').innerHTML = sel
-    ? `<b>${sel.name}</b> · <b>${doctype}</b> · usuario <b>${$('name').value||'SYNTH TEST USER'}</b>${buro}`
-    : 'Elegí un comercio primero.';
-}
+    function updateGo() {
+      $('go').disabled = !sel;
+      if (!sel) { $('sumry').innerHTML = 'Elegí un comercio primero.'; return; }
+      if (!inject) { $('sumry').innerHTML = `<b>${sel.name}</b> · <b>REAL</b> — llenás todo en el wizard (buró real)`; return; }
+      const buro = doctype === 'PEP'
+        ? ' · <b>sin buró</b>'
+        : ` · ingreso <b>$${fmt(moneyNum('income'))}</b> · score <b>${$('score').value}</b>`;
+      $('sumry').innerHTML = `<b>${sel.name}</b> · <b>${doctype}</b> · sintético${buro}`;
+    }
+    const refresh = () => updateGo();
 
-async function launch(){
-  if(!sel) return;
-  const body = {
-    slug: sel.slug, documentType: doctype, name: $('name').value.trim(),
-    income:+$('income').value, score:+$('score').value, gender,
-    document: $('document').value.trim(), age:+$('age').value,
-    negatives:+$('negatives').value, consulted:+$('consulted').value,
-  };
-  $('go').disabled = true; $('go').textContent = 'Lanzando…';
-  const r = await fetch('/api/launch',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(body)});
-  const j = await r.json();
-  if(!j.ok){ alert(j.msg||'no se pudo lanzar'); $('go').disabled=false; $('go').textContent='Preparar + Lanzar ▶'; return; }
-  $('log').style.display='block'; $('stopBtn').classList.add('on');
-  startPoll();
-}
+    async function launch() {
+      if (!sel) return;
+      const body = {
+        slug: sel.slug, target, inject, documentType: doctype, gender,
+        name: $('name').value.trim(), document: $('document').value.trim(),
+        age: +$('age').value, dob: $('dob').value, expeditionDate: $('expedition').value,
+        email: $('email').value.trim(), occupation: $('occupation').value,
+        income: moneyNum('income'),
+        score: +$('score').value, negatives: +$('negatives').value, consulted: +$('consulted').value,
+      };
+      $('go').disabled = true; $('go').textContent = 'Lanzando…';
+      const r = await fetch('/api/launch', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
+      const j = await r.json();
+      if (!j.ok) { alert(j.msg || 'no se pudo lanzar'); $('go').disabled = false; $('go').textContent = 'Preparar + Lanzar ▶'; return; }
+      $('log').style.display = 'block'; $('stopBtn').classList.add('on');
+      startPoll();
+    }
 
-function startPoll(){
-  if(poll) clearInterval(poll);
-  const tick = async () => {
-    const j = await (await fetch('/api/status')).json();
-    $('log').textContent = j.log || '';
-    $('log').scrollTop = $('log').scrollHeight;
-    if(j.running){ $('go').textContent = '● corriendo…'; $('go').disabled = true; }
-    else { $('go').textContent = 'Preparar + Lanzar ▶'; $('go').disabled = !sel; $('stopBtn').classList.remove('on'); clearInterval(poll); poll=null; }
-  };
-  tick(); poll = setInterval(tick, 2000);
-}
+    function startPoll() {
+      if (poll) clearInterval(poll);
+      const tick = async () => {
+        const j = await (await fetch('/api/status')).json();
+        $('log').textContent = j.log || '';
+        $('log').scrollTop = $('log').scrollHeight;
+        if (j.running) { $('go').textContent = '● corriendo…'; $('go').disabled = true; }
+        else { $('go').textContent = 'Preparar + Lanzar ▶'; $('go').disabled = !sel; $('stopBtn').classList.remove('on'); clearInterval(poll); poll = null; }
+      };
+      tick(); poll = setInterval(tick, 2000);
+    }
 
-async function stop(){ await fetch('/api/stop',{method:'POST'}); }
+    async function stop() { await fetch('/api/stop', { method: 'POST' }); }
 
-// ── ficha: preview read-only del usuario COMPLETO que se creará (incluye los campos fijos) ──
-function renderFicha(){
-  const doc = $('document').value.trim() || 'auto (2.9B + ur)';
-  const nom = $('name').value.trim() || 'SYNTH TEST USER';
-  const buro = doctype==='PEP'
-    ? `<div class="frow"><span class="fk">Consulta buró</span><span class="fv off">omitida — PEP sin buró</span></div>`
-    : `<div class="frow"><span class="fk">Score datacrédito</span><span class="fv">${$('score').value||'—'}</span></div>
-       <div class="frow"><span class="fk">Negativos 12m · Consultas 6m</span><span class="fv">${$('negatives').value} · ${$('consulted').value}</span></div>
-       <div class="frow"><span class="fk">TC activa · vector</span><span class="fv">1 · OK <span class="fix">fijo</span></span></div>
-       <div class="frow"><span class="fk">Central</span><span class="fv">Experian Acierta <span class="fix">fijo</span></span></div>`;
-  $('ficha').innerHTML = `
-  <div class="fgroup"><h3>Identidad</h3>
-    <div class="frow"><span class="fk">Tipo · Documento</span><span class="fv">${doctype} · ${doc}</span></div>
-    <div class="frow"><span class="fk">Nombre</span><span class="fv">${nom}</span></div>
-    <div class="frow"><span class="fk">Género · Edad</span><span class="fv">${gender} · ${$('age').value}</span></div>
-    <div class="frow"><span class="fk">Fecha nacimiento</span><span class="fv">1990-01-01 <span class="fix">fijo</span></span></div>
-    <div class="frow"><span class="fk">Fecha expedición</span><span class="fv">2010-01-01 <span class="fix">fijo</span></span></div>
-    <div class="frow"><span class="fk">Email</span><span class="fv">synth-&lt;ur&gt;@creditop.com <span class="fix">auto</span></span></div>
-    <div class="frow"><span class="fk">Celular</span><span class="fv">3131010101 <span class="fix">bypass</span></span></div>
-  </div>
-  <div class="fgroup"><h3>Empleo e ingreso</h3>
-    <div class="frow"><span class="fk">Ingreso mensual</span><span class="fv">$${fmt(+$('income').value)}</span></div>
-    <div class="frow"><span class="fk">Ocupación</span><span class="fv">Empleado <span class="fix">fijo</span></span></div>
-    <div class="frow"><span class="fk">Continuidad 3/6/12m</span><span class="fv">✓ empleado <span class="fix">fijo</span></span></div>
-  </div>
-  <div class="fgroup"><h3>Buró</h3>${buro}</div>`;
-}
-const refresh = () => { updateGo(); renderFicha(); };
+    // segmentos
+    document.querySelectorAll('#doctype button').forEach(b => b.onclick = () => { doctype = b.dataset.v; setSeg('doctype', doctype); togglePep(); refresh(); });
+    document.querySelectorAll('#gender button').forEach(b => b.onclick = () => { gender = b.dataset.v; setSeg('gender', gender); refresh(); });
 
-// segmentos
-document.querySelectorAll('#doctype button').forEach(b => b.onclick = () => { doctype=b.dataset.v; setSeg('doctype',doctype); togglePep(); refresh(); });
-document.querySelectorAll('#gender button').forEach(b => b.onclick = () => { gender=b.dataset.v; setSeg('gender',gender); refresh(); });
+    // switcher de target (local | dev). dev = escribe data compartida → muestra aviso + re-enrich (#id/hash difieren).
+    document.querySelectorAll('#targets .pill:not(.dim)').forEach(b => b.onclick = () => {
+      target = b.dataset.t;
+      document.querySelectorAll('#targets .pill').forEach(p => p.classList.toggle('on', p.dataset.t === target));
+      $('devwarn').style.display = target === 'dev' ? '' : 'none';
+      updateInjModeForTarget();   // en local no hay Real (sin OTP/burós)
+      enrichMerchants();
+    });
 
-['name','income','score','document','age','negatives','consulted'].forEach(id => $(id).addEventListener('input', refresh));
-$('go').onclick = launch;
-$('stopBtn').onclick = stop;
-document.querySelectorAll('.copy').forEach(b => b.onclick = () => navigator.clipboard.writeText($(b.dataset.copy).textContent).then(()=>{b.textContent='✓';setTimeout(()=>b.textContent='copiar',1000)}));
+    // switch del buró: Sintético (inyecta, salta consulta real) | Real (consulta buró real, sin inyección).
+    function applyInjMode() {
+      document.querySelectorAll('#injmode button').forEach(b => b.classList.toggle('on', (b.dataset.i === '1') === inject));
+      $('synthbody').classList.toggle('buro-off', !inject);
+      $('injhint').textContent = inject
+        ? 'Se inyecta el buró (salta la consulta real); la identidad la llenás vos en el wizard.'
+        : 'Prueba REAL: llenás todo en el wizard y se consulta el buró con tus datos reales. Los campos de abajo no se usan.';
+      updateGo();
+    }
+    document.querySelectorAll('#injmode button').forEach(b => b.onclick = () => { if (b.disabled) return; inject = b.dataset.i === '1'; applyInjMode(); });
 
-renderMerchants();   // cards de prueba (slug ya visible)
-enrichMerchants();   // completa #id·hash desde el backend
-refresh();           // Motai preseleccionado → botón habilitado + ficha
-startPoll();         // engancharse si había una corrida activa
-</script>
+    // Real (buró + OTP reales) NO existe en local → solo dev/staging. En local se fuerza Sintético.
+    function updateInjModeForTarget() {
+      const realBtn = document.querySelector('#injmode button[data-i="0"]');
+      const realOk = target !== 'local';
+      realBtn.disabled = !realOk;
+      realBtn.title = realOk ? '' : 'Real no disponible en local (sin envío de OTP ni burós reales)';
+      if (!realOk) inject = true;   // local → Sintético obligado
+      applyInjMode();
+    }
+
+    ['name', 'document', 'age', 'dob', 'expedition', 'email', 'occupation', 'score', 'negatives', 'consulted']
+      .forEach(id => $(id).addEventListener('input', refresh));
+    $('go').onclick = launch;
+    $('stopBtn').onclick = stop;
+    document.querySelectorAll('.copy').forEach(b => b.onclick = () => navigator.clipboard.writeText($(b.dataset.copy).textContent).then(() => { b.textContent = '✓'; setTimeout(() => b.textContent = 'copiar', 1000) }));
+
+    // cédula + email generados VISIBLES (rango sintético 2.9B, como synthFill) — editables; se mandan tal cual.
+    $('document').value = String(2_900_000_000 + Math.floor(Math.random() * 89_999_999));
+    $('email').value = 'synth-' + $('document').value + '@creditop.com';
+    $('document').addEventListener('input', () => {   // el email sigue a la cédula mientras no lo edites a mano
+      if (/^synth-\d*@creditop\.com$/.test($('email').value))
+        $('email').value = 'synth-' + ($('document').value.replace(/\D/g, '')) + '@creditop.com';
+    });
+
+    renderMerchants();   // cards de prueba (slug ya visible)
+    enrichMerchants();   // completa #id·hash desde el backend
+    updateInjModeForTarget();   // estado inicial (en local, Real deshabilitado → Sintético)
+    refresh();           // Motai preseleccionado → botón habilitado
+    startPoll();         // engancharse si había una corrida activa
+  </script>
 </body>
+
 </html>
