@@ -26,16 +26,16 @@ export interface SynthFillResult {
 
 const firstPipe = (s: string): string => (s.includes('|') ? s.slice(0, s.indexOf('|')) : s);
 
-// datacreditoData: perfil LIMPIO ideal que LenderUserCategoryService lee de `$user->datacredito->data`
-// (0 negativos, pocas consultas, 1 TC activa con vector OK, deuda baja). Valores fijos (no usa income).
-function datacreditoData(): Record<string, unknown> {
+// datacreditoData: perfil que LenderUserCategoryService lee de `$user->datacredito->data`. Por defecto LIMPIO
+// (0 negativos, 1 consulta, 1 TC activa con vector OK, deuda baja); negatives/consulted son configurables (panel).
+function datacreditoData(negatives = 0, consulted = 1): Record<string, unknown> {
     return {
         agregatedInfo: {
             overview: {
                 principals: {
-                    currentNegativeCredits: 0,
-                    negativeHistoricalLast12Months: 0,
-                    consultedLast6Months: 1,
+                    currentNegativeCredits: negatives,
+                    negativeHistoricalLast12Months: negatives,
+                    consultedLast6Months: consulted,
                     maturationSince: '2015-01-01',
                 },
                 balances: { valueMonthlyPayment: 100, totalValueBalanceOverdue: 0 },
@@ -137,22 +137,29 @@ async function ensureLenderCredential(alliedID: number, lenderID: number): Promi
     return 'sembrada (copiada de plantilla)';
 }
 
-async function setSynthIdentity(userID: number, doc: string, email: string, gender: string, age: number): Promise<void> {
+async function setSynthIdentity(userID: number, doc: string, email: string, gender: string, age: number, name?: string, documentType = 'CC'): Promise<void> {
+    // name opcional (del panel): "Juan Perez" → first_name "Juan", surname "Perez". Default = SYNTH TEST USER.
+    const parts = (name ?? '').trim().split(/\s+/).filter(Boolean);
+    const first = parts[0] ?? 'SYNTH';
+    const surname = parts.slice(1).join(' ') || 'TEST USER';
     await exec(
-        `UPDATE users SET document_type='CC', document_number=?, first_name='SYNTH', surname='TEST USER',
-         full_name='SYNTH TEST USER', email=?, date_of_birth='1990-01-01', expedition_date='2010-01-01',
+        `UPDATE users SET document_type=?, document_number=?, first_name=?, surname=?,
+         full_name=?, email=?, date_of_birth='1990-01-01', expedition_date='2010-01-01',
          age=?, gender=?, updated_at=NOW() WHERE id=?`,
-        [doc, email, age, gender, userID],
+        [documentType, doc, first, surname, `${first} ${surname}`, email, age, gender, userID],
     );
 }
 
-async function injectSummary(userID: number, income: number, score: number): Promise<void> {
+async function injectSummary(userID: number, income: number, score: number, negatives = 0, consulted = 1, withBuro = true): Promise<void> {
     const agildata = JSON.stringify({
         employed: true, self_employed: false, retired: false,
         approximate_real_salary: income, last_payment_value: income, lowest_payment_value: income,
         continuity_3_months: true, continuity_6_months: true, continuity_12_months: true,
     });
-    const datacredito = JSON.stringify({ score, value_monthly_payment: Math.floor(income / 3), data: datacreditoData() });
+    // withBuro=false (PEP): guardamos el ingreso (agildata) pero NO el bloque de datacrédito.
+    const datacredito = withBuro
+        ? JSON.stringify({ score, value_monthly_payment: Math.floor(income / 3), data: datacreditoData(negatives, consulted) })
+        : null;
     const id = await scalar<number>('SELECT id FROM user_summaries WHERE user_id = ? LIMIT 1', [userID]);
     if (id && id > 0) {
         await exec('UPDATE user_summaries SET agildata=?, datacredito=?, updated_at=NOW() WHERE id=?', [agildata, datacredito, id]);
@@ -186,11 +193,11 @@ async function experianRiskCentralID(): Promise<number> {
 
 // injectDatacredito: FORJA la fila Experian (risk_central_user_data) — score plano + data ENCRIPTADA
 // igual que el cast encrypted:collection de Laravel. Sin esto /lenders nunca ofrece los Creditop X.
-async function injectDatacredito(userID: number, income: number, score: number): Promise<void> {
+async function injectDatacredito(userID: number, income: number, score: number, negatives = 0, consulted = 1): Promise<void> {
     const key = appKey();
     const rcID = await experianRiskCentralID();
     if (rcID === 0) throw new Error('no encontré risk_central Experian (Acierta/+Quanto)');
-    const enc = encryptLaravelString(JSON.stringify(datacreditoData()), key);
+    const enc = encryptLaravelString(JSON.stringify(datacreditoData(negatives, consulted)), key);
     await exec('DELETE FROM risk_central_user_data WHERE user_id=? AND risk_central_id=?', [userID, rcID]);
     await exec(
         `INSERT INTO risk_central_user_data (uuid, user_id, risk_central_id, score, data, created_at, updated_at)
@@ -199,7 +206,15 @@ async function injectDatacredito(userID: number, income: number, score: number):
     );
 }
 
-export interface SynthFillOpts { lender?: string; income?: number; score?: number; }
+export interface SynthFillOpts {
+    lender?: string; income?: number; score?: number; name?: string;
+    documentType?: string;   // 'CC' | 'CE' | 'PEP' — PEP (Permiso Especial de Permanencia) = migrante SIN buró
+    document?: string;       // cédula; default = auto (2.9B + ur)
+    gender?: string;         // 'M' | 'F'
+    age?: number;
+    negatives?: number;      // negativeHistoricalLast12Months del buró (default 0)
+    consulted?: number;      // consultedLast6Months del buró (default 1)
+}
 
 /** Orquesta el KYC armado sobre un user_request existente. Port de opSynthFill. */
 export async function synthFill(uReqID: number, opts: SynthFillOpts = {}): Promise<SynthFillResult> {
@@ -229,17 +244,29 @@ export async function synthFill(uReqID: number, opts: SynthFillOpts = {}): Promi
     }
     if (opts.income && opts.income > 0) { req.income = opts.income; req.fields[87] = String(opts.income); }
     if (opts.score && opts.score > 0) req.score = opts.score;
+    if (opts.gender) req.gender = opts.gender;               // override del panel (ojo: puede no pasar group rules)
+    if (opts.age && opts.age > 0) req.age = opts.age;
 
-    const doc = String(2_900_000_000 + uReqID);
+    const documentType = (opts.documentType || 'CC').toUpperCase();
+    const hasBuro = documentType !== 'PEP';                  // PEP = migrante sin buró → se salta la consulta
+    const negatives = opts.negatives ?? 0;
+    const consulted = opts.consulted ?? 1;
+
+    const doc = (opts.document && opts.document.trim()) || String(2_900_000_000 + uReqID);
     const email = `synth-${uReqID}@creditop.com`;
-    await setSynthIdentity(userID, doc, email, req.gender, req.age);
-    await injectSummary(userID, req.income, req.score);
+    await setSynthIdentity(userID, doc, email, req.gender, req.age, opts.name, documentType);
+    await injectSummary(userID, req.income, req.score, negatives, consulted, hasBuro);
     await injectIncomeFields(userID, uReqID, req.fields);
-    let dc = 'ok';
-    try {
-        await injectDatacredito(userID, req.income, req.score);
-    } catch (e) {
-        dc = e instanceof Error ? e.message : String(e);
+    let dc: string;
+    if (hasBuro) {
+        try {
+            await injectDatacredito(userID, req.income, req.score, negatives, consulted);
+            dc = `ok (neg ${negatives} · consultas ${consulted})`;
+        } catch (e) {
+            dc = e instanceof Error ? e.message : String(e);
+        }
+    } else {
+        dc = 'PEP: sin buró (no se inyecta la fila Experian)';
     }
 
     return {
@@ -250,7 +277,7 @@ export async function synthFill(uReqID: number, opts: SynthFillOpts = {}): Promi
         doc,
         profile: { fields: req.fields, gender: req.gender, age: req.age, income: req.income, score: req.score },
         datacredito_forged: dc,
-        note: `KYC armado inyectado (${TARGET}) en el user_request del wizard → navegá a /lenders`,
+        note: `KYC armado ${documentType}${hasBuro ? '' : ' · SIN buró'} inyectado (${TARGET}) → navegá a /lenders`,
     };
 }
 

@@ -5,6 +5,7 @@
   "type": "module",
   "description": "E2E del onboarding (loan-request-wizard) con Playwright. Autosuficiente en TS: acceso a DB (mysql2) + inyección de KYC armado (incl. crypto Laravel). Apunta a DEV por defecto; local opcional.",
   "scripts": {
+    "dev": "node panel/server.ts",
     "test": "playwright test",
     "e2e:steps": "FORCE_COLOR=1 playwright test --workers=1",
     "test:headed": "playwright test --headed",

@@ -177,7 +177,18 @@ test('guided (semiautomático)', async ({ browser }) => {
     const base = url.replace(/\/(personal-info|employment-info|lenders).*$/, '');
     if (/personal-info|employment-info/.test(url) && uReqID) {
         log(`personal-info: BYPASS datacrédito (synthFill: KYC + Experian forjado) — invisible, no toques nada acá`);
-        const r = await synthFill(Number(uReqID), {});
+        // Perfil del usuario sintético desde el panel (bin/panel) vía env. Sin env → {} (comportamiento previo).
+        const r = await synthFill(Number(uReqID), {
+            income: Number(process.env.E2E_SYNTH_INCOME) || undefined,
+            score: Number(process.env.E2E_SYNTH_SCORE) || undefined,
+            name: process.env.E2E_SYNTH_NAME || undefined,
+            documentType: process.env.E2E_SYNTH_DOCTYPE || undefined,
+            document: process.env.E2E_SYNTH_DOC || undefined,
+            gender: process.env.E2E_SYNTH_GENDER || undefined,
+            age: Number(process.env.E2E_SYNTH_AGE) || undefined,
+            negatives: process.env.E2E_SYNTH_NEG ? Number(process.env.E2E_SYNTH_NEG) : undefined,
+            consulted: process.env.E2E_SYNTH_CONS ? Number(process.env.E2E_SYNTH_CONS) : undefined,
+        });
         // el monto a /lenders = el que VOS ingresaste en /solicitar (guardado en user_requests.amount al darle
         // Continuar), NO el AMOUNT sembrado por defecto. Si no se pudo leer, cae al default.
         const reqAmt = (await one<{ amount: number | string }>('SELECT amount FROM user_requests WHERE id=? LIMIT 1', [Number(uReqID)]).catch(() => null))?.amount;

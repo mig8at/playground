@@ -12,7 +12,7 @@ E2E="${CFE_E2E:-$HOME/Desktop/CREDITOP/playground/frontend-e2e}"
 FRONT="${CFE_FRONT:-$HOME/Desktop/CREDITOP/github/frontend-monorepo}"
 WIZARD="$FRONT/apps/loan-request-wizard"
 FLOWS="$E2E/.flows.json"
-TARGET=dev
+TARGET="${CFE_TARGET:-dev}"   # dev por default; CFE_TARGET=local prueba el stack local (sail) sin commitear a dev
 WIZ_BASE="http://localhost:5174"
 FRESH=0
 

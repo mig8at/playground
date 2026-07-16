@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+# panel — abre el Panel del harness (UI local para elegir comercio, definir el usuario sintético e iniciar
+# el flujo con inyección de buró). Wrapper sobre bin/dbops.ts + bin/asesor. SOLO local.
+#   ./bin/panel        → http://localhost:5195
+set -euo pipefail
+cd "$(dirname "$0")/.."
+exec node panel/server.ts
