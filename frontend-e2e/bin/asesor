@@ -118,6 +118,39 @@ else
   PREAPPROVALS="http://localhost:${MOCK_PA_PORT:-8095}/v1/preapprovals/check"
   log "pre-aprobaciones MOCK local (:${MOCK_PA_PORT:-8095}, todas pre-aprobadas con cupo)"
 fi
+
+# ── health-check del backend ANTES del cold-boot ──────────────────────────────────────────────
+# Un 5xx del backend tumba TODO el flujo: el loader del wizard (react-router SSR) rechaza una promesa
+# sin catch y en Node 25 un UnhandledPromiseRejection MATA el dev server → :5174 muere y el callback de
+# Cognito cae en ERR_CONNECTION_REFUSED. Cortamos acá (1 curl barato) en vez de perder ~3 min booteando
+# un wizard condenado. Canario = el mismo endpoint allied que consume el loader (ejercita el boot de
+# Laravel completo). 4xx = Laravel vivo (ruta/hash), seguimos.
+step "backend"
+BE_URL="${WIZ_API}/api/loans/allied/${HASH}"
+BE_CODE="$(curl -s -o /dev/null -w '%{http_code}' --max-time 8 "$BE_URL" 2>/dev/null)" || true
+[ -n "$BE_CODE" ] || BE_CODE=000
+case "$BE_CODE" in
+  5*)
+    ok "backend" "✗ HTTP $BE_CODE — backend '${TARGET}' roto (${WIZ_API})"
+    if [ "$TARGET" = "local" ]; then
+      echo "    5xx en todo → cache/autoload stale de Laravel (típico tras cambiar de rama). Fix en el sail de legacy-backend:"
+      echo "      ./vendor/bin/sail composer dump-autoload -o && ./vendor/bin/sail artisan optimize:clear && ./vendor/bin/sail artisan package:discover"
+    else
+      echo "    5xx del backend '${TARGET}' → revisá logs/deploy antes de reintentar."
+    fi
+    exit 1 ;;
+  000)
+    ok "backend" "✗ sin respuesta (${WIZ_API})"
+    if [ "$TARGET" = "local" ]; then
+      echo "    sail abajo → levantá el stack de legacy-backend: ./vendor/bin/sail up -d"
+    else
+      echo "    ${WIZ_API} inalcanzable → ¿VPN conectada?"
+    fi
+    exit 1 ;;
+  *)
+    ok "backend" "HTTP $BE_CODE — vivo (${WIZ_API} · ${TARGET})" ;;
+esac
+
 # Si el wizard YA está arriba pero apunta a OTRO backend, reusarlo serviría el backend equivocado → marcamos el
 # VITE_API_URL al bootear (/tmp/asesor-wizard.api) y, si no coincide, forzamos reinicio.
 WANT="${WIZ_API}|${PREAPPROVALS}"

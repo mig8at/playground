@@ -97,6 +97,13 @@ function tailLog(): string {
     return raw.split('\n').slice(-120).join('\n');
 }
 
+// log COMPLETO (sin recorte) para el botón "copiar consola". Incluye los errores del navegador: el spec los
+// vuelca al stdout del hijo (page.on('console')/pageerror → líneas "⚠ …" / "⚠ FALLO EN PANTALLA …"), que va al RUN_LOG.
+function fullLog(): string {
+    if (!existsSync(RUN_LOG)) return '';
+    return readFileSync(RUN_LOG, 'utf8').replace(/\x1b\[[0-9;]*[A-Za-z]/g, '');
+}
+
 // mata el ÁRBOL de procesos de la corrida (grupo entero, gracias a detached). SIGTERM y luego SIGKILL.
 function killRun(sig: NodeJS.Signals): void {
     if (!current || current.done || !current.child.pid) return;
@@ -149,6 +156,11 @@ const server = createServer(async (req, res) => {
             code: current?.done ? current?.code : null,
             log: tailLog(),
         });
+    }
+
+    if (path === '/api/log') {
+        res.writeHead(200, { 'content-type': 'text/plain; charset=utf-8', 'cache-control': 'no-store' });
+        return res.end(fullLog());
     }
 
     if (path === '/api/stop' && req.method === 'POST') {

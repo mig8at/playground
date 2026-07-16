@@ -530,6 +530,7 @@
       <div class="launch">
         <button class="go" id="go" disabled>Preparar + Lanzar ▶</button>
         <button class="stop" id="stopBtn">Detener</button>
+        <button class="copy" id="copyLog" style="display:none">📋 copiar consola</button>
         <span class="sumry" id="sumry">Elegí un comercio primero.</span>
       </div>
       <pre id="log"></pre>
@@ -624,7 +625,7 @@
       const r = await fetch('/api/launch', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
       const j = await r.json();
       if (!j.ok) { alert(j.msg || 'no se pudo lanzar'); $('go').disabled = false; $('go').textContent = 'Preparar + Lanzar ▶'; return; }
-      $('log').style.display = 'block'; $('stopBtn').classList.add('on');
+      $('log').style.display = 'block'; $('stopBtn').classList.add('on'); $('copyLog').style.display = 'inline-block';
       startPoll();
     }
 
@@ -680,6 +681,14 @@
       .forEach(id => $(id).addEventListener('input', refresh));
     $('go').onclick = launch;
     $('stopBtn').onclick = stop;
+    // copiar consola: trae el log COMPLETO de /api/log (incluye los ⚠ del navegador que el spec vuelca); fallback a lo visible.
+    $('copyLog').onclick = async () => {
+      let text = '';
+      try { text = await (await fetch('/api/log')).text(); } catch {}
+      if (!text) text = $('log').textContent || '';
+      try { await navigator.clipboard.writeText(text); const b = $('copyLog'), o = b.textContent; b.textContent = '✓ copiado'; setTimeout(() => b.textContent = o, 1200); }
+      catch { alert('No pude copiar al portapapeles.'); }
+    };
     document.querySelectorAll('.copy').forEach(b => b.onclick = () => navigator.clipboard.writeText($(b.dataset.copy).textContent).then(() => { b.textContent = '✓'; setTimeout(() => b.textContent = 'copiar', 1000) }));
 
     // cédula + email generados VISIBLES (rango sintético 2.9B, como synthFill) — editables; se mandan tal cual.

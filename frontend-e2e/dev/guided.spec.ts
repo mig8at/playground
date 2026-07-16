@@ -55,13 +55,23 @@ test.afterAll(async () => { await close(); });
 
 let SHOT = 0;
 async function shot(page: Page, label: string) {
-    if (process.env.E2E_SHOTS !== '1') return;   // sin fotos por defecto (activar con E2E_SHOTS=1)
+    if (process.env.E2E_SHOTS === '0') return;   // fotos ON por defecto (trazo del flujo); apagar con E2E_SHOTS=0
     const name = `guided-${String(++SHOT).padStart(2, '0')}-${label}.png`;
     await page.screenshot({ path: join(AUTH, name), fullPage: true }).catch(() => {});
     console.log(`  📸 ${name}`);
 }
 const log = (s: string) => console.log(`  ▸ ${s}`);
 const hereOf = (page: Page) => { try { return new URL(page.url()).pathname; } catch { return page.url(); } };
+
+// Foto de ERROR: se dispara SOLA cuando la app muestra su banner de error en CUALQUIER pantalla (lo detecta el
+// MutationObserver inyectado más abajo) o ante un pageerror. Va aparte del trazo normal (nombre guided-ERROR-NN)
+// para que salte a la vista y sepas EN QUÉ pantalla se rompió. Best-effort: nunca tumba el flujo.
+let ERR_SHOT = 0;
+async function errorShot(page: Page, detail: string) {
+    const name = `guided-ERROR-${String(++ERR_SHOT).padStart(2, '0')}.png`;
+    await page.screenshot({ path: join(AUTH, name), fullPage: true }).catch(() => {});
+    console.log(`  ⚠ FALLO EN PANTALLA (${hereOf(page)}): ${detail} → .auth/${name}`);
+}
 
 // fill robusto contra hidratación: el MoneyInput/SSR pierde fill() si React no ató el onChange → reintenta
 // tecla por tecla hasta que el valor quede. Best-effort (no rompe si el campo es raro).
@@ -86,6 +96,26 @@ test('guided (semiautomático)', async ({ browser }) => {
     // React Scan (overlay FPS/inspección del wizard en dev): se bloquea acá — cortamos su script — SIN tocar
     // el frontend. Para verlo igual: E2E_REACT_SCAN=1.
     if (process.env.E2E_REACT_SCAN !== '1') await page.route(/react-scan|react-grab/, (r) => r.abort()).catch(() => {});
+    // Watcher del banner de error: un MutationObserver (inyectado ANTES de cada navegación) vigila el texto de
+    // error de la app en cualquier pantalla y emite un console.log marcado; del lado del test lo detectamos y
+    // sacamos la foto (ver page.on('console')). Vive durante TODA la interacción —incluida la pausa manual—
+    // porque los eventos de consola siguen fluyendo por CDP aunque el runner esté pausado.
+    await page.addInitScript(() => {
+        const RE = /ocurrió un error|inténtalo de nuevo|algo salió mal|error inesperado|no fue posible|intenta de nuevo/i;
+        let last = '';
+        let scheduled = false;
+        const scan = () => {
+            scheduled = false;
+            const txt = document.body ? document.body.innerText || '' : '';
+            const m = txt.match(RE);
+            const hit = m ? txt.slice(Math.max(0, (m.index ?? 0) - 20), (m.index ?? 0) + 100).replace(/\s+/g, ' ').trim() : '';
+            if (hit && hit !== last) { last = hit; console.log('__E2E_ERROR_BANNER__ ' + hit); }
+            if (!hit) last = '';
+        };
+        const schedule = () => { if (!scheduled) { scheduled = true; setTimeout(scan, 200); } };
+        const start = () => { try { new MutationObserver(schedule).observe(document.body, { childList: true, subtree: true, characterData: true }); } catch { /* */ } schedule(); };
+        if (document.body) start(); else addEventListener('DOMContentLoaded', start);
+    }).catch(() => {});
     // log de navegaciones (revela a dónde manda el wizard tras cada Continuar / la selección) + captura de
     // redirect EXTERNO (portal del lender fuera de localhost, same-tab o popup). La continuación detecta por
     // CONDUCTA (modal / nav in-platform / redirect externo), NO por rt.
@@ -111,10 +141,21 @@ test('guided (semiautomático)', async ({ browser }) => {
         const isData = /\.data(\?|$)/.test(from);
         const relevant = /solicitar|continue|lenders|modes/.test(from) || /solicitar|continue|modes/.test(loc);
         if ((is3xx || isData || loc) && relevant) log(`  ↪ ${s} ${from}${loc ? ` → ${loc}` : ''}`);
+        // un 5xx del backend/loader es un fallo duro → foto (el backend caído era justo esto)
+        if (s >= 500) void errorShot(page, `HTTP ${s} ${from}`);
     });
     // errores/warnings del BROWSER (client-side) → si el rebote viene de un error boundary o un warning de RR.
-    page.on('console', (m) => { const t = m.type(); if (t === 'error' || t === 'warning') { const s = m.text().slice(0, 200); if (!/Download the React DevTools|PostHog|Lit is in dev|ws\.credito|WebSocket connection|ERR_NAME_NOT_RESOLVED/i.test(s)) log(`  ⚠ console.${t}: ${s}`); } });
-    page.on('pageerror', (e) => log(`  ⚠ pageerror: ${String(e.message).slice(0, 200)}`));
+    // Además: el marcador __E2E_ERROR_BANNER__ (del MutationObserver) → foto de la pantalla con el error.
+    page.on('console', (m) => {
+        const s = m.text();
+        if (s.startsWith('__E2E_ERROR_BANNER__')) { void errorShot(page, `banner: "${s.replace('__E2E_ERROR_BANNER__ ', '').slice(0, 120)}"`); return; }
+        const t = m.type();
+        if (t !== 'error' && t !== 'warning') return;
+        const ss = s.slice(0, 200);
+        // ruido conocido de LOCAL (no son fallos del flujo): Echo/Pusher a ws.credito, react-scan bloqueado, hydration/nonce.
+        if (!/Download the React DevTools|PostHog|Lit is in dev|ws\.credito|WebSocket connection|ERR_NAME_NOT_RESOLVED|react-scan|react-grab|ERR_FAILED|hydrat|nonce/i.test(ss)) log(`  ⚠ console.${t}: ${ss}`);
+    });
+    page.on('pageerror', (e) => { log(`  ⚠ pageerror: ${String(e.message).slice(0, 200)}`); void errorShot(page, `pageerror: ${String(e.message).slice(0, 80)}`); });
     const tip = (s: string) => console.log(`\n  👉 ${s}\n`);
 
     // ───────────────────────── ENTRADA ─────────────────────────
@@ -160,7 +201,7 @@ test('guided (semiautomático)', async ({ browser }) => {
     if (process.env.E2E_GUIDED === '0') {
         if (process.env.E2E_INJECT === '1') {
             tip('MANUAL: manejá desde monto. Al llegar a personal-info inyecto el buró (invisible); después seguí a /lenders.');
-            await shot(page, 'manual-monto');
+            await shot(page, 'manual-entrada');
             await page.waitForURL(/\/(personal-info|employment-info)(\?|$)/, { timeout: PICK_TIMEOUT }).catch(() => {});
             const ur = page.url().match(/\/(?:merchant|ecommerce)\/[^/]+\/(\d+)\//)?.[1] ?? '';
             if (ur) {
@@ -171,6 +212,7 @@ test('guided (semiautomático)', async ({ browser }) => {
             } else {
                 log('no pude leer el uReq en personal-info — seguí igual (sin buró inyectado)');
             }
+            await shot(page, 'manual-personal-info');
             await page.pause().catch(() => {});
             return;
         }
