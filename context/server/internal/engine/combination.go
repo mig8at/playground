@@ -194,8 +194,10 @@ func sortedKeys(m map[string]string) []string {
 }
 
 // CreateBranches crea (git checkout -b) las ramas PROPIAS del workspace que aún no
-// existen localmente, ramificando desde la rama del padre. Solo con árbol limpio.
-func (e *Engine) CreateBranches(comboID string) []BranchOp {
+// existen localmente. La BASE (de dónde se corta) por repo viene en `bases`
+// (alias→rama base, ej {"application":"main","legacy-backend":"staging"}); si no
+// se especifica, cae a la rama del padre. Solo con árbol limpio.
+func (e *Engine) CreateBranches(comboID string, bases map[string]string) []BranchOp {
 	c, ok := e.Combination(comboID)
 	if !ok {
 		return nil
@@ -206,6 +208,10 @@ func (e *Engine) CreateBranches(comboID string) []BranchOp {
 		branch := own[alias]
 		op := BranchOp{Alias: alias, Branch: branch}
 		root := e.RepoRoot(alias)
+		base := parentTargets[alias]
+		if b, ok := bases[alias]; ok && b != "" {
+			base = b
+		}
 		switch {
 		case root == "":
 			op.Error = "repo no indexado"
@@ -214,7 +220,7 @@ func (e *Engine) CreateBranches(comboID string) []BranchOp {
 		case !gitinfo.IsClean(root):
 			op.Error = "cambios sin commitear"
 		default:
-			if err := gitinfo.CreateBranch(root, branch, parentTargets[alias]); err != nil {
+			if err := gitinfo.CreateBranch(root, branch, base); err != nil {
 				op.Error = err.Error()
 			} else {
 				op.Done = true

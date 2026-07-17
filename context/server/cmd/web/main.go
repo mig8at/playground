@@ -128,8 +128,9 @@ type inbound struct {
 	JQL     string            `json:"jql"` // consulta para el (futuro) sync de tareas desde Jira
 	Alias   string            `json:"alias"` // override del nombre lógico del repo al escanear (por defecto, basename)
 	// derivar/borrar: crear/borrar las ramas PROPIAS del workspace (git local; nunca remoto)
-	CreateBranches bool `json:"create_branches"`
-	DeleteBranches bool `json:"delete_branches"`
+	CreateBranches bool              `json:"create_branches"`
+	DeleteBranches bool              `json:"delete_branches"`
+	Bases          map[string]string `json:"bases"` // al crear: rama base por repo (de dónde se corta)
 }
 
 func (s *server) handle(ctx context.Context, c *websocket.Conn, msg inbound) {
@@ -210,7 +211,7 @@ func (s *server) handle(ctx context.Context, c *websocket.Conn, msg inbound) {
 		log.Printf("combinación guardada · %s", cb.Name)
 		resp := map[string]any{"type": "combination_saved", "ok": true, "id": cb.ID}
 		if msg.CreateBranches {
-			ops := s.eng.CreateBranches(cb.ID)
+			ops := s.eng.CreateBranches(cb.ID, msg.Bases)
 			resp["branch_ops"] = ops
 			resp["branch_action"] = "create"
 			for _, o := range ops {

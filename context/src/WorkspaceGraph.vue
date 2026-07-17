@@ -16,6 +16,7 @@ import '@vue-flow/controls/dist/style.css'
 const props = defineProps({
   combinations: { type: Array, default: () => [] },
   repos: { type: Array, default: () => [] }, // [{alias,branch,commit}]
+  repoBranches: { type: Object, default: () => ({}) }, // alias → [ramas locales]
   selected: { type: String, default: '' },
   graphs: { type: Array, default: () => [] },
   copiedKey: { type: String, default: '' },
@@ -101,23 +102,39 @@ const PROTECTED = new Set(['main', 'master', 'develop', 'staging', 'production']
 
 const deriveParent = ref(null) // combo del que se deriva
 const deriveName = ref('')
-const deriveRepos = ref([]) // aliases que van a la rama NUEVA (el resto queda en la del padre)
+const deriveRepos = ref([]) // aliases que van a la rama NUEVA (el resto queda en la del flujo)
 const deriveCreate = ref(false) // crear las ramas localmente (git checkout -b)
+const deriveBases = ref({}) // alias → rama BASE desde la que se corta la rama nueva
+// Derivar de la RAÍZ crea un FLUJO (documentación sobre main); de un flujo/tarea, una TAREA.
+const deriveMode = computed(() => (deriveParent.value && !deriveParent.value.parent ? 'flow' : 'task'))
+function branchesFor(a) {
+  const list = props.repoBranches[a] || []
+  return list.length ? list : ['main']
+}
 function openDerive(id) {
   const c = props.combinations.find((x) => x.id === id)
   deriveParent.value = c || null
   deriveName.value = ''
   deriveRepos.value = [...repoAliases.value] // por defecto: todos
   deriveCreate.value = false
+  // base por defecto = main (los flujos viven en main; la tarea corta de ahí salvo que cambies)
+  deriveBases.value = Object.fromEntries(repoAliases.value.map((a) => [a, branchesFor(a).includes('main') ? 'main' : branchesFor(a)[0]]))
 }
-// rama en la que queda un repo NO seleccionado: la que tiene el padre (o su rama actual)
+// rama en la que queda un repo NO seleccionado: la del flujo (padre) o su rama actual
 function parentBranch(a) {
   return deriveParent.value?.targets?.[a] || props.repos.find((r) => r.alias === a)?.branch || '—'
 }
 function confirmDerive() {
   const n = deriveName.value.trim()
-  if (!n || !deriveParent.value || !deriveRepos.value.length) return
-  emit('derive', { parent: deriveParent.value.id, name: n, repos: [...deriveRepos.value], create: deriveCreate.value })
+  if (!n || !deriveParent.value) return
+  if (deriveMode.value === 'flow') {
+    emit('derive', { parent: deriveParent.value.id, name: n, mode: 'flow' })
+  } else {
+    if (!deriveRepos.value.length) return
+    const bases = {}
+    for (const a of deriveRepos.value) bases[a] = deriveBases.value[a] || 'main'
+    emit('derive', { parent: deriveParent.value.id, name: n, mode: 'task', repos: [...deriveRepos.value], bases, create: deriveCreate.value })
+  }
   deriveParent.value = null
   deriveName.value = ''
 }
@@ -221,21 +238,44 @@ onNodesInitialized(() => refit())
     <Teleport to="body">
       <div v-if="deriveParent" class="modal-back" @click.self="deriveParent = null">
         <div class="modal">
-          <div class="modal-head"><h3>Derivar de «{{ deriveParent.name }}»</h3><button class="wsx" @click="deriveParent = null"><X :size="16" /></button></div>
-          <p class="modal-note">Elegí qué repos van a la rama nueva. Los no seleccionados quedan en la rama del padre. El nombre se replica en todos los seleccionados. Context solo registra los nombres; las ramas las creás vos.</p>
-          <div class="modal-repos">
-            <label v-for="a in repoAliases" :key="a" class="modal-repo" :class="{ on: deriveRepos.includes(a) }">
-              <input type="checkbox" :value="a" v-model="deriveRepos" />
-              <b>{{ a }}</b>
-              <span class="modal-repo-br"><GitBranch :size="10" />{{ deriveRepos.includes(a) ? (deriveName.trim() || 'rama nueva') : parentBranch(a) }}</span>
-            </label>
+          <div class="modal-head">
+            <h3>{{ deriveMode === 'flow' ? 'Nuevo flujo desde' : 'Nueva tarea desde' }} «{{ deriveParent.name }}»</h3>
+            <button class="modal-x" @click="deriveParent = null"><X :size="16" /></button>
           </div>
-          <input v-model="deriveName" class="modal-in" placeholder="nombre de rama (ej feature/motai-x)" @keyup.enter="confirmDerive" autofocus />
-          <label class="modal-check"><input type="checkbox" v-model="deriveCreate" /> crear las ramas localmente (<code>git checkout -b</code> desde la rama del padre; si ya existe, la reusa)</label>
-          <div class="modal-actions">
-            <button class="modal-save" :disabled="!deriveName.trim() || !deriveRepos.length" @click="confirmDerive"><Plus :size="13" /> derivar en {{ deriveRepos.length }} repo{{ deriveRepos.length === 1 ? '' : 's' }}</button>
-            <button class="modal-cancel" @click="deriveParent = null">cancelar</button>
-          </div>
+
+          <!-- FLUJO: nodo de documentación productiva sobre main -->
+          <template v-if="deriveMode === 'flow'">
+            <p class="modal-note">Un <b>flujo</b> es documentación productiva <b>sobre main</b> (los repos quedan en main). Después curás qué archivos lo componen y su doc.</p>
+            <input v-model="deriveName" class="modal-in" placeholder="nombre del flujo (ej Motai)" @keyup.enter="confirmDerive" autofocus />
+            <div class="modal-actions">
+              <button class="modal-save" :disabled="!deriveName.trim()" @click="confirmDerive"><Plus :size="13" /> crear flujo</button>
+              <button class="modal-cancel" @click="deriveParent = null">cancelar</button>
+            </div>
+          </template>
+
+          <!-- TAREA: rama de trabajo por repo, desde la base que elijas -->
+          <template v-else>
+            <p class="modal-note">Una <b>tarea</b> trabaja sobre el flujo. Elegí los repos y desde qué <b>base</b> se corta la rama nueva; el nombre se replica en los seleccionados.</p>
+            <div class="modal-repos">
+              <label v-for="a in repoAliases" :key="a" class="modal-repo" :class="{ on: deriveRepos.includes(a) }">
+                <input type="checkbox" :value="a" v-model="deriveRepos" />
+                <b>{{ a }}</b>
+                <template v-if="deriveRepos.includes(a)">
+                  <span class="modal-repo-from">desde</span>
+                  <select class="modal-base" v-model="deriveBases[a]" @click.stop>
+                    <option v-for="br in branchesFor(a)" :key="br" :value="br">{{ br }}</option>
+                  </select>
+                </template>
+                <span v-else class="modal-repo-br"><GitBranch :size="10" />{{ parentBranch(a) }}</span>
+              </label>
+            </div>
+            <input v-model="deriveName" class="modal-in" placeholder="nombre de rama (ej feature/motai-x)" @keyup.enter="confirmDerive" autofocus />
+            <label class="modal-check"><input type="checkbox" v-model="deriveCreate" /> crear las ramas localmente (<code>git checkout -b</code> desde la base elegida; si ya existe, la reusa)</label>
+            <div class="modal-actions">
+              <button class="modal-save" :disabled="!deriveName.trim() || !deriveRepos.length" @click="confirmDerive"><Plus :size="13" /> crear tarea en {{ deriveRepos.length }} repo{{ deriveRepos.length === 1 ? '' : 's' }}</button>
+              <button class="modal-cancel" @click="deriveParent = null">cancelar</button>
+            </div>
+          </template>
         </div>
       </div>
 
@@ -340,6 +380,8 @@ onNodesInitialized(() => refit())
 .modal-sm { width: 340px; }
 .modal-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
 .modal-head h3 { font-size: 15px; display: inline-flex; align-items: center; gap: 6px; }
+.modal-x { background: none; border: 0; color: var(--muted); cursor: pointer; display: inline-flex; padding: 0; }
+.modal-x:hover { color: var(--text); }
 .modal-note { font-size: 12px; color: var(--muted); line-height: 1.5; margin: 0 0 12px; }
 .modal-in { width: 100%; background: var(--bg); border: 1px solid var(--border); color: var(--text); padding: 9px 12px; border-radius: 8px; font-size: 14px; box-sizing: border-box; margin-bottom: 10px; }
 .modal-in:focus { outline: none; border-color: var(--accent); }
@@ -353,6 +395,9 @@ onNodesInitialized(() => refit())
 .modal-repo b { flex: 1; font-weight: 600; }
 .modal-repo-br { display: inline-flex; align-items: center; gap: 3px; font-size: 11px; font-family: var(--mono); color: var(--violet); }
 .modal-repo:not(.on) .modal-repo-br { color: var(--muted); }
+.modal-repo-from { font-size: 11px; color: var(--muted); flex: none; }
+.modal-base { background: var(--panel2); border: 1px solid var(--border); color: var(--text); border-radius: 6px; padding: 3px 6px; font-size: 11px; font-family: var(--mono); max-width: 140px; cursor: pointer; }
+.modal-base:focus { outline: none; border-color: var(--violet); }
 .modal-actions { display: flex; gap: 8px; }
 .modal-save { display: inline-flex; align-items: center; gap: 5px; background: var(--green); color: #06101f; border: 0; border-radius: 8px; padding: 8px 16px; font-weight: 600; font-size: 13px; cursor: pointer; }
 .modal-save:disabled { opacity: .5; cursor: default; }

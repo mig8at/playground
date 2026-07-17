@@ -461,7 +461,8 @@ func registerSaveCombination(s *mcp.Server, eng *engine.Engine) {
 // tocan el remoto (si la rama está publicada, la del remoto queda).
 
 type BranchesInput struct {
-	ID string `json:"id" jsonschema:"id del workspace/combinación"`
+	ID    string            `json:"id" jsonschema:"id del workspace/combinación"`
+	Bases map[string]string `json:"bases,omitempty" jsonschema:"(crear) rama base por repo, ej {\"application\":\"main\",\"legacy-backend\":\"staging\"}; default = rama del padre"`
 }
 type BranchesOutput struct {
 	Ops []engine.BranchOp `json:"ops"`
@@ -470,9 +471,9 @@ type BranchesOutput struct {
 func registerCreateBranches(s *mcp.Server, eng *engine.Engine) {
 	mcp.AddTool(s, &mcp.Tool{
 		Name:        "context_create_branches",
-		Description: "Crea LOCALMENTE (git checkout -b, desde la rama del padre) las ramas propias del workspace que falten. Solo con árbol limpio; no toca ramas heredadas ni protegidas; nunca el remoto.",
+		Description: "Crea LOCALMENTE (git checkout -b) las ramas propias del workspace que falten, cortando desde la rama base por repo (`bases`, default la del padre). Solo con árbol limpio; no toca ramas heredadas ni protegidas; nunca el remoto.",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in BranchesInput) (*mcp.CallToolResult, BranchesOutput, error) {
-		ops := eng.CreateBranches(in.ID)
+		ops := eng.CreateBranches(in.ID, in.Bases)
 		out := BranchesOutput{Ops: ops}
 		return ok(jsonText(out), out)
 	})

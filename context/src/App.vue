@@ -16,6 +16,7 @@ const copiedKey = ref('') // `${combo}::${group}::${key}` recién copiado
 const aligning = ref('') // comboId que está alineando
 const alignResults = ref([]) // reporte por repo del último align
 const summary = ref({ repos: [], links: [] })
+const repoBranches = ref({}) // alias → [ramas locales] (para elegir la base al derivar una tarea)
 const nodeCount = ref(0)
 const toast = ref('')
 
@@ -60,6 +61,10 @@ function connect() {
         if (selectedCombo.value && !combinations.value.find((c) => c.id === selectedCombo.value)) {
           selectedCombo.value = ''
         }
+        if (!Object.keys(repoBranches.value).length && summary.value.repos.length) send({ type: 'repo_branches' })
+        break
+      case 'repo_branches':
+        if (d.ok) repoBranches.value = d.branches || {}
         break
       case 'combo_graphs':
         if (d.ok) {
@@ -89,18 +94,22 @@ function send(obj) { if (online.value) ws.send(JSON.stringify(obj)) }
 function showToast(msg) { toast.value = msg; setTimeout(() => (toast.value = ''), 2200) }
 
 // ── workspaces ──
-function onDeriveChild({ parent, name, repos, create }) {
-  // Los repos SELECCIONADOS van a la rama nueva `name` (el nombre se replica en
-  // todos); los NO seleccionados heredan la rama objetivo del padre (o su rama
-  // actual si el padre no la fija). `create` = crear las ramas localmente.
+function onDeriveChild({ parent, name, mode, repos, bases, create }) {
   const parentCombo = combinations.value.find((c) => c.id === parent)
   const parentTargets = parentCombo?.targets || {}
-  const sel = new Set(repos && repos.length ? repos : summary.value.repos.map((r) => r.alias))
+  const allRepos = summary.value.repos.map((r) => r.alias)
   const targets = {}
-  for (const r of summary.value.repos) {
-    targets[r.alias] = sel.has(r.alias) ? name : (parentTargets[r.alias] || r.branch || name)
+  if (mode === 'flow') {
+    // FLUJO = documentación productiva sobre main: todos los repos en main, sin rama nueva.
+    for (const a of allRepos) targets[a] = 'main'
+    send({ type: 'save_combination', name, parent, targets })
+    return
   }
-  send({ type: 'save_combination', name, parent, targets, create_branches: !!create })
+  // TAREA: los repos seleccionados van a la rama nueva `name` (creada desde la base
+  // elegida por repo); los no seleccionados quedan en la rama del flujo (o main).
+  const sel = new Set(repos && repos.length ? repos : allRepos)
+  for (const a of allRepos) targets[a] = sel.has(a) ? name : (parentTargets[a] || 'main')
+  send({ type: 'save_combination', name, parent, targets, create_branches: !!create, bases: bases || {} })
 }
 function onDeleteWorkspace({ id, deleteBranches }) {
   send({ type: 'delete_combination', id, delete_branches: !!deleteBranches })
@@ -248,6 +257,7 @@ connect()
     <WorkspaceGraph
       :combinations="combinations"
       :repos="summary.repos"
+      :repo-branches="repoBranches"
       :selected="selectedCombo"
       :graphs="comboGraphs"
       :copied-key="copiedKey"
