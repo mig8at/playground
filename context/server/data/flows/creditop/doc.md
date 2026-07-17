@@ -28,29 +28,29 @@ Migración **strangler-fig en parallel-run**. La lógica vive repartida entre `a
 ## Datos / tablas clave
 Sustrato transversal que **todos los flujos consultan** (ninguno lo dueña). Entidades centrales: `allieds` (comercio) → `allied_branches` (sucursal, puerta por hash) → `lenders` + `lenders_by_allieds` (config × comercio = TODA la calculadora de reglas) + `lenders_by_allied_branches` (config × sucursal: url_utm/sort/status) → `user_requests` (la solicitud) + el ledger `creditop_x_requests_history` (servicing).
 - **3 capas de config** (NO hay herencia viva; se COPIA): entidad → comercio (8 toggles) → sucursal → categoría. La calculadora real vive en `lenders_by_allieds`; solo datacrédito tiene fallback al lender 5.
-- **Dónde deciden**: group rules + datacrédito + categoría clasifican/cortan (motor de decisión: `docs/codigo/ONBOARDING-DATOS-DECISION-ANALISIS.md` + `docs/codigo/REGLAS-POR-COMERCIO-Y-LENDER.md`; 2 motores datacrédito con campos distintos, cascada que clasifica-no-excluye). **BUG activo:** `min_income` (piso de ingreso de categorías) es **NO-OP en los 3 motores** — arreglarlo endurece la asignación.
-- Fuentes profundas: `docs/codigo/MODELO-DATOS.md` (estructura de tablas, verified con SHOW COLUMNS) · `docs/codigo/CENSO-CAMPOS-CONFIG.md` (176 columnas: 33 muertas / ~20 divergentes / BUG min_income) · `docs/mejoras/MAPA-ATRIBUTOS-POR-NIVEL.md` (atributo → nivel N0-N3, deber-ser).
+- **Dónde deciden**: group rules + datacrédito + categoría clasifican/cortan (motor de decisión → nodo **motor-decision**: 2 motores datacrédito con campos distintos, cascada que clasifica-no-excluye). **BUG activo:** `min_income` (piso de ingreso de categorías) es **NO-OP en los 3 motores** — arreglarlo endurece la asignación.
+- Detalle completo (176 columnas, muertas/divergentes, niveles N0-N3): nodo **modelo-datos** (Plataforma).
 
 ## Estados y catálogos
 Las máquinas de estado son transversales; los flujos referencian ESTO y no lo repiten. **Tres catálogos que NO hay que confundir:**
 - `user_request_statuses` — la SOLICITUD. **Estado 11 (Autorizada) = la frontera** originación↔servicing. Otros vistos: 3 Selección · 6 Negada · 7 Fallida · 8 Cancelada · 10 confirmación de pago · 26 Facturado.
 - `creditop_x_user_request_statuses` (1-4) — el PRÉSTAMO in-platform post-11: 1 al día · 2 mora · 3 paz y salvo · 4 cancelado. Es "el que importa" para servicing.
 - `lender_transaction_statuses` (namespace propio, ej 40/41) — el espejo de los lenders rt=1/rt=4 (agregadores + Credifamilia SOAP).
-- Fuente: `docs/codigo/CONTINUACION-CREDITO-ANALISIS.md` §2 (los 2 catálogos) · `docs/codigo/MODELO-DATOS.md`.
+- Detalle: flujo **continuacion-servicing** (los 2 catálogos) + nodo **modelo-datos**.
 
 ## Frontera de pruebas / harness
 El mapa GLOBAL de simulación (material del OKR de metodología de pruebas). **El harness despacha por `response_type`:**
 - **rt=2/3 (CreditopX in-platform) = INYECTABLE**: decide 100% en legacy con datos locales → usuario sintético sin KYC real (sembrar categoría + fila Experian encriptada); el harness Go cierra con `ForceOtpValidation`+`authorize`.
 - **rt=1 (agregadores) = NO inyectable**: decide una API externa → solo mock HTTP del transporte. **rt=4 (Credifamilia) = parcial** (gate local sí, KYC V2 + SOAP no).
 - **Cheat-sheet de mocks/bypasses/stashes** (OTP, identidad, forms, PDF, buró) + la **receta de usuario sintético** + la encriptación del buró (`laravel_encrypt` AES-256-CBC) viven en los docs de operación.
-- Fuentes: `docs/operacion/HARNESS-ARQUITECTURA.md` (composer + estrategias cross-repo) · `docs/operacion/HANDOFF-PRUEBAS-ONBOARDING.md` (receta synth + scrub) · `docs/operacion/E2E-DATA-TESTIDS.md` (testids + `bin/testids`) · `docs/codigo/CASOS-ESPECIALES.md` (por qué falla cada caso: casi todo ❌ = gap de config, no flujo distinto) · `docs/codigo/REFERENCIA-FLUJOS.md` §14/§15 · memorias `synth-lender-type-boundary`, `frontend-e2e-*`, `backend-e2e-dev-target`.
+- Detalle completo (composer, estrategias, receta synth, testids, por qué falla cada caso): nodo **harness** (Plataforma). Memorias `synth-lender-type-boundary`, `frontend-e2e-setup`, `backend-e2e-dev-target`.
 
 ## Deuda técnica / hardcodes
 La tesis de arriba ("ifs quemados por ID") tiene un inventario verificado con `archivo:línea`. Ítems load-bearing:
 - **P0 vivo**: `dd($exception)` en `Wompi.php:78` corta en prod cualquier request que toque ese path.
 - **~37.284 copias de reglas por sucursal** (5% ya derivada; 42 entidades corriendo el corte de Banco de Bogotá 640 sin decisión explícita).
 - **Cognito sin validar el JWT** (`auth.cognito`, hallazgo de seguridad #12).
-- Fuentes: `docs/codigo/LOGICA-QUEMADA.md` (240 líneas, IDs/status/rt quemados) · `docs/codigo/HALLAZGO-GESTION-REGLAS-POR-SUCURSAL.md` (mecanismo + números) · `docs/vision/UNIFICACION-Y-RESPONSABILIDADES.md` (apéndice Fallas 1-4) · `docs/operacion/hallazgos-backend.md`.
+- Detalle completo (inventario de hardcodes, las 37k copias, apéndice de fallas): nodos **migracion** y **admin-reglas** (Plataforma).
 
 ## Cómo se lee este árbol
 - **RAÍZ** (este nodo, `main`) = la base del ecosistema; el punto de entrada para entender el todo.
@@ -61,7 +61,7 @@ La tesis de arriba ("ifs quemados por ID") tiene un inventario verificado con `a
 - **Nomenclatura:** ALIADOS = `application` · REFACTOR = `legacy-backend`+`frontend-monorepo` · COMERCIO = `allied` · SUCURSAL = `allied_branch` · `response_type` 0/1/4 = bróker, 2/3 = CreditopX operador · Estado **11** = frontera originación↔servicing.
 - **Ramas base:** RAÍZ y FLUJOS = `main` (documentación al día). TAREAS = libres por repo.
 - **Regla de oro playground:** `playground/*` se commitea local, sin push; los repos reales (application/legacy-backend/frontend-monorepo) viven en ramas/stashes locales — no armar PRs sin pedir.
-- **Glosario e IDs (colisiones):** verificá el **namespace** antes de tocar un id literal — `24` = lender Credifamilia **vs** allied Creditop · `100` = lender Bancolombia Consumo **vs** un allied · `158` = allied Motai (comercio) **vs** su lender · `160`/`152`/`153` = SmartPay (prod/dev). Glosario canónico (14 choques PRD×código×docs): `docs/NOMENCLATURA-NEGOCIO.md`.
+- **Glosario e IDs (colisiones):** verificá el **namespace** antes de tocar un id literal — `24` = lender Credifamilia **vs** allied Creditop · `100` = lender Bancolombia Consumo **vs** un allied · `158` = allied Motai (comercio) **vs** su lender · `160`/`152`/`153` = SmartPay (prod/dev). Glosario canónico (14 choques PRD×código×docs): memoria `nomenclatura-negocio`.
 
 ## Bitácora
 - **2026-07-17** — `playground/docs/` (47 archivos) REMOVIDO de main tras verificar que el árbol de context es autosuficiente (6 tareas de muestra resueltas sin abrir docs/, incluida la receta de synth del OKR). El material se absorbió en los nodos (flujos + los 5 de referencia bajo Plataforma); el análisis maestro `archivo:línea` queda en git @ `159906a` como fuente de re-verificación/auditoría. Trade-off asumido: se pierde la trazabilidad viva a cambio de un único árbol como fuente.
@@ -70,5 +70,5 @@ La tesis de arriba ("ifs quemados por ID") tiene un inventario verificado con `a
 
 ## Enlaces
 - **El árbol de context ES la documentación** (verificado autosuficiente 2026-07-17): flujos bajo los groups CreditopX/Bróker; sustrato transversal bajo el group **Plataforma** (modelo-datos · motor-decision · harness · migracion · admin-reglas).
-- **⚠ `playground/docs/` fue absorbido en los nodos y REMOVIDO de main el 2026-07-17.** Las menciones `` `docs/…md` `` que quedan en los nodos son **punteros históricos** al análisis maestro (fuente `archivo:línea` de la que se destilaron): viven en **git @ `159906a`** (`git show 159906a:docs/<ruta>`, ej `git show 159906a:docs/codigo/SMARTPAY-FLUJO-ANALISIS.md`). Para re-verificar o regenerar, ir a ese commit.
+- **⚠ `playground/docs/` fue absorbido en los nodos y REMOVIDO de main el 2026-07-17** (los nodos ya NO lo referencian). El análisis maestro `archivo:línea` del que se destilaron sobrevive en **git @ `159906a`**: `git show 159906a:docs/<ruta>` (ej `git show 159906a:docs/codigo/SMARTPAY-FLUJO-ANALISIS.md`). Ir ahí para re-verificar o regenerar.
 - Memorias del ecosistema: `atlas-mcp-cross-repo`, `modelos-canales-flujos`, `plan-simplificacion`, `nomenclatura-negocio`.

@@ -100,7 +100,6 @@ Para ejercer el servicing (in-platform) hay que **sembrar el ledger** `creditop_
 - **2026-07-17** — Nodo creado desde la raíz. Superficie curada: **60 archivos** (application 52 · legacy-backend 8), 60/60 resuelven. Fuente `CONTINUACION-CREDITO-ANALISIS.md` (verified-deep). Es la 2ª mitad del ciclo; los 8 archivos de legacy documentan el estado de migración (servicing = 0 superficies activas, fuera del alcance de la migración de originación).
 
 ## Enlaces
-- Análisis maestro (fuente del `archivo:línea`): `docs/codigo/CONTINUACION-CREDITO-ANALISIS.md`.
-- Estado de migración: `docs/codigo/ESTADO-MIGRACION.md` (§ "OUT = servicing") · `docs/codigo/PENDIENTES-MIGRACION.md` (P2.1/P2.2).
+- Estado del servicing no-migrado + backlog para apagar application: nodo **migracion** (Plataforma).
 - Flujo del que hereda el Estado 11: nodo **creditopx**. Caso especial que consume el ledger: nodo **smartpay** (device-lock).
 - Memorias: `continuacion-credito-servicing` · `creditopx-modelo-comercio` (economía comisión) · `synth-lender-type-boundary`.

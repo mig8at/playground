@@ -62,7 +62,7 @@ Síntesis del plan maestro (absorbe `MOTAI-PLAN-EVOLUCION` + `DES-MOTAIZACION` +
 - **8 PRs dual-read** en `DES-MOTAIZACION.md`. Es el **primer escalón ejecutado** del deber-ser del group Plataforma.
 
 ## Bitácora
-- **2026-07-15** — Arranque de la des-motaización sobre `feature/motai-v2` (nacida de staging). Censo re-verificado B1-B18/F1-F17 en `docs/mejoras/DES-MOTAIZACION.md`.
+- **2026-07-15** — Arranque de la des-motaización sobre `feature/motai-v2` (nacida de staging). Censo re-verificado B1-B18/F1-F17 (síntesis en §Plan y decisiones).
 - **2026-07-17** — **Retargeteo del PR de legacy a `develop`** (por pedido del líder; nació de staging). Conflictos resueltos con merge de develop (`44eb3c02`). Consecuencia: el diff del PR vs develop arrastra la divergencia staging↔develop (~52 archivos) — no todo es nuestro. **Frontend NO se retargeteó** (sigue →staging, limpio). Fixes que entraron por el merge (bugs pre-existentes de develop que rompían local): `$hasCredifamilia` indefinido (`098322a8`, **también vive en develop → avisar al equipo**) y ProfilerML 500 sin `H2O_API_HOST` (`4022b6c9`).
 - **2026-07-17** — Ábaco: se removió el flag `lenders.abaco` (lo define otro equipo). Endpoint check-abaco-requirement conservado como seam.
 
@@ -75,5 +75,5 @@ Síntesis del plan maestro (absorbe `MOTAI-PLAN-EVOLUCION` + `DES-MOTAIZACION` +
 
 ## Enlaces
 - **Jira:** CORE-265 (flujo unificado) · CORE-266 (calculadora) · CORE-267 (TyC) · CORE-268 (recálculo de monto) — sprint CORE Sprint 7.
-- **Docs:** cambios consolidados `docs/chages/MOTAI-V2-MAPA-DE-CAMBIOS.md` · plan `docs/mejoras/DES-MOTAIZACION.md` (censo + 8 PRs dual-read) · mapeo `docs/mejoras/MOTAI-V2-MAPEO.md`.
+- **Cambios/plan:** sintetizados arriba (§Lo que se hizo + §Plan y decisiones). Fuente histórica en git @ `159906a`.
 - **Flujo padre:** nodo **Motai** (v1).

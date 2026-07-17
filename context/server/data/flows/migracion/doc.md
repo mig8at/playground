@@ -139,10 +139,5 @@ Relevante al OKR de metodología de pruebas (Loan Origination). La frontera de i
 - **2026-07-17** — Nodo de referencia creado bajo el group Plataforma. Superficie: 58 archivos, 58/58 resuelven. Síntesis de `ESTADO-MIGRACION + PENDIENTES-MIGRACION + LOGICA-QUEMADA` para hacer el árbol autosuficiente (resolver tareas sin abrir docs/).
 
 ## Enlaces
-- docs/codigo/ESTADO-MIGRACION.md (fuente: tabla maestra por módulo, 2 ejes, reconciliación de dependencias)
-- docs/codigo/PENDIENTES-MIGRACION.md (fuente: backlog P0-P3, matriz webhooks rt=1, checklist de apagado)
-- docs/codigo/LOGICA-QUEMADA.md (fuente: inventario de hardcodes con archivo:línea, priorización de remediación)
-- docs/codigo/FLUJO-CREDITOPX-Y-DEPS-APPLICATION.md (eje dependencia: 0 llamadas legacy→application)
-- docs/CREDITOP.md (esencia: dos sombreros bróker vs CreditopX, taxonomía response_type 0-4, ciclo de vida de estados)
-- nodo context flows/creditopx (cierre in-platform rt=2/3)
-- nodo context flows/agregadores (rol bróker rt=1)
+- Sustrato: group **Plataforma**. Hermanos: **modelo-datos** · **admin-reglas**. El servicing no migrado se detalla en el flujo **continuacion-servicing**.
+- Memorias: `migracion-application-a-legacy-estado`.

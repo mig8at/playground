@@ -104,9 +104,6 @@ Los flujos hijos comparten este tronco; cada uno cuenta su delta en su nodo:
 - **2026-07-17** — Nodo creado desde la raíz (tronco común rt=2/3). Superficie curada: **103 archivos** (frontend-monorepo 57 · legacy-backend 43 · application 3), 103/103 resuelven en el índice. Síntesis de `FLUJO-CREDITOPX-Y-DEPS-APPLICATION.md` (barrido multi-agente re-verificado) + ficha `CREDITOPX.md` + `REFERENCIA-FLUJOS.md` §1/§3. Verificado en código: `LoanAuthorizationService::authorize` → Estado 11 (`:84/280`), sello rt=2 por categoría en `LenderListingService.php:458-476`. Se excluyeron `initial-fee-payment`/`down-payment-validation`/`merchant-mode` (no resuelven en el índice) y las especializaciones IMEI/device-lock (viven en el nodo smartpay).
 
 ## Enlaces
-- Análisis: `docs/codigo/FLUJO-CREDITOPX-Y-DEPS-APPLICATION.md` (verified-deep, con `archivo:línea`; incluye el veredicto de dependencias FE/backend→application).
-- Ficha entidad: `docs/lenders/CREDITOPX.md`.
-- Tronco + FE↔BE: `docs/codigo/REFERENCIA-FLUJOS.md` §1/§3 · `docs/codigo/MAPA-FLUJOS.md`.
-- Servicing post-11: `docs/codigo/CONTINUACION-CREDITO-ANALISIS.md` · reglas de decisión: `docs/codigo/REGLAS-POR-COMERCIO-Y-LENDER.md`, `docs/codigo/ONBOARDING-DATOS-DECISION-ANALISIS.md`.
+- Sustrato: group **Plataforma** (nodos **modelo-datos**, **motor-decision**). Servicing post-11: flujo **continuacion-servicing**.
 - Variantes: nodos flujo `smartpay`, `motai` (hermanos que cuelgan de este tronco).
 - Memorias: `creditopx-modelo-comercio` (economía comercio/comisión) · `lender-listing-cascade` (cascada de visibilidad) · `datacredito-rules-per-lender` (2 motores) · `synth-lender-type-boundary` (frontera inyección rt=2 vs rt=1) · `continuacion-credito-servicing` (post-11) · `modelos-canales-flujos`.

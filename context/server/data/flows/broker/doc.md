@@ -48,7 +48,7 @@ El tronco compartido del sombrero bróker, sobre la entrada→OTP→datos→mark
 - **2026-07-17** — Group creado al reestructurar el árbol a jerarquía estricta (raíz→group→flujo→tarea). Reúne los flujos donde decide/gestiona un tercero (rt=0/1/4), como contrapartida del group operador CreditopX. Superficie compartida: 20 archivos (response_type + listing + LenderTransaction espejo + pre-aprobación + marketplace).
 
 ## Enlaces
-- Backbone: `docs/CREDITOP.md` §1 (los dos sombreros) · §4 (response_type).
+- Backbone: los dos sombreros (raíz · §Qué es) · response_type 0-4 (nodo **modelo-datos**).
 - Miembros: nodos **agregadores** (rt=1) y **credifamilia** (rt=4).
 - Contrapartida: group **CreditopX** (operador rt=2/3).
 - Memorias: `modelos-canales-flujos`, `synth-lender-type-boundary`, `pre-approvals-service`.

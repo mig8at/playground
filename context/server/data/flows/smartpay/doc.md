@@ -62,6 +62,5 @@ El orden 04→05→06 evita carreras. **Único gate temporal = 8 días** (sin es
 - **2026-07-17** — Nodo creado desde la raíz. Superficie curada: **71 archivos** (legacy 54 · application 2 · front 15), 71/71 resuelven en el índice. Síntesis de dos lecturas profundas (originación + servicing device-lock) verificadas contra el código de `legacy-backend`.
 
 ## Enlaces
-- Análisis: `docs/codigo/SMARTPAY-FLUJO-ANALISIS.md` (verificado, con `archivo:línea`).
-- Tronco común (dado por sabido): `docs/codigo/REFERENCIA-FLUJOS.md` §1 · encadenamiento FE↔BE `docs/codigo/MAPA-FLUJOS.md` · comparación por entidad `docs/lenders/README.md`.
+- Tronco común (dado por sabido): group **CreditopX**. Decisión/synth: nodo **motor-decision**.
 - Memorias: `modelos-canales-flujos` (SmartPay 152/153/160, MDM) · `synth-lender-type-boundary` (frontera de inyección) · `continuacion-credito-servicing` (ledger post-11).

@@ -34,6 +34,6 @@ El sustrato central que todos tocan: `Lender.php` · `Allied.php` · `AlliedBran
 
 ## Enlaces
 - Miembros: nodos **modelo-datos · motor-decision · harness · migracion · admin-reglas**.
-- Deber-ser (fuente, mientras exista `docs/`): `docs/mejoras/PLAN-ACCION-SIMPLIFICACION.md` · `docs/vision/UNIFICACION-Y-RESPONSABILIDADES.md` · `docs/mejoras/MOTAI-PLAN-EVOLUCION.md`.
+- Deber-ser: sintetizado arriba (§Deber-ser / simplificación). Fuente histórica (análisis maestros) en git @ `159906a`.
 - Prototipo del deber-ser: `playground/flow`. Primer escalón ejecutado: tarea **motai-v2**.
 - Memorias: `plan-simplificacion` · `nomenclatura-negocio` · `simulador-gap-analisis`.

@@ -38,5 +38,5 @@ Motai es un **COMERCIO** (allied 158) con su lender **MotaiX** (id 158, `respons
 - **2026-07-14** — Flujo auditado a 136 archivos (workflow 28 agentes + validación contra los PDFs de brechas/PRD MVP2). Cubre la originación actual + las brechas de deuda técnica (legal/TyC, motor de viabilidad salteado, perfil financiero). Reparto: application 13 · frontend 62 · legacy 61.
 
 ## Enlaces
-- Análisis: `docs/codigo/MOTAI-FLUJO-ANALISIS.md` · plan de evolución: `docs/mejoras/MOTAI-PLAN-EVOLUCION.md`.
-- Tarea que deriva de acá: **motai-v2** (des-motaización) · nomenclatura: `docs/NOMENCLATURA-NEGOCIO.md`.
+- Tronco: group **CreditopX**. Decisión: nodo **motor-decision**.
+- Tarea que deriva de acá: **motai-v2** (des-motaización) · nomenclatura: memoria `nomenclatura-negocio`.

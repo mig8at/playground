@@ -146,8 +146,6 @@ El harness E2E (playground/backend-e2e y frontend-e2e, NO indexados) NO ejercita
 - **2026-07-17** — Nodo de referencia creado bajo el group Plataforma. Superficie: 53 archivos, 53/53 resuelven. Síntesis de `MODELO-DATOS + CENSO-CAMPOS-CONFIG + MAPA-ATRIBUTOS-POR-NIVEL` para hacer el árbol autosuficiente (resolver tareas sin abrir docs/).
 
 ## Enlaces
-- playground/docs/codigo/MODELO-DATOS.md
-- playground/docs/codigo/CENSO-CAMPOS-CONFIG.md
-- playground/docs/mejoras/MAPA-ATRIBUTOS-POR-NIVEL.md
-- playground/docs/codigo/LOGICA-QUEMADA.md
-- playground/docs/codigo/HALLAZGO-GESTION-REGLAS-POR-SUCURSAL.md
+- Sustrato: group **Plataforma**. Hermanos: **motor-decision** (cómo se decide con estos datos) · **migracion** (deuda/columnas a limpiar).
+- Lo consultan los flujos: **creditopx**, **agregadores**, **credifamilia**.
+- Memorias: `datacredito-rules-per-lender` · `lender-listing-cascade` · `reglas-comercio-lender-map`.

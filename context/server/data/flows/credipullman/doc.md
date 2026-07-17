@@ -44,5 +44,5 @@ Receta del synth que **aprueba** en CrediPullman: `users.age` dentro del rango d
 - **2026-07-17** — Nodo creado al reestructurar a jerarquía estricta (flujo bajo el group CreditopX). Superficie: 15 archivos (el gate group-rules + datacrédito + categoría), 15/15 resuelven. Doc magro a propósito: el recorrido vive en el group.
 
 ## Enlaces
-- Tronco: group **CreditopX**. Fuente: `docs/codigo/FLUJO-CREDITOPX-Y-DEPS-APPLICATION.md` · `docs/codigo/REGLAS-POR-COMERCIO-Y-LENDER.md` (gate por comercio/lender).
+- Tronco: group **CreditopX**. Gate/decisión: nodo **motor-decision**.
 - Memorias: `synth-credipullman-gates` (los 2 gates + diagnósticos) · `datacredito-rules-per-lender` · `lender-listing-cascade` · `reglas-copia-por-sucursal`.

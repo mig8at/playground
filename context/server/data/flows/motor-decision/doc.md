@@ -152,8 +152,5 @@ Relevante al OKR de metodología de pruebas: la FRONTERA DE INYECTABILIDAD defin
 - **2026-07-17** — Nodo de referencia creado bajo el group Plataforma. Superficie: 33 archivos, 33/33 resuelven. Síntesis de `ONBOARDING-DATOS-DECISION + REGLAS-POR-COMERCIO-Y-LENDER` para hacer el árbol autosuficiente (resolver tareas sin abrir docs/).
 
 ## Enlaces
-- playground/docs/codigo/ONBOARDING-DATOS-DECISION-ANALISIS.md — fuente maestra: mapa datos-de-riesgo→decisión, tabla maestra de campos, receta synth por lender, cascada getLenders con archivo:línea
-- playground/docs/codigo/REGLAS-POR-COMERCIO-Y-LENDER.md — fuente maestra: 4 capas de regla, dump BD real (dc-gen/dc-suc/tiers por lender, umbrales de ingreso por comercio, DatacreditoFrequency 40 allieds, exclusión estática)
-- context flow creditopx (doc.md) — el flujo rt=2 in-platform que consume este motor
-- context flow agregadores (doc.md) — el flujo rt=1 cuya decisión es externa (no inyectable)
-- context node reglas-comercio-lender-map / datacredito-rules-per-lender / lender-listing-cascade / onboarding-decision-data-map (MEMORY) — nodos hermanos
+- Sustrato: group **Plataforma**. Hermano: **modelo-datos** (qué hay). Consumidores: flujos **creditopx**/**credipullman** (rt=2), **agregadores** (rt=1).
+- Memorias: `datacredito-rules-per-lender` · `lender-listing-cascade` · `onboarding-decision-data-map` · `synth-lender-type-boundary` · `synth-credipullman-gates`.

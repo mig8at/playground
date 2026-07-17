@@ -42,4 +42,4 @@ Credifamilia (lender **24**) es el único `response_type = 4` (un valor sin fila
 - **2026-07-17** — Nodo creado desde la raíz con la documentación de referencia. Superficie curada: **134 archivos** (107 legacy + 27 front, 134/134 resuelven en el índice). Flujo verificado adversarialmente contra el análisis maestro.
 
 ## Enlaces
-- `docs/codigo/CREDIFAMILIA-FLUJO-ANALISIS.md` (flujo, verificado adversarialmente) · `docs/codigo/CREDIFAMILIA-PIPELINE-DOCUMENTOS.md` (pipeline de documentos) · ficha `docs/lenders/CREDIFAMILIA.md`.
+- Sombrero: group **Bróker**. Backbone rt=0/1/4: nodo **modelo-datos**. Decisión/pre-aprobación: nodo **motor-decision**.

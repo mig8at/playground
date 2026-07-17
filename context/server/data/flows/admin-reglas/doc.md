@@ -155,5 +155,5 @@ Sin relación directa con el harness E2E: el alta y la copia de reglas ocurren e
 - **2026-07-17** — Nodo de referencia creado bajo el group Plataforma. Superficie: 30 archivos, 30/30 resuelven. Síntesis de `ADMIN-ALTA-OPERACION + HALLAZGO-GESTION-REGLAS-POR-SUCURSAL` para hacer el árbol autosuficiente (resolver tareas sin abrir docs/).
 
 ## Enlaces
-- /Users/miguelochoa/Desktop/CREDITOP/playground/docs/codigo/ADMIN-ALTA-OPERACION.md
-- /Users/miguelochoa/Desktop/CREDITOP/playground/docs/codigo/HALLAZGO-GESTION-REGLAS-POR-SUCURSAL.md
+- Sustrato: group **Plataforma**. Hermano: **migracion**. Las reglas que se copian las evalúan los flujos rt=2 (**creditopx**/**credipullman**).
+- Memorias: `reglas-copia-por-sucursal` · `admin-anatomia-creditop` · `reglas-comercio-lender-map`.

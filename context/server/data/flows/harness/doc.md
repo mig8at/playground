@@ -182,13 +182,6 @@ Este ES el nodo del OKR de pruebas de Miguel. Frontera de inyectabilidad del har
 - **2026-07-17** — Nodo de referencia creado bajo el group Plataforma. Superficie: 29 archivos, 29/29 resuelven. Síntesis de `HARNESS-ARQUITECTURA + HANDOFF-PRUEBAS + E2E-DATA-TESTIDS + CASOS-ESPECIALES + CONVENCIONES` para hacer el árbol autosuficiente (resolver tareas sin abrir docs/).
 
 ## Enlaces
-- playground/docs/operacion/HARNESS-ARQUITECTURA.md
-- playground/docs/operacion/HANDOFF-PRUEBAS-ONBOARDING.md
-- playground/docs/operacion/E2E-DATA-TESTIDS.md
-- playground/docs/codigo/CASOS-ESPECIALES.md
-- playground/docs/operacion/CONVENCIONES.md
-- playground/backend-e2e/SUITE.md
-- playground/backend-e2e/VALIDATION.md
-- playground/docs/codigo/REFERENCIA-FLUJOS.md
-- playground/docs/codigo/LOGICA-QUEMADA.md
-- playground/frontend-e2e/VALIDATION.md
+- Sustrato: group **Plataforma**. Es el nodo del OKR de pruebas.
+- El código de los harness (no indexado, fuera de los map.json): `playground/backend-e2e` (Go) · `playground/frontend-e2e` (Playwright) · panel `:5195`.
+- Memorias: `synth-credipullman-gates` · `synth-lender-type-boundary` · `frontend-e2e-setup` · `backend-e2e-dev-target` · `playground-convention`.

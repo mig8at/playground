@@ -102,11 +102,8 @@ Dos sub-fronteras:
 - **Dentro del set rt=1:** Sistecrédito = único con dos canales físicos (POS OTP vs online redirect+webhook) · Welli = 4 variantes sobre una Action + polling propio, no extiende `Integration` (el MS colapsa 141/142→'23' pero **166 NO**) · Meddipay = único handoff al celular + recheck forzado · Prami = único con perfil Experian REAL · BdB credi-convenio = único con mTLS + polling; CeroPay (133) = variante 0% con KYC previo y purchase-code (sin polling) · Compensar = cupo rotativo puro por OTP (sin MS/redirect/webhook) · Addi = stub redirect puro · Bancolombia (68/100) = único multiproducto con auth de canal fuerte (JWT RS256 + mTLS) y secuencia multi-step · Corbeta = único con facturación/conciliación batch (no es lender).
 
 ## Bitácora
-- **2026-07-17** — Nodo creado desde `docs/codigo/AGREGADORES-FLUJO-ANALISIS.md` (verified-deep) + fichas `lenders/*` + `SERVICIO-PRE-APROBACIONES.md`. 115 archivos curados (legacy 46 / application 38 / frontend 31). El MS Go `pre-approvals-service` NO está en el índice (repo aparte) → referenciado en prosa pero excluido de `files`.
+- **2026-07-17** — Nodo creado sintetizando el análisis maestro de agregadores (verified-deep) + las fichas por lender + el MS de pre-aprobación. 115 archivos curados (legacy 46 / application 38 / frontend 31). El MS Go `pre-approvals-service` NO está en el índice (repo aparte) → referenciado en prosa pero excluido de `files`.
 
 ## Enlaces
-- Análisis maestro (fuente del file:línea): `playground/docs/codigo/AGREGADORES-FLUJO-ANALISIS.md`
-- MS de pre-aprobación: `playground/docs/codigo/SERVICIO-PRE-APROBACIONES.md`
-- Fichas por entidad: `playground/docs/lenders/{README,BANCOLOMBIA,BANCO-DE-BOGOTA,SISTECREDITO,WELLI}.md`
-- Backbone response_type: `playground/docs/CREDITOP.md §4`
+- Sombrero: group **Bróker**. Backbone response_type: nodo **modelo-datos**. El MS `pre-approvals-service` (repo aparte, no indexado) se describe en §Sistemas externos.
 - Memorias: `modelos-canales-flujos`, `synth-lender-type-boundary`, `pre-approvals-service`, `migracion-application-a-legacy-estado`, `continuacion-credito-servicing`, `lender-listing-cascade`, `refactor-perfilamiento-lenders`
