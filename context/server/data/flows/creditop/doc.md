@@ -64,10 +64,11 @@ La tesis de arriba ("ifs quemados por ID") tiene un inventario verificado con `a
 - **Glosario e IDs (colisiones):** verificá el **namespace** antes de tocar un id literal — `24` = lender Credifamilia **vs** allied Creditop · `100` = lender Bancolombia Consumo **vs** un allied · `158` = allied Motai (comercio) **vs** su lender · `160`/`152`/`153` = SmartPay (prod/dev). Glosario canónico (14 choques PRD×código×docs): `docs/NOMENCLATURA-NEGOCIO.md`.
 
 ## Bitácora
+- **2026-07-17** — `playground/docs/` (47 archivos) REMOVIDO de main tras verificar que el árbol de context es autosuficiente (6 tareas de muestra resueltas sin abrir docs/, incluida la receta de synth del OKR). El material se absorbió en los nodos (flujos + los 5 de referencia bajo Plataforma); el análisis maestro `archivo:línea` queda en git @ `159906a` como fuente de re-verificación/auditoría. Trade-off asumido: se pierde la trazabilidad viva a cambio de un único árbol como fuente.
 - **2026-07-17** — La raíz absorbió el material TRANSVERSAL (Datos/tablas clave, Estados y catálogos, Frontera de pruebas/harness, Deuda técnica) como resúmenes compactos que apuntan a los docs profundos como fuente — en vez de crear un 2º tipo de nodo "referencia" (que recrearía las subcarpetas de `docs/` dentro del árbol). Decisión: el árbol modela FLUJOS; lo transversal es sustrato del ecosistema y su hogar fiel es la raíz. Roster de flujos: creditopx (tronco) · agregadores · motai · credifamilia · smartpay · continuacion-servicing.
 - **2026-07-17** — `application` (el monolito) se movió de Bitbucket a GitHub: ahora vive en `github/legacy-application` (mismo código PHP; el clon de `bitbucket/application` fue eliminado). Los 3 repos del ecosistema quedan en GitHub. OJO: `github/loan-application` es OTRO repo (microservicios Go de Onboarding & Risk — Lambda/Terraform), no el monolito.
 
 ## Enlaces
-- Índice maestro: `playground/docs/CREDITOP.md` (§12 con leyenda).
-- Modelos y canales: `docs/negocio/MODELOS-Y-CANALES.md` · Estado migración: `docs/codigo/ESTADO-MIGRACION.md`, `docs/codigo/PENDIENTES-MIGRACION.md`.
-- Nomenclatura de negocio: `docs/NOMENCLATURA-NEGOCIO.md`.
+- **El árbol de context ES la documentación** (verificado autosuficiente 2026-07-17): flujos bajo los groups CreditopX/Bróker; sustrato transversal bajo el group **Plataforma** (modelo-datos · motor-decision · harness · migracion · admin-reglas).
+- **⚠ `playground/docs/` fue absorbido en los nodos y REMOVIDO de main el 2026-07-17.** Las menciones `` `docs/…md` `` que quedan en los nodos son **punteros históricos** al análisis maestro (fuente `archivo:línea` de la que se destilaron): viven en **git @ `159906a`** (`git show 159906a:docs/<ruta>`, ej `git show 159906a:docs/codigo/SMARTPAY-FLUJO-ANALISIS.md`). Para re-verificar o regenerar, ir a ese commit.
+- Memorias del ecosistema: `atlas-mcp-cross-repo`, `modelos-canales-flujos`, `plan-simplificacion`, `nomenclatura-negocio`.
