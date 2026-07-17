@@ -20,7 +20,7 @@ const props = defineProps({
   aligning: { type: String, default: '' },
   alignResults: { type: Array, default: () => [] },
 })
-const emit = defineEmits(['derive', 'delete', 'select', 'copy', 'copy-text'])
+const emit = defineEmits(['derive', 'delete', 'select', 'copy', 'copy-text', 'show-doc'])
 
 const repoAliases = computed(() => props.repos.map((r) => r.alias))
 
@@ -147,8 +147,8 @@ onNodesInitialized(() => refit())
                 <Check v-if="data.isCopied" :size="13" /><Copy v-else :size="13" />
                 {{ data.isCopied ? 'copiado' : 'copiar flujo' }}
               </button>
-              <button v-if="data.doc" class="wsdoc" title="copiar solo la documentación viva del flujo (doc.md)"
-                      @click.stop="emit('copy-text', data.doc, 'doc')"><FileText :size="13" /> doc</button>
+              <button v-if="data.doc" class="wsdoc" title="ver la documentación del flujo (doc.md)"
+                      @click.stop="emit('show-doc', { id: data.id, name: data.name, doc: data.doc })"><FileText :size="13" /> doc</button>
               <button class="wsderive" title="derivar un hijo" @click.stop="openDerive(data.id)"><GitFork :size="13" /> derivar</button>
             </div>
           </div>
