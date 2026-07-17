@@ -57,19 +57,35 @@ const layout = computed(() => {
   return { nodes, edges, height: Math.max(260, row * ROW_H + 20) }
 })
 
+// Rol por profundidad: raíz (creditop = base/main) → flujo (hijo directo) →
+// tarea (nieto+: trabajo sobre un flujo). Solo las tareas se pueden borrar.
+// Clave ASCII (para la clase CSS) + label con acento + tooltip.
+const ROLE_LABEL = { raiz: 'raíz', flujo: 'flujo', tarea: 'tarea' }
+const ROLE_TIP = { raiz: 'la base del ecosistema (main)', flujo: 'un flujo del ecosistema — derivá tareas desde acá', tarea: 'trabajo sobre un flujo (rama de feature)' }
+function roleOf(depth) { return depth === 0 ? 'raiz' : depth === 1 ? 'flujo' : 'tarea' }
+
 function nodeData(c, depth) {
   const flow = c.flow || null
   const rf = flow?.repo_files || {}
+  // Ramas del nodo agrupadas por rama OBJETIVO (dedup): un chip por rama distinta.
+  // Verde = los repos están en ella; naranja = drift. El tooltip dice en qué rama
+  // está realmente cada repo (así el nombre largo no ensucia el nodo).
+  const byTarget = {}
+  for (const r of c.status?.repos || []) {
+    const drift = r.state === 'off' || r.state === 'moved'
+    const g = (byTarget[r.target] ||= { target: r.target || '—', aligned: true, repos: [] })
+    if (drift) g.aligned = false
+    g.repos.push(`${r.alias}: ${r.current || '—'}${drift ? ` → objetivo ${r.target}` : ' ✓'}`)
+  }
+  const branchChips = Object.values(byTarget).map((g) => ({ target: g.target, aligned: g.aligned, tip: g.repos.join('\n') }))
   return {
     id: c.id, name: c.name, depth, isChild: !!c.parent,
+    role: roleOf(depth), roleLabel: ROLE_LABEL[roleOf(depth)], roleTip: ROLE_TIP[roleOf(depth)], canDelete: depth >= 2,
     selected: props.selected === c.id,
     aligning: props.aligning === c.id,
     isCopied: props.copiedKey === c.id,
     aligned: c.status?.aligned,
-    branches: (c.status?.repos || []).map((r) => ({
-      alias: shortAlias(r.alias), full: r.alias, current: r.current, target: r.target,
-      state: r.state, drift: r.state === 'off' || r.state === 'moved',
-    })),
+    branchChips,
     files: flow?.files || 0,
     repoChips: (flow?.repos || []).map((r) => ({ short: shortAlias(r), files: rf[r] || 0 })),
     stale: staleOf(flow),
@@ -148,23 +164,18 @@ onNodesInitialized(() => refit())
             <div class="wshead">
               <GitFork v-if="data.isChild" :size="13" class="wsfork" />
               <span class="wsname" :title="data.name">{{ data.name }}</span>
+              <span class="wsrole" :class="'role-' + data.role" :title="data.roleTip">{{ data.roleLabel }}</span>
               <span class="wsbadge" :class="data.aligning ? 'busy' : (data.aligned ? 'ok' : 'drift')"
                     :title="data.aligning ? 'alineando…' : (data.aligned ? 'alineado' : 'desalineado (drift) — seleccioná para alinear')">
                 {{ data.aligning ? '⟳' : (data.aligned ? '✓' : '⚠') }}
               </span>
-              <button class="wsx" title="borrar" @click.stop="openDelete(data.id)"><X :size="13" /></button>
+              <button v-if="data.canDelete" class="wsx" title="borrar workspace" @click.stop="openDelete(data.id)"><X :size="13" /></button>
             </div>
 
             <div class="wsbranches">
-              <div v-for="b in data.branches" :key="b.full" class="wsbr" :class="b.state">
-                <b :title="b.full">{{ b.alias }}</b>
-                <span v-if="b.drift" class="wsbr-val drift">
-                  <span class="wsbr-cur" :title="'actual: ' + b.current">{{ b.current || '—' }}</span>
-                  <span class="wsbr-arr">→</span>
-                  <span class="wsbr-tgt" :title="'objetivo: ' + b.target">{{ b.target }}</span>
-                </span>
-                <span v-else class="wsbr-val ok" :title="b.current"><GitBranch :size="10" />{{ b.current || '—' }}</span>
-              </div>
+              <span v-for="b in data.branchChips" :key="b.target" class="wsbrchip" :class="{ ok: b.aligned }" :title="b.tip">
+                <GitBranch :size="10" /><span class="wsbrchip-t">{{ b.target }}</span>
+              </span>
             </div>
 
             <div class="wsdiv"></div>
@@ -268,20 +279,21 @@ onNodesInitialized(() => refit())
 .wsbadge.ok { color: var(--green); }
 .wsbadge.drift { color: var(--amber); }
 .wsbadge.busy { color: var(--muted); }
+.wsrole { flex: none; font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; padding: 2px 6px; border-radius: 4px; }
+.wsrole.role-raiz { background: rgba(76,154,255,.15); color: var(--accent); }
+.wsrole.role-flujo { background: rgba(188,140,255,.16); color: var(--violet); }
+.wsrole.role-tarea { background: var(--chip); color: var(--muted); }
 .wsx { flex: none; background: none; border: 0; color: var(--muted); cursor: pointer; display: inline-flex; padding: 0; opacity: 0; transition: opacity .12s, color .12s; }
 .wsnode:hover .wsx { opacity: 1; }
 .wsx:hover { color: var(--red); }
 
 .wsdiv { height: 1px; background: var(--border); opacity: .55; margin: 9px 0; }
 
-.wsbranches { display: grid; grid-template-columns: auto 1fr; gap: 3px 8px; align-items: center; margin-top: 9px; }
-.wsbr { display: contents; }
-.wsbr > b { font-family: var(--mono); font-size: 11px; font-weight: 600; color: var(--text); }
-.wsbr-val { display: inline-flex; align-items: center; gap: 4px; font-family: var(--mono); font-size: 11px; min-width: 0; }
-.wsbr-val.ok { color: var(--green); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.wsbr-cur { color: var(--muted); text-decoration: line-through; overflow: hidden; text-overflow: ellipsis; max-width: 92px; flex: none; }
-.wsbr-arr { color: var(--muted); flex: none; }
-.wsbr-tgt { color: var(--amber); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wsbranches { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 9px; }
+.wsbrchip { display: inline-flex; align-items: center; gap: 4px; max-width: 100%; font-family: var(--mono); font-size: 11px; padding: 2px 8px; border-radius: 999px; background: rgba(227,179,65,.12); color: var(--amber); border: 1px solid rgba(227,179,65,.32); cursor: default; }
+.wsbrchip.ok { background: rgba(63,185,80,.12); color: var(--green); border-color: rgba(63,185,80,.32); }
+.wsbrchip svg { flex: none; }
+.wsbrchip-t { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 .wsflow { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; font-size: 11px; font-family: var(--mono); color: var(--muted); }
 .wsfiles { color: var(--text); font-weight: 600; }
