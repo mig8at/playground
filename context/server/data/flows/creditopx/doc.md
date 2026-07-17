@@ -1,7 +1,7 @@
-# CreditopX · flujo
-> **estado:** al día con main · El **tronco** de originación in-platform (rt=2/3): CreditOp lista, decide con datos locales, firma con OTP y **desembolsa hasta el Estado 11** — sin salir a ningún portal externo. SmartPay y Motai son variantes de este flujo.
+# CreditopX · group
+> **estado:** al día con main · El sombrero **OPERADOR** de CreditOp (rt=2/3 in-platform): CreditOp lista, decide con datos locales, firma con OTP y **desembolsa hasta el Estado 11** — sin salir a ningún portal externo. Es el **tronco** del que cuelgan CrediPullman, SmartPay, Motai y la Continuación/servicing.
 
-<!-- CreditopX es el flujo BASE. Acá vive el tronco común (entrada→OTP→datos→marketplace) y el recorrido rt=2 punta a punta (confirm/standBy → ADO → polling+Echo → plan/firma OTP → Estado 11). SmartPay/Motai NO repiten esto: lo enlazan y solo cuentan su delta. -->
+<!-- GROUP = la familia in-platform (el sombrero operador). Acá vive el TRONCO común (entrada→OTP→datos→marketplace) y el recorrido rt=2 punta a punta (confirm/standBy → ADO → polling+Echo → plan/firma OTP → Estado 11). Los flujos hijos NO repiten esto: lo enlazan y solo cuentan su delta. Contrapartida: el group Bróker (rt=0/1/4). -->
 
 ## Qué es
 CreditopX **no es un lender: es una FAMILIA** de lenders in-platform (`response_type == 2`, y `== 3` para cupo rotativo) — **CrediPullman (77)**, **Creditop X (37)**, Celupresto (96), SmartPay (152/160), Motai (158)… Todos comparten el mismo motor: **CreditOp decide con reglas y datos locales** (por eso es el único flujo 100% inyectable en pruebas), **firma in-platform** (consentimiento + pagaré Deceval-o-PDF + OTP) y **llega solo al Estado 11** sin handoff a un portal de tercero. El comercio pone el capital y el riesgo; CreditOp opera y cobra comisión (ver ficha del lender).
@@ -90,13 +90,17 @@ Usuario sintético in-platform (sin KYC real): sembrar un lender rt=2 con **cate
 - [ ] El canal Echo público no está autorizado en `routes/channels.php`: ¿en prod ambos backends (application + legacy) publican al mismo canal con el mismo `PUSHER_APP_KEY`/host? (needs-runtime).
 - [ ] ¿SmartPay prod (160) tiene `response_type` fijado por algún seeder? El `SmartPayTestSeeder` crea rt=1 pero negocio lo trata como rt=2.
 
-## Diferencias vs otros flujos
-- **vs SmartPay (variante):** SmartPay ES un CreditopX rt=2 con `path='IMEI'` — reemplaza el pagaré+garantía+Netco por un único "Acuerdo de bloqueo de dispositivo", inserta el enroll de IMEI antes del desembolso y agrega servicing device-lock (MDM). Salta el AML (`isSmartPay()`). Todo lo demás es este tronco.
-- **vs Motai (variante):** comercio allied 158 con 3 modos; el modo renting saltea el buró → Ábaco (ingreso gig), pero el resultado no está cableado a la decisión y el modo NO filtra lenders. Mismo motor rt=2.
-- **vs Credifamilia (rt=4):** se radica al pintar el marketplace y hace polling; al seleccionar da `standBy`; **no llega a 11 en el click**. Ambigüedad rt=2 vs rt=4 en su formalización SOAP.
-- **vs Agregadores (rt=0/1):** CreditOp solo origina y sale a un portal externo (redirect/popup/link) o integración (Bancolombia BNPL con `ProcessingView`+Echo); la **API externa decide y gestiona la cartera**; el Estado 11 llega async por webhook — que **sigue en `application`** (no migrado). No es inyectable E2E localmente.
+## Miembros
+Los flujos hijos comparten este tronco; cada uno cuenta su delta en su nodo:
+- **CrediPullman** (flujo · id 77) — el rt=2 **vanilla**, sin variante. Su único delta es el gate de group rules (`users.age`) + su datacrédito. Es el caso canónico de pruebas.
+- **SmartPay** (flujo) — CreditopX rt=2 con `path='IMEI'`: reemplaza pagaré+garantía+Netco por un "Acuerdo de bloqueo de dispositivo", inserta el enroll de IMEI antes del desembolso, agrega servicing device-lock (MDM) y salta el AML.
+- **Motai** (flujo → tarea Motai v2) — comercio allied 158 con 3 modos; el modo renting saltea el buró → Ábaco (ingreso gig), pero el resultado no está cableado a la decisión y el modo NO filtra lenders.
+- **Continuación / servicing** (flujo) — la 2ª mitad del ciclo (post-Estado 11): cartera/causación/mora/cobranza in-platform (6 crons + ledger).
+
+> **vs el otro sombrero (group Bróker, rt=0/1/4):** allá CreditOp SOLO origina y un tercero decide/gestiona la cartera (Agregadores, Credifamilia); el rastro termina en el 11. Acá (operador) CreditOp decide/firma/cobra y hay ciclo de vida post-11.
 
 ## Bitácora
+- **2026-07-17** — Pasó de flujo a **group** al reestructurar el árbol a jerarquía estricta (raíz→group→flujo→tarea). Ahora es el sombrero operador: CrediPullman/SmartPay/Motai/Continuación cuelgan como flujos hijos. El contenido (tronco rt=2/3) no cambió; se relabeló y "Diferencias vs otros flujos" → "Miembros".
 - **2026-07-17** — Nodo creado desde la raíz (tronco común rt=2/3). Superficie curada: **103 archivos** (frontend-monorepo 57 · legacy-backend 43 · application 3), 103/103 resuelven en el índice. Síntesis de `FLUJO-CREDITOPX-Y-DEPS-APPLICATION.md` (barrido multi-agente re-verificado) + ficha `CREDITOPX.md` + `REFERENCIA-FLUJOS.md` §1/§3. Verificado en código: `LoanAuthorizationService::authorize` → Estado 11 (`:84/280`), sello rt=2 por categoría en `LenderListingService.php:458-476`. Se excluyeron `initial-fee-payment`/`down-payment-validation`/`merchant-mode` (no resuelven en el índice) y las especializaciones IMEI/device-lock (viven en el nodo smartpay).
 
 ## Enlaces

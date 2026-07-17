@@ -100,7 +100,7 @@ function onDeriveChild({ parent, name, mode, repos, bases, create }) {
   const allRepos = summary.value.repos.map((r) => r.alias)
   const targets = {}
   if (mode === 'flow') {
-    // FLUJO = documentación productiva sobre main: todos los repos en main, sin rama nueva.
+    // GROUP/FLUJO = documentación productiva sobre main: todos los repos en main, sin rama nueva.
     for (const a of allRepos) targets[a] = 'main'
     send({ type: 'save_combination', name, parent, targets })
     return

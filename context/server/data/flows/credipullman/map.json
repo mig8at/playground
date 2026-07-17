@@ -1,0 +1,23 @@
+{
+  "name": "CrediPullman",
+  "combination": "credipullman",
+  "group": "credipullman",
+  "kind": "channel",
+  "files": [
+    "legacy-backend/Modules/Loans/App/Services/DatacreditoRuleEvaluator.php",
+    "legacy-backend/Modules/Loans/App/Services/LenderUserCategoryService.php",
+    "legacy-backend/Modules/Loans/App/Services/LenderSpecialGrantingService.php",
+    "legacy-backend/Modules/Loans/App/Repositories/LenderUserCategoryScoringPolicyRuleRepository.php",
+    "legacy-backend/Modules/Loans/App/Repositories/LenderDatacreditoRulesRepository.php",
+    "legacy-backend/Modules/Risk/App/Http/Controllers/Admin/GroupRuleController.php",
+    "legacy-backend/app/Models/GroupRule.php",
+    "legacy-backend/app/Models/LenderUserCategoryScoringPolicyRule.php",
+    "legacy-backend/app/Models/LenderDatacreditoRule.php",
+    "legacy-backend/Modules/Loans/tests/Unit/DatacreditoRuleEvaluatorTest.php",
+    "legacy-backend/Modules/Loans/tests/Unit/LenderUserCategoryServiceMatchedByRuleTest.php",
+    "application/app/Http/Controllers/Admin/GroupRuleController.php",
+    "application/app/Models/GroupRule.php",
+    "application/app/Models/LenderDatacreditoRule.php",
+    "application/database/migrations/2024_07_12_163710_create_group_rules_table.php"
+  ]
+}

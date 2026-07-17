@@ -224,12 +224,16 @@ func (e *Engine) comboDepth(id string) int {
 	return depth
 }
 
-// roleForDepth mapea profundidad → rol (y nombre de plantilla): 0 raíz, 1 flujo, 2+ tarea.
+// roleForDepth mapea profundidad → rol (y nombre de plantilla): jerarquía estricta
+// raíz(0) → group(1) → flujo(2) → tarea(3+). El group = una familia (los dos
+// sombreros de CreditOp); el flujo cuelga de un group; la tarea de un flujo.
 func roleForDepth(d int) string {
 	switch {
 	case d == 0:
 		return "raiz"
 	case d == 1:
+		return "group"
+	case d == 2:
 		return "flujo"
 	default:
 		return "tarea"

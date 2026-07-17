@@ -58,12 +58,18 @@ const layout = computed(() => {
   return { nodes, edges, height: Math.max(260, row * ROW_H + 20) }
 })
 
-// Rol por profundidad: raíz (creditop = base/main) → flujo (hijo directo) →
-// tarea (nieto+: trabajo sobre un flujo). Solo las tareas se pueden borrar.
+// Jerarquía estricta por profundidad: raíz (creditop = base/main) → group (familia:
+// los dos sombreros) → flujo (un flujo de la familia) → tarea (trabajo sobre un flujo).
+// Raíz y groups son la columna de documentación (no se borran); flujos y tareas sí.
 // Clave ASCII (para la clase CSS) + label con acento + tooltip.
-const ROLE_LABEL = { raiz: 'raíz', flujo: 'flujo', tarea: 'tarea' }
-const ROLE_TIP = { raiz: 'la base del ecosistema (main)', flujo: 'un flujo del ecosistema — derivá tareas desde acá', tarea: 'trabajo sobre un flujo (rama de feature)' }
-function roleOf(depth) { return depth === 0 ? 'raiz' : depth === 1 ? 'flujo' : 'tarea' }
+const ROLE_LABEL = { raiz: 'raíz', group: 'group', flujo: 'flujo', tarea: 'tarea' }
+const ROLE_TIP = {
+  raiz: 'la base del ecosistema (main)',
+  group: 'una familia de flujos (comparten tronco) — derivá flujos desde acá',
+  flujo: 'un flujo del ecosistema — derivá tareas desde acá',
+  tarea: 'trabajo sobre un flujo (rama de feature)',
+}
+function roleOf(depth) { return depth === 0 ? 'raiz' : depth === 1 ? 'group' : depth === 2 ? 'flujo' : 'tarea' }
 
 function nodeData(c, depth) {
   const flow = c.flow || null
@@ -81,7 +87,7 @@ function nodeData(c, depth) {
   const branchChips = Object.values(byTarget).map((g) => ({ target: g.target, aligned: g.aligned, tip: g.repos.join('\n') }))
   return {
     id: c.id, name: c.name, depth, isChild: !!c.parent,
-    role: roleOf(depth), roleLabel: ROLE_LABEL[roleOf(depth)], roleTip: ROLE_TIP[roleOf(depth)], canDelete: depth >= 1,
+    role: roleOf(depth), roleLabel: ROLE_LABEL[roleOf(depth)], roleTip: ROLE_TIP[roleOf(depth)], canDelete: depth >= 2,
     selected: props.selected === c.id,
     aligning: props.aligning === c.id,
     isCopied: props.copiedKey === c.id,
@@ -105,8 +111,22 @@ const deriveName = ref('')
 const deriveRepos = ref([]) // aliases que van a la rama NUEVA (el resto queda en la del flujo)
 const deriveCreate = ref(false) // crear las ramas localmente (git checkout -b)
 const deriveBases = ref({}) // alias → rama BASE desde la que se corta la rama nueva
-// Derivar de la RAÍZ crea un FLUJO (documentación sobre main); de un flujo/tarea, una TAREA.
-const deriveMode = computed(() => (deriveParent.value && !deriveParent.value.parent ? 'flow' : 'task'))
+// profundidad de un combo subiendo por parents (raíz=0)
+function depthOf(combo) {
+  let d = 0, cur = combo
+  const seen = new Set()
+  while (cur && cur.parent && !seen.has(cur.id)) { seen.add(cur.id); cur = props.combinations.find((x) => x.id === cur.parent); d++ }
+  return d
+}
+// El rol del HIJO según la profundidad del padre: raíz→group, group→flujo, flujo/tarea→tarea.
+const deriveChildRole = computed(() => {
+  const p = deriveParent.value
+  if (!p) return 'flujo'
+  const d = depthOf(p) + 1
+  return d === 1 ? 'group' : d === 2 ? 'flujo' : 'tarea'
+})
+// group y flujo = documentación sobre main (name-only, mode 'flow'); tarea = repos+bases (mode 'task').
+const deriveMode = computed(() => (deriveChildRole.value === 'tarea' ? 'task' : 'flow'))
 function branchesFor(a) {
   const list = props.repoBranches[a] || []
   return list.length ? list : ['main']
@@ -239,16 +259,17 @@ onNodesInitialized(() => refit())
       <div v-if="deriveParent" class="modal-back" @click.self="deriveParent = null">
         <div class="modal">
           <div class="modal-head">
-            <h3>{{ deriveMode === 'flow' ? 'Nuevo flujo desde' : 'Nueva tarea desde' }} «{{ deriveParent.name }}»</h3>
+            <h3>{{ deriveChildRole === 'tarea' ? 'Nueva tarea desde' : 'Nuevo ' + deriveChildRole + ' desde' }} «{{ deriveParent.name }}»</h3>
             <button class="modal-x" @click="deriveParent = null"><X :size="16" /></button>
           </div>
 
-          <!-- FLUJO: nodo de documentación productiva sobre main -->
+          <!-- GROUP / FLUJO: nodo de documentación productiva sobre main -->
           <template v-if="deriveMode === 'flow'">
-            <p class="modal-note">Un <b>flujo</b> es documentación productiva <b>sobre main</b> (los repos quedan en main). Después curás qué archivos lo componen y su doc.</p>
-            <input v-model="deriveName" class="modal-in" placeholder="nombre del flujo (ej Motai)" @keyup.enter="confirmDerive" autofocus />
+            <p v-if="deriveChildRole === 'group'" class="modal-note">Un <b>group</b> es una <b>familia</b> de flujos que comparten tronco (documentación <b>sobre main</b>). Después curás su superficie común y sus flujos hijos.</p>
+            <p v-else class="modal-note">Un <b>flujo</b> es documentación productiva <b>sobre main</b> (los repos quedan en main). Después curás qué archivos lo componen y su doc.</p>
+            <input v-model="deriveName" class="modal-in" :placeholder="deriveChildRole === 'group' ? 'nombre del group (ej CreditopX)' : 'nombre del flujo (ej SmartPay)'" @keyup.enter="confirmDerive" autofocus />
             <div class="modal-actions">
-              <button class="modal-save" :disabled="!deriveName.trim()" @click="confirmDerive"><Plus :size="13" /> crear flujo</button>
+              <button class="modal-save" :disabled="!deriveName.trim()" @click="confirmDerive"><Plus :size="13" /> crear {{ deriveChildRole }}</button>
               <button class="modal-cancel" @click="deriveParent = null">cancelar</button>
             </div>
           </template>
@@ -321,6 +342,7 @@ onNodesInitialized(() => refit())
 .wsbadge.busy { color: var(--muted); }
 .wsrole { flex: none; font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; padding: 2px 6px; border-radius: 4px; }
 .wsrole.role-raiz { background: rgba(76,154,255,.15); color: var(--accent); }
+.wsrole.role-group { background: rgba(64,224,168,.16); color: #40e0a8; }
 .wsrole.role-flujo { background: rgba(188,140,255,.16); color: var(--violet); }
 .wsrole.role-tarea { background: var(--chip); color: var(--muted); }
 .wsx { flex: none; background: none; border: 0; color: var(--muted); cursor: pointer; display: inline-flex; padding: 0; opacity: 0; transition: opacity .12s, color .12s; }
