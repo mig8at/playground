@@ -211,6 +211,58 @@ func registerGetFlow(s *mcp.Server, eng *engine.Engine) {
 	})
 }
 
+// ── context_get_doc / context_save_doc ─────────────────────────────────────────
+//
+// La documentación VIVA de un flujo vive en server/data/flows/<id>/doc.md
+// (markdown editable a mano). Es el "CONTEXT.md" del nodo: qué es el flujo +
+// bitácora de lo que se hizo/decidió. Entra al header del copy del árbol.
+
+type GetDocInput struct {
+	ID string `json:"id" jsonschema:"id del flujo (ej motai-v2)"`
+}
+type GetDocOutput struct {
+	ID      string `json:"id"`
+	Path    string `json:"path"`
+	Content string `json:"content"`
+}
+
+func registerGetDoc(s *mcp.Server, eng *engine.Engine) {
+	mcp.AddTool(s, &mcp.Tool{
+		Name:        "context_get_doc",
+		Description: "Devuelve la documentación viva (doc.md) de un flujo + su ruta en disco. Es el contexto narrado del nodo (qué es + bitácora de cambios); editable a mano o vía context_save_doc.",
+	}, func(ctx context.Context, _ *mcp.CallToolRequest, in GetDocInput) (*mcp.CallToolResult, GetDocOutput, error) {
+		content, path, err := eng.Doc(in.ID)
+		if err != nil {
+			return fail[GetDocOutput](fmt.Errorf("sin doc.md para %q (ruta esperada %s): %w", in.ID, path, err))
+		}
+		out := GetDocOutput{ID: in.ID, Path: path, Content: content}
+		return ok(content, out)
+	})
+}
+
+type SaveDocInput struct {
+	ID      string `json:"id" jsonschema:"id del flujo (debe existir)"`
+	Content string `json:"content" jsonschema:"contenido COMPLETO del doc.md (markdown; reemplaza el archivo — leé el actual con context_get_doc y reescribilo con lo nuevo integrado)"`
+}
+type SaveDocOutput struct {
+	ID   string `json:"id"`
+	Path string `json:"path"`
+}
+
+func registerSaveDoc(s *mcp.Server, eng *engine.Engine) {
+	mcp.AddTool(s, &mcp.Tool{
+		Name:        "context_save_doc",
+		Description: "Escribe la documentación viva (doc.md) de un flujo — reemplazo completo. Úsalo para registrar lo que se hizo/decidió a medida que trabajás (documentación viva del nodo).",
+	}, func(ctx context.Context, _ *mcp.CallToolRequest, in SaveDocInput) (*mcp.CallToolResult, SaveDocOutput, error) {
+		path, err := eng.SaveDoc(in.ID, in.Content)
+		if err != nil {
+			return fail[SaveDocOutput](err)
+		}
+		out := SaveDocOutput{ID: in.ID, Path: path}
+		return ok(fmt.Sprintf("doc.md guardado: %s", path), out)
+	})
+}
+
 // ── context_get_content ────────────────────────────────────────────────────────
 
 type GetContentInput struct {

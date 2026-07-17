@@ -31,8 +31,19 @@ context/
 ```
 
 **Estado compartido en disco.** Web y MCP apuntan al mismo `CONTEXT_DATA_DIR`
-(por defecto `~/.creditop-context`): `index.json` (repos + nodos) y `flows.json`
-(flujos). El MCP escribe, el web detecta el cambio (poll de mtime) y refresca la UI.
+(por defecto `~/.creditop-context`): `index.json` (repos + nodos) y `baselines.json`
+(hashes para el drift). Los FLUJOS viven como definiciones editables versionadas en
+`server/data/flows/<id>/`:
+
+```
+server/data/flows/<id>/
+├── map.json   ← estructura: name/combination/group/kind + files "repo/relpath"
+└── doc.md     ← documentación VIVA (markdown): qué es el flujo + bitácora de lo
+                 que se hizo/decidió. Entra al header del copy y al MCP.
+```
+
+El MCP escribe, el web detecta el cambio (poll de mtime, incluye editar `doc.md`
+a mano) y refresca la UI.
 
 ## Correr
 
@@ -64,6 +75,7 @@ Tools expuestas:
 | `context_connections` | edges de un nodo (import + route cross-repo) |
 | `context_save_flow` | **guarda** un flujo = array de IDs (aparece en la UI) |
 | `context_list_flows` / `context_get_flow` | lee flujos guardados |
+| `context_get_doc` / `context_save_doc` | lee/escribe la doc viva (`doc.md`) de un flujo |
 | `context_get_content` | hidrata: código real de unos IDs |
 
 Registrarlo (ejemplo, ruta al binario):

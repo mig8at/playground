@@ -111,6 +111,17 @@ func (e *Engine) ModTimes() (idx, flows, combos time.Time) {
 			if info, e2 := en.Info(); e2 == nil && info.ModTime().After(flows) {
 				flows = info.ModTime()
 			}
+			// layout por carpeta (<id>/{map.json,doc.md}): editar doc.md cambia el
+			// mtime del ARCHIVO, no de la carpeta → mirar un nivel adentro.
+			if en.IsDir() {
+				if sub, err := os.ReadDir(filepath.Join(e.flowsDir, en.Name())); err == nil {
+					for _, sen := range sub {
+						if info, e2 := sen.Info(); e2 == nil && info.ModTime().After(flows) {
+							flows = info.ModTime()
+						}
+					}
+				}
+			}
 		}
 	}
 	if fi, err := os.Stat(e.baselinesPath()); err == nil && fi.ModTime().After(flows) {

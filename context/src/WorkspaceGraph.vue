@@ -2,7 +2,7 @@
 import { ref, computed } from 'vue'
 import { VueFlow, Handle, Position, useVueFlow } from '@vue-flow/core'
 import { Background } from '@vue-flow/background'
-import { Copy, Check, GitBranch, GitFork, X, Plus, AlertTriangle } from 'lucide-vue-next'
+import { Copy, Check, FileText, GitBranch, GitFork, X, Plus, AlertTriangle } from 'lucide-vue-next'
 import '@vue-flow/core/dist/style.css'
 import '@vue-flow/core/dist/theme-default.css'
 
@@ -67,6 +67,8 @@ function nodeData(c, depth) {
     stale: staleOf(flow),
     changed: flow?.changed || 0,
     hasFlow: !!flow,
+    doc: flow?.desc || '', // doc.md del flujo (documentación viva) — botón "doc" la copia sola
+
     alignResults: props.selected === c.id ? props.alignResults : [],
   }
 }
@@ -145,6 +147,8 @@ onNodesInitialized(() => refit())
                 <Check v-if="data.isCopied" :size="13" /><Copy v-else :size="13" />
                 {{ data.isCopied ? 'copiado' : 'copiar flujo' }}
               </button>
+              <button v-if="data.doc" class="wsdoc" title="copiar solo la documentación viva del flujo (doc.md)"
+                      @click.stop="emit('copy-text', data.doc, 'doc')"><FileText :size="13" /> doc</button>
               <button class="wsderive" title="derivar un hijo" @click.stop="openDerive(data.id)"><GitFork :size="13" /> derivar</button>
             </div>
           </div>
@@ -230,6 +234,8 @@ onNodesInitialized(() => refit())
 .wscopy:disabled { opacity: .5; cursor: default; }
 .wsderive { display: inline-flex; align-items: center; gap: 4px; background: var(--chip); color: var(--text); border: 1px solid var(--border); border-radius: 6px; padding: 6px 10px; font-size: 11px; cursor: pointer; }
 .wsderive:hover { border-color: var(--violet); color: var(--violet); }
+.wsdoc { display: inline-flex; align-items: center; gap: 4px; background: var(--chip); color: var(--text); border: 1px solid var(--border); border-radius: 6px; padding: 6px 10px; font-size: 11px; cursor: pointer; }
+.wsdoc:hover { border-color: var(--accent); color: var(--accent); }
 
 :deep(.vue-flow__handle) { opacity: 0; }
 

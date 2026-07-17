@@ -41,6 +41,8 @@ func main() {
 	registerSaveFlow(server, eng)
 	registerListFlows(server, eng)
 	registerGetFlow(server, eng)
+	registerGetDoc(server, eng)
+	registerSaveDoc(server, eng)
 	registerGetContent(server, eng)
 	registerExportAnalysis(server, eng)
 	registerGetAnalysis(server, eng)
