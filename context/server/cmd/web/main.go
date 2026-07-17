@@ -209,6 +209,7 @@ func (s *server) handle(ctx context.Context, c *websocket.Conn, msg inbound) {
 			return
 		}
 		log.Printf("combinación guardada · %s", cb.Name)
+		s.eng.ScaffoldFlowDoc(cb.ID, cb.Name) // siembra doc.md desde la plantilla del rol si el flujo no existe
 		resp := map[string]any{"type": "combination_saved", "ok": true, "id": cb.ID}
 		if msg.CreateBranches {
 			ops := s.eng.CreateBranches(cb.ID, msg.Bases)

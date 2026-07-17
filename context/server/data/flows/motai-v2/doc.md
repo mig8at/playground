@@ -1,10 +1,24 @@
-# Motai v2 — des-motaización (target + lo ejecutado)
+# Motai v2 · tarea
+> **flujo:** **Motai** (v1 = como ES hoy, nodo padre) · **rama:** `feature/motai-v2` · **PR:** backend →develop · frontend →staging · **estado:** 🧪 en pruebas
+>
+> Des-motaizar la originación de Motai: reemplazar los ifs quemados (`isMotaiRenting`/`158`/modos) por **configuración** (product/calculator/document_types), hacia el modelo único paramétrico.
 
-Flujo OBJETIVO de originación renting/RTO DES-MOTAIZADO (target esquematizado en playground/examples/motai.html; PRD MVP2 + análisis de brechas). Deriva del flujo Motai v1 (misma superficie de 136 archivos = lo que se transforma) hacia el deber-ser: (1) CATEGORÍA DE PRODUCTO: los productos dejan de ser 'modos' del comercio y pasan a ser LENDERS CreditopX por categoría (crédito / arrendamiento / arrendamiento-con-compra) elegidos en el marketplace; muere el disparador dual isMotaiRenting / MOTAI_LENDER_IDS[158] y la pantalla merchant-mode; una CATEGORÍA de lender (NUEVA, hoy no existe) dispara el comportamiento. (2) INGRESOS por CASCADA de fuentes (AgilData→Mareigua→TusDatos→Ábaco→Manual, 1ª que responde) → perfil App (Ábaco) / No-App (tradicional); persistir average_income de Ábaco (hoy se calcula y se descarta) y cablearlo. (3) CALCULADORA ÚNICA en backend (hoy quemada y DUPLICADA en front LenderCardContent/useLenderSelection): renting (tarifa PMT 24m /30*7 × factor) y RTO (valor a financiar con cuota inicial editable + anualidad semanal 52/78/104). (4) VIABILIDAD R1–R8 por CONFIG en el motor de reglas que Motai HOY SALTEA (DatacreditoQueryByAllied::userViability + RiskCentralValidationService + ProfilingRulesService): 2 referencias, Datacrédito consultado, score≥400, canon $150k–$300k, cuota≤25% ing.semanal, deuda≤40% ing.mensual, endeudamiento<50%. (5) DECISIÓN por INGRESO (PRD): ≥$3M directa / <$3M codeudor — la FUENTE no cambia la decisión (App=No-App). (6) CODEUDOR = pieza NUEVA (modelo + formulario + gate score>650), solo si ingreso<$3M. (7) PEP (sin historial local): identidad + Datacrédito no consultables → DECISIÓN DE NEGOCIO ABIERTA (validación manual / exención de política / garantía). El flujo termina en la PANTALLA DEL ASESOR (aprobar / validar codeudor / rechazar); firma/desembolso/cobranza (PromissoryNote, LoanAuthorizationService Estado 11, servicing motai/update-status) son POST-APROBACIÓN, FUERA del alcance del target. Plan técnico: docs/mejoras/DES-MOTAIZACION.md (censo B1-B18/F1-F17 + 8 PRs dual-read) y docs/mejoras/MOTAI-V2-MAPEO.md (mapeo pieza-del-target → archivos).
+<!-- Esta tarea trabaja sobre el flujo Motai. El "cómo funciona Motai v1" NO se repite acá: vive en el flujo padre. Acá va el TARGET, lo ejecutado, la bitácora y los pendientes. -->
 
-## Lo que se hizo (ramas `feature/motai-v2`, 2026-07-15 → 17)
+## Objetivo
+Llevar Motai v1 (ver el nodo padre **Motai**) al deber-ser esquematizado en `playground/examples/motai.html` (PRD MVP2 + análisis de brechas). El target (7 piezas):
+1. **CATEGORÍA DE PRODUCTO** — los productos dejan de ser 'modos' del comercio y pasan a ser LENDERS CreditopX por categoría (crédito / arrendamiento / arrendamiento-con-compra) elegidos en el marketplace; muere el disparador dual `isMotaiRenting` / `MOTAI_LENDER_IDS[158]` y la pantalla `merchant-mode`.
+2. **INGRESOS por CASCADA** de fuentes (AgilData→Mareigua→TusDatos→Ábaco→Manual, 1ª que responde) → perfil App (Ábaco) / No-App (tradicional); persistir `average_income` de Ábaco (hoy se calcula y se descarta) y cablearlo.
+3. **CALCULADORA ÚNICA** en backend (hoy quemada y DUPLICADA en front `LenderCardContent`/`useLenderSelection`): renting (tarifa PMT 24m /30*7 × factor) y RTO (valor a financiar con cuota inicial editable + anualidad semanal 52/78/104).
+4. **VIABILIDAD R1–R8** por CONFIG en el motor de reglas que Motai HOY SALTEA (`DatacreditoQueryByAllied::userViability` + `RiskCentralValidationService` + `ProfilingRulesService`): 2 referencias, Datacrédito consultado, score≥400, canon $150k–$300k, cuota≤25% ing.semanal, deuda≤40% ing.mensual, endeudamiento<50%.
+5. **DECISIÓN por INGRESO** (PRD): ≥$3M directa / <$3M codeudor — la FUENTE no cambia la decisión (App=No-App).
+6. **CODEUDOR** = pieza NUEVA (modelo + formulario + gate score>650), solo si ingreso<$3M.
+7. **PEP** (sin historial local): identidad + Datacrédito no consultables → DECISIÓN DE NEGOCIO ABIERTA (validación manual / exención de política / garantía).
 
-Backend PR → **develop** (retargeteado; nació de staging, ver Retargeteo) · Frontend PR → **staging**. Detalle completo: `playground/docs/chages/MOTAI-V2-MAPA-DE-CAMBIOS.md`.
+El flujo termina en la **PANTALLA DEL ASESOR** (aprobar / validar codeudor / rechazar); firma/desembolso/cobranza (`PromissoryNote`, `LoanAuthorizationService` Estado 11, servicing `motai/update-status`) son POST-APROBACIÓN, **fuera del alcance** del target.
+
+## Lo que se hizo
+<!-- por frente: QUÉ · POR QUÉ · dónde vive · CÓMO AJUSTAR -->
 
 ### 1 · Des-hardcode de Motai (front + back)
 Eliminados end-to-end `isMotaiRenting` / `merchant_mode` / `MOTAI_LENDER_IDS` / id 158 como lógica (0 referencias por grep). El comportamiento pasó a config: `lenders.product` (credit|renting|rto) decide la card y los skips; `lenders_by_allied_branches.document_types` habilita PEP por sucursal; el salto de buró es el bypass por documento PEP (ya existía). **Ajustar** = editar columnas, no código.
@@ -24,15 +38,19 @@ Tabla nueva: `allied_id` + `type` (terms_and_conditions|data_policy|…) + FK a 
 ### 6 · Recálculo de monto en /lenders (endpoint liviano)
 `GET lenders-v2/{ur}/recalculate?amount=` corre SOLO FormulaCalculator (~0.15s vs ~0.67s el listado) — la elegibilidad y el cupo del pre-aprobado son del USUARIO (amount-independientes), así que al cambiar el monto NO se re-corren pre-aprobados. Front: debounce 450ms → `recalcFetcher.load('/merchant/…/lenders/recalculate')` → merge del `calculated` en las cards. Monto STATELESS (no se persiste ni va a la URL). Borde conocido: lenders con monto mínimo (welli/meddipay/prami/bancolombia-consumo) no se re-consultan solos al cruzar el mínimo — botón "reintentar" por card (gateado por `requestedAmount >= minimumAmount`).
 
-## Retargeteo (tener presente)
-La rama de **legacy** nació de staging con PR → staging; por pedido del líder se retargeteó a **develop** → conflictos resueltos con merge de develop (`44eb3c02`). Consecuencia: el diff del PR vs develop arrastra la divergencia staging↔develop (~52 archivos) — no todo es nuestro. Frontend NO se retargeteó (sigue → staging, limpio). Fixes que entraron por el merge (bugs pre-existentes de develop, rompían local): `$hasCredifamilia` indefinido (098322a8, también vive en develop → avisar) y ProfilerML 500 sin H2O_API_HOST (4022b6c9).
+## Bitácora
+- **2026-07-15** — Arranque de la des-motaización sobre `feature/motai-v2` (nacida de staging). Censo re-verificado B1-B18/F1-F17 en `docs/mejoras/DES-MOTAIZACION.md`.
+- **2026-07-17** — **Retargeteo del PR de legacy a `develop`** (por pedido del líder; nació de staging). Conflictos resueltos con merge de develop (`44eb3c02`). Consecuencia: el diff del PR vs develop arrastra la divergencia staging↔develop (~52 archivos) — no todo es nuestro. **Frontend NO se retargeteó** (sigue →staging, limpio). Fixes que entraron por el merge (bugs pre-existentes de develop que rompían local): `$hasCredifamilia` indefinido (`098322a8`, **también vive en develop → avisar al equipo**) y ProfilerML 500 sin `H2O_API_HOST` (`4022b6c9`).
+- **2026-07-17** — Ábaco: se removió el flag `lenders.abaco` (lo define otro equipo). Endpoint check-abaco-requirement conservado como seam.
 
 ## Pendientes
-1. Migración en staging/prod (por pipeline); sin ella Motai se comporta como credit.
-2. Calculator de 158 con plans/payment (hoy solo amount) + backfills idempotentes.
-3. RTO: seed terms 52/78/104, card propia, fórmula VF (PRD no reversa limpio).
-4. TyC: docs 13/18 hardcodeados + validar entrega por entidad con legal.
-5. Drop físico allied_modes/user_request_modes · PHP≥8.4 en CI · rename rutas motai/* · CRUD admin de product/calculator/documents.
+- [ ] Migración en staging/prod (por pipeline); sin ella Motai se comporta como `credit`.
+- [ ] Calculator de 158 con plans/payment (hoy solo `amount`) + backfills idempotentes.
+- [ ] RTO: seed terms 52/78/104, card propia, fórmula VF (el PRD no reversa limpio).
+- [ ] TyC: docs 13/18 hardcodeados + validar entrega por entidad con legal.
+- [ ] Drop físico `allied_modes`/`user_request_modes` · PHP≥8.4 en CI · rename rutas `motai/*` · CRUD admin de product/calculator/documents.
 
-## Jira
-CORE-265 (flujo unificado) · CORE-266 (calculadora) · CORE-267 (TyC) · CORE-268 (recálculo de monto) — en 🧪 En pruebas, sprint CORE Sprint 7.
+## Enlaces
+- **Jira:** CORE-265 (flujo unificado) · CORE-266 (calculadora) · CORE-267 (TyC) · CORE-268 (recálculo de monto) — sprint CORE Sprint 7.
+- **Docs:** cambios consolidados `docs/chages/MOTAI-V2-MAPA-DE-CAMBIOS.md` · plan `docs/mejoras/DES-MOTAIZACION.md` (censo + 8 PRs dual-read) · mapeo `docs/mejoras/MOTAI-V2-MAPEO.md`.
+- **Flujo padre:** nodo **Motai** (v1).

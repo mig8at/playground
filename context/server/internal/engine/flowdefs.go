@@ -204,3 +204,58 @@ func (e *Engine) loadBaselines() map[string]map[string]string {
 
 // FlowsDir es la carpeta de definiciones editables (para logs).
 func (e *Engine) FlowsDir() string { return e.flowsDir }
+
+// docTemplatesDir es hermano de flowsDir (server/data/doc-templates).
+func (e *Engine) docTemplatesDir() string { return filepath.Join(filepath.Dir(e.flowsDir), "doc-templates") }
+
+// comboDepth = profundidad del workspace en el árbol (raíz=0), subiendo por parents.
+func (e *Engine) comboDepth(id string) int {
+	depth, cur := 0, id
+	seen := map[string]bool{}
+	for cur != "" && !seen[cur] {
+		seen[cur] = true
+		c, ok := e.Combination(cur)
+		if !ok || c.Parent == "" {
+			break
+		}
+		depth++
+		cur = c.Parent
+	}
+	return depth
+}
+
+// roleForDepth mapea profundidad → rol (y nombre de plantilla): 0 raíz, 1 flujo, 2+ tarea.
+func roleForDepth(d int) string {
+	switch {
+	case d == 0:
+		return "raiz"
+	case d == 1:
+		return "flujo"
+	default:
+		return "tarea"
+	}
+}
+
+// ScaffoldFlowDoc siembra flows/<id>/{map.json (vacío), doc.md (plantilla del rol)}
+// si el flujo aún NO existe. No pisa nada existente; silencioso si falta la plantilla.
+// Se llama SIN el lock del engine (usa Combination, que lockea).
+func (e *Engine) ScaffoldFlowDoc(id, name string) {
+	dir := filepath.Join(e.flowsDir, id)
+	if _, err := os.Stat(filepath.Join(dir, "map.json")); err == nil {
+		return // ya tiene flujo (carpeta)
+	}
+	if _, err := os.Stat(filepath.Join(e.flowsDir, id+".json")); err == nil {
+		return // layout legado plano
+	}
+	role := roleForDepth(e.comboDepth(id))
+	tmpl, err := os.ReadFile(filepath.Join(e.docTemplatesDir(), role+".md"))
+	if err != nil {
+		return
+	}
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return
+	}
+	doc := strings.Replace(string(tmpl), "<Nombre>", name, 1)
+	_ = writeJSON(filepath.Join(dir, "map.json"), FlowDef{Name: name, Combination: id, Group: id, Kind: "channel", Files: []string{}})
+	_ = os.WriteFile(filepath.Join(dir, "doc.md"), []byte(doc), 0o644)
+}
