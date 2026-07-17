@@ -81,7 +81,7 @@ function nodeData(c, depth) {
   const branchChips = Object.values(byTarget).map((g) => ({ target: g.target, aligned: g.aligned, tip: g.repos.join('\n') }))
   return {
     id: c.id, name: c.name, depth, isChild: !!c.parent,
-    role: roleOf(depth), roleLabel: ROLE_LABEL[roleOf(depth)], roleTip: ROLE_TIP[roleOf(depth)], canDelete: depth >= 2,
+    role: roleOf(depth), roleLabel: ROLE_LABEL[roleOf(depth)], roleTip: ROLE_TIP[roleOf(depth)], canDelete: depth >= 1,
     selected: props.selected === c.id,
     aligning: props.aligning === c.id,
     isCopied: props.copiedKey === c.id,
