@@ -11,6 +11,22 @@
 
 ---
 
+## 0. Resumen ejecutivo (TL;DR)
+
+> **En una frase:** hoy CreditOp **se adapta a cada comercio** (cada caso está "cosido" dentro del código); el objetivo es **un modelo único que se configura**, al que los comercios se adaptan.
+
+**El problema** — cada comercio nuevo (Motai, Alta, …) se resuelve con condicionales quemados que viajan por todo el flujo: no escala (tocás código en varios lugares por comercio), reglas duplicadas (~37.000 copias por sucursal, ~5% ya derivada), todo disperso (documentos/PEP/calculadora/"modo" quemados y repartidos FE+BE, la fórmula incluso duplicada), y producto y decisión mezclados en una sola bandera. **Raíz:** no hay estándar, hay un traje a medida por comercio.
+
+**Cómo lo resolvemos** — un modelo unificado con responsabilidades separadas, en dos movimientos: (1) **Unificar** — los productos (compra/renting/rent-to-own) son entradas de catálogo, no un `if`; documentos, cálculo y reglas pasan a config → sumar un comercio = agregar una fila. (2) **Separar responsabilidades** — el *producto* (qué se contrata) aparte del *underwriting/decisión* (cómo se aprueba); la política vive en niveles con herencia (base → producto → acuerdo): **se hereda, no se copia**; el administrador decide con la recomendación del motor.
+
+**Cómo se llega** — por etapas, sin reescribir: extendiendo los patrones que ya están bien hechos (config por columna, catálogo de entidades). Ya prototipado y demostrado en `playground/flow` (catálogo, niveles, herencia con override borrable).
+
+**El resultado** — comercio nuevo = una fila · cero deriva de reglas · producto y riesgo desacoplados · una aplicación ordenada que escala.
+
+*(El resto del documento es el detalle y la evidencia con `archivo:línea`.)*
+
+---
+
 ## 1. Las tres piezas, en una foto
 
 | Documento | Qué aporta | Horizonte | Postura |
@@ -305,7 +321,7 @@ clase base `Integration`. El camino es **extender esos patrones** (config + here
 ### Documentos relacionados
 - [CREDITOP.md](../CREDITOP.md) — modelo de negocio, los 4 ejes, los dos sombreros, la tesis de fondo (§8).
 - [MOTAI-PLAN-EVOLUCION.md](../mejoras/MOTAI-PLAN-EVOLUCION.md) — plan escalonado E0–E4 y §10 (productos como lenders CreditopX).
-- [MODELO-RENTING-PROPUESTA.md](../mejoras/MODELO-RENTING-PROPUESTA.md) — versión previa (negocio) del modelo de renting.
+- [DES-MOTAIZACION-CONFLUENCE.md](../mejoras/DES-MOTAIZACION-CONFLUENCE.md) — versión negocio (Confluence) del modelo de renting + plan de ejecución.
 - [NOMENCLATURA-NEGOCIO.md](../negocio/NOMENCLATURA-NEGOCIO.md) — glosario canónico (14 choques de nombre).
 - [PLAN-ACCION-SIMPLIFICACION.md](../mejoras/PLAN-ACCION-SIMPLIFICACION.md) — el deber-ser general (flujo único paramétrico, manifiestos).
 - [HALLAZGO-GESTION-REGLAS-POR-SUCURSAL.md](../codigo/HALLAZGO-GESTION-REGLAS-POR-SUCURSAL.md) — la copia de reglas por sucursal y su deriva.

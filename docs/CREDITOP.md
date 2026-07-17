@@ -340,21 +340,19 @@ La carpeta separa **qué es cada documento** para no mezclar realidad con propue
 | [PLAN-ACCION-SIMPLIFICACION.md](./mejoras/PLAN-ACCION-SIMPLIFICACION.md) | **Plan deber-ser general**: flujo único paramétrico, onboarding ADO-first, manifiestos declarativos, poda y redundancias (R1–R11), fases P0–P3 y KPIs. |
 | [MOTAI-PLAN-EVOLUCION.md](./mejoras/MOTAI-PLAN-EVOLUCION.md) | Plan escalonado Motai→renting genérico (E0–E4); §10 = diseño vigente: productos como **lenders CreditopX por categoría** (CTPX-BUY/RENT/RTO), IDs de reglas (deprecar R1–R8), veredicto prototipo-vs-código. Prototipos en `../merchant-config/`. |
 | [DES-MOTAIZACION.md](./mejoras/DES-MOTAIZACION.md) | **Ejecución del des-hardcodeo** (pedido 2026-07-12): censo de hardcodes re-verificado por repo (validado contra `staging`), PRD MVP2 de Manuela traducido a configuración (reglas estables, política por perfil, calculadora — incl. hallazgo C10: la columna "semanas" del simulador RTO está mal), y orden de PRs con dual-read para que Motai nunca deje de funcionar. |
-| [DES-MOTAIZACION-CONFLUENCE.md](./mejoras/DES-MOTAIZACION-CONFLUENCE.md) | **Versión Confluence** del anterior, para compartir con **Manuela (producto) y Jose (brechas)**: censo digerible, cobertura del PRD, el hallazgo C10 destacado, plan por fases, cierre de las 11 brechas de Jose, y tabla de decisiones pendientes con dueño. Estilo negocio+tec (notas 🔧 Técnico). |
-| [MODELO-RENTING-PROPUESTA.md](./mejoras/MODELO-RENTING-PROPUESTA.md) | **Doc para Confluence** (negocio+tec, simple): hoy vs deber-ser del renting, cuellos de botella (el "modo" primero), camino a un flujo reutilizable. |
+| [DES-MOTAIZACION-CONFLUENCE.md](./mejoras/DES-MOTAIZACION-CONFLUENCE.md) | **Versión Confluence** del anterior, para compartir con **Manuela (producto) y Jose (brechas)**: censo digerible, cobertura del PRD, el hallazgo C10 destacado, la tabla de los 3 productos del catálogo, plan por fases, cierre de las 11 brechas de Jose, y tabla de decisiones pendientes con dueño. Estilo negocio+tec (notas 🔧 Técnico). *(Absorbió la versión conceptual previa MODELO-RENTING-PROPUESTA.)* |
 | [MOTAI-V2-TIPOS-DOCUMENTO-POR-SUCURSAL.md](./mejoras/MOTAI-V2-TIPOS-DOCUMENTO-POR-SUCURSAL.md) | **Spec cerrado de 1 pieza** (des-hardcode del PEP): `document_types` por sucursal en `lenders_by_allied_branches` → el backend resuelve `allowed_document_types` (unión, CC de piso) en `getPersonalInfoConfig` y el front deja de quemar `if merchantMode==='motai-renting'`. Contrato API, cambios front/back, costo (+índice pendiente en `allied_branch_id`). |
 | [MAPA-ATRIBUTOS-POR-NIVEL.md](./mejoras/MAPA-ATRIBUTOS-POR-NIVEL.md) | **Reubicación de config**: cada atributo (economía/reglas/flags) contra los 4 niveles (entidad/comercio/sucursal/categoría) — dónde vive hoy vs dónde debería, qué se pisa, qué es fantasma, qué decisión está quemada. Antes→después + prioridad P0-P3. |
 
 ### 📁 chages/ — registro de cambios ejecutados
 | Doc | Dueño de |
 |---|---|
-| [MOTAI-V2-DES-MOTAIZACION-EJECUTADA.md](./chages/MOTAI-V2-DES-MOTAIZACION-EJECUTADA.md) | **Des-motaización ejecutada (2026-07-15, rama `feature/motai-v2`)**: eliminación verificada de la página de modos + `isMotaiRenting`/`merchant_mode`/`MOTAI_LENDER_IDS` (0 refs front+back); lo especial pasó a config (`product`/`calculator`/`abaco`/`document_types`); flujo Motai = flujo estándar. Incluye veredicto del barrido, migración única y pendientes. ⚠ Actualiza el estado descrito en [codigo/MOTAI-FLUJO-ANALISIS.md](./codigo/MOTAI-FLUJO-ANALISIS.md). |
+| [MOTAI-V2-MAPA-DE-CAMBIOS.md](./chages/MOTAI-V2-MAPA-DE-CAMBIOS.md) | **Mapa de cambios vigente de `feature/motai-v2`**: todo lo que se cambió (des-hardcode Motai, muerte de los modos, calculadora en BD, TyC por comercio `allied_documents`, recálculo liviano de monto, remoción del flag Ábaco), por qué, y dónde tocar para ajustar. Incluye el barrido grep de completitud y el retargeteo de PRs. ⚠ Actualiza el estado descrito en [codigo/MOTAI-FLUJO-ANALISIS.md](./codigo/MOTAI-FLUJO-ANALISIS.md). |
 
 ### 📁 vision/ — el modelo estructural a futuro
 | Doc | Dueño de |
 |---|---|
-| [RESUMEN-PROBLEMA-Y-SOLUCION.md](./vision/RESUMEN-PROBLEMA-Y-SOLUCION.md) | **One-pager**: el problema (CreditOp se adapta a cada comercio) y la solución (unificar + separar responsabilidades), al grano. |
-| [UNIFICACION-Y-RESPONSABILIDADES.md](./vision/UNIFICACION-Y-RESPONSABILIDADES.md) | **Documento puente (negocio+tec)**: PRD de Manuela (el *qué*) × brechas de José (el *cómo-mínimo transitorio*) × el modelo estructural; cómo el modelo cubre el PRD y cierra las 11 brechas; **Apéndice — Fuente** con `archivo:línea` de cada falla. |
+| [UNIFICACION-Y-RESPONSABILIDADES.md](./vision/UNIFICACION-Y-RESPONSABILIDADES.md) | **Documento puente (negocio+tec)**: arranca con un **§0 Resumen ejecutivo** (el one-pager: el problema = CreditOp se adapta a cada comercio; la solución = unificar + separar responsabilidades); luego PRD de Manuela (el *qué*) × brechas de José (el *cómo-mínimo transitorio*) × el modelo estructural; cómo el modelo cubre el PRD y cierra las 11 brechas; **Apéndice — Fuente** con `archivo:línea` de cada falla. |
 
 ### 📁 operacion/ — cómo trabajar en este workspace
 | Doc | Dueño de |
@@ -365,6 +363,6 @@ La carpeta separa **qué es cada documento** para no mezclar realidad con propue
 | [hallazgos-backend.md](./operacion/hallazgos-backend.md) | Bitácora de bugs/guards/workarounds descubiertos validando E2E. |
 
 ### 📁 _archivo/
-Hallazgos cerrados de referencia histórica (ej. `HALLAZGOS-CUOTA-MEDDIPAY.md`). Los dumps de schema (`schema-remoto.json/.md`) y `queries-*.sql` se **regeneran** con el probe del backend-e2e; no se versionan como docs.
+Hallazgos cerrados de referencia histórica (los resueltos se podan; quedan en el historial de git). Los dumps de schema (`schema-remoto.json/.md`) y `queries-*.sql` se **regeneran** con el probe del backend-e2e; no se versionan como docs.
 
 > **Prerequisito operativo:** los harness dependen de **bypasses** (OTP, identidad, forms, PDF) y **testids** aplicados al working tree (`legacy-backend`, `frontend-monorepo`) desde `git stash`. Si fallan por OTP/identidad/forms o selectores, verificá que esos cambios sigan aplicados (ver `../backend-e2e/VALIDATION.md` y `../frontend-e2e/VALIDATION.md`).

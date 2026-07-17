@@ -1,7 +1,7 @@
 # Motai v2 — mapa de cambios (qué hicimos, por qué, y cómo ajustar)
 
 > **Mapa consolidado y vigente** · actualizado 2026-07-17 · ramas `feature/motai-v2` en `legacy-backend` + `frontend-monorepo`.
-> Objetivo del doc: dejar claro **todo lo que se cambió, por qué**, y **dónde tocar si hay que ajustar algo**. El registro puntual de la des-motaización inicial (Jul-15) vive en [MOTAI-V2-DES-MOTAIZACION-EJECUTADA.md](MOTAI-V2-DES-MOTAIZACION-EJECUTADA.md); este doc lo **supera** e incorpora lo que vino después (TyC por comercio, recálculo de monto, y la remoción del flag Ábaco).
+> Objetivo del doc: dejar claro **todo lo que se cambió, por qué**, y **dónde tocar si hay que ajustar algo**. Es el registro VIGENTE y completo (el registro puntual inicial del Jul-15 fue absorbido acá — su barrido grep de completitud quedó en el nodo `motai-v2` del árbol de context).
 
 ---
 
@@ -194,7 +194,7 @@ La rama `feature/motai-v2` de **legacy** se creó **sobre staging**, se subió y
 
 ## 11. Relación con otros docs
 
-- Registro puntual de la des-motaización inicial (Jul-15): [MOTAI-V2-DES-MOTAIZACION-EJECUTADA.md](MOTAI-V2-DES-MOTAIZACION-EJECUTADA.md) — ⚠ describe TyC como "→ default" y `abaco` como columna; **este mapa lo actualiza** (TyC pasó a `allied_documents`; `abaco` fue removido).
+- El registro puntual inicial (Jul-15) fue **absorbido en este mapa** (describía TyC como "→ default" y `abaco` como columna, ya desactualizado: TyC pasó a `allied_documents`; `abaco` fue removido). Su barrido grep de completitud vive en el nodo `motai-v2` del árbol de context.
 - Censo original de hardcodes: [../mejoras/DES-MOTAIZACION.md](../mejoras/DES-MOTAIZACION.md).
 - Plan y decisiones: [../mejoras/MOTAI-PLAN-EVOLUCION.md](../mejoras/MOTAI-PLAN-EVOLUCION.md).
 - Realidad previa del flujo Motai: [../codigo/MOTAI-FLUJO-ANALISIS.md](../codigo/MOTAI-FLUJO-ANALISIS.md) (⚠ estado ANTES de esta rama).

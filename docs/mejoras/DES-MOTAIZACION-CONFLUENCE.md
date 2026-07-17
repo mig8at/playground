@@ -77,6 +77,16 @@ resuelve casi todos de una. De hecho el mismo anti-patrón aparece con otros com
 productos son un atributo de la entidad en el catálogo, las reglas viven por nivel con herencia, y el
 ciclo de vida se ramifica por tipo. Sirve para alinear sin leer código.
 
+**Los 3 productos del catálogo** (lo que era "modo" pasa a ser una opción con su comportamiento):
+
+| Producto | Qué es | Validación de ingresos | Documentos |
+|---|---|---|---|
+| **Motai X** | Préstamo normal (crédito) | Buró + ingreso formal | Contrato + pagaré |
+| **Renting** | Arrienda y devuelve el bien | Ingresos por apps (Ábaco) | Contrato + pagaré |
+| **Renting con compra** (RTO) | Arrienda y al final se queda con el bien | Ingresos por apps (Ábaco) | + garantía mobiliaria |
+
+Dos principios: **datos base antes / datos extra después** (lo mínimo para mostrar opciones primero; lo pesado —Ábaco— tras elegir producto, así no se le pide a quien no lo necesita); y **cada producto trae su comportamiento** (renting y RTO comparten evaluación, solo cambian documentos; Motai X usa el camino estándar).
+
 ---
 
 ## 4. Cómo cubre el PRD (MVP2 de Manuela)
@@ -188,7 +198,6 @@ El análisis de brechas de Jose (Alta vs Motai Renting v1) queda cubierto así:
 |---|---|
 | [DES-MOTAIZACION.md](DES-MOTAIZACION.md) | El censo técnico completo (cada archivo:línea) + el plan de PRs detallado |
 | [MOTAI-PLAN-EVOLUCION.md](MOTAI-PLAN-EVOLUCION.md) | El plan maestro por etapas E0–E4 y el diseño de arquitectura |
-| [MODELO-RENTING-PROPUESTA.md](MODELO-RENTING-PROPUESTA.md) | La versión conceptual (hoy vs deber-ser del renting) |
 | Prototipos `playground/merchant-config/` | La ficha del comercio + la consola de decisión del administrador |
 | Simulador `playground/flow` | El destino funcionando: productos como catálogo, reglas por nivel, ciclo de vida |
 

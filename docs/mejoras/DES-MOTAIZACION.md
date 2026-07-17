@@ -10,7 +10,7 @@
 > - [MOTAI-PLAN-EVOLUCION.md](MOTAI-PLAN-EVOLUCION.md) — el plan maestro E0–E4 y el pivot §10
 >   (productos = lenders CreditopX por categoría). Este doc **ejecuta su Etapa 1** con el detalle
 >   fino y el censo al día.
-> - [MODELO-RENTING-PROPUESTA.md](MODELO-RENTING-PROPUESTA.md) — la versión para negocio.
+> - [DES-MOTAIZACION-CONFLUENCE.md](DES-MOTAIZACION-CONFLUENCE.md) — la versión para negocio (Confluence).
 > - `motai-manu.pdf` (Manuela Romero, Dir. Producto, 23/05/2026) — el PRD MVP2, digerido acá en §4.
 >
 > **Verificación:** anclas de código re-validadas el **2026-07-12** con barrido independiente sobre

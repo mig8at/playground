@@ -25,7 +25,7 @@
 | **N2** | **Sucursal** | `lenders_by_allied_branches` (+ copias de reglas) | ¿Qué **varía en esta sucursal**? (ruteo, orden, visibilidad) | por `allied_branch_id × lender_id` |
 | **N3** | **Categoría / perfilamiento** | `lender_users_categories`, `lender_users_category_rules` | ¿Qué condiciones según el **perfil de riesgo** del cliente? (enganche/cupo/plazo rt=2) | por `lender_id × categoría` |
 
-> **La tesis** (ver [`../vision/RESUMEN-PROBLEMA-Y-SOLUCION.md`](../vision/RESUMEN-PROBLEMA-Y-SOLUCION.md)):
+> **La tesis** (ver [`../vision/UNIFICACION-Y-RESPONSABILIDADES.md`](../vision/UNIFICACION-Y-RESPONSABILIDADES.md) §0):
 > el modelo de 4 niveles es correcto; el problema es que **atributos viven en el nivel equivocado,
 > se copian en vez de heredar, se pisan entre niveles, o son decisiones quemadas en código** en lugar
 > de columnas. Este mapa los enumera.
