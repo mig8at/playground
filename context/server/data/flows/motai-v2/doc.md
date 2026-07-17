@@ -38,6 +38,20 @@ Tabla nueva: `allied_id` + `type` (terms_and_conditions|data_policy|…) + FK a 
 ### 6 · Recálculo de monto en /lenders (endpoint liviano)
 `GET lenders-v2/{ur}/recalculate?amount=` corre SOLO FormulaCalculator (~0.15s vs ~0.67s el listado) — la elegibilidad y el cupo del pre-aprobado son del USUARIO (amount-independientes), así que al cambiar el monto NO se re-corren pre-aprobados. Front: debounce 450ms → `recalcFetcher.load('/merchant/…/lenders/recalculate')` → merge del `calculated` en las cards. Monto STATELESS (no se persiste ni va a la URL). Borde conocido: lenders con monto mínimo (welli/meddipay/prami/bancolombia-consumo) no se re-consultan solos al cruzar el mínimo — botón "reintentar" por card (gateado por `requestedAmount >= minimumAmount`).
 
+## Cómo probar / validar
+**Barrido grep de completitud** (2026-07-15, ambos repos) — prueba de que la des-motaización no dejó lógica quemada:
+
+| Búsqueda | frontend-monorepo | legacy-backend |
+|---|---|---|
+| `isMotaiRenting` / `is_motai_renting` | **0** | **0** |
+| `merchantMode` / `merchant-mode` / `merchant_mode` | **0** | **0** |
+| `MOTAI_LENDER_IDS` | **0** (constante+export borrados) | n/a |
+| ruta de modos (`merchant-mode.tsx`, `route("modes")`, `partner_modes`) | **0** | **0** |
+| `allied_modes` / `user_request_modes` (código) | n/a | **0** (solo 3 comentarios "deprecado"; tablas quedan en BD) |
+| id `158` como **lógica** | **0** | **0** |
+
+Lo que legítimamente queda con "motai"/"158" NO es lógica bypasseada: el `158` en la migración es **backfill de datos** (el id vive en config, no en `if`s); `field_id==158` en EAV es falso positivo; `MotaiValidationService`/rutas `/api/onboarding/motai/*` son **nombres** de endpoints que consume el front (lógica interna ya genérica); el bypass PEP en `storePersonalInfo` es el mecanismo correcto (keyea por `document_type==='PEP'`). Prueba E2E del flujo pendiente (requiere la migración corrida) — ver Pendientes.
+
 ## Bitácora
 - **2026-07-15** — Arranque de la des-motaización sobre `feature/motai-v2` (nacida de staging). Censo re-verificado B1-B18/F1-F17 en `docs/mejoras/DES-MOTAIZACION.md`.
 - **2026-07-17** — **Retargeteo del PR de legacy a `develop`** (por pedido del líder; nació de staging). Conflictos resueltos con merge de develop (`44eb3c02`). Consecuencia: el diff del PR vs develop arrastra la divergencia staging↔develop (~52 archivos) — no todo es nuestro. **Frontend NO se retargeteó** (sigue →staging, limpio). Fixes que entraron por el merge (bugs pre-existentes de develop que rompían local): `$hasCredifamilia` indefinido (`098322a8`, **también vive en develop → avisar al equipo**) y ProfilerML 500 sin `H2O_API_HOST` (`4022b6c9`).
