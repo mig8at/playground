@@ -2,9 +2,11 @@
 import { ref, computed } from 'vue'
 import { VueFlow, Handle, Position, useVueFlow } from '@vue-flow/core'
 import { Background } from '@vue-flow/background'
+import { Controls } from '@vue-flow/controls'
 import { Network, Check, FileText, GitBranch, GitFork, X, Plus, AlertTriangle } from 'lucide-vue-next'
 import '@vue-flow/core/dist/style.css'
 import '@vue-flow/core/dist/theme-default.css'
+import '@vue-flow/controls/dist/style.css'
 
 // Árbol de WORKSPACES: cada nodo es una combinación de ramas (resumen + copy del
 // flujo). Desde un nodo se DERIVA un hijo: elegís qué repos van a la rama nueva
@@ -23,6 +25,9 @@ const props = defineProps({
 const emit = defineEmits(['derive', 'delete', 'select', 'copy', 'copy-text', 'show-doc'])
 
 const repoAliases = computed(() => props.repos.map((r) => r.alias))
+
+const ALIAS_SHORT = { application: 'app', 'frontend-monorepo': 'front', 'legacy-backend': 'legacy' }
+function shortAlias(a) { return ALIAS_SHORT[a] || a.split('-')[0] }
 
 function staleOf(flow) { if (!flow || !flow.has_base) return ''; return flow.changed ? 'stale' : 'fresh' }
 function alignClass(r) { return r.error ? (r.error.includes('sin commitear') ? 'warn' : 'err') : 'ok' }
@@ -44,7 +49,7 @@ const layout = computed(() => {
     nodes.push({ id: c.id, type: 'ws', position: { x: depth * COL_W, y: row * ROW_H }, data: nodeData(c, depth) })
     row++
     for (const ch of (childrenBy[c.id] || [])) {
-      edges.push({ id: c.id + '->' + ch.id, source: c.id, target: ch.id, type: 'smoothstep', animated: props.selected === ch.id, style: { stroke: '#4c9aff', strokeWidth: 1.6 } })
+      edges.push({ id: c.id + '->' + ch.id, source: c.id, target: ch.id, type: 'smoothstep', animated: props.selected === ch.id, style: { stroke: '#bc8cff', strokeWidth: 2 } })
       place(ch, depth + 1)
     }
   }
@@ -61,14 +66,16 @@ function nodeData(c, depth) {
     aligning: props.aligning === c.id,
     isCopied: props.copiedKey === c.id,
     aligned: c.status?.aligned,
-    branches: (c.status?.repos || []).map((r) => ({ alias: r.alias, current: r.current, target: r.target, state: r.state })),
+    branches: (c.status?.repos || []).map((r) => ({
+      alias: shortAlias(r.alias), full: r.alias, current: r.current, target: r.target,
+      state: r.state, drift: r.state === 'off' || r.state === 'moved',
+    })),
     files: flow?.files || 0,
-    repoChips: (flow?.repos || []).map((r) => ({ repo: r, files: rf[r] || 0 })),
+    repoChips: (flow?.repos || []).map((r) => ({ short: shortAlias(r), files: rf[r] || 0 })),
     stale: staleOf(flow),
     changed: flow?.changed || 0,
     hasFlow: !!flow,
-    doc: flow?.desc || '', // doc.md del flujo (documentación viva) — botón "doc" la copia sola
-
+    doc: flow?.desc || '', // doc.md del flujo (documentación viva)
     alignResults: props.selected === c.id ? props.alignResults : [],
   }
 }
@@ -134,54 +141,69 @@ onNodesInitialized(() => refit())
       <VueFlow :nodes="layout.nodes" :edges="layout.edges" :nodes-draggable="false"
                :min-zoom="0.25" :max-zoom="1.4" :default-viewport="{ x: 40, y: 40, zoom: 0.75 }"
                :zoom-on-scroll="false" :pan-on-scroll="false" :prevent-scrolling="false">
-        <Background pattern-color="#2a3340" :gap="18" />
+        <Background pattern-color="#232b36" :gap="26" :size="1" />
+        <Controls position="bottom-left" :show-interactive="false" />
         <template #node-ws="{ data }">
           <div class="wsnode" :class="{ sel: data.selected, child: data.isChild }" @click="emit('select', data.id)">
-            <span v-if="data.stale" class="wsdot" :class="data.stale"
-                  :title="data.stale === 'stale' ? data.changed + ' archivos cambiaron desde el análisis' : 'al día'"></span>
             <div class="wshead">
               <GitFork v-if="data.isChild" :size="13" class="wsfork" />
-              <span class="wsname">{{ data.name }}</span>
-              <span class="wsbadge" :class="data.aligned ? 'ok' : 'drift'">{{ data.aligning ? '⟳' : (data.aligned ? '✓' : '⚠') }}</span>
+              <span class="wsname" :title="data.name">{{ data.name }}</span>
+              <span class="wsbadge" :class="data.aligning ? 'busy' : (data.aligned ? 'ok' : 'drift')"
+                    :title="data.aligning ? 'alineando…' : (data.aligned ? 'alineado' : 'desalineado (drift) — seleccioná para alinear')">
+                {{ data.aligning ? '⟳' : (data.aligned ? '✓' : '⚠') }}
+              </span>
               <button class="wsx" title="borrar" @click.stop="openDelete(data.id)"><X :size="13" /></button>
             </div>
 
             <div class="wsbranches">
-              <span v-for="b in data.branches" :key="b.alias" class="wsbr" :class="b.state">
-                <b>{{ b.alias }}</b><GitBranch :size="10" />{{ b.current || '—' }}<template v-if="b.state === 'off'"> →{{ b.target }}</template>
-              </span>
+              <div v-for="b in data.branches" :key="b.full" class="wsbr" :class="b.state">
+                <b :title="b.full">{{ b.alias }}</b>
+                <span v-if="b.drift" class="wsbr-val drift">
+                  <span class="wsbr-cur" :title="'actual: ' + b.current">{{ b.current || '—' }}</span>
+                  <span class="wsbr-arr">→</span>
+                  <span class="wsbr-tgt" :title="'objetivo: ' + b.target">{{ b.target }}</span>
+                </span>
+                <span v-else class="wsbr-val ok" :title="b.current"><GitBranch :size="10" />{{ b.current || '—' }}</span>
+              </div>
             </div>
+
+            <div class="wsdiv"></div>
 
             <div v-if="data.hasFlow" class="wsflow">
               <span class="wsfiles">{{ data.files }} archivos</span>
-              <span v-for="r in data.repoChips" :key="r.repo" class="wschip">{{ r.repo.split('-')[0] }} {{ r.files }}</span>
+              <span v-for="r in data.repoChips" :key="r.short" class="wsflow-repo">· {{ r.short }} {{ r.files }}</span>
+              <span v-if="data.stale === 'stale'" class="wsflow-stale" :title="data.changed + ' archivos cambiaron desde el análisis'">⚠ {{ data.changed }}</span>
             </div>
             <div v-else class="wsnoflow">sin flujo · hereda del padre al derivar</div>
 
-            <div v-if="data.aligning" class="wsalign loading">⟳ alineando (checkout + pull)…</div>
+            <div v-if="data.aligning" class="wsalign loading"><span class="wsspin">⟳</span> alineando (checkout + pull)…</div>
             <div v-else-if="data.alignResults.length" class="wsalign">
               <span v-for="r in data.alignResults" :key="r.alias" class="wsachip" :class="alignClass(r)"
-                    :title="r.error ? 'click: copiar comando manual' : ''"
+                    :title="r.error ? r.error + ' · click: copiar comando' : 'ok'"
                     @click.stop="r.error && emit('copy-text', r.manual, 'comando')">
-                <b>{{ r.alias.split('-')[0] }}</b><template v-if="r.error">✗</template><template v-else>✓</template>
+                <b>{{ shortAlias(r.alias) }}</b><template v-if="r.error">✗</template><template v-else>✓</template>
               </span>
             </div>
 
             <div class="wsbtns">
-              <button class="wscopy" :disabled="!data.hasFlow" title="copiar el mapa del flujo (árbol de archivos)"
+              <button class="wsbtn wsmap" :disabled="!data.hasFlow" title="copiar el mapa del flujo (árbol de archivos)"
                       @click.stop="emit('copy', { combo: data.id, label: data.name })">
-                <Check v-if="data.isCopied" :size="13" /><Network v-else :size="13" />
-                map
+                <Check v-if="data.isCopied" :size="13" /><Network v-else :size="13" /> map
               </button>
-              <button v-if="data.doc" class="wsdoc" title="ver la documentación del flujo (doc.md)"
+              <button v-if="data.doc" class="wsbtn wsdoc" title="ver la documentación del flujo (doc.md)"
                       @click.stop="emit('show-doc', { id: data.id, name: data.name, doc: data.doc })"><FileText :size="13" /> doc</button>
-              <button class="wsderive" title="derivar un hijo" @click.stop="openDerive(data.id)"><GitFork :size="13" /> derivar</button>
+              <button class="wsbtn wsderive" title="derivar un hijo" @click.stop="openDerive(data.id)"><GitFork :size="13" /> derivar</button>
             </div>
           </div>
           <Handle type="target" :position="Position.Left" />
           <Handle type="source" :position="Position.Right" />
         </template>
       </VueFlow>
+      <div class="ws-legend">
+        <span><i class="lg ok"></i> alineado</span>
+        <span><i class="lg drift"></i> drift</span>
+        <span><i class="lg new"></i> derivado</span>
+      </div>
     </div>
 
     <!-- modales (derivar / borrar) fuera del canvas -->
@@ -232,52 +254,73 @@ onNodesInitialized(() => refit())
 <style scoped>
 .ws { flex: 1; min-height: 0; display: flex; flex-direction: column; }
 .ws-empty { color: var(--muted); font-size: 13px; }
-.ws-canvas { flex: 1; min-height: 0; background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+.ws-canvas { position: relative; flex: 1; min-height: 0; background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
 
-.wsnode { position: relative; width: 296px; background: var(--panel2); border: 1px solid var(--border); border-left: 3px solid var(--accent); border-radius: 10px; padding: 11px 13px; cursor: pointer; transition: border-color .15s, box-shadow .15s; }
+.wsnode { position: relative; width: 300px; background: var(--panel2); border: 1px solid var(--border); border-left: 3px solid var(--accent); border-radius: 10px; padding: 11px 13px; cursor: pointer; transition: border-color .15s, box-shadow .15s; }
 .wsnode.child { border-left-color: var(--violet); }
 .wsnode.sel { box-shadow: 0 0 0 1px var(--accent), var(--shadow); border-color: var(--accent); }
 .wsnode:hover { border-color: var(--accent); }
-.wsdot { position: absolute; top: 10px; right: 30px; width: 8px; height: 8px; border-radius: 50%; }
-.wsdot.fresh { background: var(--green); }
-.wsdot.stale { background: var(--amber); }
-.wshead { display: flex; align-items: center; gap: 6px; margin-bottom: 8px; }
+
+.wshead { display: flex; align-items: center; gap: 6px; }
 .wsfork { color: var(--violet); flex: none; }
-.wsname { font-size: 14px; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.wsbadge { font-size: 11px; }
+.wsname { font-size: 15px; font-weight: 700; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1; }
+.wsbadge { font-size: 12px; flex: none; }
 .wsbadge.ok { color: var(--green); }
 .wsbadge.drift { color: var(--amber); }
-.wsx { margin-left: auto; background: none; border: 0; color: var(--muted); cursor: pointer; display: inline-flex; padding: 0; }
+.wsbadge.busy { color: var(--muted); }
+.wsx { flex: none; background: none; border: 0; color: var(--muted); cursor: pointer; display: inline-flex; padding: 0; opacity: 0; transition: opacity .12s, color .12s; }
+.wsnode:hover .wsx { opacity: 1; }
 .wsx:hover { color: var(--red); }
 
-.wsbranches { display: flex; flex-direction: column; gap: 3px; margin-bottom: 8px; }
-.wsbr { display: inline-flex; align-items: center; gap: 3px; font-size: 11px; font-family: var(--mono); color: var(--muted); }
-.wsbr b { color: var(--text); margin-right: 3px; font-weight: 600; }
-.wsbr.aligned { color: var(--green); }
-.wsbr.off, .wsbr.moved { color: var(--amber); }
+.wsdiv { height: 1px; background: var(--border); opacity: .55; margin: 9px 0; }
 
-.wsflow { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; margin-bottom: 8px; }
-.wsfiles { font-size: 11px; color: var(--text); font-weight: 600; }
-.wschip { font-size: 10px; padding: 1px 6px; border-radius: 4px; background: var(--chip); color: var(--muted); font-family: var(--mono); }
-.wsnoflow { font-size: 11px; color: var(--muted); font-style: italic; margin-bottom: 8px; }
+.wsbranches { display: grid; grid-template-columns: auto 1fr; gap: 3px 8px; align-items: center; margin-top: 9px; }
+.wsbr { display: contents; }
+.wsbr > b { font-family: var(--mono); font-size: 11px; font-weight: 600; color: var(--text); }
+.wsbr-val { display: inline-flex; align-items: center; gap: 4px; font-family: var(--mono); font-size: 11px; min-width: 0; }
+.wsbr-val.ok { color: var(--green); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wsbr-cur { color: var(--muted); text-decoration: line-through; overflow: hidden; text-overflow: ellipsis; max-width: 92px; flex: none; }
+.wsbr-arr { color: var(--muted); flex: none; }
+.wsbr-tgt { color: var(--amber); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
-.wsalign { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 8px; font-size: 11px; }
-.wsalign.loading { color: var(--amber); font-family: var(--mono); }
-.wsachip { font-family: var(--mono); font-size: 10px; padding: 1px 6px; border-radius: 4px; background: var(--bg); border: 1px solid var(--border); }
+.wsflow { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; font-size: 11px; font-family: var(--mono); color: var(--muted); }
+.wsfiles { color: var(--text); font-weight: 600; }
+.wsflow-repo { color: var(--muted); }
+.wsflow-stale { margin-left: auto; color: var(--amber); }
+.wsnoflow { font-size: 11px; color: var(--muted); font-style: italic; }
+
+.wsalign { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 9px; font-size: 11px; }
+.wsalign.loading { color: var(--amber); font-family: var(--mono); align-items: center; gap: 5px; }
+.wsspin { display: inline-block; animation: wsspin 1s linear infinite; }
+@keyframes wsspin { to { transform: rotate(360deg); } }
+.wsachip { font-family: var(--mono); font-size: 10px; padding: 1px 6px; border-radius: 4px; background: var(--bg); border: 1px solid var(--border); display: inline-flex; align-items: center; gap: 2px; }
 .wsachip.ok { color: var(--green); }
 .wsachip.warn { color: var(--amber); cursor: pointer; }
 .wsachip.err { color: var(--red); cursor: pointer; }
 
-.wsbtns { display: flex; gap: 6px; }
-.wscopy { flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 5px; background: var(--accent); color: #06101f; border: 0; border-radius: 6px; padding: 6px; font-weight: 600; font-size: 11px; cursor: pointer; }
-.wscopy:hover:not(:disabled) { filter: brightness(1.08); }
-.wscopy:disabled { opacity: .5; cursor: default; }
-.wsderive { display: inline-flex; align-items: center; gap: 4px; background: var(--chip); color: var(--text); border: 1px solid var(--border); border-radius: 6px; padding: 6px 10px; font-size: 11px; cursor: pointer; }
-.wsderive:hover { border-color: var(--violet); color: var(--violet); }
-.wsdoc { display: inline-flex; align-items: center; gap: 4px; background: var(--chip); color: var(--text); border: 1px solid var(--border); border-radius: 6px; padding: 6px 10px; font-size: 11px; cursor: pointer; }
+.wsbtns { display: flex; gap: 6px; margin-top: 11px; }
+.wsbtn { display: inline-flex; align-items: center; justify-content: center; gap: 5px; border-radius: 6px; padding: 6px 10px; font-size: 11px; font-weight: 600; cursor: pointer; border: 1px solid transparent; transition: filter .12s, border-color .12s, color .12s; }
+.wsmap { flex: 1; background: var(--accent); color: #06101f; }
+.wsmap:hover:not(:disabled) { filter: brightness(1.08); }
+.wsmap:disabled { opacity: .5; cursor: default; }
+.wsdoc { background: var(--chip); color: var(--text); border-color: var(--border); font-weight: 500; }
 .wsdoc:hover { border-color: var(--accent); color: var(--accent); }
+.wsderive { background: var(--chip); color: var(--text); border-color: var(--border); font-weight: 500; }
+.wsderive:hover { border-color: var(--violet); color: var(--violet); }
+
+/* leyenda flotante + controles del canvas */
+.ws-legend { position: absolute; bottom: 12px; right: 14px; display: flex; gap: 12px; background: rgba(22,27,34,.85); border: 1px solid var(--border); border-radius: 8px; padding: 6px 10px; font-size: 11px; color: var(--muted); backdrop-filter: blur(3px); }
+.ws-legend span { display: inline-flex; align-items: center; gap: 5px; }
+.ws-legend .lg { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+.ws-legend .lg.ok { background: var(--green); }
+.ws-legend .lg.drift { background: var(--amber); }
+.ws-legend .lg.new { background: var(--violet); }
 
 :deep(.vue-flow__handle) { opacity: 0; }
+:deep(.vue-flow__controls) { box-shadow: var(--shadow); border-radius: 8px; overflow: hidden; }
+:deep(.vue-flow__controls-button) { background: var(--panel2); border-bottom: 1px solid var(--border); color: var(--text); fill: var(--text); }
+:deep(.vue-flow__controls-button:hover) { background: var(--chip); }
+:deep(.vue-flow__controls-button svg) { fill: var(--text); }
 
 /* ── modales ── */
 .modal-back { position: fixed; inset: 0; background: rgba(6,10,16,.6); z-index: 200; display: flex; align-items: center; justify-content: center; }

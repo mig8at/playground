@@ -3,7 +3,7 @@
 // copy del flujo) del que se pueden DERIVAR hijos que ramifican sobre el padre.
 import { ref, computed } from 'vue'
 import WorkspaceGraph from './WorkspaceGraph.vue'
-import { Waypoints, FileText, Copy, Check, X } from 'lucide-vue-next'
+import { Waypoints, FileText, Copy, Check, X, Database, GitFork } from 'lucide-vue-next'
 
 const WS_URL = 'ws://localhost:8788/ws'
 
@@ -22,6 +22,20 @@ const toast = ref('')
 let pendingCopy = null // {combo,group,key,label} esperando su árbol
 
 const comboGraphs = computed(() => graphsByCombo.value[selectedCombo.value] || [])
+
+const ALIAS_SHORT = { application: 'app', 'frontend-monorepo': 'front', 'legacy-backend': 'legacy' }
+const shortA = (a) => ALIAS_SHORT[a] || a.split('-')[0]
+
+// linaje del workspace seleccionado (raíz → … → seleccionado) para el breadcrumb
+const lineage = computed(() => {
+  if (!selectedCombo.value) return []
+  const byId = Object.fromEntries(combinations.value.map((c) => [c.id, c]))
+  const chain = []
+  const seen = new Set()
+  let c = byId[selectedCombo.value]
+  while (c && !seen.has(c.id)) { seen.add(c.id); chain.unshift(c.name); c = c.parent ? byId[c.parent] : null }
+  return chain
+})
 
 let ws = null
 let retry = null
@@ -91,16 +105,19 @@ function onDeriveChild({ parent, name, repos, create }) {
 function onDeleteWorkspace({ id, deleteBranches }) {
   send({ type: 'delete_combination', id, delete_branches: !!deleteBranches })
 }
-// resume el resultado de crear/borrar ramas (branch_ops) en un toast
+// resume el resultado de crear/borrar ramas (branch_ops) en un toast, por repo
 function showBranchToast(action, ops) {
   const verb = action === 'delete' ? 'borrada(s)' : 'creada(s)'
   const done = ops.filter((o) => o.done)
   const errs = ops.filter((o) => o.error)
+  const skip = ops.filter((o) => o.skipped)
   const pub = done.filter((o) => o.published)
-  let msg = `✓ ${done.length} rama(s) ${verb}`
-  if (action === 'delete' && pub.length) msg += ` · ${pub.length} publicada(s): la remota queda`
-  if (errs.length) msg += ` · ⚠ ${errs.length} con error (${errs.map((o) => o.alias).join(', ')})`
-  showToast(msg)
+  const parts = []
+  if (done.length) parts.push(`✓ ${verb}: ${done.map((o) => shortA(o.alias)).join(', ')}`)
+  if (action === 'delete' && pub.length) parts.push(`${pub.map((o) => shortA(o.alias)).join(', ')} publicada(s): la remota queda`)
+  if (skip.length) parts.push(`omitida(s): ${skip.map((o) => shortA(o.alias)).join(', ')}`)
+  if (errs.length) parts.push(`⚠ error: ${errs.map((o) => `${shortA(o.alias)} (${o.error})`).join('; ')}`)
+  showToast(parts.join(' · ') || 'sin cambios de ramas')
 }
 
 // seleccionar un nodo = alinear (checkout+pull) + cargar su árbol
@@ -144,10 +161,12 @@ async function doCopy({ combo, label }) {
 async function copyText(text, label) { if (await writeClipboard(text)) showToast(`✓ ${label} copiado`) }
 
 // ── drawer de documentación viva (doc.md del nodo) ──
-const docPanel = ref(null) // { name, doc } | null
+const docPanel = ref(null) // { id, name, doc } | null
 const docCopied = ref(false)
-function onShowDoc({ name, doc }) { docPanel.value = { name, doc }; docCopied.value = false }
+function onShowDoc({ id, name, doc }) { docPanel.value = { id, name, doc }; docCopied.value = false }
 function closeDoc() { docPanel.value = null }
+const docPath = computed(() => (docPanel.value ? `context/server/data/flows/${docPanel.value.id}/doc.md` : ''))
+async function copyDocPath() { if (docPath.value && (await writeClipboard(docPath.value))) showToast('✓ ruta copiada') }
 async function copyDoc() {
   if (docPanel.value && (await writeClipboard(docPanel.value.doc))) {
     docCopied.value = true
@@ -213,13 +232,16 @@ connect()
         <Waypoints class="logo-mark" :size="28" :stroke-width="1.6" />
         <div>
           <h1>Context</h1>
-          <p class="tag">workspaces de ramas cross-repo · CreditOp</p>
+          <p v-if="lineage.length" class="tag crumb">
+            <template v-for="(n, i) in lineage" :key="i"><span v-if="i" class="crumb-sep">→</span>{{ n }}</template>
+          </p>
+          <p v-else class="tag">workspaces de ramas cross-repo · CreditOp</p>
         </div>
       </div>
       <div class="stats">
         <span class="pill" :class="online ? 'on' : 'off'">{{ status }}</span>
-        <span class="stat">{{ repos.length }} repos</span>
-        <span class="stat">{{ combinations.length }} workspaces</span>
+        <span class="stat"><Database :size="13" /> {{ repos.length }} repos</span>
+        <span class="stat"><GitFork :size="13" /> {{ combinations.length }} workspaces</span>
       </div>
     </header>
 
@@ -240,19 +262,28 @@ connect()
     />
 
     <Teleport to="body">
-      <div v-if="docPanel" class="doc-backdrop" @click="closeDoc"></div>
-      <aside v-if="docPanel" class="doc-drawer">
-        <header class="doc-head">
-          <FileText :size="15" />
-          <span class="doc-title">{{ docPanel.name }}</span>
-          <button class="doc-btn" :title="docCopied ? 'copiado' : 'copiar markdown'" @click="copyDoc">
-            <Check v-if="docCopied" :size="14" /><Copy v-else :size="14" />
-          </button>
-          <button class="doc-btn" title="cerrar (Esc)" @click="closeDoc"><X :size="15" /></button>
-        </header>
-        <!-- eslint-disable-next-line vue/no-v-html — markdown propio (escapado en mdEsc) -->
-        <div class="doc-body" v-html="docHtml"></div>
-      </aside>
+      <Transition name="fade">
+        <div v-if="docPanel" class="doc-backdrop" @click="closeDoc"></div>
+      </Transition>
+      <Transition name="slide">
+        <aside v-if="docPanel" class="doc-drawer">
+          <header class="doc-head">
+            <FileText :size="18" class="doc-icon" />
+            <div class="doc-titles">
+              <span class="doc-title">{{ docPanel.name }}</span>
+              <button class="doc-path" title="copiar la ruta del doc.md (para editarlo a mano)" @click="copyDocPath">
+                {{ docPath }} · doc viva
+              </button>
+            </div>
+            <button class="doc-btn" :title="docCopied ? 'copiado' : 'copiar markdown'" @click="copyDoc">
+              <Check v-if="docCopied" :size="14" /><Copy v-else :size="14" />
+            </button>
+            <button class="doc-btn" title="cerrar (Esc)" @click="closeDoc"><X :size="15" /></button>
+          </header>
+          <!-- eslint-disable-next-line vue/no-v-html — markdown propio (escapado en mdEsc) -->
+          <div class="doc-body" v-html="docHtml"></div>
+        </aside>
+      </Transition>
     </Teleport>
 
     <Teleport to="body">
@@ -275,7 +306,11 @@ connect()
   display: flex; align-items: center; gap: 8px; padding: 12px 14px;
   border-bottom: 1px solid var(--border); color: var(--text); flex: 0 0 auto;
 }
-.doc-title { font-weight: 700; font-size: 14px; flex: 1; }
+.doc-title { font-weight: 700; font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.doc-icon { flex: 0 0 auto; color: var(--accent); }
+.doc-titles { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.doc-path { align-self: flex-start; max-width: 100%; background: none; border: 0; padding: 0; color: var(--muted); font-family: var(--mono); font-size: 10.5px; cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.doc-path:hover { color: var(--accent); }
 .doc-btn {
   display: inline-flex; align-items: center; background: var(--chip); color: var(--text);
   border: 1px solid var(--border); border-radius: 6px; padding: 5px 7px; cursor: pointer;
@@ -297,4 +332,15 @@ connect()
 .doc-body :deep(table) { border-collapse: collapse; width: 100%; margin: 9px 0; font-size: 12px; display: block; overflow-x: auto; }
 .doc-body :deep(th), .doc-body :deep(td) { border: 1px solid var(--border); padding: 5px 8px; text-align: left; vertical-align: top; }
 .doc-body :deep(th) { background: var(--chip); font-weight: 600; white-space: nowrap; }
+
+/* transiciones del drawer */
+.fade-enter-active, .fade-leave-active { transition: opacity .18s ease; }
+.fade-enter-from, .fade-leave-to { opacity: 0; }
+.slide-enter-active, .slide-leave-active { transition: transform .2s ease; }
+.slide-enter-from, .slide-leave-to { transform: translateX(100%); }
+
+/* header: stats con icono + breadcrumb del workspace seleccionado */
+.stat { display: inline-flex; align-items: center; gap: 6px; }
+.crumb { display: flex; align-items: center; gap: 6px; font-family: var(--mono); font-size: 12px; color: var(--text); flex-wrap: wrap; }
+.crumb-sep { color: var(--muted); }
 </style>
