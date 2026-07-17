@@ -60,6 +60,10 @@ function connect() {
           requestComboGraphs(d.id)
         }
         break
+      case 'combination_saved':
+      case 'combination_deleted':
+        if (d.branch_ops && d.branch_ops.length) showBranchToast(d.branch_action, d.branch_ops)
+        break
     }
   }
   ws.onclose = () => { status.value = 'desconectado'; scheduleRetry() }
@@ -71,10 +75,10 @@ function send(obj) { if (online.value) ws.send(JSON.stringify(obj)) }
 function showToast(msg) { toast.value = msg; setTimeout(() => (toast.value = ''), 2200) }
 
 // ── workspaces ──
-function onDeriveChild({ parent, name, repos }) {
+function onDeriveChild({ parent, name, repos, create }) {
   // Los repos SELECCIONADOS van a la rama nueva `name` (el nombre se replica en
   // todos); los NO seleccionados heredan la rama objetivo del padre (o su rama
-  // actual si el padre no la fija).
+  // actual si el padre no la fija). `create` = crear las ramas localmente.
   const parentCombo = combinations.value.find((c) => c.id === parent)
   const parentTargets = parentCombo?.targets || {}
   const sel = new Set(repos && repos.length ? repos : summary.value.repos.map((r) => r.alias))
@@ -82,9 +86,22 @@ function onDeriveChild({ parent, name, repos }) {
   for (const r of summary.value.repos) {
     targets[r.alias] = sel.has(r.alias) ? name : (parentTargets[r.alias] || r.branch || name)
   }
-  send({ type: 'save_combination', name, parent, targets })
+  send({ type: 'save_combination', name, parent, targets, create_branches: !!create })
 }
-function onDeleteWorkspace(id) { send({ type: 'delete_combination', id }) }
+function onDeleteWorkspace({ id, deleteBranches }) {
+  send({ type: 'delete_combination', id, delete_branches: !!deleteBranches })
+}
+// resume el resultado de crear/borrar ramas (branch_ops) en un toast
+function showBranchToast(action, ops) {
+  const verb = action === 'delete' ? 'borrada(s)' : 'creada(s)'
+  const done = ops.filter((o) => o.done)
+  const errs = ops.filter((o) => o.error)
+  const pub = done.filter((o) => o.published)
+  let msg = `✓ ${done.length} rama(s) ${verb}`
+  if (action === 'delete' && pub.length) msg += ` · ${pub.length} publicada(s): la remota queda`
+  if (errs.length) msg += ` · ⚠ ${errs.length} con error (${errs.map((o) => o.alias).join(', ')})`
+  showToast(msg)
+}
 
 // seleccionar un nodo = alinear (checkout+pull) + cargar su árbol
 function onSelect(id) {

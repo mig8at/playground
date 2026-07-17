@@ -50,6 +50,8 @@ func main() {
 	registerFlowStatus(server, eng)
 	registerCombinations(server, eng)
 	registerSaveCombination(server, eng)
+	registerCreateBranches(server, eng)
+	registerDeleteBranches(server, eng)
 	registerTree(server, eng)
 
 	log.Printf("iniciado (datos: %s); esperando peticiones MCP por stdio…", eng.Dir())

@@ -127,6 +127,9 @@ type inbound struct {
 	Tasks   []engine.Task     `json:"tasks"`
 	JQL     string            `json:"jql"` // consulta para el (futuro) sync de tareas desde Jira
 	Alias   string            `json:"alias"` // override del nombre lógico del repo al escanear (por defecto, basename)
+	// derivar/borrar: crear/borrar las ramas PROPIAS del workspace (git local; nunca remoto)
+	CreateBranches bool `json:"create_branches"`
+	DeleteBranches bool `json:"delete_branches"`
 }
 
 func (s *server) handle(ctx context.Context, c *websocket.Conn, msg inbound) {
@@ -205,10 +208,29 @@ func (s *server) handle(ctx context.Context, c *websocket.Conn, msg inbound) {
 			return
 		}
 		log.Printf("combinación guardada · %s", cb.Name)
-		send(ctx, c, map[string]any{"type": "combination_saved", "ok": true, "id": cb.ID})
+		resp := map[string]any{"type": "combination_saved", "ok": true, "id": cb.ID}
+		if msg.CreateBranches {
+			ops := s.eng.CreateBranches(cb.ID)
+			resp["branch_ops"] = ops
+			resp["branch_action"] = "create"
+			for _, o := range ops {
+				log.Printf("  rama %s/%s: %s", o.Alias, o.Branch, branchOpLog(o))
+			}
+		}
+		send(ctx, c, resp)
 		s.broadcastState()
 	case "delete_combination":
+		resp := map[string]any{"type": "combination_deleted", "ok": true, "id": msg.ID}
+		if msg.DeleteBranches {
+			ops := s.eng.DeleteBranches(msg.ID)
+			resp["branch_ops"] = ops
+			resp["branch_action"] = "delete"
+			for _, o := range ops {
+				log.Printf("  rama %s/%s (borrar local): %s", o.Alias, o.Branch, branchOpLog(o))
+			}
+		}
 		_ = s.eng.DeleteCombination(msg.ID)
+		send(ctx, c, resp)
 		s.broadcastState()
 	case "set_tasks":
 		if _, err := s.eng.SetTasks(msg.ID, msg.Tasks); err == nil {
@@ -367,4 +389,18 @@ func envDefault(key, def string) string {
 		return v
 	}
 	return def
+}
+
+// branchOpLog resume una BranchOp para el log del server.
+func branchOpLog(o engine.BranchOp) string {
+	switch {
+	case o.Error != "":
+		return "error: " + o.Error
+	case o.Skipped != "":
+		return o.Skipped
+	case o.Published:
+		return "hecho (remota queda)"
+	default:
+		return "hecho"
+	}
 }

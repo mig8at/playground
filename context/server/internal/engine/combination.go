@@ -150,6 +150,127 @@ func (e *Engine) RepoBranches(alias string) []string {
 	return gitinfo.Branches(root)
 }
 
+// BranchOp reporta qué pasó con la rama de un repo al crear/borrar.
+type BranchOp struct {
+	Alias     string `json:"alias"`
+	Branch    string `json:"branch"`
+	Done      bool   `json:"done"`                // se creó / se borró
+	Skipped   string `json:"skipped,omitempty"`   // motivo si no se hizo (ya existe / no existe / …)
+	Published bool   `json:"published,omitempty"` // (al borrar) estaba en origin → la remota QUEDA
+	Error     string `json:"error,omitempty"`
+}
+
+var protectedBranches = map[string]bool{
+	"main": true, "master": true, "develop": true, "staging": true, "production": true,
+}
+
+// ownBranches son las ramas que el workspace INTRODUCE respecto de su padre
+// (rama distinta a la del padre) y que NO son protegidas. Son las únicas que se
+// crean/borran; las heredadas (== padre) y las protegidas nunca se tocan.
+func (e *Engine) ownBranches(c Combination) (own, parentTargets map[string]string) {
+	parentTargets = map[string]string{}
+	if c.Parent != "" {
+		if p, ok := e.Combination(c.Parent); ok {
+			parentTargets = p.Targets
+		}
+	}
+	own = map[string]string{}
+	for alias, br := range c.Targets {
+		if protectedBranches[br] || parentTargets[alias] == br {
+			continue
+		}
+		own[alias] = br
+	}
+	return
+}
+
+func sortedKeys(m map[string]string) []string {
+	ks := make([]string, 0, len(m))
+	for k := range m {
+		ks = append(ks, k)
+	}
+	sort.Strings(ks)
+	return ks
+}
+
+// CreateBranches crea (git checkout -b) las ramas PROPIAS del workspace que aún no
+// existen localmente, ramificando desde la rama del padre. Solo con árbol limpio.
+func (e *Engine) CreateBranches(comboID string) []BranchOp {
+	c, ok := e.Combination(comboID)
+	if !ok {
+		return nil
+	}
+	own, parentTargets := e.ownBranches(c)
+	var out []BranchOp
+	for _, alias := range sortedKeys(own) {
+		branch := own[alias]
+		op := BranchOp{Alias: alias, Branch: branch}
+		root := e.RepoRoot(alias)
+		switch {
+		case root == "":
+			op.Error = "repo no indexado"
+		case gitinfo.BranchExists(root, branch):
+			op.Skipped = "ya existe"
+		case !gitinfo.IsClean(root):
+			op.Error = "cambios sin commitear"
+		default:
+			if err := gitinfo.CreateBranch(root, branch, parentTargets[alias]); err != nil {
+				op.Error = err.Error()
+			} else {
+				op.Done = true
+			}
+		}
+		out = append(out, op)
+	}
+	return out
+}
+
+// DeleteBranches borra LOCALMENTE las ramas PROPIAS del workspace. NUNCA toca el
+// remoto: si la rama está publicada, la del remoto QUEDA (op.Published=true). Si
+// está parado en la rama a borrar, primero hace checkout a la del padre (o main).
+func (e *Engine) DeleteBranches(comboID string) []BranchOp {
+	c, ok := e.Combination(comboID)
+	if !ok {
+		return nil
+	}
+	own, parentTargets := e.ownBranches(c)
+	var out []BranchOp
+	for _, alias := range sortedKeys(own) {
+		branch := own[alias]
+		op := BranchOp{Alias: alias, Branch: branch}
+		root := e.RepoRoot(alias)
+		if root == "" {
+			op.Error = "repo no indexado"
+			out = append(out, op)
+			continue
+		}
+		if !gitinfo.BranchExists(root, branch) {
+			op.Skipped = "no existe localmente"
+			out = append(out, op)
+			continue
+		}
+		op.Published = gitinfo.Published(root, branch)
+		if cur, _ := gitinfo.State(root); cur == branch {
+			fallback := parentTargets[alias]
+			if fallback == "" || fallback == branch {
+				fallback = "main"
+			}
+			if err := gitinfo.Checkout(root, fallback); err != nil {
+				op.Error = "no pude salir de la rama: " + err.Error()
+				out = append(out, op)
+				continue
+			}
+		}
+		if err := gitinfo.DeleteLocalBranch(root, branch); err != nil {
+			op.Error = err.Error()
+		} else {
+			op.Done = true
+		}
+		out = append(out, op)
+	}
+	return out
+}
+
 // SaveCombination crea/actualiza un workspace. Captura la línea base: para
 // cada repo cuya rama ACTUAL coincide con la objetivo, graba su commit actual.
 // parent (opcional) enlaza el workspace a su padre: hereda su flujo si no tiene

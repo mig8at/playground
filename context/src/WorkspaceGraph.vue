@@ -74,14 +74,18 @@ function nodeData(c, depth) {
 }
 
 // ── modales (fuera del canvas para no pelear con Vue Flow) ──
+const PROTECTED = new Set(['main', 'master', 'develop', 'staging', 'production'])
+
 const deriveParent = ref(null) // combo del que se deriva
 const deriveName = ref('')
 const deriveRepos = ref([]) // aliases que van a la rama NUEVA (el resto queda en la del padre)
+const deriveCreate = ref(false) // crear las ramas localmente (git checkout -b)
 function openDerive(id) {
   const c = props.combinations.find((x) => x.id === id)
   deriveParent.value = c || null
   deriveName.value = ''
   deriveRepos.value = [...repoAliases.value] // por defecto: todos
+  deriveCreate.value = false
 }
 // rama en la que queda un repo NO seleccionado: la que tiene el padre (o su rama actual)
 function parentBranch(a) {
@@ -90,13 +94,28 @@ function parentBranch(a) {
 function confirmDerive() {
   const n = deriveName.value.trim()
   if (!n || !deriveParent.value || !deriveRepos.value.length) return
-  emit('derive', { parent: deriveParent.value.id, name: n, repos: [...deriveRepos.value] })
+  emit('derive', { parent: deriveParent.value.id, name: n, repos: [...deriveRepos.value], create: deriveCreate.value })
   deriveParent.value = null
   deriveName.value = ''
 }
 
 const deleteTarget = ref(null)
-function confirmDelete() { if (deleteTarget.value) { emit('delete', deleteTarget.value.id); deleteTarget.value = null } }
+const deleteBranches = ref(false) // borrar también las ramas locales propias del workspace
+function openDelete(id) { deleteTarget.value = props.combinations.find((c) => c.id === id) || null; deleteBranches.value = false }
+// ramas PROPIAS del workspace (distintas a las del padre, no protegidas) = las que borraría localmente
+const deleteOwnBranches = computed(() => {
+  const t = deleteTarget.value
+  if (!t) return []
+  const pt = props.combinations.find((c) => c.id === t.parent)?.targets || {}
+  return Object.entries(t.targets || {})
+    .filter(([alias, br]) => !PROTECTED.has(br) && pt[alias] !== br)
+    .map(([alias, branch]) => ({ alias, branch }))
+})
+function confirmDelete() {
+  if (!deleteTarget.value) return
+  emit('delete', { id: deleteTarget.value.id, deleteBranches: deleteBranches.value })
+  deleteTarget.value = null
+}
 
 // re-encuadrar el canvas (con zoom tope 0.8 para no acercar de más) al iniciar y
 // cuando cambia la cantidad de nodos (derivar/borrar)
@@ -124,7 +143,7 @@ onNodesInitialized(() => refit())
               <GitFork v-if="data.isChild" :size="13" class="wsfork" />
               <span class="wsname">{{ data.name }}</span>
               <span class="wsbadge" :class="data.aligned ? 'ok' : 'drift'">{{ data.aligning ? '⟳' : (data.aligned ? '✓' : '⚠') }}</span>
-              <button class="wsx" title="borrar" @click.stop="deleteTarget = combinations.find((c) => c.id === data.id)"><X :size="13" /></button>
+              <button class="wsx" title="borrar" @click.stop="openDelete(data.id)"><X :size="13" /></button>
             </div>
 
             <div class="wsbranches">
@@ -179,6 +198,7 @@ onNodesInitialized(() => refit())
             </label>
           </div>
           <input v-model="deriveName" class="modal-in" placeholder="nombre de rama (ej feature/motai-x)" @keyup.enter="confirmDerive" autofocus />
+          <label class="modal-check"><input type="checkbox" v-model="deriveCreate" /> crear las ramas localmente (<code>git checkout -b</code> desde la rama del padre; si ya existe, la reusa)</label>
           <div class="modal-actions">
             <button class="modal-save" :disabled="!deriveName.trim() || !deriveRepos.length" @click="confirmDerive"><Plus :size="13" /> derivar en {{ deriveRepos.length }} repo{{ deriveRepos.length === 1 ? '' : 's' }}</button>
             <button class="modal-cancel" @click="deriveParent = null">cancelar</button>
@@ -189,9 +209,18 @@ onNodesInitialized(() => refit())
       <div v-if="deleteTarget" class="modal-back" @click.self="deleteTarget = null">
         <div class="modal modal-sm">
           <div class="modal-head"><h3><AlertTriangle :size="16" /> Borrar workspace</h3></div>
-          <p class="modal-note">¿Borrar <b>{{ deleteTarget.name }}</b>? No toca git; solo quita el workspace de Context.</p>
+          <p class="modal-note">¿Borrar <b>{{ deleteTarget.name }}</b> de Context? Por defecto NO toca git.</p>
+          <template v-if="deleteOwnBranches.length">
+            <label class="modal-check"><input type="checkbox" v-model="deleteBranches" /> borrar también las ramas <b>locales</b> de este workspace</label>
+            <div class="modal-repos" v-if="deleteBranches">
+              <span v-for="b in deleteOwnBranches" :key="b.alias" class="modal-repo on">
+                <b>{{ b.alias }}</b><span class="modal-repo-br"><GitBranch :size="10" />{{ b.branch }}</span>
+              </span>
+            </div>
+            <p v-if="deleteBranches" class="modal-note" style="margin-top:2px">Nunca toca el remoto: si una rama está publicada, la del remoto <b>queda</b> (solo se borra la local, con <code>git branch -D</code>).</p>
+          </template>
           <div class="modal-actions">
-            <button class="modal-del" @click="confirmDelete">sí, borrar</button>
+            <button class="modal-del" @click="confirmDelete">{{ deleteBranches ? 'sí, borrar + ramas locales' : 'sí, borrar' }}</button>
             <button class="modal-cancel" @click="deleteTarget = null">cancelar</button>
           </div>
         </div>
@@ -259,6 +288,9 @@ onNodesInitialized(() => refit())
 .modal-note { font-size: 12px; color: var(--muted); line-height: 1.5; margin: 0 0 12px; }
 .modal-in { width: 100%; background: var(--bg); border: 1px solid var(--border); color: var(--text); padding: 9px 12px; border-radius: 8px; font-size: 14px; box-sizing: border-box; margin-bottom: 10px; }
 .modal-in:focus { outline: none; border-color: var(--accent); }
+.modal-check { display: flex; align-items: flex-start; gap: 7px; font-size: 12px; color: var(--text); line-height: 1.45; margin: 0 0 12px; cursor: pointer; }
+.modal-check input { margin-top: 2px; accent-color: var(--violet); cursor: pointer; flex: 0 0 auto; }
+.modal-check code, .modal-note code { background: var(--chip); padding: 0 4px; border-radius: 4px; font-family: var(--mono); font-size: 11px; }
 .modal-repos { display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px; }
 .modal-repo { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border: 1px solid var(--border); border-radius: 8px; cursor: pointer; font-size: 13px; color: var(--muted); background: var(--bg); }
 .modal-repo.on { border-color: var(--violet); color: var(--text); background: rgba(188,140,255,.08); }

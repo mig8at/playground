@@ -1,6 +1,8 @@
-// Package gitinfo lee estado de git de un repo (solo lectura: nunca hace
-// checkout ni modifica nada). Context observa qué rama/commit tiene cada repo para
-// rastrear "combinaciones de ramas".
+// Package gitinfo opera git sobre un repo. Lo mayormente-lectura (State/Branches/
+// IsClean/BranchExists/Published) observa qué rama/commit tiene cada repo para
+// rastrear "combinaciones de ramas"; las operaciones de ESCRITURA (Checkout/Pull/
+// CreateBranch/DeleteLocalBranch) las dispara el usuario al alinear/derivar/borrar.
+// NUNCA toca el remoto: no hay push ni delete remoto (pull es --ff-only).
 package gitinfo
 
 import (
@@ -73,4 +75,39 @@ func Branches(root string) []string {
 		return nil
 	}
 	return strings.Split(out, "\n")
+}
+
+// BranchExists indica si existe la rama LOCAL.
+func BranchExists(root, branch string) bool {
+	return run2ok(root, "rev-parse", "--verify", "--quiet", "refs/heads/"+branch)
+}
+
+// Published indica si la rama fue empujada (existe origin/<branch>). Se usa solo
+// para INFORMAR: al borrar, Context nunca toca el remoto.
+func Published(root, branch string) bool {
+	return run2ok(root, "rev-parse", "--verify", "--quiet", "refs/remotes/origin/"+branch)
+}
+
+// run2ok corre git y devuelve true si el exit fue 0 (para chequeos existencia).
+func run2ok(root string, args ...string) bool {
+	err := exec.Command("git", append([]string{"-C", root}, args...)...).Run()
+	return err == nil
+}
+
+// CreateBranch crea la rama `branch` a partir de `base` (si base != "", primero
+// hace checkout de base para ramificar desde el punto correcto) y queda parado en
+// ella. Validar IsClean antes.
+func CreateBranch(root, branch, base string) error {
+	if base != "" {
+		if err := runCtx(root, 20*time.Second, "checkout", base); err != nil {
+			return err
+		}
+	}
+	return runCtx(root, 20*time.Second, "checkout", "-b", branch)
+}
+
+// DeleteLocalBranch borra la rama LOCAL (force, -D). NUNCA toca el remoto. No se
+// puede borrar la rama actual → el caller debe hacer checkout a otra antes.
+func DeleteLocalBranch(root, branch string) error {
+	return runCtx(root, 20*time.Second, "branch", "-D", branch)
 }

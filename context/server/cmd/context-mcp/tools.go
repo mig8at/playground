@@ -453,6 +453,42 @@ func registerSaveCombination(s *mcp.Server, eng *engine.Engine) {
 	})
 }
 
+// ── context_create_branches / context_delete_branches ──────────────────────────
+//
+// Operan las ramas PROPIAS de un workspace (las que introduce vs su padre; nunca
+// ramas heredadas ni protegidas main/develop/staging…). ESCRITURA git LOCAL:
+// crear = git checkout -b desde la rama del padre; borrar = git branch -D. NUNCA
+// tocan el remoto (si la rama está publicada, la del remoto queda).
+
+type BranchesInput struct {
+	ID string `json:"id" jsonschema:"id del workspace/combinación"`
+}
+type BranchesOutput struct {
+	Ops []engine.BranchOp `json:"ops"`
+}
+
+func registerCreateBranches(s *mcp.Server, eng *engine.Engine) {
+	mcp.AddTool(s, &mcp.Tool{
+		Name:        "context_create_branches",
+		Description: "Crea LOCALMENTE (git checkout -b, desde la rama del padre) las ramas propias del workspace que falten. Solo con árbol limpio; no toca ramas heredadas ni protegidas; nunca el remoto.",
+	}, func(ctx context.Context, _ *mcp.CallToolRequest, in BranchesInput) (*mcp.CallToolResult, BranchesOutput, error) {
+		ops := eng.CreateBranches(in.ID)
+		out := BranchesOutput{Ops: ops}
+		return ok(jsonText(out), out)
+	})
+}
+
+func registerDeleteBranches(s *mcp.Server, eng *engine.Engine) {
+	mcp.AddTool(s, &mcp.Tool{
+		Name:        "context_delete_branches",
+		Description: "Borra LOCALMENTE (git branch -D) las ramas propias del workspace. NUNCA toca el remoto: si la rama está publicada, la del remoto QUEDA (op.published=true). No toca ramas heredadas ni protegidas.",
+	}, func(ctx context.Context, _ *mcp.CallToolRequest, in BranchesInput) (*mcp.CallToolResult, BranchesOutput, error) {
+		ops := eng.DeleteBranches(in.ID)
+		out := BranchesOutput{Ops: ops}
+		return ok(jsonText(out), out)
+	})
+}
+
 // ── context_tree ───────────────────────────────────────────────────────────────
 
 type TreeInput struct {
