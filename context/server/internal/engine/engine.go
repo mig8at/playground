@@ -125,7 +125,10 @@ func (e *Engine) ModTimes() (idx, flows, combos time.Time) {
 // ── scan ─────────────────────────────────────────────────────────────────────
 
 // Scan indexa (o re-indexa) un repo y persiste el índice. Devuelve el repo.
-func (e *Engine) Scan(root string) (Repo, error) {
+// alias vacío → se usa el basename de root. Se pasa explícito cuando el repo
+// se movió de ubicación/host y hay que conservar el nombre lógico (ej: escanear
+// github/legacy-application como "application" para no romper flujos/workspaces).
+func (e *Engine) Scan(root, alias string) (Repo, error) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 
@@ -134,7 +137,9 @@ func (e *Engine) Scan(root string) (Repo, error) {
 	if err != nil || !fi.IsDir() {
 		return Repo{}, fmt.Errorf("no es un directorio: %s", root)
 	}
-	alias := filepath.Base(root)
+	if alias == "" {
+		alias = filepath.Base(root)
+	}
 
 	nodes, err := scan.Repo(root, alias)
 	if err != nil {

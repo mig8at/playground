@@ -27,7 +27,8 @@ func jsonText(v any) string {
 // ── context_scan ───────────────────────────────────────────────────────────────
 
 type ScanInput struct {
-	Path string `json:"path" jsonschema:"ruta absoluta a la raíz del repo a indexar (se puede usar ~)"`
+	Path  string `json:"path" jsonschema:"ruta absoluta a la raíz del repo a indexar (se puede usar ~)"`
+	Alias string `json:"alias,omitempty" jsonschema:"nombre lógico del repo; por defecto el basename de la carpeta. Úsalo cuando el repo se movió de ubicación/host y querés conservar el nombre (ej: indexar github/legacy-application como 'application' para no romper flujos/workspaces)"`
 }
 type ScanOutput struct {
 	Repo      string `json:"repo"`
@@ -39,7 +40,7 @@ func registerScan(s *mcp.Server, eng *engine.Engine) {
 		Name:        "context_scan",
 		Description: "Indexa (o re-indexa) un repo: extrae node-lite (imports, definiciones, rutas) de cada archivo de código. Llamar una vez por repo. Los IDs son estables entre escaneos.",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in ScanInput) (*mcp.CallToolResult, ScanOutput, error) {
-		repo, err := eng.Scan(in.Path)
+		repo, err := eng.Scan(in.Path, in.Alias)
 		if err != nil {
 			return fail[ScanOutput](err)
 		}

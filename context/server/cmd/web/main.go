@@ -126,12 +126,13 @@ type inbound struct {
 	Targets map[string]string `json:"targets"`
 	Tasks   []engine.Task     `json:"tasks"`
 	JQL     string            `json:"jql"` // consulta para el (futuro) sync de tareas desde Jira
+	Alias   string            `json:"alias"` // override del nombre lógico del repo al escanear (por defecto, basename)
 }
 
 func (s *server) handle(ctx context.Context, c *websocket.Conn, msg inbound) {
 	switch msg.Type {
 	case "scan":
-		repo, err := s.eng.Scan(msg.Path)
+		repo, err := s.eng.Scan(msg.Path, msg.Alias)
 		if err != nil {
 			send(ctx, c, map[string]any{"type": "scan_result", "ok": false, "error": err.Error()})
 			return

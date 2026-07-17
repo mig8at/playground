@@ -111,7 +111,7 @@ func (e *Engine) AlignCombination(comboID string) []AlignResult {
 		afterBranch, afterCommit := gitinfo.State(root)
 		r.Now = afterBranch
 		if r.Switched || afterCommit != beforeCommit {
-			e.Scan(root) // el contenido cambió → re-index para el drift/hashes
+			e.Scan(root, alias) // el contenido cambió → re-index para el drift/hashes (conservando el alias)
 		}
 		results = append(results, r)
 	}
