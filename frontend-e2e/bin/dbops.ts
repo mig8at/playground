@@ -9,7 +9,7 @@
 //   node bin/dbops.ts list [merchant]
 //   node bin/dbops.ts ecommerce-url <merchant> [phone] [amount]
 //   node bin/dbops.ts synth-fill <uReqID> [lender] [income] [score]
-import { close, one, query } from '../pkg/db.ts';
+import { close, one, query, exec, assertWriteAllowed } from '../pkg/db.ts';
 import { whois, assign, revoke, scrubphone } from '../pkg/asesor.ts';
 import { listMerchants, listEcommerce } from '../pkg/merchants.ts';
 import { buildEcommerceUrl } from '../pkg/ecommerce.ts';
@@ -57,16 +57,44 @@ try {
             // VISIBILIDAD real del wizard (LenderListingService::resolveLenderIdsByBranch): pluck por
             // allied_branch_id + Lender.status=1 (NO filtra lab.status — lo exponemos como branch_status para
             // poder anotarlo). Difiere del nivel allied (lenders_by_allieds), que sobre-reporta. → [{id,name,rt,branch_status}]
+            // `lender_status` = lenders.status (GLOBAL) → ES el que corta la visibilidad del listado
+            // (getLenders: Lender::where('status',1)). `branch_status` = lenders_by_allied_branches.status,
+            // que el listado NO respeta (resolveLenderIdsByBranch pluckea por branch sin filtrar lab.status) → informativo.
             r = await query(
-                `SELECT l.id, COALESCE(l.name,'') AS name, l.response_type AS rt, lab.status AS branch_status
+                `SELECT l.id, COALESCE(l.name,'') AS name, l.response_type AS rt, COALESCE(l.product,'credit') AS product, l.status AS lender_status, lab.status AS branch_status, COALESCE(la.sort, 9999) AS allied_sort
                  FROM allied_branches ab
                  JOIN lenders_by_allied_branches lab ON lab.allied_branch_id = ab.id
                  JOIN lenders l ON l.id = lab.lender_id
-                 WHERE ab.hash = ? AND l.status = 1
-                 ORDER BY l.response_type, l.name`,
+                 LEFT JOIN lenders_by_allieds la ON la.allied_id = ab.allied_id AND la.lender_id = l.id
+                 WHERE ab.hash = ?
+                 ORDER BY COALESCE(la.sort, 9999), l.response_type, l.name`,
                 [a[0] ?? ''],
             );
             break;
+        case 'lender-sort': { // fija el ORDEN de los lenders del comercio (lenders_by_allieds.sort) desde una lista de ids
+            // en orden. Es la palanca que respeta orderByGroupProbability DENTRO de cada bucket de probabilidad.
+            assertWriteAllowed();
+            const hash = a[0] ?? '';
+            const ids = (a[1] ?? '').split(',').map((s) => Number(s.trim())).filter((n) => n > 0);
+            const br = await one<{ allied_id: number }>('SELECT allied_id FROM allied_branches WHERE hash = ? LIMIT 1', [hash]);
+            if (!br) throw new Error(`sucursal no encontrada: ${hash}`);
+            let updated = 0;
+            for (let i = 0; i < ids.length; i++) {
+                const res = await exec('UPDATE lenders_by_allieds SET sort = ? WHERE allied_id = ? AND lender_id = ?', [i, br.allied_id, ids[i]]);
+                updated += res.affectedRows;
+            }
+            r = { ok: true, allied_id: br.allied_id, order: ids, updated };
+            break;
+        }
+        case 'lender-set': { // prende/apaga un lender por su status GLOBAL (lenders.status) — lo que el listado filtra.
+            // OJO: es global (afecta todas las sucursales/comercios en LOCAL). Reversible. hash = solo para la API.
+            assertWriteAllowed();
+            const lenderId = num(a[1]);
+            const status = a[2] === '1' ? 1 : 0;
+            const res = await exec('UPDATE lenders SET status = ? WHERE id = ?', [status, lenderId]);
+            r = { ok: true, lender_id: lenderId, status, affected: res.affectedRows, scope: 'global (lenders.status)' };
+            break;
+        }
         default:
             throw new Error(`comando desconocido: ${cmd || '(vacío)'} — whois|assign|revoke|scrubphone|list|ecommerce-url|synth-fill|lender-rt`);
     }

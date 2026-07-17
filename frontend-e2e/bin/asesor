@@ -42,6 +42,7 @@ json_pick() { node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{t
 
 EMAIL="$(fget asesor.email)"; SUB="$(fget asesor.sub)"
 [ -n "$EMAIL" ] && [ -n "$SUB" ] || { echo "✗ $FLOWS sin asesor.email / asesor.sub"; exit 1; }
+export E2E_ASESOR_SUB="$SUB"   # lo usa el spec (salto headless a /lenders) para el corporate_user_id del uReq
 HASH="$(fget "merchants.$MERCHANT.branch_hash")"
 # teléfono de prueba para bypasear el OTP (qa_otp_bypass_phones → OTP = últimos 4)
 BYPASS_PHONE="$(fget otp_bypass_phone)"; [ -n "$BYPASS_PHONE" ] || BYPASS_PHONE="3131010101"

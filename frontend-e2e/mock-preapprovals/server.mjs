@@ -16,11 +16,25 @@
 
 import http from "node:http";
 import { randomUUID } from "node:crypto";
+import { readFileSync } from "node:fs";
+
+// status POR lender: el panel escribe un JSON { "<lender_id>": "approved|rejected|pending", ... } acá.
+// El mock lo lee en CADA request (para cambiar sin reiniciar) y matchea por lending_product_id (= lender.id).
+const STATUS_FILE = process.env.MOCK_PA_STATUS_FILE || "/tmp/mock-pa-statuses.json";
+function lenderStatusFor(req) {
+      try {
+            const map = JSON.parse(readFileSync(STATUS_FILE, "utf8"));
+            return map[String(req.lending_product_id)] || map[String(req.lending_product_key)] || null;
+      } catch {
+            return null;
+      }
+}
 
 const PORT = Number(process.env.MOCK_PA_PORT || 8095);
 const FORCE = (process.env.MOCK_PA_STATUS || "approved").toLowerCase();
 const CUPO = Number(process.env.MOCK_PA_CUPO || 25_000_000);
 const RATE = Number(process.env.MOCK_PA_RATE || 0.0188); // 1.88% M.V — lo que muestran las cards
+const DELAY = Number(process.env.MOCK_PA_DELAY_MS || 0); // ms antes de responder → ver el loader de pre-aprobado en las cards rt≠0
 const TERMS = [12, 24, 36, 48];
 
 // cuota mensual por amortización francesa (mismo formato que muestran las cards)
@@ -103,7 +117,7 @@ function norm(s) {
 const server = http.createServer((r, res) => {
       if (r.method === "GET") {
             res.writeHead(200, { "content-type": "application/json" });
-            res.end(JSON.stringify({ ok: true, service: "mock-preapprovals", force: FORCE, cupo: CUPO }));
+            res.end(JSON.stringify({ ok: true, service: "mock-preapprovals", force: FORCE, cupo: CUPO, delay: DELAY }));
             return;
       }
       if (r.method === "POST" && r.url.startsWith("/v1/preapprovals/check")) {
@@ -117,15 +131,21 @@ const server = http.createServer((r, res) => {
                         /* payload vacío/ inválido → defaults */
                   }
                   const u = new URL(r.url, "http://x");
+                  // precedencia: override explícito del request → status por lender (archivo del panel) → global.
                   const status = norm(
-                        u.searchParams.get("status") || r.headers["x-mock-status"] || req.force_status || FORCE,
+                        u.searchParams.get("status") || r.headers["x-mock-status"] || req.force_status || lenderStatusFor(req) || FORCE,
                   );
                   const payload = build(req, status);
                   console.log(
-                        `[mock-pa] ${payload.lending_product_key}#${payload.lending_product_id} amount=${req.amount ?? "-"} ur=${req.user_request_id ?? "-"} → ${payload.status}`,
+                        `[mock-pa] ${payload.lending_product_key}#${payload.lending_product_id} amount=${req.amount ?? "-"} ur=${req.user_request_id ?? "-"} → ${payload.status}${DELAY ? ` (+${DELAY}ms)` : ""}`,
                   );
-                  res.writeHead(200, { "content-type": "application/json" });
-                  res.end(JSON.stringify(payload));
+                  const send = () => {
+                        res.writeHead(200, { "content-type": "application/json" });
+                        res.end(JSON.stringify(payload));
+                  };
+                  // Delay opcional (MOCK_PA_DELAY_MS): retrasa la respuesta para VER el loader de pre-aprobado.
+                  if (DELAY > 0) setTimeout(send, DELAY);
+                  else send();
             });
             return;
       }
@@ -135,6 +155,6 @@ const server = http.createServer((r, res) => {
 
 server.listen(PORT, () => {
       console.log(
-            `mock-preapprovals → http://localhost:${PORT}/v1/preapprovals/check  (force=${FORCE} · cupo=${CUPO} · rate=${RATE})`,
+            `mock-preapprovals → http://localhost:${PORT}/v1/preapprovals/check  (force=${FORCE} · cupo=${CUPO} · rate=${RATE} · delay=${DELAY}ms)`,
       );
 });

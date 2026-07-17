@@ -7,7 +7,7 @@ import { config, cognitoCreds } from '../pkg/config';
 import { cognitoLogin } from '../pkg/cognito';
 import { synthFill, requestEstado11 } from '../pkg/inject';
 import { closeCreditopX, resolveRequestStatus } from '../pkg/close';
-import { one } from '../pkg/db';
+import { one, exec } from '../pkg/db';
 import { close } from '../pkg/db';
 import { PREVIEW, IPHONE_UA, openA, openB } from '../pkg/windows';
 
@@ -200,19 +200,125 @@ test('guided (semiautomático)', async ({ browser }) => {
     //    (invisible) para que listen los rt=2. Sin E2E_INJECT: manual puro (buró real / sin inyección). ──
     if (process.env.E2E_GUIDED === '0') {
         if (process.env.E2E_INJECT === '1') {
-            tip('MANUAL: manejá desde monto. Al llegar a personal-info inyecto el buró (invisible); después seguí a /lenders.');
-            await shot(page, 'manual-entrada');
-            await page.waitForURL(/\/(personal-info|employment-info)(\?|$)/, { timeout: PICK_TIMEOUT }).catch(() => {});
-            const ur = page.url().match(/\/(?:merchant|ecommerce)\/[^/]+\/(\d+)\//)?.[1] ?? '';
-            if (ur) {
-                // skipIdentity: NO auto-rellenamos personal-info; solo inyectamos el buró (invisible).
-                const r = await synthFill(Number(ur), { ...synthOptsFromEnv(), skipIdentity: true });
-                log(`buró inyectado para uReq ${ur} (Experian ${r.datacredito_forged}) — identidad la ponés vos; seguí a /lenders`);
-                tip('Buró inyectado (invisible). Seguí el wizard hasta /lenders. (Resume ▶ para terminar.)');
-            } else {
-                log('no pude leer el uReq en personal-info — seguí igual (sin buró inyectado)');
+            // STEP a dónde SALTAR: monto (default, vos manejás) | phone | personal-info | lenders.
+            // Para phone/personal-info/lenders: relleno + clickeo "Continuar" por vos hasta ese paso.
+            const STEP = (process.env.E2E_STEP_TARGET || 'monto').toLowerCase();
+            const clickContinue = () =>
+                page.getByRole('button', { name: /continuar|continue|siguiente/i }).first().click({ timeout: 8_000 }).catch(() => {});
+            const uReqOf = () => page.url().match(/\/(?:merchant|ecommerce)\/[^/]+\/(\d+)\//)?.[1] ?? '';
+
+            // ── STEP = monto (default): comportamiento de siempre. Vos manejás; inyecto el buró al llegar a personal-info. ──
+            if (STEP === 'monto') {
+                tip('MANUAL: manejá desde monto. Al llegar a personal-info inyecto el buró (invisible); después seguí a /lenders.');
+                await shot(page, 'manual-entrada');
+                await page.waitForURL(/\/(personal-info|employment-info)(\?|$)/, { timeout: PICK_TIMEOUT }).catch(() => {});
+                const ur = uReqOf();
+                if (ur) {
+                    const r = await synthFill(Number(ur), { ...synthOptsFromEnv(), skipIdentity: true });
+                    log(`buró inyectado para uReq ${ur} (Experian ${r.datacredito_forged}) — identidad la ponés vos; seguí a /lenders`);
+                    tip('Buró inyectado (invisible). Seguí el wizard hasta /lenders. (Resume ▶ para terminar.)');
+                } else {
+                    log('no pude leer el uReq en personal-info — seguí igual (sin buró inyectado)');
+                }
+                await shot(page, 'manual-personal-info');
+                await page.pause().catch(() => {});
+                return;
             }
-            await shot(page, 'manual-personal-info');
+
+            // ── STEP = lenders: HEADLESS (sin llenado visual). register (crea el user) + INSERT del uReq +
+            //    inyecto el sintético + goto /lenders. Rápido: no pasa por monto/teléfono/OTP. ──
+            if (STEP === 'lenders') {
+                log('salto HEADLESS a /lenders (sin llenado visual): register + uReq + buró inyectado');
+                // register del teléfono (scrubphone ya lo dejó fresco). Endpoint sin auth, backend local.
+                const reg = await fetch(`${config.mockUrl}/api/onboarding/phone/register`, {
+                    method: 'POST',
+                    headers: { 'content-type': 'application/json', accept: 'application/json' },
+                    body: JSON.stringify({ phone_number: PHONE, phoneNumber: PHONE, terms: true, policies: true, otp_length: 4, otpLength: 4, partner_branch_hash: HASH, partnerBranchHash: HASH }),
+                }).then((r) => r.json()).catch(() => null);
+                const userId = reg?.data?.user?.id ?? null;
+                const br = userId ? await one<{ branch_id: number; allied_id: number }>('SELECT id AS branch_id, allied_id FROM allied_branches WHERE hash=? LIMIT 1', [HASH]).catch(() => null) : null;
+                // asesor → corporate_user_id (como el flujo real, para que /lenders lo autorice). bin/asesor exporta E2E_ASESOR_SUB.
+                const asesorSub = process.env.E2E_ASESOR_SUB || '';
+                const asesorId = asesorSub ? ((await one<{ id: number }>('SELECT id FROM users WHERE cognito_id=? LIMIT 1', [asesorSub]).catch(() => null))?.id ?? null) : null;
+                let ur = '';
+                if (userId && br) {
+                    const ins = await exec(
+                        'INSERT INTO user_requests (user_id, allied_id, allied_branch_id, lender_id, amount, original_amount, user_request_status_id, corporate_user_id, credit_line_id, fee_number, fee_value, rate, created_at, updated_at) VALUES (?,?,?,NULL,?,?,1,?,1,0,0,0,NOW(),NOW())',
+                        [userId, br.allied_id, br.branch_id, Number(AMOUNT), Number(AMOUNT), asesorId],
+                    ).catch(() => null);
+                    ur = ins?.insertId ? String(ins.insertId) : '';
+                }
+                if (ur) {
+                    const r = await synthFill(Number(ur), synthOptsFromEnv());
+                    log(`uReq ${ur} sembrado headless (user ${userId} · asesor ${asesorId ?? '-'} · Experian ${r.datacredito_forged}) → /lenders?amount=${AMOUNT}`);
+                    await page.goto(`/merchant/${HASH}/${ur}/lenders?amount=${AMOUNT}`, { waitUntil: 'domcontentloaded', timeout: 90_000 }).catch(() => {});
+                } else {
+                    log(`✗ no pude sembrar el uReq headless (user=${userId ?? '?'} · branch=${br ? 'ok' : 'no'}) — probá STEP=personal-info (visual)`);
+                }
+                await page.waitForURL(/\/lenders/, { timeout: 60_000 }).catch(() => {});
+                await page.getByText(/cargando las opciones/i).waitFor({ state: 'detached', timeout: 120_000 }).catch(() => {});
+                await shot(page, 'headless-lenders');
+                tip('Salto HEADLESS a /lenders (sin llenado visual, con el sintético inyectado). Explorá las cards. (Resume ▶ para terminar.)');
+                await page.pause().catch(() => {});
+                return;
+            }
+
+            // ── STEP = phone | personal-info: SALTO automático VISUAL hasta ese paso ──
+            log(`salto automático hasta "${STEP}" (relleno monto/teléfono/OTP por vos)`);
+            // MONTO → Continuar
+            const amountInput = page.getByTestId('amount-input').or(page.getByRole('textbox', { name: /monto/i }));
+            if (await amountInput.isVisible({ timeout: 20_000 }).catch(() => false)) {
+                await seedField(amountInput, AMOUNT);
+                await clickContinue();
+            }
+            const phoneInput = page.getByTestId('phone-input').or(page.getByRole('textbox', { name: /celular|tel[ée]fono|n[úu]mero/i }));
+            await phoneInput.first().waitFor({ state: 'visible', timeout: 30_000 }).catch(() => {});
+            if (STEP === 'phone') {
+                await shot(page, 'auto-phone');
+                tip('Salté a Teléfono con el monto ya puesto. Seguí vos desde acá. (Resume ▶ para terminar.)');
+                await page.pause().catch(() => {});
+                return;
+            }
+
+            // TELÉFONO → Continuar → OTP (bypass QA) → Continuar
+            if (await phoneInput.isVisible({ timeout: 10_000 }).catch(() => false)) {
+                await seedField(phoneInput, PHONE);
+                await clickContinue();
+                await page.waitForURL(/\/otp(\?|$)/, { timeout: 30_000 }).catch(() => {});
+            }
+            const otp = page.getByTestId('otp-input').or(page.locator('input:not([type="hidden"])').first());
+            await otp.waitFor({ state: 'visible', timeout: 15_000 }).catch(() => {});
+            await otp.click().catch(() => {});
+            await page.keyboard.type(OTP, { delay: 80 }).catch(() => {});
+            await clickContinue();
+            await page.waitForURL(/\/(personal-info|employment-info|lenders)(\?|$)/, { timeout: 40_000 }).catch(() => {});
+
+            // PERSONAL-INFO
+            const ur = uReqOf();
+            if (STEP === 'personal-info') {
+                if (ur && /personal-info|employment-info/.test(page.url())) {
+                    const r = await synthFill(Number(ur), { ...synthOptsFromEnv(), skipIdentity: true });
+                    log(`salté a personal-info · buró inyectado uReq ${ur} (Experian ${r.datacredito_forged})`);
+                }
+                await shot(page, 'auto-personal-info');
+                tip('Salté a personal-info con el buró inyectado. Completá/seguí a /lenders. (Resume ▶ para terminar.)');
+                await page.pause().catch(() => {});
+                return;
+            }
+
+            // LENDERS: inyecto identidad+buró completos y navego directo (salta el submit de personal-info)
+            if (ur && /personal-info|employment-info/.test(page.url())) {
+                const r = await synthFill(Number(ur), synthOptsFromEnv());
+                const baseUrl = page.url().replace(/\/(personal-info|employment-info|lenders).*$/, '');
+                const reqAmt = (await one<{ amount: number | string }>('SELECT amount FROM user_requests WHERE id=? LIMIT 1', [Number(ur)]).catch(() => null))?.amount;
+                const amt = reqAmt != null && Number(reqAmt) > 0 ? Math.round(Number(reqAmt)) : Number(AMOUNT);
+                log(`uReq ${ur} armado (Experian ${r.datacredito_forged}) → /lenders?amount=${amt}`);
+                await page.goto(`${baseUrl}/lenders?amount=${amt}`, { waitUntil: 'domcontentloaded', timeout: 90_000 }).catch(() => {});
+            }
+            await page.waitForURL(/\/lenders/, { timeout: 60_000 }).catch(() => {});
+            await page.getByText(/cargando las opciones/i).waitFor({ state: 'detached', timeout: 120_000 }).catch(() => {});
+            await shot(page, 'auto-lenders');
+            tip('Salté directo a /lenders con el usuario sintético inyectado. Explorá las cards. (Resume ▶ para terminar.)');
             await page.pause().catch(() => {});
             return;
         }

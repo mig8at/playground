@@ -5,6 +5,7 @@
 #
 # uso: bin/mock-preapprovals [start|stop|status|logs]
 #   env: MOCK_PA_PORT (8095) · MOCK_PA_STATUS (approved|rejected|pending) · MOCK_PA_CUPO · MOCK_PA_RATE
+#        · MOCK_PA_DELAY_MS (0) → ms de espera por respuesta, para VER el loader de pre-aprobado (ej. 5000)
 set -euo pipefail
 DIR="$(cd "$(dirname "$0")/.." && pwd)"
 PORT="${MOCK_PA_PORT:-8095}"
@@ -14,12 +15,21 @@ up() { curl -s -o /dev/null --max-time 2 "http://localhost:$PORT" 2>/dev/null; }
 
 case "${1:-start}" in
   start)
-    if up; then echo "✓ mock-preapprovals ya arriba (:$PORT)"; exit 0; fi
+    WANT_DELAY="${MOCK_PA_DELAY_MS:-0}"
+    if up; then
+      # reusar SOLO si el delay coincide; si cambió, reiniciar (el env se hornea al bootear).
+      CUR_DELAY="$(curl -s --max-time 2 "http://localhost:$PORT" 2>/dev/null | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{try{process.stdout.write(String(JSON.parse(s).delay??0))}catch{process.stdout.write("0")}})')"
+      if [ "${CUR_DELAY:-0}" = "$WANT_DELAY" ]; then echo "✓ mock-preapprovals ya arriba (:$PORT · delay ${WANT_DELAY}ms)"; exit 0; fi
+      echo "↻ reinicio mock-preapprovals (delay ${CUR_DELAY:-0}ms → ${WANT_DELAY}ms)"
+      lsof -ti:"$PORT" 2>/dev/null | xargs kill -9 2>/dev/null || true
+      for _ in $(seq 1 10); do up || break; sleep 0.2; done
+    fi
     rm -f "$LOG"
     nohup env MOCK_PA_PORT="$PORT" MOCK_PA_STATUS="${MOCK_PA_STATUS:-approved}" \
       MOCK_PA_CUPO="${MOCK_PA_CUPO:-25000000}" MOCK_PA_RATE="${MOCK_PA_RATE:-0.0188}" \
+      MOCK_PA_DELAY_MS="$WANT_DELAY" \
       node "$DIR/mock-preapprovals/server.mjs" < /dev/null > "$LOG" 2>&1 &
-    for _ in $(seq 1 25); do up && { echo "✓ mock-preapprovals :$PORT (happy path)"; exit 0; }; sleep 0.3; done
+    for _ in $(seq 1 25); do up && { echo "✓ mock-preapprovals :$PORT (happy path · delay ${WANT_DELAY}ms)"; exit 0; }; sleep 0.3; done
     echo "✗ no levantó"; tail -8 "$LOG" 2>/dev/null; exit 1;;
   stop)
     lsof -ti:"$PORT" 2>/dev/null | xargs kill -9 2>/dev/null && echo "⏹ detenido (:$PORT)" || echo "no estaba corriendo";;

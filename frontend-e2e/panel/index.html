@@ -420,6 +420,15 @@
       white-space: pre-wrap;
       display: none
     }
+    .lrow { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 11px; border: 1px solid var(--line); border-radius: 10px; margin-top: 6px; cursor: grab; }
+    .lrow.drag { opacity: .4; }
+    .lgrip { color: var(--mut); margin-right: 7px; cursor: grab; }
+    .lrow .lnm { font-size: 13px; color: var(--txt); }
+    .lrow .lrt { color: var(--mut); font-size: 11px; margin-left: 6px; }
+    .ltog { border: 1px solid var(--line); border-radius: 999px; padding: 4px 14px; font-size: 12px; font-weight: 600; cursor: pointer; background: transparent; color: var(--mut); }
+    .ltog.on { background: rgba(34, 197, 94, .15); border-color: var(--acc); color: var(--acc); }
+    .ltog:disabled { opacity: .5; cursor: default; }
+    .pasel { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; color: var(--txt); font-size: 11px; padding: 3px 6px; cursor: pointer; }
   </style>
 </head>
 
@@ -446,6 +455,11 @@
     <section class="card">
       <h2><b>1</b> Comercio de prueba</h2>
       <div class="grid" id="results"></div>
+      <div style="margin-top:14px">
+        <p class="grouplbl">Lenders de la sucursal <span id="lendersbranch" style="font-weight:400;color:var(--mut)"></span></p>
+        <p style="color:var(--mut);font-size:11px;margin:-4px 0 6px">ON/OFF = status <b>global</b> del lender (lo que filtra el listado). Afecta todas las sucursales en local; reversible.</p>
+        <div id="lenderslist"><p style="color:var(--mut);font-size:12px;margin:0">Elegí un comercio…</p></div>
+      </div>
     </section>
 
     <!-- 2 · Usuario sintético — todo editable, con defaults sensatos -->
@@ -527,6 +541,34 @@
     <!-- 3 · Lanzar -->
     <section class="card">
       <h2><b>3</b> Lanzar</h2>
+
+      <div class="field">
+        <label>Monto solicitado</label>
+        <div class="money"><input id="amount" type="text" inputmode="numeric" value="2.000.000" oninput="onMoney(this)" /></div>
+      </div>
+
+      <div class="field">
+        <label>Saltar a</label>
+        <div class="seg" id="step">
+          <button class="on" data-v="monto">Monto</button>
+          <button data-v="phone">Teléfono</button>
+          <button data-v="personal-info">Datos</button>
+          <button data-v="lenders">Lenders</button>
+        </div>
+        <p id="stephint" style="color:var(--mut);font-size:12px;margin:8px 0 0"></p>
+      </div>
+
+      <div class="field">
+        <label>Espera pre-aprobados (para ver el loader)</label>
+        <div class="seg" id="padelay">
+          <button class="on" data-v="0">Sin espera</button>
+          <button data-v="3000">3s</button>
+          <button data-v="5000">5s</button>
+          <button data-v="10000">10s</button>
+          <button data-v="15000">15s</button>
+        </div>
+      </div>
+
       <div class="launch">
         <button class="go" id="go" disabled>Preparar + Lanzar ▶</button>
         <button class="stop" id="stopBtn">Detener</button>
@@ -550,6 +592,9 @@
     let inject = true;           // true = inyecta buró sintético (salta consulta real) · false = prueba real
     let doctype = 'CC';
     let gender = 'M';
+    let step = 'monto';          // dónde saltar: monto | phone | personal-info | lenders
+    let padelay = 0;             // ms de espera del mock de pre-aprobados (para ver el loader)
+    let paStatus = {};           // status por lender que devolverá el mock: { lenderId: 'approved'|'rejected'|'pending' }
     let poll = null;
 
     const fmt = (n) => (n || 0).toLocaleString('es-CO');
@@ -573,9 +618,85 @@
         d.className = 'm' + (sel && sel.slug === m.slug ? ' sel' : '') + (m.missing ? ' miss' : '');
         d.innerHTML = `<span class="tick">✓</span><div class="nm">${m.name}</div>
       <div class="meta">${m.meta || m.slug}</div>`;
-        d.onclick = () => { sel = m; renderMerchants(); refresh(); };
+        d.onclick = () => { sel = m; renderMerchants(); refresh(); loadLenders(); };
         g.appendChild(d);
       }
+    }
+
+    // lenders de la sucursal (la que usa el launch) → filas con toggle ON/OFF.
+    async function loadLenders() {
+      if (!sel) return;
+      const box = $('lenderslist');
+      box.innerHTML = '<p style="color:var(--mut);font-size:12px;margin:0">Cargando…</p>';
+      try {
+        const r = await (await fetch('/api/lenders?slug=' + encodeURIComponent(sel.slug) + '&target=' + target)).json();
+        $('lendersbranch').textContent = r.hash ? '· ' + r.hash : (r.msg || '');
+        paStatus = (await (await fetch('/api/pa-statuses')).json().catch(() => ({}))) || {};
+        const ls = r.lenders || [];
+        if (!ls.length) { box.innerHTML = '<p style="color:var(--mut);font-size:12px;margin:0">Sin lenders (¿branch en .flows.json?).</p>'; return; }
+        box.innerHTML = '';
+        for (const l of ls) {
+          const on = Number(l.lender_status) === 1;   // status GLOBAL del lender = lo que filtra el listado (lab.status no aplica)
+          const row = document.createElement('div');
+          row.className = 'lrow';
+          row.draggable = true;
+          row.dataset.id = l.id;
+          row.ondragstart = onLenderDragStart;
+          row.ondragover = onLenderDragOver;
+          row.ondragend = onLenderDragEnd;
+          row.ondrop = (e) => e.preventDefault();
+          row.innerHTML = `<span class="lnm"><span class="lgrip">⠿</span>${l.name} <span class="lrt">#${l.id} · rt${l.rt} · ${l.product}</span></span>`;
+          const right = document.createElement('div');
+          right.style.cssText = 'display:flex;align-items:center;gap:8px';
+          if (Number(l.rt) !== 0) {   // rt=0 (STANDARD) no consulta el MS de pre-aprobados → sin selector de status
+            const st = document.createElement('select');
+            st.className = 'pasel';
+            st.innerHTML = '<option value="approved">Aprobado</option><option value="rejected">Rechazado</option><option value="pending">Pendiente</option>';
+            st.value = paStatus[l.id] || 'approved';
+            st.draggable = false;
+            st.onchange = () => { paStatus[l.id] = st.value; savePaStatuses(); };
+            right.appendChild(st);
+          }
+          const btn = document.createElement('button');
+          btn.className = 'ltog ' + (on ? 'on' : 'off');
+          btn.textContent = on ? 'ON' : 'OFF';
+          btn.draggable = false;
+          btn.onclick = () => toggleLender(l.id, !(btn.classList.contains('on')), btn);
+          right.appendChild(btn);
+          row.appendChild(right);
+          box.appendChild(row);
+        }
+      } catch { box.innerHTML = '<p style="color:var(--danger);font-size:12px;margin:0">Error cargando lenders.</p>'; }
+    }
+    async function toggleLender(id, status, btn) {
+      btn.disabled = true;
+      try {
+        const r = await (await fetch('/api/lender-toggle', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ slug: sel.slug, target, lenderId: id, status }) })).json();
+        if (r && r.ok) { btn.className = 'ltog ' + (status ? 'on' : 'off'); btn.textContent = status ? 'ON' : 'OFF'; }
+        else alert((r && r.msg) || 'no se pudo togglear');
+      } catch { alert('error de red'); }
+      btn.disabled = false;
+    }
+
+    // drag para reordenar lenders → guarda lenders_by_allieds.sort (se respeta en /lenders dentro de cada bucket de probabilidad).
+    let dragEl = null;
+    function onLenderDragStart(e) { dragEl = e.currentTarget; e.currentTarget.classList.add('drag'); }
+    function onLenderDragEnd(e) { e.currentTarget.classList.remove('drag'); saveLenderOrder(); }
+    function onLenderDragOver(e) {
+      e.preventDefault();
+      const t = e.currentTarget;
+      if (!dragEl || t === dragEl) return;
+      const box = $('lenderslist'); const rows = [...box.children];
+      box.insertBefore(dragEl, rows.indexOf(dragEl) < rows.indexOf(t) ? t.nextSibling : t);
+    }
+    async function saveLenderOrder() {
+      if (!sel) return;
+      const order = [...$('lenderslist').querySelectorAll('.lrow')].map(r => Number(r.dataset.id));
+      try { await fetch('/api/lender-sort', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ slug: sel.slug, target, order }) }); } catch {}
+    }
+    // status por lender que devolverá el mock de pre-aprobados (el mock lee el archivo por request).
+    async function savePaStatuses() {
+      try { await fetch('/api/pa-statuses', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ map: paStatus }) }); } catch {}
     }
 
     // enriquece cada card con #id·hash desde el backend (resiliente: si no está en local, lo marca).
@@ -614,7 +735,7 @@
     async function launch() {
       if (!sel) return;
       const body = {
-        slug: sel.slug, target, inject, documentType: doctype, gender,
+        slug: sel.slug, target, inject, stepTarget: step, amount: moneyNum('amount'), paDelay: padelay, documentType: doctype, gender,
         name: $('name').value.trim(), document: $('document').value.trim(),
         age: +$('age').value, dob: $('dob').value, expeditionDate: $('expedition').value,
         email: $('email').value.trim(), occupation: $('occupation').value,
@@ -646,6 +767,20 @@
     // segmentos
     document.querySelectorAll('#doctype button').forEach(b => b.onclick = () => { doctype = b.dataset.v; setSeg('doctype', doctype); togglePep(); refresh(); });
     document.querySelectorAll('#gender button').forEach(b => b.onclick = () => { gender = b.dataset.v; setSeg('gender', gender); refresh(); });
+
+    // "Saltar a": hasta dónde auto-avanza el harness (rellenando + Continuar por vos, inyectando el sintético).
+    const STEP_HINTS = {
+      monto: 'Entrás en Monto y manejás todo el flujo vos (inyecto el buró al llegar a personal-info).',
+      phone: 'Relleno el monto y te dejo en Teléfono para seguir vos.',
+      'personal-info': 'Relleno monto/teléfono/OTP e inyecto el buró; parás en Datos.',
+      lenders: 'Salto directo a /lenders con el usuario sintético inyectado (sin hacer el flujo).',
+    };
+    const updateStepHint = () => { $('stephint').textContent = STEP_HINTS[step] || ''; };
+    document.querySelectorAll('#step button').forEach(b => b.onclick = () => { step = b.dataset.v; setSeg('step', step); updateStepHint(); });
+    updateStepHint();
+
+    // espera del mock de pre-aprobados (para VER el loader de las cards rt≠0)
+    document.querySelectorAll('#padelay button').forEach(b => b.onclick = () => { padelay = +b.dataset.v; setSeg('padelay', b.dataset.v); });
 
     // switcher de target (local | dev). dev = escribe data compartida → muestra aviso + re-enrich (#id/hash difieren).
     document.querySelectorAll('#targets .pill:not(.dim)').forEach(b => b.onclick = () => {
@@ -701,6 +836,7 @@
 
     renderMerchants();   // cards de prueba (slug ya visible)
     enrichMerchants();   // completa #id·hash desde el backend
+    loadLenders();       // lenders de la sucursal del comercio seleccionado (toggle ON/OFF)
     updateInjModeForTarget();   // estado inicial (en local, Real deshabilitado → Sintético)
     refresh();           // Motai preseleccionado → botón habilitado
     startPoll();         // engancharse si había una corrida activa

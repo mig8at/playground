@@ -17,6 +17,7 @@ const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(HERE, '..');              // raíz de frontend-e2e
 const PORT = Number(process.env.PANEL_PORT || 5195);
 const RUN_LOG = '/tmp/asesor-panel-run.log';
+const PA_STATUS_FILE = '/tmp/mock-pa-statuses.json'; // status por lender del mock de pre-aprobados (mismo path que lee server.mjs)
 const TARGETS = new Set(['local', 'dev']);     // staging: pendiente (.env.staging)
 
 // env por target: local = seguro; dev = DATA COMPARTIDA → habilita el guard de escritura de pkg/db (synthFill).
@@ -52,19 +53,47 @@ function dbopsList(q: string, target: string): Promise<any[]> {
     });
 }
 
+// corre `node bin/dbops.ts <args...>` y devuelve el JSON parseado (o null si falla). Target-aware (dev → I_KNOW).
+function dbopsJson(args: string[], target: string): Promise<any> {
+    return new Promise((ok) => {
+        execFile('node', ['bin/dbops.ts', ...args], { cwd: ROOT, env: envFor(target), timeout: 30000 }, (err, stdout) => {
+            if (err) return ok(null);
+            try { ok(JSON.parse(stdout)); } catch { ok(null); }
+        });
+    });
+}
+
+// hash de la SUCURSAL que usa el LAUNCH para un slug (de .flows.json, igual que bin/asesor). Es ese branch
+// el que hay que togglear — NO el de `dbops list` (que puede devolver otra sucursal del mismo comercio).
+function branchHashForSlug(slug: string): string {
+    try {
+        const j = JSON.parse(readFileSync(join(ROOT, '.flows.json'), 'utf8'));
+        return j?.merchants?.[slug]?.branch_hash || '';
+    } catch { return ''; }
+}
+
 // lanza `bin/asesor <slug>` en MODO MANUAL (sin `auto` → no auto-rellena; vos manejás desde monto) con
 // E2E_INJECT=1 (inyecta el buró invisible al llegar a personal-info) + el perfil por env, contra el target.
 interface Profile { income?: number; score?: number; name?: string; documentType?: string; document?: string; gender?: string; age?: number; negatives?: number; consulted?: number; occupation?: string; dob?: string; expeditionDate?: string; email?: string; }
 
-function launch(slug: string, profile: Profile, target: string, inject: boolean): { ok: boolean; msg: string } {
+function launch(slug: string, profile: Profile, target: string, inject: boolean, stepTarget: string, amount: number, paDelay: number): { ok: boolean; msg: string } {
     if (current && !current.done) return { ok: false, msg: `ya hay una corrida activa (${current.slug}). Parala primero.` };
     const t = TARGETS.has(target) ? target : 'local';
+    const step = ['monto', 'phone', 'personal-info', 'lenders'].includes(stepTarget) ? stepTarget : 'monto';
+    const amt = amount > 0 ? Math.round(amount) : 2_000_000; // monto solicitado (default 2M)
     const mode = inject ? 'manual + inyección de buró' : 'manual REAL (consulta buró real, sin inyección)';
-    writeFileSync(RUN_LOG, `▶ lanzando '${slug}' (${t}) · ${mode} · perfil ${JSON.stringify(profile)}\n`);
+    const jump = step === 'monto' ? '' : ` · salto → ${step}`;
+    writeFileSync(RUN_LOG, `▶ lanzando '${slug}' (${t}) · ${mode}${jump} · monto $${amt.toLocaleString('es-CO')}${paDelay ? ` · espera PA ${paDelay}ms` : ''} · perfil ${JSON.stringify(profile)}\n`);
     const env = {
         ...envFor(t),
         // switch del panel: ON → inyecta el buró (salta la consulta real); OFF → sin inyección (consulta real).
         E2E_INJECT: inject ? '1' : '',
+        // salto de pasos: monto (vos manejás) | phone | personal-info | lenders (auto-avanza inyectando el sintético).
+        E2E_STEP_TARGET: step,
+        // monto solicitado (lo usa el spec para sembrar/monto y el /lenders?amount=).
+        E2E_AMOUNT: String(amt),
+        // espera del mock de pre-aprobados (para ver el loader de las cards rt≠0). bin/asesor → mock-preapprovals lo hereda.
+        MOCK_PA_DELAY_MS: String(paDelay > 0 ? Math.round(paDelay) : 0),
         E2E_SYNTH_INCOME: profile.income ? String(profile.income) : '',
         E2E_SYNTH_SCORE: profile.score ? String(profile.score) : '',
         E2E_SYNTH_NAME: profile.name || '',
@@ -87,7 +116,7 @@ function launch(slug: string, profile: Profile, target: string, inject: boolean)
     child.stdout?.on('data', append);
     child.stderr?.on('data', append);
     child.on('close', (code) => { if (current) { current.done = true; current.code = code; } append(Buffer.from(`\n✓ corrida terminada (code ${code})\n`)); });
-    return { ok: true, msg: `lanzado '${slug}' (${t}) — ${mode}. Login → monto; manejás vos desde ahí.` };
+    return { ok: true, msg: `lanzado '${slug}' (${t}) — ${mode}${jump}.` };
 }
 
 function tailLog(): string {
@@ -129,6 +158,46 @@ const server = createServer(async (req, res) => {
         return json(res, 200, await dbopsList(q, target));
     }
 
+    // lenders de la sucursal (la que usa el launch) → [{id, name, rt, product, branch_status}]
+    if (path === '/api/lenders') {
+        const slug = (url.searchParams.get('slug') || '').trim();
+        const target = (url.searchParams.get('target') || 'local').trim();
+        const hash = branchHashForSlug(slug);
+        if (!hash) return json(res, 200, { hash: '', lenders: [], msg: `sin branch_hash en .flows.json para '${slug}'` });
+        const lenders = await dbopsJson(['lenders-for', hash], target);
+        return json(res, 200, { hash, lenders: Array.isArray(lenders) ? lenders : [] });
+    }
+
+    // prende/apaga un lender en la sucursal (lenders_by_allied_branches.status)
+    if (path === '/api/lender-toggle' && req.method === 'POST') {
+        const b = await readBody(req);
+        const hash = branchHashForSlug(String(b.slug || ''));
+        if (!hash || !b.lenderId) return json(res, 400, { ok: false, msg: 'falta slug/lenderId' });
+        const r = await dbopsJson(['lender-set', hash, String(b.lenderId), b.status ? '1' : '0'], String(b.target || 'local'));
+        return json(res, 200, r || { ok: false, msg: 'falló el toggle (ver consola del panel)' });
+    }
+
+    // fija el orden de los lenders del comercio (lenders_by_allieds.sort) desde una lista de ids
+    if (path === '/api/lender-sort' && req.method === 'POST') {
+        const b = await readBody(req);
+        const hash = branchHashForSlug(String(b.slug || ''));
+        const order = Array.isArray(b.order) ? b.order.map((x: any) => Number(x)).filter((n: number) => n > 0) : [];
+        if (!hash || !order.length) return json(res, 400, { ok: false, msg: 'falta slug/order' });
+        const r = await dbopsJson(['lender-sort', hash, order.join(',')], String(b.target || 'local'));
+        return json(res, 200, r || { ok: false, msg: 'falló el orden' });
+    }
+
+    // status por lender del mock de pre-aprobados: { "<lenderId>": "approved|rejected|pending" }. El mock lo lee por request.
+    if (path === '/api/pa-statuses') {
+        if (req.method === 'POST') {
+            const b = await readBody(req);
+            const map = b && typeof b.map === 'object' && b.map ? b.map : {};
+            try { writeFileSync(PA_STATUS_FILE, JSON.stringify(map)); } catch { /* */ }
+            return json(res, 200, { ok: true, map });
+        }
+        try { return json(res, 200, JSON.parse(readFileSync(PA_STATUS_FILE, 'utf8'))); } catch { return json(res, 200, {}); }
+    }
+
     if (path === '/api/launch' && req.method === 'POST') {
         const b = await readBody(req);
         if (!b.slug) return json(res, 400, { ok: false, msg: 'falta slug del comercio' });
@@ -146,7 +215,7 @@ const server = createServer(async (req, res) => {
             dob: b.dob ? String(b.dob) : undefined,
             expeditionDate: b.expeditionDate ? String(b.expeditionDate) : undefined,
             email: b.email ? String(b.email) : undefined,
-        }, String(b.target || 'local'), b.inject !== false));
+        }, String(b.target || 'local'), b.inject !== false, String(b.stepTarget || 'monto'), Number(b.amount) || 0, Number(b.paDelay) || 0));
     }
 
     if (path === '/api/status') {
