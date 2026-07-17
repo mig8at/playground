@@ -2,6 +2,8 @@
 
 > **Registro de cambios ejecutados** · 2026-07-15 · ramas `feature/motai-v2` en `legacy-backend` + `frontend-monorepo` (cambios **sin commit**, migración **sin correr**).
 > Pregunta que responde: *¿realmente eliminamos la página de modos y toda la lógica bypasseada por `isMotaiRenting` / id 158 / modos?*
+>
+> ⚠ **Este es el registro puntual del Jul-15.** Para el estado VIGENTE ver [MOTAI-V2-MAPA-DE-CAMBIOS.md](MOTAI-V2-MAPA-DE-CAMBIOS.md), que actualiza tres cosas de acá: (1) **TyC** pasó de "→ default" a **tabla `allied_documents` por comercio** (§3.3 quedó viejo); (2) el flag **`abaco` fue REMOVIDO** (§3.6 revertido — lo maneja otro equipo); (3) se agregó el **recálculo liviano de monto** en `/lenders`. Además las ramas ya están **commiteadas y pusheadas** (backend PR→develop retargeteado, frontend PR→staging).
 
 ---
 
