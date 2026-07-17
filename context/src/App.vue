@@ -71,10 +71,17 @@ function send(obj) { if (online.value) ws.send(JSON.stringify(obj)) }
 function showToast(msg) { toast.value = msg; setTimeout(() => (toast.value = ''), 2200) }
 
 // ── workspaces ──
-function onDeriveChild({ parent, name }) {
-  // "los 3, mismo nombre": una rama nueva con el mismo nombre en cada repo
+function onDeriveChild({ parent, name, repos }) {
+  // Los repos SELECCIONADOS van a la rama nueva `name` (el nombre se replica en
+  // todos); los NO seleccionados heredan la rama objetivo del padre (o su rama
+  // actual si el padre no la fija).
+  const parentCombo = combinations.value.find((c) => c.id === parent)
+  const parentTargets = parentCombo?.targets || {}
+  const sel = new Set(repos && repos.length ? repos : summary.value.repos.map((r) => r.alias))
   const targets = {}
-  for (const r of summary.value.repos) targets[r.alias] = name
+  for (const r of summary.value.repos) {
+    targets[r.alias] = sel.has(r.alias) ? name : (parentTargets[r.alias] || r.branch || name)
+  }
   send({ type: 'save_combination', name, parent, targets })
 }
 function onDeleteWorkspace(id) { send({ type: 'delete_combination', id }) }

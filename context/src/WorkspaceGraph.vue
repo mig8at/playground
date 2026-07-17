@@ -2,13 +2,13 @@
 import { ref, computed } from 'vue'
 import { VueFlow, Handle, Position, useVueFlow } from '@vue-flow/core'
 import { Background } from '@vue-flow/background'
-import { Copy, Check, FileText, GitBranch, GitFork, X, Plus, AlertTriangle } from 'lucide-vue-next'
+import { Network, Check, FileText, GitBranch, GitFork, X, Plus, AlertTriangle } from 'lucide-vue-next'
 import '@vue-flow/core/dist/style.css'
 import '@vue-flow/core/dist/theme-default.css'
 
 // Árbol de WORKSPACES: cada nodo es una combinación de ramas (resumen + copy del
-// flujo). Desde un nodo se DERIVA un hijo que ramifica sobre el padre (mismo
-// nombre en los 3 repos). Seleccionar un nodo lo alinea (checkout+pull) y carga
+// flujo). Desde un nodo se DERIVA un hijo: elegís qué repos van a la rama nueva
+// (mismo nombre replicado); el resto queda en la rama del padre. Seleccionar un nodo lo alinea (checkout+pull) y carga
 // su árbol. El nodo raíz (CreditOp) trae el contexto del ecosistema; sus hijos
 // son flujos específicos (solo contexto, sin checklist de tareas).
 const props = defineProps({
@@ -76,15 +76,21 @@ function nodeData(c, depth) {
 // ── modales (fuera del canvas para no pelear con Vue Flow) ──
 const deriveParent = ref(null) // combo del que se deriva
 const deriveName = ref('')
+const deriveRepos = ref([]) // aliases que van a la rama NUEVA (el resto queda en la del padre)
 function openDerive(id) {
   const c = props.combinations.find((x) => x.id === id)
   deriveParent.value = c || null
   deriveName.value = ''
+  deriveRepos.value = [...repoAliases.value] // por defecto: todos
+}
+// rama en la que queda un repo NO seleccionado: la que tiene el padre (o su rama actual)
+function parentBranch(a) {
+  return deriveParent.value?.targets?.[a] || props.repos.find((r) => r.alias === a)?.branch || '—'
 }
 function confirmDerive() {
   const n = deriveName.value.trim()
-  if (!n || !deriveParent.value) return
-  emit('derive', { parent: deriveParent.value.id, name: n })
+  if (!n || !deriveParent.value || !deriveRepos.value.length) return
+  emit('derive', { parent: deriveParent.value.id, name: n, repos: [...deriveRepos.value] })
   deriveParent.value = null
   deriveName.value = ''
 }
@@ -143,9 +149,10 @@ onNodesInitialized(() => refit())
             </div>
 
             <div class="wsbtns">
-              <button class="wscopy" :disabled="!data.hasFlow" @click.stop="emit('copy', { combo: data.id, label: data.name })">
-                <Check v-if="data.isCopied" :size="13" /><Copy v-else :size="13" />
-                {{ data.isCopied ? 'copiado' : 'copiar flujo' }}
+              <button class="wscopy" :disabled="!data.hasFlow" title="copiar el mapa del flujo (árbol de archivos)"
+                      @click.stop="emit('copy', { combo: data.id, label: data.name })">
+                <Check v-if="data.isCopied" :size="13" /><Network v-else :size="13" />
+                map
               </button>
               <button v-if="data.doc" class="wsdoc" title="ver la documentación del flujo (doc.md)"
                       @click.stop="emit('show-doc', { id: data.id, name: data.name, doc: data.doc })"><FileText :size="13" /> doc</button>
@@ -163,13 +170,17 @@ onNodesInitialized(() => refit())
       <div v-if="deriveParent" class="modal-back" @click.self="deriveParent = null">
         <div class="modal">
           <div class="modal-head"><h3>Derivar de «{{ deriveParent.name }}»</h3><button class="wsx" @click="deriveParent = null"><X :size="16" /></button></div>
-          <p class="modal-note">Crea un workspace hijo con una rama nueva del mismo nombre en los {{ repoAliases.length }} repos. Solo registra los nombres; las ramas las creás vos (Context alinea si existen).</p>
-          <input v-model="deriveName" class="modal-in" placeholder="nombre de rama (ej feature/motai-x)" @keyup.enter="confirmDerive" autofocus />
-          <div class="modal-preview">
-            <span v-for="a in repoAliases" :key="a" class="modal-prev-chip"><b>{{ a.split('-')[0] }}</b><GitBranch :size="10" />{{ deriveName.trim() || '…' }}</span>
+          <p class="modal-note">Elegí qué repos van a la rama nueva. Los no seleccionados quedan en la rama del padre. El nombre se replica en todos los seleccionados. Context solo registra los nombres; las ramas las creás vos.</p>
+          <div class="modal-repos">
+            <label v-for="a in repoAliases" :key="a" class="modal-repo" :class="{ on: deriveRepos.includes(a) }">
+              <input type="checkbox" :value="a" v-model="deriveRepos" />
+              <b>{{ a }}</b>
+              <span class="modal-repo-br"><GitBranch :size="10" />{{ deriveRepos.includes(a) ? (deriveName.trim() || 'rama nueva') : parentBranch(a) }}</span>
+            </label>
           </div>
+          <input v-model="deriveName" class="modal-in" placeholder="nombre de rama (ej feature/motai-x)" @keyup.enter="confirmDerive" autofocus />
           <div class="modal-actions">
-            <button class="modal-save" :disabled="!deriveName.trim()" @click="confirmDerive"><Plus :size="13" /> derivar</button>
+            <button class="modal-save" :disabled="!deriveName.trim() || !deriveRepos.length" @click="confirmDerive"><Plus :size="13" /> derivar en {{ deriveRepos.length }} repo{{ deriveRepos.length === 1 ? '' : 's' }}</button>
             <button class="modal-cancel" @click="deriveParent = null">cancelar</button>
           </div>
         </div>
@@ -248,9 +259,13 @@ onNodesInitialized(() => refit())
 .modal-note { font-size: 12px; color: var(--muted); line-height: 1.5; margin: 0 0 12px; }
 .modal-in { width: 100%; background: var(--bg); border: 1px solid var(--border); color: var(--text); padding: 9px 12px; border-radius: 8px; font-size: 14px; box-sizing: border-box; margin-bottom: 10px; }
 .modal-in:focus { outline: none; border-color: var(--accent); }
-.modal-preview { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 14px; }
-.modal-prev-chip { display: inline-flex; align-items: center; gap: 3px; font-size: 11px; font-family: var(--mono); color: var(--violet); background: rgba(188,140,255,.1); padding: 3px 8px; border-radius: 6px; }
-.modal-prev-chip b { color: var(--text); margin-right: 2px; }
+.modal-repos { display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px; }
+.modal-repo { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border: 1px solid var(--border); border-radius: 8px; cursor: pointer; font-size: 13px; color: var(--muted); background: var(--bg); }
+.modal-repo.on { border-color: var(--violet); color: var(--text); background: rgba(188,140,255,.08); }
+.modal-repo input { accent-color: var(--violet); cursor: pointer; }
+.modal-repo b { flex: 1; font-weight: 600; }
+.modal-repo-br { display: inline-flex; align-items: center; gap: 3px; font-size: 11px; font-family: var(--mono); color: var(--violet); }
+.modal-repo:not(.on) .modal-repo-br { color: var(--muted); }
 .modal-actions { display: flex; gap: 8px; }
 .modal-save { display: inline-flex; align-items: center; gap: 5px; background: var(--green); color: #06101f; border: 0; border-radius: 8px; padding: 8px 16px; font-weight: 600; font-size: 13px; cursor: pointer; }
 .modal-save:disabled { opacity: .5; cursor: default; }
