@@ -52,6 +52,15 @@ Tabla nueva: `allied_id` + `type` (terms_and_conditions|data_policy|…) + FK a 
 
 Lo que legítimamente queda con "motai"/"158" NO es lógica bypasseada: el `158` en la migración es **backfill de datos** (el id vive en config, no en `if`s); `field_id==158` en EAV es falso positivo; `MotaiValidationService`/rutas `/api/onboarding/motai/*` son **nombres** de endpoints que consume el front (lógica interna ya genérica); el bypass PEP en `storePersonalInfo` es el mecanismo correcto (keyea por `document_type==='PEP'`). Prueba E2E del flujo pendiente (requiere la migración corrida) — ver Pendientes.
 
+## Plan y decisiones (deber-ser)
+Síntesis del plan maestro (absorbe `MOTAI-PLAN-EVOLUCION` + `DES-MOTAIZACION` + specs, para no abrir los docs):
+- **Roadmap E0–E4:** E0 saneamiento (persistir `average_income` de Ábaco —hoy se descarta—, endpoint muerto, seeder del modo) → E1 categoría de producto (dispara el comportamiento, lee con respaldo a los ids viejos) → E2 calculadora a backend (una fórmula, config por producto) → E3 legal por config (TyC por comercio) → E4 reglas por config (buró/fuentes/tipos de documento). Regla de oro: **Motai nunca deja de funcionar** (dual-read, los ids se borran al final).
+- **PIVOT §10:** los productos = **lenders CreditopX por CATEGORÍA** (CTPX-BUY / CTPX-RENT / CTPX-RTO), hermanos de CrediPullman/SmartPay; muere `isMotaiRenting`/`MOTAI_LENDER_IDS[158]`/la pantalla merchant-mode; la ficha del comercio queda flaca (marca + qué lenders habilita).
+- **Censo** B1-B18 (backend) / F1-F17 (frontend) verificado vs staging.
+- **Conflictos C1–C10** (a resolver con negocio): C1 terminología (el "renting" del código = "rent-to-own" del negocio), C2 buró (¿R2 "Datacrédito 100%" aplica a PEP?), C9 score mínimo (PRD dice **400** en un lado y **0** en otro), **C10 la columna "semanas" del simulador RTO está mal: son 52/78/104** (= 12/18/24 meses).
+- **Decisiones D1–D7** (diseño): productos como lenders por categoría, ficha flaca, herencia no-copia de reglas, actor administrador separado del asesor, etc.
+- **8 PRs dual-read** en `DES-MOTAIZACION.md`. Es el **primer escalón ejecutado** del deber-ser del group Plataforma.
+
 ## Bitácora
 - **2026-07-15** — Arranque de la des-motaización sobre `feature/motai-v2` (nacida de staging). Censo re-verificado B1-B18/F1-F17 en `docs/mejoras/DES-MOTAIZACION.md`.
 - **2026-07-17** — **Retargeteo del PR de legacy a `develop`** (por pedido del líder; nació de staging). Conflictos resueltos con merge de develop (`44eb3c02`). Consecuencia: el diff del PR vs develop arrastra la divergencia staging↔develop (~52 archivos) — no todo es nuestro. **Frontend NO se retargeteó** (sigue →staging, limpio). Fixes que entraron por el merge (bugs pre-existentes de develop que rompían local): `$hasCredifamilia` indefinido (`098322a8`, **también vive en develop → avisar al equipo**) y ProfilerML 500 sin `H2O_API_HOST` (`4022b6c9`).
