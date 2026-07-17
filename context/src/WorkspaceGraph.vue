@@ -33,8 +33,11 @@ function shortAlias(a) { return ALIAS_SHORT[a] || a.split('-')[0] }
 function staleOf(flow) { if (!flow || !flow.has_base) return ''; return flow.changed ? 'stale' : 'fresh' }
 function alignClass(r) { return r.error ? (r.error.includes('sin commitear') ? 'warn' : 'err') : 'ok' }
 
-// ── layout: árbol por profundidad (padre → hijos a la derecha) ──
-const COL_W = 348, ROW_H = 250
+// ── layout: los FLUJOS salen a la derecha/abajo de la raíz; los groups de
+//    CONTEXTO (kind 'reference', ej Plataforma) cuelgan por ARRIBA — contexto
+//    acotado de un tema, no un flujo. "Sale por arriba" = contexto; "por la
+//    derecha" = flujo. ──
+const COL_W = 348, ROW_H = 250, CTX_TOP = 320
 const layout = computed(() => {
   const combos = props.combinations
   const idset = new Set(combos.map((c) => c.id))
@@ -45,17 +48,44 @@ const layout = computed(() => {
     else roots.push(c)
   }
   const nodes = [], edges = []
+  const isCtx = (c) => c.flow?.kind === 'reference'
+  const edge = (s, t, ctx) => edges.push({
+    id: s + '->' + t, source: s, target: t, type: 'smoothstep',
+    animated: props.selected === t,
+    sourceHandle: ctx ? 'ctx-s' : 'r', targetHandle: ctx ? 'ctx-t' : 'l',
+    style: { stroke: ctx ? '#40e0a8' : '#bc8cff', strokeWidth: 2 },
+  })
+
+  // FLUJOS: raíz + subárboles de flujo a la derecha/abajo (saltea los de contexto)
   let row = 0
-  const place = (c, depth) => {
+  const placeFlow = (c, depth) => {
     nodes.push({ id: c.id, type: 'ws', position: { x: depth * COL_W, y: row * ROW_H }, data: nodeData(c, depth) })
     row++
     for (const ch of (childrenBy[c.id] || [])) {
-      edges.push({ id: c.id + '->' + ch.id, source: c.id, target: ch.id, type: 'smoothstep', animated: props.selected === ch.id, style: { stroke: '#bc8cff', strokeWidth: 2 } })
-      place(ch, depth + 1)
+      if (isCtx(ch)) continue
+      edge(c.id, ch.id, false)
+      placeFlow(ch, depth + 1)
     }
   }
-  for (const r of roots) place(r, 0)
-  return { nodes, edges, height: Math.max(260, row * ROW_H + 20) }
+  for (const r of roots) placeFlow(r, 0)
+
+  // CONTEXTO: cada group de contexto (hijo de un root) + su subárbol, ARRIBA (y negativo)
+  let ctxRow = 0
+  const placeCtx = (c, depth) => {
+    nodes.push({ id: c.id, type: 'ws', position: { x: depth * COL_W, y: -CTX_TOP - ctxRow * ROW_H }, data: nodeData(c, depth) })
+    ctxRow++
+    for (const ch of (childrenBy[c.id] || [])) {
+      edge(c.id, ch.id, false)
+      placeCtx(ch, depth + 1)
+    }
+  }
+  for (const r of roots) for (const ch of (childrenBy[r.id] || [])) {
+    if (!isCtx(ch)) continue
+    edge(r.id, ch.id, true) // raíz → group de contexto: por ARRIBA (verde)
+    placeCtx(ch, 1)
+  }
+
+  return { nodes, edges, height: Math.max(260, (row + ctxRow) * ROW_H + CTX_TOP + 20) }
 })
 
 // Jerarquía estricta por profundidad: raíz (creditop = base/main) → group (familia:
@@ -243,8 +273,11 @@ onNodesInitialized(() => refit())
               <button class="wsbtn wsderive" title="derivar un hijo" @click.stop="openDerive(data.id)"><GitFork :size="13" /> derivar</button>
             </div>
           </div>
-          <Handle type="target" :position="Position.Left" />
-          <Handle type="source" :position="Position.Right" />
+          <Handle id="l" type="target" :position="Position.Left" />
+          <Handle id="r" type="source" :position="Position.Right" />
+          <!-- handles para colgar los groups de CONTEXTO por arriba de la raíz -->
+          <Handle id="ctx-s" type="source" :position="Position.Top" />
+          <Handle id="ctx-t" type="target" :position="Position.Bottom" />
         </template>
       </VueFlow>
       <div class="ws-legend">

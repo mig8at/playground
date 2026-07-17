@@ -2,7 +2,7 @@
   "name": "Plataforma",
   "combination": "plataforma",
   "group": "plataforma",
-  "kind": "channel",
+  "kind": "reference",
   "files": [
     "legacy-backend/app/Models/Lender.php",
     "legacy-backend/app/Models/Allied.php",

@@ -223,7 +223,7 @@ func (e *Engine) ComboFlow(comboID string) *StageInfo {
 		}
 	}
 	return &StageInfo{
-		Name: flows[0].Name, Files: len(ids), Desc: flows[0].Description,
+		Name: flows[0].Name, Files: len(ids), Kind: flows[0].Kind, Desc: flows[0].Description,
 		Repos: repos, RepoFiles: counts, UpToDate: upToDate, HasBase: hasBase, Changed: changed,
 	}
 }
