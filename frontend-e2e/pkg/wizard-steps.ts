@@ -28,7 +28,11 @@ async function typeInto(page: Page, testId: string, value: string): Promise<void
     await locator.pressSequentially(value, { delay: 50 });
 }
 
-export async function fillAmountStep(page: Page, amount = '1500000'): Promise<void> {
+export async function fillAmountStep(
+    page: Page,
+    amount = '1500000',
+    confirmQuota: 'yes' | 'no' = 'no',
+): Promise<void> {
     // En self-service el paso de monto NO usa `amount-form.tsx` (que sí lleva testid en el flujo
     // dinámico): usa otro componente sin testid. Por eso caemos a un selector semántico por label.
     const input = page
@@ -39,6 +43,13 @@ export async function fillAmountStep(page: Page, amount = '1500000'): Promise<vo
     // by one so the masking layer receives each keystroke event.
     await input.click();
     await input.pressSequentially(amount, { delay: 30 });
+    // "Confirmación de cupo" (feature omit-Experian): selector OBLIGATORIO en comercios habilitados
+    // (check-if-able-to-omit → RKV26000). Si está presente hay que elegir para habilitar el submit;
+    // default 'no' = flujo estándar (preserva el comportamiento de los specs previos).
+    const cupo = page.getByRole('radio', { name: confirmQuota === 'yes' ? 'Sí' : 'No', exact: true });
+    if (await cupo.isVisible().catch(() => false)) {
+        await cupo.click();
+    }
     const submit = page
         .getByTestId('amount-submit')
         .or(page.getByRole('button', { name: /activar mi cr[ée]dito|iniciar solicitud|continuar/i }));

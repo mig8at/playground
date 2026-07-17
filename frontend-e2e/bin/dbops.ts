@@ -95,8 +95,14 @@ try {
             r = { ok: true, lender_id: lenderId, status, affected: res.affectedRows, scope: 'global (lenders.status)' };
             break;
         }
+        case 'flow-id': // flow_id + status de un user_request (para asserts del flujo pre-aprobado/omit-experian)
+            r = await one(
+                'SELECT id, flow_id AS flowId, user_request_status_id AS status FROM user_requests WHERE id = ?',
+                [num(a[0])],
+            );
+            break;
         default:
-            throw new Error(`comando desconocido: ${cmd || '(vacío)'} — whois|assign|revoke|scrubphone|list|ecommerce-url|synth-fill|lender-rt`);
+            throw new Error(`comando desconocido: ${cmd || '(vacío)'} — whois|assign|revoke|scrubphone|list|ecommerce-url|synth-fill|lender-rt|flow-id`);
     }
     process.stdout.write(JSON.stringify(r, null, 2) + '\n');
     await close();
