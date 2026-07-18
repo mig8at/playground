@@ -444,6 +444,27 @@ la cuenta no está ligada al comercio. Ver §7.
 **`browserType.launch: Executable doesn't exist`** → falta el browser de Playwright. Corré
 `npx playwright install chromium`.
 
+**`/lenders` muestra "Error al obtener las opciones de financiamiento"** (y parece que el salto a lenders "no
+funcionó") → es un **500 de `lenders-v2`**, no del harness. En local la causa típica es que falte
+`H2O_API_HOST` en el `.env` de legacy-backend: el profiler que ordena el listado llama al modelo ML de H2O y
+`config()` devuelve `null` → `->baseUrl(null)` → **TypeError**, que no lo atrapa ningún `catch (Exception)`
+del profiler (`TypeError` extiende `Error`) ni `profileWithFallback` (que no tiene try/catch). Arreglo local —
+apuntar a un puerto cerrado para que falle rápido y caiga al fallback de matrices internas, que es el orden
+real que corre en producción igual:
+
+```bash
+# legacy-backend/.env
+H2O_API_HOST=http://127.0.0.1:9
+H2O_API_KEY=local-disabled
+```
+
+> El `preflightLenders()` del spec ahora detecta esto **antes** de navegar e imprime la excepción del backend
+> en el log del panel, junto con el fix. Sin él no se ve nada: el loader de `/lenders` es **SSR**, así que el
+> 500 nunca llega al browser como status 5xx — llega como el HTML del error boundary.
+>
+> Ojo con el health-check de `bin/asesor`: cura `/api/loans/allied/{hash}`, que responde **200 aunque
+> `lenders-v2` esté roto**. Da verde en falso para este fallo.
+
 ---
 
 ## 9. Filosofía del suite
