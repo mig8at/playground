@@ -1,0 +1,15 @@
+{
+  "name": "Fix min_income (piso de ingreso NO-OP)",
+  "combination": "fix-min-income",
+  "group": "creditop",
+  "kind": "task",
+  "when": "Cuando la tarea toca el bug min_income: la columna real es `lender_users_category_rules.monthly_income` pero los motores leen `$rule->min_income` (inexistente→null) → el piso de ingreso de categorías nunca filtra (pasa siempre); arreglarlo endurece la asignación de categoría rt=2.",
+  "files": [
+    "legacy-backend/Modules/Loans/App/Services/LenderUserCategoryService.php",
+    "legacy-backend/Modules/Onboarding/App/Services/lenders/LenderUserCategoryService.php",
+    "legacy-backend/Modules/Risk/App/Repositories/LenderRulesRepository.php",
+    "legacy-backend/app/Models/LenderUsersCategoryRule.php",
+    "legacy-backend/database/migrations/2025_02_11_202744_create_lender_users_category_rules.php",
+    "application/app/Services/lenders/LenderUserCategoryService.php"
+  ]
+}

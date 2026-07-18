@@ -1,0 +1,15 @@
+{
+  "name": "Confirmación de cupo (omite buró)",
+  "combination": "confirmacion-de-cupo",
+  "group": "creditop",
+  "kind": "task",
+  "when": "Cuando la tarea toca el flujo 'Confirmación de cupo' / omitir Experian: el selector que salta el buró vía flow-signature (flow_id=2), las 2 APIs con verdicto en `code`, recortar lenders a rt=0, o la rama frontend de Miguel (contraparte del backend de Jose).",
+  "files": [
+    "frontend-monorepo/apps/loan-request-wizard/app/routes/loan-application-form/otp-verification.tsx",
+    "frontend-monorepo/apps/loan-request-wizard/app/routes/loan-application-form/phone-number.tsx",
+    "frontend-monorepo/modules/loan-request-wizard/loan-application-form/src/components/amount-form.tsx",
+    "frontend-monorepo/modules/loan-request-wizard/loan-application-form/src/components/phone-number.tsx",
+    "frontend-monorepo/modules/loan-request-wizard/loan-application-form/src/lib/index.ts",
+    "frontend-monorepo/modules/loan-request-wizard/loan-application-form/src/lib/utils/schemas/phone-number.ts"
+  ]
+}
