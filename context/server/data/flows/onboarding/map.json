@@ -3,6 +3,7 @@
   "combination": "onboarding",
   "group": "onboarding",
   "kind": "reference",
+  "when": "Cuando el problema está ANTES del listado: entrada por hash de sucursal, registro de celular y OTP, creación de la user_request, formulario personal y laboral, captura del monto, códigos de error ONB0xx.",
   "files": [
     "application/routes/customer.php",
     "application/app/Http/Controllers/Customer/RegisterCellPhoneController.php",

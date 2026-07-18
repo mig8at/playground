@@ -40,6 +40,7 @@ type Flow struct {
 	Combination string    `json:"combination,omitempty"` // id de la combinación a la que pertenece
 	Group       string    `json:"group,omitempty"`       // fila/flujo de negocio (grafo: canal→lenders)
 	Kind        string    `json:"kind,omitempty"`        // "channel" (tronco) | "lender" (rama)
+	When        string    `json:"when,omitempty"`        // cuándo usar este nodo (señal de ruteo del brief L0)
 	NodeIDs     []string  `json:"node_ids"`
 	// Hashes = snapshot del hash de contenido de cada archivo al momento de
 	// guardar (la línea base del análisis). Al re-escanear los repos, comparar

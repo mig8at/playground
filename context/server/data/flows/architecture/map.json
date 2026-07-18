@@ -3,6 +3,7 @@
   "combination": "architecture",
   "group": "creditop",
   "kind": "reference",
+  "when": "Cuando la duda es en QUÉ REPO vive algo, por qué está duplicado, o cómo se hablan entre sí: base de datos compartida, migraciones duplicadas, cutover al wizard nuevo, allowlist, SSO, VITE_API_URL. Índice de los repos.",
   "files": [
     "application/routes/web.php",
     "application/routes/customer.php",

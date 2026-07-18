@@ -3,6 +3,7 @@
   "combination": "actors",
   "group": "creditop",
   "kind": "reference",
+  "when": "Cuando la pregunta es de PERMISOS o de quién hace qué: cliente vs asesor vs back-office, login, Cognito y SSO, roles y alcance, y por dónde entra cada uno (QR, link de continuación, autogestión).",
   "files": [
     "application/app/Providers/RouteServiceProvider.php",
     "application/app/Providers/FortifyServiceProvider.php",

@@ -3,6 +3,7 @@
   "combination": "creditopx",
   "group": "entities",
   "kind": "reference",
+  "when": "Cuando la pregunta es por qué una entidad aparece o NO aparece en el listado, y con qué enganche, cupo y plazo. La cascada in-platform rt=2/3: reglas de grupo, datacrédito, categoría y cupo disponible.",
   "files": [
     "application/app/Services/lenders/LenderRetrievalService.php",
     "application/app/Services/lenders/LenderValidationService.php",

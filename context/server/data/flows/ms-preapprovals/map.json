@@ -3,6 +3,7 @@
   "combination": "ms-preapprovals",
   "group": "architecture",
   "kind": "reference",
+  "when": "Cuando la pre-aprobación de un lender rt≠0 falla o hay que tocar el microservicio Go: contrato del servicio, taxonomía de errores, timeouts, y qué mockear para probar.",
   "files": [
     "frontend-monorepo/apps/loan-request-wizard/app/routes/lenders-marketplace/available-lenders.tsx",
     "frontend-monorepo/modules/loan-request-wizard/lenders-marketplace/src/lib/infrastructure/adapters/fetch-lender-preapproval.ts",

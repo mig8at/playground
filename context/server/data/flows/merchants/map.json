@@ -3,6 +3,7 @@
   "combination": "merchants",
   "group": "creditop",
   "kind": "reference",
+  "when": "Cuando el problema es 'a este comercio le pasa distinto': configuración por entidad/comercio/sucursal, copia de reglas por sucursal, hash de entrada, credenciales de ecommerce, toggles del comercio.",
   "files": [
     "application/app/Models/Allied.php",
     "application/app/Models/AlliedBranch.php",

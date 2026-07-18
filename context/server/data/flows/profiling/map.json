@@ -3,6 +3,7 @@
   "combination": "profiling",
   "group": "creditopx",
   "kind": "reference",
+  "when": "Cuando el usuario cae en la categoría equivocada, o el cupo/enganche/plazo salen mal: las categorías rt=2 y sus reglas (ocupación, edad, salario, continuidad, score).",
   "files": [
     "legacy-backend/Modules/Loans/App/Http/Controllers/Customer/CreditopXQuotaController.php",
     "legacy-backend/Modules/Loans/App/Http/Controllers/Customer/LenderUserCategoryController.php",

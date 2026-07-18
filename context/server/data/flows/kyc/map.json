@@ -3,6 +3,7 @@
   "combination": "kyc",
   "group": "creditop",
   "kind": "reference",
+  "when": "Cuando la tarea toca burós o datos de riesgo: score, Experian/Datacrédito, ingreso (Ágil Data, Mareigua, Quanto), identidad, AML, biometría, cifrado del reporte, o armar un usuario sintético para pruebas.",
   "files": [
     "application/app/Actions/RiskCentrals/Experian.php",
     "application/app/Actions/RiskCentrals/ExperianFixture.php",

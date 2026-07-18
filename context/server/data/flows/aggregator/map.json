@@ -3,6 +3,7 @@
   "combination": "aggregator",
   "group": "entities",
   "kind": "reference",
+  "when": "Cuando el prestamista decide AFUERA por API (rt=1): Bancolombia, Sistecrédito, Welli, Addi, Meddipay, Banco de Bogotá. Pre-aprobación, webhooks, cartera del tercero, y por qué no se puede simular en local.",
   "files": [
     "legacy-backend/Modules/Onboarding/App/Services/lenders/PreApprovedLenderService.php",
     "legacy-backend/Modules/Onboarding/App/Services/lenders/LenderRetrievalService.php",

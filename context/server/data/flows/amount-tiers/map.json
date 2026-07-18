@@ -3,6 +3,7 @@
   "combination": "amount-tiers",
   "group": "creditopx",
   "kind": "reference",
+  "when": "Cuando el plazo se recorta o el cupo se topea según el MONTO pedido: los tramos por monto de rt=2. Ojo: no tocan el enganche (eso es de la categoría).",
   "files": [
     "application/database/migrations/2025_05_06_193105_create_creditop_x_conditions_by_amount_by_lender.php",
     "application/database/migrations/2025_08_21_163609_add_mandatory_fee_number_to_creditop_x_conditions_by_amount_by_lender.php",

@@ -3,6 +3,7 @@
   "combination": "entities",
   "group": "creditop",
   "kind": "reference",
+  "when": "Cuando la pregunta es qué ES un prestamista como dato: la fila lenders, sus tablas de configuración, y sobre todo el response_type (0/1/2/3/4) que despacha toda la plataforma. Alta de una entidad nueva.",
   "files": [
     "application/app/Models/Lender.php",
     "legacy-backend/app/Models/Lender.php",

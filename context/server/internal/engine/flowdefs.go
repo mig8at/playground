@@ -21,10 +21,15 @@ import (
 // re-guardar migra solo a la carpeta. La línea base de hashes (drift) va aparte
 // en baselines.json del dir de datos, para no ensuciar las definiciones.
 type FlowDef struct {
-	Name        string   `json:"name"`
-	Combination string   `json:"combination,omitempty"`
-	Group       string   `json:"group,omitempty"`
-	Kind        string   `json:"kind,omitempty"`
+	Name        string `json:"name"`
+	Combination string `json:"combination,omitempty"`
+	Group       string `json:"group,omitempty"`
+	Kind        string `json:"kind,omitempty"`
+	// When = CUÁNDO usar este nodo, en 1-2 líneas y en el vocabulario con el que
+	// llega una tarea ("por qué una card no aparece", "score/buró/ingreso"). Es la
+	// señal de RUTEO del brief (L0): el TL;DR dice qué ES el nodo, esto dice cuándo
+	// lo necesitás — que es lo que un modelo necesita para elegir por dónde entrar.
+	When        string   `json:"when,omitempty"`
 	Description string   `json:"description,omitempty"` // solo en el layout legado; en el nuevo la prosa vive en doc.md
 	Files       []string `json:"files"`                 // "repo/relpath", ej "legacy-backend/Modules/Onboarding/App/Http/Controllers/AbacoController.php"
 }
@@ -119,7 +124,7 @@ func (e *Engine) loadFlowsFromDefs() flowFile {
 		}
 		out.Flows = append(out.Flows, Flow{
 			ID: id, Name: def.Name, Description: def.Description,
-			Combination: def.Combination, Group: def.Group, Kind: def.Kind,
+			Combination: def.Combination, Group: def.Group, Kind: def.Kind, When: def.When,
 			NodeIDs: ids, Hashes: baselines[id], Created: created, Updated: updated,
 		})
 	}

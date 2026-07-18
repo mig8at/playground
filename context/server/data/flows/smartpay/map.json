@@ -3,6 +3,7 @@
   "combination": "smartpay",
   "group": "merchants",
   "kind": "reference",
+  "when": "Cuando la tarea es de SmartPay: el celular financiado como garantía, IMEI, bloqueo de dispositivo y MDM, salto de AML, desembolso diferido y crons de bloqueo por mora.",
   "files": [
     "legacy-backend/app/Models/UserRequest.php",
     "legacy-backend/app/Models/Lender.php",

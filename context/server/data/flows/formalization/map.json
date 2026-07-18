@@ -3,6 +3,7 @@
   "combination": "formalization",
   "group": "formalization",
   "kind": "reference",
+  "when": "Cuando el problema está DESPUÉS de elegir entidad: plan de pagos, documentos, pagaré, firma con OTP, autorización hasta el Estado 11 y desembolso.",
   "files": [
     "legacy-backend/Modules/Loans/routes/api.php",
     "legacy-backend/Modules/Loans/App/Providers/RouteServiceProvider.php",

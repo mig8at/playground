@@ -3,6 +3,7 @@
   "combination": "pullman",
   "group": "merchants",
   "kind": "reference",
+  "when": "Cuando la tarea es de Amoblando Pullman o su entidad CrediPullman (77): el caso rt=2 vanilla y el canónico para pruebas con usuario sintético, más sus hardcodes por allied_id 94.",
   "files": [
     "application/app/Services/lenders/LenderValidationService.php",
     "application/app/Services/lenders/PreApprovedLenderService.php",

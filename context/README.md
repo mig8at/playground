@@ -70,13 +70,44 @@ Tools expuestas:
 
 | Tool | Qué hace |
 |------|----------|
+| **`context_brief`** | **empezá acá**: dada una TAREA en lenguaje natural → índice del árbol + nodos candidatos |
+| `context_get_doc` / `context_save_doc` | lee/escribe la doc viva (`doc.md`) de un nodo (+ vecinos) |
+| **`context_files`** | la superficie de código curada de un nodo, agrupada por repo/subsistema |
+| `context_get_content` | hidrata: código real de unos IDs |
 | `context_scan` | indexa (o re-indexa) un repo |
 | `context_map` | catálogo node-lite (barato, sin código); filtro por path |
 | `context_connections` | edges de un nodo (import + route cross-repo) |
 | `context_save_flow` | **guarda** un flujo = array de IDs (aparece en la UI) |
 | `context_list_flows` / `context_get_flow` | lee flujos guardados |
-| `context_get_doc` / `context_save_doc` | lee/escribe la doc viva (`doc.md`) de un flujo |
-| `context_get_content` | hidrata: código real de unos IDs |
+
+### Cómo un LLM obtiene contexto para una tarea
+
+El árbol tiene ~2.300 líneas de doc y ~1.270 archivos linkados: volcarlo no entra
+en una ventana de contexto. El protocolo es una **escalera de disclosure**, barata
+primero — cada escalón dice cuánto cuesta el siguiente:
+
+```
+L0  context_brief {task}    índice (1 línea/nodo) + candidatos      ~1.5k tokens
+L1  context_get_doc {id}    el doc completo + vecinos del nodo      ~2-5k por nodo
+L2  context_files {id}      su superficie de código, agrupada       ~0.5-2k
+L3  context_get_content     el código real                          lo que pidas
+```
+
+**El ruteo lo hace el modelo, no el servidor.** `context_brief` devuelve el índice
+—donde cada nodo trae un campo **`when`** ("cuándo usar este nodo", escrito en el
+vocabulario con el que llega una tarea)— más los candidatos que matchean
+léxicamente el enunciado, **con la línea del doc que lo justifica**. El servidor
+sugiere; el que decide qué abrir es el modelo. Sin embeddings a propósito: es
+determinista, explicable, y no se desincroniza cuando editás un doc.
+
+```
+"el listado no muestra CrediPullman en el comercio X"
+   → pullman (9) · creditopx (6) · merchants (6)
+"agregar un tipo de documento nuevo por sucursal"
+   → dynamic-forms (16)
+"necesito un usuario sintético para probar el score del buró"
+   → kyc (16) · profiling (13) · pullman (10)
+```
 
 Registrarlo (ejemplo, ruta al binario):
 

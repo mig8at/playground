@@ -3,6 +3,7 @@
   "combination": "creditop",
   "group": "creditop",
   "kind": "root",
+  "when": "Cuando la tarea toca material TRANSVERSAL que ningún contexto dueña: tablas y datos clave, máquinas de estado y el Estado 11, frontera de pruebas y harness, deuda técnica y hardcodes, glosario y colisiones de id. También cuando no sabés por dónde empezar.",
   "files": [
     "application/routes/admin.php",
     "application/routes/customer.php",

@@ -221,22 +221,67 @@ type GetDocInput struct {
 	ID string `json:"id" jsonschema:"id del flujo (ej motai-v2)"`
 }
 type GetDocOutput struct {
-	ID      string `json:"id"`
-	Path    string `json:"path"`
-	Content string `json:"content"`
+	ID        string           `json:"id"`
+	Path      string           `json:"path"`
+	Content   string           `json:"content"`
+	Neighbors engine.Neighbors `json:"neighbors"`
+	Files     int              `json:"files"`
+	Next      string           `json:"next"`
 }
 
 func registerGetDoc(s *mcp.Server, eng *engine.Engine) {
 	mcp.AddTool(s, &mcp.Tool{
-		Name:        "context_get_doc",
-		Description: "Devuelve la documentación viva (doc.md) de un flujo + su ruta en disco. Es el contexto narrado del nodo (qué es + bitácora de cambios); editable a mano o vía context_save_doc.",
+		Name: "context_get_doc",
+		Description: "L1 del protocolo de contexto: el doc.md completo de un nodo (qué es + datos duros + dónde mirar + gotchas + bitácora), MÁS sus vecinos en el árbol (padre/hijos/hermanos) para poder navegar sin volver a pedir el índice. Entrá por context_brief si no sabés qué id pedir.",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in GetDocInput) (*mcp.CallToolResult, GetDocOutput, error) {
 		content, path, err := eng.Doc(in.ID)
 		if err != nil {
 			return fail[GetDocOutput](fmt.Errorf("sin doc.md para %q (ruta esperada %s): %w", in.ID, path, err))
 		}
-		out := GetDocOutput{ID: in.ID, Path: path, Content: content}
+		out := GetDocOutput{ID: in.ID, Path: path, Content: content, Neighbors: eng.Neighbors(in.ID)}
+		if f, okf := eng.Flow(in.ID); okf {
+			out.Files = len(f.NodeIDs)
+		}
+		out.Next = fmt.Sprintf("L2: context_files {id:%q} → sus %d archivos agrupados. Si el doc te manda a un hermano, abrilo con context_get_doc.", in.ID, out.Files)
 		return ok(content, out)
+	})
+}
+
+// ── context_brief (L0) ─────────────────────────────────────────────────────────
+//
+// La puerta de entrada al árbol cuando lo único que tenés es el enunciado de una
+// tarea. Devuelve el índice de nodos + candidatos por match léxico + el protocolo.
+
+type BriefInput struct {
+	Task string `json:"task,omitempty" jsonschema:"enunciado de la tarea en lenguaje natural, tal como lo diría el usuario (ej: 'el listado no muestra CrediPullman en el comercio X' o 'agregar un tipo de documento por sucursal'). Vacío = solo el índice del árbol."`
+}
+
+func registerBrief(s *mcp.Server, eng *engine.Engine) {
+	mcp.AddTool(s, &mcp.Tool{
+		Name: "context_brief",
+		Description: "EMPEZÁ ACÁ. L0 del protocolo de contexto de CreditOp: dada una tarea en lenguaje natural, devuelve el índice completo del árbol (cada nodo en 1 línea, con 'when' = cuándo usarlo) + los nodos candidatos con la evidencia léxica de por qué + el protocolo para seguir (L1 doc → L2 archivos → L3 código). Barato (~1.5k tokens): reemplaza volcar el árbol o adivinar ids. Los candidatos son una PISTA, no un veredicto — el que decide qué abrir es el modelo.",
+	}, func(ctx context.Context, _ *mcp.CallToolRequest, in BriefInput) (*mcp.CallToolResult, engine.Brief, error) {
+		b := eng.Brief(in.Task)
+		return ok(jsonText(b), b)
+	})
+}
+
+// ── context_files (L2) ─────────────────────────────────────────────────────────
+
+type FilesInput struct {
+	ID string `json:"id" jsonschema:"id del nodo (ej creditopx, kyc, merchants)"`
+}
+
+func registerFiles(s *mcp.Server, eng *engine.Engine) {
+	mcp.AddTool(s, &mcp.Tool{
+		Name: "context_files",
+		Description: "L2 del protocolo de contexto: la superficie de código CURADA de un nodo, agrupada por repo y subsistema (no el repo entero: solo los archivos que ese nodo documenta, ya verificados contra el índice). Sirve para elegir qué abrir sin adivinar rutas; después hidratá con context_get_content.",
+	}, func(ctx context.Context, _ *mcp.CallToolRequest, in FilesInput) (*mcp.CallToolResult, engine.Surface, error) {
+		sf, okf := eng.Surface(in.ID)
+		if !okf {
+			return fail[engine.Surface](fmt.Errorf("nodo no encontrado: %s (listá los ids con context_brief)", in.ID))
+		}
+		return ok(jsonText(sf), sf)
 	})
 }
 

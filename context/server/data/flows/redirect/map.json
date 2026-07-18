@@ -3,6 +3,7 @@
   "combination": "redirect",
   "group": "entities",
   "kind": "reference",
+  "when": "Cuando el prestamista es solo un enlace (rt=0, UTM): se arma la url, se redirige al sitio del lender y se pierde visibilidad. Nadie decide el crédito adentro de CreditOp.",
   "files": [
     "application/app/Models/LendersByAllied.php",
     "application/app/Models/LendersByAlliedBranch.php",

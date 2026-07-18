@@ -3,6 +3,7 @@
   "combination": "frontend-monorepo",
   "group": "architecture",
   "kind": "reference",
+  "when": "Cuando trabajás en el wizard React: pantallas y rutas del wizard, SSR, repositories, paquetes @creditop, data-testid para pruebas e2e, o a qué backend le pega cada pantalla.",
   "files": [
     "frontend-monorepo/plopfile.js",
     "frontend-monorepo/plop/generators/module.js",
