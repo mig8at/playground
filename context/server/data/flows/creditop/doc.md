@@ -9,4 +9,4 @@
 - **2026-07-17** — Reestructura al modelo contexto/task; data curada previa movida a `flows-curated/` para re-linkar; detalle en git `@159906a`.
 
 ## Enlaces
-- Contextos: arquitectura · creditopx · agregador · redirect · actores · kyc · pre-aprobados · formulario-dinamico · comercios · flows.
+- Contextos: arquitectura · entities (creditopx/agregador/redirect) · actores · kyc · pre-aprobados · formulario-dinamico · comercios · flows.

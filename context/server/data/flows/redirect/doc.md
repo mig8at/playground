@@ -13,4 +13,4 @@ _Pendiente de curar._ La superficie de archivos y el detalle se linkan al organi
 - **2026-07-17** — Nodo de contexto creado (stub) al armar el árbol visual del nuevo modelo contexto/task.
 
 ## Enlaces
-- Raíz: **CreditOp**.
+- Padre: contexto **Entidades**. Raíz: **CreditOp**.
