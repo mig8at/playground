@@ -61,6 +61,55 @@ async function shot(page: Page, label: string) {
     console.log(`  📸 ${name}`);
 }
 const log = (s: string) => console.log(`  ▸ ${s}`);
+
+/**
+ * PREFLIGHT de /lenders: le pega a `lenders-v2/{ur}` ANTES de navegar y cuenta lo que devuelve.
+ *
+ * Por qué existe: el loader de /lenders corre en el SERVIDOR (SSR de react-router), así que un 500 del
+ * backend NUNCA llega al browser como status 5xx — llega como HTML del error boundary. Ni el listener de
+ * `response` ni el de `console` lo ven. Resultado: el backend roto se veía como "no saltó a lenders", con
+ * una pantalla de error y cero pistas en el log del panel. Esto lo convierte en un mensaje accionable.
+ *
+ * También avisa el caso silencioso de HTTP 200 con CERO lenders (marketplace vacío ≠ error).
+ */
+async function preflightLenders(apiBase: string, ur: string | number): Promise<boolean> {
+    const url = `${apiBase}/api/onboarding/loan-application/lenders-v2/${ur}`;
+    const r = await fetch(url, { headers: { accept: 'application/json' } })
+        .then(async (res) => ({ status: res.status, ok: res.ok, text: await res.text() }))
+        .catch((e) => ({ status: 0, ok: false, text: String(e instanceof Error ? e.message : e) }));
+
+    if (!r.ok) {
+        let msg = r.text.slice(0, 400);
+        try { msg = (JSON.parse(r.text) as { message?: string }).message ?? msg; } catch { /* no era JSON */ }
+        log(`✗ /lenders VA A FALLAR — lenders-v2 devolvió HTTP ${r.status || 'sin respuesta'}`);
+        log(`   backend: ${msg}`);
+        // Causa conocida en LOCAL: el profiler ML (H2O) sin host configurado. `baseUrl(null)` tira TypeError,
+        // que NO lo atrapan los `catch (Exception)` del profiler (TypeError extiende Error) → 500 en todo /lenders.
+        if (/h2oapi|baseUrl\(\)|ProfilerML/i.test(msg)) {
+            log('   → falta H2O_API_HOST en el .env de legacy-backend. Arreglo local (falla rápido y cae al');
+            log('     fallback de matrices): H2O_API_HOST=http://127.0.0.1:9 y H2O_API_KEY=local-disabled');
+        }
+        log('   (el loader es SSR: en pantalla solo vas a ver "Error al obtener las opciones de financiamiento")');
+        return false;
+    }
+
+    // OK de HTTP no alcanza: hay dos formas de "200 pero vacío" que se ven igual en pantalla y NO son lo mismo.
+    let data: { userRequest?: unknown; lenders?: unknown[] } | undefined;
+    try { data = (JSON.parse(r.text) as { data?: typeof data }).data; } catch { /* respuesta no-JSON */ }
+    const lenders = Array.isArray(data?.lenders) ? data.lenders : [];
+    if (data && !data.userRequest) {
+        log(`✗ lenders-v2 dice que el uReq ${ur} NO EXISTE (userRequest: null) → marketplace vacío.`);
+        log('   Suele ser el scrubphone de otra corrida: borra el usuario del teléfono y arrastra sus solicitudes.');
+        return false;
+    }
+    if (!lenders.length) {
+        log('⚠ lenders-v2 OK pero con CERO lenders — marketplace vacío. No es un error: mirá los filtros duros');
+        log('   (sucursal/status/datacrédito/cupo) o el switch ON/OFF de lenders en el panel.');
+        return true;
+    }
+    log(`preflight lenders-v2 OK → ${lenders.length} lender(s)`);
+    return true;
+}
 const hereOf = (page: Page) => { try { return new URL(page.url()).pathname; } catch { return page.url(); } };
 
 // Foto de ERROR: se dispara SOLA cuando la app muestra su banner de error en CUALQUIER pantalla (lo detecta el
@@ -103,7 +152,9 @@ test('guided (semiautomático)', async ({ browser }) => {
     // sacamos la foto (ver page.on('console')). Vive durante TODA la interacción —incluida la pausa manual—
     // porque los eventos de consola siguen fluyendo por CDP aunque el runner esté pausado.
     await page.addInitScript(() => {
-        const RE = /ocurrió un error|inténtalo de nuevo|algo salió mal|error inesperado|no fue posible|intenta de nuevo/i;
+        // "inténtalo NUEVAMENTE" (el copy real del error boundary de /lenders) NO matcheaba "inténtalo de nuevo"
+        // → el fallo de lenders-v2 pasaba sin foto ni línea ⚠. Ahora cubrimos las dos formas + "error al obtener".
+        const RE = /ocurrió un error|int[ée]ntalo (de nuevo|nuevamente)|intenta (de nuevo|nuevamente)|algo salió mal|error inesperado|no fue posible|error al (obtener|cargar)/i;
         // El handoff de self-management (agregadores tipo Sistecrédito/Meddipay) es un MODAL: aparece en el DOM
         // SIN navegar, así que el watcher de navegaciones no lo ve. Lo marcamos acá para que la ventana B pueda
         // reaccionar (el cliente sigue en SU celular por el link de WhatsApp).
@@ -348,6 +399,7 @@ test('guided (semiautomático)', async ({ browser }) => {
                 if (ur) {
                     const r = await synthFill(Number(ur), synthOptsFromEnv());
                     log(`uReq ${ur} sembrado headless (user ${userId} · asesor ${asesorId ?? '-'} · Experian ${r.datacredito_forged}) → /lenders?amount=${AMOUNT}`);
+                    await preflightLenders(config.mockUrl, ur);   // si el backend está roto, decilo ACÁ (ver la función)
                     await page.goto(`/merchant/${HASH}/${ur}/lenders?amount=${AMOUNT}`, { waitUntil: 'domcontentloaded', timeout: 90_000 }).catch(() => {});
                 } else {
                     log(`✗ no pude sembrar el uReq headless (user=${userId ?? '?'} · branch=${br ? 'ok' : 'no'}) — probá STEP=personal-info (visual)`);
