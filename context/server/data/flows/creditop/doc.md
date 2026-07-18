@@ -19,7 +19,7 @@ Migración **strangler-fig en parallel-run**. La lógica vive repartida entre `a
 
 **BASE DE DATOS COMPARTIDA.** `application` y `legacy-backend` comparten LA MISMA base (misma RDS/Redis/Pusher en prod durante el parallel-run). Por eso `app/Models/` se REPITE en ambos: el puente REAL es la BD, no HTTP. Dos ejes que NO confundir:
 - **DEPENDENCIA** — legacy NO llama a application en runtime; el único acople de código es application→legacy vía `GenerateServicesBridgeClient` / `NewFrontendUrlService`.
-- **CUTOVER** — application sigue corriendo porque el ruteo es un **allowlist por comercio hardcodeado y creciente** (ej `WoocommerceController` `[24,209,210,211,311]`); todo comercio fuera de la lista corre íntegro en application.
+- **CUTOVER** — application sigue corriendo porque el desvío al wizard nuevo está **apagado por defecto**: la compuerta son **dos filas de la tabla `settings`** (`new_frontend_allied_branches` = `{"hashes":[…]}` por SUCURSAL · `new_frontend_allieds` = `{"<allied_id>":true}` por COMERCIO), evaluadas con **OR** por `NewFrontendUrlService`; si dan false, la solicitud corre íntegra en el flujo Inertia de application. **No las crea ninguna migración ni seeder** (son datos de operación) y **legacy-backend no las conoce**: la decisión de cutover vive 100% en application. ⚠ No confundir con el array `[24,209,210,211,311]`, que es OTRA costura: el redirect del checkout ecommerce de Corbeta, ese sí hardcodeado. Detalle de las 4 costuras → contexto **architecture**.
 
 > **Tesis de fondo.** CreditOp se adapta a cada comercio con **ifs quemados por ID** en vez de configuración; el deber-ser es un **modelo único paramétrico con reglas heredadas** (no copiadas ~37.000 veces por sucursal). Es el norte de las tasks de simplificación (Motai v2, etc.). Fuente: `git 159906a:docs/vision/UNIFICACION-Y-RESPONSABILIDADES.md`, `git 159906a:docs/mejoras/PLAN-ACCION-SIMPLIFICACION.md`.
 
@@ -61,6 +61,7 @@ La tesis de arriba ("ifs quemados por ID") tiene un inventario verificado con `a
 - **Glosario e IDs (colisiones):** verificá el **namespace** antes de tocar un id literal — `24` = lender Credifamilia **vs** allied Creditop · `100` = lender Bancolombia Consumo **vs** un allied · `158` = allied Motai (comercio) **vs** su lender · `160`/`152`/`153` = SmartPay (prod/dev). Glosario canónico (14 choques PRD×código×docs): memoria `nomenclatura-negocio`, `git 159906a:docs/negocio/NOMENCLATURA-NEGOCIO.md`.
 
 ## Bitácora
+- **2026-07-18** — CORRECCIÓN (del análisis de código del contexto **architecture**): la compuerta del cutover NO es un array hardcodeado — son 2 filas de `settings` evaluadas con OR por `NewFrontendUrlService`. El array `[24,209,210,211,311]` es otra costura (checkout ecommerce Corbeta). Estaban conflacionados.
 - **2026-07-17** — Fase de data de la raíz: repuestas las secciones transversales (Datos/tablas clave · Estados y catálogos · Frontera de pruebas/harness · Deuda técnica) + Arquitectura + Convenciones/glosario, adaptadas al modelo contexto/task vivo y con punteros a `git 159906a:docs/*` (docs/ fue removido de main) + memorias. Superficie de código = 58 entrypoints arquitectónicos (routes/models/servicios clave/bridge/crons).
 - **2026-07-17** — Reestructura al modelo contexto/task; data curada previa movida a `flows-curated/` para re-linkar; siembra de contextos desde `playground/flow`.
 
