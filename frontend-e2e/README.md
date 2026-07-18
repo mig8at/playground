@@ -101,8 +101,8 @@ Hay dos ENTRADAS, el resto del flujo es igual:
   mock (shim local por HTTP), no en un placeholder.
 
 `run`/manual deja la sesión lista para operar a mano (queda en monto); `auto`/guiado además **siembra cada
-pantalla y vos avanzás con "Continuar"** hasta `/lenders`, donde elegís el lender y el demo sigue (CreditopX
-abre la 2ª ventana B; aggregator/redirect en una sola). Qué hace [`bin/asesor`](bin/asesor):
+pantalla y vos avanzás con "Continuar"** hasta `/lenders`, donde elegís el lender y el demo sigue. Qué hace
+[`bin/asesor`](bin/asesor):
 
 1. Levanta el wizard (:5174) apuntando a **dev** (`VITE_API_URL=http://legacy-backend.inertia-develop`,
    resuelve por VPN; lee la URL de `.env.dev`); reusa el wizard si ya está arriba (se reinicia solo si
@@ -143,6 +143,42 @@ teléfonos de bypass: `cd ../backend-mcp && go run . bypassphones`.)
 
 > ⚠️ Asociar/cambiar el comercio en **dev** escribe en la BD compartida (guarda `I_KNOW_THIS_TOUCHES_SHARED_DEV`,
 > reversible). En **local** (`--local`) no hace falta el guard.
+
+### Las dos ventanas (A / B) — topología por `response_type`
+
+El demo usa **dos dispositivos**, porque el flujo real de CreditopX es de dos dispositivos. La pantalla se
+parte siempre en dos mitades ([`pkg/windows.ts`](pkg/windows.ts), `COLS = { A: 0, B: 1 }`) — el tamaño y la
+posición son los mismos en todos los specs:
+
+| | Ventana | Qué es | Qué corre ahí |
+|---|---|---|---|
+| **A** | mitad **izquierda** | el dispositivo del **comercio** (el asesor operando en nombre del cliente) | login Cognito → monto → teléfono → OTP → datos → `/lenders`, y al final queda en el handoff `/continue` (QR de autogestión o "link por WhatsApp") |
+| **B** | mitad **derecha** | el **celular del cliente** | `/self-service/{hash}/{ur}/confirmation` → plazos → cronograma → firma del pagaré por OTP → `loan-approved` |
+
+**Ambas se abren desde el arranque** y B espera en un placeholder. En modo **manual** (el del panel) B se
+despierta sola: un watcher sobre las navegaciones de A detecta el handoff y le abre el link del cliente. En
+**guiado** el guion la conduce paso a paso.
+
+**B solo se usa si el lender es rt=2 (CreditopX, in-platform).** Es la ramificación clave y vive en
+[`dev/guided.spec.ts`](dev/guided.spec.ts) — las otras tres ramas se resuelven en **A sola**:
+
+| Rama | Ventanas | Final |
+|---|---|---|
+| rt=2 in-platform (CreditopX) | A + B | A en el handoff, B hace el journey del cliente |
+| Modal self-management (Meddipay, Sistecrédito) | solo A | el modal *es* el final; el cliente sigue por WhatsApp, fuera del harness; resultado por webhook |
+| Redirect externo rt=1 (Bancolombia) | solo A | A va al portal mock del banco y vuelve al comercio (`return_url`) |
+| Handoff no estándar | solo A | queda donde quedó; se sella el estado best-effort |
+
+Dos detalles que no son obvios:
+
+- **B no hereda la sesión de A**, a propósito: `/self-service/*` matchea `route(":flow", public-layout.tsx)`
+  en el wizard → layout **público**. `requireUserWithSession` solo lo exige `/merchant/*` vía
+  `default-layout`. Es el celular del cliente, que en la vida real no tiene la sesión del asesor.
+- **La captura de identidad (ADO) está mockeada** en B: es una foto del documento, no automatizable. El spec
+  intercepta `**/validation-status` y responde `all_completed: true` para que el journey avance. La firma del
+  pagaré sí es real (OTP), usando el teléfono de bypass.
+- **A también usa user-agent de iPhone**: el wizard gatea validación y `loan-approved` por
+  `onlyMobileValidation` — con UA de escritorio responde 403 y el loader queda en blanco.
 
 ---
 
