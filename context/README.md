@@ -1,5 +1,13 @@
 # context — mapa de flujos cross-repo (CreditOp)
 
+> **⚠ 2026-07-18 — el MCP fue RETIRADO.** El valor es el contenido curado, no el servidor.
+> **Punto de entrada para un LLM: [`ROUTE-MAP.md`](ROUTE-MAP.md)** — el índice estático de los 32 nodos
+> (cada uno con su `Cuándo`); desde ahí se abren `server/data/flows/<id>/{doc.md,map.json}` y se leen
+> los archivos fuente directamente. Nada de servidor. Toolkit: `tools/build-route-map.py` (regenerar el
+> índice), `tools/oracle.py` (validar que las rutas resuelven), `tree.json` (el wiring del árbol).
+>
+> Lo de abajo (server Go + UI Vue) describe el MCP retirado; se conserva como referencia histórica.
+
 Un solo proyecto. `npm run dev` levanta **el server (Go) y el frontend (Vue) juntos**;
 el server dice **`server on`** y habla con la UI por **WebSocket**. La misma lógica se
 expone como **conector MCP (stdio)** para que un host (Claude/Cursor) cree los flujos.
