@@ -7,7 +7,11 @@
 > 6 repos → `tools/index.txt`, reemplaza al scanner Go) → `tools/oracle.py <map.json>` (valida que las rutas
 > resuelven) → `tools/build-route-map.py` (regenera `ROUTE-MAP.md`). `tree.json` = el wiring del árbol.
 >
-> Lo de abajo (server Go + UI Vue) describe el MCP retirado; se conserva como referencia histórica.
+> **Para VER la organización (humano):** `npm run dev` levanta una viz **read-only** en `:5193` — solo
+> Vite+Vue, **sin Go y sin el sistema de derivar** — que lee `tree.json` + los `flows/`. Para agregar una
+> task, un LLM edita `tree.json` (+ crea `flows/<id>/`) y la viz se actualiza sola (HMR).
+>
+> Lo de abajo describe el MCP viejo (server Go + WebSocket + conector stdio + derivar), ya **BORRADO** — histórico.
 
 Un solo proyecto. `npm run dev` levanta **el server (Go) y el frontend (Vue) juntos**;
 el server dice **`server on`** y habla con la UI por **WebSocket**. La misma lógica se
