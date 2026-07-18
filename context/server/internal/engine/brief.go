@@ -49,11 +49,12 @@ type Hint struct {
 
 // Brief es la respuesta de L0: con esto un modelo sabe por dónde entrar.
 type Brief struct {
-	Task     string      `json:"task,omitempty"`
-	Index    []NodeBrief `json:"index"`
-	Hints    []Hint      `json:"hints,omitempty"`
-	Protocol []string    `json:"protocol"`
-	Note     string      `json:"note,omitempty"`
+	Task       string      `json:"task,omitempty"`
+	Index      []NodeBrief `json:"index"`
+	Hints      []Hint      `json:"hints,omitempty"`
+	Precedents []Precedent `json:"precedents,omitempty"` // tareas parecidas YA resueltas (ver tasklog.go)
+	Protocol   []string    `json:"protocol"`
+	Note       string      `json:"note,omitempty"`
 }
 
 // roleFromKind traduce el kind del map.json al rol del modelo contexto/task.
@@ -213,6 +214,7 @@ func (e *Engine) Brief(task string) Brief {
 			"L2: context_files {id} → la superficie de código curada del nodo, agrupada por repo/subsistema. Sirve para elegir QUÉ abrir sin adivinar rutas.",
 			"L3: context_get_content {ids} → el código real de los archivos que elegiste.",
 			"Si la tarea toca datos/tablas, estados, frontera de pruebas o deuda técnica, abrí la raíz 'creditop': es el hogar de lo transversal que ningún contexto dueña.",
+			"Al RESOLVER la tarea, cerrá el ciclo: context_record_task {task, nodes} con los nodos que DE VERDAD sirvieron — la próxima tarea parecida arranca con ese precedente.",
 		},
 	}
 	ts := terms(task)
@@ -266,6 +268,10 @@ func (e *Engine) Brief(task string) Brief {
 	})
 	if len(b.Hints) > 8 {
 		b.Hints = b.Hints[:8] // más allá de esto ya es ruido
+	}
+	if b.Precedents = e.Precedents(task, 3); len(b.Precedents) > 0 {
+		b.Protocol = append(b.Protocol,
+			"PRECEDENTES: tareas parecidas YA resueltas y con qué nodos — la señal más confiable (es uso real, no inferencia léxica). Arrancá por sus nodos y validá contra el 'when'.")
 	}
 	return b
 }

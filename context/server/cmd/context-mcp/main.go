@@ -35,8 +35,9 @@ func main() {
 		Version: "0.1.0",
 	}, nil)
 
-	registerBrief(server, eng)   // L0: la puerta de entrada (tarea → nodos)
-	registerFiles(server, eng)   // L2: superficie curada de un nodo
+	registerBrief(server, eng)      // L0: la puerta de entrada (tarea → nodos)
+	registerFiles(server, eng)      // L2: superficie curada de un nodo
+	registerRecordTask(server, eng) // el bucle: tarea resuelta → precedente
 	registerScan(server, eng)
 	registerMap(server, eng)
 	registerConnections(server, eng)

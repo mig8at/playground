@@ -278,6 +278,32 @@ func registerBrief(s *mcp.Server, eng *engine.Engine) {
 	})
 }
 
+// ── context_record_task (el bucle de aprendizaje) ──────────────────────────────
+
+type RecordTaskInput struct {
+	Task  string   `json:"task" jsonschema:"el enunciado ORIGINAL de la tarea (como llegó, no como quedó después de entenderla) — es contra lo que matchearán las tareas futuras"`
+	Nodes []string `json:"nodes" jsonschema:"ids de los nodos que DE VERDAD sirvieron para resolverla (no todos los que abriste — solo los que aportaron)"`
+	Note  string   `json:"note,omitempty" jsonschema:"opcional, 1-2 líneas: qué se hizo/decidió + los SÍNTOMAS con las palabras del usuario ('dump crudo', 'no se aplicó el pago') — la nota es superficie de match: las tareas futuras se comparan contra enunciado+nota"`
+}
+type RecordTaskOutput struct {
+	Recorded engine.TaskRecord `json:"recorded"`
+	Total    int               `json:"total"`
+}
+
+func registerRecordTask(s *mcp.Server, eng *engine.Engine) {
+	mcp.AddTool(s, &mcp.Tool{
+		Name:        "context_record_task",
+		Description: "Cierra el bucle de aprendizaje del protocolo de contexto: al TERMINAR una tarea que resolviste usando el árbol, registrá el enunciado + los nodos que sirvieron. Las tareas futuras parecidas recibirán ese mapeo como PRECEDENTE en context_brief (uso real > inferencia léxica). Si re-registrás el mismo enunciado, reemplaza al anterior (refinar, no duplicar). Valida que los nodos existan.",
+	}, func(ctx context.Context, _ *mcp.CallToolRequest, in RecordTaskInput) (*mcp.CallToolResult, RecordTaskOutput, error) {
+		rec, total, err := eng.RecordTask(in.Task, in.Nodes, in.Note)
+		if err != nil {
+			return fail[RecordTaskOutput](err)
+		}
+		out := RecordTaskOutput{Recorded: rec, Total: total}
+		return ok(jsonText(out), out)
+	})
+}
+
 // ── context_files (L2) ─────────────────────────────────────────────────────────
 
 type FilesInput struct {
