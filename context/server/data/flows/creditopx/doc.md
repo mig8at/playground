@@ -6,6 +6,10 @@
 ## Qué es
 Familia de prestamistas IN-PLATFORM (response_type 2/3): CreditOp decide, firma y desembolsa. El sombrero OPERADOR.
 
+## Subcontextos
+- **Profiling** — perfilamiento rt=2: categoría por datos del usuario (fija enganche/cupo/plazo).
+- **Amount tiers** — tramos por monto: recortan plazos y topean cupo.
+
 ## Contenido
 _Pendiente de curar._ La superficie de archivos y el detalle se linkan al organizar (la data curada previa vive en `context/server/data/flows-curated/` y en git `@159906a`).
 
