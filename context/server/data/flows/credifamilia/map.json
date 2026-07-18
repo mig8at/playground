@@ -1,8 +1,9 @@
 {
   "name": "Credifamilia",
   "combination": "credifamilia",
-  "group": "credifamilia",
-  "kind": "channel",
+  "group": "entities",
+  "kind": "reference",
+  "when": "Cuando la tarea toca Credifamilia (lender 24, el único response_type=4): radicación por SOAP, KYC V2 (Evidente/CrossCore/Jumio), plan de cuotas dinámico, o el gate local que hace que no aparezca en pruebas.",
   "files": [
     "frontend-monorepo/apps/loan-request-wizard/app/routes/lenders-marketplace/available-lenders.tsx",
     "frontend-monorepo/apps/loan-request-wizard/app/routes/lenders-marketplace/lenders/payment-plan-options.tsx",

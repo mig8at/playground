@@ -1,7 +1,6 @@
-# Continuación / servicing · flujo
+# Servicing · contexto
 > **estado:** al día con main · La **2ª mitad** del ciclo de vida, **después del Estado 11**: cartera, causación, mora y cobranza. Solo existe como ciclo REAL para CreditopX in-platform (rt=2/3); corre 100% en `application`.
 
-<!-- Este flujo arranca donde terminan los de originación (Estado 11 = desembolsado). No repite la originación; enlaza a creditopx. Es el subdominio cartera/servicing/billing/collections. -->
 
 ## Qué es
 La originación **termina en el Estado 11** ("Autorizada" = desembolsado). La continuación **empieza ahí, pero SOLO existe para CreditopX in-platform (rt=2/3)**: el préstamo vive como una cadena de snapshots en el ledger `creditop_x_requests_history` (event-sourced), los pagos entran por **polling** y se aplican en cascada, y 6 crons diarios causan interés, facturan, entran en mora y cobran. Para **rt≠0 el rastro se detiene en el 11/26**: el préstamo lo gestiona la API del lender externo, y guards explícitos frenan cualquier re-update tras el 11.
@@ -15,7 +14,7 @@ La originación **termina en el Estado 11** ("Autorizada" = desembolsado). La co
 | ¿Cómo cierra? | **Paz y salvo** (`creditop_x_requests_status_id=3` cuando `total_payment_amount==0`) o **Cancelado** (4, anulación manual del cupo). La mora (2) es indefinida; no hay estado "castigo" persistido (es un bucket derivado `dias_mora>180` + venta de cartera manual). |
 | ¿Simulable E2E? | **Parcial**: in-platform sí (sembrar el ledger + **invocar los crons a mano** + simular el pago por polling); rt≠0 **no** (lo gestiona un tercero). Hoy en legacy **0 superficies activas** → probar contra `application`. |
 
-## Cómo funciona
+## Contenido
 **Los 6 crons diarios** (`app/Console/Kernel.php`, en orden de cadencia):
 
 | Hora | Comando | Qué hace | Estado |
@@ -97,9 +96,10 @@ Para ejercer el servicing (in-platform) hay que **sembrar el ledger** `creditop_
 - **vs rt≠0 (agregadores, Credifamilia rt=4):** para ellos NO hay ciclo de vida en CreditOp (prueba negativa: todos los crons post-desembolso son `creditop_x_*`); el préstamo lo gestiona el lender y CreditOp no ve la mora/cierre. **SmartPay** es el caso especial que CONSUME este ledger: sus 3 crons de device-lock leen `creditop_x_requests_history` (mora → bloquea el celular).
 
 ## Bitácora
+- **2026-07-18** — PROMOVIDO al árbol vivo desde `flows-curated/` (era material huérfano: el nodo no existía en el modelo contexto/task). Superficie re-validada contra el índice actual: 60/60 resuelven. Doc adaptado a la plantilla de contexto + campo `when` para el ruteo del MCP.
 - **2026-07-17** — Nodo creado desde la raíz. Superficie curada: **60 archivos** (application 52 · legacy-backend 8), 60/60 resuelven. Fuente `CONTINUACION-CREDITO-ANALISIS.md` (verified-deep). Es la 2ª mitad del ciclo; los 8 archivos de legacy documentan el estado de migración (servicing = 0 superficies activas, fuera del alcance de la migración de originación).
 
 ## Enlaces
-- Estado del servicing no-migrado + backlog para apagar application: nodo **migracion** (Plataforma).
-- Flujo del que hereda el Estado 11: nodo **creditopx**. Caso especial que consume el ledger: nodo **smartpay** (device-lock).
-- Memorias: `continuacion-credito-servicing` · `creditopx-modelo-comercio` (economía comisión) · `synth-lender-type-boundary`.
+- Dónde CORRE: **Application** (el servicing vive 100% ahí; en legacy hay 0 superficies activas). De dónde hereda el Estado 11: **Formalization** y **CreditopX**.
+- Caso especial que CONSUME este ledger: **SmartPay** (sus crons de device-lock leen la mora para bloquear el celular). Catálogos de estado y frontera de pruebas global: raíz **CreditOp**.
+- Análisis fuente: `git 159906a:docs/codigo/CONTINUACION-CREDITO-ANALISIS.md`. Memorias: `continuacion-credito-servicing` · `creditopx-modelo-comercio` (economía de comisión) · `synth-lender-type-boundary`.

@@ -1,4 +1,4 @@
-# Credifamilia · flujo
+# Credifamilia · contexto
 > **estado:** al día con main · **Único lender `response_type = 4`**, híbrido: CreditOp origina in-platform pero el crédito se radica en Credifamilia por SOAP.
 
 ## Qué es
@@ -11,7 +11,7 @@ Credifamilia (lender **24**) es el único `response_type = 4` (un valor sin fila
 | ¿Cómo cierra? | Origina in-platform → **radicación SOAP** → *polling* hasta APROBADO/RECHAZADO (estados **40/41** de `lender_transaction_statuses`, otro namespace que `user_request_statuses`) |
 | ¿Simulable E2E? | ⚠ **Parcial**: el gate local sí es inyectable; KYC V2 (Evidente/CrossCore/Jumio) y la radicación SOAP son externos |
 
-## Cómo funciona
+## Contenido
 **Las 3 integraciones = 3 etapas:**
 1. **REST (pre-aprobación)** — Credifamilia es el ÚNICO lender con **polling** contra `/v1/preapprovals/check` (gateado por id=24, backoff 2/4/8/16/20s, 6 intentos, 180s) y el ÚNICO con **plan de cuotas dinámico** por backend (`supportsDynamicPaymentPlan(24)`).
 2. **KYC V2 greenfield** (todo en legacy-backend) — jornada de identidad que ramifica por `step_details.type`: **Evidente** (validar → OTP → cuestionario → verificar) o **CrossCore + Jumio** (biométrico → webhook → evaluate) o AWS/ADO.
@@ -39,7 +39,10 @@ Credifamilia (lender **24**) es el único `response_type = 4` (un valor sin fila
 - No confundir con **"Credifamilia-addi"** (entrada redirect del catálogo en algunas sucursales).
 
 ## Bitácora
+- **2026-07-18** — PROMOVIDO al árbol vivo desde `flows-curated/` (era material huérfano: el nodo no existía en el modelo contexto/task). Superficie re-validada contra el índice actual: 134/134 resuelven. Doc adaptado a la plantilla de contexto + campo `when` para el ruteo del MCP.
 - **2026-07-17** — Nodo creado desde la raíz con la documentación de referencia. Superficie curada: **134 archivos** (107 legacy + 27 front, 134/134 resuelven en el índice). Flujo verificado adversarialmente contra el análisis maestro.
 
 ## Enlaces
-- Sombrero: group **Bróker**. Backbone rt=0/1/4: nodo **modelo-datos**. Decisión/pre-aprobación: nodo **motor-decision**.
+- Padre: **Entities** (qué es un lender como dato + el despacho por `response_type`). Hermanos por familia: **Aggregator** (rt=1, decide una API externa) · **CreditopX** (rt=2/3 in-platform) · **Redirect** (rt=0, solo un link).
+- Etapas que comparte: **KYC** (identidad/buró; acá el KYC V2 es propio y greenfield) · **Formalization** (plan de pagos, firma, Estado 11 — la radicación SOAP se dispara ahí) · **MS Pre-approvals** (pre-aprobación rt≠0).
+- Análisis fuente: `git 159906a:docs/codigo/CREDIFAMILIA-FLUJO-ANALISIS.md` · `…/CREDIFAMILIA-PIPELINE-DOCUMENTOS.md` · `…/lenders/CREDIFAMILIA.md`. Memoria: `credifamilia-flujo-mapa`.

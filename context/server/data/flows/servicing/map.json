@@ -1,8 +1,9 @@
 {
-  "name": "Continuación / servicing",
-  "combination": "continuacion-servicing",
-  "group": "continuacion-servicing",
-  "kind": "channel",
+  "name": "Servicing",
+  "combination": "servicing",
+  "group": "servicing",
+  "kind": "reference",
+  "when": "Cuando el problema es DESPUÉS del desembolso (Estado 11): cartera, causación de interés, fecha de corte, mora, cobranza, pagos y cupo rotativo. Los 6 crons diarios y el ledger del préstamo. Ojo: corre 100% en application.",
   "files": [
     "application/app/Console/Kernel.php",
     "application/app/Console/Commands/UpdateCreditopXRequestsCommand.php",
