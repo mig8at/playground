@@ -1,0 +1,29 @@
+{
+  "name": "Ecommerce web stateless (→ wizard sin cookie)",
+  "combination": "ecommerce-web-stateless",
+  "group": "creditop",
+  "kind": "task",
+  "when": "Cuando la tarea toca la migración de la originación de ecommerce (VTEX/Woo/self) al wizard STATELESS (sin cookie) en legacy-backend + frontend: PRs 795 (backend, en main) / 551 (frontend, en develop), el entry ecommerce/checkout, los endpoints de contexto, o el estado 'backend en main, front aún en develop'.",
+  "files": [
+    "legacy-backend/Modules/Onboarding/App/Http/Controllers/EcommerceRequestController.php",
+    "legacy-backend/Modules/Onboarding/App/Services/EcommerceRequestService.php",
+    "legacy-backend/Modules/Onboarding/routes/api.php",
+    "legacy-backend/Modules/Onboarding/App/Http/Requests/FetchEcommerceRequestByUserRequestRequest.php",
+    "frontend-monorepo/apps/loan-request-wizard/app/entry.client.tsx",
+    "frontend-monorepo/apps/loan-request-wizard/app/routes.ts",
+    "frontend-monorepo/apps/loan-request-wizard/app/routes/bancolombia/no-preapproved.tsx",
+    "frontend-monorepo/apps/loan-request-wizard/app/routes/lenders-marketplace/available-lenders.tsx",
+    "frontend-monorepo/apps/loan-request-wizard/app/routes/loan-application-form/loan-request-form.tsx",
+    "frontend-monorepo/apps/loan-request-wizard/app/routes/loan-application-form/otp-verification.tsx",
+    "frontend-monorepo/apps/loan-request-wizard/app/routes/loan-application-form/phone-number.tsx",
+    "frontend-monorepo/apps/loan-request-wizard/app/routes/loan-approved.tsx",
+    "frontend-monorepo/apps/loan-request-wizard/app/utils/route-helpers.ts",
+    "frontend-monorepo/modules/loan-request-wizard/loan-application-form/src/components/amount-form.tsx",
+    "frontend-monorepo/modules/loan-request-wizard/loan-application-form/src/components/forms/personal-info-form.tsx",
+    "frontend-monorepo/modules/loan-request-wizard/loan-application-form/src/components/init-loan-request.tsx",
+    "frontend-monorepo/modules/loan-request-wizard/loan-application-form/src/components/phone-number-step-form.tsx",
+    "frontend-monorepo/modules/loan-request-wizard/loan-application-form/src/components/phone-number.tsx",
+    "frontend-monorepo/modules/loan-request-wizard/loan-application-form/src/lib/application/verify-phone-otp.uc.ts",
+    "frontend-monorepo/modules/loan-request-wizard/loan-application-form/src/lib/infrastructure/phone-otp.repository.ts"
+  ]
+}
