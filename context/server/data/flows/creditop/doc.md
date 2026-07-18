@@ -6,7 +6,7 @@
 - **TASKS (abajo):** trabajo concreto; cada task lista (chips) los contextos que necesita; ramas propias por repo.
 
 ## Bitácora
-- **2026-07-17** — Reestructura al modelo contexto/task; data curada previa movida a `merchants-curated/` para re-linkar; detalle en git `@159906a`.
+- **2026-07-17** — Reestructura al modelo contexto/task; data curada previa movida a `flows-curated/` para re-linkar; detalle en git `@159906a`.
 
 ## Enlaces
-- Contextos: architecture · entities (creditopx/aggregator/redirect) · actors · kyc · pre-approvals · dynamic-forms · merchants (motaix/smartpay/pullman).
+- Contextos: architecture (frontend-monorepo/legacy-backend/application/ms-preapprovals) · entities (creditopx/aggregator/redirect) · actors · kyc · dynamic-forms · merchants (motaix/smartpay/pullman).
