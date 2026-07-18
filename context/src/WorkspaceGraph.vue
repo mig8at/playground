@@ -243,7 +243,7 @@ onNodesInitialized(() => refit())
               <GitFork v-if="data.isChild" :size="13" class="wsfork" />
               <span class="wsname" :title="data.name">{{ data.name }}</span>
               <span class="wsrole" :class="'role-' + data.role" :title="data.roleTip">{{ data.roleLabel }}</span>
-              <span class="wsbadge" :class="data.aligning ? 'busy' : (data.aligned ? 'ok' : 'drift')"
+              <span v-if="data.role === 'task'" class="wsbadge" :class="data.aligning ? 'busy' : (data.aligned ? 'ok' : 'drift')"
                     :title="data.aligning ? 'alineando…' : (data.aligned ? 'alineado' : 'desalineado (drift) — seleccioná para alinear')">
                 {{ data.aligning ? '⟳' : (data.aligned ? '✓' : '⚠') }}
               </span>
@@ -286,7 +286,7 @@ onNodesInitialized(() => refit())
               </button>
               <button v-if="data.doc" class="wsbtn wsdoc" title="ver la documentación del flujo (doc.md)"
                       @click.stop="emit('show-doc', { id: data.id, name: data.name, doc: data.doc })"><FileText :size="13" /> doc</button>
-              <button class="wsbtn wsderive" title="derivar un hijo" @click.stop="openDerive(data.id)"><GitFork :size="13" /> derivar</button>
+              <button v-if="data.role !== 'contexto'" class="wsbtn wsderive" title="derivar un hijo" @click.stop="openDerive(data.id)"><GitFork :size="13" /> derivar</button>
             </div>
           </div>
           <!-- árbol VERTICAL: flujos abajo (conectan por arriba), contexto arriba

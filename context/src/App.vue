@@ -132,11 +132,15 @@ function showBranchToast(action, ops) {
 // seleccionar un nodo = alinear (checkout+pull) + cargar su árbol
 function onSelect(id) {
   selectedCombo.value = selectedCombo.value === id ? '' : id
-  if (selectedCombo.value) {
-    alignResults.value = []
-    aligning.value = id
-    send({ type: 'align_combination', id })
-  }
+  if (!selectedCombo.value) return
+  alignResults.value = []
+  // Solo las TASKS (abajo) tienen ramas propias por repo → solo ellas alinean
+  // (checkout + pull). Los contextos y la raíz son documentación sobre main:
+  // seleccionarlos muestra su doc/relaciones pero NO cambia ramas.
+  const combo = combinations.value.find((c) => c.id === id)
+  if (combo?.flow?.kind !== 'task') return
+  aligning.value = id
+  send({ type: 'align_combination', id })
 }
 function requestComboGraphs(id) { if (id) send({ type: 'combo_graphs', id }) }
 
