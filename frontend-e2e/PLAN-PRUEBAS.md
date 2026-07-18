@@ -145,10 +145,13 @@ testid. La selección de lender por UI **ya funciona** (verificada en `creditopx
 
 ## 3. Orden recomendado (mayor desbloqueo / menor esfuerzo primero)
 
-1. **Levantar el muro de config rt=2** (prerrequisito de todo cierre in-platform por UI): conseguir en el mirror
-   un rt=2 con `min_initial_fee=0` y **sin** redirect externo/Wompi (arreglar config de lender en BD), **o**
-   mockear el checkout Wompi hosted. Sin esto, escribir Grupos B/C no aporta. El cierre rt=2 ya está validado en
-   backend (`asesor 3e67eade 77` → Estado 11).
+1. ✅ **HECHO (2026-07-18) — `bin/close-lender`.** La premisa original acá estaba INVERTIDA: `min_initial_fee=0`
+   NO cierra (con fee=0 el botón "Pagar cuota inicial" queda **disabled** y el flujo se traba antes de Wompi;
+   ver `lender/close.ts`). La solución real es lo contrario: un rt=2 con **`min_initial_fee>0` en TODAS las
+   categorías**, para que sea cual sea la que asigne el motor de scoring, la cuota dé >0 → botón habilitado →
+   redirect a Wompi → lo intercepta `pkg/wompi-mock.ts` (ya verificado) → down-payment-validation → cadena
+   cableada. `bin/close-lender` siembra ese lender sintético (clona #77, fee=15% en todas las categorías,
+   reversible). Verificado por `lender/cierre-x.spec.ts`. **Queda desbloqueado el paso 2** (Grupos B/C).
 2. **Cadena de cierre Creditop X + Grupos B/C** una vez (1) esté resuelto: `runFirstPaymentDate/PaymentSchedule/
    SignDocuments/SignatureOtp/assertLoanApproved` en `channel/steps.ts`, consumidas por `creditopXClose`.
    Desbloquea el cierre canónico rt=2 que reutilizan flujos Creditop X, Cupo Rotativo y Ecommerce.

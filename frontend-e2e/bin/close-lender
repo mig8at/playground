@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+# close-lender — VOLTEA EL MURO del cierre rt=2 por UI. Siembra un lender rt=2 SINTÉTICO "cerrable"
+# (min_initial_fee>0 en TODAS las categorías) clonando uno que ya lista (#77 CrediPullman por defecto).
+#
+# El muro no era el checkout de Wompi (pkg/wompi-mock.ts ya lo intercepta) sino el MOTOR DE SCORING:
+# a un perfil aprobado el motor SQL le asignaba una categoría con min_initial_fee=0 → cuota $0 → botón
+# "Pagar" disabled → nunca llegaba a Wompi. Con fee>0 en TODAS las categorías el problema desaparece.
+#
+#   bin/close-lender             crea el lender (SRC=77, fee=15%, en Pullman 3e67eade)
+#   bin/close-lender --clean     lo borra (reversible)
+#   bin/close-lender --src 96 --fee 20 --slug cierre-celupresto --name "Cierre Celupresto"
+#
+# LOCAL, reversible, idempotente. Espejo por UI del cierre backend `../backend-e2e: go run . asesor 3e67eade 77`.
+exec node "$(cd "$(dirname "$0")/.." && pwd)/close-lender.ts" "$@"

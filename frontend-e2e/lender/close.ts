@@ -34,6 +34,12 @@ import { seedRiskProfile } from '../merchant/seed';
  *    fuera del alcance "solo bypass". El mock está LISTO y VERIFICADO (lender/wompi-close.spec.ts test 1).
  *    El cierre rt=2 → Estado 11 YA está validado en BACKEND (`go run . asesor 3e67eade 77`).
  *
+ * ✅ MURO VOLTEADO (2026-07-18) — se tomó la opción (a): `bin/close-lender` siembra un lender rt=2 sintético
+ *    clonando #77 pero con min_initial_fee>0 en TODAS las categorías → sea cual sea la que asigne el motor,
+ *    la cuota da >0 → botón "Pagar" HABILITADO → llega a Wompi → el mock intercepta → down-payment-validation.
+ *    Verificado por `lender/cierre-x.spec.ts`. `creditopXClose` abajo SIGUE lanzando para #77/#37 (fee=0 /
+ *    redirect roto); para cerrar por UI usá el lender sintético. Falta solo el Grupo B/C para loan-approved.
+ *
  * Testids del Grupo B/C (lender-term-{id}, first-payment-date-*, payment-schedule-*, sign-documents-*,
  * signature-otp-submit, loan-approved-title) quedan SIN AGREGAR: no desbloquean el cierre mientras persista
  * el muro de config (la UI nunca llega a esos pasos). Ver PLAN-PRUEBAS.md.
