@@ -20,7 +20,9 @@ func fail[T any](err error) (*mcp.CallToolResult, T, error) {
 	return &mcp.CallToolResult{IsError: true, Content: []mcp.Content{&mcp.TextContent{Text: err.Error()}}}, zero, nil
 }
 func jsonText(v any) string {
-	b, _ := json.MarshalIndent(v, "", "  ")
+	// compacto a propósito: esto lo consume un LLM, no un humano — el indentado
+	// solo infla tokens (~20% en payloads grandes como el brief).
+	b, _ := json.Marshal(v)
 	return string(b)
 }
 
@@ -253,7 +255,8 @@ func registerGetDoc(s *mcp.Server, eng *engine.Engine) {
 // tarea. Devuelve el índice de nodos + candidatos por match léxico + el protocolo.
 
 type BriefInput struct {
-	Task string `json:"task,omitempty" jsonschema:"enunciado de la tarea en lenguaje natural, tal como lo diría el usuario (ej: 'el listado no muestra CrediPullman en el comercio X' o 'agregar un tipo de documento por sucursal'). Vacío = solo el índice del árbol."`
+	Task      string `json:"task,omitempty" jsonschema:"enunciado de la tarea en lenguaje natural, tal como lo diría el usuario (ej: 'el listado no muestra CrediPullman en el comercio X' o 'agregar un tipo de documento por sucursal'). Vacío = solo el índice del árbol."`
+	HintsOnly bool   `json:"hints_only,omitempty" jsonschema:"true = omite el índice y devuelve solo los candidatos. Para RE-consultar cuando el usuario refina la tarea y ya tenés el índice de una llamada anterior — la re-consulta sale ~10x más barata."`
 }
 
 func registerBrief(s *mcp.Server, eng *engine.Engine) {
@@ -262,6 +265,15 @@ func registerBrief(s *mcp.Server, eng *engine.Engine) {
 		Description: "EMPEZÁ ACÁ. L0 del protocolo de contexto de CreditOp: dada una tarea en lenguaje natural, devuelve el índice completo del árbol (cada nodo en 1 línea, con 'when' = cuándo usarlo) + los nodos candidatos con la evidencia léxica de por qué + el protocolo para seguir (L1 doc → L2 archivos → L3 código). Barato (~1.5k tokens): reemplaza volcar el árbol o adivinar ids. Los candidatos son una PISTA, no un veredicto — el que decide qué abrir es el modelo.",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in BriefInput) (*mcp.CallToolResult, engine.Brief, error) {
 		b := eng.Brief(in.Task)
+		if in.HintsOnly {
+			// re-consulta: el índice ya lo tiene de la llamada anterior — solo
+			// le interesan los candidatos de la tarea refinada.
+			b.Index = nil
+			b.Protocol = nil
+			if b.Note == "" {
+				b.Note = "hints_only: índice omitido (lo tenés de la llamada anterior)."
+			}
+		}
 		return ok(jsonText(b), b)
 	})
 }

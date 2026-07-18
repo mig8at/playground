@@ -125,9 +125,12 @@ func (e *Engine) Index() []NodeBrief {
 	var out []NodeBrief
 	for _, f := range e.Flows() {
 		doc := f.Description
+		// when/tldr se truncan SOLO acá (el render del índice): el matching del
+		// Brief usa f.When/doc completos, así que recortar no cambia el ruteo —
+		// solo mantiene el L0 barato aunque los docs crezcan.
 		out = append(out, NodeBrief{
 			ID: f.ID, Name: f.Name, Role: roleFromKind(f.Kind), Group: f.Group,
-			When: f.When, TLDR: tldrFrom(doc), Files: len(f.NodeIDs),
+			When: truncate(f.When, 200), TLDR: truncate(tldrFrom(doc), 140), Files: len(f.NodeIDs),
 			DocLines: strings.Count(doc, "\n") + 1,
 			Children: children[f.ID], Contexts: contexts[f.ID],
 		})
@@ -279,7 +282,7 @@ func evidence(doc string, matched []string, n int) []string {
 		fl := fold(l)
 		for _, t := range matched {
 			if strings.Contains(fl, t) || strings.Contains(fl, stem(t)) {
-				out = append(out, truncate(strings.NewReplacer("**", "", "`", "").Replace(l), 180))
+				out = append(out, truncate(strings.NewReplacer("**", "", "`", "").Replace(l), 140))
 				break
 			}
 		}
