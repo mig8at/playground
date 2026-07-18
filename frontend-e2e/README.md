@@ -153,23 +153,28 @@ posición son los mismos en todos los specs:
 | | Ventana | Qué es | Qué corre ahí |
 |---|---|---|---|
 | **A** | mitad **izquierda** | el dispositivo del **comercio** (el asesor operando en nombre del cliente) | login Cognito → monto → teléfono → OTP → datos → `/lenders`, y al final queda en el handoff `/continue` (QR de autogestión o "link por WhatsApp") |
-| **B** | mitad **derecha** | el **celular del cliente** | `/self-service/{hash}/{ur}/confirmation` → plazos → cronograma → firma del pagaré por OTP → `loan-approved` |
+| **B** | mitad **derecha** | el **celular del cliente** | lo que le toca al cliente según la rama (tabla de abajo). En CreditopX: `/self-service/{hash}/{ur}/confirmation` → plazos → cronograma → firma del pagaré por OTP → `loan-approved` |
 
-**Ambas se abren desde el arranque** y B espera en un placeholder. En modo **manual** (el del panel) B se
-despierta sola: un watcher sobre las navegaciones de A detecta el handoff y le abre el link del cliente. En
-**guiado** el guion la conduce paso a paso.
+**Ambas se abren desde el arranque** y B espera en un placeholder hasta que haya algo que mostrar.
 
-**B solo se usa si el lender es rt=2 (CreditopX, in-platform).** Es la ramificación clave y vive en
-[`dev/guided.spec.ts`](dev/guided.spec.ts) — las otras tres ramas se resuelven en **A sola**:
+Cuando A resuelve, **B abre lo que le toca al cliente en esa rama** (el enrutador vive en
+[`dev/guided.spec.ts`](dev/guided.spec.ts)):
 
-| Rama | Ventanas | Final |
+| Rama en A | Qué muestra B | Por qué |
 |---|---|---|
-| rt=2 in-platform (CreditopX) | A + B | A en el handoff, B hace el journey del cliente |
-| Modal self-management (Meddipay, Sistecrédito) | solo A | el modal *es* el final; el cliente sigue por WhatsApp, fuera del harness; resultado por webhook |
-| Redirect externo rt=1 (Bancolombia) | solo A | A va al portal mock del banco y vuelve al comercio (`return_url`) |
-| Handoff no estándar | solo A | queda donde quedó; se sella el estado best-effort |
+| **rt=2 in-platform** (CreditopX) | `/self-service/{hash}/{ur}/confirmation` → journey real hasta la firma | Handoff genuino de 2 dispositivos: A queda en el QR / link |
+| **Modal self-management** (Sistecrédito, Meddipay) | portal del lender ([`mock-bank`](mock-bank/index.html), genérico por `?lender=`) | El modal es el final **para A**, pero el cliente sigue por WhatsApp **en su celular** — también son 2 dispositivos |
+| **Redirect externo rt=1** (Bancolombia) | una tarjeta que **explica**, no simula | Ese redirect ocurre de verdad en la **misma ventana A**; mandarlo a B enseñaría un modelo equivocado |
+| **Handoff no estándar** | sigue esperando | No hay handoff que mostrar; se sella el estado best-effort |
 
-Dos detalles que no son obvios:
+Cómo se detecta cada rama en modo **manual** (nadie automatiza el flujo, así que B mira a A **por eventos** —
+siguen llegando por CDP durante el `page.pause()`): navegación a `/continue`|`/confirmation` → CreditopX;
+navegación externa → redirect; y el modal, que aparece **sin navegar**, se detecta con un marcador que emite el
+`MutationObserver` inyectado en A. Todo eso está guardado por `seenLenders` (no hay handoff antes de elegir
+lender), porque si no el Hosted UI de Cognito —que es una navegación externa al arrancar— dispararía la rama de
+redirect, y el copy *"en tu celular"* del OTP dispararía la del modal.
+
+Tres detalles que no son obvios:
 
 - **B no hereda la sesión de A**, a propósito: `/self-service/*` matchea `route(":flow", public-layout.tsx)`
   en el wizard → layout **público**. `requireUserWithSession` solo lo exige `/merchant/*` vía
