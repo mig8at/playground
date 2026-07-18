@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { cognitoCreds } from '../pkg/config';
-import { cognitoLogin } from '../pkg/cognito';
+import { cognitoLogin, cognitoStorageState } from '../pkg/cognito';
 import { Flow } from '../pkg/flow';
 import {
     acquireAccountLock,
@@ -37,7 +37,9 @@ const HASH = 'bb534d6a';
 const TS = String(Date.now()).slice(-8);
 
 test.describe.configure({ mode: 'serial' });
-test.use({ launchOptions: { slowMo: 120 } });
+// storageState: reusa la sesión Cognito cacheada (.auth/cognito-state.json) → cognitoLogin queda no-op
+// mientras la sesión viva; si murió, re-loguea y re-guarda. Ahorra el Hosted UI en cada corrida.
+test.use({ launchOptions: { slowMo: 120 }, storageState: cognitoStorageState() });
 
 test.beforeAll(async () => {
     if (!cognitoCreds.user) return;

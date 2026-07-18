@@ -2,6 +2,7 @@ import { expect, test } from '@playwright/test';
 import { cognitoCreds } from '../pkg/config';
 import { acquireAccountLock, MOTAI_MERCHANT, pointAccount, releaseAccountLock } from '../pkg/account-lock';
 import { composeFlow } from '../pkg/composer';
+import { cognitoStorageState } from '../pkg/cognito';
 
 /**
  * Motai (lender 158, branch f0548728) POR UI — flujo `/merchant/*` (requiere sesión Cognito).
@@ -18,7 +19,8 @@ import { composeFlow } from '../pkg/composer';
  */
 
 test.describe.configure({ mode: 'serial' });
-test.use({ launchOptions: { slowMo: 300 } });
+// storageState: reusa la sesión Cognito cacheada (compartida con smartpay; el asesor es el mismo sub).
+test.use({ launchOptions: { slowMo: 300 }, storageState: cognitoStorageState() });
 
 // La cuenta 1827080 es un singleton compartido (ver pkg/account-lock). Tomamos el mutex y la apuntamos a
 // Motai para no chocar con smartpay-dynamic (que la apunta a SmartPay). Liberamos al terminar.

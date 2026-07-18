@@ -1,5 +1,21 @@
+import { existsSync, mkdirSync } from 'node:fs';
+import { dirname } from 'node:path';
 import { expect, type Locator, type Page } from '@playwright/test';
 import { cognitoCreds } from './config';
+
+/**
+ * Cache de sesión Cognito para NO re-loguear por el Hosted UI en cada corrida.
+ * `.auth/cognito-state.json` (gitignored) = storageState de Playwright (cookies + tokens en localStorage).
+ * El wizard/app refresca solo el access token con el refresh token guardado → la sesión reusable dura
+ * la ventana del refresh token (días), no la del access token (1h). Autocorrector: si la sesión murió,
+ * el Hosted UI reaparece y `cognitoLogin` re-loguea + re-guarda.
+ */
+export const COGNITO_STATE_PATH = '.auth/cognito-state.json';
+
+/** Devuelve la ruta del storageState cacheado si existe (para `test.use({ storageState })`), o undefined. */
+export function cognitoStorageState(): string | undefined {
+    return existsSync(COGNITO_STATE_PATH) ? COGNITO_STATE_PATH : undefined;
+}
 
 /**
  * Llena un input y VERIFICA que el valor quedó. El Managed Login de Cognito a veces ignora el primer
@@ -37,13 +53,14 @@ export async function cognitoLogin(
     user = cognitoCreds.user,
     pass = cognitoCreds.pass,
     returnUrl: RegExp = /localhost:5174/,
+    savePath: string | null = COGNITO_STATE_PATH,
 ): Promise<void> {
     if (!user || !pass) throw new Error('Faltan credenciales Cognito (env E2E_COGNITO_USER/PASS o .cognito.json)');
     const username = page.locator('input[name=username]');
     try {
         await expect(username).toBeVisible({ timeout: 15_000 });
     } catch {
-        return; // no hubo redirect a Cognito (sesión ya activa) — nada que loguear
+        return; // no hubo redirect a Cognito (sesión ya activa, típico si se inyectó el cache) — nada que loguear
     }
     await robustFill(username, user); // asegura que el usuario quedó antes de avanzar
     await page.getByRole('button', { name: /siguiente|next/i }).click();
@@ -53,4 +70,9 @@ export async function cognitoLogin(
     await page.getByRole('button', { name: /continuar|continue|sign\s*in|iniciar/i }).click();
     // Vuelve a la app tras el callback de Cognito.
     await page.waitForURL(returnUrl, { timeout: 25_000 });
+    // SOLO tras un login REAL (llegamos acá = hubo form + callback OK) cacheamos la sesión para reusarla.
+    // En el branch no-op de arriba NO guardamos (la página podría no estar autenticada → envenenaría el cache).
+    if (savePath) {
+        try { mkdirSync(dirname(savePath), { recursive: true }); await page.context().storageState({ path: savePath }); } catch { /* best-effort */ }
+    }
 }
