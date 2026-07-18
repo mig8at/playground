@@ -15,8 +15,14 @@ in-process (`pkg/inject` — identidad + summaries + field values + fila Experia
 `backend-mcp` ni llamar centrales. Apunta a **DEV por defecto** (Cognito real + RDS) o a **local**
 (`--local`, legacy en Docker) — el mismo flujo contra `.env.<target>`.
 
-El flujo principal está en **§2b** (`make auto asesor|ecommerce <merchant>`). Hay además specs sueltos de
-contrato/UI (§3–§6), varios todavía `test.fixme` — algunos heredados del modo mock-local (`X-Fake-Scenario`).
+**Entrada principal: el PANEL visual** — `npm run dev` → http://localhost:5195. Elegís comercio, definís
+el usuario sintético (nombre/ingreso/score/…), "Preparar + Lanzar ▶" y el panel orquesta todo (assign +
+inyección de buró + wizard headed). Por debajo shellea `bin/asesor` + `bin/dbops.ts` (que siguen
+disponibles como plumbing por terminal: §2b, `make run/auto`). La sesión Cognito se CACHEA en
+`.auth/cognito-state.json` → el Hosted UI solo aparece la primera vez (o cuando expira el refresh token).
+
+Hay además specs sueltos de contrato/UI (§3–§6), varios todavía `test.fixme` — algunos heredados del
+modo mock-local (`X-Fake-Scenario`).
 
 ---
 

@@ -1,5 +1,0 @@
-#!/usr/bin/env bash
-# dashboard — vista rápida (HTML) del estado de un usuario: identidad + centrales de riesgo
-# (Experian/TusDatos/Agildata/Ado/Mareigua/Deceval) + lenders del comercio. Read-only contra dev.
-#   dashboard <telefono|documento|cognito_id|uReqID>
-exec node "$(cd "$(dirname "$0")" && pwd)/dashboard.ts" "$@"

@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import type { Page } from '@playwright/test';
 import { config, cognitoCreds } from '../pkg/config';
-import { cognitoLogin } from '../pkg/cognito';
+import { cognitoLogin, cognitoStorageState } from '../pkg/cognito';
 import { synthFill, requestEstado11 } from '../pkg/inject';
 import { closeCreditopX, resolveRequestStatus } from '../pkg/close';
 import { one, exec } from '../pkg/db';
@@ -92,7 +92,9 @@ test('guided (semiautomático)', async ({ browser }) => {
     test.setTimeout(900_000); // interactivo: esperamos TUS clicks (PICK_TIMEOUT por pantalla)
     mkdirSync(AUTH, { recursive: true });
 
-    const { page, context: ctxA } = await openA(browser, { baseURL: config.feBaseUrl, userAgent: IPHONE_UA }); // A (mitad izq); ctxA → sesión para la ventana B (celular)
+    // Cache de sesión Cognito: si hay .auth/cognito-state.json lo inyectamos → el Hosted UI no aparece y
+    // cognitoLogin es no-op. Si la sesión murió, el form reaparece y cognitoLogin re-loguea + re-guarda.
+    const { page, context: ctxA } = await openA(browser, { baseURL: config.feBaseUrl, userAgent: IPHONE_UA, storageState: ENTRY === 'cognito' ? cognitoStorageState() : undefined }); // A (mitad izq); ctxA → sesión para la ventana B (celular)
     // React Scan (overlay FPS/inspección del wizard en dev): se bloquea acá — cortamos su script — SIN tocar
     // el frontend. Para verlo igual: E2E_REACT_SCAN=1.
     if (process.env.E2E_REACT_SCAN !== '1') await page.route(/react-scan|react-grab/, (r) => r.abort()).catch(() => {});

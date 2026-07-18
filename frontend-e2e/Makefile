@@ -7,12 +7,9 @@
 #   make ready                                up + wizard → entorno listo para probar a mano
 #   make down                                 apaga el legacy local
 #   make env                                  health del wizard (:5174) y del backend (:80)
-#   ── pruebas ──
-#   make scenario <name>                      combo nombrado de presets.json (vtex/ecommerce/asesor-local/asesor-dev/checkout)
-#   make scenarios                            lista los scenarios   ·   presets.json: defaults (phone/otp/webhook) + alias
+#   ── pruebas ──  (entrada PRINCIPAL: el panel visual → `npm run dev` → http://localhost:5195)
 #   make run  <asesor|ecommerce> <merchant>   MANUAL: entra y queda en monto (manejás vos a mano)
 #   make auto <asesor|ecommerce> <merchant>   GUIADO: seed + Continuar; en /lenders elegís y sigue
-#   make checkout [<comercio> [monto] [tel] [dev|local]]   genera la URL de checkout ecommerce (base64) para QA
 #   make vtex [merchant=pullman]              flujo VTEX por UI: vtexInit (legacy crea la URL base64) → wizard → /lenders
 #   make test [specs...]                      corre los specs con Playwright
 #   make help
@@ -24,7 +21,7 @@ LEGACY ?= $(HOME)/Desktop/CREDITOP/github/legacy-backend
 FRONT  ?= $(HOME)/Desktop/CREDITOP/github/frontend-monorepo
 WIZARD := $(FRONT)/apps/loan-request-wizard
 
-CMDS := scenario scenarios run auto checkout vtex ready test up down wizard env help
+CMDS := run auto vtex ready test up down wizard env help
 ARGS := $(filter-out $(CMDS),$(MAKECMDGOALS))
 
 .PHONY: $(CMDS)
@@ -73,19 +70,10 @@ auto: ## <asesor|ecommerce> <merchant> — GUIADO: seed cada pantalla, vos das C
 	  asesor|*)  echo "▶ bin/asesor $$m auto";    bin/asesor "$$m" auto;; \
 	esac
 
-checkout: ## [<comercio> [monto] [tel] [dev|local]] — genera la URL de checkout ecommerce (base64) para QA (interactivo si no das args)
-	@bin/qa-checkout $(ARGS)
-
 vtex: ## [merchant=pullman] — flujo VTEX por UI: vtexInit (legacy crea la URL base64 vía /vtex/init) → wizard → /lenders
 	@m="$(word 1,$(ARGS))"; [ -n "$$m" ] || m="pullman"; \
 	echo "▶ VTEX checkout por UI (merchant=$$m) — requiere wizard :5174 + legacy local en modo mock"; \
 	E2E_MERCHANT="$$m" npx playwright test channel/vtex-checkout.spec.ts
-
-scenario: ## <name> [preview] — corre un combo de presets.json (preview = headed para ver el navegador)
-	@n="$(word 1,$(ARGS))"; p="$(word 2,$(ARGS))"; [ -n "$$n" ] || { bin/scenario --list; exit 0; }; bin/scenario "$$n" $$p
-
-scenarios: ## lista los scenarios disponibles (presets.json)
-	@bin/scenario --list
 
 test: ## [specs...] — corre los specs con Playwright
 	@npx playwright test $(ARGS)
@@ -99,7 +87,7 @@ help: ## muestra esta ayuda
 	@echo "       make auto ecommerce pullman               (GUIADO desde la tienda · checkout)"
 	@echo "       make run  asesor pullman                  (MANUAL · login asesor, manejás vos)"
 	@echo "       make run  ecommerce pullman               (MANUAL desde la tienda)"
-	@echo "       make scenarios                            (lista los combos de presets.json)"
+	@echo "       npm run dev                               (PANEL visual :5195 — la entrada principal)"
 
 # catch-all: vuelve no-op los args posicionales. Los targets reales tienen prioridad.
 %:
