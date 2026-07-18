@@ -1,6 +1,6 @@
 {
-  "name": "Redirect",
-  "combination": "redirect",
+  "name": "Aggregator",
+  "combination": "aggregator",
   "group": "entities",
   "kind": "reference",
   "files": []

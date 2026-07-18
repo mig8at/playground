@@ -1,7 +1,7 @@
 {
   "name": "KYC",
   "combination": "kyc",
-  "group": "kyc",
+  "group": "creditop",
   "kind": "reference",
   "files": []
 }

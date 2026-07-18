@@ -1,6 +1,6 @@
 {
-  "name": "Entities",
-  "combination": "entities",
+  "name": "Actors",
+  "combination": "actors",
   "group": "creditop",
   "kind": "reference",
   "files": []

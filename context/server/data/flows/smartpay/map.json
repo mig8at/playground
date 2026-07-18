@@ -1,7 +1,7 @@
 {
   "name": "SmartPay",
   "combination": "smartpay",
-  "group": "flows",
+  "group": "merchants",
   "kind": "reference",
   "files": []
 }

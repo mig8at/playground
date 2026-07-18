@@ -1,6 +1,6 @@
 {
-  "name": "Entities",
-  "combination": "entities",
+  "name": "Pre-approvals",
+  "combination": "pre-approvals",
   "group": "creditop",
   "kind": "reference",
   "files": []
