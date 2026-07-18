@@ -126,7 +126,9 @@ function nodeData(c, depth, role, hlCtx) {
   const branchChips = Object.values(byTarget).map((g) => ({ target: g.target, aligned: g.aligned, tip: g.repos.join('\n') }))
   return {
     id: c.id, name: c.name, depth, isChild: !!c.parent,
-    role, roleLabel: ROLE_LABEL[role], roleTip: ROLE_TIP[role], canDelete: role !== 'raiz',
+    // borrar DESHABILITADO: el árbol es documentación curada (22 nodos, ~1.3k archivos
+    // linkados); un clic no debería poder tirar un doc. Para reactivarlo: role !== 'raiz'.
+    role, roleLabel: ROLE_LABEL[role], roleTip: ROLE_TIP[role], canDelete: false,
     contexts: c.contexts || [],        // (task) chips de los contextos que compone
     ctxHL: hlCtx?.has(c.id) || false,  // (contexto) resaltado cuando la task seleccionada lo usa
     selected: props.selected === c.id,

@@ -12,7 +12,7 @@ Tipos (capacitación de producto, `159906a:docs/codigo/MECANICA-CREDITO.md`):
 |---|---|---|---|
 | **Rotativo** | < $1.000.000 | se **libera al pagar** capital (reutilizable) | 3 |
 | **Consumo** | > $1.000.000 | **NO** se libera tras el pago | 2 |
-| **Renting** (Motai) | — | device-lock IMEI (nodo `motaix`) | 2 |
+| **Renting** (Motai) | — | device-lock IMEI (nodo `motai`) | 2 |
 
 Mecánica financiera (informativa): amortización **francesa** (cuota FIJA, interés sobre **saldo diario**); cadena de tasas EA → MV `(1+EA)^(1/12)−1` → diaria `(1+MV)^(1/30)−1`; **cuota total = capital+interés + seguro de vida + fondo de garantía (FGA)**. El **FGA %** y el **enganche** son salidas de la categoría (`lender_users_categories.FGA` / `.min_initial_fee`; ver Subcontextos).
 
@@ -68,7 +68,7 @@ Orden real del cascade (application, la ruta **viva por defecto** en parallel-ru
 
 ## Enlaces
 - Padre: **Entities**. Subcontextos: **Profiling** · **Amount tiers**.
-- Variantes de la familia (nodos hermanos): **Pullman** (rt=2 vanilla) · **SmartPay** (path IMEI) · **MotaiX** / **Motai-v2** (renting). Cierre/firma: **Formalization**. Buró/identidad: **KYC**. Contraste (bróker rt=0/1/4): **Aggregator** · **Redirect** · **MS-preapprovals**.
+- Variantes de la familia (nodos hermanos): **Pullman** (rt=2 vanilla) · **SmartPay** (path IMEI) · **Motai** / **Motai-v2** (renting). Cierre/firma: **Formalization**. Buró/identidad: **KYC**. Contraste (bróker rt=0/1/4): **Aggregator** · **Redirect** · **MS-preapprovals**.
 - Simulador: playground/flow (nodo "Perfilamiento" + tarjetas categoría/tramo), mapa `playground/flow/MAP.md` §S5.
 - Fuente profunda: `159906a:docs/codigo/FLUJO-CREDITOPX-Y-DEPS-APPLICATION.md` · `159906a:docs/codigo/MECANICA-CREDITO.md` · `159906a:docs/lenders/CREDITOPX.md`.
 - Memorias: `creditopx-modelo-comercio` · `lender-listing-cascade` · `datacredito-rules-per-lender` · `synth-lender-type-boundary` · `migracion-application-a-legacy-estado` · `orden-lenders-ml-desactivado` · `continuacion-credito-servicing` · `modelos-canales-flujos`.

@@ -4,7 +4,7 @@
 > Des-motaizar la originación de Motai: sacar los ifs quemados (`isMotaiRenting` / lender `158` / modos) y moverlos a **configuración por columna en BD** (`lenders.product`/`calculator`, `lenders_by_allied_branches.document_types`, `allied_documents`), para que otra entidad renting/RTO entre por **filas de config**, no por deploy.
 
 ## Contextos que usa
-- **motaix** — el flujo Motai v1 tal como ES hoy (comercio `158`, in-platform rt=2, 3 productos, Ábaco informativo): el punto de partida que esta tarea lleva al deber-ser. No se repite su mecánica acá.
+- **motai** — el flujo Motai v1 tal como ES hoy (comercio `158`, in-platform rt=2, 3 productos, Ábaco informativo): el punto de partida que esta tarea lleva al deber-ser. No se repite su mecánica acá.
 - **creditopx** — el destino: los productos pasan a ser **lenders CreditopX rt=2 por categoría**, hermanos de Pullman/SmartPay; el listado/categoría/cupo siguen corriendo por su cascada (`getLenders`).
 - **merchants** — donde vive la config nueva: la calculadora por comercio (`lenders_by_allieds`), las columnas `product`/`calculator`, la ficha flaca del comercio y la copia de reglas por sucursal.
 - **dynamic-forms** — `document_types` por sucursal habilita el tipo **PEP**; el salto de buró pasó a ser el bypass "por documento PEP", no por flag.
@@ -100,7 +100,7 @@ Lo que legítimamente queda con "motai"/"158" NO es lógica: el `158` en la migr
 - [ ] Cerrar con negocio: **C9** score mínimo titular (PRD dice **400** en un lado, **0** en otro) · **C2/C3** ¿Datacrédito 100% aplica a PEP (thin-file)? · **D6** ¿el producto se elige en el marketplace (cae la pantalla de modos)? · **D7** ¿renting y RTO son 2 lenders o 1 con flag "opción de compra"?
 
 ## Enlaces
-- **Contextos hermanos:** **MotaiX** (v1 = como ES) · **CreditopX** (rt=2, listado/cupo) · **Merchants** (config/ficha) · **Dynamic Forms** (`document_types`) · **KYC** (buró/Ábaco). Raíz: **CreditOp**.
+- **Contextos hermanos:** **Motai** (v1 = como ES) · **CreditopX** (rt=2, listado/cupo) · **Merchants** (config/ficha) · **Dynamic Forms** (`document_types`) · **KYC** (buró/Ábaco). Raíz: **CreditOp**.
 - **Memorias:** `[[motai-plan-evolucion]]` (plan E0–E4, PIVOT §10, DES-MOTAIZACION censo) · `[[motai-v2-validacion-local]]` (pusheado + TyC por comercio + harness panel) · `[[abaco-gig-scraping]]` (Ábaco proveedor externo, ingreso informativo) · `[[nomenclatura-negocio]]` (choques PRD×código, "renting"=RTO).
 - **Fuente histórica (git `159906a`):** `docs/mejoras/DES-MOTAIZACION.md` (censo B1–B18/F1–F17 + 8 PRs) · `docs/mejoras/DES-MOTAIZACION-CONFLUENCE.md` (versión negocio) · `docs/chages/MOTAI-V2-MAPA-DE-CAMBIOS.md` (mapa de cambios vigente) · `docs/mejoras/MOTAI-PLAN-EVOLUCION.md` · `docs/codigo/MOTAI-FLUJO-ANALISIS.md` (⚠ estado ANTES de esta rama).
 - **Jira:** CORE-265 (flujo unificado) · CORE-266 (calculadora) · CORE-267 (TyC) · CORE-268 (recálculo) — sprint CORE Sprint 7.

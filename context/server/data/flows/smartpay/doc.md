@@ -61,6 +61,6 @@ Todo en `legacy-backend` salvo nota; líneas verificadas contra el código vigen
 - **2026-07-17** — Contexto sembrado desde playground/flow (caveats path IMEI + skip AML); los internals de MDM/crons/ids quedaban para la fase de data.
 
 ## Enlaces
-- Padre: **Merchants**. Hermanos: **Pullman** (tronco rt=2 CreditopX que este nodo hereda), **MotaiX**. Núcleo rt=2: **CreditopX**. Identidad/AML que SmartPay saltea: **KYC**. Firma/desembolso/Estado 11 genéricos: **Formalization**.
+- Padre: **Merchants**. Hermanos: **Pullman** (tronco rt=2 CreditopX que este nodo hereda), **Motai**. Núcleo rt=2: **CreditopX**. Identidad/AML que SmartPay saltea: **KYC**. Firma/desembolso/Estado 11 genéricos: **Formalization**.
 - Fuente profunda: `git 159906a:docs/codigo/SMARTPAY-FLUJO-ANALISIS.md`.
 - Memorias: `modelos-canales-flujos` (SmartPay 152/153/160, MDM device-lock) · `synth-lender-type-boundary` (frontera de inyección rt=2) · `continuacion-credito-servicing` (ledger `creditop_x_requests_history` post-11).

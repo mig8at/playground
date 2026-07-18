@@ -161,6 +161,6 @@ Asimetría real: el **`store` cubre solo rt==2**, mientras el **`update` de appl
 ## Enlaces
 - **Hijos**: CreditopX · Aggregator · Redirect. Nietos vía CreditopX: Profiling · Amount tiers.
 - **Contraparte**: Merchants (la config por comercio/sucursal vive del lado del comercio). **Raíz**: CreditOp. **Repos**: Application · Legacy-backend · Frontend-monorepo · Architecture.
-- **Vecinos**: Onboarding (dónde se lista) · MS Pre-approvals (veredicto rt≠0) · KYC (`validation_type`) · Formalization (rt=4) · SmartPay y MotaiX (canales `path_id`) · Pullman.
+- **Vecinos**: Onboarding (dónde se lista) · MS Pre-approvals (veredicto rt≠0) · KYC (`validation_type`) · Formalization (rt=4) · SmartPay y Motai (canales `path_id`) · Pullman.
 - **Memorias**: `admin-anatomia-creditop` (jerarquía real de config) · `lender-listing-cascade` (visibilidad) · `reglas-comercio-lender-map` y `reglas-copia-por-sucursal` (capas de reglas) · `modelos-canales-flujos` (4 ejes de negocio) · `credifamilia-flujo-mapa` (rt=2 vs rt=4) · `synth-lender-type-boundary` (frontera de inyectabilidad) · `orden-lenders-ml-desactivado` · `migracion-application-a-legacy-estado` (parallel-run).
 - Provenance del seed: simulador `playground/flow` (nodos "Entidades del comercio" / "Entidades disponibles", `MAP.md` §0/§S1). Fichas de negocio históricas: `git 159906a:docs/lenders/`.

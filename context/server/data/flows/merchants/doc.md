@@ -80,7 +80,7 @@ Puerto 1:1 del admin de comercios a legacy-backend. Rutas bajo `api/partners` (`
 - **La copia de reglas está duplicada 1:1** en `AlliedManagementService::updateAlliedBranch` (`:237` delete, `:248` create, `:257-258` copia) y `::storeEcommerceCredential` (`:1431-1433`). El fallback a BdB también (`LenderRuleRepository::findDefaultDatacreditoRule` → `lender_id 5`, `:146`), pero **sin la compuerta de país** que sí tiene application.
 
 ## Subcontextos
-- **MotaiX** — flujo Motai (comercio 158, in-platform rt=2): 3 productos CreditopX (crédito/renting/RTO) + Ábaco (info. complementaria, ingreso gig informativo).
+- **Motai** — flujo Motai (comercio 158, in-platform rt=2): 3 productos CreditopX (crédito/renting/RTO) + Ábaco (info. complementaria, ingreso gig informativo).
 - **SmartPay** — canal in-platform (path IMEI): el celular como garantía, salta el AML de TusDatos, bloqueo por MDM.
 - **Pullman** — flujo CrediPullman/Pullman (rt=2 in-platform "vanilla"): el caso base de la familia CreditopX (hardcode `allied_id == 94`).
 
@@ -128,10 +128,10 @@ Puerto 1:1 del admin de comercios a legacy-backend. Rutas bajo `api/partners` (`
 
 ## Bitácora
 - **2026-07-18** — Fase de data: nodo documentado por ANALISIS DE CODIGO (no habia doc fuente) + superficie curada.
-- **2026-07-17** — Contexto sembrado desde playground/flow (nodos MerchantNode/ComercioNode/CanalNode/BranchStatusNode + fieldDocs `node.comercio`/`node.comercioConfig`/`node.canal`/`suc.status`) y MAP.md §S1-S2. Se conservan los subcontextos motaix/smartpay/pullman.
+- **2026-07-17** — Contexto sembrado desde playground/flow (nodos MerchantNode/ComercioNode/CanalNode/BranchStatusNode + fieldDocs `node.comercio`/`node.comercioConfig`/`node.canal`/`suc.status`) y MAP.md §S1-S2. Se conservan los subcontextos motai/smartpay/pullman.
 
 ## Enlaces
-- Padre: **CreditOp** (raíz). Contraparte: **Entities**. Subcontextos: **MotaiX**, **SmartPay**, **Pullman**.
+- Padre: **CreditOp** (raíz). Contraparte: **Entities**. Subcontextos: **Motai**, **SmartPay**, **Pullman**.
 - Memorias: `admin-anatomia-creditop` (anatomía del panel real ↔ código), `reglas-copia-por-sucursal` (la medición de ≈37.284 copias y la cadena de disparo), `reglas-comercio-lender-map` (las 4 capas de reglas), `lender-listing-cascade` (qué filtra y qué solo clasifica), `migracion-application-a-legacy-estado` (strangler y parallel-run), `modelos-canales-flujos`.
 - Simulador: playground/flow (nodos Comercio, Configurar comercio, Estado en sucursal, Canal) y `playground/flow/MAP.md` §S1-S2.
 - Docs históricos removidos de main: `git 159906a:docs/codigo/HALLAZGO-*` y `git 159906a:docs/codigo/ADMIN-ALTA-OPERACION.md`.

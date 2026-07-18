@@ -51,6 +51,6 @@ Además, allied 94 está en `DatacreditoFrequency` (`every=1`) → el gate datac
 - **2026-07-17** — Contexto sembrado desde playground/flow (fieldDocs `merch.nombre` hardcode allied_id==94, `buro.edad`, cascade rt=2, store `CREDITOPX_CALCULADORA`) + MAP.md §S5.
 
 ## Enlaces
-- Padre: **Merchants**. Hermanos: **SmartPay** (mismo núcleo rt=2 + path IMEI), **MotaiX** (+ modo/Ábaco). Mecanismo: **CreditopX** (cascade de 8 etapas + subcontextos **Profiling** y **Amount tiers**).
+- Padre: **Merchants**. Hermanos: **SmartPay** (mismo núcleo rt=2 + path IMEI), **Motai** (+ modo/Ábaco). Mecanismo: **CreditopX** (cascade de 8 etapas + subcontextos **Profiling** y **Amount tiers**).
 - Memorias: `synth-credipullman-gates` (los 2 gates + diagnósticos) · `datacredito-rules-per-lender` · `reglas-comercio-lender-map` · `lender-listing-cascade` · `reglas-copia-por-sucursal`.
 - Fuente profunda: `git 159906a:docs/lenders/CREDITOPX.md` · `git 159906a:docs/codigo/REGLAS-POR-COMERCIO-Y-LENDER.md`.

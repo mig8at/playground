@@ -63,7 +63,7 @@ Todo aterriza en tres lugares: el **reporte crudo** en `risk_central_user_data.d
 - **2026-07-17** — Fase de data: superficie de código curada + doc enriquecido desde `git 159906a:docs/codigo/{ONBOARDING-DATOS-DECISION-ANALISIS.md, mapeo-datos-buros.json}`. Añadido: rc_ids + acceso por nombre/id (`User.php`), las 3 formas de Experian, cascada de ingreso corregida (Quanto es 3ª fuente vía EAV 87, no 4ª), conteos BD locales, ML H2O muerto, `field 160` auto-declarado, cifrado solo en `data`, KYC V2 Credifamilia (Evidente/CrossCore/Jumio). Line-anchors verificados contra application + legacy-backend.
 
 ## Enlaces
-- Padre: **Onboarding** (cede el buró a este nodo). Hermanos: **Profiling** (los 2 motores de datacrédito + categoría), **CreditopX** (cupo rt=2), **Pullman** (score gate 400 / edad), **SmartPay** (salta AML), **MotaiX** (Ábaco/gig), **Formalization** (Credifamilia SOAP downstream).
+- Padre: **Onboarding** (cede el buró a este nodo). Hermanos: **Profiling** (los 2 motores de datacrédito + categoría), **CreditopX** (cupo rt=2), **Pullman** (score gate 400 / edad), **SmartPay** (salta AML), **Motai** (Ábaco/gig), **Formalization** (Credifamilia SOAP downstream).
 - Simulador: `playground/flow` (nodos Experian · Acierta / Quanto / Ágil Data / Mareigua / TusDatos / Perfil consolidado / Información complementaria), mapa `playground/flow/MAP.md §S4`.
 - Análisis fuente: `git 159906a:docs/codigo/ONBOARDING-DATOS-DECISION-ANALISIS.md` · `git 159906a:docs/codigo/mapeo-datos-buros.json`.
 - Memorias: mapeo-datos-buros · onboarding-decision-data-map · datacredito-rules-per-lender · abaco-gig-scraping · credifamilia-flujo-mapa.

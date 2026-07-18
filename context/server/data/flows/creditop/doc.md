@@ -66,7 +66,7 @@ La tesis de arriba ("ifs quemados por ID") tiene un inventario verificado con `a
 - **2026-07-17** — Reestructura al modelo contexto/task; data curada previa movida a `flows-curated/` para re-linkar; siembra de contextos desde `playground/flow`.
 
 ## Enlaces
-- **CONTEXTOS por group:** architecture (**application** · **legacy-backend** · **frontend-monorepo** · **ms-preapprovals**) · entities (**creditopx** · **aggregator** · **redirect**) · creditopx (**profiling** · **amount-tiers**) · merchants (**motaix** · **smartpay** · **pullman**) · **onboarding** · **formalization** · **kyc** · **dynamic-forms** · **actors** · **entities** · **merchants** · **architecture**.
+- **CONTEXTOS por group:** architecture (**application** · **legacy-backend** · **frontend-monorepo** · **ms-preapprovals**) · entities (**creditopx** · **aggregator** · **redirect**) · creditopx (**profiling** · **amount-tiers**) · merchants (**motai** · **smartpay** · **pullman**) · **onboarding** · **formalization** · **kyc** · **dynamic-forms** · **actors** · **entities** · **merchants** · **architecture**.
 - **TASKS:** **Motai v2** (des-motaización · rama `feature/motai-v2`).
 - **⚠ `playground/docs/` fue absorbido en los nodos y REMOVIDO de main el 2026-07-17.** El análisis maestro `archivo:línea` sobrevive en **git @ `159906a`**: `git show 159906a:docs/<ruta>` (ej `git show 159906a:docs/codigo/FLUJO-CREDITOPX-Y-DEPS-APPLICATION.md`). Ir ahí para re-verificar o regenerar.
 - Memorias del ecosistema: `atlas-mcp-cross-repo`, `modelos-canales-flujos`, `plan-simplificacion`, `nomenclatura-negocio`.

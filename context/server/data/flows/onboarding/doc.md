@@ -191,7 +191,7 @@ En G2 **el body gana**: `request()->input('amount') ?? session('amount') ?? 0`. 
 
 ## Enlaces
 - Padre: **CreditOp**. Subcontexto: **KYC**.
-- Hermanos que continúan el camino: **Dynamic Forms** (esquema EAV y config del formulario), **Merchants** (comercio/sucursal/canal), **Profiling** y **CreditopX** (cupo y reglas), **MS Pre-approvals** y **Aggregator** (resolución del listado), **Formalization** (todo lo posterior al estado 3), **MotaiX** (modos de comercio e `isMotaiRenting`), **SmartPay** (rama IMEI).
+- Hermanos que continúan el camino: **Dynamic Forms** (esquema EAV y config del formulario), **Merchants** (comercio/sucursal/canal), **Profiling** y **CreditopX** (cupo y reglas), **MS Pre-approvals** y **Aggregator** (resolución del listado), **Formalization** (todo lo posterior al estado 3), **Motai** (modos de comercio e `isMotaiRenting`), **SmartPay** (rama IMEI).
 - Nodos de repo: **application**, **legacy-backend**, **frontend-monorepo**.
 - Memorias: `lender-listing-cascade`, `migracion-application-a-legacy-estado`, `pre-approval-omit-experian-frontend`, `frontend-e2e-asesor-commands`, `synth-credipullman-gates`.
 - El `playground/docs` fue removido de main; si hace falta el material viejo, `git 159906a:docs/<ruta>`.

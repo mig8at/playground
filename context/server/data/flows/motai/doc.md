@@ -1,4 +1,4 @@
-# MotaiX · contexto
+# Motai · contexto
 > **estado:** al día con main · Comercio aliado **158** (con su lender **MotaiX 158** rt=2 CreditopX) y sus **3 modos** compra/renting/alquiler; lo distintivo es el **modo del comercio** + **Ábaco** (ingresos gig, solo en renting, que SALTA el buró y hoy es informativo).
 
 ## Qué es
@@ -50,6 +50,7 @@ En el simulador **playground/flow**, Motai es el comercio *seed*; flow modela la
 - **IMEI / device-lock (MDM)** es el cierre de la **compra de celulares** del allied Motai, árbol separado sin cruce con modos/Ábaco — fuera de este nodo (patrón afín en **SmartPay**).
 
 ## Bitácora
+- **2026-07-18** — RENOMBRADO `motaix` → `motai` (nodo + id + refs). El nodo cuelga de **Merchants**, así que documenta el **COMERCIO** aliado 158 (Motai); **MotaiX** es su *lender* rt=2 y pertenece conceptualmente a **Entities**. El nombre viejo mezclaba los dos namespaces.
 - **2026-07-17** — Fase de data: superficie de código curada (modos `allied_modes`/`user_request_modes`, Ábaco legacy+front, bypass `isMotaiRenting`, calc + decisión manual) + doc enriquecido desde `git 159906a:docs/codigo/MOTAI-FLUJO-ANALISIS.md` y `…/mejoras/MOTAI-PLAN-EVOLUCION.md`; líneas re-verificadas contra el código real. Corrige la v0 sembrada de flow (la vista "3 productos CreditopX / Información complementaria / cuota 30% + cargo 400k" era el deber-ser de flow/motai-v2, no la v1 en main; la calc real es alistamiento 1,5M + margen 100% + IVA 19%).
 - **2026-07-17** — Contexto sembrado desde playground/flow (store `merchant`/`merchantCalc`/`CREDITOPX_PRODUCTS`, nodo IngresosExtrasNode, fieldDocs) + MAP.md §S5.
 
