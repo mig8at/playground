@@ -94,7 +94,7 @@ test('guided (semiautomático)', async ({ browser }) => {
 
     // Cache de sesión Cognito: si hay .auth/cognito-state.json lo inyectamos → el Hosted UI no aparece y
     // cognitoLogin es no-op. Si la sesión murió, el form reaparece y cognitoLogin re-loguea + re-guarda.
-    const { page, context: ctxA } = await openA(browser, { baseURL: config.feBaseUrl, userAgent: IPHONE_UA, storageState: ENTRY === 'cognito' ? cognitoStorageState() : undefined }); // A (mitad izq); ctxA → sesión para la ventana B (celular)
+    const { page } = await openA(browser, { baseURL: config.feBaseUrl, userAgent: IPHONE_UA, storageState: ENTRY === 'cognito' ? cognitoStorageState() : undefined }); // A = mitad izquierda (comercio/asesor)
     // React Scan (overlay FPS/inspección del wizard en dev): se bloquea acá — cortamos su script — SIN tocar
     // el frontend. Para verlo igual: E2E_REACT_SCAN=1.
     if (process.env.E2E_REACT_SCAN !== '1') await page.route(/react-scan|react-grab/, (r) => r.abort()).catch(() => {});
@@ -131,6 +131,52 @@ test('guided (semiautomático)', async ({ browser }) => {
         if (isExternal(u)) externalUrl = u;
     });
     page.context().on('page', async (pp) => { const u = pp.url(); if (isExternal(u)) { externalUrl = u; log(`popup externo → ${u}`); } await pp.close().catch(() => {}); });
+
+    // ─────────────────── VENTANA B (el celular del cliente) — abierta DESDE EL ARRANQUE ───────────────────
+    // Antes B nacía recién en el handoff rt=2 (más abajo), así que en modo MANUAL —el que usa el panel— NO
+    // aparecía NUNCA: el branch manual termina en page.pause() mucho antes. Ahora las dos ventanas están
+    // abiertas desde el principio (A izquierda = comercio/asesor · B derecha = celular del cliente) y B espera.
+    //
+    // B NO hereda la sesión de A, a propósito: `/self-service/*` matchea `route(":flow", public-layout.tsx)`
+    // en el wizard → layout PÚBLICO, sin `requireUserWithSession` (eso solo lo exige `/merchant/*` vía
+    // default-layout). Es el celular del CLIENTE: en la vida real abre el link sin la sesión del asesor.
+    const { page: B } = await openB(browser, { baseURL: config.feBaseUrl, userAgent: IPHONE_UA }); // B mitad DERECHA
+    // El polling de validación (captura ADO por foto) NO es automatizable → lo mockeamos como validado. Va acá,
+    // en la creación, para que esté activo ANTES de cualquier navegación de B (venga del watcher o del guiado).
+    await B.route('**/validation-status', (r) => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ validationStatus: { data: { all_completed: true, ado: { validated: true, completed: true, state_id: 2, state_name: 'Validado' }, tusdatos_aml: { has_findings: false, completed: true } } }, validationStatusAbaco: null, errorType: null, errorMessage: null }) }).catch(() => {}));
+    await B.setContent(`<!doctype html><meta charset="utf-8"><title>B · celular del cliente</title>
+      <style>html,body{height:100%;margin:0}body{background:#0f1115;color:#e7eaf0;display:grid;place-items:center;
+      font:15px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;text-align:center;padding:24px}
+      .k{font-size:12px;letter-spacing:.9px;text-transform:uppercase;color:#22c55e;font-weight:800}
+      h1{font-size:19px;margin:10px 0 6px} p{color:#9aa4b2;font-size:13.5px;margin:0;max-width:34ch}
+      .d{margin-top:20px;color:#2a2f3a;font-size:26px;letter-spacing:6px}</style>
+      <div><div class="k">Ventana B · celular del cliente</div>
+      <h1>Esperando…</h1>
+      <p>Elegí el lender en la ventana A (izquierda). Si es CreditopX, esta ventana toma el link del cliente y sigue acá.</p>
+      <div class="d">•••</div></div>`).catch(() => {});
+
+    // De la URL de A (/merchant|/ecommerce/{hash}/{ur}/…) al link del CLIENTE (/self-service/{hash}/{ur}/confirmation).
+    const selfServiceLinkFrom = (u: string): string => {
+        const m = u.match(/^(https?:\/\/[^/]+)\/(?:merchant|ecommerce)\/([^/]+)\/(\d+)\//);
+        return m ? `${m[1]}/self-service/${m[2]}/${m[3]}/confirmation` : '';
+    };
+
+    // MANUAL (el panel): nadie automatiza el flujo, así que B se despierta SOLA mirando las navegaciones de A.
+    // Cuando A llega al handoff (`/continue` o `/confirmation` = CreditopX rt=2 seleccionado), B abre el link del
+    // cliente y desde ahí manejás vos. Por eventos (no polling): siguen llegando por CDP durante el page.pause().
+    // En GUIADO no hace falta: el guion de abajo conduce B paso a paso.
+    if (process.env.E2E_GUIDED === '0') {
+        let bWoke = false;
+        page.on('framenavigated', (f) => {
+            if (f !== page.mainFrame() || bWoke) return;
+            if (!/\/(continue|confirmation)(\?|$)/.test(f.url())) return;
+            const link = selfServiceLinkFrom(f.url());
+            if (!link) return;
+            bWoke = true;
+            log(`B (celular): handoff detectado en A → abro ${new URL(link).pathname}`);
+            void B.goto(link, { waitUntil: 'domcontentloaded', timeout: 60_000 }).catch(() => {});
+        });
+    }
     // Traza de redirects del SERVIDOR → caza el rebote a /solicitar y muestra QUÉ request lo devuelve.
     // Captura: 302 clásicos (Location), single-fetch de React Router (*.data) y headers de redirect (x-remix-redirect).
     // Si el rebote NO aparece acá pero sí en el log de nav, es un navigate() CLIENT-side (no un redirect de loader).
@@ -428,9 +474,8 @@ test('guided (semiautomático)', async ({ browser }) => {
         //    "Continuar" en B para avanzar (igual que A). Lo NO automatizable (captura de identidad por foto, firma
         //    del pagaré por OTP-Twilio) lo completa el sistema; las pantallas con botón las clickeás vos. ──
         const selfServiceBase = base.replace(/\/(merchant|ecommerce)\//, '/self-service/');
-        const { page: B } = await openB(browser, { baseURL: config.feBaseUrl, userAgent: IPHONE_UA, storageState: await ctxA.storageState() }); // B mitad DERECHA
-        // mock del polling de validación (el ADO/captura no es automatizable): all_completed:true → ready_to_route → avanza.
-        await B.route('**/validation-status', (r) => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ validationStatus: { data: { all_completed: true, ado: { validated: true, completed: true, state_id: 2, state_name: 'Validado' }, tusdatos_aml: { has_findings: false, completed: true } } }, validationStatusAbaco: null, errorType: null, errorMessage: null }) }).catch(() => {}));
+        // B ya está abierta desde el arranque (mitad derecha, con el mock de validation-status montado y
+        // esperando en su placeholder) — acá solo la llevamos al link del cliente.
         log(`B (celular del cliente): abre el link → ${new URL(`${selfServiceBase}/confirmation`).pathname}`);
         await B.goto(`${selfServiceBase}/confirmation`, { waitUntil: 'domcontentloaded', timeout: 60_000 }).catch(() => {});
         await B.waitForTimeout(STEP_LINGER).catch(() => {});
