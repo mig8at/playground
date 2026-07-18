@@ -3,5 +3,21 @@
   "combination": "ms-preapprovals",
   "group": "architecture",
   "kind": "reference",
-  "files": []
+  "files": [
+    "frontend-monorepo/apps/loan-request-wizard/app/routes/lenders-marketplace/available-lenders.tsx",
+    "frontend-monorepo/modules/loan-request-wizard/lenders-marketplace/src/lib/infrastructure/adapters/fetch-lender-preapproval.ts",
+    "frontend-monorepo/modules/loan-request-wizard/lenders-marketplace/src/lib/infrastructure/adapters/fetch-lender-preapproval.test.ts",
+    "frontend-monorepo/apps/loan-request-wizard/app/routes/lenders-marketplace/lenders/preapproval-retry.tsx",
+    "frontend-monorepo/apps/loan-request-wizard/app/routes/lenders-marketplace/lenders/validate-preapproved-loan.tsx",
+    "frontend-monorepo/modules/loan-request-wizard/lenders-marketplace/src/lib/application/validate-preapproved-loan.uc.ts",
+    "frontend-monorepo/modules/loan-request-wizard/lenders-marketplace/src/components/available-lenders/AvailableLenders.tsx",
+    "frontend-monorepo/modules/loan-request-wizard/lenders-marketplace/src/lib/mappers/lender-response.mapper.ts",
+    "frontend-monorepo/apps/loan-request-wizard/app/routes/api/lender-results.tsx",
+    "frontend-monorepo/modules/loan-request-wizard/lenders-marketplace/src/lib/application/post-lender-results.uc.ts",
+    "frontend-monorepo/modules/loan-request-wizard/lenders-marketplace/src/lib/domain/entities/lender-results-request.entity.ts",
+    "legacy-backend/Modules/Onboarding/App/Services/lenders/PreApprovedLenderService.php",
+    "legacy-backend/Modules/Onboarding/App/Services/lenders/LenderRetrievalService.php",
+    "legacy-backend/Modules/Onboarding/App/Http/Controllers/ListLenderController.php",
+    "legacy-backend/Modules/Onboarding/routes/webhooks.php"
+  ]
 }

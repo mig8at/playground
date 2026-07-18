@@ -3,5 +3,19 @@
   "combination": "pullman",
   "group": "merchants",
   "kind": "reference",
-  "files": []
+  "files": [
+    "application/app/Services/lenders/LenderValidationService.php",
+    "application/app/Services/lenders/PreApprovedLenderService.php",
+    "application/app/Services/lenders/CreditopXNotificationService.php",
+    "application/app/Models/GroupRule.php",
+    "application/app/Models/LenderDatacreditoRule.php",
+    "legacy-backend/Modules/Risk/App/Http/Controllers/DatacreditoQueryByAlliedController.php",
+    "legacy-backend/Modules/Onboarding/App/Services/OnboardingService.php",
+    "legacy-backend/Modules/Loans/App/Services/DatacreditoRuleEvaluator.php",
+    "legacy-backend/Modules/Loans/App/Repositories/LenderDatacreditoRulesRepository.php",
+    "legacy-backend/Modules/Loans/App/Services/LenderUserCategoryService.php",
+    "legacy-backend/Modules/Loans/App/Http/Controllers/Customer/CreditopXQuotaController.php",
+    "legacy-backend/app/Models/LenderDatacreditoRule.php",
+    "legacy-backend/app/Models/GroupRule.php"
+  ]
 }
