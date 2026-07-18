@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"fmt"
 	"sort"
 	"strings"
 	"unicode"
@@ -310,14 +311,115 @@ type FileGroup struct {
 	Files []string `json:"files"` // relativas a Dir
 }
 
-// Surface es la respuesta de L2.
+// Surface es la respuesta de L2. Los campos self (Total/ByRepo/Groups) describen
+// SIEMPRE el nodo pedido; Members/UnionTotal/Truncated solo se llenan cuando se pide
+// composición (include=children|contexts) — nunca hay herencia en los datos, solo
+// agregación bajo demanda en la lectura.
 type Surface struct {
+	ID         string          `json:"id"`
+	Name       string          `json:"name"`
+	Total      int             `json:"total"`
+	ByRepo     map[string]int  `json:"by_repo"`
+	Groups     []FileGroup     `json:"groups"`
+	Members    []MemberSurface `json:"members,omitempty"`     // (include) subcontextos/chips agregados
+	UnionTotal int             `json:"union_total,omitempty"` // (include) self ∪ members, deduplicado
+	Truncated  bool            `json:"truncated,omitempty"`   // (include) unión > tope: members traen solo conteos
+	Note       string          `json:"note,omitempty"`
+}
+
+// MemberSurface es la superficie de un nodo agregado (hijo o chip) dentro de una
+// lectura compuesta. Groups viene vacío si la unión superó el tope (solo conteos).
+type MemberSurface struct {
 	ID     string         `json:"id"`
 	Name   string         `json:"name"`
+	Rel    string         `json:"rel"` // child | context
 	Total  int            `json:"total"`
 	ByRepo map[string]int `json:"by_repo"`
-	Groups []FileGroup    `json:"groups"`
-	Note   string         `json:"note,omitempty"`
+	Groups []FileGroup    `json:"groups,omitempty"`
+}
+
+// flatKeys devuelve las claves "repo/relpath" que RESUELVEN de un nodo (las mismas
+// que cuenta Surface). Base para deduplicar la unión en la lectura compuesta.
+func (e *Engine) flatKeys(id string) []string {
+	f, ok := e.Flow(id)
+	if !ok {
+		return nil
+	}
+	_, byID := e.pathMaps()
+	var out []string
+	for _, nid := range f.NodeIDs {
+		if k, ok := byID[nid]; ok {
+			out = append(out, k)
+		}
+	}
+	return out
+}
+
+// maxComposedFiles es el tope anti-saturación de la lectura compuesta: si la unión
+// self ∪ members lo supera, se devuelven conteos por nodo en vez de volcar archivos.
+// Es el guardarraíl que impide que include reconstruya el monolito que se fragmentó.
+const maxComposedFiles = 150
+
+// SurfaceComposed agrega, BAJO DEMANDA y UN SOLO NIVEL, la superficie de los hijos
+// (include="children") o de los chips de una task (include="contexts") a la del nodo.
+// No hay herencia persistida: esto compone al leer, deduplica para el conteo honesto,
+// y si la unión pasa el tope devuelve solo conteos (el modelo elige qué pedir).
+func (e *Engine) SurfaceComposed(id, include string) (Surface, bool) {
+	base, ok := e.Surface(id)
+	if !ok {
+		return Surface{}, false
+	}
+	n := e.Neighbors(id)
+	var memberIDs []string
+	rel := "child"
+	switch include {
+	case "children":
+		memberIDs = n.Children
+	case "contexts":
+		memberIDs, rel = n.Contexts, "context"
+	default:
+		return base, true // include desconocido/vacío → self, sin cambios
+	}
+	if len(memberIDs) == 0 {
+		base.Note = fmt.Sprintf("El nodo %q no tiene %s; devuelvo solo su superficie.", id, include)
+		return base, true
+	}
+	// unión deduplicada (self ∪ members) para decidir el tope y dar un conteo honesto
+	union := map[string]bool{}
+	for _, k := range e.flatKeys(id) {
+		union[k] = true
+	}
+	for _, mid := range memberIDs {
+		for _, k := range e.flatKeys(mid) {
+			union[k] = true
+		}
+	}
+	base.UnionTotal = len(union)
+	base.Truncated = len(union) > maxComposedFiles
+	for _, mid := range memberIDs {
+		f, okf := e.Flow(mid)
+		if !okf {
+			continue
+		}
+		keys := e.flatKeys(mid)
+		m := MemberSurface{ID: mid, Name: f.Name, Rel: rel, Total: len(keys), ByRepo: map[string]int{}}
+		for _, k := range keys {
+			repo, _, _ := strings.Cut(k, "/")
+			m.ByRepo[repo]++
+		}
+		if !base.Truncated {
+			if sf, oks := e.Surface(mid); oks {
+				m.Groups = sf.Groups
+			}
+		}
+		base.Members = append(base.Members, m)
+	}
+	if base.Truncated {
+		base.Note = fmt.Sprintf("Unión = %d archivos (> %d): devuelvo la superficie de %q + CONTEOS por %s. Pedí context_files del/los que necesites para ver sus archivos.", base.UnionTotal, maxComposedFiles, id, include)
+	} else {
+		base.Note = fmt.Sprintf("Superficie de %q + la de sus %d %s (agregada, deduplicada = %d). Rutas completas = <repo>/<dir>/<file>.", id, len(base.Members), include, base.UnionTotal)
+	}
+	return base, true
 }
 
 // Surface devuelve la superficie de código curada del nodo, agrupada. Solo

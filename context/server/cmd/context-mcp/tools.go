@@ -307,15 +307,22 @@ func registerRecordTask(s *mcp.Server, eng *engine.Engine) {
 // ── context_files (L2) ─────────────────────────────────────────────────────────
 
 type FilesInput struct {
-	ID string `json:"id" jsonschema:"id del nodo (ej creditopx, kyc, merchants)"`
+	ID      string `json:"id" jsonschema:"id del nodo (ej creditopx, kyc, merchants)"`
+	Include string `json:"include,omitempty" jsonschema:"opcional, para 'contexto completo' bajo demanda. 'children' agrega la superficie de los subcontextos (ej aggregator→corbeta); 'contexts' agrega la de los chips de una task (ej motai-v2, ecommerce-web-stateless). Vacío = solo este nodo. Es UN nivel, nunca recursivo, y NO hereda: compone al leer. Si la unión supera ~150 archivos devuelve conteos por nodo (no vuelca todo) — pedí entonces context_files del que necesites."`
 }
 
 func registerFiles(s *mcp.Server, eng *engine.Engine) {
 	mcp.AddTool(s, &mcp.Tool{
 		Name: "context_files",
-		Description: "L2 del protocolo de contexto: la superficie de código CURADA de un nodo, agrupada por repo y subsistema (no el repo entero: solo los archivos que ese nodo documenta, ya verificados contra el índice). Sirve para elegir qué abrir sin adivinar rutas; después hidratá con context_get_content.",
+		Description: "L2 del protocolo de contexto: la superficie de código CURADA de un nodo, agrupada por repo y subsistema (no el repo entero: solo los archivos que ese nodo documenta, ya verificados contra el índice). Sirve para elegir qué abrir sin adivinar rutas; después hidratá con context_get_content. Para el contexto completo de una familia/task, pasá include=children|contexts (agrega un nivel, con tope anti-saturación).",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in FilesInput) (*mcp.CallToolResult, engine.Surface, error) {
-		sf, okf := eng.Surface(in.ID)
+		var sf engine.Surface
+		var okf bool
+		if in.Include == "" {
+			sf, okf = eng.Surface(in.ID)
+		} else {
+			sf, okf = eng.SurfaceComposed(in.ID, in.Include)
+		}
 		if !okf {
 			return fail[engine.Surface](fmt.Errorf("nodo no encontrado: %s (listá los ids con context_brief)", in.ID))
 		}
