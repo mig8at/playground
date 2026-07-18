@@ -65,6 +65,8 @@ Se evalúan con **OR** (`$isAllowedBranch \|\| $isAllowedAllied`); si da false c
 
 Hay **16 módulos habilitados** pero **solo 10 exponen rutas**; los otros 6 (`AuthV1`, `AlliedBranchV1`, `UserRequestV1`, `EcommerceRequestsV1`, `LegalV1`, `CommonsV1`) son capas internas (`App/Services`, `App/Repositories`, `Contracts/`) sin superficie propia.
 
+**V1/V2 = evolución, NO gemelos (aclaración del equipo — Miguel, 2026-07-18).** Los prefijos `api/v2/*` no son una copia de los `api/*`: son la versión donde se MOVIÓ lógica al front. Caso confirmado: el endpoint de **lenders v2 quitó la pre-aprobación del backend** — la v2 ya no pre-aprueba los rt≠0 desde legacy, lo hace el **frontend** llamando directo al MS (ver **ms-preapprovals**). Esto explica el aparente "cero consumidores de `/api/v2/*`" que dio el análisis estático: el front no escribe la ruta literal, la arma en runtime desde `VITE_API_URL` + repository classes → un `grep '/api/v2/'` no la encuentra (falso negativo). Los `api/v2` CON rutas (OnboardingV2/RiskV2) están vivos; lo que sigue sin verificar son los 6 módulos SIN rutas de arriba.
+
 Aparte del grupo autenticado, Onboarding monta un grupo **público** (`webhooks.php`, sin Cognito) para lo que entra de afuera: callback biométrico CrossCore, el callback del MS de lenders, y el protocolo **VTEX** (`/vtex/init`, `/vtex/settel`).
 
 ### Quién atiende qué hoy (parallel-run)
@@ -152,7 +154,7 @@ Aparte del grupo autenticado, Onboarding monta un grupo **público** (`webhooks.
 - **`VITE_PREAPPROVALS_ENDPOINT` no está en `.env.example`** del wizard pese a usarse en loaders SSR: ¿se inyecta en el deploy?
 - **rt=4** aparece en el front como "pre-approval flow" pero no tiene constante ni respaldo verificado en estos 3 repos.
 - **`microservices` y el resto de repos Go** (messaging, otp, code-generation, pdf-mapper) no están en el índice, así que no se pudo verificar cuáles tienen consumidor real. Desde estos 3 repos, los que sí están cableados en config son: `pre_approvals`, `messaging_service`, `otp_service`, `code_generation_service`, `pdf_mapper_service`.
-- Los **6 módulos sin rutas** (`AuthV1`, `AlliedBranchV1`, …): no se verificó si son andamiaje de una arquitectura en curso o código sin invocar.
+- Los **6 módulos sin rutas** (`AuthV1`, `AlliedBranchV1`, …): no se verificó si son andamiaje de una arquitectura en curso o código sin invocar. (Los V2 CON rutas —OnboardingV2/RiskV2— sí están vivos: el front los consume vía `VITE_API_URL`; ver "V1/V2 = evolución" arriba.)
 
 ## Bitácora
 - **2026-07-18** — Fase de data: nodo documentado por ANALISIS DE CODIGO (no habia doc fuente) + superficie curada.
