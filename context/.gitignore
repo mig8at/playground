@@ -4,3 +4,4 @@ server/bin/
 *.log
 .env
 server/.env
+tools/index.txt

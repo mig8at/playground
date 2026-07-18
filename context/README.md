@@ -3,8 +3,9 @@
 > **⚠ 2026-07-18 — el MCP fue RETIRADO.** El valor es el contenido curado, no el servidor.
 > **Punto de entrada para un LLM: [`ROUTE-MAP.md`](ROUTE-MAP.md)** — el índice estático de los 32 nodos
 > (cada uno con su `Cuándo`); desde ahí se abren `server/data/flows/<id>/{doc.md,map.json}` y se leen
-> los archivos fuente directamente. Nada de servidor. Toolkit: `tools/build-route-map.py` (regenerar el
-> índice), `tools/oracle.py` (validar que las rutas resuelven), `tree.json` (el wiring del árbol).
+> los archivos fuente directamente. Nada de servidor. Toolkit (sin Go): `tools/build-index.py` (indexa los
+> 6 repos → `tools/index.txt`, reemplaza al scanner Go) → `tools/oracle.py <map.json>` (valida que las rutas
+> resuelven) → `tools/build-route-map.py` (regenera `ROUTE-MAP.md`). `tree.json` = el wiring del árbol.
 >
 > Lo de abajo (server Go + UI Vue) describe el MCP retirado; se conserva como referencia histórica.
 
