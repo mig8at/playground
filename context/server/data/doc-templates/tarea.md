@@ -1,15 +1,21 @@
-# <Nombre> · tarea
-> **flujo:** <flujo padre> · **rama:** <feature/x> · **PR:** <→develop / →staging> · **estado:** <en progreso | en pruebas | listo>
+# <Nombre> · task
+> **rama:** <feature/x> · **PR:** <→develop / →staging> · **estado:** <en progreso | en pruebas | listo>
 >
-> <TL;DR: qué resuelve la tarea, en 1 frase>
+> <TL;DR: qué resuelve la task, en 1 frase>
 
-<!-- TAREA = trabajo sobre un flujo, con ramas propias por repo. Doc MAGRO: NO repite el
-     "cómo funciona" del flujo (eso vive en el flujo padre; enlazalo). Acá va el objetivo,
-     lo que se hizo, la bitácora y los pendientes. La bitácora es el corazón del doc.
+<!-- TASK = trabajo sobre CreditOp, con ramas propias por repo. Cuelga ABAJO de la raíz y
+     COMPONE los CONTEXTOS de arriba que necesita (los lista en "Contextos que usa" = chips).
+     Doc MAGRO: NO repite el contenido de esos contextos (los referencia). Acá va el objetivo,
+     los contextos que usa, lo que se hizo, la bitácora y los pendientes.
      Secciones sin marca = obligatorias; (opcional) = poné solo si aplica. -->
 
+## Contextos que usa
+<!-- los nodos de contexto (de arriba) que esta task necesita para resolverse; se muestran
+     como chips en la tarjeta y se resaltan al seleccionar la task. Elegí SOLO los relevantes. -->
+- **<contexto>** — <por qué lo necesita esta task>.
+
 ## Objetivo
-<Qué resuelve + sobre qué flujo trabaja (link al flujo padre). No re-explicar el flujo.>
+<Qué resuelve. No re-explicar los contextos; referencialos.>
 
 ## Ramas y PRs por repo
 <!-- Una tarea cruza hasta 3 repos con ramas de bases distintas y retargeteos. Tabla > header. -->

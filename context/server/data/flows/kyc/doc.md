@@ -1,10 +1,10 @@
-# CreditopX · contexto
-> **estado:** al día con main · Familia de prestamistas IN-PLATFORM (response_type 2/3): CreditOp decide, firma y desembolsa.
+# KYC · contexto
+> **estado:** al día con main · El estudio del cliente (buró): Datacrédito/Experian, identidad (ADO/biométrica) y antecedentes/AML.
 
 <!-- STUB del árbol visual — la data (archivos) se linka en la fase de organización. -->
 
 ## Qué es
-Familia de prestamistas IN-PLATFORM (response_type 2/3): CreditOp decide, firma y desembolsa. El sombrero OPERADOR.
+El estudio del cliente (buró): Datacrédito/Experian, identidad (ADO/biométrica) y antecedentes/AML. Dónde y cómo se estudia al solicitante.
 
 ## Contenido
 _Pendiente de curar._ La superficie de archivos y el detalle se linkan al organizar (la data curada previa vive en `context/server/data/flows-curated/` y en git `@159906a`).

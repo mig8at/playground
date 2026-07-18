@@ -21,6 +21,7 @@ type Combination struct {
 	Targets  map[string]string `json:"targets"`          // alias → rama objetivo
 	Baseline map[string]string `json:"baseline"`         // alias → commit corto capturado
 	Tasks    []Task            `json:"tasks,omitempty"`  // checklist de la tarea del workspace (progreso)
+	Contexts []string          `json:"contexts,omitempty"` // (solo TASKS) ids de nodos de CONTEXTO que la task compone (chips)
 	Created  time.Time         `json:"created"`
 	Updated  time.Time         `json:"updated"`
 }

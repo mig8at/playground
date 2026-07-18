@@ -1,10 +1,10 @@
-# CreditopX · contexto
-> **estado:** al día con main · Familia de prestamistas IN-PLATFORM (response_type 2/3): CreditOp decide, firma y desembolsa.
+# MotaiX · contexto
+> **estado:** al día con main · Flujo Motai (comercio 158, in-platform): modo del comercio + Ábaco (ingresos gig).
 
 <!-- STUB del árbol visual — la data (archivos) se linka en la fase de organización. -->
 
 ## Qué es
-Familia de prestamistas IN-PLATFORM (response_type 2/3): CreditOp decide, firma y desembolsa. El sombrero OPERADOR.
+Flujo Motai (comercio 158, in-platform): modo del comercio + Ábaco (ingresos gig).
 
 ## Contenido
 _Pendiente de curar._ La superficie de archivos y el detalle se linkan al organizar (la data curada previa vive en `context/server/data/flows-curated/` y en git `@159906a`).

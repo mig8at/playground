@@ -1,6 +1,6 @@
 {
-  "name": "SmartPay",
-  "combination": "smartpay",
+  "name": "Flows",
+  "combination": "flows",
   "group": "flows",
   "kind": "reference",
   "files": []

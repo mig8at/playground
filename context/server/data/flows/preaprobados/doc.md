@@ -1,10 +1,10 @@
-# CreditopX · contexto
-> **estado:** al día con main · Familia de prestamistas IN-PLATFORM (response_type 2/3): CreditOp decide, firma y desembolsa.
+# Pre-aprobados · contexto
+> **estado:** al día con main · Cómo se consulta si al cliente se le presta o no (pre-aprobación): el servicio que resuelve el veredicto por lender antes de mostrar la oferta.
 
 <!-- STUB del árbol visual — la data (archivos) se linka en la fase de organización. -->
 
 ## Qué es
-Familia de prestamistas IN-PLATFORM (response_type 2/3): CreditOp decide, firma y desembolsa. El sombrero OPERADOR.
+Cómo se consulta si al cliente se le presta o no (pre-aprobación): el servicio que resuelve el veredicto por lender antes de mostrar la oferta.
 
 ## Contenido
 _Pendiente de curar._ La superficie de archivos y el detalle se linkan al organizar (la data curada previa vive en `context/server/data/flows-curated/` y en git `@159906a`).

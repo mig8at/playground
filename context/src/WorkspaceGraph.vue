@@ -48,6 +48,8 @@ const layout = computed(() => {
     else roots.push(c)
   }
   const nodes = [], edges = []
+  const selCombo = combos.find((c) => c.id === props.selected)
+  const hlCtx = new Set(selCombo?.contexts || []) // contextos que resalta la task seleccionada
   const isCtx = (c) => c.flow?.kind === 'reference'
   // ctx (arriba): source por arriba del padre → target por abajo del hijo.
   // flujo (abajo): source por abajo del padre → target por arriba del hijo.
@@ -74,7 +76,8 @@ const layout = computed(() => {
       const xs = kids.map((ch) => { const r = place(ch, depth + 1, dir); edge(c.id, ch.id, dir < 0); return r.x })
       x = (xs[0] + xs[xs.length - 1]) / 2
     }
-    nodes.push({ id: c.id, type: 'ws', position: { x, y: dir * depth * ROW_V }, data: nodeData(c, depth) })
+    const role = dir < 0 ? 'contexto' : depth === 0 ? 'raiz' : 'task'
+    nodes.push({ id: c.id, type: 'ws', position: { x, y: dir * depth * ROW_V }, data: nodeData(c, depth, role, hlCtx) })
     return { x, ctxKids }
   }
 
@@ -96,20 +99,18 @@ const layout = computed(() => {
   return { nodes, edges, height: Math.max(260, span + 220) }
 })
 
-// Jerarquía estricta por profundidad: raíz (creditop = base/main) → group (familia:
-// los dos sombreros) → flujo (un flujo de la familia) → tarea (trabajo sobre un flujo).
-// Raíz y groups son la columna de documentación (no se borran); flujos y tareas sí.
-// Clave ASCII (para la clase CSS) + label con acento + tooltip.
-const ROLE_LABEL = { raiz: 'raíz', group: 'group', flujo: 'flujo', tarea: 'tarea' }
+// Modelo CONTEXTO/TASK: raíz (creditop) al centro; los CONTEXTOS cuelgan arriba
+// (temas acotados, con subcontextos); las TASKS abajo (componen los contextos que
+// necesitan, vía chips). El rol lo decide la BANDA (lo pasa el layout), no la
+// profundidad. Solo la raíz no se borra. Clave ASCII (para la clase CSS).
+const ROLE_LABEL = { raiz: 'raíz', contexto: 'contexto', task: 'task' }
 const ROLE_TIP = {
-  raiz: 'la base del ecosistema (main)',
-  group: 'una familia de flujos (comparten tronco) — derivá flujos desde acá',
-  flujo: 'un flujo del ecosistema — derivá tareas desde acá',
-  tarea: 'trabajo sobre un flujo (rama de feature)',
+  raiz: 'la base del ecosistema (main); arriba los contextos, abajo las tasks',
+  contexto: 'tema acotado y reutilizable; puede tener subcontextos — derivá subcontextos desde acá',
+  task: 'trabajo concreto; compone (chips) los contextos que necesita — ramas propias por repo',
 }
-function roleOf(depth) { return depth === 0 ? 'raiz' : depth === 1 ? 'group' : depth === 2 ? 'flujo' : 'tarea' }
 
-function nodeData(c, depth) {
+function nodeData(c, depth, role, hlCtx) {
   const flow = c.flow || null
   const rf = flow?.repo_files || {}
   // Ramas del nodo agrupadas por rama OBJETIVO (dedup): un chip por rama distinta.
@@ -125,7 +126,9 @@ function nodeData(c, depth) {
   const branchChips = Object.values(byTarget).map((g) => ({ target: g.target, aligned: g.aligned, tip: g.repos.join('\n') }))
   return {
     id: c.id, name: c.name, depth, isChild: !!c.parent,
-    role: roleOf(depth), roleLabel: ROLE_LABEL[roleOf(depth)], roleTip: ROLE_TIP[roleOf(depth)], canDelete: depth >= 2,
+    role, roleLabel: ROLE_LABEL[role], roleTip: ROLE_TIP[role], canDelete: role !== 'raiz',
+    contexts: c.contexts || [],        // (task) chips de los contextos que compone
+    ctxHL: hlCtx?.has(c.id) || false,  // (contexto) resaltado cuando la task seleccionada lo usa
     selected: props.selected === c.id,
     aligning: props.aligning === c.id,
     isCopied: props.copiedKey === c.id,
@@ -235,7 +238,7 @@ onNodesInitialized(() => refit())
         <Background pattern-color="#232b36" :gap="26" :size="1" />
         <Controls position="bottom-left" :show-interactive="false" />
         <template #node-ws="{ data }">
-          <div class="wsnode" :class="{ sel: data.selected, child: data.isChild }" @click="emit('select', data.id)">
+          <div class="wsnode" :class="{ sel: data.selected, child: data.isChild, ctxhl: data.ctxHL }" @click="emit('select', data.id)">
             <div class="wshead">
               <GitFork v-if="data.isChild" :size="13" class="wsfork" />
               <span class="wsname" :title="data.name">{{ data.name }}</span>
@@ -255,12 +258,17 @@ onNodesInitialized(() => refit())
 
             <div class="wsdiv"></div>
 
-            <div v-if="data.hasFlow" class="wsflow">
+            <!-- TASK: chips de los contextos que compone (se resaltan arriba al seleccionar) -->
+            <div v-if="data.contexts.length" class="wsctx">
+              <span class="wsctx-lbl">usa</span>
+              <span v-for="cx in data.contexts" :key="cx" class="wsctx-chip">{{ cx }}</span>
+            </div>
+            <div v-else-if="data.files" class="wsflow">
               <span class="wsfiles">{{ data.files }} archivos</span>
               <span v-for="r in data.repoChips" :key="r.short" class="wsflow-repo">· {{ r.short }} {{ r.files }}</span>
               <span v-if="data.stale === 'stale'" class="wsflow-stale" :title="data.changed + ' archivos cambiaron desde el análisis'">⚠ {{ data.changed }}</span>
             </div>
-            <div v-else class="wsnoflow">sin flujo · hereda del padre al derivar</div>
+            <div v-else class="wsnoflow">stub · data sin linkar</div>
 
             <div v-if="data.aligning" class="wsalign loading"><span class="wsspin">⟳</span> alineando (checkout + pull)…</div>
             <div v-else-if="data.alignResults.length" class="wsalign">
@@ -384,9 +392,8 @@ onNodesInitialized(() => refit())
 .wsbadge.busy { color: var(--muted); }
 .wsrole { flex: none; font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; padding: 2px 6px; border-radius: 4px; }
 .wsrole.role-raiz { background: rgba(76,154,255,.15); color: var(--accent); }
-.wsrole.role-group { background: rgba(64,224,168,.16); color: #40e0a8; }
-.wsrole.role-flujo { background: rgba(188,140,255,.16); color: var(--violet); }
-.wsrole.role-tarea { background: var(--chip); color: var(--muted); }
+.wsrole.role-contexto { background: rgba(64,224,168,.16); color: #40e0a8; }
+.wsrole.role-task { background: rgba(188,140,255,.16); color: var(--violet); }
 .wsx { flex: none; background: none; border: 0; color: var(--muted); cursor: pointer; display: inline-flex; padding: 0; opacity: 0; transition: opacity .12s, color .12s; }
 .wsnode:hover .wsx { opacity: 1; }
 .wsx:hover { color: var(--red); }
@@ -404,6 +411,12 @@ onNodesInitialized(() => refit())
 .wsflow-repo { color: var(--muted); }
 .wsflow-stale { margin-left: auto; color: var(--amber); }
 .wsnoflow { font-size: 11px; color: var(--muted); font-style: italic; }
+/* contexto resaltado cuando la task seleccionada lo usa */
+.wsnode.ctxhl { box-shadow: 0 0 0 2px #40e0a8, 0 0 18px rgba(64,224,168,.45); border-color: #40e0a8; }
+/* chips de contextos que usa una task */
+.wsctx { display: flex; flex-wrap: wrap; align-items: center; gap: 5px; }
+.wsctx-lbl { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; }
+.wsctx-chip { font-size: 10px; font-weight: 600; padding: 2px 7px; border-radius: 4px; background: rgba(188,140,255,.14); color: var(--violet); border: 1px solid rgba(188,140,255,.32); }
 
 .wsalign { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 9px; font-size: 11px; }
 .wsalign.loading { color: var(--amber); font-family: var(--mono); align-items: center; gap: 5px; }
