@@ -70,6 +70,8 @@
     "frontend-e2e/lender/close.ts",
     "frontend-e2e/lender/creditopx-close.spec.ts",
     "frontend-e2e/lender/wompi-close.spec.ts",
-    "frontend-e2e/dev/cognito-login.spec.ts"
+    "frontend-e2e/dev/cognito-login.spec.ts",
+    "frontend-e2e/close-lender.ts",
+    "frontend-e2e/lender/cierre-x.spec.ts"
   ]
 }
