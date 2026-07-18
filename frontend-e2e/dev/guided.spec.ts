@@ -104,11 +104,17 @@ test('guided (semiautomático)', async ({ browser }) => {
     // porque los eventos de consola siguen fluyendo por CDP aunque el runner esté pausado.
     await page.addInitScript(() => {
         const RE = /ocurrió un error|inténtalo de nuevo|algo salió mal|error inesperado|no fue posible|intenta de nuevo/i;
+        // El handoff de self-management (agregadores tipo Sistecrédito/Meddipay) es un MODAL: aparece en el DOM
+        // SIN navegar, así que el watcher de navegaciones no lo ve. Lo marcamos acá para que la ventana B pueda
+        // reaccionar (el cliente sigue en SU celular por el link de WhatsApp).
+        const MODAL_RE = /informaci[óo]n importante|en (tu|su) celular|whats?app|link para continuar|enviado.*enlace|mensaje de whats/i;
         let last = '';
+        let modalSent = false;
         let scheduled = false;
         const scan = () => {
             scheduled = false;
             const txt = document.body ? document.body.innerText || '' : '';
+            if (!modalSent && MODAL_RE.test(txt)) { modalSent = true; console.log('__E2E_HANDOFF_MODAL__'); }
             const m = txt.match(RE);
             const hit = m ? txt.slice(Math.max(0, (m.index ?? 0) - 20), (m.index ?? 0) + 100).replace(/\s+/g, ' ').trim() : '';
             if (hit && hit !== last) { last = hit; console.log('__E2E_ERROR_BANNER__ ' + hit); }
@@ -144,16 +150,18 @@ test('guided (semiautomático)', async ({ browser }) => {
     // El polling de validación (captura ADO por foto) NO es automatizable → lo mockeamos como validado. Va acá,
     // en la creación, para que esté activo ANTES de cualquier navegación de B (venga del watcher o del guiado).
     await B.route('**/validation-status', (r) => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ validationStatus: { data: { all_completed: true, ado: { validated: true, completed: true, state_id: 2, state_name: 'Validado' }, tusdatos_aml: { has_findings: false, completed: true } } }, validationStatusAbaco: null, errorType: null, errorMessage: null }) }).catch(() => {}));
-    await B.setContent(`<!doctype html><meta charset="utf-8"><title>B · celular del cliente</title>
+    // Tarjeta de estado de B (mientras no haya una pantalla real que mostrar).
+    const bCard = (kicker: string, title: string, body: string, dots = true) => B.setContent(
+        `<!doctype html><meta charset="utf-8"><title>B · celular del cliente</title>
       <style>html,body{height:100%;margin:0}body{background:#0f1115;color:#e7eaf0;display:grid;place-items:center;
       font:15px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;text-align:center;padding:24px}
       .k{font-size:12px;letter-spacing:.9px;text-transform:uppercase;color:#22c55e;font-weight:800}
-      h1{font-size:19px;margin:10px 0 6px} p{color:#9aa4b2;font-size:13.5px;margin:0;max-width:34ch}
+      h1{font-size:19px;margin:10px 0 6px} p{color:#9aa4b2;font-size:13.5px;margin:0;max-width:36ch}
       .d{margin-top:20px;color:#2a2f3a;font-size:26px;letter-spacing:6px}</style>
-      <div><div class="k">Ventana B · celular del cliente</div>
-      <h1>Esperando…</h1>
-      <p>Elegí el lender en la ventana A (izquierda). Si es CreditopX, esta ventana toma el link del cliente y sigue acá.</p>
-      <div class="d">•••</div></div>`).catch(() => {});
+      <div><div class="k">${kicker}</div><h1>${title}</h1><p>${body}</p>
+      ${dots ? '<div class="d">•••</div>' : ''}</div>`).catch(() => {});
+    await bCard('Ventana B · celular del cliente', 'Esperando…',
+        'Elegí el lender en la ventana A (izquierda). Según la rama que tome el flujo, esta ventana abre lo que le toca al cliente.');
 
     // De la URL de A (/merchant|/ecommerce/{hash}/{ur}/…) al link del CLIENTE (/self-service/{hash}/{ur}/confirmation).
     const selfServiceLinkFrom = (u: string): string => {
@@ -161,20 +169,56 @@ test('guided (semiautomático)', async ({ browser }) => {
         return m ? `${m[1]}/self-service/${m[2]}/${m[3]}/confirmation` : '';
     };
 
-    // MANUAL (el panel): nadie automatiza el flujo, así que B se despierta SOLA mirando las navegaciones de A.
-    // Cuando A llega al handoff (`/continue` o `/confirmation` = CreditopX rt=2 seleccionado), B abre el link del
-    // cliente y desde ahí manejás vos. Por eventos (no polling): siguen llegando por CDP durante el page.pause().
-    // En GUIADO no hace falta: el guion de abajo conduce B paso a paso.
+    // ── ENRUTADOR DE B: una vez que A resuelve, B abre lo que le corresponde al CLIENTE en esa rama. ──
+    //  · 'creditopx'  (rt=2 in-platform) → el link del cliente, journey real in-platform.
+    //  · 'agregador'  (modal self-management, ej. Sistecrédito/Meddipay) → portal del lender (mock-bank). En la
+    //    vida real el cliente sigue por el link de WhatsApp EN SU CELULAR: eso ES un 2º dispositivo, y hasta
+    //    ahora quedaba invisible (el demo se frenaba en el modal).
+    //  · 'redirect'   (rt=1, ej. Bancolombia) → B solo EXPLICA: ese redirect ocurre de verdad en la MISMA
+    //    ventana A (el navegador del comercio se va al portal). Mandarlo a B enseñaría un modelo equivocado.
+    let bWoke = false;
+    // Guarda anti-falso-positivo: NO hay handoff antes de elegir lender. Sirve para las dos señales ruidosas —
+    // el Hosted UI de Cognito (navegación externa al arrancar) y el copy "en tu celular" del OTP (matchea el
+    // regex del modal). Se prende al pasar por /lenders.
+    let seenLenders = false;
+    const wakeB = async (kind: 'creditopx' | 'agregador' | 'redirect', aUrl: string, lender = ''): Promise<void> => {
+        if (bWoke) return;
+        bWoke = true;
+        if (kind === 'creditopx') {
+            const link = selfServiceLinkFrom(aUrl);
+            if (!link) { bWoke = false; return; }
+            log(`B (celular): handoff CreditopX en A → abro ${new URL(link).pathname}`);
+            await B.goto(link, { waitUntil: 'domcontentloaded', timeout: 60_000 }).catch(() => {});
+            return;
+        }
+        if (kind === 'agregador') {
+            const url = `${MOCK_BANK}?lender=${encodeURIComponent(lender)}&monto=${AMOUNT}&volver=${encodeURIComponent(RETURN_URL)}`;
+            log(`B (celular): self-management en A → el cliente abre el link (portal ${lender || 'del lender'}, mock)`);
+            await B.goto(url, { waitUntil: 'domcontentloaded', timeout: 30_000 }).catch(() => {});
+            return;
+        }
+        log('B: rama de REDIRECT → se resuelve en A (misma ventana); B queda explicando.');
+        await bCard('Ventana B · sin uso en esta rama', 'Esta rama usa una sola ventana',
+            'El lender por redirect (rt=1) se abre en la MISMA ventana A: el navegador del comercio se va al portal de la entidad y vuelve al comercio. No hay 2º dispositivo.', false);
+    };
+
+    // MANUAL (el panel): nadie automatiza el flujo, así que B se despierta SOLA mirando lo que hace A. Por
+    // EVENTOS (no polling): siguen llegando por CDP durante el page.pause() en el que queda el modo manual.
+    //   · navegación a /continue|/confirmation → CreditopX · navegación externa → redirect
+    //   · marcador __E2E_HANDOFF_MODAL__ (lo emite el MutationObserver inyectado más arriba) → self-management
+    // En GUIADO no hace falta el watcher: el guion llama a wakeB() donde corresponde.
+    //
+    // OJO con "externa": el Hosted UI de Cognito (login.creditop.com) TAMBIÉN es una navegación externa, y
+    // ocurre al ARRANQUE. Sin guarda, el login dispararía la rama de redirect antes de que exista un lender.
+    // Por eso el redirect solo cuenta DESPUÉS de haber pasado por /lenders (no hay handoff antes de elegir).
     if (process.env.E2E_GUIDED === '0') {
-        let bWoke = false;
         page.on('framenavigated', (f) => {
-            if (f !== page.mainFrame() || bWoke) return;
-            if (!/\/(continue|confirmation)(\?|$)/.test(f.url())) return;
-            const link = selfServiceLinkFrom(f.url());
-            if (!link) return;
-            bWoke = true;
-            log(`B (celular): handoff detectado en A → abro ${new URL(link).pathname}`);
-            void B.goto(link, { waitUntil: 'domcontentloaded', timeout: 60_000 }).catch(() => {});
+            if (f !== page.mainFrame()) return;
+            const u = f.url();
+            if (/\/lenders(\?|$)/.test(u)) seenLenders = true;
+            if (bWoke) return;
+            if (/\/(continue|confirmation)(\?|$)/.test(u)) void wakeB('creditopx', u);
+            else if (seenLenders && isExternal(u)) void wakeB('redirect', u);
         });
     }
     // Traza de redirects del SERVIDOR → caza el rebote a /solicitar y muestra QUÉ request lo devuelve.
@@ -197,6 +241,11 @@ test('guided (semiautomático)', async ({ browser }) => {
     page.on('console', (m) => {
         const s = m.text();
         if (s.startsWith('__E2E_ERROR_BANNER__')) { void errorShot(page, `banner: "${s.replace('__E2E_ERROR_BANNER__ ', '').slice(0, 120)}"`); return; }
+        // handoff de self-management (modal "seguí en tu celular"): en MANUAL despierta a B con el portal del
+        // lender. En GUIADO lo hace el guion (con el nombre del lender ya conocido) → acá no tocamos nada.
+        // seenLenders: el copy "en tu celular" también aparece en el OTP → sin la guarda, B abriría el portal
+        // del lender a mitad del alta, antes de que exista una selección.
+        if (s.startsWith('__E2E_HANDOFF_MODAL__')) { if (process.env.E2E_GUIDED === '0' && seenLenders) void wakeB('agregador', page.url()); return; }
         const t = m.type();
         if (t !== 'error' && t !== 'warning') return;
         const ss = s.slice(0, 200);
@@ -558,9 +607,15 @@ test('guided (semiautomático)', async ({ browser }) => {
         await page.bringToFront().catch(() => {});
         log('A (originador): sigue en el handoff');
     } else if (modalVisible) {
-        // ── self-management (MODAL "continuá en tu celular", ej. Meddipay/Sistecrédito): el modal ES el final.
-        //    El cliente sigue por FUERA (WhatsApp); resultado por webhook. NO navegamos (no forzamos mock-bank). ──
-        log('Self-management (modal) → el cliente sigue por el link; resultado por webhook. A queda en el modal (handoff real).');
+        // ── self-management (MODAL "continuá en tu celular", ej. Meddipay/Sistecrédito): el modal ES el final
+        //    PARA A, que se queda ahí (handoff real). Pero el cliente NO desaparece: sigue por el link de
+        //    WhatsApp EN SU CELULAR → eso es la ventana B. Antes esa continuación quedaba invisible (el demo
+        //    se frenaba en el modal); ahora B abre el portal del lender (mock) y la podés recorrer.
+        //    El resultado igual llega por WEBHOOK, no por el browser — el recorrido de B es ilustrativo.
+        log('Self-management (modal) → A queda en el modal (handoff real); el cliente sigue en B (su celular).');
+        await wakeB('agregador', page.url(), lenderName);
+        await shot(B, 'B-portal-lender');
+        tip('En B (celular del cliente): recorré el portal del lender. El resultado real llega por webhook.');
         const r = await resolveRequestStatus(Number(uReqID), RESULT_STATUS[RESULT] ?? 11);
         const st = await requestEstado11(Number(uReqID));
         log(`  resultado → vía ${r.via}${r.httpStatus ? ` (HTTP ${r.httpStatus})` : ''} · estado ${st.sealed11 ? 'Estado 11 ✓' : st.statusId ?? '?'}`);
@@ -569,6 +624,7 @@ test('guided (semiautomático)', async ({ browser }) => {
         //    la ENTIDAD devuelve al COMERCIO (return_url), no a CrediOp. Resultado por webhook. ──
         let host = externalUrl; try { host = new URL(externalUrl).host; } catch { /* */ }
         log(`Redirect externo (${host}) → portal del banco (mock); la entidad devuelve al COMERCIO (return_url)`);
+        await wakeB('redirect', externalUrl);   // B explica que esta rama se resuelve en A (no queda en "Esperando…")
         const volver = encodeURIComponent(RETURN_URL);
         await page.goto(`${MOCK_BANK}?lender=${encodeURIComponent(lenderName)}&monto=${AMOUNT}&volver=${volver}`, { waitUntil: 'domcontentloaded', timeout: 30_000 }).catch(() => {});
         await page.getByText(/continuá tu compra/i).first().waitFor({ state: 'visible', timeout: 8_000 }).catch(() => {});
