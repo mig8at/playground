@@ -123,7 +123,7 @@ Las mismas etapas en Inertia (`application/routes/customer.php:78-96`): `/acepta
 ## Enlaces
 - Padre: **CreditOp** (raíz). Fase previa: **onboarding**.
 - Familias que cierran distinto: **creditopx** (rt=2/3, el único cierre in-platform), **aggregator** (rt=1, la API externa decide y espeja), **redirect** (rt=0, sin cierre observable), **smartpay** (IMEI, desembolso diferido).
-- Insumos: **profiling** (la categoría fija enganche, plazo, FGA y seguro que consume la amortización), **kyc** (la validación de identidad que precede al plan de pagos), **ms-preapprovals** (pre-aprobación previa a la selección).
+- Insumos: **profiling** (la categoría fija enganche, plazo, FGA y seguro que consume la amortización), **kyc** (la validación de identidad que precede al plan de pagos), **ms-preapprovals** (pre-aprobación previa a la selección), **payments** (el paso de cuota inicial / enganche — la pasarela Wompi que cobra el `initial_fee` antes de desembolsar; incl. el rebote rt=2 `initial_fee>0`).
 - Repos: **legacy-backend** (`Modules/Loans` = casi todo este nodo), **frontend-monorepo** (wizard + módulo `loan-origination`), **application** (gemelo Inertia del cierre).
 - Subcontexto: **dynamic-forms**.
 - Memorias: `[[migracion-application-a-legacy-estado]]`, `[[continuacion-credito-servicing]]` (el grafo post-11), `[[credifamilia-flujo-mapa]]` (rt=4 / Netco / Deceval), `[[modelos-canales-flujos]]` (SmartPay y agregadores), `[[frontend-e2e-split-view]]` (la topología A/B que nace del 403 desktop).

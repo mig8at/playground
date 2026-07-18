@@ -159,6 +159,6 @@ Aparte del grupo autenticado, Onboarding monta un grupo **público** (`webhooks.
 - **2026-07-17** — Contexto sembrado desde playground/flow (MAP.md §0: tabla de Repos + strangler/parallel-run + tabla response_type).
 
 ## Enlaces
-- Raíz: **CreditOp**. Hijos: **application**, **legacy-backend**, **frontend-monorepo**, **ms-preapprovals**.
+- Raíz: **CreditOp**. Hijos: **application**, **legacy-backend**, **frontend-monorepo**, **ms-preapprovals**, **harness** (arnés de pruebas E2E: `backend-e2e` Go + `frontend-e2e` Playwright, recién indexados).
 - Nodos relacionados: **onboarding** (el camino que cruza estas costuras), **creditopx** (rt=2/3), **aggregator** (rt=1, los webhooks que siguen en application), **merchants** (comercios/sucursales = la granularidad del allowlist).
 - Memorias: `migracion-application-a-legacy-estado`, `refactor-perfilamiento-lenders`, `docs-consolidacion` (para las verdades de BD; el árbol `docs/` salió de main, se cita como `git 159906a:docs/<ruta>`).
