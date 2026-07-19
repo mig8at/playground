@@ -56,12 +56,23 @@ const schemaGenerico = (formId) => ({
             grid: [['image', 'userName']],
         },
     },
+    // OJO: `PersonalInfoForm` es el único paso DATA-DRIVEN de verdad — lee las opciones de
+    // `fields.cityOfResidence.options` y `fields.documentType.options`. Si falta `cityOfResidence`
+    // el desplegable de ciudad queda VACÍO y el formulario no deja continuar
+    // ("Selecciona tu ciudad para continuar"). Los demás pasos (Amount/Phone/Otp/Financial) no leen
+    // `fields`, así que su contenido no depende del schema.
     fields: {
         amount: { type: 'text', label: 'Monto a solicitar', required: true, placeholder: '0', allowed: '0123456789' },
         phone: { type: 'phone', label: 'Celular', required: true, country: 'DO' },
         email: { type: 'email', label: 'Correo electrónico', required: true },
         documentType: { type: 'select', label: 'Tipo de documento', required: true, options: ['CC', 'CE', 'PEP'], horizontal: true },
         document: { type: 'text', label: 'Número de documento', required: true, allowed: '0123456789' },
+        // Ciudades de RD (el canal es dominicano). Sustituilas por las reales dejando el schema
+        // verdadero en mock-forms/schemas/<hash>.json.
+        cityOfResidence: {
+            type: 'select', label: 'Ciudad donde resides', required: true,
+            options: ['Santo Domingo', 'Santiago de los Caballeros', 'La Romana', 'San Pedro de Macorís', 'Puerto Plata', 'San Cristóbal'],
+        },
     },
     steps: {
         requestAmount: {
@@ -121,9 +132,20 @@ const server = http.createServer((req, res) => {
             return json(res, 200, { success: true, message: 'submit recibido (mock)' });
         }
 
-        if (req.method === 'POST' && /^\/v1\/dynamic\/full\/find-user-by-(email|document-number)$/.test(p)) {
-            log(`${p.split('/').pop()} body=${body.slice(0, 100)} → sin coincidencia (usuario nuevo)`);
-            return json(res, 200, { success: true, found: false, user: null });
+        // Verificación de correo / documento. EL VEREDICTO VA EN `code`, NO en el HTTP status: el wizard
+        // compara contra constantes de `request-personal-info.shared.ts` y con cualquier otra cosa muestra
+        // "No pudimos validar tu correo. Inténtalo de nuevo." aunque la respuesta sea 200.
+        //   OFS6001 correo disponible · OFS6000 correo tomado
+        //   OFS7001 documento disponible · OFS7000 documento tomado
+        // Con `?taken=1` (o MOCK_FORMS_TAKEN=1) se devuelve el veredicto de "ya registrado", para probar
+        // ese camino sin ensuciar datos.
+        const mFind = /^\/v1\/dynamic\/full\/find-user-by-(email|document-number)$/.exec(p);
+        if (req.method === 'POST' && mFind) {
+            const taken = url.searchParams.get('taken') === '1' || process.env.MOCK_FORMS_TAKEN === '1';
+            const esEmail = mFind[1] === 'email';
+            const code = esEmail ? (taken ? 'OFS6000' : 'OFS6001') : (taken ? 'OFS7000' : 'OFS7001');
+            log(`${mFind[1]} body=${body.slice(0, 90)} → code ${code} (${taken ? 'TOMADO' : 'disponible'})`);
+            return json(res, 200, { code, success: true, found: taken, user: null });
         }
 
         log(`⚠ RUTA NO MAPEADA ← ${req.method} ${p}${url.search}${body ? ' body=' + body.slice(0, 200) : ''}`);
