@@ -43,7 +43,9 @@ ARGS := $(filter-out $(CMDS),$(MAKECMDGOALS))
 # local-only por la guarda de main.go). Uso: make list TARGET=dev · make clean TARGET=dev
 TARGET ?= local
 # sourcea las E2E_* del perfil del target (.env.local | .env.dev) — no toca el legacy.
-LOAD := set -a; [ -f .env.$(TARGET) ] && . ./.env.$(TARGET); set +a
+# El .env propio va PRIMERO y los hechos compartidos (../env/<target>.env) DESPUÉS, pero
+# como `set -a` pisa, se invierte el orden de sourceo para que el propio siga ganando.
+LOAD := set -a; [ -f ../env/$(TARGET).env ] && . ../env/$(TARGET).env; [ -f .env.$(TARGET) ] && . ./.env.$(TARGET); set +a
 # --target=dev solo si TARGET≠local (vacío para local → no-op).
 TFLAG := $(if $(filter-out local,$(TARGET)),--target=$(TARGET),)
 # WEBHOOK=<url pública> → E2E_STORE_WEBHOOK_URL del webhook de tienda (p.ej. webhook.site). Necesario

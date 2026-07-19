@@ -42,3 +42,8 @@ test-results/
 *.log
 .idea/
 .vscode/
+
+# Variables de entorno COMPARTIDAS por target (env/local.env, env/dev.env).
+# Traen credenciales de BD → nunca se versionan. Los .example SÍ (son plantillas sin secretos).
+env/*.env
+!env/*.env.example

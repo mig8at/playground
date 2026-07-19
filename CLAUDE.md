@@ -46,3 +46,16 @@ entrada a **`findings`** (síntoma → causa raíz verificada → evidencia → 
 un nodo, validá con `python3 context/tools/oracle.py <map.json>`.
 
 **Nunca afirmes como verificado algo que no comprobaste contra el código.** Si no lo miraste, decilo.
+
+## Variables de entorno
+
+Los **hechos** del entorno (BD, API base, `APP_KEY`) viven **compartidos** en `env/<target>.env`
+(`local` · `dev`), no duplicados por herramienta. Cada herramienta guarda solo sus **perillas**
+(Cognito, mocks, `SEED`) en su propio `.env.<target>`, y **el propio pisa al compartido**.
+Prioridad: `process.env` > `<herramienta>/.env.<target>` > `env/<target>.env`.
+
+**Acá van hechos, nunca interruptores.** Un flag de permiso (tipo `I_KNOW_THIS_TOUCHES_SHARED_DEV`)
+en el archivo compartido desarmaría la guarda de todas las herramientas de una (F-53). Los permisos
+quieren fricción: se exportan a mano en la shell de esa sesión.
+
+`env/*.env` está gitignoreado; las plantillas versionadas son `env/*.env.example`.

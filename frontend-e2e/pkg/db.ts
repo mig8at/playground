@@ -1,6 +1,8 @@
 // db.ts — acceso a MySQL para que frontend-e2e sea autosuficiente (sin shellear a backend-mcp).
-// Lee credenciales de .env.<target> en la raíz de frontend-e2e. target = E2E_TARGET (default "dev").
-// Las dos targets (dev|local) traen E2E_DB_HOST/PORT/NAME/USER/PASS + APP_KEY; dev además I_KNOW=1.
+// target = E2E_TARGET (default "dev"). Las credenciales (E2E_DB_HOST/PORT/NAME/USER/PASS + APP_KEY)
+// son HECHOS del entorno y viven COMPARTIDAS en `playground/env/<target>.env`, junto con backend-e2e y
+// backend-mcp. El `.env.<target>` propio de frontend-e2e queda para sus perillas (Cognito, mocks…) y
+// PISA lo compartido si redefine una clave. Prioridad: process.env > .env.<target> > env/<target>.env.
 import { readFileSync, existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
@@ -11,8 +13,7 @@ const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
 export const TARGET = (process.env.E2E_TARGET || 'dev').toLowerCase();
 
-function loadEnvFile(target: string): Record<string, string> {
-    const p = resolve(ROOT, `.env.${target}`);
+function parseEnv(p: string): Record<string, string> {
     const m: Record<string, string> = {};
     if (!existsSync(p)) return m;
     for (const line of readFileSync(p, 'utf8').split('\n')) {
@@ -27,9 +28,14 @@ function loadEnvFile(target: string): Record<string, string> {
     return m;
 }
 
-const fileEnv = loadEnvFile(TARGET);
+// Hechos del entorno COMPARTIDOS con backend-e2e y backend-mcp (BD, API, APP_KEY). El `.env.<target>`
+// propio tiene prioridad: los compartidos entran solo como fallback (por eso van segundos en el spread).
+const fileEnv: Record<string, string> = {
+    ...parseEnv(resolve(ROOT, '..', 'env', `${TARGET}.env`)),
+    ...parseEnv(resolve(ROOT, `.env.${TARGET}`)),
+};
 
-/** process.env tiene prioridad sobre el archivo .env.<target>. */
+/** Prioridad: process.env > .env.<target> de la herramienta > ../env/<target>.env compartido. */
 export function env(key: string, fallback = ''): string {
     return process.env[key] ?? fileEnv[key] ?? fallback;
 }

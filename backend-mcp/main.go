@@ -34,6 +34,9 @@ func main() {
 	if exe, err := os.Executable(); err == nil {
 		_ = loadEnvFile(filepath.Join(filepath.Dir(exe), envFile))
 	}
+	// Hechos del entorno COMPARTIDOS con backend-e2e y frontend-e2e (BD, API, APP_KEY).
+	// Va DESPUÉS a propósito: loadEnvFile solo setea lo ausente, así el .env propio gana.
+	_ = loadEnvFile(filepath.Join("..", "env", target+".env"))
 	cfg = configFromEnv()
 	cfg.Target = target
 
