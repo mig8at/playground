@@ -589,27 +589,51 @@
       border-color: #573a7a;
       background: #21133a
     }
-    /* ── MAPA DE TREN: tronco + ramales por response_type ─────────────────────────────────────────
-       El tronco es común hasta /lenders; ahí la vía se abre según el rt del lender que elijas. Los
-       colores son los MISMOS de los chips rt de abajo, así el ramal se lee sin leyenda. */
-    .tren { margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--line) }
-    .tren-t { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: .6px; color: var(--mut); margin-bottom: 12px }
-    .via { display: flex; align-items: center; flex-wrap: wrap; gap: 0; margin-bottom: 4px }
-    .via.ramal { margin-left: 14px; padding-left: 16px; border-left: 2px solid var(--line) }
-    .est {
-      display: flex; align-items: center; gap: 6px; padding: 5px 10px 5px 7px;
-      border-radius: 999px; border: 1px solid transparent; cursor: default;
-      font-size: 12px; color: var(--txt); white-space: nowrap; transition: .12s
+    /* ── RECORRIDO DEL WIZARD (estilo marble diagram) ─────────────────────────────────────────────
+       Una vía continua con las estaciones ENCIMA y el label debajo. El tronco es común hasta
+       /lenders; ahí se abre un ramal por response_type, con los MISMOS colores de los chips rt de la
+       lista de lenders, para que el ramal se lea sin leyenda. */
+    .tren #trenwarn { color: var(--warn); font-weight: 600; text-transform: none; letter-spacing: 0 }
+    .via {
+      position: relative; display: flex; align-items: flex-start;
+      padding: 14px 0 4px; color: var(--acc)
     }
-    .est:hover { border-color: currentColor; background: #ffffff08 }
-    .est .pt { width: 8px; height: 8px; border-radius: 50%; background: currentColor; flex: none }
-    .riel { width: 16px; height: 2px; background: var(--line); flex: none }
-    .via.tronco .est { color: var(--acc) }
-    .via.r-creditopx .est { color: #4ade80 }
-    .via.r-agregador .est { color: #60a5fa }
-    .via.r-redirect .est { color: #94a3b8 }
-    .ramal-lbl { font-size: 10.5px; font-weight: 700; color: var(--mut); margin: 8px 0 3px 30px; letter-spacing: .3px }
-    .est .n { font-size: 10px; color: var(--mut); font-variant-numeric: tabular-nums }
+    /* Paso UNIFORME entre estaciones (como el eje de tiempo de un marble diagram): ancho fijo, no
+       elástico. Con flex:1 un ramal de 3 se estiraba a lo ancho y uno de 8 se apretaba, y las dos vías
+       dejaban de ser comparables de un vistazo. */
+    /* El paso se adapta al ancho disponible pero con TOPE y PISO: con pocas estaciones no se estira
+       (tope 118px) y con muchas se comprime hasta 84px, que es donde el label todavía se lee. El ramal
+       de CreditopX tiene 8 y a 116px fijos se salía de la card. */
+    .via { --w: clamp(84px, calc((100% - 26px) / var(--n)), 118px) }
+    /* el RIEL: una línea continua del centro de la 1ª bolita al centro de la última */
+    .via::before {
+      content: ''; position: absolute; top: 20px; height: 2px;
+      left: calc(var(--w) / 2); width: calc((var(--n) - 1) * var(--w));
+      background: currentColor; opacity: .3
+    }
+    .via.ramal::before { left: calc(var(--w) / 2 + 20px) }
+    .est {
+      position: relative; z-index: 1; flex: 0 0 var(--w); min-width: 0;
+      display: flex; flex-direction: column; align-items: center; gap: 6px;
+      padding: 0 4px; cursor: default
+    }
+    .est .pt {
+      width: 12px; height: 12px; border-radius: 50%; flex: none;
+      background: var(--panel); border: 3px solid currentColor;
+      /* el halo del color del panel “corta” el riel detrás de la bolita: el look marble */
+      box-shadow: 0 0 0 4px var(--panel); transition: .12s
+    }
+    .est:hover .pt { background: currentColor; transform: scale(1.25) }
+    .est .lbl { font-size: 11px; line-height: 1.25; text-align: center; color: var(--txt); word-break: break-word }
+    .est .n { font-size: 9.5px; color: var(--mut); font-variant-numeric: tabular-nums }
+    .est:hover .lbl { color: currentColor }
+    /* ramal: sangrado + una guía vertical que sale del tronco */
+    .via.ramal { margin-left: 22px; padding-left: 18px; border-left: 2px solid #ffffff14; border-bottom-left-radius: 10px }
+    .via.tronco { color: var(--acc) }
+    .via.r-creditopx { color: #4ade80 }
+    .via.r-agregador { color: #60a5fa }
+    .via.r-redirect { color: #94a3b8 }
+    .ramal-lbl { font-size: 10.5px; font-weight: 700; color: var(--mut); margin: 10px 0 -6px 26px; letter-spacing: .3px }
     .lrow { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 11px; border: 1px solid var(--line); border-radius: 10px; margin-top: 6px; cursor: grab; }
     .lrow.drag { opacity: .4; }
     .lgrip { color: var(--mut); margin-right: 7px; cursor: grab; }
@@ -641,6 +665,14 @@
       sintéticos (assign · scrub · buró) en la DB de dev. El login es Cognito real y podés tardar más (RDS remoto).
     </div>
 
+    <!-- Recorrido del wizard, arriba de todo: es el mapa del territorio antes de elegir nada. Tronco
+         común hasta /lenders y un ramal por response_type; se dibujan SOLO los ramales que el comercio
+         seleccionado tiene. Hover en una estación = los archivos que ese paso toca. -->
+    <section class="card tren" id="tren" style="display:none">
+      <h2><b>▸</b> Recorrido del wizard <span id="trenwarn"></span></h2>
+      <div id="trenvias"></div>
+    </section>
+
     <div class="cols">
     <div class="col"><!-- ── columna IZQUIERDA: el escenario (comercio + lenders) ── -->
 
@@ -648,12 +680,6 @@
     <section class="card">
       <h2><b>1</b> Comercio de prueba</h2>
       <div class="grid" id="results"></div>
-      <!-- Mapa de tren: el recorrido del wizard para este comercio. Los ramales que se muestran son
-           los que el comercio REALMENTE tiene (según el rt de sus lenders). Hover = archivos del paso. -->
-      <div class="tren" id="tren" style="display:none">
-        <div class="tren-t">Recorrido del wizard <span id="trenwarn" style="color:var(--warn);font-weight:600;text-transform:none;letter-spacing:0"></span></div>
-        <div id="trenvias"></div>
-      </div>
       <div style="margin-top:14px">
         <p class="grouplbl">Lenders de la sucursal <span id="lendersbranch" style="font-weight:400;color:var(--mut)"></span></p>
         <p style="color:var(--mut);font-size:11px;margin:-4px 0 6px">ON/OFF = status <b>global</b> del lender (lo que filtra el listado). Afecta todas las sucursales en local; reversible.</p>
@@ -950,12 +976,15 @@
     function estacionHTML(p) {
       const nf = (p.front || []).length, nb = (p.back || []).length;
       const files = [...(p.front || []).map(f => 'front  ' + f), ...(p.back || []).map(f => 'back   ' + f)];
-      const tip = `${p.label}${p.ruta ? '\n' + p.ruta : ''}\n\n${p.nota || ''}\n\n── ${nf} front · ${nb} back ──\n${files.join('\n')}`;
-      return `<div class="est" title="${tip.replace(/"/g, '&quot;')}"><span class="pt"></span>${p.label}<span class="n">${nf}/${nb}</span></div>`;
+      const tip = `${p.label}${p.ruta ? '\n' + p.ruta : ''}\n\n${p.nota || ''}\n\n── ${nf} archivo(s) front · ${nb} back ──\n${files.join('\n')}`;
+      return `<div class="est" title="${tip.replace(/"/g, '&quot;')}">`
+        + `<span class="pt"></span><span class="lbl">${p.label}</span><span class="n">${nf} · ${nb}</span></div>`;
     }
 
+    // `--n` = cantidad de estaciones: el riel arranca en la 1ª bolita y termina en la última (no de borde
+    // a borde), que es lo que hace que se lea como una vía y no como una regla.
     function viaHTML(pasos, clase) {
-      return `<div class="via ${clase}">` + pasos.map(estacionHTML).join('<span class="riel"></span>') + '</div>';
+      return `<div class="via ${clase}" style="--n:${pasos.length}">` + pasos.map(estacionHTML).join('') + '</div>';
     }
 
     function renderTren() {
