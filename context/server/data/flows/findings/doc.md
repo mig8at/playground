@@ -173,3 +173,51 @@ Un script de diagnóstico consultaba **dev** sin avisar, y los datos no cuadraba
 ### F-20 · El `laravel.log` local está tapado de ruido
 
 Llegó a **1,2 GB** de `Driver [loki] is not supported`: `GRAFANA_LOKI_ENABLED=false` no registra el driver, pero el canal `stack` de `config/logging.php` lo sigue listando. Los errores reales **sí** llegan, pero enterrados: buscar en una ventana chica del final da "no hay nada". Truncar con `: > laravel.log` (no `rm`: php-fpm lo tiene abierto y no liberarías el espacio). `LOG_CHANNEL=daily` acotaría el crecimiento.
+
+---
+
+## G · Canal SmartPay (IMEI / bloqueo de dispositivo)
+
+### F-21 · La originación distintiva de SmartPay NO puede dispararse fuera de producción
+
+**Síntoma:** se prueba el canal SmartPay en local (o dev) y el flujo se comporta como un CreditopX rt=2 común: no salta el AML, no aparece el "Acuerdo de bloqueo de dispositivo", no hay desembolso diferido.
+
+**Causa raíz — una inconsistencia dentro del propio código:**
+
+```php
+// app/Models/UserRequest.php:189
+public function isSmartPay(): bool
+{
+    return $this->isImeiPath() && (int) $this->lender?->id === 160; // hardcode
+}
+```
+
+```php
+// config/lenders.php:24  — el MISMO canal, resuelto por entorno
+'smartpay_lender_id' => env('APP_ENV') === 'production' ? 160 : 153,
+```
+
+El branding del mailer (`Lender::isSmartpayChannel()`) usa el **config consciente del entorno**; la originación usa un **160 hardcodeado**. Como fuera de producción el lender de SmartPay es el 153, `isSmartPay()` es **siempre false** en local y en dev.
+
+**Qué queda gateado detrás de ese hardcode** (o sea: NO testeable fuera de prod):
+- `TusDatosService:442` → el **skip del AML** de fondo
+- `DeviceLockAgreementService:51` → el **acuerdo de bloqueo de dispositivo** (el contrato distintivo, en vez de pagaré + garantía + Netco)
+- `ContinueUserFlowController:91` → su rama del flujo de continuación
+
+**Qué SÍ funciona igual** (porque cuelga de `isImeiPath()` o del path del lender, no del id):
+- `AddOriginationFlowType:54` emite `metadata.lender_path = lender->path->name` → **el wizard corre la rama IMEI** (selección de equipo y escaneo de IMEI)
+- `AdoController:256` → credenciales de ADO por-lender
+- Los crons de servicing device-lock (leen lenders con path IMEI)
+
+**Evidencia:** en el dump local existen el **152** (`smartpay`, rt=2, path IMEI) y el **153** (`SmartPay`, rt=1, path IMEI); **no existe el 160**. Con el 152 el listado y la rama IMEI del front funcionan, pero los tres puntos de arriba no.
+
+**Arreglo:** ninguno aplicado — es una decisión de producto, no del harness. Dos caminos: (a) clonar un lender con `id=160` en la BD local (patrón de `close-lender.ts`) para destrabar el flujo completo sin tocar código; (b) que `isSmartPay()` consuma `config('lenders.smartpay_lender_id')` como su hermano `isSmartpayChannel()` — **probablemente el bug real**, porque hoy la feature no es ejercitable en ningún entorno de prueba.
+
+**Estado:** abierto · **vale reportarlo al equipo.**
+
+### F-22 · CeluRD es el comercio del canal, y es RD (no Colombia)
+
+**Síntoma:** al probar SmartPay los montos salen en `RD$` y el formato cambia.
+**Causa raíz:** no es un bug: el canal es dominicano. `CeluRD Test` (allied **270**, sucursal `1bfb8cd0`) tiene `country_id = 60` (RD), y el seeder y el contrato por defecto del canal también son RD (locale `es_DO`, moneda `DOP`).
+**Evidencia:** el listado renderiza `RD$ 2,000,000` y la sucursal aparece como "Celu Rd Santo Domingo".
+**Estado:** informativo. Ojo al comparar cifras con los comercios colombianos — **no son la misma moneda**.
