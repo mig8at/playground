@@ -244,3 +244,42 @@ Con la respuesta de (2) **crea el Product y asocia el IMEI** al `user_request`. 
 **Impacto:** hoy **latente** — el único uso de `requires_imei` en `app/` y `Modules/` es esa escritura, nadie lo lee. Pero la intención del código está rota y cualquier consumidor futuro leería datos incorrectos.
 **Arreglo:** agregar `requires_imei` al `$fillable` (una línea). No aplicado — es código de producto.
 **Estado:** abierto · vale reportarlo junto con F-21.
+
+---
+
+## H · Qué integra de verdad cada entidad (relevado, no supuesto)
+
+### F-25 · La mayoría de las entidades NO llama a nadie — no necesitan mock
+
+**Síntoma:** se asume que ninguna entidad se puede probar en local porque los hosts del `.env` son `*.fake`.
+**Causa raíz:** falso. Probando entidad por entidad contra el backend real, la mayoría **no hace ninguna llamada saliente** al seleccionarla: devuelve un modal con la URL del portal del proveedor, que sale de config, no de una API.
+
+| Entidad | Al seleccionar | ¿Mock? |
+|---|---|---|
+| Sufi #7 (rt0) | modal "Continua el proceso con el asesor comercial" | **no** |
+| Su+pay #11 (rt1) | modal | **no** |
+| Meddipay #39 (rt1) | modal | **no** |
+| Addi #6 (rt0) | modal "Se ha enviado un mensaje de WhatsApp con un link" | **no** |
+| Sistecrédito #9 (rt1) | `GET /getCreditToken` | **sí** |
+| Bancolombia #8 (rt1) | Payvalida `POST /api/v3/porders` | **sí** (F-05) |
+
+**Implicancia:** toda la rama **agregador / self-management** —la del modal "seguí en tu celular"— ya era testeable en local sin construir nada. La `action` del lender en BD dice quién integra: `(sin action)` = no llama.
+
+**Estado:** relevado. Mock para los que sí integran: `mock-lenders` (:8099).
+
+### F-26 · Dos fallos que NO se arreglan mockeando
+
+Aparecieron en el mismo relevamiento y conviene reconocerlos para no perder tiempo:
+
+- **Banco de Bogotá #5** → `Undefined variable $certPath` en `BancoDeBogota.php:138`. Es un **bug de PHP**: revienta antes de llamar a nadie. Ningún mock lo arregla; necesita el config del certificado o un fix de código.
+- **Welli #23 / Approbe #41 / BancolombiaBnpl #68** → `Attempt to read property "url_utm" on null`. No es el proveedor: la entidad **no está configurada para esa sucursal** (falta la fila en `lenders_by_allied_branches`). Error de método al probar — hay que usar un comercio que sí la tenga.
+
+**Lección:** antes de culpar a un servicio externo, mirar si el error es un `Undefined variable` o un `on null` — eso es código o config, no red.
+
+### F-27 · `new URL('//ruta', base)` no es la ruta que creés
+
+**Síntoma:** un mock propio respondía siempre desde su handler raíz y su log quedaba vacío, pese a que el backend claramente lo llamaba.
+**Causa raíz:** el backend arma la URL con **doble barra** (`baseUrl` + `/{pos}/getCreditToken` con `{pos}` vacío → `//getCreditToken`). En JS, `new URL('//x', base)` se interpreta como URL **protocolo-relativa**: `host='x'`, `pathname='/'`.
+**Evidencia:** `new URL('//getCreditToken?a=1','http://localhost:8099').pathname` → `'/'`.
+**Arreglo:** colapsar las barras iniciales antes de parsear: `String(req.url).replace(/^\/{2,}/, '/')`.
+**Estado:** resuelto. **La pista fue el log VACÍO** — si el mock responde pero no registra nada, no está viendo lo que creés.
