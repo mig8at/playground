@@ -582,3 +582,24 @@ Continuación de F-41. Con el schema servido, el formulario **renderiza** pero r
 **Arreglo:** ambos en `mock-forms`. El mock acepta `?taken=1` (o `MOCK_FORMS_TAKEN=1`) para devolver el veredicto de "ya registrado" y ejercitar ese camino sin ensuciar datos.
 
 **Patrón que se repite en este flujo:** *200 OK con cuerpo inesperado* se ve exactamente igual que *servicio caído*. Ya nos pasó tres veces (F-41 forma del schema, F-43 código de veredicto, F-39 contrato de lock). **Cuando algo del flujo dinámico "no anda", comparar el CUERPO contra lo que el consumidor espera — no mirar solo el status.**
+
+### F-44 · El flujo dinámico usa OTRA taxonomía de documentos (no CC/CE/PEP)
+
+**Síntoma:** se escribe un número de identidad válido y aparece **"Selecciona un tipo de documento válido"** — y el mensaje sale **debajo del campo NÚMERO**, no del selector, así que parece que el número está mal.
+
+**Causa raíz:** el flujo dinámico (RD/VE) **no comparte la taxonomía de documentos del flujo clásico colombiano**. `dynamic-step-one.ts::isSupportedDocumentType` admite exactamente cuatro tipos, cada uno con su patrón:
+
+| Tipo | Qué es | Patrón |
+|---|---|---|
+| `CED` | cédula dominicana | exactamente **11 dígitos** |
+| `CI_VE` | cédula de identidad venezolana | 6 a 11 dígitos |
+| `PAS` | pasaporte | 6 a 9 alfanuméricos |
+| `PAS_VE` | pasaporte venezolano | 6 a 9 alfanuméricos |
+
+**`CC`, `CE` y `PEP` NO están soportados** — cualquiera de ellos hace fallar la validación pase lo que pase en el número. Un schema (real o mockeado) que ofrezca los tipos colombianos deja el flujo dinámico **intransitable**.
+
+**Evidencia:** con `10311385677` (11 dígitos, cédula dominicana válida) el form rechazaba mientras `documentType` fuera `CC`; con `CED` valida.
+
+**Arreglo:** `mock-forms` ahora ofrece `CED/CI_VE/PAS/PAS_VE` y permite alfanuméricos en el número (para pasaporte).
+
+**Implicancia de negocio:** el eje **país** no es solo formato de moneda (F-22) ni de pantallas (F-41) — también cambia **qué documentos existen**. Cualquier trabajo sobre el flujo dinámico debe asumir la taxonomía RD/VE, no la colombiana.
