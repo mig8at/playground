@@ -621,3 +621,61 @@ Cierre de F-41/F-43/F-44. El flujo dinámico (RD) recorre **cinco rutas** y cada
 **Decisión:** `mock-forms` crea la solicitud por el **mismo camino que el resto del harness** (register + INSERT + `synthFill`, como `dev/sweep.ts`). El resultado es **equivalente** —un `user_request` real que `/lenders` consume— aunque el *cómo* difiera del servicio real. Verificado: submit → `{redirect:"/merchant/1bfb8cd0/464477/lenders?amount=8900", userRequestId:464477}`, la solicitud existe con el documento y monto enviados, y lista `smartpay rt2`.
 
 > **Deuda anotada:** si alguna vez importa ejercitar la orquestación REAL (que crea el usuario como lo hace producción), hay que resolver el `BD000` de `create-temporary-user`. Para el objetivo de "recorrer el flujo dinámico en local", el atajo alcanza.
+
+---
+
+## L · Motai RENTING y Ábaco (rama motai-v2)
+
+### F-46 · Elegir lender BORRA el asesor de la solicitud (y eso rompe Ábaco)
+
+**Síntoma:** el login y los results de Ábaco mueren con `SQLSTATE[23000] … Column 'corporate_user_id' cannot be null` al insertar en `user_request_additional_information`.
+
+**Causa raíz — NO es un bug del producto, es la llamada la que no se identifica.** En `UserRequestService:278`:
+
+```php
+$corporate_user_id = (auth()->check()) ? auth()->user()->id : $request->corporate_user_id;
+```
+
+`update-user-request` (la selección de lender) **reescribe** el campo: si la petición no está autenticada y no manda `corporate_user_id` en el cuerpo, lo deja en **NULL** — borrando el asesor que la solicitud ya tenía.
+
+El wizard no sufre esto porque manda el header **`x-cognito-identity-id`** (lo arma `default-layout`), que el middleware `ResolveCognitoUser` convierte en usuario autenticado. Las solicitudes históricas creadas por UI conservan el asesor; las creadas por API pura, no.
+
+**Evidencia** (aislado paso a paso):
+
+| Momento | `corporate_user_id` |
+|---|---|
+| tras el INSERT | 1827080 |
+| tras `synthFill` | 1827080 |
+| **tras `update-user-request`** | **NULL** |
+
+**Arreglo:** `dev/sweep.ts` manda `x-cognito-identity-id` con el sub del asesor en todas sus llamadas. **Lección general: una llamada por API que no manda ese header no es equivalente a la del wizard** — puede borrar datos en silencio.
+
+### F-47 · Ábaco: la mitad ya estaba mockeada en el código
+
+Ábaco es 100% externo (no hay código del proveedor), pero **antes de mockear conviene mirar qué ya está resuelto**:
+
+| Endpoint | ¿Sale al proveedor en local? | Por qué |
+|---|---|---|
+| `/results` | **no** | `Abaco::results()` corta en `app()->environment(['local'])` y devuelve `AbacoFixture::generateDynamicMock()` |
+| `/platforms` | **no** | el setting `abaco_config.platforms_check_enabled = false` lo sirve desde la config en BD |
+| `/init/gig-economy` | **sí** | → `mock-abaco` :8102 |
+| `/login` | **sí** | → `mock-abaco` :8102 |
+
+**Gotchas del contrato** (`app/Actions/RiskCentrals/Abaco.php`):
+- Los POST van **form-encoded** (`Http::asForm()`), no JSON.
+- La respuesta de `init` debe traer `customer_id`/`token`/`redirect_url` **en la RAÍZ**: el cliente ya envuelve como `['success'=>…, 'data'=>$response->json()]`. Anidarlos bajo `data` devuelve **200 "initialized successfully" con los campos VACÍOS** — cuarta aparición del patrón "200 con cuerpo inesperado".
+- Si `init` devuelve `redirect_url`, el backend le hace GET y extrae la cookie **`sessionid`**.
+
+**Cómo se controla el veredicto:** el fixture keyea por `platforms[SLUG].auth === '200 - OK'`, marca que escribe el **paso 2** del login (no el 1). Con el `auth` puesto, `abaco_config.mock_pass` decide: `true` → `{"UBER":"success"}` · `false` → `{"UBER":"error"}`.
+
+**Uso:** `node dev/sweep.ts abaco <slug> <lenderId>` corre la cadena entera.
+
+### F-48 · Renting en v2: el discriminador es `product`, y estaba roto
+
+En `main` el renting se decidía por **modo** (`user_request_modes` → `allied_modes.config.isAbacoRequired`; Motai tiene 3 modos y solo **#2 MotaiRenting** pide Ábaco). La rama `feature/motai-v2` **borra ese mecanismo** (elimina `AlliedMode`, `UserRequestMode` y su repositorio) y lo reemplaza por `lenders.product` + `lenders.calculator`.
+
+**Pero el puente quedó roto:** `MotaiValidationService` en v2 leía `$userRequest->lender?->abaco`, y el commit `5013f4af` **quitó esa columna de la migración** ("Ábaco lo maneja otro equipo"). En un entorno limpio la columna no existe → `false` siempre → **el renting nunca pedía Ábaco**. En el local de desarrollo seguía andando por accidente (la columna quedó de una corrida anterior de la migración).
+
+**Arreglo (commit local `bc373088` en la rama):** derivarlo del producto — `$userRequest->lender?->product === 'renting'`. Equivalente en datos: los únicos dos lenders con `abaco=1` son exactamente los que tienen `product='renting'`.
+
+**Dato a confirmar con el equipo:** el lender **#158 "Motai Renting"** —el que la migración de v2 backfillea con `product='renting'` y la calculadora— **no está ofrecido en ninguna sucursal**, así que nunca lista. El renting *listable* es **#169 Motai R**.
