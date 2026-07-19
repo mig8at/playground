@@ -874,4 +874,13 @@ Dato de contexto: `feature/onboarding/ecommerce-continue-route` (junio, ya en `d
 
 **Qué quedó en el harness:** `pkg/checkout-b64.ts` arma y sigue la URL base64 (`urlCheckout` / `seguirCheckout`), y `E2E_ENTRY=ecommerce` en `guided.spec.ts` entra por ahí. **Ojo:** cada GET al checkout **crea una solicitud**, así que no se puede pre-seguir headless *y* navegar el browser — genera dos y deja la primera huérfana.
 
+**Confirmación desde el navegador (no solo por API).** La corrida visual con `E2E_ENTRY=ecommerce` sobre Pullman lo dejó a la vista, y la traza contrastada lo cazó en el **paso 1**:
+
+```
+01 A /bancolombia/self-service/13874eb6/resolve-ecommerce-flow/464508 │ BD 8 «Cancelado» ← DESENLACE MALO
+04 A /bancolombia/self-service/13874eb6/no-preapproved                │ BD 8 «Cancelado»
+```
+
+El wizard aterriza en **`/no-preapproved`** —la pantalla de "no preaprobado" de Bancolombia— y la corrida termina en timeout esperando una pantalla a la que nunca va a llegar. Sin la traza, eso se veía como un cuelgue mudo de 5 minutos; con ella, el diagnóstico está en la primera línea.
+
 **Para correr un comercio CreditopX (Pullman) por ecommerce hace falta la landing genérica de la rama de abril.** Con lo que hay en `develop`, la entrada base64 solo tiene sentido para comercios Bancolombia.
