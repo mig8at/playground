@@ -708,3 +708,49 @@ O sea: se dispara **al tocar "Continuar" en confirmation**, y por lo tanto **ANT
 **Arreglo:** `guided.spec.ts` pregunta el requerimiento **antes** de saltear: si es `MOTV1001`, deja a B en `confirmation` (y avisa que el "Continuar" lleva a `/abaco`); si no, saltea el ADO como siempre. Verificado en el mismo comercio: `#169 Motai R` → se queda · `#168 Motai C` → saltea.
 
 **Lección transferible:** cuando un flujo "no pasa por X", revisar primero si el harness **saltea** el punto donde X se decide. Los atajos que compensan pasos no automatizables pueden tapar justo la rama bajo prueba.
+
+### F-50 · Renting cancelada después de Ábaco: una fila faltante que el front convierte en cancelación
+
+**Síntoma:** la solicitud **464498** (`#169 Motai R`, tel 3131010101) pasó Ábaco entera y a los ~90s quedó **Cancelado**. Rastro en BD:
+
+```
+user_requests.user_request_status_id = 8            (Cancelado)
+user_request_records: 3 → 8 "Cancelación no voluntaria código 5001"
+```
+
+**Ojo con la columna:** `user_requests.status` (=1) **no es** el estado de la solicitud; el estado vive en **`user_request_status_id`**. Mirar la columna equivocada hace creer que la solicitud está sana.
+
+**Causa raíz — un dato que la migración de v2 no sembró.** `lender_identity_validation_types` no tiene fila para los lenders nuevos de Motai (**158, 168, 169, 170**). Todos los demás rt=2 sí la tienen. Y el resolutor la lee con un default silencioso:
+
+```php
+// ValidationStatusService.php:298
+(int) ($userRequest->lender?->primaryIdentityValidationType?->identity_validation_type_id ?? 0)
+```
+
+Sin fila → `0` = **`Unknown`** (¡no `None`, que es `1`!) → `IdentityValidationStepResolver` cae en su `default` → `next_step: 'error'`, `type: 'unsupported_validation'`.
+
+**Y ahí el front lo convierte en cancelación, en tres saltos, todos "fallback":**
+
+| # | Dónde | Qué hace con un tipo que no conoce |
+|---|---|---|
+| 1 | `abaco/platform-otp-validation.tsx:257` | fallback → `identity-validation-instructions` |
+| 2 | `identity-validation-instructions.tsx:94` | el `action` solo contempla `ado_validation` y `crosscore_validation`; el `return` final → `request-canceled` |
+| 3 | `request-canceled.tsx:32` | **cancela en el `loader`** (no es una pantalla pasiva): `CancelLoanRequestUc` sin código → default **5001** "Error genérico de validación", `voluntary=false` |
+
+`loan-confirmation.tsx:258` tiene el mismo fallback, así que el flujo normal (sin Ábaco) llega al mismo pozo.
+
+**Lo peligroso es la forma, no el dato:** un tipo de validación no soportado —una condición de **configuración**— termina cancelando el crédito del cliente, sin mensaje ni código propio. `request-canceled` es una ruta que *ejecuta* la cancelación con solo aterrizar en ella, y es el destino de todos los fallbacks del wizard.
+
+**Pista que lo delataba:** `identity.validation_type.drift_detected {"lender_id":169,"primary_validation_type":0,"legacy_validation_type":2}` repetido cada ~30s antes del cancel. El warning existe justo para esto: la fuente primaria (tabla) y la legacy (`lenders.validation_type`) discrepan y **gana la primaria**, aunque valga `0`.
+
+**Arreglo local (solo BD, dump local):** sembrar la fila con `identity_validation_type_id = 1` (`None`) para 158/168/169/170 → el resolutor devuelve `no_validation_required` → post-Ábaco enruta a `first-payment-date` y el flujo cierra.
+
+```sql
+INSERT INTO lender_identity_validation_types (lender_id, identity_validation_type_id, `order`, status, created_at, updated_at)
+SELECT l.id, 1, 1, 1, NOW(), NOW() FROM lenders l WHERE l.id IN (158,168,169,170)
+  AND NOT EXISTS (SELECT 1 FROM lender_identity_validation_types t WHERE t.lender_id=l.id AND t.`order`=1);
+```
+
+**Dos cosas a decidir con el equipo (no las decide el harness):**
+1. **Qué validación de identidad debe usar renting.** El dato legacy se contradice a sí mismo: `#158 Motai Renting` tiene `validation_type=1` (None) y `#169 Motai R` tiene `2` (AWS). Se sembró `None` porque es lo que deja correr el flujo en local y es coherente con el resto del harness (el ADO ya se finge validado, F-10). **La migración de v2 debería sembrar esta tabla explícitamente.**
+2. **El fallback que cancela.** Un `unsupported_validation` debería terminar en una pantalla de error de configuración, no en una cancelación no voluntaria con código genérico.
