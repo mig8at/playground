@@ -1,302 +1,228 @@
 # CREDITOP · ERD del deber-ser
 
-> 📚 Este proyecto describe el **deber-ser** (el target). El estado **ACTUAL** del negocio (qué es Creditop,
-> flujos, `response_type`, hardcodes, modelo de datos) está en los docs maestros [`../docs/`](../docs/) —
-> empieza por [`../docs/CREDITOP.md`](../docs/CREDITOP.md). El problema que este modelo resuelve está en `../docs/NEGOCIO.md §6`.
+Visualizador interactivo (Vue 3 + [Vue Flow](https://vueflow.dev/)) del **modelo de dominio v4** de
+CreditOp: 105 entidades agrupadas en 8 contextos, cada una con su mapeo a la tabla real del legacy.
 
-Visualizador interactivo del **modelo de dominio (deber-ser) v4** de Creditop, construido con
-**Vue 3 + [Vue Flow](https://vueflow.dev/)** (el equivalente de React Flow para Vue).
-
-**Reemplazó a un ERD estático** previo (Cytoscape + Mermaid, ya eliminado):
-pasa de un diagrama renderizado como imagen fija a un **diagrama de tablas vivo** — arrastrable,
-filtrable y consultable, con **descripción de negocio por columna** — alimentado directamente por el
-mismo `modelo-dominio.json`.
+> ## ⚠ Esto NO es el esquema actual
+>
+> Todo lo que ves acá es el **DEBER-SER** — un rediseño propuesto, no lo que corre en producción.
+> Ninguna de estas tablas existe con esta forma en la BD. Si venís a entender **cómo funciona
+> CreditOp HOY**, este no es el lugar: andá a **[`../context/ROUTE-MAP.md`](../context/ROUTE-MAP.md)**
+> (índice del árbol de contexto, 33 nodos con su "cuándo usar cada uno") y arrancá por
+> [`../context/server/data/flows/creditop/doc.md`](../context/server/data/flows/creditop/doc.md).
+>
+> El puente entre ambos mundos vive **acá adentro**: [`CONTEXT.md`](CONTEXT.md) (what-is en inglés,
+> con rutas de archivo) y [`docs/audit/REALIDAD-ACTUAL.md`](docs/audit/REALIDAD-ACTUAL.md) (lo mismo
+> en español). Los dos son de **2026-06-03**: tratalos como fotos con fecha, no como estado vivo.
 
 ---
 
-## Por qué el deber-ser es una mejora sobre la estructura de tablas actual
+## Por qué existe
 
-Esta app visualiza el **deber-ser**: una reorganización conceptual de la base de datos real de
-Creditop. La mejora no es estética — es de **modelo de datos**. Hoy el esquema físico tiene
-**212 tablas, 26 vistas y 42 rutinas**, con deudas estructurales que se arrastran de años. El
-deber-ser las colapsa en **21 agregados / 105 entidades**, manteniendo **trazabilidad 1:1** a cada
-tabla real (cada entidad declara su `legacy.tabla`, visible en el panel de detalle).
+El esquema físico de CreditOp tiene **212 tablas** (verificado: `docs/audit/real_tables.txt`) con
+deudas que se arrastran de años — una tabla por integración, la misma condición de elegibilidad
+copiada en 140 lenders, catálogos como tablas, `country_id=1` (Afganistán) de default en una
+operación colombiana. El deber-ser las reorganiza en **105 entidades / 21 agregados**, y —esto es lo
+que hace la app útil en vez de decorativa— **cada entidad conserva el puntero a su tabla legacy**.
 
-### De la estructura actual → al deber-ser
+O sea: no es un ERD lindo. Es un **mapa de traducción** entre el rediseño y lo que hoy existe, y por
+eso el panel de detalle te muestra qué tablas viejas colapsó cada entidad y qué columnas se
+"redujeron" y a dónde.
 
-| Hoy (estructura física, 212 tablas) | Deber-ser (lo que muestra esta app) | Por qué mejora |
+El giro conceptual detrás de todo (el que justifica el modelo): **hoy sumar un lender / un comercio /
+un país es escribir código; en el deber-ser es insertar filas.**
+
+### Muestra de la traducción
+
+| Hoy (físico) | Deber-ser | Por qué mejora |
 |---|---|---|
-| 4 tablas de transacción de cierre (`lender_transactions`, `payvalida_transactions`, `sistecredito_transactions`, `payment_gateway_transactions`) | **1 entidad `LenderTransaction`** (puerto + adapter) | Agregar un lender = un adapter, no una tabla nueva ni ramas de código |
-| 6 proveedores KYC, cada uno con su tabla/log (Jumio, CrossCore, Metamap, OCR, Netco…) | **1 `IdentityVerification`** + VO `Proveedor` | Cambiar/agregar proveedor sin tocar el modelo; auditoría uniforme |
-| ~14 tablas de scoring / multiplicadores / profiling / buró sueltas | **`ScoringPolicy`** + `BureauData` (el motor SQL como servicio) | Políticas versionables y simulables; outcomes no binarios |
-| 3 tablas de reglas (`lender_rules`, `group_rules`, `category_rules`) con la misma condición copiada en decenas de lenders | **1 `EligibilityPolicy`** referenciable | "Definir una vez, referenciar muchas"; elimina divergencias silenciosas |
-| 5 roles de back-office clonados (mismos permisos, distinto estado que autorizan) | Capacidad declarativa `autorizar:{etapa}` | Menos roles, menor privilegio; sumar "Cobranza/Riesgo" sin clonar |
-| Decenas de catálogos `*_statuses` / `*_types` como tablas | **75 value-objects** (enum/catálogo) | Menos ruido; lo que es un valor deja de ser una entidad |
-| País por defecto `id=1` (Afganistán) en vez de `47` (Colombia); formato disperso | **`Country` como raíz canónica** (moneda/locale/formato/`dial_code`) | Multi-país real (CO/DO → EC/MX/PE); montos y documentos derivados del país |
-| `cell_phone` UNIQUE **global** → colisiona entre países | Unicidad por `(country_id, cell_phone)` / E.164 | Escala multi-país sin choques de números locales |
-| Ledger de cobranza (`creditop_x_requests_history`, 47 cols) implícito | **`RevolvingCredit`** con ledger + pagos + facturación de primera clase | Aging, contraoferta y saldo a facturar trazables |
+| 4 tablas de transacción de cierre (`lender_transactions`, `payvalida_transactions`, `sistecredito_transactions`, `payment_gateway_transactions`) | 1 `LenderTransaction` (puerto + adapter) | Lender nuevo = un adapter, no una tabla ni un branch |
+| 6 proveedores KYC, tabla propia cada uno (Jumio, CrossCore, Metamap, OCR, Netco…) | 1 `IdentityVerification` + VO `Provider` | Cambiar de proveedor sin tocar el esquema |
+| 3 tablas de reglas (`lender_rules`, `group_rules`, `category_rules`) con la condición copiada | `RuleDefinition` referenciable | "Definir una vez, referenciar muchas" |
+| Catálogos `*_statuses` / `*_types` como tablas | 75 value-objects | Lo que es un valor deja de ser una entidad |
+| `cell_phone` UNIQUE **global** | unicidad por `(country_id, cell_phone)` | No colisiona al abrir otro país |
+| Qué centrales consultar, en 6 bloques de `SP_Update_..._Risk_Centrals` | `CountryBureauPolicy` + `BureauFieldMapping` | El buró pasa a ser dato |
 
-> Fuente: el análisis what-is + to-be está en `CREDITOP-MODELO-DATOS.md` (§3.7 deudas, §4 deber-ser,
-> §5 por qué mejora). Esta app es la cara navegable de ese deber-ser.
-
-### Y además, cómo se ve la mejora aquí
-
-La estructura actual no tiene una visualización explorable de su dominio. Esta app la aporta:
-nodos de tabla **interactivos** (no una imagen fija), **agrupados por contexto**, con búsqueda,
-filtros, foco en vecinos, panel de detalle con el **mapeo deber-ser → tabla legacy**, y posiciones
-arrastrables y persistentes. Permite *recorrer* el modelo, no solo mirarlo.
-
----
-
-## Qué visualiza
-
-- **105 entidades** (21 aggregate roots + 84 internas) agrupadas por los **8 contextos** de dominio.
-- **129 relaciones** con cardinalidad (`N:1`, etc.), columna FK/rol, y distinción
-  **interna** (línea sólida) vs **referencia entre contextos** (línea punteada).
-- Cada tabla-nodo: header con contexto + tabla legacy, columnas con tipo y marca **PK**/**FK**.
-
-## Características
-
-- **Layout agrupado por contexto** (dagre por cluster + grilla): mantiene juntas las tablas de cada
-  agregado. Botón **Auto-organizar** para recalcular y **⇄ TB/LR** para cambiar la dirección.
-- **Posiciones arrastrables y persistentes** (se guardan en `localStorage`; Auto-organizar las limpia).
-- **Filtro por contexto** (chips arriba) y **búsqueda** por nombre de entidad o tabla legacy.
-- **Foco en vecinos**: al seleccionar una tabla, atenúa todo lo que no esté conectado a ella.
-- **Panel de detalle**: relaciones salientes, "referenciada por", y todas las columnas con su mapeo
-  a la columna legacy. Las relaciones son clicables para saltar de tabla en tabla.
-- **Descripción de negocio por columna** (100% de cobertura): cada columna muestra, además del tipo
-  y la columna legacy, una frase de qué significa para el negocio. El header indica cuántas la tienen.
-- **"Por qué este modelo"** (botón en el header → página `/por-que` con **Vue Router**): página dedicada
-  que cuenta **de dónde partimos** (código a medida por actor) → **hacia dónde vamos** (modelo canónico al
-  que los actores se ajustan) → **qué hicimos y por qué** (los 9 frentes) → **playbook de expansión**
-  (nuevo lender/comercio/país = filas, no código). Stats en vivo desde el modelo.
-- **"Reglas"** (botón en el header → página `/reglas`): explica visualmente **cómo se configura una regla**
-  — diagrama de flujo (catálogo → regla → de dónde sale el dato por país → evaluación) + un **demo
-  interactivo** (armás una regla, cambiás de país y ves cómo el mismo criterio resuelve el dato de otra
-  fuente y da aprueba/no aprueba).
-- Minimapa, controles de zoom y leyenda.
-
----
-
-## Fuente de datos
-
-`src/data/modelo-dominio.json` — el **deber-ser v4** (fuente de verdad, self-contained en este
-proyecto). La app lo lee y lo mapea a nodos/edges de Vue Flow en `src/lib/transform.ts`. Se edita
-acá directamente (antes existía una copia upstream en el extinto `creditop-cli/docs/`, ya
-consolidado). Para reaplicar las transformaciones idempotentes sobre el JSON:
+## Arranque rápido
 
 ```bash
-npm run clean-names              # nombres limpios (ver abajo)
-npm run apply-refinements        # refinamientos estructurales (ver abajo)
-npm run apply-aggregate-changes  # cambios de límite de agregado (ver abajo)
-npm run apply-db-findings        # anotaciones verificadas contra dev (read-only; ver abajo)
-npm run apply-business-refinements  # refinamientos guiados por el negocio (ver abajo)
-npm run apply-rules-and-logs     # motor de reglas canónico + saca los logs (ver abajo)
-npm run apply-inversion          # configuradores (lender+merchant) + proveedores por país (ver abajo)
-npm run apply-inversion-2        # cierre de la inversión: buró/cierre/scope país como dato (ver abajo)
-npm run apply-reduction          # reducción: colapsa columnas/entidades redundantes (ver abajo)
-npm run apply-evaluable-field    # registro de facts para reglas dinámicas (ver abajo)
-```
-
-> Las etiquetas de contexto en inglés (Geography, Credit, …) viven en el código
-> (`CONTEXT_LABELS` en `transform.ts`), no en el JSON, para que sobrevivan a un refresh del modelo.
-
-### Curación de nombres de columnas (`npm run clean-names`)
-
-El deber-ser que genera el toolkit todavía arrastra nombres de columna crudos del legacy
-(`allied_industry_id`, `have_ctopx`, `order`…). [`scripts/clean-names.mjs`](scripts/clean-names.mjs)
-los normaliza **dentro del modelo** (escribe el `n` limpio y preserva la columna real en `legacy`,
-visible en el panel de detalle). Convención aplicada:
-
-| Regla | Ejemplo |
-|---|---|
-| Quitar el prefijo redundante del propio agregado | `allied_industry_id` → `industry_id` |
-| Los FK nombran su destino (entidad), no el origen legacy | `user_id`→`customer_id`, `user_request_id`→`loan_application_id`, `allied_id`→`merchant_id`, `allied_branch_id`→`merchant_branch_id`, `country_city_id`→`city_id`, … |
-| Booleans con `is_`/`has_`/verbo | `have_ctopx` → `has_ctopx`, `allow_other_payment` → `allows_other_payment` |
-| Timestamps con `_at` | `star_allied` → `starred_at` |
-| Evitar palabras reservadas SQL | `order` → `sort_order` |
-
-El script es **idempotente** (las reglas se aplican por la columna `legacy`, no por el `n` actual) y
-**seguro** (omite con aviso si un nombre limpio colisiona). Las reglas globales y los overrides
-curados por entidad están al inicio del archivo; ahí se agregan casos nuevos. También renombra
-entidades/value-objects (p.ej. el subdominio de scoring de español a inglés) y mantiene consistentes
-sus referencias (`relaciones`, `agregados`, `ref(VO)`).
-
-### Refinamientos estructurales (`npm run apply-refinements`)
-
-A partir de la revisión multi-agente ([`REFINAMIENTO-DEBER-SER.md`](docs/REFINAMIENTO-DEBER-SER.md)),
-[`scripts/apply-refinements.mjs`](scripts/apply-refinements.mjs) materializa promesas que el modelo
-declaraba en prosa pero no modelaba, de forma **idempotente**:
-
-- VO `Provider` + atributo `provider` en `IdentityVerification` (unificación real de los 6 KYC).
-- VO `ProviderType` + atributo `provider_type` en `LenderTransaction` (discriminador del puerto).
-- Entidad `RoleAuthorizedStatus` (capacidad declarativa que colapsa los 5 roles de back-office).
-- Resuelve la doble clasificación de 5 tablas: las quita de `fueraDeAlcance` y las declara en
-  `legacy.absorbe` de su entidad (`LenderTransaction`, `SignedLegalDocument`, `BureauInquiry`).
-
-### Cambios de límite de agregado (`npm run apply-aggregate-changes`)
-
-[`scripts/apply-aggregate-changes.mjs`](scripts/apply-aggregate-changes.mjs) reescribe tres límites
-de consistencia (declarativo e idempotente):
-
-- **CreditPolicy unificada + versionada:** nueva raíz `creditPolicy` (por lender) + `policyVersion`
-  (draft/active/retired); `eligibilityPolicy` y `scoringPolicy` pasan de raíz a miembros junto con
-  reglas, categorías, scoring y multiplicadores → activación atómica de una versión. Los logs
-  transaccionales (`bureauInquiry`, `eligibilityEvaluation`) salen a raíz propia.
-- **RevolvingCredit partido:** nueva raíz `loanAccount` (per-desembolso) dueña del ledger
-  (`requestHistoryEntry`, `payment`, `paymentRegister`, `signedLegalDocument`, `requestProcessRecord`);
-  `revolvingCredit` queda con el cupo per-cliente. Relación `RevolvingCredit 1:N LoanAccount`.
-- **Canales fuera del HUB:** `paymentLink`, `ecommerceRequest`, `draftRequest` pasan a raíces de
-  intake propias; `loanApplication` conserva la solicitud y sus detalles (incl. `purchaseCode`).
-
-### Hallazgos verificados contra dev (`npm run apply-db-findings`)
-
-[`scripts/apply-db-findings.mjs`](scripts/apply-db-findings.mjs) documenta en el modelo las 5
-decisiones que se resolvieron con consultas **read-only** al dev remoto (evidencia en
-[`HALLAZGOS-BD.md`](docs/HALLAZGOS-BD.md)). **No modifica ninguna base de datos.**
-
-- Canales `paymentLink`/`ecommerceRequest` → `loanApplication` son **N:M** (puentes sin UNIQUE).
-- `role` == `user_profile` (1:1; 4898/4898 con `role_id == user_profile_id`).
-- `multiple_allieds`: **N:M Customer↔Merchant** denormalizado (JSON, ~2%) → **normalizado** a la
-  entidad bridge `CustomerMerchant` (miembro de `Customer`); el atributo queda como mapeo legacy.
-- FKs colgantes (`payment_plan_id`, `credit_note_calculation_id`, `starting_value_calculation_id`):
-  tablas inexistentes en dev → anotadas; el pricing real vive en `treasury_calculations`.
-- KYC per-lender: confirmado que `jumioVerification`/`crosscoreEvaluation` ya llevan `lender_id`.
-
-### Refinamientos guiados por el negocio (`npm run apply-business-refinements`)
-
-[`scripts/apply-business-refinements.mjs`](scripts/apply-business-refinements.mjs) aplica cambios cuyo
-criterio es el **retorno para el modelo de negocio de Creditop** (BNPL multi-país; agregador + Creditop X):
-
-- **Expansión multi-país** (driver de crecimiento): `Country.is_operating` + `operational_since`
-  (país operativo ≠ catálogo ISO); unicidad **por país** de `document_number`/`cell_phone` (hoy UNIQUE global).
-- **Onboarding por país:** entidad `DocumentType` (CC/CE/PEP/TI/NIT/PA) por país con formato y
-  `bypass_centrales`; `Customer.document_type` pasa a FK del catálogo.
-- **Conversión por contraoferta** (caso de uso central de originación): VO `Offer` =
-  `requestedOffer` (original_amount + términos) → `finalOffer` (final_amount + términos); montos como
-  `Money` (moneda derivada de Country), tasa/plazo/inicial como `Terms`.
-
-### Motor de reglas canónico + sin logs (`npm run apply-rules-and-logs`)
-
-[`scripts/apply-rules-and-logs.mjs`](scripts/apply-rules-and-logs.mjs):
-
-- **Reglas canónicas compartidas (lenders + merchants):** entidad `RuleDefinition` = la cláusula
-  (`field`, `operator`, `value`, `applies_to: lender|merchant|both`) **definida una sola vez**.
-  Los bindings de lender (`eligibilityRule` ← `lender_rules`) y de merchant/branch
-  (`eligibilityPolicy` ← `group_rules`) la referencian vía `rule_definition_id` en vez de copiar la
-  condición inline (hoy: "mayoría de edad" en 79 lenders, "ocupación formal" en 140). El evaluador es
-  genérico → **agregar un lender/merchant es data, no código a medida.**
-- **Sin logs en el dominio:** se eliminan las entidades-telemetría (`providerEvidenceLog`,
-  `merchantStatusLogEntry`, `incentiveLog`) y las 16 tablas `*_log` de `fueraDeAlcance`. La
-  observabilidad se maneja con **logs estructurados + Grafana/CloudWatch** en los microservicios.
-
-### Inversión: configuradores + proveedores por país (`npm run apply-inversion`)
-
-A partir de la validación multi-agente ([`VALIDACION-INVERSION.md`](docs/VALIDACION-INVERSION.md)),
-[`scripts/apply-inversion.mjs`](scripts/apply-inversion.mjs) completa el giro "los actores se adaptan
-a Creditop, no al revés":
-
-- **`VerificationPolicy` + `VerificationStep`** — el **configurador** de KYC: declara qué documentos
-  se aceptan y qué pasos se exigen, con **scope polimórfico** resuelto por especificidad
-  (`país < lender < merchant < sucursal < tipo de documento`). Lender **y** merchant son
-  configuradores de primera clase. Elimina `DocumentType.bypass_centrales` (pasa a `VerificationStep
-  bureau=skip`) y desacopla los flags de KYC del lender.
-- **`BureauProvider` + `CountryProviderBinding`** — registro de **proveedores por país**: el motor pide
-  una *capability* (`bureau`/`pep_aml`/`identity`/`e_signature`), el binding resuelve el proveedor real
-  del país. KYC multi-país = mismo proceso, proveedores como dato. Alta de un país = filas, no código.
-
-### Cierre de la inversión (`npm run apply-inversion-2`)
-
-[`scripts/apply-inversion-2.mjs`](scripts/apply-inversion-2.mjs) lleva a DATO lo que aún era código:
-
-- **Buró como dato:** `CountryBureauPolicy` (a qué centrales consultar por país) + `BureauFieldMapping`
-  (cómo extraer score/ingreso vía `json_path`) → reemplazan los 6 bloques de `SP_Update_..._Risk_Centrals`.
-- **Patrón de cierre como dato:** VO `ClosingPattern` + `Lender.closing_pattern_id`/`adapter_slug` +
-  `IntegrationContract` + `LenderStatusMapping` → matan el `switch(lender_id)` y las clases `Action`;
-  `ProviderType` pasa a `kind` genérico (payvalida/sistecrédito son lenders, no tipos).
-- **Eje país y rol semántico:** `country_id` en `CreditPolicy`/`OnboardingForm`, `FormField.semantic_role`
-  (el motor lee por rol, no por `field_id`), y `CountrySetting`/`MerchantSetting` key/value — el merchant
-  declara su comportamiento como dato, no como columnas-flag.
-
-### Reducción del modelo (`npm run apply-reduction`)
-
-A partir de [`AUDITORIA-REDUCCION.md`](docs/AUDITORIA-REDUCCION.md),
-[`scripts/apply-reduction.mjs`](scripts/apply-reduction.mjs) colapsa lo que el modelo config-driven
-vuelve redundante, **conceptualmente** y preservando la trazabilidad (`legacy.reducidas`/`legacy.absorbe`,
-visibles en el panel):
-
-- **−7 entidades:** KYC por-proveedor (`Jumio`/`CrossCore`/`Signing`) → `IdentityVerification.evidence`;
-  `ScoringRule`→`ScoringPolicy`; `BureauSummary`→proyección de `BureauInquiry`; `DeviceEnrollment`→`DeviceLock`;
-  `LenderIntegrationFlow`→telemetría.
-- **−~60 columnas:** `CategoryEligibilityCriteria` (~18 criterios → bindings de `RuleDefinition`); flags de
-  `Merchant`/`Lender` → `Setting`/políticas; derivables (`full_name`, `age`, flags de validación).
-- **−6 value-objects:** multiplicadores → filas; catálogos CX duplicados (`RequestStatus`, `PaymentMethod`,
-  `PaymentType`) unificados.
-- **No se toca** lo regulatorio/legacy ni los montos de ledger/snapshots (riesgo alto): quedan documentados.
-
-### Registro de facts para reglas dinámicas (`npm run apply-evaluable-field`)
-
-A partir del panel de diseño ([`DISENO-EVALUABLE-FIELD.md`](docs/DISENO-EVALUABLE-FIELD.md)),
-[`scripts/apply-evaluable-field.mjs`](scripts/apply-evaluable-field.mjs) agrega el contexto transversal
-**`decisioning`** con el registro de *facts* que vuelve **abierto el espacio de reglas sin código**:
-
-- **`EvaluableField`** (catálogo de "qué se puede evaluar", tipado) + **`FactSourceBinding`** (de dónde
-  sale el valor por país) + **`FeatureTransform`**/`FeatureDependency` (computados versionados, DAG) +
-  **`RuleGroup`**/`RuleGroupMember` (reglas compuestas AND/OR) + **`OperatorTypeRule`** (matriz
-  operador↔tipo) + **`FactValueSnapshot`** (materialización tipada).
-- Las 4 referencias sueltas (`RuleDefinition.field`, `ScoringPolicy.variable`, `FormField.semantic_role`,
-  `BureauFieldMapping.field_code`) se re-cablean al catálogo.
-- **Más reglas / fact nuevo / país nuevo = filas**, no código ni esquema. **No es EAV:** el catálogo
-  define *qué* y *dónde*; los valores siguen tipados e indexados en sus tablas nativas.
-
-## Desarrollo
-
-```bash
+cd ~/Desktop/CREDITOP/playground/domain-model
 npm install
-npm run dev      # http://localhost:5183
-npm run build    # type-check (vue-tsc) + build de producción a dist/
-npm run preview  # sirve el build de dist/
+npm run dev        # http://localhost:5183 (abre solo)
 ```
 
-Requiere Node 18+.
+Los **únicos tres scripts** de `package.json` son:
 
-## Estructura
+| Script | Qué hace |
+|---|---|
+| `npm run dev` | Vite dev server en **:5183** (`vite.config.ts`, `server.open: true`) |
+| `npm run build` | `vue-tsc --noEmit` (type-check estricto) **y después** `vite build` → `dist/` |
+| `npm run preview` | sirve el `dist/` ya construido |
+
+Node 18+. `npm run build` verificado el 2026-07-19: pasa limpio (~850 ms, bundle 635 kB).
+Hay también un `.claude/launch.json` con la config `erd` apuntando a `npm run dev` / puerto 5183.
+
+## Qué ves en pantalla
+
+Una sola vista (`/`, hash-router). La barra superior tiene:
+
+- **Todos / Ninguno** + un **chip por contexto** con el conteo de entidades. Click = mostrar/ocultar.
+- **Buscador**: matchea contra el nombre nuevo, la `key`, **la tabla legacy** (`legacy.tabla`),
+  el texto de green-field (`legacy.ref`) y las **tablas absorbidas** (`legacy.absorbe`). Es la
+  función más útil de la app: buscás `payvalida_transactions` y te dice en qué entidad terminó.
+
+En el canvas, cada nodo es una tabla:
+
+| Marca | Significado |
+|---|---|
+| `◆` en el título | aggregate root |
+| `☁` + borde punteado | sistema externo (los 7 servicios AWS del contexto `platform`) |
+| número en el ángulo | cuántas tablas legacy unifica esta entidad |
+| `PK` ámbar / `FK` azul / sigla gris (`S3`, `SM`, `COG`…) | tipo de columna |
+| franja verde + badge `nuevo` | columna que **no existe** en la tabla legacy (25 en total) |
+| `↯` violeta | la columna publica un domain event (solo 2 en el modelo) |
+| línea sólida vs punteada | relación interna (74) vs referencia entre contextos (127) |
+
+Click en un nodo → **atenúa todo lo que no sea vecino directo** y abre el panel de detalle:
+relaciones salientes, "referenciada por", las columnas con su descripción de negocio y su columna
+legacy, las **columnas reducidas** (`legacy` → vía por la que se derivan ahora) y las **tablas
+unificadas**. Los links del panel son clicables: saltás de entidad en entidad.
+
+## La fuente de datos
+
+Todo sale de **`src/data/modelo-dominio.json`** (314 kB, `version: 4.0`). Es self-contained: no hay
+backend, no hay fetch. `src/lib/transform.ts` lo convierte en nodos/edges y hace el layout.
+
+Cifras contadas contra el JSON (2026-07-19), no copiadas de nadie:
+
+| | |
+|---|---|
+| contextos | 8 (`geography`, `identity`, `commerce`, `credit`, `origination`, `creditopX`, `decisioning`, `platform`) |
+| entidades | **105** = 22 `aggregateRoot` + 76 `entity` + 7 `external` |
+| agregados declarados | 21 |
+| value-objects | 75 |
+| relaciones | 201 (74 internas + 127 referencias entre contextos) |
+| atributos | 893, de los cuales **831 con descripción de negocio (93 %)** |
+| marcados `nuevo` | 25 · con ref AWS: 16 · que emiten evento: 2 |
+| entidades green-field (sin tabla legacy) | 27 (0 con `absorbe`, 1 con `reducidas`) |
+| entidades con `absorbe` / con `reducidas` (todo el modelo) | 6 · 11 |
+
+### Convención de `entidad.legacy` (leer antes de tocar el JSON)
+
+Confundir estos cuatro campos es el error más fácil de cometer acá:
+
+| Campo | Qué es | Se valida contra |
+|---|---|---|
+| `legacy.tabla` | la tabla real base | `docs/audit/real_tables.txt` |
+| `legacy.absorbe[]` | otras tablas reales que colapsaron en esta entidad | idem |
+| `legacy.reducidas[]` | **columnas** (no tablas) colapsadas o derivadas, con el `via` que las reemplaza | — |
+| `legacy.ref` con texto `green-field (...)` | entidad **nueva a propósito**, sin tabla legacy | — |
+| atributo con `nuevo: true` | **columna** nueva del deber-ser; distingue "es nueva" de "me olvidé de mapearla" | — |
+
+## Cómo está armado
 
 ```
 src/
-  data/modelo-dominio.json    # el deber-ser v4 (fuente de verdad de la viz)
-  lib/types.ts                # tipos que reflejan el JSON
-  lib/transform.ts            # JSON -> nodes/edges, layout (dagre por contexto), vecinos, etiquetas
-  components/TableNode.vue     # nodo de tabla custom (header + columnas + handles)
-  components/DetailPanel.vue    # panel lateral de detalle de entidad
-  router/index.ts             # Vue Router: "/" (ERD), "/por-que" (manifiesto), "/reglas" (cómo funcionan)
-  views/ErdView.vue           # el ERD: Vue Flow + toolbar + filtros + persistencia
-  views/PorQueView.vue        # página "Por qué este modelo" (de dónde partimos → hacia dónde vamos)
-  views/ReglasView.vue        # página "Cómo funcionan las reglas" (diagrama + demo interactivo)
-  App.vue                     # shell con <router-view>
-  main.ts                     # createApp + router
+  data/modelo-dominio.json   la fuente de verdad (v4.0)
+  lib/types.ts               tipos que reflejan el JSON
+  lib/transform.ts           JSON→nodos/edges, colores y labels de contexto, layout dagre por cluster
+  components/TableNode.vue   el nodo de tabla (header + columnas + handles por columna)
+  components/DetailPanel.vue el panel lateral
+  views/ErdView.vue          la vista única: Vue Flow + chips + búsqueda + persistencia
+  router/index.ts            hash-router con UNA ruta: "/"
+  App.vue / main.ts          shell + bootstrap
 scripts/
-  clean-names.mjs            # cura nombres de columnas/entidades/VOs (npm run clean-names)
-  apply-refinements.mjs      # refinamientos estructurales del modelo (npm run apply-refinements)
-  apply-aggregate-changes.mjs # cambios de límite de agregado (npm run apply-aggregate-changes)
-  apply-db-findings.mjs      # anotaciones verificadas read-only contra dev (npm run apply-db-findings)
-  apply-business-refinements.mjs # refinamientos guiados por el negocio (npm run apply-business-refinements)
-  apply-rules-and-logs.mjs   # motor de reglas canónico + remoción de logs (npm run apply-rules-and-logs)
-  apply-inversion.mjs        # configuradores + proveedores por país (npm run apply-inversion)
-  apply-inversion-2.mjs      # cierre: buró/cierre/scope país como dato (npm run apply-inversion-2)
-  apply-reduction.mjs        # reducción de columnas/entidades redundantes (npm run apply-reduction)
-  apply-evaluable-field.mjs  # registro de facts para reglas dinámicas (npm run apply-evaluable-field)
+  audit-legacy-refs.mjs      regenera docs/audit/ground-truth.json (cruce determinístico)
+  apply-alignment-fixes.mjs  §1-§3 de docs/audit/ALINEAMIENTO.md → muta el JSON (idempotente)
+  apply-alignment-fixes-2.mjs §4 y §6 de ALINEAMIENTO.md → idem
+  db.sh                      helper para consultar la BD local
+docs/                        el rastro de cómo se llegó al modelo (ver abajo)
 ```
 
-## Roadmap (fuera del alcance de esta primera versión)
+Los tres `.mjs` **no tienen entrada en `package.json`** — se corren a mano:
 
-Esta versión cubre el **ERD del deber-ser + descripción de negocio por columna**. Posibles
-siguientes pasos (el viejo `modelo.html` fue eliminado; estos datos viven en `modelo-dominio.json`):
-
-- Vistas adicionales sobre el mismo JSON: estados/transiciones, reglas de elegibilidad, patrones de
-  cierre y "realidad actual" (what-is).
-- Export del diagrama a PNG/SVG.
-- Resaltar sobre los nodos afectados las **deudas estructurales** documentadas (país `id=1`,
-  `cell_phone` UNIQUE global, taxonomía de comercio en 3 columnas, etc.).
-- Toggle de idioma para la chrome de la UI (hoy en español; los nombres del modelo, en inglés).
+```bash
+node scripts/audit-legacy-refs.mjs      # read-only sobre el JSON; escribe ground-truth.json
+node scripts/apply-alignment-fixes.mjs  # MUTA src/data/modelo-dominio.json
+node scripts/apply-alignment-fixes-2.mjs
 ```
+
+El primero, corrido hoy: **0 referencias rotas** · 71 entidades mapeadas a tablas existentes · 27
+green-field marcadas OK · 7 externas · 0 "nuevas sin marcar". El modelo no apunta a ninguna tabla
+que no exista.
+
+### BD local (opcional, para contrastar contra la realidad)
+
+`apply-alignment-fixes-2.mjs` resuelve tipos desde `docs/audit/real_columns.tsv`, que salió de una
+copia local del dump de dev en Docker. Para regenerarlo o para verificar cualquier cosa:
+
+```bash
+bash scripts/db.sh "SHOW TABLES;"
+bash scripts/db.sh "DESCRIBE lenders;"
+docker exec legacy-backend-mysql-1 mysql -uroot -ppassword creditop -e "SELECT COUNT(*) FROM user_requests;"
+```
+
+Contenedor `legacy-backend-mysql-1`, base `creditop`. Detalle y cómo refrescar dev→local en
+[`CLAUDE.md`](CLAUDE.md). **Sin ese contenedor levantado, `db.sh` falla pero la app funciona
+igual** — la viz no depende de la BD para nada.
+
+## Gotchas
+
+- **Las posiciones se guardan en `localStorage` y no hay botón para resetearlas.** La clave es
+  `creditop-erd-positions-v1`. Si arrastraste nodos y querés volver al layout automático, no hay UI:
+  `localStorage.removeItem('creditop-erd-positions-v1')` en la consola y recargá.
+- **No hay "Auto-organizar" ni toggle LR/TB.** El layout es `layoutClustered(..., cols=3, dir='TB')`
+  hardcodeado en `ErdView.vue:36`. Si querés otra dirección, se toca el código.
+- **El buscador está en AND con los chips de contexto.** Si tenés un contexto apagado, lo que busques
+  ahí no aparece aunque matchee. El contador de resultados sí lo respeta, así que "0 resultado(s)"
+  puede significar "está filtrado", no "no existe".
+- **El JSON tiene ~15 secciones que la app NUNCA renderiza**: `eventos`, `decision`, `politicas`,
+  `estados` (catálogo + transiciones), `patronesCierre`, `roles`, `rolesDeberSer`, `paises`,
+  `tiposDocumento`, `separacionData`, `referencias`, `cambiosV2`/`cambiosV4`, `preguntasAbiertas`
+  (15 dudas abiertas), `fueraDeAlcance`. Hay conocimiento real ahí que solo se ve leyendo el archivo.
+- **El `nota` y el `cambiosV4` del propio JSON están desactualizados**: dicen "12 agregados / 71
+  entidades" y hoy son 21 y 105. Los scripts de refinamiento crecieron el modelo y nadie tocó el
+  encabezado. No los cites.
+- **22 entidades tienen `tipo: aggregateRoot` pero `agregados` lista 21.** La huérfana es
+  `bonification`. Sin verificar si es intencional o un olvido.
+- **93 %, no 100 %, de las columnas tienen descripción de negocio.** Las que más faltan:
+  `identityValidationAttempt` (15), `bonification` (8), `socialStrataMultiplier` (7),
+  `occupationMultiplier` (6), `termCapitalAdjustmentFactor` (6).
+- **Las etiquetas de contexto en inglés viven en el código**, no en el JSON (`CONTEXT_LABELS` en
+  `transform.ts`) — a propósito, para que sobrevivan a un refresh del modelo. El JSON las trae en
+  español.
+
+## Docs de esta carpeta
+
+Están en orden cronológico de cómo se construyó el modelo; cada `apply-*` histórico nació de uno.
+
+| Doc | Qué aporta |
+|---|---|
+| [`CONTEXT.md`](CONTEXT.md) | **What-is en inglés** (2026-06-03): flujos end-to-end con rutas de archivo y línea, motor SQL de scoring, cierre por lender, deuda técnica. Para no releer `legacy-backend`/`application`. |
+| [`CLAUDE.md`](CLAUDE.md) | Cómo consultar la BD local + convención de `entidad.legacy` + resumen de la arquitectura real. |
+| [`docs/audit/ALINEAMIENTO.md`](docs/audit/ALINEAMIENTO.md) | El barrido modelo↔tablas reales: 0 refs rotas, 30 hallazgos de columna, gap inverso de 135 tablas no cubiertas. |
+| [`docs/audit/REALIDAD-ACTUAL.md`](docs/audit/REALIDAD-ACTUAL.md) | Versión española y larga del what-is. |
+| [`docs/HALLAZGOS-BD.md`](docs/HALLAZGOS-BD.md) | 5 dudas del modelo resueltas con `SELECT` read-only contra dev (canales N:M, `role`==`user_profile`, `multiple_allieds`, FKs colgantes). |
+| [`docs/REFINAMIENTO-DEBER-SER.md`](docs/REFINAMIENTO-DEBER-SER.md) | Revisión multi-agente: promesas que el modelo declaraba en prosa y no modelaba. |
+| [`docs/VALIDACION-INVERSION.md`](docs/VALIDACION-INVERSION.md) | ¿Los actores se adaptan a CreditOp o al revés? Veredicto **PARCIAL**, área por área. |
+| [`docs/AUDITORIA-REDUCCION.md`](docs/AUDITORIA-REDUCCION.md) | Cuánto más se puede simplificar: ~95-110 columnas y ~13-16 entidades, priorizado por impacto/riesgo. |
+| [`docs/DISENO-EVALUABLE-FIELD.md`](docs/DISENO-EVALUABLE-FIELD.md) | Diseño del registro de *facts* (`EvaluableField`) que abre el espacio de reglas sin código. |
+| [`docs/TRABAJO-REGLAS-SIMPLIFICACION.md`](docs/TRABAJO-REGLAS-SIMPLIFICACION.md) | Brief autocontenido para retomar el hilo de reglas lender×merchant. |
+| `docs/audit/*.json` `*.tsv` `*.txt` | Insumos crudos: 212 tablas reales, 2582 columnas, `ground-truth.json`, `value-objects.json`, 135 tablas no cubiertas. |
+
+## Estado / punteros rotos conocidos
+
+Este README se reescribió el **2026-07-19** contra el código. Lo que había antes documentaba diez
+scripts `npm run apply-*` y dos páginas (`/por-que`, `/reglas`) que **no existen en el repo**: los
+`.mjs` correspondientes no están en `scripts/` y el router solo tiene `/`. O el trabajo se revirtió,
+o nunca se commiteó. Si aparecen en algún stash, hay que volver a documentarlos.
+
+Punteros rotos que **quedaron sin arreglar** en otros archivos de esta carpeta (no los toqué):
+
+- `CONTEXT.md:14` y `:41` → `../flows/` no existe (la carpeta hermana se llama `flow`, singular, y es
+  otra cosa: el simulador de onboarding).
+- `CONTEXT.md:51`, `CLAUDE.md:64`, `docs/audit/REALIDAD-ACTUAL.md:3` y `:13` → `playground/docs/`
+  **fue borrado** de `main` (absorbido por `../context/`; recuperable con `git show 159906a:docs/…`).
+- `docs/TRABAJO-REGLAS-SIMPLIFICACION.md:16` y `:142` → `CREDITOP-MODELO-DATOS.md` no existe en
+  ningún lado del playground.
+- `docs/HALLAZGOS-BD.md:7` → `queries-cuestiones-abiertas.sql` no existe.
