@@ -76,14 +76,54 @@ function branchHashForSlug(slug: string): string {
 // E2E_INJECT=1 (inyecta el buró invisible al llegar a personal-info) + el perfil por env, contra el target.
 interface Profile { income?: number; score?: number; name?: string; documentType?: string; document?: string; gender?: string; age?: number; negatives?: number; consulted?: number; occupation?: string; dob?: string; expeditionDate?: string; email?: string; }
 
-function launch(slug: string, profile: Profile, target: string, inject: boolean, stepTarget: string, amount: number, paDelay: number): { ok: boolean; msg: string } {
+// RASTRO de la corrida: vuelca TODO lo que elegiste en el panel al log, para que quede registro de con qué
+// configuración corriste (antes solo salía el perfil, como un JSON crudo, y los selects de pre-aprobación y
+// el ON/OFF de lenders no aparecían en ningún lado).
+async function runHeader(slug: string, p: Profile, t: string, inject: boolean, step: string, amt: number, paDelay: number): Promise<string> {
+    const money = (n: number) => `$${n.toLocaleString('es-CO')}`;
+    const row = (k: string, v: string) => `   ${k.padEnd(13)}${v}`;
+    const L: string[] = [
+        `▶ CORRIDA · ${slug} (${t})`,
+        row('modo', inject ? 'SINTÉTICO — inyecta el buró (salta la consulta real)' : 'REAL — consulta el buró de verdad, sin inyección'),
+        row('saltar a', step === 'monto' ? 'monto (manejás todo vos)' : step),
+        row('monto', money(amt)),
+        row('espera PA', paDelay ? `${paDelay}ms (para ver el loader de las cards)` : 'sin espera'),
+    ];
+    if (inject) {
+        L.push(row('identidad', `${p.documentType || 'CC'} ${p.document || '(auto)'} · ${p.name || 'SYNTH TEST USER'} · ${p.gender || 'M'} · ${p.age ?? 35} años`));
+        L.push(row('empleo', `${p.occupation || 'Empleado'} · ingreso ${money(p.income ?? 0)}`));
+        L.push(row('buró', p.documentType === 'PEP' ? 'sin buró (PEP)' : `score ${p.score ?? '-'} · negativos ${p.negatives ?? 0} · consultas ${p.consulted ?? 0}`));
+        if (p.email) L.push(row('email', p.email));
+    }
+    // Pre-aprobación por lender: lo que devolverá el mock. Los que no tocaste van 'aprobado' por defecto.
+    let pa: Record<string, string> = {};
+    try { pa = JSON.parse(readFileSync(PA_STATUS_FILE, 'utf8')); } catch { /* sin archivo = todo aprobado */ }
+    // Nombre de cada lender + su ON/OFF, para que el rastro se lea sin tener que traducir ids.
+    const hash = branchHashForSlug(slug);
+    const lenders = hash ? ((await dbopsJson(['lenders-for', hash], t)) as Array<{ id: number; name: string; rt: number; lender_status: number }> | null) : null;
+    const ES: Record<string, string> = { approved: 'aprobado', rejected: 'rechazado', pending: 'pendiente' };
+    if (Array.isArray(lenders) && lenders.length) {
+        const desc = lenders.map((l) => {
+            const on = Number(l.lender_status) === 1;
+            // rt0 no consulta el MS de pre-aprobados → el selector del panel no aplica.
+            const st = Number(l.rt) !== 0 ? (ES[pa[String(l.id)]] ?? 'aprobado (default)') : 'sin pre-aprobación (rt0)';
+            return `${l.name} #${l.id} rt${l.rt} → ${on ? st : 'APAGADO (no va a listar)'}`;
+        });
+        L.push(row('lenders', desc.join('\n' + ' '.repeat(16))));
+    } else if (Object.keys(pa).length) {
+        L.push(row('pre-aprob.', Object.entries(pa).map(([id, s]) => `#${id} ${ES[s] ?? s}`).join(' · ') + ' (resto: aprobado)'));
+    }
+    return L.join('\n') + '\n';
+}
+
+async function launch(slug: string, profile: Profile, target: string, inject: boolean, stepTarget: string, amount: number, paDelay: number): Promise<{ ok: boolean; msg: string }> {
     if (current && !current.done) return { ok: false, msg: `ya hay una corrida activa (${current.slug}). Parala primero.` };
     const t = TARGETS.has(target) ? target : 'local';
     const step = ['monto', 'phone', 'personal-info', 'lenders'].includes(stepTarget) ? stepTarget : 'monto';
     const amt = amount > 0 ? Math.round(amount) : 2_000_000; // monto solicitado (default 2M)
     const mode = inject ? 'manual + inyección de buró' : 'manual REAL (consulta buró real, sin inyección)';
     const jump = step === 'monto' ? '' : ` · salto → ${step}`;
-    writeFileSync(RUN_LOG, `▶ lanzando '${slug}' (${t}) · ${mode}${jump} · monto $${amt.toLocaleString('es-CO')}${paDelay ? ` · espera PA ${paDelay}ms` : ''} · perfil ${JSON.stringify(profile)}\n`);
+    writeFileSync(RUN_LOG, await runHeader(slug, profile, t, inject, step, amt, paDelay));
     const env = {
         ...envFor(t),
         // switch del panel: ON → inyecta el buró (salta la consulta real); OFF → sin inyección (consulta real).
@@ -201,7 +241,7 @@ const server = createServer(async (req, res) => {
     if (path === '/api/launch' && req.method === 'POST') {
         const b = await readBody(req);
         if (!b.slug) return json(res, 400, { ok: false, msg: 'falta slug del comercio' });
-        return json(res, 200, launch(String(b.slug), {
+        return json(res, 200, await launch(String(b.slug), {
             income: Number(b.income) || undefined,
             score: Number(b.score) || undefined,
             name: b.name ? String(b.name) : undefined,

@@ -377,6 +377,19 @@ test('guided (semiautomático)', async ({ browser }) => {
             //    inyecto el sintético + goto /lenders. Rápido: no pasa por monto/teléfono/OTP. ──
             if (STEP === 'lenders') {
                 log('salto HEADLESS a /lenders (sin llenado visual): register + uReq + buró inyectado');
+                // Mientras se siembra (register + uReq + buró + preflight ≈ 4s) la ventana se queda en
+                // /solicitar. Sin aviso parece que el salto NO funcionó — y si la cerrás en ese rato, el
+                // salto muere de verdad. El overlay lo hace obvio; la navegación a /lenders lo reemplaza.
+                await page.evaluate(() => {
+                    const d = document.createElement('div');
+                    d.style.cssText = 'position:fixed;inset:0;z-index:2147483647;background:#0f1115;color:#e7eaf0;'
+                        + 'display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;'
+                        + 'font:16px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;text-align:center;padding:24px';
+                    d.innerHTML = '<div style="font-size:12px;letter-spacing:1px;text-transform:uppercase;color:#22c55e;font-weight:800">Harness · preparando</div>'
+                        + '<div style="font-size:20px;font-weight:700">Saltando a /lenders…</div>'
+                        + '<div style="color:#9aa4b2;font-size:14px;max-width:44ch">Sembrando el usuario sintético (registro, solicitud y buró) antes de abrir el marketplace. <b style="color:#e7eaf0">No cierres esta ventana.</b></div>';
+                    document.body.appendChild(d);
+                }).catch(() => { /* best-effort: si no se puede pintar, seguimos igual */ });
                 // register del teléfono (scrubphone ya lo dejó fresco). Endpoint sin auth, backend local.
                 const reg = await fetch(`${config.mockUrl}/api/onboarding/phone/register`, {
                     method: 'POST',
@@ -400,7 +413,18 @@ test('guided (semiautomático)', async ({ browser }) => {
                     const r = await synthFill(Number(ur), synthOptsFromEnv());
                     log(`uReq ${ur} sembrado headless (user ${userId} · asesor ${asesorId ?? '-'} · Experian ${r.datacredito_forged}) → /lenders?amount=${AMOUNT}`);
                     await preflightLenders(config.mockUrl, ur);   // si el backend está roto, decilo ACÁ (ver la función)
-                    await page.goto(`/merchant/${HASH}/${ur}/lenders?amount=${AMOUNT}`, { waitUntil: 'domcontentloaded', timeout: 90_000 }).catch(() => {});
+                    // El salto ES el punto de este modo: si falla, hay que GRITARLO. Antes iba con
+                    // `.catch(() => {})` y una ventana cerrada dejaba la corrida en "1 passed" sin una sola
+                    // pista — ni nav, ni foto, ni pausa (todo lanza sobre una página cerrada y se tragaba).
+                    const jump = `/merchant/${HASH}/${ur}/lenders?amount=${AMOUNT}`;
+                    const navErr = await page.goto(jump, { waitUntil: 'domcontentloaded', timeout: 90_000 })
+                        .then(() => null, (e: Error) => e);
+                    if (navErr) {
+                        const closed = page.isClosed() || /closed|Target (page|closed)|browser has been closed/i.test(navErr.message);
+                        log(`✗ NO se pudo saltar a /lenders — ${closed ? 'la ventana del navegador se cerró antes del salto' : navErr.message.split('\n')[0]}`);
+                        if (closed) log('   El salto ocurre unos segundos DESPUÉS de entrar: mientras ves /solicitar se está sembrando el usuario. No cierres la ventana en ese rato.');
+                        throw new Error('el salto a /lenders no se completó');   // que la corrida FALLE, no que mienta "1 passed"
+                    }
                 } else {
                     log(`✗ no pude sembrar el uReq headless (user=${userId ?? '?'} · branch=${br ? 'ok' : 'no'}) — probá STEP=personal-info (visual)`);
                 }
