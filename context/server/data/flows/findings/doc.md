@@ -563,3 +563,22 @@ Antes de mockear algo, mirar `~/Desktop/CREDITOP/github/`: además de los tres r
 **Implicancia:** para varios muros hay **dos caminos** — mockear (rápido, fidelidad media) o **correr el servicio real** (más fiel). El de forms se pudo levantar en minutos; su límite fue S3, no el código. Vale evaluar caso por caso, sobre todo para `messaging-service`, que hoy es un fallo recurrente en los logs.
 
 > 🔒 **Nota de seguridad:** `onboarding-forms-service/config/config.example.yaml` —un archivo de plantilla, versionado— contiene lo que parecen **credenciales AWS reales** (`aws.access_key_id` / `secret_access_key`). Vale confirmarlo con el equipo y rotarlas si es así.
+
+### F-43 · El formulario dinámico carga pero no deja avanzar: dos causas distintas
+
+Continuación de F-41. Con el schema servido, el formulario **renderiza** pero rechaza todo: ciudad vacía, *"No pudimos validar tu correo"*, *"Selecciona un tipo de documento válido"*. Son **dos mecanismos independientes**, y ninguno se ve en la pantalla:
+
+**(a) Los desplegables salen del PROPIO schema.** `PersonalInfoForm` lee `fields.cityOfResidence.options` y `fields.documentType.options`. Si el schema no trae `cityOfResidence`, el select queda vacío y el form bloquea con *"Selecciona tu ciudad para continuar"*.
+
+> **Dato útil:** `PersonalInfoForm` es el **único paso realmente data-driven**. `AmountForm`, `PhoneForm`, `OtpForm` y `FinancialInfoForm` **no leen `fields`** — su contenido no depende del schema. O sea, para un schema mockeado, el único paso que hay que modelar con cuidado es el de datos personales.
+
+**(b) El veredicto de correo/documento viaja en un campo `code`, no en el HTTP status.** El wizard compara contra constantes de `request-personal-info.shared.ts`; con **200 OK pero sin el `code` esperado** muestra el error de validación igual:
+
+| Endpoint | Disponible | Ya registrado |
+|---|---|---|
+| `POST /v1/dynamic/full/find-user-by-email` | `OFS6001` | `OFS6000` |
+| `POST /v1/dynamic/full/find-user-by-document-number` | `OFS7001` | `OFS7000` |
+
+**Arreglo:** ambos en `mock-forms`. El mock acepta `?taken=1` (o `MOCK_FORMS_TAKEN=1`) para devolver el veredicto de "ya registrado" y ejercitar ese camino sin ensuciar datos.
+
+**Patrón que se repite en este flujo:** *200 OK con cuerpo inesperado* se ve exactamente igual que *servicio caído*. Ya nos pasó tres veces (F-41 forma del schema, F-43 código de veredicto, F-39 contrato de lock). **Cuando algo del flujo dinámico "no anda", comparar el CUERPO contra lo que el consumidor espera — no mirar solo el status.**
