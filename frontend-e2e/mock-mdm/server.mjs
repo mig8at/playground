@@ -72,11 +72,18 @@ const server = http.createServer((req, res) => {
                 log(`enroll imei=${imei} tenant=${tenant}`);
                 return json(res, 200, { deviceId: imei, state: 'ENROLLED', enrolled: true });
             }
-            // servicing: los 3 crons de cobranza por hardware.
+            // Servicing: los 3 crons de cobranza por hardware. CONTRATO DISTINTO al de enroll — verificado en
+            // AlliedProductService::lockDevice: el cuerpo es `{ devices: [{ deviceId, title, message }] }` y la
+            // respuesta se lee con `data_get($response, 'results.0')`. Devolver `{deviceId, state}` plano deja
+            // el device_lock en `failed` aunque el mock diga success (fue exactamente lo que pasó la 1ª vez).
             if (/\/device-locking\/devices\/(lock|unlock|release)$/.test(url.pathname)) {
                 const accion = url.pathname.split('/').pop();
-                log(`${accion} imei=${imei} tenant=${tenant}`);
-                return json(res, 200, { deviceId: imei, state: accion.toUpperCase() + 'ED', success: true });
+                const devices = Array.isArray(p.devices) ? p.devices : [{ deviceId: imei }];
+                const estado = { lock: 'LOCKED', unlock: 'UNLOCKED', release: 'RELEASED' }[accion];
+                log(`${accion} devices=${devices.map((d) => d.deviceId).join(',') || '(vacío)'} tenant=${tenant}`);
+                return json(res, 200, {
+                    results: devices.map((d) => ({ deviceId: d.deviceId, state: estado, success: true, message: 'OK' })),
+                });
             }
         }
         log(`${req.method} ${url.pathname} → 404 (ruta no mockeada)`);
