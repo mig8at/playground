@@ -1,5 +1,7 @@
 # Servicing · contexto
-> **estado:** al día con main · La **2ª mitad** del ciclo de vida, **después del Estado 11**: cartera, causación, mora y cobranza. Solo existe como ciclo REAL para CreditopX in-platform (rt=2/3); corre 100% en `application`.
+> **estado:** al día con main **con una corrección** (2026-07-19) · La **2ª mitad** del ciclo de vida, **después del Estado 11**: cartera, causación, mora y cobranza. Solo existe como ciclo REAL para CreditopX in-platform (rt=2/3); corre 100% en `application` **salvo el device-lock de SmartPay** (ver abajo).
+
+> ⚠ **CORRECCIÓN (2026-07-19, ver [findings F-39]):** la afirmación "0 crons de servicing en legacy" **ya no es cierta**. `app/Console/Kernel.php` de legacy-backend agenda HOY los 3 crons de cobranza por hardware (`app:lock-devices-past-due` 04:00 · `unlock-devices-paid` 05:00 · `unroll-devices-paid` 06:00) y **funcionan en local**: sembrando mora en `creditop_x_requests_history` (status 2, `days_past_due>=8`) sobre una solicitud con IMEI enrolado, el cron despacha el job, llama al MDM y persiste `device_locks` en `locked`. Receta completa y gotcha del contrato (`devices[]` → `results[]`) en el nodo **findings** (F-39). El RESTO del servicing (cascada de cobranza, intereses, seguros, capital) sí sigue 100% en `application`.
 
 
 ## Qué es

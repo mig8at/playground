@@ -1,6 +1,12 @@
 # Harness E2E · contexto
 > **estado:** al día con main (índice recién creado; los dos harness ya son linkeables) · La infra de PRUEBAS que ejercita la originación de crédito punta a punta. Dos arneses hermanos que espejan el mismo modelo `[canal] → [comercio] → [lender]`: **backend-e2e** (Go, sin navegador, contra el `legacy-backend` local) y **frontend-e2e** (Playwright/TS, maneja el wizard React real). Eje central: la **frontera de inyectabilidad** (rt=2/3 in-platform SÍ se inyectan; rt=1 lo decide una API externa).
 
+> **NOVEDADES 2026-07-18/19 (sesión de mocks + barrido headless; detalle en el nodo findings):**
+> - **Flota de mocks locales** (los levanta `bin/asesor` en target local): `mock-payvalida` :8097 (rt=1 Bancolombia, F-05) · `mock-mdm` :8098 (IMEI/device-lock, F-23/F-39) · `mock-lenders` :8099 (pasarela de entidades, Sistecrédito; rutas no mapeadas responden 200 y se loguean, F-25) · `mock-pdf-mapper` :8100 (docs sin plantilla Blade, ej. `vinculacion`, F-31). Además `pkg/pdf-mock.ts` (S3 falso de PDFs) y `pkg/wompi-mock.ts` ya cableados en `dev/guided.spec.ts`.
+> - **`dev/sweep.ts`** — recorredor headless: `matrix <slugs…>` (conducta de CADA entidad por comercio) y `close <slug> <lenderId>` (cierre rt=2/3/4 por API imitando al wizard; ramifica solo el path IMEI). Con él se barrieron los 24+2 comercios y se cerró Estado 11 en 4 entidades.
+> - **Regla de cierre headless**: `promissory_type_id=1` (ownership) cierra; `=2` (deceval) no (faltan credenciales X.509, F-36); excepción path IMEI (F-32). La conducta de una entidad la decide la **credencial del par** comercio×entidad (F-34).
+> - ⚠ el eje **ecommerce está STALE**: la ruta de checkout ya no existe en el wizard main (F-40) — `bin/ecommerce` y `channel/ecommerce-*.spec.ts` (listados abajo como verdes) hoy darían 404.
+
 ## Qué es
 Cuando necesitás **probar / ejercitar / mockear un flujo de originación** (¿este comercio ofrece este lender?, ¿el cierre llega a Estado 11?, ¿la notificación a la tienda dispara?, ¿el motor de riesgo rechaza este perfil?), estos dos repos son la herramienta. No son producto: son el arnés que corre el producto contra un stack local (o dev acotado) y **asevera** el resultado.
 

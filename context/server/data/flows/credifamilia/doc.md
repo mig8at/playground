@@ -1,6 +1,8 @@
 # Credifamilia · contexto
 > **estado:** al día con main · **Único lender `response_type = 4`**, híbrido: CreditOp origina in-platform pero el crédito se radica en Credifamilia por SOAP.
 
+> ⚠ **LOCAL (2026-07-19, ver findings F-31/F-36/F-37):** el recorrido in-platform corre casi entero por API en local — el muro NO es el SOAP de radicación. Bloqueos reales, en orden: (1) `vinculacion` vía `pdf-mapper-service` — único doc `default => 'microservice'` sin fallback Blade — **resuelto** con `mock-pdf-mapper` :8100; (2) pagaré **Deceval**: exige `deceval_cert`/`deceval_key` X.509 en la credencial del par, que **no existen en el dump** (la credencial trae claves `credifamilia_*`) → 502 `createGirador`, decisión de NO mockear; (3) firma **Netco**: `NETCO_PASSWORD_DERIVATION_SECRET` ausente — y Credifamilia es el ÚNICO lender que referencia `signing_providers` (los demás firman in-platform). Queda en estado 28. Bonus: su `confirm` revela el KYC (`crosscore_validation · crosscore_biometric_enrollment`) y `simulate-payment-schedule` da 500 sin detener el flujo.
+
 ## Qué es
 Credifamilia (lender **24**) es el único `response_type = 4` (un valor sin fila en el catálogo `response_types` 0-3). Es un **híbrido**: CreditOp origina **adentro** (identidad, plan de pagos, firma) como un CreditopX in-platform, pero el crédito se **radica en Credifamilia por SOAP** y lo gestiona el lender. Producto: **libranza privada de consumo** (`tipoProducto='Libranza'`).
 

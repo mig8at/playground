@@ -1,6 +1,8 @@
 # Ecommerce · contexto
 > **estado:** al día con main · **Canal / storefront** (eje 4 del negocio: response_type × producto × modo × **canal**). Cubre cómo la tienda del comercio (VTEX, WooCommerce, desarrollo propio) hace **handoff del carrito** a CreditOp y cómo CreditOp **vuelve al comercio** con el resultado. NO decide crédito ni cobra: solo transporta la orden y notifica el veredicto.
 
+> ⚠ **CORRECCIÓN (2026-07-19, ver findings F-40):** la puerta de entrada del front descrita abajo (`{front}/ecommerce/{hash}/checkout?o=…`) **ya no existe en el `loan-request-wizard` de main**: el prefijo `:flow/:partner_hash` de `routes.ts` no tiene hijo `checkout` y no hay `routes/ecommerce/checkout.tsx` (lo único "ecommerce" del wizard vive bajo `routes/bancolombia/*`, que es otro flujo). `GET /ecommerce/{hash}/checkout` → **404**. El lado backend sigue vivo (contrato base64, tablas, 10 comercios con credencial), pero el canal NO es ejercitable end-to-end contra el wizard actual, y el eje ecommerce del harness (`bin/ecommerce`, `channel/ecommerce-*.spec.ts`) quedó **stale**. Pregunta abierta para el equipo: ¿la ruta se movió, o el canal la absorbió el flujo Bancolombia?
+
 ## Qué es
 El **canal ecommerce** es el punto de entrada donde una **tienda online** (no un asesor en punto físico, no un link directo) inicia una solicitud de crédito CreditOp desde su checkout. El storefront empaqueta el carrito (monto, orden, comprador, URLs de retorno/callback) en un **contrato base64 unificado**, redirige al comprador al wizard de CreditOp, y al final recibe de vuelta el resultado (aprobado/negado) en su `process_url` + el comprador es redirigido a `return_url` ("volver al comercio").
 

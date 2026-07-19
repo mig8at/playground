@@ -1,6 +1,12 @@
 # SmartPay · contexto
 > **estado:** al día con main · Canal in-platform sobre un lender CreditopX con `path='IMEI'`: el celular financiado ES la garantía — salta el AML, difiere el desembolso hasta escanear el IMEI, y ejerce la cobranza por hardware (bloqueo MDM).
 
+> ⚠ **HALLAZGOS 2026-07-18/19 (detalle en el nodo findings, F-21..F-24, F-32, F-39):**
+> - **La originación distintiva está MUERTA fuera de producción**: `isSmartPay()` hardcodea el 160 pero fuera de prod el lender del canal es el 153 (config) — y en el dump local el 160 ni existe. Consecuencia: skip-AML, contrato de bloqueo y desembolso diferido NO son ejercitables en local/dev; probablemente el bug real es que `isSmartPay()` debería consumir `config('lenders.smartpay_lender_id')` (F-21).
+> - Con el 152 local, el cierre queda en 28: `device/disburse` muere en un null — inferencia: mezcla docs del path IMEI (solo consent+payment-schedule, sin pagaré) con expectativas de la autorización estándar (F-32). OJO además: en el path IMEI `authorize` NO se llama — la secuencia es `device/register` → `device/{ur}/disburse`, y llamar a authorize rompe el flujo.
+> - `requires_imei` **nunca se guarda**: no está en `Product::$fillable` y Eloquent lo descarta en silencio (F-24).
+> - El escaneo de IMEI y el ciclo lock/unlock/release SÍ corren en local contra `mock-mdm` (:8098) — enroll verificado (F-23) y el cron de mora persistiendo `device_locks=locked` (F-39).
+
 ## Qué es
 **SmartPay NO es un lender ni un `response_type` nuevos: es un CANAL** (branding + mailer propios) montado sobre un **lender CreditopX in-platform con `path='IMEI'`**. El producto financiado es un celular y **el celular ES la garantía**: en vez del pagaré Deceval + garantía + Netco de un CreditopX estándar, el cliente firma un único **"Acuerdo de bloqueo de dispositivo"** (`CreditopXConsent` tipo 3, contrato Pro Consumidor). Post-desembolso el equipo queda inscrito en un **MDM** (API `device-locking` del merchant-gateway, "Trustonic") que lo **bloquea por mora y lo desbloquea al pagar** — la cobranza es enforcement por hardware. Es de lo poco de **servicing ya migrado a `legacy-backend`** (el resto de la cartera CreditopX sigue en `application`).
 
