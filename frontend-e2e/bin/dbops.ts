@@ -61,10 +61,11 @@ try {
             // (getLenders: Lender::where('status',1)). `branch_status` = lenders_by_allied_branches.status,
             // que el listado NO respeta (resolveLenderIdsByBranch pluckea por branch sin filtrar lab.status) → informativo.
             r = await query(
-                `SELECT l.id, COALESCE(l.name,'') AS name, l.response_type AS rt, COALESCE(l.product,'credit') AS product, l.status AS lender_status, lab.status AS branch_status, COALESCE(la.sort, 9999) AS allied_sort
+                `SELECT l.id, COALESCE(l.name,'') AS name, l.response_type AS rt, COALESCE(l.product,'credit') AS product, COALESCE(p.name,'default') AS path, l.status AS lender_status, lab.status AS branch_status, COALESCE(la.sort, 9999) AS allied_sort
                  FROM allied_branches ab
                  JOIN lenders_by_allied_branches lab ON lab.allied_branch_id = ab.id
                  JOIN lenders l ON l.id = lab.lender_id
+                 LEFT JOIN paths p ON p.id = l.path_id
                  LEFT JOIN lenders_by_allieds la ON la.allied_id = ab.allied_id AND la.lender_id = l.id
                  WHERE ab.hash = ?
                  ORDER BY COALESCE(la.sort, 9999), l.response_type, l.name`,

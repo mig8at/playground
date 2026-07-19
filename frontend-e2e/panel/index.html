@@ -1011,7 +1011,12 @@
         (porRamal[r] ??= { on: [], off: [] })[Number(l.lender_status) === 1 ? 'on' : 'off'].push(l);
       }
       const hayCx = (porRamal.creditopx?.on || []).length > 0;
-      const hayRenting = (porRamal.creditopx?.on || []).some(l => l.product === 'renting');
+      // Un desvío se dibuja solo si alguna entidad PRENDIDA cumple lo que ese desvío declara en
+      // `requiere` (ej. product=renting para Ábaco, path=IMEI para SmartPay). Antes el gate estaba
+      // hardcodeado por id y le mostrábamos "Bloqueo IMEI" a Motai, que no tiene ningún lender IMEI.
+      const cumple = (req) => !req || lendersDelComercio.some(
+        (l) => Number(l.lender_status) === 1 && Object.entries(req).every(([k, v]) =>
+          Array.isArray(v) ? v.map(String).includes(String(l[k])) : String(l[k]) === String(v)));
 
       cam.innerHTML = '';
       const rieles = el('g', {}), nodos = el('g', {});
@@ -1046,7 +1051,7 @@
 
       // DESVÍOS: salen del tronco y REINGRESAN. Van ARRIBA (como en un grafo de git).
       for (const [id, d] of Object.entries(STEPS.desvios || {})) {
-        if (id === 'abaco' && !hayRenting) continue;          // solo si el comercio tiene renting prendido
+        if (!cumple(d.requiere)) continue;   // el desvío declara su condición; nada hardcodeado por id
         const a = idx[d.desde], b = idx[d.hasta];
         if (a == null || b == null) continue;
         const y = Y0 - G.fila, col = COLOR[id] || COLOR.abaco;

@@ -228,20 +228,6 @@
           "detalle": "Firma del pagaré por OTP"
         },
         {
-          "id": "security-validation",
-          "label": "Bloqueo IMEI",
-          "detalle": "Validación de seguridad del dispositivo (solo SmartPay / path IMEI)",
-          "ruta": "/{flow}/{hash}/{ur}/security-validation",
-          "front": [
-            "apps/loan-request-wizard/app/routes/security-validation.tsx"
-          ],
-          "back": [
-            "Modules/Loans/App/Http/Controllers/Customer/DeviceController.php"
-          ],
-          "condicional": true,
-          "nota": "CONDICIONAL: solo en el camino IMEI. otp-validation.tsx:171 rutea acá en vez de a Aprobado cuando metadata.lender_path === 'IMEI'. O sea Aprobado tiene DOS predecesores según el producto. Depende de una acción HUMANA fuera del wizard (el asesor escanea el IMEI); el wizard solo polea, y a los 20 intentos (~10 min) queda sin salida de ruta."
-        },
-        {
           "id": "loan-approved",
           "label": "Aprobado",
           "ruta": "/{flow}/{hash}/{ur}/loan-approved",
@@ -363,6 +349,44 @@
           ],
           "nota": "Segundo factor de la plataforma gig. Al completar, la action rutea por step_details.type: no_validation_required → first-payment-date (platform-otp-validation.tsx:251). Ahí REINGRESA al tronco.",
           "detalle": "Segundo factor de la plataforma gig"
+        }
+      ],
+      "requiere": {
+        "product": "renting",
+        "rt": [
+          2,
+          3,
+          4
+        ]
+      }
+    },
+    "imei": {
+      "label": "Bloqueo IMEI · SmartPay",
+      "cuando": "Solo con lenders de path='IMEI' (canal SmartPay: el celular financiado es la garantía). otp-validation.tsx:171 rutea acá en vez de a Aprobado cuando metadata.lender_path==='IMEI'. O sea Aprobado tiene DOS predecesores según el producto.",
+      "requiere": {
+        "path": "IMEI",
+        "rt": [
+          2,
+          3,
+          4
+        ]
+      },
+      "desde": "otp-validation",
+      "hasta": "loan-approved",
+      "pasos": [
+        {
+          "id": "security-validation",
+          "label": "Bloqueo IMEI",
+          "detalle": "Validación de seguridad del dispositivo (solo SmartPay / path IMEI)",
+          "ruta": "/{flow}/{hash}/{ur}/security-validation",
+          "front": [
+            "apps/loan-request-wizard/app/routes/security-validation.tsx"
+          ],
+          "back": [
+            "Modules/Loans/App/Http/Controllers/Customer/DeviceController.php"
+          ],
+          "condicional": true,
+          "nota": "CONDICIONAL: solo en el camino IMEI. otp-validation.tsx:171 rutea acá en vez de a Aprobado cuando metadata.lender_path === 'IMEI'. O sea Aprobado tiene DOS predecesores según el producto. Depende de una acción HUMANA fuera del wizard (el asesor escanea el IMEI); el wizard solo polea, y a los 20 intentos (~10 min) queda sin salida de ruta."
         }
       ]
     }
