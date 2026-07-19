@@ -420,6 +420,20 @@ test('guided (semiautomático)', async ({ browser }) => {
             [HASH],
         ).catch(() => null);
         if (!wompiCred) log('⚠ esta sucursal NO tiene credencial de Wompi (#52): si el lender pide cuota inicial, el pago va a fallar. Sembrala con seedWompiCredential() de merchant/seed.ts');
+
+        // El OTP de la FIRMA del pagaré (último paso antes de aprobar) sale por Twilio, que en local no tiene
+        // credenciales → 401. El backend tiene un bypass de QA: si el teléfono está en el setting
+        // `qa_otp_bypass_phones` (y APP_ENV es local/development), NO manda SMS y el código son los últimos 6
+        // dígitos del propio celular. Si el teléfono NO está en esa lista, "Firmar" falla en silencio: el
+        // action del wizard se traga la excepción y te devuelve a sign-documents una y otra vez.
+        const bypass = await one<{ value: string }>("SELECT value FROM settings WHERE `key` = 'qa_otp_bypass_phones' LIMIT 1").catch(() => null);
+        let bypassed = false;
+        try { bypassed = JSON.parse(bypass?.value ?? '[]').map(String).includes(PHONE); } catch { /* valor no-JSON */ }
+        if (!bypassed) {
+            log(`⚠ ${PHONE} NO está en el setting 'qa_otp_bypass_phones' → el OTP de la firma se irá a Twilio y`);
+            log('   fallará con 401. "Firmar" va a rebotar a los documentos SIN mensaje de error. Arreglo (local):');
+            log(`   UPDATE settings SET value = JSON_ARRAY_APPEND(value, '$', '${PHONE}') WHERE \`key\`='qa_otp_bypass_phones';`);
+        }
         return ur;
     }
 
