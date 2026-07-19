@@ -978,13 +978,15 @@
     const curva = (x1, y1, x2, y2) => { const k = Math.max(26, (x2 - x1) * 0.45); return `M ${x1} ${y1} C ${x1 + k} ${y1}, ${x2 - k} ${y2}, ${x2} ${y2}`; };
     const riel = (d, color) => el('path', { d, stroke: color, 'stroke-width': 6, 'stroke-linecap': 'round', fill: 'none' });
 
-    function nodoSVG(p, x, y, color, maxLbl = 17) {
+    function nodoSVG(p, x, y, color) {
       const g = el('g', { class: 'nodo', transform: `translate(${x},${y})` });
       const nf = (p.front || []).length, nb = (p.back || []).length;
       const files = [...(p.front || []).map(f => 'front  ' + f), ...(p.back || []).map(f => 'back   ' + f)];
-      g.appendChild(el('title', {}, `${p.label}${p.ruta ? '\n' + p.ruta : ''}\n\n${p.nota || ''}\n\n── ${nf} archivo(s) front · ${nb} back ──\n${files.join('\n')}`));
+      // el label del nodo es CORTO a propósito (legibilidad del grafo); el nombre descriptivo y el
+      // detalle técnico viven acá, en el tooltip.
+      g.appendChild(el('title', {}, `${p.detalle || p.label}${p.ruta ? '\n' + p.ruta : ''}\n\n${p.nota || ''}\n\n── ${nf} archivo(s) front · ${nb} back ──\n${files.join('\n')}`));
       g.appendChild(el('circle', { r: 9, fill: color }));
-      g.appendChild(el('text', { class: 'nlbl', x: 0, y: 26, 'text-anchor': 'middle' }, corto(p.label, maxLbl)));
+      g.appendChild(el('text', { class: 'nlbl', x: 0, y: 26, 'text-anchor': 'middle' }, p.label));
       g.appendChild(el('text', { class: 'nnum', x: 0, y: 39, 'text-anchor': 'middle' }, `${nf} · ${nb}`));
       return g;
     }
@@ -1034,7 +1036,7 @@
         rieles.appendChild(riel(curva(X(a), Y0, xs[0], y), col));
         if (xs.length > 1) rieles.appendChild(riel(`M ${xs[0]} ${y} L ${xs[xs.length - 1]} ${y}`, col));
         rieles.appendChild(riel(curva(xs[xs.length - 1], y, X(b), Y0), col));   // ← el REINGRESO
-        d.pasos.forEach((p, i) => nodos.appendChild(nodoSVG(p, xs[i], y, col, 12)));
+        d.pasos.forEach((p, i) => nodos.appendChild(nodoSVG(p, xs[i], y, col)));
         const t = el('text', { class: 'nram', x: xs[0], y: y - 26, fill: col }, d.label);
         t.appendChild(el('title', {}, d.cuando || ''));
         nodos.appendChild(t);
