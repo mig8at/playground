@@ -6,6 +6,17 @@
 //   la tienda arma una URL con el pedido serializado en base64, el backend la decodifica, CREA la
 //   solicitud y redirige al wizard. Sin esto, todo el tramo tienda→backend→wizard quedaba sin probar.
 //
+// QUIÉN PRODUCE ESTA URL DE VERDAD: el plugin de WooCommerce, `playground/creditop-woocommerce`
+//   (`class-creditop-gateway.php:470-512`). Es la fuente autoritativa del contrato — esto lo imita.
+//   Dos diferencias reconciliadas contra él:
+//   · SERIALIZACIÓN: el plugin manda `o` y `u` PHP-serializados y `p` como JSON; acá va todo JSON.
+//     Las dos funcionan: `deserializeData` (:767-787) intenta `unserialize` y cae a `json_decode`,
+//     y castea array→objeto en ambos casos.
+//   · DESTINO: el plugin apunta a `{front}/ecommerce/{hash}/checkout` (la LANDING del wizard); acá
+//     pegamos al endpoint del BACKEND. No es capricho: esa landing no existe en la rama actual — vive
+//     solo en `feat/ecommerce-checkout-integration` (F-54). O sea el plugin apunta hoy a una ruta que
+//     el wizard de esta rama no tiene.
+//
 // CONTRATO (leído de Modules/Onboarding/App/Http/Controllers/CorbetaCheckoutController.php:119-146):
 //   GET /api/onboarding/checkout/{allied_branch_hash}?o=&p=&t=&u=&ps=[&config=]
 //     o  = order      (JSON b64) — DEBE traer `billing` y `total`, si no: SP20754

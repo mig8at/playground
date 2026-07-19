@@ -883,6 +883,16 @@ Dato de contexto: `feature/onboarding/ecommerce-continue-route` (junio, ya en `d
 
 El wizard aterriza en **`/no-preapproved`** —la pantalla de "no preaprobado" de Bancolombia— y la corrida termina en timeout esperando una pantalla a la que nunca va a llegar. Sin la traza, eso se veía como un cuelgue mudo de 5 minutos; con ella, el diagnóstico está en la primera línea.
 
+**Confirmado desde el OTRO extremo: el plugin de WooCommerce.** `playground/creditop-woocommerce` (v1.0.20, lo que el comercio instala) es el productor real de esa URL, y en `class-creditop-gateway.php:507` apunta a:
+
+```php
+$redirect_url = $base . '/ecommerce/' . $hash . '/checkout' . '?o=' . …
+```
+
+O sea **el plugin apunta hoy a la landing que esta rama no tiene**. El propio comentario del plugin avisa del cambio de path (`/ecommerce/{hash}/checkout`, no `/checkout/{hash}` como el monolito viejo), así que la ruta se movió y el wizard de `main`/`develop` no la acompañó. Si producción funciona, es porque corre una rama que sí la tiene.
+
+**Detalle de serialización, para quien reimplemente el contrato:** el plugin manda `o` y `u` **PHP-serializados** (`serialize()`) y `p` como JSON. Las dos formas funcionan: `deserializeData` (`CorbetaCheckoutController.php:767-787`) intenta `unserialize`, cae a `json_decode`, y castea array→objeto en ambos casos. El harness manda todo JSON y el backend lo acepta igual.
+
 **Para correr un comercio CreditopX (Pullman) por ecommerce hace falta la landing genérica de la rama de abril.** Con lo que hay en `develop`, la entrada base64 solo tiene sentido para comercios Bancolombia.
 
 ### F-55 · El ruteo de validación de identidad tiene tres agujeros que CANCELAN el crédito
