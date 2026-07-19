@@ -713,6 +713,18 @@
         <p id="injhint" style="color:var(--mut);font-size:12px;margin:8px 0 0"></p>
       </div>
 
+      <!-- CANAL de entrada: por dónde ENTRA la solicitud. Asesor = login Cognito + wizard en /merchant.
+           Ecommerce = la tienda arma una URL base64 con el pedido y el cliente aterriza redirigido. El
+           usuario sintético es el MISMO en los dos: lo único que cambia es la puerta. -->
+      <div class="field" style="margin-top:16px">
+        <label>Canal de entrada</label>
+        <div class="seg" id="canal">
+          <button class="on" data-c="asesor">Asesor · login + wizard</button>
+          <button data-c="ecommerce">Ecommerce · URL base64</button>
+        </div>
+        <p id="canalhint" style="color:var(--mut);font-size:12px;margin:8px 0 0"></p>
+      </div>
+
       <div id="synthbody">
         <!-- Identidad COLAPSADA: 6 campos que se autogeneran (cédula/email) o casi nunca movés. El resumen
              de la derecha muestra lo elegido sin desplegar; lo que sí tocás (ingreso/score) queda arriba. -->
@@ -822,6 +834,7 @@
     let sel = MERCHANTS[0];      // Motai por defecto
     let target = 'local';        // local | dev (staging pendiente)
     let inject = true;           // true = inyecta buró sintético (salta consulta real) · false = prueba real
+    let canal = 'asesor';        // por dónde ENTRA la solicitud: 'asesor' (login + wizard) | 'ecommerce' (URL base64)
     let doctype = 'CC';
     let gender = 'M';
     let step = 'monto';          // dónde saltar: monto | phone | personal-info | lenders
@@ -1139,6 +1152,18 @@
       document.querySelectorAll('#' + groupId + ' button').forEach(b => b.classList.toggle('on', b.dataset.v === val));
     }
 
+    // El canal cambia la PUERTA, no el usuario: el sintético es el mismo y la URL base64 lo lleva
+    // adentro, así podés comparar el mismo caso entrando por asesor y por tienda.
+    function applyCanal() {
+      document.querySelectorAll('#canal button').forEach(b => b.classList.toggle('on', b.dataset.c === canal));
+      $('canalhint').innerHTML = canal === 'asesor'
+        ? 'Login de asesor (Cognito) y el wizard abre en monto.'
+        : 'La tienda arma una URL base64 con el pedido y el usuario sintético; el cliente aterriza redirigido, sin asesor. '
+          + '<b style="color:var(--warn)">⚠ Hoy aterriza en el resolvedor de Bancolombia</b>, que cancela si el comercio es '
+          + 'CreditopX (F-54): la landing genérica del wizard no está en esta rama. Sirve para ejercitar el contrato, no para cerrar.';
+      updateGo();
+    }
+
     function togglePep() {                                       // PEP = sin buró → atenúa score/negativos/consultas
       const pep = doctype === 'PEP';
       document.querySelectorAll('.buro').forEach(el => el.classList.toggle('buro-off', pep));
@@ -1163,7 +1188,7 @@
     async function launch() {
       if (!sel) return;
       const body = {
-        slug: sel.slug, target, inject, stepTarget: step, amount: moneyNum('amount'), paDelay: padelay, documentType: doctype, gender,
+        slug: sel.slug, target, inject, canal, stepTarget: step, amount: moneyNum('amount'), paDelay: padelay, documentType: doctype, gender,
         name: $('name').value.trim(), document: $('document').value.trim(),
         age: +$('age').value, dob: $('dob').value, expeditionDate: $('expedition').value,
         email: $('email').value.trim(), occupation: $('occupation').value,
@@ -1239,6 +1264,7 @@
       updateGo();
     }
     document.querySelectorAll('#injmode button').forEach(b => b.onclick = () => { if (b.disabled) return; inject = b.dataset.i === '1'; applyInjMode(); });
+    document.querySelectorAll('#canal button').forEach(b => b.onclick = () => { canal = b.dataset.c; applyCanal(); });
 
     // Real (buró + OTP reales) NO existe en local → solo dev/staging. En local se fuerza Sintético.
     function updateInjModeForTarget() {
@@ -1248,6 +1274,7 @@
       realBtn.title = realOk ? '' : 'Real no disponible en local (sin envío de OTP ni burós reales)';
       if (!realOk) inject = true;   // local → Sintético obligado
       applyInjMode();
+      applyCanal();
     }
 
     ['name', 'document', 'age', 'dob', 'expedition', 'email', 'occupation', 'score', 'negatives', 'consulted']
@@ -1279,6 +1306,7 @@
     loadSteps();         // mapa de tren (panel/steps.json + verificación de rutas)
     loadLenders();       // lenders de la sucursal del comercio seleccionado (toggle ON/OFF)
     updateInjModeForTarget();   // estado inicial (en local, Real deshabilitado → Sintético)
+    applyCanal();               // canal por defecto: asesor
     refresh();           // Motai preseleccionado → botón habilitado
     startPoll();         // engancharse si había una corrida activa
   </script>

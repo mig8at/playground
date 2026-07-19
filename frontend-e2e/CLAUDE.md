@@ -86,6 +86,24 @@ es el árbol de `context`: 33 nodos, 342 archivos compartidos, 1.578 aristas imp
 - **Validá siempre después de tocarlo:** `node bin/steps-check.ts` (sale ≠0 si alguna ruta no existe). El
   panel además muestra un aviso si el chequeo falla — un conteo que ya no resuelve es peor que nada.
 
+## Canal de entrada: asesor · ecommerce
+
+El panel tiene un selector de **canal** (junto al del buró). Cambia la PUERTA, no el caso: el usuario
+sintético es el mismo y viaja **adentro** de la URL base64, así podés correr la misma identidad entrando
+por asesor y por tienda y comparar.
+
+- `asesor` → `bin/asesor`, login Cognito, wizard en `/merchant`.
+- `ecommerce` → `bin/ecommerce` + `E2E_ENTRY=ecommerce`; el spec arma la URL con `pkg/checkout-b64.ts`.
+
+⚠ **Hoy el canal ecommerce NO cierra un crédito CreditopX.** Aterriza en `resolve-ecommerce-flow`, que es
+el resolvedor de **Bancolombia**, y para un comercio CreditopX el flowType sale `no_preapproved` y su
+loader **cancela** (F-54). Sirve para ejercitar el contrato base64 —que funciona y crea la solicitud—, no
+para llegar a Aprobado. Falta portar la landing genérica (`checkout-redirection.tsx`), que vive solo en
+`feat/ecommerce-checkout-integration`.
+
+La fuente autoritativa del contrato es el plugin real: `playground/creditop-woocommerce`
+(`class-creditop-gateway.php:470-512`). Está reconciliado en la cabecera de `pkg/checkout-b64.ts`.
+
 ## Reglas sueltas
 
 - **No corras `npm test` pelado**: colecta 98 tests en 35 archivos e incluye `dev/guided.spec.ts`, que es

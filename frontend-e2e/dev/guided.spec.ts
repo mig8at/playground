@@ -520,10 +520,18 @@ test('guided (semiautomático)', async ({ browser }) => {
         //
         // Antes esto dependía de que `bin/asesor` exportara E2E_CHECKOUT_URL y esperaba `/solicitar|checkout`,
         // que NO es donde aterriza el flujo real → se quedaba colgado. Ahora la URL se arma acá.
+        // El pedido lleva EL MISMO usuario sintético que definiste en el panel. Ese es el punto del
+        // canal: no cambia el caso, cambia la PUERTA — así podés correr la misma identidad entrando por
+        // asesor y por tienda, y comparar. Los campos salen de las E2E_SYNTH_* que setea el panel.
+        const nombre = (process.env.E2E_SYNTH_NAME || 'SYNTH TEST USER').trim().split(/\s+/);
         const pedido = {
             total: Number(AMOUNT) || 1_500_000,
             phone: PHONE,
             documentNumber: process.env.E2E_SYNTH_DOC || String(2_900_000_000 + Math.floor(Number(AMOUNT) || 0) % 90_000_000),
+            documentType: process.env.E2E_SYNTH_DOCTYPE || 'CC',
+            firstName: nombre[0] || 'SYNTH',
+            lastName: nombre.slice(1).join(' ') || 'TEST USER',
+            email: process.env.E2E_SYNTH_EMAIL || undefined,
             returnUrl: RETURN_URL,
         };
         // el checkout rebota con BP12700001 si el teléfono ya tiene usuario con OTRA identidad

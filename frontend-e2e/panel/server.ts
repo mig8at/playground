@@ -80,11 +80,14 @@ interface Profile { income?: number; score?: number; name?: string; documentType
 // RASTRO de la corrida: vuelca TODO lo que elegiste en el panel al log, para que quede registro de con qué
 // configuración corriste (antes solo salía el perfil, como un JSON crudo, y los selects de pre-aprobación y
 // el ON/OFF de lenders no aparecían en ningún lado).
-async function runHeader(slug: string, p: Profile, t: string, inject: boolean, step: string, amt: number, paDelay: number): Promise<string> {
+async function runHeader(slug: string, p: Profile, t: string, inject: boolean, step: string, amt: number, paDelay: number, canal = 'asesor'): Promise<string> {
     const money = (n: number) => `$${n.toLocaleString('es-CO')}`;
     const row = (k: string, v: string) => `   ${k.padEnd(13)}${v}`;
     const L: string[] = [
         `▶ CORRIDA · ${slug} (${t})`,
+        row('canal', canal === 'ecommerce'
+            ? 'ECOMMERCE — entra por URL base64 de la tienda (sin asesor)'
+            : 'ASESOR — login Cognito + wizard'),
         row('modo', inject ? 'SINTÉTICO — inyecta el buró (salta la consulta real)' : 'REAL — consulta el buró de verdad, sin inyección'),
         row('saltar a', step === 'monto' ? 'monto (manejás todo vos)' : step),
         row('monto', money(amt)),
@@ -117,18 +120,21 @@ async function runHeader(slug: string, p: Profile, t: string, inject: boolean, s
     return L.join('\n') + '\n';
 }
 
-async function launch(slug: string, profile: Profile, target: string, inject: boolean, stepTarget: string, amount: number, paDelay: number): Promise<{ ok: boolean; msg: string }> {
+async function launch(slug: string, profile: Profile, target: string, inject: boolean, stepTarget: string, amount: number, paDelay: number, canal = 'asesor'): Promise<{ ok: boolean; msg: string }> {
     if (current && !current.done) return { ok: false, msg: `ya hay una corrida activa (${current.slug}). Parala primero.` };
     const t = TARGETS.has(target) ? target : 'local';
     const step = ['monto', 'phone', 'personal-info', 'lenders'].includes(stepTarget) ? stepTarget : 'monto';
     const amt = amount > 0 ? Math.round(amount) : 2_000_000; // monto solicitado (default 2M)
     const mode = inject ? 'manual + inyección de buró' : 'manual REAL (consulta buró real, sin inyección)';
     const jump = step === 'monto' ? '' : ` · salto → ${step}`;
-    writeFileSync(RUN_LOG, await runHeader(slug, profile, t, inject, step, amt, paDelay));
+    writeFileSync(RUN_LOG, await runHeader(slug, profile, t, inject, step, amt, paDelay, canal));
     const env = {
         ...envFor(t),
         // switch del panel: ON → inyecta el buró (salta la consulta real); OFF → sin inyección (consulta real).
         E2E_INJECT: inject ? '1' : '',
+        // CANAL: 'ecommerce' hace que el spec entre por la URL base64 (pkg/checkout-b64.ts) en vez del
+        // login de asesor. El usuario sintético es el MISMO — viaja adentro del pedido serializado.
+        E2E_ENTRY: canal === 'ecommerce' ? 'ecommerce' : 'cognito',
         // salto de pasos: monto (vos manejás) | phone | personal-info | lenders (auto-avanza inyectando el sintético).
         E2E_STEP_TARGET: step,
         // monto solicitado (lo usa el spec para sembrar/monto y el /lenders?amount=).
@@ -151,7 +157,8 @@ async function launch(slug: string, profile: Profile, target: string, inject: bo
     };
     // detached → el hijo lidera su propio grupo de procesos; así "Detener" mata el ÁRBOL entero
     // (bash → npx playwright → node → chromium), no solo el bash.
-    const child = spawn('/bin/bash', [join(ROOT, 'bin', 'asesor'), slug], { cwd: ROOT, env, detached: true });  // sin `auto` → manual
+    const bin = canal === 'ecommerce' ? 'ecommerce' : 'asesor';   // bin/ecommerce es un wrapper que exporta CFE_ENTRY
+    const child = spawn('/bin/bash', [join(ROOT, 'bin', bin), slug], { cwd: ROOT, env, detached: true });  // sin `auto` → manual
     current = { child, slug, startedAt: Date.now(), done: false, code: null };
     const append = (b: Buffer) => { try { writeFileSync(RUN_LOG, b.toString(), { flag: 'a' }); } catch {} };
     child.stdout?.on('data', append);
@@ -289,7 +296,7 @@ const server = createServer(async (req, res) => {
             dob: b.dob ? String(b.dob) : undefined,
             expeditionDate: b.expeditionDate ? String(b.expeditionDate) : undefined,
             email: b.email ? String(b.email) : undefined,
-        }, String(b.target || 'local'), b.inject !== false, String(b.stepTarget || 'monto'), Number(b.amount) || 0, Number(b.paDelay) || 0));
+        }, String(b.target || 'local'), b.inject !== false, String(b.stepTarget || 'monto'), Number(b.amount) || 0, Number(b.paDelay) || 0, String(b.canal || 'asesor')));
     }
 
     if (path === '/api/status') {
