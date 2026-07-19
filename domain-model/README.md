@@ -7,11 +7,11 @@ CreditOp: 105 entidades agrupadas en 8 contextos, cada una con su mapeo a la tab
 >
 > Todo lo que ves acá es el **DEBER-SER** — un rediseño propuesto, no lo que corre en producción.
 > Ninguna de estas tablas existe con esta forma en la BD. Si venís a entender **cómo funciona
-> CreditOp HOY**, este no es el lugar: andá a **[`../context/ROUTE-MAP.md`](../context/ROUTE-MAP.md)**
+> CreditOp HOY**, este no es el lugar: andá a **[`../context/docs/ROUTE-MAP.md`](../context/docs/ROUTE-MAP.md)**
 > (índice del árbol de contexto, 33 nodos con su "cuándo usar cada uno") y arrancá por
 > [`../context/server/data/flows/creditop/doc.md`](../context/server/data/flows/creditop/doc.md).
 >
-> El puente entre ambos mundos vive **acá adentro**: [`CONTEXT.md`](CONTEXT.md) (what-is en inglés,
+> El puente entre ambos mundos vive **acá adentro**: [`CONTEXT.md`](docs/CONTEXT.md) (what-is en inglés,
 > con rutas de archivo) y [`docs/audit/REALIDAD-ACTUAL.md`](docs/audit/REALIDAD-ACTUAL.md) (lo mismo
 > en español). Los dos son de **2026-06-03**: tratalos como fotos con fecha, no como estado vivo.
 
@@ -198,7 +198,7 @@ Están en orden cronológico de cómo se construyó el modelo; cada `apply-*` hi
 
 | Doc | Qué aporta |
 |---|---|
-| [`CONTEXT.md`](CONTEXT.md) | **What-is en inglés** (2026-06-03): flujos end-to-end con rutas de archivo y línea, motor SQL de scoring, cierre por lender, deuda técnica. Para no releer `legacy-backend`/`application`. |
+| [`CONTEXT.md`](docs/CONTEXT.md) | **What-is en inglés** (2026-06-03): flujos end-to-end con rutas de archivo y línea, motor SQL de scoring, cierre por lender, deuda técnica. Para no releer `legacy-backend`/`application`. |
 | [`CLAUDE.md`](CLAUDE.md) | Cómo consultar la BD local + convención de `entidad.legacy` + resumen de la arquitectura real. |
 | [`docs/audit/ALINEAMIENTO.md`](docs/audit/ALINEAMIENTO.md) | El barrido modelo↔tablas reales: 0 refs rotas, 30 hallazgos de columna, gap inverso de 135 tablas no cubiertas. |
 | [`docs/audit/REALIDAD-ACTUAL.md`](docs/audit/REALIDAD-ACTUAL.md) | Versión española y larga del what-is. |

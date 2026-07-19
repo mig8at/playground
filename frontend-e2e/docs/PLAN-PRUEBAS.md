@@ -1,10 +1,13 @@
 > Backlog accionable del harness **frontend-e2e** (Playwright) contra el `legacy-backend` local en modo mock.
 > Este doc NO lleva el "estado por flujo" (eso es de [`VALIDATION.md`](VALIDATION.md)); aquí queda solo **lo que
 > falta**: testids pendientes (con rutas reales), helpers de cierre por construir, y el orden de trabajo.
-> Quickstart/setup en [`README.md`](README.md); negocio (response_type, estados) en
-> [`../docs/NEGOCIO.md`](../docs/NEGOCIO.md); mapa FE↔BE en [`../docs/MAPA-FLUJOS.md`](../docs/MAPA-FLUJOS.md).
+> Quickstart/setup en [`README.md`](../README.md); negocio (response_type, estados) en
+> `docs/NEGOCIO.md` *(histórico)*; mapa FE↔BE en `docs/MAPA-FLUJOS.md` *(histórico)*.
 
 # PLAN DE PRUEBAS — backlog frontend-e2e (Playwright)
+
+> ⚠ Los `docs/*.md` que se citan abajo vivían en `playground/docs/`, **borrada de `main`** (absorbida por el árbol de `context/`). Quedan como referencia histórica; para leer una: `git show 159906a:docs/<archivo>`.
+
 
 ## Premisa (corregida)
 
@@ -15,18 +18,18 @@ date-selector + `initial-fee-input`), el **selector de lender genérico** `lende
 (`lenders-marketplace/.../LenderCardContent.tsx:259`) y los testids `sp-*` del formulario dinámico SmartPay.
 
 El muro real es la **config de lender del mirror local** (verificado por captura de red; ver
-[`lender/close.ts`](lender/close.ts):23-34): los dos rt=2 candidatos rutean a destinos externos/rotos —
+[`lender/close.ts`](../lender/close.ts):23-34): los dos rt=2 candidatos rutean a destinos externos/rotos —
 **#77** exige cuota inicial y redirige a **Wompi hosted checkout** (página externa; `WOMPI_MOCK` aplica al
 webhook, no al checkout), y **#37** responde `["redirect","/self-service/bb534d6a/{id}/continue?url=null",302]`
 → `/continue?url=null` da **404**. Agregar más testids (Grupo B/C) **no desbloquea** porque la UI nunca alcanza
 esas pantallas. El cierre rt=2 → Estado 11 **ya está validado en backend** (`backend-e2e: go run . asesor
 3e67eade 77`, que fuerza `initial_fee=0` y el estado, sin Wompi ni la ruta `/continue`). Lo distintivo de cada
-cierre por `response_type` se documenta en [`../docs/REFERENCIA-FLUJOS.md`](../docs/REFERENCIA-FLUJOS.md) y su
-espejo Go en [`../backend-e2e/lender/closes.go`](../backend-e2e/lender/closes.go).
+cierre por `response_type` se documenta en `docs/REFERENCIA-FLUJOS.md` *(histórico)* y su
+espejo Go en [`../backend-e2e/lender/closes.go`](../../backend-e2e/lender/closes.go).
 
 **Acceso a `/merchant/*`** (Motai, SmartPay): se resuelve con **login Cognito real + mutex de cuenta**, NO con el
 obsoleto `DEV_SESSION`/`X-Dev-Session`. Ver detalle en [`VALIDATION.md`](VALIDATION.md) (§`/merchant/*` y §Mutex):
-`.cognito.json` (gitignored) + [`pkg/account-lock.ts`](pkg/account-lock.ts) re-apunta la cuenta de prueba
+`.cognito.json` (gitignored) + [`pkg/account-lock.ts`](../pkg/account-lock.ts) re-apunta la cuenta de prueba
 (1827080) al comercio bajo prueba y la restaura. El viejo `mock-server :4000`/`validation-driven` fue **eliminado**.
 
 **Estado por flujo (qué está verde / fixme / por qué): ver [`VALIDATION.md`](VALIDATION.md).** Lo de abajo es el
@@ -43,22 +46,22 @@ stack local vía `docker exec` (mysql/tinker). Enlazamos las firmas Go en vez de
 
 | Helper / spec | Archivo | Espejo backend | Qué hace |
 |---|---|---|---|
-| `sql(query)` | [`merchant/seed.ts`](merchant/seed.ts):18 | — | `docker exec legacy-backend-mysql-1 mysql -uroot -ppassword creditop -N -B -e` |
+| `sql(query)` | [`merchant/seed.ts`](../merchant/seed.ts):18 | — | `docker exec legacy-backend-mysql-1 mysql -uroot -ppassword creditop -N -B -e` |
 | `userIdByPhone` | `merchant/seed.ts`:39 | — | último `users.id` por `cell_phone` |
 | `seedApprovedProfile(phone,uReqID,score=750)` | `merchant/seed.ts`:49 | `SeedApprovedProfile` | edad/género/email + field 29/87 + `RiskCentralUserData` |
 | `seedRiskProfile(phone,uReqID,{score,negatives,reportado})` | `merchant/seed.ts`:69 | `SeedRiskProfile` | perfil de riesgo controlado (field 160 reportado) para forzar oferta |
 | `setStatusAndLender(uReqID,statusID,lenderID)` | `merchant/seed.ts`:93 | `SetStatusAndLender` | `UPDATE user_requests` (status/lender/rate/fee/initial_fee=0) |
 | `forceOtpValidation(phone)` | `merchant/seed.ts`:100 | `ForceOtpValidation` | `UPDATE otps SET validated=1` |
-| `seedAndOfferLender(page,hash,id,opts)` | [`lender/close.ts`](lender/close.ts):52 | — | siembra perfil → recarga `/lenders` → asegura `lender-action-{id}` visible. ✅ verificado #77 en `3e67eade` |
+| `seedAndOfferLender(page,hash,id,opts)` | [`lender/close.ts`](../lender/close.ts):52 | — | siembra perfil → recarga `/lenders` → asegura `lender-action-{id}` visible. ✅ verificado #77 en `3e67eade` |
 | `creditopXClose(page,hash,id)` | `lender/close.ts`:72 | `CreditopXClose` | ⛔ hoy **lanza** con el diagnóstico del muro de config (Wompi #77 / continue?url=null #37). No es un TODO vacío |
-| `runHappyPathUntilLenders` + pasos | [`channel/steps.ts`](channel/steps.ts):26-137 | — | amount/phone/otp/personal/expedition/employment → `/lenders`; maneja ruteo post-OTP real |
-| `creditopx-close.spec.ts` | [`lender/creditopx-close.spec.ts`](lender/creditopx-close.spec.ts) | — | ✅ VERDE: el marketplace OFRECE #77 (rt=2) seleccionable por UI; cierre completo en `.fixme` |
-| `smartpay-dynamic.spec.ts` | [`merchant/smartpay-dynamic.spec.ts`](merchant/smartpay-dynamic.spec.ts) | — | ✅ VALIDADO completo (5 pasos dinámicos → `/lenders`) |
-| `ecommerce-notify.spec.ts` | [`channel/ecommerce-notify.spec.ts`](channel/ecommerce-notify.spec.ts) | — | ✅ VALIDADO: `notify-store` → POST a `process_url` con `{status:'completed'}` (listener local) |
-| mutex + `pointAccount` | [`pkg/account-lock.ts`](pkg/account-lock.ts) | — | re-apunta la cuenta 1827080 al comercio bajo prueba; serializa Motai/SmartPay |
-| `cognitoLogin` | [`pkg/cognito.ts`](pkg/cognito.ts) | — | driven el Hosted UI de Cognito (login.creditop.com) |
+| `runHappyPathUntilLenders` + pasos | [`channel/steps.ts`](../channel/steps.ts):26-137 | — | amount/phone/otp/personal/expedition/employment → `/lenders`; maneja ruteo post-OTP real |
+| `creditopx-close.spec.ts` | [`lender/creditopx-close.spec.ts`](../lender/creditopx-close.spec.ts) | — | ✅ VERDE: el marketplace OFRECE #77 (rt=2) seleccionable por UI; cierre completo en `.fixme` |
+| `smartpay-dynamic.spec.ts` | [`merchant/smartpay-dynamic.spec.ts`](../merchant/smartpay-dynamic.spec.ts) | — | ✅ VALIDADO completo (5 pasos dinámicos → `/lenders`) |
+| `ecommerce-notify.spec.ts` | [`channel/ecommerce-notify.spec.ts`](../channel/ecommerce-notify.spec.ts) | — | ✅ VALIDADO: `notify-store` → POST a `process_url` con `{status:'completed'}` (listener local) |
+| mutex + `pointAccount` | [`pkg/account-lock.ts`](../pkg/account-lock.ts) | — | re-apunta la cuenta 1827080 al comercio bajo prueba; serializa Motai/SmartPay |
+| `cognitoLogin` | [`pkg/cognito.ts`](../pkg/cognito.ts) | — | driven el Hosted UI de Cognito (login.creditop.com) |
 
-> Nota: [`lender/README.md`](lender/README.md) está **desactualizado** (dice "vacío por ahora", pero `close.ts`
+> Nota: [`lender/README.md`](../lender/README.md) está **desactualizado** (dice "vacío por ahora", pero `close.ts`
 > ya existe). No usarlo como fuente; pendiente de actualizar.
 
 ### ⏸️ Lo que falta construir
@@ -69,12 +72,12 @@ stack local vía `docker exec` (mysql/tinker). Enlazamos las firmas Go en vez de
   `min_initial_fee=0` y sin redirect externo (arreglar config de lender en BD) o un mock del checkout Wompi.
 - **`revolvingClose` (rt=3)**: reusa el ciclo Creditop X + `RevolvingCreditIntro`/`LoanConfirmation` (Grupo D).
   Mismo bloqueo de config + seed rt=3 (`seedRiskProfile` para que el marketplace ofrezca #71).
-- **`runTripletAndClose(page, t)`** en [`e2e/triplet.ts`](e2e/triplet.ts): hoy `runTripletToLenders` solo llega a
-  `/lenders` y **lanza** en canal `web` ([`e2e/triplet.ts`](e2e/triplet.ts):46-55). Tras `/lenders` debe invocar
+- **`runTripletAndClose(page, t)`** en [`e2e/triplet.ts`](../e2e/triplet.ts): hoy `runTripletToLenders` solo llega a
+  `/lenders` y **lanza** en canal `web` ([`e2e/triplet.ts`](../e2e/triplet.ts):46-55). Tras `/lenders` debe invocar
   el cierre — completa el espejo del CLI `go run . <canal> <comercio> <lender>` (ver
-  [`../backend-e2e/SUITE.md`](../backend-e2e/SUITE.md)). Bloqueado por el mismo muro.
+  [`../backend-e2e/SUITE.md`](../../backend-e2e/docs/SUITE.md)). Bloqueado por el mismo muro.
 - **`runMerchantModeUntilLenders(page, hash, mode)`**: entrada `/merchant/{hash}/modes` + click modo (Motai).
-- **Extraer `buildCheckoutPath()`** (hoy inline en [`channel/ecommerce-local-real.spec.ts`](channel/ecommerce-local-real.spec.ts):36)
+- **Extraer `buildCheckoutPath()`** (hoy inline en [`channel/ecommerce-local-real.spec.ts`](../channel/ecommerce-local-real.spec.ts):36)
   a helper de canal `web` reutilizable.
 
 ---
@@ -97,7 +100,7 @@ testid. La selección de lender por UI **ya funciona** (verificada en `creditopx
 - `PaymentSchedule.tsx:144` → ToggleGroupItem → `payment-schedule-option-{fee_number}`
 - `PaymentSchedule.tsx:250` → Button submit → `payment-schedule-submit`
 - *(plazo en la card del lender: el wizard usa un `combobox`, ej. "12 cuotas" — necesita `lender-term-{id}`;
-  hoy sin testid. Ver [`lender/close.ts`](lender/close.ts):14-21.)*
+  hoy sin testid. Ver [`lender/close.ts`](../lender/close.ts):14-21.)*
 
 ### Grupo C — Cierre Creditop X: documentos + firma OTP + aprobado (`.../loan-origination/src/components/`)
 - `SignDocuments.tsx:204` → Card → `sign-documents-card-{doc.id}`
@@ -158,10 +161,10 @@ testid. La selección de lender por UI **ya funciona** (verificada en `creditopx
 3. **Cupo Rotativo rt=3 + Grupo D**: `seedRiskProfile` para que el marketplace ofrezca #71; reusa el ciclo
    Creditop X. El cierre rt=3 ya está en backend (`asesor 3e67eade 71`).
 4. **Credifamilia rt=4 + Grupo H**: selección + radicación por UI; el polling async se valida mejor en backend
-   (`credifamiliaClose` → status 40→41; ver [`../backend-e2e/lender/closes.go`](../backend-e2e/lender/closes.go):217).
+   (`credifamiliaClose` → status 40→41; ver [`../backend-e2e/lender/closes.go`](../../backend-e2e/lender/closes.go):217).
 5. **Cierre Motai #158 + Grupos E/F + mocks Abaco/IMEI**: alto esfuerzo (testids Abaco/IMEI + escenarios mock
    `check-abaco-requirement`/`scraping/*`/`advisor-status`). La **entrada** por UI ya está ✅
-   ([`merchant/motai-ui.spec.ts`](merchant/motai-ui.spec.ts)); falta el device flow. El cierre Motai → Estado 11
+   ([`merchant/motai-ui.spec.ts`](../merchant/motai-ui.spec.ts)); falta el device flow. El cierre Motai → Estado 11
    ya está en backend (`asesor f0548728 158`). Mantener `.fixme` hasta tener los mocks.
 6. **Bancolombia + Grupo I**: spec desde cero; solo tramos in-platform (OAuth del banco queda fuera, §4).
 
@@ -171,12 +174,12 @@ testid. La selección de lender por UI **ya funciona** (verificada en `creditopx
 
 La **regla**: *redirect a portal externo (OAuth/proveedor)* o *transición de estado en DB sin pantalla*
 permanece en `backend-e2e`. (El webhook ecommerce `process_url`/`notify-store`, antes listado aquí, **YA es
-observable** por UI: [`channel/ecommerce-notify.spec.ts`](channel/ecommerce-notify.spec.ts) lo valida con un
+observable** por UI: [`channel/ecommerce-notify.spec.ts`](../channel/ecommerce-notify.spec.ts) lo valida con un
 listener local vía `host.docker.internal` — ver [`VALIDATION.md`](VALIDATION.md).)
 
 - **Cierre Bancolombia BNPL/Consumo (rt=1) y Corbeta→ONB006:** el cierre real ocurre en el **portal OAuth del
   banco** (redirect externo con `:encrypt_code` JWT que Playwright no construye ni el banco mockea). Validado en
-  backend por `bancolombiaClose` ([`../backend-e2e/lender/closes.go`](../backend-e2e/lender/closes.go):126) — solo
+  backend por `bancolombiaClose` ([`../backend-e2e/lender/closes.go`](../../backend-e2e/lender/closes.go):126) — solo
   asegura que el motor PLS asigna #68 BNPL / #100 Consumo. Por UI solo se cubre hasta el redirect.
 - **Lenders externos rt=1 (Welli/Meddipay/BdB) y Credifamilia rt=4 async:** el cierre/originación vive en el
   **portal externo del proveedor**. La lógica distintiva (pre-aprobación/cupo, radicación `status 40→41`) se
@@ -195,7 +198,7 @@ listener local vía `host.docker.internal` — ver [`VALIDATION.md`](VALIDATION.
 
 Los slugs `motai001`/`smartpay001`/`credifam001`/`qu4nt0001` eran placeholders del `mock-server :4000`
 **eliminado**: muertos. Hashes reales de `allied_branches` (taxonomía completa en
-[`../docs/LOGICA-QUEMADA.md`](../docs/LOGICA-QUEMADA.md)):
+`docs/LOGICA-QUEMADA.md` *(histórico)*):
 
 | Hash | Allied | Comercio | Uso en specs |
 |---|---|---|---|

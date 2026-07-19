@@ -44,5 +44,5 @@ for i in nodes:
     if par: line+=f" · Padre: `{par}`"
     if ctx: line+=f" · Usa: {', '.join('`'+x+'`' for x in ctx)}"
     out.append(line+"\n")
-open(os.path.join(ROOT,"ROUTE-MAP.md"),"w").write("\n".join(out))
-print(f"ROUTE-MAP.md: {len(nodes)} nodos, {os.path.getsize(os.path.join(ROOT,'ROUTE-MAP.md'))} bytes")
+open(os.path.join(ROOT,"docs","ROUTE-MAP.md"),"w").write("\n".join(out))
+print(f"docs/ROUTE-MAP.md: {len(nodes)} nodos, {os.path.getsize(os.path.join(ROOT,'docs','ROUTE-MAP.md'))} bytes")

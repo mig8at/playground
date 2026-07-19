@@ -1,7 +1,7 @@
 # merchant-config — prototipos del modelo de renting
 
 Dos prototipos HTML autónomos (sin build, claro/oscuro) para alinear con Jose y negocio **antes** de
-programar. Diseño y veredicto de verificación: [`../docs/mejoras/MOTAI-PLAN-EVOLUCION.md`](../docs/mejoras/MOTAI-PLAN-EVOLUCION.md) **§10**.
+programar. Diseño y veredicto de verificación: [`../docs/mejoras/MOTAI-PLAN-EVOLUCION.md` *(histórico — `git show 159906a:docs/mejoras/MOTAI-PLAN-EVOLUCION.md`)* **§10**.
 
 | Archivo | Qué muestra |
 |---|---|

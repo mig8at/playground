@@ -233,7 +233,7 @@ contra Cognito. `testIgnore` solo excluye `_scratch/`, `node_modules/`, `playwri
 desatendido, pasale rutas.
 
 ⚠ Muchos specs son **`test.fixme`** (aparecen como `fixme`, ni pasan ni fallan): "todo verde" ≠ cobertura.
-El estado por-test, con el motivo de cada fixme, vive en [`VALIDATION.md`](VALIDATION.md).
+El estado por-test, con el motivo de cada fixme, vive en [`VALIDATION.md`](docs/VALIDATION.md).
 
 Al fallar, Playwright deja `test-results/<test>/{trace.zip,screenshot.png,video.webm}`
 (`npx playwright show-trace <path>`). El flujo guiado además saca fotos numeradas a `.auth/`
@@ -297,13 +297,13 @@ Al fallar, Playwright deja `test-results/<test>/{trace.zip,screenshot.png,video.
 
 | Doc | Qué aporta |
 |---|---|
-| [`VALIDATION.md`](VALIDATION.md) | **estado por-test**: qué corre verde, qué es `fixme` y POR QUÉ. Además: fake del forms-service de SmartPay, mutex de la cuenta de prueba, login Cognito y re-apuntado de comercio |
-| [`PLAN-PRUEBAS.md`](PLAN-PRUEBAS.md) | backlog accionable: testids pendientes con rutas reales, helpers por construir, orden de trabajo. Y la premisa corregida (el muro del cierre rt=2 no eran los testids, era la config de lender del mirror) |
+| [`VALIDATION.md`](docs/VALIDATION.md) | **estado por-test**: qué corre verde, qué es `fixme` y POR QUÉ. Además: fake del forms-service de SmartPay, mutex de la cuenta de prueba, login Cognito y re-apuntado de comercio |
+| [`PLAN-PRUEBAS.md`](docs/PLAN-PRUEBAS.md) | backlog accionable: testids pendientes con rutas reales, helpers por construir, orden de trabajo. Y la premisa corregida (el muro del cierre rt=2 no eran los testids, era la config de lender del mirror) |
 | [`lender/README.md`](lender/README.md) | ⚠ **stale**: dice "vacío por ahora", pero el eje ya tiene `close.ts` + 3 specs |
 | [`mock-forms/schemas/README.md`](mock-forms/schemas/README.md) | cómo bajar el schema REAL de un comercio del flujo dinámico (con VPN) para que `mock-forms` lo sirva en vez del genérico |
 
 **Contexto de negocio** (qué es CreditOp, `response_type`, estados, entidades): el árbol de contexto en
-[`../context/`](../context/) — empezá por [`../context/ROUTE-MAP.md`](../context/ROUTE-MAP.md) y el nodo
+[`../context/`](../context/) — empezá por [`../context/docs/ROUTE-MAP.md`](../context/docs/ROUTE-MAP.md) y el nodo
 `harness` (`../context/server/data/flows/harness/doc.md`). El nodo `findings` es la **bitácora de muros
 locales** (F-01..F-52): buscá ahí antes de depurar algo que huele a "ya nos pasó".
 

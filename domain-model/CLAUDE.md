@@ -52,7 +52,7 @@ Reporte de alineamiento modelo↔realidad: `docs/audit/ALINEAMIENTO.md`.
 
 ## 🏗️ Cómo funciona Creditop HOY (realidad de los repos)
 
-> 📖 **Contexto completo en inglés: [`CONTEXT.md`](CONTEXT.md)** — flujos end-to-end con rutas de
+> 📖 **Contexto completo en inglés: [`CONTEXT.md`](docs/CONTEXT.md)** — flujos end-to-end con rutas de
 > archivo + falencias actuales, para no tener que leer los repos `legacy-backend`/`application`.
 > Versión larga en español: `docs/audit/REALIDAD-ACTUAL.md`.
 

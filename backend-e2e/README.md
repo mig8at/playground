@@ -169,7 +169,7 @@ sale de `pkg/config/config.go:20`. BD `creditop`/`password` en `127.0.0.1:3306`,
 `http://127.0.0.1:80/api`, y el vhost se fuerza por header `Host: legacy-backend.inertia-develop`
 (`client.go:24`) porque Sail responde por vhost. El `.env.local` **sólo** aporta `E2E_*` (ej. `SEED`).
 Con `--target=dev` sí se leen `E2E_DB_*` / `E2E_API_BASE_URL` de `.env.dev` — ver
-[`DEV-TARGET.md`](DEV-TARGET.md).
+[`DEV-TARGET.md`](docs/DEV-TARGET.md).
 
 **El guard de dev.** `--target=dev` está permitido de entrada sólo en `list`/`get`/`doctor`/`login`/
 `create`/`clean`/`scenarios`. El flujo completo se abre **únicamente** exportando
@@ -238,11 +238,11 @@ del contenedor. El KYC real (Experian/TusDatos/etc.) y los comandos `kyc`/`negat
 
 ## Docs vecinos
 
-- [`SUITE.md`](SUITE.md) — manual largo del CLI: requisitos, stashes del legacy-backend, cadena de
+- [`SUITE.md`](docs/SUITE.md) — manual largo del CLI: requisitos, stashes del legacy-backend, cadena de
   cierre rt=2 paso a paso. El detalle operativo más denso está acá.
-- [`VALIDATION.md`](VALIDATION.md) — matriz de qué flujo está 🟢/🟡, con la aserción concreta
+- [`VALIDATION.md`](docs/VALIDATION.md) — matriz de qué flujo está 🟢/🟡, con la aserción concreta
   (tabla·columna·status) y el bypass que requiere cada uno. Es la respuesta a "¿esto ya se probó?".
-- [`DEV-TARGET.md`](DEV-TARGET.md) — el modelo de seguridad para tocar **dev compartido**: guardas,
+- [`DEV-TARGET.md`](docs/DEV-TARGET.md) — el modelo de seguridad para tocar **dev compartido**: guardas,
   setup del `.env.dev`, y por qué los comandos contra dev los corre el humano vía `scripts/dev.sh`.
 
 ⚠️ **Los tres arrastran punteros rotos a `../docs/`**, que fue **borrado** de `main` y absorbido por

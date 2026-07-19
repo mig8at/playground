@@ -1,5 +1,8 @@
 # Suite E2E — manual del CLI Go · `[channel] → [merchant] → [lender]`
 
+> ⚠ Los `docs/*.md` que se citan abajo vivían en `playground/docs/`, **borrada de `main`** (absorbida por el árbol de `context/`). Quedan como referencia histórica; para leer una: `git show 159906a:docs/<archivo>`.
+
+
 > 🔒 Parte del repo LOCAL `playground/` — nunca se pushea.
 >
 > ⚠️ **Stale:** los subcomandos `negative` y `kyc` fueron **RETIRADOS** (Fase 1) — el KYC con mocks /
@@ -13,11 +16,11 @@ carpeta por "flujo", el código se organiza por los **tres ejes** del modelo, y 
 combinación al vuelo.
 
 **Este doc es el DUEÑO del CLI**: subcomandos, defaults y cómo se componen los flujos. Para el contexto de
-negocio (qué es cada `response_type`, ciclo de vida de estados) ver [`../docs/NEGOCIO.md`](../docs/NEGOCIO.md);
-para los hardcodes (IDs, montos, branches, PII) ver [`../docs/LOGICA-QUEMADA.md`](../docs/LOGICA-QUEMADA.md);
-para el detalle de cada cierre (citas archivo:línea, mocks) ver [`../docs/REFERENCIA-FLUJOS.md`](../docs/REFERENCIA-FLUJOS.md);
+negocio (qué es cada `response_type`, ciclo de vida de estados) ver `docs/NEGOCIO.md` *(histórico)*;
+para los hardcodes (IDs, montos, branches, PII) ver `docs/LOGICA-QUEMADA.md` *(histórico)*;
+para el detalle de cada cierre (citas archivo:línea, mocks) ver `docs/REFERENCIA-FLUJOS.md` *(histórico)*;
 para el **estado/resultado** de cada flujo ver [`VALIDATION.md`](VALIDATION.md); para el quickstart UI ver
-[`../frontend-e2e/README.md`](../frontend-e2e/README.md).
+[`../frontend-e2e/README.md`](../../frontend-e2e/README.md).
 
 ---
 
@@ -99,10 +102,10 @@ Con `--explain` se imprime solo la documentación del flujo (útil para entender
 | `clean` | `[--seed X]` | seed de la máquina | `runClean`: borra el namespace sembrado por `prep` (asesores/clientes/solicitudes/comercios del seed). Seguro: solo el marcador del seed. | `clean.go` |
 
 > Los subcomandos `prep`/`get`/`doctor`/`clean` consolidaron al extinto `creditop-cli`. El E2E
-> completo (prep → flujo → get → clean) se orquesta con [`scripts/flow.sh`](scripts/flow.sh).
+> completo (prep → flujo → get → clean) se orquesta con [`scripts/flow.sh`](../scripts/flow.sh).
 
 > El default branch `3e67eade` es un branch de **Amoblando Pullman** (allied 94). El catálogo de
-> hashes/slugs reales está en [`../docs/LOGICA-QUEMADA.md`](../docs/LOGICA-QUEMADA.md).
+> hashes/slugs reales está en `docs/LOGICA-QUEMADA.md` *(histórico)*.
 
 ### Ejemplos
 
@@ -153,7 +156,7 @@ El harness **replica esa cadena directamente** y **NO levanta el microservicio**
 
 SmartPay es el lender **#152** (rt=2) / **#153** (rt=1). Su cierre in-platform usa el `CreditopXClose` estándar
 (NO IMEI; el IMEI es de Motai #158). El detalle SmartPay del lado UI (wizard, mutex, Cognito) vive en
-[`../frontend-e2e/VALIDATION.md`](../frontend-e2e/VALIDATION.md).
+[`../frontend-e2e/VALIDATION.md`](../../frontend-e2e/docs/VALIDATION.md).
 
 ---
 
@@ -170,7 +173,7 @@ SmartPay es el lender **#152** (rt=2) / **#153** (rt=1). Su cierre in-platform u
 - **`NegativePaths`** (`negative.go`): subcódigos OTP (ONB001 + `CODE_INVALID`/`NO_PREVIOUS_OTP`), payload 422,
   fecha imposible (ONB005 + `EXPEDITION_DATE_INVALID`, 31-feb), documento duplicado (ONB005 + `DOCUMENT_DUPLICATE`).
   El `+` denota código compuesto: el backend real concatena el sufijo al `error_code` (ej.
-  `ONB005_EXPEDITION_DATE_INVALID`) — ver [`../docs/REFERENCIA-FLUJOS.md`](../docs/REFERENCIA-FLUJOS.md) §13
+  `ONB005_EXPEDITION_DATE_INVALID`) — ver `docs/REFERENCIA-FLUJOS.md` *(histórico)* §13
   (nomenclatura).
 - **OTP por bypass**: el teléfono se agrega al setting **`qa_otp_bypass_phones`** (fila de la tabla `settings`,
   `code='setting'`, `value` = array JSON) vía `EnsureOtpBypass` (`mocks.go:78-86`). Con el teléfono en esa lista
@@ -190,8 +193,8 @@ SmartPay es el lender **#152** (rt=2) / **#153** (rt=1). Su cierre in-platform u
   - Standard/Ecommerce/Motai → no-op (su validación vive en el cierre del lender).
 - `have_ctopx` es columna de `allieds` (no tabla, no a nivel branch); su enforcement como gate no está
   verificado en código — la oferta efectiva pasa por `lenders_by_allieds` (+ credencial). Detalle de hardcodes
-  de comercio (fields 87/29/160, allied 94/158, montos) → [`../docs/LOGICA-QUEMADA.md`](../docs/LOGICA-QUEMADA.md);
-  estructura de tablas → [`../docs/MODELO-DATOS.md`](../docs/MODELO-DATOS.md).
+  de comercio (fields 87/29/160, allied 94/158, montos) → `docs/LOGICA-QUEMADA.md` *(histórico)*;
+  estructura de tablas → `docs/MODELO-DATOS.md` *(histórico)*.
 
 ### `lender/` — a quién y cómo se CIERRA
 
@@ -228,10 +231,10 @@ default (incl. rt=2) → CreditopXClose
   lender bajo prueba). **Cierre PARCIAL**: el cierre completo es el portal externo (redirect).
 
 > El mecanismo detallado de cada cierre (citas archivo:línea, mocks, rutas exactas) vive en
-> [`../docs/REFERENCIA-FLUJOS.md`](../docs/REFERENCIA-FLUJOS.md). La taxonomía `response_type` 0-4 y el ciclo de
+> `docs/REFERENCIA-FLUJOS.md` *(histórico)*. La taxonomía `response_type` 0-4 y el ciclo de
 > vida de `user_request_statuses` (9 Formulario perfil, 10 Pendiente autorización, 11 Autorizada) en
-> [`../docs/NEGOCIO.md`](../docs/NEGOCIO.md). El porqué de los fallos del `random` y las cifras de deuda rt=2 en
-> [`../docs/CASOS-ESPECIALES.md`](../docs/CASOS-ESPECIALES.md).
+> `docs/NEGOCIO.md` *(histórico)*. El porqué de los fallos del `random` y las cifras de deuda rt=2 en
+> `docs/CASOS-ESPECIALES.md` *(histórico)*.
 
 ---
 
@@ -265,7 +268,7 @@ Columna clave: **cierre completo (asserta Estado 11) vs parcial (solo valida pre
 ## Datos y fakes (overrides operativos)
 
 Datos PII de prueba y overrides que el harness inyecta para que el motor decida (los hardcodes "de negocio"
-viven en [`../docs/LOGICA-QUEMADA.md`](../docs/LOGICA-QUEMADA.md); aquí solo los del harness):
+viven en `docs/LOGICA-QUEMADA.md` *(histórico)*; aquí solo los del harness):
 
 - **`config.go:10-19`** — sin `.env`: conexión hardcodeada (usuario `creditop`/`password`,
   `127.0.0.1:3306`/`creditop`; API `http://127.0.0.1:80/api`; `PartnerHash` default `3e67eade`; `TestAmount`
@@ -287,7 +290,7 @@ viven en [`../docs/LOGICA-QUEMADA.md`](../docs/LOGICA-QUEMADA.md); aquí solo lo
   (id 60 = República Dominicana, requerido por SmartPay), lender_paths, statuses.
 
 > Estado, resultado y bypasses pendientes de stash de cada flujo → [`VALIDATION.md`](VALIDATION.md).
-> Clasificación de los fallos del `random` (mapa de completitud por rt) → [`../docs/CASOS-ESPECIALES.md`](../docs/CASOS-ESPECIALES.md).
+> Clasificación de los fallos del `random` (mapa de completitud por rt) → `docs/CASOS-ESPECIALES.md` *(histórico)*.
 
 ---
 
@@ -299,5 +302,5 @@ viven en [`../docs/LOGICA-QUEMADA.md`](../docs/LOGICA-QUEMADA.md); aquí solo lo
 - El seed/bypass de perfil corre `php artisan tinker` dentro de `legacy-backend-laravel.test-1` (`mocks.go:32`).
 
 El par "frontend" de este harness (Playwright, mismo stack desde la UI del wizard) está en
-[`../frontend-e2e/README.md`](../frontend-e2e/README.md); su estado + detalle SmartPay/mutex/Cognito en
-[`../frontend-e2e/VALIDATION.md`](../frontend-e2e/VALIDATION.md).
+[`../frontend-e2e/README.md`](../../frontend-e2e/README.md); su estado + detalle SmartPay/mutex/Cognito en
+[`../frontend-e2e/VALIDATION.md`](../../frontend-e2e/docs/VALIDATION.md).

@@ -7,7 +7,7 @@
 >
 > **Idea central.** El servicio **no es dueño de ningún dato**: es un *read model / BFF de soporte* que
 > **lee de las fuentes autoritativas y las compone** en una vista de "hasta dónde llegó y por qué se rompió".
-> Grounded en [`flow/MAP.md`](../flow/MAP.md) (dónde vive cada dato) y [`flow/FAQ-SOPORTE.md`](../flow/FAQ-SOPORTE.md).
+> Grounded en [`flow/MAP.md`](../../flow/docs/MAP.md) (dónde vive cada dato) y [`flow/FAQ-SOPORTE.md`](../../flow/docs/FAQ-SOPORTE.md).
 
 ---
 

@@ -14,7 +14,7 @@ CreditopX y solo **reordena** a una externa. Nadie retiene eso leyendo.
 
 Acá lo tocás: bajás el score del cliente, apagás Ágil Data, cambiás el monto — y las tarjetas del
 listado se recalculan con el motivo del rechazo escrito encima. Es **documentación que se puede tocar**
-(la frase es de [BALANCE-Y-PROXIMOS-NODOS.md](BALANCE-Y-PROXIMOS-NODOS.md), que lo explica en criollo
+(la frase es de [BALANCE-Y-PROXIMOS-NODOS.md](docs/BALANCE-Y-PROXIMOS-NODOS.md), que lo explica en criollo
 para negocio).
 
 ## Arranque rápido
@@ -111,7 +111,7 @@ header de nodo abre `FieldInfoPanel` con tabla + capa + estado + gotchas. Esc ci
 ## Deber-ser vs. lo que hoy existe (leer antes de citar el simulador como verdad)
 
 El simulador es fiel en el **motor de decisión** —esa parte se auditó contra el código (ver
-[MAP.md](MAP.md))— pero en la **configuración** modela el deber-ser:
+[MAP.md](docs/MAP.md))— pero en la **configuración** modela el deber-ser:
 
 | El simulador muestra | El sistema real hace |
 |---|---|
@@ -122,7 +122,7 @@ El simulador es fiel en el **motor de decisión** —esa parte se auditó contra
 | Cuotas condonadas visibles | Se muestran pero **no bajan** la cuota calculada (también acá: el tooltip promete algo que el número no hace) |
 
 Las 4 divergencias de fidelidad están listadas y priorizadas en
-[BALANCE-Y-PROXIMOS-NODOS.md](BALANCE-Y-PROXIMOS-NODOS.md) §4. La cobertura honesta declarada ahí:
+[BALANCE-Y-PROXIMOS-NODOS.md](docs/BALANCE-Y-PROXIMOS-NODOS.md) §4. La cobertura honesta declarada ahí:
 **~35% simulado / ~57% documentado** sobre la originación (el servicing post-desembolso está fuera
 de alcance por decisión).
 
@@ -138,7 +138,7 @@ de alcance por decisión).
   hacer `editTick.n++` a mano para que el guardado se entere — hoy hay **23 sitios**. Un setter nuevo
   que se lo olvide produce el bug más silencioso posible: **se ve bien en pantalla y se pierde al
   recargar.** El diagnóstico completo (y el plan para matarlo) está en
-  [REORGANIZACION-DATOS.md](REORGANIZACION-DATOS.md) D1/F2.
+  [REORGANIZACION-DATOS.md](docs/REORGANIZACION-DATOS.md) D1/F2.
 - **La identidad de una entidad es su nombre (string).** Todos los registros están keyed por
   `l.name`. Renombrar rompe la asociación con su config; está previsto en F1 y **no está hecho**.
 - **Thin file se dispara por longitud del documento.** `profile()` marca `file = digits.length >= 6`:
@@ -162,11 +162,11 @@ de alcance por decisión).
 
 | Doc | Qué aporta |
 |---|---|
-| [MAP.md](MAP.md) | **El mapa del código real**, no del simulador: 6 etapas (alta → asociación → inicio → burós → consolidación rt=2 / rt=1) con archivo y **línea exacta** de cada paso, más el orden verificado del cascade y los gotchas por etapa. Construido con 12 agentes (6 investigadores + 6 verificadores adversariales). Es la referencia cuando querés abrir el código de verdad. |
-| [DOCUMENTATION.md](DOCUMENTATION.md) | **Campo por campo**: qué hace de verdad cada campo del admin, las 3 "cuotas" que se llaman igual y no son lo mismo, los 3 baldes de la calculadora del comercio, el inventario completo de los formularios admin y los **campos fantasma**. De acá sale `fieldDocs.js`. |
-| [BALANCE-Y-PROXIMOS-NODOS.md](BALANCE-Y-PROXIMOS-NODOS.md) | La foto honesta para **negocio**: qué cubre el simulador (con porcentajes por zona), qué falta, los próximos nodos propuestos y por qué el 100% es un espejismo. |
-| [REORGANIZACION-DATOS.md](REORGANIZACION-DATOS.md) | Deuda técnica del `store.js`: 7 hallazgos con evidencia y plan **F0–F6**. **Solo F0 (poda, −440 líneas) está aplicada**; F1–F6 son propuesta. |
-| [FAQ-SOPORTE.md](FAQ-SOPORTE.md) | Los dolores reales de #tech-ops (barrido de ~590 mensajes) explicados con el mapa: causa probable + qué revisar + a quién escalar, con nivel de confianza 🟢🟡🔴. Origen del "trazador de solicitudes" de `playground/soporte`. |
+| [MAP.md](docs/MAP.md) | **El mapa del código real**, no del simulador: 6 etapas (alta → asociación → inicio → burós → consolidación rt=2 / rt=1) con archivo y **línea exacta** de cada paso, más el orden verificado del cascade y los gotchas por etapa. Construido con 12 agentes (6 investigadores + 6 verificadores adversariales). Es la referencia cuando querés abrir el código de verdad. |
+| [DOCUMENTATION.md](docs/DOCUMENTATION.md) | **Campo por campo**: qué hace de verdad cada campo del admin, las 3 "cuotas" que se llaman igual y no son lo mismo, los 3 baldes de la calculadora del comercio, el inventario completo de los formularios admin y los **campos fantasma**. De acá sale `fieldDocs.js`. |
+| [BALANCE-Y-PROXIMOS-NODOS.md](docs/BALANCE-Y-PROXIMOS-NODOS.md) | La foto honesta para **negocio**: qué cubre el simulador (con porcentajes por zona), qué falta, los próximos nodos propuestos y por qué el 100% es un espejismo. |
+| [REORGANIZACION-DATOS.md](docs/REORGANIZACION-DATOS.md) | Deuda técnica del `store.js`: 7 hallazgos con evidencia y plan **F0–F6**. **Solo F0 (poda, −440 líneas) está aplicada**; F1–F6 son propuesta. |
+| [FAQ-SOPORTE.md](docs/FAQ-SOPORTE.md) | Los dolores reales de #tech-ops (barrido de ~590 mensajes) explicados con el mapa: causa probable + qué revisar + a quién escalar, con nivel de confianza 🟢🟡🔴. Origen del "trazador de solicitudes" de `playground/soporte`. |
 
 **Fuera de esta carpeta:** el contexto cross-repo vive en `playground/context/` (`ROUTE-MAP.md` +
 `server/data/flows/`), que además absorbió el viejo `playground/docs/`.

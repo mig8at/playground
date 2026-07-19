@@ -1,5 +1,8 @@
 # VALIDATION — estado de validación BACKEND (legacy-backend LOCAL, modo mock)
 
+> ⚠ Los `docs/*.md` que se citan abajo vivían en `playground/docs/`, **borrada de `main`** (absorbida por el árbol de `context/`). Quedan como referencia histórica; para leer una: `git show 159906a:docs/<archivo>`.
+
+
 > Fecha: 2026-06-05 · Backend: `feature/onboarding/ecommerce-web-origination` con drivers `fake`.
 > **Pre-requisito**: `stash@{0}` del legacy-backend = **set COMPLETO de bypasses** (Bancolombia, externos rt=1,
 > dynamic-forms, SmartPay forms-service fake, Credifamilia, Motai MDM, PdfMapper). El fake de PdfMapper además
@@ -11,11 +14,11 @@ comando lo probó, qué se aseveró (tabla/columna/status concreto) y si está *
 bypass requerido **por referencia** (no copiado). Lo complementan:
 
 - **Cómo correr** (CLI, subcomandos, ejemplos, cadena de cierre rt=2) → [SUITE.md](./SUITE.md).
-- **Taxonomía `response_type` 0–4 y ciclo de vida `user_request_statuses`** → [../docs/NEGOCIO.md](../docs/NEGOCIO.md).
-- **Estructura de tablas/columnas/relaciones** → [../docs/MODELO-DATOS.md](../docs/MODELO-DATOS.md).
-- **Hardcodes (IDs, montos, status, branches, PII)** → [../docs/LOGICA-QUEMADA.md](../docs/LOGICA-QUEMADA.md).
-- **Por qué "falla el random" / clasificación de fallos** → [../docs/CASOS-ESPECIALES.md](../docs/CASOS-ESPECIALES.md).
-- **Mecanismo por flujo (qué hace distinto, citas archivo:línea, mocks)** → [../docs/REFERENCIA-FLUJOS.md](../docs/REFERENCIA-FLUJOS.md).
+- **Taxonomía `response_type` 0–4 y ciclo de vida `user_request_statuses`** → `docs/NEGOCIO.md` *(histórico)*.
+- **Estructura de tablas/columnas/relaciones** → `docs/MODELO-DATOS.md` *(histórico)*.
+- **Hardcodes (IDs, montos, status, branches, PII)** → `docs/LOGICA-QUEMADA.md` *(histórico)*.
+- **Por qué "falla el random" / clasificación de fallos** → `docs/CASOS-ESPECIALES.md` *(histórico)*.
+- **Mecanismo por flujo (qué hace distinto, citas archivo:línea, mocks)** → `docs/REFERENCIA-FLUJOS.md` *(histórico)*.
 
 ---
 
@@ -50,7 +53,7 @@ bypass requerido **por referencia** (no copiado). Lo complementan:
 oferta del marketplace (`GET /lenders`). Es el flujo que valida la **política de riesgo**, no solo que el
 crédito cierra. Los casos viven en la tabla `perfiladorCases` (main.go), calibrados a las reglas duras **reales**
 de #77 (verificadas en BD con `get lender 77`). El qué-decide-el-perfilador (reglas duras → categoría → oferta)
-vive en [../docs/NEGOCIO.md](../docs/NEGOCIO.md) y [../docs/REFERENCIA-FLUJOS.md](../docs/REFERENCIA-FLUJOS.md).
+vive en `docs/NEGOCIO.md` *(histórico)* y `docs/REFERENCIA-FLUJOS.md` *(histórico)*.
 
 | Perfil (1 variable) | Resultado | Regla que gobierna |
 |---------------------|-----------|--------------------|
@@ -78,7 +81,7 @@ vive en [../docs/NEGOCIO.md](../docs/NEGOCIO.md) y [../docs/REFERENCIA-FLUJOS.md
    cada tipo, en vez de depender de la oferta (la oferta como tal se valida aparte con `perfilador`).
 3. **El cierre rt=2 solo funciona con lenders plenamente configurados** (con `promissoryType`). Lenders sin esa
    config dan `promissory-note 500`. El 500 del Pagaré con guarantee se debe a `FGA=0` → PDF null → desreferencia
-   null en `authorize` (no a "variable NULL → eval"). Detalle en [../docs/CASOS-ESPECIALES.md](../docs/CASOS-ESPECIALES.md).
+   null en `authorize` (no a "variable NULL → eval"). Detalle en `docs/CASOS-ESPECIALES.md` *(histórico)*.
 4. **El guard de documento duplicado bloqueaba personal-info**: `register` persiste el `document_number`, así que
    `personal-info` veía el doc como duplicado (del mismo usuario) y cortaba con `ONB005` + subcode
    `DOCUMENT_DUPLICATE` (msg `"document number already in use"`) **antes** del bloque Quanto. Para los demás flujos
@@ -104,8 +107,8 @@ vive en [../docs/NEGOCIO.md](../docs/NEGOCIO.md) y [../docs/REFERENCIA-FLUJOS.md
 > Todos los bypasses de código del **legacy-backend** ya están en el working tree y respaldados en `stash@{0}`
 > (set completo). El **harness** (`playground`) NO es bypass: es la herramienta y se commitea al repo local.
 > El detalle de cada `Http::fake`, los seeds y el `.env` (`BACKDOOR_API_KEY`, `PDF_MAPPER_FAKE`,
-> `ONBOARDING_FORMS_SERVICE_BASE_URL`) está en [../docs/REFERENCIA-FLUJOS.md](../docs/REFERENCIA-FLUJOS.md) y los
-> hardcodes en [../docs/LOGICA-QUEMADA.md](../docs/LOGICA-QUEMADA.md). Resumen de qué cubre cada bypass:
+> `ONBOARDING_FORMS_SERVICE_BASE_URL`) está en `docs/REFERENCIA-FLUJOS.md` *(histórico)* y los
+> hardcodes en `docs/LOGICA-QUEMADA.md` *(histórico)*. Resumen de qué cubre cada bypass:
 
 | Bypass / fixture | Para qué | Flujo |
 |------------------|----------|-------|

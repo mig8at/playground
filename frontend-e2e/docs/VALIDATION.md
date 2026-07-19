@@ -1,18 +1,21 @@
 # VALIDATION — estado de validación E2E por la UI (Playwright)
 
-> Par del [`../backend-e2e/VALIDATION.md`](../backend-e2e/VALIDATION.md), pero **desde la UI del wizard**
+> ⚠ Los `docs/*.md` que se citan abajo vivían en `playground/docs/`, **borrada de `main`** (absorbida por el árbol de `context/`). Quedan como referencia histórica; para leer una: `git show 159906a:docs/<archivo>`.
+
+
+> Par del [`../backend-e2e/VALIDATION.md`](../../backend-e2e/docs/VALIDATION.md), pero **desde la UI del wizard**
 > (`loan-request-wizard` :5174) contra el `legacy-backend` en modo mock.
 >
 > **Dueño de este doc:** el estado de validación por UI (verde / `fixme` con motivo) y el detalle de UI:
 > fake del forms-service para SmartPay, mutex de la cuenta de prueba, login Cognito y re-apuntado del comercio.
 >
 > Lo que **no** vive aquí (solo se enlaza):
-> - **Setup / quickstart** (arrancar backend mock + wizard, `.env.local`, stashes, `.cognito.json`) → [`README.md`](README.md).
+> - **Setup / quickstart** (arrancar backend mock + wizard, `.env.local`, stashes, `.cognito.json`) → [`README.md`](../README.md).
 > - **Backlog de `data-testid` por grupo + orden de implementación** → [`PLAN-PRUEBAS.md`](PLAN-PRUEBAS.md).
-> - **Taxonomía `response_type` 0-4 y ciclo de `user_request_statuses`** → [`../docs/NEGOCIO.md`](../docs/NEGOCIO.md).
-> - **Hardcodes (IDs, hashes, montos, status, branches)** → [`../docs/LOGICA-QUEMADA.md`](../docs/LOGICA-QUEMADA.md).
-> - **Encadenamiento URL→archivo→endpoint→tabla** → [`../docs/MAPA-FLUJOS.md`](../docs/MAPA-FLUJOS.md).
-> - **Mecanismo por flujo (citas archivo:línea, mocks)** → [`../docs/REFERENCIA-FLUJOS.md`](../docs/REFERENCIA-FLUJOS.md).
+> - **Taxonomía `response_type` 0-4 y ciclo de `user_request_statuses`** → `docs/NEGOCIO.md` *(histórico)*.
+> - **Hardcodes (IDs, hashes, montos, status, branches)** → `docs/LOGICA-QUEMADA.md` *(histórico)*.
+> - **Encadenamiento URL→archivo→endpoint→tabla** → `docs/MAPA-FLUJOS.md` *(histórico)*.
+> - **Mecanismo por flujo (citas archivo:línea, mocks)** → `docs/REFERENCIA-FLUJOS.md` *(histórico)*.
 
 ---
 
@@ -133,17 +136,17 @@ local, no porque falten `data-testid` (el stash ya cubre amount/phone/otp/person
 Un cierre in-platform limpio exigiría un rt=2 con `min_initial_fee=0` **y** sin redirect/Wompi — config que no
 aparece limpia en el mirror. **El cierre rt=2 → Estado 11 ('Autorizada', `user_request_statuses` id 11) ya está
 validado en BACKEND** (`backend-e2e: go run . asesor 3e67eade 77`, que fuerza `initial_fee=0` y estado, sin Wompi
-ni `/continue`; ver [`../backend-e2e/VALIDATION.md`](../backend-e2e/VALIDATION.md)). Para cerrarlo por UI haría
+ni `/continue`; ver [`../backend-e2e/VALIDATION.md`](../../backend-e2e/docs/VALIDATION.md)). Para cerrarlo por UI haría
 falta (a) arreglar la config del lender en BD, o (b) driver el checkout Wompi externo — ambos fuera del alcance
 "solo bypass en `legacy-backend`". Las cifras de deuda y por qué se clasifica este fallo: ver
-[`../docs/CASOS-ESPECIALES.md`](../docs/CASOS-ESPECIALES.md).
+`docs/CASOS-ESPECIALES.md` *(histórico)*.
 
 ---
 
 ## Composable `canal → comercio → lender` (espejo de backend-e2e)
 
 Igual que el CLI de backend (`go run . <canal> <comercio> <lender>`, ver
-[`../backend-e2e/SUITE.md`](../backend-e2e/SUITE.md)), pero el "motor" es Playwright manejando el wizard real
+[`../backend-e2e/SUITE.md`](../../backend-e2e/docs/SUITE.md)), pero el "motor" es Playwright manejando el wizard real
 (`e2e/triplet.spec.ts:17-18` + `e2e/triplet.ts`):
 
 ```bash
@@ -164,7 +167,7 @@ config Wompi (ver §Muro del cierre rt=2).
 > **"SmartPay" no es un lender con id propio.** Son los lenders **152** (rt=2) y **153** (rt=1). El id `160` que
 > aparece en código es un hardcode (NotificationService/VoucherService/LenderRetrievalService + el skip de encuesta
 > `lender_id !== 160` en `SatisfactionSurveyCheck.php:38`) y **no existe como fila en BD**. Detalle de hardcodes en
-> [`../docs/LOGICA-QUEMADA.md`](../docs/LOGICA-QUEMADA.md). El cierre de SmartPay #152 va por `CreditopXClose`
+> `docs/LOGICA-QUEMADA.md` *(histórico)*. El cierre de SmartPay #152 va por `CreditopXClose`
 > estándar (NO IMEI; el IMEI es de Motai #158).
 
 **VERDE end-to-end** (headless): login Cognito → `/merchant/bb534d6a/request-amount` → **monto+producto → teléfono
@@ -199,7 +202,7 @@ dispararía en send-otp) porque el orchestrator **resuelve** al usuario por tel�
 ### Marketplace tras el origination
 La oferta de lenders sale de `GET lenders/{uReq}` → `ListLenderController@index` →
 `LenderRetrievalService::getLenders` (invoca el perfilador). `lenders-v2/{uReq}` (`LenderListingController`) **no**
-lo usa el FE. El encadenamiento completo está en [`../docs/MAPA-FLUJOS.md`](../docs/MAPA-FLUJOS.md).
+lo usa el FE. El encadenamiento completo está en `docs/MAPA-FLUJOS.md` *(histórico)*.
 
 ### Testids agregados (frontend-monorepo stash, Grupo G)
 `sp-city-trigger`, `sp-documentType`, `sp-birthdate` en `dynamic-form/PersonalInfoForm.tsx` (755/780/866). Lo demás
@@ -258,7 +261,7 @@ viejo mock `:4000`) debe ser **rechazado** por el backend real (`success:false`)
 campos required** de `CreateEcommerceRequest.php` (`partnerId, order, products, token, returnUrl, processUrl,
 config`). El **happy-path** del handshake (contrato base64 PHP-serializado que produce `generate_checkout_url.php`)
 se movió a los specs dedicados verdes `ecommerce-local-real.spec.ts` y `ecommerce-notify.spec.ts`. El mapa del
-handshake y la notificación a la tienda viven en [`../docs/MAPA-FLUJOS.md`](../docs/MAPA-FLUJOS.md) (B.1).
+handshake y la notificación a la tienda viven en `docs/MAPA-FLUJOS.md` *(histórico)* (B.1).
 
 ---
 
@@ -281,7 +284,7 @@ handshake y la notificación a la tienda viven en [`../docs/MAPA-FLUJOS.md`](../
 
 ## Setup, quickstart y stashes
 
-→ **[`README.md`](README.md)** (dueño): arrancar backend mock + wizard (:5174), `.env.local`
+→ **[`README.md`](../README.md)** (dueño): arrancar backend mock + wizard (:5174), `.env.local`
 (`VITE_API_URL`, `VITE_ONBOARDING_FORM_SERVICE`), aplicar los stashes (`legacy-backend stash@{0}` con bypasses +
 SmartPay forms-fake; `frontend-monorepo stash@{0}` con los testids), `.cognito.json`, y los comandos
 `npx playwright test`.
@@ -299,6 +302,6 @@ SmartPay forms-fake; `frontend-monorepo stash@{0}` con los testids), `.cognito.j
 3. **Contrato de subcódigos**: el backend real usa `error_code` (no `error_subcode`); decidir si se reescriben los
    specs OTP/KYC contra el shape real o se levanta como mejora de observabilidad del backend.
 4. **Marketplace/Perfilador por UI**: asertar que la oferta cambia con el perfil (espejo del perfilador del
-   backend, ver [`../backend-e2e/VALIDATION.md`](../backend-e2e/VALIDATION.md)).
+   backend, ver [`../backend-e2e/VALIDATION.md`](../../backend-e2e/docs/VALIDATION.md)).
 5. **CI**: descomentar/configurar `webServer` en `playwright.config.ts:58` para levantar backend mock + wizard
    automáticamente.

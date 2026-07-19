@@ -1,18 +1,21 @@
 # Correr backend-e2e contra DEV (`--target=dev`)
 
+> ⚠ Los `docs/*.md` que se citan abajo vivían en `playground/docs/`, **borrada de `main`** (absorbida por el árbol de `context/`). Quedan como referencia histórica; para leer una: `git show 159906a:docs/<archivo>`.
+
+
 > ⚠️ **Actualizado (Fase 4):** `--target=dev` se permite en los comandos READ-ONLY (`list`/`get`/`doctor`/
 > `login`) + los acotados por namespace/clave (`create`/`clean`, con guard `I_KNOW_THIS_TOUCHES_SHARED_DEV`);
 > el flujo de origination completo sigue **gated**. El **KYC real** (Experian/AgilData/Mareigua/TusDatos) y
 > el comando `kyc` fueron **RETIRADOS** (Fase 1) — hoy todo es **inyección de KYC armado** (`synth`/
-> `synth-fill`, ver [`../backend-mcp/README.md`](../backend-mcp/README.md)). Lo de abajo sobre `kyc`/KYC
+> `synth-fill`, ver [`../backend-mcp/README.md`](../../backend-mcp/README.md)). Lo de abajo sobre `kyc`/KYC
 > real es **histórico**.
 >
 > Cómo apuntar el harness al **ambiente de desarrollo compartido** (en vez de local + mocks) para crear
 > usuarios de prueba y operaciones acotadas — de forma **segura y limpia**.
 >
 > 🔒 Es la **BD compartida del equipo de desarrollo** (no prod, pero compartida). Reglas estrictas
-> abajo. Ver también [`docs/CONVENCIONES.md`](../docs/CONVENCIONES.md) y el hallazgo de seguridad #12
-> en [`docs/hallazgos-backend.md`](../docs/hallazgos-backend.md).
+> abajo. Ver también `docs/CONVENCIONES.md` *(histórico)* y el hallazgo de seguridad #12
+> en `docs/hallazgos-backend.md` *(histórico)*.
 
 ---
 
@@ -194,7 +197,7 @@ El mock local es laxo; dev valida en serio. Para que `personal-info` pase y disp
 | Documento | fresco cada corrida (se limpia) | si ya está registrado → **`ONB005 DOCUMENT_DUPLICATE`** → liberar primero |
 
 Hallazgos de backend relacionados (catalogados, **sin PR sin pedir**): ver
-[`docs/hallazgos-backend.md`](../docs/hallazgos-backend.md) #12 (auth por header sin validar JWT +
+`docs/hallazgos-backend.md` *(histórico)* #12 (auth por header sin validar JWT +
 `->can()` on null).
 
 ---
@@ -215,4 +218,4 @@ bash backend-e2e/scripts/dev.sh run . clean --target=dev
 ```
 
 **Archivos clave:** `create.go`, `kyc.go`, `clean.go`, `pkg/ledger/`, `pkg/config` (`GetConfig`),
-`scripts/dev.sh`, `.env.dev`. Mecánica común de los harness: [`docs/HARNESS-ARQUITECTURA.md`](../docs/HARNESS-ARQUITECTURA.md).
+`scripts/dev.sh`, `.env.dev`. Mecánica común de los harness: `docs/HARNESS-ARQUITECTURA.md` *(histórico)*.

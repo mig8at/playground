@@ -36,7 +36,7 @@ muro, buscá ahí.** Es lo más rentable del repo.
 
 | Si venís a… | Arrancá por | Concretamente |
 |---|---|---|
-| **Entender cómo funciona un flujo** (listado de entidades, cupo, formalización, un lender puntual) | `context/` | Abrí [`context/ROUTE-MAP.md`](context/ROUTE-MAP.md) (33 nodos con su campo *Cuándo*), elegí 2-4 nodos, leé `context/server/data/flows/<id>/doc.md`. **No hay que correr nada.** |
+| **Entender cómo funciona un flujo** (listado de entidades, cupo, formalización, un lender puntual) | `context/` | Abrí [`context/ROUTE-MAP.md`](context/docs/ROUTE-MAP.md) (33 nodos con su campo *Cuándo*), elegí 2-4 nodos, leé `context/server/data/flows/<id>/doc.md`. **No hay que correr nada.** |
 | **Ver si un problema ya está diagnosticado** | `context/` | [`findings/doc.md`](context/server/data/flows/findings/doc.md), secciones A–L. 52 hallazgos verificados. Buscá el síntoma, no la causa. |
 | **Probar un flujo punta a punta con navegador** | `frontend-e2e/` | `cd frontend-e2e && npm run dev` → panel en **:5195**. Maneja el wizard real (`:5174`) con Playwright. |
 | **Probar el flujo sin navegador** (API + BD, rápido y repetible) | `backend-e2e/` | CLI en Go: `make doctor` y después `make local vtex pullman credipullman`. |
@@ -166,6 +166,6 @@ tiempo persiguiéndolas.
 | [`.claude/launch.json`](.claude/launch.json) | Targets de dev server: `flow` (5190), `soporte` (5192), `context` (5193), `panel` (5195) y `merchant-config` (5191, **muerto**). |
 | [`.claude/settings.local.json`](.claude/settings.local.json) | Permisos locales (gitignoreado). Autoriza `backend-e2e/scripts/dev.sh` — **no** el de `backend-mcp`, que pide confirmación aparte. |
 
-Fuera de la raíz, los tres docs que más rinden: [`context/ROUTE-MAP.md`](context/ROUTE-MAP.md) (dónde está
+Fuera de la raíz, los tres docs que más rinden: [`context/ROUTE-MAP.md`](context/docs/ROUTE-MAP.md) (dónde está
 cada cosa), [`context/server/data/flows/findings/doc.md`](context/server/data/flows/findings/doc.md) (qué
-se rompió y por qué) y [`flow/FAQ-SOPORTE.md`](flow/FAQ-SOPORTE.md) (diagnóstico de solicitudes rotas).
+se rompió y por qué) y [`flow/FAQ-SOPORTE.md`](flow/docs/FAQ-SOPORTE.md) (diagnóstico de solicitudes rotas).

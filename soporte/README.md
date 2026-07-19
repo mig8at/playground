@@ -6,7 +6,7 @@ flujo dibujado etapa por etapa en verde / ámbar / rojo / punteado: **hasta dón
 > **Estado real: FASE 0 — 100 % mock.** No hay backend, no hay `fetch`, no hay variables de entorno.
 > Verificado: `grep -rn "fetch\|axios\|http://\|VITE_" src/` no devuelve nada. Los datos salen de
 > `src/mock.js` (5 cédulas, 6 intentos). El diseño del backend que lo alimentaría está en
-> [`ARQUITECTURA-TRACING.md`](./ARQUITECTURA-TRACING.md), sin una línea de código escrita.
+> [`ARQUITECTURA-TRACING.md`](docs/ARQUITECTURA-TRACING.md), sin una línea de código escrita.
 
 ---
 
@@ -14,7 +14,7 @@ flujo dibujado etapa por etapa en verde / ámbar / rojo / punteado: **hasta dón
 
 Soporte responde el mismo puñado de preguntas todo el tiempo —"el cliente veía un preaprobado y en el
 punto de venta no le sale nada", "el lender ya desembolsó y el estado no cambia"— y la respuesta está en
-[`flow/FAQ-SOPORTE.md`](../flow/FAQ-SOPORTE.md), que es un documento **genérico**: explica la causa
+[`flow/FAQ-SOPORTE.md`](../flow/docs/FAQ-SOPORTE.md), que es un documento **genérico**: explica la causa
 probable de un síntoma, no lo que le pasó a *esta* cédula.
 
 El trazador es el paso siguiente: en vez de leer una FAQ y adivinar, mirás el recorrido concreto de la
@@ -112,7 +112,7 @@ de `1032424008` es abandono con reciclaje de solicitud (§ G1).
   warn) y `UR-9333` (desembolso warn): el nodo es ámbar, la flecha que entra es verde. El ámbar de la
   leyenda solo aplica a nodos y a aristas de lender `lowp`.
 - **La referencia a la FAQ es texto plano, no link** (`App.vue:138` renderiza "ver A1 · FAQ-SOPORTE.md"
-  en un `<span>`). Hay que abrir `../flow/FAQ-SOPORTE.md` a mano.
+  en un `<span>`). Hay que abrir `../flow/docs/FAQ-SOPORTE.md` a mano.
 - **Layout hardcodeado.** Posiciones calculadas (`x = 40 + i*212`, lenders en `y = 330 + j*88`), nodos no
   arrastrables, sin auto-layout. Agregar una etapa a `STAGES` funciona pero ensancha el canvas.
 - **Los lenders se identifican por nombre** (`nodeId = 'lender:' + name`). Dos entidades con el mismo
@@ -145,11 +145,11 @@ pueden trazar acá.
 
 ## Docs relacionados
 
-- [`ARQUITECTURA-TRACING.md`](./ARQUITECTURA-TRACING.md) — el diseño de Fase 1: fuentes por etapa,
+- [`ARQUITECTURA-TRACING.md`](docs/ARQUITECTURA-TRACING.md) — el diseño de Fase 1: fuentes por etapa,
   contrato JSON, seguridad/PII, fases 0-3. Léelo antes de tocar `mock.js` si vas a cambiar el shape.
-- [`../flow/FAQ-SOPORTE.md`](../flow/FAQ-SOPORTE.md) — origen de los casos. Barrido de ~590 mensajes de
+- [`../flow/docs/FAQ-SOPORTE.md`](../flow/docs/FAQ-SOPORTE.md) — origen de los casos. Barrido de ~590 mensajes de
   #tech-ops (jun–jul 2026), síntomas A→I con causa probable y nivel de confianza 🟢🟡🔴.
-- [`../flow/MAP.md`](../flow/MAP.md) — mapa maestro del flujo a nivel archivo+línea. Es el que dice
+- [`../flow/docs/MAP.md`](../flow/docs/MAP.md) — mapa maestro del flujo a nivel archivo+línea. Es el que dice
   dónde vive cada dato que la Fase 1 tendría que leer.
 
 ---

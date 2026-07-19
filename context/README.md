@@ -19,7 +19,7 @@ responde eso: elegís 2–4 nodos, leés sus docs, abrís sus archivos.
 
 ## Arranque rápido
 
-**Si sos un LLM (el caso principal): no corras nada.** Abrí [`ROUTE-MAP.md`](ROUTE-MAP.md), leé los
+**Si sos un LLM (el caso principal): no corras nada.** Abrí [`ROUTE-MAP.md`](docs/ROUTE-MAP.md), leé los
 `Cuándo:` de cada nodo, elegí 2–4 que matcheen la tarea, y abrí sus `doc.md` + `map.json`. Ese archivo
 está diseñado para entrar entero en una ventana de contexto (~16 KB); los 4.275 renglones de doc no.
 
@@ -167,7 +167,7 @@ hipótesis, y si el síntoma engaña, decilo en el título.
 
 ## Relacionados
 
-- [`ROUTE-MAP.md`](ROUTE-MAP.md) — el índice de los 33 nodos. Punto de entrada de toda tarea.
+- [`ROUTE-MAP.md`](docs/ROUTE-MAP.md) — el índice de los 33 nodos. Punto de entrada de toda tarea.
 - `server/data/doc-templates/*.md` — las 6 plantillas de doc, con comentarios HTML que explican qué va
   en cada sección. Usalas al crear un nodo nuevo.
 - `../EXAMPLES.md` — cheatsheet de demos visuales del wizard vía `frontend-e2e` (`bin/asesor`,
