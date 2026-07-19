@@ -10,6 +10,7 @@ import { closeCreditopX, resolveRequestStatus } from '../pkg/close';
 import { one, exec } from '../pkg/db';
 import { close } from '../pkg/db';
 import { PREVIEW, IPHONE_UA, openA, openB } from '../pkg/windows';
+import { mockWompiHostedCheckout } from '../pkg/wompi-mock';
 
 /**
  * GUIADO (semiautomático) — el demo SIEMBRA cada pantalla por detrás y VOS das "Continuar" para avanzar,
@@ -201,6 +202,30 @@ test('guided (semiautomático)', async ({ browser }) => {
     // El polling de validación (captura ADO por foto) NO es automatizable → lo mockeamos como validado. Va acá,
     // en la creación, para que esté activo ANTES de cualquier navegación de B (venga del watcher o del guiado).
     await B.route('**/validation-status', (r) => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ validationStatus: { data: { all_completed: true, ado: { validated: true, completed: true, state_id: 2, state_name: 'Validado' }, tusdatos_aml: { has_findings: false, completed: true } } }, validationStatusAbaco: null, errorType: null, errorMessage: null }) }).catch(() => {}));
+
+    // TRAZA DE B. Sin esto B es una caja negra: una corrida se quedó 20 min trabada en el celular y el log no
+    // tenía UNA sola línea de esa ventana (todos los listeners colgaban de A). Mismo trato que A, prefijo `B`.
+    B.on('framenavigated', (f) => {
+        if (f !== B.mainFrame()) return;
+        let p = f.url(); try { p = new URL(f.url()).pathname; } catch { /* about:blank / data: */ }
+        if (p !== 'about:blank') log(`B nav → ${p}`);
+    });
+    B.on('console', (m) => {
+        const t = m.type();
+        if (t !== 'error' && t !== 'warning') return;
+        const ss = m.text().slice(0, 200);
+        if (!/Download the React DevTools|PostHog|Lit is in dev|ws\.credito|WebSocket connection|ERR_NAME_NOT_RESOLVED|react-scan|react-grab|ERR_FAILED|hydrat|nonce/i.test(ss)) log(`  B ⚠ console.${t}: ${ss}`);
+    });
+    B.on('pageerror', (e) => log(`  B ⚠ pageerror: ${String(e.message).slice(0, 200)}`));
+    B.on('response', (r) => { if (r.status() >= 500) { let u = r.url(); try { u = new URL(r.url()).pathname; } catch { /* */ } log(`  B ⚠ HTTP ${r.status()} ${u}`); } });
+
+    // Checkout HOSTED de Wompi (pago de la cuota inicial de un rt=2): es una página EXTERNA que no se puede
+    // completar a mano en el harness — el otro muro clásico, además del ADO. `pkg/wompi-mock` intercepta la
+    // navegación (la reconoce por el query `redirect-url` → down-payment-validation) y responde el 302 de
+    // vuelta al wizard; el backend local ya aprueba la transacción (WOMPI_MOCK_ENABLED). Va en las DOS
+    // ventanas porque el pago puede dispararse desde A (asesor) o desde B (celular del cliente).
+    await mockWompiHostedCheckout(page).catch(() => {});
+    await mockWompiHostedCheckout(B).catch(() => {});
     // Tarjeta de estado de B (mientras no haya una pantalla real que mostrar).
     const bCard = (kicker: string, title: string, body: string, dots = true) => B.setContent(
         `<!doctype html><meta charset="utf-8"><title>B · celular del cliente</title>
@@ -240,6 +265,25 @@ test('guided (semiautomático)', async ({ browser }) => {
             if (!link) { bWoke = false; return; }
             log(`B (celular): handoff CreditopX en A → abro ${new URL(link).pathname}`);
             await B.goto(link, { waitUntil: 'domcontentloaded', timeout: 60_000 }).catch(() => {});
+
+            // ── SALTEAR LA CAPTURA DE IDENTIDAD (ADO) ──────────────────────────────────────────────────
+            // Es una FOTO del documento contra un proveedor externo: imposible de completar con un usuario
+            // sintético. Es una pantalla puramente client-side, así que ni siquiera deja rastro en el
+            // backend — una corrida se quedó 20 minutos ahí, trabada y en silencio. El modo GUIADO ya la
+            // salteaba con un goto directo; en MANUAL la ventana quedaba en el muro. Ahora también la
+            // salteamos y te dejamos en el primer paso que SÍ podés manejar (plazos).
+            const ss = link.replace(/\/confirmation$/, '');
+            await B.waitForTimeout(1_500).catch(() => {});
+            const skipErr = await B.goto(`${ss}/first-payment-date`, { waitUntil: 'domcontentloaded', timeout: 60_000 })
+                .then(() => null, (e: Error) => e);
+            if (skipErr) {
+                log(`  B ⚠ no pude saltear la captura de identidad: ${skipErr.message.split('\n')[0]}`);
+                return;
+            }
+            log('B: salteé la captura de identidad (ADO por foto — no automatizable con sintético) → plazos');
+            // La firma del pagaré es por OTP y el teléfono es de bypass → el código es conocido. Sin esto te
+            // trabás en la firma, que es el ÚLTIMO paso antes de "crédito aprobado".
+            log(`B: seguí vos → plazos → cronograma → firma. Código OTP de la firma: ${PHONE.slice(-6)}`);
             return;
         }
         if (kind === 'agregador') {
@@ -351,6 +395,21 @@ test('guided (semiautomático)', async ({ browser }) => {
         if (!ur) { log('✗ el INSERT del user_request falló'); return ''; }
         const r = await synthFill(Number(ur), synthOptsFromEnv());
         log(`uReq ${ur} sembrado headless (user ${userId} · asesor ${asesorId ?? '-'} · Experian ${r.datacredito_forged})`);
+        // Aviso TEMPRANO: si el lender que elijas pide cuota inicial, el flujo va al checkout de Wompi y
+        // `/initial-fee-payment/initiate` necesita la credencial del lender Wompi (#52) EN ESTA SUCURSAL.
+        // Sin ella tira, y te enterás recién a mitad del cierre. Es una consulta barata, así que se avisa acá.
+        // OJO: `lender_allied_credentials` es POLIMÓRFICA (allied_type + allied_id), no tiene allied_branch_id.
+        // La credencial puede colgar del COMERCIO (…\Allied → allied_branches.allied_id) o de la SUCURSAL
+        // (…\AlliedBranch → allied_branches.id). Buscar solo por sucursal da un falso "no tiene" (Motai la
+        // tiene a nivel comercio). `LIKE '%Allied'` no matchea '…AlliedBranch' porque exige terminar en Allied.
+        const wompiCred = await one<{ id: number }>(
+            `SELECT lac.id FROM lender_allied_credentials lac
+             JOIN allied_branches ab ON ((lac.allied_type LIKE '%AlliedBranch' AND lac.allied_id = ab.id)
+                                      OR (lac.allied_type LIKE '%Allied'       AND lac.allied_id = ab.allied_id))
+             WHERE ab.hash = ? AND lac.lender_id = 52 LIMIT 1`,
+            [HASH],
+        ).catch(() => null);
+        if (!wompiCred) log('⚠ esta sucursal NO tiene credencial de Wompi (#52): si el lender pide cuota inicial, el pago va a fallar. Sembrala con seedWompiCredential() de merchant/seed.ts');
         return ur;
     }
 
