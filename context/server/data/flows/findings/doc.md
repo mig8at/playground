@@ -884,3 +884,40 @@ Dato de contexto: `feature/onboarding/ecommerce-continue-route` (junio, ya en `d
 El wizard aterriza en **`/no-preapproved`** —la pantalla de "no preaprobado" de Bancolombia— y la corrida termina en timeout esperando una pantalla a la que nunca va a llegar. Sin la traza, eso se veía como un cuelgue mudo de 5 minutos; con ella, el diagnóstico está en la primera línea.
 
 **Para correr un comercio CreditopX (Pullman) por ecommerce hace falta la landing genérica de la rama de abril.** Con lo que hay en `develop`, la entrada base64 solo tiene sentido para comercios Bancolombia.
+
+### F-55 · El ruteo de validación de identidad tiene tres agujeros que CANCELAN el crédito
+
+**Amplía a F-50.** Aquel arregló el síntoma (sembrar la fila faltante para 4 lenders). Auditando **todas** las bifurcaciones del wizard aparecieron tres agujeros más, del mismo mecanismo: el front no contempla un valor, cae en un fallback, y el fallback termina en `request-canceled` — **cuya ruta cancela en el `loader`**.
+
+**1 · El backend emite 7 tipos de paso; el front mapea 5.** Verificado por grep sobre `apps/` y `modules/`:
+
+```
+aws_validation · ado_validation · crosscore_validation · evidente_validation · no_validation_required   → mapeados
+unsupported_validation      → 0 ocurrencias en TODO el frontend
+no_validation_configured    → 0 ocurrencias
+```
+
+Los dos huérfanos salen de `IdentityValidationStepResolver.php:100-111` (rama `default`) y `CreditopXFlowService.php:94-102` (lender sin `primaryIdentityValidationType`). Caen en el fallback de `loan-confirmation.tsx:258` → `identity-validation-instructions` → su action no matchea → `:94` → cancelación.
+
+**Lo importante para F-50:** el enum `IdentityValidationType` tiene 7 casos y el resolver mapea 5 (1,2,4,5,6). **`Unknown=0` y `Questions=3` son valores REALES que caen en el default.** Sembrar la fila no alcanza si el valor sembrado es `3`: un lender con `identity_validation_type_id = 3` mata la solicitud igual.
+
+Y el backend **ya avisa**: marca esos casos con `next_step => 'error'`. El front lee solo `step_details.type` (`loan-confirmation.tsx:241`) e ignora `next_step` — descarta la señal explícita.
+
+**2 · Un fallo al cargar el TEMA VISUAL cancela el crédito.** `identity-validation-instructions.tsx:31-40`: el `catch` del loader —que envuelve el `GetAlliedThemeUc`, o sea el fetch del branding del comercio— redirige a `request-canceled`. Un problema de theming mata una solicitud viva. Esa pantalla tiene **cinco** salidas a cancelación (`:63, :77, :88, :94, :103`) más la del loader.
+
+**3 · Renting + Evidente se cancela solo.** `abaco/platform-otp-validation.tsx` mapea 3 tipos (`aws`, `ado`, `no_validation_required`) — grep de `evidente` da **0**. Al terminar Ábaco, un lender con Evidente cae en el fallback `:258` → instructions → cancelación. `crosscore` zafa de casualidad porque instructions sí lo maneja.
+
+**Contraste que muestra que es arreglable:** el mismo tipo huérfano **sí** está contenido en `identity-validation-status.tsx:128` (cambio de proveedor en caliente), donde el `default` cae a `defaultPath` en vez de a instructions. La misma clase de valor se maneja bien en un lugar y mal en el otro.
+
+**Qué haría falta (decisión del equipo):** que el front honre `next_step === 'error'` con una pantalla de error de configuración, y que `request-canceled` deje de cancelar desde el `loader` — hoy **navegar o recargar esa URL cancela la solicitud**.
+
+### F-56 · Cuatro de las cinco salidas de `/lenders` dan 404 fuera de `/merchant`
+
+`available-lenders.tsx` arma sus destinos con `createRouteHelpers`, que prefija según el contexto (`/merchant`, `/self-service` o `/ecommerce`). Pero **`continue`, `gestionar` y `validate-lender-otp` solo están declaradas en el bloque `merchant` de `routes.ts`** (`:104, :129, :136`); el bloque público (`:flow`) no las tiene. Confirmado contra el artefacto generado `.react-router/types/+routes.ts:719`.
+
+Consecuencia: en `self-service` o `ecommerce`, elegir un lender **renting** (`:554`), uno con **`path_id=3`** (`:548`), uno con **`validateLenderOtp`** (`:559`) o **CreditopX con QR** (`:564`) redirige a una ruta inexistente.
+
+**Otros dos hallazgos del mismo paso, verificados:**
+
+- **`standBy` es escritura muerta en `feature/motai-v2`.** El backend lo setea para rt=2/3/4 (`UserRequestService.php:435, :461, :610`) y el front **no lo lee nunca** (0 ocurrencias; el tipo del contrato ni lo declara). En `origin/develop` **sí** se usa. En esta rama el handoff de CreditopX se alcanza de rebote, por `showModal && sin url`.
+- **`/continue?url=null` literal.** `available-lenders.tsx:566` hace `String(qrUrl)` y `qrUrl` es `null` salvo país 60; el string `'null'` viaja como query param y `loan-continue.tsx:104` usa `?? default`, que **no** cae al default porque `'null'` no es nullish → se genera un QR sobre la cadena `"null"`. Afecta a todo rt=2/3/4 fuera de República Dominicana.

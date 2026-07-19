@@ -145,8 +145,9 @@
             "Modules/Identity/App/Services/IdentityValidationService.php",
             "Modules/Identity/App/Services/ManualValidationService.php"
           ],
-          "nota": "Captura de documento + selfie: POST /api/identity/validation/document → ValidateIdentityController@validateId → IdentityValidationService (con fallback a ManualValidationService). Es SOLO el camino AWS/Rekognition; ado/crosscore entran por identity-validation-instructions y evidente por additional-identity-validation, todos convergiendo en identity-validation-status, que hace polling y al terminar manda a first-payment-date.",
-          "detalle": "Validación de identidad (ADO / AWS / CrossCore / Evidente)"
+          "nota": "CONDICIONAL: con no_validation_required (lender con tipo None) se saltea entera y va directo a 1ª cuota (loan-confirmation.tsx:235). Y no es UN paso: son 4 variantes con topologías distintas — aws (dentro del wizard), ado y crosscore (salen a plataforma externa y vuelven por callback), evidente (cadena propia otp→cuestionario que NUNCA pasa por identity-validation-status). Las 4 reconvergen en 1ª cuota. ⚠ Hay 2 tipos que el front NO mapea y terminan cancelando (F-55). Captura de documento + selfie: POST /api/identity/validation/document → ValidateIdentityController@validateId → IdentityValidationService (con fallback a ManualValidationService). Es SOLO el camino AWS/Rekognition; ado/crosscore entran por identity-validation-instructions y evidente por additional-identity-validation, todos convergiendo en identity-validation-status, que hace polling y al terminar manda a first-payment-date.",
+          "detalle": "Validación de identidad — 4 variantes, y puede saltearse entera",
+          "condicional": true
         },
         {
           "id": "first-payment-date",
@@ -190,8 +191,9 @@
             "Modules/Loans/App/Http/Controllers/Customer/FormTypeController.php",
             "Modules/Loans/App/Services/FormTypeService.php"
           ],
-          "nota": "Paso SIN pantalla: el componente devuelve null y el loader solo redirige. GET /api/loans/customer/{ur}/form-type (FormTypeController@show → FormTypeService); si formTypeId es null salta a sign-documents, si no manda a /additional-info/{form_type_id} (formulario dirigido por backend).",
-          "detalle": "Información adicional (compuerta: si no hay formulario, salta)"
+          "nota": "CONDICIONAL: es una compuerta sin UI. Salta a Documentos si formTypeId es null, y eso pasa por DOS motivos: el lender no tiene form_type activo, O la solicitud no tiene lender sellado (FormTypeService.php:31-33). Apagar el form_type en BD saca el paso del flujo sin tocar código. Paso SIN pantalla: el componente devuelve null y el loader solo redirige. GET /api/loans/customer/{ur}/form-type (FormTypeController@show → FormTypeService); si formTypeId es null salta a sign-documents, si no manda a /additional-info/{form_type_id} (formulario dirigido por backend).",
+          "detalle": "Formulario adicional — compuerta, casi siempre se saltea",
+          "condicional": true
         },
         {
           "id": "sign-documents",
@@ -224,6 +226,20 @@
           ],
           "nota": "Dos llamadas en la MISMA action: POST .../validate/verify-otp (@verifyOtp → LoanAuthorizationService::validateOtp + transitionToIntermediate) y después POST .../validate/authorize (@disburse → LoanAuthorizationService::authorize), que es el desembolso. EXCEPCIÓN IMEI/SmartPay: si verify devuelve metadata.lender_path === 'IMEI' NO se llama authorize — la action sale a /security-validation y el cierre pasa por device/register + device/{ur}/disburse (Modules/Loans/.../Customer/DeviceController.php). Llamar authorize en ese caso consume el OTP y rompe el disburse (sweep.ts:208-219).",
           "detalle": "Firma del pagaré por OTP"
+        },
+        {
+          "id": "security-validation",
+          "label": "Bloqueo IMEI",
+          "detalle": "Validación de seguridad del dispositivo (solo SmartPay / path IMEI)",
+          "ruta": "/{flow}/{hash}/{ur}/security-validation",
+          "front": [
+            "apps/loan-request-wizard/app/routes/security-validation.tsx"
+          ],
+          "back": [
+            "Modules/Loans/App/Http/Controllers/Customer/DeviceController.php"
+          ],
+          "condicional": true,
+          "nota": "CONDICIONAL: solo en el camino IMEI. otp-validation.tsx:171 rutea acá en vez de a Aprobado cuando metadata.lender_path === 'IMEI'. O sea Aprobado tiene DOS predecesores según el producto. Depende de una acción HUMANA fuera del wizard (el asesor escanea el IMEI); el wizard solo polea, y a los 20 intentos (~10 min) queda sin salida de ruta."
         },
         {
           "id": "loan-approved",
