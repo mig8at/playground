@@ -1127,17 +1127,21 @@
       svg.addEventListener('dblclick', () => encuadrar());
     })();
 
-    // enriquece cada card con el hash desde el backend (resiliente: si no está en local, lo marca).
-    // La card muestra SOLO nombre + hash: el slug y el #id son ruido acá (el slug ya está en el nombre
-    // y el id no se usa a mano). El slug sigue vivo en `m.slug`, que es lo que se lanza.
+    // La card muestra el hash de la sucursal que REALMENTE se lanza (.flows.json), no el de una búsqueda
+    // por slug: eran distintos y la card mostraba una sucursal mientras el flujo corría contra otra, con
+    // otra lista de lenders. Una sola llamada para todos, y marca los que no existen en este target.
     async function enrichMerchants() {
-      for (const m of MERCHANTS) {
-        try {
-          const list = await (await fetch('/api/merchants?q=' + encodeURIComponent(m.slug) + '&target=' + target)).json();
-          const hit = list.find(x => x.slug === m.slug) || list[0];
-          if (hit) { m.meta = hit.hash; m.missing = false; }
-          else { m.meta = '— no está en local'; m.missing = true; }
-        } catch { m.meta = ''; }
+      try {
+        const slugs = MERCHANTS.map(m => m.slug).join(',');
+        const info = await (await fetch('/api/branches?slugs=' + encodeURIComponent(slugs) + '&target=' + target)).json();
+        for (const m of MERCHANTS) {
+          const b = info[m.slug];
+          if (!b || b.sinFlows) { m.meta = '— sin branch_hash en .flows.json'; m.missing = true; }
+          else if (!b.allied_name) { m.meta = `${b.hash} — no está en ${target}`; m.missing = true; }
+          else { m.meta = `${b.hash} · ${b.lenders} entidad${b.lenders === 1 ? '' : 'es'}`; m.missing = false; }
+        }
+      } catch {
+        for (const m of MERCHANTS) m.meta = '';
       }
       renderMerchants();
     }

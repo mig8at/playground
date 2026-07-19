@@ -72,6 +72,22 @@ try {
                 [a[0] ?? ''],
             );
             break;
+        case 'branches': // resuelve VARIOS hashes de sucursal de una: nombre del comercio y si existe en
+            // este target. Existe para que el panel muestre en la card el hash que REALMENTE se lanza (el de
+            // .flows.json) en vez del que devolvía una búsqueda por slug, que podía ser OTRA sucursal del
+            // mismo comercio — y entonces la card mostraba una sucursal y el flujo corría contra otra.
+            // → [{hash, allied_id, allied_name, lenders}]
+            r = await query(
+                `SELECT ab.hash, a.id AS allied_id, COALESCE(a.name,'') AS allied_name,
+                        (SELECT COUNT(*) FROM lenders_by_allied_branches x
+                          JOIN lenders l2 ON l2.id = x.lender_id AND l2.status = 1
+                         WHERE x.allied_branch_id = ab.id) AS lenders
+                   FROM allied_branches ab
+                   JOIN allieds a ON a.id = ab.allied_id
+                  WHERE ab.hash IN (?)`,
+                [a.length ? a : ['']],
+            );
+            break;
         case 'lender-sort': { // fija el ORDEN de los lenders del comercio (lenders_by_allieds.sort) desde una lista de ids
             // en orden. Es la palanca que respeta orderByGroupProbability DENTRO de cada bucket de probabilidad.
             assertWriteAllowed();

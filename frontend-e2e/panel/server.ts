@@ -208,6 +208,23 @@ const server = createServer(async (req, res) => {
         }
     }
 
+    // Las cards muestran el hash de la sucursal que se LANZA (el de .flows.json, vía branchHashForSlug),
+    // no el de una búsqueda por slug: eran distintos y la card mostraba una sucursal mientras el flujo
+    // corría contra otra, con OTRA lista de lenders.
+    if (path === '/api/branches') {
+        const slugs = (url.searchParams.get('slugs') || '').split(',').map((s) => s.trim()).filter(Boolean);
+        const target = (url.searchParams.get('target') || 'local').trim();
+        const porSlug: Record<string, string> = {};
+        for (const s of slugs) { const h = branchHashForSlug(s); if (h) porSlug[s] = h; }
+        const hashes = [...new Set(Object.values(porSlug))];
+        const filas: any[] = hashes.length ? ((await dbopsJson(['branches', ...hashes], target)) ?? []) : [];
+        const info = Object.fromEntries(filas.map((f: any) => [f.hash, f]));
+        return json(res, 200, Object.fromEntries(slugs.map((s) => {
+            const h = porSlug[s];
+            return [s, h ? { hash: h, ...(info[h] ?? { existe: false }) } : { hash: '', sinFlows: true }];
+        })));
+    }
+
     if (path === '/api/merchants') {
         const q = (url.searchParams.get('q') || '').trim();
         const target = (url.searchParams.get('target') || 'local').trim();
