@@ -834,3 +834,44 @@ Y los `.env` se cargan solos: `backend-mcp/main.go:33` autocarga `.env.<target>`
 **Qué haría falta (decisión del dueño, no del harness):** sacar la variable de los `.env` versionados —empezando por `.env.local`, donde no tiene ningún sentido— y dejar que se exporte a mano solo cuando de verdad se quiera tocar dev. Y evaluar que la guarda mire el **host** además de la etiqueta.
 
 **Mientras tanto**, queda advertido en `backend-mcp/CLAUDE.md` y `backend-e2e/CLAUDE.md`: en esta máquina, la guarda no te va a frenar.
+
+### F-54 · La entrada por ecommerce existe y funciona — pero hoy solo resuelve Bancolombia
+
+**Corrige a F-40**, que concluía que el eje ecommerce estaba muerto porque "no hay ruta `checkout` en el wizard". Es más matizado: lo que falta es la **landing**, no el mecanismo.
+
+**Lo que SÍ funciona hoy (verificado contra el backend local, no supuesto):**
+
+```
+GET /api/onboarding/checkout/{allied_branch_hash}?o=&p=&t=&u=&ps=[&config=]
+```
+
+Los 5 parámetros van en **base64** (`CorbetaCheckoutController.php:119-146`): `o`=order (debe traer `billing` y `total`), `p`=products, `t`=token, `u`=return_url, `ps`=process_endpoint. Si falta uno → `SP20754` sin explicación.
+
+El backend decodifica, **crea la solicitud** y responde **302** a
+`{FRONTEND_URL_DEV}/bancolombia/self-service/{hash}/resolve-ecommerce-flow/{uReq}` (`:1250`).
+Esa ruta **sí existe** en la rama actual (`routes.ts:158`). Probado con Pullman (`13874eb6`): creó la uReq y redirigió correctamente.
+
+**El muro real: ese resolvedor es de BANCOLOMBIA.** `routes/bancolombia/ecommerce/resolve-ecommerce-flow.tsx` tiene título *"Validando información - Bancolombia"*, importa de `@creditop/bancolombia-origination` y su `SupportedFlowType` es `"bnpl" | "consumo"`. Con un comercio **CreditopX** el flowType sale `no_preapproved` y el propio loader llama `cancelCorbetaCheckout`:
+
+```tsx
+if (flowType === "no_preapproved") {
+      await cancelCorbetaCheckout({ … });     // ← la solicitud nace CANCELADA
+```
+
+Evidencia: la uReq 464508 (Pullman, $1.5M) quedó en estado **8** con `Cancelación no voluntaria código 5001` **en el mismo segundo** de su creación. Es el mismo código genérico de F-50 — otra ruta que cancela desde el `loader`.
+
+**Dónde está la pieza que falta.** La landing genérica multi-flujo —`route("checkout", "routes/checkout-redirection.tsx")` + `route("waiting-room", "routes/ecommerce-continue.tsx")`— existe **solo** en `feat/ecommerce-checkout-integration` (abril 2026). Verificado que **no** está en `main`, `develop`, `feature/motai-v2`, `feature/onboarding/ecommerce-web-origination` ni `feature/onboarding/ecommerce-continue-route`.
+
+Dato de contexto: `feature/onboarding/ecommerce-continue-route` (junio, ya en `develop`) registró `/ecommerce/.../continue` — el handoff de CreditopX. O sea **develop tiene el medio del árbol ecommerce, pero no la puerta**.
+
+**Trampas de entorno que costaron dos intentos:**
+
+| Síntoma | Causa |
+|---|---|
+| 302 a `originaciones.dev.creditop.com` | `resolveFrontendBaseUrl()` (`:1160`) cae al default de `config/app.php`. **Sin `FRONTEND_URL_DEV` en `legacy-backend/.env`, el flujo local se ESCAPA A DEV sin avisar.** |
+| `BP12700001` "user conflict" | el teléfono/documento ya tiene usuario con otra identidad (`:265`). Scrubbear antes. |
+| 404 mudo al armar la URL | `E2E_API_BASE_URL` ya trae `/api` en local → `/api/api/…`. |
+
+**Qué quedó en el harness:** `pkg/checkout-b64.ts` arma y sigue la URL base64 (`urlCheckout` / `seguirCheckout`), y `E2E_ENTRY=ecommerce` en `guided.spec.ts` entra por ahí. **Ojo:** cada GET al checkout **crea una solicitud**, así que no se puede pre-seguir headless *y* navegar el browser — genera dos y deja la primera huérfana.
+
+**Para correr un comercio CreditopX (Pullman) por ecommerce hace falta la landing genérica de la rama de abril.** Con lo que hay en `develop`, la entrada base64 solo tiene sentido para comercios Bancolombia.

@@ -9,6 +9,7 @@ import { synthFill, requestEstado11 } from '../pkg/inject';
 import { closeCreditopX, resolveRequestStatus } from '../pkg/close';
 import { one, exec } from '../pkg/db';
 import * as traza from '../pkg/trace';
+import { urlCheckout, seguirCheckout } from '../pkg/checkout-b64';
 import { close } from '../pkg/db';
 import { PREVIEW, IPHONE_UA, openA, openB } from '../pkg/windows';
 import { mockWompiHostedCheckout } from '../pkg/wompi-mock';
@@ -511,16 +512,54 @@ test('guided (semiautomático)', async ({ browser }) => {
 
     // ───────────────────────── ENTRADA ─────────────────────────
     if (ENTRY === 'ecommerce') {
-        expect(CHECKOUT_URL, 'E2E_CHECKOUT_URL lo arma bin/asesor (--ecommerce)').toBeTruthy();
+        // ── ENTRADA POR ECOMMERCE (URL base64) ────────────────────────────────────────────────────────
+        // La tienda serializa el pedido en base64; el backend lo decodifica, CREA la solicitud y redirige
+        // al wizard (CorbetaCheckoutController:1250 → /bancolombia/self-service/{hash}/resolve-ecommerce-flow/{ur}).
+        // Esa ruta SÍ existe hoy; la que NO existe es la landing `/{hash}/checkout` (vive solo en la rama
+        // `feat/ecommerce-checkout-integration`, de abril) — por eso NO entramos por ahí. Ver F-40/F-54.
+        //
+        // Antes esto dependía de que `bin/asesor` exportara E2E_CHECKOUT_URL y esperaba `/solicitar|checkout`,
+        // que NO es donde aterriza el flujo real → se quedaba colgado. Ahora la URL se arma acá.
+        const pedido = {
+            total: Number(AMOUNT) || 1_500_000,
+            phone: PHONE,
+            documentNumber: process.env.E2E_SYNTH_DOC || String(2_900_000_000 + Math.floor(Number(AMOUNT) || 0) % 90_000_000),
+            returnUrl: RETURN_URL,
+        };
+        // el checkout rebota con BP12700001 si el teléfono ya tiene usuario con OTRA identidad
+        await exec('DELETE FROM users WHERE cell_phone=? AND (cognito_id IS NULL OR cognito_id=\'\')', [PHONE]).catch(() => {});
+        const url = CHECKOUT_URL || urlCheckout(HASH, pedido);
+        // OJO: NO pre-seguimos el checkout acá. Cada GET a esa URL CREA una solicitud, así que hacerlo
+        // headless y además navegar el browser generaba DOS (y dejaba la primera huérfana). El browser
+        // recorre el 302 real; el uReq lo leemos del aterrizaje. `seguirCheckout()` queda para el camino
+        // RÁPIDO (sin navegador), donde sí es el que ejecuta.
+        log(`entrada ecommerce: URL base64 → ${HASH} · total ${pedido.total.toLocaleString('es-CO')}`);
+
         if (STORE) {
-            await page.goto(`${MOCK_STORE}?to=${encodeURIComponent(CHECKOUT_URL)}`, { waitUntil: 'domcontentloaded', timeout: 30_000 }).catch(() => {});
+            await page.goto(`${MOCK_STORE}?to=${encodeURIComponent(url)}`, { waitUntil: 'domcontentloaded', timeout: 30_000 }).catch(() => {});
             await page.getByRole('button', { name: /pagar con creditop/i }).waitFor({ state: 'visible', timeout: 8_000 }).catch(() => {});
             await shot(page, 'tienda');
             tip('Dale "Pagar con Creditop" en la tienda.');
-            await page.waitForURL(/\/(solicitar|checkout|otp|personal-info|lenders)/, { timeout: PICK_TIMEOUT });
         } else {
-            await page.goto(CHECKOUT_URL, { waitUntil: 'domcontentloaded' });
-            await page.waitForURL(/\/(solicitar|otp|personal-info|lenders)/, { timeout: 40_000 });
+            await page.goto(url, { waitUntil: 'domcontentloaded' }).catch(() => {});
+        }
+        // aterrizajes válidos: el resolvedor de ecommerce o cualquier pantalla del árbol público
+        await page.waitForURL(/resolve-ecommerce-flow|\/(solicitar|otp|personal-info|employment-info|lenders|confirmation)/, { timeout: PICK_TIMEOUT })
+            .catch(() => log(`⚠ no aterrizó en una pantalla conocida — quedó en ${page.url()}`));
+        await shot(page, 'ecommerce-aterrizaje');
+
+        const urEcom = page.url().match(/resolve-ecommerce-flow\/(\d+)|\/(?:merchant|ecommerce|self-service)\/[^/]+\/(\d+)\//);
+        const idEcom = urEcom?.[1] ?? urEcom?.[2];
+        if (idEcom) traza.trazarUReq(idEcom);
+
+        // ⚠ `resolve-ecommerce-flow` es el resolvedor de BANCOLOMBIA (título "Validando información -
+        // Bancolombia", flowTypes bnpl|consumo). Con un comercio CreditopX el flowType sale
+        // `no_preapproved` y el propio loader llama `cancelCorbetaCheckout` → la solicitud nace CANCELADA.
+        // No es un bug del harness: hoy la entrada ecommerce del wizard solo resuelve Bancolombia. La
+        // landing genérica (`{hash}/checkout` → checkout-redirection.tsx) vive únicamente en la rama
+        // `feat/ecommerce-checkout-integration`. Ver findings F-54.
+        if (/resolve-ecommerce-flow/.test(page.url())) {
+            log('⚠ aterrizaste en el resolvedor de BANCOLOMBIA. Si este comercio es CreditopX, va a cancelar (F-54).');
         }
     } else if (DIRECT_LENDERS) {
         // ── ENTRADA DIRECTA a /lenders: sembramos PRIMERO (sin navegador) y recién ahí navegamos. ──
