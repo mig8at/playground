@@ -283,3 +283,56 @@ Aparecieron en el mismo relevamiento y conviene reconocerlos para no perder tiem
 **Evidencia:** `new URL('//getCreditToken?a=1','http://localhost:8099').pathname` → `'/'`.
 **Arreglo:** colapsar las barras iniciales antes de parsear: `String(req.url).replace(/^\/{2,}/, '/')`.
 **Estado:** resuelto. **La pista fue el log VACÍO** — si el mock responde pero no registra nada, no está viendo lo que creés.
+
+---
+
+## I · Barrido headless (matriz de conductas + cierre por API)
+
+Herramienta: `frontend-e2e/dev/sweep.ts` (`matrix` / `close`). Todo lo de abajo salió de correrla contra el backend local, 2026-07-19.
+
+### F-28 · Matriz de conductas por comercio × entidad (relevada, no supuesta)
+
+Al seleccionar una entidad, el backend responde una COMBINACIÓN de rasgos (no uno solo): `standBy` · `showModal` · `openProcessModal` (2ª variante de modal: "seguí en el punto de venta / en la app del lender", con `showModal=false`) · `validateLenderOtp` · `url` (a veces junto con modal). Resumen de lo relevado (7 comercios, ~35 selecciones):
+
+| Conducta | Entidades (ejemplos) |
+|---|---|
+| standBy (in-platform) | TODOS los rt=2 · **Credifamilia rt=4 #24** (¡sin llamar al WSDL!) |
+| modal + url del portal | Addi #6, Sufi #7, Su+pay #11, Abanta #50, Global Care #14, Brilla #19 |
+| processModal (sin url) | Lagobo #35, Davivienda #36, Meddipay #39 (en sonria) |
+| otp-lender (`validateLenderOtp`) | Sistecrédito #9 — origination in-house con OTP del lender |
+| ERROR | BdB #5 (solo en algunos comercios, F-26) · Prami #12 (`array offset on null`) |
+
+Hallazgos puntuales:
+- **Credifamilia rt=4 selecciona con `standBy` y CERO llamadas externas** → la parte in-platform del flujo rt=4 (confirmation → fechas → firma) se puede recorrer en local sin VPN; el SOAP de radicación es de la formalización, no de la selección.
+- **`Brilla Guajira #123` NO lista en el marketplace pero SÍ se deja seleccionar por API** → listado y seleccionabilidad son decisiones independientes.
+- **La conducta depende del COMERCIO, no solo de la entidad**: BdB #5 funciona en celucambio (url→slm.bancodebogota.com) y en sonria (url→**bit.ly**) pero revienta con `$certPath` en godentist; Bancolombia #68/#100 en pullman devuelven url→**originaciones-stg.dev.creditop.com** (la URL sale de config por comercio — `url_utm` —, no de una API); Meddipay #39 da processModal en sonria y modal en godentist.
+
+### F-29 · Receta del cierre rt=2 100% por API (sin navegador)
+
+Secuencia verificada que lleva una solicitud de cero a **Estado 11 "Autorizada" con `request_number`** (Celupresto #96 y Mediarte 0% #94):
+
+```
+POST /api/onboarding/loan-application/update-user-request/{ur}   (select → standBy)
+GET  /api/loans/requests/{ur}                                    (continue index)
+POST /api/loans/requests/confirm {user_request_id}               → next_step: identity_validation
+                                                                   (aws_validation · document_and_facial_recognition = el ADO;
+                                                                    headless NO bloquea los pasos siguientes)
+GET  /api/loans/requests/promissory-note/{ur}/select-payment-date  → { nextPaymentDates:[{date,day}], selectedCycle }
+POST /api/loans/requests/promissory-note/{ur}/confirm-payment-date { payment_date }
+GET  /api/loans/requests/promissory-note/{ur}/simulate-payment-schedule
+POST /api/loans/requests/promissory-note/{ur}/confirm-payment-schedule { fee_number, selected_cycle, … }
+GET  /api/loans/requests/promissory-note/{ur}          ← GENERA los documentos (es lo que hace el loader
+                                                          de sign-documents); SIN esto, authorize muere con
+                                                          "PromissoryNote no encontrado"
+POST …/promissory-note/validate/send-otp                (bypass QA → sin SMS)
+POST …/promissory-note/validate/verify-otp {otp: últimos 6 del celular}  → estado 28
+POST …/promissory-note/validate/authorize               → estado 11 + request_number
+```
+
+Gotchas: las rutas de fechas/cronograma viven bajo el prefijo `promissory-note` (un 404 lo enseñó); el estado **28 "Autorizado pendiente desembolso" es el intermedio real** entre verify-otp y authorize; todo con UA de iPhone.
+
+### F-30 · DENTIX no cierra en local: su pagaré es Deceval (SOAP)
+
+**Síntoma:** el cierre headless de DENTIX #139 se traba en `promissory (show)` con HTTP 502 `{"operation":"createGirador"}` y authorize dice "PromissoryNote con ID de Deceval no encontrado". Queda en estado 28.
+**Causa raíz:** DENTIX tiene `promissory_type_id = 2` = pagaré **desmaterializado en Deceval** (`Modules/Loans/App/Actions/DecevalSoap.php`, 4 operaciones SOAP contra `config('services.deceval.soap.host')` — sin host en el `.env` local). Celupresto/Mediarte/Motai usan `promissory_type_id = 1` (blade) y por eso sí cierran.
+**Estado:** frontera documentada. Mockear Deceval exigiría envelopes SOAP válidos para 4 operaciones — hacerlo a ciegas es especulativo; si algún día hace falta, el 502 logueado trae la operación exacta.

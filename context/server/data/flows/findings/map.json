@@ -25,6 +25,9 @@
     "frontend-monorepo/apps/loan-request-wizard/app/routes/sign-documents.tsx",
     "frontend-monorepo/apps/loan-request-wizard/app/layouts/public-layout.tsx",
     "frontend-monorepo/apps/loan-request-wizard/app/layouts/default-layout.tsx",
-    "frontend-monorepo/modules/loan-request-wizard/lenders-marketplace/src/lib/infrastructure/repositories/loan-options.repository.ts"
+    "frontend-monorepo/modules/loan-request-wizard/lenders-marketplace/src/lib/infrastructure/repositories/loan-options.repository.ts",
+    "frontend-e2e/dev/sweep.ts",
+    "frontend-e2e/mock-lenders/server.mjs",
+    "frontend-e2e/mock-mdm/server.mjs"
   ]
 }
