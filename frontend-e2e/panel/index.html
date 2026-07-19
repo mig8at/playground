@@ -589,56 +589,27 @@
       border-color: #573a7a;
       background: #21133a
     }
-    /* ── RECORRIDO DEL WIZARD (estilo marble diagram) ─────────────────────────────────────────────
-       Una vía continua con las estaciones ENCIMA y el label debajo. El tronco es común hasta
-       /lenders; ahí se abre un ramal por response_type, con los MISMOS colores de los chips rt de la
-       lista de lenders, para que el ramal se lea sin leyenda. */
+    /* ── RECORRIDO DEL WIZARD · canvas vertical arrastrable ──────────────────────────────────────
+       VERTICAL a propósito. En horizontal la bifurcación cae al final del tronco y los ramales
+       arrancan al principio, así que la curva de unión tiene que volver cruzando todo el diagrama y
+       queda sucia (medido: bifurcación en x=456, ramal ~900px, contenedor 1238 → no entra).
+       Girando el eje, el largo del ramal se gasta en ALTO (que sobra, porque el canvas se arrastra) y
+       el desplazamiento lateral es de un carril: la curva queda corta y limpia, como en un grafo de git. */
     .tren #trenwarn { color: var(--warn); font-weight: 600; text-transform: none; letter-spacing: 0 }
-    .via {
-      position: relative; display: flex; align-items: flex-start;
-      padding: 14px 0 4px; color: var(--acc)
+    .tren-hint { float: right; font-size: 10.5px; font-weight: 500; color: var(--mut); text-transform: none; letter-spacing: 0 }
+    #trenvias {
+      height: 430px; border-radius: 12px; background: var(--panel2);
+      border: 1px solid var(--line); overflow: hidden
     }
-    /* Paso UNIFORME entre estaciones (como el eje de tiempo de un marble diagram): ancho fijo, no
-       elástico. Con flex:1 un ramal de 3 se estiraba a lo ancho y uno de 8 se apretaba, y las dos vías
-       dejaban de ser comparables de un vistazo. */
-    /* El paso se adapta al ancho disponible pero con TOPE y PISO: con pocas estaciones no se estira
-       (tope 118px) y con muchas se comprime hasta 84px, que es donde el label todavía se lee. El ramal
-       de CreditopX tiene 8 y a 116px fijos se salía de la card. */
-    .via { --w: clamp(84px, calc((100% - 26px) / var(--n)), 118px) }
-    /* el RIEL: una línea continua del centro de la 1ª bolita al centro de la última */
-    .via::before {
-      content: ''; position: absolute; top: 20px; height: 2px;
-      left: calc(var(--w) / 2); width: calc((var(--n) - 1) * var(--w));
-      background: currentColor; opacity: .3
-    }
-    .via.ramal::before { left: calc(var(--w) / 2 + 20px) }
-    .est {
-      position: relative; z-index: 1; flex: 0 0 var(--w); min-width: 0;
-      display: flex; flex-direction: column; align-items: center; gap: 6px;
-      padding: 0 4px; cursor: default
-    }
-    .est .pt {
-      width: 12px; height: 12px; border-radius: 50%; flex: none;
-      background: var(--panel); border: 3px solid currentColor;
-      /* el halo del color del panel “corta” el riel detrás de la bolita: el look marble */
-      box-shadow: 0 0 0 4px var(--panel); transition: .12s
-    }
-    .est:hover .pt { background: currentColor; transform: scale(1.25) }
-    .est .lbl { font-size: 11px; line-height: 1.25; text-align: center; color: var(--txt); word-break: break-word }
-    .est .n { font-size: 9.5px; color: var(--mut); font-variant-numeric: tabular-nums }
-    .est:hover .lbl { color: currentColor }
-    /* ramal: sangrado + una guía vertical que sale del tronco */
-    .via.ramal { margin-left: 22px; padding-left: 18px; border-left: 2px solid #ffffff14; border-bottom-left-radius: 10px }
-    .via.tronco { color: var(--acc) }
-    .via.r-creditopx { color: #4ade80 }
-    .via.r-agregador { color: #60a5fa }
-    .via.r-redirect { color: #94a3b8 }
-    .ramal-lbl { font-size: 10.5px; font-weight: 700; color: var(--mut); margin: 10px 0 -6px 26px; letter-spacing: .3px }
-    /* quién recorre el carril: el dato que faltaba. "Agregador · rt1" no dice nada; "Welli · Meddipay ·
-       Banco de Bogotá" sí. Van en peso normal para que el label del ramal siga mandando. */
-    .ram-quien { font-weight: 500; color: var(--txt); opacity: .75; margin-left: 8px; letter-spacing: 0 }
-    .ram-quien i { font-style: normal; opacity: .6 }
-    .ram-off { font-weight: 500; color: var(--mut); opacity: .7; letter-spacing: 0 }
+    #trensvg { width: 100%; height: 100%; cursor: grab; display: block; touch-action: none }
+    #trensvg.drag { cursor: grabbing }
+    #trensvg text { user-select: none }
+    .nlbl { font-size: 12px; fill: var(--txt) }
+    .nnum { font-size: 10px; fill: var(--mut) }
+    .nram { font-size: 11px; font-weight: 700 }
+    .nquien { font-size: 10px; fill: var(--mut) }
+    .nodo { cursor: default }
+    .nodo:hover .nlbl { font-weight: 700 }
     .lrow { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 11px; border: 1px solid var(--line); border-radius: 10px; margin-top: 6px; cursor: grab; }
     .lrow.drag { opacity: .4; }
     .lgrip { color: var(--mut); margin-right: 7px; cursor: grab; }
@@ -674,8 +645,10 @@
          común hasta /lenders y un ramal por response_type; se dibujan SOLO los ramales que el comercio
          seleccionado tiene. Hover en una estación = los archivos que ese paso toca. -->
     <section class="card tren" id="tren" style="display:none">
-      <h2><b>▸</b> Recorrido del wizard <span id="trenwarn"></span></h2>
-      <div id="trenvias"></div>
+      <h2><b>▸</b> Recorrido del wizard <span id="trenwarn"></span>
+        <span class="tren-hint">arrastrá para mover · rueda para zoom · doble clic para encuadrar</span>
+      </h2>
+      <div id="trenvias"><svg id="trensvg"><g id="trencam"></g></svg></div>
     </section>
 
     <div class="cols">
@@ -983,34 +956,40 @@
       renderTren();
     }
 
-    function estacionHTML(p) {
+    // ── Geometría del recorrido (vertical, estilo grafo de git) ─────────────────────────────────
+    const G = { fila: 52, carril: 210, x0: 34, y0: 30 };
+    const COLOR = { tronco: '#22c55e', creditopx: '#4ade80', agregador: '#60a5fa', redirect: '#94a3b8' };
+    const svgNS = 'http://www.w3.org/2000/svg';
+    const el = (t, at, txt) => {
+      const n = document.createElementNS(svgNS, t);
+      for (const k in at) n.setAttribute(k, at[k]);
+      if (txt != null) n.textContent = txt;
+      return n;
+    };
+
+    /** Un nodo = bolita + label + conteo front/back, con el detalle en el tooltip nativo. */
+    function nodoSVG(p, x, y, color) {
+      const g = el('g', { class: 'nodo', transform: `translate(${x},${y})` });
       const nf = (p.front || []).length, nb = (p.back || []).length;
       const files = [...(p.front || []).map(f => 'front  ' + f), ...(p.back || []).map(f => 'back   ' + f)];
-      const tip = `${p.label}${p.ruta ? '\n' + p.ruta : ''}\n\n${p.nota || ''}\n\n── ${nf} archivo(s) front · ${nb} back ──\n${files.join('\n')}`;
-      return `<div class="est" title="${tip.replace(/"/g, '&quot;')}">`
-        + `<span class="pt"></span><span class="lbl">${p.label}</span><span class="n">${nf} · ${nb}</span></div>`;
-    }
-
-    // `--n` = cantidad de estaciones: el riel arranca en la 1ª bolita y termina en la última (no de borde
-    // a borde), que es lo que hace que se lea como una vía y no como una regla.
-    function viaHTML(pasos, clase) {
-      return `<div class="via ${clase}" style="--n:${pasos.length}">` + pasos.map(estacionHTML).join('') + '</div>';
+      g.appendChild(el('title', {}, `${p.label}${p.ruta ? '\n' + p.ruta : ''}\n\n${p.nota || ''}\n\n── ${nf} archivo(s) front · ${nb} back ──\n${files.join('\n')}`));
+      g.appendChild(el('circle', { r: 6, fill: 'var(--panel2)', stroke: color, 'stroke-width': 3 }));
+      g.appendChild(el('text', { class: 'nlbl', x: 16, y: 1, 'dominant-baseline': 'middle' }, p.label));
+      g.appendChild(el('text', { class: 'nnum', x: 16, y: 14, 'dominant-baseline': 'middle' }, `${nf} · ${nb}`));
+      return g;
     }
 
     function renderTren() {
-      const box = $('tren'), vias = $('trenvias');
-      if (!STEPS || !sel || !STEPS.tronco?.length) { box.style.display = 'none'; return; }
+      const box = $('tren'), cam = $('trencam');
+      if (!STEPS || !sel || !STEPS.tronco?.length || !cam) { if (box) box.style.display = 'none'; return; }
       box.style.display = 'block';
 
-      // aviso si alguna ruta del mapa dejó de existir: mejor decirlo que mostrar un conteo mentiroso
       const ch = STEPS.chequeo || {};
       $('trenwarn').textContent = ch.ok === false ? `· ⚠ ${(ch.rotas || []).length} ruta(s) del mapa ya no existen` : '';
 
-      // Qué carriles dibujar: los que recorre alguna entidad PRENDIDA de este comercio. Una apagada no
-      // lista, así que su carril no existe para esta corrida — mostrarlo sería dibujar un camino que
-      // el flujo no puede tomar.
-      // Ojo: el lender NO bifurca el flujo; lo bifurca su rt. Por eso 7 entidades pueden compartir 3
-      // carriles (ej. Lagobo + Davivienda + Credifamilia-addi son el MISMO recorrido).
+      // Carriles a dibujar: los que recorre alguna entidad PRENDIDA. Una apagada no lista, así que su
+      // camino no existe para esta corrida. Ojo: el lender NO bifurca el flujo, lo bifurca su rt — por
+      // eso 7 entidades pueden compartir 3 carriles (Lagobo + Davivienda + Credifamilia-addi = el mismo).
       const QUE_RAMAL = { 2: 'creditopx', 3: 'creditopx', 4: 'creditopx', 1: 'agregador', 0: 'redirect' };
       const porRamal = {};
       for (const l of lendersDelComercio) {
@@ -1019,22 +998,84 @@
         (porRamal[r] ??= { on: [], off: [] })[Number(l.lender_status) === 1 ? 'on' : 'off'].push(l);
       }
 
-      let html = viaHTML(STEPS.tronco, 'tronco');
+      cam.innerHTML = '';
+      const rieles = el('g', {}), nodos = el('g', {});
+      cam.appendChild(rieles); cam.appendChild(nodos);
+
+      // ── tronco: vertical, carril 0 ──
+      const T = STEPS.tronco;
+      const xT = G.x0, yDe = (i) => G.y0 + i * G.fila;
+      rieles.appendChild(el('path', { d: `M ${xT} ${yDe(0)} L ${xT} ${yDe(T.length - 1)}`, stroke: COLOR.tronco, 'stroke-width': 2, opacity: .45, fill: 'none' }));
+      T.forEach((p, i) => nodos.appendChild(nodoSVG(p, xT, yDe(i), COLOR.tronco)));
+
+      const yBif = yDe(T.length - 1);   // nodo de bifurcación = último del tronco
+      let carril = 0, maxY = yBif, maxX = xT;
+
       for (const id of ['creditopx', 'agregador', 'redirect']) {
         const r = STEPS.ramales?.[id], g = porRamal[id];
         if (!r || !g || !g.on.length) continue;
-        // el rt por entidad importa: el carril de CreditopX lo comparten rt2/3/4, así que sin esto
-        // Credifamilia (rt4) se leía como si fuera rt2.
-        const quien = g.on.map(l => {
-          const extra = [`rt${l.rt}`, l.product && l.product !== 'credit' ? l.product : ''].filter(Boolean).join(' ');
-          return `${l.name} <i>${extra}</i>`;
-        }).join(' · ');
-        const apagadas = g.off.length ? ` <span class="ram-off">· ${g.off.length} apagada(s): ${g.off.map(l => l.name).join(', ')}</span>` : '';
-        html += `<div class="ramal-lbl">↳ ${r.label}<span class="ram-quien">${quien}</span>${apagadas}</div>`
-              + viaHTML(r.pasos, 'ramal r-' + id);
+        carril += 1;
+        const x = G.x0 + carril * G.carril, yIni = yBif + G.fila, col = COLOR[id];
+
+        // La curva de git: baja pegada al tronco y entra vertical al carril. Los tiradores verticales
+        // (mismo x que cada extremo) son los que evitan el efecto "resorte" de una bezier libre.
+        const k = G.fila * 0.55;
+        rieles.appendChild(el('path', {
+          d: `M ${xT} ${yBif} C ${xT} ${yBif + k}, ${x} ${yIni - k}, ${x} ${yIni}`,
+          stroke: col, 'stroke-width': 2, opacity: .45, fill: 'none'
+        }));
+        const yFin = yIni + (r.pasos.length - 1) * G.fila;
+        if (r.pasos.length > 1) rieles.appendChild(el('path', { d: `M ${x} ${yIni} L ${x} ${yFin}`, stroke: col, 'stroke-width': 2, opacity: .45, fill: 'none' }));
+
+        const quien = g.on.map(l => `${l.name} rt${l.rt}${l.product && l.product !== 'credit' ? ' ' + l.product : ''}`).join(' · ');
+        // recorte al ancho del carril: sin esto el listado de entidades invadía el carril siguiente.
+        const corto = (t, n) => (t.length > n ? t.slice(0, n - 1) + '…' : t);
+        const cab = el('text', { class: 'nram', x, y: yIni - 22, fill: col }, corto(r.label, 26));
+        cab.appendChild(el('title', {}, `${r.label}\n\n${r.cuando || ''}`));
+        nodos.appendChild(cab);
+        const sub = el('text', { class: 'nquien', x, y: yIni - 9 }, corto(quien + (g.off.length ? `  (${g.off.length} apagada/s)` : ''), 30));
+        sub.appendChild(el('title', {}, quien + (g.off.length ? `\n\nApagadas: ${g.off.map(l => l.name).join(', ')}` : '')));
+        nodos.appendChild(sub);
+
+        r.pasos.forEach((p, i) => nodos.appendChild(nodoSVG(p, x, yIni + i * G.fila, col)));
+        maxY = Math.max(maxY, yFin); maxX = Math.max(maxX, x);
       }
-      vias.innerHTML = html || '<p style="color:var(--mut);font-size:12px;margin:0">Sin entidades prendidas: el listado saldría vacío.</p>';
+
+      encuadrar(maxX + 240, maxY + 40);
     }
+
+    // ── cámara: arrastrar, zoom con rueda, doble clic para encuadrar ──────────────────────────────
+    // Es un canvas propio en vez de una librería de grafos: el diagrama tiene ~20 nodos en carriles
+    // paralelos, o sea posiciones que ya conocemos. Un motor de layout no tendría nada que resolver.
+    const cam = { x: 0, y: 0, k: 1, w: 0, h: 0 };
+    function aplicarCam() { const g = $('trencam'); if (g) g.setAttribute('transform', `translate(${cam.x},${cam.y}) scale(${cam.k})`); }
+    function encuadrar(w, h) {
+      cam.w = w; cam.h = h;
+      const svg = $('trensvg'); if (!svg) return;
+      const r = svg.getBoundingClientRect();
+      // Solo por ANCHO y nunca por debajo de .8: encuadrar también por alto lo dejaba en k≈0.5 y el
+      // texto ilegible. Lo vertical se recorre arrastrando — para eso el canvas se arrastra.
+      cam.k = Math.max(.8, Math.min(1, r.width / w));
+      cam.x = 8; cam.y = 8;
+      aplicarCam();
+    }
+    (function camaraInit() {
+      const svg = $('trensvg'); if (!svg) return;
+      let arrastrando = false, px = 0, py = 0;
+      svg.addEventListener('pointerdown', (e) => { arrastrando = true; px = e.clientX; py = e.clientY; svg.classList.add('drag'); svg.setPointerCapture(e.pointerId); });
+      svg.addEventListener('pointermove', (e) => { if (!arrastrando) return; cam.x += e.clientX - px; cam.y += e.clientY - py; px = e.clientX; py = e.clientY; aplicarCam(); });
+      const soltar = (e) => { arrastrando = false; svg.classList.remove('drag'); try { svg.releasePointerCapture(e.pointerId); } catch {} };
+      svg.addEventListener('pointerup', soltar); svg.addEventListener('pointercancel', soltar);
+      svg.addEventListener('wheel', (e) => {
+        e.preventDefault();
+        const r = svg.getBoundingClientRect(), mx = e.clientX - r.left, my = e.clientY - r.top;
+        const k2 = Math.min(2.2, Math.max(0.35, cam.k * (e.deltaY < 0 ? 1.12 : 1 / 1.12)));
+        // zoom hacia el puntero: el punto bajo el mouse queda quieto
+        cam.x = mx - (mx - cam.x) * (k2 / cam.k); cam.y = my - (my - cam.y) * (k2 / cam.k);
+        cam.k = k2; aplicarCam();
+      }, { passive: false });
+      svg.addEventListener('dblclick', () => encuadrar(cam.w, cam.h));
+    })();
 
     // enriquece cada card con el hash desde el backend (resiliente: si no está en local, lo marca).
     // La card muestra SOLO nombre + hash: el slug y el #id son ruido acá (el slug ya está en el nombre

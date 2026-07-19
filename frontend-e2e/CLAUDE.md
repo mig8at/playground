@@ -62,10 +62,22 @@ y el rápido nunca los va a ver — F-50 fue una cancelación disparada por el r
 (`request-canceled` cancela en el loader), con el backend haciendo todo bien. El rápido valida negocio
 y backend; el visual valida el camino real del usuario, que también tiene lógica de negocio.
 
-## El mapa de tren del panel (`panel/steps.json`)
+## El recorrido del wizard en el panel (`panel/steps.json`)
 
-Tronco común hasta `/lenders` + un ramal por `response_type`; el panel dibuja **solo los ramales que ese
-comercio tiene** (mira el `rt` de sus lenders). El hover de cada estación lista los archivos del paso.
+Canvas SVG **vertical** y arrastrable (drag · rueda = zoom · doble clic = encuadrar), estilo grafo de
+git: tronco común hasta `/lenders` y de ahí un carril por `response_type`. Dibuja **solo los carriles
+que ese comercio tiene y con entidades PRENDIDAS** (mira `rt` + `lender_status`). El hover de cada nodo
+lista los archivos del paso.
+
+**Por qué vertical y no horizontal** (ya se probó y se revirtió): en horizontal la bifurcación cae al
+final del tronco y los carriles arrancan al principio, así que la curva de unión vuelve cruzando todo el
+diagrama. Medido: bifurcación en x=456, carril de 8 nodos ≈900px, contenedor 1238 → no entra. Girando el
+eje, el largo se gasta en alto (que se recorre arrastrando) y la curva queda corta.
+
+**Por qué sin librería de grafos** (D3 / vis-network se evaluaron): son ~20 nodos en carriles paralelos,
+o sea posiciones que ya conocemos — un motor de layout no tiene nada que resolver. El criterio: *¿puedo
+ubicar los nodos a mano sin que se crucen las aristas?* Si sí, CSS/SVG. Donde **sí** habría un grafo real
+es el árbol de `context`: 33 nodos, 342 archivos compartidos, 1.578 aristas implícitas.
 
 - **Qué cuenta como archivo del paso** (respetalo si lo editás): la ruta del front + los servicios que su
   loader/action invoca, y el controlador del endpoint + los servicios de dominio que llama. **No** utils,
