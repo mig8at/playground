@@ -126,7 +126,9 @@ fi
 # Solo en LOCAL: contra dev el proveedor real está configurado.
 if [ "$TARGET" = "local" ]; then
   MOCK_PV_RETURN_URL="${E2E_RETURN_URL:-}" "$(dirname "$0")/mock-payvalida" start >/dev/null 2>&1 || true
-  log "payvalida MOCK local (:${MOCK_PV_PORT:-8097}) → habilita el redirect rt=1"
+  "$(dirname "$0")/mock-mdm" start >/dev/null 2>&1 || true
+  "$(dirname "$0")/mock-lenders" start >/dev/null 2>&1 || true
+  log "mocks locales: payvalida :${MOCK_PV_PORT:-8097} · mdm/IMEI :${MOCK_MDM_PORT:-8098} · entidades :${MOCK_LENDERS_PORT:-8099}"
 fi
 
 # ── health-check del backend ANTES del cold-boot ──────────────────────────────────────────────

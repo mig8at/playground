@@ -1,0 +1,41 @@
+#!/usr/bin/env bash
+# Pasarela mock de integraciones de ENTIDADES (Sistecrédito, Welli, Meddipay, Bancolombia…).
+# En local esos hosts son `*.fake` y no resuelven. OJO: la MAYORÍA de las entidades no llama a nadie
+# (devuelven un modal y funcionan sin mock) — esto es para la minoría que sí integra.
+#
+# Apuntá el backend en legacy-backend/.env (host.docker.internal, NO localhost — corre en Docker):
+#   SISTECREDITO_HOST=http://host.docker.internal:8099   (idem WELLI_HOST, MEDDIPAY_HOST, …)
+#
+# uso: bin/mock-lenders [start|stop|status|logs]
+#   env: MOCK_LENDERS_PORT (8099) · MOCK_LENDERS_FAIL=1 → responde 500 (probar el camino de error)
+set -euo pipefail
+DIR="$(cd "$(dirname "$0")/.." && pwd)"
+PORT="${MOCK_LENDERS_PORT:-8099}"
+LOG=/tmp/mock-lenders.log
+
+up() { curl -s -o /dev/null --max-time 2 "http://localhost:$PORT" 2>/dev/null; }
+
+case "${1:-start}" in
+  start)
+    WANT_FAIL="${MOCK_LENDERS_FAIL:-0}"
+    if up; then
+      CUR="$(curl -s --max-time 2 "http://localhost:$PORT" 2>/dev/null | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{try{process.stdout.write(JSON.parse(s).fail?"1":"0")}catch{process.stdout.write("0")}})')"
+      if [ "${CUR:-0}" = "$WANT_FAIL" ]; then echo "✓ mock-lenders ya arriba (:$PORT)"; exit 0; fi
+      echo "↻ reinicio mock-lenders (modo fallo: ${CUR:-0} → $WANT_FAIL)"
+      lsof -ti:"$PORT" 2>/dev/null | xargs kill -9 2>/dev/null || true
+      for _ in $(seq 1 10); do up || break; sleep 0.2; done
+    fi
+    rm -f "$LOG"
+    nohup env MOCK_LENDERS_PORT="$PORT" MOCK_LENDERS_FAIL="$WANT_FAIL" \
+      node "$DIR/mock-lenders/server.mjs" < /dev/null > "$LOG" 2>&1 &
+    for _ in $(seq 1 25); do up && { echo "✓ mock-lenders :$PORT"; exit 0; }; sleep 0.3; done
+    echo "✗ no levantó"; tail -8 "$LOG" 2>/dev/null; exit 1;;
+  stop)
+    lsof -ti:"$PORT" 2>/dev/null | xargs kill -9 2>/dev/null && echo "⏹ detenido (:$PORT)" || echo "no estaba corriendo";;
+  status)
+    if up; then curl -s --max-time 2 "http://localhost:$PORT" 2>/dev/null; echo ""; else echo "○ off (:$PORT)"; fi;;
+  logs)
+    tail -n "${2:-40}" "$LOG" 2>/dev/null || echo "(sin log)";;
+  *)
+    echo "uso: bin/mock-lenders [start|stop|status|logs]";;
+esac
