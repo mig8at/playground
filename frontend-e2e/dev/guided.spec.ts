@@ -203,7 +203,35 @@ test('guided (semiautomático)', async ({ browser }) => {
     const { page: B } = await openB(browser, { baseURL: config.feBaseUrl, userAgent: IPHONE_UA }); // B mitad DERECHA
     // El polling de validación (captura ADO por foto) NO es automatizable → lo mockeamos como validado. Va acá,
     // en la creación, para que esté activo ANTES de cualquier navegación de B (venga del watcher o del guiado).
-    await B.route('**/validation-status', (r) => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ validationStatus: { data: { all_completed: true, ado: { validated: true, completed: true, state_id: 2, state_name: 'Validado' }, tusdatos_aml: { has_findings: false, completed: true } } }, validationStatusAbaco: null, errorType: null, errorMessage: null }) }).catch(() => {}));
+    // Solo se finge lo NO automatizable (el ADO por foto). El requerimiento de ÁBACO se le pregunta al
+    // BACKEND REAL, porque es justo la bifurcación del flujo de RENTING que queremos ejercitar: la ruta
+    // `api/validation-status` del wizard llama a `check-abaco-requirement` y devuelve
+    // `validationStatusAbaco: {required, completed}`; con ese flag el front decide el final
+    // (`requestSent` si requiere Ábaco · `firstPaymentDate` si no). Devolver `null` a secas —como hacía
+    // este mock— APAGA el flujo de renting sin que se note. `completed:false` deja al cliente en el paso
+    // de Ábaco, que es lo que se quiere ver; con E2E_ABACO_COMPLETED=1 se simula ya validado.
+    await B.route('**/validation-status', async (r) => {
+        const ur = r.request().url().match(/\/(\d+)\/validation-status/)?.[1] ?? '';
+        let required = false;
+        if (ur) {
+            const code = await fetch(`${config.mockUrl}/api/onboarding/motai/check-abaco-requirement`, {
+                method: 'POST',
+                headers: { 'content-type': 'application/json', accept: 'application/json', 'user-agent': IPHONE_UA },
+                body: JSON.stringify({ userRequestId: Number(ur) }),
+                signal: AbortSignal.timeout(15_000),
+            }).then((x) => x.json()).then((j) => j?.code ?? j?.data?.code).catch(() => null);
+            required = code === 'MOTV1001';   // AbacoRequirementCode.REQUIRED
+            if (required) log(`B: ÁBACO requerido para uReq ${ur} (product=renting) → el flujo se bifurca`);
+        }
+        await r.fulfill({
+            status: 200, contentType: 'application/json',
+            body: JSON.stringify({
+                validationStatus: { data: { all_completed: true, ado: { validated: true, completed: true, state_id: 2, state_name: 'Validado' }, tusdatos_aml: { has_findings: false, completed: true } } },
+                validationStatusAbaco: required ? { required: true, completed: process.env.E2E_ABACO_COMPLETED === '1' } : null,
+                errorType: null, errorMessage: null,
+            }),
+        }).catch(() => {});
+    });
 
     // TRAZA DE B. Sin esto B es una caja negra: una corrida se quedó 20 min trabada en el celular y el log no
     // tenía UNA sola línea de esa ventana (todos los listeners colgaban de A). Mismo trato que A, prefijo `B`.
