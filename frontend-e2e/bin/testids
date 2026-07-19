@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # testids — aplica/quita los data-testid del e2e como capa LOCAL (patch sobre frontend-monorepo), sin
-# commitear ni pushear. Útil en ramas que no los traen (p.ej. main). Mapa de ubicaciones: docs/E2E-DATA-TESTIDS.md
+# commitear ni pushear. Útil en ramas que no los traen (p.ej. main). Mapa de ubicaciones: docs/E2E-DATA-TESTIDS.md [histórico: git show 159906a:docs/E2E-DATA-TESTIDS.md]
 #   testids on      git apply del patch (agrega los data-testid al working tree del monorepo)
 #   testids off     git apply -R (los quita) → monorepo limpio
 #   testids status  ¿están aplicados?
@@ -9,7 +9,7 @@ set -euo pipefail
 E2E="$(cd "$(dirname "$0")/.." && pwd)"
 FRONT="${CFE_FRONT:-$HOME/Desktop/CREDITOP/github/frontend-monorepo}"
 PATCH="$E2E/patches/e2e-testids.patch"
-# archivos que pueden hospedar testids (ver docs/E2E-DATA-TESTIDS.md) — los usa `regen`.
+# archivos que pueden hospedar testids (ver docs/E2E-DATA-TESTIDS.md [histórico: git show 159906a:docs/E2E-DATA-TESTIDS.md]) — los usa `regen`.
 FILES="modules/loan-request-wizard/loan-application-form/src/components/amount-form.tsx \
 modules/loan-request-wizard/loan-application-form/src/components/phone-number-step-form.tsx \
 modules/loan-request-wizard/loan-application-form/src/components/forms/personal-info-form.tsx \
@@ -28,7 +28,7 @@ case "$CMD" in
   on)
     [ -f "$PATCH" ] || { echo "✗ no existe $PATCH (corré 'testids regen' tras agregar los testids a mano)"; exit 1; }
     if applied; then echo "● ya aplicados (testids on) en $(git branch --show-current)"; exit 0; fi
-    git apply --check "$PATCH" 2>/dev/null || { echo "✗ el patch NO aplica limpio (¿cambió el componente?). Ver docs/E2E-DATA-TESTIDS.md y reubicá a mano + 'testids regen'."; exit 1; }
+    git apply --check "$PATCH" 2>/dev/null || { echo "✗ el patch NO aplica limpio (¿cambió el componente?). Ver docs/E2E-DATA-TESTIDS.md [histórico: git show 159906a:docs/E2E-DATA-TESTIDS.md] y reubicá a mano + 'testids regen'."; exit 1; }
     git apply "$PATCH"
     echo "● testids ON en $(git branch --show-current) — NO commitear. 'bin/testids off' para quitar."
     ;;

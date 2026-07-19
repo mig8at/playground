@@ -12,7 +12,7 @@ import { config } from '../pkg/config';
  *
  * Por eso: validamos que el backend EXIGE el contrato (test verde), y dejamos el happy-path del handshake
  * en `fixme` hasta replicar el formato base64 exacto que produce el plugin de la tienda (WooCommerce/VTEX).
- * El mapa del handshake está en `../docs/MAPA-FLUJOS.md` (B.1) y la notificación a la tienda en §Ciclo E2E.
+ * El mapa del handshake está en `docs/MAPA-FLUJOS.md [histórico: git show 159906a:docs/MAPA-FLUJOS.md]` (B.1) y la notificación a la tienda en §Ciclo E2E.
  */
 
 const PARTNER = config.partnerHash;

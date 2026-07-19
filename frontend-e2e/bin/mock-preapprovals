@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Mock del MS de pre-aprobaciones → happy path determinista (todas las cards pre-aprobadas con cupo).
 # Apuntá el wizard con VITE_PREAPPROVALS_ENDPOINT=http://localhost:$PORT/v1/preapprovals/check
-# (o usá `bin/asesor <comercio> lenders --mock-pa`, que lo levanta y cablea solo).
+# `bin/asesor <comercio>` ya lo levanta solo (salvo que exportes E2E_REAL_PREAPPROVALS=1).
 #
 # uso: bin/mock-preapprovals [start|stop|status|logs]
 #   env: MOCK_PA_PORT (8095) · MOCK_PA_STATUS (approved|rejected|pending) · MOCK_PA_CUPO · MOCK_PA_RATE

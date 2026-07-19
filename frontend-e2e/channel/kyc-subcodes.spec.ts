@@ -7,7 +7,7 @@ import { assertSubcode } from '../pkg/error-shape';
  * subcódigo KYC anidado (TusDatos/Experian) cuando se le inyecta el escenario correspondiente
  * o cuando recibe input que viola el guard (fecha imposible, documento duplicado).
  *
- * Shape del backend real: HETEROGÉNEO (ver docs/REFERENCIA-FLUJOS.md §13 y pkg/error-shape.ts).
+ * Shape del backend real: HETEROGÉNEO (ver docs/REFERENCIA-FLUJOS.md [histórico: git show 159906a:docs/REFERENCIA-FLUJOS.md] §13 y pkg/error-shape.ts).
  * Para personal-info, el sufijo puede llegar concatenado al error_code o en errors/data; en KYC
  * (TusDatos/Experian) puede llegar como `error.code` anidado. `assertSubcode` busca ambos markers
  * como substrings en cualquier parte del body — misma estrategia que backend-e2e::negative.go.

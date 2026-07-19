@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Shim local del redirect de borde de infra (cutover ecommerce):
 #   /checkout/{hash}?<q>  →  302  →  {target}/ecommerce/{hash}/checkout?<q>
-# Lo usa `bin/asesor … --via-redirect` para modelar tienda → (URL estilo-plugin) → redirect → originaciones.
+# Modela tienda → (URL estilo-plugin) → redirect → originaciones. Lo levanta `bin/ecommerce`
+# (la entrada ecommerce de `bin/asesor`); no hay flag para pedirlo suelto.
 #
 # uso: bin/mock-redirect [start [target]|stop|status|logs]    env: MOCK_REDIRECT_PORT (8096)
 set -euo pipefail

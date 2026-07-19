@@ -5,8 +5,9 @@
 //
 //   node panel/server.ts       (o ./bin/panel)  →  http://localhost:5195
 //
-// SOLO LOCAL por ahora: fuerza CFE_TARGET/E2E_TARGET=local en todo lo que lanza. dev/staging tocan data
-// COMPARTIDA (ver pkg/db.ts::assertWriteAllowed) — se sumarán con guardas duras, no en este MVP.
+// Soporta target `local` y `dev` (ver TARGETS abajo). Al lanzar con `dev` setea
+// I_KNOW_THIS_TOUCHES_SHARED_DEV=1 en el entorno del hijo — OJO: dev toca data COMPARTIDA
+// (ver pkg/db.ts::assertWriteAllowed). Elegí `local` salvo que sepas exactamente qué vas a escribir.
 import { createServer, IncomingMessage, ServerResponse } from 'node:http';
 import { spawn, execFile } from 'node:child_process';
 import { readFileSync, existsSync, writeFileSync } from 'node:fs';

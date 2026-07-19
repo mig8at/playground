@@ -1,10 +1,13 @@
 #!/usr/bin/env bash
-# Pasarela mock de integraciones de ENTIDADES (Sistecrédito, Welli, Meddipay, Bancolombia…).
-# En local esos hosts son `*.fake` y no resuelven. OJO: la MAYORÍA de las entidades no llama a nadie
-# (devuelven un modal y funcionan sin mock) — esto es para la minoría que sí integra.
+# Mock de ÁBACO: el proveedor EXTERNO que valida ingresos de plataformas gig (Uber/Didi/Rappi…).
+# Lo pide el flujo de RENTING (lenders con `product='renting'`, ej. Motai R) después de elegir entidad.
+# No tenemos su código: es 100% externo. Cubre `init/gig-economy` y `login`; `/results` y `/platforms`
+# ya los resuelve el propio backend en local (fixture + setting), así que no salen a la red.
 #
 # Apuntá el backend en legacy-backend/.env (host.docker.internal, NO localhost — corre en Docker):
-#   SISTECREDITO_HOST=http://host.docker.internal:8102   (idem WELLI_HOST, MEDDIPAY_HOST, …)
+#   ABACO_HOST=http://host.docker.internal:8102
+#   ABACO_SCRAPING_PREFIX=/mock
+# (con ABACO_HOST=http://localhost el backend se pega a SÍ MISMO → `ABAC2004 Error initializing`)
 #
 # uso: bin/mock-abaco [start|stop|status|logs]
 #   env: MOCK_ABACO_PORT (8102) · MOCK_ABACO_FAIL=1 → responde 500 (probar el camino de error)

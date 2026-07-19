@@ -6,7 +6,7 @@ import { assertSubcode } from '../pkg/error-shape';
  * OBS-OTP-02 — el backend debe emitir cada sufijo de la familia ONB001 cuando se le inyecta el
  * escenario correspondiente. Contract tests API-level (no levantan navegador).
  *
- * Shape del backend real: HETEROGÉNEO (ver docs/REFERENCIA-FLUJOS.md §13 y pkg/error-shape.ts).
+ * Shape del backend real: HETEROGÉNEO (ver docs/REFERENCIA-FLUJOS.md [histórico: git show 159906a:docs/REFERENCIA-FLUJOS.md] §13 y pkg/error-shape.ts).
  * Los markers (`"ONB001"`, `"CODE_INVALID"`, …) pueden venir concatenados al error_code, anidados en
  * `errors.*`, en `error.code`, o en `message`. `assertSubcode(body, code, sub)` busca ambos como
  * substrings en CUALQUIER parte del body — igual estrategia que backend-e2e::channel/negative.go.

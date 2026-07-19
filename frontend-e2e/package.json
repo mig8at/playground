@@ -11,7 +11,6 @@
     "test:headed": "playwright test --headed",
     "test:debug": "playwright test --debug",
     "test:ui": "playwright test --ui",
-    "test:onboarding": "playwright test tests/onboarding",
     "show-report": "playwright show-report",
     "typecheck": "tsc --noEmit",
     "db": "node bin/dbops.ts"

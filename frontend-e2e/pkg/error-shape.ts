@@ -13,7 +13,7 @@
  * parte del body, recursivamente. Es lo más robusto sin asumir un contrato fijo. El catálogo de markers
  * válidos vive en pkg/config.ts::expectedSubcodes.
  *
- * Especificación dueña: docs/REFERENCIA-FLUJOS.md §13 (Nomenclatura).
+ * Especificación dueña: docs/REFERENCIA-FLUJOS.md [histórico: git show 159906a:docs/REFERENCIA-FLUJOS.md] §13 (Nomenclatura).
  */
 
 /** Recorre body recursivamente y devuelve true si encuentra `marker` como substring en cualquier string. */

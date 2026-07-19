@@ -57,7 +57,7 @@ export const happyUser = {
  *
  * Migración desde el viejo mock-server :4000 (eliminado): los nombres antiguos (`kyc-date-mismatch`,
  * `provider-down`, `provider-5xx`, etc.) NO existen en el backend real. Aquí están los reales,
- * agrupados por driver. Fuente: docs/REFERENCIA-FLUJOS.md §13 + backend-e2e/channel/negative.go.
+ * agrupados por driver. Fuente: docs/REFERENCIA-FLUJOS.md [histórico: git show 159906a:docs/REFERENCIA-FLUJOS.md] §13 + backend-e2e/channel/negative.go.
  */
 export const fakeScenarios = {
     /** Driver OTP fake (`ONBOARDING_DRIVER_OTP=fake`). */
