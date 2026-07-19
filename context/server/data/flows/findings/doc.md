@@ -679,3 +679,32 @@ En `main` el renting se decidía por **modo** (`user_request_modes` → `allied_
 **Arreglo (commit local `bc373088` en la rama):** derivarlo del producto — `$userRequest->lender?->product === 'renting'`. Equivalente en datos: los únicos dos lenders con `abaco=1` son exactamente los que tienen `product='renting'`.
 
 **Dato a confirmar con el equipo:** el lender **#158 "Motai Renting"** —el que la migración de v2 backfillea con `product='renting'` y la calculadora— **no está ofrecido en ninguna sucursal**, así que nunca lista. El renting *listable* es **#169 Motai R**.
+
+### F-49 · Dónde vive el paso de Ábaco en el front (y por qué el harness se lo comía)
+
+**Síntoma:** una corrida de Motai R (`product='renting'`) llegó a `loan-approved` **sin pasar nunca por Ábaco**, pese a que el backend respondía `MOTV1001 requiere Abaco`.
+
+**Causa raíz — el muro lo ponía el harness.** La bifurcación NO está donde uno la buscaría (en una pantalla propia del renting) sino en el **`action` de `/confirmation`**:
+
+```ts
+// routes/loan-confirmation.tsx:194
+if (abacoRequirement.code === AbacoRequirementCode.REQUIRED) {
+      return routeHelpers.redirect(ROUTE_PATHS.abaco(String(loanRequestId)));   // :206
+}
+```
+
+O sea: se dispara **al tocar "Continuar" en confirmation**, y por lo tanto **ANTES del ADO**. El harness saltaba de `confirmation` directo a `first-payment-date` para esquivar la captura de identidad (F-10) — y con eso se comía exactamente el paso que se quería ver.
+
+**El front consulta el requerimiento en TRES lugares**, todos vía el mismo endpoint del backend:
+
+| Archivo | Para qué |
+|---|---|
+| `routes/loan-confirmation.tsx` | **la entrada real** a `/abaco` (action del "Continuar") |
+| `routes/identity-validation-status.tsx` | `buildCompletionPath()` → `requestSent` si requiere Ábaco, `firstPaymentDate` si no |
+| `routes/api/validation-status.tsx` | expone `validationStatusAbaco: {required, completed}` al polling |
+
+**Respuesta a "¿cómo se hacía antes con modes?":** el **frontend nunca supo de modos**. Siempre preguntó lo mismo (`POST /api/onboarding/motai/check-abaco-requirement`) y ramificó por el código de respuesta. Lo único que cambió en v2 es **cómo decide el backend**: antes `allied_modes.config.isAbacoRequired` del modo de la solicitud; ahora `lenders.product === 'renting'` (F-48). Por eso la des-motaización no tocó estas rutas.
+
+**Arreglo:** `guided.spec.ts` pregunta el requerimiento **antes** de saltear: si es `MOTV1001`, deja a B en `confirmation` (y avisa que el "Continuar" lleva a `/abaco`); si no, saltea el ADO como siempre. Verificado en el mismo comercio: `#169 Motai R` → se queda · `#168 Motai C` → saltea.
+
+**Lección transferible:** cuando un flujo "no pasa por X", revisar primero si el harness **saltea** el punto donde X se decide. Los atajos que compensan pasos no automatizables pueden tapar justo la rama bajo prueba.
