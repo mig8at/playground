@@ -603,3 +603,21 @@ Continuación de F-41. Con el schema servido, el formulario **renderiza** pero r
 **Arreglo:** `mock-forms` ahora ofrece `CED/CI_VE/PAS/PAS_VE` y permite alfanuméricos en el número (para pasaporte).
 
 **Implicancia de negocio:** el eje **país** no es solo formato de moneda (F-22) ni de pantallas (F-41) — también cambia **qué documentos existen**. Cualquier trabajo sobre el flujo dinámico debe asumir la taxonomía RD/VE, no la colombiana.
+
+### F-45 · Flujo dinámico completo: los 5 pasos y qué exige cada uno
+
+Cierre de F-41/F-43/F-44. El flujo dinámico (RD) recorre **cinco rutas** y cada una tiene su propio requisito; fallar cualquiera deja una pantalla que no explica la causa:
+
+| Paso | Ruta | Qué exige | Si falla |
+|---|---|---|---|
+| 1 | `request-amount` | `GET /dynamic/{hash}/schema` **con forma válida** (`theme` + `components.logo.boxs.image` + `.userName`) | "Formulario no encontrado" (F-41) |
+| 2 | `request-phone` | — | — |
+| 3 | `request-otp` | `POST …/send-otp` y `…/validate-otp` | — |
+| 4 | `request-personal-info` | `fields.cityOfResidence.options` en el schema + veredicto en `code` (`OFS6001`/`OFS7001`) + tipo de documento de la taxonomía RD/VE | ciudad vacía · "No pudimos validar tu correo" · "Selecciona un tipo de documento válido" (F-43, F-44) |
+| 5 | `request-financial-info` | el submit debe devolver **`{ redirect }`** | 502 `submit_missing_redirect` → "espera unos minutos e intenta nuevamente" |
+
+**Sobre el paso 5:** el servicio real orquesta el alta contra el legacy por **endpoints backdoor** (`create-temporary-user` → `accept-terms` → `resolve-lenders-redirect`), autenticados con `Authorization: Bearer <BACKDOOR_API_KEY>` (está en el `.env` de legacy) y con el teléfono en **E.164** (`+57…`, el patrón exige `^\+[1-9]\d{0,2}…`). Se intentó replicar esa cadena; la auth y el formato se resolvieron pero `create-temporary-user` devuelve `BD000` sin traza útil.
+
+**Decisión:** `mock-forms` crea la solicitud por el **mismo camino que el resto del harness** (register + INSERT + `synthFill`, como `dev/sweep.ts`). El resultado es **equivalente** —un `user_request` real que `/lenders` consume— aunque el *cómo* difiera del servicio real. Verificado: submit → `{redirect:"/merchant/1bfb8cd0/464477/lenders?amount=8900", userRequestId:464477}`, la solicitud existe con el documento y monto enviados, y lista `smartpay rt2`.
+
+> **Deuda anotada:** si alguna vez importa ejercitar la orquestación REAL (que crea el usuario como lo hace producción), hay que resolver el `BD000` de `create-temporary-user`. Para el objetivo de "recorrer el flujo dinámico en local", el atajo alcanza.
