@@ -445,3 +445,41 @@ Cobertura del barrido headless sobre **todos** los comercios de `.flows.json`. C
 - **ERROR** — Banco de Bogotá donde hay credencial (F-26/F-34); Prami #12 (`array offset on null`).
 
 **Dato útil:** los comercios de electro (alkosto, alkomprar, k-tronix) son idénticos entre sí — solo Bancolombia #68/#100 — así que como escenarios de prueba son intercambiables y no aportan cobertura nueva.
+
+### F-36 · El muro de Deceval NO es el host: son credenciales criptográficas (y por eso NO se mockea)
+
+**Suposición razonable (equivocada):** "falta `services.deceval.soap.host`; con un mock del SOAP alcanza".
+**Realidad:** `DecevalSoap` firma el envelope con **WS-Security** usando material X.509 que saca de la credencial del par:
+
+```php
+File::put($certPath = tempnam('', ''), $credential->credential['deceval_cert']);
+File::put($keyPath  = tempnam('', ''), $credential->credential['deceval_key']);
+static::wss($document, $credential->credential['deceval_username'],
+            $credential->credential['deceval_password'], "file://{$keyPath}", "file://{$certPath}");
+```
+
+**Y esas credenciales no existen en el dump local** (verificado por tinker, que es la única vía — F-34):
+
+| Lender | Credencial del par | ¿`deceval_cert`? |
+|---|---|---|
+| DENTIX #139 (dentix) | **ninguna** | — |
+| Credifamilia #24 (mediarte) | sí, pero con claves `credifamilia_*` (`_client_id`, `_cert`, `_key`, `_negozia`, `_office_id`) | **ausente** |
+
+O sea el 502 `{"operation":"createGirador"}` es **falta de credencial**, no de red — otra instancia del patrón de F-34.
+
+**Por qué NO se mockea (decisión, no pereza):** haría falta fabricar tres cosas —usuario, contraseña y un par cert/key X.509 autofirmado— más el servidor SOAP. El resultado sería un test que **valida contra material inventado por uno mismo**: no prueba nada de la integración real y da falsa confianza. El parseo de la respuesta sí está mapeado por si algún día hay credenciales de pruebas reales: busca `RespuestaCrearGiradorDaneServiceDTO` (ns `http://deceval.com/sdl/services/`) y exige `<exitoso>true</exitoso>`, si no lee `<descripcion>`.
+
+**Estado:** frontera CERRADA a propósito. Para cruzarla hacen falta credenciales de pruebas de Deceval, no más código.
+
+### F-37 · Netco solo lo usa Credifamilia — DENTIX no lo necesita
+
+`DocumentSigningProviderFactory` rutea por `lender->signingProvider->name`, con `default => null` (= firma in-platform, sin proveedor externo). En BD, la tabla `signing_providers` tiene **una sola fila** (`netco`, id 1) y **solo el lender 24 la referencia**:
+
+| Lender | `signing_provider_id` | Firma |
+|---|---|---|
+| Credifamilia #24 | 1 (netco) | externa → exige `NETCO_PASSWORD_DERIVATION_SECRET` (ausente en local) |
+| DENTIX #139, Celupresto #96, Motai R #169, smartpay #152 | **null** | in-platform (funciona) |
+
+**Consecuencia:** el mapa de fronteras queda más fino de lo que decía F-31 — **DENTIX está bloqueado SOLO por Deceval**, no por Netco. Y Credifamilia acumula las dos.
+
+**Nota:** el guard de Netco (`refusing to derive a blank password`) es intencional y está testeado (`NetcoCredentialDeriverTest`). No es un descuido: es una negativa explícita a operar con un secreto vacío.
