@@ -219,6 +219,8 @@ test('guided (semiautomático)', async ({ browser }) => {
     });
     B.on('pageerror', (e) => log(`  B ⚠ pageerror: ${String(e.message).slice(0, 200)}`));
     B.on('response', (r) => { if (r.status() >= 500) { let u = r.url(); try { u = new URL(r.url()).pathname; } catch { /* */ } log(`  B ⚠ HTTP ${r.status()} ${u}`); } });
+    // React Scan (el overlay de FPS del wizard en dev) también en B: A ya lo bloqueaba y B se quedó con él.
+    if (process.env.E2E_REACT_SCAN !== '1') await B.route(/react-scan|react-grab/, (r) => r.abort()).catch(() => {});
 
     // Checkout HOSTED de Wompi (pago de la cuota inicial de un rt=2): es una página EXTERNA que no se puede
     // completar a mano en el harness — el otro muro clásico, además del ADO. `pkg/wompi-mock` intercepta la
@@ -444,6 +446,10 @@ test('guided (semiautomático)', async ({ browser }) => {
         && process.env.E2E_GUIDED === '0' && process.env.E2E_INJECT === '1'
         && (process.env.E2E_STEP_TARGET || 'monto').toLowerCase() === 'lenders';
 
+    // ¿Estamos parados en el Hosted UI de Cognito? Solo entonces hay login que hacer. Preguntarlo evita los
+    // 15s que cognitoLogin() tarda en descubrir que no hay form (su espera del input de usuario).
+    const needsCognito = () => /login\.creditop\.com|amazoncognito|\/oauth2\/authorize/i.test(page.url());
+
     // ───────────────────────── ENTRADA ─────────────────────────
     if (ENTRY === 'ecommerce') {
         expect(CHECKOUT_URL, 'E2E_CHECKOUT_URL lo arma bin/asesor (--ecommerce)').toBeTruthy();
@@ -483,15 +489,23 @@ test('guided (semiautomático)', async ({ browser }) => {
             log(`✗ NO se pudo saltar a /lenders — ${closed ? 'la ventana del navegador se cerró antes del salto' : navErr.message.split('\n')[0]}`);
             throw new Error('el salto a /lenders no se completó');
         }
-        // Sesión: con el cache de Cognito vivo esto es no-op. Si murió, aparece el Hosted UI, se loguea, y el
-        // callback puede devolvernos a otro lado → reintentamos el salto una vez.
-        await cognitoLogin(page);
-        if (!/\/lenders/.test(page.url())) await page.goto(jump, { waitUntil: 'domcontentloaded', timeout: 90_000 }).catch(() => {});
-        await page.waitForURL(/\/lenders/, { timeout: 60_000 }).catch(() => {});
+        // Sesión: SOLO entrar al login si el goto nos dejó en el Hosted UI de Cognito.
+        //
+        // Antes se llamaba a cognitoLogin() siempre. Con el cache de sesión vivo es no-op, PERO cuesta 15s
+        // de espera muerta (espera el input de usuario que nunca aparece, ver pkg/cognito.ts). En esos 15s el
+        // browser ya estaba en /lenders y vos podías elegir lender y avanzar a /continue — y al volver, el
+        // "reintento del salto" veía que la URL ya no era /lenders y te ARRASTRABA DE VUELTA al listado,
+        // pisando el handoff. Por eso también el log salía desordenado.
+        if (needsCognito()) {
+            await cognitoLogin(page);
+            await page.goto(jump, { waitUntil: 'domcontentloaded', timeout: 90_000 }).catch(() => {});
+        }
+        // Solo esperar si todavía no llegamos: si ya estás en /lenders (o más adelante), no tocar nada.
+        if (!/\/lenders/.test(page.url())) await page.waitForURL(/\/lenders/, { timeout: 60_000 }).catch(() => {});
         log(`entrada DIRECTA → ${hereOf(page)} (sin pasar por /solicitar)`);
     } else {
         await page.goto(`/merchant/${HASH}/solicitar`, { waitUntil: 'domcontentloaded', timeout: 90_000 }).catch(() => {});
-        await cognitoLogin(page);
+        if (needsCognito()) await cognitoLogin(page);   // con la sesión cacheada, ni entramos (ahorra 15s muertos)
         await page.waitForURL(/\/merchant\/.+\/(solicitar|request-amount)/, { timeout: 90_000 });
     }
     if (!DIRECT_LENDERS) log(`entrada OK → ${hereOf(page)}`);   // la directa ya logueó su propia línea
