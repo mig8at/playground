@@ -777,14 +777,16 @@
       { slug: 'pullman', name: 'Pullman' },
       // CeluRD (RD, country 60) es el comercio del canal SmartPay: su lender #152 es CreditopX rt=2 con
       // path=IMEI → el celular financiado ES la garantía (escaneo de IMEI + bloqueo MDM).
-      { slug: 'celurd', name: 'CeluRD · SmartPay' },
+      { slug: 'celurd', name: 'CeluRD' },
       // ── Los de abajo se eligieron por lo que EJERCITAN, no por variedad. Verificado con el preflight:
       //    todos listan en local (config ≠ que liste). Solo los rt=2 pueden CERRARSE localmente; el resto
       //    sirve para estudiar el LISTADO (cascada, group rules, perfilamiento, categorías).
-      { slug: 'celucambio', name: 'Celucambio · Celupresto rt2' },   // otro CreditopX cerrable, config distinta
-      { slug: 'mediarte', name: 'Mediarte · rt2 0% interés' },       // rt=2 con 0% + Credifamilia rt4 al lado
-      { slug: 'dentix', name: 'Dentix · rt2 propio' },               // CreditopX de marca propia
-      { slug: 'sonria', name: 'Sonría · 9 entidades (rt0/1/4)' },    // el más rico para mirar el LISTADO
+      //    La card muestra SOLO nombre + hash; lo que ejercita cada uno queda acá y en el panel de
+      //    lenders de abajo (que ya trae el chip de rt por entidad al seleccionar el comercio).
+      { slug: 'celucambio', name: 'Celucambio' },   // Celupresto rt2: otro CreditopX cerrable, config distinta
+      { slug: 'mediarte', name: 'Mediarte' },       // rt=2 con 0% interés + Credifamilia rt4 al lado
+      { slug: 'dentix', name: 'Dentix' },           // CreditopX de marca propia
+      { slug: 'sonria', name: 'Sonría' },           // 9 entidades (rt0/1/4): el más rico para mirar el LISTADO
     ];
     let sel = MERCHANTS[0];      // Motai por defecto
     let target = 'local';        // local | dev (staging pendiente)
@@ -815,8 +817,10 @@
       for (const m of MERCHANTS) {
         const d = document.createElement('div');
         d.className = 'm' + (sel && sel.slug === m.slug ? ' sel' : '') + (m.missing ? ' miss' : '');
+        // `??` y no `||`: undefined = todavía no enriqueció (mostramos '…'); '' = falló el fetch (no
+        // mostramos nada). Con `||` el '' caía al slug y volvía el ruido que se quiso sacar.
         d.innerHTML = `<span class="tick">✓</span><div class="nm">${m.name}</div>
-      <div class="meta">${m.meta || m.slug}</div>`;
+      <div class="meta">${m.meta ?? '…'}</div>`;
         d.onclick = () => { sel = m; renderMerchants(); refresh(); loadLenders(); };
         g.appendChild(d);
       }
@@ -899,15 +903,17 @@
       try { await fetch('/api/pa-statuses', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ map: paStatus }) }); } catch {}
     }
 
-    // enriquece cada card con #id·hash desde el backend (resiliente: si no está en local, lo marca).
+    // enriquece cada card con el hash desde el backend (resiliente: si no está en local, lo marca).
+    // La card muestra SOLO nombre + hash: el slug y el #id son ruido acá (el slug ya está en el nombre
+    // y el id no se usa a mano). El slug sigue vivo en `m.slug`, que es lo que se lanza.
     async function enrichMerchants() {
       for (const m of MERCHANTS) {
         try {
           const list = await (await fetch('/api/merchants?q=' + encodeURIComponent(m.slug) + '&target=' + target)).json();
           const hit = list.find(x => x.slug === m.slug) || list[0];
-          if (hit) { m.meta = `${hit.slug} · #${hit.allied_id} · ${hit.hash}`; m.missing = false; }
+          if (hit) { m.meta = hit.hash; m.missing = false; }
           else { m.meta = '— no está en local'; m.missing = true; }
-        } catch { m.meta = m.slug; }
+        } catch { m.meta = ''; }
       }
       renderMerchants();
     }
