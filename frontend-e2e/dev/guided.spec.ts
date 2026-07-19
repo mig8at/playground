@@ -306,27 +306,8 @@ test('guided (semiautomático)', async ({ browser }) => {
     page.on('pageerror', (e) => { log(`  ⚠ pageerror: ${String(e.message).slice(0, 200)}`); void errorShot(page, `pageerror: ${String(e.message).slice(0, 80)}`); });
     const tip = (s: string) => console.log(`\n  👉 ${s}\n`);
 
-    // ───────────────────────── ENTRADA ─────────────────────────
-    if (ENTRY === 'ecommerce') {
-        expect(CHECKOUT_URL, 'E2E_CHECKOUT_URL lo arma bin/asesor (--ecommerce)').toBeTruthy();
-        if (STORE) {
-            await page.goto(`${MOCK_STORE}?to=${encodeURIComponent(CHECKOUT_URL)}`, { waitUntil: 'domcontentloaded', timeout: 30_000 }).catch(() => {});
-            await page.getByRole('button', { name: /pagar con creditop/i }).waitFor({ state: 'visible', timeout: 8_000 }).catch(() => {});
-            await shot(page, 'tienda');
-            tip('Dale "Pagar con Creditop" en la tienda.');
-            await page.waitForURL(/\/(solicitar|checkout|otp|personal-info|lenders)/, { timeout: PICK_TIMEOUT });
-        } else {
-            await page.goto(CHECKOUT_URL, { waitUntil: 'domcontentloaded' });
-            await page.waitForURL(/\/(solicitar|otp|personal-info|lenders)/, { timeout: 40_000 });
-        }
-    } else {
-        await page.goto(`/merchant/${HASH}/solicitar`, { waitUntil: 'domcontentloaded', timeout: 90_000 }).catch(() => {});
-        await cognitoLogin(page);
-        await page.waitForURL(/\/merchant\/.+\/(solicitar|request-amount)/, { timeout: 90_000 });
-    }
-    log(`entrada OK → ${hereOf(page)}`);
-
     // perfil del usuario sintético desde el panel (bin/panel) vía env. Sin env → {} (comportamiento previo).
+    // Vive ACÁ ARRIBA (antes estaba después de la entrada) porque la siembra ya no depende del navegador.
     const synthOptsFromEnv = () => ({
         income: Number(process.env.E2E_SYNTH_INCOME) || undefined,
         score: Number(process.env.E2E_SYNTH_SCORE) || undefined,
@@ -342,6 +323,95 @@ test('guided (semiautomático)', async ({ browser }) => {
         expeditionDate: process.env.E2E_SYNTH_EXP || undefined,
         email: process.env.E2E_SYNTH_EMAIL || undefined,
     });
+
+    // ── SIEMBRA HEADLESS: register del teléfono + INSERT del user_request + buró sintético. ──
+    // Es HTTP + BD pura: NO toca el navegador. Por eso puede correr ANTES de cualquier navegación.
+    // Devuelve el id del uReq, o '' si no se pudo sembrar.
+    async function seedHeadless(): Promise<string> {
+        // register del teléfono (scrubphone ya lo dejó fresco). Endpoint sin auth, backend local.
+        const reg = await fetch(`${config.mockUrl}/api/onboarding/phone/register`, {
+            method: 'POST',
+            headers: { 'content-type': 'application/json', accept: 'application/json' },
+            body: JSON.stringify({ phone_number: PHONE, phoneNumber: PHONE, terms: true, policies: true, otp_length: 4, otpLength: 4, partner_branch_hash: HASH, partnerBranchHash: HASH }),
+        }).then((r) => r.json()).catch(() => null);
+        const userId = reg?.data?.user?.id ?? null;
+        const br = userId ? await one<{ branch_id: number; allied_id: number }>('SELECT id AS branch_id, allied_id FROM allied_branches WHERE hash=? LIMIT 1', [HASH]).catch(() => null) : null;
+        // asesor → corporate_user_id (como el flujo real, para que /lenders lo autorice). bin/asesor exporta E2E_ASESOR_SUB.
+        const asesorSub = process.env.E2E_ASESOR_SUB || '';
+        const asesorId = asesorSub ? ((await one<{ id: number }>('SELECT id FROM users WHERE cognito_id=? LIMIT 1', [asesorSub]).catch(() => null))?.id ?? null) : null;
+        if (!userId || !br) {
+            log(`✗ no pude sembrar el uReq headless (user=${userId ?? '?'} · branch=${br ? 'ok' : 'no'}) — probá "Saltar a: Datos" (visual)`);
+            return '';
+        }
+        const ins = await exec(
+            'INSERT INTO user_requests (user_id, allied_id, allied_branch_id, lender_id, amount, original_amount, user_request_status_id, corporate_user_id, credit_line_id, fee_number, fee_value, rate, created_at, updated_at) VALUES (?,?,?,NULL,?,?,1,?,1,0,0,0,NOW(),NOW())',
+            [userId, br.allied_id, br.branch_id, Number(AMOUNT), Number(AMOUNT), asesorId],
+        ).catch(() => null);
+        const ur = ins?.insertId ? String(ins.insertId) : '';
+        if (!ur) { log('✗ el INSERT del user_request falló'); return ''; }
+        const r = await synthFill(Number(ur), synthOptsFromEnv());
+        log(`uReq ${ur} sembrado headless (user ${userId} · asesor ${asesorId ?? '-'} · Experian ${r.datacredito_forged})`);
+        return ur;
+    }
+
+    // ¿Vamos DERECHO al marketplace? Si pediste "saltar a lenders", no tiene sentido pasar por /solicitar:
+    // esa pantalla solo existe como aterrizaje del login, y quedarse ahí mientras se siembra era justo lo
+    // que parecía "no saltó" (y si cerrabas la ventana en ese rato, el salto moría).
+    const DIRECT_LENDERS = ENTRY !== 'ecommerce'
+        && process.env.E2E_GUIDED === '0' && process.env.E2E_INJECT === '1'
+        && (process.env.E2E_STEP_TARGET || 'monto').toLowerCase() === 'lenders';
+
+    // ───────────────────────── ENTRADA ─────────────────────────
+    if (ENTRY === 'ecommerce') {
+        expect(CHECKOUT_URL, 'E2E_CHECKOUT_URL lo arma bin/asesor (--ecommerce)').toBeTruthy();
+        if (STORE) {
+            await page.goto(`${MOCK_STORE}?to=${encodeURIComponent(CHECKOUT_URL)}`, { waitUntil: 'domcontentloaded', timeout: 30_000 }).catch(() => {});
+            await page.getByRole('button', { name: /pagar con creditop/i }).waitFor({ state: 'visible', timeout: 8_000 }).catch(() => {});
+            await shot(page, 'tienda');
+            tip('Dale "Pagar con Creditop" en la tienda.');
+            await page.waitForURL(/\/(solicitar|checkout|otp|personal-info|lenders)/, { timeout: PICK_TIMEOUT });
+        } else {
+            await page.goto(CHECKOUT_URL, { waitUntil: 'domcontentloaded' });
+            await page.waitForURL(/\/(solicitar|otp|personal-info|lenders)/, { timeout: 40_000 });
+        }
+    } else if (DIRECT_LENDERS) {
+        // ── ENTRADA DIRECTA a /lenders: sembramos PRIMERO (sin navegador) y recién ahí navegamos. ──
+        //    /solicitar no se muestra nunca. La ventana arranca con una pantalla de "preparando" en vez de
+        //    quedarse muda, que era lo que invitaba a cerrarla a mitad de la siembra.
+        await page.setContent(`<!doctype html><meta charset="utf-8"><title>Preparando…</title>
+          <style>html,body{height:100%;margin:0}body{background:#0f1115;color:#e7eaf0;display:flex;flex-direction:column;
+          align-items:center;justify-content:center;gap:10px;text-align:center;padding:24px;
+          font:16px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}</style>
+          <div style="font-size:12px;letter-spacing:1px;text-transform:uppercase;color:#22c55e;font-weight:800">Harness · preparando</div>
+          <div style="font-size:20px;font-weight:700">Saltando a /lenders…</div>
+          <div style="color:#9aa4b2;font-size:14px;max-width:44ch">Sembrando el usuario sintético (registro, solicitud y buró) antes de abrir el marketplace. <b style="color:#e7eaf0">No cierres esta ventana.</b></div>`).catch(() => { /* best-effort */ });
+
+        const ur = await seedHeadless();
+        if (!ur) throw new Error('no pude sembrar el uReq headless — probá "Saltar a: Datos" (visual)');
+        await preflightLenders(config.mockUrl, ur);   // si el backend está roto, decilo ACÁ (ver la función)
+
+        // El salto ES el punto de este modo: si falla, hay que GRITARLO. Con `.catch(() => {})` una ventana
+        // cerrada dejaba la corrida en "1 passed" sin una sola pista (ni nav, ni foto, ni pausa).
+        const jump = `/merchant/${HASH}/${ur}/lenders?amount=${AMOUNT}`;
+        const navErr = await page.goto(jump, { waitUntil: 'domcontentloaded', timeout: 90_000 })
+            .then(() => null, (e: Error) => e);
+        if (navErr) {
+            const closed = page.isClosed() || /closed|Target (page|closed)|browser has been closed/i.test(navErr.message);
+            log(`✗ NO se pudo saltar a /lenders — ${closed ? 'la ventana del navegador se cerró antes del salto' : navErr.message.split('\n')[0]}`);
+            throw new Error('el salto a /lenders no se completó');
+        }
+        // Sesión: con el cache de Cognito vivo esto es no-op. Si murió, aparece el Hosted UI, se loguea, y el
+        // callback puede devolvernos a otro lado → reintentamos el salto una vez.
+        await cognitoLogin(page);
+        if (!/\/lenders/.test(page.url())) await page.goto(jump, { waitUntil: 'domcontentloaded', timeout: 90_000 }).catch(() => {});
+        await page.waitForURL(/\/lenders/, { timeout: 60_000 }).catch(() => {});
+        log(`entrada DIRECTA → ${hereOf(page)} (sin pasar por /solicitar)`);
+    } else {
+        await page.goto(`/merchant/${HASH}/solicitar`, { waitUntil: 'domcontentloaded', timeout: 90_000 }).catch(() => {});
+        await cognitoLogin(page);
+        await page.waitForURL(/\/merchant\/.+\/(solicitar|request-amount)/, { timeout: 90_000 });
+    }
+    if (!DIRECT_LENDERS) log(`entrada OK → ${hereOf(page)}`);   // la directa ya logueó su propia línea
 
     // ── MODO MANUAL (bin/asesor <m> SIN `auto`): el browser queda en monto y VOS manejás TODO a mano. ──
     //    Con E2E_INJECT=1: igual manual (nada de auto-relleno), pero al llegar a personal-info inyecto el buró
@@ -373,62 +443,9 @@ test('guided (semiautomático)', async ({ browser }) => {
                 return;
             }
 
-            // ── STEP = lenders: HEADLESS (sin llenado visual). register (crea el user) + INSERT del uReq +
-            //    inyecto el sintético + goto /lenders. Rápido: no pasa por monto/teléfono/OTP. ──
+            // ── STEP = lenders: la ENTRADA DIRECTA (más arriba) ya sembró y navegó al marketplace, sin pasar
+            //    por /solicitar ni por monto/teléfono/OTP. Acá solo esperamos las cards y te lo dejamos. ──
             if (STEP === 'lenders') {
-                log('salto HEADLESS a /lenders (sin llenado visual): register + uReq + buró inyectado');
-                // Mientras se siembra (register + uReq + buró + preflight ≈ 4s) la ventana se queda en
-                // /solicitar. Sin aviso parece que el salto NO funcionó — y si la cerrás en ese rato, el
-                // salto muere de verdad. El overlay lo hace obvio; la navegación a /lenders lo reemplaza.
-                await page.evaluate(() => {
-                    const d = document.createElement('div');
-                    d.style.cssText = 'position:fixed;inset:0;z-index:2147483647;background:#0f1115;color:#e7eaf0;'
-                        + 'display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;'
-                        + 'font:16px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;text-align:center;padding:24px';
-                    d.innerHTML = '<div style="font-size:12px;letter-spacing:1px;text-transform:uppercase;color:#22c55e;font-weight:800">Harness · preparando</div>'
-                        + '<div style="font-size:20px;font-weight:700">Saltando a /lenders…</div>'
-                        + '<div style="color:#9aa4b2;font-size:14px;max-width:44ch">Sembrando el usuario sintético (registro, solicitud y buró) antes de abrir el marketplace. <b style="color:#e7eaf0">No cierres esta ventana.</b></div>';
-                    document.body.appendChild(d);
-                }).catch(() => { /* best-effort: si no se puede pintar, seguimos igual */ });
-                // register del teléfono (scrubphone ya lo dejó fresco). Endpoint sin auth, backend local.
-                const reg = await fetch(`${config.mockUrl}/api/onboarding/phone/register`, {
-                    method: 'POST',
-                    headers: { 'content-type': 'application/json', accept: 'application/json' },
-                    body: JSON.stringify({ phone_number: PHONE, phoneNumber: PHONE, terms: true, policies: true, otp_length: 4, otpLength: 4, partner_branch_hash: HASH, partnerBranchHash: HASH }),
-                }).then((r) => r.json()).catch(() => null);
-                const userId = reg?.data?.user?.id ?? null;
-                const br = userId ? await one<{ branch_id: number; allied_id: number }>('SELECT id AS branch_id, allied_id FROM allied_branches WHERE hash=? LIMIT 1', [HASH]).catch(() => null) : null;
-                // asesor → corporate_user_id (como el flujo real, para que /lenders lo autorice). bin/asesor exporta E2E_ASESOR_SUB.
-                const asesorSub = process.env.E2E_ASESOR_SUB || '';
-                const asesorId = asesorSub ? ((await one<{ id: number }>('SELECT id FROM users WHERE cognito_id=? LIMIT 1', [asesorSub]).catch(() => null))?.id ?? null) : null;
-                let ur = '';
-                if (userId && br) {
-                    const ins = await exec(
-                        'INSERT INTO user_requests (user_id, allied_id, allied_branch_id, lender_id, amount, original_amount, user_request_status_id, corporate_user_id, credit_line_id, fee_number, fee_value, rate, created_at, updated_at) VALUES (?,?,?,NULL,?,?,1,?,1,0,0,0,NOW(),NOW())',
-                        [userId, br.allied_id, br.branch_id, Number(AMOUNT), Number(AMOUNT), asesorId],
-                    ).catch(() => null);
-                    ur = ins?.insertId ? String(ins.insertId) : '';
-                }
-                if (ur) {
-                    const r = await synthFill(Number(ur), synthOptsFromEnv());
-                    log(`uReq ${ur} sembrado headless (user ${userId} · asesor ${asesorId ?? '-'} · Experian ${r.datacredito_forged}) → /lenders?amount=${AMOUNT}`);
-                    await preflightLenders(config.mockUrl, ur);   // si el backend está roto, decilo ACÁ (ver la función)
-                    // El salto ES el punto de este modo: si falla, hay que GRITARLO. Antes iba con
-                    // `.catch(() => {})` y una ventana cerrada dejaba la corrida en "1 passed" sin una sola
-                    // pista — ni nav, ni foto, ni pausa (todo lanza sobre una página cerrada y se tragaba).
-                    const jump = `/merchant/${HASH}/${ur}/lenders?amount=${AMOUNT}`;
-                    const navErr = await page.goto(jump, { waitUntil: 'domcontentloaded', timeout: 90_000 })
-                        .then(() => null, (e: Error) => e);
-                    if (navErr) {
-                        const closed = page.isClosed() || /closed|Target (page|closed)|browser has been closed/i.test(navErr.message);
-                        log(`✗ NO se pudo saltar a /lenders — ${closed ? 'la ventana del navegador se cerró antes del salto' : navErr.message.split('\n')[0]}`);
-                        if (closed) log('   El salto ocurre unos segundos DESPUÉS de entrar: mientras ves /solicitar se está sembrando el usuario. No cierres la ventana en ese rato.');
-                        throw new Error('el salto a /lenders no se completó');   // que la corrida FALLE, no que mienta "1 passed"
-                    }
-                } else {
-                    log(`✗ no pude sembrar el uReq headless (user=${userId ?? '?'} · branch=${br ? 'ok' : 'no'}) — probá STEP=personal-info (visual)`);
-                }
-                await page.waitForURL(/\/lenders/, { timeout: 60_000 }).catch(() => {});
                 await page.getByText(/cargando las opciones/i).waitFor({ state: 'detached', timeout: 120_000 }).catch(() => {});
                 await shot(page, 'headless-lenders');
                 tip('Salto HEADLESS a /lenders (sin llenado visual, con el sintético inyectado). Explorá las cards. (Resume ▶ para terminar.)');
