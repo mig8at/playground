@@ -398,3 +398,50 @@ Llamar a `authorize` en ese flujo lo **rompe**: falla, hace rollback y deja el O
 **Causa raíz:** a diferencia de bash, **zsh no divide en palabras las expansiones sin comillas**. `set -- $L` deja `$1="slug 77"`.
 **Arreglo:** `${=L}` en zsh, o evitar el truco: `for pair in slug:77; do S="${pair%%:*}"; L="${pair##*:}"`.
 **Estado:** anotado en la sección de trampas — el error se veía como "el dato no existe" cuando era el shell.
+
+### F-34 · La conducta la decide la CREDENCIAL del par (comercio, entidad) — no la entidad
+
+Es el mecanismo que explica, de una sola vez, F-25 ("la mayoría no llama a nadie"), F-26 ("BdB falla solo en algunos comercios") y la observación de F-28 de que la conducta cambia por comercio.
+
+**Regla, verificada en dos entidades independientes:**
+
+> Si existe `lender_allied_credentials` para ese (lender, sucursal) → **se invoca la integración** (y ahí aparecen los fallos reales del proveedor). Si NO existe → el flujo **ni siquiera llama a la action**: devuelve modal + la url de config (`url_utm`), sin tráfico saliente.
+
+**Evidencia — Banco de Bogotá #5** (mismo lender, distinta conducta):
+
+| Comercio | ¿Credencial? | Conducta |
+|---|---|---|
+| godentist, coexito | **sí** (`banco_de_bogota_pem`, `…_key`, `…_passphrase`, …) | invoca → **revienta** `Undefined variable $certPath` |
+| celucambio, sonria | **no** | modal + `url→slm.bancodebogota.com` (o `bit.ly`), sin llamada |
+
+**Evidencia — Sistecrédito #9** (además elige entre DOS integraciones):
+
+```php
+// app/Actions/Lenders/Sistecredito.php::register
+if ($credential->credential->has('sistecredito_pos')) return (new SistecreditoPos)->register($request);
+return (new SistecreditoPay)->register($request);
+```
+
+| Comercio | Credencial | Conducta observada |
+|---|---|---|
+| pullman, celucambio, godentist, coexito, colchones-ensueno, compuworking, dentix | con `sistecredito_pos` → **POS** | `otp-lender` (valida OTP del lender) + `GET /getCreditToken` |
+| ostu, patprimo, atmos | **sin credencial** | modal + `url→credinet.co`, sin llamada |
+
+**Consecuencias prácticas:**
+1. **Para reproducir un bug de integración hay que elegir el comercio correcto**, no solo la entidad. "Banco de Bogotá falla" es falso a secas: falla *donde tiene credencial*.
+2. **Un mock solo sirve si el par tiene credencial.** Apuntar `SISTECREDITO_HOST` a un mock no cambia nada en ostu/patprimo/atmos: nunca se llama.
+3. Para *ver* una integración en local, buscar primero dónde hay credencial.
+
+> ⚠ **El `credential` está ENCRIPTADO** (cast de Eloquent). Leerlo por SQL directo devuelve basura y el chequeo `has('sistecredito_pos')` da **falso negativo en todos** — parece que ningún comercio usa POS. Hay que consultarlo por Eloquent (`php artisan tinker`), como en la evidencia de arriba. Emparenta con F-19 (la misma tabla, además, es polimórfica).
+
+### F-35 · Matriz completa: 24 comercios barridos
+
+Cobertura del barrido headless sobre **todos** los comercios de `.flows.json`. Conductas observadas, agrupadas:
+
+- **standBy (in-platform)** — todos los rt=2 y Credifamilia rt=4. Único grupo que puede cerrarse en local (ver F-32 para las excepciones).
+- **modal + url de config** — el caso más común, sin tráfico saliente: Addi, Sufi, Servicrédito, Brilla, Global Care, Abanta, Su+pay, Welli, Meddipay, y **Bancolombia #68/#100**, cuya url apunta a `originaciones-stg.dev.creditop.com` (staging de CreditOp, no del banco).
+- **processModal** (`openProcessModal` con `showModal:false`) — Lagobo, Davivienda, Meddipay en sonria.
+- **otp-lender** — Sistecrédito donde hay credencial POS.
+- **ERROR** — Banco de Bogotá donde hay credencial (F-26/F-34); Prami #12 (`array offset on null`).
+
+**Dato útil:** los comercios de electro (alkosto, alkomprar, k-tronix) son idénticos entre sí — solo Bancolombia #68/#100 — así que como escenarios de prueba son intercambiables y no aportan cobertura nueva.
