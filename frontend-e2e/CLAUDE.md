@@ -21,9 +21,14 @@ Hay **82 `.catch(() => {})`** en `dev/guided.spec.ts`. El único paso blindado e
 que distingue "ventana cerrada" y **tira** (`dev/guided.spec.ts:538-545`); el resto se traga el error.
 `shot()` imprime `📸 <archivo>` aunque el screenshot haya fallado (`dev/guided.spec.ts:63-64`).
 
-- El guiado ahora cierra con un **VEREDICTO contra la BD** (estado real + lender) y **falla** si la
-  solicitud terminó Cancelada/Negada sin pedirlo. Leé ese bloque, no el "1 passed".
-- Para lo demás: mirá el **mtime** de `.auth/guided-*.png` y que estén las líneas `nav →` del log.
+- Cada navegación se imprime **contrastada con la BD** (`pkg/trace.ts`): a la izquierda dónde está el
+  front, a la derecha el estado real de la solicitud, con `▲` cuando la BD se movió. El navegador muestra
+  la *pretensión*; la BD, lo que pasó.
+- El guiado cierra con **TRAZA CONTRASTADA** (transiciones + tramos ciegos + alertas) y un **VEREDICTO**.
+  Falla si la solicitud terminó Cancelada/Negada sin pedirlo, **o si el front mostró una pantalla de
+  éxito con la BD sin sellar** (el patrón exacto de F-50). Leé ese bloque, no el "1 passed".
+- Un **tramo ciego** largo (muchas pantallas sin una sola transición) es la firma de un flujo que avanza
+  en pantalla sin persistir: la traza lo señala solo.
 - Si escribís pasos nuevos, no envuelvas en `.catch` vacío el paso que le da sentido a la corrida (F-03).
 
 ## Mocks: arrancá a mano los que nadie levanta

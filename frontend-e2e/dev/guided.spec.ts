@@ -8,6 +8,7 @@ import { cognitoLogin, cognitoStorageState } from '../pkg/cognito';
 import { synthFill, requestEstado11 } from '../pkg/inject';
 import { closeCreditopX, resolveRequestStatus } from '../pkg/close';
 import { one, exec } from '../pkg/db';
+import * as traza from '../pkg/trace';
 import { close } from '../pkg/db';
 import { PREVIEW, IPHONE_UA, openA, openB } from '../pkg/windows';
 import { mockWompiHostedCheckout } from '../pkg/wompi-mock';
@@ -187,7 +188,7 @@ test('guided (semiautomático)', async ({ browser }) => {
         if (f !== page.mainFrame()) return;
         const u = f.url();
         let p = u; try { p = new URL(u).pathname; } catch { /* about:blank / data: */ }
-        log(`nav → ${p}`);
+        traza.paso('A', p);
         if (isExternal(u)) externalUrl = u;
     });
     page.context().on('page', async (pp) => { const u = pp.url(); if (isExternal(u)) { externalUrl = u; log(`popup externo → ${u}`); } await pp.close().catch(() => {}); });
@@ -238,7 +239,7 @@ test('guided (semiautomático)', async ({ browser }) => {
     B.on('framenavigated', (f) => {
         if (f !== B.mainFrame()) return;
         let p = f.url(); try { p = new URL(f.url()).pathname; } catch { /* about:blank / data: */ }
-        if (p !== 'about:blank') log(`B nav → ${p}`);
+        if (p !== 'about:blank') traza.paso('B', p);
     });
     B.on('console', (m) => {
         const t = m.type();
@@ -462,6 +463,7 @@ test('guided (semiautomático)', async ({ browser }) => {
         if (!ur) { log('✗ el INSERT del user_request falló'); return ''; }
         const r = await synthFill(Number(ur), synthOptsFromEnv());
         log(`uReq ${ur} sembrado headless (user ${userId} · asesor ${asesorId ?? '-'} · Experian ${r.datacredito_forged})`);
+        traza.trazarUReq(ur);
         // Aviso TEMPRANO: si el lender que elijas pide cuota inicial, el flujo va al checkout de Wompi y
         // `/initial-fee-payment/initiate` necesita la credencial del lender Wompi (#52) EN ESTA SUCURSAL.
         // Sin ella tira, y te enterás recién a mitad del cierre. Es una consulta barata, así que se avisa acá.
@@ -702,6 +704,7 @@ test('guided (semiautomático)', async ({ browser }) => {
     // ───────────────────────── PERSONAL-INFO (BYPASS invisible, auto) ─────────────────────────
     let url = page.url();
     const uReqID = url.match(/\/(?:merchant|ecommerce)\/[^/]+\/(\d+)\//)?.[1] ?? '';
+    if (uReqID) traza.trazarUReq(uReqID);   // entrada manual: recién acá aparece el id en la URL
     const base = url.replace(/\/(personal-info|employment-info|lenders).*$/, '');
     if (/personal-info|employment-info/.test(url) && uReqID) {
         log(`personal-info: BYPASS datacrédito (synthFill: KYC + Experian forjado) — invisible, no toques nada acá`);
@@ -896,6 +899,8 @@ test('guided (semiautomático)', async ({ browser }) => {
     // "existe el uReq" → cualquier desenlace daba "1 passed". Acá leemos el estado REAL y lo mostramos
     // siempre; se FALLA solo cuando el desenlace es inequívocamente malo (cancelada/negada sin pedirlo),
     // porque el guiado es semi-manual y abandonarlo a mitad es legítimo.
+    const { alertas } = await traza.resumen();
+
     const veredicto = await one<{ id: number; st: number; estado: string; lender: string | null }>(
         `SELECT ur.id, ur.user_request_status_id AS st, s.name AS estado, l.name AS lender
            FROM user_requests ur
@@ -917,6 +922,11 @@ test('guided (semiautomático)', async ({ browser }) => {
             `(esperado ${esperado} para result=${RESULT}). El navegador puede haber mostrado una pantalla ` +
             `de éxito igual: la BD manda. Ver findings F-50.`).toBe(false);
         if (!ok && !malo) log(`   (a mitad de flujo — legítimo si cortaste el guiado a mano)`);
+
+        // Una pantalla de éxito sin respaldo en la BD es el patrón de F-50: aunque el estado final no sea
+        // "malo", que el front haya afirmado un desenlace que la BD no tiene es un fallo por sí solo.
+        const miente = alertas.filter((a) => a.includes('ÉXITO') || a.includes('éxito'));
+        expect(miente, `el front mostró éxito sin respaldo en la BD:\n   · ${miente.join('\n   · ')}`).toEqual([]);
     }
     if (PREVIEW) { console.log(`  👀 fin — ventana abierta ${Math.round(LINGER / 1000)}s (Ctrl-C corta)`); await page.waitForTimeout(LINGER).catch(() => {}); }
 });
