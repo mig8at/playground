@@ -778,6 +778,13 @@
       // CeluRD (RD, country 60) es el comercio del canal SmartPay: su lender #152 es CreditopX rt=2 con
       // path=IMEI → el celular financiado ES la garantía (escaneo de IMEI + bloqueo MDM).
       { slug: 'celurd', name: 'CeluRD · SmartPay' },
+      // ── Los de abajo se eligieron por lo que EJERCITAN, no por variedad. Verificado con el preflight:
+      //    todos listan en local (config ≠ que liste). Solo los rt=2 pueden CERRARSE localmente; el resto
+      //    sirve para estudiar el LISTADO (cascada, group rules, perfilamiento, categorías).
+      { slug: 'celucambio', name: 'Celucambio · Celupresto rt2' },   // otro CreditopX cerrable, config distinta
+      { slug: 'mediarte', name: 'Mediarte · rt2 0% interés' },       // rt=2 con 0% + Credifamilia rt4 al lado
+      { slug: 'dentix', name: 'Dentix · rt2 propio' },               // CreditopX de marca propia
+      { slug: 'sonria', name: 'Sonría · 9 entidades (rt0/1/4)' },    // el más rico para mirar el LISTADO
     ];
     let sel = MERCHANTS[0];      // Motai por defecto
     let target = 'local';        // local | dev (staging pendiente)
