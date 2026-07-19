@@ -598,7 +598,7 @@
     .tren #trenwarn { color: var(--warn); font-weight: 600; text-transform: none; letter-spacing: 0 }
     .tren-hint { float: right; font-size: 10.5px; font-weight: 500; color: var(--mut); text-transform: none; letter-spacing: 0 }
     #trenvias {
-      height: 430px; border-radius: 12px; background: var(--panel2);
+      height: 360px; border-radius: 12px; background: var(--panel2);
       border: 1px solid var(--line); overflow: hidden
     }
     #trensvg { width: 100%; height: 100%; cursor: grab; display: block; touch-action: none }
@@ -956,9 +956,14 @@
       renderTren();
     }
 
-    // ── Geometría del recorrido (vertical, estilo grafo de git) ─────────────────────────────────
-    const G = { fila: 52, carril: 210, x0: 34, y0: 30 };
-    const COLOR = { tronco: '#22c55e', creditopx: '#4ade80', agregador: '#60a5fa', redirect: '#94a3b8' };
+    // ── Recorrido del wizard · grafo de git HORIZONTAL ───────────────────────────────────────────
+    // El TRONCO es el camino feliz completo (monto → … → crédito aprobado). Lo que se abre son:
+    //   · DESVÍOS  que salen y REINGRESAN (Ábaco en renting: confirmation → first-payment-date)
+    //   · RAMALES terminales que salen y NO vuelven (rt1 y rt0 resuelven fuera del wizard)
+    // Esa distinción es el corazón del dibujo: una rama que vuelve y una que termina son cosas
+    // distintas, y el diagrama anterior las mostraba igual.
+    const G = { col: 132, fila: 96, x0: 40, y0: 150 };
+    const COLOR = { tronco: '#9aa4b2', abaco: '#eab308', creditopx: '#4ade80', agregador: '#38a3c7', redirect: '#94a3b8' };
     const svgNS = 'http://www.w3.org/2000/svg';
     const el = (t, at, txt) => {
       const n = document.createElementNS(svgNS, t);
@@ -966,16 +971,21 @@
       if (txt != null) n.textContent = txt;
       return n;
     };
+    const corto = (t, n) => (t && t.length > n ? t.slice(0, n - 1) + '…' : t || '');
 
-    /** Un nodo = bolita + label + conteo front/back, con el detalle en el tooltip nativo. */
-    function nodoSVG(p, x, y, color) {
+    // curva en S horizontal: sale y entra HORIZONTAL en cada extremo (tiradores en x), que es lo que
+    // le da el trazo limpio del grafo de git en vez del efecto "resorte" de una bezier libre.
+    const curva = (x1, y1, x2, y2) => { const k = Math.max(26, (x2 - x1) * 0.45); return `M ${x1} ${y1} C ${x1 + k} ${y1}, ${x2 - k} ${y2}, ${x2} ${y2}`; };
+    const riel = (d, color) => el('path', { d, stroke: color, 'stroke-width': 6, 'stroke-linecap': 'round', fill: 'none' });
+
+    function nodoSVG(p, x, y, color, maxLbl = 17) {
       const g = el('g', { class: 'nodo', transform: `translate(${x},${y})` });
       const nf = (p.front || []).length, nb = (p.back || []).length;
       const files = [...(p.front || []).map(f => 'front  ' + f), ...(p.back || []).map(f => 'back   ' + f)];
       g.appendChild(el('title', {}, `${p.label}${p.ruta ? '\n' + p.ruta : ''}\n\n${p.nota || ''}\n\n── ${nf} archivo(s) front · ${nb} back ──\n${files.join('\n')}`));
-      g.appendChild(el('circle', { r: 6, fill: 'var(--panel2)', stroke: color, 'stroke-width': 3 }));
-      g.appendChild(el('text', { class: 'nlbl', x: 16, y: 1, 'dominant-baseline': 'middle' }, p.label));
-      g.appendChild(el('text', { class: 'nnum', x: 16, y: 14, 'dominant-baseline': 'middle' }, `${nf} · ${nb}`));
+      g.appendChild(el('circle', { r: 9, fill: color }));
+      g.appendChild(el('text', { class: 'nlbl', x: 0, y: 26, 'text-anchor': 'middle' }, corto(p.label, maxLbl)));
+      g.appendChild(el('text', { class: 'nnum', x: 0, y: 39, 'text-anchor': 'middle' }, `${nf} · ${nb}`));
       return g;
     }
 
@@ -983,13 +993,10 @@
       const box = $('tren'), cam = $('trencam');
       if (!STEPS || !sel || !STEPS.tronco?.length || !cam) { if (box) box.style.display = 'none'; return; }
       box.style.display = 'block';
-
       const ch = STEPS.chequeo || {};
       $('trenwarn').textContent = ch.ok === false ? `· ⚠ ${(ch.rotas || []).length} ruta(s) del mapa ya no existen` : '';
 
-      // Carriles a dibujar: los que recorre alguna entidad PRENDIDA. Una apagada no lista, así que su
-      // camino no existe para esta corrida. Ojo: el lender NO bifurca el flujo, lo bifurca su rt — por
-      // eso 7 entidades pueden compartir 3 carriles (Lagobo + Davivienda + Credifamilia-addi = el mismo).
+      // carriles según las entidades PRENDIDAS: una apagada no lista, su camino no existe hoy
       const QUE_RAMAL = { 2: 'creditopx', 3: 'creditopx', 4: 'creditopx', 1: 'agregador', 0: 'redirect' };
       const porRamal = {};
       for (const l of lendersDelComercio) {
@@ -997,66 +1004,81 @@
         if (!r) continue;
         (porRamal[r] ??= { on: [], off: [] })[Number(l.lender_status) === 1 ? 'on' : 'off'].push(l);
       }
+      const hayCx = (porRamal.creditopx?.on || []).length > 0;
+      const hayRenting = (porRamal.creditopx?.on || []).some(l => l.product === 'renting');
 
       cam.innerHTML = '';
       const rieles = el('g', {}), nodos = el('g', {});
       cam.appendChild(rieles); cam.appendChild(nodos);
 
-      // ── tronco: vertical, carril 0 ──
-      const T = STEPS.tronco;
-      const xT = G.x0, yDe = (i) => G.y0 + i * G.fila;
-      rieles.appendChild(el('path', { d: `M ${xT} ${yDe(0)} L ${xT} ${yDe(T.length - 1)}`, stroke: COLOR.tronco, 'stroke-width': 2, opacity: .45, fill: 'none' }));
-      T.forEach((p, i) => nodos.appendChild(nodoSVG(p, xT, yDe(i), COLOR.tronco)));
+      // TRONCO = tronco común + el cierre in-platform (si el comercio lo tiene). Es el camino feliz.
+      const tronco = hayCx ? [...STEPS.tronco, ...STEPS.ramales.creditopx.pasos] : [...STEPS.tronco];
+      const X = (i) => G.x0 + i * G.col, Y0 = G.y0;
+      const idx = {}; tronco.forEach((p, i) => (idx[p.id] = i));
+      rieles.appendChild(riel(`M ${X(0)} ${Y0} L ${X(tronco.length - 1)} ${Y0}`, COLOR.tronco));
+      tronco.forEach((p, i) => nodos.appendChild(nodoSVG(p, X(i), Y0, i >= STEPS.tronco.length ? COLOR.creditopx : COLOR.tronco)));
 
-      const yBif = yDe(T.length - 1);   // nodo de bifurcación = último del tronco
-      let carril = 0, maxY = yBif, maxX = xT;
+      let minY = Y0, maxY = Y0;
 
-      for (const id of ['creditopx', 'agregador', 'redirect']) {
-        const r = STEPS.ramales?.[id], g = porRamal[id];
-        if (!r || !g || !g.on.length) continue;
-        carril += 1;
-        const x = G.x0 + carril * G.carril, yIni = yBif + G.fila, col = COLOR[id];
-
-        // La curva de git: baja pegada al tronco y entra vertical al carril. Los tiradores verticales
-        // (mismo x que cada extremo) son los que evitan el efecto "resorte" de una bezier libre.
-        const k = G.fila * 0.55;
-        rieles.appendChild(el('path', {
-          d: `M ${xT} ${yBif} C ${xT} ${yBif + k}, ${x} ${yIni - k}, ${x} ${yIni}`,
-          stroke: col, 'stroke-width': 2, opacity: .45, fill: 'none'
-        }));
-        const yFin = yIni + (r.pasos.length - 1) * G.fila;
-        if (r.pasos.length > 1) rieles.appendChild(el('path', { d: `M ${x} ${yIni} L ${x} ${yFin}`, stroke: col, 'stroke-width': 2, opacity: .45, fill: 'none' }));
-
-        const quien = g.on.map(l => `${l.name} rt${l.rt}${l.product && l.product !== 'credit' ? ' ' + l.product : ''}`).join(' · ');
-        // recorte al ancho del carril: sin esto el listado de entidades invadía el carril siguiente.
-        const corto = (t, n) => (t.length > n ? t.slice(0, n - 1) + '…' : t);
-        const cab = el('text', { class: 'nram', x, y: yIni - 22, fill: col }, corto(r.label, 26));
-        cab.appendChild(el('title', {}, `${r.label}\n\n${r.cuando || ''}`));
-        nodos.appendChild(cab);
-        const sub = el('text', { class: 'nquien', x, y: yIni - 9 }, corto(quien + (g.off.length ? `  (${g.off.length} apagada/s)` : ''), 30));
-        sub.appendChild(el('title', {}, quien + (g.off.length ? `\n\nApagadas: ${g.off.map(l => l.name).join(', ')}` : '')));
-        nodos.appendChild(sub);
-
-        r.pasos.forEach((p, i) => nodos.appendChild(nodoSVG(p, x, yIni + i * G.fila, col)));
-        maxY = Math.max(maxY, yFin); maxX = Math.max(maxX, x);
+      // DESVÍOS: salen del tronco y REINGRESAN. Van ARRIBA (como en un grafo de git).
+      for (const [id, d] of Object.entries(STEPS.desvios || {})) {
+        if (id === 'abaco' && !hayRenting) continue;          // solo si el comercio tiene renting prendido
+        const a = idx[d.desde], b = idx[d.hasta];
+        if (a == null || b == null) continue;
+        const y = Y0 - G.fila, col = COLOR[id] || COLOR.abaco;
+        // Los nodos del desvío se reparten ENTRE el punto de salida y el de reingreso, no en las
+        // columnas del tronco: si caen encima de los pasos que saltean, el reingreso queda vertical
+        // (un codo, no una curva) y deja de leerse como un grafo de git.
+        const paso = (X(b) - X(a)) / (d.pasos.length + 1);
+        const xs = d.pasos.map((_, i) => X(a) + paso * (i + 1));
+        rieles.appendChild(riel(curva(X(a), Y0, xs[0], y), col));
+        if (xs.length > 1) rieles.appendChild(riel(`M ${xs[0]} ${y} L ${xs[xs.length - 1]} ${y}`, col));
+        rieles.appendChild(riel(curva(xs[xs.length - 1], y, X(b), Y0), col));   // ← el REINGRESO
+        d.pasos.forEach((p, i) => nodos.appendChild(nodoSVG(p, xs[i], y, col, 12)));
+        const t = el('text', { class: 'nram', x: xs[0], y: y - 26, fill: col }, d.label);
+        t.appendChild(el('title', {}, d.cuando || ''));
+        nodos.appendChild(t);
+        minY = Math.min(minY, y - 30);
       }
 
-      encuadrar(maxX + 240, maxY + 40);
+      // RAMALES terminales: salen en /lenders y NO vuelven (los resuelve la entidad, fuera del wizard).
+      let carril = 0;
+      const aLenders = idx['lenders'] ?? (STEPS.tronco.length - 1);
+      for (const rid of ['agregador', 'redirect']) {
+        const r = STEPS.ramales?.[rid], g = porRamal[rid];
+        if (!r || !g || !g.on.length) continue;
+        carril += 1;
+        const y = Y0 + carril * G.fila, col = COLOR[rid];
+        const xs = r.pasos.map((_, i) => X(aLenders + 1 + i));
+        rieles.appendChild(riel(curva(X(aLenders), Y0, xs[0], y), col));
+        if (xs.length > 1) rieles.appendChild(riel(`M ${xs[0]} ${y} L ${xs[xs.length - 1]} ${y}`, col));
+        r.pasos.forEach((p, i) => nodos.appendChild(nodoSVG(p, xs[i], y, col)));
+        const quien = g.on.map(l => `${l.name} rt${l.rt}`).join(' · ');
+        const t = el('text', { class: 'nram', x: xs[0], y: y - 24, fill: col }, corto(r.label, 24));
+        t.appendChild(el('title', {}, `${r.label}\n\n${r.cuando || ''}`));
+        nodos.appendChild(t);
+        const sub = el('text', { class: 'nquien', x: xs[0], y: y - 11 }, corto(quien, 34));
+        sub.appendChild(el('title', {}, quien + (g.off.length ? `\n\nApagadas: ${g.off.map(l => l.name).join(', ')}` : '')));
+        nodos.appendChild(sub);
+        maxY = Math.max(maxY, y + 46);
+      }
+
+      encuadrar(X(tronco.length - 1) + 90, minY, maxY);
     }
 
-    // ── cámara: arrastrar, zoom con rueda, doble clic para encuadrar ──────────────────────────────
-    // Es un canvas propio en vez de una librería de grafos: el diagrama tiene ~20 nodos en carriles
-    // paralelos, o sea posiciones que ya conocemos. Un motor de layout no tendría nada que resolver.
-    const cam = { x: 0, y: 0, k: 1, w: 0, h: 0 };
+    // ── cámara: arrastrar · rueda = zoom · doble clic = encuadrar ────────────────────────────────
+    // Canvas propio y no una librería de grafos: son ~20 nodos en carriles paralelos, o sea posiciones
+    // que ya conocemos. Un motor de layout no tendría nada que resolver.
+    const cam = { x: 0, y: 0, k: 1, w: 0, y1: 0, y2: 0 };
     function aplicarCam() { const g = $('trencam'); if (g) g.setAttribute('transform', `translate(${cam.x},${cam.y}) scale(${cam.k})`); }
-    function encuadrar(w, h) {
-      cam.w = w; cam.h = h;
+    function encuadrar(w, y1, y2) {
+      if (w) { cam.w = w; cam.y1 = y1; cam.y2 = y2; }
       const svg = $('trensvg'); if (!svg) return;
       const r = svg.getBoundingClientRect();
-      // Solo por ANCHO y nunca por debajo de .8: encuadrar también por alto lo dejaba en k≈0.5 y el
-      // texto ilegible. Lo vertical se recorre arrastrando — para eso el canvas se arrastra.
-      cam.k = Math.max(.8, Math.min(1, r.width / w));
-      cam.x = 8; cam.y = 8;
+      const alto = (cam.y2 - cam.y1) + 60;
+      cam.k = Math.max(.55, Math.min(1, Math.min(r.width / cam.w, r.height / alto)));
+      cam.x = 10;
+      cam.y = (r.height - alto * cam.k) / 2 - cam.y1 * cam.k + 30 * cam.k;
       aplicarCam();
     }
     (function camaraInit() {
@@ -1070,11 +1092,10 @@
         e.preventDefault();
         const r = svg.getBoundingClientRect(), mx = e.clientX - r.left, my = e.clientY - r.top;
         const k2 = Math.min(2.2, Math.max(0.35, cam.k * (e.deltaY < 0 ? 1.12 : 1 / 1.12)));
-        // zoom hacia el puntero: el punto bajo el mouse queda quieto
-        cam.x = mx - (mx - cam.x) * (k2 / cam.k); cam.y = my - (my - cam.y) * (k2 / cam.k);
+        cam.x = mx - (mx - cam.x) * (k2 / cam.k); cam.y = my - (my - cam.y) * (k2 / cam.k);   // zoom al puntero
         cam.k = k2; aplicarCam();
       }, { passive: false });
-      svg.addEventListener('dblclick', () => encuadrar(cam.w, cam.h));
+      svg.addEventListener('dblclick', () => encuadrar());
     })();
 
     // enriquece cada card con el hash desde el backend (resiliente: si no está en local, lo marca).

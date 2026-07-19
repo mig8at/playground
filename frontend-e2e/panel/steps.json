@@ -292,5 +292,41 @@
         }
       ]
     }
+  },
+  "desvios": {
+    "abaco": {
+      "label": "Ábaco · renting",
+      "cuando": "El lender tiene product='renting' (Motai R/RB). La action de confirmation pregunta a check-abaco-requirement y desvía a /abaco ANTES de la validación de identidad.",
+      "desde": "confirmation",
+      "hasta": "first-payment-date",
+      "pasos": [
+        {
+          "id": "abaco-init",
+          "label": "Plataformas gig",
+          "ruta": "/{flow}/{hash}/{ur}/abaco/platforms",
+          "front": [
+            "apps/loan-request-wizard/app/routes/abaco/platforms.tsx",
+            "apps/loan-request-wizard/app/routes/abaco/layout.tsx"
+          ],
+          "back": [
+            "Modules/Onboarding/App/Services/AbacoService.php",
+            "app/Actions/RiskCentrals/Abaco.php"
+          ],
+          "nota": "Elegís la plataforma (Uber/Didi/Rappi…) e inicia sesión contra Ábaco. En local lo sirve mock-abaco (:8102); sin ABACO_HOST el backend se pega a sí mismo y da ABAC2004 (F-47)."
+        },
+        {
+          "id": "abaco-otp",
+          "label": "OTP de la plataforma",
+          "ruta": "/{flow}/{hash}/{ur}/abaco/platform-otp-validation",
+          "front": [
+            "apps/loan-request-wizard/app/routes/abaco/platform-otp-validation.tsx"
+          ],
+          "back": [
+            "Modules/Onboarding/App/Services/AbacoService.php"
+          ],
+          "nota": "Segundo factor de la plataforma gig. Al completar, la action rutea por step_details.type: no_validation_required → first-payment-date (platform-otp-validation.tsx:251). Ahí REINGRESA al tronco."
+        }
+      ]
+    }
   }
 }
