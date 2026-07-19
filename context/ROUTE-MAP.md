@@ -27,6 +27,7 @@
       - amount-tiers [ref]
       - profiling [ref]
     - redirect [ref]
+  - findings [ref]
   - fix-min-income [task]
   - formalization [ref]
     - dynamic-forms [ref]
@@ -92,6 +93,10 @@ Doc: `server/data/flows/ecommerce/doc.md` · Archivos: `server/data/flows/ecomme
 **Cuándo:** Cuando la pregunta es qué ES un prestamista como dato: la fila lenders, sus tablas de configuración, y sobre todo el response_type (0/1/2/3/4) que despacha toda la plataforma. Alta de una entidad nueva.
 Doc: `server/data/flows/entities/doc.md` · Archivos: `server/data/flows/entities/map.json` · Padre: `creditop`
 
+### findings — Findings  ·  _reference_ · 21 archivos
+**Cuándo:** Cuando algo NO funciona en el entorno LOCAL y querés saber si ya lo diagnosticamos — pantallas rotas sin mensaje, flujos que se traban, errores que el front se traga, o "esto que veo, ¿es real o es un mock?". También ANTES de invertir tiempo depurando un muro del harness: cada hallazgo trae síntoma, causa raíz verificada, evidencia y arreglo. Es un registro VIVO: al descubrir algo nuevo, se agrega una entrada acá.
+Doc: `server/data/flows/findings/doc.md` · Archivos: `server/data/flows/findings/map.json` · Padre: `creditop`
+
 ### formalization — Formalization  ·  _reference_ · 84 archivos
 **Cuándo:** Cuando el problema está DESPUÉS de elegir entidad: plan de pagos, documentos, pagaré, firma con OTP, autorización hasta el Estado 11 y desembolso.
 Doc: `server/data/flows/formalization/doc.md` · Archivos: `server/data/flows/formalization/map.json` · Padre: `creditop`
@@ -104,7 +109,7 @@ Doc: `server/data/flows/frontend-monorepo/doc.md` · Archivos: `server/data/flow
 **Cuándo:** Cuando la tarea sea INTEGRAR / agregar / parametrizar una entidad (lender) o comercio (allied) nuevo, tocar el flujo de uno existente (Motai/Welli/Bancolombia/Corbeta/Pash/Credifamilia/Meddipay/etc.), o preguntarse por qué un flujo está QUEMADO / CABLEADO / ACOPLADO a un id, por qué CreditOp NO ESCALA o no es config-driven, o vayas a escribir un if por id / array de ids / branch por nombre de lender: el mapa de los 24 acoplamientos hardcodeados que impiden la integración por-config y lo que cuesta des-hardcodear cada uno. DOLOR: leelo ANTES de sumar otro hardcode.
 Doc: `server/data/flows/hardcodes-entidades/doc.md` · Archivos: `server/data/flows/hardcodes-entidades/map.json` · Padre: `creditop`
 
-### harness — Harness  ·  _reference_ · 66 archivos
+### harness — Harness  ·  _reference_ · 68 archivos
 **Cuándo:** Cuando la tarea es “necesito probar / ejercitar / mockear un flujo de originación E2E” — correr un triplete canal→comercio→lender de punta a punta, sembrar/inyectar un perfil aprobado, decidir qué se puede sellar localmente vs. qué lo decide una API externa, o levantar el demo del wizard (2 ventanas / panel).
 Doc: `server/data/flows/harness/doc.md` · Archivos: `server/data/flows/harness/map.json` · Padre: `architecture`
 

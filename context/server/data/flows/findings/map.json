@@ -1,0 +1,30 @@
+{
+  "name": "Findings",
+  "combination": "findings",
+  "group": "creditop",
+  "kind": "reference",
+  "when": "Cuando algo NO funciona en el entorno LOCAL y querés saber si ya lo diagnosticamos — pantallas rotas sin mensaje, flujos que se traban, errores que el front se traga, o \"esto que veo, ¿es real o es un mock?\". También ANTES de invertir tiempo depurando un muro del harness: cada hallazgo trae síntoma, causa raíz verificada, evidencia y arreglo. Es un registro VIVO: al descubrir algo nuevo, se agrega una entrada acá.",
+  "files": [
+    "frontend-e2e/dev/guided.spec.ts",
+    "frontend-e2e/panel/server.ts",
+    "frontend-e2e/pkg/pdf-mock.ts",
+    "frontend-e2e/pkg/payvalida-mock.ts",
+    "frontend-e2e/pkg/wompi-mock.ts",
+    "frontend-e2e/pkg/cognito.ts",
+    "frontend-e2e/pkg/windows.ts",
+    "frontend-e2e/pkg/inject.ts",
+    "frontend-e2e/mock-payvalida/server.mjs",
+    "frontend-e2e/mock-preapprovals/server.mjs",
+    "legacy-backend/Modules/Risk/App/Http/Controllers/ProfilerML/ProfilerMLController.php",
+    "legacy-backend/Modules/Loans/App/Services/OtpService.php",
+    "legacy-backend/Modules/Loans/App/Http/Controllers/Customer/ValidateOtpPromissoryNoteController.php",
+    "legacy-backend/app/Actions/Lenders/Payvalida.php",
+    "legacy-backend/config/services.php",
+    "legacy-backend/config/logging.php",
+    "frontend-monorepo/apps/loan-request-wizard/app/routes.ts",
+    "frontend-monorepo/apps/loan-request-wizard/app/routes/sign-documents.tsx",
+    "frontend-monorepo/apps/loan-request-wizard/app/layouts/public-layout.tsx",
+    "frontend-monorepo/apps/loan-request-wizard/app/layouts/default-layout.tsx",
+    "frontend-monorepo/modules/loan-request-wizard/lenders-marketplace/src/lib/infrastructure/repositories/loan-options.repository.ts"
+  ]
+}
