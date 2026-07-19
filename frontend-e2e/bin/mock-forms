@@ -26,7 +26,7 @@ case "${1:-start}" in
       for _ in $(seq 1 10); do up || break; sleep 0.2; done
     fi
     rm -f "$LOG"
-    nohup env MOCK_FORMS_PORT="$PORT" MOCK_FORMS_UNUSED="$WANT_FAIL" \
+    nohup env MOCK_FORMS_PORT="$PORT" E2E_TARGET="${E2E_TARGET:-local}" \
       node "$DIR/mock-forms/server.mjs" < /dev/null > "$LOG" 2>&1 &
     for _ in $(seq 1 25); do up && { echo "✓ mock-forms :$PORT"; exit 0; }; sleep 0.3; done
     echo "✗ no levantó"; tail -8 "$LOG" 2>/dev/null; exit 1;;

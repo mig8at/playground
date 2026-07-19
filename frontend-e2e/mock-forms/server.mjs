@@ -101,6 +101,52 @@ const schemaGenerico = (formId) => ({
     },
 });
 
+/**
+ * Crea un `user_request` REAL para que el submit del flujo dinámico pueda continuar a /lenders.
+ * Mismo camino que `dev/sweep.ts`: register del teléfono (endpoint sin auth) + INSERT + buró sintético.
+ * `formId` es el hash de la sucursal. Devuelve { ok, ur, redirect } o { ok:false, error }.
+ */
+async function crearSolicitud(formId, rawBody) {
+    let p = {};
+    try { p = JSON.parse(rawBody || '{}'); } catch { /* usamos defaults */ }
+    // El teléfono viene en E.164 (+57…); el register de legacy espera solo los dígitos locales.
+    const phone = String(p.phoneNumber ?? '').replace(/\D/g, '').slice(-10) || '3131010101';
+    const amount = Math.round(Number(String(p.amount ?? p.originalAmount ?? '').replace(/\D/g, '')) || 2_000_000);
+
+    const API = process.env.E2E_MOCK_URL ?? 'http://localhost';
+    const { one, exec } = await import('../pkg/db.ts');
+    const { synthFill } = await import('../pkg/inject.ts');
+
+    const reg = await fetch(`${API}/api/onboarding/phone/register`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', accept: 'application/json' },
+        body: JSON.stringify({ phone_number: phone, phoneNumber: phone, terms: true, policies: true, otp_length: 4, otpLength: 4, partner_branch_hash: formId, partnerBranchHash: formId }),
+    }).then((r) => r.json()).catch(() => null);
+    const userId = reg?.data?.user?.id;
+    if (!userId) return { ok: false, error: `register falló para ${phone}` };
+
+    const br = await one('SELECT id AS b, allied_id AS a FROM allied_branches WHERE hash=? LIMIT 1', [formId]);
+    if (!br) return { ok: false, error: `sucursal ${formId} inexistente` };
+
+    const ins = await exec(
+        'INSERT INTO user_requests (user_id, allied_id, allied_branch_id, lender_id, amount, original_amount, user_request_status_id, credit_line_id, fee_number, fee_value, rate, created_at, updated_at) VALUES (?,?,?,NULL,?,?,1,1,0,0,0,NOW(),NOW())',
+        [userId, br.a, br.b, amount, amount],
+    );
+    const ur = ins?.insertId;
+    if (!ur) return { ok: false, error: 'INSERT del user_request falló' };
+
+    await synthFill(Number(ur), {
+        income: Number(p.averageMonthlyIncome) || 2_500_000,
+        score: 700,
+        name: [p.firstName, p.lastName].filter(Boolean).join(' ') || undefined,
+        document: p.nationalIdentityNumber ? String(p.nationalIdentityNumber) : undefined,
+        email: p.email || undefined,
+        dob: p.birthDate || undefined,
+    }).catch(() => { /* el buró es best-effort: sin él igual lista, solo cambia el perfilado */ });
+
+    return { ok: true, ur, redirect: `/merchant/${formId}/${ur}/lenders?amount=${amount}` };
+}
+
 function schemaFor(formId) {
     const f = join(HERE, 'schemas', `${formId}.json`);
     if (existsSync(f)) {
@@ -136,7 +182,23 @@ const server = http.createServer((req, res) => {
             if (accion === 'send-otp') return json(res, 200, { success: true, message: 'OTP enviado (mock)' });
             if (accion === 'validate-otp') return json(res, 200, { success: true, valid: true, message: 'OTP válido (mock)' });
             if (accion === 'upload') return json(res, 200, { success: true, url: 'https://mock-forms.local/upload/demo.png' });
-            return json(res, 200, { success: true, message: 'submit recibido (mock)' });
+
+            // SUBMIT — el paso final. El wizard exige `{ redirect }` en la respuesta y, si falta,
+            // corta con 502 `submit_missing_redirect` (un 200 "ok" genérico NO alcanza).
+            //
+            // El servicio REAL orquesta el alta contra el legacy (create-temporary-user → accept-terms
+            // → resolve-lenders-redirect) y devuelve a dónde seguir. Acá creamos la solicitud por el
+            // MISMO camino que usa el resto del harness (register + INSERT + buró sintético), que es
+            // código ya probado: el resultado es equivalente —un user_request REAL— aunque el cómo
+            // difiera del servicio real. Ver findings F-45.
+            return crearSolicitud(formId, body).then(
+                (r) => {
+                    if (!r.ok) { log(`  ✗ submit: ${r.error}`); return json(res, 500, { message: r.error }); }
+                    log(`  ✓ submit → uReq ${r.ur} · redirect ${r.redirect}`);
+                    return json(res, 200, { redirect: r.redirect, userRequestId: Number(r.ur) });
+                },
+                (e) => { log(`  ✗ submit lanzó: ${e?.message}`); return json(res, 500, { message: String(e?.message ?? e) }); },
+            );
         }
 
         // Verificación de correo / documento. EL VEREDICTO VA EN `code`, NO en el HTTP status: el wizard
