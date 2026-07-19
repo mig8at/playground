@@ -65,8 +65,15 @@ const schemaGenerico = (formId) => ({
         amount: { type: 'text', label: 'Monto a solicitar', required: true, placeholder: '0', allowed: '0123456789' },
         phone: { type: 'phone', label: 'Celular', required: true, country: 'DO' },
         email: { type: 'email', label: 'Correo electrónico', required: true },
-        documentType: { type: 'select', label: 'Tipo de documento', required: true, options: ['CC', 'CE', 'PEP'], horizontal: true },
-        document: { type: 'text', label: 'Número de documento', required: true, allowed: '0123456789' },
+        // ⚠ El flujo DINÁMICO usa OTRA taxonomía de documentos que el clásico: NO acepta CC/CE/PEP.
+        // `dynamic-step-one.ts::isSupportedDocumentType` solo admite estos cuatro, cada uno con su patrón:
+        //   CED    cédula dominicana  → exactamente 11 dígitos
+        //   CI_VE  cédula venezolana  → 6 a 11 dígitos
+        //   PAS / PAS_VE  pasaporte   → 6 a 9 alfanuméricos
+        // Con un tipo fuera de esa lista el form muestra "Selecciona un tipo de documento válido"
+        // debajo del NÚMERO (no del selector), lo que hace parecer que el número está mal.
+        documentType: { type: 'select', label: 'Tipo de documento', required: true, options: ['CED', 'CI_VE', 'PAS', 'PAS_VE'], horizontal: true },
+        document: { type: 'text', label: 'Número de identidad', required: true, allowed: '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ' },
         // Ciudades de RD (el canal es dominicano). Sustituilas por las reales dejando el schema
         // verdadero en mock-forms/schemas/<hash>.json.
         cityOfResidence: {
