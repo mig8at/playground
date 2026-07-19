@@ -47,3 +47,5 @@ test-results/
 # Traen credenciales de BD → nunca se versionan. Los .example SÍ (son plantillas sin secretos).
 env/*.env
 !env/*.env.example
+# Volcado forense pre-scrub (frontend-e2e/.runs/) — estado de solicitudes por corrida, local por máquina
+.runs/

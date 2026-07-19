@@ -889,5 +889,34 @@ test('guided (semiautomático)', async ({ browser }) => {
 
     console.log(`GUIDED uReq=${uReqID} entry=${ENTRY} lender=${lenderName} rt=${rt ?? '?'}`);
     expect(uReqID, 'el flujo no generó user_request').toBeTruthy();
+
+    // ── VEREDICTO CONTRA LA BD ────────────────────────────────────────────────────────────────────
+    // El navegador NO es la fuente de verdad: una corrida puede llegar a `loan-approved` y la solicitud
+    // estar CANCELADA (F-50), o quedarse a mitad sin que nada lo grite. Antes, el único assert era
+    // "existe el uReq" → cualquier desenlace daba "1 passed". Acá leemos el estado REAL y lo mostramos
+    // siempre; se FALLA solo cuando el desenlace es inequívocamente malo (cancelada/negada sin pedirlo),
+    // porque el guiado es semi-manual y abandonarlo a mitad es legítimo.
+    const veredicto = await one<{ id: number; st: number; estado: string; lender: string | null }>(
+        `SELECT ur.id, ur.user_request_status_id AS st, s.name AS estado, l.name AS lender
+           FROM user_requests ur
+           LEFT JOIN user_request_statuses s ON s.id = ur.user_request_status_id
+           LEFT JOIN lenders l ON l.id = ur.lender_id
+          WHERE ur.id=?`, [Number(uReqID)]).catch(() => null);
+
+    if (!veredicto) {
+        log(`⚠ VEREDICTO: la uReq ${uReqID} no está en la BD (¿la borró un scrub posterior?).`);
+    } else {
+        const esperado = RESULT_STATUS[RESULT] ?? 11;
+        const ok = veredicto.st === esperado;
+        log(`── VEREDICTO (BD, no navegador) ──`);
+        log(`   uReq ${veredicto.id} · lender ${veredicto.lender ?? '?'} · estado ${veredicto.st} "${veredicto.estado ?? '?'}"`);
+        log(`   esperado para result=${RESULT}: ${esperado} · ${ok ? '✓ coincide' : '✗ NO coincide'}`);
+        // 8 = Cancelado · 6 = Negada. Terminar ahí sin haberlo pedido es un fallo real, no un matiz.
+        const malo = veredicto.st === 8 || (veredicto.st === 6 && RESULT !== 'rejected');
+        expect(malo, `la solicitud ${uReqID} terminó en estado ${veredicto.st} "${veredicto.estado}" ` +
+            `(esperado ${esperado} para result=${RESULT}). El navegador puede haber mostrado una pantalla ` +
+            `de éxito igual: la BD manda. Ver findings F-50.`).toBe(false);
+        if (!ok && !malo) log(`   (a mitad de flujo — legítimo si cortaste el guiado a mano)`);
+    }
     if (PREVIEW) { console.log(`  👀 fin — ventana abierta ${Math.round(LINGER / 1000)}s (Ctrl-C corta)`); await page.waitForTimeout(LINGER).catch(() => {}); }
 });

@@ -1,7 +1,7 @@
 // asesor.ts — asociar/desasociar un asesor (fila users por cognito_id) a la sucursal de un comercio,
 // + scrub de clientes por teléfono. Port de backend-mcp asesor.go (+ deleteUsers/childTables de db.go).
 // Reversible: assign guarda .asesor-snapshot.json y revoke lo restaura (o borra la fila si la creamos).
-import { readFileSync, writeFileSync, existsSync, rmSync } from 'node:fs';
+import { readFileSync, writeFileSync, existsSync, rmSync, mkdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
 import { query, one, scalar, exec, withConnection, assertWriteAllowed } from './db.ts';
@@ -199,6 +199,39 @@ async function deleteUsers(userIDs: number[]): Promise<number> {
     return userIDs.length;
 }
 
+/**
+ * Vuelca a `.runs/` lo que está por borrarse. F-52: como cada corrida arranca scrubbeando, la corrida
+ * N destruye la evidencia de la N-1 — y `user_requests` desaparece mientras `user_request_records`
+ * queda huérfano, así que consultar por el id que imprimió una corrida vieja devuelve vacío y se lee
+ * como "nunca existió". Con esto la forense deja de depender de acordarse de mirar ANTES.
+ */
+async function dumpAntesDeBorrar(phone: string, userIDs: number[]): Promise<string | null> {
+    if (userIDs.length === 0) return null;
+    try {
+        const reqs = await query<Record<string, unknown>>(
+            `SELECT ur.id, ur.user_request_status_id, s.name AS estado, ur.lender_id, l.name AS lender,
+                    ur.user_id, ur.allied_branch_id, ur.amount, ur.created_at, ur.updated_at
+               FROM user_requests ur
+               LEFT JOIN user_request_statuses s ON s.id = ur.user_request_status_id
+               LEFT JOIN lenders l ON l.id = ur.lender_id
+              WHERE ur.user_id IN (?) ORDER BY ur.id`, [userIDs]);
+        if (reqs.length === 0) return null;
+        const ids = reqs.map((r) => r.id as number);
+        const recs = await query<Record<string, unknown>>(
+            `SELECT user_request_id, user_request_status_id, comment, created_at
+               FROM user_request_records WHERE user_request_id IN (?) ORDER BY id`, [ids]);
+
+        const dir = resolve(ROOT, '.runs');
+        mkdirSync(dir, { recursive: true });
+        // sin Date.now() en el nombre: el id de la última solicitud alcanza y es estable/rastreable
+        const file = resolve(dir, `ureq-${ids[ids.length - 1]}.json`);
+        writeFileSync(file, JSON.stringify({ phone, borrado_en: new Date().toISOString(), user_ids: userIDs, solicitudes: reqs, records: recs }, null, 2));
+        return file;
+    } catch {
+        return null;   // la forense es un extra: si falla, el scrub NO se frena
+    }
+}
+
 /** scrubphone (WRITE): borra los users CLIENTE (cognito_id NULL) de un teléfono → próximo register = TEMPORAL USER. */
 export async function scrubphone(phone: string): Promise<Record<string, unknown>> {
     const p = phone.trim();
@@ -206,6 +239,7 @@ export async function scrubphone(phone: string): Promise<Record<string, unknown>
     assertWriteAllowed();
     const rows = await query<{ id: number }>("SELECT id FROM users WHERE cell_phone=? AND (cognito_id IS NULL OR cognito_id='')", [p]);
     const ids = rows.map((r) => r.id);
+    const dump = await dumpAntesDeBorrar(p, ids);
     const n = await deleteUsers(ids);
-    return { phone: p, users_deleted: n, user_ids: ids, note: 'el próximo register de ese teléfono crea un TEMPORAL USER → /personal-info' };
+    return { phone: p, users_deleted: n, user_ids: ids, forense: dump ?? '(sin solicitudes previas que volcar)', note: 'el próximo register de ese teléfono crea un TEMPORAL USER → /personal-info' };
 }

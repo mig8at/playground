@@ -8,9 +8,10 @@ en `README.md`. Acá van **solo** las reglas que ya costaron tiempo.
 `bin/asesor` arranca siempre con `scrubphone` (`bin/asesor:99`), que borra los users cliente del teléfono
 de bypass **y sus `user_requests`**, con `FOREIGN_KEY_CHECKS=0` (`pkg/asesor.ts:178-197`). No hay undo.
 
-- Si querés inspeccionar una corrida, consultala **antes** de lanzar la siguiente.
+- Antes de borrar, el scrub **vuelca lo que está por perderse** a `.runs/ureq-<id>.json` (estado, lender,
+  records). Si te falta una corrida vieja, entrá por ahí.
 - Si `user_requests` te da vacío para un id que imprimió una corrida vieja, no concluyas "nunca existió":
-  lo borró el scrub (F-52).
+  lo borró el scrub (F-52). Mirá `.runs/`.
 - `user_request_records` **no** está en `childTables` (`pkg/asesor.ts:17-24`) → sobrevive huérfano. Es lo
   único que permite reconstruir a posteriori; entrá por ahí.
 
@@ -20,17 +21,18 @@ Hay **82 `.catch(() => {})`** en `dev/guided.spec.ts`. El único paso blindado e
 que distingue "ventana cerrada" y **tira** (`dev/guided.spec.ts:538-545`); el resto se traga el error.
 `shot()` imprime `📸 <archivo>` aunque el screenshot haya fallado (`dev/guided.spec.ts:63-64`).
 
-- Antes de dar una corrida por buena: mirá el **mtime** de `.auth/guided-*.png` y que estén las líneas
-  `nav →` del log. "1 passed" no alcanza.
+- El guiado ahora cierra con un **VEREDICTO contra la BD** (estado real + lender) y **falla** si la
+  solicitud terminó Cancelada/Negada sin pedirlo. Leé ese bloque, no el "1 passed".
+- Para lo demás: mirá el **mtime** de `.auth/guided-*.png` y que estén las líneas `nav →` del log.
 - Si escribís pasos nuevos, no envuelvas en `.catch` vacío el paso que le da sentido a la corrida (F-03).
 
 ## Mocks: arrancá a mano los que nadie levanta
 
 - `bin/asesor` levanta `mock-preapprovals` siempre (`bin/asesor:120`) y, **solo con target `local`**,
-  payvalida + mdm + lenders + forms (`bin/asesor:129-134`). `mock-redirect` lo levanta `bin/ecommerce`
-  (`bin/asesor:56`). Contra `dev` no se levanta ninguno de esos cuatro.
-- **`mock-abaco` y `mock-pdf-mapper` no los levanta nadie.** Si tu flujo toca Ábaco (renting Motai) o la
-  vinculación de Credifamilia, corré `bin/mock-abaco start` / `bin/mock-pdf-mapper start` vos.
+  payvalida + mdm + lenders + forms + **ábaco** (`bin/asesor:129-137`). `mock-redirect` lo levanta
+  `bin/ecommerce` (`bin/asesor:56`). Contra `dev` no se levanta ninguno de esos cinco.
+- **`mock-pdf-mapper` no lo levanta nadie.** Si tu flujo toca la vinculación de Credifamilia, corré
+  `bin/mock-pdf-mapper start` vos.
 
 ## Reglas sueltas
 

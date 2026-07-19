@@ -131,7 +131,10 @@ if [ "$TARGET" = "local" ]; then
   "$(dirname "$0")/mock-mdm" start >/dev/null 2>&1 || true
   "$(dirname "$0")/mock-lenders" start >/dev/null 2>&1 || true
   "$(dirname "$0")/mock-forms" start >/dev/null 2>&1 || true
-  log "mocks locales: payvalida :${MOCK_PV_PORT:-8097} · mdm/IMEI :${MOCK_MDM_PORT:-8098} · entidades :${MOCK_LENDERS_PORT:-8099} · forms :${MOCK_FORMS_PORT:-8101}"
+  # Ábaco: lo pide el flujo de RENTING (lenders con product='renting', ej. Motai R) después de elegir
+  # entidad. Sin él, ABACO_HOST apunta al propio backend y el init muere con ABAC2004.
+  "$(dirname "$0")/mock-abaco" start >/dev/null 2>&1 || true
+  log "mocks locales: payvalida :${MOCK_PV_PORT:-8097} · mdm/IMEI :${MOCK_MDM_PORT:-8098} · entidades :${MOCK_LENDERS_PORT:-8099} · forms :${MOCK_FORMS_PORT:-8101} · ábaco :${MOCK_ABACO_PORT:-8102}"
 fi
 
 # ── health-check del backend ANTES del cold-boot ──────────────────────────────────────────────
