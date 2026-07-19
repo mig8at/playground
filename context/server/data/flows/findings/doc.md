@@ -364,3 +364,37 @@ O sea **el mismo muro (Deceval) bloquea a DENTIX rt=2 y a Credifamilia rt=4**: n
 **Bonus:** `simulate-payment-schedule` da HTTP 500 en Credifamilia ("Ocurrió un error durante el cálculo del plan de pagos") pero `confirm-payment-schedule` responde 200 igual — el cronograma se confirma sin haber simulado. Sin diagnosticar; anotado porque es un 500 que NO detiene el flujo.
 
 **Estado:** muro 1 resuelto; 2 y 3 documentados como frontera. Para cerrar un rt=4 completo harían falta un mock de Deceval (4 ops SOAP) y las credenciales/mock de Netco.
+
+### F-32 · La regla de `promissory_type` tiene una excepción: el path IMEI difiere el desembolso
+
+**Predicción (F-31):** "los lenders con `promissory_type_id = 1` cierran headless".
+**Verificado:** CrediPullman #77 y Motai C #168 → **Estado 11** con `request_number`, como predecía.
+**Excepción encontrada:** **smartpay #152 tiene tipo 1 y NO cierra.** Porque en el path IMEI el desembolso está DIFERIDO por diseño: `authorize` no es el paso final.
+
+Secuencia correcta del path IMEI (SmartPay) — `authorize` **no se llama**:
+
+```
+… verify-otp  →  POST device/register {imei, user_request_id}     (el asesor escanea)
+              →  POST device/{ur}/disburse                        (autoriza Y desembolsa)
+```
+
+Llamar a `authorize` en ese flujo lo **rompe**: falla, hace rollback y deja el OTP consumido, con lo que el `disburse` posterior arranca en falso. (`dev/sweep.ts` ya ramifica solo detectando `paths.name='IMEI'`.)
+
+**Estado real en local:** ni con la secuencia correcta cierra. Con el IMEI ya enrolado, `device/disburse` corre la autorización interna (`Loan authorization started {otp_id: null}` — es normal: `resolveValidatedOtp` acepta null y busca el último OTP validado) y muere con `Attempt to read property "id" on null`, con rollback. Queda en 28.
+
+**Inferencia fuerte, no probada:** es otra manifestación de **F-21** (el hardcode del 160). Con lender ≠ 160, `isSmartPay()` es false, así que el flujo mezcla el **set de documentos del path IMEI** —el log confirma que genera SOLO `consent` + `payment-schedule`, sin pagaré ni FGA, tal como describe el diseño de SmartPay— con las **expectativas de la autorización estándar**, que sí espera un pagaré. Falta algo que la rama SmartPay habría creado. No se persiguió el null exacto.
+
+**Modelo mental actualizado** de qué cierra headless en local:
+
+| Condición | Resultado |
+|---|---|
+| `promissory_type_id = 1` (ownership) **y** path ≠ IMEI | **cierra** → Estado 11 (Celupresto, Mediarte 0%, Motai C, CrediPullman) |
+| `promissory_type_id = 1` **y** path = IMEI | no cierra → 28 (smartpay #152; ver F-21) |
+| `promissory_type_id = 2` (deceval) | no cierra → 28 (Credifamilia #24, DENTIX #139) |
+
+### F-33 · zsh no hace word-splitting (trampa al verificar)
+
+**Síntoma:** un loop `for L in "slug 77"; do set -- $L; cmd $1 $2` pasó `"slug 77"` como UN argumento; la herramienta reportó "sin branch_hash" para un comercio que sí lo tenía, y por un momento pareció un bug de datos.
+**Causa raíz:** a diferencia de bash, **zsh no divide en palabras las expansiones sin comillas**. `set -- $L` deja `$1="slug 77"`.
+**Arreglo:** `${=L}` en zsh, o evitar el truco: `for pair in slug:77; do S="${pair%%:*}"; L="${pair##*:}"`.
+**Estado:** anotado en la sección de trampas — el error se veía como "el dato no existe" cuando era el shell.
