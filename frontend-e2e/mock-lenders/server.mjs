@@ -51,6 +51,14 @@ const RUTAS = [
         test: (p) => /\/pay\/create$/.test(p),
         body: () => ({ id: 'MOCK-PAY-' + Date.now(), url: 'https://pay.mock-lenders.local/checkout', status: 'CREATED', errorCode: null }),
     },
+    {
+        // Welli::register → POST /api/externals/risk/run_risk/. Auto-descubierta por el log de rutas no
+        // mapeadas (2026-07-19). El action valida data.id (orderId) y data.estado — y el estado DEBE
+        // matchear un lender_transaction_statuses.name del lender 23 ('approved', 'pendiente_desembolso',
+        // 'rejected', …), si no cae al default 'rejected'. MOCK_WELLI_ESTADO lo cambia sin reiniciar código.
+        test: (p) => /\/risk\/run_risk\/?$/.test(p),
+        body: () => ({ data: { id: 'MOCK-WELLI-' + Date.now(), estado: process.env.MOCK_WELLI_ESTADO || 'approved', comision_aliado: 0 }, error: null }),
+    },
 ];
 
 const server = http.createServer((req, res) => {
