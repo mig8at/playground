@@ -1067,6 +1067,18 @@
         const t = el('text', { class: 'nram', x: xs[0], y: y - 26, fill: col }, d.label);
         t.appendChild(el('title', {}, d.cuando || ''));
         nodos.appendChild(t);
+        // quién TOMA el desvío y quién sigue derecho: es la bifurcación por producto hecha explícita
+        const toma = (l) => Object.entries(d.requiere || {}).every(([k, v]) =>
+          Array.isArray(v) ? v.map(String).includes(String(l[k])) : String(l[k]) === String(v));
+        const enCarril = (porRamal.creditopx?.on || []);
+        const porAca = enCarril.filter(toma), derecho = enCarril.filter((l) => !toma(l));
+        if (porAca.length) {
+          const q = el('text', { class: 'nquien', x: xs[0], y: y - 13 },
+            corto('↗ ' + porAca.map((l) => l.name).join(' · '), 34));
+          q.appendChild(el('title', {}, `Toman este desvío:\n  ${porAca.map((l) => `${l.name} (${l.product})`).join('\n  ')}`
+            + (derecho.length ? `\n\nSiguen derecho, SIN este desvío:\n  ${derecho.map((l) => `${l.name} (${l.product})`).join('\n  ')}` : '')));
+          nodos.appendChild(q);
+        }
         minY = Math.min(minY, y - 30);
       }
 
