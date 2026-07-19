@@ -11,6 +11,7 @@ import { one, exec } from '../pkg/db';
 import { close } from '../pkg/db';
 import { PREVIEW, IPHONE_UA, openA, openB } from '../pkg/windows';
 import { mockWompiHostedCheckout } from '../pkg/wompi-mock';
+import { mockClosingDocuments } from '../pkg/pdf-mock';
 
 /**
  * GUIADO (semiautomático) — el demo SIEMBRA cada pantalla por detrás y VOS das "Continuar" para avanzar,
@@ -226,6 +227,15 @@ test('guided (semiautomático)', async ({ browser }) => {
     // ventanas porque el pago puede dispararse desde A (asesor) o desde B (celular del cliente).
     await mockWompiHostedCheckout(page).catch(() => {});
     await mockWompiHostedCheckout(B).catch(() => {});
+
+    // Documentos del cierre (consentimiento / pagaré / garantía) en `sign-documents`, el ÚLTIMO paso antes de
+    // "crédito aprobado": el backend los sube a S3, pero en LOCAL el bucket es `local-mock` → el host no existe,
+    // el visor no los puede traer y muestra "Error al cargar el documento" ×3 → no se puede firmar. Servimos un
+    // PDF válido en su lugar. Solo toca buckets FALSOS, así que contra dev los documentos reales siguen intactos.
+    if ((process.env.E2E_TARGET || '').toLowerCase() === 'local') {
+        await mockClosingDocuments(page).catch(() => {});
+        await mockClosingDocuments(B).catch(() => {});
+    }
     // Tarjeta de estado de B (mientras no haya una pantalla real que mostrar).
     const bCard = (kicker: string, title: string, body: string, dots = true) => B.setContent(
         `<!doctype html><meta charset="utf-8"><title>B · celular del cliente</title>
