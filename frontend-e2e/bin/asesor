@@ -120,6 +120,15 @@ else
   log "pre-aprobaciones MOCK local (:${MOCK_PA_PORT:-8095}, todas pre-aprobadas con cupo)"
 fi
 
+# Mock de PAYVALIDA: lo dispara el lender rt=1 (Bancolombia #8, `action` = App\Actions\Lenders\Payvalida).
+# Sin PAYVALIDA_HOST en legacy-backend/.env la URL sale sin host y el flujo muere con
+# "No pudimos procesar tu solicitud". El backend debe apuntar a este puerto (ver README §8).
+# Solo en LOCAL: contra dev el proveedor real está configurado.
+if [ "$TARGET" = "local" ]; then
+  MOCK_PV_RETURN_URL="${E2E_RETURN_URL:-}" "$(dirname "$0")/mock-payvalida" start >/dev/null 2>&1 || true
+  log "payvalida MOCK local (:${MOCK_PV_PORT:-8097}) → habilita el redirect rt=1"
+fi
+
 # ── health-check del backend ANTES del cold-boot ──────────────────────────────────────────────
 # Un 5xx del backend tumba TODO el flujo: el loader del wizard (react-router SSR) rechaza una promesa
 # sin catch y en Node 25 un UnhandledPromiseRejection MATA el dev server → :5174 muere y el callback de

@@ -12,6 +12,7 @@ import { close } from '../pkg/db';
 import { PREVIEW, IPHONE_UA, openA, openB } from '../pkg/windows';
 import { mockWompiHostedCheckout } from '../pkg/wompi-mock';
 import { mockClosingDocuments } from '../pkg/pdf-mock';
+import { mockPayvalidaCheckout, PAYVALIDA_SENTINEL } from '../pkg/payvalida-mock';
 
 /**
  * GUIADO (semiautomático) — el demo SIEMBRA cada pantalla por detrás y VOS das "Continuar" para avanzar,
@@ -237,6 +238,9 @@ test('guided (semiautomático)', async ({ browser }) => {
     if ((process.env.E2E_TARGET || '').toLowerCase() === 'local') {
         await mockClosingDocuments(page).catch(() => {});
         await mockClosingDocuments(B).catch(() => {});
+        // rt=1 (Bancolombia #8 → action Payvalida): el backend redirige a `https://<checkout>`, un host
+        // sentinela que no resuelve. Lo interceptamos y servimos el portal mock. Ver pkg/payvalida-mock.ts.
+        await mockPayvalidaCheckout(page).catch(() => {});
     }
     // Tarjeta de estado de B (mientras no haya una pantalla real que mostrar).
     const bCard = (kicker: string, title: string, body: string, dots = true) => B.setContent(
@@ -304,7 +308,8 @@ test('guided (semiautomático)', async ({ browser }) => {
             await B.goto(url, { waitUntil: 'domcontentloaded', timeout: 30_000 }).catch(() => {});
             return;
         }
-        log('B: rama de REDIRECT → se resuelve en A (misma ventana); B queda explicando.');
+        const viaMock = aUrl.includes(PAYVALIDA_SENTINEL);
+        log(`B: rama de REDIRECT → se resuelve en A (misma ventana)${viaMock ? ' · portal servido por el mock de Payvalida' : ''}; B queda explicando.`);
         await bCard('Ventana B · sin uso en esta rama', 'Esta rama usa una sola ventana',
             'El lender por redirect (rt=1) se abre en la MISMA ventana A: el navegador del comercio se va al portal de la entidad y vuelve al comercio. No hay 2º dispositivo.', false);
     };

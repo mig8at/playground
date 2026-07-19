@@ -1,0 +1,35 @@
+#!/usr/bin/env bash
+# Mock de PAYVALIDA (/api/v3/porders) → desbloquea el lender rt=1 (Bancolombia #8, cuyo `action` en BD es
+# App\Actions\Lenders\Payvalida). Sin esto, en local falta PAYVALIDA_HOST y la URL sale sin host:
+# "cURL error 3: URL rejected: No host part in the URL" → banner "No pudimos procesar tu solicitud".
+#
+# Apuntá el backend con PAYVALIDA_HOST=http://localhost:$PORT en legacy-backend/.env
+#
+# uso: bin/mock-payvalida [start|stop|status|logs]
+#   env: MOCK_PV_PORT (8097) · MOCK_PV_RETURN_URL (a dónde vuelve "volver al comercio")
+#        · MOCK_PV_LENDER (Bancolombia) · MOCK_PV_CODE (0000; otro valor simula fallo del proveedor)
+set -euo pipefail
+DIR="$(cd "$(dirname "$0")/.." && pwd)"
+PORT="${MOCK_PV_PORT:-8097}"
+LOG=/tmp/mock-payvalida.log
+
+up() { curl -s -o /dev/null --max-time 2 "http://localhost:$PORT" 2>/dev/null; }
+
+case "${1:-start}" in
+  start)
+    if up; then echo "✓ mock-payvalida ya arriba (:$PORT)"; exit 0; fi
+    rm -f "$LOG"
+    nohup env MOCK_PV_PORT="$PORT" MOCK_PV_RETURN_URL="${MOCK_PV_RETURN_URL:-}" \
+      MOCK_PV_LENDER="${MOCK_PV_LENDER:-Bancolombia}" MOCK_PV_CODE="${MOCK_PV_CODE:-0000}" \
+      node "$DIR/mock-payvalida/server.mjs" < /dev/null > "$LOG" 2>&1 &
+    for _ in $(seq 1 25); do up && { echo "✓ mock-payvalida :$PORT (porders → checkout sentinela)"; exit 0; }; sleep 0.3; done
+    echo "✗ no levantó"; tail -8 "$LOG" 2>/dev/null; exit 1;;
+  stop)
+    lsof -ti:"$PORT" 2>/dev/null | xargs kill -9 2>/dev/null && echo "⏹ detenido (:$PORT)" || echo "no estaba corriendo";;
+  status)
+    if up; then curl -s --max-time 2 "http://localhost:$PORT" 2>/dev/null; echo ""; else echo "○ off (:$PORT)"; fi;;
+  logs)
+    tail -n "${2:-40}" "$LOG" 2>/dev/null || echo "(sin log)";;
+  *)
+    echo "uso: bin/mock-payvalida [start|stop|status|logs]";;
+esac
