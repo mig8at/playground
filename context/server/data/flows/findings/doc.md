@@ -754,3 +754,49 @@ SELECT l.id, 1, 1, 1, NOW(), NOW() FROM lenders l WHERE l.id IN (158,168,169,170
 **Dos cosas a decidir con el equipo (no las decide el harness):**
 1. **Qué validación de identidad debe usar renting.** El dato legacy se contradice a sí mismo: `#158 Motai Renting` tiene `validation_type=1` (None) y `#169 Motai R` tiene `2` (AWS). Se sembró `None` porque es lo que deja correr el flujo en local y es coherente con el resto del harness (el ADO ya se finge validado, F-10). **La migración de v2 debería sembrar esta tabla explícitamente.**
 2. **El fallback que cancela.** Un `unsupported_validation` debería terminar en una pantalla de error de configuración, no en una cancelación no voluntaria con código genérico.
+
+**Verificado en la práctica (uReq 464499, mismo comercio y lender):** con la fila sembrada el flujo de renting cierra entero — `confirmation → abaco → abaco/platforms → abaco/platform-otp-validation → first-payment-date → payment-schedule → sign-documents → otp-validation → loan-approved`, con rastro `3 → 28 → 11` (Autorizada).
+
+### F-51 · El formulario de referencias del Figma: el mecanismo existe, la posición y los campos no
+
+**Pregunta que lo originó:** en el diseño de Motai renting, después de "Continuar" en confirmation aparece un formulario (*Fecha de Vencimiento de Licencia* + *Referencia #1* y *#2*, cada una con Nombre / Parentesco / Contacto) y recién después la pantalla de Ábaco. En la corrida no aparece nunca. ¿Está en el front?
+
+**Sí existe el mecanismo — formularios backend-driven.** El gate es `routes/additional-info.tsx`: le pregunta al backend qué formulario corresponde a la solicitud y enruta según la respuesta.
+
+```ts
+// additional-info.tsx:36
+const nextPath = result.payload.formTypeId === null
+      ? ROUTE_PATHS.signDocuments(String(loanRequestId))            // ← sin formulario: salta a firmar
+      : ROUTE_PATHS.additionalInfoForm(String(loanRequestId), String(result.payload.formTypeId));
+```
+
+**Pero difiere del diseño en tres cosas (y una cuarta en la pantalla vecina):**
+
+| # | Diseño | Código |
+|---|---|---|
+| 1 | el form va **entre confirmation y Ábaco** | el gate se entra desde `payment-schedule.tsx:171`, o sea **después del cronograma**, justo antes de firmar |
+| 2 | Motai renting muestra el form | `form_types` tiene 6 filas y solo la **#6** está atada a un lender (**24 Credifamilia**); el #169 no tiene → `formTypeId=null` → salto directo a `sign-documents` |
+| 3 | *Licencia* · *Parentesco* · 2 referencias | en `fields` **no hay ningún campo de licencia**; "Parentesco" solo existe como **"Parentesco con familiar PEP"** (id 82) —pregunta de PEP/AML, otra semántica—; y las referencias son **una sola** (ids 46-48: nombre / **dirección** / teléfono), no dos, y con *Dirección* donde el diseño pide *Contacto* |
+| 4 | la pantalla de Ábaco ofrece **"Continuar sin validar"** | las rutas de `abaco/` son `index`, `platforms`, `platform-otp-validation`, `internal-error`: **ninguna permite saltear**. Hoy, una vez que entrás a Ábaco, es obligatorio |
+
+**Consecuencia práctica:** el punto 2 se arregla con configuración (sembrar un form type), pero el **1 y el 4 son código** — mover el gate de posición y agregar la salida opcional de Ábaco. No alcanza con cargar datos.
+
+**Caveat de alcance:** los puntos 2 y 3 se verificaron contra el **dump local**, que puede estar incompleto frente a staging. Antes de concluir que faltan en el producto, mirar `form_types`/`fields` en staging. Los puntos 1 y 4 salen del código y no dependen de la base.
+
+### F-52 · El scrub del harness borra la corrida anterior y deja el historial huérfano
+
+**Cómo apareció:** al verificar el cierre de la uReq 464499 (F-50), la fila de `user_requests` **ya no existía**, pero sus `user_request_records` sí, con el rastro completo `3 → 28 → 11`.
+
+**Causa:** `scrubphone` (`pkg/asesor.ts:203`) borra los users cliente del teléfono de prueba y, con ellos, sus `user_requests` (`deleteUsers`, FK checks off). Como **cada corrida arranca scrubbeando**, la corrida N destruye la evidencia de la N-1. La 464499 la borró la corrida siguiente (464500, otro user_id, 33s después).
+
+**Y el borrado es parcial:** `user_request_records` **no está** en la lista `childTables`, así que sus filas sobreviven al borrado del padre.
+
+```
+huérfanos en user_request_records:  873 / 1288  (68%)
+```
+
+**Dos implicancias opuestas, las dos importantes:**
+- *A favor:* el historial huérfano es lo único que permitió reconstruir F-50 después de que la solicitud desapareciera. Sin él, la corrida cancelada no habría dejado rastro alguno.
+- *En contra:* consultar `user_requests` por el id que imprimió una corrida vieja devuelve **vacío**, lo que se lee como "nunca existió" en vez de "lo borró el scrub". Es una trampa de verificación del mismo tipo que las de la sección F.
+
+**Regla práctica:** para hacer forense de una corrida, consultarla **antes** de lanzar la siguiente; o buscar por `user_request_records`, que sobrevive. Y al mirar una solicitud vieja, recordar que la columna de estado es `user_request_status_id`, no `status` (F-50).

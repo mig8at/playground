@@ -93,7 +93,7 @@ Doc: `server/data/flows/ecommerce/doc.md` · Archivos: `server/data/flows/ecomme
 **Cuándo:** Cuando la pregunta es qué ES un prestamista como dato: la fila lenders, sus tablas de configuración, y sobre todo el response_type (0/1/2/3/4) que despacha toda la plataforma. Alta de una entidad nueva.
 Doc: `server/data/flows/entities/doc.md` · Archivos: `server/data/flows/entities/map.json` · Padre: `creditop`
 
-### findings — Findings  ·  _reference_ · 28 archivos
+### findings — Findings  ·  _reference_ · 42 archivos
 **Cuándo:** Cuando algo NO funciona en el entorno LOCAL y querés saber si ya lo diagnosticamos — pantallas rotas sin mensaje, flujos que se traban, errores que el front se traga, o "esto que veo, ¿es real o es un mock?". También ANTES de invertir tiempo depurando un muro del harness: cada hallazgo trae síntoma, causa raíz verificada, evidencia y arreglo. Es un registro VIVO: al descubrir algo nuevo, se agrega una entrada acá.
 Doc: `server/data/flows/findings/doc.md` · Archivos: `server/data/flows/findings/map.json` · Padre: `creditop`
 

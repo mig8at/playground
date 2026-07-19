@@ -32,6 +32,20 @@
     "frontend-e2e/mock-pdf-mapper/server.mjs",
     "legacy-backend/app/Services/PdfMapperClient.php",
     "legacy-backend/config/documents.php",
-    "legacy-backend/Modules/Loans/App/Actions/DecevalSoap.php"
+    "legacy-backend/Modules/Loans/App/Actions/DecevalSoap.php",
+    "frontend-monorepo/apps/loan-request-wizard/app/routes/loan-confirmation.tsx",
+    "frontend-monorepo/apps/loan-request-wizard/app/routes/identity-validation-instructions.tsx",
+    "frontend-monorepo/apps/loan-request-wizard/app/routes/request-canceled.tsx",
+    "frontend-monorepo/apps/loan-request-wizard/app/routes/abaco/platform-otp-validation.tsx",
+    "frontend-monorepo/apps/loan-request-wizard/app/routes/additional-info.tsx",
+    "frontend-monorepo/apps/loan-request-wizard/app/routes/payment-schedule.tsx",
+    "legacy-backend/Modules/Identity/App/Services/IdentityValidationStepResolver.php",
+    "legacy-backend/Modules/Identity/App/Services/ValidationStatusService.php",
+    "legacy-backend/Modules/Loans/App/Services/CancelRequestService.php",
+    "legacy-backend/Modules/Loans/App/Repositories/UserRequestRepository.php",
+    "legacy-backend/Modules/Onboarding/App/Services/MotaiValidationService.php",
+    "frontend-e2e/mock-abaco/server.mjs",
+    "frontend-e2e/mock-forms/server.mjs",
+    "frontend-e2e/pkg/asesor.ts"
   ]
 }
