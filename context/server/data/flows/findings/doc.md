@@ -800,3 +800,37 @@ huérfanos en user_request_records:  873 / 1288  (68%)
 - *En contra:* consultar `user_requests` por el id que imprimió una corrida vieja devuelve **vacío**, lo que se lee como "nunca existió" en vez de "lo borró el scrub". Es una trampa de verificación del mismo tipo que las de la sección F.
 
 **Regla práctica:** para hacer forense de una corrida, consultarla **antes** de lanzar la siguiente; o buscar por `user_request_records`, que sobrevive. Y al mirar una solicitud vieja, recordar que la columna de estado es `user_request_status_id`, no `status` (F-50).
+
+### F-53 · La guarda de "estás tocando dev compartido" viene desarmada de fábrica
+
+**Cómo apareció:** escribiendo los `CLAUDE.md` de `backend-mcp` y `backend-e2e`, dos revisiones independientes llegaron al mismo punto.
+
+**El mecanismo.** Ambas herramientas protegen las escrituras contra el entorno compartido exigiendo una variable de entorno explícita — la idea es que tipearla te haga frenar y pensar:
+
+```go
+// backend-mcp/env.go:80  ·  backend-e2e/clean.go:52, create.go:104
+I_KNOW_THIS_TOUCHES_SHARED_DEV
+```
+
+**El problema: los propios `.env` ya la traen puesta.** Está en los **cuatro** archivos, incluido el de `local`:
+
+```
+backend-mcp/.env.dev:7    I_KNOW_THIS_TOUCHES_SHARED_DEV=1
+backend-mcp/.env.local:7  I_KNOW_THIS_TOUCHES_SHARED_DEV=1
+backend-e2e/.env.dev:11   I_KNOW_THIS_TOUCHES_SHARED_DEV=1
+backend-e2e/.env.local:11 I_KNOW_THIS_TOUCHES_SHARED_DEV=1
+```
+
+Y los `.env` se cargan solos: `backend-mcp/main.go:33` autocarga `.env.<target>` al arrancar, y `backend-e2e/Makefile:46` lo sourcea en cada target. Como el loader solo setea las variables que no estén presentes (`env.go:42`), **la guarda siempre evalúa true**. Nunca frena a nadie.
+
+**Por qué en `backend-mcp` pesa más:** su target por defecto es **`dev`** (`main.go:51`), y `dev` apunta a un **RDS compartido**. O sea: correr un comando de escritura sin pensar en el target es el camino por defecto, y lo único que quedaba entre eso y la BD compartida es una guarda que ya viene satisfecha. En `backend-e2e` el default es `local` (`main.go:46`), así que hay que pedir `--target=dev` a propósito — la barrera real ahí es tipear el flag, no la variable.
+
+**Dos agravantes verificados:**
+- La guarda se apaga por **etiqueta, no por host**: compara `cfg.Target == "local"` y nunca mira `E2E_DB_HOST` (`backend-mcp/env.go:80`). Un `.env.local` apuntado a un host remoto pasa igual.
+- El borrado grande de `backend-e2e` no es `clean` sino `pkg/database/database.go:31-72` (20 tablas, `FOREIGN_KEY_CHECKS=0`), que corre en 7 call sites **sin** chequear si el destino es compartido.
+
+**No es un bug de código, es un default peligroso:** el mecanismo está bien diseñado y bien implementado; lo que lo anula es el dato de configuración que lo acompaña. Por eso no aparece leyendo el código de la guarda — hay que ir a mirar el `.env`.
+
+**Qué haría falta (decisión del dueño, no del harness):** sacar la variable de los `.env` versionados —empezando por `.env.local`, donde no tiene ningún sentido— y dejar que se exporte a mano solo cuando de verdad se quiera tocar dev. Y evaluar que la guarda mire el **host** además de la etiqueta.
+
+**Mientras tanto**, queda advertido en `backend-mcp/CLAUDE.md` y `backend-e2e/CLAUDE.md`: en esta máquina, la guarda no te va a frenar.
