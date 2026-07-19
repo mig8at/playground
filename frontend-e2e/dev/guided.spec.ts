@@ -310,6 +310,28 @@ test('guided (semiautomático)', async ({ browser }) => {
             log(`B (celular): handoff CreditopX en A → abro ${new URL(link).pathname}`);
             await B.goto(link, { waitUntil: 'domcontentloaded', timeout: 60_000 }).catch(() => {});
 
+            // ── ¿RENTING? entonces NO saltear ────────────────────────────────────────────────────────
+            // La bifurcación de ÁBACO vive en el **action** de `/confirmation` (loan-confirmation.tsx:206):
+            // al tocar "Continuar", si `check-abaco-requirement` responde REQUIRED, redirige a `/abaco`.
+            // O sea ocurre ANTES del ADO. Si salteamos a `first-payment-date` —como hace falta para el
+            // flujo normal— nos comemos justo el paso que queremos ver: por eso una corrida de Motai R
+            // llegaba a `loan-approved` sin pasar nunca por Ábaco. Con renting dejamos a B en
+            // confirmation para que el "Continuar" dispare el redirect real.
+            const urB = link.match(/\/(\d+)\/confirmation$/)?.[1] ?? '';
+            const pideAbaco = urB
+                ? await fetch(`${config.mockUrl}/api/onboarding/motai/check-abaco-requirement`, {
+                    method: 'POST',
+                    headers: { 'content-type': 'application/json', accept: 'application/json', 'user-agent': IPHONE_UA },
+                    body: JSON.stringify({ userRequestId: Number(urB) }),
+                    signal: AbortSignal.timeout(15_000),
+                }).then((x) => x.json()).then((j) => j?.code === 'MOTV1001').catch(() => false)
+                : false;
+            if (pideAbaco) {
+                log('B: este lender pide ÁBACO (renting) → NO salteo el ADO; el paso está ANTES.');
+                log('B: dale "Continuar" en confirmation y el wizard te lleva a /abaco (plataformas gig).');
+                return;
+            }
+
             // ── SALTEAR LA CAPTURA DE IDENTIDAD (ADO) ──────────────────────────────────────────────────
             // Es una FOTO del documento contra un proveedor externo: imposible de completar con un usuario
             // sintético. Es una pantalla puramente client-side, así que ni siquiera deja rastro en el
