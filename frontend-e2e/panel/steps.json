@@ -101,7 +101,7 @@
   ],
   "ramales": {
     "creditopx": {
-      "label": "CreditopX · rt2 in-platform",
+      "label": "CreditopX · in-platform (rt2/3/4)",
       "cuando": "update-user-request devuelve standBy=true y una URL a /self-service/{hash}/{ur}/confirmation (UserRequestService.php:450-461: response_type 2/3/4 SIN credencial, más el case 4 con credencial en :601-611). El asesor queda en /merchant/{hash}/{ur}/continue con el QR; el cliente sigue en su celular desde /self-service. OJO: el front NO mira standBy — la rama la elige por showModal && url==null (available-lenders.tsx:564).",
       "pasos": [
         {

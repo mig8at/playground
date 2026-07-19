@@ -634,6 +634,11 @@
     .via.r-agregador { color: #60a5fa }
     .via.r-redirect { color: #94a3b8 }
     .ramal-lbl { font-size: 10.5px; font-weight: 700; color: var(--mut); margin: 10px 0 -6px 26px; letter-spacing: .3px }
+    /* quién recorre el carril: el dato que faltaba. "Agregador · rt1" no dice nada; "Welli · Meddipay ·
+       Banco de Bogotá" sí. Van en peso normal para que el label del ramal siga mandando. */
+    .ram-quien { font-weight: 500; color: var(--txt); opacity: .75; margin-left: 8px; letter-spacing: 0 }
+    .ram-quien i { font-style: normal; opacity: .6 }
+    .ram-off { font-weight: 500; color: var(--mut); opacity: .7; letter-spacing: 0 }
     .lrow { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 11px; border: 1px solid var(--line); border-radius: 10px; margin-top: 6px; cursor: grab; }
     .lrow.drag { opacity: .4; }
     .lgrip { color: var(--mut); margin-right: 7px; cursor: grab; }
@@ -934,7 +939,12 @@
       btn.disabled = true;
       try {
         const r = await (await fetch('/api/lender-toggle', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ slug: sel.slug, target, lenderId: id, status }) })).json();
-        if (r && r.ok) { btn.className = 'ltog ' + (status ? 'on' : 'off'); btn.textContent = status ? 'ON' : 'OFF'; }
+        if (r && r.ok) {
+          btn.className = 'ltog ' + (status ? 'on' : 'off'); btn.textContent = status ? 'ON' : 'OFF';
+          // el mapa de arriba dibuja solo los carriles con entidades prendidas → hay que redibujarlo
+          const l = lendersDelComercio.find(x => Number(x.id) === Number(id));
+          if (l) { l.lender_status = status ? 1 : 0; renderTren(); }
+        }
         else alert((r && r.msg) || 'no se pudo togglear');
       } catch { alert('error de red'); }
       btn.disabled = false;
@@ -996,18 +1006,34 @@
       const ch = STEPS.chequeo || {};
       $('trenwarn').textContent = ch.ok === false ? `· ⚠ ${(ch.rotas || []).length} ruta(s) del mapa ya no existen` : '';
 
-      // ramales que este comercio realmente tiene, por el rt de sus lenders
-      const rts = new Set(lendersDelComercio.map(l => Number(l.rt)));
+      // Qué carriles dibujar: los que recorre alguna entidad PRENDIDA de este comercio. Una apagada no
+      // lista, así que su carril no existe para esta corrida — mostrarlo sería dibujar un camino que
+      // el flujo no puede tomar.
+      // Ojo: el lender NO bifurca el flujo; lo bifurca su rt. Por eso 7 entidades pueden compartir 3
+      // carriles (ej. Lagobo + Davivienda + Credifamilia-addi son el MISMO recorrido).
       const QUE_RAMAL = { 2: 'creditopx', 3: 'creditopx', 4: 'creditopx', 1: 'agregador', 0: 'redirect' };
-      const activos = [...new Set([...rts].map(rt => QUE_RAMAL[rt]).filter(Boolean))];
+      const porRamal = {};
+      for (const l of lendersDelComercio) {
+        const r = QUE_RAMAL[Number(l.rt)];
+        if (!r) continue;
+        (porRamal[r] ??= { on: [], off: [] })[Number(l.lender_status) === 1 ? 'on' : 'off'].push(l);
+      }
 
       let html = viaHTML(STEPS.tronco, 'tronco');
       for (const id of ['creditopx', 'agregador', 'redirect']) {
-        const r = STEPS.ramales?.[id];
-        if (!r || !activos.includes(id)) continue;
-        html += `<div class="ramal-lbl">↳ ${r.label}</div>` + viaHTML(r.pasos, 'ramal r-' + id);
+        const r = STEPS.ramales?.[id], g = porRamal[id];
+        if (!r || !g || !g.on.length) continue;
+        // el rt por entidad importa: el carril de CreditopX lo comparten rt2/3/4, así que sin esto
+        // Credifamilia (rt4) se leía como si fuera rt2.
+        const quien = g.on.map(l => {
+          const extra = [`rt${l.rt}`, l.product && l.product !== 'credit' ? l.product : ''].filter(Boolean).join(' ');
+          return `${l.name} <i>${extra}</i>`;
+        }).join(' · ');
+        const apagadas = g.off.length ? ` <span class="ram-off">· ${g.off.length} apagada(s): ${g.off.map(l => l.name).join(', ')}</span>` : '';
+        html += `<div class="ramal-lbl">↳ ${r.label}<span class="ram-quien">${quien}</span>${apagadas}</div>`
+              + viaHTML(r.pasos, 'ramal r-' + id);
       }
-      vias.innerHTML = html;
+      vias.innerHTML = html || '<p style="color:var(--mut);font-size:12px;margin:0">Sin entidades prendidas: el listado saldría vacío.</p>';
     }
 
     // enriquece cada card con el hash desde el backend (resiliente: si no está en local, lo marca).
