@@ -143,3 +143,55 @@ export async function resumen(): Promise<{ alertas: string[]; transiciones: numb
     }
     return { alertas, transiciones: trans.length };
 }
+
+/** Estado esperado según el desenlace pedido (E2E_RESULT). Mismo mapa en los dos caminos. */
+export const ESTADO_ESPERADO: Record<string, number> = { success: 11, rejected: 6, pending: 10 };
+
+export type Veredicto = {
+    existe: boolean;
+    st: number | null;
+    estado: string | null;
+    lender: string | null;
+    ok: boolean;        // llegó exactamente al estado pedido
+    malo: boolean;      // desenlace de muerte sin haberlo pedido
+    miente: string[];   // el front afirmó éxito sin respaldo en la BD (F-50)
+};
+
+/**
+ * VEREDICTO — la única definición de "pasó", compartida por el camino RÁPIDO (dev/sweep.ts) y el VISUAL
+ * (dev/guided.spec.ts). Que los dos afirmen lo mismo es lo que hace que una divergencia entre ellos sea
+ * informativa: mismas aserciones + distinto transporte ⇒ la diferencia ES el frontend.
+ *
+ * No lanza ni falla: imprime y devuelve. Cada camino decide cómo señalar el fallo (expect / exit code).
+ */
+export async function veredicto(uReqID: number | string, result = 'success'): Promise<Veredicto> {
+    await drenar();
+    const id = Number(uReqID);
+    const esperado = ESTADO_ESPERADO[result] ?? 11;
+    const vacio: Veredicto = { existe: false, st: null, estado: null, lender: null, ok: false, malo: false, miente: [] };
+
+    const r = await one<{ id: number; st: number; estado: string | null; lender: string | null }>(
+        `SELECT ur.id, ur.user_request_status_id AS st, s.name AS estado, l.name AS lender
+           FROM user_requests ur
+           LEFT JOIN user_request_statuses s ON s.id = ur.user_request_status_id
+           LEFT JOIN lenders l ON l.id = ur.lender_id
+          WHERE ur.id = ?`, [id]).catch(() => null);
+
+    console.log('');
+    if (!r) {
+        log(yellow(`⚠ VEREDICTO: la uReq ${id} no está en la BD (¿la borró un scrub posterior? ver .runs/)`));
+        return vacio;
+    }
+
+    const ok = r.st === esperado;
+    const malo = MALOS.has(r.st) && !(result === 'rejected' && r.st === 6);
+    const miente = alertas.filter((a) => /éxito/i.test(a));
+
+    log(bold('── VEREDICTO (BD, no navegador) ──'));
+    log(`   uReq ${r.id} · lender ${r.lender ?? '?'} · estado ${r.st} «${r.estado ?? '?'}»`);
+    log(`   esperado para result=${result}: ${esperado} · ${ok ? green('✓ coincide') : red('✗ NO coincide')}`);
+    if (malo) log(red(`   ✗ desenlace de muerte: la solicitud terminó en «${r.estado}»`));
+    else if (!ok) log(gray('   (a mitad de flujo — legítimo si cortaste el guiado a mano)'));
+
+    return { existe: true, st: r.st, estado: r.estado, lender: r.lender, ok, malo, miente };
+}

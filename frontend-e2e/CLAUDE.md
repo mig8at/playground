@@ -39,6 +39,23 @@ que distingue "ventana cerrada" y **tira** (`dev/guided.spec.ts:538-545`); el re
 - **`mock-pdf-mapper` no lo levanta nadie.** Si tu flujo toca la vinculación de Credifamilia, corré
   `bin/mock-pdf-mapper start` vos.
 
+## Dos caminos, una sola definición de "pasó"
+
+- **Rápido** (`dev/sweep.ts`, o ⚡ en el panel): el flujo por API, sin navegador. Segundos. Modos
+  `matrix` · `close` · `abaco`. **Exit code = veredicto**: `0` cerró · `1` desenlace malo o el front
+  mintió · `2` quedó a mitad.
+- **Visual** (`dev/guided.spec.ts`): el wizard real, con bypasses. Minutos.
+
+Los dos usan **la misma** capa de aserción (`pkg/trace.ts`: traza contrastada + `veredicto()` +
+`ESTADO_ESPERADO`). No dupliques esa lógica en ninguno de los dos — tener dos definiciones de "pasó" es
+como empiezan a derivar, y ahí una divergencia deja de ser diagnóstico y pasa a ser ruido.
+
+**Cómo leer una divergencia:** mismas aserciones, distinto transporte ⇒ si el rápido pasa y el visual
+falla, el problema está en el **frontend**. **Pero no al revés:** hay bugs que solo existen en el visual
+y el rápido nunca los va a ver — F-50 fue una cancelación disparada por el routing del wizard
+(`request-canceled` cancela en el loader), con el backend haciendo todo bien. El rápido valida negocio
+y backend; el visual valida el camino real del usuario, que también tiene lógica de negocio.
+
 ## Reglas sueltas
 
 - **No corras `npm test` pelado**: colecta 98 tests en 35 archivos e incluye `dev/guided.spec.ts`, que es

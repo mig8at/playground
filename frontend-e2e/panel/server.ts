@@ -160,6 +160,38 @@ async function launch(slug: string, profile: Profile, target: string, inject: bo
     return { ok: true, msg: `lanzado '${slug}' (${t}) — ${mode}${jump}.` };
 }
 
+/**
+ * MODO RÁPIDO — el mismo flujo SIN navegador (dev/sweep.ts). Segundos en vez de minutos.
+ *
+ * Comparte la capa de aserción con el visual (pkg/trace.ts): traza contrastada contra la BD y el MISMO
+ * veredicto. Por eso una divergencia entre los dos caminos es informativa — mismas aserciones, distinto
+ * transporte ⇒ la diferencia ES el frontend. Ojo: hay bugs que SOLO viven en el visual (F-50 fue una
+ * cancelación disparada por el routing del wizard, invisible por API).
+ */
+function lanzarRapido(modo: string, slug: string, lenderId: number, amount: number, target: string): { ok: boolean; msg: string } {
+    if (current && !current.done) return { ok: false, msg: `ya hay una corrida activa (${current.slug}). Parala primero.` };
+    const t = TARGETS.has(target) ? target : 'local';
+    const m = ['matrix', 'close', 'abaco'].includes(modo) ? modo : 'matrix';
+    const args = [join(ROOT, 'dev', 'sweep.ts'), m, slug];
+    if (m !== 'matrix') args.push(String(lenderId));
+    if (m === 'close' && amount > 0) args.push(String(Math.round(amount)));
+
+    try { writeFileSync(RUN_LOG, ''); } catch { /* el log es best-effort */ }
+    const env = { ...process.env, E2E_TARGET: t, CFE_TARGET: t, FORCE_COLOR: '1' };
+    const child = spawn(process.execPath, args, { cwd: ROOT, env, detached: true });
+    current = { child, slug: `${slug} (rápido·${m})`, startedAt: Date.now(), done: false, code: null };
+    const append = (b: Buffer) => { try { writeFileSync(RUN_LOG, b.toString(), { flag: 'a' }); } catch {} };
+    child.stdout?.on('data', append);
+    child.stderr?.on('data', append);
+    child.on('close', (code) => {
+        if (current) { current.done = true; current.code = code; }
+        // el exit code de sweep ES el veredicto: 0 cerró · 1 desenlace malo · 2 quedó a mitad
+        const leyenda = code === 0 ? '✓ cerró como se esperaba' : code === 1 ? '✗ desenlace MALO (o el front mintió)' : code === 2 ? '⚠ quedó a mitad de flujo' : '✗ error';
+        append(Buffer.from(`\n${leyenda} (code ${code})\n`));
+    });
+    return { ok: true, msg: `rápido '${m}' sobre '${slug}' (${t}) — sin navegador.` };
+}
+
 function tailLog(): string {
     if (!existsSync(RUN_LOG)) return '';
     // sin colores ANSI, últimas ~120 líneas
@@ -257,6 +289,14 @@ const server = createServer(async (req, res) => {
             expeditionDate: b.expeditionDate ? String(b.expeditionDate) : undefined,
             email: b.email ? String(b.email) : undefined,
         }, String(b.target || 'local'), b.inject !== false, String(b.stepTarget || 'monto'), Number(b.amount) || 0, Number(b.paDelay) || 0));
+    }
+
+    if (path === '/api/quick' && req.method === 'POST') {
+        const b = await readBody(req);
+        if (!b.slug) return json(res, 400, { ok: false, msg: 'falta slug del comercio' });
+        const modo = String(b.mode || 'matrix');
+        if (modo !== 'matrix' && !Number(b.lenderId)) return json(res, 400, { ok: false, msg: `el modo '${modo}' necesita una entidad` });
+        return json(res, 200, lanzarRapido(modo, String(b.slug), Number(b.lenderId) || 0, Number(b.amount) || 0, String(b.target || 'local')));
     }
 
     if (path === '/api/status') {

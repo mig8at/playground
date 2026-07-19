@@ -37,7 +37,9 @@ const PHONE = process.env.E2E_OTP_BYPASS_PHONE ?? '3131010101'; // qa_otp_bypass
 const OTP = PHONE.slice(-4);
 const AMOUNT = process.env.E2E_AMOUNT ?? '600000';
 const RESULT = process.env.E2E_RESULT ?? 'success';                    // cómo resuelve el crédito (auto): success | rejected | pending
-const RESULT_STATUS: Record<string, number> = { success: 11, rejected: 6, pending: 10 }; // user_request_status_id (11=Autorizada, 6=Negada, 10=Pendiente)
+// user_request_status_id esperado por desenlace (11=Autorizada, 6=Negada, 10=Pendiente). Definido UNA
+// sola vez en pkg/trace.ts y compartido con dev/sweep.ts — tener dos copias es como empiezan a derivar.
+const RESULT_STATUS = traza.ESTADO_ESPERADO;
 const ENTRY = process.env.E2E_ENTRY ?? 'cognito';               // 'cognito' (asesor) | 'ecommerce' (checkout base64)
 const CHECKOUT_URL = process.env.E2E_CHECKOUT_URL ?? '';
 const STORE = process.env.E2E_STORE === '1';
@@ -899,34 +901,18 @@ test('guided (semiautomático)', async ({ browser }) => {
     // "existe el uReq" → cualquier desenlace daba "1 passed". Acá leemos el estado REAL y lo mostramos
     // siempre; se FALLA solo cuando el desenlace es inequívocamente malo (cancelada/negada sin pedirlo),
     // porque el guiado es semi-manual y abandonarlo a mitad es legítimo.
-    const { alertas } = await traza.resumen();
+    await traza.resumen();
 
-    const veredicto = await one<{ id: number; st: number; estado: string; lender: string | null }>(
-        `SELECT ur.id, ur.user_request_status_id AS st, s.name AS estado, l.name AS lender
-           FROM user_requests ur
-           LEFT JOIN user_request_statuses s ON s.id = ur.user_request_status_id
-           LEFT JOIN lenders l ON l.id = ur.lender_id
-          WHERE ur.id=?`, [Number(uReqID)]).catch(() => null);
-
-    if (!veredicto) {
-        log(`⚠ VEREDICTO: la uReq ${uReqID} no está en la BD (¿la borró un scrub posterior?).`);
-    } else {
-        const esperado = RESULT_STATUS[RESULT] ?? 11;
-        const ok = veredicto.st === esperado;
-        log(`── VEREDICTO (BD, no navegador) ──`);
-        log(`   uReq ${veredicto.id} · lender ${veredicto.lender ?? '?'} · estado ${veredicto.st} "${veredicto.estado ?? '?'}"`);
-        log(`   esperado para result=${RESULT}: ${esperado} · ${ok ? '✓ coincide' : '✗ NO coincide'}`);
-        // 8 = Cancelado · 6 = Negada. Terminar ahí sin haberlo pedido es un fallo real, no un matiz.
-        const malo = veredicto.st === 8 || (veredicto.st === 6 && RESULT !== 'rejected');
-        expect(malo, `la solicitud ${uReqID} terminó en estado ${veredicto.st} "${veredicto.estado}" ` +
-            `(esperado ${esperado} para result=${RESULT}). El navegador puede haber mostrado una pantalla ` +
-            `de éxito igual: la BD manda. Ver findings F-50.`).toBe(false);
-        if (!ok && !malo) log(`   (a mitad de flujo — legítimo si cortaste el guiado a mano)`);
-
-        // Una pantalla de éxito sin respaldo en la BD es el patrón de F-50: aunque el estado final no sea
-        // "malo", que el front haya afirmado un desenlace que la BD no tiene es un fallo por sí solo.
-        const miente = alertas.filter((a) => a.includes('ÉXITO') || a.includes('éxito'));
-        expect(miente, `el front mostró éxito sin respaldo en la BD:\n   · ${miente.join('\n   · ')}`).toEqual([]);
+    // El veredicto vive en pkg/trace.ts y lo comparte el camino RÁPIDO (dev/sweep.ts): "pasó" significa
+    // exactamente lo mismo en los dos. Acá solo traducimos ese veredicto al lenguaje de Playwright.
+    const v = await traza.veredicto(uReqID, RESULT);
+    if (v.existe) {
+        expect(v.malo, `la solicitud ${uReqID} terminó en estado ${v.st} «${v.estado}» ` +
+            `(esperado ${traza.ESTADO_ESPERADO[RESULT] ?? 11} para result=${RESULT}). El navegador puede haber ` +
+            `mostrado una pantalla de éxito igual: la BD manda. Ver findings F-50.`).toBe(false);
+        // Una pantalla de éxito sin respaldo en la BD es un fallo por sí solo, aunque el estado final no
+        // sea "malo": el front afirmó un desenlace que la BD no tiene.
+        expect(v.miente, `el front mostró éxito sin respaldo en la BD:\n   · ${v.miente.join('\n   · ')}`).toEqual([]);
     }
     if (PREVIEW) { console.log(`  👀 fin — ventana abierta ${Math.round(LINGER / 1000)}s (Ctrl-C corta)`); await page.waitForTimeout(LINGER).catch(() => {}); }
 });

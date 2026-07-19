@@ -36,6 +36,10 @@ process.env.CFE_TARGET ||= 'local';
 
 const { one, exec, query, close } = await import('../pkg/db.ts');
 const { synthFill } = await import('../pkg/inject.ts');
+// Misma capa de aserción que el camino VISUAL (dev/guided.spec.ts). Que "pasó" signifique lo mismo en
+// los dos es lo que hace informativa una divergencia: mismas aserciones + distinto transporte ⇒ la
+// diferencia ES el frontend.
+const traza = await import('../pkg/trace.ts');
 
 const flowsRaw = JSON.parse(readFileSync(new URL('../.flows.json', import.meta.url), 'utf8'));
 const API = process.env.E2E_MOCK_URL ?? 'http://localhost';
@@ -161,9 +165,13 @@ async function closeRt2(slug: string, lenderId: number, amount: number): Promise
     if (!ur) { console.log('✗ seed falló'); return; }
     console.log(`■ cierre headless · ${slug} · lender #${lenderId} · uReq ${ur} · monto ${amount.toLocaleString('es-CO')}`);
 
+    traza.trazarUReq(ur);
     const step = async (name: string, method: string, path: string, body?: unknown) => {
         const r = await http(method, path, body);
         console.log(`  ${r.status === 200 ? '●' : '✗'} ${name.padEnd(24)} HTTP ${r.status} · ${trim(r.json)}`);
+        // cada llamada es el equivalente headless de una pantalla → misma traza contrastada que el visual
+        traza.paso('API', name);
+        await traza.drenar();
         return r;
     };
 
@@ -211,9 +219,12 @@ async function closeRt2(slug: string, lenderId: number, amount: number): Promise
         await step('authorize', 'POST', '/api/loans/requests/promissory-note/validate/authorize', { user_request_id: Number(ur) });
     }
 
-    const fin = await one<{ st: number; rn: string | null }>('SELECT user_request_status_id st, request_number rn FROM user_requests WHERE id=?', [ur]);
-    const stName = fin ? (await one<{ name: string }>('SELECT name FROM user_request_statuses WHERE id=?', [fin.st]))?.name : '?';
-    console.log(`  ► estado final: ${fin?.st} · ${stName}${fin?.rn ? ` · request_number ${fin.rn}` : ''}`);
+    await traza.resumen();
+    const v = await traza.veredicto(ur, process.env.E2E_RESULT ?? 'success');
+    // Antes esto era un console.log y sweep SIEMPRE salía 0: podía imprimir "estado final: 8 Cancelado"
+    // y reportar éxito. Ahora el desenlace decide el exit code, que es lo que lo vuelve usable en cadena.
+    if (!v.existe || v.malo || v.miente.length) process.exitCode = 1;
+    else if (!v.ok) process.exitCode = 2;   // a mitad de flujo: ni éxito ni desastre
 }
 
 // ───────────────────────────── abaco (renting) ─────────────────────────────
