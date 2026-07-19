@@ -6,6 +6,12 @@
 //                                            clasifica el resultado por CONDUCTA:
 //                                              standBy (in-platform) · modal (self-management) ·
 //                                              redirect externo · otp-lender · ERROR (con causa)
+//   node dev/sweep.ts abaco <slug> <lenderId>
+//                                          → flujo de ÁBACO (RENTING): siembra, elige el lender, y corre
+//                                            la cadena completa requiere→init→login(1,2)→results, que es
+//                                            lo que hace el wizard cuando `lenders.product = 'renting'`.
+//                                            El veredicto (ingreso ok/insuficiente) lo controla el setting
+//                                            `abaco_config.mock_pass`. Ver findings F-46/F-47.
 //   node dev/sweep.ts close <slug> <lenderId> [monto]
 //                                          → intenta el CIERRE rt=2 entero por API, siguiendo la
 //                                            misma secuencia de endpoints que las pantallas del
@@ -31,12 +37,21 @@ process.env.CFE_TARGET ||= 'local';
 const { one, exec, query, close } = await import('../pkg/db.ts');
 const { synthFill } = await import('../pkg/inject.ts');
 
+const flowsRaw = JSON.parse(readFileSync(new URL('../.flows.json', import.meta.url), 'utf8'));
 const API = process.env.E2E_MOCK_URL ?? 'http://localhost';
 const PHONE = '3131010101';
 const UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.5 Mobile/15E148 Safari/604.1';
-const HDRS = { 'content-type': 'application/json', accept: 'application/json', 'user-agent': UA };
+// `x-cognito-identity-id` = el sub del ASESOR. Lo manda el wizard (default-layout arma authHeaders) y el
+// middleware ResolveCognitoUser lo convierte en el usuario autenticado. Sin él, `update-user-request`
+// hace `auth()->check() ? auth()->user()->id : $request->corporate_user_id` → NULL, y BORRA el asesor que
+// venía en la solicitud. Eso rompe Ábaco después (su log exige corporate_user_id NOT NULL). Ver F-46.
+const ASESOR_SUB = process.env.E2E_ASESOR_SUB || flowsRaw?.asesor?.sub || '';
+const HDRS: Record<string, string> = {
+    'content-type': 'application/json', accept: 'application/json', 'user-agent': UA,
+    ...(ASESOR_SUB ? { 'x-cognito-identity-id': ASESOR_SUB } : {}),
+};
 
-const flows = JSON.parse(readFileSync(new URL('../.flows.json', import.meta.url), 'utf8'));
+const flows = flowsRaw;
 
 function scrub(): void {
     spawnSync('node', ['bin/dbops.ts', 'scrubphone', PHONE], { cwd: new URL('..', import.meta.url).pathname });
@@ -65,9 +80,21 @@ async function seed(hash: string, amount: number): Promise<string> {
     if (!uid) return '';
     const br = await one<{ b: number; a: number }>('SELECT id AS b, allied_id AS a FROM allied_branches WHERE hash=?', [hash]);
     if (!br) return '';
+    // El asesor sale del sub de Cognito que exporta bin/asesor (mismo criterio que guided.spec.ts);
+    // si no está en el entorno, se cae al primer asesor del comercio para no dejarlo NULL.
+    const asesorSub = ASESOR_SUB;
+    const asesorId = (asesorSub
+        ? (await one<{ id: number }>('SELECT id FROM users WHERE cognito_id=? LIMIT 1', [asesorSub]).catch(() => null))?.id
+        : null)
+        ?? (await one<{ id: number }>('SELECT id FROM users WHERE allied_branch_id=? AND cognito_id IS NOT NULL LIMIT 1', [br.b]).catch(() => null))?.id
+        ?? null;
     const ins = await exec(
-        'INSERT INTO user_requests (user_id, allied_id, allied_branch_id, lender_id, amount, original_amount, user_request_status_id, credit_line_id, fee_number, fee_value, rate, created_at, updated_at) VALUES (?,?,?,NULL,?,?,1,1,0,0,0,NOW(),NOW())',
-        [uid, br.a, br.b, amount, amount],
+        // corporate_user_id (el ASESOR) NO es opcional para todos los flujos: Ábaco registra cada paso en
+        // `user_request_additional_information`, cuya columna `corporate_user_id` es NOT NULL → sin asesor
+        // el login y los results de Ábaco mueren con "Column 'corporate_user_id' cannot be null".
+        // `guided.spec.ts` ya lo sembraba; acá faltaba.
+        'INSERT INTO user_requests (user_id, allied_id, allied_branch_id, lender_id, amount, original_amount, user_request_status_id, corporate_user_id, credit_line_id, fee_number, fee_value, rate, created_at, updated_at) VALUES (?,?,?,NULL,?,?,1,?,1,0,0,0,NOW(),NOW())',
+        [uid, br.a, br.b, amount, amount, asesorId],
     ).catch(() => null);
     if (!ins?.insertId) return '';
     await synthFill(ins.insertId, { income: 2_500_000, score: 700 });
@@ -189,9 +216,53 @@ async function closeRt2(slug: string, lenderId: number, amount: number): Promise
     console.log(`  ► estado final: ${fin?.st} · ${stName}${fin?.rn ? ` · request_number ${fin.rn}` : ''}`);
 }
 
+// ───────────────────────────── abaco (renting) ─────────────────────────────
+async function abacoFlow(slug: string, lenderId: number): Promise<void> {
+    const hash = flows.merchants[slug]?.branch_hash;
+    if (!hash) { console.log(`✗ ${slug} sin branch_hash`); return; }
+    const ur = await seed(hash, 2_000_000);
+    if (!ur) { console.log('✗ seed falló'); return; }
+    console.log(`■ Ábaco/renting · ${slug} · lender #${lenderId} · uReq ${ur}`);
+
+    const sel = await http('POST', `/api/onboarding/loan-application/update-user-request/${ur}`, {
+        lender_id: lenderId, fee_number: 4, original_amount: 2_000_000, amount: 2_000_000,
+        initial_fee: 0, rate: '0', transaction_data: null,
+    });
+    console.log(`  ● select                 HTTP ${sel.status}`);
+
+    const paso = async (n: string, p: string, b: unknown) => {
+        const r = await http('POST', p, b);
+        console.log(`  ${r.json?.code?.startsWith?.('ABAC') || r.json?.code === 'MOTV1001' ? '●' : '✗'} ${n.padEnd(22)} ${r.json?.code ?? r.status} · ${String(r.json?.message ?? '').slice(0, 52)}`);
+        return r.json;
+    };
+
+    const req = await paso('requiere Ábaco', '/api/onboarding/motai/check-abaco-requirement', { userRequestId: Number(ur) });
+    if (req?.code !== 'MOTV1001') { console.log('  ⚠ este lender NO pide Ábaco (¿product != renting?) — corto acá.'); return; }
+
+    const init = await paso('init/gig-economy', '/api/onboarding/scraping/init/gig-economy', { partnerBranchId: hash, creditProcessId: Number(ur) });
+    const d = init?.data ?? {};
+    if (!d.customerId) { console.log('  ⚠ init sin customerId — revisá mock-abaco (los campos van al nivel RAÍZ).'); return; }
+
+    const comun = { token: d.token, platform: 'uber', customerId: d.customerId, creditProcessId: Number(ur), sessionId: d.sessionId };
+    await paso('login step-1', '/api/onboarding/scraping/login/step-1', { ...comun, credentials: { phone: PHONE } });
+    // step-2 es el que marca `auth: '200 - OK'` en el log; sin él el fixture local no genera ingresos.
+    await paso('login step-2', '/api/onboarding/scraping/login/step-2', { ...comun, _sessionCookie: '', credentials: { code: '1234' } });
+    await paso('results', '/api/onboarding/scraping/results', { customerId: d.customerId, creditProcessId: Number(ur) });
+
+    const log = await one<{ d: string }>("SELECT CAST(data_json AS CHAR) d FROM user_request_additional_information WHERE user_request_id=? AND type_data='Abaco results' ORDER BY id DESC LIMIT 1", [ur]).catch(() => null);
+    if (log) {
+        try {
+            const j = JSON.parse(log.d);
+            console.log('  ► plataformas →', JSON.stringify(j.response?.platforms ?? {}));
+            console.log('    (el veredicto lo fija el setting abaco_config.mock_pass)');
+        } catch { /* */ }
+    }
+}
+
 // ───────────────────────────── main ─────────────────────────────
 const [, , mode, ...args] = process.argv;
 if (mode === 'matrix') await matrix(args.length ? args : ['motai']);
 else if (mode === 'close') await closeRt2(args[0], Number(args[1]), Number(args[2] ?? 2_000_000));
-else console.log('uso: node dev/sweep.ts matrix <slug...> | close <slug> <lenderId> [monto]');
+else if (mode === 'abaco') await abacoFlow(args[0], Number(args[1]));
+else console.log('uso: node dev/sweep.ts matrix <slug...> | close <slug> <lenderId> [monto] | abaco <slug> <lenderId>');
 await close().catch(() => {});
