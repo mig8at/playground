@@ -31,6 +31,8 @@ type Mapa = {
     desvios?: Record<string, Tramo & { desde: string; hasta: string }>;
     /** lo inverso del desvío: arcos que SALTEAN pasos condicionales (ej. otp → lenders) */
     bypass?: Array<{ label: string; cuando?: string; desde: string; hasta: string }>;
+    /** ni desvío ni ramal: CONTINÚAN después de un terminal (ej. la radicación SOAP de Credifamilia) */
+    extensiones?: Record<string, Tramo & { desde: string }>;
 };
 
 const mapa: Mapa = JSON.parse(readFileSync(join(ROOT, 'panel', 'steps.json'), 'utf8'));
@@ -53,6 +55,7 @@ function revisar(tramo: string, pasos: Paso[]) {
 revisar('tronco', mapa.tronco);
 for (const [id, ram] of Object.entries(mapa.ramales)) revisar(id, ram.pasos);
 for (const [id, d] of Object.entries(mapa.desvios ?? {})) revisar(`desvío:${id}`, d.pasos);
+for (const [id, e] of Object.entries(mapa.extensiones ?? {})) revisar(`extensión:${id}`, e.pasos);
 
 // Un desvío que sale o entra en un paso inexistente dibujaría una curva a la nada: se valida igual
 // que las rutas de archivo, porque es el mismo tipo de mentira.
@@ -60,6 +63,7 @@ const idsTronco = new Set([...mapa.tronco, ...Object.values(mapa.ramales).flatMa
 const anclas: Array<[string, string, string]> = [
     ...Object.entries(mapa.desvios ?? {}).flatMap(([id, d]) => [[`desvío:${id}`, 'desde', d.desde], [`desvío:${id}`, 'hasta', d.hasta]] as Array<[string, string, string]>),
     ...(mapa.bypass ?? []).flatMap((b, i) => [[`bypass:${i}`, 'desde', b.desde], [`bypass:${i}`, 'hasta', b.hasta]] as Array<[string, string, string]>),
+    ...Object.entries(mapa.extensiones ?? {}).map(([id, e]) => [`extensión:${id}`, 'desde', e.desde] as [string, string, string]),
 ];
 for (const [tramo, campo, val] of anclas) {
     if (!idsTronco.has(val)) rotas.push({ tramo, paso: campo, repo: 'ancla', ruta: `${val} (no existe como paso)` });
@@ -67,7 +71,8 @@ for (const [tramo, campo, val] of anclas) {
 
 const pasos = mapa.tronco.length
     + Object.values(mapa.ramales).reduce((n, r) => n + r.pasos.length, 0)
-    + Object.values(mapa.desvios ?? {}).reduce((n, d) => n + d.pasos.length, 0);
+    + Object.values(mapa.desvios ?? {}).reduce((n, d) => n + d.pasos.length, 0)
+    + Object.values(mapa.extensiones ?? {}).reduce((n, e) => n + e.pasos.length, 0);
 
 if (jsonOut) {
     console.log(JSON.stringify({ ok: rotas.length === 0, pasos, archivos: total, rotas }, null, 2));

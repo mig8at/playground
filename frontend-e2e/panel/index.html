@@ -1029,7 +1029,7 @@
       rieles.appendChild(riel(`M ${X(0)} ${Y0} L ${X(tronco.length - 1)} ${Y0}`, COLOR.tronco));
       tronco.forEach((p, i) => nodos.appendChild(nodoSVG(p, X(i), Y0, i >= STEPS.tronco.length ? COLOR.creditopx : COLOR.tronco)));
 
-      let minY = Y0, maxY = Y0;
+      let minY = Y0, maxY = Y0, maxX = 0;
 
       // BYPASS: lo inverso de un desvío — en vez de agregar pasos, los saltea. Va punteado y por
       // ABAJO para no competir con el tronco, y arranca/termina en los nodos que ancla.
@@ -1082,6 +1082,29 @@
         minY = Math.min(minY, y - 30);
       }
 
+      // EXTENSIONES: ni desvío (no reingresa) ni ramal (no sale del tronco) — CONTINÚAN después del
+      // terminal. Credifamilia origina in-platform como CreditopX pero RADICA por SOAP: para el usuario
+      // el flujo termina en Aprobado y recién ahí empieza lo del lender. Va punteado porque no tiene
+      // pantalla: corre en el backend.
+      for (const [eid, e] of Object.entries(STEPS.extensiones || {})) {
+        if (!cumple(e.requiere)) continue;
+        const a = idx[e.desde];
+        if (a == null) continue;
+        const col = COLOR[eid] || '#c084fc';
+        const xs = e.pasos.map((_, i) => X(a + 1 + i));
+        rieles.appendChild(el('path', {
+          d: `M ${X(a)} ${Y0} L ${xs[xs.length - 1]} ${Y0}`,
+          stroke: col, 'stroke-width': 6, 'stroke-dasharray': '2 10', 'stroke-linecap': 'round', fill: 'none'
+        }));
+        e.pasos.forEach((p, i) => nodos.appendChild(nodoSVG(p, xs[i], Y0, col)));
+        const t = el('text', { class: 'nram', x: xs[0], y: Y0 - 26, fill: col }, corto(e.label, 26));
+        t.appendChild(el('title', {}, `${e.label}\n\n${e.cuando || ''}`));
+        nodos.appendChild(t);
+        const q = el('text', { class: 'nquien', x: xs[0], y: Y0 - 13 }, 'sin pantalla · corre en backend');
+        nodos.appendChild(q);
+        maxX = Math.max(maxX || 0, xs[xs.length - 1]);
+      }
+
       // RAMALES terminales: salen en /lenders y NO vuelven (los resuelve la entidad, fuera del wizard).
       let carril = 0;
       const aLenders = idx['lenders'] ?? (STEPS.tronco.length - 1);
@@ -1104,7 +1127,7 @@
         maxY = Math.max(maxY, y + 46);
       }
 
-      encuadrar(X(tronco.length - 1) + 90, minY, maxY);
+      encuadrar(Math.max(X(tronco.length - 1), maxX || 0) + 100, minY, maxY);
     }
 
     // ── cámara: arrastrar · rueda = zoom · doble clic = encuadrar ────────────────────────────────

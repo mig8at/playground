@@ -398,5 +398,29 @@
       "desde": "otp",
       "hasta": "lenders"
     }
-  ]
+  ],
+  "extensiones": {
+    "credifamilia": {
+      "label": "Radicación SOAP · Credifamilia",
+      "cuando": "response_type = 4 (único lender: Credifamilia #24). Al autorizar (Estado 11), LoanAuthorizationService::formalizeExternalManagedIfApplicable (:194) corta si el rt no es 4; si lo es, dispara la formalización SOAP que radica el crédito con un PDF unificado de los documentos firmados. Después queda en polling hasta APROBADO/RECHAZADO — estados 40/41 de `lender_transaction_statuses`, OTRO namespace que user_request_statuses.",
+      "requiere": {
+        "rt": 4
+      },
+      "desde": "loan-approved",
+      "pasos": [
+        {
+          "id": "radicacion-soap",
+          "label": "Radicación",
+          "detalle": "Formalización SOAP en Credifamilia (sin pantalla: corre en el backend)",
+          "front": [],
+          "back": [
+            "Modules/Loans/App/Services/LoanAuthorizationService.php",
+            "app/Services/Pdf/CredifamiliaFormalizationService.php",
+            "Modules/Onboarding/App/Services/lenders/CredifamiliaConsumo/CredifamiliaConsumoService.php"
+          ],
+          "nota": "SIN PANTALLA: el usuario ve 'Aprobado' y esto corre en el backend, en su propia transacción. Es idempotente (si ya existe una LenderTransaction de radicación la reusa, así que un authorize reintentado no radica dos veces). El veredicto FINAL del crédito llega acá, no en el Estado 11: CreditOp originó, pero decide Credifamilia."
+        }
+      ]
+    }
+  }
 }
