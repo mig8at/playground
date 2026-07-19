@@ -1,7 +1,0 @@
-# Repo local — nunca se pushea. Ignora binarios compilados y basura.
-*-e2e
-*.exe
-*.out
-.env
-.DS_Store
-node_modules/

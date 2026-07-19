@@ -21,7 +21,7 @@ El playground ataca eso por tres frentes:
 
 1. **Mapas curados** que dicen *qué archivo abrir y en qué repo* (`context/`), en vez de buscar a ciegas.
 2. **Harness** que ejercen el flujo real punta a punta inyectando el KYC/buró sintético, para no depender
-   de Experian ni de un cliente real (`frontend-e2e/`, `backend-e2e/`, `backend-mcp/`).
+   de Experian ni de un cliente real (`frontend-e2e/`).
 3. **Simuladores y visualizadores** para razonar y alinear con negocio sin levantar el stack
    (`flow/`, `domain-model/`, `soporte/`, `examples/`).
 
@@ -39,9 +39,9 @@ muro, buscá ahí.** Es lo más rentable del repo.
 | **Entender cómo funciona un flujo** (listado de entidades, cupo, formalización, un lender puntual) | `context/` | Abrí [`context/ROUTE-MAP.md`](context/docs/ROUTE-MAP.md) (33 nodos con su campo *Cuándo*), elegí 2-4 nodos, leé `context/server/data/flows/<id>/doc.md`. **No hay que correr nada.** |
 | **Ver si un problema ya está diagnosticado** | `context/` | [`findings/doc.md`](context/server/data/flows/findings/doc.md), secciones A–L. 52 hallazgos verificados. Buscá el síntoma, no la causa. |
 | **Probar un flujo punta a punta con navegador** | `frontend-e2e/` | `cd frontend-e2e && npm run dev` → panel en **:5195**. Maneja el wizard real (`:5174`) con Playwright. |
-| **Probar el flujo sin navegador** (API + BD, rápido y repetible) | `backend-e2e/` | CLI en Go: `make doctor` y después `make local vtex pullman credipullman`. |
+| **Probar el flujo sin navegador** (API + BD, rápido y repetible) | `frontend-e2e/` | `node dev/sweep.ts close <comercio> <lenderId>` — recorre el cierre endpoint por endpoint, traza contra la BD y su exit code es el veredicto. |
 | **Depurar un muro del harness** (pantalla en blanco, 500, no lista la entidad) | `context/` → `frontend-e2e/` | Primero [`findings`](context/server/data/flows/findings/doc.md); si no está, la sección de gotchas del [README de frontend-e2e](frontend-e2e/README.md). |
-| **Fabricar un caso / inyectar buró y KYC sintético** | `backend-mcp/` | `bash backend-mcp/scripts/dev.sh synth` y los diagnósticos de config (`branchdiag`, `grouprules`, `lender_rules`). |
+| **Fabricar un caso / inyectar buró y KYC sintético** | `frontend-e2e/` | El panel (`npm run dev`) define el usuario sintético; por CLI, `node bin/dbops.ts synth-fill <uReq>`. |
 | **Entender las reglas de decisión sin levantar el stack** | `flow/` | `cd flow && npm run dev` → **:5190**. Simulador editable: tocás monto y documento, ves qué entidad se cae y por qué. Ojo: el catálogo **arranca vacío**. |
 | **Entender el modelo de datos** | `domain-model/` | `cd domain-model && npm install && npm run dev` → **:5183**. 105 entidades del deber-ser, cada una con puntero a su tabla real del legacy. |
 | **Investigar una solicitud rota (soporte)** | `flow/FAQ-SOPORTE.md` → `soporte/` | La FAQ tiene los códigos de diagnóstico. El trazador (`:5192`) está en **Fase 0: datos mock** — una cédula real no devuelve nada. |
@@ -62,8 +62,6 @@ Cada una tiene su propio README con arranque verificado, gotchas y trampas conoc
 |---|---|
 | [`context/`](context/README.md) | Árbol de **33 nodos curados** (`doc.md` en prosa + `map.json` con las rutas fuente exactas) que le dice a un LLM qué leer, en cuál de los 6 repos, antes de atacar una tarea. Incluye la bitácora `findings`. Viz Vue read-only en **:5193**. |
 | [`frontend-e2e/`](frontend-e2e/README.md) | Harness **Playwright + TypeScript** que maneja el wizard real de originación (`:5174`) de punta a punta, con KYC/buró sintético, panel visual (**:5195**), flota de 8 mocks locales y barrido headless por API. |
-| [`backend-e2e/`](backend-e2e/README.md) | CLI en **Go** (`creditop-tests`) que ejerce la originación sin navegador contra el legacy-backend, componiendo cualquier `[canal → comercio → entidad]` y mostrando el flujo paso a paso. |
-| [`backend-mcp/`](backend-mcp/README.md) | Binario Go que es **servidor MCP (23 tools) y CLI a la vez**: lee la config real de la BD y fabrica casos inyectando el buró en vez de llamar a Experian. |
 | [`flow/`](flow/README.md) | **Simulador editable** del onboarding (Vue 3 + Vue Flow, sin backend, **:5190**): tocás monto, documento, burós y reglas, y ves en vivo qué entidad queda y por qué. |
 | [`domain-model/`](domain-model/README.md) | Visualizador del **modelo de dominio deber-ser** (**:5183**): 105 entidades en 8 contextos, cada una apuntando a su tabla real. Mapa de traducción entre el rediseño y las 212 tablas de hoy. |
 | [`soporte/`](soporte/README.md) | **Trazador de solicitudes** (**:5192**): buscás una cédula y ves cada intento dibujado etapa por etapa, con dónde y por qué se rompió. **Fase 0 — datos mock.** |
@@ -85,8 +83,7 @@ Cada una tiene su propio README con arranque verificado, gotchas y trampas conoc
 | 5193 | `context` (viz) | |
 | 5195 | `frontend-e2e` (panel) | override con `PANEL_PORT` |
 | 8095–8102 | mocks de `frontend-e2e` | preapprovals 8095 · redirect 8096 · payvalida 8097 · mdm 8098 · lenders 8099 · pdf-mapper 8100 · forms 8101 · abaco 8102 |
-| 8787 | `tools` WS **y** `backend-mcp webhook-server` | **colisión real**: los dos usan `:8787` por default. El front de `tools` lo tiene **hardcodeado** en `App.vue:4`, así que ahí el que cede es `backend-mcp` |
-| 9099 | listener del webhook de tienda (`backend-e2e`) | si está ocupado, avisa y no verifica (no rompe el flujo) |
+| 8787 | WS de `tools` | el front lo tiene hardcodeado en `App.vue:4` |
 
 ---
 
@@ -97,8 +94,8 @@ Cada una tiene su propio README con arranque verificado, gotchas y trampas conoc
 **No armes PRs ni pushees ahí sin pedirlo explícitamente.** Un harness que shellea a esos repos (mueve un
 `.env`, flipea un `ecommerce_type_id`) tiene que revertir lo que tocó.
 
-**Escrituras a entornos compartidos.** `dev` es una BD compartida con el equipo. Tanto `backend-e2e` como
-`backend-mcp` exigen `I_KNOW_THIS_TOUCHES_SHARED_DEV=1` para escribir fuera de local, y no es burocracia:
+**Escrituras a entornos compartidos.** `dev` es una BD compartida con el equipo. Tanto el camino rápido como
+`frontend-e2e` exige `I_KNOW_THIS_TOUCHES_SHARED_DEV=1` para escribir fuera de local, y no es burocracia:
 cambiar de comercio en `frontend-e2e` **escribe en la BD**, y cada arranque hace un scrub que borra el
 usuario de prueba y arrastra sus solicitudes anteriores.
 
@@ -125,10 +122,10 @@ tiempo persiguiéndolas.
 - **`playground/docs/` FUE BORRADO** de `main` (commit `ef1d473`, 2026-07-17): se absorbió en el árbol de
   `context/`. **Cualquier ruta `playground/docs/X.md` o `../docs/X.md` que veas es un puntero histórico.**
   El contenido sobrevive en git: `git show 159906a:docs/<ruta>`. Punteros rotos vivos hoy:
-  `domain-model/CONTEXT.md:51`, `domain-model/CLAUDE.md:64`, `backend-e2e/SUITE.md:16` y
+  `domain-model/docs/CONTEXT.md:51`, `domain-model/CLAUDE.md:64` y
   `examples/merchant-config/README.md:4`.
 
-- **[`EXAMPLES.md`](EXAMPLES.md) (raíz) está PODRIDO.** Documenta una interfaz de `bin/asesor` que **ya no
+- **[`frontend-e2e/README.md`](frontend-e2e/README.md) (raíz) está PODRIDO.** Documenta una interfaz de `bin/asesor` que **ya no
   existe**: verifiqué con grep que ni `--store`, ni `--mode=`, ni `--fresh`, ni `--lender=`, ni
   `--no-assign`, ni `--down`, ni `--wizard=`, ni `--headless`, ni `E2E_STEP_MS`/`E2E_LINGER_MS` aparecen
   en `frontend-e2e/bin/asesor`. La interfaz real es **sin flags**:
@@ -162,9 +159,9 @@ tiempo persiguiéndolas.
 
 | Archivo | Qué aporta |
 |---|---|
-| [`EXAMPLES.md`](EXAMPLES.md) | Demos visuales del wizard desde `frontend-e2e`. **Podrido** (ver arriba): los flags ya no existen. |
+| [`frontend-e2e/README.md`](frontend-e2e/README.md) | Demos visuales del wizard desde `frontend-e2e`. **Podrido** (ver arriba): los flags ya no existen. |
 | [`.claude/launch.json`](.claude/launch.json) | Targets de dev server: `flow` (5190), `soporte` (5192), `context` (5193), `panel` (5195) y `merchant-config` (5191, **muerto**). |
-| [`.claude/settings.local.json`](.claude/settings.local.json) | Permisos locales (gitignoreado). Autoriza `backend-e2e/scripts/dev.sh` — **no** el de `backend-mcp`, que pide confirmación aparte. |
+| [`.claude/settings.local.json`](.claude/settings.local.json) | Permisos locales (gitignoreado). |
 
 Fuera de la raíz, los tres docs que más rinden: [`context/ROUTE-MAP.md`](context/docs/ROUTE-MAP.md) (dónde está
 cada cosa), [`context/server/data/flows/findings/doc.md`](context/server/data/flows/findings/doc.md) (qué

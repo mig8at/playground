@@ -109,7 +109,7 @@ Doc: `server/data/flows/frontend-monorepo/doc.md` · Archivos: `server/data/flow
 **Cuándo:** Cuando la tarea sea INTEGRAR / agregar / parametrizar una entidad (lender) o comercio (allied) nuevo, tocar el flujo de uno existente (Motai/Welli/Bancolombia/Corbeta/Pash/Credifamilia/Meddipay/etc.), o preguntarse por qué un flujo está QUEMADO / CABLEADO / ACOPLADO a un id, por qué CreditOp NO ESCALA o no es config-driven, o vayas a escribir un if por id / array de ids / branch por nombre de lender: el mapa de los 24 acoplamientos hardcodeados que impiden la integración por-config y lo que cuesta des-hardcodear cada uno. DOLOR: leelo ANTES de sumar otro hardcode.
 Doc: `server/data/flows/hardcodes-entidades/doc.md` · Archivos: `server/data/flows/hardcodes-entidades/map.json` · Padre: `creditop`
 
-### harness — Harness  ·  _reference_ · 68 archivos
+### harness — Harness  ·  _reference_ · 44 archivos
 **Cuándo:** Cuando la tarea es “necesito probar / ejercitar / mockear un flujo de originación E2E” — correr un triplete canal→comercio→lender de punta a punta, sembrar/inyectar un perfil aprobado, decidir qué se puede sellar localmente vs. qué lo decide una API externa, o levantar el demo del wizard (2 ventanas / panel).
 Doc: `server/data/flows/harness/doc.md` · Archivos: `server/data/flows/harness/map.json` · Padre: `architecture`
 

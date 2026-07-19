@@ -14,6 +14,8 @@ import { whois, assign, revoke, scrubphone } from '../pkg/asesor.ts';
 import { listMerchants, listEcommerce } from '../pkg/merchants.ts';
 import { buildEcommerceUrl } from '../pkg/ecommerce.ts';
 import { synthFill, requestEstado11 } from '../pkg/inject.ts';
+import { verifyLaravelMac } from '../pkg/laravel-crypt.ts';
+import { appKey } from '../pkg/db.ts';
 
 const [cmd, ...a] = process.argv.slice(2);
 const num = (s: string | undefined): number => (s ? Number(s) : 0);
@@ -72,6 +74,35 @@ try {
                 [a[0] ?? ''],
             );
             break;
+        case 'cryptocheck': { // ¿el APP_KEY es el de ESTE target? Recomputa el HMAC de una fila Experian
+            // REAL y lo compara con el `mac` guardado. Rescatado de backend-mcp antes de borrarlo.
+            //
+            // EL DETALLE QUE LO HACE SERVIR: se prueba contra una fila NO sintética (documento fuera del
+            // rango 2.9B). Contra una fila que forjamos nosotros el MAC SIEMPRE valida —la escribimos con
+            // la misma llave— y el chequeo no dice nada.
+            //
+            // POR QUÉ IMPORTA: con un APP_KEY equivocado, injectDatacredito escribe un blob que Laravel no
+            // puede desencriptar. No hay error: /lenders simplemente no ofrece nada, igual que si el perfil
+            // no calificara. `appKey()` solo valida PRESENCIA, no que sea la correcta.
+            const fila = await one<{ data: string; doc: string }>(
+                `SELECT CAST(rcud.data AS CHAR) AS data, COALESCE(u.document_number,'') AS doc
+                   FROM risk_central_user_data rcud
+                   JOIN users u ON u.id = rcud.user_id
+                  WHERE rcud.data IS NOT NULL AND COALESCE(u.document_number,'') NOT LIKE '29%'
+                  ORDER BY rcud.id DESC LIMIT 1`);
+            if (!fila) { r = { ok: false, msg: 'no hay ninguna fila Experian REAL para probar (solo sintéticas)' }; break; }
+            let payload = fila.data;
+            try { const j = JSON.parse(fila.data); payload = typeof j === 'string' ? j : fila.data; } catch { /* ya es el payload */ }
+            const ok = verifyLaravelMac(payload, appKey());
+            r = {
+                ok,
+                probado_contra: `documento ${fila.doc.slice(0, 4)}… (fila real, no sintética)`,
+                msg: ok
+                    ? 'el APP_KEY es el de este target: el MAC de una fila real valida'
+                    : '⚠ APP_KEY EQUIVOCADO — la inyección de buró va a escribir un blob ilegible y /lenders no va a ofrecer nada, SIN error visible',
+            };
+            break;
+        }
         case 'branches': // resuelve VARIOS hashes de sucursal de una: nombre del comercio y si existe en
             // este target. Existe para que el panel muestre en la card el hash que REALMENTE se lanza (el de
             // .flows.json) en vez del que devolvía una búsqueda por slug, que podía ser OTRA sucursal del

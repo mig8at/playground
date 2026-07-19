@@ -76,7 +76,6 @@ y duplicado en `tools/build-route-map.py`):
 | `legacy-backend` | `~/Desktop/CREDITOP/github/legacy-backend` | 2.176 |
 | `frontend-monorepo` | `~/Desktop/CREDITOP/github/frontend-monorepo` | 1.549 |
 | `pre-approvals-service` | `~/Desktop/CREDITOP/github/pre-approvals-service` | 137 |
-| `backend-e2e` | `~/Desktop/CREDITOP/playground/backend-e2e` | 24 |
 | `frontend-e2e` | `~/Desktop/CREDITOP/playground/frontend-e2e` | 78 |
 
 Ojo con el alias `application`: apunta a la carpeta **`legacy-application`**. No son dos repos.
@@ -172,7 +171,7 @@ hipótesis, y si el síntoma engaña, decilo en el título.
   en cada sección. Usalas al crear un nodo nuevo.
 - `../EXAMPLES.md` — cheatsheet de demos visuales del wizard vía `frontend-e2e` (`bin/asesor`,
   split-view, dbops). El `../README.md` de la raíz es un stub de una línea, no un índice.
-- Las otras herramientas del playground son directorios hermanos: `backend-e2e`, `backend-mcp`,
+- Las otras herramientas del playground son directorios hermanos:
   `frontend-e2e`, `flow`, `soporte`, `domain-model`, `tools`.
 
 ---

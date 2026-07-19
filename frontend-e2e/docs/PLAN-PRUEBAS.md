@@ -25,7 +25,7 @@ webhook, no al checkout), y **#37** responde `["redirect","/self-service/bb534d6
 esas pantallas. El cierre rt=2 → Estado 11 **ya está validado en backend** (`backend-e2e: go run . asesor
 3e67eade 77`, que fuerza `initial_fee=0` y el estado, sin Wompi ni la ruta `/continue`). Lo distintivo de cada
 cierre por `response_type` se documenta en `docs/REFERENCIA-FLUJOS.md` *(histórico)* y su
-espejo Go en [`../backend-e2e/lender/closes.go`](../../backend-e2e/lender/closes.go).
+espejo Go en `backend-e2e` *(borrado 2026-07-19 — lo rescatado está en findings F-57)*.
 
 **Acceso a `/merchant/*`** (Motai, SmartPay): se resuelve con **login Cognito real + mutex de cuenta**, NO con el
 obsoleto `DEV_SESSION`/`X-Dev-Session`. Ver detalle en [`VALIDATION.md`](VALIDATION.md) (§`/merchant/*` y §Mutex):
@@ -75,7 +75,7 @@ stack local vía `docker exec` (mysql/tinker). Enlazamos las firmas Go en vez de
 - **`runTripletAndClose(page, t)`** en [`e2e/triplet.ts`](../e2e/triplet.ts): hoy `runTripletToLenders` solo llega a
   `/lenders` y **lanza** en canal `web` ([`e2e/triplet.ts`](../e2e/triplet.ts):46-55). Tras `/lenders` debe invocar
   el cierre — completa el espejo del CLI `go run . <canal> <comercio> <lender>` (ver
-  [`../backend-e2e/SUITE.md`](../../backend-e2e/docs/SUITE.md)). Bloqueado por el mismo muro.
+  `backend-e2e` *(borrado 2026-07-19 — lo rescatado está en findings F-57)*). Bloqueado por el mismo muro.
 - **`runMerchantModeUntilLenders(page, hash, mode)`**: entrada `/merchant/{hash}/modes` + click modo (Motai).
 - **Extraer `buildCheckoutPath()`** (hoy inline en [`channel/ecommerce-local-real.spec.ts`](../channel/ecommerce-local-real.spec.ts):36)
   a helper de canal `web` reutilizable.
@@ -161,7 +161,7 @@ testid. La selección de lender por UI **ya funciona** (verificada en `creditopx
 3. **Cupo Rotativo rt=3 + Grupo D**: `seedRiskProfile` para que el marketplace ofrezca #71; reusa el ciclo
    Creditop X. El cierre rt=3 ya está en backend (`asesor 3e67eade 71`).
 4. **Credifamilia rt=4 + Grupo H**: selección + radicación por UI; el polling async se valida mejor en backend
-   (`credifamiliaClose` → status 40→41; ver [`../backend-e2e/lender/closes.go`](../../backend-e2e/lender/closes.go):217).
+   (`credifamiliaClose` → status 40→41; ver `backend-e2e` *(borrado 2026-07-19 — lo rescatado está en findings F-57)*:217).
 5. **Cierre Motai #158 + Grupos E/F + mocks Abaco/IMEI**: alto esfuerzo (testids Abaco/IMEI + escenarios mock
    `check-abaco-requirement`/`scraping/*`/`advisor-status`). La **entrada** por UI ya está ✅
    ([`merchant/motai-ui.spec.ts`](../merchant/motai-ui.spec.ts)); falta el device flow. El cierre Motai → Estado 11
@@ -179,7 +179,7 @@ listener local vía `host.docker.internal` — ver [`VALIDATION.md`](VALIDATION.
 
 - **Cierre Bancolombia BNPL/Consumo (rt=1) y Corbeta→ONB006:** el cierre real ocurre en el **portal OAuth del
   banco** (redirect externo con `:encrypt_code` JWT que Playwright no construye ni el banco mockea). Validado en
-  backend por `bancolombiaClose` ([`../backend-e2e/lender/closes.go`](../../backend-e2e/lender/closes.go):126) — solo
+  backend por `bancolombiaClose` (`backend-e2e` *(borrado 2026-07-19 — lo rescatado está en findings F-57)*:126) — solo
   asegura que el motor PLS asigna #68 BNPL / #100 Consumo. Por UI solo se cubre hasta el redirect.
 - **Lenders externos rt=1 (Welli/Meddipay/BdB) y Credifamilia rt=4 async:** el cierre/originación vive en el
   **portal externo del proveedor**. La lógica distintiva (pre-aprobación/cupo, radicación `status 40→41`) se

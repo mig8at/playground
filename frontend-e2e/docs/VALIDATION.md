@@ -3,7 +3,7 @@
 > ⚠ Los `docs/*.md` que se citan abajo vivían en `playground/docs/`, **borrada de `main`** (absorbida por el árbol de `context/`). Quedan como referencia histórica; para leer una: `git show 159906a:docs/<archivo>`.
 
 
-> Par del [`../backend-e2e/VALIDATION.md`](../../backend-e2e/docs/VALIDATION.md), pero **desde la UI del wizard**
+> Par del `backend-e2e` *(borrado 2026-07-19 — lo rescatado está en findings F-57)*, pero **desde la UI del wizard**
 > (`loan-request-wizard` :5174) contra el `legacy-backend` en modo mock.
 >
 > **Dueño de este doc:** el estado de validación por UI (verde / `fixme` con motivo) y el detalle de UI:
@@ -136,7 +136,7 @@ local, no porque falten `data-testid` (el stash ya cubre amount/phone/otp/person
 Un cierre in-platform limpio exigiría un rt=2 con `min_initial_fee=0` **y** sin redirect/Wompi — config que no
 aparece limpia en el mirror. **El cierre rt=2 → Estado 11 ('Autorizada', `user_request_statuses` id 11) ya está
 validado en BACKEND** (`backend-e2e: go run . asesor 3e67eade 77`, que fuerza `initial_fee=0` y estado, sin Wompi
-ni `/continue`; ver [`../backend-e2e/VALIDATION.md`](../../backend-e2e/docs/VALIDATION.md)). Para cerrarlo por UI haría
+ni `/continue`; ver `backend-e2e` *(borrado 2026-07-19 — lo rescatado está en findings F-57)*). Para cerrarlo por UI haría
 falta (a) arreglar la config del lender en BD, o (b) driver el checkout Wompi externo — ambos fuera del alcance
 "solo bypass en `legacy-backend`". Las cifras de deuda y por qué se clasifica este fallo: ver
 `docs/CASOS-ESPECIALES.md` *(histórico)*.
@@ -146,7 +146,7 @@ falta (a) arreglar la config del lender en BD, o (b) driver el checkout Wompi ex
 ## Composable `canal → comercio → lender` (espejo de backend-e2e)
 
 Igual que el CLI de backend (`go run . <canal> <comercio> <lender>`, ver
-[`../backend-e2e/SUITE.md`](../../backend-e2e/docs/SUITE.md)), pero el "motor" es Playwright manejando el wizard real
+`backend-e2e` *(borrado 2026-07-19 — lo rescatado está en findings F-57)*), pero el "motor" es Playwright manejando el wizard real
 (`e2e/triplet.spec.ts:17-18` + `e2e/triplet.ts`):
 
 ```bash
@@ -302,6 +302,6 @@ SmartPay forms-fake; `frontend-monorepo stash@{0}` con los testids), `.cognito.j
 3. **Contrato de subcódigos**: el backend real usa `error_code` (no `error_subcode`); decidir si se reescriben los
    specs OTP/KYC contra el shape real o se levanta como mejora de observabilidad del backend.
 4. **Marketplace/Perfilador por UI**: asertar que la oferta cambia con el perfil (espejo del perfilador del
-   backend, ver [`../backend-e2e/VALIDATION.md`](../../backend-e2e/docs/VALIDATION.md)).
+   backend, ver `backend-e2e` *(borrado 2026-07-19 — lo rescatado está en findings F-57)*).
 5. **CI**: descomentar/configurar `webServer` en `playwright.config.ts:58` para levantar backend mock + wizard
    automáticamente.
