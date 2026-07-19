@@ -336,3 +336,31 @@ Gotchas: las rutas de fechas/cronograma viven bajo el prefijo `promissory-note` 
 **Síntoma:** el cierre headless de DENTIX #139 se traba en `promissory (show)` con HTTP 502 `{"operation":"createGirador"}` y authorize dice "PromissoryNote con ID de Deceval no encontrado". Queda en estado 28.
 **Causa raíz:** DENTIX tiene `promissory_type_id = 2` = pagaré **desmaterializado en Deceval** (`Modules/Loans/App/Actions/DecevalSoap.php`, 4 operaciones SOAP contra `config('services.deceval.soap.host')` — sin host en el `.env` local). Celupresto/Mediarte/Motai usan `promissory_type_id = 1` (blade) y por eso sí cierran.
 **Estado:** frontera documentada. Mockear Deceval exigiría envelopes SOAP válidos para 4 operaciones — hacerlo a ciegas es especulativo; si algún día hace falta, el 502 logueado trae la operación exacta.
+
+### F-31 · Credifamilia rt=4: la cadena real de bloqueos (no era el SOAP)
+
+**Hipótesis previa (equivocada):** "Credifamilia no se puede probar en local porque su radicación es SOAP y el WSDL da 504".
+**Realidad, recorriendo el flujo headless:** la selección y casi todo el cierre in-platform funcionan **sin tocar el WSDL**. Los bloqueos son otros y aparecen en este orden:
+
+| # | Muro | Causa | ¿Mockeable? |
+|---|---|---|---|
+| 1 | `vinculacion` | `pdf-mapper-service` con host falso. En `config/documents.php` es el ÚNICO doc con `default => 'microservice'` **por diseño** (D-TF-3: sin contraparte Blade, política 503 en vez de degradar) | **sí** → `mock-pdf-mapper` :8100 |
+| 2 | pagaré | `promissory_type_id = 2` (**deceval**) → `DecevalSoap`, 4 operaciones SOAP sin host → 502 `{"operation":"createGirador"}` | difícil (envelopes SOAP) |
+| 3 | firma | **Netco**: `NETCO_PASSWORD_DERIVATION_SECRET is missing — refusing to derive a blank password`. No hay NINGUNA variable `NETCO_*` en el `.env` local | pendiente |
+
+**El discriminador del muro 2 es `promissory_type_id`** (tabla `promissory_types`: 1=`ownership`, 2=`deceval`):
+
+| Lender | tipo | ¿Cierra headless? |
+|---|---|---|
+| Celupresto #96, Mediarte 0% #94, Motai R #169 | 1 ownership | **sí** → Estado 11 |
+| Credifamilia #24, DENTIX #139 | 2 deceval | no → queda en 28 |
+
+O sea **el mismo muro (Deceval) bloquea a DENTIX rt=2 y a Credifamilia rt=4**: no es una frontera de `response_type`, es del tipo de pagaré. Corrige el modelo mental de F-30.
+
+**Además, el `confirm` revela el tipo de KYC por entidad** — útil para saber qué validación exige cada flujo sin leer código:
+- Celupresto/Mediarte → `aws_validation` · `document_and_facial_recognition`
+- Credifamilia → `crosscore_validation` · `crosscore_biometric_enrollment`
+
+**Bonus:** `simulate-payment-schedule` da HTTP 500 en Credifamilia ("Ocurrió un error durante el cálculo del plan de pagos") pero `confirm-payment-schedule` responde 200 igual — el cronograma se confirma sin haber simulado. Sin diagnosticar; anotado porque es un 500 que NO detiene el flujo.
+
+**Estado:** muro 1 resuelto; 2 y 3 documentados como frontera. Para cerrar un rt=4 completo harían falta un mock de Deceval (4 ops SOAP) y las credenciales/mock de Netco.

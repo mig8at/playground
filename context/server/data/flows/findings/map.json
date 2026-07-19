@@ -28,6 +28,10 @@
     "frontend-monorepo/modules/loan-request-wizard/lenders-marketplace/src/lib/infrastructure/repositories/loan-options.repository.ts",
     "frontend-e2e/dev/sweep.ts",
     "frontend-e2e/mock-lenders/server.mjs",
-    "frontend-e2e/mock-mdm/server.mjs"
+    "frontend-e2e/mock-mdm/server.mjs",
+    "frontend-e2e/mock-pdf-mapper/server.mjs",
+    "legacy-backend/app/Services/PdfMapperClient.php",
+    "legacy-backend/config/documents.php",
+    "legacy-backend/Modules/Loans/App/Actions/DecevalSoap.php"
   ]
 }
