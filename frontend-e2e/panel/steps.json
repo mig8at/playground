@@ -318,7 +318,7 @@
   "desvios": {
     "abaco": {
       "label": "Ábaco · renting",
-      "cuando": "El lender tiene product='renting' (Motai R/RB). La action de confirmation pregunta a check-abaco-requirement y desvía a /abaco ANTES de la validación de identidad.",
+      "cuando": "El lender es de la familia RENTING: product 'renting' (Motai R) o 'rto' = renting con opción de compra (Motai RB). La action de confirmation pregunta a check-abaco-requirement y desvía a /abaco ANTES de la validación de identidad. Condición real: in_array($product, ['renting','rto']) en MotaiValidationService.php:90. ⚠ rto además va a pedir CODEUDOR, que hoy no existe en el flujo.",
       "desde": "confirmation",
       "hasta": "first-payment-date",
       "pasos": [
@@ -352,7 +352,10 @@
         }
       ],
       "requiere": {
-        "product": "renting",
+        "product": [
+          "renting",
+          "rto"
+        ],
         "rt": [
           2,
           3,

@@ -963,7 +963,19 @@
     // Esa distinción es el corazón del dibujo: una rama que vuelve y una que termina son cosas
     // distintas, y el diagrama anterior las mostraba igual.
     const G = { col: 132, fila: 96, x0: 40, y0: 150 };
-    const COLOR = { tronco: '#9aa4b2', abaco: '#eab308', creditopx: '#4ade80', agregador: '#38a3c7', redirect: '#94a3b8' };
+    // Color por TIPO DE PRODUCTO, no por lender: dos lenders del mismo producto recorren lo mismo, y
+    // dos productos distintos son caminos distintos aunque compartan pantallas. El tronco va neutro
+    // para que los carriles resalten.
+    const COLOR = {
+      tronco: '#9aa4b2',
+      credit: '#4ade80',      // CreditopX clásico
+      renting: '#eab308',     // renting (pasa por Ábaco)
+      rto: '#fb923c',         // renting con opción de compra (Ábaco + a futuro codeudor)
+      rt4: '#c084fc',         // Credifamilia: origina in-platform, radica por SOAP
+      agregador: '#38a3c7',   // rt1: decide la entidad por API
+      redirect: '#94a3b8',    // rt0: sale a la entidad
+      creditopx: '#4ade80', abaco: '#eab308',
+    };
     const svgNS = 'http://www.w3.org/2000/svg';
     const el = (t, at, txt) => {
       const n = document.createElementNS(svgNS, t);
@@ -1002,132 +1014,74 @@
       const ch = STEPS.chequeo || {};
       $('trenwarn').textContent = ch.ok === false ? `· ⚠ ${(ch.rotas || []).length} ruta(s) del mapa ya no existen` : '';
 
-      // carriles según las entidades PRENDIDAS: una apagada no lista, su camino no existe hoy
-      const QUE_RAMAL = { 2: 'creditopx', 3: 'creditopx', 4: 'creditopx', 1: 'agregador', 0: 'redirect' };
-      const porRamal = {};
-      for (const l of lendersDelComercio) {
-        const r = QUE_RAMAL[Number(l.rt)];
-        if (!r) continue;
-        (porRamal[r] ??= { on: [], off: [] })[Number(l.lender_status) === 1 ? 'on' : 'off'].push(l);
-      }
-      const hayCx = (porRamal.creditopx?.on || []).length > 0;
-      // Un desvío se dibuja solo si alguna entidad PRENDIDA cumple lo que ese desvío declara en
-      // `requiere` (ej. product=renting para Ábaco, path=IMEI para SmartPay). Antes el gate estaba
-      // hardcodeado por id y le mostrábamos "Bloqueo IMEI" a Motai, que no tiene ningún lender IMEI.
-      const cumple = (req) => !req || lendersDelComercio.some(
-        (l) => Number(l.lender_status) === 1 && Object.entries(req).every(([k, v]) =>
-          Array.isArray(v) ? v.map(String).includes(String(l[k])) : String(l[k]) === String(v)));
+      const on = lendersDelComercio.filter((l) => Number(l.lender_status) === 1);
+      const cumpleL = (l, req) => !req || Object.entries(req).every(([k, v]) =>
+        Array.isArray(v) ? v.map(String).includes(String(l[k])) : String(l[k]) === String(v));
 
       cam.innerHTML = '';
       const rieles = el('g', {}), nodos = el('g', {});
       cam.appendChild(rieles); cam.appendChild(nodos);
 
-      // TRONCO = tronco común + el cierre in-platform (si el comercio lo tiene). Es el camino feliz.
-      const tronco = hayCx ? [...STEPS.tronco, ...STEPS.ramales.creditopx.pasos] : [...STEPS.tronco];
-      const X = (i) => G.x0 + i * G.col, Y0 = G.y0;
-      const idx = {}; tronco.forEach((p, i) => (idx[p.id] = i));
-      rieles.appendChild(riel(`M ${X(0)} ${Y0} L ${X(tronco.length - 1)} ${Y0}`, COLOR.tronco));
-      tronco.forEach((p, i) => nodos.appendChild(nodoSVG(p, X(i), Y0, i >= STEPS.tronco.length ? COLOR.creditopx : COLOR.tronco)));
+      // ── TRONCO: común a todos, hasta la oferta ──
+      const T = STEPS.tronco, X = (i) => G.x0 + i * G.col, Y0 = G.y0;
+      const idxT = {}; T.forEach((p, i) => (idxT[p.id] = i));
+      rieles.appendChild(riel(`M ${X(0)} ${Y0} L ${X(T.length - 1)} ${Y0}`, COLOR.tronco));
+      T.forEach((p, i) => nodos.appendChild(nodoSVG(p, X(i), Y0, COLOR.tronco)));
 
-      let minY = Y0, maxY = Y0, maxX = 0;
-
-      // BYPASS: lo inverso de un desvío — en vez de agregar pasos, los saltea. Va punteado y por
-      // ABAJO para no competir con el tronco, y arranca/termina en los nodos que ancla.
+      // bypass de los pasos condicionales del tronco
       for (const b of STEPS.bypass || []) {
-        const a = idx[b.desde], z = idx[b.hasta];
+        const a = idxT[b.desde], z = idxT[b.hasta];
         if (a == null || z == null) continue;
-        const y = Y0 + 46;
-        const arco = el('path', {
-          d: `M ${X(a)} ${Y0} C ${X(a) + 40} ${y}, ${X(z) - 40} ${y}, ${X(z)} ${Y0}`,
-          stroke: COLOR.tronco, 'stroke-width': 3, 'stroke-dasharray': '6 6', 'stroke-linecap': 'round', fill: 'none', opacity: .7
-        });
+        const yb = Y0 + 46;
+        const arco = el('path', { d: `M ${X(a)} ${Y0} C ${X(a) + 40} ${yb}, ${X(z) - 40} ${yb}, ${X(z)} ${Y0}`,
+          stroke: COLOR.tronco, 'stroke-width': 3, 'stroke-dasharray': '6 6', 'stroke-linecap': 'round', fill: 'none', opacity: .7 });
         arco.appendChild(el('title', {}, `${b.label}\n\n${b.cuando || ''}`));
         rieles.appendChild(arco);
-        const t = el('text', { class: 'nquien', x: (X(a) + X(z)) / 2, y: y + 16, 'text-anchor': 'middle' }, b.label);
-        t.appendChild(el('title', {}, b.cuando || ''));
-        nodos.appendChild(t);
-        maxY = Math.max(maxY, y + 24);
+        nodos.appendChild(el('text', { class: 'nquien', x: (X(a) + X(z)) / 2, y: yb + 16, 'text-anchor': 'middle' }, b.label));
       }
 
-      // DESVÍOS: salen del tronco y REINGRESAN. Van ARRIBA (como en un grafo de git).
-      for (const [id, d] of Object.entries(STEPS.desvios || {})) {
-        if (!cumple(d.requiere)) continue;   // el desvío declara su condición; nada hardcodeado por id
-        const a = idx[d.desde], b = idx[d.hasta];
-        if (a == null || b == null) continue;
-        const y = Y0 - G.fila, col = COLOR[id] || COLOR.abaco;
-        // Los nodos del desvío se reparten ENTRE el punto de salida y el de reingreso, no en las
-        // columnas del tronco: si caen encima de los pasos que saltean, el reingreso queda vertical
-        // (un codo, no una curva) y deja de leerse como un grafo de git.
-        const paso = (X(b) - X(a)) / (d.pasos.length + 1);
-        const xs = d.pasos.map((_, i) => X(a) + paso * (i + 1));
-        rieles.appendChild(riel(curva(X(a), Y0, xs[0], y), col));
-        if (xs.length > 1) rieles.appendChild(riel(`M ${xs[0]} ${y} L ${xs[xs.length - 1]} ${y}`, col));
-        rieles.appendChild(riel(curva(xs[xs.length - 1], y, X(b), Y0), col));   // ← el REINGRESO
-        d.pasos.forEach((p, i) => nodos.appendChild(nodoSVG(p, xs[i], y, col)));
-        const t = el('text', { class: 'nram', x: xs[0], y: y - 26, fill: col }, d.label);
-        t.appendChild(el('title', {}, d.cuando || ''));
-        nodos.appendChild(t);
-        // quién TOMA el desvío y quién sigue derecho: es la bifurcación por producto hecha explícita
-        const toma = (l) => Object.entries(d.requiere || {}).every(([k, v]) =>
-          Array.isArray(v) ? v.map(String).includes(String(l[k])) : String(l[k]) === String(v));
-        const enCarril = (porRamal.creditopx?.on || []);
-        const porAca = enCarril.filter(toma), derecho = enCarril.filter((l) => !toma(l));
-        if (porAca.length) {
-          const q = el('text', { class: 'nquien', x: xs[0], y: y - 13 },
-            corto('↗ ' + porAca.map((l) => l.name).join(' · '), 34));
-          q.appendChild(el('title', {}, `Toman este desvío:\n  ${porAca.map((l) => `${l.name} (${l.product})`).join('\n  ')}`
-            + (derecho.length ? `\n\nSiguen derecho, SIN este desvío:\n  ${derecho.map((l) => `${l.name} (${l.product})`).join('\n  ')}` : '')));
-          nodos.appendChild(q);
+      // ── UN CARRIL POR CAMINO REAL ────────────────────────────────────────────────────────────────
+      // Cada lender de la familia CreditopX (rt 2/3/4) tiene el SUYO: aunque compartan las pantallas,
+      // son productos distintos con recorridos distintos (renting mete Ábaco, rt4 sigue con la
+      // radicación). Meterlos en una sola línea mezclaba justamente lo que hay que distinguir.
+      // rt1 y rt0 sí se agrupan: ahí el recorrido no depende del lender.
+      const carriles = [];
+      const enCx = on.filter((l) => [2, 3, 4].includes(Number(l.rt)));
+      for (const l of enCx) {
+        const pasos = [...(STEPS.ramales.creditopx?.pasos || [])];
+        // insertar los desvíos que ESTE lender toma, en su lugar
+        for (const [, d] of Object.entries(STEPS.desvios || {})) {
+          if (!cumpleL(l, d.requiere)) continue;
+          const at = pasos.findIndex((p) => p.id === d.desde);
+          if (at >= 0) pasos.splice(at + 1, 0, ...d.pasos.map((p) => ({ ...p, _desvio: d.label })));
         }
-        minY = Math.min(minY, y - 30);
+        // y las extensiones que continúan después del final
+        for (const [, e] of Object.entries(STEPS.extensiones || {})) {
+          if (cumpleL(l, e.requiere)) pasos.push(...e.pasos.map((p) => ({ ...p, _ext: e.label })));
+        }
+        carriles.push({ label: l.name, sub: `rt${l.rt} · ${l.product}`, color: COLOR[l.product] || COLOR['rt' + l.rt] || COLOR.creditopx, pasos });
+      }
+      for (const [rid, rt] of [['agregador', 1], ['redirect', 0]]) {
+        const g = on.filter((l) => Number(l.rt) === rt);
+        if (!g.length || !STEPS.ramales?.[rid]) continue;
+        carriles.push({ label: STEPS.ramales[rid].label, sub: g.map((l) => l.name).join(' · '),
+          color: COLOR[rid], pasos: STEPS.ramales[rid].pasos });
       }
 
-      // EXTENSIONES: ni desvío (no reingresa) ni ramal (no sale del tronco) — CONTINÚAN después del
-      // terminal. Credifamilia origina in-platform como CreditopX pero RADICA por SOAP: para el usuario
-      // el flujo termina en Aprobado y recién ahí empieza lo del lender. Va punteado porque no tiene
-      // pantalla: corre en el backend.
-      for (const [eid, e] of Object.entries(STEPS.extensiones || {})) {
-        if (!cumple(e.requiere)) continue;
-        const a = idx[e.desde];
-        if (a == null) continue;
-        const col = COLOR[eid] || '#c084fc';
-        const xs = e.pasos.map((_, i) => X(a + 1 + i));
-        rieles.appendChild(el('path', {
-          d: `M ${X(a)} ${Y0} L ${xs[xs.length - 1]} ${Y0}`,
-          stroke: col, 'stroke-width': 6, 'stroke-dasharray': '2 10', 'stroke-linecap': 'round', fill: 'none'
-        }));
-        e.pasos.forEach((p, i) => nodos.appendChild(nodoSVG(p, xs[i], Y0, col)));
-        const t = el('text', { class: 'nram', x: xs[0], y: Y0 - 26, fill: col }, corto(e.label, 26));
-        t.appendChild(el('title', {}, `${e.label}\n\n${e.cuando || ''}`));
+      const aOferta = idxT['lenders'] ?? (T.length - 1);
+      let maxX = X(T.length - 1), maxY = Y0;
+      carriles.forEach((c, i) => {
+        const y = Y0 + (i + 1) * G.fila, xs = c.pasos.map((_, j) => X(aOferta + 1 + j));
+        rieles.appendChild(riel(curva(X(aOferta), Y0, xs[0], y), c.color));
+        if (xs.length > 1) rieles.appendChild(riel(`M ${xs[0]} ${y} L ${xs[xs.length - 1]} ${y}`, c.color));
+        c.pasos.forEach((p, j) => nodos.appendChild(nodoSVG(p, xs[j], y, p._ext ? '#c084fc' : c.color)));
+        const t = el('text', { class: 'nram', x: xs[0], y: y - 26, fill: c.color }, corto(c.label, 22));
         nodos.appendChild(t);
-        const q = el('text', { class: 'nquien', x: xs[0], y: Y0 - 13 }, 'sin pantalla · corre en backend');
-        nodos.appendChild(q);
-        maxX = Math.max(maxX || 0, xs[xs.length - 1]);
-      }
+        nodos.appendChild(el('text', { class: 'nquien', x: xs[0], y: y - 13 }, corto(c.sub, 30)));
+        maxX = Math.max(maxX, xs[xs.length - 1]); maxY = Math.max(maxY, y + 46);
+      });
 
-      // RAMALES terminales: salen en /lenders y NO vuelven (los resuelve la entidad, fuera del wizard).
-      let carril = 0;
-      const aLenders = idx['lenders'] ?? (STEPS.tronco.length - 1);
-      for (const rid of ['agregador', 'redirect']) {
-        const r = STEPS.ramales?.[rid], g = porRamal[rid];
-        if (!r || !g || !g.on.length) continue;
-        carril += 1;
-        const y = Y0 + carril * G.fila, col = COLOR[rid];
-        const xs = r.pasos.map((_, i) => X(aLenders + 1 + i));
-        rieles.appendChild(riel(curva(X(aLenders), Y0, xs[0], y), col));
-        if (xs.length > 1) rieles.appendChild(riel(`M ${xs[0]} ${y} L ${xs[xs.length - 1]} ${y}`, col));
-        r.pasos.forEach((p, i) => nodos.appendChild(nodoSVG(p, xs[i], y, col)));
-        const quien = g.on.map(l => `${l.name} rt${l.rt}`).join(' · ');
-        const t = el('text', { class: 'nram', x: xs[0], y: y - 24, fill: col }, corto(r.label, 24));
-        t.appendChild(el('title', {}, `${r.label}\n\n${r.cuando || ''}`));
-        nodos.appendChild(t);
-        const sub = el('text', { class: 'nquien', x: xs[0], y: y - 11 }, corto(quien, 34));
-        sub.appendChild(el('title', {}, quien + (g.off.length ? `\n\nApagadas: ${g.off.map(l => l.name).join(', ')}` : '')));
-        nodos.appendChild(sub);
-        maxY = Math.max(maxY, y + 46);
-      }
-
-      encuadrar(Math.max(X(tronco.length - 1), maxX || 0) + 100, minY, maxY);
+      encuadrar(maxX + 110, Y0 - 40, maxY);
     }
 
     // ── cámara: arrastrar · rueda = zoom · doble clic = encuadrar ────────────────────────────────
