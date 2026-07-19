@@ -531,3 +531,35 @@ Es la única parte del post-Estado-11 ejercitable localmente, y **funciona**. Lo
 **Implicancia para el harness:** `bin/ecommerce` y todo el eje "entrada por checkout" del suite están **stale** respecto del wizard actual. Antes de invertir en ese camino hay que averiguar si la ruta se movió, se renombró o el canal se replanteó (¿lo absorbió el flujo de Bancolombia?).
 
 **Estado:** documentado como NO ejercitable. No es una limitación del entorno local ni de mocks: es que el frontend no expone la ruta.
+
+---
+
+## K · Flujo dinámico (RD) y servicios que existen como repo
+
+### F-41 · "Formulario no encontrado" = el flujo DINÁMICO sin su schema
+
+**Síntoma:** con un comercio de RD (ej. CeluRD/SmartPay) el wizard va a `/merchant/{hash}/request-amount` —no a `/solicitar`— y muestra **"Formulario no encontrado · El formulario que intentas abrir no existe o ya no está disponible"**.
+
+**Causa raíz:** los comercios con `allieds.country_id = 60` entran por el **flujo dinámico**, cuyo loader pide el schema a un servicio aparte:
+
+```
+GET {VITE_ONBOARDING_FORM_SERVICE}/dynamic/{partner_hash}/schema
+```
+
+En local esa env apunta a `onboarding-forms-service.inertia-develop:8092` (necesita VPN) — o, peor, **falta** y entonces el loader tira 500 `missing_env`.
+
+**Se intentó lo correcto antes de mockear:** el servicio REAL existe en `~/github/onboarding-forms-service` (Go), **compila y levanta** en :8092 apuntando al MySQL local. Pero **sus schemas viven en S3** y con las credenciales del `config.example.yaml` la llamada muere en `S3 HeadObject 400`. Correr el servicio no alcanza: hace falta el bucket.
+
+**Arreglo:** `mock-forms` (:8101), con las rutas reales leídas del router del servicio (`schema`, `send-otp`, `validate-otp`, `submit`, `upload`, `find-user-by-*`, en variantes `/dynamic/…` y `/dynamic/full/…`). **Diseñado para migrar a fidelidad real sin tocar código**: si existe `mock-forms/schemas/<hash>.json` sirve ESE. Con VPN: `curl …inertia-develop:8092/v1/dynamic/<hash>/schema > mock-forms/schemas/<hash>.json`.
+
+> ⚠ **El síntoma NO distingue dos causas distintas.** El loader **valida la forma** del schema y exige `theme` + `components.logo.boxs.image` + `components.logo.boxs.userName`. Si falta cualquiera, tira 502 con `errorStage: 'invalid_schema_shape'` y la pantalla dice **"Formulario no encontrado" igual que si el servicio estuviera caído**. Para distinguirlos hay que mirar el log del wizard, no la pantalla. (Nos costó una iteración: el primer schema genérico era válido según el tipo `FormSchema` pero no pasaba esa validación.)
+
+**Estado:** resuelto con schema genérico; **fidelidad pendiente** hasta traer el schema real de dev.
+
+### F-42 · Varios "servicios externos" existen como repo local
+
+Antes de mockear algo, mirar `~/Desktop/CREDITOP/github/`: además de los tres repos conocidos hay **`onboarding-forms-service`**, **`messaging-service`** (el de `:8082`, cuya caída rompe el link por WhatsApp y el voucher — F-08), **`pre-approvals-service`**, `pdf-mapper-editor`, `dynamic-form`, `microservices`, `vtex`, `cognito-pre-sign-up`.
+
+**Implicancia:** para varios muros hay **dos caminos** — mockear (rápido, fidelidad media) o **correr el servicio real** (más fiel). El de forms se pudo levantar en minutos; su límite fue S3, no el código. Vale evaluar caso por caso, sobre todo para `messaging-service`, que hoy es un fallo recurrente en los logs.
+
+> 🔒 **Nota de seguridad:** `onboarding-forms-service/config/config.example.yaml` —un archivo de plantilla, versionado— contiene lo que parecen **credenciales AWS reales** (`aws.access_key_id` / `secret_access_key`). Vale confirmarlo con el equipo y rotarlas si es así.
