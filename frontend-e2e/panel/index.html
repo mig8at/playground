@@ -589,6 +589,27 @@
       border-color: #573a7a;
       background: #21133a
     }
+    /* ── MAPA DE TREN: tronco + ramales por response_type ─────────────────────────────────────────
+       El tronco es común hasta /lenders; ahí la vía se abre según el rt del lender que elijas. Los
+       colores son los MISMOS de los chips rt de abajo, así el ramal se lee sin leyenda. */
+    .tren { margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--line) }
+    .tren-t { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: .6px; color: var(--mut); margin-bottom: 12px }
+    .via { display: flex; align-items: center; flex-wrap: wrap; gap: 0; margin-bottom: 4px }
+    .via.ramal { margin-left: 14px; padding-left: 16px; border-left: 2px solid var(--line) }
+    .est {
+      display: flex; align-items: center; gap: 6px; padding: 5px 10px 5px 7px;
+      border-radius: 999px; border: 1px solid transparent; cursor: default;
+      font-size: 12px; color: var(--txt); white-space: nowrap; transition: .12s
+    }
+    .est:hover { border-color: currentColor; background: #ffffff08 }
+    .est .pt { width: 8px; height: 8px; border-radius: 50%; background: currentColor; flex: none }
+    .riel { width: 16px; height: 2px; background: var(--line); flex: none }
+    .via.tronco .est { color: var(--acc) }
+    .via.r-creditopx .est { color: #4ade80 }
+    .via.r-agregador .est { color: #60a5fa }
+    .via.r-redirect .est { color: #94a3b8 }
+    .ramal-lbl { font-size: 10.5px; font-weight: 700; color: var(--mut); margin: 8px 0 3px 30px; letter-spacing: .3px }
+    .est .n { font-size: 10px; color: var(--mut); font-variant-numeric: tabular-nums }
     .lrow { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 11px; border: 1px solid var(--line); border-radius: 10px; margin-top: 6px; cursor: grab; }
     .lrow.drag { opacity: .4; }
     .lgrip { color: var(--mut); margin-right: 7px; cursor: grab; }
@@ -627,6 +648,12 @@
     <section class="card">
       <h2><b>1</b> Comercio de prueba</h2>
       <div class="grid" id="results"></div>
+      <!-- Mapa de tren: el recorrido del wizard para este comercio. Los ramales que se muestran son
+           los que el comercio REALMENTE tiene (según el rt de sus lenders). Hover = archivos del paso. -->
+      <div class="tren" id="tren" style="display:none">
+        <div class="tren-t">Recorrido del wizard <span id="trenwarn" style="color:var(--warn);font-weight:600;text-transform:none;letter-spacing:0"></span></div>
+        <div id="trenvias"></div>
+      </div>
       <div style="margin-top:14px">
         <p class="grouplbl">Lenders de la sucursal <span id="lendersbranch" style="font-weight:400;color:var(--mut)"></span></p>
         <p style="color:var(--mut);font-size:11px;margin:-4px 0 6px">ON/OFF = status <b>global</b> del lender (lo que filtra el listado). Afecta todas las sucursales en local; reversible.</p>
@@ -795,7 +822,9 @@
     let gender = 'M';
     let step = 'monto';          // dónde saltar: monto | phone | personal-info | lenders
     let padelay = 0;             // ms de espera del mock de pre-aprobados (para ver el loader)
-    let paStatus = {};           // status por lender que devolverá el mock: { lenderId: 'approved'|'rejected'|'pending' }    let poll = null;
+    let paStatus = {};           // status por lender que devolverá el mock: { lenderId: 'approved'|'rejected'|'pending' }
+    let poll = null;
+    let lendersDelComercio = [];  // lenders de la sucursal actual: su `rt` decide qué ramales dibuja el mapa
     let logOpen = false;         // drawer de la consola en el dock
 
     const fmt = (n) => (n || 0).toLocaleString('es-CO');
@@ -835,7 +864,10 @@
         const r = await (await fetch('/api/lenders?slug=' + encodeURIComponent(sel.slug) + '&target=' + target)).json();
         $('lendersbranch').textContent = r.hash ? '· ' + r.hash : (r.msg || '');
         paStatus = (await (await fetch('/api/pa-statuses')).json().catch(() => ({}))) || {};
-        const ls = r.lenders || [];        if (!ls.length) { box.innerHTML = '<p style="color:var(--mut);font-size:12px;margin:0">Sin lenders (¿branch en .flows.json?).</p>'; return; }
+        const ls = r.lenders || [];
+        lendersDelComercio = ls;   // el mapa de tren dibuja los ramales según el rt de estos
+        renderTren();
+        if (!ls.length) { box.innerHTML = '<p style="color:var(--mut);font-size:12px;margin:0">Sin lenders (¿branch en .flows.json?).</p>'; return; }
         box.innerHTML = '';
         for (const l of ls) {
           const on = Number(l.lender_status) === 1;   // status GLOBAL del lender = lo que filtra el listado (lab.status no aplica)
@@ -901,6 +933,52 @@
     // status por lender que devolverá el mock de pre-aprobados (el mock lee el archivo por request).
     async function savePaStatuses() {
       try { await fetch('/api/pa-statuses', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ map: paStatus }) }); } catch {}
+    }
+
+    // ── MAPA DE TREN ────────────────────────────────────────────────────────────────────────────
+    // Tronco común hasta /lenders y de ahí un ramal por response_type. Solo se dibujan los ramales que
+    // el comercio TIENE (mirando el rt de sus lenders), así el mapa habla de ESTE comercio y no del
+    // universo. El hover muestra los archivos que el paso toca de verdad — la definición está en
+    // panel/steps.json y bin/steps-check.ts verifica que cada ruta exista.
+    let STEPS = null;
+
+    async function loadSteps() {
+      try { STEPS = await (await fetch('/api/steps')).json(); } catch { STEPS = null; }
+      renderTren();
+    }
+
+    function estacionHTML(p) {
+      const nf = (p.front || []).length, nb = (p.back || []).length;
+      const files = [...(p.front || []).map(f => 'front  ' + f), ...(p.back || []).map(f => 'back   ' + f)];
+      const tip = `${p.label}${p.ruta ? '\n' + p.ruta : ''}\n\n${p.nota || ''}\n\n── ${nf} front · ${nb} back ──\n${files.join('\n')}`;
+      return `<div class="est" title="${tip.replace(/"/g, '&quot;')}"><span class="pt"></span>${p.label}<span class="n">${nf}/${nb}</span></div>`;
+    }
+
+    function viaHTML(pasos, clase) {
+      return `<div class="via ${clase}">` + pasos.map(estacionHTML).join('<span class="riel"></span>') + '</div>';
+    }
+
+    function renderTren() {
+      const box = $('tren'), vias = $('trenvias');
+      if (!STEPS || !sel || !STEPS.tronco?.length) { box.style.display = 'none'; return; }
+      box.style.display = 'block';
+
+      // aviso si alguna ruta del mapa dejó de existir: mejor decirlo que mostrar un conteo mentiroso
+      const ch = STEPS.chequeo || {};
+      $('trenwarn').textContent = ch.ok === false ? `· ⚠ ${(ch.rotas || []).length} ruta(s) del mapa ya no existen` : '';
+
+      // ramales que este comercio realmente tiene, por el rt de sus lenders
+      const rts = new Set(lendersDelComercio.map(l => Number(l.rt)));
+      const QUE_RAMAL = { 2: 'creditopx', 3: 'creditopx', 4: 'creditopx', 1: 'agregador', 0: 'redirect' };
+      const activos = [...new Set([...rts].map(rt => QUE_RAMAL[rt]).filter(Boolean))];
+
+      let html = viaHTML(STEPS.tronco, 'tronco');
+      for (const id of ['creditopx', 'agregador', 'redirect']) {
+        const r = STEPS.ramales?.[id];
+        if (!r || !activos.includes(id)) continue;
+        html += `<div class="ramal-lbl">↳ ${r.label}</div>` + viaHTML(r.pasos, 'ramal r-' + id);
+      }
+      vias.innerHTML = html;
     }
 
     // enriquece cada card con el hash desde el backend (resiliente: si no está en local, lo marca).
@@ -1058,7 +1136,8 @@
     });
 
     renderMerchants();   // cards de prueba (slug ya visible)
-    enrichMerchants();   // completa #id·hash desde el backend
+    enrichMerchants();   // completa hash desde el backend
+    loadSteps();         // mapa de tren (panel/steps.json + verificación de rutas)
     loadLenders();       // lenders de la sucursal del comercio seleccionado (toggle ON/OFF)
     updateInjModeForTarget();   // estado inicial (en local, Real deshabilitado → Sintético)
     refresh();           // Motai preseleccionado → botón habilitado

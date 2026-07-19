@@ -192,6 +192,22 @@ const server = createServer(async (req, res) => {
         return res.end(readFileSync(f, 'utf8'));
     }
 
+    // Mapa de pasos del wizard (panel/steps.json) + verificación de que sus rutas existen. El `ok:false`
+    // se muestra en la UI: un conteo de archivos que ya no resuelven es peor que no mostrar nada.
+    if (path === '/api/steps') {
+        try {
+            const mapa = JSON.parse(readFileSync(join(HERE, 'steps.json'), 'utf8'));
+            const chequeo = await new Promise<any>((ok) => {
+                execFile('node', ['bin/steps-check.ts', '--json'], { cwd: ROOT, timeout: 15000 }, (_e, out) => {
+                    try { ok(JSON.parse(out)); } catch { ok({ ok: null, rotas: [] }); }
+                });
+            });
+            return json(res, 200, { ...mapa, chequeo });
+        } catch (e) {
+            return json(res, 200, { tronco: [], ramales: {}, chequeo: { ok: false, rotas: [], error: String(e) } });
+        }
+    }
+
     if (path === '/api/merchants') {
         const q = (url.searchParams.get('q') || '').trim();
         const target = (url.searchParams.get('target') || 'local').trim();

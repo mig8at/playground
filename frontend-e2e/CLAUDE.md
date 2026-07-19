@@ -62,6 +62,18 @@ y el rápido nunca los va a ver — F-50 fue una cancelación disparada por el r
 (`request-canceled` cancela en el loader), con el backend haciendo todo bien. El rápido valida negocio
 y backend; el visual valida el camino real del usuario, que también tiene lógica de negocio.
 
+## El mapa de tren del panel (`panel/steps.json`)
+
+Tronco común hasta `/lenders` + un ramal por `response_type`; el panel dibuja **solo los ramales que ese
+comercio tiene** (mira el `rt` de sus lenders). El hover de cada estación lista los archivos del paso.
+
+- **Qué cuenta como archivo del paso** (respetalo si lo editás): la ruta del front + los servicios que su
+  loader/action invoca, y el controlador del endpoint + los servicios de dominio que llama. **No** utils,
+  ni tipos, ni cierre transitivo de imports. Si el número no significa "lo que este paso toca de verdad",
+  es decoración con cara de dato.
+- **Validá siempre después de tocarlo:** `node bin/steps-check.ts` (sale ≠0 si alguna ruta no existe). El
+  panel además muestra un aviso si el chequeo falla — un conteo que ya no resuelve es peor que nada.
+
 ## Reglas sueltas
 
 - **No corras `npm test` pelado**: colecta 98 tests en 35 archivos e incluye `dev/guided.spec.ts`, que es

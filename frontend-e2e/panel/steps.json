@@ -1,0 +1,296 @@
+{
+  "generado": "Mapa VERIFICADO archivo por archivo (2026-07-19) contra frontend-monorepo@feature/motai-v2 y legacy-backend@main. Método: (1) rutas del front leídas de apps/loan-request-wizard/app/routes.ts (bloque route(':flow', …), líneas 8-70); (2) endpoint de cada paso sacado del repositorio que invoca su loader/action (grep '/api/' en modules/loan-request-wizard/*/src/**/infrastructure); (3) controlador del back resuelto RECONSTRUYENDO el prefijo completo: RouteServiceProvider (prefix + namespace) + Route::prefix()->group() anidados del archivo de rutas — nunca por grep del último segmento; (4) servicios de dominio leídos del cuerpo del método del controlador; (5) cada ruta listada comprobada con test -f. Criterio de qué cuenta como archivo del paso: front = la ruta + el/los repositorios propios que su loader/action llama; back = el controlador que atiende el endpoint + los servicios de dominio que ESE método invoca. NO se incluyen utils, tipos, componentes de UI ni el cierre transitivo de imports. Placeholders: {flow} ∈ ecommerce|merchant|self-service (app/utils/route-helpers.ts:11-15), {hash} = allied_branch.hash, {ur} = user_request.id. Para re-verificar: `node dev/sweep.ts close <slug> <lenderId>` recorre el cierre rt2 por API con estos mismos endpoints; y `python3 context/tools/oracle.py` valida rutas contra el índice de repos.",
+  "tronco": [
+    {
+      "id": "monto",
+      "label": "Monto",
+      "ruta": "/{flow}/{hash}/solicitar",
+      "front": [
+        "apps/loan-request-wizard/app/routes/loan-application-form/phone-number.tsx",
+        "modules/loan-request-wizard/loan-application-form/src/components/phone-number.tsx",
+        "modules/loan-request-wizard/loan-application-form/src/components/amount-form.tsx",
+        "modules/loan-request-wizard/loan-application-form/src/lib/infrastructure/partner-info.repository.ts",
+        "modules/loan-request-wizard/dynamic-form/src/lib/infrastructure/product.repository.ts"
+      ],
+      "back": [
+        "Modules/Onboarding/App/Http/Controllers/RegisterCellPhoneController.php",
+        "Modules/Onboarding/App/Services/RegisterCellPhoneService.php",
+        "Modules/Partner/App/Http/Controllers/AlliedProductsController.php"
+      ],
+      "nota": "No es una ruta propia: es el primer sub-paso del stepper de /solicitar (components/phone-number.tsx:28,58 — FormStep 'amount'|'phoneNumber' por query ?step=, default 'amount'). El monto NO viaja al backend acá: queda en el form y se pasa como ?amount= al OTP. El loader solo trae el comercio (GET /api/onboarding/phone/register/{hash} → RegisterCellPhoneController@index) y los productos (GET /api/partners/products/{hash} → AlliedProductsController@getProductList)."
+    },
+    {
+      "id": "phone",
+      "label": "Celular + TyC",
+      "ruta": "/{flow}/{hash}/solicitar?step=phoneNumber",
+      "front": [
+        "apps/loan-request-wizard/app/routes/loan-application-form/phone-number.tsx",
+        "modules/loan-request-wizard/loan-application-form/src/components/phone-number-step-form.tsx",
+        "modules/loan-request-wizard/loan-application-form/src/lib/infrastructure/phone-number.repository.ts"
+      ],
+      "back": [
+        "Modules/Onboarding/App/Http/Controllers/RegisterCellPhoneController.php",
+        "Modules/Onboarding/App/Services/RegisterCellPhoneService.php",
+        "Modules/Onboarding/App/Http/Controllers/OtpController.php"
+      ],
+      "nota": "Segundo sub-paso del MISMO archivo de ruta: la action hace POST /api/onboarding/phone/register (RegisterCellPhoneController@store → RegisterCellPhoneService::processCellPhoneRegistration, que crea/recupera el user, guarda TyC y llama a OtpController@sendOtpCode) y redirige a {phone}/otp?amount=…"
+    },
+    {
+      "id": "otp",
+      "label": "OTP de celular",
+      "ruta": "/{flow}/{hash}/{phone}/otp",
+      "front": [
+        "apps/loan-request-wizard/app/routes/loan-application-form/otp-verification.tsx",
+        "modules/loan-request-wizard/loan-application-form/src/lib/infrastructure/phone-otp.repository.ts"
+      ],
+      "back": [
+        "Modules/Onboarding/App/Http/Controllers/OnboardingController.php",
+        "Modules/Onboarding/App/Services/OtpService.php",
+        "Modules/Onboarding/App/Services/UserRequestService.php",
+        "Modules/Onboarding/App/Services/OnboardingService.php"
+      ],
+      "nota": "POST /api/onboarding/loan-application/otp-validate/{hash} → OnboardingController@validateOtpCodeAndRedirect (delega en validateOtpCodeAndRedirectOrchestrator, mismo archivo). Acá NACE el user_request (UserRequestService::createUserRequest) y el backend decide el siguiente paso según qué formularios ya tenga el usuario (personal-info / employment-info / lenders)."
+    },
+    {
+      "id": "personal-info",
+      "label": "Datos personales",
+      "ruta": "/{flow}/{hash}/{ur}/personal-info",
+      "front": [
+        "apps/loan-request-wizard/app/routes/loan-application-form/loan-request-form.tsx",
+        "modules/loan-request-wizard/loan-application-form/src/lib/infrastructure/personal-info.repository.ts",
+        "apps/loan-request-wizard/app/modules/personal-info-config/infrastructure/personal-info-config.repository.ts"
+      ],
+      "back": [
+        "Modules/Onboarding/App/Http/Controllers/OnboardingController.php",
+        "Modules/Onboarding/App/Services/OnboardingService.php"
+      ],
+      "nota": "Loader = GET .../personal-info/{hash}/{ur}/config (qué campos pedir, OnboardingController@getPersonalInfoConfig); action = POST .../personal-info/{hash}/{ur} → validateAndStorePersonalInfo → OnboardingService::storePersonalInfo, que es donde corre el KYC."
+    },
+    {
+      "id": "employment-info",
+      "label": "Datos laborales",
+      "ruta": "/{flow}/{hash}/{ur}/employment-info",
+      "front": [
+        "apps/loan-request-wizard/app/routes/loan-application-form/employment-info.tsx",
+        "modules/loan-request-wizard/loan-application-form/src/lib/infrastructure/employment-info.repository.ts"
+      ],
+      "back": [
+        "Modules/Onboarding/App/Http/Controllers/OnboardingController.php",
+        "Modules/Onboarding/App/Services/OnboardingService.php",
+        "Modules/Risk/App/Http/Controllers/DatacreditoQueryByAlliedController.php"
+      ],
+      "nota": "POST .../laboral-info/{hash}/{ur} → storeLaboralInfo → storeLaboralInfoOrchestrator: guarda ingreso/situación laboral y DISPARA EL BURÓ (OnboardingService::alliedsLendersValidator → Experian, y DatacreditoQueryByAlliedController::userViability). Es el último paso antes de que exista un listado."
+    },
+    {
+      "id": "lenders",
+      "label": "Listado de entidades",
+      "ruta": "/{flow}/{hash}/{ur}/lenders",
+      "front": [
+        "apps/loan-request-wizard/app/routes/lenders-marketplace/available-lenders.tsx",
+        "modules/loan-request-wizard/lenders-marketplace/src/lib/infrastructure/repositories/loan-options.repository.ts",
+        "modules/loan-request-wizard/lenders-marketplace/src/components/available-lenders/hooks/useLenderSelection.ts"
+      ],
+      "back": [
+        "Modules/Onboarding/App/Http/Controllers/LenderListingController.php",
+        "Modules/Onboarding/App/Services/lenders/LenderListingService.php",
+        "Modules/Onboarding/App/Http/Controllers/ListLenderController.php",
+        "Modules/Onboarding/App/Services/UserRequestService.php"
+      ],
+      "nota": "Loader = GET .../lenders-v2/{ur} (LenderListingController@index → LenderListingService::getLenders). La pre-aprobación de los rt≠0 NO la resuelve legacy: la pide el CLIENTE uno a uno al microservicio de pre-aprobaciones (available-lenders.tsx:144 lee VITE_PREAPPROVALS_ENDPOINT, POST /v1/preapprovals/check). Action = POST .../update-user-request/{ur} → ListLenderController@updateUserRequest → UserRequestService::updateUserRequest: ahí está el switch por lenders.response_type (UserRequestService.php:441 sin credencial, :466 con credencial) que abre los tres ramales."
+    }
+  ],
+  "ramales": {
+    "creditopx": {
+      "label": "CreditopX · rt2 in-platform",
+      "cuando": "update-user-request devuelve standBy=true y una URL a /self-service/{hash}/{ur}/confirmation (UserRequestService.php:450-461: response_type 2/3/4 SIN credencial, más el case 4 con credencial en :601-611). El asesor queda en /merchant/{hash}/{ur}/continue con el QR; el cliente sigue en su celular desde /self-service. OJO: el front NO mira standBy — la rama la elige por showModal && url==null (available-lenders.tsx:564).",
+      "pasos": [
+        {
+          "id": "confirmation",
+          "label": "Confirmación",
+          "ruta": "/{flow}/{hash}/{ur}/confirmation",
+          "front": [
+            "apps/loan-request-wizard/app/routes/loan-confirmation.tsx",
+            "modules/loan-request-wizard/lenders-marketplace/src/lib/infrastructure/repositories/loan-request.repository.ts",
+            "modules/loan-request-wizard/abaco/src/infrastructure/repositories/abaco.repository.ts"
+          ],
+          "back": [
+            "Modules/Loans/App/Http/Controllers/Customer/ContinueUserFlowController.php",
+            "Modules/Loans/App/Services/CreditopXFlowService.php",
+            "Modules/Loans/App/Services/ResponseBuilderService.php",
+            "Modules/Onboarding/App/Http/Controllers/MotaiValidationController.php",
+            "Modules/Onboarding/App/Services/MotaiValidationService.php"
+          ],
+          "nota": "Loader = GET /api/loans/customer/requests/{ur} (ContinueUserFlowController@index); action = POST .../requests/confirm (@confirm), cuyo step_details.type rutea el siguiente paso (loan-confirmation.tsx:218-239: aws_validation→identity-validation, ado/crosscore→identity-validation-instructions, evidente→additional-identity-validation, no_validation_required→salta directo a first-payment-date). ÁBACO (Motai renting): ANTES del confirm la action llama POST /api/onboarding/motai/check-abaco-requirement y si da REQUIRED desvía a /{ur}/abaco (routes/abaco/*), no a la validación de identidad. Al COMPLETAR Ábaco el flujo SIGUE al cierre: platform-otp-validation.tsx:251 rutea no_validation_required → first-payment-date (verificado en vivo: uReq 464499 cerró en Estado 11). Distinto es identity-validation-status.tsx:188 buildCompletionPath, que manda a /request-sent cuando la identidad termina y Ábaco todavía está PENDIENTE — son dos salidas, no una."
+        },
+        {
+          "id": "identity-validation",
+          "label": "Validación de identidad",
+          "ruta": "/{flow}/{hash}/{ur}/identity-validation",
+          "front": [
+            "apps/loan-request-wizard/app/routes/identity-validation.tsx",
+            "apps/loan-request-wizard/app/routes/identity-validation-status.tsx",
+            "modules/loan-request-wizard/identity-validation/src/lib/infrastructure/identity-validation.repository.ts"
+          ],
+          "back": [
+            "Modules/Identity/App/Http/Controllers/Customer/ValidateIdentityController.php",
+            "Modules/Identity/App/Services/IdentityValidationService.php",
+            "Modules/Identity/App/Services/ManualValidationService.php"
+          ],
+          "nota": "Captura de documento + selfie: POST /api/identity/validation/document → ValidateIdentityController@validateId → IdentityValidationService (con fallback a ManualValidationService). Es SOLO el camino AWS/Rekognition; ado/crosscore entran por identity-validation-instructions y evidente por additional-identity-validation, todos convergiendo en identity-validation-status, que hace polling y al terminar manda a first-payment-date."
+        },
+        {
+          "id": "first-payment-date",
+          "label": "Fecha de primer pago",
+          "ruta": "/{flow}/{hash}/{ur}/first-payment-date",
+          "front": [
+            "apps/loan-request-wizard/app/routes/first-payment-date.tsx",
+            "modules/loan-request-wizard/loan-origination/src/lib/infrastructure/first-payment-date.repository.ts"
+          ],
+          "back": [
+            "Modules/Loans/App/Http/Controllers/Customer/PaymentScheduleController.php",
+            "Modules/Loans/App/Services/PaymentScheduleService.php"
+          ],
+          "nota": "Loader = GET .../promissory-note/{ur}/select-payment-date (@selectPaymentDate → PaymentScheduleService::handleSelectPaymentDate); action = POST .../confirm-payment-date (@confirmPaymentDate). Sigue a payment-schedule."
+        },
+        {
+          "id": "payment-schedule",
+          "label": "Cronograma de pagos",
+          "ruta": "/{flow}/{hash}/{ur}/payment-schedule",
+          "front": [
+            "apps/loan-request-wizard/app/routes/payment-schedule.tsx",
+            "modules/loan-request-wizard/loan-origination/src/lib/infrastructure/payment-schedule.repository.ts"
+          ],
+          "back": [
+            "Modules/Loans/App/Http/Controllers/Customer/PaymentScheduleController.php",
+            "Modules/Loans/App/Services/PaymentSchedule/PaymentScheduleServiceFactory.php"
+          ],
+          "nota": "Loader = GET .../promissory-note/{ur}/simulate-payment-schedule; action = POST .../confirm-payment-schedule. Los dos métodos arman un PaymentScheduleRequest y delegan en PaymentScheduleServiceFactory::createForRequest (la implementación concreta depende del lender/producto)."
+        },
+        {
+          "id": "additional-info",
+          "label": "Info adicional (compuerta)",
+          "ruta": "/{flow}/{hash}/{ur}/additional-info",
+          "front": [
+            "apps/loan-request-wizard/app/routes/additional-info.tsx",
+            "modules/loan-request-wizard/backend-driven-form/src/infrastructure/repositories/form-type.repository.ts"
+          ],
+          "back": [
+            "Modules/Loans/App/Http/Controllers/Customer/FormTypeController.php",
+            "Modules/Loans/App/Services/FormTypeService.php"
+          ],
+          "nota": "Paso SIN pantalla: el componente devuelve null y el loader solo redirige. GET /api/loans/customer/{ur}/form-type (FormTypeController@show → FormTypeService); si formTypeId es null salta a sign-documents, si no manda a /additional-info/{form_type_id} (formulario dirigido por backend)."
+        },
+        {
+          "id": "sign-documents",
+          "label": "Documentos",
+          "ruta": "/{flow}/{hash}/{ur}/sign-documents",
+          "front": [
+            "apps/loan-request-wizard/app/routes/sign-documents.tsx",
+            "modules/loan-request-wizard/loan-origination/src/lib/infrastructure/promissory-note.repository.ts"
+          ],
+          "back": [
+            "Modules/Loans/App/Http/Controllers/Customer/PromissoryNoteController.php",
+            "Modules/Loans/App/Services/PromissoryNoteService.php",
+            "Modules/Loans/App/Http/Controllers/Customer/ValidateOtpPromissoryNoteController.php",
+            "Modules/Loans/App/Services/OtpService.php"
+          ],
+          "nota": "El loader GENERA los documentos: GET .../promissory-note/{ur} → PromissoryNoteController@show (pagaré, y según el caso arrendamiento / device-lock SmartPay / garantía). Sin ese GET, el authorize posterior muere con 'PromissoryNote no encontrado' (verificado en dev/sweep.ts, paso 'promissory (show/gen)'). La action manda el OTP de firma: POST .../promissory-note/validate/send-otp → ValidateOtpPromissoryNoteController@sendOtp → OtpService::sendOtpPromissoryNote."
+        },
+        {
+          "id": "otp-validation",
+          "label": "OTP de firma",
+          "ruta": "/{flow}/{hash}/{ur}/otp-validation",
+          "front": [
+            "apps/loan-request-wizard/app/routes/otp-validation.tsx",
+            "modules/loan-request-wizard/loan-origination/src/lib/infrastructure/promissory-note.repository.ts"
+          ],
+          "back": [
+            "Modules/Loans/App/Http/Controllers/Customer/ValidateOtpPromissoryNoteController.php",
+            "Modules/Loans/App/Services/LoanAuthorizationService.php"
+          ],
+          "nota": "Dos llamadas en la MISMA action: POST .../validate/verify-otp (@verifyOtp → LoanAuthorizationService::validateOtp + transitionToIntermediate) y después POST .../validate/authorize (@disburse → LoanAuthorizationService::authorize), que es el desembolso. EXCEPCIÓN IMEI/SmartPay: si verify devuelve metadata.lender_path === 'IMEI' NO se llama authorize — la action sale a /security-validation y el cierre pasa por device/register + device/{ur}/disburse (Modules/Loans/.../Customer/DeviceController.php). Llamar authorize en ese caso consume el OTP y rompe el disburse (sweep.ts:208-219)."
+        },
+        {
+          "id": "loan-approved",
+          "label": "Crédito aprobado",
+          "ruta": "/{flow}/{hash}/{ur}/loan-approved",
+          "front": [
+            "apps/loan-request-wizard/app/routes/loan-approved.tsx",
+            "modules/loan-request-wizard/loan-origination/src/lib/infrastructure/promissory-note.repository.ts"
+          ],
+          "back": [
+            "Modules/Loans/App/Http/Controllers/Customer/ValidateOtpPromissoryNoteController.php"
+          ],
+          "nota": "Pantalla final de lectura: GET .../promissory-note/validate/{ur} → ValidateOtpPromissoryNoteController@index (solo lee el user_request vía repositorio, sin servicio de dominio). Es el paso donde la solicitud ya quedó en estado 11."
+        }
+      ]
+    },
+    "agregador": {
+      "label": "Agregador · rt1 integración",
+      "cuando": "El lender tiene response_type=1 Y credencial en lender_allied_credentials: UserRequestService.php:466 entra al case 1, instancia la clase de $lender->action (app/Actions/Lenders/*.php) y llama register($request) — la decisión de crédito la toma la API externa. El wizard NO navega a una ruta propia: se queda en /lenders con modal (showModal / openProcessModal; el ajuste fino por lender está en el switch ($lender->name) de UserRequestService.php:577) o redirige a la URL que devolvió la integración.",
+      "pasos": [
+        {
+          "id": "integracion",
+          "label": "Se consulta a la entidad",
+          "ruta": "/{flow}/{hash}/{ur}/lenders (sin navegación)",
+          "front": [
+            "apps/loan-request-wizard/app/routes/lenders-marketplace/available-lenders.tsx",
+            "modules/loan-request-wizard/lenders-marketplace/src/lib/infrastructure/repositories/loan-options.repository.ts",
+            "modules/loan-request-wizard/lenders-marketplace/src/components/available-lenders/hooks/useLenderSelection.ts"
+          ],
+          "back": [
+            "Modules/Onboarding/App/Http/Controllers/ListLenderController.php",
+            "Modules/Onboarding/App/Services/UserRequestService.php"
+          ],
+          "nota": "Mismo POST update-user-request del tronco, pero acá el backend llama en línea a la integración del lender: la clase concreta sale de la columna lenders.action y vive en app/Actions/Lenders/ (Bancolombia/BancolombiaBnpl/Sistecredito/Welli/Meddipay/Addi/…), por eso no se lista un archivo fijo. La action del front no redirige a otro paso del wizard: devuelve {showModal|tryPopup|openProcessModal} y se queda en /lenders (available-lenders.tsx:577-617)."
+        },
+        {
+          "id": "espera",
+          "label": "Espera del veredicto",
+          "ruta": "/{flow}/{hash}/{ur}/lenders/{lender_id}/transaction-status",
+          "front": [
+            "apps/loan-request-wizard/app/routes/lenders-marketplace/lenders/transaction-status.tsx",
+            "modules/loan-request-wizard/lenders-marketplace/src/components/hooks/useLenderTransactionStatus.tsx",
+            "modules/loan-request-wizard/lenders-marketplace/src/lib/infrastructure/repositories/lender-transaction-status.repository.ts"
+          ],
+          "back": [
+            "Modules/Onboarding/App/Http/Controllers/ListLenderController.php",
+            "Modules/Onboarding/App/Services/lenders/LenderRetrievalService.php"
+          ],
+          "nota": "Ruta de recurso (solo loader, no dibuja pantalla): el modal la consulta en bucle desde useLenderTransactionStatus y ella pega a GET /api/onboarding/loan-application/lenders/{ur}/{lender_id}/pre-approval-status → ListLenderController@getPreApprovalStatus → LenderRetrievalService::getPreApprovalStatus. Algunos lenders además exigen confirmación por socket (flag requiresSocketConfirmation, UserRequestService.php:722)."
+        },
+        {
+          "id": "resultado",
+          "label": "Resultado (asíncrono)",
+          "ruta": "(sin ruta de front — llega por webhook)",
+          "front": [],
+          "back": [
+            "Modules/Onboarding/App/Http/Controllers/EcommerceSimulatorController.php"
+          ],
+          "nota": "NO VERIFICADO como camino productivo en legacy-backend: los únicos webhooks ROUTEADOS del repo son Modules/Onboarding/routes/webhooks.php (crosscore, lender-result/s del MS de pre-aprobaciones, VTEX) y scraping/webhook de Ábaco — no hay ruta para el webhook del agregador, aunque sí existan las Request classes huérfanas app/Http/Requests/Api/{Sistecredito,Bancolombia,Approbe,BancoDeBogota,Payvalida}/*WebhookRequest.php. El archivo listado es el DOBLE DE PRUEBA (POST simulator/aggregator-result → EcommerceSimulatorController@aggregatorResult, bloqueado en producción) que usa el harness. El webhook real sigue viviendo en el repo `application`."
+        }
+      ]
+    },
+    "redirect": {
+      "label": "Estándar · rt0",
+      "cuando": "lenders.response_type = 0: sin pre-aprobación y sin integración. El backend solo devuelve la url_utm configurada (UserRequestService.php:414-416 y :443/:468 — lenders_by_allied_branches.url_utm, con fallback a lenders_by_allieds.url_utm).",
+      "pasos": [
+        {
+          "id": "salida",
+          "label": "Salida a la entidad",
+          "ruta": "/{flow}/{hash}/{ur}/lenders → URL externa",
+          "front": [
+            "apps/loan-request-wizard/app/routes/lenders-marketplace/available-lenders.tsx",
+            "modules/loan-request-wizard/lenders-marketplace/src/lib/infrastructure/repositories/loan-options.repository.ts"
+          ],
+          "back": [
+            "Modules/Onboarding/App/Http/Controllers/ListLenderController.php",
+            "Modules/Onboarding/App/Services/UserRequestService.php",
+            "Modules/Onboarding/App/Services/lenders/LenderTabBehaviorResolver.php"
+          ],
+          "nota": "El wizard TERMINA acá: la action recibe url y hace redirect externo (available-lenders.tsx:591) o devuelve tryPopup si openNewTab, que decide LenderTabBehaviorResolver::opensNewTab (UserRequestService.php:664-666). Transversal, no exclusivo de rt0: si lenders_by_allieds.user_self_management está activo se manda el link por WhatsApp y se muestra modal en vez de redirigir (UserRequestService.php:649-653). No hay más pantallas propias — la solicitud continúa en el sitio del lender."
+        }
+      ]
+    }
+  }
+}
