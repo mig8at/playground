@@ -109,6 +109,8 @@ WIZ_API="${WIZ_API%/api}"; WIZ_API="${WIZ_API%/}"; [ -n "$WIZ_API" ] || WIZ_API=
 # el .env.local trae un valor FAKE que Vite hot-reloadea → 404 del schema.
 FORMS="$(grep -E '^VITE_ONBOARDING_FORM_SERVICE=' "$WIZARD/.env" 2>/dev/null | head -1 | sed -E 's/^[^=]*=//; s/[[:space:]]*#.*$//; s/^["'\'']//; s/["'\'']$//' | tr -d '[:space:]')"
 [ -n "$FORMS" ] || FORMS="http://onboarding-forms-service.inertia-develop:8092/v1"
+# En LOCAL el host de dev necesita VPN → usamos el mock (bin/mock-forms). Ver findings F-41.
+[ "$TARGET" = "local" ] && FORMS="http://localhost:${MOCK_FORMS_PORT:-8101}/v1"
 # VITE_PREAPPROVALS_ENDPOINT: MS de pre-aprobaciones (rt≠STANDARD; el loader de /lenders hace POST server-to-server).
 if [ "${E2E_REAL_PREAPPROVALS:-0}" = 1 ]; then
   PREAPPROVALS="$(grep -E '^E2E_PREAPPROVALS_ENDPOINT=' .env.$TARGET 2>/dev/null | head -1 | sed -E 's/^[^=]*=//; s/[[:space:]]*#.*$//; s/^["'\'']//; s/["'\'']$//' | tr -d '[:space:]')"
@@ -128,7 +130,8 @@ if [ "$TARGET" = "local" ]; then
   MOCK_PV_RETURN_URL="${E2E_RETURN_URL:-}" "$(dirname "$0")/mock-payvalida" start >/dev/null 2>&1 || true
   "$(dirname "$0")/mock-mdm" start >/dev/null 2>&1 || true
   "$(dirname "$0")/mock-lenders" start >/dev/null 2>&1 || true
-  log "mocks locales: payvalida :${MOCK_PV_PORT:-8097} · mdm/IMEI :${MOCK_MDM_PORT:-8098} · entidades :${MOCK_LENDERS_PORT:-8099}"
+  "$(dirname "$0")/mock-forms" start >/dev/null 2>&1 || true
+  log "mocks locales: payvalida :${MOCK_PV_PORT:-8097} · mdm/IMEI :${MOCK_MDM_PORT:-8098} · entidades :${MOCK_LENDERS_PORT:-8099} · forms :${MOCK_FORMS_PORT:-8101}"
 fi
 
 # ── health-check del backend ANTES del cold-boot ──────────────────────────────────────────────
