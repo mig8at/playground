@@ -386,27 +386,6 @@
       flex-wrap: wrap
     }
 
-    .quick {
-      background: transparent;
-      color: var(--acc);
-      border: 1.5px solid var(--acc);
-      border-radius: 11px;
-      padding: 12px 18px;
-      font-size: 14px;
-      font-weight: 700;
-      cursor: pointer;
-      white-space: nowrap
-    }
-    .quick:disabled { opacity: .4; cursor: not-allowed }
-    .qsel {
-      background: var(--pan);
-      color: var(--txt);
-      border: 1px solid var(--bor);
-      border-radius: 9px;
-      padding: 10px 8px;
-      font-size: 13px;
-      max-width: 190px
-    }
     .go {
       background: var(--acc);
       color: #03130a;
@@ -779,16 +758,6 @@
     <pre id="log"></pre>
     <div class="dockin">
       <button class="go" id="go" disabled>Preparar + Lanzar ▶</button>
-      <!-- MODO RÁPIDO: el mismo flujo por API, sin navegador (dev/sweep.ts). Segundos en vez de minutos.
-           Mismas aserciones contra la BD que el visual → si el rápido pasa y el visual falla, el problema
-           está en el frontend. Ojo: hay bugs que SOLO se ven en el visual (F-50). -->
-      <button class="quick" id="quick" disabled title="Corre el flujo por API, sin navegador. Mismas aserciones contra la BD.">⚡ Rápido (sin UI)</button>
-      <select id="qmode" class="qsel" title="matrix: cómo se comporta cada entidad · close: cierre completo rt=2 · abaco: cadena de renting">
-        <option value="matrix">matriz de entidades</option>
-        <option value="close">cierre completo</option>
-        <option value="abaco">ábaco (renting)</option>
-      </select>
-      <select id="qlender" class="qsel" style="display:none" title="entidad sobre la que corre el modo elegido"></select>
       <button class="stop" id="stopBtn">Detener</button>
       <span class="dot" id="dot"></span>
       <span class="sumry" id="sumry">Elegí un comercio primero.</span>
@@ -824,9 +793,7 @@
     let gender = 'M';
     let step = 'monto';          // dónde saltar: monto | phone | personal-info | lenders
     let padelay = 0;             // ms de espera del mock de pre-aprobados (para ver el loader)
-    let paStatus = {};           // status por lender que devolverá el mock: { lenderId: 'approved'|'rejected'|'pending' }
-    let lendersCache = [];       // entidades de la sucursal actual; las usa el selector del modo RÁPIDO
-    let poll = null;
+    let paStatus = {};           // status por lender que devolverá el mock: { lenderId: 'approved'|'rejected'|'pending' }    let poll = null;
     let logOpen = false;         // drawer de la consola en el dock
 
     const fmt = (n) => (n || 0).toLocaleString('es-CO');
@@ -864,10 +831,7 @@
         const r = await (await fetch('/api/lenders?slug=' + encodeURIComponent(sel.slug) + '&target=' + target)).json();
         $('lendersbranch').textContent = r.hash ? '· ' + r.hash : (r.msg || '');
         paStatus = (await (await fetch('/api/pa-statuses')).json().catch(() => ({}))) || {};
-        const ls = r.lenders || [];
-        lendersCache = ls;           // lo usa el modo RÁPIDO (close/abaco necesitan una entidad)
-        fillQuickLenders();
-        if (!ls.length) { box.innerHTML = '<p style="color:var(--mut);font-size:12px;margin:0">Sin lenders (¿branch en .flows.json?).</p>'; return; }
+        const ls = r.lenders || [];        if (!ls.length) { box.innerHTML = '<p style="color:var(--mut);font-size:12px;margin:0">Sin lenders (¿branch en .flows.json?).</p>'; return; }
         box.innerHTML = '';
         for (const l of ls) {
           const on = Number(l.lender_status) === 1;   // status GLOBAL del lender = lo que filtra el listado (lab.status no aplica)
@@ -958,9 +922,7 @@
     }
 
     function updateGo() {
-      $('go').disabled = !sel;
-      $('quick').disabled = !sel;
-      if (!sel) { $('sumry').innerHTML = 'Elegí un comercio primero.'; return; }
+      $('go').disabled = !sel;      if (!sel) { $('sumry').innerHTML = 'Elegí un comercio primero.'; return; }
       if (!inject) { $('sumry').innerHTML = `<b>${sel.name}</b> · <b>REAL</b> — llenás todo en el wizard (buró real)`; return; }
       const buro = doctype === 'PEP'
         ? ' · <b>sin buró</b>'
@@ -994,29 +956,6 @@
       startPoll();
     }
 
-    // ── MODO RÁPIDO ─────────────────────────────────────────────────────────────────────────────
-    // El mismo flujo por API, sin navegador (dev/sweep.ts): segundos en vez de minutos. Usa las MISMAS
-    // aserciones contra la BD que el visual, así que si el rápido pasa y el visual falla, el problema
-    // está en el frontend. Ojo: hay bugs que solo se ven en el visual (F-50 fue uno).
-    function fillQuickLenders() {
-      const s = $('qlender');
-      s.innerHTML = lendersCache.map(l => `<option value="${l.id}">#${l.id} · ${l.name}</option>`).join('');
-    }
-
-    async function quick() {
-      if (!sel) return;
-      const mode = $('qmode').value;
-      const lenderId = mode === 'matrix' ? 0 : +$('qlender').value;
-      if (mode !== 'matrix' && !lenderId) { alert('elegí una entidad para el modo ' + mode); return; }
-      $('quick').disabled = true; $('quick').textContent = 'Corriendo…';
-      const body = { slug: sel.slug, target, mode, lenderId, amount: moneyNum('amount') };
-      const j = await (await fetch('/api/quick', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) })).json();
-      if (!j.ok) { alert(j.msg || 'no se pudo lanzar'); $('quick').disabled = false; $('quick').textContent = '⚡ Rápido (sin UI)'; return; }
-      showLog(true); $('stopBtn').classList.add('on');
-      $('copyLog').style.display = 'inline-block'; $('logToggle').style.display = 'inline-block';
-      startPoll();
-    }
-
     // consola como DRAWER del dock (no empuja el layout). Recuerda si la plegaste durante la corrida.
     function showLog(on) { logOpen = on; $('log').style.display = on ? 'block' : 'none'; $('logToggle').textContent = on ? '▼ consola' : '▲ consola'; }
 
@@ -1028,14 +967,10 @@
         $('log').textContent = j.log || '';
         if (atBottom) $('log').scrollTop = $('log').scrollHeight;   // auto-scroll solo si ya estabas al final
         if (j.running) {
-          $('go').textContent = 'corriendo…'; $('go').disabled = true;
-          $('quick').disabled = true;
-          $('dot').className = 'dot run';
+          $('go').textContent = 'corriendo…'; $('go').disabled = true;          $('dot').className = 'dot run';
           if (!$('logToggle').style.display) { $('logToggle').style.display = 'inline-block'; $('copyLog').style.display = 'inline-block'; }
         } else {
-          $('go').textContent = 'Preparar + Lanzar ▶'; $('go').disabled = !sel;
-          $('quick').textContent = '⚡ Rápido (sin UI)'; $('quick').disabled = !sel;
-          $('stopBtn').classList.remove('on'); $('dot').className = 'dot';
+          $('go').textContent = 'Preparar + Lanzar ▶'; $('go').disabled = !sel;          $('stopBtn').classList.remove('on'); $('dot').className = 'dot';
           clearInterval(poll); poll = null;
         }
       };
@@ -1094,10 +1029,7 @@
 
     ['name', 'document', 'age', 'dob', 'expedition', 'email', 'occupation', 'score', 'negatives', 'consulted']
       .forEach(id => $(id).addEventListener('input', refresh));
-    $('go').onclick = launch;
-    $('quick').onclick = quick;
-    $('qmode').onchange = () => { $('qlender').style.display = $('qmode').value === 'matrix' ? 'none' : ''; };
-    $('stopBtn').onclick = stop;
+    $('go').onclick = launch;    $('stopBtn').onclick = stop;
     $('logToggle').onclick = () => showLog(!logOpen);
     // copiar consola: trae el log COMPLETO de /api/log (incluye los ⚠ del navegador que el spec vuelca); fallback a lo visible.
     $('copyLog').onclick = async () => {

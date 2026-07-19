@@ -39,12 +39,18 @@ que distingue "ventana cerrada" y **tira** (`dev/guided.spec.ts:538-545`); el re
 - **`mock-pdf-mapper` no lo levanta nadie.** Si tu flujo toca la vinculación de Credifamilia, corré
   `bin/mock-pdf-mapper start` vos.
 
-## Dos caminos, una sola definición de "pasó"
+## Dos caminos, y cada uno tiene su dueño
 
-- **Rápido** (`dev/sweep.ts`, o ⚡ en el panel): el flujo por API, sin navegador. Segundos. Modos
-  `matrix` · `close` · `abaco`. **Exit code = veredicto**: `0` cerró · `1` desenlace malo o el front
-  mintió · `2` quedó a mitad.
-- **Visual** (`dev/guided.spec.ts`): el wizard real, con bypasses. Minutos.
+- **Rápido — es TU camino (el del agente), por CLI.** `dev/sweep.ts`: el flujo por API, sin navegador.
+  Segundos. Modos `matrix` · `close` · `abaco`. **Exit code = veredicto**: `0` cerró · `1` desenlace malo
+  o el front mintió · `2` quedó a mitad. Usalo para analizar contra BD y backend mockeado.
+- **Visual — es el camino de MIGUEL, por el panel** (`npm run dev`). `dev/guided.spec.ts`: el wizard
+  real con bypasses. Sirve para lo que un mock no puede dar: interactividad, render, comportamiento del
+  front.
+
+**No metas el modo rápido en el panel.** Ya se intentó y se revirtió: el panel existe para probar el
+FRONTEND a mano; el rápido es una herramienta de análisis por consola. Mezclarlos confunde para qué
+sirve cada uno. Si necesitás correr el rápido, es `node dev/sweep.ts …`, no un botón.
 
 Los dos usan **la misma** capa de aserción (`pkg/trace.ts`: traza contrastada + `veredicto()` +
 `ESTADO_ESPERADO`). No dupliques esa lógica en ninguno de los dos — tener dos definiciones de "pasó" es
