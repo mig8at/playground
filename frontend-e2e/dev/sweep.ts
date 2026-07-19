@@ -169,7 +169,20 @@ async function closeRt2(slug: string, lenderId: number, amount: number): Promise
 
     await step('send-otp (firma)', 'POST', '/api/loans/requests/promissory-note/validate/send-otp', { user_request_id: Number(ur) });
     await step('verify-otp', 'POST', '/api/loans/requests/promissory-note/validate/verify-otp', { user_request_id: Number(ur), otp: PHONE.slice(-6) });
-    await step('authorize', 'POST', '/api/loans/requests/promissory-note/validate/authorize', { user_request_id: Number(ur) });
+
+    // ── Path IMEI (SmartPay): el desembolso NO pasa por `authorize`. ──
+    // El asesor escanea el IMEI (device/register) y el cliente dispara device/{ur}/disburse, que autoriza
+    // y desembolsa en un solo paso. Llamar a `authorize` acá ROMPE el flujo: falla, hace rollback y deja
+    // el OTP consumido, con lo que el disburse posterior arranca con otp_id=null y muere en un null.
+    const isImei = await one<{ n: number }>(
+        "SELECT COUNT(*) n FROM lenders l JOIN paths p ON p.id = l.path_id WHERE l.id = ? AND p.name = 'IMEI'", [lenderId]);
+    if (isImei?.n) {
+        const imei = process.env.SWEEP_IMEI || '356938035643809';   // 15 dígitos (validación size:15)
+        await step('device/register (IMEI)', 'POST', '/api/loans/requests/device/register', { imei, user_request_id: Number(ur) });
+        await step('device/disburse', 'POST', `/api/loans/requests/device/${ur}/disburse`, {});
+    } else {
+        await step('authorize', 'POST', '/api/loans/requests/promissory-note/validate/authorize', { user_request_id: Number(ur) });
+    }
 
     const fin = await one<{ st: number; rn: string | null }>('SELECT user_request_status_id st, request_number rn FROM user_requests WHERE id=?', [ur]);
     const stName = fin ? (await one<{ name: string }>('SELECT name FROM user_request_statuses WHERE id=?', [fin.st]))?.name : '?';
