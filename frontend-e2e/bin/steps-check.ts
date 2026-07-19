@@ -29,6 +29,8 @@ type Mapa = {
     ramales: Record<string, Tramo>;
     /** desvíos que SALEN del tronco y REINGRESAN (ej. Ábaco: confirmation → first-payment-date) */
     desvios?: Record<string, Tramo & { desde: string; hasta: string }>;
+    /** lo inverso del desvío: arcos que SALTEAN pasos condicionales (ej. otp → lenders) */
+    bypass?: Array<{ label: string; cuando?: string; desde: string; hasta: string }>;
 };
 
 const mapa: Mapa = JSON.parse(readFileSync(join(ROOT, 'panel', 'steps.json'), 'utf8'));
@@ -55,10 +57,12 @@ for (const [id, d] of Object.entries(mapa.desvios ?? {})) revisar(`desvío:${id}
 // Un desvío que sale o entra en un paso inexistente dibujaría una curva a la nada: se valida igual
 // que las rutas de archivo, porque es el mismo tipo de mentira.
 const idsTronco = new Set([...mapa.tronco, ...Object.values(mapa.ramales).flatMap((r) => r.pasos)].map((p) => p.id));
-for (const [id, d] of Object.entries(mapa.desvios ?? {})) {
-    for (const [campo, val] of [['desde', d.desde], ['hasta', d.hasta]] as const) {
-        if (!idsTronco.has(val)) rotas.push({ tramo: `desvío:${id}`, paso: campo, repo: 'ancla', ruta: `${val} (no existe como paso)` });
-    }
+const anclas: Array<[string, string, string]> = [
+    ...Object.entries(mapa.desvios ?? {}).flatMap(([id, d]) => [[`desvío:${id}`, 'desde', d.desde], [`desvío:${id}`, 'hasta', d.hasta]] as Array<[string, string, string]>),
+    ...(mapa.bypass ?? []).flatMap((b, i) => [[`bypass:${i}`, 'desde', b.desde], [`bypass:${i}`, 'hasta', b.hasta]] as Array<[string, string, string]>),
+];
+for (const [tramo, campo, val] of anclas) {
+    if (!idsTronco.has(val)) rotas.push({ tramo, paso: campo, repo: 'ancla', ruta: `${val} (no existe como paso)` });
 }
 
 const pasos = mapa.tronco.length

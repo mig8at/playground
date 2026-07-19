@@ -985,7 +985,11 @@
       // el label del nodo es CORTO a propósito (legibilidad del grafo); el nombre descriptivo y el
       // detalle técnico viven acá, en el tooltip.
       g.appendChild(el('title', {}, `${p.detalle || p.label}${p.ruta ? '\n' + p.ruta : ''}\n\n${p.nota || ''}\n\n── ${nf} archivo(s) front · ${nb} back ──\n${files.join('\n')}`));
-      g.appendChild(el('circle', { r: 9, fill: color }));
+      // hueco = paso CONDICIONAL (se puede saltear) · sólido = siempre ocurre. La diferencia importa:
+      // dibujar todo sólido mostraba el peor caso como si fuera el único.
+      g.appendChild(p.condicional
+        ? el('circle', { r: 8, fill: 'var(--panel2)', stroke: color, 'stroke-width': 4 })
+        : el('circle', { r: 9, fill: color }));
       g.appendChild(el('text', { class: 'nlbl', x: 0, y: 26, 'text-anchor': 'middle' }, p.label));
       g.appendChild(el('text', { class: 'nnum', x: 0, y: 39, 'text-anchor': 'middle' }, `${nf} · ${nb}`));
       return g;
@@ -1021,6 +1025,24 @@
       tronco.forEach((p, i) => nodos.appendChild(nodoSVG(p, X(i), Y0, i >= STEPS.tronco.length ? COLOR.creditopx : COLOR.tronco)));
 
       let minY = Y0, maxY = Y0;
+
+      // BYPASS: lo inverso de un desvío — en vez de agregar pasos, los saltea. Va punteado y por
+      // ABAJO para no competir con el tronco, y arranca/termina en los nodos que ancla.
+      for (const b of STEPS.bypass || []) {
+        const a = idx[b.desde], z = idx[b.hasta];
+        if (a == null || z == null) continue;
+        const y = Y0 + 46;
+        const arco = el('path', {
+          d: `M ${X(a)} ${Y0} C ${X(a) + 40} ${y}, ${X(z) - 40} ${y}, ${X(z)} ${Y0}`,
+          stroke: COLOR.tronco, 'stroke-width': 3, 'stroke-dasharray': '6 6', 'stroke-linecap': 'round', fill: 'none', opacity: .7
+        });
+        arco.appendChild(el('title', {}, `${b.label}\n\n${b.cuando || ''}`));
+        rieles.appendChild(arco);
+        const t = el('text', { class: 'nquien', x: (X(a) + X(z)) / 2, y: y + 16, 'text-anchor': 'middle' }, b.label);
+        t.appendChild(el('title', {}, b.cuando || ''));
+        nodos.appendChild(t);
+        maxY = Math.max(maxY, y + 24);
+      }
 
       // DESVÍOS: salen del tronco y REINGRESAN. Van ARRIBA (como en un grafo de git).
       for (const [id, d] of Object.entries(STEPS.desvios || {})) {

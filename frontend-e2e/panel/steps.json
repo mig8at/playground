@@ -67,8 +67,9 @@
         "Modules/Onboarding/App/Http/Controllers/OnboardingController.php",
         "Modules/Onboarding/App/Services/OnboardingService.php"
       ],
-      "nota": "Loader = GET .../personal-info/{hash}/{ur}/config (qué campos pedir, OnboardingController@getPersonalInfoConfig); action = POST .../personal-info/{hash}/{ur} → validateAndStorePersonalInfo → OnboardingService::storePersonalInfo, que es donde corre el KYC.",
-      "detalle": "Datos personales (KYC) + consulta a buró"
+      "nota": "Se muestra solo si el veredicto del OTP es ONB002 = PERSONAL_INFO_REQUIRED (otp-verification.tsx:178). Si el usuario ya está registrado y completo, el OTP manda DIRECTO a /lenders (:174) y este paso no existe. Loader = GET .../personal-info/{hash}/{ur}/config (qué campos pedir, OnboardingController@getPersonalInfoConfig); action = POST .../personal-info/{hash}/{ur} → validateAndStorePersonalInfo → OnboardingService::storePersonalInfo, que es donde corre el KYC.",
+      "detalle": "Datos personales (KYC) — SOLO si el backend los pide",
+      "condicional": true
     },
     {
       "id": "employment-info",
@@ -83,8 +84,9 @@
         "Modules/Onboarding/App/Services/OnboardingService.php",
         "Modules/Risk/App/Http/Controllers/DatacreditoQueryByAlliedController.php"
       ],
-      "nota": "POST .../laboral-info/{hash}/{ur} → storeLaboralInfo → storeLaboralInfoOrchestrator: guarda ingreso/situación laboral y DISPARA EL BURÓ (OnboardingService::alliedsLendersValidator → Experian, y DatacreditoQueryByAlliedController::userViability). Es el último paso antes de que exista un listado.",
-      "detalle": "Datos laborales e ingresos"
+      "nota": "Se muestra solo con ONB004 = LABORAL_INFO_REQUIRED, y se puede llegar por DOS vías: directo desde el OTP (otp-verification.tsx:209) saltándose Identidad, o desde Identidad si al guardarla el backend sigue pidiendo lo laboral (loan-request-form.tsx:206). Si el buró ya trae los datos, no aparece. POST .../laboral-info/{hash}/{ur} → storeLaboralInfo → storeLaboralInfoOrchestrator: guarda ingreso/situación laboral y DISPARA EL BURÓ (OnboardingService::alliedsLendersValidator → Experian, y DatacreditoQueryByAlliedController::userViability). Es el último paso antes de que exista un listado.",
+      "detalle": "Datos laborales e ingresos — SOLO si el backend los pide",
+      "condicional": true
     },
     {
       "id": "lenders",
@@ -348,5 +350,13 @@
         }
       ]
     }
-  }
+  },
+  "bypass": [
+    {
+      "label": "usuario ya registrado",
+      "cuando": "El OTP responde autenticado (sin error_code): el usuario existe y tiene sus datos, así que el wizard va DIRECTO de OTP a la oferta (otp-verification.tsx:174). Identidad e Ingresos son condicionales: aparecen solo si el backend los pide (ONB002 / ONB004).",
+      "desde": "otp",
+      "hasta": "lenders"
+    }
+  ]
 }
