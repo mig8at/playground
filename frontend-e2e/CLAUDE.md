@@ -110,9 +110,10 @@ La fuente autoritativa del contrato es el plugin real: `playground/creditop-wooc
   interactivo (`testIgnore` solo saca `_scratch/` y los reportes — `playwright.config.ts:28`). Pasá rutas.
 - **En toda llamada por API mandá `x-cognito-identity-id`**: sin ese header `update-user-request` pone
   `corporate_user_id = NULL` y te borra el asesor de la solicitud en silencio (F-46).
-- **No inviertas en el eje ecommerce**: no hay ruta `checkout` en `apps/loan-request-wizard/app/routes.ts`
-  (verificado; lo único con ese nombre es `bancolombia/cancel-checkout:164`) → `bin/ecommerce` y
-  `channel/ecommerce-*.spec.ts` dan 404 (F-40).
+- **El eje ecommerce está a medias, y hay que saber hasta dónde llega** (corrige a F-40, ver F-54): el
+  contrato base64 **sí funciona** y crea la solicitud, pero la landing `checkout` no existe en esta rama,
+  así que se aterriza en el resolvedor de Bancolombia. Ver la sección "Canal de entrada" arriba. Los
+  `channel/ecommerce-*.spec.ts` viejos sí dan 404.
 - El panel lanza `bin/asesor <slug>` **sin `auto`** (`panel/server.ts:153`) → siempre modo manual. El
   guiado es solo por terminal, y ahí el **comercio va primero**: `bin/asesor <comercio> auto`.
 - Si matás `bin/asesor` con `kill -9`, verificá que el wizard recuperó su `.env.local`: queda en
