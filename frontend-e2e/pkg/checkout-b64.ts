@@ -9,9 +9,16 @@
 // QUIÉN PRODUCE ESTA URL DE VERDAD: el plugin de WooCommerce, `playground/creditop-woocommerce`
 //   (`class-creditop-gateway.php:470-512`). Es la fuente autoritativa del contrato — esto lo imita.
 //   Dos diferencias reconciliadas contra él:
-//   · SERIALIZACIÓN: el plugin manda `o` y `u` PHP-serializados y `p` como JSON; acá va todo JSON.
-//     Las dos funcionan: `deserializeData` (:767-787) intenta `unserialize` y cae a `json_decode`,
-//     y castea array→objeto en ambos casos.
+//   · SERIALIZACIÓN: cada parámetro va distinto en el original. El mapa exacto (del plugin y de
+//     `github/generate_checkout_url.php`, que coinciden):
+//         o      base64(  serialize(orden)          )   ← PHP serialize
+//         u      base64(  serialize(return_url)     )   ← PHP serialize
+//         p      base64(  json_encode(productos)    )   ← JSON
+//         config base64(  serialize(json_encode(…)) )   ← ¡las dos!
+//         t, ps  base64(  string crudo              )   ← sin serializar
+//     Acá va todo JSON y el backend lo acepta igual: `deserializeData` (:767-787) intenta
+//     `unserialize`, cae a `json_decode`, y castea array→objeto en ambos casos. Si algún día valida
+//     más estrictamente, ESTE es el mapa a respetar.
 //   · DESTINO: el plugin apunta a `{front}/ecommerce/{hash}/checkout` (la LANDING del wizard); acá
 //     pegamos al endpoint del BACKEND. No es capricho: esa landing no existe en la rama actual — vive
 //     solo en `feat/ecommerce-checkout-integration` (F-54). O sea el plugin apunta hoy a una ruta que
@@ -59,18 +66,39 @@ export function urlCheckout(branchHash: string, p: Pedido): string {
     // OJO: E2E_API_BASE_URL ya trae `/api` en local (`http://localhost/api`) pero no siempre en otros
     // targets. Normalizamos a la RAÍZ y agregamos `/api` nosotros, para no armar `/api/api/…` (404 mudo).
     const api = (env('E2E_API_BASE_URL') || 'http://localhost').replace(/\/+$/, '').replace(/\/api$/, '');
+    // Forma FIEL de una orden WooCommerce. Salió de cruzar el plugin real
+    // (`creditop-woocommerce/class-creditop-gateway.php`) con `github/generate_checkout_url.php`.
+    // El backend solo mira `billing` y `total`, pero mandar la forma completa evita falsos negativos
+    // el día que valide algo más. OJO: `total` va como STRING — así lo manda WooCommerce.
     const orden = {
-        id: `E2E-${p.documentNumber}`,
+        id: Number(String(p.documentNumber).slice(-6)) || 365,
+        parent_id: 0,
+        status: 'pending',
+        currency: 'COP',
+        version: '9.4.4',
+        prices_include_tax: false,
+        discount_total: '0', discount_tax: '0',
+        shipping_total: '0', shipping_tax: '0', cart_tax: '0', total_tax: '0',
+        total: String(p.total),
+        customer_id: 0,
         order_key: `wc_order_e2e_${p.documentNumber}`,
-        total: p.total,
         billing: {
-            phone: p.phone,
-            document_number: p.documentNumber,
-            document_type: p.documentType ?? 'CC',
-            email: p.email ?? `synth-${p.documentNumber}@creditop.com`,
             first_name: p.firstName ?? 'SYNTH',
             last_name: p.lastName ?? 'TEST USER',
+            company: 'Empresa Test',
+            address_1: 'Calle Falsa 123',
+            address_2: 'Apto 101',
+            city: 'bogota',
+            state: 'CO-CUN',
+            postcode: '1110111',
+            country: 'CO',
+            email: p.email ?? `synth-${p.documentNumber}@creditop.com`,
+            phone: p.phone,
+            document_type: p.documentType ?? 'CC',
+            document_number: p.documentNumber,
         },
+        payment_method: 'creditop_gateway',
+        payment_method_title: 'Paga a cuotas con Creditop',
     };
     const productos = p.productos ?? [{ id: 1, name: 'Producto de prueba', qty: 1, price: p.total }];
     const q = new URLSearchParams({
