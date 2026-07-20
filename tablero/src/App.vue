@@ -15,7 +15,7 @@ const BOARD = 384;            // CORE — el proyecto donde están MIS tareas (n
 const cargando = ref(true);
 const error = ref('');
 const sprint = ref(null);
-const sprints = ref([]);      // los 3 más recientes, del actual hacia atrás
+const sprints = ref([]);      // los 4 más recientes, del actual hacia atrás
 const sitio = ref('');        // https://<site>.atlassian.net — lo manda el server, sale de su .env
 const issues = ref([]);
 const activa = ref(null);      // tarea sobre la que se está registrando
@@ -178,14 +178,30 @@ const tramos = computed(() => {
     return { id: sp.id, name: sp.name.replace(/^CORE /, ''), a, b, largo: b - a + 1 };
   }).filter(Boolean);
 });
-// primera/última columna de cada tramo → marca de "empieza aquí" / "termina aquí" en la grilla
-const bordeIni = computed(() => new Set(tramos.value.map(t => diasRango.value[t.a].iso)));
-const bordeFin = computed(() => new Set(tramos.value.map(t => diasRango.value[t.b].iso)));
-// left/width de un tramo, en las MISMAS unidades que la grilla (vars CSS) para que queden alineados
-const estiloTramo = (t) => ({
-  left: `calc(var(--jhl) + var(--gap) + ${t.a} * (var(--cel) + var(--gap)))`,
-  width: `calc(${t.largo} * (var(--cel) + var(--gap)) - var(--gap))`,
-});
+// primera/última columna de cada tramo. La separación entre sprints es un MARGEN (aire real entre las
+// columnas), no una línea: se ve el corte sin agregarle tinta a la grilla.
+const iniIdx = computed(() => new Set(tramos.value.map(t => t.a)));
+const finIdx = computed(() => new Set(tramos.value.map(t => t.b)));
+
+// Las medidas viven ACÁ y la grilla las lee por variables CSS (`varsJM`). Tienen que estar en un solo
+// lado porque el margen entre sprints desplaza las columnas: la banda de arriba no puede posicionarse
+// con una fórmula fija, tiene que sumar los márgenes que la preceden. Con las medidas repartidas entre
+// CSS y JS, ese cálculo se desincroniza al primer cambio de tamaño.
+const CEL = 24, GAP = 4, JHL = 30, SEP = 9; // px: celda · separación normal · etiqueta de hora · margen de sprint
+const varsJM = { '--cel': `${CEL}px`, '--gap': `${GAP}px`, '--jhl': `${JHL}px`, '--sep': `${SEP}px` };
+
+// borde izquierdo de la columna i, contando los márgenes de sprint que quedaron atrás
+const leftDe = (i) => {
+  let x = JHL + GAP;
+  for (let j = 0; j < i; j++) {
+    x += CEL + GAP + (iniIdx.value.has(j) ? SEP : 0) + (finIdx.value.has(j) ? SEP : 0);
+  }
+  return x + (iniIdx.value.has(i) ? SEP : 0);
+};
+const estiloTramo = (t) => {
+  const l = leftDe(t.a);
+  return { left: `${l}px`, width: `${leftDe(t.b) + CEL - l}px` };
+};
 
 // ── carga ───────────────────────────────────────────────────────────────────────────────────────
 async function cargarSprint(id) {
@@ -207,7 +223,7 @@ async function cargarSprint(id) {
 
 onMounted(async () => {
   try {
-    const j = await (await fetch(`${SERVER}/api/sprints?board=${BOARD}&n=3`)).json();
+    const j = await (await fetch(`${SERVER}/api/sprints?board=${BOARD}&n=4`)).json();
     if (!j.error) { sprints.value = j.sprints || []; sitio.value = j.site || ''; }
   } catch { /* si falla, el selector no aparece y se carga el activo igual */ }
 
@@ -246,7 +262,7 @@ function anclarMuestra(sp) {
         <div class="tabs" v-if="sprints.length > 1">
           <button v-for="s in sprints" :key="s.id" :class="{ act: s.id === sprint.id }"
             :title="`${fechaCorta(s.startDate)} → ${fechaCorta(s.endDate)}`" @click="cargarSprint(s.id)">
-            {{ s.name.replace(/^Tablero /, '') }}
+            {{ s.name.replace(/^.*?(Sprint)/i, '$1') }}
             <i v-if="s.state === 'active'" class="vivo" title="sprint activo"></i>
           </button>
         </div>
@@ -289,24 +305,29 @@ function anclarMuestra(sp) {
         </h2>
         <p class="vacio" v-if="!totalRango">Todavía no hay registros en los últimos 20 días. Cada hora que
           registres pinta el bloque de la jornada (8–18) en el que la trabajaste.</p>
-        <div class="jm">
+        <div class="jm" :style="varsJM">
           <div class="jbanda">
             <div v-for="t in tramos" :key="t.name" class="jtramo" :class="{ sel: t.id === sprint?.id }"
               :style="estiloTramo(t)" :title="t.id === sprint?.id ? `${t.name} · el que estás viendo` : t.name">{{ t.name }}</div>
           </div>
-          <div v-for="h in HORAS" :key="h" class="jrow" :class="{ almuerzo: ALMUERZO.has(h) }">
+          <!-- `sepArriba` en 12p y 2p: parte la jornada en mañana | almuerzo | tarde -->
+          <div v-for="h in HORAS" :key="h" class="jrow"
+            :class="{ almuerzo: ALMUERZO.has(h), sepArriba: h === 12 || h === 14 }">
             <span class="jhl">{{ hMarca(h) }}</span>
-            <span v-for="d in diasRango" :key="d.iso" class="cel"
-              :class="['n' + nivel(minEn(d.iso, h)), { finde: d.finde, lunch: ALMUERZO.has(h), spIni: bordeIni.has(d.iso), spFin: bordeFin.has(d.iso) }]"
+            <span v-for="(d, i) in diasRango" :key="d.iso" class="cel"
+              :class="['n' + nivel(minEn(d.iso, h)), { finde: d.finde, lunch: ALMUERZO.has(h), spIni: iniIdx.has(i), spFin: finIdx.has(i) }]"
               :title="`${d.dow} ${d.num} · ${hMarca(h)}–${hMarca(h + 1)} — ${minEn(d.iso, h) ? Math.round(minEn(d.iso, h)) + ' min' : (ALMUERZO.has(h) ? 'almuerzo' : 'sin registro')}`"></span>
           </div>
+          <!-- las filas de totales y de fechas repiten los mismos márgenes: si no, se desalinean -->
           <div class="jrow jtot">
             <span class="jhl"></span>
-            <span v-for="d in diasRango" :key="d.iso" class="cel num" :title="minHhmm(totalDe(d.iso))">{{ jHoras(totalDe(d.iso)) }}</span>
+            <span v-for="(d, i) in diasRango" :key="d.iso" class="cel num"
+              :class="{ spIni: iniIdx.has(i), spFin: finIdx.has(i) }" :title="minHhmm(totalDe(d.iso))">{{ jHoras(totalDe(d.iso)) }}</span>
           </div>
           <div class="jrow jejes">
             <span class="jhl"></span>
-            <span v-for="d in diasRango" :key="d.iso" class="cel num" :class="{ finde: d.finde }">{{ d.num }}</span>
+            <span v-for="(d, i) in diasRango" :key="d.iso" class="cel num"
+              :class="{ finde: d.finde, spIni: iniIdx.has(i), spFin: finIdx.has(i) }">{{ d.num }}</span>
           </div>
         </div>
         <div class="leyenda">
@@ -463,9 +484,9 @@ textarea:focus, input:focus { outline: none; border-color: var(--acc) }
    trabajada. Las celdas SIN registro van rayadas en vez de vacías: un hueco liso se lee como "cero"
    y un rayado como "no hubo registro". El almuerzo (12–2) se marca solo con la etiqueta en violeta,
    no se apaga: a veces se trabaja ahí y tiene que verse igual que cualquier hora. */
-/* --cel/--gap/--jhl viven acá y los usan tanto la grilla como la banda de sprints: así los tramos de
-   arriba quedan pegados a sus columnas aunque cambie el tamaño de celda (una sola fuente de verdad). */
-.jm { --cel: 24px; --gap: 4px; --jhl: 30px; display: flex; flex-direction: column; gap: var(--gap); overflow-x: auto }
+/* --cel/--gap/--jhl/--sep los inyecta el script (`varsJM`), que es donde viven las medidas: la banda de
+   sprints tiene que sumar los márgenes en JS para posicionarse, así que no pueden estar en dos lados. */
+.jm { display: flex; flex-direction: column; gap: var(--gap); overflow-x: auto }
 .jrow { display: flex; align-items: center; gap: var(--gap) }
 .jhl { width: var(--jhl); flex: none; font-size: 10.5px; font-weight: 700; color: var(--mut); text-align: right;
   font-variant-numeric: tabular-nums }
@@ -476,15 +497,16 @@ textarea:focus, input:focus { outline: none; border-color: var(--acc) }
 .cel:hover { outline: 2px solid var(--acc); outline-offset: 1px }
 .n0 { background: repeating-linear-gradient(-45deg, #ffffff09 0 3px, transparent 3px 6px), var(--panel2) }
 .n1 { background: #a78bfa38 } .n2 { background: #a78bfa70 } .n3 { background: #a78bfaad } .n4 { background: #a78bfa }
-/* frontera de sprint: la primera columna de un sprint lleva una línea a la IZQUIERDA, la última una a la
-   DERECHA. Como cada celda de la columna la repite, se forma una guía vertical (punteada por los gaps)
-   que dice "acá empezó / acá terminó". box-shadow inset: no corre el layout ni sobre celdas de color. */
-.cel.spIni { box-shadow: inset 2px 0 0 #7c6ba8 }
-.cel.spFin { box-shadow: inset -2px 0 0 #7c6ba8 }
-.cel.spIni.spFin { box-shadow: inset 2px 0 0 #7c6ba8, inset -2px 0 0 #7c6ba8 }
+/* frontera de sprint: un MARGEN, no una línea. El aire extra antes de la primera columna del sprint y
+   después de la última separa los bloques sin sumarle tinta a la grilla. Va en las tres clases de fila
+   (horas, totales, fechas) para que las columnas no se desalineen. */
+.cel.spIni { margin-left: var(--sep) }
+.cel.spFin { margin-right: var(--sep) }
 /* almuerzo: NO se apaga. Se trabaja ahí a veces y hay que verlo igual que cualquier hora. Solo queda
    marcado con la etiqueta en violeta, para que se lea "esto es el almuerzo" sin restarle a la data. */
 .jrow.almuerzo .jhl { color: var(--acc); opacity: .8 }
+/* aire entre 11a|12p y 1p|2p: la jornada se lee en tres bloques (mañana · almuerzo · tarde) */
+.jrow.sepArriba { margin-top: 7px }
 /* banda de sprints: una tira arriba de la grilla; cada tramo se posiciona (left/width por estiloTramo)
    sobre las columnas de su sprint. Los huecos entre tramos son los días sin sprint. */
 .jbanda { position: relative; height: 17px; margin-bottom: 3px }
