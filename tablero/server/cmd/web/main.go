@@ -102,7 +102,7 @@ func main() {
 		if id := atoiDefault(r.URL.Query().Get("id"), 0); id > 0 {
 			sp, err = a.jira.SprintByID(r.Context(), id)
 		} else {
-			sp, err = a.jira.ActiveSprint(r.Context(), board)
+			sp, err = a.jira.DefaultSprint(r.Context(), board) // activo, o el próximo, o el último cerrado
 		}
 		if err != nil {
 			json.NewEncoder(w).Encode(map[string]any{"error": err.Error(), "board": board})

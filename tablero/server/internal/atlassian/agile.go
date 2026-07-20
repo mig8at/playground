@@ -33,21 +33,24 @@ func (c *Client) ActiveSprint(ctx context.Context, boardID int) (*Sprint, error)
 	return &raw.Values[0], nil
 }
 
-// RecentSprints devuelve los últimos n sprints del board (cerrados + el activo), del más reciente al
-// más viejo.
+// allSprints trae todos los sprints del board (cerrados + activo + próximos), ordenados del más reciente
+// al más viejo.
 //
 // OJO CON LA PAGINACIÓN: la Agile API devuelve los sprints en orden ASCENDENTE y no acepta orderBy, así
 // que la primera página trae los MÁS VIEJOS. Pedir `maxResults=n` daría los n primeros sprints del board
-// — justo lo contrario de lo que queremos. Hay que recorrer hasta `isLast` y cortar por la cola. Hoy el
-// board 248 tiene 8 sprints y entra en una página, pero eso caduca solo.
-func (c *Client) RecentSprints(ctx context.Context, boardID, n int) ([]Sprint, error) {
+// — justo lo contrario de lo que queremos. Hay que recorrer hasta `isLast` y cortar por la cola. Hoy los
+// boards entran en una página, pero eso caduca solo.
+//
+// Incluimos `future`: un board puede estar ENTRE SPRINTS (el anterior cerró, el próximo no arrancó), como
+// CORE hoy. Sin future, el tablero se quedaría sin nada que mostrar justo en el cambio de sprint.
+func (c *Client) allSprints(ctx context.Context, boardID int) ([]Sprint, error) {
 	var todos []Sprint
 	for startAt := 0; ; {
 		var raw struct {
 			Values []Sprint `json:"values"`
 			IsLast bool     `json:"isLast"`
 		}
-		path := fmt.Sprintf("/rest/agile/1.0/board/%d/sprint?state=closed,active&maxResults=50&startAt=%d", boardID, startAt)
+		path := fmt.Sprintf("/rest/agile/1.0/board/%d/sprint?state=closed,active,future&maxResults=50&startAt=%d", boardID, startAt)
 		if err := c.do(ctx, http.MethodGet, path, nil, &raw); err != nil {
 			return nil, err
 		}
@@ -58,21 +61,57 @@ func (c *Client) RecentSprints(ctx context.Context, boardID, n int) ([]Sprint, e
 		startAt += len(raw.Values)
 	}
 	if len(todos) == 0 {
-		return nil, fmt.Errorf("el board %d no tiene sprints cerrados ni activos", boardID)
+		return nil, fmt.Errorf("el board %d no tiene sprints", boardID)
 	}
 
 	// Ordenamos por fecha de inicio (no por id: los ids son globales de la instancia, así que un sprint
-	// creado antes pero arrancado después quedaría fuera de lugar). El id queda como desempate.
+	// creado antes pero arrancado después quedaría fuera de lugar). El id queda como desempate. Un future
+	// sin fecha cae al fondo, que es donde queremos que esté.
 	sort.Slice(todos, func(i, j int) bool {
 		if todos[i].StartDate != todos[j].StartDate {
 			return todos[i].StartDate > todos[j].StartDate
 		}
 		return todos[i].ID > todos[j].ID
 	})
+	return todos, nil
+}
+
+// RecentSprints devuelve los n sprints más recientes del board (incluye el próximo si el board está
+// entre sprints), del más reciente al más viejo. Para el selector.
+func (c *Client) RecentSprints(ctx context.Context, boardID, n int) ([]Sprint, error) {
+	todos, err := c.allSprints(ctx, boardID)
+	if err != nil {
+		return nil, err
+	}
 	if n > 0 && len(todos) > n {
 		todos = todos[:n]
 	}
 	return todos, nil
+}
+
+// DefaultSprint elige qué sprint mostrar al abrir, sin asumir que hay uno activo. Prioridad:
+//   1. el ACTIVO, si existe (el caso normal);
+//   2. si no hay activo (board entre sprints, como CORE hoy), el ÚLTIMO CERRADO — este es un tablero de
+//      registro de tiempo, así que lo útil al abrir es el sprint donde HUBO trabajo, no un próximo vacío;
+//   3. si no hay cerrados (board recién creado), el próximo a arrancar.
+// El próximo sprint queda igual en el selector (RecentSprints lo incluye), a un clic. No usa ActiveSprint
+// a secas: ese devuelve error cuando no hay activo, y "entre sprints" es un estado válido, no una falla.
+func (c *Client) DefaultSprint(ctx context.Context, boardID int) (*Sprint, error) {
+	todos, err := c.allSprints(ctx, boardID)
+	if err != nil {
+		return nil, err
+	}
+	for i := range todos { // 1. activo
+		if todos[i].State == "active" {
+			return &todos[i], nil
+		}
+	}
+	for i := range todos { // 2. el último cerrado (todos vienen ordenados desc por fecha)
+		if todos[i].State == "closed" {
+			return &todos[i], nil
+		}
+	}
+	return &todos[0], nil // 3. no hay cerrados: el más reciente (un future)
 }
 
 // SprintByID trae un sprint puntual. (GET /rest/agile/1.0/sprint/{id})

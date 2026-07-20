@@ -10,7 +10,7 @@
 import { ref, computed, onMounted } from 'vue';
 
 const SERVER = 'http://localhost:8787';
-const BOARD = 248;            // Tablero Loans Origination — el squad de Miguel
+const BOARD = 384;            // CORE — el proyecto donde están MIS tareas (no LO / Loans Origination)
 
 const cargando = ref(true);
 const error = ref('');
@@ -30,27 +30,28 @@ const TIPOS = [
 const tipo = ref('avance');
 const nota = ref('');
 const minutos = ref(30);
-// Dos entradas de muestra, escritas como DEBEN escribirse: cuentan qué pasó en lenguaje de negocio,
-// sin una sola referencia técnica. Son el ejemplo del tono, no datos reales.
-// Cada entrada lleva su FECHA real (no solo el texto para mostrar): es lo que permite agrupar por día
-// en el mapa de calor. Guardar solo "19 jul · 11:20" obligaría a re-parsear un string localizado.
-// Y lleva `sprint`: la bitácora es local y arrancó ahora, así que un sprint viejo NO tiene registros.
-// Mostrar los mismos datos al cambiar de sprint sería inventar historia que no existe.
+// Entradas de muestra, escritas como DEBEN escribirse: cuentan qué pasó en lenguaje de negocio, sin una
+// sola referencia técnica. Son el ejemplo del tono, no datos reales.
+// - FECHA real (no solo el texto para mostrar): es lo que permite agrupar por día en el mapa de calor.
+// - `sprint`: la bitácora es local y arrancó ahora, así que un sprint viejo NO tiene registros. Mostrar
+//   los mismos datos al cambiar de sprint sería inventar historia que no existe.
+// - `tarea` es un ÍNDICE, no una clave fija: `anclarMuestra` la resuelve contra las tareas reales del
+//   sprint. Así el demo cae siempre sobre tareas que existen, aunque cambien de un sprint a otro.
 const hoy = new Date();
 const diaAtras = (n) => { const d = new Date(hoy); d.setDate(d.getDate() - n); return d; };
 const entradas = ref([
-  { id: 1, key: 'LO-224', tipo: 'hallazgo', min: 90, fecha: diaAtras(0), sprint: 0,
-    txt: 'La entrada desde la tienda genera la solicitud correctamente, pero el cliente aterriza en una pantalla que no corresponde a este comercio y la solicitud queda cancelada sin avisarle.' },
-  { id: 2, key: 'LO-224', tipo: 'prueba', min: 45, fecha: diaAtras(0), sprint: 0,
-    txt: 'Se reprodujo el caso punta a punta en el entorno de pruebas: el pedido viaja completo y con los datos correctos. El corte está en el paso siguiente, no en el envío.' },
-  { id: 3, key: 'LO-224', tipo: 'avance', min: 120, fecha: diaAtras(1), sprint: 0,
-    txt: 'Se recorrió el camino completo del cliente desde la tienda hasta la aprobación, anotando en qué punto cambia el comportamiento según la entidad elegida.' },
-  { id: 4, key: 'LO-299', tipo: 'prueba', min: 200, fecha: diaAtras(2), sprint: 0,
-    txt: 'Se probaron los tres productos del comercio de prueba y se confirmó cuál de ellos exige la validación de ingresos adicional.' },
-  { id: 5, key: 'LO-299', tipo: 'hallazgo', min: 75, fecha: diaAtras(3), sprint: 0,
-    txt: 'Uno de los productos no estaba pidiendo la validación de ingresos que le corresponde. Se corrigió y se verificó con los tres productos.' },
-  { id: 6, key: 'LO-312', tipo: 'avance', min: 60, fecha: diaAtras(4), sprint: 0,
-    txt: 'Ajustes de presentación en el tablero de seguimiento: se unificó cómo se muestran los comercios y sus entidades.' },
+  { id: 1, tarea: 0, key: '', tipo: 'avance', min: 120, fecha: diaAtras(0), sprint: 0,
+    txt: 'Se dejó lista la unificación para que este comercio siga el mismo camino que el resto, sin un flujo aparte que haya que mantener por separado.' },
+  { id: 2, tarea: 0, key: '', tipo: 'prueba', min: 90, fecha: diaAtras(0), sprint: 0,
+    txt: 'Se recorrió el flujo unificado de punta a punta con los tres productos del comercio y se comparó contra el comportamiento anterior: coincide.' },
+  { id: 3, tarea: 1, key: '', tipo: 'avance', min: 200, fecha: diaAtras(1), sprint: 0,
+    txt: 'La calculadora de precios de renting quedó tomando los valores desde configuración, así un cambio de tarifa ya no depende de una nueva entrega.' },
+  { id: 4, tarea: 1, key: '', tipo: 'hallazgo', min: 75, fecha: diaAtras(2), sprint: 0,
+    txt: 'Al configurar un plazo largo aparecía un precio distinto al esperado. Se ajustó el redondeo y se validó con varios plazos.' },
+  { id: 5, tarea: 2, key: '', tipo: 'avance', min: 60, fecha: diaAtras(3), sprint: 0,
+    txt: 'Cada comercio puede mostrar sus propios términos y condiciones; se dejó de usar un texto único para todos.' },
+  { id: 6, tarea: 3, key: '', tipo: 'prueba', min: 45, fecha: diaAtras(4), sprint: 0,
+    txt: 'Se verificó que el monto en la pantalla de opciones se actualiza al cambiar la selección, sin quedar con el valor anterior.' },
 ]);
 
 // ── guard: lo que se publica en Jira no puede filtrar el playground ─────────────────────────────
@@ -70,11 +71,17 @@ const tiempoJira = computed(() => issues.value.reduce((n, i) => n + (i.SpentSecs
 const delSprint = computed(() => entradas.value.filter(e => e.sprint === sprint.value?.id));
 const tiempoBitacora = computed(() => delSprint.value.reduce((n, e) => n + e.min, 0));
 
+// El chip del header, según el ESTADO del sprint. CORE vive entre sprints (uno cerró, el próximo no
+// arrancó), así que un sprint puede no haber empezado: "5 días restantes" sobre algo que aún no empieza
+// sería mentira. Tres casos: por arrancar · en curso · cerrado.
 const dias = computed(() => {
-  if (!sprint.value?.endDate) return null;
-  const fin = new Date(sprint.value.endDate), ini = new Date(sprint.value.startDate), hoy = new Date();
+  const s = sprint.value;
+  if (!s?.endDate) return null;
+  const fin = new Date(s.endDate), ini = new Date(s.startDate), hoy = new Date();
   const d = (a, b) => Math.round((a - b) / 86400000);
-  return { total: d(fin, ini), restantes: d(fin, hoy), vencido: hoy > fin, vencidoHace: d(hoy, fin) };
+  if (s.state === 'future' || hoy < ini) return { estado: 'porArrancar', arrancaEn: d(ini, hoy) };
+  if (hoy > fin) return { estado: 'cerrado', vencidoHace: d(hoy, fin) };
+  return { estado: 'enCurso', restantes: d(fin, hoy) };
 });
 
 const hhmm = (s) => { const m = Math.round(s / 60); return m ? `${Math.floor(m / 60)}h ${String(m % 60).padStart(2, '0')}m` : '—'; };
@@ -115,7 +122,9 @@ const clave = (d) => { const x = dia0(d); return `${x.getFullYear()}-${String(x.
 const columnas = computed(() => {
   if (!sprint.value?.startDate) return [];
   const ini = dia0(sprint.value.startDate);
-  const fin = dia0(Math.min(new Date(sprint.value.endDate).getTime(), hoy.getTime()));
+  // en curso o cerrado: cortamos en hoy (no pintamos días que no ocurrieron). Pero si el sprint AÚN NO
+  // arrancó, no hay "hoy" adentro que valga: mostramos el calendario completo planeado, todo rayado.
+  const fin = hoy < ini ? dia0(sprint.value.endDate) : dia0(Math.min(new Date(sprint.value.endDate).getTime(), hoy.getTime()));
   const out = [];
   for (const d = new Date(ini); d <= fin && out.length < 31; d.setDate(d.getDate() + 1)) {
     out.push({ iso: clave(d), num: d.getDate(), finde: [0, 6].includes(d.getDay()) });
@@ -166,16 +175,19 @@ onMounted(async () => {
     if (!j.error) { sprints.value = j.sprints || []; sitio.value = j.site || ''; }
   } catch { /* si falla, el selector no aparece y se carga el activo igual */ }
 
-  const inicial = sprints.value.find(s => s.state === 'active') || sprints.value[0];
-  await cargarSprint(inicial?.id);
+  // Sin id: el server elige (activo, o el último cerrado, o el próximo). No lo re-derivamos acá para
+  // no tener dos definiciones de "cuál es el sprint por defecto".
+  await cargarSprint();
 
-  // PROTOTIPO: las entradas de muestra se atan al sprint que abrió y se corren dentro de su ventana,
-  // para que el mapa de calor tenga algo que mostrar. Cuando la bitácora persista, esto se va: las
-  // entradas van a traer su sprint y su fecha de verdad.
-  if (sprint.value) anclarMuestra(sprint.value);
+  // PROTOTIPO: las entradas de muestra se atan al sprint más reciente que YA ARRANCÓ, no al que abrió.
+  // Si el board está entre sprints y por defecto abre el último cerrado, ahí van; pero nunca a un sprint
+  // future, porque sería ubicar horas trabajadas en el futuro. Cuando la bitácora persista, esto se va.
+  const conHistoria = sprints.value.find(s => s.state !== 'future') || sprint.value;
+  if (conHistoria?.startDate) anclarMuestra(conHistoria);
 });
 
 function anclarMuestra(sp) {
+  if (!issues.value.length) return;
   const ini = dia0(sp.startDate);
   const fin = dia0(Math.min(new Date(sp.endDate).getTime(), hoy.getTime()));
   for (const e of entradas.value) {
@@ -184,6 +196,7 @@ function anclarMuestra(sp) {
     d.setDate(d.getDate() - atras);
     e.fecha = new Date(Math.max(ini.getTime(), d.getTime()));           // clamp: nunca antes del sprint
     e.sprint = sp.id;
+    e.key = (issues.value[e.tarea] || issues.value[0]).Key;             // clave real del sprint anclado
   }
 }
 </script>
@@ -204,8 +217,9 @@ function anclarMuestra(sp) {
             <i v-if="s.state === 'active'" class="vivo" title="sprint activo"></i>
           </button>
         </div>
-        <span v-if="dias?.vencido" class="chip warn">venció hace {{ dias.vencidoHace }} días</span>
-        <span v-else-if="dias" class="chip">{{ dias.restantes }} días restantes</span>
+        <span v-if="dias?.estado === 'porArrancar'" class="chip">arranca en {{ dias.arrancaEn }} día{{ dias.arrancaEn === 1 ? '' : 's' }}</span>
+        <span v-else-if="dias?.estado === 'cerrado'" class="chip warn">cerrado hace {{ dias.vencidoHace }} días</span>
+        <span v-else-if="dias?.estado === 'enCurso'" class="chip">{{ dias.restantes }} días restantes</span>
       </div>
     </header>
 
@@ -240,8 +254,10 @@ function anclarMuestra(sp) {
         <h2>El sprint día a día
           <span class="mut">· {{ totalSemana ? `${minHhmm(totalSemana)} en ${filas.filter(f => f.total).length} tarea(s)` : 'sin registros' }}</span>
         </h2>
-        <p v-if="!totalSemana" class="vacio">La bitácora es local y arrancó ahora, así que un sprint
-          anterior no tiene horas acá. Las tareas de arriba sí son las reales de Jira.</p>
+        <p v-if="!totalSemana && dias?.estado === 'porArrancar'" class="vacio">Este sprint todavía no
+          arranca. Las tareas de arriba ya son las reales de Jira; el registro empieza cuando empiece él.</p>
+        <p v-else-if="!totalSemana" class="vacio">La bitácora es local y arrancó ahora, así que este
+          sprint no tiene horas acá. Las tareas de arriba sí son las reales de Jira.</p>
         <div class="hm">
           <div v-for="f in filas" :key="f.key" class="hrow">
             <span class="hlbl" :class="{ act: activa?.Key === f.key }" @click="activa = issues.find(i => i.Key === f.key)">{{ f.key }}</span>
