@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"sort"
 )
 
 // Sprint es un sprint de un board (API Agile / Jira Software).
@@ -30,6 +31,57 @@ func (c *Client) ActiveSprint(ctx context.Context, boardID int) (*Sprint, error)
 		return nil, fmt.Errorf("el board %d no tiene sprint activo", boardID)
 	}
 	return &raw.Values[0], nil
+}
+
+// RecentSprints devuelve los últimos n sprints del board (cerrados + el activo), del más reciente al
+// más viejo.
+//
+// OJO CON LA PAGINACIÓN: la Agile API devuelve los sprints en orden ASCENDENTE y no acepta orderBy, así
+// que la primera página trae los MÁS VIEJOS. Pedir `maxResults=n` daría los n primeros sprints del board
+// — justo lo contrario de lo que queremos. Hay que recorrer hasta `isLast` y cortar por la cola. Hoy el
+// board 248 tiene 8 sprints y entra en una página, pero eso caduca solo.
+func (c *Client) RecentSprints(ctx context.Context, boardID, n int) ([]Sprint, error) {
+	var todos []Sprint
+	for startAt := 0; ; {
+		var raw struct {
+			Values []Sprint `json:"values"`
+			IsLast bool     `json:"isLast"`
+		}
+		path := fmt.Sprintf("/rest/agile/1.0/board/%d/sprint?state=closed,active&maxResults=50&startAt=%d", boardID, startAt)
+		if err := c.do(ctx, http.MethodGet, path, nil, &raw); err != nil {
+			return nil, err
+		}
+		todos = append(todos, raw.Values...)
+		if raw.IsLast || len(raw.Values) == 0 {
+			break
+		}
+		startAt += len(raw.Values)
+	}
+	if len(todos) == 0 {
+		return nil, fmt.Errorf("el board %d no tiene sprints cerrados ni activos", boardID)
+	}
+
+	// Ordenamos por fecha de inicio (no por id: los ids son globales de la instancia, así que un sprint
+	// creado antes pero arrancado después quedaría fuera de lugar). El id queda como desempate.
+	sort.Slice(todos, func(i, j int) bool {
+		if todos[i].StartDate != todos[j].StartDate {
+			return todos[i].StartDate > todos[j].StartDate
+		}
+		return todos[i].ID > todos[j].ID
+	})
+	if n > 0 && len(todos) > n {
+		todos = todos[:n]
+	}
+	return todos, nil
+}
+
+// SprintByID trae un sprint puntual. (GET /rest/agile/1.0/sprint/{id})
+func (c *Client) SprintByID(ctx context.Context, sprintID int) (*Sprint, error) {
+	var sp Sprint
+	if err := c.do(ctx, http.MethodGet, fmt.Sprintf("/rest/agile/1.0/sprint/%d", sprintID), nil, &sp); err != nil {
+		return nil, err
+	}
+	return &sp, nil
 }
 
 // AddIssuesToSprint mueve issues a un sprint.

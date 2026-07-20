@@ -67,8 +67,27 @@ func main() {
 	mux.HandleFunc("/ws", a.handleWS)
 	mux.HandleFunc("/health", func(w http.ResponseWriter, _ *http.Request) { w.Write([]byte("ok")) })
 
-	// Sprint activo + mis tareas, en JSON. Existe para el tablero: el WS sirve el dashboard viejo, pero
-	// para prototipar alcanza con un GET y evita cablear mensajes nuevos por cada campo.
+	// Sprint + mis tareas, en JSON. Existe para el tablero: el WS sirve el dashboard viejo, pero para
+	// prototipar alcanza con un GET y evita cablear mensajes nuevos por cada campo.
+	//
+	//   /api/sprints?board=&n=3   → los n sprints más recientes (para el selector)
+	//   /api/sprint?board=&id=    → un sprint y mis tareas; sin `id`, el activo
+	mux.HandleFunc("/api/sprints", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("content-type", "application/json")
+		w.Header().Set("access-control-allow-origin", "*")
+		if a.jira == nil {
+			json.NewEncoder(w).Encode(map[string]any{"error": "sin credenciales de Jira (.env)"})
+			return
+		}
+		board := atoiDefault(r.URL.Query().Get("board"), a.jiraBoardID)
+		sps, err := a.jira.RecentSprints(r.Context(), board, atoiDefault(r.URL.Query().Get("n"), 3))
+		if err != nil {
+			json.NewEncoder(w).Encode(map[string]any{"error": err.Error(), "board": board})
+			return
+		}
+		json.NewEncoder(w).Encode(map[string]any{"sprints": sps, "board": board})
+	})
+
 	mux.HandleFunc("/api/sprint", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("content-type", "application/json")
 		w.Header().Set("access-control-allow-origin", "*")
@@ -77,7 +96,14 @@ func main() {
 			return
 		}
 		board := atoiDefault(r.URL.Query().Get("board"), a.jiraBoardID)
-		sp, err := a.jira.ActiveSprint(r.Context(), board)
+
+		var sp *atlassian.Sprint
+		var err error
+		if id := atoiDefault(r.URL.Query().Get("id"), 0); id > 0 {
+			sp, err = a.jira.SprintByID(r.Context(), id)
+		} else {
+			sp, err = a.jira.ActiveSprint(r.Context(), board)
+		}
 		if err != nil {
 			json.NewEncoder(w).Encode(map[string]any{"error": err.Error(), "board": board})
 			return

@@ -15,6 +15,7 @@ const BOARD = 248;            // Tablero Loans Origination — el squad de Migue
 const cargando = ref(true);
 const error = ref('');
 const sprint = ref(null);
+const sprints = ref([]);      // los 3 más recientes, del actual hacia atrás
 const issues = ref([]);
 const activa = ref(null);      // tarea sobre la que se está registrando
 
@@ -32,20 +33,22 @@ const minutos = ref(30);
 // sin una sola referencia técnica. Son el ejemplo del tono, no datos reales.
 // Cada entrada lleva su FECHA real (no solo el texto para mostrar): es lo que permite agrupar por día
 // en el mapa de calor. Guardar solo "19 jul · 11:20" obligaría a re-parsear un string localizado.
+// Y lleva `sprint`: la bitácora es local y arrancó ahora, así que un sprint viejo NO tiene registros.
+// Mostrar los mismos datos al cambiar de sprint sería inventar historia que no existe.
 const hoy = new Date();
 const diaAtras = (n) => { const d = new Date(hoy); d.setDate(d.getDate() - n); return d; };
 const entradas = ref([
-  { id: 1, key: 'LO-224', tipo: 'hallazgo', min: 90, fecha: diaAtras(0),
+  { id: 1, key: 'LO-224', tipo: 'hallazgo', min: 90, fecha: diaAtras(0), sprint: 0,
     txt: 'La entrada desde la tienda genera la solicitud correctamente, pero el cliente aterriza en una pantalla que no corresponde a este comercio y la solicitud queda cancelada sin avisarle.' },
-  { id: 2, key: 'LO-224', tipo: 'prueba', min: 45, fecha: diaAtras(0),
+  { id: 2, key: 'LO-224', tipo: 'prueba', min: 45, fecha: diaAtras(0), sprint: 0,
     txt: 'Se reprodujo el caso punta a punta en el entorno de pruebas: el pedido viaja completo y con los datos correctos. El corte está en el paso siguiente, no en el envío.' },
-  { id: 3, key: 'LO-224', tipo: 'avance', min: 120, fecha: diaAtras(1),
+  { id: 3, key: 'LO-224', tipo: 'avance', min: 120, fecha: diaAtras(1), sprint: 0,
     txt: 'Se recorrió el camino completo del cliente desde la tienda hasta la aprobación, anotando en qué punto cambia el comportamiento según la entidad elegida.' },
-  { id: 4, key: 'LO-299', tipo: 'prueba', min: 200, fecha: diaAtras(2),
+  { id: 4, key: 'LO-299', tipo: 'prueba', min: 200, fecha: diaAtras(2), sprint: 0,
     txt: 'Se probaron los tres productos del comercio de prueba y se confirmó cuál de ellos exige la validación de ingresos adicional.' },
-  { id: 5, key: 'LO-299', tipo: 'hallazgo', min: 75, fecha: diaAtras(3),
+  { id: 5, key: 'LO-299', tipo: 'hallazgo', min: 75, fecha: diaAtras(3), sprint: 0,
     txt: 'Uno de los productos no estaba pidiendo la validación de ingresos que le corresponde. Se corrigió y se verificó con los tres productos.' },
-  { id: 6, key: 'LO-312', tipo: 'avance', min: 60, fecha: diaAtras(4),
+  { id: 6, key: 'LO-312', tipo: 'avance', min: 60, fecha: diaAtras(4), sprint: 0,
     txt: 'Ajustes de presentación en el tablero de seguimiento: se unificó cómo se muestran los comercios y sus entidades.' },
 ]);
 
@@ -63,7 +66,8 @@ const problemas = computed(() =>
 const hechas = computed(() => issues.value.filter(i => i.StatusCategory === 'done').length);
 const puntos = computed(() => issues.value.reduce((n, i) => n + (i.Points || 0), 0));
 const tiempoJira = computed(() => issues.value.reduce((n, i) => n + (i.SpentSecs || 0), 0));
-const tiempoBitacora = computed(() => entradas.value.reduce((n, e) => n + e.min, 0));
+const delSprint = computed(() => entradas.value.filter(e => e.sprint === sprint.value?.id));
+const tiempoBitacora = computed(() => delSprint.value.reduce((n, e) => n + e.min, 0));
 
 const dias = computed(() => {
   if (!sprint.value?.endDate) return null;
@@ -74,34 +78,49 @@ const dias = computed(() => {
 
 const hhmm = (s) => { const m = Math.round(s / 60); return m ? `${Math.floor(m / 60)}h ${String(m % 60).padStart(2, '0')}m` : '—'; };
 const minHhmm = (m) => `${Math.floor(m / 60)}h ${String(m % 60).padStart(2, '0')}m`;
+const fechaCorta = (d) => d ? new Date(d).toLocaleDateString('es-CO', { day: '2-digit', month: 'short' }) : '';
 const claseEstado = (c) => c === 'done' ? 'e-ok' : c === 'indeterminate' ? 'e-curso' : 'e-todo';
-const minsDe = (k) => entradas.value.filter(e => e.key === k).reduce((n, e) => n + e.min, 0);
+const minsDe = (k) => delSprint.value.filter(e => e.key === k).reduce((n, e) => n + e.min, 0);
 
 function agregar() {
   if (!nota.value.trim() || !activa.value || problemas.value.length) return;
   entradas.value.unshift({
     id: Date.now(), key: activa.value.Key, tipo: tipo.value, min: Number(minutos.value) || 0,
-    fecha: new Date(),
+    fecha: new Date(), sprint: sprint.value?.id,
     txt: nota.value.trim(),
   });
   nota.value = '';
 }
 
-const deLaActiva = computed(() => activa.value ? entradas.value.filter(e => e.key === activa.value.Key) : []);
+const deLaActiva = computed(() => activa.value ? delSprint.value.filter(e => e.key === activa.value.Key) : []);
 const cuando = (d) => new Date(d).toLocaleString('es-CO', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
 
 // ── mapa de calor: filas = tareas · columnas = días · intensidad = minutos ──────────────────────
 // Responde de un vistazo "¿en qué trabajé esta semana?", que es la pregunta que un total de horas no
 // contesta: 8h repartidas en cuatro tareas y 8h en una sola son semanas muy distintas.
-const DIAS = 12;
-const clave = (d) => new Date(d).toISOString().slice(0, 10);
-const columnas = computed(() => Array.from({ length: DIAS }, (_, i) => {
-  const d = diaAtras(DIAS - 1 - i);
-  return { iso: clave(d), num: d.getDate(), finde: [0, 6].includes(d.getDay()) };
-}));
+// La ventana es el RANGO DEL SPRINT elegido, no "los últimos 12 días": con un sprint pasado, una
+// ventana anclada a hoy mostraría una grilla vacía que no dice nada. Así el mapa es el calendario de
+// ese sprint. Se corta en hoy si el sprint sigue vivo — pintar días que no ocurrieron es ruido.
+// TODO acá va normalizado a MEDIANOCHE LOCAL. Sin eso el mapa pierde días: los sprints traen hora
+// (arranca 13:43, cierra 05:00), y al iterar día a día se arrastra el 13:43 contra un fin de 05:00, así
+// que el último día se cae del rango — y una entrada anclada ahí desaparecía del dibujo aunque sí
+// sumaba en el total (el mapa decía 7h35m y la tarjeta 9h50m). También `clave` pasa a ser local: con
+// toISOString(), una entrada de las 20:00 en Colombia (UTC-5) cae al día siguiente.
+const dia0 = (d) => { const x = new Date(d); x.setHours(0, 0, 0, 0); return x; };
+const clave = (d) => { const x = dia0(d); return `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, '0')}-${String(x.getDate()).padStart(2, '0')}`; };
+const columnas = computed(() => {
+  if (!sprint.value?.startDate) return [];
+  const ini = dia0(sprint.value.startDate);
+  const fin = dia0(Math.min(new Date(sprint.value.endDate).getTime(), hoy.getTime()));
+  const out = [];
+  for (const d = new Date(ini); d <= fin && out.length < 31; d.setDate(d.getDate() + 1)) {
+    out.push({ iso: clave(d), num: d.getDate(), finde: [0, 6].includes(d.getDay()) });
+  }
+  return out;
+});
 const porTareaYDia = computed(() => {
   const m = {};
-  for (const e of entradas.value) {
+  for (const e of delSprint.value) {
     const k = clave(e.fecha);
     (m[e.key] ??= {})[k] = (m[e.key][k] || 0) + e.min;
   }
@@ -116,21 +135,52 @@ const filas = computed(() => issues.value.map(i => ({
 // significa siempre lo mismo aunque cambie la semana.
 const nivel = (min) => min === 0 ? 0 : min < 45 ? 1 : min < 120 ? 2 : min < 240 ? 3 : 4;
 const totalDia = computed(() => Object.fromEntries(columnas.value.map(c =>
-  [c.iso, entradas.value.filter(e => clave(e.fecha) === c.iso).reduce((n, e) => n + e.min, 0)])));
+  [c.iso, delSprint.value.filter(e => clave(e.fecha) === c.iso).reduce((n, e) => n + e.min, 0)])));
 const totalSemana = computed(() => Object.values(totalDia.value).reduce((a, b) => a + b, 0));
 
-onMounted(async () => {
+// ── carga ───────────────────────────────────────────────────────────────────────────────────────
+async function cargarSprint(id) {
+  cargando.value = true;
+  error.value = '';
   try {
-    const j = await (await fetch(`${SERVER}/api/sprint?board=${BOARD}`)).json();
-    if (j.error) error.value = j.error;
+    const j = await (await fetch(`${SERVER}/api/sprint?board=${BOARD}${id ? `&id=${id}` : ''}`)).json();
+    if (j.error) { error.value = j.error; }
     else {
       sprint.value = j.sprint;
       issues.value = j.issues || [];
+      // por defecto queda seleccionada la que está en curso; si no hay (sprint cerrado), la primera
       activa.value = issues.value.find(i => i.StatusCategory === 'indeterminate') || issues.value[0] || null;
     }
   } catch { error.value = 'no se pudo hablar con el server (¿está corriendo en :8787?)'; }
   cargando.value = false;
+}
+
+onMounted(async () => {
+  try {
+    const j = await (await fetch(`${SERVER}/api/sprints?board=${BOARD}&n=3`)).json();
+    if (!j.error) sprints.value = j.sprints || [];
+  } catch { /* si falla, el selector no aparece y se carga el activo igual */ }
+
+  const inicial = sprints.value.find(s => s.state === 'active') || sprints.value[0];
+  await cargarSprint(inicial?.id);
+
+  // PROTOTIPO: las entradas de muestra se atan al sprint que abrió y se corren dentro de su ventana,
+  // para que el mapa de calor tenga algo que mostrar. Cuando la bitácora persista, esto se va: las
+  // entradas van a traer su sprint y su fecha de verdad.
+  if (sprint.value) anclarMuestra(sprint.value);
 });
+
+function anclarMuestra(sp) {
+  const ini = dia0(sp.startDate);
+  const fin = dia0(Math.min(new Date(sp.endDate).getTime(), hoy.getTime()));
+  for (const e of entradas.value) {
+    const atras = Math.round((dia0(hoy) - dia0(e.fecha)) / 86400000);   // conserva la separación
+    const d = new Date(fin);
+    d.setDate(d.getDate() - atras);
+    e.fecha = new Date(Math.max(ini.getTime(), d.getTime()));           // clamp: nunca antes del sprint
+    e.sprint = sp.id;
+  }
+}
 </script>
 
 <template>
@@ -142,7 +192,13 @@ onMounted(async () => {
         <p class="sub">Mi sprint · registro de tiempo y hallazgos</p>
       </div>
       <div class="sp" v-if="sprint">
-        <b>{{ sprint.name }}</b>
+        <div class="tabs" v-if="sprints.length > 1">
+          <button v-for="s in sprints" :key="s.id" :class="{ act: s.id === sprint.id }"
+            :title="`${fechaCorta(s.startDate)} → ${fechaCorta(s.endDate)}`" @click="cargarSprint(s.id)">
+            {{ s.name.replace(/^Tablero /, '') }}
+            <i v-if="s.state === 'active'" class="vivo" title="sprint activo"></i>
+          </button>
+        </div>
         <span v-if="dias?.vencido" class="chip warn">venció hace {{ dias.vencidoHace }} días</span>
         <span v-else-if="dias" class="chip">{{ dias.restantes }} días restantes</span>
       </div>
@@ -176,7 +232,11 @@ onMounted(async () => {
       </div>
 
       <section class="card">
-        <h2>La semana <span class="mut">· {{ minHhmm(totalSemana) }} en {{ filas.filter(f => f.total).length }} tarea(s)</span></h2>
+        <h2>El sprint día a día
+          <span class="mut">· {{ totalSemana ? `${minHhmm(totalSemana)} en ${filas.filter(f => f.total).length} tarea(s)` : 'sin registros' }}</span>
+        </h2>
+        <p v-if="!totalSemana" class="vacio">La bitácora es local y arrancó ahora, así que un sprint
+          anterior no tiene horas acá. Las tareas de arriba sí son las reales de Jira.</p>
         <div class="hm">
           <div v-for="f in filas" :key="f.key" class="hrow">
             <span class="hlbl" :class="{ act: activa?.Key === f.key }" @click="activa = issues.find(i => i.Key === f.key)">{{ f.key }}</span>
@@ -194,7 +254,7 @@ onMounted(async () => {
           <span>menos</span>
           <i v-for="n in [0, 1, 2, 3, 4]" :key="n" :class="'n' + n"></i>
           <span>más</span>
-          <span class="nota">cada celda es un día · el color va por tramos de tiempo, no por la semana</span>
+          <span class="nota">cada celda es un día del sprint · el color va por tramos de tiempo</span>
         </div>
       </section>
 
@@ -316,6 +376,16 @@ textarea:focus, input:focus { outline: none; border-color: var(--acc) }
   color: var(--bad); font-size: 12px; line-height: 1.55 }
 .guard b { display: block; margin-bottom: 4px }
 .guard code { color: #fecaca }
+
+/* pestañas de sprint: el activo lleva un punto, para no depender solo de la posición */
+.tabs { display: flex; gap: 4px; background: var(--panel2); padding: 3px; border-radius: 10px }
+.tabs button { border: 0; background: none; color: var(--mut); font: inherit; font-size: 12.5px;
+  font-weight: 600; padding: 5px 11px; border-radius: 8px; cursor: pointer; display: flex;
+  align-items: center; gap: 6px }
+.tabs button:hover { color: var(--txt) }
+.tabs button.act { background: var(--panel); color: var(--txt); box-shadow: 0 1px 3px #0006 }
+.vivo { width: 6px; height: 6px; border-radius: 50%; background: #4ade80; display: inline-block }
+.vacio { color: var(--mut); font-size: 12.5px; margin: 0 0 14px; max-width: 62ch }
 
 /* ── mapa de calor ────────────────────────────────────────────────────────────────────────────
    Filas = tareas, columnas = días, intensidad = tiempo. Las celdas SIN registro van rayadas en vez
