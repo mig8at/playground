@@ -589,6 +589,30 @@
       border-color: #573a7a;
       background: #21133a
     }
+    /* ── TARJETAS DE ESTADO ────────────────────────────────────────────────────────────────────────
+       Numero grande + contexto, al estilo del dashboard de referencia. TODO sale de algo real:
+       puertos que responden, el volcado forense de la ultima corrida y el validador del mapa. Si un
+       dato no se puede medir, la tarjeta lo dice — no se inventa un numero para llenar el hueco. */
+        /* 150px de mínimo: con el panel a ~910px entran las 5 en una fila, y abajo de eso degrada a 3 y
+       a 2 sin romper. Con 190 entraban solo 4 y la quinta quedaba sola en una fila casi vacía. */
+    .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin: 16px 0 0 }
+    .stat {
+      background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+      padding: 15px 16px; display: flex; flex-direction: column; gap: 3px; min-width: 0
+    }
+    .stat .top { display: flex; align-items: center; gap: 8px; margin-bottom: 5px }
+    .stat .ico {
+      width: 26px; height: 26px; border-radius: 8px; display: grid; place-items: center;
+      font-size: 13px; background: #ffffff0d; flex: none
+    }
+    .stat .k { font-size: 11px; font-weight: 700; letter-spacing: .5px; text-transform: uppercase; color: var(--mut) }
+    .stat .v { font-size: clamp(21px, 2.3vw, 27px); overflow-wrap: anywhere; font-weight: 800; line-height: 1.1; letter-spacing: -.5px; font-variant-numeric: tabular-nums }
+    .stat .sub { font-size: 11.5px; color: var(--mut); line-height: 1.35 }
+    .stat .sub b { font-weight: 700 }
+    .st-ok .v { color: var(--acc) }      .st-ok .ico { background: #22c55e1f }
+    .st-warn .v { color: var(--warn) }   .st-warn .ico { background: #f59e0b1f }
+    .st-bad .v { color: var(--danger) }  .st-bad .ico { background: #ef44441f }
+    .st-mut .v { color: var(--txt) }
     /* ── RECORRIDO DEL WIZARD · canvas vertical arrastrable ──────────────────────────────────────
        VERTICAL a propósito. En horizontal la bifurcación cae al final del tronco y los ramales
        arrancan al principio, así que la curva de unión tiene que volver cruzando todo el diagrama y
@@ -640,6 +664,8 @@
     <div class="warnbar" id="devwarn" style="display:none">⚠ <b>dev</b> = data COMPARTIDA: el flujo escribe datos
       sintéticos (assign · scrub · buró) en la DB de dev. El login es Cognito real y podés tardar más (RDS remoto).
     </div>
+
+    <div class="stats" id="stats"></div>
 
     <!-- Recorrido del wizard, arriba de todo: es el mapa del territorio antes de elegir nada. Tronco
          común hasta /lenders y un ramal por response_type; se dibujan SOLO los ramales que el comercio
@@ -884,6 +910,7 @@
         const ls = r.lenders || [];
         lendersDelComercio = ls;   // el mapa de tren dibuja los ramales según el rt de estos
         renderTren();
+        loadEstado();
         if (!ls.length) { box.innerHTML = '<p style="color:var(--mut);font-size:12px;margin:0">Sin lenders (¿branch en .flows.json?).</p>'; return; }
         box.innerHTML = '';
         for (const l of ls) {
@@ -955,6 +982,62 @@
     // status por lender que devolverá el mock de pre-aprobados (el mock lee el archivo por request).
     async function savePaStatuses() {
       try { await fetch('/api/pa-statuses', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ map: paStatus }) }); } catch {}
+    }
+
+    // ── TARJETAS DE ESTADO ──────────────────────────────────────────────────────────────────────
+    // Responden "¿está el harness listo para correr?" antes de que aprietes Lanzar. Se refrescan al
+    // cambiar de comercio y al terminar una corrida.
+    async function loadEstado() {
+      let e = null;
+      try { e = await (await fetch('/api/estado')).json(); } catch { /* el panel sigue sin esto */ }
+      const box = $('stats'); if (!box) return;
+      const card = (cls, ico, k, v, sub, tip) =>
+        `<div class="stat ${cls}"${tip ? ` title="${tip.replace(/"/g, '&quot;')}"` : ''}>`
+        + `<div class="top"><span class="ico">${ico}</span><span class="k">${k}</span></div>`
+        + `<div class="v">${v}</div><div class="sub">${sub}</div></div>`;
+      const out = [];
+
+      // 1 · target: es lo primero que hay que saber, porque dev escribe data COMPARTIDA
+      out.push(card(target === 'dev' ? 'st-warn' : 'st-ok', target === 'dev' ? '⚠' : '🖥',
+        'Entorno', target,
+        target === 'dev' ? 'data <b>compartida</b> con el equipo' : 'BD local en Docker · sin riesgo'));
+
+      // 2 · mocks arriba: sin ellos el flujo muere en un muro externo
+      if (e?.mocks) {
+        const up = e.mocks.filter(m => m.arriba), down = e.mocks.filter(m => !m.arriba);
+        out.push(card(down.length ? 'st-warn' : 'st-ok', '🔌', 'Mocks',
+          `${up.length}/${e.mocks.length}`,
+          down.length ? `abajo: <b>${down.map(m => m.nombre).join(', ')}</b>` : 'todos respondiendo',
+          e.mocks.map(m => `${m.arriba ? '●' : '○'} ${m.nombre} :${m.puerto}`).join('\n')));
+      }
+
+      // 3 · entidades del comercio elegido: cuántas van a listar de verdad
+      if (sel && lendersDelComercio.length) {
+        const on = lendersDelComercio.filter(l => Number(l.lender_status) === 1);
+        out.push(card(on.length ? 'st-mut' : 'st-bad', '🏦', 'Entidades',
+          `${on.length}/${lendersDelComercio.length}`,
+          on.length ? `prendidas en <b>${sel.name}</b>` : 'ninguna prendida: el listado sale vacío',
+          lendersDelComercio.map(l => `${Number(l.lender_status) === 1 ? '●' : '○'} ${l.name} rt${l.rt} · ${l.product}`).join('\n')));
+      }
+
+      // 4 · última corrida: el veredicto contra la BD, no "1 passed"
+      if (e?.ultima) {
+        const malo = [6, 8].includes(Number(e.ultima.estadoId));
+        const cerro = [11, 28].includes(Number(e.ultima.estadoId));
+        out.push(card(malo ? 'st-bad' : cerro ? 'st-ok' : 'st-mut', '🧾', 'Última corrida',
+          `#${e.ultima.uReq}`,
+          `${e.ultima.estado}${e.ultima.lender ? ` · <b>${e.ultima.lender}</b>` : ''}`,
+          `Del volcado forense que hace el scrub antes de borrar (F-52).\nuReq ${e.ultima.uReq} · estado ${e.ultima.estadoId} ${e.ultima.estado}`));
+      }
+
+      // 5 · el mapa de pasos: si una ruta dejó de existir, el conteo del recorrido miente
+      if (e?.mapa) {
+        out.push(card(e.mapa.ok ? 'st-ok' : 'st-bad', '🗺', 'Mapa del flujo',
+          `${e.mapa.pasos}`,
+          e.mapa.ok ? `pasos · <b>${e.mapa.archivos}</b> rutas verifican` : `⚠ ${e.mapa.rotas.length} rutas NO existen`,
+          'node bin/steps-check.ts'));
+      }
+      box.innerHTML = out.join('');
     }
 
     // ── MAPA DE TREN ────────────────────────────────────────────────────────────────────────────
@@ -1219,6 +1302,7 @@
           if (!$('logToggle').style.display) { $('logToggle').style.display = 'inline-block'; $('copyLog').style.display = 'inline-block'; }
         } else {
           $('go').textContent = 'Preparar + Lanzar ▶'; $('go').disabled = !sel;          $('stopBtn').classList.remove('on'); $('dot').className = 'dot';
+          loadEstado();   // terminó una corrida → refrescar el veredicto
           clearInterval(poll); poll = null;
         }
       };
@@ -1252,6 +1336,8 @@
       $('devwarn').style.display = target === 'dev' ? '' : 'none';
       updateInjModeForTarget();   // en local no hay Real (sin OTP/burós)
       enrichMerchants();
+      loadLenders();              // los lenders son POR TARGET: la lista cambia
+      loadEstado();               // y con ella las tarjetas (entorno, entidades)
     });
 
     // switch del buró: Sintético (inyecta, salta consulta real) | Real (consulta buró real, sin inyección).
@@ -1304,6 +1390,7 @@
     renderMerchants();   // cards de prueba (slug ya visible)
     enrichMerchants();   // completa hash desde el backend
     loadSteps();         // mapa de tren (panel/steps.json + verificación de rutas)
+    loadEstado();        // tarjetas de estado (mocks · última corrida · mapa)
     loadLenders();       // lenders de la sucursal del comercio seleccionado (toggle ON/OFF)
     updateInjModeForTarget();   // estado inicial (en local, Real deshabilitado → Sintético)
     applyCanal();               // canal por defecto: asesor

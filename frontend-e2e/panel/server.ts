@@ -8,9 +8,9 @@
 // Soporta target `local` y `dev` (ver TARGETS abajo). Al lanzar con `dev` setea
 // I_KNOW_THIS_TOUCHES_SHARED_DEV=1 en el entorno del hijo — OJO: dev toca data COMPARTIDA
 // (ver pkg/db.ts::assertWriteAllowed). Elegí `local` salvo que sepas exactamente qué vas a escribir.
-import { createServer, IncomingMessage, ServerResponse } from 'node:http';
+import { createServer, get, IncomingMessage, ServerResponse } from 'node:http';
 import { spawn, execFile } from 'node:child_process';
-import { readFileSync, existsSync, writeFileSync } from 'node:fs';
+import { readFileSync, existsSync, writeFileSync, readdirSync, statSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve, join } from 'node:path';
 
@@ -201,6 +201,42 @@ const server = createServer(async (req, res) => {
 
     // Mapa de pasos del wizard (panel/steps.json) + verificación de que sus rutas existen. El `ok:false`
     // se muestra en la UI: un conteo de archivos que ya no resuelven es peor que no mostrar nada.
+    // Estado del harness para las tarjetas de arriba. TODO sale de algo real: puertos que responden,
+    // el volcado forense de la última corrida y el validador del mapa. Sin números decorativos.
+    if (path === '/api/estado') {
+        const MOCKS: Array<[string, number]> = [
+            ['pre-aprobaciones', 8095], ['redirect', 8096], ['payvalida', 8097], ['mdm/IMEI', 8098],
+            ['entidades', 8099], ['pdf-mapper', 8100], ['forms', 8101], ['ábaco', 8102],
+        ];
+        const vivo = (p: number) => new Promise<boolean>((ok) => {
+            const req = get({ host: '127.0.0.1', port: p, path: '/', timeout: 400 }, (r) => { r.destroy(); ok(true); });
+            req.on('error', () => ok(false));
+            req.on('timeout', () => { req.destroy(); ok(false); });
+        });
+        const estados = await Promise.all(MOCKS.map(async ([n, p]) => ({ nombre: n, puerto: p, arriba: await vivo(p) })));
+
+        // última corrida: el volcado que hace el scrub ANTES de borrar (F-52)
+        let ultima: any = null;
+        try {
+            const dir = join(ROOT, '.runs');
+            const f = readdirSync(dir).filter((x) => x.endsWith('.json'))
+                .map((x) => ({ x, t: statSync(join(dir, x)).mtimeMs })).sort((a, b) => b.t - a.t)[0];
+            if (f) {
+                const j = JSON.parse(readFileSync(join(dir, f.x), 'utf8'));
+                const s = (j.solicitudes || [])[0];
+                if (s) ultima = { uReq: s.id, estado: s.estado, estadoId: s.user_request_status_id, lender: s.lender, cuando: j.borrado_en };
+            }
+        } catch { /* sin corridas todavía */ }
+
+        const mapa = await new Promise<any>((ok) => {
+            execFile('node', ['bin/steps-check.ts', '--json'], { cwd: ROOT, timeout: 15000 }, (_e, out) => {
+                try { ok(JSON.parse(out)); } catch { ok(null); }
+            });
+        });
+
+        return json(res, 200, { mocks: estados, ultima, mapa });
+    }
+
     if (path === '/api/steps') {
         try {
             const mapa = JSON.parse(readFileSync(join(HERE, 'steps.json'), 'utf8'));
