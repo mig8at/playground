@@ -162,6 +162,31 @@ const totalRango = computed(() => diasRango.value.reduce((n, d) => n + totalDe(d
 const hMarca = (h) => h === 12 ? '12p' : h === 18 ? '6p' : h < 12 ? `${h}a` : `${h - 12}p`;
 const jHoras = (min) => { if (!min) return ''; const h = min / 60; return (Number.isInteger(h) ? h : h.toFixed(1)) + 'h'; };
 
+// ── tramos de sprint sobre las 20 columnas ───────────────────────────────────────────────────────
+// La ventana de 20 días cruza sprints (y los huecos entre ellos). Para cada sprint que asoma en el
+// rango, calculamos QUÉ columnas ocupa: así se dibuja una banda con su nombre arriba y una marca en la
+// primera/última celda. Comparamos por `clave` (YYYY-MM-DD): iso lexicográfico ordena bien con ese
+// formato. Un sprint que arranca antes o termina después del rango se recorta a lo que se ve.
+const tramos = computed(() => {
+  const cols = diasRango.value;
+  return (sprints.value || []).map(sp => {
+    if (!sp.startDate || !sp.endDate) return null;
+    const ini = clave(sp.startDate), fin = clave(sp.endDate);
+    let a = -1, b = -1;
+    cols.forEach((c, i) => { if (c.iso >= ini && c.iso <= fin) { if (a < 0) a = i; b = i; } });
+    if (a < 0) return null; // no asoma en la ventana
+    return { id: sp.id, name: sp.name.replace(/^CORE /, ''), a, b, largo: b - a + 1 };
+  }).filter(Boolean);
+});
+// primera/última columna de cada tramo → marca de "empieza aquí" / "termina aquí" en la grilla
+const bordeIni = computed(() => new Set(tramos.value.map(t => diasRango.value[t.a].iso)));
+const bordeFin = computed(() => new Set(tramos.value.map(t => diasRango.value[t.b].iso)));
+// left/width de un tramo, en las MISMAS unidades que la grilla (vars CSS) para que queden alineados
+const estiloTramo = (t) => ({
+  left: `calc(var(--jhl) + var(--gap) + ${t.a} * (var(--cel) + var(--gap)))`,
+  width: `calc(${t.largo} * (var(--cel) + var(--gap)) - var(--gap))`,
+});
+
 // ── carga ───────────────────────────────────────────────────────────────────────────────────────
 async function cargarSprint(id) {
   cargando.value = true;
@@ -265,10 +290,14 @@ function anclarMuestra(sp) {
         <p class="vacio" v-if="!totalRango">Todavía no hay registros en los últimos 20 días. Cada hora que
           registres pinta el bloque de la jornada (8–18) en el que la trabajaste.</p>
         <div class="jm">
+          <div class="jbanda">
+            <div v-for="t in tramos" :key="t.name" class="jtramo" :class="{ sel: t.id === sprint?.id }"
+              :style="estiloTramo(t)" :title="t.id === sprint?.id ? `${t.name} · el que estás viendo` : t.name">{{ t.name }}</div>
+          </div>
           <div v-for="h in HORAS" :key="h" class="jrow" :class="{ almuerzo: ALMUERZO.has(h) }">
             <span class="jhl">{{ hMarca(h) }}</span>
             <span v-for="d in diasRango" :key="d.iso" class="cel"
-              :class="['n' + nivel(minEn(d.iso, h)), { finde: d.finde, lunch: ALMUERZO.has(h) }]"
+              :class="['n' + nivel(minEn(d.iso, h)), { finde: d.finde, lunch: ALMUERZO.has(h), spIni: bordeIni.has(d.iso), spFin: bordeFin.has(d.iso) }]"
               :title="`${d.dow} ${d.num} · ${hMarca(h)}–${hMarca(h + 1)} — ${minEn(d.iso, h) ? Math.round(minEn(d.iso, h)) + ' min' : (ALMUERZO.has(h) ? 'almuerzo' : 'sin registro')}`"></span>
           </div>
           <div class="jrow jtot">
@@ -434,20 +463,38 @@ textarea:focus, input:focus { outline: none; border-color: var(--acc) }
    trabajada. Las celdas SIN registro van rayadas en vez de vacías: un hueco liso se lee como "cero"
    y un rayado como "no hubo registro". El almuerzo (12–2) se marca solo con la etiqueta en violeta,
    no se apaga: a veces se trabaja ahí y tiene que verse igual que cualquier hora. */
-.jm { display: flex; flex-direction: column; gap: 4px; overflow-x: auto }
-.jrow { display: flex; align-items: center; gap: 4px }
-.jhl { width: 30px; flex: none; font-size: 10.5px; font-weight: 700; color: var(--mut); text-align: right;
+/* --cel/--gap/--jhl viven acá y los usan tanto la grilla como la banda de sprints: así los tramos de
+   arriba quedan pegados a sus columnas aunque cambie el tamaño de celda (una sola fuente de verdad). */
+.jm { --cel: 24px; --gap: 4px; --jhl: 30px; display: flex; flex-direction: column; gap: var(--gap); overflow-x: auto }
+.jrow { display: flex; align-items: center; gap: var(--gap) }
+.jhl { width: var(--jhl); flex: none; font-size: 10.5px; font-weight: 700; color: var(--mut); text-align: right;
   font-variant-numeric: tabular-nums }
-.cel { width: 24px; height: 21px; border-radius: 5px; flex: none; transition: .12s }
+.cel { width: var(--cel); height: 21px; border-radius: 5px; flex: none; transition: .12s }
 /* el finde solo atenúa el FONDO: si una celda tiene registro, el color no se toca — sería mentirle al
    ojo sobre cuánto tiempo hubo ahí */
 .cel.finde.n0 { opacity: .45 }
 .cel:hover { outline: 2px solid var(--acc); outline-offset: 1px }
 .n0 { background: repeating-linear-gradient(-45deg, #ffffff09 0 3px, transparent 3px 6px), var(--panel2) }
 .n1 { background: #a78bfa38 } .n2 { background: #a78bfa70 } .n3 { background: #a78bfaad } .n4 { background: #a78bfa }
+/* frontera de sprint: la primera columna de un sprint lleva una línea a la IZQUIERDA, la última una a la
+   DERECHA. Como cada celda de la columna la repite, se forma una guía vertical (punteada por los gaps)
+   que dice "acá empezó / acá terminó". box-shadow inset: no corre el layout ni sobre celdas de color. */
+.cel.spIni { box-shadow: inset 2px 0 0 #7c6ba8 }
+.cel.spFin { box-shadow: inset -2px 0 0 #7c6ba8 }
+.cel.spIni.spFin { box-shadow: inset 2px 0 0 #7c6ba8, inset -2px 0 0 #7c6ba8 }
 /* almuerzo: NO se apaga. Se trabaja ahí a veces y hay que verlo igual que cualquier hora. Solo queda
    marcado con la etiqueta en violeta, para que se lea "esto es el almuerzo" sin restarle a la data. */
 .jrow.almuerzo .jhl { color: var(--acc); opacity: .8 }
+/* banda de sprints: una tira arriba de la grilla; cada tramo se posiciona (left/width por estiloTramo)
+   sobre las columnas de su sprint. Los huecos entre tramos son los días sin sprint. */
+.jbanda { position: relative; height: 17px; margin-bottom: 3px }
+.jtramo { position: absolute; top: 0; height: 100%; display: flex; align-items: center; padding: 0 7px;
+  font-size: 10px; font-weight: 700; color: var(--mut); white-space: nowrap; overflow: hidden;
+  border-radius: 5px 5px 0 0; background: var(--panel2);
+  box-shadow: inset 0 -2px 0 var(--line), inset 2px 0 0 var(--line), inset -2px 0 0 var(--line) }
+/* el sprint que estás viendo arriba se resalta acá, para atar el mapa al selector */
+.jtramo.sel { color: var(--acc); background: #a78bfa1f;
+  box-shadow: inset 0 -2px 0 var(--acc), inset 2px 0 0 var(--acc), inset -2px 0 0 var(--acc) }
 .jtot .cel { height: 16px; background: none; font-size: 9.5px; color: var(--mut); text-align: center;
   font-variant-numeric: tabular-nums }
 .jejes .cel { height: auto; background: none; font-size: 10px; color: var(--mut); text-align: center }
