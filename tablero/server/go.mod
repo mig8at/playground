@@ -1,4 +1,4 @@
-module creditop/tools/server
+module creditop/tablero/server
 
 go 1.25.5
 

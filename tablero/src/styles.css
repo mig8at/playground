@@ -1,0 +1,29 @@
+/* Tablero — base oscura, acento violeta.
+   El resto del playground usa el verde de CreditOp como acento; acá va violeta a propósito: en el
+   panel del harness el color ES información (rt2, renting, rt4…), pero acá es solo identidad, así que
+   puede tomar la paleta de la referencia sin pisarle el significado a nada. */
+:root {
+  --bg: #0f1115;
+  --panel: #171a21;
+  --panel2: #1e222b;
+  --line: #2a2f3a;
+  --txt: #e7eaf0;
+  --mut: #9aa4b2;
+  --acc: #a78bfa;
+  --warn: #f6c667;
+  --bad: #fca5a5;
+
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--txt);
+  font: 15px/1.5 -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3 { color: var(--txt); font-weight: 700; }

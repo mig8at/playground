@@ -25,7 +25,7 @@ para el dashboard y viceversa.
 ## Arranque rápido
 
 ```bash
-cd /Users/miguelochoa/Desktop/CREDITOP/playground/tools
+cd /Users/miguelochoa/Desktop/CREDITOP/playground/tablero
 npm install
 cp server/.env.example server/.env    # y completá los tokens (ver "Configuración")
 npm run dev
@@ -58,7 +58,7 @@ tools/
 │   ├── main.js  styles.css
 │   └── scorecards/        ← Rocks & Scorecards Q3 2026 — HUÉRFANO, nadie lo importa
 └── server/
-    ├── go.mod (module creditop/tools/server) · .env · .env.example
+    ├── go.mod (module creditop/tablero/server) · .env · .env.example
     ├── cmd/web/main.go        ← WS :8787, 5 mensajes entrantes + /health
     ├── cmd/jira-mcp/          ← main.go (wiring) + tools.go (4 tools)
     ├── cmd/slack-mcp/         ← main.go (wiring) + tools.go (3 tools)
@@ -90,10 +90,10 @@ tools/
 ### Registrarlos en Claude Code
 
 ```bash
-cd /Users/miguelochoa/Desktop/CREDITOP/playground/tools && npm run server:build
+cd /Users/miguelochoa/Desktop/CREDITOP/playground/tablero && npm run server:build
 
-claude mcp add creditop-jira  -- /Users/miguelochoa/Desktop/CREDITOP/playground/tools/server/bin/jira-mcp
-claude mcp add creditop-tools -- /Users/miguelochoa/Desktop/CREDITOP/playground/tools/server/bin/slack-mcp
+claude mcp add creditop-jira  -- /Users/miguelochoa/Desktop/CREDITOP/playground/tablero/server/bin/jira-mcp
+claude mcp add creditop-tools -- /Users/miguelochoa/Desktop/CREDITOP/playground/tablero/server/bin/slack-mcp
 ```
 
 No hace falta pasar `--env`: `env.LoadDefaults()` busca `.env` en el cwd, **junto al binario y en su carpeta

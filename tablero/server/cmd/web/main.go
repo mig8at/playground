@@ -18,9 +18,9 @@ import (
 
 	"github.com/coder/websocket"
 
-	"creditop/tools/server/internal/atlassian"
-	"creditop/tools/server/internal/env"
-	"creditop/tools/server/internal/slack"
+	"creditop/tablero/server/internal/atlassian"
+	"creditop/tablero/server/internal/env"
+	"creditop/tablero/server/internal/slack"
 )
 
 type app struct {
@@ -66,6 +66,29 @@ func main() {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/ws", a.handleWS)
 	mux.HandleFunc("/health", func(w http.ResponseWriter, _ *http.Request) { w.Write([]byte("ok")) })
+
+	// Sprint activo + mis tareas, en JSON. Existe para el tablero: el WS sirve el dashboard viejo, pero
+	// para prototipar alcanza con un GET y evita cablear mensajes nuevos por cada campo.
+	mux.HandleFunc("/api/sprint", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("content-type", "application/json")
+		w.Header().Set("access-control-allow-origin", "*")
+		if a.jira == nil {
+			json.NewEncoder(w).Encode(map[string]any{"error": "sin credenciales de Jira (.env)"})
+			return
+		}
+		board := atoiDefault(r.URL.Query().Get("board"), a.jiraBoardID)
+		sp, err := a.jira.ActiveSprint(r.Context(), board)
+		if err != nil {
+			json.NewEncoder(w).Encode(map[string]any{"error": err.Error(), "board": board})
+			return
+		}
+		iss, err := a.jira.MySprintIssues(r.Context(), sp.ID)
+		if err != nil {
+			json.NewEncoder(w).Encode(map[string]any{"error": err.Error(), "sprint": sp})
+			return
+		}
+		json.NewEncoder(w).Encode(map[string]any{"sprint": sp, "issues": iss, "board": board})
+	})
 
 	log.Printf("server on · ws://localhost:%s/ws · integraciones: %s", port, integrations)
 	if err := http.ListenAndServe(":"+port, mux); err != nil {

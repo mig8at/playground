@@ -6,7 +6,7 @@ import (
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
-	"creditop/tools/server/internal/slack"
+	"creditop/tablero/server/internal/slack"
 )
 
 // CreateChannelInput es lo que el modelo debe entregar para crear un canal.

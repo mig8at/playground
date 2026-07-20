@@ -47,7 +47,7 @@ muro, buscá ahí.** Es lo más rentable del repo.
 | **Investigar una solicitud rota (soporte)** | `flow/FAQ-SOPORTE.md` → `soporte/` | La FAQ tiene los códigos de diagnóstico. El trazador (`:5192`) está en **Fase 0: datos mock** — una cédula real no devuelve nada. |
 | **Entender el canal ecommerce** (contrato base64, checkout de tienda) | `creditop-woocommerce/` | El plugin es el emisor original del contrato. Port en TS: `frontend-e2e/pkg/ecommerce.ts`. |
 | **Explicarle algo a negocio / alinear un rediseño** | `examples/` | HTML de un solo archivo, doble clic. Son **deber-ser**, no el sistema real — leé los gotchas antes de citarlos. |
-| **Crear una tarea en Jira o postear en Slack** | `tools/` | Conectores MCP propios en Go. Hoy **ninguno está registrado** en Claude Code. |
+| **Crear una tarea en Jira o postear en Slack** | `tablero/` | Conectores MCP propios en Go. Hoy **ninguno está registrado** en Claude Code. |
 
 **Regla de oro para un modelo:** empezá siempre por `context/`, aunque la tarea parezca de código. Es más
 barato leer un `doc.md` de 100 líneas que grepear 5.700 archivos.
@@ -65,7 +65,7 @@ Cada una tiene su propio README con arranque verificado, gotchas y trampas conoc
 | [`flow/`](flow/README.md) | **Simulador editable** del onboarding (Vue 3 + Vue Flow, sin backend, **:5190**): tocás monto, documento, burós y reglas, y ves en vivo qué entidad queda y por qué. |
 | [`domain-model/`](domain-model/README.md) | Visualizador del **modelo de dominio deber-ser** (**:5183**): 105 entidades en 8 contextos, cada una apuntando a su tabla real. Mapa de traducción entre el rediseño y las 212 tablas de hoy. |
 | [`soporte/`](soporte/README.md) | **Trazador de solicitudes** (**:5192**): buscás una cédula y ves cada intento dibujado etapa por etapa, con dónde y por qué se rompió. **Fase 0 — datos mock.** |
-| [`tools/`](tools/README.md) | Conectores **MCP propios en Go** para Jira Cloud y Slack, más un dashboard Vue de sprint personal por WebSocket (**:5191** + WS **:8787**). |
+| [`tablero/`](tablero/README.md) | Mi sprint: dashboard Vue de tareas, registro de tiempo y hallazgos, sobre conectores **MCP propios en Go** para Jira Cloud y Slack (**:5191** + WS **:8787**). |
 | [`creditop-woocommerce/`](creditop-woocommerce/README.md) | Plugin de **WordPress/WooCommerce** que agrega "Paga a cuotas con Creditop" al checkout y redirige con el carrito serializado en la URL. Emisor original del contrato base64 del canal ecommerce. |
 | [`examples/`](examples/README.md) | **Prototipos HTML** de un solo archivo (sin build) usados para alinear con negocio antes de programar. Casi todos son deber-ser, no el sistema real. |
 
@@ -78,12 +78,12 @@ Cada una tiene su propio README con arranque verificado, gotchas y trampas conoc
 | 5174 | wizard `loan-request-wizard` | **no vive acá** — es `frontend-monorepo`; los harness lo levantan |
 | 5183 | `domain-model` | `open: true` (abre el navegador solo) |
 | 5190 | `flow` | **`strictPort: true`** → si está ocupado FALLA, no salta. Override: `PORT=5191 npm run dev` |
-| 5191 | `tools` (Vite) | colisiona con el target muerto `merchant-config` de `.claude/launch.json` |
+| 5191 | `tablero` (Vite) | colisiona con el target muerto `merchant-config` de `.claude/launch.json` |
 | 5192 | `soporte` | **sin `strictPort`** → si está ocupado salta a 5193, que es `context`. Leé la línea `Local:` de Vite |
 | 5193 | `context` (viz) | |
 | 5195 | `frontend-e2e` (panel) | override con `PANEL_PORT` |
 | 8095–8102 | mocks de `frontend-e2e` | preapprovals 8095 · redirect 8096 · payvalida 8097 · mdm 8098 · lenders 8099 · pdf-mapper 8100 · forms 8101 · abaco 8102 |
-| 8787 | WS de `tools` | el front lo tiene hardcodeado en `App.vue:4` |
+| 8787 | WS de `tablero` | el front lo tiene hardcodeado en `App.vue:4` |
 
 ---
 
@@ -109,7 +109,7 @@ diario. El comentario del `.gitignore` quedó viejo.
 Lo que sigue vigente como regla de trabajo: **commiteá local y no pushees por iniciativa propia** — el
 push lo hace Miguel. Y nunca confundas este remoto personal con los repos de la empresa.
 
-**Secretos.** `.env*` está gitignoreado salvo `.env.example`. `tools/server/.env` tiene tokens reales
+**Secretos.** `.env*` está gitignoreado salvo `.env.example`. `tablero/server/.env` tiene tokens reales
 (Slack `xoxb-`/`xoxp-`, API token de Atlassian): no lo imprimas ni lo cites.
 
 ---
@@ -135,7 +135,7 @@ tiempo persiguiéndolas.
 
 - **El target `merchant-config` de [`.claude/launch.json`](.claude/launch.json) está muerto.** Sirve
   `playground/merchant-config`, carpeta que se movió a `examples/merchant-config` (commit `e631279`).
-  Arranca y devuelve 404 en todo. Además ocupa el **:5191** de `tools`.
+  Arranca y devuelve 404 en todo. Además ocupa el **:5191** de `tablero`.
 
 - **El MCP de `context` está retirado.** Se borró el server Go (commit `50f689e`); lo que queda es el mapa
   estático `ROUTE-MAP.md`, el toolkit Python de `context/tools/` y una viz Vue read-only. **No lo
