@@ -17,7 +17,10 @@ import { Flow } from '../pkg/flow';
  * (PHP-serializado; con placeholders el create da 500).
  */
 
-const GEN_SCRIPT = process.env.GEN_SCRIPT ?? '/Users/miguelochoa/Desktop/CREDITOP/github/generate_checkout_url.php';
+// El script se movió al repo el 2026-07-19 (antes estaba suelto en ~/Desktop/CREDITOP/github/, sin
+// control de versiones). Ruta relativa: sobrevive a que cambie el home o el nombre de la carpeta.
+const GEN_SCRIPT = process.env.GEN_SCRIPT
+    ?? resolve(dirname(fileURLToPath(import.meta.url)), '..', '..', 'creditop-woocommerce', 'tools', 'generate_checkout_url.php');
 const LISTENER_PORT = Number(process.env.E2E_SHOP_PORT ?? 9099);
 
 /** Genera el contrato base64 real (del script) y devuelve los params o,p,u,t,config + hash. */

@@ -134,5 +134,5 @@ Ninguno dentro de esta carpeta salvo el `Readme.txt` (el de distribución). El c
 - `/Users/miguelochoa/Desktop/CREDITOP/playground/context/server/data/flows/ecommerce-web-stateless/doc.md` — la task que mueve el entry al wizard sin cookie (PRs 795 backend / 551 front).
 - `/Users/miguelochoa/Desktop/CREDITOP/playground/context/server/data/flows/findings/doc.md` — **F-40**: por qué el checkout da 404 contra el wizard de `main`.
 - `/Users/miguelochoa/Desktop/CREDITOP/github/legacy-application/app/Http/Controllers/Customer/WoocommerceController.php` — el receptor histórico: decodifica el contrato, valida hash+token, notifica y cancela.
-- `/Users/miguelochoa/Desktop/CREDITOP/playground/frontend-e2e/channel/ecommerce-*.spec.ts` — 5 specs del canal (`ecommerce-local-real` usa directamente `generate_checkout_url.php`). Marcadas **stale** por F-40.
-- `/Users/miguelochoa/Desktop/CREDITOP/playground/backend-mcp/README.md` — comandos `ecommerce` y `ecommerce-url`.
+- `/Users/miguelochoa/Desktop/CREDITOP/playground/frontend-e2e/channel/ecommerce-*.spec.ts` — 5 specs del canal (`ecommerce-notify` usa `tools/generate_checkout_url.php`). Marcadas **stale** por F-40.
+- `tools/generate_checkout_url.php` — arma la URL base64 fuera de WordPress. **Referencia, no herramienta**: para simular la entrada usá `frontend-e2e/pkg/checkout-b64.ts` o el selector de Canal del panel.
