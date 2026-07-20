@@ -30,11 +30,23 @@ const nota = ref('');
 const minutos = ref(30);
 // Dos entradas de muestra, escritas como DEBEN escribirse: cuentan qué pasó en lenguaje de negocio,
 // sin una sola referencia técnica. Son el ejemplo del tono, no datos reales.
+// Cada entrada lleva su FECHA real (no solo el texto para mostrar): es lo que permite agrupar por día
+// en el mapa de calor. Guardar solo "19 jul · 11:20" obligaría a re-parsear un string localizado.
+const hoy = new Date();
+const diaAtras = (n) => { const d = new Date(hoy); d.setDate(d.getDate() - n); return d; };
 const entradas = ref([
-  { id: 1, key: 'LO-224', tipo: 'hallazgo', min: 90, cuando: '19 jul · 11:20',
+  { id: 1, key: 'LO-224', tipo: 'hallazgo', min: 90, fecha: diaAtras(0),
     txt: 'La entrada desde la tienda genera la solicitud correctamente, pero el cliente aterriza en una pantalla que no corresponde a este comercio y la solicitud queda cancelada sin avisarle.' },
-  { id: 2, key: 'LO-224', tipo: 'prueba', min: 45, cuando: '19 jul · 14:05',
+  { id: 2, key: 'LO-224', tipo: 'prueba', min: 45, fecha: diaAtras(0),
     txt: 'Se reprodujo el caso punta a punta en el entorno de pruebas: el pedido viaja completo y con los datos correctos. El corte está en el paso siguiente, no en el envío.' },
+  { id: 3, key: 'LO-224', tipo: 'avance', min: 120, fecha: diaAtras(1),
+    txt: 'Se recorrió el camino completo del cliente desde la tienda hasta la aprobación, anotando en qué punto cambia el comportamiento según la entidad elegida.' },
+  { id: 4, key: 'LO-299', tipo: 'prueba', min: 200, fecha: diaAtras(2),
+    txt: 'Se probaron los tres productos del comercio de prueba y se confirmó cuál de ellos exige la validación de ingresos adicional.' },
+  { id: 5, key: 'LO-299', tipo: 'hallazgo', min: 75, fecha: diaAtras(3),
+    txt: 'Uno de los productos no estaba pidiendo la validación de ingresos que le corresponde. Se corrigió y se verificó con los tres productos.' },
+  { id: 6, key: 'LO-312', tipo: 'avance', min: 60, fecha: diaAtras(4),
+    txt: 'Ajustes de presentación en el tablero de seguimiento: se unificó cómo se muestran los comercios y sus entidades.' },
 ]);
 
 // ── guard: lo que se publica en Jira no puede filtrar el playground ─────────────────────────────
@@ -69,13 +81,43 @@ function agregar() {
   if (!nota.value.trim() || !activa.value || problemas.value.length) return;
   entradas.value.unshift({
     id: Date.now(), key: activa.value.Key, tipo: tipo.value, min: Number(minutos.value) || 0,
-    cuando: new Date().toLocaleString('es-CO', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }),
+    fecha: new Date(),
     txt: nota.value.trim(),
   });
   nota.value = '';
 }
 
 const deLaActiva = computed(() => activa.value ? entradas.value.filter(e => e.key === activa.value.Key) : []);
+const cuando = (d) => new Date(d).toLocaleString('es-CO', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
+
+// ── mapa de calor: filas = tareas · columnas = días · intensidad = minutos ──────────────────────
+// Responde de un vistazo "¿en qué trabajé esta semana?", que es la pregunta que un total de horas no
+// contesta: 8h repartidas en cuatro tareas y 8h en una sola son semanas muy distintas.
+const DIAS = 12;
+const clave = (d) => new Date(d).toISOString().slice(0, 10);
+const columnas = computed(() => Array.from({ length: DIAS }, (_, i) => {
+  const d = diaAtras(DIAS - 1 - i);
+  return { iso: clave(d), num: d.getDate(), finde: [0, 6].includes(d.getDay()) };
+}));
+const porTareaYDia = computed(() => {
+  const m = {};
+  for (const e of entradas.value) {
+    const k = clave(e.fecha);
+    (m[e.key] ??= {})[k] = (m[e.key][k] || 0) + e.min;
+  }
+  return m;
+});
+const filas = computed(() => issues.value.map(i => ({
+  key: i.Key,
+  total: Object.values(porTareaYDia.value[i.Key] || {}).reduce((a, b) => a + b, 0),
+  celdas: columnas.value.map(c => ({ ...c, min: porTareaYDia.value[i.Key]?.[c.iso] || 0 })),
+})));
+// 4 niveles, como la referencia. El corte es por tramos de tiempo, no por percentil: así el color
+// significa siempre lo mismo aunque cambie la semana.
+const nivel = (min) => min === 0 ? 0 : min < 45 ? 1 : min < 120 ? 2 : min < 240 ? 3 : 4;
+const totalDia = computed(() => Object.fromEntries(columnas.value.map(c =>
+  [c.iso, entradas.value.filter(e => clave(e.fecha) === c.iso).reduce((n, e) => n + e.min, 0)])));
+const totalSemana = computed(() => Object.values(totalDia.value).reduce((a, b) => a + b, 0));
 
 onMounted(async () => {
   try {
@@ -133,6 +175,29 @@ onMounted(async () => {
         </div>
       </div>
 
+      <section class="card">
+        <h2>La semana <span class="mut">· {{ minHhmm(totalSemana) }} en {{ filas.filter(f => f.total).length }} tarea(s)</span></h2>
+        <div class="hm">
+          <div v-for="f in filas" :key="f.key" class="hrow">
+            <span class="hlbl" :class="{ act: activa?.Key === f.key }" @click="activa = issues.find(i => i.Key === f.key)">{{ f.key }}</span>
+            <span v-for="c in f.celdas" :key="c.iso" class="cel" :class="['n' + nivel(c.min), { finde: c.finde }]"
+              :title="`${f.key} · ${c.num} — ${c.min ? minHhmm(c.min) : 'sin registro'}`"></span>
+            <span class="htot">{{ f.total ? minHhmm(f.total) : '—' }}</span>
+          </div>
+          <div class="hrow hejes">
+            <span class="hlbl"></span>
+            <span v-for="c in columnas" :key="c.iso" class="cel num" :class="{ finde: c.finde }">{{ c.num }}</span>
+            <span class="htot"></span>
+          </div>
+        </div>
+        <div class="leyenda">
+          <span>menos</span>
+          <i v-for="n in [0, 1, 2, 3, 4]" :key="n" :class="'n' + n"></i>
+          <span>más</span>
+          <span class="nota">cada celda es un día · el color va por tramos de tiempo, no por la semana</span>
+        </div>
+      </section>
+
       <div class="cols">
         <section class="card">
           <h2>Mis tareas</h2>
@@ -183,7 +248,7 @@ onMounted(async () => {
           <div class="cuerpo">
             <div class="meta">
               <b>{{ TIPOS.find(t => t.id === e.tipo)?.label }}</b>
-              <span>{{ e.cuando }}</span>
+              <span>{{ cuando(e.fecha) }}</span>
               <span class="min">{{ e.min }} min</span>
             </div>
             <p>{{ e.txt }}</p>
@@ -251,6 +316,29 @@ textarea:focus, input:focus { outline: none; border-color: var(--acc) }
   color: var(--bad); font-size: 12px; line-height: 1.55 }
 .guard b { display: block; margin-bottom: 4px }
 .guard code { color: #fecaca }
+
+/* ── mapa de calor ────────────────────────────────────────────────────────────────────────────
+   Filas = tareas, columnas = días, intensidad = tiempo. Las celdas SIN registro van rayadas en vez
+   de vacías: un hueco liso se lee como "cero horas" y un rayado como "no hubo registro", que es lo
+   que realmente sabemos. */
+.hm { display: flex; flex-direction: column; gap: 5px; overflow-x: auto }
+.hrow { display: flex; align-items: center; gap: 5px }
+.hlbl { width: 62px; flex: none; font-size: 11.5px; font-weight: 700; color: var(--mut); cursor: pointer;
+  font-variant-numeric: tabular-nums }
+.hlbl:hover { color: var(--txt) } .hlbl.act { color: var(--acc) }
+.cel { width: 30px; height: 30px; border-radius: 8px; flex: none; transition: .12s }
+/* el finde solo atenúa el FONDO: si una celda tiene registro, el color no se toca — sería mentirle al
+   ojo sobre cuánto tiempo hubo ahí */
+.cel.finde.n0 { opacity: .5 }
+.cel:hover { outline: 2px solid var(--acc); outline-offset: 1px }
+.n0 { background: repeating-linear-gradient(-45deg, #ffffff09 0 3px, transparent 3px 6px), var(--panel2) }
+.n1 { background: #a78bfa38 } .n2 { background: #a78bfa70 } .n3 { background: #a78bfaad } .n4 { background: #a78bfa }
+.htot { margin-left: 8px; font-size: 11.5px; color: var(--mut); font-variant-numeric: tabular-nums; min-width: 52px }
+.hejes .cel { height: auto; background: none; font-size: 10.5px; color: var(--mut); text-align: center }
+.hejes .cel:hover { outline: none }
+.leyenda { display: flex; align-items: center; gap: 5px; margin-top: 12px; font-size: 11px; color: var(--mut) }
+.leyenda i { width: 13px; height: 13px; border-radius: 4px; display: inline-block }
+.leyenda .nota { margin-left: 12px }
 
 .ent { display: flex; gap: 11px; padding: 11px 0; border-top: 1px solid var(--line) }
 .ent:first-of-type { border-top: none }
