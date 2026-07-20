@@ -38,20 +38,28 @@ const minutos = ref(30);
 // - `tarea` es un ÍNDICE, no una clave fija: `anclarMuestra` la resuelve contra las tareas reales del
 //   sprint. Así el demo cae siempre sobre tareas que existen, aunque cambien de un sprint a otro.
 const hoy = new Date();
-const diaAtras = (n) => { const d = new Date(hoy); d.setDate(d.getDate() - n); return d; };
+// enDia(atras, h, m): un instante a `atras` días de hoy, a las h:m. La HORA importa: el mapa de jornada
+// reparte cada registro por las horas que cubre, así que un registro sin hora real no diría nada.
+const enDia = (atras, h, m = 0) => { const d = new Date(hoy); d.setDate(d.getDate() - atras); d.setHours(h, m, 0, 0); return d; };
 const entradas = ref([
-  { id: 1, tarea: 0, key: '', tipo: 'avance', min: 120, fecha: diaAtras(0), sprint: 0,
+  { id: 1, tarea: 0, key: '', tipo: 'avance', min: 120, fecha: enDia(1, 9, 0), sprint: 0,
     txt: 'Se dejó lista la unificación para que este comercio siga el mismo camino que el resto, sin un flujo aparte que haya que mantener por separado.' },
-  { id: 2, tarea: 0, key: '', tipo: 'prueba', min: 90, fecha: diaAtras(0), sprint: 0,
+  { id: 2, tarea: 0, key: '', tipo: 'prueba', min: 90, fecha: enDia(1, 14, 0), sprint: 0,
     txt: 'Se recorrió el flujo unificado de punta a punta con los tres productos del comercio y se comparó contra el comportamiento anterior: coincide.' },
-  { id: 3, tarea: 1, key: '', tipo: 'avance', min: 200, fecha: diaAtras(1), sprint: 0,
+  { id: 3, tarea: 1, key: '', tipo: 'avance', min: 150, fecha: enDia(2, 8, 30), sprint: 0,
     txt: 'La calculadora de precios de renting quedó tomando los valores desde configuración, así un cambio de tarifa ya no depende de una nueva entrega.' },
-  { id: 4, tarea: 1, key: '', tipo: 'hallazgo', min: 75, fecha: diaAtras(2), sprint: 0,
-    txt: 'Al configurar un plazo largo aparecía un precio distinto al esperado. Se ajustó el redondeo y se validó con varios plazos.' },
-  { id: 5, tarea: 2, key: '', tipo: 'avance', min: 60, fecha: diaAtras(3), sprint: 0,
-    txt: 'Cada comercio puede mostrar sus propios términos y condiciones; se dejó de usar un texto único para todos.' },
-  { id: 6, tarea: 3, key: '', tipo: 'prueba', min: 45, fecha: diaAtras(4), sprint: 0,
+  { id: 4, tarea: 3, key: '', tipo: 'prueba', min: 75, fecha: enDia(2, 15, 0), sprint: 0,
     txt: 'Se verificó que el monto en la pantalla de opciones se actualiza al cambiar la selección, sin quedar con el valor anterior.' },
+  { id: 5, tarea: 2, key: '', tipo: 'avance', min: 60, fecha: enDia(3, 10, 0), sprint: 0,
+    txt: 'Cada comercio puede mostrar sus propios términos y condiciones; se dejó de usar un texto único para todos.' },
+  { id: 6, tarea: 1, key: '', tipo: 'hallazgo', min: 180, fecha: enDia(4, 8, 0), sprint: 0,
+    txt: 'Al configurar un plazo largo aparecía un precio distinto al esperado. Se ajustó el redondeo y se validó con varios plazos.' },
+  { id: 7, tarea: 1, key: '', tipo: 'avance', min: 120, fecha: enDia(4, 14, 0), sprint: 0,
+    txt: 'Quedó configurable el precio del renting por plazo; se cargaron los valores de las tarifas vigentes y se revisaron uno por uno.' },
+  { id: 8, tarea: 2, key: '', tipo: 'avance', min: 90, fecha: enDia(8, 9, 30), sprint: 0,
+    txt: 'Se dejó preparado que cada comercio suba su propio documento de términos, en lugar de compartir uno solo.' },
+  { id: 9, tarea: 3, key: '', tipo: 'prueba', min: 45, fecha: enDia(9, 16, 0), sprint: 0,
+    txt: 'Se revisó que el monto mostrado al cliente coincida con el de la oferta en distintos escenarios.' },
 ]);
 
 // ── guard: lo que se publica en Jira no puede filtrar el playground ─────────────────────────────
@@ -106,50 +114,51 @@ function agregar() {
 const deLaActiva = computed(() => activa.value ? delSprint.value.filter(e => e.key === activa.value.Key) : []);
 const cuando = (d) => new Date(d).toLocaleString('es-CO', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
 
-// ── mapa de calor: filas = tareas · columnas = días · intensidad = minutos ──────────────────────
-// Responde de un vistazo "¿en qué trabajé esta semana?", que es la pregunta que un total de horas no
-// contesta: 8h repartidas en cuatro tareas y 8h en una sola son semanas muy distintas.
-// La ventana es el RANGO DEL SPRINT elegido, no "los últimos 12 días": con un sprint pasado, una
-// ventana anclada a hoy mostraría una grilla vacía que no dice nada. Así el mapa es el calendario de
-// ese sprint. Se corta en hoy si el sprint sigue vivo — pintar días que no ocurrieron es ruido.
-// TODO acá va normalizado a MEDIANOCHE LOCAL. Sin eso el mapa pierde días: los sprints traen hora
-// (arranca 13:43, cierra 05:00), y al iterar día a día se arrastra el 13:43 contra un fin de 05:00, así
-// que el último día se cae del rango — y una entrada anclada ahí desaparecía del dibujo aunque sí
-// sumaba en el total (el mapa decía 7h35m y la tarjeta 9h50m). También `clave` pasa a ser local: con
-// toISOString(), una entrada de las 20:00 en Colombia (UTC-5) cae al día siguiente.
+// ── mi jornada: últimos 15 días × horas laborales ───────────────────────────────────────────────
+// Este mapa NO va por sprint: muestra cómo se llenó mi horario laboral (8→18, con almuerzo 12→14) en
+// los últimos 15 días corridos. La pregunta que contesta es distinta a "en qué trabajé": es "cómo
+// trabajé" — mañanas cargadas y tardes flojas, días partidos, jornadas que se estiran. Por eso lee la
+// HORA de cada registro, no solo el día, y es independiente del sprint que estés mirando arriba.
 const dia0 = (d) => { const x = new Date(d); x.setHours(0, 0, 0, 0); return x; };
 const clave = (d) => { const x = dia0(d); return `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, '0')}-${String(x.getDate()).padStart(2, '0')}`; };
-const columnas = computed(() => {
-  if (!sprint.value?.startDate) return [];
-  const ini = dia0(sprint.value.startDate);
-  // en curso o cerrado: cortamos en hoy (no pintamos días que no ocurrieron). Pero si el sprint AÚN NO
-  // arrancó, no hay "hoy" adentro que valga: mostramos el calendario completo planeado, todo rayado.
-  const fin = hoy < ini ? dia0(sprint.value.endDate) : dia0(Math.min(new Date(sprint.value.endDate).getTime(), hoy.getTime()));
-  const out = [];
-  for (const d = new Date(ini); d <= fin && out.length < 31; d.setDate(d.getDate() + 1)) {
-    out.push({ iso: clave(d), num: d.getDate(), finde: [0, 6].includes(d.getDay()) });
-  }
-  return out;
-});
-const porTareaYDia = computed(() => {
+
+const DIAS = 15;
+const H_INI = 8, H_FIN = 18;                 // jornada: 8am a 6pm
+const ALMUERZO = new Set([12, 13]);          // 12→14 (bloques que arrancan a las 12 y a la 13)
+const HORAS = Array.from({ length: H_FIN - H_INI }, (_, i) => H_INI + i); // 8..17 (cada uno = una hora)
+const NOMBRE_DIA = ['do', 'lu', 'ma', 'mi', 'ju', 'vi', 'sá'];
+
+const dias15 = computed(() => Array.from({ length: DIAS }, (_, i) => {
+  const d = dia0(hoy); d.setDate(d.getDate() - (DIAS - 1 - i));
+  return { iso: clave(d), num: d.getDate(), dow: NOMBRE_DIA[d.getDay()], finde: [0, 6].includes(d.getDay()) };
+}));
+
+// minutos trabajados en cada bloque (día, hora): repartimos la duración de cada registro por las horas
+// que realmente cubre. Un registro de 90' a las 9:30 pone 30' en el bloque 9 y 60' en el 10.
+const porDiaYHora = computed(() => {
   const m = {};
-  for (const e of delSprint.value) {
-    const k = clave(e.fecha);
-    (m[e.key] ??= {})[k] = (m[e.key][k] || 0) + e.min;
+  for (const e of entradas.value) {
+    const ini = new Date(e.fecha);
+    const finMs = ini.getTime() + (e.min || 0) * 60000;
+    const k = clave(ini);
+    for (const h of HORAS) {
+      const b0 = new Date(ini); b0.setHours(h, 0, 0, 0);
+      const b1 = b0.getTime() + 3600000;
+      const solape = Math.min(finMs, b1) - Math.max(ini.getTime(), b0.getTime());
+      if (solape > 0) ((m[k] ??= {})[h] = (m[k][h] || 0) + solape / 60000);
+    }
   }
   return m;
 });
-const filas = computed(() => issues.value.map(i => ({
-  key: i.Key,
-  total: Object.values(porTareaYDia.value[i.Key] || {}).reduce((a, b) => a + b, 0),
-  celdas: columnas.value.map(c => ({ ...c, min: porTareaYDia.value[i.Key]?.[c.iso] || 0 })),
-})));
-// 4 niveles, como la referencia. El corte es por tramos de tiempo, no por percentil: así el color
-// significa siempre lo mismo aunque cambie la semana.
-const nivel = (min) => min === 0 ? 0 : min < 45 ? 1 : min < 120 ? 2 : min < 240 ? 3 : 4;
-const totalDia = computed(() => Object.fromEntries(columnas.value.map(c =>
-  [c.iso, delSprint.value.filter(e => clave(e.fecha) === c.iso).reduce((n, e) => n + e.min, 0)])));
-const totalSemana = computed(() => Object.values(totalDia.value).reduce((a, b) => a + b, 0));
+
+// nivel por FRACCIÓN de la hora trabajada (0..60'), no por tramos absolutos: acá cada celda es una hora,
+// así que "lleno" = 60'. Una hora entera trabajada es el tono más fuerte.
+const nivel = (min) => !min ? 0 : min < 15 ? 1 : min < 35 ? 2 : min < 55 ? 3 : 4;
+const minEn = (iso, h) => porDiaYHora.value[iso]?.[h] || 0;
+const totalDe = (iso) => HORAS.reduce((n, h) => n + minEn(iso, h), 0);
+const totalRango = computed(() => dias15.value.reduce((n, d) => n + totalDe(d.iso), 0));
+const hMarca = (h) => h === 12 ? '12p' : h === 18 ? '6p' : h < 12 ? `${h}a` : `${h - 12}p`;
+const jHoras = (min) => { if (!min) return ''; const h = min / 60; return (Number.isInteger(h) ? h : h.toFixed(1)) + 'h'; };
 
 // ── carga ───────────────────────────────────────────────────────────────────────────────────────
 async function cargarSprint(id) {
@@ -186,17 +195,14 @@ onMounted(async () => {
   if (conHistoria?.startDate) anclarMuestra(conHistoria);
 });
 
+// El mapa de jornada NO se toca acá: sus fechas ya son reales (últimos días, con hora). Esto solo etiqueta
+// cada registro con un sprint y su tarea real, que es lo que necesitan las OTRAS tarjetas (registrado acá,
+// bitácora). Deliberadamente no reescribe la fecha: hacerlo sacaría los registros de la ventana de 15 días.
 function anclarMuestra(sp) {
   if (!issues.value.length) return;
-  const ini = dia0(sp.startDate);
-  const fin = dia0(Math.min(new Date(sp.endDate).getTime(), hoy.getTime()));
   for (const e of entradas.value) {
-    const atras = Math.round((dia0(hoy) - dia0(e.fecha)) / 86400000);   // conserva la separación
-    const d = new Date(fin);
-    d.setDate(d.getDate() - atras);
-    e.fecha = new Date(Math.max(ini.getTime(), d.getTime()));           // clamp: nunca antes del sprint
     e.sprint = sp.id;
-    e.key = (issues.value[e.tarea] || issues.value[0]).Key;             // clave real del sprint anclado
+    e.key = (issues.value[e.tarea] || issues.value[0]).Key;
   }
 }
 </script>
@@ -251,31 +257,32 @@ function anclarMuestra(sp) {
       </div>
 
       <section class="card">
-        <h2>El sprint día a día
-          <span class="mut">· {{ totalSemana ? `${minHhmm(totalSemana)} en ${filas.filter(f => f.total).length} tarea(s)` : 'sin registros' }}</span>
+        <h2>Mi jornada
+          <span class="mut">· últimos 15 días{{ totalRango ? ` · ${minHhmm(totalRango)}` : '' }}</span>
         </h2>
-        <p v-if="!totalSemana && dias?.estado === 'porArrancar'" class="vacio">Este sprint todavía no
-          arranca. Las tareas de arriba ya son las reales de Jira; el registro empieza cuando empiece él.</p>
-        <p v-else-if="!totalSemana" class="vacio">La bitácora es local y arrancó ahora, así que este
-          sprint no tiene horas acá. Las tareas de arriba sí son las reales de Jira.</p>
-        <div class="hm">
-          <div v-for="f in filas" :key="f.key" class="hrow">
-            <span class="hlbl" :class="{ act: activa?.Key === f.key }" @click="activa = issues.find(i => i.Key === f.key)">{{ f.key }}</span>
-            <span v-for="c in f.celdas" :key="c.iso" class="cel" :class="['n' + nivel(c.min), { finde: c.finde }]"
-              :title="`${f.key} · ${c.num} — ${c.min ? minHhmm(c.min) : 'sin registro'}`"></span>
-            <span class="htot">{{ f.total ? minHhmm(f.total) : '—' }}</span>
+        <p class="vacio" v-if="!totalRango">Todavía no hay registros en los últimos 15 días. Cada hora que
+          registres pinta el bloque de la jornada (8–18) en el que la trabajaste.</p>
+        <div class="jm">
+          <div v-for="h in HORAS" :key="h" class="jrow" :class="{ almuerzo: ALMUERZO.has(h) }">
+            <span class="jhl">{{ hMarca(h) }}</span>
+            <span v-for="d in dias15" :key="d.iso" class="cel"
+              :class="['n' + nivel(minEn(d.iso, h)), { finde: d.finde, lunch: ALMUERZO.has(h) }]"
+              :title="`${d.dow} ${d.num} · ${hMarca(h)}–${hMarca(h + 1)} — ${minEn(d.iso, h) ? Math.round(minEn(d.iso, h)) + ' min' : (ALMUERZO.has(h) ? 'almuerzo' : 'sin registro')}`"></span>
           </div>
-          <div class="hrow hejes">
-            <span class="hlbl"></span>
-            <span v-for="c in columnas" :key="c.iso" class="cel num" :class="{ finde: c.finde }">{{ c.num }}</span>
-            <span class="htot"></span>
+          <div class="jrow jtot">
+            <span class="jhl"></span>
+            <span v-for="d in dias15" :key="d.iso" class="cel num" :title="minHhmm(totalDe(d.iso))">{{ jHoras(totalDe(d.iso)) }}</span>
+          </div>
+          <div class="jrow jejes">
+            <span class="jhl"></span>
+            <span v-for="d in dias15" :key="d.iso" class="cel num" :class="{ finde: d.finde }">{{ d.num }}</span>
           </div>
         </div>
         <div class="leyenda">
           <span>menos</span>
           <i v-for="n in [0, 1, 2, 3, 4]" :key="n" :class="'n' + n"></i>
           <span>más</span>
-          <span class="nota">cada celda es un día del sprint · el color va por tramos de tiempo</span>
+          <span class="nota">cada celda es una hora · la franja del almuerzo (12–2) va aparte</span>
         </div>
       </section>
 
@@ -420,25 +427,30 @@ textarea:focus, input:focus { outline: none; border-color: var(--acc) }
 .vivo { width: 6px; height: 6px; border-radius: 50%; background: #4ade80; display: inline-block }
 .vacio { color: var(--mut); font-size: 12.5px; margin: 0 0 14px; max-width: 62ch }
 
-/* ── mapa de calor ────────────────────────────────────────────────────────────────────────────
-   Filas = tareas, columnas = días, intensidad = tiempo. Las celdas SIN registro van rayadas en vez
-   de vacías: un hueco liso se lee como "cero horas" y un rayado como "no hubo registro", que es lo
-   que realmente sabemos. */
-.hm { display: flex; flex-direction: column; gap: 5px; overflow-x: auto }
-.hrow { display: flex; align-items: center; gap: 5px }
-.hlbl { width: 62px; flex: none; font-size: 11.5px; font-weight: 700; color: var(--mut); cursor: pointer;
+/* ── mapa de jornada ──────────────────────────────────────────────────────────────────────────
+   Filas = horas laborales (8→18), columnas = últimos 15 días, intensidad = fracción de la hora
+   trabajada. Las celdas SIN registro van rayadas en vez de vacías: un hueco liso se lee como "cero"
+   y un rayado como "no hubo registro". La franja del almuerzo va aparte para que la jornada se lea
+   partida en mañana y tarde, como es. */
+.jm { display: flex; flex-direction: column; gap: 4px; overflow-x: auto }
+.jrow { display: flex; align-items: center; gap: 4px }
+.jhl { width: 30px; flex: none; font-size: 10.5px; font-weight: 700; color: var(--mut); text-align: right;
   font-variant-numeric: tabular-nums }
-.hlbl:hover { color: var(--txt) } .hlbl.act { color: var(--acc) }
-.cel { width: 30px; height: 30px; border-radius: 8px; flex: none; transition: .12s }
+.cel { width: 26px; height: 22px; border-radius: 5px; flex: none; transition: .12s }
 /* el finde solo atenúa el FONDO: si una celda tiene registro, el color no se toca — sería mentirle al
    ojo sobre cuánto tiempo hubo ahí */
-.cel.finde.n0 { opacity: .5 }
+.cel.finde.n0 { opacity: .45 }
 .cel:hover { outline: 2px solid var(--acc); outline-offset: 1px }
 .n0 { background: repeating-linear-gradient(-45deg, #ffffff09 0 3px, transparent 3px 6px), var(--panel2) }
 .n1 { background: #a78bfa38 } .n2 { background: #a78bfa70 } .n3 { background: #a78bfaad } .n4 { background: #a78bfa }
-.htot { margin-left: 8px; font-size: 11.5px; color: var(--mut); font-variant-numeric: tabular-nums; min-width: 52px }
-.hejes .cel { height: auto; background: none; font-size: 10.5px; color: var(--mut); text-align: center }
-.hejes .cel:hover { outline: none }
+/* almuerzo: la fila entera se lee como "pausa". Un hueco de almuerzo casi no se ve; si igual trabajaste
+   ahí (n1..n4), el color se mantiene — es info que vale la pena ver. */
+.jrow.almuerzo { opacity: .92 }
+.cel.lunch.n0 { background: var(--panel); opacity: .4 }
+.jtot .cel { height: 16px; background: none; font-size: 9.5px; color: var(--mut); text-align: center;
+  font-variant-numeric: tabular-nums }
+.jejes .cel { height: auto; background: none; font-size: 10px; color: var(--mut); text-align: center }
+.jtot .cel:hover, .jejes .cel:hover { outline: none }
 .leyenda { display: flex; align-items: center; gap: 5px; margin-top: 12px; font-size: 11px; color: var(--mut) }
 .leyenda i { width: 13px; height: 13px; border-radius: 4px; display: inline-block }
 .leyenda .nota { margin-left: 12px }
