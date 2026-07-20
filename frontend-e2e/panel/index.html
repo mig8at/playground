@@ -482,16 +482,18 @@
       }
     }
 
+    .logcard { margin-top: 16px }
+    .logcard h2 { display: flex; align-items: center; margin-bottom: 12px }
+    .logacts { margin-left: auto; display: flex; gap: 8px }
     pre#log {
       background: #0a0c10;
-      border: none;
-      border-top: 1px solid var(--line);
-      border-radius: 0;
-      padding: 12px 22px;
+      border: 1px solid var(--line);
+      border-radius: 11px;
+      padding: 13px 15px;
       margin: 0;
       color: #cdd6e4;
       font: 12px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace;
-      max-height: 34vh;
+      max-height: 42vh;
       overflow: auto;
       white-space: pre-wrap;
       display: none
@@ -820,20 +822,27 @@
 
     </div><!-- /col derecha -->
     </div><!-- /cols -->
+
+    <!-- CONSOLA como card: es la salida de la corrida, no un accesorio del botón. Vive en el flujo de
+         la página como todo lo demás, con su header y sus acciones a la derecha. -->
+    <section class="card logcard" id="logcard" style="display:none">
+      <h2><b>▸</b> Consola de la corrida
+        <span class="logacts">
+          <button class="copy" id="logToggle">▼ plegar</button>
+          <button class="copy" id="copyLog">📋 copiar</button>
+        </span>
+      </h2>
+      <pre id="log"></pre>
+    </section>
   </div>
 
   <!-- DOCK fijo: lo que apretás en cada corrida + el estado + el log (drawer). Siempre visible, sin scroll. -->
   <div class="dock">
-    <pre id="log"></pre>
     <div class="dockin">
       <button class="go" id="go" disabled>Preparar + Lanzar ▶</button>
       <button class="stop" id="stopBtn">Detener</button>
       <span class="dot" id="dot"></span>
       <span class="sumry" id="sumry">Elegí un comercio primero.</span>
-      <span style="margin-left:auto;display:flex;gap:8px">
-        <button class="copy" id="logToggle" style="display:none">▼ consola</button>
-        <button class="copy" id="copyLog" style="display:none">📋 copiar</button>
-      </span>
     </div>
   </div>
 
@@ -1283,12 +1292,18 @@
       const j = await r.json();
       if (!j.ok) { alert(j.msg || 'no se pudo lanzar'); $('go').disabled = false; $('go').textContent = 'Preparar + Lanzar ▶'; return; }
       showLog(true); $('stopBtn').classList.add('on');
-      $('copyLog').style.display = 'inline-block'; $('logToggle').style.display = 'inline-block';
       startPoll();
     }
 
     // consola como DRAWER del dock (no empuja el layout). Recuerda si la plegaste durante la corrida.
-    function showLog(on) { logOpen = on; $('log').style.display = on ? 'block' : 'none'; $('logToggle').textContent = on ? '▼ consola' : '▲ consola'; }
+    // La consola es una CARD: mostrarla = mostrar la card. Plegar deja la card con su header visible,
+    // así el botón de copiar sigue a mano sin tener el volcado entero en pantalla.
+    function showLog(on) {
+      logOpen = on;
+      $('logcard').style.display = 'block';
+      $('log').style.display = on ? 'block' : 'none';
+      $('logToggle').textContent = on ? '▼ plegar' : '▲ desplegar';
+    }
 
     function startPoll() {
       if (poll) clearInterval(poll);
@@ -1299,7 +1314,7 @@
         if (atBottom) $('log').scrollTop = $('log').scrollHeight;   // auto-scroll solo si ya estabas al final
         if (j.running) {
           $('go').textContent = 'corriendo…'; $('go').disabled = true;          $('dot').className = 'dot run';
-          if (!$('logToggle').style.display) { $('logToggle').style.display = 'inline-block'; $('copyLog').style.display = 'inline-block'; }
+          if ($('logcard').style.display === 'none') showLog(true);   // corrida en curso → la consola aparece sola
         } else {
           $('go').textContent = 'Preparar + Lanzar ▶'; $('go').disabled = !sel;          $('stopBtn').classList.remove('on'); $('dot').className = 'dot';
           loadEstado();   // terminó una corrida → refrescar el veredicto
