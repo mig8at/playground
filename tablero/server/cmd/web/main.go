@@ -85,7 +85,7 @@ func main() {
 			json.NewEncoder(w).Encode(map[string]any{"error": err.Error(), "board": board})
 			return
 		}
-		json.NewEncoder(w).Encode(map[string]any{"sprints": sps, "board": board})
+		json.NewEncoder(w).Encode(map[string]any{"sprints": sps, "board": board, "site": strings.TrimRight(a.jiraSite, "/")})
 	})
 
 	mux.HandleFunc("/api/sprint", func(w http.ResponseWriter, r *http.Request) {
@@ -113,7 +113,9 @@ func main() {
 			json.NewEncoder(w).Encode(map[string]any{"error": err.Error(), "sprint": sp})
 			return
 		}
-		json.NewEncoder(w).Encode(map[string]any{"sprint": sp, "issues": iss, "board": board})
+		// `site` va en la respuesta para que el front arme el link a la tarea sin hardcodear el sitio:
+		// la URL de Jira sale del .env del server, que es donde ya vive esa verdad.
+		json.NewEncoder(w).Encode(map[string]any{"sprint": sp, "issues": iss, "board": board, "site": strings.TrimRight(a.jiraSite, "/")})
 	})
 
 	log.Printf("server on · ws://localhost:%s/ws · integraciones: %s", port, integrations)

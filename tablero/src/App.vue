@@ -16,6 +16,7 @@ const cargando = ref(true);
 const error = ref('');
 const sprint = ref(null);
 const sprints = ref([]);      // los 3 más recientes, del actual hacia atrás
+const sitio = ref('');        // https://<site>.atlassian.net — lo manda el server, sale de su .env
 const issues = ref([]);
 const activa = ref(null);      // tarea sobre la que se está registrando
 
@@ -78,6 +79,9 @@ const dias = computed(() => {
 
 const hhmm = (s) => { const m = Math.round(s / 60); return m ? `${Math.floor(m / 60)}h ${String(m % 60).padStart(2, '0')}m` : '—'; };
 const minHhmm = (m) => `${Math.floor(m / 60)}h ${String(m % 60).padStart(2, '0')}m`;
+// Link real a la tarea en Jira. Va como <a href> y no como window.open() a propósito: así funcionan
+// cmd-clic, clic del medio y "copiar dirección del enlace", que es como uno pega una tarea en Slack.
+const linkJira = (key) => sitio.value ? `${sitio.value}/browse/${key}` : '';
 const fechaCorta = (d) => d ? new Date(d).toLocaleDateString('es-CO', { day: '2-digit', month: 'short' }) : '';
 const claseEstado = (c) => c === 'done' ? 'e-ok' : c === 'indeterminate' ? 'e-curso' : 'e-todo';
 const minsDe = (k) => delSprint.value.filter(e => e.key === k).reduce((n, e) => n + e.min, 0);
@@ -147,6 +151,7 @@ async function cargarSprint(id) {
     if (j.error) { error.value = j.error; }
     else {
       sprint.value = j.sprint;
+      sitio.value = j.site || sitio.value;
       issues.value = j.issues || [];
       // por defecto queda seleccionada la que está en curso; si no hay (sprint cerrado), la primera
       activa.value = issues.value.find(i => i.StatusCategory === 'indeterminate') || issues.value[0] || null;
@@ -158,7 +163,7 @@ async function cargarSprint(id) {
 onMounted(async () => {
   try {
     const j = await (await fetch(`${SERVER}/api/sprints?board=${BOARD}&n=3`)).json();
-    if (!j.error) sprints.value = j.sprints || [];
+    if (!j.error) { sprints.value = j.sprints || []; sitio.value = j.site || ''; }
   } catch { /* si falla, el selector no aparece y se carga el activo igual */ }
 
   const inicial = sprints.value.find(s => s.state === 'active') || sprints.value[0];
@@ -263,7 +268,9 @@ function anclarMuestra(sp) {
           <h2>Mis tareas</h2>
           <div v-for="i in issues" :key="i.Key" class="task" :class="{ sel: activa?.Key === i.Key }" @click="activa = i">
             <div class="tl">
-              <span class="key">{{ i.Key }}</span>
+              <a v-if="sitio" class="key link" :href="linkJira(i.Key)" target="_blank" rel="noopener"
+                @click.stop :title="`Abrir ${i.Key} en Jira`">{{ i.Key }} <span class="ext">↗</span></a>
+              <span v-else class="key">{{ i.Key }}</span>
               <span class="est" :class="claseEstado(i.StatusCategory)">{{ i.Status }}</span>
             </div>
             <div class="tt">{{ i.Summary }}</div>
@@ -276,7 +283,11 @@ function anclarMuestra(sp) {
         </section>
 
         <section class="card">
-          <h2>Registrar <span v-if="activa" class="on">{{ activa.Key }}</span></h2>
+          <h2>Registrar
+            <a v-if="activa && sitio" class="on link" :href="linkJira(activa.Key)" target="_blank"
+              rel="noopener" :title="`Abrir ${activa.Key} en Jira`">{{ activa.Key }} <span class="ext">↗</span></a>
+            <span v-else-if="activa" class="on">{{ activa.Key }}</span>
+          </h2>
 
           <div class="seg">
             <button v-for="t in TIPOS" :key="t.id" :class="{ on: tipo === t.id }" @click="tipo = t.id">
@@ -376,6 +387,12 @@ textarea:focus, input:focus { outline: none; border-color: var(--acc) }
   color: var(--bad); font-size: 12px; line-height: 1.55 }
 .guard b { display: block; margin-bottom: 4px }
 .guard code { color: #fecaca }
+
+/* la clave de la tarea abre Jira; la flecha aparece al pasar por encima para no ensuciar el listado */
+.link { text-decoration: none; color: inherit; cursor: pointer }
+.link:hover { color: var(--acc); text-decoration: underline }
+.ext { opacity: 0; font-size: .82em; transition: .12s }
+.link:hover .ext { opacity: .75 }
 
 /* pestañas de sprint: el activo lleva un punto, para no depender solo de la posición */
 .tabs { display: flex; gap: 4px; background: var(--panel2); padding: 3px; border-radius: 10px }
