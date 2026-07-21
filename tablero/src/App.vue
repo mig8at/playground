@@ -147,8 +147,9 @@ const dayCols = computed(() => Array.from({ length: DAYS }, (_, i) => {
   return { iso: dayKey(d), num: d.getDate(), dow: DOW_NAME[d.getDay()], weekend: [0, 6].includes(d.getDay()) };
 }));
 
-// minutos trabajados en cada bloque (día, hora): repartimos la duración de cada registro por las horas
-// que realmente cubre. Un registro de 90' a las 9:30 pone 30' en el bloque 9 y 60' en el 10.
+// minutos por (día, hora) SEPARADOS POR TAREA. Repartimos la duración de cada registro por las horas que
+// cubre (90' a las 9:30 → 30' en el bloque 9 y 60' en el 10). Guardamos el total y el desglose por tarea:
+// el total alimenta los totales del día; el desglose, el FOCO.
 const byDayAndHour = computed(() => {
   const m = {};
   for (const e of entries.value) {
@@ -157,22 +158,41 @@ const byDayAndHour = computed(() => {
     const k = dayKey(start);
     for (const h of HOURS) {
       const b0 = new Date(start); b0.setHours(h, 0, 0, 0);
-      const b1 = b0.getTime() + 3600000;
-      const overlap = Math.min(endMs, b1) - Math.max(start.getTime(), b0.getTime());
-      if (overlap > 0) ((m[k] ??= {})[h] = (m[k][h] || 0) + overlap / 60000);
+      const overlap = Math.min(endMs, b0.getTime() + 3600000) - Math.max(start.getTime(), b0.getTime());
+      if (overlap <= 0) continue;
+      const mins = overlap / 60000;
+      const cell = ((m[k] ??= {})[h] ??= { total: 0, byTask: {} });
+      cell.total += mins;
+      if (e.key) cell.byTask[e.key] = (cell.byTask[e.key] || 0) + mins; // sin tarea (free-title) NO es foco
     }
   }
   return m;
 });
+const cellAt = (iso, h) => byDayAndHour.value[iso]?.[h];
 
-// nivel por FRACCIÓN de la hora trabajada (0..60'), no por tramos absolutos: acá cada celda es una hora,
-// así que "lleno" = 60'. Una hora entera trabajada es el tono más fuerte.
+// EL COLOR ES FOCO, no cantidad de trabajo: minutos de la TAREA DOMINANTE en esa hora, sobre 60. Una
+// hora entera en UNA sola tarea llena el cuadro (60/60); si la repartiste entre tareas, o solo trabajaste
+// un rato y el resto en otras cosas (playground, que no es tarea), el dominante es menor → menos color.
+const focusMin = (iso, h) => { const c = cellAt(iso, h); return c ? Math.max(0, ...Object.values(c.byTask)) : 0; };
+const workedMin = (iso, h) => cellAt(iso, h)?.total || 0;
+
+// los 5 tramos siguen siendo fracción de la hora (0..60'): "lleno" = 60' de foco en una sola tarea
 const level = (min) => !min ? 0 : min < 15 ? 1 : min < 35 ? 2 : min < 55 ? 3 : 4;
-const minAt = (iso, h) => byDayAndHour.value[iso]?.[h] || 0;
-const totalOf = (iso) => HOURS.reduce((n, h) => n + minAt(iso, h), 0);
+const totalOf = (iso) => HOURS.reduce((n, h) => n + workedMin(iso, h), 0); // footer: total TRABAJADO del día
 const rangeTotal = computed(() => dayCols.value.reduce((n, d) => n + totalOf(d.iso), 0));
 const hourLabel = (h) => h === 12 ? '12p' : h === 18 ? '6p' : h < 12 ? `${h}a` : `${h - 12}p`;
 const hoursShort = (min) => { if (!min) return ''; const h = min / 60; return (Number.isInteger(h) ? h : h.toFixed(1)) + 'h'; };
+
+// tooltip: el desglose que explica el número de foco (tarea dominante + lo que lo diluyó)
+const cellTitle = (d, h) => {
+  const head = `${d.dow} ${d.num} · ${hourLabel(h)}–${hourLabel(h + 1)}`;
+  const c = cellAt(d.iso, h);
+  if (!c || !c.total) return `${head} — ${LUNCH.has(h) ? 'almuerzo' : 'sin registro'}`;
+  const parts = Object.entries(c.byTask).sort((a, b) => b[1] - a[1]).map(([k, m]) => `${k} ${Math.round(m)}m`);
+  const other = c.total - Object.values(c.byTask).reduce((a, b) => a + b, 0);
+  if (other > 0.5) parts.push(`otros ${Math.round(other)}m`);
+  return `${head} · foco ${Math.round(focusMin(d.iso, h))}/60 — ${parts.join(' · ')}`;
+};
 
 // ── tramos de sprint sobre las 20 columnas ───────────────────────────────────────────────────────
 // La ventana de 20 días cruza sprints (y los huecos entre ellos). Para cada sprint que asoma en el
@@ -305,8 +325,8 @@ onMounted(async () => {
         <h2>Mi jornada
           <span class="mut">· últimos 20 días{{ rangeTotal ? ` · ${minHhmm(rangeTotal)}` : '' }}</span>
         </h2>
-        <p class="empty" v-if="!rangeTotal">Todavía no hay registros en los últimos 20 días. Cada hora que
-          registres pinta el bloque de la jornada (8–18) en el que la trabajaste.</p>
+        <p class="empty" v-if="!rangeTotal">Todavía no hay registros en los últimos 20 días. El color de
+          cada hora mide el FOCO: se llena cuando la trabajaste entera en una sola tarea.</p>
         <div class="jm" :style="gridVars">
           <div class="jband">
             <div v-for="t in spans" :key="t.name" class="jspan" :class="{ sel: t.id === sprint?.id }"
@@ -317,8 +337,8 @@ onMounted(async () => {
             :class="{ lunch: LUNCH.has(h), gapTop: h === 12 || h === 14 }">
             <span class="jhl">{{ hourLabel(h) }}</span>
             <span v-for="(d, i) in dayCols" :key="d.iso" class="cel"
-              :class="['n' + level(minAt(d.iso, h)), { weekend: d.weekend, spStart: startCols.has(i), spEnd: endCols.has(i) }]"
-              :title="`${d.dow} ${d.num} · ${hourLabel(h)}–${hourLabel(h + 1)} — ${minAt(d.iso, h) ? Math.round(minAt(d.iso, h)) + ' min' : (LUNCH.has(h) ? 'almuerzo' : 'sin registro')}`"></span>
+              :class="['n' + level(focusMin(d.iso, h)), { weekend: d.weekend, spStart: startCols.has(i), spEnd: endCols.has(i) }]"
+              :title="cellTitle(d, h)"></span>
           </div>
           <!-- las filas de totales y de fechas repiten los mismos márgenes: si no, se desalinean -->
           <div class="jrow jtot">
@@ -333,10 +353,10 @@ onMounted(async () => {
           </div>
         </div>
         <div class="legend">
-          <span>menos</span>
+          <span>disperso</span>
           <i v-for="n in [0, 1, 2, 3, 4]" :key="n" :class="'n' + n"></i>
-          <span>más</span>
-          <span class="note">cada celda es una hora · incluye el almuerzo (12–2), por si se trabajó ahí</span>
+          <span>enfocado</span>
+          <span class="note">el color es FOCO: una hora entera en una sola tarea llena el cuadro; repartida entre tareas u otras cosas, menos</span>
         </div>
       </section>
 
@@ -486,10 +506,10 @@ textarea:focus, input:focus { outline: none; border-color: var(--acc) }
 .empty { color: var(--mut); font-size: 12.5px; margin: 0 0 14px; max-width: 62ch }
 
 /* ── mapa de jornada ──────────────────────────────────────────────────────────────────────────
-   Filas = horas laborales (8→18), columnas = últimos 20 días, intensidad = fracción de la hora
-   trabajada. Las celdas SIN registro van rayadas en vez de vacías: un hueco liso se lee como "cero"
-   y un rayado como "no hubo registro". El almuerzo (12–2) se marca solo con la etiqueta en violeta,
-   no se apaga: a veces se trabaja ahí y tiene que verse igual que cualquier hora. */
+   Filas = horas laborales (8→18), columnas = últimos 20 días, intensidad = FOCO (minutos de la tarea
+   dominante de esa hora, sobre 60). Las celdas SIN registro van rayadas en vez de vacías: un hueco
+   liso se lee como "cero" y un rayado como "no hubo registro". El almuerzo (12–2) se marca solo con la
+   etiqueta en violeta, no se apaga: a veces se trabaja ahí y tiene que verse igual que cualquier hora. */
 /* --cel/--gap/--jhl/--sep los inyecta el script (`gridVars`), que es donde viven las medidas: la banda
    de sprints tiene que sumar los márgenes en JS para posicionarse, así que no pueden estar en dos lados. */
 .jm { display: flex; flex-direction: column; gap: var(--gap); overflow-x: auto }
