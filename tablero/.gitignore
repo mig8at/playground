@@ -5,6 +5,10 @@
 # Server (Go) — binarios compilados
 server/bin/
 
+# La bitácora es DATO PERSONAL, no código: vive fuera de git (además el .db cambia en cada
+# registro y el -wal/-shm en cada lectura — commitearlo sería ruido binario permanente)
+server/data/
+
 # Secretos: NUNCA commitear (.env en cualquier carpeta)
 .env
 .env.local

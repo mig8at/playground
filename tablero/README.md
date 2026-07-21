@@ -1,4 +1,4 @@
-# tools — conectores propios (Jira/Slack) + dashboard personal de sprint
+# tablero — mi sprint: registro de tiempo, bitácora y conectores propios (Jira/Slack)
 
 Un proyecto con **tres ejecutables Go y un frontend Vue**, todos apoyados en los mismos clientes HTTP:
 
@@ -135,6 +135,60 @@ Si el server se cae, reintenta cada 1,5 s.
 El heatmap es la parte cara: hace una llamada por issue, con concurrencia acotada a 6 (`activity.go:75`) y un
 timeout global de 30 s puesto en el handler del WS (`cmd/web/main.go:334`) — `activity.go` no define ninguno.
 Cada request HTTP además corta a los 20 s por su cuenta (`internal/atlassian/client.go:33`).
+
+## La bitácora y sus datos (SQLite)
+
+El registro de tiempo vive en **`server/data/tablero.db`** (SQLite, gitignoreado; `TABLERO_DB` lo
+mueve). El esquema está en `server/internal/store/store.go` y está pensado **para análisis de
+tiempo**, no solo para que la UI recargue:
+
+- **`registros`** es la tabla de hechos: una fila = un bloque de tiempo trabajado. **`sprints`** y
+  **`tareas`** son dimensiones — snapshots de Jira que se upsertean *de pasada* cada vez que el
+  dashboard carga (navegar el tablero ES la sincronización). Los JOINs de análisis no dependen de
+  que Jira responda.
+- `inicio` es cuándo **empezó el trabajo** (RFC3339 con offset local); `creado_en` es cuándo se
+  anotó. La brecha entre ambos —cuánto tardás en registrar— también es un dato.
+- `dia` y `hora` desnormalizan el instante en hora **local**, porque las funciones de fecha de
+  SQLite convierten a UTC: agrupar por `strftime('%H', inicio)` movería "las 9am" a "las 14".
+  **Usá `dia`/`hora`, no strftime sobre `inicio`.**
+- `minutos` (lo que pasó) convive con `minutos_subidos` (lo que se publicó en Jira, cuando exista
+  la subida): ajustar al publicar es una decisión de publicación, no una reescritura de la verdad.
+- `tarea` puede ser NULL (`titulo_libre` dice qué fue): reuniones y soporte no son tareas del
+  sprint, y forzarlos a una envenena el análisis.
+- La `nota` es **publicable por construcción**: el guard (fuente única en `cmd/web/main.go`,
+  servido a la UI por `/api/guard`) corre en el server **antes** del INSERT. Nada en la base puede
+  filtrar el playground el día que la subida a Jira sea automática.
+- Borrado **suave** (`borrado_en`): el ✕ de la UI marca, no elimina.
+
+Consultas que ya se pueden hacer (`sqlite3 server/data/tablero.db`):
+
+```sql
+-- ¿cuántas horas por día, últimos 30 días?
+SELECT dia, ROUND(SUM(minutos)/60.0, 1) AS horas
+FROM registros WHERE borrado_en IS NULL GROUP BY dia ORDER BY dia DESC LIMIT 30;
+
+-- ¿cuánto costó cada tarea vs sus puntos? (horas por punto = mi caro/barato real)
+SELECT r.tarea, t.puntos, ROUND(SUM(r.minutos)/60.0, 1) AS horas,
+       ROUND(SUM(r.minutos)/60.0 / NULLIF(t.puntos, 0), 1) AS horas_por_punto
+FROM registros r LEFT JOIN tareas t ON t.clave = r.tarea
+WHERE r.borrado_en IS NULL GROUP BY r.tarea ORDER BY horas DESC;
+
+-- ¿en qué se va el tiempo? (avance vs pruebas vs bloqueos)
+SELECT tipo, ROUND(SUM(minutos)/60.0, 1) AS horas
+FROM registros WHERE borrado_en IS NULL GROUP BY tipo ORDER BY horas DESC;
+
+-- ¿mañana o tarde? (por eso existe `hora` local)
+SELECT CASE WHEN hora < 12 THEN 'mañana' WHEN hora < 14 THEN 'almuerzo' ELSE 'tarde' END AS bloque,
+       ROUND(SUM(minutos)/60.0, 1) AS horas
+FROM registros WHERE borrado_en IS NULL GROUP BY bloque;
+
+-- ¿cuánto por sprint? (JOIN con la dimensión local, sin tocar Jira)
+SELECT s.nombre, ROUND(SUM(r.minutos)/60.0, 1) AS horas
+FROM registros r JOIN sprints s ON s.id = r.sprint_id
+WHERE r.borrado_en IS NULL GROUP BY s.id ORDER BY s.inicio DESC;
+```
+
+Endpoints: `GET/POST /api/registros`, `DELETE /api/registros/{id}`, `GET /api/guard`.
 
 ## Configuración (`server/.env`)
 

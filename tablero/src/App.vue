@@ -30,49 +30,34 @@ const TIPOS = [
 const tipo = ref('avance');
 const nota = ref('');
 const minutos = ref(30);
-// Entradas de muestra, escritas como DEBEN escribirse: cuentan qué pasó en lenguaje de negocio, sin una
-// sola referencia técnica. Son el ejemplo del tono, no datos reales.
-// - FECHA real (no solo el texto para mostrar): es lo que permite agrupar por día en el mapa de calor.
-// - `sprint`: la bitácora es local y arrancó ahora, así que un sprint viejo NO tiene registros. Mostrar
-//   los mismos datos al cambiar de sprint sería inventar historia que no existe.
-// - `tarea` es un ÍNDICE, no una clave fija: `anclarMuestra` la resuelve contra las tareas reales del
-//   sprint. Así el demo cae siempre sobre tareas que existen, aunque cambien de un sprint a otro.
+// La bitácora vive en SQLite del lado del server (internal/store). Acá solo se mapea al shape que
+// usa la UI: `fecha` es el INICIO del bloque trabajado (Date real, el mapa de jornada reparte por
+// horas), `sprint` ata la entrada al sprint donde se registró.
+const desdeApi = (r) => ({ id: r.id, key: r.tarea, tipo: r.tipo, min: r.minutos,
+  fecha: new Date(r.inicio), sprint: r.sprintId, txt: r.nota, subido: !!r.subidoEn });
 const hoy = new Date();
-// enDia(atras, h, m): un instante a `atras` días de hoy, a las h:m. La HORA importa: el mapa de jornada
-// reparte cada registro por las horas que cubre, así que un registro sin hora real no diría nada.
-const enDia = (atras, h, m = 0) => { const d = new Date(hoy); d.setDate(d.getDate() - atras); d.setHours(h, m, 0, 0); return d; };
-const entradas = ref([
-  { id: 1, tarea: 0, key: '', tipo: 'avance', min: 120, fecha: enDia(1, 9, 0), sprint: 0,
-    txt: 'Se dejó lista la unificación para que este comercio siga el mismo camino que el resto, sin un flujo aparte que haya que mantener por separado.' },
-  { id: 2, tarea: 0, key: '', tipo: 'prueba', min: 90, fecha: enDia(1, 14, 0), sprint: 0,
-    txt: 'Se recorrió el flujo unificado de punta a punta con los tres productos del comercio y se comparó contra el comportamiento anterior: coincide.' },
-  { id: 3, tarea: 1, key: '', tipo: 'avance', min: 150, fecha: enDia(2, 8, 30), sprint: 0,
-    txt: 'La calculadora de precios de renting quedó tomando los valores desde configuración, así un cambio de tarifa ya no depende de una nueva entrega.' },
-  { id: 4, tarea: 3, key: '', tipo: 'prueba', min: 75, fecha: enDia(2, 15, 0), sprint: 0,
-    txt: 'Se verificó que el monto en la pantalla de opciones se actualiza al cambiar la selección, sin quedar con el valor anterior.' },
-  { id: 5, tarea: 2, key: '', tipo: 'avance', min: 60, fecha: enDia(3, 10, 0), sprint: 0,
-    txt: 'Cada comercio puede mostrar sus propios términos y condiciones; se dejó de usar un texto único para todos.' },
-  { id: 6, tarea: 1, key: '', tipo: 'hallazgo', min: 180, fecha: enDia(4, 8, 0), sprint: 0,
-    txt: 'Al configurar un plazo largo aparecía un precio distinto al esperado. Se ajustó el redondeo y se validó con varios plazos.' },
-  { id: 7, tarea: 1, key: '', tipo: 'avance', min: 120, fecha: enDia(4, 14, 0), sprint: 0,
-    txt: 'Quedó configurable el precio del renting por plazo; se cargaron los valores de las tarifas vigentes y se revisaron uno por uno.' },
-  { id: 8, tarea: 2, key: '', tipo: 'avance', min: 90, fecha: enDia(8, 9, 30), sprint: 0,
-    txt: 'Se dejó preparado que cada comercio suba su propio documento de términos, en lugar de compartir uno solo.' },
-  { id: 9, tarea: 3, key: '', tipo: 'prueba', min: 45, fecha: enDia(9, 16, 0), sprint: 0,
-    txt: 'Se revisó que el monto mostrado al cliente coincida con el de la oferta en distintos escenarios.' },
-  { id: 10, tarea: 0, key: '', tipo: 'avance', min: 90, fecha: enDia(3, 12, 30), sprint: 0,
-    txt: 'Se aprovechó un rato del mediodía para dejar cerrada la unificación antes de la demo de la tarde.' },
-]);
+const entradas = ref([]);
+const errGuardar = ref('');
+
+async function cargarRegistros() {
+  try {
+    const j = await (await fetch(`${SERVER}/api/registros?dias=30${sprint.value ? `&sprint=${sprint.value.id}` : ''}`)).json();
+    if (!j.error) entradas.value = (j.registros || []).map(desdeApi);
+  } catch { /* server caído: el error general de carga ya lo dice */ }
+}
 
 // ── guard: lo que se publica en Jira no puede filtrar el playground ─────────────────────────────
-const PROHIBIDO = [
+// La FUENTE de los patrones es el server (/api/guard), que además los re-aplica en el POST: acá solo
+// dan feedback inmediato (botón bloqueado + motivo). Esta lista es el fallback si el server no está.
+const PROHIBIDO_FALLBACK = [
   { re: /\bF-\d+\b/gi, que: 'referencia a un hallazgo interno' },
   { re: /playground/gi, que: 'menciona el playground' },
   { re: /frontend-e2e|backend-e2e|legacy-backend|frontend-monorepo|creditop-woocommerce/gi, que: 'nombra un repo interno' },
   { re: /[\w/-]+\.(ts|tsx|php|go|vue|json|mjs)\b/gi, que: 'incluye una ruta de archivo' },
 ];
+const patrones = ref(PROHIBIDO_FALLBACK);
 const problemas = computed(() =>
-  PROHIBIDO.flatMap(p => (nota.value.match(p.re) || []).map(m => ({ que: p.que, hallado: m }))));
+  patrones.value.flatMap(p => (nota.value.match(p.re) || []).map(m => ({ que: p.que, hallado: m }))));
 
 // ── derivados del sprint ────────────────────────────────────────────────────────────────────────
 const hechas = computed(() => issues.value.filter(i => i.StatusCategory === 'done').length);
@@ -103,14 +88,37 @@ const fechaCorta = (d) => d ? new Date(d).toLocaleDateString('es-CO', { day: '2-
 const claseEstado = (c) => c === 'done' ? 'e-ok' : c === 'indeterminate' ? 'e-curso' : 'e-todo';
 const minsDe = (k) => delSprint.value.filter(e => e.key === k).reduce((n, e) => n + e.min, 0);
 
-function agregar() {
+const horaInicio = ref(''); // vacío = "terminé ahora" (inicio = ahora − minutos), que es el caso normal
+
+async function agregar() {
   if (!nota.value.trim() || !activa.value || problemas.value.length) return;
-  entradas.value.unshift({
-    id: Date.now(), key: activa.value.Key, tipo: tipo.value, min: Number(minutos.value) || 0,
-    fecha: new Date(), sprint: sprint.value?.id,
-    txt: nota.value.trim(),
-  });
-  nota.value = '';
+  errGuardar.value = '';
+  const min = Number(minutos.value) || 0;
+  // si elegiste hora, el bloque empezó HOY a esa hora; si no, acaba de terminar
+  let inicioMs = 0;
+  if (horaInicio.value) {
+    const [h, m] = horaInicio.value.split(':').map(Number);
+    const d = new Date(); d.setHours(h, m, 0, 0);
+    inicioMs = d.getTime();
+  }
+  try {
+    const res = await fetch(`${SERVER}/api/registros`, {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ tarea: activa.value.Key, sprintId: sprint.value?.id, tipo: tipo.value,
+        inicioMs, minutos: min, nota: nota.value.trim() }),
+    });
+    const j = await res.json();
+    if (j.error) { errGuardar.value = j.error; return; }
+    entradas.value.unshift(desdeApi(j.registro));
+    nota.value = ''; horaInicio.value = '';
+  } catch { errGuardar.value = 'no se pudo guardar (¿server caído?)'; }
+}
+
+async function borrar(id) {
+  try {
+    await fetch(`${SERVER}/api/registros/${id}`, { method: 'DELETE' });
+    entradas.value = entradas.value.filter(e => e.id !== id); // borrado suave en la base
+  } catch { /* si falló, la entrada sigue visible: coherente con la base */ }
 }
 
 const deLaActiva = computed(() => activa.value ? delSprint.value.filter(e => e.key === activa.value.Key) : []);
@@ -218,6 +226,7 @@ async function cargarSprint(id) {
       activa.value = issues.value.find(i => i.StatusCategory === 'indeterminate') || issues.value[0] || null;
     }
   } catch { error.value = 'no se pudo hablar con el server (¿está corriendo en :8787?)'; }
+  await cargarRegistros();
   cargando.value = false;
 }
 
@@ -227,27 +236,16 @@ onMounted(async () => {
     if (!j.error) { sprints.value = j.sprints || []; sitio.value = j.site || ''; }
   } catch { /* si falla, el selector no aparece y se carga el activo igual */ }
 
+  // los patrones del guard son del server; el fallback local ya está puesto
+  try {
+    const g = await (await fetch(`${SERVER}/api/guard`)).json();
+    if (g.patrones?.length) patrones.value = g.patrones.map(p => ({ re: new RegExp(p.re, 'gi'), que: p.que }));
+  } catch { /* fallback local activo */ }
+
   // Sin id: el server elige (activo, o el último cerrado, o el próximo). No lo re-derivamos acá para
   // no tener dos definiciones de "cuál es el sprint por defecto".
   await cargarSprint();
-
-  // PROTOTIPO: las entradas de muestra se atan al sprint más reciente que YA ARRANCÓ, no al que abrió.
-  // Si el board está entre sprints y por defecto abre el último cerrado, ahí van; pero nunca a un sprint
-  // future, porque sería ubicar horas trabajadas en el futuro. Cuando la bitácora persista, esto se va.
-  const conHistoria = sprints.value.find(s => s.state !== 'future') || sprint.value;
-  if (conHistoria?.startDate) anclarMuestra(conHistoria);
 });
-
-// El mapa de jornada NO se toca acá: sus fechas ya son reales (últimos días, con hora). Esto solo etiqueta
-// cada registro con un sprint y su tarea real, que es lo que necesitan las OTRAS tarjetas (registrado acá,
-// bitácora). Deliberadamente no reescribe la fecha: hacerlo sacaría los registros de la ventana de 20 días.
-function anclarMuestra(sp) {
-  if (!issues.value.length) return;
-  for (const e of entradas.value) {
-    e.sprint = sp.id;
-    e.key = (issues.value[e.tarea] || issues.value[0]).Key;
-  }
-}
 </script>
 
 <template>
@@ -381,8 +379,11 @@ function anclarMuestra(sp) {
           <div class="fila">
             <label>Minutos</label>
             <input type="number" v-model="minutos" min="0" step="5" />
+            <label title="Vacío = terminaste ahora: el inicio queda en ahora − minutos. Elegí hora solo si registrás algo de más temprano.">Empezó</label>
+            <input type="time" v-model="horaInicio" />
             <button class="go" :disabled="!nota.trim() || !!problemas.length || !activa" @click="agregar">Agregar</button>
           </div>
+          <p v-if="errGuardar" class="msg bad" style="margin:8px 0 0">{{ errGuardar }}</p>
         </section>
       </div>
 
@@ -396,6 +397,7 @@ function anclarMuestra(sp) {
               <b>{{ TIPOS.find(t => t.id === e.tipo)?.label }}</b>
               <span>{{ cuando(e.fecha) }}</span>
               <span class="min">{{ e.min }} min</span>
+              <button class="x" title="Borrar (queda marcado en la base, no se pierde)" @click="borrar(e.id)">✕</button>
             </div>
             <p>{{ e.txt }}</p>
           </div>
@@ -526,6 +528,9 @@ textarea:focus, input:focus { outline: none; border-color: var(--acc) }
 .leyenda .nota { margin-left: 12px }
 
 .ent { display: flex; gap: 11px; padding: 11px 0; border-top: 1px solid var(--line) }
+.ent .x { margin-left: auto; border: 0; background: none; color: var(--mut); cursor: pointer; font-size: 12px;
+  opacity: 0; transition: .12s; padding: 0 2px }
+.ent:hover .x { opacity: .7 } .ent .x:hover { color: var(--bad); opacity: 1 }
 .ent:first-of-type { border-top: none }
 .ico { width: 24px; height: 24px; border-radius: 8px; display: grid; place-items: center; font-size: 11px; flex: none; background: #ffffff0d }
 .t-hallazgo { color: var(--warn) } .t-prueba { color: #4ade80 } .t-bloqueo { color: var(--bad) } .t-avance { color: var(--acc) }

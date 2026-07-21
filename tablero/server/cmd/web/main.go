@@ -12,6 +12,8 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -21,12 +23,48 @@ import (
 	"creditop/tablero/server/internal/atlassian"
 	"creditop/tablero/server/internal/env"
 	"creditop/tablero/server/internal/slack"
+	"creditop/tablero/server/internal/store"
 )
+
+// ── guard: lo que se registra termina en Jira, y no puede filtrar el playground ─────────────────
+// FUENTE ÚNICA de los patrones prohibidos. La UI los pide por /api/guard (para bloquear el botón con
+// feedback inmediato) y el POST los re-aplica antes del INSERT (para que nada sucio entre a la base
+// aunque el cliente se lo salte). Dos copias —una en JS, otra acá— ya habrían derivado.
+// Sintaxis compatible RE2 (Go) y JS a la vez: nada de lookbehind ni named groups.
+var prohibido = []struct {
+	Re  string `json:"re"`
+	Que string `json:"que"`
+}{
+	{`\bF-\d+\b`, "referencia a un hallazgo interno"},
+	{`playground`, "menciona el playground"},
+	{`frontend-e2e|backend-e2e|legacy-backend|frontend-monorepo|creditop-woocommerce`, "nombra un repo interno"},
+	{`[\w/-]+\.(ts|tsx|php|go|vue|json|mjs)\b`, "incluye una ruta de archivo"},
+}
+
+var prohibidoRe = func() []*regexp.Regexp {
+	out := make([]*regexp.Regexp, len(prohibido))
+	for i, p := range prohibido {
+		out[i] = regexp.MustCompile(`(?i)` + p.Re)
+	}
+	return out
+}()
+
+// violaciones devuelve qué reglas rompe una nota (vacío = publicable).
+func violaciones(nota string) []map[string]string {
+	var out []map[string]string
+	for i, re := range prohibidoRe {
+		if m := re.FindString(nota); m != "" {
+			out = append(out, map[string]string{"que": prohibido[i].Que, "hallado": m})
+		}
+	}
+	return out
+}
 
 type app struct {
 	slack       *slack.Client     // bot token (xoxb-): mensajes "como CrediBot"
 	userSlack   *slack.Client     // user token (xoxp-): mensajes "como yo"
 	jira        *atlassian.Client // Jira Cloud (crear tareas)
+	st          *store.Store      // SQLite: bitácora + snapshots de sprints/tareas
 	testChannel string            // canal de pruebas para el botón "enviar mensaje"
 
 	jiraSite    string // https://<site>.atlassian.net (para armar el link del issue)
@@ -59,6 +97,15 @@ func main() {
 		a.jira = atlassian.New(site, email, token)
 	}
 
+	// La bitácora es el corazón de la herramienta: sin persistencia no arranca (mejor un error claro
+	// acá que una UI que parece guardar y pierde todo). El default es relativo al cwd (npm corre el
+	// server desde server/, o sea server/data/); TABLERO_DB lo pisa.
+	st, err := store.Abrir(envDefault("TABLERO_DB", filepath.Join("data", "tablero.db")))
+	if err != nil {
+		log.Fatalf("no se pudo abrir la base de la bitácora: %v", err)
+	}
+	a.st = st
+
 	integrations := a.connectIntegrations()
 
 	port := envDefault("WEB_PORT", "8787")
@@ -84,6 +131,9 @@ func main() {
 		if err != nil {
 			json.NewEncoder(w).Encode(map[string]any{"error": err.Error(), "board": board})
 			return
+		}
+		for _, sp := range sps { // navegar el tablero ES la sincronización de dimensiones
+			_ = a.st.GuardarSprint(int64(sp.ID), board, sp.Name, sp.State, sp.StartDate, sp.EndDate)
 		}
 		json.NewEncoder(w).Encode(map[string]any{"sprints": sps, "board": board, "site": strings.TrimRight(a.jiraSite, "/")})
 	})
@@ -113,9 +163,117 @@ func main() {
 			json.NewEncoder(w).Encode(map[string]any{"error": err.Error(), "sprint": sp})
 			return
 		}
+		// snapshot de dimensiones para el análisis local (JOINs sin depender de Jira)
+		_ = a.st.GuardarSprint(int64(sp.ID), board, sp.Name, sp.State, sp.StartDate, sp.EndDate)
+		for _, it := range iss {
+			var pts *float64
+			if it.HasPoints {
+				p := it.Points
+				pts = &p
+			}
+			_ = a.st.GuardarTarea(it.Key, it.Summary, pts, it.Status, it.StatusCategory, int64(sp.ID))
+		}
 		// `site` va en la respuesta para que el front arme el link a la tarea sin hardcodear el sitio:
 		// la URL de Jira sale del .env del server, que es donde ya vive esa verdad.
 		json.NewEncoder(w).Encode(map[string]any{"sprint": sp, "issues": iss, "board": board, "site": strings.TrimRight(a.jiraSite, "/")})
+	})
+
+	// ── bitácora (SQLite) ───────────────────────────────────────────────────────────────────────
+	// GET  /api/registros?dias=30&sprint=ID → ventana de días ∪ sprint (el mapa mira por fecha, la
+	//                                         bitácora por sprint; una sola llamada sirve a ambos)
+	// POST /api/registros                   → crea; 422 si la nota viola el guard
+	// DELETE /api/registros/{id}            → borrado suave
+	mux.HandleFunc("/api/guard", func(w http.ResponseWriter, _ *http.Request) {
+		cors(w)
+		json.NewEncoder(w).Encode(map[string]any{"patrones": prohibido})
+	})
+
+	mux.HandleFunc("/api/registros", func(w http.ResponseWriter, r *http.Request) {
+		cors(w)
+		switch r.Method {
+		case http.MethodOptions: // preflight del browser (POST con JSON desde :5191)
+			return
+		case http.MethodGet:
+			regs, err := a.st.Listar(atoiDefault(r.URL.Query().Get("dias"), 30), int64(atoiDefault(r.URL.Query().Get("sprint"), 0)))
+			if err != nil {
+				json.NewEncoder(w).Encode(map[string]any{"error": err.Error()})
+				return
+			}
+			json.NewEncoder(w).Encode(map[string]any{"registros": regs})
+		case http.MethodPost:
+			var in struct {
+				Tarea       string `json:"tarea"`
+				TituloLibre string `json:"tituloLibre"`
+				SprintID    int64  `json:"sprintId"`
+				Tipo        string `json:"tipo"`
+				InicioMs    int64  `json:"inicioMs"` // epoch ms; 0 = terminó ahora (inicio = ahora − minutos)
+				Minutos     int    `json:"minutos"`
+				Nota        string `json:"nota"`
+			}
+			if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
+				w.WriteHeader(http.StatusBadRequest)
+				json.NewEncoder(w).Encode(map[string]any{"error": "JSON inválido"})
+				return
+			}
+			in.Nota = strings.TrimSpace(in.Nota)
+			switch {
+			case in.Nota == "":
+				w.WriteHeader(http.StatusUnprocessableEntity)
+				json.NewEncoder(w).Encode(map[string]any{"error": "la nota está vacía"})
+				return
+			case in.Minutos <= 0 || in.Minutos > 720:
+				w.WriteHeader(http.StatusUnprocessableEntity)
+				json.NewEncoder(w).Encode(map[string]any{"error": "minutos fuera de rango (1–720)"})
+				return
+			case in.Tipo == "" || in.Tarea == "" && in.TituloLibre == "":
+				w.WriteHeader(http.StatusUnprocessableEntity)
+				json.NewEncoder(w).Encode(map[string]any{"error": "falta tipo, o tarea/título"})
+				return
+			}
+			// el guard del server es el que VALE: la UI ya bloqueó con los mismos patrones, pero nada
+			// sucio puede entrar a la base aunque el cliente se lo salte
+			if v := violaciones(in.Nota); v != nil {
+				w.WriteHeader(http.StatusUnprocessableEntity)
+				json.NewEncoder(w).Encode(map[string]any{"error": "la nota viola el guard", "problemas": v})
+				return
+			}
+			ini := time.Now().Add(-time.Duration(in.Minutos) * time.Minute)
+			if in.InicioMs > 0 {
+				ini = time.UnixMilli(in.InicioMs)
+			}
+			reg, err := a.st.Crear(in.Tarea, in.TituloLibre, in.SprintID, in.Tipo, ini, in.Minutos, in.Nota)
+			if err != nil {
+				w.WriteHeader(http.StatusInternalServerError)
+				json.NewEncoder(w).Encode(map[string]any{"error": err.Error()})
+				return
+			}
+			json.NewEncoder(w).Encode(map[string]any{"registro": reg})
+		default:
+			w.WriteHeader(http.StatusMethodNotAllowed)
+		}
+	})
+
+	mux.HandleFunc("/api/registros/", func(w http.ResponseWriter, r *http.Request) {
+		cors(w)
+		if r.Method == http.MethodOptions {
+			return
+		}
+		if r.Method != http.MethodDelete {
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			return
+		}
+		id, err := strconv.ParseInt(strings.TrimPrefix(r.URL.Path, "/api/registros/"), 10, 64)
+		if err != nil || id <= 0 {
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(map[string]any{"error": "id inválido"})
+			return
+		}
+		if err := a.st.Borrar(id); err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			json.NewEncoder(w).Encode(map[string]any{"error": err.Error()})
+			return
+		}
+		json.NewEncoder(w).Encode(map[string]any{"ok": true})
 	})
 
 	log.Printf("server on · ws://localhost:%s/ws · integraciones: %s", port, integrations)
@@ -448,6 +606,15 @@ func (a *app) connectIntegrations() string {
 		return "ninguna (.env sin credenciales)"
 	}
 	return strings.Join(parts, ", ")
+}
+
+// cors habilita al frontend (:5191) contra este server (:8787). Los métodos con body (POST/DELETE)
+// disparan preflight OPTIONS en el browser: sin allow-methods/headers, el fetch falla mudo.
+func cors(w http.ResponseWriter) {
+	w.Header().Set("content-type", "application/json")
+	w.Header().Set("access-control-allow-origin", "*")
+	w.Header().Set("access-control-allow-methods", "GET, POST, DELETE, OPTIONS")
+	w.Header().Set("access-control-allow-headers", "content-type")
 }
 
 func envDefault(key, def string) string {
