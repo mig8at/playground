@@ -258,6 +258,30 @@ func main() {
 				return
 			}
 			json.NewEncoder(w).Encode(map[string]any{"effort": e})
+		case http.MethodPut: // guardar el BORRADOR de la tarea de Jira sobre un esfuerzo
+			var in struct {
+				ID              int64  `json:"id"`
+				JiraTitle       string `json:"jiraTitle"`
+				JiraDescription string `json:"jiraDescription"`
+			}
+			if err := json.NewDecoder(r.Body).Decode(&in); err != nil || in.ID == 0 {
+				w.WriteHeader(http.StatusBadRequest)
+				json.NewEncoder(w).Encode(map[string]any{"error": "JSON inválido o sin id"})
+				return
+			}
+			// título y descripción TERMINAN EN JIRA → mismo guard que las notas
+			if v := append(violations(in.JiraTitle), violations(in.JiraDescription)...); v != nil {
+				w.WriteHeader(http.StatusUnprocessableEntity)
+				json.NewEncoder(w).Encode(map[string]any{"error": "el borrador viola el guard", "problems": v})
+				return
+			}
+			if err := a.st.SaveEffortDraft(in.ID, strings.TrimSpace(in.JiraTitle), strings.TrimSpace(in.JiraDescription)); err != nil {
+				w.WriteHeader(http.StatusUnprocessableEntity)
+				json.NewEncoder(w).Encode(map[string]any{"error": err.Error()})
+				return
+			}
+			efforts, _ := a.st.Efforts()
+			json.NewEncoder(w).Encode(map[string]any{"efforts": efforts})
 		default:
 			w.WriteHeader(http.StatusMethodNotAllowed)
 		}

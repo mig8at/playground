@@ -128,6 +128,8 @@ CREATE INDEX IF NOT EXISTS idx_entries_effort ON entries(effort_id);
 // simplemente no aparece y todo lo que la use falla. Cada entrada se aplica solo si falta.
 var addedColumns = []struct{ table, column, ddl string }{
 	{"entries", "effort_id", "ALTER TABLE entries ADD COLUMN effort_id INTEGER"},
+	{"efforts", "jira_title", "ALTER TABLE efforts ADD COLUMN jira_title TEXT"},
+	{"efforts", "jira_description", "ALTER TABLE efforts ADD COLUMN jira_description TEXT"},
 }
 
 // migrate agrega las columnas faltantes, sin tocar los datos existentes.
@@ -311,14 +313,19 @@ func (s *Store) SaveTaskLocal(tl TaskLocal) (TaskLocal, error) {
 // Effort es un esfuerzo PRIVADO: agrupa varias tareas de Jira bajo un mismo trabajo real. El título es
 // mío y NO va a Jira, así que no pasa por el guard.
 type Effort struct {
-	ID        int64  `json:"id"`
-	Title     string `json:"title"`
-	CreatedAt string `json:"createdAt"`
+	ID    int64  `json:"id"`
+	Title string `json:"title"` // privado: nombra el esfuerzo, no sale de acá
+	// Borrador de la tarea de Jira que nace de este esfuerzo. Se redacta y se revisa ACÁ antes de
+	// subir nada; por eso pasa el mismo guard que las notas (termina publicado).
+	JiraTitle       string `json:"jiraTitle"`
+	JiraDescription string `json:"jiraDescription"`
+	CreatedAt       string `json:"createdAt"`
 }
 
 // Efforts lista los esfuerzos vivos (no archivados), del más nuevo al más viejo.
 func (s *Store) Efforts() ([]Effort, error) {
-	rows, err := s.db.Query(`SELECT id, title, created_at FROM efforts WHERE archived_at IS NULL ORDER BY id DESC`)
+	rows, err := s.db.Query(`SELECT id, title, COALESCE(jira_title,''), COALESCE(jira_description,''), created_at
+		FROM efforts WHERE archived_at IS NULL ORDER BY id DESC`)
 	if err != nil {
 		return nil, err
 	}
@@ -326,7 +333,7 @@ func (s *Store) Efforts() ([]Effort, error) {
 	out := []Effort{}
 	for rows.Next() {
 		var e Effort
-		if err := rows.Scan(&e.ID, &e.Title, &e.CreatedAt); err != nil {
+		if err := rows.Scan(&e.ID, &e.Title, &e.JiraTitle, &e.JiraDescription, &e.CreatedAt); err != nil {
 			return nil, err
 		}
 		out = append(out, e)
@@ -343,6 +350,19 @@ func (s *Store) CreateEffort(title string) (Effort, error) {
 	}
 	id, _ := res.LastInsertId()
 	return Effort{ID: id, Title: title, CreatedAt: now}, nil
+}
+
+// SaveEffortDraft guarda el borrador de la tarea de Jira sobre un esfuerzo existente.
+func (s *Store) SaveEffortDraft(id int64, jiraTitle, jiraDescription string) error {
+	res, err := s.db.Exec(`UPDATE efforts SET jira_title = ?, jira_description = ? WHERE id = ? AND archived_at IS NULL`,
+		nullStr(jiraTitle), nullStr(jiraDescription), id)
+	if err != nil {
+		return err
+	}
+	if n, _ := res.RowsAffected(); n == 0 {
+		return fmt.Errorf("no existe el esfuerzo %d", id)
+	}
+	return nil
 }
 
 // AllTaskLocals devuelve todas las capas locales, indexadas por clave de tarea. La UI la usa para
