@@ -19,12 +19,16 @@ const ROOT = resolve(HERE, '..');              // raíz de frontend-e2e
 const PORT = Number(process.env.PANEL_PORT || 5195);
 const RUN_LOG = '/tmp/asesor-panel-run.log';
 const PA_STATUS_FILE = '/tmp/mock-pa-statuses.json'; // status por lender del mock de pre-aprobados (mismo path que lee server.mjs)
-const TARGETS = new Set(['local', 'dev']);     // staging: pendiente (.env.staging)
+const TARGETS = new Set(['local', 'dev', 'staging']);
 
-// env por target: local = seguro; dev = DATA COMPARTIDA → habilita el guard de escritura de pkg/db (synthFill).
+// env por target. `local` es seguro; **dev y staging comparten LA MISMA BD y API** (en legacy-backend
+// staging no es un entorno aparte: solo el frontend lo es), así que los dos son DATA COMPARTIDA y los dos
+// necesitan el guard de escritura de pkg/db. La condición va por "no es local", no por t === 'dev':
+// listar targets a mano fue lo que dejó a staging afuera cuando se agregó.
 function envFor(target: string): NodeJS.ProcessEnv {
     const t = TARGETS.has(target) ? target : 'local';
-    return { ...process.env, E2E_TARGET: t, CFE_TARGET: t, ...(t === 'dev' ? { I_KNOW_THIS_TOUCHES_SHARED_DEV: '1' } : {}) };
+    const shared = t !== 'local';
+    return { ...process.env, E2E_TARGET: t, CFE_TARGET: t, ...(shared ? { I_KNOW_THIS_TOUCHES_SHARED_DEV: '1' } : {}) };
 }
 
 // una sola corrida a la vez (un browser headed a la vez).

@@ -3,42 +3,13 @@
 // son HECHOS del entorno y viven COMPARTIDAS en `playground/env/<target>.env`, junto con backend-e2e y
 // backend-mcp. El `.env.<target>` propio de frontend-e2e queda para sus perillas (Cognito, mocks…) y
 // PISA lo compartido si redefine una clave. Prioridad: process.env > .env.<target> > env/<target>.env.
-import { readFileSync, existsSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
-import { dirname, resolve } from 'node:path';
 import mysql from 'mysql2/promise';
 import type { Pool, PoolConnection, RowDataPacket, ResultSetHeader } from 'mysql2/promise';
+// La resolución por target (y la herencia entre targets) vive en `env.ts`. Se re-exporta para no romper
+// a quien ya importaba `TARGET`/`env` desde acá.
+import { TARGET, env } from './env.ts';
 
-const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-
-export const TARGET = (process.env.E2E_TARGET || 'dev').toLowerCase();
-
-function parseEnv(p: string): Record<string, string> {
-    const m: Record<string, string> = {};
-    if (!existsSync(p)) return m;
-    for (const line of readFileSync(p, 'utf8').split('\n')) {
-        const s = line.trim();
-        if (!s || s.startsWith('#')) continue;
-        const i = s.indexOf('=');
-        if (i < 0) continue;
-        let v = s.slice(i + 1).trim();
-        if ((v.startsWith('"') && v.endsWith('"')) || (v.startsWith("'") && v.endsWith("'"))) v = v.slice(1, -1);
-        m[s.slice(0, i).trim()] = v;
-    }
-    return m;
-}
-
-// Hechos del entorno COMPARTIDOS con backend-e2e y backend-mcp (BD, API, APP_KEY). El `.env.<target>`
-// propio tiene prioridad: los compartidos entran solo como fallback (por eso van segundos en el spread).
-const fileEnv: Record<string, string> = {
-    ...parseEnv(resolve(ROOT, '..', 'env', `${TARGET}.env`)),
-    ...parseEnv(resolve(ROOT, `.env.${TARGET}`)),
-};
-
-/** Prioridad: process.env > .env.<target> de la herramienta > ../env/<target>.env compartido. */
-export function env(key: string, fallback = ''): string {
-    return process.env[key] ?? fileEnv[key] ?? fallback;
-}
+export { TARGET, env };
 
 export function appKey(): string {
     const k = env('APP_KEY');

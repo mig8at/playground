@@ -659,12 +659,13 @@
       <div class="targets" id="targets">
         <button class="pill on" data-t="local">local</button>
         <button class="pill" data-t="dev" title="Data COMPARTIDA — escribe datos sintéticos en dev">dev</button>
-        <span class="pill dim" title="Falta .env.staging">staging</span>
+        <button class="pill" data-t="staging" title="Frontend de staging contra la MISMA BD/API de dev — data COMPARTIDA">staging</button>
       </div>
     </header>
 
-    <div class="warnbar" id="devwarn" style="display:none">⚠ <b>dev</b> = data COMPARTIDA: el flujo escribe datos
-      sintéticos (assign · scrub · buró) en la DB de dev. El login es Cognito real y podés tardar más (RDS remoto).
+    <div class="warnbar" id="devwarn" style="display:none">⚠ <b><span id="warntarget">dev</span></b> = data COMPARTIDA: el flujo escribe
+      datos sintéticos (assign · scrub · buró) en la DB de dev. El login es Cognito real y podés tardar más (RDS remoto).
+      <b>staging usa esa MISMA base</b> (solo cambia el frontend), así que dos corridas a la vez se pisan.
     </div>
 
     <div class="stats" id="stats"></div>
@@ -867,7 +868,7 @@
       { slug: 'sonria', name: 'Sonría' },           // 9 entidades (rt0/1/4): el más rico para mirar el LISTADO
     ];
     let sel = MERCHANTS[0];      // Motai por defecto
-    let target = 'local';        // local | dev (staging pendiente)
+    let target = 'local';        // local | dev | staging (staging = front propio, BD/API de dev)
     let inject = true;           // true = inyecta buró sintético (salta consulta real) · false = prueba real
     let canal = 'asesor';        // por dónde ENTRA la solicitud: 'asesor' (login + wizard) | 'ecommerce' (URL base64)
     let doctype = 'CC';
@@ -1006,10 +1007,15 @@
         + `<div class="v">${v}</div><div class="sub">${sub}</div></div>`;
       const out = [];
 
-      // 1 · target: es lo primero que hay que saber, porque dev escribe data COMPARTIDA
-      out.push(card(target === 'dev' ? 'st-warn' : 'st-ok', target === 'dev' ? '⚠' : '🖥',
+      // 1 · target: es lo primero que hay que saber, porque todo lo que NO es local escribe data
+      //     COMPARTIDA. staging usa la MISMA BD que dev (solo su frontend es propio), así que va en
+      //     rojo igual — mostrarlo como "sin riesgo" sería mentir sobre a qué base le estás escribiendo.
+      const compartido = target !== 'local';
+      out.push(card(compartido ? 'st-warn' : 'st-ok', compartido ? '⚠' : '🖥',
         'Entorno', target,
-        target === 'dev' ? 'data <b>compartida</b> con el equipo' : 'BD local en Docker · sin riesgo'));
+        compartido
+          ? (target === 'staging' ? 'front de staging · BD <b>compartida</b> (la de dev)' : 'data <b>compartida</b> con el equipo')
+          : 'BD local en Docker · sin riesgo'));
 
       // 2 · mocks arriba: sin ellos el flujo muere en un muro externo
       if (e?.mocks) {
@@ -1344,11 +1350,13 @@
     // espera del mock de pre-aprobados (para VER el loader de las cards rt≠0)
     document.querySelectorAll('#padelay button').forEach(b => b.onclick = () => { padelay = +b.dataset.v; setSeg('padelay', b.dataset.v); });
 
-    // switcher de target (local | dev). dev = escribe data compartida → muestra aviso + re-enrich (#id/hash difieren).
+    // switcher de target (local | dev | staging). dev y staging escriben data COMPARTIDA (la misma BD:
+    // en legacy-backend staging no es un entorno aparte, solo lo es el frontend) → aviso + re-enrich.
     document.querySelectorAll('#targets .pill:not(.dim)').forEach(b => b.onclick = () => {
       target = b.dataset.t;
       document.querySelectorAll('#targets .pill').forEach(p => p.classList.toggle('on', p.dataset.t === target));
-      $('devwarn').style.display = target === 'dev' ? '' : 'none';
+      $('devwarn').style.display = target === 'local' ? 'none' : '';   // dev y staging comparten BD
+      $('warntarget').textContent = target;
       updateInjModeForTarget();   // en local no hay Real (sin OTP/burós)
       enrichMerchants();
       loadLenders();              // los lenders son POR TARGET: la lista cambia

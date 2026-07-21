@@ -67,7 +67,13 @@ bin/ecommerce pullman [auto]    # igual, pero entra por el CHECKOUT de la tienda
 
 Lo elige `E2E_TARGET`/`CFE_TARGET` y `pkg/db.ts` lee el `.env.<target>` correspondiente (`.env.dev` /
 `.env.local`, ambos gitignored: credenciales de DB + `APP_KEY`, que es lo que cifra la fila Experian).
-**El panel fuerza `local` o `dev`** y agrega el guard solo, nunca staging.
+**El panel fuerza `local`, `dev` o `staging`** y agrega el guard solo cuando el target NO es local.
+
+⚠ **`staging` NO es un entorno aparte.** En `legacy-backend` la API y la BD de staging son **las mismas
+que las de dev**; el único con ambiente propio es el **frontend**. Por eso `env/staging.env` son dos
+líneas (`E2E_INHERITS=dev` + `E2E_BASE_URL`) en vez de repetir credenciales: copiarlas garantizaría que
+deriven el día que roten. Consecuencia práctica: **lo que verificás en BD es el mismo dato en dev y en
+staging**, y dos corridas simultáneas se pisan — separalas por teléfono/documento o corré de a una.
 
 ---
 

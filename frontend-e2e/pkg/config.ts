@@ -1,3 +1,4 @@
+import { env } from './env.ts';
 /**
  * Datos de prueba reutilizables por todos los specs.
  *
@@ -27,14 +28,15 @@ function loadCognitoCreds(): { user?: string; pass?: string } {
 export const cognitoCreds = loadCognitoCreds();
 
 export const config = {
-    /** URL del frontend (loan-request-wizard) — Vite dev server. */
-    feBaseUrl: process.env.E2E_BASE_URL ?? 'http://localhost:5174',
+    /** URL del frontend. Por TARGET: local = Vite :5174 · dev/staging = el deploy correspondiente.
+     *  Se lee con `env()` (no `process.env` pelado) para que valga ponerla en `env/<target>.env`. */
+    feBaseUrl: env('E2E_BASE_URL', 'http://localhost:5174'),
 
     /** URL del backend: legacy-backend en MODO MOCK (el viejo mock-server :4000 fue eliminado). */
-    mockUrl: process.env.E2E_MOCK_URL ?? 'http://localhost',
+    mockUrl: env('E2E_MOCK_URL', 'http://localhost'),
 
     /** Hash de aliado válido para entrar al flujo (espejo de validation-driven). */
-    partnerHash: process.env.E2E_PARTNER_HASH ?? '3e67eade',
+    partnerHash: env('E2E_PARTNER_HASH', '3e67eade'),
 } as const;
 
 /** Datos de un usuario sintético usado en happy-paths. */
