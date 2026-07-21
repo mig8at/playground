@@ -31,9 +31,10 @@ import (
 // feedback inmediato) y el POST los re-aplica antes del INSERT (para que nada sucio entre a la base
 // aunque el cliente se lo salte). Dos copias —una en JS, otra acá— ya habrían derivado.
 // Sintaxis compatible RE2 (Go) y JS a la vez: nada de lookbehind ni named groups.
-var prohibido = []struct {
-	Re  string `json:"re"`
-	Que string `json:"que"`
+// `what` (el motivo) es texto para mostrar en la UI → va en español; el resto son identificadores.
+var forbidden = []struct {
+	Re   string `json:"re"`
+	What string `json:"what"`
 }{
 	{`\bF-\d+\b`, "referencia a un hallazgo interno"},
 	{`playground`, "menciona el playground"},
@@ -41,20 +42,20 @@ var prohibido = []struct {
 	{`[\w/-]+\.(ts|tsx|php|go|vue|json|mjs)\b`, "incluye una ruta de archivo"},
 }
 
-var prohibidoRe = func() []*regexp.Regexp {
-	out := make([]*regexp.Regexp, len(prohibido))
-	for i, p := range prohibido {
+var forbiddenRe = func() []*regexp.Regexp {
+	out := make([]*regexp.Regexp, len(forbidden))
+	for i, p := range forbidden {
 		out[i] = regexp.MustCompile(`(?i)` + p.Re)
 	}
 	return out
 }()
 
-// violaciones devuelve qué reglas rompe una nota (vacío = publicable).
-func violaciones(nota string) []map[string]string {
+// violations devuelve qué reglas rompe una nota (vacío = publicable).
+func violations(note string) []map[string]string {
 	var out []map[string]string
-	for i, re := range prohibidoRe {
-		if m := re.FindString(nota); m != "" {
-			out = append(out, map[string]string{"que": prohibido[i].Que, "hallado": m})
+	for i, re := range forbiddenRe {
+		if m := re.FindString(note); m != "" {
+			out = append(out, map[string]string{"what": forbidden[i].What, "found": m})
 		}
 	}
 	return out
@@ -100,7 +101,7 @@ func main() {
 	// La bitácora es el corazón de la herramienta: sin persistencia no arranca (mejor un error claro
 	// acá que una UI que parece guardar y pierde todo). El default es relativo al cwd (npm corre el
 	// server desde server/, o sea server/data/); TABLERO_DB lo pisa.
-	st, err := store.Abrir(envDefault("TABLERO_DB", filepath.Join("data", "tablero.db")))
+	st, err := store.Open(envDefault("TABLERO_DB", filepath.Join("data", "tablero.db")))
 	if err != nil {
 		log.Fatalf("no se pudo abrir la base de la bitácora: %v", err)
 	}
@@ -133,7 +134,7 @@ func main() {
 			return
 		}
 		for _, sp := range sps { // navegar el tablero ES la sincronización de dimensiones
-			_ = a.st.GuardarSprint(int64(sp.ID), board, sp.Name, sp.State, sp.StartDate, sp.EndDate)
+			_ = a.st.SaveSprint(int64(sp.ID), board, sp.Name, sp.State, sp.StartDate, sp.EndDate)
 		}
 		json.NewEncoder(w).Encode(map[string]any{"sprints": sps, "board": board, "site": strings.TrimRight(a.jiraSite, "/")})
 	})
@@ -164,14 +165,14 @@ func main() {
 			return
 		}
 		// snapshot de dimensiones para el análisis local (JOINs sin depender de Jira)
-		_ = a.st.GuardarSprint(int64(sp.ID), board, sp.Name, sp.State, sp.StartDate, sp.EndDate)
+		_ = a.st.SaveSprint(int64(sp.ID), board, sp.Name, sp.State, sp.StartDate, sp.EndDate)
 		for _, it := range iss {
 			var pts *float64
 			if it.HasPoints {
 				p := it.Points
 				pts = &p
 			}
-			_ = a.st.GuardarTarea(it.Key, it.Summary, pts, it.Status, it.StatusCategory, int64(sp.ID))
+			_ = a.st.SaveTask(it.Key, it.Summary, pts, it.Status, it.StatusCategory, int64(sp.ID))
 		}
 		// `site` va en la respuesta para que el front arme el link a la tarea sin hardcodear el sitio:
 		// la URL de Jira sale del .env del server, que es donde ya vive esa verdad.
@@ -179,81 +180,81 @@ func main() {
 	})
 
 	// ── bitácora (SQLite) ───────────────────────────────────────────────────────────────────────
-	// GET  /api/registros?dias=30&sprint=ID → ventana de días ∪ sprint (el mapa mira por fecha, la
-	//                                         bitácora por sprint; una sola llamada sirve a ambos)
-	// POST /api/registros                   → crea; 422 si la nota viola el guard
-	// DELETE /api/registros/{id}            → borrado suave
+	// GET  /api/entries?days=30&sprint=ID → ventana de días ∪ sprint (el mapa mira por fecha, la
+	//                                       bitácora por sprint; una sola llamada sirve a ambos)
+	// POST /api/entries                   → crea; 422 si la nota viola el guard
+	// DELETE /api/entries/{id}            → borrado suave
 	mux.HandleFunc("/api/guard", func(w http.ResponseWriter, _ *http.Request) {
 		cors(w)
-		json.NewEncoder(w).Encode(map[string]any{"patrones": prohibido})
+		json.NewEncoder(w).Encode(map[string]any{"patterns": forbidden})
 	})
 
-	mux.HandleFunc("/api/registros", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/api/entries", func(w http.ResponseWriter, r *http.Request) {
 		cors(w)
 		switch r.Method {
 		case http.MethodOptions: // preflight del browser (POST con JSON desde :5191)
 			return
 		case http.MethodGet:
-			regs, err := a.st.Listar(atoiDefault(r.URL.Query().Get("dias"), 30), int64(atoiDefault(r.URL.Query().Get("sprint"), 0)))
+			entries, err := a.st.List(atoiDefault(r.URL.Query().Get("days"), 30), int64(atoiDefault(r.URL.Query().Get("sprint"), 0)))
 			if err != nil {
 				json.NewEncoder(w).Encode(map[string]any{"error": err.Error()})
 				return
 			}
-			json.NewEncoder(w).Encode(map[string]any{"registros": regs})
+			json.NewEncoder(w).Encode(map[string]any{"entries": entries})
 		case http.MethodPost:
 			var in struct {
-				Tarea       string `json:"tarea"`
-				TituloLibre string `json:"tituloLibre"`
-				SprintID    int64  `json:"sprintId"`
-				Tipo        string `json:"tipo"`
-				InicioMs    int64  `json:"inicioMs"` // epoch ms; 0 = terminó ahora (inicio = ahora − minutos)
-				Minutos     int    `json:"minutos"`
-				Nota        string `json:"nota"`
+				Task      string `json:"task"`
+				FreeTitle string `json:"freeTitle"`
+				SprintID  int64  `json:"sprintId"`
+				Kind      string `json:"kind"`
+				StartedMs int64  `json:"startedMs"` // epoch ms; 0 = terminó ahora (inicio = ahora − minutos)
+				Minutes   int    `json:"minutes"`
+				Note      string `json:"note"`
 			}
 			if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
 				w.WriteHeader(http.StatusBadRequest)
 				json.NewEncoder(w).Encode(map[string]any{"error": "JSON inválido"})
 				return
 			}
-			in.Nota = strings.TrimSpace(in.Nota)
+			in.Note = strings.TrimSpace(in.Note)
 			switch {
-			case in.Nota == "":
+			case in.Note == "":
 				w.WriteHeader(http.StatusUnprocessableEntity)
 				json.NewEncoder(w).Encode(map[string]any{"error": "la nota está vacía"})
 				return
-			case in.Minutos <= 0 || in.Minutos > 720:
+			case in.Minutes <= 0 || in.Minutes > 720:
 				w.WriteHeader(http.StatusUnprocessableEntity)
 				json.NewEncoder(w).Encode(map[string]any{"error": "minutos fuera de rango (1–720)"})
 				return
-			case in.Tipo == "" || in.Tarea == "" && in.TituloLibre == "":
+			case in.Kind == "" || in.Task == "" && in.FreeTitle == "":
 				w.WriteHeader(http.StatusUnprocessableEntity)
 				json.NewEncoder(w).Encode(map[string]any{"error": "falta tipo, o tarea/título"})
 				return
 			}
 			// el guard del server es el que VALE: la UI ya bloqueó con los mismos patrones, pero nada
 			// sucio puede entrar a la base aunque el cliente se lo salte
-			if v := violaciones(in.Nota); v != nil {
+			if v := violations(in.Note); v != nil {
 				w.WriteHeader(http.StatusUnprocessableEntity)
-				json.NewEncoder(w).Encode(map[string]any{"error": "la nota viola el guard", "problemas": v})
+				json.NewEncoder(w).Encode(map[string]any{"error": "la nota viola el guard", "problems": v})
 				return
 			}
-			ini := time.Now().Add(-time.Duration(in.Minutos) * time.Minute)
-			if in.InicioMs > 0 {
-				ini = time.UnixMilli(in.InicioMs)
+			started := time.Now().Add(-time.Duration(in.Minutes) * time.Minute)
+			if in.StartedMs > 0 {
+				started = time.UnixMilli(in.StartedMs)
 			}
-			reg, err := a.st.Crear(in.Tarea, in.TituloLibre, in.SprintID, in.Tipo, ini, in.Minutos, in.Nota)
+			entry, err := a.st.Create(in.Task, in.FreeTitle, in.SprintID, in.Kind, started, in.Minutes, in.Note)
 			if err != nil {
 				w.WriteHeader(http.StatusInternalServerError)
 				json.NewEncoder(w).Encode(map[string]any{"error": err.Error()})
 				return
 			}
-			json.NewEncoder(w).Encode(map[string]any{"registro": reg})
+			json.NewEncoder(w).Encode(map[string]any{"entry": entry})
 		default:
 			w.WriteHeader(http.StatusMethodNotAllowed)
 		}
 	})
 
-	mux.HandleFunc("/api/registros/", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/api/entries/", func(w http.ResponseWriter, r *http.Request) {
 		cors(w)
 		if r.Method == http.MethodOptions {
 			return
@@ -262,13 +263,13 @@ func main() {
 			w.WriteHeader(http.StatusMethodNotAllowed)
 			return
 		}
-		id, err := strconv.ParseInt(strings.TrimPrefix(r.URL.Path, "/api/registros/"), 10, 64)
+		id, err := strconv.ParseInt(strings.TrimPrefix(r.URL.Path, "/api/entries/"), 10, 64)
 		if err != nil || id <= 0 {
 			w.WriteHeader(http.StatusBadRequest)
 			json.NewEncoder(w).Encode(map[string]any{"error": "id inválido"})
 			return
 		}
-		if err := a.st.Borrar(id); err != nil {
+		if err := a.st.SoftDelete(id); err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
 			json.NewEncoder(w).Encode(map[string]any{"error": err.Error()})
 			return

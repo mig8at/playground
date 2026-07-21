@@ -142,53 +142,56 @@ El registro de tiempo vive en **`server/data/tablero.db`** (SQLite, gitignoreado
 mueve). El esquema está en `server/internal/store/store.go` y está pensado **para análisis de
 tiempo**, no solo para que la UI recargue:
 
-- **`registros`** es la tabla de hechos: una fila = un bloque de tiempo trabajado. **`sprints`** y
-  **`tareas`** son dimensiones — snapshots de Jira que se upsertean *de pasada* cada vez que el
+> **Convención de idioma:** columnas, identificadores y clases CSS en **inglés**; solo el texto
+> visible de la UI y los comentarios van en español.
+
+- **`entries`** es la tabla de hechos: una fila = un bloque de tiempo trabajado. **`sprints`** y
+  **`tasks`** son dimensiones — snapshots de Jira que se upsertean *de pasada* cada vez que el
   dashboard carga (navegar el tablero ES la sincronización). Los JOINs de análisis no dependen de
   que Jira responda.
-- `inicio` es cuándo **empezó el trabajo** (RFC3339 con offset local); `creado_en` es cuándo se
+- `started_at` es cuándo **empezó el trabajo** (RFC3339 con offset local); `created_at` es cuándo se
   anotó. La brecha entre ambos —cuánto tardás en registrar— también es un dato.
-- `dia` y `hora` desnormalizan el instante en hora **local**, porque las funciones de fecha de
-  SQLite convierten a UTC: agrupar por `strftime('%H', inicio)` movería "las 9am" a "las 14".
-  **Usá `dia`/`hora`, no strftime sobre `inicio`.**
-- `minutos` (lo que pasó) convive con `minutos_subidos` (lo que se publicó en Jira, cuando exista
+- `day` y `hour` desnormalizan el instante en hora **local**, porque las funciones de fecha de
+  SQLite convierten a UTC: agrupar por `strftime('%H', started_at)` movería "las 9am" a "las 14".
+  **Usá `day`/`hour`, no strftime sobre `started_at`.**
+- `minutes` (lo que pasó) convive con `uploaded_minutes` (lo que se publicó en Jira, cuando exista
   la subida): ajustar al publicar es una decisión de publicación, no una reescritura de la verdad.
-- `tarea` puede ser NULL (`titulo_libre` dice qué fue): reuniones y soporte no son tareas del
+- `task_key` puede ser NULL (`free_title` dice qué fue): reuniones y soporte no son tareas del
   sprint, y forzarlos a una envenena el análisis.
-- La `nota` es **publicable por construcción**: el guard (fuente única en `cmd/web/main.go`,
+- La `note` es **publicable por construcción**: el guard (fuente única en `cmd/web/main.go`,
   servido a la UI por `/api/guard`) corre en el server **antes** del INSERT. Nada en la base puede
   filtrar el playground el día que la subida a Jira sea automática.
-- Borrado **suave** (`borrado_en`): el ✕ de la UI marca, no elimina.
+- Borrado **suave** (`deleted_at`): el ✕ de la UI marca, no elimina.
 
 Consultas que ya se pueden hacer (`sqlite3 server/data/tablero.db`):
 
 ```sql
 -- ¿cuántas horas por día, últimos 30 días?
-SELECT dia, ROUND(SUM(minutos)/60.0, 1) AS horas
-FROM registros WHERE borrado_en IS NULL GROUP BY dia ORDER BY dia DESC LIMIT 30;
+SELECT day, ROUND(SUM(minutes)/60.0, 1) AS hours
+FROM entries WHERE deleted_at IS NULL GROUP BY day ORDER BY day DESC LIMIT 30;
 
 -- ¿cuánto costó cada tarea vs sus puntos? (horas por punto = mi caro/barato real)
-SELECT r.tarea, t.puntos, ROUND(SUM(r.minutos)/60.0, 1) AS horas,
-       ROUND(SUM(r.minutos)/60.0 / NULLIF(t.puntos, 0), 1) AS horas_por_punto
-FROM registros r LEFT JOIN tareas t ON t.clave = r.tarea
-WHERE r.borrado_en IS NULL GROUP BY r.tarea ORDER BY horas DESC;
+SELECT e.task_key, t.points, ROUND(SUM(e.minutes)/60.0, 1) AS hours,
+       ROUND(SUM(e.minutes)/60.0 / NULLIF(t.points, 0), 1) AS hours_per_point
+FROM entries e LEFT JOIN tasks t ON t.key = e.task_key
+WHERE e.deleted_at IS NULL GROUP BY e.task_key ORDER BY hours DESC;
 
--- ¿en qué se va el tiempo? (avance vs pruebas vs bloqueos)
-SELECT tipo, ROUND(SUM(minutos)/60.0, 1) AS horas
-FROM registros WHERE borrado_en IS NULL GROUP BY tipo ORDER BY horas DESC;
+-- ¿en qué se va el tiempo? (progress vs test vs blocker)
+SELECT kind, ROUND(SUM(minutes)/60.0, 1) AS hours
+FROM entries WHERE deleted_at IS NULL GROUP BY kind ORDER BY hours DESC;
 
--- ¿mañana o tarde? (por eso existe `hora` local)
-SELECT CASE WHEN hora < 12 THEN 'mañana' WHEN hora < 14 THEN 'almuerzo' ELSE 'tarde' END AS bloque,
-       ROUND(SUM(minutos)/60.0, 1) AS horas
-FROM registros WHERE borrado_en IS NULL GROUP BY bloque;
+-- ¿mañana o tarde? (por eso existe `hour` local)
+SELECT CASE WHEN hour < 12 THEN 'mañana' WHEN hour < 14 THEN 'almuerzo' ELSE 'tarde' END AS block,
+       ROUND(SUM(minutes)/60.0, 1) AS hours
+FROM entries WHERE deleted_at IS NULL GROUP BY block;
 
 -- ¿cuánto por sprint? (JOIN con la dimensión local, sin tocar Jira)
-SELECT s.nombre, ROUND(SUM(r.minutos)/60.0, 1) AS horas
-FROM registros r JOIN sprints s ON s.id = r.sprint_id
-WHERE r.borrado_en IS NULL GROUP BY s.id ORDER BY s.inicio DESC;
+SELECT s.name, ROUND(SUM(e.minutes)/60.0, 1) AS hours
+FROM entries e JOIN sprints s ON s.id = e.sprint_id
+WHERE e.deleted_at IS NULL GROUP BY s.id ORDER BY s.start_date DESC;
 ```
 
-Endpoints: `GET/POST /api/registros`, `DELETE /api/registros/{id}`, `GET /api/guard`.
+Endpoints: `GET/POST /api/entries`, `DELETE /api/entries/{id}`, `GET /api/guard`.
 
 ## Configuración (`server/.env`)
 
