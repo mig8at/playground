@@ -977,20 +977,24 @@
     // Una perilla que no mueve nada es PEOR que no tenerla: te deja creyendo que probaste algo que en
     // realidad nunca se aplicó. La matriz vive acá, en un solo lugar, y sale de `bin/asesor:150-180`:
     //
-    //   mockPA      mock de pre-aprobados (:8095). `bin/asesor` lo levanta y apunta el wizard ahí SOLO
-    //               cuando el front es LOCAL. Con staging el front es un build desplegado: sus VITE_*
-    //               vienen de ese build y no puede alcanzar localhost.
-    //   flotaLocal  payvalida · mdm · lenders · forms · ábaco. Solo con TARGET=local; contra dev se usan
-    //               los proveedores reales, así que el contador "n/n mocks" ahí no significa nada.
+    //   flotaLocal  payvalida · mdm · lenders · forms · ábaco. Solo con TARGET=local (bin/asesor:170);
+    //               contra dev/staging se usan los proveedores reales, así que el contador "n/n mocks"
+    //               ahí no significa nada.
     //
     // Si agregás un target, agregalo ACÁ. El default de `cap()` es el más restrictivo a propósito:
     // enumerar targets a mano fue lo que dejó a staging afuera del guard de escrituras cuando se sumó.
     const CAPS = {
-      local:   { mockPA: true,  flotaLocal: true  },
-      dev:     { mockPA: true,  flotaLocal: false },
-      staging: { mockPA: false, flotaLocal: false },
+      local:   { flotaLocal: true  },
+      dev:     { flotaLocal: false },
+      staging: { flotaLocal: false },
     };
     const cap = (k) => (CAPS[target] || CAPS.staging)[k];
+
+    // El mock de PRE-APROBADOS no entra en CAPS: no depende del target sino de `E2E_REAL_PREAPPROVALS`,
+    // que vive en `.env.<target>` y cualquiera puede cambiar. Lo resuelve el servidor por la misma
+    // cadena que `bin/asesor` y llega en /api/lenders — así el selector aparece exactamente cuando el
+    // mock es quien contesta, y no según una lista que se desincroniza sola.
+    let mockPA = true;
     let inject = true;           // true = inyecta buró sintético (salta consulta real) · false = prueba real
     let canal = 'asesor';        // por dónde ENTRA la solicitud: 'asesor' (login + wizard) | 'ecommerce' (URL base64)
     let doctype = 'CC';
@@ -1172,11 +1176,12 @@
         $('lendersbranch').textContent = r.hash ? '· ' + r.hash : (r.msg || '');
         paStatus = (await (await fetch('/api/pa-statuses')).json().catch(() => ({}))) || {};
         const ls = r.lenders || [];
+        mockPA = r.mockPA !== false;   // lo decide E2E_REAL_PREAPPROVALS por target, no el panel
         lendersDelComercio = ls;   // el mapa de tren dibuja los ramales según el rt de estos
         // Que falte el selector de pre-aprobación no puede ser silencioso: sin explicación se lee como
         // un bug del panel, no como "en este target lo decide el MS real".
-        $('lendersnota').innerHTML = cap('mockPA') ? ''
-          : ` · <b>sin selector de pre-aprobación en ${target}</b>: el front es un build desplegado y consulta el MS real, no el mock local.`;
+        $('lendersnota').innerHTML = mockPA ? ''
+          : ` · <b>sin selector de pre-aprobación en ${target}</b>: las pre-aprobaciones las resuelve el MS real, no el mock — el desenlace lo decide el proveedor.`;
         renderTren();
         loadEstado();
         if (!ls.length) { box.innerHTML = '<p style="color:var(--mut);font-size:12px;margin:0">Sin lenders (¿branch en .flows.json?).</p>'; return; }
@@ -1202,7 +1207,7 @@
           //     y apunta el wizard ahí SOLO cuando el front es LOCAL (bin/asesor:132-164): con un front
           //     REMOTO las VITE_* vienen del build desplegado y no puede llegar a localhost. Mostrarlo
           //     ahí es una perilla que no mueve nada — peor que no tenerla, porque miente. Ver CAPS.
-          if (Number(l.rt) !== 0 && cap('mockPA')) {
+          if (Number(l.rt) !== 0 && mockPA) {
             const st = document.createElement('select');
             st.className = 'pasel';
             st.innerHTML = '<option value="approved">Aprobado</option><option value="rejected">Rechazado</option><option value="pending">Pendiente</option>';

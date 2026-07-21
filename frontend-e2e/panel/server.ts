@@ -82,6 +82,20 @@ function branchHashForSlug(slug: string): string {
     return /^[0-9a-f]{8}$/.test(s) ? s : '';
 }
 
+/**
+ * ¿Esta corrida va contra el MOCK de pre-aprobados, o contra el MS real? Se resuelve por la MISMA
+ * cadena que usa `bin/asesor` (envget), no enumerando targets: el selector de estado por entidad solo
+ * tiene sentido si el mock es quien contesta. Atarlo a una lista de targets se desincroniza el día que
+ * alguien cambia `E2E_REAL_PREAPPROVALS`, y quedaría una perilla que no mueve nada.
+ */
+function usaMockPA(target: string): Promise<boolean> {
+    return new Promise((ok) => {
+        execFile('node', ['bin/envget.ts', 'E2E_REAL_PREAPPROVALS', '0'],
+            { cwd: ROOT, env: envFor(target), timeout: 10000 },
+            (err, out) => ok(!err && String(out || '').trim() !== '1'));
+    });
+}
+
 function leerFlows(): any {
     try { return JSON.parse(readFileSync(join(ROOT, '.flows.json'), 'utf8')); } catch { return {}; }
 }
@@ -373,9 +387,9 @@ const server = createServer(async (req, res) => {
         // durante días que contra dev la query moría por una columna ausente (F-64). El error se pasa.
         if (!Array.isArray(r)) {
             const msg = r && typeof r === 'object' && 'error' in r ? String((r as any).error) : 'no devolvió una lista';
-            return json(res, 200, { hash, lenders: [], msg: `✗ la consulta de entidades falló: ${msg}` });
+            return json(res, 200, { hash, lenders: [], mockPA: await usaMockPA(target), msg: `✗ la consulta de entidades falló: ${msg}` });
         }
-        return json(res, 200, { hash, lenders: r });
+        return json(res, 200, { hash, lenders: r, mockPA: await usaMockPA(target) });
     }
 
     // prende/apaga un lender en la sucursal (lenders_by_allied_branches.status)

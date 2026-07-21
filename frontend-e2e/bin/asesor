@@ -153,7 +153,9 @@ FORMS="$( { grep -E '^VITE_ONBOARDING_FORM_SERVICE=' "$WIZARD/.env" 2>/dev/null 
 # En LOCAL el host de dev necesita VPN → usamos el mock (bin/mock-forms). Ver findings F-41.
 [ "$TARGET" = "local" ] && FORMS="http://localhost:${MOCK_FORMS_PORT:-8101}/v1"
 # VITE_PREAPPROVALS_ENDPOINT: MS de pre-aprobaciones (rt≠STANDARD; el loader de /lenders hace POST server-to-server).
-if [ "${E2E_REAL_PREAPPROVALS:-0}" = 1 ]; then
+# Por la CADENA (envget) y no `${E2E_REAL_PREAPPROVALS:-0}` pelado: así vive en `.env.<target>` y cada
+# ambiente decide, en vez de depender de que alguien exporte la variable a mano en esa shell.
+if [ "$(envget E2E_REAL_PREAPPROVALS 0)" = 1 ]; then
   PREAPPROVALS="$(envget E2E_PREAPPROVALS_ENDPOINT)"
   [ -n "$PREAPPROVALS" ] || PREAPPROVALS="http://pre-approvals-service.inertia-develop:8082/v1/preapprovals/check"
   log "pre-aprobaciones REALES (MS dev, lento) [E2E_REAL_PREAPPROVALS=1]"

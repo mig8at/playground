@@ -111,23 +111,30 @@ es el árbol de `context`: 33 nodos, 342 archivos compartidos, 1.578 aristas imp
 El panel es una UI sobre `bin/asesor`, y **`bin/asesor` no levanta lo mismo en cada target**. Una perilla
 que no mueve nada es peor que no tenerla: te deja creyendo que probaste algo que nunca se aplicó.
 
-La matriz vive en **un solo lugar** (`const CAPS` en `panel/index.html`) y se deriva de
-`bin/asesor:150-180`:
+**La regla del harness: `local` mockea, `dev` y `staging` prueban contra lo real.** Si en dev algo sale
+por un mock, dev deja de ser representativo y la prueba no vale.
 
 | | `local` | `dev` | `staging` |
 |---|---|---|---|
-| `mockPA` — mock de pre-aprobados `:8095` | ✓ | ✓ | ✗ |
-| `flotaLocal` — payvalida · mdm · lenders · forms · ábaco | ✓ | ✗ | ✗ |
+| pre-aprobaciones | mock `:8095` | **MS real** `pre-approvals-service…:8082` | MS real |
+| payvalida · mdm · lenders · forms · ábaco | mocks | reales | reales |
+| backend · BD | local (sail/Docker) | dev real (compartida) | la de dev |
+| front | local `:5174` | local `:5174` | **desplegado** |
 
-- **`mockPA`** cae en staging porque ahí el front es un **build desplegado**: sus `VITE_*` vienen de ese
-  build y no puede alcanzar `localhost:8095`. En dev el wizard es local, así que el selector **sí** manda.
-- **`flotaLocal`** es solo local; contra dev se usan los proveedores reales, así que el contador "n/n
-  mocks" ahí no significa nada.
+Dos mecanismos, y **no son intercambiables**:
 
-Dos reglas al tocarlo: **si agregás un target, agregalo a `CAPS`** (el default de `cap()` es el más
-restrictivo a propósito — enumerar targets a mano fue lo que dejó a staging afuera del guard de
-escrituras cuando se sumó), y **si escondés un control, decí por qué en pantalla**: una perilla que
-desaparece sin explicación se lee como un bug del panel.
+- **`E2E_REAL_PREAPPROVALS`** (en `.env.<target>`, hoy `1` en dev y staging) decide si se usa el mock de
+  pre-aprobados. `bin/asesor` lo lee **por la cadena (`envget`)**, no del shell: si lo leyera del shell,
+  ponerlo en `.env.dev` no haría nada. El panel pregunta lo mismo al servidor (`/api/lenders` →
+  `mockPA`) y muestra el selector de estado por entidad **solo cuando el mock contesta**. Atarlo a una
+  lista de targets se desincroniza el día que alguien cambia la variable.
+- **`const CAPS`** (en `panel/index.html`) es para lo que **sí** depende del target: hoy solo
+  `flotaLocal` (los cinco mocks que `bin/asesor:170` levanta únicamente en local). Si agregás un target,
+  agregalo ahí — el default de `cap()` es el más restrictivo a propósito: enumerar targets a mano fue lo
+  que dejó a staging afuera del guard de escrituras cuando se sumó.
+
+Y **si escondés un control, decí por qué en pantalla**: una perilla que desaparece sin explicación se
+lee como un bug del panel, no como "en este ambiente eso lo decide el proveedor real".
 
 ## Elegir comercio: los curados y el buscador
 
