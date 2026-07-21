@@ -93,6 +93,14 @@ const groupedIssues = computed(() => {
   return groups;
 });
 const showGroups = computed(() => groupedIssues.value.some(g => g.id !== 0));
+// El MÉTODO de trabajo, explícito: primero se evalúa, después se trabaja, y las tareas de Jira se
+// escriben AL FINAL — recién ahí hay contexto completo para definirlas bien.
+const STAGES = [
+  { id: 'evaluation', label: 'Evaluando' },
+  { id: 'work', label: 'Trabajando' },
+  { id: 'tasks', label: 'Tareas creadas' },
+];
+const stageOf = (id) => STAGES.find(s => s.id === (efforts.value.find(e => e.id === id)?.stage || 'evaluation'));
 const activeLocal = computed(() => taskLocals.value[active.value?.Key] || {});
 
 // ── derivados del sprint ────────────────────────────────────────────────────────────────────────
@@ -415,7 +423,10 @@ onMounted(async () => {
         <section class="card">
           <h2>Mis tareas</h2>
           <template v-for="g in groupedIssues" :key="g.id">
-            <div v-if="showGroups" class="grp" :class="{ none: !g.id }">{{ g.title }}</div>
+            <div v-if="showGroups" class="grp" :class="{ none: !g.id }">
+              {{ g.title }}
+              <span v-if="g.id" class="stg" :class="'s-' + stageOf(g.id)?.id">{{ stageOf(g.id)?.label }}</span>
+            </div>
             <div v-for="i in g.tasks" :key="i.Key" class="task" :class="{ sel: active?.Key === i.Key }" @click="active = i">
               <div class="tl">
                 <a v-if="site" class="key link" :href="jiraLink(i.Key)" target="_blank" rel="noopener"
@@ -537,6 +548,11 @@ h1 { font-size: 20px; margin: 0; letter-spacing: .2px }
 .grp::before { content: '◆'; font-size: 9px }
 .grp:first-child { margin-top: 0 }
 .grp.none { color: var(--mut) } .grp.none::before { content: '○' }
+/* etapa del esfuerzo: evaluar → trabajar → crear las tareas */
+.stg { font-size: 9.5px; font-weight: 700; letter-spacing: .3px; padding: 2px 7px; border-radius: 999px;
+  border: 1px solid var(--line); color: var(--mut); text-transform: none; white-space: nowrap }
+.s-work { color: #f6c667; border-color: #4a3a16; background: #241a08 }
+.s-tasks { color: #4ade80; border-color: #256b41; background: #0e2718 }
 
 
 /* la clave de la tarea abre Jira; la flecha aparece al pasar por encima para no ensuciar el listado */

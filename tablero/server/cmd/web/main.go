@@ -265,6 +265,7 @@ func main() {
 				JiraDescription *string `json:"jiraDescription"`
 				TechNotes       *string `json:"techNotes"`    // privado: NO pasa por el guard
 				ContextNodes    *string `json:"contextNodes"` // slugs de nodos de contexto
+				Stage           *string `json:"stage"`        // evaluation | work | tasks
 			}
 			if err := json.NewDecoder(r.Body).Decode(&in); err != nil || in.ID == 0 {
 				w.WriteHeader(http.StatusBadRequest)
@@ -288,6 +289,13 @@ func main() {
 			// quedan intactos (COALESCE en el store), así guardar uno no borra el otro.
 			if in.TechNotes != nil || in.ContextNodes != nil {
 				if err := a.st.SaveEffortTech(in.ID, in.TechNotes, in.ContextNodes); err != nil {
+					w.WriteHeader(http.StatusUnprocessableEntity)
+					json.NewEncoder(w).Encode(map[string]any{"error": err.Error()})
+					return
+				}
+			}
+			if in.Stage != nil {
+				if err := a.st.SetEffortStage(in.ID, *in.Stage); err != nil {
 					w.WriteHeader(http.StatusUnprocessableEntity)
 					json.NewEncoder(w).Encode(map[string]any{"error": err.Error()})
 					return

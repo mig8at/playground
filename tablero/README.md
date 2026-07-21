@@ -143,6 +143,21 @@ Desde el **2026-07-21** la partición es explícita: **`playground/context` resp
 *trabajando*"** (esfuerzos, tiempo, estado, Jira). El árbol de context ya **no lleva nodos-tarea**: los 4
 que tenía se migraron acá.
 
+### El método: tres etapas, y las tareas al final
+
+Un esfuerzo avanza por **`stage`**, y el orden es deliberado:
+
+| Etapa | Qué pasa |
+|---|---|
+| `evaluation` · **Evaluando** | entender el problema y validar contra el código; todavía no se toca nada |
+| `work` · **Trabajando** | desarrollo y pruebas; la bitácora se llena acá |
+| `tasks` · **Tareas creadas** | recién ahora se redactan y suben las tareas de Jira |
+
+**Por qué al final:** definir la tarea *después* de haberla resuelto es lo único que permite escribirla
+bien — ya se sabe en qué se parte, qué representa de esfuerzo real y cómo se valida. Definirla al empezar
+es adivinar. La etapa es explícita y no derivada: "evaluando" y "trabajando" se distinguen por decisión,
+no por si ya existe una tarea de Jira.
+
 Un **esfuerzo** (`efforts`) es el trabajo real privado del que salen las tareas de Jira, y guarda:
 
 | Campo | Qué es | ¿Guard? |
@@ -150,7 +165,8 @@ Un **esfuerzo** (`efforts`) es el trabajo real privado del que salen las tareas 
 | `title` | cómo lo llamás vos | privado, sin guard |
 | `tech_notes` | el detalle técnico: archivos, análisis, rutas | **sin guard** — nunca sale de local, por eso *sí* puede nombrar archivos y repos |
 | `context_nodes` | a qué nodos de `context` apunta (el mapa del código vive allá) | — |
-| `jira_title` · `jira_description` | el borrador de la tarea | **con guard** — termina publicado en Jira |
+| `jira_title` · `jira_description` | el borrador de la tarea (se escribe en la etapa `tasks`) | **con guard** — termina publicado en Jira |
+| `stage` | en qué etapa del método está | — |
 
 Esa asimetría es deliberada: lo técnico y lo publicable son dos textos distintos, y el guard marca la
 frontera. Por eso el detalle de archivos **no puede** vivir en las notas de la bitácora.

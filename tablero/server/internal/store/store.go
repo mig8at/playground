@@ -132,6 +132,7 @@ var addedColumns = []struct{ table, column, ddl string }{
 	{"efforts", "jira_description", "ALTER TABLE efforts ADD COLUMN jira_description TEXT"},
 	{"efforts", "tech_notes", "ALTER TABLE efforts ADD COLUMN tech_notes TEXT"},
 	{"efforts", "context_nodes", "ALTER TABLE efforts ADD COLUMN context_nodes TEXT"},
+	{"efforts", "stage", "ALTER TABLE efforts ADD COLUMN stage TEXT"},
 }
 
 // migrate agrega las columnas faltantes, sin tocar los datos existentes.
@@ -326,13 +327,29 @@ type Effort struct {
 	TechNotes string `json:"techNotes"`
 	// slugs de los nodos de contexto que toca, separados por coma (el mapa del código vive allá)
 	ContextNodes string `json:"contextNodes"`
-	CreatedAt    string `json:"createdAt"`
+	// ETAPA del método de trabajo: evaluar → trabajar → crear las tareas. Las tareas de Jira se
+	// escriben AL FINAL, cuando ya se entendió el problema — por eso la etapa es explícita y no
+	// derivada: "evaluando" y "trabajando" se distinguen por decisión, no por si ya hay tarea.
+	Stage     string `json:"stage"` // evaluation | work | tasks
+	CreatedAt string `json:"createdAt"`
+}
+
+// Stages son las etapas válidas, en orden.
+var Stages = []string{"evaluation", "work", "tasks"}
+
+func validStage(s string) bool {
+	for _, v := range Stages {
+		if v == s {
+			return true
+		}
+	}
+	return false
 }
 
 // Efforts lista los esfuerzos vivos (no archivados), del más nuevo al más viejo.
 func (s *Store) Efforts() ([]Effort, error) {
 	rows, err := s.db.Query(`SELECT id, title, COALESCE(jira_title,''), COALESCE(jira_description,''),
-			COALESCE(tech_notes,''), COALESCE(context_nodes,''), created_at
+			COALESCE(tech_notes,''), COALESCE(context_nodes,''), COALESCE(stage,'evaluation'), created_at
 		FROM efforts WHERE archived_at IS NULL ORDER BY id DESC`)
 	if err != nil {
 		return nil, err
@@ -342,7 +359,7 @@ func (s *Store) Efforts() ([]Effort, error) {
 	for rows.Next() {
 		var e Effort
 		if err := rows.Scan(&e.ID, &e.Title, &e.JiraTitle, &e.JiraDescription, &e.TechNotes,
-			&e.ContextNodes, &e.CreatedAt); err != nil {
+			&e.ContextNodes, &e.Stage, &e.CreatedAt); err != nil {
 			return nil, err
 		}
 		out = append(out, e)
@@ -359,6 +376,21 @@ func (s *Store) CreateEffort(title string) (Effort, error) {
 	}
 	id, _ := res.LastInsertId()
 	return Effort{ID: id, Title: title, CreatedAt: now}, nil
+}
+
+// SetEffortStage mueve el esfuerzo de etapa.
+func (s *Store) SetEffortStage(id int64, stage string) error {
+	if !validStage(stage) {
+		return fmt.Errorf("etapa inválida: %s (válidas: %v)", stage, Stages)
+	}
+	res, err := s.db.Exec(`UPDATE efforts SET stage = ? WHERE id = ? AND archived_at IS NULL`, stage, id)
+	if err != nil {
+		return err
+	}
+	if n, _ := res.RowsAffected(); n == 0 {
+		return fmt.Errorf("no existe el esfuerzo %d", id)
+	}
+	return nil
 }
 
 // SaveEffortTech guarda el detalle técnico privado y/o los nodos de contexto. Recibe PUNTEROS y usa
