@@ -148,6 +148,8 @@ type SprintIssue struct {
 	Summary        string
 	Description    string // lo que HOY dice Jira (aplanado a texto)
 	Created        string // cuándo se creó (para ordenar nuevo → viejo)
+	OriginSprint   string // sprint donde NACIÓ (el más viejo de su historial)
+	CarriedOver    bool   // estuvo en más de un sprint = no cerró en el suyo y la arrastraron
 	Status         string
 	StatusCategory string // "new" (por hacer) | "indeterminate" (en curso) | "done"
 	Points         float64
@@ -196,6 +198,36 @@ func walkADF(n *adfNode, b *strings.Builder) {
 	}
 }
 
+// issueSprintRef es una entrada del historial de sprints de una tarea (customfield_10020).
+type issueSprintRef struct {
+	Name      string `json:"name"`
+	StartDate string `json:"startDate"`
+}
+
+// originSprint devuelve el sprint MÁS VIEJO del historial: donde NACIÓ la tarea. Se ordena por fecha
+// porque Jira no garantiza el orden de la lista (viene [Sprint 8, Sprint 7]). Un sprint sin fecha aún no
+// está planeado, así que nunca es el origen si hay otro con fecha.
+func originSprint(ss []issueSprintRef) string {
+	if len(ss) == 0 {
+		return ""
+	}
+	best := ss[0]
+	for _, s := range ss[1:] {
+		if best.StartDate == "" || (s.StartDate != "" && s.StartDate < best.StartDate) {
+			best = s
+		}
+	}
+	return shortSprint(best.Name)
+}
+
+// shortSprint recorta el prefijo del proyecto: "CORE Sprint 7" → "Sprint 7" (el proyecto ya se sabe).
+func shortSprint(n string) string {
+	if i := strings.Index(n, "Sprint"); i >= 0 {
+		return n[i:]
+	}
+	return n
+}
+
 // respuesta cruda del listado de issues de un sprint.
 // Nota: el campo de Story Points en CORE es customfield_10036.
 type sprintIssuesResp struct {
@@ -211,7 +243,11 @@ type sprintIssuesResp struct {
 					Key string `json:"key"`
 				} `json:"statusCategory"`
 			} `json:"status"`
-			Points       *float64 `json:"customfield_10036"`
+			Points *float64 `json:"customfield_10036"`
+			// customfield_10020 es el campo de sprint en esta instancia. Es una LISTA: guarda TODOS los
+			// sprints por los que pasó la tarea. Jira arrastra al siguiente lo que no quedó Done y
+			// conserva el registro del anterior — por eso una tarea puede salir en dos sprints.
+			Sprints      []issueSprintRef `json:"customfield_10020"`
 			TimeTracking struct {
 				OriginalEstimateSeconds int `json:"originalEstimateSeconds"`
 				TimeSpentSeconds        int `json:"timeSpentSeconds"`
@@ -224,7 +260,7 @@ type sprintIssuesResp struct {
 // (GET /rest/agile/1.0/sprint/{id}/issue con jql assignee = currentUser()).
 func (c *Client) MySprintIssues(ctx context.Context, sprintID int) ([]SprintIssue, error) {
 	path := fmt.Sprintf(
-		"/rest/agile/1.0/sprint/%d/issue?jql=%s&fields=summary,description,created,status,timetracking,customfield_10036&maxResults=100",
+		"/rest/agile/1.0/sprint/%d/issue?jql=%s&fields=summary,description,created,status,timetracking,customfield_10036,customfield_10020&maxResults=100",
 		sprintID, url.QueryEscape("assignee = currentUser()"),
 	)
 
@@ -241,6 +277,8 @@ func (c *Client) MySprintIssues(ctx context.Context, sprintID int) ([]SprintIssu
 			Summary:        f.Summary,
 			Description:    adfText(f.Description),
 			Created:        f.Created,
+			OriginSprint:   originSprint(f.Sprints),
+			CarriedOver:    len(f.Sprints) > 1,
 			Status:         f.Status.Name,
 			StatusCategory: f.Status.StatusCategory.Key,
 			EstimateSecs:   f.TimeTracking.OriginalEstimateSeconds,

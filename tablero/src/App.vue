@@ -448,6 +448,11 @@ onMounted(async () => {
               <p v-if="i.Description" class="jd" :title="i.Description">{{ i.Description }}</p>
               <p v-else class="jd none">sin descripción en Jira</p>
               <div class="tm">
+                <!-- de qué sprint viene: verde = nació en su sprint · rojo = la arrastraron sin terminar -->
+                <span v-if="i.OriginSprint" class="orig" :class="{ carried: i.CarriedOver }"
+                  :title="i.CarriedOver ? `Nació en ${i.OriginSprint} y se arrastró sin terminar` : `Nació en ${i.OriginSprint}`">
+                  <i></i>{{ i.OriginSprint }}
+                </span>
                 <span v-if="settings.trackPoints && i.HasPoints && i.Points">{{ i.Points }} pts</span>
                 <span v-if="settings.trackTime">{{ hhmm(i.SpentSecs) }} en Jira</span>
                 <span class="mine" v-if="minutesOf(i.Key)">{{ minHhmm(minutesOf(i.Key)) }} sin subir</span>
@@ -538,6 +543,11 @@ h1 { font-size: 20px; margin: 0; letter-spacing: .2px }
 .jd.none { font-style: italic; opacity: .6 }
 .tm { display: flex; gap: 12px; font-size: 11.5px; color: var(--mut) }
 .tm .mine { color: var(--acc) }
+/* origen de la tarea: el punto dice si cerró en su sprint (verde) o la arrastraron (rojo) */
+.orig { display: inline-flex; align-items: center; gap: 5px }
+.orig i { width: 7px; height: 7px; border-radius: 50%; background: #4ade80; flex: none }
+.orig.carried { color: var(--bad) }
+.orig.carried i { background: var(--bad) }
 
 /* la tarjeta "La tarea": las dos verdades (real privada / reportada Jira) + definición + estimado */
 .dual { display: flex; gap: 26px; flex-wrap: wrap; margin-bottom: 15px }
