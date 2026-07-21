@@ -62,55 +62,13 @@ async function loadEntries() {
   } catch { /* server caído: el error general de carga ya lo dice */ }
 }
 
-// ── guard: lo que se publica en Jira no puede filtrar el playground ─────────────────────────────
-// La FUENTE de los patrones es el server (/api/guard), que además los re-aplica en el POST: acá solo
-// dan feedback inmediato (botón bloqueado + motivo). Esta lista es el fallback si el server no está.
-const FORBIDDEN_FALLBACK = [
-  { re: /\bF-\d+\b/gi, what: 'referencia a un hallazgo interno' },
-  { re: /playground/gi, what: 'menciona el playground' },
-  { re: /frontend-e2e|backend-e2e|legacy-backend|frontend-monorepo|creditop-woocommerce/gi, what: 'nombra un repo interno' },
-  { re: /[\w/-]+\.(ts|tsx|php|go|vue|json|mjs)\b/gi, what: 'incluye una ruta de archivo' },
-];
-const patterns = ref(FORBIDDEN_FALLBACK);
-// el guard corre sobre TODO lo que puede terminar en Jira: la nota de la bitácora y la definición de la
-// tarea. Un solo helper para no tener dos definiciones de "publicable".
-const guardOf = (text) => patterns.value.flatMap(p => ((text || '').match(p.re) || []).map(m => ({ what: p.what, found: m })));
 
-// ── capa local privada de la tarea activa (estado real, definición para Jira, estimado) ───────────
-// Estados REALES (privados), separados del estado reportado en Jira. Mi verdad, la muevo yo.
-const REAL_STATES = [
-  { id: 'analysis', label: 'Análisis', color: '#60a5fa' },
-  { id: 'dev', label: 'Desarrollo', color: '#a78bfa' },
-  { id: 'testing', label: 'Pruebas', color: '#f6c667' },
-  { id: 'done', label: 'Lista', color: '#4ade80' },
-];
-const overlay = ref({ taskKey: '', realState: '', definition: '', estimateMinutes: null, estimatePoints: null, effortId: 0 });
-const defProblems = computed(() => guardOf(overlay.value.definition));
-
-async function loadOverlay(key) {
-  try {
-    const j = await (await fetch(`${SERVER}/api/task?key=${encodeURIComponent(key)}`)).json();
-    if (!j.error) overlay.value = j;
-  } catch { overlay.value = { taskKey: key, realState: '', definition: '', estimateMinutes: null, estimatePoints: null, effortId: 0 }; }
-}
-async function saveOverlay() {
-  if (!overlay.value.taskKey || defProblems.value.length) return; // no guardamos algo que el guard rechaza
-  try {
-    const res = await fetch(`${SERVER}/api/task`, {
-      method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify(overlay.value),
-    });
-    const j = await res.json();
-    if (!j.error) overlay.value = j;
-  } catch { /* offline: el cambio queda local */ }
-}
-// al cambiar de tarea activa, traemos SU capa local
-watch(() => active.value?.Key, (key) => { if (key) loadOverlay(key); }, { immediate: true });
+// La capa local de la tarea activa se LEE del mapa que ya trae el agrupado: la UI no la edita
+// (el asistente la escribe por la API), así que no hace falta un fetch aparte ni estado editable.
 
 // ── esfuerzos: el trabajo real privado que agrupa varias tareas de Jira ────────────────────────────
 const efforts = ref([]);
 const taskLocals = ref({});       // mapa clave → capa local, para agrupar el listado
-const creatingEffort = ref(false);
-const newEffortTitle = ref('');
 
 async function loadEfforts() {
   try { const j = await (await fetch(`${SERVER}/api/efforts`)).json(); if (!j.error) efforts.value = j.efforts || []; }
@@ -120,24 +78,6 @@ async function loadTaskLocals() {
   try { const j = await (await fetch(`${SERVER}/api/task-locals`)).json(); if (!j.error) taskLocals.value = j.taskLocals || {}; }
   catch { /* sin capas: todo cae en "sin esfuerzo" */ }
 }
-// asignar la tarea activa a un esfuerzo = guardar su capa + refrescar el mapa para que el grupo se mueva
-async function assignEffort() { await saveOverlay(); await loadTaskLocals(); }
-async function addEffort() {
-  const title = newEffortTitle.value.trim();
-  if (!title) return;
-  try {
-    const j = await (await fetch(`${SERVER}/api/efforts`, {
-      method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ title }),
-    })).json();
-    if (j.effort) {
-      efforts.value = [j.effort, ...efforts.value];
-      overlay.value.effortId = j.effort.id;        // la tarea activa cae en el esfuerzo recién creado
-      creatingEffort.value = false; newEffortTitle.value = '';
-      await assignEffort();
-    }
-  } catch { /* offline */ }
-}
-
 // listado agrupado por esfuerzo; las sin asignar van al final. El encabezado del grupo solo aparece si
 // hay al menos un esfuerzo en juego (si no, el listado va plano como antes).
 const groupedIssues = computed(() => {
@@ -153,6 +93,7 @@ const groupedIssues = computed(() => {
   return groups;
 });
 const showGroups = computed(() => groupedIssues.value.some(g => g.id !== 0));
+const activeLocal = computed(() => taskLocals.value[active.value?.Key] || {});
 
 // ── derivados del sprint ────────────────────────────────────────────────────────────────────────
 const done = computed(() => issues.value.filter(i => i.StatusCategory === 'done').length);
@@ -326,12 +267,6 @@ onMounted(async () => {
     if (!j.error) { sprints.value = j.sprints || []; site.value = j.site || ''; }
   } catch { /* si falla, el selector no aparece y se carga el activo igual */ }
 
-  // los patrones del guard son del server; el fallback local ya está puesto
-  try {
-    const g = await (await fetch(`${SERVER}/api/guard`)).json();
-    if (g.patterns?.length) patterns.value = g.patterns.map(p => ({ re: new RegExp(p.re, 'gi'), what: p.what }));
-  } catch { /* fallback local activo */ }
-
   await loadSettings();
   await loadEfforts();
 
@@ -454,54 +389,26 @@ onMounted(async () => {
           <span v-else class="on">{{ active.Key }}</span>
         </h2>
 
-        <!-- las dos verdades lado a lado: la real (privada, la muevo yo) y la que ve Jira (reportada) -->
+        <!-- SOLO LECTURA: el estado y la descripción son los de Jira. Cambiarlos es cosa de Jira (o del
+             asistente por la API), no de esta vista. -->
         <div class="dual">
           <div class="lane">
-            <span class="lane-k">Estado real <em>privado</em></span>
-            <div class="seg small">
-              <button v-for="r in REAL_STATES" :key="r.id" :class="{ on: overlay.realState === r.id }"
-                :style="overlay.realState === r.id ? { background: r.color, color: '#0b0713', borderColor: r.color } : {}"
-                @click="overlay.realState = overlay.realState === r.id ? '' : r.id; saveOverlay()">{{ r.label }}</button>
-            </div>
-          </div>
-          <div class="lane">
-            <span class="lane-k">En Jira <em>reportado</em></span>
+            <span class="lane-k">Estado <em>en Jira</em></span>
             <span class="status" :class="statusClass(active.StatusCategory)">{{ active.Status }}</span>
           </div>
+          <div class="lane" v-if="settings.trackTime && activeLocal.estimateMinutes">
+            <span class="lane-k">Estimado <em>lo estipulado</em></span>
+            <span class="val">{{ minHhmm(activeLocal.estimateMinutes) }}</span>
+          </div>
+          <div class="lane" v-if="settings.trackPoints && activeLocal.estimatePoints">
+            <span class="lane-k">Puntos</span>
+            <span class="val">{{ activeLocal.estimatePoints }}</span>
+          </div>
         </div>
 
-        <label class="fld">Definición <em>para Jira · el esfuerzo que la tarea representa, no lo que te tomó</em></label>
-        <textarea v-model="overlay.definition" rows="3" @blur="saveOverlay()"
-          placeholder="Qué es la tarea y cómo se resuelve, en claro. Es lo que va a la descripción de Jira."></textarea>
-        <div v-if="defProblems.length" class="guard">
-          <b>No se puede publicar así</b>
-          <div v-for="(p, n) in defProblems" :key="n">· {{ p.what }}: <code>{{ p.found }}</code></div>
-        </div>
-
-        <div class="fld-row">
-          <span class="lane-k">Esfuerzo <em>agrupa esta tarea con otras</em></span>
-          <select v-model.number="overlay.effortId" @change="assignEffort()">
-            <option :value="0">— sin esfuerzo —</option>
-            <option v-for="e in efforts" :key="e.id" :value="e.id">{{ e.title }}</option>
-          </select>
-          <template v-if="creatingEffort">
-            <input v-model="newEffortTitle" placeholder="nombre del esfuerzo" @keyup.enter="addEffort()" @keyup.esc="creatingEffort = false" />
-            <button class="mini" @click="addEffort()">Crear</button>
-          </template>
-          <button v-else class="mini" @click="creatingEffort = true">+ nuevo</button>
-        </div>
-
-        <div class="fld-row" v-if="settings.trackTime || settings.trackPoints">
-          <span class="lane-k">Estimado <em>lo estipulado a Jira</em></span>
-          <template v-if="settings.trackTime">
-            <label>Minutos</label>
-            <input type="number" v-model.number="overlay.estimateMinutes" min="0" step="15" @change="saveOverlay()" />
-          </template>
-          <template v-if="settings.trackPoints">
-            <label>Puntos</label>
-            <input type="number" v-model.number="overlay.estimatePoints" min="0" step="0.5" @change="saveOverlay()" />
-          </template>
-        </div>
+        <label class="fld">Descripción <em>lo que hoy dice Jira</em></label>
+        <p v-if="active.Description" class="desc">{{ active.Description }}</p>
+        <p v-else class="desc none">Esta tarea todavía no tiene descripción en Jira.</p>
       </section>
 
       <div class="cols">
@@ -617,17 +524,12 @@ h1 { font-size: 20px; margin: 0; letter-spacing: .2px }
 .lane { display: flex; flex-direction: column; gap: 7px }
 .lane-k { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; color: var(--mut) }
 .lane-k em { font-style: normal; text-transform: none; letter-spacing: 0; color: var(--mut); opacity: .7; font-weight: 400; margin-left: 5px }
-.seg.small button { padding: 6px 11px; font-size: 12px; font-weight: 600 }
 .fld { display: block; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; color: var(--mut); margin-bottom: 7px }
 .fld em { font-style: normal; text-transform: none; letter-spacing: 0; opacity: .7; font-weight: 400; margin-left: 5px }
-.fld-row { display: flex; align-items: center; gap: 10px; margin-top: 13px; flex-wrap: wrap }
-.fld-row .lane-k { margin-right: 4px }
-.fld-row label { font-size: 12px; color: var(--mut) }
-.fld-row input { width: 84px }
-.fld-row select { width: auto; min-width: 150px; padding: 8px 10px }
-.mini { border: 1px solid var(--line); background: var(--panel2); color: var(--mut); border-radius: 8px;
-  padding: 7px 11px; font-size: 12px; font-weight: 600; cursor: pointer; font-family: inherit; white-space: nowrap }
-.mini:hover { color: var(--txt); border-color: var(--acc) }
+/* descripción completa de Jira (acá NO se recorta: es la vista de detalle de la tarea elegida) */
+.desc { font-size: 13px; line-height: 1.55; color: var(--txt); margin: 0; white-space: pre-wrap }
+.desc.none { color: var(--mut); font-style: italic }
+.lane .val { font-size: 13.5px; font-weight: 700; font-variant-numeric: tabular-nums }
 
 /* encabezado de grupo de esfuerzo en el listado */
 .grp { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: .6px; color: var(--acc);
@@ -636,18 +538,6 @@ h1 { font-size: 20px; margin: 0; letter-spacing: .2px }
 .grp:first-child { margin-top: 0 }
 .grp.none { color: var(--mut) } .grp.none::before { content: '○' }
 
-.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; margin-bottom: 11px }
-.seg button { background: var(--panel2); color: var(--mut); border: none; border-right: 1px solid var(--line);
-  padding: 8px 13px; font-size: 12.5px; font-weight: 700; cursor: pointer; font-family: inherit }
-.seg button:last-child { border-right: none }
-.seg button.on { background: var(--acc); color: #0b0713 }
-textarea, input { background: var(--panel2); border: 1px solid var(--line); color: var(--txt); border-radius: 10px;
-  padding: 10px 12px; font: inherit; font-size: 13px; width: 100%; resize: vertical }
-textarea:focus, input:focus { outline: none; border-color: var(--acc) }
-.guard { margin-top: 11px; padding: 10px 12px; border-radius: 10px; border: 1px solid #5b2020; background: #2a1010;
-  color: var(--bad); font-size: 12px; line-height: 1.55 }
-.guard b { display: block; margin-bottom: 4px }
-.guard code { color: #fecaca }
 
 /* la clave de la tarea abre Jira; la flecha aparece al pasar por encima para no ensuciar el listado */
 .link { text-decoration: none; color: inherit; cursor: pointer }
