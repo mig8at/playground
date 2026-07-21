@@ -7,17 +7,23 @@
   <title>Panel del harness · CreditOp</title>
   <style>
     :root {
-      --bg: #0f1115;
-      --panel: #171a21;
-      --panel2: #1e222b;
-      --line: #2a2f3a;
-      --txt: #e7eaf0;
-      --mut: #9aa4b2;
+      /* Paleta NEUTRA (zinc), no azulada. El color queda reservado para lo semántico —verde = corre/ON,
+         ámbar = mirá esto, rojo = roto— y todo el chrome va en grises. En un panel tan denso, es lo que
+         hace que el ojo encuentre lo que importa: si todo grita, nada resalta. */
+      --bg: #09090b;
+      --panel: #0f0f12;      /* superficie de card */
+      --panel2: #17171b;     /* superficie elevada: filas, inputs, tarjetas */
+      --line: #232327;       /* borde de 1px, apenas visible */
+      --line2: #35353b;      /* borde en hover/foco */
+      --txt: #fafafa;
+      --mut: #8b8b93;
       --acc: #22c55e;
       --acc-d: #16a34a;
       --warn: #f59e0b;
       --danger: #ef4444;
-      --radius: 14px;
+      /* Radios chicos: 14px daba aire de app de consumo. Esto es una herramienta densa. */
+      --radius: 10px;
+      --radius-sm: 7px;
     }
 
     * {
@@ -26,7 +32,9 @@
 
     body {
       margin: 0;
-      font: 15px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      font: 14px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      -webkit-font-smoothing: antialiased;
+      font-variant-numeric: tabular-nums;   /* los números no bailan al refrescar los contadores */
       background: var(--bg);
       color: var(--txt);
       -webkit-font-smoothing: antialiased
@@ -103,13 +111,13 @@
     }
 
     .pill {
-      padding: 6px 12px;
+      padding: 5px 11px;
       border-radius: 999px;
       border: 1px solid var(--line);
       background: var(--panel);
       color: var(--mut);
-      font-size: 12.5px;
-      font-weight: 600;
+      font-size: 12px;
+      font-weight: 500;
       cursor: pointer;
       font-family: inherit
     }
@@ -144,18 +152,18 @@
       background: var(--panel);
       border: 1px solid var(--line);
       border-radius: var(--radius);
-      padding: 18px 18px;
+      padding: 20px;
       margin-bottom: 0
       /* el gap de .col separa las cards */
     }
 
     .card h2 {
-      font-size: 13px;
+      font-size: 11px;
       text-transform: uppercase;
-      letter-spacing: .8px;
+      letter-spacing: .9px;
       color: var(--mut);
-      margin: 0 0 14px;
-      font-weight: 700
+      margin: 0 0 16px;
+      font-weight: 600
     }
 
     .card h2 b {
@@ -197,9 +205,9 @@
 
     .m {
       background: var(--panel2);
-      border: 1.5px solid var(--line);
-      border-radius: 12px;
-      padding: 13px 14px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius-sm);
+      padding: 12px 13px;
       cursor: pointer;
       transition: .12s;
       position: relative
@@ -267,12 +275,14 @@
     }
 
     .grouplbl {
-      font-size: 11px;
-      font-weight: 800;
+      font-size: 10.5px;
+      font-weight: 600;
       text-transform: uppercase;
-      letter-spacing: .6px;
-      color: var(--acc);
-      margin: 18px 0 10px
+      letter-spacing: .9px;
+      /* antes iba en verde: un acento en CADA subtítulo compite con lo que sí tiene que resaltar
+         (el estado ON/OFF, el botón de lanzar). Los títulos ordenan; no deberían gritar. */
+      color: var(--mut);
+      margin: 20px 0 10px
     }
 
     .grouplbl:first-of-type {
@@ -311,9 +321,9 @@
       color: var(--mut);
       border: none;
       border-right: 1px solid var(--line);
-      padding: 9px 20px;
-      font-size: 14px;
-      font-weight: 700;
+      padding: 8px 17px;
+      font-size: 13px;
+      font-weight: 500;
       cursor: pointer;
       transition: .1s
     }
@@ -390,10 +400,10 @@
       background: var(--acc);
       color: #03130a;
       border: none;
-      border-radius: 11px;
-      padding: 13px 22px;
-      font-size: 15px;
-      font-weight: 800;
+      border-radius: var(--radius-sm);
+      padding: 11px 20px;
+      font-size: 14px;
+      font-weight: 600;
       cursor: pointer
     }
 
@@ -597,18 +607,20 @@
        dato no se puede medir, la tarjeta lo dice — no se inventa un numero para llenar el hueco. */
         /* 150px de mínimo: con el panel a ~910px entran las 5 en una fila, y abajo de eso degrada a 3 y
        a 2 sin romper. Con 190 entraban solo 4 y la quinta quedaba sola en una fila casi vacía. */
-    .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin: 16px 0 0 }
+    /* flex y NO grid auto-fit: con grid, la tarjeta que sobra al quebrar queda HUÉRFANA y angosta
+       —ocupa 1 de N columnas y deja el resto vacío—. Con flex-grow la última fila se reparte sola. */
+    .stats { display: flex; flex-wrap: wrap; gap: 10px; margin: 18px 0 0 }
     .stat {
       background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
-      padding: 15px 16px; display: flex; flex-direction: column; gap: 3px; min-width: 0
+      padding: 15px 16px; display: flex; flex-direction: column; gap: 4px; min-width: 0; flex: 1 1 148px
     }
     .stat .top { display: flex; align-items: center; gap: 8px; margin-bottom: 5px }
     .stat .ico {
       width: 26px; height: 26px; border-radius: 8px; display: grid; place-items: center;
       font-size: 13px; background: #ffffff0d; flex: none
     }
-    .stat .k { font-size: 11px; font-weight: 700; letter-spacing: .5px; text-transform: uppercase; color: var(--mut) }
-    .stat .v { font-size: clamp(21px, 2.3vw, 27px); overflow-wrap: anywhere; font-weight: 800; line-height: 1.1; letter-spacing: -.5px; font-variant-numeric: tabular-nums }
+    .stat .k { font-size: 10.5px; font-weight: 500; letter-spacing: .8px; text-transform: uppercase; color: var(--mut) }
+    .stat .v { font-size: clamp(20px, 2.1vw, 25px); overflow-wrap: anywhere; font-weight: 600; line-height: 1.15; letter-spacing: -.02em; font-variant-numeric: tabular-nums }
     .stat .sub { font-size: 11.5px; color: var(--mut); line-height: 1.35 }
     .stat .sub b { font-weight: 700 }
     .st-ok .v { color: var(--acc) }      .st-ok .ico { background: #22c55e1f }
