@@ -1,7 +1,7 @@
 import { existsSync, mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { expect, type Locator, type Page } from '@playwright/test';
-import { cognitoCreds } from './config';
+import { cognitoCreds, config } from './config';
 
 /**
  * Cache de sesión Cognito para NO re-loguear por el Hosted UI en cada corrida.
@@ -46,13 +46,26 @@ async function robustFill(loc: Locator, value: string): Promise<void> {
  * ("Next"/"Sign in"), el client merchant en español ("Siguiente"/"Continuar"). Si no aparece el
  * form de usuario (sesión ya activa o sin redirect a Cognito), retorna sin hacer nada.
  *
- * `returnUrl`: patrón al que vuelve la app tras el callback (default el wizard local :5174).
+ * `returnUrl`: patrón al que vuelve la app tras el callback. El default se DERIVA del host configurado
+ * para el target (`config.feBaseUrl`), no de `localhost:5174` fijo: contra `staging` la app vuelve al
+ * front desplegado y un patrón hardcodeado nunca matchearía — el login moriría en el waitForURL.
  */
+/** Patrón que matchea cualquier URL del host configurado (escapa lo que RegExp interpretaría). */
+function hostPattern(baseUrl: string): RegExp {
+    let host: string;
+    try {
+        host = new URL(baseUrl).host;              // "originaciones-stg.dev.creditop.com" · "localhost:5174"
+    } catch {
+        host = 'localhost:5174';
+    }
+    return new RegExp(host.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+}
+
 export async function cognitoLogin(
     page: Page,
     user = cognitoCreds.user,
     pass = cognitoCreds.pass,
-    returnUrl: RegExp = /localhost:5174/,
+    returnUrl: RegExp = hostPattern(config.feBaseUrl),
     savePath: string | null = COGNITO_STATE_PATH,
 ): Promise<void> {
     if (!user || !pass) throw new Error('Faltan credenciales Cognito (env E2E_COGNITO_USER/PASS o .cognito.json)');

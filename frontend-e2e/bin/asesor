@@ -13,7 +13,12 @@ FRONT="${CFE_FRONT:-$HOME/Desktop/CREDITOP/github/frontend-monorepo}"
 WIZARD="$FRONT/apps/loan-request-wizard"
 FLOWS="$E2E/.flows.json"
 TARGET="${CFE_TARGET:-dev}"   # dev por default; CFE_TARGET=local prueba el stack local (sail) sin commitear a dev
-WIZ_BASE="http://localhost:5174"
+# La URL del front sale de la cadena de env por TARGET (envget), no hardcodeada: `staging` corre contra
+# un frontend REMOTO ya desplegado. Si es remoto no hay wizard local que levantar ni .env que mover.
+WIZ_BASE="$(E2E_TARGET="$TARGET" node "$(dirname "$0")/envget.ts" E2E_BASE_URL "http://localhost:5174" 2>/dev/null)"
+[ -n "$WIZ_BASE" ] || WIZ_BASE="http://localhost:5174"
+REMOTE_FRONT=0
+case "$WIZ_BASE" in http://localhost*|http://127.0.0.1*) ;; *) REMOTE_FRONT=1 ;; esac
 FRESH=0
 
 MERCHANT="${1:-pullman}"
@@ -101,6 +106,17 @@ ok "scrub-cliente" "${DEL:-0} borrado(s) ($BYPASS_PHONE → temporal → persona
 
 # ── wizard local (Vite) → DEV: reusar si está arriba; reiniciar solo si apuntaba a otro backend ──
 step "frontend"
+if [ "$REMOTE_FRONT" = 1 ]; then
+  # front YA DESPLEGADO (staging): no se levanta Vite, no se toca el .env.local del wizard, y las
+  # variables VITE_* no aplican — vienen del build remoto. Solo se comprueba que responda.
+  FE_CODE="$(curl -s -o /dev/null -w '%{http_code}' --max-time 15 "$WIZ_BASE" 2>/dev/null || echo 000)"
+  case "$FE_CODE" in
+    000) ok "frontend" "✗ sin respuesta (${WIZ_BASE}) — ¿VPN / URL correcta?"; exit 1 ;;
+    5*)  ok "frontend" "✗ HTTP $FE_CODE — el front de '${TARGET}' está roto (${WIZ_BASE})"; exit 1 ;;
+    # 302 es lo NORMAL: sin sesión, el front redirige al login de Cognito. No es una falla.
+    *)   ok "frontend" "remoto (${WIZ_BASE} · ${TARGET}) — HTTP $FE_CODE, no se levanta wizard local" ;;
+  esac
+else
 UP=0; curl -s -o /dev/null --max-time 3 http://localhost:5174 2>/dev/null && UP=1
 # VITE_API_URL del wizard: E2E_API_BASE_URL (o E2E_MOCK_URL) de .env.dev, sin /api; fallback al host dev.
 WIZ_API="$(grep -E '^E2E_API_BASE_URL=|^E2E_MOCK_URL=' .env.$TARGET 2>/dev/null | head -1 | sed -E 's/^[^=]*=//; s/[[:space:]]*#.*$//; s/^["'\'']//; s/["'\'']$//' | tr -d '[:space:]')"
@@ -219,6 +235,7 @@ else
   fi
   # NO restaurar el .env.local acá (Vite hot-reloadearía sus valores fake y rompe el flujo). El trap EXIT lo restaura al final.
   ok "frontend" "arriba (:5174 → ${TARGET} · ${WIZ_API} · forms ${FORMS##*//} · boot ~${boot}s)"
+fi
 fi
 
 # ── correr el spec (dev/guided.spec.ts: GUIADO si E2E_GUIDED=1, MANUAL si 0) ──
