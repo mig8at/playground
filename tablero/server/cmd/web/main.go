@@ -260,9 +260,11 @@ func main() {
 			json.NewEncoder(w).Encode(map[string]any{"effort": e})
 		case http.MethodPut: // guardar el BORRADOR de la tarea de Jira sobre un esfuerzo
 			var in struct {
-				ID              int64  `json:"id"`
-				JiraTitle       string `json:"jiraTitle"`
-				JiraDescription string `json:"jiraDescription"`
+				ID              int64   `json:"id"`
+				JiraTitle       *string `json:"jiraTitle"`
+				JiraDescription *string `json:"jiraDescription"`
+				TechNotes       *string `json:"techNotes"`    // privado: NO pasa por el guard
+				ContextNodes    *string `json:"contextNodes"` // slugs de nodos de contexto
 			}
 			if err := json.NewDecoder(r.Body).Decode(&in); err != nil || in.ID == 0 {
 				w.WriteHeader(http.StatusBadRequest)
@@ -270,15 +272,33 @@ func main() {
 				return
 			}
 			// título y descripción TERMINAN EN JIRA → mismo guard que las notas
-			if v := append(violations(in.JiraTitle), violations(in.JiraDescription)...); v != nil {
+			var borrador string
+			if in.JiraTitle != nil {
+				borrador += *in.JiraTitle + "\n"
+			}
+			if in.JiraDescription != nil {
+				borrador += *in.JiraDescription
+			}
+			if v := violations(borrador); v != nil {
 				w.WriteHeader(http.StatusUnprocessableEntity)
 				json.NewEncoder(w).Encode(map[string]any{"error": "el borrador viola el guard", "problems": v})
 				return
 			}
-			if err := a.st.SaveEffortDraft(in.ID, strings.TrimSpace(in.JiraTitle), strings.TrimSpace(in.JiraDescription)); err != nil {
-				w.WriteHeader(http.StatusUnprocessableEntity)
-				json.NewEncoder(w).Encode(map[string]any{"error": err.Error()})
-				return
+			// el detalle técnico es PRIVADO (nunca va a Jira) → sin guard. Los campos que no vengan
+			// quedan intactos (COALESCE en el store), así guardar uno no borra el otro.
+			if in.TechNotes != nil || in.ContextNodes != nil {
+				if err := a.st.SaveEffortTech(in.ID, in.TechNotes, in.ContextNodes); err != nil {
+					w.WriteHeader(http.StatusUnprocessableEntity)
+					json.NewEncoder(w).Encode(map[string]any{"error": err.Error()})
+					return
+				}
+			}
+			if in.JiraTitle != nil || in.JiraDescription != nil {
+				if err := a.st.SaveEffortDraft(in.ID, in.JiraTitle, in.JiraDescription); err != nil {
+					w.WriteHeader(http.StatusUnprocessableEntity)
+					json.NewEncoder(w).Encode(map[string]any{"error": err.Error()})
+					return
+				}
 			}
 			efforts, _ := a.st.Efforts()
 			json.NewEncoder(w).Encode(map[string]any{"efforts": efforts})

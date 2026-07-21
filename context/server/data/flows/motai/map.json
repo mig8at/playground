@@ -3,7 +3,7 @@
   "combination": "motai",
   "group": "merchants",
   "kind": "reference",
-  "when": "Cuando la tarea es del comercio Motai (allied 158): modos compra/renting/alquiler, Ábaco (ingreso de apps gig) y los ifs quemados por id 158 que la task motai-v2 está sacando.",
+  "when": "Cuando la tarea es del comercio Motai (allied 158): modos compra/renting/alquiler, Ábaco (ingreso de apps gig) y los ifs quemados por id 158 (la des-motaización los está sacando; seguimiento en el tablero).",
   "files": [
     "legacy-backend/app/Models/AlliedMode.php",
     "legacy-backend/app/Models/UserRequestMode.php",

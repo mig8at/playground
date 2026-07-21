@@ -273,26 +273,6 @@
       "parent": "merchants"
     },
     {
-      "id": "motai-v2",
-      "name": "Motai v2",
-      "targets": {
-        "application": "main",
-        "frontend-monorepo": "main",
-        "legacy-backend": "main"
-      },
-      "baseline": {},
-      "created": "2026-07-17T18:14:00Z",
-      "updated": "2026-07-17T18:14:00Z",
-      "parent": "creditop",
-      "contexts": [
-        "motai",
-        "creditopx",
-        "merchants",
-        "dynamic-forms",
-        "kyc"
-      ]
-    },
-    {
       "id": "credifamilia",
       "name": "Credifamilia",
       "targets": {
@@ -373,59 +353,6 @@
       "baseline": {},
       "created": "2026-07-18T07:40:00Z",
       "updated": "2026-07-18T07:40:00Z"
-    },
-    {
-      "id": "ecommerce-web-stateless",
-      "name": "Ecommerce web stateless (→ wizard sin cookie)",
-      "parent": "creditop",
-      "targets": {
-        "application": "main",
-        "frontend-monorepo": "main",
-        "legacy-backend": "main"
-      },
-      "baseline": {},
-      "created": "2026-07-18T09:00:00Z",
-      "updated": "2026-07-18T09:00:00Z",
-      "contexts": [
-        "ecommerce",
-        "onboarding",
-        "payments",
-        "architecture"
-      ]
-    },
-    {
-      "id": "confirmacion-de-cupo",
-      "name": "Confirmación de cupo (omite buró)",
-      "parent": "creditop",
-      "targets": {
-        "application": "main",
-        "frontend-monorepo": "main",
-        "legacy-backend": "main"
-      },
-      "baseline": {},
-      "created": "2026-07-18T10:00:00Z",
-      "updated": "2026-07-18T10:00:00Z",
-      "contexts": [
-        "onboarding",
-        "kyc"
-      ]
-    },
-    {
-      "id": "fix-min-income",
-      "name": "Fix min_income (piso de ingreso NO-OP)",
-      "parent": "creditop",
-      "targets": {
-        "application": "main",
-        "frontend-monorepo": "main",
-        "legacy-backend": "main"
-      },
-      "baseline": {},
-      "created": "2026-07-18T10:00:00Z",
-      "updated": "2026-07-18T10:00:00Z",
-      "contexts": [
-        "profiling",
-        "onboarding"
-      ]
     },
     {
       "id": "hardcodes-entidades",

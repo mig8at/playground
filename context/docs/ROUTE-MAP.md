@@ -16,9 +16,7 @@
     - harness [ref]
     - legacy-backend [ref]
     - ms-preapprovals [ref]
-  - confirmacion-de-cupo [task]
   - ecommerce [ref]
-  - ecommerce-web-stateless [task]
   - entities [ref]
     - aggregator [ref]
       - corbeta [ref]
@@ -28,7 +26,6 @@
       - profiling [ref]
     - redirect [ref]
   - findings [ref]
-  - fix-min-income [task]
   - formalization [ref]
     - dynamic-forms [ref]
   - hardcodes-entidades [ref]
@@ -36,7 +33,6 @@
     - motai [ref]
     - pullman [ref]
     - smartpay [ref]
-  - motai-v2 [task]
   - onboarding [ref]
     - kyc [ref]
   - payments [ref]
@@ -113,7 +109,7 @@ Doc: `server/data/flows/hardcodes-entidades/doc.md` · Archivos: `server/data/fl
 **Cuándo:** Cuando la tarea es “necesito probar / ejercitar / mockear un flujo de originación E2E” — correr un triplete canal→comercio→lender de punta a punta, sembrar/inyectar un perfil aprobado, decidir qué se puede sellar localmente vs. qué lo decide una API externa, o levantar el demo del wizard (2 ventanas / panel).
 Doc: `server/data/flows/harness/doc.md` · Archivos: `server/data/flows/harness/map.json` · Padre: `architecture`
 
-### kyc — KYC  ·  _reference_ · 21 archivos
+### kyc — KYC  ·  _reference_ · 25 archivos
 **Cuándo:** Cuando la tarea toca burós o datos de riesgo: score, Experian/Datacrédito, ingreso (Ágil Data, Mareigua, Quanto), identidad, AML, biometría, cifrado del reporte, o armar un usuario sintético para pruebas.
 Doc: `server/data/flows/kyc/doc.md` · Archivos: `server/data/flows/kyc/map.json` · Padre: `onboarding`
 
@@ -126,7 +122,7 @@ Doc: `server/data/flows/legacy-backend/doc.md` · Archivos: `server/data/flows/l
 Doc: `server/data/flows/merchants/doc.md` · Archivos: `server/data/flows/merchants/map.json` · Padre: `creditop`
 
 ### motai — Motai  ·  _reference_ · 59 archivos
-**Cuándo:** Cuando la tarea es del comercio Motai (allied 158): modos compra/renting/alquiler, Ábaco (ingreso de apps gig) y los ifs quemados por id 158 que la task motai-v2 está sacando.
+**Cuándo:** Cuando la tarea es del comercio Motai (allied 158): modos compra/renting/alquiler, Ábaco (ingreso de apps gig) y los ifs quemados por id 158 (la des-motaización los está sacando; seguimiento en el tablero).
 Doc: `server/data/flows/motai/doc.md` · Archivos: `server/data/flows/motai/map.json` · Padre: `merchants`
 
 ### ms-preapprovals — MS Pre-approvals  ·  _reference_ · 72 archivos
@@ -160,19 +156,3 @@ Doc: `server/data/flows/servicing/doc.md` · Archivos: `server/data/flows/servic
 ### smartpay — SmartPay  ·  _reference_ · 74 archivos
 **Cuándo:** Cuando la tarea es de SmartPay: el celular financiado como garantía, IMEI, bloqueo de dispositivo y MDM, salto de AML, desembolso diferido y crons de bloqueo por mora.
 Doc: `server/data/flows/smartpay/doc.md` · Archivos: `server/data/flows/smartpay/map.json` · Padre: `merchants`
-
-### confirmacion-de-cupo — Confirmación de cupo (omite buró)  ·  _task_ · 6 archivos
-**Cuándo:** Cuando la tarea toca el flujo 'Confirmación de cupo' / omitir Experian: el selector que salta el buró vía flow-signature (flow_id=2), las 2 APIs con verdicto en `code`, recortar lenders a rt=0, o la rama frontend de Miguel (contraparte del backend de Jose).
-Doc: `server/data/flows/confirmacion-de-cupo/doc.md` · Archivos: `server/data/flows/confirmacion-de-cupo/map.json` · Padre: `creditop` · Usa: `onboarding`, `kyc`
-
-### ecommerce-web-stateless — Ecommerce web stateless (→ wizard sin cookie)  ·  _task_ · 20 archivos
-**Cuándo:** Cuando la tarea toca la migración de la originación de ecommerce (VTEX/Woo/self) al wizard STATELESS (sin cookie) en legacy-backend + frontend: PRs 795 (backend, en main) / 551 (frontend, en develop), el entry ecommerce/checkout, los endpoints de contexto, o el estado 'backend en main, front aún en develop'.
-Doc: `server/data/flows/ecommerce-web-stateless/doc.md` · Archivos: `server/data/flows/ecommerce-web-stateless/map.json` · Padre: `creditop` · Usa: `ecommerce`, `onboarding`, `payments`, `architecture`
-
-### fix-min-income — Fix min_income (piso de ingreso NO-OP)  ·  _task_ · 6 archivos
-**Cuándo:** Cuando la tarea toca el bug min_income: la columna real es `lender_users_category_rules.monthly_income` pero los motores leen `$rule->min_income` (inexistente→null) → el piso de ingreso de categorías nunca filtra (pasa siempre); arreglarlo endurece la asignación de categoría rt=2.
-Doc: `server/data/flows/fix-min-income/doc.md` · Archivos: `server/data/flows/fix-min-income/map.json` · Padre: `creditop` · Usa: `profiling`, `onboarding`
-
-### motai-v2 — Motai v2  ·  _task_ · 56 archivos
-**Cuándo:** Task en curso: des-motaizar la originación de Motai — sacar los ifs por id 158 y los modos, y moverlos a configuración por columna en base de datos.
-Doc: `server/data/flows/motai-v2/doc.md` · Archivos: `server/data/flows/motai-v2/map.json` · Padre: `creditop` · Usa: `motai`, `creditopx`, `merchants`, `dynamic-forms`, `kyc`

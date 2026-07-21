@@ -43,21 +43,25 @@ python3 tools/oracle.py server/data/flows/<id>/map.json   # ¿resuelven las ruta
 python3 tools/build-route-map.py                      # regenera ROUTE-MAP.md desde tree.json + los map.json
 ```
 
-## El modelo: contextos, tasks, y dónde vive cada cosa
+## El modelo: solo contextos de CreditOp y su código
 
 | Concepto | Qué es | Cuántos hoy |
 |---|---|---|
 | **root** | `creditop` — el tronco, material transversal y "no sé por dónde empezar" | 1 |
 | **reference** | un tema acotado y reutilizable (`kyc`, `aggregator`, `formalization`, `findings`…) | 28 |
-| **task** | trabajo concreto en curso; declara qué contextos consume | 4 |
 
-La partición importa: un **contexto** describe cómo *es* el sistema y sobrevive a las tareas; una **task**
-es efímera y se apoya en contextos (`motai-v2` → `motai`, `creditopx`, `merchants`, `dynamic-forms`, `kyc`).
+**Este árbol NO lleva tareas** (2026-07-21). Un contexto describe cómo *es* el sistema y sobrevive a las
+tareas; una tarea es efímera, tiene estado, tiempo y una clave de Jira — y todo eso vive en el **tablero**
+(`playground/tablero`), no acá. Cada esfuerzo del tablero guarda su detalle técnico (`tech_notes`, sin
+guard porque nunca sale) y a qué nodos de este árbol apunta (`context_nodes`).
+
+**La regla al terminar una tarea:** lo que quedó mergeado deja de ser tarea y pasa a ser *cómo funciona
+CreditOp* → **gradúa al nodo de contexto que corresponda** (ejemplo: la omisión de Experian por cupo ya
+confirmado vive hoy en `kyc`, no en un nodo-tarea). Lo que no se mergeó se queda en el tablero.
 
 **Dos archivos, dos responsabilidades:**
 
-- `tree.json` → el **wiring**: qué nodo cuelga de cuál (`parent`) y qué contextos consume una task
-  (`contexts`). Es lo único que define la forma del árbol.
+- `tree.json` → el **wiring**: qué nodo cuelga de cuál (`parent`). Es lo único que define la forma del árbol.
 - `server/data/flows/<id>/map.json` → el **contenido** del nodo: `name`, `kind`, `when` y `files[]`.
 - `server/data/flows/<id>/doc.md` → el **análisis** en prosa. Es el producto real; todo lo demás es andamiaje.
 
@@ -99,17 +103,16 @@ KEPT 42 / DROPPED 0 (of 42)
    en `files[]`; mencionálos en el `doc.md`.
 3. **La rama checkeada no tiene el archivo.** El índice es un snapshot del *working tree*, no de `main`.
 
-La causa 3 está viva ahora mismo y conviene entenderla antes de "arreglar" nada:
+La causa 3 es la que más engaña, y ya mordió dos veces:
 
-```
-merchants  → 1 DROP     motai → 9 DROPs     motai-v2 → 7 DROPs
-```
+- Con los repos en `feature/motai-v2`, `motai` dropeaba 9 rutas (`AlliedMode.php`, `UserRequestMode.php`,
+  `merchant-mode.tsx`…) que **sí existen en `main`**: esa rama las había borrado (des-motaización,
+  commit `936f0a7c`).
+- Al revés (2026-07-21): rutas **nuevas de una rama** dropeaban porque el índice era viejo. Se resolvió
+  con `python3 tools/build-index.py`.
 
-Los 9 archivos únicos (`AlliedMode.php`, `UserRequestMode.php`, `merchant-mode.tsx`, sus repos e
-interfaces) **existen en `main`** — lo verifiqué con `git cat-file -e main:<path>`. Lo que pasa es que
-`legacy-backend` y `frontend-monorepo` están hoy checkeados en `feature/motai-v2`, y esa rama los borró
-(la des-motaización, commit `936f0a7c`). Los `map.json` están bien; el índice refleja otra rama.
-**Antes de sacar una ruta de un `map.json`, fijate en qué rama están los repos.**
+**Antes de sacar una ruta de un `map.json`, fijate en qué rama están los repos y cuándo se construyó el
+índice.** Hoy, con el índice al día, los 29 nodos validan sin drops.
 
 ## Cómo está armado
 

@@ -130,6 +130,8 @@ var addedColumns = []struct{ table, column, ddl string }{
 	{"entries", "effort_id", "ALTER TABLE entries ADD COLUMN effort_id INTEGER"},
 	{"efforts", "jira_title", "ALTER TABLE efforts ADD COLUMN jira_title TEXT"},
 	{"efforts", "jira_description", "ALTER TABLE efforts ADD COLUMN jira_description TEXT"},
+	{"efforts", "tech_notes", "ALTER TABLE efforts ADD COLUMN tech_notes TEXT"},
+	{"efforts", "context_nodes", "ALTER TABLE efforts ADD COLUMN context_nodes TEXT"},
 }
 
 // migrate agrega las columnas faltantes, sin tocar los datos existentes.
@@ -319,12 +321,18 @@ type Effort struct {
 	// subir nada; por eso pasa el mismo guard que las notas (termina publicado).
 	JiraTitle       string `json:"jiraTitle"`
 	JiraDescription string `json:"jiraDescription"`
-	CreatedAt       string `json:"createdAt"`
+	// PRIVADO y SIN GUARD: el detalle técnico de la tarea (archivos, análisis, rutas). Nunca sale de
+	// acá, por eso puede nombrar archivos y repos — justo lo que el borrador de Jira tiene prohibido.
+	TechNotes string `json:"techNotes"`
+	// slugs de los nodos de contexto que toca, separados por coma (el mapa del código vive allá)
+	ContextNodes string `json:"contextNodes"`
+	CreatedAt    string `json:"createdAt"`
 }
 
 // Efforts lista los esfuerzos vivos (no archivados), del más nuevo al más viejo.
 func (s *Store) Efforts() ([]Effort, error) {
-	rows, err := s.db.Query(`SELECT id, title, COALESCE(jira_title,''), COALESCE(jira_description,''), created_at
+	rows, err := s.db.Query(`SELECT id, title, COALESCE(jira_title,''), COALESCE(jira_description,''),
+			COALESCE(tech_notes,''), COALESCE(context_nodes,''), created_at
 		FROM efforts WHERE archived_at IS NULL ORDER BY id DESC`)
 	if err != nil {
 		return nil, err
@@ -333,7 +341,8 @@ func (s *Store) Efforts() ([]Effort, error) {
 	out := []Effort{}
 	for rows.Next() {
 		var e Effort
-		if err := rows.Scan(&e.ID, &e.Title, &e.JiraTitle, &e.JiraDescription, &e.CreatedAt); err != nil {
+		if err := rows.Scan(&e.ID, &e.Title, &e.JiraTitle, &e.JiraDescription, &e.TechNotes,
+			&e.ContextNodes, &e.CreatedAt); err != nil {
 			return nil, err
 		}
 		out = append(out, e)
@@ -352,10 +361,28 @@ func (s *Store) CreateEffort(title string) (Effort, error) {
 	return Effort{ID: id, Title: title, CreatedAt: now}, nil
 }
 
-// SaveEffortDraft guarda el borrador de la tarea de Jira sobre un esfuerzo existente.
-func (s *Store) SaveEffortDraft(id int64, jiraTitle, jiraDescription string) error {
-	res, err := s.db.Exec(`UPDATE efforts SET jira_title = ?, jira_description = ? WHERE id = ? AND archived_at IS NULL`,
-		nullStr(jiraTitle), nullStr(jiraDescription), id)
+// SaveEffortTech guarda el detalle técnico privado y/o los nodos de contexto. Recibe PUNTEROS y usa
+// COALESCE: nil = "no lo toques". Sin eso, guardar un solo campo borraba el otro (ya pasó una vez).
+func (s *Store) SaveEffortTech(id int64, techNotes, contextNodes *string) error {
+	res, err := s.db.Exec(`UPDATE efforts SET
+			tech_notes    = COALESCE(?, tech_notes),
+			context_nodes = COALESCE(?, context_nodes)
+		WHERE id = ? AND archived_at IS NULL`, techNotes, contextNodes, id)
+	if err != nil {
+		return err
+	}
+	if n, _ := res.RowsAffected(); n == 0 {
+		return fmt.Errorf("no existe el esfuerzo %d", id)
+	}
+	return nil
+}
+
+// SaveEffortDraft guarda el borrador de Jira. Mismos punteros/COALESCE que SaveEffortTech.
+func (s *Store) SaveEffortDraft(id int64, jiraTitle, jiraDescription *string) error {
+	res, err := s.db.Exec(`UPDATE efforts SET
+			jira_title       = COALESCE(?, jira_title),
+			jira_description = COALESCE(?, jira_description)
+		WHERE id = ? AND archived_at IS NULL`, jiraTitle, jiraDescription, id)
 	if err != nil {
 		return err
 	}

@@ -41,6 +41,35 @@ Todo aterriza en tres lugares: el **reporte crudo** en `risk_central_user_data.d
 - **Mock local/dev** (application): `app/Actions/RiskCentrals/ExperianFixture.php` (212 KB) · `AgildataFixture.php` · `MareiguaFixture.php`.
 - **Tablas**: `risk_central_user_data` (`data` cifrado, `additional_info`/`request` planos, `score`) · `risk_centrals` (catálogo) · `risk_central_credentials` (por lender) · `user_summaries` (`datacredito`/`quanto`/`agildata`/`mareigua`/`tusdatos`) · `user_field_values` (EAV 87/29/160/90/161) · `users` (`age`/`gender`/`date_of_birth`) · `datacredito_frequencies` + `datacredito_query_by_allieds`.
 
+## Omitir Experian: el cupo ya confirmado y la frecuencia por comercio
+
+**Mergeado 2026-07-21** (front `784585fe` + back `a603a5cd`). Ya no es una tarea: es cómo funciona hoy.
+
+Hay **dos mecanismos independientes** que evitan pagar la consulta:
+
+**1. Flujo "cupo ya confirmado" (`flow_id = 2`).** Si el comercio está habilitado (setting
+`allowed_to_omit_experian_allieds`), el wizard pregunta si el cliente ya tiene cupo en otras entidades;
+al responder que sí se firma el flujo y la solicitud queda con `flow_id = 2`
+(`Flow::ALREADY_CONFIRMED_PRE_APPROVAL`). El **corte real** está en `app/Actions/RiskCentrals/Experian.php`:
+retorna `null` antes de consultar, en **los tres modos** (Acierta · Quanto · Acierta+Quanto). La
+arquitectura nueva lo espeja en `CheckExperianTriggerService` Stage 3 → `RKV24029`. Como el supuesto es
+que el cupo viene de una entidad **sin** integración directa, el listado se recorta a `response_type = 0`
+(`Modules/Onboarding/App/Http/Controllers/LenderListingController.php`).
+
+**2. Frecuencia por comercio.** Contador de consultas por allied con regla de `every`/módulo
+(`GetExperianQueryCountByAlliedIdService` lee sin avanzar · `IncrementExperianQueryCountByAlliedIdService`
+avanza). **El contador sube solo justo antes de consultar de verdad**, así que refleja consultas reales.
+Sin regla → `RKV24023`; `count % every !== 0` → `RKV24024`. Ahorra **incluso fuera** del flujo de
+pre-aprobado.
+
+⚠ **Deuda viva (F-58)**: al firmar el flujo, el rechazo `URV13004` viaja en **HTTP 200** y el front lo
+toma como éxito → la solicitud queda en `flow_id = 1` y **se consulta Experian** sin dejar rastro. Hoy no
+se dispara (el front valida lo mismo antes, sobre la misma sucursal), pero el validador anuncia más
+rechazos por venir. Detalle en `findings` F-58.
+
+> Seguimiento de la tarea: **CORE-293** · el detalle de trabajo vive en el tablero (esfuerzo "Omitir
+> consulta de buró cuando el cupo ya está confirmado"), no acá.
+
 ## Gotchas / riesgos
 - **EAV forzados**: al procesar Quanto se escribe `29='Empleado'` (`Experian.php:374`) y `160='no'` (`:390`) **hardcodeados** → un usuario sin central queda marcado Empleado/no-reportado artificialmente. Encima, **`field 160` es auto-declarado por el usuario, no del buró**.
 - **Solo `data` cifra**: `additional_info`, `request` y todo `user_summaries` van **PLANOS**. Ágil Data escribe TODO en `additional_info` (sin cifrar), y los derivados de Experian (`negativeAccounts`, `maturationSince`) también. Un INSERT de JSON plano en `data` rompe el descifrado → gate **fail-closed**. Sin el **APP_KEY** correcto Laravel no descifra y el listado falla en silencio.
