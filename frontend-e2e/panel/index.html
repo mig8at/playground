@@ -791,7 +791,7 @@
       <div class="grid" id="results" style="margin-top:16px"></div>
       <div style="margin-top:14px">
         <p class="grouplbl">Lenders de la sucursal <span id="lendersbranch" style="font-weight:400;color:var(--mut)"></span></p>
-        <p style="color:var(--mut);font-size:11px;margin:-4px 0 6px">ON/OFF = status <b>global</b> del lender (lo que filtra el listado). Afecta todas las sucursales en local; reversible.<span id="lendersnota"></span></p>
+        <p style="color:var(--mut);font-size:11px;margin:-4px 0 6px">ON/OFF = status <b>global</b> del lender (lo que filtra el listado). Afecta todas las sucursales en local; reversible.</p>
         <div id="lenderslist"><p style="color:var(--mut);font-size:12px;margin:0">Elegí un comercio…</p></div>
       </div>
     </section>
@@ -1178,10 +1178,6 @@
         const ls = r.lenders || [];
         mockPA = r.mockPA !== false;   // lo decide E2E_REAL_PREAPPROVALS por target, no el panel
         lendersDelComercio = ls;   // el mapa de tren dibuja los ramales según el rt de estos
-        // Que falte el selector de pre-aprobación no puede ser silencioso: sin explicación se lee como
-        // un bug del panel, no como "en este target lo decide el MS real".
-        $('lendersnota').innerHTML = mockPA ? ''
-          : ` · <b>sin selector de pre-aprobación en ${target}</b>: las pre-aprobaciones las resuelve el MS real, no el mock — el desenlace lo decide el proveedor.`;
         renderTren();
         loadEstado();
         if (!ls.length) { box.innerHTML = '<p style="color:var(--mut);font-size:12px;margin:0">Sin lenders (¿branch en .flows.json?).</p>'; return; }
@@ -1412,15 +1408,13 @@
       const cumpleL = (l, req) => !req || Object.entries(req).every(([k, v]) =>
         Array.isArray(v) ? v.map(String).includes(String(l[k])) : String(l[k]) === String(v));
 
-      // Lo que el mapa NO puede dibujar hay que DECIRLO. Un recorrido vacío o achatado, sin aviso, se
-      // lee como "este comercio no tiene esos flujos" cuando en realidad faltó el dato — y ahí es donde
-      // el mismo comercio parece cambiar de lógica según el ambiente.
-      const avisos = [];
-      if (ch.ok === false) avisos.push(`⚠ ${(ch.rotas || []).length} ruta(s) del mapa ya no existen`);
-      if (!todos.length) avisos.push('⚠ sin entidades para esta sucursal en este ambiente — el mapa queda en el tronco');
-      else if (todos.some((l) => l.product == null))
-        avisos.push('⚠ este ambiente no expone `lenders.product` → los CreditopX van en UN carril (no se pueden separar por producto)');
-      $('trenwarn').textContent = avisos.length ? '· ' + avisos.join(' · ') : '';
+      // En pantalla se avisa SOLO lo que está roto: rutas del mapa que ya no existen. Lo que es NORMAL
+      // en este ambiente NO se muestra —sería ruido que se lee como error—, pero conviene tenerlo claro
+      // al leer el diagrama:
+      //   · sin entidades para esa sucursal en este target → el mapa queda en el tronco, sin carriles.
+      //   · sin la columna `lenders.product` (hoy no está en dev) → los CreditopX no se pueden separar
+      //     por producto y caen todos en un carril `rt2`. Ver F-64 y CLAUDE.md.
+      $('trenwarn').textContent = ch.ok === false ? `· ⚠ ${(ch.rotas || []).length} ruta(s) del mapa ya no existen` : '';
 
       cam.innerHTML = '';
       const rieles = el('g', {}), nodos = el('g', {});

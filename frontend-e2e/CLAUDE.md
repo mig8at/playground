@@ -133,8 +133,14 @@ Dos mecanismos, y **no son intercambiables**:
   agregalo ahí — el default de `cap()` es el más restrictivo a propósito: enumerar targets a mano fue lo
   que dejó a staging afuera del guard de escrituras cuando se sumó.
 
-Y **si escondés un control, decí por qué en pantalla**: una perilla que desaparece sin explicación se
-lee como un bug del panel, no como "en este ambiente eso lo decide el proveedor real".
+**En pantalla se avisa solo lo que está ROTO**, no lo que es normal en ese ambiente. Un cartel que dice
+"acá esto no aplica" es ruido y se lee como error. Lo que hay que saber para interpretar la vista vive
+en los comentarios del código y acá:
+
+- **sin selector de estado por entidad** → esa corrida usa el MS real; el desenlace lo decide el proveedor.
+- **el mapa sin carriles** → esa sucursal no tiene entidades en ese target.
+- **los CreditopX en un solo carril `rt2`** → ese ambiente no tiene la columna `lenders.product` (hoy dev)
+  y no se pueden separar por producto. Ver **F-64**.
 
 ## Elegir comercio: los curados y el buscador
 
