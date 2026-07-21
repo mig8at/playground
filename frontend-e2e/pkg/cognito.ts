@@ -73,7 +73,14 @@ export async function cognitoLogin(
     try {
         await expect(username).toBeVisible({ timeout: 15_000 });
     } catch {
-        return; // no hubo redirect a Cognito (sesión ya activa, típico si se inyectó el cache) — nada que loguear
+        // Sin campo de usuario. Lo normal es que la sesión ya esté activa (cache inyectado) y no haya
+        // nada que loguear. Pero si la URL SÍ parece un login, el formulario existe y no lo encontramos:
+        // ahí callarse convierte un problema de selector en un timeout mudo 90s después (fue exactamente
+        // lo que pasó con el Hosted UI de staging). Avisamos, sin romper: el flujo decide.
+        if (/login|authorize|client_id=/i.test(page.url())) {
+            console.log(`    ⚠ cognito: la URL parece un login pero no apareció input[name=username] → ${page.url().slice(0, 120)}`);
+        }
+        return;
     }
     await robustFill(username, user); // asegura que el usuario quedó antes de avanzar
     await page.getByRole('button', { name: /siguiente|next/i }).click();

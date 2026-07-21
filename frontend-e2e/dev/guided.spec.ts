@@ -508,7 +508,14 @@ test('guided (semiautomático)', async ({ browser }) => {
 
     // ¿Estamos parados en el Hosted UI de Cognito? Solo entonces hay login que hacer. Preguntarlo evita los
     // 15s que cognitoLogin() tarda en descubrir que no hay form (su espera del input de usuario).
-    const needsCognito = () => /login\.creditop\.com|amazoncognito|\/oauth2\/authorize/i.test(page.url());
+    // Detecta el Hosted UI de Cognito. Los dominios varían por CLIENTE y por entorno: dev usa uno,
+    // el client `merchant` de staging redirige a `auth.merchant.creditop.com/login` — que NO matcheaba
+    // `login.creditop.com` (el orden real es `creditop.com/login`), ni `amazoncognito`, ni
+    // `/oauth2/authorize` (su path es `/login`). Resultado: no se llamaba a cognitoLogin, el formulario
+    // quedaba sin llenar y el fallo aparecía 90s después en un waitForURL que no explicaba nada.
+    // Por eso se agrega `client_id=`: es la firma GENÉRICA de un authorize de OAuth, no depende del host.
+    const needsCognito = () =>
+        /login\.creditop\.com|auth\.[\w.-]*creditop\.com|amazoncognito|\/oauth2\/authorize|[?&]client_id=/i.test(page.url());
 
     // ───────────────────────── ENTRADA ─────────────────────────
     if (ENTRY === 'ecommerce') {
