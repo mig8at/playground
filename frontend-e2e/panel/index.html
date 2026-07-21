@@ -791,7 +791,7 @@
       <div class="grid" id="results" style="margin-top:16px"></div>
       <div style="margin-top:14px">
         <p class="grouplbl">Lenders de la sucursal <span id="lendersbranch" style="font-weight:400;color:var(--mut)"></span></p>
-        <p style="color:var(--mut);font-size:11px;margin:-4px 0 6px">ON/OFF = status <b>global</b> del lender (lo que filtra el listado). Afecta todas las sucursales en local; reversible.</p>
+        <p style="color:var(--mut);font-size:11px;margin:-4px 0 6px">ON/OFF = status <b>global</b> del lender (lo que filtra el listado). Afecta todas las sucursales en local; reversible.<span id="lendersnota"></span></p>
         <div id="lenderslist"><p style="color:var(--mut);font-size:12px;margin:0">Elegí un comercio…</p></div>
       </div>
     </section>
@@ -971,6 +971,26 @@
     ];
     let sel = MERCHANTS[0];      // Motai por defecto
     let target = 'local';        // local | dev | staging (staging = front propio, BD/API de dev)
+
+    // ── QUÉ FUNCIONA EN CADA TARGET ──────────────────────────────────────────────────────────────
+    // El panel es una UI sobre `bin/asesor`, y `bin/asesor` NO levanta lo mismo en todos los targets.
+    // Una perilla que no mueve nada es PEOR que no tenerla: te deja creyendo que probaste algo que en
+    // realidad nunca se aplicó. La matriz vive acá, en un solo lugar, y sale de `bin/asesor:150-180`:
+    //
+    //   mockPA      mock de pre-aprobados (:8095). `bin/asesor` lo levanta y apunta el wizard ahí SOLO
+    //               cuando el front es LOCAL. Con staging el front es un build desplegado: sus VITE_*
+    //               vienen de ese build y no puede alcanzar localhost.
+    //   flotaLocal  payvalida · mdm · lenders · forms · ábaco. Solo con TARGET=local; contra dev se usan
+    //               los proveedores reales, así que el contador "n/n mocks" ahí no significa nada.
+    //
+    // Si agregás un target, agregalo ACÁ. El default de `cap()` es el más restrictivo a propósito:
+    // enumerar targets a mano fue lo que dejó a staging afuera del guard de escrituras cuando se sumó.
+    const CAPS = {
+      local:   { mockPA: true,  flotaLocal: true  },
+      dev:     { mockPA: true,  flotaLocal: false },
+      staging: { mockPA: false, flotaLocal: false },
+    };
+    const cap = (k) => (CAPS[target] || CAPS.staging)[k];
     let inject = true;           // true = inyecta buró sintético (salta consulta real) · false = prueba real
     let canal = 'asesor';        // por dónde ENTRA la solicitud: 'asesor' (login + wizard) | 'ecommerce' (URL base64)
     let doctype = 'CC';
@@ -1153,6 +1173,10 @@
         paStatus = (await (await fetch('/api/pa-statuses')).json().catch(() => ({}))) || {};
         const ls = r.lenders || [];
         lendersDelComercio = ls;   // el mapa de tren dibuja los ramales según el rt de estos
+        // Que falte el selector de pre-aprobación no puede ser silencioso: sin explicación se lee como
+        // un bug del panel, no como "en este target lo decide el MS real".
+        $('lendersnota').innerHTML = cap('mockPA') ? ''
+          : ` · <b>sin selector de pre-aprobación en ${target}</b>: el front es un build desplegado y consulta el MS real, no el mock local.`;
         renderTren();
         loadEstado();
         if (!ls.length) { box.innerHTML = '<p style="color:var(--mut);font-size:12px;margin:0">Sin lenders (¿branch en .flows.json?).</p>'; return; }
@@ -1172,7 +1196,13 @@
           row.innerHTML = `<span class="lnm"><span class="lgrip">⠿</span>${l.name} <span class="lrt">#${l.id} · ${l.product}</span><span class="rtc rt${l.rt}">rt${l.rt} ${RT[l.rt] || ''}</span></span>`;
           const right = document.createElement('div');
           right.style.cssText = 'display:flex;align-items:center;gap:8px';
-          if (Number(l.rt) !== 0) {   // rt=0 (STANDARD) no consulta el MS de pre-aprobados → sin selector de status
+          // Dos condiciones para ofrecer el status de pre-aprobación:
+          //   · rt=0 (STANDARD) no consulta el MS de pre-aprobados → no hay nada que elegir.
+          //   · el selector solo manda si la corrida usa el MOCK local (:8095). `bin/asesor` lo levanta
+          //     y apunta el wizard ahí SOLO cuando el front es LOCAL (bin/asesor:132-164): con un front
+          //     REMOTO las VITE_* vienen del build desplegado y no puede llegar a localhost. Mostrarlo
+          //     ahí es una perilla que no mueve nada — peor que no tenerla, porque miente. Ver CAPS.
+          if (Number(l.rt) !== 0 && cap('mockPA')) {
             const st = document.createElement('select');
             st.className = 'pasel';
             st.innerHTML = '<option value="approved">Aprobado</option><option value="rejected">Rechazado</option><option value="pending">Pendiente</option>';
@@ -1251,8 +1281,9 @@
           ? (target === 'staging' ? 'front de staging · BD <b>compartida</b> (la de dev)' : 'data <b>compartida</b> con el equipo')
           : 'BD local en Docker · sin riesgo'));
 
-      // 2 · mocks arriba: sin ellos el flujo muere en un muro externo
-      if (e?.mocks) {
+      // 2 · mocks arriba: sin ellos el flujo muere en un muro externo. Solo con la flota local: contra
+      // dev/staging se usan los proveedores REALES, así que un contador "n/n" ahí no dice nada útil.
+      if (e?.mocks && cap('flotaLocal')) {
         const up = e.mocks.filter(m => m.arriba), down = e.mocks.filter(m => !m.arriba);
         out.push(card(down.length ? 'st-warn' : 'st-ok', '🔌', 'Mocks',
           `${up.length}/${e.mocks.length}`,

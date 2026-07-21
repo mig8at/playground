@@ -106,6 +106,29 @@ es el árbol de `context`: 33 nodos, 342 archivos compartidos, 1.578 aristas imp
 - **Validá siempre después de tocarlo:** `node bin/steps-check.ts` (sale ≠0 si alguna ruta no existe). El
   panel además muestra un aviso si el chequeo falla — un conteo que ya no resuelve es peor que nada.
 
+## El panel no ofrece lo mismo en todos los targets (`CAPS`)
+
+El panel es una UI sobre `bin/asesor`, y **`bin/asesor` no levanta lo mismo en cada target**. Una perilla
+que no mueve nada es peor que no tenerla: te deja creyendo que probaste algo que nunca se aplicó.
+
+La matriz vive en **un solo lugar** (`const CAPS` en `panel/index.html`) y se deriva de
+`bin/asesor:150-180`:
+
+| | `local` | `dev` | `staging` |
+|---|---|---|---|
+| `mockPA` — mock de pre-aprobados `:8095` | ✓ | ✓ | ✗ |
+| `flotaLocal` — payvalida · mdm · lenders · forms · ábaco | ✓ | ✗ | ✗ |
+
+- **`mockPA`** cae en staging porque ahí el front es un **build desplegado**: sus `VITE_*` vienen de ese
+  build y no puede alcanzar `localhost:8095`. En dev el wizard es local, así que el selector **sí** manda.
+- **`flotaLocal`** es solo local; contra dev se usan los proveedores reales, así que el contador "n/n
+  mocks" ahí no significa nada.
+
+Dos reglas al tocarlo: **si agregás un target, agregalo a `CAPS`** (el default de `cap()` es el más
+restrictivo a propósito — enumerar targets a mano fue lo que dejó a staging afuera del guard de
+escrituras cuando se sumó), y **si escondés un control, decí por qué en pantalla**: una perilla que
+desaparece sin explicación se lee como un bug del panel.
+
 ## Elegir comercio: los curados y el buscador
 
 En el panel conviven dos entradas, y **no son redundantes**:
