@@ -82,6 +82,26 @@ function branchHashForSlug(slug: string): string {
     return /^[0-9a-f]{8}$/.test(s) ? s : '';
 }
 
+function leerFlows(): any {
+    try { return JSON.parse(readFileSync(join(ROOT, '.flows.json'), 'utf8')); } catch { return {}; }
+}
+function escribirFlows(j: any): void {
+    writeFileSync(join(ROOT, '.flows.json'), JSON.stringify(j, null, 2) + '\n');
+}
+/**
+ * Slug legible y ÚNICO a partir del nombre que puso el usuario. Si el nombre ya está tomado por OTRA
+ * sucursal, se sufija con el hash (que sí es único) en vez de pisar: dos "Dentix" de sucursales
+ * distintas son comercios de prueba distintos, y pisar uno haría que `bin/asesor dentix` corriera
+ * contra la sucursal equivocada sin avisar.
+ */
+function slugPara(nombre: string, hash: string, flows: any): string {
+    const base = nombre.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40) || 'comercio';
+    const m = flows?.merchants ?? {};
+    if (!m[base] || m[base].branch_hash === hash) return base;
+    return `${base}-${hash.slice(0, 4)}`;
+}
+
 // lanza `bin/asesor <slug>` en MODO MANUAL (sin `auto` → no auto-rellena; vos manejás desde monto) con
 // E2E_INJECT=1 (inyecta el buró invisible al llegar a personal-info) + el perfil por env, contra el target.
 interface Profile { income?: number; score?: number; name?: string; documentType?: string; document?: string; gender?: string; age?: number; negatives?: number; consulted?: number; occupation?: string; dob?: string; expeditionDate?: string; email?: string; }
@@ -282,6 +302,53 @@ const server = createServer(async (req, res) => {
         const target = (url.searchParams.get('target') || 'local').trim();
         if (!q) return json(res, 200, []);
         return json(res, 200, await dbopsList(q, target));
+    }
+
+    // ── FAVORITOS ────────────────────────────────────────────────────────────────────────────────
+    // Se guardan en `.flows.json` (gitignored), que YA es el registro de comercios del harness: así el
+    // favorito queda disponible también para `bin/asesor <slug>` desde la terminal, no solo en el panel.
+    // Se marcan con `fav: true` para distinguirlos de los que vienen de fábrica y permitir renombrar o
+    // borrar SOLO los tuyos — los curados describen lo que ejercita cada uno y no son tuyos para tocar.
+    if (path === '/api/favs') {
+        const m = leerFlows()?.merchants ?? {};
+        return json(res, 200, Object.entries(m)
+            .filter(([, v]: [string, any]) => v && v.fav)
+            .map(([slug, v]: [string, any]) => ({ slug, name: v.name || slug, hash: v.branch_hash || '' })));
+    }
+
+    if (path === '/api/fav' && req.method === 'POST') {
+        const b = await readBody(req);
+        const accion = String(b.accion || 'add');
+        const flows = leerFlows();
+        flows.merchants = flows.merchants || {};
+        if (accion === 'add') {
+            const hash = String(b.hash || '').trim().toLowerCase();
+            const nombre = String(b.name || '').trim();
+            if (!/^[0-9a-f]{8}$/.test(hash) || !nombre) return json(res, 400, { ok: false, msg: 'falta hash válido o nombre' });
+            const slug = slugPara(nombre, hash, flows);
+            flows.merchants[slug] = {
+                branch_hash: hash,
+                ...(b.allied_id ? { allied_id: Number(b.allied_id) } : {}),
+                ...(b.branch_id ? { branch_id: Number(b.branch_id) } : {}),
+                name: nombre, fav: true,
+            };
+            escribirFlows(flows);
+            return json(res, 200, { ok: true, slug, name: nombre });
+        }
+        const slug = String(b.slug || '').trim();
+        const cur = flows.merchants[slug];
+        if (!cur || !cur.fav) return json(res, 400, { ok: false, msg: 'solo se pueden editar los favoritos que agregaste' });
+        if (accion === 'rename') {
+            const nombre = String(b.name || '').trim();
+            if (!nombre) return json(res, 400, { ok: false, msg: 'falta nombre' });
+            // El SLUG no cambia al renombrar: es la clave con la que `bin/asesor <slug>` ya funciona y
+            // la que puede estar en un comando guardado. El nombre es solo la etiqueta de la card.
+            cur.name = nombre;
+            escribirFlows(flows);
+            return json(res, 200, { ok: true, slug, name: nombre });
+        }
+        if (accion === 'remove') { delete flows.merchants[slug]; escribirFlows(flows); return json(res, 200, { ok: true }); }
+        return json(res, 400, { ok: false, msg: `acción desconocida: ${accion}` });
     }
 
     // sucursales de un comercio → el buscador es en dos pasos (comercio → sucursal) porque el hash que

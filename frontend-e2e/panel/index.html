@@ -641,6 +641,36 @@
     .lgrip { color: var(--mut); margin-right: 7px; cursor: grab; }
     .lrow .lnm { font-size: 13px; color: var(--txt); }
     .lrow .lrt { color: var(--mut); font-size: 11px; margin-left: 6px; }
+
+    /* ── buscador de comercios + favoritos ── */
+    .bus { position: relative; }
+    .bus input { width: 100%; box-sizing: border-box; padding: 9px 32px 9px 30px; border-radius: 10px;
+      border: 1px solid var(--line); background: var(--panel2); color: inherit; font-size: 13px; outline: none; }
+    .bus input:focus { border-color: #4ade80; }
+    .bus .lupa, .bus .limpiar { position: absolute; top: 50%; transform: translateY(-50%); color: var(--mut); font-size: 12px; }
+    .bus .lupa { left: 10px; pointer-events: none; }
+    .bus .limpiar { right: 6px; cursor: pointer; padding: 2px 6px; border-radius: 6px; }
+    .bus .limpiar:hover { background: var(--line); color: inherit; }
+    .res { margin-top: 8px; display: flex; flex-direction: column; gap: 5px; }
+    .rr { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 11px;
+      border: 1px solid var(--line); border-radius: 10px; cursor: pointer; transition: .12s; }
+    .rr:hover { border-color: #4ade80; background: var(--panel2); }
+    .rr .rn { font-size: 13px; }
+    .rr .rc { color: var(--mut); font-size: 11px; display: flex; gap: 5px; align-items: center; flex-shrink: 0; }
+    .rr.off { opacity: .5; }
+    .rr.volver { border-style: dashed; }
+    .chip { border: 1px solid var(--line); border-radius: 999px; padding: 1px 7px; font-size: 10px; }
+    .elegida { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 8px;
+      padding: 9px 11px; border: 1px solid #4ade80; border-radius: 10px; font-size: 12px; }
+    .elegida button { background: #4ade80; color: #06240f; border: 0; border-radius: 8px; padding: 5px 10px;
+      font-size: 11px; font-weight: 600; cursor: pointer; white-space: nowrap; }
+    .elegida button:hover { filter: brightness(1.1); }
+    /* acciones de un favorito: solo en hover, para no ensuciar la card */
+    .m .facc { position: absolute; top: 5px; right: 5px; display: none; gap: 1px; }
+    .m:hover .facc { display: flex; }
+    .m .facc span { color: var(--mut); cursor: pointer; font-size: 11px; padding: 2px 5px; border-radius: 6px; }
+    .m .facc span:hover { background: var(--line); color: inherit; }
+    .m .estrella { color: #fbbf24; font-size: 9px; margin-left: 5px; vertical-align: middle; }
     .ltog { border: 1px solid var(--line); border-radius: 999px; padding: 4px 14px; font-size: 12px; font-weight: 600; cursor: pointer; background: transparent; color: var(--mut); }
     .ltog.on { background: rgba(34, 197, 94, .15); border-color: var(--acc); color: var(--acc); }
     .ltog:disabled { opacity: .5; cursor: default; }
@@ -690,11 +720,15 @@
       <!-- Buscador contra la BD del target. NO reemplaza a los de arriba: esos están curados por lo que
            EJERCITAN (Motai=renting/RTO, CeluRD=SmartPay/IMEI, Sonría=el listado más rico) y eso es
            conocimiento que una búsqueda genérica no da. Esto es para el resto del padrón. -->
-      <div style="margin-top:12px">
+      <div style="margin-top:14px">
         <p class="grouplbl">…o buscá cualquier otro <span id="busclbl" style="font-weight:400;color:var(--mut)"></span></p>
-        <input id="buscom" type="text" placeholder="nombre del comercio (o hash de sucursal)"
-               style="width:100%;padding:8px 10px;border-radius:8px;border:1px solid var(--bd);background:var(--bg2);color:inherit;font-size:13px" />
-        <div id="busres" style="margin-top:8px"></div>
+        <div class="bus">
+          <span class="lupa">⌕</span>
+          <input id="buscom" type="text" placeholder="nombre del comercio (o hash de sucursal)" autocomplete="off" />
+          <span class="limpiar" id="buslimpiar" title="limpiar">✕</span>
+        </div>
+        <div class="res" id="busres"></div>
+        <div id="buselegida"></div>
       </div>
       <div style="margin-top:14px">
         <p class="grouplbl">Lenders de la sucursal <span id="lendersbranch" style="font-weight:400;color:var(--mut)"></span></p>
@@ -902,19 +936,60 @@
       refresh();
     }
 
+    // Las tarjetas son DOS conjuntos: los CURADOS (arriba, elegidos por lo que ejercitan) y tus
+    // FAVORITOS, los que guardaste desde el buscador. Solo los tuyos se renombran o se borran: los
+    // curados documentan para qué sirve cada uno y no son tuyos para tocar.
+    let FAVS = [];
+    async function cargarFavs() {
+      try { FAVS = await (await fetch('/api/favs')).json(); } catch { FAVS = []; }
+      if (!Array.isArray(FAVS)) FAVS = [];
+      renderMerchants();
+    }
+
     function renderMerchants() {
       const g = $('results');
       g.innerHTML = '';
-      for (const m of MERCHANTS) {
+      const propios = FAVS.filter((f) => !MERCHANTS.some((m) => m.slug === f.slug)).map((f) => ({ ...f, fav: true }));
+      for (const m of [...MERCHANTS, ...propios]) {
         const d = document.createElement('div');
         d.className = 'm' + (sel && sel.slug === m.slug ? ' sel' : '') + (m.missing ? ' miss' : '');
         // `??` y no `||`: undefined = todavía no enriqueció (mostramos '…'); '' = falló el fetch (no
         // mostramos nada). Con `||` el '' caía al slug y volvía el ruido que se quiso sacar.
-        d.innerHTML = `<span class="tick">✓</span><div class="nm">${m.name}</div>
-      <div class="meta">${m.meta ?? '…'}</div>`;
+        d.innerHTML = `<span class="tick">✓</span><div class="nm">${m.name}${m.fav ? '<span class="estrella" title="favorito tuyo">★</span>' : ''}</div>
+      <div class="meta">${m.meta ?? (m.fav ? m.hash : '…')}</div>`;
+        if (m.fav) {
+          const acc = document.createElement('div');
+          acc.className = 'facc';
+          acc.innerHTML = '<span title="renombrar">✎</span><span title="quitar de favoritos">✕</span>';
+          acc.children[0].onclick = (e) => { e.stopPropagation(); renombrarFav(m); };
+          acc.children[1].onclick = (e) => { e.stopPropagation(); quitarFav(m); };
+          d.appendChild(acc);
+        }
         d.onclick = () => { sel = m; renderMerchants(); refresh(); loadLenders(); };
         g.appendChild(d);
       }
+    }
+
+    async function favApi(body) {
+      try {
+        const r = await (await fetch('/api/fav', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) })).json();
+        if (!r.ok) alert(r.msg || 'no se pudo guardar');
+        return r;
+      } catch { alert('error de red'); return { ok: false }; }
+    }
+
+    async function renombrarFav(m) {
+      const n = prompt('Nombre para la tarjeta:', m.name);
+      if (n == null || !n.trim() || n.trim() === m.name) return;
+      // El SLUG no cambia al renombrar (`bin/asesor <slug>` sigue funcionando igual); esto es la etiqueta.
+      const r = await favApi({ accion: 'rename', slug: m.slug, name: n.trim() });
+      if (r.ok) { if (sel && sel.slug === m.slug) sel = { ...sel, name: r.name }; await cargarFavs(); refresh(); }
+    }
+
+    async function quitarFav(m) {
+      if (!confirm(`¿Quitar “${m.name}” de favoritos?\n\nSolo se borra la tarjeta (de .flows.json). El comercio en la base no se toca.`)) return;
+      const r = await favApi({ accion: 'remove', slug: m.slug });
+      if (r.ok) { if (sel && sel.slug === m.slug) sel = MERCHANTS[0]; await cargarFavs(); refresh(); loadLenders(); }
     }
 
     // ── BUSCADOR contra la BD del target ─────────────────────────────────────────────────────────
@@ -922,12 +997,13 @@
     // grande tiene varias con configuraciones distintas (entidades, reglas). Resolver "una sucursal
     // cualquiera" del comercio es exactamente el bug que `dbops branches` vino a tapar: la card mostraba
     // una sucursal y el flujo corría contra otra.
-    let busTimer = null;
-    const busEstado = (t) => { $('busres').innerHTML = `<p style="color:var(--mut);font-size:12px;margin:0">${t}</p>`; };
-    const fila = (html, onclick, dim) => {
+    let busTimer = null, elegida = null;   // elegida = {m, b} de la última sucursal elegida
+    const busEstado = (t) => { $('busres').innerHTML = `<div class="rr volver" style="cursor:default"><span class="rn" style="color:var(--mut)">${t}</span></div>`; };
+    const fila = (rn, rc, onclick, cls) => {
       const d = document.createElement('div');
-      d.className = 'lrow'; d.style.cursor = 'pointer'; if (dim) d.style.opacity = .55;
-      d.innerHTML = html; d.onclick = onclick; return d;
+      d.className = 'rr' + (cls ? ' ' + cls : '');
+      d.innerHTML = `<span class="rn">${rn}</span><span class="rc">${rc}</span>`;
+      d.onclick = onclick; return d;
     };
 
     async function buscarComercios(q) {
@@ -940,7 +1016,7 @@
       $('busclbl').textContent = `· ${rows.length} en ${target}`;
       const box = $('busres'); box.innerHTML = '';
       for (const m of rows.slice(0, 12)) {
-        box.appendChild(fila(`<span class="lnm">${m.name} <span class="lrt">#${m.allied_id}</span></span>`, () => elegirComercio(m)));
+        box.appendChild(fila(m.name, `<span class="chip">#${m.allied_id}</span> ›`, () => elegirComercio(m)));
       }
     }
 
@@ -951,28 +1027,57 @@
       catch { return busEstado('✗ error de red'); }
       if (!Array.isArray(bs) || !bs.length) return busEstado(`${m.name} no tiene sucursales en ${target}`);
       const box = $('busres'); box.innerHTML = '';
-      box.appendChild(fila(`<span class="lnm">← ${m.name} · elegí sucursal</span>`, () => buscarComercios($('buscom').value)));
+      box.appendChild(fila(`← ${m.name}`, 'elegí sucursal', () => buscarComercios($('buscom').value), 'volver'));
       for (const b of bs.slice(0, 20)) {
         const off = Number(b.status) !== 1;
         box.appendChild(fila(
-          `<span class="lnm">${b.name || '(sin nombre)'} <span class="lrt">${b.hash} · ${b.lenders} entidad(es)${off ? ' · APAGADA' : ''}</span></span>`,
-          () => usarSucursal(m, b), off));
+          b.name || '(sin nombre)',
+          `<span class="chip">${b.hash}</span><span class="chip">${b.lenders} ent.</span>${off ? '<span class="chip">apagada</span>' : ''}`,
+          () => usarSucursal(m, b), off ? 'off' : ''));
       }
     }
 
     // El "slug" pasa a ser el HASH: `.flows.json` no conoce esta sucursal, y tanto el panel
     // (`branchHashForSlug`) como `bin/asesor` saben caer a "si parece hash de 8, ES el hash". Así se
-    // prueba cualquier comercio del padrón sin tener que quemarlo antes en el archivo.
+    // prueba cualquier comercio del padrón sin tener que guardarlo antes.
     function usarSucursal(m, b) {
+      elegida = { m, b };
       sel = { slug: b.hash, name: `${m.name} · ${b.name || b.hash}`, adhoc: true };
-      $('busres').innerHTML = `<p style="font-size:12px;margin:0"><b style="color:var(--ok,#4ade80)">▶ ${sel.name}</b> <span style="color:var(--mut)">${b.hash} · no está en .flows.json</span></p>`;
+      $('buselegida').innerHTML = '';
+      const bar = document.createElement('div');
+      bar.className = 'elegida';
+      bar.innerHTML = `<span>▶ <b>${sel.name}</b> <span style="color:var(--mut)">${b.hash} · sin guardar</span></span>`;
+      const btn = document.createElement('button');
+      btn.textContent = '★ Guardar como favorito';
+      btn.onclick = guardarFav;
+      bar.appendChild(btn);
+      $('buselegida').appendChild(bar);
       renderMerchants(); refresh(); loadLenders();
+    }
+
+    // Guardar = escribirlo en `.flows.json` con el nombre que vos quieras. No es solo cosmético: desde
+    // ese momento `bin/asesor <slug>` lo reconoce desde la terminal, no solo el panel.
+    async function guardarFav() {
+      if (!elegida) return;
+      const { m, b } = elegida;
+      const n = prompt('Nombre para la tarjeta:', `${m.name} · ${b.name || b.hash}`);
+      if (n == null || !n.trim()) return;
+      const r = await favApi({ accion: 'add', hash: b.hash, name: n.trim(), allied_id: m.allied_id, branch_id: b.id });
+      if (!r.ok) return;
+      sel = { slug: r.slug, name: r.name };
+      elegida = null;
+      $('buselegida').innerHTML = `<p style="font-size:11px;color:var(--mut);margin:8px 0 0">★ guardado · <code>bin/asesor ${r.slug}</code></p>`;
+      await cargarFavs(); refresh(); loadLenders();
     }
 
     $('buscom').oninput = (e) => {
       clearTimeout(busTimer); const v = e.target.value;
-      busTimer = setTimeout(() => buscarComercios(v), 350);   // sin debounce, una consulta por tecla
+      busTimer = setTimeout(() => buscarComercios(v), 350);   // con debounce: sin esto, una consulta por tecla
     };
+    $('buslimpiar').onclick = () => {
+      $('buscom').value = ''; $('busres').innerHTML = ''; $('buselegida').innerHTML = ''; $('busclbl').textContent = '';
+    };
+    cargarFavs();
 
     // lenders de la sucursal (la que usa el launch) → filas con toggle ON/OFF.
     async function loadLenders() {

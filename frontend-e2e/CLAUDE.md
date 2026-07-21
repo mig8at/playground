@@ -119,8 +119,12 @@ En el panel conviven dos entradas, y **no son redundantes**:
   cualquiera" ya causó que la card mostrara una y el flujo corriera contra otra.
 
 Al elegir del buscador, el `slug` **es el hash**: `.flows.json` no conoce esa sucursal, y tanto
-`branchHashForSlug` (panel) como `bin/asesor` caen a "si parece hash de 8 hex, es el hash". Para dejar
-un comercio fijo con nombre propio, agregalo a `.flows.json` como siempre.
+`branchHashForSlug` (panel) como `bin/asesor` caen a "si parece hash de 8 hex, es el hash".
+
+**★ Guardar como favorito** lo escribe en `.flows.json` con el nombre que quieras y `fav: true`. No es
+cosmético: desde ahí `bin/asesor <slug>` lo reconoce **desde la terminal**, no solo el panel. El `fav`
+existe para poder renombrar/borrar **solo los tuyos** — los curados no se tocan desde la UI. Y
+**renombrar NO cambia el slug**: es la clave con la que un comando guardado ya funciona.
 
 ## Canal de entrada: asesor · ecommerce
 
