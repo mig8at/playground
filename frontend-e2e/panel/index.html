@@ -687,14 +687,28 @@
     .rr.off { opacity: .5; }
     .rr.volver { border-style: dashed; }
     .chip { border: 1px solid var(--line); border-radius: 999px; padding: 1px 7px; font-size: 10px; }
-    .elegida { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 8px;
-      padding: 9px 11px; border: 1px solid #4ade80; border-radius: 10px; font-size: 12px; }
-    .elegida button { background: #4ade80; color: #06240f; border: 0; border-radius: 8px; padding: 5px 10px;
-      font-size: 11px; font-weight: 600; cursor: pointer; white-space: nowrap; }
-    .elegida button:hover { filter: brightness(1.1); }
-    /* acciones de un favorito: solo en hover, para no ensuciar la card */
-    .m .facc { position: absolute; top: 5px; right: 5px; display: none; gap: 1px; }
-    .m:hover .facc { display: flex; }
+    /* ALTA: sucursal → nombre → agregar. Aparece recién al elegir comercio, para que el paso 1 sea
+       una sola cosa (buscar) y no un formulario entero pidiendo datos que todavía no tenés. */
+    .alta { margin-top: 10px; padding: 12px 13px; border: 1px solid var(--line); border-radius: var(--radius-sm);
+      background: var(--panel2); display: flex; flex-direction: column; gap: 10px; }
+    .alta[hidden] { display: none; }
+    .altafila { display: flex; flex-direction: column; gap: 5px; }
+    .altafila label { font-size: 10.5px; font-weight: 600; text-transform: uppercase; letter-spacing: .8px; color: var(--mut); }
+    .altafila select, .altafila input {
+      width: 100%; box-sizing: border-box; padding: 8px 10px; border-radius: var(--radius-sm);
+      border: 1px solid var(--line); background: var(--panel); color: inherit; font-size: 13px;
+      font-family: inherit; outline: none;
+    }
+    .altafila select:focus, .altafila input:focus { border-color: var(--line2); }
+    .altapie { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+    .altapie span { font-size: 11px; color: var(--mut); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .altapie button { background: var(--acc); color: #06240f; border: 0; border-radius: var(--radius-sm);
+      padding: 7px 14px; font-size: 12px; font-weight: 600; cursor: pointer; white-space: nowrap; font-family: inherit; }
+    .altapie button:hover { filter: brightness(1.08); }
+    /* Acciones del favorito SIEMPRE visibles: escondidas en hover no se descubren, y borrar una tarjeta
+       que agregaste vos tiene que estar a la vista. Van tenues para no competir con el nombre. */
+    .m .facc { position: absolute; top: 5px; right: 5px; display: flex; gap: 1px; opacity: .45; transition: .12s; }
+    .m:hover .facc { opacity: 1; }
     .m .facc span { color: var(--mut); cursor: pointer; font-size: 11px; padding: 2px 5px; border-radius: 6px; }
     .m .facc span:hover { background: var(--line); color: inherit; }
     .m .estrella { color: #fbbf24; font-size: 9px; margin-left: 5px; vertical-align: middle; }
@@ -750,20 +764,31 @@
     <!-- 1 · Comercio (pruebas, configurado a mano en MERCHANTS) -->
     <section class="card">
       <h2><b>1</b> Comercio de prueba</h2>
-      <div class="grid" id="results"></div>
-      <!-- Buscador contra la BD del target. NO reemplaza a los de arriba: esos están curados por lo que
-           EJERCITAN (Motai=renting/RTO, CeluRD=SmartPay/IMEI, Sonría=el listado más rico) y eso es
-           conocimiento que una búsqueda genérica no da. Esto es para el resto del padrón. -->
-      <div style="margin-top:14px">
-        <p class="grouplbl">…o buscá cualquier otro <span id="busclbl" style="font-weight:400;color:var(--mut)"></span></p>
-        <div class="bus">
-          <span class="lupa">⌕</span>
-          <input id="buscom" type="text" placeholder="nombre del comercio (o hash de sucursal)" autocomplete="off" />
-          <span class="limpiar" id="buslimpiar" title="limpiar">✕</span>
-        </div>
-        <div class="res" id="busres"></div>
-        <div id="buselegida"></div>
+      <!-- ALTA arriba y tarjetas abajo: buscar es la ENTRADA, las tarjetas son el resultado acumulado.
+           El buscador va contra la BD del target y NO reemplaza a los curados (Motai=renting/RTO,
+           CeluRD=SmartPay/IMEI, Sonría=el listado más rico): eso es conocimiento que una búsqueda
+           genérica no da. Flujo: comercio → sucursal → nombre → Agregar. -->
+      <div class="bus">
+        <span class="lupa">⌕</span>
+        <input id="buscom" type="text" placeholder="buscá un comercio por nombre…" autocomplete="off" />
+        <span class="limpiar" id="buslimpiar" title="limpiar">✕</span>
       </div>
+      <div class="res" id="busres"></div>
+      <div class="alta" id="alta" hidden>
+        <div class="altafila">
+          <label for="altasuc">Sucursal</label>
+          <select id="altasuc"></select>
+        </div>
+        <div class="altafila">
+          <label for="altanombre">Nombre de la tarjeta</label>
+          <input id="altanombre" type="text" autocomplete="off" placeholder="como querés verla" />
+        </div>
+        <div class="altapie">
+          <span id="altahint"></span>
+          <button id="altaadd">Agregar</button>
+        </div>
+      </div>
+      <div class="grid" id="results" style="margin-top:16px"></div>
       <div style="margin-top:14px">
         <p class="grouplbl">Lenders de la sucursal <span id="lendersbranch" style="font-weight:400;color:var(--mut)"></span></p>
         <p style="color:var(--mut);font-size:11px;margin:-4px 0 6px">ON/OFF = status <b>global</b> del lender (lo que filtra el listado). Afecta todas las sucursales en local; reversible.</p>
@@ -1031,7 +1056,7 @@
     // grande tiene varias con configuraciones distintas (entidades, reglas). Resolver "una sucursal
     // cualquiera" del comercio es exactamente el bug que `dbops branches` vino a tapar: la card mostraba
     // una sucursal y el flujo corría contra otra.
-    let busTimer = null, elegida = null;   // elegida = {m, b} de la última sucursal elegida
+    let busTimer = null, altaM = null, altaBs = [], nombreTocado = false;
     const busEstado = (t) => { $('busres').innerHTML = `<div class="rr volver" style="cursor:default"><span class="rn" style="color:var(--mut)">${t}</span></div>`; };
     const fila = (rn, rc, onclick, cls) => {
       const d = document.createElement('div');
@@ -1040,77 +1065,81 @@
       d.onclick = onclick; return d;
     };
 
+    function cerrarAlta() {
+      $('alta').hidden = true; altaM = null; altaBs = []; nombreTocado = false; $('altahint').textContent = '';
+    }
+
     async function buscarComercios(q) {
-      if (!q.trim()) { $('busres').innerHTML = ''; $('busclbl').textContent = ''; return; }
+      cerrarAlta();
+      if (!q.trim()) { $('busres').innerHTML = ''; return; }
       busEstado('Buscando…');
       let rows;
       try { rows = await (await fetch('/api/merchants?q=' + encodeURIComponent(q) + '&target=' + target)).json(); }
       catch { return busEstado('✗ error de red'); }
       if (!Array.isArray(rows) || !rows.length) return busEstado(`sin comercios que matcheen “${q}” en ${target}`);
-      $('busclbl').textContent = `· ${rows.length} en ${target}`;
       const box = $('busres'); box.innerHTML = '';
       for (const m of rows.slice(0, 12)) {
         box.appendChild(fila(m.name, `<span class="chip">#${m.allied_id}</span> ›`, () => elegirComercio(m)));
       }
     }
 
+    // El segundo paso es un SELECT y no otra lista: las sucursales pueden ser 20+ (Sonría tiene 21) y una
+    // lista larga empuja las tarjetas fuera de pantalla justo cuando querés compararlas.
     async function elegirComercio(m) {
       busEstado(`Sucursales de ${m.name}…`);
       let bs;
       try { bs = await (await fetch('/api/branches-of?allied=' + m.allied_id + '&target=' + target)).json(); }
       catch { return busEstado('✗ error de red'); }
       if (!Array.isArray(bs) || !bs.length) return busEstado(`${m.name} no tiene sucursales en ${target}`);
-      const box = $('busres'); box.innerHTML = '';
-      box.appendChild(fila(`← ${m.name}`, 'elegí sucursal', () => buscarComercios($('buscom').value), 'volver'));
-      for (const b of bs.slice(0, 20)) {
-        const off = Number(b.status) !== 1;
-        box.appendChild(fila(
-          b.name || '(sin nombre)',
-          `<span class="chip">${b.hash}</span><span class="chip">${b.lenders} ent.</span>${off ? '<span class="chip">apagada</span>' : ''}`,
-          () => usarSucursal(m, b), off ? 'off' : ''));
+      altaM = m; altaBs = bs; nombreTocado = false;
+      // los resultados colapsan al comercio elegido: ya cumplieron y ocupaban lugar
+      $('busres').innerHTML = '';
+      $('busres').appendChild(fila(`← ${m.name}`, `<span class="chip">#${m.allied_id}</span> cambiar`,
+        () => buscarComercios($('buscom').value), 'volver'));
+      const s = $('altasuc'); s.innerHTML = '';
+      for (const b of bs) {
+        const o = document.createElement('option');
+        o.value = b.hash;
+        o.textContent = `${b.name || '(sin nombre)'} · ${b.hash} · ${b.lenders} ent.${Number(b.status) !== 1 ? ' · apagada' : ''}`;
+        s.appendChild(o);
       }
+      $('alta').hidden = false;
+      usarSucursal();
     }
 
-    // El "slug" pasa a ser el HASH: `.flows.json` no conoce esta sucursal, y tanto el panel
-    // (`branchHashForSlug`) como `bin/asesor` saben caer a "si parece hash de 8, ES el hash". Así se
-    // prueba cualquier comercio del padrón sin tener que guardarlo antes.
-    function usarSucursal(m, b) {
-      elegida = { m, b };
-      sel = { slug: b.hash, name: `${m.name} · ${b.name || b.hash}`, adhoc: true };
-      $('buselegida').innerHTML = '';
-      const bar = document.createElement('div');
-      bar.className = 'elegida';
-      bar.innerHTML = `<span>▶ <b>${sel.name}</b> <span style="color:var(--mut)">${b.hash} · sin guardar</span></span>`;
-      const btn = document.createElement('button');
-      btn.textContent = '★ Guardar como favorito';
-      btn.onclick = guardarFav;
-      bar.appendChild(btn);
-      $('buselegida').appendChild(bar);
+    // Elegir la sucursal ya la deja LISTA PARA CORRER aunque no la agregues: el `slug` es el hash, y
+    // tanto el panel (`branchHashForSlug`) como `bin/asesor` saben resolverlo. "Agregar" es solo para
+    // que quede como tarjeta —y para que `bin/asesor <slug>` la reconozca desde la terminal—.
+    function usarSucursal() {
+      const b = altaBs.find((x) => x.hash === $('altasuc').value);
+      if (!altaM || !b) return;
+      sel = { slug: b.hash, name: `${altaM.name} · ${b.name || b.hash}`, adhoc: true };
+      if (!nombreTocado) $('altanombre').value = sel.name;   // no pisa lo que el usuario ya escribió
+      $('altahint').textContent = `${b.hash} · ${b.lenders} entidad(es) · sin guardar`;
       renderMerchants(); refresh(); loadLenders();
     }
 
-    // Guardar = escribirlo en `.flows.json` con el nombre que vos quieras. No es solo cosmético: desde
-    // ese momento `bin/asesor <slug>` lo reconoce desde la terminal, no solo el panel.
-    async function guardarFav() {
-      if (!elegida) return;
-      const { m, b } = elegida;
-      const n = prompt('Nombre para la tarjeta:', `${m.name} · ${b.name || b.hash}`);
-      if (n == null || !n.trim()) return;
-      const r = await favApi({ accion: 'add', hash: b.hash, name: n.trim(), allied_id: m.allied_id, branch_id: b.id });
+    async function agregarFav() {
+      const b = altaBs.find((x) => x.hash === $('altasuc').value);
+      const nombre = $('altanombre').value.trim();
+      if (!altaM || !b) return;
+      if (!nombre) { $('altanombre').focus(); return; }
+      const r = await favApi({ accion: 'add', hash: b.hash, name: nombre, allied_id: altaM.allied_id, branch_id: b.id });
       if (!r.ok) return;
       sel = { slug: r.slug, name: r.name };
-      elegida = null;
-      $('buselegida').innerHTML = `<p style="font-size:11px;color:var(--mut);margin:8px 0 0">★ guardado · <code>bin/asesor ${r.slug}</code></p>`;
+      cerrarAlta();
+      $('busres').innerHTML = ''; $('buscom').value = '';
       await cargarFavs(); refresh(); loadLenders();
     }
 
+    $('altasuc').onchange = usarSucursal;
+    $('altanombre').oninput = () => { nombreTocado = true; };
+    $('altaadd').onclick = agregarFav;
     $('buscom').oninput = (e) => {
       clearTimeout(busTimer); const v = e.target.value;
       busTimer = setTimeout(() => buscarComercios(v), 350);   // con debounce: sin esto, una consulta por tecla
     };
-    $('buslimpiar').onclick = () => {
-      $('buscom').value = ''; $('busres').innerHTML = ''; $('buselegida').innerHTML = ''; $('busclbl').textContent = '';
-    };
+    $('buslimpiar').onclick = () => { $('buscom').value = ''; $('busres').innerHTML = ''; cerrarAlta(); };
     cargarFavs();
 
     // lenders de la sucursal (la que usa el launch) → filas con toggle ON/OFF.
