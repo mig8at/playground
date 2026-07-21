@@ -336,6 +336,7 @@ func main() {
 				Task      string `json:"task"`
 				FreeTitle string `json:"freeTitle"`
 				SprintID  int64  `json:"sprintId"`
+				EffortID  int64  `json:"effortId"` // trabajo que aún no es tarea de Jira: cuelga del esfuerzo
 				Kind      string `json:"kind"`
 				StartedMs int64  `json:"startedMs"` // epoch ms; 0 = terminó ahora (inicio = ahora − minutos)
 				Minutes   int    `json:"minutes"`
@@ -356,9 +357,9 @@ func main() {
 				w.WriteHeader(http.StatusUnprocessableEntity)
 				json.NewEncoder(w).Encode(map[string]any{"error": "minutos fuera de rango (1–720)"})
 				return
-			case in.Kind == "" || in.Task == "" && in.FreeTitle == "":
+			case in.Kind == "" || in.Task == "" && in.FreeTitle == "" && in.EffortID == 0:
 				w.WriteHeader(http.StatusUnprocessableEntity)
-				json.NewEncoder(w).Encode(map[string]any{"error": "falta tipo, o tarea/título"})
+				json.NewEncoder(w).Encode(map[string]any{"error": "falta tipo, o un ancla (tarea, título o esfuerzo)"})
 				return
 			}
 			// el guard del server es el que VALE: la UI ya bloqueó con los mismos patrones, pero nada
@@ -372,7 +373,7 @@ func main() {
 			if in.StartedMs > 0 {
 				started = time.UnixMilli(in.StartedMs)
 			}
-			entry, err := a.st.Create(in.Task, in.FreeTitle, in.SprintID, in.Kind, started, in.Minutes, in.Note)
+			entry, err := a.st.Create(in.Task, in.FreeTitle, in.SprintID, in.EffortID, in.Kind, started, in.Minutes, in.Note)
 			if err != nil {
 				w.WriteHeader(http.StatusInternalServerError)
 				json.NewEncoder(w).Encode(map[string]any{"error": err.Error()})

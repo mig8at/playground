@@ -45,6 +45,7 @@ CREATE TABLE IF NOT EXISTS entries (
   task_key      TEXT,                      -- clave Jira (CORE-265); NULL = trabajo sin tarea
   free_title    TEXT,                      -- qué fue, cuando task_key es NULL (reunión, soporte, ...)
   sprint_id     INTEGER,
+  effort_id     INTEGER,                   -- trabajo que aún no es una tarea de Jira cuelga del esfuerzo
 
   kind          TEXT NOT NULL,             -- progress | finding | test | blocker (extensible)
 
@@ -62,9 +63,6 @@ CREATE TABLE IF NOT EXISTS entries (
   uploaded_minutes  INTEGER,               --   lo publicado (puede diferir de minutes)
   uploaded_at       TEXT
 );
-CREATE INDEX IF NOT EXISTS idx_entries_day    ON entries(day);
-CREATE INDEX IF NOT EXISTS idx_entries_task   ON entries(task_key);
-CREATE INDEX IF NOT EXISTS idx_entries_sprint ON entries(sprint_id);
 
 CREATE TABLE IF NOT EXISTS sprints (
   id          INTEGER PRIMARY KEY,         -- id real de Jira
@@ -117,6 +115,38 @@ CREATE TABLE IF NOT EXISTS efforts (
 );
 `
 
+// Los índices se crean DESPUÉS de migrar, porque pueden referirse a columnas que agrega una migración.
+const indexes = `
+CREATE INDEX IF NOT EXISTS idx_entries_day    ON entries(day);
+CREATE INDEX IF NOT EXISTS idx_entries_task   ON entries(task_key);
+CREATE INDEX IF NOT EXISTS idx_entries_sprint ON entries(sprint_id);
+CREATE INDEX IF NOT EXISTS idx_entries_effort ON entries(effort_id);
+`
+
+// addedColumns son las columnas que se sumaron DESPUÉS de que existiera una base en uso. Hace falta
+// porque `CREATE TABLE IF NOT EXISTS` NO evoluciona una tabla ya creada: sobre una base vieja la columna
+// simplemente no aparece y todo lo que la use falla. Cada entrada se aplica solo si falta.
+var addedColumns = []struct{ table, column, ddl string }{
+	{"entries", "effort_id", "ALTER TABLE entries ADD COLUMN effort_id INTEGER"},
+}
+
+// migrate agrega las columnas faltantes, sin tocar los datos existentes.
+func (s *Store) migrate() error {
+	for _, m := range addedColumns {
+		var n int
+		if err := s.db.QueryRow(`SELECT COUNT(*) FROM pragma_table_info(?) WHERE name = ?`, m.table, m.column).Scan(&n); err != nil {
+			return fmt.Errorf("revisando %s.%s: %w", m.table, m.column, err)
+		}
+		if n > 0 {
+			continue
+		}
+		if _, err := s.db.Exec(m.ddl); err != nil {
+			return fmt.Errorf("migrando %s.%s: %w", m.table, m.column, err)
+		}
+	}
+	return nil
+}
+
 type Store struct{ db *sql.DB }
 
 // Open crea/abre el archivo y aplica el esquema. WAL para que un lector (análisis con sqlite3 a mano)
@@ -134,7 +164,14 @@ func Open(path string) (*Store, error) {
 	if _, err := db.Exec(schema); err != nil {
 		return nil, fmt.Errorf("aplicando esquema: %w", err)
 	}
-	return &Store{db: db}, nil
+	st := &Store{db: db}
+	if err := st.migrate(); err != nil { // columnas nuevas sobre una base ya existente
+		return nil, err
+	}
+	if _, err := db.Exec(indexes); err != nil {
+		return nil, fmt.Errorf("creando índices: %w", err)
+	}
+	return st, nil
 }
 
 // Entry es la fila de la tabla de hechos, en el shape que consume el frontend.
@@ -143,6 +180,7 @@ type Entry struct {
 	TaskKey    string `json:"taskKey"`   // "" = sin tarea
 	FreeTitle  string `json:"freeTitle"` // qué fue, cuando no hay tarea
 	SprintID   int64  `json:"sprintId"`
+	EffortID   int64  `json:"effortId"`
 	Kind       string `json:"kind"`
 	StartedAt  string `json:"startedAt"`
 	Day        string `json:"day"`
@@ -155,15 +193,15 @@ type Entry struct {
 
 // Create inserta un registro. `startedAt` llega ya en zona local del server; day/hour se derivan acá
 // para que NUNCA puedan desalinearse del instante (una sola fuente).
-func (s *Store) Create(taskKey, freeTitle string, sprintID int64, kind string, startedAt time.Time, minutes int, note string) (Entry, error) {
+func (s *Store) Create(taskKey, freeTitle string, sprintID, effortID int64, kind string, startedAt time.Time, minutes int, note string) (Entry, error) {
 	e := Entry{
-		TaskKey: taskKey, FreeTitle: freeTitle, SprintID: sprintID, Kind: kind,
+		TaskKey: taskKey, FreeTitle: freeTitle, SprintID: sprintID, EffortID: effortID, Kind: kind,
 		StartedAt: startedAt.Format(time.RFC3339), Day: startedAt.Format("2006-01-02"), Hour: startedAt.Hour(),
 		Minutes: minutes, Note: note, CreatedAt: time.Now().Format(time.RFC3339),
 	}
-	res, err := s.db.Exec(`INSERT INTO entries (task_key, free_title, sprint_id, kind, started_at, day, hour, minutes, note, created_at)
-		VALUES (?,?,?,?,?,?,?,?,?,?)`,
-		nullStr(e.TaskKey), nullStr(e.FreeTitle), nullNum(e.SprintID), e.Kind, e.StartedAt, e.Day, e.Hour, e.Minutes, e.Note, e.CreatedAt)
+	res, err := s.db.Exec(`INSERT INTO entries (task_key, free_title, sprint_id, effort_id, kind, started_at, day, hour, minutes, note, created_at)
+		VALUES (?,?,?,?,?,?,?,?,?,?,?)`,
+		nullStr(e.TaskKey), nullStr(e.FreeTitle), nullNum(e.SprintID), nullNum(e.EffortID), e.Kind, e.StartedAt, e.Day, e.Hour, e.Minutes, e.Note, e.CreatedAt)
 	if err != nil {
 		return Entry{}, err
 	}
@@ -176,7 +214,7 @@ func (s *Store) Create(taskKey, freeTitle string, sprintID int64, kind string, s
 func (s *Store) List(days int, sprintID int64) ([]Entry, error) {
 	cutoff := time.Now().AddDate(0, 0, -days).Format("2006-01-02")
 	rows, err := s.db.Query(`SELECT id, COALESCE(task_key,''), COALESCE(free_title,''), COALESCE(sprint_id,0),
-			kind, started_at, day, hour, minutes, note, created_at, COALESCE(uploaded_at,'')
+			COALESCE(effort_id,0), kind, started_at, day, hour, minutes, note, created_at, COALESCE(uploaded_at,'')
 		FROM entries
 		WHERE deleted_at IS NULL AND (day >= ? OR sprint_id = ?)
 		ORDER BY started_at DESC`, cutoff, sprintID)
@@ -188,7 +226,7 @@ func (s *Store) List(days int, sprintID int64) ([]Entry, error) {
 	out := []Entry{}
 	for rows.Next() {
 		var e Entry
-		if err := rows.Scan(&e.ID, &e.TaskKey, &e.FreeTitle, &e.SprintID, &e.Kind, &e.StartedAt, &e.Day,
+		if err := rows.Scan(&e.ID, &e.TaskKey, &e.FreeTitle, &e.SprintID, &e.EffortID, &e.Kind, &e.StartedAt, &e.Day,
 			&e.Hour, &e.Minutes, &e.Note, &e.CreatedAt, &e.UploadedAt); err != nil {
 			return nil, err
 		}

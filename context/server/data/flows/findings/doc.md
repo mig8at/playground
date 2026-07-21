@@ -953,3 +953,22 @@ Las dos herramientas se retiran (ver el porqué abajo). Esto es lo que valía la
 **Lo único que se pierde a propósito: el `perfilador`.** Es el único ejercicio que **varía el perfil del usuario y asevera NO-oferta**; `sweep matrix` barre comercio × entidad con un perfil diseñado para pasar, así que nada afirma "este perfil no debería ser ofrecido". Su diseño valía: leía los umbrales **de la BD en runtime** (`MAX(lender_rules.value)` del field 87 para ingreso, `MIN(lender_users_category_rules.min_score)` para score), así que las expectativas no quedaban stale. Si alguna vez se quiere ese eje, va como un cuarto modo de `dev/sweep.ts` y esa es la receta.
 
 **Por qué se borran.** `backend-mcp`: **no era un MCP** (sin `.mcp.json`, `mcpServers` vacío), el binario estaba **10 días atrás de la fuente**, 7 de sus comandos ya estaban duplicados en `dbops`, y sus 22 diagnósticos respondían preguntas que el árbol de contexto ya documenta con más precisión. Además tenía la superficie destructiva más grande del playground con la guarda desarmada (F-53). `backend-e2e`: probaba el backend por API, que es lo que hoy hace `dev/sweep.ts` con veredicto contra BD y exit code. Ninguna de las dos tenía un commit sustantivo desde el seed del repo (13-07), y ambas costaron mantenimiento en el refactor de `env/` sin devolver nada.
+
+### F-58 · Un rechazo de la firma de flujo llega como HTTP 200 y el front lo toma como éxito
+
+**Síntoma (potencial, hoy latente).** En "Confirmación de cupo" el asesor marca que el cliente ya tiene cupo, se firma el flujo `already-confirmed-pre-approval` y el backend deja de consultar Experian. Si el backend **rechaza** la firma, el front no se entera: la solicitud sigue en `flow_id=1`, **Experian se consulta**, y no queda rastro (ni error en pantalla ni evento en Sentry).
+
+**Causa raíz verificada.** Estas APIs llevan el veredicto en el `code` del body, no en el status HTTP. En `frontend-monorepo/modules/loan-request-wizard/loan-application-form/src/lib/infrastructure/pre-approval-flow.repository.ts` conviven los dos criterios:
+
+- `checkAbleToOmitExperianAcierta` (:38) **sí** ramifica: `okAsync(result.payload.code === ABLE_TO_OMIT_CODE)`.
+- `signFlow` (:61-63) **no**: `if (result.success) return okAsync({ code: result.payload.code })` — devuelve éxito con solo que el HTTP haya salido bien, y nadie mira el `code` después.
+
+Y el rechazo viaja en 200 (`FlowSignatureService::getHttpCode`): `URV13000`→200 (firmado) y **`URV13004`→200 (rechazado, sin escritura)**. Los demás sí se ven: `URV13005`→409, `URV13001`→404, `URV13002`→422, `URV13003`→500. El llamador (`otp-verification.tsx:166`) solo chequea `signResult.isErr()`, así que el rechazo nunca entra al `captureServerException` que tiene al lado.
+
+**Por qué HOY no se dispara.** El único rechazo posible es `ACPA1001` (el comercio no está autorizado a omitir), y es **la misma pregunta que el front ya hizo** antes de mostrar el selector — sobre la **misma sucursal**: `UserRequestRepository::findWithEcommerceExclusions` filtra por `allied_branch_id`, así que una solicitud reusada nunca pertenece a otra sucursal. Solo lo dispararía una carrera editando el setting `allowed_to_omit_experian_allieds` entre la pantalla de monto y el OTP.
+
+**Por qué igual queda anotado.** El propio validador lo anuncia: *"More flow actions/validations — each with its own ACPA1xxx rejection reason — will be added here"* (`AlreadyConfirmedPreApprovalFlowValidator`). Cuando lleguen validaciones que el front NO pueda anticipar (p. ej. "este usuario no tiene pre-aprobados de verdad"), el fallo silencioso se vuelve real — y es justo el caso caro: pagás la consulta creyendo que la omitiste.
+
+**Arreglo (pendiente).** Que `signFlow` exija `code === 'URV13000'` y devuelva `errAsync` si no, para caer en el `captureServerException` ya existente. No cambia el comportamiento del usuario (la firma es best-effort a propósito: si falla, sigue el flujo estándar); solo hace que la falla **deje rastro**.
+
+**Estado.** Detectado el 2026-07-21 con la rama ya **mergeada** (front `784585fe` + back `a603a5cd`), por eso no se corrigió en el momento. Detalle completo en el nodo `confirmacion-de-cupo`.
