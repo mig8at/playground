@@ -10,13 +10,16 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 /**
- * Credenciales Cognito MERCHANT para pruebas `/merchant/*` (asesor) por UI. Orden: env
- * (E2E_COGNITO_USER/PASS) → archivo gitignored `.cognito.json` (raíz de frontend-e2e). Nunca commitear.
+ * Credenciales Cognito MERCHANT para pruebas `/merchant/*` (asesor) por UI. Orden: la CADENA por target
+ * (`process.env` > `.env.<target>` > `env/<target>.env`) → archivo gitignored `.cognito.json`. Nunca commitear.
+ *
+ * Van por target, no globales: **staging entra por otro pool de Cognito** que dev
+ * (`auth.merchant.creditop.com` vs `login.creditop.com`), así que necesita su propia cuenta. Un único
+ * `.cognito.json` obligaría a pisar las de dev para probar staging y viceversa (F-61).
  */
 function loadCognitoCreds(): { user?: string; pass?: string } {
-    if (process.env.E2E_COGNITO_USER) {
-        return { user: process.env.E2E_COGNITO_USER, pass: process.env.E2E_COGNITO_PASS };
-    }
+    const user = env('E2E_COGNITO_USER');
+    if (user) return { user, pass: env('E2E_COGNITO_PASS') };
     try {
         const raw = JSON.parse(readFileSync(join(process.cwd(), '.cognito.json'), 'utf8'));
         return { user: raw.user, pass: raw.pass };

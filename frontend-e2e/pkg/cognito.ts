@@ -1,7 +1,8 @@
 import { existsSync, mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { expect, type Locator, type Page } from '@playwright/test';
-import { cognitoCreds, config } from './config';
+import { cognitoCreds, config } from './config.ts';
+import { TARGET } from './env.ts';
 
 /**
  * Cache de sesión Cognito para NO re-loguear por el Hosted UI en cada corrida.
@@ -10,7 +11,12 @@ import { cognitoCreds, config } from './config';
  * la ventana del refresh token (días), no la del access token (1h). Autocorrector: si la sesión murió,
  * el Hosted UI reaparece y `cognitoLogin` re-loguea + re-guarda.
  */
-export const COGNITO_STATE_PATH = '.auth/cognito-state.json';
+/**
+ * POR TARGET: dev y staging son pools de Cognito DISTINTOS. Con un único archivo, la sesión de dev se
+ * inyectaría en la corrida de staging (cookies + tokens del otro pool) y el front quedaría en un limbo
+ * —autenticado para Cognito, desconocido para el backend— sin que aparezca el login que lo corregiría.
+ */
+export const COGNITO_STATE_PATH = `.auth/cognito-state.${TARGET}.json`;
 
 /** Devuelve la ruta del storageState cacheado si existe (para `test.use({ storageState })`), o undefined. */
 export function cognitoStorageState(): string | undefined {

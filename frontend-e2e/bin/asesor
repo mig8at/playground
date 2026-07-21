@@ -54,8 +54,14 @@ cd "$E2E"
 fget() { node -e 'const fs=require("fs");let j={};try{j=JSON.parse(fs.readFileSync(process.argv[1]))}catch(e){};let v=j;for(const k of process.argv[2].split(".")){v=(v==null?undefined:v[k])};process.stdout.write(v==null?"":String(v))' "$FLOWS" "$1"; }
 json_pick() { node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{try{const j=JSON.parse(s);const v=eval("j"+process.argv[1]);process.stdout.write(v==null?"":String(v))}catch(e){}})' "$1"; }
 
+# El asesor es POR TARGET. `.flows.json` describe al de dev; staging entra por OTRO pool de Cognito, así
+# que la MISMA persona tiene otro `sub` — y como el backend y la BD son los mismos para dev y staging, el
+# backend no la reconoce y el wizard responde "No tienes un comercio asignado" (F-61). Si `.env.<target>`
+# define E2E_ASESOR_SUB / E2E_COGNITO_USER, mandan ellos.
 EMAIL="$(fget asesor.email)"; SUB="$(fget asesor.sub)"
-[ -n "$EMAIL" ] && [ -n "$SUB" ] || { echo "✗ $FLOWS sin asesor.email / asesor.sub"; exit 1; }
+OV="$(envget E2E_ASESOR_SUB)";   [ -n "$OV" ] && SUB="$OV"
+OV="$(envget E2E_COGNITO_USER)"; [ -n "$OV" ] && EMAIL="$OV"
+[ -n "$EMAIL" ] && [ -n "$SUB" ] || { echo "✗ sin asesor: definí E2E_ASESOR_SUB en .env.$TARGET o asesor.email/sub en $FLOWS"; exit 1; }
 export E2E_ASESOR_SUB="$SUB"   # lo usa el spec (salto headless a /lenders) para el corporate_user_id del uReq
 HASH="$(fget "merchants.$MERCHANT.branch_hash")"
 # teléfono de prueba para bypasear el OTP (qa_otp_bypass_phones → OTP = últimos 4)

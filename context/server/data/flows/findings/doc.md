@@ -1009,3 +1009,28 @@ Estado en dev (2026-07-21) y evidencia en la tabla `logs` (`controller = 'Datacr
 **El confusor que hay que descartar.** `Experian::performRequest` cachea **1 mes** por `user_id` + `risk_central_id` (`Experian.php:251-254`). Con el usuario 1827671 la última fila Acierta (`risk_central_id = 1`) es del 17-jul 17:26, así que hasta el 17-ago "no hay fila nueva" **no prueba nada** — se explica por caché. Hay que correr con un usuario cuya caché esté fría.
 
 **Y el contador NO es discriminante** (corrige una hipótesis previa): `$datacreditoQuery->increment('count')` corre en las **dos** ramas, incluso cuando `Experian.php` devolvió `null` por el flujo. Lo que discrimina es la fila en `risk_central_user_data`, no el contador.
+
+### F-61 · Staging falla el login del asesor porque es OTRO pool de Cognito sobre la MISMA base
+
+**Síntoma.** Contra `staging` el login de Cognito pasa sin problema, pero el wizard responde **"No tienes un comercio asignado"**. Se ve como un problema de permisos del comercio; no lo es.
+
+**Causa raíz verificada.** Staging **no tiene backend propio**: usa el mismo legacy-backend y la misma base que dev. Lo único propio es el frontend desplegado. Pero el **frontend de staging entra por otro pool**:
+
+| | puerta de Cognito | client |
+|---|---|---|
+| dev / local | `login.creditop.com` | `14lo4ra4khrdaomd78f0sqh2l4` |
+| **staging** | `auth.merchant.creditop.com` | `il7p9uebtjjaoaqc6q9brg6f` |
+
+Dos pools ⇒ la misma persona tiene **dos `sub` distintos**. Y del lado del backend hay **una sola fila** `users` con **un solo** `cognito_id`. Con el asesor de dev (`users` 1827080, `a.arismendy@uniandes.edu.co`, `cognito_id = 319b25f0-…`), entrar por staging le manda al backend un `sub` que esa fila no tiene → no lo encuentra → "no tienes un comercio asignado".
+
+**Por qué no alcanza con "crear otra fila".** En `users`, `email`, `document_number` y `cell_phone` son **índices únicos**: no se puede duplicar a la misma persona con el otro `sub`. Pisarle el `cognito_id` a la fila de dev funciona, pero es **excluyente** — mientras esté el de staging, dev deja de andar.
+
+**Solución (aplicada).** Una **cuenta de asesor por pool**, y que todo lo de Cognito sea **por target**:
+
+- `pkg/config.ts` — `loadCognitoCreds()` pasó de `process.env` pelado a la cadena `env()`, así que las credenciales viven en `frontend-e2e/.env.<target>` (gitignored) en vez de un `.cognito.json` único que habría que pisar para alternar.
+- `pkg/cognito.ts` — el cache de sesión pasó de `.auth/cognito-state.json` a `.auth/cognito-state.<target>.json`. **No era cosmético**: el archivo viejo tenía cookies de los **dos** pools mezcladas (`login.creditop.com` **y** `.auth.merchant.creditop.com`), y con un único archivo la sesión de dev se inyecta en la corrida de staging — el front queda autenticado para Cognito y desconocido para el backend, **sin que aparezca el login** que lo corregiría.
+- `bin/asesor` — `E2E_ASESOR_SUB` / `E2E_COGNITO_USER` de `.env.<target>` pisan al `asesor` de `.flows.json` (que describe al de dev). Es el `sub` que usa `load-permiso` para el assign.
+
+En dev existe una familia de cuentas QA `oscar+<comercio>@creditop.com`, una por sucursal (`oscar+mediarte` ya está en la 375 de Mediarte, `oscar+dentix` en la 844 de DENTIX). Son las candidatas naturales para el pool de staging.
+
+**Lo que queda abierto.** El `sub` de staging **no se puede deducir offline** (los de ambos pools son UUIDv7, sin nada que los distinga) y el storageState cacheado **no guarda JWT** — solo cookies. Se confirma en el primer login: si el wizard abre el comercio, el `cognito_id` que la fila ya tenía era el de staging; si repite "no tienes un comercio asignado", era del otro pool y hay que leer el real del id_token de esa sesión.
