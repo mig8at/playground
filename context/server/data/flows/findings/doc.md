@@ -1041,3 +1041,26 @@ Dos pools ⇒ la misma persona tiene **dos `sub` distintos**. Y del lado del bac
 En dev existe una familia de cuentas QA `oscar+<comercio>@creditop.com`, una por sucursal (`oscar+mediarte` ya está en la 375 de Mediarte, `oscar+dentix` en la 844 de DENTIX). Son las candidatas naturales para el pool de staging.
 
 **Lo que queda abierto.** El `sub` de staging **no se puede deducir offline** (los de ambos pools son UUIDv7, sin nada que los distinga) y el storageState cacheado **no guarda JWT** — solo cookies. Se confirma en el primer login: si el wizard abre el comercio, el `cognito_id` que la fila ya tenía era el de staging; si repite "no tienes un comercio asignado", era del otro pool y hay que leer el real del id_token de esa sesión.
+
+### F-62 · En dev/staging está desplegada solo LA MITAD de la omisión de Experian: aparece el selector, pero nada lo aplica
+
+**Síntoma.** En el wizard de dev/staging el selector "Confirmación de cupo" **aparece y se puede marcar**, así que parece que la funcionalidad está. Pero las solicitudes terminan con `flow_id = NULL`, y aunque se firmara, Experian se consultaría igual. Se pierde tiempo buscando la falla en el usuario, la caché o el comercio — no está en ninguno de los tres.
+
+**Causa raíz verificada.** El cambio del backend **no está en `develop`** (comprobado con `git fetch` hecho; `origin/develop` en `278b28a5`). El commit `a603a5cd` figura **solo** en `origin/feat/backend-changes-for-already-confirmed-pre-approbal-flow-usage`. Y no es cuestión de un squash con otro sha: se comparó el **contenido** de los archivos en `origin/develop`.
+
+Qué hay y qué no en lo desplegado:
+
+| pieza | en `develop` | efecto |
+|---|---|---|
+| `check-if-able-to-omit` (RiskV2, `RKV26000`) | **SÍ** | el front pregunta y **muestra el selector** |
+| corte por flujo en `app/Actions/RiskCentrals/Experian.php` | **NO** (0 menciones de flow/omit; la rama tiene 3) | **el buró se consulta igual** — y este es el camino que el wizard recorre |
+| `RKV24029` en RiskV2 | **NO** | la API de decisión nunca dice "omitido" |
+| `FLOW_ASSIGNABLE_STATUS_IDS` | `[1]` (la rama: `[1, 9]`) | la firma se rechaza en estado 9 con **`URV13005`** |
+
+Es la peor combinación posible para depurar: **la única pieza desplegada es la que hace visible el selector**. Todo lo que lo haría funcionar quedó afuera.
+
+**Cómo se detectó.** Con `node dev/experian-api.ts <uReqId>`, que mide el veredicto de Experian **antes y después** de firmar sobre la misma solicitud: `check-if-able-to-omit` devolvió `RKV26000` (autorizado) pero la firma devolvió **HTTP 409 `URV13005`** — "User request status does not allow changing its flow" — sobre una solicitud en estado 9, que la rama sí admite. Ese desfase entre "el endpoint nuevo existe" y "la constante es la vieja" fue el hilo.
+
+**Consecuencia práctica.** Ninguna prueba en dev/staging puede dar positiva hoy, por más limpio que esté el usuario o fría la caché. Hasta que el backend se despliegue, la validación va **contra el stack local** corriendo la rama (`CFE_TARGET=local`), donde el código sí tiene las tres piezas.
+
+**Lección.** "Está mergeado" y "está desplegado en el ambiente contra el que pruebo" son afirmaciones distintas, y la segunda se verifica barata: `git show origin/develop:<archivo> | grep <lo que agregó la tarea>`. Vale hacerlo **antes** de armar el usuario de prueba, no después.
