@@ -10,10 +10,28 @@ El código real vive **fuera** de acá, en `~/Desktop/CREDITOP/github/` (`legacy
 `frontend-monorepo`, `legacy-application`, `pre-approvals-service`). Son grandes: entrar por grep sin
 mapa es la forma lenta.
 
-1. **`context/docs/ROUTE-MAP.md`** — índice de 33 nodos curados. Elegí los que matcheen la tarea y abrí
+1. **`context/docs/ROUTE-MAP.md`** — índice de 29 nodos curados. Elegí los que matcheen la tarea y abrí
    su `context/server/data/flows/<id>/doc.md` (el análisis) + `map.json` (las rutas fuente exactas).
 2. **`context/server/data/flows/findings/doc.md`** — bitácora de hallazgos (F-01…). **Mirala antes de
    depurar un muro en local**: si ya nos pasó, está ahí con causa raíz verificada y arreglo.
+
+## La partición: `context` es el conocimiento, `tablero` es el trabajo
+
+Desde el **2026-07-21** son dos cosas distintas y no se mezclan:
+
+| | **`context/`** | **`tablero/`** |
+|---|---|---|
+| Responde | *¿cómo **es** CreditOp?* | *¿en qué se está **trabajando**?* |
+| Contiene | contextos del sistema + el mapa del código (rutas validadas) | esfuerzos, tareas, tiempo, estado, borradores y claves de Jira |
+| Naturaleza | durable — sobrevive a las tareas | efímero — tiene estado y fecha |
+| Formato | markdown versionado, lo lee cualquier modelo | SQLite local (`tablero/server/data/`), por API |
+
+**El árbol NO lleva nodos-tarea.** Un esfuerzo del tablero guarda su detalle técnico en `tech_notes`
+(privado, **sin guard** — puede nombrar archivos y repos) y a qué nodos apunta en `context_nodes`.
+
+⚠ **La regla al terminar:** lo que se **mergea** deja de ser tarea y **gradúa** al nodo de contexto que
+corresponda — ahí pasa a ser "cómo funciona CreditOp". Lo que no se mergeó se queda en el tablero.
+Ejemplo hecho: la omisión de Experian por cupo ya confirmado vive hoy en el nodo `kyc`.
 
 ## Git
 

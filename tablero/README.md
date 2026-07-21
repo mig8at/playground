@@ -136,6 +136,28 @@ El heatmap es la parte cara: hace una llamada por issue, con concurrencia acotad
 timeout global de 30 s puesto en el handler del WS (`cmd/web/main.go:334`) — `activity.go` no define ninguno.
 Cada request HTTP además corta a los 20 s por su cuenta (`internal/atlassian/client.go:33`).
 
+## Es el hogar del TRABAJO (y `context` el del conocimiento)
+
+Desde el **2026-07-21** la partición es explícita: **`playground/context` responde "cómo *es* CreditOp"**
+(contextos + el mapa del código, markdown durable) y **este tablero responde "en qué se está
+*trabajando*"** (esfuerzos, tiempo, estado, Jira). El árbol de context ya **no lleva nodos-tarea**: los 4
+que tenía se migraron acá.
+
+Un **esfuerzo** (`efforts`) es el trabajo real privado del que salen las tareas de Jira, y guarda:
+
+| Campo | Qué es | ¿Guard? |
+|---|---|---|
+| `title` | cómo lo llamás vos | privado, sin guard |
+| `tech_notes` | el detalle técnico: archivos, análisis, rutas | **sin guard** — nunca sale de local, por eso *sí* puede nombrar archivos y repos |
+| `context_nodes` | a qué nodos de `context` apunta (el mapa del código vive allá) | — |
+| `jira_title` · `jira_description` | el borrador de la tarea | **con guard** — termina publicado en Jira |
+
+Esa asimetría es deliberada: lo técnico y lo publicable son dos textos distintos, y el guard marca la
+frontera. Por eso el detalle de archivos **no puede** vivir en las notas de la bitácora.
+
+⚠ **Al terminar una tarea:** lo que se **mergea** gradúa al nodo de `context` que corresponda (pasa a ser
+"cómo funciona CreditOp"); lo que no se mergeó se queda acá.
+
 ## La bitácora y sus datos (SQLite)
 
 El registro de tiempo vive en **`server/data/tablero.db`** (SQLite, gitignoreado; `TABLERO_DB` lo
