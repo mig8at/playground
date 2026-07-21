@@ -106,6 +106,22 @@ es el árbol de `context`: 33 nodos, 342 archivos compartidos, 1.578 aristas imp
 - **Validá siempre después de tocarlo:** `node bin/steps-check.ts` (sale ≠0 si alguna ruta no existe). El
   panel además muestra un aviso si el chequeo falla — un conteo que ya no resuelve es peor que nada.
 
+## Elegir comercio: los curados y el buscador
+
+En el panel conviven dos entradas, y **no son redundantes**:
+
+- **Las tarjetas** (`MERCHANTS` en `panel/index.html`) están curadas por lo que **ejercitan** — Motai =
+  renting/RTO, CeluRD = SmartPay/IMEI, Sonría = el listado más rico, Mediarte = rt2 al 0% con
+  Credifamilia rt4 al lado. Eso es conocimiento, no comodidad: no las cambies por el buscador.
+- **El buscador** va contra la BD del target, en **dos pasos: comercio → SUCURSAL**. El segundo paso no
+  es adorno: lo que se lanza es un hash de **sucursal**, y `dbops list` devuelve `MIN(hash)` — buscar
+  "motai" da `5cb92b54` (*Motai Boyaca*), no `f0548728` (*PRINCIPAL*). Resolver "una sucursal
+  cualquiera" ya causó que la card mostrara una y el flujo corriera contra otra.
+
+Al elegir del buscador, el `slug` **es el hash**: `.flows.json` no conoce esa sucursal, y tanto
+`branchHashForSlug` (panel) como `bin/asesor` caen a "si parece hash de 8 hex, es el hash". Para dejar
+un comercio fijo con nombre propio, agregalo a `.flows.json` como siempre.
+
 ## Canal de entrada: asesor · ecommerce
 
 El panel tiene un selector de **canal** (junto al del buró). Cambia la PUERTA, no el caso: el usuario

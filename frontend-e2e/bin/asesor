@@ -64,6 +64,14 @@ OV="$(envget E2E_COGNITO_USER)"; [ -n "$OV" ] && EMAIL="$OV"
 [ -n "$EMAIL" ] && [ -n "$SUB" ] || { echo "✗ sin asesor: definí E2E_ASESOR_SUB en .env.$TARGET o asesor.email/sub en $FLOWS"; exit 1; }
 export E2E_ASESOR_SUB="$SUB"   # lo usa el spec (salto headless a /lenders) para el corporate_user_id del uReq
 HASH="$(fget "merchants.$MERCHANT.branch_hash")"
+# El panel puede pasar una sucursal ELEGIDA en el buscador, que no está quemada en `.flows.json`:
+# ahí el argumento ES el hash de la sucursal. Así se corre contra cualquier comercio de la base.
+# (`case` y no un grep encadenado: bajo `set -e` un `a && b && c` con un eslabón falso es una trampa.)
+if [ -z "$HASH" ]; then
+  case "$MERCHANT" in
+    [0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F]) HASH="$MERCHANT" ;;
+  esac
+fi
 # teléfono de prueba para bypasear el OTP (qa_otp_bypass_phones → OTP = últimos 4)
 BYPASS_PHONE="$(fget otp_bypass_phone)"; [ -n "$BYPASS_PHONE" ] || BYPASS_PHONE="3131010101"
 export E2E_OTP_BYPASS_PHONE="$BYPASS_PHONE"

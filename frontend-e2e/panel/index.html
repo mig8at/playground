@@ -687,6 +687,15 @@
     <section class="card">
       <h2><b>1</b> Comercio de prueba</h2>
       <div class="grid" id="results"></div>
+      <!-- Buscador contra la BD del target. NO reemplaza a los de arriba: esos están curados por lo que
+           EJERCITAN (Motai=renting/RTO, CeluRD=SmartPay/IMEI, Sonría=el listado más rico) y eso es
+           conocimiento que una búsqueda genérica no da. Esto es para el resto del padrón. -->
+      <div style="margin-top:12px">
+        <p class="grouplbl">…o buscá cualquier otro <span id="busclbl" style="font-weight:400;color:var(--mut)"></span></p>
+        <input id="buscom" type="text" placeholder="nombre del comercio (o hash de sucursal)"
+               style="width:100%;padding:8px 10px;border-radius:8px;border:1px solid var(--bd);background:var(--bg2);color:inherit;font-size:13px" />
+        <div id="busres" style="margin-top:8px"></div>
+      </div>
       <div style="margin-top:14px">
         <p class="grouplbl">Lenders de la sucursal <span id="lendersbranch" style="font-weight:400;color:var(--mut)"></span></p>
         <p style="color:var(--mut);font-size:11px;margin:-4px 0 6px">ON/OFF = status <b>global</b> del lender (lo que filtra el listado). Afecta todas las sucursales en local; reversible.</p>
@@ -907,6 +916,63 @@
         g.appendChild(d);
       }
     }
+
+    // ── BUSCADOR contra la BD del target ─────────────────────────────────────────────────────────
+    // Dos pasos A PROPÓSITO: comercio → SUCURSAL. Lo que se lanza es un hash de SUCURSAL, y un comercio
+    // grande tiene varias con configuraciones distintas (entidades, reglas). Resolver "una sucursal
+    // cualquiera" del comercio es exactamente el bug que `dbops branches` vino a tapar: la card mostraba
+    // una sucursal y el flujo corría contra otra.
+    let busTimer = null;
+    const busEstado = (t) => { $('busres').innerHTML = `<p style="color:var(--mut);font-size:12px;margin:0">${t}</p>`; };
+    const fila = (html, onclick, dim) => {
+      const d = document.createElement('div');
+      d.className = 'lrow'; d.style.cursor = 'pointer'; if (dim) d.style.opacity = .55;
+      d.innerHTML = html; d.onclick = onclick; return d;
+    };
+
+    async function buscarComercios(q) {
+      if (!q.trim()) { $('busres').innerHTML = ''; $('busclbl').textContent = ''; return; }
+      busEstado('Buscando…');
+      let rows;
+      try { rows = await (await fetch('/api/merchants?q=' + encodeURIComponent(q) + '&target=' + target)).json(); }
+      catch { return busEstado('✗ error de red'); }
+      if (!Array.isArray(rows) || !rows.length) return busEstado(`sin comercios que matcheen “${q}” en ${target}`);
+      $('busclbl').textContent = `· ${rows.length} en ${target}`;
+      const box = $('busres'); box.innerHTML = '';
+      for (const m of rows.slice(0, 12)) {
+        box.appendChild(fila(`<span class="lnm">${m.name} <span class="lrt">#${m.allied_id}</span></span>`, () => elegirComercio(m)));
+      }
+    }
+
+    async function elegirComercio(m) {
+      busEstado(`Sucursales de ${m.name}…`);
+      let bs;
+      try { bs = await (await fetch('/api/branches-of?allied=' + m.allied_id + '&target=' + target)).json(); }
+      catch { return busEstado('✗ error de red'); }
+      if (!Array.isArray(bs) || !bs.length) return busEstado(`${m.name} no tiene sucursales en ${target}`);
+      const box = $('busres'); box.innerHTML = '';
+      box.appendChild(fila(`<span class="lnm">← ${m.name} · elegí sucursal</span>`, () => buscarComercios($('buscom').value)));
+      for (const b of bs.slice(0, 20)) {
+        const off = Number(b.status) !== 1;
+        box.appendChild(fila(
+          `<span class="lnm">${b.name || '(sin nombre)'} <span class="lrt">${b.hash} · ${b.lenders} entidad(es)${off ? ' · APAGADA' : ''}</span></span>`,
+          () => usarSucursal(m, b), off));
+      }
+    }
+
+    // El "slug" pasa a ser el HASH: `.flows.json` no conoce esta sucursal, y tanto el panel
+    // (`branchHashForSlug`) como `bin/asesor` saben caer a "si parece hash de 8, ES el hash". Así se
+    // prueba cualquier comercio del padrón sin tener que quemarlo antes en el archivo.
+    function usarSucursal(m, b) {
+      sel = { slug: b.hash, name: `${m.name} · ${b.name || b.hash}`, adhoc: true };
+      $('busres').innerHTML = `<p style="font-size:12px;margin:0"><b style="color:var(--ok,#4ade80)">▶ ${sel.name}</b> <span style="color:var(--mut)">${b.hash} · no está en .flows.json</span></p>`;
+      renderMerchants(); refresh(); loadLenders();
+    }
+
+    $('buscom').oninput = (e) => {
+      clearTimeout(busTimer); const v = e.target.value;
+      busTimer = setTimeout(() => buscarComercios(v), 350);   // sin debounce, una consulta por tecla
+    };
 
     // lenders de la sucursal (la que usa el launch) → filas con toggle ON/OFF.
     async function loadLenders() {

@@ -73,8 +73,13 @@ function dbopsJson(args: string[], target: string): Promise<any> {
 function branchHashForSlug(slug: string): string {
     try {
         const j = JSON.parse(readFileSync(join(ROOT, '.flows.json'), 'utf8'));
-        return j?.merchants?.[slug]?.branch_hash || '';
-    } catch { return ''; }
+        const h = j?.merchants?.[slug]?.branch_hash;
+        if (h) return h;
+    } catch { /* sin .flows.json legible → cae al fallback */ }
+    // El buscador deja elegir una sucursal que NO está en `.flows.json`: en ese caso el "slug" ES el
+    // hash. Así el panel corre contra cualquier comercio de la base sin tener que quemarlo antes.
+    const s = slug.trim().toLowerCase();
+    return /^[0-9a-f]{8}$/.test(s) ? s : '';
 }
 
 // lanza `bin/asesor <slug>` en MODO MANUAL (sin `auto` → no auto-rellena; vos manejás desde monto) con
@@ -277,6 +282,16 @@ const server = createServer(async (req, res) => {
         const target = (url.searchParams.get('target') || 'local').trim();
         if (!q) return json(res, 200, []);
         return json(res, 200, await dbopsList(q, target));
+    }
+
+    // sucursales de un comercio → el buscador es en dos pasos (comercio → sucursal) porque el hash que
+    // se lanza es de SUCURSAL, y un comercio grande tiene muchas con configuraciones distintas.
+    if (path === '/api/branches-of') {
+        const allied = (url.searchParams.get('allied') || '').trim();
+        const target = (url.searchParams.get('target') || 'local').trim();
+        if (!allied) return json(res, 200, []);
+        const r = await dbopsJson(['branches-of', allied], target);
+        return json(res, 200, Array.isArray(r) ? r : []);
     }
 
     // lenders de la sucursal (la que usa el launch) → [{id, name, rt, product, branch_status}]

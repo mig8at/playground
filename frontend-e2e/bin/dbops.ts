@@ -128,6 +128,21 @@ try {
                 [a.length ? a : ['']],
             );
             break;
+        case 'branches-of': // TODAS las sucursales de un comercio, para poder elegir contra CUÁL correr sin
+            // depender de que esté quemada en .flows.json. Ordena por status (las activas primero) porque
+            // un comercio grande arrastra sucursales viejas apagadas y no son las que se quieren probar.
+            // → [{id, hash, name, status, lenders}]
+            r = await query(
+                `SELECT ab.id, ab.hash, COALESCE(ab.name,'') AS name, ab.status,
+                        (SELECT COUNT(*) FROM lenders_by_allied_branches x
+                          JOIN lenders l2 ON l2.id = x.lender_id AND l2.status = 1
+                         WHERE x.allied_branch_id = ab.id) AS lenders
+                   FROM allied_branches ab
+                  WHERE ab.allied_id = ?
+                  ORDER BY ab.status DESC, ab.id`,
+                [num(a[0])],
+            );
+            break;
         case 'lender-sort': { // fija el ORDEN de los lenders del comercio (lenders_by_allieds.sort) desde una lista de ids
             // en orden. Es la palanca que respeta orderByGroupProbability DENTRO de cada bucket de probabilidad.
             assertWriteAllowed();
