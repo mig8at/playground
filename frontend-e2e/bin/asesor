@@ -13,9 +13,18 @@ FRONT="${CFE_FRONT:-$HOME/Desktop/CREDITOP/github/frontend-monorepo}"
 WIZARD="$FRONT/apps/loan-request-wizard"
 FLOWS="$E2E/.flows.json"
 TARGET="${CFE_TARGET:-dev}"   # dev por default; CFE_TARGET=local prueba el stack local (sail) sin commitear a dev
-# La URL del front sale de la cadena de env por TARGET (envget), no hardcodeada: `staging` corre contra
-# un frontend REMOTO ya desplegado. Si es remoto no hay wizard local que levantar ni .env que mover.
-WIZ_BASE="$(E2E_TARGET="$TARGET" node "$(dirname "$0")/envget.ts" E2E_BASE_URL "http://localhost:5174" 2>/dev/null)"
+
+# Lee una clave por la CADENA de env del target (process.env > .env.<target> > env/<target>.env > heredado).
+# Reemplaza a los `grep '^CLAVE=' .env.$TARGET`: desde la partición, los HECHOS del entorno (API, BD) viven
+# COMPARTIDOS en `env/<target>.env`, así que greppear solo el archivo propio ya no los encuentra. Y peor:
+# bajo `set -euo pipefail` un grep sin match devuelve 1, pipefail lo propaga y el script MUERE mudo en la
+# asignación (F-59). El `|| true` acá es la red: si la clave no está, la variable queda vacía y decide el
+# fallback de cada caso, no la muerte del script.
+envget() { E2E_TARGET="$TARGET" node "$(dirname "$0")/envget.ts" "$1" "${2:-}" 2>/dev/null || true; }
+
+# La URL del front sale de la cadena de env por TARGET, no hardcodeada: `staging` corre contra un
+# frontend REMOTO ya desplegado. Si es remoto no hay wizard local que levantar ni .env que mover.
+WIZ_BASE="$(envget E2E_BASE_URL "http://localhost:5174")"
 [ -n "$WIZ_BASE" ] || WIZ_BASE="http://localhost:5174"
 REMOTE_FRONT=0
 case "$WIZ_BASE" in http://localhost*|http://127.0.0.1*) ;; *) REMOTE_FRONT=1 ;; esac
@@ -118,18 +127,20 @@ if [ "$REMOTE_FRONT" = 1 ]; then
   esac
 else
 UP=0; curl -s -o /dev/null --max-time 3 http://localhost:5174 2>/dev/null && UP=1
-# VITE_API_URL del wizard: E2E_API_BASE_URL (o E2E_MOCK_URL) de .env.dev, sin /api; fallback al host dev.
-WIZ_API="$(grep -E '^E2E_API_BASE_URL=|^E2E_MOCK_URL=' .env.$TARGET 2>/dev/null | head -1 | sed -E 's/^[^=]*=//; s/[[:space:]]*#.*$//; s/^["'\'']//; s/["'\'']$//' | tr -d '[:space:]')"
+# VITE_API_URL del wizard: E2E_API_BASE_URL de la cadena del target, sin /api; fallback al host dev.
+# E2E_MOCK_URL PISA si está: es el override explícito para apuntar el wizard a un backend mockeado.
+WIZ_API="$(envget E2E_MOCK_URL)"; [ -n "$WIZ_API" ] || WIZ_API="$(envget E2E_API_BASE_URL)"
 WIZ_API="${WIZ_API%/api}"; WIZ_API="${WIZ_API%/}"; [ -n "$WIZ_API" ] || WIZ_API="http://legacy-backend.inertia-develop"
 # VITE_ONBOARDING_FORM_SERVICE (flujo dinámico): del .env del wizard, fallback a dev. Se pasa explícito porque
 # el .env.local trae un valor FAKE que Vite hot-reloadea → 404 del schema.
-FORMS="$(grep -E '^VITE_ONBOARDING_FORM_SERVICE=' "$WIZARD/.env" 2>/dev/null | head -1 | sed -E 's/^[^=]*=//; s/[[:space:]]*#.*$//; s/^["'\'']//; s/["'\'']$//' | tr -d '[:space:]')"
+# (este SÍ es un grep: lee el `.env` del wizard, que es otro repo y no está en la cadena. `|| true` por F-59.)
+FORMS="$( { grep -E '^VITE_ONBOARDING_FORM_SERVICE=' "$WIZARD/.env" 2>/dev/null || true; } | head -1 | sed -E 's/^[^=]*=//; s/[[:space:]]*#.*$//; s/^["'\'']//; s/["'\'']$//' | tr -d '[:space:]')"
 [ -n "$FORMS" ] || FORMS="http://onboarding-forms-service.inertia-develop:8092/v1"
 # En LOCAL el host de dev necesita VPN → usamos el mock (bin/mock-forms). Ver findings F-41.
 [ "$TARGET" = "local" ] && FORMS="http://localhost:${MOCK_FORMS_PORT:-8101}/v1"
 # VITE_PREAPPROVALS_ENDPOINT: MS de pre-aprobaciones (rt≠STANDARD; el loader de /lenders hace POST server-to-server).
 if [ "${E2E_REAL_PREAPPROVALS:-0}" = 1 ]; then
-  PREAPPROVALS="$(grep -E '^E2E_PREAPPROVALS_ENDPOINT=' .env.$TARGET 2>/dev/null | head -1 | sed -E 's/^[^=]*=//; s/[[:space:]]*#.*$//; s/^["'\'']//; s/["'\'']$//' | tr -d '[:space:]')"
+  PREAPPROVALS="$(envget E2E_PREAPPROVALS_ENDPOINT)"
   [ -n "$PREAPPROVALS" ] || PREAPPROVALS="http://pre-approvals-service.inertia-develop:8082/v1/preapprovals/check"
   log "pre-aprobaciones REALES (MS dev, lento) [E2E_REAL_PREAPPROVALS=1]"
 else

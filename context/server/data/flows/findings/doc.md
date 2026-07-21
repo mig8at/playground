@@ -972,3 +972,40 @@ Y el rechazo viaja en 200 (`FlowSignatureService::getHttpCode`): `URV13000`→20
 **Arreglo (pendiente).** Que `signFlow` exija `code === 'URV13000'` y devuelva `errAsync` si no, para caer en el `captureServerException` ya existente. No cambia el comportamiento del usuario (la firma es best-effort a propósito: si falla, sigue el flujo estándar); solo hace que la falla **deje rastro**.
 
 **Estado.** Detectado el 2026-07-21 con la rama ya **mergeada** (front `784585fe` + back `a603a5cd`), por eso no se corrigió en el momento. Detalle completo en el nodo `confirmacion-de-cupo`.
+
+### F-59 · `bin/asesor` moría mudo en el paso `frontend` porque un `grep` sin match mata al script
+
+**Síntoma.** Contra `dev` la corrida imprimía `○ frontend …` y terminaba con `code 1` **sin una sola línea más**: ni error, ni el `ok` del paso, ni el chequeo de backend. Parecía "el wizard no levantó", y ahí se pierde el tiempo (se descartó primero que `:5174` estuviera caído y que `set -e` matara el `curl && UP=1`; ninguna de las dos era).
+
+**Causa raíz verificada.** `bin/asesor` resolvía la URL del backend con `WIZ_API="$(grep -E '^E2E_API_BASE_URL=|^E2E_MOCK_URL=' .env.$TARGET | head -1 | sed … | tr …)"`. Con la **partición de variables**, `E2E_API_BASE_URL` dejó de estar en `frontend-e2e/.env.dev` y pasó al compartido `env/dev.env` — el archivo que el `grep` mira ya no tiene la clave. Un `grep` sin match devuelve **1**, `pipefail` lo propaga al pipeline, y bajo `set -e` la **asignación** aborta el script. El `2>/dev/null` no protege: silencia stderr, no el exit code. Por eso muere justo ahí y en silencio.
+
+Ojo con la trampa de reproducirlo: en **zsh** (la shell interactiva) `ERR_EXIT` no aplica a las asignaciones, así que el mismo pipeline "sobrevive" y parece descartado. El shebang es `bash`; hay que reproducir con `bash -c`.
+
+**Arreglo (aplicado).** Un helper `envget()` en `bin/asesor` que delega en `bin/envget.ts` — la cadena real (`process.env` > `.env.<target>` > `env/<target>.env` > heredado), con `|| true` para que una clave ausente deje la variable vacía y decida el fallback de cada caso, no la muerte del script. Se convirtieron las tres lecturas (`E2E_API_BASE_URL`/`E2E_MOCK_URL`, `E2E_PREAPPROVALS_ENDPOINT`, y `WIZ_BASE`). La cuarta (`VITE_ONBOARDING_FORM_SERVICE`) sigue siendo `grep` porque lee el `.env` del **wizard**, que es otro repo y no está en la cadena — pero con `{ grep … || true; }`.
+
+**Regla que deja.** Cualquier `VAR="$(grep … )"` bajo `set -euo pipefail` es una bomba de tiempo: el día que la clave se mueve, el script no falla — **desaparece**.
+
+### F-60 · Sonría no sirve para probar la omisión de Experian: el throttle corta antes que el flujo
+
+**Síntoma.** Se preparó la prueba de "Confirmación de cupo" (omitir Experian con `flow_id=2`) contra **Sonría** en dev. Habría dado **verde por la razón equivocada**.
+
+**Causa raíz verificada.** En el flujo clásico la compuerta es `Modules/Risk/…/DatacreditoQueryByAlliedController::validateDatacreditoQuery`, y el corte por flujo vive **adentro** de `app/Actions/RiskCentrals/Experian.php` (líneas 947/1037/1126, las tres variaciones). O sea: **el throttle se evalúa primero y, si corta, `Experian.php` ni se invoca** — el corte por `flow_id` nunca se ejerce.
+
+La compuerta tiene dos ramas sobre `datacredito_frequencies`:
+
+- `frequency IS NULL` → "consultar siempre": llama a Experian **en toda corrida** y luego incrementa el contador.
+- `frequency` no nula → throttle: incrementa el contador **siempre** y consulta solo si `count % every == 0`.
+
+Estado en dev (2026-07-21) y evidencia en la tabla `logs` (`controller = 'DatacreditoQueryByAlliedController'`, que persiste el veredicto con su `reason`):
+
+| aliado | `frequency` | `every` | qué pasa |
+|---|---|---|---|
+| **26 Sonría** | 1 | 100.000.000 | `EXPERIAN_NOT_TRIGGERED · frequency_count_not_matched` — nunca consulta |
+| **94 Amoblando Pullman** | 1 | 1 | `frequency_count_matched` — consulta siempre |
+| **91 Mediarte** | **NULL** | 1 | `frequency_null_always_fires` — consulta siempre |
+
+**Cómo probarlo bien.** Usar **Mediarte** (aliado 91, sucursal 375 `5da24bb1`, dado de alta en `.flows.json`): es el único que junta las dos condiciones — la compuerta siempre llega a `Experian.php`, y ahí ya se logró `flow_id=2` (solicitud `464334`, 16-jul). La prueba es concluyente cuando, para la misma solicitud, `logs` registra `EXPERIAN_TRIGGERED / frequency_null_always_fires` (⇒ la compuerta pasó) y **no** aparece fila nueva en `risk_central_user_data`.
+
+**El confusor que hay que descartar.** `Experian::performRequest` cachea **1 mes** por `user_id` + `risk_central_id` (`Experian.php:251-254`). Con el usuario 1827671 la última fila Acierta (`risk_central_id = 1`) es del 17-jul 17:26, así que hasta el 17-ago "no hay fila nueva" **no prueba nada** — se explica por caché. Hay que correr con un usuario cuya caché esté fría.
+
+**Y el contador NO es discriminante** (corrige una hipótesis previa): `$datacreditoQuery->increment('count')` corre en las **dos** ramas, incluso cuando `Experian.php` devolvió `null` por el flujo. Lo que discrimina es la fila en `risk_central_user_data`, no el contador.
