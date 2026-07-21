@@ -1060,6 +1060,13 @@
     // el comercio TIENE (mirando el rt de sus lenders), así el mapa habla de ESTE comercio y no del
     // universo. El hover muestra los archivos que el paso toca de verdad — la definición está en
     // panel/steps.json y bin/steps-check.ts verifica que cada ruta exista.
+    //
+    // INVARIANTE: el mapa depende del COMERCIO, no del ambiente. El mismo comercio dibuja el mismo
+    // recorrido en local, dev y staging, porque describe la lógica de CreditOp y no el estado de una
+    // base. Lo que sí varía entre ambientes —qué entidades están prendidas— se anota (nombre
+    // "(apagado)" y carril atenuado) sin alterar la forma. Si al tocar esto el diagrama vuelve a
+    // cambiar de forma según el target, es un bug: revisá que nada filtre por `lender_status` ni use
+    // la identidad del lender como clave de carril.
     let STEPS = null;
 
     async function loadSteps() {
@@ -1123,11 +1130,27 @@
       if (!STEPS || !sel || !STEPS.tronco?.length || !cam) { if (box) box.style.display = 'none'; return; }
       box.style.display = 'block';
       const ch = STEPS.chequeo || {};
-      $('trenwarn').textContent = ch.ok === false ? `· ⚠ ${(ch.rotas || []).length} ruta(s) del mapa ya no existen` : '';
 
-      const on = lendersDelComercio.filter((l) => Number(l.lender_status) === 1);
+      // El recorrido describe la LÓGICA de CreditOp para este comercio, así que NO se filtra por
+      // `lender_status`: prender o apagar una entidad en dev no cambia POR DÓNDE pasa el flujo, solo
+      // si esa entidad hoy lista. Ese estado se muestra como anotación (y el carril atenuado), no como
+      // una diferencia estructural — antes el mismo comercio dibujaba mapas distintos según el
+      // ambiente y parecía que la lógica cambiaba.
+      const todos = lendersDelComercio;
+      const apagado = (l) => Number(l.lender_status) !== 1;
+      const nombra = (l) => l.name + (apagado(l) ? ' (apagado)' : '');
       const cumpleL = (l, req) => !req || Object.entries(req).every(([k, v]) =>
         Array.isArray(v) ? v.map(String).includes(String(l[k])) : String(l[k]) === String(v));
+
+      // Lo que el mapa NO puede dibujar hay que DECIRLO. Un recorrido vacío o achatado, sin aviso, se
+      // lee como "este comercio no tiene esos flujos" cuando en realidad faltó el dato — y ahí es donde
+      // el mismo comercio parece cambiar de lógica según el ambiente.
+      const avisos = [];
+      if (ch.ok === false) avisos.push(`⚠ ${(ch.rotas || []).length} ruta(s) del mapa ya no existen`);
+      if (!todos.length) avisos.push('⚠ sin entidades para esta sucursal en este ambiente — el mapa queda en el tronco');
+      else if (todos.some((l) => l.product == null))
+        avisos.push('⚠ este ambiente no expone `lenders.product` → los CreditopX van en UN carril (no se pueden separar por producto)');
+      $('trenwarn').textContent = avisos.length ? '· ' + avisos.join(' · ') : '';
 
       cam.innerHTML = '';
       const rieles = el('g', {}), nodos = el('g', {});
@@ -1152,43 +1175,64 @@
       }
 
       // ── UN CARRIL POR CAMINO REAL ────────────────────────────────────────────────────────────────
-      // Cada lender de la familia CreditopX (rt 2/3/4) tiene el SUYO: aunque compartan las pantallas,
-      // son productos distintos con recorridos distintos (renting mete Ábaco, rt4 sigue con la
-      // radicación). Meterlos en una sola línea mezclaba justamente lo que hay que distinguir.
-      // rt1 y rt0 sí se agrupan: ahí el recorrido no depende del lender.
+      // UN CARRIL POR RECORRIDO, no por entidad. Dos entidades del mismo producto recorren exactamente
+      // las mismas pantallas — es la misma razón por la que el COLOR va por producto y no por lender.
+      // Dibujar uno por entidad ataba el diagrama al padrón de cada ambiente (en dev hay entidades que
+      // en local no existen), así que el mapa cambiaba de forma sin que la lógica cambiara.
+      //
+      // La clave del grupo es el recorrido COMPLETO: rt + producto + qué desvíos y extensiones toma.
+      // Si dos entidades difieren en un desvío, recorren distinto y les toca carril propio — que es lo
+      // que la versión por-entidad quería preservar, pero sin arrastrar la identidad del lender.
       const carriles = [];
-      const enCx = on.filter((l) => [2, 3, 4].includes(Number(l.rt)));
-      for (const l of enCx) {
+      const grupos = new Map();
+      for (const l of todos.filter((l) => [2, 3, 4].includes(Number(l.rt)))) {
+        const desvios = Object.entries(STEPS.desvios || {}).filter(([, d]) => cumpleL(l, d.requiere));
+        const exts = Object.entries(STEPS.extensiones || {}).filter(([, e]) => cumpleL(l, e.requiere));
+        const clave = [l.rt, l.product, ...desvios.map(([k]) => 'd:' + k), ...exts.map(([k]) => 'e:' + k)].join('|');
+        if (!grupos.has(clave)) grupos.set(clave, { rt: Number(l.rt), product: l.product, desvios, exts, miembros: [] });
+        grupos.get(clave).miembros.push(l);
+      }
+      // orden estable (rt, producto): sin esto los carriles se reordenan según el orden que devuelva la
+      // base de cada ambiente, que es otra forma de que el mismo comercio se vea distinto.
+      for (const g of [...grupos.values()].sort((a, b) => a.rt - b.rt || String(a.product).localeCompare(String(b.product)))) {
         const pasos = [...(STEPS.ramales.creditopx?.pasos || [])];
-        // insertar los desvíos que ESTE lender toma, en su lugar
-        for (const [, d] of Object.entries(STEPS.desvios || {})) {
-          if (!cumpleL(l, d.requiere)) continue;
+        for (const [, d] of g.desvios) {                       // desvíos: salen y REINGRESAN al tronco
           const at = pasos.findIndex((p) => p.id === d.desde);
           if (at >= 0) pasos.splice(at + 1, 0, ...d.pasos.map((p) => ({ ...p, _desvio: d.label })));
         }
-        // y las extensiones que continúan después del final
-        for (const [, e] of Object.entries(STEPS.extensiones || {})) {
-          if (cumpleL(l, e.requiere)) pasos.push(...e.pasos.map((p) => ({ ...p, _ext: e.label })));
-        }
-        carriles.push({ label: l.name, sub: `rt${l.rt} · ${l.product}`, color: COLOR[l.product] || COLOR['rt' + l.rt] || COLOR.creditopx, pasos });
+        for (const [, e] of g.exts) pasos.push(...e.pasos.map((p) => ({ ...p, _ext: e.label })));
+        carriles.push({
+          label: g.product || `rt${g.rt}`,
+          sub: `rt${g.rt} · ${g.miembros.map(nombra).join(' · ')}`,
+          color: COLOR[g.product] || COLOR['rt' + g.rt] || COLOR.creditopx,
+          off: g.miembros.every(apagado),
+          pasos,
+        });
       }
       for (const [rid, rt] of [['agregador', 1], ['redirect', 0]]) {
-        const g = on.filter((l) => Number(l.rt) === rt);
+        const g = todos.filter((l) => Number(l.rt) === rt);
         if (!g.length || !STEPS.ramales?.[rid]) continue;
-        carriles.push({ label: STEPS.ramales[rid].label, sub: g.map((l) => l.name).join(' · '),
-          color: COLOR[rid], pasos: STEPS.ramales[rid].pasos });
+        carriles.push({ label: STEPS.ramales[rid].label, sub: g.map(nombra).join(' · '),
+          color: COLOR[rid], off: g.every(apagado), pasos: STEPS.ramales[rid].pasos });
       }
 
       const aOferta = idxT['lenders'] ?? (T.length - 1);
       let maxX = X(T.length - 1), maxY = Y0;
       carriles.forEach((c, i) => {
         const y = Y0 + (i + 1) * G.fila, xs = c.pasos.map((_, j) => X(aOferta + 1 + j));
-        rieles.appendChild(riel(curva(X(aOferta), Y0, xs[0], y), c.color));
-        if (xs.length > 1) rieles.appendChild(riel(`M ${xs[0]} ${y} L ${xs[xs.length - 1]} ${y}`, c.color));
-        c.pasos.forEach((p, j) => nodos.appendChild(nodoSVG(p, xs[j], y, p._ext ? '#c084fc' : c.color)));
+        // Un grupo por carril: si en ESTE ambiente todas sus entidades están apagadas, el carril se
+        // atenúa. El recorrido sigue dibujado —la lógica no cambió— pero se ve que hoy no lista.
+        const gR = el('g', c.off ? { opacity: .35 } : {}), gN = el('g', c.off ? { opacity: .35 } : {});
+        rieles.appendChild(gR); nodos.appendChild(gN);
+        gR.appendChild(riel(curva(X(aOferta), Y0, xs[0], y), c.color));
+        if (xs.length > 1) gR.appendChild(riel(`M ${xs[0]} ${y} L ${xs[xs.length - 1]} ${y}`, c.color));
+        c.pasos.forEach((p, j) => gN.appendChild(nodoSVG(p, xs[j], y, p._ext ? '#c084fc' : c.color)));
         const t = el('text', { class: 'nram', x: xs[0], y: y - 26, fill: c.color }, corto(c.label, 22));
-        nodos.appendChild(t);
-        nodos.appendChild(el('text', { class: 'nquien', x: xs[0], y: y - 13 }, corto(c.sub, 30)));
+        t.appendChild(el('title', {}, `${c.label}\n${c.sub}${c.off ? '\n\n(todas apagadas en este ambiente: no va a listar)' : ''}`));
+        gN.appendChild(t);
+        const s = el('text', { class: 'nquien', x: xs[0], y: y - 13 }, corto(c.sub, 46));
+        s.appendChild(el('title', {}, c.sub));   // el sub se trunca: el nombre completo va en el hover
+        gN.appendChild(s);
         maxX = Math.max(maxX, xs[xs.length - 1]); maxY = Math.max(maxY, y + 46);
       });
 

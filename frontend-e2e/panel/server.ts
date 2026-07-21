@@ -285,8 +285,15 @@ const server = createServer(async (req, res) => {
         const target = (url.searchParams.get('target') || 'local').trim();
         const hash = branchHashForSlug(slug);
         if (!hash) return json(res, 200, { hash: '', lenders: [], msg: `sin branch_hash en .flows.json para '${slug}'` });
-        const lenders = await dbopsJson(['lenders-for', hash], target);
-        return json(res, 200, { hash, lenders: Array.isArray(lenders) ? lenders : [] });
+        const r = await dbopsJson(['lenders-for', hash], target);
+        // Si la consulta falla, `dbops` devuelve {error}. Antes se normalizaba a [] y el panel dibujaba
+        // el recorrido VACÍO, indistinguible de "este comercio no tiene entidades" — así se escondió
+        // durante días que contra dev la query moría por una columna ausente (F-64). El error se pasa.
+        if (!Array.isArray(r)) {
+            const msg = r && typeof r === 'object' && 'error' in r ? String((r as any).error) : 'no devolvió una lista';
+            return json(res, 200, { hash, lenders: [], msg: `✗ la consulta de entidades falló: ${msg}` });
+        }
+        return json(res, 200, { hash, lenders: r });
     }
 
     // prende/apaga un lender en la sucursal (lenders_by_allied_branches.status)

@@ -72,8 +72,22 @@ y backend; el visual valida el camino real del usuario, que también tiene lógi
 
 Canvas SVG **vertical** y arrastrable (drag · rueda = zoom · doble clic = encuadrar), estilo grafo de
 git: tronco común hasta `/lenders` y de ahí un carril por `response_type`. Dibuja **solo los carriles
-que ese comercio tiene y con entidades PRENDIDAS** (mira `rt` + `lender_status`). El hover de cada nodo
-lista los archivos del paso.
+que ese comercio tiene** (mira el `rt` y el `product` de sus entidades). El hover de cada nodo lista
+los archivos del paso.
+
+**INVARIANTE: el mapa depende del COMERCIO, no del ambiente.** Describe la lógica de CreditOp, así que
+el mismo comercio dibuja el mismo recorrido en local, dev y staging. Dos reglas lo sostienen, y si las
+rompés el diagrama vuelve a cambiar de forma según el target (F-64):
+
+- **No filtres por `lender_status`.** Prender o apagar una entidad no cambia POR DÓNDE pasa el flujo,
+  solo si hoy lista. Eso se anota (`(apagado)` + carril atenuado), no se borra.
+- **Un carril por RECORRIDO, no por entidad.** La clave es `rt + product + desvíos + extensiones`: dos
+  entidades del mismo producto recorren lo mismo (es la misma razón por la que el color va por
+  producto). Usar la identidad del lender ata el dibujo al padrón de cada base.
+
+Y lo que el mapa **no puede** dibujar hay que decirlo en `#trenwarn`: sin entidades, o sin la columna
+`lenders.product` (dev todavía no la tiene), un recorrido vacío o achatado se lee como "este comercio
+no tiene esos flujos" cuando en realidad faltó el dato.
 
 **Por qué vertical y no horizontal** (ya se probó y se revirtió): en horizontal la bifurcación cae al
 final del tronco y los carriles arrancan al principio, así que la curva de unión vuelve cruzando todo el

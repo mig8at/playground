@@ -62,8 +62,16 @@ try {
             // `lender_status` = lenders.status (GLOBAL) → ES el que corta la visibilidad del listado
             // (getLenders: Lender::where('status',1)). `branch_status` = lenders_by_allied_branches.status,
             // que el listado NO respeta (resolveLenderIdsByBranch pluckea por branch sin filtrar lab.status) → informativo.
+            // `lenders.product` NO existe en todos los ambientes: la agrega una migración que hoy solo
+            // está aplicada en local. `COALESCE` no salva eso —maneja NULL, no una columna ausente— así
+            // que contra dev la consulta ENTERA moría con "Unknown column 'l.product'" y el panel, que se
+            // comía el error, dibujaba el recorrido vacío como si el comercio no tuviera flujos (F-64).
+            // Se degrada a `product = NULL`, que el panel sabe leer (agrupa por rt y lo avisa).
+            {
+            const hayProduct = (await query(`SHOW COLUMNS FROM lenders LIKE 'product'`)).length > 0;
+            const productoExpr = hayProduct ? `COALESCE(l.product,'credit')` : `NULL`;
             r = await query(
-                `SELECT l.id, COALESCE(l.name,'') AS name, l.response_type AS rt, COALESCE(l.product,'credit') AS product, COALESCE(p.name,'default') AS path, l.status AS lender_status, lab.status AS branch_status, COALESCE(la.sort, 9999) AS allied_sort
+                `SELECT l.id, COALESCE(l.name,'') AS name, l.response_type AS rt, ${productoExpr} AS product, COALESCE(p.name,'default') AS path, l.status AS lender_status, lab.status AS branch_status, COALESCE(la.sort, 9999) AS allied_sort
                  FROM allied_branches ab
                  JOIN lenders_by_allied_branches lab ON lab.allied_branch_id = ab.id
                  JOIN lenders l ON l.id = lab.lender_id
@@ -73,6 +81,7 @@ try {
                  ORDER BY COALESCE(la.sort, 9999), l.response_type, l.name`,
                 [a[0] ?? ''],
             );
+            }
             break;
         case 'cryptocheck': { // ¿el APP_KEY es el de ESTE target? Recomputa el HMAC de una fila Experian
             // REAL y lo compara con el `mac` guardado. Rescatado de backend-mcp antes de borrarlo.

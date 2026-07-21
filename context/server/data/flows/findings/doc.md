@@ -1095,3 +1095,32 @@ O sea: esa central **no participa de la medición**, no es que falle.
 Firma `URV13000`, `flow_id` 1 → 2. **Lo único que cambió entre ambas mediciones fue la firma** ⇒ la omisión de la tarea funciona.
 
 **Cierra F-62:** el PR #988 se mergeó (`91aaad3b`) y se desplegó. La huella del build viejo era `URV13005` al firmar en estado 9; con el nuevo, `URV13000`.
+
+### F-64 · El "Recorrido del wizard" cambiaba de forma según el ambiente — y contra dev salía vacío por un error que el panel se comía
+
+**Síntoma.** El mismo comercio dibujaba mapas distintos en `local` y en `dev`, como si la lógica del flujo dependiera del entorno. Contra dev el recorrido salía **directamente vacío** (solo el tronco), sin ningún error a la vista.
+
+**Causa raíz verificada — son tres cosas encadenadas, no una:**
+
+1. **La consulta moría en dev.** `dbops lenders-for` seleccionaba `COALESCE(l.product,'credit')`, pero **`lenders.product` no existe en dev** (la agrega una migración hoy aplicada solo en local). `COALESCE` no salva eso: maneja NULL, no una **columna ausente** — la consulta entera revienta con `Unknown column 'l.product' in 'field list'`.
+2. **El panel se comía el error.** `/api/lenders` hacía `Array.isArray(lenders) ? lenders : []`, así que un `{error: …}` se normalizaba a lista vacía. El resultado era indistinguible de "este comercio no tiene entidades", y por eso el bug sobrevivió: **no fallaba, desaparecía**.
+3. **El dibujo dependía de datos volátiles del ambiente.** Filtraba por `lender_status === 1` (un interruptor propio de cada base) y creaba **un carril por entidad** para la familia CreditopX — o sea que el padrón de cada ambiente cambiaba la cantidad de carriles. Incoherente además con el propio archivo, donde el **color** ya iba por producto con el comentario *"dos lenders del mismo producto recorren lo mismo"*.
+
+**Arreglo (aplicado).**
+
+- `bin/dbops.ts` — detecta la columna (`SHOW COLUMNS FROM lenders LIKE 'product'`) y degrada a `NULL` si no está, en vez de tumbar la consulta.
+- `panel/server.ts` — el `{error}` viaja al cliente como `msg` en vez de convertirse en `[]`.
+- `panel/index.html` — **un carril por RECORRIDO**, con clave `rt + product + desvíos + extensiones`, y **sin** filtrar por `lender_status`: lo apagado se anota (`(apagado)` + carril con `opacity .35`) y el orden es estable (rt, producto). Además `#trenwarn` avisa lo que no se pudo dibujar: sin entidades, o sin `product`.
+
+**Verificado en el panel** (mismo comercio, Motai):
+
+| | entidades | carriles |
+|---|---|---|
+| `local` | 5 | `credit·8 \| renting·10 \| rto·10 \| Agregador·3 \| Estándar·1` |
+| `dev` | 4 | `rt2·8 \| Agregador·3 \| Estándar·1` + aviso explícito |
+
+Y con datos simulados de "otro ambiente" sobre el mismo comercio —orden invertido, una entidad apagada y una entidad **extra** que repite un producto— la firma estructural da **idéntica**. Antes, ese mismo caso agregaba un carril y borraba otro.
+
+**Lo que queda como diferencia legítima:** dev no tiene la columna `product`, así que ahí los CreditopX no se pueden separar por producto y van en un carril. No se disimula — se avisa. La diferencia es de **datos**, y el panel ahora lo dice en vez de cambiar de forma en silencio.
+
+**Regla que deja.** Un diagrama que se arma con datos del ambiente tiene que separar **estructura** (la lógica, estable) de **estado** (qué está prendido hoy, variable). Mezclarlos convierte una diferencia de configuración en una aparente diferencia de comportamiento — y eso manda a depurar el lugar equivocado. Vale para este mapa y para cualquier visualización del playground.
