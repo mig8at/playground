@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"sort"
 	"strings"
+	"time"
 )
 
 // Sprint es un sprint de un board (API Agile / Jira Software).
@@ -93,12 +94,13 @@ func (c *Client) RecentSprints(ctx context.Context, boardID, n int) ([]Sprint, e
 
 // DefaultSprint elige qué sprint mostrar al abrir, sin asumir que hay uno activo. Prioridad:
 //  1. el ACTIVO, si existe (el caso normal);
-//  2. si no hay activo (board entre sprints, como CORE hoy), el ÚLTIMO CERRADO — este es un tablero de
-//     registro de tiempo, así que lo útil al abrir es el sprint donde HUBO trabajo, no un próximo vacío;
-//  3. si no hay cerrados (board recién creado), el próximo a arrancar.
+//  2. el que CONTIENE HOY por fechas — aunque Jira lo tenga en `future` porque nadie le dio "start".
+//     Ese es el sprint en el que estás trabajando de verdad, y es donde caen las tareas nuevas;
+//  3. el último CERRADO (board entre sprints, sin uno vigente);
+//  4. el más reciente que quede.
 //
-// El próximo sprint queda igual en el selector (RecentSprints lo incluye), a un clic. No usa ActiveSprint
-// a secas: ese devuelve error cuando no hay activo, y "entre sprints" es un estado válido, no una falla.
+// La regla 2 existe por CORE: el Sprint 8 arrancaba hoy pero seguía `future`, así que el tablero abría en
+// el 7 y la tarea recién creada no se veía. "Sin iniciar en Jira" no significa "no es el actual".
 func (c *Client) DefaultSprint(ctx context.Context, boardID int) (*Sprint, error) {
 	todos, err := c.allSprints(ctx, boardID)
 	if err != nil {
@@ -109,12 +111,19 @@ func (c *Client) DefaultSprint(ctx context.Context, boardID int) (*Sprint, error
 			return &todos[i], nil
 		}
 	}
-	for i := range todos { // 2. el último cerrado (todos vienen ordenados desc por fecha)
+	hoy := time.Now().Format("2006-01-02")
+	for i := range todos { // 2. el que contiene hoy (comparación por día, iso ordena lexicográfico)
+		s, e := todos[i].StartDate, todos[i].EndDate
+		if len(s) >= 10 && len(e) >= 10 && s[:10] <= hoy && hoy <= e[:10] {
+			return &todos[i], nil
+		}
+	}
+	for i := range todos { // 3. el último cerrado (todos vienen ordenados desc por fecha)
 		if todos[i].State == "closed" {
 			return &todos[i], nil
 		}
 	}
-	return &todos[0], nil // 3. no hay cerrados: el más reciente (un future)
+	return &todos[0], nil // 4. lo que quede
 }
 
 // SprintByID trae un sprint puntual. (GET /rest/agile/1.0/sprint/{id})
@@ -138,6 +147,7 @@ type SprintIssue struct {
 	Key            string
 	Summary        string
 	Description    string // lo que HOY dice Jira (aplanado a texto)
+	Created        string // cuándo se creó (para ordenar nuevo → viejo)
 	Status         string
 	StatusCategory string // "new" (por hacer) | "indeterminate" (en curso) | "done"
 	Points         float64
@@ -194,6 +204,7 @@ type sprintIssuesResp struct {
 		Fields struct {
 			Summary     string          `json:"summary"`
 			Description json.RawMessage `json:"description"`
+			Created     string          `json:"created"`
 			Status      struct {
 				Name           string `json:"name"`
 				StatusCategory struct {
@@ -213,7 +224,7 @@ type sprintIssuesResp struct {
 // (GET /rest/agile/1.0/sprint/{id}/issue con jql assignee = currentUser()).
 func (c *Client) MySprintIssues(ctx context.Context, sprintID int) ([]SprintIssue, error) {
 	path := fmt.Sprintf(
-		"/rest/agile/1.0/sprint/%d/issue?jql=%s&fields=summary,description,status,timetracking,customfield_10036&maxResults=100",
+		"/rest/agile/1.0/sprint/%d/issue?jql=%s&fields=summary,description,created,status,timetracking,customfield_10036&maxResults=100",
 		sprintID, url.QueryEscape("assignee = currentUser()"),
 	)
 
@@ -229,6 +240,7 @@ func (c *Client) MySprintIssues(ctx context.Context, sprintID int) ([]SprintIssu
 			Key:            it.Key,
 			Summary:        f.Summary,
 			Description:    adfText(f.Description),
+			Created:        f.Created,
 			Status:         f.Status.Name,
 			StatusCategory: f.Status.StatusCategory.Key,
 			EstimateSecs:   f.TimeTracking.OriginalEstimateSeconds,
@@ -240,5 +252,8 @@ func (c *Client) MySprintIssues(ctx context.Context, sprintID int) ([]SprintIssu
 		}
 		out = append(out, si)
 	}
+	// La Agile API devuelve las tareas en el orden del backlog, que no dice nada útil acá. Ordenamos
+	// por fecha de creación DESC: lo último que entró al sprint es lo que estás mirando hoy.
+	sort.Slice(out, func(i, j int) bool { return out[i].Created > out[j].Created })
 	return out, nil
 }

@@ -81,14 +81,21 @@ async function loadTaskLocals() {
 // listado agrupado por esfuerzo; las sin asignar van al final. El encabezado del grupo solo aparece si
 // hay al menos un esfuerzo en juego (si no, el listado va plano como antes).
 const groupedIssues = computed(() => {
+  // `issues` ya viene ordenado nuevo → viejo desde el server; acá se PRESERVA ese orden en los dos
+  // niveles: dentro de cada grupo, y entre grupos (manda el grupo cuya tarea más nueva aparece antes).
+  // Las sin esfuerzo van al final, para que lo agrupado se lea primero.
   const byEffort = new Map();
+  const orden = [];
   for (const i of issues.value) {
     const eid = taskLocals.value[i.Key]?.effortId || 0;
-    if (!byEffort.has(eid)) byEffort.set(eid, []);
+    if (!byEffort.has(eid)) { byEffort.set(eid, []); if (eid) orden.push(eid); }
     byEffort.get(eid).push(i);
   }
-  const groups = [];
-  for (const e of efforts.value) if (byEffort.has(e.id)) groups.push({ id: e.id, title: e.title, tasks: byEffort.get(e.id) });
+  const groups = orden.map(eid => ({
+    id: eid,
+    title: efforts.value.find(e => e.id === eid)?.title || 'Esfuerzo',
+    tasks: byEffort.get(eid),
+  }));
   if (byEffort.has(0)) groups.push({ id: 0, title: 'Sin esfuerzo', tasks: byEffort.get(0) });
   return groups;
 });
@@ -118,7 +125,9 @@ const sprintDays = computed(() => {
   if (!s?.endDate) return null;
   const end = new Date(s.endDate), start = new Date(s.startDate), now = new Date();
   const d = (a, b) => Math.round((a - b) / 86400000);
-  if (s.state === 'future' || now < start) return { state: 'upcoming', startsIn: d(start, now) };
+  // manda la FECHA, no la etiqueta de Jira: un sprint sin "start" sigue en `future` aunque su ventana ya
+  // haya arrancado, y decir "arranca en 0 días" sobre el sprint en el que estás trabajando es absurdo.
+  if (now < start) return { state: 'upcoming', startsIn: d(start, now) };
   if (now > end) return { state: 'closed', endedAgo: d(now, end) };
   return { state: 'ongoing', remaining: d(end, now) };
 });
