@@ -110,6 +110,54 @@ async function saveOverlay() {
 // al cambiar de tarea activa, traemos SU capa local
 watch(() => active.value?.Key, (key) => { if (key) loadOverlay(key); }, { immediate: true });
 
+// ── esfuerzos: el trabajo real privado que agrupa varias tareas de Jira ────────────────────────────
+const efforts = ref([]);
+const taskLocals = ref({});       // mapa clave → capa local, para agrupar el listado
+const creatingEffort = ref(false);
+const newEffortTitle = ref('');
+
+async function loadEfforts() {
+  try { const j = await (await fetch(`${SERVER}/api/efforts`)).json(); if (!j.error) efforts.value = j.efforts || []; }
+  catch { /* sin esfuerzos: el listado va plano */ }
+}
+async function loadTaskLocals() {
+  try { const j = await (await fetch(`${SERVER}/api/task-locals`)).json(); if (!j.error) taskLocals.value = j.taskLocals || {}; }
+  catch { /* sin capas: todo cae en "sin esfuerzo" */ }
+}
+// asignar la tarea activa a un esfuerzo = guardar su capa + refrescar el mapa para que el grupo se mueva
+async function assignEffort() { await saveOverlay(); await loadTaskLocals(); }
+async function addEffort() {
+  const title = newEffortTitle.value.trim();
+  if (!title) return;
+  try {
+    const j = await (await fetch(`${SERVER}/api/efforts`, {
+      method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ title }),
+    })).json();
+    if (j.effort) {
+      efforts.value = [j.effort, ...efforts.value];
+      overlay.value.effortId = j.effort.id;        // la tarea activa cae en el esfuerzo recién creado
+      creatingEffort.value = false; newEffortTitle.value = '';
+      await assignEffort();
+    }
+  } catch { /* offline */ }
+}
+
+// listado agrupado por esfuerzo; las sin asignar van al final. El encabezado del grupo solo aparece si
+// hay al menos un esfuerzo en juego (si no, el listado va plano como antes).
+const groupedIssues = computed(() => {
+  const byEffort = new Map();
+  for (const i of issues.value) {
+    const eid = taskLocals.value[i.Key]?.effortId || 0;
+    if (!byEffort.has(eid)) byEffort.set(eid, []);
+    byEffort.get(eid).push(i);
+  }
+  const groups = [];
+  for (const e of efforts.value) if (byEffort.has(e.id)) groups.push({ id: e.id, title: e.title, tasks: byEffort.get(e.id) });
+  if (byEffort.has(0)) groups.push({ id: 0, title: 'Sin esfuerzo', tasks: byEffort.get(0) });
+  return groups;
+});
+const showGroups = computed(() => groupedIssues.value.some(g => g.id !== 0));
+
 // ── derivados del sprint ────────────────────────────────────────────────────────────────────────
 const done = computed(() => issues.value.filter(i => i.StatusCategory === 'done').length);
 const points = computed(() => issues.value.reduce((n, i) => n + (i.Points || 0), 0));
@@ -298,6 +346,7 @@ async function loadSprint(id) {
     }
   } catch { error.value = 'no se pudo hablar con el server (¿está corriendo en :8787?)'; }
   await loadEntries();
+  await loadTaskLocals(); // el grupo depende de las tareas visibles del sprint
   loading.value = false;
 }
 
@@ -314,6 +363,7 @@ onMounted(async () => {
   } catch { /* fallback local activo */ }
 
   await loadSettings();
+  await loadEfforts();
 
   // Sin id: el server elige (activo, o el último cerrado, o el próximo). No lo re-derivamos acá para
   // no tener dos definiciones de "cuál es el sprint por defecto".
@@ -458,6 +508,19 @@ onMounted(async () => {
           <div v-for="(p, n) in defProblems" :key="n">· {{ p.what }}: <code>{{ p.found }}</code></div>
         </div>
 
+        <div class="fld-row">
+          <span class="lane-k">Esfuerzo <em>agrupa esta tarea con otras</em></span>
+          <select v-model.number="overlay.effortId" @change="assignEffort()">
+            <option :value="0">— sin esfuerzo —</option>
+            <option v-for="e in efforts" :key="e.id" :value="e.id">{{ e.title }}</option>
+          </select>
+          <template v-if="creatingEffort">
+            <input v-model="newEffortTitle" placeholder="nombre del esfuerzo" @keyup.enter="addEffort()" @keyup.esc="creatingEffort = false" />
+            <button class="mini" @click="addEffort()">Crear</button>
+          </template>
+          <button v-else class="mini" @click="creatingEffort = true">+ nuevo</button>
+        </div>
+
         <div class="fld-row" v-if="settings.trackTime || settings.trackPoints">
           <span class="lane-k">Estimado <em>lo estipulado a Jira</em></span>
           <template v-if="settings.trackTime">
@@ -474,20 +537,23 @@ onMounted(async () => {
       <div class="cols">
         <section class="card">
           <h2>Mis tareas</h2>
-          <div v-for="i in issues" :key="i.Key" class="task" :class="{ sel: active?.Key === i.Key }" @click="active = i">
-            <div class="tl">
-              <a v-if="site" class="key link" :href="jiraLink(i.Key)" target="_blank" rel="noopener"
-                @click.stop :title="`Abrir ${i.Key} en Jira`">{{ i.Key }} <span class="ext">↗</span></a>
-              <span v-else class="key">{{ i.Key }}</span>
-              <span class="status" :class="statusClass(i.StatusCategory)">{{ i.Status }}</span>
+          <template v-for="g in groupedIssues" :key="g.id">
+            <div v-if="showGroups" class="grp" :class="{ none: !g.id }">{{ g.title }}</div>
+            <div v-for="i in g.tasks" :key="i.Key" class="task" :class="{ sel: active?.Key === i.Key }" @click="active = i">
+              <div class="tl">
+                <a v-if="site" class="key link" :href="jiraLink(i.Key)" target="_blank" rel="noopener"
+                  @click.stop :title="`Abrir ${i.Key} en Jira`">{{ i.Key }} <span class="ext">↗</span></a>
+                <span v-else class="key">{{ i.Key }}</span>
+                <span class="status" :class="statusClass(i.StatusCategory)">{{ i.Status }}</span>
+              </div>
+              <div class="tt">{{ i.Summary }}</div>
+              <div class="tm">
+                <span v-if="settings.trackPoints && i.HasPoints && i.Points">{{ i.Points }} pts</span>
+                <span v-if="settings.trackTime">{{ hhmm(i.SpentSecs) }} en Jira</span>
+                <span class="mine" v-if="minutesOf(i.Key)">{{ minHhmm(minutesOf(i.Key)) }} sin subir</span>
+              </div>
             </div>
-            <div class="tt">{{ i.Summary }}</div>
-            <div class="tm">
-              <span v-if="settings.trackPoints && i.HasPoints && i.Points">{{ i.Points }} pts</span>
-              <span v-if="settings.trackTime">{{ hhmm(i.SpentSecs) }} en Jira</span>
-              <span class="mine" v-if="minutesOf(i.Key)">{{ minHhmm(minutesOf(i.Key)) }} sin subir</span>
-            </div>
-          </div>
+          </template>
         </section>
 
         <section class="card">
@@ -610,6 +676,17 @@ h1 { font-size: 20px; margin: 0; letter-spacing: .2px }
 .fld-row .lane-k { margin-right: 4px }
 .fld-row label { font-size: 12px; color: var(--mut) }
 .fld-row input { width: 84px }
+.fld-row select { width: auto; min-width: 150px; padding: 8px 10px }
+.mini { border: 1px solid var(--line); background: var(--panel2); color: var(--mut); border-radius: 8px;
+  padding: 7px 11px; font-size: 12px; font-weight: 600; cursor: pointer; font-family: inherit; white-space: nowrap }
+.mini:hover { color: var(--txt); border-color: var(--acc) }
+
+/* encabezado de grupo de esfuerzo en el listado */
+.grp { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: .6px; color: var(--acc);
+  margin: 14px 0 8px; display: flex; align-items: center; gap: 7px }
+.grp::before { content: '◆'; font-size: 9px }
+.grp:first-child { margin-top: 0 }
+.grp.none { color: var(--mut) } .grp.none::before { content: '○' }
 
 .seg { display: inline-flex; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; margin-bottom: 11px }
 .seg button { background: var(--panel2); color: var(--mut); border: none; border-right: 1px solid var(--line);

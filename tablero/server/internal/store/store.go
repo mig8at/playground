@@ -270,6 +270,66 @@ func (s *Store) SaveTaskLocal(tl TaskLocal) (TaskLocal, error) {
 	return s.GetTaskLocal(tl.TaskKey)
 }
 
+// Effort es un esfuerzo PRIVADO: agrupa varias tareas de Jira bajo un mismo trabajo real. El título es
+// mío y NO va a Jira, así que no pasa por el guard.
+type Effort struct {
+	ID        int64  `json:"id"`
+	Title     string `json:"title"`
+	CreatedAt string `json:"createdAt"`
+}
+
+// Efforts lista los esfuerzos vivos (no archivados), del más nuevo al más viejo.
+func (s *Store) Efforts() ([]Effort, error) {
+	rows, err := s.db.Query(`SELECT id, title, created_at FROM efforts WHERE archived_at IS NULL ORDER BY id DESC`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := []Effort{}
+	for rows.Next() {
+		var e Effort
+		if err := rows.Scan(&e.ID, &e.Title, &e.CreatedAt); err != nil {
+			return nil, err
+		}
+		out = append(out, e)
+	}
+	return out, rows.Err()
+}
+
+// CreateEffort crea un esfuerzo y lo devuelve.
+func (s *Store) CreateEffort(title string) (Effort, error) {
+	now := time.Now().Format(time.RFC3339)
+	res, err := s.db.Exec(`INSERT INTO efforts (title, created_at) VALUES (?, ?)`, title, now)
+	if err != nil {
+		return Effort{}, err
+	}
+	id, _ := res.LastInsertId()
+	return Effort{ID: id, Title: title, CreatedAt: now}, nil
+}
+
+// AllTaskLocals devuelve todas las capas locales, indexadas por clave de tarea. La UI la usa para
+// agrupar el listado por esfuerzo sin pedir la capa de cada tarea por separado.
+func (s *Store) AllTaskLocals() (map[string]TaskLocal, error) {
+	rows, err := s.db.Query(`SELECT task_key, COALESCE(real_state,''), COALESCE(definition,''),
+			estimate_minutes, estimate_points, effort_id, updated_at FROM task_local`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := map[string]TaskLocal{}
+	for rows.Next() {
+		var tl TaskLocal
+		var eff sql.NullInt64
+		if err := rows.Scan(&tl.TaskKey, &tl.RealState, &tl.Definition, &tl.EstimateMinutes,
+			&tl.EstimatePoints, &eff, &tl.UpdatedAt); err != nil {
+			return nil, err
+		}
+		tl.EffortID = eff.Int64
+		out[tl.TaskKey] = tl
+	}
+	return out, rows.Err()
+}
+
 // KnownSettings son los flags que el tablero reconoce, con su default. Off por defecto: la empresa no
 // pide tiempo ni puntos, así que arrancan ocultos. Cualquier clave fuera de acá se ignora.
 var KnownSettings = map[string]bool{"trackTime": false, "trackPoints": false}

@@ -223,6 +223,57 @@ func main() {
 		}
 	})
 
+	// esfuerzos privados (agrupan tareas). GET lista · POST crea {title}. El título es privado → sin guard.
+	mux.HandleFunc("/api/efforts", func(w http.ResponseWriter, r *http.Request) {
+		cors(w)
+		switch r.Method {
+		case http.MethodOptions:
+			return
+		case http.MethodGet:
+			efforts, err := a.st.Efforts()
+			if err != nil {
+				json.NewEncoder(w).Encode(map[string]any{"error": err.Error()})
+				return
+			}
+			json.NewEncoder(w).Encode(map[string]any{"efforts": efforts})
+		case http.MethodPost:
+			var in struct {
+				Title string `json:"title"`
+			}
+			if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
+				w.WriteHeader(http.StatusBadRequest)
+				json.NewEncoder(w).Encode(map[string]any{"error": "JSON inválido"})
+				return
+			}
+			in.Title = strings.TrimSpace(in.Title)
+			if in.Title == "" {
+				w.WriteHeader(http.StatusUnprocessableEntity)
+				json.NewEncoder(w).Encode(map[string]any{"error": "el esfuerzo necesita un nombre"})
+				return
+			}
+			e, err := a.st.CreateEffort(in.Title)
+			if err != nil {
+				w.WriteHeader(http.StatusInternalServerError)
+				json.NewEncoder(w).Encode(map[string]any{"error": err.Error()})
+				return
+			}
+			json.NewEncoder(w).Encode(map[string]any{"effort": e})
+		default:
+			w.WriteHeader(http.StatusMethodNotAllowed)
+		}
+	})
+
+	// todas las capas locales (para agrupar el listado por esfuerzo sin pedir tarea por tarea)
+	mux.HandleFunc("/api/task-locals", func(w http.ResponseWriter, _ *http.Request) {
+		cors(w)
+		tls, err := a.st.AllTaskLocals()
+		if err != nil {
+			json.NewEncoder(w).Encode(map[string]any{"error": err.Error()})
+			return
+		}
+		json.NewEncoder(w).Encode(map[string]any{"taskLocals": tls})
+	})
+
 	// capa local privada de una tarea (estado real, definición, estimado). GET ?key= · PUT con el body.
 	mux.HandleFunc("/api/task", func(w http.ResponseWriter, r *http.Request) {
 		cors(w)
