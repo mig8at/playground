@@ -91,6 +91,30 @@ CREATE TABLE IF NOT EXISTS settings (
   key    TEXT PRIMARY KEY,
   value  TEXT NOT NULL
 );
+
+-- CAPA LOCAL PRIVADA de una tarea. La tabla tasks es el snapshot de Jira (se pisa en cada carga); ESTO
+-- es lo mío y NO se toca al sincronizar. La separación es el punto: mi verdad no la clobberea Jira.
+--   real_state       = dónde está DE VERDAD (privado), independiente del estado reportado en Jira
+--   definition       = descripción para Jira, redactada por el esfuerzo que la tarea REPRESENTA
+--   estimate_minutes = tiempo ESTIPULADO (representativo), NO mi crunch real (que vive en entries)
+--   effort_id        = agrupa la tarea bajo un esfuerzo privado
+CREATE TABLE IF NOT EXISTS task_local (
+  task_key         TEXT PRIMARY KEY,
+  real_state       TEXT,
+  definition       TEXT,
+  estimate_minutes INTEGER,
+  estimate_points  REAL,
+  effort_id        INTEGER,
+  updated_at       TEXT NOT NULL
+);
+
+-- esfuerzo PRIVADO: el trabajo real (análisis grande) del que salen N tareas reportables a Jira.
+CREATE TABLE IF NOT EXISTS efforts (
+  id          INTEGER PRIMARY KEY AUTOINCREMENT,
+  title       TEXT NOT NULL,
+  created_at  TEXT NOT NULL,
+  archived_at TEXT
+);
 `
 
 type Store struct{ db *sql.DB }
@@ -199,6 +223,51 @@ func (s *Store) SaveTask(key, summary string, points *float64, status, category 
 			seen_at=excluded.seen_at`,
 		key, summary, points, status, category, sprintID, time.Now().Format(time.RFC3339))
 	return err
+}
+
+// TaskLocal es la capa privada de una tarea (mi verdad, separada del snapshot de Jira). Punteros para
+// distinguir "sin definir" (NULL) de "cero": un estimado de 0 no es lo mismo que no haberlo puesto.
+type TaskLocal struct {
+	TaskKey         string   `json:"taskKey"`
+	RealState       string   `json:"realState"`
+	Definition      string   `json:"definition"`
+	EstimateMinutes *int     `json:"estimateMinutes"`
+	EstimatePoints  *float64 `json:"estimatePoints"`
+	EffortID        int64    `json:"effortId"`
+	UpdatedAt       string   `json:"updatedAt,omitempty"`
+}
+
+// GetTaskLocal trae la capa local; si no existe, devuelve una vacía con la clave (no es error).
+func (s *Store) GetTaskLocal(key string) (TaskLocal, error) {
+	tl := TaskLocal{TaskKey: key}
+	var eff sql.NullInt64
+	err := s.db.QueryRow(`SELECT COALESCE(real_state,''), COALESCE(definition,''), estimate_minutes,
+			estimate_points, effort_id, updated_at
+		FROM task_local WHERE task_key = ?`, key).
+		Scan(&tl.RealState, &tl.Definition, &tl.EstimateMinutes, &tl.EstimatePoints, &eff, &tl.UpdatedAt)
+	if err == sql.ErrNoRows {
+		return tl, nil
+	}
+	if err != nil {
+		return tl, err
+	}
+	tl.EffortID = eff.Int64
+	return tl, nil
+}
+
+// SaveTaskLocal upsertea la capa local.
+func (s *Store) SaveTaskLocal(tl TaskLocal) (TaskLocal, error) {
+	_, err := s.db.Exec(`INSERT INTO task_local (task_key, real_state, definition, estimate_minutes, estimate_points, effort_id, updated_at)
+		VALUES (?,?,?,?,?,?,?)
+		ON CONFLICT(task_key) DO UPDATE SET real_state=excluded.real_state, definition=excluded.definition,
+			estimate_minutes=excluded.estimate_minutes, estimate_points=excluded.estimate_points,
+			effort_id=excluded.effort_id, updated_at=excluded.updated_at`,
+		tl.TaskKey, nullStr(tl.RealState), nullStr(tl.Definition), tl.EstimateMinutes, tl.EstimatePoints,
+		nullNum(tl.EffortID), time.Now().Format(time.RFC3339))
+	if err != nil {
+		return TaskLocal{}, err
+	}
+	return s.GetTaskLocal(tl.TaskKey)
 }
 
 // KnownSettings son los flags que el tablero reconoce, con su default. Off por defecto: la empresa no

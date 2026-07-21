@@ -9,7 +9,7 @@
 // Por eso el campo de nota tiene un GUARD que BLOQUEA el botón, en vez de solo advertir.
 //
 // CONVENCIÓN: identificadores y clases CSS en inglés; solo el texto visible y los comentarios en español.
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, watch } from 'vue';
 
 const SERVER = 'http://localhost:8787';
 const BOARD = 384;            // CORE — el proyecto donde están MIS tareas (no LO / Loans Origination)
@@ -75,8 +75,40 @@ const FORBIDDEN_FALLBACK = [
   { re: /[\w/-]+\.(ts|tsx|php|go|vue|json|mjs)\b/gi, what: 'incluye una ruta de archivo' },
 ];
 const patterns = ref(FORBIDDEN_FALLBACK);
-const problems = computed(() =>
-  patterns.value.flatMap(p => (note.value.match(p.re) || []).map(m => ({ what: p.what, found: m }))));
+// el guard corre sobre TODO lo que puede terminar en Jira: la nota de la bitácora y la definición de la
+// tarea. Un solo helper para no tener dos definiciones de "publicable".
+const guardOf = (text) => patterns.value.flatMap(p => ((text || '').match(p.re) || []).map(m => ({ what: p.what, found: m })));
+const problems = computed(() => guardOf(note.value));
+
+// ── capa local privada de la tarea activa (estado real, definición para Jira, estimado) ───────────
+// Estados REALES (privados), separados del estado reportado en Jira. Mi verdad, la muevo yo.
+const REAL_STATES = [
+  { id: 'analysis', label: 'Análisis', color: '#60a5fa' },
+  { id: 'dev', label: 'Desarrollo', color: '#a78bfa' },
+  { id: 'testing', label: 'Pruebas', color: '#f6c667' },
+  { id: 'done', label: 'Lista', color: '#4ade80' },
+];
+const overlay = ref({ taskKey: '', realState: '', definition: '', estimateMinutes: null, estimatePoints: null, effortId: 0 });
+const defProblems = computed(() => guardOf(overlay.value.definition));
+
+async function loadOverlay(key) {
+  try {
+    const j = await (await fetch(`${SERVER}/api/task?key=${encodeURIComponent(key)}`)).json();
+    if (!j.error) overlay.value = j;
+  } catch { overlay.value = { taskKey: key, realState: '', definition: '', estimateMinutes: null, estimatePoints: null, effortId: 0 }; }
+}
+async function saveOverlay() {
+  if (!overlay.value.taskKey || defProblems.value.length) return; // no guardamos algo que el guard rechaza
+  try {
+    const res = await fetch(`${SERVER}/api/task`, {
+      method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify(overlay.value),
+    });
+    const j = await res.json();
+    if (!j.error) overlay.value = j;
+  } catch { /* offline: el cambio queda local */ }
+}
+// al cambiar de tarea activa, traemos SU capa local
+watch(() => active.value?.Key, (key) => { if (key) loadOverlay(key); }, { immediate: true });
 
 // ── derivados del sprint ────────────────────────────────────────────────────────────────────────
 const done = computed(() => issues.value.filter(i => i.StatusCategory === 'done').length);
@@ -396,6 +428,49 @@ onMounted(async () => {
         </div>
       </section>
 
+      <section class="card" v-if="active">
+        <h2>La tarea
+          <a v-if="site" class="on link" :href="jiraLink(active.Key)" target="_blank" rel="noopener">{{ active.Key }} <span class="ext">↗</span></a>
+          <span v-else class="on">{{ active.Key }}</span>
+        </h2>
+
+        <!-- las dos verdades lado a lado: la real (privada, la muevo yo) y la que ve Jira (reportada) -->
+        <div class="dual">
+          <div class="lane">
+            <span class="lane-k">Estado real <em>privado</em></span>
+            <div class="seg small">
+              <button v-for="r in REAL_STATES" :key="r.id" :class="{ on: overlay.realState === r.id }"
+                :style="overlay.realState === r.id ? { background: r.color, color: '#0b0713', borderColor: r.color } : {}"
+                @click="overlay.realState = overlay.realState === r.id ? '' : r.id; saveOverlay()">{{ r.label }}</button>
+            </div>
+          </div>
+          <div class="lane">
+            <span class="lane-k">En Jira <em>reportado</em></span>
+            <span class="status" :class="statusClass(active.StatusCategory)">{{ active.Status }}</span>
+          </div>
+        </div>
+
+        <label class="fld">Definición <em>para Jira · el esfuerzo que la tarea representa, no lo que te tomó</em></label>
+        <textarea v-model="overlay.definition" rows="3" @blur="saveOverlay()"
+          placeholder="Qué es la tarea y cómo se resuelve, en claro. Es lo que va a la descripción de Jira."></textarea>
+        <div v-if="defProblems.length" class="guard">
+          <b>No se puede publicar así</b>
+          <div v-for="(p, n) in defProblems" :key="n">· {{ p.what }}: <code>{{ p.found }}</code></div>
+        </div>
+
+        <div class="fld-row" v-if="settings.trackTime || settings.trackPoints">
+          <span class="lane-k">Estimado <em>lo estipulado a Jira</em></span>
+          <template v-if="settings.trackTime">
+            <label>Minutos</label>
+            <input type="number" v-model.number="overlay.estimateMinutes" min="0" step="15" @change="saveOverlay()" />
+          </template>
+          <template v-if="settings.trackPoints">
+            <label>Puntos</label>
+            <input type="number" v-model.number="overlay.estimatePoints" min="0" step="0.5" @change="saveOverlay()" />
+          </template>
+        </div>
+      </section>
+
       <div class="cols">
         <section class="card">
           <h2>Mis tareas</h2>
@@ -522,6 +597,19 @@ h1 { font-size: 20px; margin: 0; letter-spacing: .2px }
 .tt { font-size: 13.5px; line-height: 1.35; margin-bottom: 6px }
 .tm { display: flex; gap: 12px; font-size: 11.5px; color: var(--mut) }
 .tm .mine { color: var(--acc) }
+
+/* la tarjeta "La tarea": las dos verdades (real privada / reportada Jira) + definición + estimado */
+.dual { display: flex; gap: 26px; flex-wrap: wrap; margin-bottom: 15px }
+.lane { display: flex; flex-direction: column; gap: 7px }
+.lane-k { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; color: var(--mut) }
+.lane-k em { font-style: normal; text-transform: none; letter-spacing: 0; color: var(--mut); opacity: .7; font-weight: 400; margin-left: 5px }
+.seg.small button { padding: 6px 11px; font-size: 12px; font-weight: 600 }
+.fld { display: block; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; color: var(--mut); margin-bottom: 7px }
+.fld em { font-style: normal; text-transform: none; letter-spacing: 0; opacity: .7; font-weight: 400; margin-left: 5px }
+.fld-row { display: flex; align-items: center; gap: 10px; margin-top: 13px; flex-wrap: wrap }
+.fld-row .lane-k { margin-right: 4px }
+.fld-row label { font-size: 12px; color: var(--mut) }
+.fld-row input { width: 84px }
 
 .seg { display: inline-flex; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; margin-bottom: 11px }
 .seg button { background: var(--panel2); color: var(--mut); border: none; border-right: 1px solid var(--line);

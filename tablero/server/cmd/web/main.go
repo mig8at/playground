@@ -223,6 +223,51 @@ func main() {
 		}
 	})
 
+	// capa local privada de una tarea (estado real, definición, estimado). GET ?key= · PUT con el body.
+	mux.HandleFunc("/api/task", func(w http.ResponseWriter, r *http.Request) {
+		cors(w)
+		switch r.Method {
+		case http.MethodOptions:
+			return
+		case http.MethodGet:
+			key := r.URL.Query().Get("key")
+			if key == "" {
+				w.WriteHeader(http.StatusBadRequest)
+				json.NewEncoder(w).Encode(map[string]any{"error": "falta key"})
+				return
+			}
+			tl, err := a.st.GetTaskLocal(key)
+			if err != nil {
+				json.NewEncoder(w).Encode(map[string]any{"error": err.Error()})
+				return
+			}
+			json.NewEncoder(w).Encode(tl)
+		case http.MethodPut:
+			var tl store.TaskLocal
+			if err := json.NewDecoder(r.Body).Decode(&tl); err != nil || tl.TaskKey == "" {
+				w.WriteHeader(http.StatusBadRequest)
+				json.NewEncoder(w).Encode(map[string]any{"error": "JSON inválido o sin taskKey"})
+				return
+			}
+			tl.Definition = strings.TrimSpace(tl.Definition)
+			// la definición TERMINA EN JIRA → el mismo guard que las notas. Nada del playground se filtra.
+			if v := violations(tl.Definition); v != nil {
+				w.WriteHeader(http.StatusUnprocessableEntity)
+				json.NewEncoder(w).Encode(map[string]any{"error": "la definición viola el guard", "problems": v})
+				return
+			}
+			saved, err := a.st.SaveTaskLocal(tl)
+			if err != nil {
+				w.WriteHeader(http.StatusInternalServerError)
+				json.NewEncoder(w).Encode(map[string]any{"error": err.Error()})
+				return
+			}
+			json.NewEncoder(w).Encode(saved)
+		default:
+			w.WriteHeader(http.StatusMethodNotAllowed)
+		}
+	})
+
 	mux.HandleFunc("/api/entries", func(w http.ResponseWriter, r *http.Request) {
 		cors(w)
 		switch r.Method {
