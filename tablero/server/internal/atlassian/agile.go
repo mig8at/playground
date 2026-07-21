@@ -2,10 +2,12 @@ package atlassian
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/url"
 	"sort"
+	"strings"
 )
 
 // Sprint es un sprint de un board (API Agile / Jira Software).
@@ -90,10 +92,11 @@ func (c *Client) RecentSprints(ctx context.Context, boardID, n int) ([]Sprint, e
 }
 
 // DefaultSprint elige qué sprint mostrar al abrir, sin asumir que hay uno activo. Prioridad:
-//   1. el ACTIVO, si existe (el caso normal);
-//   2. si no hay activo (board entre sprints, como CORE hoy), el ÚLTIMO CERRADO — este es un tablero de
-//      registro de tiempo, así que lo útil al abrir es el sprint donde HUBO trabajo, no un próximo vacío;
-//   3. si no hay cerrados (board recién creado), el próximo a arrancar.
+//  1. el ACTIVO, si existe (el caso normal);
+//  2. si no hay activo (board entre sprints, como CORE hoy), el ÚLTIMO CERRADO — este es un tablero de
+//     registro de tiempo, así que lo útil al abrir es el sprint donde HUBO trabajo, no un próximo vacío;
+//  3. si no hay cerrados (board recién creado), el próximo a arrancar.
+//
 // El próximo sprint queda igual en el selector (RecentSprints lo incluye), a un clic. No usa ActiveSprint
 // a secas: ese devuelve error cuando no hay activo, y "entre sprints" es un estado válido, no una falla.
 func (c *Client) DefaultSprint(ctx context.Context, boardID int) (*Sprint, error) {
@@ -134,6 +137,7 @@ func (c *Client) AddIssuesToSprint(ctx context.Context, sprintID int, issueKeys 
 type SprintIssue struct {
 	Key            string
 	Summary        string
+	Description    string // lo que HOY dice Jira (aplanado a texto)
 	Status         string
 	StatusCategory string // "new" (por hacer) | "indeterminate" (en curso) | "done"
 	Points         float64
@@ -142,14 +146,55 @@ type SprintIssue struct {
 	SpentSecs      int
 }
 
+// adfNode es un nodo del Atlassian Document Format (el árbol que Jira Cloud usa para texto rico).
+type adfNode struct {
+	Type    string    `json:"type"`
+	Text    string    `json:"text"`
+	Content []adfNode `json:"content"`
+}
+
+// adfText aplana una descripción de Jira a texto plano. Este sitio la devuelve como STRING, pero otras
+// instancias (y otros endpoints) la mandan como documento ADF: aceptamos las dos formas para que la
+// descripción no aparezca vacía —o como un JSON crudo— según de dónde venga la tarea.
+func adfText(raw json.RawMessage) string {
+	if len(raw) == 0 {
+		return ""
+	}
+	var s string
+	if json.Unmarshal(raw, &s) == nil { // string plano
+		return strings.TrimSpace(s)
+	}
+	var root adfNode
+	if json.Unmarshal(raw, &root) != nil {
+		return ""
+	}
+	var b strings.Builder
+	walkADF(&root, &b)
+	return strings.TrimSpace(b.String())
+}
+
+func walkADF(n *adfNode, b *strings.Builder) {
+	if n.Text != "" {
+		b.WriteString(n.Text)
+	}
+	for i := range n.Content {
+		walkADF(&n.Content[i], b)
+	}
+	switch n.Type { // los bloques cortan línea; los inline no
+	case "paragraph", "heading", "listItem", "blockquote", "codeBlock":
+		b.WriteString("\n")
+	}
+}
+
 // respuesta cruda del listado de issues de un sprint.
 // Nota: el campo de Story Points en CORE es customfield_10036.
 type sprintIssuesResp struct {
 	Issues []struct {
 		Key    string `json:"key"`
 		Fields struct {
-			Summary string `json:"summary"`
-			Status  struct {
+			Summary     string          `json:"summary"`
+			Description json.RawMessage `json:"description"`
+			Status      struct {
 				Name           string `json:"name"`
 				StatusCategory struct {
 					Key string `json:"key"`
@@ -168,7 +213,7 @@ type sprintIssuesResp struct {
 // (GET /rest/agile/1.0/sprint/{id}/issue con jql assignee = currentUser()).
 func (c *Client) MySprintIssues(ctx context.Context, sprintID int) ([]SprintIssue, error) {
 	path := fmt.Sprintf(
-		"/rest/agile/1.0/sprint/%d/issue?jql=%s&fields=summary,status,timetracking,customfield_10036&maxResults=100",
+		"/rest/agile/1.0/sprint/%d/issue?jql=%s&fields=summary,description,status,timetracking,customfield_10036&maxResults=100",
 		sprintID, url.QueryEscape("assignee = currentUser()"),
 	)
 
@@ -183,6 +228,7 @@ func (c *Client) MySprintIssues(ctx context.Context, sprintID int) ([]SprintIssu
 		si := SprintIssue{
 			Key:            it.Key,
 			Summary:        f.Summary,
+			Description:    adfText(f.Description),
 			Status:         f.Status.Name,
 			StatusCategory: f.Status.StatusCategory.Key,
 			EstimateSecs:   f.TimeTracking.OriginalEstimateSeconds,

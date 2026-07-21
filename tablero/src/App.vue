@@ -38,17 +38,15 @@ async function setSetting(key, val) {
 }
 
 // ── bitácora ──────────────────────────────────────────────────────────────────────────────────
-// `id` es el valor que se guarda (kind); `label` es lo que se muestra. Por eso el id va en inglés y
-// el label en español.
+// LA ESCRIBE EL ASISTENTE, no vos: al analizar una tarea hace POST /api/entries con la redacción ya
+// correcta (y el guard del server la valida). Acá solo se LEE — por eso no hay formulario de alta.
+// `id` es el valor que se guarda (kind); `label` es lo que se muestra: id en inglés, label en español.
 const KINDS = [
   { id: 'progress', label: 'Avance', icon: '▸' },
   { id: 'finding', label: 'Hallazgo', icon: '◆' },
   { id: 'test', label: 'Prueba', icon: '✓' },
   { id: 'blocker', label: 'Bloqueo', icon: '■' },
 ];
-const kind = ref('progress');
-const note = ref('');
-const minutes = ref(30);
 // La bitácora vive en SQLite del lado del server. Acá se mapea al shape que usa la UI: `date` es el
 // INICIO del bloque trabajado (Date real; el mapa de jornada reparte por horas), `sprint` ata la
 // entrada al sprint donde se registró.
@@ -56,7 +54,6 @@ const fromApi = (r) => ({ id: r.id, key: r.taskKey, kind: r.kind, min: r.minutes
   date: new Date(r.startedAt), sprint: r.sprintId, text: r.note, uploaded: !!r.uploadedAt });
 const today = new Date();
 const entries = ref([]);
-const saveError = ref('');
 
 async function loadEntries() {
   try {
@@ -78,7 +75,6 @@ const patterns = ref(FORBIDDEN_FALLBACK);
 // el guard corre sobre TODO lo que puede terminar en Jira: la nota de la bitácora y la definición de la
 // tarea. Un solo helper para no tener dos definiciones de "publicable".
 const guardOf = (text) => patterns.value.flatMap(p => ((text || '').match(p.re) || []).map(m => ({ what: p.what, found: m })));
-const problems = computed(() => guardOf(note.value));
 
 // ── capa local privada de la tarea activa (estado real, definición para Jira, estimado) ───────────
 // Estados REALES (privados), separados del estado reportado en Jira. Mi verdad, la muevo yo.
@@ -186,32 +182,6 @@ const jiraLink = (key) => site.value ? `${site.value}/browse/${key}` : '';
 const shortDate = (d) => d ? new Date(d).toLocaleDateString('es-CO', { day: '2-digit', month: 'short' }) : '';
 const statusClass = (c) => c === 'done' ? 'e-ok' : c === 'indeterminate' ? 'e-doing' : 'e-todo';
 const minutesOf = (k) => ofSprint.value.filter(e => e.key === k).reduce((n, e) => n + e.min, 0);
-
-const startTime = ref(''); // vacío = "terminé ahora" (inicio = ahora − minutos), que es el caso normal
-
-async function addEntry() {
-  if (!note.value.trim() || !active.value || problems.value.length) return;
-  saveError.value = '';
-  const min = Number(minutes.value) || 0;
-  // si elegiste hora, el bloque empezó HOY a esa hora; si no, acaba de terminar
-  let startedMs = 0;
-  if (startTime.value) {
-    const [h, m] = startTime.value.split(':').map(Number);
-    const d = new Date(); d.setHours(h, m, 0, 0);
-    startedMs = d.getTime();
-  }
-  try {
-    const res = await fetch(`${SERVER}/api/entries`, {
-      method: 'POST', headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ task: active.value.Key, sprintId: sprint.value?.id, kind: kind.value,
-        startedMs, minutes: min, note: note.value.trim() }),
-    });
-    const j = await res.json();
-    if (j.error) { saveError.value = j.error; return; }
-    entries.value.unshift(fromApi(j.entry));
-    note.value = ''; startTime.value = '';
-  } catch { saveError.value = 'no se pudo guardar (¿server caído?)'; }
-}
 
 async function deleteEntry(id) {
   try {
@@ -547,6 +517,9 @@ onMounted(async () => {
                 <span class="status" :class="statusClass(i.StatusCategory)">{{ i.Status }}</span>
               </div>
               <div class="tt">{{ i.Summary }}</div>
+              <!-- lo que HOY dice Jira: lo que el equipo lee. Si está vacía, se avisa (falta definirla) -->
+              <p v-if="i.Description" class="jd" :title="i.Description">{{ i.Description }}</p>
+              <p v-else class="jd none">sin descripción en Jira</p>
               <div class="tm">
                 <span v-if="settings.trackPoints && i.HasPoints && i.Points">{{ i.Points }} pts</span>
                 <span v-if="settings.trackTime">{{ hhmm(i.SpentSecs) }} en Jira</span>
@@ -557,53 +530,23 @@ onMounted(async () => {
         </section>
 
         <section class="card">
-          <h2>Registrar
-            <a v-if="active && site" class="on link" :href="jiraLink(active.Key)" target="_blank"
-              rel="noopener" :title="`Abrir ${active.Key} en Jira`">{{ active.Key }} <span class="ext">↗</span></a>
-            <span v-else-if="active" class="on">{{ active.Key }}</span>
-          </h2>
-
-          <div class="seg">
-            <button v-for="t in KINDS" :key="t.id" :class="{ on: kind === t.id }" @click="kind = t.id">
-              {{ t.icon }} {{ t.label }}
-            </button>
+          <h2>Bitácora <span class="mut" v-if="active">de {{ active.Key }}</span></h2>
+          <p class="empty">La escribe el asistente al analizar la tarea; acá se lee.</p>
+          <p v-if="!ofActive.length" class="msg">Sin entradas para esta tarea todavía.</p>
+          <div v-for="e in ofActive" :key="e.id" class="entry">
+            <span class="icon" :class="'t-' + e.kind">{{ KINDS.find(t => t.id === e.kind)?.icon }}</span>
+            <div class="body">
+              <div class="meta">
+                <b>{{ KINDS.find(t => t.id === e.kind)?.label }}</b>
+                <span>{{ when(e.date) }}</span>
+                <span class="min">{{ e.min }} min</span>
+                <button class="x" title="Borrar (queda marcado en la base, no se pierde)" @click="deleteEntry(e.id)">✕</button>
+              </div>
+              <p>{{ e.text }}</p>
+            </div>
           </div>
-
-          <textarea v-model="note" rows="4"
-            placeholder="Qué pasó, en lenguaje de negocio. Esto se publica en Jira: sin rutas de archivo, sin nombres de repo, sin referencias internas."></textarea>
-
-          <div v-if="problems.length" class="guard">
-            <b>No se puede publicar así</b>
-            <div v-for="(p, n) in problems" :key="n">· {{ p.what }}: <code>{{ p.found }}</code></div>
-          </div>
-
-          <div class="form-row">
-            <label>Minutos</label>
-            <input type="number" v-model="minutes" min="0" step="5" />
-            <label title="Vacío = terminaste ahora: el inicio queda en ahora − minutos. Elegí hora solo si registrás algo de más temprano.">Empezó</label>
-            <input type="time" v-model="startTime" />
-            <button class="go" :disabled="!note.trim() || !!problems.length || !active" @click="addEntry">Agregar</button>
-          </div>
-          <p v-if="saveError" class="msg bad" style="margin:8px 0 0">{{ saveError }}</p>
         </section>
       </div>
-
-      <section class="card">
-        <h2>Bitácora <span class="mut" v-if="active">de {{ active.Key }}</span></h2>
-        <p v-if="!ofActive.length" class="msg">Sin entradas para esta tarea todavía.</p>
-        <div v-for="e in ofActive" :key="e.id" class="entry">
-          <span class="icon" :class="'t-' + e.kind">{{ KINDS.find(t => t.id === e.kind)?.icon }}</span>
-          <div class="body">
-            <div class="meta">
-              <b>{{ KINDS.find(t => t.id === e.kind)?.label }}</b>
-              <span>{{ when(e.date) }}</span>
-              <span class="min">{{ e.min }} min</span>
-              <button class="x" title="Borrar (queda marcado en la base, no se pierde)" @click="deleteEntry(e.id)">✕</button>
-            </div>
-            <p>{{ e.text }}</p>
-          </div>
-        </div>
-      </section>
     </template>
   </div>
 </template>
@@ -661,6 +604,11 @@ h1 { font-size: 20px; margin: 0; letter-spacing: .2px }
 .e-doing { color: #60a5fa; border-color: #29456e; background: #11203a }
 .e-todo { color: #94a3b8; border-color: #3a4453; background: #1b212b }
 .tt { font-size: 13.5px; line-height: 1.35; margin-bottom: 6px }
+/* descripción real de Jira: recortada a 3 líneas para que el listado siga siendo escaneable
+   (el texto completo va en el title). Vacía = aviso, porque falta definirla. */
+.jd { font-size: 12px; line-height: 1.45; color: var(--mut); margin: 0 0 7px;
+  display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden }
+.jd.none { font-style: italic; opacity: .6 }
 .tm { display: flex; gap: 12px; font-size: 11.5px; color: var(--mut) }
 .tm .mine { color: var(--acc) }
 
@@ -696,12 +644,6 @@ h1 { font-size: 20px; margin: 0; letter-spacing: .2px }
 textarea, input { background: var(--panel2); border: 1px solid var(--line); color: var(--txt); border-radius: 10px;
   padding: 10px 12px; font: inherit; font-size: 13px; width: 100%; resize: vertical }
 textarea:focus, input:focus { outline: none; border-color: var(--acc) }
-.form-row { display: flex; align-items: center; gap: 10px; margin-top: 11px }
-.form-row label { font-size: 12px; color: var(--mut) }
-.form-row input { width: 90px }
-.go { margin-left: auto; background: var(--acc); color: #0b0713; border: none; border-radius: 10px;
-  padding: 10px 18px; font-weight: 800; font-size: 13.5px; cursor: pointer; font-family: inherit; white-space: nowrap }
-.go:disabled { opacity: .4; cursor: not-allowed }
 .guard { margin-top: 11px; padding: 10px 12px; border-radius: 10px; border: 1px solid #5b2020; background: #2a1010;
   color: var(--bad); font-size: 12px; line-height: 1.55 }
 .guard b { display: block; margin-bottom: 4px }
