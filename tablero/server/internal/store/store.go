@@ -85,6 +85,12 @@ CREATE TABLE IF NOT EXISTS tasks (
   sprint_id  INTEGER,                      -- último sprint donde se la vio
   seen_at    TEXT NOT NULL
 );
+
+-- preferencias del tablero (no de una tarea): qué campos de la empresa se piden. key-value simple.
+CREATE TABLE IF NOT EXISTS settings (
+  key    TEXT PRIMARY KEY,
+  value  TEXT NOT NULL
+);
 `
 
 type Store struct{ db *sql.DB }
@@ -192,6 +198,47 @@ func (s *Store) SaveTask(key, summary string, points *float64, status, category 
 			status=excluded.status, category=excluded.category, sprint_id=excluded.sprint_id,
 			seen_at=excluded.seen_at`,
 		key, summary, points, status, category, sprintID, time.Now().Format(time.RFC3339))
+	return err
+}
+
+// KnownSettings son los flags que el tablero reconoce, con su default. Off por defecto: la empresa no
+// pide tiempo ni puntos, así que arrancan ocultos. Cualquier clave fuera de acá se ignora.
+var KnownSettings = map[string]bool{"trackTime": false, "trackPoints": false}
+
+// Settings devuelve los flags con sus defaults, pisados por lo guardado.
+func (s *Store) Settings() (map[string]bool, error) {
+	out := map[string]bool{}
+	for k, def := range KnownSettings {
+		out[k] = def
+	}
+	rows, err := s.db.Query(`SELECT key, value FROM settings`)
+	if err != nil {
+		return out, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var k, v string
+		if err := rows.Scan(&k, &v); err != nil {
+			return out, err
+		}
+		if _, ok := KnownSettings[k]; ok { // ignora claves que ya no existen
+			out[k] = v == "true"
+		}
+	}
+	return out, rows.Err()
+}
+
+// SetSetting persiste un flag (solo si es conocido).
+func (s *Store) SetSetting(key string, val bool) error {
+	if _, ok := KnownSettings[key]; !ok {
+		return fmt.Errorf("setting desconocido: %s", key)
+	}
+	v := "false"
+	if val {
+		v = "true"
+	}
+	_, err := s.db.Exec(`INSERT INTO settings (key, value) VALUES (?, ?)
+		ON CONFLICT(key) DO UPDATE SET value = excluded.value`, key, v)
 	return err
 }
 

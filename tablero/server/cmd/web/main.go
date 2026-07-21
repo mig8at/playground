@@ -189,6 +189,40 @@ func main() {
 		json.NewEncoder(w).Encode(map[string]any{"patterns": forbidden})
 	})
 
+	// GET  /api/settings → flags del tablero (trackTime, trackPoints); PUT actualiza los que vengan
+	mux.HandleFunc("/api/settings", func(w http.ResponseWriter, r *http.Request) {
+		cors(w)
+		switch r.Method {
+		case http.MethodOptions:
+			return
+		case http.MethodGet:
+			st, err := a.st.Settings()
+			if err != nil {
+				json.NewEncoder(w).Encode(map[string]any{"error": err.Error()})
+				return
+			}
+			json.NewEncoder(w).Encode(st)
+		case http.MethodPut:
+			var in map[string]bool
+			if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
+				w.WriteHeader(http.StatusBadRequest)
+				json.NewEncoder(w).Encode(map[string]any{"error": "JSON inválido"})
+				return
+			}
+			for k, v := range in {
+				if err := a.st.SetSetting(k, v); err != nil {
+					w.WriteHeader(http.StatusUnprocessableEntity)
+					json.NewEncoder(w).Encode(map[string]any{"error": err.Error()})
+					return
+				}
+			}
+			st, _ := a.st.Settings()
+			json.NewEncoder(w).Encode(st)
+		default:
+			w.WriteHeader(http.StatusMethodNotAllowed)
+		}
+	})
+
 	mux.HandleFunc("/api/entries", func(w http.ResponseWriter, r *http.Request) {
 		cors(w)
 		switch r.Method {
@@ -614,7 +648,7 @@ func (a *app) connectIntegrations() string {
 func cors(w http.ResponseWriter) {
 	w.Header().Set("content-type", "application/json")
 	w.Header().Set("access-control-allow-origin", "*")
-	w.Header().Set("access-control-allow-methods", "GET, POST, DELETE, OPTIONS")
+	w.Header().Set("access-control-allow-methods", "GET, POST, PUT, DELETE, OPTIONS")
 	w.Header().Set("access-control-allow-headers", "content-type")
 }
 

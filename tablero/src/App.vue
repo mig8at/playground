@@ -22,6 +22,21 @@ const site = ref('');         // https://<site>.atlassian.net — lo manda el se
 const issues = ref([]);
 const active = ref(null);     // tarea sobre la que se está registrando
 
+// ── ajustes del tablero ─────────────────────────────────────────────────────────────────────────
+// Flags de "campos de la empresa": tiempo y puntos. OFF por defecto — la empresa no los pide, así que
+// el tablero no los muestra. NO tocan el registro personal (bitácora, mapa de foco), que es el núcleo.
+const settings = ref({ trackTime: false, trackPoints: false });
+const showSettings = ref(false);
+async function loadSettings() {
+  try { const s = await (await fetch(`${SERVER}/api/settings`)).json(); if (!s.error) settings.value = s; }
+  catch { /* si falla, quedan los defaults (todo off) */ }
+}
+async function setSetting(key, val) {
+  settings.value = { ...settings.value, [key]: val };
+  try { await fetch(`${SERVER}/api/settings`, { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ [key]: val }) }); }
+  catch { /* offline: el cambio queda local hasta que vuelva el server */ }
+}
+
 // ── bitácora ──────────────────────────────────────────────────────────────────────────────────
 // `id` es el valor que se guarda (kind); `label` es lo que se muestra. Por eso el id va en inglés y
 // el label en español.
@@ -266,6 +281,8 @@ onMounted(async () => {
     if (g.patterns?.length) patterns.value = g.patterns.map(p => ({ re: new RegExp(p.re, 'gi'), what: p.what }));
   } catch { /* fallback local activo */ }
 
+  await loadSettings();
+
   // Sin id: el server elige (activo, o el último cerrado, o el próximo). No lo re-derivamos acá para
   // no tener dos definiciones de "cuál es el sprint por defecto".
   await loadSprint();
@@ -292,6 +309,25 @@ onMounted(async () => {
         <span v-else-if="sprintDays?.state === 'closed'" class="chip warn">cerrado hace {{ sprintDays.endedAgo }} días</span>
         <span v-else-if="sprintDays?.state === 'ongoing'" class="chip">{{ sprintDays.remaining }} días restantes</span>
       </div>
+      <div class="settings" :class="{ pushed: !sprint }">
+        <button class="gear" :class="{ on: showSettings }" @click="showSettings = !showSettings" title="Ajustes">⚙</button>
+        <template v-if="showSettings">
+          <div class="backdrop" @click="showSettings = false"></div>
+          <div class="pop">
+            <div class="pop-h">Campos de la empresa</div>
+            <label>
+              <input type="checkbox" :checked="settings.trackTime" @change="setSetting('trackTime', $event.target.checked)" />
+              <span>Registrar tiempo <em>tiempo estipulado + tiempo en Jira</em></span>
+            </label>
+            <label>
+              <input type="checkbox" :checked="settings.trackPoints" @change="setSetting('trackPoints', $event.target.checked)" />
+              <span>Registrar puntos <em>story points de las tareas</em></span>
+            </label>
+            <p class="hint">Apagados, la empresa no los pide y el tablero no los muestra. Tu registro
+              personal de tiempo (bitácora y mapa de foco) no depende de esto.</p>
+          </div>
+        </template>
+      </div>
     </header>
 
     <p v-if="loading" class="msg">Cargando el sprint…</p>
@@ -304,12 +340,12 @@ onMounted(async () => {
           <div class="v">{{ done }}/{{ issues.length }}</div>
           <div class="s">terminadas en el sprint</div>
         </div>
-        <div class="stat">
+        <div class="stat" v-if="settings.trackPoints">
           <div class="k">Puntos</div>
           <div class="v">{{ points }}</div>
           <div class="s">estimados</div>
         </div>
-        <div class="stat" :class="{ alert: jiraTime === 0 }">
+        <div class="stat" :class="{ alert: jiraTime === 0 }" v-if="settings.trackTime">
           <div class="k">Tiempo en Jira</div>
           <div class="v">{{ hhmm(jiraTime) }}</div>
           <div class="s">{{ jiraTime === 0 ? 'sin registrar: nadie ve el trabajo' : 'registrado' }}</div>
@@ -372,8 +408,8 @@ onMounted(async () => {
             </div>
             <div class="tt">{{ i.Summary }}</div>
             <div class="tm">
-              <span v-if="i.HasPoints && i.Points">{{ i.Points }} pts</span>
-              <span>{{ hhmm(i.SpentSecs) }} en Jira</span>
+              <span v-if="settings.trackPoints && i.HasPoints && i.Points">{{ i.Points }} pts</span>
+              <span v-if="settings.trackTime">{{ hhmm(i.SpentSecs) }} en Jira</span>
               <span class="mine" v-if="minutesOf(i.Key)">{{ minHhmm(minutesOf(i.Key)) }} sin subir</span>
             </div>
           </div>
@@ -441,6 +477,23 @@ h1 { font-size: 20px; margin: 0; letter-spacing: .2px }
 .sp { margin-left: auto; display: flex; align-items: center; gap: 10px; font-size: 13px }
 .chip { padding: 4px 11px; border-radius: 999px; border: 1px solid var(--line); color: var(--mut); font-size: 12px }
 .chip.warn { color: var(--warn); border-color: #4a3a16; background: #241a08 }
+
+/* engranaje de ajustes: los checks de campos de la empresa. `pushed` lo empuja a la derecha cuando no
+   hay barra de sprint que ya ocupe el margen automático */
+.settings { position: relative }
+.settings.pushed { margin-left: auto }
+.gear { border: 1px solid var(--line); background: var(--panel2); color: var(--mut); width: 32px; height: 32px;
+  border-radius: 9px; cursor: pointer; font-size: 15px; line-height: 1; transition: .12s }
+.gear:hover, .gear.on { color: var(--txt); border-color: var(--acc) }
+.backdrop { position: fixed; inset: 0; z-index: 9 }
+.pop { position: absolute; right: 0; top: 40px; z-index: 10; width: 258px; background: var(--panel);
+  border: 1px solid var(--line); border-radius: 12px; padding: 13px; box-shadow: 0 10px 30px #000a }
+.pop-h { font-size: 11px; text-transform: uppercase; letter-spacing: .6px; color: var(--mut); font-weight: 700; margin-bottom: 8px }
+.pop label { display: flex; gap: 9px; padding: 7px 0; cursor: pointer; align-items: flex-start }
+.pop label input { width: auto; margin-top: 1px; accent-color: var(--acc); cursor: pointer }
+.pop label span { font-size: 13px; color: var(--txt); line-height: 1.3 }
+.pop label em { display: block; font-style: normal; font-size: 11px; color: var(--mut); margin-top: 1px }
+.pop .hint { margin: 9px 0 0; padding-top: 9px; border-top: 1px solid var(--line); font-size: 11px; color: var(--mut); line-height: 1.45 }
 
 .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; margin-bottom: 16px }
 .stat { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 15px 16px }
