@@ -53,17 +53,22 @@
 
     /* 2 columnas en pantallas anchas: IZQ = comercio + lenders (lo que mirás) · DER = usuario + lanzar (lo que tocás).
        Debajo de 1080px colapsa a una sola columna (el orden del DOM ya es el correcto). */
+    /* Ritmo vertical entre los bloques de nivel superior. La tira de estado, el mapa y las dos columnas
+       son hermanos y NINGUNO traía margen propio → quedaban pegados. El espaciado vive acá, en un solo
+       lugar, y no repartido por cada card. */
+    #tren { margin-top: 18px }
     .cols {
+      margin-top: 18px;
       display: grid;
       grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-      gap: 16px;
+      gap: 18px;
       align-items: start
     }
 
     .col {
       display: flex;
       flex-direction: column;
-      gap: 16px;
+      gap: 18px;
       min-width: 0
     }
 
@@ -609,7 +614,7 @@
        a 2 sin romper. Con 190 entraban solo 4 y la quinta quedaba sola en una fila casi vacía. */
     /* flex y NO grid auto-fit: con grid, la tarjeta que sobra al quebrar queda HUÉRFANA y angosta
        —ocupa 1 de N columnas y deja el resto vacío—. Con flex-grow la última fila se reparte sola. */
-    .stats { display: flex; flex-wrap: wrap; gap: 10px; margin: 18px 0 0 }
+    .stats { display: flex; flex-wrap: wrap; gap: 12px; margin: 18px 0 0 }
     .stat {
       background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
       padding: 15px 16px; display: flex; flex-direction: column; gap: 4px; min-width: 0; flex: 1 1 148px
@@ -635,8 +640,18 @@
        el desplazamiento lateral es de un carril: la curva queda corta y limpia, como en un grafo de git. */
     .tren #trenwarn { color: var(--warn); font-weight: 600; text-transform: none; letter-spacing: 0 }
     .tren-hint { float: right; font-size: 10.5px; font-weight: 500; color: var(--mut); text-transform: none; letter-spacing: 0 }
+    /* controles de zoom flotantes (estilo Maps): el canvas ya no se queda con la rueda, así que hace
+       falta una forma explícita de acercar sin atajos de teclado. */
+    .zoomctl { position: absolute; right: 10px; bottom: 10px; display: flex; flex-direction: column; gap: 4px }
+    .zoomctl button {
+      width: 28px; height: 28px; display: grid; place-items: center; cursor: pointer;
+      background: var(--panel); color: var(--mut); border: 1px solid var(--line);
+      border-radius: var(--radius-sm); font-size: 14px; line-height: 1; font-family: inherit; transition: .12s
+    }
+    .zoomctl button:hover { color: var(--txt); border-color: var(--line2) }
     #trenvias {
-      height: 360px; border-radius: 12px; background: var(--panel2);
+      position: relative;
+      height: 360px; border-radius: var(--radius-sm); background: var(--panel2);
       border: 1px solid var(--line); overflow: hidden
     }
     #trensvg { width: 100%; height: 100%; cursor: grab; display: block; touch-action: none }
@@ -717,9 +732,16 @@
          seleccionado tiene. Hover en una estación = los archivos que ese paso toca. -->
     <section class="card tren" id="tren" style="display:none">
       <h2><b>▸</b> Recorrido del wizard <span id="trenwarn"></span>
-        <span class="tren-hint">arrastrá para mover · rueda para zoom · doble clic para encuadrar</span>
+        <span class="tren-hint">arrastrá para mover · ⌘/ctrl + rueda para zoom · doble clic para encuadrar</span>
       </h2>
-      <div id="trenvias"><svg id="trensvg"><g id="trencam"></g></svg></div>
+      <div id="trenvias">
+        <svg id="trensvg"><g id="trencam"></g></svg>
+        <div class="zoomctl">
+          <button id="zmas" title="acercar">+</button>
+          <button id="zmenos" title="alejar">−</button>
+          <button id="zfit" title="encuadrar">⤢</button>
+        </div>
+      </div>
     </section>
 
     <div class="cols">
@@ -1427,6 +1449,17 @@
     // que ya conocemos. Un motor de layout no tendría nada que resolver.
     const cam = { x: 0, y: 0, k: 1, w: 0, y1: 0, y2: 0 };
     function aplicarCam() { const g = $('trencam'); if (g) g.setAttribute('transform', `translate(${cam.x},${cam.y}) scale(${cam.k})`); }
+    /** Zoom dejando fijo el punto (mx,my) del viewport. Sin punto → el centro, que es lo que quieren
+     *  los botones: con la rueda el ancla natural es el puntero, con un botón no hay puntero. */
+    function zoomEn(f, mx, my) {
+      const svg = $('trensvg'); if (!svg) return;
+      const r = svg.getBoundingClientRect();
+      if (mx == null) { mx = r.width / 2; my = r.height / 2; }
+      const k2 = Math.min(2.2, Math.max(0.35, cam.k * f));
+      cam.x = mx - (mx - cam.x) * (k2 / cam.k);
+      cam.y = my - (my - cam.y) * (k2 / cam.k);
+      cam.k = k2; aplicarCam();
+    }
     function encuadrar(w, y1, y2) {
       if (w) { cam.w = w; cam.y1 = y1; cam.y2 = y2; }
       const svg = $('trensvg'); if (!svg) return;
@@ -1444,14 +1477,20 @@
       svg.addEventListener('pointermove', (e) => { if (!arrastrando) return; cam.x += e.clientX - px; cam.y += e.clientY - py; px = e.clientX; py = e.clientY; aplicarCam(); });
       const soltar = (e) => { arrastrando = false; svg.classList.remove('drag'); try { svg.releasePointerCapture(e.pointerId); } catch {} };
       svg.addEventListener('pointerup', soltar); svg.addEventListener('pointercancel', soltar);
+      // Zoom con rueda SOLO con ⌘/ctrl. La rueda pelada era del canvas, así que pasar el mouse por
+      // encima mientras scrolleabas la página secuestraba el gesto y te dejaba clavado ahí. Convención
+      // de Figma / Maps embebido: la rueda sola es de la PÁGINA; el zoom es explícito (modificador o
+      // los botones de abajo a la derecha).
       svg.addEventListener('wheel', (e) => {
+        if (!e.ctrlKey && !e.metaKey) return;   // sin preventDefault → la página scrollea normal
         e.preventDefault();
-        const r = svg.getBoundingClientRect(), mx = e.clientX - r.left, my = e.clientY - r.top;
-        const k2 = Math.min(2.2, Math.max(0.35, cam.k * (e.deltaY < 0 ? 1.12 : 1 / 1.12)));
-        cam.x = mx - (mx - cam.x) * (k2 / cam.k); cam.y = my - (my - cam.y) * (k2 / cam.k);   // zoom al puntero
-        cam.k = k2; aplicarCam();
+        const r = svg.getBoundingClientRect();
+        zoomEn(e.deltaY < 0 ? 1.12 : 1 / 1.12, e.clientX - r.left, e.clientY - r.top);
       }, { passive: false });
       svg.addEventListener('dblclick', () => encuadrar());
+      $('zmas').onclick = () => zoomEn(1.2);
+      $('zmenos').onclick = () => zoomEn(1 / 1.2);
+      $('zfit').onclick = () => encuadrar();
     })();
 
     // La card muestra el hash de la sucursal que REALMENTE se lanza (.flows.json), no el de una búsqueda
