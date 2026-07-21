@@ -1057,6 +1057,15 @@ Qué hay y qué no en lo desplegado:
 | `RKV24029` en RiskV2 | **NO** | la API de decisión nunca dice "omitido" |
 | `FLOW_ASSIGNABLE_STATUS_IDS` | `[1]` (la rama: `[1, 9]`) | la firma se rechaza en estado 9 con **`URV13005`** |
 
+**Por qué entonces se ve el selector en staging.** Porque **front y backend van por caminos distintos**, y el front sí llegó:
+
+| repo | commit | dónde está | dónde NO está |
+|---|---|---|---|
+| `frontend-monorepo` | `784585fe` (el selector) | `origin/staging` ✅ + la rama feature | `develop`, `main` |
+| `legacy-backend` | `a603a5cd` (la omisión) | **solo** la rama feature | `develop`, `main`, `staging` |
+
+`origin/staging` del front está **135 commits adelante** de `develop`. Y como staging **no tiene backend propio** (comparte el de dev, que corre `develop`), queda el peor cruce posible: **el front que muestra el selector está desplegado, y el backend que lo aplicaría no**. El selector no miente por sí solo — pregunta `check-if-able-to-omit`, que **sí** está en `develop` (viene del PR #982, la API de firma previa) y responde `RKV26000`. Lo que falta es todo lo que viene después.
+
 Es la peor combinación posible para depurar: **la única pieza desplegada es la que hace visible el selector**. Todo lo que lo haría funcionar quedó afuera.
 
 **Cómo se detectó.** Con `node dev/experian-api.ts <uReqId>`, que mide el veredicto de Experian **antes y después** de firmar sobre la misma solicitud: `check-if-able-to-omit` devolvió `RKV26000` (autorizado) pero la firma devolvió **HTTP 409 `URV13005`** — "User request status does not allow changing its flow" — sobre una solicitud en estado 9, que la rama sí admite. Ese desfase entre "el endpoint nuevo existe" y "la constante es la vieja" fue el hilo.
