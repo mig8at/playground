@@ -1010,6 +1010,13 @@ Estado en dev (2026-07-21) y evidencia en la tabla `logs` (`controller = 'Datacr
 
 **Y el contador NO es discriminante** (corrige una hipótesis previa): `$datacreditoQuery->increment('count')` corre en las **dos** ramas, incluso cuando `Experian.php` devolvió `null` por el flujo. Lo que discrimina es la fila en `risk_central_user_data`, no el contador.
 
+**Actualización 2026-07-21 20:27 — la tabla de arriba ya no vale para Sonría.** Se pidió prender la consulta y el aliado 26 pasó a `frequency = NULL, every = 1`: hoy consulta siempre, así que **sirve igual que Mediarte** para esta prueba. Es un dato de configuración de dev/staging que cualquiera puede volver a cambiar — por eso el chequeo lee la regla en runtime en vez de asumirla.
+
+**El chequeo está automatizado:** `node dev/experian-check.ts [<uReqId>]` (sin id, la última solicitud). Contrasta las cuatro cosas —firma, compuerta, caché, consulta— y sale con `0` omisión probada · `1` sí se consultó · `2` no concluyente. Dos trampas que ya resolvió y conviene no reintroducir:
+
+- **Detectar la consulta por fecha suelta es un falso positivo.** `created_at >= solicitud` se come las consultas de solicitudes POSTERIORES del mismo usuario (la 464334 del 16-jul se comía una fila del 17-jul y daba "se consultó pese a la firma"). Hay que ir por el vínculo `user_request_risk_central_user_data`… pero esa tabla ata el reporte que quedó pegado a la solicitud **venga de consulta fresca o de caché**, así que la fecha sigue haciendo falta: anterior a la solicitud = reusado, posterior = consultado de verdad.
+- **El contexto del veredicto vive en `logs.request`**, no en `response` (que queda vacío). Buscarlo en `response` devuelve `?` como razón y parece que la compuerta no dejó rastro.
+
 ### F-61 · Staging falla el login del asesor porque es OTRO pool de Cognito sobre la MISMA base
 
 **Síntoma.** Contra `staging` el login de Cognito pasa sin problema, pero el wizard responde **"No tienes un comercio asignado"**. Se ve como un problema de permisos del comercio; no lo es.

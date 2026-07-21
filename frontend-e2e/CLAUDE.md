@@ -48,6 +48,12 @@ que distingue "ventana cerrada" y **tira** (`dev/guided.spec.ts:538-545`); el re
   real con bypasses. Sirve para lo que un mock no puede dar: interactividad, render, comportamiento del
   front.
 
+- **Forense — `dev/experian-check.ts`.** Después de una corrida: ¿esta solicitud omitió Experian, y se
+  puede *afirmar*? "No hay fila de buró nueva" tiene **tres** causas distintas (flujo firmado · la
+  compuerta de frecuencia cortó antes · caché de 1 mes), y hay que descartar dos para creerle a la
+  tercera. Mismo contrato que el rápido: **exit code = veredicto** (`0` probada · `1` sí se consultó ·
+  `2` no concluyente). Detalle en F-60.
+
 **No metas el modo rápido en el panel.** Ya se intentó y se revirtió: el panel existe para probar el
 FRONTEND a mano; el rápido es una herramienta de análisis por consola. Mezclarlos confunde para qué
 sirve cada uno. Si necesitás correr el rápido, es `node dev/sweep.ts …`, no un botón.
