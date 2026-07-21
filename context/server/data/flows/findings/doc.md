@@ -1073,3 +1073,25 @@ Es la peor combinación posible para depurar: **la única pieza desplegada es la
 **Consecuencia práctica.** Ninguna prueba en dev/staging puede dar positiva hoy, por más limpio que esté el usuario o fría la caché. Hasta que el backend se despliegue, la validación va **contra el stack local** corriendo la rama (`CFE_TARGET=local`), donde el código sí tiene las tres piezas.
 
 **Lección.** "Está mergeado" y "está desplegado en el ambiente contra el que pruebo" son afirmaciones distintas, y la segunda se verifica barata: `git show origin/develop:<archivo> | grep <lo que agregó la tarea>`. Vale hacerlo **antes** de armar el usuario de prueba, no después.
+
+### F-63 · `RKV24027` (dato vigente) corta ANTES que la omisión por flujo — y se lee como si la omisión fallara
+
+**Síntoma.** Con la tarea ya desplegada y el flujo firmado (`flow_id = 2`), dos de las tres variaciones de Experian devuelven `RKV24029` (omitido por flujo) pero la tercera devuelve **`RKV24027`**. Leído como "no todas se omitieron", parece que la omisión funciona a medias. No es así.
+
+**Causa raíz verificada.** Las etapas de `CheckExperianTriggerService` corren en orden, y **"¿ya hay dato vigente para esta central?" (`RKV24027`) se evalúa antes** que la ventana de frecuencia y que la omisión por flujo (`RKV24029`). Si el usuario ya tiene un reporte fresco de esa central, la evaluación corta ahí y **nunca llega** a la etapa del flujo. `RKV24027` también significa "no se consulta" — solo que por otro motivo.
+
+O sea: esa central **no participa de la medición**, no es que falle.
+
+**Cómo leerlo bien.** Los únicos códigos que significan "sí, consultá" son `RKV24000` / `RKV24007` / `RKV24020` / `RKV24021`. Todo lo demás es una razón para no consultar. La prueba de la tarea es el **cambio**: centrales que devolvían uno de esos cuatro **antes** de firmar y devuelven `RKV24029` **después**. Contar como fallo a las que ya venían en `RKV24027` es un falso negativo — fue exactamente el primer veredicto equivocado de `dev/experian-api.ts`, ya corregido.
+
+**Medición real (staging, 2026-07-21, con `91aaad3b` desplegado):**
+
+| central | antes de firmar | después |
+|---|---|---|
+| `experian-acierta` | `RKV24021` (sí consulta) | **`RKV24029`** ✅ |
+| `experian-quanto` | `RKV24021` (sí consulta) | **`RKV24029`** ✅ |
+| `experian-acierta-quanto` | `RKV24027` (caché) | `RKV24027` — no participó |
+
+Firma `URV13000`, `flow_id` 1 → 2. **Lo único que cambió entre ambas mediciones fue la firma** ⇒ la omisión de la tarea funciona.
+
+**Cierra F-62:** el PR #988 se mergeó (`91aaad3b`) y se desplegó. La huella del build viejo era `URV13005` al firmar en estado 9; con el nuevo, `URV13000`.
