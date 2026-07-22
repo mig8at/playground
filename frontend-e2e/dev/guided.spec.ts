@@ -483,7 +483,24 @@ test('guided (semiautomático)', async ({ browser }) => {
         ).catch(() => null);
         const ur = ins?.insertId ? String(ins.insertId) : '';
         if (!ur) { log('✗ el INSERT del user_request falló'); return ''; }
-        const r = await synthFill(Number(ur), synthOptsFromEnv());
+        // OMITIR EXPERIAN (opcional): firma el flujo `already-confirmed-pre-approval` por API — lo mismo
+        // que hace el selector "Confirmación de cupo" del wizard después del OTP. Permite probar la
+        // omisión saltando DIRECTO a /lenders, sin pasar por monto.
+        // Dos condiciones que ya se cumplen: la firma exige estado asignable (1 o 9) y sembramos en 9;
+        // y el comercio tiene que estar autorizado a omitir. Si el backend rechaza, NO se finge: se
+        // sigue en flujo estándar y se dice el código, porque el rechazo viaja en HTTP 200 (F-58).
+        let firmadoOmision = false;
+        if (process.env.E2E_OMIT_EXPERIAN === '1') {
+            const fr = await fetch(`${config.mockUrl}/api/v1/user-request/${ur}/flow-signature/already-confirmed-pre-approval`,
+                { method: 'POST', headers: { accept: 'application/json' } }).then((x) => x.json()).catch(() => null);
+            firmadoOmision = fr?.code === 'URV13000';
+            log(firmadoOmision
+                ? `flujo firmado por API (already-confirmed-pre-approval) → NO se inyecta el buró: "sin fila" pasa a ser la prueba de la omisión`
+                : `✗ no se pudo firmar el flujo (${fr?.code ?? 'sin respuesta'}${fr?.message ? `: ${fr.message}` : ''}) → sigue el flujo ESTÁNDAR`);
+        }
+        // Con el flujo firmado no se forja el buró: el backend tampoco lo va a consultar, y una fila
+        // nuestra volvería el resultado ininterpretable.
+        const r = await synthFill(Number(ur), { ...synthOptsFromEnv(), skipBuro: firmadoOmision });
         log(`uReq ${ur} sembrado headless (user ${userId} · asesor ${asesorId ?? '-'} · Experian ${r.datacredito_forged})`);
         traza.trazarUReq(ur);
         // Aviso TEMPRANO: si el lender que elijas pide cuota inicial, el flujo va al checkout de Wompi y

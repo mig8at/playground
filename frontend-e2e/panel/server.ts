@@ -254,7 +254,7 @@ async function runHeader(slug: string, p: Profile, t: string, inject: boolean, s
     return L.join('\n') + '\n';
 }
 
-async function launch(slug: string, profile: Profile, target: string, inject: boolean, stepTarget: string, amount: number, paDelay: number, canal = 'asesor'): Promise<{ ok: boolean; msg: string }> {
+async function launch(slug: string, profile: Profile, target: string, inject: boolean, stepTarget: string, amount: number, paDelay: number, canal = 'asesor', omitirExperian = false): Promise<{ ok: boolean; msg: string }> {
     if (current && !current.done) return { ok: false, msg: `ya hay una corrida activa (${current.slug}). Parala primero.` };
     const t = TARGETS.has(target) ? target : 'local';
     const step = ['monto', 'phone', 'personal-info', 'lenders'].includes(stepTarget) ? stepTarget : 'monto';
@@ -288,6 +288,9 @@ async function launch(slug: string, profile: Profile, target: string, inject: bo
         E2E_SYNTH_DOB: profile.dob || '',
         E2E_SYNTH_EXP: profile.expeditionDate || '',
         E2E_SYNTH_EMAIL: profile.email || '',
+        // Simula el "sí" de "Confirmación de cupo" firmando el flujo por API en el sembrado headless,
+        // para poder probar la omisión del buró saltando DIRECTO a /lenders (sin pasar por monto).
+        E2E_OMIT_EXPERIAN: omitirExperian ? '1' : '',
     };
     // detached → el hijo lidera su propio grupo de procesos; así "Detener" mata el ÁRBOL entero
     // (bash → npx playwright → node → chromium), no solo el bash.
@@ -548,7 +551,7 @@ const server = createServer(async (req, res) => {
             dob: b.dob ? String(b.dob) : undefined,
             expeditionDate: b.expeditionDate ? String(b.expeditionDate) : undefined,
             email: b.email ? String(b.email) : undefined,
-        }, String(b.target || 'local'), b.inject !== false, String(b.stepTarget || 'monto'), Number(b.amount) || 0, Number(b.paDelay) || 0, String(b.canal || 'asesor')));
+        }, String(b.target || 'local'), b.inject !== false, String(b.stepTarget || 'monto'), Number(b.amount) || 0, Number(b.paDelay) || 0, String(b.canal || 'asesor'), !!b.omitExperian));
     }
 
     if (path === '/api/status') {

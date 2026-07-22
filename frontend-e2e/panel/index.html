@@ -835,6 +835,12 @@
           <button data-v="lenders">Lenders</button>
         </div>
         <p id="stephint" style="color:var(--mut);font-size:12px;margin:8px 0 0"></p>
+        <!-- Solo con el salto HEADLESS: por el camino de monto el selector lo marcás vos en pantalla. -->
+        <label id="omitwrap" style="display:none;align-items:center;gap:8px;margin:10px 0 0;cursor:pointer;font-size:12px;text-transform:none;letter-spacing:0;font-weight:400;color:var(--txt)">
+          <input type="checkbox" id="omitexp" style="accent-color:#22c55e;cursor:pointer" />
+          Simular “Confirmación de cupo” (firma el flujo → salta el buró)
+        </label>
+        <p id="omithint" style="color:var(--mut);font-size:11px;margin:5px 0 0;display:none">Firma <code>already-confirmed-pre-approval</code> por API y NO inyecta el buró, así “sin fila” prueba la omisión. Requiere que el comercio esté autorizado.</p>
       </div>
 
       <div class="field" style="margin-bottom:0">
@@ -1017,6 +1023,17 @@
     // mock es quien contesta, y no según una lista que se desincroniza sola.
     let mockPA = true;
     let inject = true;           // true = inyecta buró sintético (salta consulta real) · false = prueba real
+    // Simula el "sí" de "Confirmación de cupo": el sembrado headless firma el flujo por API, igual que
+    // hace el wizard tras el OTP. Sirve para probar la omisión del buró saltando DIRECTO a /lenders.
+    // Solo aplica al salto headless — por el camino de monto marcás el selector vos, en pantalla.
+    let omitExperian = false;
+    // El control solo tiene sentido con el salto headless: por monto el selector se marca en pantalla.
+    function syncOmit() {
+      const aplica = step === 'lenders';
+      $('omitwrap').style.display = aplica ? 'flex' : 'none';
+      $('omithint').style.display = aplica ? 'block' : 'none';
+      if (!aplica) { omitExperian = false; const c = $('omitexp'); if (c) c.checked = false; }
+    }
     let canal = 'asesor';        // por dónde ENTRA la solicitud: 'asesor' (login + wizard) | 'ecommerce' (URL base64)
     let doctype = 'CC';
     let gender = 'M';
@@ -1665,7 +1682,7 @@
     async function launch() {
       if (!sel) return;
       const body = {
-        slug: sel.slug, target, inject, canal, stepTarget: step, amount: moneyNum('amount'), paDelay: padelay, documentType: doctype, gender,
+        slug: sel.slug, target, inject, canal, omitExperian, stepTarget: step, amount: moneyNum('amount'), paDelay: padelay, documentType: doctype, gender,
         name: $('name').value.trim(), document: $('document').value.trim(),
         age: +$('age').value, dob: $('dob').value, expeditionDate: $('expedition').value,
         email: $('email').value.trim(), occupation: $('occupation').value,
@@ -1724,8 +1741,9 @@
       lenders: 'Salto directo a /lenders con el usuario sintético inyectado (sin hacer el flujo).',
     };
     const updateStepHint = () => { $('stephint').textContent = STEP_HINTS[step] || ''; };
-    document.querySelectorAll('#step button').forEach(b => b.onclick = () => { step = b.dataset.v; setSeg('step', step); updateStepHint(); });
-    updateStepHint();
+    document.querySelectorAll('#step button').forEach(b => b.onclick = () => { step = b.dataset.v; setSeg('step', step); updateStepHint(); syncOmit(); });
+    $('omitexp').onchange = (e) => { omitExperian = e.target.checked; };
+    updateStepHint(); syncOmit();
 
     // espera del mock de pre-aprobados (para VER el loader de las cards rt≠0)
     document.querySelectorAll('#padelay button').forEach(b => b.onclick = () => { padelay = +b.dataset.v; setSeg('padelay', b.dataset.v); });
