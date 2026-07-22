@@ -129,6 +129,16 @@ async function errorShot(page: Page, detail: string) {
     console.log(`  ⚠ FALLO EN PANTALLA (${hereOf(page)}): ${detail} → .auth/${name}`);
 }
 
+// Reemplaza page.pause(): deja la ventana abierta para explorar SIN abrir el Playwright Inspector (que es lo
+// ÚNICO que abre page.pause). La corrida se termina cerrando la ventana o con «Detener» en el panel — ambos
+// matan el proceso y disparan la comprobación de BD del cierre. test.setTimeout(0): sin límite mientras
+// explorás, igual que hacía el pause (el timeout del test no corre). Los eventos CDP de la traza siguen
+// llegando mientras tanto (waitForEvent no bloquea el event loop).
+async function holdOpen(page: Page) {
+    test.setTimeout(0);
+    await page.waitForEvent('close', { timeout: 0 }).catch(() => {});
+}
+
 // fill robusto contra hidratación: el MoneyInput/SSR pierde fill() si React no ató el onChange → reintenta
 // tecla por tecla hasta que el valor quede. Best-effort (no rompe si el campo es raro).
 async function seedField(field: ReturnType<Page['locator']>, value: string) {
@@ -198,7 +208,7 @@ test('guided (semiautomático)', async ({ browser }) => {
 
     // ─────────────────── VENTANA B (el celular del cliente) — abierta DESDE EL ARRANQUE ───────────────────
     // Antes B nacía recién en el handoff rt=2 (más abajo), así que en modo MANUAL —el que usa el panel— NO
-    // aparecía NUNCA: el branch manual termina en page.pause() mucho antes. Ahora las dos ventanas están
+    // aparecía NUNCA: el branch manual termina en holdOpen() mucho antes. Ahora las dos ventanas están
     // abiertas desde el principio (A izquierda = comercio/asesor · B derecha = celular del cliente) y B espera.
     //
     // B NO hereda la sesión de A, a propósito: `/self-service/*` matchea `route(":flow", public-layout.tsx)`
@@ -373,7 +383,7 @@ test('guided (semiautomático)', async ({ browser }) => {
     };
 
     // MANUAL (el panel): nadie automatiza el flujo, así que B se despierta SOLA mirando lo que hace A. Por
-    // EVENTOS (no polling): siguen llegando por CDP durante el page.pause() en el que queda el modo manual.
+    // EVENTOS (no polling): siguen llegando por CDP durante el holdOpen() en el que queda el modo manual.
     //   · navegación a /continue|/confirmation → CreditopX · navegación externa → redirect
     //   · marcador __E2E_HANDOFF_MODAL__ (lo emite el MutationObserver inyectado más arriba) → self-management
     // En GUIADO no hace falta el watcher: el guion llama a wakeB() donde corresponde.
@@ -550,24 +560,23 @@ test('guided (semiautomático)', async ({ browser }) => {
         ).catch(() => null);
         const ur = ins?.insertId ? String(ins.insertId) : '';
         if (!ur) { log('✗ el INSERT del user_request falló'); return ''; }
-        // OMITIR EXPERIAN (opcional): firma el flujo `already-confirmed-pre-approval` por API — lo mismo
-        // que hace el selector "Confirmación de cupo" del wizard después del OTP. Permite probar la
-        // omisión saltando DIRECTO a /lenders, sin pasar por monto.
-        // Dos condiciones que ya se cumplen: la firma exige estado asignable (1 o 9) y sembramos en 9;
-        // y el comercio tiene que estar autorizado a omitir. Si el backend rechaza, NO se finge: se
-        // sigue en flujo estándar y se dice el código, porque el rechazo viaja en HTTP 200 (F-58).
-        let firmadoOmision = false;
+        // CUPO YA CONFIRMADO (checkbox del panel → E2E_OMIT_EXPERIAN): firma el flujo `already-confirmed-pre-approval`
+        // por API — lo mismo que hace el selector "Confirmación de cupo" del wizard tras el OTP. Es INYECTAR el
+        // estado del cupo (no validar nada): con el flujo firmado el backend no consulta el buró y /lenders lista
+        // SOLO rt=0. Dos condiciones ya dadas: la firma exige estado asignable (1 o 9) y sembramos en 9; y el
+        // comercio debe estar autorizado. Si el backend rechaza, NO se finge: se sigue estándar y se dice el
+        // código, porque el rechazo viaja en HTTP 200 (F-58).
+        let cupoConfirmado = false;
         if (process.env.E2E_OMIT_EXPERIAN === '1') {
             const fr = await fetch(`${config.mockUrl}/api/v1/user-request/${ur}/flow-signature/already-confirmed-pre-approval`,
                 { method: 'POST', headers: { accept: 'application/json' } }).then((x) => x.json()).catch(() => null);
-            firmadoOmision = fr?.code === 'URV13000';
-            log(firmadoOmision
-                ? `flujo firmado por API (already-confirmed-pre-approval) → NO se inyecta el buró: "sin fila" pasa a ser la prueba de la omisión`
-                : `✗ no se pudo firmar el flujo (${fr?.code ?? 'sin respuesta'}${fr?.message ? `: ${fr.message}` : ''}) → sigue el flujo ESTÁNDAR`);
+            cupoConfirmado = fr?.code === 'URV13000';
+            log(cupoConfirmado
+                ? `cupo ya confirmado: flujo firmado (already-confirmed-pre-approval) → el backend NO consulta el buró; /lenders listará solo rt=0`
+                : `✗ no se pudo firmar el flujo de cupo (${fr?.code ?? 'sin respuesta'}${fr?.message ? `: ${fr.message}` : ''}) → sigue el flujo ESTÁNDAR`);
         }
-        // Con el flujo firmado no se forja el buró: el backend tampoco lo va a consultar, y una fila
-        // nuestra volvería el resultado ininterpretable.
-        const r = await synthFill(Number(ur), { ...synthOptsFromEnv(), skipBuro: firmadoOmision });
+        // Con el cupo confirmado no se forja el buró: el backend tampoco lo va a consultar.
+        const r = await synthFill(Number(ur), { ...synthOptsFromEnv(), skipBuro: cupoConfirmado });
         log(`uReq ${ur} sembrado headless (user ${userId} · asesor ${asesorId ?? '-'} · Experian ${r.datacredito_forged})`);
         traza.trazarUReq(ur);
         // Aviso TEMPRANO: si el lender que elijas pide cuota inicial, el flujo va al checkout de Wompi y
@@ -697,8 +706,16 @@ test('guided (semiautomático)', async ({ browser }) => {
 
         const ur = await seedHeadless();
         if (!ur) throw new Error('no pude sembrar el uReq headless — probá "Saltar a: Datos" (visual)');
-        await preflightLenders(config.mockUrl, ur);   // si el backend está roto, decilo ACÁ (ver la función)
-        await prepAllDone();   // seed + preflight listos; el goto de abajo reemplaza la pantalla por el marketplace
+        await prepAllDone();   // la inserción terminó: el goto de abajo reemplaza la pantalla por el marketplace REAL
+
+        // El preflight es DIAGNÓSTICO, no un gate (su bool ni se usa): pega al MISMO lenders-v2 que el loader de
+        // /lenders va a pedir igual, así que AWAITEARLO acá era listar DOS veces y dejar la pantalla de "preparando"
+        // colgada esperando ese listado (con su orden ML + reglas por sucursal, que en staging no es instantáneo).
+        // Lo disparamos EN PARALELO con el salto: informa en el log (backend roto / uReq inexistente / N lenders)
+        // sin frenar nada, así la ÚNICA espera visible pasa a ser la de la UI real de /lenders, no la preview de
+        // steps. Se awaitea al final del bloque (best-effort, ya tiene .catch) sólo para que su línea salga en
+        // orden y la promesa no quede flotando cuando el test pausa.
+        const preflight = preflightLenders(config.mockUrl, ur).catch(() => false);
 
         // El salto ES el punto de este modo: si falla, hay que GRITARLO. Con `.catch(() => {})` una ventana
         // cerrada dejaba la corrida en "1 passed" sin una sola pista (ni nav, ni foto, ni pausa).
@@ -757,6 +774,8 @@ test('guided (semiautomático)', async ({ browser }) => {
             log(`   El salto no llegó a pedirse (sesión no asentada / navegación pisada tras el login), no es el front.`);
             log(`   Reintentá el salto, o usá "Saltar a: Monto" para una corrida coherente.`);
         }
+        // Diagnóstico del backend (corrió en paralelo con el salto): su línea sale ACÁ, ya con la UI cargando.
+        await preflight;
     } else {
         await page.goto(`/merchant/${HASH}/solicitar`, { waitUntil: 'domcontentloaded', timeout: 90_000 }).catch(() => {});
         if (needsCognito()) await cognitoLogin(page);   // con la sesión cacheada, ni entramos (ahorra 15s muertos)
@@ -802,12 +821,12 @@ test('guided (semiautomático)', async ({ browser }) => {
                     if (firmado) log('flujo already-confirmed-pre-approval detectado → NO inyecto el buró (así "no hay fila" prueba la omisión)');
                     const r = await synthFill(Number(ur), { ...synthOptsFromEnv(), skipIdentity: true, skipBuro: firmado });
                     log(`buró inyectado para uReq ${ur} (Experian ${r.datacredito_forged}) — identidad la ponés vos; seguí a /lenders`);
-                    tip('Buró inyectado (invisible). Seguí el wizard hasta /lenders. (Resume ▶ para terminar.)');
+                    tip('Buró inyectado (invisible). Seguí el wizard hasta /lenders. (para terminar: cerrá la ventana o «Detener» en el panel.)');
                 } else {
                     log('no pude leer el uReq en personal-info — seguí igual (sin buró inyectado)');
                 }
                 await shot(page, 'manual-personal-info');
-                await page.pause().catch(() => {});
+                await holdOpen(page);
                 return;
             }
 
@@ -816,8 +835,8 @@ test('guided (semiautomático)', async ({ browser }) => {
             if (STEP === 'lenders') {
                 await page.getByText(/cargando las opciones/i).waitFor({ state: 'detached', timeout: 120_000 }).catch(() => {});
                 await shot(page, 'headless-lenders');
-                tip('Salto HEADLESS a /lenders (sin llenado visual, con el sintético inyectado). Explorá las cards. (Resume ▶ para terminar.)');
-                await page.pause().catch(() => {});
+                tip('Salto HEADLESS a /lenders (sin llenado visual, con el sintético inyectado). Explorá las cards. (para terminar: cerrá la ventana o «Detener» en el panel.)');
+                await holdOpen(page);
                 return;
             }
 
@@ -833,8 +852,8 @@ test('guided (semiautomático)', async ({ browser }) => {
             await phoneInput.first().waitFor({ state: 'visible', timeout: 30_000 }).catch(() => {});
             if (STEP === 'phone') {
                 await shot(page, 'auto-phone');
-                tip('Salté a Teléfono con el monto ya puesto. Seguí vos desde acá. (Resume ▶ para terminar.)');
-                await page.pause().catch(() => {});
+                tip('Salté a Teléfono con el monto ya puesto. Seguí vos desde acá. (para terminar: cerrá la ventana o «Detener» en el panel.)');
+                await holdOpen(page);
                 return;
             }
 
@@ -859,8 +878,8 @@ test('guided (semiautomático)', async ({ browser }) => {
                     log(`salté a personal-info · buró inyectado uReq ${ur} (Experian ${r.datacredito_forged})`);
                 }
                 await shot(page, 'auto-personal-info');
-                tip('Salté a personal-info con el buró inyectado. Completá/seguí a /lenders. (Resume ▶ para terminar.)');
-                await page.pause().catch(() => {});
+                tip('Salté a personal-info con el buró inyectado. Completá/seguí a /lenders. (para terminar: cerrá la ventana o «Detener» en el panel.)');
+                await holdOpen(page);
                 return;
             }
 
@@ -876,13 +895,13 @@ test('guided (semiautomático)', async ({ browser }) => {
             await page.waitForURL(/\/lenders/, { timeout: 60_000 }).catch(() => {});
             await page.getByText(/cargando las opciones/i).waitFor({ state: 'detached', timeout: 120_000 }).catch(() => {});
             await shot(page, 'auto-lenders');
-            tip('Salté directo a /lenders con el usuario sintético inyectado. Explorá las cards. (Resume ▶ para terminar.)');
-            await page.pause().catch(() => {});
+            tip('Salté directo a /lenders con el usuario sintético inyectado. Explorá las cards. (para terminar: cerrá la ventana o «Detener» en el panel.)');
+            await holdOpen(page);
             return;
         }
-        tip('MANUAL: el browser quedó en monto. Manejá vos todo el flujo a mano. (Resume ▶ en el Inspector para terminar.)');
+        tip('MANUAL: el browser quedó en monto. Manejá vos todo el flujo a mano. (para terminar: cerrá la ventana o «Detener» en el panel.)');
         await shot(page, 'manual-monto');
-        await page.pause().catch(() => {});
+        await holdOpen(page);
         return;
     }
 

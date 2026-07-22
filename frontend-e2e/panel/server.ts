@@ -128,7 +128,7 @@ function volcarBitacora(): { veredicto: Record<string, unknown>; resumen: Record
 }
 
 /** Formatea el veredicto + resumen para la CONSOLA de la corrida (texto, queda después de terminar). */
-function comprobacionTexto(info: { veredicto: Record<string, any>; resumen: Record<string, { altas: number; cambios: number }> } | null, nEventos: number): string {
+function comprobacionTexto(info: { veredicto: Record<string, any>; resumen: Record<string, { altas: number; cambios: number }> } | null, nEventos: number, uiErrors = 0): string {
     if (!info) return '  (sin corrida)\n';
     const v = info.veredicto;
     const tablas = Object.entries(info.resumen)
@@ -144,6 +144,7 @@ function comprobacionTexto(info: { veredicto: Record<string, any>; resumen: Reco
         `  lectura:    ${v.lectura}`,
         `  tablas:     ${tablas}`,
         `  detalle completo → .runs/ultima-corrida.json (${nEventos} operación/es de BD)`,
+        ...(uiErrors ? [`  ⚠ UI:        ${uiErrors} error(es) en pantalla durante la corrida (ver .auth/guided-ERROR-*.png) — "passed" es del harness, no de la app`] : []),
         '',
     ].join('\n') + '\n';
 }
@@ -400,8 +401,8 @@ async function launch(slug: string, profile: Profile, target: string, inject: bo
         E2E_SYNTH_DOB: profile.dob || '',
         E2E_SYNTH_EXP: profile.expeditionDate || '',
         E2E_SYNTH_EMAIL: profile.email || '',
-        // Simula el "sí" de "Confirmación de cupo" firmando el flujo por API en el sembrado headless,
-        // para poder probar la omisión del buró saltando DIRECTO a /lenders (sin pasar por monto).
+        // "Cupo ya confirmado" (checkbox al pie del monto): firma el flujo already-confirmed-pre-approval en el
+        // sembrado headless → el backend no consulta el buró y /lenders lista solo rt=0. Inyecta el estado, no valida.
         E2E_OMIT_EXPERIAN: omitirExperian ? '1' : '',
     };
     // detached → el hijo lidera su propio grupo de procesos; así "Detener" mata el ÁRBOL entero
@@ -410,7 +411,19 @@ async function launch(slug: string, profile: Profile, target: string, inject: bo
     const child = spawn('/bin/bash', [join(ROOT, 'bin', bin), slug], { cwd: ROOT, env, detached: true });  // sin `auto` → manual
     current = { child, slug, target: t, inject, startedAt: Date.now(), done: false, code: null };
     bitacora = { user: null, eventos: new Map() };   // arranca limpia: si no, arrastraría la corrida anterior
-    const append = (b: Buffer) => { try { writeFileSync(RUN_LOG, b.toString(), { flag: 'a' }); } catch {} };
+    // Estampa "listo para explorar en Xs" la PRIMERA vez que el spec canta que aterrizó (entrada DIRECTA/OK).
+    // Ese delta —desde que diste Lanzar hasta que podés explorar— es la métrica REAL de velocidad; el
+    // "passed (N min)" de Playwright incluye tu exploración (holdOpen sin límite) y no mide nada.
+    let listoStamped = false;
+    const append = (b: Buffer) => {
+        const s = b.toString();
+        try { writeFileSync(RUN_LOG, s, { flag: 'a' }); } catch {}
+        if (!listoStamped && current && /entrada (DIRECTA|OK)/.test(s)) {
+            listoStamped = true;
+            const seg = Math.max(1, Math.round((Date.now() - current.startedAt) / 1000));
+            try { writeFileSync(RUN_LOG, `  ⏱ listo para explorar en ${seg}s (desde que diste Lanzar)\n`, { flag: 'a' }); } catch {}
+        }
+    };
     child.stdout?.on('data', append);
     child.stderr?.on('data', append);
     child.on('close', async (code) => {
@@ -425,7 +438,11 @@ async function launch(slug: string, profile: Profile, target: string, inject: bo
             const act = await dbopsJson(['activity', String(seg)], current?.target || 'local');
             acumular(act);
             const info = volcarBitacora();
-            append(Buffer.from(comprobacionTexto(info, bitacora.eventos.size)));
+            // ¿la UI mostró algún banner de error durante la corrida? El spec los vuelca como "⚠ FALLO EN
+            // PANTALLA …" (errorShot). Con el salto por `commit`, un error POSTERIOR no tumba la corrida
+            // (queda "passed"), así que hay que CANTARLO en el cierre o pasa inadvertido.
+            const uiErrors = (fullLog().match(/FALLO EN PANTALLA/g) || []).length;
+            append(Buffer.from(comprobacionTexto(info, bitacora.eventos.size, uiErrors)));
         } catch (e) {
             append(Buffer.from(`  ⚠ no se pudo comprobar la BD al cerrar: ${e instanceof Error ? e.message : String(e)}\n`));
         }

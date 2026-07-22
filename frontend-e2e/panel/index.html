@@ -820,6 +820,14 @@
       <div class="field">
         <label>Monto solicitado</label>
         <div class="money"><input id="amount" type="text" inputmode="numeric" value="2.000.000" oninput="onMoney(this)" /></div>
+        <!-- Cupo ya confirmado (al pie del monto): al inyectar, firma el flujo `already-confirmed-pre-approval`
+             (flow_id=2). Es INYECTAR el estado del cupo, NO validar nada (la validación de la omisión sigue por
+             CLI: dev/experian-check.ts). Efecto real: el backend no consulta el buró y /lenders lista SOLO rt=0.
+             Sólo aplica al salto a Lenders en Sintético (ahí corre el seed headless que firma) → se gatea en applyCupoGate. -->
+        <label id="cupolbl" style="display:flex;align-items:center;gap:8px;margin-top:10px;font-size:13px;color:var(--mut);cursor:pointer">
+          <input type="checkbox" id="cupo" style="width:16px;height:16px;cursor:pointer" />
+          <span>Cupo ya confirmado <span style="opacity:.7;font-size:11px">— siembra el flujo con cupo, salta el buró</span></span>
+        </label>
       </div>
 
       <div class="field">
@@ -833,13 +841,12 @@
           <button data-v="lenders">Lenders</button>
         </div>
         <p id="stephint" style="color:var(--mut);font-size:12px;margin:8px 0 0"></p>
-        <!-- "Simular Confirmación de cupo" (firma el flujo → salta el buró) se sacó del panel A PROPÓSITO:
-             es una VALIDACIÓN de un comportamiento de negocio (omisión de Experian), no la comprobación
-             básica de un flujo. El panel inyecta datos + bypassea externos, y nada más. La firma sigue
-             disponible por CLI (E2E_OMIT_EXPERIAN=1) y la validación de la omisión vive en dev/experian-check.ts. -->
+        <!-- El "cupo ya confirmado" (firma del flujo → salta el buró) se controla desde el checkbox al pie del
+             MONTO (arriba). Es INYECCIÓN de estado, no validación: sólo siembra el flujo already-confirmed-pre-approval.
+             La VALIDACIÓN de que la omisión realmente ocurrió sigue fuera del panel, por CLI (dev/experian-check.ts). -->
       </div>
 
-      <div class="field" style="margin-bottom:0">
+      <div class="field" style="margin-bottom:0" id="padelayField">
         <label>Espera pre-aprobados (para ver el loader)</label>
         <div class="seg" id="padelay">
           <button class="on" data-v="0">Sin espera</button>
@@ -1224,6 +1231,7 @@
         paStatus = (await (await fetch('/api/pa-statuses')).json().catch(() => ({}))) || {};
         const ls = r.lenders || [];
         mockPA = r.mockPA !== false;   // lo decide E2E_REAL_PREAPPROVALS por target, no el panel
+        applyMockPAGate();             // con MS real "Espera pre-aprobados" no aplica → se oculta (como los estados por lender)
         lendersDelComercio = ls;   // el mapa de tren dibuja los ramales según el rt de estos
         renderTren();
         loadEstado();
@@ -1694,6 +1702,7 @@
       if (!sel) return;
       const body = {
         slug: sel.slug, target, inject, canal, stepTarget: step, amount: moneyNum('amount'), paDelay: padelay, documentType: doctype, gender,
+        omitExperian: inject && step === 'lenders' && $('cupo').checked,   // "Cupo ya confirmado": firma el flujo en el seed (solo salto a Lenders sintético)
         name: $('name').value.trim(), document: $('document').value.trim(),
         age: +$('age').value, dob: $('dob').value, expeditionDate: $('expedition').value,
         email: $('email').value.trim(), occupation: $('occupation').value,
@@ -1756,7 +1765,7 @@
       lenders: () => 'Salto directo a /lenders con el usuario sintético sembrado (sin pasar por las vistas).',
     };
     const updateStepHint = () => { $('stephint').textContent = (STEP_HINTS[step] || (() => ''))(); };
-    document.querySelectorAll('#step button').forEach(b => b.onclick = () => { if (b.disabled) return; step = b.dataset.v; setSeg('step', step); updateStepHint(); });
+    document.querySelectorAll('#step button').forEach(b => b.onclick = () => { if (b.disabled) return; step = b.dataset.v; setSeg('step', step); updateStepHint(); applyCupoGate(); });
     updateStepHint();
 
     // espera del mock de pre-aprobados (para VER el loader de las cards rt≠0)
@@ -1849,7 +1858,30 @@
         if (!inject && step === 'lenders') { step = 'monto'; setSeg('step', step); }
       }
       updateStepHint();   // el hint de Inicio cambia según Sintético/Real
+      applyCupoGate();    // el checkbox "Cupo ya confirmado" sólo aplica en Lenders + Sintético
       updateGo();
+    }
+
+    // "Cupo ya confirmado" (checkbox al pie del monto): sólo tiene efecto en el salto a Lenders en Sintético,
+    // que es donde el seed headless firma el flujo. En Inicio o Real se deshabilita (y se desmarca) para no
+    // ofrecer un check que no haría nada.
+    function applyCupoGate() {
+      const cb = $('cupo'), lbl = $('cupolbl'); if (!cb) return;
+      const ok = inject && step === 'lenders';
+      cb.disabled = !ok;
+      if (!ok) cb.checked = false;
+      if (lbl) { lbl.style.opacity = ok ? '1' : '.4'; lbl.title = ok ? '' : 'Aplica al salto a Lenders en Sintético (ahí el seed firma el flujo del cupo).'; }
+    }
+
+    // "Espera pre-aprobados" es el delay del MOCK local de pre-aprobados. Con MS real (dev/staging: mockPA=false)
+    // no hay mock que respete el delay → el control NO aplica y se OCULTA (mismo criterio que los estados por
+    // lender, que ya se ocultan con MS real: una perilla que no mueve nada miente). Se resuelve por mockPA, no
+    // por lista de targets (E2E_REAL_PREAPPROVALS puede cambiar). Se reevalúa en renderLenders (al elegir comercio
+    // y al cambiar de ambiente, que re-renderiza los lenders del target).
+    function applyMockPAGate() {
+      const f = $('padelayField'); if (!f) return;
+      f.style.display = mockPA ? '' : 'none';
+      if (!mockPA && padelay !== 0) { padelay = 0; setSeg('padelay', '0'); }   // MS real: reseteo el delay que no se usará
     }
     document.querySelectorAll('#injmode button').forEach(b => b.onclick = () => { if (b.disabled) return; inject = b.dataset.i === '1'; applyInjMode(); });
     document.querySelectorAll('#canal button').forEach(b => b.onclick = () => { canal = b.dataset.c; applyCanal(); ensureAssignUI(); });
