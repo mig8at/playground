@@ -32,7 +32,7 @@ function envFor(target: string): NodeJS.ProcessEnv {
 }
 
 // una sola corrida a la vez (un browser headed a la vez).
-let current: { child: ReturnType<typeof spawn>; slug: string; target: string; startedAt: number; done: boolean; code: number | null } | null = null;
+let current: { child: ReturnType<typeof spawn>; slug: string; target: string; inject: boolean; startedAt: number; done: boolean; code: number | null } | null = null;
 
 // ── BITÁCORA DE LA CORRIDA ───────────────────────────────────────────────────────────────────────
 // Se ACUMULA en memoria a medida que el panel consulta la actividad, en vez de sacar una foto al final.
@@ -84,9 +84,15 @@ function volcarBitacora(): void {
         solicitud: ultimo ? `#${ultimo.id}` : null,
         estadoFinal: mEstado ? `${mEstado[1]} «${ESTADOS[mEstado[1]] ?? '?'}»` : 'sin transiciones registradas',
         flujo: mFlujo ? (firmado ? '2 · already-confirmed-pre-approval (omite buró)' : `${mFlujo[1]} · estándar`) : 'sin firmar',
-        experian: buro.length ? `CONSULTADO (${buro.length} reporte/s)` : 'no se consultó',
+        // En modo SINTÉTICO la fila de Experian la escribe `synthFill`, NO la consulta el backend.
+        // Contarla como consulta daba un falso negativo: "flujo firmado pero se consultó Experian",
+        // acusando a la lógica de omisión de algo que hizo el propio harness. Un veredicto equivocado
+        // es peor que ninguno, así que en ese modo se dice que no aplica en vez de concluir.
+        experian: current.inject ? `${buro.length} fila/s INYECTADAS por el harness (modo sintético)`
+            : buro.length ? `CONSULTADO (${buro.length} reporte/s)` : 'no se consultó',
         // La lectura combinada es lo que importa; el resto son datos sueltos.
         lectura: !ultimo ? 'la corrida no llegó a crear ni tocar una solicitud'
+            : current.inject ? 'modo sintético: el buró se inyectó, así que NO se puede concluir nada sobre la omisión — corré en modo REAL para eso'
             : firmado && !buro.length ? '✓ flujo firmado y sin consulta a Experian: la omisión se aplicó'
             : firmado && buro.length ? '✗ flujo firmado PERO se consultó Experian — la omisión no funcionó'
             : buro.length ? 'flujo estándar con consulta a Experian (lo esperado sin la firma)'
@@ -282,7 +288,7 @@ async function launch(slug: string, profile: Profile, target: string, inject: bo
     // (bash → npx playwright → node → chromium), no solo el bash.
     const bin = canal === 'ecommerce' ? 'ecommerce' : 'asesor';   // bin/ecommerce es un wrapper que exporta CFE_ENTRY
     const child = spawn('/bin/bash', [join(ROOT, 'bin', bin), slug], { cwd: ROOT, env, detached: true });  // sin `auto` → manual
-    current = { child, slug, target: t, startedAt: Date.now(), done: false, code: null };
+    current = { child, slug, target: t, inject, startedAt: Date.now(), done: false, code: null };
     bitacora = { user: null, eventos: new Map() };   // arranca limpia: si no, arrastraría la corrida anterior
     const append = (b: Buffer) => { try { writeFileSync(RUN_LOG, b.toString(), { flag: 'a' }); } catch {} };
     child.stdout?.on('data', append);
