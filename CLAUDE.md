@@ -67,13 +67,16 @@ un nodo, validá con `python3 context/tools/oracle.py <map.json>`.
 
 ## Variables de entorno
 
-Los **hechos** del entorno (BD, API base, `APP_KEY`) viven **compartidos** en `env/<target>.env`
-(`local` · `dev`), no duplicados por herramienta. Cada herramienta guarda solo sus **perillas**
-(Cognito, mocks, `SEED`) en su propio `.env.<target>`, y **el propio pisa al compartido**.
-Prioridad: `process.env` > `<herramienta>/.env.<target>` > `env/<target>.env`.
+Cada herramienta guarda su configuración por target en su propio **`.env.<target>`** (`local` · `dev` ·
+`staging`), **autosuficiente**: ahí viven tanto los **hechos** del entorno (BD, API base, `APP_KEY`)
+como las **perillas** (Cognito, mocks, `SEED`). Ya **no** hay capa compartida `env/<target>.env` — se
+eliminó el 2026-07-22 (solo la usaba `frontend-e2e`; `backend-e2e`/`backend-mcp`, que la compartían, se
+borraron). Prioridad: `process.env` > `<herramienta>/.env.<target>`. Ojo: `staging` comparte BD/API con
+`dev`, así que esos valores son una **copia** de dev — si rotan, actualizá los dos.
 
-**Acá van hechos, nunca interruptores.** Un flag de permiso (tipo `I_KNOW_THIS_TOUCHES_SHARED_DEV`)
-en el archivo compartido desarmaría la guarda de todas las herramientas de una (F-53). Los permisos
-quieren fricción: se exportan a mano en la shell de esa sesión.
+**Los permisos no van en archivo.** El flag `I_KNOW_THIS_TOUCHES_SHARED_DEV` **no** vive en ningún
+`.env.*`: se exporta a mano en la shell cuando de verdad vas a escribir a la BD compartida de dev (el
+panel lo inyecta solo para sus corridas). Meterlo en un archivo desarma la guarda (F-53).
 
-`env/*.env` está gitignoreado; las plantillas versionadas son `env/*.env.example`.
+`.env.*` está gitignoreado (trae secretos); las plantillas versionadas y documentadas son
+`<herramienta>/.env.<target>.example`.

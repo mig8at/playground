@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 // dbops — CLI de operaciones de DB para frontend-e2e (sin shellear a backend-mcp). Salida JSON, igual
 // que el Go que reemplaza, para que bin/asesor siga parseando con node json_pick. Target = E2E_TARGET
-// (default dev). Las escrituras a dev exigen I_KNOW_THIS_TOUCHES_SHARED_DEV=1 (lo trae .env.dev).
+// (default dev). Las escrituras a dev exigen I_KNOW_THIS_TOUCHES_SHARED_DEV=1 exportado A MANO en la
+// shell (ya NO vive en .env.dev — F-53); el panel lo inyecta solo para sus corridas (panel/server.ts).
 //   node bin/dbops.ts whois <email|sub>
 //   node bin/dbops.ts assign <email|sub> <merchant> [branchHash] [realSub]
 //   node bin/dbops.ts revoke

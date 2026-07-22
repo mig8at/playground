@@ -1,20 +1,17 @@
 // env.ts — resuelve la configuración por TARGET. Vive aparte de `db.ts` para que quien solo necesita
 // leer una URL no arrastre el driver de MySQL.
 //
-// PRIORIDAD (gana el primero):
-//   process.env  >  <herramienta>/.env.<target>  >  env/<target>.env  >  env/<heredado>.env
+// Cada `frontend-e2e/.env.<target>` es AUTOSUFICIENTE: trae los HECHOS del entorno (BD, API, APP_KEY)
+// y las perillas (Cognito, mocks, SEED). Ya NO existe la capa compartida `playground/env/` — se
+// eliminó el 2026-07-22 porque solo la usaba frontend-e2e (backend-e2e/backend-mcp, que la compartían,
+// fueron borrados). La plantilla documentada de cada target es `.env.<target>.example` (versionada).
 //
-// HERENCIA (`E2E_INHERITS`): un target puede declarar que hereda los hechos de otro y redefinir solo lo
-// que cambia. Existe por **staging**: en legacy-backend la API y la BD de staging son LAS MISMAS que las
-// de dev — el único que tiene ambiente propio es el frontend. Duplicar host/usuario/clave en un segundo
-// archivo sería copiar secretos y garantizar que deriven el día que roten. Así `staging.env` son dos
-// líneas: de quién hereda, y su URL de front.
+// PRIORIDAD (gana el primero):  process.env  >  frontend-e2e/.env.<target>
 import { readFileSync, existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const SHARED = resolve(ROOT, '..', 'env');
 
 export const TARGET = (process.env.E2E_TARGET || 'dev').toLowerCase();
 
@@ -33,25 +30,13 @@ function parseEnv(p: string): Record<string, string> {
     return m;
 }
 
-/** Hechos compartidos del target, con la cadena de herencia resuelta primero. */
-function sharedFor(target: string, seen = new Set<string>()): Record<string, string> {
-    if (seen.has(target)) return {}; // ciclo A→B→A: cortamos en vez de colgarnos
-    seen.add(target);
-    const own = parseEnv(resolve(SHARED, `${target}.env`));
-    const parent = own.E2E_INHERITS?.trim().toLowerCase();
-    return parent ? { ...sharedFor(parent, seen), ...own } : own;
-}
+const fileEnv: Record<string, string> = parseEnv(resolve(ROOT, `.env.${TARGET}`));
 
-// El `.env.<target>` propio de la herramienta (perillas: Cognito, mocks, SEED) pisa a los compartidos.
-const fileEnv: Record<string, string> = {
-    ...sharedFor(TARGET),
-    ...parseEnv(resolve(ROOT, `.env.${TARGET}`)),
-};
-
-/** Prioridad: process.env > .env.<target> de la herramienta > env/<target>.env (y sus heredados). */
+/** Prioridad: process.env > frontend-e2e/.env.<target>. */
 export function env(key: string, fallback = ''): string {
     return process.env[key] ?? fileEnv[key] ?? fallback;
 }
 
-/** De qué target hereda este (vacío si no hereda). Útil para mostrarlo en el panel. */
-export const INHERITS = (sharedFor(TARGET).E2E_INHERITS || '').trim().toLowerCase();
+/** Ya no hay herencia entre targets (cada `.env.<target>` es autosuficiente). Se conserva el export
+ *  vacío por compatibilidad con quien lo lea (p. ej. `bin/preflight.ts`, que lo muestra). */
+export const INHERITS = '';

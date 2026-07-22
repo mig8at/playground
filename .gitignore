@@ -29,6 +29,7 @@ test-results/
 .env
 .env.*
 !.env.example
+!.env.*.example
 # Artefactos de sesión/tokens del login Cognito (frontend-e2e/.auth/) — nunca commitear
 .auth/
 # Ledger de recursos creados en BD (backend-e2e/.created-resources.json) — estado local por máquina
@@ -43,9 +44,5 @@ test-results/
 .idea/
 .vscode/
 
-# Variables de entorno COMPARTIDAS por target (env/local.env, env/dev.env).
-# Traen credenciales de BD → nunca se versionan. Los .example SÍ (son plantillas sin secretos).
-env/*.env
-!env/*.env.example
 # Volcado forense pre-scrub (frontend-e2e/.runs/) — estado de solicitudes por corrida, local por máquina
 .runs/
