@@ -64,6 +64,35 @@ function volcarBitacora(): void {
         const r = (resumen[e.tabla] ??= { altas: 0, cambios: 0 });
         if (e.op === 'INSERT') r.altas++; else r.cambios++;
     }
+    // ── VEREDICTO ────────────────────────────────────────────────────────────────────────────────
+    // Se DERIVA de los eventos ya recolectados, sin una sola consulta nueva: la bitácora ya trae el
+    // estado y el flujo en el `detalle` de `user_requests`, y qué central se escribió en el de
+    // `risk_central_user_data`. Es la conclusión que hoy reconstruís a mano abriendo la base.
+    const ESTADOS: Record<string, string> = {
+        '1': 'Validación OTP', '3': 'Seleccionó entidad', '9': 'Formulario de perfil',
+        '10': 'Pendiente de autorización', '11': 'Autorizada',
+    };
+    const EXPERIAN = ['1', '8', '9'];   // Acierta · Quanto · Acierta+Quanto (`risk_centrals`)
+    const ur = eventos.filter((e) => e.tabla === 'user_requests');
+    const ultimo = ur.length ? ur[ur.length - 1] : null;
+    const mEstado = ultimo ? /estado (\d+)/.exec(ultimo.detalle) : null;
+    const mFlujo = ur.map((e) => /flow (\d+)/.exec(e.detalle)).filter(Boolean).pop();
+    const buro = eventos.filter((e) => e.tabla === 'risk_central_user_data'
+        && EXPERIAN.includes((/central (\d+)/.exec(e.detalle) || [])[1] ?? ''));
+    const firmado = mFlujo?.[1] === '2';
+    const veredicto = {
+        solicitud: ultimo ? `#${ultimo.id}` : null,
+        estadoFinal: mEstado ? `${mEstado[1]} «${ESTADOS[mEstado[1]] ?? '?'}»` : 'sin transiciones registradas',
+        flujo: mFlujo ? (firmado ? '2 · already-confirmed-pre-approval (omite buró)' : `${mFlujo[1]} · estándar`) : 'sin firmar',
+        experian: buro.length ? `CONSULTADO (${buro.length} reporte/s)` : 'no se consultó',
+        // La lectura combinada es lo que importa; el resto son datos sueltos.
+        lectura: !ultimo ? 'la corrida no llegó a crear ni tocar una solicitud'
+            : firmado && !buro.length ? '✓ flujo firmado y sin consulta a Experian: la omisión se aplicó'
+            : firmado && buro.length ? '✗ flujo firmado PERO se consultó Experian — la omisión no funcionó'
+            : buro.length ? 'flujo estándar con consulta a Experian (lo esperado sin la firma)'
+            : 'flujo estándar sin consulta: puede ser caché vigente o la compuerta de frecuencia (ver F-60/F-63)',
+    };
+
     const doc = {
         corrida: {
             comercio: current.slug, target: current.target, exitCode: current.code,
@@ -75,7 +104,7 @@ function volcarBitacora(): void {
         // El alcance viaja DENTRO del archivo: quien lo lea meses después no tiene por qué saber que
         // esto no es un binlog, y un registro que aparenta ser completo es peor que no tenerlo.
         alcance: '9 tablas curadas, solo filas del usuario de esta corrida. NO incluye DELETEs ni escrituras de otras personas (dev/staging son compartidas).',
-        resumen, eventos,
+        veredicto, resumen, eventos,
     };
     try {
         if (!existsSync(RUNS_DIR)) mkdirSync(RUNS_DIR, { recursive: true });
