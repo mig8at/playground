@@ -473,7 +473,12 @@ test('guided (semiautomático)', async ({ browser }) => {
             return '';
         }
         const ins = await exec(
-            'INSERT INTO user_requests (user_id, allied_id, allied_branch_id, lender_id, amount, original_amount, user_request_status_id, corporate_user_id, credit_line_id, fee_number, fee_value, rate, created_at, updated_at) VALUES (?,?,?,NULL,?,?,1,?,1,0,0,0,NOW(),NOW())',
+            // estado 9 «Formulario de perfil», NO 1 «Validación OTP». El front rutea por el ESTADO de la
+            // solicitud: con 1 te rebota al paso pendiente (/otp) y el salto a /lenders nunca llega —
+            // ahí seguías a mano, el wizard creaba una SEGUNDA solicitud y la traza quedaba en la
+            // sembrada. En una corrida manual sana, al estar en /lenders la solicitud está en 9, y
+            // `synthFill` (abajo) llena justamente ese perfil. Sembrar en 9 deja el mismo estado.
+            'INSERT INTO user_requests (user_id, allied_id, allied_branch_id, lender_id, amount, original_amount, user_request_status_id, corporate_user_id, credit_line_id, fee_number, fee_value, rate, created_at, updated_at) VALUES (?,?,?,NULL,?,?,9,?,1,0,0,0,NOW(),NOW())',
             [userId, br.allied_id, br.branch_id, Number(AMOUNT), Number(AMOUNT), asesorId],
         ).catch(() => null);
         const ur = ins?.insertId ? String(ins.insertId) : '';
