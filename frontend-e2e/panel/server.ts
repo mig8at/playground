@@ -35,16 +35,16 @@ function envFor(target: string): NodeJS.ProcessEnv {
 let current: { child: ReturnType<typeof spawn>; slug: string; target: string; inject: boolean; startedAt: number; done: boolean; code: number | null } | null = null;
 
 // ── BITÁCORA DE LA CORRIDA ───────────────────────────────────────────────────────────────────────
-// Se ACUMULA en memoria a medida que el panel consulta la actividad, en vez de sacar una foto al final.
-// Dos razones: `dbops activity` corta con `LIMIT 60` por tabla (una corrida larga perdería los eventos
-// más viejos), y si una fila se borra a mitad de camino la foto final no la vería nunca. Se vuelca a
-// disco cuando la corrida termina, para el post mortem.
+// Al CERRAR la corrida se hace UNA consulta `dbops activity` (ventana = duración) y se vuelca acá: a la
+// consola (post-mortem, queda después de terminar) y a `.runs/`. Antes se acumulaba tick a tick durante
+// la corrida (polling cada 2s); se dejó de pollear porque cargaba la BD compartida arrancando un
+// proceso+conexión por tick — una sola foto al final alcanza y es más barata.
 const RUNS_DIR = resolve(ROOT, '.runs');
 const ULTIMA = join(RUNS_DIR, 'ultima-corrida.json');
 let bitacora: { user: number | null; eventos: Map<string, any> } = { user: null, eventos: new Map() };
 
-/** Mezcla lo que devolvió `dbops activity` en la bitácora. Clave = tabla+id+op+at → idempotente: el
- *  panel re-consulta TODA la ventana en cada tick, así que sin dedup se duplicaría cada 2 segundos. */
+/** Mezcla lo que devolvió `dbops activity` en la bitácora. Clave = tabla+id+op+at → idempotente (hoy se
+ *  llama una sola vez, al cierre; el dedup por clave queda por si vuelve a haber más de una fuente). */
 function acumular(a: any): void {
     if (!a || !Array.isArray(a.tablas)) return;
     if (a.user) bitacora.user = a.user;
@@ -55,9 +55,10 @@ function acumular(a: any): void {
     }
 }
 
-/** Vuelca la bitácora a `.runs/`. Un archivo fijo (la última) + uno por corrida (historia comparable). */
-function volcarBitacora(): void {
-    if (!current) return;
+/** Vuelca la bitácora a `.runs/` (un archivo fijo + uno por corrida) y DEVUELVE el análisis (veredicto +
+ *  resumen por tabla) para volcarlo también a la consola. Null si no hay corrida. */
+function volcarBitacora(): { veredicto: Record<string, unknown>; resumen: Record<string, { altas: number; cambios: number }> } | null {
+    if (!current) return null;
     const eventos = [...bitacora.eventos.values()].sort((x, y) => String(x.at).localeCompare(String(y.at)));
     const resumen: Record<string, { altas: number; cambios: number }> = {};
     for (const e of eventos) {
@@ -123,6 +124,28 @@ function volcarBitacora(): void {
         writeFileSync(ULTIMA, s);
         writeFileSync(join(RUNS_DIR, `corrida-${new Date(current.startedAt).toISOString().replace(/[:.]/g, '-').slice(0, 19)}-${current.slug}.json`), s);
     } catch { /* el volcado nunca debe tumbar la corrida */ }
+    return { veredicto, resumen };
+}
+
+/** Formatea el veredicto + resumen para la CONSOLA de la corrida (texto, queda después de terminar). */
+function comprobacionTexto(info: { veredicto: Record<string, any>; resumen: Record<string, { altas: number; cambios: number }> } | null, nEventos: number): string {
+    if (!info) return '  (sin corrida)\n';
+    const v = info.veredicto;
+    const tablas = Object.entries(info.resumen)
+        .map(([t, r]) => `${t} (${[r.altas ? `${r.altas} alta${r.altas > 1 ? 's' : ''}` : '', r.cambios ? `${r.cambios} cambio${r.cambios > 1 ? 's' : ''}` : ''].filter(Boolean).join(' · ')})`)
+        .join(' · ') || '(ninguna)';
+    return [
+        '',
+        '── Comprobación de BD (post-corrida) ──',
+        `  solicitud:  ${v.solicitud ?? '—'}`,
+        `  estado:     ${v.estadoFinal}`,
+        `  flujo:      ${v.flujo}`,
+        `  experian:   ${v.experian}`,
+        `  lectura:    ${v.lectura}`,
+        `  tablas:     ${tablas}`,
+        `  detalle completo → .runs/ultima-corrida.json (${nEventos} operación/es de BD)`,
+        '',
+    ].join('\n') + '\n';
 }
 
 function json(res: ServerResponse, code: number, body: unknown) {
@@ -234,6 +257,46 @@ function runWarm(target: string): Promise<{ ok: boolean; detail: string }> {
             ok({ ok: okWarm, detail });
         });
     });
+}
+
+// ── Permiso del asesor al COMERCIO (el paso "comercio" del funnel) ─────────────────────────────────
+// El funnel del panel dispara cada cosa cuando el usuario la elige: ambiente → sesión (dots) ·
+// comercio → ESTE assign · lanzar → solo scrub + seed + navegador. Antes el assign corría adentro del
+// launch (load-permiso de bin/asesor) y era parte de la espera; bin/asesor lo sigue verificando al
+// lanzar (whois), pero como el panel ya asignó, le da "ya en <comercio> — sin write" y no re-escribe.
+
+// SUB del asesor por target — la MISMA cadena que usa bin/asesor (envget E2E_ASESOR_SUB), con fallback
+// a `.flows.json` (asesor.sub). Si se leyera del shell del panel, ponerlo en .env.<target> no haría nada.
+function asesorSub(target: string): Promise<string> {
+    return new Promise((ok) => {
+        execFile('node', ['bin/envget.ts', 'E2E_ASESOR_SUB', ''], { cwd: ROOT, env: envFor(target), timeout: 10000 },
+            (err, out) => {
+                const sub = !err ? String(out || '').trim() : '';
+                ok(sub || String(leerFlows()?.asesor?.sub || '').trim());
+            });
+    });
+}
+
+// asignaciones ya confirmadas en esta sesión del panel (target|hash) — evita re-consultar en cada click.
+// Si otra corrida reasigna por afuera, bin/asesor lo corrige al lanzar (es la verificación autoritativa).
+const assignOk = new Set<string>();
+
+async function ensureAssign(slug: string, target: string): Promise<{ ok: boolean; already?: boolean; detail: string }> {
+    const hash = branchHashForSlug(slug);
+    if (!hash) return { ok: false, detail: `no sé el hash de la sucursal de '${slug}'` };
+    const key = `${target}|${hash}`;
+    if (assignOk.has(key)) return { ok: true, already: true, detail: 'permiso ya confirmado' };
+    const sub = await asesorSub(target);
+    if (!sub) return { ok: false, detail: `sin asesor para ${target}: definí E2E_ASESOR_SUB en .env.${target} (o asesor.sub en .flows.json)` };
+    const cur = await dbopsJson(['whois', sub], target);
+    if (cur?.matches?.[0]?.allied_branch_hash === hash) {
+        assignOk.add(key);
+        return { ok: true, already: true, detail: 'el asesor ya estaba en esta sucursal — sin write' };
+    }
+    const r = await dbopsJson(['assign', sub, slug, hash, sub], target);
+    if (!r || r.error) return { ok: false, detail: r?.error || 'el assign falló (mirá la consola del panel)' };
+    assignOk.add(key);
+    return { ok: true, detail: `asesor asignado a la sucursal ${hash}` };
 }
 
 function leerFlows(): any {
@@ -350,11 +413,22 @@ async function launch(slug: string, profile: Profile, target: string, inject: bo
     const append = (b: Buffer) => { try { writeFileSync(RUN_LOG, b.toString(), { flag: 'a' }); } catch {} };
     child.stdout?.on('data', append);
     child.stderr?.on('data', append);
-    child.on('close', (code) => {
+    child.on('close', async (code) => {
         if (current) { current.done = true; current.code = code; }
         append(Buffer.from(`\n✓ corrida terminada (code ${code})\n`));
-        volcarBitacora();
-        append(Buffer.from(`  bitácora → .runs/ultima-corrida.json (${bitacora.eventos.size} operación/es de BD)\n`));
+        // Comprobación de BD UNA sola vez, al FINAL (no polling durante la corrida): consulta qué persistió
+        // la corrida y lo vuelca a ESTA consola + a .runs. El resumen queda en la consola después de terminar
+        // (post-mortem), sin cargar la BD compartida cada 2s mientras se corre.
+        append(Buffer.from('  comprobando la BD…\n'));
+        try {
+            const seg = current ? Math.max(1, Math.round((Date.now() - current.startedAt) / 1000)) : 300;
+            const act = await dbopsJson(['activity', String(seg)], current?.target || 'local');
+            acumular(act);
+            const info = volcarBitacora();
+            append(Buffer.from(comprobacionTexto(info, bitacora.eventos.size)));
+        } catch (e) {
+            append(Buffer.from(`  ⚠ no se pudo comprobar la BD al cerrar: ${e instanceof Error ? e.message : String(e)}\n`));
+        }
     });
     return { ok: true, msg: `lanzado '${slug}' (${t}) — ${mode}${jump}.` };
 }
@@ -401,6 +475,14 @@ const server = createServer(async (req, res) => {
         const data = await sessionCheck(t);
         sessionStatusCache.set(t, { at: Date.now(), data });
         return json(res, 200, data);
+    }
+
+    // Permiso del asesor al comercio — lo dispara la SELECCIÓN de comercio en el panel (funnel), no el
+    // launch. Idempotente: whois primero, write solo si hace falta; cacheado por (target, sucursal).
+    if (path === '/api/assign' && req.method === 'POST') {
+        const body = await readBody(req);
+        const t = TARGETS.has(body?.target) ? body.target : 'local';
+        return json(res, 200, await ensureAssign(String(body?.slug || ''), t));
     }
 
     // Pre-login headless: loguea y deja el cache listo. Responde cuando TERMINA (el panel muestra el loader),
@@ -483,17 +565,9 @@ const server = createServer(async (req, res) => {
         })));
     }
 
-    // Qué escribió en la BD la corrida actual. La ventana va en SEGUNDOS desde que arrancó y el corte lo
-    // hace la BD con SU reloj (ver `dbops activity`): contra dev la base es remota y comparar contra el
-    // reloj de node perdería eventos o traería basura vieja.
-    if (path === '/api/activity') {
-        const target = (url.searchParams.get('target') || 'local').trim();
-        if (!current) return json(res, 200, { user: null, tablas: [] });
-        const seg = Math.max(1, Math.round((Date.now() - current.startedAt) / 1000));
-        const act = (await dbopsJson(['activity', String(seg)], target)) || { user: null, tablas: [] };
-        acumular(act);
-        return json(res, 200, act);
-    }
+    // (Se quitó el endpoint /api/activity: la actividad de BD ya NO se pollea durante la corrida —cargaba
+    // la BD compartida arrancando un proceso+conexión cada 2s—. La comprobación se hace UNA vez al cerrar
+    // la corrida, en child.on('close'), y se vuelca a la consola + .runs.)
 
     if (path === '/api/merchants') {
         const q = (url.searchParams.get('q') || '').trim();

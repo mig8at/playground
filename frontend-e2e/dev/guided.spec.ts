@@ -444,10 +444,72 @@ test('guided (semiautomático)', async ({ browser }) => {
         email: process.env.E2E_SYNTH_EMAIL || undefined,
     });
 
+    // ── Pantalla "preparando" con PASOS que se completan de verdad (refleja el seed real, no una animación
+    // falsa). Vive en la propia página del navegador (setContent) y el spec la actualiza vía page.evaluate a
+    // medida que el sembrado avanza: el usuario ve QUÉ pasa y por qué esperar, en vez de una pantalla muda
+    // que invita a cerrarla. Todo best-effort (si la ventana no está, no rompe).
+    let prepIds: string[] = [];
+    async function prepInit(steps: Array<{ id: string; label: string; state?: string }>): Promise<void> {
+        prepIds = steps.map((s) => s.id);
+        const rows = steps
+            .map((s) => `<li class="st" data-step="${s.id}" data-state="${s.state || 'todo'}"><span class="ic"></span><span class="lb">${s.label}</span></li>`)
+            .join('');
+        await page.setContent(`<!doctype html><meta charset="utf-8"><title>Preparando…</title>
+          <style>
+            :root{--bg:#0f1115;--txt:#e7eaf0;--mut:#9aa4b2;--acc:#22c55e;--line:#2a2f3a}
+            html,body{height:100%;margin:0}
+            body{background:var(--bg);color:var(--txt);display:flex;flex-direction:column;align-items:center;
+              justify-content:center;gap:16px;text-align:center;padding:24px;
+              font:15px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
+            .kick{font-size:12px;letter-spacing:1.5px;text-transform:uppercase;color:var(--acc);font-weight:800}
+            .ttl{font-size:20px;font-weight:700}
+            .sub{color:var(--mut);font-size:13px;max-width:46ch}
+            ul.steps{list-style:none;margin:6px 0 0;padding:0;text-align:left;width:340px;max-width:90vw}
+            li.st{display:flex;align-items:center;gap:12px;padding:9px 12px;border-radius:10px;color:var(--mut);
+              transition:color .2s,background .2s}
+            li.st[data-state="run"]{color:var(--txt);background:#171b24}
+            li.st[data-state="done"]{color:var(--txt)}
+            li.st[data-state="skip"]{color:#5b6472}
+            .ic{width:18px;height:18px;flex:0 0 18px;border-radius:50%;position:relative;border:2px solid var(--line)}
+            li.st[data-state="run"] .ic{border-color:var(--acc);border-top-color:transparent;animation:sp .7s linear infinite}
+            @keyframes sp{to{transform:rotate(360deg)}}
+            li.st[data-state="done"] .ic{border-color:var(--acc);background:var(--acc)}
+            li.st[data-state="done"] .ic::after{content:"";position:absolute;left:5px;top:1px;width:4px;height:9px;
+              border:solid var(--bg);border-width:0 2px 2px 0;transform:rotate(45deg)}
+            li.st[data-state="skip"] .ic{border-style:dashed}
+          </style>
+          <div class="kick">Harness · preparando</div>
+          <div class="ttl">Saltando a /lenders…</div>
+          <div class="sub">Sembrando el usuario sintético antes de abrir el marketplace. <b style="color:var(--txt)">No cierres esta ventana.</b></div>
+          <ul class="steps">${rows}</ul>`).catch(() => { /* best-effort */ });
+    }
+    // Marca `id` EN CURSO (spinner) y todos los pasos previos como completados (✓). SIN delays artificiales:
+    // contra dev cada operación (register/insert/synthFill) ya paga su round-trip remoto, así que el spinner
+    // de cada paso se ve solo. La animación refleja el tiempo REAL — no se infla para que "se vea".
+    async function prepAt(id: string): Promise<void> {
+        const idx = prepIds.indexOf(id);
+        if (idx < 0) return;
+        await page.evaluate(
+            ({ ids, idx }) => ids.forEach((sid, i) => {
+                const el = document.querySelector(`[data-step="${sid}"]`) as HTMLElement | null;
+                if (el && el.dataset.state !== 'skip') el.dataset.state = i < idx ? 'done' : i === idx ? 'run' : 'todo';
+            }),
+            { ids: prepIds, idx },
+        ).catch(() => {});
+    }
+    // Todo completado (justo antes de navegar al marketplace, para no dejar el último paso girando).
+    async function prepAllDone(): Promise<void> {
+        await page.evaluate((ids) => ids.forEach((sid) => {
+            const el = document.querySelector(`[data-step="${sid}"]`) as HTMLElement | null;
+            if (el && el.dataset.state !== 'skip') el.dataset.state = 'done';
+        }), prepIds).catch(() => {});
+    }
+
     // ── SIEMBRA HEADLESS: register del teléfono + INSERT del user_request + buró sintético. ──
     // Es HTTP + BD pura: NO toca el navegador. Por eso puede correr ANTES de cualquier navegación.
-    // Devuelve el id del uReq, o '' si no se pudo sembrar.
+    // Devuelve el id del uReq, o '' si no se pudo sembrar. Va marcando los pasos de la pantalla "preparando".
     async function seedHeadless(): Promise<string> {
+        await prepAt('inject');   // un solo paso visible: "Inyectar cliente sintético" (registro+solicitud+firma+perfil+buró)
         // register del teléfono (scrubphone ya lo dejó fresco). Endpoint sin auth, backend local.
         const reg = await fetch(`${config.mockUrl}/api/onboarding/phone/register`, {
             method: 'POST',
@@ -621,22 +683,38 @@ test('guided (semiautomático)', async ({ browser }) => {
         // ── ENTRADA DIRECTA a /lenders: sembramos PRIMERO (sin navegador) y recién ahí navegamos. ──
         //    /solicitar no se muestra nunca. La ventana arranca con una pantalla de "preparando" en vez de
         //    quedarse muda, que era lo que invitaba a cerrarla a mitad de la siembra.
-        await page.setContent(`<!doctype html><meta charset="utf-8"><title>Preparando…</title>
-          <style>html,body{height:100%;margin:0}body{background:#0f1115;color:#e7eaf0;display:flex;flex-direction:column;
-          align-items:center;justify-content:center;gap:10px;text-align:center;padding:24px;
-          font:16px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}</style>
-          <div style="font-size:12px;letter-spacing:1px;text-transform:uppercase;color:#22c55e;font-weight:800">Harness · preparando</div>
-          <div style="font-size:20px;font-weight:700">Saltando a /lenders…</div>
-          <div style="color:#9aa4b2;font-size:14px;max-width:44ch">Sembrando el usuario sintético (registro, solicitud y buró) antes de abrir el marketplace. <b style="color:#e7eaf0">No cierres esta ventana.</b></div>`).catch(() => { /* best-effort */ });
+        // Pantalla de preparación: SOLO los dos pasos que importan (el resto —solicitud, firma, perfil,
+        // preflight— es detalle interno del seed y se colapsa en "Inyectar cliente"):
+        //  1. Asignar sucursal al asesor → YA hecho antes de este spec (el funnel del panel / load-permiso
+        //     de bin/asesor), por eso arranca ✓: deja claro que el asesor puede operar en esta sucursal.
+        //  2. Inyectar cliente sintético → todo el seed headless.
+        // Modo Lenders es SIEMPRE sintético (Real arranca desde Inicio y no pasa por esta pantalla), así que
+        // acá siempre hay inyección; el caso "Real = sin inyección, se consulta el buró" vive en el wizard.
+        await prepInit([
+            { id: 'assign', label: 'Asignar sucursal al asesor', state: 'done' },
+            { id: 'inject', label: 'Inyectar cliente sintético' },
+        ]);
 
         const ur = await seedHeadless();
         if (!ur) throw new Error('no pude sembrar el uReq headless — probá "Saltar a: Datos" (visual)');
         await preflightLenders(config.mockUrl, ur);   // si el backend está roto, decilo ACÁ (ver la función)
+        await prepAllDone();   // seed + preflight listos; el goto de abajo reemplaza la pantalla por el marketplace
 
         // El salto ES el punto de este modo: si falla, hay que GRITARLO. Con `.catch(() => {})` una ventana
         // cerrada dejaba la corrida en "1 passed" sin una sola pista (ni nav, ni foto, ni pausa).
+        //
+        // `commit`, NO `domcontentloaded` (NO lo revuelvas a domcontentloaded "por seguridad"): /lenders
+        // STREAMEA (renderToPipeableStream, entry.server.tsx) y las pre-aprobaciones de los lenders rt≠0 se
+        // resuelven vía <Await> DESPUÉS del shell (available-lenders.tsx: fetchLenderPreApproval → MS externo
+        // → API de cada lender). Con streaming, DOMContentLoaded NO dispara hasta que el stream CIERRA, y el
+        // stream no cierra hasta que resuelven esas pre-aprobaciones (o los 240s de streamTimeout en staging).
+        // En flujo estándar hay ~5 rt≠0 pegando a proveedores reales con un usuario sintético que no existe en
+        // sus sistemas → >90s → timeout que MATABA la corrida (F-67). Con `flow_id=2` no pasaba: el backend
+        // recortaba a solo rt=0, sin pre-aprobaciones, y el stream cerraba al toque. `commit` resuelve apenas
+        // el server responde (post-302 de sesión): la página se pinta sola y la maneja el usuario; quien
+        // confirma el aterrizaje es el needsCognito()/waitForURL de abajo, no este waitUntil.
         const jump = `/merchant/${HASH}/${ur}/lenders?amount=${AMOUNT}`;
-        const navErr = await page.goto(jump, { waitUntil: 'domcontentloaded', timeout: 90_000 })
+        const navErr = await page.goto(jump, { waitUntil: 'commit', timeout: 30_000 })
             .then(() => null, (e: Error) => e);
         if (navErr) {
             const closed = page.isClosed() || /closed|Target (page|closed)|browser has been closed/i.test(navErr.message);
@@ -657,7 +735,7 @@ test('guided (semiautomático)', async ({ browser }) => {
         // cola de navegación; reintentar hasta ver /lenders es barato y mata el flake. Cada intento espera un
         // destino REAL (lenders, o el rebote a solicitar), no el domcontentloaded de una ruta de tránsito.
         for (let intento = 1; intento <= 3 && !/\/lenders/.test(page.url()); intento++) {
-            await page.goto(jump, { waitUntil: 'domcontentloaded', timeout: 90_000 }).catch(() => {});
+            await page.goto(jump, { waitUntil: 'commit', timeout: 30_000 }).catch(() => {});   // commit, no DCL (streaming: ver el salto de arriba)
             await page.waitForURL(/\/(lenders|solicitar)/, { timeout: 30_000 }).catch(() => {});
             if (!/\/lenders/.test(page.url())) log(`   reintento ${intento}/3 del salto (quedó en ${hereOf(page)})`);
         }

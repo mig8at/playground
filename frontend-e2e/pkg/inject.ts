@@ -169,7 +169,10 @@ async function injectSummary(userID: number, income: number, score: number, nega
 }
 
 async function injectIncomeFields(userID: number, uReqID: number, fields: Record<number, string>): Promise<void> {
-    for (const [fidStr, val] of Object.entries(fields)) {
+    // Upserts EN PARALELO: cada campo es una fila EAV distinta (user_id, field_id) — no se pisan entre sí.
+    // Contra dev cada query paga ~100ms de round-trip remoto; en serie esto era la mitad del "sembrando"
+    // (2 queries × N campos). El pool (connectionLimit 5) encola lo que exceda.
+    await Promise.all(Object.entries(fields).map(async ([fidStr, val]) => {
         const fid = Number(fidStr);
         const ex = await scalar<number>('SELECT id FROM user_field_values WHERE user_id=? AND field_id=? AND form_id=1 LIMIT 1', [userID, fid]);
         if (ex && ex > 0) {
@@ -180,7 +183,7 @@ async function injectIncomeFields(userID: number, uReqID: number, fields: Record
                 [fid, userID, uReqID, val],
             );
         }
-    }
+    }));
 }
 
 // experianRiskCentralID: la central que `$user->datacredito` exige (Acierta+Quanto preferido, si no Acierta).
@@ -232,12 +235,15 @@ export async function synthFill(uReqID: number, opts: SynthFillOpts = {}): Promi
     assertWriteAllowed();
     appKey(); // falla temprano si no hay APP_KEY
 
-    const userID = (await scalar<number>('SELECT user_id FROM user_requests WHERE id = ?', [uReqID])) ?? 0;
+    // Los dos SELECT de contexto son independientes → en paralelo (round-trips remotos, ver injectIncomeFields).
+    const [userID, branchHash] = await Promise.all([
+        scalar<number>('SELECT user_id FROM user_requests WHERE id = ?', [uReqID]).then((v) => v ?? 0),
+        scalar<string>(
+            `SELECT COALESCE(ab.hash,'') AS h FROM user_requests ur JOIN allied_branches ab ON ab.id = ur.allied_branch_id WHERE ur.id = ? LIMIT 1`,
+            [uReqID],
+        ).then((v) => v ?? ''),
+    ]);
     if (userID === 0) throw new Error(`no hay user_id para el request ${uReqID}`);
-    const branchHash = (await scalar<string>(
-        `SELECT COALESCE(ab.hash,'') AS h FROM user_requests ur JOIN allied_branches ab ON ab.id = ur.allied_branch_id WHERE ur.id = ? LIMIT 1`,
-        [uReqID],
-    )) ?? '';
 
     let req: SynthReq = { fields: { 29: 'Empleado', 160: 'no', 87: '2500000' }, gender: 'M', age: 35, income: 2_500_000, score: 700 };
     let target = '';
@@ -267,23 +273,23 @@ export async function synthFill(uReqID: number, opts: SynthFillOpts = {}): Promi
     const email = (opts.email && opts.email.trim()) || `synth-${uReqID}@creditop.com`;
     const dob = opts.dob || '1990-01-01';
     const expeditionDate = opts.expeditionDate || '2010-01-01';
+    // Los cuatro bloques escriben tablas DISTINTAS (users · user_summaries · user_field_values ·
+    // risk_central_user_data) y no dependen entre sí → EN PARALELO. En serie eran ~14 round-trips a dev
+    // (~1.5s solo de latencia); en paralelo, el peor bloque (~3 queries encadenadas) marca el total.
     // skipIdentity (manual): no pisamos la identidad → personal-info lo llena el usuario. Igual inyectamos el buró.
-    if (!opts.skipIdentity) await setSynthIdentity(userID, doc, email, req.gender, req.age, opts.name, documentType, dob, expeditionDate);
-    await injectSummary(userID, req.income, req.score, negatives, consulted, hasBuro);
-    await injectIncomeFields(userID, uReqID, req.fields);
-    let dc: string;
-    if (hasBuro && opts.skipBuro) {
-        dc = 'OMITIDO a propósito (flujo already-confirmed-pre-approval): sin fila forjada, "no hay buró" es evidencia';
-    } else if (hasBuro) {
-        try {
-            await injectDatacredito(userID, req.income, req.score, negatives, consulted);
-            dc = `ok (neg ${negatives} · consultas ${consulted})`;
-        } catch (e) {
-            dc = e instanceof Error ? e.message : String(e);
-        }
-    } else {
-        dc = 'PEP: sin buró (no se inyecta la fila Experian)';
-    }
+    const buroDone: Promise<string> = (hasBuro && opts.skipBuro)
+        ? Promise.resolve('OMITIDO a propósito (flujo already-confirmed-pre-approval): sin fila forjada, "no hay buró" es evidencia')
+        : hasBuro
+            ? injectDatacredito(userID, req.income, req.score, negatives, consulted)
+                .then(() => `ok (neg ${negatives} · consultas ${consulted})`)
+                .catch((e) => (e instanceof Error ? e.message : String(e)))
+            : Promise.resolve('PEP: sin buró (no se inyecta la fila Experian)');
+    const [, , , dc] = await Promise.all([
+        opts.skipIdentity ? Promise.resolve() : setSynthIdentity(userID, doc, email, req.gender, req.age, opts.name, documentType, dob, expeditionDate),
+        injectSummary(userID, req.income, req.score, negatives, consulted, hasBuro),
+        injectIncomeFields(userID, uReqID, req.fields),
+        buroDone,
+    ]);
 
     return {
         user_request_id: uReqID,

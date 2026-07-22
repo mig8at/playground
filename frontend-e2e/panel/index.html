@@ -655,16 +655,6 @@
        el desplazamiento lateral es de un carril: la curva queda corta y limpia, como en un grafo de git. */
     .tren #trenwarn { color: var(--warn); font-weight: 600; text-transform: none; letter-spacing: 0 }
     .tren-hint { float: right; font-size: 10.5px; font-weight: 500; color: var(--mut); text-transform: none; letter-spacing: 0 }
-    /* ── actividad de BD: una fila por tabla, un punto por evento ── */
-    .act { display: flex; flex-direction: column; gap: 7px }
-    .actrow { display: grid; grid-template-columns: minmax(0,220px) 1fr; align-items: center; gap: 12px }
-    .actlbl { font-size: 11px; color: var(--mut); font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-      overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
-    .actdots { display: flex; flex-wrap: wrap; gap: 5px }
-    /* el punto apagado es el slot vacío: da la grilla de referencia que hace legible cuánto se escribió */
-    .dotev { width: 9px; height: 9px; border-radius: 50%; background: #26262b; flex: none }
-    .dotev.ins { background: #4ade80; cursor: help }
-    .dotev.upd { background: #38a3c7; cursor: help }
 
     /* controles de zoom flotantes (estilo Maps): el canvas ya no se queda con la rueda, así que hace
        falta una forma explícita de acercar sin atajos de teclado. */
@@ -784,15 +774,6 @@
       </div>
     </section>
 
-    <!-- Actividad de BD de la corrida. Existe porque el modo MANUAL del panel es ciego: la pantalla
-         muestra la pretensión y nadie muestra lo que se persistió (el patrón de F-50). Verde = INSERT,
-         azul = UPDATE, gris = slot vacío. Hover = tabla, operación, id y contexto. -->
-    <section class="card" id="actividad" style="display:none;margin-top:18px">
-      <h2><b>▪</b> Actividad de base de datos <span id="actuser" style="font-weight:400;text-transform:none;letter-spacing:0"></span>
-        <span class="tren-hint">verde = alta · azul = cambio · pasá el mouse por un punto</span>
-      </h2>
-      <div class="act" id="act"></div>
-    </section>
 
     <div class="cols">
     <div class="col"><!-- ── columna IZQUIERDA: el escenario (comercio + lenders) ── -->
@@ -842,20 +823,20 @@
       </div>
 
       <div class="field">
-        <label>Saltar a</label>
+        <label>Arranque</label>
+        <!-- Solo DOS arranques (los intermedios phone/personal-info siguen por CLI: E2E_STEP_TARGET):
+             Inicio = el wizard desde Monto (con Sintético el buró se inyecta invisible al llegar a Datos) ·
+             Lenders = seed headless + salto directo al marketplace (exige Sintético: sin inyección no hay
+             usuario que sembrar, por eso Real lo deshabilita). -->
         <div class="seg" id="step">
-          <button class="on" data-v="monto">Monto</button>
-          <button data-v="phone">Teléfono</button>
-          <button data-v="personal-info">Datos</button>
+          <button class="on" data-v="monto">Inicio</button>
           <button data-v="lenders">Lenders</button>
         </div>
         <p id="stephint" style="color:var(--mut);font-size:12px;margin:8px 0 0"></p>
-        <!-- Solo con el salto HEADLESS: por el camino de monto el selector lo marcás vos en pantalla. -->
-        <label id="omitwrap" style="display:none;align-items:center;gap:8px;margin:10px 0 0;cursor:pointer;font-size:12px;text-transform:none;letter-spacing:0;font-weight:400;color:var(--txt)">
-          <input type="checkbox" id="omitexp" style="accent-color:#22c55e;cursor:pointer" />
-          Simular “Confirmación de cupo” (firma el flujo → salta el buró)
-        </label>
-        <p id="omithint" style="color:var(--mut);font-size:11px;margin:5px 0 0;display:none">Firma <code>already-confirmed-pre-approval</code> por API y NO inyecta el buró, así “sin fila” prueba la omisión. Requiere que el comercio esté autorizado.</p>
+        <!-- "Simular Confirmación de cupo" (firma el flujo → salta el buró) se sacó del panel A PROPÓSITO:
+             es una VALIDACIÓN de un comportamiento de negocio (omisión de Experian), no la comprobación
+             básica de un flujo. El panel inyecta datos + bypassea externos, y nada más. La firma sigue
+             disponible por CLI (E2E_OMIT_EXPERIAN=1) y la validación de la omisión vive en dev/experian-check.ts. -->
       </div>
 
       <div class="field" style="margin-bottom:0">
@@ -1019,6 +1000,25 @@
     const sessionState = { local: 'unknown', dev: 'unknown', staging: 'unknown' };
     let corridaRunning = false;  // durante una corrida el botón lo maneja startPoll, no updateGo
 
+    // ── Permiso del asesor al comercio (paso "comercio" del funnel) ──────────────────────────────────
+    // Se dispara al ELEGIR el comercio (o cambiar target/canal), no al lanzar: cuando llegás al botón, el
+    // permiso ya está puesto y el launch se ahorra ese trabajo (bin/asesor lo re-verifica y ve "sin write").
+    // 'na' (ecommerce/no aplica) · 'checking' · 'ok' · 'fail'. permSeq descarta respuestas tardías (elegiste
+    // otro comercio antes de que volviera la anterior).
+    let permState = 'na', permDetail = '', permSeq = 0;
+    async function ensureAssignUI() {
+      if (canal !== 'asesor' || !sel) { permState = 'na'; permDetail = ''; updateGo(); return; }
+      const seq = ++permSeq;
+      permState = 'checking'; permDetail = ''; updateGo();
+      let r;
+      try {
+        r = await (await fetch('/api/assign', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ slug: sel.slug, target }) })).json();
+      } catch { r = { ok: false, detail: 'error de red consultando /api/assign' }; }
+      if (seq !== permSeq) return;   // respuesta vieja: ya hay otra selección en curso
+      permState = r.ok ? 'ok' : 'fail'; permDetail = r.detail || '';
+      updateGo();
+    }
+
     // ── QUÉ FUNCIONA EN CADA TARGET ──────────────────────────────────────────────────────────────
     // El panel es una UI sobre `bin/asesor`, y `bin/asesor` NO levanta lo mismo en todos los targets.
     // Una perilla que no mueve nada es PEOR que no tenerla: te deja creyendo que probaste algo que en
@@ -1043,17 +1043,6 @@
     // mock es quien contesta, y no según una lista que se desincroniza sola.
     let mockPA = true;
     let inject = true;           // true = inyecta buró sintético (salta consulta real) · false = prueba real
-    // Simula el "sí" de "Confirmación de cupo": el sembrado headless firma el flujo por API, igual que
-    // hace el wizard tras el OTP. Sirve para probar la omisión del buró saltando DIRECTO a /lenders.
-    // Solo aplica al salto headless — por el camino de monto marcás el selector vos, en pantalla.
-    let omitExperian = false;
-    // El control solo tiene sentido con el salto headless: por monto el selector se marca en pantalla.
-    function syncOmit() {
-      const aplica = step === 'lenders';
-      $('omitwrap').style.display = aplica ? 'flex' : 'none';
-      $('omithint').style.display = aplica ? 'block' : 'none';
-      if (!aplica) { omitExperian = false; const c = $('omitexp'); if (c) c.checked = false; }
-    }
     let canal = 'asesor';        // por dónde ENTRA la solicitud: 'asesor' (login + wizard) | 'ecommerce' (URL base64)
     let doctype = 'CC';
     let gender = 'M';
@@ -1106,7 +1095,7 @@
           acc.children[1].onclick = (e) => { e.stopPropagation(); quitarFav(m); };
           d.appendChild(acc);
         }
-        d.onclick = () => { sel = m; renderMerchants(); refresh(); loadLenders(); };
+        d.onclick = () => { sel = m; renderMerchants(); refresh(); loadLenders(); ensureAssignUI(); };
         g.appendChild(d);
       }
     }
@@ -1130,7 +1119,7 @@
     async function quitarFav(m) {
       if (!confirm(`¿Quitar “${m.name}” de favoritos?\n\nSolo se borra la tarjeta (de .flows.json). El comercio en la base no se toca.`)) return;
       const r = await favApi({ accion: 'remove', slug: m.slug });
-      if (r.ok) { if (sel && sel.slug === m.slug) sel = MERCHANTS[0]; await cargarFavs(); refresh(); loadLenders(); }
+      if (r.ok) { if (sel && sel.slug === m.slug) { sel = MERCHANTS[0]; ensureAssignUI(); } await cargarFavs(); refresh(); loadLenders(); }
     }
 
     // ── BUSCADOR contra la BD del target ─────────────────────────────────────────────────────────
@@ -1198,7 +1187,7 @@
       sel = { slug: b.hash, name: `${altaM.name} · ${b.name || b.hash}`, adhoc: true };
       if (!nombreTocado) $('altanombre').value = sel.name;   // no pisa lo que el usuario ya escribió
       $('altahint').textContent = `${b.hash} · ${b.lenders} entidad(es) · sin guardar`;
-      renderMerchants(); refresh(); loadLenders();
+      renderMerchants(); refresh(); loadLenders(); ensureAssignUI();
     }
 
     async function agregarFav() {
@@ -1211,7 +1200,7 @@
       sel = { slug: r.slug, name: r.name };
       cerrarAlta();
       $('busres').innerHTML = ''; $('buscom').value = '';
-      await cargarFavs(); refresh(); loadLenders();
+      await cargarFavs(); refresh(); loadLenders(); ensureAssignUI();
     }
 
     $('altasuc').onchange = usarSucursal;
@@ -1383,34 +1372,9 @@
     // ALCANCE (decirlo importa: una vista que aparenta omnisciencia miente): son 9 tablas curadas y solo
     // filas del usuario de la corrida. No es un tail del binlog — dev es compartida y todo el equipo
     // escribe ahí — y no ve DELETEs. El scrub borra antes de que el usuario exista, así que queda fuera.
-    const ACT_SLOTS = 22;
-    async function tickActividad() {
-      let a;
-      try { a = await (await fetch('/api/activity?target=' + target)).json(); } catch { return; }
-      const card = $('actividad'), box = $('act');
-      if (!a || !Array.isArray(a.tablas) || !a.tablas.length) { card.style.display = 'none'; return; }
-      card.style.display = 'block';
-      $('actuser').textContent = a.user ? `· usuario #${a.user}` : '';
-      box.innerHTML = '';
-      for (const t of a.tablas) {
-        const row = document.createElement('div'); row.className = 'actrow';
-        const lbl = document.createElement('span'); lbl.className = 'actlbl';
-        lbl.textContent = t.tabla; lbl.title = `${t.eventos.length} evento(s) en ${t.tabla}`;
-        const dots = document.createElement('span'); dots.className = 'actdots';
-        const ev = t.eventos.slice(-ACT_SLOTS);
-        for (const e of ev) {
-          const d = document.createElement('span');
-          d.className = 'dotev ' + (e.op === 'INSERT' ? 'ins' : 'upd');
-          d.title = `${e.op === 'INSERT' ? 'ALTA' : 'CAMBIO'} · ${t.tabla} #${e.id}` +
-                    (e.detalle ? ` · ${e.detalle}` : '') + `\n${e.at}`;
-          dots.appendChild(d);
-        }
-        for (let i = ev.length; i < ACT_SLOTS; i++) {
-          const d = document.createElement('span'); d.className = 'dotev'; dots.appendChild(d);
-        }
-        row.appendChild(lbl); row.appendChild(dots); box.appendChild(row);
-      }
-    }
+    // (Se quitó la "actividad de BD" en vivo: la comprobación de qué persistió la corrida ahora se hace
+    // UNA vez al cerrar —server.ts child.on('close')— y aparece en la consola de la corrida, no como puntos
+    // que se refrescaban cada 2s cargando la BD compartida.)
 
     // ── MAPA DE TREN ────────────────────────────────────────────────────────────────────────────
     // Tronco común hasta /lenders y de ahí un ramal por response_type. Solo se dibujan los ramales que
@@ -1699,6 +1663,17 @@
         $('sumry').innerHTML = `sin sesión en <b>${target}</b> — clic en el <b>punto gris</b> del ambiente (arriba) para autenticar`;
         return;
       }
+      // Paso "comercio" del funnel: el permiso del asesor se puso al ELEGIR; acá solo se espera/avisa.
+      if (permState === 'checking') {
+        $('go').disabled = true; $('go').textContent = 'asignando permiso…';
+        $('sumry').innerHTML = `asignando el permiso del asesor a <b>${sel ? sel.name : '…'}</b> — el botón se habilita solo`;
+        return;
+      }
+      if (permState === 'fail') {
+        $('go').disabled = true; $('go').textContent = 'sin permiso ▶';
+        $('sumry').innerHTML = `✗ permiso del asesor: ${permDetail} — reelegí el comercio para reintentar`;
+        return;
+      }
       $('go').textContent = 'Preparar + Lanzar ▶';
       $('go').disabled = !sel;      if (!sel) { $('sumry').innerHTML = 'Elegí un comercio primero.'; return; }
       if (!inject) { $('sumry').innerHTML = `<b>${sel.name}</b> · <b>REAL</b> — llenás todo en el wizard (buró real)`; return; }
@@ -1718,7 +1693,7 @@
     async function launch() {
       if (!sel) return;
       const body = {
-        slug: sel.slug, target, inject, canal, omitExperian, stepTarget: step, amount: moneyNum('amount'), paDelay: padelay, documentType: doctype, gender,
+        slug: sel.slug, target, inject, canal, stepTarget: step, amount: moneyNum('amount'), paDelay: padelay, documentType: doctype, gender,
         name: $('name').value.trim(), document: $('document').value.trim(),
         age: +$('age').value, dob: $('dob').value, expeditionDate: $('expedition').value,
         email: $('email').value.trim(), occupation: $('occupation').value,
@@ -1746,7 +1721,6 @@
     function startPoll() {
       if (poll) clearInterval(poll);
       const tick = async () => {
-        tickActividad();   // en el mismo pulso que el estado de la corrida
         const j = await (await fetch('/api/status')).json();
         const atBottom = $('log').scrollTop + $('log').clientHeight >= $('log').scrollHeight - 30;
         $('log').textContent = j.log || '';
@@ -1772,17 +1746,18 @@
     document.querySelectorAll('#doctype button').forEach(b => b.onclick = () => { doctype = b.dataset.v; setSeg('doctype', doctype); togglePep(); refresh(); });
     document.querySelectorAll('#gender button').forEach(b => b.onclick = () => { gender = b.dataset.v; setSeg('gender', gender); refresh(); });
 
-    // "Saltar a": hasta dónde auto-avanza el harness (rellenando + Continuar por vos, inyectando el sintético).
+    // Arranque: Inicio (todo el wizard desde Monto) o Lenders (seed + salto directo). El hint de Inicio
+    // depende del buró: con Sintético se recorren las vistas con la inyección invisible; con Real es la
+    // prueba completa contra los burós reales.
     const STEP_HINTS = {
-      monto: 'Entrás en Monto y manejás todo el flujo vos (inyecto el buró al llegar a personal-info).',
-      phone: 'Relleno el monto y te dejo en Teléfono para seguir vos.',
-      'personal-info': 'Relleno monto/teléfono/OTP e inyecto el buró; parás en Datos.',
-      lenders: 'Salto directo a /lenders con el usuario sintético inyectado (sin hacer el flujo).',
+      monto: () => inject
+        ? 'Desde el inicio (Monto): recorrés las vistas y el buró se inyecta invisible al llegar a Datos.'
+        : 'Desde el inicio (Monto): prueba REAL — llenás todo y se consultan los burós reales.',
+      lenders: () => 'Salto directo a /lenders con el usuario sintético sembrado (sin pasar por las vistas).',
     };
-    const updateStepHint = () => { $('stephint').textContent = STEP_HINTS[step] || ''; };
-    document.querySelectorAll('#step button').forEach(b => b.onclick = () => { step = b.dataset.v; setSeg('step', step); updateStepHint(); syncOmit(); });
-    $('omitexp').onchange = (e) => { omitExperian = e.target.checked; };
-    updateStepHint(); syncOmit();
+    const updateStepHint = () => { $('stephint').textContent = (STEP_HINTS[step] || (() => ''))(); };
+    document.querySelectorAll('#step button').forEach(b => b.onclick = () => { if (b.disabled) return; step = b.dataset.v; setSeg('step', step); updateStepHint(); });
+    updateStepHint();
 
     // espera del mock de pre-aprobados (para VER el loader de las cards rt≠0)
     document.querySelectorAll('#padelay button').forEach(b => b.onclick = () => { padelay = +b.dataset.v; setSeg('padelay', b.dataset.v); });
@@ -1799,6 +1774,7 @@
       loadLenders();              // los lenders son POR TARGET: la lista cambia
       loadEstado();               // y con ella las tarjetas (entorno, entidades)
       checkSession(target);       // refrescar el dot del ambiente al que cambiamos (cacheado en el server)
+      ensureAssignUI();           // el permiso es POR TARGET (misma sucursal, otra base) → re-asignar acá
     });
 
     // ── Sesión Cognito por ambiente: dot verde/gris + pre-login headless al click ────────────────────
@@ -1864,10 +1840,19 @@
       $('injhint').textContent = inject
         ? 'Se inyecta el buró (salta la consulta real); la identidad la llenás vos en el wizard.'
         : 'Prueba REAL: llenás todo en el wizard y se consulta el buró con tus datos reales. Los campos de abajo no se usan.';
+      // Real → el arranque "Lenders" no aplica: el salto directo SIEMBRA un usuario sintético, y una
+      // prueba Real no siembra nada (consulta burós reales). Se fuerza Inicio y se explica en el title.
+      const lb = document.querySelector('#step button[data-v="lenders"]');
+      if (lb) {
+        lb.disabled = !inject;
+        lb.title = inject ? '' : 'Lenders siembra un usuario sintético — con buró Real no hay nada que sembrar: arrancás desde el inicio';
+        if (!inject && step === 'lenders') { step = 'monto'; setSeg('step', step); }
+      }
+      updateStepHint();   // el hint de Inicio cambia según Sintético/Real
       updateGo();
     }
     document.querySelectorAll('#injmode button').forEach(b => b.onclick = () => { if (b.disabled) return; inject = b.dataset.i === '1'; applyInjMode(); });
-    document.querySelectorAll('#canal button').forEach(b => b.onclick = () => { canal = b.dataset.c; applyCanal(); });
+    document.querySelectorAll('#canal button').forEach(b => b.onclick = () => { canal = b.dataset.c; applyCanal(); ensureAssignUI(); });
 
     // Real (buró + OTP reales) NO existe en local → solo dev/staging. En local se fuerza Sintético.
     function updateInjModeForTarget() {
@@ -1910,6 +1895,7 @@
     loadEstado();        // tarjetas de estado (mocks · última corrida · mapa)
     loadLenders();       // lenders de la sucursal del comercio seleccionado (toggle ON/OFF)
     updateInjModeForTarget();   // estado inicial (en local, Real deshabilitado → Sintético)
+    ensureAssignUI();           // el comercio default (Motai) ya queda con el permiso puesto al abrir
     applyCanal();               // canal por defecto: asesor
     refresh();           // Motai preseleccionado → botón habilitado
     startPoll();         // engancharse si había una corrida activa

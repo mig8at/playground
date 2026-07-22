@@ -155,8 +155,11 @@ try {
                 { t: 'creditop_x_user_requests_records', where: 'user_id = ?' },
                 { t: 'logs', where: 'user_id = ?', extra: 'name' },
             ];
-            const tablas: unknown[] = [];
-            for (const d of TABLAS) {
+            // Las 9 tablas EN PARALELO: son SELECT independientes (cada uno con su try) y contra dev cada
+            // uno paga ~100ms de round-trip. En serie eran ~1s por tick, y el panel pollea cada 2s durante
+            // TODA la corrida → cargaba la BD (compartida) casi a la mitad del tiempo. En paralelo baja a
+            // ~el más lento. Se preserva el ORDEN de TABLAS (mapa por índice) para que la vista no baile.
+            const tablas = (await Promise.all(TABLAS.map(async (d) => {
                 try {
                     const filas = await query(
                         `SELECT id, updated_at AS at,
@@ -165,11 +168,12 @@ try {
                            FROM \`${d.t}\`
                           WHERE ${d.where} AND updated_at >= NOW() - INTERVAL ? SECOND
                           ORDER BY updated_at, id LIMIT 60`, [seg, uid, seg]);
-                    if (filas.length) tablas.push({ tabla: d.t, eventos: filas.map((f: any) => ({
+                    if (!filas.length) return null;
+                    return { tabla: d.t, eventos: filas.map((f: any) => ({
                         id: f.id, at: f.at, op: Number(f.nuevo) === 1 ? 'INSERT' : 'UPDATE', detalle: String(f.detalle ?? ''),
-                    })) });
-                } catch { /* tabla o columna ausente en este ambiente: se omite, no tumba la vista */ }
-            }
+                    })) };
+                } catch { return null; /* tabla o columna ausente en este ambiente: se omite, no tumba la vista */ }
+            }))).filter(Boolean);
             r = { user: uid, ventanaSeg: seg, tablas };
             break;
         }
