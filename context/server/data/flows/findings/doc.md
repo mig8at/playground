@@ -1147,3 +1147,59 @@ Solo se veía en el atajo headless: por el camino visual el cliente lo crea el w
 **Familia.** Es el mismo patrón que F-59 (`bin/asesor` leyendo `.env.$TARGET` a mano) y que F-64 (`/api/lenders` tragándose el error): **un default que parece inofensivo — `'http://localhost'` — enmascara la ausencia de configuración por target**. Regla: si un valor depende del ambiente, sale de la cadena (`env()`/`envget`); un fallback a localhost es aceptable solo cuando localhost ES la respuesta correcta para ese target.
 
 **Deuda menor.** El nombre `mockUrl` ya no describe lo que es (viene del mock-server :4000, eliminado). Hoy es "el backend del target"; renombrarlo evitaría la próxima confusión.
+
+### F-66 · El salto headless a `/lenders` "rebotaba" en staging — no era el front ni el estado, era una carrera post-login del harness
+
+Continúa F-65: aquélla arregló la solicitud huérfana; esto es lo único que quedaba abierto del salto directo.
+
+**Síntoma.** Con "Saltar a: Lenders" contra `staging`, el wizard quedaba en `/merchant/<hash>/solicitar` en vez de abrir el listado. El propio harness lo reportaba como *"El front rebotó la solicitud sembrada — su estado no pasa el guard de /lenders"*. En `local` el mismo salto **sí** funcionaba.
+
+**Causa raíz verificada — es el harness, no el front ni el estado.**
+
+Primero se descartó el título del pendiente ("staging es otro build con otro guard"): `git -C frontend-monorepo diff HEAD origin/staging` de `routes.ts`, `routes/lenders-marketplace/available-lenders.tsx`, `layouts/default-layout.tsx` y `routes/auth/callback.tsx` da **vacío** — el flujo de `/lenders` es idéntico en la rama y en el build desplegado (`origin/staging` @ `e896abaf`, que ya incluye la feature #719). Y ninguno de los **dos** loaders que corren en `/merchant/:hash/:ur/lenders` mira `user_request_status_id`: `default-layout` solo rebota si la sucursal del asesor ≠ el hash de la URL (acá **coinciden**, ambos `76db47f5`, probado por el `↪ 302 /merchant → /merchant/76db47f5/solicitar`), y el loader de `available-lenders` no tiene un solo `redirect`. El estado 9 nunca fue lo que rebotaba — por eso local, con el mismo estado, anda.
+
+Lo que pasa es una **carrera post-login**:
+
+1. Sin sesión de app cacheada (staging), el primer `goto` a `/lenders` rebota al Hosted UI de Cognito.
+2. `cognitoLogin` volvía apenas la URL tocaba el host de la app (`waitForURL(hostPattern)`, un regex de **host**), es decir en una ruta de **tránsito** (`/auth/callback` → `/merchant` → `/solicitar`) **antes** de que la cadena terminara y el `Set-Cookie` de sesión se asentara.
+3. El harness disparaba entonces el segundo `goto` a `/lenders` **con la cadena del callback aún en vuelo**. Ese goto tenía `.catch(() => {})`: Playwright lo abortaba por navegación en curso y el error se tragaba. La cadena del callback ganaba y dejaba el browser en `/solicitar`. **Nunca se emitió un `GET /lenders` que completara.**
+4. `waitForURL(/lenders/, 60s)` esperaba un `/lenders` que ya nadie iba a pedir → timeout → quedaba en `/solicitar`.
+
+**Evidencia.**
+
+- En el log de la corrida **no aparece** ningún `↪ 3xx …/lenders → …/solicitar` (el response-listener de `guided.spec.ts` lo habría impreso). Solo el `↪ 302 /merchant → /merchant/76db47f5/solicitar`, que es el aterrizaje normal del callback ⇒ el server **no rebotó** `/lenders`.
+- El `.auth/cognito-state.staging.json` reescrito durante la corrida contenía **solo cookies del dominio de Cognito** (`auth.merchant.creditop.com`), **ninguna del dominio de la app** — la foto del `storageState` se tomó en tránsito, antes de que existiera la sesión de app. Eso además dejaba el cache de staging **inútil**: nunca evitaba el login → siempre re-caía en la carrera (círculo).
+- En local no ocurre: la sesión está cacheada, el único `goto` va directo a `/lenders`, sin login ni cadena de callback.
+
+**Arreglo — parte 1: el salto ya llega (aplicado y verificado en vivo).**
+
+- `pkg/cognito.ts` — tras el submit, `cognitoLogin` espera a **salir de las rutas de tránsito** (`AUTH_TRANSIT = /^\/(auth\/callback|merchant)\/?$/`) y a `networkidle` antes de volver, para no dejar redirects en vuelo.
+- `dev/guided.spec.ts` (bloque `DIRECT_LENDERS`) — se separó el login del salto: primero `cognitoLogin` (que ahora descansa), y recién después el `goto` a `/lenders` **con reintento** (hasta 3, esperando un destino real), en vez de un único goto con catch vacío.
+- Diagnóstico honesto: un flag `lendersBounced` (lo prende un 302 real `/lenders → /solicitar`) distingue "el front lo rechazó" de "el salto ni se pidió". El mensaje viejo asumía siempre lo primero.
+
+Con esto la corrida del 2026-07-22 (uReq 464365) llegó: `entrada DIRECTA → /merchant/76db47f5/464365/lenders`.
+
+**Segunda capa: por qué IGUAL se ve `/solicitar` durante el login.** Cuando el harness tiene que loguear, el aterrizaje post-login es `/solicitar` — no por el harness, sino por el **front**: `routes/auth/callback.tsx` hace `redirectTo = url.searchParams.get("redirectTo") || "/merchant"`, pero Cognito devuelve el destino en el `state`, no en un query `redirectTo`, así que **siempre cae en `/merchant` → `/solicitar`**. El `redirectTo` del deep-link se pierde. La única forma harness-side de no verlo es **no loguear**: reusar la sesión cacheada.
+
+**El cache SÍ retiene la sesión — el diagnóstico inicial buscaba el nombre equivocado.** Primero se creyó que el `storageState` no guardaba la sesión, porque no aparecía `__session` (el nombre en el build local: `session.server.ts` → host-only). **Pero el deploy de staging llama a esa cookie `_session`** (UN guión bajo, `@.creditop.com`, compartida entre subdominios). El `storageState` sí la guardaba; filtrar por `__session` daba un falso "el cache no autentica". Por eso la validez NO se chequea por nombre de cookie sino por **fetch real** (abajo). Verificado: `.auth/cognito-state.staging.json` tras un pre-login tiene 8 cookies **incluida `_session`**.
+
+**Arreglo — parte 2: reuso de sesión + pre-login (aplicado y verificado).**
+
+- `pkg/cognito.ts::persistCognitoState()` — da `expires` (+7 días) a las *session cookies* (Playwright las serializa con `expires:-1` y puede descartarlas al restaurar) y escribe el `storageState`; `dev/guided.spec.ts` lo re-persiste **ya en `/lenders`** (autenticado). El cache queda con la sesión (`_session`) buena.
+- `dev/warm-session.spec.ts` — **pre-login**: `cognitoLogin` + `persistCognitoState`, sin correr un flujo. **Headless en dev/local; HEADED en staging** (ver el gotcha abajo). Se corre una vez cuando el token caducó; después toda corrida arranca autenticada (sin login → sin `/solicitar`). Además `persistCognitoState` **descarta las cookies `oauth2:*`** (state CSRF efímero del handshake) para que el cache no las acumule (se vieron 5 juntas de logins a medias).
+- `bin/session-check.ts` — chequeo REAL por target: pega a `/merchant` del front con las cookies del cache (`redirect: manual`) y mira si rebota a Cognito. **No filtra por nombre de cookie** (staging=`_session`, local=`__session`): la verdad es si el front deja pasar.
+- **Panel** (`server.ts` + `index.html`) — dot en cada botón de ambiente: **verde** = sesión válida, **gris** = caducó/no existe/no verificable (clic → pre-login con loader ámbar). Endpoints `GET /api/session-status` (cacheado 60s) + `POST /api/session-refresh`.
+
+**El diagnóstico "staging bloquea headless" también era FALSO — la causa raíz real era otro matcheo por substring.** El warm de staging "quedaba colgado en `/verifyPassword`" headless Y headed, incluso con contexto limpio. Una traza navegación-por-navegación (`response` + `framenavigated`) mostró la verdad: las URLs del Hosted UI llevan el host de la app **adentro del query** (`redirect_uri=https%3A%2F%2Foriginaciones-stg.dev.creditop.com…`), y `hostPattern` — un regex del host testeado contra el **href** — matcheaba eso **en la propia página del password**. Consecuencia: el "esperá a volver a la app" post-submit se satisfacía a los **0 segundos**, con el auth todavía en vuelo. Nadie esperó nunca el login real de staging:
+
+- El warm declaraba "colgado" y fotografiaba el spinner de un auth que iba a completar segundos después.
+- El goto siguiente de una corrida **interrumpía el auth en vuelo** → rebote a `/login` → Cognito otra vez (con el retry del salto, en LOOP: el usuario veía la pantalla de Cognito repetirse) — y cada vuelta acuñaba una cookie `oauth2:*` más (se encontraron 5 juntas: la huella del loop).
+- En dev no se notaba: su pool (`login.creditop.com`) no contiene el host de la app como substring del query en la página del password de la misma forma, y la sesión solía estar cacheada.
+
+**Arreglo (el de verdad):** `pkg/cognito.ts` compara `url.host === returnHost` (predicado de URL), no un regex contra el href. Con la espera real, el warm de staging completa **HEADLESS en ~29s** con `_session` en el cache — se revirtió el modo headed del panel: los tres targets se autentican sin ventana. Además `persistCognitoState` descarta las `oauth2:*` (state CSRF efímero) para no arrastrar handshakes muertos.
+
+**Panel (cierre de la UX):** al abrir, el panel **chequea los 3 ambientes y pre-autentica** los que estén sin token (`missing`/`invalid`; `unreachable` no — front caído no es warmeable ni bloqueante). **"Preparar + Lanzar" queda deshabilitado** mientras el token del target activo se obtiene ("obteniendo token…") o falta ("sin token", apuntando al dot); con el dot verde se habilita y la corrida entra directa, sin ver Cognito ni `/solicitar`.
+
+**Estado: RESUELTO y verificado en los tres targets** — `session-check` staging → `valid`, dot verde, warm headless reproducible; gating del botón verificado en sus tres estados (warming/missing/valid).
+
+**Lección.** Las CUATRO pistas falsas de este finding comparten raíz: **conclusiones sacadas de un síntoma sin traza**. (1) "el estado 9 no pasa el guard" — el guard no mira el estado. (2) "staging es otro build" — diff vacío. (3) "el cache no retiene la sesión" — la retenía con otro nombre (`_session` vs `__session`). (4) "el Managed Login bloquea headless" — nunca se esperó al login. Y las DOS causas reales fueron **matcheos por substring donde había que comparar estructura**: el nombre de la cookie (3) y el host en el href (4) — `redirect_uri` mete el host de la app en CUALQUIER URL de Cognito, así que un regex de host sobre el href es un bug latente en todo harness OAuth. Verificá con un request/traza real ANTES de concluir; emparenta con F-03 (el fallo silenciado) y F-65 (el default que enmascara).

@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import type { Page } from '@playwright/test';
 import { config, cognitoCreds } from '../pkg/config';
-import { cognitoLogin, cognitoStorageState } from '../pkg/cognito';
+import { cognitoLogin, cognitoStorageState, persistCognitoState } from '../pkg/cognito';
 import { synthFill, requestEstado11 } from '../pkg/inject';
 import { closeCreditopX, resolveRequestStatus } from '../pkg/close';
 import { one, exec } from '../pkg/db';
@@ -305,6 +305,10 @@ test('guided (semiautomático)', async ({ browser }) => {
     // el Hosted UI de Cognito (navegación externa al arrancar) y el copy "en tu celular" del OTP (matchea el
     // regex del modal). Se prende al pasar por /lenders.
     let seenLenders = false;
+    // ¿el SERVER rebotó /lenders → /solicitar (302 real)? Lo prende el response-listener de abajo. Sirve para
+    // que el diagnóstico del salto directo NO mienta: "no llegó a /lenders" tiene dos causas opuestas —
+    // el front lo rechazó (esto en true) vs. el salto ni se pidió (carrera post-login, esto en false). F-66.
+    let lendersBounced = false;
     const wakeB = async (kind: 'creditopx' | 'agregador' | 'redirect', aUrl: string, lender = ''): Promise<void> => {
         if (bWoke) return;
         bWoke = true;
@@ -399,6 +403,7 @@ test('guided (semiautomático)', async ({ browser }) => {
         const isData = /\.data(\?|$)/.test(from);
         const relevant = /solicitar|continue|lenders|modes/.test(from) || /solicitar|continue|modes/.test(loc);
         if ((is3xx || isData || loc) && relevant) log(`  ↪ ${s} ${from}${loc ? ` → ${loc}` : ''}`);
+        if (/lenders/.test(from) && /solicitar/.test(loc)) lendersBounced = true;   // rebote REAL del front (F-66)
         // un 5xx del backend/loader es un fallo duro → foto (el backend caído era justo esto)
         if (s >= 500) void errorShot(page, `HTTP ${s} ${from}`);
     });
@@ -638,31 +643,41 @@ test('guided (semiautomático)', async ({ browser }) => {
             log(`✗ NO se pudo saltar a /lenders — ${closed ? 'la ventana del navegador se cerró antes del salto' : navErr.message.split('\n')[0]}`);
             throw new Error('el salto a /lenders no se completó');
         }
-        // Sesión: SOLO entrar al login si el goto nos dejó en el Hosted UI de Cognito.
+        // Sesión: SOLO entrar al login si el goto nos dejó en el Hosted UI de Cognito (con el cache vivo, no-op).
         //
-        // Antes se llamaba a cognitoLogin() siempre. Con el cache de sesión vivo es no-op, PERO cuesta 15s
-        // de espera muerta (espera el input de usuario que nunca aparece, ver pkg/cognito.ts). En esos 15s el
-        // browser ya estaba en /lenders y vos podías elegir lender y avanzar a /continue — y al volver, el
-        // "reintento del salto" veía que la URL ya no era /lenders y te ARRASTRABA DE VUELTA al listado,
-        // pisando el handoff. Por eso también el log salía desordenado.
-        if (needsCognito()) {
-            await cognitoLogin(page);
+        // El salto se separó del login A PROPÓSITO. Antes iba junto: dentro del `if (needsCognito())` se
+        // llamaba a cognitoLogin() y ACTO SEGUIDO se re-hacía el goto a /lenders. Ese goto competía con la
+        // cadena de redirects del callback (callback → /merchant → /solicitar) que TODAVÍA estaba en vuelo
+        // —cognitoLogin volvía apenas la URL tocaba el host, antes de asentar—: el goto se abortaba y
+        // quedabas en /solicitar, sin que el server rebotara nada. Ese era el "salto a /lenders rebota en
+        // staging" (F-66). Ahora cognitoLogin ESPERA a que el callback descanse (ver pkg/cognito.ts), y el
+        // salto va después, con la sesión asentada.
+        if (needsCognito()) await cognitoLogin(page);
+        // El salto, ya con sesión. REINTENTO: aun asentado, el primer goto post-login puede pisarse con la
+        // cola de navegación; reintentar hasta ver /lenders es barato y mata el flake. Cada intento espera un
+        // destino REAL (lenders, o el rebote a solicitar), no el domcontentloaded de una ruta de tránsito.
+        for (let intento = 1; intento <= 3 && !/\/lenders/.test(page.url()); intento++) {
             await page.goto(jump, { waitUntil: 'domcontentloaded', timeout: 90_000 }).catch(() => {});
+            await page.waitForURL(/\/(lenders|solicitar)/, { timeout: 30_000 }).catch(() => {});
+            if (!/\/lenders/.test(page.url())) log(`   reintento ${intento}/3 del salto (quedó en ${hereOf(page)})`);
         }
-        // Solo esperar si todavía no llegamos: si ya estás en /lenders (o más adelante), no tocar nada.
-        if (!/\/lenders/.test(page.url())) await page.waitForURL(/\/lenders/, { timeout: 60_000 }).catch(() => {});
-        // El log NO puede cantar "entrada DIRECTA" sin haber llegado: antes lo hacía siempre, y cuando
-        // el front rebotaba el salto (una solicitud sembrada en estado 1 no pasa el guard de /lenders)
-        // decía "entrada DIRECTA → …/solicitar", que es una contradicción en sus propios términos. Peor:
-        // seguías a mano desde ahí, el wizard creaba una SEGUNDA solicitud y la traza quedaba atada a la
-        // sembrada — dos solicitudes, y el veredicto midiendo la equivocada.
+        // El log NO puede cantar "entrada DIRECTA" sin haber llegado. Y si NO llegó, distingue las dos causas
+        // OPUESTAS en vez de asumir "el front rebotó" (que fue el diagnóstico equivocado de F-66): `lendersBounced`
+        // sólo se prende con un 302 real de /lenders → /solicitar. Sin él, el salto ni se pidió (sesión/carrera).
         if (/\/lenders/.test(page.url())) {
             log(`entrada DIRECTA → ${hereOf(page)} (sin pasar por /solicitar)`);
-        } else {
-            log(`✗ el salto a /lenders NO llegó: quedaste en ${hereOf(page)}`);
-            log(`   El front rebotó la solicitud sembrada (${jump.match(/\/(\d+)\//)?.[1] ?? '?'}) — su estado no pasa el guard de /lenders.`);
+            // Re-guardar el cache YA en /lenders (ruta autenticada): acá `__session` existe con seguridad, así
+            // la PRÓXIMA corrida reusa la sesión, no re-loguea, y el 1er goto va directo — sin /solicitar (F-66).
+            // Si el login ocurrió esta vez, ya se guardó en cognitoLogin; esto lo refuerza desde una página sana.
+            if (ENTRY === 'cognito') await persistCognitoState(page);
+        } else if (lendersBounced) {
+            log(`✗ el salto a /lenders NO llegó: el FRONT lo rebotó a ${hereOf(page)} (302 real /lenders → /solicitar).`);
+            log(`   La solicitud sembrada (${ur}) no pasa el guard de /lenders — revisá su estado/asesor en BD.`);
             log(`   OJO: si seguís a mano desde acá, el wizard crea OTRA solicitud y la traza queda en la sembrada.`);
-            log(`   Usá "Saltar a: Monto" para una corrida coherente.`);
+        } else {
+            log(`✗ el salto a /lenders NO llegó: quedaste en ${hereOf(page)}, pero el server NO rebotó /lenders.`);
+            log(`   El salto no llegó a pedirse (sesión no asentada / navegación pisada tras el login), no es el front.`);
+            log(`   Reintentá el salto, o usá "Saltar a: Monto" para una corrida coherente.`);
         }
     } else {
         await page.goto(`/merchant/${HASH}/solicitar`, { waitUntil: 'domcontentloaded', timeout: 90_000 }).catch(() => {});

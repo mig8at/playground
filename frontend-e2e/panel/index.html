@@ -143,6 +143,21 @@
       border-color: var(--acc-d)
     }
 
+    /* Dot de sesión Cognito en cada botón de ambiente (esquina sup-der): verde = token válido (las corridas
+       arrancan sin loguear) · gris = caducó / no existe / no verificable · ámbar pulsante = autenticando.
+       Gris es clickeable → dispara el pre-login headless para ese target. */
+    #targets .pill { position: relative; }
+    .sdot {
+      position: absolute; top: -3px; right: -3px;
+      width: 9px; height: 9px; border-radius: 50%;
+      background: var(--mut); border: 2px solid var(--bg);
+    }
+    .sdot.ok { background: var(--acc); }
+    .sdot.checking { background: var(--warn); animation: sdotpulse 1s ease-in-out infinite; }
+    .sdot.clickable { cursor: pointer; }
+    .sdot.clickable:hover { transform: scale(1.3); }
+    @keyframes sdotpulse { 0%, 100% { opacity: 1 } 50% { opacity: .3 } }
+
     .warnbar {
       margin: 14px 0 0;
       padding: 10px 14px;
@@ -739,9 +754,9 @@
         <p class="sub">Elegí comercio → definí el usuario (y el buró) → abre el wizard en monto.</p>
       </div>
       <div class="targets" id="targets">
-        <button class="pill on" data-t="local">local</button>
-        <button class="pill" data-t="dev" title="Data COMPARTIDA — escribe datos sintéticos en dev">dev</button>
-        <button class="pill" data-t="staging" title="Frontend de staging contra la MISMA BD/API de dev — data COMPARTIDA">staging</button>
+        <button class="pill on" data-t="local">local<span class="sdot" data-sd="local" title="sesión: sin verificar"></span></button>
+        <button class="pill" data-t="dev" title="Data COMPARTIDA — escribe datos sintéticos en dev">dev<span class="sdot" data-sd="dev" title="sesión: sin verificar"></span></button>
+        <button class="pill" data-t="staging" title="Frontend de staging contra la MISMA BD/API de dev — data COMPARTIDA">staging<span class="sdot" data-sd="staging" title="sesión: sin verificar"></span></button>
       </div>
     </header>
 
@@ -998,6 +1013,11 @@
     ];
     let sel = MERCHANTS[0];      // Motai por defecto
     let target = 'local';        // local | dev | staging (staging = front propio, BD/API de dev)
+    // Sesión Cognito por ambiente (dot + gating del launch): checking | warming | valid | invalid | missing |
+    // unreachable | unknown. El launch se BLOQUEA sin token listo (valid) — salvo 'unreachable' (front caído:
+    // no se puede ni verificar ni warmear; la corrida levanta el front y loguea en el flujo). F-66.
+    const sessionState = { local: 'unknown', dev: 'unknown', staging: 'unknown' };
+    let corridaRunning = false;  // durante una corrida el botón lo maneja startPoll, no updateGo
 
     // ── QUÉ FUNCIONA EN CADA TARGET ──────────────────────────────────────────────────────────────
     // El panel es una UI sobre `bin/asesor`, y `bin/asesor` NO levanta lo mismo en todos los targets.
@@ -1664,6 +1684,22 @@
     }
 
     function updateGo() {
+      if (corridaRunning) return;   // el botón es de startPoll mientras corre
+      // GATING POR SESIÓN (solo canal asesor: ecommerce entra por URL base64, sin Cognito). El objetivo es
+      // que NINGUNA corrida pase por el login de Cognito: mientras el token del target se obtiene, el botón
+      // espera; sin token, apunta al dot. 'unreachable' NO bloquea (ver el comentario de sessionState).
+      const sess = canal === 'asesor' ? (sessionState[target] || 'unknown') : 'valid';
+      if (sess === 'checking' || sess === 'warming') {
+        $('go').disabled = true; $('go').textContent = 'obteniendo token…';
+        $('sumry').innerHTML = `autenticando <b>${target}</b> (headless) — el botón se habilita solo`;
+        return;
+      }
+      if (sess === 'invalid' || sess === 'missing') {
+        $('go').disabled = true; $('go').textContent = 'sin token ▶';
+        $('sumry').innerHTML = `sin sesión en <b>${target}</b> — clic en el <b>punto gris</b> del ambiente (arriba) para autenticar`;
+        return;
+      }
+      $('go').textContent = 'Preparar + Lanzar ▶';
       $('go').disabled = !sel;      if (!sel) { $('sumry').innerHTML = 'Elegí un comercio primero.'; return; }
       if (!inject) { $('sumry').innerHTML = `<b>${sel.name}</b> · <b>REAL</b> — llenás todo en el wizard (buró real)`; return; }
       const buro = doctype === 'PEP'
@@ -1692,7 +1728,7 @@
       $('go').disabled = true; $('go').textContent = 'Lanzando…';
       const r = await fetch('/api/launch', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
       const j = await r.json();
-      if (!j.ok) { alert(j.msg || 'no se pudo lanzar'); $('go').disabled = false; $('go').textContent = 'Preparar + Lanzar ▶'; return; }
+      if (!j.ok) { alert(j.msg || 'no se pudo lanzar'); $('go').textContent = 'Preparar + Lanzar ▶'; updateGo(); return; }
       showLog(true); $('stopBtn').classList.add('on');
       startPoll();
     }
@@ -1716,11 +1752,14 @@
         $('log').textContent = j.log || '';
         if (atBottom) $('log').scrollTop = $('log').scrollHeight;   // auto-scroll solo si ya estabas al final
         if (j.running) {
+          corridaRunning = true;
           $('go').textContent = 'corriendo…'; $('go').disabled = true;          $('dot').className = 'dot run';
           if ($('logcard').style.display === 'none') showLog(true);   // corrida en curso → la consola aparece sola
         } else {
-          $('go').textContent = 'Preparar + Lanzar ▶'; $('go').disabled = !sel;          $('stopBtn').classList.remove('on'); $('dot').className = 'dot';
+          corridaRunning = false;
+          $('go').textContent = 'Preparar + Lanzar ▶'; updateGo();          $('stopBtn').classList.remove('on'); $('dot').className = 'dot';
           loadEstado();   // terminó una corrida → refrescar el veredicto
+          checkSession(target, true);   // la corrida pudo renovar (o quemar) la sesión → re-verificar el dot
           clearInterval(poll); poll = null;
         }
       };
@@ -1759,7 +1798,64 @@
       enrichMerchants();
       loadLenders();              // los lenders son POR TARGET: la lista cambia
       loadEstado();               // y con ella las tarjetas (entorno, entidades)
+      checkSession(target);       // refrescar el dot del ambiente al que cambiamos (cacheado en el server)
     });
+
+    // ── Sesión Cognito por ambiente: dot verde/gris + pre-login headless al click ────────────────────
+    // Verde = token válido → las corridas arrancan SIN loguear (y sin pasar por /solicitar). Gris (caducó /
+    // no existe / no verificable) es clickeable: dispara el pre-login headless con un loader. Ver F-66.
+    const sdotEl = (t) => document.querySelector(`.sdot[data-sd="${t}"]`);
+    function renderSdot(t, r) {
+      const el = sdotEl(t); if (!el) return;
+      const s = (r && r.status) || 'unknown';
+      sessionState[t] = s;
+      if (t === target) updateGo();   // el gating del launch depende del token del target activo
+      el.classList.remove('ok', 'checking', 'clickable');
+      const TXT = {
+        valid:       'sesión válida — las corridas arrancan sin loguear',
+        invalid:     'sesión caducada — clic para autenticar',
+        missing:     'sin sesión — clic para autenticar',
+        unreachable: 'no verificable (¿el front del target está arriba?) — clic para intentar',
+        checking:    'verificando…',
+        warming:     'autenticando…',
+        unknown:     'sin verificar',
+      };
+      if (s === 'valid') el.classList.add('ok');
+      else if (s === 'checking' || s === 'warming') el.classList.add('checking');
+      else el.classList.add('clickable');   // gris (invalid/missing/unreachable/unknown) → autenticable
+      el.title = `${t}: ${TXT[s] || TXT.unknown}${r && r.detail ? ` · ${r.detail}` : ''}`;
+    }
+    async function checkSession(t, force) {
+      renderSdot(t, { status: 'checking' });
+      try { renderSdot(t, await (await fetch(`/api/session-status?target=${t}${force ? '&force=1' : ''}`)).json()); }
+      catch { renderSdot(t, { status: 'unreachable', detail: 'no se pudo consultar el panel' }); }
+    }
+    async function warmSession(t) {
+      const el = sdotEl(t); if (el && el.classList.contains('checking')) return;   // ya en curso
+      renderSdot(t, { status: 'warming', detail: 'autenticando headless (sin ventana)…' });
+      try {
+        const r = await (await fetch('/api/session-refresh', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ target: t }) })).json();
+        renderSdot(t, r.status || { status: r.ok ? 'valid' : 'invalid', detail: r.detail });
+      } catch { renderSdot(t, { status: 'unreachable', detail: 'la autenticación falló' }); }
+    }
+    // Click en el dot → autenticar SIN cambiar el target activo (stopPropagation: el dot vive dentro del pill).
+    document.querySelectorAll('.sdot').forEach(el => el.onclick = (e) => {
+      e.stopPropagation();
+      if (el.classList.contains('ok') || el.classList.contains('checking')) return;   // verde/en-curso: nada que hacer
+      warmSession(el.dataset.sd);
+    });
+    // Al abrir el panel: PRECARGAR los 3 tokens. Primero se chequean los 3 en paralelo (fetch real); después
+    // se autentica —uno a la vez, el target activo primero— todo ambiente SIN token ('missing'/'invalid').
+    // dev/local van headless; staging abre UNA ventana con el login (su Managed Login corta el headless).
+    // 'unreachable' (front caído) no se intenta: no hay warm posible y la corrida loguea en el flujo. Así el
+    // login de Cognito ocurre al ABRIR el panel, no en medio de una corrida — y el launch espera al token.
+    (async () => {
+      const orden = [target, ...['local', 'dev', 'staging'].filter(t => t !== target)];
+      await Promise.all(orden.map(t => checkSession(t, false)));
+      for (const t of orden) {
+        if (sessionState[t] === 'missing' || sessionState[t] === 'invalid') await warmSession(t);
+      }
+    })();
 
     // switch del buró: Sintético (inyecta, salta consulta real) | Real (consulta buró real, sin inyección).
     function applyInjMode() {

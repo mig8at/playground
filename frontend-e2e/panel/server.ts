@@ -187,6 +187,55 @@ function usaMockPA(target: string): Promise<boolean> {
     });
 }
 
+// ── Sesión Cognito precargada (pre-login) ──────────────────────────────────────────────────────────
+// Chequeo REAL de validez por target (bin/session-check.ts pega a una ruta autenticada del front) +
+// pre-login headless (dev/warm-session.spec.ts) que deja el cache listo. Objetivo: que ninguna corrida
+// tenga que loguear — y por lo tanto no pase por /solicitar (F-66).
+const sessionStatusCache = new Map<string, { at: number; data: any }>();
+const SESSION_STATUS_TTL = 60_000;   // el chequeo real es una request de red → no repetir en cada render
+let warming: string | null = null;   // target del pre-login en curso (uno a la vez, y no durante una corrida)
+
+function sessionCheck(target: string): Promise<any> {
+    return new Promise((ok) => {
+        execFile('node', ['bin/session-check.ts'], { cwd: ROOT, env: envFor(target), timeout: 20000 }, (err, stdout) => {
+            const line = String(stdout || '').trim().split('\n').filter(Boolean).pop() || '';
+            try { ok(JSON.parse(line)); }
+            catch { ok({ target, status: 'unreachable', detail: err ? 'el chequeo falló' : 'salida no-JSON' }); }
+        });
+    });
+}
+
+// Pre-login HEADLESS: corre dev/warm-session.spec.ts (cognitoLogin + persistCognitoState). Resuelve al
+// terminar (el panel muestra el loader mientras). Uno a la vez, y NO mientras hay una corrida (un browser a la vez).
+function runWarm(target: string): Promise<{ ok: boolean; detail: string }> {
+    return new Promise((ok) => {
+        if (current && !current.done) return ok({ ok: false, detail: 'hay una corrida activa; detenela antes de autenticar' });
+        if (warming) return ok({ ok: false, detail: `ya hay una autenticación en curso (${warming})` });
+        warming = target;
+        // HEADLESS en los tres targets. Hubo un desvío "staging necesita headed porque su Managed Login
+        // bloquea la automatización" — FALSO: el warm nunca esperaba el login (el regex del host matcheaba
+        // el `redirect_uri` del query en la propia página del password) y el veredicto "colgado" era un
+        // auth en vuelo abandonado a los 0s. Con la espera real (pkg/cognito.ts) headless completa. F-66.
+        const child = spawn('npx', ['playwright', 'test', 'dev/warm-session.spec.ts', '--project=chromium', '--reporter=line'],
+            { cwd: ROOT, env: envFor(target) });
+        let out = '';
+        const cap = (b: Buffer) => { out += b.toString(); };
+        child.stdout?.on('data', cap); child.stderr?.on('data', cap);
+        child.on('close', (code) => {
+            warming = null;
+            sessionStatusCache.delete(target);   // el estado cambió → forzar re-chequeo
+            const okWarm = code === 0 && /WARM_OK/.test(out);
+            let detail = 'sesión guardada';
+            if (!okWarm) {
+                if (/requiere credenciales|\bskipped\b/i.test(out)) detail = 'faltan credenciales Cognito (.cognito.json)';
+                else if (/MFA|captcha|no volvió al wizard|Cognito/i.test(out)) detail = 'el login no volvió al wizard (¿credenciales o MFA/captcha?)';
+                else detail = `el pre-login terminó con código ${code}`;
+            }
+            ok({ ok: okWarm, detail });
+        });
+    });
+}
+
 function leerFlows(): any {
     try { return JSON.parse(readFileSync(join(ROOT, '.flows.json'), 'utf8')); } catch { return {}; }
 }
@@ -340,6 +389,29 @@ const server = createServer(async (req, res) => {
         if (!existsSync(f)) return json(res, 500, { error: 'falta panel/index.html' });
         res.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' });
         return res.end(readFileSync(f, 'utf8'));
+    }
+
+    // Estado de la sesión Cognito precargada (dot verde/gris en los botones de ambiente). Chequeo REAL
+    // (bin/session-check), cacheado por target para no pegarle al front en cada render. `force=1` lo salta.
+    if (path === '/api/session-status') {
+        const t = url.searchParams.get('target') || 'local';
+        const force = url.searchParams.get('force') === '1';
+        const c = sessionStatusCache.get(t);
+        if (!force && c && Date.now() - c.at < SESSION_STATUS_TTL) return json(res, 200, c.data);
+        const data = await sessionCheck(t);
+        sessionStatusCache.set(t, { at: Date.now(), data });
+        return json(res, 200, data);
+    }
+
+    // Pre-login headless: loguea y deja el cache listo. Responde cuando TERMINA (el panel muestra el loader),
+    // con el estado ya re-chequeado para pintar el dot sin un segundo round-trip.
+    if (path === '/api/session-refresh' && req.method === 'POST') {
+        const body = await readBody(req);
+        const t = TARGETS.has(body?.target) ? body.target : 'local';
+        const r = await runWarm(t);
+        const status = await sessionCheck(t);
+        sessionStatusCache.set(t, { at: Date.now(), data: status });
+        return json(res, 200, { ...r, status });
     }
 
     // Mapa de pasos del wizard (panel/steps.json) + verificación de que sus rutas existen. El `ok:false`

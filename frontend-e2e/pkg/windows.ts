@@ -38,11 +38,17 @@ export const PREVIEW_VP = PREVIEW
     ? { viewport: null, deviceScaleFactor: undefined, isMobile: undefined, hasTouch: undefined }
     : {};
 
-// Columnas fijas: A izquierda, B derecha. La pantalla SIEMPRE se parte en 2 → tamaño consistente entre specs.
+// Columnas fijas: A izquierda (asesor/PC), B derecha (cliente/celular).
 export const COLS = { A: 0, B: 1 } as const;
 
-// Acomoda la ventana de `page` en su columna (COLS.A=izquierda / COLS.B=derecha), 100% de alto. Best-effort
-// vía CDP (Chromium headed). En headless / sin preview no hace nada. Requiere PREVIEW_VP en el contexto.
+// Ancho de la ventana del CELULAR (B). El cliente usa el móvil → ventana ANGOSTA (ancho tipo teléfono);
+// el asesor (A) trabaja en PC y se queda con el RESTO de la pantalla. Antes se partía 50/50, pero el
+// wizard del asesor tiene más UI y el del cliente es una vista mobile — esto es más fiel y le da aire a A.
+// Subilo/bajalo si querés B más o menos ancha.
+export const PHONE_W = 480;
+
+// Acomoda la ventana de `page` en su columna, 100% de alto: A = ancha (izquierda) · B = angosta (derecha,
+// ancho de teléfono). Best-effort vía CDP (Chromium headed). En headless / sin preview no hace nada.
 export async function tileWindow(page: Page, col: number): Promise<void> {
     if (!PREVIEW) return;
     try {
@@ -51,13 +57,17 @@ export async function tileWindow(page: Page, col: number): Promise<void> {
             x: (window.screen as unknown as { availLeft?: number }).availLeft ?? 0,
             y: (window.screen as unknown as { availTop?: number }).availTop ?? 0,
         }));
-        const width = Math.floor(s.w / 2);             // pantalla SIEMPRE dividida en 2 mitades
+        // B = ancho de teléfono (topado a media pantalla por si es chica); A = lo que sobra. B se pega a la
+        // derecha, A arranca en la izquierda. Con 1 sola ventana (A) queda ancha y deja libre el hueco del móvil.
+        const phoneW = Math.min(PHONE_W, Math.floor(s.w / 2));
+        const isB = col === COLS.B;
+        const width = isB ? phoneW : s.w - phoneW;
+        const left = isB ? s.x + (s.w - phoneW) : s.x;
         const cdp = await page.context().newCDPSession(page);
         const { windowId } = (await cdp.send('Browser.getWindowForTarget')) as { windowId: number };
-        // 1º restaurar a 'normal' (CDP no mueve/redimensiona una ventana maximizada). 2º fijar los bounds:
-        // left = columna * media pantalla; top = 0; width = media pantalla; height = 100% del alto disponible.
+        // 1º restaurar a 'normal' (CDP no mueve/redimensiona una ventana maximizada). 2º fijar los bounds.
         await cdp.send('Browser.setWindowBounds', { windowId, bounds: { windowState: 'normal' } });
-        await cdp.send('Browser.setWindowBounds', { windowId, bounds: { left: s.x + col * width, top: s.y, width, height: s.h } });
+        await cdp.send('Browser.setWindowBounds', { windowId, bounds: { left, top: s.y, width, height: s.h } });
     } catch (e) {
         console.log(`  ▸ ⚠ tileWindow (no se pudo acomodar la ventana): ${e instanceof Error ? e.message : String(e)}`);
     }
