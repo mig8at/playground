@@ -458,6 +458,20 @@ test('guided (semiautomático)', async ({ browser }) => {
             log(`✗ no pude sembrar el uReq headless (user=${userId ?? '?'} · branch=${br ? 'ok' : 'no'}) — probá "Saltar a: Datos" (visual)`);
             return '';
         }
+        // El atajo headless tiene que dejar el MISMO estado limpio que el camino visual: cliente
+        // sintético CREADO + solicitud válida. Confiar en que el `register` lo dejó es lo que produjo
+        // el fallo opaco: devolvía un id sin fila en `users`, se sembraba la solicitud igual, y
+        // `lenders-v2` reventaba con "Attempt to read property id on null" → 500 en pantalla cinco
+        // minutos de cold-boot después. Se verifica contra la BD ANTES de insertar nada.
+        const cliente = await one<{ id: number }>('SELECT id FROM users WHERE id=? LIMIT 1', [userId]).catch(() => null);
+        if (!cliente) {
+            const porTel = await one<{ id: number }>('SELECT id FROM users WHERE cell_phone=? ORDER BY id DESC LIMIT 1', [PHONE]).catch(() => null);
+            log(`✗ el register devolvió user ${userId} pero NO hay esa fila en \`users\` (por teléfono ${PHONE}: ${porTel?.id ?? 'tampoco'}).`);
+            log(`   Sembrar igual dejaría la solicitud HUÉRFANA y /lenders daría 500. Se aborta acá.`);
+            log(`   respuesta cruda del register: ${JSON.stringify(reg).slice(0, 400)}`);
+            log(`   Mientras tanto usá "Saltar a: Monto" — ahí el cliente lo crea el wizard real.`);
+            return '';
+        }
         const ins = await exec(
             'INSERT INTO user_requests (user_id, allied_id, allied_branch_id, lender_id, amount, original_amount, user_request_status_id, corporate_user_id, credit_line_id, fee_number, fee_value, rate, created_at, updated_at) VALUES (?,?,?,NULL,?,?,1,?,1,0,0,0,NOW(),NOW())',
             [userId, br.allied_id, br.branch_id, Number(AMOUNT), Number(AMOUNT), asesorId],
