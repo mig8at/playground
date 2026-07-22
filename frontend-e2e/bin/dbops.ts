@@ -9,7 +9,7 @@
 //   node bin/dbops.ts list [merchant]
 //   node bin/dbops.ts ecommerce-url <merchant> [phone] [amount]
 //   node bin/dbops.ts synth-fill <uReqID> [lender] [income] [score]
-import { close, one, query, exec, assertWriteAllowed } from '../pkg/db.ts';
+import { close, one, query, scalar, exec, assertWriteAllowed } from '../pkg/db.ts';
 import { whois, assign, revoke, scrubphone } from '../pkg/asesor.ts';
 import { listMerchants, listEcommerce } from '../pkg/merchants.ts';
 import { buildEcommerceUrl } from '../pkg/ecommerce.ts';
@@ -128,6 +128,51 @@ try {
                 [a.length ? a : ['']],
             );
             break;
+        case 'activity': { // qué escribió ESTA corrida en la BD, por tabla. → {user, tablas:[{tabla, eventos:[…]}]}
+            //
+            // La ventana se calcula con el reloj de la BD (`NOW() - INTERVAL n SECOND`), NO con el de
+            // node: contra dev la base es remota y una diferencia de reloj de segundos te haría perder
+            // eventos o traer basura vieja. El caller pasa CUÁNTOS SEGUNDOS lleva la corrida.
+            //
+            // ALCANCE, para que no mienta: solo estas tablas y solo filas del usuario de la corrida.
+            // No es un tail del binlog — dev es compartida y todo el equipo escribe ahí. Y no ve
+            // DELETEs (el scrub borra ANTES de que exista el usuario, así que queda fuera igual).
+            const seg = Math.max(1, num(a[0]) || 300);
+            const uid = num(a[1]) || (await scalar<number>(
+                'SELECT user_id FROM user_requests WHERE created_at >= NOW() - INTERVAL ? SECOND ORDER BY id DESC LIMIT 1', [seg]));
+            if (!uid) { r = { user: null, tablas: [] }; break; }
+            // `extra` es una expresión SQL opcional que da contexto legible en el hover. Cada tabla va en
+            // su propio try: si una columna no existe en este ambiente, se pierde ESA tabla y no la vista
+            // entera (la lección de F-64, donde un `l.product` ausente dejaba el panel en blanco).
+            const TABLAS: Array<{ t: string; where: string; extra?: string }> = [
+                { t: 'users', where: 'id = ?', extra: "CONCAT('doc ', COALESCE(document_number,'—'))" },
+                { t: 'user_requests', where: 'user_id = ?', extra: "CONCAT('estado ', user_request_status_id, COALESCE(CONCAT(' · flow ', flow_id), ''))" },
+                { t: 'user_request_records', where: 'user_id = ?' },
+                { t: 'risk_central_user_data', where: 'user_id = ?', extra: "CONCAT('central ', risk_central_id)" },
+                { t: 'user_request_risk_central_user_data', where: 'user_request_id IN (SELECT id FROM user_requests WHERE user_id = ?)' },
+                { t: 'user_summaries', where: 'user_id = ?' },
+                { t: 'user_field_values', where: 'user_id = ?' },
+                { t: 'creditop_x_user_requests_records', where: 'user_id = ?' },
+                { t: 'logs', where: 'user_id = ?', extra: 'name' },
+            ];
+            const tablas: unknown[] = [];
+            for (const d of TABLAS) {
+                try {
+                    const filas = await query(
+                        `SELECT id, updated_at AS at,
+                                (created_at >= NOW() - INTERVAL ? SECOND) AS nuevo,
+                                ${d.extra ?? "''"} AS detalle
+                           FROM \`${d.t}\`
+                          WHERE ${d.where} AND updated_at >= NOW() - INTERVAL ? SECOND
+                          ORDER BY updated_at, id LIMIT 60`, [seg, uid, seg]);
+                    if (filas.length) tablas.push({ tabla: d.t, eventos: filas.map((f: any) => ({
+                        id: f.id, at: f.at, op: Number(f.nuevo) === 1 ? 'INSERT' : 'UPDATE', detalle: String(f.detalle ?? ''),
+                    })) });
+                } catch { /* tabla o columna ausente en este ambiente: se omite, no tumba la vista */ }
+            }
+            r = { user: uid, ventanaSeg: seg, tablas };
+            break;
+        }
         case 'branches-of': // TODAS las sucursales de un comercio, para poder elegir contra CUÁL correr sin
             // depender de que esté quemada en .flows.json. Ordena por status (las activas primero) porque
             // un comercio grande arrastra sucursales viejas apagadas y no son las que se quieren probar.

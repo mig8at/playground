@@ -311,6 +311,16 @@ const server = createServer(async (req, res) => {
         })));
     }
 
+    // Qué escribió en la BD la corrida actual. La ventana va en SEGUNDOS desde que arrancó y el corte lo
+    // hace la BD con SU reloj (ver `dbops activity`): contra dev la base es remota y comparar contra el
+    // reloj de node perdería eventos o traería basura vieja.
+    if (path === '/api/activity') {
+        const target = (url.searchParams.get('target') || 'local').trim();
+        if (!current) return json(res, 200, { user: null, tablas: [] });
+        const seg = Math.max(1, Math.round((Date.now() - current.startedAt) / 1000));
+        return json(res, 200, (await dbopsJson(['activity', String(seg)], target)) || { user: null, tablas: [] });
+    }
+
     if (path === '/api/merchants') {
         const q = (url.searchParams.get('q') || '').trim();
         const target = (url.searchParams.get('target') || 'local').trim();

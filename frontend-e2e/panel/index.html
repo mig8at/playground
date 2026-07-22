@@ -640,6 +640,17 @@
        el desplazamiento lateral es de un carril: la curva queda corta y limpia, como en un grafo de git. */
     .tren #trenwarn { color: var(--warn); font-weight: 600; text-transform: none; letter-spacing: 0 }
     .tren-hint { float: right; font-size: 10.5px; font-weight: 500; color: var(--mut); text-transform: none; letter-spacing: 0 }
+    /* ── actividad de BD: una fila por tabla, un punto por evento ── */
+    .act { display: flex; flex-direction: column; gap: 7px }
+    .actrow { display: grid; grid-template-columns: minmax(0,220px) 1fr; align-items: center; gap: 12px }
+    .actlbl { font-size: 11px; color: var(--mut); font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
+    .actdots { display: flex; flex-wrap: wrap; gap: 5px }
+    /* el punto apagado es el slot vacío: da la grilla de referencia que hace legible cuánto se escribió */
+    .dotev { width: 9px; height: 9px; border-radius: 50%; background: #26262b; flex: none }
+    .dotev.ins { background: #4ade80; cursor: help }
+    .dotev.upd { background: #38a3c7; cursor: help }
+
     /* controles de zoom flotantes (estilo Maps): el canvas ya no se queda con la rueda, así que hace
        falta una forma explícita de acercar sin atajos de teclado. */
     .zoomctl { position: absolute; right: 10px; bottom: 10px; display: flex; flex-direction: column; gap: 4px }
@@ -756,6 +767,16 @@
           <button id="zfit" title="encuadrar">⤢</button>
         </div>
       </div>
+    </section>
+
+    <!-- Actividad de BD de la corrida. Existe porque el modo MANUAL del panel es ciego: la pantalla
+         muestra la pretensión y nadie muestra lo que se persistió (el patrón de F-50). Verde = INSERT,
+         azul = UPDATE, gris = slot vacío. Hover = tabla, operación, id y contexto. -->
+    <section class="card" id="actividad" style="display:none;margin-top:18px">
+      <h2><b>▪</b> Actividad de base de datos <span id="actuser" style="font-weight:400;text-transform:none;letter-spacing:0"></span>
+        <span class="tren-hint">verde = alta · azul = cambio · pasá el mouse por un punto</span>
+      </h2>
+      <div class="act" id="act"></div>
     </section>
 
     <div class="cols">
@@ -1321,6 +1342,39 @@
       box.innerHTML = out.join('');
     }
 
+    // ── ACTIVIDAD DE BD ──────────────────────────────────────────────────────────────────────────
+    // ALCANCE (decirlo importa: una vista que aparenta omnisciencia miente): son 9 tablas curadas y solo
+    // filas del usuario de la corrida. No es un tail del binlog — dev es compartida y todo el equipo
+    // escribe ahí — y no ve DELETEs. El scrub borra antes de que el usuario exista, así que queda fuera.
+    const ACT_SLOTS = 22;
+    async function tickActividad() {
+      let a;
+      try { a = await (await fetch('/api/activity?target=' + target)).json(); } catch { return; }
+      const card = $('actividad'), box = $('act');
+      if (!a || !Array.isArray(a.tablas) || !a.tablas.length) { card.style.display = 'none'; return; }
+      card.style.display = 'block';
+      $('actuser').textContent = a.user ? `· usuario #${a.user}` : '';
+      box.innerHTML = '';
+      for (const t of a.tablas) {
+        const row = document.createElement('div'); row.className = 'actrow';
+        const lbl = document.createElement('span'); lbl.className = 'actlbl';
+        lbl.textContent = t.tabla; lbl.title = `${t.eventos.length} evento(s) en ${t.tabla}`;
+        const dots = document.createElement('span'); dots.className = 'actdots';
+        const ev = t.eventos.slice(-ACT_SLOTS);
+        for (const e of ev) {
+          const d = document.createElement('span');
+          d.className = 'dotev ' + (e.op === 'INSERT' ? 'ins' : 'upd');
+          d.title = `${e.op === 'INSERT' ? 'ALTA' : 'CAMBIO'} · ${t.tabla} #${e.id}` +
+                    (e.detalle ? ` · ${e.detalle}` : '') + `\n${e.at}`;
+          dots.appendChild(d);
+        }
+        for (let i = ev.length; i < ACT_SLOTS; i++) {
+          const d = document.createElement('span'); d.className = 'dotev'; dots.appendChild(d);
+        }
+        row.appendChild(lbl); row.appendChild(dots); box.appendChild(row);
+      }
+    }
+
     // ── MAPA DE TREN ────────────────────────────────────────────────────────────────────────────
     // Tronco común hasta /lenders y de ahí un ramal por response_type. Solo se dibujan los ramales que
     // el comercio TIENE (mirando el rt de sus lenders), así el mapa habla de ESTE comercio y no del
@@ -1639,6 +1693,7 @@
     function startPoll() {
       if (poll) clearInterval(poll);
       const tick = async () => {
+        tickActividad();   // en el mismo pulso que el estado de la corrida
         const j = await (await fetch('/api/status')).json();
         const atBottom = $('log').scrollTop + $('log').clientHeight >= $('log').scrollHeight - 30;
         $('log').textContent = j.log || '';

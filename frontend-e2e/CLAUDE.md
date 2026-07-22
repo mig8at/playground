@@ -142,6 +142,25 @@ en los comentarios del código y acá:
 - **los CreditopX en un solo carril `rt2`** → ese ambiente no tiene la columna `lenders.product` (hoy dev)
   y no se pueden separar por producto. Ver **F-64**.
 
+## Actividad de BD en el panel (`dbops activity`)
+
+Una fila por tabla, un punto por evento: **verde = alta · azul = cambio · gris = slot vacío**; el hover
+da tabla, operación, id, contexto y hora. Existe porque el modo **manual** del panel es ciego: la
+pantalla muestra la *pretensión* y nadie muestra lo que se persistió — el patrón exacto de F-50.
+Complementa a `pkg/trace.ts`, que solo corre en el guiado.
+
+Tres cosas que hay que respetar si lo tocás:
+
+- **La ventana la mide la BD**, no node: `dbops activity <segundos>` filtra con `NOW() - INTERVAL n
+  SECOND`. Contra dev la base es remota y comparar contra el reloj local perdería eventos o traería
+  basura vieja.
+- **Cada tabla va en su propio `try`**: si una columna no existe en ese ambiente se pierde ESA fila, no
+  la vista entera. Es la lección de F-64, donde un `l.product` ausente dejaba el panel en blanco.
+- **Alcance declarado, no omnisciencia.** Son 9 tablas curadas y solo filas del usuario de la corrida.
+  No es un tail del binlog —dev es compartida y todo el equipo escribe— y **no ve DELETEs** (el scrub
+  borra antes de que el usuario exista, así que queda fuera igual). `displayed_lenders` **no existe**:
+  verificá contra el esquema antes de sumar una tabla, no contra la memoria.
+
 ## Elegir comercio: los curados y el buscador
 
 En el panel conviven dos entradas, y **no son redundantes**:
