@@ -35,8 +35,18 @@ export const config = {
      *  Se lee con `env()` (no `process.env` pelado) para que valga ponerla en `env/<target>.env`. */
     feBaseUrl: env('E2E_BASE_URL', 'http://localhost:5174'),
 
-    /** URL del backend: legacy-backend en MODO MOCK (el viejo mock-server :4000 fue eliminado). */
-    mockUrl: env('E2E_MOCK_URL', 'http://localhost'),
+    /**
+     * URL del BACKEND DEL TARGET. El nombre es histórico (del viejo mock-server :4000, ya eliminado):
+     * hoy es "el backend contra el que corre esta prueba".
+     *
+     * Antes caía a `http://localhost` SIEMPRE, en los tres targets, porque `E2E_MOCK_URL` no está
+     * definida en ninguno. Con target=dev eso hacía que el sembrado headless registrara al cliente en
+     * el backend LOCAL, se trajera un `users.id` de la base local y lo insertara en la base de DEV: la
+     * solicitud quedaba HUÉRFANA y /lenders moría con 500 (F-65). Ahora sale de la cadena por target,
+     * igual que `WIZ_API` en bin/asesor; `E2E_MOCK_URL` sigue mandando si está, como override explícito.
+     */
+    mockUrl: (env('E2E_MOCK_URL') || env('E2E_API_BASE_URL', 'http://localhost'))
+        .replace(/\/api\/?$/, '').replace(/\/$/, ''),
 
     /** Hash de aliado válido para entrar al flujo (espejo de validation-driven). */
     partnerHash: env('E2E_PARTNER_HASH', '3e67eade'),

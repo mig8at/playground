@@ -1124,3 +1124,26 @@ Y con datos simulados de "otro ambiente" sobre el mismo comercio —orden invert
 **Lo que queda como diferencia legítima:** dev no tiene la columna `product`, así que ahí los CreditopX no se pueden separar por producto y van en un carril. No se disimula — se avisa. La diferencia es de **datos**, y el panel ahora lo dice en vez de cambiar de forma en silencio.
 
 **Regla que deja.** Un diagrama que se arma con datos del ambiente tiene que separar **estructura** (la lógica, estable) de **estado** (qué está prendido hoy, variable). Mezclarlos convierte una diferencia de configuración en una aparente diferencia de comportamiento — y eso manda a depurar el lugar equivocado. Vale para este mapa y para cualquier visualización del playground.
+
+### F-65 · El sembrado headless registraba al cliente en el backend LOCAL aunque el target fuera dev
+
+**Síntoma.** Con "Saltar a: Lenders" contra `dev`, el wizard moría con *"Error al obtener las opciones de financiamiento"* y, en el log del SSR, `GET /api/onboarding/loan-application/lenders-v2/{id}` → **500 `Attempt to read property "id" on null`**. Sistemático: tres corridas seguidas. Con "Saltar a: Monto" el mismo comercio andaba bien.
+
+**Causa raíz verificada.** `pkg/config.ts` definía `mockUrl: env('E2E_MOCK_URL', 'http://localhost')`, y **`E2E_MOCK_URL` no está definida en ningún target** → `config.mockUrl` valía `http://localhost` en los **tres**. El sembrado headless (`dev/guided.spec.ts::seedHeadless`) llama a `${config.mockUrl}/api/onboarding/phone/register`, así que:
+
+1. registraba al cliente sintético en el backend **LOCAL** (sail),
+2. se traía un `users.id` de la **base local** (siempre el mismo: 1828501, porque el scrub de dev no la toca),
+3. e insertaba el `user_request` en la base de **DEV** con ese id ajeno.
+
+Resultado: solicitud **huérfana**. `lenders-v2` la encuentra, hace `->user->id` sobre null y tira 500. Se confirmó de los dos lados: el usuario 1828501 **existe en local** con el teléfono de bypass y **no existe en dev**, donde ningún usuario tenía ese teléfono.
+
+Solo se veía en el atajo headless: por el camino visual el cliente lo crea el wizard real, que sí apunta al backend del target.
+
+**Arreglo (aplicado).**
+
+- `pkg/config.ts` — `mockUrl` sale de la cadena por target: `E2E_MOCK_URL` (override explícito para un backend mockeado) y si no, `E2E_API_BASE_URL` sin el sufijo `/api`. Verificado: `local → http://localhost`, `dev` y `staging → http://legacy-backend.inertia-develop`. Y el register contra dev devolvió `1827708`, que **sí** está en la base de dev.
+- `dev/guided.spec.ts` — antes de insertar el `user_request` se comprueba **contra la BD** que el usuario exista; si no, aborta e imprime el id devuelto, si hay alguien por teléfono y la **respuesta cruda del register**. Sembrar sin esa comprobación convertía un error de configuración en un 500 opaco cinco minutos de cold-boot después.
+
+**Familia.** Es el mismo patrón que F-59 (`bin/asesor` leyendo `.env.$TARGET` a mano) y que F-64 (`/api/lenders` tragándose el error): **un default que parece inofensivo — `'http://localhost'` — enmascara la ausencia de configuración por target**. Regla: si un valor depende del ambiente, sale de la cadena (`env()`/`envget`); un fallback a localhost es aceptable solo cuando localhost ES la respuesta correcta para ese target.
+
+**Deuda menor.** El nombre `mockUrl` ya no describe lo que es (viene del mock-server :4000, eliminado). Hoy es "el backend del target"; renombrarlo evitaría la próxima confusión.
