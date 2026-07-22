@@ -10,7 +10,7 @@
 // (ver pkg/db.ts::assertWriteAllowed). Elegí `local` salvo que sepas exactamente qué vas a escribir.
 import { createServer, get, IncomingMessage, ServerResponse } from 'node:http';
 import { spawn, execFile } from 'node:child_process';
-import { readFileSync, existsSync, writeFileSync, readdirSync, statSync } from 'node:fs';
+import { readFileSync, existsSync, writeFileSync, readdirSync, statSync, mkdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve, join } from 'node:path';
 
@@ -32,7 +32,58 @@ function envFor(target: string): NodeJS.ProcessEnv {
 }
 
 // una sola corrida a la vez (un browser headed a la vez).
-let current: { child: ReturnType<typeof spawn>; slug: string; startedAt: number; done: boolean; code: number | null } | null = null;
+let current: { child: ReturnType<typeof spawn>; slug: string; target: string; startedAt: number; done: boolean; code: number | null } | null = null;
+
+// ── BITÁCORA DE LA CORRIDA ───────────────────────────────────────────────────────────────────────
+// Se ACUMULA en memoria a medida que el panel consulta la actividad, en vez de sacar una foto al final.
+// Dos razones: `dbops activity` corta con `LIMIT 60` por tabla (una corrida larga perdería los eventos
+// más viejos), y si una fila se borra a mitad de camino la foto final no la vería nunca. Se vuelca a
+// disco cuando la corrida termina, para el post mortem.
+const RUNS_DIR = resolve(ROOT, '.runs');
+const ULTIMA = join(RUNS_DIR, 'ultima-corrida.json');
+let bitacora: { user: number | null; eventos: Map<string, any> } = { user: null, eventos: new Map() };
+
+/** Mezcla lo que devolvió `dbops activity` en la bitácora. Clave = tabla+id+op+at → idempotente: el
+ *  panel re-consulta TODA la ventana en cada tick, así que sin dedup se duplicaría cada 2 segundos. */
+function acumular(a: any): void {
+    if (!a || !Array.isArray(a.tablas)) return;
+    if (a.user) bitacora.user = a.user;
+    for (const t of a.tablas) {
+        for (const e of t.eventos || []) {
+            bitacora.eventos.set(`${t.tabla}|${e.id}|${e.op}|${e.at}`, { at: e.at, op: e.op, tabla: t.tabla, id: e.id, detalle: e.detalle || '' });
+        }
+    }
+}
+
+/** Vuelca la bitácora a `.runs/`. Un archivo fijo (la última) + uno por corrida (historia comparable). */
+function volcarBitacora(): void {
+    if (!current) return;
+    const eventos = [...bitacora.eventos.values()].sort((x, y) => String(x.at).localeCompare(String(y.at)));
+    const resumen: Record<string, { altas: number; cambios: number }> = {};
+    for (const e of eventos) {
+        const r = (resumen[e.tabla] ??= { altas: 0, cambios: 0 });
+        if (e.op === 'INSERT') r.altas++; else r.cambios++;
+    }
+    const doc = {
+        corrida: {
+            comercio: current.slug, target: current.target, exitCode: current.code,
+            inicio: new Date(current.startedAt).toISOString(),
+            fin: new Date().toISOString(),
+            duracionSeg: Math.round((Date.now() - current.startedAt) / 1000),
+        },
+        usuario: bitacora.user,
+        // El alcance viaja DENTRO del archivo: quien lo lea meses después no tiene por qué saber que
+        // esto no es un binlog, y un registro que aparenta ser completo es peor que no tenerlo.
+        alcance: '9 tablas curadas, solo filas del usuario de esta corrida. NO incluye DELETEs ni escrituras de otras personas (dev/staging son compartidas).',
+        resumen, eventos,
+    };
+    try {
+        if (!existsSync(RUNS_DIR)) mkdirSync(RUNS_DIR, { recursive: true });
+        const s = JSON.stringify(doc, null, 2) + '\n';
+        writeFileSync(ULTIMA, s);
+        writeFileSync(join(RUNS_DIR, `corrida-${new Date(current.startedAt).toISOString().replace(/[:.]/g, '-').slice(0, 19)}-${current.slug}.json`), s);
+    } catch { /* el volcado nunca debe tumbar la corrida */ }
+}
 
 function json(res: ServerResponse, code: number, body: unknown) {
     const s = JSON.stringify(body);
@@ -202,11 +253,17 @@ async function launch(slug: string, profile: Profile, target: string, inject: bo
     // (bash → npx playwright → node → chromium), no solo el bash.
     const bin = canal === 'ecommerce' ? 'ecommerce' : 'asesor';   // bin/ecommerce es un wrapper que exporta CFE_ENTRY
     const child = spawn('/bin/bash', [join(ROOT, 'bin', bin), slug], { cwd: ROOT, env, detached: true });  // sin `auto` → manual
-    current = { child, slug, startedAt: Date.now(), done: false, code: null };
+    current = { child, slug, target: t, startedAt: Date.now(), done: false, code: null };
+    bitacora = { user: null, eventos: new Map() };   // arranca limpia: si no, arrastraría la corrida anterior
     const append = (b: Buffer) => { try { writeFileSync(RUN_LOG, b.toString(), { flag: 'a' }); } catch {} };
     child.stdout?.on('data', append);
     child.stderr?.on('data', append);
-    child.on('close', (code) => { if (current) { current.done = true; current.code = code; } append(Buffer.from(`\n✓ corrida terminada (code ${code})\n`)); });
+    child.on('close', (code) => {
+        if (current) { current.done = true; current.code = code; }
+        append(Buffer.from(`\n✓ corrida terminada (code ${code})\n`));
+        volcarBitacora();
+        append(Buffer.from(`  bitácora → .runs/ultima-corrida.json (${bitacora.eventos.size} operación/es de BD)\n`));
+    });
     return { ok: true, msg: `lanzado '${slug}' (${t}) — ${mode}${jump}.` };
 }
 
@@ -318,7 +375,9 @@ const server = createServer(async (req, res) => {
         const target = (url.searchParams.get('target') || 'local').trim();
         if (!current) return json(res, 200, { user: null, tablas: [] });
         const seg = Math.max(1, Math.round((Date.now() - current.startedAt) / 1000));
-        return json(res, 200, (await dbopsJson(['activity', String(seg)], target)) || { user: null, tablas: [] });
+        const act = (await dbopsJson(['activity', String(seg)], target)) || { user: null, tablas: [] };
+        acumular(act);
+        return json(res, 200, act);
     }
 
     if (path === '/api/merchants') {
