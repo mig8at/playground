@@ -647,7 +647,16 @@ test('guided (semiautomático)', async ({ browser }) => {
             const STEP = (process.env.E2E_STEP_TARGET || 'monto').toLowerCase();
             const clickContinue = () =>
                 page.getByRole('button', { name: /continuar|continue|siguiente/i }).first().click({ timeout: 8_000 }).catch(() => {});
-            const uReqOf = () => page.url().match(/\/(?:merchant|ecommerce)\/[^/]+\/(\d+)\//)?.[1] ?? '';
+            // El binding de la traza va ACÁ, no en cada rama: `uReqOf()` es el único lugar donde el id
+            // aparece en el camino manual. Hacerlo por rama es cómo se perdió en STEP=monto — la traza
+            // mostró "sin solicitud todavía" durante TODA la corrida (hasta `loan-approved`), y con la
+            // columna de BD muerta el guard de F-50 —pantalla de éxito con la solicitud sin sellar—
+            // quedó mudo sin que nadie lo notara. El "1 passed" no significaba lo que parecía.
+            const uReqOf = () => {
+                const id = page.url().match(/\/(?:merchant|ecommerce)\/[^/]+\/(\d+)\//)?.[1] ?? '';
+                if (id) traza.trazarUReq(id);   // idempotente: se llama en cada paso, con el mismo id
+                return id;
+            };
 
             // ── STEP = monto (default): comportamiento de siempre. Vos manejás; inyecto el buró al llegar a personal-info. ──
             if (STEP === 'monto') {
