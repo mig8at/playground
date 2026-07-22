@@ -14,7 +14,7 @@ La originación **termina en el Estado 11** ("Autorizada" = desembolsado). La co
 | ¿Quién opera la cartera? | **CreditOp** (in-platform, rt=2/3) vía 6 crons + ledger propio. Para rt≠0 la gestiona el lender externo (CreditOp no se entera). |
 | ¿Quién pone la plata / cobra? | El **comercio** pone el capital/riesgo; CreditOp opera el recaudo y cobra comisión. |
 | ¿Cómo cierra? | **Paz y salvo** (`creditop_x_requests_status_id=3` cuando `total_payment_amount==0`) o **Cancelado** (4, anulación manual del cupo). La mora (2) es indefinida; no hay estado "castigo" persistido (es un bucket derivado `dias_mora>180` + venta de cartera manual). |
-| ¿Simulable E2E? | **Parcial**: in-platform sí (sembrar el ledger + **invocar los crons a mano** + simular el pago por polling); rt≠0 **no** (lo gestiona un tercero). Hoy en legacy **0 superficies activas** → probar contra `application`. |
+| ¿Simulable E2E? | **Parcial**: in-platform sí (sembrar el ledger + **invocar los crons a mano** + simular el pago por polling); rt≠0 **no** (lo gestiona un tercero). En legacy corren 3 crons de device-lock (SmartPay) que **consumen** el ledger (ver F-39); el resto de la cartera se prueba contra `application`. |
 
 ## Contenido
 **Los 6 crons diarios** (`app/Console/Kernel.php`, en orden de cadencia):
@@ -62,10 +62,10 @@ La originación **termina en el Estado 11** ("Autorizada" = desembolsado). La co
 - **Bonificación Credifamilia** (application): `Jobs/Lenders/Credifamilia/{BonificationCheck,SendBonificationReport}`, `Models/Bonification`.
 - **Cierre al comercio + riesgo** (application): `Customer/WoocommerceController` (POST al comercio en 11), `Admin/CreditopXRiskController` (cartera-por-riesgo, venta de cartera).
 - **Recaudo Pullman** (application): `Services/PullmanService`, `Repositories/PullmanRepository`, `Jobs/ValidatePullmanPayment` (SQL Server `pullman_db`).
-- **Estado de migración** (legacy-backend): `app/Console/Kernel.php` (**prueba: 0 crons de servicing**), `Modules/Loans/App/Services/CreditopXPaymentService.php` (copia muerta, firma vieja), `Modules/Payments/App/Services/{CustomerPaymentService,PaymentLinkService}.php` (crea links pero NO imputa al ledger), `Modules/System/.../EndOfMonthReportController.php` (reconstruido), `Modules/Onboarding/App/Services/EcommerceRequestService.php` (**la notif de cierre SÍ migró**), stubs `app/Services/PullmanService.php`+`app/Repositories/PullmanRepository.php`.
+- **Estado de migración** (legacy-backend): `app/Console/Kernel.php` (**agenda 3 crons de device-lock SmartPay que leen el ledger — ver F-39; 0 crons que OPEREN la cascada de cartera**), `Modules/Loans/App/Services/CreditopXPaymentService.php` (copia muerta, firma vieja), `Modules/Payments/App/Services/{CustomerPaymentService,PaymentLinkService}.php` (crea links pero NO imputa al ledger), `Modules/System/.../EndOfMonthReportController.php` (reconstruido), `Modules/Onboarding/App/Services/EcommerceRequestService.php` (**la notif de cierre SÍ migró**), stubs `app/Services/PullmanService.php`+`app/Repositories/PullmanRepository.php`.
 
 ## Frontera de simulación / harness
-**El servicing corre 100% en `application`; en legacy hay 0 superficies activas** (copias muertas con imports colgantes que reventarían si se agendaran). Cualquier prueba de cartera va contra application.
+**El servicing corre 100% en `application`; en legacy solo corren los 3 crons de device-lock de SmartPay** (que leen el ledger de mora — ver F-39; el resto son copias muertas con imports colgantes que reventarían si se agendaran). Cualquier prueba de la cascada de cartera va contra application.
 - **Inyectable (in-platform):** el nacimiento del ledger (`createFirstRegister`, síncrono tras el 11), la causación, el corte, la mora y el cierre por pago total (paz y salvo NO exige firma externa — es interno).
 - **Cómo probar (honesto):** (1) crear el crédito, (2) mover `next_billing_date`/el reloj a mano, (3) **invocar los comandos artisan en el orden del Kernel** (00:10 → 00:30 → 03:30 → 04:00) — no basta esperar, hay que **disparar los crons**, (4) verificar la nueva fila `status=1` y el `creditop_x_requests_status_id`.
 - **Pago:** Wompi/Payvalida por **polling** (no webhook) → simular la `PaymentGatewayTransaction` aprobada o `dispatchSync` el `StatusCheck`, luego correr `apply-payment`.
