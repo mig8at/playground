@@ -75,7 +75,7 @@ recorta con ese mín/máx (`LenderRetrievalService.php:774`).
 | Nº de cuotas (lista) | `fee_numbers` | credit_line_by_lenders | **decisional** | **decisional** | Lista de plazos ofrecibles, recortada por mín/máx + `max_term` |
 | Cuota inicial % | `min_initial_fee` | **lender_users_categories** | **decisional** | **decisional** | Fórmula de cupo `available/(1−fee)` + cobro Wompi. OJO: decide la **categoría de perfilamiento**, no el comercio |
 | Tasa de interés | `rate` | credit_line_by_lenders → `user_requests.rate` | **decisional** | **decisional** | Anualidad del cupo + cálculo de la cuota |
-| Cuotas condonadas | `installments_waived_interest` + `PromotionsByLender` | creditop_x_lender_configuration | **decisional** | **decisional** | Baja el interés de las primeras N cuotas → afecta la cuota MOSTRADA en checkout (ambos repos) |
+| Cuotas condonadas | `installments_waived_interest` | creditop_x_lender_configuration | **servicing** | **servicing** | El campo de config NO baja la oferta: solo se copia al ledger post-aprobación. La cuota MOSTRADA la baja otra tabla (`promotions_by_lenders`), no este campo |
 | Tasa de mora | `late_payment_interest_rate` | creditop_x_lender_configuration | **servicing** | **servicing** | mora = cuota·días·tasa/30, post-desembolso (Estado 11+). NO toca la oferta |
 
 ---
@@ -139,7 +139,8 @@ oferta al cliente.
   ensamblar los costos distinto (no auditado a fondo aquí).
 - **Servicing vs originación:** la tasa de mora y las condonadas viven en config de lender
   CreditopX; la mora es 100% servicing (corre en `application`; la copia en `legacy` está
-  dormida). Las condonadas sí llegan a la oferta (bajan la cuota mostrada).
+  dormida). Las condonadas de config NO llegan a la oferta (son servicing); la baja de la cuota
+  mostrada la hace `promotions_by_lenders`.
 - **Esquema compartido:** ambos repos comparten los archivos de migración; las diferencias
   son de dónde se LEE/consume (legacy centraliza rt=2 en `CreditopXQuotaController` +
   `PaymentSchedule/*`; application lo dispersa).

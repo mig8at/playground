@@ -1,7 +1,7 @@
 <script setup>
 import { computed, ref } from 'vue'
 import { Handle, Position } from '@vue-flow/core'
-import { customLenders, addCustomLender, removeCustomLender, duplicateCustomLender, ui, openFieldInfo } from '../store'
+import { customLenders, addCustomLender, removeCustomLender, duplicateCustomLender, ui, openFieldInfo, RT_LABEL } from '../store'
 import { Plus, Trash2, Copy } from 'lucide-vue-next'
 
 // Listado ÚNICO de entidades del comercio, TODAS creadas por el usuario (persisten en localStorage).
@@ -9,9 +9,8 @@ import { Plus, Trash2, Copy } from 'lucide-vue-next'
 const PRODUCTOS = [{ key: 'credito', label: 'Crédito' }, { key: 'renting', label: 'Renting' }, { key: 'rto', label: 'Renting con compra' }]
 const productoLabel = (k) => PRODUCTOS.find(p => p.key === k)?.label || ''
 // Nombre y "quién decide" por response_type — más descriptivo que "rt2" y más visual.
-const RT_NAME = { 0: 'Redirect', 1: 'Agregador', 2: 'CreditopX', 3: 'Rotativo' }
 const RT_WHO = { 0: 'redirige a su sitio', 1: 'decide su API', 2: 'decide CreditOp', 3: 'decide CreditOp' }
-const rtName = (rt) => RT_NAME[rt] || ('rt' + rt)
+const rtName = (rt) => RT_LABEL[rt] || ('rt' + rt) // RT_LABEL unificado, importado de store.js
 const rtWho = (rt) => RT_WHO[rt] || ''
 const entities = computed(() => [...customLenders]) // catálogo = solo lo que creó el usuario
 const baseSel = (l) => ui.selected === l.name

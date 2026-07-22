@@ -143,7 +143,7 @@ export const FIELD_DOCS = {
     summary: 'Lo que CreditOp le cobra al COMERCIO (%·final_amount), DESPUÉS de originar. No toca la cuota del cliente.',
     detail: 'Es liquidación/negocio, no oferta (UserRequest.php:127). Por eso no entra en la matemática de la cuota.' },
   'calc.cuotaInicial': { label: 'Cuota inicial (comercio)', tables: ['lenders_by_allieds.initial_fee_percentage'], layers: ['application-vue'], status: 'pisado',
-    summary: 'Se guarda por comercio, pero para rt=2 el enganche real lo fija la categoría.', pisaPor: 'category.min_initial_fee (LenderRetrievalService:716)',
+    summary: 'Se guarda por comercio, pero para rt=2 el enganche real lo fija la categoría.', pisaPor: 'category.min_initial_fee (LenderRetrievalService:756)',
     detail: 'Solo tiene efecto en el flujo viejo old-screens de application (Confirmation.vue:587); en legacy es fantasma.' },
   'calc.iva': { label: 'IVA', tables: ['lenders_by_allieds.iva'], layers: ['application', 'legacy-backend'], status: 'muerto',
     summary: 'El cálculo real quema 19%; esta columna no se lee para calcular la cuota.',
@@ -223,9 +223,9 @@ export const FIELD_DOCS = {
     detail: 'El initial_fee_percentage del tramo es fantasma (nunca leído). min_amount/max_amount/max_fee_number/mandatory_fee_number sí deciden. Monto por debajo del 1er "desde" → rechazo.' },
 
   // ── 2ª CAPA · Config de sucursal (status + group_rules + datacrédito, COPIADAS) ──────
-  'suc.status': { label: 'Estado en sucursal', tables: ['lenders_by_allied_branches.status'], layers: ['application', 'legacy-backend'], status: 'decide',
-    summary: 'Activa/desactiva la entidad EN ESA sucursal. Es la 1ª compuerta dura de getLenders: base = lenders_by_allied_branches (por sucursal, no por comercio).',
-    detail: 'El comercio habilita la entidad en su catálogo (lenders_by_allieds); cada sucursal la prende o apaga por separado vía status. getLenders solo lista las filas activas → inactiva = NO se ofrece en la sucursal (filtro duro, antes de perfilar). La fila se COPIA por sucursal al habilitar la entidad (junto con url_utm/sort).' },
+  'suc.status': { label: 'Estado en sucursal', tables: ['lenders_by_allied_branches.status'], layers: ['application', 'legacy-backend'], status: 'muerto',
+    summary: 'Bandera de membresía por sucursal (default true). NO filtra el getLenders vivo: ni legacy (resolveLenderIdsByBranch) ni application (LenderRetrievalService) la miran. Solo la lee el simulador VIEJO (SimulatorController:33).',
+    detail: 'El listado se arma con LendersByAlliedBranch::where(allied_branch_id)->pluck(lender_id), a lo sumo filtrando por response_type — nunca por status. Además el panel ni siquiera ESCRIBE la columna (el recreate solo pone lender_id/allied_branch_id/url_utm/sort) → queda en default true. Apagar una entidad en una sucursal es operación solo-BD y NO la saca del listado. El corte duro real de la 2ª capa es el cupo (rt=2) o la API (rt=1). Verificado en código (ver context merchants/doc.md:110).' },
   'suc.datacredito': { label: 'Datacrédito por sucursal', tables: ['lender_datacredito_rules (allied_branch_id)'], layers: ['application', 'legacy-backend'], status: 'decide',
     summary: 'Umbrales de buró por sucursal. Se COPIAN al habilitar la entidad (no se heredan).',
     detail: '⚠️ Miles de filas por entidad (7.183 totales; solo 107 con allied_branch_id NULL). Fallback silencioso a los umbrales de BdB (lender 5) si no hay plantilla. rt=2 que falla se EXCLUYE; rt≠2 solo se reordena.' },
@@ -435,7 +435,7 @@ export const FIELD_DOCS = {
   // ── MARKETPLACE (tarjetas de "Entidades disponibles") + catálogo ────────────
   'mk.rt': { label: 'Tipo de respuesta (rt)', tables: ['lenders.response_type'], layers: ['application', 'legacy-backend'], status: 'decide',
     summary: 'Quién decide el crédito: rt2 CreditopX (CreditOp, local) · rt1 agregador (la API del banco) · rt0 redirect (su sitio).',
-    detail: 'Es el eje que define el flujo entero: rt=2 decide con categorías locales y cierra in-platform (Estado 11); rt=1 pre-aprueba vía API externa (no inyectable); rt=0 solo redirige y el crédito no vuelve.' },
+    detail: 'Es el eje que define el flujo entero: rt=2 decide con categorías locales y cierra in-platform (Estado 11); rt=1 pre-aprueba vía API externa (no inyectable); rt=0 solo redirige y el crédito no vuelve. También existen rt=3 (CreditopX rotativo, pagaré maestro) y rt=4 (gestión externa por SOAP = Credifamilia, lender 24); ambos son taxonomía real pero no se pueden crear desde este simulador.' },
   'mk.cupo': { label: 'Cupo mostrado', tables: ['lender_users_categories (rt=2)', 'respuesta del preaprobado (rt=1, available)'], layers: ['application', 'legacy-backend', 'pre-approvals'], status: 'decide',
     summary: 'rt=2: calculado LOCAL = min(monto, cupo de la categoría, tope del comercio, tramo). rt≠2: tope configurado — el cupo real lo trae la API del banco.',
     detail: '⚠ Lo mostrado ≠ lo que decide el punto de venta: el 2º motor (/available-quota) re-decide al confirmar. Para rt=1, "available" viene horneado en la respuesta externa.' },

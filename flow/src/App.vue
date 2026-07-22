@@ -158,7 +158,7 @@ watch([() => ui.selected, isDark, selPasses, selAbaco], ([sel]) => {
     add.push({ id: 'tramo', type: 'tramo', position: { x: x0 + cats.length * dx, y: rowY } })
     addE.push({ id: 'e-tramo', source: 'tramo', sourceHandle: 'down', target: 'perfil', targetHandle: 'fromcats', animated: false, style: { stroke: ec('base'), strokeWidth: 1.4, strokeDasharray: '5 4' } })
   }
-  // Estado en sucursal (lenders_by_allied_branches.status): 1ª compuerta dura de la 2ª capa. Nodo propio
+  // Estado en sucursal (lenders_by_allied_branches.status): membresía solo-BD (default true; NO filtra el getLenders vivo, solo la lee el simulador viejo). Nodo propio
   // a la IZQUIERDA del hub "Configurar sucursal" (relacion en x=-300, y=900), conectado lado-con-lado:
   // costado derecho de "Estado en sucursal" → costado izquierdo de "Configurar sucursal" (flujo horizontal).
   add.push({ id: 'branchstatus', type: 'branchstatus', position: { x: -640, y: 900 } })

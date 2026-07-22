@@ -1,7 +1,7 @@
 <script setup>
 import { computed } from 'vue'
 import { Handle, Position } from '@vue-flow/core'
-import { ui, findLenderDef, postSelVal, setPostSel, postSelApplies, postSelSteps, creditStatus, cuotaBreakdown, lenders, money, openFieldInfo } from '../store'
+import { ui, findLenderDef, postSelVal, setPostSel, postSelApplies, postSelSteps, creditStatus, cuotaBreakdown, lenders, money, openFieldInfo, RT_LABEL } from '../store'
 import { Workflow, Check, X, Minus } from 'lucide-vue-next'
 
 // Formalización DESPUÉS de elegir (estado 3) como UN nodo tipo "GitHub Actions": un paso por fila,
@@ -10,8 +10,7 @@ import { Workflow, Check, X, Minus } from 'lucide-vue-next'
 // Solo se muestran los pasos del rt del lender seleccionado. El estado final vive en el nodo de al lado.
 const name = computed(() => ui.selected)
 const lender = computed(() => findLenderDef(name.value))
-const RT_LABEL = { 0: 'Redirect', 1: 'Agregador', 2: 'CreditopX', 3: 'Rotativo' }
-const rtLabel = computed(() => RT_LABEL[lender.value?.rt] ?? '')
+const rtLabel = computed(() => RT_LABEL[lender.value?.rt] ?? '') // RT_LABEL unificado, importado de store.js
 
 const STEP_META = {
   plan:     { title: 'Plan de pagos',             opts: [{ v: 'elige', l: 'define plan' }] },

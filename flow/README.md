@@ -118,10 +118,10 @@ El simulador es fiel en el **motor de decisión** —esa parte se auditó contra
 | **Herencia viva** por niveles: entidad → comercio → sucursal, con puntito gris (heredado) / amarillo (editado) y clic para volver a heredar | **No hay herencia viva.** Las reglas se **COPIAN** por sucursal al habilitar la entidad (~37k filas, con deriva). El simulador ya lo matiza en datacrédito/group_rules, que se **siembran** desde la entidad y luego derivan — esa parte sí es fiel a la copia |
 | Catálogo limpio, entidades creadas a mano con 3 campos | El back-office que **produce** esa config (formularios de entidad y de comercio-lender, con sus campos fantasma) no está modelado — es la zona con menor cobertura declarada (31%) |
 | Un motor de datacrédito | **Dos**, con campos y comparadores distintos (miden cosas diferentes del mismo reporte) |
-| rt=2 que falla el gate → siempre excluido | El real lo conserva si el comercio tiene `have_ctopx`, y difiere el corte a la categoría |
-| Cuotas condonadas visibles | Se muestran pero **no bajan** la cuota calculada (también acá: el tooltip promete algo que el número no hace) |
+| ~~rt=2 que falla el gate → siempre excluido~~ · **no es divergencia** | El real **también** lo excluye siempre: `legacy-backend LenderValidationService:382` hace `unset` de todo rt=2, así que la guarda `have_ctopx` de :320/:328 es redundante. El simulador ya era fiel. |
+| ~~Cuotas condonadas~~ · **resuelto** | El runtime ya es fiel: el nodo/tooltip dice que el valor del form NO baja la oferta (es servicing); la cuota que sí baja usa `promotions_by_lenders`. |
 
-Las 4 divergencias de fidelidad están listadas y priorizadas en
+Las divergencias de fidelidad están listadas y priorizadas en
 [BALANCE-Y-PROXIMOS-NODOS.md](docs/BALANCE-Y-PROXIMOS-NODOS.md) §4. La cobertura honesta declarada ahí:
 **~35% simulado / ~57% documentado** sobre la originación (el servicing post-desembolso está fuera
 de alcance por decisión).
@@ -152,10 +152,14 @@ de alcance por decisión).
 - **Rama muerta en `App.vue:138`:** `def.generated ? 'tpl-prod-…' : 'tpl-base-…'`. Ninguna entidad
   tiene `generated` (murió en la poda F0) y el handle `tpl-prod-*` no existe en ningún componente →
   siempre toma la rama `tpl-base-`. Inofensivo, pero no te confunda.
-- **`RT_LABEL` tiene un `4: 'Híbrido'` huérfano** que ningún nodo entiende, y rt=3 (rotativo) tiene
-  cadena de formalización pero no está en el `<select>` de creación.
+- **rt=4 = "Externo (Credifamilia)"** (gestión externa por SOAP; único inquilino real = Credifamilia,
+  lender 24): existe en la taxonomía pero no se puede crear desde el `<select>`. Igual rt=3 (CreditopX
+  rotativo): tiene cadena de formalización pero tampoco está en el creador. El `RT_LABEL` ahora es único
+  (exportado de `store.js`; los nodos lo importan, ya no hay 4 copias divergentes).
 - **El catálogo del comercio no tiene checkbox**: una entidad nace habilitada y el único interruptor
-  de visibilidad es **"Estado en sucursal"** (`lenders_by_allied_branches.status`, filtro duro).
+  de visibilidad es **"Estado en sucursal"** (`lenders_by_allied_branches.status`) — pero **ojo: es una
+  bandera de membresía solo-BD que el `getLenders` vivo IGNORA** (default true; el panel ni la escribe;
+  solo la lee el simulador viejo). El corte duro real es el cupo (rt=2) / la API (rt=1).
 - **`dist/` y `node_modules/` están gitignoreados** — `npm run build` no ensucia el árbol.
 
 ## Docs de esta carpeta

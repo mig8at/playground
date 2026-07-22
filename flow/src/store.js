@@ -67,7 +67,7 @@ const L = (def) => {
 /* ── Config de la ENTIDAD (lo que HOY edita el admin en "Editar entidad" → tabla lenders):
  * response_type + economía (monto/cuotas/tasa/mora/condonadas). Se DERIVA de terms/overrides
  * que ya existen; se puede afinar por lender con un objeto `entidad`. Es solo-mostrar (no decide). */
-export const RT_LABEL = { 0: 'Redirect', 1: 'Agregador', 2: 'CreditopX', 3: 'CreditopX rotativo', 4: 'Híbrido' }
+export const RT_LABEL = { 0: 'Redirect', 1: 'Agregador', 2: 'CreditopX', 3: 'CreditopX rotativo', 4: 'Externo (Credifamilia)' } // rt=4 = "externally-managed / extra-details" (radicación SOAP); único inquilino real = Credifamilia (lender 24). "Híbrido" NO existe en el código.
 export function entidadCfg(lender) {
   if (!lender) return null
   const t = lender.terms || {}, ov = lender.overrides || {}, e = lender.entidad || {}
@@ -165,7 +165,7 @@ export const CREDITOPX_PRODUCTS = [
 // En la realidad vive en `lenders_by_allieds` (por COMERCIO, no por sucursal). El comercio hereda
 // el default de la familia y overridea lo suyo (override disperso, igual mecánica que las reglas).
 export const CREDITOPX_CALCULADORA = { comision: 2.0, cuotaInicial: 10, cargoFijo: 0, iva: 19, fondoGarantias: 0, montoMax: 3000000, castigo: 0, costosAdmin: 0, seguroVidaVar: 0, seguroVidaFijo: 0, multiploIngreso: 0 }
-// Overrides por comercio (mock). Ejemplo real del panel (aliado Motai/Sonría): cuota inicial 30%, cargo fijo 400k.
+// Overrides por comercio (mock). OJO: "Motai" acá modela el DEBER-SER (motai-v2, productos-por-categoría); la v1 en main difiere (bypass de buró por modo renting + calculadora de alistamiento) — ver context motai/doc.md.
 export const merchantCalc = reactive({
   'Motai': { cuotaInicial: 30, cargoFijo: 400000 }, // sin override de montoMax → hereda el máx de la entidad
 })
@@ -416,8 +416,8 @@ function profile(numDocStr) {
   return { file, edad, agilIncome, mareiguaIncome, abacoIncome, quantoIncome, identidad, listas, docStatus, gender, employment, agilContinuity, mareiguaContinuity, incomeTrend, monthlyDebtPayment, totalDebt, disputes, score, negatives12m, currentArrears, inquiries6m, creditHistoryMonths, nombre, apellido }
 }
 
-// El salario declarado (si > 0) sobrescribe el ingreso estimado de Ágil Data.
-// Perfil consolidado: aplica los null por-campo + cascada de ingreso (Ágil→Mareigua→declarado→0).
+// El salario declarado es el ÚLTIMO fallback: solo se usa si Ágil Data / Mareigua / Quanto vienen null.
+// Perfil consolidado: aplica los null por-campo + cascada de ingreso (Ágil→Mareigua→Quanto→declarado→0).
 export const perfil = computed(() => {
   const nz = (k) => fieldNull(k) ? null : bureau[k]
   const declarado = parseInt(String(state.salario).replace(/\D/g, '')) || 0
@@ -533,7 +533,7 @@ function catChecks(c, s) {
     // Perfil (regla de categoría, parte demográfica)
     occupation: s.employment != null && c.occupation.includes(s.employment),
     age: s.age != null && s.age >= c.minAge && s.age <= c.maxAge,
-    income: s.monthlyIncome >= c.minIncome && (!c.verifiedIncome || s.incomeVerified),
+    income: (!c.verifiedIncome || s.incomeVerified), // min_income es NO-OP en el real: los 3 motores leen una columna inexistente (min_income vs monthly_income) → el piso monetario NUNCA filtra (ver fieldDocs cat.minIncome). Solo verified_income (application) puede filtrar.
     continuity: !c.minContinuity || (s.continuityMonths != null && s.continuityMonths >= c.minContinuity),
     gender: s.gender != null && c.gender.includes(s.gender),
     // Riesgo (buró) — también vive DENTRO de la regla de categoría (min_score / negatives / delinquencies /
@@ -788,7 +788,7 @@ export function activeTramoIndex(name) {
 const PROB_RANK = { alta: 0, media: 1, baja: 2 }
 export const lenders = computed(() => {
   const s = subjectOf()
-  const active = customLenders.filter(l => merchant.enabled[l.name] && branchStatusOf(l.name)) // catálogo del comercio (lenders_by_allieds) ∩ activas en la sucursal (lenders_by_allied_branches.status)
+  const active = customLenders.filter(l => merchant.enabled[l.name]) // catálogo del comercio (lenders_by_allieds). OJO: lenders_by_allied_branches.status NO filtra el getLenders vivo (default true; el panel ni la escribe; solo la lee el simulador viejo) → "Estado en sucursal" es flag informativo, no compuerta.
   return active.map(l => {
     // Tope del comercio (lenders_by_allieds.max_amount) POR entidad: hereda el máx de ESA entidad
     // (credit_line_by_lenders) salvo que el comercio lo haya pisado con un override propio.

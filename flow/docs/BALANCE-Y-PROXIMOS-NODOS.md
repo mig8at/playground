@@ -134,18 +134,20 @@ vino casi todo de "Firma y desembolso" (15% → ~50%).
 4. **Los productos que faltan.** SmartPay entero (celular como garantía + bloqueo remoto), el cupo
    rotativo, y Credifamilia con su radicación asíncrona (ver §6).
 
-**Además, cuatro ajustes de fidelidad** (baratos; suben la confianza — son correcciones a lo que ya
-hay, no nodos nuevos):
+**Ajustes de fidelidad** (baratos; correcciones a lo que ya hay, no nodos nuevos). Estado tras la
+auditoría del 2026-07-22 (verificada contra código real + pase adversarial):
 
-- Las **cuotas condonadas** se muestran pero **no bajan la cuota** calculada (el tooltip promete
-  algo que el número no hace).
-- La etiqueta de tipo **"Híbrido"** existe pero ningún nodo la entiende, y la entidad Credifamilia
-  del catálogo tiene un tipo inconsistente con el mapa.
-- Al fallar reglas de sucursal, el simulador **excluye** a la entidad CreditopX **siempre**; el
-  sistema real la conserva en un caso (comercio con CreditopX propio) y difiere el corte a la
-  categoría.
-- El simulador tiene **un** motor de datacrédito donde el real tiene **dos** (con campos y
-  comparadores distintos — miden cosas diferentes del mismo reporte).
+- ✅ **Cuotas condonadas** — *resuelto*: el runtime ya es fiel (el campo de config es servicing, no
+  baja la oferta; la baja real la hace `promotions_by_lenders`). Quedaba stale solo en los docs.
+- ✅ **Etiqueta rt=4** — *corregido*: era "Híbrido" (nombre inventado, no está en el código); rt=4 es
+  "gestión externa / SOAP" y su único inquilino real es Credifamilia (lender 24). Los 4 mapas de
+  labels se unificaron en un solo `RT_LABEL`.
+- ❌ **No era divergencia** (rt=2 y el gate): se creía que el real conservaba un rt=2 con `have_ctopx`
+  al fallar el gate. Verificado leyendo el código: el real lo **excluye igual** — `legacy-backend
+  LenderValidationService:382` hace `unset` de todo rt=2, la guarda `have_ctopx` de :320/:328 es
+  redundante. El simulador ya era fiel.
+- ⏳ **Un motor de datacrédito donde el real tiene dos** (campos y comparadores distintos) — *sigue
+  pendiente*: es la única divergencia de fidelidad viva. Ver Grupo C.
 
 ---
 
