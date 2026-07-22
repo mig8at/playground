@@ -173,6 +173,25 @@ try {
             r = { user: uid, ventanaSeg: seg, tablas };
             break;
         }
+        case 'orphans': { // solicitudes que apuntan a un usuario INEXISTENTE. `--fix` las borra.
+            // Las produce mezclar ambientes: un `user_id` de una base insertado en otra (F-65). Quedan
+            // como minas en la base COMPARTIDA — el siguiente que abra esa solicitud se come un 500
+            // opaco de `lenders-v2` sin ningún contexto. Sin `--fix` solo reporta.
+            const filas = await query(
+                `SELECT ur.id, ur.user_id, ur.allied_id, ur.user_request_status_id AS estado, ur.created_at
+                   FROM user_requests ur LEFT JOIN users u ON u.id = ur.user_id
+                  WHERE u.id IS NULL ORDER BY ur.id DESC LIMIT 200`);
+            if (a[0] === '--fix' && filas.length) {
+                assertWriteAllowed();
+                const ids = filas.map((x: any) => x.id);
+                await exec('DELETE FROM user_requests WHERE id IN (?)', [ids]);
+                r = { huerfanas: filas.length, borradas: ids.length, ids };
+            } else {
+                r = { huerfanas: filas.length, filas,
+                      nota: filas.length ? 'corré con --fix para borrarlas (exige el guard de escritura)' : 'sin huérfanas' };
+            }
+            break;
+        }
         case 'branches-of': // TODAS las sucursales de un comercio, para poder elegir contra CUÁL correr sin
             // depender de que esté quemada en .flows.json. Ordena por status (las activas primero) porque
             // un comercio grande arrastra sucursales viejas apagadas y no son las que se quieren probar.

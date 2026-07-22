@@ -30,6 +30,15 @@ REMOTE_FRONT=0
 case "$WIZ_BASE" in http://localhost*|http://127.0.0.1*) ;; *) REMOTE_FRONT=1 ;; esac
 FRESH=0
 
+# PREFLIGHT: la configuración del target tiene que ser coherente ANTES de escribir nada. Tres bugs de la
+# misma familia (F-59 · F-64 · F-65) se hubieran cazado acá, en un segundo, en vez de a los cinco minutos
+# con un 500 opaco y basura huérfana en la base compartida.
+if ! E2E_TARGET="$TARGET" node "$(dirname "$0")/preflight.ts" >/dev/null 2>&1; then
+  E2E_TARGET="$TARGET" node "$(dirname "$0")/preflight.ts" || true
+  echo "✗ no se corre: la configuración de '$TARGET' es incoherente (ver arriba)."
+  exit 1
+fi
+
 MERCHANT="${1:-pullman}"
 GUIDED=0; [ "${2:-}" = "auto" ] && GUIDED=1
 # el comercio va PRIMERO: `auto` solo es el 2º arg. `bin/ecommerce auto` (sin comercio) es un error típico.
