@@ -665,7 +665,15 @@ test('guided (semiautomático)', async ({ browser }) => {
                 await page.waitForURL(/\/(personal-info|employment-info)(\?|$)/, { timeout: PICK_TIMEOUT }).catch(() => {});
                 const ur = uReqOf();
                 if (ur) {
-                    const r = await synthFill(Number(ur), { ...synthOptsFromEnv(), skipIdentity: true });
+                    // Si marcaste "Confirmación de cupo", el flujo YA está firmado acá: la firma ocurre
+                    // al verificar el OTP, antes de personal-info. En ese caso NO se inyecta el buró —
+                    // el backend tampoco lo va a consultar, así que forjar la fila contradice el
+                    // escenario y hace ininterpretable el resultado. Sin inyectar, que aparezca una
+                    // fila después significa que la omisión NO funcionó: prueba válida y gratis.
+                    const flow = await one<{ flow_id: number | null }>('SELECT flow_id FROM user_requests WHERE id=? LIMIT 1', [ur]).catch(() => null);
+                    const firmado = Number(flow?.flow_id) === 2;
+                    if (firmado) log('flujo already-confirmed-pre-approval detectado → NO inyecto el buró (así "no hay fila" prueba la omisión)');
+                    const r = await synthFill(Number(ur), { ...synthOptsFromEnv(), skipIdentity: true, skipBuro: firmado });
                     log(`buró inyectado para uReq ${ur} (Experian ${r.datacredito_forged}) — identidad la ponés vos; seguí a /lenders`);
                     tip('Buró inyectado (invisible). Seguí el wizard hasta /lenders. (Resume ▶ para terminar.)');
                 } else {

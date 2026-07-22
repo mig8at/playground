@@ -219,6 +219,11 @@ export interface SynthFillOpts {
     expeditionDate?: string; // expedition_date (YYYY-MM-DD) — default 2010-01-01
     email?: string;          // default auto (synth-<ur>@creditop.com)
     skipIdentity?: boolean;  // MANUAL: NO escribir identidad (name/doc/dob/email) → personal-info lo llena el usuario; solo inyecta el buró
+    // NO forjar la fila Experian. Para el flujo `already-confirmed-pre-approval` (flow_id 2), donde el
+    // backend NO consulta el buró: inyectarla contradice el escenario que se quiere probar y, peor,
+    // vuelve el resultado ininterpretable — con una fila puesta por nosotros, "hay buró" deja de
+    // distinguir si el backend consultó o no. Sin inyectar, "no hay fila" vuelve a significar algo.
+    skipBuro?: boolean;
 }
 
 /** Orquesta el KYC armado sobre un user_request existente. Port de opSynthFill. */
@@ -267,7 +272,9 @@ export async function synthFill(uReqID: number, opts: SynthFillOpts = {}): Promi
     await injectSummary(userID, req.income, req.score, negatives, consulted, hasBuro);
     await injectIncomeFields(userID, uReqID, req.fields);
     let dc: string;
-    if (hasBuro) {
+    if (hasBuro && opts.skipBuro) {
+        dc = 'OMITIDO a propósito (flujo already-confirmed-pre-approval): sin fila forjada, "no hay buró" es evidencia';
+    } else if (hasBuro) {
         try {
             await injectDatacredito(userID, req.income, req.score, negatives, consulted);
             dc = `ok (neg ${negatives} · consultas ${consulted})`;
