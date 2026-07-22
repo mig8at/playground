@@ -629,7 +629,19 @@ test('guided (semiautomático)', async ({ browser }) => {
         }
         // Solo esperar si todavía no llegamos: si ya estás en /lenders (o más adelante), no tocar nada.
         if (!/\/lenders/.test(page.url())) await page.waitForURL(/\/lenders/, { timeout: 60_000 }).catch(() => {});
-        log(`entrada DIRECTA → ${hereOf(page)} (sin pasar por /solicitar)`);
+        // El log NO puede cantar "entrada DIRECTA" sin haber llegado: antes lo hacía siempre, y cuando
+        // el front rebotaba el salto (una solicitud sembrada en estado 1 no pasa el guard de /lenders)
+        // decía "entrada DIRECTA → …/solicitar", que es una contradicción en sus propios términos. Peor:
+        // seguías a mano desde ahí, el wizard creaba una SEGUNDA solicitud y la traza quedaba atada a la
+        // sembrada — dos solicitudes, y el veredicto midiendo la equivocada.
+        if (/\/lenders/.test(page.url())) {
+            log(`entrada DIRECTA → ${hereOf(page)} (sin pasar por /solicitar)`);
+        } else {
+            log(`✗ el salto a /lenders NO llegó: quedaste en ${hereOf(page)}`);
+            log(`   El front rebotó la solicitud sembrada (${jump.match(/\/(\d+)\//)?.[1] ?? '?'}) — su estado no pasa el guard de /lenders.`);
+            log(`   OJO: si seguís a mano desde acá, el wizard crea OTRA solicitud y la traza queda en la sembrada.`);
+            log(`   Usá "Saltar a: Monto" para una corrida coherente.`);
+        }
     } else {
         await page.goto(`/merchant/${HASH}/solicitar`, { waitUntil: 'domcontentloaded', timeout: 90_000 }).catch(() => {});
         if (needsCognito()) await cognitoLogin(page);   // con la sesión cacheada, ni entramos (ahorra 15s muertos)

@@ -92,11 +92,12 @@ function volcarBitacora(): void {
             : buro.length ? `CONSULTADO (${buro.length} reporte/s)` : 'no se consultó',
         // La lectura combinada es lo que importa; el resto son datos sueltos.
         lectura: !ultimo ? 'la corrida no llegó a crear ni tocar una solicitud'
-            // En sintético con el flujo FIRMADO el harness NO inyecta el buró (skipBuro), así que la
-            // ausencia de fila vuelve a ser evidencia y el veredicto es válido sin gastar una consulta
-            // real. Solo queda "no concluyente" cuando sí se inyectó, que es donde la fila la pusimos
-            // nosotros y deja de distinguir si el backend consultó.
-            : current.inject && !firmado ? 'modo sintético con buró inyectado: NO se puede concluir sobre la omisión — para eso, marcá "Confirmación de cupo" (ahí no se inyecta) o corré en modo REAL'
+            // La regla que vale SIEMPRE: si no hay NINGUNA fila de buró, nadie inyectó y nadie
+            // consultó — la ausencia es evidencia y el modo da igual. Solo cuando SÍ hay filas y
+            // estamos en sintético no se puede concluir: ahí la fila pudo ponerla el harness, y "hay
+            // buró" deja de distinguir quién la escribió. Condicionar por modo en vez de por la
+            // evidencia fue lo que produjo dos falsos negativos seguidos.
+            : current.inject && buro.length ? 'modo sintético con buró inyectado: NO se puede concluir sobre la omisión — la fila pudo ponerla el harness, no el backend'
             : firmado && !buro.length ? '✓ flujo firmado y sin consulta a Experian: la omisión se aplicó'
             : firmado && buro.length ? '✗ flujo firmado PERO se consultó Experian — la omisión no funcionó'
             : buro.length ? 'flujo estándar con consulta a Experian (lo esperado sin la firma)'
