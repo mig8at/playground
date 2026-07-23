@@ -1856,16 +1856,6 @@
       for (const t of orden) {
         if (sessionState[t] === 'missing' || sessionState[t] === 'invalid') await warmSession(t);
       }
-      // dev/local entran por :5174; `npm run dev` lo levanta al abrir el panel, pero puede tardar en bootear.
-      // Mientras sigan 'unreachable', reintentá (~1 min): en cuanto :5174 responde, chequea + warmea → verde.
-      // staging no depende de :5174, así que nunca entra acá.
-      for (let i = 0; i < 20; i++) {
-        const pend = ['local', 'dev'].filter(t => sessionState[t] === 'unreachable');
-        if (!pend.length) break;
-        await new Promise(r => setTimeout(r, 3000));
-        await Promise.all(pend.map(t => checkSession(t, true)));
-        for (const t of pend) if (sessionState[t] === 'missing' || sessionState[t] === 'invalid') await warmSession(t);
-      }
     })();
 
     // switch del buró: Sintético (inyecta, salta consulta real) | Real (consulta buró real, sin inyección).

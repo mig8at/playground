@@ -10,10 +10,9 @@
 // (ver pkg/db.ts::assertWriteAllowed). Elegí `local` salvo que sepas exactamente qué vas a escribir.
 import { createServer, get, IncomingMessage, ServerResponse } from 'node:http';
 import { spawn, execFile } from 'node:child_process';
-import { readFileSync, existsSync, writeFileSync, readdirSync, statSync, mkdirSync, openSync } from 'node:fs';
+import { readFileSync, existsSync, writeFileSync, readdirSync, statSync, mkdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve, join } from 'node:path';
-import { homedir } from 'node:os';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(HERE, '..');              // raíz de frontend-e2e
@@ -754,43 +753,6 @@ server.on('error', (err: NodeJS.ErrnoException) => {
     process.exit(1);
 });
 
-// ─── Wizard :5174 al abrir el panel ──────────────────────────────────────────────────────────────
-// dev y local ENTRAN por el front local :5174; sin él, su session-check da 'unreachable' (dot gris) y no
-// se pueden warmear. Para que "al entrar se vean los 3 verdes", el panel LEVANTA el wizard si está caído
-// (staging NO lo necesita: usa el front desplegado). En background: el panel abre igual y el dot pasa de
-// gris→verde cuando :5174 responde (el cliente reintenta el warm). El wizard queda corriendo aparte
-// (detached), igual que `make wizard` — no lo mata cerrar el panel.
-function ping5174(): Promise<boolean> {
-    return new Promise((ok) => {
-        const r = get({ host: '127.0.0.1', port: 5174, path: '/', timeout: 2000 }, (res) => { res.destroy(); ok(true); });
-        r.on('error', () => ok(false));
-        r.on('timeout', () => { r.destroy(); ok(false); });
-    });
-}
-async function ensureWizard(): Promise<void> {
-    if (await ping5174()) { console.log('  ✓ wizard :5174 ya arriba (dev/local pueden ir a verde)'); return; }
-    const FRONT = process.env.FRONT || join(homedir(), 'Desktop', 'CREDITOP', 'github', 'frontend-monorepo');
-    const WIZARD = join(FRONT, 'apps', 'loan-request-wizard');
-    if (!existsSync(WIZARD)) {
-        console.log(`  ⚠ no encuentro el wizard en ${WIZARD} (export FRONT=…) → dev/local quedan en gris hasta 'make wizard'`);
-        return;
-    }
-    console.log('  ▶ levantando wizard :5174 (pnpm dev) para que dev/local vayan a verde…');
-    try {
-        const wlog = openSync('/tmp/fe-wizard.log', 'a');
-        spawn('pnpm', ['dev'], { cwd: WIZARD, detached: true, stdio: ['ignore', wlog, wlog] }).unref();
-    } catch (e) {
-        console.log(`  ⚠ no pude lanzar el wizard: ${e instanceof Error ? e.message : String(e)} (levantalo con 'make wizard')`);
-        return;
-    }
-    for (let i = 0; i < 40; i++) {
-        await new Promise((r) => setTimeout(r, 1500));
-        if (await ping5174()) { console.log('  ✓ wizard :5174 listo'); return; }
-    }
-    console.log('  ⚠ el wizard :5174 no respondió a tiempo (ver /tmp/fe-wizard.log)');
-}
-
 server.listen(PORT, () => {
     console.log(`\n  🎛  Panel del harness → http://localhost:${PORT}   (local · dev)\n`);
-    ensureWizard();   // levanta :5174 si está caído → dev/local pueden ir a verde al abrir (staging no lo necesita)
 });
