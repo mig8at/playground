@@ -56,13 +56,22 @@ env: ## health del wizard (:5174) y del backend (:80)
 	@code=$$(curl -s -o /dev/null -w '%{http_code}' -H 'Host: legacy-backend.inertia-develop' --max-time 5 http://127.0.0.1:80/api 2>/dev/null); \
 	 case "$$code" in 2*|3*|4*) echo "backend :80 → HTTP $$code (arriba)";; *) echo "backend :80 → HTTP $${code:-000} (no responde — make up)";; esac
 
-login: ## <local|dev|staging> — loguea en Cognito y CACHEA la sesión en .auth/cognito-state.<t>.json (reusable hasta que caduque el refresh token). Las credenciales salen de .env.<t>.
-	@t="$(word 1,$(ARGS))"; [ -n "$$t" ] || t="dev"; \
-	case "$$t" in local|dev|staging) ;; *) echo "✗ target inválido: '$$t' — usá: make login <local|dev|staging>"; exit 1;; esac; \
-	case "$$t" in local|dev) curl -s -o /dev/null --max-time 3 http://localhost:5174 2>/dev/null || echo "  ⚠ $$t entra por el front local :5174 — si no responde, corré 'make wizard' antes (staging no lo necesita: usa el front desplegado)";; esac; \
-	echo "▶ login Cognito ($$t) → cachea .auth/cognito-state.$$t.json"; \
-	E2E_TARGET="$$t" npx playwright test dev/warm-session.spec.ts --headed --reporter=line; \
-	echo "▶ estado de la sesión ($$t):"; E2E_TARGET="$$t" node bin/session-check.ts
+login: ## [local|dev|staging] — SIN arg: VALIDA en consola qué logins están OK (read-only, los 3). CON arg: loguea ese target y cachea la sesión (.auth/cognito-state.<t>.json).
+	@t="$(word 1,$(ARGS))"; \
+	if [ -z "$$t" ]; then \
+	  echo "▶ login por target (session-check · read-only):"; \
+	  for x in staging dev local; do \
+	    out=$$(E2E_TARGET=$$x node bin/session-check.ts 2>/dev/null); \
+	    if echo "$$out" | grep -q '"status":"valid"'; then echo "  ✅ $$x — login OK"; else echo "  ⛔ $$x — sin sesión · $$out"; fi; \
+	  done; \
+	  echo "  (para loguear uno:  make login <target>   · dev/local necesitan :5174 arriba)"; \
+	else \
+	  case "$$t" in local|dev|staging) ;; *) echo "✗ target inválido: '$$t' — usá: make login <local|dev|staging>"; exit 1;; esac; \
+	  case "$$t" in local|dev) curl -s -o /dev/null --max-time 3 http://localhost:5174 2>/dev/null || echo "  ⚠ $$t entra por el front local :5174 — si no responde, corré 'make wizard' antes";; esac; \
+	  echo "▶ login Cognito ($$t) → cachea .auth/cognito-state.$$t.json"; \
+	  E2E_TARGET="$$t" npx playwright test dev/warm-session.spec.ts --headed --reporter=line; \
+	  echo "▶ estado de la sesión ($$t):"; E2E_TARGET="$$t" node bin/session-check.ts; \
+	fi
 
 # ─────────────────────────── pruebas ───────────────────────────
 run: ## <asesor|ecommerce> <merchant> — MANUAL: entra y queda en monto (manejás vos a mano)
