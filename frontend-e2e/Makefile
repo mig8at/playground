@@ -7,6 +7,7 @@
 #   make ready                                up + wizard → entorno listo para probar a mano
 #   make down                                 apaga el legacy local
 #   make env                                  health del wizard (:5174) y del backend (:80)
+#   make login <local|dev|staging>            loguea en Cognito y cachea la sesión (.auth/) para reusarla
 #   ── pruebas ──  (entrada PRINCIPAL: el panel visual → `npm run dev` → http://localhost:5195)
 #   make run  <asesor|ecommerce> <merchant>   MANUAL: entra y queda en monto (manejás vos a mano)
 #   make auto <asesor|ecommerce> <merchant>   GUIADO: seed + Continuar; en /lenders elegís y sigue
@@ -21,7 +22,7 @@ LEGACY ?= $(HOME)/Desktop/CREDITOP/github/legacy-backend
 FRONT  ?= $(HOME)/Desktop/CREDITOP/github/frontend-monorepo
 WIZARD := $(FRONT)/apps/loan-request-wizard
 
-CMDS := run auto vtex ready test up down wizard env help
+CMDS := run auto vtex ready test up down wizard env login help
 ARGS := $(filter-out $(CMDS),$(MAKECMDGOALS))
 
 .PHONY: $(CMDS)
@@ -54,6 +55,14 @@ env: ## health del wizard (:5174) y del backend (:80)
 	 case "$$code" in 2*|3*|4*) echo "wizard :5174 → HTTP $$code (arriba)";; *) echo "wizard :5174 → HTTP $${code:-000} (no responde — make wizard)";; esac
 	@code=$$(curl -s -o /dev/null -w '%{http_code}' -H 'Host: legacy-backend.inertia-develop' --max-time 5 http://127.0.0.1:80/api 2>/dev/null); \
 	 case "$$code" in 2*|3*|4*) echo "backend :80 → HTTP $$code (arriba)";; *) echo "backend :80 → HTTP $${code:-000} (no responde — make up)";; esac
+
+login: ## <local|dev|staging> — loguea en Cognito y CACHEA la sesión en .auth/cognito-state.<t>.json (reusable hasta que caduque el refresh token). Las credenciales salen de .env.<t>.
+	@t="$(word 1,$(ARGS))"; [ -n "$$t" ] || t="dev"; \
+	case "$$t" in local|dev|staging) ;; *) echo "✗ target inválido: '$$t' — usá: make login <local|dev|staging>"; exit 1;; esac; \
+	case "$$t" in local|dev) curl -s -o /dev/null --max-time 3 http://localhost:5174 2>/dev/null || echo "  ⚠ $$t entra por el front local :5174 — si no responde, corré 'make wizard' antes (staging no lo necesita: usa el front desplegado)";; esac; \
+	echo "▶ login Cognito ($$t) → cachea .auth/cognito-state.$$t.json"; \
+	E2E_TARGET="$$t" npx playwright test dev/warm-session.spec.ts --headed --reporter=line; \
+	echo "▶ estado de la sesión ($$t):"; E2E_TARGET="$$t" node bin/session-check.ts
 
 # ─────────────────────────── pruebas ───────────────────────────
 run: ## <asesor|ecommerce> <merchant> — MANUAL: entra y queda en monto (manejás vos a mano)
