@@ -1667,8 +1667,12 @@
         return;
       }
       if (sess === 'invalid' || sess === 'missing') {
-        $('go').disabled = true; $('go').textContent = 'sin token ▶';
-        $('sumry').innerHTML = `sin sesión en <b>${target}</b> — clic en el <b>punto gris</b> del ambiente (arriba) para autenticar`;
+        // Antes bloqueaba y mandaba al punto gris. Ahora el propio launch LOGUEA primero (headless) y
+        // sigue, sin pasar por /solicitar — el login ocurre "en la corrida", antes de la solicitud.
+        $('go').disabled = !sel; $('go').textContent = 'Login + Lanzar ▶';
+        $('sumry').innerHTML = sel
+          ? `sin sesión en <b>${target}</b> — al lanzar te <b>logueo primero</b> (headless) y sigo, sin pasar por /solicitar`
+          : 'Elegí un comercio primero.';
         return;
       }
       // Paso "comercio" del funnel: el permiso del asesor se puso al ELEGIR; acá solo se espera/avisa.
@@ -1700,6 +1704,18 @@
 
     async function launch() {
       if (!sel) return;
+      // LOGIN EN LA CORRIDA: si no hay sesión (canal asesor), autenticá ACÁ —headless, antes de abrir el
+      // wizard— así la corrida arranca YA logueada y NO pasa por /solicitar (F-66). 'unreachable' no se
+      // warmea (front caído: la corrida levanta el front y loguea sola); 'checking'/'warming' no llega
+      // acá porque updateGo deja el botón deshabilitado mientras un warm está en curso.
+      if (canal === 'asesor' && (sessionState[target] === 'invalid' || sessionState[target] === 'missing')) {
+        $('go').disabled = true; $('go').textContent = 'Logueando…';
+        await warmSession(target);
+        if (sessionState[target] !== 'valid') {
+          alert(`No pude autenticar en ${target} — revisá las credenciales de .env.${target} o el estado de Cognito. No lanzo, para no caer en /solicitar.`);
+          updateGo(); return;
+        }
+      }
       const body = {
         slug: sel.slug, target, inject, canal, stepTarget: step, amount: moneyNum('amount'), paDelay: padelay, documentType: doctype, gender,
         omitExperian: inject && step === 'lenders' && $('cupo').checked,   // "Cupo ya confirmado": firma el flujo en el seed (solo salto a Lenders sintético)
