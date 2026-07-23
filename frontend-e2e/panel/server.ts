@@ -260,6 +260,32 @@ function runWarm(target: string): Promise<{ ok: boolean; detail: string }> {
     });
 }
 
+// Pre-login al ARRANCAR el panel (npm run dev): chequea las 3 sesiones y warmea (headless) las que estén
+// SIN sesión pero con el front ALCANZABLE. Best-effort y NO bloqueante — el panel ya está escuchando.
+//   · staging = el deploy (casi siempre alcanzable) → se warmea si hay credenciales en .env.staging.
+//   · dev/local necesitan el :5174 arriba: al arrancar suelen dar 'unreachable' y se SALTAN (a esos los
+//     warmea el poll cuando levantás el wizard). dev y local COMPARTEN sesión (SESSION_KEY local→dev),
+//     así que warmear 'dev' cubre a los dos y 'local' no se warmea aparte.
+// Reemplaza el hack `make login & node panel/server.ts`: make login (sin arg) es SOLO lectura (no warmea),
+// y encadenar por shell no respeta el single-flight `warming` ni sabe qué targets son warmeable-s.
+async function bootPrewarm(): Promise<void> {
+    const targets = ['staging', 'dev', 'local'];
+    const checks = await Promise.all(targets.map((t) => sessionCheck(t)));
+    console.log('  🔐 sesiones Cognito (pre-login):');
+    const warmSet: string[] = [];
+    checks.forEach((c: any, i: number) => {
+        const t = targets[i];
+        if (c?.status === 'valid') console.log(`     ✅ ${t} — sesión OK`);
+        else if (c?.status === 'unreachable') console.log(`     ⚪ ${t} — front abajo (se warmea al levantar el wizard :5174)`);
+        else { console.log(`     ⏳ ${t} — sin sesión${c?.detail ? ` (${c.detail})` : ''}`); if (t !== 'local') warmSet.push(t); }
+    });
+    for (const t of warmSet) {
+        const r = await runWarm(t);
+        console.log(`     ${r.ok ? '✅' : '⛔'} ${t} — ${r.detail}`);
+    }
+    console.log('');
+}
+
 // ── Permiso del asesor al COMERCIO (el paso "comercio" del funnel) ─────────────────────────────────
 // El funnel del panel dispara cada cosa cuando el usuario la elige: ambiente → sesión (dots) ·
 // comercio → ESTE assign · lanzar → solo scrub + seed + navegador. Antes el assign corría adentro del
@@ -755,4 +781,5 @@ server.on('error', (err: NodeJS.ErrnoException) => {
 
 server.listen(PORT, () => {
     console.log(`\n  🎛  Panel del harness → http://localhost:${PORT}   (local · dev)\n`);
+    void bootPrewarm().catch(() => {});
 });
