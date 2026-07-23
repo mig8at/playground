@@ -51,7 +51,10 @@ async function main(): Promise<void> {
     }
 
     let host = '';
-    try { host = new URL(config.feBaseUrl).host; } catch { out({ status: 'unreachable', detail: `E2E_BASE_URL inválida: ${config.feBaseUrl}` }); }
+    // .hostname, NO .host: la cookie de sesión matchea por DOMINIO (sin puerto). Con `.host`,
+    // `localhost:5174` nunca igualaba el dominio `localhost` de la cookie → dev/local daban "missing"
+    // aun con el login OK (staging andaba porque su host desplegado no tiene puerto). Ver hostMatchesDomain.
+    try { host = new URL(config.feBaseUrl).hostname; } catch { out({ status: 'unreachable', detail: `E2E_BASE_URL inválida: ${config.feBaseUrl}` }); }
 
     // NO se filtra por NOMBRE de cookie: el deploy de staging usa `_session` (@.creditop.com) y el build
     // local `__session` (host-only) — el nombre de la sesión del wizard varía por deploy. La VERDAD es el
