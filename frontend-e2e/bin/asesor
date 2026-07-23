@@ -161,6 +161,13 @@ FORMS="$( { grep -E '^VITE_ONBOARDING_FORM_SERVICE=' "$WIZARD/.env" 2>/dev/null 
 [ -n "$FORMS" ] || FORMS="http://onboarding-forms-service.inertia-develop:8092/v1"
 # En LOCAL el host de dev necesita VPN → usamos el mock (bin/mock-forms). Ver findings F-41.
 [ "$TARGET" = "local" ] && FORMS="http://localhost:${MOCK_FORMS_PORT:-8101}/v1"
+# VITE_FORM_SERVICE_BASE_URL (form dinámico G2 "backend-driven", ruta additional-info de Credifamilia): el MS Go
+# `form-service`. El harness NO lo pasaba → el loader fetcheaba a `undefined/v1/...` y el form no renderizaba.
+# Se fetchea SSR (loader del wizard) → lo pega el Node, que alcanza .inertia-develop. OJO: el `mock-forms` de
+# arriba es de OTRO servicio (onboarding-forms-service, el RD) y NO cubre /v1/dynamic-form ni /v1/field-options,
+# así que en local no hay mock G2 (habría que escribirlo) y por ahora se apunta igual a dev.
+FORMSVC="$(envget E2E_FORM_SERVICE_BASE_URL)"
+[ -n "$FORMSVC" ] || FORMSVC="http://form-service.inertia-develop:8082"
 # VITE_PREAPPROVALS_ENDPOINT: MS de pre-aprobaciones (rt≠STANDARD; el loader de /lenders hace POST server-to-server).
 # Por la CADENA (envget) y no `${E2E_REAL_PREAPPROVALS:-0}` pelado: así vive en `.env.<target>` y cada
 # ambiente decide, en vez de depender de que alguien exporte la variable a mano en esa shell.
@@ -258,7 +265,7 @@ else
   printf '%s' "$WANT" > "$MARKER" 2>/dev/null || true
   # < /dev/null + nohup: react-router dev lee stdin; sin esto crashea al cerrarse el pipe. STREAM_TIMEOUT_MS:
   # el loader de /lenders (pre-aprobación sincrónica del MS por VPN) suele pasar de los 45s default → lo subimos.
-  ( cd "$WIZARD" && nohup env VITE_API_URL="$WIZ_API" VITE_ONBOARDING_FORM_SERVICE="$FORMS" VITE_PREAPPROVALS_ENDPOINT="$PREAPPROVALS" CALLBACK_URL="http://localhost:5174/auth/callback" STREAM_TIMEOUT_MS="${E2E_STREAM_TIMEOUT_MS:-180000}" pnpm dev < /dev/null > /tmp/asesor-wizard.log 2>&1 & )
+  ( cd "$WIZARD" && nohup env VITE_API_URL="$WIZ_API" VITE_ONBOARDING_FORM_SERVICE="$FORMS" VITE_FORM_SERVICE_BASE_URL="$FORMSVC" VITE_PREAPPROVALS_ENDPOINT="$PREAPPROVALS" CALLBACK_URL="http://localhost:5174/auth/callback" STREAM_TIMEOUT_MS="${E2E_STREAM_TIMEOUT_MS:-180000}" pnpm dev < /dev/null > /tmp/asesor-wizard.log 2>&1 & )
   echo "    cold-boot del wizard (pnpm dev/Vite, puede tardar 1-3 min la 1ª vez)…"
   boot=0
   for i in $(seq 1 240); do
