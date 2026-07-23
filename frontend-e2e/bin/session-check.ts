@@ -19,7 +19,10 @@ import { TARGET } from '../pkg/env.ts';
 
 // Espejo de pkg/cognito.ts::COGNITO_STATE_PATH. Se deriva acá (en vez de importar cognito.ts) para NO
 // arrastrar `@playwright/test` a un CLI que solo hace un fetch. Si cambia allá, cambiar acá.
-const COGNITO_STATE_PATH = `.auth/cognito-state.${TARGET}.json`;
+// local ≡ dev: comparten pool Cognito + host de front (localhost:5174) → comparten sesión (un login sirve
+// a los dos). staging es pool aparte → cache propio.
+const SESSION_KEY = TARGET === 'local' ? 'dev' : TARGET;
+const COGNITO_STATE_PATH = `.auth/cognito-state.${SESSION_KEY}.json`;
 
 /** ¿La cookie de `domain` viaja al `host`? host-only (`example.com`) → igualdad; con punto (`.creditop.com`) → subdominios. */
 function hostMatchesDomain(host: string, domain: string): boolean {

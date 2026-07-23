@@ -12,11 +12,14 @@ import { TARGET } from './env.ts';
  * el Hosted UI reaparece y `cognitoLogin` re-loguea + re-guarda.
  */
 /**
- * POR TARGET: dev y staging son pools de Cognito DISTINTOS. Con un único archivo, la sesión de dev se
- * inyectaría en la corrida de staging (cookies + tokens del otro pool) y el front quedaría en un limbo
- * —autenticado para Cognito, desconocido para el backend— sin que aparezca el login que lo corregiría.
+ * Cache POR POOL de Cognito, no ciegamente por target: `local` y `dev` comparten el pool
+ * (login.creditop.com) Y el host del front (localhost:5174), así que comparten la sesión → `local` REUSA
+ * el cache de `dev` (logueás una vez y sirve para los dos). `staging` es un pool DISTINTO
+ * (auth.merchant.creditop.com) → cache propio; mezclarlo metería cookies/tokens del otro pool y el front
+ * quedaría en un limbo (autenticado para Cognito, desconocido para el backend) sin que aparezca el login.
  */
-export const COGNITO_STATE_PATH = `.auth/cognito-state.${TARGET}.json`;
+const SESSION_KEY = TARGET === 'local' ? 'dev' : TARGET;   // local ≡ dev (mismo pool + mismo front :5174)
+export const COGNITO_STATE_PATH = `.auth/cognito-state.${SESSION_KEY}.json`;
 
 /** Devuelve la ruta del storageState cacheado si existe (para `test.use({ storageState })`), o undefined. */
 export function cognitoStorageState(): string | undefined {
