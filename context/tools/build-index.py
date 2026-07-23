@@ -9,6 +9,7 @@ ROOTS={
  "frontend-monorepo":os.path.expanduser("~/Desktop/CREDITOP/github/frontend-monorepo"),
  "legacy-backend":os.path.expanduser("~/Desktop/CREDITOP/github/legacy-backend"),
  "pre-approvals-service":os.path.expanduser("~/Desktop/CREDITOP/github/pre-approvals-service"),
+ "form-service":os.path.expanduser("~/Desktop/CREDITOP/github/form-service"),
  "frontend-e2e":os.path.expanduser("~/Desktop/CREDITOP/playground/frontend-e2e"),
 }
 EXTS={".php",".go",".ts",".tsx",".js",".jsx",".mjs",".cjs",".vue"}

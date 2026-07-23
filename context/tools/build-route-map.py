@@ -13,7 +13,7 @@ def mapof(i):
     p=os.path.join(FLOWS,i,"map.json")
     return json.load(open(p)) if os.path.exists(p) else {}
 # alias→root (de la config del scanner, embebido para portabilidad)
-ALIAS={"application":"~/Desktop/CREDITOP/github/legacy-application","frontend-monorepo":"~/Desktop/CREDITOP/github/frontend-monorepo","legacy-backend":"~/Desktop/CREDITOP/github/legacy-backend","pre-approvals-service":"~/Desktop/CREDITOP/github/pre-approvals-service","backend-e2e":"~/Desktop/CREDITOP/playground/backend-e2e","frontend-e2e":"~/Desktop/CREDITOP/playground/frontend-e2e"}
+ALIAS={"application":"~/Desktop/CREDITOP/github/legacy-application","frontend-monorepo":"~/Desktop/CREDITOP/github/frontend-monorepo","legacy-backend":"~/Desktop/CREDITOP/github/legacy-backend","pre-approvals-service":"~/Desktop/CREDITOP/github/pre-approvals-service","form-service":"~/Desktop/CREDITOP/github/form-service","frontend-e2e":"~/Desktop/CREDITOP/playground/frontend-e2e"}
 out=[]
 out.append("# CreditOp — Mapa de rutas de contexto\n")
 out.append("> Índice estático del árbol de contexto (reemplaza al MCP). **Cómo usar:** leé los `Cuándo:` de abajo, elegí 2–4 nodos que matcheen tu tarea, abrí `server/data/flows/<id>/doc.md` (el análisis) y `server/data/flows/<id>/map.json` (la lista de archivos fuente), y de ahí leé el código real. Las rutas de `map.json` son `alias/relpath`.\n")

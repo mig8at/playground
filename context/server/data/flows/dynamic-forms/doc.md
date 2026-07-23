@@ -1,5 +1,5 @@
 # Dynamic Forms · contexto
-> **estado:** al día con main · Conviven **tres generaciones** de "formulario definido por config": el modelo relacional legacy (`fields`/`forms`/`form_types`), el wizard de **República Dominicana**, y el `backend-driven-form` de información adicional. Las respuestas caen en el EAV `user_field_values` — salvo las de la generación más nueva, que ni siquiera pasan por CreditOp.
+> **estado:** al día con main · Conviven **tres generaciones** de "formulario definido por config": el modelo relacional legacy (`fields`/`forms`/`form_types`), el wizard de **República Dominicana**, y el `backend-driven-form` de información adicional. **Todas** las respuestas caen en el EAV `user_field_values` — la generación más nueva (G2) las escribe vía un MS aparte (**form-service**, nodo hijo propio) pero en la misma tabla.
 
 ## Qué es
 "Formularios dinámicos" no es **un** subsistema: es un nombre que en este árbol tapa tres implementaciones distintas, de tres épocas, con contratos incompatibles entre sí, que hoy corren en paralelo. Ninguna de las tres se lee sola sin la otra: comparten el destino de las respuestas (el EAV `user_field_values`) y comparten un mismo proveedor externo (**onboarding-forms-service**, fuera de estos tres repos) que expone **tres endpoints distintos** para lo que conceptualmente es "dame el esquema".
@@ -17,7 +17,7 @@ Importa porque es la frontera entre *lo que se puede cambiar por config* y *lo q
 | Endpoint del esquema | — (Eloquent directo) | `GET {VITE_ONBOARDING_FORM_SERVICE}/dynamic/{partner_hash}/schema` | `GET {VITE_FORM_SERVICE_BASE_URL}/v1/dynamic-form/{formTypeId}/schema` |
 | Clave del form | `form_types.id` | **hash del comercio** (allied_branch) | `formTypeId` numérico (por **lender**) |
 | Quién renderiza | Vue/Blade en `application` | React **hardcodeado** (`PersonalInfoForm.tsx`, 896 líneas) | React genérico (`DynamicFormRenderer`) |
-| Dónde caen las respuestas | `user_field_values` | `user_field_values` (vía legacy) | **el form-service** — no toca CreditOp |
+| Dónde caen las respuestas | `user_field_values` | `user_field_values` (vía legacy) | `user_field_values` — **el form-service las escribe directo** (ver nodo form-service) |
 | Estado | vivo solo en `application` | vivo, gated por país | vivo, gated por entidad |
 
 Y hay una **cuarta** pieza, `packages/form-engine`, que es la más grande y sofisticada de todas y **no está conectada a nada** (ver abajo).
@@ -63,7 +63,7 @@ Esta sí es genuinamente backend-driven. Corre **después** de elegir entidad, d
 1. `GET {VITE_API_URL}/api/loans/customer/{loanRequestId}/form-type` → legacy resuelve `user_request.lender_id` → **último `form_type` activo de ese lender**. Si el user_request no tiene lender, devuelve `null`.
 2. Si el `formTypeId` es `null` → **se saltea el formulario** y redirige directo a firmar documentos. O sea: el formulario adicional es opcional y su existencia la decide la entidad.
 3. `GET {VITE_FORM_SERVICE_BASE_URL}/v1/dynamic-form/{formTypeId}/schema` → esquema (zod-validado).
-4. `POST {VITE_FORM_SERVICE_BASE_URL}/v1/dynamic-form/{formTypeId}/response/{userRequestId}` → **las respuestas van al form-service, no a legacy**.
+4. `POST {VITE_FORM_SERVICE_BASE_URL}/v1/dynamic-form/{formTypeId}/response/{userRequestId}` → **el form-service escribe las respuestas directo en `user_field_values`** (DELETE+INSERT, `form_id=formTypeId`). No hay endpoint receptor en legacy. Ver nodo **form-service**.
 
 Mecánica del renderer:
 - Cada sección del esquema es un paso del wizard; se ordenan por `sort` y se filtran por `status`.
@@ -72,6 +72,8 @@ Mecánica del renderer:
 - Campos ocultos se **omiten** del payload (no se mandan como `null`); campos visibles sin valor van como `null`.
 - La validación zod se genera desde `validation` (minLength/maxLength/min/max/regex/dataType).
 - 14 tipos conocidos y 6 apariencias; lo desconocido cae silenciosamente a `text` / `input`.
+
+**Selects país/departamento/ciudad y la cascada:** las opciones grandes NO viven en el schema — el campo dice de dónde salen (`data_source='field_options.country_tree.zones'` = departamento, `'…zones.cities'` = ciudad) y el front las pide aparte al form-service (`PUT /v1/field-options/country-tree/{countryId}`, Colombia=47). La **cascada** es solo `related_field_id`: la ciudad filtra sus opciones por el valor del departamento que apunta. Agregar un par depto→ciudad es **cero código**: dos filas (`fields`+`forms`) + rebuild del cache (`PUT /schema`). Ejemplo hecho (2026-07-23): "Ciudad de nacimiento" (field 233 en dev, `related_field_id`=Departamento de nacimiento) para Credifamilia, vía migración `add_ciudad_de_nacimiento_field_to_credifamilia_form` en legacy-backend. Detalle en el nodo **form-service**.
 
 ### El huérfano: `packages/form-engine`
 Es el motor más completo del árbol — 32 archivos, DSL propio (`defineForm`), 20 tipos de campo, condicionales `showIf` con 8 operadores (`== != > < >= <= in notIn`), pasos/secciones/grid, `recharge` de campos dependientes, OTP con timer, subida de archivos con MIME y tamaño, persistencia en localStorage, tematización, panel de debug de 619 líneas, y hasta un analizador de regex que deriva props de input. **Y no está enchufado a nada:**
@@ -163,7 +165,8 @@ O sea: el formulario clásico es React fijo con **dos toggles**, uno de los cual
 - **Toda falla de validación sale como HTTP 500.** `DYFS1002` mapea a `INTERNAL_SERVER_ERROR` y el facade lo devuelve tanto para errores de infraestructura como para validación estática o dinámica fallida. Solo los conflictos de identidad (`DYFS1003/1004/1005`) son 422. Un campo mal escrito es indistinguible de una caída del proveedor.
 - **La validación bidireccional es frágil por diseño.** Un campo nuevo en el esquema que el front todavía no manda, o un campo que el front manda de más, **aborta la creación entera**. La única excepción tallada a mano es `associateNumberScreenshot`.
 - **`required` es fail-open en G2.** `required = validation.nullable === false`: si el proveedor omite el bloque `validation`, o manda `nullable: null`, el campo queda **opcional**. Y un `type` desconocido cae en silencio a `text`, sin log.
-- **Las respuestas de G2 no están en CreditOp.** Van a `POST /v1/dynamic-form/{id}/response/{userRequestId}` del form-service; no hay ningún endpoint en legacy que las reciba. Si el form-service escribe o no en `user_field_values` no se puede afirmar desde estos repos.
+- **Las respuestas de G2 SÍ están en CreditOp — las escribe el form-service.** Van a `POST /v1/dynamic-form/{id}/response/{userRequestId}`; no hay endpoint receptor en legacy, pero el MS **escribe directo en `user_field_values`** (`form_id=form_type_id`, patrón **DELETE+INSERT** de la terna form/user/request). Verificado contra `github/form-service` (nodo **form-service**) + POST real en dev. Corrige el seed que decía "no toca CreditOp".
+- **El form-service NO valida semántica al guardar** (solo estructura): no chequea que el `field_id` pertenezca al `form_type`, ni tipo, ni requeridos → confía en el cliente. Y decimales/multiselect no pasan salvo como string. Detalle en el nodo **form-service**.
 - **El ingreso derivado de rangos puede quedar muy por debajo del real.** "Más de RD$60,000" se persiste como **65000** en el `field_id` 87 — el mismo campo que después el motor de categorías compara contra `min_income`. El tope abierto se aplasta a un número fijo.
 - **`user_field_values` no tiene unique ni FKs.** La terna (`field_id`,`user_id`,`user_request_id`) es única solo por convención del código, y hay **tres repositorios paralelos** sobre la misma tabla (Onboarding, Identity, Loans) con nombres distintos para la misma operación (`createOrUpdate` vs `updateOrCreate`), más ~37 accesos directos al modelo.
 - **`form_id` es basura.** El perfilamiento renderiza `form_type = 4` pero escribe `form_id = 1`; el complementario escribe `form_id = 5`; el form RD escribe siempre `1`. La columna no es confiable como discriminador.
@@ -175,17 +178,18 @@ O sea: el formulario clásico es React fijo con **dos toggles**, uno de los cual
 - **El catálogo de campos no está en código.** Sin seeders, no hay forma de saber desde el repo qué campo es un `field_id` que no esté en el censo de arriba.
 
 ## Preguntas abiertas
-- **¿El form-service persiste las respuestas de G2 en `user_field_values`?** Los answers van keyed por `field.id` (el mismo espacio de ids del EAV), lo que sugiere que sí, pero el servicio está fuera de estos tres repos y no hay endpoint receptor en legacy. Sin verificar.
+- ~~¿El form-service persiste las respuestas de G2 en `user_field_values`?~~ **RESUELTO (2026-07-23):** SÍ. El MS está clonado (`github/form-service`, nodo **form-service**) y hace **DELETE+INSERT** en `user_field_values` con `form_id=form_type_id`. Verificado contra código + POST real en dev.
 - **¿`ONBOARDING_FORMS_SERVICE_BASE_URL`, `VITE_ONBOARDING_FORM_SERVICE` y `VITE_FORM_SERVICE_BASE_URL` apuntan al mismo host?** Los tres paths son distintos y solo el último está en `.env.example` (`form-service.inertia-develop:8082`). Sin confirmar en despliegue.
 - **¿Quién llama a `dynamic-forms/create-user`?** No hay caller en el monorepo; la forma del payload (`id` uuid de transacción + `hash` de comercio + `data`) es compatible con un callback del propio form-service, pero es inferencia.
 - **¿`COUNTRY_ID = 47` (árbol de países del form-service) y `alliedCountry === 60` (RD en CreditOp) conviven o se contradicen?** Son espacios de ids distintos; no se verificó el catálogo del proveedor.
 - **El catálogo real de `fields`** (nombre y tipo de cada `field_id`, incluidos 162-172 en la BD): solo obtenible consultando producción.
 
 ## Bitácora
+- **2026-07-23** — Clonado `github/form-service` → nodo **form-service** nuevo (hijo). Resueltas las preguntas abiertas de la G2: el MS escribe `user_field_values` (DELETE+INSERT), no valida semántica. Agregada la cascada país→depto→ciudad (`data_source` + `related_field_id`) con el ejemplo "Ciudad de nacimiento" (migración en legacy-backend).
 - **2026-07-18** — Fase de data: nodo documentado por ANALISIS DE CODIGO (no habia doc fuente) + superficie curada.
 - **2026-07-17** — Contexto sembrado desde playground/flow (nodo `SolicitudNode` + `fieldDocs.js` `sol.*`/`node.solicitud` + MAP.md §S3 fila 6 / §S4 EAV).
 
 ## Enlaces
-- Padre: **formalization**. Hermanos: **kyc** (el buró llena los mismos `field_id` 87/29/160/90 que el formulario, y le gana en prioridad), **onboarding** (el journey donde corren estos formularios), **profiling** (cómo el EAV se convierte en categoría y cupo), **entities** (`form_types.lender_id` y `lenders.complementary_form` son config por entidad), **legacy-backend** / **frontend-monorepo** / **application** (los tres repos que cruza esta fase).
+- Padre: **formalization**. **Hijo: form-service** (el MS Go que sirve la G2 — schema, respuestas en `user_field_values`, country-tree). Hermanos: **kyc** (el buró llena los mismos `field_id` 87/29/160/90 que el formulario, y le gana en prioridad), **onboarding** (el journey donde corren estos formularios), **profiling** (cómo el EAV se convierte en categoría y cupo), **entities** (`form_types.lender_id` y `lenders.complementary_form` son config por entidad), **credifamilia** (su additional-info es form_type 6), **legacy-backend** / **frontend-monorepo** / **application** (los tres repos que cruza esta fase).
 - Memorias: `onboarding-decision-data-map` (EAV 87/29/160 y frontera de inyectabilidad), `reglas-comercio-lender-map` (dónde entra el ingreso en las 4 capas de reglas), `migracion-application-a-legacy-estado` (por qué hay gemelos sin rutas), `admin-anatomia-creditop` (config por comercio vs por sucursal).
 - El simulador `playground/flow` modela esto como la fila "Form dinámico" de MAP.md §S3 y los inputs del nodo Solicitud, no como nodo propio.

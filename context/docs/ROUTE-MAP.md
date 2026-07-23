@@ -2,7 +2,7 @@
 
 > Índice estático del árbol de contexto (reemplaza al MCP). **Cómo usar:** leé los `Cuándo:` de abajo, elegí 2–4 nodos que matcheen tu tarea, abrí `server/data/flows/<id>/doc.md` (el análisis) y `server/data/flows/<id>/map.json` (la lista de archivos fuente), y de ahí leé el código real. Las rutas de `map.json` son `alias/relpath`.
 
-**Repos (alias → root):** `application`→`~/Desktop/CREDITOP/github/legacy-application` · `frontend-monorepo`→`~/Desktop/CREDITOP/github/frontend-monorepo` · `legacy-backend`→`~/Desktop/CREDITOP/github/legacy-backend` · `pre-approvals-service`→`~/Desktop/CREDITOP/github/pre-approvals-service` · `backend-e2e`→`~/Desktop/CREDITOP/playground/backend-e2e` · `frontend-e2e`→`~/Desktop/CREDITOP/playground/frontend-e2e`
+**Repos (alias → root):** `application`→`~/Desktop/CREDITOP/github/legacy-application` · `frontend-monorepo`→`~/Desktop/CREDITOP/github/frontend-monorepo` · `legacy-backend`→`~/Desktop/CREDITOP/github/legacy-backend` · `pre-approvals-service`→`~/Desktop/CREDITOP/github/pre-approvals-service` · `form-service`→`~/Desktop/CREDITOP/github/form-service` · `frontend-e2e`→`~/Desktop/CREDITOP/playground/frontend-e2e`
 
 **Mantenimiento:** validar que las rutas resuelven → `python3 tools/oracle.py <map.json>`. Regenerar este mapa → `python3 tools/build-route-map.py`.
 
@@ -28,6 +28,7 @@
   - findings [ref]
   - formalization [ref]
     - dynamic-forms [ref]
+      - form-service [ref]
   - hardcodes-entidades [ref]
   - merchants [ref]
     - motai [ref]
@@ -92,6 +93,10 @@ Doc: `server/data/flows/entities/doc.md` · Archivos: `server/data/flows/entitie
 ### findings — Findings  ·  _reference_ · 42 archivos
 **Cuándo:** Cuando algo NO funciona en el entorno LOCAL y querés saber si ya lo diagnosticamos — pantallas rotas sin mensaje, flujos que se traban, errores que el front se traga, o "esto que veo, ¿es real o es un mock?". También ANTES de invertir tiempo depurando un muro del harness: cada hallazgo trae síntoma, causa raíz verificada, evidencia y arreglo. Es un registro VIVO: al descubrir algo nuevo, se agrega una entrada acá.
 Doc: `server/data/flows/findings/doc.md` · Archivos: `server/data/flows/findings/map.json` · Padre: `creditop`
+
+### form-service — Form Service  ·  _reference_ · 35 archivos
+**Cuándo:** Cuando la tarea toca el microservicio form-service (Go): el formulario dinámico G2 'backend-driven' (pantalla additional-info), cómo se arma el schema desde las 5 tablas legacy, dónde/cómo se guardan las respuestas (user_field_values), el árbol país→departamento→ciudad de los selects, o agregar/editar un campo (ej. la cascada Departamento→Ciudad de nacimiento).
+Doc: `server/data/flows/form-service/doc.md` · Archivos: `server/data/flows/form-service/map.json` · Padre: `dynamic-forms`
 
 ### formalization — Formalization  ·  _reference_ · 84 archivos
 **Cuándo:** Cuando el problema está DESPUÉS de elegir entidad: plan de pagos, documentos, pagaré, firma con OTP, autorización hasta el Estado 11 y desembolso.

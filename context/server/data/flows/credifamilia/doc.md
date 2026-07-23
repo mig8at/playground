@@ -32,6 +32,7 @@ Credifamilia (lender **24**) es el único `response_type = 4` (un valor sin fila
 - **Firma** (legacy): `Signing/Netco/*`, `CredifamiliaDocumentsBuilder`, `DocumentSigningService`, `DecevalPromissoryNoteService`.
 - **Formalización SOAP** (legacy): `Pdf/{CredifamiliaFormalizationService,CredifamiliaLegalizationDocumentService,PdfMergeService}`, `Actions/Lenders/CredifamiliaConsumo/*`, `CredifamiliaConsumoService`, `LoanAuthorizationService`.
 - **Bonificación / condiciones especiales** (legacy): `Jobs/Lenders/Credifamilia/*`, `SpecialConditionsController`.
+- **Formulario adicional (G2, form_type 6)** — entre la identidad y la firma, Credifamilia muestra el form dinámico "backend-driven" (ruta `additional-info`): datos personales / PEP / TIN + la cascada **Departamento→Ciudad** (nacimiento, residencia, trabajo, expedición CC). Lo sirve el **form-service** (MS Go, no legacy); las respuestas caen en `user_field_values` (`form_id=6`). Ver nodos **form-service** y **dynamic-forms**. Front: `apps/loan-request-wizard/app/routes/additional-info-form.tsx`.
 
 ## Gotchas / riesgos
 - **Único con flujo legal de documentos completo**: `ENABLED_LENDERS_FOR_LEGAL=[24]` — TyC sin firmar por WhatsApp, PDF vía `pdf-mapper-service`, custodia en **S3**. Es el patrón de firma/custodia que el plan Motai/Alta generaliza.
@@ -39,12 +40,14 @@ Credifamilia (lender **24**) es el único `response_type = 4` (un valor sin fila
 - **⚠ [CRÍTICO] Ambigüedad rt=2 vs rt=4**: el front y la memoria del equipo lo tratan como **rt=2** (CreditopX), pero la formalización SOAP y el plan extra-details en legacy **solo corren con `response_type==4`**. La BD confirma **rt=4** para id=24. Riesgo de configurarlo mal.
 - **Colisión de ID**: lender 24 = Credifamilia, pero **allied 24 = Creditop**. Verificar el namespace antes de tocar un "24".
 - No confundir con **"Credifamilia-addi"** (entrada redirect del catálogo en algunas sucursales).
+- **El form_type 6 (additional-info) NO tiene seeder** — es data cargada a mano en dev/local. Un campo nuevo se agrega por migración/seeder en legacy-backend resolviendo por **NOMBRE** (los `field_id` son auto-increment y difieren por ambiente: "Ciudad de nacimiento" salió **233** en dev, 221/222 en local). Tras tocar la BD, **`PUT /v1/dynamic-form/6/schema`** para bustear el cache del form-service. Para VER el form: flow **`self-service`** (público), no `merchant`. Ver **form-service**.
 
 ## Bitácora
+- **2026-07-23** — Documentado el **formulario adicional G2 (form_type 6)** de Credifamilia: la cascada Departamento→Ciudad, servida por el **form-service** (nodo nuevo), respuestas en `user_field_values`. Tarea real: se agregó "Ciudad de nacimiento" (field 233 dev) en cascada, vía migración `add_ciudad_de_nacimiento_field_to_credifamilia_form` en legacy-backend + validado visualmente en dev.
 - **2026-07-18** — PROMOVIDO al árbol vivo desde `flows-curated/` (era material huérfano: el nodo no existía en el modelo contexto/task). Superficie re-validada contra el índice actual: 134/134 resuelven. Doc adaptado a la plantilla de contexto + campo `when` para el ruteo del MCP.
 - **2026-07-17** — Nodo creado desde la raíz con la documentación de referencia. Superficie curada: **134 archivos** (107 legacy + 27 front, 134/134 resuelven en el índice). Flujo verificado adversarialmente contra el análisis maestro.
 
 ## Enlaces
 - Padre: **Entities** (qué es un lender como dato + el despacho por `response_type`). Hermanos por familia: **Aggregator** (rt=1, decide una API externa) · **CreditopX** (rt=2/3 in-platform) · **Redirect** (rt=0, solo un link).
-- Etapas que comparte: **KYC** (identidad/buró; acá el KYC V2 es propio y greenfield) · **Formalization** (plan de pagos, firma, Estado 11 — la radicación SOAP se dispara ahí) · **MS Pre-approvals** (pre-aprobación rt≠0).
+- Etapas que comparte: **KYC** (identidad/buró; acá el KYC V2 es propio y greenfield) · **Formalization** (plan de pagos, firma, Estado 11 — la radicación SOAP se dispara ahí) · **MS Pre-approvals** (pre-aprobación rt≠0) · **Dynamic-forms** / **form-service** (su `additional-info` es el form G2, form_type 6 — la cascada depto/ciudad y las respuestas en `user_field_values`).
 - Análisis fuente: `git 159906a:docs/codigo/CREDIFAMILIA-FLUJO-ANALISIS.md` · `…/CREDIFAMILIA-PIPELINE-DOCUMENTOS.md` · `…/lenders/CREDIFAMILIA.md`. Memoria: `credifamilia-flujo-mapa`.
