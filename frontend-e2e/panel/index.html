@@ -1858,6 +1858,29 @@
       }
     })();
 
+    // ── Re-chequeo suave: dev/local van a verde SOLOS cuando levantás su stack (make ready) ──────────
+    // dev/local dependen del front :5174; al abrir puede estar caído (dot gris). Este poll NO arranca el
+    // wizard (eso crasheaba — ver revert c6097c6): solo RE-CONSULTA session-check (fetch inocuo, SIN flash
+    // ámbar) cada 15s; cuando :5174 responde y falta sesión, loguea UNA vez (cooldown 2min → no martilla
+    // Cognito). Con el dot ya verde es no-op. staging no entra (se resuelve al abrir). Pausado en corrida.
+    async function quietCheck(t) {
+      try { const r = await (await fetch(`/api/session-status?target=${t}&force=1`)).json(); renderSdot(t, r); return r.status; }
+      catch { renderSdot(t, { status: 'unreachable', detail: 'no se pudo consultar el panel' }); return 'unreachable'; }
+    }
+    const lastAutoWarm = { dev: 0, local: 0 };
+    setInterval(async () => {
+      if (corridaRunning) return;                                    // durante una corrida, no toca los dots
+      for (const t of ['dev', 'local']) {                            // dev primero: local comparte su cache
+        const s = sessionState[t];
+        if (s === 'valid' || s === 'checking' || s === 'warming') continue;   // verde o en curso → nada
+        const now = await quietCheck(t);                             // gris→gris si :5174 sigue caído (sin ámbar)
+        if ((now === 'invalid' || now === 'missing') && Date.now() - lastAutoWarm[t] > 120000) {
+          lastAutoWarm[t] = Date.now();                              // :5174 arriba y sin sesión → login 1 vez
+          await warmSession(t);
+        }
+      }
+    }, 15000);
+
     // switch del buró: Sintético (inyecta, salta consulta real) | Real (consulta buró real, sin inyección).
     function applyInjMode() {
       document.querySelectorAll('#injmode button').forEach(b => b.classList.toggle('on', (b.dataset.i === '1') === inject));
