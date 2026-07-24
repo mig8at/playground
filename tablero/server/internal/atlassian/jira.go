@@ -145,6 +145,26 @@ func (c *Client) DeleteIssue(ctx context.Context, key string) error {
 	return c.do(ctx, http.MethodDelete, "/rest/api/3/issue/"+key, nil, nil)
 }
 
+// UpdateIssueParams son los campos editables de un issue. Vacío = no se toca.
+type UpdateIssueParams struct {
+	Summary     string
+	Description string
+}
+
+// UpdateIssue edita summary y/o descripción de un issue existente
+// (PUT /rest/api/3/issue/{key}). ESCRITURA. La descripción se envía como ADF,
+// igual que en CreateIssue.
+func (c *Client) UpdateIssue(ctx context.Context, key string, p UpdateIssueParams) error {
+	fields := map[string]any{}
+	if p.Summary != "" {
+		fields["summary"] = p.Summary
+	}
+	if p.Description != "" {
+		fields["description"] = adfFromText(p.Description)
+	}
+	return c.do(ctx, http.MethodPut, "/rest/api/3/issue/"+key, map[string]any{"fields": fields}, nil)
+}
+
 // IssueType es un tipo de issue disponible en un proyecto.
 type IssueType struct {
 	ID      string `json:"id"`
