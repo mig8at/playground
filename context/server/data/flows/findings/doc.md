@@ -1243,3 +1243,21 @@ Por qué se cuelga el `goto`: `/lenders` **streamea** (`entry.server.tsx:59` →
 **Estado: aplicado, type-check limpio. VERIFICADO que el guiado ENTRA a Ábaco (`/abaco → platforms → platform-otp-validation`) y cierra en Estado 11 (corrida uReq 464537, gig manejadas a mano). El AUTO-DRIVE de las pantallas gig (selectores uber/Guardar/Continuar/OTP) queda por confirmar en la próxima corrida hands-off.**
 
 **Lección.** Hay DOS drivers de la ventana B (`wakeB` del modo manual + el bloque guiado en el cuerpo del test): arreglar la rama en uno no toca al otro. Y "el flujo saltea X" en un E2E semiauto casi siempre es el harness esquivando a propósito un muro no-automatizable (acá la captura ADO por foto), no el producto. El diagnóstico de 1 línea en el punto exacto de decisión (lender_id + check real) separó "regresión del producto" de "el harness no lo maneja" — que era lo que parecía y no era.
+
+### F-69 · "Advisor validation error" en el `/continue` del asesor para lenders None-identity + Ábaco — un `validated=false` en una validación NO requerida
+
+Destapado apenas el guiado empezó a RECORRER Ábaco (F-68): con el paso ya visible, la ventana del asesor mostró el error.
+
+**Síntoma.** En un flujo Motai renting/rto (o cualquier **None-identity + Ábaco**), la ventana del **ASESOR** (`/continue`, variante `AbacoLoanContinueRouteContent`) muestra **"Los datos no pudieron ser validados para el cliente"** / `Error: Advisor validation error` — aunque el cliente (ventana B) cierra bien en Estado 11.
+
+**Causa raíz verificada — bug de PRODUCTO, no del harness.** `ValidationStatusService::notRequiredValidationStatus` (backend, `Modules/Identity`) devolvía `validated=false` aunque `skipped=true` / `completed=true` / `status='not_required'`. Y el lado A (`loan-continue.tsx`, `hasAdvisorBusinessError`, ~línea 364) gatea con `data.ado && !data.ado.validated` **sin mirar `skipped`**. Para un lender None-identity (Motai, `identity_validation_type_id=1`), `resolveValidationType` ≠ `Ado` → `ado = notRequiredValidationStatus` (validated=false) → el asesor lo lee como "no validó" → error. **Como A pega al backend REAL (sin mock, a diferencia de B), esto ocurre también en producción**, no solo en el harness.
+
+**Lo destapa la des-motaización.** Al poner Motai `product=renting/rto`, `check-abaco-requirement`=MOTV1001 → `isAbacoRequired=true` → el asesor cae en la variante Ábaco del `/continue` (antes, por modo, no caía ahí). El trigger de Ábaco está BIEN (F-68); lo expuesto es esa pantalla asumiendo validación de identidad (ADO) para un lender que es None-identity y no la pide.
+
+**Evidencia.** Screenshot del asesor con "Advisor validation error"; `ValidationStatusService.php:330` (`notRequiredValidationStatus`, validated=false); `getValidationStatus:67-69` (`ado = notRequiredValidationStatus` cuando el tipo ≠ Ado); `loan-continue.tsx:359-366` (`hasAdvisorBusinessError` sin `skipped`); enum `IdentityValidationType` (`None=1`); Motai lenders con `identity_validation_type_id=1`.
+
+**Arreglo.** `notRequiredValidationStatus` → `validated=true` (una validación no-requerida es una compuerta PASADA; el matiz "no se validó de verdad" queda en `skipped`/`status`). Aplica a `ado` y `crosscore` no-requeridos por igual. Commit en `feature/motai-clean-v2` de legacy-backend (junto a la des-motaización que lo expuso).
+
+**Estado: aplicado. ValidationStatusServiceTest 22 passed (40 assertions); php -l limpio. Falta la confirmación E2E (el asesor deja de errorear y sigue a `financial-profile`) en la próxima corrida del guiado.**
+
+**Lección.** El harness, al hacer que el guiado RECORRA Ábaco (F-68), destapó un bug de producto que el salto directo tapaba — el valor de un E2E no es solo "pasó/falló", es que *recorrer de verdad* un flujo expone lo que saltearlo esconde. Y la trampa semántica: `validated=false` para algo `not_required` hace que cualquier consumidor que gatee por `validated` trate un skip como fallo. Un booleano de "compuerta pasada" no debe ser `false` cuando la compuerta ni siquiera aplica.
