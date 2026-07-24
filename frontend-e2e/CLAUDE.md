@@ -34,8 +34,10 @@ que distingue "ventana cerrada" y **tira** (`dev/guided.spec.ts:538-545`); el re
 ## Mocks: arrancá a mano los que nadie levanta
 
 - `bin/asesor` levanta `mock-preapprovals` siempre (`bin/asesor:120`) y, **solo con target `local`**,
-  payvalida + mdm + lenders + forms + **ábaco** (`bin/asesor:129-137`). `mock-redirect` lo levanta
-  `bin/ecommerce` (`bin/asesor:56`). Contra `dev` no se levanta ninguno de esos cinco.
+  payvalida + mdm + lenders + forms + **ábaco** + **financial-health** (`bin/asesor:189-199`).
+  `mock-redirect` lo levanta `bin/ecommerce` (`bin/asesor:56`). Contra `dev` no se levanta ninguno de
+  esos seis. `mock-financial-health` es distinto al resto: **no inventa datos** — lee el usuario
+  sintético REAL de la BD local (por eso ocupa el `:4000` que el `.env` del wizard ya apunta). Ver F-70.
 - **`mock-pdf-mapper` no lo levanta nadie.** Si tu flujo toca la vinculación de Credifamilia, corré
   `bin/mock-pdf-mapper start` vos.
 
@@ -129,7 +131,7 @@ Dos mecanismos, y **no son intercambiables**:
   `mockPA`) y muestra el selector de estado por entidad **solo cuando el mock contesta**. Atarlo a una
   lista de targets se desincroniza el día que alguien cambia la variable.
 - **`const CAPS`** (en `panel/index.html`) es para lo que **sí** depende del target: hoy solo
-  `flotaLocal` (los cinco mocks que `bin/asesor:170` levanta únicamente en local). Si agregás un target,
+  `flotaLocal` (los seis mocks que `bin/asesor:189-199` levanta únicamente en local). Si agregás un target,
   agregalo ahí — el default de `cap()` es el más restrictivo a propósito: enumerar targets a mano fue lo
   que dejó a staging afuera del guard de escrituras cuando se sumó.
 

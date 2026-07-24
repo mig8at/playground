@@ -155,6 +155,7 @@ Cada uno existe porque un muro concreto lo pedía. Todos: `bin/mock-X [start|sto
 | `mock-pdf-mapper` | **8100** `MOCK_PDFMAP_PORT` | `vinculacion` de Credifamilia es microservicio **por diseño** (sin fallback Blade) | a mano |
 | `mock-forms` | **8101** `MOCK_FORMS_PORT` | schema del flujo DINÁMICO (RD, `country_id=60`) — sin él: "Formulario no encontrado" | `bin/asesor` en `local` |
 | `mock-abaco` | **8102** `MOCK_ABACO_PORT` | Ábaco (ingresos gig del renting Motai): solo `init` y `login` — `/results` y `/platforms` ya están resueltos en el código | a mano |
+| `mock-financial-health` | **4000** `MOCK_FINHEALTH_PORT` | MS de salud financiera de la pantalla del ASESOR (`financial-profile`, decisión Motai renting/rto). **No inventa**: lee el sintético real de la BD local (ingreso 87, score, `abaco.average_income`). Puerto = el `FINANCIAL_HEALTH_API_URL` que el `.env` del wizard ya trae (F-70) | `bin/asesor` en `local` |
 
 Casi todos aceptan un env para **forzar el camino de error** (`MOCK_*_FAIL=1`, `MOCK_MDM_EMPTY=1`,
 `MOCK_PV_CODE≠0000`) y `MOCK_PA_DELAY_MS` para poder VER el loader de las cards.

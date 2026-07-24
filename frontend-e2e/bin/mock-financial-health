@@ -1,0 +1,44 @@
+#!/usr/bin/env bash
+# Mock de FINANCIAL-HEALTH: el MS de salud financiera que consume la pantalla del ASESOR
+# (`financial-profile`, revisión/decisión de Motai renting) vía `FINANCIAL_HEALTH_API_URL`.
+# En local no corre el MS real → sin esto el loader del wizard muere con `fetch failed` (F-70).
+#
+# El .env del wizard (apps/loan-request-wizard/.env) ya apunta a http://localhost:4000 —
+# el mock ocupa ESE puerto para no tocar el repo real. NO inventa datos: lee el usuario
+# sintético REAL de la BD local (users · user_field_values 87/29 · user_summaries datacredito/abaco).
+#
+# uso: bin/mock-financial-health [start|stop|status|logs]
+#   env: MOCK_FINHEALTH_PORT (4000)
+set -euo pipefail
+DIR="$(cd "$(dirname "$0")/.." && pwd)"
+PORT="${MOCK_FINHEALTH_PORT:-4000}"
+LOG=/tmp/mock-financial-health.log
+
+up() { curl -s -o /dev/null --max-time 2 "http://localhost:$PORT" 2>/dev/null; }
+# identidad: ¿lo que escucha en :$PORT es ESTE mock? (en :4000 podría vivir otra cosa; un "ya arriba"
+# falso dejaría al wizard hablándole a un servidor que no cumple el contrato)
+is_ours() {
+  curl -s --max-time 2 "http://localhost:$PORT" 2>/dev/null \
+    | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{try{process.exit(JSON.parse(s).mock==="financial-health"?0:1)}catch{process.exit(1)}})'
+}
+
+case "${1:-start}" in
+  start)
+    if up; then
+      if is_ours; then echo "✓ mock-financial-health ya arriba (:$PORT)"; exit 0; fi
+      echo "✗ el puerto :$PORT está ocupado por OTRO proceso (no es este mock) — liberalo o exportá MOCK_FINHEALTH_PORT (y alineá FINANCIAL_HEALTH_API_URL del wizard)"; exit 1
+    fi
+    rm -f "$LOG"
+    nohup env MOCK_FINHEALTH_PORT="$PORT" \
+      node "$DIR/mock-financial-health/server.ts" < /dev/null > "$LOG" 2>&1 &
+    for _ in $(seq 1 25); do up && { echo "✓ mock-financial-health :$PORT"; exit 0; }; sleep 0.3; done
+    echo "✗ no levantó"; tail -8 "$LOG" 2>/dev/null; exit 1;;
+  stop)
+    if up && is_ours; then lsof -ti:"$PORT" 2>/dev/null | xargs kill -9 2>/dev/null && echo "⏹ detenido (:$PORT)"; else echo "no estaba corriendo (o :$PORT es de otro proceso — no lo mato)"; fi;;
+  status)
+    if up; then if is_ours; then curl -s --max-time 2 "http://localhost:$PORT" 2>/dev/null; echo ""; else echo "⚠ :$PORT ocupado por OTRO proceso"; fi; else echo "○ off (:$PORT)"; fi;;
+  logs)
+    tail -n "${2:-40}" "$LOG" 2>/dev/null || echo "(sin log)";;
+  *)
+    echo "uso: bin/mock-financial-health [start|stop|status|logs]";;
+esac
