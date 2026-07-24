@@ -144,18 +144,19 @@ func (c *Client) AddIssuesToSprint(ctx context.Context, sprintID int, issueKeys 
 
 // SprintIssue es la vista de una tarea del sprint para el dashboard.
 type SprintIssue struct {
-	Key            string
-	Summary        string
-	Description    string // lo que HOY dice Jira (aplanado a texto)
-	Created        string // cuándo se creó (para ordenar nuevo → viejo)
-	OriginSprint   string // sprint donde NACIÓ (el más viejo de su historial)
-	CarriedOver    bool   // estuvo en más de un sprint = no cerró en el suyo y la arrastraron
-	Status         string
-	StatusCategory string // "new" (por hacer) | "indeterminate" (en curso) | "done"
-	Points         float64
-	HasPoints      bool
-	EstimateSecs   int
-	SpentSecs      int
+	Key             string
+	Summary         string
+	Description     string // lo que HOY dice Jira (aplanado a texto, para el listado)
+	DescriptionHTML string // la descripción renderizada a HTML por Jira (renderedFields), para el detalle
+	Created         string // cuándo se creó (para ordenar nuevo → viejo)
+	OriginSprint    string // sprint donde NACIÓ (el más viejo de su historial)
+	CarriedOver     bool   // estuvo en más de un sprint = no cerró en el suyo y la arrastraron
+	Status          string
+	StatusCategory  string // "new" (por hacer) | "indeterminate" (en curso) | "done"
+	Points          float64
+	HasPoints       bool
+	EstimateSecs    int
+	SpentSecs       int
 }
 
 // adfNode es un nodo del Atlassian Document Format (el árbol que Jira Cloud usa para texto rico).
@@ -253,6 +254,9 @@ type sprintIssuesResp struct {
 				TimeSpentSeconds        int `json:"timeSpentSeconds"`
 			} `json:"timetracking"`
 		} `json:"fields"`
+		RenderedFields struct {
+			Description string `json:"description"` // la descripción ya renderizada a HTML por Jira
+		} `json:"renderedFields"`
 	} `json:"issues"`
 }
 
@@ -260,7 +264,7 @@ type sprintIssuesResp struct {
 // (GET /rest/agile/1.0/sprint/{id}/issue con jql assignee = currentUser()).
 func (c *Client) MySprintIssues(ctx context.Context, sprintID int) ([]SprintIssue, error) {
 	path := fmt.Sprintf(
-		"/rest/agile/1.0/sprint/%d/issue?jql=%s&fields=summary,description,created,status,timetracking,customfield_10036,customfield_10020&maxResults=100",
+		"/rest/agile/1.0/sprint/%d/issue?jql=%s&fields=summary,description,created,status,timetracking,customfield_10036,customfield_10020&expand=renderedFields&maxResults=100",
 		sprintID, url.QueryEscape("assignee = currentUser()"),
 	)
 
@@ -273,16 +277,17 @@ func (c *Client) MySprintIssues(ctx context.Context, sprintID int) ([]SprintIssu
 	for _, it := range raw.Issues {
 		f := it.Fields
 		si := SprintIssue{
-			Key:            it.Key,
-			Summary:        f.Summary,
-			Description:    adfText(f.Description),
-			Created:        f.Created,
-			OriginSprint:   originSprint(f.Sprints),
-			CarriedOver:    len(f.Sprints) > 1,
-			Status:         f.Status.Name,
-			StatusCategory: f.Status.StatusCategory.Key,
-			EstimateSecs:   f.TimeTracking.OriginalEstimateSeconds,
-			SpentSecs:      f.TimeTracking.TimeSpentSeconds,
+			Key:             it.Key,
+			Summary:         f.Summary,
+			Description:     adfText(f.Description),
+			DescriptionHTML: it.RenderedFields.Description,
+			Created:         f.Created,
+			OriginSprint:    originSprint(f.Sprints),
+			CarriedOver:     len(f.Sprints) > 1,
+			Status:          f.Status.Name,
+			StatusCategory:  f.Status.StatusCategory.Key,
+			EstimateSecs:    f.TimeTracking.OriginalEstimateSeconds,
+			SpentSecs:       f.TimeTracking.TimeSpentSeconds,
 		}
 		if f.Points != nil {
 			si.Points = *f.Points

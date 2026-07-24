@@ -424,7 +424,10 @@ onMounted(async () => {
         </div>
 
         <label class="fld">Descripción <em>lo que hoy dice Jira</em></label>
-        <p v-if="active.Description" class="desc">{{ active.Description }}</p>
+        <!-- HTML renderizado por Jira (renderedFields). Solo lectura: el tablero es visual, el que
+             actualiza en Jira es el asistente por la API. Los checkboxes se ven pero no se togglean. -->
+        <div v-if="active.DescriptionHTML" class="desc jira-html" v-html="active.DescriptionHTML"></div>
+        <p v-else-if="active.Description" class="desc">{{ active.Description }}</p>
         <p v-else class="desc none">Esta tarea todavía no tiene descripción en Jira.</p>
       </section>
 
@@ -561,6 +564,19 @@ h1 { font-size: 20px; margin: 0; letter-spacing: .2px }
 /* descripción completa de Jira (acá NO se recorta: es la vista de detalle de la tarea elegida) */
 .desc { font-size: 13px; line-height: 1.55; color: var(--txt); margin: 0; white-space: pre-wrap }
 .desc.none { color: var(--mut); font-style: italic }
+/* descripción renderizada por Jira (HTML). El scoped no llega al v-html → :deep(). SOLO LECTURA:
+   el tablero es visual; el asistente actualiza en Jira. Los checkboxes se ven pero no se togglean. */
+.desc.jira-html { white-space: normal }
+.jira-html :deep(h1), .jira-html :deep(h2), .jira-html :deep(h3), .jira-html :deep(h4) {
+  font-size: 13px; font-weight: 700; color: var(--txt); text-transform: none; letter-spacing: 0; margin: 15px 0 5px }
+.jira-html :deep(h1:first-child), .jira-html :deep(h2:first-child), .jira-html :deep(h3:first-child) { margin-top: 0 }
+.jira-html :deep(p) { margin: 6px 0 }
+.jira-html :deep(ul), .jira-html :deep(ol) { margin: 6px 0; padding-left: 20px }
+.jira-html :deep(li) { margin: 3px 0 }
+.jira-html :deep(a) { color: var(--acc); text-decoration: none }
+.jira-html :deep(a:hover) { text-decoration: underline }
+.jira-html :deep(code) { background: var(--panel2); padding: 1px 5px; border-radius: 5px; font-size: 12px }
+.jira-html :deep(input) { pointer-events: none; accent-color: var(--acc); margin-right: 5px }
 .lane .val { font-size: 13.5px; font-weight: 700; font-variant-numeric: tabular-nums }
 
 /* encabezado de grupo de esfuerzo en el listado */
