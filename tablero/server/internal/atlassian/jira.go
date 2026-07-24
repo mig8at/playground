@@ -165,6 +165,42 @@ func (c *Client) UpdateIssue(ctx context.Context, key string, p UpdateIssueParam
 	return c.do(ctx, http.MethodPut, "/rest/api/3/issue/"+key, map[string]any{"fields": fields}, nil)
 }
 
+// Transition es una transición disponible desde el estado actual de un issue.
+type Transition struct {
+	ID   string // id de la transición (lo que se aplica)
+	Name string // nombre de la transición
+	To   string // nombre del estado destino (ej. "En pruebas")
+}
+
+// IssueTransitions lista las transiciones disponibles desde el estado actual
+// (GET /rest/api/3/issue/{key}/transitions). Solo lectura.
+func (c *Client) IssueTransitions(ctx context.Context, key string) ([]Transition, error) {
+	var raw struct {
+		Transitions []struct {
+			ID   string `json:"id"`
+			Name string `json:"name"`
+			To   struct {
+				Name string `json:"name"`
+			} `json:"to"`
+		} `json:"transitions"`
+	}
+	if err := c.do(ctx, http.MethodGet, "/rest/api/3/issue/"+key+"/transitions", nil, &raw); err != nil {
+		return nil, err
+	}
+	out := make([]Transition, 0, len(raw.Transitions))
+	for _, t := range raw.Transitions {
+		out = append(out, Transition{ID: t.ID, Name: t.Name, To: t.To.Name})
+	}
+	return out, nil
+}
+
+// TransitionIssue mueve el issue aplicando una transición
+// (POST /rest/api/3/issue/{key}/transitions). ESCRITURA.
+func (c *Client) TransitionIssue(ctx context.Context, key, transitionID string) error {
+	body := map[string]any{"transition": map[string]string{"id": transitionID}}
+	return c.do(ctx, http.MethodPost, "/rest/api/3/issue/"+key+"/transitions", body, nil)
+}
+
 // IssueType es un tipo de issue disponible en un proyecto.
 type IssueType struct {
 	ID      string `json:"id"`
