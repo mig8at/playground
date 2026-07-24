@@ -62,6 +62,8 @@ tools/
     ├── cmd/web/main.go        ← WS :8787, 5 mensajes entrantes + /health
     ├── cmd/jira-mcp/          ← main.go (wiring) + tools.go (4 tools)
     ├── cmd/slack-mcp/         ← main.go (wiring) + tools.go (3 tools)
+    ├── cmd/issue-update/      ← one-off: edita summary/descripción de un issue
+    ├── cmd/issue-transition/  ← one-off: mueve un issue de estado (transición)
     └── internal/
         ├── atlassian/  client.go (Basic auth) · jira.go (API v3) · agile.go (sprints) · activity.go (changelog)
         ├── slack/      client.go · auth.go · conversations.go · messages.go · users.go (+ un test)
@@ -173,6 +175,31 @@ frontera. Por eso el detalle de archivos **no puede** vivir en las notas de la b
 
 ⚠ **Al terminar una tarea:** lo que se **mergea** gradúa al nodo de `context` que corresponda (pasa a ser
 "cómo funciona CreditOp"); lo que no se mergeó se queda acá.
+
+### Del esfuerzo a Jira: crear, mover y notificar al evaluador
+
+La descripción de la tarea sigue la **plantilla orientada a QA** de
+[`docs/PLANTILLA-TAREA-JIRA.md`](docs/PLANTILLA-TAREA-JIRA.md): nivel negocio, enfocada en *cómo y
+dónde validar*. Todo lo que va a Jira pasa por el **guard** (nada de repos, rutas de archivo, el
+playground ni F-xx).
+
+| Acción | Cómo |
+|---|---|
+| **Crear** tarea | WS `{"type":"create_task","summary":…,"description":…}` → issue en `CORE`, tipo Tarea, asignado a mí, y lo mete al **sprint activo** del board 384. (También `jira_create_issue` del MCP.) |
+| **Editar** tarea | `go run ./cmd/issue-update <json>` con `{"key","summary","description"}` → `UpdateIssue` (PUT; la descripción se manda como ADF). |
+| **Mover de estado** | `go run ./cmd/issue-transition <KEY> <substring-estado>` → busca la transición por estado destino y la aplica. El workflow **no salta directo**: a "En pruebas" se llega **Por Hacer → En progreso → En pruebas** (dos pasos). |
+| **Notificar al evaluador** | WS `{"type":"dm","to":"<email>","text":…}` → DM **como yo** (user token). |
+
+**Regla de notificación (Duncan):**
+
+- Se notifica **solo cuando la tarea está "En pruebas"** — recién ahí hay algo para evaluar.
+- Destinatario: **Duncan** — `duncan.estrada@creditop.com`.
+- Tono: **de usted** (no tutear), coloquial y corto, con el link a Jira. Ej.: *"Perrito 🐶 le dejé una tarea… échele ojo que al firmar llegue palomeado 👉 <link>"*.
+- **Precondición:** el evaluador tiene que tener **cómo validar** lo que se le pide (ej. ver los documentos firmados). Si no, el ping llega pero la validación se traba — resolverlo antes de pasar a "En pruebas".
+
+> Los one-offs `issue-update`/`issue-transition` reutilizan las credenciales del `.env` sin tocar el
+> server en ejecución. `create_task`/`dm` son mensajes del WS (los dispara el dashboard). El cliente Jira
+> ya sabe **crear, editar y transicionar** issues (`internal/atlassian/jira.go`).
 
 ## La bitácora y sus datos (SQLite)
 
