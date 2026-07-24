@@ -197,9 +197,13 @@ playground ni F-xx).
 - Tono: **de usted** (no tutear), coloquial y corto, con el link a Jira. Ej.: *"Perrito 🐶 le dejé una tarea… échele ojo que al firmar llegue palomeado 👉 <link>"*.
 - **Precondición:** el evaluador tiene que tener **cómo validar** lo que se le pide (ej. ver los documentos firmados). Si no, el ping llega pero la validación se traba — resolverlo antes de pasar a "En pruebas".
 
+> La descripción se **escribe en Markdown y se renderiza a ADF** (`mdToADF` en `internal/atlassian/jira.go`):
+> la API v3 de Jira no acepta MD/HTML, guarda ADF. Se soporta `##` encabezados, `**negrita**`, `-` viñetas,
+> `- [ ]` checklist (checkboxes reales), `1.` numeradas y links.
+>
 > Los one-offs `issue-update`/`issue-transition` reutilizan las credenciales del `.env` sin tocar el
 > server en ejecución. `create_task`/`dm` son mensajes del WS (los dispara el dashboard). El cliente Jira
-> ya sabe **crear, editar y transicionar** issues (`internal/atlassian/jira.go`).
+> ya sabe **crear, editar y transicionar** issues.
 
 ## La bitácora y sus datos (SQLite)
 

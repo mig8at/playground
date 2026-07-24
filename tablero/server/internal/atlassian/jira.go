@@ -2,7 +2,9 @@ package atlassian
 
 import (
 	"context"
+	"fmt"
 	"net/http"
+	"regexp"
 	"strings"
 )
 
@@ -88,26 +90,137 @@ type CreatedIssue struct {
 	Key string `json:"key"`
 }
 
-// adfFromText arma un documento ADF (Atlassian Document Format) a partir de
-// texto plano. En la API v3 el campo description debe ser ADF, no string.
-// Cada bloque separado por una línea en blanco se vuelve un párrafo.
-func adfFromText(text string) map[string]any {
+// En la API v3 de Jira el campo description debe ser ADF (Atlassian Document
+// Format, un JSON de nodos), no Markdown ni HTML. mdToADF renderiza el
+// subconjunto de Markdown que usan nuestras plantillas para que la tarea se vea
+// ordenada en Jira: encabezados, negrita, listas, checklist y links.
+
+var (
+	reHeading  = regexp.MustCompile(`^(#{1,3})\s+(.*)$`)
+	reTaskItem = regexp.MustCompile(`^[-*]\s+\[([ xX])\]\s+(.*)$`)
+	reOrdered  = regexp.MustCompile(`^\d+\.\s+(.*)$`)
+	reBullet   = regexp.MustCompile(`^[-*]\s+(.*)$`)
+	reBlock    = regexp.MustCompile(`^(#{1,3}\s|[-*]\s|\d+\.\s)`)
+	reBold     = regexp.MustCompile(`\*\*(.+?)\*\*`)
+	reMdLink   = regexp.MustCompile(`\[([^\]]+)\]\(([^)]+)\)`)
+	reBareURL  = regexp.MustCompile(`https?://[^\s)]+`)
+)
+
+func textNode(s string, marks ...any) map[string]any {
+	n := map[string]any{"type": "text", "text": s}
+	if len(marks) > 0 {
+		n["marks"] = marks
+	}
+	return n
+}
+
+// inlineNodes convierte texto con **negrita**, [texto](url) y URLs sueltas en
+// nodos inline de ADF. Procesa siempre el match más temprano.
+func inlineNodes(s string) []any {
+	out := make([]any, 0)
+	for s != "" {
+		start, end := -1, 0
+		var node map[string]any
+		consider := func(lo, hi int, n map[string]any) {
+			if lo >= 0 && (start == -1 || lo < start) {
+				start, end, node = lo, hi, n
+			}
+		}
+		if m := reMdLink.FindStringSubmatchIndex(s); m != nil {
+			consider(m[0], m[1], textNode(s[m[2]:m[3]], map[string]any{"type": "link", "attrs": map[string]any{"href": s[m[4]:m[5]]}}))
+		}
+		if m := reBold.FindStringSubmatchIndex(s); m != nil {
+			consider(m[0], m[1], textNode(s[m[2]:m[3]], map[string]any{"type": "strong"}))
+		}
+		if m := reBareURL.FindStringIndex(s); m != nil {
+			consider(m[0], m[1], textNode(s[m[0]:m[1]], map[string]any{"type": "link", "attrs": map[string]any{"href": s[m[0]:m[1]]}}))
+		}
+		if start == -1 {
+			out = append(out, textNode(s))
+			break
+		}
+		if start > 0 {
+			out = append(out, textNode(s[:start]))
+		}
+		out = append(out, node)
+		s = s[end:]
+	}
+	if len(out) == 0 {
+		out = append(out, textNode(" "))
+	}
+	return out
+}
+
+func mdToADF(md string) map[string]any {
+	lines := strings.Split(strings.ReplaceAll(md, "\r\n", "\n"), "\n")
 	content := make([]any, 0)
-	for _, block := range strings.Split(strings.TrimSpace(text), "\n\n") {
-		block = strings.TrimSpace(block)
-		if block == "" {
+	uid := 0
+	nextID := func() string { uid++; return fmt.Sprintf("t%d", uid) }
+
+	i := 0
+	for i < len(lines) {
+		t := strings.TrimSpace(lines[i])
+		if t == "" {
+			i++
 			continue
 		}
-		content = append(content, map[string]any{
-			"type":    "paragraph",
-			"content": []any{map[string]any{"type": "text", "text": block}},
-		})
+		switch {
+		case reHeading.MatchString(t):
+			m := reHeading.FindStringSubmatch(t)
+			content = append(content, map[string]any{"type": "heading", "attrs": map[string]any{"level": len(m[1])}, "content": inlineNodes(m[2])})
+			i++
+		case reTaskItem.MatchString(t):
+			items := make([]any, 0)
+			for i < len(lines) {
+				m := reTaskItem.FindStringSubmatch(strings.TrimSpace(lines[i]))
+				if m == nil {
+					break
+				}
+				state := "TODO"
+				if m[1] != " " {
+					state = "DONE"
+				}
+				items = append(items, map[string]any{"type": "taskItem", "attrs": map[string]any{"localId": nextID(), "state": state}, "content": inlineNodes(m[2])})
+				i++
+			}
+			content = append(content, map[string]any{"type": "taskList", "attrs": map[string]any{"localId": nextID()}, "content": items})
+		case reOrdered.MatchString(t):
+			items := make([]any, 0)
+			for i < len(lines) {
+				m := reOrdered.FindStringSubmatch(strings.TrimSpace(lines[i]))
+				if m == nil {
+					break
+				}
+				items = append(items, map[string]any{"type": "listItem", "content": []any{map[string]any{"type": "paragraph", "content": inlineNodes(m[1])}}})
+				i++
+			}
+			content = append(content, map[string]any{"type": "orderedList", "content": items})
+		case reBullet.MatchString(t):
+			items := make([]any, 0)
+			for i < len(lines) {
+				m := reBullet.FindStringSubmatch(strings.TrimSpace(lines[i]))
+				if m == nil {
+					break
+				}
+				items = append(items, map[string]any{"type": "listItem", "content": []any{map[string]any{"type": "paragraph", "content": inlineNodes(m[1])}}})
+				i++
+			}
+			content = append(content, map[string]any{"type": "bulletList", "content": items})
+		default:
+			buf := make([]string, 0)
+			for i < len(lines) {
+				ln := strings.TrimSpace(lines[i])
+				if ln == "" || reBlock.MatchString(ln) {
+					break
+				}
+				buf = append(buf, ln)
+				i++
+			}
+			content = append(content, map[string]any{"type": "paragraph", "content": inlineNodes(strings.Join(buf, " "))})
+		}
 	}
 	if len(content) == 0 {
-		content = append(content, map[string]any{
-			"type":    "paragraph",
-			"content": []any{map[string]any{"type": "text", "text": " "}},
-		})
+		content = append(content, map[string]any{"type": "paragraph", "content": []any{textNode(" ")}})
 	}
 	return map[string]any{"type": "doc", "version": 1, "content": content}
 }
@@ -130,7 +243,7 @@ func (c *Client) CreateIssue(ctx context.Context, p CreateIssueParams) (*Created
 		fields["assignee"] = map[string]string{"accountId": p.AssigneeID}
 	}
 	if p.Description != "" {
-		fields["description"] = adfFromText(p.Description)
+		fields["description"] = mdToADF(p.Description)
 	}
 
 	var out CreatedIssue
@@ -160,7 +273,7 @@ func (c *Client) UpdateIssue(ctx context.Context, key string, p UpdateIssueParam
 		fields["summary"] = p.Summary
 	}
 	if p.Description != "" {
-		fields["description"] = adfFromText(p.Description)
+		fields["description"] = mdToADF(p.Description)
 	}
 	return c.do(ctx, http.MethodPut, "/rest/api/3/issue/"+key, map[string]any{"fields": fields}, nil)
 }
