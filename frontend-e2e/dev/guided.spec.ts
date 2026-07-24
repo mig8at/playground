@@ -215,6 +215,29 @@ test('guided (semiautomático)', async ({ browser }) => {
     // en el wizard → layout PÚBLICO, sin `requireUserWithSession` (eso solo lo exige `/merchant/*` vía
     // default-layout). Es el celular del CLIENTE: en la vida real abre el link sin la sesión del asesor.
     const { page: B } = await openB(browser, { baseURL: config.feBaseUrl, userAgent: IPHONE_UA }); // B mitad DERECHA
+
+    // ¿ESTE uReq requiere ÁBACO? (product renting/rto). Best-effort, pero decide la BIFURCACIÓN del flujo,
+    // así que REINTENTA en vez de rendirse al primer error: un solo intento con `.catch(() => false)`
+    // devolvía false por un timeout transitorio bajo el cold-boot cargado del wizard, y mandaba la corrida
+    // al skip a first-payment → un Motai renting/rto NUNCA veía Ábaco (justo el paso que se quiere ver).
+    // MOTV1001 = requiere · MOTV1000 = respuesta FIRME del backend "no requiere" (corta ya) · null/error =
+    // transitorio → reintenta. Acepta el code top-level O anidado en `data` (las dos formas de la respuesta).
+    const abacoRequired = async (ur: string): Promise<boolean> => {
+        if (!ur) return false;
+        for (let i = 0; i < 4; i++) {
+            const code = await fetch(`${config.mockUrl}/api/onboarding/motai/check-abaco-requirement`, {
+                method: 'POST',
+                headers: { 'content-type': 'application/json', accept: 'application/json', 'user-agent': IPHONE_UA },
+                body: JSON.stringify({ userRequestId: Number(ur) }),
+                signal: AbortSignal.timeout(15_000),
+            }).then((x) => x.json()).then((j) => j?.code ?? j?.data?.code).catch(() => null);
+            if (code === 'MOTV1001') return true;   // AbacoRequirementCode.REQUIRED
+            if (code === 'MOTV1000') return false;   // firme: NO requiere
+            await B.waitForTimeout(800).catch(() => {});   // transitorio → reintento
+        }
+        return false;
+    };
+
     // El polling de validación (captura ADO por foto) NO es automatizable → lo mockeamos como validado. Va acá,
     // en la creación, para que esté activo ANTES de cualquier navegación de B (venga del watcher o del guiado).
     // Solo se finge lo NO automatizable (el ADO por foto). El requerimiento de ÁBACO se le pregunta al
@@ -226,17 +249,8 @@ test('guided (semiautomático)', async ({ browser }) => {
     // de Ábaco, que es lo que se quiere ver; con E2E_ABACO_COMPLETED=1 se simula ya validado.
     await B.route('**/validation-status', async (r) => {
         const ur = r.request().url().match(/\/(\d+)\/validation-status/)?.[1] ?? '';
-        let required = false;
-        if (ur) {
-            const code = await fetch(`${config.mockUrl}/api/onboarding/motai/check-abaco-requirement`, {
-                method: 'POST',
-                headers: { 'content-type': 'application/json', accept: 'application/json', 'user-agent': IPHONE_UA },
-                body: JSON.stringify({ userRequestId: Number(ur) }),
-                signal: AbortSignal.timeout(15_000),
-            }).then((x) => x.json()).then((j) => j?.code ?? j?.data?.code).catch(() => null);
-            required = code === 'MOTV1001';   // AbacoRequirementCode.REQUIRED
-            if (required) log(`B: ÁBACO requerido para uReq ${ur} (product=renting) → el flujo se bifurca`);
-        }
+        const required = await abacoRequired(ur);
+        if (required) log(`B: ÁBACO requerido para uReq ${ur} (product=renting) → el flujo se bifurca`);
         await r.fulfill({
             status: 200, contentType: 'application/json',
             body: JSON.stringify({
@@ -336,14 +350,7 @@ test('guided (semiautomático)', async ({ browser }) => {
             // llegaba a `loan-approved` sin pasar nunca por Ábaco. Con renting dejamos a B en
             // confirmation para que el "Continuar" dispare el redirect real.
             const urB = link.match(/\/(\d+)\/confirmation$/)?.[1] ?? '';
-            const pideAbaco = urB
-                ? await fetch(`${config.mockUrl}/api/onboarding/motai/check-abaco-requirement`, {
-                    method: 'POST',
-                    headers: { 'content-type': 'application/json', accept: 'application/json', 'user-agent': IPHONE_UA },
-                    body: JSON.stringify({ userRequestId: Number(urB) }),
-                    signal: AbortSignal.timeout(15_000),
-                }).then((x) => x.json()).then((j) => j?.code === 'MOTV1001').catch(() => false)
-                : false;
+            const pideAbaco = await abacoRequired(urB);
             if (pideAbaco) {
                 log('B: este lender pide ÁBACO (renting) → NO salteo el ADO; el paso está ANTES.');
                 log('B: dale "Continuar" en confirmation y el wizard te lleva a /abaco (plataformas gig).');
