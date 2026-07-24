@@ -24,6 +24,8 @@ export const CONSUMER_META: Record<Consumer, { label: string; color: string }> =
 // Extensión que cuelga el PDF mapper (mapeo de plantillas → PDF).
 export interface PdfMapperExt {
   defaultValue?: string // valor de ejemplo para la vista previa
+  // Geometría de celdas para type=table: PROPIA del PDF, no va en el core.
+  cells?: { row: number; col: number; value: string; x: number; y: number; w: number }[]
 }
 
 // Extensión que cuelga el form dinámico (backend-driven-form).
@@ -32,13 +34,16 @@ export interface DynamicFormExt {
   dataSource?: string // ej: country_tree
   relatedFieldId?: string // cascada: departamento → ciudad
   validation?: string // ej: email, min:0
+  rowsEditable?: boolean // type=table: el usuario agrega/quita filas
 }
 
 export interface FieldEntry {
   id: string
   type: FieldType
   label: string
-  options?: string[] // para checkbox
+  options?: string[] // opciones para checkbox/multiselect (core, compartido)
+  multiple?: boolean // options-based: permite selección múltiple (= "multiselect")
+  columns?: string[] // type=table: columnas (estructura compartida; la geometría va por consumidor)
   status: 'active' | 'deprecated'
   createdAt: string
   deprecatedReason?: string
@@ -92,6 +97,29 @@ const SEED: FieldEntry[] = [
     consumers: {
       pdfMapper: { defaultValue: 'accepted' },
       dynamicForm: { required: true },
+    },
+  },
+  {
+    id: 'attachments', type: 'checkbox', label: 'Anexos', multiple: true,
+    options: ['document_copy', 'income_tax_return', 'income_certificate', 'income_record'],
+    status: 'active', createdAt: '2026-03-01',
+    consumers: {
+      // multiselect: options en el core; cada consumidor lo pinta a su modo.
+      pdfMapper: { defaultValue: 'document_copy' },
+      dynamicForm: { required: false },
+    },
+  },
+  {
+    id: 'payment_plan', type: 'table', label: 'Plan de pagos',
+    columns: ['plazo', 'saldo_inicial', 'capital', 'interes', 'cuota', 'saldo_final'],
+    status: 'active', createdAt: '2026-03-05',
+    consumers: {
+      // core = columnas; la geometría de celdas es SOLO del PDF; el form maneja filas.
+      pdfMapper: { cells: [
+        { row: 1, col: 1, value: '1', x: 0.035, y: 0.578, w: 0.06 },
+        { row: 1, col: 2, value: '$11.999.664', x: 0.10, y: 0.578, w: 0.14 },
+      ] },
+      dynamicForm: { rowsEditable: true },
     },
   },
   {

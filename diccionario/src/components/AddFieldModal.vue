@@ -10,6 +10,8 @@ const id = ref('')
 const type = ref<FieldType>('text')
 const label = ref('')
 const optionsText = ref('')
+const multiple = ref(false)
+const columnsText = ref('')
 const pdfDefault = ref('')
 const formRequired = ref(false)
 const formValidation = ref('')
@@ -29,6 +31,10 @@ const save = () => {
   }
   if (type.value === 'checkbox') {
     entry.options = optionsText.value.split('\n').map((s) => s.trim()).filter(Boolean)
+    entry.multiple = multiple.value || undefined
+  }
+  if (type.value === 'table') {
+    entry.columns = columnsText.value.split('\n').map((s) => s.trim()).filter(Boolean)
   }
   if (pdfDefault.value.trim()) entry.consumers.pdfMapper = { defaultValue: pdfDefault.value.trim() }
   if (formRequired.value || formValidation.value.trim()) {
@@ -71,7 +77,14 @@ const save = () => {
 
         <template v-if="type === 'checkbox'">
           <label>Opciones <span class="muted">(una por línea)</span></label>
-          <textarea v-model="optionsText" rows="3" class="mono" placeholder="accepted"></textarea>
+          <textarea v-model="optionsText" rows="3" class="mono" placeholder="document_copy&#10;income_certificate"></textarea>
+          <label class="row"><input type="checkbox" v-model="multiple" /> Permite selección múltiple (multiselect)</label>
+        </template>
+
+        <template v-if="type === 'table'">
+          <label>Columnas <span class="muted">(una por línea)</span></label>
+          <textarea v-model="columnsText" rows="4" class="mono" placeholder="plazo&#10;capital&#10;interes&#10;cuota"></textarea>
+          <p class="hint">La geometría de celdas (x, y, w) es una <strong>extensión del PDF Mapper</strong>, no va en el core.</p>
         </template>
 
         <div class="ext" :style="{ '--c': 'var(--pdf)' }">

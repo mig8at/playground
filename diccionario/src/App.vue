@@ -3,6 +3,7 @@ import { ref, computed } from 'vue'
 import { Search, Plus, RotateCcw, Archive, RefreshCw, BookMarked } from 'lucide-vue-next'
 import { useDictionary, CONSUMERS, CONSUMER_META, type Consumer } from './dictionary'
 import AddFieldModal from './components/AddFieldModal.vue'
+import FieldPreview from './components/FieldPreview.vue'
 
 const dict = useDictionary()
 
@@ -30,6 +31,12 @@ const usedBy = (f: { consumers: Record<string, unknown> }) =>
   CONSUMERS.filter((c) => f.consumers[c])
 
 const select = (id: string) => { selectedId.value = id; deprecating.value = false; reason.value = '' }
+
+const fmtVal = (v: unknown): string => {
+  if (Array.isArray(v)) return `${v.length} celda${v.length === 1 ? '' : 's'}`
+  if (typeof v === 'boolean') return v ? 'sí' : 'no'
+  return String(v)
+}
 
 const doDeprecate = () => {
   if (!selected.value) return
@@ -109,7 +116,11 @@ const doDeprecate = () => {
           </div>
 
           <p class="det-label">{{ selected.label }}</p>
-          <p v-if="selected.options?.length" class="det-meta">opciones: <code>{{ selected.options.join(', ') }}</code></p>
+          <p v-if="selected.options?.length" class="det-meta">
+            opciones: <code>{{ selected.options.join(', ') }}</code>
+            <span class="tag">{{ selected.multiple ? 'selección múltiple' : 'selección única' }}</span>
+          </p>
+          <p v-if="selected.columns?.length" class="det-meta">columnas: <code>{{ selected.columns.join(', ') }}</code></p>
           <p class="det-meta">creado: {{ selected.createdAt }}</p>
           <p v-if="selected.deprecatedReason" class="det-dep">⚠ {{ selected.deprecatedReason }}</p>
 
@@ -123,13 +134,16 @@ const doDeprecate = () => {
             <p class="note">No se borra: sigue resolviendo type/label para documentos que ya lo usan.</p>
           </div>
 
+          <h3>Vista previa</h3>
+          <FieldPreview :field="selected" />
+
           <h3>Extensiones por consumidor</h3>
           <div class="consumers">
             <div v-for="c in CONSUMERS" :key="c" class="cons" :class="{ off: !selected.consumers[c] }" :style="{ '--c': CONSUMER_META[c].color }">
               <span class="cons-title">{{ CONSUMER_META[c].label }}</span>
               <template v-if="selected.consumers[c]">
                 <div v-for="(v, k) in selected.consumers[c]" :key="k" class="kv">
-                  <span class="k">{{ k }}</span><span class="v mono">{{ v }}</span>
+                  <span class="k">{{ k }}</span><span class="v mono">{{ fmtVal(v) }}</span>
                 </div>
               </template>
               <span v-else class="cons-off">no lo usa</span>
@@ -186,6 +200,7 @@ header { display: flex; align-items: flex-start; justify-content: space-between;
 .det-label { font-size: 14px; color: var(--text); margin: 12px 0 2px; }
 .det-meta { font-size: 12px; color: var(--text2); margin: 2px 0; }
 .det-meta code, .kv .v { color: var(--text); }
+.tag { margin-left: 8px; font-size: 10px; text-transform: uppercase; letter-spacing: .04em; color: var(--text3); border: 1px solid var(--border); border-radius: 4px; padding: 1px 6px; }
 .det-dep { font-size: 12px; color: var(--warn); margin: 8px 0 0; }
 .dep-box { border: 1px solid var(--warn); border-radius: 8px; padding: 12px; margin: 14px 0; display: flex; flex-direction: column; gap: 6px; }
 .dep-box label { font-size: 11px; text-transform: uppercase; color: var(--text3); }
