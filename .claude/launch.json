@@ -51,6 +51,16 @@
       "cwd": "${workspaceFolder}/tablero",
       "port": 5191,
       "autoPort": false
+    },
+    {
+      "name": "diccionario",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "run",
+        "dev"
+      ],
+      "cwd": "diccionario",
+      "port": 5194
     }
   ]
 }
