@@ -51,12 +51,25 @@ export async function closeCreditopX(uReqID: number, opts: { lender?: string } =
     const log = (m: string) => { trace.push(m); console.log(`      · ${m}`); };
     assertWriteAllowed();
 
-    const lq = opts.lender || 'credipullman';
-    const lender = await one<{ id: number; rt: number }>(
-        'SELECT id, response_type AS rt FROM lenders WHERE status=1 AND (CAST(id AS CHAR)=? OR name LIKE ?) ORDER BY id LIMIT 1',
-        [lq, '%' + lq + '%'],
-    );
-    if (!lender?.id) { log(`no resolví el lender ${JSON.stringify(lq)}`); return { trace, statusId: null, sealed11: false }; }
+    // El lender NO se hardcodea. Si lo pasan (modo `close` del sweep) se resuelve por id/nombre; si NO
+    // (safety-net del guiado, `{}`) se usa el que YA tiene el user_request — el que el usuario eligió en
+    // /lenders, leído de la BD. El default viejo (`credipullman`) pisaba el lender real de OTROS comercios
+    // (ej. Motai) con uno ajeno: corrompía el flujo y el análisis por producto (Ábaco lee lender.product).
+    const lender = opts.lender
+        ? await one<{ id: number; rt: number }>(
+            'SELECT id, response_type AS rt FROM lenders WHERE status=1 AND (CAST(id AS CHAR)=? OR name LIKE ?) ORDER BY id LIMIT 1',
+            [opts.lender, '%' + opts.lender + '%'],
+        )
+        : await one<{ id: number; rt: number }>(
+            'SELECT l.id, l.response_type AS rt FROM user_requests ur JOIN lenders l ON l.id = ur.lender_id WHERE ur.id = ?',
+            [uReqID],
+        );
+    if (!lender?.id) {
+        log(opts.lender
+            ? `no resolví el lender ${JSON.stringify(opts.lender)}`
+            : `el user_request ${uReqID} no tiene lender_id — no hardcodeo un default, no cierro`);
+        return { trace, statusId: null, sealed11: false };
+    }
     const lenderId = lender.id;
     // El cierre in-platform (pagaré→firma→authorize→Estado 11) es EXCLUSIVO de Creditop X (rt=2). Para rt=0
     // (estándar/UTM) y rt=1 (integración: la API externa del lender decide), el resultado NO se sella acá:

@@ -1017,10 +1017,47 @@ test('guided (semiautomático)', async ({ browser }) => {
         await B.goto(`${selfServiceBase}/confirmation`, { waitUntil: 'domcontentloaded', timeout: 60_000 }).catch(() => {});
         await B.waitForTimeout(STEP_LINGER).catch(() => {});
         await shot(B, 'B-confirmation');
+        // ¿El producto elegido pide ÁBACO? Se decide por PRODUCTO (des-motaización): el uReq llega a
+        // confirmación con el lender del producto en user_requests.lender_id (verificado: renting/rto →
+        // lender del producto), y check-abaco-requirement lo lee. Antes el guiado saltaba SIEMPRE a
+        // first-payment y se comía el paso de Ábaco; ahora, si lo pide, clickeamos "Continuar" para
+        // disparar el redirect real a /abaco (loan-confirmation.tsx action → check-abaco REQUIRED → /abaco).
+        const diagAbaco = await one<{ lender_id: number | null; product: string | null }>(
+            'SELECT ur.lender_id, l.product FROM user_requests ur LEFT JOIN lenders l ON l.id = ur.lender_id WHERE ur.id = ?',
+            [Number(uReqID)],
+        ).catch(() => null);
+        const pideAbacoB = await abacoRequired(String(uReqID));
+        log(`  Ábaco: uReq ${uReqID} lender_id=${diagAbaco?.lender_id ?? 'NULL'} product=${diagAbaco?.product ?? 'NULL'} → ${pideAbacoB ? 'REQUERIDO' : 'no'}`);
         if (RESULT === 'success') {  // success = journey real (firma → loan-approved); rejected/pending = resultado directo (else, abajo)
-        // identidad (ADO, por foto) NO automatizable → el sistema la da por validada y B llega al plan de cuotas.
-        await B.goto(`${selfServiceBase}/first-payment-date`, { waitUntil: 'domcontentloaded', timeout: 60_000 }).catch(() => {});
-        await B.waitForURL(/first-payment-date|payment-schedule/, { timeout: 20_000 }).catch(() => {});
+        if (pideAbacoB) {
+            // RENTING/RTO: NO saltear. "Continuar" dispara el redirect real a /abaco, y desde ahí AUTO-MANEJAMOS
+            // las pantallas gig (ingresos por apps). El mock-abaco aprueba con CUALQUIER credencial/OTP: /login
+            // basta con `success` y /results devuelve el fixture (AbacoFixture) en local — así que credencial y
+            // código son de relleno. Antes el guiado se comía este paso saltando directo a first-payment.
+            log('B (celular): pide ÁBACO (renting/rto) → "Continuar" → /abaco → auto-manejo las plataformas gig.');
+            await B.getByRole('button', { name: /continuar|continúa|confirmar/i }).first().click({ timeout: 12_000 }).catch(() => {});
+            await B.waitForURL(/\/abaco/, { timeout: 30_000 }).catch(() => {});
+            await B.waitForURL(/\/abaco\/platforms/, { timeout: 20_000 }).catch(() => {}); // /abaco redirige a /platforms
+            await shot(B, 'B-abaco-platforms');
+            // 1) plataforma (uber, presente en abaco_config) → 2) credencial (el mock no la valida)
+            await B.getByRole('button', { name: /uber/i }).first().click({ timeout: 12_000 }).catch(() => {});
+            await B.getByPlaceholder(/3176580381|creditop\.com/i).first().fill('3176580381', { timeout: 8_000 }).catch(() => {});
+            // 3) Guardar (pide el OTP al mock) → 4) Continuar (→ pantalla de OTP)
+            await B.getByRole('button', { name: /^\s*guardar\s*$/i }).click({ timeout: 12_000 }).catch(() => {});
+            await B.getByRole('button', { name: /^\s*continuar\s*$/i }).click({ timeout: 15_000 }).catch(() => {});
+            await B.waitForURL(/platform-otp-validation/, { timeout: 20_000 }).catch(() => {});
+            await shot(B, 'B-abaco-otp');
+            // 5) OTP: el mock no valida el código; 6 ceros (InputOTP trunca a su maxLength: 4 uber / 6 otras) → verificar
+            await B.locator('input').first().click({ timeout: 8_000 }).catch(() => {});
+            await B.keyboard.type('000000', { delay: 80 }).catch(() => {});
+            await B.getByRole('button', { name: /verificar|validar|continuar/i }).first().click({ timeout: 12_000 }).catch(() => {});
+            log('B (celular): Ábaco auto-manejado (plataforma gig + OTP mock) → sigo a plazos.');
+            tip('En B: si Ábaco quedó trabado en alguna pantalla, completá plataforma/OTP a mano — el mock aprueba cualquiera.');
+        } else {
+            // identidad (ADO, por foto) NO automatizable → el sistema la da por validada y B llega al plan de cuotas.
+            await B.goto(`${selfServiceBase}/first-payment-date`, { waitUntil: 'domcontentloaded', timeout: 60_000 }).catch(() => {});
+        }
+        await B.waitForURL(/first-payment-date|payment-schedule/, { timeout: PICK_TIMEOUT }).catch(() => {});
 
         // B-plazos: INTERACTIVO — vos dale "Continuar" en B (celular).
         await B.getByText(/fecha de pago|primera cuota|primer pago|plazo/i).first().waitFor({ state: 'visible', timeout: 10_000 }).catch(() => {});
