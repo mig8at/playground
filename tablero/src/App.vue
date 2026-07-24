@@ -310,7 +310,7 @@ onMounted(async () => {
           </button>
         </div>
         <span v-if="sprintDays?.state === 'upcoming'" class="chip">arranca en {{ sprintDays.startsIn }} día{{ sprintDays.startsIn === 1 ? '' : 's' }}</span>
-        <span v-else-if="sprintDays?.state === 'closed'" class="chip warn">cerrado hace {{ sprintDays.endedAgo }} días</span>
+        <span v-else-if="sprintDays?.state === 'closed'" class="chip warn">cerrado hace {{ sprintDays.endedAgo }} día{{ sprintDays.endedAgo === 1 ? '' : 's' }}</span>
         <span v-else-if="sprintDays?.state === 'ongoing'" class="chip">{{ sprintDays.remaining }} días restantes</span>
       </div>
       <div class="settings" :class="{ pushed: !sprint }">
@@ -485,13 +485,13 @@ onMounted(async () => {
 
 <style scoped>
 .wrap { max-width: 1180px; margin: 0 auto; padding: 26px 22px 60px }
-header { display: flex; align-items: center; gap: 14px; margin-bottom: 20px }
+header { display: flex; align-items: center; gap: 14px; margin-bottom: 22px; flex-wrap: wrap; row-gap: 10px }
 .logo { width: 38px; height: 38px; border-radius: 11px; display: grid; place-items: center; font-weight: 800;
   color: #0b0713; font-size: 19px; background: linear-gradient(135deg, #a78bfa, #60a5fa) }
 h1 { font-size: 20px; margin: 0; letter-spacing: .2px }
 .sub { color: var(--mut); font-size: 13px; margin: 2px 0 0 }
 .sp { margin-left: auto; display: flex; align-items: center; gap: 10px; font-size: 13px }
-.chip { padding: 4px 11px; border-radius: 999px; border: 1px solid var(--line); color: var(--mut); font-size: 12px }
+.chip { padding: 4px 11px; border-radius: 999px; border: 1px solid var(--line); color: var(--mut); font-size: 12px; white-space: nowrap }
 .chip.warn { color: var(--warn); border-color: #4a3a16; background: #241a08 }
 
 /* engranaje de ajustes: los checks de campos de la empresa. `pushed` lo empuja a la derecha cuando no
@@ -512,7 +512,8 @@ h1 { font-size: 20px; margin: 0; letter-spacing: .2px }
 .pop .hint { margin: 9px 0 0; padding-top: 9px; border-top: 1px solid var(--line); font-size: 11px; color: var(--mut); line-height: 1.45 }
 
 .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; margin-bottom: 16px }
-.stat { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 15px 16px }
+.stat { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 15px 16px;
+  box-shadow: 0 1px 2px #00000040, 0 6px 16px #0000001f }
 .stat .k { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; color: var(--mut) }
 .stat .v { font-size: 27px; font-weight: 800; margin: 6px 0 2px; letter-spacing: -.5px; font-variant-numeric: tabular-nums }
 .stat .s { font-size: 11.5px; color: var(--mut) }
@@ -521,7 +522,8 @@ h1 { font-size: 20px; margin: 0; letter-spacing: .2px }
 
 .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; align-items: start }
 @media (max-width: 940px) { .cols { grid-template-columns: 1fr } }
-.card { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 18px; margin-bottom: 16px }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 18px; margin-bottom: 16px;
+  box-shadow: 0 1px 2px #00000040, 0 6px 16px #0000001f }
 .card h2 { font-size: 12px; text-transform: uppercase; letter-spacing: .8px; color: var(--mut); margin: 0 0 14px; font-weight: 700 }
 .card h2 .on { color: var(--acc); margin-left: 6px }
 .card h2 .mut { color: var(--mut); font-weight: 400; text-transform: none; letter-spacing: 0 }

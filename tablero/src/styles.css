@@ -21,6 +21,8 @@
 body {
   margin: 0;
   background: var(--bg);
+  background-image: radial-gradient(1100px 520px at 50% -8%, #1b1f2b 0%, transparent 62%);
+  background-attachment: fixed;
   color: var(--txt);
   font: 15px/1.5 -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
   -webkit-font-smoothing: antialiased;
