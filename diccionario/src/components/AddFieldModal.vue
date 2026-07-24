@@ -10,11 +10,7 @@ const id = ref('')
 const type = ref<FieldType>('text')
 const label = ref('')
 const optionsText = ref('')
-const multiple = ref(false)
-const columnsText = ref('')
-const pdfDefault = ref('')
-const formRequired = ref(false)
-const formValidation = ref('')
+const defaultValue = ref('')
 const error = ref('')
 
 const idOk = computed(() => /^[a-z][a-z0-9_]*$/.test(id.value.trim()))
@@ -27,21 +23,12 @@ const save = () => {
     label: label.value.trim(),
     status: 'active',
     createdAt: '',
-    consumers: {},
   }
   if (type.value === 'checkbox') {
     entry.options = optionsText.value.split('\n').map((s) => s.trim()).filter(Boolean)
-    entry.multiple = multiple.value || undefined
   }
-  if (type.value === 'table') {
-    entry.columns = columnsText.value.split('\n').map((s) => s.trim()).filter(Boolean)
-  }
-  if (pdfDefault.value.trim()) entry.consumers.pdfMapper = { defaultValue: pdfDefault.value.trim() }
-  if (formRequired.value || formValidation.value.trim()) {
-    entry.consumers.dynamicForm = {
-      required: formRequired.value || undefined,
-      validation: formValidation.value.trim() || undefined,
-    }
+  if (type.value !== 'table' && defaultValue.value.trim()) {
+    entry.defaultValue = defaultValue.value.trim()
   }
   const res = dict.addField(entry)
   if (!res.ok) { error.value = res.error || 'No se pudo agregar'; return }
@@ -69,8 +56,6 @@ const save = () => {
         <label>Tipo</label>
         <select v-model="type">
           <option value="text">text</option>
-          <option value="number">number</option>
-          <option value="date">date</option>
           <option value="checkbox">checkbox</option>
           <option value="table">table</option>
         </select>
@@ -78,27 +63,17 @@ const save = () => {
         <template v-if="type === 'checkbox'">
           <label>Opciones <span class="muted">(una por línea)</span></label>
           <textarea v-model="optionsText" rows="3" class="mono" placeholder="document_copy&#10;income_certificate"></textarea>
-          <label class="row"><input type="checkbox" v-model="multiple" /> Permite selección múltiple (multiselect)</label>
+          <p class="hint">Una sola opción = casilla de consentimiento; varias = selección única.</p>
         </template>
 
         <template v-if="type === 'table'">
-          <label>Columnas <span class="muted">(una por línea)</span></label>
-          <textarea v-model="columnsText" rows="4" class="mono" placeholder="plazo&#10;capital&#10;interes&#10;cuota"></textarea>
-          <p class="hint">La geometría de celdas (x, y, w) es una <strong>extensión del PDF Mapper</strong>, no va en el core.</p>
+          <p class="hint">Las celdas de una tabla (fila/columna + posición x, y, w) se mapean sobre la plantilla en el <strong>PDF Mapper</strong>, no acá.</p>
         </template>
 
-        <div class="ext" :style="{ '--c': 'var(--pdf)' }">
-          <span class="ext-title">PDF Mapper</span>
-          <label>Valor de ejemplo (preview)</label>
-          <input v-model="pdfDefault" placeholder="JUAN" />
-        </div>
-
-        <div class="ext" :style="{ '--c': 'var(--form)' }">
-          <span class="ext-title">Form dinámico</span>
-          <label class="row"><input type="checkbox" v-model="formRequired" /> Requerido</label>
-          <label>Validación</label>
-          <input v-model="formValidation" placeholder="email · min:0 · …" />
-        </div>
+        <template v-else>
+          <label>Valor de ejemplo <span class="muted">(preview)</span></label>
+          <input v-model="defaultValue" placeholder="JUAN" />
+        </template>
 
         <p v-if="error" class="err">{{ error }}</p>
       </div>
@@ -120,10 +95,6 @@ const save = () => {
 .body input, .body select, .body textarea { width: 100%; }
 .hint { margin: 0 0 6px; font-size: 12px; color: var(--text2); }
 .muted { color: var(--text3); text-transform: none; letter-spacing: 0; }
-.ext { border: 1px solid var(--border); border-left: 3px solid var(--c); border-radius: 8px; padding: 8px 10px 12px; margin-top: 12px; display: flex; flex-direction: column; gap: 6px; }
-.ext-title { font-size: 11px; font-weight: 700; color: var(--c); }
-.row { display: flex; flex-direction: row !important; align-items: center; gap: 6px; text-transform: none !important; letter-spacing: 0 !important; color: var(--text2) !important; font-size: 13px !important; }
-.row input { width: auto; }
 .err { color: var(--danger); font-size: 12px; margin: 8px 0 0; }
 .foot { display: flex; justify-content: flex-end; gap: 8px; padding: 12px 16px; border-top: 1px solid var(--border); }
 </style>

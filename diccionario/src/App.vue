@@ -1,14 +1,16 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { Search, Plus, RotateCcw, Archive, RefreshCw, BookMarked } from 'lucide-vue-next'
-import { useDictionary, CONSUMERS, CONSUMER_META, type Consumer } from './dictionary'
+import { useDictionary, CATALOG_META, type FieldType } from './dictionary'
 import AddFieldModal from './components/AddFieldModal.vue'
 import FieldPreview from './components/FieldPreview.vue'
 
 const dict = useDictionary()
 
+const TYPES: FieldType[] = ['text', 'checkbox', 'table']
+
 const search = ref('')
-const filterConsumer = ref<'all' | Consumer>('all')
+const filterType = ref<'all' | FieldType>('all')
 const showDeprecated = ref(true)
 const selectedId = ref<string | null>(null)
 const showAdd = ref(false)
@@ -19,7 +21,7 @@ const filtered = computed(() => {
   const q = search.value.toLowerCase().trim()
   return dict.fields.value.filter((f) => {
     if (!showDeprecated.value && f.status === 'deprecated') return false
-    if (filterConsumer.value !== 'all' && !f.consumers[filterConsumer.value]) return false
+    if (filterType.value !== 'all' && f.type !== filterType.value) return false
     if (q && !f.id.toLowerCase().includes(q) && !f.label.toLowerCase().includes(q)) return false
     return true
   })
@@ -27,16 +29,7 @@ const filtered = computed(() => {
 
 const selected = computed(() => (selectedId.value ? dict.byId(selectedId.value) : null))
 
-const usedBy = (f: { consumers: Record<string, unknown> }) =>
-  CONSUMERS.filter((c) => f.consumers[c])
-
 const select = (id: string) => { selectedId.value = id; deprecating.value = false; reason.value = '' }
-
-const fmtVal = (v: unknown): string => {
-  if (Array.isArray(v)) return `${v.length} celda${v.length === 1 ? '' : 's'}`
-  if (typeof v === 'boolean') return v ? 'sí' : 'no'
-  return String(v)
-}
 
 const doDeprecate = () => {
   if (!selected.value) return
@@ -52,13 +45,14 @@ const doDeprecate = () => {
       <div class="title">
         <BookMarked :size="18" />
         <div>
-          <h1>Diccionario global de campos</h1>
-          <p>Un solo diccionario de ids · <strong>core común</strong> + extensiones por consumidor · <strong>append-only</strong> (agregar y deprecar, nunca editar ni borrar).</p>
+          <h1>Diccionario de campos · PDF Mapper</h1>
+          <p>El catálogo real del PDF Mapper como <strong>diccionario canónico</strong> de ids · <strong>append-only</strong> (agregar y deprecar, nunca editar ni borrar: el mismo id lo leen las plantillas ya mapeadas).</p>
         </div>
       </div>
       <div class="counts">
         <span class="pill ok">{{ dict.activeCount.value }} activos</span>
         <span class="pill warn">{{ dict.deprecatedCount.value }} obsoletos</span>
+        <span class="pill mut">catálogo v{{ CATALOG_META.seededVersion }} · {{ CATALOG_META.updatedAt }}</span>
       </div>
     </header>
 
@@ -67,30 +61,28 @@ const doDeprecate = () => {
         <Search :size="14" />
         <input v-model="search" placeholder="Buscar por id o etiqueta…" />
       </div>
-      <select v-model="filterConsumer">
-        <option value="all">Todos los consumidores</option>
-        <option v-for="c in CONSUMERS" :key="c" :value="c">Usado por {{ CONSUMER_META[c].label }}</option>
+      <select v-model="filterType">
+        <option value="all">Todos los tipos</option>
+        <option v-for="t in TYPES" :key="t" :value="t">{{ t }}</option>
       </select>
       <label class="chk"><input type="checkbox" v-model="showDeprecated" /> ver obsoletos</label>
       <div class="spacer"></div>
-      <button class="btn btn-ghost" title="Restaurar semilla" @click="dict.resetSeed(); selectedId = null"><RotateCcw :size="14" /></button>
+      <button class="btn btn-ghost" title="Restaurar catálogo real" @click="dict.resetSeed(); selectedId = null"><RotateCcw :size="14" /></button>
       <button class="btn btn-primary" @click="showAdd = true"><Plus :size="15" /> Nuevo campo</button>
     </div>
 
     <div class="main">
       <!-- Lista -->
       <div class="list">
+        <div class="list-count">{{ filtered.length }} de {{ dict.fields.value.length }} campos</div>
         <div v-if="filtered.length === 0" class="empty">Sin resultados.</div>
         <button v-for="f in filtered" :key="f.id" class="row" :class="{ sel: f.id === selectedId, dep: f.status === 'deprecated' }" @click="select(f.id)">
           <div class="row-main">
             <span class="mono id">{{ f.id }}</span>
-            <span class="type">{{ f.type }}</span>
+            <span class="type" :class="f.type">{{ f.type }}</span>
           </div>
           <div class="row-sub">
             <span class="label">{{ f.label }}</span>
-            <span class="dots">
-              <span v-for="c in usedBy(f)" :key="c" class="dot" :style="{ background: CONSUMER_META[c].color }" :title="CONSUMER_META[c].label"></span>
-            </span>
           </div>
           <span v-if="f.status === 'deprecated'" class="dep-badge">obsoleto</span>
         </button>
@@ -100,13 +92,13 @@ const doDeprecate = () => {
       <div class="detail">
         <div v-if="!selected" class="empty det-empty">
           <BookMarked :size="28" :stroke-width="1.4" />
-          <p>Elegí un campo para ver su definición y qué consumidor lo usa.</p>
+          <p>Elegí un campo para ver su definición y su vista previa.</p>
         </div>
         <template v-else>
           <div class="det-head">
             <div>
               <span class="mono id big">{{ selected.id }}</span>
-              <span class="type">{{ selected.type }}</span>
+              <span class="type" :class="selected.type">{{ selected.type }}</span>
               <span v-if="selected.status === 'deprecated'" class="dep-badge">obsoleto</span>
             </div>
             <div class="det-actions">
@@ -118,9 +110,9 @@ const doDeprecate = () => {
           <p class="det-label">{{ selected.label }}</p>
           <p v-if="selected.options?.length" class="det-meta">
             opciones: <code>{{ selected.options.join(', ') }}</code>
-            <span class="tag">{{ selected.multiple ? 'selección múltiple' : 'selección única' }}</span>
           </p>
-          <p v-if="selected.columns?.length" class="det-meta">columnas: <code>{{ selected.columns.join(', ') }}</code></p>
+          <p v-if="selected.defaultValue" class="det-meta">valor de ejemplo: <code>{{ selected.defaultValue }}</code></p>
+          <p v-if="selected.cells?.length" class="det-meta">{{ selected.cells.length }} celdas mapeadas</p>
           <p class="det-meta">creado: {{ selected.createdAt }}</p>
           <p v-if="selected.deprecatedReason" class="det-dep">⚠ {{ selected.deprecatedReason }}</p>
 
@@ -131,24 +123,11 @@ const doDeprecate = () => {
               <button class="btn btn-ghost" @click="deprecating = false">Cancelar</button>
               <button class="btn btn-primary" @click="doDeprecate">Deprecar</button>
             </div>
-            <p class="note">No se borra: sigue resolviendo type/label para documentos que ya lo usan.</p>
+            <p class="note">No se borra: sigue resolviendo type/label para las plantillas que ya lo mapean.</p>
           </div>
 
           <h3>Vista previa</h3>
           <FieldPreview :field="selected" />
-
-          <h3>Extensiones por consumidor</h3>
-          <div class="consumers">
-            <div v-for="c in CONSUMERS" :key="c" class="cons" :class="{ off: !selected.consumers[c] }" :style="{ '--c': CONSUMER_META[c].color }">
-              <span class="cons-title">{{ CONSUMER_META[c].label }}</span>
-              <template v-if="selected.consumers[c]">
-                <div v-for="(v, k) in selected.consumers[c]" :key="k" class="kv">
-                  <span class="k">{{ k }}</span><span class="v mono">{{ fmtVal(v) }}</span>
-                </div>
-              </template>
-              <span v-else class="cons-off">no lo usa</span>
-            </div>
-          </div>
         </template>
       </div>
     </div>
@@ -159,14 +138,14 @@ const doDeprecate = () => {
 
 <style scoped>
 .app { height: 100%; display: flex; flex-direction: column; max-width: 1100px; margin: 0 auto; }
-header { display: flex; align-items: flex-start; justify-content: space-between; padding: 20px 24px 14px; }
+header { display: flex; align-items: flex-start; justify-content: space-between; padding: 20px 24px 14px; gap: 16px; }
 .title { display: flex; gap: 12px; color: var(--accent); }
 .title h1 { font-size: 17px; margin: 0; color: var(--text); }
 .title p { margin: 4px 0 0; font-size: 12.5px; color: var(--text2); max-width: 640px; line-height: 1.5; }
 .title strong { color: var(--text); font-weight: 600; }
-.counts { display: flex; gap: 6px; }
-.pill { font-size: 11px; padding: 3px 9px; border-radius: 999px; border: 1px solid var(--border); }
-.pill.ok { color: var(--ok); } .pill.warn { color: var(--warn); }
+.counts { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+.pill { font-size: 11px; padding: 3px 9px; border-radius: 999px; border: 1px solid var(--border); white-space: nowrap; }
+.pill.ok { color: var(--ok); } .pill.warn { color: var(--warn); } .pill.mut { color: var(--text3); }
 
 .toolbar { display: flex; align-items: center; gap: 10px; padding: 0 24px 14px; }
 .srch { position: relative; flex: 0 0 280px; color: var(--text3); }
@@ -177,6 +156,7 @@ header { display: flex; align-items: flex-start; justify-content: space-between;
 
 .main { flex: 1; display: grid; grid-template-columns: 380px 1fr; gap: 16px; padding: 0 24px 24px; overflow: hidden; }
 .list { overflow-y: auto; display: flex; flex-direction: column; gap: 6px; padding-right: 4px; }
+.list-count { font-size: 11px; color: var(--text3); padding: 2px 2px 4px; position: sticky; top: 0; }
 .row { text-align: left; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 9px 11px; position: relative; color: var(--text); }
 .row:hover { border-color: var(--border2); }
 .row.sel { border-color: var(--accent); background: var(--surface2); }
@@ -185,10 +165,10 @@ header { display: flex; align-items: flex-start; justify-content: space-between;
 .id { font-size: 12.5px; font-weight: 600; }
 .id.big { font-size: 14px; }
 .type { font-size: 10px; text-transform: uppercase; letter-spacing: .05em; color: var(--text3); border: 1px solid var(--border); border-radius: 4px; padding: 1px 5px; }
+.type.checkbox { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 45%, var(--border)); }
+.type.table { color: var(--ok); border-color: color-mix(in srgb, var(--ok) 45%, var(--border)); }
 .row-sub { display: flex; align-items: center; justify-content: space-between; margin-top: 3px; }
 .label { font-size: 11.5px; color: var(--text2); }
-.dots { display: flex; gap: 4px; }
-.dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
 .dep-badge { font-size: 9.5px; text-transform: uppercase; letter-spacing: .05em; color: var(--warn); border: 1px solid var(--warn); border-radius: 4px; padding: 1px 5px; }
 .row .dep-badge { position: absolute; top: 9px; right: 10px; }
 
@@ -199,20 +179,11 @@ header { display: flex; align-items: flex-start; justify-content: space-between;
 .det-head > div:first-child { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .det-label { font-size: 14px; color: var(--text); margin: 12px 0 2px; }
 .det-meta { font-size: 12px; color: var(--text2); margin: 2px 0; }
-.det-meta code, .kv .v { color: var(--text); }
-.tag { margin-left: 8px; font-size: 10px; text-transform: uppercase; letter-spacing: .04em; color: var(--text3); border: 1px solid var(--border); border-radius: 4px; padding: 1px 6px; }
+.det-meta code { color: var(--text); }
 .det-dep { font-size: 12px; color: var(--warn); margin: 8px 0 0; }
 .dep-box { border: 1px solid var(--warn); border-radius: 8px; padding: 12px; margin: 14px 0; display: flex; flex-direction: column; gap: 6px; }
 .dep-box label { font-size: 11px; text-transform: uppercase; color: var(--text3); }
 .dep-box-actions { display: flex; justify-content: flex-end; gap: 8px; }
 .note { font-size: 11px; color: var(--text3); margin: 2px 0 0; }
 h3 { font-size: 11px; text-transform: uppercase; letter-spacing: .05em; color: var(--text3); margin: 22px 0 10px; }
-.consumers { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-.cons { border: 1px solid var(--border); border-left: 3px solid var(--c); border-radius: 8px; padding: 10px 12px; }
-.cons.off { opacity: .5; border-left-color: var(--border); }
-.cons-title { font-size: 12px; font-weight: 700; color: var(--c); }
-.cons.off .cons-title { color: var(--text3); }
-.kv { display: flex; justify-content: space-between; gap: 10px; margin-top: 7px; font-size: 12px; }
-.kv .k { color: var(--text3); }
-.cons-off { display: block; margin-top: 8px; font-size: 12px; color: var(--text3); font-style: italic; }
 </style>

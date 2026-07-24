@@ -4,33 +4,35 @@ import type { FieldEntry } from '../dictionary'
 
 const props = defineProps<{ field: FieldEntry }>()
 
-// Valor de muestra: se toma del ejemplo curado del PDF Mapper.
-const sample = computed(() => props.field.consumers.pdfMapper?.defaultValue || '')
-const isMulti = computed(() => !!props.field.multiple)
+const sample = computed(() => props.field.defaultValue || '')
 // Un checkbox de una sola opción = una casilla de consentimiento.
 const isConsent = computed(
-  () => props.field.type === 'checkbox' && (props.field.options?.length ?? 0) === 1 && !props.field.multiple,
+  () => props.field.type === 'checkbox' && (props.field.options?.length ?? 0) === 1,
 )
 
-// Para la tabla: valores de muestra de la fila 1, por columna (desde cells del PDF).
-const tableRow = computed(() => {
+// Tabla: columnas por posición (col 1..N) derivadas de las celdas, y las
+// dos primeras filas de muestra. El catálogo real no trae nombres de columna.
+const cols = computed(() => {
+  const set = new Set((props.field.cells || []).map((c) => c.col))
+  return [...set].sort((a, b) => a - b)
+})
+const rowVals = (row: number) => {
   const map: Record<number, string> = {}
-  ;(props.field.consumers.pdfMapper?.cells || [])
-    .filter((c) => c.row === 1)
-    .forEach((c) => { map[c.col] = c.value })
+  ;(props.field.cells || []).filter((c) => c.row === row).forEach((c) => { map[c.col] = c.value })
   return map
+}
+const rows = computed(() => {
+  const set = new Set((props.field.cells || []).map((c) => c.row))
+  return [...set].sort((a, b) => a - b)
 })
 </script>
 
 <template>
   <div class="preview">
-    <!-- text / number / date -->
-    <template v-if="field.type === 'text' || field.type === 'number' || field.type === 'date'">
+    <!-- text -->
+    <template v-if="field.type === 'text'">
       <label class="fl">{{ field.label }}</label>
-      <input
-        class="ctrl"
-        :type="field.type === 'number' ? 'number' : field.type === 'date' ? 'date' : 'text'"
-        :value="sample" :placeholder="field.id" disabled />
+      <input class="ctrl" type="text" :value="sample" :placeholder="field.id" disabled />
     </template>
 
     <!-- checkbox de 1 opción = consentimiento -->
@@ -38,12 +40,12 @@ const tableRow = computed(() => {
       <label class="opt consent"><input type="checkbox" :checked="!!sample" disabled /> {{ field.label }}</label>
     </template>
 
-    <!-- checkbox / multiselect con varias opciones -->
+    <!-- checkbox con varias opciones = selección única (radio) -->
     <template v-else-if="field.type === 'checkbox'">
-      <label class="fl">{{ field.label }} <span class="mini">{{ isMulti ? 'multiselect' : 'selección única' }}</span></label>
+      <label class="fl">{{ field.label }} <span class="mini">selección única</span></label>
       <div class="opts">
         <label v-for="o in field.options" :key="o" class="opt">
-          <input :type="isMulti ? 'checkbox' : 'radio'" :checked="sample === o" disabled /> {{ o }}
+          <input type="radio" :checked="sample === o" disabled /> {{ o }}
         </label>
       </div>
     </template>
@@ -54,15 +56,15 @@ const tableRow = computed(() => {
       <div class="tbl-wrap">
         <table class="tbl">
           <thead>
-            <tr><th v-for="c in field.columns" :key="c">{{ c }}</th></tr>
+            <tr><th v-for="c in cols" :key="c">col {{ c }}</th></tr>
           </thead>
           <tbody>
-            <tr><td v-for="(c, i) in field.columns" :key="c">{{ tableRow[i + 1] || '—' }}</td></tr>
-            <tr class="ghost"><td v-for="c in field.columns" :key="c">…</td></tr>
+            <tr v-for="r in rows" :key="r"><td v-for="c in cols" :key="c">{{ rowVals(r)[c] ?? '—' }}</td></tr>
+            <tr class="ghost"><td v-for="c in cols" :key="c">…</td></tr>
           </tbody>
         </table>
       </div>
-      <p class="mini muted">columnas = core · geometría de celdas = extensión del PDF Mapper</p>
+      <p class="mini muted">{{ (field.cells || []).length }} celdas mapeadas · posición (x, y, w) normalizada 0–1 sobre la página</p>
     </template>
   </div>
 </template>

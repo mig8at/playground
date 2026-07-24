@@ -1,36 +1,44 @@
-# diccionario — prototipo de catálogo global de campos
+# diccionario — el catálogo del PDF Mapper como diccionario canónico
 
-Prototipo (Vue 3 + Vite) para explorar la idea de **un solo diccionario de ids de
-campos** compartido entre varias lógicas de CreditOp (hoy: el **PDF Mapper** y el
-**form dinámico** `backend-driven-form`; mañana, lo que venga).
+Prototipo (Vue 3 + Vite) que toma el **catálogo real del PDF Mapper**
+(`src/catalog.json`, el export literal del editor — dev == prod, `seededVersion 9`,
+128 campos) y lo trata como un **diccionario canónico de ids de campos**: ver,
+buscar, previsualizar y crecerlo bajo reglas seguras.
 
 No es producción ni pega contra ningún backend: es un espacio para ver y discutir
-la forma. El estado vive en memoria + `localStorage` (botón ↺ restaura la semilla).
+la forma sobre datos reales. El estado vive en memoria + `localStorage` (botón ↺
+restaura el catálogo real).
 
-## La idea que prototipa
+## Por qué "diccionario" y por qué contra el catálogo real
 
-Salió de la charla sobre "hacer seguro el catálogo del PDF Mapper". Tres decisiones
-que queremos ver funcionando:
+Aterrizado contra `context` (nodos `dynamic-forms` / `form-service` / `kyc`), el
+hallazgo es que **CreditOp no tiene un catálogo canónico de campos en código**: qué
+significa cada id vive solo en datos. El catálogo del PDF Mapper es el catálogo
+curado que sí tenemos, así que el prototipo arranca de ahí — datos que el equipo
+reconoce, no una semilla inventada.
 
-1. **Un solo diccionario (una fuente de verdad).** El mismo id (`city`,
-   `first_name`, `data_processing_consent`) es *el mismo campo* en todos lados.
-2. **Core común + extensiones por consumidor.** El **core** (`id`, `type`,
-   `label`, `options`) es lo compartible. Cada **consumidor** le cuelga su propia
-   metadata sin ensuciar el core ni al resto:
-   - *PDF Mapper* → `defaultValue` (valor de ejemplo para la preview).
-   - *Form dinámico* → `required`, `dataSource` (ej. `country_tree`),
-     `relatedFieldId` (cascada depto→ciudad), `validation`.
-   Así evitamos el "schema obeso" que no le sirve bien a nadie.
+## Las reglas que prototipa
+
+1. **Una fuente de verdad.** El mismo id (`first_name`, `city`,
+   `data_processing_consent`) es *el mismo campo*. `catalog.json` se pega tal cual
+   sale del editor; el adaptador de `dictionary.ts` lo normaliza.
+2. **La forma real del campo.** `{ id, type, label, options?, defaultValue }`:
+   - `text` / `checkbox` → `defaultValue` es el **valor de ejemplo** (preview).
+   - `checkbox` de **1 opción** = casilla de consentimiento; de **varias** =
+     selección única.
+   - `table` → `defaultValue` es el arreglo de **celdas** (fila/columna + posición
+     `x,y,w` normalizada 0–1 sobre la página); la preview arma la grilla.
 3. **Append-only (seguro por construcción).** Se **agrega** y se **depreca**
-   (reversible); **nunca** se edita in-place ni se borra. Si no podés mutar/eliminar
-   una definición, no podés romper los documentos/formularios que ya la usan.
-   Deprecar no destruye: el campo sigue resolviendo `type`/`label` para lo viejo,
-   pero deja de ofrecerse para lo nuevo.
+   (reversible); **nunca** se edita in-place ni se borra. No es capricho: el mismo
+   id lo leen las plantillas ya mapeadas, así que reusar/mutar una definición
+   cambiaría documentos viejos. Deprecar no destruye: sigue resolviendo
+   `type`/`label` para lo viejo, pero deja de ofrecerse para lo nuevo.
 
 ## Qué se ve
 
-- Lista del diccionario con búsqueda, filtro por consumidor y toggle de obsoletos.
-- Detalle de cada campo: core + una tarjeta por consumidor (su metadata o "no lo usa").
+- Lista del catálogo (128 campos) con búsqueda, filtro por tipo y toggle de obsoletos.
+- Detalle de cada campo: id, tipo, etiqueta, opciones, valor de ejemplo, celdas.
+- **Vista previa** del campo renderizado (input / casilla / radios / tabla).
 - Alta append-only (valida id `snake_case` único).
 - Deprecar / reactivar (con motivo), sin opción de editar ni borrar.
 
@@ -46,14 +54,17 @@ npm run dev        # http://localhost:5194  (o `diccionario` en el panel de laun
 
 ```
 src/
-├── dictionary.ts   ← modelo (core + extensiones) + store append-only + semilla
+├── catalog.json    ← el catálogo REAL del PDF Mapper (fuente de verdad, verbatim)
+├── dictionary.ts   ← adaptador catalog→modelo + store append-only
 ├── App.vue         ← lista + detalle + filtros
-└── components/AddFieldModal.vue
+└── components/
+    ├── FieldPreview.vue   ← render del campo (text / checkbox / consentimiento / table)
+    └── AddFieldModal.vue
 ```
 
 ## Si esto madura
 
-El siguiente paso natural sería extraer un **servicio de registro de campos** que
-tanto el PDF Mapper como el `form-service` consuman (en vez de que uno dependa del
-otro), con la misma semántica append/deprecate y cacheo del lado del cliente.
-Ver la discusión en el chat / nodos de contexto de `form-service` y `pdf-mapper`.
+El siguiente paso natural sería que este catálogo deje de ser exclusivo del PDF
+Mapper y sea un **registro de campos** que otras lógicas consuman con la misma
+semántica append/deprecate. Ver los nodos de contexto `form-service` y `dynamic-forms`
+(el EAV `user_field_values` es el otro gran consumidor del "id de campo").
