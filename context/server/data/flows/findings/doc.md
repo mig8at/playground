@@ -1261,3 +1261,19 @@ Destapado apenas el guiado empezó a RECORRER Ábaco (F-68): con el paso ya visi
 **Estado: aplicado. ValidationStatusServiceTest 22 passed (40 assertions); php -l limpio. Falta la confirmación E2E (el asesor deja de errorear y sigue a `financial-profile`) en la próxima corrida del guiado.**
 
 **Lección.** El harness, al hacer que el guiado RECORRA Ábaco (F-68), destapó un bug de producto que el salto directo tapaba — el valor de un E2E no es solo "pasó/falló", es que *recorrer de verdad* un flujo expone lo que saltearlo esconde. Y la trampa semántica: `validated=false` para algo `not_required` hace que cualquier consumidor que gatee por `validated` trate un skip como fallo. Un booleano de "compuerta pasada" no debe ser `false` cuando la compuerta ni siquiera aplica.
+
+### F-70 · La pantalla del asesor (`financial-profile`) muere con `fetch failed` en local — falta el MS financial-health (:4000) → mock que lee la BD real
+
+El siguiente muro detrás de F-69: arreglado el "Advisor validation error", el asesor avanza a `financial-profile`… y el loader revienta.
+
+**Síntoma.** En el `/continue` del asesor, al navegar a `financial-profile` (la revisión/decisión de Motai renting/rto): `TypeError: fetch failed` en `FinancialProfileRepository.getFinancialProfile` (`financial-profile.tsx` loader). Parece un bug del wizard; es infra local.
+
+**Causa raíz verificada.** El loader SSR hace `POST {FINANCIAL_HEALTH_API_URL}/v1/financial-profile/me` (`financial-profile.repository.ts`). El `.env` del wizard trae `FINANCIAL_HEALTH_API_URL=http://localhost:4000` y **en local no corre ningún financial-health** (curl a :4000 → no conecta). El MS es externo al monorepo; nunca estuvo en la flota local. Reproducido por curl; mismo patrón que la sección B (env/servicio faltante con cara de bug de producto).
+
+**Arreglo — `mock-financial-health` en la flota (frontend-e2e).** Nuevo `mock-financial-health/server.ts` + `bin/mock-financial-health`, arrancado por `bin/asesor` en target `local` (junto a payvalida/mdm/lenders/forms/ábaco; el panel lo lista como `fin-health :4000`). Regla de diseño (pedida por Miguel): **no inventa datos** — lee el usuario sintético REAL de la BD local: `users` (nombre/doc/edad) · `user_field_values` 87/29 (ingreso/ocupación) · `user_summaries.datacredito` (score/negativos → `debtCapacityPercentage` derivado de `value_monthly_payment/ingreso`) · `user_summaries.abaco.average_income` → `monthlyInformalIncomeAmount` (el resultado real del flujo gig, si corrió). BD caída → **503 honesto**; uReq inexistente → 404. Ocupa el `:4000` que el `.env` del wizard ya apunta (cero cambios en el repo real); si el puerto lo usa otro proceso, el wrapper **corta con error** (chequeo de identidad `mock: financial-health`), no un "ya arriba" falso.
+
+**Gotcha que ya mordió (para el próximo mock):** las columnas **JSON** de MySQL llegan por mysql2 **ya parseadas a objeto** — un `JSON.parse(valor)` sobre eso tira y un `catch → {}` silencioso deja los campos en null con cara de "no hay datos" (el primer curl devolvió `creditScore:null` con score=700 en la BD). Verificá contra `JSON_EXTRACT` antes de creerle a un null.
+
+**Estado: aplicado y VERIFICADO por curl con un uReq real (score 700, negativos 0, debt 33%, 404/503 honestos). Falta verlo dentro del guiado (la pantalla del asesor renderizando el perfil).**
+
+**Lección.** Detrás de un muro suele haber OTRO: F-68 (el guiado no recorría Ábaco) → F-69 (el asesor rebotaba por `validated=false`) → F-70 (el asesor no tenía financial-health en local). Cada arreglo corre la frontera de lo probable en local un paso más — y el inventario de la flota (README) es el mapa de esa frontera.
