@@ -318,13 +318,7 @@ export const state = reactive({
   tipoDoc: 'CC',
   numDoc: '1032456789',
   fechaExp: '2015-06-20',
-  // Datos que la radicación SOAP de Credifamilia (rt=4) exige. Defaults válidos = camino feliz;
-  // vaciá "ciudad de nacimiento" (o apagá Experian → sin score) para ver el rechazo 400 (codigoCiudadNacimiento).
-  ciudadNacimiento: 'MEDELLÍN',
   egresos: '3200000',
-  // POS · 2ª evaluación: monto ya comprometido en OTRO crédito activo desde que se armó el listado
-  // (0 = el POS coincide con el listado). Subilo para ver el dolor nº1: preaprobado que sale sin cupo.
-  posCommitted: 0,
   // Plan de pagos (CreditopX): día elegido de primera fecha de pago (6/15/28); null = la más próxima.
   firstPaymentDay: null,
   // Firma: OTP de 6 caracteres. Completo (6/6) → firma válida → Estado "success"; si no, "false".
@@ -503,9 +497,6 @@ const subject = computed(() => {
     identityVerified: p.identidad,
     incomeVerified: !['declarado', '—'].includes(p.salarioFuente), // ingreso de buró (Ágil/Mareigua/Quanto) vs declarado
     continuityMonths: contB == null ? null : (CONT_M[contB] ?? null), // continuidad laboral (Ágil→Mareigua)
-    // Datos que exige la radicación SOAP de Credifamilia (rt=4) — ver credifamiliaRadica():
-    ciudadNacimiento: (state.ciudadNacimiento || '').trim(),
-    egresos: String(state.egresos).replace(/\D/g, '') ? Number(String(state.egresos).replace(/\D/g, '')) : null,
   }
 })
 function subjectOf() { return subject.value }
@@ -839,7 +830,7 @@ export const lenders = computed(() => {
     const montoMaxCom = calcValue(merchant.nombre, 'montoMax', l) || Infinity
     const gate = sucursalGate(l.name, s, l.rt)   // 2ª capa: group_rules + datacrédito por sucursal (ANTES del perfilamiento)
     const t = l.terms || {}
-    let ok = true, prob = 'alta', pct, cupo, cupoRaw = 0, dues = entidadCfg(l).dues, cat = null
+    let ok = true, prob = 'alta', pct, cupo, dues = entidadCfg(l).dues, cat = null
     let reason = s.score == null ? 'sin historial, cumple' : `score ${s.score} · edad ${s.age}`
     if (!gate.ok) {
       if (l.rt === 2) { ok = false; reason = 'excluido: ' + gate.reason }   // rt=2 → EXCLUYE del listado
@@ -862,11 +853,11 @@ export const lenders = computed(() => {
           }
         } else { ok = false; reason = isBlacklisted(l.name) ? 'documento en lista negra' : 'sin categoría de perfilamiento' }
         if (ok && s.amount > catC) { ok = false; reason = `monto > cupo ${money(catC)}` }
-        cupoRaw = catC; cupo = Math.min(s.amount, catC)
+        cupo = Math.min(s.amount, catC)
       } else { pct = 0; cupo = 0 }
     } else {                                     // rt≠2: enganche por regla del lender; la API externa decide (pre-aprobación)
       pct = ruleValue(l, 'initialFeePct') || 0
-      cupo = Math.min(t.amountMax || Infinity, montoMaxCom); cupoRaw = cupo
+      cupo = Math.min(t.amountMax || Infinity, montoMaxCom)
       if (l.rt === 1 && ok) {                    // pre-aprobación externa rt=1: la API de la entidad decide
         const pa = preApprovalOf(l.name)
         if (pa === 'rechaza') { ok = false; reason = 'su API: rechazado' }
@@ -876,7 +867,7 @@ export const lenders = computed(() => {
     return {
       name: l.name, rt: l.rt, category: cat ? cat.label : (l.category || null), catId: cat ? cat.id : null,
       ok, reason, prob, initialFeePct: pct, initialFeeAmount: Math.round((pct || 0) / 100 * s.amount),
-      rate: t.rate, maxFee: t.maxFee, amountMax: t.amountMax, dues, cupo, cupoRaw,
+      rate: t.rate, maxFee: t.maxFee, amountMax: t.amountMax, dues, cupo,
     }
   }).sort((a, b) => (b.ok ? 1 : 0) - (a.ok ? 1 : 0) || (PROB_RANK[a.prob] ?? 0) - (PROB_RANK[b.prob] ?? 0))
 })
@@ -897,21 +888,6 @@ export function cuotaBreakdown(l, n) {
 }
 export const availableCount = computed(() => lenders.value.filter(l => l.ok).length)
 
-// POS · 2ª EVALUACIÓN (el "dolor nº1", FAQ A1). El listado es un PREVIEW; al CONFIRMAR en el punto de
-// venta se re-evalúa contra el estado ACTUAL y se compara con lo que el listado mostró. Divergencia
-// típica: otro crédito activo consumió parte del cupo revolving desde el listado → el preaprobado sale
-// con menos cupo, o sin cupo. Modelado con un knob: state.posCommitted = monto ya comprometido.
-export function posEval(name) {
-  const r = lenders.value.find(l => l.name === name)
-  if (!r || !r.ok) return null
-  const committed = Number(String(state.posCommitted).replace(/\D/g, '')) || 0
-  const fund = r.cupoRaw || 0                       // fondo/cupo que vio el listado (antes de topar al monto)
-  const amount = montoNum()
-  const disponible = fund === Infinity ? Infinity : Math.max(0, fund - committed)
-  const ok = disponible >= amount
-  return { fund, committed, amount, disponible, listadoCupo: r.cupo || 0, ok, diverges: committed > 0 }
-}
-
 // ── POST-SELECCIÓN · el ciclo de vida DESPUÉS de elegir (estado 3 = "Seleccion de entidad") ────────
 // La cadena se RAMIFICA por response_type, igual que el perfilamiento. Cada etapa es un toggle;
 // creditStatus() camina la cadena y devuelve el terminal → función PURA de (rt + toggles), sin estado
@@ -923,33 +899,17 @@ export const postSel = reactive({}) // { [lenderName]: { plan|kyc|firma|enganche
 function postSelBag(name) { if (!postSel[name]) postSel[name] = {}; return postSel[name] }
 export function setPostSel(name, key, val) { postSelBag(name)[key] = val; editTick.n++ }
 // Cadena ordenada por rt. `pass` = el valor del toggle que DEJA avanzar; cualquier otro corta ahí.
+// El flujo in-platform (CreditopX rt=2) se modela como cadena de nodos propios (identidad → plan de
+// pagos → [info adicional si Consumo] → firma → estado) en App.vue; acá solo quedan rt=0 y rt=1.
 const POSTSEL_STEPS = {
   0: [{ key: 'redirect', pass: 'abre' }],
   1: [{ key: 'radica', pass: 'radica' }, { key: 'decision', pass: 'aprueba' }],
-  2: [{ key: 'plan', pass: 'elige' }, { key: 'kyc', pass: 'valida' }, { key: 'firma', pass: 'firma' }, { key: 'enganche', pass: 'paga' }],
 }
-POSTSEL_STEPS[3] = POSTSEL_STEPS[2] // rotativo = in-platform, misma cadena que CreditopX
-// Credifamilia (rt=4): info adicional (form_type 6) → merge de documentos (PDF) → radicación SOAP.
-// El paso `soap` NO es un toggle manual: se DERIVA de los datos, igual que la validación de Credifamilia
-// (que responde 400 si falta un campo obligatorio del TransaccionConsumoRequest). Ver credifamiliaRadica().
-POSTSEL_STEPS[4] = [{ key: 'infoAdicional', pass: 'completa' }, { key: 'merge', pass: 'une' }, { key: 'soap', pass: 'radica' }]
 export function postSelSteps(rt) { return POSTSEL_STEPS[rt] || [] }
 
-// Campos OBLIGATORIOS de la radicación SOAP (TransaccionConsumoRequest). Si falta alguno, Credifamilia
-// rechaza con HTTP 400 → CREDIT_INVALID. Modela el caso real: codigoCiudadNacimiento / score / egresosMensuales
-// llegando vacíos (TransactionRequest.php arma el payload y resolveCityCode devuelve null si no hay ciudad).
-export function credifamiliaRadica(s = subjectOf()) {
-  const missing = []
-  if (!s.ciudadNacimiento) missing.push('codigoCiudadNacimiento')
-  if (s.score == null) missing.push('score')
-  if (s.egresos == null) missing.push('egresosMensuales')
-  return { ok: missing.length === 0, missing }
-}
 // Valor actual de una etapa; por defecto su `pass` (arranca todo en verde → llega al terminal feliz).
 export function postSelVal(name, key) {
   const l = findLenderDef(name)
-  // Credifamilia (rt=4): la radicación SOAP la deciden los DATOS del sujeto, no un toggle manual.
-  if (l && l.rt === 4 && key === 'soap') return credifamiliaRadica(subjectOf()).ok ? 'radica' : 'falla'
   const b = postSel[name]
   if (b && b[key] != null) return b[key]
   return (l ? postSelSteps(l.rt) : []).find(s => s.key === key)?.pass ?? ''
@@ -965,15 +925,9 @@ export function creditStatus(name) {
   const l = findLenderDef(name); if (!l) return null
   for (const s of postSelSteps(l.rt)) {
     if (!postSelApplies(name, s.key)) continue
-    if (postSelVal(name, s.key) !== s.pass) {
-      let reason = null
-      if (l.rt === 4 && s.key === 'soap') {
-        reason = 'Credifamilia rechazó (400): falta ' + credifamiliaRadica(subjectOf()).missing.join(', ')
-      }
-      return { ok: false, failedAt: s.key, rt: l.rt, reason }
-    }
+    if (postSelVal(name, s.key) !== s.pass) return { ok: false, failedAt: s.key, rt: l.rt }
   }
-  return { ok: true, failedAt: null, rt: l.rt, reason: null }
+  return { ok: true, failedAt: null, rt: l.rt }
 }
 
 // Productos DISTINTOS que ofrece el comercio, derivados de sus entidades habilitadas (por `producto`).

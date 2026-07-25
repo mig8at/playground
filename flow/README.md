@@ -155,9 +155,9 @@ de alcance por decisión).
   siempre toma la rama `tpl-base-`. Inofensivo, pero no te confunda.
 - **Tipos consolidados a rt=0/1/2:** rt=3 (rotativo) y rt=4 (Credifamilia) se doblaron en **rt=2
   CreditopX** (`normalizeType` en `store.js`, aplicado al crear y al cargar) para no confundir tipos
-  in-platform; Credifamilia es un CreditopX de producto crédito. El `RT_LABEL` (único, exportado de
-  `store.js`) ahora solo tiene 0/1/2. Queda código muerto de la vieja radicación SOAP rt=4
-  (`POSTSEL_STEPS[4]`, `credifamiliaRadica`) que ya no se alcanza.
+  in-platform; Credifamilia es un CreditopX de **producto Consumo**. El `RT_LABEL` (único, exportado de
+  `store.js`) ahora solo tiene 0/1/2. La vieja radicación SOAP rt=4 y el nodo POS "2ª evaluación"
+  (sin uso al pasar rt=2 al flujo de nodos propios) se **eliminaron** en la limpieza.
 - **El catálogo del comercio no tiene checkbox**: una entidad nace habilitada y el único interruptor
   de visibilidad es **"Estado en sucursal"** (`lenders_by_allied_branches.status`) — pero **ojo: es una
   bandera de membresía solo-BD que el `getLenders` vivo IGNORA** (default true; el panel ni la escribe;

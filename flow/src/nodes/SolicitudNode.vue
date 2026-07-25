@@ -64,10 +64,7 @@ const feeShort = computed(() => feeReq.value
       <label class="field"><span class="fld-doc" title="clic: dónde vive y por qué" @click.prevent.stop="openFieldInfo('sol.fechaExp')">Fecha exped.</span>
         <input class="nodrag" type="date" v-model="state.fechaExp" />
       </label>
-      <label class="field" title="Ciudad de nacimiento. La radicación SOAP de Credifamilia (rt4) la exige (codigoCiudadNacimiento); si queda vacía → rechazo 400 / CREDIT_INVALID."><span>Ciudad nac.</span>
-        <input class="nodrag" v-model="state.ciudadNacimiento" placeholder="ej: MEDELLÍN" />
-      </label>
-      <label class="field" title="Egresos mensuales. Credifamilia (rt4) los exige en la radicación (egresosMensuales)."><span>Egresos</span>
+      <label class="field"><span>Egresos</span>
         <AffixField prefix="$"><MoneyInput class="afld__in" v-model="state.egresos" /></AffixField>
       </label>
       <label class="field"><span>OTP</span>

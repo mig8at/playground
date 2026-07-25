@@ -27,7 +27,6 @@ import TramoNode from './nodes/TramoNode.vue'
 import GroupRulesNode from './nodes/GroupRulesNode.vue'
 import BranchStatusNode from './nodes/BranchStatusNode.vue'
 import FormStageNode from './nodes/FormStageNode.vue'
-import PosEvalNode from './nodes/PosEvalNode.vue'
 import IdentityNode from './nodes/IdentityNode.vue'
 import PlanPagosNode from './nodes/PlanPagosNode.vue'
 import FirmaNode from './nodes/FirmaNode.vue'
@@ -36,7 +35,7 @@ import CodeudorNode from './nodes/CodeudorNode.vue'
 import InfoAdicionalNode from './nodes/InfoAdicionalNode.vue'
 import CreditStatusNode from './nodes/CreditStatusNode.vue'
 import FieldInfoPanel from './nodes/FieldInfoPanel.vue'
-import { ui, findLenderDef, entidadCfg, perfilOf, perfil, bureau, fieldNull, providerDown, lenders, postSelSteps, posEval, closeFieldInfo } from './store'
+import { ui, findLenderDef, entidadCfg, perfilOf, perfil, bureau, fieldNull, providerDown, lenders, postSelSteps, closeFieldInfo } from './store'
 import { settings } from './settings'
 
 // El tema/visibilidad los maneja la barra "Configuraciones" (settings.js). Acá solo derivamos isDark
@@ -48,8 +47,6 @@ const selPasses = computed(() => { const s = ui.selected; return s ? !!lenders.v
 // ¿La entidad seleccionada activó Ábaco (Información complementaria)? Solo entonces se muestra ese nodo.
 // Dependencia del watch para que aparezca/desaparezca al togglear el flag en Configurar entidad.
 const selAbaco = computed(() => { const s = ui.selected; if (!s) return false; const d = findLenderDef(s); return !!(d && entidadCfg(d).abacoExtra) })
-// ¿La 2ª evaluación del POS deja pasar a la formalización? (si no hay cupo en el POS, el flujo se corta ahí)
-const selPosOk = computed(() => { const s = ui.selected; if (!s) return true; const pe = posEval(s); return !pe || pe.ok })
 // Ingreso TOTAL del solicitante = base (cascada Ágil→Mareigua→Quanto→declarado) + extra Ábaco (si aplica).
 // Gatea el codeudor en renting: si el total > 3.000.000 NO se pide codeudor.
 const selIncome = computed(() => {
@@ -133,8 +130,8 @@ const DYN = ['default', 'comercio', 'relacion', 'perfil']
 // todo, no un zoom en la esquina. Al SELECCIONAR: NO se re-encuadra solo (la cámara la maneja el
 // usuario con scroll para zoom y arrastrando para mover).
 // Depende también de isDark → al cambiar de tema los edges se reconstruyen con el color adecuado.
-watch([() => ui.selected, isDark, selPasses, selAbaco, selPosOk, selIncome], ([sel]) => {
-  const base = nodes.value.filter(n => !DYN.includes(n.id) && !n.id.startsWith('cat-') && n.id !== 'tramo' && n.id !== 'grouprules' && n.id !== 'branchstatus' && n.id !== 'extra' && n.id !== 'poseval' && n.id !== 'identity' && n.id !== 'planpagos' && n.id !== 'firma' && n.id !== 'estado' && n.id !== 'codeudor' && n.id !== 'infoadicional' && !n.id.startsWith('stage-') && n.id !== 'cstatus')
+watch([() => ui.selected, isDark, selPasses, selAbaco, selIncome], ([sel]) => {
+  const base = nodes.value.filter(n => !DYN.includes(n.id) && !n.id.startsWith('cat-') && n.id !== 'tramo' && n.id !== 'grouprules' && n.id !== 'branchstatus' && n.id !== 'extra' && n.id !== 'identity' && n.id !== 'planpagos' && n.id !== 'firma' && n.id !== 'estado' && n.id !== 'codeudor' && n.id !== 'infoadicional' && !n.id.startsWith('stage-') && n.id !== 'cstatus')
   const def = sel ? findLenderDef(sel) : null
   if (!def) { nodes.value = base; edges.value = baseEdges(); return } // cerrar: quita la plantilla, sin mover la cámara
   // Cadena config-de-lender → comercio → sucursal, para CUALQUIER lender (CreditopX o externo).
@@ -233,31 +230,21 @@ watch([() => ui.selected, isDark, selPasses, selAbaco, selPosOk, selIncome], ([s
       add.push({ id: 'estado', type: 'estado', position: { x, y: LIFE_Y } })
       addE.push({ id: 'e-estado', source: prevSrc, sourceHandle: prevH, target: 'estado', targetHandle: 'in', animated: false, style: GS })
     } else {
-      // rt=1 (agregador) / rt=0 (redirect): cadena externa/redirect (formalización actual; POS no aplica).
+      // rt=1 (agregador) / rt=0 (redirect): formalización externa/redirect como cadena de etapas.
       if (selAbaco.value) {
         add.push({ id: 'extra', type: 'ingresosextras', position: { x, y: LIFE_Y } })
         addE.push({ id: 'e-extra', source: prevSrc, sourceHandle: prevH, target: 'extra', targetHandle: 'in', animated: false, style: GS })
         prevSrc = 'extra'; prevH = 'out'; x += 350
       }
-      // POS · 2ª evaluación (in-platform que llega acá = rt2 renting/rto o rt3; rt4 ya cayó en isCredit).
-      const showPos = [2, 3].includes(def.rt)
-      if (showPos) {
-        add.push({ id: 'poseval', type: 'poseval', position: { x, y: LIFE_Y } })
-        addE.push({ id: 'e-pos', source: prevSrc, sourceHandle: prevH, target: 'poseval', targetHandle: 'in', animated: false, style: GS })
-        prevSrc = 'poseval'; prevH = 'out'; x += 300
+      // Etapas del rt (POSTSEL_STEPS: rt1 radica→decision · rt0 redirect) → Estado del crédito.
+      for (const key of postSelSteps(def.rt).map(s => s.key)) {
+        const id = 'stage-' + key
+        add.push({ id, type: 'formstage', data: { stepKey: key }, position: { x, y: LIFE_Y } })
+        addE.push({ id: 'e-' + id, source: prevSrc, sourceHandle: prevH, target: id, targetHandle: 'in', animated: false, style: GS })
+        prevSrc = id; prevH = 'out'; x += 250
       }
-      if (!showPos || selPosOk.value) {
-        // Formalización DESCOMPUESTA: un nodo por etapa del rt (POSTSEL_STEPS), encadenados izq→der.
-        for (const key of postSelSteps(def.rt).map(s => s.key)) {
-          const id = 'stage-' + key
-          add.push({ id, type: 'formstage', data: { stepKey: key }, position: { x, y: LIFE_Y } })
-          addE.push({ id: 'e-' + id, source: prevSrc, sourceHandle: prevH, target: id, targetHandle: 'in', animated: false, style: GS })
-          prevSrc = id; prevH = 'out'; x += 250
-        }
-        // Terminal: Estado del crédito (Estado 11 / rechazo).
-        add.push({ id: 'cstatus', type: 'cstatus', position: { x, y: LIFE_Y } })
-        addE.push({ id: 'e-cstatus', source: prevSrc, sourceHandle: prevH, target: 'cstatus', targetHandle: 'in', animated: false, style: GS })
-      }
+      add.push({ id: 'cstatus', type: 'cstatus', position: { x, y: LIFE_Y } })
+      addE.push({ id: 'e-cstatus', source: prevSrc, sourceHandle: prevH, target: 'cstatus', targetHandle: 'in', animated: false, style: GS })
     }
   }
 
@@ -292,7 +279,6 @@ watch([() => ui.selected, isDark, selPasses, selAbaco, selPosOk, selIncome], ([s
           <template #node-grouprules="props"><GroupRulesNode v-bind="props" /></template>
           <template #node-branchstatus="props"><BranchStatusNode v-bind="props" /></template>
           <template #node-formstage="props"><FormStageNode v-bind="props" /></template>
-          <template #node-poseval="props"><PosEvalNode v-bind="props" /></template>
           <template #node-identity="props"><IdentityNode v-bind="props" /></template>
           <template #node-planpagos="props"><PlanPagosNode v-bind="props" /></template>
           <template #node-firma="props"><FirmaNode v-bind="props" /></template>
