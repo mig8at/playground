@@ -10,7 +10,7 @@ import AffixField from '../AffixField.vue'
 // Las reglas de riesgo NO viven acá (están por sucursal en Configurar sucursal). El rango de Monto se
 // pinta rojo SOLO si el monto pedido queda fuera de ESTE rango (no por el cupo/comercio — eso es de otro nivel).
 const lender = computed(() => findLenderDef(ui.selected))
-const PRODUCTOS = [{ key: 'credito', label: 'Crédito' }, { key: 'renting', label: 'Renting' }, { key: 'rto', label: 'Renting con compra' }]
+const PRODUCTOS = [{ key: 'credito', label: 'Crédito' }, { key: 'consumo', label: 'Consumo' }, { key: 'renting', label: 'Renting' }, { key: 'rto', label: 'Renting con compra' }]
 const prodVal = computed(() => lender.value?.producto || lender.value?.product || 'credito')
 // Header teñido por response_type: rt1 ámbar · rt0 azul · rt2/rt3 morado (default).
 const hdClass = computed(() => { const rt = lender.value?.rt; return rt === 1 ? 'node__hd--amber' : rt === 0 ? 'node__hd--blue' : '' })

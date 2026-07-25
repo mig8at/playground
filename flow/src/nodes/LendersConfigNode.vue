@@ -6,7 +6,7 @@ import { Plus, Trash2, Copy } from 'lucide-vue-next'
 
 // Listado ÚNICO de entidades del comercio, TODAS creadas por el usuario (persisten en localStorage).
 // CreditopX, agregador y redirect son solo el response_type. Arranca vacío: se crean una a una.
-const PRODUCTOS = [{ key: 'credito', label: 'Crédito' }, { key: 'renting', label: 'Renting' }, { key: 'rto', label: 'Renting con compra' }]
+const PRODUCTOS = [{ key: 'credito', label: 'Crédito' }, { key: 'consumo', label: 'Consumo' }, { key: 'renting', label: 'Renting' }, { key: 'rto', label: 'Renting con compra' }]
 const productoLabel = (k) => PRODUCTOS.find(p => p.key === k)?.label || ''
 // Nombre y "quién decide" por response_type — más descriptivo que "rt2" y más visual.
 const RT_WHO = { 0: 'redirige a su sitio', 1: 'decide su API', 2: 'decide CreditOp' }

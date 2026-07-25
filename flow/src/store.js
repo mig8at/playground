@@ -153,6 +153,9 @@ export const CREDITOPX_PRODUCTS = [
   { key: 'credito', label: 'Compra financiada', category: 'crédito', suffix: 'Compra',
     terms: { rate: 2.2, maxFee: 24, amountMax: 3000000 },
     overrides: { score: { min: 500 }, initialFeePct: 15 } },              // sube score y cuota inicial
+  { key: 'consumo', label: 'Consumo en comercio', category: 'consumo', suffix: 'Consumo',
+    terms: { rate: 1.9, maxFee: 48, amountMax: 5000000 },
+    overrides: { score: { min: 460 } } },                                 // crédito de consumo (Credifamilia: tipoProducto 'Consumo')
   { key: 'renting', label: 'Renting operativo', category: 'arrendamiento', suffix: 'Renting',
     terms: { rate: 1.8, maxFee: 36, amountMax: 4000000 },
     overrides: { acceptThinFile: true, monthlyIncome: { min: 1000000 }, initialFeePct: 0 } }, // sin buró duro, exige ingreso, sin inicial
@@ -241,7 +244,8 @@ const LS_CUSTOM = 'flow-custom-lenders'
 // (producto crédito por defecto). Así no hay confusión: in-platform = CreditopX rt=2, y punto.
 function normalizeType(rt, producto) {
   rt = Number(rt)
-  if (rt === 3 || rt === 4) return { rt: 2, producto: producto || 'credito' }
+  if (rt === 4) return { rt: 2, producto: producto || 'consumo' }  // Credifamilia → CreditopX producto Consumo
+  if (rt === 3) return { rt: 2, producto: producto || 'credito' }  // rotativo → CreditopX crédito
   return { rt, producto: producto || null }
 }
 function loadCustom() {
@@ -972,11 +976,11 @@ export function creditStatus(name) {
 
 // Productos DISTINTOS que ofrece el comercio, derivados de sus entidades habilitadas (por `producto`).
 // Orden estable crédito → renting → renting c/compra.
-const PRODUCTO_LABELS = { credito: 'Crédito', renting: 'Renting', rto: 'Renting con compra' }
-const PRODUCTO_SHORT = { credito: 'C', renting: 'R', rto: 'RB' }
+const PRODUCTO_LABELS = { credito: 'Crédito', consumo: 'Consumo', renting: 'Renting', rto: 'Renting con compra' }
+const PRODUCTO_SHORT = { credito: 'C', consumo: 'Co', renting: 'R', rto: 'RB' }
 export const merchantProductos = computed(() => {
   const keys = new Set(customLenders.filter(l => merchant.enabled[l.name]).map(l => l.producto).filter(Boolean))
-  return ['credito', 'renting', 'rto'].filter(k => keys.has(k)).map(k => ({ key: k, label: PRODUCTO_LABELS[k], short: PRODUCTO_SHORT[k] }))
+  return ['credito', 'consumo', 'renting', 'rto'].filter(k => keys.has(k)).map(k => ({ key: k, label: PRODUCTO_LABELS[k], short: PRODUCTO_SHORT[k] }))
 })
 
 /* ============================================================================
