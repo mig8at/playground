@@ -33,6 +33,7 @@ const pickCuotas = (v) => { if (name.value) setDues(name.value, v) }
 // Plan de cuotas: cuota mensual (misma para todas, sistema francés) + la fecha de cada pago (mes a mes
 // desde la 1ª fecha elegida, manteniendo el día 6/15/28). Tabla #, fecha, monto.
 const monthly = computed(() => (row.value && numCuotas.value ? cuotaBreakdown(row.value, numCuotas.value).cuota : 0))
+const totalPagar = computed(() => monthly.value * (numCuotas.value || 0))
 const schedule = computed(() => {
   const opt = payOptions.value.find(o => o.day === selDay.value) || payOptions.value[0]
   const n = numCuotas.value || 0
@@ -74,6 +75,7 @@ const schedule = computed(() => {
             <tbody>
               <tr v-for="r in schedule" :key="r.n"><td>{{ r.n }}</td><td>{{ r.fecha }}</td><td class="pp-monto">{{ money(r.monto) }}</td></tr>
             </tbody>
+            <tfoot><tr><td></td><td>Total</td><td class="pp-monto">{{ money(totalPagar) }}</td></tr></tfoot>
           </table>
         </div>
       </div>

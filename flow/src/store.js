@@ -311,7 +311,9 @@ export const state = reactive({
   // (0 = el POS coincide con el listado). Subilo para ver el dolor nº1: preaprobado que sale sin cupo.
   posCommitted: 0,
   // Plan de pagos (CreditopX): día elegido de primera fecha de pago (6/15/28); null = la más próxima.
-  firstPaymentDay: null
+  firstPaymentDay: null,
+  // Firma: OTP de 6 caracteres. Completo (6/6) → firma válida → Estado "success"; si no, "false".
+  otp: ''
 })
 
 // Plazo (número de cuotas) elegido por lender en el listado. COMPARTIDO: lo leen/editan tanto
