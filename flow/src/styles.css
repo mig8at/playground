@@ -859,6 +859,13 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
 .pp-date:hover { border-color: var(--green); }
 .pp-date--on { border-color: var(--green); background: color-mix(in srgb, var(--green) 15%, var(--card2)); font-weight: 600; }
 .pp-empty { font-size: 11px; color: var(--mut); font-style: italic; }
+.pp-tbl-wrap { max-height: 200px; overflow-y: auto; border: 1px solid var(--line); border-radius: 6px; }
+.pp-tbl { border-collapse: collapse; width: 100%; font-size: 11.5px; }
+.pp-tbl th, .pp-tbl td { padding: 3px 8px; text-align: left; white-space: nowrap; border-bottom: 1px solid var(--line); }
+.pp-tbl thead th { position: sticky; top: 0; background: var(--card2); color: var(--mut); font-weight: 600; font-size: 10.5px; }
+.pp-tbl tbody tr:last-child td { border-bottom: none; }
+.pp-tbl td:first-child { color: var(--mut); }
+.pp-monto { color: var(--ink); font-weight: 600; text-align: right !important; }
 /* POS · 2ª evaluación (PosEvalNode): comparación listado ↔ punto de venta + knob de comprometido. */
 .node--poseval { min-width: 212px; border-color: color-mix(in srgb, var(--green) 40%, var(--line)); }
 .pos-body { display: flex; flex-direction: column; gap: 7px; }

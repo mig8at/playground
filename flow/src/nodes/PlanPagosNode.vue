@@ -1,7 +1,7 @@
 <script setup>
 import { computed } from 'vue'
 import { Handle, Position } from '@vue-flow/core'
-import { ui, findLenderDef, lenders, duesOf, setDues, state, openFieldInfo } from '../store'
+import { ui, findLenderDef, lenders, duesOf, setDues, state, cuotaBreakdown, money, openFieldInfo } from '../store'
 import { CalendarClock } from 'lucide-vue-next'
 
 // Nodo posterior a "Validación de identidad" para TODO CreditopX (crédito · renting · Credifamilia).
@@ -29,6 +29,21 @@ const pickDay = (day) => { state.firstPaymentDay = day }
 const dues = computed(() => row.value?.dues || [])
 const numCuotas = computed(() => (row.value ? duesOf(row.value) : 0))
 const pickCuotas = (v) => { if (name.value) setDues(name.value, v) }
+
+// Plan de cuotas: cuota mensual (misma para todas, sistema francés) + la fecha de cada pago (mes a mes
+// desde la 1ª fecha elegida, manteniendo el día 6/15/28). Tabla #, fecha, monto.
+const monthly = computed(() => (row.value && numCuotas.value ? cuotaBreakdown(row.value, numCuotas.value).cuota : 0))
+const schedule = computed(() => {
+  const opt = payOptions.value.find(o => o.day === selDay.value) || payOptions.value[0]
+  const n = numCuotas.value || 0
+  if (!opt || !n) return []
+  const rows = []
+  for (let i = 0; i < n; i++) {
+    const dt = new Date(opt.date.getFullYear(), opt.date.getMonth() + i, opt.day)
+    rows.push({ n: i + 1, fecha: `${opt.day} ${MESES[dt.getMonth()]} ${dt.getFullYear()}`, monto: monthly.value })
+  }
+  return rows
+})
 </script>
 
 <template>
@@ -51,6 +66,17 @@ const pickCuotas = (v) => { if (name.value) setDues(name.value, v) }
         </select>
         <span v-else class="pp-empty">sin plazos ofrecibles</span>
       </label>
+      <div v-if="schedule.length" class="pp-field">
+        <span class="pp-lbl">Plan de cuotas <span class="pp-hint">{{ schedule.length }} × {{ money(monthly) }}</span></span>
+        <div class="pp-tbl-wrap">
+          <table class="pp-tbl">
+            <thead><tr><th>#</th><th>Fecha</th><th>Monto</th></tr></thead>
+            <tbody>
+              <tr v-for="r in schedule" :key="r.n"><td>{{ r.n }}</td><td>{{ r.fecha }}</td><td class="pp-monto">{{ money(r.monto) }}</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
     </div>
     <Handle id="out" type="source" :position="Position.Right" />
   </div>
