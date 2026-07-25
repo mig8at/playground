@@ -332,7 +332,9 @@ export const state = reactive({
   // OTP de 4 caracteres del solicitante (Solicitud). Pre-cargado en 2323.
   solicitudOtp: '2323',
   // Codeudor (renting, cuando el ingreso del solicitante ≤ 3.000.000): mismos datos que la Solicitud + OTP.
-  codeudor: { nombre: 'Carlos', apellido: 'Ruiz', tipoDoc: 'CC', numDoc: '1015667788', fechaExp: '2016-03-10', salario: '2500000', egresos: '900000', otp: '2323' }
+  codeudor: { nombre: 'Carlos', apellido: 'Ruiz', tipoDoc: 'CC', numDoc: '1015667788', fechaExp: '2016-03-10', salario: '2500000', egresos: '900000', otp: '2323' },
+  // Información adicional (form_type 6, additional-info) — solo producto Consumo (Credifamilia). Form demo.
+  infoAdicional: { pais: 'Colombia', ciudad: 'Bogotá', cargo: 'Ingeniero de sistemas', direccion: 'Cra 45 # 123 - 45' }
 })
 
 // Plazo (número de cuotas) elegido por lender en el listado. COMPARTIDO: lo leen/editan tanto
