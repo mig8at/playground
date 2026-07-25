@@ -35,7 +35,7 @@ import EstadoNode from './nodes/EstadoNode.vue'
 import CodeudorNode from './nodes/CodeudorNode.vue'
 import CreditStatusNode from './nodes/CreditStatusNode.vue'
 import FieldInfoPanel from './nodes/FieldInfoPanel.vue'
-import { ui, findLenderDef, entidadCfg, perfilOf, perfil, lenders, postSelSteps, posEval, closeFieldInfo } from './store'
+import { ui, findLenderDef, entidadCfg, perfilOf, perfil, bureau, fieldNull, providerDown, lenders, postSelSteps, posEval, closeFieldInfo } from './store'
 import { settings } from './settings'
 
 // El tema/visibilidad los maneja la barra "Configuraciones" (settings.js). Acá solo derivamos isDark
@@ -49,8 +49,13 @@ const selPasses = computed(() => { const s = ui.selected; return s ? !!lenders.v
 const selAbaco = computed(() => { const s = ui.selected; if (!s) return false; const d = findLenderDef(s); return !!(d && entidadCfg(d).abacoExtra) })
 // ¿La 2ª evaluación del POS deja pasar a la formalización? (si no hay cupo en el POS, el flujo se corta ahí)
 const selPosOk = computed(() => { const s = ui.selected; if (!s) return true; const pe = posEval(s); return !pe || pe.ok })
-// Ingreso resuelto del solicitante (cascada Ágil→Mareigua→Quanto→declarado). Gatea el codeudor en renting.
-const selIncome = computed(() => perfil.value?.salario ?? 0)
+// Ingreso TOTAL del solicitante = base (cascada Ágil→Mareigua→Quanto→declarado) + extra Ábaco (si aplica).
+// Gatea el codeudor en renting: si el total > 3.000.000 NO se pide codeudor.
+const selIncome = computed(() => {
+  const base = perfil.value?.salario ?? 0
+  const extra = (providerDown.abaco || fieldNull('abacoIncome')) ? 0 : (bureau.abacoIncome ?? 0)
+  return base + extra
+})
 
 // Esc: 1º cierra el sidebar de detalle; 2º deselecciona la entidad (cierra el cluster de config).
 // Clic en el canvas (pane) cierra solo el sidebar. Sin robar Esc cuando se está tipeando en un input.
