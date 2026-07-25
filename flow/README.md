@@ -82,6 +82,7 @@ grafo se enciende:
 | 1 | Agregador | la API del lender | Un switch `aprueba / rechaza / timeout` — en la vida real tampoco lo controlamos |
 | 0 | Redirect | su sitio | Se va y perdemos visibilidad |
 | 3 | Rotativo | CreditOp | Cadena de formalización definida, pero **no se puede crear desde la UI** |
+| 4 | Credifamilia (externo) | CreditOp (listado in-platform) | Creable desde la UI. Formalización propia: `additional-info` (form_type 6) → merge PDF → **radicación SOAP**, que rechaza (**CREDIT_INVALID**) si falta `codigoCiudadNacimiento`/`score`/`egresos` — el caso real de prod |
 
 **Excluir vs clasificar.** Si falla el gate de sucursal (datacrédito + group_rules): rt=2 **se cae del
 listado**; rt≠2 **baja al fondo** como "prob. baja" pero sigue visible. Es la inversión que más

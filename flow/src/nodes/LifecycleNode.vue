@@ -20,6 +20,11 @@ const STEP_META = {
   radica:   { title: 'Radicación',                opts: [{ v: 'radica', l: 'radica' }, { v: 'falla', l: 'falla' }] },
   decision: { title: 'Decisión externa (su API)', opts: [{ v: 'aprueba', l: 'aprueba' }, { v: 'rechaza', l: 'rechaza' }, { v: 'timeout', l: 'timeout' }] },
   redirect: { title: 'Redirección',               opts: [{ v: 'abre', l: 'abre el sitio' }] },
+  // Credifamilia (rt=4). `soap` NO es clickeable: su estado lo deciden los datos (ver credifamiliaRadica);
+  // se "rompe" vaciando la ciudad de nacimiento / egresos en Solicitud o apagando Experian (sin score).
+  infoAdicional: { title: 'Información adicional (form_type 6)', opts: [{ v: 'completa', l: 'completa' }] },
+  merge:         { title: 'Merge de documentos → PDF',           opts: [{ v: 'une', l: 'une' }] },
+  soap:          { title: 'Radicación SOAP (transaccionConsumo)', opts: [{ v: 'radica', l: 'radica' }, { v: 'falla', l: 'rechazada 400' }] },
 }
 const steps = computed(() => lender.value ? postSelSteps(lender.value.rt).map(s => s.key) : [])
 const st = computed(() => name.value ? creditStatus(name.value) : null)
@@ -38,7 +43,7 @@ function stepState(key) {
 }
 // Clickable solo los pasos alcanzados con >1 opción (los alcanzados: pass/fail). Se arregla la cadena
 // clicando el paso rojo; los pasos bloqueados/saltados no son interactivos (como en GitHub Actions).
-const clickable = (key) => STEP_META[key]?.opts.length > 1 && ['pass', 'fail'].includes(stepState(key))
+const clickable = (key) => key !== 'soap' && STEP_META[key]?.opts.length > 1 && ['pass', 'fail'].includes(stepState(key))
 function cycle(key) {
   if (!clickable(key)) return
   const opts = STEP_META[key].opts, cur = valOf(key)

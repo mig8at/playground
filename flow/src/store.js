@@ -302,7 +302,11 @@ export const state = reactive({
   apellido: 'García',
   tipoDoc: 'CC',
   numDoc: '1032456789',
-  fechaExp: '2015-06-20'
+  fechaExp: '2015-06-20',
+  // Datos que la radicación SOAP de Credifamilia (rt=4) exige. Defaults válidos = camino feliz;
+  // vaciá "ciudad de nacimiento" (o apagá Experian → sin score) para ver el rechazo 400 (codigoCiudadNacimiento).
+  ciudadNacimiento: 'MEDELLÍN',
+  egresos: '3200000'
 })
 const montoNum = () => parseInt(String(state.monto).replace(/[^\d]/g, '')) || 0
 
@@ -462,6 +466,9 @@ const subject = computed(() => {
     identityVerified: p.identidad,
     incomeVerified: !['declarado', '—'].includes(p.salarioFuente), // ingreso de buró (Ágil/Mareigua/Quanto) vs declarado
     continuityMonths: contB == null ? null : (CONT_M[contB] ?? null), // continuidad laboral (Ágil→Mareigua)
+    // Datos que exige la radicación SOAP de Credifamilia (rt=4) — ver credifamiliaRadica():
+    ciudadNacimiento: (state.ciudadNacimiento || '').trim(),
+    egresos: String(state.egresos).replace(/\D/g, '') ? Number(String(state.egresos).replace(/\D/g, '')) : null,
   }
 })
 function subjectOf() { return subject.value }
@@ -870,12 +877,29 @@ const POSTSEL_STEPS = {
   2: [{ key: 'plan', pass: 'elige' }, { key: 'kyc', pass: 'valida' }, { key: 'firma', pass: 'firma' }, { key: 'enganche', pass: 'paga' }],
 }
 POSTSEL_STEPS[3] = POSTSEL_STEPS[2] // rotativo = in-platform, misma cadena que CreditopX
+// Credifamilia (rt=4): info adicional (form_type 6) → merge de documentos (PDF) → radicación SOAP.
+// El paso `soap` NO es un toggle manual: se DERIVA de los datos, igual que la validación de Credifamilia
+// (que responde 400 si falta un campo obligatorio del TransaccionConsumoRequest). Ver credifamiliaRadica().
+POSTSEL_STEPS[4] = [{ key: 'infoAdicional', pass: 'completa' }, { key: 'merge', pass: 'une' }, { key: 'soap', pass: 'radica' }]
 export function postSelSteps(rt) { return POSTSEL_STEPS[rt] || [] }
+
+// Campos OBLIGATORIOS de la radicación SOAP (TransaccionConsumoRequest). Si falta alguno, Credifamilia
+// rechaza con HTTP 400 → CREDIT_INVALID. Modela el caso real: codigoCiudadNacimiento / score / egresosMensuales
+// llegando vacíos (TransactionRequest.php arma el payload y resolveCityCode devuelve null si no hay ciudad).
+export function credifamiliaRadica(s) {
+  const missing = []
+  if (!s.ciudadNacimiento) missing.push('codigoCiudadNacimiento')
+  if (s.score == null) missing.push('score')
+  if (s.egresos == null) missing.push('egresosMensuales')
+  return { ok: missing.length === 0, missing }
+}
 // Valor actual de una etapa; por defecto su `pass` (arranca todo en verde → llega al terminal feliz).
 export function postSelVal(name, key) {
+  const l = findLenderDef(name)
+  // Credifamilia (rt=4): la radicación SOAP la deciden los DATOS del sujeto, no un toggle manual.
+  if (l && l.rt === 4 && key === 'soap') return credifamiliaRadica(subjectOf()).ok ? 'radica' : 'falla'
   const b = postSel[name]
   if (b && b[key] != null) return b[key]
-  const l = findLenderDef(name)
   return (l ? postSelSteps(l.rt) : []).find(s => s.key === key)?.pass ?? ''
 }
 // ¿Aplica la etapa al lender/sujeto actual? Solo el enganche es condicional (initial_fee>0).
@@ -889,9 +913,15 @@ export function creditStatus(name) {
   const l = findLenderDef(name); if (!l) return null
   for (const s of postSelSteps(l.rt)) {
     if (!postSelApplies(name, s.key)) continue
-    if (postSelVal(name, s.key) !== s.pass) return { ok: false, failedAt: s.key, rt: l.rt }
+    if (postSelVal(name, s.key) !== s.pass) {
+      let reason = null
+      if (l.rt === 4 && s.key === 'soap') {
+        reason = 'Credifamilia rechazó (400): falta ' + credifamiliaRadica(subjectOf()).missing.join(', ')
+      }
+      return { ok: false, failedAt: s.key, rt: l.rt, reason }
+    }
   }
-  return { ok: true, failedAt: null, rt: l.rt }
+  return { ok: true, failedAt: null, rt: l.rt, reason: null }
 }
 
 // Productos DISTINTOS que ofrece el comercio, derivados de sus entidades habilitadas (por `producto`).

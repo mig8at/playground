@@ -8,7 +8,7 @@ import { Check, X, Clock, ExternalLink } from 'lucide-vue-next'
 // pura). Presentación tipo "badge": ícono grande centrado + palabra de estado + detalle corto.
 const name = computed(() => ui.selected)
 const lender = computed(() => findLenderDef(name.value))
-const STEP_TITLE = { plan: 'Plan de pagos', kyc: 'KYC (ADO)', firma: 'Firma del pagaré', enganche: 'Cobro del enganche', radica: 'Radicación', decision: 'Decisión externa' }
+const STEP_TITLE = { plan: 'Plan de pagos', kyc: 'KYC (ADO)', firma: 'Firma del pagaré', enganche: 'Cobro del enganche', radica: 'Radicación', decision: 'Decisión externa', infoAdicional: 'Información adicional', merge: 'Merge de documentos', soap: 'Radicación SOAP' }
 const ICON = { ok: Check, bad: X, wait: Clock, unknown: ExternalLink, na: ExternalLink }
 const view = computed(() => {
   const s = name.value ? creditStatus(name.value) : null
@@ -21,9 +21,12 @@ const view = computed(() => {
       if (d === 'timeout') return { kind: 'wait', word: 'En proceso', label: 'Timeout — formalización asíncrona; el resultado llega después.' }
       return { kind: 'bad', word: 'Rechazado', label: 'Rechazado por su API.' }
     }
+    // Credifamilia (rt=4): la radicación SOAP la rechazó por datos → CREDIT_INVALID (400). Motivo desde creditStatus().
+    if (s.rt === 4) return { kind: 'bad', word: 'CREDIT_INVALID', label: s.reason || 'Credifamilia rechazó la radicación (400) por datos obligatorios.' }
     return { kind: 'bad', word: 'Detenido', label: 'Se detuvo en “' + (STEP_TITLE[s.failedAt] || s.failedAt) + '” — no llega al Estado 11.' }
   }
   if (s.rt === 1) return { kind: 'ok', word: 'Aprobado', label: 'Radicado · Estado 11. La cartera queda del lender.' }
+  if (s.rt === 4) return { kind: 'ok', word: 'Radicado', label: 'Radicado en Credifamilia (transaccionConsumo + guardarDocumentoOpenKm OK) · Estado 11.' }
   return { kind: 'ok', word: 'Desembolsado', label: 'Estado 11 “Autorizada” + aviso a la tienda (webhook).' }
 })
 const icon = computed(() => ICON[view.value.kind] || ExternalLink)
