@@ -11,7 +11,7 @@ import AffixField from '../AffixField.vue'
 
 <template>
   <div class="node node--sol">
-    <Handle type="target" :position="Position.Left" />
+    <Handle id="in" type="target" :position="Position.Left" />
     <div class="node__hd nhd-doc" title="clic: detalle del nodo" @click="openFieldInfo('node.codeudor')">
       <div class="node__title"><Users :size="13" /> Codeudor</div>
       <div class="node__kind">input</div>
@@ -41,6 +41,6 @@ import AffixField from '../AffixField.vue'
         <AffixField prefix="$"><MoneyInput class="afld__in" v-model="state.codeudor.egresos" /></AffixField>
       </label>
     </div>
-    <Handle type="source" :position="Position.Right" />
+    <Handle id="out" type="source" :position="Position.Right" />
   </div>
 </template>
