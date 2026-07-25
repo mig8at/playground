@@ -32,9 +32,10 @@ import IdentityNode from './nodes/IdentityNode.vue'
 import PlanPagosNode from './nodes/PlanPagosNode.vue'
 import FirmaNode from './nodes/FirmaNode.vue'
 import EstadoNode from './nodes/EstadoNode.vue'
+import CodeudorNode from './nodes/CodeudorNode.vue'
 import CreditStatusNode from './nodes/CreditStatusNode.vue'
 import FieldInfoPanel from './nodes/FieldInfoPanel.vue'
-import { ui, findLenderDef, entidadCfg, perfilOf, lenders, postSelSteps, posEval, closeFieldInfo } from './store'
+import { ui, findLenderDef, entidadCfg, perfilOf, perfil, lenders, postSelSteps, posEval, closeFieldInfo } from './store'
 import { settings } from './settings'
 
 // El tema/visibilidad los maneja la barra "Configuraciones" (settings.js). Acá solo derivamos isDark
@@ -48,6 +49,8 @@ const selPasses = computed(() => { const s = ui.selected; return s ? !!lenders.v
 const selAbaco = computed(() => { const s = ui.selected; if (!s) return false; const d = findLenderDef(s); return !!(d && entidadCfg(d).abacoExtra) })
 // ¿La 2ª evaluación del POS deja pasar a la formalización? (si no hay cupo en el POS, el flujo se corta ahí)
 const selPosOk = computed(() => { const s = ui.selected; if (!s) return true; const pe = posEval(s); return !pe || pe.ok })
+// Ingreso resuelto del solicitante (cascada Ágil→Mareigua→Quanto→declarado). Gatea el codeudor en renting.
+const selIncome = computed(() => perfil.value?.salario ?? 0)
 
 // Esc: 1º cierra el sidebar de detalle; 2º deselecciona la entidad (cierra el cluster de config).
 // Clic en el canvas (pane) cierra solo el sidebar. Sin robar Esc cuando se está tipeando en un input.
@@ -124,8 +127,8 @@ const DYN = ['default', 'comercio', 'relacion', 'perfil']
 // todo, no un zoom en la esquina. Al SELECCIONAR: NO se re-encuadra solo (la cámara la maneja el
 // usuario con scroll para zoom y arrastrando para mover).
 // Depende también de isDark → al cambiar de tema los edges se reconstruyen con el color adecuado.
-watch([() => ui.selected, isDark, selPasses, selAbaco, selPosOk], ([sel]) => {
-  const base = nodes.value.filter(n => !DYN.includes(n.id) && !n.id.startsWith('cat-') && n.id !== 'tramo' && n.id !== 'grouprules' && n.id !== 'branchstatus' && n.id !== 'extra' && n.id !== 'poseval' && n.id !== 'identity' && n.id !== 'planpagos' && n.id !== 'firma' && n.id !== 'estado' && !n.id.startsWith('stage-') && n.id !== 'cstatus')
+watch([() => ui.selected, isDark, selPasses, selAbaco, selPosOk, selIncome], ([sel]) => {
+  const base = nodes.value.filter(n => !DYN.includes(n.id) && !n.id.startsWith('cat-') && n.id !== 'tramo' && n.id !== 'grouprules' && n.id !== 'branchstatus' && n.id !== 'extra' && n.id !== 'poseval' && n.id !== 'identity' && n.id !== 'planpagos' && n.id !== 'firma' && n.id !== 'estado' && n.id !== 'codeudor' && !n.id.startsWith('stage-') && n.id !== 'cstatus')
   const def = sel ? findLenderDef(sel) : null
   if (!def) { nodes.value = base; edges.value = baseEdges(); return } // cerrar: quita la plantilla, sin mover la cámara
   // Cadena config-de-lender → comercio → sucursal, para CUALQUIER lender (CreditopX o externo).
@@ -200,6 +203,13 @@ watch([() => ui.selected, isDark, selPasses, selAbaco, selPosOk], ([sel]) => {
       add.push({ id: 'identity', type: 'identity', position: { x, y: LIFE_Y } })
       addE.push({ id: 'e-identity', source: prevSrc, sourceHandle: prevH, target: 'identity', targetHandle: 'in', animated: false, style: GS })
       prevSrc = 'identity'; prevH = 'out'; x += 300
+      // Renting: bifurcación por ingreso. Si el ingreso del solicitante ≤ 3.000.000 se exige CODEUDOR
+      // (mismos datos que Solicitud) antes del plan de pagos; si es mayor, el flujo sigue directo.
+      if (isRenting && selIncome.value <= 3000000) {
+        add.push({ id: 'codeudor', type: 'codeudor', position: { x, y: LIFE_Y } })
+        addE.push({ id: 'e-codeudor', source: prevSrc, sourceHandle: prevH, target: 'codeudor', targetHandle: 'in', animated: false, style: GS })
+        prevSrc = 'codeudor'; prevH = 'out'; x += 300
+      }
       // Plan de pagos (todo CreditopX): primera fecha de pago (6/15/28) + número de cuotas del listado.
       add.push({ id: 'planpagos', type: 'planpagos', position: { x, y: LIFE_Y } })
       addE.push({ id: 'e-planpagos', source: prevSrc, sourceHandle: prevH, target: 'planpagos', targetHandle: 'in', animated: false, style: GS })
@@ -275,6 +285,7 @@ watch([() => ui.selected, isDark, selPasses, selAbaco, selPosOk], ([sel]) => {
           <template #node-planpagos="props"><PlanPagosNode v-bind="props" /></template>
           <template #node-firma="props"><FirmaNode v-bind="props" /></template>
           <template #node-estado="props"><EstadoNode v-bind="props" /></template>
+          <template #node-codeudor="props"><CodeudorNode v-bind="props" /></template>
           <template #node-cstatus="props"><CreditStatusNode v-bind="props" /></template>
           <Background :pattern-color="isDark ? '#2f2e27' : '#cfcabd'" :gap="22" />
           <Panel position="top-left" class="hud">

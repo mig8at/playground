@@ -313,7 +313,9 @@ export const state = reactive({
   // Plan de pagos (CreditopX): día elegido de primera fecha de pago (6/15/28); null = la más próxima.
   firstPaymentDay: null,
   // Firma: OTP de 6 caracteres. Completo (6/6) → firma válida → Estado "success"; si no, "false".
-  otp: ''
+  otp: '',
+  // Codeudor (renting, cuando el ingreso del solicitante ≤ 3.000.000): mismos datos que la Solicitud.
+  codeudor: { nombre: 'Carlos', apellido: 'Ruiz', tipoDoc: 'CC', numDoc: '1015667788', fechaExp: '2016-03-10', salario: '2500000', egresos: '900000' }
 })
 
 // Plazo (número de cuotas) elegido por lender en el listado. COMPARTIDO: lo leen/editan tanto
