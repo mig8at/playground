@@ -4,6 +4,7 @@ import { state, openFieldInfo } from '../store'
 import { Users } from 'lucide-vue-next'
 import MoneyInput from '../MoneyInput.vue'
 import AffixField from '../AffixField.vue'
+import OtpInput from '../OtpInput.vue'
 
 // Codeudor — solo en RENTING cuando el ingreso del solicitante ≤ 3.000.000 (bifurcación en App.vue).
 // Mismos datos que el nodo Solicitud (persona + ingreso/egresos), del codeudor que respalda la operación.
@@ -39,6 +40,9 @@ import AffixField from '../AffixField.vue'
       </label>
       <label class="field"><span>Egresos</span>
         <AffixField prefix="$"><MoneyInput class="afld__in" v-model="state.codeudor.egresos" /></AffixField>
+      </label>
+      <label class="field"><span>OTP</span>
+        <OtpInput v-model="state.codeudor.otp" :length="4" />
       </label>
     </div>
     <Handle id="out" type="source" :position="Position.Right" />

@@ -6,6 +6,7 @@ import { ClipboardList } from 'lucide-vue-next'
 import { useFails } from '../useFails'
 import MoneyInput from '../MoneyInput.vue'
 import AffixField from '../AffixField.vue'
+import OtpInput from '../OtpInput.vue'
 
 // Reglas que el lender SELECCIONADO no cumple con la solicitud actual → se resalta el campo en rojo.
 const { bad } = useFails()
@@ -68,6 +69,9 @@ const feeShort = computed(() => feeReq.value
       </label>
       <label class="field" title="Egresos mensuales. Credifamilia (rt4) los exige en la radicación (egresosMensuales)."><span>Egresos</span>
         <AffixField prefix="$"><MoneyInput class="afld__in" v-model="state.egresos" /></AffixField>
+      </label>
+      <label class="field"><span>OTP</span>
+        <OtpInput v-model="state.solicitudOtp" :length="4" />
       </label>
     </div>
     <Handle type="source" :position="Position.Right" />
