@@ -28,6 +28,7 @@ import GroupRulesNode from './nodes/GroupRulesNode.vue'
 import BranchStatusNode from './nodes/BranchStatusNode.vue'
 import FormStageNode from './nodes/FormStageNode.vue'
 import PosEvalNode from './nodes/PosEvalNode.vue'
+import IdentityNode from './nodes/IdentityNode.vue'
 import CreditStatusNode from './nodes/CreditStatusNode.vue'
 import FieldInfoPanel from './nodes/FieldInfoPanel.vue'
 import { ui, findLenderDef, entidadCfg, perfilOf, lenders, postSelSteps, posEval, closeFieldInfo } from './store'
@@ -121,7 +122,7 @@ const DYN = ['default', 'comercio', 'relacion', 'perfil']
 // usuario con scroll para zoom y arrastrando para mover).
 // Depende también de isDark → al cambiar de tema los edges se reconstruyen con el color adecuado.
 watch([() => ui.selected, isDark, selPasses, selAbaco, selPosOk], ([sel]) => {
-  const base = nodes.value.filter(n => !DYN.includes(n.id) && !n.id.startsWith('cat-') && n.id !== 'tramo' && n.id !== 'grouprules' && n.id !== 'branchstatus' && n.id !== 'extra' && n.id !== 'poseval' && !n.id.startsWith('stage-') && n.id !== 'cstatus')
+  const base = nodes.value.filter(n => !DYN.includes(n.id) && !n.id.startsWith('cat-') && n.id !== 'tramo' && n.id !== 'grouprules' && n.id !== 'branchstatus' && n.id !== 'extra' && n.id !== 'poseval' && n.id !== 'identity' && !n.id.startsWith('stage-') && n.id !== 'cstatus')
   const def = sel ? findLenderDef(sel) : null
   if (!def) { nodes.value = base; edges.value = baseEdges(); return } // cerrar: quita la plantilla, sin mover la cámara
   // Cadena config-de-lender → comercio → sucursal, para CUALQUIER lender (CreditopX o externo).
@@ -180,32 +181,39 @@ watch([() => ui.selected, isDark, selPasses, selAbaco, selPosOk], ([sel]) => {
     const LIFE_Y = 380
     const GS = { stroke: ec('green'), strokeWidth: 1.6 }
     let x = 1860, prevSrc = 'out', prevH = 'psel-' + sel   // arranca en la fila del lender del listado
-    // "Información complementaria" (Ábaco) precede la formalización si la entidad la activó.
-    if (selAbaco.value) {
-      add.push({ id: 'extra', type: 'ingresosextras', position: { x, y: LIFE_Y } })
-      addE.push({ id: 'e-extra', source: prevSrc, sourceHandle: prevH, target: 'extra', targetHandle: 'in', animated: false, style: GS })
-      prevSrc = 'extra'; prevH = 'out'; x += 350
-    }
-    // POS · 2ª evaluación (solo in-platform rt=2/3/4, donde CreditOp controla el cupo): al confirmar,
-    // re-evalúa y compara con el listado. GATE: si acá no hay cupo, el flujo NO llega a la formalización
-    // (el nodo POS queda como terminal, en rojo). rt=0/1 deciden afuera → sin POS.
-    const showPos = [2, 3, 4].includes(def.rt)
-    if (showPos) {
-      add.push({ id: 'poseval', type: 'poseval', position: { x, y: LIFE_Y } })
-      addE.push({ id: 'e-pos', source: prevSrc, sourceHandle: prevH, target: 'poseval', targetHandle: 'in', animated: false, style: GS })
-      prevSrc = 'poseval'; prevH = 'out'; x += 300
-    }
-    if (!showPos || selPosOk.value) {
-      // Formalización DESCOMPUESTA: un nodo por etapa del rt (POSTSEL_STEPS), encadenados izq→der.
-      for (const key of postSelSteps(def.rt).map(s => s.key)) {
-        const id = 'stage-' + key
-        add.push({ id, type: 'formstage', data: { stepKey: key }, position: { x, y: LIFE_Y } })
-        addE.push({ id: 'e-' + id, source: prevSrc, sourceHandle: prevH, target: id, targetHandle: 'in', animated: false, style: GS })
-        prevSrc = id; prevH = 'out'; x += 250
+    // Flujo de CRÉDITO (producto crédito + Credifamilia rt=4): lo estamos rearmando PASO A PASO.
+    // Por ahora, el 1er (y único) nodo tras elegir el lender es la validación de identidad; el resto
+    // de la cadena se irá agregando después.
+    const isCredit = def.producto === 'credito' || def.rt === 4
+    if (isCredit) {
+      add.push({ id: 'identity', type: 'identity', position: { x, y: LIFE_Y } })
+      addE.push({ id: 'e-identity', source: prevSrc, sourceHandle: prevH, target: 'identity', targetHandle: 'in', animated: false, style: GS })
+    } else {
+      // Resto de productos/tipos: cadena actual (Ábaco → POS → formalización por etapas → Estado 11).
+      if (selAbaco.value) {
+        add.push({ id: 'extra', type: 'ingresosextras', position: { x, y: LIFE_Y } })
+        addE.push({ id: 'e-extra', source: prevSrc, sourceHandle: prevH, target: 'extra', targetHandle: 'in', animated: false, style: GS })
+        prevSrc = 'extra'; prevH = 'out'; x += 350
       }
-      // Terminal: Estado del crédito (Estado 11 / rechazo).
-      add.push({ id: 'cstatus', type: 'cstatus', position: { x, y: LIFE_Y } })
-      addE.push({ id: 'e-cstatus', source: prevSrc, sourceHandle: prevH, target: 'cstatus', targetHandle: 'in', animated: false, style: GS })
+      // POS · 2ª evaluación (in-platform que llega acá = rt2 renting/rto o rt3; rt4 ya cayó en isCredit).
+      const showPos = [2, 3].includes(def.rt)
+      if (showPos) {
+        add.push({ id: 'poseval', type: 'poseval', position: { x, y: LIFE_Y } })
+        addE.push({ id: 'e-pos', source: prevSrc, sourceHandle: prevH, target: 'poseval', targetHandle: 'in', animated: false, style: GS })
+        prevSrc = 'poseval'; prevH = 'out'; x += 300
+      }
+      if (!showPos || selPosOk.value) {
+        // Formalización DESCOMPUESTA: un nodo por etapa del rt (POSTSEL_STEPS), encadenados izq→der.
+        for (const key of postSelSteps(def.rt).map(s => s.key)) {
+          const id = 'stage-' + key
+          add.push({ id, type: 'formstage', data: { stepKey: key }, position: { x, y: LIFE_Y } })
+          addE.push({ id: 'e-' + id, source: prevSrc, sourceHandle: prevH, target: id, targetHandle: 'in', animated: false, style: GS })
+          prevSrc = id; prevH = 'out'; x += 250
+        }
+        // Terminal: Estado del crédito (Estado 11 / rechazo).
+        add.push({ id: 'cstatus', type: 'cstatus', position: { x, y: LIFE_Y } })
+        addE.push({ id: 'e-cstatus', source: prevSrc, sourceHandle: prevH, target: 'cstatus', targetHandle: 'in', animated: false, style: GS })
+      }
     }
   }
 
@@ -241,6 +249,7 @@ watch([() => ui.selected, isDark, selPasses, selAbaco, selPosOk], ([sel]) => {
           <template #node-branchstatus="props"><BranchStatusNode v-bind="props" /></template>
           <template #node-formstage="props"><FormStageNode v-bind="props" /></template>
           <template #node-poseval="props"><PosEvalNode v-bind="props" /></template>
+          <template #node-identity="props"><IdentityNode v-bind="props" /></template>
           <template #node-cstatus="props"><CreditStatusNode v-bind="props" /></template>
           <Background :pattern-color="isDark ? '#2f2e27' : '#cfcabd'" :gap="22" />
           <Panel position="top-left" class="hud">

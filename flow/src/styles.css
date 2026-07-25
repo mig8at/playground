@@ -845,6 +845,10 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
 .node--formstage { min-width: 150px; border-color: color-mix(in srgb, var(--green) 40%, var(--line)); }
 .fstage-body { display: flex; align-items: center; gap: 9px; padding: 2px 0; }
 .fstage-txt { display: flex; flex-direction: column; gap: 2px; line-height: 1.2; }
+/* Validación de identidad (IdentityNode): 1er paso del flujo de crédito. Cuadro negro + ícono usuario. */
+.node--identity { background: #0b0b0d; border: 2px solid #3a3a3a; border-radius: 12px; padding: 16px 22px; display: flex; flex-direction: column; align-items: center; gap: 8px; min-width: 128px; }
+.idn-icon { color: #fff; display: flex; }
+.idn-cap { color: #cfcfcf; font-size: 11px; font-weight: 600; letter-spacing: .02em; text-align: center; }
 /* POS · 2ª evaluación (PosEvalNode): comparación listado ↔ punto de venta + knob de comprometido. */
 .node--poseval { min-width: 212px; border-color: color-mix(in srgb, var(--green) 40%, var(--line)); }
 .pos-body { display: flex; flex-direction: column; gap: 7px; }
