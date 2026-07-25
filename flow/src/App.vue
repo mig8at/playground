@@ -184,12 +184,20 @@ watch([() => ui.selected, isDark, selPasses, selAbaco, selPosOk], ([sel]) => {
     // Flujo de CRÉDITO (producto crédito + Credifamilia rt=4): lo estamos rearmando PASO A PASO.
     // Por ahora, el 1er (y único) nodo tras elegir el lender es la validación de identidad; el resto
     // de la cadena se irá agregando después.
-    const isCredit = def.producto === 'credito' || def.rt === 4
-    if (isCredit) {
+    const isCredit = (def.rt === 2 && def.producto === 'credito') || def.rt === 4
+    const isRenting = def.rt === 2 && (def.producto === 'renting' || def.producto === 'rto')
+    if (isCredit || isRenting) {
+      // Flujo in-platform, en reconstrucción PASO A PASO. Renting/rto: primero Ábaco (ingreso extra
+      // editable), luego identidad. Crédito (+ Credifamilia): directo a validación de identidad.
+      if (isRenting) {
+        add.push({ id: 'extra', type: 'ingresosextras', position: { x, y: LIFE_Y } })
+        addE.push({ id: 'e-extra', source: prevSrc, sourceHandle: prevH, target: 'extra', targetHandle: 'in', animated: false, style: GS })
+        prevSrc = 'extra'; prevH = 'out'; x += 350
+      }
       add.push({ id: 'identity', type: 'identity', position: { x, y: LIFE_Y } })
       addE.push({ id: 'e-identity', source: prevSrc, sourceHandle: prevH, target: 'identity', targetHandle: 'in', animated: false, style: GS })
     } else {
-      // Resto de productos/tipos: cadena actual (Ábaco → POS → formalización por etapas → Estado 11).
+      // rt=1 (agregador) / rt=0 (redirect): cadena externa/redirect (formalización actual; POS no aplica).
       if (selAbaco.value) {
         add.push({ id: 'extra', type: 'ingresosextras', position: { x, y: LIFE_Y } })
         addE.push({ id: 'e-extra', source: prevSrc, sourceHandle: prevH, target: 'extra', targetHandle: 'in', animated: false, style: GS })

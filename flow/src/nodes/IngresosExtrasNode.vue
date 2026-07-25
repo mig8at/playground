@@ -17,7 +17,7 @@ const total = computed(() => base.value + (extra.value || 0))
   <div class="node node--extra prov-node" :class="{ 'node--down': providerDown.abaco }">
     <Handle id="in" type="target" :position="Position.Left" />
     <div class="node__hd node__hd--green nhd-doc" title="clic: detalle del nodo" @click="openFieldInfo('node.ingresosextras')">
-      <div class="node__title"><ClipboardList :size="13" /> Información complementaria</div>
+      <div class="node__title"><ClipboardList :size="13" /> Ábaco</div>
       <button class="prov__api nodrag" :class="{ 'prov__api--down': providerDown.abaco }"
               @click.stop="providerDown.abaco = !providerDown.abaco"
               :title="providerDown.abaco ? 'API caída (timeout/5xx) — clic para revivir' : 'simular API caída (timeout/5xx)'">
