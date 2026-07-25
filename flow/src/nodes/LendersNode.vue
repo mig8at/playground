@@ -1,7 +1,6 @@
 <script setup>
-import { reactive } from 'vue'
 import { Handle, Position } from '@vue-flow/core'
-import { lenders, availableCount, merchant, ui, money, cuotaBreakdown, openFieldInfo } from '../store'
+import { lenders, availableCount, merchant, ui, money, cuotaBreakdown, duesOf, setDues, openFieldInfo } from '../store'
 // Los datos de la tarjeta también abren el sidebar (clic) — mismo mecanismo que el resto de labels.
 import { Check, X, ListChecks } from 'lucide-vue-next'
 
@@ -14,15 +13,10 @@ const selStyle = (l) => ui.selected === l.name
   ? { boxShadow: 'inset 3px 0 0 ' + (RT_VAR[l.rt] || 'var(--green)'), borderColor: 'color-mix(in srgb, ' + (RT_VAR[l.rt] || 'var(--green)') + ' 45%, transparent)' }
   : null
 
-// Plazo (nº de cuotas) elegido por lender en el marketplace. Default = primera opción de su lista.
-// Clamp: si la categoría/tramo recortó los plazos y el elegido ya no existe, cae al primero disponible
-// (antes el select quedaba vacío y la cuota estimada usaba un plazo viejo).
-const plazos = reactive({})
-const plazo = (l) => {
-  const p = plazos[l.name]
-  return (p != null && l.dues && l.dues.includes(p)) ? p : ((l.dues && l.dues[0]) ?? 0)
-}
-const setPlazo = (l, v) => { plazos[l.name] = Number(v) }
+// Plazo (nº de cuotas) elegido por lender: vive en el store (COMPARTIDO con el nodo "Plan de pagos"),
+// así el número de cuotas se hereda/sincroniza entre el listado y ese nodo. Default = primer plazo; clamp.
+const plazo = (l) => duesOf(l)
+const setPlazo = (l, v) => setDues(l.name, v)
 // Cuota mensual: ensamblado real (capital + costos admin + castigo + fondo garantías·IVA, luego
 // anualidad + seguros) desde la calculadora del comercio. Ver cuotaBreakdown en el store.
 const cuota = (l, n) => cuotaBreakdown(l, n).cuota

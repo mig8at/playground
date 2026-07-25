@@ -309,8 +309,19 @@ export const state = reactive({
   egresos: '3200000',
   // POS · 2ª evaluación: monto ya comprometido en OTRO crédito activo desde que se armó el listado
   // (0 = el POS coincide con el listado). Subilo para ver el dolor nº1: preaprobado que sale sin cupo.
-  posCommitted: 0
+  posCommitted: 0,
+  // Plan de pagos (CreditopX): día elegido de primera fecha de pago (6/15/28); null = la más próxima.
+  firstPaymentDay: null
 })
+
+// Plazo (número de cuotas) elegido por lender en el listado. COMPARTIDO: lo leen/editan tanto
+// "Entidades disponibles" como el nodo "Plan de pagos", así el número de cuotas se hereda/sincroniza.
+export const selectedDues = reactive({})
+export function duesOf(l) {
+  const p = selectedDues[l.name]
+  return (p != null && l.dues && l.dues.includes(p)) ? p : ((l.dues && l.dues[0]) ?? 0)  // clamp al listado
+}
+export function setDues(name, v) { selectedDues[name] = Number(v); editTick.n++ }
 const montoNum = () => parseInt(String(state.monto).replace(/[^\d]/g, '')) || 0
 
 // Buró editable: cada nodo-proveedor define/edita su parte. Se siembra del documento
