@@ -18,7 +18,7 @@ const payOptions = computed(() => {
   return [6, 15, 28]
     .map(day => {
       const dt = day <= d ? new Date(y, m + 1, day) : new Date(y, m, day) // pasó este mes → el próximo
-      return { day, date: dt, label: `${day} ${MESES[dt.getMonth()]} ${dt.getFullYear()}` }
+      return { day, date: dt, label: `${day} ${MESES[dt.getMonth()]}` }
     })
     .sort((a, b) => a.date - b.date)
 })
