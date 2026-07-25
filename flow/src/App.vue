@@ -26,10 +26,11 @@ import CategoryNode from './nodes/CategoryNode.vue'
 import TramoNode from './nodes/TramoNode.vue'
 import GroupRulesNode from './nodes/GroupRulesNode.vue'
 import BranchStatusNode from './nodes/BranchStatusNode.vue'
-import LifecycleNode from './nodes/LifecycleNode.vue'
+import FormStageNode from './nodes/FormStageNode.vue'
+import PosEvalNode from './nodes/PosEvalNode.vue'
 import CreditStatusNode from './nodes/CreditStatusNode.vue'
 import FieldInfoPanel from './nodes/FieldInfoPanel.vue'
-import { ui, findLenderDef, entidadCfg, perfilOf, lenders, closeFieldInfo } from './store'
+import { ui, findLenderDef, entidadCfg, perfilOf, lenders, postSelSteps, posEval, closeFieldInfo } from './store'
 import { settings } from './settings'
 
 // El tema/visibilidad los maneja la barra "Configuraciones" (settings.js). Acá solo derivamos isDark
@@ -41,6 +42,8 @@ const selPasses = computed(() => { const s = ui.selected; return s ? !!lenders.v
 // ¿La entidad seleccionada activó Ábaco (Información complementaria)? Solo entonces se muestra ese nodo.
 // Dependencia del watch para que aparezca/desaparezca al togglear el flag en Configurar entidad.
 const selAbaco = computed(() => { const s = ui.selected; if (!s) return false; const d = findLenderDef(s); return !!(d && entidadCfg(d).abacoExtra) })
+// ¿La 2ª evaluación del POS deja pasar a la formalización? (si no hay cupo en el POS, el flujo se corta ahí)
+const selPosOk = computed(() => { const s = ui.selected; if (!s) return true; const pe = posEval(s); return !pe || pe.ok })
 
 // Esc: 1º cierra el sidebar de detalle; 2º deselecciona la entidad (cierra el cluster de config).
 // Clic en el canvas (pane) cierra solo el sidebar. Sin robar Esc cuando se está tipeando en un input.
@@ -117,8 +120,8 @@ const DYN = ['default', 'comercio', 'relacion', 'perfil']
 // todo, no un zoom en la esquina. Al SELECCIONAR: NO se re-encuadra solo (la cámara la maneja el
 // usuario con scroll para zoom y arrastrando para mover).
 // Depende también de isDark → al cambiar de tema los edges se reconstruyen con el color adecuado.
-watch([() => ui.selected, isDark, selPasses, selAbaco], ([sel]) => {
-  const base = nodes.value.filter(n => !DYN.includes(n.id) && !n.id.startsWith('cat-') && n.id !== 'tramo' && n.id !== 'grouprules' && n.id !== 'branchstatus' && n.id !== 'extra' && n.id !== 'lifecycle' && n.id !== 'cstatus')
+watch([() => ui.selected, isDark, selPasses, selAbaco, selPosOk], ([sel]) => {
+  const base = nodes.value.filter(n => !DYN.includes(n.id) && !n.id.startsWith('cat-') && n.id !== 'tramo' && n.id !== 'grouprules' && n.id !== 'branchstatus' && n.id !== 'extra' && n.id !== 'poseval' && !n.id.startsWith('stage-') && n.id !== 'cstatus')
   const def = sel ? findLenderDef(sel) : null
   if (!def) { nodes.value = base; edges.value = baseEdges(); return } // cerrar: quita la plantilla, sin mover la cámara
   // Cadena config-de-lender → comercio → sucursal, para CUALQUIER lender (CreditopX o externo).
@@ -175,18 +178,35 @@ watch([() => ui.selected, isDark, selPasses, selAbaco], ([sel]) => {
   // de la FILA del lender seleccionado en el listado (handle psel-<name>).
   if (selPasses.value) {
     const LIFE_Y = 380
-    const abacoOn = selAbaco.value                 // "Información complementaria" solo si la entidad activó Ábaco
-    const LIFE_X = abacoOn ? 2210 : 1860           // sin Ábaco: la formalización ocupa el lugar del nodo extra
-    if (abacoOn) {
-      add.push({ id: 'extra', type: 'ingresosextras', position: { x: 1860, y: LIFE_Y } })
-      addE.push({ id: 'e-extra-in', source: 'out', sourceHandle: 'psel-' + sel, target: 'extra', targetHandle: 'in', animated: false, style: { stroke: ec('green'), strokeWidth: 1.6 } })
-      addE.push({ id: 'e-extra-out', source: 'extra', sourceHandle: 'out', target: 'lifecycle', targetHandle: 'in', animated: false, style: { stroke: ec('green'), strokeWidth: 1.6 } })
-    } else {
-      addE.push({ id: 'e-life-in', source: 'out', sourceHandle: 'psel-' + sel, target: 'lifecycle', targetHandle: 'in', animated: false, style: { stroke: ec('green'), strokeWidth: 1.6 } })
+    const GS = { stroke: ec('green'), strokeWidth: 1.6 }
+    let x = 1860, prevSrc = 'out', prevH = 'psel-' + sel   // arranca en la fila del lender del listado
+    // "Información complementaria" (Ábaco) precede la formalización si la entidad la activó.
+    if (selAbaco.value) {
+      add.push({ id: 'extra', type: 'ingresosextras', position: { x, y: LIFE_Y } })
+      addE.push({ id: 'e-extra', source: prevSrc, sourceHandle: prevH, target: 'extra', targetHandle: 'in', animated: false, style: GS })
+      prevSrc = 'extra'; prevH = 'out'; x += 350
     }
-    add.push({ id: 'lifecycle', type: 'lifecycle', position: { x: LIFE_X, y: LIFE_Y } })
-    add.push({ id: 'cstatus', type: 'cstatus', position: { x: LIFE_X + 350, y: LIFE_Y } })
-    addE.push({ id: 'e-life-out', source: 'lifecycle', sourceHandle: 'out', target: 'cstatus', targetHandle: 'in', animated: false, style: { stroke: ec('green'), strokeWidth: 1.6 } })
+    // POS · 2ª evaluación (solo in-platform rt=2/3/4, donde CreditOp controla el cupo): al confirmar,
+    // re-evalúa y compara con el listado. GATE: si acá no hay cupo, el flujo NO llega a la formalización
+    // (el nodo POS queda como terminal, en rojo). rt=0/1 deciden afuera → sin POS.
+    const showPos = [2, 3, 4].includes(def.rt)
+    if (showPos) {
+      add.push({ id: 'poseval', type: 'poseval', position: { x, y: LIFE_Y } })
+      addE.push({ id: 'e-pos', source: prevSrc, sourceHandle: prevH, target: 'poseval', targetHandle: 'in', animated: false, style: GS })
+      prevSrc = 'poseval'; prevH = 'out'; x += 300
+    }
+    if (!showPos || selPosOk.value) {
+      // Formalización DESCOMPUESTA: un nodo por etapa del rt (POSTSEL_STEPS), encadenados izq→der.
+      for (const key of postSelSteps(def.rt).map(s => s.key)) {
+        const id = 'stage-' + key
+        add.push({ id, type: 'formstage', data: { stepKey: key }, position: { x, y: LIFE_Y } })
+        addE.push({ id: 'e-' + id, source: prevSrc, sourceHandle: prevH, target: id, targetHandle: 'in', animated: false, style: GS })
+        prevSrc = id; prevH = 'out'; x += 250
+      }
+      // Terminal: Estado del crédito (Estado 11 / rechazo).
+      add.push({ id: 'cstatus', type: 'cstatus', position: { x, y: LIFE_Y } })
+      addE.push({ id: 'e-cstatus', source: prevSrc, sourceHandle: prevH, target: 'cstatus', targetHandle: 'in', animated: false, style: GS })
+    }
   }
 
   nodes.value = [...base, ...add]
@@ -219,7 +239,8 @@ watch([() => ui.selected, isDark, selPasses, selAbaco], ([sel]) => {
           <template #node-tramo="props"><TramoNode v-bind="props" /></template>
           <template #node-grouprules="props"><GroupRulesNode v-bind="props" /></template>
           <template #node-branchstatus="props"><BranchStatusNode v-bind="props" /></template>
-          <template #node-lifecycle="props"><LifecycleNode v-bind="props" /></template>
+          <template #node-formstage="props"><FormStageNode v-bind="props" /></template>
+          <template #node-poseval="props"><PosEvalNode v-bind="props" /></template>
           <template #node-cstatus="props"><CreditStatusNode v-bind="props" /></template>
           <Background :pattern-color="isDark ? '#2f2e27' : '#cfcabd'" :gap="22" />
           <Panel position="top-left" class="hud">

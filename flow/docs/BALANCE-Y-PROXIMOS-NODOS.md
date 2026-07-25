@@ -162,7 +162,7 @@ soporte.
 |---|---|---|
 | ✅ **Formalización (firma · KYC · enganche)** — *hecho* | Ciclo de vida post-selección por rt: plan → KYC (ADO) → firma del pagaré (OTP) → cobro del enganche (Wompi). Stepper con fallo por paso | "¿Qué falta para que quede aprobado?" · "¿Por qué rebota el link con enganche?" (FAQ E2) |
 | ✅ **Estado del crédito / Estado 11 + aviso** — *hecho* | El cierre: Estado 11 "Autorizada" + aviso (webhook) a la tienda; o detenido/rechazado/timeout según dónde se cortó | "El lender ya desembolsó y el estado no cambia" (FAQ D1) |
-| ⭐ **Punto de venta — la 2ª evaluación** — *pendiente* | Al "confirmar", corre la evaluación autoritativa (crédito activo, reglas, categoría, cupo) y **compara contra lo que el listado había mostrado** | "¿Por qué el preaprobado no aparece / sale sin cupo en el POS?" (FAQ A1 — el dolor nº 1) |
+| ✅ **Punto de venta — la 2ª evaluación** — *hecho* | Al "confirmar", re-evalúa contra el estado actual y **compara contra lo que el listado mostró**; knob "comprometido en crédito activo" (consume el cupo revolving) → GATE: sin cupo en el POS no llega a formalizar (solo in-platform rt=2/3/4) | "¿Por qué el preaprobado no aparece / sale sin cupo en el POS?" (FAQ A1 — el dolor nº 1) |
 | *Vida del crédito (cartera)* — *fuera de alcance* | Servicing post-Estado 11 (al día → mora → paz y salvo; cascada de un pago). Otro grafo | "¿Por qué sigue en mora si pagó?" (FAQ F1) |
 
 ### Grupo B — La entrada real: antes de la solicitud
