@@ -81,8 +81,8 @@ grafo se enciende:
 | 2 | CreditopX | CreditOp | Todo local: categoría, cupo, tramo, cuota, formalización paso a paso |
 | 1 | Agregador | la API del lender | Un switch `aprueba / rechaza / timeout` — en la vida real tampoco lo controlamos |
 | 0 | Redirect | su sitio | Se va y perdemos visibilidad |
-| 3 | Rotativo | CreditOp | Cadena de formalización definida, pero **no se puede crear desde la UI** |
-| 4 | Credifamilia (externo) | CreditOp (listado in-platform) | Creable desde la UI. Formalización propia: `additional-info` (form_type 6) → merge PDF → **radicación SOAP**, que rechaza (**CREDIT_INVALID**) si falta `codigoCiudadNacimiento`/`score`/`egresos` — el caso real de prod |
+
+> **Consolidación (2026-07):** el rotativo (rt=3) y Credifamilia (rt=4) se doblaron en **rt=2 CreditopX** para no confundir tipos in-platform — Credifamilia es un CreditopX de producto crédito. Las entidades rt=3/rt=4 ya creadas se migran a rt=2 al cargar (`normalizeType`).
 
 **Excluir vs clasificar.** Si falla el gate de sucursal (datacrédito + group_rules): rt=2 **se cae del
 listado**; rt≠2 **baja al fondo** como "prob. baja" pero sigue visible. Es la inversión que más
@@ -153,10 +153,11 @@ de alcance por decisión).
 - **Rama muerta en `App.vue:138`:** `def.generated ? 'tpl-prod-…' : 'tpl-base-…'`. Ninguna entidad
   tiene `generated` (murió en la poda F0) y el handle `tpl-prod-*` no existe en ningún componente →
   siempre toma la rama `tpl-base-`. Inofensivo, pero no te confunda.
-- **rt=4 = "Externo (Credifamilia)"** (gestión externa por SOAP; único inquilino real = Credifamilia,
-  lender 24): existe en la taxonomía pero no se puede crear desde el `<select>`. Igual rt=3 (CreditopX
-  rotativo): tiene cadena de formalización pero tampoco está en el creador. El `RT_LABEL` ahora es único
-  (exportado de `store.js`; los nodos lo importan, ya no hay 4 copias divergentes).
+- **Tipos consolidados a rt=0/1/2:** rt=3 (rotativo) y rt=4 (Credifamilia) se doblaron en **rt=2
+  CreditopX** (`normalizeType` en `store.js`, aplicado al crear y al cargar) para no confundir tipos
+  in-platform; Credifamilia es un CreditopX de producto crédito. El `RT_LABEL` (único, exportado de
+  `store.js`) ahora solo tiene 0/1/2. Queda código muerto de la vieja radicación SOAP rt=4
+  (`POSTSEL_STEPS[4]`, `credifamiliaRadica`) que ya no se alcanza.
 - **El catálogo del comercio no tiene checkbox**: una entidad nace habilitada y el único interruptor
   de visibilidad es **"Estado en sucursal"** (`lenders_by_allied_branches.status`) — pero **ojo: es una
   bandera de membresía solo-BD que el `getLenders` vivo IGNORA** (default true; el panel ni la escribe;

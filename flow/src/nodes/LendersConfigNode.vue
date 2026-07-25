@@ -9,7 +9,7 @@ import { Plus, Trash2, Copy } from 'lucide-vue-next'
 const PRODUCTOS = [{ key: 'credito', label: 'Crédito' }, { key: 'renting', label: 'Renting' }, { key: 'rto', label: 'Renting con compra' }]
 const productoLabel = (k) => PRODUCTOS.find(p => p.key === k)?.label || ''
 // Nombre y "quién decide" por response_type — más descriptivo que "rt2" y más visual.
-const RT_WHO = { 0: 'redirige a su sitio', 1: 'decide su API', 2: 'decide CreditOp', 3: 'decide CreditOp', 4: 'decide CreditOp · radica por SOAP' }
+const RT_WHO = { 0: 'redirige a su sitio', 1: 'decide su API', 2: 'decide CreditOp' }
 const rtName = (rt) => RT_LABEL[rt] || ('rt' + rt) // RT_LABEL unificado, importado de store.js
 const rtWho = (rt) => RT_WHO[rt] || ''
 const entities = computed(() => [...customLenders]) // catálogo = solo lo que creó el usuario
@@ -21,8 +21,7 @@ const newName = ref('')
 const newRt = ref('2')
 const newProducto = ref('credito')
 function create() {
-  const prod = newRt.value === '4' ? null : newProducto.value  // Credifamilia (rt4) no es un producto CreditopX
-  const l = addCustomLender(newName.value, newRt.value, prod)
+  const l = addCustomLender(newName.value, newRt.value, newProducto.value)
   if (l) { ui.selected = l.name; creating.value = false; newName.value = ''; newRt.value = '2'; newProducto.value = 'credito' }
 }
 // Duplicar: clona la entidad (nombre único) y la deja seleccionada para editar la copia.
@@ -59,13 +58,12 @@ function dup(name) { const l = duplicateCustomLender(name); if (l) ui.selected =
       <button v-if="!creating" class="cfg-add nodrag" @click.stop="creating = true"><Plus :size="13" /> Agregar entidad</button>
       <div v-else class="cfg-new nodrag">
         <input class="nodrag" v-model="newName" placeholder="Nombre de la entidad" title="Nombre de la nueva entidad." @keyup.enter="create" />
-        <select class="nodrag" v-model="newRt" title="Tipo de respuesta (categoría): define quién decide el crédito. rt2 CreditopX · rt1 agregador · rt0 redirect · rt4 Credifamilia (radica por SOAP).">
+        <select class="nodrag" v-model="newRt" title="Tipo de respuesta (categoría): define quién decide el crédito. rt2 CreditopX · rt1 agregador · rt0 redirect.">
           <option value="2">CreditopX · rt2</option>
           <option value="1">Agregador · rt1</option>
           <option value="0">Redirect · rt0</option>
-          <option value="4">Credifamilia · rt4</option>
         </select>
-        <select v-if="newRt !== '4'" class="nodrag" v-model="newProducto" title="Producto de la entidad: crédito, renting o renting con compra.">
+        <select class="nodrag" v-model="newProducto" title="Producto de la entidad: crédito, renting o renting con compra.">
           <option v-for="p in PRODUCTOS" :key="p.key" :value="p.key">{{ p.label }}</option>
         </select>
         <div class="cfg-new__actions">

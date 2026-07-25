@@ -195,7 +195,7 @@ watch([() => ui.selected, isDark, selPasses, selAbaco, selPosOk, selIncome], ([s
     // Flujo de CRÉDITO (producto crédito + Credifamilia rt=4): lo estamos rearmando PASO A PASO.
     // Por ahora, el 1er (y único) nodo tras elegir el lender es la validación de identidad; el resto
     // de la cadena se irá agregando después.
-    const isCredit = (def.rt === 2 && def.producto === 'credito') || def.rt === 4
+    const isCredit = def.rt === 2 && def.producto === 'credito'
     const isRenting = def.rt === 2 && (def.producto === 'renting' || def.producto === 'rto')
     if (isCredit || isRenting) {
       // Flujo in-platform, en reconstrucción PASO A PASO. Renting/rto: primero Ábaco (ingreso extra

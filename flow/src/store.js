@@ -67,7 +67,7 @@ const L = (def) => {
 /* ── Config de la ENTIDAD (lo que HOY edita el admin en "Editar entidad" → tabla lenders):
  * response_type + economía (monto/cuotas/tasa/mora/condonadas). Se DERIVA de terms/overrides
  * que ya existen; se puede afinar por lender con un objeto `entidad`. Es solo-mostrar (no decide). */
-export const RT_LABEL = { 0: 'Redirect', 1: 'Agregador', 2: 'CreditopX', 3: 'CreditopX rotativo', 4: 'Externo (Credifamilia)' } // rt=4 = "externally-managed / extra-details" (radicación SOAP); único inquilino real = Credifamilia (lender 24). "Híbrido" NO existe en el código.
+export const RT_LABEL = { 0: 'Redirect', 1: 'Agregador', 2: 'CreditopX' } // rt=3 (rotativo) y rt=4 (Credifamilia) se consolidaron en rt=2 CreditopX para no confundir tipos in-platform.
 export function entidadCfg(lender) {
   if (!lender) return null
   const t = lender.terms || {}, ov = lender.overrides || {}, e = lender.entidad || {}
@@ -237,12 +237,22 @@ function seedAmountRule(l) {
 // localStorage). Se comportan como una entidad base más: se listan, habilitan, seleccionan y
 // configuran (Config de lender). CreditopX/agregador/redirect son solo el response_type. ──
 const LS_CUSTOM = 'flow-custom-lenders'
+// Consolidación de tipos: Credifamilia (rt=4) y el rotativo (rt=3) son CreditopX → se doblan a rt=2
+// (producto crédito por defecto). Así no hay confusión: in-platform = CreditopX rt=2, y punto.
+function normalizeType(rt, producto) {
+  rt = Number(rt)
+  if (rt === 3 || rt === 4) return { rt: 2, producto: producto || 'credito' }
+  return { rt, producto: producto || null }
+}
 function loadCustom() {
   try {
-    return (JSON.parse(localStorage.getItem(LS_CUSTOM)) || []).map(d => seedAmountRule(L({
-      name: d.name, rt: d.rt, custom: true, producto: d.producto || null,
-      terms: d.terms || {}, overrides: d.overrides || {}, entidad: d.entidad || {},
-    })))
+    return (JSON.parse(localStorage.getItem(LS_CUSTOM)) || []).map(d => {
+      const { rt, producto } = normalizeType(d.rt, d.producto)
+      return seedAmountRule(L({
+        name: d.name, rt, custom: true, producto,
+        terms: d.terms || {}, overrides: d.overrides || {}, entidad: d.entidad || {},
+      }))
+    })
   } catch { return [] }
 }
 export const customLenders = reactive(loadCustom())
@@ -257,9 +267,10 @@ watch(customLenders, () => {                                    // persiste cat�
 export function addCustomLender(name, rt, producto) {
   const nm = String(name || '').trim()
   if (!nm || customLenders.some(l => l.name === nm)) return null // nombre libre; solo evita duplicar custom
-  const tpl = CREDITOPX_PRODUCTS.find(p => p.key === producto)
+  const norm = normalizeType(rt, producto)        // rt=3/4 → rt=2 CreditopX (crédito)
+  const tpl = CREDITOPX_PRODUCTS.find(p => p.key === norm.producto)
   const l = seedAmountRule(L({
-    name: nm, rt: Number(rt), custom: true, producto: producto || null,
+    name: nm, rt: norm.rt, custom: true, producto: norm.producto,
     terms: tpl ? { ...tpl.terms } : { rate: 2.0, maxFee: 24, amountMax: 3000000 },
     overrides: tpl ? clone(tpl.overrides) : {},
   }))
