@@ -16,7 +16,7 @@ Dos pestañas, las dos vivas: tocás un input y todo se recalcula.
 
 | pestaña | qué muestra |
 |---|---|
-| **Cálculo** | El grafo de dependencias de la hoja. Un nodo por **nombre declarado** (input, constante, tabla, fórmula, output), izquierda → derecha en el orden en que el motor calcula. Abajo, la tabla de la serie. |
+| **Cálculo** | La **cadena de cálculo**: un nodo por fórmula, izquierda → derecha en el orden en que el motor las resuelve. Abajo, la tabla de la serie. |
 | **Política** | El árbol de decisión. El *gate* corre en cadena y **corta en la primera regla que falla**; después abanican las ramas del *outcome*. Solo se ilumina el camino que se tomó. |
 
 La prueba que más rápido explica el diseño: **vaciá un input**. Solo se apagan sus descendientes
@@ -28,8 +28,20 @@ que hace usable un editor donde la hoja está a medio escribir.
 Un grafo sí/no modela **control de flujo**. En la aritmética no hay: todo se calcula siempre,
 `financedAmount = taxableBase + vatAmount` no tiene rama "no". Y un nodo por *operación*
 convertiría `(1 + monthlyRate) ^ (monthsPerYear / weeksPerYear) - 1` en seis cajitas con cables
-— menos legible que la expresión escrita. Por eso: **un nodo por nombre, la expresión como texto
+— menos legible que la expresión escrita. Por eso: **un nodo por fórmula, la expresión como texto
 adentro**.
+
+## Un solo nodo de Entrada
+
+Inputs y constantes **no ocupan un nodo cada uno**: van todos juntos en el nodo *Entrada* de la
+izquierda. Son hojas del grafo y dibujarlos sueltos era ruido — llenaban la primera columna y
+cruzaban aristas por todos lados sin decir nada. Lo que se quiere leer es la cadena.
+
+Las **constantes no tiran ninguna arista** (son ambiente: se ven en el nodo y ya). Los **inputs
+sí**, pero solo hacia las fórmulas que los leen directo, y la arista dice cuál viaja por ahí.
+Las **tablas quedan como nodo aparte** porque tienen contenido que vale ver y pocos consumidores.
+
+El efecto: `motai-rto` pasó de 18 nodos a **9**; `alta-fleet` de 16 a **8**.
 
 Las decisiones son otra cosa. `creditScore >= 400` sí tiene dos caminos, el orden importa
 (corta y reporta cuál falló) y el resultado no es un número sino **un veredicto más un porqué**.

@@ -134,8 +134,20 @@ label.chk input { width: auto; accent-color: var(--purple) }
   font: 10.5px var(--mono); color: var(--dim); margin-top: 5px; padding-top: 5px;
   border-top: 1px dashed var(--line); word-break: break-word; line-height: 1.45;
 }
-.n--input .n__hd { background: var(--hd-amber) } .n--input .n__hd b { color: var(--amber) }
-.n--const .n__hd { background: var(--hd-gray) }  .n--const .n__hd b { color: var(--mut) }
+.n--entrada { border-color: var(--amber) }
+.n--entrada .n__hd { background: var(--hd-amber) } .n--entrada .n__hd b { color: var(--amber) }
+.ent { padding: 4px 0 6px }
+.ent__sec {
+  font: 9.5px var(--mono); color: var(--dim); text-transform: uppercase; letter-spacing: .06em;
+  padding: 7px 9px 3px; border-top: 1px solid var(--line); margin-top: 3px;
+}
+.ent__sec:first-child { border-top: 0; margin-top: 0; padding-top: 5px }
+.ent__row { display: flex; gap: 8px; align-items: baseline; padding: 1px 9px; font-size: 11px; line-height: 19px }
+.ent__k { font-family: var(--mono); color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
+.ent__v { margin-left: auto; font-family: var(--mono); font-weight: 650; white-space: nowrap }
+.ent__row--const .ent__k, .ent__row--const .ent__v { color: var(--mut); font-weight: 400 }
+.ent__row.is-missing .ent__k { color: var(--mut); text-decoration: line-through }
+.ent__row.is-missing .ent__v { color: var(--red) }
 .n--table .n__hd { background: var(--hd-blue) }  .n--table .n__hd b { color: var(--blue) }
 .n--formula .n__hd { background: var(--hd-blue) } .n--formula .n__hd b { color: var(--blue) }
 .n--output { border-color: var(--purple); box-shadow: var(--shadow-2) }
@@ -193,6 +205,9 @@ table.ser tr:hover td { background: var(--card2) }
 /* Vue Flow */
 .vue-flow__edge-path { stroke: var(--line); stroke-width: 1.5 }
 .vue-flow__edge.animated .vue-flow__edge-path { stroke: var(--purple) }
+/* la etiqueta de la arista dice QUÉ input viaja por ahí */
+.vue-flow__edge-text { font: 9.5px var(--mono); fill: var(--dim) }
+.vue-flow__edge-textbg { fill: var(--canvas) }
 .vue-flow__handle { width: 7px; height: 7px; background: var(--mut); border: 0 }
 .vue-flow__panel { margin: 10px }
 .legend {

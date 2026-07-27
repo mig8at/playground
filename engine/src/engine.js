@@ -152,6 +152,20 @@ export function run(node, R) {
   throw new Error('nodo inválido')
 }
 
+// Qué TABLAS usa una expresión. Va aparte de refsOf porque en lookup(tabla, clave, "col")
+// el 1er argumento no es una referencia a fórmula sino el nombre de una tabla.
+export function tableRefsOf(n, out) {
+  out = out || new Set()
+  if (!n) return out
+  if (n.k === 'bin') { tableRefsOf(n.l, out); tableRefsOf(n.r, out) }
+  if (n.k === 'neg' || n.k === 'not') tableRefsOf(n.x, out)
+  if (n.k === 'call') {
+    if (n.f === 'lookup' && n.args[0]?.k === 'ref') out.add(n.args[0].name)
+    n.args.forEach(a => tableRefsOf(a, out))
+  }
+  return out
+}
+
 export function refsOf(n, out) {
   out = out || new Set()
   if (!n) return out
@@ -170,7 +184,7 @@ export function refsOf(n, out) {
 export const MAX_ROWS = 520
 
 export function evalSheet(sheet, inputValues) {
-  const res = {}, env = {}, order = [], asts = {}, deps = {}
+  const res = {}, env = {}, order = [], asts = {}, deps = {}, tableDeps = {}
   const tables = sheet.tables || {}
 
   for (const [k, v] of Object.entries(sheet.constants || {})) env[k] = v
@@ -185,8 +199,13 @@ export function evalSheet(sheet, inputValues) {
   }
 
   for (const [name, expr] of Object.entries(sheet.formulas || {})) {
-    try { asts[name] = parse(tokenize(expr)); deps[name] = [...refsOf(asts[name])] }
-    catch (e) { res[name] = { status: 'error', reason: e.message }; deps[name] = [] }
+    try {
+      asts[name] = parse(tokenize(expr))
+      deps[name] = [...refsOf(asts[name])]
+      tableDeps[name] = [...tableRefsOf(asts[name])]
+    } catch (e) {
+      res[name] = { status: 'error', reason: e.message }; deps[name] = []; tableDeps[name] = []
+    }
   }
 
   const inProg = new Set()
@@ -277,7 +296,7 @@ export function evalSheet(sheet, inputValues) {
     }
   }
 
-  return { res, order, deps, missing, series }
+  return { res, order, deps, tableDeps, missing, series }
 }
 
 /* ───────────────────── evaluar una política ───────────────────── */

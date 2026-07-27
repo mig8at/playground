@@ -8,64 +8,73 @@ const ROW_H = 118
 
 /* ───────── grafo de una hoja ───────── */
 export function layoutSheet(def, out, opts = {}) {
-  const { showConstants = false, inputValues = {} } = opts
+  const { inputValues = {} } = opts
   const formulas = Object.keys(def.formulas || {})
-  const inputs = (def.inputs || []).map(i => i.name)
+  const inputNames = (def.inputs || []).map(i => i.name)
   const constants = Object.keys(def.constants || {})
   const tables = Object.keys(def.tables || {})
-
   const isFormula = new Set(formulas)
-  const visible = new Set([...formulas, ...inputs, ...tables])
-  if (showConstants) constants.forEach(c => visible.add(c))
+  const isInput = new Set(inputNames)
 
-  // profundidad = 1 + la mayor de sus dependencias visibles
+  // Profundidad contando SOLO dependencias entre fórmulas. Inputs y constantes son hojas
+  // del grafo y viven todas en el nodo @entrada, así que no ocupan columna.
   const depth = {}
-  inputs.forEach(n => depth[n] = 0)
-  constants.forEach(n => depth[n] = 0)
-  tables.forEach(n => depth[n] = 0)
   const seen = new Set()
   function d(name) {
     if (depth[name] != null) return depth[name]
-    if (seen.has(name)) return 0            // ciclo: cortamos
+    if (seen.has(name)) return 1                 // ciclo: cortamos
     seen.add(name)
-    const deps = (out.deps[name] || []).filter(x => visible.has(x) || isFormula.has(x))
-    const v = deps.length ? 1 + Math.max(...deps.map(d)) : 1
-    depth[name] = v
-    return v
+    const deps = (out.deps[name] || []).filter(x => isFormula.has(x))
+    depth[name] = deps.length ? 1 + Math.max(...deps.map(d)) : 1
+    return depth[name]
   }
   formulas.forEach(d)
 
-  // agrupar por columna, ordenando cada una por el orden de declaración
   const cols = new Map()
-  const declOrder = [...inputs, ...tables, ...constants, ...formulas]
-  for (const name of declOrder) {
-    if (!visible.has(name)) continue
-    const c = depth[name] ?? 0
+  for (const name of formulas) {
+    const c = depth[name] ?? 1
     if (!cols.has(c)) cols.set(c, [])
     cols.get(c).push(name)
   }
 
+  /* ── columna 0: el nodo de entrada + las tablas debajo ── */
+  const entradaH = 62 + (inputNames.length + constants.length) * 21
+  const tablesH = tables.reduce((h, t) => h + 62 + (def.tables[t].rows.length + 1) * 19 + 26, 0)
+  const col0H = entradaH + (tables.length ? 26 + tablesH : 0)
+
+  const nodes = [{
+    id: '@entrada', type: 'inputsNode', position: { x: 0, y: 0 },
+    data: {
+      inputs: def.inputs || [], constants, values: inputValues, constValues: def.constants || {},
+    },
+  }]
+
+  let ty = entradaH + 26
+  for (const t of tables) {
+    nodes.push({
+      id: t, type: 'tableNode', position: { x: 0, y: ty },
+      data: { name: t, table: def.tables[t] },
+    })
+    ty += 62 + (def.tables[t].rows.length + 1) * 19 + 26
+  }
+
+  /* ── columnas 1..N: las fórmulas ── */
   const maxRows = Math.max(...[...cols.values()].map(a => a.length), 1)
-  const nodes = []
+  const gridH = maxRows * ROW_H
+  const yTop = (col0H - gridH) / 2       // centramos las fórmulas contra la altura de la entrada
+
   for (const [c, names] of [...cols.entries()].sort((a, b) => a[0] - b[0])) {
     const offset = (maxRows - names.length) / 2
     names.forEach((name, i) => {
-      const kind = isFormula.has(name) ? (name === def.output ? 'output' : 'formula')
-        : tables.includes(name) ? 'table'
-          : inputs.includes(name) ? 'input' : 'const'
       const r = out.res[name]
       nodes.push({
-        id: name,
-        type: kind === 'table' ? 'tableNode' : 'calcNode',
-        position: { x: c * COL_W, y: (offset + i) * ROW_H },
+        id: name, type: 'calcNode',
+        position: { x: c * COL_W, y: yTop + (offset + i) * ROW_H },
         data: {
-          name, kind,
-          expr: def.formulas?.[name] ?? null,
-          table: def.tables?.[name] ?? null,
-          value: kind === 'const' ? def.constants[name]
-            : kind === 'input' ? inputValues[name]
-              : r?.status === 'ok' ? r.value : undefined,
-          status: kind === 'formula' || kind === 'output' ? (r?.status ?? 'skipped') : 'ok',
+          name, kind: name === def.output ? 'output' : 'formula',
+          expr: def.formulas[name],
+          value: r?.status === 'ok' ? r.value : undefined,
+          status: r?.status ?? 'skipped',
           why: r?.status === 'skipped'
             ? (r.reason === 'missing_input' ? `falta ${r.missing.join(', ')}` : `espera ${r.dependsOn.join(', ')}`)
             : r?.status === 'error' ? r.reason : null,
@@ -74,16 +83,26 @@ export function layoutSheet(def, out, opts = {}) {
     })
   }
 
+  /* ── aristas: fórmula→fórmula, tabla→fórmula, y entrada→fórmula solo si lee un INPUT.
+        Las constantes no tiran arista: son ambiente y cablearlas era el hairball. ── */
   const edges = []
+  const push = (source, target, extra = {}) => {
+    const ok = out.res[target]?.status === 'ok'
+    edges.push({
+      id: `${source}->${target}`, source, target,
+      animated: ok && target === def.output,
+      style: { strokeWidth: ok ? 1.6 : 1, opacity: ok ? 1 : .3 },
+      ...extra,
+    })
+  }
   for (const f of formulas) {
-    for (const dep of new Set(out.deps[f] || [])) {
-      if (!visible.has(dep)) continue
-      const ok = out.res[f]?.status === 'ok'
-      edges.push({
-        id: `${dep}->${f}`, source: dep, target: f,
-        animated: ok && f === def.output,
-        style: { strokeWidth: ok ? 1.6 : 1, opacity: ok ? 1 : .35 },
-      })
+    const deps = new Set(out.deps[f] || [])
+    for (const dep of deps) if (isFormula.has(dep)) push(dep, f)
+    for (const t of new Set(out.tableDeps?.[f] || [])) push(t, f)
+    const usedInputs = [...deps].filter(x => isInput.has(x))
+    if (usedInputs.length) {
+      const lbl = usedInputs.join(', ')
+      push('@entrada', f, { label: lbl.length > 26 ? `${usedInputs.length} inputs` : lbl })
     }
   }
   return { nodes, edges }

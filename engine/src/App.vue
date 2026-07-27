@@ -8,6 +8,7 @@ import '@vue-flow/core/dist/theme-default.css'
 import '@vue-flow/controls/dist/style.css'
 
 import CalcNode from './nodes/CalcNode.vue'
+import InputsNode from './nodes/InputsNode.vue'
 import TableNode from './nodes/TableNode.vue'
 import RuleNode from './nodes/RuleNode.vue'
 import EndNode from './nodes/EndNode.vue'
@@ -16,12 +17,14 @@ import { evalSheet, evalPolicy, fmtNum } from './engine.js'
 import { SHEETS, POLICIES, defaultInputs } from './sheets.js'
 import { layoutSheet, layoutPolicy } from './layout.js'
 
-const nodeTypes = { calcNode: CalcNode, tableNode: TableNode, ruleNode: RuleNode, endNode: EndNode }
+const nodeTypes = {
+  calcNode: CalcNode, inputsNode: InputsNode, tableNode: TableNode,
+  ruleNode: RuleNode, endNode: EndNode,
+}
 
 /* ── estado ── */
 const slug = ref('motai-rto')
 const tab = ref('calc')
-const showConstants = ref(false)
 const dark = ref(true)
 const inputs = reactive({})
 const risk = reactive({ monthlyIncome: 3200000, creditScore: 520 })
@@ -51,14 +54,13 @@ const verdict = computed(() => {
   })
 })
 
-const graph = computed(() =>
-  layoutSheet(def.value, out.value, { showConstants: showConstants.value, inputValues: inputs }))
+const graph = computed(() => layoutSheet(def.value, out.value, { inputValues: inputs }))
 
 const pgraph = computed(() =>
   policy.value && verdict.value ? layoutPolicy(policy.value, verdict.value) : { nodes: [], edges: [] })
 
 // remontar el canvas al cambiar de hoja/pestaña para que reencuadre solo
-const canvasKey = computed(() => `${slug.value}|${tab.value}|${showConstants.value}`)
+const canvasKey = computed(() => `${slug.value}|${tab.value}`)
 
 const series = computed(() => out.value.series)
 const outVal = computed(() => {
@@ -137,14 +139,6 @@ const VERDICT = {
         </div>
 
         <div class="grp">
-          <h4>Constantes · viven en la hoja</h4>
-          <div v-for="(v, k) in def.constants" :key="k" class="kv">
-            <span class="mono" style="color:var(--mut)">{{ k }}</span><b>{{ fmtNum(v, 6) }}</b>
-          </div>
-          <label class="chk"><input type="checkbox" v-model="showConstants"> mostrarlas en el grafo</label>
-        </div>
-
-        <div class="grp">
           <h4>Nota</h4>
           <div class="hint">{{ def.note }}</div>
         </div>
@@ -169,10 +163,9 @@ const VERDICT = {
             <Controls :show-interactive="false" />
             <Panel position="top-left">
               <div class="legend">
-                <span><i style="background:var(--amber)"></i>input</span>
+                <span><i style="background:var(--amber)"></i>entrada</span>
                 <span><i style="background:var(--blue)"></i>fórmula</span>
                 <span><i style="background:var(--purple)"></i>output</span>
-                <span v-if="showConstants"><i style="background:var(--mut)"></i>constante</span>
                 <span style="color:var(--dim)">·  {{ graph.nodes.length }} nodos, izquierda → derecha en orden de cálculo</span>
               </div>
             </Panel>
