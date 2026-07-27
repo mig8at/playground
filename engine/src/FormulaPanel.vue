@@ -2,7 +2,9 @@
 import { ref, computed } from 'vue'
 import { X, Copy, Check, ArrowRight } from 'lucide-vue-next'
 import { parse, tokenize, fmtNum } from './engine.js'
-import { toLatex, toMathML } from './latex.js'
+import { toLatex } from './latex.js'
+import katex from 'katex'
+import 'katex/dist/katex.min.css'
 import { ui, effDef, out, usedBy, inputs, consts, selectFormula } from './store.js'
 
 // Panel derecho: la fórmula abierta, renderizada como matemática de verdad.
@@ -25,13 +27,20 @@ const env = computed(() => {
   return e
 })
 
-const mathml = computed(() =>
-  ast.value ? toMathML(ast.value, withValues.value ? env.value : null) : '')
-// El <math> se arma acá y se inyecta entero con v-html desde un div: así el parser de HTML
-// entra al namespace de MathML. (Y en el template no se pueden escapar comillas con barra.)
-const mathHtml = computed(() => `<math display="block"><mrow>${mathml.value}</mrow></math>`)
 const latex = computed(() =>
   ast.value ? toLatex(ast.value, withValues.value ? env.value : null) : '')
+
+// `trust` acotado a \htmlClass: es el único comando HTML que generamos (para pintar los
+// valores sustituidos). No abrimos \href ni el resto. `strict:false` calla los avisos de
+// modo estricto sobre ese mismo comando y sobre las tildes dentro de \text{}.
+const mathHtml = computed(() => {
+  try {
+    return katex.renderToString(latex.value, {
+      displayMode: true, throwOnError: false, strict: false,
+      trust: ctx => ctx.command === '\\htmlClass',
+    })
+  } catch (e) { return `<span class="fp-err">${e.message}</span>` }
+})
 
 const deps = computed(() => [...new Set(out.value.deps[name.value] || [])].map(d => ({
   name: d,

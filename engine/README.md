@@ -34,7 +34,7 @@ Clickeás cualquier fórmula (una fila de un grupo, o un nodo en modo detalle) y
 a la derecha con:
 
 - el **valor** actual y, si no calculó, por qué;
-- la fórmula **renderizada como matemática** (MathML nativo), con interruptor
+- la fórmula **renderizada con KaTeX**, con interruptor
   **símbolos ⇄ con valores** — la segunda sustituye cada referencia por su número real:
   `pmt(0,004125; 104; 10.790.920)`;
 - el **LaTeX** en texto, con botón de copiar;
@@ -43,7 +43,29 @@ a la derecha con:
 Todo sale del **mismo AST que evalúa el motor**, así que no puede desincronizarse del cálculo:
 no hay una segunda transcripción de la fórmula que se pueda quedar vieja.
 
-MathML y no KaTeX a propósito: lo pinta el navegador solo, sin CDN ni dependencia extra.
+### El reparto con KaTeX
+
+Son dos mitades distintas y conviene no confundirlas:
+
+| | quién |
+|---|---|
+| AST → string LaTeX | **`src/latex.js`** — ninguna librería puede hacerlo: no conocen nuestro árbol |
+| string LaTeX → dibujo | **KaTeX** — recibe LaTeX y lo pinta; no lo produce |
+
+`latex.js` maneja precedencia (paréntesis solo donde hacen falta), `\dfrac`, superíndices,
+`\begin{cases}` para los `if()` y notación de corchete para las tablas
+(`rentalPlans[planDurationWeeks].factor`).
+
+Dos detalles de LaTeX que hay que saber:
+
+- En modo matemático la **coma y el punto son puntuación**: `10.790.920` saldría
+  `10. 790. 920` con espacios. Van encerrados en llaves (`10{.}790{.}920`) para volverlos
+  símbolos comunes. Con separadores en español eso pasa en cada número.
+- El `trust` de KaTeX está acotado a `\htmlClass`, el único comando HTML que generamos
+  (para pintar de morado los valores sustituidos). `\href` y el resto quedan cerrados.
+
+KaTeX suma ~260 KB de JS y ~30 KB de CSS al bundle, más las fuentes. Para una herramienta
+local que corre sin red, gratis.
 
 > Detalle técnico que cuesta un rato encontrar: los controles dentro de un nodo necesitan la clase
 > **`nodrag`** o Vue Flow arrastra el nodo al escribir. Y el `v-model` apunta al **store**, no al
@@ -110,6 +132,8 @@ src/engine.js      tokenizer → parser descendente → AST → intérprete.  SI
                    + pmt / ipmt / ppmt  + evalSheet()  + evalPolicy()
 src/sheets.js      las 4 hojas reales + la política de Motai
 src/store.js       estado reactivo compartido; los nodos lo importan directo
+src/latex.js       AST → LaTeX (KaTeX se encarga de dibujarlo)
+src/FormulaPanel.vue  el panel derecho
 src/layout.js      disposición automática por profundidad (sin dagre: son DAGs chicos)
 src/MoneyInput.vue campo de dinero con separador de miles
 src/nodes/         InputsNode · GroupNode · CalcNode · TableNode · RuleNode · EndNode · RiskNode

@@ -265,8 +265,11 @@ button.icon:hover { color: var(--ink); background: var(--card2) }
   padding: 16px 12px; margin: 0 12px; overflow-x: auto; background: var(--card2);
   border: 1px solid var(--line); border-radius: 9px; text-align: center;
 }
-.fp-math math { font-size: 1.15em; color: var(--ink) }
-.fp-math .subst { fill: var(--purple); color: var(--purple) }
+.fp-math .katex-display { margin: 0 }
+.fp-math .katex { color: var(--ink); font-size: 1.06em }
+/* los valores sustituidos, resaltados */
+.fp-math .tex-subst { color: var(--purple) }
+.fp-err { font: 11px var(--mono); color: var(--red) }
 .fp-sec {
   display: flex; align-items: center; gap: 6px; padding: 16px 12px 5px;
   font: 9.5px var(--mono); color: var(--dim); text-transform: uppercase; letter-spacing: .08em;
