@@ -215,3 +215,20 @@ table.ser tr:hover td { background: var(--card2) }
   border: 1px solid var(--line); border-radius: 9px; padding: 7px 11px; font-size: 11px; color: var(--mut);
 }
 .legend i { display: inline-block; width: 9px; height: 9px; border-radius: 3px; margin-right: 5px; vertical-align: -1px }
+
+/* ── nodo de grupo (una etapa del cálculo) ── */
+.n--grp .n__hd { background: var(--hd-blue) } .n--grp .n__hd b { color: var(--blue) }
+.n--grp.has-output { border-color: var(--purple) }
+.n--grp.has-output .n__hd { background: var(--hd-purple) }
+.n--grp.has-output .n__hd b { color: var(--purple) }
+.grp-rows { padding: 5px 0 6px }
+.grp-row {
+  display: flex; gap: 9px; align-items: baseline; padding: 1px 10px;
+  font-size: 11px; line-height: 20px;
+}
+.grp-row:hover { background: var(--card2) }
+.grp-k { font-family: var(--mono); overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
+.grp-v { margin-left: auto; font-family: var(--mono); font-weight: 650; white-space: nowrap }
+.grp-row.is-out .grp-k, .grp-row.is-out .grp-v { color: var(--purple); font-weight: 700 }
+.grp-row.is-off { opacity: .45 }
+.grp-row.is-off .grp-v { font-weight: 400; font-size: 10.5px }

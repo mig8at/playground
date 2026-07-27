@@ -9,22 +9,24 @@ import '@vue-flow/controls/dist/style.css'
 
 import CalcNode from './nodes/CalcNode.vue'
 import InputsNode from './nodes/InputsNode.vue'
+import GroupNode from './nodes/GroupNode.vue'
 import TableNode from './nodes/TableNode.vue'
 import RuleNode from './nodes/RuleNode.vue'
 import EndNode from './nodes/EndNode.vue'
 
 import { evalSheet, evalPolicy, fmtNum } from './engine.js'
 import { SHEETS, POLICIES, defaultInputs } from './sheets.js'
-import { layoutSheet, layoutPolicy } from './layout.js'
+import { layoutSheet, layoutSheetGrouped, layoutPolicy } from './layout.js'
 
 const nodeTypes = {
-  calcNode: CalcNode, inputsNode: InputsNode, tableNode: TableNode,
+  calcNode: CalcNode, inputsNode: InputsNode, groupNode: GroupNode, tableNode: TableNode,
   ruleNode: RuleNode, endNode: EndNode,
 }
 
 /* ── estado ── */
 const slug = ref('motai-rto')
 const tab = ref('calc')
+const grouped = ref(true)   // por etapa (default) vs una fórmula por nodo
 const dark = ref(true)
 const inputs = reactive({})
 const risk = reactive({ monthlyIncome: 3200000, creditScore: 520 })
@@ -54,13 +56,14 @@ const verdict = computed(() => {
   })
 })
 
-const graph = computed(() => layoutSheet(def.value, out.value, { inputValues: inputs }))
+const graph = computed(() => (grouped.value ? layoutSheetGrouped : layoutSheet)(
+  def.value, out.value, { inputValues: inputs }))
 
 const pgraph = computed(() =>
   policy.value && verdict.value ? layoutPolicy(policy.value, verdict.value) : { nodes: [], edges: [] })
 
 // remontar el canvas al cambiar de hoja/pestaña para que reencuadre solo
-const canvasKey = computed(() => `${slug.value}|${tab.value}`)
+const canvasKey = computed(() => `${slug.value}|${tab.value}|${grouped.value}`)
 
 const series = computed(() => out.value.series)
 const outVal = computed(() => {
@@ -90,6 +93,9 @@ const VERDICT = {
         <template v-if="def.periodBase !== def.periodCharged"> · ⚠ necesita puente</template>
       </span>
       <div class="spacer"></div>
+      <button v-if="tab === 'calc'" :class="{ on: grouped }" @click="grouped = !grouped">
+        {{ grouped ? 'por etapa' : 'detalle' }}
+      </button>
       <button @click="dark = !dark">{{ dark ? 'claro' : 'oscuro' }}</button>
     </div>
 

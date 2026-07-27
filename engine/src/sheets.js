@@ -53,6 +53,11 @@ export const SHEETS = {
       weeklyRent: 'baseWeeklyRent * planFactor',
       planTotal: 'weeklyRent * planDurationWeeks',
     },
+    groups: {
+      'Precio de venta': ['baseCost', 'margin', 'vatAmount', 'salePrice'],
+      'Tarifa base': ['anchorPayment', 'weekMonthRatio', 'baseWeeklyRent'],
+      'Plan elegido': ['planFactor', 'weeklyRent', 'planTotal'],
+    },
     series: {
       name: 'planPago', n: 'planDurationWeeks',
       rows: {
@@ -92,6 +97,11 @@ export const SHEETS = {
       termWeeks: 'termMonths * weeksPerYear / monthsPerYear',
       weeklyRate: '(1 + monthlyRate) ^ (monthsPerYear / weeksPerYear) - 1',
       weeklyRent: 'pmt(weeklyRate, termWeeks, financedAmount)',
+    },
+    groups: {
+      'Valor a financiar': ['marginBase', 'margin', 'taxableBase', 'vatAmount', 'financedAmount'],
+      'Tasa y plazo': ['termWeeks', 'weeklyRate'],
+      'Canon': ['weeklyRent'],
     },
     series: {
       name: 'planPago', n: 'termWeeks',
@@ -153,6 +163,14 @@ export const SHEETS = {
       totalInstallment: 'installment + lifeInsurance + monthlyGuarantee',
       firstInstallment: 'totalInstallment + firstPeriodInterest',
     },
+    groups: {
+      'Comercio': ['maxAmount', 'guaranteeRate'],
+      'Tasas': ['monthlyRate', 'dailyRate'],
+      'Fianza': ['guaranteeCost', 'vatOnGuarantee', 'transactionTax', 'totalGuarantee'],
+      'Desembolso': ['disbursedAmount'],
+      'Cuota': ['installment', 'lifeInsurance', 'monthlyGuarantee', 'firstPeriodInterest',
+                'totalInstallment', 'firstInstallment'],
+    },
     series: {
       name: 'planPago', n: 'termMonths',
       rows: {
@@ -195,6 +213,12 @@ export const SHEETS = {
       vehicleInstallment: 'installment + lifeInsurance + gpsMonthlyFee',
       insuranceInstallment: 'pmt(monthlyRate, insuranceTermMonths, insuranceAmount)',
       totalInstallment: 'vehicleInstallment + insuranceInstallment',
+    },
+    groups: {
+      'Crédito moto': ['guaranteeCost', 'financedAmount', 'installment', 'lifeInsurance',
+                       'vehicleInstallment'],
+      'Crédito póliza': ['insuranceInstallment'],
+      'Total al cliente': ['totalInstallment'],
     },
     series: {
       name: 'planPago', n: 'termMonths',

@@ -108,6 +108,120 @@ export function layoutSheet(def, out, opts = {}) {
   return { nodes, edges }
 }
 
+/* ───────── el mismo grafo, pero AGRUPADO POR ETAPA ─────────
+   Cada grupo es un nodo con sus fórmulas adentro. El documento no cambia: `groups` es
+   metadato de presentación y el motor lo ignora por completo. */
+export function layoutSheetGrouped(def, out, opts = {}) {
+  const { inputValues = {} } = opts
+  const groups = def.groups || {}
+  const names = Object.keys(groups)
+  if (!names.length) return layoutSheet(def, out, opts)
+
+  const groupOf = {}
+  for (const [g, fs] of Object.entries(groups)) fs.forEach(f => groupOf[f] = g)
+  const inputNames = new Set((def.inputs || []).map(i => i.name))
+  const constants = Object.keys(def.constants || {})
+  const tables = Object.keys(def.tables || {})
+
+  // qué grupo depende de qué grupo, y por cuál fórmula cruza
+  const gdeps = new Map(names.map(g => [g, new Map()]))
+  const gtables = new Map(names.map(g => [g, new Set()]))
+  const ginputs = new Map(names.map(g => [g, new Set()]))
+  for (const [f, g] of Object.entries(groupOf)) {
+    for (const dep of new Set(out.deps[f] || [])) {
+      const dg = groupOf[dep]
+      if (dg && dg !== g) {
+        if (!gdeps.get(g).has(dg)) gdeps.get(g).set(dg, new Set())
+        gdeps.get(g).get(dg).add(dep)
+      } else if (inputNames.has(dep)) ginputs.get(g).add(dep)
+    }
+    for (const t of out.tableDeps?.[f] || []) gtables.get(g).add(t)
+  }
+
+  const depth = {}, seen = new Set()
+  function d(g) {
+    if (depth[g] != null) return depth[g]
+    if (seen.has(g)) return 1
+    seen.add(g)
+    const ds = [...gdeps.get(g).keys()]
+    depth[g] = ds.length ? 1 + Math.max(...ds.map(d)) : 1
+    return depth[g]
+  }
+  names.forEach(d)
+
+  const cols = new Map()
+  for (const g of names) {
+    const c = depth[g]
+    if (!cols.has(c)) cols.set(c, [])
+    cols.get(c).push(g)
+  }
+
+  const entradaH = 62 + ((def.inputs || []).length + constants.length) * 21
+  const tablesH = tables.reduce((h, t) => h + 62 + (def.tables[t].rows.length + 1) * 19 + 26, 0)
+  const col0H = entradaH + (tables.length ? 26 + tablesH : 0)
+  const gH = g => 54 + groups[g].length * 22 + 10
+
+  const nodes = [{
+    id: '@entrada', type: 'inputsNode', position: { x: 0, y: 0 },
+    data: { inputs: def.inputs || [], constants, values: inputValues, constValues: def.constants || {} },
+  }]
+  let ty = entradaH + 26
+  for (const t of tables) {
+    nodes.push({ id: t, type: 'tableNode', position: { x: 0, y: ty }, data: { name: t, table: def.tables[t] } })
+    ty += 62 + (def.tables[t].rows.length + 1) * 19 + 26
+  }
+
+  const colH = {}
+  for (const [c, gs] of cols) colH[c] = gs.reduce((h, g) => h + gH(g) + 34, -34)
+  const tallest = Math.max(col0H, ...Object.values(colH))
+
+  for (const [c, gs] of [...cols.entries()].sort((a, b) => a[0] - b[0])) {
+    let y = (tallest - colH[c]) / 2
+    for (const g of gs) {
+      nodes.push({
+        id: '@g:' + g, type: 'groupNode',
+        position: { x: c * COL_W, y },
+        data: {
+          title: g,
+          hasOutput: groups[g].includes(def.output),
+          rows: groups[g].map(f => ({
+            name: f, expr: def.formulas[f], isOutput: f === def.output,
+            status: out.res[f]?.status ?? 'skipped',
+            value: out.res[f]?.status === 'ok' ? out.res[f].value : undefined,
+          })),
+        },
+      })
+      y += gH(g) + 34
+    }
+  }
+
+  const edges = []
+  const ok = g => groups[g].some(f => out.res[f]?.status === 'ok')
+  for (const g of names) {
+    for (const [dg, via] of gdeps.get(g)) {
+      const lbl = [...via].join(', ')
+      edges.push({
+        id: `${dg}->${g}`, source: '@g:' + dg, target: '@g:' + g,
+        label: lbl.length > 26 ? `${via.size} valores` : lbl,
+        animated: groups[g].includes(def.output) && ok(g),
+        style: { strokeWidth: ok(g) ? 1.6 : 1, opacity: ok(g) ? 1 : .3 },
+      })
+    }
+    for (const t of gtables.get(g)) {
+      edges.push({ id: `${t}->${g}`, source: t, target: '@g:' + g, style: { strokeWidth: 1.4 } })
+    }
+    if (ginputs.get(g).size) {
+      const lbl = [...ginputs.get(g)].join(', ')
+      edges.push({
+        id: `@entrada->${g}`, source: '@entrada', target: '@g:' + g,
+        label: lbl.length > 26 ? `${ginputs.get(g).size} inputs` : lbl,
+        style: { strokeWidth: 1.4, opacity: .85 },
+      })
+    }
+  }
+  return { nodes, edges }
+}
+
 /* ───────── árbol de una política ─────────
    El gate corre en cadena y CORTA en la primera que falla — por eso va en fila,
    con una única salida "rechazado" abajo. Las ramas del outcome abanican al final. */

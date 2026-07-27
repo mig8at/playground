@@ -31,6 +31,35 @@ convertiría `(1 + monthlyRate) ^ (monthsPerYear / weeksPerYear) - 1` en seis ca
 — menos legible que la expresión escrita. Por eso: **un nodo por fórmula, la expresión como texto
 adentro**.
 
+## Dos niveles de zoom: **por etapa** y **detalle**
+
+El botón de la barra superior alterna cómo se agrupan las fórmulas. Es **solo disposición**:
+el documento no cambia, sigue siendo una bolsa plana de fórmulas con nombre y el motor
+ignora `groups` por completo.
+
+| hoja | detalle | por etapa |
+|---|---|---|
+| `motai-rto` | 9 nodos / 12 aristas | **4 / 4** |
+| `alta-fleet` | 8 / 11 | **4 / 4** |
+| `motai-renting` | 12 / 16 | **5 / 5** |
+| `creditopx-salud` | 17 / 30 | **7 / 11** |
+
+Agrupado, cada columna es una etapa del negocio y el grafo se lee de un vistazo:
+
+```
+alta-fleet     Entrada → ┬ Crédito moto ──┬→ Total al cliente
+                         └ Crédito póliza ┘
+
+salud          Entrada  → ┬ Comercio ┬→ Fianza → Desembolso → Cuota
+               tabla    → └ Tasas ───┘
+```
+
+En `alta-fleet` se ve de una la razón de que la cuota sea escalonada: **son dos créditos**
+con plazos distintos que se suman.
+
+**"Detalle"** abre cada fórmula en su propio nodo, con la expresión escrita adentro. Sirve
+para depurar una cadena puntual; "por etapa" sirve para entenderla.
+
 ## Un solo nodo de Entrada
 
 Inputs y constantes **no ocupan un nodo cada uno**: van todos juntos en el nodo *Entrada* de la
