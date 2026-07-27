@@ -1,0 +1,202 @@
+/* Paleta de la familia playground/flow: oscuro por defecto, claro conmutable. */
+:root {
+  --bg: #1b1a16;
+  --canvas: #14130f;
+  --card: #24231d;
+  --card2: #2c2b23;
+  --ink: #edeae1;
+  --mut: #9c9a8f;
+  --dim: #6f6d63;
+  --line: #37362e;
+  --purple: #8b83e6;
+  --amber: #e0a94e;
+  --green: #9ccb5a;
+  --blue: #6aa9e2;
+  --teal: #5dcaa5;
+  --red: #e2726f;
+  --glass: rgba(20, 19, 15, .82);
+  --shadow-1: 0 4px 16px rgba(0, 0, 0, .35);
+  --shadow-2: 0 10px 30px rgba(0, 0, 0, .45);
+  --hd-purple: #2a2740;
+  --hd-amber: #33260f;
+  --hd-green: #22300f;
+  --hd-blue: #16283a;
+  --hd-gray: #26251f;
+  --tint-green: #1c2610;
+  --tint-red: #2a1614;
+  --tint-amber: #241c0d;
+  --tint-gray: #24231d;
+  --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  --sans: system-ui, -apple-system, "Segoe UI", Inter, sans-serif;
+}
+:root[data-theme="light"] {
+  color-scheme: light;
+  --bg: #eeece5;
+  --canvas: #e4e1d8;
+  --card: #ffffff;
+  --card2: #f3f1ea;
+  --ink: #2c2a23;
+  --mut: #726f64;
+  --dim: #928e81;
+  --line: #d7d3c8;
+  --purple: #6157cf;
+  --amber: #9a6510;
+  --green: #4f7a17;
+  --blue: #2f6cac;
+  --teal: #178067;
+  --red: #cf4b46;
+  --glass: rgba(245, 243, 236, .85);
+  --shadow-1: 0 3px 12px rgba(76, 68, 50, .14);
+  --shadow-2: 0 10px 26px rgba(76, 68, 50, .22);
+  --hd-purple: #ecebfa;
+  --hd-amber: #f8efd8;
+  --hd-green: #eef5dd;
+  --hd-blue: #e3eef8;
+  --hd-gray: #f0eee7;
+  --tint-green: #eaf3da;
+  --tint-red: #fbe6e5;
+  --tint-amber: #f9f0da;
+  --tint-gray: #f3f1ea;
+}
+* { box-sizing: border-box }
+html, body, #app { height: 100%; margin: 0 }
+body { background: var(--bg); color: var(--ink); font: 14px/1.5 var(--sans); -webkit-font-smoothing: antialiased }
+.mono { font-family: var(--mono); font-variant-ligatures: none }
+
+/* ── layout general ── */
+.app { display: flex; flex-direction: column; height: 100% }
+.top {
+  display: flex; align-items: center; gap: 12px; padding: 10px 16px;
+  border-bottom: 1px solid var(--line); background: var(--card); flex-wrap: wrap;
+}
+.brand { font-weight: 650; letter-spacing: -.02em }
+.brand small { color: var(--mut); font-weight: 400; margin-left: 7px; font-size: 12px }
+.spacer { flex: 1 }
+.body { display: flex; flex: 1; min-height: 0 }
+.side {
+  width: 300px; flex: 0 0 300px; border-right: 1px solid var(--line); background: var(--card);
+  overflow-y: auto; padding: 12px;
+}
+.main { flex: 1; min-width: 0; display: flex; flex-direction: column }
+.canvas { flex: 1; min-height: 0; position: relative; background: var(--canvas) }
+
+/* ── controles ── */
+button, select, input {
+  font: inherit; color: var(--ink); background: var(--card2);
+  border: 1px solid var(--line); border-radius: 7px; padding: 6px 9px;
+}
+button { cursor: pointer }
+button:hover { border-color: var(--mut) }
+button.on { background: var(--hd-purple); border-color: var(--purple); color: var(--purple) }
+input:focus, select:focus { outline: none; border-color: var(--purple) }
+input.num { font-family: var(--mono); text-align: right }
+label.chk { display: flex; align-items: center; gap: 7px; cursor: pointer; padding: 6px 0 }
+label.chk input { width: auto; accent-color: var(--purple) }
+
+.tabs { display: flex; gap: 2px; padding: 0 12px; border-bottom: 1px solid var(--line); background: var(--card) }
+.tab {
+  background: none; border: 0; border-bottom: 2px solid transparent; border-radius: 0;
+  padding: 9px 12px; color: var(--mut); font-size: 13px;
+}
+.tab:hover { color: var(--ink) }
+.tab.on { color: var(--purple); border-bottom-color: var(--purple); background: none }
+
+/* ── panel lateral ── */
+.grp { margin-bottom: 18px }
+.grp > h4 {
+  margin: 0 0 8px; font-size: 10.5px; text-transform: uppercase; letter-spacing: .08em;
+  color: var(--dim); font-weight: 650;
+}
+.fld { margin-bottom: 9px }
+.fld > span { display: block; font-size: 11.5px; color: var(--mut); margin-bottom: 3px }
+.fld > span em { font-style: normal; font-family: var(--mono); color: var(--dim); font-size: 10.5px }
+.fld input, .fld select { width: 100% }
+.kv { display: flex; justify-content: space-between; gap: 10px; padding: 3px 0; font-size: 12px }
+.kv b { font-family: var(--mono); font-weight: 600 }
+.hint { font-size: 11.5px; line-height: 1.55; color: var(--mut); background: var(--card2);
+  border: 1px solid var(--line); border-radius: 8px; padding: 9px 11px; margin-top: 10px }
+.hint b { color: var(--ink) }
+
+/* ── nodos del grafo ── */
+.n {
+  min-width: 176px; max-width: 236px; background: var(--card); border: 1px solid var(--line);
+  border-radius: 10px; box-shadow: var(--shadow-1); overflow: hidden; font-size: 12px;
+}
+.n__hd {
+  display: flex; align-items: center; gap: 6px; padding: 5px 9px;
+  border-bottom: 1px solid var(--line); background: var(--hd-gray);
+}
+.n__hd b { font-size: 11.5px; font-weight: 650; letter-spacing: -.01em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
+.n__kind { margin-left: auto; font: 9.5px var(--mono); color: var(--dim); text-transform: uppercase; letter-spacing: .06em }
+.n__body { padding: 7px 9px }
+.n__val { font: 700 15px var(--mono); letter-spacing: -.02em; text-align: right }
+.n__expr {
+  font: 10.5px var(--mono); color: var(--dim); margin-top: 5px; padding-top: 5px;
+  border-top: 1px dashed var(--line); word-break: break-word; line-height: 1.45;
+}
+.n--input .n__hd { background: var(--hd-amber) } .n--input .n__hd b { color: var(--amber) }
+.n--const .n__hd { background: var(--hd-gray) }  .n--const .n__hd b { color: var(--mut) }
+.n--table .n__hd { background: var(--hd-blue) }  .n--table .n__hd b { color: var(--blue) }
+.n--formula .n__hd { background: var(--hd-blue) } .n--formula .n__hd b { color: var(--blue) }
+.n--output { border-color: var(--purple); box-shadow: var(--shadow-2) }
+.n--output .n__hd { background: var(--hd-purple) } .n--output .n__hd b { color: var(--purple) }
+.n--output .n__val { color: var(--purple) }
+.n.is-skipped { opacity: .5 }
+.n.is-skipped .n__val { color: var(--mut); font-size: 11px; font-weight: 600 }
+.n.is-error { border-color: var(--red) }
+.n.is-error .n__val { color: var(--red); font-size: 11px }
+.n__why { font: 10.5px var(--mono); color: var(--mut); margin-top: 4px; text-align: right }
+
+/* ── nodos de política ── */
+.p { min-width: 200px; max-width: 260px; background: var(--card); border: 1px solid var(--line);
+     border-radius: 10px; box-shadow: var(--shadow-1); overflow: hidden }
+.p__hd { display: flex; align-items: center; gap: 7px; padding: 6px 10px; border-bottom: 1px solid var(--line);
+         background: var(--hd-gray); font-size: 11.5px; font-weight: 650 }
+.p__id { font: 10px var(--mono); color: var(--dim); background: var(--card2);
+         border: 1px solid var(--line); border-radius: 4px; padding: 1px 5px }
+.p__body { padding: 8px 10px; font: 11px var(--mono); color: var(--mut); word-break: break-word }
+.p__res { margin-top: 6px; font-size: 11.5px; font-family: var(--sans) }
+.p.pass { border-color: var(--green) } .p.pass .p__hd { background: var(--tint-green); color: var(--green) }
+.p.fail { border-color: var(--red) }   .p.fail .p__hd { background: var(--tint-red); color: var(--red) }
+.p.skip { opacity: .45 }
+.p--out { border-width: 2px }
+.p--out.hit { border-color: var(--purple) } .p--out.hit .p__hd { background: var(--hd-purple); color: var(--purple) }
+.badge { display: inline-block; font: 10px var(--mono); padding: 2px 6px; border-radius: 4px }
+.b-ok { color: var(--green); background: var(--tint-green) }
+.b-no { color: var(--red); background: var(--tint-red) }
+.b-sk { color: var(--mut); background: var(--tint-gray) }
+
+/* ── verdicto ── */
+.verdict { padding: 12px 16px; border-bottom: 1px solid var(--line); background: var(--card) }
+.verdict h3 { margin: 0 0 4px; font-size: 17px; letter-spacing: -.02em }
+.verdict.ok h3 { color: var(--green) }
+.verdict.no h3 { color: var(--red) }
+.verdict.mid h3 { color: var(--amber) }
+.verdict p { margin: 0; font-size: 12.5px; color: var(--mut) }
+
+/* ── tabla de serie ── */
+.drawer { border-top: 1px solid var(--line); background: var(--card); max-height: 42%; display: flex; flex-direction: column }
+.drawer > header { display: flex; align-items: center; gap: 10px; padding: 7px 14px; border-bottom: 1px solid var(--line) }
+.drawer > header b { font-size: 12px }
+.drawer > header span { color: var(--mut); font: 11px var(--mono) }
+.drawer .scroll { overflow: auto; min-height: 0 }
+table.ser { width: 100%; border-collapse: collapse; font: 11.5px var(--mono); white-space: nowrap }
+table.ser th {
+  position: sticky; top: 0; background: var(--card2); color: var(--dim); text-align: right;
+  padding: 5px 12px; border-bottom: 1px solid var(--line); font-size: 10px;
+  text-transform: uppercase; letter-spacing: .05em; font-weight: 650;
+}
+table.ser td { padding: 4px 12px; text-align: right; border-bottom: 1px solid var(--line) }
+table.ser th:first-child, table.ser td:first-child { text-align: center; color: var(--dim) }
+table.ser tr:hover td { background: var(--card2) }
+
+/* Vue Flow */
+.vue-flow__edge-path { stroke: var(--line); stroke-width: 1.5 }
+.vue-flow__edge.animated .vue-flow__edge-path { stroke: var(--purple) }
+.vue-flow__handle { width: 7px; height: 7px; background: var(--mut); border: 0 }
+.vue-flow__panel { margin: 10px }
+.legend {
+  display: flex; gap: 12px; flex-wrap: wrap; background: var(--glass); backdrop-filter: blur(8px);
+  border: 1px solid var(--line); border-radius: 9px; padding: 7px 11px; font-size: 11px; color: var(--mut);
+}
+.legend i { display: inline-block; width: 9px; height: 9px; border-radius: 3px; margin-right: 5px; vertical-align: -1px }

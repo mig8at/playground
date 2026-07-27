@@ -63,6 +63,7 @@ Cada una tiene su propio README con arranque verificado, gotchas y trampas conoc
 | [`context/`](context/README.md) | Árbol de **33 nodos curados** (`doc.md` en prosa + `map.json` con las rutas fuente exactas) que le dice a un LLM qué leer, en cuál de los 6 repos, antes de atacar una tarea. Incluye la bitácora `findings`. Viz Vue read-only en **:5193**. |
 | [`frontend-e2e/`](frontend-e2e/README.md) | Harness **Playwright + TypeScript** que maneja el wizard real de originación (`:5174`) de punta a punta, con KYC/buró sintético, panel visual (**:5195**), flota de 8 mocks locales y barrido headless por API. |
 | [`flow/`](flow/README.md) | **Simulador editable** del onboarding (Vue 3 + Vue Flow, sin backend, **:5190**): tocás monto, documento, burós y reglas, y ves en vivo qué entidad queda y por qué. |
+| [`engine/`](engine/README.md) | Prototipo del **`calculator-service`** (Vue 3 + Vue Flow, **:5196**): grafo de dependencias de una hoja de cálculo + árbol de la política de riesgo, los dos vivos. Las 4 hojas reproducen los `.xlsm`/PDF reales al peso (`node verify.mjs`). |
 | [`domain-model/`](domain-model/README.md) | Visualizador del **modelo de dominio deber-ser** (**:5183**): 105 entidades en 8 contextos, cada una apuntando a su tabla real. Mapa de traducción entre el rediseño y las 212 tablas de hoy. |
 | [`soporte/`](soporte/README.md) | **Trazador de solicitudes** (**:5192**): buscás una cédula y ves cada intento dibujado etapa por etapa, con dónde y por qué se rompió. **Fase 0 — datos mock.** |
 | [`tablero/`](tablero/README.md) | Mi sprint: dashboard Vue de tareas, registro de tiempo y hallazgos, sobre conectores **MCP propios en Go** para Jira Cloud y Slack (**:5191** + WS **:8787**). |
@@ -82,6 +83,7 @@ Cada una tiene su propio README con arranque verificado, gotchas y trampas conoc
 | 5192 | `soporte` | **sin `strictPort`** → si está ocupado salta a 5193, que es `context`. Leé la línea `Local:` de Vite |
 | 5193 | `context` (viz) | |
 | 5195 | `frontend-e2e` (panel) | override con `PANEL_PORT` |
+| 5196 | `engine` | **`strictPort: true`** (igual que `flow`). Override: `PORT=5197 npm run dev` |
 | 8095–8102 | mocks de `frontend-e2e` | preapprovals 8095 · redirect 8096 · payvalida 8097 · mdm 8098 · lenders 8099 · pdf-mapper 8100 · forms 8101 · abaco 8102 |
 | 8787 | WS de `tablero` | el front lo tiene hardcodeado en `App.vue:4` |
 
