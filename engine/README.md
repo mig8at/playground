@@ -28,6 +28,23 @@ La prueba que más rápido explica el diseño: **vaciá un input**. Solo se apag
 (`skipped` / `upstream`); el resto sigue dando su número. Eso es la evaluación parcial, y es lo
 que hace usable un editor donde la hoja está a medio escribir.
 
+## Click en una fórmula → panel derecho
+
+Clickeás cualquier fórmula (una fila de un grupo, o un nodo en modo detalle) y se abre un panel
+a la derecha con:
+
+- el **valor** actual y, si no calculó, por qué;
+- la fórmula **renderizada como matemática** (MathML nativo), con interruptor
+  **símbolos ⇄ con valores** — la segunda sustituye cada referencia por su número real:
+  `pmt(0,004125; 104; 10.790.920)`;
+- el **LaTeX** en texto, con botón de copiar;
+- **depende de** y **lo usan**, ambos navegables: click y saltás a esa fórmula.
+
+Todo sale del **mismo AST que evalúa el motor**, así que no puede desincronizarse del cálculo:
+no hay una segunda transcripción de la fórmula que se pueda quedar vieja.
+
+MathML y no KaTeX a propósito: lo pinta el navegador solo, sin CDN ni dependencia extra.
+
 > Detalle técnico que cuesta un rato encontrar: los controles dentro de un nodo necesitan la clase
 > **`nodrag`** o Vue Flow arrastra el nodo al escribir. Y el `v-model` apunta al **store**, no al
 > prop `data`: `data` se recrea en cada recálculo, así que atarlo ahí haría perder el foco a cada

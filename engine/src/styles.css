@@ -238,3 +238,58 @@ select.nf { text-align: left; padding: 2px 4px }
 .legend.note {
   display: block; margin-top: 6px; max-width: 430px; line-height: 1.5; color: var(--mut);
 }
+
+/* ── panel derecho: la fórmula abierta ── */
+.stage { display: flex; flex: 1; min-height: 0 }
+.stage > .canvas { flex: 1; min-width: 0 }
+.fpanel {
+  width: 330px; flex: 0 0 330px; border-left: 1px solid var(--line); background: var(--card);
+  overflow-y: auto; padding-bottom: 20px;
+}
+.fpanel > header {
+  display: flex; align-items: center; gap: 8px; padding: 10px 12px;
+  border-bottom: 1px solid var(--line); position: sticky; top: 0; background: var(--card); z-index: 2;
+}
+.fpanel > header b { font-size: 13px }
+.badge.b-out { color: var(--purple); background: var(--hd-purple) }
+button.icon {
+  background: none; border: 0; padding: 3px; color: var(--mut); display: flex; border-radius: 5px;
+}
+button.icon:hover { color: var(--ink); background: var(--card2) }
+.fp-val { font: 700 26px var(--mono); letter-spacing: -.03em; text-align: right; padding: 14px 14px 2px }
+.fp-val.off { font-size: 15px; color: var(--mut) }
+.fp-why { text-align: right; padding: 0 14px 8px; font: 11px var(--mono); color: var(--mut) }
+.fp-segs { padding: 6px 12px 10px }
+.fp-segs button { flex: 1; font-size: 11.5px; padding: 4px 8px }
+.fp-math {
+  padding: 16px 12px; margin: 0 12px; overflow-x: auto; background: var(--card2);
+  border: 1px solid var(--line); border-radius: 9px; text-align: center;
+}
+.fp-math math { font-size: 1.15em; color: var(--ink) }
+.fp-math .subst { fill: var(--purple); color: var(--purple) }
+.fp-sec {
+  display: flex; align-items: center; gap: 6px; padding: 16px 12px 5px;
+  font: 9.5px var(--mono); color: var(--dim); text-transform: uppercase; letter-spacing: .08em;
+}
+.fp-sec .icon { margin-left: auto }
+.fp-tex {
+  margin: 0 12px; padding: 8px 10px; background: var(--card2); border: 1px solid var(--line);
+  border-radius: 7px; font: 10.5px/1.6 var(--mono); color: var(--mut);
+  white-space: pre-wrap; word-break: break-word; user-select: all;
+}
+.fp-tex.src { color: var(--ink) }
+.fp-dep {
+  display: flex; align-items: center; gap: 9px; margin: 0 12px; padding: 5px 9px;
+  border-radius: 6px; font-size: 11.5px;
+}
+.fp-dep b { margin-left: auto; font-weight: 650 }
+.fp-dep .go { color: var(--dim); flex: 0 0 auto }
+.fp-dep.nav { cursor: pointer }
+.fp-dep.nav:hover { background: var(--card2) }
+.fp-dep.nav:hover .go { color: var(--purple) }
+.fp-none { margin: 0 12px; font-size: 11.5px; color: var(--dim) }
+
+/* fila / nodo seleccionado */
+.grp-row { cursor: pointer; border-radius: 5px; margin: 0 4px; padding: 1px 6px }
+.grp-row.is-sel { background: var(--hd-purple); box-shadow: inset 2px 0 0 var(--purple) }
+.n.is-sel { border-color: var(--purple); box-shadow: var(--shadow-2) }

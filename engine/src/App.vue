@@ -15,19 +15,17 @@ import TableNode from './nodes/TableNode.vue'
 import RuleNode from './nodes/RuleNode.vue'
 import EndNode from './nodes/EndNode.vue'
 import RiskNode from './nodes/RiskNode.vue'
+import FormulaPanel from './FormulaPanel.vue'
 
-import { evalSheet, evalPolicy, fmtNum } from './engine.js'
+import { evalPolicy, fmtNum } from './engine.js'
 import { SHEETS } from './sheets.js'
 import { layoutSheet, layoutSheetGrouped, layoutPolicy } from './layout.js'
-import { ui, inputs, risk, effDef, sheetDef, policyDef, resetSheet } from './store.js'
+import { ui, inputs, risk, effDef, sheetDef, policyDef, out, resetSheet } from './store.js'
 
 const nodeTypes = {
   calcNode: CalcNode, inputsNode: InputsNode, groupNode: GroupNode,
   tableNode: TableNode, ruleNode: RuleNode, endNode: EndNode, riskNode: RiskNode,
 }
-
-/* ── todo cuelga de acá: una evaluación por cambio de cualquier input ── */
-const out = computed(() => evalSheet(effDef.value, inputs))
 
 const outVal = computed(() => {
   const r = out.value.res[effDef.value.output]
@@ -100,7 +98,8 @@ const VERDICT = {
       </p>
     </div>
 
-    <!-- ───────── canvas ───────── -->
+    <!-- ───────── canvas + panel derecho ───────── -->
+    <div class="stage">
     <div class="canvas">
       <VueFlow v-if="ui.tab === 'calc'" :key="canvasKey" :nodes="graph.nodes" :edges="graph.edges"
         :node-types="nodeTypes" :class="{ dark: ui.dark }" fit-view-on-init
@@ -147,6 +146,9 @@ const VERDICT = {
           </div>
         </div>
       </template>
+    </div>
+
+      <FormulaPanel />
     </div>
 
     <!-- ───────── serie · panel colapsable, estilo consola de VS Code ───────── -->

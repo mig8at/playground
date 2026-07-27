@@ -2,6 +2,7 @@
 import { computed } from 'vue'
 import { Handle, Position } from '@vue-flow/core'
 import { fmtNum } from '../engine.js'
+import { ui, selectFormula } from '../store.js'
 
 // Un nodo por nombre declarado: input (●), constante (○), fórmula (▷) o el output.
 // NO hay un nodo por operación — eso convertiría `(1+r)^(m/s)-1` en seis cajitas y sería
@@ -23,7 +24,9 @@ const shown = computed(() => {
 </script>
 
 <template>
-  <div class="n" :class="[`n--${data.kind}`, { 'is-skipped': data.status === 'skipped', 'is-error': data.status === 'error' }]">
+  <div class="n" @click="selectFormula(data.name)"
+       :class="[`n--${data.kind}`, { 'is-skipped': data.status === 'skipped',
+                'is-error': data.status === 'error', 'is-sel': ui.selected === data.name }]">
     <Handle v-if="data.kind !== 'input' && data.kind !== 'const'" id="in" type="target" :position="Position.Left" />
     <div class="n__hd">
       <b :title="data.name">{{ data.name }}</b>

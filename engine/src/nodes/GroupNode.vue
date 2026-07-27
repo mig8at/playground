@@ -1,6 +1,7 @@
 <script setup>
 import { Handle, Position } from '@vue-flow/core'
 import { fmtNum } from '../engine.js'
+import { ui, selectFormula } from '../store.js'
 
 // Una ETAPA del cálculo: varias fórmulas que el negocio piensa como una sola cosa
 // ("Valor a financiar", "Fianza", "Canon"). El agrupado es SOLO disposición: el documento
@@ -23,8 +24,9 @@ const val = (r, name) => {
       <span class="n__kind">{{ data.rows.length }}</span>
     </div>
     <div class="grp-rows">
-      <div v-for="r in data.rows" :key="r.name" class="grp-row"
-           :class="{ 'is-out': r.isOutput, 'is-off': r.status !== 'ok' }" :title="r.expr">
+      <div v-for="r in data.rows" :key="r.name" class="grp-row nodrag"
+           :class="{ 'is-out': r.isOutput, 'is-off': r.status !== 'ok', 'is-sel': ui.selected === r.name }"
+           :title="r.expr" @click="selectFormula(r.name)">
         <span class="grp-k">{{ r.name }}</span>
         <b class="grp-v">{{ val(r, r.name) }}</b>
       </div>
