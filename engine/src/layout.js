@@ -225,11 +225,24 @@ export function layoutSheetGrouped(def, out, opts = {}) {
 /* ───────── árbol de una política ─────────
    El gate corre en cadena y CORTA en la primera que falla — por eso va en fila,
    con una única salida "rechazado" abajo. Las ramas del outcome abanican al final. */
-export function layoutPolicy(policy, verdict) {
+export function layoutPolicy(policy, verdict, opts = {}) {
   const rules = policy.gate.rules
   const nodes = [], edges = []
   const firedIdx = rules.findIndex(r => r.id === verdict.firedRule)
   const cut = firedIdx >= 0 ? firedIdx : rules.length
+
+  nodes.push({
+    id: '@risk', type: 'riskNode', position: { x: -320, y: -30 },
+    data: {
+      fromSheetName: opts.fromSheetName || 'weeklyRent',
+      fromSheetValue: opts.fromSheetValue,
+      derived: verdict.derived,
+    },
+  })
+  edges.push({
+    id: '@risk->' + rules[0].id, source: '@risk', target: rules[0].id,
+    style: { strokeWidth: 1.4, opacity: .85 },
+  })
 
   rules.forEach((rule, i) => {
     const ev = verdict.evaluated.find(e => e.id === rule.id)

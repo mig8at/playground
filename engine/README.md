@@ -19,9 +19,19 @@ Dos pestañas, las dos vivas: tocás un input y todo se recalcula.
 | **Cálculo** | La **cadena de cálculo**: un nodo por fórmula, izquierda → derecha en el orden en que el motor las resuelve. Abajo, la tabla de la serie. |
 | **Política** | El árbol de decisión. El *gate* corre en cadena y **corta en la primera regla que falla**; después abanican las ramas del *outcome*. Solo se ilumina el camino que se tomó. |
 
+**Se edita adentro del grafo.** No hay panel lateral: el nodo *Entrada* trae los campos, con
+separador de miles en los montos. Y las **constantes también son editables** — es un simulador,
+así que "¿y si el IVA fuera 21%?" se contesta escribiendo. `restablecer` vuelve a los valores
+del archivo original; `SHEETS` nunca se muta.
+
 La prueba que más rápido explica el diseño: **vaciá un input**. Solo se apagan sus descendientes
 (`skipped` / `upstream`); el resto sigue dando su número. Eso es la evaluación parcial, y es lo
 que hace usable un editor donde la hoja está a medio escribir.
+
+> Detalle técnico que cuesta un rato encontrar: los controles dentro de un nodo necesitan la clase
+> **`nodrag`** o Vue Flow arrastra el nodo al escribir. Y el `v-model` apunta al **store**, no al
+> prop `data`: `data` se recrea en cada recálculo, así que atarlo ahí haría perder el foco a cada
+> tecla.
 
 ## Por qué el cálculo NO es de nodos sí/no y la política SÍ
 
@@ -79,12 +89,14 @@ Ahí el árbol es la forma correcta.
 ## Las piezas
 
 ```
-src/engine.js    tokenizer → parser descendente → AST → intérprete.  SIN eval().
-                 + pmt / ipmt / ppmt  + evalSheet()  + evalPolicy()
-src/sheets.js    las 4 hojas reales + la política de Motai
-src/layout.js    disposición automática por profundidad (sin dagre: son DAGs de 18-26 nodos)
-src/nodes/       CalcNode · TableNode · RuleNode · EndNode
-verify.mjs       arnés de regresión contra los archivos fuente
+src/engine.js      tokenizer → parser descendente → AST → intérprete.  SIN eval().
+                   + pmt / ipmt / ppmt  + evalSheet()  + evalPolicy()
+src/sheets.js      las 4 hojas reales + la política de Motai
+src/store.js       estado reactivo compartido; los nodos lo importan directo
+src/layout.js      disposición automática por profundidad (sin dagre: son DAGs chicos)
+src/MoneyInput.vue campo de dinero con separador de miles
+src/nodes/         InputsNode · GroupNode · CalcNode · TableNode · RuleNode · EndNode · RiskNode
+verify.mjs         arnés de regresión contra los archivos fuente
 ```
 
 `engine.js` es el mismo diseño que iría en el paquete `formula` de Go. El intérprete no usa
