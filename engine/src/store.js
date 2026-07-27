@@ -4,7 +4,11 @@
 import { reactive, computed, watch } from 'vue'
 import { SHEETS, POLICIES, defaultInputs } from './sheets.js'
 
-export const ui = reactive({ slug: 'motai-rto', tab: 'calc', grouped: true, dark: true })
+// `seriesOpen` arranca cerrado: el plan de pagos son 104 filas que competían por la atención
+// con el grafo, que es lo que se vino a mirar.
+export const ui = reactive({
+  slug: 'motai-rto', tab: 'calc', grouped: true, dark: true, seriesOpen: false,
+})
 
 /** Lo que manda el llamador. Editable en el nodo Entrada. */
 export const inputs = reactive({})

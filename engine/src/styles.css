@@ -167,10 +167,22 @@ input.num { font-family: var(--mono); text-align: right }
 .verdict p { margin: 0; font-size: 12.5px; color: var(--mut) }
 
 /* ── tabla de serie ── */
-.drawer { border-top: 1px solid var(--line); background: var(--card); max-height: 42%; display: flex; flex-direction: column }
-.drawer > header { display: flex; align-items: center; gap: 10px; padding: 7px 14px; border-bottom: 1px solid var(--line) }
-.drawer > header b { font-size: 12px }
+/* panel colapsable, estilo consola de VS Code: la barra siempre visible, el cuerpo va y viene */
+.drawer {
+  border-top: 1px solid var(--line); background: var(--card);
+  display: flex; flex-direction: column; flex: 0 0 auto; max-height: 34px;
+  transition: max-height .16s ease;
+}
+.drawer.open { max-height: 46%; flex: 0 1 auto }
+.drawer > header {
+  display: flex; align-items: center; gap: 10px; padding: 0 14px; height: 34px;
+  flex: 0 0 34px; cursor: pointer; user-select: none; color: var(--mut);
+}
+.drawer > header:hover { background: var(--card2); color: var(--ink) }
+.drawer.open > header { border-bottom: 1px solid var(--line) }
+.drawer > header b { font-size: 12px; color: var(--ink) }
 .drawer > header span { color: var(--mut); font: 11px var(--mono) }
+.drawer > header .peek { color: var(--dim) }
 .drawer .scroll { overflow: auto; min-height: 0 }
 table.ser { width: 100%; border-collapse: collapse; font: 11.5px var(--mono); white-space: nowrap }
 table.ser th {

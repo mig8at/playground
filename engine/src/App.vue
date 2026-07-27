@@ -1,5 +1,6 @@
 <script setup>
 import { computed } from 'vue'
+import { ChevronUp, ChevronDown } from 'lucide-vue-next'
 import { VueFlow, Panel } from '@vue-flow/core'
 import { Background } from '@vue-flow/background'
 import { Controls } from '@vue-flow/controls'
@@ -148,14 +149,24 @@ const VERDICT = {
       </template>
     </div>
 
-    <!-- ───────── serie ───────── -->
-    <div v-if="ui.tab === 'calc' && series" class="drawer">
-      <header>
-        <b>{{ series.name }}</b>
+    <!-- ───────── serie · panel colapsable, estilo consola de VS Code ───────── -->
+    <div v-if="ui.tab === 'calc' && series" class="drawer" :class="{ open: ui.seriesOpen }">
+      <header @click="ui.seriesOpen = !ui.seriesOpen" :title="ui.seriesOpen ? 'Contraer' : 'Expandir'">
+        <ChevronUp v-if="!ui.seriesOpen" :size="14" />
+        <ChevronDown v-else :size="14" />
+        <b>Plan de pagos</b>
+        <span class="mono">{{ series.name }}</span>
         <span v-if="series.error" style="color:var(--red)">{{ series.error }}</span>
-        <span v-else>{{ series.rows.length }} filas{{ series.capped ? ' (cortado por el tope del motor)' : '' }}</span>
+        <span v-else>
+          {{ series.rows.length }} filas{{ series.capped ? ' · cortado por el tope del motor' : '' }}
+        </span>
+        <div class="spacer"></div>
+        <span v-if="!ui.seriesOpen && series.rows?.length" class="mono peek">
+          {{ series.cols.slice(0, 3).join(' · ') }}{{ series.cols.length > 3 ? ' …' : '' }}
+        </span>
       </header>
-      <div v-if="series.rows && series.rows.length" class="scroll">
+
+      <div v-if="ui.seriesOpen && series.rows && series.rows.length" class="scroll">
         <table class="ser">
           <thead><tr><th>#</th><th v-for="c in series.cols" :key="c">{{ c }}</th></tr></thead>
           <tbody>
