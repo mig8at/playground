@@ -17,6 +17,42 @@ En el simulador **playground/flow**, Motai es el comercio *seed*; flow modela la
 | `motai-renting` | **Arrendamiento con opción de compra** (= "rent-to-own" del PRD) | **Sí** (id `2` hardcodeado) | **Sí** | **Sí** → `MOTV1001` |
 | `alquiler` | Arrendamiento puro | No (no-op) | No | No → `MOTV1000` |
 
+**Por qué la distinción legal importa (y no es cosmética).** El techo de **usura** aplica al
+crédito, no al arrendamiento. Sin opción de compra el cliente **nunca es dueño**: paga por *usar*
+la moto y la devuelve, así que no hay capital que amortizar → **no hay interés** → no es crédito
+→ no le aplica el techo. Con opción de compra sí hay saldo, sí hay interés, y el PRD de Manuela
+lo dice con sus palabras: *"esencialmente **un crédito disfrazado de arriendo**"*.
+
+Eso se ve en la propia calculadora (`Calculadora Renting VF.xlsx`), que trata el **mismo 1,8%**
+de dos maneras:
+
+| pestaña | cómo lista el 1,8% | qué es |
+|---|---|---|
+| **Renting** (devuelve el bien) | "Tasa mensual · **Parámetro**" | fija un **precio**: amortiza el precio de venta a 24 meses y prorratea `÷30 ×7`. No es interés |
+| **Rent to Own** (se queda el bien) | "Tasa mensual · **Equivale a ~0,4125% semanal**" | tasa de verdad, convertida y aplicada a un saldo |
+
+De ahí sale el **+1,11%** entre los dos productos que se venía anotando como pregunta abierta:
+no es una conversión mal hecha — es que en el arrendamiento **no hay nada que convertir**. El
+prorrateo lineal es una decisión de precio.
+
+> ⚠ **Consecuencia para quien toque la calculadora:** "arreglar" el prorrateo del renting para
+> que use la conversión compuesta **no es un fix**, es recaracterizar el producto. Si alguien lo
+> hace, el arrendamiento pasa a tener una tasa y con eso entra al perímetro del crédito. En
+> `playground/engine` la constante se llama **`anchorRate`** y no `monthlyRate` justamente para
+> que nadie la confunda con una tasa de interés.
+
+**Ilustración (no es la tasa del producto, es lo que se vería si alguien lo recaracterizara).**
+Pagar la tarifa semanal de 173.176 durante 104 semanas sobre un precio de venta de 14.360.920
+implicaría **26,27% E.A.**, contra el **23,87% E.A.** real del rent-to-own. El arrendamiento sale
+*más caro* en términos implícitos — que es exactamente el margen que la estructura permite.
+
+> ⚠ **La terminología del código está invertida respecto del PRD** (ver gotcha C1): el
+> `motai-renting` **del código** es el *rent-to-own* del PRD (**es crédito**), y el `alquiler` del
+> código es el *renting operativo* (**no es crédito**). O sea que **el bypass de buró + Ábaco
+> aplica al modo que legalmente SÍ es un crédito**. Las hojas de `playground/engine` usan los
+> nombres del PRD, no los del código: su `motai-renting` = el `alquiler` del código, y su
+> `motai-rto` = el `motai-renting` del código.
+
 > Los ids reales de `allied_modes` para 158 **no están seedeados en ningún repo** (pregunta abierta). Compra y alquiler son **indistinguibles en el código legacy** (solo se ramifica por `isAbacoRequired`/`isMotaiRenting`); solo renting persiste fila de modo.
 
 **Bypass de underwriting (renting).** `$isMotaiRenting = input('isMotaiRenting')===true || input('merchant_mode')==='motai_renting'` (`OnboardingController.php:1227`) fuerza `corbetaOnboarding=false` y **omite `userViability`/Experian y `validateRiskCentrals`**: el renting **sustituye** el score de buró por la prueba de ingresos gig de Ábaco. `attachMotaiRentingModeIfNeeded` (`:1215`, def `:1587`) fija el modo activo **solo si `isMotaiRenting===true`**, con la constante **`MOTAI_RENTING_ALLIED_MODE_ID = 2` hardcodeada** (`:36`). En renting se inyecta además el literal `'PEP'` + una laboral ficticia (`OnboardingService.php`).
@@ -50,6 +86,7 @@ En el simulador **playground/flow**, Motai es el comercio *seed*; flow modela la
 - **IMEI / device-lock (MDM)** es el cierre de la **compra de celulares** del allied Motai, árbol separado sin cruce con modos/Ábaco — fuera de este nodo (patrón afín en **SmartPay**).
 
 ## Bitácora
+- **2026-07-28** — Documentada la **razón legal** de las dos líneas (explicada por Manuela): sin opción de compra no hay interés → no es crédito → **no aplica el techo de usura**; con opción de compra sí. Verificado contra `motai-manu.pdf` y la calculadora: el mismo 1,8% figura como "**Parámetro**" en la pestaña Renting y como "**Equivale a ~0,4125% semanal**" en Rent to Own. Eso **cierra la pregunta abierta del +1,11%**: no era una conversión mal hecha. En `playground/engine` la constante pasó de `monthlyRate` a **`anchorRate`** y cada hoja declara `legalNature`, para que "arreglar" el prorrateo no sea un cambio silencioso de producto. Ojo con la **terminología invertida** (C1) al cruzar nombres entre el código y el PRD.
 - **2026-07-24** — Validado **E2E en local**: el trigger de Ábaco **por-producto** de la des-motaización FUNCIONA — renting/rto → `check-abaco-requirement` = MOTV1001 (el uReq llega a confirmación con el lender del producto en `lender_id`; verificado con diagnóstico). El guiado del harness no lo mostraba por un salto directo a first-payment (arreglado: ahora recorre `/abaco` y auto-maneja las plataformas gig). No hay regresión del producto. Detalle en `findings` **F-68**.
 - **2026-07-23** — La des-motaización (tarea `motai-v2`) quedó reasentada **limpia sobre `qa`** en `feature/motai-clean-v2` (legacy-backend + frontend-monorepo, 1 commit c/u), PRs pendientes de crear. Saca modos (`allied_modes`/`user_request_modes`), `isMotaiRenting`/`merchant_mode`, los ifs por 158 y limpia el `openapi.yaml` de OnboardingV2; los reemplaza por config (`lenders.product`/`calculator`, `allied_documents`, Ábaco derivado de `product`, endpoint `recalculate`). **Sin mergear** → este nodo sigue describiendo la **v1 en main**; gradúa recién al mergear. Detalle in-flight en el tablero.
 - **2026-07-18** — RENOMBRADO `motaix` → `motai` (nodo + id + refs). El nodo cuelga de **Merchants**, así que documenta el **COMERCIO** aliado 158 (Motai); **MotaiX** es su *lender* rt=2 y pertenece conceptualmente a **Entities**. El nombre viejo mezclaba los dos namespaces.

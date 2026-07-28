@@ -73,20 +73,33 @@ export const SHEETS = {
   },
 
   /* ═══════════ Motai · Renting puro ═══════════
-     Fuente: "Calculadora Renting VF.xlsx", pestaña Renting.
-     Ojo: la tarifa sale de amortizar el precio de venta a 24 meses (un ancla de PRECIO,
-     no un plazo real) y prorratear esa cuota mensual a semana dividiendo por 30 y
-     multiplicando por 7. Es un PRORRATEO LINEAL, distinto a la conversión compuesta
-     que usa RTO — de ahí el +1,11% entre los dos productos. */
+     Fuente: "Calculadora Renting VF.xlsx", pestaña Renting + motai-manu.pdf.
+
+     ⚠ POR QUÉ ACÁ NO HAY TASA — y no es un detalle técnico, es la estructura legal.
+     Sin opción de compra el cliente NUNCA es dueño: paga por USAR la moto y al final la
+     devuelve. No hay capital que amortizar, así que no hay interés — y sin interés no es
+     un crédito, y sin crédito no aplica el techo de usura.
+
+     Por eso el `anchorRate` NO se llama `monthlyRate`: el doc de Manuela lo lista como
+     "Tasa mensual 1,8% · **Parámetro**", mientras que en la hoja de RTO la misma cifra
+     dice "Equivale a ~0,4125% semanal". El documento ya las trata distinto. Acá el 1,8%
+     solo sirve para FIJAR UN PRECIO (amortizar el precio de venta a 24 meses y prorratear
+     ÷30 ×7); llamarlo tasa invita a que alguien lo "corrija" a una conversión compuesta y
+     con eso convierta el arriendo en un crédito.
+
+     Es la razón de fondo del +1,11% contra RTO que veníamos anotando como pregunta: no es
+     una conversión mal hecha, es que acá no hay nada que convertir. */
   'motai-renting': {
     label: 'Motai · Renting puro',
+    legalNature: 'arrendamiento operativo',   // El cliente devuelve la moto. Sin interés → no es crédito → no aplica usura.
     note: 'Arriendo sin opción de compra. No hay saldo que amortizar: el PMT a 24 meses es un ancla de precio.',
     realWorldCharge: 'semanal',   // el motor no amortiza acá: prorratea ÷30 ×7
     rateConvention: null,   // no amortiza: no hay saldo, no hay tasa de período ni E.A.
     periods: { chargedEvery: 'semanal' },   // solo para rotular: acá el prorrateo es ÷30 ×7
 
     constants: {
-      setupFee: 1500000, marginFactor: 1, vatRate: 0.19, monthlyRate: 0.018,
+      setupFee: 1500000, marginFactor: 1, vatRate: 0.19,
+      anchorRate: 0.018,   // NO es una tasa de interés: es el parámetro que fija el precio
       anchorTermMonths: 24, daysPerWeek: 7, daysPerMonth: 30,
     },
     inputs: [
@@ -108,7 +121,7 @@ export const SHEETS = {
       margin: 'baseCost * marginFactor',
       vatAmount: '(baseCost + margin) * vatRate',
       salePrice: 'baseCost + margin + vatAmount',
-      anchorPayment: 'pmt(monthlyRate, anchorTermMonths, salePrice)',
+      anchorPayment: 'pmt(anchorRate, anchorTermMonths, salePrice)',
       weekMonthRatio: 'daysPerWeek / daysPerMonth',
       baseWeeklyRent: 'anchorPayment * weekMonthRatio',
       planFactor: 'lookup(rentalPlans, planDurationWeeks, "factor")',
@@ -137,6 +150,7 @@ export const SHEETS = {
      los montos solo cuadran con 52/78/104. */
   'motai-rto': {
     label: 'Motai · Rent to Own',
+    legalNature: 'crédito',   // Con opción de compra. El doc de Manuela: "esencialmente un crédito disfrazado de arriendo".
     note: 'Arriendo con opción de compra: es un crédito. Hay saldo, se amortiza semanal.',
     realWorldCharge: 'semanal',
     // El .xlsx hace (1+C12)^0,230769-1 → capitaliza. Pero el lender 170 "Motai RB" guarda
@@ -189,6 +203,7 @@ export const SHEETS = {
      El comercio (Sonria/Dentix/Gaes) NO es un proyecto: es una fila de la tabla. */
   'creditopx-salud': {
     label: 'CreditopX · salud',
+    legalNature: 'crédito',   // Financiación directa.
     note: 'Sonria / Dentix / Gaes comparten estas fórmulas exactas. El comercio solo aporta valores.',
     realWorldCharge: 'mensual',
     // FinancialMath.php:29 lo dice explícito: "Intentionally uses the compound effective
@@ -266,6 +281,7 @@ export const SHEETS = {
      con el plan mensual por ninguna vía (+33,2% en el contrato). Pendiente con Manuela. */
   'alta-fleet': {
     label: 'Alta Fleet',
+    legalNature: 'crédito',   // El PDF (punto 7) exige LENGUAJE de alquiler, pero los instrumentos son de crédito: pagaré Deceval, fianza, FNG y "seguro de vida DEUDORES".
     note: 'Dos créditos en el core (moto 18 cuotas + póliza 10) → la cuota baja en el mes 11.',
     realWorldCharge: 'semanal',
     // El PDF da 1,87% M.V. y amortiza mensual: statedPerYear = periodsPerYear = 12, así que

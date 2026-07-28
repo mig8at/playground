@@ -138,6 +138,11 @@ const VERDICT = {
         <span><i style="background:var(--blue)"></i>cálculo</span>
         <span><i style="background:var(--teal)"></i>qué sigue</span>
         <span class="sep">{{ graph.nodes.length }} nodos</span>
+        <span class="sep nat" :class="{ rent: sheetDef.legalNature === 'arrendamiento operativo' }"
+          :title="sheetDef.legalNature === 'arrendamiento operativo'
+            ? 'Sin interés: no es crédito, no aplica el techo de usura'
+            : 'Hay interés sobre un saldo: es crédito y le aplica el techo de usura'">
+          {{ sheetDef.legalNature || 'genérico' }}</span>
         <span v-if="ea" class="sep ea">{{ ea }}</span>
         <span v-if="conv" class="sep" :class="{ warn: conv.warn }" :title="conv.why">
           {{ conv.txt }}<template v-if="conv.warn"> ⚠</template>

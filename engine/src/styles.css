@@ -370,3 +370,5 @@ button.icon:hover { color: var(--ink); background: var(--card2) }
   text-transform: uppercase; letter-spacing: .04em; vertical-align: 1px;
 }
 .badge.b-per { color: var(--mut); background: var(--tint-gray) }
+.strip .nat { color: var(--blue); font-weight: 650 }
+.strip .nat.rent { color: var(--teal) }

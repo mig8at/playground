@@ -277,7 +277,26 @@ eje en el que dos productos se comparan (además de ser lo que la ley obliga a p
 | `alta-fleet` | **24,90%** | 1,87% × 12 |
 | `creditopx-salud` | **28,17%** | 2,089764% × 12 |
 
-`motai-renting` queda afuera **a propósito**: no amortiza, no hay saldo, así que no tiene E.A.
+### Y por qué `motai-renting` no tiene tasa
+
+No es una omisión técnica, es **estructura legal**. El techo de **usura** aplica al crédito, no al
+arrendamiento. Sin opción de compra el cliente nunca es dueño: paga por *usar* la moto y la
+devuelve, así que **no hay capital que amortizar → no hay interés → no es crédito**. Con opción de
+compra (RTO) sí hay saldo y sí hay interés — el PRD lo llama *"un crédito disfrazado de arriendo"*.
+
+La propia calculadora trata el mismo 1,8% de dos maneras: en la pestaña Renting lo lista como
+**"Parámetro"**, y en Rent to Own como **"Equivale a ~0,4125% semanal"**.
+
+Por eso la constante se llama **`anchorRate`** y no `monthlyRate`: solo sirve para fijar un precio
+(amortizar el precio de venta a 24 meses y prorratear `÷30 ×7`). **"Arreglar" ese prorrateo para
+que capitalice no es un fix — es recaracterizar el producto** y meterlo en el perímetro del
+crédito. Ahí está la respuesta al `+1,11%` que figuraba como pregunta abierta: no hay nada que
+convertir.
+
+Cada hoja declara además su `legalNature`, visible en la franja. Detalle en el nodo `motai` del
+contexto.
+
+`motai-renting` queda afuera de la tabla de E.A. **a propósito**: no amortiza, no hay saldo.
 Su `PMT` a 24 meses es un ancla de precio. Ahora esa diferencia se ve sola — es la única hoja
 sin tasa efectiva en la franja.
 
