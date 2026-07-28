@@ -35,6 +35,29 @@ De ahí sale el **+1,11%** entre los dos productos que se venía anotando como p
 no es una conversión mal hecha — es que en el arrendamiento **no hay nada que convertir**. El
 prorrateo lineal es una decisión de precio.
 
+**Cómo la hoja logra no cobrar interés (verificado celda por celda en `Calculadora Renting VF.xlsx`).**
+Lo más contundente es lo que NO está: la pestaña Renting **no tiene columna "Interés"**, y su tabla
+entera es una sola fórmula — `C21 = VLOOKUP(plan) * IF(semana<=C18,1,0)`, o sea repetir la tarifa
+las semanas del plan y cero después. La de Rent to Own sí trae `Saldo Inicial | Capital | INTERES |
+Cuota | Saldo Final` (`C24=saldo · D24=PPMT · E24=IPMT · G24=saldo final`).
+
+Cuatro movidas:
+
+1. **La plata está en el PRECIO.** `C6 Margen = (C4+C5)*D6` con `D6 = 1,0` → **duplica** la base.
+   4.534.000 de costo + 1.500.000 de alistamiento → precio de venta **14.360.920** = **3,17× el
+   costo de la moto**. Toda la compensación por el tiempo va ahí, y un precio no es interés.
+2. **El PMT es un divisor, no una amortización.** `C14 = -PMT(C10,24,C8)/30*7`. Dividir el precio
+   en 24 daría 598.372; el PMT da 742.184 — **+24%**. El 1,8% solo agranda el pedazo.
+3. **No hay saldo.** Sin saldo no existe base a la cual aplicar un porcentaje. El cliente no debe:
+   paga por usar.
+4. **El contrato dura 1, 4 o 12 SEMANAS** (`C18 = IF(plan="Semana",1,IF(plan="Mes",4,12))`). Los
+   24 meses del PMT **solo viven dentro de la fórmula del precio** — no son el plazo. Máximo tres
+   meses, renovable: no hay obligación de largo plazo que leer como financiación.
+
+> **Límite de lo verificable acá:** la hoja muestra el **mecanismo**, no si alcanza legalmente. Si
+> el arrendamiento se recaracteriza como crédito encubierto es una opinión jurídica (legal de
+> CreditOp), no algo deducible de un Excel. Lo verificado es que **la hoja no calcula interés**.
+
 > ⚠ **Consecuencia para quien toque la calculadora:** "arreglar" el prorrateo del renting para
 > que use la conversión compuesta **no es un fix**, es recaracterizar el producto. Si alguien lo
 > hace, el arrendamiento pasa a tener una tasa y con eso entra al perímetro del crédito. En
