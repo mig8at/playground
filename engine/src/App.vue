@@ -21,7 +21,7 @@ import FormulaPanel from './FormulaPanel.vue'
 import { evalPolicy, fmtNum } from './engine.js'
 import { SHEETS } from './sheets.js'
 import { layoutSheet, layoutPolicy } from './layout.js'
-import { ui, inputs, risk, effDef, sheetDef, policyDef, out, resetSheet } from './store.js'
+import { ui, inputs, risk, periods, effDef, sheetDef, policyDef, out, resetSheet } from './store.js'
 
 // markRaw: sin esto Vue hace reactivos los componentes y avisa por consola en cada nodo.
 const nodeTypes = {
@@ -65,6 +65,11 @@ const series = computed(() => out.value.series)
 // El canon de la plataforma es N.M. (credit_line_by_lenders.rate_suffix, 157/157 filas).
 // Una hoja `effective` es legítima —así lo hacen los .xlsm— pero DIVERGE, y eso ya pegó en
 // producción con Credifamilia (F-71 · CORE-127). El aviso está para que no pase de largo.
+// El motor amortiza en `chargedEvery`; el producto cobra en `realWorldCharge`. Si difieren,
+// alguien tuvo que decidir cómo cruzar — y en alta-fleet nadie lo escribió.
+const bridge = computed(() =>
+  !!periods.chargedEvery && periods.chargedEvery !== sheetDef.value.realWorldCharge)
+
 const conv = computed(() => {
   const c = sheetDef.value.rateConvention
   if (!c) return null
@@ -133,8 +138,9 @@ const VERDICT = {
         <span v-if="conv" class="sep" :class="{ warn: conv.warn }" :title="conv.why">
           {{ conv.txt }}<template v-if="conv.warn"> ⚠</template>
         </span>
-        <span class="sep">base {{ sheetDef.periodBase }} · cobro {{ sheetDef.periodCharged }}<template
-          v-if="sheetDef.periodBase !== sheetDef.periodCharged"> ⚠ falta puente</template></span>
+        <span class="sep" :class="{ warn: bridge }">
+          amortiza {{ periods.chargedEvery || '—' }} · se cobra {{ sheetDef.realWorldCharge }}<template
+          v-if="bridge"> ⚠ falta puente</template></span>
         <span class="sep note">{{ sheetDef.note }}</span>
       </template>
       <template v-else-if="policyDef">

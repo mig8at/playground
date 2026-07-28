@@ -26,6 +26,14 @@
 // Estas hojas salen de los .xlsm, que capitalizan (`effective`). Esa discrepancia YA pegó
 // en producción: ver F-71 en context/server/data/flows/findings/doc.md (CORE-127).
 
+/** Cuántos períodos de cada clase caben en un año. Reemplaza a la sopa de constantes
+ *  (weeksPerYear, monthsPerYear, daysPerMonth…): eran todas la MISMA pregunta.
+ *  La diaria usa 360 — convención comercial, no calendario. */
+export const PERIODS = {
+  anual: 1, semestral: 2, trimestral: 4, bimestral: 6,
+  mensual: 12, quincenal: 24, semanal: 52, diaria: 360,
+}
+
 export const SHEETS = {
 
   /* ═══════════ Motai · Renting puro ═══════════
@@ -37,8 +45,9 @@ export const SHEETS = {
   'motai-renting': {
     label: 'Motai · Renting puro',
     note: 'Arriendo sin opción de compra. No hay saldo que amortizar: el PMT a 24 meses es un ancla de precio.',
-    periodBase: 'mensual', periodCharged: 'semanal',
+    realWorldCharge: 'semanal',   // el motor no amortiza acá: prorratea ÷30 ×7
     rateConvention: null,   // no amortiza: no hay saldo, no hay tasa de período ni E.A.
+    periods: { chargedEvery: 'semanal' },   // solo para rotular: acá el prorrateo es ÷30 ×7
 
     constants: {
       setupFee: 1500000, marginFactor: 1, vatRate: 0.19, monthlyRate: 0.018,
@@ -93,16 +102,16 @@ export const SHEETS = {
   'motai-rto': {
     label: 'Motai · Rent to Own',
     note: 'Arriendo con opción de compra: es un crédito. Hay saldo, se amortiza semanal.',
-    periodBase: 'semanal', periodCharged: 'semanal',
+    realWorldCharge: 'semanal',
     // El .xlsx hace (1+C12)^0,230769-1 → capitaliza. Pero el lender 170 "Motai RB" guarda
     // 1.82 N.M. en la tabla: misma trampa que Credifamilia (F-71).
     rateConvention: 'effective',
+    // Los tres períodos, declarados en vez de cableados como números
+    periods: { rateStatedIn: 'mensual', chargedEvery: 'semanal', termIn: 'mensual' },
 
     constants: {
       setupFee: 1500000, marginFactor: 1, vatRate: 0.19,
-      statedRate: 0.018, statedPerYear: 12,   // el negocio la dice mensual
-      periodsPerYear: 52,                     // pero se cobra semanal
-      monthsPerYear: 12,
+      statedRate: 0.018,
     },
     inputs: [
       { name: 'assetCost', type: 'money', label: 'Costo contable de la moto', default: 4534000, min: 0 },
@@ -118,7 +127,7 @@ export const SHEETS = {
       financedAmount: 'taxableBase + vatAmount',
       periodRate: '(1 + statedRate) ^ (statedPerYear / periodsPerYear) - 1',
       annualEffectiveRate: '(1 + periodRate) ^ periodsPerYear - 1',
-      termPeriods: 'termMonths * periodsPerYear / monthsPerYear',
+      termPeriods: 'termMonths * periodsPerYear / termPerYear',
       weeklyRent: 'pmt(periodRate, termPeriods, financedAmount)',
     },
     groups: {
@@ -145,17 +154,16 @@ export const SHEETS = {
   'creditopx-salud': {
     label: 'CreditopX · salud',
     note: 'Sonria / Dentix / Gaes comparten estas fórmulas exactas. El comercio solo aporta valores.',
-    periodBase: 'mensual', periodCharged: 'mensual',
+    realWorldCharge: 'mensual',
     // FinancialMath.php:29 lo dice explícito: "Intentionally uses the compound effective
     // formula. annualEffectiveRate/360 (nominal simple) is NOT used — this matches the
     // Calculadora PV V20251009.xlsm convention."
     rateConvention: 'effective',
+    periods: { rateStatedIn: 'anual', chargedEvery: 'mensual', termIn: 'mensual' },
 
     constants: {
       vatRate: 0.19, financialTransactionTaxRate: 0.004, lifeInsuranceFactor: 0.001307,
-      statedPerYear: 1,        // el negocio la dice E.A.
-      periodsPerYear: 12,      // y se cobra mensual
-      daysPerYear: 360,        // convención comercial, no calendario
+      daysPerYear: 360,        // para la tasa diaria. Comercial, no calendario.
     },
     inputs: [
       { name: 'merchantId', type: 'count', label: 'Comercio (allied_id)', default: 178, enum: [142, 156, 178] },
@@ -223,16 +231,14 @@ export const SHEETS = {
   'alta-fleet': {
     label: 'Alta Fleet',
     note: 'Dos créditos en el core (moto 18 cuotas + póliza 10) → la cuota baja en el mes 11.',
-    periodBase: 'mensual', periodCharged: 'semanal',
+    realWorldCharge: 'semanal',
     // El PDF da 1,87% M.V. y amortiza mensual: statedPerYear = periodsPerYear = 12, así que
     // nominal y efectiva dan el MISMO número. Se declara nominal por ser el canon N.M.
     rateConvention: 'nominal',
+    // Amortiza MENSUAL (así lo hace el PDF); que además se cobre semanal es el puente que falta.
+    periods: { rateStatedIn: 'mensual', chargedEvery: 'mensual', termIn: 'mensual' },
 
-    constants: {
-      lifeInsuranceFactor: 0.0014, gpsMonthlyFee: 20000,
-      statedPerYear: 12,    // el PDF la da M.V.
-      periodsPerYear: 12,   // y AMORTIZA mensual — el cobro semanal es el puente que falta
-    },
+    constants: { lifeInsuranceFactor: 0.0014, gpsMonthlyFee: 20000 },
     inputs: [
       { name: 'assetCost', type: 'money', label: 'Valor a financiar moto', default: 8485400, min: 0 },
       { name: 'gpsDevicePrice', type: 'money', label: 'GPS', default: 595000, min: 0 },
@@ -328,6 +334,21 @@ export const POLICIES = {
       ],
     },
   },
+}
+
+/** Constantes que YA NO se escriben a mano: salen de los selects de período. No se listan
+ *  como constantes editables porque no son de la hoja, son derivadas. */
+export const DERIVED_PERIOD_CONSTANTS = ['statedPerYear', 'periodsPerYear', 'termPerYear']
+
+/** Resuelve los períodos declarados a números y los deja como constantes.
+ *  Única fuente: la usan el store, el arnés de verificación y cualquier consumidor. */
+export function withPeriods(def, override = {}) {
+  const p = { ...(def.periods || {}), ...override }
+  const c = {}
+  if (p.rateStatedIn) c.statedPerYear = PERIODS[p.rateStatedIn]
+  if (p.chargedEvery) c.periodsPerYear = PERIODS[p.chargedEvery]
+  if (p.termIn) c.termPerYear = PERIODS[p.termIn]
+  return { ...def, constants: { ...def.constants, ...c } }
 }
 
 export function defaultInputs(def) {

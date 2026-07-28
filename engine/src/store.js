@@ -2,7 +2,7 @@
 // así el v-model de un input NO depende del prop `data`, que se recrea en cada recálculo.
 // Si dependiera de `data`, escribir en un campo perdería el foco a cada tecla.
 import { reactive, computed, watch } from 'vue'
-import { SHEETS, POLICIES, defaultInputs } from './sheets.js'
+import { SHEETS, POLICIES, PERIODS, withPeriods, defaultInputs } from './sheets.js'
 import { evalSheet } from './engine.js'
 
 // `seriesOpen` arranca cerrado: el plan de pagos son 104 filas que competían por la atención
@@ -17,6 +17,10 @@ export const ui = reactive({
 export const inputs = reactive({})
 /** Las constantes de la hoja. También editables — es un simulador: "¿y si el IVA fuera 21%?". */
 export const consts = reactive({})
+/** Los períodos elegidos: nombres, no números. El store los resuelve a statedPerYear /
+ *  periodsPerYear / termPerYear y los inyecta como constantes, así las fórmulas no cambian. */
+export const periods = reactive({})
+
 /** Las tablas de búsqueda. Son ENTRADA igual que los inputs: datos, no cálculo. */
 export const tables = reactive({})
 /** Los datos de la persona, que solo mira la política. */
@@ -25,9 +29,10 @@ export const risk = reactive({ monthlyIncome: 3200000, creditScore: 520 })
 export const sheetDef = computed(() => SHEETS[ui.slug])
 
 /** La hoja con las constantes editadas encima. SHEETS queda intacto. */
-export const effDef = computed(() => ({
-  ...sheetDef.value, constants: { ...consts }, tables: JSON.parse(JSON.stringify(tables)),
-}))
+export const effDef = computed(() => {
+  const base = withPeriods({ ...sheetDef.value, constants: { ...consts } }, periods)
+  return { ...base, tables: JSON.parse(JSON.stringify(tables)) }
+})
 
 /** La evaluación viva. Vive acá para que el panel derecho no necesite props. */
 export const out = computed(() => evalSheet(effDef.value, inputs))
@@ -57,6 +62,8 @@ export function resetSheet() {
   // copia PROFUNDA: si no, editar una celda mutaría SHEETS y no habría cómo restablecer
   for (const k of Object.keys(tables)) delete tables[k]
   Object.assign(tables, JSON.parse(JSON.stringify(d.tables || {})))
+  for (const k of Object.keys(periods)) delete periods[k]
+  Object.assign(periods, d.periods || {})
 }
 
 watch(() => ui.slug, () => { resetSheet(); ui.selected = null }, { immediate: true })

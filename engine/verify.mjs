@@ -1,5 +1,5 @@
 import { evalSheet, evalPolicy } from './src/engine.js'
-import { SHEETS, POLICIES, defaultInputs } from './src/sheets.js'
+import { SHEETS, POLICIES, defaultInputs, withPeriods } from './src/sheets.js'
 let fails = 0
 const chk = (l, got, want, tol = 1e-9) => {
   const ok = Math.abs(got - want) / Math.max(1, Math.abs(want)) < tol
@@ -7,7 +7,7 @@ const chk = (l, got, want, tol = 1e-9) => {
   console.log(`  ${ok ? 'OK  ' : 'FAIL'} ${l.padEnd(30)} ${String(got).padEnd(23)} xlsm=${want}`)
 }
 const G = (slug, over, key) => {
-  const d = SHEETS[slug], r = evalSheet(d, { ...defaultInputs(d), ...over }).res[key]
+  const d = withPeriods(SHEETS[slug]), r = evalSheet(d, { ...defaultInputs(d), ...over }).res[key]
   return r && r.status === 'ok' ? r.value : NaN
 }
 
@@ -41,7 +41,7 @@ for (const [k,w] of [['guaranteeCost',875351],['financedAmount',9955751],['insta
 
 console.log('\n=== series')
 for (const s of ['motai-rto','creditopx-salud','alta-fleet']) {
-  const d = SHEETS[s], o = evalSheet(d, defaultInputs(d)).series
+  const d = withPeriods(SHEETS[s]), o = evalSheet(d, defaultInputs(d)).series
   const last = o.rows[o.rows.length-1]
   console.log(`  ${s.padEnd(17)} ${String(o.rows.length).padStart(3)} filas` +
     (o.error?'  ERR '+o.error:'') +

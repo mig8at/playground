@@ -1,3 +1,5 @@
+import { DERIVED_PERIOD_CONSTANTS } from './sheets.js'
+
 // Disposición automática. No usa dagre: el grafo de una hoja es un DAG chico (18-26 nodos),
 // así que alcanza con ordenar por PROFUNDIDAD (camino más largo desde una fuente) y apilar
 // cada nivel en una columna. El resultado se lee de izquierda a derecha, que es el orden en
@@ -21,7 +23,7 @@ export function layoutSheet(def, out, opts = {}) {
   const groupOf = {}
   for (const [g, fs] of Object.entries(groups)) fs.forEach(f => groupOf[f] = g)
   const inputNames = new Set((def.inputs || []).map(i => i.name))
-  const constants = Object.keys(def.constants || {})
+  const constants = Object.keys(def.constants || {}).filter(c => !DERIVED_PERIOD_CONSTANTS.includes(c))
   const tables = Object.keys(def.tables || {})
 
   // qué grupo depende de qué grupo, y por cuál fórmula cruza
@@ -57,14 +59,18 @@ export function layoutSheet(def, out, opts = {}) {
     cols.get(c).push(g)
   }
 
-  const entradaH = 62 + ((def.inputs || []).length + constants.length) * 21
+  const entradaH = 62 + ((def.inputs || []).length + constants.length
+    + Object.keys(def.periods || {}).length) * 21 + (def.periods ? 22 : 0)
   const tablesH = tables.reduce((h, t) => h + 60 + (def.tables[t].rows.length + 1) * 23 + 26, 0)
   const col0H = entradaH + (tables.length ? 26 + tablesH : 0)
   const gH = g => 54 + groups[g].length * 22 + 10
 
   const nodes = [{
     id: '@entrada', type: 'inputsNode', position: { x: 0, y: 0 },
-    data: { inputs: def.inputs || [], constants, values: inputValues, constValues: def.constants || {} },
+    data: {
+      inputs: def.inputs || [], constants, values: inputValues,
+      constValues: def.constants || {}, periods: def.periods || {},
+    },
   }]
   let ty = entradaH + 26
   for (const t of tables) {

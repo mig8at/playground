@@ -184,6 +184,41 @@ verify.mjs         arnés de regresión contra los archivos fuente
 Cuatro hojas, **cuatro convenciones de período distintas**. Ese desorden estaba escondido en los
 archivos; acá la barra superior lo dice en cada hoja y marca ⚠ cuando base ≠ cobro.
 
+## Los períodos son selects, no constantes
+
+Había una sopa de constantes —`weeksPerYear`, `monthsPerYear`, `daysPerMonth`,
+`statedPerYear`, `periodsPerYear`— que eran **todas la misma pregunta contada distinto**.
+Ahora cada hoja declara tres períodos por nombre y el resto se deriva:
+
+```
+periods: { rateStatedIn: 'mensual', chargedEvery: 'semanal', termIn: 'mensual' }
+```
+
+| declaración | qué contesta | de dónde sale el número |
+|---|---|---|
+| `rateStatedIn` | ¿en qué período el negocio **dice** la tasa? | `statedPerYear` |
+| `chargedEvery` | ¿en qué período se **amortiza**? | `periodsPerYear` |
+| `termIn` | ¿en qué unidad viene el **plazo**? | `termPerYear` |
+
+El catálogo `PERIODS` es la única fuente: anual 1 · semestral 2 · trimestral 4 · bimestral 6
+· mensual 12 · quincenal 24 · semanal 52 · diaria 360.
+
+Efecto: `motai-rto` pasó de 7 constantes a 4, `alta-fleet` de 4 a 2 — y los tres son
+**selects en el nodo Entrada**. Cambiá "se cobra" de semanal a trimestral y se mueve todo:
+
+```
+periodRate    0,412539%  →  5,497783%
+termPeriods         104  →          8
+cuota           127.815  →  1.703.347
+plan de pagos  104 filas →    8 filas
+veredicto      R4 (canon muy bajo) → R5 (supera el máximo)
+E.A.              23,87% →     23,87%   ← no se mueve: es el mismo crédito
+```
+
+Y `realWorldCharge` queda aparte: es cómo cobra **el producto**, que el motor no controla.
+Cuando difiere de `chargedEvery` la franja marca **⚠ falta puente** — el caso de `alta-fleet`,
+que amortiza mensual y cobra semanal sin que nadie escribiera la conversión.
+
 ## La tasa, estandarizada
 
 Las tres hojas que amortizan pasan por el **mismo par de líneas**:
