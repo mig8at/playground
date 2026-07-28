@@ -14,6 +14,8 @@ import TableNode from './nodes/TableNode.vue'
 import RuleNode from './nodes/RuleNode.vue'
 import EndNode from './nodes/EndNode.vue'
 import RiskNode from './nodes/RiskNode.vue'
+import NextNode from './nodes/NextNode.vue'
+import ZoneNode from './nodes/ZoneNode.vue'
 import FormulaPanel from './FormulaPanel.vue'
 
 import { evalPolicy, fmtNum } from './engine.js'
@@ -25,7 +27,7 @@ import { ui, inputs, risk, effDef, sheetDef, policyDef, out, resetSheet } from '
 const nodeTypes = {
   inputsNode: markRaw(InputsNode), groupNode: markRaw(GroupNode),
   tableNode: markRaw(TableNode), ruleNode: markRaw(RuleNode), endNode: markRaw(EndNode),
-  riskNode: markRaw(RiskNode),
+  riskNode: markRaw(RiskNode), nextNode: markRaw(NextNode), zoneNode: markRaw(ZoneNode),
 }
 
 // `fit-view-on-init` corre con el contenedor en 0x0 y falla en silencio; `pane-ready` llega
@@ -44,15 +46,17 @@ const verdict = computed(() => {
   return evalPolicy(policyDef.value, { weeklyRent: outVal.value ?? '', ...risk })
 })
 
-const graph = computed(() => layoutSheet(effDef.value, out.value, { inputValues: inputs }))
-
 const pgraph = computed(() => policyDef.value && verdict.value
   ? layoutPolicy(policyDef.value, verdict.value, {
       fromSheetName: effDef.value.output, fromSheetValue: outVal.value,
     })
   : { nodes: [], edges: [] })
 
-// remontar el canvas solo al cambiar de hoja / pestaña / nivel de zoom, para que reencuadre.
+const graph = computed(() => layoutSheet(effDef.value, out.value, {
+  inputValues: inputs, policy: policyDef.value, verdict: verdict.value,
+}))
+
+// remontar el canvas solo al cambiar de hoja / pestaña, para que reencuadre.
 // NO depende de los inputs: si dependiera, escribir remontaría el grafo a cada tecla.
 const canvasKey = computed(() => `${ui.slug}|${ui.tab}`)
 const series = computed(() => out.value.series)
@@ -105,8 +109,8 @@ const VERDICT = {
     <div class="strip">
       <template v-if="ui.tab === 'calc'">
         <span><i style="background:var(--amber)"></i>entrada</span>
-        <span><i style="background:var(--blue)"></i>etapa</span>
-        <span><i style="background:var(--purple)"></i>output</span>
+        <span><i style="background:var(--blue)"></i>cálculo</span>
+        <span><i style="background:var(--teal)"></i>qué sigue</span>
         <span class="sep">{{ graph.nodes.length }} nodos</span>
         <span class="sep">base {{ sheetDef.periodBase }} · cobro {{ sheetDef.periodCharged }}<template
           v-if="sheetDef.periodBase !== sheetDef.periodCharged"> ⚠ falta puente</template></span>

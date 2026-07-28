@@ -307,3 +307,43 @@ button.icon:hover { color: var(--ink); background: var(--card2) }
 /* fila / nodo seleccionado */
 .grp-row { cursor: pointer; border-radius: 5px; margin: 0 4px; padding: 1px 6px }
 .grp-row.is-sel { background: var(--hd-purple); box-shadow: inset 2px 0 0 var(--purple) }
+
+/* ── ETAPA 3 · qué se hace con los números ── */
+.n--next { border-color: var(--teal) }
+.n--next .n__hd { background: var(--hd-teal) } .n--next .n__hd b { color: var(--teal) }
+.n--next.v-ok { border-color: var(--green) }
+.n--next.v-ok .n__hd { background: var(--tint-green) } .n--next.v-ok .n__hd b { color: var(--green) }
+.n--next.v-no { border-color: var(--red) }
+.n--next.v-no .n__hd { background: var(--tint-red) } .n--next.v-no .n__hd b { color: var(--red) }
+.n--next.v-mid .n__hd { background: var(--tint-amber) } .n--next.v-mid .n__hd b { color: var(--amber) }
+/* la frontera del servicio: se ve, no funciona */
+.n--outside { border-style: dashed; opacity: .62 }
+.n--outside .n__hd { background: transparent } .n--outside .n__hd b { color: var(--mut) }
+
+.nx { padding: 8px 11px 10px }
+.nx__head { font: 700 15px var(--sans); letter-spacing: -.02em; text-transform: capitalize; margin-bottom: 4px }
+.v-ok .nx__head { color: var(--green) }
+.v-no .nx__head { color: var(--red) }
+.v-mid .nx__head { color: var(--amber) }
+.nx__kv { display: flex; gap: 10px; font: 11px var(--mono); line-height: 20px; color: var(--mut) }
+.nx__kv b { margin-left: auto; color: var(--ink); font-weight: 650 }
+.nx__row { font: 11px var(--mono); color: var(--mut); line-height: 20px }
+.nx__row::before { content: '· '; color: var(--dim) }
+.nx__note { font: 10.5px/1.5 var(--sans); color: var(--dim); margin-top: 7px;
+            padding-top: 7px; border-top: 1px dashed var(--line) }
+.nx__go {
+  display: flex; align-items: center; gap: 5px; margin-top: 9px; width: 100%;
+  justify-content: center; padding: 4px 8px; font-size: 11px; border-radius: 6px;
+}
+
+/* ── rótulos de zona ── */
+.zone { display: flex; align-items: baseline; gap: 8px; font-size: 12.5px; font-weight: 650;
+        white-space: nowrap; pointer-events: none }
+.zone b {
+  display: inline-flex; align-items: center; justify-content: center; width: 19px; height: 19px;
+  border-radius: 5px; font: 700 11px var(--mono); color: var(--badge-fg);
+}
+.zone span { font-weight: 400; font-size: 11px; color: var(--dim) }
+.zone--in { color: var(--amber) }    .zone--in b { background: var(--amber) }
+.zone--calc { color: var(--blue) }   .zone--calc b { background: var(--blue) }
+.zone--next { color: var(--teal) }   .zone--next b { background: var(--teal) }

@@ -10,14 +10,29 @@ npm install
 npm run dev     # http://localhost:5196
 ```
 
-## Qué se ve
+## Tres etapas, de izquierda a derecha
 
-Dos pestañas, las dos vivas: tocás un input y todo se recalcula.
+El canvas está rotulado en tres zonas, y todo es vivo: tocás un input y se recalcula entero.
 
-| pestaña | qué muestra |
-|---|---|
-| **Cálculo** | La **cadena de cálculo**: un nodo por fórmula, izquierda → derecha en el orden en que el motor las resuelve. Abajo, la tabla de la serie. |
-| **Política** | El árbol de decisión. El *gate* corre en cadena y **corta en la primera regla que falla**; después abanican las ramas del *outcome*. Solo se ilumina el camino que se tomó. |
+| | zona | qué hay |
+|---|---|---|
+| **1** | **Entrada** (ámbar) | inputs, constantes y tablas. Todo editable, nada se calcula |
+| **2** | **Cálculo** (azul) | las fórmulas agrupadas por etapa; el output en morado |
+| **3** | **Qué sigue** (verde) | qué se hace con los números una vez calculados |
+
+La etapa 3 es la que faltaba y la que hace visible **la frontera del servicio**:
+
+- **Plan de pagos** — la serie. Avisa si la cuota *no es plana*: en `alta-fleet` va de
+  764.855 a 690.441 porque son dos créditos de distinto plazo y la póliza se acaba en el
+  mes 11. El grafo lo dice solo.
+- **Política** — el veredicto, con la regla que lo disparó. Si la hoja no tiene política
+  lo dice, que también es información: son recursos separados.
+- **Fuera del motor** — punteado y apagado a propósito: documentos, core, BD, pantalla.
+  El motor devolvió números y un veredicto; de ahí en adelante es del que llama.
+
+La pestaña **Política** sigue estando para ver el árbol completo (el *gate* corre en cadena
+y **corta en la primera regla que falla**), pero ya no hace falta ir a buscarla para saber
+que existe.
 
 **Se edita adentro del grafo.** No hay panel lateral: el nodo *Entrada* trae los campos, con
 separador de miles en los montos. Y las **constantes también son editables** — es un simulador,

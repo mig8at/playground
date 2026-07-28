@@ -12,7 +12,7 @@ const ROW_H = 124
    metadato de presentación y el motor lo ignora por completo.
    Si una hoja no declara `groups`, cada fórmula es su propio grupo. */
 export function layoutSheet(def, out, opts = {}) {
-  const { inputValues = {} } = opts
+  const { inputValues = {}, policy = null, verdict = null } = opts
   const groups = Object.keys(def.groups || {}).length
     ? def.groups
     : Object.fromEntries(Object.keys(def.formulas || {}).map(f => [f, [f]]))
@@ -120,6 +120,89 @@ export function layoutSheet(def, out, opts = {}) {
       })
     }
   }
+  /* ═══ ETAPA 3 · qué se hace con los números ═══
+     Dos cosas las produce el motor (plan de pagos y veredicto); el resto no. Ese corte
+     es la frontera del servicio, y por eso el último nodo va apagado. */
+  const lastCol = Math.max(...names.map(g => depth[g]))
+  const outGroup = names.find(g => groups[g].includes(def.output))
+  const nx = (lastCol + 1) * COL_W
+  const next = []
+
+  const S = out.series
+  if (S && S.rows?.length) {
+    const first = S.rows[0], last = S.rows[S.rows.length - 1]
+    const money = v => Math.round(v).toLocaleString('es-CO')
+    // La columna que interesa es la que paga el CLIENTE. En alta-fleet hay vehiclePayment,
+    // policyPayment y totalPayment: agarrar la primera que matcheara mostraba la del vehículo
+    // (plana) y ocultaba que el total baja en el mes 11.
+    const pay = S.cols.find(c => /^total/i.test(c))
+      || S.cols.find(c => /payment|cuota|rent/i.test(c))
+      || S.cols[S.cols.length - 1]
+    next.push({
+      title: 'Plan de pagos', tag: S.name, tone: 'plan', action: 'series',
+      rows: [
+        { k: 'filas', v: S.rows.length },
+        { k: '1ª ' + pay, v: money(first[pay]) },
+        { k: 'última ' + pay, v: money(last[pay]) },
+      ],
+      detail: first[pay] !== last[pay] ? 'La cuota NO es plana: cambia a lo largo del plan.' : null,
+    })
+  }
+
+  if (policy && verdict) {
+    next.push({
+      title: 'Política · ' + policy.label.split('·').pop().trim(), tag: 'veredicto',
+      tone: verdict.outcome === 'aprobado' ? 'ok' : verdict.outcome === 'rechazado' ? 'no' : 'mid',
+      headline: verdict.outcome, action: 'policy',
+      detail: verdict.explanation, rows: [],
+    })
+  } else {
+    next.push({
+      title: 'Política', tag: 'sin definir', tone: 'mid', rows: [],
+      detail: 'Esta hoja no tiene política. El cálculo igual corre: son recursos separados.',
+    })
+  }
+
+  // el alto depende del contenido: con la nota de "cuota no plana" el nodo crece ~40px
+  // y con espaciado fijo se montaba sobre el de abajo
+  const nH = d => 46 + (d.headline ? 27 : 0) + (d.rows?.length || 0) * 20
+    + (d.detail ? 44 : 0) + (d.action ? 34 : 0)
+  let ny = 0
+  next.forEach((d, i) => {
+    nodes.push({ id: '@next' + i, type: 'nextNode', position: { x: nx, y: ny }, data: d })
+    ny += nH(d) + 30
+    if (outGroup) {
+      edges.push({
+        id: 'out->next' + i, source: '@g:' + outGroup, target: '@next' + i,
+        label: def.output, style: { strokeWidth: 1.5, opacity: .8 },
+      })
+    }
+  })
+
+  nodes.push({
+    id: '@outside', type: 'nextNode', position: { x: nx + COL_W, y: 0 },
+    data: {
+      kind: 'outside',
+      items: ['generar y firmar documentos', 'crear el crédito en el core',
+              'guardar la solicitud en la BD', 'pintar la pantalla al cliente'],
+    },
+  })
+  next.forEach((_, i) => edges.push({
+    id: 'next' + i + '->outside', source: '@next' + i, target: '@outside',
+    style: { strokeWidth: 1, opacity: .25 },
+  }))
+
+  /* ═══ rótulos de las tres zonas ═══ */
+  const top = Math.min(...nodes.filter(n => n.type !== 'zoneNode').map(n => n.position.y)) - 62
+  ;[
+    { x: 0, n: '1', title: 'Entrada', sub: 'datos · editable', tone: 'in' },
+    { x: COL_W, n: '2', title: 'Cálculo', sub: 'fórmulas por etapa', tone: 'calc' },
+    { x: nx, n: '3', title: 'Qué sigue', sub: 'con los números ya calculados', tone: 'next' },
+  ].forEach((z, i) => nodes.push({
+    id: '@zone' + i, type: 'zoneNode', position: { x: z.x, y: top }, data: z,
+    draggable: false, selectable: false,
+  }))
+
   return { nodes, edges }
 }
 
