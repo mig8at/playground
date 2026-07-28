@@ -61,6 +61,19 @@
       ],
       "cwd": "diccionario",
       "port": 5194
+    },
+    {
+      "name": "engine",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "run",
+        "dev"
+      ],
+      "cwd": "engine",
+      "port": 5197,
+      "env": {
+        "PORT": "5197"
+      }
     }
   ]
 }

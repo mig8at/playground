@@ -1,7 +1,7 @@
 <script setup>
-import { computed } from 'vue'
+import { computed, markRaw, nextTick } from 'vue'
 import { ChevronUp, ChevronDown } from 'lucide-vue-next'
-import { VueFlow, Panel } from '@vue-flow/core'
+import { VueFlow, useVueFlow } from '@vue-flow/core'
 import { Background } from '@vue-flow/background'
 import { Controls } from '@vue-flow/controls'
 import '@vue-flow/core/dist/style.css'
@@ -22,10 +22,18 @@ import { SHEETS } from './sheets.js'
 import { layoutSheet, layoutSheetGrouped, layoutPolicy } from './layout.js'
 import { ui, inputs, risk, effDef, sheetDef, policyDef, out, resetSheet } from './store.js'
 
+// markRaw: sin esto Vue hace reactivos los componentes y avisa por consola en cada nodo.
 const nodeTypes = {
-  calcNode: CalcNode, inputsNode: InputsNode, groupNode: GroupNode,
-  tableNode: TableNode, ruleNode: RuleNode, endNode: EndNode, riskNode: RiskNode,
+  calcNode: markRaw(CalcNode), inputsNode: markRaw(InputsNode), groupNode: markRaw(GroupNode),
+  tableNode: markRaw(TableNode), ruleNode: markRaw(RuleNode), endNode: markRaw(EndNode),
+  riskNode: markRaw(RiskNode),
 }
+
+// `fit-view-on-init` corre con el contenedor en 0x0 y falla en silencio; `pane-ready` llega
+// antes de que los nodos estén medidos, así que encuadra contra tamaños estimados.
+// `nodes-initialized` es el que llega con todo medido.
+const { fitView } = useVueFlow()
+function onNodesReady() { nextTick(() => fitView({ padding: 0.12, duration: 0 })) }
 
 const outVal = computed(() => {
   const r = out.value.res[effDef.value.output]
@@ -98,40 +106,40 @@ const VERDICT = {
       </p>
     </div>
 
+    <!-- ───────── franja de contexto · fuera del canvas para no tapar los nodos ───────── -->
+    <div class="strip">
+      <template v-if="ui.tab === 'calc'">
+        <span><i style="background:var(--amber)"></i>entrada</span>
+        <span><i style="background:var(--blue)"></i>{{ ui.grouped ? 'etapa' : 'fórmula' }}</span>
+        <span><i style="background:var(--purple)"></i>output</span>
+        <span class="sep">{{ graph.nodes.length }} nodos</span>
+        <span class="sep">base {{ sheetDef.periodBase }} · cobro {{ sheetDef.periodCharged }}<template
+          v-if="sheetDef.periodBase !== sheetDef.periodCharged"> ⚠ falta puente</template></span>
+        <span class="sep note">{{ sheetDef.note }}</span>
+      </template>
+      <template v-else-if="policyDef">
+        <span>{{ policyDef.label }}</span>
+        <span class="sep">el gate corre en cadena y corta en la primera que falla</span>
+      </template>
+    </div>
+
     <!-- ───────── canvas + panel derecho ───────── -->
     <div class="stage">
     <div class="canvas">
       <VueFlow v-if="ui.tab === 'calc'" :key="canvasKey" :nodes="graph.nodes" :edges="graph.edges"
-        :node-types="nodeTypes" :class="{ dark: ui.dark }" fit-view-on-init
-        :min-zoom="0.15" :max-zoom="1.8" :nodes-connectable="false" :edges-updatable="false">
+        :node-types="nodeTypes" :class="{ dark: ui.dark }"
+        :min-zoom="0.1" :max-zoom="1.8" :nodes-connectable="false" :edges-updatable="false"
+        @nodes-initialized="onNodesReady">
         <Background :gap="22" :size="1" :pattern-color="ui.dark ? '#26251e' : '#d3cfc4'" />
         <Controls :show-interactive="false" />
-        <Panel position="top-left">
-          <div class="legend">
-            <span><i style="background:var(--amber)"></i>entrada</span>
-            <span><i style="background:var(--blue)"></i>{{ ui.grouped ? 'etapa' : 'fórmula' }}</span>
-            <span><i style="background:var(--purple)"></i>output</span>
-            <span class="sep">{{ graph.nodes.length }} nodos</span>
-            <span class="sep">base {{ sheetDef.periodBase }} · cobro {{ sheetDef.periodCharged }}
-              <template v-if="sheetDef.periodBase !== sheetDef.periodCharged"> ⚠ falta puente</template>
-            </span>
-          </div>
-          <div class="legend note">{{ sheetDef.note }}</div>
-        </Panel>
       </VueFlow>
 
       <template v-else>
         <VueFlow v-if="policyDef" :key="canvasKey" :nodes="pgraph.nodes" :edges="pgraph.edges"
-          :node-types="nodeTypes" :class="{ dark: ui.dark }" fit-view-on-init
-          :min-zoom="0.2" :max-zoom="1.8" :nodes-connectable="false">
+          :node-types="nodeTypes" :class="{ dark: ui.dark }"
+          :min-zoom="0.1" :max-zoom="1.8" :nodes-connectable="false" @nodes-initialized="onNodesReady">
           <Background :gap="22" :size="1" :pattern-color="ui.dark ? '#26251e' : '#d3cfc4'" />
           <Controls :show-interactive="false" />
-          <Panel position="top-left">
-            <div class="legend">
-              <span>{{ policyDef.label }}</span>
-              <span class="sep">el gate corre en cadena y corta en la primera que falla</span>
-            </div>
-          </Panel>
         </VueFlow>
 
         <div v-else class="empty">

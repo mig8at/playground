@@ -3,8 +3,9 @@
 // cada nivel en una columna. El resultado se lee de izquierda a derecha, que es el orden en
 // que el motor calcula.
 
-const COL_W = 268
-const ROW_H = 118
+// COL_W tiene que ser MAYOR que el nodo más ancho (Entrada = 296) o las columnas se solapan.
+const COL_W = 372
+const ROW_H = 124
 
 /* ───────── grafo de una hoja ───────── */
 export function layoutSheet(def, out, opts = {}) {

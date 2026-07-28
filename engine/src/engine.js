@@ -361,6 +361,8 @@ export function fmtNum(v, dec) {
   if (typeof v === 'boolean') return v ? 'sí' : 'no'
   if (typeof v === 'string') return v
   if (typeof v !== 'number' || !isFinite(v)) return '—'
+  // un entero se muestra entero: "104", no "104,00" (salvo que pidan decimales explícitos)
+  if (dec == null && Number.isInteger(v)) return v.toLocaleString('es-CO')
   const a = Math.abs(v)
   const d = dec != null ? dec : (a >= 1000 ? 0 : a >= 1 ? 2 : 6)
   return v.toLocaleString('es-CO', { minimumFractionDigits: d, maximumFractionDigits: d })

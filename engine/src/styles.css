@@ -206,7 +206,15 @@ table.ser tr:hover td { background: var(--card2) }
   display: flex; gap: 12px; flex-wrap: wrap; background: var(--glass); backdrop-filter: blur(8px);
   border: 1px solid var(--line); border-radius: 9px; padding: 7px 11px; font-size: 11px; color: var(--mut);
 }
-.legend i { display: inline-block; width: 9px; height: 9px; border-radius: 3px; margin-right: 5px; vertical-align: -1px }
+.legend i, .strip i { display: inline-block; width: 9px; height: 9px; border-radius: 3px; margin-right: 5px; vertical-align: -1px }
+/* franja de contexto: va FUERA del canvas. Como Panel de Vue Flow flotaba encima y tapaba
+   el nodo Entrada, que siempre está arriba a la izquierda. */
+.strip {
+  display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+  padding: 6px 16px; border-bottom: 1px solid var(--line);
+  background: var(--card2); font-size: 11px; color: var(--mut); min-height: 30px;
+}
+.strip .note { color: var(--dim); font-style: italic }
 
 /* ── nodo de grupo (una etapa del cálculo) ── */
 .n--grp .n__hd { background: var(--hd-blue) } .n--grp .n__hd b { color: var(--blue) }
