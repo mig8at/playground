@@ -384,3 +384,27 @@ button.icon:hover { color: var(--ink); background: var(--card2) }
    se vuelven ilegibles (OPENINGBALANCE) además de más largos. */
 .n--series table.ser th { text-transform: none; font-size: 10.5px; letter-spacing: 0; padding: 5px 10px }
 .n--series table.ser td { padding: 3px 10px }
+
+/* Un input en cero es una perilla que ESTE producto no usa. Se atenúa para que se lea de un
+   vistazo qué compone cada producto y qué no. */
+.ent__row.is-zero .ent__k { color: var(--dim) }
+.ent__row.is-zero .nf { color: var(--dim); border-color: transparent; background: transparent }
+
+/* ── los dos documentos, lado a lado ── */
+.docs { display: grid; grid-template-columns: 1fr 1fr; gap: 0; height: 100% }
+.docs section { overflow: auto; padding: 4px 0 24px; border-right: 1px solid var(--line) }
+.docs section:last-child { border-right: 0 }
+.docs h3 {
+  position: sticky; top: 0; margin: 0; padding: 12px 20px; background: var(--card);
+  border-bottom: 1px solid var(--line); font-size: 13px; letter-spacing: -.01em; z-index: 1;
+}
+.docs h3 span { font-weight: 400; font-size: 11px; color: var(--mut); margin-left: 8px }
+.docs pre { margin: 0; padding: 14px 20px; font: 11.5px/1.6 var(--mono); color: var(--ink) }
+.docnote { margin: 0; padding: 0 20px; font-size: 11.5px; line-height: 1.55; color: var(--dim) }
+
+/* ── el pie: lo que NO normaliza ── */
+.foot {
+  padding: 7px 16px; border-top: 1px solid var(--line); background: var(--card2);
+  font-size: 11.5px; color: var(--mut);
+}
+.foot b { font-family: var(--mono); color: var(--amber); font-weight: 650 }

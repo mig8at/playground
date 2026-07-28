@@ -5,7 +5,7 @@ import { parse, tokenize, fmtNum } from './engine.js'
 import { toLatex } from './latex.js'
 import katex from 'katex'
 import 'katex/dist/katex.min.css'
-import { ui, effDef, out, usedBy, inputs, consts, selectFormula, periodOf } from './store.js'
+import { ui, effDef, out, usedBy, inputs, selectFormula, periodOf } from './store.js'
 
 // Panel derecho: la fórmula abierta, renderizada como matemática de verdad.
 // Sale del MISMO AST que evalúa el motor, así que no puede desincronizarse del cálculo.
@@ -23,7 +23,7 @@ const ast = computed(() => {
 
 /** Todo lo que tiene valor ahora mismo, para la vista "con valores". */
 const env = computed(() => {
-  const e = { ...consts, ...inputs }
+  const e = { ...effDef.value.constants, ...inputs }
   for (const [k, v] of Object.entries(out.value.res)) if (v.status === 'ok') e[k] = v.value
   return e
 })

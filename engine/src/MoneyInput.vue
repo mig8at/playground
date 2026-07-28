@@ -6,11 +6,13 @@ import { computed } from 'vue'
 const props = defineProps({ modelValue: [Number, String], placeholder: String })
 const emit = defineEmits(['update:modelValue'])
 
+// Un 0 se muestra como "0", NO como vacío: son cosas distintas para el motor — vacío es un
+// input ausente (la fórmula se saltea) y 0 es un cero de verdad (la perilla existe y no aplica).
 const display = computed(() => {
   const raw = String(props.modelValue ?? '')
   if (raw === '') return ''
   const n = Math.round(Number(raw.replace(/[^\d.-]/g, ''))) || 0
-  return n ? n.toLocaleString('es-CO') : ''
+  return n.toLocaleString('es-CO')
 })
 
 function onInput(e) {

@@ -1,14 +1,86 @@
-# engine — motor de cálculo y política
+# engine — motor de cálculo
 
-Prototipo visual del **`calculator-service`** que estamos diseñando: un microservicio que evalúa
-documentos versionados (hojas de cálculo y políticas de riesgo) contra un juego de inputs, **sin
-saber nada del dominio**. Recibe números, devuelve números; recibe hechos, devuelve un veredicto
-con su motivo.
+Prototipo visual del **`calculator-service`**: **una hoja paramétrica** que evalúa cualquier
+producto de originación. Lo que distingue a un producto de otro son **valores, no fórmulas**.
 
 ```bash
 npm install
 npm run dev     # http://localhost:5196
+node verify.mjs # 30 puntos de control contra los archivos fuente
 ```
+
+## Una hoja, N configuraciones
+
+Antes había **cuatro hojas** — una por producto, cada una con sus fórmulas. Eso es el problema
+de *"CreditOp no escala"* mudado de PHP a JSON: si el servicio sale así, movimos el hardcode de
+lugar en vez de sacarlo.
+
+Y el código real **ya está normalizado**. Mirá la firma de
+`Modules/Loans/App/Services/PaymentSchedule/PaymentCalculationService::performCalculation`:
+
+```
+amount · original_amount · rate · fee_number · is_biweekly ·
+administrative_costs_percentage · administrative_fixed_value ·
+guarantee_fund_percentage · life_insurance_percentage · life_insurance_fixed ·
+insurance_fixed_monthly_percentage · guarantee_fixed_monthly_percentage · …
+```
+
+**Una función con ~15 perillas, no una por lender.** Esta hoja espeja esa forma: 17 inputs,
+19 fórmulas, y cada producto aporta solo sus valores. El resto queda en cero — y en el nodo
+*Entrada* los ceros van atenuados, así que se lee de un vistazo **qué compone cada producto**.
+
+| configuración | fuente | qué la distingue |
+|---|---|---|
+| **Genérico** | — | solo monto, tasa y cuotas |
+| **Motai · Rent to Own** | `Calculadora Renting VF.xlsx`, pestaña RTO | margen 100% + IVA · tasa **efectiva** · cobra semanal |
+| **CreditopX salud · Gaes** | `Calculadora PV V20251009.xlsm` | fianza + IVA + 4×1000 · E.A. → mensual |
+| **CreditopX salud · Dentix** | el otro `.xlsm` | igual que Gaes, pero fianza **mensualizada** (`guaranteeUpfront = no`) |
+| **Alta Fleet · moto** | `Creditop-ALTA FLEET.pdf` punto 9 | GPS + fianza con IVA incluido · tasa **nominal** · canon GPS mensual |
+| **Alta Fleet · póliza** | el mismo PDF | **la misma hoja, segunda corrida** |
+
+Esa última fila es la que más dice: en Alta **una operación del cliente son dos créditos en el
+core** con plazos distintos (18 y 10), y por eso la cuota baja en el mes 11. No es un caso
+especial de la hoja — son **dos evaluaciones**.
+
+**Verificado: 30 puntos de control exactos** contra los `.xlsm` y el PDF, más las series
+cerrando en saldo cero. `node verify.mjs`.
+
+### Lo único que NO normaliza
+
+**`motai-renting`**, y no es una limitación técnica. Sin opción de compra el cliente nunca es
+dueño: no hay saldo, no hay interés, **no es un crédito** y no le aplica el techo de usura. Su
+"tasa" del 1,8% es un **parámetro de precio** — el `.xlsx` la lista literalmente como
+*"Parámetro"*, no como tasa. Meterla acá con perillas en cero sería fingir que es un crédito.
+Detalle completo en el nodo `motai` del contexto.
+
+Está dicho al pie de la app, no escondido: si una excepción existe, se ve.
+
+## Las dos convenciones de tasa, como perilla
+
+```
+compound = sí   →  periodRate = (1 + statedRate) ^ (statedPerYear / periodsPerYear) - 1
+compound = no   →  periodRate = statedRate * statedPerYear / periodsPerYear
+```
+
+Mismos dos parámetros; solo cambia `×` por `^`. Es un `if()` de **selección de parámetro**, no
+lógica de negocio — la misma categoría que elegir el factor de un plan.
+
+El canon de la plataforma es **nominal** (`credit_line_by_lenders.rate_suffix` = `"N.M."` en las
+157 filas). Los `.xlsm` **capitalizan**. Esa discrepancia ya pegó en producción: ver **F-71** en
+`findings` (CORE-127, `1,82 N.M.` contra `TEA 28,79%`). Por eso es una perilla de la
+configuración y no una decisión de la hoja.
+
+## Los dos documentos
+
+El botón **documento** los muestra lado a lado:
+
+| | qué es |
+|---|---|
+| **la hoja** | períodos, contrato de inputs, 19 fórmulas, la serie, el output. **Una sola** |
+| **la configuración** | solo valores, y solo los distintos de cero. **Lo único que cambia** |
+
+Nada vive en código. Y ver los dos juntos es la demostración: la hoja no se mueve al cambiar
+de producto.
 
 ## Tres etapas, de izquierda a derecha
 
@@ -219,107 +291,6 @@ Sobre 10.000.000 al 2% dicho mensual, 24 cuotas:
 la **duración del crédito** — 24 semanas son 5,5 meses y 24 trimestres son 6 años. Por eso
 el total sube tanto. La E.A. quieta en 26,82% confirma que la tasa se convirtió bien: es el
 mismo costo del dinero, sobre plazos distintos.
-
-## Las hojas de producto
-
-| hoja | fuente | período base → cobro |
-|---|---|---|
-| `motai-renting` | `Calculadora Renting VF.xlsx`, pestaña Renting | mensual → semanal (**prorrateo lineal**) |
-| `motai-rto` | `Calculadora Renting VF.xlsx`, pestaña Rent to Own | semanal → semanal |
-| `creditopx-salud` | `Calculadora PV V20251009.xlsm` (los dos) | mensual → mensual |
-| `alta-fleet` | `Creditop-ALTA FLEET-270726-203915.pdf`, punto 9 | mensual → **semanal** (sin puente definido) |
-
-Cuatro hojas, **cuatro convenciones de período distintas**. Ese desorden estaba escondido en los
-archivos; acá la barra superior lo dice en cada hoja y marca ⚠ cuando base ≠ cobro.
-
-## Los períodos son selects, no constantes
-
-Había una sopa de constantes —`weeksPerYear`, `monthsPerYear`, `daysPerMonth`,
-`statedPerYear`, `periodsPerYear`— que eran **todas la misma pregunta contada distinto**.
-Ahora cada hoja declara tres períodos por nombre y el resto se deriva:
-
-```
-periods: { rateStatedIn: 'mensual', chargedEvery: 'semanal', termIn: 'mensual' }
-```
-
-| declaración | qué contesta | de dónde sale el número |
-|---|---|---|
-| `rateStatedIn` | ¿en qué período el negocio **dice** la tasa? | `statedPerYear` |
-| `chargedEvery` | ¿en qué período se **amortiza**? | `periodsPerYear` |
-| `termIn` | ¿en qué unidad viene el **plazo**? | `termPerYear` |
-
-El catálogo `PERIODS` es la única fuente: anual 1 · semestral 2 · trimestral 4 · bimestral 6
-· mensual 12 · quincenal 24 · semanal 52 · diaria 360.
-
-Efecto: `motai-rto` pasó de 7 constantes a 4, `alta-fleet` de 4 a 2 — y los tres son
-**selects en el nodo Entrada**. Cambiá "se cobra" de semanal a trimestral y se mueve todo:
-
-```
-periodRate    0,412539%  →  5,497783%
-termPeriods         104  →          8
-cuota           127.815  →  1.703.347
-plan de pagos  104 filas →    8 filas
-veredicto      R4 (canon muy bajo) → R5 (supera el máximo)
-E.A.              23,87% →     23,87%   ← no se mueve: es el mismo crédito
-```
-
-Y `realWorldCharge` queda aparte: es cómo cobra **el producto**, que el motor no controla.
-Cuando difiere de `chargedEvery` la franja marca **⚠ falta puente** — el caso de `alta-fleet`,
-que amortiza mensual y cobra semanal sin que nadie escribiera la conversión.
-
-## La tasa, estandarizada
-
-Las tres hojas que amortizan pasan por el **mismo par de líneas**:
-
-```
-annualEffectiveRate = (1 + statedRate) ^ statedPerYear - 1
-periodRate          = (1 + annualEffectiveRate) ^ (1 / periodsPerYear) - 1
-```
-
-- `statedRate` + `statedPerYear` — la tasa **como la dice el negocio**. Motai la da mensual
-  (`statedPerYear: 12`), salud la da E.A. (`statedPerYear: 1`).
-- `periodsPerYear` — el ritmo en el que se **amortiza**: 52 semanal, 12 mensual, 4 trimestral.
-- Todo lo demás (`pmt`, `ipmt`, `ppmt`, la serie) usa `periodRate` y nada más.
-
-La E.A. queda de moneda común. **Estandarizar no movió ni un dígito**: `(1+m)^(12/52)` y
-`((1+m)^12)^(1/52)` son la misma expresión, así que las 33 verificaciones dan idénticas.
-
-Lo que sí apareció es la **E.A. de cada producto**, que ninguna hoja exponía y que es el único
-eje en el que dos productos se comparan (además de ser lo que la ley obliga a publicar):
-
-| hoja | E.A. | tasa del período |
-|---|---|---|
-| `motai-rto` | **23,87%** | 0,412539% × 52 |
-| `alta-fleet` | **24,90%** | 1,87% × 12 |
-| `creditopx-salud` | **28,17%** | 2,089764% × 12 |
-
-### Y por qué `motai-renting` no tiene tasa
-
-No es una omisión técnica, es **estructura legal**. El techo de **usura** aplica al crédito, no al
-arrendamiento. Sin opción de compra el cliente nunca es dueño: paga por *usar* la moto y la
-devuelve, así que **no hay capital que amortizar → no hay interés → no es crédito**. Con opción de
-compra (RTO) sí hay saldo y sí hay interés — el PRD lo llama *"un crédito disfrazado de arriendo"*.
-
-La propia calculadora trata el mismo 1,8% de dos maneras: en la pestaña Renting lo lista como
-**"Parámetro"**, y en Rent to Own como **"Equivale a ~0,4125% semanal"**.
-
-Por eso la constante se llama **`anchorRate`** y no `monthlyRate`: solo sirve para fijar un precio
-(amortizar el precio de venta a 24 meses y prorratear `÷30 ×7`). **"Arreglar" ese prorrateo para
-que capitalice no es un fix — es recaracterizar el producto** y meterlo en el perímetro del
-crédito. Ahí está la respuesta al `+1,11%` que figuraba como pregunta abierta: no hay nada que
-convertir.
-
-Cada hoja declara además su `legalNature`, visible en la franja. Detalle en el nodo `motai` del
-contexto.
-
-`motai-renting` queda afuera de la tabla de E.A. **a propósito**: no amortiza, no hay saldo.
-Su `PMT` a 24 meses es un ancla de precio. Ahora esa diferencia se ve sola — es la única hoja
-sin tasa efectiva en la franja.
-
-Y `alta-fleet` declara `periodsPerYear: 12` porque el PDF **amortiza mensual**. Que además se
-cobre semanal sigue siendo el puente sin escribir: estandarizar la tasa no lo resuelve, lo
-**aísla** — separa "cómo se expresa la tasa" (resuelto) de "cómo se cobra semanal lo que se
-calculó mensual" (pendiente con Manuela).
 
 ## Convenciones
 

@@ -1,6 +1,9 @@
 # Verificación contra los archivos fuente
 
-`node verify.mjs` — 33 comprobaciones. Todas pasan al límite de `float64` (~1e-15 relativo).
+`node verify.mjs` — **30 puntos de control**, y todos corren contra **la misma hoja**: lo que
+cambia entre casos son los valores de la configuración. Eso es lo que prueba la
+estandarización — si una sola hoja reproduce cuatro productos al peso, no hace falta una
+hoja por producto.
 
 Los archivos originales están en `~/Downloads` (no versionados acá):
 
@@ -10,7 +13,7 @@ Los archivos originales están en `~/Downloads` (no versionados acá):
 
 ## Qué se comprueba
 
-| hoja | celdas / valores del original |
+| configuración | celdas / valores del original |
 |---|---|
 | `motai-rto` | `C16/C17/C18` → 230.997,39 · 162.077,90 · 127.814,62, y que 12/18/24 meses den 52/78/104 semanas |
 | `motai-renting` | `C13/C14/C15` → 216.470,43 · 173.176,35 · 162.785,76, y `C8` precio de venta 14.360.920 |
