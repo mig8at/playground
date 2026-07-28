@@ -1,6 +1,6 @@
 <script setup>
 import { ref, computed } from 'vue'
-import { X, Copy, Check, ArrowRight } from 'lucide-vue-next'
+import { X, Copy, Check, ArrowRight, ChevronRight } from 'lucide-vue-next'
 import { parse, tokenize, fmtNum } from './engine.js'
 import { toLatex } from './latex.js'
 import katex from 'katex'
@@ -11,6 +11,7 @@ import { ui, effDef, out, usedBy, inputs, consts, selectFormula } from './store.
 // Sale del MISMO AST que evalúa el motor, así que no puede desincronizarse del cálculo.
 const withValues = ref(false)
 const copied = ref(false)
+const showTex = ref(false)   // el código LaTeX es secundario: se copia, no se mira
 
 const name = computed(() => ui.selected)
 const expr = computed(() => effDef.value.formulas?.[name.value] ?? null)
@@ -84,18 +85,20 @@ async function copy() {
       <button :class="{ on: withValues }" @click="withValues = true">con valores</button>
     </div>
 
+    <div class="fp-sec">Fórmula</div>
     <div class="fp-math" v-html="mathHtml"></div>
 
-    <div class="fp-sec">
-      LaTeX
-      <button class="icon" @click="copy" :title="copied ? 'Copiado' : 'Copiar'">
+    <div class="fp-sec">Expresión · como se escribe en la hoja</div>
+    <pre class="fp-tex src">{{ expr }}</pre>
+
+    <div class="fp-sec fold" @click="showTex = !showTex">
+      <ChevronRight :size="12" :class="{ turn: showTex }" />
+      Código LaTeX · para pegar en un documento
+      <button class="icon" @click.stop="copy" :title="copied ? 'Copiado' : 'Copiar'">
         <Check v-if="copied" :size="13" /><Copy v-else :size="13" />
       </button>
     </div>
-    <pre class="fp-tex">{{ latex }}</pre>
-
-    <div class="fp-sec">Expresión</div>
-    <pre class="fp-tex src">{{ expr }}</pre>
+    <pre v-if="showTex" class="fp-tex">{{ latex }}</pre>
 
     <template v-if="deps.length">
       <div class="fp-sec">Depende de</div>

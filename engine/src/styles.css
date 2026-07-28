@@ -251,7 +251,7 @@ select.nf { text-align: left; padding: 2px 4px }
 .stage { display: flex; flex: 1; min-height: 0 }
 .stage > .canvas { flex: 1; min-width: 0 }
 .fpanel {
-  width: 330px; flex: 0 0 330px; border-left: 1px solid var(--line); background: var(--card);
+  width: 384px; flex: 0 0 384px; border-left: 1px solid var(--line); background: var(--card);
   overflow-y: auto; padding-bottom: 20px;
 }
 .fpanel > header {
@@ -269,12 +269,17 @@ button.icon:hover { color: var(--ink); background: var(--card2) }
 .fp-why { text-align: right; padding: 0 14px 8px; font: 11px var(--mono); color: var(--mut) }
 .fp-segs { padding: 6px 12px 10px }
 .fp-segs button { flex: 1; font-size: 11.5px; padding: 4px 8px }
+/* las fórmulas largas no se pueden partir en modo display: se desplazan. */
 .fp-math {
-  padding: 16px 12px; margin: 0 12px; overflow-x: auto; background: var(--card2);
+  padding: 18px 12px; margin: 0 12px; overflow-x: auto; background: var(--card2);
   border: 1px solid var(--line); border-radius: 9px; text-align: center;
 }
+.fp-sec.fold { cursor: pointer; user-select: none }
+.fp-sec.fold:hover { color: var(--mut) }
+.fp-sec.fold svg { transition: transform .14s }
+.fp-sec.fold svg.turn { transform: rotate(90deg) }
 .fp-math .katex-display { margin: 0 }
-.fp-math .katex { color: var(--ink); font-size: 1.06em }
+.fp-math .katex { color: var(--ink); font-size: 1.12em }
 /* los valores sustituidos, resaltados */
 .fp-math .tex-subst { color: var(--purple) }
 .fp-err { font: 11px var(--mono); color: var(--red) }
