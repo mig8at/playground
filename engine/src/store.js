@@ -92,6 +92,21 @@ export const sheetDoc = computed(() => {
   return doc
 })
 
+/** El período de una tasa, para NUNCA mostrar un porcentaje pelado.
+ *  Un "2%" sin período no es un dato: es medio dato. Es exactamente el pecado de
+ *  `user_requests.rate` en la BD real — la única columna de tasa sin `rate_suffix`,
+ *  y la que se desincronizó en CORE-127 (1,82 contra TEA 28,79). Ver F-71.
+ *  Devuelve null si el nombre no es una tasa. */
+export function periodOf(name) {
+  if (!/rate/i.test(name)) return null
+  if (/^annual|anual/i.test(name)) return 'anual'
+  if (/^daily|diaria/i.test(name)) return 'diaria'
+  if (/^stated/i.test(name)) return periods.rateStatedIn || null
+  if (/^period/i.test(name)) return periods.chargedEvery || null
+  if (/^late|mora/i.test(name)) return periods.chargedEvery || null
+  return null
+}
+
 /** Cómo se edita un valor según su tipo o, para constantes, según su magnitud. */
 export function controlFor(name, value, declaredType) {
   if (declaredType) return declaredType === 'money' ? 'money' : declaredType

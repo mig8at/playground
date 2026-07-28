@@ -1,7 +1,7 @@
 <script setup>
 import { Handle, Position } from '@vue-flow/core'
 import { fmtNum } from '../engine.js'
-import { ui, selectFormula } from '../store.js'
+import { ui, selectFormula, periodOf } from '../store.js'
 
 // TODO el cálculo en UN nodo, con las etapas como secciones adentro.
 //
@@ -37,7 +37,7 @@ const val = (r, name) => {
         <div v-for="r in sec.rows" :key="r.name" class="grp-row nodrag"
              :class="{ 'is-out': r.isOutput, 'is-off': r.status !== 'ok', 'is-sel': ui.selected === r.name }"
              :title="r.expr" @click="selectFormula(r.name)">
-          <span class="grp-k">{{ r.name }}</span>
+          <span class="grp-k">{{ r.name }}<em v-if="periodOf(r.name)" class="per">{{ periodOf(r.name) }}</em></span>
           <b class="grp-v">{{ val(r, r.name) }}</b>
         </div>
       </template>

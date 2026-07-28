@@ -5,7 +5,7 @@ import { parse, tokenize, fmtNum } from './engine.js'
 import { toLatex } from './latex.js'
 import katex from 'katex'
 import 'katex/dist/katex.min.css'
-import { ui, effDef, out, usedBy, inputs, consts, selectFormula } from './store.js'
+import { ui, effDef, out, usedBy, inputs, consts, selectFormula, periodOf } from './store.js'
 
 // Panel derecho: la fórmula abierta, renderizada como matemática de verdad.
 // Sale del MISMO AST que evalúa el motor, así que no puede desincronizarse del cálculo.
@@ -65,6 +65,7 @@ async function copy() {
   <aside v-if="name" class="fpanel">
     <header>
       <b class="mono">{{ name }}</b>
+      <span v-if="periodOf(name)" class="badge b-per">{{ periodOf(name) }}</span>
       <span v-if="name === effDef.output" class="badge b-out">output</span>
       <div class="spacer"></div>
       <button class="icon" @click="ui.selected = null" title="Cerrar"><X :size="15" /></button>

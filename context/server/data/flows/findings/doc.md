@@ -1316,6 +1316,26 @@ Implementado en `playground/engine`: cada hoja declara `rateConvention` y la fra
 
 **Estado: causa raíz VERIFICADA contra BD local + código de los dos repos. El síntoma del documento está arreglado en producción (CORE-127); la convención doble NO está unificada. El modelo paramétrico está implementado y verificado sólo en `playground/engine`, no en los repos reales.**
 
+**El pecado de fondo: el porcentaje sin período.** Un "2%" no es un dato, es medio dato — el
+número sin su unidad. Y la BD lo muestra literal: de las **cuatro** columnas de tasa del schema,
+**solo una declara el período**.
+
+| columna | ¿declara el período? |
+|---|---|
+| `credit_line_by_lenders.rate` | **SÍ** → `rate_suffix = "N.M."` |
+| `user_requests.rate` | **NO** |
+| `lender_users_categories.rate` | **NO** |
+| `creditop_x_lender_configuration.late_payment_interest_rate` | **NO** |
+
+Y la que se desincronizó en CORE-127 —el `1.82` contra la TEA `28.79`— fue **`user_requests.rate`**,
+justamente la que perdió la unidad al copiarse. La columna con `rate_suffix` nunca fue ambigua;
+las otras tres son números pelados y cualquiera puede leerlos como quiera.
+
+Regla que sale de acá: **nunca mostrar ni guardar un porcentaje sin su período al lado.** En
+`playground/engine` está aplicado — cada tasa lleva su etiqueta (`statedRate` MENSUAL ·
+`periodRate` SEMANAL · `annualEffectiveRate` ANUAL) y las tres se reetiquetan solas al cambiar
+la periodicidad, así que ninguna puede mentir.
+
 **Ojo al mapear un .xlsm.** Los tres archivos de negocio (`Calculadora Renting VF.xlsx`, los dos `Calculadora PV V20251009.xlsm`) **capitalizan**. Si transcribís una calculadora a código y el lender guarda N.M., estás importando la excepción y no el canon. Es exactamente cómo nació esta divergencia.
 
 **Lo que NO diverge — y por eso el arreglo es chico.** La anualidad es **transversal**: `pv * r / (1 - (1+r)^-n)` con fallback `pv/n`, idéntica en **12 sitios** de `legacy-backend` + `legacy-application`, más `FinancialMath::payment` de Credifamilia. La composición también (`cuota = anualidad + seguro de vida + fondo de garantía`, `PaymentCalculationService:71-132`) y el mecanismo de amortización también. Lo único que cambia es **con qué tasa** se alimenta, y eso es una línea.
