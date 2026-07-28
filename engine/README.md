@@ -80,20 +80,23 @@ convertiría `(1 + monthlyRate) ^ (monthsPerYear / weeksPerYear) - 1` en seis ca
 — menos legible que la expresión escrita. Por eso: **un nodo por fórmula, la expresión como texto
 adentro**.
 
-## Dos niveles de zoom: **por etapa** y **detalle**
+## Agrupado por etapa
 
-El botón de la barra superior alterna cómo se agrupan las fórmulas. Es **solo disposición**:
-el documento no cambia, sigue siendo una bolsa plana de fórmulas con nombre y el motor
-ignora `groups` por completo.
+Cada hoja declara `groups`: qué fórmulas piensa el negocio como una sola cosa
+("Valor a financiar", "Fianza", "Canon"). Cada grupo es un nodo con sus fórmulas adentro.
 
-| hoja | detalle | por etapa |
-|---|---|---|
-| `motai-rto` | 9 nodos / 12 aristas | **4 / 4** |
-| `alta-fleet` | 8 / 11 | **4 / 4** |
-| `motai-renting` | 12 / 16 | **5 / 5** |
-| `creditopx-salud` | 17 / 30 | **7 / 11** |
+| hoja | nodos / aristas |
+|---|---|
+| `motai-rto` | 4 / 4 |
+| `alta-fleet` | 4 / 4 |
+| `motai-renting` | 5 / 5 |
+| `creditopx-salud` | 7 / 11 |
 
-Agrupado, cada columna es una etapa del negocio y el grafo se lee de un vistazo:
+Es **solo disposición**: `groups` es metadato de presentación, el documento sigue siendo una
+bolsa plana de fórmulas con nombre y `evalSheet()` ni lo mira. Si una hoja no declara grupos,
+cada fórmula es su propio grupo.
+
+Así cada columna es una etapa del negocio y el grafo se lee de un vistazo:
 
 ```
 alta-fleet     Entrada → ┬ Crédito moto ──┬→ Total al cliente
@@ -106,8 +109,7 @@ salud          Entrada  → ┬ Comercio ┬→ Fianza → Desembolso → Cuota
 En `alta-fleet` se ve de una la razón de que la cuota sea escalonada: **son dos créditos**
 con plazos distintos que se suman.
 
-**"Detalle"** abre cada fórmula en su propio nodo, con la expresión escrita adentro. Sirve
-para depurar una cadena puntual; "por etapa" sirve para entenderla.
+Para ver una fórmula sola, se clickea y se abre el panel derecho.
 
 ## Un solo nodo de Entrada
 

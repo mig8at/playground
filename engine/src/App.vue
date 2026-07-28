@@ -8,7 +8,6 @@ import '@vue-flow/core/dist/style.css'
 import '@vue-flow/core/dist/theme-default.css'
 import '@vue-flow/controls/dist/style.css'
 
-import CalcNode from './nodes/CalcNode.vue'
 import InputsNode from './nodes/InputsNode.vue'
 import GroupNode from './nodes/GroupNode.vue'
 import TableNode from './nodes/TableNode.vue'
@@ -19,12 +18,12 @@ import FormulaPanel from './FormulaPanel.vue'
 
 import { evalPolicy, fmtNum } from './engine.js'
 import { SHEETS } from './sheets.js'
-import { layoutSheet, layoutSheetGrouped, layoutPolicy } from './layout.js'
+import { layoutSheet, layoutPolicy } from './layout.js'
 import { ui, inputs, risk, effDef, sheetDef, policyDef, out, resetSheet } from './store.js'
 
 // markRaw: sin esto Vue hace reactivos los componentes y avisa por consola en cada nodo.
 const nodeTypes = {
-  calcNode: markRaw(CalcNode), inputsNode: markRaw(InputsNode), groupNode: markRaw(GroupNode),
+  inputsNode: markRaw(InputsNode), groupNode: markRaw(GroupNode),
   tableNode: markRaw(TableNode), ruleNode: markRaw(RuleNode), endNode: markRaw(EndNode),
   riskNode: markRaw(RiskNode),
 }
@@ -45,8 +44,7 @@ const verdict = computed(() => {
   return evalPolicy(policyDef.value, { weeklyRent: outVal.value ?? '', ...risk })
 })
 
-const graph = computed(() => (ui.grouped ? layoutSheetGrouped : layoutSheet)(
-  effDef.value, out.value, { inputValues: inputs }))
+const graph = computed(() => layoutSheet(effDef.value, out.value, { inputValues: inputs }))
 
 const pgraph = computed(() => policyDef.value && verdict.value
   ? layoutPolicy(policyDef.value, verdict.value, {
@@ -56,7 +54,7 @@ const pgraph = computed(() => policyDef.value && verdict.value
 
 // remontar el canvas solo al cambiar de hoja / pestaña / nivel de zoom, para que reencuadre.
 // NO depende de los inputs: si dependiera, escribir remontaría el grafo a cada tecla.
-const canvasKey = computed(() => `${ui.slug}|${ui.tab}|${ui.grouped}`)
+const canvasKey = computed(() => `${ui.slug}|${ui.tab}`)
 const series = computed(() => out.value.series)
 
 const VERDICT = {
@@ -90,9 +88,6 @@ const VERDICT = {
       <span v-if="outVal !== null" class="mono out-chip">
         {{ effDef.output }} <b>{{ fmtNum(outVal) }}</b>
       </span>
-      <button v-if="ui.tab === 'calc'" :class="{ on: ui.grouped }" @click="ui.grouped = !ui.grouped">
-        {{ ui.grouped ? 'por etapa' : 'detalle' }}
-      </button>
       <button @click="resetSheet()" title="Volver a los valores del archivo original">restablecer</button>
       <button @click="ui.dark = !ui.dark">{{ ui.dark ? 'claro' : 'oscuro' }}</button>
     </div>
@@ -110,7 +105,7 @@ const VERDICT = {
     <div class="strip">
       <template v-if="ui.tab === 'calc'">
         <span><i style="background:var(--amber)"></i>entrada</span>
-        <span><i style="background:var(--blue)"></i>{{ ui.grouped ? 'etapa' : 'fórmula' }}</span>
+        <span><i style="background:var(--blue)"></i>etapa</span>
         <span><i style="background:var(--purple)"></i>output</span>
         <span class="sep">{{ graph.nodes.length }} nodos</span>
         <span class="sep">base {{ sheetDef.periodBase }} · cobro {{ sheetDef.periodCharged }}<template

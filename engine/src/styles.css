@@ -108,12 +108,6 @@ input.num { font-family: var(--mono); text-align: right }
 }
 .n__hd b { font-size: 11.5px; font-weight: 650; letter-spacing: -.01em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
 .n__kind { margin-left: auto; font: 9.5px var(--mono); color: var(--dim); text-transform: uppercase; letter-spacing: .06em }
-.n__body { padding: 7px 9px }
-.n__val { font: 700 15px var(--mono); letter-spacing: -.02em; text-align: right }
-.n__expr {
-  font: 10.5px var(--mono); color: var(--dim); margin-top: 5px; padding-top: 5px;
-  border-top: 1px dashed var(--line); word-break: break-word; line-height: 1.45;
-}
 .n--entrada { border-color: var(--amber) }
 .n--entrada .n__hd { background: var(--hd-amber) } .n--entrada .n__hd b { color: var(--amber) }
 .ent { padding: 4px 0 6px }
@@ -142,15 +136,6 @@ input.num { font-family: var(--mono); text-align: right }
 .tbl__ro { font: 11px var(--mono); color: var(--mut); overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
 .tbl__row.is-active .tbl__ro { color: var(--ink) }
 .tbl__in, .tbl .nf { width: 100%; flex: 1 1 auto; margin-left: 0 }
-.n--formula .n__hd { background: var(--hd-blue) } .n--formula .n__hd b { color: var(--blue) }
-.n--output { border-color: var(--purple); box-shadow: var(--shadow-2) }
-.n--output .n__hd { background: var(--hd-purple) } .n--output .n__hd b { color: var(--purple) }
-.n--output .n__val { color: var(--purple) }
-.n.is-skipped { opacity: .5 }
-.n.is-skipped .n__val { color: var(--mut); font-size: 11px; font-weight: 600 }
-.n.is-error { border-color: var(--red) }
-.n.is-error .n__val { color: var(--red); font-size: 11px }
-.n__why { font: 10.5px var(--mono); color: var(--mut); margin-top: 4px; text-align: right }
 
 /* ── nodos de política ── */
 .p { min-width: 200px; max-width: 260px; background: var(--card); border: 1px solid var(--line);
@@ -322,4 +307,3 @@ button.icon:hover { color: var(--ink); background: var(--card2) }
 /* fila / nodo seleccionado */
 .grp-row { cursor: pointer; border-radius: 5px; margin: 0 4px; padding: 1px 6px }
 .grp-row.is-sel { background: var(--hd-purple); box-shadow: inset 2px 0 0 var(--purple) }
-.n.is-sel { border-color: var(--purple); box-shadow: var(--shadow-2) }
