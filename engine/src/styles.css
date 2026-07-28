@@ -351,3 +351,6 @@ button.icon:hover { color: var(--ink); background: var(--card2) }
 .zone--in { color: var(--amber) }    .zone--in b { background: var(--amber) }
 .zone--calc { color: var(--blue) }   .zone--calc b { background: var(--blue) }
 .zone--next { color: var(--teal) }   .zone--next b { background: var(--teal) }
+
+.strip .ea { color: var(--purple); font-weight: 650 }
+.strip .ea::before { content: '· ' }

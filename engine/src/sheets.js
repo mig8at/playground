@@ -79,8 +79,10 @@ export const SHEETS = {
     periodBase: 'semanal', periodCharged: 'semanal',
 
     constants: {
-      setupFee: 1500000, marginFactor: 1, vatRate: 0.19, monthlyRate: 0.018,
-      weeksPerYear: 52, monthsPerYear: 12,
+      setupFee: 1500000, marginFactor: 1, vatRate: 0.19,
+      statedRate: 0.018, statedPerYear: 12,   // el negocio la dice mensual
+      periodsPerYear: 52,                     // pero se cobra semanal
+      monthsPerYear: 12,
     },
     inputs: [
       { name: 'assetCost', type: 'money', label: 'Costo contable de la moto', default: 4534000, min: 0 },
@@ -94,21 +96,22 @@ export const SHEETS = {
       taxableBase: 'marginBase + margin + extras',
       vatAmount: 'taxableBase * vatRate',
       financedAmount: 'taxableBase + vatAmount',
-      termWeeks: 'termMonths * weeksPerYear / monthsPerYear',
-      weeklyRate: '(1 + monthlyRate) ^ (monthsPerYear / weeksPerYear) - 1',
-      weeklyRent: 'pmt(weeklyRate, termWeeks, financedAmount)',
+      annualEffectiveRate: '(1 + statedRate) ^ statedPerYear - 1',
+      periodRate: '(1 + annualEffectiveRate) ^ (1 / periodsPerYear) - 1',
+      termPeriods: 'termMonths * periodsPerYear / monthsPerYear',
+      weeklyRent: 'pmt(periodRate, termPeriods, financedAmount)',
     },
     groups: {
       'Valor a financiar': ['marginBase', 'margin', 'taxableBase', 'vatAmount', 'financedAmount'],
-      'Tasa y plazo': ['termWeeks', 'weeklyRate'],
+      'Tasa y plazo': ['annualEffectiveRate', 'periodRate', 'termPeriods'],
       'Canon': ['weeklyRent'],
     },
     series: {
-      name: 'planPago', n: 'termWeeks',
+      name: 'planPago', n: 'termPeriods',
       rows: {
         openingBalance: 'if(i == 1, financedAmount, prev.closingBalance)',
-        principal: 'ppmt(weeklyRate, i, termWeeks, financedAmount)',
-        interest: 'ipmt(weeklyRate, i, termWeeks, financedAmount)',
+        principal: 'ppmt(periodRate, i, termPeriods, financedAmount)',
+        interest: 'ipmt(periodRate, i, termPeriods, financedAmount)',
         payment: 'principal + interest',
         closingBalance: 'openingBalance - principal',
       },
@@ -126,13 +129,15 @@ export const SHEETS = {
 
     constants: {
       vatRate: 0.19, financialTransactionTaxRate: 0.004, lifeInsuranceFactor: 0.001307,
-      monthsPerYear: 12, daysPerMonth: 30,
+      statedPerYear: 1,        // el negocio la dice E.A.
+      periodsPerYear: 12,      // y se cobra mensual
+      daysPerYear: 360,        // convención comercial, no calendario
     },
     inputs: [
       { name: 'merchantId', type: 'count', label: 'Comercio (allied_id)', default: 178, enum: [142, 156, 178] },
       { name: 'requestedAmount', type: 'money', label: 'Monto requerido', default: 10719300.815738792, min: 0 },
       { name: 'termMonths', type: 'count', label: 'Plazo (meses)', default: 36, min: 1 },
-      { name: 'annualEffectiveRate', type: 'rate', label: 'Tasa E.A.', default: 0.2817 },
+      { name: 'statedRate', type: 'rate', label: 'Tasa como la da el negocio (E.A.)', default: 0.2817 },
       { name: 'guaranteePaidUpfront', type: 'bool', label: 'Fianza anticipada', default: true },
       { name: 'firstPeriodDays', type: 'count', label: 'Días hasta 1ª cuota', default: 9, min: 0 },
     ],
@@ -149,14 +154,15 @@ export const SHEETS = {
     formulas: {
       maxAmount: 'lookup(merchantConfig, merchantId, "maxAmount")',
       guaranteeRate: 'lookup(merchantConfig, merchantId, "guaranteeRate")',
-      monthlyRate: '(1 + annualEffectiveRate) ^ (1 / monthsPerYear) - 1',
-      dailyRate: '(1 + monthlyRate) ^ (1 / daysPerMonth) - 1',
+      annualEffectiveRate: '(1 + statedRate) ^ statedPerYear - 1',
+      periodRate: '(1 + annualEffectiveRate) ^ (1 / periodsPerYear) - 1',
+      dailyRate: '(1 + annualEffectiveRate) ^ (1 / daysPerYear) - 1',
       guaranteeCost: 'requestedAmount * guaranteeRate',
       vatOnGuarantee: 'guaranteeCost * vatRate',
       transactionTax: '(guaranteeCost + vatOnGuarantee) * financialTransactionTaxRate',
       totalGuarantee: 'guaranteeCost + vatOnGuarantee + transactionTax',
       disbursedAmount: 'if(guaranteePaidUpfront, requestedAmount + totalGuarantee, requestedAmount)',
-      installment: 'pmt(monthlyRate, termMonths, disbursedAmount)',
+      installment: 'pmt(periodRate, termMonths, disbursedAmount)',
       lifeInsurance: 'disbursedAmount * lifeInsuranceFactor',
       monthlyGuarantee: 'if(guaranteePaidUpfront, 0, totalGuarantee / termMonths)',
       firstPeriodInterest: 'disbursedAmount * dailyRate * firstPeriodDays',
@@ -165,7 +171,7 @@ export const SHEETS = {
     },
     groups: {
       'Comercio': ['maxAmount', 'guaranteeRate'],
-      'Tasas': ['monthlyRate', 'dailyRate'],
+      'Tasas': ['annualEffectiveRate', 'periodRate', 'dailyRate'],
       'Fianza': ['guaranteeCost', 'vatOnGuarantee', 'transactionTax', 'totalGuarantee'],
       'Desembolso': ['disbursedAmount'],
       'Cuota': ['installment', 'lifeInsurance', 'monthlyGuarantee', 'firstPeriodInterest',
@@ -175,7 +181,7 @@ export const SHEETS = {
       name: 'planPago', n: 'termMonths',
       rows: {
         openingBalance: 'if(i == 1, disbursedAmount, prev.closingBalance)',
-        interest: 'openingBalance * monthlyRate',
+        interest: 'openingBalance * periodRate',
         principal: 'installment - interest',
         closingBalance: 'openingBalance - principal',
         payment: 'installment + lifeInsurance + monthlyGuarantee + if(i == 1, firstPeriodInterest, 0)',
@@ -195,26 +201,33 @@ export const SHEETS = {
     note: 'Dos créditos en el core (moto 18 cuotas + póliza 10) → la cuota baja en el mes 11.',
     periodBase: 'mensual', periodCharged: 'semanal',
 
-    constants: { lifeInsuranceFactor: 0.0014, gpsMonthlyFee: 20000 },
+    constants: {
+      lifeInsuranceFactor: 0.0014, gpsMonthlyFee: 20000,
+      statedPerYear: 12,    // el PDF la da M.V.
+      periodsPerYear: 12,   // y AMORTIZA mensual — el cobro semanal es el puente que falta
+    },
     inputs: [
       { name: 'assetCost', type: 'money', label: 'Valor a financiar moto', default: 8485400, min: 0 },
       { name: 'gpsDevicePrice', type: 'money', label: 'GPS', default: 595000, min: 0 },
       { name: 'guaranteeRate', type: 'rate', label: 'Novafianza (incl. IVA y FNG)', default: 0.0964 },
-      { name: 'monthlyRate', type: 'rate', label: 'Tasa M.V.', default: 0.0187 },
+      { name: 'statedRate', type: 'rate', label: 'Tasa como la da el negocio (M.V.)', default: 0.0187 },
       { name: 'termMonths', type: 'count', label: 'Cuotas moto', default: 18, min: 1 },
       { name: 'insuranceAmount', type: 'money', label: 'Valor a financiar seguro', default: 673000, min: 0 },
       { name: 'insuranceTermMonths', type: 'count', label: 'Cuotas póliza', default: 10, min: 1 },
     ],
     formulas: {
+      annualEffectiveRate: '(1 + statedRate) ^ statedPerYear - 1',
+      periodRate: '(1 + annualEffectiveRate) ^ (1 / periodsPerYear) - 1',
       guaranteeCost: '(assetCost + gpsDevicePrice) * guaranteeRate',
       financedAmount: 'assetCost + gpsDevicePrice + guaranteeCost',
-      installment: 'pmt(monthlyRate, termMonths, financedAmount)',
+      installment: 'pmt(periodRate, termMonths, financedAmount)',
       lifeInsurance: 'financedAmount * lifeInsuranceFactor',
       vehicleInstallment: 'installment + lifeInsurance + gpsMonthlyFee',
-      insuranceInstallment: 'pmt(monthlyRate, insuranceTermMonths, insuranceAmount)',
+      insuranceInstallment: 'pmt(periodRate, insuranceTermMonths, insuranceAmount)',
       totalInstallment: 'vehicleInstallment + insuranceInstallment',
     },
     groups: {
+      'Tasa': ['annualEffectiveRate', 'periodRate'],
       'Crédito moto': ['guaranteeCost', 'financedAmount', 'installment', 'lifeInsurance',
                        'vehicleInstallment'],
       'Crédito póliza': ['insuranceInstallment'],

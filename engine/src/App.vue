@@ -61,6 +61,12 @@ const graph = computed(() => layoutSheet(effDef.value, out.value, {
 const canvasKey = computed(() => `${ui.slug}|${ui.tab}`)
 const series = computed(() => out.value.series)
 
+// La E.A. es el único eje en el que dos productos se comparan. Antes ninguna hoja la exponía.
+const ea = computed(() => {
+  const r = out.value.res.annualEffectiveRate
+  return r?.status === 'ok' ? (r.value * 100).toFixed(2).replace('.', ',') + '% E.A.' : null
+})
+
 const VERDICT = {
   aprobado: { t: 'Aprobado', c: 'ok' },
   rechazado: { t: 'Rechazado', c: 'no' },
@@ -112,6 +118,7 @@ const VERDICT = {
         <span><i style="background:var(--blue)"></i>cálculo</span>
         <span><i style="background:var(--teal)"></i>qué sigue</span>
         <span class="sep">{{ graph.nodes.length }} nodos</span>
+        <span v-if="ea" class="sep ea">{{ ea }}</span>
         <span class="sep">base {{ sheetDef.periodBase }} · cobro {{ sheetDef.periodCharged }}<template
           v-if="sheetDef.periodBase !== sheetDef.periodCharged"> ⚠ falta puente</template></span>
         <span class="sep note">{{ sheetDef.note }}</span>

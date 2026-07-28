@@ -184,6 +184,41 @@ verify.mjs         arnés de regresión contra los archivos fuente
 Cuatro hojas, **cuatro convenciones de período distintas**. Ese desorden estaba escondido en los
 archivos; acá la barra superior lo dice en cada hoja y marca ⚠ cuando base ≠ cobro.
 
+## La tasa, estandarizada
+
+Las tres hojas que amortizan pasan por el **mismo par de líneas**:
+
+```
+annualEffectiveRate = (1 + statedRate) ^ statedPerYear - 1
+periodRate          = (1 + annualEffectiveRate) ^ (1 / periodsPerYear) - 1
+```
+
+- `statedRate` + `statedPerYear` — la tasa **como la dice el negocio**. Motai la da mensual
+  (`statedPerYear: 12`), salud la da E.A. (`statedPerYear: 1`).
+- `periodsPerYear` — el ritmo en el que se **amortiza**: 52 semanal, 12 mensual, 4 trimestral.
+- Todo lo demás (`pmt`, `ipmt`, `ppmt`, la serie) usa `periodRate` y nada más.
+
+La E.A. queda de moneda común. **Estandarizar no movió ni un dígito**: `(1+m)^(12/52)` y
+`((1+m)^12)^(1/52)` son la misma expresión, así que las 33 verificaciones dan idénticas.
+
+Lo que sí apareció es la **E.A. de cada producto**, que ninguna hoja exponía y que es el único
+eje en el que dos productos se comparan (además de ser lo que la ley obliga a publicar):
+
+| hoja | E.A. | tasa del período |
+|---|---|---|
+| `motai-rto` | **23,87%** | 0,412539% × 52 |
+| `alta-fleet` | **24,90%** | 1,87% × 12 |
+| `creditopx-salud` | **28,17%** | 2,089764% × 12 |
+
+`motai-renting` queda afuera **a propósito**: no amortiza, no hay saldo, así que no tiene E.A.
+Su `PMT` a 24 meses es un ancla de precio. Ahora esa diferencia se ve sola — es la única hoja
+sin tasa efectiva en la franja.
+
+Y `alta-fleet` declara `periodsPerYear: 12` porque el PDF **amortiza mensual**. Que además se
+cobre semanal sigue siendo el puente sin escribir: estandarizar la tasa no lo resuelve, lo
+**aísla** — separa "cómo se expresa la tasa" (resuelto) de "cómo se cobra semanal lo que se
+calculó mensual" (pendiente con Manuela).
+
 ## Convenciones
 
 - **Tasas en decimal**: `0.19`, no `19`. Así lo escriben los `.xlsm` y así se le pasan derecho a
