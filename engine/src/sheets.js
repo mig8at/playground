@@ -29,15 +29,15 @@ export const SHEETS = {
     },
     inputs: [
       { name: 'assetCost', type: 'money', label: 'Costo contable de la moto', default: 4534000, min: 0 },
-      { name: 'planDurationWeeks', type: 'count', label: 'Duración del plan', default: 4, enum: [1, 4, 12] },
+      { name: 'planDurationWeeks', type: 'count', label: 'Duración del arriendo (semanas) — el cobro es SIEMPRE semanal', default: 4, enum: [1, 4, 12] },
     ],
     tables: {
       rentalPlans: {
         key: 'planDurationWeeks',
         rows: [
-          { planDurationWeeks: 1, factor: 1.25, label: 'Semanal' },
-          { planDurationWeeks: 4, factor: 1.00, label: 'Mensual' },
-          { planDurationWeeks: 12, factor: 0.94, label: 'Trimestral' },
+          { planDurationWeeks: 1, factor: 1.25, label: '1 sem' },
+          { planDurationWeeks: 4, factor: 1.00, label: '1 mes' },
+          { planDurationWeeks: 12, factor: 0.94, label: '1 trim' },
         ],
       },
     },
@@ -86,7 +86,7 @@ export const SHEETS = {
       { name: 'assetCost', type: 'money', label: 'Costo contable de la moto', default: 4534000, min: 0 },
       { name: 'downPayment', type: 'money', label: 'Cuota inicial', default: 2000000, min: 0 },
       { name: 'extras', type: 'money', label: 'Extras / accesorios', default: 1000000, min: 0 },
-      { name: 'termMonths', type: 'count', label: 'Plazo', default: 24, enum: [12, 18, 24] },
+      { name: 'termMonths', type: 'count', label: 'Plazo (meses) — el cobro es semanal', default: 24, enum: [12, 18, 24] },
     ],
     formulas: {
       marginBase: 'assetCost - downPayment + setupFee',
@@ -129,7 +129,7 @@ export const SHEETS = {
       monthsPerYear: 12, daysPerMonth: 30,
     },
     inputs: [
-      { name: 'merchantId', type: 'count', label: 'Comercio', default: 178, enum: [142, 156, 178] },
+      { name: 'merchantId', type: 'count', label: 'Comercio (allied_id)', default: 178, enum: [142, 156, 178] },
       { name: 'requestedAmount', type: 'money', label: 'Monto requerido', default: 10719300.815738792, min: 0 },
       { name: 'termMonths', type: 'count', label: 'Plazo (meses)', default: 36, min: 1 },
       { name: 'annualEffectiveRate', type: 'rate', label: 'Tasa E.A.', default: 0.2817 },

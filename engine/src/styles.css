@@ -253,6 +253,7 @@ table.ser tr:hover td { background: var(--card2) }
 }
 .nf:focus { outline: none; border-color: var(--purple); background: var(--card) }
 select.nf { text-align: left; padding: 2px 4px }
+.nf--wide { width: 132px; flex-basis: 132px }
 .ent__row--const .nf { color: var(--mut) }
 .legend .sep { color: var(--dim) }
 .legend .sep::before { content: '· '; }

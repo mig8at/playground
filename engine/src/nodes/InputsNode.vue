@@ -1,7 +1,8 @@
 <script setup>
 import { Handle, Position } from '@vue-flow/core'
 import MoneyInput from '../MoneyInput.vue'
-import { inputs, consts, controlFor } from '../store.js'
+import { computed } from 'vue'
+import { inputs, consts, tables, controlFor } from '../store.js'
 
 // TODO lo que entra a la hoja, editable en vivo: los inputs (los manda el llamador) y las
 // constantes (viven en la hoja). Antes eran ~15 nodos sueltos que no aportaban nada — son
@@ -10,6 +11,18 @@ import { inputs, consts, controlFor } from '../store.js'
 // El v-model apunta al store, NO al prop `data`: `data` se recrea en cada recálculo y el
 // input perdería el foco a cada tecla.
 defineProps({ data: Object })
+
+// Si el input es la CLAVE de una tabla, el select muestra su `label` y no el número pelado.
+// La regla era "clave numérica, texto solo para mostrar" — pero faltaba mostrarlo:
+// se veía `178` en vez de `178 · Gaes`, y `4` en vez de `4 · Mensual`.
+const optLabel = (name, value) => {
+  for (const t of Object.values(tables)) {
+    if (t.key !== name) continue
+    const row = t.rows.find(r => Number(r[name]) === Number(value))
+    if (row?.label) return `${value} · ${row.label}`
+  }
+  return String(value)
+}
 </script>
 
 <template>
@@ -29,8 +42,8 @@ defineProps({ data: Object })
           <option :value="true">sí</option>
           <option :value="false">no</option>
         </select>
-        <select v-else-if="f.enum" class="nodrag nf" v-model.number="inputs[f.name]">
-          <option v-for="o in f.enum" :key="o" :value="o">{{ o }}</option>
+        <select v-else-if="f.enum" class="nodrag nf nf--wide" v-model.number="inputs[f.name]">
+          <option v-for="o in f.enum" :key="o" :value="o">{{ optLabel(f.name, o) }}</option>
         </select>
         <MoneyInput v-else-if="f.type === 'money'" v-model="inputs[f.name]" />
         <input v-else class="nodrag nf" type="text" inputmode="decimal" v-model="inputs[f.name]">
