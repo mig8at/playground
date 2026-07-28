@@ -8,7 +8,7 @@ import { evalSheet } from './engine.js'
 // `seriesOpen` arranca cerrado: el plan de pagos son 104 filas que competían por la atención
 // con el grafo, que es lo que se vino a mirar.
 export const ui = reactive({
-  slug: 'simulador', tab: 'calc', dark: true, seriesOpen: false, showDoc: false,
+  slug: 'simulador', tab: 'calc', dark: true, showDoc: false,
   /** fórmula abierta en el panel derecho, o null */
   selected: null,
 })

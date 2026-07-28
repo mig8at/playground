@@ -22,9 +22,10 @@ El canvas está rotulado en tres zonas, y todo es vivo: tocás un input y se rec
 
 La etapa 3 es la que faltaba y la que hace visible **la frontera del servicio**:
 
-- **Plan de pagos** — la serie. Avisa si la cuota *no es plana*: en `alta-fleet` va de
-  764.855 a 690.441 porque son dos créditos de distinto plazo y la póliza se acaba en el
-  mes 11. El grafo lo dice solo.
+- **Plan de pagos** — la **tabla completa como nodo**, con scroll interno. En el simulador la
+  tabla *es* la salida: la cuota es un número suelto, la tabla muestra **por qué** — cómo baja el
+  saldo y cómo el interés le va cediendo lugar al capital fila por fila. Estaba en un cajón
+  colapsado al pie y competía con el grafo; ahora es parte de la cadena.
 - **Política** — el veredicto, con la regla que lo disparó. Si la hoja no tiene política
   lo dice, que también es información: son recursos separados.
 - **Fuera del motor** — punteado y apagado a propósito: documentos, core, BD, pantalla.
@@ -33,6 +34,21 @@ La etapa 3 es la que faltaba y la que hace visible **la frontera del servicio**:
 La pestaña **Política** sigue estando para ver el árbol completo (el *gate* corre en cadena
 y **corta en la primera regla que falla**), pero ya no hace falta ir a buscarla para saber
 que existe.
+
+### La entrada es la perilla
+
+Todo lo que define el cálculo se cambia en el nodo *Entrada* y el grafo entero se recalcula:
+
+```
+la tasa está dicha   [mensual ▾]     ← statedPerYear
+se cobra             [mensual ▾]     ← periodsPerYear
+amount                10.000.000
+statedRate  MENSUAL          0,02
+installments                   24     ← número libre, no una lista fija
+```
+
+Bajar `installments` de 24 a 6 mueve la cuota de **528.711 a 1.785.258**, los intereses de
+2.689.063 a **711.549**, y la tabla de 24 a **6 filas**. Sin perder el foco del campo.
 
 **Se edita adentro del grafo.** No hay panel lateral: el nodo *Entrada* trae los campos, con
 separador de miles en los montos. Y las **constantes también son editables** — es un simulador,

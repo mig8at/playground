@@ -372,3 +372,15 @@ button.icon:hover { color: var(--ink); background: var(--card2) }
 .badge.b-per { color: var(--mut); background: var(--tint-gray) }
 .strip .nat { color: var(--blue); font-weight: 650 }
 .strip .nat.rent { color: var(--teal) }
+
+/* ── la tabla como nodo (etapa 3) ── */
+.n--series { border-color: var(--teal); min-width: 548px; max-width: 548px }
+.n--series .n__hd { background: var(--hd-teal) } .n--series .n__hd b { color: var(--teal) }
+/* `nowheel` en el contenedor: sin eso Vue Flow se queda la rueda y hace zoom del canvas */
+.ser-wrap { max-height: 400px; overflow: auto }
+.ser-err { padding: 12px; font: 11px var(--mono); color: var(--red) }
+
+/* En la tabla del nodo los encabezados NO van en mayúsculas: son camelCase y en mayúscula
+   se vuelven ilegibles (OPENINGBALANCE) además de más largos. */
+.n--series table.ser th { text-transform: none; font-size: 10.5px; letter-spacing: 0; padding: 5px 10px }
+.n--series table.ser td { padding: 3px 10px }

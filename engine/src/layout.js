@@ -123,25 +123,19 @@ export function layoutSheet(def, out, opts = {}) {
   const nx = 2 * COL_W
   const next = []
 
+  // La tabla va como NODO, no como resumen: en el simulador la tabla ES la salida.
   const S = out.series
-  if (S && S.rows?.length) {
-    const first = S.rows[0], last = S.rows[S.rows.length - 1]
-    const money = v => Math.round(v).toLocaleString('es-CO')
-    // La columna que interesa es la que paga el CLIENTE. En alta-fleet hay vehiclePayment,
-    // policyPayment y totalPayment: agarrar la primera que matcheara mostraba la del vehículo
-    // (plana) y ocultaba que el total baja en el mes 11.
-    const pay = S.cols.find(c => /^total/i.test(c))
-      || S.cols.find(c => /payment|cuota|rent/i.test(c))
-      || S.cols[S.cols.length - 1]
-    next.push({
-      title: 'Plan de pagos', tag: S.name, tone: 'plan', action: 'series',
-      rows: [
-        { k: 'filas', v: S.rows.length },
-        { k: '1ª ' + pay, v: money(first[pay]) },
-        { k: 'última ' + pay, v: money(last[pay]) },
-      ],
-      detail: first[pay] !== last[pay] ? 'La cuota NO es plana: cambia a lo largo del plan.' : null,
+  let seriesH = 0
+  if (S) {
+    nodes.push({
+      id: '@series', type: 'seriesNode', position: { x: nx, y: 0 },
+      data: { title: 'Plan de pagos · ' + S.name, cols: S.cols || [], rows: S.rows || [], error: S.error },
     })
+    edges.push({
+      id: 'calc->series', source: '@calc', target: '@series',
+      label: def.output, style: { strokeWidth: 1.5, opacity: .8 },
+    })
+    seriesH = Math.min(430, 44 + 26 + (S.rows?.length || 1) * 20) + 30
   }
 
   if (policy && verdict) {
@@ -162,7 +156,7 @@ export function layoutSheet(def, out, opts = {}) {
   // y con espaciado fijo se montaba sobre el de abajo
   const nH = d => 46 + (d.headline ? 27 : 0) + (d.rows?.length || 0) * 20
     + (d.detail ? 44 : 0) + (d.action ? 34 : 0)
-  let ny = 0
+  let ny = seriesH
   next.forEach((d, i) => {
     nodes.push({ id: '@next' + i, type: 'nextNode', position: { x: nx, y: ny }, data: d })
     ny += nH(d) + 30
@@ -173,7 +167,7 @@ export function layoutSheet(def, out, opts = {}) {
   })
 
   nodes.push({
-    id: '@outside', type: 'nextNode', position: { x: nx + COL_W, y: 0 },
+    id: '@outside', type: 'nextNode', position: { x: nx + 600, y: 0 },
     data: {
       kind: 'outside',
       items: ['generar y firmar documentos', 'crear el crédito en el core',
@@ -184,6 +178,8 @@ export function layoutSheet(def, out, opts = {}) {
     id: 'next' + i + '->outside', source: '@next' + i, target: '@outside',
     style: { strokeWidth: 1, opacity: .25 },
   }))
+  if (S) edges.push({ id: 'series->outside', source: '@series', target: '@outside',
+    style: { strokeWidth: 1, opacity: .25 } })
 
   /* ═══ rótulos de las tres zonas ═══ */
   const top = Math.min(...nodes.filter(n => n.type !== 'zoneNode').map(n => n.position.y)) - 62

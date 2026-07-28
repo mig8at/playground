@@ -54,8 +54,7 @@ export const SHEETS = {
     inputs: [
       { name: 'amount', type: 'money', label: 'Monto a financiar', default: 10000000, min: 0 },
       { name: 'statedRate', type: 'rate', label: 'Tasa (en el período de arriba)', default: 0.02 },
-      { name: 'installments', type: 'count', label: 'Número de cuotas', default: 24,
-        enum: [6, 12, 18, 24, 36, 48, 60] },
+      { name: 'installments', type: 'count', label: 'Número de cuotas', default: 24, min: 1 },
     ],
     formulas: {
       periodRate: '(1 + statedRate) ^ (statedPerYear / periodsPerYear) - 1',
@@ -68,6 +67,17 @@ export const SHEETS = {
       'Tasa': ['periodRate', 'annualEffectiveRate'],
       'Cuota': ['installment'],
       'Lo que se paga en total': ['totalPaid', 'totalInterest'],
+    },
+    // La tabla es la SALIDA de verdad: la cuota es un número, la tabla muestra por qué.
+    series: {
+      name: 'plan', n: 'installments',
+      rows: {
+        openingBalance: 'if(i == 1, amount, prev.closingBalance)',
+        interest: 'openingBalance * periodRate',
+        principal: 'installment - interest',
+        payment: 'installment',
+        closingBalance: 'openingBalance - principal',
+      },
     },
     output: 'installment',
   },

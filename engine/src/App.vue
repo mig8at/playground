@@ -1,6 +1,5 @@
 <script setup>
 import { computed, markRaw, nextTick } from 'vue'
-import { ChevronUp, ChevronDown } from 'lucide-vue-next'
 import { VueFlow, useVueFlow } from '@vue-flow/core'
 import { Background } from '@vue-flow/background'
 import { Controls } from '@vue-flow/controls'
@@ -16,6 +15,7 @@ import EndNode from './nodes/EndNode.vue'
 import RiskNode from './nodes/RiskNode.vue'
 import NextNode from './nodes/NextNode.vue'
 import ZoneNode from './nodes/ZoneNode.vue'
+import SeriesNode from './nodes/SeriesNode.vue'
 import FormulaPanel from './FormulaPanel.vue'
 
 import { evalPolicy, fmtNum } from './engine.js'
@@ -28,6 +28,7 @@ const nodeTypes = {
   inputsNode: markRaw(InputsNode), groupNode: markRaw(GroupNode),
   tableNode: markRaw(TableNode), ruleNode: markRaw(RuleNode), endNode: markRaw(EndNode),
   riskNode: markRaw(RiskNode), nextNode: markRaw(NextNode), zoneNode: markRaw(ZoneNode),
+  seriesNode: markRaw(SeriesNode),
 }
 
 // `fit-view-on-init` corre con el contenedor en 0x0 y falla en silencio; `pane-ready` llega
@@ -59,7 +60,6 @@ const graph = computed(() => layoutSheet(effDef.value, out.value, {
 // remontar el canvas solo al cambiar de hoja / pestaña, para que reencuadre.
 // NO depende de los inputs: si dependiera, escribir remontaría el grafo a cada tecla.
 const canvasKey = computed(() => `${ui.slug}|${ui.tab}`)
-const series = computed(() => out.value.series)
 
 // La E.A. es el único eje en el que dos productos se comparan. Antes ninguna hoja la exponía.
 // El canon de la plataforma es N.M. (credit_line_by_lenders.rate_suffix, 157/157 filas).
@@ -200,34 +200,5 @@ const VERDICT = {
       <FormulaPanel />
     </div>
 
-    <!-- ───────── serie · panel colapsable, estilo consola de VS Code ───────── -->
-    <div v-if="ui.tab === 'calc' && series" class="drawer" :class="{ open: ui.seriesOpen }">
-      <header @click="ui.seriesOpen = !ui.seriesOpen" :title="ui.seriesOpen ? 'Contraer' : 'Expandir'">
-        <ChevronUp v-if="!ui.seriesOpen" :size="14" />
-        <ChevronDown v-else :size="14" />
-        <b>Plan de pagos</b>
-        <span class="mono">{{ series.name }}</span>
-        <span v-if="series.error" style="color:var(--red)">{{ series.error }}</span>
-        <span v-else>
-          {{ series.rows.length }} filas{{ series.capped ? ' · cortado por el tope del motor' : '' }}
-        </span>
-        <div class="spacer"></div>
-        <span v-if="!ui.seriesOpen && series.rows?.length" class="mono peek">
-          {{ series.cols.slice(0, 3).join(' · ') }}{{ series.cols.length > 3 ? ' …' : '' }}
-        </span>
-      </header>
-
-      <div v-if="ui.seriesOpen && series.rows && series.rows.length" class="scroll">
-        <table class="ser">
-          <thead><tr><th>#</th><th v-for="c in series.cols" :key="c">{{ c }}</th></tr></thead>
-          <tbody>
-            <tr v-for="(r, i) in series.rows" :key="i">
-              <td>{{ i + 1 }}</td>
-              <td v-for="c in series.cols" :key="c">{{ fmtNum(r[c], 0) }}</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
   </div>
 </template>

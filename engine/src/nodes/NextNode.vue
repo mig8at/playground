@@ -1,6 +1,6 @@
 <script setup>
 import { Handle, Position } from '@vue-flow/core'
-import { ArrowRight, ChevronDown } from 'lucide-vue-next'
+import { ArrowRight } from 'lucide-vue-next'
 import { ui } from '../store.js'
 
 // ETAPA 3 · qué se hace con los números una vez calculados.
@@ -31,11 +31,8 @@ defineProps({ data: Object })
         <span>{{ r.k }}</span><b>{{ r.v }}</b>
       </div>
       <div v-if="data.detail" class="nx__note">{{ data.detail }}</div>
-      <button v-if="data.action" class="nodrag nx__go" @click="data.action === 'series'
-        ? (ui.seriesOpen = true) : (ui.tab = 'policy')">
-        <ChevronDown v-if="data.action === 'series'" :size="12" />
-        <ArrowRight v-else :size="12" />
-        {{ data.action === 'series' ? 'ver la tabla' : 'ver el árbol' }}
+      <button v-if="data.action" class="nodrag nx__go" @click="ui.tab = 'policy'">
+        <ArrowRight :size="12" /> ver el árbol
       </button>
     </div>
     <Handle id="out" type="source" :position="Position.Right" />
