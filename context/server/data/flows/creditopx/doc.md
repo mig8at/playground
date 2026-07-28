@@ -14,7 +14,9 @@ Tipos (capacitación de producto, `159906a:docs/codigo/MECANICA-CREDITO.md`):
 | **Consumo** | > $1.000.000 | **NO** se libera tras el pago | 2 |
 | **Renting** (Motai) | — | device-lock IMEI (nodo `motai`) | 2 |
 
-Mecánica financiera (informativa): amortización **francesa** (cuota FIJA, interés sobre **saldo diario**); cadena de tasas EA → MV `(1+EA)^(1/12)−1` → diaria `(1+MV)^(1/30)−1`; **cuota total = capital+interés + seguro de vida + fondo de garantía (FGA)**. El **FGA %** y el **enganche** son salidas de la categoría (`lender_users_categories.FGA` / `.min_initial_fee`; ver Subcontextos).
+Mecánica financiera (informativa): amortización **francesa** (cuota FIJA, interés sobre **saldo diario**); **cuota total = capital+interés + seguro de vida + fondo de garantía (FGA)**.
+
+> ⚠ **Corregido (F-71).** Acá decía que la cadena de tasas era `EA → MV (1+EA)^(1/12)−1 → diaria (1+MV)^(1/30)−1`. **Ese no es el código de CreditopX** — es el de Credifamilia (`app/Services/PaymentPlan/Credifamilia/Math/FinancialMath.php`). CreditopX **divide**, no capitaliza: `rate/100` (`CreditopXPaymentService.php:689`, `CreditopXRequestHistoryService.php:302`) y `rate/30` para la diaria (`CreditopXRequestHistoryService.php:1165`), porque `credit_line_by_lenders.rate_suffix` es **N.M.** (nominal mensual) en las 157 filas — y para una nominal, dividir es lo correcto. Ver **F-71** en `findings`. El **FGA %** y el **enganche** son salidas de la categoría (`lender_users_categories.FGA` / `.min_initial_fee`; ver Subcontextos).
 
 ## Contenido
 La consolidación rt=2 corre en el orquestador `getLenders`. **Clave: la categoría NO va primero** — `group_rules`+datacrédito corren antes; la **categoría corre AL FINAL** y es la que fija enganche/cupo/plazo (y excluye si no hay categoría o el cupo no alcanza).

@@ -62,6 +62,17 @@ const canvasKey = computed(() => `${ui.slug}|${ui.tab}`)
 const series = computed(() => out.value.series)
 
 // La E.A. es el único eje en el que dos productos se comparan. Antes ninguna hoja la exponía.
+// El canon de la plataforma es N.M. (credit_line_by_lenders.rate_suffix, 157/157 filas).
+// Una hoja `effective` es legítima —así lo hacen los .xlsm— pero DIVERGE, y eso ya pegó en
+// producción con Credifamilia (F-71 · CORE-127). El aviso está para que no pase de largo.
+const conv = computed(() => {
+  const c = sheetDef.value.rateConvention
+  if (!c) return null
+  return c === 'nominal'
+    ? { txt: 'tasa nominal', warn: false }
+    : { txt: 'tasa efectiva', warn: true, why: 'la plataforma guarda N.M. — ver F-71' }
+})
+
 const ea = computed(() => {
   const r = out.value.res.annualEffectiveRate
   return r?.status === 'ok' ? (r.value * 100).toFixed(2).replace('.', ',') + '% E.A.' : null
@@ -119,6 +130,9 @@ const VERDICT = {
         <span><i style="background:var(--teal)"></i>qué sigue</span>
         <span class="sep">{{ graph.nodes.length }} nodos</span>
         <span v-if="ea" class="sep ea">{{ ea }}</span>
+        <span v-if="conv" class="sep" :class="{ warn: conv.warn }" :title="conv.why">
+          {{ conv.txt }}<template v-if="conv.warn"> ⚠</template>
+        </span>
         <span class="sep">base {{ sheetDef.periodBase }} · cobro {{ sheetDef.periodCharged }}<template
           v-if="sheetDef.periodBase !== sheetDef.periodCharged"> ⚠ falta puente</template></span>
         <span class="sep note">{{ sheetDef.note }}</span>

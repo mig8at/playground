@@ -354,3 +354,4 @@ button.icon:hover { color: var(--ink); background: var(--card2) }
 
 .strip .ea { color: var(--purple); font-weight: 650 }
 .strip .ea::before { content: '· ' }
+.strip .warn { color: var(--amber) }

@@ -1277,3 +1277,45 @@ El siguiente muro detrás de F-69: arreglado el "Advisor validation error", el a
 **Estado: aplicado y VERIFICADO por curl con un uReq real (score 700, negativos 0, debt 33%, 404/503 honestos). Falta verlo dentro del guiado (la pantalla del asesor renderizando el perfil).**
 
 **Lección.** Detrás de un muro suele haber OTRO: F-68 (el guiado no recorría Ábaco) → F-69 (el asesor rebotaba por `validated=false`) → F-70 (el asesor no tenía financial-health en local). Cada arreglo corre la frontera de lo probable en local un paso más — y el inventario de la flota (README) es el mapa de esa frontera.
+
+---
+
+## M · Convenciones de tasa (dos conviven y dan distinto)
+
+### F-71 · En CreditOp conviven DOS convenciones de tasa — nominal (el canon) y efectiva (Credifamilia) — y ya divergieron en producción: 1,82 % N.M. vs TEA 28,79 %
+
+Parece un detalle de redondeo. No lo es: son dos definiciones distintas de "la tasa", y un mismo crédito puede documentarse a una y amortizarse a la otra.
+
+**Síntoma.** Un crédito de Credifamilia mostraba en el documento **TEA 28,79 %** (→ 2,13 % M.V.) mientras el motor de amortización usaba **1,82 %** mensual (→ 24,2 % E.A.). Cuatro puntos y medio de diferencia anual entre el papel y la cuota. El síntoma engaña: parece un dato mal sembrado, y en realidad son dos convenciones legítimas chocando.
+
+**Causa raíz verificada.** No hay una sola fuente de la tasa.
+
+- El **canon de la plataforma es NOMINAL**: `credit_line_by_lenders.rate_suffix` = **"N.M."** en las **157/157** filas de la BD local. `Modules/Loans` la usa dividiendo — `rate/100` mensual, `rate/200` quincenal, `rate/30` diaria — que para una tasa **nominal es lo correcto**, no un bug.
+- **Credifamilia es la excepción**: guarda **TEA** y **capitaliza**. `app/Services/PaymentPlan/Credifamilia/Math/FinancialMath.php:29` lo dice explícito: *"Intentionally uses the compound effective formula. `annualEffectiveRate/360` (nominal simple) is NOT used — this matches the Calculadora PV V20251009.xlsm convention."*
+- Y **Credifamilia (lender 24) también tiene su fila con `1.82 N.M.`** en `credit_line_by_lenders`. Ahí está el choque: `user_requests.rate` se sembraba desde esa fila y el motor usaba la TEA de la pre-aprobación.
+
+**Evidencia.**
+- BD local: `SELECT rate_suffix, COUNT(*) FROM credit_line_by_lenders GROUP BY rate_suffix` → **N.M. · 157**. Y `lender_id=24 → rate 1.82, suffix N.M.`
+- `Modules/Loans/App/Services/PaymentSchedule/PaymentCalculationService.php:90` → `$formatRate = $isBiweekly ? $rate/200 : $rate/100;`
+- `Modules/Loans/App/Services/CreditopXRequestHistoryService.php:1165` → `$dailyRate = $rate / 30;`
+- `Modules/Loans/App/Services/DocumentGeneration/Payload/OnboardingPayloadBuilder.php:224-227` — el comentario de **CORE-127** documenta la divergencia con el ejemplo exacto: *"user_request.rate se sembraba en la selección desde otra fuente y podía divergir (p.ej. **1.82 vs TEA 28.79 → 2.13**)"*.
+- Sólo **4 lenders** son de corte quincenal (`cutoff_type_id=2`), o sea que `rate/200` toca poco; los otros **129** son mensuales.
+
+**Arreglo.** CORE-127 ya tapó el **síntoma en el documento**: `nominal_monthly_rate` y `interest_rate` ahora salen los dos del motor de Credifamilia, así que en el papel siempre cuadran (`(1+TEA)^(1/12)−1`). **La convención doble sigue viva** — no se unificó, se hizo consistente en un consumidor.
+
+Lo que falta es **declarar la convención en vez de deducirla**. Las dos son la misma expresión con los mismos dos parámetros, y sólo cambia `×` por `^`:
+
+```
+nominal    periodRate = statedRate  *  statedPerYear / periodsPerYear
+efectiva   periodRate = (1 + statedRate) ^ (statedPerYear / periodsPerYear) - 1
+```
+
+Verificado que reproduce el código real exacto: `rate/100` = `r×12/12` · `rate/200` = `r×12/24` · `rate/30` = `r×12/360` · Credifamilia `^(1/12)` y `^(1/360)`. De paso deja ver que la rama `$isBiweekly ? $formatRate/15 : $formatRate/30` de `PaymentCalculationService:291` es un **no-op**: los dos caminos dan `rate/30`; con un solo `periodsPerYear=360` desaparece.
+
+Implementado en `playground/engine`: cada hoja declara `rateConvention` y la franja avisa cuando una hoja `effective` contradice el N.M. de la plataforma.
+
+**Estado: causa raíz VERIFICADA contra BD local + código de los dos repos. El síntoma del documento está arreglado en producción (CORE-127); la convención doble NO está unificada. El modelo paramétrico está implementado y verificado sólo en `playground/engine`, no en los repos reales.**
+
+**Ojo al mapear un .xlsm.** Los tres archivos de negocio (`Calculadora Renting VF.xlsx`, los dos `Calculadora PV V20251009.xlsm`) **capitalizan**. Si transcribís una calculadora a código y el lender guarda N.M., estás importando la excepción y no el canon. Es exactamente cómo nació esta divergencia.
+
+**Lo que NO diverge — y por eso el arreglo es chico.** La anualidad es **transversal**: `pv * r / (1 - (1+r)^-n)` con fallback `pv/n`, idéntica en **12 sitios** de `legacy-backend` + `legacy-application`, más `FinancialMath::payment` de Credifamilia. La composición también (`cuota = anualidad + seguro de vida + fondo de garantía`, `PaymentCalculationService:71-132`) y el mecanismo de amortización también. Lo único que cambia es **con qué tasa** se alimenta, y eso es una línea.

@@ -9,6 +9,22 @@
 //   · las claves de tabla son NÚMEROS; el texto solo vive en `label`, para mostrar.
 //
 // Los números están verificados contra los archivos fuente — ver docs/VERIFICACION.md.
+//
+// ── LA TASA ──────────────────────────────────────────────────────────────────────────
+// Cada hoja declara `rateConvention`, porque en CreditOp conviven DOS y dan distinto:
+//
+//   nominal    periodRate = statedRate * statedPerYear / periodsPerYear
+//   effective  periodRate = (1 + statedRate) ^ (statedPerYear / periodsPerYear) - 1
+//
+// Mismos dos parámetros; solo cambia × por ^. `statedPerYear` = en qué período lo dice el
+// negocio; `periodsPerYear` = en qué período se cobra.
+//
+// El CANON de la plataforma es NOMINAL: `credit_line_by_lenders.rate_suffix` = "N.M."
+// en las 157 filas, y Modules/Loans hace rate/100, rate/200, rate/30 — división, que para
+// una tasa nominal es lo correcto.
+//
+// Estas hojas salen de los .xlsm, que capitalizan (`effective`). Esa discrepancia YA pegó
+// en producción: ver F-71 en context/server/data/flows/findings/doc.md (CORE-127).
 
 export const SHEETS = {
 
@@ -22,6 +38,7 @@ export const SHEETS = {
     label: 'Motai · Renting puro',
     note: 'Arriendo sin opción de compra. No hay saldo que amortizar: el PMT a 24 meses es un ancla de precio.',
     periodBase: 'mensual', periodCharged: 'semanal',
+    rateConvention: null,   // no amortiza: no hay saldo, no hay tasa de período ni E.A.
 
     constants: {
       setupFee: 1500000, marginFactor: 1, vatRate: 0.19, monthlyRate: 0.018,
@@ -77,6 +94,9 @@ export const SHEETS = {
     label: 'Motai · Rent to Own',
     note: 'Arriendo con opción de compra: es un crédito. Hay saldo, se amortiza semanal.',
     periodBase: 'semanal', periodCharged: 'semanal',
+    // El .xlsx hace (1+C12)^0,230769-1 → capitaliza. Pero el lender 170 "Motai RB" guarda
+    // 1.82 N.M. en la tabla: misma trampa que Credifamilia (F-71).
+    rateConvention: 'effective',
 
     constants: {
       setupFee: 1500000, marginFactor: 1, vatRate: 0.19,
@@ -96,14 +116,14 @@ export const SHEETS = {
       taxableBase: 'marginBase + margin + extras',
       vatAmount: 'taxableBase * vatRate',
       financedAmount: 'taxableBase + vatAmount',
-      annualEffectiveRate: '(1 + statedRate) ^ statedPerYear - 1',
-      periodRate: '(1 + annualEffectiveRate) ^ (1 / periodsPerYear) - 1',
+      periodRate: '(1 + statedRate) ^ (statedPerYear / periodsPerYear) - 1',
+      annualEffectiveRate: '(1 + periodRate) ^ periodsPerYear - 1',
       termPeriods: 'termMonths * periodsPerYear / monthsPerYear',
       weeklyRent: 'pmt(periodRate, termPeriods, financedAmount)',
     },
     groups: {
       'Valor a financiar': ['marginBase', 'margin', 'taxableBase', 'vatAmount', 'financedAmount'],
-      'Tasa y plazo': ['annualEffectiveRate', 'periodRate', 'termPeriods'],
+      'Tasa y plazo': ['periodRate', 'annualEffectiveRate', 'termPeriods'],
       'Canon': ['weeklyRent'],
     },
     series: {
@@ -126,6 +146,10 @@ export const SHEETS = {
     label: 'CreditopX · salud',
     note: 'Sonria / Dentix / Gaes comparten estas fórmulas exactas. El comercio solo aporta valores.',
     periodBase: 'mensual', periodCharged: 'mensual',
+    // FinancialMath.php:29 lo dice explícito: "Intentionally uses the compound effective
+    // formula. annualEffectiveRate/360 (nominal simple) is NOT used — this matches the
+    // Calculadora PV V20251009.xlsm convention."
+    rateConvention: 'effective',
 
     constants: {
       vatRate: 0.19, financialTransactionTaxRate: 0.004, lifeInsuranceFactor: 0.001307,
@@ -154,9 +178,9 @@ export const SHEETS = {
     formulas: {
       maxAmount: 'lookup(merchantConfig, merchantId, "maxAmount")',
       guaranteeRate: 'lookup(merchantConfig, merchantId, "guaranteeRate")',
-      annualEffectiveRate: '(1 + statedRate) ^ statedPerYear - 1',
-      periodRate: '(1 + annualEffectiveRate) ^ (1 / periodsPerYear) - 1',
-      dailyRate: '(1 + annualEffectiveRate) ^ (1 / daysPerYear) - 1',
+      periodRate: '(1 + statedRate) ^ (statedPerYear / periodsPerYear) - 1',
+      annualEffectiveRate: '(1 + periodRate) ^ periodsPerYear - 1',
+      dailyRate: '(1 + statedRate) ^ (statedPerYear / daysPerYear) - 1',
       guaranteeCost: 'requestedAmount * guaranteeRate',
       vatOnGuarantee: 'guaranteeCost * vatRate',
       transactionTax: '(guaranteeCost + vatOnGuarantee) * financialTransactionTaxRate',
@@ -171,7 +195,7 @@ export const SHEETS = {
     },
     groups: {
       'Comercio': ['maxAmount', 'guaranteeRate'],
-      'Tasas': ['annualEffectiveRate', 'periodRate', 'dailyRate'],
+      'Tasas': ['periodRate', 'annualEffectiveRate', 'dailyRate'],
       'Fianza': ['guaranteeCost', 'vatOnGuarantee', 'transactionTax', 'totalGuarantee'],
       'Desembolso': ['disbursedAmount'],
       'Cuota': ['installment', 'lifeInsurance', 'monthlyGuarantee', 'firstPeriodInterest',
@@ -200,6 +224,9 @@ export const SHEETS = {
     label: 'Alta Fleet',
     note: 'Dos créditos en el core (moto 18 cuotas + póliza 10) → la cuota baja en el mes 11.',
     periodBase: 'mensual', periodCharged: 'semanal',
+    // El PDF da 1,87% M.V. y amortiza mensual: statedPerYear = periodsPerYear = 12, así que
+    // nominal y efectiva dan el MISMO número. Se declara nominal por ser el canon N.M.
+    rateConvention: 'nominal',
 
     constants: {
       lifeInsuranceFactor: 0.0014, gpsMonthlyFee: 20000,
@@ -216,8 +243,8 @@ export const SHEETS = {
       { name: 'insuranceTermMonths', type: 'count', label: 'Cuotas póliza', default: 10, min: 1 },
     ],
     formulas: {
-      annualEffectiveRate: '(1 + statedRate) ^ statedPerYear - 1',
-      periodRate: '(1 + annualEffectiveRate) ^ (1 / periodsPerYear) - 1',
+      periodRate: 'statedRate * statedPerYear / periodsPerYear',
+      annualEffectiveRate: '(1 + periodRate) ^ periodsPerYear - 1',
       guaranteeCost: '(assetCost + gpsDevicePrice) * guaranteeRate',
       financedAmount: 'assetCost + gpsDevicePrice + guaranteeCost',
       installment: 'pmt(periodRate, termMonths, financedAmount)',
@@ -227,7 +254,7 @@ export const SHEETS = {
       totalInstallment: 'vehicleInstallment + insuranceInstallment',
     },
     groups: {
-      'Tasa': ['annualEffectiveRate', 'periodRate'],
+      'Tasa': ['periodRate', 'annualEffectiveRate'],
       'Crédito moto': ['guaranteeCost', 'financedAmount', 'installment', 'lifeInsurance',
                        'vehicleInstallment'],
       'Crédito póliza': ['insuranceInstallment'],
