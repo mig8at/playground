@@ -36,6 +36,42 @@ export const PERIODS = {
 
 export const SHEETS = {
 
+  /* ═══════════ Simulador básico ═══════════
+     La hoja MÍNIMA: sin IVA, sin seguros, sin fianza, sin margen. Nada de CreditOp.
+     Solo la mecánica: monto + tasa + nº de cuotas + cada cuánto se paga → cuota.
+
+     Fijate que no necesita `termIn`: si decís "24 cuotas" directamente, no hay que traducir
+     ningún plazo. `termIn` solo existe cuando el negocio dice el plazo en meses pero cobra
+     en otro período (el caso de Motai). Acá el nº de cuotas ES n. */
+  'simulador': {
+    label: 'Simulador básico · sin lógica de negocio',
+    note: 'Lo mínimo que hace falta para sacar una cuota. Cambiá la periodicidad y mirá cómo se mueve todo.',
+    realWorldCharge: null,
+    rateConvention: 'effective',
+    periods: { rateStatedIn: 'mensual', chargedEvery: 'mensual' },
+
+    constants: {},
+    inputs: [
+      { name: 'amount', type: 'money', label: 'Monto a financiar', default: 10000000, min: 0 },
+      { name: 'statedRate', type: 'rate', label: 'Tasa (en el período de arriba)', default: 0.02 },
+      { name: 'installments', type: 'count', label: 'Número de cuotas', default: 24,
+        enum: [6, 12, 18, 24, 36, 48, 60] },
+    ],
+    formulas: {
+      periodRate: '(1 + statedRate) ^ (statedPerYear / periodsPerYear) - 1',
+      annualEffectiveRate: '(1 + periodRate) ^ periodsPerYear - 1',
+      installment: 'pmt(periodRate, installments, amount)',
+      totalPaid: 'installment * installments',
+      totalInterest: 'totalPaid - amount',
+    },
+    groups: {
+      'Tasa': ['periodRate', 'annualEffectiveRate'],
+      'Cuota': ['installment'],
+      'Lo que se paga en total': ['totalPaid', 'totalInterest'],
+    },
+    output: 'installment',
+  },
+
   /* ═══════════ Motai · Renting puro ═══════════
      Fuente: "Calculadora Renting VF.xlsx", pestaña Renting.
      Ojo: la tarifa sale de amortizar el precio de venta a 24 meses (un ancla de PRECIO,

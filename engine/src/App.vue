@@ -21,7 +21,7 @@ import FormulaPanel from './FormulaPanel.vue'
 import { evalPolicy, fmtNum } from './engine.js'
 import { SHEETS } from './sheets.js'
 import { layoutSheet, layoutPolicy } from './layout.js'
-import { ui, inputs, risk, periods, effDef, sheetDef, policyDef, out, resetSheet } from './store.js'
+import { ui, inputs, risk, periods, effDef, sheetDef, policyDef, out, sheetDoc, resetSheet } from './store.js'
 
 // markRaw: sin esto Vue hace reactivos los componentes y avisa por consola en cada nodo.
 const nodeTypes = {
@@ -67,15 +67,17 @@ const series = computed(() => out.value.series)
 // producción con Credifamilia (F-71 · CORE-127). El aviso está para que no pase de largo.
 // El motor amortiza en `chargedEvery`; el producto cobra en `realWorldCharge`. Si difieren,
 // alguien tuvo que decidir cómo cruzar — y en alta-fleet nadie lo escribió.
-const bridge = computed(() =>
-  !!periods.chargedEvery && periods.chargedEvery !== sheetDef.value.realWorldCharge)
+const bridge = computed(() => !!sheetDef.value.realWorldCharge
+  && !!periods.chargedEvery && periods.chargedEvery !== sheetDef.value.realWorldCharge)
 
 const conv = computed(() => {
   const c = sheetDef.value.rateConvention
   if (!c) return null
+  const esProducto = !!sheetDef.value.realWorldCharge   // hoja mapeada a un lender real
   return c === 'nominal'
     ? { txt: 'tasa nominal', warn: false }
-    : { txt: 'tasa efectiva', warn: true, why: 'la plataforma guarda N.M. — ver F-71' }
+    : { txt: 'tasa efectiva', warn: esProducto,
+        why: esProducto ? 'la plataforma guarda N.M. — ver F-71' : null }
 })
 
 const ea = computed(() => {
@@ -114,6 +116,8 @@ const VERDICT = {
       <span v-if="outVal !== null" class="mono out-chip">
         {{ effDef.output }} <b>{{ fmtNum(outVal) }}</b>
       </span>
+      <button v-if="ui.tab === 'calc'" :class="{ on: ui.showDoc }" @click="ui.showDoc = !ui.showDoc"
+        title="El documento que se guardaría: TODA la lógica de la hoja">documento</button>
       <button @click="resetSheet()" title="Volver a los valores del archivo original">restablecer</button>
       <button @click="ui.dark = !ui.dark">{{ ui.dark ? 'claro' : 'oscuro' }}</button>
     </div>
@@ -139,8 +143,9 @@ const VERDICT = {
           {{ conv.txt }}<template v-if="conv.warn"> ⚠</template>
         </span>
         <span class="sep" :class="{ warn: bridge }">
-          amortiza {{ periods.chargedEvery || '—' }} · se cobra {{ sheetDef.realWorldCharge }}<template
-          v-if="bridge"> ⚠ falta puente</template></span>
+          amortiza {{ periods.chargedEvery || '—' }}<template
+            v-if="sheetDef.realWorldCharge"> · se cobra {{ sheetDef.realWorldCharge }}</template><template
+            v-if="bridge"> ⚠ falta puente</template></span>
         <span class="sep note">{{ sheetDef.note }}</span>
       </template>
       <template v-else-if="policyDef">
@@ -152,7 +157,12 @@ const VERDICT = {
     <!-- ───────── canvas + panel derecho ───────── -->
     <div class="stage">
     <div class="canvas">
-      <VueFlow v-if="ui.tab === 'calc'" :key="canvasKey" :nodes="graph.nodes" :edges="graph.edges"
+      <!-- el documento: la hoja entera es este JSON, nada vive en código -->
+      <div v-if="ui.tab === 'calc' && ui.showDoc" class="docpane">
+        <pre>{{ JSON.stringify(sheetDoc, null, 2) }}</pre>
+      </div>
+
+      <VueFlow v-else-if="ui.tab === 'calc'" :key="canvasKey" :nodes="graph.nodes" :edges="graph.edges"
         :node-types="nodeTypes" :class="{ dark: ui.dark }"
         :min-zoom="0.1" :max-zoom="1.8" :nodes-connectable="false" :edges-updatable="false"
         @nodes-initialized="onNodesReady">

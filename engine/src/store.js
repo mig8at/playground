@@ -8,7 +8,7 @@ import { evalSheet } from './engine.js'
 // `seriesOpen` arranca cerrado: el plan de pagos son 104 filas que competían por la atención
 // con el grafo, que es lo que se vino a mirar.
 export const ui = reactive({
-  slug: 'motai-rto', tab: 'calc', dark: true, seriesOpen: false,
+  slug: 'simulador', tab: 'calc', dark: true, seriesOpen: false, showDoc: false,
   /** fórmula abierta en el panel derecho, o null */
   selected: null,
 })
@@ -68,6 +68,29 @@ export function resetSheet() {
 
 watch(() => ui.slug, () => { resetSheet(); ui.selected = null }, { immediate: true })
 watch(() => ui.dark, v => { document.documentElement.dataset.theme = v ? 'dark' : 'light' }, { immediate: true })
+
+/** El documento que se guardaría. Es TODA la lógica de la hoja: nada vive en código.
+ *  Los valores de prueba de los inputs NO van — la hoja declara el contrato, no los datos. */
+export const sheetDoc = computed(() => {
+  const d = sheetDef.value
+  const doc = {}
+  if (d.rateConvention) doc.rateConvention = d.rateConvention
+  if (d.periods) doc.periods = { ...periods }
+  if (d.realWorldCharge) doc.realWorldCharge = d.realWorldCharge
+  if (Object.keys(consts).length) doc.constants = { ...consts }
+  doc.inputs = (d.inputs || []).map(i => {
+    const o = { name: i.name, type: i.type }
+    if (i.min != null) o.min = i.min
+    if (i.enum) o.enum = i.enum
+    return o
+  })
+  if (d.tables) doc.tables = JSON.parse(JSON.stringify(tables))
+  doc.formulas = { ...d.formulas }
+  if (d.groups) doc.groups = d.groups
+  if (d.series) doc.series = d.series
+  doc.output = d.output
+  return doc
+})
 
 /** Cómo se edita un valor según su tipo o, para constantes, según su magnitud. */
 export function controlFor(name, value, declaredType) {

@@ -75,7 +75,7 @@ const optLabel = (name, value) => {
         <input v-else class="nodrag nf" type="text" inputmode="decimal" v-model="inputs[f.name]">
       </div>
 
-      <div class="ent__sec">constantes · viven en la hoja</div>
+      <div v-if="data.constants.length" class="ent__sec">constantes · viven en la hoja</div>
       <div v-for="c in data.constants" :key="c" class="ent__row ent__row--const">
         <span class="ent__k">{{ c }}</span>
         <MoneyInput v-if="controlFor(c, consts[c]) === 'money'" v-model="consts[c]" />

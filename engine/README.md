@@ -172,7 +172,39 @@ verify.mjs         arnés de regresión contra los archivos fuente
 `engine.js` es el mismo diseño que iría en el paquete `formula` de Go. El intérprete no usa
 `eval()`: solo números, referencias, aritmética y funciones de una lista blanca.
 
-## Las hojas
+## La hoja mínima
+
+`simulador` es la hoja **sin lógica de negocio**: nada de IVA, seguros, fianza ni margen.
+Solo la mecánica, y es la que muestra el concepto sin ruido:
+
+```
+entra    monto · tasa · nº de cuotas · cada cuánto se paga
+sale     cuota · total pagado · intereses · E.A.
+```
+
+Su documento completo son ~25 líneas de JSON: cinco fórmulas, tres inputs, dos períodos.
+El botón **documento** de la barra lo muestra — la hoja entera es ese JSON, nada vive en
+código.
+
+No necesita `termIn`: si decís "24 cuotas" directamente, el nº de cuotas **es** `n`. Ese
+tercer período solo existe cuando el negocio dice el plazo en meses pero cobra en otro
+período (el caso de Motai).
+
+Sobre 10.000.000 al 2% dicho mensual, 24 cuotas:
+
+| se cobra | periodRate | cuota | total | E.A. |
+|---|---|---|---|---|
+| semanal | 0,458029% | 440.940 | 10.582.564 | 26,82% |
+| quincenal | 0,995049% | 470.457 | 11.290.976 | 26,82% |
+| mensual | 2,000000% | 528.711 | 12.689.063 | 26,82% |
+| trimestral | 6,120800% | 805.706 | 19.336.952 | 26,82% |
+
+⚠ Ojo con leer esa tabla: con el **nº de cuotas fijo en 24**, cambiar la periodicidad cambia
+la **duración del crédito** — 24 semanas son 5,5 meses y 24 trimestres son 6 años. Por eso
+el total sube tanto. La E.A. quieta en 26,82% confirma que la tasa se convirtió bien: es el
+mismo costo del dinero, sobre plazos distintos.
+
+## Las hojas de producto
 
 | hoja | fuente | período base → cobro |
 |---|---|---|
