@@ -17,13 +17,17 @@ export const ui = reactive({
 export const inputs = reactive({})
 /** Las constantes de la hoja. También editables — es un simulador: "¿y si el IVA fuera 21%?". */
 export const consts = reactive({})
+/** Las tablas de búsqueda. Son ENTRADA igual que los inputs: datos, no cálculo. */
+export const tables = reactive({})
 /** Los datos de la persona, que solo mira la política. */
 export const risk = reactive({ monthlyIncome: 3200000, creditScore: 520 })
 
 export const sheetDef = computed(() => SHEETS[ui.slug])
 
 /** La hoja con las constantes editadas encima. SHEETS queda intacto. */
-export const effDef = computed(() => ({ ...sheetDef.value, constants: { ...consts } }))
+export const effDef = computed(() => ({
+  ...sheetDef.value, constants: { ...consts }, tables: JSON.parse(JSON.stringify(tables)),
+}))
 
 /** La evaluación viva. Vive acá para que el panel derecho no necesite props. */
 export const out = computed(() => evalSheet(effDef.value, inputs))
@@ -50,6 +54,9 @@ export function resetSheet() {
   Object.assign(inputs, defaultInputs(d))
   for (const k of Object.keys(consts)) delete consts[k]
   Object.assign(consts, d.constants)
+  // copia PROFUNDA: si no, editar una celda mutaría SHEETS y no habría cómo restablecer
+  for (const k of Object.keys(tables)) delete tables[k]
+  Object.assign(tables, JSON.parse(JSON.stringify(d.tables || {})))
 }
 
 watch(() => ui.slug, () => { resetSheet(); ui.selected = null }, { immediate: true })

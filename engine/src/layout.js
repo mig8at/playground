@@ -40,7 +40,7 @@ export function layoutSheet(def, out, opts = {}) {
 
   /* ── columna 0: el nodo de entrada + las tablas debajo ── */
   const entradaH = 62 + (inputNames.length + constants.length) * 21
-  const tablesH = tables.reduce((h, t) => h + 62 + (def.tables[t].rows.length + 1) * 19 + 26, 0)
+  const tablesH = tables.reduce((h, t) => h + 60 + (def.tables[t].rows.length + 1) * 23 + 26, 0)
   const col0H = entradaH + (tables.length ? 26 + tablesH : 0)
 
   const nodes = [{
@@ -56,7 +56,7 @@ export function layoutSheet(def, out, opts = {}) {
       id: t, type: 'tableNode', position: { x: 0, y: ty },
       data: { name: t, table: def.tables[t] },
     })
-    ty += 62 + (def.tables[t].rows.length + 1) * 19 + 26
+    ty += 60 + (def.tables[t].rows.length + 1) * 23 + 26
   }
 
   /* ── columnas 1..N: las fórmulas ── */
@@ -158,7 +158,7 @@ export function layoutSheetGrouped(def, out, opts = {}) {
   }
 
   const entradaH = 62 + ((def.inputs || []).length + constants.length) * 21
-  const tablesH = tables.reduce((h, t) => h + 62 + (def.tables[t].rows.length + 1) * 19 + 26, 0)
+  const tablesH = tables.reduce((h, t) => h + 60 + (def.tables[t].rows.length + 1) * 23 + 26, 0)
   const col0H = entradaH + (tables.length ? 26 + tablesH : 0)
   const gH = g => 54 + groups[g].length * 22 + 10
 
@@ -169,7 +169,7 @@ export function layoutSheetGrouped(def, out, opts = {}) {
   let ty = entradaH + 26
   for (const t of tables) {
     nodes.push({ id: t, type: 'tableNode', position: { x: 0, y: ty }, data: { name: t, table: def.tables[t] } })
-    ty += 62 + (def.tables[t].rows.length + 1) * 19 + 26
+    ty += 60 + (def.tables[t].rows.length + 1) * 23 + 26
   }
 
   const colH = {}

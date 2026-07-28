@@ -117,7 +117,20 @@ cruzaban aristas por todos lados sin decir nada. Lo que se quiere leer es la cad
 
 Las **constantes no tiran ninguna arista** (son ambiente: se ven en el nodo y ya). Los **inputs
 sí**, pero solo hacia las fórmulas que los leen directo, y la arista dice cuál viaja por ahí.
-Las **tablas quedan como nodo aparte** porque tienen contenido que vale ver y pocos consumidores.
+
+### Las tablas también son entrada
+
+`merchantConfig` y `rentalPlans` son **datos que entran**, no cálculo, así que llevan la misma
+cabecera ámbar que el nodo *Entrada* y se apoyan justo debajo: la zona de entrada se lee como
+una familia aunque ocupe más de un nodo. (Antes tenían la cabecera azul de las etapas y se leían
+como si calcularan algo.)
+
+Quedan en nodo propio y no adentro de *Entrada* porque tienen contenido que vale ver —las tres
+filas, con la **fila activa resaltada** según el input— y pocos consumidores.
+
+Son **editables** por el mismo motivo que las constantes: si Dentix renegocia la fianza al 8%,
+eso se prueba escribiendo. La clave y el `label` son de solo lectura; el resto se edita y
+recalcula toda la cadena. La copia es profunda, así que `restablecer` de verdad restablece.
 
 El efecto: `motai-rto` pasó de 18 nodos a **9**; `alta-fleet` de 16 a **8**.
 

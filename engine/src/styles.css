@@ -128,7 +128,20 @@ input.num { font-family: var(--mono); text-align: right }
 .ent__row--const .ent__k, .ent__row--const .ent__v { color: var(--mut); font-weight: 400 }
 .ent__row.is-missing .ent__k { color: var(--mut); text-decoration: line-through }
 .ent__row.is-missing .ent__v { color: var(--red) }
-.n--table .n__hd { background: var(--hd-blue) }  .n--table .n__hd b { color: var(--blue) }
+/* Una tabla es ENTRADA, no cálculo: misma familia ámbar que el nodo Entrada. */
+.n--table { border-color: var(--amber) }
+.n--table .n__hd { background: var(--hd-amber) }  .n--table .n__hd b { color: var(--amber) }
+.tbl { padding: 4px 0 6px }
+.tbl__hd, .tbl__row { display: grid; gap: 6px; padding: 1px 9px; align-items: center }
+.tbl__hd { font: 9px var(--mono); color: var(--dim); text-transform: uppercase; letter-spacing: .04em;
+           padding-bottom: 4px; border-bottom: 1px solid var(--line); margin-bottom: 3px }
+.tbl__hd span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
+.tbl__hd .k { color: var(--amber) }
+.tbl__row { line-height: 22px }
+.tbl__row.is-active { background: var(--hd-amber); box-shadow: inset 2px 0 0 var(--amber) }
+.tbl__ro { font: 11px var(--mono); color: var(--mut); overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
+.tbl__row.is-active .tbl__ro { color: var(--ink) }
+.tbl__in, .tbl .nf { width: 100%; flex: 1 1 auto; margin-left: 0 }
 .n--formula .n__hd { background: var(--hd-blue) } .n--formula .n__hd b { color: var(--blue) }
 .n--output { border-color: var(--purple); box-shadow: var(--shadow-2) }
 .n--output .n__hd { background: var(--hd-purple) } .n--output .n__hd b { color: var(--purple) }
