@@ -95,36 +95,35 @@ convertiría `(1 + monthlyRate) ^ (monthsPerYear / weeksPerYear) - 1` en seis ca
 — menos legible que la expresión escrita. Por eso: **un nodo por fórmula, la expresión como texto
 adentro**.
 
-## Agrupado por etapa
+## Un nodo por zona
 
-Cada hoja declara `groups`: qué fórmulas piensa el negocio como una sola cosa
-("Valor a financiar", "Fianza", "Canon"). Cada grupo es un nodo con sus fórmulas adentro.
-
-| hoja | nodos / aristas |
-|---|---|
-| `motai-rto` | 4 / 4 |
-| `alta-fleet` | 4 / 4 |
-| `motai-renting` | 5 / 5 |
-| `creditopx-salud` | 7 / 11 |
-
-Es **solo disposición**: `groups` es metadato de presentación, el documento sigue siendo una
-bolsa plana de fórmulas con nombre y `evalSheet()` ni lo mira. Si una hoja no declara grupos,
-cada fórmula es su propio grupo.
-
-Así cada columna es una etapa del negocio y el grafo se lee de un vistazo:
+Cada zona es **un nodo**, y las etapas viven como **secciones adentro**:
 
 ```
-alta-fleet     Entrada → ┬ Crédito moto ──┬→ Total al cliente
-                         └ Crédito póliza ┘
-
-salud          Entrada  → ┬ Comercio ┬→ Fianza → Desembolso → Cuota
-               tabla    → └ Tasas ───┘
+┌─ Entrada ──────┐   ┌─ Cálculo ───────────┐   ┌─ Plan de pagos ─┐
+│ inputs         │   │ ── COMERCIO ──      │   └─────────────────┘
+│ constantes     │ → │ maxAmount           │ → ┌─ Política ──────┐
+├─ merchantConfig┤   │ ── TASAS ──         │   └─────────────────┘
+│ 142 · Dentix   │   │ monthlyRate         │   ┌ Fuera del motor ┐
+│ 178 · Gaes     │   │ ── FIANZA ──  …     │   └ ─ ─ ─ ─ ─ ─ ─ ─ ┘
+└────────────────┘   └─────────────────────┘
 ```
 
-En `alta-fleet` se ve de una la razón de que la cuota sea escalonada: **son dos créditos**
-con plazos distintos que se suman.
+Antes era un nodo por etapa. Se juntaron por dos razones:
 
-Para ver una fórmula sola, se clickea y se abre el panel derecho.
+1. **Simetría.** Si los datos van juntos porque son datos, los cálculos van juntos porque
+   son cálculos. La entrada ya era un nodo; el cálculo no tenía por qué ser cinco.
+2. **El panel derecho lo hace mejor.** El argumento para separarlos era "el grafo muestra
+   las dependencias" — pero el panel da `depende de` y `lo usan` **con los valores y
+   navegables**. Estaban duplicando trabajo y el grafo perdía.
+
+El grafo se queda con la **arquitectura** (entrada → cálculo → qué sigue, y dónde termina el
+servicio) y el panel con las **dependencias**.
+
+Ganancia concreta: `creditopx-salud` pasó de 5 columnas —ilegible sin zoom— a 3, y las 15
+fórmulas se leen de corrido como un desglose. Las etapas no se perdieron: son los
+encabezados de sección, y por eso en `alta-fleet` se sigue viendo que hay
+**CRÉDITO MOTO** y **CRÉDITO PÓLIZA** por separado.
 
 ## Un solo nodo de Entrada
 

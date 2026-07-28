@@ -215,10 +215,14 @@ table.ser tr:hover td { background: var(--card2) }
 .strip .note { color: var(--dim); font-style: italic }
 
 /* ── nodo de grupo (una etapa del cálculo) ── */
+.n--grp { border-color: var(--blue) }
 .n--grp .n__hd { background: var(--hd-blue) } .n--grp .n__hd b { color: var(--blue) }
-.n--grp.has-output { border-color: var(--purple) }
-.n--grp.has-output .n__hd { background: var(--hd-purple) }
-.n--grp.has-output .n__hd b { color: var(--purple) }
+/* las etapas sobreviven como secciones dentro del único nodo de cálculo */
+.grp-sec {
+  font: 9.5px var(--mono); color: var(--dim); text-transform: uppercase; letter-spacing: .07em;
+  padding: 9px 10px 3px; margin-top: 3px; border-top: 1px solid var(--line);
+}
+.grp-sec:first-child { border-top: 0; margin-top: 0; padding-top: 4px }
 .grp-rows { padding: 5px 0 6px }
 .grp-row {
   display: flex; gap: 9px; align-items: baseline; padding: 1px 10px;

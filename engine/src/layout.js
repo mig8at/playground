@@ -72,60 +72,49 @@ export function layoutSheet(def, out, opts = {}) {
     ty += 60 + (def.tables[t].rows.length + 1) * 23 + 26
   }
 
-  const colH = {}
-  for (const [c, gs] of cols) colH[c] = gs.reduce((h, g) => h + gH(g) + 34, -34)
-  const tallest = Math.max(col0H, ...Object.values(colH))
-
-  for (const [c, gs] of [...cols.entries()].sort((a, b) => a[0] - b[0])) {
-    let y = (tallest - colH[c]) / 2
-    for (const g of gs) {
-      nodes.push({
-        id: '@g:' + g, type: 'groupNode',
-        position: { x: c * COL_W, y },
-        data: {
+  /* ── UN nodo de cálculo, con las etapas como secciones ── */
+  const calcNode = {
+    id: '@calc', type: 'groupNode', position: { x: COL_W, y: 0 },
+    data: {
+      total: Object.keys(def.formulas || {}).length,
+      sections: names
+        .sort((a, b) => depth[a] - depth[b])
+        .map(g => ({
           title: g,
-          hasOutput: groups[g].includes(def.output),
           rows: groups[g].map(f => ({
             name: f, expr: def.formulas[f], isOutput: f === def.output,
             status: out.res[f]?.status ?? 'skipped',
             value: out.res[f]?.status === 'ok' ? out.res[f].value : undefined,
           })),
-        },
-      })
-      y += gH(g) + 34
-    }
+        })),
+    },
   }
+  nodes.push(calcNode)
+
+  // centramos entrada y cálculo entre sí
+  const calcH = 44 + names.length * 24 + Object.keys(def.formulas || {}).length * 22
+  calcNode.position.y = Math.max(0, (col0H - calcH) / 2)
+  if (calcH > col0H) nodes[0].position.y = (calcH - col0H) / 2
 
   const edges = []
-  const ok = g => groups[g].some(f => out.res[f]?.status === 'ok')
-  for (const g of names) {
-    for (const [dg, via] of gdeps.get(g)) {
-      const lbl = [...via].join(', ')
-      edges.push({
-        id: `${dg}->${g}`, source: '@g:' + dg, target: '@g:' + g,
-        label: lbl.length > 26 ? `${via.size} valores` : lbl,
-        animated: groups[g].includes(def.output) && ok(g),
-        style: { strokeWidth: ok(g) ? 1.6 : 1, opacity: ok(g) ? 1 : .3 },
-      })
-    }
-    for (const t of gtables.get(g)) {
-      edges.push({ id: `${t}->${g}`, source: t, target: '@g:' + g, style: { strokeWidth: 1.4 } })
-    }
-    if (ginputs.get(g).size) {
-      const lbl = [...ginputs.get(g)].join(', ')
-      edges.push({
-        id: `@entrada->${g}`, source: '@entrada', target: '@g:' + g,
-        label: lbl.length > 26 ? `${ginputs.get(g).size} inputs` : lbl,
-        style: { strokeWidth: 1.4, opacity: .85 },
-      })
-    }
+  const allInputs = new Set()
+  for (const g of names) for (const x of ginputs.get(g)) allInputs.add(x)
+  if (allInputs.size) {
+    const lbl = [...allInputs].join(', ')
+    edges.push({
+      id: '@entrada->calc', source: '@entrada', target: '@calc',
+      label: lbl.length > 30 ? `${allInputs.size} inputs` : lbl,
+      style: { strokeWidth: 1.5, opacity: .85 },
+    })
   }
+  for (const t of tables) {
+    edges.push({ id: t + '->calc', source: t, target: '@calc', style: { strokeWidth: 1.4, opacity: .8 } })
+  }
+
   /* ═══ ETAPA 3 · qué se hace con los números ═══
      Dos cosas las produce el motor (plan de pagos y veredicto); el resto no. Ese corte
      es la frontera del servicio, y por eso el último nodo va apagado. */
-  const lastCol = Math.max(...names.map(g => depth[g]))
-  const outGroup = names.find(g => groups[g].includes(def.output))
-  const nx = (lastCol + 1) * COL_W
+  const nx = 2 * COL_W
   const next = []
 
   const S = out.series
@@ -171,12 +160,10 @@ export function layoutSheet(def, out, opts = {}) {
   next.forEach((d, i) => {
     nodes.push({ id: '@next' + i, type: 'nextNode', position: { x: nx, y: ny }, data: d })
     ny += nH(d) + 30
-    if (outGroup) {
-      edges.push({
-        id: 'out->next' + i, source: '@g:' + outGroup, target: '@next' + i,
-        label: def.output, style: { strokeWidth: 1.5, opacity: .8 },
-      })
-    }
+    edges.push({
+      id: 'out->next' + i, source: '@calc', target: '@next' + i,
+      label: def.output, style: { strokeWidth: 1.5, opacity: .8 },
+    })
   })
 
   nodes.push({

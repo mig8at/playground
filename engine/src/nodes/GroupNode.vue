@@ -3,9 +3,16 @@ import { Handle, Position } from '@vue-flow/core'
 import { fmtNum } from '../engine.js'
 import { ui, selectFormula } from '../store.js'
 
-// Una ETAPA del cálculo: varias fórmulas que el negocio piensa como una sola cosa
-// ("Valor a financiar", "Fianza", "Canon"). El agrupado es SOLO disposición: el documento
-// sigue siendo una bolsa plana de fórmulas con nombre y el motor ni se entera.
+// TODO el cálculo en UN nodo, con las etapas como secciones adentro.
+//
+// Antes era un nodo por etapa. Se juntó por simetría con la Entrada —si los datos van
+// juntos porque son datos, los cálculos van juntos porque son cálculos— y porque el
+// grafo estaba duplicando lo que el panel derecho hace mejor: `depende de` y `lo usan`,
+// con valores y navegables. El grafo se queda con la ARQUITECTURA (entrada → cálculo →
+// qué sigue) y el panel con las dependencias.
+//
+// Las etapas sobreviven como encabezados de sección: sin ellas se pierde que en alta-fleet
+// hay dos créditos distintos.
 defineProps({ data: Object })
 
 const val = (r, name) => {
@@ -17,20 +24,25 @@ const val = (r, name) => {
 </script>
 
 <template>
-  <div class="n n--grp" :class="{ 'has-output': data.hasOutput }" style="min-width:262px;max-width:262px">
+  <div class="n n--grp" style="min-width:288px;max-width:288px">
     <Handle id="in" type="target" :position="Position.Left" />
     <div class="n__hd">
-      <b>{{ data.title }}</b>
-      <span class="n__kind">{{ data.rows.length }}</span>
+      <b>Cálculo</b>
+      <span class="n__kind">{{ data.total }} fórmulas</span>
     </div>
+
     <div class="grp-rows">
-      <div v-for="r in data.rows" :key="r.name" class="grp-row nodrag"
-           :class="{ 'is-out': r.isOutput, 'is-off': r.status !== 'ok', 'is-sel': ui.selected === r.name }"
-           :title="r.expr" @click="selectFormula(r.name)">
-        <span class="grp-k">{{ r.name }}</span>
-        <b class="grp-v">{{ val(r, r.name) }}</b>
-      </div>
+      <template v-for="sec in data.sections" :key="sec.title">
+        <div class="grp-sec">{{ sec.title }}</div>
+        <div v-for="r in sec.rows" :key="r.name" class="grp-row nodrag"
+             :class="{ 'is-out': r.isOutput, 'is-off': r.status !== 'ok', 'is-sel': ui.selected === r.name }"
+             :title="r.expr" @click="selectFormula(r.name)">
+          <span class="grp-k">{{ r.name }}</span>
+          <b class="grp-v">{{ val(r, r.name) }}</b>
+        </div>
+      </template>
     </div>
+
     <Handle id="out" type="source" :position="Position.Right" />
   </div>
 </template>
