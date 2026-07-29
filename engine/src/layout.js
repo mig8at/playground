@@ -39,14 +39,18 @@ export function layoutSheet(def, out, opts = {}) {
   // fianza con su encabezado, y las fórmulas. Contar solo las fórmulas hacía que los nodos de
   // una misma columna se solaparan.
   const propios = k => (def.inputs || []).filter(i => etapaDe(i.appliesTo) === k)
+  // Un campo FÓRMULA no es un input, así que `propios` no lo ve: hay que contarlo aparte o los
+  // nodos de una misma columna se solapan y los clicks caen en el nodo equivocado. Ocupa dos filas
+  // (nombre + expresión, y el resultado debajo). Y el botón `+ campo` también ocupa.
+  const formulas_ = k => (def.fields || []).filter(f => f.kind === 'formula' && f.at === k)
   const stageH = st => {
     const ins = propios(st.key)
     const enBloque = st.rateBlock ? ins.filter(i => ['statedRate', 'compound'].includes(i.name)).length : 0
-    const fianzas = ins.filter(i => i.appliesTo === 'guarantee').length
     return 40
-      + (ins.length - enBloque - fianzas) * 21
+      + (ins.length - enBloque) * 21
       + (st.rateBlock ? 113 : 0)   // medido en el DOM, no estimado
-      + (fianzas ? 22 + fianzas * 21 : 0)
+      + formulas_(st.key).length * 38
+      + (st.insertion ? 24 : 0)    // el botón `+ campo`
       // con showRows:false igual queda UNA fila (la salida), no cero
       + (st.formulas.length ? 8 + (st.showRows === false ? 1 : st.formulas.length) * 22 : 0)
       + 12

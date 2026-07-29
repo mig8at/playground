@@ -246,12 +246,13 @@ export const RATE_BASE_LABEL = { amount: 'el monto', charges: 'el valor a financ
 /** Nombres que un campo agregado NO puede pisar. */
 const RESERVADOS = new Set(['statedPerYear', 'periodsPerYear', 'i', 'n', 'prev'])
 
-/** Lo que un campo VALE en pesos, para que otro pueda apoyarse en él: un monto vale su input, un
- *  porcentaje vale su fórmula. */
-export const enPesos = f => (f.kind === 'rate' ? f.name + 'Value' : f.name)
+/** Lo que un campo VALE en pesos, para que otro pueda apoyarse en él.
+ *  Un monto vale su perilla; un porcentaje y una fórmula valen su fórmula. */
+export const enPesos = f => (f.kind === 'money' ? f.name : f.name + 'Value')
 
 /** El campo leído como una frase — es lo que lo hace entendible sin abrir el código. */
 export function describir(f, campos = []) {
+  if (f.kind === 'formula') return `fórmula: ${f.expr || '(vacía)'}`
   const base = f.base
     ? (campos.find(x => x.name === f.base)?.label ?? f.base)
     : RATE_BASE_LABEL[f.at]
@@ -278,15 +279,19 @@ export function resolveSheet(def, { periods = {}, fields = [] } = {}) {
   const llegan = {}   // etapa → fórmulas que se calculan ahí
 
   for (const f of fields) {
-    inputs.push({
-      name: f.name, type: f.kind === 'rate' ? 'rate' : 'money', default: 0, min: 0,
-      appliesTo: f.at, label: f.label, field: f.id,
-      // el calificativo que se ve al lado del nombre: solo lo AMBIGUO, no todo
-      note: f.kind === 'rate' && f.base
-        ? 'de ' + (fields.find(x => x.name === f.base)?.label ?? f.base)
-        : f.at === 'charges' && f.spread ? '÷ cuotas' : '',
-      help: describir(f, fields),
-    })
+    // Una FÓRMULA no tiene perilla: su valor es la expresión. Los otros dos sí, y el tipo decide
+    // cómo se escribe el número (pesos con separador de miles, o porcentaje).
+    if (f.kind !== 'formula') {
+      inputs.push({
+        name: f.name, type: f.kind === 'rate' ? 'rate' : 'money', default: 0, min: 0,
+        appliesTo: f.at, label: f.label, field: f.id,
+        // el calificativo que se ve al lado del nombre: solo lo AMBIGUO, no todo
+        note: f.kind === 'rate' && f.base
+          ? 'de ' + (fields.find(x => x.name === f.base)?.label ?? f.base)
+          : f.at === 'charges' && f.spread ? '÷ cuotas' : '',
+        help: describir(f, fields),
+      })
+    }
     if (f.kind === 'rate') {
       const v = f.name + 'Value'
       // La base se resuelve A PESOS: si es otro campo, su valor en pesos, no su perilla. Sin esto
@@ -297,6 +302,14 @@ export function resolveSheet(def, { periods = {}, fields = [] } = {}) {
       formulas[v] = `${base} * ${f.name}`
       formulaLabel[v] = f.label
       llegan[f.at] = [...(llegan[f.at] || []), v]
+    }
+    if (f.kind === 'formula') {
+      // Se pasa TAL CUAL. Una expresión inválida, un ciclo o una referencia que no existe los caza
+      // el motor y quedan como `status: 'error'` con su razón — no hace falta validar acá, y por
+      // eso una fórmula se puede escribir en vivo sin que nada explote.
+      formulas[f.name + 'Value'] = f.expr?.trim() || '0'
+      formulaLabel[f.name + 'Value'] = f.label
+      llegan[f.at] = [...(llegan[f.at] || []), f.name + 'Value']
     }
     terms.push({ value: enPesos(f), at: f.at, spread: !!f.spread })
   }
@@ -312,7 +325,7 @@ export function resolveSheet(def, { periods = {}, fields = [] } = {}) {
   }))
 
   return {
-    ...def, stages, inputs, formulas, formulaLabel, terms,
+    ...def, stages, inputs, formulas, formulaLabel, terms, fields,
     constants: {
       ...def.constants,
       statedPerYear: PERIODS[p.rateStatedIn],

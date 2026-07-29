@@ -6,7 +6,7 @@ import PercentInput from '../PercentInput.vue'
 import RateBlock from '../RateBlock.vue'
 import { fmtNum } from '../engine.js'
 import { RATE_BASE_LABEL, describir } from '../sheets.js'
-import { inputs, fields, addField, removeField, basesDisponibles } from '../store.js'
+import { inputs, fields, out, addField, removeField, setExpr, basesDisponibles } from '../store.js'
 
 // Una etapa AUTOCONTENIDA: sus propios inputs arriba, sus propias fórmulas abajo.
 //
@@ -44,8 +44,34 @@ const baseDelPunto = computed(() => RATE_BASE_LABEL[props.data.key])
 const bases = computed(() => basesDisponibles(props.data.key))
 const frase = computed(() => (nuevo.value ? describir({ ...nuevo.value, at: props.data.key }, fields) : ''))
 
+// ── los campos FÓRMULA ──
+// No tienen perilla: su valor es la expresión, así que se dibujan aparte de `propios` (que son los
+// inputs). Se muestran con la expresión editable y el resultado al lado — la celda de una hoja de
+// cálculo. Si la expresión está mal, el motor devuelve la razón y se muestra ahí mismo.
+const formulaFields = computed(() =>
+  fields.filter(f => f.kind === 'formula' && f.at === props.data.key))
+const resultado = f => out.value.res[f.name + 'Value']
+// Por qué no dio. El `reason` de un `skipped` es un CÓDIGO del motor, no prosa: `upstream` con un
+// `dependsOn`, o `missing_input` con un `missing`. Un ciclo, además, lo reporta en la fórmula que
+// lo CIERRA y no en la que lo escribió, así que hay que perseguir la cadena hasta la causa real —
+// sin esto la celda decía "—" o "upstream", que es justo cuando más hace falta saber por qué.
+const razon = f => {
+  let r = resultado(f)
+  const visto = new Set()
+  while (r?.status === 'skipped' && r.reason === 'upstream' && r.dependsOn?.[0]) {
+    const sig = r.dependsOn[0]
+    if (visto.has(sig)) break
+    visto.add(sig)
+    r = out.value.res[sig]
+  }
+  if (!r || r.status === 'ok') return ''
+  if (r.status === 'error') return r.reason
+  if (r.reason === 'missing_input') return `falta ${r.missing?.[0] ?? 'un dato'}`
+  return 'sin calcular'
+}
+
 async function abrir() {
-  nuevo.value = { label: '', kind: 'money', base: '', spread: false }
+  nuevo.value = { label: '', kind: 'money', base: '', spread: false, expr: '' }
   await nextTick()
   campo.value?.focus()
 }
@@ -73,10 +99,10 @@ function crear() {
 
     <div class="ent">
       <!-- inputs propios de la etapa -->
-      <div v-for="f in propios" :key="f.name" class="ent__row"
-           :class="{ 'is-zero': inputs[f.name] === 0 || inputs[f.name] === false }">
+      <div v-for="f in propios" :key="f.name" class="ent__row">
         <span class="ent__k" :title="f.help">
-          <em v-if="signo(f)" class="sg">{{ signo(f) }}</em>{{ f.label }}
+          <em v-if="signo(f)" class="sg">{{ signo(f) }}</em>
+          <span class="ent__kt">{{ f.label }}</span>
           <!-- solo lo AMBIGUO: sobre qué se aplica el %, o que es un total repartido -->
           <i v-if="f.note" class="ent__note">{{ f.note }}</i>
         </span>
@@ -92,6 +118,23 @@ function crear() {
 
       <RateBlock v-if="data.rateBlock" />
 
+      <!-- campos fórmula: la expresión ES el valor, así que se ve y se edita -->
+      <div v-for="f in formulaFields" :key="f.id" class="ent__f">
+        <div class="ent__row">
+          <span class="ent__k" :title="f.help"><span class="ent__kt">{{ f.label }}</span></span>
+          <button class="nodrag del" @click="removeField(f.id)" title="quitar este campo">×</button>
+          <input class="nodrag nf nf--expr" :value="f.expr" :title="f.expr"
+            @input="setExpr(f.id, $event.target.value)" @keydown.stop spellcheck="false"
+            placeholder="p. ej. amount * 0.05">
+        </div>
+        <div class="ent__row ent__fres">
+          <span class="ent__k"></span>
+          <b class="ent__fv" :class="{ 'is-bad': resultado(f)?.status !== 'ok' }">
+            {{ resultado(f)?.status === 'ok' ? fmtNum(resultado(f).value) : '—' }}</b>
+        </div>
+        <div v-if="razon(f)" class="ent__err">{{ razon(f) }}</div>
+      </div>
+
       <!-- agregar un campo. Solo en los puntos de inserción: entra al cálculo por acá -->
       <template v-if="data.insertion">
         <div v-if="!nuevo" class="ent__add">
@@ -106,7 +149,13 @@ function crear() {
             <select class="nodrag nf nf--kind" v-model="nuevo.kind">
               <option value="money">monto</option>
               <option value="rate">%</option>
+              <option value="formula">fórmula</option>
             </select>
+          </div>
+          <!-- una fórmula se escribe entera: no necesita base ni ÷ cuotas, eso se escribe ahí -->
+          <div v-if="nuevo.kind === 'formula'" class="ent__row">
+            <input class="nodrag nf nf--expr" v-model="nuevo.expr" @keydown.stop spellcheck="false"
+              placeholder="p. ej. amount * 0.05 / installments">
           </div>
           <!-- sobre qué se aplica: la base del punto, u otro campo de este mismo nodo -->
           <div v-if="nuevo.kind === 'rate'" class="ent__row">
@@ -117,7 +166,7 @@ function crear() {
             </select>
           </div>
           <!-- en la cuota: ¿ya viene por cuota, o es un total que se reparte? -->
-          <div v-if="data.key === 'charges'" class="ent__row">
+          <div v-if="data.key === 'charges' && nuevo.kind !== 'formula'" class="ent__row">
             <span class="ent__k">cada</span>
             <select class="nodrag nf nf--base" v-model="nuevo.spread">
               <option :value="false">cuota</option>

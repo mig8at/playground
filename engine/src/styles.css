@@ -27,6 +27,9 @@
   --tint-red: #2a1614;
   --tint-amber: #241c0d;
   --tint-gray: #24231d;
+  /* UN ancho para todos los controles de un nodo: monto, %, select y fórmula. Sin esto cada uno
+     medía distinto (108 el monto, 74 el %) y no formaban columna. */
+  --field-w: 112px;
   --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
   --sans: system-ui, -apple-system, "Segoe UI", Inter, sans-serif;
 }
@@ -119,7 +122,11 @@ input.num { font-family: var(--mono); text-align: right }
 }
 .ent__sec:first-child { border-top: 0; margin-top: 0; padding-top: 5px }
 .ent__row { display: flex; gap: 8px; align-items: baseline; padding: 1px 9px; font-size: 11px; line-height: 19px }
-.ent__k { font-family: var(--mono); color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
+/* El nombre del campo. Es flex para que trunque el LABEL (texto del usuario, prescindible) y
+   nunca la nota (`de fianza`, `÷ cuotas`), que es el dato que hace legible el campo. */
+.ent__k { display: flex; align-items: baseline; min-width: 0; gap: 0;
+          font-family: var(--mono); color: var(--ink); white-space: nowrap }
+.ent__kt { overflow: hidden; text-overflow: ellipsis }
 .ent__v { margin-left: auto; font-family: var(--mono); font-weight: 650; white-space: nowrap }
 .ent__row--const .ent__k, .ent__row--const .ent__v { color: var(--mut); font-weight: 400 }
 .ent__row.is-missing .ent__k { color: var(--mut); text-decoration: line-through }
@@ -239,8 +246,9 @@ table.ser tr:hover td { background: var(--card2) }
 
 /* ── campos editables dentro de un nodo ── */
 .nf {
-  width: 108px; flex: 0 0 108px; margin-left: auto; padding: 2px 6px; border-radius: 5px;
-  font: 11px var(--mono); text-align: right; background: var(--card2); border: 1px solid var(--line);
+  width: var(--field-w); flex: 0 0 var(--field-w); margin-left: auto; padding: 2px 6px;
+  border-radius: 5px; font: 11px var(--mono); text-align: right; background: var(--card2);
+  border: 1px solid var(--line);
 }
 .nf:focus { outline: none; border-color: var(--purple); background: var(--card) }
 select.nf { text-align: left; padding: 2px 4px }
@@ -389,8 +397,9 @@ button.icon:hover { color: var(--ink); background: var(--card2) }
 
 /* Un input en cero es una perilla que ESTE producto no usa. Se atenúa para que se lea de un
    vistazo qué compone cada producto y qué no. */
-.ent__row.is-zero .ent__k { color: var(--dim) }
-.ent__row.is-zero .nf { color: var(--dim); border-color: transparent; background: transparent }
+/* Antes un valor en cero apagaba la fila entera y le sacaba el borde al input: la caja
+   DESAPARECÍA y el campo parecía deshabilitado. Un cero es un dato como cualquier otro, así que
+   todos los campos se ven igual. */
 
 /* ── los dos documentos, lado a lado ── */
 .docs { display: grid; grid-template-columns: 1fr 1fr; gap: 0; height: 100% }
@@ -415,6 +424,9 @@ button.icon:hover { color: var(--ink); background: var(--card2) }
 .rb { margin: 2px 9px 8px; padding: 8px 10px 7px; background: var(--card2);
       border: 1px solid var(--line); border-radius: 8px }
 .rb__row { display: flex; align-items: center; gap: 6px }
+/* El bloque de tasa tiene su propia grilla (período · % · sigla): el ancho único de los campos de
+   un nodo le aplastaba el select del período a "mens…". */
+.rb .pct { flex: 0 0 74px; width: 74px; margin-left: 0 }
 .rb__lbl { flex: 0 0 52px; font: 9px var(--mono); color: var(--dim);
            text-transform: uppercase; letter-spacing: .06em }
 .rb__per { flex: 1 1 auto; min-width: 0; padding: 2px 3px; border-radius: 5px;
@@ -439,8 +451,9 @@ button.icon:hover { color: var(--ink); background: var(--card2) }
           font-size: 10.5px; color: var(--mut) }
 .rb__ea b { color: var(--purple); font-family: var(--mono) }
 /* campo de porcentaje: la UI muestra %, el dato sigue en decimal */
-.pct { display: inline-flex; align-items: center; flex: 0 0 74px; width: 74px;
-       background: var(--card); border: 1px solid var(--line); border-radius: 5px; padding: 0 4px }
+.pct { display: inline-flex; align-items: center; margin-left: auto;
+       flex: 0 0 var(--field-w); width: var(--field-w);
+       background: var(--card2); border: 1px solid var(--line); border-radius: 5px; padding: 0 5px }
 .pct input { width: 100%; border: 0; background: none; padding: 2px 0; text-align: right;
              font: 11px var(--mono); color: var(--ink) }
 .pct input:focus { outline: none }
@@ -473,8 +486,24 @@ button.icon:hover { color: var(--ink); background: var(--card2) }
 .del:hover { color: var(--red) }
 /* el calificativo al lado del nombre: SOLO lo ambiguo — sobre qué se aplica el %, o que es un
    total repartido. Sin esto "IVA de la fianza 19%" no dice 19% de qué. */
-.ent__note { font-style: normal; font-size: 9.5px; color: var(--dim); margin-left: 5px }
+.ent__note { flex: 0 0 auto; font-style: normal; font-size: 9.5px; color: var(--dim);
+              margin-left: 5px }
 .nf--base { flex: 1; min-width: 0 }
+/* ── un campo FÓRMULA ──
+   La celda de una hoja de cálculo: el resultado a la derecha, la expresión debajo y editable. Si
+   está mal, el motor devuelve la razón (sintaxis, ciclo, referencia desconocida) y se lee ahí
+   mismo — por eso se puede escribir en vivo sin que nada explote. */
+.ent__f { padding: 1px 0 3px }
+.ent__fv { margin-left: auto; font-family: var(--mono); font-weight: 650; font-size: 11px }
+.ent__fv.is-bad { color: var(--dim); font-weight: 400 }
+/* La expresión vive en la MISMA columna que los demás controles, para que el nodo tenga un solo
+   borde derecho. Al enfocarla se abre a todo el ancho, porque ahí sí hace falta verla entera. */
+.nf--expr { text-align: left; font-size: 10px; color: var(--mut) }
+.nf--expr:focus { color: var(--ink); width: calc(100% - 18px); flex-basis: calc(100% - 18px) }
+.ent__err { font: 9.5px var(--mono); color: var(--red); padding: 2px 9px 0; line-height: 12px }
+/* el resultado de la fórmula, alineado en la misma columna que su expresión */
+.ent__fres { padding-top: 0; line-height: 14px }
+.ent__fv { flex: 0 0 var(--field-w); width: var(--field-w); text-align: right; padding-right: 6px }
 /* la frase: el campo leído como lo que hace, antes de crearlo */
 .ent__frase { align-items: center; padding-top: 3px }
 .ent__frase .ent__k { font-size: 9.5px; color: var(--dim); font-family: var(--mono);

@@ -17,18 +17,26 @@ export const fields = reactive([])
 let seq = 0
 
 /** Agrega un campo a un punto de inserción.
- *    kind   'money' monto fijo · 'rate' porcentaje
+ *    kind   'money' monto fijo · 'rate' porcentaje · 'formula' una expresión
  *    base   solo para 'rate': el `name` de OTRO campo del mismo nodo. Vacío = la base del punto
  *           (el monto, o el valor a financiar).
- *    spread solo en 'charges': es un total y se reparte entre las cuotas. */
-export function addField({ label, kind = 'money', at, base = '', spread = false }) {
+ *    spread solo en 'charges': es un total y se reparte entre las cuotas.
+ *    expr   solo para 'formula': la expresión. No se valida acá — el motor devuelve el error. */
+export function addField({ label, kind = 'money', at, base = '', spread = false, expr = '' }) {
   const texto = String(label || '').trim()
   if (!texto || !at) return null
   const name = nombreDe(texto, SHEET, fields.map(f => f.name))
-  const f = { id: 'f' + ++seq, name, label: texto, kind, at, base, spread }
+  const f = { id: 'f' + ++seq, name, label: texto, kind, at, base, spread, expr }
   fields.push(f)
   inputs[name] = 0     // arranca en cero: no mueve ningún número hasta que se llene
   return f
+}
+
+/** Reescribe la expresión de un campo fórmula. Se guarda tal cual y se recalcula: si está a medio
+ *  escribir el motor la marca en error y solo se apagan sus descendientes. */
+export function setExpr(id, expr) {
+  const f = fields.find(x => x.id === id)
+  if (f) f.expr = expr
 }
 
 export function removeField(id) {

@@ -45,48 +45,55 @@ Agregar un costo nuevo de un lender es **elegir uno de los dos**. No hay una ter
 
 ### Y se agregan desde el nodo: `+ campo`
 
-Los dos puntos de inserción tienen un botón `+ campo`. Se escribe el nombre, se elige **monto** o
-**%**, y el campo entra al cálculo — sin tocar una fórmula:
+Los dos puntos de inserción tienen un botón `+ campo`. Un campo son **tres cosas**, y las tres se
+leen como una frase antes de crearlo:
 
-| tipo | qué hace | sobre qué |
-|---|---|---|
-| **monto** | se suma tal cual | — |
-| **%** | se aplica sobre la base del punto | `al monto` → el monto · `a la cuota` → el valor a financiar |
+| tipo | qué hace |
+|---|---|
+| **monto** | un monto fijo, se suma tal cual |
+| **%** | un porcentaje **sobre** algo: la base del punto, u **otro campo del mismo nodo** |
+| **fórmula** | una expresión que se escribe entera |
 
-Esas dos bases no son una elección arbitraria: son las de los casos reales — la fianza es un % del
-monto, el seguro de vida es un % de lo financiado.
-
-Funciona porque **cada punto de inserción es una SUMA de sus términos**, armada por
-`resolveSheet`. Agregar un campo es agregar un término:
+Y en `a la cuota`, además: **cada cuota** o **total ÷ cuotas**.
 
 ```
-+ costo del equipo (monto, al monto)  →  financedAmount:
-                                            amount - downPayment + totalGuarantee + costoDelEquipo
-+ administración (0,5%, a la cuota)   →  administracionValue: financedAmount * administracion
-                                         installmentCharges: lifeInsurance + administracionValue
+fianza             %        sobre el monto              → porcentaje sobre el monto
+IVA de la fianza   %        sobre fianza                → porcentaje sobre fianza
+cuota de manejo    fórmula  amount * 0.01 / installments
 ```
 
-El nombre sale de la etiqueta en español y se translitera a un identificador que el tokenizer
-acepta: *"costo del equipo"* → `costoDelEquipo`, *"administración"* → `administracion`. La UI
-muestra el español, el documento guarda el nombre — la misma regla de siempre.
+El `%` sobre otro campo no es un adorno: es lo que hace expresable un IVA, que se calcula sobre la
+**fianza** y no sobre el monto. Y la base se resuelve **a pesos** — apuntarla al nombre del campo
+daría su perilla (0,05) en vez de sus pesos (500.000).
 
-Sobre 10.000.000 a 24 cuotas al 2% E.M., con esos dos campos:
+### La fórmula: el campo es una celda
+
+Con tipo **fórmula** el campo no tiene perilla: su valor **es** la expresión, que se ve y se edita
+en el nodo, con el resultado debajo. Es la celda de una hoja de cálculo — el modelo del que salen
+los `.xlsm` originales.
+
+No hace falta validarla antes: el motor devuelve el error con su razón, y la evaluación parcial
+apaga **solo lo que depende** de ella. Escribiendo `amount *` a medias:
 
 ```
-valor a financiar  10.500.000        = 10.000.000 + 500.000
-cuota del crédito     555.147        = pmt(2%, 24, 10.500.000)
-cargos por cuota       52.500        = 0,5% × 10.500.000
-cuota total           607.647
+cuota de manejo    —      expresión incompleta
+cargos por cuota   error
+cuota del crédito  528.711     ← sigue calculando: no depende del campo roto
+cuota total        sin calcular
 ```
 
-La `×` de cada campo lo quita, y las fórmulas vuelven exactas a su forma anterior — sin fórmulas
-huérfanas.
-La insignia se queda en ámbar y teal aunque el nodo sea azul, y no es incoherencia: son dos
-señales distintas — el azul dice *"esto lo configura la entidad"*, la insignia dice *"y esto paga
-intereses"*.
+Los ciclos los caza el motor, así que una fórmula puede referenciar lo que quiera. Como el ciclo se
+reporta en la fórmula que lo **cierra** y no en la que lo escribió, la celda persigue la cadena de
+`dependsOn` hasta la causa real: `ciclo: installmentCharges`.
 
-Y `cuota` queda con un solo trabajo: la anualidad y la suma. Antes hacía las dos cosas — el `pmt`
-**y** los recargos.
+### Un ancho para todos los controles
+
+`--field-w` en `styles.css`. Antes el monto medía 108px y el porcentaje 74, así que no formaban
+columna. Y un valor en **cero** apagaba la fila y le sacaba el borde al input — la caja
+desaparecía y el campo parecía deshabilitado. Un cero es un dato como cualquier otro.
+
+El nombre del campo trunca; su nota (`de fianza`, `÷ cuotas`) **no**, porque el label es texto del
+usuario y la nota es lo que hace legible el campo.
 
 ### La fianza es la prueba: el destino es DÓNDE VIVE
 
