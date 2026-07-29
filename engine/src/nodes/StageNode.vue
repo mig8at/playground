@@ -39,7 +39,12 @@ const filas = computed(() => (props.data.showRows ? props.data.rows : props.data
 <template>
   <div class="n n--stage" :class="'st--' + data.key" style="min-width:296px;max-width:296px">
     <Handle v-if="data.key !== 'credit'" id="in" type="target" :position="Position.Left" />
-    <div class="n__hd"><b>{{ data.title }}</b></div>
+    <div class="n__hd">
+      <b>{{ data.title }}</b>
+      <!-- solo los dos puntos de inserción la llevan: es lo que los hace par -->
+      <span v-if="data.insertion" class="n__kind n__kind--in" :title="data.insertionHelp">
+        {{ data.insertion }}</span>
+    </div>
 
     <div class="ent">
       <!-- inputs propios de la etapa -->

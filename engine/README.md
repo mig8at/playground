@@ -4,17 +4,20 @@
 puntos** donde algo puede entrar, y cada uno es un nodo:
 
 ```
-                     ┌ tasa ────────────┐
-                     │ tasa del período │──────────┐
-                     └──────────────────┘          │
- ┌ el crédito ───┐                                 ▾
- │ monto         │  ┌ al monto ─────────┐  ┌ cuota ────────────┐  ┌ Plan de ┐
- │ cuotas        │─▸│ valor a financiar │─▸│ cuota del crédito │─▸│  pagos  │
- │ cuota inicial │  └─────────┬─────────┘  │ cuota total       │  └─────────┘
- └───────────────┘            ▾            └───────────────────┘
-                    ┌ a la cuota ──────┐             ▴
-                    │ cargos por cuota │─────────────┘
-                    └──────────────────┘
+                    ┌ tasa ────────────┐
+                    │ DICHA  [mens] 2% │ E.M.
+                    │ ──── ▾ EFECTIVA  │
+                    │ SE COBRA [mens]  │ M.V.
+                    │ tasa del período │──────────────┐
+                    └──────────────────┘              │
+                                                      ▾
+┌ el crédito ───┐  ┌ al monto CON INT ┐  ┌ a la cuota SIN INT ┐  ┌ cuota ────────┐  ┌ Plan de ┐
+│ monto         │─▸│ fianza       0%  │─▸│ +seguro de vida 0% │─▸│ cuota crédito │─▸│  pagos  │
+│ cuotas        │  │ IVA fianza   0%  │  ├────────────────────┤  │ cuota total   │  └─────────┘
+│ − cuota inic. │  │ 4 × 1000     0%  │  │ cargos por cuota 0 │  └───────────────┘
+└───────────────┘  ├──────────────────┤  └────────────────────┘
+                   │ valor a financiar│
+                   └──────────────────┘
 ```
 
 | | qué entra ahí | termina en | genera intereses |
@@ -24,7 +27,9 @@ puntos** donde algo puede entrar, y cada uno es un nodo:
 
 Agregar un costo nuevo de un lender es **elegir uno de los dos nodos**. No hay una tercera
 respuesta, y las dos están en pantalla — eso es lo que hace posible normalizar entidades en vez
-de configurarlas una por una.
+de configurarlas una por una. Los dos llevan en el encabezado la insignia con el criterio de la
+decisión (**CON INTERÉS** / **SIN INTERÉS**), y son los únicos dos nodos que la llevan: es lo que
+los hace leer como par.
 
 Y así `cuota` queda con un solo trabajo: la anualidad y la suma. Antes hacía las dos cosas —
 el `pmt` **y** los recargos — y por eso costaba leerlo.
@@ -43,12 +48,29 @@ Los **5.603** de diferencia son el interés que se paga por financiarla: `pmt(2%
 = 26.436 contra `500.000 / 24` = 20.833. El interruptor está en el encabezado de la sección de
 fianza, y su color es el del nodo a donde manda la plata — ámbar el monto, teal la cuota.
 
+### Por qué no van lado a lado
+
+Serían más simétricos, pero sería falso: **`a la cuota` depende de `al monto`.** El seguro de
+vida se cobra sobre lo financiado, así que financiar la fianza también sube el seguro:
+
+| la fianza va | valor a financiar | seguro de vida |
+|---|---|---|
+| **al monto** | 10.500.000 | **14.700** |
+| **a la cuota** | 10.000.000 | **14.000** |
+
+700 pesos por cuota, 16.800 en el crédito. Ponerlas en la misma columna dibujaría una mentira.
+Lo que sí se puede es que se lean como par sin depender de la posición: eso lo hace la insignia.
+
 ### Ninguna columna está escrita a mano
 
-La disposición sale de las dependencias **reales** del AST (`layout.js`). Por eso `tasa` y
-`al monto` caen en paralelo — ninguna depende de la otra — y `a la cuota` cae *después* de
-`al monto`, porque el seguro de vida se calcula sobre lo financiado. Ese hecho no está declarado
-en ningún lado: lo dibuja la fórmula.
+La disposición sale de las dependencias **reales** del AST (`layout.js`), y cada etapa se alinea
+con la fila de su dependencia principal. Por eso sale una **fila horizontal** con `tasa`
+alimentando desde arriba: centrar cada columna por su cuenta dejaba a los dos puntos de inserción
+en diagonal.
+
+Los altos están **medidos en el DOM**, no estimados — el bloque de tasa (113px) y la tabla
+(`min(430, 53 + n × 20)`, comprobado con n = 1 · 2 · 6 · 12 · 24). Sin eso los nodos de una misma
+columna se solapan y los clicks caen en el nodo equivocado.
 
 Cada nodo muestra **siempre su resultado**; `showRows: false` esconde los pasos intermedios,
 nunca la salida. Un nodo que no dice qué produce obliga a leer la etiqueta del cable.

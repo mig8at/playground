@@ -102,9 +102,20 @@ export const SHEET = {
     // `showRows: false` esconde los PASOS, nunca el resultado: el nodo siempre muestra su última
     // fórmula. Acá los intermedios (fianza, IVA, 4×1000, fianza total) solo repiten los nombres
     // de sus inputs, así que eran ruido.
+    // `insertion` es la insignia del encabezado. La llevan EXACTAMENTE estos dos nodos, y dice
+    // el criterio con el que se elige entre ellos: si el costo paga intereses o no. Así se leen
+    // como par aunque el layout no los ponga lado a lado — no puede, ver abajo.
     { key: 'amount', title: 'al monto', showRows: false,
+      insertion: 'con interés',
+      insertionHelp: 'Entra al saldo, así que paga intereses en cada cuota — y sube la base del '
+        + 'seguro de vida, que se cobra sobre lo financiado.',
       formulas: ['guaranteeCost', 'guaranteeVat', 'guaranteeTax', 'totalGuarantee', 'financedAmount'] },
+    // Va DESPUÉS de `al monto`, no en paralelo, y es un hecho del negocio: el seguro de vida se
+    // calcula sobre `financedAmount`. Con fianza al 5% y seguro 0,0014, financiar la fianza sube
+    // el seguro de 14.000 a 14.700 por cuota. Ponerlos en la misma columna dibujaría una mentira.
     { key: 'charges', title: 'a la cuota', showRows: false,
+      insertion: 'sin interés',
+      insertionHelp: 'Se reparte en los pagos y nunca entra al saldo, así que no paga intereses.',
       formulas: ['lifeInsurance', 'monthlyGuarantee', 'installmentCharges'] },
     { key: 'installment', title: 'cuota',
       formulas: ['installment', 'totalInstallment'] },

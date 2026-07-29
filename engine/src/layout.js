@@ -12,6 +12,10 @@ import { FORMULA_LABEL } from './sheets.js'
 const COL_W = 452
 const GAP_Y = 34
 
+// El alto de la tabla, MEDIDO en el DOM y no estimado: 53 de chrome + 20 por fila, con un tope
+// de 430 (a partir de ahí scrollea). Comprobado con n = 1 · 2 · 6 · 12 · 24.
+const seriesH = n => Math.min(430, 53 + n * 20)
+
 export function layoutSheet(def, out, opts = {}) {
   const { inputValues = {} } = opts
   const stages = def.stages || []
@@ -84,22 +88,52 @@ export function layoutSheet(def, out, opts = {}) {
   }
   const maxCol = Math.max(...[...cols.keys()])
 
+  // ── las filas ──
+  // Se recorre de IZQUIERDA A DERECHA y cada etapa se alinea con la fila de su dependencia
+  // principal (la más profunda). Centrar cada columna por su cuenta dejaba en DIAGONAL a
+  // `al monto` y `a la cuota`, que son los dos puntos de inserción y tienen que leerse como par.
+  //
+  // Y no pueden compartir columna: `a la cuota` depende de `al monto` porque el seguro de vida se
+  // cobra sobre lo financiado (con fianza al 5% y seguro 0,0014, financiarla sube el seguro de
+  // 14.000 a 14.700 por cuota). Ponerlas lado a lado dibujaría una mentira.
   const altoCol = c => cols.get(c).reduce((h, st) => h + stageH(st) + GAP_Y, -GAP_Y)
-  const masAlta = Math.max(...[...cols.keys()].map(altoCol))
+  const fila = {}
+  const quiere = st => {
+    const ds = [...dep.get(st.key).keys()].filter(k => fila[k] != null)
+    return ds.length ? fila[ds.reduce((a, b) => (prof[b] > prof[a] ? b : a))] : 0
+  }
+  for (const c of [...cols.keys()].sort((a, b) => a - b)) {
+    const sts = cols.get(c)
+    if (sts.length === 1) { fila[sts[0].key] = quiere(sts[0]); continue }
+    // varias comparten columna: se reparten alrededor del promedio de donde quieren estar
+    const centro = sts.reduce((a, st) => a + quiere(st) + stageH(st) / 2, 0) / sts.length
+    let y = centro - altoCol(c) / 2
+    for (const st of sts) { fila[st.key] = y; y += stageH(st) + GAP_Y }
+  }
+  // La primera columna no tiene nada que la ancle. Sin esto el nodo inicial queda más arriba que
+  // todo el grafo, así que se centra contra lo que depende de él.
+  const primera = cols.get(0) || []
+  if (primera.length === 1) {
+    const st = primera[0]
+    const hijos = stages.filter(x => dep.get(x.key).has(st.key))
+    if (hijos.length) {
+      fila[st.key] = hijos.reduce((a, x) => a + fila[x.key] + stageH(x) / 2, 0) / hijos.length
+        - stageH(st) / 2
+    }
+  }
 
   for (const [c, sts] of cols) {
-    let y = (masAlta - altoCol(c)) / 2
     for (const st of sts) {
       nodes.push({
-        id: '@st:' + st.key, type: 'stageNode', position: { x: c * COL_W, y },
+        id: '@st:' + st.key, type: 'stageNode', position: { x: c * COL_W, y: fila[st.key] },
         data: {
           key: st.key, title: st.title, rateBlock: !!st.rateBlock,
+          insertion: st.insertion, insertionHelp: st.insertionHelp,
           showRows: st.showRows !== false,
           rows: st.formulas.map(row),
           inputs: (def.inputs || []).filter(i => etapaDe(i.appliesTo) === st.key),
         },
       })
-      y += stageH(st) + GAP_Y
     }
   }
 
@@ -137,18 +171,24 @@ export function layoutSheet(def, out, opts = {}) {
 
   // la tabla, al final
   const S = out.series
+  const alimenta = stages.find(st => salida(st) === def.output)
   if (S) {
     nodes.push({
-      id: '@series', type: 'seriesNode', position: { x: (maxCol + 1) * COL_W, y: 0 },
+      // la tabla se CENTRA contra la etapa que la alimenta. Alinearla por el borde superior la
+      // dejaba colgando y el grafo entero quedaba pesado abajo.
+      id: '@series', type: 'seriesNode',
+      position: {
+        x: (maxCol + 1) * COL_W,
+        y: alimenta ? fila[alimenta.key] + stageH(alimenta) / 2 - seriesH(S.rows?.length || 0) / 2 : 0,
+      },
       data: {
         title: 'Plan de pagos', cols: S.cols || [], rows: S.rows || [],
         error: S.error, labels: def.series?.labels || {},
       },
     })
-    const ultima = stages.find(st => salida(st) === def.output)
-    if (ultima) {
+    if (alimenta) {
       edges.push({
-        id: 'stage->series', source: '@st:' + ultima.key, target: '@series',
+        id: 'stage->series', source: '@st:' + alimenta.key, target: '@series',
         // con `etiqueta` y no solo el nombre: todos los demás cables llevan su valor
         label: etiqueta(def.output), style: { strokeWidth: 1.6 },
       })
