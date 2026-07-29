@@ -37,8 +37,13 @@ const filas = computed(() => (props.data.showRows ? props.data.rows : props.data
 </script>
 
 <template>
-  <div class="n n--stage" :class="'st--' + data.key" style="min-width:296px;max-width:296px">
+  <div class="n n--stage" :class="['st--' + data.key, data.group && 'g--' + data.group]"
+       style="min-width:296px;max-width:296px">
     <Handle v-if="data.key !== 'credit'" id="in" type="target" :position="Position.Left" />
+    <!-- solo las etapas con una dependencia DENTRO de su grupo: la flecha baja en vez de dar
+         la vuelta por la izquierda -->
+    <Handle v-if="data.hUp" id="up" type="target" :position="Position.Top" />
+    <Handle v-if="data.hDown" id="down" type="source" :position="Position.Bottom" />
     <div class="n__hd">
       <b>{{ data.title }}</b>
       <!-- solo los dos puntos de inserción la llevan: es lo que los hace par -->

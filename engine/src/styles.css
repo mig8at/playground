@@ -376,8 +376,8 @@ button.icon:hover { color: var(--ink); background: var(--card2) }
 .strip .nat.rent { color: var(--teal) }
 
 /* ── la tabla como nodo (etapa 3) ── */
-.n--series { border-color: var(--teal); min-width: 548px; max-width: 548px }
-.n--series .n__hd { background: var(--hd-teal) } .n--series .n__hd b { color: var(--teal) }
+.n--series { border-color: var(--green); min-width: 548px; max-width: 548px }
+.n--series .n__hd { background: var(--hd-green) } .n--series .n__hd b { color: var(--green) }
 /* `nowheel` en el contenedor: sin eso Vue Flow se queda la rueda y hace zoom del canvas */
 .ser-wrap { max-height: 400px; overflow: auto }
 .ser-err { padding: 12px; font: 11px var(--mono); color: var(--red) }
@@ -463,33 +463,30 @@ button.icon:hover { color: var(--ink); background: var(--card2) }
 /* el signo delante del label: se ve si suma o resta */
 .sg { font-style: normal; display: inline-block; width: 9px; color: var(--dim) }
 
-/* ── nodos de etapa ──
-   El color ES el punto de inserción, y por eso coincide con el interruptor de la fianza:
-   ahí "al monto" ya se pinta ÁMBAR y "a la cuota" TEAL. Click en el interruptor y el nodo
-   del color que se prendió es exactamente a dónde se fue la plata.
+/* ── nodos de etapa: TRES CLASES, TRES COLORES ──
+   El color no dice qué etapa es (eso lo dice el título) sino QUÉ CLASE DE COSA es:
 
-     ámbar   lado del MONTO   (`el crédito`, `al monto`)
-     teal    lado de la CUOTA (`a la cuota`)
-     violeta la TASA — un parámetro, no un valor que se suma
-     verde   `cuota`: donde los dos lados se juntan. Es el resultado.                       */
+     ámbar   `el crédito`   — lo que pide el CLIENTE
+     azul    grupo `config` — lo que configura la ENTIDAD: tasa · al monto · a la cuota
+     verde   `cuota` + plan — el RESULTADO
+
+   Así "configurar un lender" es llenar las cajas azules. El selector es el GRUPO y no la etapa,
+   para que una cuarta etapa de configuración herede el color sola.                          */
 .n--stage .n__hd b { text-transform: none }
-.st--rate { border-color: var(--purple) }
-.st--rate .n__hd { background: var(--hd-purple) } .st--rate .n__hd b { color: var(--purple) }
-.st--amount { border-color: var(--amber) }
-.st--amount .n__hd { background: var(--hd-amber) } .st--amount .n__hd b { color: var(--amber) }
-.st--charges { border-color: var(--teal) }
-.st--charges .n__hd { background: var(--hd-teal) } .st--charges .n__hd b { color: var(--teal) }
+.g--config { border-color: var(--blue) }
+.g--config .n__hd { background: var(--hd-blue) } .g--config .n__hd b { color: var(--blue) }
 .st--installment { border-color: var(--green) }
 .st--installment .n__hd { background: var(--hd-green) } .st--installment .n__hd b { color: var(--green) }
 /* la última fila de cada etapa es su salida: lo que las otras consumen */
-.st--rate .grp-row.is-out .grp-k, .st--rate .grp-row.is-out .grp-v { color: var(--purple) }
-.st--amount .grp-row.is-out .grp-k, .st--amount .grp-row.is-out .grp-v { color: var(--amber) }
-.st--charges .grp-row.is-out .grp-k, .st--charges .grp-row.is-out .grp-v { color: var(--teal) }
+.g--config .grp-row.is-out .grp-k, .g--config .grp-row.is-out .grp-v { color: var(--blue) }
 .st--installment .grp-row.is-out .grp-k, .st--installment .grp-row.is-out .grp-v { color: var(--green) }
-/* la insignia del punto de inserción. La llevan EXACTAMENTE dos nodos, con el color de cada uno,
-   y dice el criterio con el que se elige entre ellos: si el costo paga intereses o no. Es lo que
-   los hace leer como PAR sin depender de la posición — el layout no los pone lado a lado porque
-   `a la cuota` depende de `al monto` (el seguro se cobra sobre lo financiado). */
+
+/* La insignia del punto de inserción. La llevan EXACTAMENTE dos nodos y dice el criterio con el
+   que se elige entre ellos: si el costo paga intereses o no.
+   Se queda con ÁMBAR y TEAL aunque el nodo sea azul, y no es incoherencia: son dos señales
+   distintas. El azul dice "esto lo configura la entidad"; la insignia dice "y esto paga
+   intereses". Son los mismos dos colores que usa el interruptor de la fianza para las mismas dos
+   opciones, así que interruptor e insignias se leen juntos. */
 .n__kind--in { border: 1px solid; border-radius: 4px; padding: 0 4px; letter-spacing: .05em;
                opacity: .9 }
 .st--amount .n__kind--in { color: var(--amber) }

@@ -67,18 +67,39 @@ export function layoutSheet(def, out, opts = {}) {
     }
   }
 
-  // profundidad: las etapas sin dependencias van en la primera columna
-  const prof = {}
-  const sinFormulas = new Set(stages.filter(st => !st.formulas.length).map(st => st.key))
-  const d = k => {
-    if (prof[k] != null) return prof[k]
-    if (sinFormulas.has(k)) return (prof[k] = 0)   // `el crédito` no calcula: va primero
-    prof[k] = 1
-    const ds = [...dep.get(k).keys()]
-    prof[k] = ds.length ? 1 + Math.max(...ds.map(d)) : 1
-    return prof[k]
+  // ── columnas ──
+  // Un `group` en la hoja hace que varias etapas COMPARTAN columna, porque son la misma clase de
+  // cosa. Para calcular la profundidad se CONDENSA cada grupo en un solo nodo: así la dependencia
+  // interna (`a la cuota` lee `al monto`) no empuja de columna. Esa flecha se dibuja vertical.
+  const grupoDe = Object.fromEntries(stages.map(st => [st.key, st.group || null]))
+  const cond = k => (grupoDe[k] ? '@g:' + grupoDe[k] : k)
+  const depC = new Map()
+  for (const st of stages) {
+    const a = cond(st.key)
+    if (!depC.has(a)) depC.set(a, new Set())
+    for (const o of dep.get(st.key).keys()) if (cond(o) !== a) depC.get(a).add(cond(o))
   }
-  stages.forEach(st => d(st.key))
+  const sinFormulas = new Set(stages.filter(st => !st.formulas.length).map(st => st.key))
+  const profC = {}
+  const dC = n => {
+    if (profC[n] != null) return profC[n]
+    if (sinFormulas.has(n)) return (profC[n] = 0)   // `el crédito` no calcula: va primero
+    profC[n] = 1                                    // guarda contra ciclos
+    const ds = [...(depC.get(n) || [])]
+    profC[n] = ds.length ? 1 + Math.max(...ds.map(dC)) : 1
+    return profC[n]
+  }
+  const prof = {}
+  for (const st of stages) prof[st.key] = dC(cond(st.key))
+
+  // Las dependencias DENTRO de un grupo se dibujan de abajo de una a arriba de la otra, así que
+  // solo esas etapas llevan handles verticales — los demás nodos no muestran puntos de más.
+  const vArriba = new Set(), vAbajo = new Set()
+  for (const st of stages) {
+    for (const o of dep.get(st.key).keys()) {
+      if (grupoDe[st.key] && grupoDe[o] === grupoDe[st.key]) { vArriba.add(st.key); vAbajo.add(o) }
+    }
+  }
 
   const cols = new Map()
   for (const st of stages) {
@@ -90,17 +111,21 @@ export function layoutSheet(def, out, opts = {}) {
 
   // ── las filas ──
   // Se recorre de IZQUIERDA A DERECHA y cada etapa se alinea con la fila de su dependencia
-  // principal (la más profunda). Centrar cada columna por su cuenta dejaba en DIAGONAL a
-  // `al monto` y `a la cuota`, que son los dos puntos de inserción y tienen que leerse como par.
-  //
-  // Y no pueden compartir columna: `a la cuota` depende de `al monto` porque el seguro de vida se
-  // cobra sobre lo financiado (con fianza al 5% y seguro 0,0014, financiarla sube el seguro de
-  // 14.000 a 14.700 por cuota). Ponerlas lado a lado dibujaría una mentira.
+  // principal (la más profunda). Centrar cada columna por su cuenta dejaba en diagonal a etapas
+  // que se leen juntas.
   const altoCol = c => cols.get(c).reduce((h, st) => h + stageH(st) + GAP_Y, -GAP_Y)
+  const porClave = Object.fromEntries(stages.map(st => [st.key, st]))
   const fila = {}
+  // dónde QUIERE estar: centrada contra sus dependencias más profundas. Cuando varias empatan en
+  // profundidad se centra contra el CONJUNTO — sin eso, una etapa que lee las tres del grupo se
+  // pegaba a la primera y quedaba arriba de todo el grafo.
   const quiere = st => {
     const ds = [...dep.get(st.key).keys()].filter(k => fila[k] != null)
-    return ds.length ? fila[ds.reduce((a, b) => (prof[b] > prof[a] ? b : a))] : 0
+    if (!ds.length) return 0
+    const max = Math.max(...ds.map(k => prof[k]))
+    const top = ds.filter(k => prof[k] === max)
+    return top.reduce((a, k) => a + fila[k] + stageH(porClave[k]) / 2, 0) / top.length
+      - stageH(st) / 2
   }
   for (const c of [...cols.keys()].sort((a, b) => a - b)) {
     const sts = cols.get(c)
@@ -127,8 +152,9 @@ export function layoutSheet(def, out, opts = {}) {
       nodes.push({
         id: '@st:' + st.key, type: 'stageNode', position: { x: c * COL_W, y: fila[st.key] },
         data: {
-          key: st.key, title: st.title, rateBlock: !!st.rateBlock,
+          key: st.key, title: st.title, rateBlock: !!st.rateBlock, group: st.group,
           insertion: st.insertion, insertionHelp: st.insertionHelp,
+          hUp: vArriba.has(st.key), hDown: vAbajo.has(st.key),
           showRows: st.showRows !== false,
           rows: st.formulas.map(row),
           inputs: (def.inputs || []).filter(i => etapaDe(i.appliesTo) === st.key),
@@ -161,10 +187,13 @@ export function layoutSheet(def, out, opts = {}) {
     for (const [otra, via] of dep.get(st.key)) {
       const salidaOtra = salida(stages.find(x => x.key === otra))
       const cual = via.has(salidaOtra) ? salidaOtra : [...via][0]
+      // dentro del grupo la flecha baja; entre grupos va de izquierda a derecha como siempre
+      const interno = grupoDe[st.key] && grupoDe[otra] === grupoDe[st.key]
       edges.push({
         id: otra + '->' + st.key, source: '@st:' + otra, target: '@st:' + st.key,
+        ...(interno ? { sourceHandle: 'down', targetHandle: 'up' } : {}),
         label: etiqueta(cual) + (via.size > 1 ? ` +${via.size - 1}` : ''),
-        style: { strokeWidth: 1.5, opacity: .85 },
+        style: { strokeWidth: 1.5, opacity: interno ? .7 : .85 },
       })
     }
   }

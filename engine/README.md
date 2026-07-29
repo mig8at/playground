@@ -1,38 +1,54 @@
 # engine — motor de cálculo
 
-**Seis etapas, y las dos del medio son la idea entera.** En el cálculo hay exactamente **dos
-puntos** donde algo puede entrar, y cada uno es un nodo:
+**Tres clases de nodo, tres colores.** El color no dice qué etapa es — eso lo dice el título —
+sino **qué clase de cosa** es:
 
 ```
-                    ┌ tasa ────────────┐
-                    │ DICHA  [mens] 2% │ E.M.
-                    │ ──── ▾ EFECTIVA  │
-                    │ SE COBRA [mens]  │ M.V.
-                    │ tasa del período │──────────────┐
-                    └──────────────────┘              │
-                                                      ▾
-┌ el crédito ───┐  ┌ al monto CON INT ┐  ┌ a la cuota SIN INT ┐  ┌ cuota ────────┐  ┌ Plan de ┐
-│ monto         │─▸│ fianza       0%  │─▸│ +seguro de vida 0% │─▸│ cuota crédito │─▸│  pagos  │
-│ cuotas        │  │ IVA fianza   0%  │  ├────────────────────┤  │ cuota total   │  └─────────┘
-│ − cuota inic. │  │ 4 × 1000     0%  │  │ cargos por cuota 0 │  └───────────────┘
-└───────────────┘  ├──────────────────┤  └────────────────────┘
-                   │ valor a financiar│
-                   └──────────────────┘
+ ┌ el crédito ───┐   ┌ tasa ─────────────┐
+ │ monto         │──▸│ DICHA  [mens] 2%  │ E.M.
+ │ cuotas        │   │ ───── ▾ EFECTIVA  │
+ │ − cuota inic. │   │ SE COBRA [mens]   │ M.V.
+ └───────────────┘   │ tasa del período  │──┐
+   lo que pide       └───────────────────┘  │
+   el CLIENTE        ┌ al monto  CON INT ┐  │   ┌ cuota ────────────┐  ┌ Plan de ┐
+       ámbar         │ fianza        0%  │  ├──▸│ cuota del crédito │─▸│  pagos  │
+                     │ IVA fianza    0%  │  │   │ cuota total       │  └─────────┘
+                     │ 4 × 1000      0%  │  │   └───────────────────┘
+                     ├───────────────────┤  │      el RESULTADO
+                     │ valor a financiar │  │         verde
+                     └─────────┬─────────┘  │
+                               ▾ depende     │
+                     ┌ a la cuota SIN INT ┐  │
+                     │ +seguro de vida 0% │  │
+                     ├────────────────────┤  │
+                     │ cargos por cuota   │──┘
+                     └────────────────────┘
+                   lo que configura la ENTIDAD
+                              azul
 ```
 
-| | qué entra ahí | termina en | genera intereses |
+Así **configurar un lender es llenar las cajas azules.** Es la partición que hacía falta para
+normalizar entidades en vez de configurarlas una por una: lo del cliente, lo de la entidad, y el
+resultado — cada cosa con su color.
+
+### Los dos puntos de inserción
+
+Dentro del azul hay exactamente **dos** lugares donde puede entrar un costo, y los dos lo dicen
+en su encabezado:
+
+| | qué entra ahí | termina en | insignia |
 |---|---|---|---|
-| **al monto** | lo que se financia junto con el crédito | `financedAmount` | **sí** |
-| **a la cuota** | lo que viaja arriba de cada pago | `installmentCharges` | no |
+| **al monto** | lo que se financia junto con el crédito | `financedAmount` | **CON INTERÉS** |
+| **a la cuota** | lo que viaja arriba de cada pago | `installmentCharges` | **SIN INTERÉS** |
 
-Agregar un costo nuevo de un lender es **elegir uno de los dos nodos**. No hay una tercera
-respuesta, y las dos están en pantalla — eso es lo que hace posible normalizar entidades en vez
-de configurarlas una por una. Los dos llevan en el encabezado la insignia con el criterio de la
-decisión (**CON INTERÉS** / **SIN INTERÉS**), y son los únicos dos nodos que la llevan: es lo que
-los hace leer como par.
+Agregar un costo nuevo de un lender es **elegir uno de los dos**. No hay una tercera respuesta.
+La insignia se queda en ámbar y teal aunque el nodo sea azul, y no es incoherencia: son dos
+señales distintas — el azul dice *"esto lo configura la entidad"*, la insignia dice *"y esto paga
+intereses"*. Son los mismos dos colores del interruptor de la fianza, así que interruptor e
+insignias se leen juntos.
 
-Y así `cuota` queda con un solo trabajo: la anualidad y la suma. Antes hacía las dos cosas —
-el `pmt` **y** los recargos — y por eso costaba leerlo.
+Y `cuota` queda con un solo trabajo: la anualidad y la suma. Antes hacía las dos cosas — el `pmt`
+**y** los recargos.
 
 ### La fianza es la prueba
 
@@ -45,35 +61,36 @@ Es el mismo costo, y `guaranteeUpfront` elige a cuál de los dos va. Con fianza 
 | **a la cuota** | 10.000.000 | 20.833 | 528.711 | **549.544** |
 
 Los **5.603** de diferencia son el interés que se paga por financiarla: `pmt(2%, 24, 500.000)`
-= 26.436 contra `500.000 / 24` = 20.833. El interruptor está en el encabezado de la sección de
-fianza, y su color es el del nodo a donde manda la plata — ámbar el monto, teal la cuota.
+= 26.436 contra `500.000 / 24` = 20.833.
 
-### Por qué no van lado a lado
+### La flecha que baja
 
-Serían más simétricos, pero sería falso: **`a la cuota` depende de `al monto`.** El seguro de
-vida se cobra sobre lo financiado, así que financiar la fianza también sube el seguro:
+`a la cuota` **depende** de `al monto` — el seguro de vida se cobra sobre lo financiado, así que
+financiar la fianza también sube el seguro:
 
 | la fianza va | valor a financiar | seguro de vida |
 |---|---|---|
 | **al monto** | 10.500.000 | **14.700** |
 | **a la cuota** | 10.000.000 | **14.000** |
 
-700 pesos por cuota, 16.800 en el crédito. Ponerlas en la misma columna dibujaría una mentira.
-Lo que sí se puede es que se lean como par sin depender de la posición: eso lo hace la insignia.
+700 por cuota, 16.800 en el crédito. Comparten columna igual porque son la misma clase de cosa, y
+esa dependencia se dibuja como una flecha **vertical**, de abajo de una a arriba de la otra. Así
+el orden se ve sin que el cable tenga que ir hacia atrás — y sin esconder que existe.
 
 ### Ninguna columna está escrita a mano
 
-La disposición sale de las dependencias **reales** del AST (`layout.js`), y cada etapa se alinea
-con la fila de su dependencia principal. Por eso sale una **fila horizontal** con `tasa`
-alimentando desde arriba: centrar cada columna por su cuenta dejaba a los dos puntos de inserción
-en diagonal.
+La disposición sale de las dependencias **reales** del AST (`layout.js`). Lo único que declara la
+hoja es semántica, no coordenadas: `group: 'config'` dice *"estas tres son la misma clase"*, y el
+layout condensa el grupo en un solo nodo para calcular profundidad — por eso la dependencia
+interna no empuja de columna. Cada etapa se alinea centrada contra sus dependencias, y cuando
+varias empatan se centra contra el conjunto.
 
-Los altos están **medidos en el DOM**, no estimados — el bloque de tasa (113px) y la tabla
+Los altos están **medidos en el DOM**, no estimados: el bloque de tasa (113px) y la tabla
 (`min(430, 53 + n × 20)`, comprobado con n = 1 · 2 · 6 · 12 · 24). Sin eso los nodos de una misma
 columna se solapan y los clicks caen en el nodo equivocado.
 
-Cada nodo muestra **siempre su resultado**; `showRows: false` esconde los pasos intermedios,
-nunca la salida. Un nodo que no dice qué produce obliga a leer la etiqueta del cable.
+Cada nodo muestra **siempre su resultado**; `showRows: false` esconde los pasos intermedios, nunca
+la salida. Un nodo que no dice qué produce obliga a leer la etiqueta del cable.
 
 ```bash
 npm install
