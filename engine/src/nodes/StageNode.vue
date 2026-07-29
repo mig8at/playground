@@ -5,7 +5,7 @@ import MoneyInput from '../MoneyInput.vue'
 import PercentInput from '../PercentInput.vue'
 import RateBlock from '../RateBlock.vue'
 import { fmtNum } from '../engine.js'
-import { RATE_BASE_LABEL, describir } from '../sheets.js'
+import { RATE_BASE_LABEL, SUBTOTAL, SUBTOTAL_LABEL, describir } from '../sheets.js'
 import { inputs, fields, out, addField, removeField, setExpr, basesDisponibles } from '../store.js'
 
 // Una etapa AUTOCONTENIDA: sus propios inputs arriba, sus propias fórmulas abajo.
@@ -161,6 +161,8 @@ function crear() {
             <span class="ent__k">sobre</span>
             <select class="nodrag nf nf--base" v-model="nuevo.base">
               <option value="">{{ baseDelPunto }}</option>
+              <!-- lo que hace el código real con la fianza: el % va sobre lo que ya entró -->
+              <option :value="SUBTOTAL">{{ SUBTOTAL_LABEL }}</option>
               <option v-for="b in bases" :key="b.id" :value="b.name">{{ b.label }}</option>
             </select>
           </div>

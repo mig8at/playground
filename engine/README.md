@@ -8,16 +8,30 @@ de −4.000.000 encima.
 ```
 el crédito     monto  10.000.000 · cuotas 36
 tasa           28,17% E.A.  →  se cobra mensual 2,089764% M.V.
-monto final    cuota inicial     −4.000.000
-               fianza                   10%    → 1.000.000
-               IVA de la fianza         19%    →   190.000   (sobre la FIANZA)
-               4 × 1000       (fianza+IVA)×0,004 →   4.760   ← fórmula
-               ─────────────────────────────────────────────
-               valor a financiar              7.194.760
-a la cuota     seguro de vida       0,1307%  →     9.404
-cuota          cuota del crédito                286.356
-               cuota total                      295.760
+monto final    cuota inicial            −4.000.000
+               fianza          10% del SUBTOTAL →   600.000
+               IVA de la fianza    19% de fianza →   114.000
+               4 × 1000     (fianza+IVA)×0,004  →     2.856   ← fórmula
+               ──────────────────────────────────────────────
+               valor a financiar              6.716.856
+a la cuota     seguro de vida          0,1307%  →     8.779
+cuota          cuota del crédito                  267.335
+               cuota total                        276.114
 ```
+
+**La fianza va sobre el subtotal, no sobre el monto** — la cuota inicial se resta antes. No es una
+decisión nuestra: lo hacen los dos artefactos. El código real
+(`PaymentCalculationService::performCalculation`) calcula
+
+```php
+$amount    = original_amount − initial_fee;
+$guarantee = ($amount + $administrativeCosts) * (fga% / 100) * (1 + 19/100);
+```
+
+y el `.xlsm` llega al mismo lugar por otro camino (`marginBase = assetCost − downPayment +
+setupFee` → `principal` → `guaranteeBase = principal + deviceCost`). Es un % de lo que se va a
+financiar **antes de sumarse ella misma**: ni del monto pedido, ni del valor final —eso sería
+circular.
 
 La estructura de fianza + IVA + GMF está **verificada contra `Calculadora PV V20251009.xlsm`**
 (es el preset `salud-gaes`). Cada número de arriba se comprobó contra aritmética calculada aparte,
@@ -29,7 +43,7 @@ no contra el motor: `valor a financiar`, `periodRate`, la cuota, el seguro, el i
 | campo | tipo | por qué está |
 |---|---|---|
 | cuota inicial | **monto** | negativo: prueba que restar no necesita un caso especial |
-| fianza | **%** | sobre la base del punto (el monto) |
+| fianza | **%** | sobre **el subtotal hasta acá** — la cuota inicial ya se restó |
 | IVA de la fianza | **%** | sobre **otro campo** — un IVA va sobre la fianza, no sobre el monto |
 | 4 × 1000 | **fórmula** | va sobre la **suma** de dos campos, así que el selector de base no alcanza |
 | seguro de vida | **%** | sobre el valor a financiar, y por cuota |
@@ -37,7 +51,7 @@ no contra el motor: `valor a financiar`, `periodRate`, la cuota, el seguro, el i
 Y el documento guardado es la hoja resuelta, sin nada cableado en el motor:
 
 ```
-fianzaValue         = amount * fianza
+fianzaValue         = (amount + cuotaInicial) * fianza
 ivaDeLaFianzaValue  = fianzaValue * ivaDeLaFianza
 _41000Value         = (fianzaValue + ivaDeLaFianzaValue) * 0.004
 seguroDeVidaValue   = financedAmount * seguroDeVida
@@ -45,6 +59,10 @@ seguroDeVidaValue   = financedAmount * seguroDeVida
 financedAmount      = amount + cuotaInicial + fianzaValue + ivaDeLaFianzaValue + _41000Value
 installmentCharges  = seguroDeVidaValue
 ```
+
+El `@subtotal` se arma con lo que entró **antes** del campo, en orden. Por eso un campo puede
+apoyarse en los anteriores y nunca en sí mismo ni en los que vienen después: un ciclo no se puede
+ni escribir.
 
 (`_41000`: el tokenizer solo acepta identificadores que empiecen con letra o `_`, así que un nombre
 que arranca en dígito lleva el guión bajo adelante.)

@@ -248,6 +248,20 @@ export const FORMULA_LABEL = {
 export const RATE_BASE = { amount: 'amount', charges: 'financedAmount' }
 export const RATE_BASE_LABEL = { amount: 'el monto', charges: 'el valor a financiar' }
 
+/** Base especial: la SUMA de todo lo que ya entró a este punto, incluido el monto.
+ *
+ *  Existe porque es lo que hace el código real. En
+ *  `PaymentCalculationService::performCalculation` la fianza es
+ *
+ *      ($amount + $administrativeCosts) * fga% * 1.19        con $amount = monto − cuota inicial
+ *
+ *  o sea: un % de lo que se va a financiar ANTES de sumarse ella misma. No del monto pedido —la
+ *  cuota inicial se resta primero— ni del valor final, que sería circular. El `.xlsm` hace lo
+ *  mismo por otro camino (`marginBase = assetCost − downPayment + setupFee` → `principal` →
+ *  `guaranteeBase = principal + deviceCost`), así que los dos artefactos coinciden. */
+export const SUBTOTAL = '@subtotal'
+export const SUBTOTAL_LABEL = 'el subtotal hasta acá'
+
 /** Nombres que un campo agregado NO puede pisar. */
 const RESERVADOS = new Set(['statedPerYear', 'periodsPerYear', 'i', 'n', 'prev'])
 
@@ -258,8 +272,8 @@ export const enPesos = f => (f.kind === 'money' ? f.name : f.name + 'Value')
 /** El campo leído como una frase — es lo que lo hace entendible sin abrir el código. */
 export function describir(f, campos = []) {
   if (f.kind === 'formula') return `fórmula: ${f.expr || '(vacía)'}`
-  const base = f.base
-    ? (campos.find(x => x.name === f.base)?.label ?? f.base)
+  const base = f.base === SUBTOTAL ? SUBTOTAL_LABEL
+    : f.base ? (campos.find(x => x.name === f.base)?.label ?? f.base)
     : RATE_BASE_LABEL[f.at]
   const qué = f.kind === 'rate' ? `porcentaje sobre ${base}` : 'monto fijo'
   const neg = ' — en negativo lo baja'
@@ -283,6 +297,9 @@ export function resolveSheet(def, { periods = {}, fields = [] } = {}) {
   const inputs = [...(def.inputs || [])]
   const terms = [...(def.terms || [])]
   const llegan = {}   // etapa → fórmulas que se calculan ahí
+  // Lo que ya entró a cada punto, en orden. Es la base `@subtotal`: un campo puede apoyarse en la
+  // suma de todo lo anterior, que es lo que hace el código real con la fianza.
+  const acum = { amount: ['amount'], charges: [] }
 
   for (const f of fields) {
     // Una FÓRMULA no tiene perilla: su valor es la expresión. Los otros dos sí, y el tipo decide
@@ -293,9 +310,10 @@ export function resolveSheet(def, { periods = {}, fields = [] } = {}) {
         name: f.name, type: f.kind === 'rate' ? 'rate' : 'money', default: 0,
         appliesTo: f.at, label: f.label, field: f.id,
         // el calificativo que se ve al lado del nombre: solo lo AMBIGUO, no todo
-        note: f.kind === 'rate' && f.base
-          ? 'de ' + (fields.find(x => x.name === f.base)?.label ?? f.base)
-          : f.at === 'charges' && f.spread ? '÷ cuotas' : '',
+        note: f.kind === 'rate' && f.base === SUBTOTAL ? 'del subtotal'
+          : f.kind === 'rate' && f.base
+            ? 'de ' + (fields.find(x => x.name === f.base)?.label ?? f.base)
+            : f.at === 'charges' && f.spread ? '÷ cuotas' : '',
         help: describir(f, fields),
       })
     }
@@ -305,7 +323,9 @@ export function resolveSheet(def, { periods = {}, fields = [] } = {}) {
       // el "IVA de la fianza" se calculaba sobre la TASA de la fianza (0,05 × 0,19 = 0,0095 pesos)
       // en vez de sobre sus pesos, y el error era invisible porque quedaba en el redondeo.
       const otro = fields.find(x => x.name === f.base)
-      const base = otro ? enPesos(otro) : (f.base || RATE_BASE[f.at])
+      const base = f.base === SUBTOTAL
+        ? '(' + (acum[f.at]?.join(' + ') || '0') + ')'
+        : otro ? enPesos(otro) : (f.base || RATE_BASE[f.at])
       formulas[v] = `${base} * ${f.name}`
       formulaLabel[v] = f.label
       llegan[f.at] = [...(llegan[f.at] || []), v]
@@ -319,6 +339,9 @@ export function resolveSheet(def, { periods = {}, fields = [] } = {}) {
       llegan[f.at] = [...(llegan[f.at] || []), f.name + 'Value']
     }
     terms.push({ value: enPesos(f), at: f.at, spread: !!f.spread })
+    // recién ahora entra al subtotal: un campo puede apoyarse en los ANTERIORES, nunca en sí mismo
+    // ni en los que vienen después. Así un ciclo no se puede ni escribir.
+    acum[f.at] = [...(acum[f.at] || []), enPesos(f)]
   }
 
   // ── los dos puntos de inserción son la SUMA de lo que les llega
@@ -381,7 +404,10 @@ export const DEFAULT_FIELDS = [
   //   fórmula   el 4×1000, que va sobre la SUMA de fianza + IVA — dos campos, así que el
   //             selector de base no alcanza y hace falta escribirla
   { label: 'cuota inicial', kind: 'money', at: 'amount', value: -4000000 },
-  { label: 'fianza', kind: 'rate', at: 'amount', value: 0.10 },
+  // `base: SUBTOTAL` y no el monto: la cuota inicial se resta ANTES. Es lo que hace el código
+  // real y lo que hace el .xlsm. Con la base en el monto pelado la fianza daba 1.000.000 en vez
+  // de 600.000, y el valor a financiar 477.904 de más.
+  { label: 'fianza', kind: 'rate', at: 'amount', base: SUBTOTAL, value: 0.10 },
   { label: 'IVA de la fianza', kind: 'rate', at: 'amount', baseOf: 'fianza', value: 0.19 },
   { label: '4 × 1000', kind: 'formula', at: 'amount',
     expr: '(fianzaValue + ivaDeLaFianzaValue) * 0.004' },

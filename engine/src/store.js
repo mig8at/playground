@@ -74,7 +74,8 @@ export function reset() {
  *  y el name lo genera `addField`: la hoja no puede saberlo de antemano. */
 function sembrar() {
   for (const d of DEFAULT_FIELDS) {
-    const base = d.baseOf ? fields.find(f => f.label === d.baseOf)?.name || '' : ''
+    // `baseOf` se resuelve por LABEL (el name lo genera addField); `base` ya viene explícito
+    const base = d.baseOf ? fields.find(f => f.label === d.baseOf)?.name || '' : (d.base || '')
     addField({ ...d, base })
   }
 }
