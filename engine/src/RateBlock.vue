@@ -4,17 +4,18 @@ import PercentInput from './PercentInput.vue'
 import { inputs, periods, out } from './store.js'
 import { PERIODS } from './sheets.js'
 
-// La conversión de tasa, en UNA fila:
+// La conversión de tasa, en DOS filas con la convención en la mitad:
 //
-//   [período] [tasa]  ──convención──▸  [período] [tasa resultante]
-//      dicha                              se cobra
+//   dicha      [anual ▾]   28,17 %
+//   ───────── ▼ efectiva ─────────      ← clickeable: efectiva ⇄ nominal
+//   se cobra   [mensual ▾]  2,089764 %
 //
-// Antes estaba repartida en tres lugares (dos selects en "períodos", el statedRate en "tasa
-// y plazo", y el periodRate en el nodo de Cálculo). Junta, la fila ES la conversión: se lee
-// de dónde sale el número, por qué camino, y en qué termina.
+// De arriba hacia abajo se lee la conversión completa: de dónde sale el número, por qué
+// camino, y en qué termina. Antes estaba repartida en tres lugares (dos selects en
+// "períodos", el statedRate en "tasa y plazo", y el periodRate recién en el nodo de Cálculo).
 //
-// La flecha lleva la CONVENCIÓN y es clickeable, porque es exactamente ahí donde se decide
-// si se capitaliza o se divide — no en una casilla suelta en otra sección.
+// La convención va EN EL MEDIO y es el interruptor, porque es exactamente ahí donde se
+// decide si se capitaliza o se divide — no en una casilla suelta en otra sección.
 // sin ceros de cola: 2% se lee "2", no "2,000000" — pero 0,412539% conserva sus decimales
 const result = computed(() => {
   const r = out.value.res.periodRate
@@ -29,22 +30,24 @@ const ea = computed(() => {
 
 <template>
   <div class="rb">
-    <div class="rb__lbl"><span>dicha</span><span>se cobra</span></div>
-
     <div class="rb__row">
+      <span class="rb__lbl">dicha</span>
       <select class="nodrag rb__per" v-model="periods.rateStatedIn">
         <option v-for="(n, name) in PERIODS" :key="name" :value="name">{{ name }}</option>
       </select>
       <PercentInput v-model="inputs.statedRate" />
+    </div>
 
-      <button class="nodrag rb__arrow" :class="{ nom: !inputs.compound }"
-        @click="inputs.compound = !inputs.compound"
-        :title="inputs.compound
-          ? 'Capitaliza: (1+tasa)^(origen/destino) − 1. Click para pasar a nominal.'
-          : 'Divide proporcional: tasa × origen/destino. Click para pasar a efectiva.'">
-        <i></i>{{ inputs.compound ? 'efectiva' : 'nominal' }}<i></i>
-      </button>
+    <button class="nodrag rb__conv" :class="{ nom: !inputs.compound }"
+      @click="inputs.compound = !inputs.compound"
+      :title="inputs.compound
+        ? 'Capitaliza: (1+tasa)^(origen/destino) − 1. Click para pasar a nominal.'
+        : 'Divide proporcional: tasa × origen/destino. Click para pasar a efectiva.'">
+      <i></i><span>▾ {{ inputs.compound ? 'efectiva' : 'nominal' }}</span><i></i>
+    </button>
 
+    <div class="rb__row">
+      <span class="rb__lbl">se cobra</span>
       <select class="nodrag rb__per" v-model="periods.chargedEvery">
         <option v-for="(n, name) in PERIODS" :key="name" :value="name">{{ name }}</option>
       </select>

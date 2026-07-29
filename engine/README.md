@@ -55,21 +55,23 @@ Detalle completo en el nodo `motai` del contexto.
 
 Está dicho al pie de la app, no escondido: si una excepción existe, se ve.
 
-## La conversión de tasa, en una fila
+## La conversión de tasa, como la conversión que es
 
-La tasa no está repartida en campos sueltos: es **un bloque que se lee como la conversión que es**.
+La tasa no está repartida en campos sueltos: es **un bloque de dos filas con la convención en la
+mitad**.
 
 ```
- DICHA                                      SE COBRA
- [anual ▾]  28,17 %  ──EFECTIVA▸  [mensual ▾]  2,089764 %
+ DICHA     [anual ▾]      28,17 %
+ ───────── ▾ EFECTIVA ─────────
+ SE COBRA  [mensual ▾]   2,089764 %
  equivale a 28,17% E.A.
 ```
 
-De dónde sale el número, **por qué camino**, y en qué termina. Antes eran tres cosas en tres
-secciones distintas: dos selects en "períodos", el `statedRate` en "tasa y plazo", y el
-`periodRate` recién en el nodo de Cálculo.
+Se lee de arriba hacia abajo: de dónde sale el número, **por qué camino**, y en qué termina. Antes
+eran tres cosas en tres secciones distintas — dos selects en "períodos", el `statedRate` en "tasa
+y plazo", y el `periodRate` recién en el nodo de Cálculo.
 
-**La flecha lleva la convención y es el interruptor** — porque es exactamente ahí donde se decide
+**La convención va en el medio y es el interruptor** — porque es exactamente ahí donde se decide
 si se capitaliza o se divide, no en una casilla suelta en otra parte:
 
 ```

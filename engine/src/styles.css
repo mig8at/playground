@@ -409,34 +409,32 @@ button.icon:hover { color: var(--ink); background: var(--card2) }
 }
 .foot b { font-family: var(--mono); color: var(--amber); font-weight: 650 }
 
-/* ── el bloque de la tasa: la conversión como UNA fila ── */
+/* ── el bloque de la tasa: dos filas y la convención en la mitad ── */
 .rb { margin: 2px 9px 8px; padding: 8px 10px 7px; background: var(--card2);
       border: 1px solid var(--line); border-radius: 8px }
-.rb__lbl { display: grid; grid-template-columns: 1fr 1fr; font: 9px var(--mono);
-           color: var(--dim); text-transform: uppercase; letter-spacing: .06em; margin-bottom: 4px }
-.rb__lbl span:last-child { text-align: right }
-.rb__row { display: flex; align-items: center; gap: 5px }
-.rb__per { flex: 0 0 78px; width: 78px; padding: 2px 3px; border-radius: 5px;
+.rb__row { display: flex; align-items: center; gap: 6px }
+.rb__lbl { flex: 0 0 52px; font: 9px var(--mono); color: var(--dim);
+           text-transform: uppercase; letter-spacing: .06em }
+.rb__per { flex: 1 1 auto; min-width: 0; padding: 2px 3px; border-radius: 5px;
            font: 10.5px var(--mono); background: var(--card); border: 1px solid var(--line);
            color: var(--ink) }
 .rb__per:focus { outline: none; border-color: var(--purple) }
-/* la flecha lleva la convención y es el interruptor: es donde se decide capitalizar o dividir */
-.rb__arrow { display: flex; align-items: center; gap: 3px; flex: 0 0 auto; padding: 1px 3px;
-             border: 0; background: none; font: 9px var(--mono); color: var(--blue);
-             text-transform: uppercase; letter-spacing: .04em; cursor: pointer }
-.rb__arrow i { display: block; width: 9px; height: 1px; background: currentColor }
-.rb__arrow i:last-child { width: 0; height: 0; background: none;
-  border-left: 5px solid currentColor; border-top: 3px solid transparent; border-bottom: 3px solid transparent }
-.rb__arrow:hover { color: var(--purple) }
-.rb__arrow.nom { color: var(--amber) }
-.rb__out { margin-left: auto; flex: 0 0 auto; font: 650 11.5px var(--mono); color: var(--blue);
-           white-space: nowrap; padding-left: 2px }
-.rb__out em, .pct em { font-style: normal; color: var(--dim); margin-left: 1px }
-.rb__ea { margin-top: 6px; padding-top: 6px; border-top: 1px dashed var(--line);
+/* la convención va EN EL MEDIO y es el interruptor: es donde se decide capitalizar o dividir */
+.rb__conv { display: flex; align-items: center; gap: 7px; width: 100%; margin: 5px 0;
+            padding: 0; border: 0; background: none; cursor: pointer; color: var(--blue) }
+.rb__conv i { flex: 1 1 auto; height: 1px; background: currentColor; opacity: .35 }
+.rb__conv span { font: 9px var(--mono); text-transform: uppercase; letter-spacing: .07em }
+.rb__conv:hover { color: var(--purple) }
+.rb__conv:hover i { opacity: .6 }
+.rb__conv.nom { color: var(--amber) }
+.rb__out { flex: 0 0 74px; width: 74px; text-align: right; font: 650 11.5px var(--mono);
+           color: var(--blue); white-space: nowrap }
+.rb__out em { font-style: normal; color: var(--dim); margin-left: 1px }
+.rb__ea { margin-top: 7px; padding-top: 6px; border-top: 1px dashed var(--line);
           font-size: 10.5px; color: var(--mut) }
 .rb__ea b { color: var(--purple); font-family: var(--mono) }
 /* campo de porcentaje: la UI muestra %, el dato sigue en decimal */
-.pct { display: inline-flex; align-items: center; flex: 0 0 66px; width: 66px;
+.pct { display: inline-flex; align-items: center; flex: 0 0 74px; width: 74px;
        background: var(--card); border: 1px solid var(--line); border-radius: 5px; padding: 0 4px }
 .pct input { width: 100%; border: 0; background: none; padding: 2px 0; text-align: right;
              font: 11px var(--mono); color: var(--ink) }

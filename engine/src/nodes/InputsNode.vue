@@ -27,7 +27,7 @@ const sections = computed(() => {
 </script>
 
 <template>
-  <div class="n n--entrada" style="min-width:428px;max-width:428px">
+  <div class="n n--entrada" style="min-width:316px;max-width:316px">
     <div class="n__hd">
       <b>Entrada</b>
       <span class="n__kind">editable</span>
