@@ -44,7 +44,7 @@ export const PERIODS = {
 
 export const SHEET = {
   /** `rateStatedIn` = en qué período lo dice el negocio · `chargedEvery` = en qué período se cobra */
-  periods: { rateStatedIn: 'mensual', chargedEvery: 'mensual' },
+  periods: { rateStatedIn: 'anual', chargedEvery: 'mensual' },
 
   inputs: [
     // ── el crédito: lo que pide el CLIENTE. No es un punto de inserción, así que acá no se
@@ -52,11 +52,11 @@ export const SHEET = {
     //    `monto final`, que es el punto de inserción.
     { name: 'amount', type: 'money', default: 10000000, min: 0, appliesTo: 'credit',
       label: 'monto', help: 'Lo que el cliente pide. Los costos que se agreguen lo suben o lo bajan.' },
-    { name: 'installments', type: 'count', default: 24, min: 1, appliesTo: 'credit',
+    { name: 'installments', type: 'count', default: 36, min: 1, appliesTo: 'credit',
       label: 'cuotas', help: 'En cuántos pedazos se devuelve.' },
 
     // ── la tasa
-    { name: 'statedRate', type: 'rate', default: 0.02, appliesTo: 'rate',
+    { name: 'statedRate', type: 'rate', default: 0.2817, appliesTo: 'rate',
       label: 'tasa', help: 'En el período que dice el select de la izquierda.' },
     { name: 'compound', type: 'bool', default: true, appliesTo: 'rate',
       label: 'efectiva', help: 'Sí = capitaliza · No = nominal, divide proporcional.' },
@@ -349,8 +349,11 @@ export function resolveSheet(def, { periods = {}, fields = [] } = {}) {
 export function nombreDe(label, def, usados = []) {
   const sinTildes = label.normalize('NFD').replace(/[\u0300-\u036f]/g, '')
   const partes = sinTildes.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim().split(/\s+/)
-  const base = partes.map((t, k) => (k ? t[0].toUpperCase() + t.slice(1) : t)).join('')
-    .replace(/^[0-9]+/, '') || 'campo'
+  // El tokenizer solo acepta identificadores que empiecen con letra o `_`, así que un nombre que
+  // arranca en dígito lleva `_` adelante. Antes se strippeaban los dígitos, y "4 × 1000" quedaba
+  // en `campo` — un nombre sin relación con lo que es.
+  let base = partes.map((t, k) => (k ? t[0].toUpperCase() + t.slice(1) : t)).join('') || 'campo'
+  if (/^[0-9]/.test(base)) base = '_' + base
   const tomados = new Set([
     ...(def.inputs || []).map(x => x.name), ...Object.keys(def.formulas || {}),
     ...Object.keys(def.series?.rows || {}), ...RESERVADOS, ...usados,
@@ -364,10 +367,25 @@ export function nombreDe(label, def, usados = []) {
  *  esperaría ver en un lender típico, puesta como campos normales y en cero. Se borran con una ×,
  *  y ahí el nodo queda vacío — que es el estado del que se parte para configurar otro. */
 export const DEFAULT_FIELDS = [
-  { label: 'cuota inicial', kind: 'money', at: 'amount' },
-  { label: 'fianza', kind: 'rate', at: 'amount' },
-  { label: 'IVA de la fianza', kind: 'rate', at: 'amount', baseOf: 'fianza' },
-  { label: 'seguro de vida', kind: 'rate', at: 'charges' },
+  // ═══════════ EL EJEMPLO CABLEADO ═══════════
+  // Un crédito de salud CreditopX: la estructura de fianza+IVA+GMF verificada contra
+  // `Calculadora PV V20251009.xlsm` (preset `salud-gaes` de reference/full-sheet.js, 30/30), con
+  // una cuota inicial de −4.000.000 encima para ejercitar el negativo.
+  //
+  // Está acá y no en el motor: son CAMPOS, con sus valores. Se borran con una ×, se editan, se
+  // agregan otros. El motor no sabe qué es una fianza ni un GMF.
+  //
+  // Ejercita los tres tipos a propósito, que es de lo que se trata la prueba:
+  //   monto     la cuota inicial, en negativo
+  //   %         la fianza sobre el monto, y el IVA sobre LA FIANZA (no sobre el monto)
+  //   fórmula   el 4×1000, que va sobre la SUMA de fianza + IVA — dos campos, así que el
+  //             selector de base no alcanza y hace falta escribirla
+  { label: 'cuota inicial', kind: 'money', at: 'amount', value: -4000000 },
+  { label: 'fianza', kind: 'rate', at: 'amount', value: 0.10 },
+  { label: 'IVA de la fianza', kind: 'rate', at: 'amount', baseOf: 'fianza', value: 0.19 },
+  { label: '4 × 1000', kind: 'formula', at: 'amount',
+    expr: '(fianzaValue + ivaDeLaFianzaValue) * 0.004' },
+  { label: 'seguro de vida', kind: 'rate', at: 'charges', value: 0.001307 },
 ]
 
 export function defaultInputs(def) {

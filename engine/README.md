@@ -1,5 +1,56 @@
 # engine — motor de cálculo
 
+## El ejemplo cableado
+
+La app arranca con un caso real, no con ceros: un crédito de salud CreditopX con una cuota inicial
+de −4.000.000 encima.
+
+```
+el crédito     monto  10.000.000 · cuotas 36
+tasa           28,17% E.A.  →  se cobra mensual 2,089764% M.V.
+monto final    cuota inicial     −4.000.000
+               fianza                   10%    → 1.000.000
+               IVA de la fianza         19%    →   190.000   (sobre la FIANZA)
+               4 × 1000       (fianza+IVA)×0,004 →   4.760   ← fórmula
+               ─────────────────────────────────────────────
+               valor a financiar              7.194.760
+a la cuota     seguro de vida       0,1307%  →     9.404
+cuota          cuota del crédito                286.356
+               cuota total                      295.760
+```
+
+La estructura de fianza + IVA + GMF está **verificada contra `Calculadora PV V20251009.xlsm`**
+(es el preset `salud-gaes`). Cada número de arriba se comprobó contra aritmética calculada aparte,
+no contra el motor: `valor a financiar`, `periodRate`, la cuota, el seguro, el interés del mes 1
+(150.353) y el cierre del plan en −0 a la fila 36.
+
+**Ejercita los tres tipos de campo a propósito**, que es de lo que se trata la prueba:
+
+| campo | tipo | por qué está |
+|---|---|---|
+| cuota inicial | **monto** | negativo: prueba que restar no necesita un caso especial |
+| fianza | **%** | sobre la base del punto (el monto) |
+| IVA de la fianza | **%** | sobre **otro campo** — un IVA va sobre la fianza, no sobre el monto |
+| 4 × 1000 | **fórmula** | va sobre la **suma** de dos campos, así que el selector de base no alcanza |
+| seguro de vida | **%** | sobre el valor a financiar, y por cuota |
+
+Y el documento guardado es la hoja resuelta, sin nada cableado en el motor:
+
+```
+fianzaValue         = amount * fianza
+ivaDeLaFianzaValue  = fianzaValue * ivaDeLaFianza
+_41000Value         = (fianzaValue + ivaDeLaFianzaValue) * 0.004
+seguroDeVidaValue   = financedAmount * seguroDeVida
+
+financedAmount      = amount + cuotaInicial + fianzaValue + ivaDeLaFianzaValue + _41000Value
+installmentCharges  = seguroDeVidaValue
+```
+
+(`_41000`: el tokenizer solo acepta identificadores que empiecen con letra o `_`, así que un nombre
+que arranca en dígito lleva el guión bajo adelante.)
+
+Los cinco campos **se borran con una ×**. El ejemplo es configuración, no motor.
+
 **Tres clases de nodo, tres colores.** El color no dice qué etapa es — eso lo dice el título —
 sino **qué clase de cosa** es:
 

@@ -22,13 +22,16 @@ let seq = 0
  *           (el monto, o el valor a financiar).
  *    spread solo en 'charges': es un total y se reparte entre las cuotas.
  *    expr   solo para 'formula': la expresión. No se valida acá — el motor devuelve el error. */
-export function addField({ label, kind = 'money', at, base = '', spread = false, expr = '' }) {
+export function addField({ label, kind = 'money', at, base = '', spread = false, expr = '',
+                           value = 0 }) {
   const texto = String(label || '').trim()
   if (!texto || !at) return null
   const name = nombreDe(texto, SHEET, fields.map(f => f.name))
   const f = { id: 'f' + ++seq, name, label: texto, kind, at, base, spread, expr }
   fields.push(f)
-  inputs[name] = 0     // arranca en cero: no mueve ningún número hasta que se llene
+  // un campo agregado a mano arranca en cero y no mueve ningún número; los del ejemplo cableado
+  // traen su valor
+  inputs[name] = value
   return f
 }
 
@@ -67,8 +70,8 @@ export function reset() {
   sembrar()
 }
 
-/** Pone los campos por defecto. `baseOf` se resuelve acá porque las bases van por `name`, y el
- *  name lo genera `addField`. */
+/** Pone el ejemplo cableado. `baseOf` se resuelve acá —por LABEL— porque las bases van por `name`
+ *  y el name lo genera `addField`: la hoja no puede saberlo de antemano. */
 function sembrar() {
   for (const d of DEFAULT_FIELDS) {
     const base = d.baseOf ? fields.find(f => f.label === d.baseOf)?.name || '' : ''
