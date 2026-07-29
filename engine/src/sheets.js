@@ -80,7 +80,7 @@ export const SHEET = {
     'monto': ['assetCost', 'downPayment', 'setupFee', 'extras', 'deviceCost'],
     'precio': ['marginFactor', 'priceVatRate'],
     'fianza': ['guaranteeRate', 'guaranteeVatRate', 'transactionTaxRate', 'guaranteeUpfront'],
-    'tasa y plazo': ['statedRate', 'compound', 'installments'],
+    'plazo': ['installments'],
     'cargos por cuota': ['lifeInsuranceRate', 'lifeInsuranceFixed', 'monthlyFixed'],
   },
 

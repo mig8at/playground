@@ -55,20 +55,50 @@ Detalle completo en el nodo `motai` del contexto.
 
 Está dicho al pie de la app, no escondido: si una excepción existe, se ve.
 
-## Las dos convenciones de tasa, como perilla
+## La conversión de tasa, en una fila
+
+La tasa no está repartida en campos sueltos: es **un bloque que se lee como la conversión que es**.
 
 ```
-compound = sí   →  periodRate = (1 + statedRate) ^ (statedPerYear / periodsPerYear) - 1
-compound = no   →  periodRate = statedRate * statedPerYear / periodsPerYear
+ DICHA                                      SE COBRA
+ [anual ▾]  28,17 %  ──EFECTIVA▸  [mensual ▾]  2,089764 %
+ equivale a 28,17% E.A.
+```
+
+De dónde sale el número, **por qué camino**, y en qué termina. Antes eran tres cosas en tres
+secciones distintas: dos selects en "períodos", el `statedRate` en "tasa y plazo", y el
+`periodRate` recién en el nodo de Cálculo.
+
+**La flecha lleva la convención y es el interruptor** — porque es exactamente ahí donde se decide
+si se capitaliza o se divide, no en una casilla suelta en otra parte:
+
+```
+efectiva   periodRate = (1 + statedRate) ^ (statedPerYear / periodsPerYear) − 1
+nominal    periodRate = statedRate * statedPerYear / periodsPerYear
 ```
 
 Mismos dos parámetros; solo cambia `×` por `^`. Es un `if()` de **selección de parámetro**, no
 lógica de negocio — la misma categoría que elegir el factor de un plan.
 
+### Y es la demostración de F-71, clickeable
+
+Sobre el crédito de Gaes, el mismo `28,17%` según cómo se lea:
+
+| | tasa del período | E.A. real | cuota |
+|---|---|---|---|
+| **efectiva** | 2,089764% | 28,17% | 493.292 |
+| **nominal** | 2,3475% | **32,11%** | **513.150** |
+
+**3,94 puntos** de diferencia al año y **714.890 pesos** en el crédito. Eso es lo que cuesta
+elegir mal la convención — y es exactamente el error de CORE-127, donde un crédito documentado
+al 28,79% se amortizaba al 1,82% mensual.
+
 El canon de la plataforma es **nominal** (`credit_line_by_lenders.rate_suffix` = `"N.M."` en las
-157 filas). Los `.xlsm` **capitalizan**. Esa discrepancia ya pegó en producción: ver **F-71** en
-`findings` (CORE-127, `1,82 N.M.` contra `TEA 28,79%`). Por eso es una perilla de la
-configuración y no una decisión de la hoja.
+157 filas). Los `.xlsm` **capitalizan**. Por eso es una perilla de la configuración y no una
+decisión de la hoja.
+
+La UI muestra **porcentaje** (`28,17 %`) porque escribir `0.2817` para decir 28,17% es
+antinatural. El documento sigue guardando el decimal — la interfaz traduce, el dato no cambia.
 
 ## Los dos documentos
 

@@ -5,8 +5,8 @@ import { DERIVED_PERIOD_CONSTANTS } from './sheets.js'
 // cada nivel en una columna. El resultado se lee de izquierda a derecha, que es el orden en
 // que el motor calcula.
 
-// COL_W tiene que ser MAYOR que el nodo más ancho (Entrada = 296) o las columnas se solapan.
-const COL_W = 372
+// COL_W tiene que ser MAYOR que el nodo más ancho (Entrada = 428) o las columnas se solapan.
+const COL_W = 476
 const ROW_H = 124
 
 /* ───────── grafo de una hoja, agrupado por ETAPA ─────────
@@ -61,8 +61,10 @@ export function layoutSheet(def, out, opts = {}) {
 
   // los inputs van agrupados en secciones, así que el alto suma también los encabezados
   const nGroups = Object.keys(def.inputGroups || {}).length
-  const col0H = 62 + ((def.inputs || []).length + constants.length
-    + Object.keys(def.periods || {}).length) * 21 + (nGroups + 1) * 22
+  // la tasa ya no es una fila: es el bloque RateBlock (~78px con su leyenda y la E.A.)
+  const nRateInputs = 2   // statedRate y compound viven en el bloque, no en la lista
+  const col0H = 62 + ((def.inputs || []).length - nRateInputs + constants.length) * 21
+    + (nGroups + 1) * 22 + 78
   const gH = g => 54 + groups[g].length * 22 + 10
 
   const nodes = [{
