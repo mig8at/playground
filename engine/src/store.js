@@ -17,10 +17,20 @@ export const periods = reactive({ ...SHEET.periods })
 export const termsOffered = reactive([...(SHEET.terms_offered || [])])
 
 /** Se edita como texto —"6, 12, 24"— porque así se guarda. Se ordena y se deduplica al parsear, y
- *  un plazo menor a 1 se descarta: `pmt` no significa nada con cero cuotas. */
+ *  un plazo menor a 1 se descarta: `pmt` no significa nada con cero cuotas.
+ *
+ *  Y si el plazo elegido se cae de la lista, salta al MÁS CERCANO. Sin esto el select quedaba vacío
+ *  y la cuota se calculaba con un plazo que ya no se ofrece — el estado imposible que justamente el
+ *  select existe para evitar. */
 export function setTermsOffered(texto) {
   const n = [...new Set(String(texto).split(/[^0-9]+/).map(Number).filter(v => v >= 1))]
+  if (!n.length) return
   termsOffered.splice(0, termsOffered.length, ...n.sort((a, b) => a - b))
+  const actual = Number(inputs.installments)
+  if (!termsOffered.includes(actual)) {
+    inputs.installments = termsOffered.reduce(
+      (a, b) => (Math.abs(b - actual) < Math.abs(a - actual) ? b : a))
+  }
 }
 
 // ── LOS CAMPOS ──

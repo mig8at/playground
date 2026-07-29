@@ -547,6 +547,8 @@ button.icon:hover { color: var(--ink); background: var(--card2) }
    izquierda. */
 .ent__plazos .ent__k { flex: 0 0 auto }
 .ent__plazos .nf { flex: 1 1 auto; width: auto; min-width: 0; text-align: left }
+/* el select de plazos alinea a la derecha como los números que reemplaza */
+select.nf--term { text-align: right; padding-right: 4px }
 
 /* ── LA VITRINA: la cuota de cada plazo ──
    Sale de correr la misma hoja una vez por plazo, y es la pantalla que el cliente ve de verdad.

@@ -129,6 +129,12 @@ function crear() {
         <select v-if="f.type === 'bool'" class="nodrag nf" v-model="inputs[f.name]">
           <option :value="true">sí</option><option :value="false">no</option>
         </select>
+        <!-- las opciones son la lista de plazos ofrecidos, no un número libre -->
+        <select v-else-if="f.choices === 'terms'" class="nodrag nf nf--term"
+          :value="Number(inputs[f.name])"
+          @change="inputs[f.name] = Number($event.target.value)">
+          <option v-for="n in termsOffered" :key="n" :value="n">{{ n }}</option>
+        </select>
         <MoneyInput v-else-if="f.type === 'money'" v-model="inputs[f.name]" />
         <PercentInput v-else-if="f.type === 'rate'" v-model="inputs[f.name]" />
         <input v-else class="nodrag nf" type="text" inputmode="numeric" v-model="inputs[f.name]">

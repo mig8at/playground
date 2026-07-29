@@ -118,8 +118,9 @@ títulos — es el precio de agrupar por tema.
 
 ### Los plazos son una LISTA, no un input
 
-`cuotas` sigue siendo **un** número —la calculadora necesita uno para dar una cuota— y aparte vive
-la lista de plazos que el lender **ofrece**. No es un invento: en producción también es una lista,
+`cuotas` sigue siendo **un** valor —la calculadora necesita uno para dar una cuota— pero es un
+**select** sobre la lista de plazos que el lender **ofrece**, no un número libre: escribirlo a mano
+dejaba calcular un plazo que no está en venta. No es un invento: en producción también es una lista,
 `credit_line_by_lenders.fee_numbers`, una cadena separada por comas (`'6,12,24,36,48,60,72'` ·
 `'12,18,24'` · `'1,2,3,4,5'`). Se edita igual, y el store la ordena, deduplica y descarta lo que no
 sea un plazo válido.
@@ -142,8 +143,11 @@ porque ningún plazo depende de otro.
 Es también la forma en que la política va a juzgar: no calcula el plazo, **descarta** los que no
 pasan (ver [docs/POLITICA-Y-CALCULO.md](docs/POLITICA-Y-CALCULO.md)). Lo que recorta la lista —los
 topes `min/max_fee_number`, el cupo por categoría de usuario, y las bandas de monto que pueden
-**fijar** un plazo único— es política, y sigue aparcada. Si el plazo elegido no está en la lista, no
-se resalta ninguna fila: el motor calcula lo que le pidas, y la vitrina muestra lo que se ofrece.
+**fijar** un plazo único— es política, y sigue aparcada.
+
+Y si al editar la lista sacás el plazo elegido, **salta al más cercano** (en empate, al más corto).
+Sin eso el select quedaba vacío y la cuota se calculaba con un plazo que ya no se ofrece — el estado
+imposible que el select existe para evitar.
 
 ### Tres orígenes, no "constantes y variables"
 

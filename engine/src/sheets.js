@@ -72,8 +72,10 @@ export const SHEET = {
     // (`creditop_x_conditions_by_amount_by_lender.mandatory_fee_number`). Pero eso es orden de
     // DECISIONES, no de cálculo: acá `installments` es un input independiente y el valor a
     // financiar se calcula sin él. Dibujarlo después sería inventar una dependencia.
-    { name: 'installments', type: 'count', default: 36, min: 1, appliesTo: 'credit',
-      label: 'cuotas',
+    // `choices: 'terms'` — no es un número libre: es UNO de los plazos que el lender ofrece, así
+    // que se elige de un select. Escribirlo a mano dejaba calcular un plazo que no está en venta.
+    { name: 'installments', type: 'count', choices: 'terms', default: 36, min: 1,
+      appliesTo: 'credit', label: 'cuotas',
       help: 'En cuántos pedazos se devuelve. Es UNO de los plazos que ofrece el lender: la lista '
         + 'está abajo, y la calculadora corre una vez por cada uno. En el flujo real el monto '
         + 'restringe —o fija— qué plazos se ofrecen; eso es política, no cálculo.' },
