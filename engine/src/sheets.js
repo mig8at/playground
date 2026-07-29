@@ -6,20 +6,24 @@
 //   `help`  en ESPAÑOL → la explicación larga, como tooltip
 //
 // ═══ CADA INPUT DECLARA A QUÉ SE APLICA ═══
-// En el cálculo hay exactamente DOS puntos de inserción, y todo lo que entra va a uno:
+// En el cálculo hay exactamente DOS puntos de inserción, y todo costo entra por uno:
 //
-//   valor a financiar = monto − lo que RESTA + lo que SUMA        ← la etapa `amount`
-//   cuota total       = cuota del crédito + lo que suma A CADA PAGO ← la etapa `charges`
+//   valor a financiar = monto − cuota inicial + lo que cae AL MONTO   ← la etapa `amount`
+//   cuota total       = cuota del crédito + lo que cae A LA CUOTA     ← la etapa `charges`
 //
-// Y cada punto es UNA ETAPA, o sea un nodo en pantalla. Agregar un costo nuevo de un lender es
-// elegir uno de dos nodos; no hay una tercera respuesta posible.
+// Cada punto es UNA ETAPA, o sea un nodo en pantalla, y cada uno es la SUMA de sus términos.
 //
-// Por eso `appliesTo` reemplaza a la lista `inputGroups` escrita a mano: el grupo se DERIVA de
-// a qué se aplica el valor, no de cómo se me ocurrió ordenarlo.
+// ═══ EL MOTOR NO SABE QUÉ ES UNA FIANZA ═══
+// Ni un seguro, ni un IVA, ni un 4×1000. No hay bloques cableados: todo costo es un CAMPO que se
+// agrega a un punto de inserción, y su definición dice qué hace —
 //
-// Y la fianza es la prueba de que un mismo costo puede ir a cualquiera de los dos: el
-// `guaranteeUpfront` no es un flag técnico — es **a cuál de los dos grupos pertenece**. Por eso
-// en la UI el encabezado de su sección ES el interruptor.
+//   tipo    monto fijo, o porcentaje
+//   base    sobre qué se aplica el porcentaje: la base del punto, u OTRO campo
+//   spread  en la cuota: es un total que se reparte, o ya viene por cuota
+//
+// — así que un campo se lee como una frase: "IVA de la fianza = 19% de fianza". Los campos que
+// arrancan puestos (`DEFAULT_FIELDS`) son valores por defecto de la configuración, no lógica del
+// motor: se borran con una ×.
 //
 // La UI nunca muestra `name` y el documento nunca muestra `label`. Así un cambio de redacción
 // no puede tocar una fórmula, y traducir la interfaz no puede romper el contrato de la API.
@@ -43,73 +47,31 @@ export const SHEET = {
   periods: { rateStatedIn: 'mensual', chargedEvery: 'mensual' },
 
   inputs: [
-    // ── el crédito mismo ──
+    // ── el crédito: lo que pide el CLIENTE. No es un punto de inserción, así que acá no se
+    //    agregan campos: los costos van al monto o a la cuota.
     { name: 'amount', type: 'money', default: 10000000, min: 0, appliesTo: 'credit',
-      label: 'monto', help: 'Lo que el cliente pide. Las otras etapas lo suben o lo bajan.' },
+      label: 'monto', help: 'Lo que el cliente pide. Los costos que se agreguen lo suben o lo bajan.' },
     { name: 'installments', type: 'count', default: 24, min: 1, appliesTo: 'credit',
       label: 'cuotas', help: 'En cuántos pedazos se devuelve.' },
+    { name: 'downPayment', type: 'money', default: 0, min: 0, appliesTo: 'credit', sign: -1,
+      label: 'cuota inicial',
+      help: 'Lo que el cliente pone de su bolsillo. RESTA: se financia menos. Se escribe en positivo; la fórmula la resta.' },
+
+    // ── la tasa
     { name: 'statedRate', type: 'rate', default: 0.02, appliesTo: 'rate',
       label: 'tasa', help: 'En el período que dice el select de la izquierda.' },
     { name: 'compound', type: 'bool', default: true, appliesTo: 'rate',
       label: 'efectiva', help: 'Sí = capitaliza · No = nominal, divide proporcional.' },
 
-    { name: 'downPayment', type: 'money', default: 0, min: 0, appliesTo: 'credit', sign: -1,
-      label: 'cuota inicial',
-      help: 'Lo que el cliente pone de su bolsillo. RESTA: se financia menos. Se escribe en positivo; la fórmula la resta.' },
-
-    // ── A LA CUOTA · se suman a cada pago ──
-    { name: 'lifeInsuranceRate', type: 'rate', default: 0, appliesTo: 'charges',
-      label: 'seguro de vida',
-      help: 'Factor por peso financiado, por cuota. Si el cliente muere, la aseguradora paga el saldo. 0,0014 = 1.400 pesos por millón.' },
-
-    // ── LA FIANZA · va a uno de los dos, y `guaranteeUpfront` elige a cuál ──
-    { name: 'guaranteeRate', type: 'rate', default: 0, appliesTo: 'guarantee',
-      label: 'fianza',
-      help: 'Lo que cobra el fiador (Novafianza, FGA, FNG) por responder si el cliente no paga. Reemplaza al codeudor, y la paga el cliente.' },
-    { name: 'guaranteeVatRate', type: 'rate', default: 0, appliesTo: 'guarantee',
-      label: 'IVA de la fianza',
-      help: 'Dejalo en 0 si la tarifa de la fianza ya lo trae adentro — es el caso del 9,64% de Novafianza en Alta.' },
-    { name: 'transactionTaxRate', type: 'rate', default: 0, appliesTo: 'guarantee',
-      label: '4 × 1000',
-      help: 'GMF: el impuesto por mover plata en el sistema financiero, calculado sobre la fianza.' },
+    // NADA MÁS. Ni fianza, ni seguro de vida, ni IVA: el motor no sabe qué es ninguna de esas
+    // cosas y no tiene por qué saberlo. Todo costo es un CAMPO agregado a un punto de inserción,
+    // y su definición dice qué hace. Los que arrancan puestos son valores por defecto de la
+    // configuración (ver `DEFAULT_FIELDS`), no lógica: se borran con una ×.
   ],
 
-  /** ═══ A DÓNDE VA CADA COSTO MOVIBLE ═══
-   *  La fianza es el MISMO costo en los dos casos; lo único que cambia es en qué punto de
-   *  inserción entra — y por lo tanto EN QUÉ NODO se configura.
-   *
-   *  Es UN dato, no dos. Antes había un `appliesTo` que decidía dónde se DIBUJABA y un
-   *  `guaranteeUpfront` que decidía a dónde iba la PLATA, y podían contradecirse: de hecho se
-   *  contradecían siempre, porque el bloque se dibujaba en `al monto` incluso con la fianza
-   *  yéndose a la cuota. El nodo decía una cosa y el cálculo hacía otra. */
-  where: { guarantee: 'amount' },
-
-  /** Bloques que se mueven COMPLETOS: sus inputs y sus fórmulas van juntos a la etapa que diga
-   *  `where`. Mover solo los inputs armaba un ciclo — `al monto` leería `guaranteeRate` de
-   *  `a la cuota`, y `a la cuota` ya lee `financedAmount` de `al monto`. */
-  blocks: {
-    guarantee: {
-      inputs: ['guaranteeRate', 'guaranteeVatRate', 'transactionTaxRate'],
-      formulas: ['guaranteeCost', 'guaranteeVat', 'guaranteeTax', 'totalGuarantee'],
-    },
-  },
-
-  /** ═══ LO QUE LLEGA A CADA PUNTO DE INSERCIÓN ═══
-   *  `financedAmount` y `installmentCharges` NO se escriben a mano: son la SUMA de sus términos, y
-   *  las arma `resolveSheet`. Por eso agregar un costo es agregar un TÉRMINO — y por eso el botón
-   *  "+ campo" de los nodos puede existir sin que el motor sepa nada de él.
-   *
-   *  `at`     — la etapa donde cae. Si es el nombre de un bloque movible, cae donde caiga el bloque.
-   *  `spread` — es un TOTAL: si cae en `a la cuota` hay que repartirlo entre las cuotas. La fianza
-   *             es un total; el seguro de vida ya viene por cuota.
-   *
-   *  Esto reemplazó a `financedAmount: '... + totalGuarantee * guaranteeUpfront'`. Multiplicar por
-   *  cero disimulaba que con la fianza en la cuota el valor financiado no tiene NADA que ver con
-   *  la fianza, y dejaba una dependencia falsa en la arista. */
-  terms: [
-    { value: 'totalGuarantee', at: 'guarantee', spread: true },
-    { value: 'lifeInsurance', at: 'charges' },
-  ],
+  /** Los dos puntos de inserción son la SUMA de sus términos, y TODOS los términos vienen de los
+   *  campos agregados. La hoja no trae ninguno cableado. */
+  terms: [],
 
   /** Las etapas del cálculo. Cada una es AUTOCONTENIDA: trae sus propios inputs (los que
    *  declaran su `appliesTo`) y sus propias fórmulas.
@@ -157,7 +119,7 @@ export const SHEET = {
     { key: 'charges', title: 'a la cuota', group: 'config', showRows: false,
       insertion: 'sin interés',
       insertionHelp: 'Se reparte en los pagos y nunca entra al saldo, así que no paga intereses.',
-      formulas: ['lifeInsurance', 'installmentCharges'] },
+      formulas: ['installmentCharges'] },
     { key: 'installment', title: 'cuota',
       formulas: ['installment', 'totalInstallment'] },
   ],
@@ -167,26 +129,17 @@ export const SHEET = {
   inputHost: {},
 
   formulas: {
-    // Cuando llegue el bloque de precio, la base pasa a ser `principal + deviceCost` — y no
-    // moverá ningún número, porque con esas perillas en cero `principal` es igual a `amount`.
-    guaranteeCost: 'amount * guaranteeRate',
-    guaranteeVat: 'guaranteeCost * guaranteeVatRate',
-    guaranteeTax: '(guaranteeCost + guaranteeVat) * transactionTaxRate',
-    totalGuarantee: 'guaranteeCost + guaranteeVat + guaranteeTax',
-
-    // `financedAmount` y `installmentCharges` las ARMA `resolveSheet` sumando los `terms`.
-    // Escribirlas acá sería tener dos fuentes para lo mismo.
-
     // `if()` como selección de parámetro entre las dos convenciones que conviven en CreditOp
     // (ver F-71 en findings) — no es lógica de negocio.
     periodRate: 'if(compound, (1 + statedRate) ^ (statedPerYear / periodsPerYear) - 1,'
       + ' statedRate * statedPerYear / periodsPerYear)',
     annualEffectiveRate: '(1 + periodRate) ^ periodsPerYear - 1',
 
-    lifeInsurance: 'financedAmount * lifeInsuranceRate',
-
     installment: 'pmt(periodRate, installments, financedAmount)',
     totalInstallment: 'installment + installmentCharges',
+
+    // `financedAmount` y `installmentCharges` las ARMA `resolveSheet` sumando los términos de los
+    // campos agregados. Escribirlas acá sería tener dos fuentes para lo mismo.
   },
 
   series: {
@@ -276,14 +229,8 @@ export function notacion(periodo, efectiva, rol = 'dicha') {
 
 /** Nombre en español de una fórmula, para lo poco que la UI necesita nombrar. */
 export const FORMULA_LABEL = {
-  guaranteeCost: 'fianza',
-  guaranteeVat: 'IVA de la fianza',
-  guaranteeTax: '4 × 1000',
   financedAmount: 'valor a financiar',
-  totalGuarantee: 'fianza total',
   installment: 'cuota del crédito',
-  lifeInsurance: 'seguro de vida',
-  downPayment: 'cuota inicial',
   installmentCharges: 'cargos por cuota',
   totalInstallment: 'cuota total',
   periodRate: 'tasa del período',
@@ -291,78 +238,81 @@ export const FORMULA_LABEL = {
 }
 
 /** Resuelve los períodos declarados a números y los deja como constantes. */
-/** Bases por punto de inserción: sobre qué se aplica un PORCENTAJE que cae ahí.
- *  Son las bases de los casos reales, no una elección arbitraria — la fianza es un % del monto y
- *  el seguro de vida es un % de lo financiado. */
+/** La base por defecto de un PORCENTAJE, según dónde caiga. Son las de los casos reales, no una
+ *  elección arbitraria: una fianza es un % del monto y un seguro de vida es un % de lo financiado. */
 export const RATE_BASE = { amount: 'amount', charges: 'financedAmount' }
 export const RATE_BASE_LABEL = { amount: 'el monto', charges: 'el valor a financiar' }
 
-/** Nombres que un campo agregado a mano NO puede pisar. */
+/** Nombres que un campo agregado NO puede pisar. */
 const RESERVADOS = new Set(['statedPerYear', 'periodsPerYear', 'i', 'n', 'prev'])
+
+/** Lo que un campo VALE en pesos, para que otro pueda apoyarse en él: un monto vale su input, un
+ *  porcentaje vale su fórmula. */
+export const enPesos = f => (f.kind === 'rate' ? f.name + 'Value' : f.name)
+
+/** El campo leído como una frase — es lo que lo hace entendible sin abrir el código. */
+export function describir(f, campos = []) {
+  const base = f.base
+    ? (campos.find(x => x.name === f.base)?.label ?? f.base)
+    : RATE_BASE_LABEL[f.at]
+  const qué = f.kind === 'rate' ? `porcentaje sobre ${base}` : 'monto fijo'
+  if (f.at !== 'charges') return `${qué}, se suma al monto que se financia`
+  return f.spread ? `${qué}, es un TOTAL y se reparte entre las cuotas`
+                  : `${qué}, se suma a CADA cuota`
+}
 
 /** Resuelve la hoja a lo que el motor come:
  *    · los períodos declarados → constantes numéricas
- *    · cada bloque movible → la etapa que lo aloja (inputs Y fórmulas juntos)
- *    · los campos agregados a mano → sus inputs y, si son porcentaje, su fórmula
+ *    · los campos agregados → sus inputs y, si son porcentaje, su fórmula
  *    · los dos puntos de inserción → la SUMA de los términos que les llegan
  *
- *  Nada de esto vive escrito dos veces: `where` dice dónde cae cada bloque y `terms` dice qué
- *  suma cada punto. Las fórmulas salen de ahí.  */
-export function resolveSheet(def, { periods = {}, where = {}, extras = [] } = {}) {
+ *  Los campos se resuelven EN ORDEN, así que uno puede apoyarse en otro anterior (el IVA sobre la
+ *  fianza) pero nunca en uno posterior: no hay forma de escribir un ciclo.  */
+export function resolveSheet(def, { periods = {}, fields = [] } = {}) {
   const p = { ...(def.periods || {}), ...periods }
-  const w = { ...(def.where || {}), ...where }
 
-  const inputHost = { ...(def.inputHost || {}) }
   const formulas = { ...def.formulas }
   const formulaLabel = { ...FORMULA_LABEL }
   const inputs = [...(def.inputs || [])]
   const terms = [...(def.terms || [])]
   const llegan = {}   // etapa → fórmulas que se calculan ahí
 
-  // ── bloques movibles: sus inputs y sus fórmulas van juntos a donde diga `where`
-  for (const [nombre, b] of Object.entries(def.blocks || {})) {
-    inputHost[nombre] = w[nombre]
-    llegan[w[nombre]] = [...(llegan[w[nombre]] || []), ...b.formulas]
-  }
-  // un término puede caer en una etapa o "donde caiga tal bloque"
-  const cae = t => (def.blocks?.[t.at] ? w[t.at] : t.at)
-
-  // ── campos agregados a mano en la UI
-  for (const e of extras) {
+  for (const f of fields) {
     inputs.push({
-      name: e.name, type: e.kind === 'rate' ? 'rate' : 'money', default: 0, min: 0,
-      appliesTo: e.at, label: e.label, extra: e.id,
-      help: e.kind === 'rate'
-        ? `Porcentaje sobre ${RATE_BASE_LABEL[e.at]}. Campo agregado a mano.`
-        : 'Monto fijo. Campo agregado a mano.',
+      name: f.name, type: f.kind === 'rate' ? 'rate' : 'money', default: 0, min: 0,
+      appliesTo: f.at, label: f.label, field: f.id,
+      // el calificativo que se ve al lado del nombre: solo lo AMBIGUO, no todo
+      note: f.kind === 'rate' && f.base
+        ? 'de ' + (fields.find(x => x.name === f.base)?.label ?? f.base)
+        : f.at === 'charges' && f.spread ? '÷ cuotas' : '',
+      help: describir(f, fields),
     })
-    if (e.kind === 'rate') {
-      // un porcentaje necesita su fórmula: el input es la tasa, el término es el resultado
-      const f = e.name + 'Value'
-      formulas[f] = `${RATE_BASE[e.at]} * ${e.name}`
-      formulaLabel[f] = e.label
-      llegan[e.at] = [...(llegan[e.at] || []), f]
-      terms.push({ value: f, at: e.at, extra: e.id })
-    } else {
-      terms.push({ value: e.name, at: e.at, extra: e.id })   // un monto ES su término
+    if (f.kind === 'rate') {
+      const v = f.name + 'Value'
+      // La base se resuelve A PESOS: si es otro campo, su valor en pesos, no su perilla. Sin esto
+      // el "IVA de la fianza" se calculaba sobre la TASA de la fianza (0,05 × 0,19 = 0,0095 pesos)
+      // en vez de sobre sus pesos, y el error era invisible porque quedaba en el redondeo.
+      const otro = fields.find(x => x.name === f.base)
+      const base = otro ? enPesos(otro) : (f.base || RATE_BASE[f.at])
+      formulas[v] = `${base} * ${f.name}`
+      formulaLabel[v] = f.label
+      llegan[f.at] = [...(llegan[f.at] || []), v]
     }
+    terms.push({ value: enPesos(f), at: f.at, spread: !!f.spread })
   }
 
   // ── los dos puntos de inserción son la SUMA de lo que les llega
-  const suma = etapa => terms.filter(t => cae(t) === etapa)
+  const suma = etapa => terms.filter(t => t.at === etapa)
     .map(t => (etapa === 'charges' && t.spread ? `${t.value} / installments` : t.value))
   formulas.financedAmount = ['amount - downPayment', ...suma('amount')].join(' + ')
   formulas.installmentCharges = suma('charges').join(' + ') || '0'
 
-  // las del bloque van PRIMERO en su etapa: se calculan antes de la que las recoge
-  const movidas = new Set(Object.values(def.blocks || {}).flatMap(b => b.formulas))
   const stages = (def.stages || []).map(st => ({
-    ...st,
-    formulas: [...(llegan[st.key] || []), ...st.formulas.filter(f => !movidas.has(f))],
+    ...st, formulas: [...(llegan[st.key] || []), ...st.formulas],
   }))
 
   return {
-    ...def, stages, inputs, inputHost, formulas, formulaLabel, terms,
+    ...def, stages, inputs, formulas, formulaLabel, terms,
     constants: {
       ...def.constants,
       statedPerYear: PERIODS[p.rateStatedIn],
@@ -372,8 +322,8 @@ export function resolveSheet(def, { periods = {}, where = {}, extras = [] } = {}
 }
 
 /** Un nombre de variable válido a partir de la etiqueta que escribió el usuario.
- *  "costo de estudio" → `costoDeEstudio`. En inglés no se puede: lo escribe él en español. Lo que
- *  importa es que sea un identificador que el tokenizer acepte, sin tildes ni espacios. */
+ *  "IVA de la fianza" → `ivaDeLaFianza`. Lo que importa es que sea un identificador que el
+ *  tokenizer acepte, sin tildes ni espacios. */
 export function nombreDe(label, def, usados = []) {
   const sinTildes = label.normalize('NFD').replace(/[\u0300-\u036f]/g, '')
   const partes = sinTildes.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim().split(/\s+/)
@@ -387,6 +337,15 @@ export function nombreDe(label, def, usados = []) {
   while (tomados.has(n) || tomados.has(n + 'Value')) n = base + ++i
   return n
 }
+
+/** Los campos con los que arranca la app. NO son lógica del motor: son la configuración que uno
+ *  esperaría ver en un lender típico, puesta como campos normales y en cero. Se borran con una ×,
+ *  y ahí el nodo queda vacío — que es el estado del que se parte para configurar otro. */
+export const DEFAULT_FIELDS = [
+  { label: 'fianza', kind: 'rate', at: 'amount' },
+  { label: 'IVA de la fianza', kind: 'rate', at: 'amount', baseOf: 'fianza' },
+  { label: 'seguro de vida', kind: 'rate', at: 'charges' },
+]
 
 export function defaultInputs(def) {
   const o = {}

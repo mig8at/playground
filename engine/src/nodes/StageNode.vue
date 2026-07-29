@@ -5,16 +5,17 @@ import MoneyInput from '../MoneyInput.vue'
 import PercentInput from '../PercentInput.vue'
 import RateBlock from '../RateBlock.vue'
 import { fmtNum } from '../engine.js'
-import { inputs, where, addExtra, removeExtra } from '../store.js'
-import { RATE_BASE_LABEL } from '../sheets.js'
+import { RATE_BASE_LABEL, describir } from '../sheets.js'
+import { inputs, fields, addField, removeField, basesDisponibles } from '../store.js'
 
-// Una etapa AUTOCONTENIDA: sus propios inputs arriba, sus propias fórmulas abajo, separadas por
-// una línea. No hay un nodo "entrada" que junte todo — si una perilla aplica al monto, su lugar
-// es el nodo del monto.
+// Una etapa AUTOCONTENIDA: sus propios inputs arriba, sus propias fórmulas abajo.
 //
-// La última fórmula va resaltada: es la salida de la etapa, lo que las otras consumen — y se
-// muestra SIEMPRE. `showRows: false` esconde los pasos intermedios, nunca el resultado: un nodo
-// que no dice qué produce obliga a leer la etiqueta del cable para entenderlo.
+// El motor no sabe qué es una fianza: los dos puntos de inserción arrancan con los campos por
+// defecto y todo lo demás se agrega acá. Cada campo dice qué hace, así que no hay un bloque con
+// comportamiento cableado que haya que aprender aparte.
+//
+// La última fórmula va resaltada y se muestra SIEMPRE: es la salida de la etapa. `showRows: false`
+// esconde los pasos intermedios, nunca el resultado.
 //
 // El v-model apunta al store, NO al prop `data`: `data` se recrea en cada recálculo y el input
 // perdería el foco a cada tecla.
@@ -31,31 +32,28 @@ const signo = f => (f.sign === -1 ? '−' : f.appliesTo === 'charges' ? '+' : ''
 const DEL_BLOQUE = new Set(['statedRate', 'compound'])
 const propios = computed(() => props.data.inputs.filter(f =>
   f.appliesTo === props.data.key && !(props.data.rateBlock && DEL_BLOQUE.has(f.name))))
-const fianza = computed(() => props.data.inputs.filter(f => f.appliesTo === 'guarantee'))
-// el bloque de fianza se mueve entre los dos puntos de inserción; el botón ofrece el otro
-const enMonto = computed(() => where.guarantee === 'amount')
-const otroLado = computed(() => (enMonto.value ? 'charges' : 'amount'))
-const otroNombre = computed(() => (enMonto.value ? 'a la cuota' : 'al monto'))
+// con `showRows: false` queda solo la salida
+const filas = computed(() => (props.data.showRows ? props.data.rows : props.data.rows.slice(-1)))
 
 // ── agregar un campo ──
-// Solo en los puntos de inserción: lo que se agregue acá entra al cálculo POR acá, y el tipo
-// decide la operación. Monto = se suma tal cual. Porcentaje = se aplica sobre la base del punto
-// (el monto, o el valor a financiar), que es lo que hacen la fianza y el seguro de vida.
+// Solo en los puntos de inserción: lo que se agregue acá entra al cálculo POR acá. Los tres
+// controles son las tres cosas que definen qué hace el campo, y se leen como una frase.
 const nuevo = ref(null)
 const campo = ref(null)
-const base = computed(() => RATE_BASE_LABEL[props.data.key])
+const baseDelPunto = computed(() => RATE_BASE_LABEL[props.data.key])
+const bases = computed(() => basesDisponibles(props.data.key))
+const frase = computed(() => (nuevo.value ? describir({ ...nuevo.value, at: props.data.key }, fields) : ''))
+
 async function abrir() {
-  nuevo.value = { label: '', kind: 'money' }
+  nuevo.value = { label: '', kind: 'money', base: '', spread: false }
   await nextTick()
   campo.value?.focus()
 }
 function crear() {
   if (!nuevo.value?.label.trim()) return
-  addExtra({ ...nuevo.value, at: props.data.key })
+  addField({ ...nuevo.value, at: props.data.key })
   nuevo.value = null
 }
-// con `showRows: false` queda solo la salida
-const filas = computed(() => (props.data.showRows ? props.data.rows : props.data.rows.slice(-1)))
 </script>
 
 <template>
@@ -79,8 +77,10 @@ const filas = computed(() => (props.data.showRows ? props.data.rows : props.data
            :class="{ 'is-zero': inputs[f.name] === 0 || inputs[f.name] === false }">
         <span class="ent__k" :title="f.help">
           <em v-if="signo(f)" class="sg">{{ signo(f) }}</em>{{ f.label }}
+          <!-- solo lo AMBIGUO: sobre qué se aplica el %, o que es un total repartido -->
+          <i v-if="f.note" class="ent__note">{{ f.note }}</i>
         </span>
-        <button v-if="f.extra" class="nodrag del" @click="removeExtra(f.extra)"
+        <button v-if="f.field" class="nodrag del" @click="removeField(f.field)"
           title="quitar este campo">×</button>
         <select v-if="f.type === 'bool'" class="nodrag nf" v-model="inputs[f.name]">
           <option :value="true">sí</option><option :value="false">no</option>
@@ -92,41 +92,42 @@ const filas = computed(() => (props.data.showRows ? props.data.rows : props.data
 
       <RateBlock v-if="data.rateBlock" />
 
-      <!-- La fianza. El encabezado ya NO dice a dónde va: eso lo dice el nodo en el que está.
-           Lo único que queda por ofrecer es la acción, mover el bloque al otro. -->
-      <template v-if="fianza.length">
-        <div class="ent__sec ent__sec--mv">
-          fianza
-          <button class="nodrag mv" @click="where.guarantee = otroLado"
-            :title="`Se calcula y se configura acá porque acá entra. Click para moverla ${otroNombre}: `
-              + (enMonto ? 'se reparte en los pagos y deja de generar intereses.'
-                         : 'se financia con el crédito y empieza a generar intereses.')">
-            mover {{ otroNombre }} ›</button>
-        </div>
-        <div v-for="f in fianza" :key="f.name" class="ent__row"
-             :class="{ 'is-zero': inputs[f.name] === 0 }">
-          <span class="ent__k" :title="f.help">{{ f.label }}</span>
-          <PercentInput v-model="inputs[f.name]" />
-        </div>
-      </template>
-
       <!-- agregar un campo. Solo en los puntos de inserción: entra al cálculo por acá -->
       <template v-if="data.insertion">
         <div v-if="!nuevo" class="ent__add">
           <button class="nodrag addbtn" @click="abrir"
-            :title="`Agrega un costo que entra ${data.title}. Un MONTO se suma tal cual; un `
-              + `PORCENTAJE se aplica sobre ${base}.`">+ campo</button>
+            :title="`Agrega un costo que entra ${data.title}.`">+ campo</button>
         </div>
-        <div v-else class="ent__row ent__new">
-          <input ref="campo" class="nodrag nf nf--name" v-model="nuevo.label"
-            placeholder="nombre del costo" @keydown.enter="crear"
-            @keydown.esc="nuevo = null" @keydown.stop>
-          <select class="nodrag nf nf--kind" v-model="nuevo.kind"
-            :title="nuevo.kind === 'rate' ? `Porcentaje sobre ${base}` : 'Monto fijo, se suma tal cual'">
-            <option value="money">monto</option>
-            <option value="rate">%</option>
-          </select>
-          <button class="nodrag ok" @click="crear" :disabled="!nuevo.label.trim()">✓</button>
+        <div v-else class="ent__new">
+          <div class="ent__row">
+            <input ref="campo" class="nodrag nf nf--name" v-model="nuevo.label"
+              placeholder="nombre del costo" @keydown.enter="crear"
+              @keydown.esc="nuevo = null" @keydown.stop>
+            <select class="nodrag nf nf--kind" v-model="nuevo.kind">
+              <option value="money">monto</option>
+              <option value="rate">%</option>
+            </select>
+          </div>
+          <!-- sobre qué se aplica: la base del punto, u otro campo de este mismo nodo -->
+          <div v-if="nuevo.kind === 'rate'" class="ent__row">
+            <span class="ent__k">sobre</span>
+            <select class="nodrag nf nf--base" v-model="nuevo.base">
+              <option value="">{{ baseDelPunto }}</option>
+              <option v-for="b in bases" :key="b.id" :value="b.name">{{ b.label }}</option>
+            </select>
+          </div>
+          <!-- en la cuota: ¿ya viene por cuota, o es un total que se reparte? -->
+          <div v-if="data.key === 'charges'" class="ent__row">
+            <span class="ent__k">cada</span>
+            <select class="nodrag nf nf--base" v-model="nuevo.spread">
+              <option :value="false">cuota</option>
+              <option :value="true">total ÷ cuotas</option>
+            </select>
+          </div>
+          <div class="ent__row ent__frase">
+            <span class="ent__k">{{ frase }}</span>
+            <button class="nodrag ok" @click="crear" :disabled="!nuevo.label.trim()">✓</button>
+          </div>
         </div>
       </template>
     </div>
