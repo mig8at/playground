@@ -44,16 +44,41 @@ en su encabezado:
 Agregar un costo nuevo de un lender es **elegir uno de los dos**. No hay una tercera respuesta.
 La insignia se queda en ámbar y teal aunque el nodo sea azul, y no es incoherencia: son dos
 señales distintas — el azul dice *"esto lo configura la entidad"*, la insignia dice *"y esto paga
-intereses"*. Son los mismos dos colores del interruptor de la fianza, así que interruptor e
-insignias se leen juntos.
+intereses"*.
 
 Y `cuota` queda con un solo trabajo: la anualidad y la suma. Antes hacía las dos cosas — el `pmt`
 **y** los recargos.
 
-### La fianza es la prueba
+### La fianza es la prueba: el destino es DÓNDE VIVE
 
-Es el mismo costo, y `guaranteeUpfront` elige a cuál de los dos va. Con fianza del 5% sobre
-10.000.000 a 24 cuotas:
+No hay un interruptor que diga a dónde va la fianza. **El bloque entero se muda al nodo que la
+recibe** — sus tres perillas y sus cuatro fórmulas — y el botón `mover a la cuota ›` es lo único
+que queda, porque el estado ya lo dice el nodo en el que está.
+
+Antes había dos datos que podían contradecirse: un `appliesTo` que decidía dónde se *dibujaba* y
+un `guaranteeUpfront` que decidía a dónde iba la *plata*. Y se contradecían **siempre**: el bloque
+se dibujaba en `al monto` incluso con la fianza yéndose a la cuota. El nodo decía una cosa y el
+cálculo hacía otra. Ahora es un dato: `where: { guarantee: 'amount' }`.
+
+Se mueve **completo**, inputs y fórmulas, y no por prolijidad: mover solo los inputs armaba un
+**ciclo** — `al monto` leería `guaranteeRate` de `a la cuota`, y `a la cuota` ya lee
+`financedAmount` de `al monto`.
+
+Y la fórmula que lo recoge cambia con él, así que el documento guardado dice la verdad:
+
+```
+fianza al monto     financedAmount: 'amount - downPayment + totalGuarantee'
+                    monthlyGuarantee: '0'
+fianza a la cuota   financedAmount: 'amount - downPayment'
+                    monthlyGuarantee: 'totalGuarantee / installments'
+```
+
+Son dos textos y no un `× guaranteeUpfront`, porque con la fianza en la cuota `financedAmount` de
+verdad **no tiene nada que ver** con la fianza. Multiplicar por cero lo disimulaba y dejaba una
+dependencia falsa en la arista (`valor a financiar +2`). No es una variante escrita a mano por
+lender: la elige `resolveSheet` a partir del único dato que hay.
+
+Con fianza del 5% sobre 10.000.000 a 24 cuotas:
 
 | la fianza va | valor a financiar | cargos por cuota | cuota del crédito | **cuota total** |
 |---|---|---|---|---|
@@ -62,6 +87,9 @@ Es el mismo costo, y `guaranteeUpfront` elige a cuál de los dos va. Con fianza 
 
 Los **5.603** de diferencia son el interés que se paga por financiarla: `pmt(2%, 24, 500.000)`
 = 26.436 contra `500.000 / 24` = 20.833.
+
+Y con la fianza en la cuota, **`al monto` queda sin un solo input**. Eso es exactamente lo que
+tiene que verse: no se le está sumando nada al monto.
 
 ### La flecha que baja
 

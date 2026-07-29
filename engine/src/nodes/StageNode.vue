@@ -6,7 +6,7 @@ import PercentInput from '../PercentInput.vue'
 import RateBlock from '../RateBlock.vue'
 import { fmtNum } from '../engine.js'
 import { FORMULA_LABEL } from '../sheets.js'
-import { inputs } from '../store.js'
+import { inputs, where } from '../store.js'
 
 // Una etapa AUTOCONTENIDA: sus propios inputs arriba, sus propias fórmulas abajo, separadas por
 // una línea. No hay un nodo "entrada" que junte todo — si una perilla aplica al monto, su lugar
@@ -32,6 +32,10 @@ const DEL_BLOQUE = new Set(['statedRate', 'compound'])
 const propios = computed(() => props.data.inputs.filter(f =>
   f.appliesTo === props.data.key && !(props.data.rateBlock && DEL_BLOQUE.has(f.name))))
 const fianza = computed(() => props.data.inputs.filter(f => f.appliesTo === 'guarantee'))
+// el bloque de fianza se mueve entre los dos puntos de inserción; el botón ofrece el otro
+const enMonto = computed(() => where.guarantee === 'amount')
+const otroLado = computed(() => (enMonto.value ? 'charges' : 'amount'))
+const otroNombre = computed(() => (enMonto.value ? 'a la cuota' : 'al monto'))
 // con `showRows: false` queda solo la salida
 const filas = computed(() => (props.data.showRows ? props.data.rows : props.data.rows.slice(-1)))
 </script>
@@ -68,17 +72,17 @@ const filas = computed(() => (props.data.showRows ? props.data.rows : props.data
 
       <RateBlock v-if="data.rateBlock" />
 
-      <!-- la fianza: su encabezado ES el interruptor de a dónde va el resultado -->
+      <!-- La fianza. El encabezado ya NO dice a dónde va: eso lo dice el nodo en el que está.
+           Lo único que queda por ofrecer es la acción, mover el bloque al otro. -->
       <template v-if="fianza.length">
-        <button class="nodrag ent__sec ent__sec--btn"
-          @click="inputs.guaranteeUpfront = !inputs.guaranteeUpfront"
-          :title="inputs.guaranteeUpfront
-            ? 'Se financia junto con el crédito, así que genera intereses. Click para pasarla a la cuota.'
-            : 'Se reparte en los pagos y no entra al saldo. Click para pasarla al monto.'">
-          fianza · va
-          <b :class="inputs.guaranteeUpfront ? 'to-amount' : 'to-fee'">
-            {{ inputs.guaranteeUpfront ? 'al monto' : 'a la cuota' }}</b> ▾
-        </button>
+        <div class="ent__sec ent__sec--mv">
+          fianza
+          <button class="nodrag mv" @click="where.guarantee = otroLado"
+            :title="`Se calcula y se configura acá porque acá entra. Click para moverla ${otroNombre}: `
+              + (enMonto ? 'se reparte en los pagos y deja de generar intereses.'
+                         : 'se financia con el crédito y empieza a generar intereses.')">
+            mover {{ otroNombre }} ›</button>
+        </div>
         <div v-for="f in fianza" :key="f.name" class="ent__row"
              :class="{ 'is-zero': inputs[f.name] === 0 }">
           <span class="ent__k" :title="f.help">{{ f.label }}</span>

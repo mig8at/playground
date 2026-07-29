@@ -72,11 +72,42 @@ export const SHEET = {
     { name: 'transactionTaxRate', type: 'rate', default: 0, appliesTo: 'guarantee',
       label: '4 × 1000',
       help: 'GMF: el impuesto por mover plata en el sistema financiero, calculado sobre la fianza.' },
-    // No va en la lista: es el encabezado-interruptor de la sección de fianza.
-    { name: 'guaranteeUpfront', type: 'bool', default: true, appliesTo: 'guaranteeWhere',
-      label: 'la fianza va',
-      help: 'AL MONTO = se financia junto con el crédito, y por lo tanto genera intereses. A LA CUOTA = se reparte en los pagos y no entra al saldo.' },
   ],
+
+  /** ═══ A DÓNDE VA CADA COSTO MOVIBLE ═══
+   *  La fianza es el MISMO costo en los dos casos; lo único que cambia es en qué punto de
+   *  inserción entra — y por lo tanto EN QUÉ NODO se configura.
+   *
+   *  Es UN dato, no dos. Antes había un `appliesTo` que decidía dónde se DIBUJABA y un
+   *  `guaranteeUpfront` que decidía a dónde iba la PLATA, y podían contradecirse: de hecho se
+   *  contradecían siempre, porque el bloque se dibujaba en `al monto` incluso con la fianza
+   *  yéndose a la cuota. El nodo decía una cosa y el cálculo hacía otra. */
+  where: { guarantee: 'amount' },
+
+  /** Bloques que se mueven COMPLETOS: sus inputs y sus fórmulas van juntos a la etapa que diga
+   *  `where`. Mover solo los inputs armaba un ciclo — `al monto` leería `guaranteeRate` de
+   *  `a la cuota`, y `a la cuota` ya lee `financedAmount` de `al monto`. */
+  blocks: {
+    guarantee: {
+      inputs: ['guaranteeRate', 'guaranteeVatRate', 'transactionTaxRate'],
+      formulas: ['guaranteeCost', 'guaranteeVat', 'guaranteeTax', 'totalGuarantee'],
+      /** La fórmula que RECOGE el bloque, una por destino. Son dos textos y no un
+       *  `× guaranteeUpfront`: con la fianza en la cuota, `financedAmount` de verdad no tiene
+       *  nada que ver con la fianza. Multiplicar por cero lo disimulaba y dejaba una dependencia
+       *  falsa en la arista (`valor a financiar +2`). No es una variante escrita a mano por
+       *  lender: la elige `resolveSheet` a partir del único dato que hay. */
+      pickup: {
+        amount: {
+          financedAmount: 'amount - downPayment + totalGuarantee',
+          monthlyGuarantee: '0',
+        },
+        charges: {
+          financedAmount: 'amount - downPayment',
+          monthlyGuarantee: 'totalGuarantee / installments',
+        },
+      },
+    },
+  },
 
   /** Las etapas del cálculo. Cada una es AUTOCONTENIDA: trae sus propios inputs (los que
    *  declaran su `appliesTo`) y sus propias fórmulas.
@@ -115,7 +146,7 @@ export const SHEET = {
       insertion: 'con interés',
       insertionHelp: 'Entra al saldo, así que paga intereses en cada cuota — y sube la base del '
         + 'seguro de vida, que se cobra sobre lo financiado.',
-      formulas: ['guaranteeCost', 'guaranteeVat', 'guaranteeTax', 'totalGuarantee', 'financedAmount'] },
+      formulas: ['financedAmount'] },
     // Depende de `al monto`, y es un hecho del negocio, no del dibujo: el seguro de vida se
     // calcula sobre `financedAmount`. Con fianza al 5% y seguro 0,0014, financiar la fianza sube
     // el seguro de 14.000 a 14.700 por cuota. Comparten columna igual, porque están en el mismo
@@ -129,10 +160,9 @@ export const SHEET = {
       formulas: ['installment', 'totalInstallment'] },
   ],
 
-  /** `appliesTo` que no son una etapa: se dibujan DENTRO de la etapa que los consume.
-   *  La fianza se calcula sobre el monto, así que sus perillas viven en `amount` — y su
-   *  interruptor también, porque decide si el resultado va al monto o a la cuota. */
-  inputHost: { guarantee: 'amount', guaranteeWhere: 'amount' },
+  /** `appliesTo` que no son una etapa: se dibujan DENTRO de la etapa que los consume. Los de
+   *  `blocks` los llena `resolveSheet` con lo que diga `where`, así que acá no van a mano. */
+  inputHost: {},
 
   formulas: {
     // Cuando llegue el bloque de precio, la base pasa a ser `principal + deviceCost` — y no
@@ -142,9 +172,10 @@ export const SHEET = {
     guaranteeTax: '(guaranteeCost + guaranteeVat) * transactionTaxRate',
     totalGuarantee: 'guaranteeCost + guaranteeVat + guaranteeTax',
 
-    // Anticipada se financia; mensualizada no entra al saldo y se cobra en cada cuota.
-    // Es aritmética, no un `if`: `guaranteeUpfront` vale 1 o 0.
-    financedAmount: 'amount - downPayment + totalGuarantee * guaranteeUpfront',
+    // `financedAmount` y `monthlyGuarantee` NO se escriben acá: las pone `resolveSheet` según
+    // dónde caiga la fianza (ver `blocks.guarantee.pickup`). Estos son los valores por defecto,
+    // los que quedan si algún día la fianza deja de ser un bloque movible.
+    financedAmount: 'amount - downPayment',
 
     // `if()` como selección de parámetro entre las dos convenciones que conviven en CreditOp
     // (ver F-71 en findings) — no es lógica de negocio.
@@ -153,7 +184,7 @@ export const SHEET = {
     annualEffectiveRate: '(1 + periodRate) ^ periodsPerYear - 1',
 
     lifeInsurance: 'financedAmount * lifeInsuranceRate',
-    monthlyGuarantee: 'totalGuarantee * (1 - guaranteeUpfront) / installments',
+    monthlyGuarantee: '0',
     // Lo que se le suma a cada pago y NO es el crédito. Tener el total con nombre es lo que
     // permite que la etapa `cuota` sea una sola suma en vez de una lista que crece.
     installmentCharges: 'lifeInsurance + monthlyGuarantee',
@@ -265,10 +296,28 @@ export const FORMULA_LABEL = {
 }
 
 /** Resuelve los períodos declarados a números y los deja como constantes. */
-export function withPeriods(def, override = {}) {
-  const p = { ...(def.periods || {}), ...override }
+export function resolveSheet(def, { periods = {}, where = {} } = {}) {
+  const p = { ...(def.periods || {}), ...periods }
+  const w = { ...(def.where || {}), ...where }
+
+  const inputHost = { ...(def.inputHost || {}) }
+  const formulas = { ...def.formulas }
+  const llegan = {}   // etapa → fórmulas de los bloques que le tocan
+  for (const [nombre, b] of Object.entries(def.blocks || {})) {
+    const destino = w[nombre]
+    inputHost[nombre] = destino                       // ahí se DIBUJAN sus inputs
+    llegan[destino] = [...(llegan[destino] || []), ...b.formulas]
+    Object.assign(formulas, b.pickup?.[destino] || {})  // y así se RECOGE el resultado
+  }
+  // las del bloque van PRIMERO en su etapa: se calculan antes de la que las recoge
+  const delBloque = new Set(Object.values(def.blocks || {}).flatMap(b => b.formulas))
+  const stages = (def.stages || []).map(st => ({
+    ...st,
+    formulas: [...(llegan[st.key] || []), ...st.formulas.filter(f => !delBloque.has(f))],
+  }))
+
   return {
-    ...def,
+    ...def, stages, inputHost, formulas,
     constants: {
       ...def.constants,
       statedPerYear: PERIODS[p.rateStatedIn],
