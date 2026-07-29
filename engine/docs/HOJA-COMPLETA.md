@@ -40,25 +40,69 @@ Y **6 configuraciones**, que son lo único que distingue un producto de otro:
 
 ## El orden sugerido para crecer
 
-Un bloque por vez, y cada uno se puede probar solo con `verify.mjs`. Los inputs que agregues
-arrancan en **cero**, así que **ningún bloque nuevo cambia los números de lo que ya andaba** —
-eso es lo que hace seguro crecer de a poco.
+> **Corregido.** La primera versión de este documento ordenaba por *estructura del cálculo*
+> (precio primero, porque va antes en la cadena). Pero por **cobertura** el orden es casi el
+> inverso: `guaranteeRate` y `lifeInsuranceRate` los usan **3 de 6** productos cada uno, y todo
+> el bloque de precio lo usa **1 de 6**.
 
-**1 · Precio** (`marginBase → margin → taxableBase → priceVat → principal`)
-Agrega `downPayment`, `setupFee`, `extras`, `marginFactor`, `priceVatRate`.
-Con eso entra `motai-rto`. Prueba: `principal = 10.790.920`.
+Un bloque por vez, y cada uno se prueba solo con `verify.mjs`. Los inputs nuevos arrancan en
+**cero**, así que **ningún bloque cambia los números de lo que ya andaba** — eso es lo que hace
+seguro crecer de a poco.
 
-**2 · Fianza** (`guaranteeBase → guaranteeCost → guaranteeVat → guaranteeTax → totalGuarantee`)
-Agrega `guaranteeRate`, `guaranteeVatRate`, `transactionTaxRate`, `guaranteeUpfront`, `deviceCost`.
-Con eso entran `salud-*` y `alta-moto`. Prueba: `financedAmount = 12.000.000`.
+### Lo que la hoja mínima ya cubre
 
-**3 · Cargos por cuota** (`lifeInsurance`, `monthlyGuarantee`, `totalInstallment`)
-Agrega `lifeInsuranceRate`, `lifeInsuranceFixed`, `monthlyFixed`.
-Prueba: `totalInstallment = 690.441` en `alta-moto`.
+**2 de 6 completos**: `generico` y `alta-poliza` (esta última es solo monto, tasa y cuotas, y da
+74.414,06 exacto).
 
-**4 · Las configuraciones como presets** — el dropdown que carga valores sin tocar la hoja.
+Y un *casi* engañoso: `salud-dentix` acierta la `installment` (806.916,70) pero **eso no es lo que
+paga el cliente** — su fianza va mensualizada, así que el cobro real es 806.916 + 80.646 de fianza
++ 5.881 de seguro = **893.444**. La hoja acierta el pedazo y se pierde el total. Ese hueco es el
+concepto que falta.
 
-**5 · Política** — otro recurso, no otra hoja. Ver `docs/POLITICA-Y-CALCULO.md`.
+### Las cuatro tandas
+
+| # | tanda | perillas | qué desbloquea | concepto nuevo |
+|---|---|---|---|---|
+| **1** | fianza | 4 · `guaranteeRate` `guaranteeVatRate` `transactionTaxRate` `guaranteeUpfront` | nada completo aún | **lo financiado ≠ lo pedido** |
+| **2** | seguro de vida | 1 · `lifeInsuranceRate` | **salud-gaes y salud-dentix** | **lo que paga ≠ la cuota** |
+| **3** | dispositivo y cargos | 2 · `deviceCost` `monthlyFixed` | **alta-moto** | — |
+| **4** | precio | 5 · `downPayment` `setupFee` `extras` `marginFactor` `priceVatRate` | **motai-rto** | — |
+
+**Cinco perillas desbloquean dos productos; las últimas cinco desbloquean uno.** Rendimiento
+decreciente, en ese orden exacto.
+
+Los dos primeros pasos traen un **concepto**, no solo perillas:
+
+- **La fianza** es lo primero que se *suma* al monto, así que fuerza la distinción entre lo que el
+  cliente pide y lo que se financia. Una vez que existe, cualquier costo futuro es una línea más
+  entre esos dos.
+- **El seguro** fuerza la segunda: el chip de arriba dice "cuota" y en un producto real eso **no
+  es lo que paga el cliente**. Es exactamente el hueco de Dentix.
+
+### Lo que NO agregaría todavía
+
+**`lifeInsuranceFixed` — 0 de 6.** Ningún producto la usa. Existe en el código real
+(`life_insurance_fixed`), así que algún lender debe usarla, pero hasta ver cuál es **superficie
+especulativa**. Agregarla sería inventar un requisito.
+
+### Lo que falta en TODAS las hojas, incluida la completa
+
+**`firstPeriodDays`.** Hoy la serie asume que todos los períodos son iguales; en la realidad entre
+el desembolso y la primera cuota hay un hueco irregular. El código real lo cobra
+(`PaymentCalculationService`: `billingDays`, con corte **5 días antes** del pago) y sobre el
+crédito de Gaes eso da **+2,49% de intereses** contra el mes idealizado de 30 días.
+
+No desbloquea ningún producto: hace que **la tabla deje de ser una idealización**. Va después de
+las cuatro tandas, porque arrastra el calendario — y ahí conviene tener resuelto qué entra al motor
+y qué se queda del lado del llamador (la decisión fue: el motor recibe **días contados**, no fechas).
+
+### Lo que nunca va en la entrada
+
+| | por qué |
+|---|---|
+| score, ingreso, patrimonio | son de la **política**; la calculadora no juzga |
+| fechas de calendario | del **llamador** |
+| el techo de usura | **dato con vigencia** (la Superfinanciera lo cambia cada trimestre), no constante |
 
 ## Lo que NO normaliza, y por qué
 
