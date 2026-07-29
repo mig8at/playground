@@ -71,8 +71,14 @@ Cada herramienta guarda su configuración por target en su propio **`.env.<targe
 `staging`), **autosuficiente**: ahí viven tanto los **hechos** del entorno (BD, API base, `APP_KEY`)
 como las **perillas** (Cognito, mocks, `SEED`). Ya **no** hay capa compartida `env/<target>.env` — se
 eliminó el 2026-07-22 (solo la usaba `frontend-e2e`; `backend-e2e`/`backend-mcp`, que la compartían, se
-borraron). Prioridad: `process.env` > `<herramienta>/.env.<target>`. Ojo: `staging` comparte BD/API con
-`dev`, así que esos valores son una **copia** de dev — si rotan, actualizá los dos.
+borraron). Prioridad: `process.env` > `<herramienta>/.env.<target>`.
+
+**Qué rama sirve cada target** (`local` → local · `dev` → **develop** · `staging` → **qa**). `staging`
+comparte la **BD** con `dev` (mismas credenciales; si rotan, actualizá las dos) pero **NO el API**: en el
+cluster `inertia-develop` conviven dos servicios —`legacy-backend` (rama `develop`) y
+**`legacy-backend-qa`** (rama `qa`)—, así que el nombre del cluster engaña. Apuntar `staging` al backend
+de dev mezcla ambientes y te hace validar código que no es el del front desplegado; costó varias corridas
+creyendo que un feature estaba roto cuando la rama con el cambio no era la que respondía.
 
 **Los permisos no van en archivo.** El flag `I_KNOW_THIS_TOUCHES_SHARED_DEV` **no** vive en ningún
 `.env.*`: se exporta a mano en la shell cuando de verdad vas a escribir a la BD compartida de dev (el

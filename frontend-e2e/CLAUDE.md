@@ -120,8 +120,18 @@ por un mock, dev deja de ser representativo y la prueba no vale.
 |---|---|---|---|
 | pre-aprobaciones | mock `:8095` | **MS real** `pre-approvals-service…:8082` | MS real |
 | payvalida · mdm · lenders · forms · ábaco | mocks | reales | reales |
-| backend · BD | local (sail/Docker) | dev real (compartida) | la de dev |
-| front | local `:5174` | local `:5174` | **desplegado** |
+| backend (rama que sirve) | local (sail/Docker) | `legacy-backend` → **develop** | `legacy-backend-qa` → **qa** |
+| BD | local (sail/Docker) | dev real (compartida) | **la misma de dev** (compartida) |
+| front | local `:5174` | local `:5174` | **desplegado** (`originaciones-qa`) |
+
+⚠ **`dev` y `staging` NO son el mismo backend, aunque el cluster se llame igual.** En `inertia-develop`
+conviven **dos servicios**: `legacy-backend` (sirve la rama `develop`, workflow `main-dev.yaml`) y
+`legacy-backend-qa` (sirve **`qa`**, workflow `main-qa.yaml`). La **BD sí es compartida**, así que un dato
+sembrado se ve desde los dos y todo *parece* consistente — lo que cambia es **qué código responde**.
+Confundirlos hace medir la rama equivocada: probando Ábaco contra `legacy-backend` (develop) daba
+`MOTV1000` porque esa rama todavía decide por los modos deprecados, y se leía como "el feature está roto"
+cuando en `qa` respondía `MOTV1001`. Para saber qué rama tenés enfrente, pedí un campo que solo exista en
+una: `GET /api/loans/allied/{hash}` trae `allowed_document_types` solo con motai-v2 (o sea, solo en `qa`).
 
 Dos mecanismos, y **no son intercambiables**:
 
