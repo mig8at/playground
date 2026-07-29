@@ -12,7 +12,9 @@ import { inputs } from '../store.js'
 // una línea. No hay un nodo "entrada" que junte todo — si una perilla aplica al monto, su lugar
 // es el nodo del monto.
 //
-// La última fórmula va resaltada: es la salida de la etapa, lo que las otras consumen.
+// La última fórmula va resaltada: es la salida de la etapa, lo que las otras consumen — y se
+// muestra SIEMPRE. `showRows: false` esconde los pasos intermedios, nunca el resultado: un nodo
+// que no dice qué produce obliga a leer la etiqueta del cable para entenderlo.
 //
 // El v-model apunta al store, NO al prop `data`: `data` se recrea en cada recálculo y el input
 // perdería el foco a cada tecla.
@@ -23,13 +25,15 @@ const val = r => {
   if (r.status === 'error') return 'error'
   return fmtNum(r.value, /rate|Rate/.test(r.name) ? 6 : undefined)
 }
-const signo = f => (f.sign === -1 ? '−' : f.appliesTo === 'installment' ? '+' : '')
+const signo = f => (f.sign === -1 ? '−' : f.appliesTo === 'charges' ? '+' : '')
 // Si la etapa tiene RateBlock, el bloque es dueño de `statedRate` y `compound`: sacarlos de la
 // lista o se dibujan dos veces.
 const DEL_BLOQUE = new Set(['statedRate', 'compound'])
 const propios = computed(() => props.data.inputs.filter(f =>
   f.appliesTo === props.data.key && !(props.data.rateBlock && DEL_BLOQUE.has(f.name))))
 const fianza = computed(() => props.data.inputs.filter(f => f.appliesTo === 'guarantee'))
+// con `showRows: false` queda solo la salida
+const filas = computed(() => (props.data.showRows ? props.data.rows : props.data.rows.slice(-1)))
 </script>
 
 <template>
@@ -74,9 +78,9 @@ const fianza = computed(() => props.data.inputs.filter(f => f.appliesTo === 'gua
     </div>
 
     <!-- resultados de la etapa -->
-    <div v-if="data.showRows && data.rows.length" class="grp-rows st-out">
-      <div v-for="(r, i) in data.rows" :key="r.name" class="grp-row"
-           :class="{ 'is-out': i === data.rows.length - 1, 'is-off': r.status !== 'ok' }"
+    <div v-if="filas.length" class="grp-rows st-out">
+      <div v-for="(r, i) in filas" :key="r.name" class="grp-row"
+           :class="{ 'is-out': i === filas.length - 1, 'is-off': r.status !== 'ok' }"
            :title="r.expr">
         <span class="grp-k">{{ FORMULA_LABEL[r.name] || r.name }}</span>
         <b class="grp-v">{{ val(r) }}</b>

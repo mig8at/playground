@@ -8,8 +8,11 @@
 // ═══ CADA INPUT DECLARA A QUÉ SE APLICA ═══
 // En el cálculo hay exactamente DOS puntos de inserción, y todo lo que entra va a uno:
 //
-//   valor a financiar = monto − lo que RESTA + lo que SUMA
-//   cuota total       = cuota del crédito + lo que se suma A CADA PAGO
+//   valor a financiar = monto − lo que RESTA + lo que SUMA        ← la etapa `amount`
+//   cuota total       = cuota del crédito + lo que suma A CADA PAGO ← la etapa `charges`
+//
+// Y cada punto es UNA ETAPA, o sea un nodo en pantalla. Agregar un costo nuevo de un lender es
+// elegir uno de dos nodos; no hay una tercera respuesta posible.
 //
 // Por eso `appliesTo` reemplaza a la lista `inputGroups` escrita a mano: el grupo se DERIVA de
 // a qué se aplica el valor, no de cómo se me ocurrió ordenarlo.
@@ -55,7 +58,7 @@ export const SHEET = {
       help: 'Lo que el cliente pone de su bolsillo. RESTA: se financia menos. Se escribe en positivo; la fórmula la resta.' },
 
     // ── A LA CUOTA · se suman a cada pago ──
-    { name: 'lifeInsuranceRate', type: 'rate', default: 0, appliesTo: 'installment',
+    { name: 'lifeInsuranceRate', type: 'rate', default: 0, appliesTo: 'charges',
       label: 'seguro de vida',
       help: 'Factor por peso financiado, por cuota. Si el cliente muere, la aseguradora paga el saldo. 0,0014 = 1.400 pesos por millón.' },
 
@@ -76,20 +79,35 @@ export const SHEET = {
   ],
 
   /** Las etapas del cálculo. Cada una es AUTOCONTENIDA: trae sus propios inputs (los que
-   *  declaran su `appliesTo`) y sus propias fórmulas. No hay un nodo "entrada" que junte todo:
-   *  si una perilla aplica al monto, su lugar es el nodo del monto.
+   *  declaran su `appliesTo`) y sus propias fórmulas.
    *
-   *  `tasa` y `valor a financiar` van en PARALELO: ninguna depende de la otra (verificado
-   *  contra las dependencias reales). `cuota` depende de las dos, así que va después. */
+   *  ═══ UN NODO POR PUNTO DE INSERCIÓN ═══
+   *  Los dos puntos donde algo puede entrar al cálculo son DOS ETAPAS, no un flag:
+   *
+   *    `amount`  — al monto      → termina en `financedAmount`  (lo que se financia)
+   *    `charges` — a la cuota    → termina en `installmentCharges` (lo que viaja en cada pago)
+   *
+   *  Por eso agregar un costo nuevo de un lender es ELEGIR UNO DE DOS NODOS: no hay una tercera
+   *  respuesta posible, y las dos están en pantalla. Es la misma taxonomía de `appliesTo`, pero
+   *  visible.
+   *
+   *  Y así `installment` queda con un solo trabajo: la anualidad (`pmt`) y la suma. Antes hacía
+   *  las dos cosas — la anualidad Y los recargos — y por eso costaba leerlo.
+   *
+   *  `tasa` y `al monto` van en PARALELO: ninguna depende de la otra (verificado contra las
+   *  dependencias reales, no supuesto). */
   stages: [
     { key: 'credit', title: 'el crédito', formulas: [] },
     { key: 'rate', title: 'tasa', formulas: ['periodRate', 'annualEffectiveRate'], rateBlock: true },
-    // `showRows: false` — sus fórmulas intermedias (fianza, IVA, 4×1000, fianza total) solo
-    // repiten los nombres de sus inputs, así que eran ruido. El resultado viaja en la arista.
-    { key: 'amount', title: 'valor a financiar', showRows: false,
+    // `showRows: false` esconde los PASOS, nunca el resultado: el nodo siempre muestra su última
+    // fórmula. Acá los intermedios (fianza, IVA, 4×1000, fianza total) solo repiten los nombres
+    // de sus inputs, así que eran ruido.
+    { key: 'amount', title: 'al monto', showRows: false,
       formulas: ['guaranteeCost', 'guaranteeVat', 'guaranteeTax', 'totalGuarantee', 'financedAmount'] },
+    { key: 'charges', title: 'a la cuota', showRows: false,
+      formulas: ['lifeInsurance', 'monthlyGuarantee', 'installmentCharges'] },
     { key: 'installment', title: 'cuota',
-      formulas: ['installment', 'lifeInsurance', 'monthlyGuarantee', 'totalInstallment'] },
+      formulas: ['installment', 'totalInstallment'] },
   ],
 
   /** `appliesTo` que no son una etapa: se dibujan DENTRO de la etapa que los consume.
@@ -115,10 +133,14 @@ export const SHEET = {
       + ' statedRate * statedPerYear / periodsPerYear)',
     annualEffectiveRate: '(1 + periodRate) ^ periodsPerYear - 1',
 
-    installment: 'pmt(periodRate, installments, financedAmount)',
     lifeInsurance: 'financedAmount * lifeInsuranceRate',
     monthlyGuarantee: 'totalGuarantee * (1 - guaranteeUpfront) / installments',
-    totalInstallment: 'installment + lifeInsurance + monthlyGuarantee',
+    // Lo que se le suma a cada pago y NO es el crédito. Tener el total con nombre es lo que
+    // permite que la etapa `cuota` sea una sola suma en vez de una lista que crece.
+    installmentCharges: 'lifeInsurance + monthlyGuarantee',
+
+    installment: 'pmt(periodRate, installments, financedAmount)',
+    totalInstallment: 'installment + installmentCharges',
   },
 
   series: {
@@ -141,9 +163,6 @@ export const SHEET = {
 }
 
 /** Notación colombiana de tasas, por período.
- *
- *  `ef` — EFECTIVA: capitaliza. `E.A.` es la que la ley obliga a publicar.
- *  `ve` — VENCIDA: nominal expresada en ese período y cobrada AL FINAL de cada uno.
  *
  *  La "V" de vencido no es decorativa: `pmt` cobra al final del período (el `type = 0` de
  *  Excel), así que *vencido* es exacto — y de paso queda dicho que *anticipado* no está
@@ -220,6 +239,7 @@ export const FORMULA_LABEL = {
   lifeInsurance: 'seguro de vida',
   downPayment: 'cuota inicial',
   monthlyGuarantee: 'fianza por cuota',
+  installmentCharges: 'cargos por cuota',
   totalInstallment: 'cuota total',
   periodRate: 'tasa del período',
   annualEffectiveRate: 'tasa efectiva anual',

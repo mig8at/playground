@@ -22,6 +22,7 @@
   --hd-green: #22300f;
   --hd-blue: #16283a;
   --hd-gray: #26251f;
+  --hd-teal: #12302a;
   --tint-green: #1c2610;
   --tint-red: #2a1614;
   --tint-amber: #241c0d;
@@ -53,6 +54,7 @@
   --hd-green: #eef5dd;
   --hd-blue: #e3eef8;
   --hd-gray: #f0eee7;
+  --hd-teal: #ddf1e9;
   --tint-green: #eaf3da;
   --tint-red: #fbe6e5;
   --tint-amber: #f9f0da;
@@ -461,18 +463,29 @@ button.icon:hover { color: var(--ink); background: var(--card2) }
 /* el signo delante del label: se ve si suma o resta */
 .sg { font-style: normal; display: inline-block; width: 9px; color: var(--dim) }
 
-/* ── nodos de etapa: la clave del color es la misma que la sección de la entrada ── */
+/* ── nodos de etapa ──
+   El color ES el punto de inserción, y por eso coincide con el interruptor de la fianza:
+   ahí "al monto" ya se pinta ÁMBAR y "a la cuota" TEAL. Click en el interruptor y el nodo
+   del color que se prendió es exactamente a dónde se fue la plata.
+
+     ámbar   lado del MONTO   (`el crédito`, `al monto`)
+     teal    lado de la CUOTA (`a la cuota`)
+     violeta la TASA — un parámetro, no un valor que se suma
+     verde   `cuota`: donde los dos lados se juntan. Es el resultado.                       */
 .n--stage .n__hd b { text-transform: none }
 .st--rate { border-color: var(--purple) }
 .st--rate .n__hd { background: var(--hd-purple) } .st--rate .n__hd b { color: var(--purple) }
 .st--amount { border-color: var(--amber) }
 .st--amount .n__hd { background: var(--hd-amber) } .st--amount .n__hd b { color: var(--amber) }
-.st--installment { border-color: var(--teal) }
-.st--installment .n__hd { background: var(--hd-teal) } .st--installment .n__hd b { color: var(--teal) }
+.st--charges { border-color: var(--teal) }
+.st--charges .n__hd { background: var(--hd-teal) } .st--charges .n__hd b { color: var(--teal) }
+.st--installment { border-color: var(--green) }
+.st--installment .n__hd { background: var(--hd-green) } .st--installment .n__hd b { color: var(--green) }
 /* la última fila de cada etapa es su salida: lo que las otras consumen */
 .st--rate .grp-row.is-out .grp-k, .st--rate .grp-row.is-out .grp-v { color: var(--purple) }
 .st--amount .grp-row.is-out .grp-k, .st--amount .grp-row.is-out .grp-v { color: var(--amber) }
-.st--installment .grp-row.is-out .grp-k, .st--installment .grp-row.is-out .grp-v { color: var(--teal) }
+.st--charges .grp-row.is-out .grp-k, .st--charges .grp-row.is-out .grp-v { color: var(--teal) }
+.st--installment .grp-row.is-out .grp-k, .st--installment .grp-row.is-out .grp-v { color: var(--green) }
 .grp-rows { padding: 5px 0 6px }
 .grp-row { display: flex; gap: 9px; align-items: baseline; padding: 1px 10px;
            font-size: 11px; line-height: 20px; border-radius: 5px; margin: 0 4px }

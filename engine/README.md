@@ -1,42 +1,63 @@
 # engine — motor de cálculo
 
-**Cinco etapas.** Cada una trae sus propios inputs y sus propias fórmulas: se lee de izquierda
-a derecha y en cada nodo está todo lo que ese paso necesita.
+**Seis etapas, y las dos del medio son la idea entera.** En el cálculo hay exactamente **dos
+puntos** donde algo puede entrar, y cada uno es un nodo:
+
+```
+                     ┌ tasa ────────────┐
+                     │ tasa del período │──────────┐
+                     └──────────────────┘          │
+ ┌ el crédito ───┐                                 ▾
+ │ monto         │  ┌ al monto ─────────┐  ┌ cuota ────────────┐  ┌ Plan de ┐
+ │ cuotas        │─▸│ valor a financiar │─▸│ cuota del crédito │─▸│  pagos  │
+ │ cuota inicial │  └─────────┬─────────┘  │ cuota total       │  └─────────┘
+ └───────────────┘            ▾            └───────────────────┘
+                    ┌ a la cuota ──────┐             ▴
+                    │ cargos por cuota │─────────────┘
+                    └──────────────────┘
+```
+
+| | qué entra ahí | termina en | genera intereses |
+|---|---|---|---|
+| **al monto** | lo que se financia junto con el crédito | `financedAmount` | **sí** |
+| **a la cuota** | lo que viaja arriba de cada pago | `installmentCharges` | no |
+
+Agregar un costo nuevo de un lender es **elegir uno de los dos nodos**. No hay una tercera
+respuesta, y las dos están en pantalla — eso es lo que hace posible normalizar entidades en vez
+de configurarlas una por una.
+
+Y así `cuota` queda con un solo trabajo: la anualidad y la suma. Antes hacía las dos cosas —
+el `pmt` **y** los recargos — y por eso costaba leerlo.
+
+### La fianza es la prueba
+
+Es el mismo costo, y `guaranteeUpfront` elige a cuál de los dos va. Con fianza del 5% sobre
+10.000.000 a 24 cuotas:
+
+| la fianza va | valor a financiar | cargos por cuota | cuota del crédito | **cuota total** |
+|---|---|---|---|---|
+| **al monto** | 10.500.000 | 0 | 555.147 | **555.147** |
+| **a la cuota** | 10.000.000 | 20.833 | 528.711 | **549.544** |
+
+Los **5.603** de diferencia son el interés que se paga por financiarla: `pmt(2%, 24, 500.000)`
+= 26.436 contra `500.000 / 24` = 20.833. El interruptor está en el encabezado de la sección de
+fianza, y su color es el del nodo a donde manda la plata — ámbar el monto, teal la cuota.
+
+### Ninguna columna está escrita a mano
+
+La disposición sale de las dependencias **reales** del AST (`layout.js`). Por eso `tasa` y
+`al monto` caen en paralelo — ninguna depende de la otra — y `a la cuota` cae *después* de
+`al monto`, porque el seguro de vida se calcula sobre lo financiado. Ese hecho no está declarado
+en ningún lado: lo dibuja la fórmula.
+
+Cada nodo muestra **siempre su resultado**; `showRows: false` esconde los pasos intermedios,
+nunca la salida. Un nodo que no dice qué produce obliga a leer la etiqueta del cable.
 
 ```bash
 npm install
 npm run dev     # http://localhost:5196
 node verify.mjs # 30 puntos de control contra los archivos fuente
 ```
-
-```
-┌ el crédito ────────┐   ┌ tasa ─────────────────┐
-│ monto  10.000.000  │──▸│ DICHA [mensual] 2% E.M.│──┐
-│ cuotas         24  │   │ ───── ▾ EFECTIVA ───── │  │  ┌ cuota ──────────────┐
-│ − cuota inicial 0  │   │ SE COBRA [mensual] M.V.│  ├─▸│ +seguro de vida  0% │
-└────────────────────┘   │ equivale a 26,82% E.A. │  │  ├─────────────────────┤
-           │             ├────────────────────────┤  │  │ cuota del crédito   │
-           │             │ tasa del período  2,00%│  │  │ fianza por cuota    │
-           │             └────────────────────────┘  │  │ cuota total 528.711 │
-           │             ┌ valor a financiar ─────┐  │  └─────────────────────┘
-           └────────────▸│ FIANZA · VA AL MONTO ▸  │──┘             │
-                         │ fianza            0%   │                 ▾
-                         │ IVA de la fianza  0%   │        ┌ Plan de pagos ───────────┐
-                         │ 4 × 1000          0%   │        │ # saldo interés capital …│
-                         └────────────────────────┘        └──────────────────────────┘
-```
-
-`tasa` y `valor a financiar` van **en paralelo** porque ninguna depende de la otra; `cuota`
-depende de las dos. La disposición no está escrita a mano: sale de las dependencias reales
-(`layout.js` las calcula del AST).
-
-Está en **lo mínimo a propósito**, para ordenar de a poco. La hoja paramétrica completa —19
-fórmulas, 17 inputs y las 6 configuraciones de producto (Motai, Alta, salud)— vive en
-**`reference/full-sheet.js`**: fuera de la app pero **viva**, porque `verify.mjs` la corre y
-sigue probando que **una sola hoja reproduce los cuatro productos** con 30 puntos exactos
-contra los `.xlsm` y el PDF.
-
-**Cómo volver a crecer, un bloque por vez: [docs/HOJA-COMPLETA.md](docs/HOJA-COMPLETA.md).**
 
 ## La conversión de tasa, como la conversión que es
 

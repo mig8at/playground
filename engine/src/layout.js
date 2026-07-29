@@ -1,13 +1,12 @@
 import { FORMULA_LABEL } from './sheets.js'
 
-// Cinco nodos: el crédito → (tasa ∥ valor a financiar) → cuota → plan de pagos.
+// el crédito → (tasa ∥ al monto) → a la cuota → cuota → plan de pagos.
 // Cada etapa es AUTOCONTENIDA: trae sus propios inputs y sus propias fórmulas.
 //
-// `tasa` y `valor a financiar` van en PARALELO porque ninguna depende de la otra — verificado
-// contra las dependencias reales, no supuesto. `cuota` depende de las dos, así que va después.
-//
-// Las claves de las etapas son las mismas que las secciones de la entrada, así que se lee el
-// par: lo que se puso "al monto" sale como `valor a financiar`.
+// Ninguna columna está escrita a mano: la profundidad sale de las dependencias REALES del AST.
+// Por eso `tasa` y `al monto` caen en paralelo (ninguna depende de la otra) y `a la cuota` cae
+// después de `al monto` — porque el seguro de vida se calcula sobre lo financiado. Ese hecho
+// no está declarado en ningún lado: lo dibuja la fórmula.
 // El nodo mide 296 y la etiqueta del cable lleva nombre + valor ("valor a financiar
 // 10.000.000"), así que la columna tiene que dejarle ~150px o se corta detrás del nodo.
 const COL_W = 452
@@ -40,7 +39,8 @@ export function layoutSheet(def, out, opts = {}) {
       + (ins.length - enBloque - fianzas) * 21
       + (st.rateBlock ? 113 : 0)   // medido en el DOM, no estimado
       + (fianzas ? 22 + fianzas * 21 : 0)
-      + (st.showRows !== false && st.formulas.length ? 8 + st.formulas.length * 22 : 0)
+      // con showRows:false igual queda UNA fila (la salida), no cero
+      + (st.formulas.length ? 8 + (st.showRows === false ? 1 : st.formulas.length) * 22 : 0)
       + 12
   }
   const salida = st => (st && st.formulas.length ? st.formulas[st.formulas.length - 1] : null)
@@ -149,7 +149,8 @@ export function layoutSheet(def, out, opts = {}) {
     if (ultima) {
       edges.push({
         id: 'stage->series', source: '@st:' + ultima.key, target: '@series',
-        label: FORMULA_LABEL[def.output] || def.output, style: { strokeWidth: 1.6 },
+        // con `etiqueta` y no solo el nombre: todos los demás cables llevan su valor
+        label: etiqueta(def.output), style: { strokeWidth: 1.6 },
       })
     }
   }

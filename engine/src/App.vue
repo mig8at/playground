@@ -36,14 +36,12 @@ const financiado = computed(() => {
   const r = out.value.res.financedAmount
   return r?.status === 'ok' ? r.value : null
 })
-// La fianza mensualizada hace que lo que paga el cliente NO sea la cuota del crédito.
-// Mostrarlas juntas cuando difieren es la única forma de que el chip no mienta.
-// Lo que se le suma a cada cuota además de la amortización. Se muestra solo si hay algo,
-// porque es justo el aviso de que "lo que paga ≠ la cuota del crédito".
+// Lo que se le suma a cada cuota además de la amortización. Se muestra solo si hay algo, porque
+// es justo el aviso de que "lo que paga ≠ la cuota del crédito". Ahora es UNA fórmula con
+// nombre (la salida de la etapa `a la cuota`), no una suma armada acá.
 const extraPorCuota = computed(() => {
-  const g = out.value.res.monthlyGuarantee, s = out.value.res.lifeInsurance
-  const v = (g?.status === 'ok' ? g.value : 0) + (s?.status === 'ok' ? s.value : 0)
-  return v > 0 ? v : null
+  const r = out.value.res.installmentCharges
+  return r?.status === 'ok' && r.value > 0 ? r.value : null
 })
 const ea = computed(() => {
   const r = out.value.res.annualEffectiveRate
