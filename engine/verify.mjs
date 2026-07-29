@@ -1,5 +1,5 @@
 import { evalSheet, evalPolicy } from './src/engine.js'
-import { SHEET, PRESETS, POLICIES, withPeriods, defaultInputs } from './src/sheets.js'
+import { SHEET, PRESETS, POLICIES, withPeriods, defaultInputs } from './reference/full-sheet.js'
 
 // Una hoja, N configuraciones. Cada punto de control viene del archivo fuente del producto.
 let fails = 0, n = 0
