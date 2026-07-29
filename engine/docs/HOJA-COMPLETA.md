@@ -119,17 +119,40 @@ precio de venta a 24 meses y prorratea `÷30 ×7` para fijar una tarifa.
 Meterla en la hoja con perillas en cero sería **fingir que es un crédito**. Detalle completo en
 el nodo `motai` del contexto.
 
-## Los nodos: cinco, y la tasa es un tercer tipo
+## Los nodos: cinco, y cada etapa es AUTOCONTENIDA
+
+Ya no hay un nodo "entrada" que junte todo. **Si una perilla aplica al monto, su lugar es el nodo
+del monto** — cada etapa trae sus propios inputs arriba y sus propias fórmulas abajo, separadas
+por una línea.
 
 ```
-             ┌→ [ tasa ] ──────────────┐
-[Entrada] ───┤                         ├→ [ cuota ] → [ Plan de pagos ]
-             └→ [ valor a financiar ] ─┘
+                    ┌─ tasa ────────────────┐
+                    │ dicha  [mensual]  2%  │
+                    │ ── ▾ efectiva ──      │
+                    │ se cobra [mensual] 2% │
+                    │ ─────────────────     │
+                    │ tasa del período 0,02 │
+                    │ tasa efectiva anual   │
+┌─ el crédito ──┐   └───────────────────────┘   ┌─ cuota ─────────────┐
+│ monto   10 M  │─┬→                         ─┬→│ + seguro de vida 0% │→ [ Plan
+│ cuotas    24  │ │ ┌─ valor a financiar ──┐  │ │ ────────────────    │   de pagos ]
+└───────────────┘ │ │ − cuota inicial   0  │  │ │ cuota del crédito   │
+                  │ │ fianza va AL MONTO ▾ │  │ │ seguro de vida      │
+                  │ │ fianza            0% │  │ │ fianza por cuota    │
+                  └→│ IVA de la fianza  0% │──┘ │ cuota total         │
+                    │ 4 × 1000          0% │    └─────────────────────┘
+                    │ ────────────────     │
+                    │ fianza total      0  │
+                    │ valor a financiar 10M│
+                    └──────────────────────┘
 ```
 
-Las claves de las etapas son **las mismas** que las secciones de la entrada, y el color también:
-lo que se puso *al monto* (ámbar) sale como **valor a financiar**; lo que se puso *a la cuota*
-(verde) sale como **cuota total**.
+Cada input declara su **`appliesTo`** y va al nodo que le corresponde. La fianza es la excepción
+declarada: se calcula *sobre* el monto, así que sus perillas viven en `valor a financiar`
+(`inputHost`), y su **encabezado es el interruptor** que decide si el resultado va al monto o a la
+cuota.
+
+El color une el par: ámbar el monto, verde la cuota, morado la tasa.
 
 **`tasa` y `valor a financiar` van en PARALELO** — verificado contra las dependencias reales, no
 supuesto: `periodRate` no depende del monto y `financedAmount` no depende de la tasa. La `cuota`

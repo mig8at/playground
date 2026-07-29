@@ -7,7 +7,6 @@ import '@vue-flow/core/dist/style.css'
 import '@vue-flow/core/dist/theme-default.css'
 import '@vue-flow/controls/dist/style.css'
 
-import InputsNode from './nodes/InputsNode.vue'
 import StageNode from './nodes/StageNode.vue'
 import SeriesNode from './nodes/SeriesNode.vue'
 
@@ -18,7 +17,7 @@ import { ui, inputs, periods, effDef, out, sheetDoc, reset } from './store.js'
 
 // markRaw: sin esto Vue hace reactivos los componentes y avisa por consola en cada nodo.
 const nodeTypes = {
-  inputsNode: markRaw(InputsNode), stageNode: markRaw(StageNode),
+  stageNode: markRaw(StageNode),
   seriesNode: markRaw(SeriesNode),
 }
 

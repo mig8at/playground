@@ -475,3 +475,8 @@ button.icon:hover { color: var(--ink); background: var(--card2) }
 .grp-row.is-out .grp-k, .grp-row.is-out .grp-v { font-weight: 700 }
 .grp-row.is-off { opacity: .45 }
 .grp-row.is-off .grp-v { font-weight: 400; font-size: 10.5px }
+
+/* separa los inputs de la etapa de sus resultados */
+.st-out { border-top: 1px solid var(--line); margin-top: 2px; padding-top: 6px }
+.st--credit { border-color: var(--amber) }
+.st--credit .n__hd { background: var(--hd-amber) } .st--credit .n__hd b { color: var(--amber) }

@@ -42,7 +42,7 @@ export const SHEET = {
   inputs: [
     // ── el crédito mismo ──
     { name: 'amount', type: 'money', default: 10000000, min: 0, appliesTo: 'credit',
-      label: 'monto', help: 'Lo que el cliente pide. Lo de abajo lo sube o lo baja.' },
+      label: 'monto', help: 'Lo que el cliente pide. Las otras etapas lo suben o lo bajan.' },
     { name: 'installments', type: 'count', default: 24, min: 1, appliesTo: 'credit',
       label: 'cuotas', help: 'En cuántos pedazos se devuelve.' },
     { name: 'statedRate', type: 'rate', default: 0.02, appliesTo: 'rate',
@@ -76,28 +76,25 @@ export const SHEET = {
       help: 'AL MONTO = se financia junto con el crédito, y por lo tanto genera intereses. A LA CUOTA = se reparte en los pagos y no entra al saldo.' },
   ],
 
-  /** Los cuatro grupos de la entrada, con su título y su explicación. El grupo de cada input
-   *  sale de su `appliesTo`, no de una lista escrita a mano. */
-  inputSections: [
-    { key: 'credit', title: 'el crédito' },
-    { key: 'rate', title: 'tasa' },
-    { key: 'amount', title: 'al monto', note: 'cambia el valor a financiar' },
-    { key: 'installment', title: 'a la cuota', note: 'se suma a cada pago' },
-    { key: 'guarantee', title: 'fianza' },
-  ],
-
-  /** Las tres etapas del cálculo. Las claves son las MISMAS que `inputSections`, así que se
-   *  ve el par: lo que en la entrada está "al monto" produce el `valor a financiar`.
+  /** Las etapas del cálculo. Cada una es AUTOCONTENIDA: trae sus propios inputs (los que
+   *  declaran su `appliesTo`) y sus propias fórmulas. No hay un nodo "entrada" que junte todo:
+   *  si una perilla aplica al monto, su lugar es el nodo del monto.
    *
-   *  `tasa` y `monto` van en PARALELO: ninguna depende de la otra (verificado con las
-   *  dependencias reales). `cuota` depende de las dos, así que va después. */
+   *  `tasa` y `valor a financiar` van en PARALELO: ninguna depende de la otra (verificado
+   *  contra las dependencias reales). `cuota` depende de las dos, así que va después. */
   stages: [
-    { key: 'rate', title: 'tasa', formulas: ['periodRate', 'annualEffectiveRate'] },
+    { key: 'credit', title: 'el crédito', formulas: [] },
+    { key: 'rate', title: 'tasa', formulas: ['periodRate', 'annualEffectiveRate'], rateBlock: true },
     { key: 'amount', title: 'valor a financiar',
       formulas: ['guaranteeCost', 'guaranteeVat', 'guaranteeTax', 'totalGuarantee', 'financedAmount'] },
     { key: 'installment', title: 'cuota',
       formulas: ['installment', 'lifeInsurance', 'monthlyGuarantee', 'totalInstallment'] },
   ],
+
+  /** `appliesTo` que no son una etapa: se dibujan DENTRO de la etapa que los consume.
+   *  La fianza se calcula sobre el monto, así que sus perillas viven en `amount` — y su
+   *  interruptor también, porque decide si el resultado va al monto o a la cuota. */
+  inputHost: { guarantee: 'amount', guaranteeWhere: 'amount' },
 
   formulas: {
     // Cuando llegue el bloque de precio, la base pasa a ser `principal + deviceCost` — y no
