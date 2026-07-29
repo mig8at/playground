@@ -46,6 +46,8 @@
     "legacy-backend/Modules/Onboarding/App/Services/MotaiValidationService.php",
     "frontend-e2e/mock-abaco/server.mjs",
     "frontend-e2e/mock-forms/server.mjs",
-    "frontend-e2e/pkg/asesor.ts"
+    "frontend-e2e/pkg/asesor.ts",
+    "legacy-backend/Modules/Loans/App/Services/PaymentSchedule/PaymentCalculationService.php",
+    "legacy-backend/Modules/Loans/App/Services/GuaranteeService.php"
   ]
 }

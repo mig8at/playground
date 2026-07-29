@@ -1339,3 +1339,49 @@ la periodicidad, así que ninguna puede mentir.
 **Ojo al mapear un .xlsm.** Los tres archivos de negocio (`Calculadora Renting VF.xlsx`, los dos `Calculadora PV V20251009.xlsm`) **capitalizan**. Si transcribís una calculadora a código y el lender guarda N.M., estás importando la excepción y no el canon. Es exactamente cómo nació esta divergencia.
 
 **Lo que NO diverge — y por eso el arreglo es chico.** La anualidad es **transversal**: `pv * r / (1 - (1+r)^-n)` con fallback `pv/n`, idéntica en **12 sitios** de `legacy-backend` + `legacy-application`, más `FinancialMath::payment` de Credifamilia. La composición también (`cuota = anualidad + seguro de vida + fondo de garantía`, `PaymentCalculationService:71-132`) y el mecanismo de amortización también. Lo único que cambia es **con qué tasa** se alimenta, y eso es una línea.
+
+## N · La fianza (el `.xlsm` y producción calculan distinto sobre el MISMO costo)
+
+### F-72 · Tres divergencias entre la calculadora de negocio y el código: el IVA cableado, el 4×1000 que no existe, y una fianza "mensual" que no es un total repartido
+
+Hermana de [F-71](#f-71): ahí eran dos convenciones de **tasa**; acá son dos definiciones del mismo **costo**. Y la trampa es peor, porque las tres divergencias van en la misma dirección — transcribir el `.xlsm` a código **cobra de más**.
+
+**Síntoma.** Al reproducir la fianza de un crédito de salud desde la `Calculadora PV V20251009.xlsm` el valor a financiar sale distinto al que arma el backend, con la misma tarifa y el mismo monto. La diferencia es chica (miles de pesos sobre millones), así que se lee como redondeo y no como tres reglas distintas.
+
+**Causa raíz verificada.** El `.xlsm` y `PaymentCalculationService` modelan la fianza de forma distinta en tres puntos. En lo único que **coinciden** es en la base, y eso importa decirlo para que nadie lo "arregle".
+
+| | `.xlsm` (negocio) | `PaymentCalculationService` (producción) |
+|---|---|---|
+| **base** | `guaranteeBase = principal + deviceCost`, y `principal` viene de `marginBase = assetCost − downPayment + setupFee` | `($amount + $administrativeCosts)` con `$amount = original_amount − initial_fee` |
+| **IVA** | campo aparte (`guaranteeVatRate`); en Alta va en **0** porque el 9,64 % de Novafianza ya lo trae adentro | **cableado al 19 % y multiplicado adentro**: `* (1 + (19 / 100))` |
+| **4×1000 (GMF)** | lo **cobra**: `guaranteeTax = (guaranteeCost + guaranteeVat) * 0.004` | **no existe** — ninguna mención en todo `Modules/Loans/App/Services/PaymentSchedule/` |
+| **mensualizada** | reparte un **total**: `totalGuarantee * (1 − guaranteeUpfront) / installments` | **% mensual del total financiado**: `guarantee_fixed_monthly_percentage% × totalAmountNoFee`, cobrado en **cada** cuota |
+
+La base **sí coincide**: los dos descuentan la cuota inicial **antes** de calcular la fianza. Es un % de lo que se va a financiar *antes de sumarse ella misma* — ni del monto pedido, ni del valor final (eso sería circular).
+
+La cuarta divergencia es la más peligrosa porque no es un redondeo: **la "fianza mensual" del `.xlsm` y la de producción son mecanismos diferentes.** Un `0,50 %` en `guarantee_fixed_monthly_percentage` a 36 cuotas suma **18 %** del financiado, no 0,5 %.
+
+**Evidencia.**
+- `Modules/Loans/App/Services/PaymentSchedule/PaymentCalculationService.php:82-85` → `// IVA hardcoded at 19% — matches monolito business rule.` seguido de `$guarantee = ($amount + $administrativeCosts) * ($inputs['guarantee_fund_percentage'] / 100) * (1 + (19 / 100));`
+- `PaymentCalculationService.php:188-197` (`calculateInitialAmount`) → `$amount = $userRequest->original_amount; if ($userRequest->initial_fee > 0) { $amount -= $userRequest->initial_fee; }`
+- `PaymentCalculationService.php:100` → `$guaranteePerMillionFixedMonthly = ($inputs['guarantee_fixed_monthly_percentage'] / 100) * $totalAmountNoFee;`
+- `grep -rn "gmf\|GMF\|0.004" Modules/Loans/App/Services/PaymentSchedule/` → **sin resultados**.
+- `playground/engine/reference/full-sheet.js` (la hoja verificada 30/30 contra los `.xlsm`) → `guaranteeBase` · `guaranteeCost` · `guaranteeVat` · `guaranteeTax` · `monthlyGuarantee`.
+
+**Y el dato que ordena cuál importa.** En la copia local, `lenders_by_allieds` (994 filas):
+
+| columna | comercios | valores |
+|---|---|---|
+| `guarantee_fund_percentage` (anticipada) | **338** | 5 % a 36,5 % · moda 13 · 15 · 10 · 12 · 14 |
+| `guarantee_fixed_monthly_percentage` | **2** (lender 139) | 0,50 % |
+| `administrative_costs_percentage` | **225** | — |
+| `life_insurance_percentage` | 48 | — |
+| `guarantee_insurance_per_million` | 0 | sin uso |
+
+O sea: **la fianza anticipada es el caso real** (338 comercios) y la mensualizada es una excepción de dos filas. Y `administrative_costs_percentage`, que usan **225 comercios**, **entra a la base de la fianza** — cualquier normalización que lo omita calcula la fianza de menos.
+
+**Qué hacer.**
+- **Al transcribir un `.xlsm`**, mirar las tres: si el IVA ya viene en la tarifa, el campo va en 0; el GMF probablemente no se cobra; y si la fianza es mensual, confirmar si es un total repartido o un % por cuota — no son lo mismo.
+- **Al normalizar**, el `administrative_costs_percentage` no es opcional: es parte de la base.
+- **El IVA al 19 % cableado debería ser un dato con fecha**, no una constante en el código: fue 16 % hasta 2017. Misma deuda que el techo de usura.
+- Prototipo con las dos bases (neto y bruto) como opción explícita: `playground/engine` — ver su README.
