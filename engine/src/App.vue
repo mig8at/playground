@@ -12,7 +12,7 @@ import SeriesNode from './nodes/SeriesNode.vue'
 
 import { fmtNum } from './engine.js'
 import { layoutSheet } from './layout.js'
-import { ui, inputs, periods, effDef, out, sheetDoc, reset } from './store.js'
+import { ui, inputs, periods, effDef, out, sheetDoc, reset, termsOffered } from './store.js'
 
 // markRaw: sin esto Vue hace reactivos los componentes y avisa por consola en cada nodo.
 const nodeTypes = {
@@ -25,7 +25,8 @@ const nodeTypes = {
 const { fitView } = useVueFlow()
 function onNodesReady() { nextTick(() => fitView({ padding: 0.14, duration: 0 })) }
 
-const graph = computed(() => layoutSheet(effDef.value, out.value, { inputValues: inputs }))
+const graph = computed(() => layoutSheet(effDef.value, out.value,
+  { inputValues: inputs, nPlazos: termsOffered.length }))
 
 const cuota = computed(() => {
   const r = out.value.res.totalInstallment

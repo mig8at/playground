@@ -538,6 +538,35 @@ button.icon:hover { color: var(--ink); background: var(--card2) }
 .g--monto .grp-row.is-out .grp-k, .g--monto .grp-row.is-out .grp-v { color: var(--amber) }
 .g--pago .grp-row.is-out .grp-k, .g--pago .grp-row.is-out .grp-v { color: var(--green) }
 
+/* ── la lista de plazos ofrecidos ──
+   Es CONFIG, no un input, así que se separa con una línea: se edita como la cadena separada por
+   comas que es en la BD (`credit_line_by_lenders.fee_numbers`). */
+.ent__plazos { border-top: 1px solid var(--line); margin-top: 3px; padding-top: 4px }
+/* La lista necesita todo el ancho: con los 112px de los campos numéricos, "6, 12, 18, 24, 36, 48"
+   se cortaba en el cuarto plazo. Es texto de configuración, no una cifra, así que alinea a la
+   izquierda. */
+.ent__plazos .ent__k { flex: 0 0 auto }
+.ent__plazos .nf { flex: 1 1 auto; width: auto; min-width: 0; text-align: left }
+
+/* ── LA VITRINA: la cuota de cada plazo ──
+   Sale de correr la misma hoja una vez por plazo, y es la pantalla que el cliente ve de verdad.
+   Cada fila es un botón: clickearla elige ese plazo. */
+.vit { border-top: 1px solid var(--line); padding: 4px 0 6px }
+.vit__hd { font: 9px var(--mono); color: var(--dim); text-transform: uppercase;
+           letter-spacing: .06em; padding: 2px 10px 3px }
+.vit__row { display: flex; width: calc(100% - 8px); margin: 0 4px; gap: 9px; align-items: baseline;
+            border: 0; background: none; cursor: pointer; padding: 0 6px; border-radius: 5px;
+            font: 11px var(--mono); color: var(--mut); line-height: 19px }
+.vit__row:hover { background: var(--card2); color: var(--ink) }
+.vit__row.on { background: var(--hd-green); color: var(--green) }
+.vit__row.bad { opacity: .45 }
+/* `nowrap` y ancho suficiente para "48 cuotas": con 32px el sufijo se iba a la línea de abajo y
+   cada fila ocupaba el doble. */
+.vit__n { flex: 0 0 66px; text-align: right; white-space: nowrap }
+.vit__n::after { content: ' cuotas'; color: var(--dim); font-size: 9.5px }
+.vit__v { margin-left: auto; font-weight: 650 }
+.vit__row.on .vit__v { color: var(--green) }
+
 .grp-rows { padding: 5px 0 6px }
 .grp-row { display: flex; gap: 9px; align-items: baseline; padding: 1px 10px;
            font-size: 11px; line-height: 20px; border-radius: 5px; margin: 0 4px }

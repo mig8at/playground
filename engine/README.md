@@ -116,6 +116,35 @@ perilla. Sin eso `seguro de vida` aparecía dos veces en el mismo nodo.
 `monto final` los configura la **entidad**, y los tres son ámbar. Esa distinción la llevan los
 títulos — es el precio de agrupar por tema.
 
+### Los plazos son una LISTA, no un input
+
+`cuotas` sigue siendo **un** número —la calculadora necesita uno para dar una cuota— y aparte vive
+la lista de plazos que el lender **ofrece**. No es un invento: en producción también es una lista,
+`credit_line_by_lenders.fee_numbers`, una cadena separada por comas (`'6,12,24,36,48,60,72'` ·
+`'12,18,24'` · `'1,2,3,4,5'`). Se edita igual, y el store la ordena, deduplica y descarta lo que no
+sea un plazo válido.
+
+Y eso es lo que hace que la lista **signifique** algo en vez de ser un selector: **la calculadora
+corre una vez por plazo**, y esa vitrina es exactamente la pantalla que el cliente ve.
+
+```
+CADA PLAZO
+  6 cuotas   ...
+ 12 cuotas   ...
+ 36 cuotas   ...   ← el elegido, resaltado
+ 48 cuotas   ...
+```
+
+Son N evaluaciones de la **misma** hoja cambiando un solo input. Clickear una fila elige ese plazo:
+cambia la cuota, el plan de pagos y la fila resaltada — y **el resto de la vitrina no se mueve**,
+porque ningún plazo depende de otro.
+
+Es también la forma en que la política va a juzgar: no calcula el plazo, **descarta** los que no
+pasan (ver [docs/POLITICA-Y-CALCULO.md](docs/POLITICA-Y-CALCULO.md)). Lo que recorta la lista —los
+topes `min/max_fee_number`, el cupo por categoría de usuario, y las bandas de monto que pueden
+**fijar** un plazo único— es política, y sigue aparcada. Si el plazo elegido no está en la lista, no
+se resalta ninguna fila: el motor calcula lo que le pidas, y la vitrina muestra lo que se ofrece.
+
 ### Tres orígenes, no "constantes y variables"
 
 "Constante" depende de qué estés recorriendo: el IVA es constante *nacionalmente* pero **tiene

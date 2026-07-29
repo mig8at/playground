@@ -10,6 +10,19 @@ export const ui = reactive({ dark: true, showDoc: false })
 export const inputs = reactive({ ...defaultInputs(SHEET) })
 export const periods = reactive({ ...SHEET.periods })
 
+// ── LOS PLAZOS QUE SE OFRECEN ──
+// Una LISTA, no un input: la calculadora necesita UN plazo para dar UNA cuota, y esto es lo que el
+// lender pone en la vitrina. Es `credit_line_by_lenders.fee_numbers`, que en producción también es
+// una lista (separada por comas).
+export const termsOffered = reactive([...(SHEET.terms_offered || [])])
+
+/** Se edita como texto —"6, 12, 24"— porque así se guarda. Se ordena y se deduplica al parsear, y
+ *  un plazo menor a 1 se descarta: `pmt` no significa nada con cero cuotas. */
+export function setTermsOffered(texto) {
+  const n = [...new Set(String(texto).split(/[^0-9]+/).map(Number).filter(v => v >= 1))]
+  termsOffered.splice(0, termsOffered.length, ...n.sort((a, b) => a - b))
+}
+
 // ── LOS CAMPOS ──
 // Todo costo vive acá, no en la hoja: la hoja no sabe qué es una fianza. Cada campo dice qué hace
 // (tipo · base · si se reparte) y `resolveSheet` lo convierte en input, fórmula y término.
@@ -62,11 +75,29 @@ export function basesDisponibles(at, hasta = fields.length) {
 export const effDef = computed(() => resolveSheet(SHEET, { periods, fields }))
 export const out = computed(() => evalSheet(effDef.value, inputs))
 
+/** LA CALCULADORA CORRE UNA VEZ POR PLAZO.
+ *
+ *  Eso es lo que hace que la lista signifique algo en vez de ser un selector: la vitrina que ve el
+ *  cliente es exactamente esto —cada plazo con su cuota— y sale de N evaluaciones de la MISMA hoja,
+ *  cambiando un solo input. Es también la forma en que la política juzgará cada plazo por separado
+ *  (ver docs/POLITICA-Y-CALCULO.md: no calcula el plazo, descarta los que no pasan).
+ *
+ *  `status` viaja con cada fila: un plazo cuya cuota no se pudo calcular se muestra apagado en vez
+ *  de desaparecer, que es la misma regla de evaluación parcial del resto del motor. */
+export const porPlazo = computed(() => {
+  const def = effDef.value
+  return termsOffered.map(n => {
+    const r = evalSheet(def, { ...inputs, installments: n }).res[def.output]
+    return { n, ok: r?.status === 'ok', value: r?.status === 'ok' ? r.value : null }
+  })
+})
+
 export function reset() {
   fields.splice(0)
   for (const k of Object.keys(inputs)) delete inputs[k]
   Object.assign(inputs, defaultInputs(SHEET))
   Object.assign(periods, SHEET.periods)
+  termsOffered.splice(0, termsOffered.length, ...(SHEET.terms_offered || []))
   sembrar()
 }
 
@@ -87,6 +118,8 @@ watch(() => ui.dark, v => { document.documentElement.dataset.theme = v ? 'dark' 
 /** El documento que se guardaría. Toda la hoja: nada vive en código. */
 export const sheetDoc = computed(() => ({
   periods: { ...periods },
+  // la lista que el lender ofrece, tal como la guarda `credit_line_by_lenders.fee_numbers`
+  terms_offered: [...termsOffered],
   // los inputs RESUELTOS: incluyen los campos agregados a mano, que es lo que se guardaría
   inputs: effDef.value.inputs.map(i => ({
     name: i.name, type: i.type, appliesTo: i.appliesTo,

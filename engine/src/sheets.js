@@ -74,8 +74,9 @@ export const SHEET = {
     // financiar se calcula sin él. Dibujarlo después sería inventar una dependencia.
     { name: 'installments', type: 'count', default: 36, min: 1, appliesTo: 'credit',
       label: 'cuotas',
-      help: 'En cuántos pedazos se devuelve. En el flujo real el monto restringe —o fija— qué '
-        + 'plazos se ofrecen; eso es política, no cálculo.' },
+      help: 'En cuántos pedazos se devuelve. Es UNO de los plazos que ofrece el lender: la lista '
+        + 'está abajo, y la calculadora corre una vez por cada uno. En el flujo real el monto '
+        + 'restringe —o fija— qué plazos se ofrecen; eso es política, no cálculo.' },
 
     // ── la tasa
     { name: 'statedRate', type: 'rate', default: 0.2817, appliesTo: 'rate',
@@ -92,6 +93,19 @@ export const SHEET = {
   /** Los dos puntos de inserción son la SUMA de sus términos, y TODOS los términos vienen de los
    *  campos agregados. La hoja no trae ninguno cableado. */
   terms: [],
+
+  /** ═══ LOS PLAZOS QUE EL LENDER OFRECE ═══
+   *  Una LISTA, igual que en producción: `credit_line_by_lenders.fee_numbers` es una cadena
+   *  separada por comas ('6,12,24,36,48,60,72' · '12,18,24' · '1,2,3,4,5').
+   *
+   *  Ojo con la distinción, que es la misma que con las bandas de monto: esto NO es el input
+   *  `installments`. La calculadora necesita UN plazo para dar UNA cuota; la lista es lo que se
+   *  OFRECE, y la calculadora corre una vez por elemento. Por eso `installments` sigue siendo un
+   *  número y esta lista vive aparte.
+   *
+   *  Lo que la recorta —`min/max_fee_number`, el tope por categoría de usuario, y las bandas de
+   *  monto que pueden FIJAR un plazo único— es política, y sigue aparcada. */
+  terms_offered: [6, 12, 18, 24, 36, 48],
 
   /** Las etapas del cálculo. Cada una es AUTOCONTENIDA: trae sus propios inputs (los que
    *  declaran su `appliesTo`) y sus propias fórmulas.
@@ -135,7 +149,11 @@ export const SHEET = {
 
     // La etapa del cliente CALCULA una cosa: el monto neto. Es la variable limpia de la que sale
     // todo lo demás, y sale solo de datos del cliente.
-    { key: 'credit', title: 'el crédito', group: 'entrada', rows: 'out', formulas: ['netAmount'] },
+    // `termsEditor` — acá se edita la lista de plazos ofrecidos, pegada al input que restringe.
+    // Es CONFIG viviendo en el nodo del cliente, y es a propósito: la lista no significa nada lejos
+    // del `cuotas` que elige uno de ella.
+    { key: 'credit', title: 'el crédito', group: 'entrada', rows: 'out', termsEditor: true,
+      formulas: ['netAmount'] },
 
     // ── el punto de inserción del monto, partido en DOS ──
     // Arriba las TARIFAS (las perillas), abajo los PESOS que salen de ellas. Es la misma partición
@@ -170,7 +188,9 @@ export const SHEET = {
     //
     // La clave sigue siendo `charges` a propósito: es la que usan `appliesTo`, los `terms` y
     // `RATE_BASES` para saber que un campo puesto acá va POR CUOTA.
-    { key: 'charges', title: 'cuota', group: 'pago', insertion: true,
+    // `termsCompare` — la vitrina: la cuota de CADA plazo ofrecido. Sale de correr la misma hoja
+    // una vez por plazo, y es la pantalla que el cliente ve de verdad.
+    { key: 'charges', title: 'cuota', group: 'pago', insertion: true, termsCompare: true,
       insertionHelp: 'La anualidad y lo que se le suma. Lo que entra acá viaja arriba de cada pago '
         + 'y nunca entra al saldo, así que NO paga intereses.',
       formulas: ['installment', 'installmentCharges', 'totalInstallment'] },

@@ -6,7 +6,8 @@ import PercentInput from '../PercentInput.vue'
 import RateBlock from '../RateBlock.vue'
 import { fmtNum } from '../engine.js'
 import { RATE_BASES, describir } from '../sheets.js'
-import { inputs, fields, out, addField, removeField, setExpr, basesDisponibles } from '../store.js'
+import { inputs, fields, out, addField, removeField, setExpr, basesDisponibles,
+         termsOffered, setTermsOffered, porPlazo } from '../store.js'
 
 // Una etapa AUTOCONTENIDA: sus propios inputs arriba, sus propias fórmulas abajo.
 //
@@ -81,6 +82,11 @@ const razon = f => {
   return 'sin calcular'
 }
 
+// ── los plazos ofrecidos ──
+// La lista se edita como TEXTO porque así se guarda: `credit_line_by_lenders.fee_numbers` es una
+// cadena separada por comas. El store la parsea, ordena y deduplica.
+const listaPlazos = computed(() => termsOffered.join(', '))
+
 async function abrir() {
   nuevo.value = { label: '', kind: 'money', base: basesFijas.value[0]?.value || '',
                   spread: false, expr: '' }
@@ -147,6 +153,16 @@ function crear() {
         <div v-if="razon(f)" class="ent__err">{{ razon(f) }}</div>
       </div>
 
+      <!-- la lista de plazos que el lender OFRECE. No es un input: `cuotas` elige uno de acá -->
+      <div v-if="data.termsEditor" class="ent__row ent__plazos">
+        <span class="ent__k" title="Los plazos que el lender ofrece. En producción es
+`credit_line_by_lenders.fee_numbers`, también una lista separada por comas. La calculadora corre una
+vez por cada uno: la vitrina está en el nodo de la cuota.">plazos</span>
+        <input class="nodrag nf" :value="listaPlazos" spellcheck="false" @keydown.stop
+          @change="setTermsOffered($event.target.value)"
+          @keydown.enter="setTermsOffered($event.target.value)">
+      </div>
+
       <!-- agregar un campo. Solo en los puntos de inserción: entra al cálculo por acá -->
       <template v-if="data.insertion">
         <div v-if="!nuevo" class="ent__add">
@@ -209,6 +225,19 @@ function crear() {
         </span>
         <b class="grp-v">{{ val(r) }}</b>
       </div>
+    </div>
+
+    <!-- LA VITRINA: la cuota de cada plazo ofrecido, de correr la misma hoja una vez por plazo.
+         Es la pantalla que el cliente ve de verdad, y clickear una fila elige ese plazo. -->
+    <div v-if="data.termsCompare && porPlazo.length" class="vit">
+      <div class="vit__hd">cada plazo</div>
+      <button v-for="p in porPlazo" :key="p.n" class="nodrag vit__row"
+        :class="{ on: Number(inputs.installments) === p.n, bad: !p.ok }"
+        @click="inputs.installments = p.n"
+        :title="p.ok ? `${p.n} cuotas de ${fmtNum(p.value)}` : 'no se pudo calcular'">
+        <span class="vit__n">{{ p.n }}</span>
+        <b class="vit__v">{{ p.ok ? fmtNum(p.value) : '—' }}</b>
+      </button>
     </div>
 
     <Handle id="out" type="source" :position="Position.Right" />

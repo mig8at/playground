@@ -20,7 +20,9 @@ const GAP_Y = 34
 const seriesH = n => Math.min(430, 53 + n * 20)
 
 export function layoutSheet(def, out, opts = {}) {
-  const { inputValues = {} } = opts
+  // `nPlazos` — cuántas filas tiene la vitrina. Viene de afuera porque la lista de plazos es estado
+  // de la app, no de la hoja resuelta, y el alto tiene que contarla o los nodos se solapan.
+  const { inputValues = {}, nPlazos = 0 } = opts
   const stages = def.stages || []
 
   const nodes = []
@@ -56,6 +58,10 @@ export function layoutSheet(def, out, opts = {}) {
       + (st.rateBlock ? 75 : 0)    // medido en el DOM, no estimado (era 113 con el panel viejo)
       + formulas_(st.key).length * 38
       + (st.insertion ? 24 : 0)    // el botón `+ campo`
+      // la lista de plazos y la vitrina también ocupan: sin contarlas, los nodos de una misma
+      // columna se solapan y los clicks caen en el nodo equivocado
+      + (st.termsEditor ? 26 : 0)
+      + (st.termsCompare && nPlazos ? 20 + nPlazos * 19 : 0)
       + (cuantasFilas(st) ? 8 + cuantasFilas(st) * 22 : 0)
       + 12
   }
@@ -186,6 +192,7 @@ export function layoutSheet(def, out, opts = {}) {
         data: {
           key: st.key, title: st.title, rateBlock: !!st.rateBlock, group: st.group,
           insertion: st.insertion, insertionHelp: st.insertionHelp,
+          termsEditor: !!st.termsEditor, termsCompare: !!st.termsCompare,
           hUp: vArriba.has(st.key), hDown: vAbajo.has(st.key), hIn: entra.has(st.key),
           nFilas: cuantasFilas(st),
           // la expresión se ve cuando la perilla del campo está en OTRA etapa
