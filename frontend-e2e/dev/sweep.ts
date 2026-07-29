@@ -42,7 +42,17 @@ const { synthFill } = await import('../pkg/inject.ts');
 const traza = await import('../pkg/trace.ts');
 
 const flowsRaw = JSON.parse(readFileSync(new URL('../.flows.json', import.meta.url), 'utf8'));
-const API = process.env.E2E_MOCK_URL ?? 'http://localhost';
+// El backend contra el que corre esta prueba, POR TARGET (misma resolución que usa el resto del harness:
+// `E2E_MOCK_URL` como override explícito, si no la cadena `.env.<target>`).
+//
+// Antes esto era `process.env.E2E_MOCK_URL ?? 'http://localhost'`, saltándose la cadena: `.env.dev` define
+// `E2E_API_BASE_URL` pero NO `E2E_MOCK_URL`, así que con `E2E_TARGET=dev` el fallback mandaba el register
+// del cliente al backend LOCAL mientras las escrituras SQL iban a la base de DEV → el user_request nacía
+// apuntando a un `users.id` que solo existe en local, quedaba HUÉRFANO y todo endpoint que resuelve el
+// usuario moría con 500 ("Attempt to read property ... on null"). Es el mismo pozo de F-65, por un camino
+// que ese arreglo no cubría: `pkg/config.ts` ya lo resolvía bien y este archivo no lo usaba.
+const { config: e2eConfig } = await import('../pkg/config.ts');
+const API = e2eConfig.mockUrl;
 const PHONE = '3131010101';
 const UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.5 Mobile/15E148 Safari/604.1';
 // `x-cognito-identity-id` = el sub del ASESOR. Lo manda el wizard (default-layout arma authHeaders) y el
