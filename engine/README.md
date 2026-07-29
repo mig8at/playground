@@ -67,26 +67,26 @@ que arranca en dígito lleva el guión bajo adelante.)
 
 Los cinco campos **se borran con una ×**. El ejemplo es configuración, no motor.
 
-**Dos columnas y el plan.** El color es el **grupo**, y agrupa por *tema*: lo que **alimenta** el
-cálculo, y lo que el cliente **paga**.
+**Una columna, un nodo y el plan.** El color es el **grupo**: lo que **alimenta** el cálculo, y lo
+que el cliente **paga**.
 
 ```
  ┌ tasa ─────────────────┐  ámbar · lo que ALIMENTA
  │ ● efectiva ○ nominal  │
- │ DICHA  [anual]  28,17%│──────────────┐
- │ SE COBRA [mens] 2,08…%│              │
- └───────────────────────┘              ▾
- ┌ el crédito ───────────┐   ┌ cuota ──────────────────┐  verde · lo que se PAGA
- │ monto      10.000.000 │──▸│ cuota del crédito 267.335│
- │ cuota inicial 4.000.000   └────────────┬─────────────┘
- │ cuotas             36 │      cuota del crédito 267.335
- │ monto neto  6.000.000 │                ▾
- └───────────┬───────────┘   ┌ a la cuota ─────────────┐   ┌ Plan de ┐
-    monto neto 6.000.000     │ seguro de vida   0,1307%│──▸│  pagos  │
- ┌───────────▾───────────┐   ├─────────────────────────┤   └─────────┘
- │ monto final           │──▸│ cargos por cuota   8.779│
- │ fianza           10%  │   │ cuota total      276.114│
- │ IVA de la f…     19%  │   └─────────────────────────┘
+ │ DICHA  [anual]  28,17%│──┐
+ │ SE COBRA [mens] 2,08…%│  │
+ └───────────────────────┘  │
+ ┌ el crédito ───────────┐  │   ┌ cuota ──────────────────┐  verde · lo que se PAGA
+ │ monto      10.000.000 │  │   │ seguro de vida   0,1307%│
+ │ cuota inicial 4.000.000  ├──▸│ + campo                 │   ┌ Plan de ┐
+ │ cuotas             36 │  │   ├─────────────────────────┤──▸│  pagos  │
+ │ monto neto  6.000.000 │  │   │ cuota del crédito 267.335   └─────────┘
+ └───────────┬───────────┘  │   │ cargos por cuota    8.779│
+    monto neto 6.000.000    │   │ cuota total       276.114│
+ ┌───────────▾───────────┐  │   └─────────────────────────┘
+ │ monto final           │──┘
+ │ fianza           10%  │
+ │ IVA de la f…     19%  │
  │ 4 × 1000     fórmula  │
  │ valor a fin. 6.716.856│
  └───────────────────────┘
@@ -94,19 +94,19 @@ cálculo, y lo que el cliente **paga**.
 
 **Compartir columna no significa estar conectado.** Entre `tasa` y `el crédito` **no hay flecha**, y
 es un hecho: `netAmount = amount − downPayment` no toca la tasa, y `periodRate` no toca el monto.
-Son paralelos de verdad. Las que sí existen se dibujan **hacia abajo** dentro del grupo, con handles
-`Top`/`Bottom` que solo aparecen en las etapas que los usan.
+Son paralelos de verdad. La que sí existe —`el crédito` → `monto final`— se dibuja **hacia abajo**,
+con handles `Top`/`Bottom` que solo aparecen en las etapas que los usan.
 
-**`cuota` es solo la anualidad y `a la cuota` se lleva el total.** Así la dependencia interna va
-hacia abajo (`totalInstallment` necesita `installment`) y se lee como un recibo: *cuota del crédito
-+ los recargos = cuota total*. Antes `cuota` hacía las dos cosas y la flecha iba al revés.
+**`cuota` es un solo nodo**: la anualidad y los recargos que la completan, leído como un recibo.
+Estuvieron separados mientras el total vivía arriba y la flecha iba al revés; una vez que el total
+pasó a donde se suman los recargos, el cable entre los dos no decía nada que las filas no dijeran.
 
 Y una fórmula que genera un **campo** no se dibuja como fila: ya se ve en su propia línea con su
 perilla. Sin eso `seguro de vida` aparecía dos veces en el mismo nodo.
 
-⚠ **El color no dice de dónde viene el dato.** `el crédito` lo llena el **cliente** y `monto final`
-lo configura la **entidad**, y comparten ámbar. Esa distinción la llevan los títulos — es el precio
-de agrupar por tema.
+⚠ **El color no dice de dónde viene el dato.** `el crédito` lo llena el **cliente**; `tasa` y
+`monto final` los configura la **entidad**, y los tres son ámbar. Esa distinción la llevan los
+títulos — es el precio de agrupar por tema.
 
 ### Tres orígenes, no "constantes y variables"
 

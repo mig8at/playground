@@ -144,16 +144,16 @@ export const SHEET = {
       formulas: ['financedAmount'] },
 
     // ── el lado del PAGO ──
-    // `cuota` es SOLO la anualidad, y `a la cuota` se lleva el total. Así la flecha interna del
-    // grupo va hacia abajo —`totalInstallment` necesita `installment`— y se lee como un recibo:
-    // cuota del crédito + los recargos = cuota total. Antes `cuota` hacía las dos cosas y la
-    // dependencia iba al revés.
-    { key: 'installment', title: 'cuota', group: 'pago', formulas: ['installment'] },
-
-    { key: 'charges', title: 'a la cuota', group: 'pago', insertion: true,
-      insertionHelp: 'Lo que entra acá viaja arriba de cada pago y nunca entra al saldo, así que '
-        + 'NO paga intereses.',
-      formulas: ['installmentCharges', 'totalInstallment'] },
+    // UNA etapa: la anualidad y los recargos que la completan. Estuvieron separadas mientras el
+    // total vivía en `cuota` y la flecha iba al revés; una vez que el total pasó a donde se suman
+    // los recargos, el cable entre las dos no decía nada que las filas no dijeran ya.
+    //
+    // La clave sigue siendo `charges` a propósito: es la que usan `appliesTo`, los `terms` y
+    // `RATE_BASES` para saber que un campo puesto acá va POR CUOTA.
+    { key: 'charges', title: 'cuota', group: 'pago', insertion: true,
+      insertionHelp: 'La anualidad y lo que se le suma. Lo que entra acá viaja arriba de cada pago '
+        + 'y nunca entra al saldo, así que NO paga intereses.',
+      formulas: ['installment', 'installmentCharges', 'totalInstallment'] },
   ],
 
   /** `appliesTo` que no son una etapa: se dibujan DENTRO de la etapa que los consume. Los de
