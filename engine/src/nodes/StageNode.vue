@@ -5,7 +5,7 @@ import MoneyInput from '../MoneyInput.vue'
 import PercentInput from '../PercentInput.vue'
 import RateBlock from '../RateBlock.vue'
 import { fmtNum } from '../engine.js'
-import { RATE_BASE_LABEL, SUBTOTAL, SUBTOTAL_LABEL, describir } from '../sheets.js'
+import { RATE_BASES, describir } from '../sheets.js'
 import { inputs, fields, out, addField, removeField, setExpr, basesDisponibles } from '../store.js'
 
 // Una etapa AUTOCONTENIDA: sus propios inputs arriba, sus propias fórmulas abajo.
@@ -40,7 +40,10 @@ const filas = computed(() => props.data.rows.slice(props.data.rows.length - prop
 // controles son las tres cosas que definen qué hace el campo, y se leen como una frase.
 const nuevo = ref(null)
 const campo = ref(null)
-const baseDelPunto = computed(() => RATE_BASE_LABEL[props.data.key])
+// Las bases con nombre del punto (el monto neto, el bruto, lo financiado) más los campos ya
+// creados en este nodo. Un campo solo puede apoyarse en los ANTERIORES, así que un ciclo no se
+// puede ni escribir.
+const basesFijas = computed(() => RATE_BASES[props.data.key] || [])
 const bases = computed(() => basesDisponibles(props.data.key))
 const frase = computed(() => (nuevo.value ? describir({ ...nuevo.value, at: props.data.key }, fields) : ''))
 
@@ -71,7 +74,8 @@ const razon = f => {
 }
 
 async function abrir() {
-  nuevo.value = { label: '', kind: 'money', base: '', spread: false, expr: '' }
+  nuevo.value = { label: '', kind: 'money', base: basesFijas.value[0]?.value || '',
+                  spread: false, expr: '' }
   await nextTick()
   campo.value?.focus()
 }
@@ -160,9 +164,8 @@ function crear() {
           <div v-if="nuevo.kind === 'rate'" class="ent__row">
             <span class="ent__k">sobre</span>
             <select class="nodrag nf nf--base" v-model="nuevo.base">
-              <option value="">{{ baseDelPunto }}</option>
-              <!-- lo que hace el código real con la fianza: el % va sobre lo que ya entró -->
-              <option :value="SUBTOTAL">{{ SUBTOTAL_LABEL }}</option>
+              <option v-for="b in basesFijas" :key="b.value" :value="b.value" :title="b.help">
+                {{ b.label }}</option>
               <option v-for="b in bases" :key="b.id" :value="b.name">{{ b.label }}</option>
             </select>
           </div>

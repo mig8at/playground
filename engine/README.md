@@ -6,25 +6,26 @@ La app arranca con un caso real, no con ceros: un crédito de salud CreditopX co
 de −4.000.000 encima.
 
 ```
-el crédito     monto  10.000.000 · cuotas 36
+el crédito     monto 10.000.000 · cuotas 36 · cuota inicial 4.000.000
+               ─────────────────────────────────────────────
+               monto neto                     6.000.000      ← la variable limpia
 tasa           28,17% E.A.  →  se cobra mensual 2,089764% M.V.
-monto final    cuota inicial            −4.000.000
-               fianza          10% del SUBTOTAL →   600.000
-               IVA de la fianza    19% de fianza →   114.000
-               4 × 1000     (fianza+IVA)×0,004  →     2.856   ← fórmula
-               ──────────────────────────────────────────────
+monto final    fianza             10% del neto →   600.000
+               IVA de la fianza  19% de fianza →   114.000
+               4 × 1000     (fianza+IVA)×0,004 →     2.856   ← fórmula
+               ─────────────────────────────────────────────
                valor a financiar              6.716.856
-a la cuota     seguro de vida          0,1307%  →     8.779
-cuota          cuota del crédito                  267.335
-               cuota total                        276.114
+a la cuota     seguro de vida         0,1307% →     8.779
+cuota          cuota del crédito                 267.335
+               cuota total                       276.114
 ```
 
-**La fianza va sobre el subtotal, no sobre el monto** — la cuota inicial se resta antes. No es una
-decisión nuestra: lo hacen los dos artefactos. El código real
-(`PaymentCalculationService::performCalculation`) calcula
+**La fianza va sobre el monto NETO** — la cuota inicial se resta antes. No es una decisión nuestra:
+lo hacen los dos artefactos. El código real
+(`PaymentCalculationService::performCalculation` + `calculateInitialAmount`) calcula
 
 ```php
-$amount    = original_amount − initial_fee;
+$amount    = original_amount − initial_fee;      // una vez, arriba
 $guarantee = ($amount + $administrativeCosts) * (fga% / 100) * (1 + 19/100);
 ```
 
@@ -43,7 +44,7 @@ no contra el motor: `valor a financiar`, `periodRate`, la cuota, el seguro, el i
 | campo | tipo | por qué está |
 |---|---|---|
 | cuota inicial | **monto** | negativo: prueba que restar no necesita un caso especial |
-| fianza | **%** | sobre **el subtotal hasta acá** — la cuota inicial ya se restó |
+| fianza | **%** | sobre **el monto neto** — la cuota inicial ya se restó |
 | IVA de la fianza | **%** | sobre **otro campo** — un IVA va sobre la fianza, no sobre el monto |
 | 4 × 1000 | **fórmula** | va sobre la **suma** de dos campos, así que el selector de base no alcanza |
 | seguro de vida | **%** | sobre el valor a financiar, y por cuota |
@@ -51,18 +52,15 @@ no contra el motor: `valor a financiar`, `periodRate`, la cuota, el seguro, el i
 Y el documento guardado es la hoja resuelta, sin nada cableado en el motor:
 
 ```
-fianzaValue         = (amount + cuotaInicial) * fianza
+netAmount           = amount - downPayment          ← la única derivada que no es un campo
+fianzaValue         = netAmount * fianza
 ivaDeLaFianzaValue  = fianzaValue * ivaDeLaFianza
 _41000Value         = (fianzaValue + ivaDeLaFianzaValue) * 0.004
 seguroDeVidaValue   = financedAmount * seguroDeVida
 
-financedAmount      = amount + cuotaInicial + fianzaValue + ivaDeLaFianzaValue + _41000Value
+financedAmount      = netAmount + fianzaValue + ivaDeLaFianzaValue + _41000Value
 installmentCharges  = seguroDeVidaValue
 ```
-
-El `@subtotal` se arma con lo que entró **antes** del campo, en orden. Por eso un campo puede
-apoyarse en los anteriores y nunca en sí mismo ni en los que vienen después: un ciclo no se puede
-ni escribir.
 
 (`_41000`: el tokenizer solo acepta identificadores que empiecen con letra o `_`, así que un nombre
 que arranca en dígito lleva el guión bajo adelante.)
@@ -99,6 +97,51 @@ sino **qué clase de cosa** es:
 Así **configurar un lender es llenar las cajas azules.** Es la partición que hacía falta para
 normalizar entidades en vez de configurarlas una por una: lo del cliente, lo de la entidad, y el
 resultado — cada cosa con su color.
+
+### Tres orígenes, no "constantes y variables"
+
+"Constante" depende de qué estés recorriendo: el IVA es constante *nacionalmente* pero **tiene
+fecha** (16% → 19% en 2017), y la fianza es constante *por comercio* y variable entre los 338 que la
+usan. El **origen** no cambia, y ya es cómo están guardados los datos:
+
+| origen | qué | dónde vive | en la hoja |
+|---|---|---|---|
+| **cliente** | monto · cuotas · cuota inicial | `user_requests` | **inputs fijos** |
+| **config** | tasa · fianza% · seguro% · admin% | `credit_line_by_lenders` · `lenders_by_allieds` | **campos** |
+| **ley** | IVA 19% · GMF 0,4% · usura | cableado | constantes (deberían tener fecha) |
+
+Las del cliente son **estructurales**: todo crédito tiene monto, plazo y a veces cuota inicial. Las
+de config son **campos**, porque cambian por lender.
+
+Dos cosas verificadas contra la BD local que ordenan esto:
+
+- **La tasa no depende del plazo.** 157 líneas de crédito para 157 lenders — una por lender — y
+  ninguna con tasas distintas por plazo. El plazo solo tiene que caer entre `min_fee_number` y
+  `max_fee_number`.
+- **La solicitud guarda una COPIA de la tasa.** En 2026, 1.878 de 1.969 solicitudes coinciden con la
+  de su línea; en 2024, 4.413 de 149.586. La divergencia es histórica: la config se movió y las
+  solicitudes viejas conservaron su tasa. O sea que el service debe **recibir** la tasa, no
+  resolverla.
+
+### Primero las variables limpias, después los cálculos
+
+`netAmount = amount − downPayment` es la **primera derivada** y sale solo de datos del cliente: es
+lo que el cliente de verdad financia. Es `calculateInitialAmount` del backend, tal cual.
+
+**Hacen falta los dos, el neto y el bruto.** Producción calcula los costos administrativos y el
+seguro de vida sobre `original_amount`:
+
+```php
+$administrativeCosts  = $inputs['original_amount'] * (admin% / 100) + adminFixed;
+$lifeInsuranceMonthly = $inputs['original_amount'] * (seguro% / 100) + …
+```
+
+Por eso un porcentaje **elige su base** (`el monto neto` · `el monto` · `el valor a financiar`, u
+otro campo), y por eso el neto no reemplaza al bruto.
+
+Y por eso la **cuota inicial no vive en un destino**: no es un costo, es lo que define el monto
+real. Ponerla como un término negativo obligaba a inventar una base "subtotal"; con el neto como
+variable, la fianza es `% × netAmount` y el truco desaparece.
 
 ### Los dos puntos de inserción
 

@@ -96,7 +96,7 @@ export function layoutSheet(def, out, opts = {}) {
   const profC = {}
   const dC = n => {
     if (profC[n] != null) return profC[n]
-    if (sinFormulas.has(n)) return (profC[n] = 0)   // `el crédito` no calcula: va primero
+    if (sinFormulas.has(n)) return (profC[n] = 0)   // una etapa sin fórmulas va primero
     profC[n] = 1                                    // guarda contra ciclos
     const ds = [...(depC.get(n) || [])]
     profC[n] = ds.length ? 1 + Math.max(...ds.map(dC)) : 1
@@ -150,7 +150,9 @@ export function layoutSheet(def, out, opts = {}) {
   }
   // La primera columna no tiene nada que la ancle. Sin esto el nodo inicial queda más arriba que
   // todo el grafo, así que se centra contra lo que depende de él.
-  const primera = cols.get(0) || []
+  // Ojo: la primera columna NO es siempre la 0 — desde que `el crédito` calcula el monto neto,
+  // ninguna etapa cae en profundidad 0. Hay que tomar la mínima que exista.
+  const primera = cols.get(Math.min(...cols.keys())) || []
   if (primera.length === 1) {
     const st = primera[0]
     const hijos = stages.filter(x => dep.get(x.key).has(st.key))

@@ -5,25 +5,34 @@
 //   `label` en ESPAÑOL → solo para mostrar. Corto, como lo diría el negocio
 //   `help`  en ESPAÑOL → la explicación larga, como tooltip
 //
-// ═══ CADA INPUT DECLARA A QUÉ SE APLICA ═══
-// En el cálculo hay exactamente DOS puntos de inserción, y todo costo entra por uno:
+// ═══ TRES ORÍGENES, NO "CONSTANTES Y VARIABLES" ═══
+// "Constante" depende de qué estés recorriendo: el IVA es constante nacionalmente pero TIENE FECHA
+// (16% → 19% en 2017), y la fianza es constante por comercio y variable entre los 338 que la usan.
+// El ORIGEN no cambia, y ya es cómo están guardados los datos:
 //
-//   valor a financiar = monto − cuota inicial + lo que cae AL MONTO   ← la etapa `amount`
-//   cuota total       = cuota del crédito + lo que cae A LA CUOTA     ← la etapa `charges`
+//   CLIENTE   monto · cuotas · cuota inicial        → user_requests
+//   CONFIG    tasa · fianza% · seguro% · admin%     → credit_line_by_lenders + lenders_by_allieds
+//   LEY       IVA 19% · GMF 0,4% · usura            → cableado (debería ser un dato con fecha)
 //
-// Cada punto es UNA ETAPA, o sea un nodo en pantalla, y cada uno es la SUMA de sus términos.
+// Las del CLIENTE son estructurales: todo crédito tiene monto, plazo y a veces cuota inicial. Van
+// como inputs fijos de la hoja. Las de CONFIG son CAMPOS que se agregan, porque cambian por lender.
 //
-// ═══ EL MOTOR NO SABE QUÉ ES UNA FIANZA ═══
-// Ni un seguro, ni un IVA, ni un 4×1000. No hay bloques cableados: todo costo es un CAMPO que se
-// agrega a un punto de inserción, y su definición dice qué hace —
+// ═══ PRIMERO LAS VARIABLES LIMPIAS, DESPUÉS LOS CÁLCULOS ═══
+// `netAmount = amount - downPayment` es la PRIMERA derivada y sale solo de datos del cliente: es lo
+// que el cliente de verdad está financiando. Es exactamente lo que hace el código real
+// (`PaymentCalculationService::calculateInitialAmount`), y por eso la fianza se calcula sobre el
+// neto sin necesidad de ningún truco.
 //
-//   tipo    monto fijo, o porcentaje
-//   base    sobre qué se aplica el porcentaje: la base del punto, u OTRO campo
-//   spread  en la cuota: es un total que se reparte, o ya viene por cuota
+// Ojo: hacen falta LOS DOS. Producción calcula los costos administrativos y el seguro de vida sobre
+// `original_amount`, el BRUTO. Por eso un porcentaje puede elegir su base.
 //
-// — así que un campo se lee como una frase: "IVA de la fianza = 19% de fianza". Los campos que
-// arrancan puestos (`DEFAULT_FIELDS`) son valores por defecto de la configuración, no lógica del
-// motor: se borran con una ×.
+// ═══ Y DOS DESTINOS ═══
+//   valor a financiar = monto neto + lo que cae AL MONTO      ← la etapa `amount`
+//   cuota total       = cuota del crédito + lo que cae A LA CUOTA ← la etapa `charges`
+//
+// El motor no sabe qué es una fianza, ni un IVA, ni un GMF: todo costo es un CAMPO, y su definición
+// dice qué hace. La cuota inicial NO es un costo —es lo que define el monto real— así que no vive
+// en un destino.
 //
 // La UI nunca muestra `name` y el documento nunca muestra `label`. Así un cambio de redacción
 // no puede tocar una fórmula, y traducir la interfaz no puede romper el contrato de la API.
@@ -54,6 +63,12 @@ export const SHEET = {
       label: 'monto', help: 'Lo que el cliente pide. Los costos que se agreguen lo suben o lo bajan.' },
     { name: 'installments', type: 'count', default: 36, min: 1, appliesTo: 'credit',
       label: 'cuotas', help: 'En cuántos pedazos se devuelve.' },
+    // Variable del CLIENTE, no un costo: es lo que define el monto real. Se escribe en positivo y
+    // `netAmount` la resta — igual que `user_requests.initial_fee`, que también es positivo.
+    { name: 'downPayment', type: 'money', default: 4000000, min: 0, appliesTo: 'credit',
+      label: 'cuota inicial',
+      help: 'Lo que el cliente pone de su bolsillo. El monto neto es lo que queda, y es sobre eso '
+        + 'que se calculan la fianza y los intereses.' },
 
     // ── la tasa
     { name: 'statedRate', type: 'rate', default: 0.2817, appliesTo: 'rate',
@@ -95,7 +110,9 @@ export const SHEET = {
   //  es llenar las cajas de ese color. Las otras dos clases son `el crédito` (lo que pide el
   //  cliente) y `cuota` + el plan (el resultado).
   stages: [
-    { key: 'credit', title: 'el crédito', formulas: [] },
+    // La etapa del cliente CALCULA una cosa: el monto neto. Es la variable limpia de la que sale
+    // todo lo demás, y sale solo de datos del cliente.
+    { key: 'credit', title: 'el crédito', rows: 'out', formulas: ['netAmount'] },
     // `rows: 'none'` — la etapa SIGUE siendo dueña de las dos fórmulas (es lo que la pone en el
     // grafo y lo que hace que `cuota` dependa de ella), pero no las dibuja: el valor ya está al
     // lado de su input y la E.A. en la barra de arriba.
@@ -134,6 +151,10 @@ export const SHEET = {
   inputHost: {},
 
   formulas: {
+    // La PRIMERA derivada, y la única que no es un campo: lo que el cliente de verdad financia.
+    // Es `calculateInitialAmount` del backend, tal cual.
+    netAmount: 'amount - downPayment',
+
     // `if()` como selección de parámetro entre las dos convenciones que conviven en CreditOp
     // (ver F-71 en findings) — no es lógica de negocio.
     periodRate: 'if(compound, (1 + statedRate) ^ (statedPerYear / periodsPerYear) - 1,'
@@ -234,6 +255,7 @@ export function notacion(periodo, efectiva, rol = 'dicha') {
 
 /** Nombre en español de una fórmula, para lo poco que la UI necesita nombrar. */
 export const FORMULA_LABEL = {
+  netAmount: 'monto neto',
   financedAmount: 'valor a financiar',
   installment: 'cuota del crédito',
   installmentCharges: 'cargos por cuota',
@@ -243,24 +265,40 @@ export const FORMULA_LABEL = {
 }
 
 /** Resuelve los períodos declarados a números y los deja como constantes. */
-/** La base por defecto de un PORCENTAJE, según dónde caiga. Son las de los casos reales, no una
- *  elección arbitraria: una fianza es un % del monto y un seguro de vida es un % de lo financiado. */
-export const RATE_BASE = { amount: 'amount', charges: 'financedAmount' }
-export const RATE_BASE_LABEL = { amount: 'el monto', charges: 'el valor a financiar' }
-
-/** Base especial: la SUMA de todo lo que ya entró a este punto, incluido el monto.
+/** Las bases que puede tener un PORCENTAJE en cada punto de inserción, con la primera por defecto.
  *
- *  Existe porque es lo que hace el código real. En
- *  `PaymentCalculationService::performCalculation` la fianza es
+ *  No son una elección de diseño: son las dos que usa el código real, y usa las DOS.
  *
- *      ($amount + $administrativeCosts) * fga% * 1.19        con $amount = monto − cuota inicial
+ *    la fianza  → sobre el NETO   `($amount + $administrativeCosts) * fga% * 1.19`
+ *                                 con `$amount = original_amount − initial_fee`
+ *    admin      → sobre el BRUTO  `$inputs['original_amount'] * (admin% / 100) + adminFixed`
+ *    seguro     → sobre el BRUTO  `$inputs['original_amount'] * (seguro% / 100) + …`
  *
- *  o sea: un % de lo que se va a financiar ANTES de sumarse ella misma. No del monto pedido —la
- *  cuota inicial se resta primero— ni del valor final, que sería circular. El `.xlsm` hace lo
- *  mismo por otro camino (`marginBase = assetCost − downPayment + setupFee` → `principal` →
- *  `guaranteeBase = principal + deviceCost`), así que los dos artefactos coinciden. */
-export const SUBTOTAL = '@subtotal'
-export const SUBTOTAL_LABEL = 'el subtotal hasta acá'
+ *  (`PaymentCalculationService::performCalculation`, legacy-backend.)
+ *
+ *  Por eso el monto neto NO reemplaza al bruto: los dos tienen que existir con nombre. Y por eso ya
+ *  no hace falta ninguna base "subtotal": la fianza apunta a `netAmount`, que es una variable. */
+export const RATE_BASES = {
+  amount: [
+    { value: 'netAmount', label: 'el monto neto',
+      help: 'El monto menos la cuota inicial: lo que el cliente de verdad financia. Es la base de '
+        + 'la fianza en el código real.' },
+    { value: 'amount', label: 'el monto',
+      help: 'El monto pedido, SIN descontar la cuota inicial. Es la base de los costos '
+        + 'administrativos y del seguro de vida en el código real.' },
+  ],
+  charges: [
+    { value: 'financedAmount', label: 'el valor a financiar',
+      help: 'Lo que quedó financiado, con los costos del monto ya adentro.' },
+    { value: 'netAmount', label: 'el monto neto', help: 'Antes de los costos del monto.' },
+    { value: 'amount', label: 'el monto', help: 'El monto pedido, sin descontar la cuota inicial.' },
+  ],
+}
+/** La base por defecto de cada punto. */
+export const RATE_BASE = Object.fromEntries(
+  Object.entries(RATE_BASES).map(([k, v]) => [k, v[0].value]))
+const BASE_LABEL = Object.fromEntries(
+  Object.values(RATE_BASES).flat().map(b => [b.value, b.label]))
 
 /** Nombres que un campo agregado NO puede pisar. */
 const RESERVADOS = new Set(['statedPerYear', 'periodsPerYear', 'i', 'n', 'prev'])
@@ -272,9 +310,9 @@ export const enPesos = f => (f.kind === 'money' ? f.name : f.name + 'Value')
 /** El campo leído como una frase — es lo que lo hace entendible sin abrir el código. */
 export function describir(f, campos = []) {
   if (f.kind === 'formula') return `fórmula: ${f.expr || '(vacía)'}`
-  const base = f.base === SUBTOTAL ? SUBTOTAL_LABEL
-    : f.base ? (campos.find(x => x.name === f.base)?.label ?? f.base)
-    : RATE_BASE_LABEL[f.at]
+  const base = campos.find(x => x.name === f.base)?.label
+    ?? BASE_LABEL[f.base || RATE_BASE[f.at]]
+    ?? f.base
   const qué = f.kind === 'rate' ? `porcentaje sobre ${base}` : 'monto fijo'
   const neg = ' — en negativo lo baja'
   if (f.at !== 'charges') return `${qué}, se suma al monto que se financia${neg}`
@@ -297,9 +335,6 @@ export function resolveSheet(def, { periods = {}, fields = [] } = {}) {
   const inputs = [...(def.inputs || [])]
   const terms = [...(def.terms || [])]
   const llegan = {}   // etapa → fórmulas que se calculan ahí
-  // Lo que ya entró a cada punto, en orden. Es la base `@subtotal`: un campo puede apoyarse en la
-  // suma de todo lo anterior, que es lo que hace el código real con la fianza.
-  const acum = { amount: ['amount'], charges: [] }
 
   for (const f of fields) {
     // Una FÓRMULA no tiene perilla: su valor es la expresión. Los otros dos sí, y el tipo decide
@@ -310,10 +345,12 @@ export function resolveSheet(def, { periods = {}, fields = [] } = {}) {
         name: f.name, type: f.kind === 'rate' ? 'rate' : 'money', default: 0,
         appliesTo: f.at, label: f.label, field: f.id,
         // el calificativo que se ve al lado del nombre: solo lo AMBIGUO, no todo
-        note: f.kind === 'rate' && f.base === SUBTOTAL ? 'del subtotal'
-          : f.kind === 'rate' && f.base
-            ? 'de ' + (fields.find(x => x.name === f.base)?.label ?? f.base)
-            : f.at === 'charges' && f.spread ? '÷ cuotas' : '',
+        // el calificativo al lado del nombre: solo lo AMBIGUO. La base por defecto no se anota
+        // (es la del punto); una base distinta sí, porque es justo lo que no se adivina.
+        note: f.kind === 'rate' && f.base && f.base !== RATE_BASE[f.at]
+          ? 'de ' + (fields.find(x => x.name === f.base)?.label
+              ?? BASE_LABEL[f.base] ?? f.base)
+          : f.at === 'charges' && f.spread ? '÷ cuotas' : '',
         help: describir(f, fields),
       })
     }
@@ -322,10 +359,10 @@ export function resolveSheet(def, { periods = {}, fields = [] } = {}) {
       // La base se resuelve A PESOS: si es otro campo, su valor en pesos, no su perilla. Sin esto
       // el "IVA de la fianza" se calculaba sobre la TASA de la fianza (0,05 × 0,19 = 0,0095 pesos)
       // en vez de sobre sus pesos, y el error era invisible porque quedaba en el redondeo.
+      // si la base es otro CAMPO se resuelve a sus pesos, no a su perilla; si es una de las bases
+      // con nombre (`netAmount`, `amount`, `financedAmount`) va tal cual
       const otro = fields.find(x => x.name === f.base)
-      const base = f.base === SUBTOTAL
-        ? '(' + (acum[f.at]?.join(' + ') || '0') + ')'
-        : otro ? enPesos(otro) : (f.base || RATE_BASE[f.at])
+      const base = otro ? enPesos(otro) : (f.base || RATE_BASE[f.at])
       formulas[v] = `${base} * ${f.name}`
       formulaLabel[v] = f.label
       llegan[f.at] = [...(llegan[f.at] || []), v]
@@ -339,17 +376,14 @@ export function resolveSheet(def, { periods = {}, fields = [] } = {}) {
       llegan[f.at] = [...(llegan[f.at] || []), f.name + 'Value']
     }
     terms.push({ value: enPesos(f), at: f.at, spread: !!f.spread })
-    // recién ahora entra al subtotal: un campo puede apoyarse en los ANTERIORES, nunca en sí mismo
-    // ni en los que vienen después. Así un ciclo no se puede ni escribir.
-    acum[f.at] = [...(acum[f.at] || []), enPesos(f)]
   }
 
   // ── los dos puntos de inserción son la SUMA de lo que les llega
   const suma = etapa => terms.filter(t => t.at === etapa)
     .map(t => (etapa === 'charges' && t.spread ? `${t.value} / installments` : t.value))
-  // TODO se suma. Un valor negativo resta — así la cuota inicial es un campo como cualquier otro
-  // y no un caso especial `- downPayment` en la fórmula.
-  formulas.financedAmount = ['amount', ...suma('amount')].join(' + ')
+  // Arranca del NETO, que ya descontó la cuota inicial. Todo lo que se le suma es un costo; un
+  // campo negativo resta (un descuento).
+  formulas.financedAmount = ['netAmount', ...suma('amount')].join(' + ')
   formulas.installmentCharges = suma('charges').join(' + ') || '0'
 
   const stages = (def.stages || []).map(st => ({
@@ -403,11 +437,10 @@ export const DEFAULT_FIELDS = [
   //   %         la fianza sobre el monto, y el IVA sobre LA FIANZA (no sobre el monto)
   //   fórmula   el 4×1000, que va sobre la SUMA de fianza + IVA — dos campos, así que el
   //             selector de base no alcanza y hace falta escribirla
-  { label: 'cuota inicial', kind: 'money', at: 'amount', value: -4000000 },
-  // `base: SUBTOTAL` y no el monto: la cuota inicial se resta ANTES. Es lo que hace el código
-  // real y lo que hace el .xlsm. Con la base en el monto pelado la fianza daba 1.000.000 en vez
-  // de 600.000, y el valor a financiar 477.904 de más.
-  { label: 'fianza', kind: 'rate', at: 'amount', base: SUBTOTAL, value: 0.10 },
+  // La cuota inicial NO está acá: es una variable del cliente (`downPayment`), no un costo.
+  // La fianza va sobre `netAmount` —la base por defecto del punto— que es lo que hace el código
+  // real. Con la base en el monto bruto daba 1.000.000 en vez de 600.000.
+  { label: 'fianza', kind: 'rate', at: 'amount', value: 0.10 },
   { label: 'IVA de la fianza', kind: 'rate', at: 'amount', baseOf: 'fianza', value: 0.19 },
   { label: '4 × 1000', kind: 'formula', at: 'amount',
     expr: '(fianzaValue + ivaDeLaFianzaValue) * 0.004' },
