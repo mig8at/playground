@@ -1,6 +1,7 @@
 # engine — motor de cálculo
 
-Dos nodos: **la entrada y la tabla**.
+**Cinco etapas.** Cada una trae sus propios inputs y sus propias fórmulas: se lee de izquierda
+a derecha y en cada nodo está todo lo que ese paso necesita.
 
 ```bash
 npm install
@@ -9,16 +10,25 @@ node verify.mjs # 30 puntos de control contra los archivos fuente
 ```
 
 ```
-┌─ Entrada ──────────────┐          ┌─ Plan de pagos ────────────────────────┐
-│ monto      10.000.000  │          │ #  openingBalance interest principal … │
-│ cuotas             24  │ ──cuota→ │ 1     10.000.000   200.000   328.711   │
-│ TASA                   │          │ 2      9.671.289   193.426   335.285   │
-│ DICHA  [mensual] 2%    │          │ …                                      │
-│ ──── ▾ EFECTIVA ────   │          └────────────────────────────────────────┘
-│ SE COBRA [mensual] 2%  │
-│ equivale a 26,82% E.A. │
-└────────────────────────┘
+┌ el crédito ────────┐   ┌ tasa ─────────────────┐
+│ monto  10.000.000  │──▸│ DICHA [mensual] 2% E.M.│──┐
+│ cuotas         24  │   │ ───── ▾ EFECTIVA ───── │  │  ┌ cuota ──────────────┐
+│ − cuota inicial 0  │   │ SE COBRA [mensual] M.V.│  ├─▸│ +seguro de vida  0% │
+└────────────────────┘   │ equivale a 26,82% E.A. │  │  ├─────────────────────┤
+           │             ├────────────────────────┤  │  │ cuota del crédito   │
+           │             │ tasa del período  2,00%│  │  │ fianza por cuota    │
+           │             └────────────────────────┘  │  │ cuota total 528.711 │
+           │             ┌ valor a financiar ─────┐  │  └─────────────────────┘
+           └────────────▸│ FIANZA · VA AL MONTO ▸  │──┘             │
+                         │ fianza            0%   │                 ▾
+                         │ IVA de la fianza  0%   │        ┌ Plan de pagos ───────────┐
+                         │ 4 × 1000          0%   │        │ # saldo interés capital …│
+                         └────────────────────────┘        └──────────────────────────┘
 ```
+
+`tasa` y `valor a financiar` van **en paralelo** porque ninguna depende de la otra; `cuota`
+depende de las dos. La disposición no está escrita a mano: sale de las dependencias reales
+(`layout.js` las calcula del AST).
 
 Está en **lo mínimo a propósito**, para ordenar de a poco. La hoja paramétrica completa —19
 fórmulas, 17 inputs y las 6 configuraciones de producto (Motai, Alta, salud)— vive en
@@ -65,6 +75,27 @@ en las 157 filas) y los `.xlsm` **capitalizan**.
 La UI muestra **porcentaje** (`28,17 %`) porque escribir `0.2817` es antinatural. El documento
 guarda el decimal — la interfaz traduce, el dato no cambia.
 
+### La sigla, al lado de cada porcentaje
+
+Cada fila del bloque lleva su notación colombiana, con el nombre largo en el tooltip. Son **tres
+familias**, y confundirlas es exactamente F-71:
+
+| fila | familia | qué dice | ejemplos |
+|---|---|---|---|
+| **dicha**, efectiva | `ef` | capitaliza | `E.A.` `E.M.` `E.T.` `E.Sm.` |
+| **dicha**, nominal | `no` | no capitaliza: se reparte dividiendo | `N.A.` **`N.M.`** `N.T.` |
+| **se cobra** | `vc` | *cuándo* se cobra: al final del período | `M.V.` `T.V.` `Q.V.` `Sm.V.` |
+
+Dos cosas que la sigla hace visibles gratis:
+
+- Poner "dicha mensual + nominal" imprime **`N.M.`** — literalmente el `rate_suffix` de las 157
+  filas de `credit_line_by_lenders`. La UI habla la notación de la columna.
+- La fila de abajo **siempre** es vencida, porque nuestro `pmt` cobra al final del período (el
+  `type=0` de Excel). Deja a la vista que *anticipado* no está soportado, sin una nota al pie.
+
+Los nombres largos están **escritos** en `RATE_NOTATION`, no derivados: así "quincena vencid**a**"
+concuerda en género sin trucos de string.
+
 ## Para entenderlo desde cero
 
 **[docs/COMO-FUNCIONA.md](docs/COMO-FUNCIONA.md)** — sin saber nada de finanzas y sin fórmulas
@@ -81,10 +112,10 @@ src/sheets.js      la hoja mínima
 reference/full-sheet.js  la hoja completa + las 6 configuraciones (solo verify)
 src/store.js       estado reactivo compartido; los nodos lo importan directo
 src/layout.js      disposición automática por profundidad (sin dagre: son DAGs chicos)
-src/MoneyInput.vue campo de dinero con separador de miles
-src/nodes/         InputsNode · SeriesNode
+src/nodes/         StageNode (la etapa universal) · SeriesNode (la tabla)
 src/RateBlock.vue  la conversión de tasa
-src/MoneyInput.vue · src/PercentInput.vue
+src/MoneyInput.vue campo de dinero con separador de miles
+src/PercentInput.vue  muestra %, guarda decimal
 verify.mjs         arnés de regresión contra los archivos fuente
 ```
 

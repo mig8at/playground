@@ -2,7 +2,7 @@
 import { computed } from 'vue'
 import PercentInput from './PercentInput.vue'
 import { inputs, periods, out } from './store.js'
-import { PERIODS } from './sheets.js'
+import { PERIODS, notacion } from './sheets.js'
 
 // La conversión de tasa, en DOS filas con la convención en la mitad:
 //
@@ -23,6 +23,12 @@ const result = computed(() => {
   const r = out.value.res.periodRate
   return r?.status === 'ok' ? r.value : ''
 })
+// La sigla de mercado al lado del campo: E.A. / M.V. / T.V. … con su explicación en el tooltip.
+// La de arriba sale de la convención elegida; la de abajo es siempre VENCIDA, porque el motor
+// cobra al final de cada período.
+const sigDicha = computed(() => notacion(periods.rateStatedIn, !!inputs.compound))
+const sigCobra = computed(() => notacion(periods.chargedEvery, false, 'cobra'))
+
 const ea = computed(() => {
   const r = out.value.res.annualEffectiveRate
   return r?.status === 'ok' ? (r.value * 100).toFixed(2).replace('.', ',') : null
@@ -37,6 +43,7 @@ const ea = computed(() => {
         <option v-for="(n, name) in PERIODS" :key="name" :value="name">{{ name }}</option>
       </select>
       <PercentInput v-model="inputs.statedRate" />
+      <b class="rb__sig" :title="sigDicha.ayuda">{{ sigDicha.sigla }}</b>
     </div>
 
     <button class="nodrag rb__conv" :class="{ nom: !inputs.compound }"
@@ -53,6 +60,7 @@ const ea = computed(() => {
         <option v-for="(n, name) in PERIODS" :key="name" :value="name">{{ name }}</option>
       </select>
       <PercentInput :model-value="result" :dec="6" disabled />
+      <b class="rb__sig" :title="sigCobra.ayuda">{{ sigCobra.sigla }}</b>
     </div>
 
     <div v-if="ea" class="rb__ea">equivale a <b>{{ ea }}% E.A.</b></div>

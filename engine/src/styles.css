@@ -430,6 +430,9 @@ button.icon:hover { color: var(--ink); background: var(--card2) }
 .rb__out { flex: 0 0 74px; width: 74px; text-align: right; font: 650 11.5px var(--mono);
            color: var(--blue); white-space: nowrap }
 .rb__out em { font-style: normal; color: var(--dim); margin-left: 1px }
+.rb__sig { flex: 0 0 40px; width: 40px; font: 650 9.5px var(--mono); color: var(--dim);
+            letter-spacing: .02em; cursor: help; text-align: left; padding-left: 4px }
+.rb__sig:hover { color: var(--purple) }
 .rb__ea { margin-top: 7px; padding-top: 6px; border-top: 1px dashed var(--line);
           font-size: 10.5px; color: var(--mut) }
 .rb__ea b { color: var(--purple); font-family: var(--mono) }

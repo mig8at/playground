@@ -50,8 +50,7 @@ export const SHEET = {
     { name: 'compound', type: 'bool', default: true, appliesTo: 'rate',
       label: 'efectiva', help: 'Sí = capitaliza · No = nominal, divide proporcional.' },
 
-    // ── AL MONTO · cambian el valor a financiar ──
-    { name: 'downPayment', type: 'money', default: 0, min: 0, appliesTo: 'amount', sign: -1,
+    { name: 'downPayment', type: 'money', default: 0, min: 0, appliesTo: 'credit', sign: -1,
       label: 'cuota inicial',
       help: 'Lo que el cliente pone de su bolsillo. RESTA: se financia menos. Se escribe en positivo; la fórmula la resta.' },
 
@@ -139,6 +138,75 @@ export const SHEET = {
   },
 
   output: 'totalInstallment',
+}
+
+/** Notación colombiana de tasas, por período.
+ *
+ *  `ef` — EFECTIVA: capitaliza. `E.A.` es la que la ley obliga a publicar.
+ *  `ve` — VENCIDA: nominal expresada en ese período y cobrada AL FINAL de cada uno.
+ *
+ *  La "V" de vencido no es decorativa: `pmt` cobra al final del período (el `type = 0` de
+ *  Excel), así que *vencido* es exacto — y de paso queda dicho que *anticipado* no está
+ *  soportado. Si algún día hace falta, es otra fórmula, no otra etiqueta.
+ *
+ *  Sobre `E.A.` y la familia `M.V./T.V.` no hay discusión: son las de mercado. Para semanal y
+ *  quincenal no existe una forma estándar, así que se usa una corta y el tooltip la deletrea. */
+export const RATE_NOTATION = {
+  // Tres notaciones por período, porque son tres cosas distintas y confundirlas es F-71:
+  //   ef — EFECTIVA: capitaliza. Aplicada su período da exactamente ese porcentaje.
+  //   no — NOMINAL: se anualiza multiplicando y se reparte dividiendo. `mensual` da "N.M.",
+  //        que es literalmente el `rate_suffix` de las 157 filas de credit_line_by_lenders.
+  //   vc — VENCIDA: dice CUÁNDO se cobra, al final del período. Es lo que hace nuestro pmt.
+  // Los nombres largos van escritos, no derivados: así "quincena vencidA" concuerda sin trucos.
+  anual: { ef: 'E.A.', efN: 'efectiva anual', no: 'N.A.', noN: 'nominal anual',
+    vc: 'A.V.', vcN: 'año vencido', nombre: 'anual', unidad: 'año' },
+  semestral: { ef: 'E.S.', efN: 'efectiva semestral', no: 'N.S.', noN: 'nominal semestral',
+    vc: 'S.V.', vcN: 'semestre vencido', nombre: 'semestral', unidad: 'semestre' },
+  trimestral: { ef: 'E.T.', efN: 'efectiva trimestral', no: 'N.T.', noN: 'nominal trimestral',
+    vc: 'T.V.', vcN: 'trimestre vencido', nombre: 'trimestral', unidad: 'trimestre' },
+  bimestral: { ef: 'E.B.', efN: 'efectiva bimestral', no: 'N.B.', noN: 'nominal bimestral',
+    vc: 'B.V.', vcN: 'bimestre vencido', nombre: 'bimestral', unidad: 'bimestre' },
+  mensual: { ef: 'E.M.', efN: 'efectiva mensual', no: 'N.M.', noN: 'nominal mensual',
+    vc: 'M.V.', vcN: 'mes vencido', nombre: 'mensual', unidad: 'mes' },
+  quincenal: { ef: 'E.Q.', efN: 'efectiva quincenal', no: 'N.Q.', noN: 'nominal quincenal',
+    vc: 'Q.V.', vcN: 'quincena vencida', nombre: 'quincenal', unidad: 'quincena' },
+  semanal: { ef: 'E.Sm.', efN: 'efectiva semanal', no: 'N.Sm.', noN: 'nominal semanal',
+    vc: 'Sm.V.', vcN: 'semana vencida', nombre: 'semanal', unidad: 'semana' },
+  diaria: { ef: 'E.D.', efN: 'efectiva diaria', no: 'N.D.', noN: 'nominal diaria',
+    vc: 'D.V.', vcN: 'día vencido', nombre: 'diaria', unidad: 'día' },
+}
+
+/** La sigla y su explicación larga. `rol` decide de qué familia sale, porque las dos filas
+ *  del bloque de tasa dicen cosas distintas:
+ *
+ *    'dicha' — cómo viene el número del negocio. Ahí importa la CONVENCIÓN: efectiva (E.M.)
+ *              o nominal (N.M.). Es la elección que cambia la cuota.
+ *    'cobra' — la tasa que el motor aplica al saldo. Ahí la convención ya se resolvió, y lo
+ *              único que queda por decir es CUÁNDO se cobra: vencida (M.V.), al final del
+ *              período, porque es lo que hace pmt (el type=0 de Excel). De paso deja a la
+ *              vista que anticipado no está soportado.
+ */
+export function notacion(periodo, efectiva, rol = 'dicha') {
+  const n = RATE_NOTATION[periodo]
+  if (!n) return { sigla: '', ayuda: '' }
+  const cap = t => t[0].toUpperCase() + t.slice(1)
+
+  if (rol === 'cobra') {
+    return { sigla: n.vc,
+      ayuda: `${cap(n.vcN)}: es la tasa que el motor aplica AL SALDO, al final de cada `
+        + `${n.unidad}. Es la que entra al cálculo de la cuota.` }
+  }
+  return efectiva
+    ? { sigla: n.ef,
+        ayuda: `Tasa ${n.efN}: capitaliza. ${periodo === 'anual'
+          ? 'Es la que la ley obliga a publicar y la que sirve para comparar.'
+          : `Aplicada cada ${n.unidad} da exactamente ese porcentaje; al año da más.`}` }
+    : { sigla: n.no,
+        ayuda: `Tasa ${n.noN}: no capitaliza. Para llevarla a otro período se DIVIDE `
+          + `proporcional.${periodo === 'mensual'
+            ? ' Es el canon de la plataforma: "N.M." es el rate_suffix de las 157 filas de'
+              + ' credit_line_by_lenders (ver F-71).'
+            : ''}` }
 }
 
 /** Nombre en español de una fórmula, para lo poco que la UI necesita nombrar. */
