@@ -55,12 +55,18 @@ export function layoutSheet(def, out, opts = {}) {
       + 12
   }
   const salida = st => (st && st.formulas.length ? st.formulas[st.formulas.length - 1] : null)
+  // Las fórmulas que genera un CAMPO no se dibujan como fila: ya se ven en su propia línea, con su
+  // perilla o su expresión. Mostrarlas otra vez ponía "seguro de vida" dos veces en el mismo nodo.
+  const deCampo = new Set((def.fields || []).map(f => f.name + 'Value'))
+  const visibles = st => st.formulas.filter(f => !deCampo.has(f))
   // `rows` dice CUÁNTAS de sus fórmulas dibuja una etapa. Es distinto de cuáles POSEE: `tasa` es
   // dueña de las suyas —eso es lo que la pone en el grafo y lo que hace que `cuota` dependa de
   // ella— y no dibuja ninguna.
   //   'all' (por defecto) todas · 'out' solo la salida · 'none' ninguna
-  const cuantasFilas = st =>
-    st.rows === 'none' ? 0 : st.rows === 'out' ? Math.min(1, st.formulas.length) : st.formulas.length
+  const cuantasFilas = st => {
+    const v = visibles(st).length
+    return st.rows === 'none' ? 0 : st.rows === 'out' ? Math.min(1, v) : v
+  }
 
   // qué etapa depende de qué etapa. Cuenta las fórmulas Y los inputs: si una etapa lee un
   // input que vive en otra, eso ES una dependencia (y es lo que pone `el crédito` primero).
@@ -171,7 +177,7 @@ export function layoutSheet(def, out, opts = {}) {
           insertion: st.insertion, insertionHelp: st.insertionHelp,
           hUp: vArriba.has(st.key), hDown: vAbajo.has(st.key),
           nFilas: cuantasFilas(st),
-          rows: st.formulas.map(row),
+          rows: visibles(st).map(row),
           inputs: (def.inputs || []).filter(i => etapaDe(i.appliesTo) === st.key),
         },
       })

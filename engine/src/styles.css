@@ -518,24 +518,20 @@ button.icon:hover { color: var(--ink); background: var(--card2) }
 /* ── nodos de etapa: el color es el GRUPO ──
    El color no dice qué etapa es (eso lo dice el título) sino de qué TEMA es:
 
-     ámbar   grupo `monto`  — el deudor, y los costos que suben el monto
-     azul    grupo `config` — la tasa, y los costos que viajan en cada cuota
-     verde   `cuota` + plan — el RESULTADO
+     ámbar   grupo `entrada` — todo lo que ALIMENTA el cálculo: tasa · el deudor · costos al monto
+     verde   grupo `pago`    — lo que el cliente PAGA: la anualidad y los recargos, más el plan
 
    El selector es el GRUPO y no la etapa, así que una etapa nueva hereda el color sola.
    Ojo: el color NO dice de dónde viene el dato. `el crédito` lo llena el cliente y `monto final`
    lo configura la entidad, y comparten ámbar. Eso lo distinguen los títulos.               */
 .n--stage .n__hd b { text-transform: none }
-.g--monto { border-color: var(--amber) }
-.g--monto .n__hd { background: var(--hd-amber) } .g--monto .n__hd b { color: var(--amber) }
-.g--config { border-color: var(--blue) }
-.g--config .n__hd { background: var(--hd-blue) } .g--config .n__hd b { color: var(--blue) }
-.st--installment { border-color: var(--green) }
-.st--installment .n__hd { background: var(--hd-green) } .st--installment .n__hd b { color: var(--green) }
+.g--entrada { border-color: var(--amber) }
+.g--entrada .n__hd { background: var(--hd-amber) } .g--entrada .n__hd b { color: var(--amber) }
+.g--pago { border-color: var(--green) }
+.g--pago .n__hd { background: var(--hd-green) } .g--pago .n__hd b { color: var(--green) }
 /* la última fila de cada etapa es su salida: lo que las otras consumen */
-.g--monto .grp-row.is-out .grp-k, .g--monto .grp-row.is-out .grp-v { color: var(--amber) }
-.g--config .grp-row.is-out .grp-k, .g--config .grp-row.is-out .grp-v { color: var(--blue) }
-.st--installment .grp-row.is-out .grp-k, .st--installment .grp-row.is-out .grp-v { color: var(--green) }
+.g--entrada .grp-row.is-out .grp-k, .g--entrada .grp-row.is-out .grp-v { color: var(--amber) }
+.g--pago .grp-row.is-out .grp-k, .g--pago .grp-row.is-out .grp-v { color: var(--green) }
 
 .grp-rows { padding: 5px 0 6px }
 .grp-row { display: flex; gap: 9px; align-items: baseline; padding: 1px 10px;

@@ -116,50 +116,44 @@ export const SHEET = {
   //  depende de otra del mismo grupo, la flecha se dibuja VERTICAL (de abajo de una a arriba de la
   //  otra) en vez de empujar de columna.
   //
-  //  El agrupamiento es por TEMA, no por origen:
+  //    `entrada`  ámbar — todo lo que ALIMENTA el cálculo: la tasa, el deudor, los costos al monto
+  //    `pago`     verde — lo que el cliente PAGA: la anualidad, y los recargos que la completan
   //
-  //    `monto`   el deudor (lo que pide y lo que pone) → los costos que suben el monto
-  //    `config`  la tasa y los costos que viajan en cada cuota
-  //    —         `cuota` y el plan: el resultado
+  //  Compartir columna NO significa estar conectado. `tasa` y `el crédito` están apilados y no hay
+  //  flecha entre ellos, porque no hay dependencia: `netAmount = amount − downPayment` no toca la
+  //  tasa, y `periodRate` no toca el monto. Son paralelos de verdad, y así se ve.
   //
-  //  Ojo con el costo de esta elección: el color deja de decir de dónde VIENE el dato. `el crédito`
-  //  lo llena el cliente y `monto final` lo configura la entidad, y ahora comparten color. Los
-  //  títulos siguen distinguiéndolos, pero el color ya no.
+  //  Ojo con el costo de agrupar por tema: el color NO dice de dónde viene el dato. `el crédito` lo
+  //  llena el cliente y `monto final` lo configura la entidad, y comparten ámbar. Eso lo distinguen
+  //  los títulos.
   stages: [
-    // La etapa del cliente CALCULA una cosa: el monto neto. Es la variable limpia de la que sale
-    // todo lo demás, y sale solo de datos del cliente.
-    { key: 'credit', title: 'el crédito', group: 'monto', rows: 'out', formulas: ['netAmount'] },
     // `rows: 'none'` — la etapa SIGUE siendo dueña de las dos fórmulas (es lo que la pone en el
     // grafo y lo que hace que `cuota` dependa de ella), pero no las dibuja: el valor ya está al
     // lado de su input y la E.A. en la barra de arriba.
-    { key: 'rate', title: 'tasa', group: 'config', rateBlock: true, rows: 'none',
+    { key: 'rate', title: 'tasa', group: 'entrada', rateBlock: true, rows: 'none',
       formulas: ['periodRate', 'annualEffectiveRate'] },
-    // `showRows: false` esconde los PASOS, nunca el resultado: el nodo siempre muestra su última
-    // fórmula. Acá los intermedios (fianza, IVA, 4×1000, fianza total) solo repiten los nombres
-    // de sus inputs, así que eran ruido.
-    // `insertion` es la insignia del encabezado. La llevan EXACTAMENTE estos dos nodos, y dice
-    // el criterio con el que se elige entre ellos: si el costo paga intereses o no. Así se leen
-    // como par aunque el layout no los ponga lado a lado — no puede, ver abajo.
-    // `insertion` marca los dos puntos donde se pueden agregar campos. Ya NO se dibuja como
-    // insignia: cuando los dos nodos estaban en columnas distintas era lo único que los hacía leer
-    // como par, pero comparten columna y color, así que sobraba. El dato vive en el tooltip.
-    // `monto final` y no "al monto": ahí también vive la cuota inicial, que RESTA, y "al monto"
-    // daba a entender que todo lo de ese nodo suma.
-    { key: 'amount', title: 'monto final', group: 'monto', rows: 'out', insertion: true,
+
+    // La etapa del cliente CALCULA una cosa: el monto neto. Es la variable limpia de la que sale
+    // todo lo demás, y sale solo de datos del cliente.
+    { key: 'credit', title: 'el crédito', group: 'entrada', rows: 'out', formulas: ['netAmount'] },
+
+    // `insertion` marca los dos puntos donde se pueden agregar campos.
+    { key: 'amount', title: 'monto final', group: 'entrada', rows: 'out', insertion: true,
       insertionHelp: 'Todo lo que mueve el monto que se financia. Lo que entra acá se financia, '
-        + 'así que PAGA INTERESES en cada cuota. Un valor negativo lo baja (la cuota inicial).',
+        + 'así que PAGA INTERESES en cada cuota. Un valor negativo lo baja.',
       formulas: ['financedAmount'] },
-    // Depende de `al monto`, y es un hecho del negocio, no del dibujo: el seguro de vida se
-    // calcula sobre `financedAmount`. Con fianza al 5% y seguro 0,0014, financiar la fianza sube
-    // el seguro de 14.000 a 14.700 por cuota. Comparten columna igual, porque están en el mismo
-    // grupo — y esa dependencia se dibuja como flecha VERTICAL, de abajo de una a arriba de la
-    // otra. Así el orden se ve sin que el cable tenga que ir hacia atrás.
-    { key: 'charges', title: 'a la cuota', group: 'config', rows: 'out', insertion: true,
+
+    // ── el lado del PAGO ──
+    // `cuota` es SOLO la anualidad, y `a la cuota` se lleva el total. Así la flecha interna del
+    // grupo va hacia abajo —`totalInstallment` necesita `installment`— y se lee como un recibo:
+    // cuota del crédito + los recargos = cuota total. Antes `cuota` hacía las dos cosas y la
+    // dependencia iba al revés.
+    { key: 'installment', title: 'cuota', group: 'pago', formulas: ['installment'] },
+
+    { key: 'charges', title: 'a la cuota', group: 'pago', insertion: true,
       insertionHelp: 'Lo que entra acá viaja arriba de cada pago y nunca entra al saldo, así que '
         + 'NO paga intereses.',
-      formulas: ['installmentCharges'] },
-    { key: 'installment', title: 'cuota',
-      formulas: ['installment', 'totalInstallment'] },
+      formulas: ['installmentCharges', 'totalInstallment'] },
   ],
 
   /** `appliesTo` que no son una etapa: se dibujan DENTRO de la etapa que los consume. Los de
