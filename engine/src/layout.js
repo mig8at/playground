@@ -1,3 +1,5 @@
+import { FORMULA_LABEL } from './sheets.js'
+
 // Dos nodos: la entrada y la tabla. Nada más.
 //
 // El nodo de Cálculo se fue a propósito — generaba ruido y la tabla ya muestra el resultado
@@ -10,7 +12,7 @@ export function layoutSheet(def, out, opts = {}) {
 
   const nodes = [{
     id: '@entrada', type: 'inputsNode', position: { x: 0, y: 0 },
-    data: { inputs: def.inputs || [], values: inputValues },
+    data: { inputs: def.inputs || [], inputGroups: def.inputGroups, values: inputValues },
   }]
 
   const edges = []
@@ -21,14 +23,15 @@ export function layoutSheet(def, out, opts = {}) {
       data: {
         title: 'Plan de pagos',
         cols: S.cols || [], rows: S.rows || [], error: S.error,
+        labels: def.series?.labels || {},
       },
     })
     const r = out.res[def.output]
     edges.push({
       id: 'entrada->series', source: '@entrada', target: '@series',
       label: r?.status === 'ok'
-        ? def.output + ' ' + Math.round(r.value).toLocaleString('es-CO')
-        : def.output,
+        ? (FORMULA_LABEL[def.output] || def.output) + ' ' + Math.round(r.value).toLocaleString('es-CO')
+        : (FORMULA_LABEL[def.output] || def.output),
       style: { strokeWidth: 1.6 },
     })
   }

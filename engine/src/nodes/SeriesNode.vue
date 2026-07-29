@@ -25,7 +25,7 @@ defineProps({ data: Object })
     <div v-else class="ser-wrap nowheel">
       <table class="ser">
         <thead>
-          <tr><th>#</th><th v-for="c in data.cols" :key="c">{{ c }}</th></tr>
+          <tr><th>#</th><th v-for="c in data.cols" :key="c">{{ data.labels?.[c] || c }}</th></tr>
         </thead>
         <tbody>
           <tr v-for="(r, i) in data.rows" :key="i">

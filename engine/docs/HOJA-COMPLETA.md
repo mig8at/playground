@@ -61,9 +61,14 @@ concepto que falta.
 
 ### Las cuatro tandas
 
+> **Tanda 1 aplicada.** La fianza ya está en la hoja mínima, con los dos conceptos visibles: el
+> `valor a financiar` aparece en la franja **solo cuando difiere del monto**, y con la fianza
+> mensualizada la franja dice *"de la cuota, 41.667 es fianza"* — porque la columna `cuota` de la
+> tabla ya no coincide con `capital + interés`.
+
 | # | tanda | perillas | qué desbloquea | concepto nuevo |
 |---|---|---|---|---|
-| **1** | fianza | 4 · `guaranteeRate` `guaranteeVatRate` `transactionTaxRate` `guaranteeUpfront` | nada completo aún | **lo financiado ≠ lo pedido** |
+| ~~**1**~~ | ~~fianza~~ **✓ HECHA** | 4 · `guaranteeRate` `guaranteeVatRate` `transactionTaxRate` `guaranteeUpfront` | nada completo aún | **lo financiado ≠ lo pedido** |
 | **2** | seguro de vida | 1 · `lifeInsuranceRate` | **salud-gaes y salud-dentix** | **lo que paga ≠ la cuota** |
 | **3** | dispositivo y cargos | 2 · `deviceCost` `monthlyFixed` | **alta-moto** | — |
 | **4** | precio | 5 · `downPayment` `setupFee` `extras` `marginFactor` `priceVatRate` | **motai-rto** | — |
@@ -113,6 +118,28 @@ precio de venta a 24 meses y prorratea `÷30 ×7` para fijar una tarifa.
 
 Meterla en la hoja con perillas en cero sería **fingir que es un crédito**. Detalle completo en
 el nodo `motai` del contexto.
+
+## Los nombres: dos, y no se cruzan
+
+Cada input tiene **tres campos** y cada uno vive en su lado:
+
+| campo | idioma | dónde aparece |
+|---|---|---|
+| `name` | inglés | el JSON, las fórmulas, la API. **La UI no lo muestra nunca** |
+| `label` | español corto | la interfaz. **El documento no lo guarda nunca** |
+| `help` | español largo | tooltip |
+
+```
+UI          fianza · IVA de la fianza · 4 × 1000 · fianza anticipada
+documento   guaranteeRate · guaranteeVatRate · transactionTaxRate · guaranteeUpfront
+```
+
+Lo mismo en la tabla: los encabezados dicen *saldo inicial · interés · capital · cuota · saldo
+final* (los mismos del `.xlsx` original) mientras el documento guarda `openingBalance · interest ·
+principal · payment · closingBalance`.
+
+**Por qué separarlos:** un cambio de redacción no puede tocar una fórmula, y traducir la interfaz
+no puede romper el contrato de la API. Son dos ejes que se mueven a ritmos distintos.
 
 ## Lo que se quitó de la app y dónde quedó
 
