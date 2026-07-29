@@ -178,15 +178,14 @@ node verify.mjs # 30 puntos de control contra los archivos fuente
 ## La conversión de tasa, como la conversión que es
 
 ```
- DICHA     [anual ▾]      28,17 %
- ───────── ▾ EFECTIVA ─────────
- SE COBRA  [mensual ▾]   2,089764 %
- equivale a 28,17% E.A.
+ ● efectiva  ○ nominal
+ DICHA     [anual ▾]      28,17 %   E.A.
+ SE COBRA  [mensual ▾]   2,089764 %  M.V.
 ```
 
-Se lee de arriba hacia abajo: de dónde sale el número, **por qué camino**, y en qué termina.
-**La convención va en el medio y es el interruptor**, porque es exactamente ahí donde se decide
-si se capitaliza o se divide:
+Se lee de arriba hacia abajo: **con qué convención**, de dónde sale el número, y en qué termina.
+La convención va **primero y con las dos opciones a la vista**, porque es la elección que decide si
+se capitaliza o se divide — y por lo tanto cuánto vale la cuota:
 
 ```
 efectiva   periodRate = (1 + statedRate) ^ (statedPerYear / periodsPerYear) − 1
@@ -195,6 +194,10 @@ nominal    periodRate = statedRate * statedPerYear / periodsPerYear
 
 Mismos dos parámetros; solo cambia `×` por `^`. Es un `if()` de **selección de parámetro**, no
 lógica de negocio.
+
+El nodo no repite el resultado abajo: el valor ya está al lado de su input y la E.A. en la barra de
+arriba (`rows: 'none'` en la hoja — la etapa sigue siendo **dueña** de sus dos fórmulas, que es lo
+que la pone en el grafo, pero no las dibuja).
 
 ### Y es la demostración de F-71, en un click
 

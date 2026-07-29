@@ -48,14 +48,19 @@ export function layoutSheet(def, out, opts = {}) {
     const enBloque = st.rateBlock ? ins.filter(i => ['statedRate', 'compound'].includes(i.name)).length : 0
     return 40
       + (ins.length - enBloque) * 21
-      + (st.rateBlock ? 113 : 0)   // medido en el DOM, no estimado
+      + (st.rateBlock ? 75 : 0)    // medido en el DOM, no estimado (era 113 con el panel viejo)
       + formulas_(st.key).length * 38
       + (st.insertion ? 24 : 0)    // el botón `+ campo`
-      // con showRows:false igual queda UNA fila (la salida), no cero
-      + (st.formulas.length ? 8 + (st.showRows === false ? 1 : st.formulas.length) * 22 : 0)
+      + (cuantasFilas(st) ? 8 + cuantasFilas(st) * 22 : 0)
       + 12
   }
   const salida = st => (st && st.formulas.length ? st.formulas[st.formulas.length - 1] : null)
+  // `rows` dice CUÁNTAS de sus fórmulas dibuja una etapa. Es distinto de cuáles POSEE: `tasa` es
+  // dueña de las suyas —eso es lo que la pone en el grafo y lo que hace que `cuota` dependa de
+  // ella— y no dibuja ninguna.
+  //   'all' (por defecto) todas · 'out' solo la salida · 'none' ninguna
+  const cuantasFilas = st =>
+    st.rows === 'none' ? 0 : st.rows === 'out' ? Math.min(1, st.formulas.length) : st.formulas.length
 
   // qué etapa depende de qué etapa. Cuenta las fórmulas Y los inputs: si una etapa lee un
   // input que vive en otra, eso ES una dependencia (y es lo que pone `el crédito` primero).
@@ -163,7 +168,7 @@ export function layoutSheet(def, out, opts = {}) {
           key: st.key, title: st.title, rateBlock: !!st.rateBlock, group: st.group,
           insertion: st.insertion, insertionHelp: st.insertionHelp,
           hUp: vArriba.has(st.key), hDown: vAbajo.has(st.key),
-          showRows: st.showRows !== false,
+          nFilas: cuantasFilas(st),
           rows: st.formulas.map(row),
           inputs: (def.inputs || []).filter(i => etapaDe(i.appliesTo) === st.key),
         },

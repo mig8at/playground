@@ -32,8 +32,9 @@ const signo = f => (f.sign === -1 ? '−' : f.appliesTo === 'charges' ? '+' : ''
 const DEL_BLOQUE = new Set(['statedRate', 'compound'])
 const propios = computed(() => props.data.inputs.filter(f =>
   f.appliesTo === props.data.key && !(props.data.rateBlock && DEL_BLOQUE.has(f.name))))
-// con `showRows: false` queda solo la salida
-const filas = computed(() => (props.data.showRows ? props.data.rows : props.data.rows.slice(-1)))
+// `nFilas` lo calcula el layout desde `rows` de la hoja: todas, solo la salida, o ninguna. La
+// etapa sigue siendo dueña de sus fórmulas aunque no dibuje ninguna.
+const filas = computed(() => props.data.rows.slice(props.data.rows.length - props.data.nFilas))
 
 // ── agregar un campo ──
 // Solo en los puntos de inserción: lo que se agregue acá entra al cálculo POR acá. Los tres
@@ -90,11 +91,11 @@ function crear() {
          la vuelta por la izquierda -->
     <Handle v-if="data.hUp" id="up" type="target" :position="Position.Top" />
     <Handle v-if="data.hDown" id="down" type="source" :position="Position.Bottom" />
-    <div class="n__hd">
+    <!-- El tooltip lleva la consecuencia (paga intereses o no). Estuvo como insignia visible
+         mientras los dos puntos de inserción caían en columnas distintas y era lo único que los
+         hacía leer como par; comparten columna y color, así que ya sobraba en pantalla. -->
+    <div class="n__hd" :title="data.insertionHelp">
       <b>{{ data.title }}</b>
-      <!-- solo los dos puntos de inserción la llevan: es lo que los hace par -->
-      <span v-if="data.insertion" class="n__kind n__kind--in" :title="data.insertionHelp">
-        {{ data.insertion }}</span>
     </div>
 
     <div class="ent">

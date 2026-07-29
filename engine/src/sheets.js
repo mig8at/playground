@@ -98,7 +98,10 @@ export const SHEET = {
   //  cliente) y `cuota` + el plan (el resultado).
   stages: [
     { key: 'credit', title: 'el crédito', formulas: [] },
-    { key: 'rate', title: 'tasa', group: 'config', rateBlock: true,
+    // `rows: 'none'` — la etapa SIGUE siendo dueña de las dos fórmulas (es lo que la pone en el
+    // grafo y lo que hace que `cuota` dependa de ella), pero no las dibuja: el valor ya está al
+    // lado de su input y la E.A. en la barra de arriba.
+    { key: 'rate', title: 'tasa', group: 'config', rateBlock: true, rows: 'none',
       formulas: ['periodRate', 'annualEffectiveRate'] },
     // `showRows: false` esconde los PASOS, nunca el resultado: el nodo siempre muestra su última
     // fórmula. Acá los intermedios (fianza, IVA, 4×1000, fianza total) solo repiten los nombres
@@ -106,19 +109,20 @@ export const SHEET = {
     // `insertion` es la insignia del encabezado. La llevan EXACTAMENTE estos dos nodos, y dice
     // el criterio con el que se elige entre ellos: si el costo paga intereses o no. Así se leen
     // como par aunque el layout no los ponga lado a lado — no puede, ver abajo.
-    { key: 'amount', title: 'al monto', group: 'config', showRows: false,
-      insertion: 'con interés',
-      insertionHelp: 'Entra al saldo, así que paga intereses en cada cuota — y sube la base del '
-        + 'seguro de vida, que se cobra sobre lo financiado.',
+    // `insertion` marca los dos puntos donde se pueden agregar campos. Ya NO se dibuja como
+    // insignia: cuando los dos nodos estaban en columnas distintas era lo único que los hacía leer
+    // como par, pero comparten columna y color, así que sobraba. El dato vive en el tooltip.
+    { key: 'amount', title: 'al monto', group: 'config', rows: 'out', insertion: true,
+      insertionHelp: 'Lo que entra acá se financia, así que PAGA INTERESES en cada cuota.',
       formulas: ['financedAmount'] },
     // Depende de `al monto`, y es un hecho del negocio, no del dibujo: el seguro de vida se
     // calcula sobre `financedAmount`. Con fianza al 5% y seguro 0,0014, financiar la fianza sube
     // el seguro de 14.000 a 14.700 por cuota. Comparten columna igual, porque están en el mismo
     // grupo — y esa dependencia se dibuja como flecha VERTICAL, de abajo de una a arriba de la
     // otra. Así el orden se ve sin que el cable tenga que ir hacia atrás.
-    { key: 'charges', title: 'a la cuota', group: 'config', showRows: false,
-      insertion: 'sin interés',
-      insertionHelp: 'Se reparte en los pagos y nunca entra al saldo, así que no paga intereses.',
+    { key: 'charges', title: 'a la cuota', group: 'config', rows: 'out', insertion: true,
+      insertionHelp: 'Lo que entra acá viaja arriba de cada pago y nunca entra al saldo, así que '
+        + 'NO paga intereses.',
       formulas: ['installmentCharges'] },
     { key: 'installment', title: 'cuota',
       formulas: ['installment', 'totalInstallment'] },
