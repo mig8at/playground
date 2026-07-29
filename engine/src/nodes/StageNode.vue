@@ -1,12 +1,12 @@
 <script setup>
-import { computed } from 'vue'
+import { computed, ref, nextTick } from 'vue'
 import { Handle, Position } from '@vue-flow/core'
 import MoneyInput from '../MoneyInput.vue'
 import PercentInput from '../PercentInput.vue'
 import RateBlock from '../RateBlock.vue'
 import { fmtNum } from '../engine.js'
-import { FORMULA_LABEL } from '../sheets.js'
-import { inputs, where } from '../store.js'
+import { inputs, where, addExtra, removeExtra } from '../store.js'
+import { RATE_BASE_LABEL } from '../sheets.js'
 
 // Una etapa AUTOCONTENIDA: sus propios inputs arriba, sus propias fórmulas abajo, separadas por
 // una línea. No hay un nodo "entrada" que junte todo — si una perilla aplica al monto, su lugar
@@ -36,6 +36,24 @@ const fianza = computed(() => props.data.inputs.filter(f => f.appliesTo === 'gua
 const enMonto = computed(() => where.guarantee === 'amount')
 const otroLado = computed(() => (enMonto.value ? 'charges' : 'amount'))
 const otroNombre = computed(() => (enMonto.value ? 'a la cuota' : 'al monto'))
+
+// ── agregar un campo ──
+// Solo en los puntos de inserción: lo que se agregue acá entra al cálculo POR acá, y el tipo
+// decide la operación. Monto = se suma tal cual. Porcentaje = se aplica sobre la base del punto
+// (el monto, o el valor a financiar), que es lo que hacen la fianza y el seguro de vida.
+const nuevo = ref(null)
+const campo = ref(null)
+const base = computed(() => RATE_BASE_LABEL[props.data.key])
+async function abrir() {
+  nuevo.value = { label: '', kind: 'money' }
+  await nextTick()
+  campo.value?.focus()
+}
+function crear() {
+  if (!nuevo.value?.label.trim()) return
+  addExtra({ ...nuevo.value, at: props.data.key })
+  nuevo.value = null
+}
 // con `showRows: false` queda solo la salida
 const filas = computed(() => (props.data.showRows ? props.data.rows : props.data.rows.slice(-1)))
 </script>
@@ -62,6 +80,8 @@ const filas = computed(() => (props.data.showRows ? props.data.rows : props.data
         <span class="ent__k" :title="f.help">
           <em v-if="signo(f)" class="sg">{{ signo(f) }}</em>{{ f.label }}
         </span>
+        <button v-if="f.extra" class="nodrag del" @click="removeExtra(f.extra)"
+          title="quitar este campo">×</button>
         <select v-if="f.type === 'bool'" class="nodrag nf" v-model="inputs[f.name]">
           <option :value="true">sí</option><option :value="false">no</option>
         </select>
@@ -89,6 +109,26 @@ const filas = computed(() => (props.data.showRows ? props.data.rows : props.data
           <PercentInput v-model="inputs[f.name]" />
         </div>
       </template>
+
+      <!-- agregar un campo. Solo en los puntos de inserción: entra al cálculo por acá -->
+      <template v-if="data.insertion">
+        <div v-if="!nuevo" class="ent__add">
+          <button class="nodrag addbtn" @click="abrir"
+            :title="`Agrega un costo que entra ${data.title}. Un MONTO se suma tal cual; un `
+              + `PORCENTAJE se aplica sobre ${base}.`">+ campo</button>
+        </div>
+        <div v-else class="ent__row ent__new">
+          <input ref="campo" class="nodrag nf nf--name" v-model="nuevo.label"
+            placeholder="nombre del costo" @keydown.enter="crear"
+            @keydown.esc="nuevo = null" @keydown.stop>
+          <select class="nodrag nf nf--kind" v-model="nuevo.kind"
+            :title="nuevo.kind === 'rate' ? `Porcentaje sobre ${base}` : 'Monto fijo, se suma tal cual'">
+            <option value="money">monto</option>
+            <option value="rate">%</option>
+          </select>
+          <button class="nodrag ok" @click="crear" :disabled="!nuevo.label.trim()">✓</button>
+        </div>
+      </template>
     </div>
 
     <!-- resultados de la etapa -->
@@ -96,7 +136,7 @@ const filas = computed(() => (props.data.showRows ? props.data.rows : props.data
       <div v-for="(r, i) in filas" :key="r.name" class="grp-row"
            :class="{ 'is-out': i === filas.length - 1, 'is-off': r.status !== 'ok' }"
            :title="r.expr">
-        <span class="grp-k">{{ FORMULA_LABEL[r.name] || r.name }}</span>
+        <span class="grp-k">{{ r.label }}</span>
         <b class="grp-v">{{ val(r) }}</b>
       </div>
     </div>

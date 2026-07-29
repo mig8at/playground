@@ -1,5 +1,8 @@
 import { FORMULA_LABEL } from './sheets.js'
 
+// `formulaLabel` viene de la hoja RESUELTA, así que trae también la de los campos agregados a
+// mano. FORMULA_LABEL es el fallback para cuando se llama con una hoja sin resolver.
+
 // el crédito → (tasa ∥ al monto) → a la cuota → cuota → plan de pagos.
 // Cada etapa es AUTOCONTENIDA: trae sus propios inputs y sus propias fórmulas.
 //
@@ -26,8 +29,9 @@ export function layoutSheet(def, out, opts = {}) {
   // a qué etapa pertenece cada input: su `appliesTo`, o el anfitrión si no es una etapa
   const etapaDe = a => host[a] || a
 
+  const LBL = def.formulaLabel || FORMULA_LABEL
   const row = (name) => ({
-    name, expr: def.formulas[name],
+    name, expr: def.formulas[name], label: LBL[name] || name,
     status: out.res[name]?.status ?? 'skipped',
     value: out.res[name]?.status === 'ok' ? out.res[name].value : undefined,
   })
@@ -175,7 +179,7 @@ export function layoutSheet(def, out, opts = {}) {
     ? (v * 100).toFixed(4).replace(/0+$/, '').replace(/[.,]$/, '').replace('.', ',') + '%'
     : Math.round(v).toLocaleString('es-CO'))
   const etiqueta = n => {
-    const nom = FORMULA_LABEL[n] || porNombre[n]?.label || n
+    const nom = LBL[n] || porNombre[n]?.label || n
     const r = out.res[n]
     if (r?.status === 'ok') return nom + ' ' + fmt(r.value)          // es una fórmula
     const v = inputValues[n]                                        // es un input

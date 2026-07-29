@@ -11,7 +11,6 @@ import StageNode from './nodes/StageNode.vue'
 import SeriesNode from './nodes/SeriesNode.vue'
 
 import { fmtNum } from './engine.js'
-import { FORMULA_LABEL } from './sheets.js'
 import { layoutSheet } from './layout.js'
 import { ui, inputs, periods, effDef, out, sheetDoc, reset } from './store.js'
 
@@ -59,7 +58,7 @@ const canvasKey = computed(() => String(ui.showDoc))
       <span class="brand">motor<small>monto · cuotas · tasa</small></span>
       <div class="spacer"></div>
       <span v-if="cuota !== null" class="mono out-chip">
-        {{ FORMULA_LABEL.totalInstallment }} <b>{{ fmtNum(cuota) }}</b>
+        {{ effDef.formulaLabel.totalInstallment }} <b>{{ fmtNum(cuota) }}</b>
       </span>
       <button :class="{ on: ui.showDoc }" @click="ui.showDoc = !ui.showDoc"
         title="La hoja entera, tal como se guardaría">documento</button>

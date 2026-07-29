@@ -460,6 +460,27 @@ button.icon:hover { color: var(--ink); background: var(--card2) }
       opacity: .65 }
 .n:hover .mv { opacity: 1 }
 .mv:hover { color: var(--purple); opacity: 1 }
+
+/* ── agregar un campo ──
+   Vive solo en los dos puntos de inserción, porque lo que se agregue ahí entra al cálculo por
+   ahí. El tipo decide la OPERACIÓN: monto se suma tal cual, porcentaje se aplica sobre la base
+   del punto (el monto, o el valor a financiar). */
+.ent__add { padding: 4px 9px 2px }
+.addbtn { border: 1px dashed var(--line); border-radius: 5px; background: none; cursor: pointer;
+          font: 10px var(--mono); color: var(--dim); padding: 2px 8px; width: 100% }
+.addbtn:hover { border-color: var(--purple); color: var(--purple); border-style: solid }
+.ent__new { gap: 5px }
+.nf--name { flex: 1; min-width: 0 }
+.nf--kind { flex: 0 0 58px }
+.ok { border: 1px solid var(--line); border-radius: 5px; background: none; cursor: pointer;
+      color: var(--green); font-size: 11px; line-height: 1; padding: 3px 6px }
+.ok:hover:not(:disabled) { border-color: var(--green) }
+.ok:disabled { color: var(--dim); cursor: default }
+/* la × de quitar: apagada hasta que se pasa por la fila, para no ensuciar la lista */
+.del { border: 0; background: none; cursor: pointer; color: transparent; font-size: 13px;
+       line-height: 1; padding: 0 2px; margin-left: -4px }
+.ent__row:hover .del { color: var(--dim) }
+.del:hover { color: var(--red) }
 /* la nota del grupo: qué le hace al cálculo */
 .ent__sec em { font-style: normal; text-transform: none; letter-spacing: 0; color: var(--dim);
                margin-left: 7px; font-size: 9.5px }

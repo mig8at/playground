@@ -42,6 +42,45 @@ en su encabezado:
 | **a la cuota** | lo que viaja arriba de cada pago | `installmentCharges` | **SIN INTERÉS** |
 
 Agregar un costo nuevo de un lender es **elegir uno de los dos**. No hay una tercera respuesta.
+
+### Y se agregan desde el nodo: `+ campo`
+
+Los dos puntos de inserción tienen un botón `+ campo`. Se escribe el nombre, se elige **monto** o
+**%**, y el campo entra al cálculo — sin tocar una fórmula:
+
+| tipo | qué hace | sobre qué |
+|---|---|---|
+| **monto** | se suma tal cual | — |
+| **%** | se aplica sobre la base del punto | `al monto` → el monto · `a la cuota` → el valor a financiar |
+
+Esas dos bases no son una elección arbitraria: son las de los casos reales — la fianza es un % del
+monto, el seguro de vida es un % de lo financiado.
+
+Funciona porque **cada punto de inserción es una SUMA de sus términos**, armada por
+`resolveSheet`. Agregar un campo es agregar un término:
+
+```
++ costo del equipo (monto, al monto)  →  financedAmount:
+                                            amount - downPayment + totalGuarantee + costoDelEquipo
++ administración (0,5%, a la cuota)   →  administracionValue: financedAmount * administracion
+                                         installmentCharges: lifeInsurance + administracionValue
+```
+
+El nombre sale de la etiqueta en español y se translitera a un identificador que el tokenizer
+acepta: *"costo del equipo"* → `costoDelEquipo`, *"administración"* → `administracion`. La UI
+muestra el español, el documento guarda el nombre — la misma regla de siempre.
+
+Sobre 10.000.000 a 24 cuotas al 2% E.M., con esos dos campos:
+
+```
+valor a financiar  10.500.000        = 10.000.000 + 500.000
+cuota del crédito     555.147        = pmt(2%, 24, 10.500.000)
+cargos por cuota       52.500        = 0,5% × 10.500.000
+cuota total           607.647
+```
+
+La `×` de cada campo lo quita, y las fórmulas vuelven exactas a su forma anterior — sin fórmulas
+huérfanas.
 La insignia se queda en ámbar y teal aunque el nodo sea azul, y no es incoherencia: son dos
 señales distintas — el azul dice *"esto lo configura la entidad"*, la insignia dice *"y esto paga
 intereses"*.
@@ -64,19 +103,22 @@ Se mueve **completo**, inputs y fórmulas, y no por prolijidad: mover solo los i
 **ciclo** — `al monto` leería `guaranteeRate` de `a la cuota`, y `a la cuota` ya lee
 `financedAmount` de `al monto`.
 
-Y la fórmula que lo recoge cambia con él, así que el documento guardado dice la verdad:
+Y como cada punto de inserción es una suma de términos, la fórmula se rearma sola:
 
 ```
-fianza al monto     financedAmount: 'amount - downPayment + totalGuarantee'
-                    monthlyGuarantee: '0'
-fianza a la cuota   financedAmount: 'amount - downPayment'
-                    monthlyGuarantee: 'totalGuarantee / installments'
+fianza al monto     financedAmount:     'amount - downPayment + totalGuarantee'
+                    installmentCharges: 'lifeInsurance'
+fianza a la cuota   financedAmount:     'amount - downPayment'
+                    installmentCharges: 'totalGuarantee / installments + lifeInsurance'
 ```
 
-Son dos textos y no un `× guaranteeUpfront`, porque con la fianza en la cuota `financedAmount` de
-verdad **no tiene nada que ver** con la fianza. Multiplicar por cero lo disimulaba y dejaba una
-dependencia falsa en la arista (`valor a financiar +2`). No es una variante escrita a mano por
-lender: la elige `resolveSheet` a partir del único dato que hay.
+El término de la fianza aparece **en un lado o en el otro**, no en los dos multiplicado por cero.
+Antes era `'... + totalGuarantee * guaranteeUpfront'`, y multiplicar por cero disimulaba que con la
+fianza en la cuota el valor financiado no tiene **nada** que ver con la fianza — además de dejar
+una dependencia falsa en la arista (el `valor a financiar +2` que ya no está).
+
+El `/ installments` sale de `spread: true` en el término: la fianza es un **total**, así que si
+cae en la cuota hay que repartirla. El seguro de vida no lo lleva porque ya viene por cuota.
 
 Con fianza del 5% sobre 10.000.000 a 24 cuotas:
 
