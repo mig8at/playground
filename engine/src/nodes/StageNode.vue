@@ -5,7 +5,7 @@ import MoneyInput from '../MoneyInput.vue'
 import PercentInput from '../PercentInput.vue'
 import RateBlock from '../RateBlock.vue'
 import { fmtNum } from '../engine.js'
-import { RATE_BASES, describir } from '../sheets.js'
+import { RATE_BASES, CON_EXPRESION, describir } from '../sheets.js'
 import { inputs, fields, out, addField, removeField, setExpr, basesDisponibles,
          termsOffered, setTermsOffered, porPlazo } from '../store.js'
 
@@ -61,7 +61,7 @@ const frase = computed(() => (nuevo.value ? describir({ ...nuevo.value, at: punt
 // cálculo. Si la expresión está mal, el motor devuelve la razón y se muestra ahí mismo.
 // Se dibujan donde vive la perilla del punto, igual que los demás inputs.
 const formulaFields = computed(() =>
-  fields.filter(f => f.kind === 'formula' && f.at === punto.value))
+  fields.filter(f => CON_EXPRESION.has(f.kind) && f.at === punto.value))
 const resultado = f => out.value.res[f.name + 'Value']
 // Por qué no dio. El `reason` de un `skipped` es un CÓDIGO del motor, no prosa: `upstream` con un
 // `dependsOn`, o `missing_input` con un `missing`. Un ciclo, además, lo reporta en la fórmula que
@@ -145,7 +145,11 @@ function crear() {
       <!-- campos fórmula: la expresión ES el valor, así que se ve y se edita -->
       <div v-for="f in formulaFields" :key="f.id" class="ent__f">
         <div class="ent__row">
-          <span class="ent__k" :title="f.help"><span class="ent__kt">{{ f.label }}</span></span>
+          <span class="ent__k" :title="f.help">
+            <span class="ent__kt">{{ f.label }}</span>
+            <!-- un auxiliar es un escalón, no un costo: hay que verlo o se lee como si sumara -->
+            <i v-if="f.kind === 'aux'" class="ent__note">no suma</i>
+          </span>
           <button class="nodrag del" @click="removeField(f.id)" title="quitar este campo">×</button>
           <input class="nodrag nf nf--expr" :value="f.expr" :title="f.expr"
             @input="setExpr(f.id, $event.target.value)" @keydown.stop spellcheck="false"
@@ -184,10 +188,11 @@ vez por cada uno: la vitrina está en el nodo de la cuota.">plazos</span>
               <option value="money">monto</option>
               <option value="rate">%</option>
               <option value="formula">fórmula</option>
+              <option value="aux">auxiliar</option>
             </select>
           </div>
           <!-- una fórmula se escribe entera: no necesita base ni ÷ cuotas, eso se escribe ahí -->
-          <div v-if="nuevo.kind === 'formula'" class="ent__row">
+          <div v-if="CON_EXPRESION.has(nuevo.kind)" class="ent__row">
             <input class="nodrag nf nf--expr" v-model="nuevo.expr" @keydown.stop spellcheck="false"
               placeholder="p. ej. amount * 0.05 / installments">
           </div>
@@ -201,7 +206,7 @@ vez por cada uno: la vitrina está en el nodo de la cuota.">plazos</span>
             </select>
           </div>
           <!-- en la cuota: ¿ya viene por cuota, o es un total que se reparte? -->
-          <div v-if="data.key === 'charges' && nuevo.kind !== 'formula'" class="ent__row">
+          <div v-if="data.key === 'charges' && nuevo.kind === 'money'" class="ent__row">
             <span class="ent__k">cada</span>
             <select class="nodrag nf nf--base" v-model="nuevo.spread">
               <option :value="false">cuota</option>

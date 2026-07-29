@@ -361,11 +361,27 @@ const BASE_SHORT = Object.fromEntries(
 const RESERVADOS = new Set(['statedPerYear', 'periodsPerYear', 'i', 'n', 'prev'])
 
 /** Lo que un campo VALE en pesos, para que otro pueda apoyarse en él.
- *  Un monto vale su perilla; un porcentaje y una fórmula valen su fórmula. */
+ *  Un monto vale su perilla; los demás valen su fórmula. */
 export const enPesos = f => (f.kind === 'money' ? f.name : f.name + 'Value')
+
+/** Los campos que NO se suman al punto de inserción: se calculan para que otros se apoyen en ellos.
+ *
+ *  Hacen falta porque sin ellos hay costos reales que no se pueden expresar sin meter los números
+ *  dentro de la fórmula. El precio del RTO de Motai (lender 170) es
+ *
+ *      (2 * (amount + setup_fee) + rto_extras) * (1 + tax)
+ *
+ *  y para armarlo con términos hay que poder nombrar DOS subtotales —`amount + setup_fee` y la base
+ *  gravable— que no son costos: son escalones. Con auxiliares sale exacto y las perillas siguen
+ *  siendo perillas (ver README). */
+export const NO_SUMA = new Set(['aux'])
+
+/** Los tipos cuyo valor ES una expresión, así que NO tienen perilla. */
+export const CON_EXPRESION = new Set(['formula', 'aux'])
 
 /** El campo leído como una frase — es lo que lo hace entendible sin abrir el código. */
 export function describir(f, campos = []) {
+  if (f.kind === 'aux') return `auxiliar: ${f.expr || '(vacía)'} — NO se suma, sirve de base`
   if (f.kind === 'formula') return `fórmula: ${f.expr || '(vacía)'}`
   const base = campos.find(x => x.name === f.base)?.label
     ?? BASE_LABEL[f.base || RATE_BASE[f.at]]
@@ -394,9 +410,9 @@ export function resolveSheet(def, { periods = {}, fields = [] } = {}) {
   const llegan = {}   // etapa → fórmulas que se calculan ahí
 
   for (const f of fields) {
-    // Una FÓRMULA no tiene perilla: su valor es la expresión. Los otros dos sí, y el tipo decide
-    // cómo se escribe el número (pesos con separador de miles, o porcentaje).
-    if (f.kind !== 'formula') {
+    // Una FÓRMULA y un AUXILIAR no tienen perilla: su valor es la expresión. Los otros dos sí, y el
+    // tipo decide cómo se escribe el número (pesos con separador de miles, o porcentaje).
+    if (!CON_EXPRESION.has(f.kind)) {
       inputs.push({
         // sin `min`: un negativo es cómo se resta (la cuota inicial)
         name: f.name, type: f.kind === 'rate' ? 'rate' : 'money', default: 0,
@@ -425,7 +441,7 @@ export function resolveSheet(def, { periods = {}, fields = [] } = {}) {
       formulaLabel[v] = f.label
       llegan[f.at] = [...(llegan[f.at] || []), v]
     }
-    if (f.kind === 'formula') {
+    if (CON_EXPRESION.has(f.kind)) {
       // Se pasa TAL CUAL. Una expresión inválida, un ciclo o una referencia que no existe los caza
       // el motor y quedan como `status: 'error'` con su razón — no hace falta validar acá, y por
       // eso una fórmula se puede escribir en vivo sin que nada explote.
@@ -433,7 +449,8 @@ export function resolveSheet(def, { periods = {}, fields = [] } = {}) {
       formulaLabel[f.name + 'Value'] = f.label
       llegan[f.at] = [...(llegan[f.at] || []), f.name + 'Value']
     }
-    terms.push({ value: enPesos(f), at: f.at, spread: !!f.spread })
+    // Un AUXILIAR se calcula pero no entra a la suma: es un escalón, no un costo.
+    if (!NO_SUMA.has(f.kind)) terms.push({ value: enPesos(f), at: f.at, spread: !!f.spread })
   }
 
   // ── los dos puntos de inserción son la SUMA de lo que les llega
