@@ -86,6 +86,19 @@ export const SHEET = {
     { key: 'guarantee', title: 'fianza' },
   ],
 
+  /** Las tres etapas del cálculo. Las claves son las MISMAS que `inputSections`, así que se
+   *  ve el par: lo que en la entrada está "al monto" produce el `valor a financiar`.
+   *
+   *  `tasa` y `monto` van en PARALELO: ninguna depende de la otra (verificado con las
+   *  dependencias reales). `cuota` depende de las dos, así que va después. */
+  stages: [
+    { key: 'rate', title: 'tasa', formulas: ['periodRate', 'annualEffectiveRate'] },
+    { key: 'amount', title: 'valor a financiar',
+      formulas: ['guaranteeCost', 'guaranteeVat', 'guaranteeTax', 'totalGuarantee', 'financedAmount'] },
+    { key: 'installment', title: 'cuota',
+      formulas: ['installment', 'lifeInsurance', 'monthlyGuarantee', 'totalInstallment'] },
+  ],
+
   formulas: {
     // Cuando llegue el bloque de precio, la base pasa a ser `principal + deviceCost` — y no
     // moverá ningún número, porque con esas perillas en cero `principal` es igual a `amount`.
@@ -131,6 +144,9 @@ export const SHEET = {
 
 /** Nombre en español de una fórmula, para lo poco que la UI necesita nombrar. */
 export const FORMULA_LABEL = {
+  guaranteeCost: 'fianza',
+  guaranteeVat: 'IVA de la fianza',
+  guaranteeTax: '4 × 1000',
   financedAmount: 'valor a financiar',
   totalGuarantee: 'fianza total',
   installment: 'cuota del crédito',

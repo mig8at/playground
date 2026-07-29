@@ -8,6 +8,7 @@ import '@vue-flow/core/dist/theme-default.css'
 import '@vue-flow/controls/dist/style.css'
 
 import InputsNode from './nodes/InputsNode.vue'
+import StageNode from './nodes/StageNode.vue'
 import SeriesNode from './nodes/SeriesNode.vue'
 
 import { fmtNum } from './engine.js'
@@ -16,7 +17,10 @@ import { layoutSheet } from './layout.js'
 import { ui, inputs, periods, effDef, out, sheetDoc, reset } from './store.js'
 
 // markRaw: sin esto Vue hace reactivos los componentes y avisa por consola en cada nodo.
-const nodeTypes = { inputsNode: markRaw(InputsNode), seriesNode: markRaw(SeriesNode) }
+const nodeTypes = {
+  inputsNode: markRaw(InputsNode), stageNode: markRaw(StageNode),
+  seriesNode: markRaw(SeriesNode),
+}
 
 // `fit-view-on-init` corre con el contenedor en 0x0 y falla en silencio; `pane-ready` llega
 // antes de que los nodos estén medidos. `nodes-initialized` es el que llega con todo medido.

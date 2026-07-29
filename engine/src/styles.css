@@ -454,3 +454,24 @@ button.icon:hover { color: var(--ink); background: var(--card2) }
                margin-left: 7px; font-size: 9.5px }
 /* el signo delante del label: se ve si suma o resta */
 .sg { font-style: normal; display: inline-block; width: 9px; color: var(--dim) }
+
+/* ── nodos de etapa: la clave del color es la misma que la sección de la entrada ── */
+.n--stage .n__hd b { text-transform: none }
+.st--rate { border-color: var(--purple) }
+.st--rate .n__hd { background: var(--hd-purple) } .st--rate .n__hd b { color: var(--purple) }
+.st--amount { border-color: var(--amber) }
+.st--amount .n__hd { background: var(--hd-amber) } .st--amount .n__hd b { color: var(--amber) }
+.st--installment { border-color: var(--teal) }
+.st--installment .n__hd { background: var(--hd-teal) } .st--installment .n__hd b { color: var(--teal) }
+/* la última fila de cada etapa es su salida: lo que las otras consumen */
+.st--rate .grp-row.is-out .grp-k, .st--rate .grp-row.is-out .grp-v { color: var(--purple) }
+.st--amount .grp-row.is-out .grp-k, .st--amount .grp-row.is-out .grp-v { color: var(--amber) }
+.st--installment .grp-row.is-out .grp-k, .st--installment .grp-row.is-out .grp-v { color: var(--teal) }
+.grp-rows { padding: 5px 0 6px }
+.grp-row { display: flex; gap: 9px; align-items: baseline; padding: 1px 10px;
+           font-size: 11px; line-height: 20px; border-radius: 5px; margin: 0 4px }
+.grp-k { font-family: var(--mono); overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
+.grp-v { margin-left: auto; font-family: var(--mono); font-weight: 650; white-space: nowrap }
+.grp-row.is-out .grp-k, .grp-row.is-out .grp-v { font-weight: 700 }
+.grp-row.is-off { opacity: .45 }
+.grp-row.is-off .grp-v { font-weight: 400; font-size: 10.5px }

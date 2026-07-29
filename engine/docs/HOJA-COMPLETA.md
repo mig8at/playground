@@ -119,6 +119,41 @@ precio de venta a 24 meses y prorratea `÷30 ×7` para fijar una tarifa.
 Meterla en la hoja con perillas en cero sería **fingir que es un crédito**. Detalle completo en
 el nodo `motai` del contexto.
 
+## Los nodos: cinco, y la tasa es un tercer tipo
+
+```
+             ┌→ [ tasa ] ──────────────┐
+[Entrada] ───┤                         ├→ [ cuota ] → [ Plan de pagos ]
+             └→ [ valor a financiar ] ─┘
+```
+
+Las claves de las etapas son **las mismas** que las secciones de la entrada, y el color también:
+lo que se puso *al monto* (ámbar) sale como **valor a financiar**; lo que se puso *a la cuota*
+(verde) sale como **cuota total**.
+
+**`tasa` y `valor a financiar` van en PARALELO** — verificado contra las dependencias reales, no
+supuesto: `periodRate` no depende del monto y `financedAmount` no depende de la tasa. La `cuota`
+depende de las dos, así que va después. Eso antes era invisible.
+
+Y de ahí sale que **la tasa es un tercer tipo**: no es "al monto" ni "a la cuota". Es el precio
+del dinero, y se calcula sola.
+
+### El cuarto tipo existe, pero necesita una capacidad nueva
+
+Los **totales** — y son de otra naturaleza, porque **leen el plan entero, no un período**. Ahí hay
+una trampa que conviene tener anotada antes de construirlo:
+
+```
+con 10% de fianza a la cuota:
+  totalPaid − financedAmount        3.689.063   ← NO son los intereses
+  suma real de la columna interés   2.689.063   ← los intereses de verdad
+  diferencia                        1.000.000   = la fianza, que no es interés
+```
+
+**Restar no da los intereses cuando hay cargos.** Hay que *sumar la columna*, y eso el lenguaje de
+fórmulas hoy no lo puede expresar: haría falta un **`sum(plan, interest)`** en el motor. Por eso el
+nodo de totales queda para después — necesita una capacidad, no solo fórmulas.
+
 ## La entrada se agrupa por A QUÉ SE APLICA
 
 Idea de Miguel, y ordena mejor que agrupar por tipo de costo — porque en el cálculo hay
