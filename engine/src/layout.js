@@ -12,7 +12,7 @@ export function layoutSheet(def, out, opts = {}) {
 
   const nodes = [{
     id: '@entrada', type: 'inputsNode', position: { x: 0, y: 0 },
-    data: { inputs: def.inputs || [], inputGroups: def.inputGroups, values: inputValues },
+    data: { inputs: def.inputs || [], inputSections: def.inputSections, values: inputValues },
   }]
 
   const edges = []

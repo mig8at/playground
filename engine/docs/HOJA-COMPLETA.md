@@ -69,7 +69,7 @@ concepto que falta.
 | # | tanda | perillas | qué desbloquea | concepto nuevo |
 |---|---|---|---|---|
 | ~~**1**~~ | ~~fianza~~ **✓ HECHA** | 4 · `guaranteeRate` `guaranteeVatRate` `transactionTaxRate` `guaranteeUpfront` | nada completo aún | **lo financiado ≠ lo pedido** |
-| **2** | seguro de vida | 1 · `lifeInsuranceRate` | **salud-gaes y salud-dentix** | **lo que paga ≠ la cuota** |
+| ~~**2**~~ | ~~seguro de vida~~ **✓ HECHA** | 1 · `lifeInsuranceRate` | **salud-gaes y salud-dentix** | **lo que paga ≠ la cuota** |
 | **3** | dispositivo y cargos | 2 · `deviceCost` `monthlyFixed` | **alta-moto** | — |
 | **4** | precio | 5 · `downPayment` `setupFee` `extras` `marginFactor` `priceVatRate` | **motai-rto** | — |
 
@@ -118,6 +118,47 @@ precio de venta a 24 meses y prorratea `÷30 ×7` para fijar una tarifa.
 
 Meterla en la hoja con perillas en cero sería **fingir que es un crédito**. Detalle completo en
 el nodo `motai` del contexto.
+
+## La entrada se agrupa por A QUÉ SE APLICA
+
+Idea de Miguel, y ordena mejor que agrupar por tipo de costo — porque en el cálculo hay
+**exactamente dos puntos de inserción** y todo lo que entra va a uno de los dos:
+
+```
+valor a financiar  =  monto  −  lo que RESTA  +  lo que SUMA
+cuota total        =  cuota del crédito  +  lo que se suma A CADA PAGO
+```
+
+Así queda la entrada:
+
+```
+EL CRÉDITO                                monto · cuotas
+TASA                                      [el bloque de conversión]
+AL MONTO   cambia el valor a financiar    − cuota inicial
+A LA CUOTA se suma a cada pago            + seguro de vida
+FIANZA · va AL MONTO ▾                    fianza · IVA · 4×1000
+```
+
+Cada input declara su **`appliesTo`** y el grupo se **deriva** de ahí. No hay una lista de grupos
+escrita a mano: agregar una perilla nueva no requiere tocar nada, se ubica sola. Y el `−` o `+`
+delante de la etiqueta dice si suma o resta.
+
+### Y la fianza es la prueba de que un costo puede ir a los dos lados
+
+`guaranteeUpfront` **no es un flag técnico: es a cuál de los dos grupos pertenece la fianza.** Por
+eso en la UI el **encabezado de su sección es el interruptor** — `FIANZA · va AL MONTO ▾` /
+`va A LA CUOTA ▾`, en ámbar o en verde según a dónde apunte.
+
+Y la decisión tiene precio. Sobre 10.000.000 al 2% mensual a 24 cuotas con 10% de fianza:
+
+| | valor a financiar | cuota | total pagado |
+|---|---|---|---|
+| **al monto** | 11.000.000 | 581.582 | 13.957.970 |
+| **a la cuota** | 10.000.000 | 570.378 | 13.689.063 |
+
+**Al monto cuesta 268.906 más**, y el motivo es exacto: al financiar el millón de fianza **le pagás
+intereses a la fianza**. Los intereses de 1.000.000 en 24 cuotas al 2% son 268.906 — el mismo
+número al peso. Por eso Dentix la cobra a la cuota y Gaes al monto: misma hoja, distinta política.
 
 ## Los nombres: dos, y no se cruzan
 

@@ -441,3 +441,16 @@ button.icon:hover { color: var(--ink); background: var(--card2) }
 .pct input:focus { outline: none }
 .pct:focus-within { border-color: var(--purple) }
 .strip .fin { color: var(--amber); font-weight: 650 }
+
+/* el encabezado de sección como interruptor (la fianza elige a qué grupo pertenece) */
+.ent__sec--btn { display: block; width: 100%; text-align: left; border: 0; background: none;
+                 cursor: pointer; font-family: var(--mono) }
+.ent__sec--btn:hover { color: var(--mut) }
+.ent__sec--btn b { font-weight: 650 }
+.ent__sec--btn .to-amount { color: var(--amber) }
+.ent__sec--btn .to-fee { color: var(--teal) }
+/* la nota del grupo: qué le hace al cálculo */
+.ent__sec em { font-style: normal; text-transform: none; letter-spacing: 0; color: var(--dim);
+               margin-left: 7px; font-size: 9.5px }
+/* el signo delante del label: se ve si suma o resta */
+.sg { font-style: normal; display: inline-block; width: 9px; color: var(--dim) }

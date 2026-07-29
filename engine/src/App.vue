@@ -35,9 +35,12 @@ const financiado = computed(() => {
 })
 // La fianza mensualizada hace que lo que paga el cliente NO sea la cuota del crédito.
 // Mostrarlas juntas cuando difieren es la única forma de que el chip no mienta.
-const fianzaPorCuota = computed(() => {
-  const r = out.value.res.monthlyGuarantee
-  return r?.status === 'ok' && r.value > 0 ? r.value : null
+// Lo que se le suma a cada cuota además de la amortización. Se muestra solo si hay algo,
+// porque es justo el aviso de que "lo que paga ≠ la cuota del crédito".
+const extraPorCuota = computed(() => {
+  const g = out.value.res.monthlyGuarantee, s = out.value.res.lifeInsurance
+  const v = (g?.status === 'ok' ? g.value : 0) + (s?.status === 'ok' ? s.value : 0)
+  return v > 0 ? v : null
 })
 const ea = computed(() => {
   const r = out.value.res.annualEffectiveRate
@@ -69,8 +72,8 @@ const canvasKey = computed(() => String(ui.showDoc))
       <span class="sep">amortiza {{ periods.chargedEvery }}</span>
       <span v-if="financiado !== null && financiado !== Number(inputs.amount)" class="sep fin">
         valor a financiar {{ fmtNum(financiado) }}</span>
-      <span v-if="fianzaPorCuota !== null" class="sep">
-        de la cuota, {{ fmtNum(fianzaPorCuota) }} es fianza</span>
+      <span v-if="extraPorCuota !== null" class="sep">
+        de la cuota, {{ fmtNum(extraPorCuota) }} no es el crédito</span>
       <span v-if="total !== null" class="sep">total a pagar {{ fmtNum(total) }}</span>
     </div>
 
