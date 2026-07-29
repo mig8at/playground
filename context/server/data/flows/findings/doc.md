@@ -88,6 +88,22 @@ Tres incidentes distintos, el mismo patrón: falta una env var → se arma una U
 
 ---
 
+### F-76 · El backfill de una migración NO cubre las filas futuras: Motai perdió el PEP en dev/qa sin que nadie tocara nada
+
+**Síntoma:** el selector de tipo de documento de Motai **no ofrece PEP** en dev/qa. `GET /api/loans/allied/f0548728` → `allowed_document_types: ["CC","CE"]`. Silencioso: nadie tocó código ni configuración, y Motai apunta justamente a **migrantes con PEP**.
+
+**Causa raíz verificada — el dato lo puso un backfill de una-sola-vez, y las filas se recrearon después.** La des-motaización movió los tipos de documento del `if merchantMode === 'motai-renting'` quemado en el front a `lenders_by_allied_branches.document_types`, y su migración hizo el backfill (piso `["CC","CE"]` para todos + `["CC","CE","PEP"]` para el lender 158). **Ese backfill funcionó** (4.070 filas con valor, 11 NULL). Pero la columna es *nullable sin default*, y las asociaciones del 158 se **volvieron a crear después** de la migración —junto con la reconfiguración de sus `group_rules`—, así que nacieron con `document_types = NULL`. El "piso" del código (`AlliedInfoController::resolveAllowedDocumentTypes`) arranca en `['CC','CE']` y suma lo que traigan las filas: con NULL no suma nada → sin PEP.
+
+**Evidencia:** las 3 sucursales del 158 con `document_types = NULL` y **0 filas con PEP en toda la base**; sus ids son altos (`lab#39917/39922/39930`) → creadas después del backfill. En local no se veía porque la fila de prueba se había sembrado a mano **con** PEP.
+
+**Arreglo (aplicado):** `UPDATE lenders_by_allied_branches SET document_types = '["CC","CE","PEP"]' WHERE lender_id = 158` → 3 filas; el endpoint pasó a `["CC","CE","PEP"]`. Es **configuración de datos**, no código.
+
+**Estado: desbloqueado, pero la causa sigue viva.** Poner el dato a mano no evita que se repita con la próxima sucursal o entidad que se habilite. Las filas se crean en `Modules/Partner/App/Services/AlliedManagementService.php` (`LendersByAlliedBranch::create`, en dos lugares) **justo al lado de donde se copian las reglas** (`addNewRule`/`addNewLenderRule`) — ese es el punto natural para que hereden los tipos de documento. Alternativas: default a nivel de columna, o mover el dato a `lender_requirements` (ya es la tabla de requisitos POR LENDER, y "acepta PEP" es una propiedad del lender más que de la sucursal). **Sin decidir.**
+
+**Lección.** Un backfill migra el **pasado**; si el dato lo consume una fila que se crea dinámicamente, hace falta además que **el punto de creación lo herede** o que la columna tenga default — si no, el feature se degrada en silencio meses después y el síntoma no apunta a la migración. Y la trampa de método: validar la config en local con una fila **sembrada a mano** oculta exactamente este agujero. Cuando un dato "des-quemado" pasa a config, hay que probar el camino que la crea, no solo un caso plantado.
+
+---
+
 ## C · Lo que en local es simulado (y qué tan fiel es el resto)
 
 ### F-07 · La pre-aprobación y el cupo de las tarjetas son inventados
