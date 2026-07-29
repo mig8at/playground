@@ -94,8 +94,16 @@ que el cliente **paga**.
 
 **Compartir columna no significa estar conectado.** Entre `tasa` y `el crédito` **no hay flecha**, y
 es un hecho: `netAmount = amount − downPayment` no toca la tasa, y `periodRate` no toca el monto.
-Son paralelos de verdad. La que sí existe —`el crédito` → `monto final`— se dibuja **hacia abajo**,
-con handles `Top`/`Bottom` que solo aparecen en las etapas que los usan.
+Son paralelos de verdad.
+
+**Cada arista dice por qué handle sale y por cuál entra.** Dentro del grupo baja (`down` → `up`);
+entre grupos sale por el costado derecho y entra por el izquierdo (`out` → `in`). Y cada nodo
+muestra solo los handles que usa — el de la izquierda existe únicamente si algo lo apunta desde
+afuera del grupo.
+
+No es cosmética: `el crédito` tiene **dos** handles de salida (baja a `monto final` y sale al
+costado hacia `cuota`), y sin decir cuál, Vue Flow tomaba el primero — la arista a `cuota` salía
+**por abajo**.
 
 **`cuota` es un solo nodo**: la anualidad y los recargos que la completan, leído como un recibo.
 Estuvieron separados mientras el total vivía arriba y la flecha iba al revés; una vez que el total

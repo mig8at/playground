@@ -111,12 +111,14 @@ export function layoutSheet(def, out, opts = {}) {
   const prof = {}
   for (const st of stages) prof[st.key] = dC(cond(st.key))
 
-  // Las dependencias DENTRO de un grupo se dibujan de abajo de una a arriba de la otra, así que
-  // solo esas etapas llevan handles verticales — los demás nodos no muestran puntos de más.
-  const vArriba = new Set(), vAbajo = new Set()
+  // Qué handles necesita cada etapa. Se calcula acá y no en el nodo porque depende de las aristas:
+  // los verticales solo existen si hay una dependencia DENTRO del grupo, y el de la izquierda solo
+  // si algo la apunta desde AFUERA. Así ningún nodo muestra puntos que no usa.
+  const vArriba = new Set(), vAbajo = new Set(), entra = new Set()
   for (const st of stages) {
     for (const o of dep.get(st.key).keys()) {
       if (grupoDe[st.key] && grupoDe[o] === grupoDe[st.key]) { vArriba.add(st.key); vAbajo.add(o) }
+      else entra.add(st.key)
     }
   }
 
@@ -175,7 +177,7 @@ export function layoutSheet(def, out, opts = {}) {
         data: {
           key: st.key, title: st.title, rateBlock: !!st.rateBlock, group: st.group,
           insertion: st.insertion, insertionHelp: st.insertionHelp,
-          hUp: vArriba.has(st.key), hDown: vAbajo.has(st.key),
+          hUp: vArriba.has(st.key), hDown: vAbajo.has(st.key), hIn: entra.has(st.key),
           nFilas: cuantasFilas(st),
           rows: visibles(st).map(row),
           inputs: (def.inputs || []).filter(i => etapaDe(i.appliesTo) === st.key),
@@ -208,11 +210,14 @@ export function layoutSheet(def, out, opts = {}) {
     for (const [otra, via] of dep.get(st.key)) {
       const salidaOtra = salida(stages.find(x => x.key === otra))
       const cual = via.has(salidaOtra) ? salidaOtra : [...via][0]
-      // dentro del grupo la flecha baja; entre grupos va de izquierda a derecha como siempre
+      // Dentro del grupo la flecha BAJA; entre grupos sale por el costado derecho y entra por el
+      // izquierdo. Los handles van SIEMPRE explícitos: una etapa con flecha interna tiene DOS
+      // handles de salida (`down` y `out`), y sin decir cuál, Vue Flow tomaba el primero — la
+      // arista externa de `el crédito` salía por ABAJO en vez de por el costado.
       const interno = grupoDe[st.key] && grupoDe[otra] === grupoDe[st.key]
       edges.push({
         id: otra + '->' + st.key, source: '@st:' + otra, target: '@st:' + st.key,
-        ...(interno ? { sourceHandle: 'down', targetHandle: 'up' } : {}),
+        sourceHandle: interno ? 'down' : 'out', targetHandle: interno ? 'up' : 'in',
         label: etiqueta(cual) + (via.size > 1 ? ` +${via.size - 1}` : ''),
         style: { strokeWidth: 1.5, opacity: interno ? .7 : .85 },
       })
@@ -238,7 +243,7 @@ export function layoutSheet(def, out, opts = {}) {
     })
     if (alimenta) {
       edges.push({
-        id: 'stage->series', source: '@st:' + alimenta.key, target: '@series',
+        id: 'stage->series', source: '@st:' + alimenta.key, target: '@series', sourceHandle: 'out',
         // con `etiqueta` y no solo el nombre: todos los demás cables llevan su valor
         label: etiqueta(def.output), style: { strokeWidth: 1.6 },
       })

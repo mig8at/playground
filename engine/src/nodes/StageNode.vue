@@ -89,7 +89,8 @@ function crear() {
 <template>
   <div class="n n--stage" :class="['st--' + data.key, data.group && 'g--' + data.group]"
        style="min-width:296px;max-width:296px">
-    <Handle v-if="data.key !== 'credit'" id="in" type="target" :position="Position.Left" />
+    <!-- el de la izquierda solo si algo la apunta desde afuera del grupo -->
+    <Handle v-if="data.hIn" id="in" type="target" :position="Position.Left" />
     <!-- solo las etapas con una dependencia DENTRO de su grupo: la flecha baja en vez de dar
          la vuelta por la izquierda -->
     <Handle v-if="data.hUp" id="up" type="target" :position="Position.Top" />
