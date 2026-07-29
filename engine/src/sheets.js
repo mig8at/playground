@@ -111,15 +111,24 @@ export const SHEET = {
    *
    *  `tasa` y `al monto` van en PARALELO: ninguna depende de la otra (verificado contra las
    *  dependencias reales, no supuesto). */
-  //  ═══ TRES CLASES DE NODO, TRES COLORES ═══
-  //  `group: 'config'` no es un truco de dibujo: dice que esas tres etapas son LA MISMA CLASE de
-  //  cosa — lo que configura la entidad. Comparten columna y color, así que "configurar un lender"
-  //  es llenar las cajas de ese color. Las otras dos clases son `el crédito` (lo que pide el
-  //  cliente) y `cuota` + el plan (el resultado).
+  //  ═══ LOS GRUPOS: COLUMNA Y COLOR COMPARTIDOS ═══
+  //  Un `group` dice que varias etapas van juntas: misma columna, apiladas, mismo color. Y si una
+  //  depende de otra del mismo grupo, la flecha se dibuja VERTICAL (de abajo de una a arriba de la
+  //  otra) en vez de empujar de columna.
+  //
+  //  El agrupamiento es por TEMA, no por origen:
+  //
+  //    `monto`   el deudor (lo que pide y lo que pone) → los costos que suben el monto
+  //    `config`  la tasa y los costos que viajan en cada cuota
+  //    —         `cuota` y el plan: el resultado
+  //
+  //  Ojo con el costo de esta elección: el color deja de decir de dónde VIENE el dato. `el crédito`
+  //  lo llena el cliente y `monto final` lo configura la entidad, y ahora comparten color. Los
+  //  títulos siguen distinguiéndolos, pero el color ya no.
   stages: [
     // La etapa del cliente CALCULA una cosa: el monto neto. Es la variable limpia de la que sale
     // todo lo demás, y sale solo de datos del cliente.
-    { key: 'credit', title: 'el crédito', rows: 'out', formulas: ['netAmount'] },
+    { key: 'credit', title: 'el crédito', group: 'monto', rows: 'out', formulas: ['netAmount'] },
     // `rows: 'none'` — la etapa SIGUE siendo dueña de las dos fórmulas (es lo que la pone en el
     // grafo y lo que hace que `cuota` dependa de ella), pero no las dibuja: el valor ya está al
     // lado de su input y la E.A. en la barra de arriba.
@@ -136,7 +145,7 @@ export const SHEET = {
     // como par, pero comparten columna y color, así que sobraba. El dato vive en el tooltip.
     // `monto final` y no "al monto": ahí también vive la cuota inicial, que RESTA, y "al monto"
     // daba a entender que todo lo de ese nodo suma.
-    { key: 'amount', title: 'monto final', group: 'config', rows: 'out', insertion: true,
+    { key: 'amount', title: 'monto final', group: 'monto', rows: 'out', insertion: true,
       insertionHelp: 'Todo lo que mueve el monto que se financia. Lo que entra acá se financia, '
         + 'así que PAGA INTERESES en cada cuota. Un valor negativo lo baja (la cuota inicial).',
       formulas: ['financedAmount'] },

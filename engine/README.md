@@ -67,36 +67,33 @@ que arranca en dígito lleva el guión bajo adelante.)
 
 Los cinco campos **se borran con una ×**. El ejemplo es configuración, no motor.
 
-**Tres clases de nodo, tres colores.** El color no dice qué etapa es — eso lo dice el título —
-sino **qué clase de cosa** es:
+**Dos pares apilados y un resultado.** El color es el **grupo**, y agrupa por *tema*:
 
 ```
- ┌ el crédito ───┐   ┌ tasa ─────────────┐
- │ monto         │──▸│ DICHA  [mens] 2%  │ E.M.
- │ cuotas        │   │ ───── ▾ EFECTIVA  │
- │ − cuota inic. │   │ SE COBRA [mens]   │ M.V.
- └───────────────┘   │ tasa del período  │──┐
-   lo que pide       └───────────────────┘  │
-   el CLIENTE        ┌ al monto  CON INT ┐  │   ┌ cuota ────────────┐  ┌ Plan de ┐
-       ámbar         │ fianza        0%  │  ├──▸│ cuota del crédito │─▸│  pagos  │
-                     │ IVA fianza    0%  │  │   │ cuota total       │  └─────────┘
-                     │ 4 × 1000      0%  │  │   └───────────────────┘
-                     ├───────────────────┤  │      el RESULTADO
-                     │ valor a financiar │  │         verde
-                     └─────────┬─────────┘  │
-                               ▾ depende     │
-                     ┌ a la cuota SIN INT ┐  │
-                     │ +seguro de vida 0% │  │
-                     ├────────────────────┤  │
-                     │ cargos por cuota   │──┘
-                     └────────────────────┘
-                   lo que configura la ENTIDAD
-                              azul
+ ┌ el crédito ──────────┐  ámbar · el monto
+ │ monto    10.000.000  │
+ │ cuota inicial 4.000.000
+ │ cuotas           36  │
+ │ monto neto  6.000.000│
+ └──────────┬───────────┘   ┌ tasa ───────────┐  azul · tasa y cuota
+    monto neto 6.000.000    │ ● efectiva      │
+ ┌──────────▾───────────┐   │ DICHA  [anual]  │──┐
+ │ monto final          │──▸│ SE COBRA [mens] │  │  ┌ cuota ────────┐  ┌ Plan de ┐
+ │ fianza          10%  │   └─────────────────┘  ├─▸│ cuota crédito │─▸│  pagos  │
+ │ IVA de la f…    19%  │   ┌ a la cuota ─────┐  │  │ cuota total   │  └─────────┘
+ │ 4 × 1000     fórmula │──▸│ seguro de vida  │──┘  └───────────────┘
+ │ valor a fin. 6.716.856   │ cargos por cuota│        verde · resultado
+ └──────────────────────┘   └─────────────────┘
 ```
 
-Así **configurar un lender es llenar las cajas azules.** Es la partición que hacía falta para
-normalizar entidades en vez de configurarlas una por una: lo del cliente, lo de la entidad, y el
-resultado — cada cosa con su color.
+**La flecha que baja dentro del grupo es real.** `monto final` depende de `el crédito` (le lee el
+monto neto), y compartir columna no lo esconde: se dibuja de abajo de una a arriba de la otra, con
+handles `Top`/`Bottom` que solo existen en las etapas que los usan.
+
+⚠ **El color no dice de dónde viene el dato.** `el crédito` lo llena el **cliente** y `monto final`
+lo configura la **entidad**, y comparten ámbar. Esa distinción la llevan los títulos, no el color —
+es el precio de agrupar por tema. Si algún día pesa más saber qué configura un lender que leer el
+monto de un tirón, el agrupamiento se invierte cambiando dos `group:` en la hoja.
 
 ### Tres orígenes, no "constantes y variables"
 
