@@ -137,11 +137,31 @@ export const SHEET = {
     // todo lo demás, y sale solo de datos del cliente.
     { key: 'credit', title: 'el crédito', group: 'entrada', rows: 'out', formulas: ['netAmount'] },
 
-    // `insertion` marca los dos puntos donde se pueden agregar campos.
-    { key: 'amount', title: 'monto final', group: 'entrada', rows: 'out', insertion: true,
-      insertionHelp: 'Todo lo que mueve el monto que se financia. Lo que entra acá se financia, '
-        + 'así que PAGA INTERESES en cada cuota. Un valor negativo lo baja.',
-      formulas: ['financedAmount'] },
+    // ── el punto de inserción del monto, partido en DOS ──
+    // Arriba las TARIFAS (las perillas), abajo los PESOS que salen de ellas. Es la misma partición
+    // que `el crédito` → `monto neto`, un nivel más abajo — y es la que hace visible "una sola hoja,
+    // N configuraciones": lo de arriba cambia por lender, lo de abajo es igual para todos.
+    //
+    // `inputsOf: 'amount'` dice que esta etapa ALOJA las perillas del punto `amount` sin ser el
+    // punto: los campos siguen teniendo `at: 'amount'`, así que sus términos siguen cayendo donde
+    // corresponde. El `insertion` vive acá porque acá es donde se agrega una perilla.
+    // Grupo APARTE de `entrada`, no por color —es el mismo ámbar— sino por columna: en una sola
+    // columna de cuatro, la flecha `monto neto` de `el crédito` tenía que SALTAR por encima de
+    // `tarifas` y perdía su etiqueta. `amount` depende de `credit` y de `rates`, y apilados solo uno
+    // de los dos puede quedar adyacente; el par tarifas→costos es el que tiene que estar junto.
+    { key: 'rates', title: 'tarifas', group: 'monto', inputsOf: 'amount',
+      insertion: 'amount',
+      insertionHelp: 'Las tarifas que se le suman al monto que se financia. Lo que entra acá se '
+        + 'financia, así que PAGA INTERESES en cada cuota. Un valor negativo lo baja (un descuento).',
+      formulas: [] },
+
+    // El título dice QUÉ SE PONE y la fila de salida dice QUÉ SALE — es la regla de los otros dos
+    // (`el crédito` → monto neto, `cuota` → cuota total). "monto final" la rompía: prometía un valor
+    // que ninguna fila da, porque lo que sale es `valor a financiar`.
+    //
+    // Y NO se llama `saldo inicial` a propósito: eso ya es una columna del plan, con un valor por
+    // cuota. Coincide con este número solo en la fila 1.
+    { key: 'amount', title: 'costos al monto', group: 'monto', formulas: ['financedAmount'] },
 
     // ── el lado del PAGO ──
     // UNA etapa: la anualidad y los recargos que la completan. Estuvieron separadas mientras el
@@ -156,8 +176,8 @@ export const SHEET = {
       formulas: ['installment', 'installmentCharges', 'totalInstallment'] },
   ],
 
-  /** `appliesTo` que no son una etapa: se dibujan DENTRO de la etapa que los consume. Los de
-   *  `blocks` los llena `resolveSheet` con lo que diga `where`, así que acá no van a mano. */
+  /** Dónde se DIBUJAN las perillas de cada `appliesTo`, cuando no es en su propia etapa.
+   *  Lo llena `resolveSheet` a partir de los `inputsOf` de las etapas, así que acá no va a mano. */
   inputHost: {},
 
   formulas: {
@@ -290,18 +310,20 @@ export const FORMULA_LABEL = {
  *  no hace falta ninguna base "subtotal": la fianza apunta a `netAmount`, que es una variable. */
 export const RATE_BASES = {
   amount: [
-    { value: 'netAmount', label: 'el monto neto',
+    { value: 'netAmount', label: 'el monto neto', short: 'del neto',
       help: 'El monto menos la cuota inicial: lo que el cliente de verdad financia. Es la base de '
         + 'la fianza en el código real.' },
-    { value: 'amount', label: 'el monto',
+    { value: 'amount', label: 'el monto', short: 'del monto',
       help: 'El monto pedido, SIN descontar la cuota inicial. Es la base de los costos '
         + 'administrativos y del seguro de vida en el código real.' },
   ],
   charges: [
-    { value: 'financedAmount', label: 'el valor a financiar',
+    { value: 'financedAmount', label: 'el valor a financiar', short: 'del financiado',
       help: 'Lo que quedó financiado, con los costos del monto ya adentro.' },
-    { value: 'netAmount', label: 'el monto neto', help: 'Antes de los costos del monto.' },
-    { value: 'amount', label: 'el monto', help: 'El monto pedido, sin descontar la cuota inicial.' },
+    { value: 'netAmount', label: 'el monto neto', short: 'del neto',
+      help: 'Antes de los costos del monto.' },
+    { value: 'amount', label: 'el monto', short: 'del monto',
+      help: 'El monto pedido, sin descontar la cuota inicial.' },
   ],
 }
 /** La base por defecto de cada punto. */
@@ -309,6 +331,9 @@ export const RATE_BASE = Object.fromEntries(
   Object.entries(RATE_BASES).map(([k, v]) => [k, v[0].value]))
 const BASE_LABEL = Object.fromEntries(
   Object.values(RATE_BASES).flat().map(b => [b.value, b.label]))
+/** La forma corta, para la nota al lado del nombre: no hay lugar para "el valor a financiar". */
+const BASE_SHORT = Object.fromEntries(
+  Object.values(RATE_BASES).flat().map(b => [b.value, b.short]))
 
 /** Nombres que un campo agregado NO puede pisar. */
 const RESERVADOS = new Set(['statedPerYear', 'periodsPerYear', 'i', 'n', 'prev'])
@@ -354,12 +379,13 @@ export function resolveSheet(def, { periods = {}, fields = [] } = {}) {
         // sin `min`: un negativo es cómo se resta (la cuota inicial)
         name: f.name, type: f.kind === 'rate' ? 'rate' : 'money', default: 0,
         appliesTo: f.at, label: f.label, field: f.id,
-        // el calificativo que se ve al lado del nombre: solo lo AMBIGUO, no todo
-        // el calificativo al lado del nombre: solo lo AMBIGUO. La base por defecto no se anota
-        // (es la del punto); una base distinta sí, porque es justo lo que no se adivina.
+        // La nota al lado del nombre: solo lo que NO se puede inferir. La base por defecto no va,
+        // porque la fila de la etapa de fórmulas ya muestra la expresión entera —"netAmount *
+        // fianza" dice de qué es el 10% mejor que cualquier nota. Ponerla siempre truncaba el label
+        // a "seguro …", que es peor: dejaba de verse de qué campo se trata.
         note: f.kind === 'rate' && f.base && f.base !== RATE_BASE[f.at]
-          ? 'de ' + (fields.find(x => x.name === f.base)?.label
-              ?? BASE_LABEL[f.base] ?? f.base)
+          ? (fields.find(x => x.name === f.base)?.label
+              ?? BASE_SHORT[f.base] ?? f.base)
           : f.at === 'charges' && f.spread ? '÷ cuotas' : '',
         help: describir(f, fields),
       })
@@ -400,8 +426,14 @@ export function resolveSheet(def, { periods = {}, fields = [] } = {}) {
     ...st, formulas: [...(llegan[st.key] || []), ...st.formulas],
   }))
 
+  // Una etapa con `inputsOf` aloja las PERILLAS de otro punto de inserción. Así el punto se parte en
+  // dos —arriba las tarifas, abajo los pesos— sin que los campos cambien su `at`, y por lo tanto sin
+  // que sus términos cambien de destino.
+  const inputHost = { ...(def.inputHost || {}) }
+  for (const st of def.stages || []) if (st.inputsOf) inputHost[st.inputsOf] = st.key
+
   return {
-    ...def, stages, inputs, formulas, formulaLabel, terms, fields,
+    ...def, stages, inputs, formulas, formulaLabel, terms, fields, inputHost,
     constants: {
       ...def.constants,
       statedPerYear: PERIODS[p.rateStatedIn],

@@ -30,8 +30,12 @@ export function layoutSheet(def, out, opts = {}) {
   const etapaDe = a => host[a] || a
 
   const LBL = def.formulaLabel || FORMULA_LABEL
-  const row = (name) => ({
-    name, expr: def.formulas[name], label: LBL[name] || name,
+  // `verExpr`: la fila muestra su EXPRESIÓN debajo del nombre. Se prende cuando la perilla del campo
+  // vive en otra etapa — es el caso de `tarifas` → `costos al monto`, donde el nodo de abajo mostraba
+  // los pesos pero no de dónde salían. Ahí la expresión es lo que hace entendible la configuración
+  // sin tener que meter el 10% dentro de la fórmula (que ataría la hoja a un solo lender).
+  const row = (name, verExpr = false) => ({
+    name, expr: def.formulas[name], label: LBL[name] || name, verExpr,
     status: out.res[name]?.status ?? 'skipped',
     value: out.res[name]?.status === 'ok' ? out.res[name].value : undefined,
   })
@@ -42,7 +46,8 @@ export function layoutSheet(def, out, opts = {}) {
   // Un campo FÓRMULA no es un input, así que `propios` no lo ve: hay que contarlo aparte o los
   // nodos de una misma columna se solapan y los clicks caen en el nodo equivocado. Ocupa dos filas
   // (nombre + expresión, y el resultado debajo). Y el botón `+ campo` también ocupa.
-  const formulas_ = k => (def.fields || []).filter(f => f.kind === 'formula' && f.at === k)
+  // el editor de la expresión se dibuja donde vive la perilla, igual que los demás inputs
+  const formulas_ = k => (def.fields || []).filter(f => f.kind === 'formula' && etapaDe(f.at) === k)
   const stageH = st => {
     const ins = propios(st.key)
     const enBloque = st.rateBlock ? ins.filter(i => ['statedRate', 'compound'].includes(i.name)).length : 0
@@ -55,10 +60,14 @@ export function layoutSheet(def, out, opts = {}) {
       + 12
   }
   const salida = st => (st && st.formulas.length ? st.formulas[st.formulas.length - 1] : null)
-  // Las fórmulas que genera un CAMPO no se dibujan como fila: ya se ven en su propia línea, con su
-  // perilla o su expresión. Mostrarlas otra vez ponía "seguro de vida" dos veces en el mismo nodo.
-  const deCampo = new Set((def.fields || []).map(f => f.name + 'Value'))
-  const visibles = st => st.formulas.filter(f => !deCampo.has(f))
+  // La fórmula que genera un CAMPO se dibuja como fila SOLO si su perilla vive en otro nodo.
+  //
+  // En el mismo nodo sería un duplicado —el valor ya se ve en la línea del campo, con su perilla o
+  // su expresión— y ponía "seguro de vida" dos veces. Pero cuando `inputHost` manda las perillas a
+  // una etapa aparte, esa fila es justamente el punto: arriba las tarifas, abajo los pesos.
+  const deCampo = new Map((def.fields || [])
+    .map(f => [f.name + 'Value', etapaDe(f.at)]))   // fórmula → dónde vive su perilla
+  const visibles = st => st.formulas.filter(f => deCampo.get(f) !== st.key)
   // `rows` dice CUÁNTAS de sus fórmulas dibuja una etapa. Es distinto de cuáles POSEE: `tasa` es
   // dueña de las suyas —eso es lo que la pone en el grafo y lo que hace que `cuota` dependa de
   // ella— y no dibuja ninguna.
@@ -179,7 +188,8 @@ export function layoutSheet(def, out, opts = {}) {
           insertion: st.insertion, insertionHelp: st.insertionHelp,
           hUp: vArriba.has(st.key), hDown: vAbajo.has(st.key), hIn: entra.has(st.key),
           nFilas: cuantasFilas(st),
-          rows: visibles(st).map(row),
+          // la expresión se ve cuando la perilla del campo está en OTRA etapa
+          rows: visibles(st).map(f => row(f, deCampo.has(f))),
           inputs: (def.inputs || []).filter(i => etapaDe(i.appliesTo) === st.key),
         },
       })
@@ -208,8 +218,12 @@ export function layoutSheet(def, out, opts = {}) {
   }
   for (const st of stages) {
     for (const [otra, via] of dep.get(st.key)) {
-      const salidaOtra = salida(stages.find(x => x.key === otra))
-      const cual = via.has(salidaOtra) ? salidaOtra : [...via][0]
+      const stOtra = stages.find(x => x.key === otra)
+      const salidaOtra = salida(stOtra)
+      // Una etapa SIN fórmulas propias es un nodo de puras perillas (`inputsOf`). Ahí no hay una
+      // salida que rotular, y poner la primera que cruce engañaba —"fianza 10% +1" se lee como si
+      // solo cruzara la fianza. Los nombres ya están en los dos nodos, así que va sin etiqueta.
+      const cual = salidaOtra ? (via.has(salidaOtra) ? salidaOtra : [...via][0]) : null
       // Dentro del grupo la flecha BAJA; entre grupos sale por el costado derecho y entra por el
       // izquierdo. Los handles van SIEMPRE explícitos: una etapa con flecha interna tiene DOS
       // handles de salida (`down` y `out`), y sin decir cuál, Vue Flow tomaba el primero — la
@@ -218,7 +232,7 @@ export function layoutSheet(def, out, opts = {}) {
       edges.push({
         id: otra + '->' + st.key, source: '@st:' + otra, target: '@st:' + st.key,
         sourceHandle: interno ? 'down' : 'out', targetHandle: interno ? 'up' : 'in',
-        label: etiqueta(cual) + (via.size > 1 ? ` +${via.size - 1}` : ''),
+        label: cual ? etiqueta(cual) + (via.size > 1 ? ` +${via.size - 1}` : '') : '',
         style: { strokeWidth: 1.5, opacity: interno ? .7 : .85 },
       })
     }

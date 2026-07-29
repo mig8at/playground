@@ -29,30 +29,38 @@ const val = r => {
 // Si la etapa tiene RateBlock, el bloque es dueño de `statedRate` y `compound`: sacarlos de la
 // lista o se dibujan dos veces.
 const DEL_BLOQUE = new Set(['statedRate', 'compound'])
+// `data.inputs` ya viene filtrado por el layout con `etapaDe`, que es lo que resuelve `inputsOf`:
+// las perillas del punto `amount` llegan acá aunque su `appliesTo` diga `amount` y la etapa sea
+// `rates`. Volver a filtrar por `appliesTo === key` las descartaba.
 const propios = computed(() => props.data.inputs.filter(f =>
-  f.appliesTo === props.data.key && !(props.data.rateBlock && DEL_BLOQUE.has(f.name))))
+  !(props.data.rateBlock && DEL_BLOQUE.has(f.name))))
 // `nFilas` lo calcula el layout desde `rows` de la hoja: todas, solo la salida, o ninguna. La
 // etapa sigue siendo dueña de sus fórmulas aunque no dibuje ninguna.
 const filas = computed(() => props.data.rows.slice(props.data.rows.length - props.data.nFilas))
 
 // ── agregar un campo ──
-// Solo en los puntos de inserción: lo que se agregue acá entra al cálculo POR acá. Los tres
-// controles son las tres cosas que definen qué hace el campo, y se leen como una frase.
+// Los tres controles son las tres cosas que definen qué hace el campo, y se leen como una frase.
+//
+// `data.insertion` trae la CLAVE del punto de inserción, que no siempre es la de la etapa: cuando el
+// punto está partido en dos —arriba las tarifas, abajo los pesos— las perillas viven en la de arriba
+// pero el campo sigue teniendo el `at` del punto, así que sus términos caen donde corresponde.
+const punto = computed(() => (props.data.insertion === true ? props.data.key : props.data.insertion))
 const nuevo = ref(null)
 const campo = ref(null)
 // Las bases con nombre del punto (el monto neto, el bruto, lo financiado) más los campos ya
 // creados en este nodo. Un campo solo puede apoyarse en los ANTERIORES, así que un ciclo no se
 // puede ni escribir.
-const basesFijas = computed(() => RATE_BASES[props.data.key] || [])
-const bases = computed(() => basesDisponibles(props.data.key))
-const frase = computed(() => (nuevo.value ? describir({ ...nuevo.value, at: props.data.key }, fields) : ''))
+const basesFijas = computed(() => RATE_BASES[punto.value] || [])
+const bases = computed(() => basesDisponibles(punto.value))
+const frase = computed(() => (nuevo.value ? describir({ ...nuevo.value, at: punto.value }, fields) : ''))
 
 // ── los campos FÓRMULA ──
 // No tienen perilla: su valor es la expresión, así que se dibujan aparte de `propios` (que son los
 // inputs). Se muestran con la expresión editable y el resultado al lado — la celda de una hoja de
 // cálculo. Si la expresión está mal, el motor devuelve la razón y se muestra ahí mismo.
+// Se dibujan donde vive la perilla del punto, igual que los demás inputs.
 const formulaFields = computed(() =>
-  fields.filter(f => f.kind === 'formula' && f.at === props.data.key))
+  fields.filter(f => f.kind === 'formula' && f.at === punto.value))
 const resultado = f => out.value.res[f.name + 'Value']
 // Por qué no dio. El `reason` de un `skipped` es un CÓDIGO del motor, no prosa: `upstream` con un
 // `dependsOn`, o `missing_input` con un `missing`. Un ciclo, además, lo reporta en la fórmula que
@@ -81,7 +89,7 @@ async function abrir() {
 }
 function crear() {
   if (!nuevo.value?.label.trim()) return
-  addField({ ...nuevo.value, at: props.data.key })
+  addField({ ...nuevo.value, at: punto.value })
   nuevo.value = null
 }
 </script>
@@ -188,10 +196,17 @@ function crear() {
 
     <!-- resultados de la etapa -->
     <div v-if="filas.length" class="grp-rows st-out">
-      <div v-for="(r, i) in filas" :key="r.name" class="grp-row"
-           :class="{ 'is-out': i === filas.length - 1, 'is-off': r.status !== 'ok' }"
+      <div v-for="(r, i) in filas" :key="r.name"
+           :class="['grp-row', { 'is-out': i === filas.length - 1, 'is-off': r.status !== 'ok',
+                                 'has-expr': r.verExpr }]"
            :title="r.expr">
-        <span class="grp-k">{{ r.label }}</span>
+        <span class="grp-k">
+          {{ r.label }}
+          <!-- La expresión, cuando la perilla vive en otra etapa: sin esto el nodo mostraba los
+               pesos y no de dónde salían. Es lo que hace entendible el 10% sin meterlo DENTRO de la
+               fórmula, que ataría la hoja a un solo lender. -->
+          <i v-if="r.verExpr" class="grp-expr">{{ r.expr }}</i>
+        </span>
         <b class="grp-v">{{ val(r) }}</b>
       </div>
     </div>

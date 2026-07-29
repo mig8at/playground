@@ -525,17 +525,27 @@ button.icon:hover { color: var(--ink); background: var(--card2) }
    Ojo: el color NO dice de dónde viene el dato. `el crédito` lo llena el cliente y `monto final`
    lo configura la entidad, y comparten ámbar. Eso lo distinguen los títulos.               */
 .n--stage .n__hd b { text-transform: none }
-.g--entrada { border-color: var(--amber) }
-.g--entrada .n__hd { background: var(--hd-amber) } .g--entrada .n__hd b { color: var(--amber) }
+/* `entrada` y `monto` comparten el ámbar a propósito: son grupos distintos por COLUMNA, no por
+   tema. `monto` existe para que `tarifas` y `costos al monto` queden adyacentes — apilados los
+   cuatro en una sola columna, la flecha `monto neto` saltaba por encima de `tarifas`. */
+.g--entrada, .g--monto { border-color: var(--amber) }
+.g--entrada .n__hd, .g--monto .n__hd { background: var(--hd-amber) }
+.g--entrada .n__hd b, .g--monto .n__hd b { color: var(--amber) }
 .g--pago { border-color: var(--green) }
 .g--pago .n__hd { background: var(--hd-green) } .g--pago .n__hd b { color: var(--green) }
 /* la última fila de cada etapa es su salida: lo que las otras consumen */
-.g--entrada .grp-row.is-out .grp-k, .g--entrada .grp-row.is-out .grp-v { color: var(--amber) }
+.g--entrada .grp-row.is-out .grp-k, .g--entrada .grp-row.is-out .grp-v,
+.g--monto .grp-row.is-out .grp-k, .g--monto .grp-row.is-out .grp-v { color: var(--amber) }
 .g--pago .grp-row.is-out .grp-k, .g--pago .grp-row.is-out .grp-v { color: var(--green) }
 
 .grp-rows { padding: 5px 0 6px }
 .grp-row { display: flex; gap: 9px; align-items: baseline; padding: 1px 10px;
            font-size: 11px; line-height: 20px; border-radius: 5px; margin: 0 4px }
+/* Una fila que muestra su EXPRESIÓN debajo del nombre: pasa a dos líneas, así que el valor se
+   alinea arriba y no al centro del bloque. */
+.grp-row.has-expr { align-items: flex-start; padding-bottom: 3px }
+.grp-expr { display: block; font-style: normal; font-size: 9.5px; line-height: 13px;
+            color: var(--dim); overflow: hidden; text-overflow: ellipsis }
 .grp-k { font-family: var(--mono); overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
 .grp-v { margin-left: auto; font-family: var(--mono); font-weight: 650; white-space: nowrap }
 .grp-row.is-out .grp-k, .grp-row.is-out .grp-v { font-weight: 700 }
