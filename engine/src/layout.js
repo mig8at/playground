@@ -180,8 +180,8 @@ export function layoutSheet(def, out, opts = {}) {
   // La arista lleva NOMBRE + VALOR. Importa cuando la etapa origen no muestra sus fórmulas
   // (`showRows: false`): ahí el cable es el único lugar donde se ve el resultado.
   //
-  // Un cable puede llevar varios valores (`el crédito` le manda `amount` y `downPayment` a
-  // `al monto`). Rotular "2 valores" era honesto pero inútil: se rotula la SALIDA de la etapa
+  // Un cable puede llevar varios valores (`el crédito` le manda `amount` y `installments` a
+  // `a la cuota`). Rotular "2 valores" era honesto pero inútil: se rotula la SALIDA de la etapa
   // origen, que es la que interesa, y se cuenta el resto con `+N`.
   const porNombre = Object.fromEntries((def.inputs || []).map(i => [i.name, i]))
   const fmt = v => (Math.abs(v) < 1 && v !== 0

@@ -26,7 +26,6 @@ const val = r => {
   if (r.status === 'error') return 'error'
   return fmtNum(r.value, /rate|Rate/.test(r.name) ? 6 : undefined)
 }
-const signo = f => (f.sign === -1 ? '−' : f.appliesTo === 'charges' ? '+' : '')
 // Si la etapa tiene RateBlock, el bloque es dueño de `statedRate` y `compound`: sacarlos de la
 // lista o se dibujan dos veces.
 const DEL_BLOQUE = new Set(['statedRate', 'compound'])
@@ -102,7 +101,6 @@ function crear() {
       <!-- inputs propios de la etapa -->
       <div v-for="f in propios" :key="f.name" class="ent__row">
         <span class="ent__k" :title="f.help">
-          <em v-if="signo(f)" class="sg">{{ signo(f) }}</em>
           <span class="ent__kt">{{ f.label }}</span>
           <!-- solo lo AMBIGUO: sobre qué se aplica el %, o que es un total repartido -->
           <i v-if="f.note" class="ent__note">{{ f.note }}</i>

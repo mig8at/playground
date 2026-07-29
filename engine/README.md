@@ -33,15 +33,36 @@ resultado — cada cosa con su color.
 
 ### Los dos puntos de inserción
 
-Dentro del azul hay exactamente **dos** lugares donde puede entrar un costo, y los dos lo dicen
-en su encabezado:
+Dentro del azul hay exactamente **dos** lugares donde puede entrar un costo:
 
-| | qué entra ahí | termina en | insignia |
+| | qué entra ahí | termina en | paga intereses |
 |---|---|---|---|
-| **al monto** | lo que se financia junto con el crédito | `financedAmount` | **CON INTERÉS** |
-| **a la cuota** | lo que viaja arriba de cada pago | `installmentCharges` | **SIN INTERÉS** |
+| **monto final** | todo lo que mueve el monto que se financia | `financedAmount` | **sí** |
+| **a la cuota** | lo que viaja arriba de cada pago | `installmentCharges` | no |
 
 Agregar un costo nuevo de un lender es **elegir uno de los dos**. No hay una tercera respuesta.
+
+`monto final` y no *"al monto"*: ahí vive también la **cuota inicial**, que resta, y "al monto" daba
+a entender que todo lo de ese nodo suma. Que uno pague intereses y el otro no vive en el tooltip
+del título, no en pantalla — estuvo como insignia visible mientras los dos nodos caían en columnas
+distintas y era lo único que los hacía leer como par, pero comparten columna y color.
+
+### Todo se suma. Un negativo resta.
+
+Es la regla única de los dos puntos, y es lo que hace que la cuota inicial sea un campo como
+cualquier otro en vez de un caso especial en la fórmula:
+
+```
+cuota inicial  −4.000.000  →  financedAmount: amount + cuotaInicial + fianzaValue + ivaDeLaFianzaValue
+                              valor a financiar 6.000.000 · cuota 317.227
+```
+
+Antes era un input cableado con `sign: -1` y la fórmula decía `amount - downPayment + …`. Ahora es
+una suma pura: **el motor no tiene una idea de "lo que resta"**, igual que ya había dejado de tener
+una idea de qué es una fianza.
+
+Los labels tampoco llevan prefijo de signo (`−cuota inicial`, `+seguro de vida`): el valor ya trae
+el suyo, y con el título del nodo diciendo a dónde va, el prefijo era una tercera copia.
 
 ### Y se agregan desde el nodo: `+ campo`
 

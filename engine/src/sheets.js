@@ -48,14 +48,12 @@ export const SHEET = {
 
   inputs: [
     // ── el crédito: lo que pide el CLIENTE. No es un punto de inserción, así que acá no se
-    //    agregan campos: los costos van al monto o a la cuota.
+    //    agregan campos: todo lo que MUEVE el monto —incluida la cuota inicial— vive en
+    //    `monto final`, que es el punto de inserción.
     { name: 'amount', type: 'money', default: 10000000, min: 0, appliesTo: 'credit',
       label: 'monto', help: 'Lo que el cliente pide. Los costos que se agreguen lo suben o lo bajan.' },
     { name: 'installments', type: 'count', default: 24, min: 1, appliesTo: 'credit',
       label: 'cuotas', help: 'En cuántos pedazos se devuelve.' },
-    { name: 'downPayment', type: 'money', default: 0, min: 0, appliesTo: 'credit', sign: -1,
-      label: 'cuota inicial',
-      help: 'Lo que el cliente pone de su bolsillo. RESTA: se financia menos. Se escribe en positivo; la fórmula la resta.' },
 
     // ── la tasa
     { name: 'statedRate', type: 'rate', default: 0.02, appliesTo: 'rate',
@@ -112,8 +110,11 @@ export const SHEET = {
     // `insertion` marca los dos puntos donde se pueden agregar campos. Ya NO se dibuja como
     // insignia: cuando los dos nodos estaban en columnas distintas era lo único que los hacía leer
     // como par, pero comparten columna y color, así que sobraba. El dato vive en el tooltip.
-    { key: 'amount', title: 'al monto', group: 'config', rows: 'out', insertion: true,
-      insertionHelp: 'Lo que entra acá se financia, así que PAGA INTERESES en cada cuota.',
+    // `monto final` y no "al monto": ahí también vive la cuota inicial, que RESTA, y "al monto"
+    // daba a entender que todo lo de ese nodo suma.
+    { key: 'amount', title: 'monto final', group: 'config', rows: 'out', insertion: true,
+      insertionHelp: 'Todo lo que mueve el monto que se financia. Lo que entra acá se financia, '
+        + 'así que PAGA INTERESES en cada cuota. Un valor negativo lo baja (la cuota inicial).',
       formulas: ['financedAmount'] },
     // Depende de `al monto`, y es un hecho del negocio, no del dibujo: el seguro de vida se
     // calcula sobre `financedAmount`. Con fianza al 5% y seguro 0,0014, financiar la fianza sube
@@ -261,9 +262,10 @@ export function describir(f, campos = []) {
     ? (campos.find(x => x.name === f.base)?.label ?? f.base)
     : RATE_BASE_LABEL[f.at]
   const qué = f.kind === 'rate' ? `porcentaje sobre ${base}` : 'monto fijo'
-  if (f.at !== 'charges') return `${qué}, se suma al monto que se financia`
-  return f.spread ? `${qué}, es un TOTAL y se reparte entre las cuotas`
-                  : `${qué}, se suma a CADA cuota`
+  const neg = ' — en negativo lo baja'
+  if (f.at !== 'charges') return `${qué}, se suma al monto que se financia${neg}`
+  return f.spread ? `${qué}, es un TOTAL y se reparte entre las cuotas${neg}`
+                  : `${qué}, se suma a CADA cuota${neg}`
 }
 
 /** Resuelve la hoja a lo que el motor come:
@@ -287,7 +289,8 @@ export function resolveSheet(def, { periods = {}, fields = [] } = {}) {
     // cómo se escribe el número (pesos con separador de miles, o porcentaje).
     if (f.kind !== 'formula') {
       inputs.push({
-        name: f.name, type: f.kind === 'rate' ? 'rate' : 'money', default: 0, min: 0,
+        // sin `min`: un negativo es cómo se resta (la cuota inicial)
+        name: f.name, type: f.kind === 'rate' ? 'rate' : 'money', default: 0,
         appliesTo: f.at, label: f.label, field: f.id,
         // el calificativo que se ve al lado del nombre: solo lo AMBIGUO, no todo
         note: f.kind === 'rate' && f.base
@@ -321,7 +324,9 @@ export function resolveSheet(def, { periods = {}, fields = [] } = {}) {
   // ── los dos puntos de inserción son la SUMA de lo que les llega
   const suma = etapa => terms.filter(t => t.at === etapa)
     .map(t => (etapa === 'charges' && t.spread ? `${t.value} / installments` : t.value))
-  formulas.financedAmount = ['amount - downPayment', ...suma('amount')].join(' + ')
+  // TODO se suma. Un valor negativo resta — así la cuota inicial es un campo como cualquier otro
+  // y no un caso especial `- downPayment` en la fórmula.
+  formulas.financedAmount = ['amount', ...suma('amount')].join(' + ')
   formulas.installmentCharges = suma('charges').join(' + ') || '0'
 
   const stages = (def.stages || []).map(st => ({
@@ -359,6 +364,7 @@ export function nombreDe(label, def, usados = []) {
  *  esperaría ver en un lender típico, puesta como campos normales y en cero. Se borran con una ×,
  *  y ahí el nodo queda vacío — que es el estado del que se parte para configurar otro. */
 export const DEFAULT_FIELDS = [
+  { label: 'cuota inicial', kind: 'money', at: 'amount' },
   { label: 'fianza', kind: 'rate', at: 'amount' },
   { label: 'IVA de la fianza', kind: 'rate', at: 'amount', baseOf: 'fianza' },
   { label: 'seguro de vida', kind: 'rate', at: 'charges' },

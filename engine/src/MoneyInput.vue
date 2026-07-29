@@ -15,10 +15,15 @@ const display = computed(() => {
   return n.toLocaleString('es-CO')
 })
 
+// Acepta un MENOS adelante, porque todo lo que cae en un punto de inserción se SUMA y un valor
+// negativo es cómo se resta: la cuota inicial es "cuota inicial −4.000.000". Sin esto el `\D` se
+// comía el signo y no había forma de bajar el monto.
 function onInput(e) {
-  const digits = e.target.value.replace(/\D/g, '')
-  if (digits === '') { emit('update:modelValue', ''); e.target.value = ''; return }
-  const n = parseInt(digits)
+  const t = e.target.value
+  const neg = t.trim().startsWith('-')
+  const digits = t.replace(/\D/g, '')
+  if (digits === '') { emit('update:modelValue', neg ? '-' : ''); e.target.value = neg ? '-' : ''; return }
+  const n = parseInt(digits) * (neg ? -1 : 1)
   emit('update:modelValue', n)
   e.target.value = n.toLocaleString('es-CO')
 }
