@@ -154,6 +154,22 @@ cuota.
 
 El color une el par: ámbar el monto, verde la cuota, morado la tasa.
 
+### Dos reglas de estilo que salieron de armarlo
+
+**Un resultado calculado usa la MISMA caja que un input, pero apagada** (borde punteado, sin
+foco). En el bloque de tasa la fila `se cobra` se lee igual que la de `dicha` — una editable y la
+otra no, pero el mismo tipo de dato con el mismo aspecto. Antes el resultado era texto suelto y
+parecían dos cosas distintas.
+
+**El nodo muestra lo que controlás; el cable muestra lo que produce.** Las fórmulas intermedias
+de `valor a financiar` (fianza, IVA, 4×1000, fianza total) solo repetían los nombres de sus
+propios inputs, así que se ocultan (`showRows: false`) y **el resultado viaja en la arista**:
+`valor a financiar 10.000.000`.
+
+Las aristas llevan nombre en español + valor, y cuando cruzan varios rotulan **la salida de la
+etapa origen** —la que interesa— con un `+N` si hay más. Rotular "3 valores" era honesto pero
+inútil.
+
 **`tasa` y `valor a financiar` van en PARALELO** — verificado contra las dependencias reales, no
 supuesto: `periodRate` no depende del monto y `financedAmount` no depende de la tasa. La `cuota`
 depende de las dos, así que va después. Eso antes era invisible.

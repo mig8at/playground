@@ -8,7 +8,9 @@ import { FORMULA_LABEL } from './sheets.js'
 //
 // Las claves de las etapas son las mismas que las secciones de la entrada, así que se lee el
 // par: lo que se puso "al monto" sale como `valor a financiar`.
-const COL_W = 332   // > que el nodo más ancho (296), o se solapan
+// El nodo mide 296 y la etiqueta del cable lleva nombre + valor ("valor a financiar
+// 10.000.000"), así que la columna tiene que dejarle ~150px o se corta detrás del nodo.
+const COL_W = 452
 const GAP_Y = 34
 
 export function layoutSheet(def, out, opts = {}) {
@@ -38,10 +40,10 @@ export function layoutSheet(def, out, opts = {}) {
       + (ins.length - enBloque - fianzas) * 21
       + (st.rateBlock ? 113 : 0)   // medido en el DOM, no estimado
       + (fianzas ? 22 + fianzas * 21 : 0)
-      + (st.formulas.length ? 8 + st.formulas.length * 22 : 0)
+      + (st.showRows !== false && st.formulas.length ? 8 + st.formulas.length * 22 : 0)
       + 12
   }
-  const salida = st => st.formulas[st.formulas.length - 1]
+  const salida = st => (st && st.formulas.length ? st.formulas[st.formulas.length - 1] : null)
 
   // qué etapa depende de qué etapa. Cuenta las fórmulas Y los inputs: si una etapa lee un
   // input que vive en otra, eso ES una dependencia (y es lo que pone `el crédito` primero).
@@ -92,6 +94,7 @@ export function layoutSheet(def, out, opts = {}) {
         id: '@st:' + st.key, type: 'stageNode', position: { x: c * COL_W, y },
         data: {
           key: st.key, title: st.title, rateBlock: !!st.rateBlock,
+          showRows: st.showRows !== false,
           rows: st.formulas.map(row),
           inputs: (def.inputs || []).filter(i => etapaDe(i.appliesTo) === st.key),
         },
@@ -101,12 +104,32 @@ export function layoutSheet(def, out, opts = {}) {
   }
 
   // entre etapas, con etiqueta de qué cruza
+  // La arista lleva NOMBRE + VALOR. Importa cuando la etapa origen no muestra sus fórmulas
+  // (`showRows: false`): ahí el cable es el único lugar donde se ve el resultado.
+  //
+  // Un cable puede llevar varios valores (la cuota lee `financedAmount`, `totalGuarantee` y
+  // `guaranteeUpfront` del monto). Rotular "3 valores" era honesto pero inútil: se rotula la
+  // SALIDA de la etapa origen, que es la que interesa.
+  const porNombre = Object.fromEntries((def.inputs || []).map(i => [i.name, i]))
+  const fmt = v => (Math.abs(v) < 1 && v !== 0
+    ? (v * 100).toFixed(4).replace(/0+$/, '').replace(/[.,]$/, '').replace('.', ',') + '%'
+    : Math.round(v).toLocaleString('es-CO'))
+  const etiqueta = n => {
+    const nom = FORMULA_LABEL[n] || porNombre[n]?.label || n
+    const r = out.res[n]
+    if (r?.status === 'ok') return nom + ' ' + fmt(r.value)          // es una fórmula
+    const v = inputValues[n]                                        // es un input
+    if (v === true) return nom + ' sí'
+    if (v === false) return nom + ' no'
+    return v === '' || v == null ? nom : nom + ' ' + fmt(Number(v))
+  }
   for (const st of stages) {
     for (const [otra, via] of dep.get(st.key)) {
-      const lbl = [...via].map(v => FORMULA_LABEL[v] || v).join(', ')
+      const salidaOtra = salida(stages.find(x => x.key === otra))
+      const cual = via.has(salidaOtra) ? salidaOtra : [...via][0]
       edges.push({
         id: otra + '->' + st.key, source: '@st:' + otra, target: '@st:' + st.key,
-        label: lbl.length > 26 ? via.size + ' valores' : lbl,
+        label: etiqueta(cual) + (via.size > 1 ? ` +${via.size - 1}` : ''),
         style: { strokeWidth: 1.5, opacity: .85 },
       })
     }

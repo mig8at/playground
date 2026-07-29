@@ -4,7 +4,13 @@ import { computed } from 'vue'
 // La hoja GUARDA decimales (0.02) porque así lo hacen los .xlsm y así se le pasan derecho a
 // pmt(). Pero escribir "0.02" para decir 2% es antinatural, así que el campo muestra y recibe
 // PORCENTAJE. El documento sigue mostrando 0.02 — la UI traduce, el dato no cambia.
-const props = defineProps({ modelValue: [Number, String], dec: { type: Number, default: 4 } })
+const props = defineProps({
+  modelValue: [Number, String],
+  dec: { type: Number, default: 4 },
+  /** Un resultado calculado se muestra con la MISMA caja que un input, pero apagado: así la
+   *  fila se lee igual que la de arriba y no hay dos estilos para el mismo tipo de dato. */
+  disabled: Boolean,
+})
 const emit = defineEmits(['update:modelValue'])
 
 const display = computed(() => {
@@ -21,8 +27,9 @@ function onInput(e) {
 </script>
 
 <template>
-  <span class="pct">
-    <input class="nodrag" type="text" inputmode="decimal" :value="display" @input="onInput">
+  <span class="pct" :class="{ 'is-ro': disabled }">
+    <input class="nodrag" type="text" inputmode="decimal" :value="display"
+           :readonly="disabled" :tabindex="disabled ? -1 : 0" @input="onInput">
     <em>%</em>
   </span>
 </template>

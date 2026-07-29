@@ -74,7 +74,7 @@ const fianza = computed(() => props.data.inputs.filter(f => f.appliesTo === 'gua
     </div>
 
     <!-- resultados de la etapa -->
-    <div v-if="data.rows.length" class="grp-rows st-out">
+    <div v-if="data.showRows && data.rows.length" class="grp-rows st-out">
       <div v-for="(r, i) in data.rows" :key="r.name" class="grp-row"
            :class="{ 'is-out': i === data.rows.length - 1, 'is-off': r.status !== 'ok' }"
            :title="r.expr">

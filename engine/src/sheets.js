@@ -85,7 +85,9 @@ export const SHEET = {
   stages: [
     { key: 'credit', title: 'el crédito', formulas: [] },
     { key: 'rate', title: 'tasa', formulas: ['periodRate', 'annualEffectiveRate'], rateBlock: true },
-    { key: 'amount', title: 'valor a financiar',
+    // `showRows: false` — sus fórmulas intermedias (fianza, IVA, 4×1000, fianza total) solo
+    // repiten los nombres de sus inputs, así que eran ruido. El resultado viaja en la arista.
+    { key: 'amount', title: 'valor a financiar', showRows: false,
       formulas: ['guaranteeCost', 'guaranteeVat', 'guaranteeTax', 'totalGuarantee', 'financedAmount'] },
     { key: 'installment', title: 'cuota',
       formulas: ['installment', 'lifeInsurance', 'monthlyGuarantee', 'totalInstallment'] },

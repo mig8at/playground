@@ -16,11 +16,12 @@ import { PERIODS } from './sheets.js'
 //
 // La convención va EN EL MEDIO y es el interruptor, porque es exactamente ahí donde se
 // decide si se capitaliza o se divide — no en una casilla suelta en otra sección.
-// sin ceros de cola: 2% se lee "2", no "2,000000" — pero 0,412539% conserva sus decimales
+// El resultado va como PercentInput apagado, así la fila "se cobra" se lee igual que la de
+// arriba. Le pasamos el decimal y el componente hace la conversión a porcentaje, como con
+// cualquier otra tasa — un solo camino de formato.
 const result = computed(() => {
   const r = out.value.res.periodRate
-  if (r?.status !== 'ok') return null
-  return (r.value * 100).toFixed(6).replace(/0+$/, '').replace(/[.,]$/, '').replace('.', ',')
+  return r?.status === 'ok' ? r.value : ''
 })
 const ea = computed(() => {
   const r = out.value.res.annualEffectiveRate
@@ -51,7 +52,7 @@ const ea = computed(() => {
       <select class="nodrag rb__per" v-model="periods.chargedEvery">
         <option v-for="(n, name) in PERIODS" :key="name" :value="name">{{ name }}</option>
       </select>
-      <b class="rb__out">{{ result ?? '—' }}<em>%</em></b>
+      <PercentInput :model-value="result" :dec="6" disabled />
     </div>
 
     <div v-if="ea" class="rb__ea">equivale a <b>{{ ea }}% E.A.</b></div>
