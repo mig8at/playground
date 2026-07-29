@@ -78,6 +78,16 @@ Tres incidentes distintos, el mismo patrón: falta una env var → se arma una U
 
 ---
 
+### F-73 · El backend de `qa` es OTRO servicio del mismo cluster — probar contra `dev` mide la rama equivocada
+
+**Síntoma:** Ábaco responde `MOTV1000` ("no requiere") contra el ambiente remoto para Motai Renting #158, con la tabla `lender_requirements` correctamente sembrada (`abaco_is_enabled=1`) y el código mergeado en `qa`. Se lee como "el feature está roto" o "falta el deploy".
+**Causa raíz verificada — dos servicios distintos, nombre del cluster engañoso.** En el cluster `inertia-develop` conviven **`legacy-backend`** (sirve la rama **`develop`**, workflow `main-dev.yaml`) y **`legacy-backend-qa`** (sirve **`qa`**, `main-qa.yaml` con `on: push: branches: [qa]`). El `.env.staging` del harness apuntaba su API a `legacy-backend.inertia-develop`, o sea **front desplegado de qa + backend de develop**. Y como la **BD sí es compartida** entre ambos, los datos se ven desde los dos y todo *parece* consistente: lo único que cambia es **qué código responde**. `develop` todavía decide Ábaco por los modos deprecados (`$isAbacoRequired = $this->isAbacoRequired($alliedMode->config)`) → sin modo activo (nadie los escribe desde junio) → `false` → `MOTV1000`.
+**Evidencia:** mismo request a los dos hosts → `legacy-backend.inertia-develop` sin `allowed_document_types` (no tiene motai-v2), `legacy-backend-qa.inertia-develop` **con** el campo; las rutas del merge de Ábaco dan **404** en el primero y **405** (existe) en el segundo; ningún commit de `qa` es ancestro de `origin/develop` (14 vs 12 commits divergidos). Con el host de qa: `MOTV1001` + cadena completa.
+**Arreglo:** `.env.staging` → `E2E_API_BASE_URL=http://legacy-backend-qa.inertia-develop/api` (la BD queda igual: es compartida a propósito). Documentado en `.env.staging.example`, en el `CLAUDE.md` de playground (decía "staging comparte BD/API con dev" — comparte BD, **no** API) y en la tabla de targets del `CLAUDE.md` de `frontend-e2e`.
+**Estado: resuelto y verificado.** Truco para saber qué rama tenés enfrente sin adivinar: `GET /api/loans/allied/{hash}` trae `allowed_document_types` **solo** con motai-v2, o sea solo en `qa`. **Lección:** cuando un feature "no funciona" en un ambiente remoto, lo primero es probar que ese host sirve la rama que creés — un dato en la BD compartida no dice nada del código desplegado.
+
+---
+
 ## C · Lo que en local es simulado (y qué tan fiel es el resto)
 
 ### F-07 · La pre-aprobación y el cupo de las tarjetas son inventados
@@ -151,6 +161,16 @@ Todos los listeners colgaban de A, así que 20 minutos de flujo del cliente no d
 ### F-16 · Un selector CSS pisaba el handler de otro botón
 
 `document.querySelectorAll('.copy')` reasignaba el `onclick` de un botón que ya tenía el suyo, y reventaba con `$(undefined)`. Bug **preexistente**, invisible hasta que otro botón compartió la clase. Arreglado acotando a `.copy[data-copy]`.
+
+### F-74 · El sweep resolvía el backend por su cuenta: contra `dev` registraba en LOCAL y dejaba la solicitud huérfana
+
+Reincidencia de **F-65** por un camino que ese arreglo no cubría.
+
+**Síntoma:** `sweep matrix/abaco` con `E2E_TARGET=dev` → todo 500 con `Attempt to read property "user_request_status_id" on null`. Parece un bug del backend de dev o una regresión del merge recién subido.
+**Causa raíz verificada:** `dev/sweep.ts` tenía su **propia** resolución del API — `const API = process.env.E2E_MOCK_URL ?? 'http://localhost'` — sin pasar por la cadena por target. `.env.dev` define `E2E_API_BASE_URL` pero **no** `E2E_MOCK_URL`, así que el fallback mandaba el `register` del cliente al backend **LOCAL** mientras los `INSERT` (que sí usan `pkg/db.ts`) iban a la BD de **DEV**: el `user_request` nacía apuntando a un `users.id` que solo existe en local → **huérfano** → cualquier endpoint que resuelve el usuario revienta. `pkg/config.ts` ya lo resolvía bien (eso fue F-65); este archivo no lo usaba.
+**Evidencia:** en dev **ningún** user con el teléfono de prueba `3131010101`; el `user_id` que referenciaban los uReq (`1828535`) existía **en local**, creado a la hora exacta de la corrida; los uReq sí estaban en dev.
+**Arreglo:** `dev/sweep.ts` usa `config.mockUrl` (override por `E2E_MOCK_URL`, si no la cadena `.env.<target>`). Verificado: `local → http://localhost` · `dev → legacy-backend.inertia-develop` · `staging → legacy-backend-qa.inertia-develop`, y la regresión del camino local pasa.
+**Estado: resuelto.** **Lección:** cada script que hable con el backend debe pedirle la URL a `pkg/config.ts`; una resolución propia con fallback a `localhost` no falla ruidosamente, **escribe en dos bases a la vez** y el síntoma aparece dos capas más abajo. Si ves 500 con "property ... on null" en un flujo sembrado, sospechá SIEMPRE de un uReq huérfano antes que del producto.
 
 ---
 
@@ -1277,6 +1297,27 @@ El siguiente muro detrás de F-69: arreglado el "Advisor validation error", el a
 **Estado: aplicado y VERIFICADO por curl con un uReq real (score 700, negativos 0, debt 33%, 404/503 honestos). Falta verlo dentro del guiado (la pantalla del asesor renderizando el perfil).**
 
 **Lección.** Detrás de un muro suele haber OTRO: F-68 (el guiado no recorría Ábaco) → F-69 (el asesor rebotaba por `validated=false`) → F-70 (el asesor no tenía financial-health en local). Cada arreglo corre la frontera de lo probable en local un paso más — y el inventario de la flota (README) es el mapa de esa frontera.
+
+### F-75 · El marketplace sale VACÍO si el lender que ofrece la sucursal no tiene `group_rules` propias
+
+**Síntoma:** `/lenders` responde OK pero con **cero entidades** para Motai en dev ("lenders-v2 OK pero con CERO lenders"). Se lee como filtro duro de datacrédito, cupo o un lender apagado.
+
+**Causa raíz verificada — un lender SIN reglas nunca se agrega.** En `LenderValidationService::validateRulesByLender` el acumulador arranca vacío y solo se llena dentro del `if ($filteredGroupRules->count() > 0)`, cuando la evaluación da true:
+```php
+$return_lenders = [];                          // arranca VACÍO
+foreach ($lenders as $lender) {
+    if ($filteredGroupRules->count() > 0) {    // ← sin reglas para ESTE lender, nunca entra
+        if ($global_result) $return_lenders[] = $lender;
+    }
+}
+```
+Ese camino solo corre si la sucursal **tiene** `group_rules` (si no tiene ninguna, `LenderListingService` devuelve todos). Lo traicionero es la combinación: la sucursal 682 de Motai **tenía** 14 `group_rules`, pero configuradas para los lenders **5, 6, 8, 9, 11, 12** — y los que ofrecía (`lenders_by_allied_branches`) eran **62 y 158**. Cruce vacío → listado vacío. Encaja con que las reglas **se copian por sucursal al habilitar la entidad**: a estos dos nunca se les copiaron.
+
+**Evidencia:** los tres conjuntos por separado — ofrecidos `62, 158` · con reglas `5, 6, 8, 9, 11, 12` · intersección **∅**. Y el cruce estaba **invertido** entre ambientes: en local el 62 tenía reglas pero no estaba ofrecido, y 168/169/170 sí listaban. Confirmación por descarte: la asociación existía, ambos `status=1`, las migraciones de motai-v2 estaban, el buró sintético bien inyectado, y `users_category_log` **sin filas** — o sea el motor de cupo **nunca llegó a correr**, el filtro de reglas cortó antes.
+
+**Arreglo:** es **configuración de datos**, no código — crear `group_rules` + `lender_rules` para el lender en esa sucursal (lo hizo Duncan el 2026-07-28: 14 → 18 grupos, ahora 62 y 158 con reglas). Tras eso el 158 lista y el sintético del harness pasa las 6 reglas (ocupación, `field 160=no`, ingreso ≥ 1.000.000, género, edad 18–100) con `lender_datacredito_rules.score` en 0.
+
+**Estado: resuelto en dev y verificado** (`sweep matrix motai` → `158 [lista] → standBy (in-platform)`). **Lección:** "marketplace vacío" con la sucursal bien configurada casi nunca es el buró ni el cupo: comparar **los tres conjuntos** —qué ofrece la sucursal, qué lenders tienen reglas, y la intersección— ubica la causa en una consulta. Y `users_category_log` vacío es la firma de que el corte fue **antes** del motor de categorías.
 
 ---
 
