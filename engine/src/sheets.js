@@ -61,14 +61,21 @@ export const SHEET = {
     //    `monto final`, que es el punto de inserción.
     { name: 'amount', type: 'money', default: 10000000, min: 0, appliesTo: 'credit',
       label: 'monto', help: 'Lo que el cliente pide. Los costos que se agreguen lo suben o lo bajan.' },
-    { name: 'installments', type: 'count', default: 36, min: 1, appliesTo: 'credit',
-      label: 'cuotas', help: 'En cuántos pedazos se devuelve.' },
     // Variable del CLIENTE, no un costo: es lo que define el monto real. Se escribe en positivo y
     // `netAmount` la resta — igual que `user_requests.initial_fee`, que también es positivo.
     { name: 'downPayment', type: 'money', default: 4000000, min: 0, appliesTo: 'credit',
       label: 'cuota inicial',
       help: 'Lo que el cliente pone de su bolsillo. El monto neto es lo que queda, y es sobre eso '
         + 'que se calculan la fianza y los intereses.' },
+    // Va ÚLTIMA porque es la última decisión del cliente: en el flujo real el monto elige a qué
+    // lenders puede ir, y el lender ofrece sus plazos — para algunos el monto incluso los FIJA
+    // (`creditop_x_conditions_by_amount_by_lender.mandatory_fee_number`). Pero eso es orden de
+    // DECISIONES, no de cálculo: acá `installments` es un input independiente y el valor a
+    // financiar se calcula sin él. Dibujarlo después sería inventar una dependencia.
+    { name: 'installments', type: 'count', default: 36, min: 1, appliesTo: 'credit',
+      label: 'cuotas',
+      help: 'En cuántos pedazos se devuelve. En el flujo real el monto restringe —o fija— qué '
+        + 'plazos se ofrecen; eso es política, no cálculo.' },
 
     // ── la tasa
     { name: 'statedRate', type: 'rate', default: 0.2817, appliesTo: 'rate',

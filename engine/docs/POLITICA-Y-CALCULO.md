@@ -84,6 +84,31 @@ política de Alta y ninguna se entera.
   cuota se lleva el 31,3%), a 24 cae por R4 (el canon no llega al mínimo), y solo 18 pasa. Los tres
   plazos existen; la política dice cuáles sobreviven. Por eso la calculadora corre **una vez por
   plazo** y la política juzga cada resultado.
+
+  **Y ya existe una política de plazo por monto en producción, que hay que absorber acá.**
+  `RegularPaymentScheduleService::getPossibleFeeNumbers` consulta
+  `creditop_x_conditions_by_amount_by_lender` por `(lender_id, amount)` y recorta los plazos
+  ofrecidos. Con `mandatory_fee_number = 1` el `max_fee_number` pasa a ser **el único plazo
+  permitido, incluso si no está en la lista base `fee_numbers` del lender** (así lo dice el
+  comentario del código). En la copia local hay **9 bandas de 3 lenders, 4 de ellas obligatorias**:
+
+  | lender 62 · monto | plazo |
+  |---|---|
+  | 600.000 – 2.800.001 | 6, obligatorio |
+  | 2.800.001 – 5.000.001 | 12, obligatorio |
+  | 5.000.001 – 8.500.001 | 24, obligatorio |
+  | 8.500.001 – 100.000.000 | 36, obligatorio |
+
+  Para ese lender el monto no *restringe* el plazo: lo **determina**. Eso confirma el orden real de
+  las decisiones — monto → cuota inicial → monto neto → lender elegible → **plazo** → cuota — y
+  confirma que ese orden es **política, no cálculo**: en la aritmética `installments` es un input
+  independiente y el valor a financiar se calcula sin él. Por eso el grafo del motor no lo dibuja
+  después del monto: sería una dependencia inventada.
+
+  ⚠ `getByLenderAndAmount` lee `user_requests.amount`, y esa columna es **inconsistente** en los
+  datos: de las 4.529 solicitudes con cuota inicial, 2.244 tienen `amount = original_amount`
+  (bruto), 1.059 tienen `amount = original_amount − initial_fee` (neto) y 1.226 ninguno de los dos.
+  Antes de absorber esta política hay que definir con qué monto se evalúa la banda.
 - **No mira fechas.** El calendario es del llamador.
 - **No decide sola el rechazo final.** En Alta la pantalla de decisión la maneja un Admin, no el
   asesor (punto de la "Diferencia principal frente al flujo Motai").
