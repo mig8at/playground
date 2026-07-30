@@ -307,6 +307,15 @@ Slack app y scopes: <https://api.slack.com/apps> → OAuth & Permissions → Ins
 - **Tres mensajes del WS no tienen UI.** El server maneja `send_slack`, `dm` y `create_task`
   (`main.go:111-122`), pero `App.vue` solo manda `dashboard` y `activity`. Son alcanzables únicamente
   mandando el JSON a mano por el WebSocket — quedaron de una versión anterior del front.
+- **Mover una tarea a otro sprint NO se puede por el Agile API.** `POST /rest/agile/1.0/sprint/{id}/issue`
+  (lo que hace `AddIssuesToSprint`) responde **404** con
+  `rapidViewId: "El tablero solicitado no se puede ver…"`: la llamada resuelve el **board dueño** del
+  sprint, y los sprints del proyecto nacen en el board **351**, que esta cuenta no ve — el 384 los
+  *lista* pero no los posee. Funciona sí al crear (el sprint activo ya está en el board propio) y falla
+  al mover a otro. El camino que sí sirve es el campo Sprint del issue:
+  `PUT /rest/api/3/issue/{key}` con `{"fields":{"customfield_10020": <sprintId>}}` → 204.
+  Es **seguro**: el campo conserva los sprints **cerrados** del historial y solo reemplaza el
+  activo/futuro (verificado moviendo Sprint 8 → 9: quedó `[Sprint 9, Sprint 7]`).
 - **`customfield_10036` (story points) es específico de CORE.** En otro proyecto Jira el campo tiene otro id
   y el panel de puntos queda en `—` sin avisar.
 - **Si la validación de arranque falla por timeout, el heatmap sale vacío pero "ok".** `myAccountID` se setea
