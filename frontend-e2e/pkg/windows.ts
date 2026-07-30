@@ -95,3 +95,26 @@ export async function openWindow(browser: Browser, col: number, opts: OpenWindow
 // A = ventana IZQUIERDA (la única si la prueba usa 1 sola). B = ventana DERECHA (pruebas de 2 dispositivos).
 export const openA = (browser: Browser, opts: OpenWindowOpts = {}) => openWindow(browser, COLS.A, opts);
 export const openB = (browser: Browser, opts: OpenWindowOpts = {}) => openWindow(browser, COLS.B, opts);
+
+/**
+ * ¿Esta URL salió de la APP? Se decide comparando el HOST contra la base efectiva del front
+ * (`E2E_BASE_URL`), no contra un host fijo.
+ *
+ * Vive acá porque es parte de la convención A/B: sobre esta pregunta se decide si el flujo se resolvió
+ * "afuera" (portal de la entidad → una sola ventana) o sigue in-platform (handoff → se abre B).
+ *
+ * ⚠ Estaba hardcodeado a `localhost:5174` dentro del spec, y con el front DESPLEGADO (target `staging`, o
+ * el switch `CFE_FRONT=ambiente`) la propia URL del wizard daba "externa". Costaba la ventana B: en la
+ * navegación a `/lenders` se despertaba B con la rama de REDIRECT y, como el despertador es de una sola
+ * vez, el handoff REAL de CreditopX (`/continue`) quedaba ignorado — B nunca abría y el flujo se veía
+ * "pegado". Comparar por host cubre los dos casos: con el front local, los portales mock (otros puertos
+ * de localhost) siguen siendo externos, que es justo lo que la rama de redirect necesita detectar.
+ */
+export function isExternalUrl(url: string, appBase: string): boolean {
+    if (!/^https?:\/\//.test(url)) return false;   // about:blank · data: · chrome-error:
+    try {
+        return new URL(url).host !== new URL(appBase).host;
+    } catch {
+        return false;   // URL ilegible: no se afirma que sea externa (el default seguro es "no despertar B")
+    }
+}

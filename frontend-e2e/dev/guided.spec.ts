@@ -11,7 +11,7 @@ import { one, exec } from '../pkg/db';
 import * as traza from '../pkg/trace';
 import { urlCheckout, seguirCheckout } from '../pkg/checkout-b64';
 import { close } from '../pkg/db';
-import { PREVIEW, IPHONE_UA, openA, openB } from '../pkg/windows';
+import { PREVIEW, IPHONE_UA, isExternalUrl, openA, openB } from '../pkg/windows';
 import { mockWompiHostedCheckout } from '../pkg/wompi-mock';
 import { mockClosingDocuments } from '../pkg/pdf-mock';
 import { mockPayvalidaCheckout, PAYVALIDA_SENTINEL } from '../pkg/payvalida-mock';
@@ -193,10 +193,14 @@ test('guided (semiautomático)', async ({ browser }) => {
         if (document.body) start(); else addEventListener('DOMContentLoaded', start);
     }).catch(() => {});
     // log de navegaciones (revela a dónde manda el wizard tras cada Continuar / la selección) + captura de
-    // redirect EXTERNO (portal del lender fuera de localhost, same-tab o popup). La continuación detecta por
+    // redirect EXTERNO (portal del lender, en otro host que el del front; same-tab o popup). La continuación detecta por
     // CONDUCTA (modal / nav in-platform / redirect externo), NO por rt.
     let externalUrl = '';
-    const isExternal = (u: string) => /^https?:\/\//.test(u) && !/localhost:5174|127\.0\.0\.1/.test(u);
+    // "Externo" = otro HOST que el del front que estamos corriendo (`config.feBaseUrl`). Estaba fijo en
+    // `localhost:5174`, y contra el front DESPLEGADO eso hacía que la app se leyera como externa: en la
+    // navegación a /lenders se despertaba B con la rama de redirect y el handoff real de CreditopX quedaba
+    // ignorado. La regla vive en pkg/windows (misma familia que openA/openB) para poder probarla.
+    const isExternal = (u: string) => isExternalUrl(u, config.feBaseUrl);
     page.on('framenavigated', (f) => {
         if (f !== page.mainFrame()) return;
         const u = f.url();
