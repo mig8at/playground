@@ -104,6 +104,20 @@ Tres incidentes distintos, el mismo patrón: falta una env var → se arma una U
 
 ---
 
+### F-77 · Mergear a `qa` NO aplica migraciones: el deploy solo actualiza el servicio ECS
+
+**Síntoma:** el PR está mergeado en `qa`, el deploy salió verde, el código nuevo responde… y el comportamiento que **depende de una migración** sigue como antes. Se lee como "la migración falló" o "el backfill no hizo nada".
+
+**Causa raíz verificada — el workflow de deploy no corre `artisan migrate`.** `.github/workflows/main-qa.yaml` (y su gemelo de dev) solo delega en `Creditop-SAS/config-ci/.github/workflows/deploy-ecs-service.yaml`: construye la imagen y actualiza el servicio. Las migraciones viven en un workflow **aparte y manual**, `.github/workflows/run-migrations.yml`, que es `workflow_dispatch` y **pide a mano** imagen + host + usuario + base + password. Nadie lo dispara solo.
+
+**Evidencia:** en la BD compartida dev/qa, la tabla `migrations` tiene las tres de `lender_requirements` (batches 188, 190, 191) pero **ninguna** de las dos que mergeé en el PR #1028 (`2026_07_28_100000_backfill_abaco_is_enabled_from_lender_product`, `2026_07_28_110000_drop_allied_modes_and_user_request_modes_tables`). Consecuencia concreta: `allied_modes` y `user_request_modes` **siguen existiendo** en dev/qa, y el backfill nunca corrió — que Ábaco siguiera pidiéndose fue **suerte**: la fila de `lender_requirements` del 158 ya existía desde el 2026-07-14 (la puso el trabajo de Fercho), no el backfill.
+
+**Ojo con el workflow manual.** Leyendo `run-migrations.yml` tiene dos problemas de forma (no lo ejecuté, es lectura): usa `inputs.aws_key_id`, `inputs.aws_secret_access_key`, `inputs.aws_region` y `inputs.aws_bucket`, que **no están declarados** en `on.workflow_dispatch.inputs`; y al `docker run` le faltan las barras de continuación después de `--env AWS_ACCESS_KEY_ID=…`, así que el comando se corta antes de `php artisan migrate`. Tal como está, es probable que ni corra.
+
+**Arreglo / procedimiento:** después de mergear algo con migraciones a `dev`/`qa`, **disparar `run-migrations` a mano** (o pedirlo a quien tenga los secretos) y **verificar en la tabla `migrations`** que la fila apareció. No dar por aplicada una migración porque el deploy salió verde. Emparejar con [F-73] (el backend de `qa` es otro servicio) y [F-76] (un backfill no cubre filas futuras): las tres son formas distintas de creer que un cambio está en un ambiente cuando no está.
+
+---
+
 ## C · Lo que en local es simulado (y qué tan fiel es el resto)
 
 ### F-07 · La pre-aprobación y el cupo de las tarjetas son inventados
@@ -1334,6 +1348,35 @@ Ese camino solo corre si la sucursal **tiene** `group_rules` (si no tiene ningun
 **Arreglo:** es **configuración de datos**, no código — crear `group_rules` + `lender_rules` para el lender en esa sucursal (lo hizo Duncan el 2026-07-28: 14 → 18 grupos, ahora 62 y 158 con reglas). Tras eso el 158 lista y el sintético del harness pasa las 6 reglas (ocupación, `field 160=no`, ingreso ≥ 1.000.000, género, edad 18–100) con `lender_datacredito_rules.score` en 0.
 
 **Estado: resuelto en dev y verificado** (`sweep matrix motai` → `158 [lista] → standBy (in-platform)`). **Lección:** "marketplace vacío" con la sucursal bien configurada casi nunca es el buró ni el cupo: comparar **los tres conjuntos** —qué ofrece la sucursal, qué lenders tienen reglas, y la intersección— ubica la causa en una consulta. Y `users_category_log` vacío es la firma de que el corte fue **antes** del motor de categorías.
+
+---
+
+### F-78 · El badge del marketplace lo decide PREAPROBADOS, que le pregunta a OTRO backend — un fix de cupo mergeado en `qa` no mueve la tarjeta
+
+**Síntoma:** el fix de "cupo sin buró para lenders que validan ingreso por Ábaco" está mergeado en `qa` y desplegado, pero la tarjeta de Motai Renting sigue diciendo **"Sin cupo disponible"**. Se lee como "el fix no funciona" o "falta desplegar".
+
+**Causa raíz verificada — dos evaluaciones distintas, en dos ambientes distintos.** El chip de rechazo NO sale del cupo que calculó el backend que sirve al front: lo pinta la resolución de **pre-aprobaciones** en `modules/loan-request-wizard/lenders-marketplace/src/lib/domain/services/lender-resolution.service.ts:57` — copy curado para el estado terminal `low_probability`/rechazado que devuelve el MS. Y el MS de `pre-approvals-service` pregunta el cupo rt=2 con un `POST` a `…/api/loans/lender/available-quota` contra **su propia** `base_url`, que en dev apunta a `legacy-backend.inertia-develop` (rama **develop**), no al servicio de qa (`config/config.example.yaml:136`). El fix estaba solo en `qa`.
+
+**Evidencia — el mismo POST, el mismo usuario, a los dos backends:**
+```
+qa  (legacy-backend-qa.inertia-develop) → has_quota:true,  status:approved, available_amount:20.000.000, categoría 179
+dev (legacy-backend.inertia-develop)    → has_quota:false, reason:"eligibility_criteria_not_met", 0
+```
+Y las dos evaluaciones quedaron registradas en `users_category_log` del mismo usuario PEP sin buró (id 1827761, uReq 464529), 21 s aparte: `92638` con `"skipped_bureau_abaco":true` y cupo (la de qa) y `92639` con `"datacredito":false` y cupo 0 (la que disparó el MS). Como el badge dijo rechazado, el MS **no** leyó la respuesta de qa.
+
+**Segundo agujero en el mismo camino — hay DOS clases `LenderUserCategoryService`.** `Modules/Loans/App/Services/…` (la que tiene el skip) y `Modules/Onboarding/App/Services/lenders/…` (la gemela, sin skip). En `LenderRetrievalService.php:720` un hardcode decide cuál corre:
+```php
+if ($ctopx_lender_id == 160) {  // solo CrediPullman
+    …lenderUserCategoryServiceCtopx  // ← Modules\Loans (con el skip)
+} else {
+    …lenderUserCategoryService       // ← Modules\Onboarding (SIN el skip)
+}
+```
+O sea que para **158** el listado usa la gemela, y de ahí salen `fee_number`, `initial_fee_percentage`, `creditLines->max_amount` — y el filtro que **elimina** al lender si `available_amount < min_amount`. Truco para distinguirlas en el log: la de Loans escribe la clave `occupation`, la de Onboarding `ocupations` (con typo).
+
+**Arreglo:** para que la tarjeta cambie, el fix tiene que estar en la rama que sirve el backend **al que le pregunta el MS** (hoy `develop`) — o apuntar la config del MS a qa. Aparte, decidir la gemela: parchearla igual o unificar las dos en un solo servicio.
+
+**Lección.** Validar un cambio de cupo rt=2 sólo contra `qa` **no** prueba el marketplace: el número que ve el usuario pasa por el MS, y el MS tiene su propia idea de cuál es "el backend". Cuando un badge y una respuesta de API se contradicen, buscar **cuántos** evaluadores corrieron (`users_category_log` da uno por llamada) antes de dudar del código.
 
 ---
 
