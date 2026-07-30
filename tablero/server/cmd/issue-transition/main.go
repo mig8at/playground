@@ -34,23 +34,11 @@ func main() {
 	c := atlassian.New(site, email, token)
 	ctx := context.Background()
 
-	ts, err := c.IssueTransitions(ctx, key)
+	// La elección de la transición vive en el cliente: el handoff a QA del server hace lo mismo, y
+	// dos copias de "cómo se elige la transición" habrían derivado.
+	match, err := c.FindTransitionTo(ctx, key, target)
 	if err != nil {
-		log.Fatalf("listando transiciones de %s: %v", key, err)
-	}
-	var match *atlassian.Transition
-	for i := range ts {
-		if strings.Contains(strings.ToLower(ts[i].To), target) || strings.Contains(strings.ToLower(ts[i].Name), target) {
-			match = &ts[i]
-			break
-		}
-	}
-	if match == nil {
-		log.Printf("no encontré transición a un estado que contenga %q. Disponibles:", target)
-		for _, t := range ts {
-			log.Printf("  - %q → estado %q (id %s)", t.Name, t.To, t.ID)
-		}
-		os.Exit(1)
+		log.Fatalf("%v", err)
 	}
 	if err := c.TransitionIssue(ctx, key, match.ID); err != nil {
 		log.Fatalf("aplicando transición %q en %s: %v", match.Name, key, err)

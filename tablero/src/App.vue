@@ -258,6 +258,59 @@ const spanStyle = (t) => {
   return { left: `${l}px`, width: `${leftOf(t.b) + CEL - l}px` };
 };
 
+// ── handoff a QA: pasar a pruebas y avisarle a quien valida, en un solo click ────────────────────
+// Es la única acción del tablero que ESCRIBE en Jira. Dos pasos que en la vida real son uno: mover la
+// tarjeta y que el que prueba se entere. Separados, el aviso se olvida.
+//
+// El mensaje se PREVISUALIZA y se puede editar antes de salir: nunca se manda algo que no se vio. El
+// server lo re-valida contra el guard (el mismo de la bitácora) antes de publicarlo en Slack.
+const qa = ref(null); // null = panel cerrado; si no: { key, text, transition, name, email, blocked }
+const qaBusy = ref(false);
+const qaDone = ref('');   // resultado del último envío, para mostrarlo en la tarjeta
+const qaError = ref('');
+const qaProblems = ref([]);
+
+// En pruebas ya no hay nada que avisar; el botón solo aparece antes de eso.
+const inTesting = computed(() => /pruebas/i.test(active.value?.Status || ''));
+
+async function openQA() {
+  qaError.value = ''; qaProblems.value = []; qaDone.value = '';
+  qaBusy.value = true;
+  try {
+    const j = await (await fetch(`${SERVER}/api/qa-notice?key=${active.value.Key}`)).json();
+    if (j.error) qaError.value = j.error; else qa.value = j;
+  } catch { qaError.value = 'no se pudo hablar con el server (¿está corriendo en :8787?)'; }
+  qaBusy.value = false;
+}
+
+async function sendQA() {
+  qaError.value = ''; qaProblems.value = [];
+  qaBusy.value = true;
+  try {
+    const res = await fetch(`${SERVER}/api/qa-notice`, {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ key: qa.value.key, text: qa.value.text }),
+    });
+    const j = await res.json();
+    if (j.problems) qaProblems.value = j.problems;
+    if (j.error && !j.moved) { qaError.value = j.error; }
+    else if (j.moved && !j.sent) {
+      // Movida pero sin avisar: se dice tal cual. Dar por hecho el aviso es peor que el error.
+      qaDone.value = `Movida a ${j.moved}, pero el DM NO salió: ${j.error}`;
+      qa.value = null;
+      await loadSprint(sprint.value?.id);
+    } else {
+      qaDone.value = `Movida a ${j.moved} y avisado por DM a ${j.name}.`;
+      qa.value = null;
+      await loadSprint(sprint.value?.id); // el estado de Jira cambió: recargar en vez de simularlo acá
+    }
+  } catch { qaError.value = 'no se pudo hablar con el server'; }
+  qaBusy.value = false;
+}
+
+// Cambiar de tarea cierra el panel: un mensaje armado para una tarea no puede quedar abierto sobre otra.
+watch(active, () => { qa.value = null; qaDone.value = ''; qaError.value = ''; qaProblems.value = []; });
+
 // ── carga ───────────────────────────────────────────────────────────────────────────────────────
 async function loadSprint(id) {
   loading.value = true;
@@ -407,7 +460,9 @@ onMounted(async () => {
         </h2>
 
         <!-- SOLO LECTURA: el estado y la descripción son los de Jira. Cambiarlos es cosa de Jira (o del
-             asistente por la API), no de esta vista. -->
+             asistente por la API), no de esta vista. LA ÚNICA EXCEPCIÓN es el handoff a QA de abajo:
+             pasar a pruebas y avisar es un mismo acto, y partirlo en dos es lo que hace que el aviso
+             se olvide. -->
         <div class="dual">
           <div class="lane">
             <span class="lane-k">Estado <em>en Jira</em></span>
@@ -420,6 +475,33 @@ onMounted(async () => {
           <div class="lane" v-if="settings.trackPoints && activeLocal.estimatePoints">
             <span class="lane-k">Puntos</span>
             <span class="val">{{ activeLocal.estimatePoints }}</span>
+          </div>
+        </div>
+
+        <!-- Handoff a QA. El botón desaparece cuando ya está en pruebas: ahí no hay nada que avisar. -->
+        <div class="qa">
+          <button v-if="!inTesting && !qa" class="qa-go" :disabled="qaBusy" @click="openQA()">
+            🧪 Enviar a pruebas y avisar
+          </button>
+          <p v-if="qaDone" class="qa-done">{{ qaDone }}</p>
+          <p v-if="qaError" class="qa-err">{{ qaError }}</p>
+
+          <div v-if="qa" class="qa-box">
+            <p class="qa-head">
+              <span v-if="qa.transition">Va a moverla: <b>{{ qa.transition.name }}</b> → <b>{{ qa.transition.to }}</b></span>
+              <span v-else class="qa-err">{{ qa.blocked }}</span>
+            </p>
+            <label class="fld">El mensaje <em>DM a {{ qa.name || qa.email }} — editalo si querés</em></label>
+            <textarea v-model="qa.text" rows="7" spellcheck="false"></textarea>
+            <ul v-if="qaProblems.length" class="qa-bad">
+              <li v-for="(p, i) in qaProblems" :key="i">{{ p.what }}: «{{ p.found }}»</li>
+            </ul>
+            <div class="qa-acts">
+              <button class="qa-go" :disabled="qaBusy || !qa.transition || !qa.text.trim()" @click="sendQA()">
+                {{ qaBusy ? 'Enviando…' : 'Mover y avisar' }}
+              </button>
+              <button class="qa-no" :disabled="qaBusy" @click="qa = null">Cancelar</button>
+            </div>
           </div>
         </div>
 
@@ -578,6 +660,29 @@ h1 { font-size: 20px; margin: 0; letter-spacing: .2px }
 .jira-html :deep(code) { background: var(--panel2); padding: 1px 5px; border-radius: 5px; font-size: 12px }
 .jira-html :deep(input) { pointer-events: none; accent-color: var(--acc); margin-right: 5px }
 .lane .val { font-size: 13.5px; font-weight: 700; font-variant-numeric: tabular-nums }
+
+/* handoff a QA: la ÚNICA acción de la tarjeta que escribe en Jira y manda un mensaje, así que se ve
+   como un botón de acción y no como un link, y el envío pasa por una previsualización editable. */
+.qa { margin-bottom: 15px }
+.qa-go { border: 1px solid #2a5f43; background: #0e2718; color: #4ade80; font: inherit; font-size: 12.5px;
+  font-weight: 600; padding: 7px 13px; border-radius: 9px; cursor: pointer }
+.qa-go:hover:not(:disabled) { background: #123420 }
+.qa-go:disabled { opacity: .45; cursor: default }
+.qa-no { border: 1px solid var(--line); background: none; color: var(--mut); font: inherit;
+  font-size: 12.5px; padding: 7px 13px; border-radius: 9px; cursor: pointer }
+.qa-no:hover:not(:disabled) { color: var(--txt) }
+.qa-box { border: 1px solid var(--line); border-radius: 11px; padding: 13px; margin-top: 10px;
+  background: var(--panel2) }
+.qa-head { font-size: 12.5px; color: var(--mut); margin: 0 0 11px }
+.qa-head b { color: var(--txt); font-weight: 600 }
+.qa-box textarea { width: 100%; box-sizing: border-box; background: var(--panel); color: var(--txt);
+  border: 1px solid var(--line); border-radius: 9px; padding: 9px 11px; font: inherit; font-size: 12.5px;
+  line-height: 1.5; resize: vertical }
+.qa-acts { display: flex; gap: 8px; margin-top: 11px }
+.qa-done { font-size: 12.5px; color: #4ade80; margin: 9px 0 0 }
+.qa-err { font-size: 12.5px; color: var(--bad); margin: 9px 0 0 }
+/* el guard: si el aviso menciona algo interno, se listan los motivos y el envío queda rechazado */
+.qa-bad { margin: 9px 0 0; padding-left: 18px; font-size: 12px; color: var(--bad) }
 
 /* encabezado de grupo de esfuerzo en el listado */
 .grp { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: .6px; color: var(--acc);

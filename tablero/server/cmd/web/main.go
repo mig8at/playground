@@ -9,6 +9,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -50,6 +51,9 @@ var forbiddenRe = func() []*regexp.Regexp {
 	return out
 }()
 
+// issueKeyRe valida una clave de issue antes de interpolarla en un JQL o en una URL de Jira.
+var issueKeyRe = regexp.MustCompile(`^[A-Z][A-Z0-9]+-\d+$`)
+
 // violations devuelve qué reglas rompe una nota (vacío = publicable).
 func violations(note string) []map[string]string {
 	var out []map[string]string
@@ -73,6 +77,9 @@ type app struct {
 	jiraProject string // clave del proyecto (ej CORE)
 	jiraTypeID  string // id del tipo de issue (ej 10005 = Tarea en CORE)
 	jiraBoardID int    // board cuyo sprint activo recibe la tarea (ej 384)
+
+	qaEmail       string // email de quien valida: recibe el DM cuando la tarea pasa a pruebas
+	testingStatus string // subcadena del estado "listo para probar"; en CORE es "🧪 En pruebas"
 }
 
 func main() {
@@ -87,6 +94,11 @@ func main() {
 		jiraProject: envDefault("JIRA_PROJECT_KEY", "CORE"),
 		jiraTypeID:  envDefault("JIRA_TASK_TYPE_ID", "10005"),
 		jiraBoardID: atoiDefault(os.Getenv("JIRA_BOARD_ID"), 384),
+		qaEmail:     envDefault("QA_SLACK_EMAIL", "duncan.estrada@creditop.com"),
+		// Subcadena, no el nombre exacto: en CORE el estado se llama "🧪 En pruebas" (con emoji) y
+		// NO existe "En revisión". Matchear por subcadena evita cablear el emoji y sobrevive a que
+		// alguien lo cambie en el workflow.
+		testingStatus: envDefault("JIRA_TESTING_STATUS", "pruebas"),
 	}
 	if token := os.Getenv("SLACK_BOT_TOKEN"); token != "" {
 		a.slack = slack.New(token)
@@ -371,6 +383,126 @@ func main() {
 		}
 	})
 
+	// ── handoff a QA: mover la tarea a pruebas y avisarle a quien valida ────────────────────────
+	// La ÚNICA escritura del tablero sobre el estado de una tarea (el resto de la vista es de
+	// lectura). Existe porque en la vida real los dos pasos son uno: cuando la tarea queda lista
+	// para probar, alguien tiene que enterarse — y separarlos es exactamente lo que hace que el
+	// aviso se olvide. Un click hace la transición Y manda el DM.
+	//
+	//   GET  /api/qa-notice?key=CORE-321 → PREVIEW. No escribe nada: devuelve la transición que se
+	//                                      aplicaría, a quién le llega el DM y el texto ya armado
+	//                                      (la UI lo deja editar antes de mandar).
+	//   POST /api/qa-notice {key, text}  → aplica la transición y manda el DM.
+	//
+	// El texto pasa por el MISMO guard que la bitácora: sale del tablero hacia Slack, así que no
+	// puede filtrar repos, rutas de archivo ni hallazgos internos.
+	mux.HandleFunc("/api/qa-notice", func(w http.ResponseWriter, r *http.Request) {
+		cors(w)
+		if a.jira == nil {
+			w.WriteHeader(http.StatusServiceUnavailable)
+			json.NewEncoder(w).Encode(map[string]any{"error": "sin credenciales de Jira (.env)"})
+			return
+		}
+
+		switch r.Method {
+		case http.MethodOptions:
+			return
+
+		case http.MethodGet:
+			key := strings.ToUpper(strings.TrimSpace(r.URL.Query().Get("key")))
+			if !issueKeyRe.MatchString(key) {
+				w.WriteHeader(http.StatusBadRequest)
+				json.NewEncoder(w).Encode(map[string]any{"error": "falta key o no parece una clave de issue (ej CORE-321)"})
+				return
+			}
+			ctx, cancel := context.WithTimeout(r.Context(), 20*time.Second)
+			defer cancel()
+
+			iss, err := a.jira.SearchIssues(ctx, `key = "`+key+`"`, 1)
+			if err != nil || len(iss) == 0 {
+				w.WriteHeader(http.StatusNotFound)
+				json.NewEncoder(w).Encode(map[string]any{"error": "no pude leer " + key + " en Jira"})
+				return
+			}
+			out := map[string]any{
+				"key":     iss[0].Key,
+				"summary": iss[0].Summary,
+				"status":  iss[0].Status,
+				"text":    a.qaNoticeText(iss[0]),
+				"email":   a.qaEmail,
+			}
+			// La transición y el destinatario se resuelven ACÁ, no al mandar: si el estado actual no
+			// tiene salida a pruebas o el token de Slack no alcanza, se ve ANTES de escribir nada.
+			if tr, err := a.qaTransition(ctx, key); err == nil {
+				out["transition"] = map[string]string{"id": tr.ID, "name": tr.Name, "to": tr.To}
+			} else {
+				out["blocked"] = err.Error()
+			}
+			if a.userSlack != nil {
+				if u, err := a.userSlack.LookupUserByEmail(ctx, a.qaEmail); err == nil {
+					out["name"] = u.RealName
+				}
+			}
+			json.NewEncoder(w).Encode(out)
+
+		case http.MethodPost:
+			var in struct {
+				Key  string `json:"key"`
+				Text string `json:"text"`
+			}
+			if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
+				w.WriteHeader(http.StatusBadRequest)
+				json.NewEncoder(w).Encode(map[string]any{"error": "JSON inválido"})
+				return
+			}
+			in.Key = strings.ToUpper(strings.TrimSpace(in.Key))
+			in.Text = strings.TrimSpace(in.Text)
+			if !issueKeyRe.MatchString(in.Key) || in.Text == "" {
+				w.WriteHeader(http.StatusBadRequest)
+				json.NewEncoder(w).Encode(map[string]any{"error": "faltan key (ej CORE-321) o el texto del aviso"})
+				return
+			}
+			if v := violations(in.Text); v != nil {
+				w.WriteHeader(http.StatusUnprocessableEntity)
+				json.NewEncoder(w).Encode(map[string]any{"error": "el aviso viola el guard", "problems": v})
+				return
+			}
+
+			ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
+			defer cancel()
+
+			tr, err := a.qaTransition(ctx, in.Key)
+			if err != nil {
+				w.WriteHeader(http.StatusUnprocessableEntity)
+				json.NewEncoder(w).Encode(map[string]any{"error": err.Error()})
+				return
+			}
+			if err := a.jira.TransitionIssue(ctx, in.Key, tr.ID); err != nil {
+				w.WriteHeader(http.StatusBadGateway)
+				json.NewEncoder(w).Encode(map[string]any{"error": "no se pudo mover en Jira: " + err.Error()})
+				return
+			}
+
+			// La transición YA ocurrió: si el DM falla, se reporta movida-pero-sin-avisar. Mentir con
+			// un 200 pelado dejaría a la tarea en pruebas y a nadie enterado.
+			name, posted, err := a.dmAsMe(ctx, a.qaEmail, in.Text)
+			if err != nil {
+				log.Printf("qa-notice %s: movida a %q pero el DM falló: %v", in.Key, tr.To, err)
+				json.NewEncoder(w).Encode(map[string]any{
+					"key": in.Key, "moved": tr.To, "sent": false, "error": err.Error(),
+				})
+				return
+			}
+			log.Printf("qa-notice %s → %s · DM a %s (ts %s)", in.Key, tr.To, name, posted.TS)
+			json.NewEncoder(w).Encode(map[string]any{
+				"key": in.Key, "moved": tr.To, "sent": true, "name": name, "ts": posted.TS,
+			})
+
+		default:
+			w.WriteHeader(http.StatusMethodNotAllowed)
+		}
+	})
+
 	mux.HandleFunc("/api/entries", func(w http.ResponseWriter, r *http.Request) {
 		cors(w)
 		switch r.Method {
@@ -543,15 +675,29 @@ func (a *app) sendSlack(ctx context.Context, c *websocket.Conn, text string) {
 
 // sendDM envía un DM al destinatario (por email) COMO EL USUARIO (user token).
 func (a *app) sendDM(ctx context.Context, c *websocket.Conn, to, text string) {
+	name, posted, err := a.dmAsMe(ctx, to, text)
+	if err != nil {
+		log.Printf("dm ERROR: %v", err)
+		send(ctx, c, map[string]any{"type": "dm_sent", "ok": false, "error": err.Error()})
+		return
+	}
+	log.Printf("dm OK → %s <%s> (ts %s)", name, to, posted.TS)
+	send(ctx, c, map[string]any{"type": "dm_sent", "ok": true, "to": name, "ts": posted.TS})
+}
+
+// dmAsMe manda un DM COMO YO (user token xoxp-): busca al destinatario por email, abre el DM y
+// publica. Devuelve el nombre real para poder decir a quién le llegó, no solo el email.
+//
+// Lo comparten el WS ("dm") y el handoff a QA. Va como YO y no como el bot a propósito: un aviso de
+// trabajo lo manda una persona; de un bot se lee como notificación automática y se ignora.
+func (a *app) dmAsMe(ctx context.Context, to, text string) (string, *slack.PostedMessage, error) {
 	to = strings.TrimSpace(to)
 	text = strings.TrimSpace(text)
 	if to == "" || text == "" {
-		send(ctx, c, map[string]any{"type": "dm_sent", "ok": false, "error": "faltan destinatario (email) o mensaje"})
-		return
+		return "", nil, fmt.Errorf("faltan destinatario (email) o mensaje")
 	}
 	if a.userSlack == nil {
-		send(ctx, c, map[string]any{"type": "dm_sent", "ok": false, "error": "falta SLACK_USER_TOKEN (tu token personal xoxp-)"})
-		return
+		return "", nil, fmt.Errorf("falta SLACK_USER_TOKEN (tu token personal xoxp-)")
 	}
 
 	ctx, cancel := context.WithTimeout(ctx, 15*time.Second)
@@ -559,22 +705,38 @@ func (a *app) sendDM(ctx context.Context, c *websocket.Conn, to, text string) {
 
 	user, err := a.userSlack.LookupUserByEmail(ctx, to)
 	if err != nil {
-		send(ctx, c, map[string]any{"type": "dm_sent", "ok": false, "error": err.Error()})
-		return
+		return "", nil, err
 	}
 	dm, err := a.userSlack.OpenDM(ctx, user.ID)
 	if err != nil {
-		send(ctx, c, map[string]any{"type": "dm_sent", "ok": false, "error": err.Error()})
-		return
+		return "", nil, err
 	}
 	posted, err := a.userSlack.PostMessage(ctx, dm, text)
 	if err != nil {
-		log.Printf("dm ERROR: %v", err)
-		send(ctx, c, map[string]any{"type": "dm_sent", "ok": false, "error": err.Error()})
-		return
+		return "", nil, err
 	}
-	log.Printf("dm OK → %s <%s> (ts %s)", user.RealName, to, posted.TS)
-	send(ctx, c, map[string]any{"type": "dm_sent", "ok": true, "to": user.RealName, "ts": posted.TS})
+	return user.RealName, posted, nil
+}
+
+// qaTransition envuelve la búsqueda de la transición a pruebas con el estado configurado. La lógica
+// vive en el cliente (`FindTransitionTo`) porque issue-transition ya la necesitaba: dos copias del
+// "cómo elegir la transición" habrían derivado.
+func (a *app) qaTransition(ctx context.Context, key string) (atlassian.Transition, error) {
+	return a.jira.FindTransitionTo(ctx, key, a.testingStatus)
+}
+
+// qaNoticeText arma el aviso siguiendo la convención del README: DE USTED (no tutear), coloquial,
+// corto y con el link. Corto a propósito: el detalle de CÓMO validar ya está en la tarea, y repetirlo
+// acá garantiza que las dos versiones se desincronicen.
+func (a *app) qaNoticeText(iss atlassian.Issue) string {
+	var b strings.Builder
+	fmt.Fprintf(&b, "Perrito 🐶 le dejé %s en pruebas.\n\n*%s*\n", iss.Key, iss.Summary)
+	if a.jiraSite != "" {
+		fmt.Fprintf(&b, "%s/browse/%s\n", strings.TrimRight(a.jiraSite, "/"), iss.Key)
+	}
+	b.WriteString("\nÉchele ojo cuando pueda: en la tarea le dejé el ambiente, la precondición y los " +
+		"pasos, en *Dónde probar* y *Cómo validar*. Cualquier cosa me escribe 🙌")
+	return b.String()
 }
 
 // createTask crea una tarea en Jira (asignada a mí) y la agrega al sprint activo.

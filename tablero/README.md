@@ -187,13 +187,29 @@ playground ni F-xx).
 |---|---|
 | **Crear** tarea | WS `{"type":"create_task","summary":…,"description":…}` → issue en `CORE`, tipo Tarea, asignado a mí, y lo mete al **sprint activo** del board 384. (También `jira_create_issue` del MCP.) |
 | **Editar** tarea | `go run ./cmd/issue-update <json>` con `{"key","summary","description"}` → `UpdateIssue` (PUT; la descripción se manda como ADF). |
-| **Mover de estado** | `go run ./cmd/issue-transition <KEY> <substring-estado>` → busca la transición por estado destino y la aplica. El workflow **no salta directo**: a "En pruebas" se llega **Por Hacer → En progreso → En pruebas** (dos pasos). |
-| **Notificar al evaluador** | WS `{"type":"dm","to":"<email>","text":…}` → DM **como yo** (user token). |
+| **Pasar a pruebas + avisar** | **El camino normal: el botón “🧪 Enviar a pruebas y avisar” de la tarjeta “La tarea”.** Un click hace la transición **y** manda el DM. Ver abajo. |
+| **Mover de estado** (suelto) | `go run ./cmd/issue-transition <KEY> <substring-estado>` → busca la transición por estado destino y la aplica. El workflow **no salta directo**: a "En pruebas" se llega **Por Hacer → En progreso → En pruebas** (dos pasos). |
+| **Notificar** (suelto) | WS `{"type":"dm","to":"<email>","text":…}` → DM **como yo** (user token). |
+
+**El botón de handoff** (`/api/qa-notice`, la única escritura del tablero sobre el estado de una tarea):
+
+- `GET ?key=CORE-321` → **preview, no escribe**: qué transición aplicaría, a quién le llega el DM y el
+  texto ya armado. `POST {key,text}` → transiciona y manda. **Nunca sale nada que no se haya visto:** el
+  panel muestra el mensaje y se puede editar antes de enviar.
+- La transición se elige por **estado destino** (`FindTransitionTo`, compartido con `issue-transition`),
+  no por id ni por nombre: los ids cambian al editar el workflow. El estado se configura con
+  `JIRA_TESTING_STATUS` como **subcadena** — en CORE es `🧪 En pruebas`, **con emoji, y no existe
+  "En revisión"**.
+- El texto pasa por el **mismo guard** que la bitácora, *antes* de tocar Jira. Si el aviso menciona un
+  repo, una ruta o un F-xx, el panel lista los motivos y no se manda ni se mueve nada.
+- Si la transición sale pero el DM falla, se dice **"movida pero el DM NO salió"**. Dar el aviso por
+  hecho es peor que el error: la tarea queda esperando a alguien que no sabe.
 
 **Regla de notificación (Duncan):**
 
-- Se notifica **solo cuando la tarea está "En pruebas"** — recién ahí hay algo para evaluar.
-- Destinatario: **Duncan** — `duncan.estrada@creditop.com`.
+- Se notifica **solo cuando la tarea está "En pruebas"** — recién ahí hay algo para evaluar. El botón
+  desaparece cuando la tarea ya está ahí, así que la regla la hace cumplir la UI, no la memoria.
+- Destinatario: **Duncan** — `duncan.estrada@creditop.com` (configurable con `QA_SLACK_EMAIL`).
 - Tono: **de usted** (no tutear), coloquial y corto, con el link a Jira. Ej.: *"Perrito 🐶 le dejé una tarea… échele ojo que al firmar llegue palomeado 👉 <link>"*.
 - **Precondición:** el evaluador tiene que tener **cómo validar** lo que se le pide (ej. ver los documentos firmados). Si no, el ping llega pero la validación se traba — resolverlo antes de pasar a "En pruebas".
 
@@ -273,6 +289,8 @@ Endpoints: `GET/POST /api/entries`, `DELETE /api/entries/{id}`, `GET /api/guard`
 | `JIRA_PROJECT_KEY` | proyecto de las tareas nuevas | `CORE` |
 | `JIRA_TASK_TYPE_ID` | tipo de issue | `10005` (= "Tarea" en CORE) |
 | `JIRA_BOARD_ID` | board cuyo sprint activo se usa | `384` |
+| `QA_SLACK_EMAIL` | a quién le llega el DM al pasar a pruebas | `duncan.estrada@creditop.com` |
+| `JIRA_TESTING_STATUS` | **subcadena** del estado "listo para probar" | `pruebas` (matchea `🧪 En pruebas`) |
 | `WEB_PORT` | puerto del WS | `8787` |
 
 API token de Atlassian: <https://id.atlassian.com/manage-profile/security/api-tokens>.
@@ -280,9 +298,10 @@ Slack app y scopes: <https://api.slack.com/apps> → OAuth & Permissions → Ins
 
 ## Gotchas
 
-- **Las 4 variables `JIRA_*` y `WEB_PORT` no están en `.env.example`.** Existen solo como default en
-  `cmd/web/main.go:48-64`. Si el board o el tipo de issue cambian, el síntoma es una tarea creada en el
-  lugar equivocado, no un error.
+- **`JIRA_PROJECT_KEY`, `JIRA_TASK_TYPE_ID`, `JIRA_BOARD_ID` y `WEB_PORT` no están en `.env.example`.**
+  Existen solo como default en `cmd/web/main.go`. Si el board o el tipo de issue cambian, el síntoma es
+  una tarea creada en el lugar equivocado, no un error. (`QA_SLACK_EMAIL` y `JIRA_TESTING_STATUS` sí
+  están documentadas en el `.env.example`.)
 - **`WEB_PORT` es una trampa a medias:** el front tiene `ws://localhost:8787/ws` **hardcodeado**
   (`App.vue:4`). Cambiar el puerto en el `.env` deja el dashboard desconectado.
 - **Tres mensajes del WS no tienen UI.** El server maneja `send_slack`, `dm` y `create_task`

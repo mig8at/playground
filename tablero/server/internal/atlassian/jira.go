@@ -307,6 +307,37 @@ func (c *Client) IssueTransitions(ctx context.Context, key string) ([]Transition
 	return out, nil
 }
 
+// FindTransitionTo elige, entre las transiciones disponibles DESDE EL ESTADO ACTUAL, la que lleva al
+// estado cuyo nombre contiene `target` (case-insensitive). Solo lectura.
+//
+// Se busca por DESTINO y no por id ni por nombre de transición: el id cambia si alguien edita el
+// workflow, y el nombre ("Enviar a pruebas") es prosa editable. Como último recurso también matchea el
+// nombre, para que "prueba" siga encontrando la transición aunque renombren el estado.
+//
+// El error lista los destinos que SÍ hay: que la tarea ya esté en ese estado, o bloqueada, es
+// información útil, no un fallo opaco. Lo comparten el handoff a QA del server y issue-transition.
+func (c *Client) FindTransitionTo(ctx context.Context, key, target string) (Transition, error) {
+	trs, err := c.IssueTransitions(ctx, key)
+	if err != nil {
+		return Transition{}, err
+	}
+	t := strings.ToLower(strings.TrimSpace(target))
+	destinos := make([]string, 0, len(trs))
+	for _, tr := range trs {
+		if strings.Contains(strings.ToLower(tr.To), t) {
+			return tr, nil
+		}
+		destinos = append(destinos, tr.To)
+	}
+	for _, tr := range trs {
+		if strings.Contains(strings.ToLower(tr.Name), t) {
+			return tr, nil
+		}
+	}
+	return Transition{}, fmt.Errorf("desde su estado actual, %s no sale a %q; solo a: %s",
+		key, target, strings.Join(destinos, ", "))
+}
+
 // TransitionIssue mueve el issue aplicando una transición
 // (POST /rest/api/3/issue/{key}/transitions). ESCRITURA.
 func (c *Client) TransitionIssue(ctx context.Context, key, transitionID string) error {
