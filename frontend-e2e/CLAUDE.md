@@ -122,7 +122,7 @@ por un mock, dev deja de ser representativo y la prueba no vale.
 | payvalida · mdm · lenders · forms · ábaco | mocks | reales | reales |
 | backend (rama que sirve) | local (sail/Docker) | `legacy-backend` → **develop** | `legacy-backend-qa` → **qa** |
 | BD | local (sail/Docker) | dev real (compartida) | **la misma de dev** (compartida) |
-| front | local `:5174` | local `:5174` | **desplegado** (`originaciones-qa`) |
+| front | local `:5174` | local `:5174` | **desplegado** (`originaciones-qa`) — o local, con el switch |
 
 ⚠ **`dev` y `staging` NO son el mismo backend, aunque el cluster se llame igual.** En `inertia-develop`
 conviven **dos servicios**: `legacy-backend` (sirve la rama `develop`, workflow `main-dev.yaml`) y
@@ -199,6 +199,29 @@ Al elegir del buscador, el `slug` **es el hash**: `.flows.json` no conoce esa su
 cosmético: desde ahí `bin/asesor <slug>` lo reconoce **desde la terminal**, no solo el panel. El `fav`
 existe para poder renombrar/borrar **solo los tuyos** — los curados no se tocan desde la UI. Y
 **renombrar NO cambia el slug**: es la clave con la que un comando guardado ya funciona.
+
+## El switch de FRONT: el pool de Cognito lo trae el front, no el target
+
+El panel tiene un switch **Frontend**: *Del ambiente* (el desplegado del target) o *Local :5174* (tu
+working copy). Existe para ver un cambio del front contra `qa` **sin esperar el deploy**. Por CLI es
+`CFE_FRONT=local|ambiente`. La opción "del ambiente" aparece solo si ese target tiene un front desplegado
+configurado (`E2E_BASE_URL`), y eso lo resuelve el servidor por la **misma cadena** que `bin/asesor` — no
+una lista de targets en el panel, que se desincronizaría.
+
+⚠ **Con front local, el pool de Cognito es el de DEV aunque el backend sea el de qa.** El wizard local
+trae su propia config de Cognito en el `.env` del monorepo (`login.creditop.com` + su `client_id`) y
+`bin/asesor` solo le pisa las URLs de API. Consecuencias, las dos ya cableadas:
+
+- la corrida se loguea con la cuenta de **`.cognito.json`** (`a.arismendy`, pool de dev), no con la de
+  `.env.staging` (`oscar+dentix`, otro pool) — `bin/asesor` vacía `E2E_COGNITO_USER/PASS` para que caiga
+  ahí sola, y lo canta en el log (`● cognito  front local → pool de dev`);
+- el cache de sesión se llama por **front**, no por target (`pkg/cognito.ts`): `staging + front local`
+  usa `cognito-state.dev.json`. Cachearlo como 'staging' hacía replayar cookies de OTRO origen y
+  re-loguear con la cuenta del pool equivocado — se ve como un login que se queda en `verifyPassword`
+  hasta el timeout, que es lo que pasó la primera vez que se probó el switch.
+
+Funciona porque **dev y staging comparten la BD**: el `sub` del asesor es el mismo para los dos backends,
+así que el permiso a la sucursal vale igual. Si algún día dejaran de compartirla, esto se rompe.
 
 ## Canal de entrada: asesor · ecommerce
 

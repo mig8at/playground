@@ -18,7 +18,18 @@ import { TARGET } from './env.ts';
  * (auth.merchant.creditop.com) → cache propio; mezclarlo metería cookies/tokens del otro pool y el front
  * quedaría en un limbo (autenticado para Cognito, desconocido para el backend) sin que aparezca el login.
  */
-const SESSION_KEY = TARGET === 'local' ? 'dev' : TARGET;   // local ≡ dev (mismo pool + mismo front :5174)
+/**
+ * El POOL lo decide el FRONT, no el target. El wizard local (:5174) trae SU propia config de Cognito en
+ * el `.env` del monorepo (`login.creditop.com`, su client_id), y `bin/asesor` solo le pisa las URLs de
+ * API — así que una corrida con front local se autentica contra el pool de **dev** aunque el backend sea
+ * el de staging. Por eso la clave sale del front: con `staging + front local` (el switch `CFE_FRONT`)
+ * cachear como 'staging' hacía replayar cookies de otro origen y re-loguear con la cuenta del pool
+ * equivocado — se veía como un login que se queda dando vueltas en `verifyPassword`.
+ * Los tres casos previos no cambian: local y dev ya tenían front :5174 → 'dev'; staging con su front
+ * desplegado → 'staging'.
+ */
+const FRONT_LOCAL = /^https?:\/\/(localhost|127\.0\.0\.1)([:/]|$)/.test(config.feBaseUrl);
+const SESSION_KEY = FRONT_LOCAL ? 'dev' : TARGET;
 export const COGNITO_STATE_PATH = `.auth/cognito-state.${SESSION_KEY}.json`;
 
 /** Devuelve la ruta del storageState cacheado si existe (para `test.use({ storageState })`), o undefined. */

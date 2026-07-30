@@ -846,6 +846,21 @@
              La VALIDACIÓN de que la omisión realmente ocurrió sigue fuera del panel, por CLI (dev/experian-check.ts). -->
       </div>
 
+      <!-- FRONTEND: ¿el desplegado del ambiente, o tu :5174? Con "Local" el wizard corre desde tu working
+           copy del monorepo contra el backend del target — es la forma de ver un cambio del front contra
+           qa SIN esperar el deploy. Lo único que cambia es qué front se abre: backend, BD y mocks siguen
+           siendo los del target. "Del ambiente" solo existe si ese target tiene un front desplegado
+           configurado (E2E_BASE_URL); lo dice el servidor por la misma cadena que bin/asesor, no una
+           lista de targets escrita acá (se desincronizaría). -->
+      <div class="field">
+        <label>Frontend</label>
+        <div class="seg" id="frontmode">
+          <button data-v="ambiente">Del ambiente</button>
+          <button data-v="local">Local :5174</button>
+        </div>
+        <p id="fronthint" style="color:var(--mut);font-size:12px;margin:8px 0 0"></p>
+      </div>
+
       <div class="field" style="margin-bottom:0" id="padelayField">
         <label>Espera pre-aprobados (para ver el loader)</label>
         <div class="seg" id="padelay">
@@ -1054,6 +1069,10 @@
     let doctype = 'CC';
     let gender = 'M';
     let step = 'monto';          // dónde saltar: monto | phone | personal-info | lenders
+    // FRONT de la corrida: 'ambiente' (el desplegado del target) | 'local' (tu :5174, working copy). Lo
+    // resuelve loadFront() por target — no se deriva acá para no tener una segunda definición de qué
+    // target tiene deploy. `frontAmbienteUrl` vacío = ese target no tiene front desplegado.
+    let frontMode = 'local', frontAmbienteUrl = '';
     let padelay = 0;             // ms de espera del mock de pre-aprobados (para ver el loader)
     let paStatus = {};           // status por lender que devolverá el mock: { lenderId: 'approved'|'rejected'|'pending' }
     let poll = null;
@@ -1717,7 +1736,7 @@
         }
       }
       const body = {
-        slug: sel.slug, target, inject, canal, stepTarget: step, amount: moneyNum('amount'), paDelay: padelay, documentType: doctype, gender,
+        slug: sel.slug, target, inject, canal, front: frontMode, stepTarget: step, amount: moneyNum('amount'), paDelay: padelay, documentType: doctype, gender,
         omitExperian: inject && step === 'lenders' && $('cupo').checked,   // "Cupo ya confirmado": firma el flujo en el seed (solo salto a Lenders sintético)
         name: $('name').value.trim(), document: $('document').value.trim(),
         age: +$('age').value, dob: $('dob').value, expeditionDate: $('expedition').value,
@@ -1795,6 +1814,7 @@
       $('devwarn').style.display = target === 'local' ? 'none' : '';   // dev y staging comparten BD
       $('warntarget').textContent = target;
       updateInjModeForTarget();   // en local no hay Real (sin OTP/burós)
+      loadFront();                // qué fronts tiene ESTE target (y default: el desplegado si existe)
       enrichMerchants();
       loadLenders();              // los lenders son POR TARGET: la lista cambia
       loadEstado();               // y con ella las tarjetas (entorno, entidades)
@@ -1926,6 +1946,42 @@
     document.querySelectorAll('#canal button').forEach(b => b.onclick = () => { canal = b.dataset.c; applyCanal(); ensureAssignUI(); });
 
     // Real (buró + OTP reales) NO existe en local → solo dev/staging. En local se fuerza Sintético.
+    // ── Front del ambiente vs front local ────────────────────────────────────────────────────────────
+    // Qué targets tienen front desplegado lo dice el SERVIDOR (misma cadena que bin/asesor), no una lista
+    // acá: hoy solo staging lo tiene, y el día que dev lo tenga aparece sin tocar el panel. Si el target no
+    // tiene deploy, "Del ambiente" queda deshabilitado con el motivo — no una perilla que no mueve nada.
+    async function loadFront() {
+      try {
+        const r = await (await fetch(`/api/front?target=${encodeURIComponent(target)}`)).json();
+        frontAmbienteUrl = r.ambiente || '';
+      } catch { frontAmbienteUrl = ''; }
+      // Al cambiar de target se elige el default del ambiente nuevo: con deploy, el desplegado (es lo que
+      // están viendo los demás); sin deploy, local es la única opción posible.
+      frontMode = frontAmbienteUrl ? 'ambiente' : 'local';
+      applyFrontMode();
+    }
+
+    function applyFrontMode() {
+      const ambBtn = document.querySelector('#frontmode button[data-v="ambiente"]');
+      ambBtn.disabled = !frontAmbienteUrl;
+      ambBtn.title = frontAmbienteUrl ? frontAmbienteUrl : `'${target}' no tiene front desplegado configurado (su E2E_BASE_URL apunta a localhost)`;
+      if (!frontAmbienteUrl) frontMode = 'local';
+      setSeg('frontmode', frontMode);
+      // Con front local el POOL de Cognito es el del wizard local (dev), no el del target: hay que decirlo,
+      // porque el login usa otra cuenta y el dot de sesión de este target no es el que aplica.
+      const otroPool = frontMode === 'local' && target !== 'local' && target !== 'dev';
+      $('fronthint').textContent = frontMode === 'local'
+        ? `Abre tu :5174 (Vite sobre el monorepo local) contra el backend de ${target}: ves tus cambios del front sin esperar el deploy.`
+          + (otroPool ? ' Ojo: el pool de Cognito lo trae el wizard local (dev), así que loguea con la cuenta de .cognito.json y usa la sesión de dev.' : '')
+        : `Abre ${frontAmbienteUrl} — el build desplegado. Tus cambios locales del front NO se ven acá.`;
+    }
+
+    document.querySelectorAll('#frontmode button').forEach(b => b.onclick = () => {
+      if (b.disabled) return;
+      frontMode = b.dataset.v;
+      applyFrontMode();
+    });
+
     function updateInjModeForTarget() {
       const realBtn = document.querySelector('#injmode button[data-i="0"]');
       const realOk = target !== 'local';
@@ -1966,6 +2022,7 @@
     loadEstado();        // tarjetas de estado (mocks · última corrida · mapa)
     loadLenders();       // lenders de la sucursal del comercio seleccionado (toggle ON/OFF)
     updateInjModeForTarget();   // estado inicial (en local, Real deshabilitado → Sintético)
+    loadFront();                // qué front tiene el target inicial (local → solo :5174)
     ensureAssignUI();           // el comercio default (Motai) ya queda con el permiso puesto al abrir
     applyCanal();               // canal por defecto: asesor
     refresh();           // Motai preseleccionado → botón habilitado

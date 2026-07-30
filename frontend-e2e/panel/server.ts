@@ -211,6 +211,24 @@ function usaMockPA(target: string): Promise<boolean> {
     });
 }
 
+/**
+ * URL del front DESPLEGADO del target, por la MISMA cadena que usa `bin/asesor` (envget). Cadena vacía =
+ * ese target no tiene deploy configurado (su E2E_BASE_URL apunta a localhost), así que la opción "del
+ * ambiente" NO existe para él y el panel la deshabilita: una perilla que no mueve nada es peor que no
+ * tenerla. Se resuelve por la cadena y no con una lista de targets, igual que `usaMockPA`: el día que
+ * `dev` tenga front desplegado, ponerlo en `.env.dev` alcanza para que la opción aparezca sola.
+ */
+function frontDelAmbiente(target: string): Promise<string> {
+    return new Promise((ok) => {
+        execFile('node', ['bin/envget.ts', 'E2E_BASE_URL', 'http://localhost:5174'],
+            { cwd: ROOT, env: envFor(target), timeout: 10000 },
+            (err, out) => {
+                const v = err ? '' : String(out || '').trim();
+                ok(/^https?:\/\/(localhost|127\.0\.0\.1)([:/]|$)/.test(v) ? '' : v);
+            });
+    });
+}
+
 // ── Sesión Cognito precargada (pre-login) ──────────────────────────────────────────────────────────
 // Chequeo REAL de validez por target (bin/session-check.ts pega a una ruta autenticada del front) +
 // pre-login headless (dev/warm-session.spec.ts) que deja el cache listo. Objetivo: que ninguna corrida
@@ -326,6 +344,15 @@ async function ensureAssign(slug: string, target: string): Promise<{ ok: boolean
     return { ok: true, detail: `asesor asignado a la sucursal ${hash}` };
 }
 
+/** Qué front va a abrir la corrida, en una línea, ya resuelto el switch (`auto` = lo que diga el target). */
+async function frontLabel(target: string, front: string): Promise<string> {
+    const amb = await frontDelAmbiente(target);
+    const esLocal = front === 'local' || (front !== 'ambiente' && !amb);
+    return esLocal
+        ? `LOCAL :5174 — Vite sobre tu working copy del monorepo, contra el backend de ${target}`
+        : `DEL AMBIENTE ${amb || '(sin URL configurada)'} — build desplegado: tus cambios locales NO se ven`;
+}
+
 function leerFlows(): any {
     try { return JSON.parse(readFileSync(join(ROOT, '.flows.json'), 'utf8')); } catch { return {}; }
 }
@@ -353,7 +380,7 @@ interface Profile { income?: number; score?: number; name?: string; documentType
 // RASTRO de la corrida: vuelca TODO lo que elegiste en el panel al log, para que quede registro de con qué
 // configuración corriste (antes solo salía el perfil, como un JSON crudo, y los selects de pre-aprobación y
 // el ON/OFF de lenders no aparecían en ningún lado).
-async function runHeader(slug: string, p: Profile, t: string, inject: boolean, step: string, amt: number, paDelay: number, canal = 'asesor'): Promise<string> {
+async function runHeader(slug: string, p: Profile, t: string, inject: boolean, step: string, amt: number, paDelay: number, canal = 'asesor', front = 'auto'): Promise<string> {
     const money = (n: number) => `$${n.toLocaleString('es-CO')}`;
     const row = (k: string, v: string) => `   ${k.padEnd(13)}${v}`;
     const L: string[] = [
@@ -362,6 +389,9 @@ async function runHeader(slug: string, p: Profile, t: string, inject: boolean, s
             ? 'ECOMMERCE — entra por URL base64 de la tienda (sin asesor)'
             : 'ASESOR — login Cognito + wizard'),
         row('modo', inject ? 'SINTÉTICO — inyecta el buró (salta la consulta real)' : 'REAL — consulta el buró de verdad, sin inyección'),
+        // Qué FRONT se abre. Va en el rastro porque es lo primero que se pierde de vista al probar un
+        // cambio del front: si corriste contra el desplegado, tus cambios locales no estaban ahí.
+        row('front', await frontLabel(t, front)),
         row('saltar a', step === 'monto' ? 'monto (manejás todo vos)' : step),
         row('monto', money(amt)),
         row('espera PA', paDelay ? `${paDelay}ms (para ver el loader de las cards)` : 'sin espera'),
@@ -393,16 +423,20 @@ async function runHeader(slug: string, p: Profile, t: string, inject: boolean, s
     return L.join('\n') + '\n';
 }
 
-async function launch(slug: string, profile: Profile, target: string, inject: boolean, stepTarget: string, amount: number, paDelay: number, canal = 'asesor', omitirExperian = false): Promise<{ ok: boolean; msg: string }> {
+async function launch(slug: string, profile: Profile, target: string, inject: boolean, stepTarget: string, amount: number, paDelay: number, canal = 'asesor', omitirExperian = false, front = 'auto'): Promise<{ ok: boolean; msg: string }> {
     if (current && !current.done) return { ok: false, msg: `ya hay una corrida activa (${current.slug}). Parala primero.` };
     const t = TARGETS.has(target) ? target : 'local';
     const step = ['monto', 'phone', 'personal-info', 'lenders'].includes(stepTarget) ? stepTarget : 'monto';
     const amt = amount > 0 ? Math.round(amount) : 2_000_000; // monto solicitado (default 2M)
     const mode = inject ? 'manual + inyección de buró' : 'manual REAL (consulta buró real, sin inyección)';
     const jump = step === 'monto' ? '' : ` · salto → ${step}`;
-    writeFileSync(RUN_LOG, await runHeader(slug, profile, t, inject, step, amt, paDelay, canal));
+    writeFileSync(RUN_LOG, await runHeader(slug, profile, t, inject, step, amt, paDelay, canal, front));
     const env = {
         ...envFor(t),
+        // switch del front: 'local' abre tu :5174 (working copy) contra el backend del target — así ves un
+        // cambio del front sin esperar el deploy; 'ambiente' fuerza el desplegado. Vacío = lo que diga
+        // `.env.<target>` (dev local · staging desplegado), el comportamiento de siempre.
+        CFE_FRONT: front === 'local' || front === 'ambiente' ? front : '',
         // switch del panel: ON → inyecta el buró (salta la consulta real); OFF → sin inyección (consulta real).
         E2E_INJECT: inject ? '1' : '',
         // CANAL: 'ecommerce' hace que el spec entre por la URL base64 (pkg/checkout-b64.ts) en vez del
@@ -741,7 +775,14 @@ const server = createServer(async (req, res) => {
             dob: b.dob ? String(b.dob) : undefined,
             expeditionDate: b.expeditionDate ? String(b.expeditionDate) : undefined,
             email: b.email ? String(b.email) : undefined,
-        }, String(b.target || 'local'), b.inject !== false, String(b.stepTarget || 'monto'), Number(b.amount) || 0, Number(b.paDelay) || 0, String(b.canal || 'asesor'), !!b.omitExperian));
+        }, String(b.target || 'local'), b.inject !== false, String(b.stepTarget || 'monto'), Number(b.amount) || 0, Number(b.paDelay) || 0, String(b.canal || 'asesor'), !!b.omitExperian, String(b.front || 'auto')));
+    }
+
+    // Qué frontend puede usar este target: `ambiente` vacío = no tiene deploy configurado (su E2E_BASE_URL
+    // apunta a localhost) → el panel deshabilita esa opción en vez de ofrecer una perilla inerte.
+    if (path === '/api/front') {
+        const t = (url.searchParams.get('target') || 'local').trim();
+        return json(res, 200, { target: t, ambiente: await frontDelAmbiente(t), local: 'http://localhost:5174' });
     }
 
     if (path === '/api/status') {

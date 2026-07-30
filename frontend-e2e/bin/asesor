@@ -26,6 +26,30 @@ envget() { E2E_TARGET="$TARGET" node "$(dirname "$0")/envget.ts" "$1" "${2:-}" 2
 # frontend REMOTO ya desplegado. Si es remoto no hay wizard local que levantar ni .env que mover.
 WIZ_BASE="$(envget E2E_BASE_URL "http://localhost:5174")"
 [ -n "$WIZ_BASE" ] || WIZ_BASE="http://localhost:5174"
+
+# SWITCH del front (`CFE_FRONT`; lo manda el panel y también sirve a mano):
+#   local     → el wizard de Vite en :5174, o sea TU working copy del monorepo, contra el backend del
+#               target. Es la razón de ser del switch: ver un cambio del front contra `qa` SIN esperar
+#               el deploy. Lo que cambia es solo QUÉ front se abre; backend, BD y mocks siguen siendo
+#               los del target.
+#   ambiente  → el front YA DESPLEGADO del target (lo que diga su E2E_BASE_URL).
+#   vacío     → lo que diga la cadena del target (comportamiento previo: dev local · staging desplegado).
+# Se resuelve por la CADENA y no con una lista de targets: el día que `dev` tenga front desplegado,
+# ponerlo en su `.env.dev` alcanza para que las dos opciones existan solas (mismo criterio que
+# E2E_REAL_PREAPPROVALS — una lista escrita a mano se desincroniza).
+case "${CFE_FRONT:-}" in
+  local) WIZ_BASE="http://localhost:5174" ;;
+  ambiente)
+    case "$WIZ_BASE" in
+      http://localhost*|http://127.0.0.1*)
+        echo "✗ '$TARGET' no tiene front desplegado: su E2E_BASE_URL es $WIZ_BASE."
+        echo "  Corré con el front local, o poné la URL del deploy en .env.$TARGET."
+        exit 1 ;;
+    esac ;;
+  '') ;;
+  *) echo "✗ CFE_FRONT inválido: '${CFE_FRONT}'. Usá: local | ambiente (o vacío = lo que diga el target)."; exit 1 ;;
+esac
+
 REMOTE_FRONT=0
 case "$WIZ_BASE" in http://localhost*|http://127.0.0.1*) ;; *) REMOTE_FRONT=1 ;; esac
 FRESH=0
@@ -33,8 +57,11 @@ FRESH=0
 # PREFLIGHT: la configuración del target tiene que ser coherente ANTES de escribir nada. Tres bugs de la
 # misma familia (F-59 · F-64 · F-65) se hubieran cazado acá, en un segundo, en vez de a los cinco minutos
 # con un 500 opaco y basura huérfana en la base compartida.
-if ! E2E_TARGET="$TARGET" node "$(dirname "$0")/preflight.ts" >/dev/null 2>&1; then
-  E2E_TARGET="$TARGET" node "$(dirname "$0")/preflight.ts" || true
+# E2E_BASE_URL va con el valor EFECTIVO (ya aplicado el switch): si no, el preflight informaría el front
+# del `.env` mientras la corrida abre otro, que es justo el tipo de mentira que este chequeo existe para
+# evitar. El front no hace fallar al preflight (es informativo a propósito), pero tiene que decir la verdad.
+if ! E2E_TARGET="$TARGET" E2E_BASE_URL="$WIZ_BASE" node "$(dirname "$0")/preflight.ts" >/dev/null 2>&1; then
+  E2E_TARGET="$TARGET" E2E_BASE_URL="$WIZ_BASE" node "$(dirname "$0")/preflight.ts" || true
   echo "✗ no se corre: la configuración de '$TARGET' es incoherente (ver arriba)."
   exit 1
 fi
@@ -52,6 +79,16 @@ ECOMMERCE=0; [ "$ENTRY" = "ecommerce" ] && ECOMMERCE=1
 
 # env que lee el spec (dev/guided.spec.ts cubre GUIADO y MANUAL según E2E_GUIDED)
 export E2E_TARGET="$TARGET" E2E_BASE_URL="$WIZ_BASE" E2E_ENTRY="$ENTRY" E2E_GUIDED="$GUIDED" E2E_RESULT="$RESULT" E2E_PREVIEW=1
+
+# El POOL de Cognito lo trae el FRONT, no el target: el wizard local usa su propio `.env` del monorepo
+# (login.creditop.com = pool de dev) y acá solo le pisamos las URLs de API. Así que con front LOCAL hay que
+# loguear con la cuenta de ESE pool; la de `.env.staging` (otro pool) se queda dando vueltas en el login.
+# Vaciar las variables hace que `loadCognitoCreds` caiga a `.cognito.json`, que es la cuenta del pool de dev.
+# Funciona porque dev y staging COMPARTEN LA BD: el `sub` del asesor es el mismo para los dos backends.
+if [ "$REMOTE_FRONT" = 0 ] && [ "$TARGET" != "local" ] && [ "$TARGET" != "dev" ]; then
+  export E2E_COGNITO_USER="" E2E_COGNITO_PASS=""
+  echo "  ● cognito       front local → pool de dev: se loguea con la cuenta de .cognito.json (no la de .env.$TARGET)"
+fi
 
 log() { printf '▶ %s\n' "$*"; }
 step() { printf '  ○ %-13s …\n' "$1"; }
