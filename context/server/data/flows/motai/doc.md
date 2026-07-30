@@ -70,6 +70,16 @@ Cuatro movidas:
 3. **No hay saldo.** Sin saldo no existe base a la cual aplicar un porcentaje. El cliente no debe: paga por usar.
 4. **El contrato dura 1, 4 o 12 SEMANAS** (`C18 = IF(plan="Semana",1,IF(plan="Mes",4,12))`). Los 24 meses del PMT **solo viven dentro de la fórmula del precio** — no son el plazo. Máximo tres meses, renovable: no hay obligación de largo plazo que leer como financiación.
 
+**La tabla del `VLOOKUP`: el plazo cambia el precio de la semana** (verificado en `Calculadora Renting VF (2).xlsx`, 2026-07-30). Se paga **siempre semanal** (`D12`: *"Siempre son pago semanales"*); lo que el plan mueve es cuánto vale esa semana. La **base es la fila del Mes** y las otras dos cuelgan de ella:
+
+| plan | celda | fórmula | factor | ejemplo (precio 15.470.000) |
+|---|---|---|---|---|
+| Semana | `C13` | `C14 * D13` | **1,25** | 233.188,23 |
+| **Mes** | `C14` | `-PMT(1,8% ; 24 ; precio)/30*7` | **1,00** (base) | 186.550,59 |
+| Trimestre | `C15` | `C14 * D15` | **0,94** | 175.357,55 |
+
+Alquilar una sola semana sale **25% más caro** y comprometer un trimestre trae **6% de descuento** — eso es lo que el selector de plan de la card tiene que comunicar. Reproducido con `App\Support\FormulaCalculator` con delta < 0,0001 en las tres. Vive en `lenders.calculator` de 158 (`plans[].factor`), sembrado por `2026_07_30_120000_seed_motai_renting_plans_calculator`.
+
 > **Límite de lo verificable acá:** la hoja muestra el **mecanismo**, no si alcanza legalmente. Si el arrendamiento se recaracteriza como crédito encubierto es una opinión jurídica (legal de CreditOp), no algo deducible de un Excel. Lo verificado es que **la hoja no calcula interés**.
 
 > ⚠ **Consecuencia para quien toque la calculadora:** "arreglar" el prorrateo del renting para que use la conversión compuesta **no es un fix**, es recaracterizar el producto. Si alguien lo hace, el arrendamiento pasa a tener una tasa y con eso entra al perímetro del crédito. En `playground/engine` la constante se llama **`anchorRate`** y no `monthlyRate` justamente para que nadie la confunda con una tasa de interés.
