@@ -132,11 +132,26 @@ que ahora son nombres de tabla, así que se lee de una.
 - **La fila de salida no repite el título del nodo** — en `valor a financiar` queda solo el número.
 - **`cuota inicial` dice `resta`.** Se escribe en positivo y `monto neto` la resta; desde que se
   fueron los prefijos de signo, nada en la fila lo decía.
-- **Los nodos se leen como la SUMA que son.** `+` delante de cada término y una línea antes del
-  total. No es estética: `valor a financiar` mostraba un total que **no coincidía con sus filas**
-  (600.000 + 114.000 + 2.856 no da 6.716.856) porque la base venía de otra etapa y no se veía.
-  Ahora `alsoShow` la trae y la suma cierra a la vista. Y un nodo-suma **nunca esconde un término**,
-  ni siquiera un subtotal redundante — esconderlo deja un total que no cuadra.
+- **`valor a financiar` y `cuota` se muestran como una FÓRMULA**, con el mismo dibujo del tablero
+  pero sin editar: cada caja con su valor debajo, y el total al pie.
+
+  ```
+  ┌ monto neto ┐ + ┌ fianza  ┐ + ┌ IVA de la fianza ┐ + ┌ 4 × 1000 ┐
+  │ 6.000.000  │   │ 600.000 │   │     114.000      │   │  2.856   │
+  └────────────┘   └─────────┘   └──────────────────┘   └──────────┘
+                                                      = 6.716.856
+  ```
+
+  Usa **el mismo componente** que el editor, así que las dos vistas no pueden divergir: si el tablero
+  dibuja una fracción apilada, acá también. El `name` crudo de cada caja queda en su tooltip.
+
+  Y eso arregló algo que la lista escondía: mostraba un total que **no coincidía con sus filas**
+  (600.000 + 114.000 + 2.856 no da 6.716.856) porque la base venía de otra etapa y era invisible.
+  `alsoShow: ['netAmount']` la trae — se lee, no se posee: no cambia el grafo.
+
+  Un nodo que muestra una composición **nunca esconde un término**, ni siquiera un subtotal
+  redundante: sin fila no tiene etiqueta ni valor, y la fórmula lo dibujaba con su `name` crudo
+  (`installmentCharges` en vez de `cargos por cuota`).
 
 - **Un TABLERO, no un input.** La fórmula no se escribe: se **arma por cajas**. Se elige un
   cuadrito y se le pone un campo, un número o una operación.

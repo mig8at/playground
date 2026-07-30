@@ -89,13 +89,15 @@ export function layoutSheet(def, out, opts = {}) {
   // `alsoShow` son valores de OTRA etapa que esta dibuja para que su suma cierre. No los posee —no
   // cambian el grafo ni las dependencias— solo se leen.
   //
-  // Y un nodo que se lee como SUMA no esconde ninguno de sus términos: `aliasRows` existe para no
-  // repetir un subtotal en una LISTA, pero en una suma esconder un término deja un total que no
-  // coincide con lo que está arriba — el mismo defecto que `alsoShow` vino a arreglar.
+  // Y un nodo que muestra una COMPOSICIÓN —una suma con sus términos, o la fórmula de su salida— no
+  // esconde ninguno: `aliasRows` existe para no repetir un subtotal en una LISTA. En una composición
+  // el término escondido se queda sin etiqueta ni valor, y la fórmula lo dibuja con su `name` crudo
+  // (`installmentCharges` en vez de `cargos por cuota`) o el total no cuadra.
+  const composicion = st => !!(st.sumRows || st.formulaView)
   const visibles = st => [
     ...(st.alsoShow || []),
     ...st.formulas.filter(f =>
-      deCampo.get(f) !== st.key && (st.sumRows || !alias.has(f))),
+      deCampo.get(f) !== st.key && (composicion(st) || !alias.has(f))),
   ]
   // `rows` dice CUÁNTAS de sus fórmulas dibuja una etapa. Es distinto de cuáles POSEE: `tasa` es
   // dueña de las suyas —eso es lo que la pone en el grafo y lo que hace que `cuota` dependa de
@@ -219,7 +221,7 @@ export function layoutSheet(def, out, opts = {}) {
           hUp: vArriba.has(st.key), hDown: vAbajo.has(st.key), hIn: entra.has(st.key),
           nFilas: cuantasFilas(st),
           // la expresión se ve cuando la perilla del campo está en OTRA etapa
-          sumRows: !!st.sumRows,
+          sumRows: !!st.sumRows, formulaView: !!st.formulaView,
           rows: visibles(st).map(f => row(f, deCampo.has(f), (st.alsoShow || []).includes(f))),
           inputs: (def.inputs || []).filter(i => etapaDe(i.appliesTo) === st.key),
         },

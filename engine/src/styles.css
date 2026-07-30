@@ -557,8 +557,11 @@ button.icon:hover { color: var(--ink); background: var(--card2) }
 .fb__n input { border: 0; background: none; padding: 1px 0; font: 10.5px var(--mono);
                color: var(--ink); text-align: center; min-width: 2ch }
 .fb__n input:focus { outline: none }
-.fb__b { display: inline-flex; align-items: center; gap: 3px; border: 1px solid var(--line);
-         border-radius: 6px; padding: 2px 4px; cursor: pointer }
+/* `flex-wrap` acá y no solo en el contenedor: la fórmula entera es UN hijo del contenedor, así que
+   su wrap no alcanza — los términos viven dentro de marcos anidados y hay que dejarlos envolver o
+   los últimos se cortan en el borde del nodo. */
+.fb__b { display: inline-flex; align-items: center; gap: 3px; flex-wrap: wrap;
+         border: 1px solid var(--line); border-radius: 6px; padding: 2px 4px; cursor: pointer }
 .fb__b:hover { border-color: var(--mut) }
 .fb__b.on { border-color: var(--purple); box-shadow: inset 0 0 0 1px var(--purple) }
 .fb__o { font-style: normal; font: 10.5px var(--mono); color: var(--dim); padding: 0 1px }
@@ -588,6 +591,26 @@ button.icon:hover { color: var(--ink); background: var(--card2) }
 /* la barra de arriba: es lo que hace que se lea como raíz y no como un símbolo al lado */
 .fb__rz-x { display: flex; align-items: center; gap: 3px; border-top: 1px solid var(--mut);
             padding: 2px 3px 1px }
+
+/* ── la vista de fórmula (solo lectura) ──
+   El mismo dibujo del tablero, con el valor de cada caja debajo del nombre. Es la composición de un
+   vistazo: `monto neto + fianza + IVA + 4×1000 = 6.716.856`. */
+.fv { border-top: 1px solid var(--line); margin-top: 2px; padding: 7px 8px 8px }
+.fv__ex { display: flex; align-items: center; flex-wrap: wrap; gap: 3px }
+.fv__t { display: flex; align-items: baseline; justify-content: flex-end; gap: 6px;
+         margin-top: 6px; padding-top: 5px; border-top: 1px solid var(--line) }
+.fv__t em { font-style: normal; font: 11px var(--mono); color: var(--dim) }
+.fv__t b { font: 650 12px var(--mono) }
+.fv__t.is-off b { color: var(--dim); font-weight: 400; font-size: 10.5px }
+
+/* una caja en modo lectura: sin cursor de click, y con su valor apilado bajo el nombre */
+.fb__r.is-ro, .fb__n.is-ro { cursor: default }
+.fb__r.is-ro:hover { border-color: var(--line) }
+.fb__r.has-v { display: inline-flex; flex-direction: column; align-items: stretch; gap: 0;
+               padding: 2px 6px 3px; text-align: right }
+.fb__r-l { font-size: 9.5px; color: var(--mut); white-space: nowrap }
+.fb__r-v { font-size: 11px; font-weight: 650; color: var(--ink) }
+.fb__n-t { font: 10.5px var(--mono); color: var(--ink); padding: 1px 0 }
 
 /* el botón que ABRE el tablero: se lee como el campo que reemplaza, pero clickeable */
 .nf--abre { text-align: left; cursor: pointer; overflow: hidden; text-overflow: ellipsis;

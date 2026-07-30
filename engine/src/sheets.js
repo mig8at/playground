@@ -195,8 +195,11 @@ export const SHEET = {
     // línea antes del total. Y `alsoShow` trae `netAmount`, que es dueño de `la solicitud`: sin él
     // el nodo mostraba un total que NO coincidía con sus filas (600.000 + 114.000 + 2.856 no da
     // 6.716.856) porque la base era invisible. Eso no era estética, era una suma que no cerraba.
-    { key: 'amount', title: 'valor a financiar', group: 'monto',
-      sumRows: true, alsoShow: ['netAmount'], formulas: ['financedAmount'] },
+    // `formulaView` — el nodo se muestra como la FÓRMULA de su salida, con el mismo dibujo del
+    // tablero pero sin editar: cajas con su valor debajo, y el total abajo. Es la composición de un
+    // vistazo, y usa el mismo componente que el editor así que las dos vistas no pueden divergir.
+    { key: 'amount', title: 'valor a financiar', group: 'monto', formulaView: true,
+      alsoShow: ['netAmount'], formulas: ['financedAmount'] },
 
     // ── el lado del PAGO ──
     // UNA etapa: la anualidad y los recargos que la completan. Estuvieron separadas mientras el
@@ -212,7 +215,7 @@ export const SHEET = {
     // `termsCompare` — la vitrina: la cuota de CADA plazo ofrecido. Sale de correr la misma hoja
     // una vez por plazo, y es la pantalla que el cliente ve de verdad.
     { key: 'charges', title: 'cuota', group: 'pago', insertion: true, termsCompare: true,
-      sumRows: true,
+      formulaView: true,
       insertionHelp: 'La anualidad y lo que se le suma. Lo que entra acá viaja arriba de cada pago '
         + 'y nunca entra al saldo, así que NO paga intereses.',
       formulas: ['installment', 'installmentCharges', 'totalInstallment'] },

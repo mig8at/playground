@@ -124,6 +124,28 @@ const nombresUsables = computed(() => {
   ]
 })
 
+// ══════════ LA VISTA DE FÓRMULA ══════════
+// El nodo muestra la COMPOSICIÓN de su salida con el mismo dibujo del tablero, pero sin editar:
+// cajas con su valor debajo, fracciones apiladas, raíces con su índice. Usa el mismo componente que
+// el editor, así que las dos vistas no pueden divergir.
+//
+// Reemplaza a la lista de filas. La lista mostraba además la sub-expresión de cada término
+// (`monto neto × fianza`); eso queda en el tooltip de cada caja.
+const vistaFormula = computed(() => {
+  if (!props.data.formulaView) return null
+  const salida = props.data.rows[props.data.rows.length - 1]
+  if (!salida) return null
+  const arbol = desdeTexto(salida.expr)
+  if (!arbol) return null   // si no se puede dibujar, se cae a la lista de filas
+  const labels = {}, valores = {}, exprs = {}
+  for (const r of props.data.rows) {
+    labels[r.name] = r.label
+    if (r.value != null) valores[r.name] = fmtNum(r.value)
+    if (r.expr) exprs[r.name] = r.expr
+  }
+  return { arbol, labels, valores, salida }
+})
+
 // ══════════ EL TABLERO ══════════
 // La fórmula se arma por CAJAS, no escribiendo texto: se elige un cuadrito y se le pone un campo, un
 // número o una operación. El texto sigue siendo lo que se guarda —lo come el motor— pero deja de ser
@@ -387,8 +409,19 @@ vez por cada uno: la vitrina está en el nodo de la cuota.">plazos</span>
       </template>
     </div>
 
+    <!-- LA FÓRMULA de la salida, con el dibujo del tablero pero sin editar -->
+    <div v-if="vistaFormula" class="fv">
+      <div class="fv__ex">
+        <FormulaBoard :node="vistaFormula.arbol" :labels="vistaFormula.labels"
+          :valores="vistaFormula.valores" ro />
+      </div>
+      <div class="fv__t" :class="{ 'is-off': vistaFormula.salida.status !== 'ok' }">
+        <em>=</em> <b>{{ val(vistaFormula.salida) }}</b>
+      </div>
+    </div>
+
     <!-- resultados de la etapa -->
-    <div v-if="filas.length" class="grp-rows st-out">
+    <div v-else-if="filas.length" class="grp-rows st-out">
       <div v-for="(r, i) in filas" :key="r.name"
            :class="['grp-row', { 'is-out': i === filas.length - 1, 'is-off': r.status !== 'ok',
                                  'has-expr': r.verExpr, 'is-ajena': r.ajena,
