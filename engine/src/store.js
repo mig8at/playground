@@ -2,7 +2,7 @@
 // así el v-model de un input NO depende del prop `data`, que se recrea en cada recálculo.
 // Si dependiera de `data`, escribir en un campo perdería el foco a cada tecla.
 import { reactive, computed, watch } from 'vue'
-import { SHEET, resolveSheet, defaultInputs, nombreDe, DEFAULT_FIELDS } from './sheets.js'
+import { SHEET, resolveSheet, defaultInputs, nombreDe, DEFAULT_FIELDS, enPesos } from './sheets.js'
 import { evalSheet, tokenize, parse, refsOf } from './engine.js'
 
 export const ui = reactive({ dark: true, showDoc: false })
@@ -39,6 +39,24 @@ export function setTermsOffered(texto) {
 export const fields = reactive([])
 let seq = 0
 
+// ── LA COMPOSICIÓN de cada punto de inserción ──
+// Qué campos se usan y cómo. Es editable: crear una tarifa ya NO significa usarla, igual que en
+// `lenders.calculator`, donde `params` tiene las perillas y `formulas` elige cuáles entran.
+//
+// Arranca como la suma de todo (el comportamiento viejo) y al agregar un campo se le APENDA — así
+// el default no sorprende y editar es una decisión explícita.
+export const compos = reactive({ amount: '', charges: '' })
+
+export function setCompo(at, expr) { compos[at] = expr }
+
+/** Si un campo NO está en la composición de su punto: definido pero sin usar. Se conserva la perilla
+ *  y su valor, y no entra al cálculo. */
+export function sinUsar(f) {
+  const c = compos[f.at]
+  if (!c) return false                       // sin composición propia = la suma de todo, entra
+  return !new RegExp(`\\b${enPesos(f)}\\b`).test(c)
+}
+
 /** Agrega un campo a un punto de inserción.
  *    kind   'money' monto fijo · 'rate' porcentaje · 'formula' una expresión
  *    base   solo para 'rate': el `name` de OTRO campo del mismo nodo. Vacío = la base del punto
@@ -55,6 +73,8 @@ export function addField({ label, kind = 'money', at, base = '', spread = false,
   // un campo agregado a mano arranca en cero y no mueve ningún número; los del ejemplo cableado
   // traen su valor
   inputs[name] = value
+  // se APENDA a la composición si esta ya fue tocada; si no, la suma por defecto ya lo incluye
+  if (compos[at]) compos[at] = `${compos[at]} + ${enPesos(f)}`
   return f
 }
 
@@ -95,13 +115,17 @@ export function dependientesDe(id) {
   const f = fields.find(x => x.id === id)
   if (!f) return []
   const suyos = new Set([f.name, f.name + 'Value'])
-  return fields.filter(o => {
+  const cuelgan = fields.filter(o => {
     if (o.id === id) return false
     if (o.base && suyos.has(o.base)) return true
     if (!o.expr) return false
     try { return [...refsOf(parse(tokenize(o.expr)))].some(r => suyos.has(r)) }
     catch { return false }   // expresión a medio escribir: no bloquea nada
   })
+  // La COMPOSICIÓN del punto también depende: si lo usa, borrarlo la rompe. Y eso da el flujo
+  // natural — para quitar una tarifa, primero se DEJA DE USAR y después se borra.
+  if (compos[f.at] && !sinUsar(f)) cuelgan.push({ label: 'la fórmula de este nodo' })
+  return cuelgan
 }
 
 /** Los campos que un campo NUEVO puede usar como base: los del MISMO nodo y ANTERIORES. Así un
@@ -110,7 +134,7 @@ export function basesDisponibles(at, hasta = fields.length) {
   return fields.slice(0, hasta).filter(f => f.at === at)
 }
 
-export const effDef = computed(() => resolveSheet(SHEET, { periods, fields }))
+export const effDef = computed(() => resolveSheet(SHEET, { periods, fields, compos }))
 export const out = computed(() => evalSheet(effDef.value, inputs))
 
 /** LA CALCULADORA CORRE UNA VEZ POR PLAZO.
@@ -136,6 +160,8 @@ export function reset() {
   Object.assign(inputs, defaultInputs(SHEET))
   Object.assign(periods, SHEET.periods)
   termsOffered.splice(0, termsOffered.length, ...(SHEET.terms_offered || []))
+  compos.amount = ''
+  compos.charges = ''
   sembrar()
 }
 

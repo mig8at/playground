@@ -423,7 +423,7 @@ export function describir(f, campos = []) {
  *
  *  Los campos se resuelven EN ORDEN, así que uno puede apoyarse en otro anterior (el IVA sobre la
  *  fianza) pero nunca en uno posterior: no hay forma de escribir un ciclo.  */
-export function resolveSheet(def, { periods = {}, fields = [] } = {}) {
+export function resolveSheet(def, { periods = {}, fields = [], compos = {} } = {}) {
   const p = { ...(def.periods || {}), ...periods }
 
   const formulas = { ...def.formulas }
@@ -476,14 +476,21 @@ export function resolveSheet(def, { periods = {}, fields = [] } = {}) {
     if (!NO_SUMA.has(f.kind)) terms.push({ value: enPesos(f), at: f.at, spread: !!f.spread })
   }
 
-  // ── los dos puntos de inserción son la SUMA de lo que les llega
+  // ── LA COMPOSICIÓN de cada punto de inserción ──
+  // Es un DATO editable, no una suma generada. Antes todo campo entraba automáticamente: crear una
+  // tarifa era usarla. Ahora la fórmula dice CUÁLES se usan y CÓMO, que es exactamente lo que hace
+  // `lenders.calculator` en producción — `params` tiene las perillas y `formulas` elige.
+  //
+  // Y eso hace que "definida pero sin usar" sea un estado real: se conserva la perilla y su valor
+  // sin que entre al cálculo.
+  //
+  // `composicionPorDefecto` es la suma de todo, que es con lo que arranca y lo que se usa si nadie
+  // la editó — así el comportamiento viejo sigue siendo el default y nada sorprende.
   const suma = etapa => terms.filter(t => t.at === etapa)
     .map(t => (etapa === 'charges' && t.spread ? `${t.value} / installments` : t.value))
-  // Arranca del NETO, que ya descontó la cuota inicial. Todo lo que se le suma es un costo; un
-  // campo negativo resta (un descuento).
-  formulas.financedAmount = ['netAmount', ...suma('amount')].join(' + ')
+  formulas.financedAmount = compos.amount?.trim() || composicionPorDefecto('amount', suma)
   const porCuota = suma('charges')
-  formulas.installmentCharges = porCuota.join(' + ') || '0'
+  formulas.installmentCharges = compos.charges?.trim() || composicionPorDefecto('charges', suma)
   // Un subtotal de UN solo término es una copia de ese término: "cargos por cuota 8.779" al lado de
   // "seguro de vida 8.779" no dice nada. Con cero, `cuota total` ya es igual a la del crédito.
   // Sigue siendo fórmula (la necesita `totalInstallment`); solo no se dibuja.
@@ -507,6 +514,14 @@ export function resolveSheet(def, { periods = {}, fields = [] } = {}) {
       periodsPerYear: PERIODS[p.chargedEvery],
     },
   }
+}
+
+/** La composición con la que arranca un punto: la suma de todo lo que le llega.
+ *  El monto arranca del NETO, que ya descontó la cuota inicial. */
+export function composicionPorDefecto(etapa, suma) {
+  const t = suma(etapa)
+  if (etapa === 'amount') return ['netAmount', ...t].join(' + ')
+  return t.join(' + ') || '0'
 }
 
 /** Un nombre de variable válido a partir de la etiqueta que escribió el usuario.

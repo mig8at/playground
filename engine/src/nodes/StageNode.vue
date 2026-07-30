@@ -5,12 +5,13 @@ import MoneyInput from '../MoneyInput.vue'
 import PercentInput from '../PercentInput.vue'
 import RateBlock from '../RateBlock.vue'
 import FormulaBoard from '../FormulaBoard.vue'
-import { desdeTexto, aTexto, en, reemplazar, envolver, envolverRaiz, primerHueco, huecos, hueco }
-  from '../formulaTree.js'
+import { desdeTexto, aTexto, en, reemplazar, envolver, envolverRaiz, quitar, primerHueco, huecos,
+         hueco } from '../formulaTree.js'
 import { fmtNum } from '../engine.js'
 import { RATE_BASES, CON_EXPRESION, describir } from '../sheets.js'
 import { inputs, fields, out, addField, removeField, setExpr, basesDisponibles,
-         dependientesDe, termsOffered, setTermsOffered, porPlazo } from '../store.js'
+         dependientesDe, termsOffered, setTermsOffered, porPlazo,
+         compos, setCompo, sinUsar } from '../store.js'
 
 // Una etapa AUTOCONTENIDA: sus propios inputs arriba, sus propias fórmulas abajo.
 //
@@ -51,7 +52,10 @@ const esSalidaDelNodo = r => r.label === props.data.title
 // `data.insertion` trae la CLAVE del punto de inserción, que no siempre es la de la etapa: cuando el
 // punto está partido en dos —arriba las tarifas, abajo los pesos— las perillas viven en la de arriba
 // pero el campo sigue teniendo el `at` del punto, así que sus términos caen donde corresponde.
-const punto = computed(() => (props.data.insertion === true ? props.data.key : props.data.insertion))
+const punto = computed(() => {
+  if (tab.value?.compo) return tab.value.compo   // editando la composición de ese punto
+  return props.data.insertion === true ? props.data.key : props.data.insertion
+})
 const nuevo = ref(null)
 const campo = ref(null)
 // Las bases con nombre del punto (el monto neto, el bruto, lo financiado) más los campos ya
@@ -96,6 +100,7 @@ const razon = f => {
 // Lo único que sí podía romper el grafo de referencias era borrar algo del medio. Así que el × se
 // apaga cuando alguien depende, y dice quién.
 const cuelgan = f => dependientesDe(f).map(d => d.label)
+const sinUsarPorId = id => { const f = fields.find(x => x.id === id); return f ? sinUsar(f) : false }
 const razonBorrar = f => {
   const d = cuelgan(f)
   return d.length
@@ -131,6 +136,15 @@ const nombresUsables = computed(() => {
 //
 // Reemplaza a la lista de filas. La lista mostraba además la sub-expresión de cada término
 // (`monto neto × fianza`); eso queda en el tooltip de cada caja.
+/** Qué punto compone este nodo, si compone alguno. `valor a financiar` compone `amount` (sus
+ *  perillas viven en `tarifas`); `cuota` compone `charges`, que es su propia clave. */
+const composDe = computed(() => {
+  if (!props.data.formulaView) return null
+  const salida = props.data.rows[props.data.rows.length - 1]
+  return salida?.name === 'financedAmount' ? 'amount'
+    : salida?.name === 'installmentCharges' ? 'charges' : null
+})
+
 const vistaFormula = computed(() => {
   if (!props.data.formulaView) return null
   const salida = props.data.rows[props.data.rows.length - 1]
@@ -185,6 +199,17 @@ function abrirNuevo() {
   tab.value = { id: null, arbol, sel: primerHueco(arbol) ?? [] }
 }
 
+/** El tablero sobre LA COMPOSICIÓN del punto: qué campos se usan y cómo. Es la vista de fórmula del
+ *  nodo, pero editable — y es donde se decide dejar de usar una tarifa sin borrarla. */
+function abrirCompo(at) {
+  const actual = compos[at] || vistaFormula.value?.salida?.expr
+  const arbol = desdeTexto(actual)
+  if (!arbol) return
+  // se fija la composición actual como punto de partida, así editar no arranca de la nada
+  setCompo(at, aTexto(arbol))
+  tab.value = { compo: at, id: null, arbol, sel: primerHueco(arbol) ?? [] }
+}
+
 function abrirTablero(f) {
   const arbol = desdeTexto(f.expr)
   if (!arbol) { tab.value = null; return false }   // no dibujable: se edita como texto
@@ -196,9 +221,11 @@ function cerrarTablero() { tab.value = null }
 /** Cada cambio del árbol se serializa y se guarda: el texto sigue siendo la fuente para el motor. */
 function aplicar(arbol) {
   tab.value.arbol = arbol
-  const t = tab.value.id
-  if (t) setExpr(t, aTexto(arbol))
-  else if (nuevo.value) nuevo.value.expr = aTexto(arbol)
+  const txt = aTexto(arbol)
+  // tres destinos: la COMPOSICIÓN del punto, un campo existente, o el campo que se está creando
+  if (tab.value.compo) setCompo(tab.value.compo, txt)
+  else if (tab.value.id) setExpr(tab.value.id, txt)
+  else if (nuevo.value) nuevo.value.expr = txt
 }
 const poner = n => {
   const a = reemplazar(tab.value.arbol, tab.value.sel, n)
@@ -218,6 +245,14 @@ const operarRaiz = () => {
   tab.value.sel = primerHueco(a, [], []) ?? tab.value.sel
 }
 const ponerNum = (ruta, v) => aplicar(reemplazar(tab.value.arbol, ruta, { k: 'num', v }))
+// QUITAR es distinto de vaciar: vaciar deja un hueco (fórmula incompleta), quitar colapsa la
+// operación y deja el hermano. Es lo que hace "dejar de usar" una tarifa sin borrarla.
+const quitarSel = () => {
+  const a = quitar(tab.value.arbol, tab.value.sel)
+  aplicar(a)
+  tab.value.sel = primerHueco(a) ?? []
+}
+const puedeQuitar = computed(() => !!tab.value?.sel?.length)
 const faltan = computed(() => (tab.value ? huecos(tab.value.arbol) : 0))
 
 // ── los plazos ofrecidos ──
@@ -262,6 +297,8 @@ function crear() {
           <span class="ent__kt">{{ f.label }}</span>
           <!-- solo lo AMBIGUO: sobre qué se aplica el %, o que es un total repartido -->
           <i v-if="f.note" class="ent__note">{{ f.note }}</i>
+          <!-- definido pero fuera de la fórmula: se conserva la perilla y no entra al cálculo -->
+          <i v-if="f.field && sinUsarPorId(f.field)" class="ent__note ent__note--off">sin usar</i>
         </span>
         <button v-if="f.field" class="nodrag del" :class="{ 'is-locked': cuelgan(f.field).length }"
           :disabled="!!cuelgan(f.field).length" :title="razonBorrar(f.field)"
@@ -289,6 +326,10 @@ function crear() {
             <span class="ent__kt">{{ f.label }}</span>
             <!-- un auxiliar es un escalón, no un costo: hay que verlo o se lee como si sumara -->
             <i v-if="f.kind === 'aux'" class="ent__note">no suma</i>
+            <!-- fuera de la fórmula del nodo: se conserva la perilla y no entra al cálculo. Va acá
+                 TAMBIÉN, no solo en las filas de perilla: un campo fórmula se dibuja en otro bloque
+                 y se quedaba sin el aviso. -->
+            <i v-if="f.kind !== 'aux' && sinUsarPorId(f.id)" class="ent__note ent__note--off">sin usar</i>
           </span>
           <button class="nodrag del" :class="{ 'is-locked': cuelgan(f.id).length }"
             :disabled="!!cuelgan(f.id).length" :title="razonBorrar(f.id)"
@@ -346,8 +387,13 @@ function crear() {
             @click="operarRaiz()">ⁿ√▢</button>
           <button class="tab__k tab__k--op" title="un número, se escribe en la caja"
             @click="poner({ k: 'num', v: '' })">123</button>
-          <button class="tab__k tab__k--op" title="vaciar esta caja"
+          <button class="tab__k tab__k--op" title="vaciar esta caja — deja un cuadrito por llenar"
             @click="poner(hueco())">▢</button>
+          <!-- QUITAR colapsa la operación y deja el hermano: `a + b + c + esto` pasa a `a + b + c`.
+               Es lo que hace dejar de usar una tarifa sin borrarla. -->
+          <button class="tab__k tab__k--quitar" :disabled="!puedeQuitar"
+            title="quitar este término de la fórmula. La tarifa se conserva, deja de usarse."
+            @click="quitarSel()">quitar</button>
         </div>
       </div>
 
@@ -409,9 +455,12 @@ vez por cada uno: la vitrina está en el nodo de la cuota.">plazos</span>
       </template>
     </div>
 
-    <!-- LA FÓRMULA de la salida, con el dibujo del tablero pero sin editar -->
+    <!-- LA FÓRMULA de la salida. Editable: es donde se decide QUÉ tarifas se usan y CÓMO —
+         crear una tarifa ya no significa usarla. -->
     <div v-if="vistaFormula" class="fv">
-      <div class="fv__ex">
+      <div class="fv__ex" :class="{ 'is-editable': composDe }"
+           :title="composDe ? 'click para editar cómo se compone' : ''"
+           @click="composDe && (tab && tab.compo === composDe ? cerrarTablero() : abrirCompo(composDe))">
         <FormulaBoard :node="vistaFormula.arbol" :labels="vistaFormula.labels"
           :valores="vistaFormula.valores" ro />
       </div>

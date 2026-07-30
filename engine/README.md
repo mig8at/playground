@@ -145,6 +145,25 @@ que ahora son nombres de tabla, así que se lee de una.
   Usa **el mismo componente** que el editor, así que las dos vistas no pueden divergir: si el tablero
   dibuja una fracción apilada, acá también. El `name` crudo de cada caja queda en su tooltip.
 
+  **Y es EDITABLE**, que es lo que la vuelve el lugar donde se decide *qué tarifas se usan y cómo*.
+  Antes la suma era automática: crear una tarifa era usarla. Ahora la composición es un **dato**, con
+  la suma de todo como default — igual que en `lenders.calculator`, donde `params` tiene las perillas
+  y `formulas` **elige** cuáles entran.
+
+  Eso hace que **"definida pero sin usar" sea un estado real**: se conserva la perilla, su valor se
+  sigue calculando, y no entra al total. En `tarifas` aparece marcada `sin usar`.
+
+  ```
+  tarifas             4 × 1000  [sin usar]        2.856   ← se sigue calculando
+  valor a financiar   monto neto + fianza + IVA = 6.714.000  ← sin los 2.856
+  ```
+
+  Y da el flujo natural: **para quitar una tarifa, primero se deja de usar y después se borra.** La
+  composición cuenta como dependiente, así que mientras la fórmula la use el `×` está bloqueado.
+
+  El tablero tiene `quitar`, que es **distinto de vaciar**: vaciar `4 × 1000` en `a + b + c + 4×1000`
+  deja `a + b + c + ▢` —una fórmula incompleta—, y quitar colapsa la operación y deja `a + b + c`.
+
   Y eso arregló algo que la lista escondía: mostraba un total que **no coincidía con sus filas**
   (600.000 + 114.000 + 2.856 no da 6.716.856) porque la base venía de otra etapa y era invisible.
   `alsoShow: ['netAmount']` la trae — se lee, no se posee: no cambia el grafo.

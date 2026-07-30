@@ -114,6 +114,22 @@ export function envolver(n, ruta, o) {
   return reemplazar(n, ruta, { k: 'bin', o, l: izq, r: hueco() })
 }
 
+/** QUITA lo que hay en `ruta`: su operación se colapsa y queda el hermano.
+ *
+ *  Es distinto de vaciar. Vaciar `4 × 1000` en `a + b + c + 4×1000` deja `a + b + c + ▢`, que es una
+ *  fórmula INCOMPLETA. Quitarlo deja `a + b + c`, que es una fórmula de tres términos — y eso es
+ *  "dejar de usar" una tarifa sin borrarla.
+ *
+ *  En la raíz no hay operación que colapsar, así que devuelve un hueco: la fórmula queda vacía. */
+export function quitar(n, ruta) {
+  if (!ruta.length) return hueco()
+  const rutaPadre = ruta.slice(0, -1)
+  const lado = ruta[ruta.length - 1]
+  const padre = en(n, rutaPadre)
+  if (!padre || padre.k !== 'bin') return n
+  return reemplazar(n, rutaPadre, lado === 'l' ? padre.r : padre.l)
+}
+
 /** La ruta del primer hueco en orden de lectura, o `null` si no queda ninguno.
  *  `desde` permite buscar el SIGUIENTE: se saltean los huecos que estén antes de esa ruta. */
 export function primerHueco(n, ruta = [], desde = null) {

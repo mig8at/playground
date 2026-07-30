@@ -536,6 +536,11 @@ button.icon:hover { color: var(--ink); background: var(--card2) }
           line-height: 1.3; text-align: center }
 .tab__k:hover { border-color: var(--purple); color: var(--purple); background: var(--hd-purple) }
 .tab__k--op { border-style: dashed; color: var(--ink) }
+/* quitar un término no es una operación: es sacar algo de la fórmula, y se ve distinto */
+.tab__k--quitar { color: var(--red); border-color: var(--line) }
+.tab__k--quitar:hover:not(:disabled) { border-color: var(--red); background: var(--tint-red);
+                                       color: var(--red) }
+.tab__k--quitar:disabled { color: var(--dim); cursor: default; opacity: .5 }
 .tab__k--op:hover { border-style: solid }
 
 /* la fórmula armada: fondo propio para que se lea como "lo que estoy construyendo" */
@@ -596,7 +601,14 @@ button.icon:hover { color: var(--ink); background: var(--card2) }
    El mismo dibujo del tablero, con el valor de cada caja debajo del nombre. Es la composición de un
    vistazo: `monto neto + fianza + IVA + 4×1000 = 6.716.856`. */
 .fv { border-top: 1px solid var(--line); margin-top: 2px; padding: 7px 8px 8px }
-.fv__ex { display: flex; align-items: center; flex-wrap: wrap; gap: 3px }
+.fv__ex { display: flex; align-items: center; flex-wrap: wrap; gap: 3px; border-radius: 7px;
+           padding: 2px; border: 1px solid transparent }
+/* la fórmula del nodo es EDITABLE: acá se decide qué tarifas se usan y cómo */
+.fv__ex.is-editable { cursor: pointer }
+.fv__ex.is-editable:hover { border-color: var(--purple); background: var(--card2) }
+/* un campo definido pero fuera de la fórmula: se conserva la perilla y no entra al cálculo */
+.ent__note--off { color: var(--amber); border: 1px solid var(--amber); border-radius: 3px;
+                  padding: 0 3px; opacity: .8 }
 .fv__t { display: flex; align-items: baseline; justify-content: flex-end; gap: 6px;
          margin-top: 6px; padding-top: 5px; border-top: 1px solid var(--line) }
 .fv__t em { font-style: normal; font: 11px var(--mono); color: var(--dim) }
