@@ -603,9 +603,20 @@ button.icon:hover { color: var(--ink); background: var(--card2) }
 .fv { border-top: 1px solid var(--line); margin-top: 2px; padding: 7px 8px 8px }
 .fv__ex { display: flex; align-items: center; flex-wrap: wrap; gap: 3px; border-radius: 7px;
            padding: 2px; border: 1px solid transparent }
-/* la fórmula del nodo es EDITABLE: acá se decide qué tarifas se usan y cómo */
-.fv__ex.is-editable { cursor: pointer }
-.fv__ex.is-editable:hover { border-color: var(--purple); background: var(--card2) }
+/* la fórmula del nodo se lee y se edita en el mismo lugar */
+.fv__ex.is-editable { background: var(--card2); border-color: var(--line) }
+.fv__f { font: 9px var(--mono); color: var(--amber); margin-left: 8px }
+
+/* ── la paleta inline ──
+   Aparece solo con una caja elegida: leer y editar son el mismo lugar, pero leer no muestra
+   herramientas. Puede crecer sin solaparse porque estos nodos son los últimos de su columna. */
+.pal { margin-top: 7px; padding-top: 6px; border-top: 1px dashed var(--line) }
+.pal__hd { display: flex; align-items: center; font: 8.5px var(--mono); color: var(--dim);
+           text-transform: uppercase; letter-spacing: .07em; padding: 3px 2px 4px }
+.pal__x { margin-left: auto; font: 9px var(--mono); padding: 1px 6px; border-radius: 4px;
+          text-transform: none; letter-spacing: 0 }
+.pal__g { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px }
+.pal__g--nom { display: flex; flex-wrap: wrap }
 /* un campo definido pero fuera de la fórmula: se conserva la perilla y no entra al cálculo */
 .ent__note--off { color: var(--amber); border: 1px solid var(--amber); border-radius: 3px;
                   padding: 0 3px; opacity: .8 }

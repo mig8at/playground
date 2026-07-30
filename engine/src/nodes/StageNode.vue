@@ -1,5 +1,5 @@
 <script setup>
-import { computed, ref, nextTick } from 'vue'
+import { computed, ref, nextTick, watch } from 'vue'
 import { Handle, Position } from '@vue-flow/core'
 import MoneyInput from '../MoneyInput.vue'
 import PercentInput from '../PercentInput.vue'
@@ -52,16 +52,20 @@ const esSalidaDelNodo = r => r.label === props.data.title
 // `data.insertion` trae la CLAVE del punto de inserción, que no siempre es la de la etapa: cuando el
 // punto está partido en dos —arriba las tarifas, abajo los pesos— las perillas viven en la de arriba
 // pero el campo sigue teniendo el `at` del punto, así que sus términos caen donde corresponde.
-const punto = computed(() => {
-  if (tab.value?.compo) return tab.value.compo   // editando la composición de ese punto
-  return props.data.insertion === true ? props.data.key : props.data.insertion
-})
+// `punto` — el punto de inserción del que este nodo ALOJA las perillas. Decide qué campos dibuja y
+// dónde caen los que se agreguen. Sale solo de `insertion`.
+const punto = computed(() =>
+  props.data.insertion === true ? props.data.key : props.data.insertion)
+// `puntoTablero` — de qué punto es la fórmula que el tablero está editando. Es OTRA cosa: `valor a
+// financiar` compone `amount` sin alojar sus perillas, así que mezclarlos le hacía dibujar el editor
+// del `4 × 1000`, que vive en `tarifas`.
+const puntoTablero = computed(() => tab.value?.compo || punto.value)
 const nuevo = ref(null)
 const campo = ref(null)
 // Las bases con nombre del punto (el monto neto, el bruto, lo financiado) más los campos ya
 // creados en este nodo. Un campo solo puede apoyarse en los ANTERIORES, así que un ciclo no se
 // puede ni escribir.
-const basesFijas = computed(() => RATE_BASES[punto.value] || [])
+const basesFijas = computed(() => RATE_BASES[puntoTablero.value] || [])
 const bases = computed(() => basesDisponibles(punto.value))
 const frase = computed(() => (nuevo.value ? describir({ ...nuevo.value, at: punto.value }, fields) : ''))
 
@@ -119,7 +123,7 @@ const nombresUsables = computed(() => {
   const id = tab.value?.id
   const i = id ? fields.findIndex(f => f.id === id) : fields.length
   const previos = fields.slice(0, i < 0 ? fields.length : i)
-  const delPunto = previos.filter(f => f.at === punto.value)
+  const delPunto = previos.filter(f => f.at === puntoTablero.value)
   // La tecla MUESTRA el español y ESCRIBE el identificador: es la misma regla del resto —la UI nunca
   // muestra un `name`— y evita tener que conocerlos de memoria.
   return [
@@ -149,15 +153,15 @@ const vistaFormula = computed(() => {
   if (!props.data.formulaView) return null
   const salida = props.data.rows[props.data.rows.length - 1]
   if (!salida) return null
-  const arbol = desdeTexto(salida.expr)
-  if (!arbol) return null   // si no se puede dibujar, se cae a la lista de filas
-  const labels = {}, valores = {}, exprs = {}
+  const labels = {}, valores = {}
   for (const r of props.data.rows) {
     labels[r.name] = r.label
     if (r.value != null) valores[r.name] = fmtNum(r.value)
-    if (r.expr) exprs[r.name] = r.expr
   }
-  return { arbol, labels, valores, salida }
+  // `arbol` puede ser null —una fórmula a medio armar tiene un `▢` que `desdeTexto` no lee— y eso
+  // NO invalida la vista: las etiquetas y los valores salen de las filas, y mientras se edita el
+  // árbol lo manda el tablero. Antes esto devolvía null y el nodo se vaciaba al dejar un hueco.
+  return { arbol: desdeTexto(salida.expr), labels, valores, salida }
 })
 
 // ══════════ EL TABLERO ══════════
@@ -199,17 +203,6 @@ function abrirNuevo() {
   tab.value = { id: null, arbol, sel: primerHueco(arbol) ?? [] }
 }
 
-/** El tablero sobre LA COMPOSICIÓN del punto: qué campos se usan y cómo. Es la vista de fórmula del
- *  nodo, pero editable — y es donde se decide dejar de usar una tarifa sin borrarla. */
-function abrirCompo(at) {
-  const actual = compos[at] || vistaFormula.value?.salida?.expr
-  const arbol = desdeTexto(actual)
-  if (!arbol) return
-  // se fija la composición actual como punto de partida, así editar no arranca de la nada
-  setCompo(at, aTexto(arbol))
-  tab.value = { compo: at, id: null, arbol, sel: primerHueco(arbol) ?? [] }
-}
-
 function abrirTablero(f) {
   const arbol = desdeTexto(f.expr)
   if (!arbol) { tab.value = null; return false }   // no dibujable: se edita como texto
@@ -227,12 +220,15 @@ function aplicar(arbol) {
   else if (tab.value.id) setExpr(tab.value.id, txt)
   else if (nuevo.value) nuevo.value.expr = txt
 }
+const editando = computed(() => !!tab.value && tab.value.sel !== null)
 const poner = n => {
+  if (tab.value.sel === null) return
   const a = reemplazar(tab.value.arbol, tab.value.sel, n)
   aplicar(a)
   tab.value.sel = primerHueco(a, [], tab.value.sel) ?? tab.value.sel
 }
 const operar = o => {
+  if (tab.value.sel === null) return
   const a = envolver(tab.value.arbol, tab.value.sel, o)
   aplicar(a)
   tab.value.sel = primerHueco(a, [], []) ?? tab.value.sel
@@ -240,6 +236,7 @@ const operar = o => {
 // la raíz ENVUELVE lo elegido, igual que las operaciones: si estás sobre algo armado y apretás
 // raíz, querés la raíz DE eso. Reemplazar te hacía perder lo que tenías.
 const operarRaiz = () => {
+  if (tab.value.sel === null) return
   const a = envolverRaiz(tab.value.arbol, tab.value.sel)
   aplicar(a)
   tab.value.sel = primerHueco(a, [], []) ?? tab.value.sel
@@ -248,6 +245,7 @@ const ponerNum = (ruta, v) => aplicar(reemplazar(tab.value.arbol, ruta, { k: 'nu
 // QUITAR es distinto de vaciar: vaciar deja un hueco (fórmula incompleta), quitar colapsa la
 // operación y deja el hermano. Es lo que hace "dejar de usar" una tarifa sin borrarla.
 const quitarSel = () => {
+  if (!tab.value.sel?.length) return
   const a = quitar(tab.value.arbol, tab.value.sel)
   aplicar(a)
   tab.value.sel = primerHueco(a) ?? []
@@ -271,11 +269,38 @@ function crear() {
   addField({ ...nuevo.value, at: punto.value })
   nuevo.value = null
 }
+// En un nodo `formulaView` el tablero está SIEMPRE abierto sobre la composición: el nodo ES el
+// tablero. No hay vista de lectura ni overlay — una sola cosa, siempre editable.
+//
+// Puede crecer sin solaparse porque estos nodos son los ÚLTIMOS de su columna: `tarifas` está arriba
+// de `valor a financiar`, y `cuota` está sola. Crecer hacia abajo no pisa nada.
+//
+// `sel: null` al arrancar, así la paleta no aparece hasta que se elige una caja: leer y editar son
+// el mismo lugar, pero leer no muestra herramientas.
+watch(
+  () => [props.data.formulaView, composDe.value, vistaFormula.value?.salida?.expr],
+  () => {
+    if (!props.data.formulaView) return
+    const at = composDe.value
+    if (!at) { tab.value = null; return }
+    const txt = compos[at] || vistaFormula.value?.salida?.expr || ''
+    // Si el tablero YA está en esta composición y su propio texto coincide, no lo toco. Es lo que
+    // permite dejar un `▢` a medio armar: `desdeTexto` no puede leer esa fórmula, pero el árbol del
+    // tablero es la fuente mientras se edita. Sin esta guarda, dejar un hueco vaciaba el nodo.
+    if (tab.value?.compo === at && aTexto(tab.value.arbol) === txt) return
+    const arbol = desdeTexto(txt)
+    if (!arbol) return   // no legible y no es lo que el tablero acaba de escribir: se deja como está
+    // si ya estoy editando ESTA composición y el texto no cambió, no piso la selección
+    tab.value = { compo: at, id: null, arbol, sel: tab.value?.compo === at ? tab.value.sel : null }
+  },
+  { immediate: true, deep: false },
+)
+
 </script>
 
 <template>
   <div class="n n--stage"
-       :class="['st--' + data.key, data.group && 'g--' + data.group, { 'has-tec': !!tab }]"
+       :class="['st--' + data.key, data.group && 'g--' + data.group, { 'has-tec': !!tab && !tab.compo }]"
        style="min-width:296px;max-width:296px">
     <!-- el de la izquierda solo si algo la apunta desde afuera del grupo -->
     <Handle v-if="data.hIn" id="in" type="target" :position="Position.Left" />
@@ -356,7 +381,7 @@ function crear() {
       <!-- ══════════ EL TABLERO ══════════
            Overlay y no dentro del nodo: si el nodo creciera al abrirlo se solaparía con el de abajo
            —Vue Flow posiciona por alto medido y el layout no sabe que hay un tablero abierto—. -->
-      <div v-if="tab" class="tab nodrag">
+      <div v-if="tab && !tab.compo" class="tab nodrag">
         <div class="tab__hd">
           <b>armá la fórmula</b>
           <span v-if="faltan" class="tab__f">{{ faltan }} sin llenar</span>
@@ -455,17 +480,43 @@ vez por cada uno: la vitrina está en el nodo de la cuota.">plazos</span>
       </template>
     </div>
 
-    <!-- LA FÓRMULA de la salida. Editable: es donde se decide QUÉ tarifas se usan y CÓMO —
-         crear una tarifa ya no significa usarla. -->
-    <div v-if="vistaFormula" class="fv">
-      <div class="fv__ex" :class="{ 'is-editable': composDe }"
-           :title="composDe ? 'click para editar cómo se compone' : ''"
-           @click="composDe && (tab && tab.compo === composDe ? cerrarTablero() : abrirCompo(composDe))">
-        <FormulaBoard :node="vistaFormula.arbol" :labels="vistaFormula.labels"
-          :valores="vistaFormula.valores" ro />
+    <!-- EL NODO ES EL TABLERO. La fórmula se lee y se edita en el mismo lugar: cada caja lleva su
+         valor debajo, click en una la elige, y la paleta aparece solo entonces. Acá se decide QUÉ
+         tarifas se usan y CÓMO — crear una tarifa ya no significa usarla. -->
+    <div v-if="vistaFormula && (tab || vistaFormula.arbol)" class="fv">
+      <div class="fv__ex" :class="{ 'is-editable': !!tab }">
+        <FormulaBoard :node="tab ? tab.arbol : vistaFormula.arbol" :labels="vistaFormula.labels"
+          :valores="vistaFormula.valores" :sel="tab ? tab.sel : null" :ro="!tab"
+          @sel="r => tab && (tab.sel = r)" @num="ponerNum" />
       </div>
       <div class="fv__t" :class="{ 'is-off': vistaFormula.salida.status !== 'ok' }">
         <em>=</em> <b>{{ val(vistaFormula.salida) }}</b>
+        <span v-if="faltan" class="fv__f">{{ faltan }} sin llenar</span>
+      </div>
+
+      <!-- la paleta, solo con una caja elegida: leer y editar son el mismo lugar, pero leer no
+           muestra herramientas -->
+      <div v-if="editando" class="pal">
+        <div class="pal__hd">
+          campos
+          <button class="pal__x" @click="tab.sel = null">listo</button>
+        </div>
+        <div class="pal__g pal__g--nom">
+          <button v-for="nb in nombresUsables" :key="nb.name" class="tab__k" :title="nb.name"
+            @click="poner({ k: 'ref', name: nb.name })">{{ nb.label }}</button>
+        </div>
+        <div class="pal__hd">operaciones</div>
+        <div class="pal__g">
+          <button v-for="op in OPS" :key="op.o" class="tab__k tab__k--op" :title="op.ayuda"
+            @click="operar(op.o)">▢ {{ op.ver }} ▢</button>
+          <button class="tab__k tab__k--op" title="raíz. Es x ^ (1/n) con el índice editable."
+            @click="operarRaiz()">ⁿ√▢</button>
+          <button class="tab__k tab__k--op" title="un número, se escribe en la caja"
+            @click="poner({ k: 'num', v: '' })">123</button>
+          <button class="tab__k tab__k--quitar" :disabled="!puedeQuitar"
+            title="quitar este término. La tarifa se conserva y deja de usarse."
+            @click="quitarSel()">quitar</button>
+        </div>
       </div>
     </div>
 

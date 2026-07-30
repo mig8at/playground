@@ -145,7 +145,14 @@ que ahora son nombres de tabla, así que se lee de una.
   Usa **el mismo componente** que el editor, así que las dos vistas no pueden divergir: si el tablero
   dibuja una fracción apilada, acá también. El `name` crudo de cada caja queda en su tooltip.
 
-  **Y es EDITABLE**, que es lo que la vuelve el lugar donde se decide *qué tarifas se usan y cómo*.
+  **El nodo ES el tablero.** No hay vista de lectura ni overlay: la fórmula se lee y se edita en el
+  mismo lugar. Click en una caja la elige, y la paleta —campos, operaciones, `quitar`— aparece solo
+  entonces; leer no muestra herramientas.
+
+  Puede crecer sin solaparse porque estos nodos son los **últimos de su columna**: `tarifas` está
+  arriba de `valor a financiar`, y `cuota` está sola. Crecer hacia abajo no pisa nada.
+
+  **Y es editable**, que es lo que la vuelve el lugar donde se decide *qué tarifas se usan y cómo*.
   Antes la suma era automática: crear una tarifa era usarla. Ahora la composición es un **dato**, con
   la suma de todo como default — igual que en `lenders.calculator`, donde `params` tiene las perillas
   y `formulas` **elige** cuáles entran.
