@@ -190,7 +190,13 @@ export const SHEET = {
     // cuota. Coincide con este número solo en la fila 1.
     // Título = lo que PRODUCE, porque este nodo ya no tiene perillas: es puro pesos. La fila de
     // salida no repite el nombre (ver `esSalidaDelNodo` en StageNode).
-    { key: 'amount', title: 'valor a financiar', group: 'monto', formulas: ['financedAmount'] },
+    //
+    // `sumRows` — el nodo se lee como la SUMA que es, con el `+` delante de cada término y una
+    // línea antes del total. Y `alsoShow` trae `netAmount`, que es dueño de `la solicitud`: sin él
+    // el nodo mostraba un total que NO coincidía con sus filas (600.000 + 114.000 + 2.856 no da
+    // 6.716.856) porque la base era invisible. Eso no era estética, era una suma que no cerraba.
+    { key: 'amount', title: 'valor a financiar', group: 'monto',
+      sumRows: true, alsoShow: ['netAmount'], formulas: ['financedAmount'] },
 
     // ── el lado del PAGO ──
     // UNA etapa: la anualidad y los recargos que la completan. Estuvieron separadas mientras el
@@ -206,6 +212,7 @@ export const SHEET = {
     // `termsCompare` — la vitrina: la cuota de CADA plazo ofrecido. Sale de correr la misma hoja
     // una vez por plazo, y es la pantalla que el cliente ve de verdad.
     { key: 'charges', title: 'cuota', group: 'pago', insertion: true, termsCompare: true,
+      sumRows: true,
       insertionHelp: 'La anualidad y lo que se le suma. Lo que entra acá viaja arriba de cada pago '
         + 'y nunca entra al saldo, así que NO paga intereses.',
       formulas: ['installment', 'installmentCharges', 'totalInstallment'] },

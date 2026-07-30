@@ -45,9 +45,9 @@ export function layoutSheet(def, out, opts = {}) {
   // vive en otra etapa — es el caso de `tarifas` → `costos al monto`, donde el nodo de abajo mostraba
   // los pesos pero no de dónde salían. Ahí la expresión es lo que hace entendible la configuración
   // sin tener que meter el 10% dentro de la fórmula (que ataría la hoja a un solo lender).
-  const row = (name, verExpr = false) => ({
+  const row = (name, verExpr = false, ajena = false) => ({
     name, expr: def.formulas[name], exprEs: traducir(def.formulas[name]),
-    label: LBL[name] || name, verExpr,
+    label: LBL[name] || name, verExpr, ajena,
     status: out.res[name]?.status ?? 'skipped',
     value: out.res[name]?.status === 'ok' ? out.res[name].value : undefined,
   })
@@ -86,7 +86,17 @@ export function layoutSheet(def, out, opts = {}) {
   // `aliasRows` las marca `resolveSheet`: un subtotal de un solo término es una copia de ese
   // término, así que no se dibuja (sigue existiendo como fórmula, la necesita el total).
   const alias = new Set(def.aliasRows || [])
-  const visibles = st => st.formulas.filter(f => deCampo.get(f) !== st.key && !alias.has(f))
+  // `alsoShow` son valores de OTRA etapa que esta dibuja para que su suma cierre. No los posee —no
+  // cambian el grafo ni las dependencias— solo se leen.
+  //
+  // Y un nodo que se lee como SUMA no esconde ninguno de sus términos: `aliasRows` existe para no
+  // repetir un subtotal en una LISTA, pero en una suma esconder un término deja un total que no
+  // coincide con lo que está arriba — el mismo defecto que `alsoShow` vino a arreglar.
+  const visibles = st => [
+    ...(st.alsoShow || []),
+    ...st.formulas.filter(f =>
+      deCampo.get(f) !== st.key && (st.sumRows || !alias.has(f))),
+  ]
   // `rows` dice CUÁNTAS de sus fórmulas dibuja una etapa. Es distinto de cuáles POSEE: `tasa` es
   // dueña de las suyas —eso es lo que la pone en el grafo y lo que hace que `cuota` dependa de
   // ella— y no dibuja ninguna.
@@ -209,7 +219,8 @@ export function layoutSheet(def, out, opts = {}) {
           hUp: vArriba.has(st.key), hDown: vAbajo.has(st.key), hIn: entra.has(st.key),
           nFilas: cuantasFilas(st),
           // la expresión se ve cuando la perilla del campo está en OTRA etapa
-          rows: visibles(st).map(f => row(f, deCampo.has(f))),
+          sumRows: !!st.sumRows,
+          rows: visibles(st).map(f => row(f, deCampo.has(f), (st.alsoShow || []).includes(f))),
           inputs: (def.inputs || []).filter(i => etapaDe(i.appliesTo) === st.key),
         },
       })

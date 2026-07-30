@@ -112,25 +112,64 @@ const nombresUsables = computed(() => {
   const i = id ? fields.findIndex(f => f.id === id) : fields.length
   const previos = fields.slice(0, i < 0 ? fields.length : i)
   const delPunto = previos.filter(f => f.at === punto.value)
+  // La tecla MUESTRA el español y ESCRIBE el identificador: es la misma regla del resto —la UI nunca
+  // muestra un `name`— y evita tener que conocerlos de memoria.
   return [
-    ...basesFijas.value.map(b => b.value),
-    'installments',
-    ...delPunto.map(f => (f.kind === 'money' ? f.name : f.name + 'Value')),
+    ...basesFijas.value.map(b => ({ name: b.value, label: b.label })),
+    { name: 'installments', label: 'cuotas' },
+    ...delPunto.map(f => ({ name: f.kind === 'money' ? f.name : f.name + 'Value', label: f.label })),
   ]
 })
 
-// Qué editor de expresión tiene el foco, para saber dónde insertar. El chip usa `mousedown.prevent`
-// para no robarle el foco al input, así que el cursor se conserva.
+// ── las formas con cuadritos ──
+// Las CUATRO que existen en los datos, no un editor matemático general: las 14 fórmulas reales —los
+// 6 presets más las 3 calculadoras de `lenders.calculator`— usan solo `+ − × ÷`. Ni una potencia, ni
+// una raíz, ni una fracción. Botones de fracción y raíz serían notación sin datos detrás.
+//
+// El `▢` no es un identificador válido, así que mientras quede uno el motor dice "carácter
+// inesperado ▢" y el campo se muestra sin calcular. Eso es correcto: la fórmula está incompleta, y
+// la evaluación parcial ya apaga solo lo que depende de ella.
+const HUECO = '▢'
+const FORMAS = [
+  { ver: '▢ + ▢', pone: `${HUECO} + ${HUECO}`, ayuda: 'sumar — un subtotal' },
+  { ver: '▢ − ▢', pone: `${HUECO} - ${HUECO}`, ayuda: 'restar — un descuento' },
+  { ver: '▢ × ▢', pone: `${HUECO} * ${HUECO}`, ayuda: 'multiplicar — un porcentaje sobre algo' },
+  { ver: '▢ ÷ ▢', pone: `${HUECO} / ${HUECO}`, ayuda: 'dividir' },
+  { ver: '( ▢ )', pone: `(${HUECO})`, ayuda: 'agrupar' },
+  { ver: '▢ ^ ▢', pone: `${HUECO} ^ ${HUECO}`,
+    ayuda: 'elevar. El motor lo soporta, aunque ninguna fórmula real lo usa todavía: es lo que haría '
+      + 'falta para capitalizar una tasa dentro de un campo.' },
+  { ver: '▢ ÷ cuotas', pone: `${HUECO} / installments`,
+    ayuda: 'repartir un total entre las cuotas' },
+  { ver: '(▢ + ▢) × ▢', pone: `(${HUECO} + ${HUECO}) * ${HUECO}`,
+    ayuda: 'un porcentaje sobre una suma — la forma del 4 × 1000' },
+]
+
+// Qué editor de expresión tiene el foco, para saber dónde escribir. Los botones usan
+// `mousedown.prevent` para no robarle el foco al input, así que el cursor se conserva.
 const expreFoco = ref(null)
-function insertar(nombre) {
+
+/** Escribe en el editor con foco. Si hay un hueco pendiente, lo LLENA —así los cuadritos se
+ *  completan en orden sin tener que mover el cursor—; si no, inserta donde esté el cursor. */
+function escribir(txt) {
   const el = expreFoco.value?.el
   if (!el) return
-  const i = el.selectionStart ?? el.value.length
-  const j = el.selectionEnd ?? i
-  el.value = el.value.slice(0, i) + nombre + el.value.slice(j)
+  const hueco = el.value.indexOf(HUECO)
+  let pos
+  if (hueco >= 0) {
+    el.value = el.value.slice(0, hueco) + txt + el.value.slice(hueco + HUECO.length)
+    pos = hueco + txt.length
+  } else {
+    const i = el.selectionStart ?? el.value.length
+    const j = el.selectionEnd ?? i
+    el.value = el.value.slice(0, i) + txt + el.value.slice(j)
+    pos = i + txt.length
+  }
   el.dispatchEvent(new Event('input', { bubbles: true }))
   el.focus()
-  el.selectionStart = el.selectionEnd = i + nombre.length
+  // si quedan huecos, el cursor va al siguiente; si no, después de lo escrito
+  const sig = el.value.indexOf(HUECO)
+  el.selectionStart = el.selectionEnd = sig >= 0 ? sig + HUECO.length : pos
 }
 
 // ── los plazos ofrecidos ──
@@ -152,7 +191,8 @@ function crear() {
 </script>
 
 <template>
-  <div class="n n--stage" :class="['st--' + data.key, data.group && 'g--' + data.group]"
+  <div class="n n--stage"
+       :class="['st--' + data.key, data.group && 'g--' + data.group, { 'has-tec': !!expreFoco }]"
        style="min-width:296px;max-width:296px">
     <!-- el de la izquierda solo si algo la apunta desde afuera del grupo -->
     <Handle v-if="data.hIn" id="in" type="target" :position="Position.Left" />
@@ -221,9 +261,20 @@ function crear() {
 
       <!-- los nombres usables, mientras se escribe una expresión. `mousedown.prevent` para no
            perder el foco ni el cursor. -->
-      <div v-if="expreFoco" class="nom">
-        <button v-for="nb in nombresUsables" :key="nb" class="nodrag nom__c"
-          @mousedown.prevent="insertar(nb)">{{ nb }}</button>
+      <!-- El teclado. Va como OVERLAY y no dentro del nodo: si el nodo creciera al enfocar, se
+           solaparía con el de abajo — Vue Flow posiciona por alto medido, y el layout no sabe que
+           hay un editor con foco. -->
+      <div v-if="expreFoco" class="tec nodrag">
+        <div class="tec__hd">campos</div>
+        <div class="tec__g tec__g--nom">
+          <button v-for="nb in nombresUsables" :key="nb.name" class="tec__k" :title="nb.name"
+            @mousedown.prevent="escribir(nb.name)">{{ nb.label }}</button>
+        </div>
+        <div class="tec__hd">operaciones</div>
+        <div class="tec__g">
+          <button v-for="f in FORMAS" :key="f.ver" class="tec__k tec__k--op"
+            :title="f.ayuda" @mousedown.prevent="escribir(f.pone)">{{ f.ver }}</button>
+        </div>
       </div>
 
       <!-- la lista de plazos que el lender OFRECE. No es un input: `cuotas` elige uno de acá -->
@@ -289,8 +340,12 @@ vez por cada uno: la vitrina está en el nodo de la cuota.">plazos</span>
     <div v-if="filas.length" class="grp-rows st-out">
       <div v-for="(r, i) in filas" :key="r.name"
            :class="['grp-row', { 'is-out': i === filas.length - 1, 'is-off': r.status !== 'ok',
-                                 'has-expr': r.verExpr }]"
+                                 'has-expr': r.verExpr, 'is-ajena': r.ajena,
+                                 'is-total': data.sumRows && i === filas.length - 1 }]"
            :title="r.expr">
+        <!-- el `+` hace que el nodo se lea como la SUMA que es, no como una lista. La primera fila
+             no lo lleva (es la base) y la última tampoco (es el total). -->
+        <em v-if="data.sumRows" class="grp-op">{{ i === 0 || i === filas.length - 1 ? '' : '+' }}</em>
         <span class="grp-k" :class="{ 'is-hidden': esSalidaDelNodo(r) }">
           {{ esSalidaDelNodo(r) ? '' : r.label }}
           <!-- La expresión, cuando la perilla vive en otra etapa: sin esto el nodo mostraba los

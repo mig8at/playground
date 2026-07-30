@@ -246,6 +246,14 @@ table.ser tr:hover td { background: var(--card2) }
 .grp-v { margin-left: auto; font-family: var(--mono); font-weight: 650; white-space: nowrap }
 .grp-row.is-out .grp-k, .grp-row.is-out .grp-v { color: var(--purple); font-weight: 700 }
 .grp-row.is-off { opacity: .45 }
+/* ── el nodo leído como la suma que es ──
+   El `+` delante de cada término y una línea antes del total: sin eso el nodo mostraba un total que
+   no coincidía con sus filas, porque la base venía de otra etapa y no se veía. */
+.grp-op { font-style: normal; flex: 0 0 8px; color: var(--dim); font-family: var(--mono);
+          font-size: 10px }
+.grp-row.is-total { border-top: 1px solid var(--line); margin-top: 3px; padding-top: 3px }
+/* la fila traída de otra etapa: se lee, no se posee */
+.grp-row.is-ajena .grp-k, .grp-row.is-ajena .grp-v { color: var(--mut) }
 .grp-row.is-off .grp-v { font-weight: 400; font-size: 10.5px }
 
 /* ── campos editables dentro de un nodo ── */
@@ -500,12 +508,31 @@ button.icon:hover { color: var(--ink); background: var(--card2) }
 .ent__row:hover .del.is-locked, .ent__f:hover .del.is-locked { color: var(--dim); opacity: .5 }
 .del.is-locked:hover { color: var(--dim) }
 
-/* B4 — los nombres usables mientras se escribe una expresión. Aparecen solo con el editor en foco:
-   son ayuda, no decoración permanente. */
-.nom { display: flex; flex-wrap: wrap; gap: 3px; padding: 4px 9px 2px }
-.nom__c { border: 1px solid var(--line); background: var(--card2); border-radius: 4px;
-          padding: 1px 5px; cursor: pointer; font: 9.5px var(--mono); color: var(--mut) }
-.nom__c:hover { border-color: var(--purple); color: var(--purple) }
+/* ── el teclado de fórmulas ──
+   Overlay, NO dentro del nodo: si el nodo creciera al enfocar el editor se solaparía con el de
+   abajo. Vue Flow posiciona por alto medido y el layout no sabe que hay un editor con foco.
+   Aparece solo mientras se escribe: es ayuda, no decoración permanente. */
+/* El nodo tiene `overflow: hidden` (por el borde redondeado) y Vue Flow le pone su propio
+   `z-index` a cada nodo, así que el teclado quedaba CLIPEADO y por debajo del nodo de abajo.
+   Mientras está abierto, el nodo deja de recortar y sube en el orden — con `!important` porque
+   Vue Flow escribe el z-index inline. */
+.n--stage.has-tec { overflow: visible }
+.vue-flow__node:has(.n--stage.has-tec) { z-index: 40 !important }
+.tec { position: absolute; left: 6px; right: 6px; top: 100%; margin-top: 5px; z-index: 20;
+       background: var(--card); border: 1px solid var(--purple); border-radius: 9px;
+       box-shadow: var(--shadow-2); padding: 6px 7px 8px }
+.tec__hd { font: 8.5px var(--mono); color: var(--dim); text-transform: uppercase;
+           letter-spacing: .07em; padding: 3px 2px 4px }
+.tec__g { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px }
+/* los campos son de ancho variable (llevan su label en español), así que fluyen en vez de grilla */
+.tec__g--nom { display: flex; flex-wrap: wrap }
+.tec__k { border: 1px solid var(--line); background: var(--card2); border-radius: 6px;
+          padding: 4px 6px; cursor: pointer; font: 10px var(--mono); color: var(--mut);
+          line-height: 1.3; text-align: center }
+.tec__k:hover { border-color: var(--purple); color: var(--purple); background: var(--hd-purple) }
+/* las operaciones con borde punteado: el cuadrito ya dice que hay un hueco por llenar */
+.tec__k--op { border-style: dashed; color: var(--ink) }
+.tec__k--op:hover { border-style: solid }
 /* el calificativo al lado del nombre: SOLO lo ambiguo — sobre qué se aplica el %, o que es un
    total repartido. Sin esto "IVA de la fianza 19%" no dice 19% de qué. */
 .ent__note { flex: 0 0 auto; font-style: normal; font-size: 9.5px; color: var(--dim);

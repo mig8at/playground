@@ -132,9 +132,34 @@ que ahora son nombres de tabla, así que se lee de una.
 - **La fila de salida no repite el título del nodo** — en `valor a financiar` queda solo el número.
 - **`cuota inicial` dice `resta`.** Se escribe en positivo y `monto neto` la resta; desde que se
   fueron los prefijos de signo, nada en la fila lo decía.
-- **Al escribir una fórmula, los nombres usables salen como chips clickeables** (las bases del punto,
-  `installments`, y los campos **anteriores** en sus pesos — nunca el propio, que sería un ciclo).
-  Antes había que adivinar los `name` en inglés.
+- **Los nodos se leen como la SUMA que son.** `+` delante de cada término y una línea antes del
+  total. No es estética: `valor a financiar` mostraba un total que **no coincidía con sus filas**
+  (600.000 + 114.000 + 2.856 no da 6.716.856) porque la base venía de otra etapa y no se veía.
+  Ahora `alsoShow` la trae y la suma cierra a la vista. Y un nodo-suma **nunca esconde un término**,
+  ni siquiera un subtotal redundante — esconderlo deja un total que no cuadra.
+
+- **Un teclado de fórmulas, con cuadritos.** Al enfocar una expresión aparece un panel flotante con
+  los **campos** (en español, insertan el identificador) y las **operaciones** con huecos:
+
+  ```
+  CAMPOS       el monto neto · el monto · cuotas · fianza · IVA de la fianza
+  OPERACIONES  ▢ + ▢   ▢ − ▢   ▢ × ▢   ▢ ÷ ▢
+               ( ▢ )   ▢ ^ ▢   ▢ ÷ cuotas   (▢ + ▢) × ▢
+  ```
+
+  Se elige la forma y después se llenan los huecos en orden: cada tecla reemplaza el primer `▢`
+  pendiente, así que el 4 × 1000 se arma sin escribir nada más que el `0.004`.
+
+  **Las teclas son las que los datos justifican.** Las 14 fórmulas reales —los 6 presets más las 3
+  calculadoras de `lenders.calculator`— usan solo `+ − × ÷` y paréntesis: ni una potencia, ni una
+  raíz, ni una fracción. Por eso no hay `√`, `|▢|`, `π` ni `e`: sería notación sin datos detrás, y
+  además `abs` y las constantes no están en la lista blanca del motor. El `▢ ^ ▢` sí está porque el
+  motor lo soporta y es lo que haría falta para capitalizar una tasa dentro de un campo.
+
+  Va como **overlay y no dentro del nodo**: si el nodo creciera al enfocar se solaparía con el de
+  abajo, porque Vue Flow posiciona por alto medido y el layout no sabe que hay un editor con foco.
+  Y mientras está abierto el nodo deja de recortar y sube de z-index — con `!important`, porque Vue
+  Flow escribe el suyo inline.
 - **No hay flechas para reordenar, y es a propósito.** Un campo solo puede apoyarse en los
   **anteriores** —lo imponen el selector de base y los chips de nombres— así que el orden es correcto
   **por construcción**. Reordenar solo podía romperlo, y obligaba a validar y revertir cada
