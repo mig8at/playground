@@ -3,7 +3,7 @@
 // Si dependiera de `data`, escribir en un campo perdería el foco a cada tecla.
 import { reactive, computed, watch } from 'vue'
 import { SHEET, resolveSheet, defaultInputs, nombreDe, DEFAULT_FIELDS } from './sheets.js'
-import { evalSheet } from './engine.js'
+import { evalSheet, tokenize, parse, refsOf } from './engine.js'
 
 export const ui = reactive({ dark: true, showDoc: false })
 
@@ -65,49 +65,43 @@ export function setExpr(id, expr) {
   if (f) f.expr = expr
 }
 
-export function removeField(id) {
-  const i = fields.findIndex(f => f.id === id)
-  if (i < 0) return
-  const muerto = fields[i]
-  delete inputs[muerto.name]
-  fields.splice(i, 1)
-  // un campo que se apoyaba en el borrado se queda sin base: vuelve a la base del punto, que es
-  // lo único que se puede garantizar. Dejarlo apuntando a la nada rompería la fórmula.
-  for (const f of fields) if (f.base === muerto.name) f.base = ''
-}
-
-/** Mueve un campo una posición dentro de SU punto de inserción.
+/** Borra un campo, SOLO si nadie depende de él. Devuelve si se borró.
  *
- *  Un `%` solo puede apoyarse en campos ANTERIORES, así que un movimiento podría dejar una base
- *  apuntando hacia adelante — un ciclo escribible. En vez de prohibir movimientos a mano, se hace el
- *  swap, se VALIDA que toda base siga estando antes, y si no, se revierte. Devuelve si se movió, que
- *  es lo que apaga el botón.  */
-export function moveField(id, dir) {
+ *  No es una comodidad: es lo que mantiene válido el grafo de referencias en todo momento. El orden
+ *  ya es correcto por construcción —un campo solo puede apoyarse en los anteriores, tanto en el
+ *  selector de base como en los chips de nombres— así que lo único que podía romperlo era borrar
+ *  algo del medio. Para borrarlo, primero se borran los que cuelgan. */
+export function removeField(id) {
+  if (dependientesDe(id).length) return false
   const i = fields.findIndex(f => f.id === id)
   if (i < 0) return false
-  const mismos = fields.map((f, k) => ({ f, k })).filter(x => x.f.at === fields[i].at)
-  const pos = mismos.findIndex(x => x.f.id === id)
-  const destino = mismos[pos + dir]
-  if (!destino) return false
-
-  const j = destino.k
-  const antes = fields.slice()
-  ;[fields[i], fields[j]] = [fields[j], fields[i]]
-
-  const orden = Object.fromEntries(fields.map((f, k) => [f.name, k]))
-  const roto = fields.some((f, k) => f.base && orden[f.base] !== undefined && orden[f.base] > k)
-  if (roto) { fields.splice(0, fields.length, ...antes); return false }
+  delete inputs[fields[i].name]
+  fields.splice(i, 1)
   return true
 }
 
-/** Si `moveField` podría mover en esa dirección. Solo mira que HAYA vecino en el mismo punto: si el
- *  movimiento rompería una base, `moveField` lo revierte y devuelve false. */
-export function puedeMover(id, dir) {
+/** Quién depende de un campo. Dos formas de depender, y las dos importan:
+ *
+ *    · otro campo lo tiene como BASE de su porcentaje
+ *    · otro campo lo NOMBRA en su expresión
+ *
+ *  Lo segundo sale de `refsOf` sobre el AST, no de un regex: así una referencia dentro de un
+ *  paréntesis o de una función cuenta igual, y una que solo se PARECE al nombre no cuenta.
+ *
+ *  Existe para no dejar borrar un campo del que otros cuelgan. Antes `removeField` lo borraba y
+ *  limpiaba en silencio la base de quien lo apuntara — y si alguien lo nombraba en una expresión,
+ *  quedaba roto sin aviso.  */
+export function dependientesDe(id) {
   const f = fields.find(x => x.id === id)
-  if (!f) return false
-  const mismos = fields.filter(x => x.at === f.at)
-  const pos = mismos.findIndex(x => x.id === id)
-  return !!mismos[pos + dir]
+  if (!f) return []
+  const suyos = new Set([f.name, f.name + 'Value'])
+  return fields.filter(o => {
+    if (o.id === id) return false
+    if (o.base && suyos.has(o.base)) return true
+    if (!o.expr) return false
+    try { return [...refsOf(parse(tokenize(o.expr)))].some(r => suyos.has(r)) }
+    catch { return false }   // expresión a medio escribir: no bloquea nada
+  })
 }
 
 /** Los campos que un campo NUEVO puede usar como base: los del MISMO nodo y ANTERIORES. Así un

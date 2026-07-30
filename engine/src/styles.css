@@ -493,12 +493,12 @@ button.icon:hover { color: var(--ink); background: var(--card2) }
        line-height: 1; padding: 0 2px; margin-left: -4px }
 .ent__row:hover .del { color: var(--dim) }
 .del:hover { color: var(--red) }
-/* B5 — reordenar. Apagadas hasta el hover de la fila, igual que la ×: son acciones, no estado. */
-.mvf { border: 0; background: none; cursor: pointer; color: transparent; font-size: 10px;
-       line-height: 1; padding: 0 1px }
-.ent__row:hover .mvf, .ent__f:hover .mvf { color: var(--dim) }
-.mvf:hover:not(:disabled) { color: var(--purple) }
-.mvf:disabled { color: transparent !important; cursor: default }
+/* Un campo del que otros cuelgan NO se puede quitar: el × queda con candado en vez de
+   desaparecer, porque desaparecer se lee como "acá no hay nada que hacer" en vez de "está
+   protegido". El tooltip dice quién depende. */
+.del.is-locked { cursor: not-allowed }
+.ent__row:hover .del.is-locked, .ent__f:hover .del.is-locked { color: var(--dim); opacity: .5 }
+.del.is-locked:hover { color: var(--dim) }
 
 /* B4 — los nombres usables mientras se escribe una expresión. Aparecen solo con el editor en foco:
    son ayuda, no decoración permanente. */

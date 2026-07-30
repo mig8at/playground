@@ -7,7 +7,7 @@ import RateBlock from '../RateBlock.vue'
 import { fmtNum } from '../engine.js'
 import { RATE_BASES, CON_EXPRESION, describir } from '../sheets.js'
 import { inputs, fields, out, addField, removeField, setExpr, basesDisponibles,
-         moveField, puedeMover, termsOffered, setTermsOffered, porPlazo } from '../store.js'
+         dependientesDe, termsOffered, setTermsOffered, porPlazo } from '../store.js'
 
 // Una etapa AUTOCONTENIDA: sus propios inputs arriba, sus propias fórmulas abajo.
 //
@@ -85,6 +85,22 @@ const razon = f => {
   return 'sin calcular'
 }
 
+// ── borrar solo si nadie cuelga ──
+// No hay flechas para reordenar, y es a propósito: un campo solo puede apoyarse en los ANTERIORES
+// —lo imponen el selector de base y los chips de nombres— así que el orden es correcto POR
+// CONSTRUCCIÓN. Reordenar solo podía romperlo, y obligaba a validar y revertir.
+//
+// Lo único que sí podía romper el grafo de referencias era borrar algo del medio. Así que el × se
+// apaga cuando alguien depende, y dice quién.
+const cuelgan = f => dependientesDe(f).map(d => d.label)
+const razonBorrar = f => {
+  const d = cuelgan(f)
+  return d.length
+    ? `No se puede quitar: ${d.join(' · ')} ${d.length > 1 ? 'dependen' : 'depende'} de este campo. `
+      + 'Quitá primero esos.'
+    : 'quitar este campo'
+}
+
 // ── B4 · los nombres que se pueden escribir en una expresión ──
 // Escribir `netAmount + setupFee` obligaba a ADIVINAR los names en inglés. Acá salen listados y
 // clickeables: las bases con nombre del punto, `installments` (para repartir), y los campos
@@ -159,14 +175,9 @@ function crear() {
           <!-- solo lo AMBIGUO: sobre qué se aplica el %, o que es un total repartido -->
           <i v-if="f.note" class="ent__note">{{ f.note }}</i>
         </span>
-        <template v-if="f.field">
-          <button class="nodrag mvf" :disabled="!puedeMover(f.field, -1)"
-            @click="moveField(f.field, -1)" title="subir">↑</button>
-          <button class="nodrag mvf" :disabled="!puedeMover(f.field, 1)"
-            @click="moveField(f.field, 1)" title="bajar">↓</button>
-          <button class="nodrag del" @click="removeField(f.field)"
-            title="quitar este campo">×</button>
-        </template>
+        <button v-if="f.field" class="nodrag del" :class="{ 'is-locked': cuelgan(f.field).length }"
+          :disabled="!!cuelgan(f.field).length" :title="razonBorrar(f.field)"
+          @click="removeField(f.field)">×</button>
         <select v-if="f.type === 'bool'" class="nodrag nf" v-model="inputs[f.name]">
           <option :value="true">sí</option><option :value="false">no</option>
         </select>
@@ -191,11 +202,9 @@ function crear() {
             <!-- un auxiliar es un escalón, no un costo: hay que verlo o se lee como si sumara -->
             <i v-if="f.kind === 'aux'" class="ent__note">no suma</i>
           </span>
-          <button class="nodrag mvf" :disabled="!puedeMover(f.id, -1)"
-            @click="moveField(f.id, -1)" title="subir">↑</button>
-          <button class="nodrag mvf" :disabled="!puedeMover(f.id, 1)"
-            @click="moveField(f.id, 1)" title="bajar">↓</button>
-          <button class="nodrag del" @click="removeField(f.id)" title="quitar este campo">×</button>
+          <button class="nodrag del" :class="{ 'is-locked': cuelgan(f.id).length }"
+            :disabled="!!cuelgan(f.id).length" :title="razonBorrar(f.id)"
+            @click="removeField(f.id)">×</button>
           <input class="nodrag nf nf--expr" :value="f.expr" :title="f.expr"
             @input="setExpr(f.id, $event.target.value)" @keydown.stop spellcheck="false"
             @focus="expreFoco = { el: $event.target, id: f.id }"

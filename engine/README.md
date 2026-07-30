@@ -135,9 +135,27 @@ que ahora son nombres de tabla, así que se lee de una.
 - **Al escribir una fórmula, los nombres usables salen como chips clickeables** (las bases del punto,
   `installments`, y los campos **anteriores** en sus pesos — nunca el propio, que sería un ciclo).
   Antes había que adivinar los `name` en inglés.
-- **Los campos se reordenan con ↑↓.** Si el movimiento dejaría una base apuntando hacia adelante, se
-  revierte. Mover una **fórmula** siempre se puede: el motor resuelve por dependencias, no por orden
-  de declaración — comprobado moviendo el 4×1000 arriba del IVA sin que cambie un número.
+- **No hay flechas para reordenar, y es a propósito.** Un campo solo puede apoyarse en los
+  **anteriores** —lo imponen el selector de base y los chips de nombres— así que el orden es correcto
+  **por construcción**. Reordenar solo podía romperlo, y obligaba a validar y revertir cada
+  movimiento: la solución creaba el problema.
+
+  Lo único que sí podía romper el grafo de referencias era **borrar algo del medio**. Así que un
+  campo del que otros cuelgan **no se puede quitar**, y el tooltip dice quién depende:
+
+  ```
+  fianza            × bloqueado — IVA de la fianza · 4 × 1000 dependen de este campo
+  IVA de la fianza  × bloqueado — 4 × 1000 depende de este campo
+  4 × 1000          × libre
+  ```
+
+  Las dos formas de depender cuentan: tener el campo como **base** de un porcentaje, o **nombrarlo**
+  en una expresión. Lo segundo sale de `refsOf` sobre el AST y no de un regex, así que una referencia
+  dentro de un paréntesis cuenta igual y una que solo se *parece* al nombre no cuenta.
+
+  Se borra en cascada desde la punta: quitar el 4×1000 libera al IVA, y quitar el IVA libera a la
+  fianza. Antes `removeField` borraba y limpiaba en silencio la base de quien apuntara — y si alguien
+  lo nombraba en una expresión, quedaba roto sin aviso.
 - **El `documento` es un panel lateral**, así que la hoja se lee mientras se edita. Reencuadra
   mirando el ancho real del lienzo, no el toggle: Vue Flow actualiza sus dimensiones por un
   `ResizeObserver` que llega después de cualquier cantidad de frames.
