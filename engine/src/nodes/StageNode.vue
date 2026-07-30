@@ -5,7 +5,7 @@ import MoneyInput from '../MoneyInput.vue'
 import PercentInput from '../PercentInput.vue'
 import RateBlock from '../RateBlock.vue'
 import FormulaBoard from '../FormulaBoard.vue'
-import { desdeTexto, aTexto, en, reemplazar, envolver, primerHueco, huecos, hueco }
+import { desdeTexto, aTexto, en, reemplazar, envolver, envolverRaiz, primerHueco, huecos, hueco }
   from '../formulaTree.js'
 import { fmtNum } from '../engine.js'
 import { RATE_BASES, CON_EXPRESION, describir } from '../sheets.js'
@@ -188,6 +188,13 @@ const operar = o => {
   aplicar(a)
   tab.value.sel = primerHueco(a, [], []) ?? tab.value.sel
 }
+// la raíz ENVUELVE lo elegido, igual que las operaciones: si estás sobre algo armado y apretás
+// raíz, querés la raíz DE eso. Reemplazar te hacía perder lo que tenías.
+const operarRaiz = () => {
+  const a = envolverRaiz(tab.value.arbol, tab.value.sel)
+  aplicar(a)
+  tab.value.sel = primerHueco(a, [], []) ?? tab.value.sel
+}
 const ponerNum = (ruta, v) => aplicar(reemplazar(tab.value.arbol, ruta, { k: 'num', v }))
 const faltan = computed(() => (tab.value ? huecos(tab.value.arbol) : 0))
 
@@ -310,6 +317,11 @@ function crear() {
         <div class="tab__g">
           <button v-for="op in OPS" :key="op.o" class="tab__k tab__k--op" :title="op.ayuda"
             @click="operar(op.o)">▢ {{ op.ver }} ▢</button>
+          <!-- una raíz es `x ^ (1/n)` y el índice es una caja editable, así que UNA tecla da todas
+               las raíces. Y sirve de verdad: con 12 es la conversión de una tasa anual a mensual. -->
+          <button class="tab__k tab__k--op"
+            title="raíz. Es x ^ (1/n) con el índice editable — con 12 da la conversión de una tasa anual a mensual."
+            @click="operarRaiz()">ⁿ√▢</button>
           <button class="tab__k tab__k--op" title="un número, se escribe en la caja"
             @click="poner({ k: 'num', v: '' })">123</button>
           <button class="tab__k tab__k--op" title="vaciar esta caja"

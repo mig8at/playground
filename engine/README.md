@@ -155,12 +155,42 @@ que ahora son nombres de tabla, así que se lee de una.
   `fianza + IVA de la fianza` es el paréntesis. Y las cajas muestran el **español**: la fórmula
   guarda el identificador, la misma regla del resto.
 
+  **La división es una fracción de verdad**, numerador arriba y denominador abajo con la línea en
+  medio. Es donde más se gana: `fianza ÷ cuotas` apilado se lee como lo que es —un reparto— y no como
+  una operación cualquiera.
+
+  **Y hay raíz**, con su índice editable:
+
+  ```
+    2 ╭─────────╮
+     √│ fianza  │
+      │─────────│
+      │ cuotas  │
+      ╰─────────╯
+  ```
+
+  No es un nodo aparte: una raíz **es** `x ^ (1/n)`, que es lo que el motor evalúa. Se detecta al
+  dibujar, así que el texto guardado sigue siendo nativo del motor y va y vuelve idéntico. Con el
+  índice editable, **una tecla da todas las raíces** — y tiene un uso real: `(1 + tasa) ^ (1/12) − 1`
+  es la raíz doceava, o sea la conversión de una tasa anual a mensual.
+
+  Tanto las operaciones como la raíz **envuelven** lo elegido en vez de reemplazarlo. Al principio la
+  raíz reemplazaba, y elegir una fracción y apretar raíz te la borraba.
+
   Aplicar una operación **envuelve** lo que está elegido: seleccionás algo, apretás `×`, y pasa a ser
   `eso × ▢` con el hueco nuevo ya elegido. Es lo que hace un editor matemático.
 
   El árbol va y vuelve con `formulaTree.js`, que usa **el parser del motor** — así el tablero y el
   cálculo no pueden interpretar distinto la misma fórmula. Verificado: las 7 fórmulas reales
-  round-trip **idénticas**, con los paréntesis mínimos.
+  round-trip **idénticas**, con los paréntesis mínimos, y las raíces se detectan sin confundir una
+  potencia normal (`amount ^ 2` no es una raíz).
+
+  **Por qué no una librería.** MathLive (la sucesora de MathQuill) edita **LaTeX**, no nuestro árbol:
+  habría que serializar a LaTeX, parsear el LaTeX del usuario, y después *restringir* todo lo que
+  ofrece —integrales, matrices, `\sin`, subíndices— a lo que el motor acepta (`+ − × ÷ ^` y cuatro
+  funciones). Sería trabajo para **quitar** capacidades. Y nuestros nombres son etiquetas de varias
+  palabras (`IVA de la fianza`), que en LaTeX quedan como `\operatorname{...}`. La fracción son diez
+  líneas de CSS y la raíz cinco; el árbol y el round-trip ya estaban.
 
   Y si la expresión tiene algo que el tablero no dibuja —`pmt`, `if`, una comparación— ese campo se
   sigue editando **como texto**. Mejor eso que dibujar mal algo que el motor entiende bien.

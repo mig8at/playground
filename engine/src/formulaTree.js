@@ -60,6 +60,36 @@ function convertir(n) {
   throw new Error('el tablero no dibuja ' + n.k)   // call · not · comparaciones · bool · str
 }
 
+/** ¿Este nodo es una RAÍZ? No hay un tipo aparte: una raíz ES una potencia de exponente `1/n`, que
+ *  es lo que el motor sabe evaluar. Se detecta al dibujar, así que va y vuelve por texto sin
+ *  inventar nada — y cambiar el índice es cambiar un número.
+ *
+ *  Y tiene un uso real, no decorativo: `(1 + tasa) ^ (1/12) − 1` es la raíz doceava, o sea la
+ *  conversión de una tasa anual a mensual. Es la forma que haría falta para capitalizar en un campo.
+ *
+ *  Devuelve `{ x, idx, rutaX, rutaIdx }` o `null`. Las rutas son relativas al nodo. */
+export function esRaiz(n) {
+  if (!n || n.k !== 'bin' || n.o !== '^') return null
+  const e = n.r
+  if (e?.k === 'bin' && e.o === '/' && e.l?.k === 'num' && Number(e.l.v) === 1) {
+    return { x: n.l, idx: e.r, rutaX: ['l'], rutaIdx: ['r', 'r'] }
+  }
+  return null
+}
+
+/** Envuelve lo que hay en `ruta` en una RAÍZ: pasa a ser el radicando, con índice 2 editable.
+ *
+ *  Envuelve y no reemplaza, igual que las operaciones: si estás sobre algo armado y apretás raíz,
+ *  querés la raíz DE eso. Reemplazar te hacía perder lo que tenías. */
+export function envolverRaiz(n, ruta) {
+  const actual = en(n, ruta)
+  const x = actual && actual.k !== 'hueco' ? actual : hueco()
+  return reemplazar(n, ruta, {
+    k: 'bin', o: '^', l: x,
+    r: { k: 'bin', o: '/', l: { k: 'num', v: 1 }, r: { k: 'num', v: 2 } },
+  })
+}
+
 /** El nodo en una ruta. La ruta es un arreglo de 'l' / 'r' — la posición en el árbol, sin ids. */
 export function en(n, ruta) {
   return ruta.reduce((x, paso) => (x ? x[paso] : null), n)

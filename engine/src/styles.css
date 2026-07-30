@@ -563,6 +563,32 @@ button.icon:hover { color: var(--ink); background: var(--card2) }
 .fb__b.on { border-color: var(--purple); box-shadow: inset 0 0 0 1px var(--purple) }
 .fb__o { font-style: normal; font: 10.5px var(--mono); color: var(--dim); padding: 0 1px }
 
+/* ── la división como FRACCIÓN ──
+   Numerador arriba, denominador abajo, línea en medio. Es donde más se gana: `fianza total ÷ cuotas`
+   apilado se lee como lo que es —un reparto— en vez de como una operación cualquiera. */
+.fb__fr { display: inline-flex; flex-direction: column; align-items: stretch; vertical-align: middle;
+          padding: 1px 4px; border: 1px solid transparent; border-radius: 6px; cursor: pointer }
+.fb__fr:hover { border-color: var(--mut) }
+.fb__fr.on { border-color: var(--purple); box-shadow: inset 0 0 0 1px var(--purple) }
+.fb__fr-n, .fb__fr-d { display: flex; justify-content: center; align-items: center; gap: 3px;
+                       padding: 1px 0 }
+.fb__fr-d { border-top: 1px solid var(--mut); margin-top: 1px; padding-top: 2px }
+
+/* ── la raíz ──
+   El radical con el índice arriba a la izquierda. No es un nodo aparte: es `x ^ (1/n)` detectado al
+   dibujar, así que el texto guardado sigue siendo el que el motor evalúa. */
+.fb__rz { display: inline-flex; align-items: flex-start; vertical-align: middle;
+          padding: 1px 3px; border: 1px solid transparent; border-radius: 6px; cursor: pointer }
+.fb__rz:hover { border-color: var(--mut) }
+.fb__rz.on { border-color: var(--purple); box-shadow: inset 0 0 0 1px var(--purple) }
+.fb__rz-i { font-size: 8px; margin-right: -3px; margin-top: -1px; z-index: 1 }
+.fb__rz-i input { font-size: 8px !important; min-width: 1.5ch }
+.fb__rz-s { font-style: normal; font-size: 15px; line-height: 1; color: var(--mut);
+            margin-right: 1px }
+/* la barra de arriba: es lo que hace que se lea como raíz y no como un símbolo al lado */
+.fb__rz-x { display: flex; align-items: center; gap: 3px; border-top: 1px solid var(--mut);
+            padding: 2px 3px 1px }
+
 /* el botón que ABRE el tablero: se lee como el campo que reemplaza, pero clickeable */
 .nf--abre { text-align: left; cursor: pointer; overflow: hidden; text-overflow: ellipsis;
             white-space: nowrap }

@@ -7,6 +7,8 @@
 //
 // Nada acá muta el árbol: se emite la ruta y el que manda (StageNode) reemplaza. Por eso el árbol
 // puede ser inmutable y el `watch` de Vue ve cada cambio.
+import { esRaiz } from './formulaTree.js'
+
 const props = defineProps({
   node: Object,
   ruta: { type: Array, default: () => [] },
@@ -18,6 +20,9 @@ const emit = defineEmits(['sel', 'num'])
 
 const mismaRuta = (a, b) => a && b && a.join('') === b.join('')
 const elegido = () => mismaRuta(props.sel, props.ruta)
+// Una raíz no es un tipo de nodo: es una potencia de exponente `1/n`, que es lo que el motor evalúa.
+// Se detecta acá al dibujar, así que el texto guardado sigue siendo nativo del motor.
+const rz = () => esRaiz(props.node)
 </script>
 
 <template>
@@ -37,12 +42,40 @@ const elegido = () => mismaRuta(props.sel, props.ruta)
       :style="{ width: Math.max(2, String(node.v ?? '').length + 1) + 'ch' }">
   </span>
 
-  <!-- una operación: marco con los dos lados adentro. El marco es clickeable, así que se puede
-       seleccionar la operación ENTERA para envolverla o reemplazarla. -->
+  <!-- una RAÍZ: el radical con el índice arriba a la izquierda. Es `x ^ (1/n)`, detectado. -->
+  <span v-else-if="rz()" class="fb__rz" :class="{ on: elegido() }" @click.stop="emit('sel', ruta)">
+    <span class="fb__rz-i">
+      <FormulaBoard :node="rz().idx" :ruta="[...ruta, ...rz().rutaIdx]" :sel="sel" :labels="labels"
+        @sel="r => emit('sel', r)" @num="(r, v) => emit('num', r, v)" />
+    </span>
+    <em class="fb__rz-s">√</em>
+    <span class="fb__rz-x">
+      <FormulaBoard :node="rz().x" :ruta="[...ruta, ...rz().rutaX]" :sel="sel" :labels="labels"
+        @sel="r => emit('sel', r)" @num="(r, v) => emit('num', r, v)" />
+    </span>
+  </span>
+
+  <!-- una DIVISIÓN: fracción de verdad, numerador arriba y denominador abajo, con la línea en
+       medio. Es la que más se gana en legibilidad: `fianza total ÷ cuotas` apilado se lee como lo
+       que es, un reparto. -->
+  <span v-else-if="node.o === '/'" class="fb__fr" :class="{ on: elegido() }"
+        @click.stop="emit('sel', ruta)">
+    <span class="fb__fr-n">
+      <FormulaBoard :node="node.l" :ruta="[...ruta, 'l']" :sel="sel" :labels="labels"
+        @sel="r => emit('sel', r)" @num="(r, v) => emit('num', r, v)" />
+    </span>
+    <span class="fb__fr-d">
+      <FormulaBoard :node="node.r" :ruta="[...ruta, 'r']" :sel="sel" :labels="labels"
+        @sel="r => emit('sel', r)" @num="(r, v) => emit('num', r, v)" />
+    </span>
+  </span>
+
+  <!-- las demás operaciones: marco con los dos lados adentro. El marco es clickeable, así que se
+       puede seleccionar la operación ENTERA para envolverla o reemplazarla. -->
   <span v-else class="fb__b" :class="{ on: elegido() }" @click.stop="emit('sel', ruta)">
     <FormulaBoard :node="node.l" :ruta="[...ruta, 'l']" :sel="sel" :labels="labels"
       @sel="r => emit('sel', r)" @num="(r, v) => emit('num', r, v)" />
-    <em class="fb__o">{{ node.o === '*' ? '×' : node.o === '/' ? '÷' : node.o }}</em>
+    <em class="fb__o">{{ node.o === '*' ? '×' : node.o }}</em>
     <FormulaBoard :node="node.r" :ruta="[...ruta, 'r']" :sel="sel" :labels="labels"
       @sel="r => emit('sel', r)" @num="(r, v) => emit('num', r, v)" />
   </span>
