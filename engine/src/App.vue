@@ -1,5 +1,5 @@
 <script setup>
-import { computed, markRaw, nextTick } from 'vue'
+import { computed, markRaw, nextTick, ref, watch } from 'vue'
 import { VueFlow, useVueFlow } from '@vue-flow/core'
 import { Background } from '@vue-flow/background'
 import { Controls } from '@vue-flow/controls'
@@ -22,7 +22,7 @@ const nodeTypes = {
 
 // `fit-view-on-init` corre con el contenedor en 0x0 y falla en silencio; `pane-ready` llega
 // antes de que los nodos estén medidos. `nodes-initialized` es el que llega con todo medido.
-const { fitView } = useVueFlow()
+const { fitView, dimensions } = useVueFlow()
 function onNodesReady() { nextTick(() => fitView({ padding: 0.14, duration: 0 })) }
 
 const graph = computed(() => layoutSheet(effDef.value, out.value,
@@ -49,8 +49,22 @@ const ea = computed(() => {
 })
 const total = computed(() => (cuota.value != null ? cuota.value * Number(inputs.installments) : null))
 
-// NO depende de los inputs: si dependiera, escribir remontaría el grafo a cada tecla.
-const canvasKey = computed(() => String(ui.showDoc))
+// El documento es un panel LATERAL, así que el lienzo no se desmonta nunca — antes lo reemplazaba y
+// había que remontarlo. Editar mirando el JSON es justo el caso de uso.
+const doc = computed(() => JSON.stringify(sheetDoc.value, null, 2))
+// Reencuadra cuando el LIENZO cambia de ancho, no cuando se togglea el panel: Vue Flow actualiza
+// sus dimensiones por un ResizeObserver que llega después de cualquier cantidad de frames que yo
+// espere, así que mirar `showDoc` reencuadraba con el ancho viejo. De paso cubre el resize de
+// ventana, que es igual de deseable en una herramienta de lectura.
+watch(() => dimensions.value?.width, (w, previo) => {
+  if (!w || !previo) return
+  requestAnimationFrame(() => fitView({ padding: 0.14, duration: 220 }))
+})
+const copiado = ref(false)
+async function copiar() {
+  try { await navigator.clipboard.writeText(doc.value); copiado.value = true
+    setTimeout(() => (copiado.value = false), 1200) } catch { /* sin permiso: se selecciona a mano */ }
+}
 </script>
 
 <template>
@@ -74,22 +88,28 @@ const canvasKey = computed(() => String(ui.showDoc))
       <span v-if="financiado !== null && financiado !== Number(inputs.amount)" class="sep fin">
         valor a financiar {{ fmtNum(financiado) }}</span>
       <span v-if="extraPorCuota !== null" class="sep">
-        de la cuota, {{ fmtNum(extraPorCuota) }} no es el crédito</span>
+        recargos por cuota {{ fmtNum(extraPorCuota) }}</span>
       <span v-if="total !== null" class="sep">total a pagar {{ fmtNum(total) }}</span>
     </div>
 
     <div class="canvas">
-      <div v-if="ui.showDoc" class="docpane">
-        <pre>{{ JSON.stringify(sheetDoc, null, 2) }}</pre>
-      </div>
-
-      <VueFlow v-else :key="canvasKey" :nodes="graph.nodes" :edges="graph.edges"
+      <VueFlow :nodes="graph.nodes" :edges="graph.edges"
         :node-types="nodeTypes" :class="{ dark: ui.dark }"
         :min-zoom="0.2" :max-zoom="1.8" :nodes-connectable="false" :edges-updatable="false"
         @nodes-initialized="onNodesReady">
         <Background :gap="22" :size="1" :pattern-color="ui.dark ? '#26251e' : '#d3cfc4'" />
         <Controls :show-interactive="false" />
       </VueFlow>
+
+      <!-- al costado, no encima: la hoja se lee MIENTRAS se edita -->
+      <aside v-if="ui.showDoc" class="docpane">
+        <div class="docpane__hd">
+          <b>la hoja, como se guardaría</b>
+          <button class="doc__b" @click="copiar()">{{ copiado ? 'copiado' : 'copiar' }}</button>
+          <button class="doc__b" @click="ui.showDoc = false">cerrar</button>
+        </div>
+        <pre>{{ doc }}</pre>
+      </aside>
     </div>
   </div>
 </template>

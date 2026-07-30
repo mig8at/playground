@@ -7,7 +7,7 @@ import RateBlock from '../RateBlock.vue'
 import { fmtNum } from '../engine.js'
 import { RATE_BASES, CON_EXPRESION, describir } from '../sheets.js'
 import { inputs, fields, out, addField, removeField, setExpr, basesDisponibles,
-         termsOffered, setTermsOffered, porPlazo } from '../store.js'
+         moveField, puedeMover, termsOffered, setTermsOffered, porPlazo } from '../store.js'
 
 // Una etapa AUTOCONTENIDA: sus propios inputs arriba, sus propias fórmulas abajo.
 //
@@ -38,6 +38,9 @@ const propios = computed(() => props.data.inputs.filter(f =>
 // `nFilas` lo calcula el layout desde `rows` de la hoja: todas, solo la salida, o ninguna. La
 // etapa sigue siendo dueña de sus fórmulas aunque no dibuje ninguna.
 const filas = computed(() => props.data.rows.slice(props.data.rows.length - props.data.nFilas))
+// Cuando el nodo se llama por lo que produce (`valor a financiar`), la fila de salida repetiría el
+// título. Se muestra solo el número: alineado y resaltado, se lee como el resultado del nodo.
+const esSalidaDelNodo = r => r.label === props.data.title
 
 // ── agregar un campo ──
 // Los tres controles son las tres cosas que definen qué hace el campo, y se leen como una frase.
@@ -82,6 +85,38 @@ const razon = f => {
   return 'sin calcular'
 }
 
+// ── B4 · los nombres que se pueden escribir en una expresión ──
+// Escribir `netAmount + setupFee` obligaba a ADIVINAR los names en inglés. Acá salen listados y
+// clickeables: las bases con nombre del punto, `installments` (para repartir), y los campos
+// anteriores en sus pesos. Solo los ANTERIORES, que es la misma regla que la de las bases.
+const nombresUsables = computed(() => {
+  // EXCLUYENTE: hasta el campo que se está editando, sin incluirlo. Ofrecerse a sí mismo es un ciclo
+  // —el motor lo caza, pero sugerirlo está mal. Sin `id` (campo nuevo) valen todos los anteriores.
+  const id = expreFoco.value?.id
+  const i = id ? fields.findIndex(f => f.id === id) : fields.length
+  const previos = fields.slice(0, i < 0 ? fields.length : i)
+  const delPunto = previos.filter(f => f.at === punto.value)
+  return [
+    ...basesFijas.value.map(b => b.value),
+    'installments',
+    ...delPunto.map(f => (f.kind === 'money' ? f.name : f.name + 'Value')),
+  ]
+})
+
+// Qué editor de expresión tiene el foco, para saber dónde insertar. El chip usa `mousedown.prevent`
+// para no robarle el foco al input, así que el cursor se conserva.
+const expreFoco = ref(null)
+function insertar(nombre) {
+  const el = expreFoco.value?.el
+  if (!el) return
+  const i = el.selectionStart ?? el.value.length
+  const j = el.selectionEnd ?? i
+  el.value = el.value.slice(0, i) + nombre + el.value.slice(j)
+  el.dispatchEvent(new Event('input', { bubbles: true }))
+  el.focus()
+  el.selectionStart = el.selectionEnd = i + nombre.length
+}
+
 // ── los plazos ofrecidos ──
 // La lista se edita como TEXTO porque así se guarda: `credit_line_by_lenders.fee_numbers` es una
 // cadena separada por comas. El store la parsea, ordena y deduplica.
@@ -124,8 +159,14 @@ function crear() {
           <!-- solo lo AMBIGUO: sobre qué se aplica el %, o que es un total repartido -->
           <i v-if="f.note" class="ent__note">{{ f.note }}</i>
         </span>
-        <button v-if="f.field" class="nodrag del" @click="removeField(f.field)"
-          title="quitar este campo">×</button>
+        <template v-if="f.field">
+          <button class="nodrag mvf" :disabled="!puedeMover(f.field, -1)"
+            @click="moveField(f.field, -1)" title="subir">↑</button>
+          <button class="nodrag mvf" :disabled="!puedeMover(f.field, 1)"
+            @click="moveField(f.field, 1)" title="bajar">↓</button>
+          <button class="nodrag del" @click="removeField(f.field)"
+            title="quitar este campo">×</button>
+        </template>
         <select v-if="f.type === 'bool'" class="nodrag nf" v-model="inputs[f.name]">
           <option :value="true">sí</option><option :value="false">no</option>
         </select>
@@ -133,7 +174,7 @@ function crear() {
         <select v-else-if="f.choices === 'terms'" class="nodrag nf nf--term"
           :value="Number(inputs[f.name])"
           @change="inputs[f.name] = Number($event.target.value)">
-          <option v-for="n in termsOffered" :key="n" :value="n">{{ n }}</option>
+          <option v-for="n in termsOffered" :key="n" :value="n">{{ n }} cuotas</option>
         </select>
         <MoneyInput v-else-if="f.type === 'money'" v-model="inputs[f.name]" />
         <PercentInput v-else-if="f.type === 'rate'" v-model="inputs[f.name]" />
@@ -150,9 +191,15 @@ function crear() {
             <!-- un auxiliar es un escalón, no un costo: hay que verlo o se lee como si sumara -->
             <i v-if="f.kind === 'aux'" class="ent__note">no suma</i>
           </span>
+          <button class="nodrag mvf" :disabled="!puedeMover(f.id, -1)"
+            @click="moveField(f.id, -1)" title="subir">↑</button>
+          <button class="nodrag mvf" :disabled="!puedeMover(f.id, 1)"
+            @click="moveField(f.id, 1)" title="bajar">↓</button>
           <button class="nodrag del" @click="removeField(f.id)" title="quitar este campo">×</button>
           <input class="nodrag nf nf--expr" :value="f.expr" :title="f.expr"
             @input="setExpr(f.id, $event.target.value)" @keydown.stop spellcheck="false"
+            @focus="expreFoco = { el: $event.target, id: f.id }"
+            @blur="expreFoco = null"
             placeholder="p. ej. amount * 0.05">
         </div>
         <div class="ent__row ent__fres">
@@ -161,6 +208,13 @@ function crear() {
             {{ resultado(f)?.status === 'ok' ? fmtNum(resultado(f).value) : '—' }}</b>
         </div>
         <div v-if="razon(f)" class="ent__err">{{ razon(f) }}</div>
+      </div>
+
+      <!-- los nombres usables, mientras se escribe una expresión. `mousedown.prevent` para no
+           perder el foco ni el cursor. -->
+      <div v-if="expreFoco" class="nom">
+        <button v-for="nb in nombresUsables" :key="nb" class="nodrag nom__c"
+          @mousedown.prevent="insertar(nb)">{{ nb }}</button>
       </div>
 
       <!-- la lista de plazos que el lender OFRECE. No es un input: `cuotas` elige uno de acá -->
@@ -194,6 +248,7 @@ vez por cada uno: la vitrina está en el nodo de la cuota.">plazos</span>
           <!-- una fórmula se escribe entera: no necesita base ni ÷ cuotas, eso se escribe ahí -->
           <div v-if="CON_EXPRESION.has(nuevo.kind)" class="ent__row">
             <input class="nodrag nf nf--expr" v-model="nuevo.expr" @keydown.stop spellcheck="false"
+              @focus="expreFoco = { el: $event.target, id: null }" @blur="expreFoco = null"
               placeholder="p. ej. amount * 0.05 / installments">
           </div>
           <!-- sobre qué se aplica: la base del punto, u otro campo de este mismo nodo -->
@@ -227,12 +282,14 @@ vez por cada uno: la vitrina está en el nodo de la cuota.">plazos</span>
            :class="['grp-row', { 'is-out': i === filas.length - 1, 'is-off': r.status !== 'ok',
                                  'has-expr': r.verExpr }]"
            :title="r.expr">
-        <span class="grp-k">
-          {{ r.label }}
+        <span class="grp-k" :class="{ 'is-hidden': esSalidaDelNodo(r) }">
+          {{ esSalidaDelNodo(r) ? '' : r.label }}
           <!-- La expresión, cuando la perilla vive en otra etapa: sin esto el nodo mostraba los
                pesos y no de dónde salían. Es lo que hace entendible el 10% sin meterlo DENTRO de la
                fórmula, que ataría la hoja a un solo lender. -->
-          <i v-if="r.verExpr" class="grp-expr">{{ r.expr }}</i>
+          <!-- traducida: los `name` a su label y `*` como `×`. El crudo queda en el tooltip de la
+               fila, que es donde sirve para copiarlo a otra fórmula. -->
+          <i v-if="r.verExpr" class="grp-expr">{{ r.exprEs }}</i>
         </span>
         <b class="grp-v">{{ val(r) }}</b>
       </div>
@@ -241,7 +298,7 @@ vez por cada uno: la vitrina está en el nodo de la cuota.">plazos</span>
     <!-- LA VITRINA: la cuota de cada plazo ofrecido, de correr la misma hoja una vez por plazo.
          Es la pantalla que el cliente ve de verdad, y clickear una fila elige ese plazo. -->
     <div v-if="data.termsCompare && porPlazo.length" class="vit">
-      <div class="vit__hd">cada plazo</div>
+      <div class="vit__hd">cuota por plazo</div>
       <button v-for="p in porPlazo" :key="p.n" class="nodrag vit__row"
         :class="{ on: Number(inputs.installments) === p.n, bad: !p.ok }"
         @click="inputs.installments = p.n"

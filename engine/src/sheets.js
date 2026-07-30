@@ -63,8 +63,10 @@ export const SHEET = {
       label: 'monto', help: 'Lo que el cliente pide. Los costos que se agreguen lo suben o lo bajan.' },
     // Variable del CLIENTE, no un costo: es lo que define el monto real. Se escribe en positivo y
     // `netAmount` la resta — igual que `user_requests.initial_fee`, que también es positivo.
+    // `note: 'resta'` — se escribe en POSITIVO y `netAmount` la resta. Desde que se fueron los
+    // prefijos de signo, nada en la fila lo decía.
     { name: 'downPayment', type: 'money', default: 4000000, min: 0, appliesTo: 'credit',
-      label: 'cuota inicial',
+      label: 'cuota inicial', note: 'resta',
       help: 'Lo que el cliente pone de su bolsillo. El monto neto es lo que queda, y es sobre eso '
         + 'que se calculan la fianza y los intereses.' },
     // Va ÚLTIMA porque es la última decisión del cliente: en el flujo real el monto elige a qué
@@ -146,15 +148,20 @@ export const SHEET = {
     // `rows: 'none'` — la etapa SIGUE siendo dueña de las dos fórmulas (es lo que la pone en el
     // grafo y lo que hace que `cuota` dependa de ella), pero no las dibuja: el valor ya está al
     // lado de su input y la E.A. en la barra de arriba.
-    { key: 'rate', title: 'tasa', group: 'entrada', rateBlock: true, rows: 'none',
-      formulas: ['periodRate', 'annualEffectiveRate'] },
+    // Se llama como la fila de BD que ES: `credit_line_by_lenders` guarda la tasa, el
+    // `rate_suffix` (la convención) Y `fee_numbers` (los plazos). Por eso el editor de plazos vive
+    // acá y no en la solicitud: es config del lender, de la misma fila.
+    // De paso desaparece el choque `tasa` / `tarifas` — dos títulos que empezaban igual, en
+    // columnas vecinas y del mismo color.
+    { key: 'rate', title: 'línea de crédito', group: 'entrada', rateBlock: true, rows: 'none',
+      termsEditor: true, formulas: ['periodRate', 'annualEffectiveRate'] },
 
     // La etapa del cliente CALCULA una cosa: el monto neto. Es la variable limpia de la que sale
     // todo lo demás, y sale solo de datos del cliente.
-    // `termsEditor` — acá se edita la lista de plazos ofrecidos, pegada al input que restringe.
-    // Es CONFIG viviendo en el nodo del cliente, y es a propósito: la lista no significa nada lejos
-    // del `cuotas` que elige uno de ella.
-    { key: 'credit', title: 'el crédito', group: 'entrada', rows: 'out', termsEditor: true,
+    // `la solicitud` y no `el crédito`: es `user_requests` tal cual —monto, cuota inicial, plazo
+    // elegido— y solo eso, lo que decide el CLIENTE. El nombre viejo además chocaba con la fila
+    // "cuota del crédito".
+    { key: 'credit', title: 'la solicitud', group: 'entrada', rows: 'out',
       formulas: ['netAmount'] },
 
     // ── el punto de inserción del monto, partido en DOS ──
@@ -181,7 +188,9 @@ export const SHEET = {
     //
     // Y NO se llama `saldo inicial` a propósito: eso ya es una columna del plan, con un valor por
     // cuota. Coincide con este número solo en la fila 1.
-    { key: 'amount', title: 'costos al monto', group: 'monto', formulas: ['financedAmount'] },
+    // Título = lo que PRODUCE, porque este nodo ya no tiene perillas: es puro pesos. La fila de
+    // salida no repite el nombre (ver `esSalidaDelNodo` en StageNode).
+    { key: 'amount', title: 'valor a financiar', group: 'monto', formulas: ['financedAmount'] },
 
     // ── el lado del PAGO ──
     // UNA etapa: la anualidad y los recargos que la completan. Estuvieron separadas mientras el
@@ -190,6 +199,10 @@ export const SHEET = {
     //
     // La clave sigue siendo `charges` a propósito: es la que usan `appliesTo`, los `terms` y
     // `RATE_BASES` para saber que un campo puesto acá va POR CUOTA.
+    // ASIMETRÍA DECIDIDA: el lado del monto está partido en perillas (`tarifas`) y pesos (`valor a
+    // financiar`); el de la cuota va junto. Es a propósito: con UN recargo típico la partición sería
+    // aire. Se parte el día que un lender normal tenga 2-3 recargos por cuota.
+    //
     // `termsCompare` — la vitrina: la cuota de CADA plazo ofrecido. Sale de correr la misma hoja
     // una vez por plazo, y es la pantalla que el cliente ve de verdad.
     { key: 'charges', title: 'cuota', group: 'pago', insertion: true, termsCompare: true,
@@ -459,7 +472,12 @@ export function resolveSheet(def, { periods = {}, fields = [] } = {}) {
   // Arranca del NETO, que ya descontó la cuota inicial. Todo lo que se le suma es un costo; un
   // campo negativo resta (un descuento).
   formulas.financedAmount = ['netAmount', ...suma('amount')].join(' + ')
-  formulas.installmentCharges = suma('charges').join(' + ') || '0'
+  const porCuota = suma('charges')
+  formulas.installmentCharges = porCuota.join(' + ') || '0'
+  // Un subtotal de UN solo término es una copia de ese término: "cargos por cuota 8.779" al lado de
+  // "seguro de vida 8.779" no dice nada. Con cero, `cuota total` ya es igual a la del crédito.
+  // Sigue siendo fórmula (la necesita `totalInstallment`); solo no se dibuja.
+  const aliasRows = porCuota.length <= 1 ? ['installmentCharges'] : []
 
   const stages = (def.stages || []).map(st => ({
     ...st, formulas: [...(llegan[st.key] || []), ...st.formulas],
@@ -472,7 +490,7 @@ export function resolveSheet(def, { periods = {}, fields = [] } = {}) {
   for (const st of def.stages || []) if (st.inputsOf) inputHost[st.inputsOf] = st.key
 
   return {
-    ...def, stages, inputs, formulas, formulaLabel, terms, fields, inputHost,
+    ...def, stages, inputs, formulas, formulaLabel, terms, fields, inputHost, aliasRows,
     constants: {
       ...def.constants,
       statedPerYear: PERIODS[p.rateStatedIn],

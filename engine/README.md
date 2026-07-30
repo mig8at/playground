@@ -67,54 +67,80 @@ que arranca en dígito lleva el guión bajo adelante.)
 
 Los cinco campos **se borran con una ×**. El ejemplo es configuración, no motor.
 
-**Una columna, un nodo y el plan.** El color es el **grupo**: lo que **alimenta** el cálculo, y lo
-que el cliente **paga**.
+**Cada nodo se llama como la cosa real que es.** El color es el grupo: lo que **alimenta** el
+cálculo, y lo que el cliente **paga**.
 
 ```
- ┌ tasa ─────────────────┐  ámbar · lo que ALIMENTA
+ ┌ línea de crédito ─────┐  ámbar · lo que ALIMENTA
  │ ● efectiva ○ nominal  │
- │ DICHA  [anual]  28,17%│──┐
- │ SE COBRA [mens] 2,08…%│  │
+ │ DICHA  [anual]  28,17%│──┐        credit_line_by_lenders: la tasa, su
+ │ SE COBRA [mens] 2,08…%│  │        convención Y los plazos, todo en una fila
+ │ plazos 6,12,18,24,36,48  │
  └───────────────────────┘  │
- ┌ el crédito ───────────┐  │   ┌ cuota ──────────────────┐  verde · lo que se PAGA
+ ┌ la solicitud ─────────┐  │   ┌ cuota ──────────────────┐  verde · lo que se PAGA
  │ monto      10.000.000 │  │   │ seguro de vida   0,1307%│
- │ cuota inicial 4.000.000  ├──▸│ + campo                 │   ┌ Plan de ┐
- │ cuotas             36 │  │   ├─────────────────────────┤──▸│  pagos  │
+ │ cuota inicial resta   │  ├──▸│ + campo                 │   ┌ Plan de ┐
+ │ cuotas    [36 cuotas ▾]  │   ├─────────────────────────┤──▸│  pagos  │
  │ monto neto  6.000.000 │  │   │ cuota del crédito 267.335   └─────────┘
- └───────────┬───────────┘  │   │ cargos por cuota    8.779│
-    monto neto 6.000.000    │   │ cuota total       276.114│
- ┌───────────▾───────────┐  │   └─────────────────────────┘
- │ monto final           │──┘
- │ fianza           10%  │
- │ IVA de la f…     19%  │
- │ 4 × 1000     fórmula  │
- │ valor a fin. 6.716.856│
+ └───────────┬───────────┘  │   │ cuota total       276.114│
+    monto neto 6.000.000    │   │ CUOTA POR PLAZO          │
+ ┌───────────▾───────────┐  │   │  6 cuotas     1.211.546  │
+ │ tarifas               │  │   │ 36 cuotas       276.114 ◂│
+ │ fianza           10%  │  │   │ 48 cuotas       231.780  │
+ │ IVA de la f… fianza19%│  │   └─────────────────────────┘
+ │ 4 × 1000     fórmula  │  │
+ └───────────┬───────────┘  │
+ ┌───────────▾───────────┐  │
+ │ valor a financiar     │──┘
+ │ fianza        600.000 │
+ │   monto neto × fianza │
+ │ IVA de la f…  114.000 │
+ │   fianza × IVA de la… │
+ │ 4 × 1000        2.856 │
+ │            6.716.856  │
  └───────────────────────┘
 ```
 
-**Compartir columna no significa estar conectado.** Entre `tasa` y `el crédito` **no hay flecha**, y
-es un hecho: `netAmount = amount − downPayment` no toca la tasa, y `periodRate` no toca el monto.
-Son paralelos de verdad.
+**`la solicitud`** es `user_requests` y solo eso: lo que decide el cliente. **`línea de crédito`** es
+una fila de `credit_line_by_lenders` — ahí viven la tasa, el `rate_suffix` (la convención) **y**
+`fee_numbers` (los plazos), así que el editor de plazos vive ahí y no en la solicitud. El nombre de
+tabla también mata el choque viejo `tasa` / `tarifas`: dos títulos que empezaban igual, en columnas
+vecinas y del mismo color.
 
-**Cada arista dice por qué handle sale y por cuál entra.** Dentro del grupo baja (`down` → `up`);
-entre grupos sale por el costado derecho y entra por el izquierdo (`out` → `in`). Y cada nodo
-muestra solo los handles que usa — el de la izquierda existe únicamente si algo lo apunta desde
-afuera del grupo.
+**`tarifas` → `valor a financiar`** es la partición perillas/pesos: arriba lo que cambia por lender,
+abajo lo que es igual para todos. Y **cada fila de abajo muestra su expresión traducida** —
+`monto neto × fianza`, no `netAmount * fianza`. La regla de la hoja es que la UI nunca muestra un
+`name`, y las filas de expresión la estaban rompiendo; el crudo queda en el tooltip, que es donde
+sirve para copiarlo a otra fórmula.
 
-No es cosmética: `el crédito` tiene **dos** handles de salida (baja a `monto final` y sale al
-costado hacia `cuota`), y sin decir cuál, Vue Flow tomaba el primero — la arista a `cuota` salía
-**por abajo**.
+**Compartir columna no significa estar conectado.** Entre `línea de crédito` y `la solicitud` **no
+hay flecha**: `netAmount = amount − downPayment` no toca la tasa, y `periodRate` no toca el monto.
+Son paralelos de verdad. La que sí existe se dibuja **hacia abajo**, con handles `Top`/`Bottom` que
+solo aparecen en las etapas que los usan.
 
-**`cuota` es un solo nodo**: la anualidad y los recargos que la completan, leído como un recibo.
-Estuvieron separados mientras el total vivía arriba y la flecha iba al revés; una vez que el total
-pasó a donde se suman los recargos, el cable entre los dos no decía nada que las filas no dijeran.
+**Asimetría decidida:** el lado del monto está partido en dos nodos, el de la cuota va junto. Con un
+recargo típico la partición sería aire; se parte el día que un lender normal tenga dos o tres.
 
-Y una fórmula que genera un **campo** no se dibuja como fila: ya se ve en su propia línea con su
-perilla. Sin eso `seguro de vida` aparecía dos veces en el mismo nodo.
+⚠ **El color no dice de dónde viene el dato.** `la solicitud` la llena el cliente; `línea de crédito`
+y `tarifas` los configura la entidad, y los tres son ámbar. Esa distinción la llevan los títulos —
+que ahora son nombres de tabla, así que se lee de una.
 
-⚠ **El color no dice de dónde viene el dato.** `el crédito` lo llena el **cliente**; `tasa` y
-`monto final` los configura la **entidad**, y los tres son ámbar. Esa distinción la llevan los
-títulos — es el precio de agrupar por tema.
+### Detalles que se ganaron probando
+
+- **Un subtotal de un solo término no se dibuja**: `cargos por cuota 8.779` al lado de
+  `seguro de vida 8.779` no decía nada. Sigue siendo fórmula (la necesita el total).
+- **La fila de salida no repite el título del nodo** — en `valor a financiar` queda solo el número.
+- **`cuota inicial` dice `resta`.** Se escribe en positivo y `monto neto` la resta; desde que se
+  fueron los prefijos de signo, nada en la fila lo decía.
+- **Al escribir una fórmula, los nombres usables salen como chips clickeables** (las bases del punto,
+  `installments`, y los campos **anteriores** en sus pesos — nunca el propio, que sería un ciclo).
+  Antes había que adivinar los `name` en inglés.
+- **Los campos se reordenan con ↑↓.** Si el movimiento dejaría una base apuntando hacia adelante, se
+  revierte. Mover una **fórmula** siempre se puede: el motor resuelve por dependencias, no por orden
+  de declaración — comprobado moviendo el 4×1000 arriba del IVA sin que cambie un número.
+- **El `documento` es un panel lateral**, así que la hoja se lee mientras se edita. Reencuadra
+  mirando el ancho real del lienzo, no el toggle: Vue Flow actualiza sus dimensiones por un
+  `ResizeObserver` que llega después de cualquier cantidad de frames.
 
 ### Los plazos son una LISTA, no un input
 

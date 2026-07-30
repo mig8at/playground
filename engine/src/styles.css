@@ -77,7 +77,11 @@ body { background: var(--bg); color: var(--ink); font: 14px/1.5 var(--sans); -we
 .brand { font-weight: 650; letter-spacing: -.02em }
 .brand small { color: var(--mut); font-weight: 400; margin-left: 7px; font-size: 12px }
 .spacer { flex: 1 }
-.canvas { flex: 1; min-height: 0; position: relative; background: var(--canvas) }
+/* `flex` para que el documento sea un panel AL COSTADO y el lienzo se encoja, en vez de taparlo:
+   el punto es leer la hoja mientras se edita. El `min-width: 0` del lienzo es obligatorio o el
+   flex-item no baja de su ancho de contenido y el panel se sale de la pantalla. */
+.canvas { flex: 1; min-height: 0; display: flex; background: var(--canvas) }
+.canvas > .vue-flow { flex: 1; min-width: 0 }
 .empty { display: flex; align-items: center; justify-content: center; height: 100%; padding: 32px }
 
 /* pestañas como segmentos en la barra superior */
@@ -366,11 +370,16 @@ button.icon:hover { color: var(--ink); background: var(--card2) }
 .strip .ea::before { content: '· ' }
 .strip .warn { color: var(--amber) }
 
-/* ── el documento de la hoja ── */
-.docpane { height: 100%; overflow: auto; background: var(--canvas) }
+/* ── el documento de la hoja: panel lateral ── */
+.docpane { flex: 0 0 clamp(320px, 34vw, 460px); min-width: 0; display: flex; flex-direction: column;
+           border-left: 1px solid var(--line); background: var(--card) }
+.docpane__hd { display: flex; align-items: center; gap: 8px; padding: 7px 12px;
+               border-bottom: 1px solid var(--line); background: var(--hd-gray) }
+.docpane__hd b { font-size: 11.5px; font-weight: 650; margin-right: auto }
+.doc__b { font: 10px var(--mono); padding: 3px 7px; border-radius: 5px }
 .docpane pre {
-  margin: 0; padding: 20px 24px; font: 12px/1.65 var(--mono); color: var(--ink);
-  background: transparent;
+  margin: 0; padding: 14px 16px; font: 11.5px/1.6 var(--mono); color: var(--ink);
+  background: transparent; flex: 1; overflow: auto;
 }
 
 /* El período pegado al nombre de la tasa. Un % sin período es medio dato (F-71). */
@@ -484,6 +493,19 @@ button.icon:hover { color: var(--ink); background: var(--card2) }
        line-height: 1; padding: 0 2px; margin-left: -4px }
 .ent__row:hover .del { color: var(--dim) }
 .del:hover { color: var(--red) }
+/* B5 — reordenar. Apagadas hasta el hover de la fila, igual que la ×: son acciones, no estado. */
+.mvf { border: 0; background: none; cursor: pointer; color: transparent; font-size: 10px;
+       line-height: 1; padding: 0 1px }
+.ent__row:hover .mvf, .ent__f:hover .mvf { color: var(--dim) }
+.mvf:hover:not(:disabled) { color: var(--purple) }
+.mvf:disabled { color: transparent !important; cursor: default }
+
+/* B4 — los nombres usables mientras se escribe una expresión. Aparecen solo con el editor en foco:
+   son ayuda, no decoración permanente. */
+.nom { display: flex; flex-wrap: wrap; gap: 3px; padding: 4px 9px 2px }
+.nom__c { border: 1px solid var(--line); background: var(--card2); border-radius: 4px;
+          padding: 1px 5px; cursor: pointer; font: 9.5px var(--mono); color: var(--mut) }
+.nom__c:hover { border-color: var(--purple); color: var(--purple) }
 /* el calificativo al lado del nombre: SOLO lo ambiguo — sobre qué se aplica el %, o que es un
    total repartido. Sin esto "IVA de la fianza 19%" no dice 19% de qué. */
 .ent__note { flex: 0 0 auto; font-style: normal; font-size: 9.5px; color: var(--dim);
@@ -553,7 +575,11 @@ select.nf--term { text-align: right; padding-right: 4px }
 /* ── LA VITRINA: la cuota de cada plazo ──
    Sale de correr la misma hoja una vez por plazo, y es la pantalla que el cliente ve de verdad.
    Cada fila es un botón: clickearla elige ese plazo. */
-.vit { border-top: 1px solid var(--line); padding: 4px 0 6px }
+.vit { border-top: 1px solid var(--line); padding: 4px 0 6px;
+        /* C1 — con una lista larga (1,2,…,72) el nodo se infla: tope y scroll, como el plan */
+        max-height: 176px; overflow-y: auto }
+/* el label de la fila de salida se oculta cuando repetiría el título del nodo */
+.grp-k.is-hidden { flex: 1 1 auto }
 .vit__hd { font: 9px var(--mono); color: var(--dim); text-transform: uppercase;
            letter-spacing: .06em; padding: 2px 10px 3px }
 .vit__row { display: flex; width: calc(100% - 8px); margin: 0 4px; gap: 9px; align-items: baseline;

@@ -76,6 +76,40 @@ export function removeField(id) {
   for (const f of fields) if (f.base === muerto.name) f.base = ''
 }
 
+/** Mueve un campo una posición dentro de SU punto de inserción.
+ *
+ *  Un `%` solo puede apoyarse en campos ANTERIORES, así que un movimiento podría dejar una base
+ *  apuntando hacia adelante — un ciclo escribible. En vez de prohibir movimientos a mano, se hace el
+ *  swap, se VALIDA que toda base siga estando antes, y si no, se revierte. Devuelve si se movió, que
+ *  es lo que apaga el botón.  */
+export function moveField(id, dir) {
+  const i = fields.findIndex(f => f.id === id)
+  if (i < 0) return false
+  const mismos = fields.map((f, k) => ({ f, k })).filter(x => x.f.at === fields[i].at)
+  const pos = mismos.findIndex(x => x.f.id === id)
+  const destino = mismos[pos + dir]
+  if (!destino) return false
+
+  const j = destino.k
+  const antes = fields.slice()
+  ;[fields[i], fields[j]] = [fields[j], fields[i]]
+
+  const orden = Object.fromEntries(fields.map((f, k) => [f.name, k]))
+  const roto = fields.some((f, k) => f.base && orden[f.base] !== undefined && orden[f.base] > k)
+  if (roto) { fields.splice(0, fields.length, ...antes); return false }
+  return true
+}
+
+/** Si `moveField` podría mover en esa dirección. Solo mira que HAYA vecino en el mismo punto: si el
+ *  movimiento rompería una base, `moveField` lo revierte y devuelve false. */
+export function puedeMover(id, dir) {
+  const f = fields.find(x => x.id === id)
+  if (!f) return false
+  const mismos = fields.filter(x => x.at === f.at)
+  const pos = mismos.findIndex(x => x.id === id)
+  return !!mismos[pos + dir]
+}
+
 /** Los campos que un campo NUEVO puede usar como base: los del MISMO nodo y ANTERIORES. Así un
  *  ciclo no se puede ni escribir. */
 export function basesDisponibles(at, hasta = fields.length) {

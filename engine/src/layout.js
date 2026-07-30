@@ -32,12 +32,22 @@ export function layoutSheet(def, out, opts = {}) {
   const etapaDe = a => host[a] || a
 
   const LBL = def.formulaLabel || FORMULA_LABEL
+  const porNombre_ = Object.fromEntries((def.inputs || []).map(i => [i.name, i]))
+  /** La expresión, para MOSTRAR: los `name` traducidos a su label y `*` como `×`.
+   *
+   *  La regla de la hoja es que la UI nunca muestra un `name` — y las filas de expresión la estaban
+   *  rompiendo con `fianzaValue * ivaDeLaFianza`. Esto es SOLO presentación: el editor sigue en
+   *  crudo (ahí se escriben los nombres) y el documento guarda los nombres.  */
+  const traducir = expr => String(expr || '')
+    .replace(/[A-Za-z_][A-Za-z0-9_.]*/g, id => LBL[id] || porNombre_[id]?.label || id)
+    .replace(/\*/g, '×')
   // `verExpr`: la fila muestra su EXPRESIÓN debajo del nombre. Se prende cuando la perilla del campo
   // vive en otra etapa — es el caso de `tarifas` → `costos al monto`, donde el nodo de abajo mostraba
   // los pesos pero no de dónde salían. Ahí la expresión es lo que hace entendible la configuración
   // sin tener que meter el 10% dentro de la fórmula (que ataría la hoja a un solo lender).
   const row = (name, verExpr = false) => ({
-    name, expr: def.formulas[name], label: LBL[name] || name, verExpr,
+    name, expr: def.formulas[name], exprEs: traducir(def.formulas[name]),
+    label: LBL[name] || name, verExpr,
     status: out.res[name]?.status ?? 'skipped',
     value: out.res[name]?.status === 'ok' ? out.res[name].value : undefined,
   })
@@ -73,7 +83,10 @@ export function layoutSheet(def, out, opts = {}) {
   // una etapa aparte, esa fila es justamente el punto: arriba las tarifas, abajo los pesos.
   const deCampo = new Map((def.fields || [])
     .map(f => [f.name + 'Value', etapaDe(f.at)]))   // fórmula → dónde vive su perilla
-  const visibles = st => st.formulas.filter(f => deCampo.get(f) !== st.key)
+  // `aliasRows` las marca `resolveSheet`: un subtotal de un solo término es una copia de ese
+  // término, así que no se dibuja (sigue existiendo como fórmula, la necesita el total).
+  const alias = new Set(def.aliasRows || [])
+  const visibles = st => st.formulas.filter(f => deCampo.get(f) !== st.key && !alias.has(f))
   // `rows` dice CUÁNTAS de sus fórmulas dibuja una etapa. Es distinto de cuáles POSEE: `tasa` es
   // dueña de las suyas —eso es lo que la pone en el grafo y lo que hace que `cuota` dependa de
   // ella— y no dibuja ninguna.
@@ -240,6 +253,9 @@ export function layoutSheet(def, out, opts = {}) {
         id: otra + '->' + st.key, source: '@st:' + otra, target: '@st:' + st.key,
         sourceHandle: interno ? 'down' : 'out', targetHandle: interno ? 'up' : 'in',
         label: cual ? etiqueta(cual) + (via.size > 1 ? ` +${via.size - 1}` : '') : '',
+        // el `+N` era un misterio: el tooltip lista todo lo que cruza, con su nombre en español
+        ...(via.size > 1 ? { labelBgStyle: { fill: 'transparent' },
+          data: { cruzan: [...via].map(n => LBL[n] || porNombre[n]?.label || n).join(' · ') } } : {}),
         style: { strokeWidth: 1.5, opacity: interno ? .7 : .85 },
       })
     }
