@@ -4,6 +4,9 @@ import { Handle, Position } from '@vue-flow/core'
 import MoneyInput from '../MoneyInput.vue'
 import PercentInput from '../PercentInput.vue'
 import RateBlock from '../RateBlock.vue'
+import FormulaBoard from '../FormulaBoard.vue'
+import { desdeTexto, aTexto, en, reemplazar, envolver, primerHueco, huecos, hueco }
+  from '../formulaTree.js'
 import { fmtNum } from '../engine.js'
 import { RATE_BASES, CON_EXPRESION, describir } from '../sheets.js'
 import { inputs, fields, out, addField, removeField, setExpr, basesDisponibles,
@@ -108,7 +111,7 @@ const razonBorrar = f => {
 const nombresUsables = computed(() => {
   // EXCLUYENTE: hasta el campo que se está editando, sin incluirlo. Ofrecerse a sí mismo es un ciclo
   // —el motor lo caza, pero sugerirlo está mal. Sin `id` (campo nuevo) valen todos los anteriores.
-  const id = expreFoco.value?.id
+  const id = tab.value?.id
   const i = id ? fields.findIndex(f => f.id === id) : fields.length
   const previos = fields.slice(0, i < 0 ? fields.length : i)
   const delPunto = previos.filter(f => f.at === punto.value)
@@ -121,56 +124,72 @@ const nombresUsables = computed(() => {
   ]
 })
 
-// ── las formas con cuadritos ──
-// Las CUATRO que existen en los datos, no un editor matemático general: las 14 fórmulas reales —los
-// 6 presets más las 3 calculadoras de `lenders.calculator`— usan solo `+ − × ÷`. Ni una potencia, ni
-// una raíz, ni una fracción. Botones de fracción y raíz serían notación sin datos detrás.
+// ══════════ EL TABLERO ══════════
+// La fórmula se arma por CAJAS, no escribiendo texto: se elige un cuadrito y se le pone un campo, un
+// número o una operación. El texto sigue siendo lo que se guarda —lo come el motor— pero deja de ser
+// lo que se edita.
 //
-// El `▢` no es un identificador válido, así que mientras quede uno el motor dice "carácter
-// inesperado ▢" y el campo se muestra sin calcular. Eso es correcto: la fórmula está incompleta, y
-// la evaluación parcial ya apaga solo lo que depende de ella.
-const HUECO = '▢'
-const FORMAS = [
-  { ver: '▢ + ▢', pone: `${HUECO} + ${HUECO}`, ayuda: 'sumar — un subtotal' },
-  { ver: '▢ − ▢', pone: `${HUECO} - ${HUECO}`, ayuda: 'restar — un descuento' },
-  { ver: '▢ × ▢', pone: `${HUECO} * ${HUECO}`, ayuda: 'multiplicar — un porcentaje sobre algo' },
-  { ver: '▢ ÷ ▢', pone: `${HUECO} / ${HUECO}`, ayuda: 'dividir' },
-  { ver: '( ▢ )', pone: `(${HUECO})`, ayuda: 'agrupar' },
-  { ver: '▢ ^ ▢', pone: `${HUECO} ^ ${HUECO}`,
-    ayuda: 'elevar. El motor lo soporta, aunque ninguna fórmula real lo usa todavía: es lo que haría '
-      + 'falta para capitalizar una tasa dentro de un campo.' },
-  { ver: '▢ ÷ cuotas', pone: `${HUECO} / installments`,
-    ayuda: 'repartir un total entre las cuotas' },
-  { ver: '(▢ + ▢) × ▢', pone: `(${HUECO} + ${HUECO}) * ${HUECO}`,
-    ayuda: 'un porcentaje sobre una suma — la forma del 4 × 1000' },
+// El árbol va y vuelve con `formulaTree.js`, que usa el parser DEL MOTOR: así el tablero y el cálculo
+// no pueden interpretar distinto la misma fórmula. Si la expresión tiene algo que el tablero no
+// dibuja (un `pmt`, un `if`, una comparación), `desdeTexto` devuelve null y ese campo se sigue
+// editando como texto — mejor eso que dibujar mal algo que el motor entiende bien.
+const tab = ref(null)   // { id, arbol, sel }
+
+/** Las OPERACIONES del tablero. Solo las que el motor soporta y significan algo con dinero: las 14
+ *  fórmulas reales —6 presets + las 3 calculadoras de `lenders.calculator`— usan `+ − × ÷` y
+ *  paréntesis, ni una raíz ni un valor absoluto. El `^` está porque el motor lo soporta y es lo que
+ *  haría falta para capitalizar una tasa dentro de un campo. */
+const OPS = [
+  { o: '+', ver: '+', ayuda: 'sumar' },
+  { o: '-', ver: '−', ayuda: 'restar — un descuento' },
+  { o: '*', ver: '×', ayuda: 'multiplicar — un porcentaje sobre algo' },
+  { o: '/', ver: '÷', ayuda: 'dividir — repartir entre las cuotas' },
+  { o: '^', ver: '^', ayuda: 'elevar. El motor lo soporta; ninguna fórmula real lo usa todavía.' },
 ]
 
-// Qué editor de expresión tiene el foco, para saber dónde escribir. Los botones usan
-// `mousedown.prevent` para no robarle el foco al input, así que el cursor se conserva.
-const expreFoco = ref(null)
+/** name → label, para que las cajas muestren el español. */
+const etiquetas = computed(() => {
+  const m = {}
+  for (const b of RATE_BASES[punto.value] || []) m[b.value] = b.label
+  m.installments = 'cuotas'
+  m.amount = 'el monto'
+  for (const f of fields) m[f.kind === 'money' ? f.name : f.name + 'Value'] = f.label
+  return m
+})
 
-/** Escribe en el editor con foco. Si hay un hueco pendiente, lo LLENA —así los cuadritos se
- *  completan en orden sin tener que mover el cursor—; si no, inserta donde esté el cursor. */
-function escribir(txt) {
-  const el = expreFoco.value?.el
-  if (!el) return
-  const hueco = el.value.indexOf(HUECO)
-  let pos
-  if (hueco >= 0) {
-    el.value = el.value.slice(0, hueco) + txt + el.value.slice(hueco + HUECO.length)
-    pos = hueco + txt.length
-  } else {
-    const i = el.selectionStart ?? el.value.length
-    const j = el.selectionEnd ?? i
-    el.value = el.value.slice(0, i) + txt + el.value.slice(j)
-    pos = i + txt.length
-  }
-  el.dispatchEvent(new Event('input', { bubbles: true }))
-  el.focus()
-  // si quedan huecos, el cursor va al siguiente; si no, después de lo escrito
-  const sig = el.value.indexOf(HUECO)
-  el.selectionStart = el.selectionEnd = sig >= 0 ? sig + HUECO.length : pos
+/** El tablero para el campo que se está creando: arranca en un hueco. */
+function abrirNuevo() {
+  const arbol = desdeTexto(nuevo.value.expr) || hueco()
+  tab.value = { id: null, arbol, sel: primerHueco(arbol) ?? [] }
 }
+
+function abrirTablero(f) {
+  const arbol = desdeTexto(f.expr)
+  if (!arbol) { tab.value = null; return false }   // no dibujable: se edita como texto
+  tab.value = { id: f.id, arbol, sel: primerHueco(arbol) ?? [] }
+  return true
+}
+function cerrarTablero() { tab.value = null }
+
+/** Cada cambio del árbol se serializa y se guarda: el texto sigue siendo la fuente para el motor. */
+function aplicar(arbol) {
+  tab.value.arbol = arbol
+  const t = tab.value.id
+  if (t) setExpr(t, aTexto(arbol))
+  else if (nuevo.value) nuevo.value.expr = aTexto(arbol)
+}
+const poner = n => {
+  const a = reemplazar(tab.value.arbol, tab.value.sel, n)
+  aplicar(a)
+  tab.value.sel = primerHueco(a, [], tab.value.sel) ?? tab.value.sel
+}
+const operar = o => {
+  const a = envolver(tab.value.arbol, tab.value.sel, o)
+  aplicar(a)
+  tab.value.sel = primerHueco(a, [], []) ?? tab.value.sel
+}
+const ponerNum = (ruta, v) => aplicar(reemplazar(tab.value.arbol, ruta, { k: 'num', v }))
+const faltan = computed(() => (tab.value ? huecos(tab.value.arbol) : 0))
 
 // ── los plazos ofrecidos ──
 // La lista se edita como TEXTO porque así se guarda: `credit_line_by_lenders.fee_numbers` es una
@@ -192,7 +211,7 @@ function crear() {
 
 <template>
   <div class="n n--stage"
-       :class="['st--' + data.key, data.group && 'g--' + data.group, { 'has-tec': !!expreFoco }]"
+       :class="['st--' + data.key, data.group && 'g--' + data.group, { 'has-tec': !!tab }]"
        style="min-width:296px;max-width:296px">
     <!-- el de la izquierda solo si algo la apunta desde afuera del grupo -->
     <Handle v-if="data.hIn" id="in" type="target" :position="Position.Left" />
@@ -245,11 +264,14 @@ function crear() {
           <button class="nodrag del" :class="{ 'is-locked': cuelgan(f.id).length }"
             :disabled="!!cuelgan(f.id).length" :title="razonBorrar(f.id)"
             @click="removeField(f.id)">×</button>
-          <input class="nodrag nf nf--expr" :value="f.expr" :title="f.expr"
+          <!-- La expresión se MUESTRA acá y se EDITA en el tablero. Si el tablero no la puede
+               dibujar (un `pmt`, un `if`), cae al input de texto: mejor eso que dibujar mal algo que
+               el motor entiende bien. -->
+          <button v-if="desdeTexto(f.expr)" class="nodrag nf nf--expr nf--abre" :title="f.expr"
+            @click="tab && tab.id === f.id ? cerrarTablero() : abrirTablero(f)">{{ f.expr || '▢' }}</button>
+          <input v-else class="nodrag nf nf--expr" :value="f.expr" :title="f.expr"
             @input="setExpr(f.id, $event.target.value)" @keydown.stop spellcheck="false"
-            @focus="expreFoco = { el: $event.target, id: f.id }"
-            @blur="expreFoco = null"
-            placeholder="p. ej. amount * 0.05">
+            placeholder="p. ej. pmt(...)">
         </div>
         <div class="ent__row ent__fres">
           <span class="ent__k"></span>
@@ -261,23 +283,41 @@ function crear() {
 
       <!-- los nombres usables, mientras se escribe una expresión. `mousedown.prevent` para no
            perder el foco ni el cursor. -->
-      <!-- El teclado. Va como OVERLAY y no dentro del nodo: si el nodo creciera al enfocar, se
-           solaparía con el de abajo — Vue Flow posiciona por alto medido, y el layout no sabe que
-           hay un editor con foco. -->
-      <div v-if="expreFoco" class="tec nodrag">
-        <div class="tec__hd">campos</div>
-        <div class="tec__g tec__g--nom">
-          <button v-for="nb in nombresUsables" :key="nb.name" class="tec__k" :title="nb.name"
-            @mousedown.prevent="escribir(nb.name)">{{ nb.label }}</button>
+      <!-- ══════════ EL TABLERO ══════════
+           Overlay y no dentro del nodo: si el nodo creciera al abrirlo se solaparía con el de abajo
+           —Vue Flow posiciona por alto medido y el layout no sabe que hay un tablero abierto—. -->
+      <div v-if="tab" class="tab nodrag">
+        <div class="tab__hd">
+          <b>armá la fórmula</b>
+          <span v-if="faltan" class="tab__f">{{ faltan }} sin llenar</span>
+          <button class="tab__x" @click="cerrarTablero()">listo</button>
         </div>
-        <div class="tec__hd">operaciones</div>
-        <div class="tec__g">
-          <button v-for="f in FORMAS" :key="f.ver" class="tec__k tec__k--op"
-            :title="f.ayuda" @mousedown.prevent="escribir(f.pone)">{{ f.ver }}</button>
+
+        <!-- la fórmula, por cajas. Click en una caja la elige; la operación entera también se
+             puede elegir, para envolverla o reemplazarla. -->
+        <div class="tab__ex">
+          <FormulaBoard :node="tab.arbol" :sel="tab.sel" :labels="etiquetas"
+            @sel="r => (tab.sel = r)" @num="ponerNum" />
+        </div>
+
+        <div class="tab__hd2">campos</div>
+        <div class="tab__g tab__g--nom">
+          <button v-for="nb in nombresUsables" :key="nb.name" class="tab__k" :title="nb.name"
+            @click="poner({ k: 'ref', name: nb.name })">{{ nb.label }}</button>
+        </div>
+
+        <div class="tab__hd2">operaciones</div>
+        <div class="tab__g">
+          <button v-for="op in OPS" :key="op.o" class="tab__k tab__k--op" :title="op.ayuda"
+            @click="operar(op.o)">▢ {{ op.ver }} ▢</button>
+          <button class="tab__k tab__k--op" title="un número, se escribe en la caja"
+            @click="poner({ k: 'num', v: '' })">123</button>
+          <button class="tab__k tab__k--op" title="vaciar esta caja"
+            @click="poner(hueco())">▢</button>
         </div>
       </div>
 
-      <!-- la lista de plazos que el lender OFRECE. No es un input: `cuotas` elige uno de acá -->
+      <!-- la lista de plazos que el lender OFRECE.      <!-- la lista de plazos que el lender OFRECE. No es un input: `cuotas` elige uno de acá -->
       <div v-if="data.termsEditor" class="ent__row ent__plazos">
         <span class="ent__k" title="Los plazos que el lender ofrece. En producción es
 `credit_line_by_lenders.fee_numbers`, también una lista separada por comas. La calculadora corre una
@@ -307,9 +347,8 @@ vez por cada uno: la vitrina está en el nodo de la cuota.">plazos</span>
           </div>
           <!-- una fórmula se escribe entera: no necesita base ni ÷ cuotas, eso se escribe ahí -->
           <div v-if="CON_EXPRESION.has(nuevo.kind)" class="ent__row">
-            <input class="nodrag nf nf--expr" v-model="nuevo.expr" @keydown.stop spellcheck="false"
-              @focus="expreFoco = { el: $event.target, id: null }" @blur="expreFoco = null"
-              placeholder="p. ej. amount * 0.05 / installments">
+            <button class="nodrag nf nf--expr nf--abre" @click="abrirNuevo()">
+              {{ nuevo.expr || '▢ armar' }}</button>
           </div>
           <!-- sobre qué se aplica: la base del punto, u otro campo de este mismo nodo -->
           <div v-if="nuevo.kind === 'rate'" class="ent__row">

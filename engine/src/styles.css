@@ -508,84 +508,65 @@ button.icon:hover { color: var(--ink); background: var(--card2) }
 .ent__row:hover .del.is-locked, .ent__f:hover .del.is-locked { color: var(--dim); opacity: .5 }
 .del.is-locked:hover { color: var(--dim) }
 
-/* ── el teclado de fórmulas ──
-   Overlay, NO dentro del nodo: si el nodo creciera al enfocar el editor se solaparía con el de
-   abajo. Vue Flow posiciona por alto medido y el layout no sabe que hay un editor con foco.
-   Aparece solo mientras se escribe: es ayuda, no decoración permanente. */
-/* El nodo tiene `overflow: hidden` (por el borde redondeado) y Vue Flow le pone su propio
-   `z-index` a cada nodo, así que el teclado quedaba CLIPEADO y por debajo del nodo de abajo.
-   Mientras está abierto, el nodo deja de recortar y sube en el orden — con `!important` porque
-   Vue Flow escribe el z-index inline. */
+/* ══════════ EL TABLERO ══════════
+   La fórmula se arma por CAJAS, no escribiendo texto. Va como overlay y no dentro del nodo: si el
+   nodo creciera al abrirlo se solaparía con el de abajo, porque Vue Flow posiciona por alto medido y
+   el layout no sabe que hay un tablero abierto.
+
+   Y para que se VEA hubo que resolver dos cosas: el nodo tiene `overflow: hidden` por el borde
+   redondeado, y Vue Flow le escribe su propio z-index inline. Mientras el tablero está abierto el
+   nodo deja de recortar y sube — con `!important` por eso último. */
 .n--stage.has-tec { overflow: visible }
 .vue-flow__node:has(.n--stage.has-tec) { z-index: 40 !important }
-.tec { position: absolute; left: 6px; right: 6px; top: 100%; margin-top: 5px; z-index: 20;
+
+.tab { position: absolute; left: 4px; right: 4px; top: 100%; margin-top: 5px; z-index: 20;
        background: var(--card); border: 1px solid var(--purple); border-radius: 9px;
-       box-shadow: var(--shadow-2); padding: 6px 7px 8px }
-.tec__hd { font: 8.5px var(--mono); color: var(--dim); text-transform: uppercase;
-           letter-spacing: .07em; padding: 3px 2px 4px }
-.tec__g { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px }
-/* los campos son de ancho variable (llevan su label en español), así que fluyen en vez de grilla */
-.tec__g--nom { display: flex; flex-wrap: wrap }
-.tec__k { border: 1px solid var(--line); background: var(--card2); border-radius: 6px;
+       box-shadow: var(--shadow-2); padding: 7px 8px 9px }
+.tab__hd { display: flex; align-items: center; gap: 7px; padding: 0 1px 6px }
+.tab__hd b { font-size: 11px; font-weight: 650; margin-right: auto }
+.tab__f { font: 9px var(--mono); color: var(--amber) }
+.tab__x { font: 10px var(--mono); padding: 2px 7px; border-radius: 5px }
+.tab__hd2 { font: 8.5px var(--mono); color: var(--dim); text-transform: uppercase;
+            letter-spacing: .07em; padding: 6px 2px 4px }
+.tab__g { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px }
+/* los campos llevan su label en español, de ancho variable: fluyen en vez de grilla */
+.tab__g--nom { display: flex; flex-wrap: wrap }
+.tab__k { border: 1px solid var(--line); background: var(--card2); border-radius: 6px;
           padding: 4px 6px; cursor: pointer; font: 10px var(--mono); color: var(--mut);
           line-height: 1.3; text-align: center }
-.tec__k:hover { border-color: var(--purple); color: var(--purple); background: var(--hd-purple) }
-/* las operaciones con borde punteado: el cuadrito ya dice que hay un hueco por llenar */
-.tec__k--op { border-style: dashed; color: var(--ink) }
-.tec__k--op:hover { border-style: solid }
-/* el calificativo al lado del nombre: SOLO lo ambiguo — sobre qué se aplica el %, o que es un
-   total repartido. Sin esto "IVA de la fianza 19%" no dice 19% de qué. */
-.ent__note { flex: 0 0 auto; font-style: normal; font-size: 9.5px; color: var(--dim);
-              margin-left: 5px }
-.nf--base { flex: 1; min-width: 0 }
-/* ── un campo FÓRMULA ──
-   La celda de una hoja de cálculo: el resultado a la derecha, la expresión debajo y editable. Si
-   está mal, el motor devuelve la razón (sintaxis, ciclo, referencia desconocida) y se lee ahí
-   mismo — por eso se puede escribir en vivo sin que nada explote. */
-.ent__f { padding: 1px 0 3px }
-.ent__fv { margin-left: auto; font-family: var(--mono); font-weight: 650; font-size: 11px }
-.ent__fv.is-bad { color: var(--dim); font-weight: 400 }
-/* La expresión vive en la MISMA columna que los demás controles, para que el nodo tenga un solo
-   borde derecho. Al enfocarla se abre a todo el ancho, porque ahí sí hace falta verla entera. */
-.nf--expr { text-align: left; font-size: 10px; color: var(--mut) }
-.nf--expr:focus { color: var(--ink); width: calc(100% - 18px); flex-basis: calc(100% - 18px) }
-.ent__err { font: 9.5px var(--mono); color: var(--red); padding: 2px 9px 0; line-height: 12px }
-/* el resultado de la fórmula, alineado en la misma columna que su expresión */
-.ent__fres { padding-top: 0; line-height: 14px }
-.ent__fv { flex: 0 0 var(--field-w); width: var(--field-w); text-align: right; padding-right: 6px }
-/* la frase: el campo leído como lo que hace, antes de crearlo */
-.ent__frase { align-items: center; padding-top: 3px }
-.ent__frase .ent__k { font-size: 9.5px; color: var(--dim); font-family: var(--mono);
-                      white-space: normal; line-height: 12px }
-.ent__new { border: 1px solid var(--purple); border-radius: 6px; margin: 3px 5px; padding: 3px 0 }
-/* la nota del grupo: qué le hace al cálculo */
-.ent__sec em { font-style: normal; text-transform: none; letter-spacing: 0; color: var(--dim);
-               margin-left: 7px; font-size: 9.5px }
-/* el signo delante del label: se ve si suma o resta */
-.sg { font-style: normal; display: inline-block; width: 9px; color: var(--dim) }
+.tab__k:hover { border-color: var(--purple); color: var(--purple); background: var(--hd-purple) }
+.tab__k--op { border-style: dashed; color: var(--ink) }
+.tab__k--op:hover { border-style: solid }
 
-/* ── nodos de etapa: el color es el GRUPO ──
-   El color no dice qué etapa es (eso lo dice el título) sino de qué TEMA es:
+/* la fórmula armada: fondo propio para que se lea como "lo que estoy construyendo" */
+.tab__ex { background: var(--card2); border: 1px solid var(--line); border-radius: 7px;
+           padding: 7px 8px; min-height: 30px; display: flex; align-items: center;
+           flex-wrap: wrap; gap: 2px; overflow-x: auto }
 
-     ámbar   grupo `entrada` — todo lo que ALIMENTA el cálculo: tasa · el deudor · costos al monto
-     verde   grupo `pago`    — lo que el cliente PAGA: la anualidad y los recargos, más el plan
+/* ── las cajas del tablero ──
+   La ANIDACIÓN se ve por los marcos, no por paréntesis: un `bin` es un marco con sus dos lados
+   adentro, así que `(2 × (monto + setup)) + extras` se lee por la forma. */
+.fb__h, .fb__r { border: 1px solid var(--line); border-radius: 5px; background: var(--card);
+                 padding: 1px 6px; cursor: pointer; font: 10.5px var(--mono); color: var(--ink) }
+.fb__h { border-style: dashed; color: var(--dim); min-width: 22px }
+.fb__h:hover, .fb__r:hover { border-color: var(--purple) }
+.fb__h.on, .fb__r.on { border-color: var(--purple); background: var(--hd-purple); color: var(--purple) }
+.fb__n { display: inline-flex; border: 1px solid var(--line); border-radius: 5px;
+         background: var(--card); padding: 0 4px; cursor: pointer }
+.fb__n.on { border-color: var(--purple); background: var(--hd-purple) }
+.fb__n input { border: 0; background: none; padding: 1px 0; font: 10.5px var(--mono);
+               color: var(--ink); text-align: center; min-width: 2ch }
+.fb__n input:focus { outline: none }
+.fb__b { display: inline-flex; align-items: center; gap: 3px; border: 1px solid var(--line);
+         border-radius: 6px; padding: 2px 4px; cursor: pointer }
+.fb__b:hover { border-color: var(--mut) }
+.fb__b.on { border-color: var(--purple); box-shadow: inset 0 0 0 1px var(--purple) }
+.fb__o { font-style: normal; font: 10.5px var(--mono); color: var(--dim); padding: 0 1px }
 
-   El selector es el GRUPO y no la etapa, así que una etapa nueva hereda el color sola.
-   Ojo: el color NO dice de dónde viene el dato. `el crédito` lo llena el cliente y `monto final`
-   lo configura la entidad, y comparten ámbar. Eso lo distinguen los títulos.               */
-.n--stage .n__hd b { text-transform: none }
-/* `entrada` y `monto` comparten el ámbar a propósito: son grupos distintos por COLUMNA, no por
-   tema. `monto` existe para que `tarifas` y `costos al monto` queden adyacentes — apilados los
-   cuatro en una sola columna, la flecha `monto neto` saltaba por encima de `tarifas`. */
-.g--entrada, .g--monto { border-color: var(--amber) }
-.g--entrada .n__hd, .g--monto .n__hd { background: var(--hd-amber) }
-.g--entrada .n__hd b, .g--monto .n__hd b { color: var(--amber) }
-.g--pago { border-color: var(--green) }
-.g--pago .n__hd { background: var(--hd-green) } .g--pago .n__hd b { color: var(--green) }
-/* la última fila de cada etapa es su salida: lo que las otras consumen */
-.g--entrada .grp-row.is-out .grp-k, .g--entrada .grp-row.is-out .grp-v,
-.g--monto .grp-row.is-out .grp-k, .g--monto .grp-row.is-out .grp-v { color: var(--amber) }
-.g--pago .grp-row.is-out .grp-k, .g--pago .grp-row.is-out .grp-v { color: var(--green) }
+/* el botón que ABRE el tablero: se lee como el campo que reemplaza, pero clickeable */
+.nf--abre { text-align: left; cursor: pointer; overflow: hidden; text-overflow: ellipsis;
+            white-space: nowrap }
+.nf--abre:hover { border-color: var(--purple); color: var(--purple) }
 
 /* ── la lista de plazos ofrecidos ──
    Es CONFIG, no un input, así que se separa con una línea: se edita como la cadena separada por

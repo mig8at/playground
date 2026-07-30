@@ -138,17 +138,32 @@ que ahora son nombres de tabla, así que se lee de una.
   Ahora `alsoShow` la trae y la suma cierra a la vista. Y un nodo-suma **nunca esconde un término**,
   ni siquiera un subtotal redundante — esconderlo deja un total que no cuadra.
 
-- **Un teclado de fórmulas, con cuadritos.** Al enfocar una expresión aparece un panel flotante con
-  los **campos** (en español, insertan el identificador) y las **operaciones** con huecos:
+- **Un TABLERO, no un input.** La fórmula no se escribe: se **arma por cajas**. Se elige un
+  cuadrito y se le pone un campo, un número o una operación.
 
   ```
-  CAMPOS       el monto neto · el monto · cuotas · fianza · IVA de la fianza
-  OPERACIONES  ▢ + ▢   ▢ − ▢   ▢ × ▢   ▢ ÷ ▢
-               ( ▢ )   ▢ ^ ▢   ▢ ÷ cuotas   (▢ + ▢) × ▢
+  armá la fórmula                              1 sin llenar   listo
+  ┌───────────────────────────────────────────────────────┐
+  │  ┌ fianza  +  IVA de la fianza ┐   ×   0.004           │
+  └───────────────────────────────────────────────────────┘
+  CAMPOS        el monto neto · el monto · cuotas · fianza · IVA de la fianza
+  OPERACIONES   ▢+▢   ▢−▢   ▢×▢   ▢÷▢
+                ▢^▢   123   ▢
   ```
 
-  Se elige la forma y después se llenan los huecos en orden: cada tecla reemplaza el primer `▢`
-  pendiente, así que el 4 × 1000 se arma sin escribir nada más que el `0.004`.
+  **La anidación se ve por los marcos, no por paréntesis** — el marco interno de
+  `fianza + IVA de la fianza` es el paréntesis. Y las cajas muestran el **español**: la fórmula
+  guarda el identificador, la misma regla del resto.
+
+  Aplicar una operación **envuelve** lo que está elegido: seleccionás algo, apretás `×`, y pasa a ser
+  `eso × ▢` con el hueco nuevo ya elegido. Es lo que hace un editor matemático.
+
+  El árbol va y vuelve con `formulaTree.js`, que usa **el parser del motor** — así el tablero y el
+  cálculo no pueden interpretar distinto la misma fórmula. Verificado: las 7 fórmulas reales
+  round-trip **idénticas**, con los paréntesis mínimos.
+
+  Y si la expresión tiene algo que el tablero no dibuja —`pmt`, `if`, una comparación— ese campo se
+  sigue editando **como texto**. Mejor eso que dibujar mal algo que el motor entiende bien.
 
   **Las teclas son las que los datos justifican.** Las 14 fórmulas reales —los 6 presets más las 3
   calculadoras de `lenders.calculator`— usan solo `+ − × ÷` y paréntesis: ni una potencia, ni una
@@ -156,8 +171,12 @@ que ahora son nombres de tabla, así que se lee de una.
   además `abs` y las constantes no están en la lista blanca del motor. El `▢ ^ ▢` sí está porque el
   motor lo soporta y es lo que haría falta para capitalizar una tasa dentro de un campo.
 
-  Va como **overlay y no dentro del nodo**: si el nodo creciera al enfocar se solaparía con el de
-  abajo, porque Vue Flow posiciona por alto medido y el layout no sabe que hay un editor con foco.
+  Mientras quede un `▢`, el motor dice "carácter inesperado" y **solo ese campo y lo que depende de
+  él** se apagan — el resto del nodo sigue calculando. Es la evaluación parcial de siempre, y es lo
+  que hace que se pueda armar una fórmula en vivo sin que la pantalla se vacíe.
+
+  Va como **overlay y no dentro del nodo**: si el nodo creciera al abrirlo se solaparía con el de
+  abajo, porque Vue Flow posiciona por alto medido y el layout no sabe que hay un tablero abierto.
   Y mientras está abierto el nodo deja de recortar y sube de z-index — con `!important`, porque Vue
   Flow escribe el suyo inline.
 - **No hay flechas para reordenar, y es a propósito.** Un campo solo puede apoyarse en los
