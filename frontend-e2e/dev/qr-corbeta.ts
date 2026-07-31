@@ -62,6 +62,11 @@ const { one, exec, close } = await import('../pkg/db.ts');
 const { synthFill } = await import('../pkg/inject.ts');
 const { config: e2eConfig } = await import('../pkg/config.ts');
 const { corbetaBranch, qrEntryUrl, bancolombiaEncryptCode } = await import('../pkg/qr.ts');
+// MISMA capa de aserción que el camino VISUAL (dev/guided.spec.ts) y que el otro rápido (dev/sweep.ts).
+// Que "pasó" signifique lo mismo en los tres es lo que hace informativa una divergencia: mismas
+// aserciones + distinto transporte ⇒ la diferencia ES el frontend. Por eso el desenlace de este canal
+// (estado 25) se agregó a `ESTADO_ESPERADO` en pkg/trace.ts en vez de tener un veredicto propio acá.
+const traza = await import('../pkg/trace.ts');
 
 const flowsRaw = JSON.parse(readFileSync(new URL('../.flows.json', import.meta.url), 'utf8'));
 const API = e2eConfig.mockUrl;
@@ -195,6 +200,7 @@ const ins = await exec(
 ).catch((e) => { P('uReq', false, String(e).slice(0, 120)); return null; });
 if (!ins?.insertId) { await close(); process.exit(2); }
 const UR = String(ins.insertId);
+traza.trazarUReq(UR);
 P('uReq creado', true, `#${UR} · lender ${LENDER} · monto ${AMOUNT.toLocaleString('es-CO')} · estado 1`);
 
 await synthFill(ins.insertId, { income: 2_500_000, score: 700 });
@@ -245,6 +251,8 @@ const secuenciaConsumo: Array<[string, string, unknown?]> = [
 const secuencia = PRODUCTO === 'consumo' ? secuenciaConsumo : secuenciaBnpl;
 for (const [nombre, path, body] of secuencia) {
     const r = await http('POST', path, body ?? {});
+    traza.paso('API', nombre);            // la traza contrasta cada paso contra la BD
+    await traza.drenar();
     const ok = r.status >= 200 && r.status < 300;
     // Si el backend no pudo ni resolver el host del proveedor, decirlo con nombre y apellido: es el muro
     // más común en local (`BANCOLOMBIA_HOST=https://bancolombia.fake` es un placeholder a propósito) y
@@ -268,8 +276,11 @@ P('estado tras origination', trasOrig?.s === 25, `estado ${trasOrig?.s ?? '?'} (
 const pc = await http('POST', `/api/onboarding/purchase-code/generate/${UR}`);
 const codigo = pc.json?.data?.code ?? null;
 const muestra = pc.json?.data?.showBarCode;
+// Ojo con el envelope: PCS002 = «Código generado correctamente» (recién emitido) y PCS001 = «Código
+// consultado» (ya existía). Van al revés de lo que sugiere el número, y el handoff los documenta
+// invertidos — ver `PurchaseCodeService.php:63-68`.
 P('purchase-code', pc.status >= 200 && pc.status < 300 && !!codigo,
-    `HTTP ${pc.status} · code=${codigo ?? '—'} · showBarCode=${muestra ?? '—'} · ${pc.json?.code ?? ''}`);
+    `HTTP ${pc.status} · code=${codigo ?? '—'} · showBarCode=${muestra ?? '—'} · ${pc.json?.code ?? ''}${pc.json?.code === 'PCS002' ? ' (emitido)' : pc.json?.code === 'PCS001' ? ' (ya existía)' : ''}`);
 
 if (codigo) {
     const enMock = (await mock('/'))?.ordenes?.some((o: any) => o.pin === codigo);
@@ -291,19 +302,22 @@ if (codigo) {
 }
 
 // ── veredicto ─────────────────────────────────────────────────────────────────────────────────────
-const fin = await estado(UR);
+// La traza contrastada + el veredicto salen de pkg/trace.ts (compartidos con el visual). Lo único
+// propio de este canal es la línea del CÓDIGO: el estado 25 sin código emitido no es un cierre.
+await traza.resumen();
+const v = await traza.veredicto(UR, 'facturacion');
 const rojos = pasos.filter((p) => p.ok === false);
-const cerro = fin?.s === 25 && !!codigo;
-console.log('\n── VEREDICTO ──────────────────────────────────────────────');
-console.log(`   solicitud    #${UR} · estado final ${fin?.s ?? '?'} · lender ${fin?.l ?? '—'}`);
-console.log(`   código       ${codigo ?? 'NO se emitió'}`);
-console.log(`   pasos        ${pasos.filter((p) => p.ok === true).length} ok · ${rojos.length} en rojo`);
-if (rojos.length) console.log(`   primer muro  ${rojos[0].n} → ${rojos[0].detalle}`);
-console.log(`   lectura      ${cerro
-    ? '✓ CERRÓ para este canal: estado 25 + código emitido (el desembolso real es posterior, por conciliación → estado 26)'
-    : fin?.s === 25 ? 'llegó al estado 25 pero NO se emitió el código'
-    : 'no llegó al estado 25 — mirá el primer muro'}`);
+const cerro = v.ok && !!codigo;
+console.log(`   código de compra: ${codigo ?? 'NO se emitió'}`);
+console.log(`   pasos: ${pasos.filter((p) => p.ok === true).length} ok · ${rojos.length} en rojo${pasos.some((p) => p.ok === null) ? ` · ${pasos.filter((p) => p.ok === null).length} informativos/tolerados` : ''}`);
+if (rojos.length) console.log(`   primer muro: ${rojos[0].n} → ${rojos[0].detalle.slice(0, 120)}`);
+console.log(`   lectura: ${cerro
+    ? '✓ CERRÓ para este canal — estado 25 + código emitido. El desembolso real es posterior y por afuera: el cliente factura en caja y los crons llevan al 26.'
+    : v.ok ? '✗ llegó al estado 25 pero NO se emitió el código'
+    : v.malo ? `✗ desenlace de muerte (estado ${v.st}) — el canal no llegó a facturación`
+    : 'a mitad de flujo — mirá el primer muro'}`);
 if (!KEEP) console.log(`   (la solicitud queda en la BD; el próximo run scrubbea el teléfono ${PHONE})`);
 
 await close();
-process.exit(cerro ? 0 : rojos.length ? 1 : 2);
+// Mismo contrato de exit code que dev/sweep.ts: 0 cerró · 1 desenlace malo o muro · 2 quedó a mitad.
+process.exit(cerro ? 0 : (v.malo || rojos.length) ? 1 : 2);

@@ -29,7 +29,7 @@
 //   `qrEntryUrl` arma la URL de `application`, redirect incluido.
 
 import { config } from './config.ts';
-import { one } from './db.ts';
+import { one, exec, assertWriteAllowed } from './db.ts';
 
 /** Base del wizard (mismo criterio que el resto del harness). */
 const wizard = () => config.feBaseUrl.replace(/\/+$/, '');
@@ -108,4 +108,63 @@ export async function corbetaBranch(preferId = 946): Promise<{ id: number; hash:
         ORDER BY (ab.id = ?) DESC, ab.id
         LIMIT 1`;
     return await one<{ id: number; hash: string; alliedId: number }>(sql, [preferId]);
+}
+
+/**
+ * Deja una solicitud LISTA para pedir el código de compra, sin recorrer los 20 pasos.
+ *
+ * POR QUÉ EXISTE: el camino completo (`dev/qr-corbeta.ts`) tarda ~10 s y ejercita la orquestación
+ * entera. Para una SUITE de casos —guard, idempotencia, proveedor caído, ya-facturada— eso es caro y
+ * además mezcla dos cosas: si un caso falla no sabés si fue el código de compra o un paso previo.
+ * Este seeder pone exactamente el estado que el guard exige y nada más:
+ *
+ *   `PurchaseCodeService.php:106` pasa sólo si  allied ∈ Setting('corbeta_allieds')
+ *                                        **Y**  user_request_status_id == 25
+ *                                        **Y**  lender_id ∈ [68, 100]
+ *
+ * y además escribe en `lender_integration_flows` el insumo del producto (`bnpl_transaction_id` para
+ * el 68, `loan_validate_key` para el 100), que es lo que el servicio NUEVO de Bancolombia va a exigir
+ * como `transactionId`. Así los tests del código de compra son independientes de la máquina BNPL.
+ *
+ * Devuelve el id de la solicitud, o null si no se pudo (sin sucursal Corbeta usable, por ejemplo).
+ */
+export async function seedPurchaseCodeReady(opts: {
+    userId: number;
+    producto?: 'bnpl' | 'consumo';
+    amount?: number;
+    branchHash?: string;
+    asesorId?: number | null;
+} ): Promise<{ userRequestId: number; branchHash: string; lender: number } | null> {
+    assertWriteAllowed();
+    const producto = opts.producto ?? 'bnpl';
+    const lender = producto === 'consumo' ? 100 : 68;
+    const amount = opts.amount ?? 1_500_000;
+
+    const br = opts.branchHash
+        ? await one<{ id: number; hash: string; alliedId: number }>(
+            'SELECT id, hash, allied_id AS alliedId FROM allied_branches WHERE hash=?', [opts.branchHash])
+        : await corbetaBranch();
+    if (!br) return null;
+
+    // Nace directo en 25: es el estado que habilita el endpoint. `final_amount` lo setea el controller
+    // junto con el 25, así que se replica para que la fila quede como la deja el flujo real.
+    const ins = await exec(
+        `INSERT INTO user_requests
+           (user_id, allied_id, allied_branch_id, lender_id, amount, original_amount, final_amount,
+            user_request_status_id, corporate_user_id, credit_line_id, fee_number, fee_value, rate, created_at, updated_at)
+         VALUES (?,?,?,?,?,?,?,25,?,1,0,0,0,NOW(),NOW())`,
+        [opts.userId, br.alliedId, br.id, lender, amount, amount, amount, opts.asesorId ?? null],
+    );
+    if (!ins?.insertId) return null;
+
+    const clave = producto === 'consumo' ? 'loan_validate_key' : 'bnpl_transaction_id';
+    const valor = producto === 'consumo'
+        ? `seed-validate-key-${ins.insertId}`
+        : `seed-${String(ins.insertId).padStart(8, '0')}-0000-4000-8000-000000000000`;
+    await exec(
+        'INSERT INTO lender_integration_flows (user_request_id, lender_id, data, created_at, updated_at) VALUES (?,?,?,NOW(),NOW())',
+        [ins.insertId, lender, JSON.stringify({ user_request_id: ins.insertId, [clave]: valor })],
+    );
+
+    return { userRequestId: ins.insertId, branchHash: br.hash, lender };
 }

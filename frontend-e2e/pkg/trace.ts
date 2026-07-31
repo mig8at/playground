@@ -144,8 +144,18 @@ export async function resumen(): Promise<{ alertas: string[]; transiciones: numb
     return { alertas, transiciones: trans.length };
 }
 
-/** Estado esperado según el desenlace pedido (E2E_RESULT). Mismo mapa en los dos caminos. */
-export const ESTADO_ESPERADO: Record<string, number> = { success: 11, rejected: 6, pending: 10 };
+/**
+ * Estado esperado según el desenlace pedido (E2E_RESULT). Mismo mapa en los dos caminos.
+ *
+ * `facturacion` = el desenlace del canal QR / Corbeta, y es una excepción que hay que entender:
+ * **ese flujo NUNCA llega al 11**. BNPL/Consumo devuelven `PENDIENTE DESEMBOLSO`/`pendiente`, el
+ * controller sella **25 «Pendiente de facturación»** para los allieds de `Setting('corbeta_allieds')`
+ * y ahí se emite el código de compra. El desembolso ocurre DESPUÉS y por afuera: el cliente factura en
+ * la caja y los crons de conciliación de `application` mueven la solicitud a **26 (Facturado)**.
+ * Se agrega acá —y no en un veredicto propio del runner— porque la regla de la casa es que "pasó"
+ * tenga UNA sola definición: dos definiciones es como los dos caminos empiezan a derivar.
+ */
+export const ESTADO_ESPERADO: Record<string, number> = { success: 11, rejected: 6, pending: 10, facturacion: 25 };
 
 export type Veredicto = {
     existe: boolean;

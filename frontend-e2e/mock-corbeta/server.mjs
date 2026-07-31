@@ -59,6 +59,7 @@ import { randomBytes } from 'node:crypto';
 
 const PORT = Number(process.env.MOCK_CORBETA_PORT || 8103);
 const FAIL = process.env.MOCK_CORBETA_FAIL === '1';
+let failRuntime = FAIL;   // se puede togglear por /_control/fail sin reiniciar
 const log = (...a) => console.log(new Date().toISOString(), ...a);
 
 /** Registro en memoria: pin → orden. Es la "BD de cajas" del proveedor. */
@@ -89,13 +90,16 @@ const server = http.createServer(async (req, res) => {
     // ── estado (lo consume bin/mock-corbeta para saber si hay que reiniciar por cambio de modo) ──
     if (ruta === '/' && req.method === 'GET') {
         return json(res, 200, {
-            mock: 'corbeta-api-fondos', puerto: PORT, fail: FAIL,
+            mock: 'corbeta-api-fondos', puerto: PORT, fail: failRuntime,
             ordenes: [...ordenes.values()],
         });
     }
 
     // ── control en caliente ───────────────────────────────────────────────────────────────────────
     if (ruta === '/_control/reset') { ordenes.clear(); log('control: reset'); return json(res, 200, { ok: true }); }
+    // Modo fallo EN CALIENTE (además de MOCK_CORBETA_FAIL): una suite necesita prender y apagar el fallo
+    // sin reiniciar el proceso, y reiniciar perdería las órdenes ya emitidas.
+    if (ruta === '/_control/fail') { failRuntime = !!body.fail; log(`control: fail=${failRuntime}`); return json(res, 200, { ok: true, fail: failRuntime }); }
     if (ruta === '/_control/facturar' || ruta === '/_control/estado') {
         const o = ordenes.get(String(body.pin || ''));
         if (!o) return json(res, 404, { ok: false, error: 'pin no registrado', pines: [...ordenes.keys()] });
@@ -119,7 +123,7 @@ const server = http.createServer(async (req, res) => {
     }
 
     if (ruta === '/GenerarOrden/setOrder') {
-        if (FAIL) {
+        if (failRuntime) {
             // El camino del bug P1. Se devuelve 400 para que `->throw()` levante RequestException.
             log('setOrder · MODO FALLO → 400');
             return json(res, 400, { code: 400, message: 'Error controlado del mock (MOCK_CORBETA_FAIL=1)' });
