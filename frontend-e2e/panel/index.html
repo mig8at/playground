@@ -1713,6 +1713,7 @@
         : 'La tienda arma una URL base64 con el pedido y el usuario sintético; el cliente aterriza redirigido, sin asesor. '
           + '<b style="color:var(--warn)">⚠ Hoy aterriza en el resolvedor de Bancolombia</b>, que cancela si el comercio es '
           + 'CreditopX (F-54): la landing genérica del wizard no está en esta rama. Sirve para ejercitar el contrato, no para cerrar.';
+      applyPasoGate();   // el canal decide qué arranques aplican
       updateGo();
     }
 
@@ -1847,6 +1848,49 @@
       lenders: () => 'Salto directo a /lenders con el usuario sintético sembrado (sin pasar por las vistas).',
     };
     const updateStepHint = () => { $('stephint').textContent = (STEP_HINTS[step] || (() => ''))(); };
+
+    /**
+     * Qué ARRANQUES aplican. Dependen de DOS cosas, y las dos deshabilitan en vez de esconder:
+     *
+     *  · el modo de buró: «Lenders» SIEMBRA un usuario sintético → con buró Real no hay nada que sembrar.
+     *  · el CANAL: los saltos son del tronco `/merchant/*`, y no todos los canales lo recorren.
+     *      - `asesor`    → los dos aplican.
+     *      - `ecommerce` → sólo «Inicio». El salto a lenders está excluido en el spec
+     *                      (`DIRECT_LENDERS` exige `ENTRY !== 'ecommerce'`, dev/guided.spec.ts) → elegirlo
+     *                      no haría nada.
+     *      - `qr`        → NINGUNO. El canal QR tiene recorrido propio (solicitar → OTP → producto) y no
+     *                      pasa ni por monto ni por el marketplace; además el consumidor del salto matchea
+     *                      URLs `/(merchant|ecommerce)/…` que en este canal nunca ocurren. Se fuerza
+     *                      «Inicio» (que es el no-salto) y se explica.
+     */
+    function applyPasoGate() {
+      const soloInicio = canal === 'ecommerce' || canal === 'qr';
+      const bInicio = document.querySelector('#step button[data-v="monto"]');
+      const bLenders = document.querySelector('#step button[data-v="lenders"]');
+      if (bLenders) {
+        const ok = inject && !soloInicio;
+        bLenders.disabled = !ok;
+        bLenders.style.opacity = ok ? '' : '.4';
+        bLenders.title = ok ? ''
+          : canal === 'qr' ? 'El canal QR no pasa por el marketplace: su recorrido es solicitar → OTP → producto.'
+          : canal === 'ecommerce' ? 'En el canal ecommerce el salto a lenders no está implementado en el spec: no haría nada.'
+          : 'Lenders siembra un usuario sintético — con buró Real no hay nada que sembrar: arrancás desde el inicio';
+        if (!ok && step === 'lenders') { step = 'monto'; setSeg('step', step); }
+      }
+      // En QR el selector entero no aplica: «Inicio» tampoco significa "monto" acá.
+      if (bInicio) {
+        const qr = canal === 'qr';
+        bInicio.disabled = qr;
+        bInicio.style.opacity = qr ? '.4' : '';
+        bInicio.title = qr ? 'En el canal QR el recorrido arranca en la pantalla de registro del self-service, no en monto.' : '';
+      }
+      updateStepHint();
+      if (canal === 'qr') {
+        $('stephint').textContent = 'En el canal QR no hay salto: el recorrido es propio — registro (celular + documento) → OTP → '
+          + 'y el OTP decide el producto (BNPL o Consumo). Ni monto ni marketplace.';
+      }
+      applyCupoGate();
+    }
     document.querySelectorAll('#step button').forEach(b => b.onclick = () => { if (b.disabled) return; step = b.dataset.v; setSeg('step', step); updateStepHint(); applyCupoGate(); });
     updateStepHint();
 
@@ -1955,15 +1999,7 @@
       $('injhint').textContent = inject
         ? 'Se inyecta el buró (salta la consulta real); la identidad la llenás vos en el wizard.'
         : 'Prueba REAL: llenás todo en el wizard y se consulta el buró con tus datos reales. Los campos de abajo no se usan.';
-      // Real → el arranque "Lenders" no aplica: el salto directo SIEMBRA un usuario sintético, y una
-      // prueba Real no siembra nada (consulta burós reales). Se fuerza Inicio y se explica en el title.
-      const lb = document.querySelector('#step button[data-v="lenders"]');
-      if (lb) {
-        lb.disabled = !inject;
-        lb.title = inject ? '' : 'Lenders siembra un usuario sintético — con buró Real no hay nada que sembrar: arrancás desde el inicio';
-        if (!inject && step === 'lenders') { step = 'monto'; setSeg('step', step); }
-      }
-      updateStepHint();   // el hint de Inicio cambia según Sintético/Real
+      applyPasoGate();    // qué arranques aplican (depende del buró Y del canal)
       applyCupoGate();    // el checkbox "Cupo ya confirmado" sólo aplica en Lenders + Sintético
       updateGo();
     }

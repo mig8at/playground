@@ -268,6 +268,18 @@ Dos decisiones a respetar si lo tocás:
 - Si cambiás de comercio y el canal elegido deja de aplicar, se cae al primero permitido; si sigue
   aplicando, **no se toca** (verificado en el navegador).
 
+**Los ARRANQUES («saltar a») también se gatean, y por CANAL** (`applyPasoGate()`): el salto es del tronco
+`/merchant/*`, y no todos los canales lo recorren. La regla sale del spec, no de una opinión:
+
+| Canal | Inicio | Lenders | Por qué |
+|---|---|---|---|
+| `asesor` | sí | sí (con buró Sintético) | recorre el tronco |
+| `ecommerce` | sí | **no** | `DIRECT_LENDERS` exige `ENTRY !== 'ecommerce'` → elegirlo no haría nada |
+| `qr` | **no** | **no** | recorrido propio (registro → OTP → producto): ni monto ni marketplace. Y el consumidor del salto matchea URLs `/(merchant\|ecommerce)/…`, que en este canal nunca ocurren |
+
+Se apilan con el gate que ya existía por modo de buró (Lenders siembra un sintético → con buró Real no hay
+nada que sembrar). Cuando un arranque deja de aplicar, `step` cae a `monto` solo.
+
 La tarjeta **Alkosto** es la del canal QR: retail Corbeta con sólo 68/100 habilitados, el único que
 ejercita la venta que cierra en CAJA. Los otros tres del grupo ya están en `.flows.json` y se alcanzan por
 nombre: `k-tronix`, `alkomprar` y `creditop` (este último es la cuenta propia de la casa: está en el gate
