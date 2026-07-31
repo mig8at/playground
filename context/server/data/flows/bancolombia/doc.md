@@ -210,36 +210,7 @@ pantallas viejas `/consumo/*` del monolito. Es el bloqueo duro del cutover (ver 
 - **Cero tests** del camino purchase-code (ni `Http::fake` del host de Corbeta): no hay red de seguridad para detectar una regresión al conmutar de proveedor.
 - **`query()` no manda el header `UserId` que `register()` sí manda** (`Corbeta.php:131` vs `:58`). No se determinó si es intencional.
 
-### 9 · El reemplazo del emisor: lo que la revisión de Santi dejó firme (2026-07-31)
-Tras la ida y vuelta sobre el handoff, esto es lo que hay que tener presente antes de tocar código —
-son restricciones del diseño, no opiniones:
-
-- **La decisión de mayor riesgo es una sola: ¿el `billingCode` de Bancolombia es el MISMO PIN que Corbeta
-  pone en su orden?** De eso dependen dos cosas que parecían separadas: (a) si el `billingCode` puede ir en
-  `verification_token` —la columna que los 4 crons de `application` cruzan contra la factura— y (b) si el
-  híbrido "emisión por Bancolombia, conciliación por Corbeta" es viable. **Si el identificador es propio y
-  distinto, escribirlo en esa columna es exactamente lo que hace que la ruptura sea SILENCIOSA**: no falla
-  nada visible, simplemente nadie pasa a estado 26 y no se confirma el consumo. En ese caso hace falta otra
-  columna o un campo extra → y eso sí implica migración.
-- **Hay una pregunta previa: ¿quién crea la orden en Corbeta?** Si Bancolombia llama a `setOrder` por
-  detrás y nosotros dejamos de llamarlo, bien; hay que confirmar que **no queden dos caminos creando
-  órdenes** para la misma compra. Órdenes duplicadas en el aliado son peores que un código faltante.
-- **"No se toca la vigencia" es una intención, no una verificación.** La lógica de 24 h con corte 21:30
-  hay que comprobar que no se apoye en el mismo efecto colateral del filtro `EstadoOrden=2` que sostiene a
-  `validateCurrentOrder` (§3.3): si se apoya, sí queda afectada por el cambio.
-- **Caracterizar el camino actual sigue valiendo aunque el canal esté detenido** (§F-79), pero como
-  *registro del comportamiento observado*, no como oráculo de corrección. Los dos casos de referencia
-  (uReq 359914 y 359917) son de **marzo**, del período en que la emisión sí funcionaba, así que son válidos.
-- **BC4 (`departmentCode`) está cerrada documentalmente pero abierta operativamente.** Que el spec se
-  contradiga solo (mocks `01/02/03` contra ciudades `11001/05001/76001`) no dice qué espera el banco en
-  producción: si valida contra su propia tabla y espera el contador, `substr($cityCode,0,2)` falla.
-- **El `address` de 20 caracteres es bloqueante, con número**: ninguna de las dos fuentes lo cumple —
-  67 % de las sucursales y 28 % de las direcciones de residencia del cliente lo exceden. Ver **F-83**.
-- **Falta un escenario de prueba, no sólo un código de error:** el 409 `BP21000` como *recuperación* —
-  POST exitoso en el banco, respuesta perdida, reintento → 409 y sin forma de recuperar el código. Con la
-  bitácora en `lender_transactions` escrita ANTES del POST se puede ejercitar.
-
-### 10 · El front NO confía en el backend: valida cada passthrough con zod (verificado 2026-07-31)
+### 9 · El front NO confía en el backend: valida cada passthrough con zod (verificado 2026-07-31)
 Los 8 endpoints BNPL y los de Consumo devuelven al front el `data` del banco **tal cual**
 (`'retrieve_quota' => $quotaResponse['data']`, `'purchase' => $purchaseResponse['data']`, …: passthrough
 puro, el backend no normaliza). Pero el módulo del front valida cada respuesta con un **esquema zod**
@@ -266,7 +237,7 @@ y, si no cumple, el UC devuelve `success:false` y la pantalla muestra un banner 
 
 Detalle del contrato campo por campo, y por qué el runner por consola no lo detectaba: **F-88**.
 
-### 11 · El MAPA DE PANTALLAS del canal QR, recorrido de punta a punta (verificado 2026-07-31)
+### 10 · El MAPA DE PANTALLAS del canal QR, recorrido de punta a punta (verificado 2026-07-31)
 No es una lectura de `routes.ts`: es el recorrido **caminado clickeando** con
 `frontend-e2e/dev/caminar-qr.ts`, con el estado final comprobado en BD. Los dos productos **cierran**.
 

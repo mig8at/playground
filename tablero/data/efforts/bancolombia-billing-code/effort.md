@@ -1,14 +1,18 @@
-# Aterrizaje de la tarea · reemplazar el emisor del código de compra (Corbeta → Bancolombia)
-
-> **Qué es este archivo.** El aterrizaje TÉCNICO de la tarea que pidió Santi: alcance, qué está decidido,
-> qué está bloqueado y con qué se desbloquea, el plan por pasos contra archivos reales y cómo se valida.
-> No es contexto durable — cuando esto se mergee, lo que quede vivo **gradúa** al `doc.md` del nodo y este
-> archivo se borra. Vive acá y no en el tablero porque el tablero no estaba levantado; el destino natural
-> de este texto es el campo `tech_notes` de un esfuerzo (sin guard, puede nombrar archivos y repos).
->
-> Estado al **2026-07-31**: **no se ha tocado una línea de los repos reales.** Todo lo de abajo es plan.
-
 ---
+id: 15
+title: "Bancolombia · el código de compra lo emite el banco (reemplazo de la API Fondos de Corbeta)"
+stage: evaluation
+created: "2026-07-31T17:13:02-05:00"
+context_nodes: [bancolombia, corbeta]
+jira: []
+jira_title: ""
+---
+
+# Reemplazar el emisor del código de compra: Corbeta → Bancolombia
+
+> Origen: handoff de Santiago Villaquiran (2026-07-29) + su revisión (2026-07-31) + el OpenAPI del
+> servicio nuevo. **No se ha tocado una línea de los repos reales.**
+> Cuando esto se mergee, lo que quede vivo **gradúa** al nodo `bancolombia` y este esfuerzo se archiva.
 
 ## 1 · La tarea en una frase
 
@@ -128,3 +132,32 @@ documentado responde **409 a cualquier dato real** y no ejercita la seguridad (F
 Cambiar la decisión de crédito, el marketplace, la vigencia del código, los crons de conciliación de
 `application` (salvo que Q2 obligue), y el canal ecommerce (que hoy resuelve con `validate-preapproved` y
 **no** garantiza el `transactionId`, F-80).
+
+## Lo que la revisión de Santi dejó firme (2026-07-31)
+Tras la ida y vuelta sobre el handoff, esto es lo que hay que tener presente antes de tocar código —
+son restricciones del diseño, no opiniones:
+
+- **La decisión de mayor riesgo es una sola: ¿el `billingCode` de Bancolombia es el MISMO PIN que Corbeta
+  pone en su orden?** De eso dependen dos cosas que parecían separadas: (a) si el `billingCode` puede ir en
+  `verification_token` —la columna que los 4 crons de `application` cruzan contra la factura— y (b) si el
+  híbrido "emisión por Bancolombia, conciliación por Corbeta" es viable. **Si el identificador es propio y
+  distinto, escribirlo en esa columna es exactamente lo que hace que la ruptura sea SILENCIOSA**: no falla
+  nada visible, simplemente nadie pasa a estado 26 y no se confirma el consumo. En ese caso hace falta otra
+  columna o un campo extra → y eso sí implica migración.
+- **Hay una pregunta previa: ¿quién crea la orden en Corbeta?** Si Bancolombia llama a `setOrder` por
+  detrás y nosotros dejamos de llamarlo, bien; hay que confirmar que **no queden dos caminos creando
+  órdenes** para la misma compra. Órdenes duplicadas en el aliado son peores que un código faltante.
+- **"No se toca la vigencia" es una intención, no una verificación.** La lógica de 24 h con corte 21:30
+  hay que comprobar que no se apoye en el mismo efecto colateral del filtro `EstadoOrden=2` que sostiene a
+  `validateCurrentOrder` (§3.3): si se apoya, sí queda afectada por el cambio.
+- **Caracterizar el camino actual sigue valiendo aunque el canal esté detenido** (§F-79), pero como
+  *registro del comportamiento observado*, no como oráculo de corrección. Los dos casos de referencia
+  (uReq 359914 y 359917) son de **marzo**, del período en que la emisión sí funcionaba, así que son válidos.
+- **BC4 (`departmentCode`) está cerrada documentalmente pero abierta operativamente.** Que el spec se
+  contradiga solo (mocks `01/02/03` contra ciudades `11001/05001/76001`) no dice qué espera el banco en
+  producción: si valida contra su propia tabla y espera el contador, `substr($cityCode,0,2)` falla.
+- **El `address` de 20 caracteres es bloqueante, con número**: ninguna de las dos fuentes lo cumple —
+  67 % de las sucursales y 28 % de las direcciones de residencia del cliente lo exceden. Ver **F-83**.
+- **Falta un escenario de prueba, no sólo un código de error:** el 409 `BP21000` como *recuperación* —
+  POST exitoso en el banco, respuesta perdida, reintento → 409 y sin forma de recuperar el código. Con la
+  bitácora en `lender_transactions` escrita ANTES del POST se puede ejercitar.
