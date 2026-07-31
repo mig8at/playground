@@ -314,6 +314,23 @@ Tres cosas que hay que saber para que el canal llegue al final:
   (`bancolombiaEncryptCode` en `pkg/qr.ts`). Ojo con el techo: del lado PHP `base_convert` va por float, así
   que arriba de `user_request_id ≈ 2^21` (2.097.152) el link del SMS y el decoder del front dejarían de
   coincidir. Hoy los ids van por ~400.000.
+- **En el canal QR el harness AUTORRELLENA y no clickea.** `autorrellenarQr()` (pkg/qr-steps.ts) se
+  engancha a **cada navegación** en los dos modos (manual y guiado) y llena lo que reconozca en la pantalla
+  actual: celular, documento, OTP, monto, nombre/apellido/correo/dirección, los numéricos del formulario
+  financiero, los selects (primera opción real), los radios y los checkboxes. **Nunca aprieta Continuar** —
+  si lo hiciera, el camino visual dejaría de ser visual. Va por navegación y no como secuencia fija porque
+  el recorrido tiene **7 formularios** y su orden depende del producto que resuelva el OTP.
+- **⚠ El input VISIBLE no siempre tiene `name`.** Es al revés de lo intuitivo: react-hook-form lo controla
+  por `Controller` y el atributo queda sólo en el `<input type=hidden name=X>` espejo. Verificado en el
+  registro, donde `[name=phoneNumber]` matchea **sólo** el hidden y llenarlo no cambia nada en pantalla. Por
+  eso cada campo se busca **primero por etiqueta** y sólo después por `name` excluyendo hidden. Y por eso el
+  helper **devuelve qué llenó**: un campo que no aparece en esa lista es un campo que no encontró.
+- **Verificá que el valor QUEDÓ, no que el `fill()` no tiró.** Un `fill()` exitoso no garantiza nada: si la
+  hidratación llega después, React lo pisa con sus defaults. El autorrelleno re-lee el input, reintenta una
+  vez y si tampoco queda lo marca `⚠no quedó` en el log en vez de darlo por hecho.
+- **El canal QR NO entra en la rama manual del tronco.** Antes sí, y el log decía "manejá desde monto" y
+  después "no pude leer el uReq en personal-info" — ruido puro: esa lógica espera monto → phone →
+  personal-info y matchea URLs `/(merchant|ecommerce)/…` que en este canal nunca ocurren.
 - **Tres trampas del formulario de autogestión** (las tres cazadas corriendo, las tres resueltas en
   `pkg/qr-steps.ts` — si tocás ese archivo, no las deshagas):
   1. **Hay que esperar la HIDRATACIÓN antes de escribir.** La pantalla llega por SSR y react-hook-form

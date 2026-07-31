@@ -168,3 +168,27 @@ export async function seedPurchaseCodeReady(opts: {
 
     return { userRequestId: ins.insertId, branchHash: br.hash, lender };
 }
+
+/**
+ * ¿ESTA sucursal sirve para el canal QR? (por hash, no por comparación con la preferida)
+ *
+ * Existe porque preguntar "¿es la sucursal que yo elegiría?" no es lo mismo que "¿sirve?": el spec
+ * comparaba el hash del panel contra el que devuelve `corbetaBranch()` y acusaba de "no ser Corbeta" a
+ * cualquier OTRA sucursal válida — la 944 de la tarjeta Alkosto tiene 68 y 100 habilitados y salía
+ * advertida igual. Una advertencia falsa es peor que ninguna: manda a cambiar algo que estaba bien.
+ *
+ * Sirve = el allied está en `Setting('corbeta_allieds')` **y** la sucursal tiene los dos lenders de
+ * Bancolombia (68 BNPL / 100 Consumo) habilitados; sin lo segundo el OTP resuelve `no_preapproved`.
+ */
+export async function sucursalUsable(branchHash: string): Promise<boolean> {
+    const r = await one<{ ok: number }>(
+        `SELECT (
+             EXISTS (SELECT 1 FROM settings s,
+                 JSON_TABLE(s.value, '$[*]' COLUMNS (v VARCHAR(16) PATH '$')) jt
+                 WHERE s.\`key\` = 'corbeta_allieds' AND CAST(jt.v AS UNSIGNED) = ab.allied_id)
+             AND (SELECT COUNT(DISTINCT lender_id) FROM lenders_by_allied_branches l
+                  WHERE l.allied_branch_id = ab.id AND l.lender_id IN (68, 100)) = 2
+         ) AS ok
+         FROM allied_branches ab WHERE ab.hash = ?`, [branchHash]).catch(() => null);
+    return Number(r?.ok) === 1;
+}

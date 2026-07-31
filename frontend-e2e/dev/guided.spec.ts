@@ -10,8 +10,8 @@ import { closeCreditopX, resolveRequestStatus } from '../pkg/close';
 import { one, exec } from '../pkg/db';
 import * as traza from '../pkg/trace';
 import { urlCheckout, seguirCheckout } from '../pkg/checkout-b64';
-import { qrEntryUrl, corbetaBranch } from '../pkg/qr';
-import { fillQrRegister, fillQrOtp, otpDeTelefono } from '../pkg/qr-steps';
+import { qrEntryUrl, corbetaBranch, sucursalUsable } from '../pkg/qr';
+import { fillQrRegister, fillQrOtp, otpDeTelefono, autorrellenarQr } from '../pkg/qr-steps';
 import { close } from '../pkg/db';
 import { PREVIEW, IPHONE_UA, isExternalUrl, openA, openB } from '../pkg/windows';
 import { mockWompiHostedCheckout } from '../pkg/wompi-mock';
@@ -660,10 +660,13 @@ test('guided (semiautomático)', async ({ browser }) => {
         // ⚠ Este canal exige que la sucursal tenga los DOS lenders de Bancolombia (68/100) habilitados:
         // sin eso el OTP resuelve `no_preapproved` y el flujo muere antes de empezar. `corbetaBranch()`
         // sólo devuelve sucursales que cumplen, y avisa acá si el hash del panel no es una de ellas.
-        const branch = await corbetaBranch().catch(() => null);
-        if (branch && branch.hash !== HASH) {
-            log(`⚠ el hash del panel (${HASH}) no es una sucursal Corbeta con 68/100 habilitados.`);
-            log(`   sugerida: sucursal ${branch.id} (allied ${branch.alliedId}) hash=${branch.hash}`);
+        // Se pregunta por el hash QUE SE VA A USAR, no se compara con el preferido: `corbetaBranch()`
+        // devuelve UNA sucursal (la 946 por default) y comparar contra ella acusaba de "no ser Corbeta" a
+        // cualquier otra sucursal válida — la 944 de la tarjeta Alkosto tiene 68 y 100 y salía advertida.
+        const propia = await corbetaBranch().catch(() => null);
+        if (propia && !(await sucursalUsable(HASH))) {
+            log(`⚠ el hash del panel (${HASH}) no tiene 68 y 100 habilitados, o no está en corbeta_allieds.`);
+            log(`   sugerida: sucursal ${propia.id} (allied ${propia.alliedId}) hash=${propia.hash}`);
         }
         const url = qrEntryUrl(HASH);
         log(`entrada QR: ${url}`);
@@ -674,9 +677,36 @@ test('guided (semiautomático)', async ({ browser }) => {
             .catch(() => log(`⚠ no aterrizó en una pantalla del canal QR — quedó en ${page.url()}`));
         await shot(page, 'qr-aterrizaje');
 
-        // En GUIADO se prellenan las dos pantallas del self-service; en manual se deja al usuario.
-        // Las pantallas del módulo `bancolombia-origination` NO tienen data-testid (verificado), así que
-        // los helpers seleccionan por rol/etiqueta — ver pkg/qr-steps.ts.
+        // ── AUTORRELLENADO, en los DOS modos ────────────────────────────────────────────────────────
+        // Lo único que hace el usuario es dar Continuar: el harness escribe, no clickea. Se engancha a
+        // CADA navegación porque el recorrido tiene 7 formularios y su orden depende del producto que
+        // resuelva el OTP — una secuencia cableada se rompe con cada rama (ver pkg/qr-steps.ts).
+        const datosQr = {
+            phone: PHONE,
+            document: process.env.E2E_SYNTH_DOC || String(2_900_000_000 + (Number(AMOUNT) || 0) % 90_000_000),
+            amount: Number(AMOUNT) || undefined,
+            firstName: (process.env.E2E_SYNTH_NAME || 'SYNTH TEST USER').trim().split(/\s+/)[0],
+            lastName: (process.env.E2E_SYNTH_NAME || 'SYNTH TEST USER').trim().split(/\s+/).slice(1).join(' ') || 'TEST USER',
+            email: process.env.E2E_SYNTH_EMAIL || undefined,
+            address: 'Cal 123 # 12-122',
+            income: Number(process.env.E2E_SYNTH_INCOME) || 2_500_000,
+        };
+        let rellenando = false;
+        const rellenar = async (motivo: string) => {
+            if (rellenando) return;                 // una pasada a la vez: navegar dispara varios eventos
+            rellenando = true;
+            try {
+                await page.waitForTimeout(700);      // que hidrate: si se escribe antes, React lo pisa
+                const hechos = await autorrellenarQr(page, datosQr);
+                if (hechos.length) log(`autorrelleno (${motivo}): ${hechos.join(' · ')}`);
+            } catch { /* el autorrelleno es un extra: nunca frena la corrida */ }
+            rellenando = false;
+        };
+        page.on('framenavigated', (f) => { if (f === page.mainFrame()) void rellenar('nav'); });
+        await rellenar('aterrizaje');
+        tip('Todo lo rellenable ya está puesto: vos sólo dale CONTINUAR en cada pantalla.');
+
+        // En GUIADO además se envía por vos (registro + OTP); en manual el click es tuyo.
         if (process.env.E2E_GUIDED === '1') {
             const doc = process.env.E2E_SYNTH_DOC || String(2_900_000_000 + (Number(AMOUNT) || 0) % 90_000_000);
             const avanzo = await fillQrRegister(page, { phone: PHONE, document: doc });
@@ -848,7 +878,11 @@ test('guided (semiautomático)', async ({ browser }) => {
     // ── MODO MANUAL (bin/asesor <m> SIN `auto`): el browser queda en monto y VOS manejás TODO a mano. ──
     //    Con E2E_INJECT=1: igual manual (nada de auto-relleno), pero al llegar a personal-info inyecto el buró
     //    (invisible) para que listen los rt=2. Sin E2E_INJECT: manual puro (buró real / sin inyección). ──
-    if (process.env.E2E_GUIDED === '0') {
+    // ⚠ El canal QR NO entra acá: su recorrido no es el tronco `/merchant/*`. La lógica de abajo espera
+    // monto → phone → personal-info y matchea URLs `/(merchant|ecommerce)/…`; con el QR imprimía
+    // "manejá desde monto" y después "no pude leer el uReq en personal-info", que es ruido puro. El
+    // autorrelleno del canal ya quedó enganchado en su propia rama de ENTRADA.
+    if (process.env.E2E_GUIDED === '0' && ENTRY !== 'qr') {
         if (process.env.E2E_INJECT === '1') {
             // STEP a dónde SALTAR: monto (default, vos manejás) | phone | personal-info | lenders.
             // Para phone/personal-info/lenders: relleno + clickeo "Continuar" por vos hasta ese paso.

@@ -34,6 +34,29 @@ import type { Page } from '@playwright/test';
 export const otpDeTelefono = (phone: string) => phone.replace(/\D/g, '').slice(-4);
 
 /**
+ * Espera a que la pantalla esté HIDRATADA (con el JS atado), usando el toggle de un checkbox como sonda.
+ *
+ * ⚠ Es la trampa que más tiempo cuesta en este canal: las pantallas llegan por SSR, así que los campos y
+ * los checkboxes **están visibles desde el primer frame** y `waitFor({state:'visible'})` no prueba nada.
+ * Si se escribe antes de que react-hook-form tome el control, el `fill()` REPORTA ÉXITO y React lo pisa con
+ * sus defaults vacíos: el form queda inválido, el botón nunca se habilita y no aparece un solo mensaje de
+ * error. La única señal confiable es que un click cambie `data-state` a `checked`, porque eso sólo pasa con
+ * el JS ya montado. Como los checkboxes de este canal hay que marcarlos igual, la sonda no tiene costo.
+ */
+export async function esperarHidratacion(page: Page, timeout = 15_000): Promise<boolean> {
+    const cajas = page.locator('button[role="checkbox"]');
+    await cajas.first().waitFor({ state: 'visible', timeout }).catch(() => {});
+    if (!(await cajas.count().catch(() => 0))) return true;   // pantalla sin checkboxes: no hay sonda posible
+    const hasta = Date.now() + timeout;
+    while (Date.now() < hasta) {
+        await cajas.first().click({ timeout: 2_000 }).catch(() => {});
+        if ((await cajas.first().getAttribute('data-state').catch(() => null)) === 'checked') return true;
+        await page.waitForTimeout(250);
+    }
+    return false;
+}
+
+/**
  * Llena el registro del self-service (celular + documento + los dos checkboxes) y envía.
  * Devuelve `true` si la pantalla avanzó (la URL pasó a `/otp`).
  */
@@ -52,17 +75,7 @@ export async function fillQrRegister(
     // Y la visibilidad NO sirve como señal: los checkboxes vienen en el HTML del SSR, así que están
     // visibles desde el primer frame. La sonda real es **el toggle**: que un click cambie `data-state` a
     // `checked` sólo pasa si el JS ya está atado. Se insiste hasta que uno responda.
-    const cajas = page.locator('button[role="checkbox"]');
-    await cajas.first().waitFor({ state: 'visible', timeout: t }).catch(() => {});
-    const hidratado = await (async () => {
-        const hasta = Date.now() + t;
-        while (Date.now() < hasta) {
-            await cajas.first().click({ timeout: 2_000 }).catch(() => {});
-            if ((await cajas.first().getAttribute('data-state').catch(() => null)) === 'checked') return true;
-            await page.waitForTimeout(250);
-        }
-        return false;
-    })();
+    const hidratado = await esperarHidratacion(page, t);
     if (!hidratado) {
         console.log('  ⚠ fillQrRegister: la pantalla no respondió al click del checkbox → no hidrató (¿el wizard está compilando todavía?)');
         return false;
@@ -164,4 +177,117 @@ export async function fillQrOtp(
     if (/\/bancolombia\/consumo\/start\//.test(u)) return 'consumo';
     if (/no-preapproved/.test(u)) return 'no-preapproved';
     return 'otro';
+}
+
+// ─────────────────────────────────────────────────────────────────────────────────────────────────
+// AUTORRELLENADO del canal QR — llena lo que haya en pantalla y NO toca ningún botón.
+//
+// POR QUÉ ASÍ Y NO UNA SECUENCIA FIJA: el recorrido del canal tiene 7 formularios distintos (registro,
+// OTP, monto BNPL, monto+uso Consumo, términos, datos personales y el financiero del OfferEvaluation) y
+// el orden depende del producto que resuelva el OTP. Una secuencia cableada se rompe con cada rama; esto
+// mira QUÉ hay en la pantalla actual y llena sólo eso. Es idempotente: lo que ya tiene valor no se toca.
+//
+// **Nunca clickea Continuar / Validar / Aceptar.** Es a propósito: el usuario conduce, el harness escribe.
+// Si además apretara los botones, dejaría de ser el camino VISUAL y sería el rápido con navegador.
+//
+// Los `name` salen de los schemas del módulo (`domain/schemas/**/*form.schema.ts`), no de inspeccionar el
+// DOM. Pero ⚠ **el input VISIBLE no siempre tiene `name`**: react-hook-form lo controla por `Controller` y
+// el único que lleva el atributo es el `<input type=hidden name=X>` espejo que el form publica al enviar.
+// O sea es al revés de lo intuitivo — verificado en el registro, donde `[name=phoneNumber]` matchea SÓLO
+// el hidden y llenarlo no cambia nada en pantalla. Por eso cada campo se busca primero por su ETIQUETA
+// accesible y sólo después por `name` (excluyendo hidden), y por eso el helper devuelve qué llenó: si un
+// campo nuevo no aparece en esa lista, es que no lo encontró — no que ya estuviera lleno.
+// ─────────────────────────────────────────────────────────────────────────────────────────────────
+
+export type DatosQr = {
+    phone: string;
+    document: string;
+    amount?: number;
+    firstName?: string;
+    lastName?: string;
+    email?: string;
+    address?: string;
+    income?: number;
+    otp?: string;
+};
+
+/** Campos por ETIQUETA (preferida) y por `name` (fallback), con el valor que les corresponde. */
+const CAMPOS_QR: Array<{ name: string; label?: RegExp; valor: (d: DatosQr) => string | undefined }> = [
+    { name: 'phoneNumber', label: /Número celular/i, valor: (d) => d.phone },
+    { name: 'documentNumber', label: /Número de documento/i, valor: (d) => d.document },
+    { name: 'otp', valor: (d) => d.otp ?? otpDeTelefono(d.phone) },
+    { name: 'loanAmount', label: /monto|valor.*compra|cuánto/i, valor: (d) => (d.amount ? String(d.amount) : undefined) },
+    { name: 'firstName', label: /nombre/i, valor: (d) => d.firstName },
+    { name: 'lastName', label: /apellido/i, valor: (d) => d.lastName },
+    { name: 'email', label: /correo|email/i, valor: (d) => d.email },
+    { name: 'billingAddress', label: /dirección/i, valor: (d) => d.address },
+    // Financiero del OfferEvaluation (Consumo): sólo los numéricos con un valor razonable; los selects
+    // los cubre la pasada genérica de abajo.
+    { name: 'fixedIncome', label: /ingreso.*fij|salario/i, valor: (d) => (d.income ? String(d.income) : undefined) },
+    { name: 'peopleInCharge', label: /personas a cargo/i, valor: () => '0' },
+    { name: 'monthsContractStart', valor: () => '24' },
+    { name: 'monthlyExpenses', label: /egresos|gastos/i, valor: (d) => (d.income ? String(Math.round(d.income / 3)) : undefined) },
+    { name: 'totalAssets', label: /activos|patrimonio/i, valor: (d) => (d.income ? String(d.income * 12) : undefined) },
+];
+
+/**
+ * Llena todo lo que reconozca en la pantalla actual. Devuelve la lista de campos que tocó (vacía si no
+ * había nada que llenar, que es lo normal en las pantallas de sólo-lectura del recorrido).
+ */
+export async function autorrellenarQr(page: Page, d: DatosQr): Promise<string[]> {
+    const hechos: string[] = [];
+    const t = 3_000;
+
+    // Sin esto el `fill()` reporta éxito y React lo pisa al hidratar — ver `esperarHidratacion`.
+    await esperarHidratacion(page, 10_000);
+
+    for (const c of CAMPOS_QR) {
+        const v = c.valor(d);
+        if (!v) continue;
+        // Primero por etiqueta (el input controlado suele NO tener `name`); después por `name`, siempre
+        // excluyendo el hidden espejo.
+        let loc = c.label ? page.getByLabel(c.label).first() : null;
+        if (!loc || !(await loc.count().catch(() => 0))) {
+            loc = page.locator(`input[name="${c.name}"]:not([type=hidden]), textarea[name="${c.name}"]`).first();
+        }
+        if (!(await loc.count().catch(() => 0))) continue;
+        if (!(await loc.isVisible().catch(() => false))) continue;
+        if ((await loc.inputValue().catch(() => ''))) continue;      // ya tenía valor: no se pisa
+        await loc.fill(v, { timeout: t }).catch(() => {});
+        // VERIFICAR que quedó: un `fill()` exitoso no garantiza que el valor sobreviva (hidratación, o un
+        // input con máscara que rechaza el formato). Si no quedó, se reintenta una vez y si tampoco, se
+        // reporta con `?` para que se vea en el log en vez de dar por hecho que se llenó.
+        let quedo = (await loc.inputValue().catch(() => '')) !== '';
+        if (!quedo) { await page.waitForTimeout(400); await loc.fill(v, { timeout: t }).catch(() => {}); quedo = (await loc.inputValue().catch(() => '')) !== ''; }
+        hechos.push(`${c.name}=${v}${quedo ? '' : ' ⚠no quedó'}`);
+    }
+
+    // Selects sin elegir → primera opción real (la 0 suele ser el placeholder «Selecciona…»).
+    const selects = page.locator('select:visible');
+    for (let i = 0; i < (await selects.count().catch(() => 0)); i += 1) {
+        const s = selects.nth(i);
+        if (await s.inputValue().catch(() => '')) continue;
+        const opciones = await s.locator('option').evaluateAll((els) =>
+            els.map((e) => (e as HTMLOptionElement).value).filter((v) => v && v !== '0')).catch(() => []);
+        if (opciones.length) await s.selectOption(opciones[0]).then(() => hechos.push(`select→${opciones[0]}`)).catch(() => {});
+    }
+
+    // Radios: el primero de cada grupo.
+    const grupos = new Set(await page.locator('input[type=radio]:visible').evaluateAll((els) =>
+        els.map((e) => (e as HTMLInputElement).name).filter(Boolean)).catch(() => []));
+    for (const g of grupos) {
+        const r = page.locator(`input[type=radio][name="${g}"]:visible`).first();
+        if (!(await r.isChecked().catch(() => true))) await r.check({ timeout: t }).then(() => hechos.push(`radio ${g}`)).catch(() => {});
+    }
+
+    // Checkboxes de Radix (términos, políticas, «acepto»). Ver la trampa documentada arriba: son BUTTON,
+    // viven fuera del `<form>`, y su estado está en `data-state`.
+    const cajas = page.locator('button[role="checkbox"]');
+    for (let i = 0; i < (await cajas.count().catch(() => 0)); i += 1) {
+        const c = cajas.nth(i);
+        if ((await c.getAttribute('data-state').catch(() => null)) !== 'checked') {
+            await c.click({ timeout: t }).then(() => hechos.push('checkbox')).catch(() => {});
+        }
+    }
+    return hechos;
 }

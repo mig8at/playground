@@ -27,7 +27,7 @@ import { spawnSync } from 'node:child_process';
 // `corbetaBranch()` se cuelga o falla sin VPN y la suite se salta entera sin decir por qué.
 process.env.E2E_TARGET ||= 'local';
 
-const { fillQrRegister, fillQrOtp, otpDeTelefono } = await import('../pkg/qr-steps.ts');
+const { fillQrRegister, fillQrOtp, otpDeTelefono, autorrellenarQr } = await import('../pkg/qr-steps.ts');
 const { qrEntryUrl, corbetaBranch } = await import('../pkg/qr.ts');
 const { close } = await import('../pkg/db.ts');
 
@@ -80,6 +80,31 @@ test.describe('canal QR — pantallas de autogestión', () => {
         await expect(page.getByLabel(/Número celular/i)).toBeVisible();
         await expect(page.getByLabel(/Número de documento/i)).toBeVisible();
         expect(await page.getByRole('checkbox').count(), 'se esperan 2 checkboxes (términos + política)').toBeGreaterThanOrEqual(2);
+    });
+
+    test('autorrelleno: deja todo puesto y NO clickea — el submit queda habilitado y la URL igual', async ({ page }) => {
+        // Es el contrato del modo MANUAL del canal: el harness escribe, el usuario sólo da Continuar.
+        // Si esto empezara a clickear, el camino visual dejaría de ser visual.
+        await page.goto(qrEntryUrl(hash), { waitUntil: 'domcontentloaded' });
+        const urlAntes = page.url();
+
+        const hechos = await autorrellenarQr(page, {
+            phone: PHONE, document: String(2_900_000_000 + (Date.now() % 90_000_000)),
+            amount: 1_500_000, firstName: 'SYNTH', lastName: 'TEST USER',
+            email: 'synth.qr@gmail.com', address: 'Cal 123 # 12-122', income: 2_500_000,
+        });
+
+        expect(hechos.length, `no llenó nada: ${JSON.stringify(hechos)}`).toBeGreaterThan(0);
+        expect(await page.getByLabel(/Número celular/i).inputValue()).toBe(PHONE);
+        expect(await page.getByLabel(/Número de documento/i).inputValue()).not.toBe('');
+        // Los dos checkboxes de Radix, marcados.
+        const estados = await page.locator('button[role="checkbox"]').evaluateAll(
+            (els) => els.map((e) => e.getAttribute('data-state')));
+        expect(estados.every((e) => e === 'checked'), `checkboxes: ${JSON.stringify(estados)}`).toBe(true);
+        // Y lo que define el contrato: el botón quedó HABILITADO (o sea el form valida) pero NADIE lo tocó.
+        const submit = page.locator('form').first().getByRole('button', { name: /continuar/i }).first();
+        await expect(submit).toBeEnabled();
+        expect(page.url(), 'el autorrelleno no debe navegar').toBe(urlAntes);
     });
 
     test('registro + OTP: el OTP resuelve el producto', async ({ page }) => {
