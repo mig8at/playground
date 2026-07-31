@@ -9,6 +9,15 @@ server/bin/
 # registro y el -wal/-shm en cada lectura — commitearlo sería ruido binario permanente)
 server/data/
 
+# Los datos en archivos (`data/`) se separan según la MISMA razón de arriba, que hablaba de la
+# BITÁCORA y no de todo lo que el .db contenía por accidente:
+#   · `entries/` es la bitácora — dato personal, sigue fuera de git
+#   · `cache/` es snapshot de Jira — descartable, se rehace pidiéndoselo a Jira
+#   · `efforts/` y `settings.json` SÍ se versionan: son contenido de trabajo (igual que `context/`),
+#     y tenerlos en git es la mitad del motivo para salir de SQLite. Este repo no se pushea solo.
+data/entries/
+data/cache/
+
 # Secretos: NUNCA commitear (.env en cualquier carpeta)
 .env
 .env.local
