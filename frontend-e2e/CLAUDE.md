@@ -225,6 +225,36 @@ así que el permiso a la sucursal vale igual. Si algún día dejaran de comparti
 
 ## Canal de entrada: asesor · ecommerce · qr
 
+**El panel GATEA los canales por comercio, y la regla la decide el servidor** (`/api/canales?slug=`),
+no la UI: si la UI re-derivara "esto es Corbeta" habría dos definiciones de la misma cosa. El servidor
+resuelve con `bin/dbops.ts is-corbeta <hash>`, que lee el **mismo `Setting('corbeta_allieds')`** que usa
+el producto en sus 3 sitios — no la lista `[24,209,210,211]` a mano, que sería el hardcode número 25 de
+`hardcodes-entidades` y se desincronizaría el día que negocio agregue un comercio.
+
+| Comercio | Canales que ofrece | Por qué |
+|---|---|---|
+| **Corbeta** (`corbeta_allieds`) | qr · asesor · ecommerce | los tres aplican |
+| Cualquier otro | asesor · ecommerce | **el QR no aplica**: `oldIndex` sólo redirige al self-service a los allieds del setting; para el resto cae en `registrar-celular/{hash}`, que es el mismo tronco del asesor → ofrecerlo sería una perilla que no mueve nada |
+
+Dos decisiones a respetar si lo tocás:
+
+- **El canal que no aplica se DESHABILITA, no se esconde** (con `title` explicando por qué). Verlo apagado
+  dice que existe y que acá no corresponde; esconderlo hace creer que no existe.
+- **En Corbeta el asesor SÍ se ofrece.** Se verificó que ahí no está roto (F-85): al elegir Bancolombia el
+  asesor no cierra nada — el flujo se **entrega al celular del cliente** (`explicacion-de-flujo` + modal de
+  WhatsApp, estado 1→3) y aterriza en las mismas pantallas del canal QR. Es un paso previo, no un recorrido
+  alternativo, y el hint del panel lo dice. Esconderlo sería esconder algo que sí hace algo.
+  ⚠ Se intentó justificar esconderlo con "el marketplace no lista para Corbeta" y **eso es falso**:
+  `lenders-v2` da 404 igual en un comercio no-Corbeta. No reuses esa inferencia.
+- Si cambiás de comercio y el canal elegido deja de aplicar, se cae al primero permitido; si sigue
+  aplicando, **no se toca** (verificado en el navegador).
+
+La tarjeta **Alkosto** es la del canal QR: retail Corbeta con sólo 68/100 habilitados, el único que
+ejercita la venta que cierra en CAJA. Los otros tres del grupo ya están en `.flows.json` y se alcanzan por
+nombre: `k-tronix`, `alkomprar` y `creditop` (este último es la cuenta propia de la casa: está en el gate
+pero **no** es un retail Corbeta).
+
+
 El panel tiene un selector de **canal** (junto al del buró). Cambia la PUERTA, no el caso: el usuario
 sintético es el mismo y viaja **adentro** de la URL base64, así podés correr la misma identidad entrando
 por asesor y por tienda y comparar.

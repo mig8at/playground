@@ -1001,6 +1001,13 @@
     // Comercios de prueba CONFIGURADOS a mano. Agregá más acá cuando los necesites: { slug, name }.
     const MERCHANTS = [
       { slug: 'motai', name: 'Motai' },
+      // Alkosto (allied 209) es el comercio del canal QR: retail del grupo CORBETA, con SÓLO los dos
+      // lenders de Bancolombia habilitados (68 BNPL / 100 Consumo, verificado en su sucursal). Es el único
+      // que ejercita la venta que se cierra en CAJA: código de compra (PIN) → factura en tienda →
+      // conciliación batch → estado 26. Los otros tres del grupo ya están en `.flows.json` y se alcanzan
+      // por nombre desde el buscador o la terminal: `k-tronix`, `alkomprar` y `creditop` (allied 24, que es
+      // la cuenta propia de la casa — está en el gate pero NO es un retail Corbeta).
+      { slug: 'alkosto', name: 'Alkosto' },
       { slug: 'pullman', name: 'Pullman' },
       // CeluRD (RD, country 60) es el comercio del canal SmartPay: su lender #152 es CreditopX rt=2 con
       // path=IMEI → el celular financiado ES la garantía (escaneo de IMEI + bloqueo MDM).
@@ -1253,6 +1260,7 @@
         mockPA = r.mockPA !== false;   // lo decide E2E_REAL_PREAPPROVALS por target, no el panel
         applyMockPAGate();             // con MS real "Espera pre-aprobados" no aplica → se oculta (como los estados por lender)
         lendersDelComercio = ls;   // el mapa de tren dibuja los ramales según el rt de estos
+        loadCanales();             // qué canales de entrada aplican a ESTA sucursal (no bloquea el render)
         renderTren();
         loadEstado();
         if (!ls.length) { box.innerHTML = '<p style="color:var(--mut);font-size:12px;margin:0">Sin lenders (¿branch en .flows.json?).</p>'; return; }
@@ -1660,9 +1668,42 @@
 
     // El canal cambia la PUERTA, no el usuario: el sintético es el mismo y la URL base64 lo lleva
     // adentro, así podés comparar el mismo caso entrando por asesor y por tienda.
+    // Qué canales aplican a la sucursal elegida. Lo decide el SERVIDOR (/api/canales) y acá sólo se
+    // dibuja: si la UI re-derivara "esto es Corbeta" habría dos definiciones de la misma regla. `null` =
+    // todavía no se consultó (o falló) → no se gatea nada, que es el default menos entrometido.
+    let canalesOk = null;
+
+    async function loadCanales() {
+      if (!sel) return;
+      try {
+        const r = await (await fetch('/api/canales?slug=' + encodeURIComponent(sel.slug) + '&target=' + target)).json();
+        canalesOk = Array.isArray(r.canales) ? r.canales : null;
+        esCorbeta = r.corbeta === true;
+        // Si el canal elegido dejó de aplicar (cambiaste de comercio), se cae al primero permitido en vez
+        // de lanzar con un canal que el servidor no ofrece.
+        if (canalesOk && !canalesOk.includes(canal)) canal = canalesOk[0];
+      } catch { canalesOk = null; }
+      applyCanal();
+    }
+    let esCorbeta = false;
+
     function applyCanal() {
-      document.querySelectorAll('#canal button').forEach(b => b.classList.toggle('on', b.dataset.c === canal));
-      $('canalhint').innerHTML = canal === 'asesor'
+      document.querySelectorAll('#canal button').forEach(b => {
+        b.classList.toggle('on', b.dataset.c === canal);
+        // Un canal que no aplica se deshabilita, no se esconde: verlo apagado dice que existe y que acá
+        // no corresponde. Es la misma idea que `CAPS` con la flota de mocks.
+        const ok = !canalesOk || canalesOk.includes(b.dataset.c);
+        b.disabled = !ok;
+        b.style.opacity = ok ? '' : '.4';
+        b.title = ok ? '' : (b.dataset.c === 'qr'
+          ? 'El QR sólo aplica a comercios del grupo Corbeta: para el resto cae en el flujo normal, que es el mismo del asesor.'
+          : 'Este canal no aplica a este comercio.');
+      });
+      $('canalhint').innerHTML = canal === 'asesor' && esCorbeta
+        ? 'Login de asesor (Cognito) y el wizard abre en monto. <b>Ojo en Corbeta:</b> al elegir Bancolombia el asesor '
+          + 'no cierra nada — el flujo se ENTREGA al celular del cliente (link por WhatsApp) y sigue en las mismas '
+          + 'pantallas del canal QR. El asesor es un paso previo, no un recorrido alternativo.'
+        : canal === 'asesor'
         ? 'Login de asesor (Cognito) y el wizard abre en monto.'
         : canal === 'qr'
         ? 'El cliente escanea el QR en la CAJA de un comercio Corbeta (Alkosto/K-TRONIX/Alkomprar): autogestión pura, sin asesor. '

@@ -732,6 +732,37 @@ const server = createServer(async (req, res) => {
         return json(res, 200, { hash, lenders: r, mockPA: await usaMockPA(target) });
     }
 
+    // QUÉ CANALES DE ENTRADA APLICAN a esta sucursal. El servidor decide la POLÍTICA y la UI sólo la
+    // dibuja: si la UI re-derivara la regla, habría dos definiciones de "este comercio es Corbeta".
+    //
+    // La regla, con lo verificado (findings F-85):
+    //  · **QR sólo en comercios Corbeta.** `RegisterCellPhoneController@oldIndex` redirige al
+    //    self-service ÚNICAMENTE a los allieds del `Setting('corbeta_allieds')`; para el resto el QR cae
+    //    en `registrar-celular/{hash}`, que es el mismo tronco del asesor → ofrecerlo sería una perilla
+    //    que no mueve nada (mismo criterio que `CAPS`).
+    //  · **Asesor se ofrece SIEMPRE, incluso en Corbeta.** Verificado: ahí no está roto — seleccionar
+    //    Bancolombia devuelve un handoff al celular del cliente (`explicacion-de-flujo` + modal de
+    //    WhatsApp, estado 1→3) y aterriza en las mismas pantallas del self-service. Esconderlo sería
+    //    esconder algo que sí hace algo; lo que corresponde es DECIRLO en el hint.
+    if (path === '/api/canales') {
+        const slug = (url.searchParams.get('slug') || '').trim();
+        const target = (url.searchParams.get('target') || 'local').trim();
+        const hash = branchHashForSlug(slug);
+        if (!hash) return json(res, 200, { hash: '', corbeta: false, canales: ['asesor', 'ecommerce'], msg: `sin branch_hash para '${slug}'` });
+        const r = await dbopsJson(['is-corbeta', hash], target);
+        // Si la consulta falla no se adivina: se deja el set completo y se dice por qué. Inferir "no es
+        // Corbeta" ante un error escondería el canal QR justo cuando sí corresponde.
+        if (!r || typeof r !== 'object' || !('corbeta' in r)) {
+            const msg = r && typeof r === 'object' && 'error' in r ? String((r as any).error) : 'no se pudo resolver';
+            return json(res, 200, { hash, corbeta: null, canales: ['asesor', 'ecommerce', 'qr'], msg: `no pude determinar si es Corbeta (${msg})` });
+        }
+        const corbeta = !!(r as any).corbeta;
+        return json(res, 200, {
+            hash, corbeta, alliedId: (r as any).alliedId ?? null,
+            canales: corbeta ? ['qr', 'asesor', 'ecommerce'] : ['asesor', 'ecommerce'],
+        });
+    }
+
     // prende/apaga un lender en la sucursal (lenders_by_allied_branches.status)
     if (path === '/api/lender-toggle' && req.method === 'POST') {
         const b = await readBody(req);
