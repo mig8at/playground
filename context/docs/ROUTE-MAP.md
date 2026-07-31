@@ -131,8 +131,8 @@ Doc: `server/data/flows/legacy-backend/doc.md` · Archivos: `server/data/flows/l
 **Cuándo:** Cuando el problema es 'a este comercio le pasa distinto': configuración por entidad/comercio/sucursal, copia de reglas por sucursal, hash de entrada, credenciales de ecommerce, toggles del comercio.
 Doc: `server/data/flows/merchants/doc.md` · Archivos: `server/data/flows/merchants/map.json` · Padre: `creditop`
 
-### motai — Motai  ·  _reference_ · 62 archivos
-**Cuándo:** Cuando la tarea es del comercio Motai (allied 158): sus productos renting / rent-to-own / compra (`lenders.product`), Ábaco (validación de ingresos de apps gig) y cómo se prende por lender en `lender_requirements`, el flujo self-service dirigido por `next_step`, o la calculadora del renting (precio vs interés, y por qué toca el techo de usura). OJO si buscás `modos`, `isMotaiRenting`, `merchant_mode` o `partner_modes`: se borraron en la des-motaización (v2) — acá está el modelo nuevo.
+### motai — Motai  ·  _reference_ · 48 archivos
+**Cuándo:** ⏳ OJO: este nodo describe la v2, que vive en `qa` y NO en `main` (ver la marca PENDIENTE DE MERGE en el doc.md). Cuando la tarea es del comercio Motai (allied 158): sus productos renting / rent-to-own / compra (`lenders.product`), Ábaco (validación de ingresos de apps gig) y cómo se prende por lender en `lender_requirements`, el flujo self-service dirigido por `next_step`, o la calculadora del renting (precio vs interés, y por qué toca el techo de usura). OJO si buscás `modos`, `isMotaiRenting`, `merchant_mode` o `partner_modes`: se borraron en la des-motaización (v2) — acá está el modelo nuevo.
 Doc: `server/data/flows/motai/doc.md` · Archivos: `server/data/flows/motai/map.json` · Padre: `merchants`
 
 ### ms-preapprovals — MS Pre-approvals  ·  _reference_ · 72 archivos

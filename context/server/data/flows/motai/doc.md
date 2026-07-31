@@ -1,6 +1,19 @@
 # Motai · contexto
 > **estado:** al día con **`qa`** (PR #1020 des-motaización + #1028 Ábaco, mergeados el 2026-07-29) · Comercio aliado **158**, con **un lender por producto** (`lenders.product` = `credit` | `renting` | `rto`) y **Ábaco** (ingresos de apps gig) como paso **configurable por lender**. Ya **no hay modos**: `allied_modes`/`user_request_modes` se borraron (código y tablas). Si venís de la v1 y buscás `isMotaiRenting`, `merchant_mode` o `partner_modes`, **no existen**.
 
+> ⏳ **PENDIENTE DE MERGE — este nodo describe la v2, que vive en `qa` y NO en `main`.**
+> Verificado el 2026-07-31: **14 archivos** que este nodo cita no existen en `main` ni en `develop`
+> (`AbacoRequirementController` · `AbacoStepResolver` · `AbacoStepSettings` · `AbacoStepStateRepository` ·
+> `AbacoRequirementService` · `DynamicFormRequirementController` · `DynamicFormRequirementService` ·
+> `DynamicFormStepResolver` · `LenderRequirement` · `LenderRequirementRepository` + su interfaz ·
+> `AlliedDocument` · `FormulaCalculator` · `abaco-attempt-state.ts`). Están en **`qa`**.
+> Se sacaron de `files[]` para que el oráculo no dropee — sus rutas siguen citadas en prosa en
+> *Dónde mirar*, así que no se perdió ningún puntero.
+> **Al mergear `qa` → `main`:** devolver esas rutas a `files[]`, correr el oráculo y **borrar esta marca**.
+>
+> Mientras esto siga acá: lo que el nodo describe **no es lo que corre en producción**. Si la tarea es
+> sobre lo que hay hoy en `main`, mirá la v1 (modos) en el historial: `git log -- server/data/flows/motai`.
+
 ## Qué es
 **Motai** es un **COMERCIO** aliado colombiano (`allied_id = 158`), no un lender ni un `response_type`. Ofrece **varias líneas de producto** sobre el mismo wizard de originación. Apunta a población **gig/migrante** (trabajadores de plataformas Rappi/DiDi/Uber y migrantes con **PEP = Permiso Especial de Permanencia**) que no tiene historial en el buró colombiano; por eso su rasgo central es un **underwriting alternativo por ingresos gig (Ábaco)**.
 

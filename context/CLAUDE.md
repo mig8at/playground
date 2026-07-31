@@ -37,22 +37,22 @@ El server Go, el WebSocket, el conector stdio y el sistema de "derivar" se borra
 - `src/App.vue` (`npm run dev` → Vite :5193) es una viz **read-only** que lee `tree.json` y
   `flows/*` por `import.meta.glob`. No le agregues backend, WS ni botones de crear/derivar/guardar.
 
-## Toda ruta nueva pasa por el oráculo
+## El oráculo y el ROUTE-MAP corren SOLOS (hooks)
 
-`python3 tools/oracle.py server/data/flows/<id>/map.json` (argumento posicional). Una ruta mal
-escrita **no falla en ningún lado**: la lee un modelo y abre un archivo inexistente.
+No hay que acordarse de nada: al escribir cualquier `map.json` del árbol, un hook regenera el índice,
+valida que las rutas citadas existan y rehace el `ROUTE-MAP.md` (~0,3 s). Si algo no resuelve, te lo
+devuelve como error con la lista. `.claude/hooks/oraculo.py` · registrado en `.claude/settings.json`.
+Y `ROUTE-MAP.md` / `tools/index.txt` **no se pueden editar a mano**: otro hook lo bloquea, porque son
+generados y el cambio se perdería en la próxima regeneración.
 
-- Si falta `tools/index.txt` (está gitignored) o creaste archivos nuevos en los repos, regeneralo
-  con `python3 tools/build-index.py`; si no, el oráculo tira rutas que sí existen.
-- Solo indexa `.php .go .ts .tsx .js .jsx .mjs .cjs .vue` (`tools/build-index.py:15`). Un `.md`,
-  `.sql` o `.yaml` **siempre** dropea: no va en `files[]`, mencionalo en el `doc.md`.
-- El índice es snapshot del **working tree**, no de `main`: una rama feature checkeada dropea rutas
-  vivas. Antes de sacar una ruta por un DROP, verificá con `git cat-file -e main:<relpath>`.
+Lo único que sigue siendo tu criterio cuando el hook dropea una ruta:
 
-## `docs/ROUTE-MAP.md` es GENERADO — no lo edites a mano
-
-`python3 tools/build-route-map.py` lo reescribe entero (`build-route-map.py:47`). Corrélo después
-de tocar cualquier `map.json` o `tree.json`. El `Cuándo:` sale del campo `when` del `map.json`.
+- **`.md`, `.sql` y `.yaml` SIEMPRE dropean**: el índice solo mira
+  `.php .go .ts .tsx .js .jsx .mjs .cjs .vue` (`tools/build-index.py:15`). No van en `files[]` —
+  mencionalos en el `doc.md`.
+- **Si el archivo existe pero en otra rama**, no es un error de tipeo: es contexto sin mergear. Sacalo
+  de `files[]` y marcá la sección con `⏳ PENDIENTE DE MERGE` (arriba). Verificá con
+  `git cat-file -e main:<relpath>` antes de decidir.
 
 ## Nodo nuevo: dos lugares, los dos a mano
 

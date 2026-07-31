@@ -1,0 +1,44 @@
+{
+  "$comment": [
+    "Dos reglas del playground que dejaron de ser texto y pasaron a ser automáticas.",
+    "Estaban escritas en los CLAUDE.md como 'acordate de correr X' — y una regla que depende de que",
+    "alguien se acuerde es una regla que se olvida, sobre todo cuando olvidarla NO ROMPE NADA.",
+    "",
+    "PreToolUse  · no-editar-generados: bloquea (exit 2) escribir a mano ROUTE-MAP.md o index.txt.",
+    "              Corre ANTES, así que de verdad lo impide.",
+    "PostToolUse · oraculo: al tocar cualquier map.json del árbol, regenera el índice, valida que las",
+    "              rutas citadas existan y rehace el ROUTE-MAP. ~0,3 s. No puede bloquear (el tool ya",
+    "              corrió) pero devuelve los DROPs como error para que no queden sin arreglar.",
+    "",
+    "Los dos filtran por ruta ADENTRO del script, así que cualquier otro archivo sale en microsegundos.",
+    "Y si un hook se rompe, sale 1: avisa y la sesión sigue."
+  ],
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PROJECT_DIR}/.claude/hooks/no-editar-generados.py",
+            "args": []
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PROJECT_DIR}/.claude/hooks/oraculo.py",
+            "args": [],
+            "statusMessage": "Validando las rutas del nodo…",
+            "timeout": 120
+          }
+        ]
+      }
+    ]
+  }
+}
