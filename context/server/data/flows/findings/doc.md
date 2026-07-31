@@ -1593,3 +1593,98 @@ El `!= 25` está **dentro** del `if` que aborta → para pasar hay que cumplir `
 **Estado:** resuelto. Las cifras calculadas asumiendo que 25 habilita son las correctas.
 
 ---
+
+### F-83 · El límite de 20 caracteres del `address` de Bancolombia no lo cumple ninguna de las dos fuentes
+
+**Síntoma:** el contrato del *In Store Billing Code* declara `address` con **`maxLength 20`** y lo describe
+como "dirección de residencia del cliente". Suena a un detalle de validación; es un bloqueante.
+
+**Medido en la copia local (2026-07-31), las tres fuentes candidatas:**
+
+| Fuente | Filas | Exceden 20 | % | Máximo |
+|---|---|---|---|---|
+| `allied_branches.address` — **todas** | 1.692 | **1.134** | **67 %** | 134 |
+| `allied_branches.address` — sólo Corbeta (24/209/210/211) | 133 | **82** | **62 %** | 86 |
+| **Dirección de residencia del CLIENTE** (`fields.id = 44`, «Dirección de Residencia», vía `user_field_values`) | 2.267 | **630** | **28 %** | 90 |
+
+Hoy se manda la de la **sucursal** (`CodeGenerationService` la toma de `alliedBranch->address`), que es
+justo la peor de las tres. Y truncar no es una salida: un ejemplo real de Corbeta,
+`«Centro comercial mall plaza, Local A1033, Avenida Kevin Angel entre calles 56 y 57G»` (86 chars), queda
+en **`«Centro comercial mal»`** — cortado a mitad de palabra e inservible como dirección. Si Bancolombia
+usa ese dato para la factura, además hay consecuencia fiscal.
+
+**Lo que esto cierra y lo que abre.** Cierra la duda de magnitud: **no es un caso borde, es la mayoría**.
+Abre la pregunta operativa, que es para el banco y no para nosotros: **¿qué hace Bancolombia con una
+dirección de más de 20?** ¿Trunca, rechaza con `SA400`, o el campo es informativo? Sin esa respuesta, las
+tres opciones (truncar, mandar la del cliente, mandar la de la sucursal) son igual de arbitrarias.
+
+**Dato lateral útil:** existir un campo propio para la dirección del cliente **con el flujo Bancolombia
+como razón de ser** (el field 44 se usa en su aceptación de términos, y el diccionario lo describe "sin
+acentos, sin símbolos") es indicio de que el banco espera la del cliente, no la del punto de venta.
+Indicio, no confirmación.
+
+**Estado:** medido y reproducible. La decisión depende del banco.
+
+---
+
+### F-84 · El `Message-Id` fijo de no-producción SÍ es un UUID v4 válido (y el que no lo es está comentado)
+
+**Síntoma / sospecha razonable:** el contrato valida `message-id` con un **regex de UUID v4**
+(`^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$`, no es "se recomienda"), y las
+Actions de Bancolombia fijan un `Message-Id` **constante fuera de producción**
+(`BancolombiaBnpl.php:413`: `app()->environment() === 'production' ? Str::uuid() : '<constante>'`). Si esa
+constante no fuera un v4, dev y sandbox darían `SA400` en todas las llamadas.
+
+**Verificado — no hay riesgo hoy.** Las dos constantes que existen en el código, contra el regex del contrato:
+
+```
+cf5e04d7-519b-4834-ab75-3b02f7389f84   ✓ v4 válido   (VIVA, BancolombiaBnpl.php:413)
+c4e6bd04-5149-11e7-b114-b2f933d5fe66   ✗ es v1, no v4 (COMENTADA, BancolombiaConsumerLoan.php:409)
+```
+
+La viva pasa (`4834` → versión 4, `ab75` → variante `[89ab]`). La que fallaría es un UUID **v1** —
+el tercer grupo empieza en `1`— y está detrás de un `//`.
+
+**Qué hacer.** Nada ahora; pero si alguien descomenta esa línea de `BancolombiaConsumerLoan.php:409`, todas
+las llamadas de Consumo en dev/sandbox van a dar `SA400` por una razón que no aparece en ningún log de
+negocio. Vale un comentario en el código o borrarla.
+
+**Estado:** verificado contra el regex del OpenAPI. Riesgo latente, no activo.
+
+---
+
+### F-85 · Por el canal ASESOR un comercio Corbeta no cierra ahí: entrega el crédito al celular del cliente
+
+**Síntoma / pregunta:** si el canal QR es "autogestión pura", ¿qué pasa si un asesor entra a una sucursal
+Corbeta por el flujo normal? ¿Se rompe, o hay dos caminos válidos?
+
+**Verificado (BD local, sucursal 946 / allied 209):** no se rompe — **converge**. Al seleccionar
+Bancolombia BNPL como lo hace la acción de `/lenders`
+(`POST update-user-request/{ur}` con `lender_id=68`) la respuesta es un **handoff al cliente**:
+
+```
+url            /bancolombia/bnpl/explicacion-de-flujo/{encryptCode}
+showModal      true      · openProcessModal  true      · openNewTab false
+modalMessage   «Se ha enviado un mensaje de WhatsApp con un link para continuar el proceso.»
+estado en BD   1 → 3 (Seleccionó entidad)
+```
+
+O sea el asesor no completa nada: el flujo sigue en el celular del cliente, en **las mismas pantallas
+`bancolombia/*`** del self-service. El canal asesor no es un recorrido alternativo, es un paso previo que
+termina en el mismo lugar.
+
+**⚠ Lo que NO se pudo probar, y por qué importa:** se intentó demostrar que el marketplace **no lista**
+para un comercio Corbeta (lo que haría del canal asesor un camino imposible), y `lenders-v2` devolvió
+**404** — pero **el control con un comercio NO-Corbeta devolvió el mismo 404**, así que ese 404 es del
+endpoint o de sus precondiciones, no del comercio. La hipótesis "el asesor no puede llegar a elegir en
+Corbeta" **queda sin sostén**: no la uses para justificar decisiones.
+
+**Consecuencia práctica** (para el panel del harness): esconder el canal asesor en comercios Corbeta NO se
+justifica con "está roto", porque hace algo y ese algo es correcto. Lo que sí se justifica es lo inverso:
+**el canal QR no tiene sentido en un comercio NO-Corbeta**, porque `RegisterCellPhoneController@oldIndex`
+sólo redirige al self-service a los allieds del `Setting('corbeta_allieds')`; para el resto el QR cae en
+`registrar-celular/{hash}`, que es el mismo tronco del asesor.
+
+**Estado:** el handoff está verificado; la inferencia sobre el marketplace, retirada.
+
+---

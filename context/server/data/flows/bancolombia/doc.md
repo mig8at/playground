@@ -210,6 +210,35 @@ pantallas viejas `/consumo/*` del monolito. Es el bloqueo duro del cutover (ver 
 - **Cero tests** del camino purchase-code (ni `Http::fake` del host de Corbeta): no hay red de seguridad para detectar una regresión al conmutar de proveedor.
 - **`query()` no manda el header `UserId` que `register()` sí manda** (`Corbeta.php:131` vs `:58`). No se determinó si es intencional.
 
+### 9 · El reemplazo del emisor: lo que la revisión de Santi dejó firme (2026-07-31)
+Tras la ida y vuelta sobre el handoff, esto es lo que hay que tener presente antes de tocar código —
+son restricciones del diseño, no opiniones:
+
+- **La decisión de mayor riesgo es una sola: ¿el `billingCode` de Bancolombia es el MISMO PIN que Corbeta
+  pone en su orden?** De eso dependen dos cosas que parecían separadas: (a) si el `billingCode` puede ir en
+  `verification_token` —la columna que los 4 crons de `application` cruzan contra la factura— y (b) si el
+  híbrido "emisión por Bancolombia, conciliación por Corbeta" es viable. **Si el identificador es propio y
+  distinto, escribirlo en esa columna es exactamente lo que hace que la ruptura sea SILENCIOSA**: no falla
+  nada visible, simplemente nadie pasa a estado 26 y no se confirma el consumo. En ese caso hace falta otra
+  columna o un campo extra → y eso sí implica migración.
+- **Hay una pregunta previa: ¿quién crea la orden en Corbeta?** Si Bancolombia llama a `setOrder` por
+  detrás y nosotros dejamos de llamarlo, bien; hay que confirmar que **no queden dos caminos creando
+  órdenes** para la misma compra. Órdenes duplicadas en el aliado son peores que un código faltante.
+- **"No se toca la vigencia" es una intención, no una verificación.** La lógica de 24 h con corte 21:30
+  hay que comprobar que no se apoye en el mismo efecto colateral del filtro `EstadoOrden=2` que sostiene a
+  `validateCurrentOrder` (§3.3): si se apoya, sí queda afectada por el cambio.
+- **Caracterizar el camino actual sigue valiendo aunque el canal esté detenido** (§F-79), pero como
+  *registro del comportamiento observado*, no como oráculo de corrección. Los dos casos de referencia
+  (uReq 359914 y 359917) son de **marzo**, del período en que la emisión sí funcionaba, así que son válidos.
+- **BC4 (`departmentCode`) está cerrada documentalmente pero abierta operativamente.** Que el spec se
+  contradiga solo (mocks `01/02/03` contra ciudades `11001/05001/76001`) no dice qué espera el banco en
+  producción: si valida contra su propia tabla y espera el contador, `substr($cityCode,0,2)` falla.
+- **El `address` de 20 caracteres es bloqueante, con número**: ninguna de las dos fuentes lo cumple —
+  67 % de las sucursales y 28 % de las direcciones de residencia del cliente lo exceden. Ver **F-83**.
+- **Falta un escenario de prueba, no sólo un código de error:** el 409 `BP21000` como *recuperación* —
+  POST exitoso en el banco, respuesta perdida, reintento → 409 y sin forma de recuperar el código. Con la
+  bitácora en `lender_transactions` escrita ANTES del POST se puede ejercitar.
+
 ## Preguntas abiertas
 - [ ] **F1/F2 (front)**: ¿el módulo `bancolombia-origination` llama `RetrieveQuota` o `ListAccountsAndQuota` para la cuota BNPL, y reenvía `bnplTransactionId` en pasos posteriores? Explica el hueco de arriba. Requiere diagnóstico del front.
 - [ ] **N1 (negocio)**: ¿el código de compra para **Consumo** ya corrió en producción? En la copia local hay **0** solicitudes de lender 100 en estado 25 (vs 119 del 68) → puede ser habilitación, no reemplazo.
@@ -222,6 +251,8 @@ pantallas viejas `/consumo/*` del monolito. Es el bloqueo duro del cutover (ver 
 - ✅ **El estado 25 habilita** (no excluye) en `PurchaseCodeService.php:106` → las cifras calculadas asumiendo que habilita son las correctas.
 - ✅ **`barcode_type` de los allieds 24/209/210/211 = `ean128`** → el riesgo de `ean13` (`^\d{12}$`) no aplica a este alcance.
 - ✅ **`country_zones` está sucio y `country_cities.code` está limpio** (números arriba) → derivar el departamento del código de ciudad es lo correcto.
+- ✅ **El `Message-Id` fijo de no-producción es un v4 válido** (`BancolombiaBnpl.php:413`); el que no lo es (un UUID **v1**) está comentado en `BancolombiaConsumerLoan.php:409`. Riesgo latente si alguien lo descomenta. Ver **F-84**.
+- ✅ **Por el canal ASESOR un comercio Corbeta no cierra ahí: entrega al celular del cliente** (`update-user-request(68)` → `url=/bancolombia/bnpl/explicacion-de-flujo/{code}` + modal de WhatsApp, estado 1→3). El canal asesor converge en las mismas pantallas del self-service. Ver **F-85**.
 - ✅ **Qué es el `allied_id = 24`** (el único `case` sin comentario en `CodeGenerationService.php:22`): es **"Creditop"**, la cuenta de comercio propia de la casa, activa, con **21 lenders** habilitados. Está en `Setting('corbeta_allieds')` y en el switch, pero **no es un retail Corbeta** — conviene tenerlo en cuenta al medir "solicitudes Corbeta".
 
 ## Bitácora
