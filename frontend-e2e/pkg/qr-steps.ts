@@ -272,6 +272,30 @@ export async function autorrellenarQr(page: Page, d: DatosQr): Promise<string[]>
         if (opciones.length) await s.selectOption(opciones[0]).then(() => hechos.push(`select→${opciones[0]}`)).catch(() => {});
     }
 
+    // SELECTS DE RADIX (`Select`/`SelectTrigger` del UI kit) — no son `<select>` y el bloque de arriba no
+    // los ve. Es el muro de `consumo/loan-summary`: «Duración del crédito» y «¿Qué día quieres pagar?» son
+    // los dos de este tipo, quedan vacíos, el form no valida y **el botón Continuar nunca se habilita**, sin
+    // un mensaje de error. El trigger es un `button[role=combobox]` y las opciones se renderizan en un
+    // PORTAL (fuera del form) como `[role=option]`, así que hay que abrir y clickear, no `selectOption`.
+    const combos = page.locator('button[role="combobox"]:visible');
+    for (let i = 0; i < (await combos.count().catch(() => 0)); i += 1) {
+        const cb = combos.nth(i);
+        // Con valor elegido, Radix pone `data-placeholder` sólo cuando está VACÍO: es la señal de "sin elegir".
+        const vacio = (await cb.getAttribute('data-placeholder').catch(() => null)) !== null
+            || !(await cb.textContent().catch(() => ''))?.trim();
+        if (!vacio) continue;
+        await cb.click({ timeout: t }).catch(() => {});
+        const opcion = page.locator('[role="option"]:visible').first();
+        if (await opcion.count().catch(() => 0)) {
+            const etiqueta = (await opcion.textContent().catch(() => '')) ?? '';
+            await opcion.click({ timeout: t })
+                .then(() => hechos.push(`combo→${etiqueta.trim().slice(0, 18)}`))
+                .catch(() => {});
+        } else {
+            await page.keyboard.press('Escape').catch(() => {});   // no dejar el listbox abierto tapando el resto
+        }
+    }
+
     // Radios: el primero de cada grupo.
     const grupos = new Set(await page.locator('input[type=radio]:visible').evaluateAll((els) =>
         els.map((e) => (e as HTMLInputElement).name).filter(Boolean)).catch(() => []));

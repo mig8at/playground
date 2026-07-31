@@ -266,15 +266,86 @@ y, si no cumple, el UC devuelve `success:false` y la pantalla muestra un banner 
 
 Detalle del contrato campo por campo, y por qué el runner por consola no lo detectaba: **F-88**.
 
+### 11 · El MAPA DE PANTALLAS del canal QR, recorrido de punta a punta (verificado 2026-07-31)
+No es una lectura de `routes.ts`: es el recorrido **caminado clickeando** con
+`frontend-e2e/dev/caminar-qr.ts`, con el estado final comprobado en BD. Los dos productos **cierran**.
+
+**BNPL (lender 68) — 9 pasos → estado 25 + código**
+
+| # | pantalla | qué pasa ahí |
+|---|---|---|
+| 1 | `self-service/{hash}/solicitar` | celular + documento + 2 checkboxes |
+| 2 | `self-service/{hash}/{tel}/otp` | **punto de decisión**: resuelve la pre-aprobación y bifurca (§ cerradas: PLS001…005) |
+| 3 | `{tipo}/start/{code}` | redirige al banco (no es pantalla: es el trampolín) |
+| 4 | *banco* | autenticación. Vuelve a `{tipo}/redirect?code=…` |
+| 5 | `bnpl/loan-info/{code}` | cupo + cuentas + monto a solicitar |
+| 6 | `bnpl/loan-summary/{code}` | resumen |
+| 7 | `bnpl/signature/{code}` | datos de facturación + firma → **segunda salida al banco** (clave dinámica) |
+| 8 | `bnpl/processing/{code}` | **pantalla de espera**: POSTea la originación y navega sola |
+| 9 | `purchase-code/{code}` | «Ve a la caja»: NIT, medio de pago (`BC_PAGA_DESP`), **PIN**, contador de vigencia |
+
+**Consumo (lender 100) — 10 pasos → estado 25 + código.** Mismo esqueleto, y **dos pantallas propias** que
+BNPL no tiene (así que "es lo mismo con otro convenio" es falso):
+
+| # | pantalla | diferencia con BNPL |
+|---|---|---|
+| 5 | `consumo/loan-info/{code}` | — |
+| 6 | `consumo/loan-summary/{code}` | pide **duración**, **cobertura** y **día de pago** (ver abajo) |
+| 7 | **`consumo/loan-summary-review/{code}`** | ⬅ propia: revisión antes de firmar |
+| 8 | **`consumo/personal-info/{code}`** | ⬅ propia: datos personales/facturación + firma |
+| 9 | `consumo/processing/{code}` | — |
+| 10 | `purchase-code/{code}` | medio de pago `BC_CONSUMO` |
+
+**El dato que más cuesta descubrir de la pantalla 6:** `simulation.installmentDatas` **no es un plan de
+amortización** — *cada elemento es una TARJETA DE COBERTURA*. `mapInstallmentToCoveragePlan`
+(`domain/mappers/coverage-plan.mapper.ts`) traduce: si entre sus `insurances` hay `SEGURO_DE_DESEMPLEO` la
+tarjeta se llama **«Plus»** (incluye "Seguro de empleado protegido" + "Tasa preferencial"), si no
+**«Básica»**; la cuota mostrada es `installment + Σ insurances.amount` y la tasa sale de `interestRate`. El
+propio `CoveragePlansResponseSchema` acota `plans` a **`.min(1).max(2)`**. Mandar 12 `installmentDatas`
+pinta **12 tarjetas idénticas**.
+
+Y sus tres controles son **`Select` de Radix** (`TermSelector`/`DaySelector` del UI kit), no `<select>`:
+trigger `button[role=combobox]` y opciones en un **portal** como `[role=option]`. Si quedan vacíos el form
+no valida y **el botón Continuar nunca se habilita, sin ningún mensaje** — se lee como pantalla trabada. La
+cobertura, en cambio, **viene preseleccionada** (`plans[0]`).
+
+**Ramas de salida verificadas** (perilla del mock → pantalla). Ojo con lo que estas filas desmienten:
+
+| escenario | a dónde va | |
+|---|---|---|
+| `producto: 'ninguno'` → PLS005 | `self-service/{hash}/no-preapproved/` | ✅ |
+| `producto: 'ambos'` → PLS003 | arranca en **BNPL** con `?multiproduct=true` | ✅ |
+| **cualquier falla global** (`MOCK_BC_FAIL=1`, o un `errorCode` sin alcance) | `no-preapproved` — **no** una pantalla de error | ✅ y contraintuitivo: la compuerta de pre-aprobación es lo PRIMERO que llama al banco, así que se come todos los escenarios (F-90) |
+| `BP20790` **sólo** en `retrieve-quota` | `bnpl/loan-info` con el **banner genérico** «intenta de nuevo»… y la solicitud queda en **estado 8 «Cancelado»** (F-91) | ✅ |
+
+De ahí sale una conclusión que no está en `routes.ts`: **`bnpl/business-error` es exclusiva del canal
+ecommerce.** Sólo se navega desde `bancolombia/bnpl/redirect.tsx:91` dentro de la rama `isEcommerceFlow` y
+desde `ecommerce-loan-processing.tsx`. En autogestión **no hay ruta que lleve ahí**, así que un error de
+negocio del banco se ve igual que un fallo técnico y el mensaje accionable del banco se pierde.
+
+**Lo que NO se caminó todavía**: `bnplError`/`ConsumoError`, `consumo/no-quota`,
+`consumo/loan-offer-evaluation`, los `document-detail`, `response/*`, y todo el canal **ecommerce**
+(`payment-success`, `ecommerce-errors-*`, `business-error`), que entra por otra puerta y en local se degrada.
+
 ## Preguntas abiertas
 - [ ] **F1/F2 (front)**: ¿el módulo `bancolombia-origination` llama `RetrieveQuota` o `ListAccountsAndQuota` para la cuota BNPL, y reenvía `bnplTransactionId` en pasos posteriores? Explica el hueco de arriba. Requiere diagnóstico del front.
 - [ ] **N1 (negocio)**: ¿el código de compra para **Consumo** ya corrió en producción? En la copia local hay **0** solicitudes de lender 100 en estado 25 (vs 119 del 68) → puede ser habilitación, no reemplazo.
 - [ ] **N2 (negocio)**: `address` del servicio nuevo se describe como *residencia del cliente*, pero hoy se envía `alliedBranch->address` (dirección de la **sucursal**). Además el nuevo tiene `maxLength 20`.
 - [ ] **Al banco**: ¿el 409 `BP21000` devuelve el `billingCode` existente o sólo el error, y hay forma de consultar por `transactionId`? Sin eso, una respuesta perdida deja la orden huérfana (no hay clave de idempotencia; `message-id` identifica el mensaje, no la operación).
 - [ ] ¿Por qué `app/Http/Controllers/Api/BancolombiaController.php` existe en legacy sin ruta? ¿Se registró y se revirtió, o se portó anticipando el cutover?
-- [ ] `Modules/Onboarding/App/Http/Controllers/BancolombiaController.php:23` `validatePreApprovedAndRedirect`: no se leyó el criterio con que elige BNPL vs Consumo al redirigir.
 
 ### Cerradas en esta pasada
+- ✅ **Cómo elige BNPL vs Consumo** (`validatePreApprovedAndRedirect` → `PreApprovedLenderService::validateBancolombiaPreapprove`): consulta **las dos compuertas del banco** con montos fijos y decide por `match`. BNPL: `validateQuota` con **monto 100.000**, lender 68 → `data.validate === true`. Consumo: `validate` con **monto 1.000.000**, lender 100 → `data.validate === 'Success'` (`'Pending'` → pendiente; **409 `BP40920507`** → "persona no habilitada", tratado como sin cupo, **no** como error). El resultado sale como código y fija `lender_id`/`amount` en la solicitud:
+
+  | | condición | código | `lender_id` | `amount` |
+  |---|---|---|---|---|
+  | Multiproducto | `hasBnpl && (hasConsumer\|\|pending)` | `PLS003` | **68** (arranca en BNPL) | 100.000 |
+  | Solo BNPL | `hasBnpl` | `PLS001` | 68 | 100.000 |
+  | Solo Consumo | `hasConsumer` | `PLS002` | 100 | 1.000.000 |
+  | Respuesta al frente | `pending` | `PLS004` | 100 | 1.000.000 |
+  | Ninguno | — | `PLS005` | `null` | `null` | 
+
+  Consecuencia práctica para probar: **con las dos compuertas prendidas el recorrido arranca SIEMPRE en BNPL** (multiproducto ⇒ lender 68), así que las pantallas de Consumo no se alcanzan sin apagar la de BNPL. El `?multiproduct=true` que aparece en la URL del wizard es exactamente el `PLS003`. En multiproducto el cambio a Consumo ocurre **en el `authenticate`**, que reescribe `lender_id` y `amount`.
 - ✅ **El estado 25 habilita** (no excluye) en `PurchaseCodeService.php:106` → las cifras calculadas asumiendo que habilita son las correctas.
 - ✅ **`barcode_type` de los allieds 24/209/210/211 = `ean128`** → el riesgo de `ean13` (`^\d{12}$`) no aplica a este alcance.
 - ✅ **`country_zones` está sucio y `country_cities.code` está limpio** (números arriba) → derivar el departamento del código de ciudad es lo correcto.

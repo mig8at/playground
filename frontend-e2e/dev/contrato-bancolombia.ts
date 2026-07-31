@@ -44,7 +44,9 @@ const post = async (ruta: string, body: unknown = {}) => {
 };
 
 let malos = 0;
+let total = 0;
 const chequear = (nombre: string, schema: any, payload: unknown) => {
+    total++;
     const r = schema.safeParse(payload);
     if (r.success) return void console.log(`  ✓ ${nombre}`);
     malos++;
@@ -104,7 +106,21 @@ chequear('enable-offers → LoanEnableOffers', L.LoanEnableOffersPayloadSchema, 
 const sim = await post('/simulations');
 const ctas = await post('/accounts/retrieve');
 chequear('detail-simulation → LoanDetailSimulation', L.LoanDetailSimulationPayloadSchema, {
-    simulation: sim.data.simulation, retrieve_accounts: ctas.data,
+    // ⚠ `data` COMPLETO, no `data.simulation`: así lo manda el controller
+    // (`'simulation' => $bancolombiaSimulations['data']`, BancolombiaLoanController.php:1297). Con el
+    // mapeo mal, este chequeo validaba una forma que nunca ocurre y daba verde con la pantalla trabada.
+    simulation: sim.data, retrieve_accounts: ctas.data,
+});
+
+const estudio = await post('/validate-credit-study');
+chequear('validate-credit-study → LoanValidateCreditStudy', L.LoanValidateCreditStudyPayloadSchema, {
+    validate_credit_study: estudio.data,
+});
+
+const confirmar = await post('/disbursements/confirm');
+chequear('select-insurance → LoanSelectAccount', L.LoanSelectAccountPayloadSchema, {
+    confirm: confirmar.data, user: { first_name: 'SYNTH', surname: 'TEST', email: null },
+    additional_fields: ['address'],
 });
 
 const esign = await post('/customers/eSignDocument');
@@ -120,5 +136,7 @@ chequear('origination → LoanOrigination', L.LoanOriginationPayloadSchema, {
     disbursement: desem.data, confirmed: conf.data, user_id: 1, status: '25', is_self_management: true,
 });
 
-console.log(malos ? `\n✗ ${malos} incumplimiento(s) — el recorrido visual se cae en ese paso` : '\n✓ el mock cumple los 14 contratos del front');
+console.log(malos
+    ? `\n✗ ${malos}/${total} incumplimiento(s) — el recorrido visual se cae en ese paso`
+    : `\n✓ el mock cumple los ${total} contratos del front`);
 process.exit(malos ? 1 : 0);

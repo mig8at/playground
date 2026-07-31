@@ -1831,3 +1831,67 @@ Sirve para los dos saltos y para los dos productos sin conocer el paso.
 deducirse del referrer).
 
 ---
+
+### F-90 · Las perillas de falla del mock eran GLOBALES: cualquier error terminaba en `no-preapproved`, no en la pantalla de error
+
+**Síntoma:** para ver las pantallas de error del canal QR se forzó primero `errorCode: 'BP20790'` y después
+`MOCK_BC_FAIL=1`. **Las dos veces el recorrido murió en la pantalla 3** con
+`self-service/{hash}/no-preapproved/` — nunca apareció `business-error` ni `bnplError`.
+
+**Causa raíz (verificada):** las dos perillas se evalúan **antes de cualquier ruta** del mock, así que
+aplican a TODAS. Y lo primero que hace este canal es la **compuerta de pre-aprobación**
+(`PreApprovedLenderService::validateBancolombiaPreapprove`, que consulta las dos APIs del banco): si esa
+falla, ninguna aprueba → `PLS005` → `no-preapproved`, y el flujo **nunca llega** a los pasos donde viven las
+pantallas de error. Una falla global no simula "el banco se cayó a mitad del crédito", simula "el banco
+estaba caído desde antes de empezar" — que es un escenario válido, pero **otro**.
+
+Las dos hipótesis previas (`errorCode → business-error`, `MOCK_BC_FAIL → bnplError`) quedan **refutadas** y
+no por el mapeo, sino por el alcance de la perilla. Anotarlas como refutadas importa: el mapeo perilla →
+pantalla de error **sigue sin verificarse**.
+
+**Arreglo:** perilla nueva `errorEn` en `/_control/escenario`: el `errorCode` se dispara sólo cuando el path
+contiene ese texto (`'retrieve-quota'`, `'origination'`, `'purchase-intention'`…). `null` = todas, como
+antes. `MOCK_BC_FAIL` se deja global **a propósito** — es el escenario "el banco no responde", y ahora se
+sabe qué pantalla produce.
+
+**Regla general para mocks de este tipo:** una perilla de falla sin ALCANCE sólo puede ejercitar el primer
+paso que la toca. Si el flujo empieza con una llamada al mismo proveedor, ese primer paso se come todos los
+escenarios.
+
+**Estado:** el alcance está arreglado y verificado; el mapeo de cada pantalla de error a su perilla queda
+pendiente de caminar.
+
+---
+
+### F-91 · Un error de NEGOCIO del banco cancela la solicitud y le dice al cliente «intenta de nuevo» — y `business-error` no existe para autogestión
+
+**Síntoma:** forzando `BP20790` (compra reciente / saldo en actualización) sólo en `retrieve-quota`, el
+cliente ve en `bnpl/loan-info` el banner **genérico**: «Error al cargar la información. No pudimos cargar la
+información. **Por favor, intenta de nuevo.**» + botón *Volver a intentar*.
+
+**Lo que pasa por detrás, verificado en BD:** la solicitud queda en **estado 8 «Cancelado»**
+(`user_requests.user_request_status_id = 8`). El controller lo hace a propósito
+(`BancolombiaBnplController`, rama `BP20790`: `ErrorCaptureService::capture` + `CancelRequestService::cancelRequest`).
+
+O sea: **la pantalla invita a reintentar algo que el backend ya canceló.** El reintento no puede funcionar, y
+el cliente no tiene forma de saber por qué — el mensaje del banco («compra reciente», «saldo en
+actualización») es accionable y **no se le muestra**: se aplana al banner genérico.
+
+**Y la pantalla dedicada no aplica a este canal:** `bnpl/business-error` existe, pero sólo se navega desde
+`bancolombia/bnpl/redirect.tsx:91` **dentro de la rama `isEcommerceFlow`** y desde
+`ecommerce-loan-processing.tsx`. En autogestión (el canal QR) **no hay ruta que lleve ahí**, así que todo
+error de negocio del banco se ve igual que un fallo técnico.
+
+**Cómo reproducirlo** (una línea, ahora que el error tiene alcance — F-90):
+
+```
+E2E_TARGET=local npx tsx dev/caminar-qr.ts --producto bnpl \
+  --escenario '{"errorCode":"BP20790","errorEn":"retrieve-quota"}'
+```
+
+**Estado:** comportamiento verificado (pantalla + estado 8 en BD). **No es una regresión del harness: es
+cómo se comporta el producto hoy.** Si se quiere mejorar, el arreglo natural es enrutar los códigos de
+negocio a `business-error` también en autogestión, o al menos no ofrecer "reintentar" sobre una solicitud
+cancelada. Queda como observación, no como tarea asumida.
+
+---

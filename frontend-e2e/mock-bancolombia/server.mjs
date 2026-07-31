@@ -75,7 +75,26 @@ const esc = {
     bnplStatus: 'PENDIENTE DESEMBOLSO',   // sella estado 25 en BNPL
     consumoStatus: 'pendiente',           // sella estado 25 en Consumo
     errorCode: null,                      // ej. 'BP40920507' (sin cupo) o 'BP20790'
+    // ⚠ DÓNDE falla, y no es un detalle: sin esto el `errorCode` aplica a TODAS las rutas, y lo PRIMERO
+    // que hace el canal QR es la compuerta de pre-aprobación → cualquier falla global termina en
+    // `no-preapproved` y **nunca** se alcanzan las pantallas de error de más adelante. Verificado: tanto
+    // `errorCode: 'BP20790'` como `MOCK_BC_FAIL=1` daban `no-preapproved`, no `business-error` (F-90).
+    // Con `errorEn` el error se dispara sólo cuando el path contiene ese texto
+    // (ej. 'origination', 'retrieve-quota', 'purchase-intention'). `null` = todas, como antes.
+    errorEn: null,
+    // QUÉ PRODUCTO RESUELVE EL OTP. No es cosmético: `PreApprovedLenderService::validateBancolombiaPreapprove`
+    // consulta las DOS compuertas y decide con un match (verificado):
+    //   BNPL     → `validateQuota` (monto 100.000, lender 68) con `data.validate === true`
+    //   Consumo  → `validate`      (monto 1.000.000, lender 100) con `data.validate === 'Success'`
+    //              ('Pending' → pendiente · 409 BP40920507 → no habilitado)
+    //   hasBnpl && (hasConsumer||pending) → PLS003 multiproducto (arranca en BNPL, lender 68)
+    //   hasBnpl → PLS001 · hasConsumer → PLS002 (lender 100) · pending → PLS004 · nada → PLS005
+    // Por eso, para ver las pantallas de CONSUMO hay que apagar la compuerta de BNPL: con las dos
+    // prendidas el recorrido arranca siempre en BNPL y las 11 pantallas de Consumo no se alcanzan.
+    producto: 'ambos',                    // ambos | bnpl | consumo | pendiente | ninguno
 };
+/** ¿Contesta la compuerta de este producto que sí hay cupo? */
+const habilitado = (p) => esc.producto === 'ambos' || esc.producto === p;
 /** La cuenta del cliente, como SUPERSET de nombres. El controller de `list-accounts-and-quota` lee
  *  `['id']` (verificado: sin esa clave tira `Undefined array key "id"` → BNPL999), y otros consumidores
  *  usan `accountId`/`accountNumber`. Se mandan todos: una clave de más es inocua, una de menos es un 500. */
@@ -172,7 +191,9 @@ const server = http.createServer(async (req, res) => {
     log(`${req.method} ${path}`);
 
     if (FAIL) return err(res, 500, 'SP500', 'Error interno (MOCK_BC_FAIL=1)');
-    if (esc.errorCode) return err(res, 409, esc.errorCode, 'Error forzado por escenario del mock');
+    if (esc.errorCode && (!esc.errorEn || path.includes(esc.errorEn))) {
+        return err(res, 409, esc.errorCode, `Error forzado por escenario del mock${esc.errorEn ? ` (sólo en *${esc.errorEn}*)` : ''}`);
+    }
 
     // ── PÁGINA de autenticación simulada del banco ────────────────────────────────────────────────
     // El flujo de Consumo manda al cliente a autenticarse en Bancolombia (clave dinámica) y vuelve con un
@@ -271,9 +292,12 @@ flujo con el <code>code</code> que el wizard espera.</p>
             },
         });
     }
-    // El del LISTADO (`validatePreApproveLender` → `validateQuota`): sólo mira `data.hasQuota`.
+    // COMPUERTA DE BNPL. Dos consumidores: el LISTADO (`validatePreApproveLender` → `validateQuota`, que
+    // sólo mira `data.hasQuota`) y la DECISIÓN DE PRODUCTO del canal QR, que exige `data.validate === true`
+    // (`PreApprovedLenderService::validateBancolombiaPreapprove`). Se responde a los dos.
     if (tail('/prospect-validation/validate-quota')) {
-        return json(res, 200, { data: { hasQuota: esc.hasQuota, validate: esc.hasQuota, balance: esc.balance } });
+        const ok = esc.hasQuota && habilitado('bnpl');
+        return json(res, 200, { data: { hasQuota: ok, validate: ok, balance: esc.balance } });
     }
     if (tail('/payments/select-account')) {
         // El front exige `select_account.account.{id,type,number}` con **id STRING**
@@ -389,9 +413,16 @@ flujo con el <code>code</code> que el wizard espera.</p>
         // el schema la exige (`LoanSecuritySchema.customerValidateKey`). Que sea la misma en todo el
         // recorrido es lo que hace el flujo coherente.
         const key = validateKey ?? (validateKey = nuevaValidateKey());
+        // COMPUERTA DE CONSUMO. Mismo endpoint para la decisión de producto y para el paso del flujo, así
+        // que la perilla se aplica acá. `BP40920507@409` es la respuesta REAL del banco para "persona no
+        // habilitada" y el servicio la trata como "sin cupo", no como error (por eso no rompe el recorrido).
+        if (!habilitado('consumo') && esc.producto !== 'pendiente') {
+            return err(res, 409, 'BP40920507', 'Persona no habilitada (escenario del mock)');
+        }
         return json(res, 200, {
             data: {
-                status: 'Success', validate: 'Success',
+                status: 'Success',
+                validate: esc.producto === 'pendiente' ? 'Pending' : 'Success',
                 // ⚠ LA CLAVE ES `urlAuthenticate`, no `urlDynamicKey`. El front la lee exactamente así:
                 // `login-redirect.uc.ts:19` → `result.payload.data.security.urlAuthenticate`. Con la otra
                 // clave el `url` llega **undefined**, la pantalla `/bancolombia/consumo/start/{code}` explota
@@ -493,20 +524,47 @@ flujo con el <code>code</code> que el wizard espera.</p>
             monthOverdue: 2.5, arreas: 2.5, effectiveAnnual: 23.87, nominalAnnual: 21.6,
             type: 'TASA_FIJA', variableInterestRateAdditionalPoints: 0,
         };
+        // ⚠ LAS CLAVES VAN AL NIVEL DE `data`, no anidadas en `data.simulation`. El controller manda al
+        // front `'simulation' => $bancolombiaSimulations['data']` (BancolombiaLoanController.php:1297): el
+        // `data` COMPLETO es el objeto `simulation` que valida `LoanDetailSimulationPayloadSchema`. Con las
+        // claves un nivel más abajo, la pantalla `consumo/loan-info` **no avanza y no muestra ningún error**:
+        // el POST responde 200, el schema falla en silencio y el botón parece no hacer nada. Se deja la copia
+        // anidada como superset por si algún paso del backend lee `data.simulation`.
+        // ⚠ `installmentDatas` NO es un plan de amortización: **cada elemento es una TARJETA DE COBERTURA**
+        // de la pantalla `consumo/loan-summary`. `mapInstallmentToCoveragePlan` (domain/mappers) lo traduce:
+        // si entre sus `insurances` hay `SEGURO_DE_DESEMPLEO` la tarjeta se llama **«Plus»** (e incluye
+        // "Seguro de empleado protegido" + "Tasa preferencial"); si no, **«Básica»**. La cuota que muestra es
+        // `installment + Σ insurances.amount`, y la tasa sale de `interestRate`.
+        // Por eso van DOS y no doce: mandar 12 pintaba 12 tarjetas idénticas «Cobertura Básica» (y el propio
+        // `CoveragePlansResponseSchema` acota `plans` a `.min(1).max(2)`).
+        const simulacion = {
+            security: { customerValidateKey: validateKey ?? (validateKey = nuevaValidateKey()) },
+            installmentDatas: [
+                {   // Básica: sólo seguro de vida
+                    installment: valor,
+                    paymentDay: 15,
+                    interestRate: tasa,
+                    expirationDate: fechaCuota(0),
+                    insurances: [{ type: 'SEGURO_DE_VIDA', amount: 12_000 }],
+                },
+                {   // Plus: agrega desempleo → nombre «Plus» + tasa preferencial (más baja)
+                    installment: valor,
+                    paymentDay: 15,
+                    interestRate: { ...tasa, monthOverdue: 2.1, effectiveAnnual: 20.5 },
+                    expirationDate: fechaCuota(0),
+                    insurances: [
+                        { type: 'SEGURO_DE_VIDA', amount: 12_000 },
+                        { type: 'SEGURO_DE_DESEMPLEO', amount: 9_000 },
+                    ],
+                },
+            ],
+            amount: esc.balance, feeNumber: cuotas, feeValue: valor, rate: 1.8, totalAmount: esc.balance,
+        };
         return json(res, 200, {
             data: {
                 status: 'Success',
-                simulation: {
-                    security: { customerValidateKey: validateKey ?? (validateKey = nuevaValidateKey()) },
-                    installmentDatas: Array.from({ length: cuotas }, (_, i) => ({
-                        installment: valor,
-                        paymentDay: 15,
-                        interestRate: tasa,
-                        expirationDate: fechaCuota(i),
-                        insurances: [{ type: 'SEGURO_DE_VIDA', amount: 12_000 }],
-                    })),
-                    amount: esc.balance, feeNumber: cuotas, feeValue: valor, rate: 1.8, totalAmount: esc.balance,
-                },
+                ...simulacion,
+                simulation: simulacion,
                 fees: [{ number: 1, value: valor }],
             },
         });
@@ -523,9 +581,38 @@ flujo con el <code>code</code> que el wizard espera.</p>
             },
         });
     }
+    // ESTUDIO DE CRÉDITO (`BancolombiaConsumerLoanOfferEvaluation::validateCreditStudy`). Alimenta la
+    // pantalla `consumo/loan-offer-evaluation`, que BNPL no tiene. El front exige la cadena completa
+    // `validate_credit_study.offerInformationValidate.offer.id` (`LoanValidateCreditStudyPayloadSchema`).
+    // Sin esta ruta el mock caía en el catch-all (`{"data":{"status":"OK"}}`) y la pantalla no cargaba.
+    if (tail('/validate-credit-study')) {
+        return json(res, 200, {
+            data: {
+                status: 'Success',
+                offerInformationValidate: {
+                    offer: { id: 'mock-offer-1', amount: esc.balance, status: 'APPROVED' },
+                    result: 'APP',
+                },
+                security: { customerValidateKey: validateKey ?? (validateKey = nuevaValidateKey()) },
+            },
+        });
+    }
     // ⚠ ORDEN: confirm ANTES que /disbursements, porque `/disbursements/confirm` también termina en él.
     if (tail('/disbursements/confirm')) {
-        return json(res, 200, { data: { status: 'Success', payment: { status: esc.consumoStatus, reference: randomUUID() } } });
+        return json(res, 200, {
+            data: {
+                status: 'Success',
+                payment: { status: esc.consumoStatus, reference: randomUUID() },
+                // `select-insurance` lo manda al front como `confirm.documents[]`
+                // (`LoanSelectAccountPayloadSchema`, opcional). Van con `url` servible para que la pantalla
+                // `consumo/document-detail/{code}/{index}` tenga qué abrir.
+                documents: [
+                    { name: 'Pagaré', format: 'pdf', url: `http://localhost:${PORT}/_terminos` },
+                    { name: 'Condiciones del crédito', format: 'pdf', url: `http://localhost:${PORT}/_terminos` },
+                ],
+                security: { customerValidateKey: validateKey ?? (validateKey = nuevaValidateKey()) },
+            },
+        });
     }
     // DISBURSEMENT — el que sella el estado 25 en Consumo (lee `data.payment.status`).
     if (tail('/disbursements')) {

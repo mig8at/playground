@@ -357,6 +357,31 @@ Tres cosas que hay que saber para que el canal llegue al final:
   el primero y **deja el segundo colgado**. Registrá el despachador y dejá que el wizard rutee (F-89).
 - **`processing` no tiene botón: es pantalla de espera.** POSTea la originación y navega sola. Un caminador
   que busque el botón primario se rinde ahí y parece un muro cuando en realidad ya está cerrando.
+- **Hay un TERCER camino además del runner y el panel: `dev/caminar-qr.ts`**, que recorre las pantallas
+  **clickeando solo**. Es el que descubre qué vistas existen de verdad y en qué orden, sin que nadie mire:
+
+  ```bash
+  E2E_TARGET=local npx tsx dev/caminar-qr.ts --producto consumo
+  ```
+
+  Verificado: BNPL cierra en **9** pantallas y Consumo en **10** (con dos propias que BNPL no tiene,
+  `loan-summary-review` y `personal-info`), las dos en estado 25 con código. No valida negocio ni afirma que
+  la pantalla esté *bien*: sólo que carga y avanza.
+  - **`--producto` no es cosmético**: lo resuelve el OTP y con las dos compuertas prendidas el recorrido
+    arranca SIEMPRE en BNPL (multiproducto ⇒ lender 68), así que las 11 pantallas de Consumo no se alcanzan.
+    La perilla `producto` del mock apaga la compuerta que estorba.
+  - **Una falla GLOBAL no sirve para ver pantallas de error** (F-90): `MOCK_BC_FAIL=1` y un `errorCode` sin
+    alcance rompen la compuerta de pre-aprobación —lo primero que llama al banco— y todo termina en
+    `no-preapproved`. Para un paso puntual: `--escenario '{"errorCode":"BP20790","errorEn":"retrieve-quota"}'`.
+  - **Elegir el botón NO es `.first()` con `filter({hasNot:'[disabled]'})`**: ese filtro pregunta por un
+    *descendiente* deshabilitado, no por el botón, así que devolvía botones muertos y el click moría por
+    timeout — con el nombre ya leído, o sea parecía un muro de la pantalla siendo un bug del harness.
+  - **Los selects de `consumo/loan-summary` son Radix, no `<select>`** (`TermSelector`/`DaySelector`): trigger
+    `button[role=combobox]` y opciones en un **portal** (`[role=option]`). Vacíos, el form no valida y
+    Continuar nunca se habilita **sin ningún mensaje**. `autorrellenarQr` ya los abre y elige.
+  - **`simulation.installmentDatas` son las TARJETAS DE COBERTURA**, no un plan de cuotas: con
+    `SEGURO_DE_DESEMPLEO` entre sus `insurances` la tarjeta es «Plus», si no «Básica»
+    (`coverage-plan.mapper.ts`). Mandar 12 pinta 12 tarjetas idénticas; el schema del front acota a **2**.
 - **Cada producto manda a SU página de banco, y el mock sirve las dos.** BNPL devuelve `data.url` →
   `/_login-simulado`; Consumo devuelve `data.security.urlAuthenticate` → `/_autenticacion`. Servir una sola
   dejaba a la otra cayendo en el catch-all, y el cliente veía **`{"data":{"status":"OK"}}` crudo en el
