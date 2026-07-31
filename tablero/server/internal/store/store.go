@@ -5,8 +5,10 @@
 // tablero era el único rincón del playground que un modelo no puede leer sin levantar un server, mientras
 // `context/` es markdown que lee cualquiera. Y en archivos los esfuerzos tienen historia en git.
 //
-// UN ARCHIVO POR ESFUERZO: `efforts/<slug>/effort.md`.
+// UNA TAREA = UN ARCHIVO, suelto en `data/<tarea>.md`. Sin carpeta intermedia: `ls data/` muestra en
+// qué se está trabajando, que es la pregunta que el tablero contesta.
 //
+//	nombre del archivo      el slug de la tarea (renombralo a mano si querés: el id vive adentro)
 //	frontmatter             id · title · stage · created · archived? · context_nodes[] · jira[] · jira_title
 //	cuerpo                  las notas técnicas: PRIVADO, puede nombrar repos y rutas
 //	## Tarea (publicable)   lo único que va a Jira, y pasa el guard
@@ -42,7 +44,7 @@
 // serializar acá en vez de manejar carreras en cada llamada.
 //
 // ESCRITURA ATÓMICA. Siempre archivo temporal + rename: un corte a mitad de escritura dejaría un
-// `effort.md` truncado, y eso sí perdería datos de verdad.
+// archivo de tarea truncado, y eso sí perdería datos de verdad.
 package store
 
 import (
@@ -65,7 +67,7 @@ type Store struct {
 	mu  sync.Mutex
 
 	efforts  []Effort             // ordenados por id ascendente
-	slugs    map[int64]string     // id → carpeta (permite renombrarla a mano sin romper nada)
+	slugs    map[int64]string     // id → nombre de archivo (renombrarlo a mano no rompe nada: el id va adentro)
 	archived map[int64]string     // id → fecha de archivado ("" = vivo)
 	entries  []Entry              // TODOS, incluidos los borrados: el borrado es suave
 	borrados map[int64]string     // id de entry → deleted_at
@@ -85,7 +87,7 @@ func Open(dir string) (*Store, error) {
 		ajustes:  map[string]string{},
 		cache:    map[string]any{},
 	}
-	for _, sub := range []string{"efforts", "entries", "cache"} {
+	for _, sub := range []string{"entries", "cache"} {
 		if err := os.MkdirAll(filepath.Join(dir, sub), 0o755); err != nil {
 			return nil, fmt.Errorf("creando %s: %w", sub, err)
 		}
@@ -101,17 +103,19 @@ func (s *Store) Close() error { return nil }
 // ── carga ───────────────────────────────────────────────────────────────────────────────────────────────
 
 func (s *Store) cargar() error {
-	dirs, err := os.ReadDir(filepath.Join(s.dir, "efforts"))
+	// Las TAREAS son los `.md` sueltos de `data/`: `ls data/` las muestra de una, que es el punto.
+	// Los subdirectorios (entries, cache) no son tareas.
+	archivos, err := os.ReadDir(s.dir)
 	if err != nil {
 		return err
 	}
-	for _, d := range dirs {
-		if !d.IsDir() {
+	for _, d := range archivos {
+		if d.IsDir() || !strings.HasSuffix(d.Name(), ".md") {
 			continue
 		}
-		e, arch, err := s.leerEffort(d.Name())
+		e, arch, err := s.leerEffort(strings.TrimSuffix(d.Name(), ".md"))
 		if err != nil {
-			return fmt.Errorf("leyendo efforts/%s: %w", d.Name(), err)
+			return fmt.Errorf("leyendo %s: %w", d.Name(), err)
 		}
 		s.efforts = append(s.efforts, e)
 		s.slugs[e.ID] = d.Name()
@@ -149,7 +153,7 @@ func (s *Store) cargar() error {
 const SECCION = "## Tarea (publicable)"
 
 func (s *Store) leerEffort(slug string) (Effort, string, error) {
-	fm, cuerpo, err := leerMD(filepath.Join(s.dir, "efforts", slug, "effort.md"))
+	fm, cuerpo, err := leerMD(filepath.Join(s.dir, slug+".md"))
 	if err != nil {
 		return Effort{}, "", err
 	}
@@ -538,7 +542,7 @@ type Effort struct {
 	JiraDescription string `json:"jiraDescription"`
 	// PRIVADO y SIN GUARD: el detalle técnico de la tarea (archivos, análisis, rutas). Nunca sale de
 	// acá, por eso puede nombrar archivos y repos — justo lo que el borrador de Jira tiene prohibido.
-	// Es el CUERPO de `effort.md`.
+	// Es el CUERPO del archivo de la tarea.
 	TechNotes string `json:"techNotes"`
 	// slugs de los nodos de contexto que toca, separados por coma (el mapa del código vive allá).
 	// En el archivo son una lista YAML; acá van como cadena porque así lo consume la UI.
@@ -593,9 +597,6 @@ func (s *Store) CreateEffort(title string) (Effort, error) {
 	}
 	e := Effort{ID: max + 1, Title: title, Stage: "evaluation", CreatedAt: time.Now().Format(time.RFC3339)}
 	slug := slugDe(title, e.ID, usados)
-	if err := os.MkdirAll(filepath.Join(s.dir, "efforts", slug), 0o755); err != nil {
-		return Effort{}, err
-	}
 	s.efforts = append(s.efforts, e)
 	s.slugs[e.ID] = slug
 	s.archived[e.ID] = ""
@@ -696,7 +697,7 @@ func (s *Store) escribirEffort(id int64) error {
 		b.WriteString("\n" + SECCION + "\n\n")
 		b.WriteString(conSaltoFinal(e.JiraDescription))
 	}
-	return escribirAtomico(filepath.Join(s.dir, "efforts", s.slugs[id], "effort.md"), []byte(b.String()))
+	return escribirAtomico(filepath.Join(s.dir, s.slugs[id]+".md"), []byte(b.String()))
 }
 
 // ── ajustes ─────────────────────────────────────────────────────────────────────────────────────────────
@@ -743,7 +744,7 @@ func (s *Store) escribirJSON(ruta string, v any) error {
 }
 
 // escribirAtomico escribe temporal + rename. Un corte a mitad de escritura sobre el archivo real dejaría
-// un `effort.md` truncado, y eso sí pierde datos.
+// un archivo de tarea truncado, y eso sí pierde datos.
 func escribirAtomico(ruta string, datos []byte) error {
 	if err := os.MkdirAll(filepath.Dir(ruta), 0o755); err != nil {
 		return err

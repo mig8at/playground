@@ -2,7 +2,24 @@
 
 Espacio propio de Miguel: organiza el conocimiento de **CreditOp** (fintech colombiana de originación
 de crédito) y agrupa las herramientas de prueba. Existe para que un modelo entienda **antes** de atacar
-una tarea. Cada carpeta tiene su `README.md`; la profundidad vive en `<herramienta>/docs/`.
+una tarea.
+
+## SOLO TRES CARPETAS IMPORTAN PARA TRABAJAR
+
+Si estás por atacar una tarea, tu mundo son estas tres y nada más:
+
+| Carpeta | Qué es | Cuándo la tocás |
+|---|---|---|
+| **`context/`** | **El contexto validado contra el código**, sobre `main`. Cómo **es** CreditOp hoy. | Siempre, ANTES de investigar |
+| **`tablero/`** | **Las tareas a realizar**: en qué se trabaja, por qué y para qué. Un `.md` por tarea. | Cuando la tarea tiene estado, decisiones o preguntas abiertas |
+| **`frontend-e2e/`** | **La herramienta para validar una tarea contra el código real** (mocks, runners, el panel). | Cuando hay que comprobar algo corriendo, no leyendo |
+
+⚠ **El resto NO son herramientas para contextualizarte** — hoy: `flow`, `engine`, `domain-model`,
+`diccionario`, `creditop-woocommerce`. Son exploraciones que Miguel armó para entender él mismo el
+negocio: simuladores, prototipos y modelos que **no están validados contra el código**, y varios
+describen un *deber ser*, no lo que corre en producción. **No las cites como fuente ni las uses para
+decidir.** Si algo de ahí resulta cierto, se verifica contra el código y gradúa a `context/` — hasta
+entonces, no existe para tu tarea.
 
 ## Antes de investigar, leé el mapa (no explores a ciegas)
 
@@ -21,17 +38,46 @@ Desde el **2026-07-21** son dos cosas distintas y no se mezclan:
 
 | | **`context/`** | **`tablero/`** |
 |---|---|---|
-| Responde | *¿cómo **es** CreditOp?* | *¿en qué se está **trabajando**?* |
-| Contiene | contextos del sistema + el mapa del código (rutas validadas) | esfuerzos, tareas, tiempo, estado, borradores y claves de Jira |
+| Responde | *¿cómo **es** CreditOp?* | *¿en qué se está **trabajando**, por qué y para qué?* |
+| Contiene | contextos del sistema + el mapa del código (rutas validadas contra `main`) | las tareas: estado, decisiones, riesgos, preguntas abiertas, tiempo, borradores de Jira |
 | Naturaleza | durable — sobrevive a las tareas | efímero — tiene estado y fecha |
-| Formato | markdown versionado, lo lee cualquier modelo | markdown + JSON en `tablero/data/` (un `effort.md` por esfuerzo) |
+| Formato | markdown versionado, lo lee cualquier modelo | **un `.md` por tarea** en `tablero/data/` |
 
-**El árbol NO lleva nodos-tarea.** Un esfuerzo del tablero guarda su detalle técnico en `tech_notes`
-(privado, **sin guard** — puede nombrar archivos y repos) y a qué nodos apunta en `context_nodes`.
+**El árbol NO lleva nodos-tarea.** Una tarea del tablero guarda su detalle técnico en el cuerpo de su
+`.md` (privado, **sin guard** — puede nombrar archivos y repos) y a qué nodos apunta en `context_nodes`.
+El enlace es **unidireccional**: la tarea apunta a los nodos, el nodo **no** apunta a tareas — si lo
+hiciera, quedaría mintiendo el día que la tarea gradúa.
+
+### El test para saber dónde va algo
+
+> **Si esto se mergea mañana, ¿el texto sigue siendo cierto?**
+> **Sí** → `context/`. **Deja de tener sentido** porque hablaba de una decisión, un riesgo, un plan o una
+> pregunta abierta → `tablero/`.
+
+Es más filoso que "durable vs efímero" y detecta el error típico en un segundo. Ese error se comete por
+**fricción**, no por no entender la regla: cuando escribir en el lugar correcto cuesta más, el contenido
+se va a donde es fácil. Hoy cuesta lo mismo — las dos cosas son un archivo markdown.
 
 ⚠ **La regla al terminar:** lo que se **mergea** deja de ser tarea y **gradúa** al nodo de contexto que
 corresponda — ahí pasa a ser "cómo funciona CreditOp". Lo que no se mergeó se queda en el tablero.
 Ejemplo hecho: la omisión de Experian por cupo ya confirmado vive hoy en el nodo `kyc`.
+
+## El contexto se mide contra `main`, y lo que no está en main se marca
+
+`context/` describe **lo que corre**, y la vara es `main` (o la rama que sirva ese target — ver abajo).
+Un contexto que describe una rama sin mergear es una trampa: se lee como verdad y no lo es.
+
+Cuando haya que documentar algo que **todavía no está en `main`**, se marca en el propio `doc.md`, en el
+lugar donde aparece:
+
+```markdown
+> ⏳ **PENDIENTE DE MERGE** — esto vive en `feature/motai-v2`, no en `main`.
+> Al mergear: re-verificar con el oráculo, actualizar y **borrar esta marca**.
+```
+
+Dos razones por las que la marca va inline y no en una lista aparte: se ve justo donde engaña, y todas se
+encuentran de una con `grep -rn "PENDIENTE DE MERGE" context/`. Revisá esa lista después de cada merge:
+lo que entró **actualiza el contexto**, y así el árbol siempre describe lo que de verdad está corriendo.
 
 ## Git
 

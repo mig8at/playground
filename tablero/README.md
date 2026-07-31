@@ -1,4 +1,9 @@
-# tablero — mi sprint: registro de tiempo, bitácora y conectores propios (Jira/Slack)
+# tablero — LAS TAREAS A REALIZAR (y el sprint: tiempo, bitácora, conectores Jira/Slack)
+
+> **Qué contesta este proyecto:** *¿en qué se está trabajando, por qué y para qué?*
+> Lo que contesta *¿cómo **es** CreditOp?* es `context/`, y son cosas distintas: si algo **sigue siendo
+> cierto después de mergear**, es contexto; si deja de tener sentido porque hablaba de una decisión, un
+> riesgo o una pregunta abierta, es tarea y va acá.
 
 Un proyecto con **tres ejecutables Go y un frontend Vue**, todos apoyados en los mismos clientes HTTP:
 
@@ -229,7 +234,7 @@ vivir dentro de él. `TABLERO_DATA` mueve la carpeta.
 
 ```
 data/
-  efforts/<slug>/effort.md   un archivo por esfuerzo (ver abajo)     → versionado en git
+  <tarea>.md                 UNA TAREA = UN ARCHIVO (ver abajo)       → versionado en git
   entries/2026-07.jsonl      la bitácora de tiempo, un archivo por mes → FUERA de git (dato personal)
   settings.json              los flags del tablero                    → versionado
   cache/jira.json            snapshot de Jira, descartable            → fuera de git
@@ -241,7 +246,10 @@ no era la razón. El detalle técnico de una tarea sólo se podía leer **por AP
 único rincón del playground que un modelo no puede leer sin levantar un server — mientras `context/` es
 markdown que lee cualquiera. Y en archivos los esfuerzos tienen **historia en git**.
 
-### El esfuerzo: un solo archivo, con la frontera del guard adentro
+### La tarea: un solo archivo suelto en `data/`, con la frontera del guard adentro
+
+Sin carpeta intermedia a propósito: `ls data/` muestra en qué se está trabajando, que es la pregunta que
+el tablero contesta. El nombre del archivo es el slug y se puede renombrar a mano — el `id` vive adentro.
 
 ```markdown
 ---
@@ -263,7 +271,8 @@ la descripción que va a Jira — PUBLICABLE: pasa el guard
 
 > **La regla en una frase:** todo lo que está fuera de `## Tarea (publicable)` nunca sale de local.
 
-Se probó con tres archivos (`effort.md` + `jira.md` + `jira.json`) para hacer *física* esa frontera y se
+Se probó con tres archivos (`effort.md` + `jira.md` + `jira.json`) en una carpeta por tarea para hacer
+*física* esa frontera y se
 descartó: **el guard es el mecanismo real** —corre sobre el texto antes de publicar y ataja repos, rutas y
 `F-xx`—, así que el archivo aparte era redundancia. Y el `jira.json` no llevaba nada: sus filas tenían
 sólo la clave de la tarea, o sea existía para guardar una lista.

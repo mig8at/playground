@@ -1,6 +1,6 @@
 # context — mapa de conocimiento cross-repo (CreditOp)
 
-Un árbol de **33 nodos curados** que le dice a un LLM *qué leer* antes de tocar CreditOp: por cada tema,
+Un árbol de **31 nodos curados** que le dice a un LLM *qué leer* antes de tocar CreditOp: por cada tema,
 un análisis en prosa (`doc.md`) y la lista exacta de archivos fuente que hay que abrir (`map.json`),
 apuntando a **6 repos** distintos. No es un buscador ni un índice automático: es curación a mano,
 verificada contra el código.
@@ -118,10 +118,10 @@ La causa 3 es la que más engaña, y ya mordió dos veces:
 
 ```
 context/
-├── ROUTE-MAP.md      ← GENERADO · el índice que lee un LLM (33 nodos con su `Cuándo`)
+├── ROUTE-MAP.md      ← GENERADO · el índice que lee un LLM (31 nodos con su `Cuándo`)
 ├── tree.json         ← A MANO · el wiring: parent + contexts. Fuente de la forma del árbol
 ├── server/data/
-│   ├── flows/<id>/   ← A MANO · 33 nodos: map.json (archivos) + doc.md (análisis)
+│   ├── flows/<id>/   ← A MANO · 31 nodos: map.json (archivos) + doc.md (análisis)
 │   └── doc-templates/  ← 6 plantillas: raiz · group · contexto · referencia · flujo · tarea
 ├── tools/
 │   ├── build-index.py      ← camina los 6 repos → index.txt
@@ -133,7 +133,7 @@ context/
 ```
 
 `server/` ya no tiene código: sobrevive como carpeta de datos porque ahí vivían los flows del MCP y
-mover 33 directorios rompería toda ruta citada en los docs.
+mover 31 directorios rompería toda ruta citada en los docs.
 
 ## El nodo `findings` — buscá acá primero
 
@@ -160,7 +160,7 @@ hipótesis, y si el síntoma engaña, decilo en el título.
   querés que algo sea task, ponelo en el `map.json`.
 - **Campos muertos.** `targets` y `baseline` en `tree.json`, y `combination` y `group` en los `map.json`,
   no los lee **nadie** (grepeado sobre `src/` y `tools/`): son restos del engine Go. No los mantengas.
-- **La viz importa los 33 `doc.md` crudos al bundle** → `npm run build` escupe 845 kB y avisa por el
+- **La viz importa los 31 `doc.md` crudos al bundle** → `npm run build` escupe 845 kB y avisa por el
   tamaño del chunk. Es esperado, no lo optimices.
 - **Las rutas `playground/docs/X.md` que veas por ahí son punteros históricos.** Esa carpeta se borró de
   `main` el 2026-07-17 (absorbida en estos nodos); se recupera con `git show 159906a:docs/<ruta>`. Los
@@ -169,7 +169,7 @@ hipótesis, y si el síntoma engaña, decilo en el título.
 
 ## Relacionados
 
-- [`ROUTE-MAP.md`](docs/ROUTE-MAP.md) — el índice de los 33 nodos. Punto de entrada de toda tarea.
+- [`ROUTE-MAP.md`](docs/ROUTE-MAP.md) — el índice de los 31 nodos. Punto de entrada de toda tarea.
 - `server/data/doc-templates/*.md` — las 6 plantillas de doc, con comentarios HTML que explican qué va
   en cada sección. Usalas al crear un nodo nuevo.
 - `../EXAMPLES.md` — cheatsheet de demos visuales del wizard vía `frontend-e2e` (`bin/asesor`,
@@ -180,6 +180,6 @@ hipótesis, y si el síntoma engaña, decilo en el título.
 ---
 
 *Verificado el 2026-07-19 contra el código: scripts de `package.json`, puerto en `vite.config.js`, los 3
-tools de `tools/`, y las cuentas (33 nodos · 1.218 archivos únicos en 1.913 referencias · 4.275 líneas de
+tools de `tools/`, y las cuentas (31 nodos · 1.315 archivos únicos en 1.990 referencias · 4.275 líneas de
 doc · 5.711 rutas indexadas). Lo único que no probé es levantar `npm run dev` — sí verifiqué que
 `vite build` compila.*
