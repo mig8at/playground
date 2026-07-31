@@ -709,17 +709,23 @@ test('guided (semiautomático)', async ({ browser }) => {
         };
 
         // ── EL REGRESO DEL BANCO ────────────────────────────────────────────────────────────────────
-        // La pantalla `/bancolombia/{tipo}/start/{encryptCode}` manda al cliente a autenticarse al banco
-        // (el mock :8104). Volver de ahí no puede deducirse del referrer —cross-origin, el browser recorta
-        // a "http://localhost:5174/" y el regreso caía en `/` → `/merchant` → **`/login`** (el login de
-        // asesor, en un canal autoasistido). Acá SÍ se conoce el destino exacto: el `encryptCode` y el
-        // producto están en la URL. Se le registra al mock en cuanto aparece.
+        // El recorrido sale al banco DOS veces (autenticación al empezar y clave dinámica al firmar) y
+        // vuelve a una sola URL: **`/bancolombia/{tipo}/redirect?code=…`**, que es un DESPACHADOR
+        // (`routes/bancolombia/{bnpl,loan}/redirect.tsx`). Lee la sesión del cliente y decide solo:
+        // `step==='session'` → `loan-info`, `step==='dynamic_key'` → `processing` (y en ecommerce →
+        // `payment-success`). Por eso el harness registra ESE destino y no una pantalla concreta: apuntar a
+        // `loan-info` a mano funcionaba para el primer salto y dejaba el segundo colgado en el banco.
+        //
+        // Y no puede deducirse del referrer: el wizard (:5174) y el mock (:8104) son orígenes distintos, el
+        // browser recorta el referrer a "http://localhost:5174/" (sin path) y el regreso caía en `/` →
+        // `/merchant` → **`/login`**, el login de asesor en un canal autoasistido (F-86).
         let retornoPuesto = '';
         const registrarRetorno = async () => {
-            const m = page.url().match(/\/bancolombia\/(bnpl|consumo)\/start\/([^/?#]+)/);
+            const m = page.url().match(/\/bancolombia\/(bnpl|consumo)\//);
             if (!m) return;
             const destino = new URL(page.url());
-            destino.pathname = destino.pathname.replace('/start/', '/loan-info/');
+            destino.pathname = `/bancolombia/${m[1]}/redirect`;
+            destino.search = '';
             destino.searchParams.set('code', 'mock-auth-code');
             if (destino.toString() === retornoPuesto) return;
             retornoPuesto = destino.toString();

@@ -332,6 +332,31 @@ Tres cosas que hay que saber para que el canal llegue al final:
   había puesto el autorrelleno y la pantalla contestaba «verifica el código e inténtalo de nuevo»; después
   esperaba `/personal-info|lenders`, que en este recorrido no existen, hasta que la ventana se cerraba.
   Excluir sólo la rama manual **no alcanza**: la guiada está después y se ejecuta igual.
+- **⚠ EL FRONT VALIDA CON ZOD LO QUE EL BANCO DEVUELVE, y el runner por consola no lo ve** (F-88). Los
+  controllers hacen **passthrough** del `data` del banco, así que las claves del proveedor las termina
+  validando el módulo del wizard
+  (`modules/loan-request-wizard/bancolombia-origination/src/domain/schemas/origination/{bnpl,loan}/*-api.schema.ts`).
+  Si no cumplen: `success:false` y la pantalla dice sólo **«Error al cargar la información»**, sin nombrar el
+  campo. El backend es más laxo (le basta que la clave exista) → **el runner por consola puede estar verde
+  con el recorrido visual roto**, y eso ya pasó. Antes de culpar al backend, corré:
+
+  ```bash
+  npm run contrato:bancolombia
+  ```
+
+  Valida las respuestas del mock contra los **esquemas reales del monorepo** (los importa, no los copia:
+  una copia se desincroniza y el chequeo miente) armando el payload igual que el controller, y dice el campo
+  exacto. Sin browser y sin BD. Trampas del contrato que ya costaron tiempo: `accounts[].id` es
+  **`z.number()`** en el listado y **`z.string()`** en `select_account`; los `type` de Consumo son **enums
+  cerrados** (`TASA_FIJA`, no `FIJA`; `SEGURO_DE_VIDA`, no `VIDA`); y un **opcional presente y a medias**
+  rompe más que ausente (`terms.security` sin `customerValidateKey`).
+- **El regreso del banco es UNA sola URL y es un despachador**: `/bancolombia/{bnpl|consumo}/redirect?code=…`
+  (`routes.ts:190` y `:220`). Su `clientLoader` lee la sesión del cliente y decide — `step==='session'` →
+  `loan-info`, `step==='dynamic_key'` → `processing` (ecommerce → `payment-success`). El recorrido sale al
+  banco **dos veces** (autenticación y clave dinámica), así que apuntar el retorno a `loan-info` funciona en
+  el primero y **deja el segundo colgado**. Registrá el despachador y dejá que el wizard rutee (F-89).
+- **`processing` no tiene botón: es pantalla de espera.** POSTea la originación y navega sola. Un caminador
+  que busque el botón primario se rinde ahí y parece un muro cuando en realidad ya está cerrando.
 - **Cada producto manda a SU página de banco, y el mock sirve las dos.** BNPL devuelve `data.url` →
   `/_login-simulado`; Consumo devuelve `data.security.urlAuthenticate` → `/_autenticacion`. Servir una sola
   dejaba a la otra cayendo en el catch-all, y el cliente veía **`{"data":{"status":"OK"}}` crudo en el

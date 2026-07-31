@@ -239,6 +239,33 @@ son restricciones del diseño, no opiniones:
   POST exitoso en el banco, respuesta perdida, reintento → 409 y sin forma de recuperar el código. Con la
   bitácora en `lender_transactions` escrita ANTES del POST se puede ejercitar.
 
+### 10 · El front NO confía en el backend: valida cada passthrough con zod (verificado 2026-07-31)
+Los 8 endpoints BNPL y los de Consumo devuelven al front el `data` del banco **tal cual**
+(`'retrieve_quota' => $quotaResponse['data']`, `'purchase' => $purchaseResponse['data']`, …: passthrough
+puro, el backend no normaliza). Pero el módulo del front valida cada respuesta con un **esquema zod**
+(`modules/loan-request-wizard/bancolombia-origination/src/domain/schemas/origination/{bnpl,loan}/*-api.schema.ts`)
+y, si no cumple, el UC devuelve `success:false` y la pantalla muestra un banner genérico —
+**«Error al cargar la información»**, sin nombrar el campo. Consecuencias que importan:
+
+- **El banco define la forma, el front define el contrato.** Un campo que el banco deje de mandar no rompe
+  el backend (que lo arrastra) sino la PANTALLA, y el mensaje no dice cuál. Al depurar «Error al cargar la
+  información» el primer sospechoso es un campo faltante en la respuesta del banco, no el backend.
+- **Los dos extremos piden tipos distintos para lo mismo.** `account.accounts[].id` es `z.number()` en el
+  listado (`BnplAccountSchema`) y `z.string()` en `select_account.account.id`
+  (`BnplSelectAccountPayloadSchema`); el backend, en cambio, sólo exige que la clave exista.
+- **Los `type` de Consumo son ENUMS cerrados**, no texto libre: `interestRates[].type` ∈
+  `TASA_FIJA | DEPOSITO_TERMINO_FIJO | INDICE_BANCARIO_DE_REFERENCIA` y `insurances[].type` ∈
+  `SEGURO_DE_DESEMPLEO | SEGURO_DE_VIDA | VIDA_MAS | SEGURO_DE_VEHICULO`.
+- **Un opcional presente y a medias rompe más que ausente**: `terms.security` es `.optional()`, pero si
+  viaja tiene que traer `customerValidateKey` (`LoanSecuritySchema`).
+- **La última pantalla depende de dos campos que arma el backend, no el banco**:
+  `BnplPurchaseCodePayloadSchema` exige `codeImageUrl: z.string()` (= `purchase_codes.barcode_url`) y
+  `showBarCode`. En local el barcode se genera y la URL es un string de `local-mock.s3…` (la **imagen** no
+  carga, pero la vista renderiza); si algún día `barcode_url` quedara nulo, la pantalla se cae **después**
+  de que el backend ya selló el estado 25 — se leería como "no originó" cuando sí originó.
+
+Detalle del contrato campo por campo, y por qué el runner por consola no lo detectaba: **F-88**.
+
 ## Preguntas abiertas
 - [ ] **F1/F2 (front)**: ¿el módulo `bancolombia-origination` llama `RetrieveQuota` o `ListAccountsAndQuota` para la cuota BNPL, y reenvía `bnplTransactionId` en pasos posteriores? Explica el hueco de arriba. Requiere diagnóstico del front.
 - [ ] **N1 (negocio)**: ¿el código de compra para **Consumo** ya corrió en producción? En la copia local hay **0** solicitudes de lender 100 en estado 25 (vs 119 del 68) → puede ser habilitación, no reemplazo.

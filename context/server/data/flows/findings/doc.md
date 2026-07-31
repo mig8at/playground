@@ -1755,3 +1755,79 @@ como si fuera actual). Cuando un arreglo "no hace nada", **la primera pregunta e
 es el código que editaste** — no si el arreglo está mal.
 
 ---
+
+### F-88 · El front valida cada respuesta del banco con zod, y el runner por consola no lo veía: dos verdes que no se cruzaban
+
+**Síntoma:** el runner por consola cerraba los DOS productos (estado 25 + código emitido, verde), y sin
+embargo el recorrido visual moría en la primera pantalla después de autenticarse en el banco con
+**«Error al cargar la información. No pudimos cargar la información.»** — sin nombrar ningún campo.
+
+**Causa raíz (verificada):** los controllers de Bancolombia hacen **passthrough** del `data` del banco
+(`'retrieve_quota' => $quotaResponse['data']`, `'purchase' => $purchaseResponse['data']`, …), así que las
+claves que manda el proveedor las termina validando **el front** con zod
+(`bancolombia-origination/src/domain/schemas/origination/{bnpl,loan}/*-api.schema.ts`). El mock cumplía lo
+que el **backend** exige —que la clave exista— y no lo que el **front** exige. Tres incumplimientos en
+`retrieve-quota` alcanzaban para tumbar la respuesta entera:
+
+| el front exige | el mock mandaba |
+|---|---|
+| `signatureMethod: z.string()` | ausente |
+| `commission: z.number()` | ausente |
+| `account.accounts[].id: z.number()` | `'1'` (string) |
+
+Y el UC, ante un `safeParse` fallido, devuelve `success:false` sin el detalle → la pantalla sólo puede
+mostrar el banner genérico. **El error no dice qué campo falta: eso es lo que hace caro el diagnóstico.**
+
+**Lo que esto enseña del método, más que del bug:** los dos caminos del harness (consola y visual) *no*
+son el mismo camino con distinta piel. El de consola pega contra los endpoints del backend y **nunca
+ejercita los esquemas del front**; el visual sí. Un verde por consola no autoriza a decir "el flujo anda",
+sólo "el backend cierra". Al revés también: el visual no comprueba la BD.
+
+**Arreglo:** el mock alineado con los esquemas del front en los 7 pasos de BNPL y los 7 de Consumo, y —lo
+que evita la repetición— un chequeo que **importa los zod REALES del monorepo** y valida las respuestas del
+mock armando el payload igual que el backend (`dev/contrato-bancolombia.ts`). Corre sin browser y sin BD, y
+dice el campo exacto que falta. Los 14 contratos pasan.
+
+**Detalles del contrato que no son intuitivos** (todos verificados, y todos capaces de costar una corrida):
+
+- **Los dos extremos piden tipos distintos para el mismo dato**: `accounts[].id` es `z.number()` en el
+  listado y `z.string()` en `select_account.account.id`. Gana el más estricto de cada lado.
+- **Los `type` de Consumo son enums cerrados**: `TASA_FIJA` (no `FIJA`), `SEGURO_DE_VIDA` (no `VIDA`).
+  Los valores cortos le servían al backend, que sólo los arrastra.
+- **Un opcional presente y a medias rompe más que ausente**: `terms.security` es `.optional()`, pero si va
+  tiene que traer `customerValidateKey`.
+- **`user_id` en el payload de originación lo pone el BACKEND**, no el banco — un chequeo que lo omita
+  acusa al mock de algo que no es suyo (me pasó, y estaba mal el chequeo).
+
+**Estado:** arreglado y verificado contra los esquemas reales; el recorrido visual avanza de `loan-info` a
+`loan-summary` y `signature`.
+
+---
+
+### F-89 · El regreso del banco tiene UNA sola URL y es un despachador: `/bancolombia/{tipo}/redirect`
+
+**Síntoma:** con el retorno apuntado a `loan-info` el primer salto al banco volvía bien, pero el
+**segundo** —la clave dinámica al firmar— dejaba al cliente parado en la página del banco.
+
+**Causa raíz (verificada):** el recorrido sale al banco **dos veces** (autenticación al empezar, clave
+dinámica al firmar) y el wizard tiene una ruta dedicada para el regreso:
+`routes/bancolombia/bnpl/redirect.tsx` y su gemela `loan/redirect.tsx` (`routes.ts:190` y `:220`). Su
+`clientLoader` lee la sesión del cliente y decide solo:
+
+```
+step === 'session'      → loan-info/{code}?code=…      (ecommerce → ecommerce-loan-processing)
+step === 'dynamic_key'  → processing/{code}?code=…      (ecommerce → payment-success, y antes POSTea origination)
+(fallback)              → loan-info/{code}?code=…
+```
+
+Que ese despachador exista **es la evidencia de que el banco vuelve siempre al mismo sitio**: si el
+proveedor pudiera volver a una pantalla distinta por paso, no haría falta. Apuntar el retorno a una
+pantalla concreta funciona por casualidad en el primer salto.
+
+**Arreglo:** el harness registra `/bancolombia/{bnpl|consumo}/redirect?code=…` y deja que el wizard rutee.
+Sirve para los dos saltos y para los dos productos sin conocer el paso.
+
+**Estado:** verificado en BNPL (los dos saltos). Ver también F-86 (por qué el retorno se registra en vez de
+deducirse del referrer).
+
+---

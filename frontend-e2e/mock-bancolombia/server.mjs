@@ -80,14 +80,38 @@ const esc = {
  *  `['id']` (verificado: sin esa clave tira `Undefined array key "id"` → BNPL999), y otros consumidores
  *  usan `accountId`/`accountNumber`. Se mandan todos: una clave de más es inocua, una de menos es un 500. */
 const CUENTA = {
-    id: '1', accountId: '1',
-    accountNumber: '****1234', maskedAccountNumber: '****1234', number: '****1234',
-    accountType: 'AHORROS', type: 'AHORROS',
-    balance: 5_000_000, name: 'AHORROS ****1234',
+    // ⚠ `id` va NUMÉRICO. El front valida cada cuenta con `BnplAccountSchema` = `{ id: z.number(),
+    // type: z.string(), number: z.string() }` (bnpl-api.schema.ts:3): con `id: '1'` zod rechaza la
+    // respuesta COMPLETA, el UC devuelve `success:false` y `loan-info` muestra «Error al cargar la
+    // información» sin nombrar el campo. El backend es más laxo —sólo exige que la clave exista— así que
+    // el número le sirve igual. Cuando el front y el backend piden tipos distintos, gana el más estricto.
+    id: 1, accountId: '1',
+    // Los valores son los MISMOS que el backend le manda al banco fuera de producción
+    // (`selectAccount`: id '1' · type CUENTA_DE_AHORRO · number 9220), para que la cuenta que ve el
+    // cliente sea la misma en todas las pantallas del recorrido.
+    accountNumber: '9220', maskedAccountNumber: '****9220', number: '9220',
+    accountType: 'CUENTA_DE_AHORRO', type: 'CUENTA_DE_AHORRO',
+    balance: 5_000_000, name: 'Ahorros ****9220',
+};
+/** Comisión del banco por la compra. Valor arbitrario: el front la MUESTRA (`commission` / `userCommission`
+ *  son `z.number()`) y nadie compara contra un esperado. */
+const COMISION = 5_000;
+/** Cuotas del BNPL. «Compra y paga después» es un pago diferido: una sola cuota, a 30 días. */
+const CUOTAS_BNPL = 1;
+/** Fecha de la cuota `i` (0-based), un mes por cuota desde una BASE FIJA. Fija a propósito: el front sólo
+ *  la muestra como string, y una fecha estable hace comparables las corridas de la suite de
+ *  caracterización (con "hoy + n meses" el screenshot cambiaría cada día). */
+const fechaCuota = (i) => {
+    const d = new Date(Date.UTC(2026, 7, 15));       // 2026-08-15
+    d.setUTCMonth(d.getUTCMonth() + i);
+    return d.toISOString().slice(0, 10);
 };
 const llamadas = [];
 let txId = null;          // el bnplTransactionId vigente (BNPL)
 let sessionToken = null;  // el sessionToken vigente (Consumo)
+let validateKey = null;   // el customerValidateKey vigente (Consumo)
+const nuevoSessionToken = () => `mock-session-${randomBytes(16).toString('hex')}`;
+const nuevaValidateKey = () => `mock-validate-key-${randomBytes(48).toString('base64url')}`;
 /** A dónde vuelve el cliente después de "autenticarse" en el banco. Lo REGISTRA el harness (ver
  *  `/_control/retorno`), porque deducirlo del `document.referrer` no funciona: el wizard (:5174) y este
  *  mock (:8104) son ORÍGENES DISTINTOS y la política default del browser
@@ -128,7 +152,7 @@ const server = http.createServer(async (req, res) => {
     if (path === '/' && req.method === 'GET') {
         return json(res, 200, { mock: 'bancolombia', puerto: PORT, fail: FAIL, codigo: CODIGO, escenario: esc, transactionId: txId, retorno, llamadas: llamadas.slice(-25) });
     }
-    if (path === '/_control/reset') { llamadas.length = 0; txId = null; sessionToken = null; retorno = null; log('control: reset'); return json(res, 200, { ok: true }); }
+    if (path === '/_control/reset') { llamadas.length = 0; txId = null; sessionToken = null; validateKey = null; retorno = null; log('control: reset'); return json(res, 200, { ok: true }); }
     // El harness registra acá a dónde volver: él SÍ conoce el `encryptCode` (lo ve en la URL
     // `/bancolombia/{tipo}/start/{code}` del wizard) y el producto. Sin esto el regreso es adivinanza.
     if (path === '/_control/retorno') {
@@ -229,6 +253,12 @@ flujo con el <code>code</code> que el wizard espera.</p>
             data: {
                 hasQuota: esc.hasQuota, balance: esc.balance, availableQuota: esc.balance,
                 info: { bnplTransactionId: txId }, security: { transactionId: txId },
+                // El backend hace PASSTHROUGH de este `data` (`'retrieve_quota' => $quotaResponse['data']`),
+                // así que las claves de acá las valida el front con `BnplRetrieveQuotaPayloadSchema`:
+                // signatureMethod + balance + commission + account.accounts[]. Faltando UNA, zod tumba la
+                // respuesta entera y la pantalla dice sólo «Error al cargar la información».
+                signatureMethod: 'DYNAMIC_KEY',   // el front lo arrastra, no lo compara con nada
+                commission: COMISION,
                 // ⚠ LAS CUENTAS VAN ANIDADAS EN `account.accounts` — no basta con la lista plana.
                 // `list-accounts-and-quota` relee el paso `retrieve_quota` que quedó guardado en
                 // `lender_integration_flows` y corta con `!isset($retrieveQuota['account']['accounts'])`
@@ -246,10 +276,49 @@ flujo con el <code>code</code> que el wizard espera.</p>
         return json(res, 200, { data: { hasQuota: esc.hasQuota, validate: esc.hasQuota, balance: esc.balance } });
     }
     if (tail('/payments/select-account')) {
-        return json(res, 200, { data: { selected: true, accountId: body?.data?.accountId ?? '1', info: { bnplTransactionId: txId } } });
+        // El front exige `select_account.account.{id,type,number}` con **id STRING**
+        // (`BnplSelectAccountPayloadSchema`) — al revés que en el listado de cuentas, donde el id es número.
+        // Se devuelve por ECO de lo que mandó el backend: fuera de producción manda fijo
+        // `{id:'1', type:'CUENTA_DE_AHORRO', number:'9220'}` (BancolombiaBnpl.php::selectAccount), así que
+        // el eco es lo más fiel y además mantiene la cuenta idéntica en todas las pantallas.
+        const pedida = body?.data?.account ?? {};
+        return json(res, 200, {
+            data: {
+                selected: true, status: 'OK',
+                account: {
+                    id: String(pedida.id ?? CUENTA.accountId),
+                    type: String(pedida.type ?? CUENTA.type),
+                    number: String(pedida.number ?? CUENTA.number),
+                },
+                accountId: String(pedida.id ?? CUENTA.accountId),
+                info: { bnplTransactionId: txId },
+            },
+        });
     }
     if (tail('/payments/purchase-intention')) {
-        return json(res, 200, { data: { purchaseId: randomUUID(), status: 'OK', info: { bnplTransactionId: txId } } });
+        // El front valida esto con `BnplListAccountsQuotaPayloadSchema.purchase`: userCommission +
+        // numberInstallments + installments[] con {installmentValue, installmentFee: array,
+        // installmentTotal, paymentDate}. Sin el plan de cuotas la pantalla del resumen no carga.
+        const total = Number(body?.data?.totalPrice ?? body?.data?.amount ?? esc.balance) || esc.balance;
+        const cuotas = Number(body?.data?.numberInstallments) || CUOTAS_BNPL;
+        const valor = Math.round(total / cuotas);
+        const installments = Array.from({ length: cuotas }, (_, i) => ({
+            installmentNumber: i + 1,
+            installmentValue: valor,
+            installmentFee: [],                       // z.array(z.unknown()): puede ir vacío, no ausente
+            installmentTotal: valor + Math.round(COMISION / cuotas),
+            paymentDate: fechaCuota(i),
+        }));
+        return json(res, 200, {
+            data: {
+                purchaseId: randomUUID(), status: 'OK',
+                userCommission: COMISION,
+                numberInstallments: cuotas,
+                installments,
+                totalPrice: total,
+                info: { bnplTransactionId: txId },
+            },
+        });
     }
     // `/terms/retrieve` la comparten BNPL y Consumo-v2 → superset que sirve a los dos.
     if (tail('/terms/retrieve')) {
@@ -260,20 +329,55 @@ flujo con el <code>code</code> que el wizard espera.</p>
                 // `$allSteps['retrieve_terms']['terms']['version']` y `['customerAcceptedTerms']`
                 // (BancolombiaLoanController.php:711). Con un string sale
                 // `Cannot access offset of type string on string`.
-                terms: { version: '1.0', customerAcceptedTerms: true, text: 'Términos simulados por el mock.', id: '1' },
+                // ⚠ `url` NO es opcional para el front: `BnplTermsPayloadSchema` (y el de Consumo) exigen
+                // `terms.terms.{url, version}` — el de Consumo pide además `customerAcceptedTerms`. Sin la
+                // url, zod tumba la respuesta y la pantalla de términos no carga. Apunta a una página que el
+                // mock SIRVE de verdad (`/_terminos`), así el link del cliente abre algo en vez de romper.
+                terms: {
+                    version: '1.0',
+                    url: `http://localhost:${PORT}/_terminos`,
+                    customerAcceptedTerms: true,
+                    text: 'Términos simulados por el mock.', id: '1',
+                },
                 termsAndConditions: 'Términos y condiciones simulados por el mock.',
-                documents: [{ id: '1', name: 'terminos.pdf', url: `http://localhost:${PORT}/_doc.pdf` }],
-                security: { transactionId: txId },
+                documents: [{ id: '1', name: 'terminos.pdf', format: 'pdf', url: `http://localhost:${PORT}/_terminos` }],
+                // ⚠ `security` es OPCIONAL en el schema de Consumo, pero si va tiene que ser VÁLIDA:
+                // `LoanSecuritySchema` exige `customerValidateKey`. Mandarla a medias (sólo con
+                // `transactionId`) rompe más que no mandarla — opcional no significa "cualquier cosa".
+                security: {
+                    transactionId: txId,
+                    customerValidateKey: validateKey ?? (validateKey = nuevaValidateKey()),
+                },
             },
         });
     }
     if (tail('/terms/acceptance') || tail('/terms/register')) {
-        return json(res, 200, { data: { accepted: true, status: 'OK', registered: true, security: { transactionId: txId } } });
+        // `register-terms` (Consumo) se lo pasa al front como `data.security.customerValidateKey`
+        // (`LoanRegisterTermsPayloadSchema` lo exige), así que el sobre `security` va con las dos claves.
+        return json(res, 200, {
+            data: {
+                accepted: true, status: 'OK', registered: true,
+                security: {
+                    transactionId: txId,
+                    customerValidateKey: validateKey ?? (validateKey = nuevaValidateKey()),
+                    sessionToken: sessionToken ?? (sessionToken = nuevoSessionToken()),
+                },
+            },
+        });
     }
     // ORIGINATION — el que sella el estado 25 en BNPL.
     if (tail('/electronic-signature-management/origination')) {
         return json(res, 200, {
-            data: { status: esc.bnplStatus, authorizationCode: '098734', info: { bnplTransactionId: txId }, security: { transactionId: txId } },
+            data: {
+                status: esc.bnplStatus,
+                // El front exige `origination.{signatureMethod, status}` (`BnplOriginationPayloadSchema`):
+                // sin signatureMethod la ÚLTIMA pantalla —la del código de compra— no llega a renderizar,
+                // justo después de que el backend ya sellara el estado 25. Un fallo así se lee como "no
+                // originó" cuando en realidad originó y sólo se cayó la vista.
+                signatureMethod: 'DYNAMIC_KEY',
+                authorizationCode: '098734',
+                info: { bnplTransactionId: txId }, security: { transactionId: txId },
+            },
         });
     }
 
@@ -281,7 +385,10 @@ flujo con el <code>code</code> que el wizard espera.</p>
     // validate: de acá sale el `customerValidateKey`, que es el transactionId del producto Consumo
     // (`BancolombiaLoanController.php:187` lo guarda como `loan_validate_key`).
     if (tail('/customers/validate')) {
-        const key = `mock-validate-key-${randomBytes(48).toString('base64url')}`;
+        // La key se GUARDA (no es local): varios pasos posteriores de Consumo se la devuelven al front y
+        // el schema la exige (`LoanSecuritySchema.customerValidateKey`). Que sea la misma en todo el
+        // recorrido es lo que hace el flujo coherente.
+        const key = validateKey ?? (validateKey = nuevaValidateKey());
         return json(res, 200, {
             data: {
                 status: 'Success', validate: 'Success',
@@ -307,20 +414,35 @@ flujo con el <code>code</code> que el wizard espera.</p>
     // `$bancolombiaAuthenticate['data']` (:343). Sin él, register-terms / enable-offers / select-insurance
     // / e-sign / origination revientan todos con `Undefined array key "sessionToken"` → LOAN999.
     if (tail('/customers/authenticate')) {
-        sessionToken = sessionToken ?? `mock-session-${randomBytes(16).toString('hex')}`;
+        sessionToken = sessionToken ?? nuevoSessionToken();
         return json(res, 200, {
             data: {
                 status: 'Success', authenticated: true,
                 security: {
                     sessionToken,
-                    customerValidateKey: body?.data?.security?.customerValidateKey ?? 'mock-key',
-                    urlDynamicKey: `http://localhost:${PORT}/_clave-dinamica-simulada`,
+                    customerValidateKey: body?.data?.security?.customerValidateKey ?? validateKey ?? (validateKey = nuevaValidateKey()),
+                    // A la página que el mock SÍ sirve. Antes apuntaba a `/_clave-dinamica-simulada`, que no
+                    // existe: caía en el catch-all y el cliente veía `{"data":{"status":"OK"}}` crudo.
+                    urlDynamicKey: `http://localhost:${PORT}/_autenticacion`,
                 },
             },
         });
     }
     if (tail('/customers/eSignDocument')) {
-        return json(res, 200, { data: { status: 'Success', signed: true, documentId: randomUUID() } });
+        // ⚠ El backend arma el `url` del front con `data.security.urlDynamicKey`
+        // (BancolombiaLoanController.php:1606) y el front lo exige NO nulo
+        // (`LoanESignDocumentPayloadSchema.url: z.string()`). Sin esta clave el paso de firma electrónica
+        // queda con `url: null` → zod lo rechaza y la pantalla no carga.
+        return json(res, 200, {
+            data: {
+                status: 'Success', signed: true, documentId: randomUUID(),
+                security: {
+                    urlDynamicKey: `http://localhost:${PORT}/_autenticacion`,
+                    customerValidateKey: validateKey ?? (validateKey = nuevaValidateKey()),
+                    sessionToken: sessionToken ?? (sessionToken = nuevoSessionToken()),
+                },
+            },
+        });
     }
     if (tail('/enable-offers/preapproved')) {
         return json(res, 200, {
@@ -329,12 +451,31 @@ flujo con el <code>code</code> que el wizard espera.</p>
                 offers: [{ offerId: '1', amount: esc.balance, feeNumber: 12, rate: 1.8, feeValue: Math.round(esc.balance / 12) }],
                 // ⚠ `get-detail-simulation` lee `enable_offers['products'][0]['interestRates'][0]['type']`
                 // (BancolombiaLoanController.php:1262) → sin `products` sale `Undefined array key "products"`.
+                //
+                // ⚠⚠ LOS `type` SON ENUMS DEL FRONT, no texto libre. `LoanEnableOffersProductSchema` valida
+                // `interestRates[].type` contra ["TASA_FIJA","DEPOSITO_TERMINO_FIJO",
+                // "INDICE_BANCARIO_DE_REFERENCIA"] y `insurances[].type` contra ["SEGURO_DE_DESEMPLEO",
+                // "SEGURO_DE_VIDA","VIDA_MAS","SEGURO_DE_VEHICULO"] (loan-api.schema.ts:12 y :18). Los
+                // valores cortos que había acá ('FIJA' / 'VIDA') le alcanzaban al BACKEND —que sólo los
+                // arrastra— pero el front rechazaba la oferta entera. Y `totalAmount`, `expirationDate` y
+                // `periodCredits[{min,max}]` son obligatorios: sin ellos no hay pantalla de oferta.
                 products: [{
                     productId: '14', id: '14', name: 'Crédito de consumo',
-                    interestRates: [{ type: 'FIJA', value: 1.8, rate: 1.8 }],
+                    totalAmount: esc.balance,
+                    expirationDate: fechaCuota(6),
+                    interestRates: [{
+                        type: 'TASA_FIJA',
+                        monthOverdue: 2.5, arreas: 2.5, effectiveAnnual: 23.87, nominalAnnual: 21.6,
+                        variableInterestRateAdditionalPoints: 0,
+                        value: 1.8, rate: 1.8,
+                    }],
+                    periodCredits: [{ min: 12, max: 48 }],
                     // `get-detail-simulation` también itera `products[0]['insurances']` (:1265) para armar
                     // `insurance_type` → sin la clave sale `Undefined array key "insurances"`.
-                    insurances: [{ type: 'VIDA', code: 'VIDA', name: 'Seguro de vida', value: 12_000 }],
+                    insurances: [{
+                        type: 'SEGURO_DE_VIDA', minAmount: 0, maxAmount: 100_000, factor: 0.0024,
+                        amount: 12_000, code: 'VIDA', name: 'Seguro de vida', value: 12_000,
+                    }],
                     terms: [12, 24, 36, 48], maxAmount: esc.balance, minAmount: 1_000_000,
                 }],
                 creditLimit: { result: 'APP', amount: esc.balance },
@@ -342,16 +483,45 @@ flujo con el <code>code</code> que el wizard espera.</p>
         });
     }
     if (tail('/simulations')) {
+        // El front pide `simulation.{security.customerValidateKey, installmentDatas[]}` y cada cuota con
+        // `{installment, paymentDay, interestRate{…6 campos…}, expirationDate, insurances[{type,amount}]}`
+        // (`LoanDetailSimulationPayloadSchema` + `LoanInstallmentDataSchema`). El `simulation` plano que
+        // había acá le servía al backend pero el front no tenía de dónde armar la tabla de cuotas.
+        const cuotas = 12;
+        const valor = Math.round(esc.balance / cuotas);
+        const tasa = {
+            monthOverdue: 2.5, arreas: 2.5, effectiveAnnual: 23.87, nominalAnnual: 21.6,
+            type: 'TASA_FIJA', variableInterestRateAdditionalPoints: 0,
+        };
         return json(res, 200, {
             data: {
                 status: 'Success',
-                simulation: { amount: esc.balance, feeNumber: 12, feeValue: Math.round(esc.balance / 12), rate: 1.8, totalAmount: esc.balance },
-                fees: [{ number: 1, value: Math.round(esc.balance / 12) }],
+                simulation: {
+                    security: { customerValidateKey: validateKey ?? (validateKey = nuevaValidateKey()) },
+                    installmentDatas: Array.from({ length: cuotas }, (_, i) => ({
+                        installment: valor,
+                        paymentDay: 15,
+                        interestRate: tasa,
+                        expirationDate: fechaCuota(i),
+                        insurances: [{ type: 'SEGURO_DE_VIDA', amount: 12_000 }],
+                    })),
+                    amount: esc.balance, feeNumber: cuotas, feeValue: valor, rate: 1.8, totalAmount: esc.balance,
+                },
+                fees: [{ number: 1, value: valor }],
             },
         });
     }
     if (tail('/accounts/retrieve')) {
-        return json(res, 200, { data: { status: 'Success', accounts: [CUENTA] } });
+        // `retrieve_accounts.{security.customerValidateKey, depositAccount[{type,number}]}` — el front lo
+        // exige así; la lista `accounts` se queda como superset porque el backend la lee con ese nombre.
+        return json(res, 200, {
+            data: {
+                status: 'Success',
+                security: { customerValidateKey: validateKey ?? (validateKey = nuevaValidateKey()) },
+                depositAccount: [{ type: CUENTA.type, number: CUENTA.number }],
+                accounts: [CUENTA],
+            },
+        });
     }
     // ⚠ ORDEN: confirm ANTES que /disbursements, porque `/disbursements/confirm` también termina en él.
     if (tail('/disbursements/confirm')) {
@@ -360,6 +530,20 @@ flujo con el <code>code</code> que el wizard espera.</p>
     // DISBURSEMENT — el que sella el estado 25 en Consumo (lee `data.payment.status`).
     if (tail('/disbursements')) {
         return json(res, 200, { data: { status: 'Success', payment: { status: esc.consumoStatus, reference: randomUUID() } } });
+    }
+
+    // PÁGINA DE TÉRMINOS. La `url` que viaja en `/terms/retrieve` tiene que abrir algo: el cliente le da
+    // click y con el catch-all veía `{"data":{"status":"OK"}}` en una pestaña. Es HTML y no PDF a propósito
+    // — el front la muestra en un iframe o en pestaña nueva, y un PDF falso no renderiza en ninguna.
+    if (tail('/_terminos') && req.method === 'GET') {
+        res.writeHead(200, { 'content-type': 'text/html; charset=utf-8' });
+        return res.end(`<!doctype html><meta charset=utf-8><title>Términos y condiciones · simulados</title>
+<style>body{font:16px/1.6 system-ui;max-width:40rem;margin:3rem auto;padding:0 1.5rem;color:#222}
+h1{font-size:1.3rem}blockquote{border-left:3px solid #ffd400;margin:0;padding:.2rem 0 .2rem 1rem;color:#555}</style>
+<h1>Términos y condiciones</h1>
+<blockquote>Documento <b>simulado por el harness</b> (mock-bancolombia). No es un texto legal ni se parece al
+del banco: existe para que el link de la pantalla de términos abra una página de verdad.</blockquote>
+<p>Versión 1.0 · producto Bancolombia · convenio de prueba local.</p>`);
     }
 
     // ── confirmaciones de la conciliación batch ───────────────────────────────────────────────────

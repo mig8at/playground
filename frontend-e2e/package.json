@@ -13,6 +13,7 @@
     "test:ui": "playwright test --ui",
     "show-report": "playwright show-report",
     "typecheck": "tsc --noEmit",
+    "contrato:bancolombia": "node dev/contrato-bancolombia.ts",
     "db": "node bin/dbops.ts"
   },
   "dependencies": {
