@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+# qr — TERCER canal de entrada, junto a asesor (bin/asesor) y tienda (bin/ecommerce).
+#
+# Es la puerta del cliente que escanea el QR en la CAJA de un comercio del grupo Corbeta
+# (Alkosto 209 / K-TRONIX 210 / Alkomprar 211). El único canal de **autogestión pura**: no hay asesor,
+# el cliente hace todo desde su celular en el punto de venta y termina con un CÓDIGO para facturar.
+#
+#   bin/qr <merchant>        → entra por el QR y te deja seguir a mano
+#   bin/qr <merchant> auto   → GUIADO desde el QR
+#
+# ⚠ ESTE CANAL NO PASA POR /lenders. El QR de Corbeta salta a
+# `/bancolombia/self-service/{hash}/solicitar` y el OTP resuelve la pre-aprobación decidiendo solo
+# entre BNPL (68) y Consumo (100) — no hay marketplace. Detalle del recorrido y de por qué entramos en
+# el aterrizaje del wizard y no en `application`: pkg/qr.ts.
+#
+# Necesita el mock de la API Fondos para llegar al código de compra:  bin/mock-corbeta start
+#
+# Es un wrapper: exporta CFE_ENTRY=qr y delega en bin/asesor.
+set -euo pipefail
+DIR="$(cd "$(dirname "$0")" && pwd)"
+exec env CFE_ENTRY=qr "$DIR/asesor" "$@"

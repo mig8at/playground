@@ -897,6 +897,7 @@
         <div class="seg" id="canal">
           <button class="on" data-c="asesor">Asesor · login + wizard</button>
           <button data-c="ecommerce">Ecommerce · URL base64</button>
+          <button data-c="qr">QR · caja Corbeta</button>
         </div>
         <p id="canalhint" style="color:var(--mut);font-size:12px;margin:8px 0 0"></p>
       </div>
@@ -1663,6 +1664,11 @@
       document.querySelectorAll('#canal button').forEach(b => b.classList.toggle('on', b.dataset.c === canal));
       $('canalhint').innerHTML = canal === 'asesor'
         ? 'Login de asesor (Cognito) y el wizard abre en monto.'
+        : canal === 'qr'
+        ? 'El cliente escanea el QR en la CAJA de un comercio Corbeta (Alkosto/K-TRONIX/Alkomprar): autogestión pura, sin asesor. '
+          + '<b>No pasa por el marketplace</b> — el OTP resuelve la pre-aprobación y decide solo entre BNPL (68) y Consumo (100). '
+          + 'Elegí una sucursal Corbeta con los dos lenders habilitados. Para llegar al código de compra: <code>bin/mock-corbeta start</code> '
+          + 'y <code>CORBETA_HOST=http://host.docker.internal:8103</code> en el .env del backend.'
         : 'La tienda arma una URL base64 con el pedido y el usuario sintético; el cliente aterriza redirigido, sin asesor. '
           + '<b style="color:var(--warn)">⚠ Hoy aterriza en el resolvedor de Bancolombia</b>, que cancela si el comercio es '
           + 'CreditopX (F-54): la landing genérica del wizard no está en esta rama. Sirve para ejercitar el contrato, no para cerrar.';

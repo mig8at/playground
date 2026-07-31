@@ -223,7 +223,7 @@ trae su propia config de Cognito en el `.env` del monorepo (`login.creditop.com`
 Funciona porque **dev y staging comparten la BD**: el `sub` del asesor es el mismo para los dos backends,
 así que el permiso a la sucursal vale igual. Si algún día dejaran de compartirla, esto se rompe.
 
-## Canal de entrada: asesor · ecommerce
+## Canal de entrada: asesor · ecommerce · qr
 
 El panel tiene un selector de **canal** (junto al del buró). Cambia la PUERTA, no el caso: el usuario
 sintético es el mismo y viaja **adentro** de la URL base64, así podés correr la misma identidad entrando
@@ -231,6 +231,36 @@ por asesor y por tienda y comparar.
 
 - `asesor` → `bin/asesor`, login Cognito, wizard en `/merchant`.
 - `ecommerce` → `bin/ecommerce` + `E2E_ENTRY=ecommerce`; el spec arma la URL con `pkg/checkout-b64.ts`.
+- `qr` → `bin/qr` + `E2E_ENTRY=qr`; el spec entra con `pkg/qr.ts`. Es la caja de un comercio **Corbeta**
+  (Alkosto 209 / K-TRONIX 210 / Alkomprar 211): **autogestión pura**, sin asesor y sin Cognito.
+
+⚠ **El canal `qr` NO PASA POR `/lenders` — y esa es su diferencia estructural**, no un límite del harness.
+El QR salta a `/bancolombia/self-service/{hash}/solicitar` y **el OTP es el punto de decisión**: resuelve
+la pre-aprobación y manda a `/bancolombia/{bnpl|consumo}/start/{encryptCode}` (`otp.tsx:182`) o a
+`no-preapproved` (`:121`). No hay marketplace que mostrar, así que "saltar a lenders" no existe acá — por
+eso `DIRECT_LENDERS` lo excluye igual que a `ecommerce`, pero por otro motivo.
+
+Tres cosas que hay que saber para que el canal llegue al final:
+
+- **La sucursal necesita los DOS lenders de Bancolombia (68 y 100) habilitados.** Sin eso el OTP resuelve
+  `no_preapproved` y el flujo muere antes de empezar. `corbetaBranch()` sólo devuelve sucursales que
+  cumplen (default la **946**, Alkosto Bogotá: es la de las 4 solicitudes reales que llegaron al estado 25
+  en marzo de 2026) y el spec avisa si el hash del panel no es una de ellas.
+- **El `encryptCode` de las rutas `/bancolombia/…/{code}` NO es cifrado**: es
+  `base36((user_request_id << 32) | hexdec(branch.hash))` — la fórmula sale del propio backend
+  (`PurchaseCodeService::sendPurchaseCodeSms`). O sea **el harness puede mintear el código de cualquier
+  solicitud que siembre** y saltar directo a la pantalla que quiera, `purchase-code` incluida
+  (`bancolombiaEncryptCode` en `pkg/qr.ts`). Ojo con el techo: del lado PHP `base_convert` va por float, así
+  que arriba de `user_request_id ≈ 2^21` (2.097.152) el link del SMS y el decoder del front dejarían de
+  coincidir. Hoy los ids van por ~400.000.
+- **Para llegar al CÓDIGO DE COMPRA hace falta `mock-corbeta` (:8103)** y apuntar el backend:
+  `CORBETA_HOST=http://host.docker.internal:8103`. `bin/asesor` lo levanta en `local`, pero el `.env` del
+  backend lo tenés que tocar vos (igual que ábaco/payvalida). Ese mock reproduce **la sutileza que el
+  reemplazo Corbeta→Bancolombia va a cambiar**: `validateCurrentOrder()` no evalúa el estado de la orden,
+  pide las de ayer→mañana con `EstadoOrden=2` y sólo busca el PIN en la lista — o sea "si ya facturó no
+  mostrar" sale del **filtro**, no de una regla escrita. `POST /_control/facturar {pin}` mueve la orden a
+  estado 3 y con eso el código deja de mostrarse: es el caso que el test de caracterización tiene que
+  congelar. Contexto completo en el nodo `bancolombia` de `context` y en findings **F-79..F-82**.
 
 ⚠ **Hoy el canal ecommerce NO cierra un crédito CreditopX.** Aterriza en `resolve-ecommerce-flow`, que es
 el resolvedor de **Bancolombia**, y para un comercio CreditopX el flowType sale `no_preapproved` y su

@@ -10,6 +10,7 @@ import { closeCreditopX, resolveRequestStatus } from '../pkg/close';
 import { one, exec } from '../pkg/db';
 import * as traza from '../pkg/trace';
 import { urlCheckout, seguirCheckout } from '../pkg/checkout-b64';
+import { qrEntryUrl, corbetaBranch } from '../pkg/qr';
 import { close } from '../pkg/db';
 import { PREVIEW, IPHONE_UA, isExternalUrl, openA, openB } from '../pkg/windows';
 import { mockWompiHostedCheckout } from '../pkg/wompi-mock';
@@ -41,7 +42,7 @@ const RESULT = process.env.E2E_RESULT ?? 'success';                    // cómo 
 // user_request_status_id esperado por desenlace (11=Autorizada, 6=Negada, 10=Pendiente). Definido UNA
 // sola vez en pkg/trace.ts y compartido con dev/sweep.ts — tener dos copias es como empiezan a derivar.
 const RESULT_STATUS = traza.ESTADO_ESPERADO;
-const ENTRY = process.env.E2E_ENTRY ?? 'cognito';               // 'cognito' (asesor) | 'ecommerce' (checkout base64)
+const ENTRY = process.env.E2E_ENTRY ?? 'cognito';               // 'cognito' (asesor) | 'ecommerce' (checkout base64) | 'qr' (caja Corbeta, autogestión)
 const CHECKOUT_URL = process.env.E2E_CHECKOUT_URL ?? '';
 const STORE = process.env.E2E_STORE === '1';
 const AUTH = join(process.cwd(), '.auth');
@@ -625,7 +626,11 @@ test('guided (semiautomático)', async ({ browser }) => {
     // ¿Vamos DERECHO al marketplace? Si pediste "saltar a lenders", no tiene sentido pasar por /solicitar:
     // esa pantalla solo existe como aterrizaje del login, y quedarse ahí mientras se siembra era justo lo
     // que parecía "no saltó" (y si cerrabas la ventana en ese rato, el salto moría).
-    const DIRECT_LENDERS = ENTRY !== 'ecommerce'
+    // ⚠ `qr` también queda afuera, pero por una razón distinta a ecommerce: en el canal QR **no existe
+    // el marketplace**. El QR de Corbeta salta a `/bancolombia/self-service/{hash}/solicitar` y el OTP
+    // resuelve la pre-aprobación decidiendo solo entre BNPL (68) y Consumo (100) — nunca hay `/lenders`
+    // al que saltar (`routes/bancolombia/onboarding/otp.tsx:182` vs `:121`). Ver pkg/qr.ts.
+    const DIRECT_LENDERS = ENTRY !== 'ecommerce' && ENTRY !== 'qr'
         && process.env.E2E_GUIDED === '0' && process.env.E2E_INJECT === '1'
         && (process.env.E2E_STEP_TARGET || 'monto').toLowerCase() === 'lenders';
 
@@ -641,7 +646,34 @@ test('guided (semiautomático)', async ({ browser }) => {
         /login\.creditop\.com|auth\.[\w.-]*creditop\.com|amazoncognito|\/oauth2\/authorize|[?&]client_id=/i.test(page.url());
 
     // ───────────────────────── ENTRADA ─────────────────────────
-    if (ENTRY === 'ecommerce') {
+    if (ENTRY === 'qr') {
+        // ── ENTRADA POR QR (caja de un comercio Corbeta) ──────────────────────────────────────────────
+        // El cliente escanea el QR en la caja de Alkosto/K-TRONIX/Alkomprar. Es el único canal de
+        // AUTOGESTIÓN pura: no hay asesor, el cliente hace todo desde su celular en el punto de venta y
+        // termina con un CÓDIGO que presenta en caja para facturar.
+        //
+        // Entramos en el aterrizaje que produce el QR real, no en `application` (que sólo hace el
+        // redirect y el harness no levanta). El detalle del recorrido y del `E2E_ALIADOS_URL` para
+        // ejercitar la puerta original está en pkg/qr.ts.
+        //
+        // ⚠ Este canal exige que la sucursal tenga los DOS lenders de Bancolombia (68/100) habilitados:
+        // sin eso el OTP resuelve `no_preapproved` y el flujo muere antes de empezar. `corbetaBranch()`
+        // sólo devuelve sucursales que cumplen, y avisa acá si el hash del panel no es una de ellas.
+        const branch = await corbetaBranch().catch(() => null);
+        if (branch && branch.hash !== HASH) {
+            log(`⚠ el hash del panel (${HASH}) no es una sucursal Corbeta con 68/100 habilitados.`);
+            log(`   sugerida: sucursal ${branch.id} (allied ${branch.alliedId}) hash=${branch.hash}`);
+        }
+        const url = qrEntryUrl(HASH);
+        log(`entrada QR: ${url}`);
+        await page.goto(url, { waitUntil: 'domcontentloaded' }).catch(() => {});
+        // Aterrizajes válidos del canal: el registro de autogestión, su OTP, el "sin cupo", o —si el
+        // teléfono ya venía resuelto— directo al arranque del producto.
+        await page.waitForURL(/self-service\/[^/]+\/(solicitar|\d+\/otp|no-preapproved)|\/bancolombia\/(bnpl|consumo)\/start\//, { timeout: PICK_TIMEOUT })
+            .catch(() => log(`⚠ no aterrizó en una pantalla del canal QR — quedó en ${page.url()}`));
+        await shot(page, 'qr-aterrizaje');
+        tip('Autogestión: registrá el celular y seguí el OTP. El producto (BNPL o Consumo) lo decide el OTP, no vos.');
+    } else if (ENTRY === 'ecommerce') {
         // ── ENTRADA POR ECOMMERCE (URL base64) ────────────────────────────────────────────────────────
         // La tienda serializa el pedido en base64; el backend lo decodifica, CREA la solicitud y redirige
         // al wizard (CorbetaCheckoutController:1250 → /bancolombia/self-service/{hash}/resolve-ecommerce-flow/{ur}).

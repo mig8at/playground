@@ -1,0 +1,50 @@
+#!/usr/bin/env bash
+# Mock de la API FONDOS de CORBETA: el servicio del comercio que hoy EMITE el código (PIN) que el
+# cliente presenta en la caja de Alkosto / K-TRONIX / Alkomprar. Es 100% externo — sin este mock el
+# canal QR no se puede correr entero en local ni se puede caracterizar el camino actual (cero tests).
+#
+# Apuntá el backend en legacy-backend/.env (host.docker.internal, NO localhost — corre en Docker):
+#   CORBETA_HOST=http://host.docker.internal:8103
+#   CORBETA_NIT=900123456   CORBETA_PASSWORD=cualquiera
+#   CORBETA_CONVENIO_BNPL=1 CORBETA_CONVENIO_CONSUMO=2
+#
+# Control en caliente (sin reiniciar), útil para el caso "ya facturó → no mostrar el código":
+#   curl -s localhost:8103 | jq                                     # órdenes en memoria
+#   curl -sX POST localhost:8103/_control/facturar -d '{"pin":"…"}' -H 'content-type: application/json'
+#   curl -sX POST localhost:8103/_control/reset
+#
+# uso: bin/mock-corbeta [start|stop|status|logs]
+#   env: MOCK_CORBETA_PORT (8103) · MOCK_CORBETA_FAIL=1 → setOrder responde 400
+#        (ojo: ese 400 dispara el bug P1 del backend — variable no asignada → Error de PHP 8 que
+#         ningún catch atrapa. Es un caso de caracterización válido, no un fallo del mock.)
+set -euo pipefail
+DIR="$(cd "$(dirname "$0")/.." && pwd)"
+PORT="${MOCK_CORBETA_PORT:-8103}"
+LOG=/tmp/mock-corbeta.log
+
+up() { curl -s -o /dev/null --max-time 2 "http://localhost:$PORT" 2>/dev/null; }
+
+case "${1:-start}" in
+  start)
+    WANT_FAIL="${MOCK_CORBETA_FAIL:-0}"
+    if up; then
+      CUR="$(curl -s --max-time 2 "http://localhost:$PORT" 2>/dev/null | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{try{process.stdout.write(JSON.parse(s).fail?"1":"0")}catch{process.stdout.write("0")}})')"
+      if [ "${CUR:-0}" = "$WANT_FAIL" ]; then echo "✓ mock-corbeta ya arriba (:$PORT)"; exit 0; fi
+      echo "↻ reinicio mock-corbeta (modo fallo: ${CUR:-0} → $WANT_FAIL)"
+      lsof -ti:"$PORT" 2>/dev/null | xargs kill -9 2>/dev/null || true
+      for _ in $(seq 1 10); do up || break; sleep 0.2; done
+    fi
+    rm -f "$LOG"
+    nohup env MOCK_CORBETA_PORT="$PORT" MOCK_CORBETA_FAIL="$WANT_FAIL" \
+      node "$DIR/mock-corbeta/server.mjs" < /dev/null > "$LOG" 2>&1 &
+    for _ in $(seq 1 25); do up && { echo "✓ mock-corbeta :$PORT"; exit 0; }; sleep 0.3; done
+    echo "✗ no levantó"; tail -8 "$LOG" 2>/dev/null; exit 1;;
+  stop)
+    lsof -ti:"$PORT" 2>/dev/null | xargs kill -9 2>/dev/null && echo "⏹ detenido (:$PORT)" || echo "no estaba corriendo";;
+  status)
+    if up; then curl -s --max-time 2 "http://localhost:$PORT" 2>/dev/null; echo ""; else echo "○ off (:$PORT)"; fi;;
+  logs)
+    tail -n "${2:-40}" "$LOG" 2>/dev/null || echo "(sin log)";;
+  *)
+    echo "uso: bin/mock-corbeta [start|stop|status|logs]";;
+esac

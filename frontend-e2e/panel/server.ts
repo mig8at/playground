@@ -387,6 +387,8 @@ async function runHeader(slug: string, p: Profile, t: string, inject: boolean, s
         `▶ CORRIDA · ${slug} (${t})`,
         row('canal', canal === 'ecommerce'
             ? 'ECOMMERCE — entra por URL base64 de la tienda (sin asesor)'
+            : canal === 'qr'
+            ? 'QR — caja de un comercio Corbeta, autogestión pura (sin asesor y SIN marketplace)'
             : 'ASESOR — login Cognito + wizard'),
         row('modo', inject ? 'SINTÉTICO — inyecta el buró (salta la consulta real)' : 'REAL — consulta el buró de verdad, sin inyección'),
         // Qué FRONT se abre. Va en el rastro porque es lo primero que se pierde de vista al probar un
@@ -441,7 +443,8 @@ async function launch(slug: string, profile: Profile, target: string, inject: bo
         E2E_INJECT: inject ? '1' : '',
         // CANAL: 'ecommerce' hace que el spec entre por la URL base64 (pkg/checkout-b64.ts) en vez del
         // login de asesor. El usuario sintético es el MISMO — viaja adentro del pedido serializado.
-        E2E_ENTRY: canal === 'ecommerce' ? 'ecommerce' : 'cognito',
+        // 'qr' entra por el aterrizaje del QR de caja (pkg/qr.ts): autogestión, sin Cognito y sin /lenders.
+        E2E_ENTRY: canal === 'ecommerce' ? 'ecommerce' : canal === 'qr' ? 'qr' : 'cognito',
         // salto de pasos: monto (vos manejás) | phone | personal-info | lenders (auto-avanza inyectando el sintético).
         E2E_STEP_TARGET: step,
         // monto solicitado (lo usa el spec para sembrar/monto y el /lenders?amount=).
@@ -467,7 +470,7 @@ async function launch(slug: string, profile: Profile, target: string, inject: bo
     };
     // detached → el hijo lidera su propio grupo de procesos; así "Detener" mata el ÁRBOL entero
     // (bash → npx playwright → node → chromium), no solo el bash.
-    const bin = canal === 'ecommerce' ? 'ecommerce' : 'asesor';   // bin/ecommerce es un wrapper que exporta CFE_ENTRY
+    const bin = canal === 'ecommerce' ? 'ecommerce' : canal === 'qr' ? 'qr' : 'asesor';   // bin/ecommerce y bin/qr son wrappers que exportan CFE_ENTRY
     const child = spawn('/bin/bash', [join(ROOT, 'bin', bin), slug], { cwd: ROOT, env, detached: true });  // sin `auto` → manual
     current = { child, slug, target: t, inject, startedAt: Date.now(), done: false, code: null };
     bitacora = { user: null, eventos: new Map() };   // arranca limpia: si no, arrastraría la corrida anterior
@@ -581,6 +584,7 @@ const server = createServer(async (req, res) => {
         const MOCKS: Array<[string, number]> = [
             ['pre-aprobaciones', 8095], ['redirect', 8096], ['payvalida', 8097], ['mdm/IMEI', 8098],
             ['entidades', 8099], ['pdf-mapper', 8100], ['forms', 8101], ['ábaco', 8102],
+            ['corbeta/fondos', 8103],
             ['fin-health', Number(process.env.MOCK_FINHEALTH_PORT) || 4000],
         ];
         const vivo = (p: number) => new Promise<boolean>((ok) => {
