@@ -325,6 +325,16 @@ Tres cosas que hay que saber para que el canal llegue al final:
   había puesto el autorrelleno y la pantalla contestaba «verifica el código e inténtalo de nuevo»; después
   esperaba `/personal-info|lenders`, que en este recorrido no existen, hasta que la ventana se cerraba.
   Excluir sólo la rama manual **no alcanza**: la guiada está después y se ejecuta igual.
+- **Cada producto manda a SU página de banco, y el mock sirve las dos.** BNPL devuelve `data.url` →
+  `/_login-simulado`; Consumo devuelve `data.security.urlAuthenticate` → `/_autenticacion`. Servir una sola
+  dejaba a la otra cayendo en el catch-all, y el cliente veía **`{"data":{"status":"OK"}}` crudo en el
+  navegador** en vez de una pantalla. Las dos rutas apuntan a la misma página simulada.
+- **La página vuelve a `loan-info`, no al referrer.** Volver a donde vino sería un loop: `start` justamente
+  redirige al banco. El wizard espera el regreso en `/bancolombia/{tipo}/loan-info/{code}?code=…` (su loader
+  exige el `code` y tira 400 sin él), así que la página transforma `/start/` → `/loan-info/` conservando el
+  encryptCode. Sirve para los dos productos.
+- **Ojo al editar ese HTML: vive dentro de un template literal del server.** Un backtick en un comentario del
+  `<script>` lo termina y el mock no arranca (`missing ) after argument list`). Ya pasó una vez.
 - **`urlAuthenticate`, no `urlDynamicKey`.** El front lee `payload.data.security.urlAuthenticate`
   (`login-redirect.uc.ts:19`) para mandar al cliente a autenticarse en Consumo. Con la otra clave el `url`
   llega **undefined**, `/bancolombia/consumo/start/{code}` explota con `Cannot read properties of undefined

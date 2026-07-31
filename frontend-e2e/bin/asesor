@@ -369,6 +369,12 @@ fi
 if [ "$ECOMMERCE" = 1 ]; then
   echo "✅ '$MERCHANT' OK contra ${TARGET} · checkout: ${WIZ_BASE}/ecommerce/$HASH/checkout"
 else
-  echo "✅ '$MERCHANT' OK contra ${TARGET} · a mano: ${WIZ_BASE}/merchant/$HASH/solicitar"
+  # La URL "a mano" depende del CANAL: el tronco `/merchant/{hash}/solicitar` no existe para el QR, y
+  # ofrecerla mandaba a una pantalla que no es la de este recorrido.
+  if [ "$ENTRY" = "qr" ]; then
+    echo "✅ '$MERCHANT' OK contra ${TARGET} · a mano: ${WIZ_BASE}/bancolombia/self-service/$HASH/solicitar"
+  else
+    echo "✅ '$MERCHANT' OK contra ${TARGET} · a mano: ${WIZ_BASE}/merchant/$HASH/solicitar"
+  fi
 fi
 exit 0

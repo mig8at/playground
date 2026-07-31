@@ -133,26 +133,43 @@ const server = http.createServer(async (req, res) => {
     // El flujo de Consumo manda al cliente a autenticarse en Bancolombia (clave dinámica) y vuelve con un
     // `code`. Sin una página real acá, el front navega a un JSON y el recorrido visual muere. Mismo patrón
     // que `mock-bank/index.html` para los otros lenders: no simula la seguridad, simula el REGRESO.
-    if (tail('/_autenticacion') && req.method === 'GET') {
+    // ⚠ LAS DOS RUTAS, porque cada producto manda a la suya: BNPL devuelve `data.url` →
+    // `/_login-simulado` (login del banco) y Consumo devuelve `data.security.urlAuthenticate` →
+    // `/_autenticacion` (clave dinámica). Servir sólo una dejaba a la otra cayendo en el catch-all, que
+    // responde `{"data":{"status":"OK"}}` — y el cliente veía ESE JSON crudo en el navegador en vez de una
+    // pantalla. Es el mismo bug con dos nombres, así que las dos apuntan a la misma página.
+    if ((tail('/_autenticacion') || tail('/_login-simulado')) && req.method === 'GET') {
         res.writeHead(200, { 'content-type': 'text/html; charset=utf-8' });
         return res.end(`<!doctype html><meta charset=utf-8><title>Bancolombia · autenticación simulada</title>
 <style>body{font:16px/1.5 system-ui;margin:0;display:grid;place-items:center;height:100vh;background:#111;color:#eee}
 .c{max-width:24rem;text-align:center;padding:2rem}b{color:#ffd400}
 button{font:inherit;padding:.7rem 1.4rem;border:0;border-radius:.5rem;background:#ffd400;color:#111;cursor:pointer}</style>
-<div class=c><h1>Clave dinámica</h1>
+<div class=c><h1>Autenticación Bancolombia</h1>
 <p>Autenticación <b>simulada</b> de Bancolombia (mock del harness). No valida nada: reproduce el REGRESO al
 flujo con el <code>code</code> que el wizard espera.</p>
 <button onclick="volver()">Autenticarme y volver</button>
 <p style="opacity:.6;font-size:.8rem" id=d></p></div>
 <script>
-  // Se vuelve al lugar de donde vino (el referrer es la pantalla del wizard que nos mandó) agregando el
-  // \`code\`. Si no hay referrer —abriste esta página a mano— se dice, en vez de redirigir a ciegas.
+  // A DÓNDE VOLVER. El referrer es la pantalla que nos mandó (/bancolombia/{tipo}/start/{code}) pero
+  // volver AHÍ sería un loop: start justamente redirige al banco. El wizard espera el regreso en
+  // LOAN-INFO con el code en la query (su loader lo exige y tira 400 sin él), así que se transforma
+  // /start/ -> /loan-info/ conservando el encryptCode. Vale para los dos productos: bnpl y consumo
+  // tienen los dos su loan-info/{encrypt_code}.
+  // (Sin backticks a propósito: este script vive DENTRO de un template literal del server y un backtick
+  //  acá lo termina — ya rompió el mock una vez.)
   const ref = document.referrer;
-  document.getElementById('d').textContent = ref ? 'volverá a: ' + ref : 'sin referrer: abrila desde el wizard';
+  const destino = () => {
+    if (!ref) return null;
+    const u = new URL(ref);
+    u.pathname = u.pathname.replace('/start/', '/loan-info/');
+    u.searchParams.set('code', 'mock-auth-code');
+    return u.toString();
+  };
+  const d = destino();
+  document.getElementById('d').textContent = d ? 'volverá a: ' + d : 'sin referrer: entrá por el flujo del wizard';
   function volver() {
-    if (!ref) return alert('No hay referrer: entrá por el flujo del wizard.');
-    const u = new URL(ref); u.searchParams.set('code', 'mock-auth-code');
-    location.href = u.toString();
+    if (!d) return alert('No hay referrer: entrá por el flujo del wizard, no abriendo esta URL a mano.');
+    location.href = d;
   }
 </script>`);
     }
