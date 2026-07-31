@@ -355,6 +355,13 @@
       "updated": "2026-07-18T07:40:00Z"
     },
     {
+      "id": "bancolombia",
+      "name": "Bancolombia",
+      "parent": "aggregator",
+      "created": "2026-07-31T00:00:00Z",
+      "updated": "2026-07-31T00:00:00Z"
+    },
+    {
       "id": "hardcodes-entidades",
       "name": "Hardcodes de entidades/comercios (deuda que frena la plataforma)",
       "parent": "creditop",

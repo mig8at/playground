@@ -19,6 +19,7 @@
   - ecommerce [ref]
   - entities [ref]
     - aggregator [ref]
+      - bancolombia [ref]
       - corbeta [ref]
     - credifamilia [ref]
     - creditopx [ref]
@@ -65,6 +66,10 @@ Doc: `server/data/flows/application/doc.md` · Archivos: `server/data/flows/appl
 ### architecture — Architecture  ·  _reference_ · 72 archivos
 **Cuándo:** Cuando la duda es en QUÉ REPO vive algo, por qué está duplicado, o cómo se hablan entre sí: base de datos compartida, migraciones duplicadas, cutover al wizard nuevo, allowlist, SSO, VITE_API_URL. Índice de los repos.
 Doc: `server/data/flows/architecture/doc.md` · Archivos: `server/data/flows/architecture/map.json` · Padre: `creditop`
+
+### bancolombia — Bancolombia  ·  _reference_ · 145 archivos
+**Cuándo:** Cuando la tarea toca Bancolombia (BNPL lender 68 / Consumo lender 100): su onboarding propio en el wizard, la secuencia multi-step de originación (login→cuota→cuenta→términos→clave dinámica→origination; consumo: validate→ofertas→simulación→seguro→e-sign), el código de compra en punto de venta (PIN de Corbeta / In Store Billing Code), los escenarios sandbox por cédula y por celular, JWT RS256 + mTLS, o el webhook de estado que sigue en application. Es el único rt=1 con originación completa DENTRO de CreditOp.
+Doc: `server/data/flows/bancolombia/doc.md` · Archivos: `server/data/flows/bancolombia/map.json` · Padre: `aggregator`
 
 ### corbeta — Corbeta  ·  _reference_ · 28 archivos
 **Cuándo:** Cuando la venta se cierra en caja física de un retail Corbeta (Alkosto 209 / K-Tronix 210 / Alkomprar 211, allied 24) — checkout ecommerce base64 → PIN de la API Fondos → factura en tienda → conciliación batch por PIN → estado 26 Facturado → confirmación diferida a Bancolombia (BNPL lender 68 / Consumo lender 100).

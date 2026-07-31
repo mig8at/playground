@@ -112,7 +112,7 @@ La causa 3 es la que más engaña, y ya mordió dos veces:
   con `python3 tools/build-index.py`.
 
 **Antes de sacar una ruta de un `map.json`, fijate en qué rama están los repos y cuándo se construyó el
-índice.** Hoy, con el índice al día, los 29 nodos validan sin drops.
+índice.** Hoy, con el índice al día, los 31 nodos validan sin drops.
 
 ## Cómo está armado
 

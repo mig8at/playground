@@ -10,7 +10,7 @@ El código real vive **fuera** de acá, en `~/Desktop/CREDITOP/github/` (`legacy
 `frontend-monorepo`, `legacy-application`, `pre-approvals-service`). Son grandes: entrar por grep sin
 mapa es la forma lenta.
 
-1. **`context/docs/ROUTE-MAP.md`** — índice de 29 nodos curados. Elegí los que matcheen la tarea y abrí
+1. **`context/docs/ROUTE-MAP.md`** — índice de 31 nodos curados. Elegí los que matcheen la tarea y abrí
    su `context/server/data/flows/<id>/doc.md` (el análisis) + `map.json` (las rutas fuente exactas).
 2. **`context/server/data/flows/findings/doc.md`** — bitácora de hallazgos (F-01…). **Mirala antes de
    depurar un muro en local**: si ya nos pasó, está ahí con causa raíz verificada y arreglo.
