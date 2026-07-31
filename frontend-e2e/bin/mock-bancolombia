@@ -29,10 +29,17 @@ up() { curl -s -o /dev/null --max-time 2 "http://localhost:$PORT" 2>/dev/null; }
 case "${1:-start}" in
   start)
     WANT_FAIL="${MOCK_BC_FAIL:-0}"
+    # mtime del código en disco, para no reusar un proceso que quedó con la versión vieja en memoria.
+    WANT_CODE="$(stat -f %m "$DIR/mock-bancolombia/server.mjs" 2>/dev/null || echo 0)"
     if up; then
-      CUR="$(curl -s --max-time 2 "http://localhost:$PORT" 2>/dev/null | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{try{process.stdout.write(JSON.parse(s).fail?"1":"0")}catch{process.stdout.write("0")}})')"
-      if [ "${CUR:-0}" = "$WANT_FAIL" ]; then echo "✓ mock-bancolombia ya arriba (:$PORT)"; exit 0; fi
-      echo "↻ reinicio mock-bancolombia (modo fallo: ${CUR:-0} → $WANT_FAIL)"
+      EST="$(curl -s --max-time 2 "http://localhost:$PORT" 2>/dev/null | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{try{const j=JSON.parse(s);process.stdout.write((j.fail?"1":"0")+" "+(j.codigo??0))}catch{process.stdout.write("0 0")}})')"
+      CUR="${EST%% *}"; CUR_CODE="${EST##* }"
+      if [ "${CUR:-0}" = "$WANT_FAIL" ] && [ "${CUR_CODE:-0}" = "$WANT_CODE" ]; then echo "✓ mock-bancolombia ya arriba (:$PORT)"; exit 0; fi
+      if [ "${CUR_CODE:-0}" != "$WANT_CODE" ]; then
+        echo "↻ reinicio mock-bancolombia: el proceso tiene código viejo en memoria (server.mjs cambió)"
+      else
+        echo "↻ reinicio mock-bancolombia (modo fallo: ${CUR:-0} → $WANT_FAIL)"
+      fi
       lsof -ti:"$PORT" 2>/dev/null | xargs kill -9 2>/dev/null || true
       for _ in $(seq 1 10); do up || break; sleep 0.2; done
     fi

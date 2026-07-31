@@ -1679,12 +1679,79 @@ para un comercio Corbeta (lo que haría del canal asesor un camino imposible), y
 endpoint o de sus precondiciones, no del comercio. La hipótesis "el asesor no puede llegar a elegir en
 Corbeta" **queda sin sostén**: no la uses para justificar decisiones.
 
-**Consecuencia práctica** (para el panel del harness): esconder el canal asesor en comercios Corbeta NO se
-justifica con "está roto", porque hace algo y ese algo es correcto. Lo que sí se justifica es lo inverso:
-**el canal QR no tiene sentido en un comercio NO-Corbeta**, porque `RegisterCellPhoneController@oldIndex`
-sólo redirige al self-service a los allieds del `Setting('corbeta_allieds')`; para el resto el QR cae en
-`registrar-celular/{hash}`, que es el mismo tronco del asesor.
+**Consecuencia práctica** (para el panel del harness): **el QR no tiene sentido en un comercio NO-Corbeta**,
+porque `RegisterCellPhoneController@oldIndex` sólo redirige al self-service a los allieds del
+`Setting('corbeta_allieds')`; para el resto el QR cae en `registrar-celular/{hash}`, que es el mismo tronco
+del asesor.
+
+Al revés —esconder el asesor en Corbeta— **no se justifica con "está roto"**: hace algo y ese algo es
+correcto. El panel igual ofrece **sólo QR** en comercios Corbeta (decisión de Miguel, 2026-07-31), pero por
+otra razón: **no es el camino de producción** — en la caja de Alkosto el cliente entra escaneando, no hay
+asesor ni carrito. Es una baranda de la UI, no una prohibición: por CLI (`bin/asesor <comercio>`) el canal
+sigue disponible y sirve para ejercitar justo el handoff de arriba. La distinción importa porque el motivo
+queda escrito en el tooltip del panel, y "está roto" habría sido mentira.
 
 **Estado:** el handoff está verificado; la inferencia sobre el marketplace, retirada.
+
+---
+
+### F-86 · El regreso de una pantalla externa no se puede deducir del `document.referrer`: cross-origin el browser manda sólo el origen
+
+**Síntoma:** en el canal QR, después de la pantalla de autenticación simulada de Bancolombia (mock :8104),
+el cliente aterrizaba en **`/login`** — el login de **asesor** (Cognito) — dentro de un canal que es
+autogestión pura. La traza del run:
+
+```
+05 A /bancolombia/bnpl/start/JNDDQZFECD
+06 A /_login-simulado
+07 A /login        ← acá no debería estar nunca
+```
+
+**Hipótesis descartadas (verificadas contra `origin/main`):**
+
+| se sospechó | se comprobó |
+|---|---|
+| `loan-info` exige sesión | `layouts/bancolombia/origination-layout.tsx` no tiene loader ni sesión ni redirect |
+| el loader manda a login | `GET /bancolombia/bnpl/loan-info/{code}?code=…` responde **200 sin sesión** |
+| algún redirect a `/login` en la ruta | en TODO el monorepo sólo hay 3 (`backoffice/logout`, `auth/callback`, y el action de `personal-info`), ninguno alcanzable desde ahí |
+
+**Causa raíz:** el harness deducía el destino de regreso transformando `document.referrer`
+(`/start/` → `/loan-info/`). Pero el wizard vive en `:5174` y el mock en `:8104`: **son orígenes
+distintos**, y la política default del browser (`strict-origin-when-cross-origin`) recorta el referrer a
+**`http://localhost:5174/`, sin path**. El `replace('/start/', …)` no encontraba nada, el destino quedaba
+en `/` — y **`/` → 302 `/merchant` → `/login`** (verificado con `curl -D -`). El `/login` no era una falla
+del flujo de Bancolombia: era el wizard haciendo lo correcto con una URL raíz.
+
+Ojo con el diagnóstico: el referrer **no llegaba vacío**, llegaba *truncado*. Por eso el guard
+`if (!ref)` no saltaba y no había ningún error — sólo un destino silenciosamente equivocado.
+
+**Arreglo:** el retorno se **registra**, no se adivina. El mock expone `POST /_control/retorno {url}` y el
+harness se lo dice en cuanto la URL del wizard muestra `/bancolombia/{tipo}/start/{encryptCode}` — ahí
+están el código y el producto, exactos. El referrer queda sólo como respaldo y **únicamente si trae
+`/start/`**; sin destino conocido la página ya no navega a ninguna parte, avisa.
+
+**Regla general:** cualquier mock que sirva una pantalla en su propio puerto y tenga que devolver el
+control al front está en esta situación. El referrer sirve para *loguear*, no para *navegar*.
+
+---
+
+### F-87 · `bin/mock-* start` reusaba el proceso viejo: editabas el mock y seguía sirviendo la versión anterior
+
+**Síntoma:** se corrige un mock, se vuelve a correr el panel, y el comportamiento es idéntico al de antes
+del arreglo. Sin error, sin aviso: `✓ mock-bancolombia ya arriba (:8104)`.
+
+**Causa raíz:** el `start` de los launchers decidía reusar mirando **sólo el modo fallo**
+(`fail: 0|1`). Si el puerto respondía y el modo coincidía, salía por `exit 0` — y el proceso vivo tenía el
+`server.mjs` **anterior** cargado en memoria (Node no recarga el módulo).
+
+**Arreglo:** cada mock publica en `GET /` una huella de su propio código
+(`codigo` = mtime en segundos de su `server.mjs`, vía `statSync(fileURLToPath(import.meta.url))`) y el
+launcher la compara con el archivo en disco: si difieren, reinicia y lo dice
+(«el proceso tiene código viejo en memoria»). Aplicado a `mock-bancolombia` (:8104) y `mock-corbeta`
+(:8103), verificado con el ciclo start → start → `touch` → start.
+
+**Parentesco:** es el mismo error de método que el log del wizard sin truncar (un artefacto viejo leído
+como si fuera actual). Cuando un arreglo "no hace nada", **la primera pregunta es si lo que está corriendo
+es el código que editaste** — no si el arreglo está mal.
 
 ---

@@ -692,8 +692,13 @@ test('guided (semiautomático)', async ({ browser }) => {
             income: Number(process.env.E2E_SYNTH_INCOME) || 2_500_000,
         };
         let rellenando = false;
+        // El autorrelleno es para los formularios DEL CLIENTE. Fuera del recorrido no tiene nada que hacer:
+        // en `/login` (Cognito, asesor) y `/merchant/*` llegó a escribir `firstName=SYNTH` en el login
+        // cuando el regreso del banco se desviaba para allá. Ahí se calla.
+        const ajeno = () => /^\/(login|logout|merchant|auth)(\/|$)/.test(new URL(page.url()).pathname);
         const rellenar = async (motivo: string) => {
             if (rellenando) return;                 // una pasada a la vez: navegar dispara varios eventos
+            if (ajeno()) return;
             rellenando = true;
             try {
                 await page.waitForTimeout(700);      // que hidrate: si se escribe antes, React lo pisa
@@ -702,7 +707,37 @@ test('guided (semiautomático)', async ({ browser }) => {
             } catch { /* el autorrelleno es un extra: nunca frena la corrida */ }
             rellenando = false;
         };
-        page.on('framenavigated', (f) => { if (f === page.mainFrame()) void rellenar('nav'); });
+
+        // ── EL REGRESO DEL BANCO ────────────────────────────────────────────────────────────────────
+        // La pantalla `/bancolombia/{tipo}/start/{encryptCode}` manda al cliente a autenticarse al banco
+        // (el mock :8104). Volver de ahí no puede deducirse del referrer —cross-origin, el browser recorta
+        // a "http://localhost:5174/" y el regreso caía en `/` → `/merchant` → **`/login`** (el login de
+        // asesor, en un canal autoasistido). Acá SÍ se conoce el destino exacto: el `encryptCode` y el
+        // producto están en la URL. Se le registra al mock en cuanto aparece.
+        let retornoPuesto = '';
+        const registrarRetorno = async () => {
+            const m = page.url().match(/\/bancolombia\/(bnpl|consumo)\/start\/([^/?#]+)/);
+            if (!m) return;
+            const destino = new URL(page.url());
+            destino.pathname = destino.pathname.replace('/start/', '/loan-info/');
+            destino.searchParams.set('code', 'mock-auth-code');
+            if (destino.toString() === retornoPuesto) return;
+            retornoPuesto = destino.toString();
+            const bc = process.env.MOCK_BC_URL || 'http://localhost:8104';
+            const ok = await fetch(`${bc}/_control/retorno`, {
+                method: 'POST',
+                headers: { 'content-type': 'application/json' },
+                body: JSON.stringify({ url: retornoPuesto }),
+            }).then((r) => r.ok).catch(() => false);
+            log(ok ? `retorno del banco registrado: ${retornoPuesto}` : `⚠ no pude registrar el retorno en el mock (${bc})`);
+        };
+
+        page.on('framenavigated', (f) => {
+            if (f !== page.mainFrame()) return;
+            void registrarRetorno();
+            void rellenar('nav');
+        });
+        await registrarRetorno();
         await rellenar('aterrizaje');
         tip('Todo lo rellenable ya está puesto: vos sólo dale CONTINUAR en cada pantalla.');
 

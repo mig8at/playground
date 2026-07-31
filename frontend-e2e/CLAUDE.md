@@ -40,6 +40,12 @@ que distingue "ventana cerrada" y **tira** (`dev/guided.spec.ts:538-545`); el re
   sintético REAL de la BD local (por eso ocupa el `:4000` que el `.env` del wizard ya apunta). Ver F-70.
 - **`mock-pdf-mapper` no lo levanta nadie.** Si tu flujo toca la vinculación de Credifamilia, corré
   `bin/mock-pdf-mapper start` vos.
+- **Si editás un mock, asegurate de que el proceso que corre sea ese código** (F-87). Node no recarga el
+  módulo: `start` veía el puerto respondiendo y salía con `✓ ya arriba`, sirviendo la versión anterior — el
+  arreglo no se aplicaba y **nada lo avisaba**. `mock-bancolombia` y `mock-corbeta` ya lo resuelven solos:
+  publican en `GET /` la huella `codigo` (mtime de su `server.mjs`) y su launcher reinicia si difiere. Los
+  otros mocks **todavía no**: ahí reiniciá a mano (`bin/<mock> stop && bin/<mock> start`). Y cuando un
+  arreglo "no hace nada", la primera pregunta es si lo que corre es lo que editaste.
 
 ## Dos caminos, y cada uno tiene su dueño
 
@@ -252,17 +258,18 @@ el producto en sus 3 sitios — no la lista `[24,209,210,211]` a mano, que serí
 
 | Comercio | Canales que ofrece | Por qué |
 |---|---|---|
-| **Corbeta** (`corbeta_allieds`) | qr · asesor · ecommerce | los tres aplican |
+| **Corbeta** (`corbeta_allieds`) | **sólo qr** | en la caja de Alkosto el cliente entra escaneando: no hay asesor ni carrito. El panel corre el recorrido de PRODUCCIÓN |
 | Cualquier otro | asesor · ecommerce | **el QR no aplica**: `oldIndex` sólo redirige al self-service a los allieds del setting; para el resto cae en `registrar-celular/{hash}`, que es el mismo tronco del asesor → ofrecerlo sería una perilla que no mueve nada |
 
-Dos decisiones a respetar si lo tocás:
+Tres decisiones a respetar si lo tocás:
 
 - **El canal que no aplica se DESHABILITA, no se esconde** (con `title` explicando por qué). Verlo apagado
   dice que existe y que acá no corresponde; esconderlo hace creer que no existe.
-- **En Corbeta el asesor SÍ se ofrece.** Se verificó que ahí no está roto (F-85): al elegir Bancolombia el
-  asesor no cierra nada — el flujo se **entrega al celular del cliente** (`explicacion-de-flujo` + modal de
-  WhatsApp, estado 1→3) y aterriza en las mismas pantallas del canal QR. Es un paso previo, no un recorrido
-  alternativo, y el hint del panel lo dice. Esconderlo sería esconder algo que sí hace algo.
+- **En Corbeta el asesor se apaga por NO SER EL CAMINO DE PRODUCCIÓN, no porque falle.** Cuidá el motivo si
+  reescribís el tooltip: está verificado que ahí **no está roto** (F-85) — al elegir Bancolombia el asesor no
+  cierra nada, el flujo se **entrega al celular del cliente** (`explicacion-de-flujo` + modal de WhatsApp,
+  estado 1→3) y aterriza en las mismas pantallas del canal QR. El gate es una baranda del panel: por CLI
+  (`bin/asesor <comercio>`) el canal sigue disponible y es la forma de ejercitar ese handoff.
   ⚠ Se intentó justificar esconderlo con "el marketplace no lista para Corbeta" y **eso es falso**:
   `lenders-v2` da 404 igual en un comercio no-Corbeta. No reuses esa inferencia.
 - Si cambiás de comercio y el canal elegido deja de aplicar, se cae al primero permitido; si sigue
@@ -329,10 +336,17 @@ Tres cosas que hay que saber para que el canal llegue al final:
   `/_login-simulado`; Consumo devuelve `data.security.urlAuthenticate` → `/_autenticacion`. Servir una sola
   dejaba a la otra cayendo en el catch-all, y el cliente veía **`{"data":{"status":"OK"}}` crudo en el
   navegador** en vez de una pantalla. Las dos rutas apuntan a la misma página simulada.
-- **La página vuelve a `loan-info`, no al referrer.** Volver a donde vino sería un loop: `start` justamente
-  redirige al banco. El wizard espera el regreso en `/bancolombia/{tipo}/loan-info/{code}?code=…` (su loader
-  exige el `code` y tira 400 sin él), así que la página transforma `/start/` → `/loan-info/` conservando el
-  encryptCode. Sirve para los dos productos.
+- **El regreso del banco se REGISTRA, no se deduce del referrer** (F-86). El wizard espera al cliente en
+  `/bancolombia/{tipo}/loan-info/{code}?code=…` (su loader exige el `code` y tira 400 sin él) — volver a
+  `/start/` sería un loop, porque start es justamente quien redirige al banco. El spec ve la URL
+  `/bancolombia/{tipo}/start/{encryptCode}` y le dice el destino exacto al mock por
+  **`POST :8104/_control/retorno {url}`**.
+  ⚠ **No vuelvas a intentarlo con `document.referrer`**: el wizard (:5174) y el mock (:8104) son orígenes
+  distintos y la política default del browser (`strict-origin-when-cross-origin`) recorta el referrer a
+  `http://localhost:5174/` **sin path**. Llega truncado, no vacío, así que ningún guard salta: la
+  transformación no encontraba `/start/`, el destino quedaba en `/`, y **`/` → `/merchant` → `/login`** — el
+  cliente terminaba en el login de **asesor** en un canal autoasistido. Hoy el referrer es sólo respaldo y
+  únicamente si trae `/start/`; sin destino conocido la página avisa en vez de navegar.
 - **Ojo al editar ese HTML: vive dentro de un template literal del server.** Un backtick en un comentario del
   `<script>` lo termina y el mock no arranca (`missing ) after argument list`). Ya pasó una vez.
 - **`urlAuthenticate`, no `urlDynamicKey`.** El front lee `payload.data.security.urlAuthenticate`
@@ -340,8 +354,8 @@ Tres cosas que hay que saber para que el canal llegue al final:
   llega **undefined**, `/bancolombia/consumo/start/{code}` explota con `Cannot read properties of undefined
   (reading 'value')` y muestra el banner genérico «hubo un problema con el proceso» — que no menciona ningún
   campo. `mock-bancolombia` manda las dos y **sirve una página de autenticación simulada** en
-  `/_autenticacion`: no simula la seguridad, simula el REGRESO al flujo con el `code` (bounce al referrer),
-  que es lo que el wizard espera. Mismo patrón que `mock-bank/index.html` para los otros lenders.
+  `/_autenticacion`: no simula la seguridad, simula el REGRESO al flujo con el `code` (al destino registrado,
+  ver arriba), que es lo que el wizard espera. Mismo patrón que `mock-bank/index.html` para los otros lenders.
 - **⚠ El input VISIBLE no siempre tiene `name`.** Es al revés de lo intuitivo: react-hook-form lo controla
   por `Controller` y el atributo queda sólo en el `<input type=hidden name=X>` espejo. Verificado en el
   registro, donde `[name=phoneNumber]` matchea **sólo** el hidden y llenarlo no cambia nada en pantalla. Por

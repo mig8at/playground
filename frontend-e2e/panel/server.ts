@@ -740,10 +740,15 @@ const server = createServer(async (req, res) => {
     //    self-service ÚNICAMENTE a los allieds del `Setting('corbeta_allieds')`; para el resto el QR cae
     //    en `registrar-celular/{hash}`, que es el mismo tronco del asesor → ofrecerlo sería una perilla
     //    que no mueve nada (mismo criterio que `CAPS`).
-    //  · **Asesor se ofrece SIEMPRE, incluso en Corbeta.** Verificado: ahí no está roto — seleccionar
-    //    Bancolombia devuelve un handoff al celular del cliente (`explicacion-de-flujo` + modal de
-    //    WhatsApp, estado 1→3) y aterriza en las mismas pantallas del self-service. Esconderlo sería
-    //    esconder algo que sí hace algo; lo que corresponde es DECIRLO en el hint.
+    //  · **En Corbeta, SÓLO QR.** Decisión de Miguel, y es la correcta para lo que el panel es: correr el
+    //    recorrido de PRODUCCIÓN. En un comercio Corbeta el cliente entra escaneando el QR de la caja; no
+    //    hay asesor ni carrito. Ofrecer los otros dos invitaba justo a la confusión que apareció en la
+    //    primera corrida.
+    //    ⚠ Ojo con el "por qué": asesor en Corbeta **no está roto** (F-85, verificado — devuelve un handoff
+    //    al celular del cliente, `explicacion-de-flujo` + modal de WhatsApp, estado 1→3, y aterriza en las
+    //    mismas pantallas del self-service). Se apaga porque NO ES EL CAMINO DE PRODUCCIÓN, no porque falle.
+    //    El gate es una baranda del panel, no una prohibición: por CLI sigue disponible
+    //    (`bin/asesor <slug>` no consulta esta política).
     if (path === '/api/canales') {
         const slug = (url.searchParams.get('slug') || '').trim();
         const target = (url.searchParams.get('target') || 'local').trim();
@@ -759,7 +764,7 @@ const server = createServer(async (req, res) => {
         const corbeta = !!(r as any).corbeta;
         return json(res, 200, {
             hash, corbeta, alliedId: (r as any).alliedId ?? null,
-            canales: corbeta ? ['qr', 'asesor', 'ecommerce'] : ['asesor', 'ecommerce'],
+            canales: corbeta ? ['qr'] : ['asesor', 'ecommerce'],
         });
     }
 

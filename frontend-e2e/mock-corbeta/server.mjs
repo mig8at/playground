@@ -56,7 +56,12 @@
 
 import http from 'node:http';
 import { randomBytes } from 'node:crypto';
+import { statSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 
+/** Huella del CÓDIGO en memoria: `bin/mock-corbeta start` la compara con el archivo en disco para no
+ *  reusar un proceso viejo después de editar el mock (decía «ya arriba» y servía la versión anterior). */
+const CODIGO = Math.floor(statSync(fileURLToPath(import.meta.url)).mtimeMs / 1000);
 const PORT = Number(process.env.MOCK_CORBETA_PORT || 8103);
 const FAIL = process.env.MOCK_CORBETA_FAIL === '1';
 let failRuntime = FAIL;   // se puede togglear por /_control/fail sin reiniciar
@@ -90,7 +95,7 @@ const server = http.createServer(async (req, res) => {
     // ── estado (lo consume bin/mock-corbeta para saber si hay que reiniciar por cambio de modo) ──
     if (ruta === '/' && req.method === 'GET') {
         return json(res, 200, {
-            mock: 'corbeta-api-fondos', puerto: PORT, fail: failRuntime,
+            mock: 'corbeta-api-fondos', puerto: PORT, fail: failRuntime, codigo: CODIGO,
             ordenes: [...ordenes.values()],
         });
     }

@@ -1697,13 +1697,13 @@
         b.style.opacity = ok ? '' : '.4';
         b.title = ok ? '' : (b.dataset.c === 'qr'
           ? 'El QR sólo aplica a comercios del grupo Corbeta: para el resto cae en el flujo normal, que es el mismo del asesor.'
+          : esCorbeta
+          ? 'En un comercio Corbeta el camino de producción es el QR de la caja: el cliente entra escaneando, sin asesor '
+            + 'ni carrito. (Asesor acá no está roto: entrega el flujo al celular del cliente por WhatsApp y termina en las '
+            + 'mismas pantallas del QR. Se apaga por no ser el recorrido real; si lo necesitás, por CLI: bin/asesor <comercio>.)'
           : 'Este canal no aplica a este comercio.');
       });
-      $('canalhint').innerHTML = canal === 'asesor' && esCorbeta
-        ? 'Login de asesor (Cognito) y el wizard abre en monto. <b>Ojo en Corbeta:</b> al elegir Bancolombia el asesor '
-          + 'no cierra nada — el flujo se ENTREGA al celular del cliente (link por WhatsApp) y sigue en las mismas '
-          + 'pantallas del canal QR. El asesor es un paso previo, no un recorrido alternativo.'
-        : canal === 'asesor'
+      $('canalhint').innerHTML = canal === 'asesor'
         ? 'Login de asesor (Cognito) y el wizard abre en monto.'
         : canal === 'qr'
         ? 'El cliente escanea el QR en la CAJA de un comercio Corbeta (Alkosto/K-TRONIX/Alkomprar): autogestión pura, sin asesor. '

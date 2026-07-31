@@ -56,6 +56,13 @@
 
 import http from 'node:http';
 import { randomUUID, randomBytes } from 'node:crypto';
+import { statSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+
+/** Huella del CÓDIGO que este proceso tiene en memoria. `bin/mock-bancolombia start` la compara con el
+ *  archivo en disco: si editás el mock y el proceso viejo sigue vivo, `start` decía «ya arriba» y seguía
+ *  sirviendo la versión anterior — el arreglo no se aplicaba y nada lo avisaba. */
+const CODIGO = Math.floor(statSync(fileURLToPath(import.meta.url)).mtimeMs / 1000);
 
 const PORT = Number(process.env.MOCK_BC_PORT || 8104);
 const FAIL = process.env.MOCK_BC_FAIL === '1';
@@ -81,6 +88,13 @@ const CUENTA = {
 const llamadas = [];
 let txId = null;          // el bnplTransactionId vigente (BNPL)
 let sessionToken = null;  // el sessionToken vigente (Consumo)
+/** A dónde vuelve el cliente después de "autenticarse" en el banco. Lo REGISTRA el harness (ver
+ *  `/_control/retorno`), porque deducirlo del `document.referrer` no funciona: el wizard (:5174) y este
+ *  mock (:8104) son ORÍGENES DISTINTOS y la política default del browser
+ *  (`strict-origin-when-cross-origin`) recorta el referrer a `http://localhost:5174/` — sin path. Con eso
+ *  la transformación /start/ → /loan-info/ no aplicaba, el regreso caía en `/`, y `/` → `/merchant` →
+ *  **`/login`**: el cliente terminaba en el login de ASESOR en un canal autoasistido. */
+let retorno = null;
 
 const json = (res, code, body) => {
     res.writeHead(code, { 'content-type': 'application/json' });
@@ -112,9 +126,16 @@ const server = http.createServer(async (req, res) => {
     const body = parse(raw, req.headers['content-type'] || '');
 
     if (path === '/' && req.method === 'GET') {
-        return json(res, 200, { mock: 'bancolombia', puerto: PORT, fail: FAIL, escenario: esc, transactionId: txId, llamadas: llamadas.slice(-25) });
+        return json(res, 200, { mock: 'bancolombia', puerto: PORT, fail: FAIL, codigo: CODIGO, escenario: esc, transactionId: txId, retorno, llamadas: llamadas.slice(-25) });
     }
-    if (path === '/_control/reset') { llamadas.length = 0; txId = null; sessionToken = null; log('control: reset'); return json(res, 200, { ok: true }); }
+    if (path === '/_control/reset') { llamadas.length = 0; txId = null; sessionToken = null; retorno = null; log('control: reset'); return json(res, 200, { ok: true }); }
+    // El harness registra acá a dónde volver: él SÍ conoce el `encryptCode` (lo ve en la URL
+    // `/bancolombia/{tipo}/start/{code}` del wizard) y el producto. Sin esto el regreso es adivinanza.
+    if (path === '/_control/retorno') {
+        retorno = typeof body.url === 'string' && body.url ? body.url : null;
+        log(`control: retorno ${retorno ?? '(limpio)'}`);
+        return json(res, 200, { ok: true, retorno });
+    }
     if (path === '/_control/escenario') {
         for (const k of Object.keys(esc)) if (body[k] !== undefined) esc[k] = body[k];
         log(`control: escenario ${JSON.stringify(esc)}`);
@@ -150,25 +171,32 @@ flujo con el <code>code</code> que el wizard espera.</p>
 <button onclick="volver()">Autenticarme y volver</button>
 <p style="opacity:.6;font-size:.8rem" id=d></p></div>
 <script>
-  // A DÓNDE VOLVER. El referrer es la pantalla que nos mandó (/bancolombia/{tipo}/start/{code}) pero
-  // volver AHÍ sería un loop: start justamente redirige al banco. El wizard espera el regreso en
-  // LOAN-INFO con el code en la query (su loader lo exige y tira 400 sin él), así que se transforma
-  // /start/ -> /loan-info/ conservando el encryptCode. Vale para los dos productos: bnpl y consumo
-  // tienen los dos su loan-info/{encrypt_code}.
+  // A DÓNDE VOLVER. El wizard espera el regreso en LOAN-INFO con el code en la query (su loader lo exige
+  // y tira 400 sin él); volver a /start/ sería un loop, porque start es justamente quien redirige al banco.
+  //
+  // ⚠ NO se deduce del referrer. El wizard (:5174) y este mock (:8104) son orígenes distintos, y la
+  // política default del browser (strict-origin-when-cross-origin) manda SÓLO el origen: el referrer llega
+  // como "http://localhost:5174/", sin path. La transformación /start/ -> /loan-info/ no encontraba nada,
+  // el destino quedaba en "/", y "/" redirige a /merchant y de ahí a /login: el cliente terminaba en el
+  // login de ASESOR dentro de un canal autoasistido. Por eso manda el retorno que REGISTRA el harness
+  // (POST /_control/retorno) y el referrer queda sólo como respaldo, y únicamente si trae /start/.
   // (Sin backticks a propósito: este script vive DENTRO de un template literal del server y un backtick
   //  acá lo termina — ya rompió el mock una vez.)
-  const ref = document.referrer;
-  const destino = () => {
-    if (!ref) return null;
+  const fijo = ${JSON.stringify(retorno)};
+  const delReferrer = () => {
+    const ref = document.referrer;
+    if (!ref || !ref.includes('/start/')) return null;   // sin path útil no se inventa un destino
     const u = new URL(ref);
     u.pathname = u.pathname.replace('/start/', '/loan-info/');
     u.searchParams.set('code', 'mock-auth-code');
     return u.toString();
   };
-  const d = destino();
-  document.getElementById('d').textContent = d ? 'volverá a: ' + d : 'sin referrer: entrá por el flujo del wizard';
+  const d = fijo || delReferrer();
+  document.getElementById('d').textContent = d
+    ? 'volverá a: ' + d
+    : 'no hay retorno registrado: entrá por el flujo del wizard (el harness lo registra al pasar por /start/)';
   function volver() {
-    if (!d) return alert('No hay referrer: entrá por el flujo del wizard, no abriendo esta URL a mano.');
+    if (!d) return alert('No hay retorno registrado. Entrá por el flujo del wizard: el harness lo registra al pasar por /start/. Abrir esta URL a mano no alcanza.');
     location.href = d;
   }
 </script>`);
