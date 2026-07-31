@@ -129,6 +129,34 @@ const server = http.createServer(async (req, res) => {
     if (FAIL) return err(res, 500, 'SP500', 'Error interno (MOCK_BC_FAIL=1)');
     if (esc.errorCode) return err(res, 409, esc.errorCode, 'Error forzado por escenario del mock');
 
+    // ── PÁGINA de autenticación simulada del banco ────────────────────────────────────────────────
+    // El flujo de Consumo manda al cliente a autenticarse en Bancolombia (clave dinámica) y vuelve con un
+    // `code`. Sin una página real acá, el front navega a un JSON y el recorrido visual muere. Mismo patrón
+    // que `mock-bank/index.html` para los otros lenders: no simula la seguridad, simula el REGRESO.
+    if (tail('/_autenticacion') && req.method === 'GET') {
+        res.writeHead(200, { 'content-type': 'text/html; charset=utf-8' });
+        return res.end(`<!doctype html><meta charset=utf-8><title>Bancolombia · autenticación simulada</title>
+<style>body{font:16px/1.5 system-ui;margin:0;display:grid;place-items:center;height:100vh;background:#111;color:#eee}
+.c{max-width:24rem;text-align:center;padding:2rem}b{color:#ffd400}
+button{font:inherit;padding:.7rem 1.4rem;border:0;border-radius:.5rem;background:#ffd400;color:#111;cursor:pointer}</style>
+<div class=c><h1>Clave dinámica</h1>
+<p>Autenticación <b>simulada</b> de Bancolombia (mock del harness). No valida nada: reproduce el REGRESO al
+flujo con el <code>code</code> que el wizard espera.</p>
+<button onclick="volver()">Autenticarme y volver</button>
+<p style="opacity:.6;font-size:.8rem" id=d></p></div>
+<script>
+  // Se vuelve al lugar de donde vino (el referrer es la pantalla del wizard que nos mandó) agregando el
+  // \`code\`. Si no hay referrer —abriste esta página a mano— se dice, en vez de redirigir a ciegas.
+  const ref = document.referrer;
+  document.getElementById('d').textContent = ref ? 'volverá a: ' + ref : 'sin referrer: abrila desde el wizard';
+  function volver() {
+    if (!ref) return alert('No hay referrer: entrá por el flujo del wizard.');
+    const u = new URL(ref); u.searchParams.set('code', 'mock-auth-code');
+    location.href = u.toString();
+  }
+</script>`);
+    }
+
     // OAuth2 (form-encoded). El caller lee token_type/expires_in/scope y usa el access_token.
     if (tail('/oauth2/token')) {
         return json(res, 200, {
@@ -212,7 +240,19 @@ const server = http.createServer(async (req, res) => {
         return json(res, 200, {
             data: {
                 status: 'Success', validate: 'Success',
-                security: { customerValidateKey: key, sessionToken: sessionToken ?? (sessionToken = `mock-session-${randomBytes(16).toString('hex')}`), urlDynamicKey: `http://localhost:${PORT}/_clave-dinamica-simulada` },
+                // ⚠ LA CLAVE ES `urlAuthenticate`, no `urlDynamicKey`. El front la lee exactamente así:
+                // `login-redirect.uc.ts:19` → `result.payload.data.security.urlAuthenticate`. Con la otra
+                // clave el `url` llega **undefined**, la pantalla `/bancolombia/consumo/start/{code}` explota
+                // con `Cannot read properties of undefined (reading 'value')` y muestra el banner genérico
+                // «hubo un problema con el proceso» — que no dice nada del campo faltante.
+                // (El nodo `ms-preapprovals` ya lo decía: el challenge de Consumo son `urlAuthenticate` +
+                // `customerValidateKey`.) Se manda también `urlDynamicKey` por si algún consumidor la usa.
+                security: {
+                    customerValidateKey: key,
+                    sessionToken: sessionToken ?? (sessionToken = `mock-session-${randomBytes(16).toString('hex')}`),
+                    urlAuthenticate: `http://localhost:${PORT}/_autenticacion`,
+                    urlDynamicKey: `http://localhost:${PORT}/_autenticacion`,
+                },
             },
         });
     }

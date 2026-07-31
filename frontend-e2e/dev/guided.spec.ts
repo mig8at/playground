@@ -11,7 +11,7 @@ import { one, exec } from '../pkg/db';
 import * as traza from '../pkg/trace';
 import { urlCheckout, seguirCheckout } from '../pkg/checkout-b64';
 import { qrEntryUrl, corbetaBranch, sucursalUsable } from '../pkg/qr';
-import { fillQrRegister, fillQrOtp, otpDeTelefono, autorrellenarQr } from '../pkg/qr-steps';
+import { autorrellenarQr } from '../pkg/qr-steps';   // fillQrRegister/fillQrOtp los usan los specs de channel/, no el guiado: acá el harness rellena y el usuario clickea
 import { close } from '../pkg/db';
 import { PREVIEW, IPHONE_UA, isExternalUrl, openA, openB } from '../pkg/windows';
 import { mockWompiHostedCheckout } from '../pkg/wompi-mock';
@@ -706,22 +706,24 @@ test('guided (semiautomático)', async ({ browser }) => {
         await rellenar('aterrizaje');
         tip('Todo lo rellenable ya está puesto: vos sólo dale CONTINUAR en cada pantalla.');
 
-        // En GUIADO además se envía por vos (registro + OTP); en manual el click es tuyo.
-        if (process.env.E2E_GUIDED === '1') {
-            const doc = process.env.E2E_SYNTH_DOC || String(2_900_000_000 + (Number(AMOUNT) || 0) % 90_000_000);
-            const avanzo = await fillQrRegister(page, { phone: PHONE, document: doc });
-            log(avanzo ? `registro QR enviado (tel ${PHONE} · doc ${doc}) → OTP` : '⚠ el registro QR no avanzó al OTP');
-            await shot(page, 'qr-registro');
-            if (avanzo) {
-                // El OTP son los últimos 4 del teléfono, y el teléfono tiene que estar en
-                // `qa_otp_bypass_phones` (mismo bypass que el tronco).
-                const donde = await fillQrOtp(page, { phone: PHONE, code: otpDeTelefono(PHONE) });
-                log(`el OTP resolvió → ${donde}${donde === 'no-preapproved' ? ' (la sucursal no dio cupo: revisá que tenga 68 y 100 habilitados)' : ''}`);
-                await shot(page, `qr-otp-${donde}`);
-            }
-        } else {
-            tip('Autogestión: registrá el celular y seguí el OTP. El producto (BNPL o Consumo) lo decide el OTP, no vos.');
-        }
+        // ⚠ EL CANAL QR TERMINA ACÁ, en los DOS modos: `holdOpen` + `return`.
+        //
+        // Lo que sigue abajo es la secuencia del TRONCO (monto → celular → OTP → personal-info → lenders) y
+        // para este canal no aplica. Cuando corría, el paso de OTP del tronco tipeaba el código **a su
+        // manera encima** del que ya había puesto el autorrelleno y la pantalla contestaba «verifica el
+        // código e inténtalo de nuevo»; después se quedaba esperando `/personal-info|lenders`, que en este
+        // recorrido no existen, hasta que la ventana se cerraba. Excluir sólo la rama manual no alcanzaba:
+        // la guiada estaba después y se ejecutaba igual.
+        //
+        // Y no se distingue guiado de manual porque en este canal son lo mismo: el harness ESCRIBE y el
+        // usuario CLICKEA (que es la definición de guiado de la casa). El autorrelleno sigue enganchado a
+        // cada navegación durante todo el `holdOpen` — los eventos de CDP siguen llegando con el runner
+        // pausado.
+        await shot(page, 'qr-listo');
+        tip('Recorré el flujo dando CONTINUAR: cada pantalla se autorrellena sola. '
+            + '(para terminar: cerrá la ventana o «Detener» en el panel)');
+        await holdOpen(page);
+        return;
     } else if (ENTRY === 'ecommerce') {
         // ── ENTRADA POR ECOMMERCE (URL base64) ────────────────────────────────────────────────────────
         // La tienda serializa el pedido en base64; el backend lo decodifica, CREA la solicitud y redirige

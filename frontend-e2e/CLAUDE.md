@@ -320,6 +320,18 @@ Tres cosas que hay que saber para que el canal llegue al final:
   financiero, los selects (primera opción real), los radios y los checkboxes. **Nunca aprieta Continuar** —
   si lo hiciera, el camino visual dejaría de ser visual. Va por navegación y no como secuencia fija porque
   el recorrido tiene **7 formularios** y su orden depende del producto que resuelva el OTP.
+- **El canal QR TERMINA en su propia rama** (`holdOpen` + `return`). Lo que sigue en el spec es la
+  secuencia del TRONCO y no aplica: cuando corría, su paso de OTP tipeaba el código **encima** del que ya
+  había puesto el autorrelleno y la pantalla contestaba «verifica el código e inténtalo de nuevo»; después
+  esperaba `/personal-info|lenders`, que en este recorrido no existen, hasta que la ventana se cerraba.
+  Excluir sólo la rama manual **no alcanza**: la guiada está después y se ejecuta igual.
+- **`urlAuthenticate`, no `urlDynamicKey`.** El front lee `payload.data.security.urlAuthenticate`
+  (`login-redirect.uc.ts:19`) para mandar al cliente a autenticarse en Consumo. Con la otra clave el `url`
+  llega **undefined**, `/bancolombia/consumo/start/{code}` explota con `Cannot read properties of undefined
+  (reading 'value')` y muestra el banner genérico «hubo un problema con el proceso» — que no menciona ningún
+  campo. `mock-bancolombia` manda las dos y **sirve una página de autenticación simulada** en
+  `/_autenticacion`: no simula la seguridad, simula el REGRESO al flujo con el `code` (bounce al referrer),
+  que es lo que el wizard espera. Mismo patrón que `mock-bank/index.html` para los otros lenders.
 - **⚠ El input VISIBLE no siempre tiene `name`.** Es al revés de lo intuitivo: react-hook-form lo controla
   por `Controller` y el atributo queda sólo en el `<input type=hidden name=X>` espejo. Verificado en el
   registro, donde `[name=phoneNumber]` matchea **sólo** el hidden y llenarlo no cambia nada en pantalla. Por
