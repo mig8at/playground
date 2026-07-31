@@ -1485,3 +1485,84 @@ O sea: **la fianza anticipada es el caso real** (338 comercios) y la mensualizad
 - **Al normalizar**, el `administrative_costs_percentage` no es opcional: es parte de la base.
 - **El IVA al 19 % cableado debería ser un dato con fecha**, no una constante en el código: fue 16 % hasta 2017. Misma deuda que el techo de usura.
 - Prototipo con las dos bases (neto y bruto) como opción explícita: `playground/engine` — ver su README.
+
+## O · El código de compra en caja (Corbeta → Bancolombia)
+
+### F-79 · El canal del código de compra está APAGADO desde enero de 2026 — si no ves códigos, no es tu bug
+
+**Síntoma:** vas a ejercitar el código de compra en punto de venta (el PIN que el cliente presenta en caja de Alkosto/K-TRONIX/Alkomprar) y no encontrás casos vivos: ninguna solicitud reciente en el estado que habilita el endpoint, ningún código emitido. Se lee como "el ambiente está mal sembrado" o "rompí algo".
+
+**Causa raíz verificada — el canal dejó de emitir, aunque el tráfico sigue entrando.** Medido sobre la copia local de la BD (dump fresco al **2026-07-30**, o sea NO es falta de datos recientes):
+
+| | |
+|---|---|
+| `purchase_codes` emitidos por mes | oct-25 **6.605** · nov-25 **9.682** · dic-25 1.905 · ene-26 **18** · feb-26 **3** · mar-26 **5** · abr–jul **0** |
+| Solicitudes en estado **25** (`Pendiente de facturación`) con lender 68 | 119 en total, la última de **2026-03**; **cero** desde abril |
+| Solicitudes de los retail Corbeta (209/210/211) | **siguen entrando**: mar-26 111 · abr 112 · may 56 · jun 68 |
+| Estado **26** (`Facturado`) en toda la historia del dump | **10**, todas entre sep y dic de 2025 |
+| Dónde terminan las de 2026 | 99 en estado 9 · **85 Canceladas** · 22 Autorizadas (11) · **0 en estado 25** |
+
+Es decir: los comercios siguen originando, pero el camino ya **no pasa por el estado 25**, que es requisito duro del guard del código (ver F-82). Y el ciclo completo (facturar en caja → estado 26) se cerró 10 veces en total.
+
+**Evidencia adicional:** en el mismo período `ecommerce_requests` sólo tiene filas de **jun-26 (22)** y **jul-26 (4)** → el canal ecommerce unificado es reciente y chico. De las 119 solicitudes en estado 25, **118 no tienen `ecommerce_request`**: son del camino clásico de `application`.
+
+**Qué hacer.** Antes de depurar el código de compra o de sembrar un caso, asumí que **no hay tráfico vivo** y construí el caso a mano por el flujo del QR. Y antes de estimar un reemplazo de proveedor, preguntá **por qué se apagó**: cambiar quién emite el código no arregla un embudo que se corta antes.
+
+**Estado:** medido y reproducible con las consultas de arriba. La CAUSA del apagado (comercial, técnica o de flujo) **no está determinada** — es la primera pregunta para negocio.
+
+---
+
+### F-80 · `bnpl_transaction_id` falta en el 96 % de las solicitudes elegibles, y NO es un bug del front
+
+**Síntoma:** el identificador que Bancolombia exige para emitir el código (`data.security.transactionId`) no está en `lender_integration_flows` para casi ninguna solicitud que podría pedir código. Un diagnóstico previo lo reportó como **0 de 120** y lo levantó como bloqueante, con la hipótesis de que "el front usa `ListAccountsAndQuota`, que no escribe la clave".
+
+**La hipótesis del front es incorrecta — verificado en `origin/main`.** El wizard llama a **los dos** endpoints, en orden: el **loader** de `apps/loan-request-wizard/app/routes/bancolombia/bnpl/loan-info-view.tsx:96` usa `RetrieveBnplQuotaUc` → `bancolombia-bnpl/retrieve-quota` → **ese sí escribe** la clave (`BancolombiaBnplController.php:238`); el **action** (`:189`) usa `ListBnplAccountsQuotaUc` → `list-accounts-and-quota` → ese no escribe nada y la lee con `?? null` (`BancolombiaBnplController.php:477`). Lo mismo en `bancolombia/ecommerce/ecommerce-loan-processing.tsx` (`:254` retrieve / `:339` list).
+
+**Causa raíz verificada — la población está MEZCLADA, no hay bug.** De las 119 solicitudes en estado 25 con lender 68, **118 no tienen `ecommerce_request`**: vienen del **camino clásico de `application`** (`PurchaseCodeController::show()`, server-rendered), que **nunca toca los endpoints del wizard** y por lo tanto nunca escribe en `lender_integration_flows`. Las que sí tienen la clave son **5 de 119** (no 0 de 120), y ninguna es del camino ecommerce. Globalmente el lender 68 tiene **223** filas de flow y **147** con la clave — o sea el camino de escritura funciona; simplemente no es el que atendió a esa población.
+
+**Qué hacer.** No busques el bug en el front. Si una tarea necesita el `transactionId`, la pregunta correcta es **por qué camino entró la solicitud**: por el QR/wizard (lo escribe) o por el clásico de `application` (no). Verificación de una línea antes de implementar: entrar por el QR en dev, llegar al paso del código y confirmar que la fila de flow ya trae `bnpl_transaction_id`.
+
+**Ojo con las cifras entre ambientes:** el diagnóstico previo vio 0/120 y **29** flows del 68; la copia local da 5/119 y **223**. Son entornos distintos — no discutas conclusiones sin fijar de dónde salió el número.
+
+**Estado:** causa raíz verificada contra código + BD. El equivalente para Consumo (`loan_validate_key`) no se pudo medir: **cero** solicitudes de lender 100 han estado en estado 25.
+
+---
+
+### F-81 · El sandbox del *In Store Billing Code* responde 409 a cualquier dato real, y no ejercita la seguridad
+
+**Síntoma:** probás `POST /generateBillingCode` contra el sandbox de Bancolombia con datos de un `user_request` real y siempre vuelve **409 `BP12700001`** ("conflicto debido a la data de petición"). Se lee como un conflicto de negocio o como credenciales mal armadas.
+
+**Causa raíz verificada — el mock despacha por igualdad estricta del JSON completo.** El dispatcher vive **dentro del propio OpenAPI** (`x-microcks-operation`, `dispatcher: SCRIPT`, Groovy): parsea el body y lo compara con `requestJSON == <ejemplo>` contra **cuatro juegos literales** de valores (transactionId + address + cityCode + departmentCode). Cualquier otra combinación cae en `DefaultResponse`, que para **ambas** operaciones es `409 BP12700001`. Para `retrieve-order-details` el dispatch es más simple: mapea por `billingCode` (`1770694a38b230dbf0f0` facturada · `6f1e621130c0ea7b4161` pendiente · `48799a34f861da1d561b` cancelada · `5aa5078c6d9087cdf158` sin-información), default igual 409.
+
+**Y el sandbox tampoco valida la seguridad:** en el catálogo `Sandbox` el `tlsProfileJWT` está **vacío** y no hay `endpointRetrieve` (todo va a Microcks). Pasar en sandbox **no** prueba el JWT ni el mTLS: eso se prueba contra `Development`/`Testing`.
+
+**Qué hacer.**
+- Un 409 en sandbox = "no coincidiste con un escenario", no un error de negocio. Para ejercitar el camino feliz hay que mandar **exactamente** los valores del escenario, dirección incluida.
+- Primer smoke test: **`HEAD /health`**, que no exige ninguna cabecera → aísla "host/TLS caído" de "mi firma está mal".
+- Para el mapeo de datos reales, el sandbox es inútil: hay que hacerlo con `Http::fake()` en tests propios.
+
+**Bonus verificado del contrato:** `message-id` está **validado como UUID v4 por regex** (no es una recomendación: otro formato = `SA400`), y `billingStatus` **no es un enum** (`string maxLength 35`; los tres valores viven sólo en la descripción) → cualquier `switch` sobre el estado necesita un `default` fail-closed.
+
+**Estado:** verificado leyendo el OpenAPI (2.661 líneas) el 2026-07-31. Detalle completo del contrato en el nodo `bancolombia` §6.
+
+---
+
+### F-82 · El guard del código de compra está escrito en NEGATIVO y se lee al revés
+
+**Síntoma:** dos diagnósticos read-only del mismo archivo se contradijeron sobre si el estado 25 **habilita** o **excluye** la generación del código. La diferencia era material: todas las cifras de elegibilidad se habían calculado asumiendo que habilita.
+
+**Causa raíz verificada.** `Modules/Onboarding/App/Services/merchants/PurchaseCodeService.php:106` es una **guarda de salida temprana**:
+
+```php
+if (!$allied || !$this->isCorbetaAllied((int) $allied->id) || $userRequest->user_request_status_id != 25 || !in_array($userRequest->lender_id, [68, 100])) {
+    …  return $this->buildResponse('PCS000');   // no genera
+}
+```
+
+El `!= 25` está **dentro** del `if` que aborta → para pasar hay que cumplir `== 25`. **El estado 25 habilita.** Y su nombre en `user_request_statuses` lo confirma: **"Pendiente de facturación"**.
+
+**Qué hacer.** Al citar una condición de este tipo, transcribir el `if` completo o decir explícitamente "para pasar hace falta X". Media línea copiada de una guarda negativa invierte el sentido y arrastra todas las cifras que dependan de ella.
+
+**Estado:** resuelto. Las cifras calculadas asumiendo que 25 habilita son las correctas.
+
+---
