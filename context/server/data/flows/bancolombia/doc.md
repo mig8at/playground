@@ -135,6 +135,30 @@ config-driven al estilo `EcommerceNotifier`, `departmentCode = substr(cityCode,0
 (2026-07-29) y corresponde al tablero.** Acá quedan sólo los hechos del código actual y los datos duros
 que sostienen esas decisiones.
 
+**El contrato del servicio nuevo (verificado contra el OpenAPI, 2026-07-31 — `openapi 3.0.1`, IBM API
+Connect, `x-flow-type: No Monetario`, `x-architecture-layer: Composición`):**
+
+| | |
+|---|---|
+| Path base | `/v1/operations/product-specific/loans/consumer-loan/in-store-billing-code/code-management` |
+| Operaciones | `POST /generateBillingCode` (info **Pública**) · `GET /retrieve-order-details?billingCode` (info **Interna**) · **`HEAD /health`** |
+| Auth | 5 headers: `Client-Id` + `Client-Secret` (los dos, `security` global → **cierra D9**) · `json-web-token` · `x-client-certificate` · `message-id` |
+| Request de generate | 4 campos: `transactionId` **5–400** · `address` **1–20** ("Dirección de residencia **del cliente**") · `cityCode` **5–20** · `departmentCode` **2–20** |
+| Respuesta | `data.billingCode`, **1–30** |
+| `orderInformation` | requeridos `invoiceId`·`billingCode`·`billingStatus`·`totalAmount` (100–999.999.999)·`createDateTime`; opcionales `invoiceAmount` (**mínimo 0**)·`invoiceDateTime`·`updateDateTime` |
+| Errores | `SA400` · `BP21000` (409, sólo generate) · `BP12700001` (409, ambas) · `BP40421052` (404, **sólo retrieve**) · `SP500/502/503/504`. El código va en **`errors[0].code`** |
+| Detrás del gateway | APIC es fachada: reenvía a un **FaaS de órdenes** del banco (`faas/order/api/v1/{createOrder,consultOrder}` en `ecosistemas-int*.apps.bancolombia.com`). Útil para localizar una falla: gateway vs backend |
+| Rate limit | `150/1second` |
+
+**Gotchas del contrato (verificados en el spec, no estaban en el handoff):**
+- **`message-id` está VALIDADO como UUID v4** por regex en el schema — no es una recomendación. Cualquier otro string → `SA400`.
+- **`billingStatus` NO es un enum**: es `string maxLength 35` y los tres valores (`INVOICED`/`PENDING_INVOICE`/`CANCELLED`) viven sólo en la *descripción*. Un `switch` sin `default` es una bomba de tiempo.
+- **`HEAD /health` no exige ninguna cabecera** — sonda de conectividad limpia para aislar "¿es el host/TLS o es mi firma?".
+- **El sandbox no ejercita la seguridad**: el catálogo Sandbox tiene `tlsProfileJWT` **vacío** y no tiene `endpointRetrieve` (todo va a Microcks). Pasar en sandbox **no** valida JWT ni mTLS.
+- **El JWT del catálogo NO es el nuestro**: `kid`/`issuer`/`sub: api-connect`/`expTime` (**3600** en dev/qa/sandbox, **120** en producción) describen el JWT que **APIC firma hacia su backend**. El header `json-web-token` del consumidor no tiene restricción documentada (`type: string`, sin pattern) → **no se puede concluir que nuestro JWT esté mal por no llevar `kid`/`scope`**; hay que preguntarlo. Ambas operaciones son `x-api-type: proxy-jwt`.
+- **La contradicción del `departmentCode` es del contrato, no nuestra**: el schema dice "según la **DIAN**, por ejemplo **05** = Antioquia" pero los 4 mocks usan `01`/`02`/`03` con ciudades `11001`/`05001`/`76001`; y el `example` del propio `cityCode` es `'01010'`, que tampoco es un código real. Ojo: el spec dice **DIAN**, no DANE.
+- **El dispatcher del sandbox vive DENTRO del spec** (`x-microcks-operation`, `dispatcher: SCRIPT`, Groovy). Confirmado al 100%: `generateBillingCode` compara **el JSON completo del request por igualdad estricta** contra 4 juegos literales; `retrieve-order-details` mapea por `billingCode` (`1770694a38b230dbf0f0` facturada · `6f1e621130c0ea7b4161` pendiente · `48799a34f861da1d561b` cancelada · `5aa5078c6d9087cdf158` sin-información). **En ambas el default es `409 BP12700001`** → con datos reales de un `user_request` el sandbox **siempre** responde 409.
+
 Datos duros re-verificados contra la copia local de la BD (respaldan el diseño):
 
 | Dato | Valor |
@@ -201,11 +225,12 @@ pantallas viejas `/consumo/*` del monolito. Es el bloqueo duro del cutover (ver 
 - ✅ **Qué es el `allied_id = 24`** (el único `case` sin comentario en `CodeGenerationService.php:22`): es **"Creditop"**, la cuenta de comercio propia de la casa, activa, con **21 lenders** habilitados. Está en `Setting('corbeta_allieds')` y en el switch, pero **no es un retail Corbeta** — conviene tenerlo en cuenta al medir "solicitudes Corbeta".
 
 ## Bitácora
+- **2026-07-31** (2ª pasada) — Se leyó el **OpenAPI del servicio nuevo** (Miguel lo aportó; 2.661 líneas). Confirma el §3 del handoff casi literalmente: los 4 catálogos y su scope único, los 5 headers, los 4 campos con sus límites exactos, los 8 códigos de error, el 404 sólo en retrieve, `orderInformation`, y los 4 escenarios de sandbox de cada operación. **Nada lo contradice.** Aporte neto: el dispatcher Groovy vive DENTRO del spec (`x-microcks-operation`) y el default de ambas operaciones es `409 BP12700001`; `message-id` está validado como UUID v4; `billingStatus` **no es enum**; `HEAD /health` no pide cabeceras; el catálogo Sandbox tiene `tlsProfileJWT` vacío (no ejercita la seguridad); en producción el `expTime` del JWT del gateway baja a **120s**; detrás de APIC hay un **FaaS de órdenes** del banco. Matiz: los `kid`/`issuer`/`sub` del catálogo son del JWT **de APIC hacia su backend**, no del `json-web-token` del consumidor → la sospecha de "nuestro JWT sin `kid`/`scope`" **no es deducible del contrato**, hay que preguntarla.
 - **2026-07-31** — Nodo creado (carve-out de `aggregator`). **145 archivos** validados con el oráculo (0 DROP) y verificados uno a uno contra `origin/main`. Motivo: el padre resumía toda la originación Bancolombia en una celda de tabla ("login→quota→purchase→origination") mientras el código real tiene 23 endpoints, 41 rutas de wizard, 4 layouts y un módulo DDD de 216 archivos; la cobertura curada era 8/19 archivos en legacy-backend y 5/216 en el módulo del front. Absorbe el handoff `bancolombia-billing-code-handoff.md` (Santiago Villaquiran, 2026-07-29) **sólo en su parte durable**: el diseño pendiente (D1–D9 + plan de 6 pasos) es tarea y va al tablero. Drift corregido del handoff: `routes/api.php:135`→**:137**, `config/services.php:297-304`→**:303-309**, `EcommerceRequestService` **no** está bajo `Services/Ecommerce/` (es `Modules/Onboarding/App/Services/EcommerceRequestService.php:537`), `SelfDevelopmentNotifier:56`→**:51**, `resolveCityCode:317-343`→**:436-459**, filtro por lender en `getStepsFromSession` `:50-52`→**:48**.
 
 ## Enlaces
 - Padre: **aggregator** (maquinaria genérica rt=1: `PreApprovedLenderService`, `LenderRetrievalService`, el filtro `[12,23,141,142,166]`, las Actions de los otros lenders, `UserRequestService` con el `case 1` y la tabla de canales).
 - **Cruce con `corbeta`** (que vive bajo `merchants`, no acá): son **dos ejes distintos** del marketplace — Corbeta es un **grupo de comercios**, Bancolombia es un **lender**. No se anidan en ninguna dirección: Corbeta usa sólo Bancolombia, pero Bancolombia lo usan 109 comercios. Ese nodo tiene el ciclo batch (checkout base64, PIN de la API Fondos, crons de conciliación, estado 26) y es quien **invoca** `bnplConfirmed`/`consumoConfirmed` de acá.
 - Pre-aprobación v2: **ms-preapprovals** (`bancolombia_bnpl` / `bancolombia_consumer_loan` en el MS Go: adapter + client + oauth2_strategy + `sandbox.go`; el challenge `urlAuthenticate`/`customerValidateKey` del Consumo). Deuda de ids: **hardcodes-entidades**. Cutover: **architecture**.
-- Fuentes: `Downloads/MOTAI/BANCOLOMBA/bancolombia-billing-code-handoff.md` (handoff, 2026-07-29) + `api_in-store-billing-code-code-management__1_.yaml` (OpenAPI del servicio nuevo — **no vive en ningún repo**, no verificable contra código).
+- Fuentes: `Downloads/MOTAI/BANCOLOMBA/bancolombia-billing-code-handoff.md` (handoff, 2026-07-29) + `Downloads/api_in-store-billing-code-code-management.yaml` (OpenAPI 3.0.1 del servicio nuevo, 2.661 líneas — **leído y verificado el 2026-07-31**; ⚠ **no vive en ningún repo, sólo en el Downloads de Miguel**: si se pierde, el contrato de arriba es la única copia. El oráculo no indexa `.yaml`, así que no puede ir en `files[]`).
 - Memorias: `modelos-canales-flujos`, `synth-lender-type-boundary`, `pre-approvals-service`, `migracion-application-a-legacy-estado`, `lender-listing-cascade`.
