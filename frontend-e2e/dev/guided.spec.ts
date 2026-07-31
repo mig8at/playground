@@ -11,6 +11,7 @@ import { one, exec } from '../pkg/db';
 import * as traza from '../pkg/trace';
 import { urlCheckout, seguirCheckout } from '../pkg/checkout-b64';
 import { qrEntryUrl, corbetaBranch } from '../pkg/qr';
+import { fillQrRegister, fillQrOtp, otpDeTelefono } from '../pkg/qr-steps';
 import { close } from '../pkg/db';
 import { PREVIEW, IPHONE_UA, isExternalUrl, openA, openB } from '../pkg/windows';
 import { mockWompiHostedCheckout } from '../pkg/wompi-mock';
@@ -672,7 +673,25 @@ test('guided (semiautomático)', async ({ browser }) => {
         await page.waitForURL(/self-service\/[^/]+\/(solicitar|\d+\/otp|no-preapproved)|\/bancolombia\/(bnpl|consumo)\/start\//, { timeout: PICK_TIMEOUT })
             .catch(() => log(`⚠ no aterrizó en una pantalla del canal QR — quedó en ${page.url()}`));
         await shot(page, 'qr-aterrizaje');
-        tip('Autogestión: registrá el celular y seguí el OTP. El producto (BNPL o Consumo) lo decide el OTP, no vos.');
+
+        // En GUIADO se prellenan las dos pantallas del self-service; en manual se deja al usuario.
+        // Las pantallas del módulo `bancolombia-origination` NO tienen data-testid (verificado), así que
+        // los helpers seleccionan por rol/etiqueta — ver pkg/qr-steps.ts.
+        if (process.env.E2E_GUIDED === '1') {
+            const doc = process.env.E2E_SYNTH_DOC || String(2_900_000_000 + (Number(AMOUNT) || 0) % 90_000_000);
+            const avanzo = await fillQrRegister(page, { phone: PHONE, document: doc });
+            log(avanzo ? `registro QR enviado (tel ${PHONE} · doc ${doc}) → OTP` : '⚠ el registro QR no avanzó al OTP');
+            await shot(page, 'qr-registro');
+            if (avanzo) {
+                // El OTP son los últimos 4 del teléfono, y el teléfono tiene que estar en
+                // `qa_otp_bypass_phones` (mismo bypass que el tronco).
+                const donde = await fillQrOtp(page, { phone: PHONE, code: otpDeTelefono(PHONE) });
+                log(`el OTP resolvió → ${donde}${donde === 'no-preapproved' ? ' (la sucursal no dio cupo: revisá que tenga 68 y 100 habilitados)' : ''}`);
+                await shot(page, `qr-otp-${donde}`);
+            }
+        } else {
+            tip('Autogestión: registrá el celular y seguí el OTP. El producto (BNPL o Consumo) lo decide el OTP, no vos.');
+        }
     } else if (ENTRY === 'ecommerce') {
         // ── ENTRADA POR ECOMMERCE (URL base64) ────────────────────────────────────────────────────────
         // La tienda serializa el pedido en base64; el backend lo decodifica, CREA la solicitud y redirige

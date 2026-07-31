@@ -253,6 +253,16 @@ Tres cosas que hay que saber para que el canal llegue al final:
   (`bancolombiaEncryptCode` en `pkg/qr.ts`). Ojo con el techo: del lado PHP `base_convert` va por float, así
   que arriba de `user_request_id ≈ 2^21` (2.097.152) el link del SMS y el decoder del front dejarían de
   coincidir. Hoy los ids van por ~400.000.
+- **Las pantallas `bancolombia/*` no tienen un solo `data-testid`** (verificado:
+  `git grep 'data-testid' modules/loan-request-wizard/bancolombia-origination` no devuelve nada). Por eso
+  `pkg/qr-steps.ts` selecciona por **rol y etiqueta accesible**, con el string exacto y la ruta del
+  componente en cada selector: si cambia un copy, se rompe, y así se sabe dónde mirar. La deuda real es
+  agregar testids a ese módulo — es un habilitador del harness, no un cambio de producto.
+- **El wizard local no arranca sin instalar el monorepo con pnpm.** Da
+  `Cannot find module '@radix-ui/react-collapsible'` (declarado en `packages/ui/package.json` y en el
+  lock, pero no materializado). ⚠ El monorepo usa **pnpm** (hay `node_modules/.pnpm`): un `npm install`
+  falla con `Cannot read properties of null (reading 'name')` — sin tocar el lock, pero sin instalar nada.
+  Es `pnpm install` en la raíz del monorepo.
 - **Para llegar al CÓDIGO DE COMPRA hace falta `mock-corbeta` (:8103)** y apuntar el backend:
   `CORBETA_HOST=http://host.docker.internal:8103`. `bin/asesor` lo levanta en `local`, pero el `.env` del
   backend lo tenés que tocar vos (igual que ábaco/payvalida). Ese mock reproduce **la sutileza que el
