@@ -221,59 +221,93 @@ playground ni F-xx).
 > server en ejecución. `create_task`/`dm` son mensajes del WS (los dispara el dashboard). El cliente Jira
 > ya sabe **crear, editar y transicionar** issues.
 
-## La bitácora y sus datos (SQLite)
+## Los datos: archivos, no base de datos
 
-El registro de tiempo vive en **`server/data/tablero.db`** (SQLite, gitignoreado; `TABLERO_DB` lo
-mueve). El esquema está en `server/internal/store/store.go` y está pensado **para análisis de
-tiempo**, no solo para que la UI recargue:
+Todo vive en **`tablero/data/`** — markdown y JSON, sin servidor de base de datos. Está **fuera de
+`server/`** a propósito: si el server algún día se reduce a un proxy de Jira/Slack, los datos no pueden
+vivir dentro de él. `TABLERO_DATA` mueve la carpeta.
 
-> **Convención de idioma:** columnas, identificadores y clases CSS en **inglés**; solo el texto
-> visible de la UI y los comentarios van en español.
+```
+data/
+  efforts/<slug>/effort.md   un archivo por esfuerzo (ver abajo)     → versionado en git
+  entries/2026-07.jsonl      la bitácora de tiempo, un archivo por mes → FUERA de git (dato personal)
+  settings.json              los flags del tablero                    → versionado
+  cache/jira.json            snapshot de Jira, descartable            → fuera de git
+  tareas-locales.json        anotaciones de tareas, sólo si hay alguna
+```
 
-- **`entries`** es la tabla de hechos: una fila = un bloque de tiempo trabajado. **`sprints`** y
-  **`tasks`** son dimensiones — snapshots de Jira que se upsertean *de pasada* cada vez que el
-  dashboard carga (navegar el tablero ES la sincronización). Los JOINs de análisis no dependen de
-  que Jira responda.
-- `started_at` es cuándo **empezó el trabajo** (RFC3339 con offset local); `created_at` es cuándo se
-  anotó. La brecha entre ambos —cuánto tardás en registrar— también es un dato.
-- `day` y `hour` desnormalizan el instante en hora **local**, porque las funciones de fecha de
-  SQLite convierten a UTC: agrupar por `strftime('%H', started_at)` movería "las 9am" a "las 14".
-  **Usá `day`/`hour`, no strftime sobre `started_at`.**
-- `minutes` (lo que pasó) convive con `uploaded_minutes` (lo que se publicó en Jira, cuando exista
-  la subida): ajustar al publicar es una decisión de publicación, no una reescritura de la verdad.
-- `task_key` puede ser NULL (`free_title` dice qué fue): reuniones y soporte no son tareas del
-  sprint, y forzarlos a una envenena el análisis.
-- La `note` es **publicable por construcción**: el guard (fuente única en `cmd/web/main.go`,
-  servido a la UI por `/api/guard`) corre en el server **antes** del INSERT. Nada en la base puede
-  filtrar el playground el día que la subida a Jira sea automática.
-- Borrado **suave** (`deleted_at`): el ✕ de la UI marca, no elimina.
+**Por qué se salió de SQLite:** eran 44 filas con un WAL de 1,9 MB para 139 KB de datos, pero el tamaño
+no era la razón. El detalle técnico de una tarea sólo se podía leer **por API**, así que el tablero era el
+único rincón del playground que un modelo no puede leer sin levantar un server — mientras `context/` es
+markdown que lee cualquiera. Y en archivos los esfuerzos tienen **historia en git**.
 
-Consultas que ya se pueden hacer (`sqlite3 server/data/tablero.db`):
+### El esfuerzo: un solo archivo, con la frontera del guard adentro
 
-```sql
--- ¿cuántas horas por día, últimos 30 días?
-SELECT day, ROUND(SUM(minutes)/60.0, 1) AS hours
-FROM entries WHERE deleted_at IS NULL GROUP BY day ORDER BY day DESC LIMIT 30;
+```markdown
+---
+id: 4
+title: "..."                     ← privado: nombra el esfuerzo, no sale de acá
+stage: tasks                     ← evaluation | work | tasks
+created: "..."
+context_nodes: [onboarding, kyc] ← a qué nodos de `context` apunta
+jira: [CORE-293]                 ← las tareas de Jira que salieron de este esfuerzo
+jira_title: "..."                ← PUBLICABLE: pasa el guard
+---
 
--- ¿cuánto costó cada tarea vs sus puntos? (horas por punto = mi caro/barato real)
-SELECT e.task_key, t.points, ROUND(SUM(e.minutes)/60.0, 1) AS hours,
-       ROUND(SUM(e.minutes)/60.0 / NULLIF(t.points, 0), 1) AS hours_per_point
-FROM entries e LEFT JOIN tasks t ON t.key = e.task_key
-WHERE e.deleted_at IS NULL GROUP BY e.task_key ORDER BY hours DESC;
+las notas técnicas: PRIVADO, puede nombrar repos, rutas y hallazgos
 
--- ¿en qué se va el tiempo? (progress vs test vs blocker)
-SELECT kind, ROUND(SUM(minutes)/60.0, 1) AS hours
-FROM entries WHERE deleted_at IS NULL GROUP BY kind ORDER BY hours DESC;
+## Tarea (publicable)
 
--- ¿mañana o tarde? (por eso existe `hour` local)
-SELECT CASE WHEN hour < 12 THEN 'mañana' WHEN hour < 14 THEN 'almuerzo' ELSE 'tarde' END AS block,
-       ROUND(SUM(minutes)/60.0, 1) AS hours
-FROM entries WHERE deleted_at IS NULL GROUP BY block;
+la descripción que va a Jira — PUBLICABLE: pasa el guard
+```
 
--- ¿cuánto por sprint? (JOIN con la dimensión local, sin tocar Jira)
-SELECT s.name, ROUND(SUM(e.minutes)/60.0, 1) AS hours
-FROM entries e JOIN sprints s ON s.id = e.sprint_id
-WHERE e.deleted_at IS NULL GROUP BY s.id ORDER BY s.start_date DESC;
+> **La regla en una frase:** todo lo que está fuera de `## Tarea (publicable)` nunca sale de local.
+
+Se probó con tres archivos (`effort.md` + `jira.md` + `jira.json`) para hacer *física* esa frontera y se
+descartó: **el guard es el mecanismo real** —corre sobre el texto antes de publicar y ataja repos, rutas y
+`F-xx`—, así que el archivo aparte era redundancia. Y el `jira.json` no llevaba nada: sus filas tenían
+sólo la clave de la tarea, o sea existía para guardar una lista.
+
+### La bitácora (`entries/`)
+
+Sigue pensada **para análisis de tiempo**, no sólo para que la UI recargue. Las decisiones que importan:
+
+> **Convención de idioma:** claves, identificadores y clases CSS en **inglés**; sólo el texto visible de
+> la UI y los comentarios van en español.
+
+- Un registro = un bloque de tiempo trabajado. El snapshot de Jira (`sprints`/`tasks`) es una **dimensión
+  descartable** en `cache/`: se upsertea de pasada cada vez que el dashboard carga — navegar el tablero ES
+  la sincronización.
+- `startedAt` es cuándo **empezó el trabajo** (RFC3339 con offset local); `createdAt` es cuándo se anotó.
+  La brecha entre ambos —cuánto tardás en registrar— también es un dato.
+- `day` y `hour` desnormalizan el instante en hora **local** y se calculan **al crear el registro**:
+  derivarlos después obliga a reinterpretar el offset, y ahí las 9am se convierten en las 14 sin que nadie
+  lo note. **Agrupá por `day`/`hour`, no recalcules desde `startedAt`.**
+- `minutes` (lo que pasó) convive con `uploadedMinutes` (lo que se publicó en Jira): ajustar al publicar es
+  una decisión de publicación, no una reescritura de la verdad.
+- `taskKey` puede ir vacío (`freeTitle` dice qué fue): reuniones y soporte no son tareas del sprint, y
+  forzarlos a una envenena el análisis.
+- La `note` es **publicable por construcción**: el guard (fuente única en `cmd/web/main.go`, servido a la
+  UI por `/api/guard`) corre en el server **antes** de escribir.
+- Borrado **suave** (`deletedAt`): el ✕ de la UI marca, no elimina.
+
+Es JSONL, así que el análisis se hace con `jq` en vez de SQL:
+
+```bash
+# ¿cuántas horas por día?
+jq -s 'map(select(.deletedAt|not)) | group_by(.day)[]
+       | {day: .[0].day, horas: (map(.minutes)|add/60|.*10|round/10)}' data/entries/*.jsonl
+
+# ¿en qué se va el tiempo? (dev vs test vs blocker)
+jq -s 'map(select(.deletedAt|not)) | group_by(.kind)[]
+       | {kind: .[0].kind, horas: (map(.minutes)|add/60|.*10|round/10)}' data/entries/*.jsonl
+
+# ¿mañana o tarde? (por eso existe `hour` local)
+# ⚠ se etiqueta ANTES de agrupar: `group_by` conserva el valor original, así que agrupar por la
+#   condición y leer `.[0]` devuelve la hora (9) en vez del bloque ("mañana").
+jq -s 'map(select(.deletedAt|not)
+       | if .hour < 12 then "mañana" elif .hour < 14 then "almuerzo" else "tarde" end)
+       | group_by(.)[] | {bloque: .[0], registros: length}' data/entries/*.jsonl
 ```
 
 Endpoints: `GET/POST /api/entries`, `DELETE /api/entries/{id}`, `GET /api/guard`.

@@ -24,7 +24,7 @@ Desde el **2026-07-21** son dos cosas distintas y no se mezclan:
 | Responde | *¿cómo **es** CreditOp?* | *¿en qué se está **trabajando**?* |
 | Contiene | contextos del sistema + el mapa del código (rutas validadas) | esfuerzos, tareas, tiempo, estado, borradores y claves de Jira |
 | Naturaleza | durable — sobrevive a las tareas | efímero — tiene estado y fecha |
-| Formato | markdown versionado, lo lee cualquier modelo | SQLite local (`tablero/server/data/`), por API |
+| Formato | markdown versionado, lo lee cualquier modelo | markdown + JSON en `tablero/data/` (un `effort.md` por esfuerzo) |
 
 **El árbol NO lleva nodos-tarea.** Un esfuerzo del tablero guarda su detalle técnico en `tech_notes`
 (privado, **sin guard** — puede nombrar archivos y repos) y a qué nodos apunta en `context_nodes`.
