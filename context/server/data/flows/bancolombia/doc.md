@@ -22,6 +22,12 @@ Consecuencia práctica: para trabajar acá **no alcanza el nodo padre**. El padr
 
 ## Contenido
 
+**Cuánto pesa (BD local, 2026-07-31):** el 68 está habilitado en **109 de 230** comercios y el 100 en
+**78**. No es un lender de nicho ni "el lender de Corbeta": es transversal. Los cuatro allieds del gate
+Corbeta (24/209/210/211) son **4 de esos 109** — y al revés sí es cierto que los tres retail
+(Alkosto/K-TRONIX/Alkomprar) tienen **sólo** 68 y 100 habilitados. El allied **24 = "Creditop"** (21
+lenders) es la cuenta propia de la casa, no un retail Corbeta.
+
 ### 1 · Dispatch por id (no hay config)
 `PreApprovedLenderService::validatePreApproveLender` bifurca por `$lender->id`: `:167` → `BancolombiaBnpl`
 (piso **$100.000**), `:193` → `BancolombiaConsumerLoan` (piso **$1.000.000** y además **fuerza**
@@ -192,12 +198,14 @@ pantallas viejas `/consumo/*` del monolito. Es el bloqueo duro del cutover (ver 
 - ✅ **El estado 25 habilita** (no excluye) en `PurchaseCodeService.php:106` → las cifras calculadas asumiendo que habilita son las correctas.
 - ✅ **`barcode_type` de los allieds 24/209/210/211 = `ean128`** → el riesgo de `ean13` (`^\d{12}$`) no aplica a este alcance.
 - ✅ **`country_zones` está sucio y `country_cities.code` está limpio** (números arriba) → derivar el departamento del código de ciudad es lo correcto.
+- ✅ **Qué es el `allied_id = 24`** (el único `case` sin comentario en `CodeGenerationService.php:22`): es **"Creditop"**, la cuenta de comercio propia de la casa, activa, con **21 lenders** habilitados. Está en `Setting('corbeta_allieds')` y en el switch, pero **no es un retail Corbeta** — conviene tenerlo en cuenta al medir "solicitudes Corbeta".
 
 ## Bitácora
 - **2026-07-31** — Nodo creado (carve-out de `aggregator`). **145 archivos** validados con el oráculo (0 DROP) y verificados uno a uno contra `origin/main`. Motivo: el padre resumía toda la originación Bancolombia en una celda de tabla ("login→quota→purchase→origination") mientras el código real tiene 23 endpoints, 41 rutas de wizard, 4 layouts y un módulo DDD de 216 archivos; la cobertura curada era 8/19 archivos en legacy-backend y 5/216 en el módulo del front. Absorbe el handoff `bancolombia-billing-code-handoff.md` (Santiago Villaquiran, 2026-07-29) **sólo en su parte durable**: el diseño pendiente (D1–D9 + plan de 6 pasos) es tarea y va al tablero. Drift corregido del handoff: `routes/api.php:135`→**:137**, `config/services.php:297-304`→**:303-309**, `EcommerceRequestService` **no** está bajo `Services/Ecommerce/` (es `Modules/Onboarding/App/Services/EcommerceRequestService.php:537`), `SelfDevelopmentNotifier:56`→**:51**, `resolveCityCode:317-343`→**:436-459**, filtro por lender en `getStepsFromSession` `:50-52`→**:48**.
 
 ## Enlaces
-- Padre: **aggregator** (maquinaria genérica rt=1: `PreApprovedLenderService`, `LenderRetrievalService`, el filtro `[12,23,141,142,166]`, las Actions de los otros lenders, `UserRequestService` con el `case 1` y la tabla de canales). Hermano: **corbeta** (el canal batch: checkout base64, crons de conciliación, estado 26, y quién **invoca** `bnplConfirmed`/`consumoConfirmed`).
+- Padre: **aggregator** (maquinaria genérica rt=1: `PreApprovedLenderService`, `LenderRetrievalService`, el filtro `[12,23,141,142,166]`, las Actions de los otros lenders, `UserRequestService` con el `case 1` y la tabla de canales).
+- **Cruce con `corbeta`** (que vive bajo `merchants`, no acá): son **dos ejes distintos** del marketplace — Corbeta es un **grupo de comercios**, Bancolombia es un **lender**. No se anidan en ninguna dirección: Corbeta usa sólo Bancolombia, pero Bancolombia lo usan 109 comercios. Ese nodo tiene el ciclo batch (checkout base64, PIN de la API Fondos, crons de conciliación, estado 26) y es quien **invoca** `bnplConfirmed`/`consumoConfirmed` de acá.
 - Pre-aprobación v2: **ms-preapprovals** (`bancolombia_bnpl` / `bancolombia_consumer_loan` en el MS Go: adapter + client + oauth2_strategy + `sandbox.go`; el challenge `urlAuthenticate`/`customerValidateKey` del Consumo). Deuda de ids: **hardcodes-entidades**. Cutover: **architecture**.
 - Fuentes: `Downloads/MOTAI/BANCOLOMBA/bancolombia-billing-code-handoff.md` (handoff, 2026-07-29) + `api_in-store-billing-code-code-management__1_.yaml` (OpenAPI del servicio nuevo — **no vive en ningún repo**, no verificable contra código).
 - Memorias: `modelos-canales-flujos`, `synth-lender-type-boundary`, `pre-approvals-service`, `migracion-application-a-legacy-estado`, `lender-listing-cascade`.

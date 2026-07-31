@@ -83,6 +83,7 @@ Puerto 1:1 del admin de comercios a legacy-backend. Rutas bajo `api/partners` (`
 - **Motai** — flujo Motai (comercio 158, in-platform rt=2): 3 productos CreditopX (crédito/renting/RTO) + Ábaco (info. complementaria, ingreso gig informativo).
 - **SmartPay** — canal in-platform (path IMEI): el celular como garantía, salta el AML de TusDatos, bloqueo por MDM.
 - **Pullman** — flujo CrediPullman/Pullman (rt=2 in-platform "vanilla"): el caso base de la familia CreditopX (hardcode `allied_id == 94`).
+- **Corbeta** — **grupo de comercios** de retail físico (Alkosto 209, K-TRONIX 210, Alkomprar 211; el allied 24 del gate es "Creditop", la cuenta propia de la casa, **no** un retail Corbeta). Único con **cierre en caja**: PIN → factura en tienda → conciliación batch → estado 26 Facturado. Los tres retail tienen **sólo 2 lenders habilitados** (Bancolombia 68 y 100) — su decisión de crédito es del nodo `bancolombia`, no de acá. *(Estaba bajo `aggregator` hasta el 2026-07-31; se re-parentó acá porque es un eje comercio, no una familia de prestamistas.)*
 
 ## Dónde mirar
 **Admin vivo — 3 capas** (`application`):
@@ -131,7 +132,7 @@ Puerto 1:1 del admin de comercios a legacy-backend. Rutas bajo `api/partners` (`
 - **2026-07-17** — Contexto sembrado desde playground/flow (nodos MerchantNode/ComercioNode/CanalNode/BranchStatusNode + fieldDocs `node.comercio`/`node.comercioConfig`/`node.canal`/`suc.status`) y MAP.md §S1-S2. Se conservan los subcontextos motai/smartpay/pullman.
 
 ## Enlaces
-- Padre: **CreditOp** (raíz). Contraparte: **Entities**. Subcontextos: **Motai**, **SmartPay**, **Pullman**.
+- Padre: **CreditOp** (raíz). Contraparte: **Entities**. Subcontextos: **Motai**, **SmartPay**, **Pullman**, **Corbeta**.
 - Memorias: `admin-anatomia-creditop` (anatomía del panel real ↔ código), `reglas-copia-por-sucursal` (la medición de ≈37.284 copias y la cadena de disparo), `reglas-comercio-lender-map` (las 4 capas de reglas), `lender-listing-cascade` (qué filtra y qué solo clasifica), `migracion-application-a-legacy-estado` (strangler y parallel-run), `modelos-canales-flujos`.
 - Simulador: playground/flow (nodos Comercio, Configurar comercio, Estado en sucursal, Canal) y `playground/flow/MAP.md` §S1-S2.
 - Docs históricos removidos de main: `git 159906a:docs/codigo/HALLAZGO-*` y `git 159906a:docs/codigo/ADMIN-ALTA-OPERACION.md`.

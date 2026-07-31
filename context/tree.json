@@ -273,6 +273,13 @@
       "parent": "merchants"
     },
     {
+      "id": "corbeta",
+      "name": "Corbeta",
+      "parent": "merchants",
+      "created": "2026-07-18T07:40:00Z",
+      "updated": "2026-07-31T00:00:00Z"
+    },
+    {
       "id": "credifamilia",
       "name": "Credifamilia",
       "targets": {
@@ -332,19 +339,6 @@
       "id": "harness",
       "name": "Harness",
       "parent": "architecture",
-      "targets": {
-        "application": "main",
-        "frontend-monorepo": "main",
-        "legacy-backend": "main"
-      },
-      "baseline": {},
-      "created": "2026-07-18T07:40:00Z",
-      "updated": "2026-07-18T07:40:00Z"
-    },
-    {
-      "id": "corbeta",
-      "name": "Corbeta",
-      "parent": "aggregator",
       "targets": {
         "application": "main",
         "frontend-monorepo": "main",

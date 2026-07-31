@@ -20,7 +20,6 @@
   - entities [ref]
     - aggregator [ref]
       - bancolombia [ref]
-      - corbeta [ref]
     - credifamilia [ref]
     - creditopx [ref]
       - amount-tiers [ref]
@@ -32,6 +31,7 @@
       - form-service [ref]
   - hardcodes-entidades [ref]
   - merchants [ref]
+    - corbeta [ref]
     - motai [ref]
     - pullman [ref]
     - smartpay [ref]
@@ -72,8 +72,8 @@ Doc: `server/data/flows/architecture/doc.md` · Archivos: `server/data/flows/arc
 Doc: `server/data/flows/bancolombia/doc.md` · Archivos: `server/data/flows/bancolombia/map.json` · Padre: `aggregator`
 
 ### corbeta — Corbeta  ·  _reference_ · 28 archivos
-**Cuándo:** Cuando la venta se cierra en caja física de un retail Corbeta (Alkosto 209 / K-Tronix 210 / Alkomprar 211, allied 24) — checkout ecommerce base64 → PIN de la API Fondos → factura en tienda → conciliación batch por PIN → estado 26 Facturado → confirmación diferida a Bancolombia (BNPL lender 68 / Consumo lender 100).
-Doc: `server/data/flows/corbeta/doc.md` · Archivos: `server/data/flows/corbeta/map.json` · Padre: `aggregator`
+**Cuándo:** Cuando la tarea es del GRUPO DE COMERCIOS Corbeta (retail físico: Alkosto 209 / K-TRONIX 210 / Alkomprar 211; el allied 24 del gate es 'Creditop', la cuenta propia de la casa) y la venta se cierra en CAJA: checkout ecommerce base64 → PIN de la API Fondos → factura en tienda → conciliación batch por PIN → estado 26 Facturado → confirmación diferida al lender. Sus tres retail tienen SÓLO Bancolombia habilitado (68 BNPL / 100 Consumo): la decisión de crédito y los endpoints de originación son del nodo `bancolombia`.
+Doc: `server/data/flows/corbeta/doc.md` · Archivos: `server/data/flows/corbeta/map.json` · Padre: `merchants`
 
 ### credifamilia — Credifamilia  ·  _reference_ · 134 archivos
 **Cuándo:** Cuando la tarea toca Credifamilia (lender 24, el único response_type=4): radicación por SOAP, KYC V2 (Evidente/CrossCore/Jumio), plan de cuotas dinámico, o el gate local que hace que no aparezca en pruebas.

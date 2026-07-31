@@ -1,9 +1,7 @@
 {
   "name": "Corbeta",
-  "combination": "corbeta",
-  "group": "aggregator",
   "kind": "reference",
-  "when": "Cuando la venta se cierra en caja física de un retail Corbeta (Alkosto 209 / K-Tronix 210 / Alkomprar 211, allied 24) — checkout ecommerce base64 → PIN de la API Fondos → factura en tienda → conciliación batch por PIN → estado 26 Facturado → confirmación diferida a Bancolombia (BNPL lender 68 / Consumo lender 100).",
+  "when": "Cuando la tarea es del GRUPO DE COMERCIOS Corbeta (retail físico: Alkosto 209 / K-TRONIX 210 / Alkomprar 211; el allied 24 del gate es 'Creditop', la cuenta propia de la casa) y la venta se cierra en CAJA: checkout ecommerce base64 → PIN de la API Fondos → factura en tienda → conciliación batch por PIN → estado 26 Facturado → confirmación diferida al lender. Sus tres retail tienen SÓLO Bancolombia habilitado (68 BNPL / 100 Consumo): la decisión de crédito y los endpoints de originación son del nodo `bancolombia`.",
   "files": [
     "legacy-backend/Modules/Onboarding/App/Http/Controllers/CorbetaCheckoutController.php",
     "legacy-backend/Modules/Onboarding/App/Services/CorbetaUserRequestService.php",

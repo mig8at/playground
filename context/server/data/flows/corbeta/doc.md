@@ -1,8 +1,21 @@
-# Corbeta (subnodo de `aggregator`)
+# Corbeta (subnodo de `merchants`)
 
-Corbeta **no es un lender**: es un **canal BATCH de e-commerce** para el grupo de retail físico de
-Corbeta (Alkosto=209, K-Tronix=210, Alkomprar=211; también aparece el allied 24 y en un webhook el
-311). El crédito lo resuelve Bancolombia (rt=1) a través de dos productos — **BNPL (lender 68)** y
+> **⚠ RE-PARENTADO el 2026-07-31: de `aggregator` a `merchants`.** Corbeta es un **GRUPO DE COMERCIOS**
+> (`allieds`), no una familia de prestamistas. Vivía bajo `aggregator` por su acoplamiento a Bancolombia,
+> pero eso confundía los dos ejes del marketplace. Misma regla que `motai` (comercio 158 en `merchants`)
+> vs MotaiX (su lender, en `entities`). **La relación con Bancolombia no es de contención en ninguna
+> dirección** (números verificados en BD el 2026-07-31): los tres retail Corbeta tienen **exactamente 2
+> lenders, 68 y 100** — para ellos Bancolombia no es el principal, es el **único**; pero Bancolombia está
+> habilitado en **109 de 230 comercios** (el 100 en 78), así que **no es "el lender de Corbeta"**. Se
+> cruzan: acá vive el lado COMERCIO (quién vende, cómo cierra la venta en caja, la conciliación); el lado
+> PRESTAMISTA vive en el nodo hermano **`bancolombia`** (bajo `aggregator`).
+
+Corbeta **no es un lender**: es un **grupo de comercios de retail físico** (Alkosto=209, K-Tronix=210,
+Alkomprar=211) con un **canal BATCH** propio. Ojo con el cuarto id del gate: **allied 24 = "Creditop"**,
+la cuenta propia de la casa (tiene 21 lenders habilitados, no 2) — está en `corbeta_allieds` y en el
+`switch` del código, pero **no es un retail Corbeta**; es el único `case` sin comentario en
+`CodeGenerationService.php:22`. En un webhook aparece además el 311. El crédito lo resuelve Bancolombia
+(rt=1) a través de dos productos — **BNPL (lender 68)** y
 **Consumo / Crédito de libre inversión (lender 100)** — pero lo que hace a Corbeta un nodo propio es
 su **ciclo diferido**: el cliente sale del checkout con un **PIN** (orden pre-generada en el sistema
 de cajas "API Fondos" de Corbeta), va a la tienda física, factura en caja, y **CreditOp se entera
@@ -164,7 +177,7 @@ consulta órdenes de HOY, indexa por PIN (`keyBy('pin')`), y **si cambió el val
 - Consumo (`InvoiceProcessCorbeta`, lender 100): arma el request con `purchase_date=fechaFacturacion`
   y `customer_validate_key` (de `LenderIntegrationFlow.data.loan_validate_key`) y llama
   **`BancolombiaConsumerLoan::consumoConfirmed()`** (`:89-90`). Éxito = `data.status == 'Recibida'`
-  → `save()`. [BancolombiaConsumerLoan vive en el PADRE aggregator.]
+  → `save()`. [BancolombiaConsumerLoan vive en el nodo `bancolombia`.]
 - BNPL (`InvoiceProcessCorbetaBnpl`, lender 68): usa `order_id` de `latestLenderTransaction` y llama
   **`BancolombiaBnpl::bnplConfirmed()`** (`:87-88`).
 - Tras confirmar, marca `purchaseCode.barcode_checked = true` (evita re-procesar el código).
@@ -195,13 +208,18 @@ consulta órdenes de HOY, indexa por PIN (`keyBy('pin')`), y **si cambió el val
 
 ---
 
-## Fronteras (qué queda en el PADRE `aggregator`, no duplicar)
+## Fronteras (qué NO duplicar acá)
 
-- **Maquinaria genérica rt=1**: `PreApprovedLenderService`, `LenderRetrievalService`,
-  `Integration.php` genérico, y las Actions **Bancolombia** (`Bancolombia`, `BancolombiaBnpl`,
-  `BancolombiaConsumerLoan`, `BancolombiaConsumerLoanOfferEvaluation`), Sistecrédito, Welli, Addi,
-  Meddipay, BancoDeBogotá. Corbeta **invoca** `BancolombiaBnpl::bnplConfirmed()` y
-  `BancolombiaConsumerLoan::consumoConfirmed()` pero esas clases son del padre.
+- **Padre `merchants`**: alta y configuración de comercio/sucursal, `lenders_by_allieds` /
+  `lenders_by_allied_branches`, la copia de reglas por sucursal, credenciales de ecommerce. Acá sólo
+  vive lo **distintivo** de Corbeta: el gate `corbeta_allieds`, el PIN de caja y el ciclo batch.
+- **Nodo `bancolombia`** (bajo `aggregator`, hermano-cruzado): **todo el lado prestamista** — las Actions
+  (`Bancolombia`, `BancolombiaBnpl`, `BancolombiaConsumerLoan`, `…OfferEvaluation`), los 23 endpoints de
+  originación, JWT RS256 + mTLS, los escenarios sandbox y el `purchase-code/generate` de legacy-backend.
+  Corbeta **invoca** `BancolombiaBnpl::bnplConfirmed()` y `BancolombiaConsumerLoan::consumoConfirmed()`
+  pero esas clases son de ese nodo.
+- **Nodo `aggregator`**: maquinaria genérica rt=1 (`PreApprovedLenderService`, `LenderRetrievalService`,
+  `Integration.php`, y las Actions de Sistecrédito, Welli, Addi, Meddipay, BancoDeBogotá).
 - Todo el árbol React de `bancolombia-origination` / `lenders-marketplace` (pre-aprobación, retry,
   transaction-status, purchase-code Bancolombia) es genérico aggregator; aquí solo viven los 4
   archivos ecommerce/cancel específicos de Corbeta.
