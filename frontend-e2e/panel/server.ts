@@ -584,7 +584,7 @@ const server = createServer(async (req, res) => {
         const MOCKS: Array<[string, number]> = [
             ['pre-aprobaciones', 8095], ['redirect', 8096], ['payvalida', 8097], ['mdm/IMEI', 8098],
             ['entidades', 8099], ['pdf-mapper', 8100], ['forms', 8101], ['ábaco', 8102],
-            ['corbeta/fondos', 8103],
+            ['corbeta/fondos', 8103], ['bancolombia', 8104],
             ['fin-health', Number(process.env.MOCK_FINHEALTH_PORT) || 4000],
         ];
         const vivo = (p: number) => new Promise<boolean>((ok) => {

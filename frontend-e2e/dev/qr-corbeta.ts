@@ -1,6 +1,14 @@
 // qr-corbeta.ts — el CANAL QR de punta a punta, por API y SIN NAVEGADOR.
 //
-//   node dev/qr-corbeta.ts [--branch <hash>] [--amount 1500000] [--facturar] [--keep]
+//   node dev/qr-corbeta.ts [--producto bnpl|consumo] [--branch <hash>] [--amount 1500000] [--facturar] [--keep]
+//
+// LOS DOS PRODUCTOS de Bancolombia son DOS integraciones distintas, no un flag cosmético:
+//   · `bnpl`    (lender 68)  → 8 pasos · el insumo del código es `bnpl_transaction_id`, lo escribe
+//                              SOLO `retrieve-quota` · sella el 25 con `data.status='PENDIENTE DESEMBOLSO'`
+//   · `consumo` (lender 100) → 11 pasos · el insumo es `loan_validate_key`, lo escribe SOLO
+//                              `redirect-user-validate` · sella el 25 con `data.payment.status='pendiente'`
+//                              y ADEMÁS depende de un `sessionToken` que nace en `/customers/authenticate`
+//                              y del que cuelgan siete pasos.
 //
 // Recorre la misma secuencia de endpoints que las pantallas del wizard cuando un cliente escanea el QR
 // en la CAJA de un comercio Corbeta, y reporta cada paso con su HTTP status + lo que se movió en la BD.
@@ -74,6 +82,14 @@ const opt = (n: string, d = '') => { const i = argv.indexOf(n); return i >= 0 ? 
 const AMOUNT = Number(opt('--amount', '1500000')) || 1_500_000;
 const FACTURAR = flag('--facturar');
 const KEEP = flag('--keep');
+/** `bnpl` (lender 68) o `consumo` (lender 100). Son DOS integraciones distintas, no un flag cosmético. */
+const PRODUCTO = (opt('--producto', 'bnpl') || 'bnpl').toLowerCase() === 'consumo' ? 'consumo' : 'bnpl';
+const LENDER = PRODUCTO === 'consumo' ? 100 : 68;
+// El insumo que cada producto persiste en `lender_integration_flows` y que el servicio nuevo de
+// Bancolombia va a exigir como `transactionId` para emitir el código.
+const CLAVE_TX = PRODUCTO === 'consumo' ? 'loan_validate_key' : 'bnpl_transaction_id';
+// El paso que la ESCRIBE (el único, en los dos productos).
+const PASO_TX = PRODUCTO === 'consumo' ? 'user-validate' : 'retrieve-quota';
 
 // ── salida ────────────────────────────────────────────────────────────────────────────────────────
 const pasos: Array<{ n: string; ok: boolean | null; detalle: string }> = [];
@@ -114,7 +130,7 @@ const estado = (ur: string) => one<{ s: number; l: number | null }>(
     'SELECT user_request_status_id AS s, lender_id AS l FROM user_requests WHERE id=?', [ur]);
 
 // ── 0 · PREFLIGHT ─────────────────────────────────────────────────────────────────────────────────
-console.log(`\n▶ CANAL QR · Corbeta — flujo por API (target ${process.env.E2E_TARGET})\n`);
+console.log(`\n▶ CANAL QR · Corbeta · producto ${PRODUCTO.toUpperCase()} (lender ${LENDER}) — flujo por API (target ${process.env.E2E_TARGET})\n`);
 
 const branchArg = opt('--branch');
 const br = branchArg
@@ -139,9 +155,9 @@ P('mock-corbeta', !!mockUp, mockUp ? `:${mockUp.puerto} · ${mockUp.ordenes?.len
 
 const cred = await one<{ n: number }>(
     `SELECT COUNT(*) n FROM lender_allied_credentials
-     WHERE lender_id = 68 AND ((allied_type LIKE '%AlliedBranch%' AND allied_id = ?) OR (allied_type LIKE '%Allied%' AND allied_id = ?))`,
-    [br.id, br.alliedId]);
-P('credencial lender 68', (cred?.n ?? 0) > 0, (cred?.n ?? 0) > 0
+     WHERE lender_id = ? AND ((allied_type LIKE '%AlliedBranch%' AND allied_id = ?) OR (allied_type LIKE '%Allied%' AND allied_id = ?))`,
+    [LENDER, br.id, br.alliedId]);
+P(`credencial lender ${LENDER}`, (cred?.n ?? 0) > 0, (cred?.n ?? 0) > 0
     ? `${cred!.n} fila(s) para la sucursal/comercio`
     : 'NINGUNA → los pasos de Bancolombia van a morir antes del primer HTTP (findOrFailByLenderAndAlly)');
 
@@ -174,30 +190,59 @@ const asesorId = (ASESOR_SUB
     ?? null;
 
 const ins = await exec(
-    'INSERT INTO user_requests (user_id, allied_id, allied_branch_id, lender_id, amount, original_amount, user_request_status_id, corporate_user_id, credit_line_id, fee_number, fee_value, rate, created_at, updated_at) VALUES (?,?,?,68,?,?,1,?,1,0,0,0,NOW(),NOW())',
-    [uid, br.alliedId, br.id, AMOUNT, AMOUNT, asesorId],
+    'INSERT INTO user_requests (user_id, allied_id, allied_branch_id, lender_id, amount, original_amount, user_request_status_id, corporate_user_id, credit_line_id, fee_number, fee_value, rate, created_at, updated_at) VALUES (?,?,?,?,?,?,1,?,1,0,0,0,NOW(),NOW())',
+    [uid, br.alliedId, br.id, LENDER, AMOUNT, AMOUNT, asesorId],
 ).catch((e) => { P('uReq', false, String(e).slice(0, 120)); return null; });
 if (!ins?.insertId) { await close(); process.exit(2); }
 const UR = String(ins.insertId);
-P('uReq creado', true, `#${UR} · lender 68 · monto ${AMOUNT.toLocaleString('es-CO')} · estado 1`);
+P('uReq creado', true, `#${UR} · lender ${LENDER} · monto ${AMOUNT.toLocaleString('es-CO')} · estado 1`);
 
 await synthFill(ins.insertId, { income: 2_500_000, score: 700 });
 P('buró sintético', true, 'ingreso 2.500.000 · score 700');
 console.log(`   ↳ encryptCode = ${bancolombiaEncryptCode(ins.insertId, br.hash)}  (pantallas /bancolombia/…/{code})`);
 
 // ── 4..12 · la máquina BNPL ────────────────────────────────────────────────────────────────────────
+// Los datos del cliente que varios pasos revalidan (accept-terms exige los 5: code/name/surname/
+// email/address). Salen del sintético, no de aire, para que el payload sea el que manda el wizard.
+const CLIENTE = {
+    code: 'mock-auth-code',
+    name: 'SYNTH', surname: 'TEST USER',
+    email: `synth.${UR}@gmail.com`,
+    address: 'Cal 123 # 12-122',
+};
 const B = '/api/onboarding/bancolombia-bnpl';
-const secuencia: Array<[string, string, unknown?]> = [
+const C = '/api/onboarding/bancolombia-consumer-loan';
+const secuenciaBnpl: Array<[string, string, unknown?]> = [
     ['pre-aprobación', `/api/onboarding/bancolombia/validate-preapproved/${UR}`],
     ['login-redirect', `${B}/login-redirect/${UR}`],
-    ['retrieve-quota', `${B}/retrieve-quota/${UR}`, { code: 'mock-auth-code' }],
-    ['list-accts-quota', `${B}/list-accounts-and-quota/${UR}`, { code: 'mock-auth-code', amount: AMOUNT }],
-    ['account-select', `${B}/account-select/${UR}`],
-    ['fetch-terms', `${B}/fetch-terms-and-conditions/${UR}`],
-    ['accept-terms', `${B}/accept-terms-and-conditions/${UR}`],
-    ['dynamic-key', `${B}/dynamic-key-signature/${UR}`],
-    ['origination', `${B}/origination/${UR}`],
+    ['retrieve-quota', `${B}/retrieve-quota/${UR}`, CLIENTE],
+    ['list-accts-quota', `${B}/list-accounts-and-quota/${UR}`, { ...CLIENTE, amount: AMOUNT }],
+    ['account-select', `${B}/account-select/${UR}`, { ...CLIENTE, accountId: '1' }],
+    ['fetch-terms', `${B}/fetch-terms-and-conditions/${UR}`, CLIENTE],
+    ['accept-terms', `${B}/accept-terms-and-conditions/${UR}`, CLIENTE],
+    ['dynamic-key', `${B}/dynamic-key-signature/${UR}`, CLIENTE],
+    ['origination', `${B}/origination/${UR}`, CLIENTE],
 ];
+// Consumo tiene DOS pasos más que BNPL y su propio orden (routes/api.php:75-90). El paso que escribe
+// el insumo equivalente al `bnpl_transaction_id` es `redirect-user-validate` → `loan_validate_key`.
+const secuenciaConsumo: Array<[string, string, unknown?]> = [
+    ['pre-aprobación', `/api/onboarding/bancolombia/validate-preapproved/${UR}`],
+    ['login-redirect', `${C}/login-redirect/${UR}`, CLIENTE],
+    ['user-validate', `${C}/redirect-user-validate/${UR}`, CLIENTE],
+    ['fetch-terms', `${C}/fetch-terms-and-conditions/${UR}`, CLIENTE],
+    ['register-terms', `${C}/register-terms/${UR}`, CLIENTE],
+    ['enable-offers', `${C}/enable-offers/${UR}`, { ...CLIENTE, amount: AMOUNT }],
+    ['simulación', `${C}/get-detail-simulation/${UR}`, { ...CLIENTE, amount: AMOUNT, fee_number: 12, feeNumber: 12 }],
+    ['accept-terms', `${C}/accept-terms-and-conditions/${UR}`, CLIENTE],
+    // ⚠ TOLERADO (no cuenta como muro): `select-insurance` lee del flow `payment_day`, `insurance_type`,
+    // `interest_rate` y `account.{type,number}` (BancolombiaLoanController.php:1421) — datos que RECOGE LA
+    // UI en pantallas previas y que este camino por API no llena. El flujo cierra sin él (el estado 25 lo
+    // sella `origination`), así que se ejercita para dejar constancia, no se exige.
+    ['select-insurance (tolerado)', `${C}/select-insurance/${UR}`, { ...CLIENTE, insurance: true }],
+    ['e-sign-document', `${C}/e-sign-document/${UR}`, CLIENTE],
+    ['origination', `${C}/origination/${UR}`, CLIENTE],
+];
+const secuencia = PRODUCTO === 'consumo' ? secuenciaConsumo : secuenciaBnpl;
 for (const [nombre, path, body] of secuencia) {
     const r = await http('POST', path, body ?? {});
     const ok = r.status >= 200 && r.status < 300;
@@ -206,14 +251,14 @@ for (const [nombre, path, body] of secuencia) {
     // sin esta línea se lee como "internal error BNPL999", que no dice nada.
     const ex = r.json?.errors?.payload?.exception_message ?? '';
     const dns = /Could not resolve host: ([\w.-]+)/.exec(ex);
-    P(nombre, ok, dns
+    P(nombre, nombre.includes('tolerado') ? (ok ? true : null) : ok, dns
         ? `HTTP ${r.status} · NO RESUELVE el host del proveedor: ${dns[1]} → falta mock-bancolombia + BANCOLOMBIA_HOST`
         : `HTTP ${r.status} · ${trim(r.json, 110)}`);
     // El paso 6 es el que escribe el insumo que Bancolombia va a exigir para emitir el código.
-    if (nombre === 'retrieve-quota') {
+    if (nombre === PASO_TX) {
         const f = await one<{ v: string | null }>(
-            "SELECT JSON_UNQUOTE(JSON_EXTRACT(data,'$.bnpl_transaction_id')) v FROM lender_integration_flows WHERE user_request_id=? AND lender_id=68", [UR]);
-        P('  ↳ transactionId', !!f?.v, f?.v ? `escrito en el flow: ${f.v}` : 'NO se escribió (sin él no se puede emitir el código nuevo)');
+            `SELECT JSON_UNQUOTE(JSON_EXTRACT(data,'$.${CLAVE_TX}')) v FROM lender_integration_flows WHERE user_request_id=? AND lender_id=?`, [UR, LENDER]);
+        P(`  ↳ ${CLAVE_TX}`, !!f?.v, f?.v ? `escrito en el flow: ${String(f.v).slice(0, 60)}${String(f.v).length > 60 ? '…' : ''}` : 'NO se escribió (sin él no se puede emitir el código nuevo)');
     }
 }
 const trasOrig = await estado(UR);
