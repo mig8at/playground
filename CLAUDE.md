@@ -4,63 +4,42 @@ Espacio propio de Miguel: organiza el conocimiento de **CreditOp** (fintech colo
 de crédito) y agrupa las herramientas de prueba. Existe para que un modelo entienda **antes** de atacar
 una tarea.
 
-## SOLO TRES CARPETAS IMPORTAN PARA TRABAJAR
+## EL CICLO — acá siempre pasa lo mismo
 
-Si estás por atacar una tarea, tu mundo son estas tres y nada más:
+Se viene a resolver **tareas** sobre CreditOp con tres piezas — **tablero** (la tarea), **context**
+(el conocimiento) y **frontend-e2e** (la prueba) — y el circuito es fijo:
 
-| Carpeta | Qué es | Cuándo la tocás |
-|---|---|---|
-| **`context/`** | **El contexto validado contra el código**, sobre `main`. Cómo **es** CreditOp hoy. | Siempre, ANTES de investigar |
-| **`tablero/`** | **Las tareas a realizar**: en qué se trabaja, por qué y para qué. Un `.md` por tarea. | Cuando la tarea tiene estado, decisiones o preguntas abiertas |
-| **`frontend-e2e/`** | **La herramienta para validar una tarea contra el código real** (mocks, runners, el panel). | Cuando hay que comprobar algo corriendo, no leyendo |
+1. **La TAREA vive en `tablero/data/<tarea>.md`** (una tarea = un archivo): en qué se trabaja, por
+   qué y para qué — estado, decisiones, riesgos, preguntas abiertas.
+2. **El CONTEXTO se lee ANTES de investigar.** `context/docs/ROUTE-MAP.md` es el índice (31 nodos
+   validados contra `main`); abrí los que matcheen: `context/server/data/flows/<id>/doc.md` (el
+   análisis) + `map.json` (las rutas fuente exactas). El código real vive **fuera**, en
+   `~/Desktop/CREDITOP/github/` (`legacy-backend`, `frontend-monorepo`, `legacy-application`,
+   `pre-approvals-service`) — grandes: entrar por grep sin mapa es la forma lenta.
+3. **Lo que se descubre SE REGISTRA, con dos destinos.** El test: *si esto se mergea mañana, ¿el
+   texto sigue siendo cierto?*
+   - hallazgos **de la tarea** (avance, decisiones, riesgos, preguntas) → su `.md` del tablero;
+   - trampas **del sistema**, verificadas (síntoma → causa raíz → evidencia → arreglo) →
+     `context/server/data/flows/findings/doc.md` (F-01…). **Mirala antes de depurar un muro**: si
+     ya nos pasó, está ahí.
+4. **Probar de verdad es `frontend-e2e/`** (panel, runners, mocks): se comprueba **corriendo**, no
+   leyendo. Una afirmación que se puede verificar ahí se verifica **antes** de escribirla como cierta.
+5. **Al mergear, GRADÚA:** lo mergeado deja de ser tarea y pasa al nodo de contexto — ahí es "cómo
+   funciona CreditOp". La tarea se marca `archived` en su frontmatter. Ejemplo hecho: la omisión de
+   Experian por cupo ya confirmado vive hoy en el nodo `kyc`.
 
-⚠ **El resto NO son herramientas para contextualizarte** — hoy: `flow`, `engine`, `domain-model`,
-`diccionario`, `creditop-woocommerce`. Son exploraciones que Miguel armó para entender él mismo el
-negocio: simuladores, prototipos y modelos que **no están validados contra el código**, y varios
-describen un *deber ser*, no lo que corre en producción. **No las cites como fuente ni las uses para
-decidir.** Si algo de ahí resulta cierto, se verifica contra el código y gradúa a `context/` — hasta
-entonces, no existe para tu tarea.
+⚠ **El resto de carpetas NO son herramientas para contextualizarte** — hoy: `flow`, `engine`,
+`domain-model`, `diccionario`, `creditop-woocommerce`. Son exploraciones que Miguel armó para entender
+él mismo el negocio: **no están validadas contra el código** y varias describen un *deber ser*, no lo
+que corre en producción. **No las cites como fuente ni las uses para decidir.** Si algo de ahí resulta
+cierto, se verifica contra el código y gradúa a `context/` — hasta entonces, no existe para tu tarea.
 
-## Antes de investigar, leé el mapa (no explores a ciegas)
-
-El código real vive **fuera** de acá, en `~/Desktop/CREDITOP/github/` (`legacy-backend`,
-`frontend-monorepo`, `legacy-application`, `pre-approvals-service`). Son grandes: entrar por grep sin
-mapa es la forma lenta.
-
-1. **`context/docs/ROUTE-MAP.md`** — índice de 31 nodos curados. Elegí los que matcheen la tarea y abrí
-   su `context/server/data/flows/<id>/doc.md` (el análisis) + `map.json` (las rutas fuente exactas).
-2. **`context/server/data/flows/findings/doc.md`** — bitácora de hallazgos (F-01…). **Mirala antes de
-   depurar un muro en local**: si ya nos pasó, está ahí con causa raíz verificada y arreglo.
-
-## La partición: `context` es el conocimiento, `tablero` es el trabajo
-
-Desde el **2026-07-21** son dos cosas distintas y no se mezclan:
-
-| | **`context/`** | **`tablero/`** |
-|---|---|---|
-| Responde | *¿cómo **es** CreditOp?* | *¿en qué se está **trabajando**, por qué y para qué?* |
-| Contiene | contextos del sistema + el mapa del código (rutas validadas contra `main`) | las tareas: estado, decisiones, riesgos, preguntas abiertas, tiempo, borradores de Jira |
-| Naturaleza | durable — sobrevive a las tareas | efímero — tiene estado y fecha |
-| Formato | markdown versionado, lo lee cualquier modelo | **un `.md` por tarea** en `tablero/data/` |
-
-**El árbol NO lleva nodos-tarea.** Una tarea del tablero guarda su detalle técnico en el cuerpo de su
-`.md` (privado, **sin guard** — puede nombrar archivos y repos) y a qué nodos apunta en `context_nodes`.
-El enlace es **unidireccional**: la tarea apunta a los nodos, el nodo **no** apunta a tareas — si lo
-hiciera, quedaría mintiendo el día que la tarea gradúa.
-
-### El test para saber dónde va algo
-
-> **Si esto se mergea mañana, ¿el texto sigue siendo cierto?**
-> **Sí** → `context/`. **Deja de tener sentido** porque hablaba de una decisión, un riesgo, un plan o una
-> pregunta abierta → `tablero/`.
-
-Es más filoso que "durable vs efímero" y detecta el error típico en un segundo. Ese error se comete por
-**fricción**, no por no entender la regla: cuando escribir en el lugar correcto cuesta más, el contenido
-se va a donde es fácil. Hoy cuesta lo mismo — las dos cosas son un archivo markdown.
-
-⚠ **La regla al terminar:** lo que se **mergea** deja de ser tarea y **gradúa** al nodo de contexto que
-corresponda — ahí pasa a ser "cómo funciona CreditOp". Lo que no se mergeó se queda en el tablero.
-Ejemplo hecho: la omisión de Experian por cupo ya confirmado vive hoy en el nodo `kyc`.
+**Reglas de la partición** (para que no se vuelva a mezclar): el árbol de context **no** lleva
+nodos-tarea. El enlace es **unidireccional** — la tarea apunta a nodos (`context_nodes`); el nodo
+nunca apunta a tareas, porque quedaría mintiendo al graduar. Y del `.md` de una tarea **solo**
+`jira_title` + la sección `## Tarea (publicable)` salen a Jira (pasan el guard); todo lo demás es
+privado y puede nombrar repos, rutas y F-xx. El error de enrutar mal se comete por **fricción**, no
+por no entender la regla — hoy los dos destinos cuestan lo mismo: un archivo markdown.
 
 ## El contexto se mide contra `main`, y lo que no está en main se marca
 
@@ -103,13 +82,11 @@ lo que entró **actualiza el contexto**, y así el árbol siempre describe lo qu
 - `playground/docs/` **fue borrada** de `main` (absorbida por `context/`). Toda ruta `docs/X.md` que veas
   citada es histórica: `git show 159906a:docs/<archivo>`.
 
-## Cuando descubras algo
+## Dos reglas de honestidad
 
-El entregable no es solo el arreglo: es dejarlo escrito donde el próximo modelo lo encuentre. Agregá una
-entrada a **`findings`** (síntoma → causa raíz verificada → evidencia → arreglo) y, si tocaste rutas de
-un nodo, validá con `python3 context/tools/oracle.py <map.json>`.
-
-**Nunca afirmes como verificado algo que no comprobaste contra el código.** Si no lo miraste, decilo.
+- Si tocaste rutas de un nodo, validá con `python3 context/tools/oracle.py <map.json>` — una ruta mal
+  escrita no falla en ningún lado: la lee un modelo y abre un archivo inexistente.
+- **Nunca afirmes como verificado algo que no comprobaste contra el código.** Si no lo miraste, decilo.
 
 ## Variables de entorno
 

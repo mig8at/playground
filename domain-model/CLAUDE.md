@@ -1,5 +1,10 @@
 # CREDITOP · domain-model (deber-ser v4)
 
+> ⚠ **Carpeta de EXPLORACIÓN, no de contexto.** Esto es un modelo *deber-ser* que Miguel armó para
+> entender el negocio: **no está validado contra el código** y NO se cita como fuente para decidir.
+> Lo validado vive en `context/`. Este aviso va acá porque este archivo se carga solo al tocar la
+> carpeta — sin él, desharía la regla del mapa raíz.
+
 App Vue 3 + Vue Flow que visualiza el **modelo de dominio "deber-ser"** de Creditop.
 Fuente de verdad de la viz: `src/data/modelo-dominio.json` (8 contextos · 105 entidades · 75 value-objects · 21 aggregate roots). Ver `README.md` para el detalle del modelo y los scripts `apply-*`.
 
