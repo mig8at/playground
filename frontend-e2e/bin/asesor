@@ -9,7 +9,16 @@
 set -euo pipefail
 
 E2E="${CFE_E2E:-$HOME/Desktop/CREDITOP/playground/frontend-e2e}"
-FRONT="${CFE_FRONT:-$HOME/Desktop/CREDITOP/github/frontend-monorepo}"
+# ⚠ `CFE_FRONT` tiene DOS sentidos históricos y colisionaban: abajo es el SWITCH de front
+# (`local|ambiente`, que es lo que manda el panel) y acá se usaba como la RUTA del monorepo. Con
+# `CFE_FRONT=local` la ruta quedaba en `local/apps/loan-request-wizard` → `cd: No such file or directory`,
+# el wizard no arrancaba y el script igual esperaba 480s "compilando" antes de rendirse.
+# Se resuelve por VALOR y se conserva la compatibilidad: si es uno de los dos modos, es un modo; cualquier
+# otro valor sigue tomándose como ruta (y `CFE_FRONT_PATH` la fija explícita).
+case "${CFE_FRONT:-}" in
+  local|ambiente|'') FRONT="${CFE_FRONT_PATH:-$HOME/Desktop/CREDITOP/github/frontend-monorepo}" ;;
+  *)                 FRONT="$CFE_FRONT" ;;
+esac
 WIZARD="$FRONT/apps/loan-request-wizard"
 FLOWS="$E2E/.flows.json"
 TARGET="${CFE_TARGET:-dev}"   # dev por default; CFE_TARGET=local prueba el stack local (sail) sin commitear a dev
@@ -313,6 +322,17 @@ else
     mv "$WIZARD/.env.local" "$WIZARD/.env.local.asesor-bak"; MOVED=1
   fi
   printf '%s' "$WANT" > "$MARKER" 2>/dev/null || true
+  # El directorio ANTES de esperar: si no existe, el `cd` del subshell falla, `pnpm dev` no corre y el
+  # bucle de abajo igual espera 480s. Cortar acá con el path a la vista ahorra los 8 minutos.
+  if [ ! -d "$WIZARD" ]; then
+    ok "frontend" "✗ no existe el directorio del wizard: $WIZARD"
+    echo "    revisá CFE_FRONT_PATH (o CFE_FRONT si le pasás una ruta). CFE_FRONT actual: '${CFE_FRONT:-}'"
+    exit 1
+  fi
+  # El log se trunca ANTES de lanzar: si el arranque falla sin llegar a escribir, el `tail` de abajo
+  # mostraba el log de la corrida ANTERIOR y el error viejo se leía como el actual (pasó: un
+  # `Cannot find module` ya resuelto seguía apareciendo y mandó a buscar donde no era).
+  : > /tmp/asesor-wizard.log
   # < /dev/null + nohup: react-router dev lee stdin; sin esto crashea al cerrarse el pipe. STREAM_TIMEOUT_MS:
   # el loader de /lenders (pre-aprobación sincrónica del MS por VPN) suele pasar de los 45s default → lo subimos.
   ( cd "$WIZARD" && nohup env VITE_API_URL="$WIZ_API" VITE_ONBOARDING_FORM_SERVICE="$FORMS" VITE_FORM_SERVICE_BASE_URL="$FORMSVC" VITE_PREAPPROVALS_ENDPOINT="$PREAPPROVALS" CALLBACK_URL="http://localhost:5174/auth/callback" STREAM_TIMEOUT_MS="${E2E_STREAM_TIMEOUT_MS:-180000}" pnpm dev < /dev/null > /tmp/asesor-wizard.log 2>&1 & )

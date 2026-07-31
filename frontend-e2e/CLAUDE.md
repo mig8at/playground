@@ -223,6 +223,25 @@ trae su propia config de Cognito en el `.env` del monorepo (`login.creditop.com`
 Funciona porque **dev y staging comparten la BD**: el `sub` del asesor es el mismo para los dos backends,
 así que el permiso a la sucursal vale igual. Si algún día dejaran de compartirla, esto se rompe.
 
+## `CFE_FRONT` es un SWITCH, no una ruta (y el log del wizard mentía)
+
+Dos bugs de `bin/asesor` que juntos cuestan 8 minutos por corrida, arreglados el 2026-07-31 — si tocás
+esa zona, no los deshagas:
+
+- **`CFE_FRONT` tenía dos sentidos.** Abajo es el switch de front (`local|ambiente`, que es **lo que manda
+  el panel**) y arriba se usaba como la RUTA del monorepo. Con `CFE_FRONT=local` la ruta quedaba en
+  `local/apps/loan-request-wizard` → `cd: No such file or directory`, el wizard nunca arrancaba **y el
+  script igual esperaba 480 s "compilando"** antes de rendirse. Ahora se resuelve por valor: `local` y
+  `ambiente` son modos; cualquier otro valor sigue siendo una ruta (compat), y `CFE_FRONT_PATH` la fija
+  explícita. Se agregó además un guard: si el directorio no existe, corta al instante con el path a la vista.
+- **El log del wizard no se truncaba antes de lanzar.** Si el arranque fallaba sin llegar a escribir, el
+  `tail -15` mostraba el log de la corrida ANTERIOR: un `Cannot find module '@radix-ui/react-collapsible'`
+  ya resuelto seguía apareciendo como si fuera el fallo actual y mandó a buscar donde no era. Ahora se
+  trunca (`: > /tmp/asesor-wizard.log`) antes del `nohup`.
+
+**Lección transferible:** cuando el arnés espera minutos y después culpa a un log, sospechá del log antes
+que del producto. Un error viejo presentado como actual es peor que no tener log.
+
 ## Canal de entrada: asesor · ecommerce · qr
 
 **El panel GATEA los canales por comercio, y la regla la decide el servidor** (`/api/canales?slug=`),
