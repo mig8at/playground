@@ -1512,19 +1512,36 @@ Es decir: los comercios siguen originando, pero el camino ya **no pasa por el es
 
 ---
 
-### F-80 · `bnpl_transaction_id` falta en el 96 % de las solicitudes elegibles, y NO es un bug del front
+### F-80 · `bnpl_transaction_id` "ausente en el 100 %" es un artefacto de medir sobre el histórico — hoy SÍ se escribe
 
-**Síntoma:** el identificador que Bancolombia exige para emitir el código (`data.security.transactionId`) no está en `lender_integration_flows` para casi ninguna solicitud que podría pedir código. Un diagnóstico previo lo reportó como **0 de 120** y lo levantó como bloqueante, con la hipótesis de que "el front usa `ListAccountsAndQuota`, que no escribe la clave".
+**Síntoma:** un diagnóstico read-only reportó que el identificador que Bancolombia exige para emitir el código (`data.security.transactionId`) no estaba en `lender_integration_flows` para **ninguna** de las 120 solicitudes elegibles, y lo levantó como bloqueante duro. La hipótesis fue "el front usa `ListAccountsAndQuota`, que no escribe la clave".
 
-**La hipótesis del front es incorrecta — verificado en `origin/main`.** El wizard llama a **los dos** endpoints, en orden: el **loader** de `apps/loan-request-wizard/app/routes/bancolombia/bnpl/loan-info-view.tsx:96` usa `RetrieveBnplQuotaUc` → `bancolombia-bnpl/retrieve-quota` → **ese sí escribe** la clave (`BancolombiaBnplController.php:238`); el **action** (`:189`) usa `ListBnplAccountsQuotaUc` → `list-accounts-and-quota` → ese no escribe nada y la lee con `?? null` (`BancolombiaBnplController.php:477`). Lo mismo en `bancolombia/ecommerce/ecommerce-loan-processing.tsx` (`:254` retrieve / `:339` list).
+**La hipótesis del front es incorrecta — verificado en `origin/main`.** El wizard llama a **los dos** endpoints, en orden: el **loader** de `apps/loan-request-wizard/app/routes/bancolombia/bnpl/loan-info-view.tsx:96` usa `RetrieveBnplQuotaUc` → `bancolombia-bnpl/retrieve-quota` → **ese sí escribe** la clave (`BancolombiaBnplController.php:238`); el **action** (`:189`) usa `ListBnplAccountsQuotaUc` → `list-accounts-and-quota` → ese no escribe nada y la lee con `?? null` (`:477`). Lo mismo en `bancolombia/ecommerce/ecommerce-loan-processing.tsx` (`:254` retrieve / `:339` list).
 
-**Causa raíz verificada — la población está MEZCLADA, no hay bug.** De las 119 solicitudes en estado 25 con lender 68, **118 no tienen `ecommerce_request`**: vienen del **camino clásico de `application`** (`PurchaseCodeController::show()`, server-rendered), que **nunca toca los endpoints del wizard** y por lo tanto nunca escribe en `lender_integration_flows`. Las que sí tienen la clave son **5 de 119** (no 0 de 120), y ninguna es del camino ecommerce. Globalmente el lender 68 tiene **223** filas de flow y **147** con la clave — o sea el camino de escritura funciona; simplemente no es el que atendió a esa población.
+**Causa raíz verificada — CORTE TEMPORAL: el escritor no existía antes de diciembre de 2025.** Ninguna fila de `lender_integration_flows` del lender 68 tiene la clave antes de **2025-12**; desde ahí se escribe con regularidad: **dic-25 = 20 · mar-26 = 51 · abr-26 = 35 · may-26 = 41**. Cruzado contra las 119 solicitudes en estado 25 (que van de abr-25 a mar-26):
 
-**Qué hacer.** No busques el bug en el front. Si una tarea necesita el `transactionId`, la pregunta correcta es **por qué camino entró la solicitud**: por el QR/wizard (lo escribe) o por el clásico de `application` (no). Verificación de una línea antes de implementar: entrar por el QR en dev, llegar al paso del código y confirmar que la fila de flow ya trae `bnpl_transaction_id`.
+```
+2025-04..11 : 94 solicitudes → 0 con transactionId   (el escritor no existía)
+2025-12     : 15            → 1
+2026-01     :  6            → 0
+2026-03     :  4            → 4   ← 100 %
+```
+
+O sea: el "0 de 120" midió un período que **precede al código que escribe la clave**. En la ventana reciente la cobertura es total (4 de 4). Y las filas de flow con la clave siguen creándose hasta **may-26**, en meses donde **ninguna** solicitud llegó al estado 25 (ver F-79): el flujo BNPL del wizard corre y escribe; lo que se detuvo es la emisión del código.
+
+**Corrige una explicación previa mía.** Antes atribuí la ausencia a que "118 de 119 venían del camino clásico de `application`, que nunca toca el wizard". **Eso no se sostiene:** el join contra `user_requests_by_ecommerce_request` sólo distingue el **checkout ecommerce base64**, no separa el camino clásico del **QR/self-service**, que también es wizard y tampoco tiene `ecommerce_request`. De hecho las 5 que **sí** tienen la clave son todas "sin ecommerce_request", lo contrario de lo que esa hipótesis predecía.
+
+**Riesgo que SÍ queda — el canal ecommerce no lo garantiza.** La única solicitud de la población con `ecommerce_request` (ene-26) **no** tiene la clave, y es coherente con el código: `bancolombia/ecommerce/resolve-ecommerce-flow.tsx` resuelve la pre-aprobación con `ValidatePreapprovedUc` (→ `validate-preapproved`), **no** con `retrieve-quota`. Si un reemplazo del emisor del código tiene que servir también al canal ecommerce, ahí el `transactionId` **no está garantizado** y hay que resolverlo aparte.
+
+**Qué hacer.** No busques el bug en el front ni trates B1 como bloqueante sin fechar la muestra. Antes de implementar, verificá **el caso concreto**: entrá por el QR en dev, llegá al paso del código y confirmá que la fila de flow ya trae `bnpl_transaction_id`.
+
+```bash
+cd ~/Desktop/CREDITOP/github/legacy-backend && DBU=$(grep -m1 '^DB_USERNAME=' .env | cut -d= -f2-) DBP=$(grep -m1 '^DB_PASSWORD=' .env | cut -d= -f2-) docker exec -e MYSQL_PWD="$DBP" legacy-backend-mysql-1 mysql -u"$DBU" creditop -e "SELECT ur.id, DATE(ur.created_at), IF(JSON_EXTRACT(f.data,'\$.bnpl_transaction_id') IS NULL,'FALTA','tiene') FROM user_requests ur LEFT JOIN lender_integration_flows f ON f.user_request_id=ur.id AND f.lender_id=68 WHERE ur.user_request_status_id=25 AND ur.lender_id=68 ORDER BY ur.id DESC LIMIT 10;"
+```
 
 **Ojo con las cifras entre ambientes:** el diagnóstico previo vio 0/120 y **29** flows del 68; la copia local da 5/119 y **223**. Son entornos distintos — no discutas conclusiones sin fijar de dónde salió el número.
 
-**Estado:** causa raíz verificada contra código + BD. El equivalente para Consumo (`loan_validate_key`) no se pudo medir: **cero** solicitudes de lender 100 han estado en estado 25.
+**Estado:** causa raíz verificada contra código + BD (2026-07-31). El equivalente para Consumo (`loan_validate_key`) no se pudo medir: **cero** solicitudes de lender 100 han estado en estado 25.
 
 ---
 
