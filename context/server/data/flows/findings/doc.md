@@ -1536,8 +1536,10 @@ O sea: el "0 de 120" midió un período que **precede al código que escribe la 
 **Qué hacer.** No busques el bug en el front ni trates B1 como bloqueante sin fechar la muestra. Antes de implementar, verificá **el caso concreto**: entrá por el QR en dev, llegá al paso del código y confirmá que la fila de flow ya trae `bnpl_transaction_id`.
 
 ```bash
-cd ~/Desktop/CREDITOP/github/legacy-backend && DBU=$(grep -m1 '^DB_USERNAME=' .env | cut -d= -f2-) DBP=$(grep -m1 '^DB_PASSWORD=' .env | cut -d= -f2-) docker exec -e MYSQL_PWD="$DBP" legacy-backend-mysql-1 mysql -u"$DBU" creditop -e "SELECT ur.id, DATE(ur.created_at), IF(JSON_EXTRACT(f.data,'\$.bnpl_transaction_id') IS NULL,'FALTA','tiene') FROM user_requests ur LEFT JOIN lender_integration_flows f ON f.user_request_id=ur.id AND f.lender_id=68 WHERE ur.user_request_status_id=25 AND ur.lender_id=68 ORDER BY ur.id DESC LIMIT 10;"
+cd ~/Desktop/CREDITOP/github/legacy-backend && docker exec -e MYSQL_PWD="$(grep -m1 '^DB_PASSWORD=' .env | cut -d= -f2-)" legacy-backend-mysql-1 mysql -u"$(grep -m1 '^DB_USERNAME=' .env | cut -d= -f2-)" creditop -e "SELECT ur.id, DATE(ur.created_at) AS creada, IF(JSON_EXTRACT(f.data,'\$.bnpl_transaction_id') IS NULL,'FALTA','tiene') AS transaction_id FROM user_requests ur LEFT JOIN lender_integration_flows f ON f.user_request_id=ur.id AND f.lender_id=68 WHERE ur.user_request_status_id=25 AND ur.lender_id=68 ORDER BY ur.id DESC LIMIT 10;"
 ```
+
+> ⚠ **La credencial va con `$(…)` DENTRO del `-e`.** La forma `DBP=$(…) docker exec -e MYSQL_PWD="$DBP" …` **no funciona**: en una asignación-prefijo el shell expande `$DBP` contra el entorno *anterior* a la asignación, así que `MYSQL_PWD` viaja vacío y mysql responde `ERROR 1045 … (using password: NO)`. Vale para cualquier consulta contra la copia local (contenedor `legacy-backend-mysql-1`, schema `creditop`, credenciales en `legacy-backend/.env`).
 
 **Ojo con las cifras entre ambientes:** el diagnóstico previo vio 0/120 y **29** flows del 68; la copia local da 5/119 y **223**. Son entornos distintos — no discutas conclusiones sin fijar de dónde salió el número.
 
