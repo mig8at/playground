@@ -1508,7 +1508,15 @@ Es decir: los comercios siguen originando, pero el camino ya **no pasa por el es
 
 **Qué hacer.** Antes de depurar el código de compra o de sembrar un caso, asumí que **no hay tráfico vivo** y construí el caso a mano por el flujo del QR. Y antes de estimar un reemplazo de proveedor, preguntá **por qué se apagó**: cambiar quién emite el código no arregla un embudo que se corta antes.
 
-**Estado:** medido y reproducible con las consultas de arriba. La CAUSA del apagado (comercial, técnica o de flujo) **no está determinada** — es la primera pregunta para negocio.
+**Dónde se corta, afinado (2026-07-31).** No es que las solicitudes no lleguen al estado 25: **llegan con todo listo y no reciben código.** De las 4 solicitudes de mar-26 en estado 25 (todas **Alkosto, allied 209, sucursal 946**), las 4 tienen la secuencia BNPL completa en el flow (`user_request_id`, `bnpl_transaction_id`, `retrieve_quota`, `retrieve_terms`, `acceptance_terms`) pero **sólo 2 tienen fila en `purchase_codes`**. El último código emitido para Alkosto es del **2026-03-02** (279 en total para ese comercio) y la solicitud del **2026-03-13** —la más reciente que alcanzó el estado 25, con `transactionId` presente— **no tiene código ni PIN**. O sea el embudo funciona hasta la puerta del código y ahí muere.
+
+**Por qué la copia local no puede decir POR QUÉ.** Dos límites, los dos verificados:
+- La tabla `logs` (donde el cliente de Corbeta escribe `CORBETA - register` / `Corbeta - query`) sólo retiene **2026-06-03 .. 2026-07-19** (1.017 filas) — los casos de marzo quedaron fuera de la ventana. Dato lateral: en esa ventana hay **cero** llamadas a Corbeta logueadas.
+- El camino del código **puede fallar sin dejar rastro**: con un HTTP 400 y sin seed de `LenderErrorCode` para `App\Actions\Allieds\Corbeta`, `handleException` retorna `void` y `register()` hace `return $apiResponse` **nunca asignada** → `Error` de PHP 8, que **no es `Exception`** y ningún `catch` de la cadena lo captura (ver el riesgo P1 del handoff). Así que la ausencia de filas en `allied_errors_captures` **no prueba** que no se intentó.
+
+**Lo que sí muestra `allied_errors_captures`** (retiene desde 2026-01-30): **todas** las capturas relacionadas con Corbeta vienen de `CorbetaCheckoutController::show` — la entrada **ecommerce**, no la del código — y con los códigos de los **casos de prueba cableados** (`CORB006`, `BP20755`, `BP20790`, `BP409XXX3`, `BP50020550`, `SP20754`). Concentradas en los primeros días de **junio de 2026**, que es cuando aparecen las únicas 22 filas de `ecommerce_requests`. Lectura: lo que se ejercitó últimamente es el **checkout ecommerce** (probablemente un barrido de QA), no el camino de caja.
+
+**Estado:** el apagado está medido y es reproducible. La CAUSA (comercial, técnica o de flujo) **sigue sin determinar** y no se puede cerrar desde la copia local: hace falta el log de producción de marzo de 2026, o preguntarle a negocio. Quien lo investigue: mirá primero si la llamada a Corbeta explotaba por P1 (fallo silencioso, sin captura).
 
 ---
 
