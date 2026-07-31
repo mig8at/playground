@@ -253,6 +253,25 @@ Tres cosas que hay que saber para que el canal llegue al final:
   (`bancolombiaEncryptCode` en `pkg/qr.ts`). Ojo con el techo: del lado PHP `base_convert` va por float, así
   que arriba de `user_request_id ≈ 2^21` (2.097.152) el link del SMS y el decoder del front dejarían de
   coincidir. Hoy los ids van por ~400.000.
+- **Tres trampas del formulario de autogestión** (las tres cazadas corriendo, las tres resueltas en
+  `pkg/qr-steps.ts` — si tocás ese archivo, no las deshagas):
+  1. **Hay que esperar la HIDRATACIÓN antes de escribir.** La pantalla llega por SSR y react-hook-form
+     toma el control al hidratar: si llenás antes, React monta con sus defaults vacíos, el form queda
+     inválido y **el botón nunca se habilita — sin un solo mensaje de error en pantalla**. Es el síntoma
+     más engañoso posible: parece un selector roto. Y `waitFor({state:'visible'})` **no sirve** como
+     señal, porque los campos y los checkboxes vienen en el HTML del SSR. La sonda real es el **toggle**
+     de un checkbox: que un click cambie `data-state` a `checked` sólo pasa si el JS ya está atado.
+  2. **Los checkboxes NO están dentro del `<form>`** (`closest('form')` da null) y en la página hay un
+     tercer `role=checkbox` que es un `<input>` del overlay de React Router devtools. El selector que los
+     separa exacto es **`button[role="checkbox"]`** (Radix los renderiza como BUTTON). Sus ids son
+     generados (`_R_1j4j5_-form-item`): no sirven.
+  3. **El botón de envío nace `disabled`** y se habilita cuando el form valida. Clickearlo antes tira
+     timeout y se lee como selector mal escrito.
+- **El registro valida unicidad teléfono↔documento.** Si el teléfono de bypass quedó con el usuario de
+  otra corrida (por ejemplo del runner por API), responde «El número de celular ya se encuentra
+  registrado con otra cédula» en el campo `documentNumberError` y **no avanza**. Hay que scrubbear antes
+  — y el scrub va con `E2E_TARGET=local` EXPLÍCITO en el env del hijo: `bin/dbops.ts` es otro proceso, su
+  default es dev y ahí el guard de escrituras compartidas lo bloquea (F-53) sin que se note.
 - **Las pantallas `bancolombia/*` no tienen un solo `data-testid`** (verificado:
   `git grep 'data-testid' modules/loan-request-wizard/bancolombia-origination` no devuelve nada). Por eso
   `pkg/qr-steps.ts` selecciona por **rol y etiqueta accesible**, con el string exacto y la ruta del
