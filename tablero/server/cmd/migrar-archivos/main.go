@@ -6,14 +6,23 @@
 // server, mientras `context/` es markdown que lee cualquiera. En archivos, además, los efforts pasan a
 // tener historia en git.
 //
-// TRES NATURALEZAS, TRES ARCHIVOS — y la frontera del guard queda FÍSICA:
+// UN ARCHIVO POR ESFUERZO: `efforts/<slug>/effort.md`.
 //
-//	efforts/<slug>/effort.md   privado, SIN guard: puede nombrar repos y rutas
-//	efforts/<slug>/jira.md     lo que se PUBLICA (título + descripción) → CON guard
-//	efforts/<slug>/jira.json   estado de máquina: tareas de Jira ligadas, estimaciones
+// Se empezó con tres (effort.md + jira.md + jira.json) para hacer FÍSICA la frontera del guard. Se
+// descartó, con razón: el guard es el mecanismo real —corre sobre el texto antes de publicar y ataja
+// repos, rutas y F-xx— así que el archivo aparte era redundancia, no seguridad. Y el `jira.json` resultó
+// no llevar nada: sus 7 filas tenían SOLO la clave (`real_state`, `definition` y los estimados, vacíos en
+// todas), o sea existía para guardar una lista de claves → hoy es una línea de frontmatter.
 //
-// Si la descripción publicable viviera dentro del JSON, el guard volvería a ser una convención que hay que
-// recordar. Separada en su propio archivo, el publicador lee UNO y no puede filtrar una ruta por accidente.
+//	frontmatter        id · title · stage · created · archived? · context_nodes[] · jira[] · jira_title
+//	cuerpo             las notas técnicas: PRIVADO, puede nombrar repos y rutas
+//	## Tarea (publicable)   lo único que va a Jira, y pasa el guard
+//
+// La regla en una frase: **todo lo que está fuera de esa sección nunca sale de local.**
+//
+// Las anotaciones locales de una tarea (estado real, definición, estimados) van a
+// `data/tareas-locales.json` y sólo si alguna tiene contenido: son propiedad de la TAREA, mientras que el
+// vínculo esfuerzo→tareas es propiedad del ESFUERZO. Hoy ese archivo ni existe.
 //
 // Los datos van a `tablero/data/`, NO a `server/data/`: si el server algún día se reduce a un proxy o
 // desaparece, los datos no pueden vivir dentro de él.
@@ -149,46 +158,63 @@ func leerTareas(db *sql.DB, effortID int64) []tareaLocal {
 
 // ── volcado ─────────────────────────────────────────────────────────────────────────────────────────────
 
+// SECCION es la frontera del guard dentro del archivo: lo de abajo se publica, lo de arriba no.
+const SECCION = "## Tarea (publicable)"
+
+// armarEffortMD arma el archivo único. Vive acá y en el store una sola vez cada uno; si algún día
+// divergen, la verificación de abajo lo grita (por eso relee con el mismo partidor que usa el store).
+func armarEffortMD(e effort, claves []string) string {
+	var b strings.Builder
+	b.WriteString("---\n")
+	fmt.Fprintf(&b, "id: %d\n", e.ID)
+	fmt.Fprintf(&b, "title: %s\n", esc(e.Title))
+	fmt.Fprintf(&b, "stage: %s\n", e.Stage)
+	fmt.Fprintf(&b, "created: %s\n", esc(e.CreatedAt))
+	if e.ArchivedAt != "" {
+		fmt.Fprintf(&b, "archived: %s\n", esc(e.ArchivedAt))
+	}
+	fmt.Fprintf(&b, "context_nodes: [%s]\n", strings.Join(e.ContextNodes, ", "))
+	fmt.Fprintf(&b, "jira: [%s]\n", strings.Join(claves, ", "))
+	fmt.Fprintf(&b, "jira_title: %s\n", esc(e.JiraTitle))
+	b.WriteString("---\n\n")
+	b.WriteString(conSalto(e.TechNotes))
+	if e.JiraDescription != "" {
+		b.WriteString("\n" + SECCION + "\n\n")
+		b.WriteString(conSalto(e.JiraDescription))
+	}
+	return b.String()
+}
+
+func conSalto(s string) string {
+	if s == "" || strings.HasSuffix(s, "\n") {
+		return s
+	}
+	return s + "\n"
+}
+
 func volcar(db *sql.DB, efs []effort) {
 	porID := map[int64]string{}
+	anotaciones := map[string]tareaLocal{}
 	for _, e := range efs {
 		dir := filepath.Join(rutaSald, "efforts", e.Slug)
 		revisar(os.MkdirAll(dir, 0o755))
 		porID[e.ID] = e.Slug
 
-		// effort.md — privado, sin guard. El cuerpo son las tech_notes tal cual.
-		var fm strings.Builder
-		fm.WriteString("---\n")
-		fmt.Fprintf(&fm, "id: %d\n", e.ID)
-		fmt.Fprintf(&fm, "title: %s\n", esc(e.Title))
-		fmt.Fprintf(&fm, "stage: %s\n", e.Stage)
-		fmt.Fprintf(&fm, "created: %s\n", esc(e.CreatedAt))
-		if e.ArchivedAt != "" {
-			fmt.Fprintf(&fm, "archived: %s\n", esc(e.ArchivedAt))
+		tareas := leerTareas(db, e.ID)
+		claves := make([]string, 0, len(tareas))
+		for _, t := range tareas {
+			claves = append(claves, t.Key)
+			if t.RealState != "" || t.Definition != "" || t.EstimateMinutes != nil || t.EstimatePoints != nil {
+				anotaciones[t.Key] = t
+			}
 		}
-		fmt.Fprintf(&fm, "context_nodes: [%s]\n", strings.Join(e.ContextNodes, ", "))
-		fm.WriteString("---\n\n")
-		cuerpo := e.TechNotes
-		if cuerpo != "" && !strings.HasSuffix(cuerpo, "\n") {
-			cuerpo += "\n"
-		}
-		escribir(filepath.Join(dir, "effort.md"), fm.String()+cuerpo)
-
-		// jira.md — lo publicable, CON guard. Título en frontmatter, descripción en el cuerpo.
-		var jm strings.Builder
-		jm.WriteString("---\n")
-		fmt.Fprintf(&jm, "title: %s\n", esc(e.JiraTitle))
-		jm.WriteString("---\n\n")
-		desc := e.JiraDescription
-		if desc != "" && !strings.HasSuffix(desc, "\n") {
-			desc += "\n"
-		}
-		escribir(filepath.Join(dir, "jira.md"), jm.String()+desc)
-
-		// jira.json — estado de máquina.
-		datos, err := json.MarshalIndent(jiraJSON{EffortID: e.ID, Tasks: leerTareas(db, e.ID)}, "", "  ")
+		escribir(filepath.Join(dir, "effort.md"), armarEffortMD(e, claves))
+	}
+	if len(anotaciones) > 0 {
+		datos, err := json.MarshalIndent(anotaciones, "", "  ")
 		revisar(err)
-		escribir(filepath.Join(dir, "jira.json"), string(datos)+"\n")
+		escribir(filepath.Join(rutaSald, "tareas-locales.json"), string(datos)+"\n")
+		fmt.Printf("  anotaciones locales: %d tarea(s) con contenido\n", len(anotaciones))
 	}
 
 	volcarEntries(db, porID)
@@ -354,32 +380,23 @@ func verificar(db *sql.DB, efs []effort) {
 		comparar(e.Slug, "archived", e.ArchivedAt, desesc(fmEff["archived"]))
 		comparar(e.Slug, "context_nodes", strings.Join(e.ContextNodes, ", "),
 			strings.Join(nodosDeCadena(strings.Trim(fmEff["context_nodes"], "[]")), ", "))
-		comparar(e.Slug, "tech_notes", strings.TrimRight(e.TechNotes, "\n"), strings.TrimRight(cuerpoEff, "\n"))
+		comparar(e.Slug, "jira_title", e.JiraTitle, desesc(fmEff["jira_title"]))
 
-		fmJira, cuerpoJira, err := leerMD(filepath.Join(dir, "jira.md"))
-		if err != nil {
-			fmt.Printf("  ✗ %s · jira.md: %v\n", e.Slug, err)
-			fallos++
-			continue
+		// el cuerpo se parte por la MISMA marca que usa el store: arriba lo privado, abajo lo publicable
+		notas, desc := cuerpoEff, ""
+		if i := strings.Index(cuerpoEff, SECCION); i >= 0 {
+			notas = cuerpoEff[:i]
+			desc = strings.TrimPrefix(cuerpoEff[i+len(SECCION):], "\n")
 		}
-		comparar(e.Slug, "jira_title", e.JiraTitle, desesc(fmJira["title"]))
-		comparar(e.Slug, "jira_description", strings.TrimRight(e.JiraDescription, "\n"), strings.TrimRight(cuerpoJira, "\n"))
+		comparar(e.Slug, "tech_notes", strings.TrimRight(e.TechNotes, "\n"), strings.TrimRight(notas, "\n"))
+		comparar(e.Slug, "jira_description", strings.TrimRight(e.JiraDescription, "\n"), strings.TrimSpace(desc))
 
-		crudo, err := os.ReadFile(filepath.Join(dir, "jira.json"))
-		if err != nil {
-			fmt.Printf("  ✗ %s · jira.json: %v\n", e.Slug, err)
-			fallos++
-			continue
+		var esperadas []string
+		for _, t := range leerTareas(db, e.ID) {
+			esperadas = append(esperadas, t.Key)
 		}
-		var jj jiraJSON
-		if err := json.Unmarshal(crudo, &jj); err != nil {
-			fmt.Printf("  ✗ %s · jira.json ilegible: %v\n", e.Slug, err)
-			fallos++
-			continue
-		}
-		esperadas, _ := json.Marshal(leerTareas(db, e.ID))
-		obtenidas, _ := json.Marshal(jj.Tasks)
-		comparar(e.Slug, "tasks", string(esperadas), string(obtenidas))
+		comparar(e.Slug, "jira (claves)", strings.Join(esperadas, ", "),
+			strings.Join(nodosDeCadena(strings.Trim(fmEff["jira"], "[]")), ", "))
 	}
 
 	// entries: se cuentan y se suman minutos de los dos lados

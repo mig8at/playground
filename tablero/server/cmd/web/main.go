@@ -111,11 +111,12 @@ func main() {
 	}
 
 	// La bitácora es el corazón de la herramienta: sin persistencia no arranca (mejor un error claro
-	// acá que una UI que parece guardar y pierde todo). El default es relativo al cwd (npm corre el
-	// server desde server/, o sea server/data/); TABLERO_DB lo pisa.
-	st, err := store.Open(envDefault("TABLERO_DB", filepath.Join("data", "tablero.db")))
+	// acá que una UI que parece guardar y pierde todo). Ahora son ARCHIVOS y viven FUERA de server/: si
+	// el server algún día se reduce a un proxy de Jira/Slack, los datos no pueden vivir dentro de él.
+	// El default es relativo al cwd (npm corre el server desde server/, o sea ../data); TABLERO_DATA lo pisa.
+	st, err := store.Open(envDefault("TABLERO_DATA", filepath.Join("..", "data")))
 	if err != nil {
-		log.Fatalf("no se pudo abrir la base de la bitácora: %v", err)
+		log.Fatalf("no se pudo abrir el directorio de datos: %v", err)
 	}
 	a.st = st
 

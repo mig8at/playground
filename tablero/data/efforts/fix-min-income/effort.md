@@ -4,6 +4,8 @@ title: "Fix min_income (piso de ingreso de categorías NO-OP)"
 stage: evaluation
 created: "2026-07-21T10:30:30-05:00"
 context_nodes: [profiling, onboarding]
+jira: []
+jira_title: ""
 ---
 
 # Fix min_income (piso de ingreso NO-OP)

@@ -4,6 +4,8 @@ title: "Credifamilia — campo Ciudad de nacimiento en cascada (form dinámico G
 stage: tasks
 created: "2026-07-23T15:46:04-05:00"
 context_nodes: [form-service, dynamic-forms, credifamilia]
+jira: []
+jira_title: "Credifamilia: agregar campo 'Ciudad de nacimiento' en cascada al formulario"
 ---
 
 JIRA: CORE-301 (https://creditop.atlassian.net/browse/CORE-301) · Sprint 8 · En pruebas
@@ -22,3 +24,15 @@ VALIDADO EN DEV: field 233 aplicado, GET/PUT schema + POST response OK (fila en 
 
 HARNESS: bin/asesor ahora pasa VITE_FORM_SERVICE_BASE_URL; panel con pre-warm de sesiones al arrancar.
 CONTEXTO: nodos form-service (nuevo) + dynamic-forms + credifamilia actualizados.
+
+## Tarea (publicable)
+
+El formulario de Credifamilia pide el 'Departamento de nacimiento' pero no tiene su 'Ciudad de nacimiento' asociada — a diferencia de los datos de residencia, trabajo y expedición, que sí tienen el par departamento→ciudad.
+
+Objetivo: agregar 'Ciudad de nacimiento' como selección dependiente del departamento de nacimiento — al elegir el departamento se cargan sus ciudades (misma cascada que los otros pares).
+
+Implementación: migración de datos sobre el formulario dinámico (form_type de Credifamilia) que agrega el campo apuntándolo al departamento de nacimiento y lo ubica debajo de éste. Idempotente, reversible y resuelve los campos por nombre (los identificadores son autoincrementales y difieren por ambiente).
+
+Validado en dev: el campo renderiza en su lugar y la cascada carga las ciudades del departamento elegido.
+
+Paso post-deploy obligatorio: reconstruir el cache del schema del servicio de formularios, si no el front sigue mostrando el formulario anterior.

@@ -4,6 +4,8 @@ title: "Ecommerce web stateless"
 stage: work
 created: "2026-07-21T10:30:30-05:00"
 context_nodes: [ecommerce, onboarding, payments, architecture]
+jira: []
+jira_title: ""
 ---
 
 # Ecommerce web stateless (→ wizard sin cookie)

@@ -4,6 +4,8 @@ title: "Motai v2 — des-motaización y TyC por comercio"
 stage: tasks
 created: "2026-07-21T10:30:30-05:00"
 context_nodes: [motai, creditopx, merchants, dynamic-forms, kyc]
+jira: [CORE-265, CORE-266, CORE-267, CORE-268]
+jira_title: ""
 ---
 
 # Motai v2
