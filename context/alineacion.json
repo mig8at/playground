@@ -1,0 +1,1069 @@
+{
+  "generado": "2026-07-31",
+  "ref": "main",
+  "resumen": {
+    "deriva": 20,
+    "al-dia": 9,
+    "deriva-alta": 1,
+    "rama-sin-mergear": 1
+  },
+  "nodos": [
+    {
+      "id": "findings",
+      "estado": "deriva-alta",
+      "verificado": {
+        "ref": "main",
+        "date": "2026-07-18",
+        "source": "cabecera"
+      },
+      "archivos": 44,
+      "deriva": {
+        "cambiados": 16,
+        "pct": 36,
+        "archivos": [
+          {
+            "ruta": "frontend-e2e/dev/guided.spec.ts",
+            "ultimo_cambio": "2026-07-31"
+          },
+          {
+            "ruta": "frontend-e2e/panel/server.ts",
+            "ultimo_cambio": "2026-07-31"
+          },
+          {
+            "ruta": "frontend-e2e/pkg/windows.ts",
+            "ultimo_cambio": "2026-07-30"
+          },
+          {
+            "ruta": "frontend-e2e/pkg/cognito.ts",
+            "ultimo_cambio": "2026-07-30"
+          },
+          {
+            "ruta": "frontend-e2e/dev/sweep.ts",
+            "ultimo_cambio": "2026-07-29"
+          },
+          {
+            "ruta": "frontend-e2e/pkg/inject.ts",
+            "ultimo_cambio": "2026-07-22"
+          },
+          {
+            "ruta": "legacy-backend/Modules/Loans/App/Services/OtpService.php",
+            "ultimo_cambio": "2026-07-20"
+          },
+          {
+            "ruta": "frontend-e2e/pkg/asesor.ts",
+            "ultimo_cambio": "2026-07-19"
+          },
+          {
+            "ruta": "frontend-e2e/mock-abaco/server.mjs",
+            "ultimo_cambio": "2026-07-19"
+          },
+          {
+            "ruta": "frontend-e2e/mock-forms/server.mjs",
+            "ultimo_cambio": "2026-07-19"
+          },
+          {
+            "ruta": "frontend-e2e/mock-mdm/server.mjs",
+            "ultimo_cambio": "2026-07-18"
+          },
+          {
+            "ruta": "frontend-e2e/mock-pdf-mapper/server.mjs",
+            "ultimo_cambio": "2026-07-18"
+          },
+          {
+            "ruta": "frontend-e2e/mock-lenders/server.mjs",
+            "ultimo_cambio": "2026-07-18"
+          },
+          {
+            "ruta": "frontend-e2e/mock-payvalida/server.mjs",
+            "ultimo_cambio": "2026-07-18"
+          },
+          {
+            "ruta": "frontend-e2e/pkg/payvalida-mock.ts",
+            "ultimo_cambio": "2026-07-18"
+          },
+          {
+            "ruta": "frontend-e2e/pkg/pdf-mock.ts",
+            "ultimo_cambio": "2026-07-18"
+          }
+        ]
+      },
+      "rutas_muertas": [],
+      "pendiente_merge": null
+    },
+    {
+      "id": "motai",
+      "estado": "rama-sin-mergear",
+      "verificado": {
+        "ref": "qa",
+        "date": "2026-07-29",
+        "source": "cabecera"
+      },
+      "archivos": 48,
+      "deriva": {
+        "cambiados": 5,
+        "pct": 10,
+        "archivos": [
+          {
+            "ruta": "frontend-monorepo/apps/loan-request-wizard/app/routes/abaco/index.tsx",
+            "ultimo_cambio": "2026-07-30"
+          },
+          {
+            "ruta": "frontend-monorepo/modules/loan-request-wizard/abaco/src/infrastructure/repositories/abaco.repository.ts",
+            "ultimo_cambio": "2026-07-30"
+          },
+          {
+            "ruta": "frontend-monorepo/modules/loan-request-wizard/abaco/src/ports/abaco-repository.ts",
+            "ultimo_cambio": "2026-07-30"
+          },
+          {
+            "ruta": "frontend-monorepo/modules/loan-request-wizard/lenders-marketplace/src/lib/domain/constants/lender.constants.ts",
+            "ultimo_cambio": "2026-07-30"
+          },
+          {
+            "ruta": "legacy-backend/Modules/Onboarding/routes/api.php",
+            "ultimo_cambio": "2026-07-30"
+          }
+        ]
+      },
+      "rutas_muertas": [],
+      "pendiente_merge": {
+        "ref": "qa",
+        "archivos": 14,
+        "ya_en_main": []
+      }
+    },
+    {
+      "id": "harness",
+      "estado": "deriva",
+      "verificado": {
+        "ref": "main",
+        "date": "2026-07-19",
+        "source": "cabecera"
+      },
+      "archivos": 44,
+      "deriva": {
+        "cambiados": 8,
+        "pct": 18,
+        "archivos": [
+          {
+            "ruta": "frontend-e2e/dev/guided.spec.ts",
+            "ultimo_cambio": "2026-07-31"
+          },
+          {
+            "ruta": "frontend-e2e/panel/server.ts",
+            "ultimo_cambio": "2026-07-31"
+          },
+          {
+            "ruta": "frontend-e2e/pkg/windows.ts",
+            "ultimo_cambio": "2026-07-30"
+          },
+          {
+            "ruta": "frontend-e2e/pkg/cognito.ts",
+            "ultimo_cambio": "2026-07-30"
+          },
+          {
+            "ruta": "frontend-e2e/pkg/close.ts",
+            "ultimo_cambio": "2026-07-24"
+          },
+          {
+            "ruta": "frontend-e2e/pkg/inject.ts",
+            "ultimo_cambio": "2026-07-22"
+          },
+          {
+            "ruta": "frontend-e2e/pkg/config.ts",
+            "ultimo_cambio": "2026-07-21"
+          },
+          {
+            "ruta": "frontend-e2e/pkg/db.ts",
+            "ultimo_cambio": "2026-07-21"
+          }
+        ]
+      },
+      "rutas_muertas": [],
+      "pendiente_merge": null
+    },
+    {
+      "id": "redirect",
+      "estado": "deriva",
+      "verificado": {
+        "ref": "main",
+        "date": "2026-07-18",
+        "source": "git-doc"
+      },
+      "archivos": 24,
+      "deriva": {
+        "cambiados": 4,
+        "pct": 17,
+        "archivos": [
+          {
+            "ruta": "application/app/Http/Controllers/Customer/UserRequestController.php",
+            "ultimo_cambio": "2026-07-26"
+          },
+          {
+            "ruta": "legacy-backend/Modules/Onboarding/App/Services/UserRequestService.php",
+            "ultimo_cambio": "2026-07-21"
+          },
+          {
+            "ruta": "frontend-monorepo/apps/loan-request-wizard/app/routes/lenders-marketplace/available-lenders.tsx",
+            "ultimo_cambio": "2026-07-21"
+          },
+          {
+            "ruta": "frontend-monorepo/modules/loan-request-wizard/lenders-marketplace/src/lib/domain/constants/lender.constants.ts",
+            "ultimo_cambio": "2026-07-18"
+          }
+        ]
+      },
+      "rutas_muertas": [],
+      "pendiente_merge": null
+    },
+    {
+      "id": "onboarding",
+      "estado": "deriva",
+      "verificado": {
+        "ref": "main",
+        "date": "2026-07-18",
+        "source": "git-doc"
+      },
+      "archivos": 83,
+      "deriva": {
+        "cambiados": 13,
+        "pct": 16,
+        "archivos": [
+          {
+            "ruta": "frontend-monorepo/apps/loan-request-wizard/app/routes/loan-application-form/otp-verification.tsx",
+            "ultimo_cambio": "2026-07-29"
+          },
+          {
+            "ruta": "frontend-monorepo/apps/loan-request-wizard/app/routes/loan-application-form/phone-number.tsx",
+            "ultimo_cambio": "2026-07-29"
+          },
+          {
+            "ruta": "frontend-monorepo/modules/loan-request-wizard/loan-application-form/src/components/amount-form.tsx",
+            "ultimo_cambio": "2026-07-29"
+          },
+          {
+            "ruta": "frontend-monorepo/modules/loan-request-wizard/loan-application-form/src/components/phone-number.tsx",
+            "ultimo_cambio": "2026-07-29"
+          },
+          {
+            "ruta": "application/app/Http/Controllers/Customer/OtpController.php",
+            "ultimo_cambio": "2026-07-27"
+          },
+          {
+            "ruta": "application/routes/customer.php",
+            "ultimo_cambio": "2026-07-27"
+          },
+          {
+            "ruta": "application/app/Http/Controllers/Customer/UserRequestController.php",
+            "ultimo_cambio": "2026-07-26"
+          },
+          {
+            "ruta": "application/app/Http/Controllers/Customer/ValidateOtpController.php",
+            "ultimo_cambio": "2026-07-26"
+          },
+          {
+            "ruta": "legacy-backend/Modules/Onboarding/App/Http/Controllers/OnboardingController.php",
+            "ultimo_cambio": "2026-07-24"
+          },
+          {
+            "ruta": "legacy-backend/Modules/Onboarding/App/Services/UserService.php",
+            "ultimo_cambio": "2026-07-24"
+          },
+          {
+            "ruta": "legacy-backend/Modules/Onboarding/App/Services/UserRequestService.php",
+            "ultimo_cambio": "2026-07-21"
+          },
+          {
+            "ruta": "frontend-monorepo/apps/loan-request-wizard/app/routes/lenders-marketplace/available-lenders.tsx",
+            "ultimo_cambio": "2026-07-21"
+          },
+          {
+            "ruta": "legacy-backend/Modules/Onboarding/App/Services/OtpService.php",
+            "ultimo_cambio": "2026-07-20"
+          }
+        ]
+      },
+      "rutas_muertas": [],
+      "pendiente_merge": null
+    },
+    {
+      "id": "hardcodes-entidades",
+      "estado": "deriva",
+      "verificado": {
+        "ref": "main",
+        "date": "2026-07-18",
+        "source": "cabecera"
+      },
+      "archivos": 101,
+      "deriva": {
+        "cambiados": 14,
+        "pct": 14,
+        "archivos": [
+          {
+            "ruta": "legacy-backend/Modules/Onboarding/App/Http/Controllers/BancolombiaBnplController.php",
+            "ultimo_cambio": "2026-07-31"
+          },
+          {
+            "ruta": "frontend-monorepo/apps/loan-request-wizard/app/routes/loan-application-form/otp-verification.tsx",
+            "ultimo_cambio": "2026-07-29"
+          },
+          {
+            "ruta": "frontend-monorepo/apps/loan-request-wizard/app/routes/loan-application-form/phone-number.tsx",
+            "ultimo_cambio": "2026-07-29"
+          },
+          {
+            "ruta": "application/app/Http/Controllers/Customer/CreditopXRequestHistoryController.php",
+            "ultimo_cambio": "2026-07-27"
+          },
+          {
+            "ruta": "application/app/Http/Controllers/Customer/UserRequestController.php",
+            "ultimo_cambio": "2026-07-26"
+          },
+          {
+            "ruta": "application/app/Http/Controllers/Customer/ValidateOtpController.php",
+            "ultimo_cambio": "2026-07-26"
+          },
+          {
+            "ruta": "frontend-monorepo/modules/loan-request-wizard/loan-application-form/src/components/phone-number-step-form.tsx",
+            "ultimo_cambio": "2026-07-24"
+          },
+          {
+            "ruta": "legacy-backend/Modules/Onboarding/App/Http/Controllers/OnboardingController.php",
+            "ultimo_cambio": "2026-07-24"
+          },
+          {
+            "ruta": "legacy-backend/Modules/Onboarding/App/Services/LegalService.php",
+            "ultimo_cambio": "2026-07-24"
+          },
+          {
+            "ruta": "legacy-backend/Modules/Onboarding/App/Services/UserService.php",
+            "ultimo_cambio": "2026-07-24"
+          },
+          {
+            "ruta": "frontend-monorepo/modules/loan-request-wizard/lenders-marketplace/src/components/available-lenders/AvailableLenders.tsx",
+            "ultimo_cambio": "2026-07-23"
+          },
+          {
+            "ruta": "frontend-monorepo/apps/loan-request-wizard/app/routes/lenders-marketplace/available-lenders.tsx",
+            "ultimo_cambio": "2026-07-21"
+          },
+          {
+            "ruta": "legacy-backend/Modules/Onboarding/App/Services/UserRequestService.php",
+            "ultimo_cambio": "2026-07-21"
+          },
+          {
+            "ruta": "frontend-monorepo/apps/loan-request-wizard/app/routes/request-management/components/gestion-cell.tsx",
+            "ultimo_cambio": "2026-07-19"
+          }
+        ]
+      },
+      "rutas_muertas": [],
+      "pendiente_merge": null
+    },
+    {
+      "id": "architecture",
+      "estado": "deriva",
+      "verificado": {
+        "ref": "main",
+        "date": "2026-07-18",
+        "source": "git-doc"
+      },
+      "archivos": 72,
+      "deriva": {
+        "cambiados": 7,
+        "pct": 10,
+        "archivos": [
+          {
+            "ruta": "application/routes/customer.php",
+            "ultimo_cambio": "2026-07-27"
+          },
+          {
+            "ruta": "legacy-backend/app/Models/User.php",
+            "ultimo_cambio": "2026-07-27"
+          },
+          {
+            "ruta": "application/app/Http/Controllers/Customer/ClientCodeController.php",
+            "ultimo_cambio": "2026-07-26"
+          },
+          {
+            "ruta": "application/app/Http/Controllers/Customer/UserRequestController.php",
+            "ultimo_cambio": "2026-07-26"
+          },
+          {
+            "ruta": "application/app/Http/Kernel.php",
+            "ultimo_cambio": "2026-07-26"
+          },
+          {
+            "ruta": "legacy-backend/app/Http/Kernel.php",
+            "ultimo_cambio": "2026-07-23"
+          },
+          {
+            "ruta": "frontend-monorepo/modules/loan-request-wizard/lenders-marketplace/src/lib/domain/constants/lender.constants.ts",
+            "ultimo_cambio": "2026-07-18"
+          }
+        ]
+      },
+      "rutas_muertas": [],
+      "pendiente_merge": null
+    },
+    {
+      "id": "entities",
+      "estado": "deriva",
+      "verificado": {
+        "ref": "main",
+        "date": "2026-07-18",
+        "source": "git-doc"
+      },
+      "archivos": 50,
+      "deriva": {
+        "cambiados": 5,
+        "pct": 10,
+        "archivos": [
+          {
+            "ruta": "application/app/Http/Controllers/Customer/UserRequestController.php",
+            "ultimo_cambio": "2026-07-26"
+          },
+          {
+            "ruta": "legacy-backend/Modules/Loans/App/Services/LoanAuthorizationService.php",
+            "ultimo_cambio": "2026-07-25"
+          },
+          {
+            "ruta": "legacy-backend/Modules/Onboarding/App/Services/UserRequestService.php",
+            "ultimo_cambio": "2026-07-21"
+          },
+          {
+            "ruta": "frontend-monorepo/modules/loan-request-wizard/lenders-marketplace/src/lib/domain/constants/lender.constants.ts",
+            "ultimo_cambio": "2026-07-18"
+          },
+          {
+            "ruta": "frontend-monorepo/modules/loan-request-wizard/lenders-marketplace/src/lib/mappers/lender-response.mapper.ts",
+            "ultimo_cambio": "2026-07-18"
+          }
+        ]
+      },
+      "rutas_muertas": [],
+      "pendiente_merge": null
+    },
+    {
+      "id": "formalization",
+      "estado": "deriva",
+      "verificado": {
+        "ref": "main",
+        "date": "2026-07-18",
+        "source": "git-doc"
+      },
+      "archivos": 84,
+      "deriva": {
+        "cambiados": 7,
+        "pct": 8,
+        "archivos": [
+          {
+            "ruta": "application/routes/customer.php",
+            "ultimo_cambio": "2026-07-27"
+          },
+          {
+            "ruta": "legacy-backend/Modules/Loans/App/Services/LoanAuthorizationService.php",
+            "ultimo_cambio": "2026-07-25"
+          },
+          {
+            "ruta": "legacy-backend/Modules/Loans/App/Services/CreditopXRequestHistoryService.php",
+            "ultimo_cambio": "2026-07-23"
+          },
+          {
+            "ruta": "legacy-backend/Modules/Loans/App/Http/Controllers/Customer/PromissoryNoteController.php",
+            "ultimo_cambio": "2026-07-21"
+          },
+          {
+            "ruta": "legacy-backend/Modules/Onboarding/App/Services/UserRequestService.php",
+            "ultimo_cambio": "2026-07-21"
+          },
+          {
+            "ruta": "legacy-backend/Modules/Loans/App/Services/OtpService.php",
+            "ultimo_cambio": "2026-07-20"
+          },
+          {
+            "ruta": "legacy-backend/Modules/Loans/App/Services/OtpValidationService.php",
+            "ultimo_cambio": "2026-07-20"
+          }
+        ]
+      },
+      "rutas_muertas": [],
+      "pendiente_merge": null
+    },
+    {
+      "id": "legacy-backend",
+      "estado": "deriva",
+      "verificado": {
+        "ref": "main",
+        "date": "2026-07-18",
+        "source": "git-doc"
+      },
+      "archivos": 90,
+      "deriva": {
+        "cambiados": 7,
+        "pct": 8,
+        "archivos": [
+          {
+            "ruta": "application/app/Http/Controllers/Customer/ValidateOtpController.php",
+            "ultimo_cambio": "2026-07-26"
+          },
+          {
+            "ruta": "legacy-backend/Modules/Onboarding/App/Http/Controllers/OnboardingController.php",
+            "ultimo_cambio": "2026-07-24"
+          },
+          {
+            "ruta": "legacy-backend/Modules/System/App/Repositories/OtpServiceRepository.php",
+            "ultimo_cambio": "2026-07-23"
+          },
+          {
+            "ruta": "legacy-backend/app/Http/Kernel.php",
+            "ultimo_cambio": "2026-07-23"
+          },
+          {
+            "ruta": "legacy-backend/config/app.php",
+            "ultimo_cambio": "2026-07-23"
+          },
+          {
+            "ruta": "legacy-backend/Modules/Identity/App/Services/MareiguaService.php",
+            "ultimo_cambio": "2026-07-23"
+          },
+          {
+            "ruta": "legacy-backend/Modules/Onboarding/App/Services/UserRequestService.php",
+            "ultimo_cambio": "2026-07-21"
+          }
+        ]
+      },
+      "rutas_muertas": [],
+      "pendiente_merge": null
+    },
+    {
+      "id": "creditop",
+      "estado": "deriva",
+      "verificado": {
+        "ref": "main",
+        "date": "2026-07-18",
+        "source": "git-doc"
+      },
+      "archivos": 58,
+      "deriva": {
+        "cambiados": 4,
+        "pct": 7,
+        "archivos": [
+          {
+            "ruta": "application/routes/customer.php",
+            "ultimo_cambio": "2026-07-27"
+          },
+          {
+            "ruta": "legacy-backend/app/Models/User.php",
+            "ultimo_cambio": "2026-07-27"
+          },
+          {
+            "ruta": "legacy-backend/Modules/Loans/App/Services/LoanAuthorizationService.php",
+            "ultimo_cambio": "2026-07-25"
+          },
+          {
+            "ruta": "legacy-backend/Modules/Onboarding/App/Http/Controllers/OnboardingController.php",
+            "ultimo_cambio": "2026-07-24"
+          }
+        ]
+      },
+      "rutas_muertas": [],
+      "pendiente_merge": null
+    },
+    {
+      "id": "amount-tiers",
+      "estado": "deriva",
+      "verificado": {
+        "ref": "main",
+        "date": "2026-07-18",
+        "source": "git-doc"
+      },
+      "archivos": 33,
+      "deriva": {
+        "cambiados": 2,
+        "pct": 6,
+        "archivos": [
+          {
+            "ruta": "frontend-monorepo/modules/loan-request-wizard/lenders-marketplace/src/lib/application/calculate-loan-financials.uc.ts",
+            "ultimo_cambio": "2026-07-21"
+          },
+          {
+            "ruta": "frontend-monorepo/apps/loan-request-wizard/app/routes/lenders-marketplace/available-lenders.tsx",
+            "ultimo_cambio": "2026-07-21"
+          }
+        ]
+      },
+      "rutas_muertas": [],
+      "pendiente_merge": null
+    },
+    {
+      "id": "application",
+      "estado": "deriva",
+      "verificado": {
+        "ref": "main",
+        "date": "2026-07-18",
+        "source": "git-doc"
+      },
+      "archivos": 85,
+      "deriva": {
+        "cambiados": 5,
+        "pct": 6,
+        "archivos": [
+          {
+            "ruta": "application/app/Console/Commands/UpdateCreditopXApplyPaymentCommand.php",
+            "ultimo_cambio": "2026-07-30"
+          },
+          {
+            "ruta": "application/routes/customer.php",
+            "ultimo_cambio": "2026-07-27"
+          },
+          {
+            "ruta": "application/app/Http/Controllers/Customer/UserRequestController.php",
+            "ultimo_cambio": "2026-07-26"
+          },
+          {
+            "ruta": "application/app/Http/Controllers/Customer/ValidateOtpController.php",
+            "ultimo_cambio": "2026-07-26"
+          },
+          {
+            "ruta": "application/app/Http/Kernel.php",
+            "ultimo_cambio": "2026-07-26"
+          }
+        ]
+      },
+      "rutas_muertas": [],
+      "pendiente_merge": null
+    },
+    {
+      "id": "frontend-monorepo",
+      "estado": "deriva",
+      "verificado": {
+        "ref": "main",
+        "date": "2026-07-18",
+        "source": "git-doc"
+      },
+      "archivos": 85,
+      "deriva": {
+        "cambiados": 5,
+        "pct": 6,
+        "archivos": [
+          {
+            "ruta": "frontend-monorepo/apps/loan-request-wizard/app/routes/loan-application-form/phone-number.tsx",
+            "ultimo_cambio": "2026-07-29"
+          },
+          {
+            "ruta": "frontend-monorepo/modules/loan-request-wizard/lenders-marketplace/src/components/available-lenders/AvailableLenders.tsx",
+            "ultimo_cambio": "2026-07-23"
+          },
+          {
+            "ruta": "frontend-monorepo/apps/loan-request-wizard/app/entry.client.tsx",
+            "ultimo_cambio": "2026-07-21"
+          },
+          {
+            "ruta": "frontend-monorepo/apps/loan-request-wizard/app/routes/lenders-marketplace/available-lenders.tsx",
+            "ultimo_cambio": "2026-07-21"
+          },
+          {
+            "ruta": "frontend-monorepo/modules/loan-request-wizard/lenders-marketplace/src/lib/domain/services/lender-resolution.service.ts",
+            "ultimo_cambio": "2026-07-19"
+          }
+        ]
+      },
+      "rutas_muertas": [],
+      "pendiente_merge": null
+    },
+    {
+      "id": "ms-preapprovals",
+      "estado": "deriva",
+      "verificado": {
+        "ref": "main",
+        "date": "2026-07-18",
+        "source": "git-doc"
+      },
+      "archivos": 72,
+      "deriva": {
+        "cambiados": 4,
+        "pct": 6,
+        "archivos": [
+          {
+            "ruta": "frontend-monorepo/modules/loan-request-wizard/lenders-marketplace/src/components/available-lenders/AvailableLenders.tsx",
+            "ultimo_cambio": "2026-07-23"
+          },
+          {
+            "ruta": "frontend-monorepo/modules/loan-request-wizard/lenders-marketplace/src/lib/application/validate-preapproved-loan.uc.ts",
+            "ultimo_cambio": "2026-07-23"
+          },
+          {
+            "ruta": "frontend-monorepo/apps/loan-request-wizard/app/routes/lenders-marketplace/available-lenders.tsx",
+            "ultimo_cambio": "2026-07-21"
+          },
+          {
+            "ruta": "frontend-monorepo/modules/loan-request-wizard/lenders-marketplace/src/lib/mappers/lender-response.mapper.ts",
+            "ultimo_cambio": "2026-07-18"
+          }
+        ]
+      },
+      "rutas_muertas": [],
+      "pendiente_merge": null
+    },
+    {
+      "id": "actors",
+      "estado": "deriva",
+      "verificado": {
+        "ref": "main",
+        "date": "2026-07-18",
+        "source": "git-doc"
+      },
+      "archivos": 63,
+      "deriva": {
+        "cambiados": 3,
+        "pct": 5,
+        "archivos": [
+          {
+            "ruta": "application/routes/customer.php",
+            "ultimo_cambio": "2026-07-27"
+          },
+          {
+            "ruta": "application/app/Http/Kernel.php",
+            "ultimo_cambio": "2026-07-26"
+          },
+          {
+            "ruta": "legacy-backend/app/Http/Kernel.php",
+            "ultimo_cambio": "2026-07-23"
+          }
+        ]
+      },
+      "rutas_muertas": [],
+      "pendiente_merge": null
+    },
+    {
+      "id": "credifamilia",
+      "estado": "deriva",
+      "verificado": {
+        "ref": "main",
+        "date": "2026-07-19",
+        "source": "cabecera"
+      },
+      "archivos": 134,
+      "deriva": {
+        "cambiados": 6,
+        "pct": 4,
+        "archivos": [
+          {
+            "ruta": "legacy-backend/Modules/Loans/App/Services/LoanAuthorizationService.php",
+            "ultimo_cambio": "2026-07-25"
+          },
+          {
+            "ruta": "frontend-monorepo/modules/loan-request-wizard/lenders-marketplace/src/components/available-lenders/AvailableLenders.tsx",
+            "ultimo_cambio": "2026-07-23"
+          },
+          {
+            "ruta": "frontend-monorepo/modules/loan-request-wizard/lenders-marketplace/src/lib/infrastructure/repositories/payment-plan.repository.ts",
+            "ultimo_cambio": "2026-07-22"
+          },
+          {
+            "ruta": "legacy-backend/Modules/Onboarding/App/Http/Controllers/PaymentPlan/CredifamiliaLoanOptionsController.php",
+            "ultimo_cambio": "2026-07-22"
+          },
+          {
+            "ruta": "legacy-backend/app/Services/PaymentPlan/Credifamilia/LoanOptions/CredifamiliaLoanOptionsService.php",
+            "ultimo_cambio": "2026-07-22"
+          },
+          {
+            "ruta": "frontend-monorepo/apps/loan-request-wizard/app/routes/lenders-marketplace/available-lenders.tsx",
+            "ultimo_cambio": "2026-07-21"
+          }
+        ]
+      },
+      "rutas_muertas": [],
+      "pendiente_merge": null
+    },
+    {
+      "id": "dynamic-forms",
+      "estado": "deriva",
+      "verificado": {
+        "ref": "main",
+        "date": "2026-07-23",
+        "source": "git-doc"
+      },
+      "archivos": 90,
+      "deriva": {
+        "cambiados": 3,
+        "pct": 3,
+        "archivos": [
+          {
+            "ruta": "frontend-monorepo/apps/loan-request-wizard/app/routes/loan-application-form/phone-number.tsx",
+            "ultimo_cambio": "2026-07-29"
+          },
+          {
+            "ruta": "application/routes/customer.php",
+            "ultimo_cambio": "2026-07-27"
+          },
+          {
+            "ruta": "legacy-backend/Modules/Onboarding/App/Http/Controllers/OnboardingController.php",
+            "ultimo_cambio": "2026-07-24"
+          }
+        ]
+      },
+      "rutas_muertas": [],
+      "pendiente_merge": null
+    },
+    {
+      "id": "ecommerce",
+      "estado": "deriva",
+      "verificado": {
+        "ref": "main",
+        "date": "2026-07-19",
+        "source": "cabecera"
+      },
+      "archivos": 71,
+      "deriva": {
+        "cambiados": 2,
+        "pct": 3,
+        "archivos": [
+          {
+            "ruta": "application/routes/customer.php",
+            "ultimo_cambio": "2026-07-27"
+          },
+          {
+            "ruta": "legacy-backend/Modules/Onboarding/App/Services/UserRequestService.php",
+            "ultimo_cambio": "2026-07-21"
+          }
+        ]
+      },
+      "rutas_muertas": [],
+      "pendiente_merge": null
+    },
+    {
+      "id": "payments",
+      "estado": "deriva",
+      "verificado": {
+        "ref": "main",
+        "date": "2026-07-18",
+        "source": "git-doc"
+      },
+      "archivos": 65,
+      "deriva": {
+        "cambiados": 2,
+        "pct": 3,
+        "archivos": [
+          {
+            "ruta": "frontend-monorepo/modules/loan-request-wizard/lenders-marketplace/src/lib/application/get-lender-transaction-status.uc.ts",
+            "ultimo_cambio": "2026-07-23"
+          },
+          {
+            "ruta": "frontend-monorepo/apps/loan-request-wizard/app/routes/lenders-marketplace/available-lenders.tsx",
+            "ultimo_cambio": "2026-07-21"
+          }
+        ]
+      },
+      "rutas_muertas": [],
+      "pendiente_merge": null
+    },
+    {
+      "id": "servicing",
+      "estado": "deriva",
+      "verificado": {
+        "ref": "main",
+        "date": "2026-07-19",
+        "source": "cabecera"
+      },
+      "archivos": 60,
+      "deriva": {
+        "cambiados": 2,
+        "pct": 3,
+        "archivos": [
+          {
+            "ruta": "application/app/Console/Commands/UpdateCreditopXApplyPaymentCommand.php",
+            "ultimo_cambio": "2026-07-30"
+          },
+          {
+            "ruta": "application/app/Http/Controllers/Admin/RevolvingCreditsController.php",
+            "ultimo_cambio": "2026-07-27"
+          }
+        ]
+      },
+      "rutas_muertas": [],
+      "pendiente_merge": null
+    },
+    {
+      "id": "smartpay",
+      "estado": "deriva",
+      "verificado": {
+        "ref": "main",
+        "date": "2026-07-18",
+        "source": "cabecera"
+      },
+      "archivos": 74,
+      "deriva": {
+        "cambiados": 2,
+        "pct": 3,
+        "archivos": [
+          {
+            "ruta": "legacy-backend/Modules/Loans/App/Services/LoanAuthorizationService.php",
+            "ultimo_cambio": "2026-07-25"
+          },
+          {
+            "ruta": "legacy-backend/Modules/Loans/App/Http/Controllers/Customer/PromissoryNoteController.php",
+            "ultimo_cambio": "2026-07-21"
+          }
+        ]
+      },
+      "rutas_muertas": [],
+      "pendiente_merge": null
+    },
+    {
+      "id": "aggregator",
+      "estado": "al-dia",
+      "verificado": {
+        "ref": "main",
+        "date": "2026-07-31",
+        "source": "git-doc"
+      },
+      "archivos": 105,
+      "deriva": {
+        "cambiados": 0,
+        "pct": 0,
+        "archivos": []
+      },
+      "rutas_muertas": [],
+      "pendiente_merge": null
+    },
+    {
+      "id": "bancolombia",
+      "estado": "al-dia",
+      "verificado": {
+        "ref": "main",
+        "date": "2026-07-31",
+        "source": "cabecera"
+      },
+      "archivos": 145,
+      "deriva": {
+        "cambiados": 0,
+        "pct": 0,
+        "archivos": []
+      },
+      "rutas_muertas": [],
+      "pendiente_merge": null
+    },
+    {
+      "id": "corbeta",
+      "estado": "al-dia",
+      "verificado": {
+        "ref": "main",
+        "date": "2026-07-31",
+        "source": "cabecera"
+      },
+      "archivos": 28,
+      "deriva": {
+        "cambiados": 0,
+        "pct": 0,
+        "archivos": []
+      },
+      "rutas_muertas": [],
+      "pendiente_merge": null
+    },
+    {
+      "id": "creditopx",
+      "estado": "al-dia",
+      "verificado": {
+        "ref": "main",
+        "date": "2026-07-27",
+        "source": "git-doc"
+      },
+      "archivos": 14,
+      "deriva": {
+        "cambiados": 0,
+        "pct": 0,
+        "archivos": []
+      },
+      "rutas_muertas": [],
+      "pendiente_merge": null
+    },
+    {
+      "id": "form-service",
+      "estado": "al-dia",
+      "verificado": {
+        "ref": "main",
+        "date": "2026-07-23",
+        "source": "cabecera"
+      },
+      "archivos": 35,
+      "deriva": {
+        "cambiados": 0,
+        "pct": 0,
+        "archivos": []
+      },
+      "rutas_muertas": [],
+      "pendiente_merge": null
+    },
+    {
+      "id": "kyc",
+      "estado": "al-dia",
+      "verificado": {
+        "ref": "main",
+        "date": "2026-07-21",
+        "source": "git-doc"
+      },
+      "archivos": 25,
+      "deriva": {
+        "cambiados": 0,
+        "pct": 0,
+        "archivos": []
+      },
+      "rutas_muertas": [],
+      "pendiente_merge": null
+    },
+    {
+      "id": "merchants",
+      "estado": "al-dia",
+      "verificado": {
+        "ref": "main",
+        "date": "2026-07-31",
+        "source": "git-doc"
+      },
+      "archivos": 51,
+      "deriva": {
+        "cambiados": 0,
+        "pct": 0,
+        "archivos": []
+      },
+      "rutas_muertas": [],
+      "pendiente_merge": null
+    },
+    {
+      "id": "profiling",
+      "estado": "al-dia",
+      "verificado": {
+        "ref": "main",
+        "date": "2026-07-18",
+        "source": "git-doc"
+      },
+      "archivos": 30,
+      "deriva": {
+        "cambiados": 0,
+        "pct": 0,
+        "archivos": []
+      },
+      "rutas_muertas": [],
+      "pendiente_merge": null
+    },
+    {
+      "id": "pullman",
+      "estado": "al-dia",
+      "verificado": {
+        "ref": "main",
+        "date": "2026-07-18",
+        "source": "git-doc"
+      },
+      "archivos": 13,
+      "deriva": {
+        "cambiados": 0,
+        "pct": 0,
+        "archivos": []
+      },
+      "rutas_muertas": [],
+      "pendiente_merge": null
+    }
+  ]
+}

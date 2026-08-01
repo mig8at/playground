@@ -96,6 +96,35 @@ debajo.
 **Al re-verificar un nodo, sellalo:** `python3 tools/sellar-verificado.py <nodo>` (pone la fecha de hoy
 y `source: manual`). Si no lo sellás, el nodo queda contando una deriva que ya arreglaste.
 
+## `alinear.py`: qué nodos quedaron viejos (corrélo DESPUÉS DE CADA MERGE)
+
+```bash
+python3 tools/alinear.py          # calcula, imprime el informe y escribe alineacion.json
+python3 tools/alinear.py --ver    # solo imprime
+```
+
+~1,3 s para los 31 nodos. Tres señales, y la tercera es la que antes no tenía dueño:
+
+1. **⛔ rutas muertas** — `files[]` que no existen en `main`. El mapa está mintiendo.
+2. **🔴🟡 deriva** — archivos que existen pero fueron **tocados en `main` después del sello**. Es lo que
+   el oráculo no puede ver.
+3. **🔁 marca ya mergeada** — un nodo con `pending_merge` cuyos archivos **ya están en `main`**. Esa es
+   la regla "revisá las marcas después de cada merge", que hasta ahora dependía de que alguien se
+   acordara. Cuando aparece: devolvé las rutas a `files[]`, re-verificá y **borrá la marca**.
+
+Exit: `0` nada urgente · `1` hay rutas muertas o marcas ya mergeadas.
+
+**`pending_merge` va en el `map.json`, no solo en prosa.** La marca del `doc.md` es para que la lea un
+humano; el chequeo inverso necesita las rutas estructuradas:
+
+```json
+"pending_merge": { "ref": "qa", "files": ["legacy-backend/…/AbacoStepResolver.php", "…"] }
+```
+
+⚠ **`alineacion.json` es GENERADO** (el hook bloquea editarlo). Se versiona a propósito: su historia en
+git dice **cuánto tiempo** lleva viejo un nodo, no solo que hoy lo está. Y la viz read-only lo puede
+leer con el mismo `import.meta.glob` que usa para `tree.json` — sin server, que es lo que se borró.
+
 ## Nodo nuevo: dos lugares, los dos a mano
 
 1. `server/data/flows/<id>/map.json` (`name`, `kind`, `when`, `files[]`) + `doc.md` armado desde

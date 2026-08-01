@@ -15,6 +15,8 @@ GENERADOS = {
     "context/docs/ROUTE-MAP.md": "python3 context/tools/build-route-map.py "
                                  "(sale del `when` de cada map.json y de tree.json)",
     "context/tools/index.txt": "python3 context/tools/build-index.py",
+    "context/alineacion.json": "python3 context/tools/alinear.py "
+                               "(sale de git: qué cambió en main desde el sello `verified`)",
 }
 
 

@@ -9,6 +9,25 @@
     "date": "2026-07-29",
     "source": "cabecera"
   },
+  "pending_merge": {
+    "ref": "qa",
+    "files": [
+      "frontend-monorepo/modules/loan-request-wizard/abaco/src/domain/abaco-attempt-state.ts",
+      "legacy-backend/Modules/Onboarding/App/Http/Controllers/AbacoRequirementController.php",
+      "legacy-backend/Modules/Onboarding/App/Http/Controllers/DynamicFormRequirementController.php",
+      "legacy-backend/Modules/Onboarding/App/Repositories/AbacoStepStateRepository.php",
+      "legacy-backend/Modules/Onboarding/App/Repositories/LenderRequirementRepository.php",
+      "legacy-backend/Modules/Onboarding/App/Services/AbacoRequirementService.php",
+      "legacy-backend/Modules/Onboarding/App/Services/AbacoStepResolver.php",
+      "legacy-backend/Modules/Onboarding/App/Services/AbacoStepSettings.php",
+      "legacy-backend/Modules/Onboarding/App/Services/DynamicFormRequirementService.php",
+      "legacy-backend/Modules/Onboarding/App/Services/DynamicFormStepResolver.php",
+      "legacy-backend/Modules/Onboarding/Contracts/Repositories/LenderRequirementRepositoryInterface.php",
+      "legacy-backend/app/Models/AlliedDocument.php",
+      "legacy-backend/app/Models/LenderRequirement.php",
+      "legacy-backend/app/Support/FormulaCalculator.php"
+    ]
+  },
   "files": [
     "application/database/migrations/2026_03_06_003223_add_abaco_settings_to_settings_table.php",
     "application/database/migrations/2026_03_09_000000_add_abaco_column_to_user_summaries_table.php",

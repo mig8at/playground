@@ -133,8 +133,10 @@ context/
 │   ├── build-index.py      ← camina los 6 repos (working tree) → index.txt
 │   ├── oracle.py           ← valida un map.json contra `main` (o --ref / --worktree)
 │   ├── sellar-verificado.py← pone el sello `verified` (contra qué ref y cuándo)
+│   ├── alinear.py          ← ¿qué nodos quedaron viejos? → alineacion.json
 │   ├── build-route-map.py  ← tree.json + map.json → ROUTE-MAP.md
 │   └── index.txt           ← GENERADO, gitignored (6.257 rutas) — solo lo usa --worktree
+├── alineacion.json   ← GENERADO por alinear.py · versionado (su historia = cuánto lleva viejo un nodo)
 ├── src/App.vue       ← la viz read-only (142 líneas, mini-render de markdown sin deps)
 └── package.json      ← solo vue + vite. NO hay scripts de server (los de Go murieron con el MCP)
 ```
