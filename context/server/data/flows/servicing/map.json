@@ -6,8 +6,8 @@
   "when": "Cuando el problema es DESPUÉS del desembolso (Estado 11): cartera, causación de interés, fecha de corte, mora, cobranza, pagos y cupo rotativo. Los 6 crons diarios y el ledger del préstamo. Ojo: corre 100% en application.",
   "verified": {
     "ref": "main",
-    "date": "2026-07-19",
-    "source": "cabecera"
+    "date": "2026-07-31",
+    "source": "manual"
   },
   "files": [
     "application/app/Console/Kernel.php",

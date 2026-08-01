@@ -30,6 +30,19 @@ La originación **termina en el Estado 11** ("Autorizada" = desembolsado). La co
 
 (`incentive-revolving-credits` ~10:00 está **DESACTIVADO** — SIDs de Twilio sin aprobar.)
 
+⚠ **El cron de las 03:30 ahora deja rastro de lo que NO aplicó** (`UpdateCreditopXApplyPaymentCommand.php`,
+2026-07-30). Antes un pago retenido que no se podía aplicar se perdía en silencio; hoy hay dos casos
+explícitos, cada uno con `DB::rollBack()` **de esa transacción sola** y una fila en `logs`:
+`SIN HISTÓRICO VIGENTE` (no hay fila con `status = 1` donde aplicar) y
+`NO APLICADO POR VALIDACIÓN DE MONTO` (el histórico vigente tiene `next_payment_amount <= 0`, o sea no
+hay cuota pendiente → el pago **sigue retenido** hasta el próximo ciclo de facturación). Los fallos se
+acumulan y se registran juntos al final de la corrida. Si un pago "desapareció", empezá por esos logs.
+
+**Hay pantalla de detalle del cupo rotativo** (`/cupos-rotativos/{revolvingCredit}`,
+`routes/customer.php`): movimientos, pagos y documentos. El cálculo lo arma `buildDetailPayload` y se
+**comparte** entre el detalle de admin (`Admin\RevolvingCreditsController`) y el de aliados
+(`Customer\RevolvingCreditsController`), a propósito, para que las dos pantallas muestren lo mismo.
+
 **Recorrido del préstamo:**
 1. **Nacimiento (post-11):** `CreditopXRequestHistoryController::createFirstRegister` crea la 1ª fila (`movement_type='CREACIÓN'`, `status=1`, `creditop_x_requests_status_id=1`), invocado desde `ConsentController:196` tras el 11. Si es rotativo (rt=3) incrementa `used_limit`/`billing_used_limit` en el `RevolvingCredit` (= UTILIZACIÓN del cupo).
 2. **Causación diaria (00:30):** interés del día = `billing_principal_amount * rate/30`; anexa fila nueva `status=1`, marca la anterior `status=0`.
