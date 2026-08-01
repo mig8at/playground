@@ -56,14 +56,21 @@ header .sub { color: var(--mut); font-weight: 400; }
 .doc strong { color: #fff; }
 
 /* ── ALINEACIÓN: qué nodos quedaron viejos (datos de alineacion.json, calculados por alinear.py) ──
-   El RELLENO del .dot sigue diciendo el kind; el ANILLO dice si está al día. Dos canales en un
-   círculo, en vez de un segundo punto que sumaría ruido a 31 filas. Un nodo al día NO lleva anillo:
-   así lo que salta a la vista es lo que hay que revisar, no lo que está bien. */
-.dot[data-alin] { box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px currentColor; }
-.dot[data-alin="rutas-muertas"], .dot[data-alin="marca-ya-mergeada"] { color: #f2585b; }
-.dot[data-alin="deriva-alta"] { color: #f5a04a; }
-.dot[data-alin="deriva"] { color: #d8c65a; }
-.dot[data-alin="rama-sin-mergear"] { color: #a78bfa; }
+   EL CÍRCULO ENTERO es el estado de salud, no el kind. Se probó con el kind en el relleno y la
+   alineación en un anillo, y se cambió por dos razones: el kind no informaba nada en este árbol
+   (1 `root` contra 30 `reference`, o sea un canal casi constante) y su amarillo de root CHOCABA con
+   el amarillo de deriva. El kind se sigue viendo en el badge del panel de detalle y en la posición
+   dentro del árbol. La escala se lee de un tirón: verde → amarillo → naranja → rojo. El violeta va
+   aparte porque NO es un grado de deriva: es "esto describe una rama, no main". */
+.dot[data-alin="al-dia"] { background: var(--ctx); }
+.dot[data-alin="deriva"] { background: #d8c65a; }
+.dot[data-alin="deriva-alta"] { background: #f5a04a; }
+.dot[data-alin="rutas-muertas"], .dot[data-alin="marca-ya-mergeada"] { background: #f2585b; }
+.dot[data-alin="rama-sin-mergear"] { background: #a78bfa; }
+/* el estado que exige ACTUAR lleva halo: un rojo entre 31 filas se puede pasar por alto */
+.dot[data-alin="rutas-muertas"], .dot[data-alin="marca-ya-mergeada"] {
+  box-shadow: 0 0 0 3px rgba(242, 88, 91, .28);
+}
 
 .deriva { font-size: 10px; padding: 0 5px; border-radius: 999px; background: #0b0d12; color: var(--mut); }
 .deriva[data-alin="rutas-muertas"], .deriva[data-alin="marca-ya-mergeada"] { color: #f2585b; }

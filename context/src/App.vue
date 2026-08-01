@@ -21,9 +21,12 @@ const alinRaw = Object.values(alinMods)[0]
 const alin = (alinRaw && (alinRaw.default || alinRaw)) || { nodos: [], resumen: {}, generado: null }
 const alinById = Object.fromEntries((alin.nodos || []).map(n => [n.id, n]))
 const alinOf = (id) => alinById[id] || null
+// EL CÍRCULO ES UN INDICADOR DE SALUD, no de tipo. Antes el relleno decía el `kind` y la alineación
+// iba en un anillo, pero el kind no informaba nada en este árbol: son 1 `root` y 30 `reference`, o sea
+// un canal casi constante. Y había un choque de color: el root es amarillo, igual que la deriva.
+// Ahora el relleno es el estado (verde → amarillo → naranja → rojo, violeta para rama sin mergear) y
+// el kind se sigue viendo en el badge del panel de detalle y en la posición dentro del árbol.
 const estadoOf = (id) => (alinById[id] ? alinById[id].estado : null)
-// se pinta el anillo solo cuando hay algo que decir: un nodo al día no lleva marca (cero ruido)
-const anilloOf = (id) => { const e = estadoOf(id); return e && e !== 'al-dia' ? e : null }
 const ETIQ = {
   'rutas-muertas': '⛔ rutas muertas — el mapa cita archivos que no existen en main',
   'marca-ya-mergeada': '🔁 marca ya mergeada — sus pendientes YA están en main: devolvelos a files[] y borrá la marca',
@@ -138,12 +141,12 @@ const selDoc = computed(() => md(docs[sel.value] || '_(sin doc.md)_'))
              class="row" :class="{ sel: sel === r.id, hl: highlighted.has(r.id) }"
              :style="{ paddingLeft: (8 + r.depth * 18) + 'px' }" @click="select(r.id)">
           <span class="tog" @click.stop="r.hasKids && toggle(r.id)">{{ r.hasKids ? (collapsed.has(r.id) ? '▸' : '▾') : '·' }}</span>
-          <!-- el relleno dice QUÉ ES (kind); el anillo, si está al día. Dos canales, un círculo. -->
-          <span class="dot" :class="kindOf(r.id)" :data-alin="anilloOf(r.id)"
+          <!-- el relleno ES el estado de salud (ver estadoOf) -->
+          <span class="dot" :class="kindOf(r.id)" :data-alin="estadoOf(r.id)"
                 :title="ETIQ[estadoOf(r.id)] || ''"></span>
           <span class="nm">{{ nameOf(r.id) }}</span>
           <span class="deriva" v-if="alinOf(r.id) && alinOf(r.id).deriva.cambiados"
-                :data-alin="anilloOf(r.id)"
+                :data-alin="estadoOf(r.id)"
                 :title="alinOf(r.id).deriva.cambiados + ' de ' + alinOf(r.id).archivos + ' archivos cambiaron en main desde ' + (alinOf(r.id).verificado.date || '?')">
             {{ alinOf(r.id).deriva.pct }}%
           </span>
