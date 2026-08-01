@@ -97,6 +97,9 @@ header .sub { color: var(--mut); font-weight: 400; }
 .alin-lista { margin-top: 7px; font-size: 12px; color: var(--mut); }
 .alin-lista b { color: var(--fg); font-weight: 600; }
 .alin-fecha { display: inline-block; width: 78px; color: #6d7686; font-size: 11px; }
+.alin-commit { margin: 2px 0; }
+.alin-autor { display: inline-block; min-width: 118px; color: #8fa2c4; }
+.alin-cmd { margin-top: 6px; padding-top: 5px; border-top: 1px dashed var(--line); }
 .alin-pill[data-alin="rutas-muertas"] { color: #f2585b; }
 .alin-pill[data-alin="deriva-alta"] { color: #f5a04a; }
 .alin-pill[data-alin="deriva"] { color: #d8c65a; }

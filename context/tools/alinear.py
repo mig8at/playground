@@ -44,6 +44,69 @@ SALIDA = os.path.join(CTX, "alineacion.json")
 DERIVA_ALTA = 25  # % de archivos tocados desde el sello a partir del cual el nodo se marca en rojo
 
 
+TOPE_COMMITS = 15  # cuántos se guardan en el JSON; el total siempre se reporta entero
+
+
+def base_en(root, ref, fecha):
+    """El commit de `ref` al cierre del día del sello: el «antes» contra el que se compara.
+
+    ⚠ Se usa un RANGO de commits (`base..ref`) y no `--since <fecha>`. `--since` filtra por fecha del
+    commit, y un merge del 23 puede traer commits escritos el 10: quedaban fuera del filtro aunque el
+    cambio SÍ entró a main después del sello. Así aparecían nodos con deriva y «0 commits» —
+    `kyc` y `creditopx` el 2026-07-31.
+    """
+    r = subprocess.run(["git", "-C", root, "rev-list", "-1", f"--before={fecha} 23:59:59", ref],
+                       capture_output=True, text=True)
+    return r.stdout.strip() if r.returncode == 0 else ""
+
+
+def commits_desde(files, ref, desde):
+    """Los commits que tocaron archivos del nodo desde el sello: quién y qué dijo que hizo.
+
+    POR QUÉ, si ya está la lista de archivos: «14 de 101 archivos cambiaron» no dice si conviene
+    leerlos hoy ni a quién preguntarle. El asunto del commit sí *tría*: al revisar `ecommerce` alcanzó
+    con leer «feat/customer-revolving-credit-detail» para saber que ese cambio era de CreditopX y no
+    tocaba lo que el nodo afirma — sin abrir una línea de código.
+
+    ⚠ Y ahí termina su valor: el asunto dice la INTENCIÓN, no lo que pasó. Para concluir que un nodo
+    sigue siendo cierto hay que leer el diff (`make context-diff NODE=x`). Esto ordena la cola; no la
+    resuelve.
+
+    `--no-merges` a propósito: con merges, `onboarding` mostraba 16 commits y la mitad eran «Staging
+    (#749)» — ruido con autor equivocado (el que mergeó, no el que escribió). Sin ellos: 8 commits
+    reales, mismos 4 autores, asuntos que se pueden leer.
+    """
+    por_repo = collections.defaultdict(list)
+    for f in files:
+        alias, _, ruta = f.partition("/")
+        por_repo[alias].append(ruta)
+
+    vistos, lista = set(), []
+    for alias, rutas in por_repo.items():
+        root = ROOTS.get(alias)
+        if not root or not os.path.isdir(root):
+            continue
+        base = base_en(root, ref, desde)
+        if not base:
+            continue
+        r = subprocess.run(
+            ["git", "-C", root, "log", "--no-merges", "--relative",
+             "--pretty=format:%h\x1f%cs\x1f%an\x1f%s", f"{base}..{ref}", "--", *rutas],
+            capture_output=True, text=True, errors="replace",
+        )
+        if r.returncode != 0:
+            continue
+        for linea in r.stdout.splitlines():
+            p = linea.split("\x1f")
+            if len(p) == 4 and p[0] not in vistos:
+                vistos.add(p[0])
+                lista.append({"sha": p[0], "fecha": p[1], "autor": p[2], "asunto": p[3], "repo": alias})
+    lista.sort(key=lambda c: c["fecha"], reverse=True)
+    autores = collections.Counter(c["autor"] for c in lista)
+    return {"total": len(lista), "autores": dict(autores.most_common()),
+            "lista": lista[:TOPE_COMMITS]}
+
+
 def cambiados_desde(files, ref, desde):
     """Archivos del nodo tocados en `ref` después de `desde`. Un `git log` por repo, no por archivo:
     con ~100 rutas por nodo, uno por archivo serían 100 procesos y esto tarda ~1 s en total."""
@@ -57,28 +120,47 @@ def cambiados_desde(files, ref, desde):
         root = ROOTS.get(alias)
         if not root or not os.path.isdir(root):
             continue
-        # ⚠ `--relative` NO es opcional acá. `git ls-tree` (el que usa el oráculo) devuelve rutas
-        # relativas al DIRECTORIO consultado, pero `git log --name-only` las devuelve relativas a la
-        # RAÍZ DEL REPO. Para `harness`, que es un subdirectorio de playground y no un repo
-        # propio, eso hacía construir `harness/harness/pkg/…` → no matcheaba nunca y el nodo
-        # `findings` reportaba 1 archivo tocado cuando eran 16. Un undercount no avisa: se lee como
-        # «este nodo está al día».
+        base = base_en(root, ref, desde)
+        if not base:
+            continue
+        # QUÉ archivos: el DIFF NETO `base..ref`, no un `git log`. Dos intentos con log fallaron y
+        # los dos en silencio, que es lo peligroso:
+        #   · `--name-only` a secas NO imprime archivos para los commits de merge (default de git), y
+        #     acá todo entra por PR: 38 archivos quedaban sin contar y dos nodos figuraban 🟢 al día
+        #     teniendo deriva real (`kyc`, `creditopx`).
+        #   · `--first-parent --diff-merges=first-parent` los muestra, pero reporta el MOVIMIENTO a lo
+        #     largo del camino: archivos que cambiaron en un merge y volvieron atrás en otro salían
+        #     como deriva con `git diff base..main` vacío. Sobreconteo — 5 falsos en `kyc` solo.
+        # El diff neto contesta la pregunta exacta —«¿este archivo es distinto de cuando lo verifiqué?»—
+        # sin depender de por dónde pasó la historia. `--relative` porque el alias `harness` es un
+        # SUBDIRECTORIO de playground: sin eso git devuelve rutas desde la raíz del repo y no matchean.
         r = subprocess.run(
-            ["git", "-C", root, "log", "--since", desde, "--name-only", "--relative",
-             "--pretty=format:%cs", ref, "--", *rutas],
+            ["git", "-C", root, "diff", "--name-only", "--relative", f"{base}..{ref}", "--", *rutas],
             capture_output=True, text=True,
         )
         if r.returncode != 0:
             continue
-        # el log sale como: fecha, luego las rutas de ese commit, luego línea vacía
-        fecha = ""
-        for linea in r.stdout.splitlines():
+        distintos = [ln for ln in r.stdout.splitlines() if f"{alias}/{ln}" in files]
+        if not distintos:
+            continue
+        # CUÁNDO cambió cada uno: eso sí sale del log, en una sola pasada por repo (uno por archivo
+        # serían ~170 procesos). El diff manda sobre quién está en la lista; el log solo pone fecha.
+        r2 = subprocess.run(
+            ["git", "-C", root, "log", "--name-only", "--relative",
+             "--first-parent", "--diff-merges=first-parent",
+             "--pretty=format:%cs", f"{base}..{ref}", "--", *distintos],
+            capture_output=True, text=True,
+        )
+        fecha, fechas = "", {}
+        for linea in r2.stdout.splitlines():
             if not linea.strip():
                 continue
             if linea[:4].isdigit() and linea.count("-") == 2 and len(linea) == 10:
                 fecha = linea
-            elif f"{alias}/{linea}" in files:
-                tocados.setdefault(f"{alias}/{linea}", fecha)  # la 1ª es la más reciente
+            else:
+                fechas.setdefault(linea, fecha)  # la 1ª aparición es la más reciente
+        for ruta in distintos:
+            tocados[f"{alias}/{ruta}"] = fechas.get(ruta, "?")
     return tocados
 
 
@@ -134,6 +216,8 @@ def main():
             "deriva": {"cambiados": len(deriva), "pct": pct,
                        "archivos": [{"ruta": k, "ultimo_cambio": v} for k, v in
                                     sorted(deriva.items(), key=lambda x: x[1], reverse=True)]},
+            "commits": (commits_desde(files, sello.get("ref", ref), sello["date"])
+                        if deriva and sello.get("date") else None),
             "rutas_muertas": muertas,
             "pendiente_merge": ({"ref": pm.get("ref"), "archivos": len(pm.get("files", [])),
                                  "ya_en_main": ya_mergeadas} if pm else None),
@@ -162,8 +246,16 @@ def main():
             extra = f" · {len(n['rutas_muertas'])} ruta(s) que no existen en {ref}"
         elif n["pendiente_merge"] and n["pendiente_merge"]["ya_en_main"]:
             extra = f" · {len(n['pendiente_merge']['ya_en_main'])} de sus pendientes YA están en {ref}"
+        # los commits atrasados y QUIÉN los hizo: es lo que decide a quién preguntarle antes de leer
+        c = n.get("commits") or {}
+        atras = ""
+        if c.get("total"):
+            quien = ", ".join(list(c["autores"])[:3])
+            if len(c["autores"]) > 3:
+                quien += f" +{len(c['autores']) - 3}"
+            atras = f"  ·  {c['total']:2d} commits · {quien}"
         print(f"  {ETIQ[n['estado']]:22s} {n['id']:22s} {d['cambiados']:3d}/{n['archivos']:<3d} "
-              f"({d['pct']:2d}%) desde {n['verificado'].get('date','?')}{extra}")
+              f"({d['pct']:2d}%) desde {n['verificado'].get('date','?')}{extra}{atras}")
     print(f"\n  {resumen.get('al-dia', 0)} nodo(s) al día · " +
           " · ".join(f"{v} {k}" for k, v in resumen.items() if k != "al-dia"))
 

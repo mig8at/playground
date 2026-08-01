@@ -195,6 +195,29 @@ const selDoc = computed(() => md(docs[sel.value] || '_(sin doc.md)_'))
             </span>
           </div>
 
+          <!-- QUÉ pasó y QUIÉN lo hizo. El asunto del commit no verifica nada —dice la intención,
+               no el resultado— pero TRIA: con leer «feat/customer-revolving-credit-detail» se sabe
+               que ese cambio no toca este nodo, sin abrir código. Y el autor es a quién preguntarle.
+               Para concluir hay que leer el diff: `make context-diff NODE=<nodo>`. -->
+          <div v-if="alinOf(sel).commits && alinOf(sel).commits.total" class="alin-lista">
+            <b>{{ alinOf(sel).commits.total }} commit(s) atrasado(s)</b>
+            <span class="alin-meta">
+              · {{ Object.entries(alinOf(sel).commits.autores).map(([a, n]) => a + ' (' + n + ')').join(' · ') }}
+            </span>
+            <div v-for="c in alinOf(sel).commits.lista" :key="c.sha" class="alin-commit">
+              <span class="alin-fecha">{{ c.fecha }}</span>
+              <code>{{ c.sha }}</code>
+              <span class="alin-autor">{{ c.autor }}</span>
+              {{ c.asunto }}
+            </div>
+            <div v-if="alinOf(sel).commits.total > alinOf(sel).commits.lista.length" class="alin-meta">
+              … y {{ alinOf(sel).commits.total - alinOf(sel).commits.lista.length }} más
+            </div>
+            <div class="alin-meta alin-cmd">
+              el asunto tría, el diff decide → <code>make context-diff NODE={{ sel }}</code>
+            </div>
+          </div>
+
           <div v-if="alinOf(sel).deriva.cambiados" class="alin-lista">
             <b>Cambiaron desde la verificación ({{ alinOf(sel).deriva.cambiados }} de {{ alinOf(sel).archivos }}):</b>
             <div v-for="a in alinOf(sel).deriva.archivos" :key="a.ruta">

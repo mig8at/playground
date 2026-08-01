@@ -145,7 +145,7 @@ python3 tools/alinear.py          # calcula, imprime el informe y escribe alinea
 python3 tools/alinear.py --ver    # solo imprime
 ```
 
-~1,3 s para los 31 nodos. Tres señales, y la tercera es la que antes no tenía dueño:
+~4 s para los 31 nodos. Tres señales, y la tercera es la que antes no tenía dueño:
 
 1. **⛔ rutas muertas** — `files[]` que no existen en `main`. El mapa está mintiendo.
 2. **🔴🟡 deriva** — archivos que existen pero fueron **tocados en `main` después del sello**. Es lo que
@@ -155,6 +155,36 @@ python3 tools/alinear.py --ver    # solo imprime
    acordara. Cuando aparece: devolvé las rutas a `files[]`, re-verificá y **borrá la marca**.
 
 Exit: `0` nada urgente · `1` hay rutas muertas o marcas ya mergeadas.
+
+⚠ **«Cambió» se mide con el DIFF NETO (`git diff <sello>..main`), no con `git log`.** Dos intentos con
+log fallaron, los dos en silencio: `--name-only` **no imprime archivos para los merges** (default de
+git, y acá todo entra por PR) → 38 archivos sin contar y dos nodos 🟢 al día con deriva real; y
+`--first-parent --diff-merges=first-parent` los muestra pero reporta el movimiento **a lo largo del
+camino** → archivos que cambiaron en un merge y volvieron en otro salían como deriva con el diff
+vacío. El diff neto contesta la pregunta exacta: *¿este archivo es distinto de cuando lo verifiqué?*
+
+## Los commits atrasados y quién los hizo — para TRIAR, no para concluir
+
+Cada nodo con deriva trae en `alineacion.json` (y en la viz) **cuántos commits entraron desde el sello,
+qué dijeron y quién los firmó**. Sirve para dos cosas concretas: decidir si vale abrirlo —al revisar
+`ecommerce` alcanzó con leer «feat/customer-revolving-credit-detail» para saber que ese cambio era de
+CreditopX y no tocaba el nodo— y saber **a quién preguntarle**.
+
+⚠ Y ahí se acaba: el asunto dice la **intención**, no lo que pasó. Un «fix typo» puede mover una
+función 40 líneas y un «Staging (#749)» no dice nada. Va con `--no-merges` justamente por eso: el autor
+de un merge es quien mergeó, no quien escribió.
+
+**Lo que decide es el código:**
+
+```bash
+make context-diff NODE=onboarding STAT=1   # cuánto cambió cada archivo
+make context-diff NODE=onboarding          # el diff completo, para leer
+```
+
+Es el **diff acumulado** `sello..main`, no `git log -p`: para re-contextualizar no importa el camino
+—el mismo archivo tocado por tres commits aparecería tres veces— sino **antes contra ahora**. Existe
+porque leerlo costaba reconstruir a mano el repo, el commit del sello y las rutas, y esa fricción es
+exactamente la que hace que un nodo se selle sin leer (pasó con `ecommerce` el 2026-07-31).
 
 ⚠ **La deriva es una señal de PRIORIDAD, no un veredicto.** El primer nodo que se atacó con esto,
 `findings`, marcaba **36 % (16 de 44)** y la revisión terminó en **una** corrección: una referencia

@@ -54,9 +54,13 @@ panel: ## @dia abre el panel del harness para probar flujos (:5195)
 	@cd harness && npm run dev
 
 # ── CONTEXTO ─────────────────────────────────────────────────────────────────────────────────────
-.PHONY: context-align context-refs context-seal context-check context-map
+.PHONY: context-align context-diff context-refs context-seal context-check context-map
 context-align: ## @ctx qué nodos quedaron viejos + escribe alineacion.json (corrélo DESPUÉS DE CADA MERGE)
 	@cd context && python3 tools/alinear.py
+
+context-diff: ## @ctx QUÉ cambió en el código de un nodo desde su sello — lo que se lee para re-verificar. NODE=x [STAT=1]
+	@test -n "$(NODE)" || { echo "falta NODE=<nodo>  ·  ej: make context-diff NODE=onboarding"; exit 2; }
+	@cd context && python3 tools/diff.py $(NODE) $(if $(STAT),--stat,)
 
 context-refs: ## @ctx ¿las citas `archivo:línea` apuntan a lo que dicen? (NODE=<nodo> para uno solo)
 	@cd context && python3 tools/refs.py $(NODE)
