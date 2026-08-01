@@ -11,6 +11,28 @@ const idOf = (p) => p.split('/').slice(-2)[0]
 const maps = {}; for (const p in mapMods) maps[idOf(p)] = mapMods[p].default || mapMods[p]
 const docs = {}; for (const p in docMods) docs[idOf(p)] = docMods[p]
 
+// ── ALINEACIÓN: ¿qué nodos quedaron viejos? ──
+// Lo calcula `tools/alinear.py` (git en consola) y deja `alineacion.json`. Acá SOLO se pinta: el
+// browser no puede correr git, y levantar un server para eso sería reconstruir lo que se borró.
+// Se importa por glob y no con `import` directo a propósito: si el JSON no existe todavía (nadie
+// corrió el comando, o clonaste fresco) la viz sigue andando sin alineación en vez de romperse.
+const alinMods = import.meta.glob('../alineacion.json', { eager: true })
+const alinRaw = Object.values(alinMods)[0]
+const alin = (alinRaw && (alinRaw.default || alinRaw)) || { nodos: [], resumen: {}, generado: null }
+const alinById = Object.fromEntries((alin.nodos || []).map(n => [n.id, n]))
+const alinOf = (id) => alinById[id] || null
+const estadoOf = (id) => (alinById[id] ? alinById[id].estado : null)
+// se pinta el anillo solo cuando hay algo que decir: un nodo al día no lleva marca (cero ruido)
+const anilloOf = (id) => { const e = estadoOf(id); return e && e !== 'al-dia' ? e : null }
+const ETIQ = {
+  'rutas-muertas': '⛔ rutas muertas — el mapa cita archivos que no existen en main',
+  'marca-ya-mergeada': '🔁 marca ya mergeada — sus pendientes YA están en main: devolvelos a files[] y borrá la marca',
+  'deriva-alta': '🔴 deriva alta — muchos de sus archivos cambiaron desde que se verificó',
+  'rama-sin-mergear': '⏳ describe una rama sin mergear, no lo que corre en main',
+  'deriva': '🟡 deriva — algunos archivos cambiaron desde que se verificó',
+  'al-dia': '🟢 al día',
+}
+
 const combos = tree.combinations || []
 const byId = computed(() => Object.fromEntries(combos.map(c => [c.id, c])))
 
@@ -98,6 +120,13 @@ const selDoc = computed(() => md(docs[sel.value] || '_(sin doc.md)_'))
         <span class="pill ctx">{{ nContext }} contextos</span>
         <span class="pill task">{{ nTask }} tasks</span>
         <span class="pill">{{ nFiles }} archivos</span>
+        <span class="pill alin-pill" v-if="alin.generado" :data-alin="alin.resumen['rutas-muertas'] || alin.resumen['marca-ya-mergeada'] ? 'rutas-muertas' : (alin.resumen['deriva-alta'] ? 'deriva-alta' : (alin.resumen['deriva'] ? 'deriva' : 'al-dia'))"
+              :title="'Calculado por tools/alinear.py el ' + alin.generado + ' contra ' + alin.ref">
+          {{ alin.resumen['al-dia'] || 0 }} al día
+          <template v-if="alin.resumen['deriva'] || alin.resumen['deriva-alta']">
+            · {{ (alin.resumen['deriva'] || 0) + (alin.resumen['deriva-alta'] || 0) }} con deriva
+          </template>
+        </span>
       </div>
       <p class="hint">Read-only. La estructura vive en <code>tree.json</code>; para agregar una task, un LLM edita ese JSON (+ <code>flows/&lt;id&gt;/</code>) y esto se actualiza.</p>
     </header>
@@ -109,8 +138,15 @@ const selDoc = computed(() => md(docs[sel.value] || '_(sin doc.md)_'))
              class="row" :class="{ sel: sel === r.id, hl: highlighted.has(r.id) }"
              :style="{ paddingLeft: (8 + r.depth * 18) + 'px' }" @click="select(r.id)">
           <span class="tog" @click.stop="r.hasKids && toggle(r.id)">{{ r.hasKids ? (collapsed.has(r.id) ? '▸' : '▾') : '·' }}</span>
-          <span class="dot" :class="kindOf(r.id)"></span>
+          <!-- el relleno dice QUÉ ES (kind); el anillo, si está al día. Dos canales, un círculo. -->
+          <span class="dot" :class="kindOf(r.id)" :data-alin="anilloOf(r.id)"
+                :title="ETIQ[estadoOf(r.id)] || ''"></span>
           <span class="nm">{{ nameOf(r.id) }}</span>
+          <span class="deriva" v-if="alinOf(r.id) && alinOf(r.id).deriva.cambiados"
+                :data-alin="anilloOf(r.id)"
+                :title="alinOf(r.id).deriva.cambiados + ' de ' + alinOf(r.id).archivos + ' archivos cambiaron en main desde ' + (alinOf(r.id).verificado.date || '?')">
+            {{ alinOf(r.id).deriva.pct }}%
+          </span>
           <span class="cnt" v-if="filesOf(r.id)">{{ filesOf(r.id) }}</span>
         </div>
 
@@ -131,6 +167,39 @@ const selDoc = computed(() => md(docs[sel.value] || '_(sin doc.md)_'))
           <span class="cnt big" v-if="filesOf(sel)">{{ filesOf(sel) }} archivos</span>
         </div>
         <p class="when" v-if="whenOf(sel)"><b>Cuándo:</b> {{ whenOf(sel) }}</p>
+
+        <!-- ALINEACIÓN del nodo seleccionado: el estado, contra qué se verificó y QUÉ archivos cambiaron -->
+        <div class="alin" v-if="alinOf(sel)" :data-alin="estadoOf(sel)">
+          <div class="alin-head">
+            <span class="alin-badge" :data-alin="estadoOf(sel)">{{ ETIQ[estadoOf(sel)] }}</span>
+            <span class="alin-meta" v-if="alinOf(sel).verificado.date">
+              verificado contra <code>{{ alinOf(sel).verificado.ref }}</code> el
+              {{ alinOf(sel).verificado.date }}
+              <em v-if="alinOf(sel).verificado.source === 'git-doc'">(fecha estimada del último commit del doc, no una verificación)</em>
+            </span>
+          </div>
+
+          <div v-if="alinOf(sel).rutas_muertas.length" class="alin-lista">
+            <b>No existen en {{ alin.ref }}:</b>
+            <div v-for="f in alinOf(sel).rutas_muertas" :key="f"><code>{{ f }}</code></div>
+          </div>
+
+          <div v-if="alinOf(sel).pendiente_merge" class="alin-lista">
+            <b>Pendiente de merge en <code>{{ alinOf(sel).pendiente_merge.ref }}</code>:</b>
+            {{ alinOf(sel).pendiente_merge.archivos }} archivo(s) fuera de <code>files[]</code>.
+            <span v-if="alinOf(sel).pendiente_merge.ya_en_main.length">
+              ⚠ {{ alinOf(sel).pendiente_merge.ya_en_main.length }} ya están en {{ alin.ref }}.
+            </span>
+          </div>
+
+          <div v-if="alinOf(sel).deriva.cambiados" class="alin-lista">
+            <b>Cambiaron desde la verificación ({{ alinOf(sel).deriva.cambiados }} de {{ alinOf(sel).archivos }}):</b>
+            <div v-for="a in alinOf(sel).deriva.archivos" :key="a.ruta">
+              <span class="alin-fecha">{{ a.ultimo_cambio }}</span> <code>{{ a.ruta }}</code>
+            </div>
+          </div>
+        </div>
+
         <p class="path"><code>server/data/flows/{{ sel }}/</code> · doc.md + map.json</p>
         <div class="chips" v-if="byId[sel].contexts">
           <span class="chip" v-for="cx in byId[sel].contexts" :key="cx" @click="select(cx)">{{ cx }}</span>

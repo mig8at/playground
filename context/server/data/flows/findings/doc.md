@@ -837,7 +837,7 @@ const nextPath = result.payload.formTypeId === null
 
 **Cómo apareció:** al verificar el cierre de la uReq 464499 (F-50), la fila de `user_requests` **ya no existía**, pero sus `user_request_records` sí, con el rastro completo `3 → 28 → 11`.
 
-**Causa:** `scrubphone` (`pkg/asesor.ts:203`) borra los users cliente del teléfono de prueba y, con ellos, sus `user_requests` (`deleteUsers`, FK checks off). Como **cada corrida arranca scrubbeando**, la corrida N destruye la evidencia de la N-1. La 464499 la borró la corrida siguiente (464500, otro user_id, 33s después).
+**Causa:** `scrubphone` (`pkg/asesor.ts:236`) borra los users cliente del teléfono de prueba y, con ellos, sus `user_requests` (`deleteUsers` en `:178`, FK checks off). Como **cada corrida arranca scrubbeando**, la corrida N destruye la evidencia de la N-1. La 464499 la borró la corrida siguiente (464500, otro user_id, 33s después).
 
 **Y el borrado es parcial:** `user_request_records` **no está** en la lista `childTables`, así que sus filas sobreviven al borrado del padre.
 

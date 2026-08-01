@@ -54,3 +54,43 @@ header .sub { color: var(--mut); font-weight: 400; }
 .doc table { border-collapse: collapse; margin: 10px 0; font-size: 12.5px; }
 .doc td { border: 1px solid var(--line); padding: 4px 9px; vertical-align: top; }
 .doc strong { color: #fff; }
+
+/* ── ALINEACIÓN: qué nodos quedaron viejos (datos de alineacion.json, calculados por alinear.py) ──
+   El RELLENO del .dot sigue diciendo el kind; el ANILLO dice si está al día. Dos canales en un
+   círculo, en vez de un segundo punto que sumaría ruido a 31 filas. Un nodo al día NO lleva anillo:
+   así lo que salta a la vista es lo que hay que revisar, no lo que está bien. */
+.dot[data-alin] { box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px currentColor; }
+.dot[data-alin="rutas-muertas"], .dot[data-alin="marca-ya-mergeada"] { color: #f2585b; }
+.dot[data-alin="deriva-alta"] { color: #f5a04a; }
+.dot[data-alin="deriva"] { color: #d8c65a; }
+.dot[data-alin="rama-sin-mergear"] { color: #a78bfa; }
+
+.deriva { font-size: 10px; padding: 0 5px; border-radius: 999px; background: #0b0d12; color: var(--mut); }
+.deriva[data-alin="rutas-muertas"], .deriva[data-alin="marca-ya-mergeada"] { color: #f2585b; }
+.deriva[data-alin="deriva-alta"] { color: #f5a04a; }
+.deriva[data-alin="deriva"] { color: #d8c65a; }
+.deriva[data-alin="rama-sin-mergear"] { color: #a78bfa; }
+
+.alin { border: 1px solid var(--line); border-left: 3px solid var(--mut); border-radius: 6px;
+        padding: 9px 12px; margin: 10px 0; background: #12151d; }
+.alin[data-alin="rutas-muertas"], .alin[data-alin="marca-ya-mergeada"] { border-left-color: #f2585b; }
+.alin[data-alin="deriva-alta"] { border-left-color: #f5a04a; }
+.alin[data-alin="deriva"] { border-left-color: #d8c65a; }
+.alin[data-alin="rama-sin-mergear"] { border-left-color: #a78bfa; }
+.alin[data-alin="al-dia"] { border-left-color: var(--ctx); }
+.alin-head { display: flex; flex-wrap: wrap; gap: 8px; align-items: baseline; }
+.alin-badge { font-size: 12px; font-weight: 600; }
+.alin-badge[data-alin="rutas-muertas"], .alin-badge[data-alin="marca-ya-mergeada"] { color: #f2585b; }
+.alin-badge[data-alin="deriva-alta"] { color: #f5a04a; }
+.alin-badge[data-alin="deriva"] { color: #d8c65a; }
+.alin-badge[data-alin="rama-sin-mergear"] { color: #a78bfa; }
+.alin-badge[data-alin="al-dia"] { color: var(--ctx); }
+.alin-meta { font-size: 11.5px; color: var(--mut); }
+.alin-meta em { color: #f5a04a; font-style: normal; }
+.alin-lista { margin-top: 7px; font-size: 12px; color: var(--mut); }
+.alin-lista b { color: var(--fg); font-weight: 600; }
+.alin-fecha { display: inline-block; width: 78px; color: #6d7686; font-size: 11px; }
+.alin-pill[data-alin="rutas-muertas"] { color: #f2585b; }
+.alin-pill[data-alin="deriva-alta"] { color: #f5a04a; }
+.alin-pill[data-alin="deriva"] { color: #d8c65a; }
+.alin-pill[data-alin="al-dia"] { color: var(--ctx); }

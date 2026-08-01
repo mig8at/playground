@@ -6,8 +6,8 @@
   "when": "Cuando algo NO funciona en el entorno LOCAL y querés saber si ya lo diagnosticamos — pantallas rotas sin mensaje, flujos que se traban, errores que el front se traga, o \"esto que veo, ¿es real o es un mock?\". También ANTES de invertir tiempo depurando un muro del harness: cada hallazgo trae síntoma, causa raíz verificada, evidencia y arreglo. Es un registro VIVO: al descubrir algo nuevo, se agrega una entrada acá.",
   "verified": {
     "ref": "main",
-    "date": "2026-07-18",
-    "source": "cabecera"
+    "date": "2026-07-31",
+    "source": "manual"
   },
   "files": [
     "frontend-e2e/dev/guided.spec.ts",

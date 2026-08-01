@@ -137,7 +137,7 @@ context/
 │   ├── build-route-map.py  ← tree.json + map.json → ROUTE-MAP.md
 │   └── index.txt           ← GENERADO, gitignored (6.257 rutas) — solo lo usa --worktree
 ├── alineacion.json   ← GENERADO por alinear.py · versionado (su historia = cuánto lleva viejo un nodo)
-├── src/App.vue       ← la viz read-only (142 líneas, mini-render de markdown sin deps)
+├── src/App.vue       ← la viz read-only (pinta la alineación: anillo de color por nodo) (142 líneas, mini-render de markdown sin deps)
 └── package.json      ← solo vue + vite. NO hay scripts de server (los de Go murieron con el MCP)
 ```
 

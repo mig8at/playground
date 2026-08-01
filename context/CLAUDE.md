@@ -34,8 +34,14 @@ El server Go, el WebSocket, el conector stdio y el sistema de "derivar" se borra
 
 - `server/` **no tiene código**: sobrevive como carpeta de datos (`server/data/flows/`). No muevas
   esos 31 directorios — toda ruta citada en los docs apunta ahí.
-- `src/App.vue` (`npm run dev` → Vite :5193) es una viz **read-only** que lee `tree.json` y
-  `flows/*` por `import.meta.glob`. No le agregues backend, WS ni botones de crear/derivar/guardar.
+- `src/App.vue` (`npm run dev` → Vite :5193) es una viz **read-only** que lee `tree.json`,
+  `flows/*` y `alineacion.json` por `import.meta.glob`. No le agregues backend, WS ni botones de
+  crear/derivar/guardar.
+- **Si necesitás mostrar algo que la viz no puede calcular** (git, la BD, cualquier cosa fuera del
+  repo): que un **comando** lo calcule y deje un JSON, y la viz lo lee. Así se hizo la alineación —
+  el browser no puede correr git, y levantar un server para eso es reconstruir lo que se borró.
+  El `import.meta.glob` del JSON va con glob y no con `import` directo a propósito: si el archivo no
+  existe todavía, la viz sigue andando sin esa capa en vez de romperse.
 
 ## El oráculo y el ROUTE-MAP corren SOLOS (hooks)
 
@@ -113,6 +119,17 @@ python3 tools/alinear.py --ver    # solo imprime
    acordara. Cuando aparece: devolvé las rutas a `files[]`, re-verificá y **borrá la marca**.
 
 Exit: `0` nada urgente · `1` hay rutas muertas o marcas ya mergeadas.
+
+⚠ **La deriva es una señal de PRIORIDAD, no un veredicto.** El primer nodo que se atacó con esto,
+`findings`, marcaba **36 % (16 de 44)** y la revisión terminó en **una** corrección: una referencia
+`pkg/asesor.ts:203` que hoy es `:236`. Los otros 15 archivos habían cambiado sin invalidar nada, porque
+los hallazgos citan **comportamientos**, no números de línea. Un nodo que cita mecanismos aguanta mucho
+cambio; uno que cita `archivo:línea` se rompe con cualquier refactor. Ordená por deriva, pero no
+concluyas que un 36 % son 16 errores.
+
+Y al revisar, ojo con los falsos positivos al chequear `archivo:línea`: en esa misma pasada aparecieron
+tres "fuera de rango" que **no eran deriva** — un artefacto generado (`.react-router/types/+routes.ts`),
+un hallazgo que declara ser de otra rama (`feature/motai-v2`) y un archivo de una herramienta ya borrada.
 
 **`pending_merge` va en el `map.json`, no solo en prosa.** La marca del `doc.md` es para que la lea un
 humano; el chequeo inverso necesita las rutas estructuradas:
