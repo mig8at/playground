@@ -128,7 +128,7 @@ O sea: el formulario clásico es React fijo con **dos toggles**, uno de los cual
 - **Sesión en Redis**: `Modules/Partner/App/Services/DynamicFormSessionService.php:10-11` (prefijo + TTL) · `:54` (refresco) · rutas en `Modules/Partner/routes/api.php:218-222`.
 
 **G1 — wizard RD, frontend**
-- **El gate de país**: `apps/loan-request-wizard/app/routes/loan-application-form/phone-number.tsx:63-69` (`alliedCountry === 60` → `/request-amount`).
+- **El gate de país**: `apps/loan-request-wizard/app/routes/loan-application-form/phone-number.tsx:65-71` (`alliedCountry === 60` → `/request-amount`).
 - **Fetch del esquema**: `apps/loan-request-wizard/app/routes/dynamic/request-amount.tsx:40` (`VITE_ONBOARDING_FORM_SERVICE`) · `:60` (`/dynamic/{partner_hash}/schema`).
 - **Que es RD**: `modules/loan-request-wizard/dynamic-form/src/ui/components/financial-info-options.ts:1-8` y `:44-51` (rangos `RD$`) · `modules/loan-request-wizard/dynamic-form/src/lib/utils/dynamic-step-one.ts:22-24` (CED/CI_VE/PAS) · `:17-18` (18-100 años).
 - **Sesión (forma fija)**: `modules/loan-request-wizard/dynamic-form/src/lib/types/dynamic-form-session.ts:13-21`; cliente en `apps/loan-request-wizard/app/context/DynamicFormContext.tsx:34` / `:76` / `:95`.

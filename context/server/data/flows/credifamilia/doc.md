@@ -25,6 +25,15 @@ Credifamilia (lender **24**) es el único `response_type = 4` (un valor sin fila
 - **Marketplace / pre-aprobación / selección** (front): `available-lenders.tsx`, `AvailableLenders.tsx`, `fetch-lender-preapproval.ts` (el polling), `lender-response.mapper.ts`, `lender.constants.ts` (`CREDIFAMILIA_LENDER_ID=24`, `supportsDynamicPaymentPlan`).
 - **Handoff / identidad** (front): `loan-confirmation.tsx`, `loan-continue.tsx`, módulo `identity-validation/*` (UCs de Evidente + CrossCore).
 - **Plan de cuotas dinámico** (front): `usePaymentPlanOptions.ts`, `payment-plan.repository.ts`, `payment-plan-options.tsx`.
+
+⚠ **El wizard pide las cuotas SALTEÁNDOSE la validación de lender.** `payment-plan.repository.ts:49`
+llama `…/loan-options/{loanRequestId}/{amount}` con **`?skip_lender_validation=true`** — siempre, no
+condicionado. El controller lo lee (`CredifamiliaLoanOptionsController.php:24`,
+`$request->boolean('skip_lender_validation')`) y lo pasa como 3.º argumento a
+`CredifamiliaLoanOptionsService::handle` (`:31`). Con el flag en `false` (el default) la consulta exige
+que la solicitud tenga `lender_id` **NULL, 0 o el de Credifamilia** (`:35-40`); con `true` esa
+restricción **no se aplica**, así que el endpoint cotiza Credifamilia incluso para una solicitud ya
+asignada a otro lender. Al depurar cuotas que "no deberían salir", mirar acá antes que la data.
 - **Orquestación** (legacy): `ContinueUserFlowController.php`, `CreditopXFlowService.php`, `lenders/{LenderRetrievalService,PreApprovedLenderService}.php`.
 - **Identidad — Evidente** (legacy): `app/Services/Lenders/CredifamiliaV2/Evidente/*` + `EvidenteController`.
 - **Identidad — CrossCore + Jumio** (legacy): `app/Services/Lenders/CredifamiliaV2/CrossCore/*` + `CrossCoreController` + `ProcessCrossCoreEvaluation`.

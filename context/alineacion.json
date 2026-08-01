@@ -2,8 +2,8 @@
   "generado": "2026-07-31",
   "ref": "main",
   "resumen": {
-    "al-dia": 16,
-    "deriva": 13,
+    "al-dia": 21,
+    "deriva": 8,
     "rama-sin-mergear": 1,
     "deriva-alta": 1
   },
@@ -893,137 +893,6 @@
       "pendiente_merge": null
     },
     {
-      "id": "architecture",
-      "estado": "deriva",
-      "verificado": {
-        "ref": "main",
-        "date": "2026-07-18",
-        "source": "git-doc"
-      },
-      "archivos": 72,
-      "deriva": {
-        "cambiados": 8,
-        "pct": 11,
-        "archivos": [
-          {
-            "ruta": "application/routes/customer.php",
-            "ultimo_cambio": "2026-07-27"
-          },
-          {
-            "ruta": "legacy-backend/app/Models/User.php",
-            "ultimo_cambio": "2026-07-27"
-          },
-          {
-            "ruta": "application/app/Http/Controllers/Customer/ClientCodeController.php",
-            "ultimo_cambio": "2026-07-26"
-          },
-          {
-            "ruta": "application/app/Http/Controllers/Customer/UserRequestController.php",
-            "ultimo_cambio": "2026-07-26"
-          },
-          {
-            "ruta": "application/app/Http/Kernel.php",
-            "ultimo_cambio": "2026-07-26"
-          },
-          {
-            "ruta": "legacy-backend/Modules/Loans/routes/admin.php",
-            "ultimo_cambio": "2026-07-23"
-          },
-          {
-            "ruta": "legacy-backend/app/Http/Kernel.php",
-            "ultimo_cambio": "2026-07-23"
-          },
-          {
-            "ruta": "legacy-backend/app/Models/UserRequest.php",
-            "ultimo_cambio": "2026-07-23"
-          }
-        ]
-      },
-      "commits": {
-        "total": 10,
-        "autores": {
-          "Joel": 6,
-          "lhCabra-creditop": 2,
-          "Oscar Rincon": 1,
-          "Abel Arismendy": 1
-        },
-        "lista": [
-          {
-            "sha": "cae64d2e",
-            "fecha": "2026-07-27",
-            "autor": "lhCabra-creditop",
-            "asunto": "Add revolving credit detail screen to the allied portal",
-            "repo": "application"
-          },
-          {
-            "sha": "c86c83d5",
-            "fecha": "2026-07-27",
-            "autor": "lhCabra-creditop",
-            "asunto": "get last ado",
-            "repo": "legacy-backend"
-          },
-          {
-            "sha": "60763ea2",
-            "fecha": "2026-07-26",
-            "autor": "Oscar Rincon",
-            "asunto": "Impedir que crawlers ejecuten las consultas de preaprobado",
-            "repo": "application"
-          },
-          {
-            "sha": "531cd5dd",
-            "fecha": "2026-07-23",
-            "autor": "Joel",
-            "asunto": "feat(CORE-XXX): validar JWT de Cognito en /api/backoffice (fase 2 de protección)",
-            "repo": "legacy-backend"
-          },
-          {
-            "sha": "12337664",
-            "fecha": "2026-07-11",
-            "autor": "Joel",
-            "asunto": "refactor(CORE-XXX): renombrar módulo Admin a Backoffice (/api/backoffice)",
-            "repo": "legacy-backend"
-          },
-          {
-            "sha": "dc67f8dd",
-            "fecha": "2026-07-09",
-            "autor": "Joel",
-            "asunto": "refactor(CORE-XXX): mover API admin (usuarios/solicitudes) a Modules/Admin bajo /api/admin",
-            "repo": "legacy-backend"
-          },
-          {
-            "sha": "d205e10c",
-            "fecha": "2026-07-03",
-            "autor": "Joel",
-            "asunto": "feat(CORE-XXX): exponer otps del usuario",
-            "repo": "legacy-backend"
-          },
-          {
-            "sha": "ce815011",
-            "fecha": "2026-07-03",
-            "autor": "Joel",
-            "asunto": "feat(CORE-XXX): tracking de origen de onboarding (canal/backend) en users",
-            "repo": "legacy-backend"
-          },
-          {
-            "sha": "27e9125f",
-            "fecha": "2026-06-30",
-            "autor": "Joel",
-            "asunto": "feat(CORE-XXX): endpoints admin de usuarios (listado, detalle, solicitudes y documentos)",
-            "repo": "legacy-backend"
-          },
-          {
-            "sha": "970aa4a6",
-            "fecha": "2026-06-30",
-            "autor": "Abel Arismendy",
-            "asunto": "feat(loans): endpoints admin dashboard de applications",
-            "repo": "legacy-backend"
-          }
-        ]
-      },
-      "rutas_muertas": [],
-      "pendiente_merge": null
-    },
-    {
       "id": "creditop",
       "estado": "deriva",
       "verificado": {
@@ -1253,118 +1122,6 @@
             "autor": "Abel Arismendy",
             "asunto": "feat(loans): endpoints admin dashboard de applications",
             "repo": "legacy-backend"
-          }
-        ]
-      },
-      "rutas_muertas": [],
-      "pendiente_merge": null
-    },
-    {
-      "id": "amount-tiers",
-      "estado": "deriva",
-      "verificado": {
-        "ref": "main",
-        "date": "2026-07-18",
-        "source": "git-doc"
-      },
-      "archivos": 33,
-      "deriva": {
-        "cambiados": 3,
-        "pct": 9,
-        "archivos": [
-          {
-            "ruta": "legacy-backend/Modules/Onboarding/App/Http/Controllers/LenderListingController.php",
-            "ultimo_cambio": "2026-07-29"
-          },
-          {
-            "ruta": "frontend-monorepo/apps/loan-request-wizard/app/routes/lenders-marketplace/available-lenders.tsx",
-            "ultimo_cambio": "2026-07-24"
-          },
-          {
-            "ruta": "frontend-monorepo/modules/loan-request-wizard/lenders-marketplace/src/lib/application/calculate-loan-financials.uc.ts",
-            "ultimo_cambio": "2026-07-21"
-          }
-        ]
-      },
-      "commits": {
-        "total": 10,
-        "autores": {
-          "Oscar Rincon": 5,
-          "lhCabra-creditop": 2,
-          "Abel Arismendy": 1,
-          "joseesco24-creditop": 1,
-          "Joel": 1
-        },
-        "lista": [
-          {
-            "sha": "51c81621",
-            "fecha": "2026-07-21",
-            "autor": "lhCabra-creditop",
-            "asunto": "fix(lenders-marketplace): cuota inicial mínima = max(excedente, política) (#735)",
-            "repo": "frontend-monorepo"
-          },
-          {
-            "sha": "9ca723c9",
-            "fecha": "2026-07-21",
-            "autor": "Abel Arismendy",
-            "asunto": "fix(loan-request-wizard): unificar la identidad de posthog entre el dispositivo del asesor y el del usuario",
-            "repo": "frontend-monorepo"
-          },
-          {
-            "sha": "5770d9a3",
-            "fecha": "2026-07-19",
-            "autor": "Oscar Rincon",
-            "asunto": "fix(lenders-marketplace): mantener la comisión de Welli Risk tras el update-amount",
-            "repo": "frontend-monorepo"
-          },
-          {
-            "sha": "a603a5cd",
-            "fecha": "2026-07-17",
-            "autor": "joseesco24-creditop",
-            "asunto": "feat: backdn changes fo already confirmed pre approbal flow usage",
-            "repo": "legacy-backend"
-          },
-          {
-            "sha": "81886d4a",
-            "fecha": "2026-07-14",
-            "autor": "lhCabra-creditop",
-            "asunto": "fix(lenders-marketplace): usar available como cupo real en revolving (type 3) (#700)",
-            "repo": "frontend-monorepo"
-          },
-          {
-            "sha": "5e068473",
-            "fecha": "2026-07-14",
-            "autor": "Joel",
-            "asunto": "Feat/cred xxx costos admin sobre monto solicitado (#698)",
-            "repo": "frontend-monorepo"
-          },
-          {
-            "sha": "c4d72ce6",
-            "fecha": "2026-07-10",
-            "autor": "Oscar Rincon",
-            "asunto": "feat(lenders-marketplace): sort reactivo por bucket de probabilidad + fix export IMEI_LENDER_PATH_ID (#696)",
-            "repo": "frontend-monorepo"
-          },
-          {
-            "sha": "cb779204",
-            "fecha": "2026-07-10",
-            "autor": "Oscar Rincon",
-            "asunto": "feat(lenders): estado not_eligible y fallback STANDARD para Meddipay 401 (#690)",
-            "repo": "frontend-monorepo"
-          },
-          {
-            "sha": "1ca684ba",
-            "fecha": "2026-07-02",
-            "autor": "Oscar Rincon",
-            "asunto": "feat(lenders): resumen financiero en pantalla de lenders y pantalla de gestión (path_id 3) (#676)",
-            "repo": "frontend-monorepo"
-          },
-          {
-            "sha": "5d201d4f",
-            "fecha": "2026-07-01",
-            "autor": "Oscar Rincon",
-            "asunto": "Update Staging (#675)",
-            "repo": "frontend-monorepo"
           }
         ]
       },
@@ -1607,222 +1364,6 @@
       "pendiente_merge": null
     },
     {
-      "id": "credifamilia",
-      "estado": "deriva",
-      "verificado": {
-        "ref": "main",
-        "date": "2026-07-19",
-        "source": "cabecera"
-      },
-      "archivos": 134,
-      "deriva": {
-        "cambiados": 6,
-        "pct": 4,
-        "archivos": [
-          {
-            "ruta": "legacy-backend/Modules/Loans/App/Services/LoanAuthorizationService.php",
-            "ultimo_cambio": "2026-07-25"
-          },
-          {
-            "ruta": "frontend-monorepo/apps/loan-request-wizard/app/routes/lenders-marketplace/available-lenders.tsx",
-            "ultimo_cambio": "2026-07-24"
-          },
-          {
-            "ruta": "frontend-monorepo/modules/loan-request-wizard/lenders-marketplace/src/components/available-lenders/AvailableLenders.tsx",
-            "ultimo_cambio": "2026-07-23"
-          },
-          {
-            "ruta": "frontend-monorepo/modules/loan-request-wizard/lenders-marketplace/src/lib/infrastructure/repositories/payment-plan.repository.ts",
-            "ultimo_cambio": "2026-07-22"
-          },
-          {
-            "ruta": "legacy-backend/Modules/Onboarding/App/Http/Controllers/PaymentPlan/CredifamiliaLoanOptionsController.php",
-            "ultimo_cambio": "2026-07-22"
-          },
-          {
-            "ruta": "legacy-backend/app/Services/PaymentPlan/Credifamilia/LoanOptions/CredifamiliaLoanOptionsService.php",
-            "ultimo_cambio": "2026-07-22"
-          }
-        ]
-      },
-      "commits": {
-        "total": 5,
-        "autores": {
-          "Oscar Rincon": 2,
-          "lhCabra-creditop": 1,
-          "Joel": 1,
-          "Abel Arismendy": 1
-        },
-        "lista": [
-          {
-            "sha": "d5fc7c66",
-            "fecha": "2026-07-25",
-            "autor": "lhCabra-creditop",
-            "asunto": "feat(loans): persist ADO id photos to S3 before Credifamilia formalization",
-            "repo": "legacy-backend"
-          },
-          {
-            "sha": "8f2af8c4",
-            "fecha": "2026-07-23",
-            "autor": "Joel",
-            "asunto": "feat(CORE-XXX): perfilamiento con simulación, tab centrales y validación de nombres en el panel",
-            "repo": "frontend-monorepo"
-          },
-          {
-            "sha": "8bca5c2c",
-            "fecha": "2026-07-22",
-            "autor": "Oscar Rincon",
-            "asunto": "fix(lenders-marketplace): always send skip_lender_validation=true for Credifamilia payment-plan options",
-            "repo": "frontend-monorepo"
-          },
-          {
-            "sha": "d1df062f",
-            "fecha": "2026-07-22",
-            "autor": "Oscar Rincon",
-            "asunto": "feat(payment-plan): add optional skip_lender_validation to Credifamilia loan-options",
-            "repo": "legacy-backend"
-          },
-          {
-            "sha": "9ca723c9",
-            "fecha": "2026-07-21",
-            "autor": "Abel Arismendy",
-            "asunto": "fix(loan-request-wizard): unificar la identidad de posthog entre el dispositivo del asesor y el del usuario",
-            "repo": "frontend-monorepo"
-          }
-        ]
-      },
-      "rutas_muertas": [],
-      "pendiente_merge": null
-    },
-    {
-      "id": "smartpay",
-      "estado": "deriva",
-      "verificado": {
-        "ref": "main",
-        "date": "2026-07-18",
-        "source": "cabecera"
-      },
-      "archivos": 74,
-      "deriva": {
-        "cambiados": 3,
-        "pct": 4,
-        "archivos": [
-          {
-            "ruta": "legacy-backend/Modules/Loans/App/Http/Controllers/Customer/PromissoryNoteController.php",
-            "ultimo_cambio": "2026-07-29"
-          },
-          {
-            "ruta": "legacy-backend/Modules/Loans/App/Services/LoanAuthorizationService.php",
-            "ultimo_cambio": "2026-07-25"
-          },
-          {
-            "ruta": "legacy-backend/app/Models/UserRequest.php",
-            "ultimo_cambio": "2026-07-23"
-          }
-        ]
-      },
-      "commits": {
-        "total": 3,
-        "autores": {
-          "lhCabra-creditop": 1,
-          "Luis Romero": 1,
-          "Abel Arismendy": 1
-        },
-        "lista": [
-          {
-            "sha": "d5fc7c66",
-            "fecha": "2026-07-25",
-            "autor": "lhCabra-creditop",
-            "asunto": "feat(loans): persist ADO id photos to S3 before Credifamilia formalization",
-            "repo": "legacy-backend"
-          },
-          {
-            "sha": "236a5505",
-            "fecha": "2026-07-21",
-            "autor": "Luis Romero",
-            "asunto": "feat(pdf): add Estado column to payment schedule and redesign fee-change schedule",
-            "repo": "legacy-backend"
-          },
-          {
-            "sha": "970aa4a6",
-            "fecha": "2026-06-30",
-            "autor": "Abel Arismendy",
-            "asunto": "feat(loans): endpoints admin dashboard de applications",
-            "repo": "legacy-backend"
-          }
-        ]
-      },
-      "rutas_muertas": [],
-      "pendiente_merge": null
-    },
-    {
-      "id": "dynamic-forms",
-      "estado": "deriva",
-      "verificado": {
-        "ref": "main",
-        "date": "2026-07-23",
-        "source": "git-doc"
-      },
-      "archivos": 90,
-      "deriva": {
-        "cambiados": 3,
-        "pct": 3,
-        "archivos": [
-          {
-            "ruta": "frontend-monorepo/apps/loan-request-wizard/app/routes/loan-application-form/phone-number.tsx",
-            "ultimo_cambio": "2026-07-29"
-          },
-          {
-            "ruta": "application/routes/customer.php",
-            "ultimo_cambio": "2026-07-27"
-          },
-          {
-            "ruta": "legacy-backend/Modules/Onboarding/App/Http/Controllers/OnboardingController.php",
-            "ultimo_cambio": "2026-07-24"
-          }
-        ]
-      },
-      "commits": {
-        "total": 4,
-        "autores": {
-          "Oscar Rincon": 3,
-          "lhCabra-creditop": 1
-        },
-        "lista": [
-          {
-            "sha": "46551573",
-            "fecha": "2026-07-29",
-            "autor": "Oscar Rincon",
-            "asunto": "Staging (#749)",
-            "repo": "frontend-monorepo"
-          },
-          {
-            "sha": "cae64d2e",
-            "fecha": "2026-07-27",
-            "autor": "lhCabra-creditop",
-            "asunto": "Add revolving credit detail screen to the allied portal",
-            "repo": "application"
-          },
-          {
-            "sha": "60763ea2",
-            "fecha": "2026-07-26",
-            "autor": "Oscar Rincon",
-            "asunto": "Impedir que crawlers ejecuten las consultas de preaprobado",
-            "repo": "application"
-          },
-          {
-            "sha": "b2d110a9",
-            "fecha": "2026-07-24",
-            "autor": "Oscar Rincon",
-            "asunto": "Change document",
-            "repo": "legacy-backend"
-          }
-        ]
-      },
-      "rutas_muertas": [],
-      "pendiente_merge": null
-    },
-    {
       "id": "servicing",
       "estado": "deriva",
       "verificado": {
@@ -1936,6 +1477,42 @@
       "pendiente_merge": null
     },
     {
+      "id": "amount-tiers",
+      "estado": "al-dia",
+      "verificado": {
+        "ref": "main",
+        "date": "2026-07-31",
+        "source": "manual"
+      },
+      "archivos": 33,
+      "deriva": {
+        "cambiados": 0,
+        "pct": 0,
+        "archivos": []
+      },
+      "commits": null,
+      "rutas_muertas": [],
+      "pendiente_merge": null
+    },
+    {
+      "id": "architecture",
+      "estado": "al-dia",
+      "verificado": {
+        "ref": "main",
+        "date": "2026-07-31",
+        "source": "manual"
+      },
+      "archivos": 72,
+      "deriva": {
+        "cambiados": 0,
+        "pct": 0,
+        "archivos": []
+      },
+      "commits": null,
+      "rutas_muertas": [],
+      "pendiente_merge": null
+    },
+    {
       "id": "bancolombia",
       "estado": "al-dia",
       "verificado": {
@@ -1972,6 +1549,24 @@
       "pendiente_merge": null
     },
     {
+      "id": "credifamilia",
+      "estado": "al-dia",
+      "verificado": {
+        "ref": "main",
+        "date": "2026-07-31",
+        "source": "manual"
+      },
+      "archivos": 134,
+      "deriva": {
+        "cambiados": 0,
+        "pct": 0,
+        "archivos": []
+      },
+      "commits": null,
+      "rutas_muertas": [],
+      "pendiente_merge": null
+    },
+    {
       "id": "creditopx",
       "estado": "al-dia",
       "verificado": {
@@ -1980,6 +1575,24 @@
         "source": "manual"
       },
       "archivos": 14,
+      "deriva": {
+        "cambiados": 0,
+        "pct": 0,
+        "archivos": []
+      },
+      "commits": null,
+      "rutas_muertas": [],
+      "pendiente_merge": null
+    },
+    {
+      "id": "dynamic-forms",
+      "estado": "al-dia",
+      "verificado": {
+        "ref": "main",
+        "date": "2026-07-31",
+        "source": "manual"
+      },
+      "archivos": 90,
       "deriva": {
         "cambiados": 0,
         "pct": 0,
@@ -2178,6 +1791,24 @@
         "source": "manual"
       },
       "archivos": 24,
+      "deriva": {
+        "cambiados": 0,
+        "pct": 0,
+        "archivos": []
+      },
+      "commits": null,
+      "rutas_muertas": [],
+      "pendiente_merge": null
+    },
+    {
+      "id": "smartpay",
+      "estado": "al-dia",
+      "verificado": {
+        "ref": "main",
+        "date": "2026-07-31",
+        "source": "manual"
+      },
+      "archivos": 74,
       "deriva": {
         "cambiados": 0,
         "pct": 0,

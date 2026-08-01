@@ -63,7 +63,16 @@ Se evalúan con **OR** (`$isAllowedBranch \|\| $isAllowedAllied`); si da false c
 | Partner | `api/partners` | System | `api/system` |
 | Payments | `api/payments` | UsersV1 | `api/v1/users` |
 
-Hay **16 módulos habilitados** pero **solo 10 exponen rutas**; los otros 6 (`AuthV1`, `AlliedBranchV1`, `UserRequestV1`, `EcommerceRequestsV1`, `LegalV1`, `CommonsV1`) son capas internas (`App/Services`, `App/Repositories`, `Contracts/`) sin superficie propia.
+Hay **20 módulos, los 20 habilitados** (`modules_statuses.json`) y **13 exponen rutas**: los 11 de la
+tabla más **`Auth`** y **`Backoffice`**. Los otros 7 (`AlliedBranchV1`, `AlliedV1`, `AuthV1`,
+`CommonsV1`, `EcommerceRequestsV1`, `LegalV1`, `LenderV1`) son capas internas (`App/Services`,
+`App/Repositories`, `Contracts/`) sin superficie propia.
+
+⚠ **`Backoffice` (`/api/backoffice`) es nuevo y se llevó el dashboard admin**: `UsersController` y
+`ApplicationsController` **salieron de `Loans`** (nota dejada en `Modules/Loans/routes/admin.php`, donde
+hoy quedan solo las rutas admin propias de Loans). Si buscás el listado de usuarios/solicitudes del
+back-office en `Loans`, ya no está ahí. Y `UserRequestV1` **dejó de ser capa interna**: hoy tiene
+`routes/`.
 
 **V1/V2 = evolución, NO gemelos (aclaración del equipo — Miguel, 2026-07-18).** Los prefijos `api/v2/*` no son una copia de los `api/*`: son la versión donde se MOVIÓ lógica al front. Caso confirmado: el endpoint de **lenders v2 quitó la pre-aprobación del backend** — la v2 ya no pre-aprueba los rt≠0 desde legacy, lo hace el **frontend** llamando directo al MS (ver **ms-preapprovals**). Esto explica el aparente "cero consumidores de `/api/v2/*`" que dio el análisis estático: el front no escribe la ruta literal, la arma en runtime desde `VITE_API_URL` + repository classes → un `grep '/api/v2/'` no la encuentra (falso negativo). Los `api/v2` CON rutas (OnboardingV2/RiskV2) están vivos; lo que sigue sin verificar son los 6 módulos SIN rutas de arriba.
 
@@ -99,7 +108,7 @@ Aparte del grupo autenticado, Onboarding monta un grupo **público** (`webhooks.
 
 **Cutover al frontend nuevo (S1)**
 - `application/app/Http/Controllers/Customer/SimulatorController.php:121-139` — lee las 2 filas de `settings`, OR, y `redirect()->away($this->urlService->init(...))`.
-- `application/app/Http/Controllers/Customer/UserRequestController.php:1498-1506` — el mismo gate; `:1518-1535`, `:1568-1587`, `:1590-1607` = las 3 bifurcaciones (personal-info / lenders / employment-info), cada una con su `// Legacy flow` de fallback.
+- `application/app/Http/Controllers/Customer/UserRequestController.php:1499-1507` — el mismo gate; `:1518-1535`, `:1568-1587`, `:1590-1607` = las 3 bifurcaciones (personal-info / lenders / employment-info), cada una con su `// Legacy flow` de fallback.
 - `application/app/Http/Controllers/Customer/UserRequestController.php:1615-1632` — `registerImei` **NO consulta el allowlist**: siempre manda al frontend nuevo.
 - `application/app/Services/NewFrontendUrlService.php:8-10` (prefijos), `:23` (`services.new_frontend.base_url`), `:68-75` (`init`).
 - `application/app/Models/Setting.php:10-12` — `value` es `varchar` en el esquema pero el modelo lo castea a `json`.
@@ -107,7 +116,7 @@ Aparte del grupo autenticado, Onboarding monta un grupo **público** (`webhooks.
 **Puente de código application → legacy (S2)**
 - `application/app/Services/Api/GenerateServicesBridgeClient.php:17-18` (endpoints), `:36` (path `/api/onboarding/generate-services`), `:293-315` (fallback `host.docker.internal` bajo Sail).
 - `application/config/services.php:232-241` — `generate_services_bridge.base_url = LEGACY_BACKEND_BASE_URL`; `:251-253` — `new_frontend.base_url`.
-- `application/app/Http/Controllers/Customer/ClientCodeController.php:49` — único consumidor del puente.
+- `application/app/Http/Controllers/Customer/ClientCodeController.php:50` — único consumidor del puente.
 - `legacy-backend/Modules/Onboarding/routes/api.php:140-146` — el otro extremo; `legacy-backend/Modules/Onboarding/App/Repositories/GenerateServiceRepository.php:18-19,28` — legacy reenvía al servicio externo (`services.code_generation_service`).
 - `application/app/Http/Controllers/Customer/WoocommerceController.php:45-48` — array hardcodeado `[24, 209, 210, 211, 311]`; `:580-601` — hostnames de legacy escritos a mano por ambiente. Destino: `legacy-backend/Modules/Onboarding/routes/api.php:28`.
 

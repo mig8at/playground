@@ -6,8 +6,8 @@
   "when": "Cuando hay que agregar o cambiar un CAMPO del formulario por configuración: las tres generaciones de formulario dinámico, EAV user_field_values, tipos de documento por sucursal.",
   "verified": {
     "ref": "main",
-    "date": "2026-07-23",
-    "source": "git-doc"
+    "date": "2026-07-31",
+    "source": "manual"
   },
   "files": [
     "legacy-backend/Modules/Onboarding/App/Http/Controllers/DynamicFormsController.php",
