@@ -2,7 +2,7 @@
 
 > Índice estático del árbol de contexto (reemplaza al MCP). **Cómo usar:** leé los `Cuándo:` de abajo, elegí 2–4 nodos que matcheen tu tarea, abrí `server/data/flows/<id>/doc.md` (el análisis) y `server/data/flows/<id>/map.json` (la lista de archivos fuente), y de ahí leé el código real. Las rutas de `map.json` son `alias/relpath`.
 
-**Repos (alias → root):** `application`→`~/Desktop/CREDITOP/github/legacy-application` · `frontend-monorepo`→`~/Desktop/CREDITOP/github/frontend-monorepo` · `legacy-backend`→`~/Desktop/CREDITOP/github/legacy-backend` · `pre-approvals-service`→`~/Desktop/CREDITOP/github/pre-approvals-service` · `form-service`→`~/Desktop/CREDITOP/github/form-service` · `frontend-e2e`→`~/Desktop/CREDITOP/playground/frontend-e2e`
+**Repos (alias → root):** `application`→`~/Desktop/CREDITOP/github/legacy-application` · `frontend-monorepo`→`~/Desktop/CREDITOP/github/frontend-monorepo` · `legacy-backend`→`~/Desktop/CREDITOP/github/legacy-backend` · `pre-approvals-service`→`~/Desktop/CREDITOP/github/pre-approvals-service` · `form-service`→`~/Desktop/CREDITOP/github/form-service` · `harness`→`~/Desktop/CREDITOP/playground/harness`
 
 **Mantenimiento:** validar que las rutas resuelven → `python3 tools/oracle.py <map.json>`. Regenerar este mapa → `python3 tools/build-route-map.py`.
 

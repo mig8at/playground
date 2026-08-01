@@ -33,7 +33,7 @@
 
 ## Frontera de simulación / harness
 <!-- La sección de "cómo pruebo esto" sin leer el análisis maestro. Clave para el OKR de pruebas. -->
-<Qué es inyectable vs frontera externa · qué mockear · qué seeder/fixture sembrar · cómo lo alcanza el harness (backend-e2e Go / frontend-e2e Playwright).>
+<Qué es inyectable vs frontera externa · qué mockear · qué seeder/fixture sembrar · cómo lo alcanza el harness (backend-e2e Go / harness Playwright).>
 
 ## Datos de prueba / usuario que pasa <!-- (opcional) -->
 <Receta concreta: qué buró/campos/monto hacen aprobar o rechazar, y por qué "no sale" por defecto. Para rt=1 el valor es el negativo: "no hay receta local, decide la API".>

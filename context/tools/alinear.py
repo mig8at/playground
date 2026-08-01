@@ -59,8 +59,8 @@ def cambiados_desde(files, ref, desde):
             continue
         # ⚠ `--relative` NO es opcional acá. `git ls-tree` (el que usa el oráculo) devuelve rutas
         # relativas al DIRECTORIO consultado, pero `git log --name-only` las devuelve relativas a la
-        # RAÍZ DEL REPO. Para `frontend-e2e`, que es un subdirectorio de playground y no un repo
-        # propio, eso hacía construir `frontend-e2e/frontend-e2e/pkg/…` → no matcheaba nunca y el nodo
+        # RAÍZ DEL REPO. Para `harness`, que es un subdirectorio de playground y no un repo
+        # propio, eso hacía construir `harness/harness/pkg/…` → no matcheaba nunca y el nodo
         # `findings` reportaba 1 archivo tocado cuando eran 16. Un undercount no avisa: se lee como
         # «este nodo está al día».
         r = subprocess.run(

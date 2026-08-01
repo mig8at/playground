@@ -78,7 +78,7 @@ Usado por la ruta `additional-info` (`additional-info.tsx` → gate, `additional
 - **Quién decide el form (legacy)**: `legacy-backend/Modules/Loans/App/Services/FormTypeService.php`.
 
 ## Frontera de simulación / harness
-- **Para VER el form renderizado**: va por el flow **`self-service`** (público, sin auth) — NO `merchant` (el `public-layout` rebota `merchant`→`/`). URL: `/self-service/{branchHash}/{ur}/additional-info/{formTypeId}`. Renderiza SSR desde el form-service; alcanza `form-service.inertia-develop:8082` desde esta máquina. Spec de captura: `frontend-e2e/dev/credifamilia-form.spec.ts`.
+- **Para VER el form renderizado**: va por el flow **`self-service`** (público, sin auth) — NO `merchant` (el `public-layout` rebota `merchant`→`/`). URL: `/self-service/{branchHash}/{ur}/additional-info/{formTypeId}`. Renderiza SSR desde el form-service; alcanza `form-service.inertia-develop:8082` desde esta máquina. Spec de captura: `harness/dev/credifamilia-form.spec.ts`.
 - **`bin/asesor` ahora pasa `VITE_FORM_SERVICE_BASE_URL`** (antes NO → el loader fetcheaba a `undefined` y el form G2 nunca renderizaba en el harness).
 - **En local NO hay mock G2**: el `mock-forms` del harness es del OTRO servicio (onboarding-forms-service, RD) y no cubre `/v1/dynamic-form` ni `/v1/field-options`. Local apunta igual a dev.
 - Probado E2E en dev: `GET/PUT schema` + `POST response` → filas en `user_field_values`.

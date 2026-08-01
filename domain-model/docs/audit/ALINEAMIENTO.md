@@ -107,7 +107,7 @@ Resultado: **105 entidades**, mapeada_ok 71, **0 referencias rotas**, build `vue
 ## 7. Hallazgos de validación E2E (jun 2026)
 
 Nuevos hallazgos descubiertos por la sesión de validación de los harness E2E
-(`backend-e2e`/`frontend-e2e`). Ninguno requiere cambio en `modelo-dominio.json` —
+(`backend-e2e`/`harness`). Ninguno requiere cambio en `modelo-dominio.json` —
 el modelo ya los respeta o no entran en su scope; se documentan aquí porque
 **informan cómo se debe LEER el modelo contra la realidad**.
 
@@ -149,7 +149,7 @@ de credencial compartida" en una próxima iteración.
 
 ### 7.2 `ONB030 internal server error` (Experian fake) no estaba mapeado
 
-Descubierto al validar `frontend-e2e::kyc-subcodes` contra el backend real:
+Descubierto al validar `harness::kyc-subcodes` contra el backend real:
 los escenarios Experian fake (`server-error`/`timeout`/`no-hit`) emiten
 **`ONB030 + "internal server error"`** — un `error_code` NUEVO que no aparecía
 en `docs/REFERENCIA-FLUJOS.md` ni en este audit. Es un error de PROVEEDOR

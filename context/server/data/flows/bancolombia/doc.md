@@ -239,7 +239,7 @@ Detalle del contrato campo por campo, y por qué el runner por consola no lo det
 
 ### 10 · El MAPA DE PANTALLAS del canal QR, recorrido de punta a punta (verificado 2026-07-31)
 No es una lectura de `routes.ts`: es el recorrido **caminado clickeando** con
-`frontend-e2e/dev/caminar-qr.ts`, con el estado final comprobado en BD. Los dos productos **cierran**.
+`harness/dev/caminar-qr.ts`, con el estado final comprobado en BD. Los dos productos **cierran**.
 
 **BNPL (lender 68) — 9 pasos → estado 25 + código**
 

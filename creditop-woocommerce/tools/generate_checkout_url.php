@@ -8,7 +8,7 @@
  * se movió acá el 2026-07-19 para que quede al lado del plugin del que salió.
  *
  * ESTADO: **referencia, no herramienta.** Para simular la entrada por ecommerce usá el harness —
- * `frontend-e2e/pkg/checkout-b64.ts` (o el selector de Canal del panel), que además arma la URL con el
+ * `harness/pkg/checkout-b64.ts` (o el selector de Canal del panel), que además arma la URL con el
  * usuario sintético que definís y sigue el redirect. Lo que este script sabía ya está absorbido ahí:
  * la forma fiel de la orden (ojo: `total` va como STRING) y el mapa de serialización por campo:
  *

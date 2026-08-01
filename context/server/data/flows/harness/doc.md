@@ -1,5 +1,5 @@
 # Harness E2E · contexto
-> **estado:** al día con main (índice recién creado; los dos harness ya son linkeables) · La infra de PRUEBAS que ejercita la originación de crédito punta a punta: **frontend-e2e** (Playwright/TS). Tiene DOS caminos con una sola definición de "pasó": el **rápido** (`dev/sweep.ts`, por API sin navegador) y el **visual** (`dev/guided.spec.ts`, el wizard React real con bypasses). ⚠ **`backend-e2e` (Go) fue BORRADO el 2026-07-19** — hacía lo mismo que el camino rápido, sin veredicto contra BD; el rescate de lo que valía la pena está en F-57. Junto con él se borró `backend-mcp`, que ni siquiera era un MCP. Eje central: la **frontera de inyectabilidad** (rt=2/3 in-platform SÍ se inyectan; rt=1 lo decide una API externa).
+> **estado:** al día con main (índice recién creado; los dos harness ya son linkeables) · La infra de PRUEBAS que ejercita la originación de crédito punta a punta: **harness** (Playwright/TS). Tiene DOS caminos con una sola definición de "pasó": el **rápido** (`dev/sweep.ts`, por API sin navegador) y el **visual** (`dev/guided.spec.ts`, el wizard React real con bypasses). ⚠ **`backend-e2e` (Go) fue BORRADO el 2026-07-19** — hacía lo mismo que el camino rápido, sin veredicto contra BD; el rescate de lo que valía la pena está en F-57. Junto con él se borró `backend-mcp`, que ni siquiera era un MCP. Eje central: la **frontera de inyectabilidad** (rt=2/3 in-platform SÍ se inyectan; rt=1 lo decide una API externa).
 
 > **NOVEDADES 2026-07-18/19 (sesión de mocks + barrido headless; detalle en el nodo findings):**
 > - **Flota de mocks locales** (los levanta `bin/asesor` en target local): `mock-payvalida` :8097 (rt=1 Bancolombia, F-05) · `mock-mdm` :8098 (IMEI/device-lock, F-23/F-39) · `mock-lenders` :8099 (pasarela de entidades, Sistecrédito; rutas no mapeadas responden 200 y se loguean, F-25) · `mock-pdf-mapper` :8100 (docs sin plantilla Blade, ej. `vinculacion`, F-31). Además `pkg/pdf-mock.ts` (S3 falso de PDFs) y `pkg/wompi-mock.ts` ya cableados en `dev/guided.spec.ts`.
@@ -15,9 +15,9 @@ Los dos se organizan por los **tres ejes** de la originación y componen cualqui
 | Arnés | Motor | Cómo entra | Contra qué corre |
 |---|---|---|---|
 | **backend-e2e** | Go (`creditop-tests`), sin UI | HTTP directo al API `api/onboarding/*` | `legacy-backend` LOCAL en modo mock (Docker/Sail, `127.0.0.1:80`) |
-| **frontend-e2e** | Playwright + TS, maneja el wizard | el wizard `loan-request-wizard` (:5174) | DEV por defecto (RDS + Cognito real) o LOCAL (`--local`, legacy en Docker) |
+| **harness** | Playwright + TS, maneja el wizard | el wizard `loan-request-wizard` (:5174) | DEV por defecto (RDS + Cognito real) o LOCAL (`--local`, legacy en Docker) |
 
-La regla que hace todo esto posible: el perfil aprobado NO se arma llamando centrales — se **inyecta** (seed vía `php artisan tinker` en backend-e2e; `synthFill` in-process con `mysql2` en frontend-e2e). El KYC real (Experian/TusDatos/AgilData/Mareigua) y los mocks fake por-request (`X-Fake-Scenario`) se **retiraron** del camino feliz; sobreviven solo en los specs de contrato negativo.
+La regla que hace todo esto posible: el perfil aprobado NO se arma llamando centrales — se **inyecta** (seed vía `php artisan tinker` en backend-e2e; `synthFill` in-process con `mysql2` en harness). El KYC real (Experian/TusDatos/AgilData/Mareigua) y los mocks fake por-request (`X-Fake-Scenario`) se **retiraron** del camino feliz; sobreviven solo en los specs de contrato negativo.
 
 > Ambos repos son **LOCAL, nunca se pushean** (sin remoto). Ver memoria `playground-convention`.
 
@@ -49,33 +49,33 @@ Un solo binario Go compone y corre el triplete. `web`/`asesor`/`vtex` es el **ca
 
 Atajos `make` (wrappers, no indexados): `make run/ready <ecommerce\|asesor> <merchant> <lender>`, `make local/dev <ecommerce> <merchant> <lender> [state]`, `make scenario <name>`. El E2E completo con precondicionales + snapshot lo orquesta `scripts/flow.sh` (prep → flujo → get → clean opcional).
 
-### 2. frontend-e2e — specs Playwright + el demo guiado
-Maneja el wizard REAL hasta el listado de lenders (`/lenders`). Autosuficiente en TS: hace sus ops de BD con `mysql2` (`frontend-e2e/pkg/db.ts`) e inyecta el KYC in-process (`frontend-e2e/pkg/inject.ts`), sin shellear a `backend-mcp`. Organizado por los mismos ejes.
+### 2. harness — specs Playwright + el demo guiado
+Maneja el wizard REAL hasta el listado de lenders (`/lenders`). Autosuficiente en TS: hace sus ops de BD con `mysql2` (`harness/pkg/db.ts`) e inyecta el KYC in-process (`harness/pkg/inject.ts`), sin shellear a `backend-mcp`. Organizado por los mismos ejes.
 
-**El flujo principal** es el demo de 2 ventanas (`frontend-e2e/dev/guided.spec.ts`), orquestado por `bin/asesor <m> auto` / `bin/ecommerce <m> auto` (wrappers no indexados):
+**El flujo principal** es el demo de 2 ventanas (`harness/dev/guided.spec.ts`), orquestado por `bin/asesor <m> auto` / `bin/ecommerce <m> auto` (wrappers no indexados):
 - Siembra cada pantalla (monto → teléfono bypass → OTP → personal-info) y **vos das "Continuar"**; en `/lenders` elegís el lender y el demo detecta **por conducta** (no por rt) cómo continuar: rt=2 CreditopX → handoff `continue` (A se queda, B=celular completa); rt=0/1 modal WhatsApp → webhook → Estado 11; rt=1 redirect → portal del banco → la entidad devuelve al comercio (`return_url`).
 - `personal-info` NO se puede clickear real (su submit dispara AgilData/Mareigua/Experian) → `synthFill` inyecta KYC + fila Experian cifrada de forma invisible y auto-avanza.
 
 | Spec / archivo | Estado | Qué valida |
 |---|---|---|
-| `frontend-e2e/dev/guided.spec.ts` | demo interactivo | el flujo guiado de 2 ventanas A/B; detecta el cierre por conducta. NO va a CI (necesita tus clicks). |
-| `frontend-e2e/e2e/triplet.spec.ts` + `frontend-e2e/e2e/triplet.ts` | ✅ entrada | composable `canal→comercio→/lenders`, espejo del CLI Go. Override por `E2E_CHANNEL/E2E_MERCHANT/E2E_LENDER/E2E_AMOUNT`. |
-| `frontend-e2e/e2e/happy-path.spec.ts` | ✅ | amount→phone→OTP→personal→[laboral]→lenders (Pullman salta laboral vía Quanto). |
-| `frontend-e2e/e2e/marketplace-select.spec.ts` | ✅ | el testid `lender-action-{id}` expone el CTA seleccionable. |
-| `frontend-e2e/channel/steps.ts` | infra | pasos atómicos del wizard + **ruteo post-OTP real** (`personal-info \| lenders`, luego `employment-info \| lenders`). |
-| `frontend-e2e/channel/ecommerce-local-real.spec.ts` · `ecommerce-notify.spec.ts` · `ecommerce-ui.spec.ts` | ✅ | handshake base64 real → checkout → /lenders; notificación a la tienda (POST `process_url`); contrato (handshake incompleto = rechazado). |
-| `frontend-e2e/channel/vtex-checkout.spec.ts` | canal VTEX | entrada VTEX por checkout. |
-| `frontend-e2e/channel/otp-subcodes.spec.ts` | ✅ 2/5 + fixme | subcódigos OTP contra el shape REAL (`NO_PREVIOUS_OTP`/`CODE_INVALID`), aserción tolerante `assertSubcode`. |
-| `frontend-e2e/merchant/seed.ts` | infra | helpers de seed por SQL/tinker (perfil aprobado, riesgo, estado/lender) — espejo de `pkg/mocks`. |
-| `frontend-e2e/merchant/corbeta.spec.ts` | ✅ flujo | Corbeta (Alkosto allied 209): `otp-validate success:true` no-temporal → salta directo a /lenders. |
-| `frontend-e2e/merchant/cupo-rotativo.spec.ts` | ✅ flujo / ⏸ rt=3 | flujo del partner a /lenders; la oferta rt=3 requiere seed de marketplace. |
-| `frontend-e2e/merchant/motai-ui.spec.ts` | ✅ entrada (gated Cognito) | login Cognito → marketplace Motai (`f0548728`). Cierre #158/IMEI/Abaco pendiente. |
-| `frontend-e2e/merchant/smartpay-dynamic.spec.ts` | ✅ completo (gated Cognito) | flujo dinámico de 5 pasos (`@creditop/dynamic-form`) → /lenders; re-apunta la cuenta a `bb534d6a`. |
-| `frontend-e2e/merchant/pullman-credipullman.spec.ts` | ✅ Pullman / ⏸ #77 | Quanto auto-inyecta → salta laboral; #77 (rt=2) no lo ofrece el marketplace para `3e67eade`. |
-| `frontend-e2e/merchant/pullman-omite-experian.spec.ts` · `pullman-confirmacion-cupo.spec.ts` | tarea activa | "Confirmación de cupo" → salta buró (ver memoria `pre-approval-omit-experian-frontend`). |
-| `frontend-e2e/merchant/credifamilia.spec.ts` | ⏸ rt=4 async | polling/seed del flujo asíncrono. |
-| `frontend-e2e/lender/close.ts` · `creditopx-close.spec.ts` · `wompi-close.spec.ts` | ✅ oferta / ⛔ cierre | siembra perfil → marketplace OFRECE #77; `creditopXClose` **lanza** con el diagnóstico del muro Wompi (ver Gotchas). |
-| `frontend-e2e/dev/cognito-login.spec.ts` | setup | captura el estado de sesión Cognito (`.auth/cognito-state.json`). |
+| `harness/dev/guided.spec.ts` | demo interactivo | el flujo guiado de 2 ventanas A/B; detecta el cierre por conducta. NO va a CI (necesita tus clicks). |
+| `harness/e2e/triplet.spec.ts` + `harness/e2e/triplet.ts` | ✅ entrada | composable `canal→comercio→/lenders`, espejo del CLI Go. Override por `E2E_CHANNEL/E2E_MERCHANT/E2E_LENDER/E2E_AMOUNT`. |
+| `harness/e2e/happy-path.spec.ts` | ✅ | amount→phone→OTP→personal→[laboral]→lenders (Pullman salta laboral vía Quanto). |
+| `harness/e2e/marketplace-select.spec.ts` | ✅ | el testid `lender-action-{id}` expone el CTA seleccionable. |
+| `harness/channel/steps.ts` | infra | pasos atómicos del wizard + **ruteo post-OTP real** (`personal-info \| lenders`, luego `employment-info \| lenders`). |
+| `harness/channel/ecommerce-local-real.spec.ts` · `ecommerce-notify.spec.ts` · `ecommerce-ui.spec.ts` | ✅ | handshake base64 real → checkout → /lenders; notificación a la tienda (POST `process_url`); contrato (handshake incompleto = rechazado). |
+| `harness/channel/vtex-checkout.spec.ts` | canal VTEX | entrada VTEX por checkout. |
+| `harness/channel/otp-subcodes.spec.ts` | ✅ 2/5 + fixme | subcódigos OTP contra el shape REAL (`NO_PREVIOUS_OTP`/`CODE_INVALID`), aserción tolerante `assertSubcode`. |
+| `harness/merchant/seed.ts` | infra | helpers de seed por SQL/tinker (perfil aprobado, riesgo, estado/lender) — espejo de `pkg/mocks`. |
+| `harness/merchant/corbeta.spec.ts` | ✅ flujo | Corbeta (Alkosto allied 209): `otp-validate success:true` no-temporal → salta directo a /lenders. |
+| `harness/merchant/cupo-rotativo.spec.ts` | ✅ flujo / ⏸ rt=3 | flujo del partner a /lenders; la oferta rt=3 requiere seed de marketplace. |
+| `harness/merchant/motai-ui.spec.ts` | ✅ entrada (gated Cognito) | login Cognito → marketplace Motai (`f0548728`). Cierre #158/IMEI/Abaco pendiente. |
+| `harness/merchant/smartpay-dynamic.spec.ts` | ✅ completo (gated Cognito) | flujo dinámico de 5 pasos (`@creditop/dynamic-form`) → /lenders; re-apunta la cuenta a `bb534d6a`. |
+| `harness/merchant/pullman-credipullman.spec.ts` | ✅ Pullman / ⏸ #77 | Quanto auto-inyecta → salta laboral; #77 (rt=2) no lo ofrece el marketplace para `3e67eade`. |
+| `harness/merchant/pullman-omite-experian.spec.ts` · `pullman-confirmacion-cupo.spec.ts` | tarea activa | "Confirmación de cupo" → salta buró (ver memoria `pre-approval-omit-experian-frontend`). |
+| `harness/merchant/credifamilia.spec.ts` | ⏸ rt=4 async | polling/seed del flujo asíncrono. |
+| `harness/lender/close.ts` · `creditopx-close.spec.ts` · `wompi-close.spec.ts` | ✅ oferta / ⛔ cierre | siembra perfil → marketplace OFRECE #77; `creditopXClose` **lanza** con el diagnóstico del muro Wompi (ver Gotchas). |
+| `harness/dev/cognito-login.spec.ts` | setup | captura el estado de sesión Cognito (`.auth/cognito-state.json`). |
 
 > ✅ = ≥1 test del archivo corre verde contra el stack real. `npm test` corre **muchos `test.fixme`** (placeholders del extinto mock-server `:4000`) que aparecen como `fixme`, no como pasados. La marca es **por-test, no por-archivo**.
 
@@ -113,26 +113,26 @@ Qué trae cada uno: **«local-e2e: bypasses completos + SmartPay forms-service F
 
 **(b) Mocks propios del harness:**
 - **StoreWebhook** (`backend-e2e/channel/storewebhook.go`, :9099): listener local que captura el webhook de cierre (`process_url`) para asertar que la tienda fue notificada. Bind `0.0.0.0` → el backend dockerizado lo alcanza por `host.docker.internal`.
-- **mock-preapprovals** (`frontend-e2e/mock-preapprovals/server.mjs`, :8095): reemplaza al MS `pre-approvals-service` con respuestas deterministas (todas las cards pre-aprobadas). Status configurable POR lender vía `/tmp/mock-pa-statuses.json` (lo escribe el panel). Apuntar `VITE_PREAPPROVALS_ENDPOINT` acá.
-- **mock-redirect** (`frontend-e2e/mock-redirect/server.mjs`, :8096): shim del "sitio del comercio" + el redirect de borde de infra (`/checkout/{hash}` → 302 al wizard; `/return` = destino del botón "volver al comercio").
+- **mock-preapprovals** (`harness/mock-preapprovals/server.mjs`, :8095): reemplaza al MS `pre-approvals-service` con respuestas deterministas (todas las cards pre-aprobadas). Status configurable POR lender vía `/tmp/mock-pa-statuses.json` (lo escribe el panel). Apuntar `VITE_PREAPPROVALS_ENDPOINT` acá.
+- **mock-redirect** (`harness/mock-redirect/server.mjs`, :8096): shim del "sitio del comercio" + el redirect de borde de infra (`/checkout/{hash}` → 302 al wizard; `/return` = destino del botón "volver al comercio").
 - **wompi-mock** / `lender/wompi-close.spec.ts`: mock del webhook Wompi (aplica al webhook, NO al checkout hosted — de ahí el muro).
 - **mock-store / mock-bank** (HTML, no indexados): la tienda y el portal del banco del demo guiado.
 - **OTP bypass**: el teléfono se agrega al setting `qa_otp_bypass_phones` (`EnsureOtpBypass`, `backend-e2e/pkg/mocks/mocks.go`) → el OTP no pega a Twilio y el **código = últimos dígitos del teléfono** (4 en registro, 6 en el pagaré).
-- **`X-Fake-Scenario`** (`frontend-e2e/pkg/mock-control.ts`): fuerza fallos categorizados (OTP/KYC) por request; intercepta `**/*` porque el wizard es SSR y el header debe llegar al FE server para que lo forwardee. Solo en specs de contrato negativo.
+- **`X-Fake-Scenario`** (`harness/pkg/mock-control.ts`): fuerza fallos categorizados (OTP/KYC) por request; intercepta `**/*` porque el wizard es SSR y el header debe llegar al FE server para que lo forwardee. Solo en specs de contrato negativo.
 
 ### 5. La inyección (el comando, no la semántica)
 Cómo el harness fabrica un perfil aprobado sin llamar centrales:
 - **backend-e2e**: `SeedApprovedProfile` / `SeedRiskProfile` (`backend-e2e/pkg/mocks/mocks.go`) shellean `php artisan tinker` dentro de `legacy-backend-laravel.test-1`: setean `users.age/gender`, `user_field_values` (29 ocupación, 87 ingreso, 160 reportado) y una fila `RiskCentralUserData` con score plano + `data` (el JSON de datacrédito). `RiskProfile` deja variar score/negativos/reportado/ingreso/edad/mora para el `perfilador`.
-- **frontend-e2e**: `synthFill` (`frontend-e2e/pkg/inject.ts`) hace lo mismo in-process con `mysql2` + cripto estilo Laravel (`frontend-e2e/pkg/laravel-crypt.ts`) para la **fila Experian encriptada** con `APP_KEY`. Port 1:1 de `backend-mcp opSynthFill`.
+- **harness**: `synthFill` (`harness/pkg/inject.ts`) hace lo mismo in-process con `mysql2` + cripto estilo Laravel (`harness/pkg/laravel-crypt.ts`) para la **fila Experian encriptada** con `APP_KEY`. Port 1:1 de `backend-mcp opSynthFill`.
 
 La **semántica** de esos campos (qué score pasa, cómo se lee la fila Experian, qué regla datacrédito aplica) es turf de **profiling**/**datacredito** — acá solo el mecanismo de inyección.
 
 ### 6. Setup (Cognito, assign por SUB, puertos)
 - **Puertos**: wizard `loan-request-wizard` **:5174**; panel del harness **:5195**; MySQL local `127.0.0.1:3306` (usuario `creditop`/`password`, schema `creditop`); API legacy `http://127.0.0.1:80/api` (vhost `legacy-backend.inertia-develop` por header `Host`). Mocks: :8095/:8096/:9099.
-- **Cognito** (`/merchant/*` = Motai/SmartPay exigen sesión): credenciales en **`.cognito.json`** (raíz de frontend-e2e, gitignored) `{user,pass}`, leídas por `frontend-e2e/pkg/config.ts`; el env `E2E_COGNITO_USER/PASS` tiene prioridad. El Hosted UI (`login.creditop.com`, pool compartido dev+local) lo maneja `frontend-e2e/pkg/cognito.ts`. Sin `.cognito.json` los specs de asesor **skipean** (no fallan). `backend-e2e login` es un probe read-only del mismo pool. **CACHE de sesión (2026-07-18):** los specs `/merchant/*` reusan la sesión con `test.use({ storageState: cognitoStorageState() })` (`.auth/cognito-state.json`) → `cognitoLogin` queda no-op mientras la sesión viva (no re-abre el Hosted UI); tras un login REAL, `cognitoLogin` re-guarda el storageState. Autocorrector, cache único por asesor-sub (compartido smartpay/motai). Ventana de reuso = la del refresh token (días), no la del access (1h). Cubre TAMBIÉN el path del PANEL (`dev/guided.spec.ts` inyecta el storageState en `openA` cuando `E2E_ENTRY=cognito`) → "Preparar + Lanzar ▶" ya no re-abre el Hosted UI por corrida.
-- **Assign por SUB**: el backend resuelve el comercio por `x-cognito-identity-id` = el **sub real** del login web. `bin/asesor` **asocia la fila `users` al comercio** vía `dbops assign` (usa el SUB como clave, `frontend-e2e/pkg/asesor.ts`) solo si el asesor no está ya en ese comercio (un asesor = un comercio). `prep --cognito-id=<sub>` hace lo análogo en backend-e2e. Revert: `dbops revoke`.
+- **Cognito** (`/merchant/*` = Motai/SmartPay exigen sesión): credenciales en **`.cognito.json`** (raíz de harness, gitignored) `{user,pass}`, leídas por `harness/pkg/config.ts`; el env `E2E_COGNITO_USER/PASS` tiene prioridad. El Hosted UI (`login.creditop.com`, pool compartido dev+local) lo maneja `harness/pkg/cognito.ts`. Sin `.cognito.json` los specs de asesor **skipean** (no fallan). `backend-e2e login` es un probe read-only del mismo pool. **CACHE de sesión (2026-07-18):** los specs `/merchant/*` reusan la sesión con `test.use({ storageState: cognitoStorageState() })` (`.auth/cognito-state.json`) → `cognitoLogin` queda no-op mientras la sesión viva (no re-abre el Hosted UI); tras un login REAL, `cognitoLogin` re-guarda el storageState. Autocorrector, cache único por asesor-sub (compartido smartpay/motai). Ventana de reuso = la del refresh token (días), no la del access (1h). Cubre TAMBIÉN el path del PANEL (`dev/guided.spec.ts` inyecta el storageState en `openA` cuando `E2E_ENTRY=cognito`) → "Preparar + Lanzar ▶" ya no re-abre el Hosted UI por corrida.
+- **Assign por SUB**: el backend resuelve el comercio por `x-cognito-identity-id` = el **sub real** del login web. `bin/asesor` **asocia la fila `users` al comercio** vía `dbops assign` (usa el SUB como clave, `harness/pkg/asesor.ts`) solo si el asesor no está ya en ese comercio (un asesor = un comercio). `prep --cognito-id=<sub>` hace lo análogo en backend-e2e. Revert: `dbops revoke`.
 - **`.flows.json`** (frontend, gitignored): identidad del asesor (`email`/`sub`) + `merchants.<m>.branch_hash` + `otp_bypass_phone`. **`.env.<target>`** (dev/local): `E2E_DB_*`, `APP_KEY` (cifra la fila Experian), `I_KNOW_THIS_TOUCHES_SHARED_DEV=1` en dev.
-- **El panel** (`frontend-e2e/panel/server.ts`, :5195): UI local que elige comercio, define el usuario sintético (nombre/ingreso/score) y lanza `bin/asesor <m>` con `E2E_INJECT=1` (inyecta buró invisible) o sin él (buró real). Switch sintético/real + status por lender del mock-preapprovals. Solo local (fuerza `E2E_TARGET=local`).
+- **El panel** (`harness/panel/server.ts`, :5195): UI local que elige comercio, define el usuario sintético (nombre/ingreso/score) y lanza `bin/asesor <m>` con `E2E_INJECT=1` (inyecta buró invisible) o sin él (buró real). Switch sintético/real + status por lender del mock-preapprovals. Solo local (fuerza `E2E_TARGET=local`).
 
 ### 7. Namespacing y "nunca borrado en bulk"
 En una BD compartida (dev) cada dev trabaja en su **seed** (`backend-e2e/pkg/identity/identity.go`, derivado de `usuario@host`, override `CREDITOP_SEED`): teléfonos/docs/cognito_id únicos, UPSERT, y borra SOLO lo suyo (`cognito_id LIKE '%__{seed}_test'`). Todo recurso creado se anota en un **ledger** JSON (`backend-e2e/pkg/ledger/ledger.go`, `.created-resources.json`) para borrarlo UNO A UNO por clave. `clean` (`backend-e2e/clean.go`) corre con `FOREIGN_KEY_CHECKS=0` pero nunca hace bulk; en dev exige `I_KNOW_THIS_TOUCHES_SHARED_DEV=1`. El flujo completo de originación (`web`/`asesor`/`setup`/`prep`/`random`) está **bloqueado en dev** salvo el guard explícito.
@@ -159,25 +159,25 @@ En una BD compartida (dev) cada dev trabaja en su **seed** (`backend-e2e/pkg/ide
 - `backend-e2e/pkg/flow/flow.go` — el runner de pasos autodocumentados (`Explain()`, `Ctx`).
 - `backend-e2e/pkg/database/database.go` (mysql TCP + `Clean`) · `identity/identity.go` (seed) · `ledger/ledger.go` (no bulk) · `client/client.go` (HTTP + vhost `Host`) · `pkg/database/devquery_test.go` (test de query dev).
 
-**frontend-e2e — orquestación e infra**
-- `frontend-e2e/dev/guided.spec.ts` — el demo guiado 2 ventanas; detección de cierre por conducta; `E2E_INJECT`, `synthFill`, watcher del banner de error.
-- `frontend-e2e/e2e/triplet.ts` + `triplet.spec.ts` · `happy-path.spec.ts` · `marketplace-select.spec.ts` — composición.
-- `frontend-e2e/pkg/windows.ts` — **fuente única** del tiling A/B (CDP `setWindowBounds`), `IPHONE_UA`, `PREVIEW_VP`.
-- `frontend-e2e/pkg/inject.ts` — `synthFill` (KYC armado + Experian cifrada) · `laravel-crypt.ts` (cripto Laravel) · `db.ts` (pool mysql2, `assertWriteAllowed`).
-- `frontend-e2e/pkg/config.ts` (datos de prueba + cognitoCreds) · `cognito.ts` (Hosted UI) · `account-lock.ts` (mutex + re-apuntar cuenta 1827080) · `asesor.ts` (whois/assign/revoke/scrubphone) · `ecommerce.ts` (contrato/URL checkout) · `close.ts` (cierre CreditopX por UI) · `flow.ts` (narración) · `error-shape.ts` (`assertSubcode`) · `mock-control.ts` (`X-Fake-Scenario`).
-- `frontend-e2e/panel/server.ts` — el panel :5195; `frontend-e2e/create3.ts` — fabrica 3 lenders Motai sintéticos (credit/renting/rto) clonando el 62.
-- `frontend-e2e/playwright.config.ts` — testDir `.`, ignora `_scratch/`, `fullyParallel`, `webServer` comentado (CI).
+**harness — orquestación e infra**
+- `harness/dev/guided.spec.ts` — el demo guiado 2 ventanas; detección de cierre por conducta; `E2E_INJECT`, `synthFill`, watcher del banner de error.
+- `harness/e2e/triplet.ts` + `triplet.spec.ts` · `happy-path.spec.ts` · `marketplace-select.spec.ts` — composición.
+- `harness/pkg/windows.ts` — **fuente única** del tiling A/B (CDP `setWindowBounds`), `IPHONE_UA`, `PREVIEW_VP`.
+- `harness/pkg/inject.ts` — `synthFill` (KYC armado + Experian cifrada) · `laravel-crypt.ts` (cripto Laravel) · `db.ts` (pool mysql2, `assertWriteAllowed`).
+- `harness/pkg/config.ts` (datos de prueba + cognitoCreds) · `cognito.ts` (Hosted UI) · `account-lock.ts` (mutex + re-apuntar cuenta 1827080) · `asesor.ts` (whois/assign/revoke/scrubphone) · `ecommerce.ts` (contrato/URL checkout) · `close.ts` (cierre CreditopX por UI) · `flow.ts` (narración) · `error-shape.ts` (`assertSubcode`) · `mock-control.ts` (`X-Fake-Scenario`).
+- `harness/panel/server.ts` — el panel :5195; `harness/create3.ts` — fabrica 3 lenders Motai sintéticos (credit/renting/rto) clonando el 62.
+- `harness/playwright.config.ts` — testDir `.`, ignora `_scratch/`, `fullyParallel`, `webServer` comentado (CI).
 
-**Wrappers operativos (NO indexados, pero son la puerta de entrada)**: `backend-e2e/{Makefile,scripts/flow.sh}`; `frontend-e2e/bin/{asesor,ecommerce,panel,dbops.ts,mock-preapprovals,mock-redirect,testids,close-lender}`. **Poda CLI (2026-07-18):** el PANEL (`npm run dev` :5195) es la entrada principal; se borraron los runners duplicados/muertos `bin/{menu,scenario,qa-checkout,lenders,dashboard(.ts),gen-contract.php}` + `presets.json` + `base64.sh` (+ targets `make scenario/scenarios/checkout`). Recuperables en git.
+**Wrappers operativos (NO indexados, pero son la puerta de entrada)**: `backend-e2e/{Makefile,scripts/flow.sh}`; `harness/bin/{asesor,ecommerce,panel,dbops.ts,mock-preapprovals,mock-redirect,testids,close-lender}`. **Poda CLI (2026-07-18):** el PANEL (`npm run dev` :5195) es la entrada principal; se borraron los runners duplicados/muertos `bin/{menu,scenario,qa-checkout,lenders,dashboard(.ts),gen-contract.php}` + `presets.json` + `base64.sh` (+ targets `make scenario/scenarios/checkout`). Recuperables en git.
 
 ## Gotchas / riesgos
 - **backend-e2e local NO lee `.env`**: la conexión (`127.0.0.1:80`, `PartnerHash=3e67eade`, `TestAmount=1.500.000`) está hardcodeada en `config.go`. Solo `--target=dev` lee env.
 - **Elegir el lender correcto para el comercio**: un lender solo cierra in-platform si está en `lenders_by_allieds` del allied. Forzar #77 (de Pullman/allied 94) en otro comercio da **pagaré HTTP 500**. Usá `offer <comercio>` primero.
 - **`random` "falla"**: los ❌ son **gaps de config** (categoría/asociación faltante), no bugs. `classifyErr` los tipifica (promissory-note 500 deceval-sin-cred, authorize 500 guarantee_criteria, etc.).
-- **Muro Wompi (cierre rt=2 por UI) — ✅ VOLTEADO (2026-07-18, `bin/close-lender`)**: el muro NO era el checkout de Wompi (`pkg/wompi-mock.ts` ya lo intercepta y está verificado) sino el **motor de scoring**: a un perfil aprobado le asigna una categoría con `min_initial_fee=0` → cuota $0 → botón "Pagar" disabled → nunca llega a Wompi. Solución: `bin/close-lender` siembra un lender rt=2 **sintético** clonando #77 con `min_initial_fee>0` en TODAS las categorías → la cuota da >0 → botón habilitado → Wompi → mock → down-payment-validation. Verificado por `frontend-e2e/lender/cierre-x.spec.ts`; falta solo el Grupo B/C para `loan-approved`. El `creditopXClose` original sigue lanzando para **#77/#37** (categoría fee=0 / redirect `/continue?url=null`); el cierre backend sigue en `asesor 3e67eade 77` (fuerza `initial_fee=0`).
+- **Muro Wompi (cierre rt=2 por UI) — ✅ VOLTEADO (2026-07-18, `bin/close-lender`)**: el muro NO era el checkout de Wompi (`pkg/wompi-mock.ts` ya lo intercepta y está verificado) sino el **motor de scoring**: a un perfil aprobado le asigna una categoría con `min_initial_fee=0` → cuota $0 → botón "Pagar" disabled → nunca llega a Wompi. Solución: `bin/close-lender` siembra un lender rt=2 **sintético** clonando #77 con `min_initial_fee>0` en TODAS las categorías → la cuota da >0 → botón habilitado → Wompi → mock → down-payment-validation. Verificado por `harness/lender/cierre-x.spec.ts`; falta solo el Grupo B/C para `loan-approved`. El `creditopXClose` original sigue lanzando para **#77/#37** (categoría fee=0 / redirect `/continue?url=null`); el cierre backend sigue en `asesor 3e67eade 77` (fuerza `initial_fee=0`).
 - **`IPHONE_UA` obligatorio**: el wizard gatea `loan-approved`/validación por `onlyMobileValidation` — con UA de escritorio responde **403** (loader en blanco). A y B usan UA de iPhone; el SSR reenvía el UA.
 - **Reuse de puertos**: `bin/asesor` **reusa** el wizard :5174 si ya está arriba, y lo **reinicia solo si apuntaba a otro backend** (dev↔local). `mock-preapprovals` reusa solo si el `MOCK_PA_DELAY_MS` coincide (el env se hornea al bootear) — si cambió, reinicia.
-- **Degradación en local (ecommerce)**: el checkout SSR lee `process.env.VITE_API_URL`; la entrada ecommerce se degrada en local → **usar dev** para el flujo ecommerce completo (ver memoria `frontend-e2e-split-view`).
+- **Degradación en local (ecommerce)**: el checkout SSR lee `process.env.VITE_API_URL`; la entrada ecommerce se degrada en local → **usar dev** para el flujo ecommerce completo (ver memoria `harness-split-view`).
 - **Timeouts**: el wizard usa lenders-v1 (pre-aprobación sincrónica lenta) → "Server Timeout" del `streamTimeout` (fix por env); `navigationTimeout` 30s / `actionTimeout` 10s (`playwright.config.ts`); `PICK_TIMEOUT` (default 300s) espera tu click por pantalla en el guiado.
 - **`MoneyInput` pierde `fill()` por hidratación**: `seedField` reintenta tecla por tecla (`pressSequentially`) hasta que el valor quede.
 - **VTEX idempotencia**: `vtexUnique()` (nanosegundos) evita reusar un `EcommerceRequest` ya `processed=1` (el observer saltaría por idempotencia y el listener no recibiría el POST).
@@ -190,13 +190,13 @@ En una BD compartida (dev) cada dev trabaja en su **seed** (`backend-e2e/pkg/ide
 - El flujo ecommerce **por UI en local** sigue degradado (SSR `process.env.VITE_API_URL`) — falta cerrar el gap para no depender de dev.
 - El cierre **Motai por UI** (seleccionar #158 → IMEI/Abaco device flow) está pendiente: faltan testids Grupo E/F + que el marketplace ofrezca #158. Validado solo en backend (`asesor f0548728 158`).
 - `--target=dev` para el **flujo completo** sigue gated (solo read-only + create/clean); endurecerlo contra hosts compartidos es trabajo pendiente (ver `DEV-TARGET.md`, no indexado).
-- 61 `test.fixme` en frontend-e2e por convertir al stack real (los grandes: `motai.spec.ts` cierre #158, `smartpay-rd.spec.ts`, `credifamilia.spec.ts` rt=4 async).
+- 61 `test.fixme` en harness por convertir al stack real (los grandes: `motai.spec.ts` cierre #158, `smartpay-rd.spec.ts`, `credifamilia.spec.ts` rt=4 async).
 
 ## Bitácora
-- **2026-07-18** — Nodo `harness` creado. Los dos harness E2E (`backend-e2e` 24 nodos Go + `frontend-e2e` 66 nodos Playwright/TS) **recién indexados**; antes no eran linkeables. Superficie curada: 66 archivos (24 backend + 42 frontend), 0 DROP. Documentado por análisis de código.
+- **2026-07-18** — Nodo `harness` creado. Los dos harness E2E (`backend-e2e` 24 nodos Go + `harness` 66 nodos Playwright/TS) **recién indexados**; antes no eran linkeables. Superficie curada: 66 archivos (24 backend + 42 frontend), 0 DROP. Documentado por análisis de código.
 
 ## Enlaces
 - Padre: **CreditOp**.
 - Fronteras (cede a): **ms-preapprovals** (contrato/taxonomía del MS de pre-aprobación), **profiling** / **datacredito** (semántica del perfil sintético), **Motai** / **SmartPay** / **Aggregator** (flujos de producto), **onboarding** / **lender-listing** (ruteo y cascada del listado).
-- Nodos de repo hermanos: **legacy-backend** (el SUT del backend), **frontend-monorepo** (el wizard que maneja frontend-e2e), **pre-approvals-service** (el MS que mock-preapprovals reemplaza).
-- Memorias: `backend-e2e-dev-target`, `creditop-cli-consolidado`, `synth-credipullman-gates`, `synth-lender-type-boundary`, `datacredito-rules-per-lender`, `frontend-e2e-setup`, `frontend-e2e-dev-asesor-login`, `frontend-e2e-asesor-commands`, `frontend-e2e-split-view`, `frontend-e2e-windows-ab`, `frontend-e2e-wizard-dev-gotchas`, `motai-v2-validacion-local` (el harness panel), `pre-approval-omit-experian-frontend`.
+- Nodos de repo hermanos: **legacy-backend** (el SUT del backend), **frontend-monorepo** (el wizard que maneja harness), **pre-approvals-service** (el MS que mock-preapprovals reemplaza).
+- Memorias: `backend-e2e-dev-target`, `creditop-cli-consolidado`, `synth-credipullman-gates`, `synth-lender-type-boundary`, `datacredito-rules-per-lender`, `harness-setup`, `harness-dev-asesor-login`, `harness-asesor-commands`, `harness-split-view`, `harness-windows-ab`, `harness-wizard-dev-gotchas`, `motai-v2-validacion-local` (el harness panel), `pre-approval-omit-experian-frontend`.

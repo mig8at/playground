@@ -39,7 +39,7 @@ var forbidden = []struct {
 }{
 	{`\bF-\d+\b`, "referencia a un hallazgo interno"},
 	{`playground`, "menciona el playground"},
-	{`frontend-e2e|backend-e2e|legacy-backend|frontend-monorepo|creditop-woocommerce`, "nombra un repo interno"},
+	{`harness|backend-e2e|legacy-backend|frontend-monorepo|creditop-woocommerce`, "nombra un repo interno"},
 	{`[\w/-]+\.(ts|tsx|php|go|vue|json|mjs)\b`, "incluye una ruta de archivo"},
 }
 

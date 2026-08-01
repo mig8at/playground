@@ -22,7 +22,7 @@ help: ## esta lista
 	@echo "  CREDITOP · playground        (make <comando>)"
 	@$(call listar,@dia,LO QUE SE USA TODOS LOS DÍAS)
 	@$(call listar,@ctx,CONTEXTO — el conocimiento validado contra main)
-	@$(call listar,@e2e,PRUEBAS — validar una tarea contra el código real)
+	@$(call listar,@har,HARNESS — validar una tarea corriéndola contra el código real)
 	@$(call listar,@expl,EXPLORACIONES — NO son fuente de contexto (ver CLAUDE.md))
 	@echo ""
 
@@ -51,7 +51,7 @@ tablero: ## @dia abre el tablero: las tareas a realizar (:5191)
 	@cd tablero && npm run dev
 
 panel: ## @dia abre el panel del harness para probar flujos (:5195)
-	@cd frontend-e2e && npm run dev
+	@cd harness && npm run dev
 
 # ── CONTEXTO ─────────────────────────────────────────────────────────────────────────────────────
 .PHONY: context-align context-refs context-seal context-check context-map
@@ -74,22 +74,22 @@ context-check: ## @ctx ¿las rutas de TODOS los nodos existen en main? (el hook 
 context-map: ## @ctx regenera docs/ROUTE-MAP.md (el hook ya lo hace al editar un map.json)
 	@cd context && python3 tools/build-route-map.py
 
-# ── PRUEBAS (frontend-e2e) ───────────────────────────────────────────────────────────────────────
-.PHONY: e2e-contract e2e-walk e2e-qr e2e-mocks e2e-check
-e2e-contract: ## @e2e ¿el mock de Bancolombia cumple los esquemas zod del front? (sin browser ni BD)
-	@cd frontend-e2e && npm run --silent contrato:bancolombia
+# ── PRUEBAS (harness) ────────────────────────────────────────────────────────────────────────────
+.PHONY: harness-contract harness-walk harness-qr harness-mocks harness-check
+harness-contract: ## @har ¿el mock de Bancolombia cumple los esquemas zod del front? (sin browser ni BD)
+	@cd harness && npm run --silent contrato:bancolombia
 
-e2e-walk: ## @e2e recorre las pantallas del canal QR clickeando. PRODUCT=bnpl|consumo
-	@cd frontend-e2e && E2E_TARGET=local npx tsx dev/caminar-qr.ts --producto $(or $(PRODUCT),bnpl)
+harness-walk: ## @har recorre las pantallas del canal QR clickeando. PRODUCT=bnpl|consumo
+	@cd harness && E2E_TARGET=local npx tsx dev/caminar-qr.ts --producto $(or $(PRODUCT),bnpl)
 
-e2e-qr: ## @e2e el canal QR por API, sin browser: ¿cierra en estado 25 con código? PRODUCT=bnpl|consumo
-	@cd frontend-e2e && E2E_TARGET=local npx tsx dev/qr-corbeta.ts --producto $(or $(PRODUCT),bnpl)
+harness-qr: ## @har el canal QR por API, sin browser: ¿cierra en estado 25 con código? PRODUCT=bnpl|consumo
+	@cd harness && E2E_TARGET=local npx tsx dev/qr-corbeta.ts --producto $(or $(PRODUCT),bnpl)
 
-e2e-mocks: ## @e2e levanta los mocks del canal QR (Bancolombia :8104 + Corbeta :8103)
-	@cd frontend-e2e && bin/mock-bancolombia start && bin/mock-corbeta start
+harness-mocks: ## @har levanta los mocks del canal QR (Bancolombia :8104 + Corbeta :8103)
+	@cd harness && bin/mock-bancolombia start && bin/mock-corbeta start
 
-e2e-check: ## @e2e typecheck del harness
-	@cd frontend-e2e && npm run --silent typecheck
+harness-check: ## @har typecheck del harness
+	@cd harness && npm run --silent typecheck
 
 # ── EXPLORACIONES ────────────────────────────────────────────────────────────────────────────────
 # Están acá para poder abrirlas, NO porque sean fuente. No se citan para decidir (ver CLAUDE.md).

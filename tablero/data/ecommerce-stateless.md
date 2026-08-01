@@ -49,7 +49,7 @@ Que el checkout de una tienda entre al wizard nuevo SIN depender de cookie/sesi�
 - **Modificados (16):** `entry.client`, `routes.ts`, `route-helpers.ts`, `available-lenders`, `loan-approved`, `bancolombia/no-preapproved`, y el `loan-application-form` (phone/OTP/personal-info/init-loan-request/amount-form/verify-phone-otp/phone-otp.repository) adaptados a la hidratación por contexto.
 
 ## Cómo probar / validar
-- Flujo E2E de ecommerce: `bin/ecommerce` de **frontend-e2e** (ver nodo **harness**). Como el front vive en develop, apuntá el harness a **dev/develop**, no a main.
+- Flujo E2E de ecommerce: `bin/ecommerce` de **harness** (ver nodo **harness**). Como el front vive en develop, apuntá el harness a **dev/develop**, no a main.
 - ⚠ Gotcha (nodo `ecommerce`): la entrada ecommerce se degrada en local por Mixed Content — el motivo mismo del rediseño stateless.
 - Verdicto: el wizard rehidrata el monto/prefill desde `ecommerce-context.server.ts` sin cookie y cierra a Estado 11.
 

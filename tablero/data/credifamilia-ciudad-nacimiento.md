@@ -20,7 +20,7 @@ MIGRACIÓN: legacy-backend, rama feat/credifamilia-add-ciudad-nacimiento-field (
 
 POST-DEPLOY OBLIGATORIO: PUT {form-service}/v1/dynamic-form/6/schema (cache-aside Redis/S3).
 
-VALIDADO EN DEV: field 233 aplicado, GET/PUT schema + POST response OK (fila en user_field_values). Render + cascada verificados por el flow self-service con frontend-e2e/dev/credifamilia-form.spec.ts (elegir Antioquia pobló Ciudad con municipios de Antioquia).
+VALIDADO EN DEV: field 233 aplicado, GET/PUT schema + POST response OK (fila en user_field_values). Render + cascada verificados por el flow self-service con harness/dev/credifamilia-form.spec.ts (elegir Antioquia pobló Ciudad con municipios de Antioquia).
 
 HARNESS: bin/asesor ahora pasa VITE_FORM_SERVICE_BASE_URL; panel con pre-warm de sesiones al arrancar.
 CONTEXTO: nodos form-service (nuevo) + dynamic-forms + credifamilia actualizados.

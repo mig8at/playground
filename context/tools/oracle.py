@@ -56,7 +56,7 @@ def del_ref(ref):
             sin_verificar.append((alias, "el directorio no existe"))
             continue
         # sin --full-name A PROPÓSITO: las rutas vienen relativas al DIRECTORIO consultado, que es
-        # exactamente el `relpath` con el que el índice arma `alias/relpath`. Por eso `frontend-e2e`,
+        # exactamente el `relpath` con el que el índice arma `alias/relpath`. Por eso `harness`,
         # que es un subdirectorio de playground y no un repo propio, funciona sin caso especial.
         r = git(root, "ls-tree", "-r", ref, "--name-only")
         if r.returncode != 0:

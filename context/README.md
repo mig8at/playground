@@ -80,7 +80,7 @@ y duplicado en `tools/build-route-map.py`):
 | `legacy-backend` | `~/Desktop/CREDITOP/github/legacy-backend` | 2.176 |
 | `frontend-monorepo` | `~/Desktop/CREDITOP/github/frontend-monorepo` | 1.549 |
 | `pre-approvals-service` | `~/Desktop/CREDITOP/github/pre-approvals-service` | 137 |
-| `frontend-e2e` | `~/Desktop/CREDITOP/playground/frontend-e2e` | 78 |
+| `harness` | `~/Desktop/CREDITOP/playground/harness` | 78 |
 
 Ojo con el alias `application`: apunta a la carpeta **`legacy-application`**. No son dos repos.
 
@@ -183,10 +183,10 @@ hipótesis, y si el síntoma engaña, decilo en el título.
 - [`ROUTE-MAP.md`](docs/ROUTE-MAP.md) — el índice de los 31 nodos. Punto de entrada de toda tarea.
 - `server/data/doc-templates/*.md` — las 6 plantillas de doc, con comentarios HTML que explican qué va
   en cada sección. Usalas al crear un nodo nuevo.
-- `../EXAMPLES.md` — cheatsheet de demos visuales del wizard vía `frontend-e2e` (`bin/asesor`,
+- `../EXAMPLES.md` — cheatsheet de demos visuales del wizard vía `harness` (`bin/asesor`,
   split-view, dbops). El `../README.md` de la raíz es un stub de una línea, no un índice.
 - Las otras herramientas del playground son directorios hermanos:
-  `frontend-e2e`, `flow`, `soporte`, `domain-model`, `tools`.
+  `harness`, `flow`, `soporte`, `domain-model`, `tools`.
 
 ---
 

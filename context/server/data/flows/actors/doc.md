@@ -107,5 +107,5 @@ Del lado backend, `ResolveCognitoUser` (alias `auth.cognito`, `legacy-backend/ap
 
 ## Enlaces
 - Padre: raíz **CreditOp**. Hermanos: **Merchants** (alta y configuración del comercio, hash + QR de sucursal), **Entities** (`response_type` = quién decide el crédito), **Onboarding** (las pantallas del cliente), **KYC** (validación de identidad), **Architecture** (application ↔ legacy-backend ↔ frontend-monorepo).
-- Memorias: `admin-anatomia-creditop` (anatomía real del panel admin, `status_per_profiles` = autorización back-office), `frontend-e2e-dev-asesor-login` (login de asesor contra dev con Cognito real), `frontend-e2e-split-view` (topología de ventanas A/B en el handoff), `asesor-solicitar-bounce`, `reglas-copia-por-sucursal`.
+- Memorias: `admin-anatomia-creditop` (anatomía real del panel admin, `status_per_profiles` = autorización back-office), `harness-dev-asesor-login` (login de asesor contra dev con Cognito real), `harness-split-view` (topología de ventanas A/B en el handoff), `asesor-solicitar-bounce`, `reglas-copia-por-sucursal`.
 - Histórico: el árbol `docs/` fue removido de main; si hace falta, citar como `git 159906a:docs/<ruta>`.

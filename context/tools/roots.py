@@ -5,7 +5,7 @@ una rama). Tenerlo dos veces era una divergencia esperando a pasar: un repo agre
 hace que el oráculo valide contra un universo distinto del que se indexó, y eso no falla — da un
 veredicto equivocado.
 
-⚠ `frontend-e2e` no es un repo propio: es un SUBDIRECTORIO de `playground`. `git ls-tree` desde ahí
+⚠ `harness` no es un repo propio: es un SUBDIRECTORIO de `playground`. `git ls-tree` desde ahí
 (sin `--full-name`) devuelve rutas relativas a ese directorio, que es justo el `relpath` que usa el
 índice — por eso funciona igual que los otros cinco sin caso especial.
 """
@@ -17,7 +17,7 @@ ROOTS = {
     "legacy-backend": os.path.expanduser("~/Desktop/CREDITOP/github/legacy-backend"),
     "pre-approvals-service": os.path.expanduser("~/Desktop/CREDITOP/github/pre-approvals-service"),
     "form-service": os.path.expanduser("~/Desktop/CREDITOP/github/form-service"),
-    "frontend-e2e": os.path.expanduser("~/Desktop/CREDITOP/playground/frontend-e2e"),
+    "harness": os.path.expanduser("~/Desktop/CREDITOP/playground/harness"),
 }
 
 # Solo código. Un `.md`, `.sql` o `.yaml` SIEMPRE dropea: no va en `files[]`, se menciona en el doc.md.

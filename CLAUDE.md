@@ -16,15 +16,16 @@ recordar en qué carpeta vive cada script.
 | `make context-align` | qué nodos quedaron viejos — **después de cada merge** |
 | `make context-refs [NODE=x]` | ¿las citas `archivo:línea` apuntan a lo que dicen? |
 | `make context-seal NODE=x` | "este nodo lo verifiqué hoy" — **solo si de verdad lo revisaste** |
-| `make e2e-contract` · `make e2e-walk` · `make e2e-qr` | probar el canal QR / Bancolombia |
+| `make harness-contract` · `make harness-walk` · `make harness-qr` | probar el canal QR / Bancolombia |
 
-Convención: los **nombres propios** se quedan (`context`, `tablero`, `panel` son carpetas) y los
-**verbos** van en inglés (`align`, `refs`, `seal`, `check`), como `proyecto-verbo`.
+Convención: los **nombres propios** se quedan (`context`, `tablero`, `harness` son carpetas; `panel`
+es la UI del harness) y los **verbos** van en inglés (`align`, `refs`, `seal`, `check`), como
+`proyecto-verbo`.
 
 ## EL CICLO — acá siempre pasa lo mismo
 
 Se viene a resolver **tareas** sobre CreditOp con tres piezas — **tablero** (la tarea), **context**
-(el conocimiento) y **frontend-e2e** (la prueba) — y el circuito es fijo:
+(el conocimiento) y **harness** (la prueba) — y el circuito es fijo:
 
 1. **La TAREA vive en `tablero/data/<tarea>.md`** (una tarea = un archivo): en qué se trabaja, por
    qué y para qué — estado, decisiones, riesgos, preguntas abiertas.
@@ -39,7 +40,7 @@ Se viene a resolver **tareas** sobre CreditOp con tres piezas — **tablero** (l
    - trampas **del sistema**, verificadas (síntoma → causa raíz → evidencia → arreglo) →
      `context/server/data/flows/findings/doc.md` (F-01…). **Mirala antes de depurar un muro**: si
      ya nos pasó, está ahí.
-4. **Probar de verdad es `frontend-e2e/`** (panel, runners, mocks): se comprueba **corriendo**, no
+4. **Probar de verdad es `harness/`** (panel, runners, mocks): se comprueba **corriendo**, no
    leyendo. Una afirmación que se puede verificar ahí se verifica **antes** de escribirla como cierta.
 5. **Al mergear, GRADÚA:** lo mergeado deja de ser tarea y pasa al nodo de contexto — ahí es "cómo
    funciona CreditOp". La tarea se marca `archived` en su frontmatter. Ejemplo hecho: la omisión de
@@ -85,11 +86,11 @@ lo que entró **actualiza el contexto**, y así el árbol siempre describe lo qu
 
 - Hay una **copia local de la BD** en Docker: contenedor `legacy-backend-mysql-1`, schema `creditop`.
   Usala para verificar contra datos reales en vez de suponer.
-- **`E2E_TARGET` por defecto es `dev`**, no `local` (`frontend-e2e/pkg/db.ts:12`). Cualquier consulta o
+- **`E2E_TARGET` por defecto es `dev`**, no `local` (`harness/pkg/db.ts:12`). Cualquier consulta o
   script que lo omita pega contra el **dev compartido**. Para local, exportalo:
   `E2E_TARGET=local`. (`dev/sweep.ts:34` ya lo fuerza; el panel setea
   `I_KNOW_THIS_TOUCHES_SHARED_DEV` cuando el target es `dev`.)
-- El harness del wizard se maneja desde el **panel**: `cd frontend-e2e && npm run dev`. Los `bin/` son
+- El harness del wizard se maneja desde el **panel**: `cd harness && npm run dev`. Los `bin/` son
   plumbing, no una segunda entrada.
 
 ## Trampas que ya costaron tiempo
@@ -110,7 +111,7 @@ lo que entró **actualiza el contexto**, y así el árbol siempre describe lo qu
 Cada herramienta guarda su configuración por target en su propio **`.env.<target>`** (`local` · `dev` ·
 `staging`), **autosuficiente**: ahí viven tanto los **hechos** del entorno (BD, API base, `APP_KEY`)
 como las **perillas** (Cognito, mocks, `SEED`). Ya **no** hay capa compartida `env/<target>.env` — se
-eliminó el 2026-07-22 (solo la usaba `frontend-e2e`; `backend-e2e`/`backend-mcp`, que la compartían, se
+eliminó el 2026-07-22 (solo la usaba `harness`; `backend-e2e`/`backend-mcp`, que la compartían, se
 borraron). Prioridad: `process.env` > `<herramienta>/.env.<target>`.
 
 **Qué rama sirve cada target** (`local` → local · `dev` → **develop** · `staging` → **qa**). `staging`

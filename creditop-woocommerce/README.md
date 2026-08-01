@@ -13,7 +13,7 @@ De acá se portaron los dos generadores que usa el harness:
 | Port | Dónde | Lenguaje |
 |---|---|---|
 | `generate_checkout_url.php` | `/Users/miguelochoa/Desktop/CREDITOP/github/generate_checkout_url.php` | PHP (stubea `WC_DateTime`/`WC_Order_Item_Shipping` para no necesitar WooCommerce) |
-| `ecommerceContract()` | `/Users/miguelochoa/Desktop/CREDITOP/playground/frontend-e2e/pkg/ecommerce.ts` | TS (reimplementa `serialize()` de PHP a mano) |
+| `ecommerceContract()` | `/Users/miguelochoa/Desktop/CREDITOP/playground/harness/pkg/ecommerce.ts` | TS (reimplementa `serialize()` de PHP a mano) |
 
 ## Qué hace el plugin, en dos partes
 
@@ -58,7 +58,7 @@ Editá adentro `$baseUrl`, `$tokenRaw` y `$partnerHash` para apuntar a otro ento
 **Con el harness** (arma el contrato leyendo la credencial real de la BD):
 
 ```bash
-cd /Users/miguelochoa/Desktop/CREDITOP/playground/frontend-e2e
+cd /Users/miguelochoa/Desktop/CREDITOP/playground/harness
 bin/ecommerce <merchant>        # entra por el checkout, monto a mano
 bin/ecommerce <merchant> auto   # guiado desde la tienda
 ```
@@ -134,5 +134,5 @@ Ninguno dentro de esta carpeta salvo el `Readme.txt` (el de distribución). El c
 - `/Users/miguelochoa/Desktop/CREDITOP/playground/context/server/data/flows/ecommerce-web-stateless/doc.md` — la task que mueve el entry al wizard sin cookie (PRs 795 backend / 551 front).
 - `/Users/miguelochoa/Desktop/CREDITOP/playground/context/server/data/flows/findings/doc.md` — **F-40**: por qué el checkout da 404 contra el wizard de `main`.
 - `/Users/miguelochoa/Desktop/CREDITOP/github/legacy-application/app/Http/Controllers/Customer/WoocommerceController.php` — el receptor histórico: decodifica el contrato, valida hash+token, notifica y cancela.
-- `/Users/miguelochoa/Desktop/CREDITOP/playground/frontend-e2e/channel/ecommerce-*.spec.ts` — 5 specs del canal (`ecommerce-notify` usa `tools/generate_checkout_url.php`). Marcadas **stale** por F-40.
-- `tools/generate_checkout_url.php` — arma la URL base64 fuera de WordPress. **Referencia, no herramienta**: para simular la entrada usá `frontend-e2e/pkg/checkout-b64.ts` o el selector de Canal del panel.
+- `/Users/miguelochoa/Desktop/CREDITOP/playground/harness/channel/ecommerce-*.spec.ts` — 5 specs del canal (`ecommerce-notify` usa `tools/generate_checkout_url.php`). Marcadas **stale** por F-40.
+- `tools/generate_checkout_url.php` — arma la URL base64 fuera de WordPress. **Referencia, no herramienta**: para simular la entrada usá `harness/pkg/checkout-b64.ts` o el selector de Canal del panel.

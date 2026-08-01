@@ -8,7 +8,7 @@ dist/
 build/
 *.tsbuildinfo
 
-# Go (binarios compilados; NO usar *-e2e — colisiona con las carpetas backend-e2e/frontend-e2e)
+# Go (binarios compilados; NO usar *-e2e — colisiona con las carpetas backend-e2e/harness)
 vendor/
 /backend-e2e/woocommerce-e2e
 /backend-e2e/motai-e2e
@@ -30,7 +30,7 @@ test-results/
 .env.*
 !.env.example
 !.env.*.example
-# Artefactos de sesión/tokens del login Cognito (frontend-e2e/.auth/) — nunca commitear
+# Artefactos de sesión/tokens del login Cognito (harness/.auth/) — nunca commitear
 .auth/
 # Ledger de recursos creados en BD (backend-e2e/.created-resources.json) — estado local por máquina
 .created-resources.json
@@ -44,5 +44,5 @@ test-results/
 .idea/
 .vscode/
 
-# Volcado forense pre-scrub (frontend-e2e/.runs/) — estado de solicitudes por corrida, local por máquina
+# Volcado forense pre-scrub (harness/.runs/) — estado de solicitudes por corrida, local por máquina
 .runs/

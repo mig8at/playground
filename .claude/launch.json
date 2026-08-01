@@ -28,7 +28,7 @@
         "run",
         "dev"
       ],
-      "cwd": "frontend-e2e",
+      "cwd": "harness",
       "port": 5195
     },
     {
