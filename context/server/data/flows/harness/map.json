@@ -6,8 +6,8 @@
   "when": "Cuando la tarea es “necesito probar / ejercitar / mockear un flujo de originación E2E” — correr un triplete canal→comercio→lender de punta a punta, sembrar/inyectar un perfil aprobado, decidir qué se puede sellar localmente vs. qué lo decide una API externa, o levantar el demo del wizard (2 ventanas / panel).",
   "verified": {
     "ref": "main",
-    "date": "2026-07-19",
-    "source": "cabecera"
+    "date": "2026-07-31",
+    "source": "manual"
   },
   "files": [
     "harness/dev/guided.spec.ts",
