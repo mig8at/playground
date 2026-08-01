@@ -16,6 +16,7 @@
     - harness [ref]
     - legacy-backend [ref]
     - ms-preapprovals [ref]
+  - backoffice [ref]
   - ecommerce [ref]
   - entities [ref]
     - aggregator [ref]
@@ -66,6 +67,10 @@ Doc: `server/data/flows/application/doc.md` · Archivos: `server/data/flows/appl
 ### architecture — Architecture  ·  _reference_ · 73 archivos
 **Cuándo:** Cuando la duda es en QUÉ REPO vive algo, por qué está duplicado, o cómo se hablan entre sí: base de datos compartida, migraciones duplicadas, cutover al wizard nuevo, allowlist, SSO, VITE_API_URL. Índice de los repos.
 Doc: `server/data/flows/architecture/doc.md` · Archivos: `server/data/flows/architecture/map.json` · Padre: `creditop`
+
+### backoffice — Backoffice  ·  _reference_ · 119 archivos
+**Cuándo:** Cuando la tarea toca el PANEL NUEVO de back-office (React/Refine, /api/backoffice) o el login de staff por Cognito: buscar un usuario o una solicitud desde operaciones, ver su perfilamiento/Experian/OTPs, validar identidad a mano, o el módulo Auth y sus dos pools (staff | comercios). NO es el admin viejo de Inertia — ese vive en `actors`/`application`.
+Doc: `server/data/flows/backoffice/doc.md` · Archivos: `server/data/flows/backoffice/map.json` · Padre: `creditop`
 
 ### bancolombia — Bancolombia  ·  _reference_ · 145 archivos
 **Cuándo:** Cuando la tarea toca Bancolombia (BNPL lender 68 / Consumo lender 100): su onboarding propio en el wizard, la secuencia multi-step de originación (login→cuota→cuenta→términos→clave dinámica→origination; consumo: validate→ofertas→simulación→seguro→e-sign), el código de compra en punto de venta (PIN de Corbeta / In Store Billing Code), los escenarios sandbox por cédula y por celular, JWT RS256 + mTLS, o el webhook de estado que sigue en application. Es el único rt=1 con originación completa DENTRO de CreditOp.

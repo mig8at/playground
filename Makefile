@@ -73,7 +73,7 @@ context-check: ## @ctx ¿las rutas de TODOS los nodos existen en main? (el hook 
 	@cd context && for m in server/data/flows/*/map.json; do \
 	  out=$$(python3 tools/oracle.py "$$m" 2>&1 | head -1); \
 	  case "$$out" in *"DROPPED 0"*) ;; *) echo "  ⚠ $$(basename $$(dirname $$m)): $$out";; esac; \
-	done; echo "  (sin líneas arriba = los 31 nodos sin rutas muertas)"
+	done; echo "  (sin líneas arriba = los $$(ls -d server/data/flows/*/ | wc -l | tr -d ' ') nodos sin rutas muertas)"
 
 context-map: ## @ctx regenera docs/ROUTE-MAP.md (el hook ya lo hace al editar un map.json)
 	@cd context && python3 tools/build-route-map.py

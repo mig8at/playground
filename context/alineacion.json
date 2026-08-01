@@ -2,7 +2,7 @@
   "generado": "2026-07-31",
   "ref": "main",
   "resumen": {
-    "al-dia": 30,
+    "al-dia": 31,
     "rama-sin-mergear": 1
   },
   "nodos": [
@@ -178,6 +178,25 @@
         "source": "manual"
       },
       "archivos": 73,
+      "deriva": {
+        "cambiados": 0,
+        "pct": 0,
+        "archivos": []
+      },
+      "commits": null,
+      "huerfanos": [],
+      "rutas_muertas": [],
+      "pendiente_merge": null
+    },
+    {
+      "id": "backoffice",
+      "estado": "al-dia",
+      "verificado": {
+        "ref": "main",
+        "date": "2026-07-31",
+        "source": "cabecera"
+      },
+      "archivos": 119,
       "deriva": {
         "cambiados": 0,
         "pct": 0,
