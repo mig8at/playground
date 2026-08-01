@@ -6,8 +6,8 @@
   "when": "Cuando la pre-aprobacion de un lender rt!=0 falla o hay que tocar el microservicio Go (pre-approvals-service): contrato del servicio (check / me-check / lender-attempts / docs), workflow de 4 etapas, matriz de 8 proveedores (adapter+client+strategy por lender), taxonomia de errores, timeouts/cache DynamoDB, y el consumo cliente en el wizard/legacy.",
   "verified": {
     "ref": "main",
-    "date": "2026-07-18",
-    "source": "git-doc"
+    "date": "2026-07-31",
+    "source": "manual"
   },
   "files": [
     "frontend-monorepo/apps/loan-request-wizard/app/routes/lenders-marketplace/available-lenders.tsx",

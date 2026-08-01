@@ -62,8 +62,16 @@ Del lado backend, `ResolveCognitoUser` (alias `auth.cognito`, `legacy-backend/ap
 
 **Cliente en apuros → asesor.** Cuando la validación de identidad falla, `ManualValidationService::triggerManualValidation` notifica por SMS/WhatsApp a los usuarios del comercio que tengan el permiso `validate identity manually` (`Identity/UserRepository.php:31-38`), más una lista de **5 celulares personales hardcodeados** de gente de CreditOp (`ManualValidationService.php:17-23`, `:66-70`); el desenlace lo ejecuta `Admin\UserController@manualValidation` (`:209`).
 
+**El listado de entidades ya NO es un GET anónimo.** `/entidades/{userRequest}` y `/entidades-v2/{userRequest}`
+llevan el middleware `loanFlowStarted` (`EnsureLoanFlowStarted`, alias en `app/Http/Kernel.php:115`):
+solo entra quien inició la solicitud en esa sesión. El motivo está escrito en la propia ruta
+(`routes/customer.php:168-172`): esas URLs quedaron indexadas y **cualquier GET de Googlebot disparaba
+todas las consultas de preaprobado contra los proveedores**. Consecuencia práctica: pegarle directo a
+esas rutas rebota; el asesor que retoma desde `/solicitudes` sí pasa porque `validateTempUsers` llama
+a `LoanFlow::markStarted()` a mano (`UserRequestController.php:1514`).
+
 ## Dónde mirar
-- **Mapa de superficies** — application: `app/Providers/RouteServiceProvider.php:49-76` (4 subdominios + namespace por actor) · `app/Http/Kernel.php:32-87` (grupos; sólo `admin` trae `Authenticate` en `:74`; aliases `onlyMobile`/`onlyWithUser` en `:110-113`).
+- **Mapa de superficies** — application: `app/Providers/RouteServiceProvider.php:49-76` (4 subdominios + namespace por actor) · `app/Http/Kernel.php:32-87` (grupos; sólo `admin` trae `Authenticate` en `:74`; aliases `onlyMobile`/`onlyWithUser` en `:110-113`, `loanFlowStarted` en `:115`). En legacy-backend, junto a `auth.cognito` (`:66`) hay ahora `cognito.token` → `EnsureCognitoAccessToken` (`:67`).
 - **Puertas de login** — `app/Providers/FortifyServiceProvider.php:27-42` (11 roles → admin) · `config/fortify.php:49`+`:92` · `app/Http/Controllers/Customer/AuthController.php:29-32` (sólo Comercial) · `app/Http/Controllers/Profile/LoginCellphoneController.php:21-48` · `app/Http/Middleware/Authenticate.php:20-24` (matriz de redirect) · `app/Http/Middleware/RedirectProfileIfDesktop.php:17-26`.
 - **Identidad y roles** — `app/Models/User.php:32-64` (fillable), `:147-165` (`getFilteredIds`, el `-t%`), `:188-191` (relación muerta a `CorporateUser`), `:201-204` (`lender()` = rol Entidad), `:219-222` (`generatedUserRequests`), `:286-289` (`branches`) · `database/seeders/RolesTableSeeder.php:25-38` · `database/seeders/ModelHasRolesTableSeeder.php:21-28` · migraciones `…create_users_table.php:17-22`, `…create_user_profiles_table.php`, `…create_corporate_users_table.php` (sin `user_id`).
 - **Alta / baja del asesor** — `app/Http/Controllers/Admin/AlliedCorporateUserController.php:58-60` (perfiles asignables), `:71-96` (crea en `users`, prefijos, password=cédula), `:105-112` (permisos CreditopX), `:130-145` (soft delete `-t{n}`) · gemelo API: `legacy-backend/Modules/Partner/App/Http/Controllers/AlliedCorporateUserController.php` bajo `Modules/Partner/routes/api.php:17`.

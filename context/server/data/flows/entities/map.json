@@ -6,8 +6,8 @@
   "when": "Cuando la pregunta es qué ES un prestamista como dato: la fila lenders, sus tablas de configuración, y sobre todo el response_type (0/1/2/3/4) que despacha toda la plataforma. Alta de una entidad nueva.",
   "verified": {
     "ref": "main",
-    "date": "2026-07-18",
-    "source": "git-doc"
+    "date": "2026-07-31",
+    "source": "manual"
   },
   "files": [
     "application/app/Models/Lender.php",

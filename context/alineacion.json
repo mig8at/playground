@@ -2,8 +2,8 @@
   "generado": "2026-07-31",
   "ref": "main",
   "resumen": {
-    "deriva": 19,
-    "al-dia": 10,
+    "al-dia": 16,
+    "deriva": 13,
     "rama-sin-mergear": 1,
     "deriva-alta": 1
   },
@@ -893,67 +893,6 @@
       "pendiente_merge": null
     },
     {
-      "id": "redirect",
-      "estado": "deriva",
-      "verificado": {
-        "ref": "main",
-        "date": "2026-07-18",
-        "source": "git-doc"
-      },
-      "archivos": 24,
-      "deriva": {
-        "cambiados": 3,
-        "pct": 12,
-        "archivos": [
-          {
-            "ruta": "application/app/Http/Controllers/Customer/UserRequestController.php",
-            "ultimo_cambio": "2026-07-26"
-          },
-          {
-            "ruta": "frontend-monorepo/apps/loan-request-wizard/app/routes/lenders-marketplace/available-lenders.tsx",
-            "ultimo_cambio": "2026-07-24"
-          },
-          {
-            "ruta": "legacy-backend/Modules/Onboarding/App/Services/UserRequestService.php",
-            "ultimo_cambio": "2026-07-21"
-          }
-        ]
-      },
-      "commits": {
-        "total": 3,
-        "autores": {
-          "Oscar Rincon": 1,
-          "lhCabra-creditop": 1,
-          "Abel Arismendy": 1
-        },
-        "lista": [
-          {
-            "sha": "60763ea2",
-            "fecha": "2026-07-26",
-            "autor": "Oscar Rincon",
-            "asunto": "Impedir que crawlers ejecuten las consultas de preaprobado",
-            "repo": "application"
-          },
-          {
-            "sha": "7daed00d",
-            "fecha": "2026-07-21",
-            "autor": "lhCabra-creditop",
-            "asunto": "fix(onboarding): guard Welli changeClinic behind displayed_lenders count",
-            "repo": "legacy-backend"
-          },
-          {
-            "sha": "9ca723c9",
-            "fecha": "2026-07-21",
-            "autor": "Abel Arismendy",
-            "asunto": "fix(loan-request-wizard): unificar la identidad de posthog entre el dispositivo del asesor y el del usuario",
-            "repo": "frontend-monorepo"
-          }
-        ]
-      },
-      "rutas_muertas": [],
-      "pendiente_merge": null
-    },
-    {
       "id": "architecture",
       "estado": "deriva",
       "verificado": {
@@ -1433,43 +1372,6 @@
       "pendiente_merge": null
     },
     {
-      "id": "creditopx",
-      "estado": "deriva",
-      "verificado": {
-        "ref": "main",
-        "date": "2026-07-27",
-        "source": "git-doc"
-      },
-      "archivos": 14,
-      "deriva": {
-        "cambiados": 1,
-        "pct": 7,
-        "archivos": [
-          {
-            "ruta": "legacy-backend/Modules/Onboarding/App/Http/Controllers/LenderListingController.php",
-            "ultimo_cambio": "2026-07-29"
-          }
-        ]
-      },
-      "commits": {
-        "total": 1,
-        "autores": {
-          "joseesco24-creditop": 1
-        },
-        "lista": [
-          {
-            "sha": "a603a5cd",
-            "fecha": "2026-07-17",
-            "autor": "joseesco24-creditop",
-            "asunto": "feat: backdn changes fo already confirmed pre approbal flow usage",
-            "repo": "legacy-backend"
-          }
-        ]
-      },
-      "rutas_muertas": [],
-      "pendiente_merge": null
-    },
-    {
       "id": "frontend-monorepo",
       "estado": "deriva",
       "verificado": {
@@ -1705,127 +1607,6 @@
       "pendiente_merge": null
     },
     {
-      "id": "entities",
-      "estado": "deriva",
-      "verificado": {
-        "ref": "main",
-        "date": "2026-07-18",
-        "source": "git-doc"
-      },
-      "archivos": 50,
-      "deriva": {
-        "cambiados": 3,
-        "pct": 6,
-        "archivos": [
-          {
-            "ruta": "application/app/Http/Controllers/Customer/UserRequestController.php",
-            "ultimo_cambio": "2026-07-26"
-          },
-          {
-            "ruta": "legacy-backend/Modules/Loans/App/Services/LoanAuthorizationService.php",
-            "ultimo_cambio": "2026-07-25"
-          },
-          {
-            "ruta": "legacy-backend/Modules/Onboarding/App/Services/UserRequestService.php",
-            "ultimo_cambio": "2026-07-21"
-          }
-        ]
-      },
-      "commits": {
-        "total": 3,
-        "autores": {
-          "lhCabra-creditop": 2,
-          "Oscar Rincon": 1
-        },
-        "lista": [
-          {
-            "sha": "60763ea2",
-            "fecha": "2026-07-26",
-            "autor": "Oscar Rincon",
-            "asunto": "Impedir que crawlers ejecuten las consultas de preaprobado",
-            "repo": "application"
-          },
-          {
-            "sha": "d5fc7c66",
-            "fecha": "2026-07-25",
-            "autor": "lhCabra-creditop",
-            "asunto": "feat(loans): persist ADO id photos to S3 before Credifamilia formalization",
-            "repo": "legacy-backend"
-          },
-          {
-            "sha": "7daed00d",
-            "fecha": "2026-07-21",
-            "autor": "lhCabra-creditop",
-            "asunto": "fix(onboarding): guard Welli changeClinic behind displayed_lenders count",
-            "repo": "legacy-backend"
-          }
-        ]
-      },
-      "rutas_muertas": [],
-      "pendiente_merge": null
-    },
-    {
-      "id": "actors",
-      "estado": "deriva",
-      "verificado": {
-        "ref": "main",
-        "date": "2026-07-18",
-        "source": "git-doc"
-      },
-      "archivos": 63,
-      "deriva": {
-        "cambiados": 3,
-        "pct": 5,
-        "archivos": [
-          {
-            "ruta": "application/routes/customer.php",
-            "ultimo_cambio": "2026-07-27"
-          },
-          {
-            "ruta": "application/app/Http/Kernel.php",
-            "ultimo_cambio": "2026-07-26"
-          },
-          {
-            "ruta": "legacy-backend/app/Http/Kernel.php",
-            "ultimo_cambio": "2026-07-23"
-          }
-        ]
-      },
-      "commits": {
-        "total": 3,
-        "autores": {
-          "lhCabra-creditop": 1,
-          "Oscar Rincon": 1,
-          "Joel": 1
-        },
-        "lista": [
-          {
-            "sha": "cae64d2e",
-            "fecha": "2026-07-27",
-            "autor": "lhCabra-creditop",
-            "asunto": "Add revolving credit detail screen to the allied portal",
-            "repo": "application"
-          },
-          {
-            "sha": "60763ea2",
-            "fecha": "2026-07-26",
-            "autor": "Oscar Rincon",
-            "asunto": "Impedir que crawlers ejecuten las consultas de preaprobado",
-            "repo": "application"
-          },
-          {
-            "sha": "531cd5dd",
-            "fecha": "2026-07-23",
-            "autor": "Joel",
-            "asunto": "feat(CORE-XXX): validar JWT de Cognito en /api/backoffice (fase 2 de protección)",
-            "repo": "legacy-backend"
-          }
-        ]
-      },
-      "rutas_muertas": [],
-      "pendiente_merge": null
-    },
-    {
       "id": "credifamilia",
       "estado": "deriva",
       "verificado": {
@@ -1900,59 +1681,6 @@
             "autor": "Oscar Rincon",
             "asunto": "feat(payment-plan): add optional skip_lender_validation to Credifamilia loan-options",
             "repo": "legacy-backend"
-          },
-          {
-            "sha": "9ca723c9",
-            "fecha": "2026-07-21",
-            "autor": "Abel Arismendy",
-            "asunto": "fix(loan-request-wizard): unificar la identidad de posthog entre el dispositivo del asesor y el del usuario",
-            "repo": "frontend-monorepo"
-          }
-        ]
-      },
-      "rutas_muertas": [],
-      "pendiente_merge": null
-    },
-    {
-      "id": "ms-preapprovals",
-      "estado": "deriva",
-      "verificado": {
-        "ref": "main",
-        "date": "2026-07-18",
-        "source": "git-doc"
-      },
-      "archivos": 72,
-      "deriva": {
-        "cambiados": 3,
-        "pct": 4,
-        "archivos": [
-          {
-            "ruta": "frontend-monorepo/apps/loan-request-wizard/app/routes/lenders-marketplace/available-lenders.tsx",
-            "ultimo_cambio": "2026-07-24"
-          },
-          {
-            "ruta": "frontend-monorepo/modules/loan-request-wizard/lenders-marketplace/src/components/available-lenders/AvailableLenders.tsx",
-            "ultimo_cambio": "2026-07-23"
-          },
-          {
-            "ruta": "frontend-monorepo/modules/loan-request-wizard/lenders-marketplace/src/lib/application/validate-preapproved-loan.uc.ts",
-            "ultimo_cambio": "2026-07-23"
-          }
-        ]
-      },
-      "commits": {
-        "total": 2,
-        "autores": {
-          "Joel": 1,
-          "Abel Arismendy": 1
-        },
-        "lista": [
-          {
-            "sha": "8f2af8c4",
-            "fecha": "2026-07-23",
-            "autor": "Joel",
-            "asunto": "feat(CORE-XXX): perfilamiento con simulación, tab centrales y validación de nombres en el panel",
-            "repo": "frontend-monorepo"
           },
           {
             "sha": "9ca723c9",
@@ -2095,55 +1823,6 @@
       "pendiente_merge": null
     },
     {
-      "id": "payments",
-      "estado": "deriva",
-      "verificado": {
-        "ref": "main",
-        "date": "2026-07-18",
-        "source": "git-doc"
-      },
-      "archivos": 65,
-      "deriva": {
-        "cambiados": 2,
-        "pct": 3,
-        "archivos": [
-          {
-            "ruta": "frontend-monorepo/apps/loan-request-wizard/app/routes/lenders-marketplace/available-lenders.tsx",
-            "ultimo_cambio": "2026-07-24"
-          },
-          {
-            "ruta": "frontend-monorepo/modules/loan-request-wizard/lenders-marketplace/src/lib/application/get-lender-transaction-status.uc.ts",
-            "ultimo_cambio": "2026-07-23"
-          }
-        ]
-      },
-      "commits": {
-        "total": 2,
-        "autores": {
-          "Joel": 1,
-          "Abel Arismendy": 1
-        },
-        "lista": [
-          {
-            "sha": "8f2af8c4",
-            "fecha": "2026-07-23",
-            "autor": "Joel",
-            "asunto": "feat(CORE-XXX): perfilamiento con simulación, tab centrales y validación de nombres en el panel",
-            "repo": "frontend-monorepo"
-          },
-          {
-            "sha": "9ca723c9",
-            "fecha": "2026-07-21",
-            "autor": "Abel Arismendy",
-            "asunto": "fix(loan-request-wizard): unificar la identidad de posthog entre el dispositivo del asesor y el del usuario",
-            "repo": "frontend-monorepo"
-          }
-        ]
-      },
-      "rutas_muertas": [],
-      "pendiente_merge": null
-    },
-    {
       "id": "servicing",
       "estado": "deriva",
       "verificado": {
@@ -2221,6 +1900,24 @@
       "pendiente_merge": null
     },
     {
+      "id": "actors",
+      "estado": "al-dia",
+      "verificado": {
+        "ref": "main",
+        "date": "2026-07-31",
+        "source": "manual"
+      },
+      "archivos": 63,
+      "deriva": {
+        "cambiados": 0,
+        "pct": 0,
+        "archivos": []
+      },
+      "commits": null,
+      "rutas_muertas": [],
+      "pendiente_merge": null
+    },
+    {
       "id": "aggregator",
       "estado": "al-dia",
       "verificado": {
@@ -2275,6 +1972,24 @@
       "pendiente_merge": null
     },
     {
+      "id": "creditopx",
+      "estado": "al-dia",
+      "verificado": {
+        "ref": "main",
+        "date": "2026-07-31",
+        "source": "manual"
+      },
+      "archivos": 14,
+      "deriva": {
+        "cambiados": 0,
+        "pct": 0,
+        "archivos": []
+      },
+      "commits": null,
+      "rutas_muertas": [],
+      "pendiente_merge": null
+    },
+    {
       "id": "ecommerce",
       "estado": "al-dia",
       "verificado": {
@@ -2283,6 +1998,24 @@
         "source": "manual"
       },
       "archivos": 71,
+      "deriva": {
+        "cambiados": 0,
+        "pct": 0,
+        "archivos": []
+      },
+      "commits": null,
+      "rutas_muertas": [],
+      "pendiente_merge": null
+    },
+    {
+      "id": "entities",
+      "estado": "al-dia",
+      "verificado": {
+        "ref": "main",
+        "date": "2026-07-31",
+        "source": "manual"
+      },
+      "archivos": 50,
       "deriva": {
         "cambiados": 0,
         "pct": 0,
@@ -2365,6 +2098,42 @@
       "pendiente_merge": null
     },
     {
+      "id": "ms-preapprovals",
+      "estado": "al-dia",
+      "verificado": {
+        "ref": "main",
+        "date": "2026-07-31",
+        "source": "manual"
+      },
+      "archivos": 72,
+      "deriva": {
+        "cambiados": 0,
+        "pct": 0,
+        "archivos": []
+      },
+      "commits": null,
+      "rutas_muertas": [],
+      "pendiente_merge": null
+    },
+    {
+      "id": "payments",
+      "estado": "al-dia",
+      "verificado": {
+        "ref": "main",
+        "date": "2026-07-31",
+        "source": "manual"
+      },
+      "archivos": 65,
+      "deriva": {
+        "cambiados": 0,
+        "pct": 0,
+        "archivos": []
+      },
+      "commits": null,
+      "rutas_muertas": [],
+      "pendiente_merge": null
+    },
+    {
       "id": "profiling",
       "estado": "al-dia",
       "verificado": {
@@ -2391,6 +2160,24 @@
         "source": "git-doc"
       },
       "archivos": 13,
+      "deriva": {
+        "cambiados": 0,
+        "pct": 0,
+        "archivos": []
+      },
+      "commits": null,
+      "rutas_muertas": [],
+      "pendiente_merge": null
+    },
+    {
+      "id": "redirect",
+      "estado": "al-dia",
+      "verificado": {
+        "ref": "main",
+        "date": "2026-07-31",
+        "source": "manual"
+      },
+      "archivos": 24,
       "deriva": {
         "cambiados": 0,
         "pct": 0,

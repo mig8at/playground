@@ -6,8 +6,8 @@
   "when": "Cuando la pregunta es de PERMISOS o de quién hace qué: cliente vs asesor vs back-office, login, Cognito y SSO, roles y alcance, y por dónde entra cada uno (QR, link de continuación, autogestión).",
   "verified": {
     "ref": "main",
-    "date": "2026-07-18",
-    "source": "git-doc"
+    "date": "2026-07-31",
+    "source": "manual"
   },
   "files": [
     "application/app/Providers/RouteServiceProvider.php",

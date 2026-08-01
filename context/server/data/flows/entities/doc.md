@@ -49,8 +49,8 @@ La tabla catálogo `response_types` es mínima (`id, name, status`) y su seeder 
 **rt=4 no tiene constante compartida**: está redefinido como `private const` con nombre distinto en **4 archivos** (`EXTRA_DETAILS_RESPONSE_TYPE`, `EXTERNAL_MANAGED_RESPONSE_TYPE`, `EXTERNALLY_MANAGED_RESPONSE_TYPE` ×2), más decenas de literales `== 2` / `== 3` sueltos. No hay enum PHP de `response_type` en ningún repo.
 
 **El despacho ocurre en dos lugares gemelos y divergentes** (`switch ($lender->response_type)`), después de un gate por credencial (`if (empty($credential))`):
-- **legacy-backend** `UserRequestService.php:441` — `case 0/1` · `case 2/3/4` · rama con credencial `case 0` / `case 1` / `case 4`.
-- **application** `UserRequestController.php:817` — `case 0/1` · `case 2/3`. **No hay `case 4`.**
+- **legacy-backend** `UserRequestService.php:442` — `case 0/1` · `case 2/3/4` · rama con credencial `case 0` / `case 1` / `case 4`.
+- **application** `UserRequestController.php:818` — `case 0/1` · `case 2/3`. **No hay `case 4`.**
 
 Esa ausencia explica el hardcode más famoso del modelo: `application/app/Models/Lender.php:59` define `getResponseTypeAttribute()` que **devuelve 1 si `id == 24`** (Credifamilia), sin importar la BD. Es el parche que evita que Credifamilia caiga en un `switch` sin rama. El accessor **no existe** en legacy-backend, que sí tiene su `case 4`.
 
@@ -106,8 +106,8 @@ Asimetría real: el **`store` cubre solo rt==2**, mientras el **`update` de appl
 - `legacy-backend/database/seeders/ResponseTypesTableSeeder.php:24` (`0 UTM`), `:29` (`1 Integración`), `:34` (`2 Creditop X`) — no hay 3 ni 4.
 - `legacy-backend/database/migrations/2024_04_25_174044_create_response_types_table.php:15` — la tabla catálogo (`id, name, status`).
 - `application/app/Models/ResponseType.php` · `legacy-backend/app/Models/ResponseType.php` — idénticos, `$fillable = ['name']`.
-- `legacy-backend/Modules/Onboarding/App/Services/UserRequestService.php:414` (url: excluye rt 2 y 4) · `:441` switch · `:442` `case 0/1` · `:450-452` `case 2/3/4` · `:601` `case 4` con `standBy=true`.
-- `application/app/Http/Controllers/Customer/UserRequestController.php:790` (url: excluye solo rt 2) · `:817` switch · `:818` `case 0/1` · `:827` `case 2/3` (**sin `case 4`**) · `:881` `switch ($lender->id)` con `case 24` · `:968` `switch ($lender->name)`.
+- `legacy-backend/Modules/Onboarding/App/Services/UserRequestService.php:415` (url: excluye rt 2 y 4) · `:441` switch · `:442` `case 0/1` · `:450-452` `case 2/3/4` · `:601` `case 4` con `standBy=true`.
+- `application/app/Http/Controllers/Customer/UserRequestController.php:791` (url: excluye solo rt 2) · `:817` switch · `:818` `case 0/1` · `:827` `case 2/3` (**sin `case 4`**) · `:881` `switch ($lender->id)` con `case 24` · `:968` `switch ($lender->name)`.
 - `legacy-backend/Modules/Onboarding/App/Services/lenders/LenderTabBehaviorResolver.php:19` (RD=60), `:22` (nombres), `:25` (`EXTERNAL_REDIRECT_RESPONSE_TYPES = [0,1]`), `:27` `opensNewTab()`.
 - `legacy-backend/Modules/Loans/App/Http/Middleware/AddOriginationFlowType.php:54` (`lender_path`) · `:59-63` (`credit_type` 3→revolving / 2→consumer / other).
 - rt=4, las 4 constantes privadas: `LoanAuthorizationService.php:43` · `ContinueUserFlowController.php:20` · `PaymentDateService.php:18` · `PaymentSchedule/ExternallyManagedPaymentScheduleService.php:20`.
@@ -147,7 +147,7 @@ Asimetría real: el **`store` cubre solo rt==2**, mientras el **`update` de appl
 - **Columna muerta**: `requires_restrictive_list_check` (migración + `->after()` de la siguiente migración) **no tiene un solo consumidor** en application, legacy-backend ni frontend-monorepo. Tampoco está en el `$fillable`.
 - **Bug del panel — el email nunca se guarda**: los dos formularios Vue bindean `form.emails` (plural) y precargan `this.lender.emails`, pero la columna, el `$fillable` y el controlador usan **`email`** (singular). El campo renderiza vacío al editar y el POST no llega a la columna.
 - **Serialización que pisa el escalar**: `edit()` hace `$lender->load([... 'responseType' ...])`; Eloquent serializa esa relación en snake_case como `response_type`, **sombreando el entero**. Por eso el Vue lee `this.lender.response_type.id`. Cualquier consumidor que espere un `int` en ese payload se rompe.
-- **Hardcodes por NOMBRE (string)**: `UserRequestController.php:968` hace `switch ($lender->name)` con `'Compensar' / 'Sistecrédito' / 'Meddipay'`; legacy al menos lo centralizó en `LenderTabBehaviorResolver::NON_NEW_TAB_LENDER_NAMES` — pero sigue comparando por nombre, no por id ni por flag. Renombrar un lender en el panel cambia su comportamiento de entrega.
+- **Hardcodes por NOMBRE (string)**: `UserRequestController.php:969` hace `switch ($lender->name)` con `'Compensar' / 'Sistecrédito' / 'Meddipay'`; legacy al menos lo centralizó en `LenderTabBehaviorResolver::NON_NEW_TAB_LENDER_NAMES` — pero sigue comparando por nombre, no por id ni por flag. Renombrar un lender en el panel cambia su comportamiento de entrega.
 - **Código muerto en el gemelo legacy**: `LenderRepository::getActive()` hace `Lender::where('status', 'Activo')` sobre una columna **booleana** (nunca matchea) y `getPaginated()` filtra por `$filters['type']`, columna que **no existe** en `lenders`. Ambos métodos están en la interfaz (`:20-21`) y **no los llama nadie**.
 - **Alta asimétrica rt=3**: `store()` crea `creditop_x_lender_configuration` solo si rt==2; `update()` (application) lo hace para 2 **y** 3. Un lender rotativo recién creado queda sin config hasta que alguien lo edite.
 - **Migraciones no autocontenidas**: el árbol de legacy-backend depende de columnas creadas por migraciones de application (y viceversa). Levantar una base desde cero con un solo repo falla.
