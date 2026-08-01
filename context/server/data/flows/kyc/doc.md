@@ -14,6 +14,16 @@ Todo aterriza en tres lugares: el **reporte crudo** en `risk_central_user_data.d
 - **Ágil Data** (rc_id 3, Asofondos/PILA) — **1ª fuente de ingreso** (IBC) + empleo. `GET .../historicoDetalladoEmpleo/...`, Basic Auth + **mTLS** (cert de S3). Da ocupación (`codRespuesta` 01 empleado / 21 pensionado), **edad exacta**, **género**, **continuidad** (3/6/12m). Escribe TODO en `additional_info` (**plano, sin cifrar**). 202 filas.
 - **Mareigua** (rc_id 6, PILA/seguridad social) — **ingreso de respaldo** (2ª fuente, fallback de Ágil) + continuidad + `tipo_cotizante` (1 empleado/2 indep/3 pensionado). OAuth `/token` + `POST /consultas`. **0 filas en `risk_centrals`** pero **20.449 en `user_summaries`** (solo espeja).
 - **TusDatos** — **identidad** (rc_id 2, `data.findings.*.match_code` 0/1/2, o `estado` VIGENTE/CANCELADA para CE) + **AML** (rc_id 4, `POST /api/launch` async → poll `GET /api/results/{jobid}`; `hasFindings = hallazgo===true && hallazgos==='alto'`). **No da score.** `isSmartPay` salta el AML. 0 filas.
+⚠ **Hay una tabla de MONITOREO del cruce de nombres: `kyc_name_checks`** (desde 2026-07-23). Cada vez
+que una central devuelve un nombre, `Modules/Identity/App/Services/KycNameCheckRecorder::record` guarda
+el ingresado vs el devuelto (crudo y normalizado), `central` (`agildata`|`mareigua`|`tusdatos`),
+documento, `passed` y un `reason` clasificado — `match` · `provider_no_data` · `wrong_document`
+(ninguna palabra en común: típicamente la cédula consultada no es de esa persona) · `token_mismatch`.
+
+**Es SOLO monitoreo y nunca lanza**: un error al registrar no tumba la validación de identidad. O sea
+que **no decide nada** — no lo confundas con un filtro. Sirve para responder «¿por qué esta identidad
+no cuadró?» con datos en vez de suposiciones.
+
 - **Ado** (rc_id 5) — validación **biométrica/liveness** (Jumio-like, `GET .../Validation/{id}` async, 18 códigos `mapAdoState`, `IdState` 1=ok / 17=cancelado). Valida identidad; **no aporta capacidad de pago ni gatea la oferta**. 0 filas.
 
 **Las tres formas de Experian**: Acierta trae `models[]` (score) sin `productValueList`; Quanto trae `productValueList` (ingreso) sin `models`; Acierta+Quanto trae **ambos**.

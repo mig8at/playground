@@ -6,8 +6,8 @@
   "when": "Cuando la tarea toca burós o datos de riesgo: score, Experian/Datacrédito, ingreso (Ágil Data, Mareigua, Quanto), identidad, AML, biometría, cifrado del reporte, o armar un usuario sintético para pruebas.",
   "verified": {
     "ref": "main",
-    "date": "2026-07-21",
-    "source": "git-doc"
+    "date": "2026-07-31",
+    "source": "manual"
   },
   "files": [
     "application/app/Actions/RiskCentrals/Ado.php",
@@ -27,13 +27,16 @@
     "application/app/Models/RiskCentralUserData.php",
     "application/app/Models/User.php",
     "legacy-backend/Modules/AlliedV1/App/Services/GetExperianQueryCountByAlliedIdService.php",
+    "legacy-backend/Modules/Identity/App/Services/KycNameCheckRecorder.php",
     "legacy-backend/Modules/RiskV2/App/Services/CheckExperianTriggerService.php",
     "legacy-backend/Modules/RiskV2/App/Services/CheckIfAbleToOmitService.php",
     "legacy-backend/Modules/UserRequestV1/App/Constants/Flow.php",
     "legacy-backend/app/Actions/RiskCentrals/Abaco.php",
     "legacy-backend/app/Actions/RiskCentrals/Experian.php",
+    "legacy-backend/app/Models/KycNameCheck.php",
     "legacy-backend/app/Services/Lenders/CredifamiliaV2/CrossCore/CrossCoreClient.php",
     "legacy-backend/app/Services/Lenders/CredifamiliaV2/CrossCore/JumioOnboardingService.php",
-    "legacy-backend/app/Services/Lenders/CredifamiliaV2/Evidente/EvidenteClient.php"
+    "legacy-backend/app/Services/Lenders/CredifamiliaV2/Evidente/EvidenteClient.php",
+    "legacy-backend/database/migrations/2026_07_20_120000_create_kyc_name_checks_table.php"
   ]
 }

@@ -75,6 +75,7 @@
     "legacy-backend/Modules/Partner/App/Http/Controllers/AlliedCorporateUserController.php",
     "legacy-backend/Modules/Partner/routes/api.php",
     "legacy-backend/app/Http/Kernel.php",
-    "legacy-backend/app/Http/Middleware/ResolveCognitoUser.php"
+    "legacy-backend/app/Http/Middleware/ResolveCognitoUser.php",
+    "legacy-backend/database/migrations/2026_07_02_120000_add_onboarding_origin_to_users.php"
   ]
 }

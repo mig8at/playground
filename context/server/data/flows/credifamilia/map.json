@@ -42,6 +42,7 @@
     "legacy-backend/Modules/Identity/App/Services/ValidationStatusService.php",
     "legacy-backend/Modules/Loans/App/Actions/DecevalSoap.php",
     "legacy-backend/Modules/Loans/App/Http/Controllers/Customer/ContinueUserFlowController.php",
+    "legacy-backend/Modules/Loans/App/Services/AdoIdDocumentService.php",
     "legacy-backend/Modules/Loans/App/Services/CreditopXFlowService.php",
     "legacy-backend/Modules/Loans/App/Services/DocumentGeneration/Payload/OnboardingPayloadBuilder.php",
     "legacy-backend/Modules/Loans/App/Services/DocumentSigningService.php",

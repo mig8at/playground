@@ -95,6 +95,8 @@
     "legacy-backend/Modules/UserRequestV1/App/Constants/FindOrCreateServiceConstants.php",
     "legacy-backend/Modules/UserRequestV1/App/Services/FindOrCreateService.php",
     "legacy-backend/app/Models/UserRequest.php",
-    "legacy-backend/app/Observers/UserRequestObserver.php"
+    "legacy-backend/app/Observers/UserRequestObserver.php",
+    "legacy-backend/database/migrations/2026_07_09_130000_add_source_and_qa_bypass_to_otps.php",
+    "legacy-backend/database/migrations/2026_07_17_100000_add_identifier_to_otps.php"
   ]
 }

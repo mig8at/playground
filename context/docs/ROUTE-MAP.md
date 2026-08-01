@@ -47,7 +47,7 @@
 **Cuándo:** Cuando la tarea toca material TRANSVERSAL que ningún contexto dueña: tablas y datos clave, máquinas de estado y el Estado 11, frontera de pruebas y harness, deuda técnica y hardcodes, glosario y colisiones de id. También cuando no sabés por dónde empezar.
 Doc: `server/data/flows/creditop/doc.md` · Archivos: `server/data/flows/creditop/map.json`
 
-### actors — Actors  ·  _reference_ · 66 archivos
+### actors — Actors  ·  _reference_ · 67 archivos
 **Cuándo:** Cuando la pregunta es de PERMISOS o de quién hace qué: cliente vs asesor vs back-office, login, Cognito y SSO, roles y alcance, y por dónde entra cada uno (QR, link de continuación, autogestión).
 Doc: `server/data/flows/actors/doc.md` · Archivos: `server/data/flows/actors/map.json` · Padre: `creditop`
 
@@ -75,7 +75,7 @@ Doc: `server/data/flows/bancolombia/doc.md` · Archivos: `server/data/flows/banc
 **Cuándo:** Cuando la tarea es del GRUPO DE COMERCIOS Corbeta (retail físico: Alkosto 209 / K-TRONIX 210 / Alkomprar 211; el allied 24 del gate es 'Creditop', la cuenta propia de la casa) y la venta se cierra en CAJA: checkout ecommerce base64 → PIN de la API Fondos → factura en tienda → conciliación batch por PIN → estado 26 Facturado → confirmación diferida al lender. Sus tres retail tienen SÓLO Bancolombia habilitado (68 BNPL / 100 Consumo): la decisión de crédito y los endpoints de originación son del nodo `bancolombia`.
 Doc: `server/data/flows/corbeta/doc.md` · Archivos: `server/data/flows/corbeta/map.json` · Padre: `merchants`
 
-### credifamilia — Credifamilia  ·  _reference_ · 134 archivos
+### credifamilia — Credifamilia  ·  _reference_ · 135 archivos
 **Cuándo:** Cuando la tarea toca Credifamilia (lender 24, el único response_type=4): radicación por SOAP, KYC V2 (Evidente/CrossCore/Jumio), plan de cuotas dinámico, o el gate local que hace que no aparezca en pruebas.
 Doc: `server/data/flows/credifamilia/doc.md` · Archivos: `server/data/flows/credifamilia/map.json` · Padre: `entities`
 
@@ -103,7 +103,7 @@ Doc: `server/data/flows/findings/doc.md` · Archivos: `server/data/flows/finding
 **Cuándo:** Cuando la tarea toca el microservicio form-service (Go): el formulario dinámico G2 'backend-driven' (pantalla additional-info), cómo se arma el schema desde las 5 tablas legacy, dónde/cómo se guardan las respuestas (user_field_values), el árbol país→departamento→ciudad de los selects, o agregar/editar un campo (ej. la cascada Departamento→Ciudad de nacimiento).
 Doc: `server/data/flows/form-service/doc.md` · Archivos: `server/data/flows/form-service/map.json` · Padre: `dynamic-forms`
 
-### formalization — Formalization  ·  _reference_ · 85 archivos
+### formalization — Formalization  ·  _reference_ · 86 archivos
 **Cuándo:** Cuando el problema está DESPUÉS de elegir entidad: plan de pagos, documentos, pagaré, firma con OTP, autorización hasta el Estado 11 y desembolso.
 Doc: `server/data/flows/formalization/doc.md` · Archivos: `server/data/flows/formalization/map.json` · Padre: `creditop`
 
@@ -119,7 +119,7 @@ Doc: `server/data/flows/hardcodes-entidades/doc.md` · Archivos: `server/data/fl
 **Cuándo:** Cuando la tarea es “necesito probar / ejercitar / mockear un flujo de originación E2E” — correr un triplete canal→comercio→lender de punta a punta, sembrar/inyectar un perfil aprobado, decidir qué se puede sellar localmente vs. qué lo decide una API externa, o levantar el demo del wizard (2 ventanas / panel).
 Doc: `server/data/flows/harness/doc.md` · Archivos: `server/data/flows/harness/map.json` · Padre: `architecture`
 
-### kyc — KYC  ·  _reference_ · 25 archivos
+### kyc — KYC  ·  _reference_ · 28 archivos
 **Cuándo:** Cuando la tarea toca burós o datos de riesgo: score, Experian/Datacrédito, ingreso (Ágil Data, Mareigua, Quanto), identidad, AML, biometría, cifrado del reporte, o armar un usuario sintético para pruebas.
 Doc: `server/data/flows/kyc/doc.md` · Archivos: `server/data/flows/kyc/map.json` · Padre: `onboarding`
 
@@ -139,7 +139,7 @@ Doc: `server/data/flows/motai/doc.md` · Archivos: `server/data/flows/motai/map.
 **Cuándo:** Cuando la pre-aprobacion de un lender rt!=0 falla o hay que tocar el microservicio Go (pre-approvals-service): contrato del servicio (check / me-check / lender-attempts / docs), workflow de 4 etapas, matriz de 8 proveedores (adapter+client+strategy por lender), taxonomia de errores, timeouts/cache DynamoDB, y el consumo cliente en el wizard/legacy.
 Doc: `server/data/flows/ms-preapprovals/doc.md` · Archivos: `server/data/flows/ms-preapprovals/map.json` · Padre: `architecture`
 
-### onboarding — Onboarding  ·  _reference_ · 86 archivos
+### onboarding — Onboarding  ·  _reference_ · 88 archivos
 **Cuándo:** Cuando el problema está ANTES del listado: entrada por hash de sucursal, registro de celular y OTP, creación de la user_request, formulario personal y laboral, captura del monto, códigos de error ONB0xx.
 Doc: `server/data/flows/onboarding/doc.md` · Archivos: `server/data/flows/onboarding/map.json` · Padre: `creditop`
 

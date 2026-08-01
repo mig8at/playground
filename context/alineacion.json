@@ -85,16 +85,11 @@
           }
         ]
       },
-      "huerfanos": [
-        "frontend-monorepo/modules/loan-request-wizard/abaco/src/application/use-cases/skip-abaco.uc.ts",
-        "legacy-backend/Modules/Onboarding/App/Http/Controllers/AbacoSkipController.php",
-        "legacy-backend/Modules/Onboarding/App/Services/AbacoSkipService.php",
-        "legacy-backend/database/migrations/2026_07_30_120000_seed_motai_renting_plans_calculator.php"
-      ],
+      "huerfanos": [],
       "rutas_muertas": [],
       "pendiente_merge": {
         "ref": "qa",
-        "archivos": 14,
+        "archivos": 18,
         "ya_en_main": []
       }
     },
@@ -106,7 +101,7 @@
         "date": "2026-07-31",
         "source": "manual"
       },
-      "archivos": 66,
+      "archivos": 67,
       "deriva": {
         "cambiados": 0,
         "pct": 0,
@@ -239,7 +234,7 @@
         "date": "2026-07-31",
         "source": "manual"
       },
-      "archivos": 134,
+      "archivos": 135,
       "deriva": {
         "cambiados": 0,
         "pct": 0,
@@ -379,9 +374,7 @@
         "archivos": []
       },
       "commits": null,
-      "huerfanos": [
-        "legacy-backend/Modules/Loans/App/Services/AdoIdDocumentService.php"
-      ],
+      "huerfanos": [],
       "rutas_muertas": [],
       "pendiente_merge": null
     },
@@ -393,7 +386,7 @@
         "date": "2026-07-31",
         "source": "manual"
       },
-      "archivos": 85,
+      "archivos": 86,
       "deriva": {
         "cambiados": 0,
         "pct": 0,
@@ -466,19 +459,17 @@
       "estado": "al-dia",
       "verificado": {
         "ref": "main",
-        "date": "2026-07-21",
-        "source": "git-doc"
+        "date": "2026-07-31",
+        "source": "manual"
       },
-      "archivos": 25,
+      "archivos": 28,
       "deriva": {
         "cambiados": 0,
         "pct": 0,
         "archivos": []
       },
       "commits": null,
-      "huerfanos": [
-        "application/app/Http/Controllers/Customer/RevolvingCreditsController.php"
-      ],
+      "huerfanos": [],
       "rutas_muertas": [],
       "pendiente_merge": null
     },
@@ -547,7 +538,7 @@
         "date": "2026-07-31",
         "source": "manual"
       },
-      "archivos": 86,
+      "archivos": 88,
       "deriva": {
         "cambiados": 0,
         "pct": 0,
@@ -592,14 +583,7 @@
         "archivos": []
       },
       "commits": null,
-      "huerfanos": [
-        "legacy-backend/Modules/Loans/App/Services/AdoIdDocumentService.php",
-        "legacy-backend/app/Models/KycNameCheck.php",
-        "legacy-backend/database/migrations/2026_07_02_120000_add_onboarding_origin_to_users.php",
-        "legacy-backend/database/migrations/2026_07_09_130000_add_source_and_qa_bypass_to_otps.php",
-        "legacy-backend/database/migrations/2026_07_17_100000_add_identifier_to_otps.php",
-        "legacy-backend/database/migrations/2026_07_20_120000_create_kyc_name_checks_table.php"
-      ],
+      "huerfanos": [],
       "rutas_muertas": [],
       "pendiente_merge": null
     },
@@ -618,10 +602,7 @@
         "archivos": []
       },
       "commits": null,
-      "huerfanos": [
-        "legacy-backend/Modules/Loans/App/Services/AdoIdDocumentService.php",
-        "legacy-backend/app/Models/KycNameCheck.php"
-      ],
+      "huerfanos": [],
       "rutas_muertas": [],
       "pendiente_merge": null
     },

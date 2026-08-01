@@ -43,6 +43,7 @@
     "legacy-backend/Modules/Loans/App/Http/Middleware/AddOriginationFlowType.php",
     "legacy-backend/Modules/Loans/App/Providers/RouteServiceProvider.php",
     "legacy-backend/Modules/Loans/App/Repositories/UserRequestRepository.php",
+    "legacy-backend/Modules/Loans/App/Services/AdoIdDocumentService.php",
     "legacy-backend/Modules/Loans/App/Services/ConsentService.php",
     "legacy-backend/Modules/Loans/App/Services/CreditStatusService.php",
     "legacy-backend/Modules/Loans/App/Services/CreditopXRequestHistoryService.php",

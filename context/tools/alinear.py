@@ -141,7 +141,7 @@ def commits_desde(files, ref, desde):
             "lista": lista[:TOPE_COMMITS]}
 
 
-def huerfanos_desde(files, ref, desde):
+def huerfanos_desde(files, ref, desde, declarados):
     """Archivos NUEVOS en `main` que viven en directorios que el nodo YA declara y él no menciona.
 
     LA TERCERA FORMA DE QUEDAR VIEJO, y hasta hoy no la veía nadie. El oráculo caza los archivos que se
@@ -173,7 +173,11 @@ def huerfanos_desde(files, ref, desde):
             if not ruta.startswith(pre) or os.path.splitext(ruta)[1] not in EXTS:
                 continue
             f = f"{alias}/{ruta[len(pre):]}"
-            if f in fset or "/tests/" in f or ".spec." in f or ".test." in f:
+            # `declarados` es la unión de TODOS los nodos, no solo este. Sin eso la señal sigue
+            # avisando por un archivo que ya se ruteó a su nodo correcto: `AdoIdDocumentService`
+            # vive en un directorio que tocan cuatro nodos, así que tres seguirían reclamándolo
+            # para siempre. Un archivo tiene dueño, no cuatro.
+            if f in fset or f in declarados or "/tests/" in f or ".spec." in f or ".test." in f:
                 continue
             if os.path.dirname(f) in dirs:
                 salida.append(f)
@@ -266,6 +270,17 @@ def main():
 
     existen, sin_verificar, _ = del_ref(ref)
     ciegos = {a for a, _ in sin_verificar}
+    # unión de lo que declara CUALQUIER nodo — para no reclamar como huérfano algo ya ruteado
+    declarados = set()
+    for _nid in sorted(os.listdir(FLOWS)):
+        _mp = os.path.join(FLOWS, _nid, "map.json")
+        if os.path.isfile(_mp):
+            _d = json.load(open(_mp))
+            declarados |= set(_d.get("files", []))
+            # también lo marcado como pendiente de merge: está ruteado, solo que a una rama. Sin
+            # esto, un nodo que describe una rama (`motai`) reclama para siempre sus propios
+            # archivos de `qa`, que a `files[]` no pueden ir — contra `main` serían rutas muertas.
+            declarados |= set((_d.get("pending_merge") or {}).get("files", []))
     nodos, resumen = [], collections.Counter()
 
     for nid in sorted(os.listdir(FLOWS)):
@@ -308,7 +323,7 @@ def main():
                                     sorted(deriva.items(), key=lambda x: x[1], reverse=True)]},
             "commits": (commits_desde(files, sello.get("ref", ref), sello["date"])
                         if deriva and sello.get("date") else None),
-            "huerfanos": (huerfanos_desde(files, sello.get("ref", ref), sello["date"])
+            "huerfanos": (huerfanos_desde(files, sello.get("ref", ref), sello["date"], declarados)
                           if sello.get("date") else []),
             "rutas_muertas": muertas,
             "pendiente_merge": ({"ref": pm.get("ref"), "archivos": len(pm.get("files", [])),
