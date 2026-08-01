@@ -102,6 +102,32 @@ debajo.
 **Al re-verificar un nodo, sellalo:** `python3 tools/sellar-verificado.py <nodo>` (pone la fecha de hoy
 y `source: manual`). Si no lo sellás, el nodo queda contando una deriva que ya arreglaste.
 
+## `refs.py`: ¿las citas `archivo:línea` siguen apuntando a lo que dicen?
+
+```bash
+python3 tools/refs.py            # los 31 nodos, ~0,4 s
+python3 tools/refs.py <nodo>     # uno solo
+```
+
+Hay **907** citas `archivo:línea` en 27 nodos, y son lo que se rompe **en silencio**: un refactor mueve
+una función 30 líneas y la cita queda señalando otra cosa. El oráculo no lo ve (el archivo existe) y
+`alinear.py` tampoco (solo dice que cambió).
+
+**Lo que hace de más:** cuando la cita viene con un símbolo al lado —el caso normal, «`scrubphone`
+(`pkg/asesor.ts:236`)»— busca ese símbolo en el archivo y **dice la línea correcta**. No marca: corrige.
+
+Cinco baldes, y separarlos es lo que hace que se le pueda creer: `ok` · `movida` (con la corrección) ·
+`fuera` (la línea no existe) · `ambigua` (varios archivos matchean y ninguno valida) · `no existe`.
+
+⚠ **Los dos últimos NO son deriva.** Hoy son 17 y son, verificados: las herramientas Go **borradas**
+(`backend-e2e`/`backend-mcp`), un **artefacto generado** (`.react-router/types/+routes.ts`), un repo
+fuera de los roots (`creditop-woocommerce`) y **migraciones citadas por nombre parcial** — Laravel las
+prefija con timestamp, así que `create_users_table.php` no matchea nada. Si escribís una cita nueva de
+migración, poné el nombre completo.
+
+**Estado al 2026-07-31: 889 verificadas, 0 movidas, 0 fuera de rango.** Mecánicamente el árbol está al
+día; lo que queda es juicio por nodo, no arreglo.
+
 ## `alinear.py`: qué nodos quedaron viejos (corrélo DESPUÉS DE CADA MERGE)
 
 ```bash

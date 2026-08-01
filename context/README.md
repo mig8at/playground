@@ -134,6 +134,7 @@ context/
 │   ├── oracle.py           ← valida un map.json contra `main` (o --ref / --worktree)
 │   ├── sellar-verificado.py← pone el sello `verified` (contra qué ref y cuándo)
 │   ├── alinear.py          ← ¿qué nodos quedaron viejos? → alineacion.json
+│   ├── refs.py             ← ¿las 907 citas `archivo:línea` siguen apuntando bien?
 │   ├── build-route-map.py  ← tree.json + map.json → ROUTE-MAP.md
 │   └── index.txt           ← GENERADO, gitignored (6.257 rutas) — solo lo usa --worktree
 ├── alineacion.json   ← GENERADO por alinear.py · versionado (su historia = cuánto lleva viejo un nodo)

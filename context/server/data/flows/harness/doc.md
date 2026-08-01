@@ -96,7 +96,20 @@ Por el lado UI la frontera es la misma pero además choca con un **muro de confi
 ### 4. Qué se mockea (y qué NO monta el harness)
 Dos capas de mocks distintas:
 
-**(a) Mocks del `legacy-backend` (NO son del harness; los aporta el legacy en modo mock).** Los `Http::fake` de proveedores + el fake de `PdfMapper` ya están **aplicados al working tree** del legacy (`AppServiceProvider.php:31-35`); reaplicables desde `git stash` (`stash@{0}` bypasses + SmartPay forms-service FAKE; `stash@{1}` cierre Creditop X / PdfMapper fake — requiere `PDF_MAPPER_FAKE=true`). Se levanta con `cd ../../github/legacy-backend && make up && make mock-all && make restart`.
+**(a) Mocks del `legacy-backend` (NO son del harness; los aporta el legacy en modo mock).** Son los `Http::fake` de proveedores + el fake de `PdfMapper`, y viven en **stashes locales sin commitear** que tocan `AppServiceProvider.php` (por eso las líneas que agregan **no existen en `main`**).
+
+⚠ **NO están aplicados por default.** Verificado el 2026-07-31: el working tree de `legacy-backend` está **limpio** en `main`, así que hay que aplicarlos a mano. Y **⚠ citá los stashes por MENSAJE, nunca por índice**: este doc decía `stash@{0}` y `stash@{1}`, y hoy esos dos son otros — se les apilaron dos «epitaxy: pre-switch» encima y los buenos quedaron en `{3}` y `{4}`. Un `stash@{N}` en documentación es una garantía de volverse falso, porque cualquier `git stash` corre todos los índices.
+
+```bash
+cd ~/Desktop/CREDITOP/github/legacy-backend
+git stash list | grep -nE "bypasses completos|cierre Creditop X"   # ver dónde están HOY
+# aplicar por mensaje, sin números fijos:
+git stash apply "$(git stash list | grep -m1 'bypasses completos' | cut -d: -f1)"
+git stash apply "$(git stash list | grep -m1 'cierre Creditop X'  | cut -d: -f1)"   # + PDF_MAPPER_FAKE=true
+make up && make mock-all && make restart
+```
+
+Qué trae cada uno: **«local-e2e: bypasses completos + SmartPay forms-service FAKE»** (`fakeFormsServiceRoutesForLocal`: `/api/forms-fake/dynamic`) y **«local-e2e: cierre Creditop X»** (fake pdf-mapper + `Throwable` en handlers). Hay un tercero, **«local-e2e bypasses (S3 bucket + Sistecredito host)»**.
 
 **(b) Mocks propios del harness:**
 - **StoreWebhook** (`backend-e2e/channel/storewebhook.go`, :9099): listener local que captura el webhook de cierre (`process_url`) para asertar que la tienda fue notificada. Bind `0.0.0.0` → el backend dockerizado lo alcanza por `host.docker.internal`.
