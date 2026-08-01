@@ -35,6 +35,7 @@ from datetime import date
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from oracle import del_ref  # una sola definición de "qué archivos existen en un ref"
+from refs import renombres, repo_de  # una sola implementación del seguimiento de renombres
 from roots import ROOTS
 
 TOOLS = os.path.dirname(os.path.abspath(__file__))
@@ -60,6 +61,46 @@ def base_en(root, ref, fecha):
     return r.stdout.strip() if r.returncode == 0 else ""
 
 
+def rutas_de(files):
+    """{alias: (raíz del repo, prefijo, [rutas desde la raíz])} — agrupa los files[] por repo."""
+    por_repo = collections.defaultdict(list)
+    for f in files:
+        alias, _, ruta = f.partition("/")
+        por_repo[alias].append(ruta)
+    salida = {}
+    for alias, rutas in por_repo.items():
+        if not ROOTS.get(alias) or not os.path.isdir(ROOTS[alias]):
+            continue
+        root, pre = repo_de(alias)
+        if root:
+            salida[alias] = (root, pre, rutas)
+    return salida
+
+
+def pathspec(root, pre, rutas, base):
+    """Las rutas de hoy MÁS las que tenían en el baseline, para que un renombre no simule un archivo
+    nuevo entero.
+
+    ⚠ Sin esto, `git diff base..main -- harness/pkg/db.ts` no encuentra el archivo en `base` (ahí se
+    llamaba `frontend-e2e/pkg/db.ts`) y lo reporta como añadido completo: el nodo `harness` marcaba
+    **44 de 44 (100%)** por un renombre que no cambió una línea de comportamiento. Con las dos rutas y
+    `-M`, git muestra el cambio real.
+
+    Todo en rutas DESDE LA RAÍZ DEL REPO y sin `--relative`: la ruta vieja puede caer fuera del
+    subdirectorio del alias (`frontend-e2e/` está fuera de `harness/`), y con `--relative` git no la
+    acepta. Una sola forma de nombrar un archivo, que es lo que ya arreglamos en `refs.py`.
+    """
+    ren = renombres(root, base)
+    spec = []
+    for r in rutas:
+        full = pre + r
+        spec.append(full)
+        viejo = ren.get(full)
+        if viejo and viejo != full:
+            spec.append(viejo)
+    return spec
+
+
 def commits_desde(files, ref, desde):
     """Los commits que tocaron archivos del nodo desde el sello: quién y qué dijo que hizo.
 
@@ -76,22 +117,15 @@ def commits_desde(files, ref, desde):
     (#749)» — ruido con autor equivocado (el que mergeó, no el que escribió). Sin ellos: 8 commits
     reales, mismos 4 autores, asuntos que se pueden leer.
     """
-    por_repo = collections.defaultdict(list)
-    for f in files:
-        alias, _, ruta = f.partition("/")
-        por_repo[alias].append(ruta)
-
     vistos, lista = set(), []
-    for alias, rutas in por_repo.items():
-        root = ROOTS.get(alias)
-        if not root or not os.path.isdir(root):
-            continue
+    for alias, (root, pre, rutas) in rutas_de(files).items():
         base = base_en(root, ref, desde)
         if not base:
             continue
         r = subprocess.run(
-            ["git", "-C", root, "log", "--no-merges", "--relative",
-             "--pretty=format:%h\x1f%cs\x1f%an\x1f%s", f"{base}..{ref}", "--", *rutas],
+            ["git", "-C", root, "log", "--no-merges", "-M",
+             "--pretty=format:%h\x1f%cs\x1f%an\x1f%s", f"{base}..{ref}",
+             "--", *pathspec(root, pre, rutas, base)],
             capture_output=True, text=True, errors="replace",
         )
         if r.returncode != 0:
@@ -108,47 +142,64 @@ def commits_desde(files, ref, desde):
 
 
 def cambiados_desde(files, ref, desde):
-    """Archivos del nodo tocados en `ref` después de `desde`. Un `git log` por repo, no por archivo:
-    con ~100 rutas por nodo, uno por archivo serían 100 procesos y esto tarda ~1 s en total."""
-    por_repo = collections.defaultdict(list)
-    for f in files:
-        alias, _, ruta = f.partition("/")
-        por_repo[alias].append(ruta)
+    """Archivos del nodo cuyo CONTENIDO es distinto hoy del que tenían cuando se selló el nodo.
 
+    Se mide con el DIFF NETO (`git diff base..ref`), no con `git log`. Dos intentos con log fallaron,
+    los dos en silencio, que es lo peligroso:
+      · `--name-only` a secas NO imprime archivos para los commits de merge (default de git), y acá
+        todo entra por PR: **38 archivos** sin contar, con `kyc` y `creditopx` figurando 🟢 al día
+        teniendo deriva real.
+      · `--first-parent --diff-merges=first-parent` sí los muestra, pero reporta el MOVIMIENTO a lo
+        largo del camino: archivos que cambiaron en un merge y volvieron atrás en otro salían como
+        deriva con `git diff base..main` vacío. Sobreconteo — 5 falsos solo en `kyc`.
+    El diff neto contesta la pregunta exacta —«¿este archivo es distinto de cuando lo verifiqué?»— sin
+    depender de por dónde pasó la historia.
+
+    `--numstat -M -z` y no `--name-only`: con `-M` un renombre PURO sale `0  0  {viejo => nuevo}`, y
+    ese caso NO es deriva —el contenido es idéntico, solo cambió la ruta—. Distinguirlo importa: el
+    renombre `frontend-e2e/`→`harness/` marcaba el nodo entero en 44/44 (100%). El `-z` evita tener
+    que parsear la notación con llaves.
+    """
     tocados = {}
-    for alias, rutas in por_repo.items():
-        root = ROOTS.get(alias)
-        if not root or not os.path.isdir(root):
-            continue
+    for alias, (root, pre, rutas) in rutas_de(files).items():
         base = base_en(root, ref, desde)
         if not base:
             continue
-        # QUÉ archivos: el DIFF NETO `base..ref`, no un `git log`. Dos intentos con log fallaron y
-        # los dos en silencio, que es lo peligroso:
-        #   · `--name-only` a secas NO imprime archivos para los commits de merge (default de git), y
-        #     acá todo entra por PR: 38 archivos quedaban sin contar y dos nodos figuraban 🟢 al día
-        #     teniendo deriva real (`kyc`, `creditopx`).
-        #   · `--first-parent --diff-merges=first-parent` los muestra, pero reporta el MOVIMIENTO a lo
-        #     largo del camino: archivos que cambiaron en un merge y volvieron atrás en otro salían
-        #     como deriva con `git diff base..main` vacío. Sobreconteo — 5 falsos en `kyc` solo.
-        # El diff neto contesta la pregunta exacta —«¿este archivo es distinto de cuando lo verifiqué?»—
-        # sin depender de por dónde pasó la historia. `--relative` porque el alias `harness` es un
-        # SUBDIRECTORIO de playground: sin eso git devuelve rutas desde la raíz del repo y no matchean.
+        spec = pathspec(root, pre, rutas, base)
         r = subprocess.run(
-            ["git", "-C", root, "diff", "--name-only", "--relative", f"{base}..{ref}", "--", *rutas],
-            capture_output=True, text=True,
+            ["git", "-C", root, "diff", "--numstat", "-M", "-z", f"{base}..{ref}", "--", *spec],
+            capture_output=True, text=True, errors="replace",
         )
         if r.returncode != 0:
             continue
-        distintos = [ln for ln in r.stdout.splitlines() if f"{alias}/{ln}" in files]
+        campos, i, distintos = r.stdout.split("\0"), 0, []
+        while i < len(campos):
+            if not campos[i]:
+                i += 1
+                continue
+            try:
+                mas, menos, resto = campos[i].split("\t", 2)
+            except ValueError:
+                i += 1
+                continue
+            if resto == "":                       # renombre: los dos siguientes son viejo y nuevo
+                ruta, i = campos[i + 2] if i + 2 < len(campos) else "", i + 3
+            else:
+                ruta, i = resto, i + 1
+            if mas == "0" and menos == "0":       # renombre puro: la ruta cambió, el contenido no
+                continue
+            if ruta.startswith(pre):
+                rel = ruta[len(pre):]
+                if f"{alias}/{rel}" in files:
+                    distintos.append(rel)
         if not distintos:
             continue
         # CUÁNDO cambió cada uno: eso sí sale del log, en una sola pasada por repo (uno por archivo
-        # serían ~170 procesos). El diff manda sobre quién está en la lista; el log solo pone fecha.
+        # serían ~170 procesos). El diff manda sobre QUIÉN está en la lista; el log solo pone fecha.
         r2 = subprocess.run(
-            ["git", "-C", root, "log", "--name-only", "--relative",
-             "--first-parent", "--diff-merges=first-parent",
-             "--pretty=format:%cs", f"{base}..{ref}", "--", *distintos],
+            ["git", "-C", root, "log", "--name-only", "-M", "--first-parent",
+             "--diff-merges=first-parent", "--pretty=format:%cs", f"{base}..{ref}",
+             "--", *[pre + d for d in distintos]],
             capture_output=True, text=True,
         )
         fecha, fechas = "", {}
@@ -157,10 +208,10 @@ def cambiados_desde(files, ref, desde):
                 continue
             if linea[:4].isdigit() and linea.count("-") == 2 and len(linea) == 10:
                 fecha = linea
-            else:
-                fechas.setdefault(linea, fecha)  # la 1ª aparición es la más reciente
-        for ruta in distintos:
-            tocados[f"{alias}/{ruta}"] = fechas.get(ruta, "?")
+            elif linea.startswith(pre):
+                fechas.setdefault(linea[len(pre):], fecha)  # la 1ª aparición es la más reciente
+        for rel in distintos:
+            tocados[f"{alias}/{rel}"] = fechas.get(rel, "?")
     return tocados
 
 

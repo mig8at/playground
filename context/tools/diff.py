@@ -28,6 +28,7 @@ import subprocess
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from alinear import base_en, pathspec, rutas_de  # mismo criterio que la alineación
 from roots import ROOTS
 
 CTX = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -64,30 +65,23 @@ def main():
         print(f"`{nid}` no tiene `verified.date` en su map.json: no hay contra qué diffear.")
         return 2
 
-    por_repo = {}
-    for f in d.get("files", []):
-        alias, _, ruta = f.partition("/")
-        if filtro and not any(x in ruta for x in filtro):
-            continue
-        por_repo.setdefault(alias, []).append(ruta)
+    archivos = [f for f in d.get("files", [])
+                if not filtro or any(x in f.partition("/")[2] for x in filtro)]
+    por_repo = rutas_de(archivos)
 
     print(f"╔═ {nid} · qué cambió en `{ref}` desde que se verificó ({sello})")
-    print(f"╚═ sobre los {sum(len(v) for v in por_repo.values())} archivos que el nodo declara"
+    print(f"╚═ sobre los {len(archivos)} archivos que el nodo declara"
           + (f" · filtrado por {filtro}" if filtro else ""))
 
     hubo = False
-    for alias, rutas in por_repo.items():
-        root = ROOTS.get(alias)
-        if not root or not os.path.isdir(root):
-            continue
-        # el commit de ese repo al cierre del día del sello — el «antes»
-        base = git(root, "rev-list", "-1", f"--before={sello} 23:59:59", ref).strip()
+    for alias, (root, pre, rutas) in por_repo.items():
+        base = base_en(root, ref, sello)      # el «antes»: el commit al cierre del día del sello
         if not base:
             continue
-        # `--relative` porque el alias `harness` es un SUBDIRECTORIO de playground: sin esto git
-        # devuelve rutas relativas a la raíz del repo y el pathspec no matchea nada (mismo bug que
-        # hizo contar 1 de 44 en `alinear.py`).
-        stat = git(root, "diff", "--stat", "--relative", f"{base}..{ref}", "--", *rutas).strip()
+        # `-M` y el pathspec con las rutas VIEJAS: sin eso un renombre se lee como archivo nuevo
+        # entero (el nodo `harness` mostraba sus 44 archivos como +203 líneas cada uno).
+        spec = pathspec(root, pre, rutas, base)
+        stat = git(root, "diff", "--stat", "-M", f"{base}..{ref}", "--", *spec).strip()
         if not stat:
             continue
         hubo = True
@@ -95,7 +89,7 @@ def main():
         print(stat)
         if not solo_stat:
             print()
-            print(git(root, "diff", "--relative", f"{base}..{ref}", "--", *rutas).rstrip())
+            print(git(root, "diff", "-M", f"{base}..{ref}", "--", *spec).rstrip())
 
     if not hubo:
         print("\n✓ ningún archivo del nodo cambió desde el sello.")
