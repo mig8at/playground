@@ -6,8 +6,8 @@
   "when": "Cuando el problema está DESPUÉS de elegir entidad: plan de pagos, documentos, pagaré, firma con OTP, autorización hasta el Estado 11 y desembolso.",
   "verified": {
     "ref": "main",
-    "date": "2026-07-18",
-    "source": "git-doc"
+    "date": "2026-07-31",
+    "source": "manual"
   },
   "files": [
     "legacy-backend/Modules/Loans/routes/api.php",

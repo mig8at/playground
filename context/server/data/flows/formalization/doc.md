@@ -106,7 +106,18 @@ Las mismas etapas en Inertia (`application/routes/customer.php:78-96`): `/acepta
 - **El enganche NO es un paso del journey nuevo.** `InitialFeePaymentController` + `InitialFeePaymentService` (checkout Wompi, `staging` auto-aprueba, `:116-122`) están portados a legacy-backend y ruteados (`routes/api.php:60-67`), pero **ningún archivo del wizard React referencia `initial-fee-payment`** (grep = 0). El checkout hospedado vive solo en `application` (`/pago-cuota-inicial`). En el wizard, `initial_fee` es un campo del marketplace que se **resta del capital financiado**. El % sí lo fija la categoría de perfilamiento (`InitialFeePaymentService.php:77-78`, `category->min_initial_fee`).
 - **`standBy` es campo muerto en el front nuevo**: el backend lo sigue emitiendo para rt=2/3/4, pero `grep -r standBy` sobre todo `frontend-monorepo` da **0 resultados**. El wizard entra a `/confirmation` por su propio ruteo.
 - **`soft-update.tsx` es una ruta huérfana**: existe el archivo (`apps/loan-request-wizard/app/routes/lenders-marketplace/lenders/soft-update.tsx`) pero **no está registrada en `routes.ts`** → código muerto.
-- **Bug real: argumento descartado en el envío de OTP.** `ValidateOtpPromissoryNoteController.php:178-183` llama `sendOtpPromissoryNote($user, $action, $phoneCode, $isImei ? 'service' : null)` con **4 argumentos** contra una firma de **3** (`OtpService.php:43`). PHP descarta el extra en silencio → la selección de canal para IMEI nunca llega al servicio.
+⚠ **El envío de OTP ya no habla con Twilio/SNS: pasa por el MS del módulo System.** `OtpService`
+perdió `Twilio\Rest\Client`, `Aws\Sns\SnsClient` y `LoanMessagingServiceRepository`, y hoy recibe
+`OtpServiceRepositoryInterface` + `CacheServiceInterface` (Redis). **El código lo escribe el MS en
+Redis** y `OtpService` lo lee con reintentos; solo en `local`, si el cache no entrega, cae a un OTP
+fijo para no bloquear (`OtpService.php:75`, `app()->environment('local')`). Al depurar un OTP que no
+llega, el sospechoso ya no es Twilio sino el MS y Redis.
+
+**El bypass QA sigue restringido a `local`/`development`** — verificado: `OtpBypassService.php:37`
+mantiene `if (!app()->environment('local','development'))`, igual que antes del refactor. Lo único que
+cambió es el comentario en `OtpService`, que dejó de decirlo; el guard está intacto.
+
+- **Bug real: argumento descartado en el envío de OTP.** `ValidateOtpPromissoryNoteController.php:178-183` llama `sendOtpPromissoryNote($user, $action, $phoneCode, $isImei ? 'service' : null)` con **4 argumentos** contra una firma de **3** (`OtpService.php:42`). PHP descarta el extra en silencio → la selección de canal para IMEI nunca llega al servicio.
 - **`eval()` sobre datos de BD**: `GuaranteeService::shouldRequestGuarantee:214-217` construye `"$score $y $w"` desde `lender_guarantee_criteria` (variable/condition/value) y lo ejecuta con `eval`. Un valor mal cargado en la tabla es ejecución de código.
 - **Idempotencia de la radicación rt=4 está comentada**: el docblock de `formalizeExternalManagedIfApplicable` promete "Idempotente: si ya existe una LenderTransaction se reutiliza", pero el bloque que la implementaba está comentado (`LoanAuthorizationService.php:211-222`) → un `authorize()` reintentado puede radicar dos veces. El mismo docblock dice `response_type 5` mientras la constante es **4** (`:43`).
 - **Hardcodes de lender**: `PromissoryNoteController::show:96` (`lender_id === 24` → camino Credifamilia), `CredifamiliaDocumentsBuilder::build` (`lenderId: 24` literal), `UserRequest::isSmartPay:191` (`lender->id === 160`). Consecuencia práctica: en dev/staging SmartPay es el lender **153**, así que `isSmartPay()` da false y el flujo IMEI cae en la rama `authorize()` en vez de `disburseImeiRequest()` (`DeviceController.php:102-106`).
