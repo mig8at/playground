@@ -4,6 +4,11 @@
   "group": "architecture",
   "kind": "reference",
   "when": "Cuando trabajás en el backend nuevo modular: módulos Onboarding/Loans/Identity/Partner/Risk, rutas /api/*, arquitectura V1 y V2, envelope code/message/data, o dónde poner un endpoint nuevo.",
+  "verified": {
+    "ref": "main",
+    "date": "2026-07-18",
+    "source": "git-doc"
+  },
   "files": [
     "legacy-backend/bootstrap/app.php",
     "legacy-backend/routes/api.php",

@@ -4,6 +4,11 @@
   "group": "creditop",
   "kind": "reference",
   "when": "Cuando la tarea toca burós o datos de riesgo: score, Experian/Datacrédito, ingreso (Ágil Data, Mareigua, Quanto), identidad, AML, biometría, cifrado del reporte, o armar un usuario sintético para pruebas.",
+  "verified": {
+    "ref": "main",
+    "date": "2026-07-21",
+    "source": "git-doc"
+  },
   "files": [
     "application/app/Actions/RiskCentrals/Ado.php",
     "application/app/Actions/RiskCentrals/Agildata.php",

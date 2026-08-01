@@ -4,6 +4,11 @@
   "group": "architecture",
   "kind": "reference",
   "when": "Cuando trabajás en el monolito Aliados (el que corre en prod): panel de administración, alta de entidades/comercios/sucursales, crons de cobranza y servicing, Inertia/Vue, rutas por audiencia admin/customer/api.",
+  "verified": {
+    "ref": "main",
+    "date": "2026-07-18",
+    "source": "git-doc"
+  },
   "files": [
     "application/app/Providers/RouteServiceProvider.php",
     "application/app/Providers/ApiServiceProvider.php",

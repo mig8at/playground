@@ -88,12 +88,17 @@ Ojo con el alias `application`: apunta a la carpeta **`legacy-application`**. No
 
 Una ruta mal escrita en un `map.json` **no falla en ningún lado**: la viz la cuenta, el LLM la lee, e
 intenta abrir un archivo que no existe. Se cae en silencio. `oracle.py` es la defensa: compara los
-`files[]` contra `tools/index.txt` y te dice qué no resuelve.
+`files[]` contra **`main`** (vía `git ls-tree`, read-only: sin checkout ni fetch) y te dice qué no resuelve.
 
 ```
 $ python3 tools/oracle.py server/data/flows/findings/map.json
-KEPT 42 / DROPPED 0 (of 42)
+KEPT 44 / DROPPED 0 (of 44) — contra `main`
 ```
+
+Valida contra `main` y no contra lo que tengas checkeado porque el error grave no es el falso DROP sino el
+**falso OK**: con otra rama puesta, una ruta que solo existe ahí resuelve perfecto y el nodo queda
+afirmando describir `main`. Con `--worktree` se valida contra el índice (lo checkeado), y con `--ref X`
+contra cualquier otro ref. Exit: `0` limpio · `1` DROPs · `2` algún repo no se pudo consultar.
 
 **Un `DROP` tiene tres causas posibles, y solo una es un error tuyo:**
 
@@ -124,10 +129,12 @@ context/
 │   ├── flows/<id>/   ← A MANO · 31 nodos: map.json (archivos) + doc.md (análisis)
 │   └── doc-templates/  ← 6 plantillas: raiz · group · contexto · referencia · flujo · tarea
 ├── tools/
-│   ├── build-index.py      ← camina los 6 repos → index.txt
-│   ├── oracle.py           ← valida un map.json contra el índice
+│   ├── roots.py            ← FUENTE ÚNICA de los 6 repos y las extensiones
+│   ├── build-index.py      ← camina los 6 repos (working tree) → index.txt
+│   ├── oracle.py           ← valida un map.json contra `main` (o --ref / --worktree)
+│   ├── sellar-verificado.py← pone el sello `verified` (contra qué ref y cuándo)
 │   ├── build-route-map.py  ← tree.json + map.json → ROUTE-MAP.md
-│   └── index.txt           ← GENERADO, gitignored (5.711 rutas)
+│   └── index.txt           ← GENERADO, gitignored (6.257 rutas) — solo lo usa --worktree
 ├── src/App.vue       ← la viz read-only (142 líneas, mini-render de markdown sin deps)
 └── package.json      ← solo vue + vite. NO hay scripts de server (los de Go murieron con el MCP)
 ```
@@ -151,8 +158,9 @@ hipótesis, y si el síntoma engaña, decilo en el título.
 
 ## Gotchas
 
-- **`tools/index.txt` está gitignored.** Si clonás fresco, `oracle.py` corta con
-  `falta tools/index.txt → corré: python3 tools/build-index.py`. No es un bug.
+- **`tools/index.txt` está gitignored, y desde el 2026-07-31 el oráculo NO lo necesita** en su modo
+  default (valida contra `main` con git). Solo lo usa `--worktree`, y ahí sí corta pidiendo
+  `python3 tools/build-index.py`. No es un bug.
 - **`ROUTE-MAP.md` es generado.** Editarlo a mano se pierde al siguiente `build-route-map.py`. El
   `Cuándo` sale del campo `when` del `map.json` — editá ahí.
 - **`kind` vive en el `map.json`, no en `tree.json`,** y gana. El nodo `payments` tiene `contexts` en

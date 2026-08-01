@@ -4,6 +4,11 @@
   "group": "creditop",
   "kind": "reference",
   "when": "Cuando hay que agregar o cambiar un CAMPO del formulario por configuración: las tres generaciones de formulario dinámico, EAV user_field_values, tipos de documento por sucursal.",
+  "verified": {
+    "ref": "main",
+    "date": "2026-07-23",
+    "source": "git-doc"
+  },
   "files": [
     "legacy-backend/Modules/Onboarding/App/Http/Controllers/DynamicFormsController.php",
     "legacy-backend/Modules/Onboarding/App/Services/DynamicFormsService.php",

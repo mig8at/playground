@@ -4,6 +4,11 @@
   "group": "creditopx",
   "kind": "reference",
   "when": "Cuando el usuario cae en la categoría equivocada, o el cupo/enganche/plazo salen mal: las categorías rt=2 y sus reglas (ocupación, edad, salario, continuidad, score).",
+  "verified": {
+    "ref": "main",
+    "date": "2026-07-18",
+    "source": "git-doc"
+  },
   "files": [
     "legacy-backend/Modules/Loans/App/Http/Controllers/Customer/CreditopXQuotaController.php",
     "legacy-backend/Modules/Loans/App/Http/Controllers/Customer/LenderUserCategoryController.php",

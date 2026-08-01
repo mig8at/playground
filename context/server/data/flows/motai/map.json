@@ -4,6 +4,11 @@
   "group": "merchants",
   "kind": "reference",
   "when": "⏳ OJO: este nodo describe la v2, que vive en `qa` y NO en `main` (ver la marca PENDIENTE DE MERGE en el doc.md). Cuando la tarea es del comercio Motai (allied 158): sus productos renting / rent-to-own / compra (`lenders.product`), Ábaco (validación de ingresos de apps gig) y cómo se prende por lender en `lender_requirements`, el flujo self-service dirigido por `next_step`, o la calculadora del renting (precio vs interés, y por qué toca el techo de usura). OJO si buscás `modos`, `isMotaiRenting`, `merchant_mode` o `partner_modes`: se borraron en la des-motaización (v2) — acá está el modelo nuevo.",
+  "verified": {
+    "ref": "qa",
+    "date": "2026-07-29",
+    "source": "cabecera"
+  },
   "files": [
     "application/database/migrations/2026_03_06_003223_add_abaco_settings_to_settings_table.php",
     "application/database/migrations/2026_03_09_000000_add_abaco_column_to_user_summaries_table.php",

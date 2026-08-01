@@ -4,6 +4,11 @@
   "group": "creditop",
   "kind": "reference",
   "when": "Cuando la pregunta es sobre cómo CreditOp habla con la pasarela de pago — Wompi o Payvalida: crear/firmar la transacción, el checkout, el polling o webhook de confirmación, la cuota inicial de formalización (el enganche antes de desembolsar, incl. el rebote rt=2 `initial_fee>0`), el recaudo del préstamo desde la pasarela, los links de pago, o credenciales de gateway.",
+  "verified": {
+    "ref": "main",
+    "date": "2026-07-18",
+    "source": "git-doc"
+  },
   "files": [
     "application/app/Actions/Lenders/Wompi.php",
     "application/app/Actions/Lenders/Payvalida.php",

@@ -45,14 +45,56 @@ devuelve como error con la lista. `.claude/hooks/oraculo.py` · registrado en `.
 Y `ROUTE-MAP.md` / `tools/index.txt` **no se pueden editar a mano**: otro hook lo bloquea, porque son
 generados y el cambio se perdería en la próxima regeneración.
 
-Lo único que sigue siendo tu criterio cuando el hook dropea una ruta:
+**El oráculo valida contra `main`, no contra lo que tengas checkeado.** Usa `git ls-tree`, que es
+**read-only**: no hace checkout, no hace fetch, no mueve el HEAD de nadie (~0,13 s en los 6 roots). Eso
+tapa el error grave, que no es el falso DROP sino el **falso OK**: con `qa` puesta, una ruta que solo
+existe en `qa` resolvía perfecto y el oráculo decía «todo bien» mientras el nodo afirmaba describir
+`main`. **Así entró la deriva de `motai`.**
 
-- **`.md`, `.sql` y `.yaml` SIEMPRE dropean**: el índice solo mira
-  `.php .go .ts .tsx .js .jsx .mjs .cjs .vue` (`tools/build-index.py:15`). No van en `files[]` —
-  mencionalos en el `doc.md`.
+```bash
+python3 tools/oracle.py <map.json>              # contra main (default)
+python3 tools/oracle.py <map.json> --ref qa     # contra otro ref
+python3 tools/oracle.py <map.json> --worktree   # contra el índice: lo que está checkeado
+```
+
+Exit: `0` limpio · `1` hay DROPs · `2` algún repo no se pudo consultar. Ese `2` importa: las rutas de un
+root ilegible salen en un bloque **`SIN VERIFICAR`** y **no cuentan como OK** — callarlas sería inventar
+un verde. Y si el ref local tiene más de 14 días, lo avisa (no hace fetch solo: tocar la red por debajo
+no es su trabajo).
+
+Lo único que sigue siendo tu criterio cuando dropea una ruta:
+
+- **`.md`, `.sql` y `.yaml` SIEMPRE dropean**: solo se miran
+  `.php .go .ts .tsx .js .jsx .mjs .cjs .vue` (`tools/roots.py`). No van en `files[]` — mencionalos en
+  el `doc.md`.
 - **Si el archivo existe pero en otra rama**, no es un error de tipeo: es contexto sin mergear. Sacalo
-  de `files[]` y marcá la sección con `⏳ PENDIENTE DE MERGE` (arriba). Verificá con
-  `git cat-file -e main:<relpath>` antes de decidir.
+  de `files[]` y marcá la sección con `⏳ PENDIENTE DE MERGE` (arriba).
+
+⚠ `ROOTS`/`EXTS` viven en **`tools/roots.py`**, importado por `build-index.py` y `oracle.py`. Tenerlo
+dos veces era una divergencia esperando: un repo agregado en un solo lado hace que se valide contra un
+universo distinto del que se indexa, y eso no falla — da un veredicto equivocado.
+
+## El sello `verified`: para saber si un nodo quedó VIEJO
+
+El oráculo contesta *¿el archivo existe?*. La otra pregunta —*¿sigue diciendo lo mismo que cuando
+escribí el nodo?*— necesita una fecha legible por máquina, y por eso cada `map.json` lleva:
+
+```json
+"verified": { "ref": "main", "date": "2026-07-31", "source": "cabecera" }
+```
+
+`source` dice **cómo** se obtuvo la fecha, y es lo que evita tratar una estimación como un hecho:
+`cabecera` (alguien la escribió al verificar) · `git-doc` (**estimada**: último commit del `doc.md`; es
+un piso, no una verificación) · `manual` (la puso el comando al sellar). Hoy: **11 de cabecera, 20
+estimados**.
+
+Con eso, la deriva de contenido se calcula con git en ~1 s para los 31 nodos, y ya dice cosas que el
+oráculo no puede ver: `findings` tiene **16 de 44** archivos tocados en `main` desde su verificación,
+`harness` 8 de 44. Un nodo puede tener todas las rutas resolviendo y describir código que cambió por
+debajo.
+
+**Al re-verificar un nodo, sellalo:** `python3 tools/sellar-verificado.py <nodo>` (pone la fecha de hoy
+y `source: manual`). Si no lo sellás, el nodo queda contando una deriva que ya arreglaste.
 
 ## Nodo nuevo: dos lugares, los dos a mano
 

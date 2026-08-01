@@ -7,13 +7,13 @@ contexto busca un archivo que no está — pierde tiempo, o peor, concluye sin e
 detectaba eso, pero había que ACORDARSE de correrlo, y una regla que depende de la memoria de alguien
 es una regla que se olvida. Esto la vuelve automática.
 
-ORDEN DE LOS PASOS, y el primero no es opcional:
-  1. `build-index.py` — el índice es un snapshot del WORKING TREE. Si está viejo (p. ej. se construyó
-     con otra rama checkeada), el oráculo reporta DROPs de archivos que sí existen. Ya pasó: un falso
-     positivo se venía repitiendo como si fuera deriva real. Cuesta 0,22 s; regenerar siempre elimina
-     esa clase entera de error.
-  2. `oracle.py` sobre el map.json que se tocó.
-  3. `build-route-map.py` — el ROUTE-MAP está declarado como GENERADO, así que se rehace dropee o no.
+DOS PASOS:
+  1. `oracle.py` sobre el map.json que se tocó. Valida contra **`main`** (su default), que es la vara
+     del contexto — no contra el working tree. Eso ya no depende de qué rama tenga nadie checkeada, y
+     tapa el FALSO OK: con `qa` puesta, una ruta que solo existe en `qa` resolvía perfecto y el oráculo
+     decía «todo bien» mientras el nodo afirmaba describir `main`. Así entró la deriva de `motai`.
+     Ya no hace falta regenerar el índice acá: `git ls-tree` es read-only y no usa el índice.
+  2. `build-route-map.py` — el ROUTE-MAP está declarado como GENERADO, así que se rehace dropee o no.
 
 Un `PostToolUse` **no puede bloquear** (el tool ya corrió), pero con `exit 2` su stderr vuelve al modelo
 como error y no se puede ignorar. Para este caso alcanza: lo escrito ya está, lo que importa es que no
@@ -53,13 +53,18 @@ def main() -> int:
             capture_output=True, text=True, timeout=120,
         )
 
-    corre("build-index.py")                       # (1) SIEMPRE primero
-    res = corre("oracle.py", str(ruta))           # (2)
-    corre("build-route-map.py")                   # (3)
+    res = corre("oracle.py", str(ruta))           # (1) contra `main`, su default
+    corre("build-route-map.py")                   # (2)
 
     salida = (res.stdout or "") + (res.stderr or "")
     drops = [l.strip().removeprefix("DROP:").strip()
              for l in salida.splitlines() if "DROP:" in l]
+    # exit 2 del oráculo = algún repo no se pudo consultar. No es un DROP, pero tampoco es un OK:
+    # se reenvía tal cual para que no pase como verde.
+    if res.returncode == 2 and not drops:
+        print(f"⚠ {ruta.parent.name}/map.json no se pudo verificar del todo:\n{salida.strip()}",
+              file=sys.stderr)
+        return 2
 
     if not drops:
         return 0
