@@ -100,7 +100,7 @@ Aparte del grupo autenticado, Onboarding monta un grupo **público** (`webhooks.
 **Cutover al frontend nuevo (S1)**
 - `application/app/Http/Controllers/Customer/SimulatorController.php:121-139` — lee las 2 filas de `settings`, OR, y `redirect()->away($this->urlService->init(...))`.
 - `application/app/Http/Controllers/Customer/UserRequestController.php:1498-1506` — el mismo gate; `:1518-1535`, `:1568-1587`, `:1590-1607` = las 3 bifurcaciones (personal-info / lenders / employment-info), cada una con su `// Legacy flow` de fallback.
-- `application/app/Http/Controllers/Customer/UserRequestController.php:1610-1627` — `registerImei` **NO consulta el allowlist**: siempre manda al frontend nuevo.
+- `application/app/Http/Controllers/Customer/UserRequestController.php:1615-1632` — `registerImei` **NO consulta el allowlist**: siempre manda al frontend nuevo.
 - `application/app/Services/NewFrontendUrlService.php:8-10` (prefijos), `:23` (`services.new_frontend.base_url`), `:68-75` (`init`).
 - `application/app/Models/Setting.php:10-12` — `value` es `varchar` en el esquema pero el modelo lo castea a `json`.
 

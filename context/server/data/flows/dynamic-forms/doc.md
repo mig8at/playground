@@ -154,7 +154,7 @@ O sea: el formulario clásico es React fijo con **dos toggles**, uno de los cual
 - **Tabla EAV**: `database/migrations/2023_04_20_230901_create_user_field_values_table.php:14-27` (sin FKs ni unique) · coerción numérica en `app/Models/UserFieldValue.php:31` y `:62`.
 - **EAV → decisión**: `Modules/Loans/App/Services/LenderUserCategoryService.php:346-351` (scoring por campo) · `:384-389` (87 como salario) · `:409` (29 como ocupación) · tabla en `database/migrations/2026_02_19_214838_create_table_lender_user_fields_scoring_policy.php`.
 - **Los ids del perfilamiento** (application, vivo): `app/Http/Controllers/Customer/GenericFormController.php:20` (form_type 4) · `:36` (estado 9) · `:74`/`:91`/`:125` (29/87/160) · rutas en `routes/customer.php:143-144`.
-- **Los ids del complementario** (application, vivo): `app/Http/Controllers/Customer/CreditopXFormController.php` (25/158/70) · `routes/customer.php:270-271` · gate por entidad en `database/migrations/2024_08_28_212910_add_complementary_form_to_lenders_table.php`.
+- **Los ids del complementario** (application, vivo): `app/Http/Controllers/Customer/CreditopXFormController.php` (25/158/70) · `routes/customer.php:276-277` · gate por entidad en `database/migrations/2024_08_28_212910_add_complementary_form_to_lenders_table.php`.
 - **Estrato y fecha manual**: `Modules/Onboarding/App/Services/OnboardingService.php:1198` · `:1214` · `:1239` (field 30) · constantes en `Modules/Onboarding/App/Constants/ManualPersonalDataAllieds.php:20-23`.
 - **El "config" de dos booleanos**: `Modules/Onboarding/App/Http/Controllers/OnboardingController.php:1616-1634`; cliente en `apps/loan-request-wizard/app/modules/personal-info-config/infrastructure/personal-info-config.repository.ts:14`.
 

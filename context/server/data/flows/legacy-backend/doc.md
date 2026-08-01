@@ -35,7 +35,7 @@ Dominio por módulo (verificado en sus `routes/` y servicios):
 
 ### Registro de módulos y rutas
 - Bootstrap Laravel 10 clásico: `bootstrap/app.php` liga `Http\Kernel` + `Console\Kernel` + `Exceptions\Handler`. El `routes/api.php` raíz solo tiene un `ping`.
-- `config/app.php:173-180` registra 8 providers de `App\Providers`. Los de módulo los auto-descubre nwidart desde cada `module.json` (`providers: [...]`), con `config/modules.php:74` apuntando a `base_path('Modules')` y `:225` al `modules_statuses.json`.
+- `config/app.php:178-185` registra 8 providers de `App\Providers`. Los de módulo los auto-descubre nwidart desde cada `module.json` (`providers: [...]`), con `config/modules.php:74` apuntando a `base_path('Modules')` y `:225` al `modules_statuses.json`.
 - Cada módulo con API tiene su propio `RouteServiceProvider` que aplica prefijo + middleware; los 6 solo-servicios simplemente no lo tienen.
 - **24 alias de middleware** en `app/Http/Kernel.php:49-72`; dos vienen de módulos (`backdoor.api_key` de Onboarding `:69`, `origination.flow` de Loans `:72`).
 - `otel` lo llevan Onboarding y todos los V1/V2. **`auth.cognito` a nivel de grupo lo aplica solo Onboarding** (`RouteServiceProvider.php:42`); Loans, Identity y Partner lo aplican por sub-grupo.
@@ -91,7 +91,7 @@ Dos apps Laravel sobre la **misma base de datos**. Números duros del diff:
 
 ## Dónde mirar
 **Arranque y registro** (`legacy-backend`):
-- `bootstrap/app.php` · `routes/api.php` (solo ping) · `config/app.php:173-180` (providers) · `config/modules.php:74,225` (paths + statuses)
+- `bootstrap/app.php` · `routes/api.php` (solo ping) · `config/app.php:178-185` (providers) · `config/modules.php:74,225` (paths + statuses)
 - `app/Http/Kernel.php:49-72` (24 alias de middleware) · `app/Console/Kernel.php:15-18` (las 4 únicas tareas agendadas)
 - `app/Providers/RouteServiceProvider.php` (raíz; solo `routes/api.php` + `exceptions.php`) · `app/Providers/RepositoryServiceProvider.php` (**stub vacío**)
 

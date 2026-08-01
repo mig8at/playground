@@ -113,20 +113,30 @@ Hay **907** citas `archivo:línea` en 27 nodos, y son lo que se rompe **en silen
 una función 30 líneas y la cita queda señalando otra cosa. El oráculo no lo ve (el archivo existe) y
 `alinear.py` tampoco (solo dice que cambió).
 
-**Lo que hace de más:** cuando la cita viene con un símbolo al lado —el caso normal, «`scrubphone`
-(`pkg/asesor.ts:236`)»— busca ese símbolo en el archivo y **dice la línea correcta**. No marca: corrige.
+**Cómo lo sabe: el ancla de git, no el símbolo de la prosa.** Para cada cita busca *cuándo se afirmó*
+—`max(sello del nodo, `git blame` de esa línea del doc)`—, abre el archivo citado en `main` **a esa
+fecha**, guarda el TEXTO de la línea, y lo busca en `main` hoy. Si está en otra línea, **dice cuál**.
+No marca: corrige. Sigue renombres (`frontend-e2e/`→`harness/` no rompió ninguna cita).
 
-Cinco baldes, y separarlos es lo que hace que se le pueda creer: `ok` · `movida` (con la corrección) ·
-`fuera` (la línea no existe) · `ambigua` (varios archivos matchean y ninguno valida) · `no existe`.
+⚠ **La versión que buscaba el símbolo en backticks nunca funcionó, y lo tapaba.** La cita va *dentro*
+de backticks, así que la regex nunca cerraba par: de 889 «ok», **889 eran solo “el archivo tiene al
+menos N líneas”** y cero comprobaban nada. Una cita corrida seis líneas pasó en verde y con ella se
+selló un nodo. Si alguna vez volvés a tocar esto: **medí cuántos “ok” son del chequeo fuerte**, no
+cuántos son “ok”.
 
-⚠ **Los dos últimos NO son deriva.** Hoy son 17 y son, verificados: las herramientas Go **borradas**
-(`backend-e2e`/`backend-mcp`), un **artefacto generado** (`.react-router/types/+routes.ts`), un repo
-fuera de los roots (`creditop-woocommerce`) y **migraciones citadas por nombre parcial** — Laravel las
-prefija con timestamp, así que `create_users_table.php` no matchea nada. Si escribís una cita nueva de
-migración, poné el nombre completo.
+Baldes, separados por lo que exigen: `ok` · **`corrida`** (≤3 líneas: el mismo bloque, el archivo ganó
+algo arriba — no falla) · **`movida`** (apunta a otra parte, con la corrección) · `reescrita` (la línea
+de entonces ya no está) · `fuera` · `sin ancla` (no se pudo verificar de verdad; chequeo débil, y se
+declara) · `ambigua` · `no existe`.
 
-**Estado al 2026-07-31: 889 verificadas, 0 movidas, 0 fuera de rango.** Mecánicamente el árbol está al
-día; lo que queda es juicio por nodo, no arreglo.
+⚠ **`ambigua` y `no existe` NO son deriva.** Hoy son 2 y 17, verificados: las herramientas Go
+**borradas** (`backend-e2e`/`backend-mcp`), un **artefacto generado** (`.react-router/types/+routes.ts`),
+un repo fuera de los roots (`creditop-woocommerce`) y **migraciones citadas por nombre parcial** —
+Laravel las prefija con timestamp, así que `create_users_table.php` no matchea nada. Si escribís una
+cita nueva de migración, poné el nombre completo.
+
+**Estado al 2026-07-31: 804 ancladas exactas · 37 corridas ≤3 · 0 movidas · 47 sin ancla.** Ninguna
+cita apunta a otra parte del archivo; lo que queda es juicio por nodo, no arreglo.
 
 ## `alinear.py`: qué nodos quedaron viejos (corrélo DESPUÉS DE CADA MERGE)
 

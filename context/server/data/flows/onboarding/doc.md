@@ -136,7 +136,7 @@ En G2 **el body gana**: `request()->input('amount') ?? session('amount') ?? 0`. 
 - `apps/loan-request-wizard/app/routes.ts:9-67` rutas públicas `:flow` · `:68-140` rutas `merchant` · `:82-88` el sub-flujo **dynamic**.
 - `apps/loan-request-wizard/app/utils/route-helpers.ts:11-15` — `ROUTE_PREFIXES`.
 - `.../routes/loan-application-form/phone-number.tsx:67-68` **gate `alliedCountry === 60` → flujo dynamic** · `:145` action · `:183-193` `terms/policies/otpLength:4` · `:209-215` redirect a `/otp?amount=`.
-- `.../routes/loan-application-form/otp-verification.tsx:63-79` `normalizeOtpErrorCode` · `:83` action · `:148` éxito → lenders · `:183` ONB002 · `:200` ONB004 · `:233` ONB001.
+- `.../routes/loan-application-form/otp-verification.tsx:71-89` `normalizeOtpErrorCode` · `:83` action · `:148` éxito → lenders · `:183` ONB002 · `:200` ONB004 · `:233` ONB001.
 - `.../routes/loan-application-form/loan-request-form.tsx:192-214` `mapPostSaveErrorToResult` · `:266` éxito · `:279-282` ONB005.
 - `.../routes/loan-application-form/employment-info.tsx:48` action · `:79-87` éxito · `:92-98` ONB002 / ONB021-023.
 - `.../routes/dynamic/request-amount.tsx:165-196` `transactionId` + sesión Redis del form dinámico · `:201` action.
@@ -149,7 +149,7 @@ En G2 **el body gana**: `request()->input('amount') ?? session('amount') ?? 0`. 
 ## Gotchas / riesgos
 
 **Bugs verificados en el camino feliz**
-- `UserRequestController.php:1511` — el `&&` quedó **dentro** del segundo `str_contains`: `str_contains($user->document_number, 'TEMP' && $userRequest->user_request_status_id == 1)`. El needle termina siendo un bool coercionado (`"1"` o `""`), y `str_contains($s, "")` es siempre `true`. La guarda de "usuario temporal en estado 1" no valida lo que dice.
+- `UserRequestController.php:1516` — el `&&` quedó **dentro** del segundo `str_contains`: `str_contains($user->document_number, 'TEMP' && $userRequest->user_request_status_id == 1)`. El needle termina siendo un bool coercionado (`"1"` o `""`), y `str_contains($s, "")` es siempre `true`. La guarda de "usuario temporal en estado 1" no valida lo que dice.
 - `PersonalInfoController.php:1044` — la URL de delegación interpola `$userRequestIdSessionKey` (la **clave** `'user_request_id_v2'`) en vez de `$user_request_id` (asignado en `:1019` y nunca usado). La llamada a `laboral-info/{hash}/user_request_id_v2` no puede resolver → cae siempre al `catch` y al método local. La delegación de laboral-info está **rota en silencio**.
 
 **Parallel-run: qué delega y qué no** (application → legacy, verificado uno por uno)
