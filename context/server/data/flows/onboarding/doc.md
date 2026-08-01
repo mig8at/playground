@@ -61,6 +61,29 @@ G2 responde **200** para casi todo y pone el veredicto en `data.error_code`. El 
 
 `ONB005` (o `errors` de validación) se pinta como errores de campo en el formulario. El Inertia de `application` implementa **el mismo switch** (ONB001/ONB002/ONB004) en `ValidateOtpController::validateOtpV2`.
 
+### 3.bis «Confirmación de cupo»: el usuario elige el flujo en la 1.ª pantalla, y se firma DESPUÉS del OTP
+
+El wizard puede ofrecer, en la pantalla de celular+monto, un selector de **confirmación de cupo** que
+manda la solicitud al flujo `flow_id = 2` (`already-confirmed-pre-approval`) en vez del estándar. Tres
+piezas, y el orden importa porque la `user_request` todavía no existe cuando el usuario elige:
+
+1. **Se ofrece o no según el comercio.** El loader de `phone-number.tsx` pregunta
+   `CheckAbleToOmitExperianUc(PreApprovalFlowRepository).execute(partner_hash)`: solo se muestra a los
+   comercios a los que el backend permite omitir Experian Acierta (veredicto **RKV26000**).
+   **Fail-safe: cualquier error oculta el selector** (`.unwrapOr(false)`).
+2. **Se elige y se guarda en SESIÓN**, no en BD — la solicitud aún no nació. El componente es
+   `amount-form.tsx` (no `phone-number.tsx`, que solo pasa el flag) y cuando se muestra es
+   **obligatorio**: sin respuesta, `form.setError("confirmQuota")` frena el submit. La acción escribe
+   `session.flowSignatureChoice` = `already-confirmed-pre-approval` | `standard`, y **siempre**
+   sobreescribe —lo desetea si el selector no se mostró— para que una elección vieja no se filtre.
+3. **Se firma al validar el OTP**, que es cuando ya hay `user_request_id`: `otp-verification.tsx` llama
+   `SignFlowSignatureUc`. Es **best-effort**: si falla, no bloquea el onboarding — la solicitud
+   simplemente se queda en el flujo estándar con Experian.
+
+Consecuencias que ya están documentadas en otros nodos: en ese flujo **Experian se omite temprano**
+(nodo `kyc`) y el listado **se recorta a `response_type == 0`, dejando CreditopX afuera** (nodo
+`creditopx`).
+
 ### 4. Dónde nace la `user_request`
 **No nace en el simulador ni al capturar el monto.** Nace al **validar el OTP** (o, en el camino Inertia, al guardar la info personal). Los tres gemelos hacen lo mismo con diferencias reales:
 
@@ -116,14 +139,14 @@ En G2 **el body gana**: `request()->input('amount') ?? session('amount') ?? 0`. 
 - `Modules/Onboarding/App/Providers/RouteServiceProvider.php:41` — prefijo **`api/onboarding`**.
 - `Modules/Onboarding/routes/api.php:18-24` (`phone/register` GET+POST) · `:30-34` (`otp/send|resend|resend-via-email`) · `:41-57` (`loan-application/*`: `otp-validate`, `personal-info` + `/config`, `laboral-info`, `user-request`, `lenders`, **`lenders-v2`**, `update-user-request`, `pre-approval-status`) · `:170-172` `commerce/type` · `:193-195` `dynamic-forms/create-user`.
 - `Modules/Onboarding/App/Http/Controllers/OnboardingController.php:39-57` mapa ONB→HTTP · `:899` (`validateOtpCodeAndRedirect`) · `:981-1065` **el docblock que describe los 16 pasos y las rarezas congeladas** · `:1066` orquestador · `:1188` `createUserRequest` · `:1235-1256` ONB002 (temporal) · `:1270-1272` stub aleatorio de pre-aprobación · `:1290-1319` `userViability` (Experian) · `:1329-1338` autofill 209/210/211 · `:1344-1362` ONB004 · `:1365` `ONB006` con `success: true`.
-- `Modules/Onboarding/App/Services/UserRequestService.php:71` (`createUserRequest`) · `:73` `findByHash` · `:111-138` (`handleRegularRequest`, `amount` en la clave) · `:144-199` rama ecommerce · `:241-252` estado 9 + `UserRequestRecord` · `:287-288` estado 3 (guard `!= 11 && != 25`).
+- `Modules/Onboarding/App/Services/UserRequestService.php:72` (`createUserRequest`) · `:73` `findByHash` · `:111-138` (`handleRegularRequest`, `amount` en la clave) · `:144-199` rama ecommerce · `:241-252` estado 9 + `UserRequestRecord` · `:287-288` estado 3 (guard `!= 11 && != 25`).
 - `Modules/Onboarding/App/Services/OnboardingService.php:107` (`storePersonalInfo`) · `:127` `Experian::creditScore` **comentado** bajo un log que dice lo contrario · `:132-168` rate limit → ONB040 · `:892` (`storeLaboralInformation`) · `:1009-1045` field 160 = `'no'` · `:1298-1306` `isTemporalUser` / `isUserValidatedWithRiskCentrals` · `:1443-1472` config del rate limit · `:1474-1483` `isForm1Completed` = [29, 87, 160].
 - `Modules/Onboarding/App/Services/OtpService.php:31-35` constantes (plantilla SMS, SIDs Twilio, longitudes 4/6) · `:132` `validateOtpCode` · `:164-170` y `:392-400` QA bypass · `:432` **OTP = 1111 en `local`** · `:439-453` ONB014.
 - `Modules/Onboarding/App/Services/OtpBypassService.php:25` Setting `qa_otp_bypass_phones` · `:37` sólo `local`/`development` · `:65-71` el código = últimos 4 del teléfono.
 - `Modules/Onboarding/App/Services/RegisterCellPhoneService.php:40` (`getRegistrationData`: partner + `partner_modes` + branch + sucursales) · `:56` (`processCellPhoneRegistration`) · `:378-386` `createTemporalUser` · `:474-476` `isTemporaryUser`.
 - `Modules/Onboarding/App/Services/CommerceService.php:127-130` — `ecommerce` vs `traditional` según `allied_ecommerce_credentials` (COM002).
 - `Modules/Onboarding/App/Services/DynamicFormsService.php:35-58` constantes + mapa de campos 162-172 · `:68-77` catálogo DYFS1001-1005 · `:495-518` crea la UR reusando `UserRequestService`.
-- `Modules/Onboarding/App/Http/Controllers/LenderListingController.php:17-21` — `index` y el **default 180000** (idem `ListLenderController.php:43`); el origen del número es `Modules/Onboarding/App/Services/lenders/Welli/WelliService.php:36` (`MINIMUM_AMOUNT`).
+- `Modules/Onboarding/App/Http/Controllers/LenderListingController.php:18-22` — `index` y el **default 180000** (idem `ListLenderController.php:43`); el origen del número es `Modules/Onboarding/App/Services/lenders/Welli/WelliService.php:36` (`MINIMUM_AMOUNT`).
 
 **Nueva arquitectura (G3)**
 - `Modules/OnboardingV2/App/Providers/RouteServiceProvider.php:24` — prefijo `api/v2/onboarding`.
@@ -135,7 +158,7 @@ En G2 **el body gana**: `request()->input('amount') ?? session('amount') ?? 0`. 
 **Wizard (frontend-monorepo)**
 - `apps/loan-request-wizard/app/routes.ts:9-67` rutas públicas `:flow` · `:68-140` rutas `merchant` · `:82-88` el sub-flujo **dynamic**.
 - `apps/loan-request-wizard/app/utils/route-helpers.ts:11-15` — `ROUTE_PREFIXES`.
-- `.../routes/loan-application-form/phone-number.tsx:67-68` **gate `alliedCountry === 60` → flujo dynamic** · `:145` action · `:183-193` `terms/policies/otpLength:4` · `:209-215` redirect a `/otp?amount=`.
+- `.../routes/loan-application-form/phone-number.tsx:70-71` **gate `alliedCountry === 60` → flujo dynamic** · `:145` action · `:183-193` `terms/policies/otpLength:4` · `:209-215` redirect a `/otp?amount=`.
 - `.../routes/loan-application-form/otp-verification.tsx:71-89` `normalizeOtpErrorCode` · `:83` action · `:148` éxito → lenders · `:183` ONB002 · `:200` ONB004 · `:233` ONB001.
 - `.../routes/loan-application-form/loan-request-form.tsx:192-214` `mapPostSaveErrorToResult` · `:266` éxito · `:279-282` ONB005.
 - `.../routes/loan-application-form/employment-info.tsx:48` action · `:79-87` éxito · `:92-98` ONB002 / ONB021-023.
@@ -166,7 +189,7 @@ En G2 **el body gana**: `request()->input('amount') ?? session('amount') ?? 0`. 
 
 **Entornos y testing**
 - `OnboardingController.php:1270-1272` — en `local`/`development`, `hadPreApproveLender` se stubea con **`random_int(0,1)`**. El flujo es **no determinístico** en local: la misma corrida a veces dispara Experian y a veces la saltea. Hay un segundo stub igual en `:400`.
-- `OtpService.php:432` — en `local` el OTP es **1111** fijo (no lee Redis). Con `qa_otp_bypass_phones` (sólo `local`/`development`) el OTP son los **últimos 4 dígitos del teléfono**, y ese mismo bypass **saltea el rate limit** de personal-info.
+- `OtpService.php:443-449` — **ya NO es «1111 fijo sin leer Redis»**: primero intenta `readOtpFromRedis` y **solo si el cache no entrega** cae a **1111**, y solo en `local` (`:447`). En develop/prod no hay caída: se aborta (OBS-OTP-01, `:451-455`) en vez de persistir un espejo en `0`. Con `qa_otp_bypass_phones` (sólo `local`/`development`) el OTP son los **últimos 4 dígitos del teléfono**, y ese mismo bypass **saltea el rate limit** de personal-info.
 - Rate limit de personal-info: por **número de documento**, `4/hora` por defecto, TTL 3600 s, clave `CTOP_LO_STORE_PERSONAL_INFO_RTL_CTRL::{documento}`, configurable en el Setting `personal_info_settings.rate_limit_rules`. La lectura chequea **primero la clave con typo** `store_personal_info_max_requests_per_houre` y después la correcta.
 
 **Contrato y datos**
