@@ -4,6 +4,23 @@ Espacio propio de Miguel: organiza el conocimiento de **CreditOp** (fintech colo
 de crédito) y agrupa las herramientas de prueba. Existe para que un modelo entienda **antes** de atacar
 una tarea.
 
+## `make` es la puerta única
+
+`make` sin argumentos lista todo lo que se puede correr, agrupado por para qué sirve. No hace falta
+recordar en qué carpeta vive cada script.
+
+| | |
+|---|---|
+| `make status` | **¿está el contexto al día?** Resumen de deriva + citas. No escribe nada |
+| `make context` · `make tablero` · `make panel` | abre cada pieza (:5193 · :5191 · :5195) |
+| `make context-align` | qué nodos quedaron viejos — **después de cada merge** |
+| `make context-refs [NODE=x]` | ¿las citas `archivo:línea` apuntan a lo que dicen? |
+| `make context-seal NODE=x` | "este nodo lo verifiqué hoy" — **solo si de verdad lo revisaste** |
+| `make e2e-contract` · `make e2e-walk` · `make e2e-qr` | probar el canal QR / Bancolombia |
+
+Convención: los **nombres propios** se quedan (`context`, `tablero`, `panel` son carpetas) y los
+**verbos** van en inglés (`align`, `refs`, `seal`, `check`), como `proyecto-verbo`.
+
 ## EL CICLO — acá siempre pasa lo mismo
 
 Se viene a resolver **tareas** sobre CreditOp con tres piezas — **tablero** (la tarea), **context**

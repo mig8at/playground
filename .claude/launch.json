@@ -12,16 +12,6 @@
       "port": 5190
     },
     {
-      "name": "soporte",
-      "runtimeExecutable": "npm",
-      "runtimeArgs": [
-        "run",
-        "dev"
-      ],
-      "cwd": "soporte",
-      "port": 5192
-    },
-    {
       "name": "context",
       "runtimeExecutable": "npm",
       "runtimeArgs": [
@@ -74,6 +64,16 @@
       "env": {
         "PORT": "5197"
       }
+    },
+    {
+      "name": "domain-model",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "run",
+        "dev"
+      ],
+      "cwd": "domain-model",
+      "port": 5196
     }
   ]
 }
