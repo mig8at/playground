@@ -47,7 +47,7 @@
 **Cuándo:** Cuando la tarea toca material TRANSVERSAL que ningún contexto dueña: tablas y datos clave, máquinas de estado y el Estado 11, frontera de pruebas y harness, deuda técnica y hardcodes, glosario y colisiones de id. También cuando no sabés por dónde empezar.
 Doc: `server/data/flows/creditop/doc.md` · Archivos: `server/data/flows/creditop/map.json`
 
-### actors — Actors  ·  _reference_ · 63 archivos
+### actors — Actors  ·  _reference_ · 66 archivos
 **Cuándo:** Cuando la pregunta es de PERMISOS o de quién hace qué: cliente vs asesor vs back-office, login, Cognito y SSO, roles y alcance, y por dónde entra cada uno (QR, link de continuación, autogestión).
 Doc: `server/data/flows/actors/doc.md` · Archivos: `server/data/flows/actors/map.json` · Padre: `creditop`
 
@@ -63,7 +63,7 @@ Doc: `server/data/flows/amount-tiers/doc.md` · Archivos: `server/data/flows/amo
 **Cuándo:** Cuando trabajás en el monolito Aliados (el que corre en prod): panel de administración, alta de entidades/comercios/sucursales, crons de cobranza y servicing, Inertia/Vue, rutas por audiencia admin/customer/api.
 Doc: `server/data/flows/application/doc.md` · Archivos: `server/data/flows/application/map.json` · Padre: `architecture`
 
-### architecture — Architecture  ·  _reference_ · 72 archivos
+### architecture — Architecture  ·  _reference_ · 73 archivos
 **Cuándo:** Cuando la duda es en QUÉ REPO vive algo, por qué está duplicado, o cómo se hablan entre sí: base de datos compartida, migraciones duplicadas, cutover al wizard nuevo, allowlist, SSO, VITE_API_URL. Índice de los repos.
 Doc: `server/data/flows/architecture/doc.md` · Archivos: `server/data/flows/architecture/map.json` · Padre: `creditop`
 
@@ -79,7 +79,7 @@ Doc: `server/data/flows/corbeta/doc.md` · Archivos: `server/data/flows/corbeta/
 **Cuándo:** Cuando la tarea toca Credifamilia (lender 24, el único response_type=4): radicación por SOAP, KYC V2 (Evidente/CrossCore/Jumio), plan de cuotas dinámico, o el gate local que hace que no aparezca en pruebas.
 Doc: `server/data/flows/credifamilia/doc.md` · Archivos: `server/data/flows/credifamilia/map.json` · Padre: `entities`
 
-### creditopx — CreditopX  ·  _reference_ · 14 archivos
+### creditopx — CreditopX  ·  _reference_ · 15 archivos
 **Cuándo:** Cuando la pregunta es por qué una entidad aparece o NO aparece en el listado, y con qué enganche, cupo y plazo. La cascada in-platform rt=2/3: reglas de grupo, datacrédito, categoría y cupo disponible.
 Doc: `server/data/flows/creditopx/doc.md` · Archivos: `server/data/flows/creditopx/map.json` · Padre: `entities`
 
@@ -103,11 +103,11 @@ Doc: `server/data/flows/findings/doc.md` · Archivos: `server/data/flows/finding
 **Cuándo:** Cuando la tarea toca el microservicio form-service (Go): el formulario dinámico G2 'backend-driven' (pantalla additional-info), cómo se arma el schema desde las 5 tablas legacy, dónde/cómo se guardan las respuestas (user_field_values), el árbol país→departamento→ciudad de los selects, o agregar/editar un campo (ej. la cascada Departamento→Ciudad de nacimiento).
 Doc: `server/data/flows/form-service/doc.md` · Archivos: `server/data/flows/form-service/map.json` · Padre: `dynamic-forms`
 
-### formalization — Formalization  ·  _reference_ · 84 archivos
+### formalization — Formalization  ·  _reference_ · 85 archivos
 **Cuándo:** Cuando el problema está DESPUÉS de elegir entidad: plan de pagos, documentos, pagaré, firma con OTP, autorización hasta el Estado 11 y desembolso.
 Doc: `server/data/flows/formalization/doc.md` · Archivos: `server/data/flows/formalization/map.json` · Padre: `creditop`
 
-### frontend-monorepo — frontend-monorepo  ·  _reference_ · 85 archivos
+### frontend-monorepo — frontend-monorepo  ·  _reference_ · 86 archivos
 **Cuándo:** Cuando trabajás en el wizard React: pantallas y rutas del wizard, SSR, repositories, paquetes @creditop, data-testid para pruebas e2e, o a qué backend le pega cada pantalla.
 Doc: `server/data/flows/frontend-monorepo/doc.md` · Archivos: `server/data/flows/frontend-monorepo/map.json` · Padre: `architecture`
 
@@ -139,7 +139,7 @@ Doc: `server/data/flows/motai/doc.md` · Archivos: `server/data/flows/motai/map.
 **Cuándo:** Cuando la pre-aprobacion de un lender rt!=0 falla o hay que tocar el microservicio Go (pre-approvals-service): contrato del servicio (check / me-check / lender-attempts / docs), workflow de 4 etapas, matriz de 8 proveedores (adapter+client+strategy por lender), taxonomia de errores, timeouts/cache DynamoDB, y el consumo cliente en el wizard/legacy.
 Doc: `server/data/flows/ms-preapprovals/doc.md` · Archivos: `server/data/flows/ms-preapprovals/map.json` · Padre: `architecture`
 
-### onboarding — Onboarding  ·  _reference_ · 83 archivos
+### onboarding — Onboarding  ·  _reference_ · 86 archivos
 **Cuándo:** Cuando el problema está ANTES del listado: entrada por hash de sucursal, registro de celular y OTP, creación de la user_request, formulario personal y laboral, captura del monto, códigos de error ONB0xx.
 Doc: `server/data/flows/onboarding/doc.md` · Archivos: `server/data/flows/onboarding/map.json` · Padre: `creditop`
 
@@ -159,7 +159,7 @@ Doc: `server/data/flows/pullman/doc.md` · Archivos: `server/data/flows/pullman/
 **Cuándo:** Cuando el prestamista es solo un enlace (rt=0, UTM): se arma la url, se redirige al sitio del lender y se pierde visibilidad. Nadie decide el crédito adentro de CreditOp.
 Doc: `server/data/flows/redirect/doc.md` · Archivos: `server/data/flows/redirect/map.json` · Padre: `entities`
 
-### servicing — Servicing  ·  _reference_ · 60 archivos
+### servicing — Servicing  ·  _reference_ · 62 archivos
 **Cuándo:** Cuando el problema es DESPUÉS del desembolso (Estado 11): cartera, causación de interés, fecha de corte, mora, cobranza, pagos y cupo rotativo. Los 6 crons diarios y el ledger del préstamo. Ojo: corre 100% en application.
 Doc: `server/data/flows/servicing/doc.md` · Archivos: `server/data/flows/servicing/map.json` · Padre: `creditop`
 

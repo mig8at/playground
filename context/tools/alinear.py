@@ -36,7 +36,7 @@ from datetime import date
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from oracle import del_ref  # una sola definición de "qué archivos existen en un ref"
 from refs import renombres, repo_de  # una sola implementación del seguimiento de renombres
-from roots import ROOTS
+from roots import EXTS, ROOTS
 
 TOOLS = os.path.dirname(os.path.abspath(__file__))
 CTX = os.path.dirname(TOOLS)
@@ -139,6 +139,45 @@ def commits_desde(files, ref, desde):
     autores = collections.Counter(c["autor"] for c in lista)
     return {"total": len(lista), "autores": dict(autores.most_common()),
             "lista": lista[:TOPE_COMMITS]}
+
+
+def huerfanos_desde(files, ref, desde):
+    """Archivos NUEVOS en `main` que viven en directorios que el nodo YA declara y él no menciona.
+
+    LA TERCERA FORMA DE QUEDAR VIEJO, y hasta hoy no la veía nadie. El oráculo caza los archivos que se
+    BORRARON (ruta muerta) y `cambiados_desde` los que CAMBIARON; un archivo **nuevo** no dispara nada:
+    el nodo queda 🟢 al día describiendo un directorio al que le agregaron piezas. Pasó el 2026-07-31 —
+    se documentaron en prosa `EnsureLoanFlowStarted`, `LoanFlow`, `Flow.php` y 7 más, y ninguno entró a
+    `files[]`.
+
+    ⚠ El criterio es la PROXIMIDAD DE DIRECTORIO, no el nombre. Se probó cruzar por nombre de archivo
+    contra el texto del doc y es inservible: `index.ts`, `routes.ts`, `server.ts` o
+    `RouteServiceProvider.php` matchean cualquier doc que mencione esa palabra — daba 118 candidatos,
+    casi todos falsos. Por directorio: 20, todos revisables. Lo que cae fuera de todo directorio
+    declarado NO se reporta acá: eso no es un archivo faltante, es un nodo faltante.
+    """
+    dirs = {os.path.dirname(f) for f in files}
+    fset = set(files)
+    salida = []
+    for alias, (root, pre, rutas) in rutas_de(files).items():
+        base = base_en(root, ref, desde)
+        if not base:
+            continue
+        r = subprocess.run(
+            ["git", "-C", root, "diff", "--diff-filter=A", "--name-only", "-M", f"{base}..{ref}"],
+            capture_output=True, text=True, errors="replace",
+        )
+        if r.returncode != 0:
+            continue
+        for ruta in r.stdout.splitlines():
+            if not ruta.startswith(pre) or os.path.splitext(ruta)[1] not in EXTS:
+                continue
+            f = f"{alias}/{ruta[len(pre):]}"
+            if f in fset or "/tests/" in f or ".spec." in f or ".test." in f:
+                continue
+            if os.path.dirname(f) in dirs:
+                salida.append(f)
+    return sorted(salida)
 
 
 def cambiados_desde(files, ref, desde):
@@ -269,6 +308,8 @@ def main():
                                     sorted(deriva.items(), key=lambda x: x[1], reverse=True)]},
             "commits": (commits_desde(files, sello.get("ref", ref), sello["date"])
                         if deriva and sello.get("date") else None),
+            "huerfanos": (huerfanos_desde(files, sello.get("ref", ref), sello["date"])
+                          if sello.get("date") else []),
             "rutas_muertas": muertas,
             "pendiente_merge": ({"ref": pm.get("ref"), "archivos": len(pm.get("files", [])),
                                  "ya_en_main": ya_mergeadas} if pm else None),
@@ -307,6 +348,16 @@ def main():
             atras = f"  ·  {c['total']:2d} commits · {quien}"
         print(f"  {ETIQ[n['estado']]:22s} {n['id']:22s} {d['cambiados']:3d}/{n['archivos']:<3d} "
               f"({d['pct']:2d}%) desde {n['verificado'].get('date','?')}{extra}{atras}")
+    # los huérfanos van APARTE del estado: un nodo puede estar 🟢 al día y tener piezas nuevas sin
+    # declarar en sus propios directorios. No es deriva de lo que dice; es que dice de menos.
+    conh = [n for n in nodos if n.get("huerfanos")]
+    if conh:
+        print(f"\n  ARCHIVOS NUEVOS sin declarar, en directorios que el nodo ya cubre "
+              f"({sum(len(n['huerfanos']) for n in conh)}):")
+        for n in conh:
+            print(f"    {n['id']:22s} {len(n['huerfanos'])}  " +
+                  ", ".join(os.path.basename(f) for f in n["huerfanos"][:3]) +
+                  (" …" if len(n["huerfanos"]) > 3 else ""))
     print(f"\n  {resumen.get('al-dia', 0)} nodo(s) al día · " +
           " · ".join(f"{v} {k}" for k, v in resumen.items() if k != "al-dia"))
 
