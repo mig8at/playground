@@ -2,8 +2,8 @@
   "generado": "2026-07-31",
   "ref": "main",
   "resumen": {
-    "deriva": 19,
-    "al-dia": 10,
+    "deriva": 18,
+    "al-dia": 11,
     "deriva-alta": 1,
     "rama-sin-mergear": 1
   },
@@ -851,32 +851,6 @@
       "pendiente_merge": null
     },
     {
-      "id": "ecommerce",
-      "estado": "deriva",
-      "verificado": {
-        "ref": "main",
-        "date": "2026-07-19",
-        "source": "cabecera"
-      },
-      "archivos": 71,
-      "deriva": {
-        "cambiados": 2,
-        "pct": 3,
-        "archivos": [
-          {
-            "ruta": "application/routes/customer.php",
-            "ultimo_cambio": "2026-07-27"
-          },
-          {
-            "ruta": "legacy-backend/Modules/Onboarding/App/Services/UserRequestService.php",
-            "ultimo_cambio": "2026-07-21"
-          }
-        ]
-      },
-      "rutas_muertas": [],
-      "pendiente_merge": null
-    },
-    {
       "id": "payments",
       "estado": "deriva",
       "verificado": {
@@ -1014,6 +988,23 @@
         "source": "git-doc"
       },
       "archivos": 14,
+      "deriva": {
+        "cambiados": 0,
+        "pct": 0,
+        "archivos": []
+      },
+      "rutas_muertas": [],
+      "pendiente_merge": null
+    },
+    {
+      "id": "ecommerce",
+      "estado": "al-dia",
+      "verificado": {
+        "ref": "main",
+        "date": "2026-07-31",
+        "source": "manual"
+      },
+      "archivos": 71,
       "deriva": {
         "cambiados": 0,
         "pct": 0,

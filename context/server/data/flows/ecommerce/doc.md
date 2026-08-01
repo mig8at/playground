@@ -69,7 +69,7 @@ Lo arma `EcommerceContractBuilder::buildCheckoutUrl` (compartido; lo usa `VtexSe
 - `app/Models/EcommerceRequest.php:42/:53` saneo de `process_url` · `AlliedEcommerceCredential.php:43` casts encrypted:collection · `UserRequestsByEcommerceRequest.php` · `WoocommerceStatus.php` · `Ecommerce.php`.
 
 **Link al user_request + cancelación/retorno (legacy-backend):**
-- `Modules/Onboarding/App/Services/UserRequestService.php:100` `findOrCreateUserRequest` (bifurca por credencial) · `:201` `handleEcommerceRequest` (`:207` id de request||session, `:226` puente) — **punto de link, frontera con onboarding**.
+- `Modules/Onboarding/App/Services/UserRequestService.php:101` `findOrCreateUserRequest` (bifurca por credencial) · `:202` `handleEcommerceRequest` (`:209` id de request||session, `:225` puente `UserRequestsByEcommerceRequest`) — **punto de link, frontera con onboarding**.
 - `Modules/Loans/App/Repositories/UserRequestsByEcommerceRequestRepository.php` (crea el puente) · `Modules/Loans/App/Services/CancelRequestService.php:132` `handleEcommerceRequest` (devuelve `return_url`; `:148` guard `class_exists` de `WoocommerceController` = no-op muerto).
 - `Modules/Onboarding/routes/webhooks.php` (rutas públicas sin Cognito): `/vtex/init`, `/vtex/settel`, `simulator/aggregator-result`, `loan-application/{id}/lender-result[s]`.
 - `Modules/Onboarding/routes/api.php:174-178` prefijo `ecommerce-request` (create/{partner_id}, detail, by-user-request, notify-store) · `:28` `checkout/{allied_branch_hash}`=`CorbetaCheckoutController@show` · `:26` result · `:27` `corbeta/checkout/cancel/{id}`.
@@ -89,7 +89,7 @@ Lo arma `EcommerceContractBuilder::buildCheckoutUrl` (compartido; lo usa `VtexSe
 - `app/Http/Controllers/Api/VtexController.php:25` init/`redirect`/settel viejos · `app/Http/Controllers/Api/EcommerceController.php:20` `create` (`ecommerce/payment-link`), `:169` `status` · `app/Http/Controllers/Api/EcommerceReplayController.php:21` `replay` (re-disparo de notificación).
 - `app/Http/Controllers/Admin/AlliedEcommerceCredentialsController.php:53` `store` (`:92` fija `ecommerce_type_id`) + `app/Http/Requests/Admin/AlliedEcommerceCredential/StoreRequest.php` — **provisión de la credencial del canal** (frontera con merchants). `app/Http/Requests/Api/Ecommerce/EcommerceRequest.php` (validación del create viejo).
 - `app/Http/Middleware/RedirectIfEcommerceNoData.php:34` (si el hash es sucursal "Ecommerce" y no hay `session('ecommerce')` → redirige a login/solicitud-caducada). `app/Models/{EcommerceRequest,AlliedEcommerceCredential,EcommerceRequestsLog}.php`.
-- `routes/customer.php:236-239` (`checkout/{hash}`, `checkout/process`, `checkout/return`, `checkout/cancelar`; `:119` `registrar-celular-eccommerce`) · `routes/api.php:156-181` (vtex + ecommerce) · `routes/admin.php:66` `aliados.ecommerce`.
+- `routes/customer.php:242-245` (`checkout/{hash}`, `checkout/process`, `checkout/return`, `checkout/cancelar`; `:119` `registrar-celular-eccommerce`) · `routes/api.php:156-181` (vtex + ecommerce) · `routes/admin.php:66` `aliados.ecommerce`.
 - `app/Console/Commands/UpdateEcommerceRequestsCommand.php` — en legacy-backend está **neutralizado** (no-op; el reintento batch no está migrado); en `application` aún tiene lógica.
 
 ## Gotchas / riesgos
