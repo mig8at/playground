@@ -1,8 +1,9 @@
 {
-  "generado": "2026-07-31",
+  "generado": "2026-08-03",
   "ref": "main",
   "resumen": {
-    "al-dia": 31,
+    "al-dia": 27,
+    "deriva": 4,
     "rama-sin-mergear": 1
   },
   "nodos": [
@@ -94,6 +95,221 @@
       }
     },
     {
+      "id": "servicing",
+      "estado": "deriva",
+      "verificado": {
+        "ref": "main",
+        "date": "2026-07-31",
+        "source": "manual"
+      },
+      "archivos": 62,
+      "deriva": {
+        "cambiados": 2,
+        "pct": 3,
+        "archivos": [
+          {
+            "ruta": "legacy-backend/Modules/Loans/App/Services/CreditopXPaymentService.php",
+            "ultimo_cambio": "2026-08-03"
+          },
+          {
+            "ruta": "legacy-backend/app/Console/Kernel.php",
+            "ultimo_cambio": "2026-08-03"
+          }
+        ]
+      },
+      "commits": {
+        "total": 7,
+        "autores": {
+          "hans peter": 7
+        },
+        "lista": [
+          {
+            "sha": "9bf3bc10",
+            "fecha": "2026-07-15",
+            "autor": "hans peter",
+            "asunto": "fix(recordatorios): alinear reminder_payment_1_do al template final (5 vars, estado de cuenta como texto en el body)",
+            "repo": "legacy-backend"
+          },
+          {
+            "sha": "18b561c3",
+            "fecha": "2026-07-07",
+            "autor": "hans peter",
+            "asunto": "fix(recordatorios): mandar path relativo del estado de cuenta para botón CTA de WABA",
+            "repo": "legacy-backend"
+          },
+          {
+            "sha": "01912c08",
+            "fecha": "2026-07-01",
+            "autor": "hans peter",
+            "asunto": "fix(recordatorios): rutear WhatsApp de SmartPay como DO sin duplicar SMS",
+            "repo": "legacy-backend"
+          },
+          {
+            "sha": "90d12a56",
+            "fecha": "2026-07-01",
+            "autor": "hans peter",
+            "asunto": "refactor(recordatorios): WhatsApp usa template_name + content_variables estructurados",
+            "repo": "legacy-backend"
+          },
+          {
+            "sha": "7378b9f0",
+            "fecha": "2026-07-01",
+            "autor": "hans peter",
+            "asunto": "refactor(recordatorios): alinear sendReminder con el monolito (urls crudas, sin re-throw)",
+            "repo": "legacy-backend"
+          },
+          {
+            "sha": "44767d79",
+            "fecha": "2026-06-30",
+            "autor": "hans peter",
+            "asunto": "fix(recordatorios): corregir envío de sendReminder (fecha, urls y adjunto null)",
+            "repo": "legacy-backend"
+          },
+          {
+            "sha": "9b86c254",
+            "fecha": "2026-06-30",
+            "autor": "hans peter",
+            "asunto": "feat(recordatorios): activar recordatorios de cobranza SmartPay en legacy",
+            "repo": "legacy-backend"
+          }
+        ]
+      },
+      "huerfanos": [],
+      "rutas_muertas": [],
+      "pendiente_merge": null
+    },
+    {
+      "id": "application",
+      "estado": "deriva",
+      "verificado": {
+        "ref": "main",
+        "date": "2026-07-31",
+        "source": "manual"
+      },
+      "archivos": 85,
+      "deriva": {
+        "cambiados": 1,
+        "pct": 1,
+        "archivos": [
+          {
+            "ruta": "legacy-backend/app/Console/Kernel.php",
+            "ultimo_cambio": "2026-08-03"
+          }
+        ]
+      },
+      "commits": {
+        "total": 1,
+        "autores": {
+          "hans peter": 1
+        },
+        "lista": [
+          {
+            "sha": "9b86c254",
+            "fecha": "2026-06-30",
+            "autor": "hans peter",
+            "asunto": "feat(recordatorios): activar recordatorios de cobranza SmartPay en legacy",
+            "repo": "legacy-backend"
+          }
+        ]
+      },
+      "huerfanos": [],
+      "rutas_muertas": [],
+      "pendiente_merge": null
+    },
+    {
+      "id": "legacy-backend",
+      "estado": "deriva",
+      "verificado": {
+        "ref": "main",
+        "date": "2026-07-31",
+        "source": "manual"
+      },
+      "archivos": 90,
+      "deriva": {
+        "cambiados": 1,
+        "pct": 1,
+        "archivos": [
+          {
+            "ruta": "legacy-backend/app/Console/Kernel.php",
+            "ultimo_cambio": "2026-08-03"
+          }
+        ]
+      },
+      "commits": {
+        "total": 3,
+        "autores": {
+          "lhCabra-creditop": 2,
+          "hans peter": 1
+        },
+        "lista": [
+          {
+            "sha": "4f89b13e",
+            "fecha": "2026-08-01",
+            "autor": "lhCabra-creditop",
+            "asunto": "revert(loans): remove Deceval promissory-note retry endpoint",
+            "repo": "legacy-backend"
+          },
+          {
+            "sha": "5ab1e304",
+            "fecha": "2026-08-01",
+            "autor": "lhCabra-creditop",
+            "asunto": "feat(loans): add Deceval promissory-note retry endpoint reusing validated OTP",
+            "repo": "legacy-backend"
+          },
+          {
+            "sha": "9b86c254",
+            "fecha": "2026-06-30",
+            "autor": "hans peter",
+            "asunto": "feat(recordatorios): activar recordatorios de cobranza SmartPay en legacy",
+            "repo": "legacy-backend"
+          }
+        ]
+      },
+      "huerfanos": [],
+      "rutas_muertas": [],
+      "pendiente_merge": null
+    },
+    {
+      "id": "smartpay",
+      "estado": "deriva",
+      "verificado": {
+        "ref": "main",
+        "date": "2026-07-31",
+        "source": "manual"
+      },
+      "archivos": 74,
+      "deriva": {
+        "cambiados": 1,
+        "pct": 1,
+        "archivos": [
+          {
+            "ruta": "legacy-backend/app/Console/Kernel.php",
+            "ultimo_cambio": "2026-08-03"
+          }
+        ]
+      },
+      "commits": {
+        "total": 1,
+        "autores": {
+          "hans peter": 1
+        },
+        "lista": [
+          {
+            "sha": "9b86c254",
+            "fecha": "2026-06-30",
+            "autor": "hans peter",
+            "asunto": "feat(recordatorios): activar recordatorios de cobranza SmartPay en legacy",
+            "repo": "legacy-backend"
+          }
+        ]
+      },
+      "huerfanos": [
+        "legacy-backend/database/migrations/2026_07_01_120000_add_template_name_to_creditop_x_reminder_messages.php"
+      ],
+      "rutas_muertas": [],
+      "pendiente_merge": null
+    },
+    {
       "id": "actors",
       "estado": "al-dia",
       "verificado": {
@@ -108,7 +324,9 @@
         "archivos": []
       },
       "commits": null,
-      "huerfanos": [],
+      "huerfanos": [
+        "legacy-backend/database/migrations/2026_07_01_120000_add_template_name_to_creditop_x_reminder_messages.php"
+      ],
       "rutas_muertas": [],
       "pendiente_merge": null
     },
@@ -146,26 +364,9 @@
         "archivos": []
       },
       "commits": null,
-      "huerfanos": [],
-      "rutas_muertas": [],
-      "pendiente_merge": null
-    },
-    {
-      "id": "application",
-      "estado": "al-dia",
-      "verificado": {
-        "ref": "main",
-        "date": "2026-07-31",
-        "source": "manual"
-      },
-      "archivos": 85,
-      "deriva": {
-        "cambiados": 0,
-        "pct": 0,
-        "archivos": []
-      },
-      "commits": null,
-      "huerfanos": [],
+      "huerfanos": [
+        "legacy-backend/database/migrations/2026_07_01_120000_add_template_name_to_creditop_x_reminder_messages.php"
+      ],
       "rutas_muertas": [],
       "pendiente_merge": null
     },
@@ -184,7 +385,9 @@
         "archivos": []
       },
       "commits": null,
-      "huerfanos": [],
+      "huerfanos": [
+        "legacy-backend/database/migrations/2026_07_01_120000_add_template_name_to_creditop_x_reminder_messages.php"
+      ],
       "rutas_muertas": [],
       "pendiente_merge": null
     },
@@ -317,7 +520,9 @@
         "archivos": []
       },
       "commits": null,
-      "huerfanos": [],
+      "huerfanos": [
+        "legacy-backend/database/migrations/2026_07_01_120000_add_template_name_to_creditop_x_reminder_messages.php"
+      ],
       "rutas_muertas": [],
       "pendiente_merge": null
     },
@@ -336,7 +541,9 @@
         "archivos": []
       },
       "commits": null,
-      "huerfanos": [],
+      "huerfanos": [
+        "legacy-backend/database/migrations/2026_07_01_120000_add_template_name_to_creditop_x_reminder_messages.php"
+      ],
       "rutas_muertas": [],
       "pendiente_merge": null
     },
@@ -355,7 +562,9 @@
         "archivos": []
       },
       "commits": null,
-      "huerfanos": [],
+      "huerfanos": [
+        "legacy-backend/database/migrations/2026_07_01_120000_add_template_name_to_creditop_x_reminder_messages.php"
+      ],
       "rutas_muertas": [],
       "pendiente_merge": null
     },
@@ -412,7 +621,9 @@
         "archivos": []
       },
       "commits": null,
-      "huerfanos": [],
+      "huerfanos": [
+        "legacy-backend/database/migrations/2026_07_01_120000_add_template_name_to_creditop_x_reminder_messages.php"
+      ],
       "rutas_muertas": [],
       "pendiente_merge": null
     },
@@ -450,7 +661,9 @@
         "archivos": []
       },
       "commits": null,
-      "huerfanos": [],
+      "huerfanos": [
+        "legacy-backend/database/migrations/2026_07_01_120000_add_template_name_to_creditop_x_reminder_messages.php"
+      ],
       "rutas_muertas": [],
       "pendiente_merge": null
     },
@@ -488,26 +701,9 @@
         "archivos": []
       },
       "commits": null,
-      "huerfanos": [],
-      "rutas_muertas": [],
-      "pendiente_merge": null
-    },
-    {
-      "id": "legacy-backend",
-      "estado": "al-dia",
-      "verificado": {
-        "ref": "main",
-        "date": "2026-07-31",
-        "source": "manual"
-      },
-      "archivos": 90,
-      "deriva": {
-        "cambiados": 0,
-        "pct": 0,
-        "archivos": []
-      },
-      "commits": null,
-      "huerfanos": [],
+      "huerfanos": [
+        "legacy-backend/database/migrations/2026_07_01_120000_add_template_name_to_creditop_x_reminder_messages.php"
+      ],
       "rutas_muertas": [],
       "pendiente_merge": null
     },
@@ -526,7 +722,9 @@
         "archivos": []
       },
       "commits": null,
-      "huerfanos": [],
+      "huerfanos": [
+        "legacy-backend/database/migrations/2026_07_01_120000_add_template_name_to_creditop_x_reminder_messages.php"
+      ],
       "rutas_muertas": [],
       "pendiente_merge": null
     },
@@ -564,7 +762,9 @@
         "archivos": []
       },
       "commits": null,
-      "huerfanos": [],
+      "huerfanos": [
+        "legacy-backend/database/migrations/2026_07_01_120000_add_template_name_to_creditop_x_reminder_messages.php"
+      ],
       "rutas_muertas": [],
       "pendiente_merge": null
     },
@@ -602,7 +802,9 @@
         "archivos": []
       },
       "commits": null,
-      "huerfanos": [],
+      "huerfanos": [
+        "legacy-backend/database/migrations/2026_07_01_120000_add_template_name_to_creditop_x_reminder_messages.php"
+      ],
       "rutas_muertas": [],
       "pendiente_merge": null
     },
@@ -640,45 +842,9 @@
         "archivos": []
       },
       "commits": null,
-      "huerfanos": [],
-      "rutas_muertas": [],
-      "pendiente_merge": null
-    },
-    {
-      "id": "servicing",
-      "estado": "al-dia",
-      "verificado": {
-        "ref": "main",
-        "date": "2026-07-31",
-        "source": "manual"
-      },
-      "archivos": 62,
-      "deriva": {
-        "cambiados": 0,
-        "pct": 0,
-        "archivos": []
-      },
-      "commits": null,
-      "huerfanos": [],
-      "rutas_muertas": [],
-      "pendiente_merge": null
-    },
-    {
-      "id": "smartpay",
-      "estado": "al-dia",
-      "verificado": {
-        "ref": "main",
-        "date": "2026-07-31",
-        "source": "manual"
-      },
-      "archivos": 74,
-      "deriva": {
-        "cambiados": 0,
-        "pct": 0,
-        "archivos": []
-      },
-      "commits": null,
-      "huerfanos": [],
+      "huerfanos": [
+        "legacy-backend/database/migrations/2026_07_01_120000_add_template_name_to_creditop_x_reminder_messages.php"
+      ],
       "rutas_muertas": [],
       "pendiente_merge": null
     }

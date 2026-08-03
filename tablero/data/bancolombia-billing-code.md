@@ -260,3 +260,48 @@ pregunta**:
 Detalle para el que lo implemente: la firma de `query` tiene `$status = 2` por defecto, pero **ninguno
 de los tres crons usa el default** — los tres pasan **3**. La preocupación por `EstadoOrden=2` (§«revisión
 de Santi») es de otro camino, no de estos crons.
+
+## Paso 1 hecho — y el request estaba MAL (2026-08-03)
+
+Rama `feature/bancolombia-billing-code` desde el `main` del 3 de agosto. Dos commits, sin push.
+
+**`app/Actions/Lenders/BancolombiaBillingCode.php`** con `generateBillingCode`, `retrieveOrderDetails` y
+`health`, más `services.bancolombia.in-store-billing-code.prefix`. **No conmuta nada**: sigue sin
+llamadores.
+
+**Cambio al plan §5.1, para bien: extiende `Bancolombia`, NO es gemelo de `Corbeta.php`.** La clase base
+ya trae lo que este servicio necesita y Corbeta no tenía —certificado base64, JWT firmado, y
+`getRequestExceptionCode` leyendo `errors[0].code`, justo donde este contrato pone el error—. Al lado de
+Corbeta había que reimplementar las tres. Y la credencial es por lender+sucursal
+(`LenderAlliedCredential`), como el resto de Bancolombia.
+
+⚠ **EL HALLAZGO: el request NO son 4 campos planos.** `data.required` del spec es
+`['security','customer']` —
+`data.security.transactionId` y `data.customer.contactInformation.{address,cityCode,departmentCode}`.
+Este `.md` y el nodo `bancolombia` lo documentaban plano; ya está corregido en los dos.
+
+**Y esto es lo que hay que aprender de la validación**, porque es reproducible: la primera versión
+mandaba el sobre plano y **los 8 tests con `Http::fake` pasaban en verde**. Pasaban porque comprobaban la
+misma suposición con la que se escribió el código, tomada del mismo documento equivocado. Un fake no
+puede contradecir la documentación de la que nació. El banco habría contestado `SA400` en la primera
+prueba real — y el dispatcher del sandbox, que compara el JSON completo por igualdad estricta, nunca
+habría matcheado.
+
+Lo encontró un test que **lee el YAML del banco y valida contra él**
+(`tests/Unit/Lenders/BancolombiaBillingCodeContractTest.php`): requeridos, anidamiento, longitudes,
+headers declarados, el pattern del `message-id`, y que las 3 operaciones implementadas sean las 3 que el
+spec declara. Comprobado que no es vacuo: al revertir el sobre a plano falla con «falta
+`body.data.security`, requerido por el spec». Se saltea si no encuentra el spec, para no romper CI.
+
+**Lo que el spec confirmó como correcto** (no hace falta volver a preguntarlo): los 5 headers —3
+`parameters` requeridos más `Client-Id`/`Client-Secret` como `securitySchemes` en header—, el pattern de
+`message-id` es exactamente el UUID v4, el prefijo del `server`, y las respuestas `data.billingCode` y
+`data.orderInformation`.
+
+**Estado de las pruebas:** 12 tests propios en verde (99 aserciones). Los 18 fallos de
+`tests/Unit/Lenders` son **preexistentes** — verificado corriendo la misma suite en un worktree del
+commit anterior: 18 failed / 28 passed antes, 18 failed / 40 passed después. Son un test que espera
+`'Negozia'` y recibe `'Creditop'`, y varios que no resuelven el host `mysql`.
+
+**Sigue bloqueado igual:** el mapeo (quién trunca `address` a 20, cómo se deriva `departmentCode`) y la
+persistencia del código. Ninguna de las dos la desbloquea el spec — son comportamiento del banco.

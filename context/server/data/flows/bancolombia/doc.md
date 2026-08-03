@@ -143,7 +143,7 @@ Connect, `x-flow-type: No Monetario`, `x-architecture-layer: Composición`):**
 | Path base | `/v1/operations/product-specific/loans/consumer-loan/in-store-billing-code/code-management` |
 | Operaciones | `POST /generateBillingCode` (info **Pública**) · `GET /retrieve-order-details?billingCode` (info **Interna**) · **`HEAD /health`** |
 | Auth | 5 headers: `Client-Id` + `Client-Secret` (los dos, `security` global → **cierra D9**) · `json-web-token` · `x-client-certificate` · `message-id` |
-| Request de generate | 4 campos: `transactionId` **5–400** · `address` **1–20** ("Dirección de residencia **del cliente**") · `cityCode` **5–20** · `departmentCode` **2–20** |
+| Request de generate | ⚠ **ANIDADO, no 4 campos planos** (`data.required` = `['security','customer']`): `data.security.transactionId` **5–400** · `data.customer.contactInformation.address` **1–20** ("Dirección de residencia **del cliente**") · `.cityCode` **5–20** · `.departmentCode` **2–20** |
 | Respuesta | `data.billingCode`, **1–30** |
 | `orderInformation` | requeridos `invoiceId`·`billingCode`·`billingStatus`·`totalAmount` (100–999.999.999)·`createDateTime`; opcionales `invoiceAmount` (**mínimo 0**)·`invoiceDateTime`·`updateDateTime` |
 | Errores | `SA400` · `BP21000` (409, sólo generate) · `BP12700001` (409, ambas) · `BP40421052` (404, **sólo retrieve**) · `SP500/502/503/504`. El código va en **`errors[0].code`** |
@@ -151,6 +151,12 @@ Connect, `x-flow-type: No Monetario`, `x-architecture-layer: Composición`):**
 | Rate limit | `150/1second` |
 
 **Gotchas del contrato (verificados en el spec, no estaban en el handoff):**
+- ⚠ **El request va ANIDADO y acá estaba documentado plano** (corregido 2026-08-03). Decía "4 campos:
+  `transactionId` · `address` · `cityCode` · `departmentCode`", y el `data.required` del spec es
+  `['security','customer']`. El error sobrevivió a 8 tests con `Http::fake` porque los tests comprobaban
+  la misma suposición que el doc; lo encontró un test que **lee el YAML y valida contra él**
+  (`legacy-backend/tests/Unit/Lenders/BancolombiaBillingCodeContractTest.php`). Lección para cualquier
+  contrato de proveedor: un fake escrito desde la documentación no puede contradecir la documentación.
 - **`message-id` está VALIDADO como UUID v4** por regex en el schema — no es una recomendación. Cualquier otro string → `SA400`.
 - **`billingStatus` NO es un enum**: es `string maxLength 35` y los tres valores (`INVOICED`/`PENDING_INVOICE`/`CANCELLED`) viven sólo en la *descripción*. Un `switch` sin `default` es una bomba de tiempo.
 - **`HEAD /health` no exige ninguna cabecera** — sonda de conectividad limpia para aislar "¿es el host/TLS o es mi firma?".
@@ -189,7 +195,7 @@ pantallas viejas `/consumo/*` del monolito. Es el bloqueo duro del cutover (ver 
 - **Actions** (legacy-backend `app/Actions/Lenders/`): `Bancolombia.php` (base: `:52` cert, `:63` JWT, `:141` authorize, **`:223` `register()` vacío**) · `BancolombiaBnpl.php` (§3 + `:671-690` **el patrón robusto de error a replicar**: `data_get(…,'errors.0.code')` + `$isBankHttpError` + reenvía el body crudo) · `BancolombiaConsumerLoan.php` (§4) · `BancolombiaConsumerLoanOfferEvaluation.php`.
 - **Controllers + rutas** (legacy-backend): `Modules/Onboarding/App/Http/Controllers/Bancolombia{,Bnpl,Loan}Controller.php` · `Modules/Onboarding/App/Traits/BancolombiaAcceptTermsTrait.php` · `Modules/Onboarding/routes/api.php:59-90` (los 3 prefijos) · `Modules/Onboarding/App/Services/lenders/Bancolombia/BancolombiaService.php` (`:69` rama `lender_id === 68`).
 - **Persistencia del flujo**: `app/Models/LenderIntegrationFlow.php` — `:34` `getStepsFromSession` (**el accesor canónico: `:48` filtra por `lender_id`**), `:19` `data` casteado a `collection`. El paso se escribe con `saveLenderIntegrationFlowStep` (`BancolombiaBnplController.php:1440`). `app/Models/LenderTransaction.php` es la bitácora (`order_id`, `request`, `response`, `status_id`).
-- **Código de compra**: `PurchaseCodeController.php:33` · `merchants/PurchaseCodeService.php:106/:135-144/:275-283/:296-311` · `merchants/CodeGenerationService.php:21-29/:51/:72` · `merchants/BarcodeService.php:35-51` · `app/Actions/Allieds/Corbeta.php` · `config/services.php:303-309` (bloque `corbeta`).
+- **Código de compra**: `PurchaseCodeController.php:33` · `merchants/PurchaseCodeService.php:106/:135-144/:275-283/:296-311` · `merchants/CodeGenerationService.php:21-29/:51/:72` · `merchants/BarcodeService.php:35-51` · `app/Actions/Allieds/Corbeta.php` · `config/services.php:309-315` (bloque `corbeta`).
 - **Front** (frontend-monorepo): `apps/loan-request-wizard/app/routes.ts:146-254` (el mapa entero) · **41** archivos en `app/routes/bancolombia/**` + **4** layouts en `app/layouts/bancolombia/` · módulo `modules/loan-request-wizard/bancolombia-origination/` (**30 use-cases**, ports, repositories; las 115 piezas de `ui/` son presentación y no se curan acá). Único test del árbol Bancolombia: `routes/bancolombia/loan/credit-approved.helpers.test.ts`.
 - **Precedentes reutilizables**: `Ecommerce/EcommerceNotifier.php` + resolver `Modules/Onboarding/App/Services/EcommerceRequestService.php:537` + `config/ecommerce.php:27-32` (estrategia config-driven) · `Ecommerce/SelfDevelopmentNotifier.php:51` (timeouts explícitos `15/10`) · `CredifamiliaConsumo/TransactionRequest.php:436-459` (`resolveCityCode`, DANE sin padding) · `app/Services/ErrorCaptureService.php`.
 
