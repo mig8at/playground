@@ -161,3 +161,56 @@ son restricciones del diseño, no opiniones:
 - **Falta un escenario de prueba, no sólo un código de error:** el 409 `BP21000` como *recuperación* —
   POST exitoso en el banco, respuesta perdida, reintento → 409 y sin forma de recuperar el código. Con la
   bitácora en `lender_transactions` escrita ANTES del POST se puede ejercitar.
+
+## 2ª revisión de Santi (2026-08-03): tres preguntas nuevas y un error de destinatario
+
+**Error de destinatario, y era el nuestro.** «¿Quién crea la orden en Corbeta?» estaba en la lista *para
+Santi*, y él no la puede contestar: es una afirmación técnica sobre el sistema del banco. **Va a
+Bancolombia, explícita y por escrito**, y no estaba en su lista:
+
+> ¿Ustedes crean la orden en Corbeta (`setOrder`) al recibir `generateBillingCode`, o esperan que la
+> sigamos creando nosotros? Si la crean, ¿en qué momento del ciclo?
+
+**Y no es la misma pregunta que «¿el `billingCode` es el mismo PIN?».** Que el código coincida *sugiere*
+que hay orden en Corbeta, pero no lo prueba: podrían devolver el PIN sin haber creado nada todavía, o
+crearla más adelante. Son dos preguntas y las dos hay que hacerlas. Es la que más riesgo cubre: si
+dejamos de llamar a `setOrder` y ellos no la crean, **no hay orden, la factura no cruza, y nadie se
+entera hasta la conciliación nocturna**.
+
+**Tres preguntas que faltaban:**
+
+- **A · Credenciales, scope y ambiente** — bloquea *cualquier* prueba. ¿El `Client-Id`/`Client-Secret`/
+  certificado ya aprovisionados para lender 68/100 sirven para esta API o hay que aprovisionar nuevos?
+  ¿Nuestro client tiene habilitado el scope `BnplSignature-origination:write:user` para las dos
+  operaciones? ¿Contra qué catálogo certificamos, si el Sandbox no valida JWT ni mTLS
+  (`tlsProfileJWT` vacío) → hace falta Development o Testing.
+  ⚠ Urgente por otra vía: es **la misma superficie del SA400 «Header host inválido»** abierto en
+  `enableOffers`, con sospecha de **certificado vencido (`notAfter` 2025-06-28)**. Si está vencido,
+  esta integración no arranca tampoco.
+- **B · ¿El servicio aplica a los DOS productos?** El path base dice `consumer-loan`
+  (`/loans/consumer-loan/in-store-billing-code/code-management`), lo cual es raro si también sirve BNPL.
+  Santi confirmó «a los dos» de palabra, pero lo tiene que confirmar el banco: **si BNPL necesita otro
+  path u otra API, el diseño de resolución del `transactionId` por lender se cae.**
+- **C · ¿Cambia la confirmación posterior a la factura?** Hoy `InvoiceProcessConfirm` en `application`
+  le confirma el consumo a Bancolombia después de facturar. Si ahora el código lo emiten ellos,
+  ¿siguen esperando esa confirmación por el mismo canal, o el servicio nuevo ya se los informa?
+
+**La conciliación es un ÁRBOL DE DECISIÓN, no una decisión.** «No la movemos» es la lectura correcta pero
+**condicional**, y darla cerrada hace que se diseñe para el escenario optimista:
+
+| respuesta del banco | conciliación |
+|---|---|
+| es el mismo PIN **y** ellos crean la orden | los 4 crons siguen sin tocarse · híbrido sano · alcance mínimo |
+| es identificador propio **o** no crean la orden | el híbrido **es** el fallo silencioso → entra en alcance sí o sí |
+
+**El 67 % sube `address` a bloqueante, y arrastra una consecuencia nueva.** Con dos tercios de las
+sucursales por encima de 20 caracteres, truncar deja de ser un supuesto razonable. Y el número es
+argumento para la pregunta: *un campo `required` con `maxLength 20` que rechaza el 67 % de las
+direcciones reales de un comercio no parece diseñado para recibir una dirección de punto de venta* — o
+el límite es un error del contrato, o el campo espera otra cosa. **Lo que nadie había dicho:** si ellos
+crean la orden en Corbeta, ¿qué dirección le pasan? Si truncamos a 20, **la orden en Corbeta queda con la
+dirección truncada**, y hoy llega completa. Eso va agregado a la pregunta del `address`.
+
+**Higiene de cifras.** Los conteos de tokens bailan entre informes (19.692 vs 19.709). Es consistente con
+el drift de entornos, pero hay que **fijar de qué dump sale cada cifra** antes de que alguna termine en un
+documento para el banco.
