@@ -61,6 +61,7 @@ from roots import ROOTS
 
 CTX = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 FLOWS = os.path.join(CTX, "server", "data", "flows")
+REF_HOY = "main"  # contra qué se compara el "hoy": el árbol describe main, no tu working tree
 CERCA = 0        # el ancla es TEXTO EXACTO: o está en esa línea o no está. La tolerancia de ±3 venía
                  # del método viejo (buscaba un símbolo "cerca") y acá miente: con ±3, un bloque
                  # corrido 2 líneas se reportaba como «inicio bien, fin movido» — media verdad.
@@ -119,6 +120,23 @@ def renombres(repo, sha):
             p = directo[p]
         return p
     return {n: origen(n) for n in directo}
+
+
+@lru_cache(maxsize=None)
+def en_ref(alias, ref, rel):
+    """El archivo tal como está en `ref` (por defecto `main`), NO como está en disco.
+
+    ⚠ ESTE ES EL MISMO BUG QUE SE ARREGLÓ EN `oracle.py`, y reapareció acá. Leer el working tree hace
+    que el veredicto dependa de **qué rama tengas checkeada**: con una feature branch puesta, tus
+    propios cambios sin mergear se reportan como citas movidas. Pasó el 2026-08-03 — 6 líneas agregadas
+    a `config/services.php` en una rama de trabajo hicieron aparecer una «movida» en el nodo
+    `bancolombia`, y la cita contra `main` estaba perfecta. El árbol describe `main`: se compara
+    main-entonces contra main-hoy, y el disco no entra.
+    """
+    repo, pre = repo_de(alias)
+    if not repo:
+        return None
+    return contenido(repo, ref, pre + rel)
 
 
 @lru_cache(maxsize=None)
@@ -309,11 +327,10 @@ def main():
 
                 veredictos = []
                 for alias, rel in sorted({(a, r) for a, r in cands}):
-                    try:
-                        hoy = open(os.path.join(ROOTS[alias], rel), encoding="utf-8",
-                                   errors="replace").read().splitlines()
-                    except OSError:
+                    hoy = en_ref(alias, REF_HOY, rel)
+                    if hoy is None:
                         continue
+                    hoy = list(hoy)
                     if n > len(hoy):
                         veredictos.append(("fuera", f"{alias}/{rel}: tiene {len(hoy)} líneas"))
                         continue
