@@ -478,3 +478,28 @@ Captura: `harness/.runs/qr-bnpl-emisor-bancolombia.png`.
 `${WIZ_API%/api}` justamente por eso. Con `http://localhost/api` el wizard arma `/api/api/...` y el action
 de `register.tsx` da **404**: el formulario queda con el botón en spinner y un alert genérico, sin decir
 que la URL está mal. Costó una corrida entera de 20 clicks contra la misma pantalla.
+
+## El certificado está vencido — medido, ya no es sospecha (2026-08-03)
+
+La pregunta era si alguna credencial existente sirve para la API nueva. **La credencial tiene todos los
+campos que hacen falta** (`bancolombia_client_id`, `_client_secret`, `_privkey`, `_cert`,
+`_application_name`, `_api_gw`), así que no falta aprovisionar campos.
+
+**Lo que está muerto es el certificado**, y no es el dump local: se verificó **contra la BD de dev**
+(lectura, sin escribir nada; los blobs se desencriptaron local porque la `APP_KEY` coincide):
+
+| credencial | lender | certificado | |
+|---|---|---|---|
+| 1124 | 68 (BNPL) | 2025-05-29 → **2025-06-28** | ❌ vencido hace 400 días |
+| 1122 | 100 (Consumo) | 2025-05-29 → **2025-06-28** | ❌ vencido hace 400 días |
+
+Los dos llevan **el mismo certificado**, emitido a `Creditop BNPL` — o sea que Consumo reusa el de BNPL.
+
+Esto convierte el pendiente de credenciales: no es «preguntar si nos sirven», es **«hay que renovar el
+certificado»**. Y explica el `SA400 Header host inválido` que está abierto en `enableOffers`: es la misma
+credencial y el mismo certificado.
+
+⚠ Lo que se comprobó es que **está vencido**, no que el banco lo rechace — nunca se llamó a la API real.
+Pero asumir que un certificado vencido va a pasar no es una apuesta razonable: hay que renovarlo antes de
+cualquier prueba contra el banco, y **ninguna integración de Bancolombia que use mTLS puede estar
+funcionando hoy**.
