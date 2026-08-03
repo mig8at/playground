@@ -214,3 +214,49 @@ dirección truncada**, y hoy llega completa. Eso va agregado a la pregunta del `
 **Higiene de cifras.** Los conteos de tokens bailan entre informes (19.692 vs 19.709). Es consistente con
 el drift de entornos, pero hay que **fijar de qué dump sale cada cifra** antes de que alguna termine en un
 documento para el banco.
+
+## La superficie de Corbeta son 3 operaciones, y solo una es 1:1 (verificado 2026-08-03)
+
+`app/Actions/Allieds/Corbeta.php` (legacy) y `app/Actions/Allies/Corbeta.php` (application) son
+**idénticos, 184 líneas**, y exponen exactamente tres:
+
+| método | endpoint | quién lo llama | para qué |
+|---|---|---|---|
+| `authorize()` | `POST /ObtenerToken/getToken` | interno de las otras dos | token |
+| `register(...)` | `POST /GenerarOrden/setOrder` | **`CodeGenerationService`** (los dos repos) | crea la orden; de su respuesta se saca el PIN |
+| `query($desde,$hasta,$estado)` | `POST /ConsultaOrden/getOrder` | **3 crons de `application`**: `UpdateOrdersFromCorbeta`, `InvoiceProcessCorbeta`, `InvoiceProcessCorbetaBnpl` | conciliar |
+
+**El mapeo al servicio nuevo:**
+
+- `register` → `POST /generateBillingCode`. **1:1, y mejora**: el PIN deja de extraerse con regex sobre
+  texto libre y pasa a ser el campo `data.billingCode`.
+- `authorize` → **no tiene equivalente y no hace falta**: Bancolombia autentica con Client-Id/secret +
+  mTLS + scope, no con un `getToken` propio del aliado.
+- `query` → `GET /retrieve-order-details?billingCode`. **Acá NO es 1:1**, y es el hallazgo.
+
+⚠ **La conciliación invierte su patrón, y eso es independiente de si el código es el mismo PIN.** Los
+tres crons llaman `query($rango, 3)`: traen **todas las órdenes facturadas del día en UNA llamada** y
+después cruzan localmente contra `data_json->verification_token` (`UpdateOrdersFromCorbeta:61`, el match
+por `$pin` en `:78`, y el `26` en `:95`). El servicio nuevo contesta **una orden por vez, por código**.
+Tres consecuencias:
+
+1. **De 1 llamada por día a N llamadas**, una por solicitud pendiente.
+2. **Hay que tener el código ANTES para poder preguntar.** Hoy el cron puede descubrir una orden que no
+   conocía; con el servicio nuevo solo puede confirmar códigos que ya tiene.
+3. **No se puede filtrar por estado**: `billingStatus` viene por orden, así que el filtro se muda a
+   nuestro lado.
+
+**Esto afina el árbol de decisión de §«2ª revisión»**, y en la dirección incómoda: dijimos que la
+conciliación entra en alcance solo si el código no es el mismo PIN. Incompleto. Lo que la mantiene
+fuera de alcance **no es que el código coincida, es que la orden siga existiendo en Corbeta** —porque el
+híbrido consiste en seguir llamando a `query`—. O sea que **las dos preguntas al banco son la misma
+pregunta**:
+
+| si Bancolombia… | entonces |
+|---|---|
+| **crea** la orden en Corbeta | `query` sigue devolviendo la lista → los 3 crons no se tocan → híbrido sano |
+| **no la crea** | no hay nada que consultar → los crons no encuentran nada → hay que mudarlos a `retrieve-order-details` **y** absorber el cambio de patrón (N llamadas, código primero, filtro nuestro) |
+
+Detalle para el que lo implemente: la firma de `query` tiene `$status = 2` por defecto, pero **ninguno
+de los tres crons usa el default** — los tres pasan **3**. La preocupación por `EstadoOrden=2` (§«revisión
+de Santi») es de otro camino, no de estos crons.
