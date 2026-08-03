@@ -407,3 +407,55 @@ desde `application`). Inocuo hoy porque nadie la usaba; un fatal el día que alg
 
 Y `departmentCode` arranca con la misma fuente que Corbeta hoy (`city->zone->code`), con la duda BC4
 anotada en el código: el spec se contradice solo (mocks `01/02/03` contra ciudades `11001/05001/76001`).
+
+## Validado E2E en local con el mock del harness (2026-08-03)
+
+**El camino real completo, sin tocar al banco:** ruta HTTP → `PurchaseCodeController` → guard de
+`PurchaseCodeService` (allied Corbeta + estado 25 + lender 68/100) → `CodeGenerationService` → el Setting
+→ `BancolombiaBillingCode` (credencial real, certificado exportado, JWT firmado de verdad) → mock del
+harness :8104 → `data.billingCode` → persistido en `verification_token` → barcode ean128.
+
+Lo que hizo falta ya estaba en local: solicitudes en estado 25 de Alkosto (**395507** y **359915**, sin
+código previo, las dos con `bnpl_transaction_id`), credenciales de Bancolombia para el allied 209
+(lender 68 y 100) y `BANCOLOMBIA_HOST` apuntando al mock. Solo se agregó
+`BANCOLOMBIA_IN_STORE_BILLING_CODE_PREFIX` al `.env` local.
+
+**El switch conmuta — probado en las dos direcciones sobre la MISMA solicitud** (359915, limpiando los
+dos cachés entre corridas):
+
+| Setting | emisor | código |
+|---|---|---|
+| `[]` | Corbeta | `158e8325a065c4c3b654` |
+| `[209]` | Bancolombia (mock) | `0a8192180a8192180a81` |
+
+El segundo es el determinista del mock para ese `transactionId` — el mismo que dio 395507, que comparte
+tx. O sea que **vino del emisor nuevo**, no de un fallback.
+
+**El request que salió de verdad** (del log del backend, no del test):
+
+```json
+{"data":{"security":{"transactionId":"31999204-5b5e-475c-b8ec-40c9cdbd429e"},
+         "customer":{"contactInformation":{"address":"Cl 89a 21-31","cityCode":"11001","departmentCode":"11"}}}}
+```
+
+`address` salió **abreviado** (`Calle 89a 21-31` → `Cl 89a 21-31`, 12 caracteres). Y `departmentCode`
+salió **`11`**, que es `city->zone->code` para Bogotá: confirma en vivo la duda BC4, porque los mocks del
+spec usan `01` para ciudad `11001`. **Es la pregunta al banco, ahora con evidencia.**
+
+El mock validia lo mismo que el banco (los 5 headers, el UUID v4 y el sobre anidado), así que un sobre
+plano falla en local: `SA400 · el request no está anidado`.
+
+### ⚠ Bug PREEXISTENTE que destapó la corrida
+
+`PurchaseCodeService.php:144` leía `$additionalInfo->data_json['verification_token']` **sin `??`**. Si la
+fila de `user_request_additional_information` existe pero **no tiene esa key** —la crea cualquier paso que
+guarde otra cosa antes de que haya código— revienta con `Undefined array key`, el servicio devuelve
+`PCS000` y el endpoint da 500. Once líneas más abajo (`:155`) el mismo campo ya se leía con `??`. Arreglado
+en el PR. No es teórico: apareció en la primera corrida con una solicitud en ese estado.
+
+### Lo que esta prueba NO valida
+
+- **La seguridad**: el mock no verifica el JWT ni el mTLS. Que pase acá no dice nada del `SA400 Header
+  host inválido` ni del certificado presuntamente vencido.
+- **Que el `billingCode` sirva para conciliar**: sigue siendo la pregunta bloqueante. Acá se escribió en
+  `verification_token` porque es lo que hace el camino actual, no porque esté confirmado que corresponda.

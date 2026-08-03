@@ -126,6 +126,8 @@ const fechaCuota = (i) => {
     return d.toISOString().slice(0, 10);
 };
 const llamadas = [];
+// códigos emitidos por `generateBillingCode`, para que `retrieve-order-details` pueda contestarlos
+const emitidos = new Map();
 let txId = null;          // el bnplTransactionId vigente (BNPL)
 let sessionToken = null;  // el sessionToken vigente (Consumo)
 let validateKey = null;   // el customerValidateKey vigente (Consumo)
@@ -193,6 +195,58 @@ const server = http.createServer(async (req, res) => {
     if (FAIL) return err(res, 500, 'SP500', 'Error interno (MOCK_BC_FAIL=1)');
     if (esc.errorCode && (!esc.errorEn || path.includes(esc.errorEn))) {
         return err(res, 409, esc.errorCode, `Error forzado por escenario del mock${esc.errorEn ? ` (sólo en *${esc.errorEn}*)` : ''}`);
+    }
+
+    // ── CÓDIGO DE COMPRA EN CAJA (servicio nuevo · reemplaza la API de Fondos de Corbeta) ─────────
+    // Contrato leído del OpenAPI del banco (`api_in-store-billing-code-code-management.yaml`), no
+    // inventado: el request va ANIDADO en `data.security` + `data.customer.contactInformation`, y la
+    // respuesta pone el código en `data.billingCode` (1-30). Se valida acá lo mismo que valida el banco
+    // —el sobre y los 5 headers— para que un sobre plano NO pase en local y sí falle contra el banco.
+    // El 409 BP21000 no necesita código propio: `?errorCode=BP21000&errorEn=generateBillingCode`.
+    if (tail('/generateBillingCode') && req.method === 'POST') {
+        const faltan = ['Client-Id', 'Client-Secret', 'json-web-token', 'x-client-certificate', 'message-id']
+            .filter((h) => !req.headers[h.toLowerCase()]);
+        if (faltan.length) return err(res, 400, 'SA400', `faltan headers: ${faltan.join(', ')}`);
+
+        const mid = req.headers['message-id'];
+        if (!/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(mid)) {
+            return err(res, 400, 'SA400', `message-id no es UUID v4: ${mid}`);
+        }
+
+        const tx = body?.data?.security?.transactionId;
+        const ci = body?.data?.customer?.contactInformation;
+        if (!tx || !ci) {
+            return err(res, 400, 'SA400',
+                'el request no está anidado: se espera data.security.transactionId + data.customer.contactInformation');
+        }
+        for (const [campo, min, max] of [['address', 1, 20], ['cityCode', 5, 20], ['departmentCode', 2, 20]]) {
+            const v = ci[campo];
+            if (typeof v !== 'string' || v.length < min || v.length > max) {
+                return err(res, 400, 'SA400', `${campo} inválido (${min}-${max}): ${JSON.stringify(v)}`);
+            }
+        }
+
+        // determinista por transactionId: dos llamadas con el mismo tx dan el mismo código, como el banco
+        const code = [...tx].reduce((h, c) => (h * 31 + c.charCodeAt(0)) % 0xffffffff, 7)
+            .toString(16).padStart(8, '0').repeat(3).slice(0, 20);
+        emitidos.set(code, { tx, ...ci, at: new Date().toISOString() });
+        return json(res, 200, { data: { billingCode: code } });
+    }
+
+    if (tail('/retrieve-order-details') && req.method === 'GET') {
+        const code = url.searchParams.get('billingCode');
+        const orden = emitidos.get(code);
+        if (!orden) return err(res, 404, 'BP40421052', `sin orden para billingCode ${code}`);
+
+        return json(res, 200, { data: { orderInformation: {
+            invoiceId: `MOCK-${code.slice(0, 8)}`,
+            billingCode: code,
+            // `billingStatus` NO es enum en el schema (string 35): el mock lo deja configurable para
+            // poder ejercitar el camino "todavía no facturada" sin tocar código.
+            billingStatus: esc.billingStatus || 'INVOICED',
+            totalAmount: 1500000.99,
+            createDateTime: orden.at,
+        } } });
     }
 
     // ── PÁGINA de autenticación simulada del banco ────────────────────────────────────────────────
