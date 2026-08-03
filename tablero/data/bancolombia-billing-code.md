@@ -459,3 +459,22 @@ en el PR. No es teórico: apareció en la primera corrida con una solicitud en e
   host inválido` ni del certificado presuntamente vencido.
 - **Que el `billingCode` sirva para conciliar**: sigue siendo la pregunta bloqueante. Acá se escribió en
   `verification_token` porque es lo que hace el camino actual, no porque esté confirmado que corresponda.
+
+### Recorrido VISUAL completo, con la URL que pidió Santi (2026-08-03)
+
+`http://localhost:5174/bancolombia/self-service/c54956bb/solicitar` — el hash **existe en el dump local**
+(Alkosto, sucursal 946), así que su prueba corre local sin mergear nada, como él dijo.
+
+**9 pantallas, de la primera a `purchase-code`**, con el Setting en `[209]`:
+`solicitar` → `otp` → banco → `loan-info` → `loan-summary` → `signature` → banco → `processing` →
+`purchase-code`.
+
+Resultado: solicitud **464659**, estado **25**, y en pantalla `Pin del pago: 00e535a200e535a200e5` — el
+determinista del mock. El log del backend dice `Bancolombia - generateBillingCode` y **`CORBETA - register`
+no aparece**: el código que el cliente presenta en caja lo emitió el proveedor nuevo.
+Captura: `harness/.runs/qr-bnpl-emisor-bancolombia.png`.
+
+⚠ **Para levantar el wizard a mano, `VITE_API_URL` va SIN `/api`.** `bin/asesor:202` hace
+`${WIZ_API%/api}` justamente por eso. Con `http://localhost/api` el wizard arma `/api/api/...` y el action
+de `register.tsx` da **404**: el formulario queda con el botón en spinner y un alert genérico, sin decir
+que la URL está mal. Costó una corrida entera de 20 clicks contra la misma pantalla.
