@@ -370,3 +370,40 @@ del banco lo vea—, es **no corromper el dato y volver el 20 % un número visib
 Y sigue en pie lo que señaló Santi: si el banco crea la orden en Corbeta con esta dirección, hoy Corbeta
 la recibe **completa** — cualquier recorte es un cambio de comportamiento para el aliado, no sólo para
 nosotros.
+
+## Paso 2 hecho: el emisor se elige por Setting (2026-08-03)
+
+Rama `feature/bancolombia-billing-code`, **un solo commit** (`bf7f8492`), PR abierto sin mergear.
+7 archivos, +1.022 líneas.
+
+**Mergeable sin conmutar a nadie.** El Setting nuevo nace vacío → los 4 comercios Corbeta siguen
+exactamente por donde iban, y hay un test que lo fija como garantía.
+
+**La doble fuente de verdad quedó cerrada.** `CodeGenerationService` tenía 24/209/210/211 **quemados** en
+un `switch` mientras el guard leía `Setting('corbeta_allieds')`. Un comercio agregado al Setting pero no
+al switch pasaba el guard y salía por `generateInternally` — código interno que no sirve en caja, **sin
+ningún error**. Ahora las dos preguntas leen el mismo Setting, y un segundo
+(`bancolombia_billing_code_allieds`) decide quién ya emite con el banco: reversible sin deploy y por
+comercio, para conmutar Alkosto primero.
+
+**El `address` quedó como se decidió:** se abrevia el tipo de vía —como los ejemplos del banco— y si aun
+así excede 20, **falla explícito** en vez de mandar una dirección falsa.
+
+**19 tests, 119 aserciones**, en tres archivos: el contrato contra el OpenAPI real, la integración
+(headers, UUID v4, 409 de recuperación, secreto redactado) y el ruteo del emisor.
+
+**De paso:** se borró un import colgado en `PurchaseCodeController` que apuntaba a
+`App\Services\CodeGenerationService`, clase que **no existe en legacy-backend** (resto de la migración
+desde `application`). Inocuo hoy porque nadie la usaba; un fatal el día que alguien escribiera
+`new CodeGenerationService()` ahí.
+
+### Lo que falta para que esto sirva de verdad
+
+| paso | estado |
+|---|---|
+| 3 · bitácora en `lender_transactions` ANTES del POST | pendiente — habilita ejercitar el 409 como recuperación |
+| **4 · persistencia del código** | **BLOQUEADO** por el banco: ¿el `billingCode` es el mismo PIN? |
+| 6 · conmutar Alkosto (209) y mirar la conciliación | después del 4 |
+
+Y `departmentCode` arranca con la misma fuente que Corbeta hoy (`city->zone->code`), con la duda BC4
+anotada en el código: el spec se contradice solo (mocks `01/02/03` contra ciudades `11001/05001/76001`).
