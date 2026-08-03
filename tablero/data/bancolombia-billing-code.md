@@ -305,3 +305,68 @@ commit anterior: 18 failed / 28 passed antes, 18 failed / 40 passed después. So
 
 **Sigue bloqueado igual:** el mapeo (quién trunca `address` a 20, cómo se deriva `departmentCode`) y la
 persistencia del código. Ninguna de las dos la desbloquea el spec — son comportamiento del banco.
+
+## El `address` de 20 caracteres: medido, y la respuesta estaba en los ejemplos del banco (2026-08-03)
+
+Re-verificado contra la BD local, no contra F-83:
+
+| fuente | total | exceden 20 | % | máx |
+|---|---|---|---|---|
+| sucursales Corbeta (24, 209, 210, 211) | 131 | 82 | **63 %** | 86 |
+| todas las sucursales | 1.677 | 1.134 | 68 % | 134 |
+| **direcciones de residencia del cliente** (`user_field_values.field_id=44`) | 2.268 | 630 | **28 %** | 90 |
+
+(F-83 decía 67 % de sucursales; para las **de Corbeta**, que son las que importan, es **63 %**. El
+promedio de la dirección del cliente es **19 caracteres**: el límite cae justo por debajo del formato
+colombiano típico.)
+
+⚠ **TRUNCAR NO DA UNA DIRECCIÓN MÁS CORTA, DA UNA DISTINTA.** Lo que se corta a los 20 es el número de
+casa, porque las que exceden lo hacen por 1-4 caracteres:
+
+```
+22 → «Carrera 77 b # 64 h» ⟨50⟩       24 → «Carrera 90 Bis # 76» ⟨- 51⟩
+22 → «Transversal 79C #85-» ⟨30⟩      22 → «Calle 40 sur # 11 j» ⟨15⟩
+```
+
+`Carrera 77 b # 64 h` sin el `50` no es una dirección degradada: es una dirección **que no existe**.
+
+**LA RESPUESTA ESTABA EN EL SPEC.** Los cuatro ejemplos del banco abrevian el tipo de vía:
+`Cal 123 # 12-122` (el del schema) · `Calle 45 #12-34` · **`Cra` 7 #45-89** · **`Av` 30 #100-15`**. Por
+eso a ellos 20 les alcanza — **esperan la dirección abreviada**, convención colombiana. Nosotros las
+guardamos completas.
+
+Medido sobre las 2.268 reales, abreviando el tipo de vía (Carrera→Cra, Transversal→Tv, Calle→Cl, …):
+
+| | exceden 20 |
+|---|---|
+| crudas | 630 (**27 %**) |
+| **abreviadas** | 470 (**20 %**) |
+
+Salva 160 direcciones —una de cada cuatro de las que sobraban— y **salva exactamente las que perdían el
+número de casa**: `Carrera 77 b # 64 h 50` → `Cra 77 b # 64 h 50` (18). Lo que sigue sin entrar ya no es
+la vía: es **detalle secundario** — torre, apartamento, conjunto, barrio:
+
+```
+28  Cl 77b 129 11 torre 6 ap 704
+51  Conjunto villa emaus casa 11b bosques de rosablanca
+```
+
+**DECISIÓN DE DISEÑO (la de Miguel, y se sostiene): nunca truncar a ciegas.** Se normaliza como hace el
+banco y, si aun así no entra, **no se manda una dirección falsa**: el Action falla con un error local
+claro. «Que Bancolombia se encargue» hecho bien no es mandar 35 caracteres y esperar —el `maxLength` de
+un campo `required` detrás de APIC puede rechazarse en el gateway con `SA400`, antes de que el negocio
+del banco lo vea—, es **no corromper el dato y volver el 20 % un número visible y contable** en vez de
+470 direcciones equivocadas en producción.
+
+**Lo que hay que preguntarle al banco, ahora con evidencia:**
+
+> Sus ejemplos abrevian el tipo de vía (`Cal`, `Cra`, `Av`): ¿es eso lo que esperan en `address`?
+> Incluso abreviando, el **20 %** de las direcciones de residencia reales de nuestros clientes excede 20
+> caracteres, y lo que sobra es torre/apartamento/conjunto. Dos cosas: **(a)** ¿para qué se usa el campo
+> —se imprime, se compara, viaja a la orden que ustedes crean en Corbeta?— y **(b)** si la dirección
+> completa no entra, ¿prefieren recibirla sin el detalle secundario, o el `maxLength: 20` es un error del
+> contrato?
+
+Y sigue en pie lo que señaló Santi: si el banco crea la orden en Corbeta con esta dirección, hoy Corbeta
+la recibe **completa** — cualquier recorte es un cambio de comportamiento para el aliado, no sólo para
+nosotros.
