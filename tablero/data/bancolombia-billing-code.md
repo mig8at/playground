@@ -499,7 +499,18 @@ Esto convierte el pendiente de credenciales: no es «preguntar si nos sirven», 
 certificado»**. Y explica el `SA400 Header host inválido` que está abierto en `enableOffers`: es la misma
 credencial y el mismo certificado.
 
-⚠ Lo que se comprobó es que **está vencido**, no que el banco lo rechace — nunca se llamó a la API real.
-Pero asumir que un certificado vencido va a pasar no es una apuesta razonable: hay que renovarlo antes de
-cualquier prueba contra el banco, y **ninguna integración de Bancolombia que use mTLS puede estar
-funcionando hoy**.
+**Y el dato que más dice: el certificado es AUTOFIRMADO y dura 30 días.** `issuer CN` = `subject CN` =
+`Creditop BNPL`, vigencia 2025-05-29 → 2025-06-28. Un autofirmado de un mes no parece provisto por el
+banco: parece generado para una prueba.
+
+⚠ **DOS CORRECCIONES a lo que se afirmó primero, que era demasiado fuerte:**
+
+1. **No está establecido que esto explique el `SA400 «Header host inválido»`.** Ese error nombra el
+   *header Host*, no el certificado. Puede ser otra cosa; hay que verificarlo, no darlo por hecho.
+2. **No se puede afirmar que «ninguna integración con certificado esté funcionando hoy».** Justamente
+   porque el certificado es autofirmado, es posible que el gateway del banco **no lo valide** — si lo
+   validara, no habría funcionado nunca. Lo único comprobado es que **está vencido**.
+
+Lo que sí se sostiene: antes de una prueba real hay que aclarar con el banco **qué certificado esperan**
+y renovarlo. Y la respuesta de la API no se puede obtener desde acá — el host real no está en el repo
+(solo placeholders y el mock), vive en la config del ambiente desplegado.
