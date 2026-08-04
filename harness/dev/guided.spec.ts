@@ -9,6 +9,9 @@ import { synthFill, requestEstado11 } from '../pkg/inject';
 import { closeCreditopX, resolveRequestStatus } from '../pkg/close';
 import { one, exec } from '../pkg/db';
 import * as traza from '../pkg/trace';
+// Importado con nombre propio y no como `* as loki` para que en el cuerpo se lea qué hace: `traza` dicta
+// el veredicto, esto solo lo explica. Ver la sección de forense en CLAUDE.md.
+import { forenseAlCerrar as lokiForense } from '../pkg/loki';
 import { urlCheckout, seguirCheckout } from '../pkg/checkout-b64';
 import { qrEntryUrl, corbetaBranch, sucursalUsable } from '../pkg/qr';
 import { autorrellenarQr } from '../pkg/qr-steps';   // fillQrRegister/fillQrOtp los usan los specs de channel/, no el guiado: acá el harness rellena y el usuario clickea
@@ -1313,6 +1316,12 @@ test('guided (semiautomático)', async ({ browser }) => {
     // El veredicto vive en pkg/trace.ts y lo comparte el camino RÁPIDO (dev/sweep.ts): "pasó" significa
     // exactamente lo mismo en los dos. Acá solo traducimos ese veredicto al lenguaje de Playwright.
     const v = await traza.veredicto(uReqID, RESULT);
+
+    // ANTES de los expect, no después: `expect` LANZA, así que un forense puesto abajo no correría nunca
+    // justo en los fallos que vino a explicar. Acá el bloque se imprime primero y el expect falla después,
+    // así el porqué queda arriba del mensaje de error. No toca el veredicto y no consulta si cerró bien.
+    await lokiForense(uReqID, v);
+
     if (v.existe) {
         expect(v.malo, `la solicitud ${uReqID} terminó en estado ${v.st} «${v.estado}» ` +
             `(esperado ${traza.ESTADO_ESPERADO[RESULT] ?? 11} para result=${RESULT}). El navegador puede haber ` +

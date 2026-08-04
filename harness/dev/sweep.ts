@@ -40,6 +40,9 @@ const { synthFill } = await import('../pkg/inject.ts');
 // los dos es lo que hace informativa una divergencia: mismas aserciones + distinto transporte ⇒ la
 // diferencia ES el frontend.
 const traza = await import('../pkg/trace.ts');
+// El forense de logs es un módulo APARTE del de aserciones y así debe quedar: `traza` decide, `loki`
+// explica. Mezclarlos sería el primer paso para que una ausencia de log empiece a fallar corridas.
+const loki = await import('../pkg/loki.ts');
 
 const flowsRaw = JSON.parse(readFileSync(new URL('../.flows.json', import.meta.url), 'utf8'));
 // El backend contra el que corre esta prueba, POR TARGET (misma resolución que usa el resto del harness:
@@ -235,6 +238,10 @@ async function closeRt2(slug: string, lenderId: number, amount: number): Promise
     // y reportar éxito. Ahora el desenlace decide el exit code, que es lo que lo vuelve usable en cadena.
     if (!v.existe || v.malo || v.miente.length) process.exitCode = 1;
     else if (!v.ok) process.exitCode = 2;   // a mitad de flujo: ni éxito ni desastre
+
+    // El POR QUÉ, solo cuando hizo falta. Va DESPUÉS del exit code a propósito: el forense no lo toca —
+    // la BD ya dictó el veredicto y esto solo lo explica. Si cerró bien, ni consulta.
+    await loki.forenseAlCerrar(ur, v);
 }
 
 // ───────────────────────────── abaco (renting) ─────────────────────────────

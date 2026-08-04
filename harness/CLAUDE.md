@@ -40,6 +40,7 @@ que ya costaron tiempo** — y el mapa mínimo para no perderse.
 | `dev/caminar-qr.ts` | ¿qué pantallas existen de verdad y en qué orden? (clickea solo) |
 | `dev/contrato-bancolombia.ts` | ¿el mock cumple los esquemas zod del front? (`npm run contrato:bancolombia`) |
 | `dev/experian-check.ts` · `experian-api.ts` | ¿esta solicitud omitió el buró, y se puede *afirmar*? |
+| `dev/loki-trace.ts` | ¿POR QUÉ terminó así? forense en los logs (`make harness-loki UREQ=…`) |
 
 ## Cuándo cargar una skill
 
@@ -94,6 +95,24 @@ que distingue "ventana cerrada" y **tira** (`dev/guided.spec.ts:538-545`); el re
   compuerta de frecuencia cortó antes · caché de 1 mes), y hay que descartar dos para creerle a la
   tercera. Mismo contrato que el rápido: **exit code = veredicto** (`0` probada · `1` sí se consultó ·
   `2` no concluyente). Detalle en F-60.
+
+- **Forense de logs — `dev/loki-trace.ts` (`pkg/loki.ts`).** Después de una corrida: ¿por qué terminó
+  así? La BD dice el desenlace, los logs dicen la causa — una regla que excluyó un lender **no mueve
+  ningún estado**, así que es invisible para la traza contrastada. Colapsa la solicitud a un resumen
+  (fallas deduplicadas con `×N`, una fila por entidad evaluada con su regla y veredicto, el recorrido del
+  backend, y los silencios entre peticiones) y vuelca todo a `.runs/forense-<ureq>/`.
+  **Se dispara solo** al cerrar los dos runners (`forenseAlCerrar`), y **solo si el veredicto salió mal o
+  a mitad**: si cerró como se pedía no consulta nada (0 ms). En `guided.spec.ts` va **antes** de los
+  `expect` a propósito — `expect` lanza, así que puesto después no correría nunca justo en los fallos que
+  vino a explicar. Espera `E2E_LOKI_SETTLE_MS` antes de preguntar (el batch de `LokiHandler` flushea al
+  morir el proceso) y se traga cualquier error: un forense que tumba la corrida que venía a explicar es
+  peor que no tenerlo.
+  ⚠ **NO es una fuente de aserción y no debe entrar en `veredicto()`**: la ausencia de una línea tiene
+  cuatro causas indistinguibles (no se logueó · el level la filtró · el batch no hizo flush · lag de
+  ingesta). Su exit code dice si se pudo *mirar*, no si el negocio pasó — nunca devuelve 1.
+  ⚠ Solo ve **legacy-backend**: el `trace_id` no se propaga entre servicios (los Go no lo emiten), y solo
+  encuentra traces que traigan el uReq en su `context` (~8% de las líneas ancla el resto). Lo declara al
+  imprimir; leé ese bloque antes de concluir de una ausencia.
 
 **No metas el modo rápido en el panel.** Ya se intentó y se revirtió: el panel existe para probar el
 FRONTEND a mano; el rápido es una herramienta de análisis por consola. Mezclarlos confunde para qué

@@ -42,6 +42,20 @@ const chequeos: Chequeo[] = checks.map((c) => ({
     local: TARGET !== 'local' && esLocal(c.valor),
 }));
 
+// El forense de Loki apagado NO es una incoherencia: en `local` es lo correcto (el backend local corre
+// con GRAFANA_LOKI_ENABLED=false y no empuja nada). Lo que sí hay que decir es cuándo está ENCENDIDO e
+// incompleto: ahí la corrida termina y el bloque forense sale vacío, que se lee como "no hubo errores".
+function lokiEstado(): string {
+    if (env('E2E_LOKI_ENABLED', 'false') !== 'true') {
+        return TARGET === 'local'
+            ? 'apagado (correcto en local: el backend no empuja a Loki)'
+            : 'apagado (falta el acceso al stack de este target)';
+    }
+    const faltan = (['E2E_LOKI_URL', 'E2E_LOKI_USER', 'E2E_LOKI_TOKEN'] as const).filter((k) => !env(k));
+    if (faltan.length) return `⚠ ENCENDIDO pero incompleto: falta ${faltan.join(', ')} (el forense saldría vacío)`;
+    return `${env('E2E_LOKI_URL')} · user ${env('E2E_LOKI_USER')}`;
+}
+
 // Informativos: no son incoherencias, pero decidir a ciegas contra data compartida es peor que saberlo.
 const informativo = [
     { clave: 'front (E2E_BASE_URL)', valor: env('E2E_BASE_URL', 'http://localhost:5174') + (TARGET !== 'local' && esLocal(env('E2E_BASE_URL', 'http://localhost:5174')) ? '  (wizard local contra backend remoto: es lo esperado)' : '') },
@@ -50,6 +64,7 @@ const informativo = [
     { clave: 'sub del asesor', valor: env('E2E_ASESOR_SUB') || '(de .flows.json)' },
     { clave: 'APP_KEY', valor: env('APP_KEY') ? 'presente' : '⚠ AUSENTE (la inyección de buró escribiría un blob ilegible)' },
     { clave: 'escrituras', valor: TARGET === 'local' ? 'base local, sin riesgo' : 'DATA COMPARTIDA con el equipo' },
+    { clave: 'forense Loki', valor: lokiEstado() },
 ];
 
 const malos = chequeos.filter((c) => c.local);

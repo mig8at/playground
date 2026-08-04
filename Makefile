@@ -115,6 +115,16 @@ harness-mocks: ## @har levanta los mocks del canal QR (Bancolombia :8104 + Corbe
 harness-check: ## @har typecheck del harness
 	@cd harness && npm run --silent typecheck
 
+harness-loki: ## @har ¿por qué terminó así esta solicitud? forense en los logs. UREQ=519245 [SINCE=12h]
+	@cd harness && node dev/loki-trace.ts $(UREQ) $(if $(SINCE),--since $(SINCE))
+
+# ── SONDA ────────────────────────────────────────────────────────────────────────────────────────
+# Probar que un servicio externo del que dependemos responde de verdad, y no leer una promesa. Hoy:
+# los logs de producción en Loki. `sonda-loki` es idempotente y no escribe nada: solo GET.
+.PHONY: sonda-loki
+sonda-loki: ## @har ¿puedo leer los logs en Loki? (TARGET=prod|dev QUERY='{...}' SINCE=1h)
+	@cd sonda && go run . $(if $(TARGET),-target $(TARGET)) $(if $(QUERY),-query '$(QUERY)') $(if $(SINCE),-since $(SINCE))
+
 # ── EXPLORACIONES ────────────────────────────────────────────────────────────────────────────────
 # Están acá para poder abrirlas, NO porque sean fuente. No se citan para decidir (ver CLAUDE.md).
 .PHONY: flow engine dict domain
