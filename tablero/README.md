@@ -46,7 +46,7 @@ npm run dev
 Otros scripts (verificados en `package.json`):
 
 ```bash
-npm run server:build   # compila server/bin/{web,slack-mcp,jira-mcp}
+npm run server:build   # compila server/bin/{web,slack-mcp,jira-mcp,pulso}
 npm run server:jira    # corre jira-mcp por stdio (para probar suelto)
 npm run server:slack   # corre slack-mcp por stdio
 npm run build          # vite build → dist/
@@ -69,9 +69,11 @@ tools/
     ├── cmd/slack-mcp/         ← main.go (wiring) + tools.go (3 tools)
     ├── cmd/issue-update/      ← one-off: edita summary/descripción de un issue
     ├── cmd/issue-transition/  ← one-off: mueve un issue de estado (transición)
+    ├── cmd/pulso/             ← el agente: cuándo toqué los repos de la compañía (ver "El pulso")
     └── internal/
         ├── atlassian/  client.go (Basic auth) · jira.go (API v3) · agile.go (sprints) · activity.go (changelog)
         ├── slack/      client.go · auth.go · conversations.go · messages.go · users.go (+ un test)
+        ├── pulso/      pulso.go (las 3 señales de git) · store.go (jsonl + agregación por hora)
         └── env/env.go  ← carga .env sin pisar variables ya exportadas
 ```
 
@@ -264,6 +266,7 @@ vivir dentro de él. `TABLERO_DATA` mueve la carpeta.
 data/
   <tarea>.md                 UNA TAREA = UN ARCHIVO (ver abajo)       → versionado en git
   entries/2026-07.jsonl      la bitácora de tiempo, un archivo por mes → FUERA de git (dato personal)
+  pulse/2026-08.jsonl        el pulso: cuándo toqué los repos          → FUERA de git (dato personal)
   settings.json              los flags del tablero                    → versionado
   cache/jira.json            snapshot de Jira, descartable            → fuera de git
   tareas-locales.json        anotaciones de tareas, sólo si hay alguna
@@ -349,6 +352,89 @@ jq -s 'map(select(.deletedAt|not)
 
 Endpoints: `GET/POST /api/entries`, `DELETE /api/entries/{id}`, `GET /api/guard`.
 
+## El pulso (`pulse/`): cuánto trabajo hago de verdad
+
+La bitácora contesta **en qué** trabajé y la escribe alguien. El pulso contesta **cuándo estuve tocando
+código** y no depende de nadie: lo anota un agente cada 5 minutos, corra o no el tablero. Son la misma
+grilla de «Mi jornada» con dos fuentes, y el selector del encabezado cambia cuál se pinta.
+
+```bash
+make pulso                # mi jornada en la terminal (DAYS=7 por defecto)
+make pulso-install        # siembra el pasado y deja el agente corriendo solo
+make pulso-status         # ¿está vivo? último tick y actividad de hoy
+make pulso-uninstall      # lo saca (lo ya registrado se queda)
+```
+
+### La unidad es el TRAMO DE 5 MINUTOS, no "los minutos trabajados"
+
+Estimar minutos desde git es mentira prolija: un commit a las 18:00 no dice cuándo empezaste. Un tick que
+sólo contesta *¿hubo cambios, sí o no?* no se puede falsear. Una hora tiene **12 tramos**, la celda se
+llena con los que tuvieron cambios, y el total del día es tramos × 5′ — eso sí es una medición.
+
+### Tres señales, y ninguna sobra
+
+| señal | qué mira | qué prueba |
+|---|---|---|
+| `edit` | archivo sucio (según git) con `mtime` en la ventana | estabas editando **en ese momento** |
+| `commit` | commit tuyo con **fecha de commit** en la ventana | cerraste algo |
+| `reflog` | checkout, rebase, stash, pull, amend | estabas operando el repo |
+
+`commit` sola deja huecos donde sí trabajaste (los commits se agrupan). `reflog` es lo **único** que
+registra trabajo que no deja commit —hoy `legacy-backend` tiene 6 stashes—. Y `edit` es lo único que ve el
+trabajo en curso: **el `mtime` se pierde al commitear**, así que si nadie lo muestrea esas horas no existen
+para nadie. De ahí que esto tenga que ser un agente y no algo que corra al abrir el tablero.
+
+Se usa la fecha de **commit**, no la de autoría: un rebase o un amend reescriben la primera, y ese momento
+—cuando la reescribiste— es cuando estabas trabajando.
+
+### Cada señal lleva su propio instante
+
+No el del tick que la encontró. Por eso un tick corrido después de un hueco (Mac dormido, agente detenido,
+fin de semana) **reparte lo que encuentra en las horas en que de verdad pasó** en vez de amontonarlo en el
+momento en que se despertó. Y por eso `pulso seed` puede llenar el mapa hacia atrás: commits y reflog ya
+viven en git con su fecha.
+
+> ⚠ Un día **sembrado** es un **piso**, no una medición: un commit marca el instante, no el rato que costó.
+> La grilla lo distingue — sin muestreo, la celda va rayada («sin registro»), no lisa («sin cambios»).
+
+### Tres estados, no dos
+
+Es lo que el pulso puede hacer y la bitácora no: además de *hubo cambios* / *no hubo*, sabe si el agente
+**estaba mirando**. Un hueco porque el Mac estaba apagado no es un hueco de trabajo, y pintarlos igual
+convertiría el mapa en una acusación falsa.
+
+### Detalles que cuestan tiempo si no se saben
+
+- **Los minutos por repo NO suman al total.** Dos repos pueden caer en el mismo tramo de 5′; el total de la
+  celda es la **unión**. Por eso el tooltip lista repos sin minutos, y el desglose del reporte lo avisa.
+- **Sólo cuentan MIS commits**, filtrados por autor: lo que baja de otras ramas con un `pull` no es mi
+  jornada. Son **tres** identidades (`PULSO_EMAILS`) porque los repos no están configurados igual —
+  `legacy-backend` commitea como `mig-creditop@users.noreply.github.com`.
+- **El repo se nombra por su ruta relativa** (`microservices/pdf-mapper-service`), no por el último
+  segmento: `onboarding-forms-service` existe suelto **y** dentro de `microservices/`, y con el nombre
+  corto las dos jornadas se sumarían en una.
+- **`git` se invoca con `--no-optional-locks`**: corre en background y no puede quedarse con el lock del
+  index justo cuando estás haciendo un commit a mano.
+- **El agente es un LaunchAgent, no un cron**: arranca con la sesión y corre cada 300 s. Si el Mac está
+  dormido no corre, y está bien — dormido no estabas trabajando. Log en
+  `~/Library/Logs/tablero-pulso.log`.
+- **El `plist` lleva `PATH` explícito**: launchd no hereda tu shell, y sin eso `git` puede no existir para
+  el agente — el pulso "no haría nada" en silencio, que es el peor modo de fallar.
+
+Endpoint: `GET /api/pulse?days=20` → una celda por (día, hora) con `slots`, `covered`, `commits`, `ins`,
+`del` y el desglose por repo. El server **no** genera el pulso, sólo agrega el `jsonl` y lo sirve.
+
+Es JSONL, así que también se analiza con `jq`:
+
+```bash
+# ¿en qué repos se me va la semana? (tramos, no commits)
+jq -s '[.[].signals[]?] | group_by(.repo)[]
+       | {repo: .[0].repo, señales: length}' data/pulse/*.jsonl
+
+# ¿qué ramas toqué y cuándo?
+jq -r '.signals[]? | select(.why=="commit") | "\(.at[0:16])  \(.repo)  \(.branch)"' data/pulse/*.jsonl
+```
+
 ## Configuración (`server/.env`)
 
 | Variable | Para qué | Default |
@@ -363,6 +449,14 @@ Endpoints: `GET/POST /api/entries`, `DELETE /api/entries/{id}`, `GET /api/guard`
 | `QA_SLACK_EMAIL` | a quién le llega el DM al pasar a pruebas | `duncan.estrada@creditop.com` |
 | `JIRA_TESTING_STATUS` | **subcadena** del estado "listo para probar" | `pruebas` (matchea `🧪 En pruebas`) |
 | `WEB_PORT` | puerto del WS | `8787` |
+| `TABLERO_DATA` | dónde vive `data/` | `../data` (relativo al cwd del server) |
+| `PULSO_ROOT` | dónde viven los repos que mira el pulso | `~/Desktop/CREDITOP/github` |
+| `PULSO_EMAILS` | mis identidades de commit, separadas por coma | las 3 de Miguel (ver `internal/pulso`) |
+
+Las tres últimas también salen de `server/.env` (`pulso` lo carga igual que el server: `LoadDefaults` lo
+busca junto al binario y en su carpeta padre, así que lo encuentra aun corriendo con `cwd=/`). Además,
+`pulso install` congela sus valores en el `plist` — y **eso gana** sobre el archivo, porque el entorno
+tiene prioridad. Si cambian, reinstalá: `make pulso-install`.
 
 API token de Atlassian: <https://id.atlassian.com/manage-profile/security/api-tokens>.
 Slack app y scopes: <https://api.slack.com/apps> → OAuth & Permissions → Install to Workspace.

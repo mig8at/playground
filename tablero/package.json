@@ -9,7 +9,7 @@
     "dev:web": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "server:build": "cd server && go build -o bin/web ./cmd/web && go build -o bin/slack-mcp ./cmd/slack-mcp && go build -o bin/jira-mcp ./cmd/jira-mcp",
+    "server:build": "cd server && go build -o bin/web ./cmd/web && go build -o bin/slack-mcp ./cmd/slack-mcp && go build -o bin/jira-mcp ./cmd/jira-mcp && go build -o bin/pulso ./cmd/pulso",
     "server:jira": "cd server && go run ./cmd/jira-mcp",
     "server:slack": "cd server && go run ./cmd/slack-mcp"
   },

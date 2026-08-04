@@ -18,6 +18,11 @@ server/data/
 data/entries/
 data/cache/
 
+# El pulso: cuándo toqué los repos de la compañía, en tramos de 5'. Mismo criterio que la bitácora
+# (dato personal), más una razón propia: son ~288 líneas por día, apendeadas por un agente de fondo.
+# Commitearlo sería un diff diario que nadie lee y que además cuenta la jornada de una sola persona.
+data/pulse/
+
 # Secretos: NUNCA commitear (.env en cualquier carpeta)
 .env
 .env.local

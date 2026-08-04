@@ -53,6 +53,26 @@ tablero: ## @dia abre el tablero: las tareas a realizar (:5191)
 panel: ## @dia abre el panel del harness para probar flujos (:5195)
 	@cd harness && npm run dev
 
+# ── PULSO ────────────────────────────────────────────────────────────────────────────────────────
+# Cuándo toqué los repos de la compañía, en tramos de 5'. Alimenta «Mi jornada» del tablero y se
+# registra SOLO: es un LaunchAgent, no algo que haya que arrancar cada día.
+#
+# `pulso` y no `tablero-pulso` por dos razones: es un nombre propio más (como `panel`, que tampoco es
+# una carpeta), y los nombres de 23 caracteres desalinean la ayuda de `make`.
+.PHONY: pulso pulso-install pulso-status pulso-uninstall
+pulso: ## @dia mi jornada REAL: cuándo toqué los repos de la compañía, en tramos de 5'. DAYS=7
+	@cd tablero && { test -x server/bin/pulso || npm run --silent server:build; } \
+	  && server/bin/pulso report -days $(or $(DAYS),7)
+
+pulso-install: ## @dia deja el pulso registrando solo (cada 5 min, arranca con la sesión) + siembra el pasado
+	@cd tablero && npm run --silent server:build && server/bin/pulso seed && server/bin/pulso install
+
+pulso-status: ## @dia ¿el pulso está vivo? último tick y actividad de hoy
+	@cd tablero && server/bin/pulso status
+
+pulso-uninstall: ## @dia saca el agente del pulso (lo ya registrado se queda)
+	@cd tablero && server/bin/pulso uninstall
+
 # ── CONTEXTO ─────────────────────────────────────────────────────────────────────────────────────
 .PHONY: context-align context-diff context-refs context-seal context-check context-map
 context-align: ## @ctx qué nodos quedaron viejos + escribe alineacion.json (corrélo DESPUÉS DE CADA MERGE)

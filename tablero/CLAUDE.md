@@ -20,6 +20,10 @@ Qué es y cómo se corre: `README.md`. Acá solo las reglas al trabajar con las 
   conectores MCP (`cmd/jira-mcp`, stdio) — el browser no puede hablar con ninguno de los dos.
   Tareas nuevas van al **sprint activo del board 384**, no al backlog. Nada se publica sin que
   Miguel lo vea antes.
-- `data/entries/*.jsonl` (bitácora de tiempo) y `data/cache/` están **fuera de git** a propósito
-  (dato personal / snapshot descartable); los `.md` de tareas y `settings.json` **sí** se
-  versionan. No lo cambies.
+- `data/entries/*.jsonl` (bitácora de tiempo), `data/pulse/*.jsonl` (el pulso) y `data/cache/` están
+  **fuera de git** a propósito (dato personal / snapshot descartable); los `.md` de tareas y
+  `settings.json` **sí** se versionan. No lo cambies.
+- **El pulso NO se escribe a mano ni desde el tablero.** Lo anota `server/cmd/pulso` (un LaunchAgent,
+  cada 5 min) leyendo git: es la fuente objetiva de *cuándo toqué código*, y editarla la volvería otra
+  bitácora. Se lee con `make pulso` o `GET /api/pulse`. El porqué del diseño: `README.md` → «El pulso».
+  Si vas a razonar sobre cuánto se trabajó, mirá el pulso; la bitácora dice **en qué**, no **cuándo**.

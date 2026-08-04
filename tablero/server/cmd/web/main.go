@@ -23,6 +23,7 @@ import (
 
 	"creditop/tablero/server/internal/atlassian"
 	"creditop/tablero/server/internal/env"
+	"creditop/tablero/server/internal/pulso"
 	"creditop/tablero/server/internal/slack"
 	"creditop/tablero/server/internal/store"
 )
@@ -213,7 +214,8 @@ func main() {
 	// acá que una UI que parece guardar y pierde todo). Ahora son ARCHIVOS y viven FUERA de server/: si
 	// el server algún día se reduce a un proxy de Jira/Slack, los datos no pueden vivir dentro de él.
 	// El default es relativo al cwd (npm corre el server desde server/, o sea ../data); TABLERO_DATA lo pisa.
-	st, err := store.Open(envDefault("TABLERO_DATA", filepath.Join("..", "data")))
+	dataDir := envDefault("TABLERO_DATA", filepath.Join("..", "data"))
+	st, err := store.Open(dataDir)
 	if err != nil {
 		log.Fatalf("no se pudo abrir el directorio de datos: %v", err)
 	}
@@ -877,6 +879,37 @@ func main() {
 			return
 		}
 		json.NewEncoder(w).Encode(map[string]any{"ok": true})
+	})
+
+	// El PULSO: cuándo toqué los repos de la compañía, en tramos de 5 minutos. Lo escribe el agente
+	// (`cmd/pulso`, un LaunchAgent cada 5'), acá sólo se AGREGA y se sirve — el server no lo genera,
+	// porque tiene que registrarse aunque el tablero esté cerrado, que es cuando más se programa.
+	//
+	//   /api/pulse?days=20 → una celda por (día, hora), con slots, cobertura, commits y desglose por repo
+	mux.HandleFunc("/api/pulse", func(w http.ResponseWriter, r *http.Request) {
+		cors(w)
+		if r.Method == http.MethodOptions {
+			return
+		}
+		days := atoiDefault(r.URL.Query().Get("days"), 20)
+		ticks, err := pulso.Read(dataDir, days)
+		if err != nil {
+			json.NewEncoder(w).Encode(map[string]any{"error": err.Error()})
+			return
+		}
+		// `installed` distingue "no trabajaste" de "nadie estaba mirando": sin un solo tick, la grilla
+		// vacía no significa nada y la UI tiene que decirlo en vez de dejarte sacar conclusiones.
+		ult, hay := pulso.LastTick(dataDir)
+		res := map[string]any{
+			"hours":        pulso.Aggregate(ticks),
+			"slotsPerHour": pulso.SlotsPerHour,
+			"slotMinutes":  int(pulso.Slot / time.Minute),
+			"installed":    hay,
+		}
+		if hay {
+			res["lastTick"] = ult.Format(time.RFC3339)
+		}
+		json.NewEncoder(w).Encode(res)
 	})
 
 	log.Printf("server on · ws://localhost:%s/ws · integraciones: %s", port, integrations)

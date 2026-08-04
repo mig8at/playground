@@ -13,6 +13,7 @@ recordar en qué carpeta vive cada script.
 |---|---|
 | `make status` | **¿está el contexto al día?** Resumen de deriva + citas. No escribe nada |
 | `make context` · `make tablero` · `make panel` | abre cada pieza (:5193 · :5191 · :5195) |
+| `make pulso` | **¿cuánto trabajé?** Cuándo toqué los repos de la compañía, en tramos de 5′ |
 | `make context-align` | qué nodos quedaron viejos — **después de cada merge** |
 | `make context-refs [NODE=x]` | ¿las citas `archivo:línea` apuntan a lo que dicen? |
 | `make context-seal NODE=x` | "este nodo lo verifiqué hoy" — **solo si de verdad lo revisaste** |

@@ -283,12 +283,11 @@ const workedMin = (iso, h) => cellAt(iso, h)?.total || 0;
 // los 5 tramos siguen siendo fracción de la hora (0..60'): "lleno" = 60' de foco en una sola tarea
 const level = (min) => !min ? 0 : min < 15 ? 1 : min < 35 ? 2 : min < 55 ? 3 : 4;
 const totalOf = (iso) => HOURS.reduce((n, h) => n + workedMin(iso, h), 0); // footer: total TRABAJADO del día
-const rangeTotal = computed(() => dayCols.value.reduce((n, d) => n + totalOf(d.iso), 0));
 const hourLabel = (h) => h === 12 ? '12p' : h === 18 ? '6p' : h < 12 ? `${h}a` : `${h - 12}p`;
 const hoursShort = (min) => { if (!min) return ''; const h = min / 60; return (Number.isInteger(h) ? h : h.toFixed(1)) + 'h'; };
 
 // tooltip: el desglose que explica el número de foco (tarea dominante + lo que lo diluyó)
-const cellTitle = (d, h) => {
+const logTitle = (d, h) => {
   const head = `${d.dow} ${d.num} · ${hourLabel(h)}–${hourLabel(h + 1)}`;
   const c = cellAt(d.iso, h);
   if (!c || !c.total) return `${head} — ${LUNCH.has(h) ? 'almuerzo' : 'sin registro'}`;
@@ -297,6 +296,89 @@ const cellTitle = (d, h) => {
   if (other > 0.5) parts.push(`otros ${Math.round(other)}m`);
   return `${head} · foco ${Math.round(focusMin(d.iso, h))}/60 — ${parts.join(' · ')}`;
 };
+
+// ── el pulso: cuándo toqué los repos de la compañía ─────────────────────────────────────────────
+// La MISMA grilla, otra fuente. La bitácora contesta "en qué trabajé" y depende de que alguien la
+// escriba; el pulso contesta "cuándo estuve tocando código" y no depende de nadie: lo anota un agente
+// (`server/cmd/pulso`) cada 5 minutos, corra o no el tablero.
+//
+// La unidad es el TRAMO DE 5', no los minutos: un commit a las 18:00 no dice cuándo empezaste, así que
+// estimar minutos desde git sería inventar. Una hora tiene 12 tramos y la celda se llena con los que
+// tuvieron cambios — el total del día es tramos × 5', que sí es una medición.
+const SOURCES = [
+  { id: 'code', label: 'código' },
+  { id: 'log', label: 'bitácora' },
+];
+const source = ref('code');   // el pulso arranca elegido: es el que se llena solo
+const pulse = ref({ hours: [], installed: false, lastTick: null, slotsPerHour: 12, slotMinutes: 5 });
+
+async function loadPulse() {
+  try {
+    const j = await (await fetch(`${SERVER}/api/pulse?days=${DAYS}`)).json();
+    if (!j.error) pulse.value = j;
+  } catch { /* server caído: `pulseOff` ya avisa que no hay pulso */ }
+}
+
+const pulseCells = computed(() => {
+  const m = {};
+  for (const c of pulse.value.hours || []) (m[c.day] ??= {})[c.hour] = c;
+  return m;
+});
+const codeAt = (iso, h) => pulseCells.value[iso]?.[h];
+
+// TRES estados, no dos, y esa es la diferencia con la bitácora: además de "hubo cambios" y "no hubo",
+// el pulso sabe si el agente estaba MIRANDO. Un hueco porque el Mac estaba apagado no es un hueco de
+// trabajo, y pintarlos igual convertiría el mapa en una acusación falsa.
+const codeClass = (iso, h) => {
+  const c = codeAt(iso, h);
+  if (!c || (!c.slots && !c.covered)) return 'n0';     // sin registro → rayado (como la bitácora sin datos)
+  if (!c.slots) return 'c0';                           // miró y no había nada → liso
+  return 'c' + (c.slots <= 2 ? 1 : c.slots <= 5 ? 2 : c.slots <= 9 ? 3 : 4);
+};
+const slotMin = computed(() => pulse.value.slotMinutes || 5);
+const codeMin = (iso, h) => (codeAt(iso, h)?.slots || 0) * slotMin.value;
+
+const codeTitle = (d, h) => {
+  const head = `${d.dow} ${d.num} · ${hourLabel(h)}–${hourLabel(h + 1)}`;
+  const c = codeAt(d.iso, h);
+  if (!c || (!c.slots && !c.covered)) return `${head} — sin registro: el equipo estaba apagado o el agente detenido`;
+  if (!c.slots) return `${head} — sin cambios`;
+  const extra = [];
+  if (c.commits) extra.push(`${c.commits} commit${c.commits === 1 ? '' : 's'}`);
+  if (c.ins || c.del) extra.push(`+${c.ins}/−${c.del}`);
+  // Los repos van SIN minutos a propósito: dos repos pueden caer en el mismo tramo, así que sus minutos
+  // no suman al total de la celda (que es la UNIÓN). Mostrarlos invitaría a una resta que no cierra.
+  const repos = (c.repos || []).map(r => {
+    const suyo = [];
+    if (r.commits) suyo.push(`${r.commits} commit${r.commits === 1 ? '' : 's'}`);
+    if (r.ins || r.del) suyo.push(`+${r.ins}/−${r.del}`);
+    return `  ${r.repo}${r.branch ? ` · ${r.branch}` : ''}${suyo.length ? ` — ${suyo.join(' ')}` : ''}`;
+  });
+  return [`${head} · ${c.slots}/${pulse.value.slotsPerHour} tramos con cambios${extra.length ? ` · ${extra.join(' · ')}` : ''}`, ...repos].join('\n');
+};
+
+// ── lo que la grilla lee, sea cual sea la fuente ────────────────────────────────────────────────
+const isCode = computed(() => source.value === 'code');
+const cellClass = (iso, h) => isCode.value ? codeClass(iso, h) : 'n' + level(focusMin(iso, h));
+const cellTitle = (d, h) => isCode.value ? codeTitle(d, h) : logTitle(d, h);
+
+// El total del día suma TODAS las horas, no sólo las visibles: un commit a las 7am o a las 8pm es
+// trabajo igual, y recortarlo al horario de oficina daría un número más bonito y más falso. Lo que quedó
+// fuera de la ventana se dice en el tooltip.
+const codeDayMin = (iso) => Object.values(pulseCells.value[iso] || {}).reduce((n, c) => n + c.slots * slotMin.value, 0);
+const codeOutsideMin = (iso) => Object.values(pulseCells.value[iso] || {})
+  .filter(c => c.hour < H_START || c.hour >= H_END)
+  .reduce((n, c) => n + c.slots * slotMin.value, 0);
+const dayMin = (iso) => isCode.value ? codeDayMin(iso) : totalOf(iso);
+const dayTitle = (iso) => {
+  const fuera = isCode.value ? codeOutsideMin(iso) : 0;
+  return minHhmm(dayMin(iso)) + (fuera ? ` · ${minHhmm(fuera)} fuera de ${hourLabel(H_START)}–${hourLabel(H_END)}` : '');
+};
+const rangeMin = computed(() => dayCols.value.reduce((n, d) => n + dayMin(d.iso), 0));
+
+// El aviso que evita la conclusión equivocada: una grilla vacía sin agente instalado no dice "no
+// trabajé", dice "nadie estaba anotando".
+const pulseOff = computed(() => isCode.value && !pulse.value.installed);
 
 // ── tramos de sprint sobre las 20 columnas ───────────────────────────────────────────────────────
 // La ventana de 20 días cruza sprints (y los huecos entre ellos). Para cada sprint que asoma en el
@@ -420,6 +502,7 @@ onMounted(async () => {
 
   await loadSettings();
   await loadEfforts();
+  await loadPulse();
 
   // Sin id: el server elige (activo, o el último cerrado, o el próximo). No lo re-derivamos acá para
   // no tener dos definiciones de "cuál es el sprint por defecto".
@@ -499,9 +582,19 @@ onMounted(async () => {
 
       <section class="card">
         <h2>Mi jornada
-          <span class="mut">· últimos 20 días{{ rangeTotal ? ` · ${minHhmm(rangeTotal)}` : '' }}</span>
+          <span class="mut">· últimos 20 días{{ rangeMin ? ` · ${minHhmm(rangeMin)}` : '' }}</span>
+          <!-- La misma grilla con dos fuentes: el pulso (automático, "cuándo toqué código") y la
+               bitácora (escrita, "en qué trabajé"). No se mezclan en un color porque no miden lo mismo. -->
+          <div class="tabs src">
+            <button v-for="s in SOURCES" :key="s.id" :class="{ act: source === s.id }"
+              @click="source = s.id">{{ s.label }}</button>
+          </div>
         </h2>
-        <p class="empty" v-if="!rangeTotal">Todavía no hay registros en los últimos 20 días. El color de
+        <p class="empty" v-if="pulseOff">El pulso todavía no está corriendo, así que esta grilla no dice
+          «no trabajé» — dice que nadie estaba anotando. Se instala una vez y arranca solo con la sesión:
+          <code>make pulso-install</code>.</p>
+        <p class="empty" v-else-if="!rangeMin && isCode">Sin cambios registrados en los últimos 20 días.</p>
+        <p class="empty" v-else-if="!rangeMin">Todavía no hay registros en los últimos 20 días. El color de
           cada hora mide el FOCO: se llena cuando la trabajaste entera en una sola tarea.</p>
         <div class="jm" :style="gridVars">
           <div class="jband">
@@ -513,14 +606,14 @@ onMounted(async () => {
             :class="{ lunch: LUNCH.has(h), gapTop: h === 12 || h === 14 }">
             <span class="jhl">{{ hourLabel(h) }}</span>
             <span v-for="(d, i) in dayCols" :key="d.iso" class="cel"
-              :class="['n' + level(focusMin(d.iso, h)), { weekend: d.weekend, spStart: startCols.has(i), spEnd: endCols.has(i) }]"
+              :class="[cellClass(d.iso, h), { weekend: d.weekend, spStart: startCols.has(i), spEnd: endCols.has(i) }]"
               :title="cellTitle(d, h)"></span>
           </div>
           <!-- las filas de totales y de fechas repiten los mismos márgenes: si no, se desalinean -->
           <div class="jrow jtot">
             <span class="jhl"></span>
             <span v-for="(d, i) in dayCols" :key="d.iso" class="cel num"
-              :class="{ spStart: startCols.has(i), spEnd: endCols.has(i) }" :title="minHhmm(totalOf(d.iso))">{{ hoursShort(totalOf(d.iso)) }}</span>
+              :class="{ spStart: startCols.has(i), spEnd: endCols.has(i) }" :title="dayTitle(d.iso)">{{ hoursShort(dayMin(d.iso)) }}</span>
           </div>
           <div class="jrow jaxis">
             <span class="jhl"></span>
@@ -528,7 +621,14 @@ onMounted(async () => {
               :class="{ weekend: d.weekend, spStart: startCols.has(i), spEnd: endCols.has(i) }">{{ d.num }}</span>
           </div>
         </div>
-        <div class="legend">
+        <div class="legend" v-if="isCode">
+          <span>0</span>
+          <i v-for="n in [0, 1, 2, 3, 4]" :key="n" :class="'c' + n"></i>
+          <span>{{ pulse.slotsPerHour }} tramos de {{ slotMin }}′</span>
+          <i class="n0"></i><span>sin registro</span>
+          <span class="note">se llena con los tramos en que hubo cambios en los repos de la compañía — no con lo que uno cree que trabajó</span>
+        </div>
+        <div class="legend" v-else>
           <span>disperso</span>
           <i v-for="n in [0, 1, 2, 3, 4]" :key="n" :class="'n' + n"></i>
           <span>enfocado</span>
@@ -774,7 +874,12 @@ h1 { font-size: 20px; margin: 0; letter-spacing: .2px }
 @media (max-width: 940px) { .cols { grid-template-columns: 1fr } }
 .card { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 18px; margin-bottom: 16px;
   box-shadow: 0 1px 2px #00000040, 0 6px 16px #0000001f }
-.card h2 { font-size: 12px; text-transform: uppercase; letter-spacing: .8px; color: var(--mut); margin: 0 0 14px; font-weight: 700 }
+.card h2 { font-size: 12px; text-transform: uppercase; letter-spacing: .8px; color: var(--mut); margin: 0 0 14px; font-weight: 700;
+  display: flex; align-items: center; gap: 6px }
+/* selector de fuente de la jornada: a la derecha del título, mismo control que el selector de sprints
+   (`.tabs`) pero más chico — es un cambio de lente, no una navegación. */
+.card h2 .src { margin-left: auto; text-transform: none; letter-spacing: 0 }
+.card h2 .src button { font-size: 11.5px; padding: 3px 9px }
 .card h2 .on { color: var(--acc); margin-left: 6px }
 .card h2 .mut { color: var(--mut); font-weight: 400; text-transform: none; letter-spacing: 0 }
 
@@ -896,6 +1001,12 @@ h1 { font-size: 20px; margin: 0; letter-spacing: .2px }
 .cel:hover { outline: 2px solid var(--acc); outline-offset: 1px }
 .n0 { background: repeating-linear-gradient(-45deg, #ffffff09 0 3px, transparent 3px 6px), var(--panel2) }
 .n1 { background: #a78bfa38 } .n2 { background: #a78bfa70 } .n3 { background: #a78bfaad } .n4 { background: #a78bfa }
+/* PULSO (fuente «código»): verde, y a propósito distinto del violeta de la bitácora. No miden lo mismo
+   —una es "cuándo toqué código", la otra "en qué trabajé"— y compartir escala invitaría a compararlas.
+   `c0` es LISO, no rayado: es "el agente miró y no había nada", que es un dato; el rayado (`n0`) queda
+   reservado para "no hubo registro". Esa distinción es la única que el pulso puede hacer y la bitácora no. */
+.c0 { background: var(--panel2) }
+.c1 { background: #4ade8033 } .c2 { background: #4ade8066 } .c3 { background: #4ade80a6 } .c4 { background: #4ade80 }
 /* frontera de sprint: un MARGEN, no una línea. El aire extra antes de la primera columna del sprint y
    después de la última separa los bloques sin sumarle tinta a la grilla. Va en las tres clases de fila
    (horas, totales, fechas) para que las columnas no se desalineen. */
