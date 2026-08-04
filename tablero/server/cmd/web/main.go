@@ -54,6 +54,105 @@ var forbiddenRe = func() []*regexp.Regexp {
 // issueKeyRe valida una clave de issue antes de interpolarla en un JQL o en una URL de Jira.
 var issueKeyRe = regexp.MustCompile(`^[A-Z][A-Z0-9]+-\d+$`)
 
+// ── traer de Jira ───────────────────────────────────────────────────────────────────────────────
+// La JQL del cruce: por ASIGNACIÓN (no por sprint, que es la ventana angosta del resto del tablero) y
+// acotada al PROYECTO del tablero — el mismo `JIRA_PROJECT_KEY` donde crea las tareas, CORE.
+//
+// El proyecto acota a propósito: a mi nombre quedaron 42 tareas de LO, el tablero anterior que ya no se
+// usa, y ofrecerlas cada vez que uno abre el cruce es ruido permanente sobre trabajo que no va a volver.
+// Para mirar otro proyecto alguna vez está `?jql=` (por ejemplo `project = QC AND assignee =
+// currentUser()`), sin tener que tocar la configuración.
+//
+// `ORDER BY updated DESC` pone arriba lo que se movió hace poco, que es lo que uno reconoce.
+func jqlMias(project string, incluirTerminadas bool) string {
+	jql := fmt.Sprintf("assignee = currentUser() AND project = %q", project)
+	if !incluirTerminadas {
+		jql += " AND statusCategory != Done"
+	}
+	return jql + " ORDER BY updated DESC"
+}
+
+// palabrasRe parte un título en palabras, ignorando puntuación y comillas.
+var palabrasRe = regexp.MustCompile(`[^\p{L}\p{N}]+`)
+
+// parecido mide cuánto se parecen dos títulos: palabras compartidas sobre palabras totales (Jaccard),
+// entre 0 y 1.
+//
+// No es difuso ni inteligente, y no hace falta que lo sea: los casos que importan son las tareas que
+// este tablero redactó y publicó en Jira, donde el título viajó TAL CUAL y el parecido da ~1. Un
+// umbral (0.5 en el handler) alcanza para pescarlas y no molestar con coincidencias flojas — la
+// decisión de enlazar la toma Miguel, esto solo la propone.
+func parecido(a, b string) float64 {
+	tok := func(s string) map[string]bool {
+		out := map[string]bool{}
+		for _, p := range palabrasRe.Split(strings.ToLower(s), -1) {
+			// las palabras de 2 letras o menos son conectores (de, la, el, en): suman ruido
+			if len([]rune(p)) > 2 {
+				out[p] = true
+			}
+		}
+		return out
+	}
+	x, y := tok(a), tok(b)
+	if len(x) == 0 || len(y) == 0 {
+		return 0
+	}
+	comunes := 0
+	for p := range x {
+		if y[p] {
+			comunes++
+		}
+	}
+	return float64(comunes) / float64(len(x)+len(y)-comunes)
+}
+
+// comillas envuelve cada clave en comillas dobles para armar un `key in (...)` de JQL. Las claves ya
+// pasaron issueKeyRe, así que no hay nada que escapar.
+func comillas(keys []string) []string {
+	out := make([]string, len(keys))
+	for i, k := range keys {
+		out[i] = `"` + k + `"`
+	}
+	return out
+}
+
+// cuerpoImportado redacta el cuerpo de una tarea traída de Jira.
+//
+// El texto de Jira va en la parte PRIVADA (arriba), no bajo `## Tarea (publicable)`, por dos razones.
+// Una: ya está publicado — el borrador publicable existe para las tareas que NACEN acá. Dos: las
+// descripciones traen rutas de archivo y nombres de repo que el guard rechaza (CORE-159 trae una ruta
+// .php), así que ponerlo abajo haría que guardar una tarea importada desde la UI fallara por un texto
+// que nadie escribió acá — un muro sin culpable.
+func cuerpoImportado(d atlassian.IssueDetail, hoy string) string {
+	var b strings.Builder
+	fmt.Fprintf(&b, "# %s\n\n", d.Summary)
+
+	fmt.Fprintf(&b, "> Traída de Jira el %s · **%s** · `%s` · creada %s · actualizada %s\n",
+		hoy, d.Key, d.Status, d.Created, d.Updated)
+	if d.Reporter != "" {
+		fmt.Fprintf(&b, "> · la reporta %s\n", d.Reporter)
+	}
+	if len(d.Sprints) > 0 {
+		fmt.Fprintf(&b, "> · sprints: %s\n", strings.Join(d.Sprints, ", "))
+	}
+	b.WriteString(">\n")
+	b.WriteString("> Abajo está lo que hoy dice Jira, tal cual. **Lo que averigües va acá arriba**:\n")
+	b.WriteString("> decisiones, riesgos, preguntas abiertas. Si al mergear algo sigue siendo cierto del\n")
+	b.WriteString("> sistema, gradúa al nodo de contexto y esta tarea se archiva.\n\n")
+
+	b.WriteString("## Lo que dice Jira\n\n")
+	desc := strings.TrimSpace(d.Description)
+	if desc == "" {
+		b.WriteString("_El issue no tiene descripción en Jira._\n")
+		return b.String()
+	}
+	// Si el texto de Jira trajera la marca del guard, la frontera del archivo se movería y lo de
+	// abajo pasaría a ser publicable sin que nadie lo decidiera. Se desarma dejándola visible.
+	desc = strings.ReplaceAll(desc, store.SECCION, "## Tarea (según Jira)")
+	b.WriteString(desc + "\n")
+	return b.String()
+}
+
 // violations devuelve qué reglas rompe una nota (vacío = publicable).
 func violations(note string) []map[string]string {
 	var out []map[string]string
@@ -384,6 +483,193 @@ func main() {
 		}
 	})
 
+	// ── traer de Jira: las tareas a mi nombre que el registro local no tiene ────────────────────
+	//
+	// POR QUÉ EXISTE. El resto del tablero mira el SPRINT del board 384: lo que cae fuera de esa
+	// ventana —otro board, un sprint viejo, otro proyecto— no aparece en ninguna vista, así que no
+	// había dónde registrarlo ni forma de notar que faltaba. Estas dos rutas preguntan por
+	// ASIGNACIÓN, no por sprint, y son la única entrada que CREA una tarea local desde Jira.
+	//
+	//	GET  /api/jira-inbox[?jql=…][&all=1]  el CRUCE, no escribe nada. Cada issue a mi nombre con
+	//	                                      `linkedTo` (en qué archivo ya está) o `suggestion` (el
+	//	                                      archivo local que se le parece), para no registrar dos
+	//	                                      veces algo que ya está con otro nombre.
+	//	POST /api/jira-import                 registra: {"create":["CORE-30"],"link":{"CORE-317":12}}
+	//
+	// `all=1` incluye las cerradas: el historial también sirve, y nacen archivadas.
+	mux.HandleFunc("/api/jira-inbox", func(w http.ResponseWriter, r *http.Request) {
+		cors(w)
+		if a.jira == nil {
+			json.NewEncoder(w).Encode(map[string]any{"error": "Jira no está configurado (falta ATLASSIAN_*)"})
+			return
+		}
+		ctx, cancel := context.WithTimeout(r.Context(), 60*time.Second)
+		defer cancel()
+
+		jql := strings.TrimSpace(r.URL.Query().Get("jql"))
+		if jql == "" {
+			jql = jqlMias(a.jiraProject, r.URL.Query().Get("all") == "1")
+		}
+		issues, err := a.jira.SearchIssuesDetailed(ctx, jql)
+		if err != nil {
+			w.WriteHeader(http.StatusBadGateway)
+			json.NewEncoder(w).Encode(map[string]any{"error": err.Error()})
+			return
+		}
+
+		vinculadas := a.st.TareasVinculadas()
+		efforts := a.st.EffortsAll()
+		type ref struct {
+			ID    int64   `json:"id"`
+			File  string  `json:"file"`
+			Title string  `json:"title"`
+			Score float64 `json:"score,omitempty"`
+		}
+		// La lista devuelve SOLO lo que falta. Las que ya están registradas no son una fila con la que
+		// se pueda hacer algo —el vínculo ya existe— así que salen como número, no como renglón: la
+		// vista es una bandeja de pendientes, y mezclarlas obliga a leer 70 filas para encontrar las 3
+		// que importan.
+		salida := make([]map[string]any, 0, len(issues))
+		registradas := 0
+		for _, d := range issues {
+			if _, ok := vinculadas[d.Key]; ok {
+				registradas++
+				continue
+			}
+			fila := map[string]any{"issue": d}
+			// El candidato se busca contra los DOS títulos: el privado (mío) y el publicado en Jira.
+			// Los que importan son los segundos —los redactó este tablero y salieron tal cual—, y ahí
+			// el parecido es casi 1.
+			mejor := ref{}
+			for _, e := range efforts {
+				for _, t := range []string{e.JiraTitle, e.Title} {
+					if sc := parecido(d.Summary, t); sc > mejor.Score {
+						mejor = ref{ID: e.ID, File: e.File, Title: e.Title, Score: sc}
+					}
+				}
+			}
+			if mejor.Score >= 0.5 {
+				fila["suggestion"] = mejor
+			}
+			salida = append(salida, fila)
+		}
+
+		json.NewEncoder(w).Encode(map[string]any{
+			"jql": jql, "count": len(issues), "registered": registradas, "pending": len(salida),
+			"issues": salida, "efforts": efforts,
+			"site": strings.TrimRight(a.jiraSite, "/"),
+		})
+	})
+
+	mux.HandleFunc("/api/jira-import", func(w http.ResponseWriter, r *http.Request) {
+		cors(w)
+		switch r.Method {
+		case http.MethodOptions:
+			return
+		case http.MethodPost:
+		default:
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			return
+		}
+		if a.jira == nil {
+			json.NewEncoder(w).Encode(map[string]any{"error": "Jira no está configurado (falta ATLASSIAN_*)"})
+			return
+		}
+		var in struct {
+			Create []string         `json:"create"` // claves que nacen como tarea local nueva
+			Link   map[string]int64 `json:"link"`   // clave → id de la tarea local que ya la cubre
+			Nodes  string           `json:"nodes"`  // nodos de contexto para las creadas (opcional)
+		}
+		if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(map[string]any{"error": "JSON inválido"})
+			return
+		}
+
+		// Las claves se validan ANTES de tocar Jira: van interpoladas en un JQL.
+		claves := append([]string{}, in.Create...)
+		for k := range in.Link {
+			claves = append(claves, k)
+		}
+		for _, k := range claves {
+			if !issueKeyRe.MatchString(k) {
+				w.WriteHeader(http.StatusUnprocessableEntity)
+				json.NewEncoder(w).Encode(map[string]any{"error": "clave de issue inválida: " + k})
+				return
+			}
+		}
+		if len(claves) == 0 {
+			w.WriteHeader(http.StatusUnprocessableEntity)
+			json.NewEncoder(w).Encode(map[string]any{"error": "no viene ninguna clave"})
+			return
+		}
+
+		resultados := []map[string]any{}
+
+		// Enlazar no necesita a Jira: la clave ya la conocemos y el vínculo es local.
+		for k, id := range in.Link {
+			file, err := a.st.VincularTarea(k, id)
+			if err != nil {
+				resultados = append(resultados, map[string]any{"key": k, "action": "error", "error": err.Error()})
+				continue
+			}
+			log.Printf("jira-import: %s enlazado a %s", k, file)
+			resultados = append(resultados, map[string]any{"key": k, "action": "linked", "effortId": id, "file": file})
+		}
+
+		// Crear sí: el archivo nace con lo que dice Jira, así que hay que leerlo.
+		if len(in.Create) > 0 {
+			ctx, cancel := context.WithTimeout(r.Context(), 60*time.Second)
+			defer cancel()
+			jql := fmt.Sprintf("key in (%s)", strings.Join(comillas(in.Create), ", "))
+			issues, err := a.jira.SearchIssuesDetailed(ctx, jql)
+			if err != nil {
+				w.WriteHeader(http.StatusBadGateway)
+				json.NewEncoder(w).Encode(map[string]any{"error": err.Error(), "results": resultados})
+				return
+			}
+			hoy := time.Now().Format("2006-01-02")
+			for _, d := range issues {
+				e, creada, err := a.st.ImportarDeJira(store.ImportIssue{
+					Key: d.Key, Summary: d.Summary, Body: cuerpoImportado(d, hoy),
+					Closed: d.Category == "done", Nodes: in.Nodes,
+				})
+				if err != nil {
+					resultados = append(resultados, map[string]any{"key": d.Key, "action": "error", "error": err.Error()})
+					continue
+				}
+				accion := "created"
+				if !creada {
+					accion = "already" // ya estaba registrada: el POST es idempotente
+				}
+				file := ""
+				for _, ref := range a.st.EffortsAll() {
+					if ref.ID == e.ID {
+						file = ref.File
+					}
+				}
+				log.Printf("jira-import: %s %s → %s", d.Key, accion, file)
+				resultados = append(resultados, map[string]any{
+					"key": d.Key, "action": accion, "effortId": e.ID, "file": file,
+					"archived": d.Category == "done",
+				})
+			}
+			// Una clave que Jira no devolvió (borrada, o sin permiso) tiene que decirse: si no, el
+			// listado se recarga sin ella y parece que se importó.
+			vistas := map[string]bool{}
+			for _, d := range issues {
+				vistas[d.Key] = true
+			}
+			for _, k := range in.Create {
+				if !vistas[k] {
+					resultados = append(resultados, map[string]any{"key": k, "action": "error", "error": "Jira no devolvió este issue"})
+				}
+			}
+		}
+
+		json.NewEncoder(w).Encode(map[string]any{"results": resultados})
+	})
+
 	// ── handoff a QA: mover la tarea a pruebas y avisarle a quien valida ────────────────────────
 	// La ÚNICA escritura del tablero sobre el estado de una tarea (el resto de la vista es de
 	// lectura). Existe porque en la vida real los dos pasos son uno: cuando la tarea queda lista
@@ -606,6 +892,7 @@ type inbound struct {
 	To          string `json:"to"`          // destinatario (email) para un DM
 	Summary     string `json:"summary"`     // título de la tarea Jira
 	Description string `json:"description"` // descripción de la tarea Jira
+	EffortID    int64  `json:"effortId"`    // tarea local que publica: recibe la clave de vuelta
 }
 
 func (a *app) handleWS(w http.ResponseWriter, r *http.Request) {
@@ -640,7 +927,7 @@ func (a *app) handleWS(w http.ResponseWriter, r *http.Request) {
 		case "dm": // DM a alguien, como yo (user token)
 			a.sendDM(ctx, c, msg.To, msg.Text)
 		case "create_task": // crear tarea Jira + agregar al sprint activo
-			a.createTask(ctx, c, msg.Summary, msg.Description)
+			a.createTask(ctx, c, msg.Summary, msg.Description, msg.EffortID)
 		case "dashboard": // datos del sprint activo del usuario
 			a.dashboard(ctx, c)
 		case "activity": // heatmap de actividad por día (estilo GitHub)
@@ -741,7 +1028,9 @@ func (a *app) qaNoticeText(iss atlassian.Issue) string {
 }
 
 // createTask crea una tarea en Jira (asignada a mí) y la agrega al sprint activo.
-func (a *app) createTask(ctx context.Context, c *websocket.Conn, summary, description string) {
+// createTask crea el issue en Jira, lo mete al sprint activo y —si vino `effortId`— le devuelve la
+// clave al archivo de la tarea local que lo publicó.
+func (a *app) createTask(ctx context.Context, c *websocket.Conn, summary, description string, effortID int64) {
 	summary = strings.TrimSpace(summary)
 	if summary == "" {
 		send(ctx, c, map[string]any{"type": "task_created", "ok": false, "error": "falta el título de la tarea"})
@@ -778,11 +1067,26 @@ func (a *app) createTask(ctx context.Context, c *websocket.Conn, summary, descri
 		}
 	}
 
+	// La clave VUELVE al archivo de la tarea que la publicó. Sin esto la tarea local queda con
+	// `jira: []` aunque su issue exista, y el vínculo hay que rehacerlo a mano desde la vista del
+	// sprint — que solo alcanza si el issue sigue en la ventana de sprints que el tablero carga.
+	// Pasó de verdad: dos tareas publicadas desde acá quedaron sin clave por meses.
+	// Best-effort: el issue ya está creado, así que un fallo acá se avisa pero no invalida nada.
+	file := ""
+	if effortID != 0 {
+		f, verr := a.st.VincularTarea(created.Key, effortID)
+		if verr != nil {
+			log.Printf("create_task: %s creado pero NO enlazado al esfuerzo %d: %v", created.Key, effortID, verr)
+		} else {
+			file = f
+		}
+	}
+
 	url := strings.TrimRight(a.jiraSite, "/") + "/browse/" + created.Key
-	log.Printf("create_task OK → %s (sprint %q)", created.Key, sprintName)
+	log.Printf("create_task OK → %s (sprint %q, archivo %q)", created.Key, sprintName, file)
 	send(ctx, c, map[string]any{
 		"type": "task_created", "ok": true,
-		"key": created.Key, "url": url, "sprint": sprintName,
+		"key": created.Key, "url": url, "sprint": sprintName, "file": file,
 	})
 }
 

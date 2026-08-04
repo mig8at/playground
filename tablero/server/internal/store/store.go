@@ -580,11 +580,32 @@ func (s *Store) Efforts() ([]Effort, error) {
 	return out, nil
 }
 
-// CreateEffort crea un esfuerzo (su carpeta y sus tres archivos) y lo devuelve.
-func (s *Store) CreateEffort(title string) (Effort, error) {
+// EffortRef es un esfuerzo + de dónde salió: el archivo y, si está archivado, cuándo. Lo devuelve la
+// vista que necesita SABER de todos (el cruce con Jira), no la que lista para trabajar.
+type EffortRef struct {
+	Effort
+	File     string `json:"file"`
+	Archived string `json:"archived,omitempty"`
+}
+
+// EffortsAll lista TODOS los esfuerzos, archivados incluidos. Existe por el cruce con Jira: un issue
+// puede estar registrado en una tarea ya archivada, y tratarlo como "no está" porque no sale en el
+// listado vivo lo importaría por segunda vez.
+func (s *Store) EffortsAll() []EffortRef {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	out := make([]EffortRef, 0, len(s.efforts))
+	for i := len(s.efforts) - 1; i >= 0; i-- { // id DESC
+		e := s.efforts[i]
+		out = append(out, EffortRef{Effort: e, File: s.slugs[e.ID], Archived: s.archived[e.ID]})
+	}
+	return out
+}
 
+// nuevoEffort reserva id y slug para un esfuerzo y lo deja en memoria SIN escribirlo: quien llama
+// termina de llenarlo y escribe. Asume el lock tomado. Lo comparten la creación a mano y la
+// importación desde Jira, que solo se diferencian en con qué nace el archivo.
+func (s *Store) nuevoEffort(title, stage string) Effort {
 	var max int64
 	usados := map[string]bool{}
 	for _, e := range s.efforts {
@@ -593,17 +614,124 @@ func (s *Store) CreateEffort(title string) (Effort, error) {
 		}
 	}
 	for _, sl := range s.slugs {
-		usados[sl] = true
+		usados[strings.TrimSuffix(sl, ".md")] = true
 	}
-	e := Effort{ID: max + 1, Title: title, Stage: "evaluation", CreatedAt: time.Now().Format(time.RFC3339)}
-	slug := slugDe(title, e.ID, usados)
+	e := Effort{ID: max + 1, Title: title, Stage: stage, CreatedAt: time.Now().Format(time.RFC3339)}
 	s.efforts = append(s.efforts, e)
-	s.slugs[e.ID] = slug
+	// `slugs` guarda el NOMBRE DEL ARCHIVO, con extensión — así lo llena la carga (`d.Name()`) y así lo
+	// usa la escritura. Antes acá se guardaba el slug pelado: una tarea creada en el proceso se escribía
+	// bien, pero al reabrir el server su nombre pasaba a tener `.md` y la siguiente escritura le sumaba
+	// otro (`tarea.md.md`), dejando el archivo real intacto. Fallaba en silencio.
+	s.slugs[e.ID] = slugDe(title, e.ID, usados) + ".md"
 	s.archived[e.ID] = ""
+	return e
+}
+
+// CreateEffort crea la tarea local (su archivo `data/<slug>.md`) y la devuelve.
+func (s *Store) CreateEffort(title string) (Effort, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	e := s.nuevoEffort(title, "evaluation")
 	if err := s.escribirEffort(e.ID); err != nil {
 		return Effort{}, err
 	}
 	return e, nil
+}
+
+// ImportIssue es un issue de Jira listo para volverse tarea local. Lo arma el server desde lo que trajo
+// la API; el store no habla con Jira.
+type ImportIssue struct {
+	Key     string
+	Summary string
+	Body    string // el cuerpo PRIVADO ya redactado (procedencia + lo que hoy dice Jira)
+	Closed  bool   // si ya está cerrado, la tarea nace archivada
+	Nodes   string // nodos de contexto, separados por coma (opcional)
+}
+
+// ImportarDeJira registra un issue de Jira como tarea local: el archivo nace YA vinculado (`jira: [KEY]`)
+// y con `stage: tasks`, porque la tarea de Jira existe desde antes — la etapa describe el método
+// (evaluar → trabajar → crear las tareas) y acá se entra por el final.
+//
+// Es IDEMPOTENTE: si la clave ya cuelga de un esfuerzo devuelve ese, con creada=false. Sin eso, dos
+// clics del botón dejarían dos archivos para el mismo issue, que es justo el desorden que esto arregla.
+//
+// Un issue cerrado nace ARCHIVADO: el historial queda registrado pero `ls data/` sigue contestando "en
+// qué estoy trabajando", que es para lo que se lee esa carpeta.
+func (s *Store) ImportarDeJira(in ImportIssue) (Effort, bool, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if tl, ok := s.locals[in.Key]; ok && tl.EffortID != 0 {
+		if e := s.buscar(tl.EffortID); e != nil {
+			return *e, false, nil
+		}
+	}
+
+	e := s.nuevoEffort(in.Summary, "tasks")
+	e.JiraTitle = in.Summary
+	e.TechNotes = in.Body
+	e.ContextNodes = in.Nodes
+	*s.buscar(e.ID) = e
+	if in.Closed {
+		s.archived[e.ID] = time.Now().Format(time.RFC3339)
+	}
+
+	// El VÍNCULO vive en el frontmatter, y escribirEffort lo deriva de las capas locales: hay que
+	// registrarlo ANTES de escribir o el archivo nace con `jira: []`.
+	tl := s.locals[in.Key]
+	tl.TaskKey, tl.EffortID = in.Key, e.ID
+	s.locals[in.Key] = tl
+
+	if err := s.escribirEffort(e.ID); err != nil {
+		return Effort{}, false, err
+	}
+	return e, true, nil
+}
+
+// VincularTarea cuelga una tarea de Jira de un esfuerzo SIN tocar sus anotaciones (estado real,
+// definición, estimados). SaveTaskLocal recibe la capa entera y la reemplaza —correcto cuando la manda
+// el formulario, destructivo cuando lo único que querés es enlazar.
+func (s *Store) VincularTarea(key string, effortID int64) (string, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if s.buscar(effortID) == nil {
+		return "", fmt.Errorf("no existe la tarea local %d", effortID)
+	}
+	anterior := s.locals[key].EffortID
+	if anterior == effortID {
+		return s.slugs[effortID], nil
+	}
+
+	tl := s.locals[key]
+	tl.TaskKey, tl.EffortID = key, effortID
+	s.locals[key] = tl
+
+	// Los dos archivos cambian: el nuevo para que liste la clave, el de origen para que deje de listarla.
+	if err := s.escribirEffort(effortID); err != nil {
+		return "", err
+	}
+	if anterior != 0 && s.buscar(anterior) != nil {
+		if err := s.escribirEffort(anterior); err != nil {
+			return "", err
+		}
+	}
+	return s.slugs[effortID], nil
+}
+
+// TareasVinculadas devuelve, por clave de Jira, el id del esfuerzo que la registra. Es lo que el cruce
+// necesita saber: qué claves YA están en el registro local.
+func (s *Store) TareasVinculadas() map[string]int64 {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	out := map[string]int64{}
+	for k, tl := range s.locals {
+		if tl.EffortID != 0 {
+			out[k] = tl.EffortID
+		}
+	}
+	return out
 }
 
 // SetEffortStage mueve el esfuerzo de etapa.
@@ -697,7 +825,9 @@ func (s *Store) escribirEffort(id int64) error {
 		b.WriteString("\n" + SECCION + "\n\n")
 		b.WriteString(conSaltoFinal(e.JiraDescription))
 	}
-	return escribirAtomico(filepath.Join(s.dir, s.slugs[id]+".md"), []byte(b.String()))
+	// `slugs[id]` YA es el nombre del archivo, con extensión: no se le agrega nada. Concatenar `.md` acá
+	// era el otro lado del bug del `.md.md` (ver nuevoEffort).
+	return escribirAtomico(filepath.Join(s.dir, s.slugs[id]), []byte(b.String()))
 }
 
 // ── ajustes ─────────────────────────────────────────────────────────────────────────────────────────────

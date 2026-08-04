@@ -190,7 +190,7 @@ playground ni F-xx).
 
 | Acción | Cómo |
 |---|---|
-| **Crear** tarea | WS `{"type":"create_task","summary":…,"description":…}` → issue en `CORE`, tipo Tarea, asignado a mí, y lo mete al **sprint activo** del board 384. (También `jira_create_issue` del MCP.) |
+| **Crear** tarea | WS `{"type":"create_task","summary":…,"description":…,"effortId":…}` → issue en `CORE`, tipo Tarea, asignado a mí, y lo mete al **sprint activo** del board 384. Con `effortId`, la clave **vuelve** al `jira:` de esa tarea local. (También `jira_create_issue` del MCP.) |
 | **Editar** tarea | `go run ./cmd/issue-update <json>` con `{"key","summary","description"}` → `UpdateIssue` (PUT; la descripción se manda como ADF). |
 | **Pasar a pruebas + avisar** | **El camino normal: el botón “🧪 Enviar a pruebas y avisar” de la tarjeta “La tarea”.** Un click hace la transición **y** manda el DM. Ver abajo. |
 | **Mover de estado** (suelto) | `go run ./cmd/issue-transition <KEY> <substring-estado>` → busca la transición por estado destino y la aplica. El workflow **no salta directo**: a "En pruebas" se llega **Por Hacer → En progreso → En pruebas** (dos pasos). |
@@ -225,6 +225,34 @@ playground ni F-xx).
 > Los one-offs `issue-update`/`issue-transition` reutilizan las credenciales del `.env` sin tocar el
 > server en ejecución. `create_task`/`dm` son mensajes del WS (los dispara el dashboard). El cliente Jira
 > ya sabe **crear, editar y transicionar** issues.
+
+### De Jira al registro local: traer lo que está a mi nombre y no tengo
+
+El camino inverso, y la **única** vista que crea una tarea local desde Jira: la tarjeta **“Traer de
+Jira”** al final del tablero.
+
+Existe porque todo el resto mira el **sprint** del board 384. Una tarea asignada fuera de esa ventana
+—un sprint viejo, otro board— no aparecía en ninguna parte: no había dónde registrarla **ni forma de
+notar que faltaba**. Esta vista pregunta por **asignación**, no por sprint.
+
+| | |
+|---|---|
+| `GET /api/jira-inbox` | el **cruce**, no escribe nada. `assignee = currentUser() AND project = "CORE"`, sin las terminadas; `?all=1` las incluye y `?jql=…` reemplaza la consulta (para mirar `QC` alguna vez). Devuelve **solo lo que falta** — lo ya registrado va como número, no como fila |
+| `POST /api/jira-import` | `{"create":["CORE-30"],"link":{"CORE-317":12}}` → **crea** el `data/<slug>.md` o **enlaza** la clave a una tarea que ya existe. Idempotente por clave (`already`) |
+
+Tres decisiones que no son obvias:
+
+- **Acotado a `CORE`** (`JIRA_PROJECT_KEY`). A mi nombre hay 42 tareas de `LO`, el tablero anterior que
+  ya no se usa: ofrecerlas en cada apertura es ruido permanente sobre trabajo que no va a volver.
+- **La descripción de Jira entra en la parte PRIVADA**, no bajo `## Tarea (publicable)`. Ya está
+  publicada, y varias traen rutas de archivo (CORE-159 trae una `.php`): abajo harían que guardar esa
+  tarea desde la UI fallara por el guard, por un texto que nadie escribió acá.
+- **Un issue cerrado nace `archived`** y con `stage: tasks`. El historial queda, pero `ls data/` sigue
+  contestando *en qué estoy trabajando*, que es para lo que se lee esa carpeta.
+
+El **candidato parecido** viene preseleccionado como *enlace* (no como archivo nuevo): cuando el título
+viajó tal cual a Jira el parecido es ~100%, y crear un archivo duplicaría la tarea. La decisión final
+es del select.
 
 ## Los datos: archivos, no base de datos
 

@@ -2,6 +2,7 @@ package atlassian
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"regexp"
@@ -72,6 +73,111 @@ func (c *Client) SearchIssues(ctx context.Context, jql string, maxResults int) (
 		})
 	}
 	return issues, nil
+}
+
+// IssueDetail es un issue con lo suficiente para REGISTRARLO como tarea local: además del resumen y el
+// estado trae la categoría (para saber si ya está cerrado sin interpretar el nombre del estado, que en
+// CORE lleva emoji y en QC no), las fechas, el sprint de origen y la descripción ya pasada a texto.
+type IssueDetail struct {
+	Key         string   `json:"key"`
+	Project     string   `json:"project"`
+	Type        string   `json:"type"`
+	Summary     string   `json:"summary"`
+	Status      string   `json:"status"`
+	Category    string   `json:"category"` // new | indeterminate | done
+	Created     string   `json:"created"`  // YYYY-MM-DD
+	Updated     string   `json:"updated"`
+	Resolved    string   `json:"resolved,omitempty"`
+	Reporter    string   `json:"reporter,omitempty"`
+	Sprints     []string `json:"sprints,omitempty"`
+	Description string   `json:"description,omitempty"`
+}
+
+// searchDetailResp: la misma respuesta de /search/jql, con los campos que pide la importación.
+type searchDetailResp struct {
+	Issues []struct {
+		Key    string `json:"key"`
+		Fields struct {
+			Summary     string                `json:"summary"`
+			Description json.RawMessage       `json:"description"`
+			Created     string                `json:"created"`
+			Updated     string                `json:"updated"`
+			Resolution  string                `json:"resolutiondate"`
+			Project     struct{ Key string }  `json:"project"`
+			IssueType   struct{ Name string } `json:"issuetype"`
+			Reporter    struct {
+				DisplayName string `json:"displayName"`
+			} `json:"reporter"`
+			Status struct {
+				Name           string `json:"name"`
+				StatusCategory struct {
+					Key string `json:"key"`
+				} `json:"statusCategory"`
+			} `json:"status"`
+			Sprints []issueSprintRef `json:"customfield_10020"`
+		} `json:"fields"`
+	} `json:"issues"`
+	NextPageToken string `json:"nextPageToken"`
+}
+
+// SearchIssuesDetailed corre una JQL y devuelve TODAS las páginas. Solo lectura.
+//
+// Es una segunda lectura y no un parámetro de SearchIssues a propósito: esa la usa el conector MCP y
+// devolver ahí quince campos por issue llenaría el contexto del modelo con ruido. Acá los campos son el
+// punto — de ellos se arma el archivo de la tarea.
+func (c *Client) SearchIssuesDetailed(ctx context.Context, jql string) ([]IssueDetail, error) {
+	fields := []string{"summary", "description", "created", "updated", "resolutiondate",
+		"project", "issuetype", "reporter", "status", "customfield_10020"}
+
+	out := []IssueDetail{}
+	page := ""
+	// Tope de páginas por si la JQL es muy amplia: 20 × 100 = 2000 issues, más de lo que un registro
+	// personal puede querer. Sin tope, una JQL mal escrita cuelga el handler.
+	for i := 0; i < 20; i++ {
+		body := map[string]any{"jql": jql, "maxResults": 100, "fields": fields}
+		if page != "" {
+			body["nextPageToken"] = page
+		}
+		var raw searchDetailResp
+		if err := c.do(ctx, http.MethodPost, "/rest/api/3/search/jql", body, &raw); err != nil {
+			return nil, err
+		}
+		for _, it := range raw.Issues {
+			f := it.Fields
+			d := IssueDetail{
+				Key:         it.Key,
+				Project:     f.Project.Key,
+				Type:        f.IssueType.Name,
+				Summary:     f.Summary,
+				Status:      f.Status.Name,
+				Category:    f.Status.StatusCategory.Key,
+				Created:     soloFecha(f.Created),
+				Updated:     soloFecha(f.Updated),
+				Resolved:    soloFecha(f.Resolution),
+				Reporter:    f.Reporter.DisplayName,
+				Description: adfText(f.Description),
+			}
+			for _, s := range f.Sprints {
+				if s.Name != "" {
+					d.Sprints = append(d.Sprints, s.Name)
+				}
+			}
+			out = append(out, d)
+		}
+		if page = raw.NextPageToken; page == "" {
+			break
+		}
+	}
+	return out, nil
+}
+
+// soloFecha recorta el timestamp ISO de Jira a YYYY-MM-DD: la hora no aporta nada al registro local y
+// hace ruido en el frontmatter.
+func soloFecha(s string) string {
+	if len(s) < 10 {
+		return ""
+	}
+	return s[:10]
 }
 
 // CreateIssueParams describe el issue a crear.
