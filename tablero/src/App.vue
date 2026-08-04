@@ -9,7 +9,7 @@
 // Por eso el campo de nota tiene un GUARD que BLOQUEA el botón, en vez de solo advertir.
 //
 // CONVENCIÓN: identificadores y clases CSS en inglés; solo el texto visible y los comentarios en español.
-import { ref, computed, onMounted, watch } from 'vue';
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
 
 const SERVER = 'http://localhost:8787';
 const BOARD = 384;            // CORE — el proyecto donde están MIS tareas (no LO / Loans Origination)
@@ -230,6 +230,16 @@ const ofActive = computed(() => active.value ? ofSprint.value.filter(e => e.key 
 const abiertas = ref(new Set());
 const alternar = (id) => { const s = new Set(abiertas.value); s.has(id) ? s.delete(id) : s.add(id); abiertas.value = s; };
 const descAbierta = ref(false);
+// La bitácora vive en un CAJÓN, no en una card del tablero: son notas largas que escribe el asistente y
+// que el humano consulta de vez en cuando (quien la lee seguido es un modelo, para retomar contexto).
+// Ocupando una columna fija era ruido permanente por algo que no se mira en cada carga. Se abre desde el
+// botón de "La tarea" y sigue a la tarea activa: cambiar de tarea con el cajón abierto muestra la suya.
+const bitacoraAbierta = ref(false);
+// Esc cierra. Va en `window` y no en el elemento: el cajón nace sin foco, así que un @keydown local sólo
+// respondería después de hacerle clic — que es justo cuando ya no hace falta el atajo.
+const cerrarConEsc = (e) => { if (e.key === 'Escape') bitacoraAbierta.value = false; };
+onMounted(() => window.addEventListener('keydown', cerrarConEsc));
+onUnmounted(() => window.removeEventListener('keydown', cerrarConEsc));
 const when = (d) => new Date(d).toLocaleString('es-CO', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
 
 // ── mi jornada: últimos 20 días × horas laborales ───────────────────────────────────────────────
@@ -640,6 +650,10 @@ onMounted(async () => {
         <h2>La tarea
           <a v-if="site" class="on link" :href="jiraLink(active.Key)" target="_blank" rel="noopener">{{ active.Key }} <span class="ext">↗</span></a>
           <span v-else class="on">{{ active.Key }}</span>
+          <!-- el detalle vive plegado: este botón es la única entrada, no una card aparte -->
+          <button class="bit-btn" :class="{ act: bitacoraAbierta }" @click="bitacoraAbierta = !bitacoraAbierta">
+            Bitácora<span v-if="ofActive.length" class="cnt">{{ ofActive.length }}</span>
+          </button>
         </h2>
 
         <!-- SOLO LECTURA: el estado y la descripción son los de Jira. Cambiarlos es cosa de Jira (o del
@@ -700,62 +714,37 @@ onMounted(async () => {
         <p v-else class="desc none">Esta tarea todavía no tiene descripción en Jira.</p>
       </section>
 
-      <div class="cols">
-        <section class="card">
-          <h2>Mis tareas</h2>
-          <template v-for="g in groupedIssues" :key="g.id">
-            <div v-if="showGroups" class="grp" :class="{ none: !g.id }">
-              {{ g.title }}
-              <span v-if="g.id" class="stg" :class="'s-' + stageOf(g.id)?.id">{{ stageOf(g.id)?.label }}</span>
+      <section class="card">
+        <h2>Mis tareas</h2>
+        <template v-for="g in groupedIssues" :key="g.id">
+          <div v-if="showGroups" class="grp" :class="{ none: !g.id }">
+            {{ g.title }}
+            <span v-if="g.id" class="stg" :class="'s-' + stageOf(g.id)?.id">{{ stageOf(g.id)?.label }}</span>
+          </div>
+          <div v-for="i in g.tasks" :key="i.Key" class="task" :class="{ sel: active?.Key === i.Key }" @click="active = i">
+            <div class="tl">
+              <a v-if="site" class="key link" :href="jiraLink(i.Key)" target="_blank" rel="noopener"
+                @click.stop :title="`Abrir ${i.Key} en Jira`">{{ i.Key }} <span class="ext">↗</span></a>
+              <span v-else class="key">{{ i.Key }}</span>
+              <span class="status" :class="statusClass(i.StatusCategory)">{{ i.Status }}</span>
             </div>
-            <div v-for="i in g.tasks" :key="i.Key" class="task" :class="{ sel: active?.Key === i.Key }" @click="active = i">
-              <div class="tl">
-                <a v-if="site" class="key link" :href="jiraLink(i.Key)" target="_blank" rel="noopener"
-                  @click.stop :title="`Abrir ${i.Key} en Jira`">{{ i.Key }} <span class="ext">↗</span></a>
-                <span v-else class="key">{{ i.Key }}</span>
-                <span class="status" :class="statusClass(i.StatusCategory)">{{ i.Status }}</span>
-              </div>
-              <div class="tt">{{ i.Summary }}</div>
-              <!-- lo que HOY dice Jira: lo que el equipo lee. Si está vacía, se avisa (falta definirla) -->
-              <p v-if="i.Description" class="jd" :title="i.Description">{{ i.Description }}</p>
-              <p v-else class="jd none">sin descripción en Jira</p>
-              <div class="tm">
-                <!-- de qué sprint viene: verde = nació en su sprint · rojo = la arrastraron sin terminar -->
-                <span v-if="i.OriginSprint" class="orig" :class="{ carried: i.CarriedOver }"
-                  :title="i.CarriedOver ? `Nació en ${i.OriginSprint} y se arrastró sin terminar` : `Nació en ${i.OriginSprint}`">
-                  <i></i>{{ i.OriginSprint }}
-                </span>
-                <span v-if="settings.trackPoints && i.HasPoints && i.Points">{{ i.Points }} pts</span>
-                <span v-if="settings.trackTime">{{ hhmm(i.SpentSecs) }} en Jira</span>
-                <span class="mine" v-if="minutesOf(i.Key)">{{ minHhmm(minutesOf(i.Key)) }} sin subir</span>
-              </div>
-            </div>
-          </template>
-        </section>
-
-        <section class="card">
-          <h2>Bitácora <span class="mut" v-if="active">de {{ active.Key }}</span></h2>
-          <p class="empty">La escribe el asistente al analizar la tarea; acá se lee.</p>
-          <p v-if="!ofActive.length" class="msg">Sin entradas para esta tarea todavía.</p>
-          <!-- Timeline: el riel vertical hace que se lea como lo que es, un registro en el tiempo, y no
-               como una lista de párrafos sueltos. El marcador lleva el color del tipo. -->
-          <div v-for="e in ofActive" :key="e.id" class="entry" :class="{ abierta: abiertas.has(e.id) }">
-            <span class="icon" :class="'t-' + e.kind">{{ KINDS.find(t => t.id === e.kind)?.icon }}</span>
-            <div class="body">
-              <div class="meta">
-                <b :class="'t-' + e.kind">{{ KINDS.find(t => t.id === e.kind)?.label }}</b>
-                <span>{{ when(e.date) }}</span>
-                <span class="min" v-if="e.min">{{ e.min }} min</span>
-                <button class="x" title="Borrar (queda marcado en la base, no se pierde)" @click="deleteEntry(e.id)">✕</button>
-              </div>
-              <p @click="alternar(e.id)">{{ e.text }}</p>
-              <button v-if="e.text && e.text.length > 180" class="mas" @click="alternar(e.id)">
-                {{ abiertas.has(e.id) ? 'ver menos' : 'ver más' }}
-              </button>
+            <div class="tt">{{ i.Summary }}</div>
+            <!-- lo que HOY dice Jira: lo que el equipo lee. Si está vacía, se avisa (falta definirla) -->
+            <p v-if="i.Description" class="jd" :title="i.Description">{{ i.Description }}</p>
+            <p v-else class="jd none">sin descripción en Jira</p>
+            <div class="tm">
+              <!-- de qué sprint viene: verde = nació en su sprint · rojo = la arrastraron sin terminar -->
+              <span v-if="i.OriginSprint" class="orig" :class="{ carried: i.CarriedOver }"
+                :title="i.CarriedOver ? `Nació en ${i.OriginSprint} y se arrastró sin terminar` : `Nació en ${i.OriginSprint}`">
+                <i></i>{{ i.OriginSprint }}
+              </span>
+              <span v-if="settings.trackPoints && i.HasPoints && i.Points">{{ i.Points }} pts</span>
+              <span v-if="settings.trackTime">{{ hhmm(i.SpentSecs) }} en Jira</span>
+              <span class="mine" v-if="minutesOf(i.Key)">{{ minHhmm(minutesOf(i.Key)) }} sin subir</span>
             </div>
           </div>
-        </section>
-      </div>
+        </template>
+      </section>
 
       <!-- TRAER DE JIRA. La única vista que mira por ASIGNACIÓN y no por sprint, y la única que CREA
            una tarea local. Va al final y colapsada porque es mantenimiento del registro, no la
@@ -830,6 +819,47 @@ onMounted(async () => {
         </template>
       </section>
     </template>
+
+    <!-- BITÁCORA: cajón lateral, no una card del flujo. Es material de CONSULTA —lo escribe el asistente
+         y quien lo lee seguido es un modelo para retomar contexto—, así que ocupar una columna fija del
+         tablero era ruido permanente. Como cajón: se abre cuando se necesita, tapa el tablero mientras
+         se lee, y al cerrarlo el tablero queda como estaba.
+
+         Va FUERA de las cards a propósito: `position: fixed` dentro de una card con `overflow` o
+         `transform` se ancla a la card en vez de a la ventana, y el cajón aparecería recortado. -->
+    <div v-if="bitacoraAbierta" class="drawer">
+      <div class="drawer-bg" @click="bitacoraAbierta = false"></div>
+      <aside class="drawer-p">
+        <header class="drawer-h">
+          <div>
+            <h3>Bitácora</h3>
+            <p v-if="active">de {{ active.Key }} · {{ ofActive.length }} {{ ofActive.length === 1 ? 'entrada' : 'entradas' }}</p>
+          </div>
+          <button class="drawer-x" title="Cerrar (Esc)" @click="bitacoraAbierta = false">✕</button>
+        </header>
+        <div class="drawer-b">
+          <p class="empty">La escribe el asistente al analizar la tarea; acá se lee.</p>
+          <p v-if="!ofActive.length" class="msg">Sin entradas para esta tarea todavía.</p>
+          <!-- Timeline: el riel vertical hace que se lea como lo que es, un registro en el tiempo, y no
+               como una lista de párrafos sueltos. El marcador lleva el color del tipo. -->
+          <div v-for="e in ofActive" :key="e.id" class="entry" :class="{ abierta: abiertas.has(e.id) }">
+            <span class="icon" :class="'t-' + e.kind">{{ KINDS.find(t => t.id === e.kind)?.icon }}</span>
+            <div class="body">
+              <div class="meta">
+                <b :class="'t-' + e.kind">{{ KINDS.find(t => t.id === e.kind)?.label }}</b>
+                <span>{{ when(e.date) }}</span>
+                <span class="min" v-if="e.min">{{ e.min }} min</span>
+                <button class="x" title="Borrar (queda marcado en la base, no se pierde)" @click="deleteEntry(e.id)">✕</button>
+              </div>
+              <p @click="alternar(e.id)">{{ e.text }}</p>
+              <button v-if="e.text && e.text.length > 180" class="mas" @click="alternar(e.id)">
+                {{ abiertas.has(e.id) ? 'ver menos' : 'ver más' }}
+              </button>
+            </div>
+          </div>
+        </div>
+      </aside>
+    </div>
   </div>
 </template>
 
@@ -870,8 +900,6 @@ h1 { font-size: 20px; margin: 0; letter-spacing: .2px }
 .stat.alert .v { color: var(--warn) }
 .stat.ok .v { color: var(--acc) }
 
-.cols { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; align-items: start }
-@media (max-width: 940px) { .cols { grid-template-columns: 1fr } }
 .card { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 18px; margin-bottom: 16px;
   box-shadow: 0 1px 2px #00000040, 0 6px 16px #0000001f }
 .card h2 { font-size: 12px; text-transform: uppercase; letter-spacing: .8px; color: var(--mut); margin: 0 0 14px; font-weight: 700;
@@ -930,6 +958,56 @@ h1 { font-size: 20px; margin: 0; letter-spacing: .2px }
 .jira-html :deep(code) { background: var(--panel2); padding: 1px 5px; border-radius: 5px; font-size: 12px }
 .jira-html :deep(input) { pointer-events: none; accent-color: var(--acc); margin-right: 5px }
 .lane .val { font-size: 13.5px; font-weight: 700; font-variant-numeric: tabular-nums }
+
+/* botón de bitácora en el header: mismo truco que `.card h2 .src` (margin-left: auto empuja a la
+   derecha), pero es un solo botón-chip, no un par de tabs — plegada por defecto, así que el estado
+   "hay algo ahí" tiene que verse SIN abrirla (de ahí el contador). */
+.bit-btn { margin-left: auto; border: 1px solid var(--line); background: var(--panel2); color: var(--mut);
+  font: inherit; font-size: 11.5px; font-weight: 600; text-transform: none; letter-spacing: 0;
+  padding: 4px 10px; border-radius: 999px; cursor: pointer; display: flex; align-items: center; gap: 6px }
+.bit-btn:hover { color: var(--txt) }
+.bit-btn.act { color: var(--acc); border-color: #4c3d8f; background: #a78bfa1f }
+.bit-btn .cnt { background: var(--line); color: var(--txt); font-size: 10px; font-weight: 700;
+  padding: 1px 6px; border-radius: 999px }
+.bit-btn.act .cnt { background: var(--acc); color: #1a1330 }
+
+/* ── el cajón de la bitácora ──────────────────────────────────────────────────────────────────────
+   Cubre la ventana entera (`inset: 0`) y el panel se ancla a la derecha. El fondo oscurece el tablero
+   en vez de solo captar el clic: mientras se lee la bitácora, el tablero es contexto, no competencia.
+   `min(520px, 92vw)` — ancho fijo cómodo para párrafos largos, pero sin desbordar en pantalla chica. */
+.drawer { position: fixed; inset: 0; z-index: 60 }
+.drawer-bg { position: absolute; inset: 0; background: #000000a6 }
+.drawer-p { position: absolute; top: 0; right: 0; bottom: 0; width: min(520px, 92vw);
+  background: var(--panel); border-left: 1px solid var(--line); box-shadow: -12px 0 32px #00000059;
+  display: flex; flex-direction: column }
+.drawer-h { display: flex; align-items: flex-start; gap: 12px; padding: 18px 18px 14px;
+  border-bottom: 1px solid var(--line) }
+.drawer-h h3 { margin: 0; font-size: 12px; text-transform: uppercase; letter-spacing: .8px; color: var(--mut);
+  font-weight: 700 }
+.drawer-h p { margin: 4px 0 0; font-size: 12.5px; color: var(--acc) }
+.drawer-x { margin-left: auto; border: 0; background: none; color: var(--mut); font: inherit; font-size: 15px;
+  cursor: pointer; padding: 0 2px; line-height: 1 }
+.drawer-x:hover { color: var(--txt) }
+/* el cuerpo scrollea solo: el encabezado queda fijo y no se pierde de qué tarea es lo que se está leyendo */
+.drawer-b { flex: 1; overflow-y: auto; padding: 0 18px 18px }
+.drawer-b .empty { margin-top: 14px }
+
+/* Animación con @keyframes en vez del <transition> de Vue: acá sólo hace falta la entrada, y con
+   keyframes el estado de REPOSO del panel es el correcto (pegado a la derecha) en vez de depender de que
+   Vue quite una clase en el frame siguiente. El precio es que no hay animación de salida — cerrar es
+   instantáneo, que además se siente mejor.
+
+   Va SIN `fill-mode` a propósito: `both`/`backwards` harían que el elemento sostenga el fotograma
+   inicial (fuera de pantalla) mientras la animación no arranque. Sin fill-mode, apenas termina —o si
+   nunca corre— manda el estilo normal.
+
+   ⚠ Con la pestaña en segundo plano el reloj de animaciones se congela y el panel se queda en el primer
+   fotograma hasta volver a ella. Es cosa del navegador, no del cajón: pasa igual con <transition>. */
+.drawer-p { animation: drawer-in .22s ease }
+.drawer-bg { animation: drawer-fade .22s ease }
+@keyframes drawer-in { from { transform: translateX(100%) } to { transform: none } }
+@keyframes drawer-fade { from { opacity: 0 } to { opacity: 1 } }
+@media (prefers-reduced-motion: reduce) { .drawer-p, .drawer-bg { animation: none } }
 
 /* handoff a QA: la ÚNICA acción de la tarjeta que escribe en Jira y manda un mensaje, así que se ve
    como un botón de acción y no como un link, y el envío pasa por una previsualización editable. */
