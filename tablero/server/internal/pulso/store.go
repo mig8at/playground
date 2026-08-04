@@ -137,12 +137,21 @@ type RepoHour struct {
 	Edits   int    `json:"edits,omitempty"` // tramos con edición sin commitear
 }
 
-// Aggregate convierte los ticks en celdas (día, hora).
+// Aggregate convierte los ticks en celdas (día, hora), recortadas a los últimos `days` días (0 = todas).
+//
+// EL RECORTE VA ACÁ y no en quien llama porque `Read` filtra por la fecha del TICK, no de la señal: como
+// cada señal lleva su propio instante, una siembra escrita hoy contiene semanas de historia y se colaba
+// entera en cualquier ventana. La grilla lo disimulaba —dibuja sólo sus columnas— pero el desglose "en
+// qué" sumaba días que el encabezado decía no estar mostrando.
 //
 // Los +/- que reporta salen SÓLO de commits. Los de una señal `edit` son el estado acumulado del working
 // tree, no un delta: sumarlos entre ticks daría miles de líneas por un archivo que se guardó doce veces.
 // El trabajo sin commitear se cuenta donde no engaña — en los slots (o sea, en el color).
-func Aggregate(ticks []Tick) []Hour {
+func Aggregate(ticks []Tick, days int) []Hour {
+	corte := ""
+	if days > 0 {
+		corte = time.Now().AddDate(0, 0, -days+1).Format("2006-01-02")
+	}
 	type llave struct {
 		day  string
 		hour int
@@ -224,6 +233,9 @@ func Aggregate(ticks []Tick) []Hour {
 
 	out := make([]Hour, 0, len(celdas))
 	for k, c := range celdas {
+		if corte != "" && c.Day < corte { // iso lexicográfico: YYYY-MM-DD ordena bien como texto
+			continue
+		}
 		c.Slots = len(slots[k])
 		c.Covered = len(cobertura[k])
 		// Lista vacía, no nil: una celda que sólo tiene cobertura (el agente miró y no había nada)

@@ -141,7 +141,7 @@ func TestAggregateDeduplicaEntreTicks(t *testing.T) {
 		{T: "2026-08-04T10:10:00-05:00", Since: "2026-08-04T10:05:00-05:00", Signals: []Signal{uno}},
 		{T: "2026-08-04T10:15:00-05:00", Since: "2026-08-04T10:10:00-05:00", Signals: []Signal{uno}},
 	}
-	horas := Aggregate(ticks)
+	horas := Aggregate(ticks, 0)
 	var c *Hour
 	for i := range horas {
 		if horas[i].Day == "2026-08-04" && horas[i].Hour == 10 {
@@ -163,7 +163,7 @@ func TestAggregateDeduplicaEntreTicks(t *testing.T) {
 func TestAggregateSeparaSinRegistroDeSinCambios(t *testing.T) {
 	horas := Aggregate([]Tick{
 		{T: "2026-08-04T14:03:00-05:00", Since: "2026-08-04T13:58:00-05:00"}, // tick vacío: miró y no había nada
-	})
+	}, 0)
 	if len(horas) == 0 {
 		t.Fatal("un tick sin señales igual tiene que dejar cobertura")
 	}
@@ -185,10 +185,35 @@ func TestAggregateNoLeCreeLaCoberturaAUnaSiembra(t *testing.T) {
 		T:       "2026-08-04T09:00:00-05:00",
 		Since:   "2026-07-15T09:00:00-05:00",
 		Signals: []Signal{sig("repo", "2026-07-20T11:20:00-05:00", "commit", "viejo")},
-	}})
+	}}, 0)
 	for _, h := range horas {
 		if h.Day == "2026-07-20" && h.Covered != 0 {
 			t.Errorf("la siembra reclamó cobertura en %s %dh", h.Day, h.Hour)
+		}
+	}
+}
+
+// `Read` filtra por la fecha del TICK, y como cada señal lleva su propio instante, una siembra escrita
+// hoy contiene semanas de historia. La grilla lo disimulaba —dibuja sólo sus columnas— pero el desglose
+// "en qué" sumaba días que el encabezado decía no estar mostrando.
+func TestAggregateRecortaALaVentana(t *testing.T) {
+	viejo := time.Now().AddDate(0, 0, -30)
+	hoy := time.Now()
+	tk := Tick{
+		T:     hoy.Format(time.RFC3339),
+		Since: viejo.Format(time.RFC3339),
+		Signals: []Signal{
+			sig("repo", viejo.Format(time.RFC3339), "commit", "de hace un mes"),
+			sig("repo", hoy.Format(time.RFC3339), "commit", "de hoy"),
+		},
+	}
+	if n := len(Aggregate([]Tick{tk}, 0)); n < 2 {
+		t.Fatalf("sin ventana se esperaban las dos celdas, hubo %d", n)
+	}
+	corte := time.Now().AddDate(0, 0, -6).Format("2006-01-02")
+	for _, h := range Aggregate([]Tick{tk}, 7) {
+		if h.Day < corte {
+			t.Errorf("celda de %s fuera de la ventana de 7 días (corte %s)", h.Day, corte)
 		}
 	}
 }
@@ -198,7 +223,7 @@ func TestAggregateSlotsPorHora(t *testing.T) {
 	for _, m := range []string{"00", "04", "05", "17", "59"} { // 00 y 04 caen en el MISMO tramo
 		sigs = append(sigs, sig("repo", "2026-08-04T11:"+m+":00-05:00", "reflog", "x"+m))
 	}
-	horas := Aggregate([]Tick{{T: "2026-08-04T12:00:00-05:00", Since: "2026-08-04T11:00:00-05:00", Signals: sigs}})
+	horas := Aggregate([]Tick{{T: "2026-08-04T12:00:00-05:00", Since: "2026-08-04T11:00:00-05:00", Signals: sigs}}, 0)
 	for _, h := range horas {
 		if h.Hour == 11 && h.Slots != 4 {
 			t.Errorf("slots=%d, se esperaban 4 (00 y 04 comparten tramo)", h.Slots)

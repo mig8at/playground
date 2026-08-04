@@ -208,7 +208,7 @@ func report() error {
 	if err != nil {
 		return err
 	}
-	celdas := pulso.Aggregate(ticks)
+	celdas := pulso.Aggregate(ticks, *days)
 	if len(celdas) == 0 {
 		fmt.Println("todavía no hay pulso. Sembrá el pasado con `pulso seed` y dejalo corriendo con `pulso install`.")
 		return nil
@@ -467,7 +467,7 @@ func status() error {
 	}
 	hoy := time.Now().Format("2006-01-02")
 	slots, cubiertos := 0, 0
-	for _, c := range pulso.Aggregate(ticks) {
+	for _, c := range pulso.Aggregate(ticks, 1) {
 		if c.Day == hoy {
 			slots += c.Slots
 			cubiertos += c.Covered

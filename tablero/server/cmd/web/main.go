@@ -901,7 +901,7 @@ func main() {
 		// vacía no significa nada y la UI tiene que decirlo en vez de dejarte sacar conclusiones.
 		ult, hay := pulso.LastTick(dataDir)
 		res := map[string]any{
-			"hours":        pulso.Aggregate(ticks),
+			"hours":        pulso.Aggregate(ticks, days),
 			"slotsPerHour": pulso.SlotsPerHour,
 			"slotMinutes":  int(pulso.Slot / time.Minute),
 			"installed":    hay,
