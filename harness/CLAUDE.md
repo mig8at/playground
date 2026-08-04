@@ -39,6 +39,7 @@ que ya costaron tiempo** — y el mapa mínimo para no perderse.
 | `dev/qr-corbeta.ts` | ¿el canal QR cierra en estado 25 con código? (por API, sin browser) |
 | `dev/caminar-qr.ts` | ¿qué pantallas existen de verdad y en qué orden? (clickea solo) |
 | `dev/contrato-bancolombia.ts` | ¿el mock cumple los esquemas zod del front? (`npm run contrato:bancolombia`) |
+| `dev/sandbox-bancolombia.ts` | **¿el BANCO DE VERDAD acepta lo que mandamos?** el único que pega contra el gateway real (`make harness-sandbox`) |
 | `dev/experian-check.ts` · `experian-api.ts` | ¿esta solicitud omitió el buró, y se puede *afirmar*? |
 | `dev/loki-trace.ts` | ¿POR QUÉ terminó así? forense en los logs (`make harness-loki UREQ=…`) |
 

@@ -58,9 +58,11 @@ cd ~/Desktop/CREDITOP/playground && make harness-mocks && make harness-walk PROD
 2. **¿Bancolombia crea la orden en Corbeta (`setOrder`) o la seguimos creando nosotros?** Es la misma
    pregunta con otra cara: el híbrido «emitir con Bancolombia, conciliar con Corbeta» **solo funciona si
    la orden existe en Corbeta**. → **al banco**, y NO se la puede contestar Santi (lo dijo él).
-3. **Credenciales.** El ticket CORE-19 ya dice que Bancolombia debe entregar **credenciales nuevas con
-   coexistencia** (Paula Peláez → Lady Téllez, objetivo 29/05). Además el certificado que hay hoy está
-   **vencido y es autofirmado** (ver §«El certificado está vencido»).
+3. **Credenciales.** ~~El ticket CORE-19 ya dice que Bancolombia debe entregar credenciales nuevas con
+   coexistencia~~ → **YA NO BLOQUEA para probar** (2026-08-04): la credencial que hoy tiene Alkosto
+   (#1124) autentica contra el sandbox y emite código. El certificado vencido tampoco frena. Lo que
+   **sí** falta pedir: (a) habilitar `retrieve-order-details` para ese client, (b) el catálogo
+   **Development/Testing** para validar negocio, (c) renovar el certificado antes de esos ambientes.
 
 **Los cinco hallazgos que costaron trabajo — no los re-descubras**
 
@@ -75,6 +77,9 @@ cd ~/Desktop/CREDITOP/playground && make harness-mocks && make harness-walk PROD
 
 **Lo que NO se pudo hacer y por qué**: llamar a la API real. El host verdadero **no está en el repo**
 (solo placeholders y el mock) — vive en la config del ambiente desplegado.
+→ ✅ **SUPERADO el 2026-08-04**: Santi pasó el host del sandbox y se llamó al banco de verdad. Ver
+§«Se llamó a la API real». **El request está bien y el banco lo acepta**; lo que sigue bloqueado es el
+**negocio** (Q2), porque el sandbox es un mock y no puede contestarlo.
 
 ## 0.bis · Dónde estamos contra los criterios de CORE-19
 
@@ -82,11 +87,11 @@ El ticket tiene criterios propios que conviene mirar, porque no coinciden 1:1 co
 
 | Criterio del ticket | Estado |
 |---|---|
-| Implementar el consumo del nuevo API Fondos B2B **según el Documento Técnico Funcional v18** | 🚧 implementado y validado **contra el OpenAPI**. ⚠ Nadie verificó que el OpenAPI y el «DTF v18» sean el mismo documento |
-| **Nuevas credenciales con coexistencia** de las actuales | ❌ no entregadas (dependencia del banco, objetivo 29/05) |
-| Cubrir los escenarios del archivo **«Escenarios de prueba API Fondos B2B»** (lo compartió Corbeta) | ❌ **no tenemos el archivo**. Es un insumo que existe y hay que pedirlo |
+| Implementar el consumo del nuevo API Fondos B2B **según el Documento Técnico Funcional v18** | ✅ implementado y validado **contra el OpenAPI y contra el banco** (2026-08-04). ⚠ Nadie verificó que el OpenAPI y el «DTF v18» sean el mismo documento |
+| **Nuevas credenciales con coexistencia** de las actuales | 🚧 no entregadas, pero **ya no bloquean**: la credencial actual de Alkosto emite contra el sandbox |
+| Cubrir los escenarios del archivo **«Escenarios de prueba API Fondos B2B»** (lo compartió Corbeta) | 🚧 **no tenemos el archivo**, pero se ejercitaron **los 4 escenarios del dispatcher del OpenAPI** + 11 casos de seguridad contra el banco |
 | Participar en la sesión de pruebas integrales (~22/06) y dejar registro | ❌ la fecha pasó |
-| Validar el flujo punta a punta antes de producción | 🚧 hecho local con mock; falta contra el banco |
+| Validar el flujo punta a punta antes de producción | 🚧 técnico ✅ contra el banco (sandbox); **negocio ❌**: falta Development/Testing |
 
 ⚠ **Las fechas del ticket ya pasaron** (plan 25/05, credenciales 29/05, sesión ~22/06; el acta de
 referencia es del 21/05/**2026**). Al retomar, lo primero es re-agendar, no re-implementar.
@@ -188,6 +193,12 @@ El harness cubre el camino completo en local, así que la tarea **no arranca a c
 `billingCode`** para responder Q2 empíricamente el día que haya sandbox con datos reales. Ojo: el sandbox
 documentado responde **409 a cualquier dato real** y no ejercita la seguridad (F-81), así que ese sandbox
 **no** sirve para responder Q2 — la respuesta tiene que venir del banco o de una prueba en un ambiente real.
+
+> ⚠ **Corregido el 2026-08-04 con la API real a la vista.** De F-81 se sostiene la mitad: el sandbox sí
+> responde 409 a cualquier dato real (pero con código `BP12700001`, no `BP21000`) y por eso **sigue sin
+> poder responder Q2**. Lo que es **falso** es que no ejercite la seguridad: verifica la firma RS256 del
+> JWT contra el módulo del certificado, y rechaza JWT vencido, secreto malo y `message-id` que no sea
+> UUID v4. Detalle en §«Se llamó a la API REAL». **Hay que corregir F-81 en el nodo `findings`.**
 
 ## 7 · Riesgos que hay que nombrar en la tarea (no son detalles)
 
@@ -591,3 +602,163 @@ banco: parece generado para una prueba.
 Lo que sí se sostiene: antes de una prueba real hay que aclarar con el banco **qué certificado esperan**
 y renovarlo. Y la respuesta de la API no se puede obtener desde acá — el host real no está en el repo
 (solo placeholders y el mock), vive en la config del ambiente desplegado.
+
+> ⚠ **Lo de arriba quedó viejo el 2026-08-04.** El certificado vencido **sí sirve** contra el sandbox:
+> el gateway lee el módulo para verificar la firma del JWT pero **no valida vigencia ni cadena**. Ver
+> la sección siguiente. Sigue en pie que hay que renovarlo antes de Development/Testing/Producción —
+> lo que ya no se sostiene es que la vigencia bloquee la prueba.
+
+## Se llamó a la API REAL — el request está bien y el banco lo acepta (2026-08-04)
+
+Santi pasó el host del ambiente desplegado, así que se levantó el bloqueo de §0. **Se llamó al sandbox
+de Bancolombia desde la máquina de Miguel, con las credenciales reales de la BD de dev (lectura, sin
+escribir nada) y con la clase `BancolombiaBillingCode` del PR — no con una réplica.**
+
+```
+host   : https://gw-sandbox-qa.apps.ambientesbc.com
+prefix : /public-partner/sb/v1/operations/product-specific/loans/consumer-loan/in-store-billing-code/code-management
+```
+
+**El prefijo se dedujo, no lo dieron.** El catálogo del sandbox es `/public-partner/sb` (se ve en los
+demás prefijos que pasó Santi) y el `servers` del OpenAPI trae el resto. **Ojo: en la lista de variables
+del ambiente desplegado NO existe `BANCOLOMBIA_IN_STORE_BILLING_CODE_PREFIX`** — hay que aprovisionarla
+al desplegar la rama, o `config('services.bancolombia.in-store-billing-code.prefix')` sale vacío y el POST
+se va contra la raíz del host.
+
+### Lo que quedó PROBADO contra el banco
+
+| | |
+|---|---|
+| **El sobre anidado es correcto** | `POST /generateBillingCode` → **200** `{"data":{"billingCode":"6cc5078c6d9087cdf077"}}` |
+| **El sobre plano habría fallado** | mandado a propósito → **400 SA400**: *«Parámetro security requerido»*, *«customer requerido»*, *«transactionId no es un tag válido»*. El hallazgo del test de contrato ya no es una lectura del YAML: es la respuesta del banco |
+| **Los 5 headers son los correctos** | los acepta tal cual los arma `billingHeaders()`; el certificado va con `\n → espacio` y lo lee bien |
+| **El servicio SIRVE A LOS DOS PRODUCTOS** | el escenario Consumo del spec (con `transactionId` base64 largo, forma de `loan_validate_key`) → **200** `billingCode=f68cd46b856ded015974`. Responde la pregunta **B** de la 2ª revisión a nivel contrato+sandbox: el path dice `consumer-loan` pero el servicio atiende BNPL y Consumo |
+| **`message-id` UUID v4 es obligatorio de verdad** | v1 y no-UUID → **400** *«no cumple con la expresión regular»* (`^…-4[0-9a-f]{3}-[89ab]…$`). La bomba comentada en `BancolombiaConsumerLoan.php:409` (F-84) **está confirmada**, no era una precaución |
+| **El `address` >20 lo corta el GATEWAY** | 35 caracteres → **400 SA400** *«Longitud del parámetro address es mayor a la lóngitud máxima esperada: 20»*, antes de que el negocio lo vea. **La decisión de no truncar a ciegas queda validada empíricamente**: mandar de más no es «que se encargue el banco», es un 400 |
+| **La credencial de Alkosto vive** | `Client-Id` de la credencial **#1124** (allied 209, lender 68) autentica y hasta saca token OAuth. **No hacía falta aprovisionar nada** para probar |
+
+### Y esto DERRIBA F-81: el sandbox SÍ ejercita la seguridad
+
+Se había escrito que el sandbox «no valida ni el JWT ni el mTLS (`tlsProfileJWT` vacío)», y sobre eso se
+apoyaba la idea de que pasar ahí no significaba nada. **Es falso, medido caso por caso:**
+
+| lo que se rompió a propósito | respuesta |
+|---|---|
+| sin `json-web-token` / basura | **403 SA403** · *The input data is not a valid JWT* |
+| JWT firmado con OTRA llave privada | **403 SA403** · *RSA signature did not verify* |
+| JWT vencido (`exp` hace 1 h) | **403 SA403** · *JWT has expired at…* |
+| sin `x-client-certificate` / basura | **400 SA500** · *Error con la lectura del modulus* |
+| `Client-Secret` o `Client-Id` incorrecto | **401** · *Invalid client id or secret* |
+| sin `message-id` | **400 SA400** · *es requerido* |
+
+O sea: **el gateway verifica la firma RS256 del JWT contra el módulo del certificado que le mandamos**.
+La pareja llave↔certificado se comprueba de verdad. Pasar acá **sí** dice algo sobre la seguridad.
+
+**Y por eso el dato del certificado se afina en vez de caerse:** el certificado **vencido y autofirmado
+funciona igual** (el 200 de arriba salió con él). El gateway usa el certificado para leer el módulo y
+verificar la firma, pero **no valida vigencia ni cadena**. Las dos consecuencias:
+
+1. La renovación **no bloquea** esta prueba, y tampoco explica por sí sola el `SA400 Header host inválido`
+   de `enableOffers` — la corrección #1 de la sección anterior se sostiene.
+2. Pero **el sandbox no prueba que el certificado sea aceptable** en Development/Testing/Producción, que
+   es donde sí puede validarse. Renovarlo sigue siendo necesario; lo que cambia es que ya no es urgente
+   *para poder probar*.
+
+### Tres cosas que aparecieron y que hay que atender
+
+**1 · `retrieveOrderDetails` NO SE PUEDE EJERCITAR, y la causa está escrita en el spec.** Con la misma
+credencial que emite códigos, `GET /retrieve-order-details` responde **400 `SA409` · «Identificación de
+aplicación inválida»** para **todos** los códigos, incluidos los cuatro que el dispatcher declara y el
+que el sandbox **acababa de emitir**. **No es nuestra credencial ni autorización por operación**: el
+bloque `x-ibm-configuration.catalogs` del propio OpenAPI muestra que **el catálogo `Sandbox` no define
+`endpointRetrieve`** — sólo `endpoint`. `Development` y `Testing` definen los dos. El GET no tiene backend
+a dónde ir en Sandbox. (Además **`SA409` no existe en el catálogo de errores del OpenAPI**.) O sea que
+esto **no se pide, se cambia de catálogo**.
+
+**2 · Hay DOS 409 distintos y confundirlos rompe el paso 3 del plan.**
+
+| código | cuándo | qué significa |
+|---|---|---|
+| `BP21000` | sólo con el payload exacto `identificadorIncorrecto` del spec | **conflicto real de negocio** con el `transactionId` — el escenario de recuperación |
+| `BP12700001` | **cualquier dato real nuestro** (es el `DefaultResponse` del mock) | *«CONFLICTO DEBIDO A LA DATA DE PETICIÓN»* — el sandbox no conoce el dato |
+
+F-81 decía «el sandbox responde 409 a cualquier dato real»: **cierto, pero con otro código**. Un manejo
+de errores que asuma «409 ⇒ ya se generó» va a tratar como recuperable lo que sólo es «el mock no te
+conoce». Los dos códigos están en el OpenAPI; `SA409`, `SA403` y `SA500` **no**.
+
+**3 · `health()` estaba roto — devolvía `false` siempre. ✅ ARREGLADO.** El contrato dice que
+`HEAD /health` no exige cabeceras y el método se escribió así (`Http::head(...)` pelado). El banco
+contesta **401**: exige `Client-Id` **y** `Client-Secret` (con los dos → 200; sólo con `Client-Id` → 401).
+Corrido contra el sandbox real, `health()` **devolvió `false` con el servicio arriba y sano** — justo lo
+contrario de para lo que existe.
+
+Arreglo aplicado en la rama: la firma pasa a `health(int $lenderId, int $alliedBranchId)` —necesita la
+credencial— y manda **sólo** `Client-Id` + `Client-Secret`. **No** manda el JWT ni el certificado a
+propósito: si los mandara, un 403 por firma mala apagaría la sonda y se perdería la discriminación que la
+justifica («¿es el canal, o es mi firma?»). No había llamadores, así que el cambio de firma no rompe nada.
+Dos tests nuevos fijan **lo medido**, no lo documentado.
+
+**Y de paso, `Bancolombia::getRequestExceptionCode()` lleva `?? null`** (F-92). El 401 lo emite el gateway
+y su cuerpo **no trae `errors`** —`{"httpCode","httpMessage","moreInformation"}`—, así que el acceso por
+índice directo lanzaba `Undefined array key` **dentro de `handleException`**, donde ningún catch lo
+atrapa. `getRequestExceptionModel` ya trataba el `null` como «código desconocido», así que devolverlo es
+el camino sano. Afecta a `BancolombiaConsumerLoan` y `BancolombiaBnpl`, que sí pasan por ahí; este Action
+no, porque atrapa `\Exception` directo.
+
+### Lo que esta prueba SIGUE SIN validar — y es lo que bloquea
+
+**El sandbox es un mock (Microcks detrás de APIC) que despacha por igualdad estricta del JSON.** El
+`billingCode` que devolvió es el valor enlatado del ejemplo del contrato, no un código emitido por el
+negocio del banco. **Y no hay que deducirlo: está escrito en el spec.**
+
+```yaml
+Sandbox:     endpoint: https://microcks-qa.apps.ambientesbc.lab/rest/In+Store+Billing+Code…
+             # (sin endpointRetrieve)
+Development: endpoint:        https://ecosistemas-int-dev.apps.ambientesbc.com/faas/order/api/v1/createOrder
+             endpointRetrieve: https://ecosistemas-int-dev.apps.ambientesbc.com/faas/order/api/v1/consultOrder
+Testing:     …-int-qa.apps.ambientesbc.com/faas/order/api/v1/{createOrder,consultOrder}
+```
+
+Los dos códigos que «recibimos» —`6cc5078c6d9087cdf077` (BNPL) y `f68cd46b856ded015974` (Consumo)— son
+**literalmente los valores escritos en el YAML** (líneas 231 y 239). El emisor detrás del gateway en
+Sandbox es Microcks. **El gateway de Bancolombia es real; el emisor no.**
+
+Y el nombre del backend real dice algo: `createOrder` / `consultOrder` en un `faas/order`. Es un
+**servicio de órdenes**, lo que hace más plausible —sin probarlo— que Q2 y «¿quién crea la orden en
+Corbeta?» se contesten ahí. Entonces:
+
+- **Q2 sigue BLOQUEADA**: si el `billingCode` es el mismo PIN que la conciliación cruza contra la factura,
+  esto no lo puede contestar. La respuesta viene del banco o de un ambiente real.
+- **«¿Quién crea la orden en Corbeta?» sigue BLOQUEADA** por la misma razón.
+- El árbol de decisión de la conciliación **no se movió**: sigue dependiendo de esas dos respuestas.
+
+Lo que cambió es el **eje**: ya no está bloqueado *lo técnico* — el request, los headers, la firma, el
+sobre y el mapeo de `address` están probados contra el banco. Lo único bloqueado es **el comportamiento
+de negocio**, y para eso hace falta el catálogo **Development o Testing**, no el Sandbox. Esa es la
+pregunta A de la 2ª revisión, y ahora se puede hacer con el resultado en la mano.
+
+### Cómo se reproduce — quedó en el harness
+
+```bash
+make harness-sandbox              # los 20 casos · GRUPO=A|B|C|D|E para acotar
+```
+
+`harness/dev/sandbox-bancolombia.ts`, al lado de `contrato-bancolombia`. **Es un ORÁCULO, no un dump**:
+cada caso declara el status y el código de error medidos el 2026-08-04 y sale 1 si el banco se apartó.
+Distingue una regresión de una **buena noticia**: un 200 donde se esperaba error se marca `★` (significaría
+que nos movieron a un catálogo con backend real, no que se rompió algo). Lee la credencial #1124 con
+`SELECT` y no escribe nada, ni en BD ni en el banco.
+
+Con esto el canal pasa de tres oráculos a cuatro, y el cuarto es el único que **deja que el banco nos
+contradiga** — que es exactamente lo que faltaba cuando el sobre plano pasó 8 tests en verde.
+
+⚠ **Es un ESPEJO del PHP, no la fuente.** El JWT, los headers y el sobre se rearman en TS replicando
+`BancolombiaBillingCode` + `Bancolombia::generateJsonWebToken`: si el PHP cambia y el script no, pasa en
+verde mintiendo. El cruce con la clase real se hace desde el contenedor:
+
+```bash
+docker exec legacy-backend-laravel.test-1 php artisan tinker <script con config() al sandbox>
+```
+
+Tests del PR: **16 pasan, 4 se saltean** (el contrato necesita el YAML del banco, que no está en el
+contenedor). Eran 15+4 antes de los tests nuevos de `health`.

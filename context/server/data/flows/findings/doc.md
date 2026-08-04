@@ -1561,16 +1561,31 @@ cd ~/Desktop/CREDITOP/github/legacy-backend && docker exec -e MYSQL_PWD="$(grep 
 
 **Causa raíz verificada — el mock despacha por igualdad estricta del JSON completo.** El dispatcher vive **dentro del propio OpenAPI** (`x-microcks-operation`, `dispatcher: SCRIPT`, Groovy): parsea el body y lo compara con `requestJSON == <ejemplo>` contra **cuatro juegos literales** de valores (transactionId + address + cityCode + departmentCode). Cualquier otra combinación cae en `DefaultResponse`, que para **ambas** operaciones es `409 BP12700001`. Para `retrieve-order-details` el dispatch es más simple: mapea por `billingCode` (`1770694a38b230dbf0f0` facturada · `6f1e621130c0ea7b4161` pendiente · `48799a34f861da1d561b` cancelada · `5aa5078c6d9087cdf158` sin-información), default igual 409.
 
-**Y el sandbox tampoco valida la seguridad:** en el catálogo `Sandbox` el `tlsProfileJWT` está **vacío** y no hay `endpointRetrieve` (todo va a Microcks). Pasar en sandbox **no** prueba el JWT ni el mTLS: eso se prueba contra `Development`/`Testing`.
+~~**Y el sandbox tampoco valida la seguridad:** en el catálogo `Sandbox` el `tlsProfileJWT` está **vacío** y no hay `endpointRetrieve` (todo va a Microcks). Pasar en sandbox **no** prueba el JWT ni el mTLS.~~
+
+⚠ **ESO ES FALSO — medido contra el sandbox real el 2026-08-04** (`https://gw-sandbox-qa.apps.ambientesbc.com`, credencial #1124 de Alkosto). El gateway (APIC) **está delante** del mock y **sí** ejercita la seguridad: verifica la **firma RS256 del JWT contra el módulo del certificado que uno manda** en `x-client-certificate`, y rechaza todo lo demás. La lectura de la config del catálogo describía Microcks, no el gateway que lo protege.
+
+| se rompió a propósito | respuesta real |
+|---|---|
+| sin `json-web-token` / basura | 403 `SA403` *The input data is not a valid JWT* |
+| JWT firmado con otra llave privada | 403 `SA403` ***RSA signature did not verify*** |
+| JWT con `exp` vencido | 403 `SA403` *JWT has expired at…* |
+| sin `x-client-certificate` / basura | 400 `SA500` *Error con la lectura del modulus* |
+| `Client-Id` o `Client-Secret` malo | **401** con cuerpo `{"httpCode","httpMessage","moreInformation"}` — **sin `errors`** |
+| `message-id` no-UUIDv4 | 400 `SA400` *no cumple con la expresión regular* |
+
+**Lo que el certificado sí y no prueba:** el certificado de la credencial #1124 está **vencido hace 400 días y es autofirmado**, y aun así el camino feliz devuelve 200. El gateway lo usa para leer el módulo y verificar la firma, pero **no valida vigencia ni cadena**. Renovarlo sigue haciendo falta para `Development`/`Testing`/producción — pero **no bloquea probar**.
 
 **Qué hacer.**
 - Un 409 en sandbox = "no coincidiste con un escenario", no un error de negocio. Para ejercitar el camino feliz hay que mandar **exactamente** los valores del escenario, dirección incluida.
-- Primer smoke test: **`HEAD /health`**, que no exige ninguna cabecera → aísla "host/TLS caído" de "mi firma está mal".
+- ~~Primer smoke test: **`HEAD /health`**, que no exige ninguna cabecera~~ → **también falso: `HEAD /health` pelado da 401.** Exige `Client-Id` **y** `Client-Secret` (con los dos → 200; sólo con `Client-Id` → 401). El contrato dice que no lleva cabeceras y **el contrato miente**: quien implemente la sonda leyendo el spec se queda con un `health()` que devuelve `false` con el servicio sano.
 - Para el mapeo de datos reales, el sandbox es inútil: hay que hacerlo con `Http::fake()` en tests propios.
+- **`GET /retrieve-order-details` no se puede ejercitar en Sandbox, y la causa está en el spec**: responde **400 `SA409` «Identificación de aplicación inválida»** para los 4 `billingCode` del dispatcher y para el que el propio sandbox acaba de emitir. **No es la credencial**: en `x-ibm-configuration.catalogs`, el catálogo `Sandbox` define `endpoint` (→ Microcks) pero **no `endpointRetrieve`**; `Development` y `Testing` definen los dos (`…/faas/order/api/v1/createOrder` y `/consultOrder`). El GET no tiene backend a dónde ir. `SA409`, `SA403` y `SA500` **no existen en el OpenAPI**.
+- **Hay dos 409 y no son lo mismo:** `BP21000` (conflicto real de `transactionId`, sólo con el payload `identificadorIncorrecto` exacto) vs `BP12700001` (`DefaultResponse` del mock, cualquier dato real). Tratar "409 ⇒ ya se generó" confunde los dos.
 
-**Bonus verificado del contrato:** `message-id` está **validado como UUID v4 por regex** (no es una recomendación: otro formato = `SA400`), y `billingStatus` **no es un enum** (`string maxLength 35`; los tres valores viven sólo en la descripción) → cualquier `switch` sobre el estado necesita un `default` fail-closed.
+**Bonus verificado del contrato:** `message-id` está **validado como UUID v4 por regex** (no es una recomendación: otro formato = `SA400` — **confirmado contra el banco**), y `billingStatus` **no es un enum** (`string maxLength 35`; los tres valores viven sólo en la descripción) → cualquier `switch` sobre el estado necesita un `default` fail-closed.
 
-**Estado:** verificado leyendo el OpenAPI (2.661 líneas) el 2026-07-31. Detalle completo del contrato en el nodo `bancolombia` §6.
+**Estado:** leído del OpenAPI (2.661 líneas) el 2026-07-31; **corregido con llamadas reales al sandbox el 2026-08-04** (27 casos). Detalle completo del contrato en el nodo `bancolombia` §6; la corrida, en la tarea `bancolombia-billing-code`.
 
 ---
 
@@ -1893,5 +1908,31 @@ E2E_TARGET=local npx tsx dev/caminar-qr.ts --producto bnpl \
 cómo se comporta el producto hoy.** Si se quiere mejorar, el arreglo natural es enrutar los códigos de
 negocio a `business-error` también en autogestión, o al menos no ofrecer "reintentar" sobre una solicitud
 cancelada. Queda como observación, no como tarea asumida.
+
+---
+
+### F-92 · Un 401 del gateway de Bancolombia no trae `errors` → revienta DENTRO del manejador de errores
+
+**Síntoma:** una integración Bancolombia con credencial mal aprovisionada no falla con un error de negocio legible: tira un `Error` de PHP 8 (`Undefined array key "errors"`) **desde el propio `catch`**, así que el mensaje que llega arriba no habla de credenciales.
+
+**Causa raíz verificada.** `Bancolombia::getRequestExceptionCode()` (`app/Actions/Lenders/Bancolombia.php:27`) accede por índice directo:
+
+```php
+return $exception->response->collect()['errors'][0]['code'];
+```
+
+Todos los errores **de negocio** del banco traen `errors[]` (`SA400`, `BP21000`, `BP12700001`, `SP500`…), así que el acceso parece seguro. Pero el **401 lo emite el gateway, no el servicio**, y su cuerpo tiene otra forma —comprobado contra `gw-sandbox-qa` el 2026-08-04:
+
+```json
+{"httpCode":"401","httpMessage":"Unauthorized","moreInformation":"Invalid client id or secret."}
+```
+
+Sin `errors`, `['errors'][0]['code']` lanza. Y como lo llama `Integration::handleException()` (`app/Actions/Lenders/Integration.php:82`), la excepción nace **dentro del manejador**: no la atrapa ningún `catch` de la cadena.
+
+**No es teórico:** de las 4 credenciales Bancolombia distintas que hay en `lender_allied_credentials` (lenders 68/100), **sólo una** (#1124, `application_name = creditop`) está aprovisionada en el sandbox; las otras tres —incluida la de los 167 comercios `creditop-bnpl`— dan 401. Cualquiera de ellas contra ese host pega el camino roto.
+
+**Qué hacer.** `?? null` en el acceso (`['errors'][0]['code'] ?? null`), y que el `null` se trate como "código desconocido". `BancolombiaBillingCode` **no** está afectado: atrapa `\Exception` directo y su `traceFailure()` ya contempla la respuesta sin forma esperada. Los afectados son `BancolombiaConsumerLoan` y `BancolombiaBnpl`, que sí pasan por `handleException`.
+
+**Estado:** verificado el 2026-08-04 llamando al sandbox con `Client-Id` y `Client-Secret` inválidos. Relacionado: F-81.
 
 ---

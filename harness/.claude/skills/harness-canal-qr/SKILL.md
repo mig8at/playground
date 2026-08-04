@@ -27,13 +27,20 @@ como sin cupo y **no** como error). Con las dos prendidas sale `PLS003` multipro
 en BNPL** — de ahí el `?multiproduct=true` en la URL. Por eso, para ver Consumo hay que **apagar la
 compuerta de BNPL**.
 
-**Los dos caminos, y lo que cada uno NO ve:**
+**Los caminos, y lo que cada uno NO ve:**
 
 | | Qué ejercita | Su punto ciego |
 |---|---|---|
 | `dev/qr-corbeta.ts` | backend + BD: cierra en 25 con código | **los esquemas zod del front** |
 | `dev/caminar-qr.ts` | las pantallas: cargan y avanzan | no valida negocio ni que la pantalla esté *bien* |
 | `npm run contrato:bancolombia` | el mock vs los zod **reales** del monorepo | no prueba el recorrido |
+| **`make harness-sandbox`** | **el gateway REAL del banco**: sobre, 5 headers, firma RS256, `maxLength` | el **negocio**: en el catálogo `Sandbox` el emisor es Microcks |
+
+⚠ **Los tres primeros son NUESTRA lectura del contrato, y por eso pueden coincidir en el error.** Pasó:
+el sobre PLANO pasaba 8 tests con `Http::fake` en verde porque comprobaban la misma suposición con la que
+se escribió el código, sacada del mismo documento equivocado. **Un mock no puede contradecir la
+documentación de la que nació.** `make harness-sandbox` es el único que deja que el banco contradiga —
+mandale el sobre plano y contesta `SA400 · Parámetro security requerido`.
 
 ## Recetas
 

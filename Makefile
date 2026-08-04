@@ -99,9 +99,12 @@ context-map: ## @ctx regenera docs/ROUTE-MAP.md (el hook ya lo hace al editar un
 	@cd context && python3 tools/build-route-map.py
 
 # ── PRUEBAS (harness) ────────────────────────────────────────────────────────────────────────────
-.PHONY: harness-contract harness-walk harness-qr harness-mocks harness-check
+.PHONY: harness-contract harness-sandbox harness-walk harness-qr harness-mocks harness-check
 harness-contract: ## @har ¿el mock de Bancolombia cumple los esquemas zod del front? (sin browser ni BD)
 	@cd harness && npm run --silent contrato:bancolombia
+
+harness-sandbox: ## @har ¿el BANCO DE VERDAD acepta lo que mandamos? pega contra el gateway real. GRUPO=A|B|C|D|E
+	@cd harness && node dev/sandbox-bancolombia.ts $(if $(GRUPO),--grupo $(GRUPO)) $(if $(CRED),--cred $(CRED))
 
 harness-walk: ## @har recorre las pantallas del canal QR clickeando. PRODUCT=bnpl|consumo
 	@cd harness && E2E_TARGET=local npx tsx dev/caminar-qr.ts --producto $(or $(PRODUCT),bnpl)
