@@ -15,6 +15,7 @@
 // Exit code: 0 coherente · 1 hay incoherencias · 2 no se pudo resolver.
 import { TARGET, env, INHERITS } from '../pkg/env.ts';
 import { config } from '../pkg/config.ts';
+import { lokiConfig, porQueNo } from '../pkg/loki.ts';
 
 const JSON_OUT = process.argv.includes('--json');
 
@@ -45,15 +46,20 @@ const chequeos: Chequeo[] = checks.map((c) => ({
 // El forense de Loki apagado NO es una incoherencia: en `local` es lo correcto (el backend local corre
 // con GRAFANA_LOKI_ENABLED=false y no empuja nada). Lo que sí hay que decir es cuándo está ENCENDIDO e
 // incompleto: ahí la corrida termina y el bloque forense sale vacío, que se lee como "no hubo errores".
+// La regla de "¿se puede consultar?" NO se reimplementa acá: se le pregunta a `porQueNo()`, que es la que
+// usan el forense y los dos runners. Tener una copia propia ya falló una vez — este chequeo reportaba
+// «falta E2E_LOKI_USER/TOKEN» para el target local, donde un Loki en Docker no pide credenciales. Un
+// preflight que grita cuando todo está bien es un preflight que se ignora.
 function lokiEstado(): string {
-    if (env('E2E_LOKI_ENABLED', 'false') !== 'true') {
+    const c = lokiConfig();
+    const no = porQueNo(c);
+    if (!no) return `${c.url}${c.user ? ` · user ${c.user}` : ' · sin auth (Loki local)'}${c.env ? ` · env ${c.env}` : ''}`;
+    if (!c.enabled) {
         return TARGET === 'local'
-            ? 'apagado (correcto en local: el backend no empuja a Loki)'
+            ? 'apagado (prendelo con bin/loki-local start y E2E_LOKI_ENABLED=true)'
             : 'apagado (falta el acceso al stack de este target)';
     }
-    const faltan = (['E2E_LOKI_URL', 'E2E_LOKI_USER', 'E2E_LOKI_TOKEN'] as const).filter((k) => !env(k));
-    if (faltan.length) return `⚠ ENCENDIDO pero incompleto: falta ${faltan.join(', ')} (el forense saldría vacío)`;
-    return `${env('E2E_LOKI_URL')} · user ${env('E2E_LOKI_USER')}`;
+    return `⚠ ENCENDIDO pero no usable: ${no}`;
 }
 
 // Informativos: no son incoherencias, pero decidir a ciegas contra data compartida es peor que saberlo.

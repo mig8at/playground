@@ -189,7 +189,12 @@ async function closeRt2(slug: string, lenderId: number, amount: number): Promise
     };
 
     const sel = await step('select', 'POST', `/api/onboarding/loan-application/update-user-request/${ur}`, { lender_id: lenderId, fee_number: 4, original_amount: amount, amount, initial_fee: 0, rate: '0', transaction_data: null });
-    if (!sel.json?.data?.standBy) { console.log('  ⚠ la selección NO devolvió standBy — esto no es un cierre in-platform; corto acá.'); return; }
+    if (!sel.json?.data?.standBy) {
+        console.log('  ⚠ la selección NO devolvió standBy — esto no es un cierre in-platform; corto acá.');
+        // Y se JUZGA igual: cortar en el primer paso es "quedó a mitad" (exit 2), no un cierre exitoso.
+        await cerrarYJuzgar(ur);
+        return;
+    }
 
     await step('continue (index)', 'GET', `/api/loans/requests/${ur}`);
     await step('confirm', 'POST', '/api/loans/requests/confirm', { user_request_id: Number(ur) });
@@ -232,6 +237,17 @@ async function closeRt2(slug: string, lenderId: number, amount: number): Promise
         await step('authorize', 'POST', '/api/loans/requests/promissory-note/validate/authorize', { user_request_id: Number(ur) });
     }
 
+    await cerrarYJuzgar(ur);
+}
+
+/**
+ * El cierre de la corrida: traza + veredicto + exit code + forense. Es UNA función y no código repetido
+ * porque `closeFlow` tiene más de una salida, y la que corta temprano (`select` sin standBy) se estaba
+ * yendo por un `return` pelado: sin resumen, sin veredicto y con **exit 0** — o sea reportando "cerró"
+ * una corrida que no pasó del primer paso. Es exactamente el bug que el comentario de acá abajo dice
+ * haber arreglado, sobreviviendo en el otro camino. Toda salida pasa por acá.
+ */
+async function cerrarYJuzgar(ur: number | string): Promise<void> {
     await traza.resumen();
     const v = await traza.veredicto(ur, process.env.E2E_RESULT ?? 'success');
     // Antes esto era un console.log y sweep SIEMPRE salía 0: podía imprimir "estado final: 8 Cancelado"

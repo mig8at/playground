@@ -1,0 +1,63 @@
+#!/usr/bin/env bash
+# Tempo LOCAL en Docker — el que le pone `trace_id` a los logs locales.
+#
+# POR QUÉ HACE FALTA, y no es obvio: no queremos las trazas, queremos el `trace_id` en los LOGS.
+# `GrafanaServiceProvider` estampa `trace_id`/`span_id` en cada línea con un processor de Monolog, pero
+# SOLO si `grafana.tempo.enabled`; y `initializeOpenTelemetry()` hace `if (!$endpoint) return;`. O sea:
+# sin un endpoint OTLP no hay SDK de OpenTelemetry → no hay span activo → no hay `trace_id`.
+#
+# Y sin `trace_id` el forense (`pkg/loki.ts`) no puede hacer su fase 2: pasa a correlacionar por VENTANA
+# DE TIEMPO, que trae todo lo que se logueó en esos minutos en vez de las ~18 líneas de la petición.
+# Con Tempo arriba, `local` funciona igual que dev: agrupación por petición.
+#
+# Bonus: el sampler es `AlwaysOnSampler` mientras `grafana.sampling.rate` sea >= 1.0 (el default), así que
+# TODA petición genera span y TODA línea lleva su trace. No hay que tocar el muestreo.
+#
+# PARA QUE EL BACKEND LO USE, en legacy-backend/.env (host.docker.internal: el backend corre en Docker):
+#   GRAFANA_TEMPO_ENABLED=true
+#   GRAFANA_TEMPO_ENDPOINT=http://host.docker.internal:4318/v1/traces
+#   (GRAFANA_TEMPO_API_KEY vacío: un Tempo local no pide auth)
+# y después `php artisan config:clear`.
+#
+# ⚠ El endpoint lleva el PATH `/v1/traces`. `OtlpHttpTransportFactory->create($endpoint, ...)` usa la URL
+# tal cual, no le agrega la ruta: si pasás solo `http://host:4318` los spans se van a un 404 y el
+# `trace_id` igual aparece en los logs (el span existe), pero las trazas no se guardan en ningún lado.
+#
+# uso: bin/tempo-local [start|stop|status|logs|restart]
+#   env: TEMPO_LOCAL_OTLP_PORT (4318) · TEMPO_LOCAL_API_PORT (3200) · TEMPO_LOCAL_IMAGE (grafana/tempo:2.4.1)
+set -euo pipefail
+DIR="$(cd "$(dirname "$0")/.." && pwd)"
+OTLP="${TEMPO_LOCAL_OTLP_PORT:-4318}"
+API="${TEMPO_LOCAL_API_PORT:-3200}"
+IMAGE="${TEMPO_LOCAL_IMAGE:-grafana/tempo:2.4.1}"
+NAME=harness-tempo
+CFG="$DIR/tempo-local/tempo.yaml"
+
+listo() { [[ "$(curl -s -o /dev/null -w '%{http_code}' --max-time 2 "http://localhost:$API/ready" 2>/dev/null)" == "200" ]]; }
+existe() { [[ -n "$(docker ps -aq -f "name=^${NAME}$" 2>/dev/null)" ]]; }
+corriendo() { [[ -n "$(docker ps -q -f "name=^${NAME}$" 2>/dev/null)" ]]; }
+
+case "${1:-start}" in
+  start)
+    if listo; then echo "✓ ya arriba (OTLP :$OTLP · API :$API)"; exit 0; fi
+    [[ -f "$CFG" ]] || { echo "✗ falta $CFG"; exit 1; }
+    if existe && ! corriendo; then docker start "$NAME" >/dev/null; else
+      existe && docker rm -f "$NAME" >/dev/null 2>&1 || true
+      # La config va montada read-only: si el contenedor la pudiera escribir, un `stop`/`start` podría
+      # dejarla distinta de lo que está en el repo y nadie se enteraría.
+      docker run -d --name "$NAME" -p "$OTLP:4318" -p "$API:3200" \
+        -v "$CFG:/etc/tempo.yaml:ro" "$IMAGE" -config.file=/etc/tempo.yaml >/dev/null
+    fi
+    printf 'levantando Tempo (OTLP :%s · API :%s)' "$OTLP" "$API"
+    for _ in $(seq 1 40); do listo && { echo " → listo"; exit 0; }; printf '.'; sleep 1; done
+    echo " → NO respondió /ready; mirá: bin/tempo-local logs"; exit 1
+    ;;
+  stop)    docker rm -f "$NAME" >/dev/null 2>&1 && echo "✓ bajado (y las trazas se fueron con él)" || echo "no estaba corriendo" ;;
+  restart) docker restart "$NAME" >/dev/null 2>&1 && echo "✓ reiniciado" || echo "no existe: usá start" ;;
+  status)
+    if listo; then echo "✓ arriba (OTLP :$OTLP · API :$API)"
+    else corriendo && echo "· contenedor arriba pero /ready no responde todavía" || echo "✗ no está corriendo"; fi
+    ;;
+  logs)    docker logs --tail 40 "$NAME" 2>&1 ;;
+  *)       echo "uso: bin/tempo-local [start|stop|status|logs|restart]"; exit 2 ;;
+esac

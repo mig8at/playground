@@ -1,0 +1,70 @@
+#!/usr/bin/env bash
+# Loki LOCAL en Docker — para que el camino rápido (target `local`) también se pueda explicar.
+#
+# POR QUÉ ESTO Y NO UN MOCK: es la misma decisión que ya está tomada con MySQL. Para la base de datos no
+# se mockea el motor, se corre MySQL de verdad en un contenedor; acá igual. Un mock que imitara la API de
+# Loki obligaría a reimplementar LogQL (matchers, regex sobre etiquetas, ventanas), y entonces
+# `pkg/loki.ts` quedaría validado contra mi reimplementación en vez de contra Loki. Con el contenedor real
+# la API es idéntica a la de Grafana Cloud y el forense no distingue uno de otro.
+#
+# POR QUÉ NO SE APUNTA EL TARGET local AL LOKI DE DEV (la tentación obvia, y es una trampa): con la BD
+# funciona porque apuntás a dev y leés las filas que TU corrida escribió. Con Loki tu corrida local no
+# escribió nada allá, así que leerías la corrida de OTRO cuyo `user_request_id` coincide — y coincide,
+# porque la BD local es un dump de dev y las dos secuencias de id avanzan en el mismo rango (medido el
+# 2026-08-04: local en 464664, dev en 464620). `pkg/loki.ts` lo bloquea (`porQueNo`), no es solo un
+# consejo. Un forense que muestra con seguridad la solicitud de otra persona es un diagnóstico falso.
+#
+# Este Loki NO pide credenciales (por eso `E2E_LOKI_USER`/`TOKEN` van vacíos en `.env.local`) y guarda en
+# el filesystem del contenedor: al hacer `stop` se borra todo, que es lo que uno quiere de un ambiente
+# local. Para conservar entre corridas, usá `restart` en vez de `stop`+`start`.
+#
+# PARA QUE EL BACKEND EMPUJE ACÁ, en legacy-backend/.env (host.docker.internal, NO localhost — el backend
+# corre en Docker y `localhost` sería su propio contenedor):
+#   GRAFANA_ENABLED=true
+#   GRAFANA_LOKI_ENABLED=true
+#   GRAFANA_LOKI_ENDPOINT=http://host.docker.internal:3100
+#   GRAFANA_LOKI_USERNAME=      GRAFANA_LOKI_PASSWORD=       (vacíos: sin auth)
+# y después `php artisan config:clear`. Ojo: sin `GRAFANA_TEMPO_ENDPOINT` los logs salen SIN `trace_id`
+# (`initializeOpenTelemetry()` sale temprano), así que el forense trabaja en MODO DEGRADADO — solo ve las
+# líneas que nombran el uReq. Lo declara en pantalla; no es un error.
+#
+# uso: bin/loki-local [start|stop|status|logs|restart]
+#   env: LOKI_LOCAL_PORT (3100) · LOKI_LOCAL_IMAGE (grafana/loki:3.0.0)
+set -euo pipefail
+PORT="${LOKI_LOCAL_PORT:-3100}"
+IMAGE="${LOKI_LOCAL_IMAGE:-grafana/loki:3.0.0}"
+NAME=harness-loki
+
+listo() { [[ "$(curl -s -o /dev/null -w '%{http_code}' --max-time 2 "http://localhost:$PORT/ready" 2>/dev/null)" == "200" ]]; }
+existe() { [[ -n "$(docker ps -aq -f "name=^${NAME}$" 2>/dev/null)" ]]; }
+corriendo() { [[ -n "$(docker ps -q -f "name=^${NAME}$" 2>/dev/null)" ]]; }
+
+case "${1:-start}" in
+  start)
+    if listo; then echo "✓ ya arriba en :$PORT"; exit 0; fi
+    if existe && ! corriendo; then docker start "$NAME" >/dev/null; else
+      existe && docker rm -f "$NAME" >/dev/null 2>&1 || true
+      docker run -d --name "$NAME" -p "$PORT:3100" "$IMAGE" >/dev/null
+    fi
+    # Loki tarda ~15s en estar listo; sin esperar, el primer push se pierde en silencio y después uno
+    # está buscando por qué "no hay logs" cuando el problema era el arranque.
+    printf 'levantando Loki en :%s' "$PORT"
+    for _ in $(seq 1 40); do listo && { echo " → listo"; exit 0; }; printf '.'; sleep 1; done
+    echo " → NO respondió /ready; mirá: bin/loki-local logs"; exit 1
+    ;;
+  stop)    docker rm -f "$NAME" >/dev/null 2>&1 && echo "✓ bajado (y los logs se fueron con él)" || echo "no estaba corriendo" ;;
+  restart) docker restart "$NAME" >/dev/null 2>&1 && echo "✓ reiniciado (conserva los logs)" || echo "no existe: usá start" ;;
+  status)
+    if listo; then
+      echo "✓ arriba en :$PORT"
+      S=$(( ($(date +%s) - 3600) * 1000000000 )); E=$(( $(date +%s) * 1000000000 ))
+      echo -n "  etiquetas (última hora): "
+      curl -s -G "http://localhost:$PORT/loki/api/v1/labels" --data "start=$S" --data "end=$E" \
+        | (command -v jq >/dev/null && jq -rc '.data // []' || cat)
+    else
+      corriendo && echo "· contenedor arriba pero /ready no responde todavía" || echo "✗ no está corriendo"
+    fi
+    ;;
+  logs)    docker logs --tail 40 "$NAME" 2>&1 ;;
+  *)       echo "uso: bin/loki-local [start|stop|status|logs|restart]"; exit 2 ;;
+esac

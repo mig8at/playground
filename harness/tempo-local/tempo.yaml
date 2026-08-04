@@ -1,0 +1,43 @@
+# Config mínima de Tempo para local. Existe porque la imagen `grafana/tempo` NO trae una por default (a
+# diferencia de `grafana/loki`, que arranca sola con /etc/loki/local-config.yaml).
+#
+# PARA QUÉ QUEREMOS TEMPO ACÁ: no nos interesan las trazas en sí, nos interesa que OpenTelemetry quede
+# INICIALIZADO. `GrafanaServiceProvider::initializeOpenTelemetry()` hace `if (!$endpoint) return;`, así que
+# sin un endpoint OTLP no hay SDK, sin SDK no hay span activo, y sin span el processor de Monolog no puede
+# estampar `trace_id` en los logs. El `trace_id` es lo que le permite al forense agrupar las ~18 líneas de
+# una misma petición en vez de correlacionar por ventana de tiempo.
+#
+# Lo demás es el mínimo para que Tempo arranque y no se queje: almacenamiento en el filesystem del
+# contenedor (se va con el `stop`, que es lo que uno quiere de un ambiente local) y un solo receptor.
+
+stream_over_http_enabled: true
+
+server:
+  # 3200 es el puerto de la API de Tempo. No choca con nada del harness (mocks 8095-8104, :4000,
+  # wizard :5174, panel :5195, Loki local :3100).
+  http_listen_port: 3200
+
+distributor:
+  receivers:
+    otlp:
+      protocols:
+        # SOLO HTTP: el backend usa OtlpHttpTransportFactory con 'application/x-protobuf'. Habilitar gRPC
+        # sería abrir un puerto que nadie va a usar.
+        http:
+          endpoint: 0.0.0.0:4318
+
+ingester:
+  # Corto a propósito: en local querés ver la traza al toque, no esperar el bloque de 30 minutos.
+  max_block_duration: 5m
+
+compactor:
+  compaction:
+    block_retention: 1h   # local: no hace falta guardar historia
+
+storage:
+  trace:
+    backend: local
+    wal:
+      path: /var/tempo/wal
+    local:
+      path: /var/tempo/blocks

@@ -1,0 +1,3 @@
+
+# binario compilado por `go build` (la entrada es `make trazador-acceso`, que usa `go run`)
+/trazador

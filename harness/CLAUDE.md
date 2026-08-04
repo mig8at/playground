@@ -114,6 +114,24 @@ que distingue "ventana cerrada" y **tira** (`dev/guided.spec.ts:538-545`); el re
   ⚠ Solo ve **legacy-backend**: el `trace_id` no se propaga entre servicios (los Go no lo emiten), y solo
   encuentra traces que traigan el uReq en su `context` (~8% de las líneas ancla el resto). Lo declara al
   imprimir; leé ese bloque antes de concluir de una ausencia.
+  **Tres modos, los elige solo y los anuncia:** *completo* (ancla + expande por trace) · *degradado* (hay
+  ancla, no hay trace) · *ventana* (no hay ancla: todo lo de la ventana, **solo con Loki local**, atado a
+  la URL y no a una perilla — contra uno compartido serían corridas ajenas).
+
+**Observabilidad en local: `make harness-obs-up`** (Loki :3100 + Tempo :4318, `bin/loki-local` ·
+`bin/tempo-local`). Se corre el servicio **real** en Docker, igual que MySQL: un mock obligaría a
+reimplementar LogQL y el forense quedaría validado contra la imitación. Tempo no es opcional si querés
+`trace_id`: `initializeOpenTelemetry()` hace `if (!$endpoint) return;`, y sin SDK no hay span que estampar.
+El backend local necesita en su `.env`: `GRAFANA_ENABLED`/`GRAFANA_LOKI_ENABLED`/`GRAFANA_TEMPO_ENABLED=true`,
+`GRAFANA_LOKI_ENDPOINT=http://host.docker.internal:3100`,
+`GRAFANA_TEMPO_ENDPOINT=http://host.docker.internal:4318/v1/traces`, usuario/token vacíos, y
+**`LOG_CHANNEL=loki`** — no `stack`, porque ese canal incluye `dynamodb` con `ignore_exceptions => false`
+y sin credenciales de AWS la excepción **rompe el request**.
+
+⚠ **NO apuntes el target `local` al Loki de dev.** Con la BD funciona (leés las filas que tu corrida
+escribió); con Loki no, porque tu corrida local no escribió allá: leerías la corrida de otro cuyo
+`user_request_id` coincide — y coincide, la BD local es un dump de dev y los id avanzan en el mismo rango
+(2026-08-04: local 464664, dev 464620). `pkg/loki.ts:porQueNo` lo **bloquea**.
 
 **No metas el modo rápido en el panel.** Ya se intentó y se revirtió: el panel existe para probar el
 FRONTEND a mano; el rápido es una herramienta de análisis por consola. Mezclarlos confunde para qué

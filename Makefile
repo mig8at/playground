@@ -121,12 +121,23 @@ harness-check: ## @har typecheck del harness
 harness-loki: ## @har ¿por qué terminó así esta solicitud? forense en los logs. UREQ=519245 [SINCE=12h]
 	@cd harness && node dev/loki-trace.ts $(UREQ) $(if $(SINCE),--since $(SINCE))
 
-# ── SONDA ────────────────────────────────────────────────────────────────────────────────────────
-# Probar que un servicio externo del que dependemos responde de verdad, y no leer una promesa. Hoy:
-# los logs de producción en Loki. `sonda-loki` es idempotente y no escribe nada: solo GET.
-.PHONY: sonda-loki
-sonda-loki: ## @har ¿puedo leer los logs en Loki? (TARGET=prod|dev QUERY='{...}' SINCE=1h)
-	@cd sonda && go run . $(if $(TARGET),-target $(TARGET)) $(if $(QUERY),-query '$(QUERY)') $(if $(SINCE),-since $(SINCE))
+# Observabilidad LOCAL: Loki (logs) + Tempo (el que le pone trace_id a esos logs). Misma decisión que con
+# MySQL — se corre el servicio real en Docker, no un mock. Un mock obligaría a reimplementar LogQL y el
+# forense quedaría validado contra la imitación en vez de contra Loki.
+.PHONY: harness-obs-up harness-obs-down
+harness-obs-up: ## @har levanta Loki (:3100) + Tempo (:4318) locales para observar el camino rápido
+	@cd harness && bin/loki-local start && bin/tempo-local start
+
+harness-obs-down: ## @har baja Loki y Tempo locales (se llevan sus datos)
+	@cd harness && bin/loki-local stop; bin/tempo-local stop
+
+# ── TRAZADOR ─────────────────────────────────────────────────────────────────────────────────────
+# La herramienta de SOPORTE: hasta dónde llegó una solicitud y por qué se rompió. Hoy cubre el primer
+# paso —probar que los logs se pueden leer— y es el único lugar del playground que habla con PRODUCCIÓN.
+# Solo GET: no escribe nada en ningún ambiente.
+.PHONY: trazador-acceso
+trazador-acceso: ## @har ¿puedo leer los logs en Loki? (TARGET=prod|dev QUERY='{...}' SINCE=1h)
+	@cd trazador && go run . $(if $(TARGET),-target $(TARGET)) $(if $(QUERY),-query '$(QUERY)') $(if $(SINCE),-since $(SINCE))
 
 # ── EXPLORACIONES ────────────────────────────────────────────────────────────────────────────────
 # Están acá para poder abrirlas, NO porque sean fuente. No se citan para decidir (ver CLAUDE.md).

@@ -18,7 +18,7 @@ recordar en qué carpeta vive cada script.
 | `make context-refs [NODE=x]` | ¿las citas `archivo:línea` apuntan a lo que dicen? |
 | `make context-seal NODE=x` | "este nodo lo verifiqué hoy" — **solo si de verdad lo revisaste** |
 | `make harness-contract` · `make harness-walk` · `make harness-qr` | probar el canal QR / Bancolombia |
-| `make sonda-loki` | **¿puedo leer los logs de producción?** Loki: permisos, etiquetas y líneas de verdad |
+| `make trazador-acceso` | **¿puedo leer los logs?** Loki: permisos, etiquetas y líneas de verdad (prod incluido) |
 
 Convención: los **nombres propios** se quedan (`context`, `tablero`, `harness` son carpetas; `panel`
 es la UI del harness) y los **verbos** van en inglés (`align`, `refs`, `seal`, `check`), como

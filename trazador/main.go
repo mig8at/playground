@@ -69,6 +69,15 @@ type config struct {
 	token  string // glc_...
 	tenant string // X-Scope-OrgID; solo Loki self-hosted detrás de gateway lo necesita
 	source string // de dónde salió cada cosa, para poder decirlo en pantalla
+
+	// Filtro de `environment`, como alternativa de regex (`development|develop`). NO es opcional cuando
+	// el stack es compartido: creditopdev sirve dev Y qa, y sin filtrar se mezclan dos ramas de código.
+	env string
+
+	// La BD del ambiente. Es lo que convierte al trazador de "lector de logs" en trazador: la BD dice
+	// QUÉ pasó (hecho) y ancla la búsqueda de logs; los logs solo dicen POR QUÉ. Vacío = solo Loki
+	// (el caso de prod hasta que haya una réplica de lectura).
+	dbHost, dbPort, dbName, dbUser, dbPass string
 }
 
 // alias mapea cada campo a los nombres de variable que aceptamos. Los `GRAFANA_LOKI_*` son los que usa
@@ -78,6 +87,13 @@ var alias = map[string][]string{
 	"base":   {"LOKI_URL", "GRAFANA_LOKI_ENDPOINT", "GRAFANA_CLOUD_ENDPOINT"},
 	"user":   {"LOKI_USER", "GRAFANA_LOKI_USERNAME"},
 	"tenant": {"LOKI_TENANT", "GRAFANA_LOKI_TENANT_ID"},
+	"env":    {"LOKI_ENV", "E2E_LOKI_ENV"},
+	// Los `E2E_DB_*` son los que usa el harness: aceptarlos permite copiar su .env.<target> tal cual.
+	"dbHost": {"DB_HOST", "E2E_DB_HOST"},
+	"dbPort": {"DB_PORT", "E2E_DB_PORT"},
+	"dbName": {"DB_NAME", "E2E_DB_NAME"},
+	"dbUser": {"DB_USER", "E2E_DB_USER"},
+	"dbPass": {"DB_PASS", "E2E_DB_PASS"},
 }
 
 // loadConfig busca los valores en `process.env` y en el `.env.<target>` de la propia herramienta, en ese
@@ -127,7 +143,7 @@ func loadConfig(target string) (config, []string) {
 
 	var c config
 	var origins []string
-	for _, field := range []string{"token", "base", "user", "tenant"} {
+	for _, field := range []string{"token", "base", "user", "tenant", "env", "dbHost", "dbPort", "dbName", "dbUser", "dbPass"} {
 		v, from := pick(field)
 		switch field {
 		case "token":
@@ -138,6 +154,18 @@ func loadConfig(target string) (config, []string) {
 			c.user = v
 		case "tenant":
 			c.tenant = v
+		case "env":
+			c.env = v
+		case "dbHost":
+			c.dbHost = v
+		case "dbPort":
+			c.dbPort = v
+		case "dbName":
+			c.dbName = v
+		case "dbUser":
+			c.dbUser = v
+		case "dbPass":
+			c.dbPass = v
 		}
 		if from != "" {
 			origins = append(origins, field+" <- "+from)
@@ -500,9 +528,21 @@ func main() {
 	query := flag.String("query", "", "selector LogQL a leer (si se omite, se descubre desde las etiquetas)")
 	since := flag.Duration("since", time.Hour, "ventana hacia atrás para la lectura corta")
 	limit := flag.Int("limit", 20, "máximo de líneas a pedir")
+	ureq := flag.Int64("ureq", 0, "número de solicitud: arma la TRAZA por etapas (BD + logs) en vez de probar el acceso")
+	jsonOut := flag.Bool("json", false, "con -ureq: salida estructurada en vez de la vista de etapas")
 	flag.Parse()
 
 	c, checked := loadConfig(*target)
+	// Dos modos en un binario: con `-ureq` es el TRAZADOR (etapas de una solicitud); sin él, la sonda de
+	// acceso (¿puedo leer los logs de este ambiente?) — que es el chequeo previo del primero.
+	//
+	// Va ANTES de exigir el token a propósito: en modo traza el token es OPCIONAL. La fuente primaria es
+	// la BD (el esqueleto), un Loki local no pide credenciales, y si no hay logs la traza sale igual —
+	// solo sin el porqué. Exigirlo acá bloquearía el caso que más sirve.
+	if *ureq > 0 {
+		os.Exit(modoTraza(c, *target, *ureq, *jsonOut))
+	}
+
 	if c.token == "" {
 		buscado := strings.Join(alias["token"], " / ")
 		donde := strings.Join(checked, ", ")
@@ -510,7 +550,7 @@ func main() {
 			donde = "(ningún .env." + *target + " existe todavía)"
 		}
 		fmt.Fprintf(os.Stderr, "%s no hay token para el target «%s».\n\nBuscado como %s en: %s\n\n"+
-			"Copiá sonda/.env.prod.example a sonda/.env.%s y completalo, o exportá LOKI_TOKEN.\n",
+			"Copiá trazador/.env.prod.example a trazador/.env.%s y completalo, o exportá LOKI_TOKEN.\n",
 			paint("31", "✘"), *target, buscado, donde, *target)
 		os.Exit(2)
 	}
@@ -757,7 +797,7 @@ func main() {
 		fmt.Printf("%s acceso de LECTURA CONFIRMADO contra %s.\n", paint("32", "VEREDICTO:"), winner.base)
 		fmt.Printf("Autentica con %s, resuelve etiquetas y devuelve líneas. Se puede construir encima.\n", winner.label())
 		if !knewBase || !knewUser {
-			fmt.Printf("\nPara que la próxima corrida no adivine nada, dejá esto en sonda/.env.%s:\n", *target)
+			fmt.Printf("\nPara que la próxima corrida no adivine nada, dejá esto en trazador/.env.%s:\n", *target)
 			fmt.Printf("  LOKI_URL=%s\n", winner.base)
 			if u, isBasic := strings.CutPrefix(winner.auth, "basic:"); isBasic {
 				fmt.Printf("  LOKI_USER=%s\n", u)

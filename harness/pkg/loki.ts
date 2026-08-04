@@ -27,7 +27,7 @@
 //
 // CONVENCIÓN: identificadores en inglés, comentarios y texto visible en español.
 
-import { env } from './env.ts';
+import { env, TARGET } from './env.ts';
 
 // ─── configuración ──────────────────────────────────────────────────────────────────────────────────
 
@@ -65,13 +65,42 @@ export function lokiConfig(): LokiConfig {
     };
 }
 
-/** Por qué no se puede consultar, en una frase lista para imprimir. `null` = se puede. */
+/**
+ * Por qué no se puede consultar, en una frase lista para imprimir. `null` = se puede.
+ *
+ * La tercera guarda es la importante y no es obvia: **apuntar el target `local` a un Loki que no sea
+ * `local` es peor que no tener forense.** La tentación es razonar como con la base de datos ("apunto a
+ * dev y listo"), pero no es lo mismo: contra la BD leés las filas que TU corrida escribió; contra Loki
+ * tu corrida local no escribió nada, así que leerías la corrida de otro cuyo `user_request_id` coincide.
+ *
+ * Y coincide, porque la BD local es un dump de dev: las dos secuencias de id viven en el mismo rango y
+ * avanzan a la vez (medido el 2026-08-04: local en 464664, dev en 464620 — 44 de diferencia). Un forense
+ * que muestra con seguridad los logs de la solicitud de otra persona es un diagnóstico falso, no un dato
+ * incompleto. Se bloquea, con la misma forma que la guarda de escrituras a la BD compartida (F-53).
+ */
 export function porQueNo(c: LokiConfig): string | null {
-    if (!c.enabled) return 'E2E_LOKI_ENABLED no está en true (en local es lo correcto: el backend no empuja a Loki)';
-    const faltan = (['url', 'user', 'token'] as const).filter((k) => !c[k]);
-    if (faltan.length) return `falta ${faltan.map((k) => `E2E_LOKI_${k.toUpperCase()}`).join(', ')}`;
+    if (!c.enabled) return 'E2E_LOKI_ENABLED no está en true';
+    if (!c.url) return 'falta E2E_LOKI_URL';
+    // Un Loki local (Docker) no pide credenciales; Grafana Cloud sí. Exigirlas siempre obligaría a
+    // inventar un usuario y un token falsos para el target local, que es peor que no pedirlos.
+    if (!esLokiLocal(c.url)) {
+        const faltan = (['user', 'token'] as const).filter((k) => !c[k]);
+        if (faltan.length) return `falta ${faltan.map((k) => `E2E_LOKI_${k.toUpperCase()}`).join(', ')}`;
+    }
+    // La guarda mira la URL y no la etiqueta, porque el invariante es de DÓNDE se lee: con target local
+    // apuntando a un Loki remoto, las líneas son de otra corrida (los id de uReq se solapan con dev
+    // porque la BD local es su dump). Es el espejo de `esLocal()` en bin/preflight.ts.
+    if (TARGET === 'local' && !esLokiLocal(c.url)) {
+        return `target local leyendo un Loki REMOTO (${c.url}) — tu corrida local no escribió ahí, y los id `
+            + 'de uReq se solapan con dev (la BD local es su dump), así que mostraría la solicitud de otro. '
+            + 'Levantá el Loki local: bin/loki-local start';
+    }
     return null;
 }
+
+/** ¿La URL apunta a un Loki de esta máquina? `host.docker.internal` cuenta: es cómo lo ve el contenedor. */
+export const esLokiLocal = (u: string) =>
+    /(^|\/\/)(localhost|127\.0\.0\.1|\[::1\]|host\.docker\.internal)(:|\/|$)/.test(u.trim());
 
 // ─── transporte ─────────────────────────────────────────────────────────────────────────────────────
 
@@ -98,9 +127,12 @@ async function query(c: LokiConfig, logql: string, fromMs: number, toMs: number,
         query: logql, start: ns(fromMs), end: ns(toMs),
         limit: String(limit), direction: 'forward',
     });
+    // Sin credenciales no se manda el header: un Loki local rechaza un Basic vacío en vez de ignorarlo.
+    const headers: Record<string, string> = c.user && c.token
+        ? { Authorization: `Basic ${Buffer.from(`${c.user}:${c.token}`).toString('base64')}` }
+        : {};
     const res = await fetch(`${c.url}/loki/api/v1/query_range?${qs}`, {
-        headers: { Authorization: `Basic ${Buffer.from(`${c.user}:${c.token}`).toString('base64')}` },
-        signal: AbortSignal.timeout(60_000),
+        headers, signal: AbortSignal.timeout(60_000),
     });
     if (!res.ok) {
         // El cuerpo puede ser el HTML de error de Cloudflare (hostname inexistente → 530/1016). Volcarlo
@@ -150,6 +182,10 @@ export type Cobertura = {
     ambientes: Record<string, number>;
     /** El filtro que se aplicó, para poder decir qué se dejó afuera. */
     filtroEnv: string;
+    /** true = no había `trace_id`, así que solo se ven las líneas que nombran el uReq (ver `anclar`). */
+    degradado: boolean;
+    /** true = correlación por VENTANA DE TIEMPO, no por uReq. Solo con Loki local (ver `forense`). */
+    porVentana: boolean;
 };
 
 /** El ambiente de una línea, mirando las DOS convenciones: Laravel usa `environment`, OTel
@@ -165,13 +201,16 @@ const ambienteDe = (l: Linea) => l.environment || l.deploymentEnvironment || '(s
 async function anclar(c: LokiConfig, ureq: string, fromMs: number, toMs: number) {
     const crudas = await query(c, `{service_name=~".+"} |= "${ureq}"`, fromMs, toMs);
     const anclas: Record<string, string[]> = {};
+    const sinTrace: Linea[] = [];
     for (const l of crudas) {
-        if (!l.traceId) continue;
         const campos = Object.entries(l.ctx).filter(([, v]) => String(v) === ureq).map(([k]) => k);
         if (!campos.length) continue;
+        // Sin `trace_id` no se puede expandir, pero la línea igual es del uReq: se guarda para el modo
+        // degradado en vez de descartarla. Descartarla era decir "cero anclas" habiendo evidencia.
+        if (!l.traceId) { sinTrace.push(l); continue; }
         anclas[l.traceId] = [...new Set([...(anclas[l.traceId] ?? []), ...campos])];
     }
-    return { crudas, anclas };
+    return { crudas, anclas, sinTrace };
 }
 
 /** FASE 2 — expansión: cada trace anclado, completo, por etiqueta (indexado y barato). */
@@ -180,13 +219,55 @@ export async function forense(c: LokiConfig, ureq: string | number, ventanaMs: n
     const fromMs = toMs - ventanaMs - c.padMs;
     const id = String(ureq);
 
-    const { crudas, anclas } = await anclar(c, id, fromMs, toMs);
+    const { crudas, anclas, sinTrace } = await anclar(c, id, fromMs, toMs);
     const traces = Object.keys(anclas);
     const vacia = (extra: Partial<Cobertura> = {}): Cobertura => ({
         lineasConTexto: crudas.length, anclas: {}, traces: [], lineas: 0,
-        ambientes: {}, filtroEnv: c.env, ...extra,
+        ambientes: {}, filtroEnv: c.env, degradado: false, porVentana: false, ...extra,
     });
-    if (!traces.length) return { lineas: [] as Linea[], cobertura: vacia() };
+
+    // MODO VENTANA — último recurso, y SOLO con un Loki local. Si no hay ni una línea que nombre el uReq,
+    // en un Loki local igual se puede mostrar lo que se logueó en la ventana de la corrida: sos el único
+    // que escribe ahí, así que "lo que pasó en esos minutos" es tu corrida. Contra un Loki compartido esto
+    // sería una fuente de diagnósticos falsos (verías la corrida de otro), y por eso está atado a
+    // `esLokiLocal` y NO a una perilla: una opción que se puede prender es una opción que alguien prende.
+    // Se marca como correlación por TIEMPO, no por uReq, para que nadie lo lea como lo mismo.
+    if (!traces.length && !sinTrace.length && esLokiLocal(c.url)) {
+        const sel = c.env ? `{environment=~"${c.env}"}` : '{service_name=~".+"}';
+        const todas = await query(c, sel, fromMs, toMs);
+        if (todas.length) {
+            const ambientes: Record<string, number> = {};
+            for (const l of todas) { const a = ambienteDe(l); ambientes[a] = (ambientes[a] ?? 0) + 1; }
+            return {
+                lineas: todas,
+                cobertura: {
+                    lineasConTexto: crudas.length, anclas: {}, traces: [], lineas: todas.length,
+                    ambientes, filtroEnv: c.env, degradado: true, porVentana: true,
+                },
+            };
+        }
+    }
+
+    // MODO DEGRADADO — sin `trace_id` no hay fase 2, pero las líneas del uReq siguen siendo evidencia.
+    // Pasa de verdad y no es un caso raro: el `trace_id` solo entra al log si Tempo/OTel está inicializado
+    // (`GrafanaServiceProvider::configureLogging` lo agrega SOLO si `grafana.tempo.enabled`, y
+    // `initializeOpenTelemetry` sale temprano sin `GRAFANA_TEMPO_ENDPOINT`). O sea: un backend que empuja a
+    // Loki sin Tempo —el caso de una máquina local— produce líneas perfectamente útiles y no joinables.
+    // Devolver "cero anclas" ahí sería mentir teniendo la evidencia en la mano.
+    if (!traces.length) {
+        if (!sinTrace.length) return { lineas: [] as Linea[], cobertura: vacia() };
+        const ambientes: Record<string, number> = {};
+        for (const l of sinTrace) { const a = ambienteDe(l); ambientes[a] = (ambientes[a] ?? 0) + 1; }
+        const re = c.env ? new RegExp(`^(?:${c.env})$`) : null;
+        const lineas = re ? sinTrace.filter((l) => re.test(ambienteDe(l))) : sinTrace;
+        return {
+            lineas,
+            cobertura: {
+                lineasConTexto: crudas.length, anclas: {}, traces: [],
+                lineas: lineas.length, ambientes, filtroEnv: c.env, degradado: true, porVentana: false,
+            },
+        };
+    }
 
     const todas = await query(c, `{trace_id=~"${traces.join('|')}"}`, fromMs, toMs);
 
@@ -202,7 +283,7 @@ export async function forense(c: LokiConfig, ureq: string | number, ventanaMs: n
 
     return {
         lineas,
-        cobertura: { lineasConTexto: crudas.length, anclas, traces, lineas: lineas.length, ambientes, filtroEnv: c.env },
+        cobertura: { lineasConTexto: crudas.length, anclas, traces, lineas: lineas.length, ambientes, filtroEnv: c.env, degradado: false, porVentana: false },
     };
 }
 
@@ -561,6 +642,15 @@ export function imprimirForense(r: Resumen, ramal?: Ramal, opts: { pii?: boolean
     } else if (amb.length > 1 && !r.cobertura.filtroEnv) {
         log(yellow('   ⚠ hay más de un ambiente y no hay filtro: estás mirando dos ramas de código mezcladas. '
             + 'Definí E2E_LOKI_ENV para este target.'));
+    }
+    if (r.cobertura.porVentana) {
+        log(yellow('   ⚠ CORRELACIÓN POR VENTANA DE TIEMPO, no por uReq: ninguna línea nombra la solicitud,'));
+        log(yellow(`     así que esto es TODO lo que se logueó en esos minutos. Vale porque el Loki es local`));
+        log(yellow('     y sos el único que escribe; en un Loki compartido serían corridas ajenas.'));
+    } else if (r.cobertura.degradado) {
+        log(yellow('   ⚠ MODO DEGRADADO: estas líneas NO tienen trace_id, así que no se pudo expandir — solo'));
+        log(yellow('     ves las que nombran el uReq, no la petición completa. Falta Tempo/OTel en el backend'));
+        log(yellow('     que las emitió (sin GRAFANA_TEMPO_ENDPOINT no se inicializa y el trace nunca entra).'));
     }
     log(gray('   ⚠ solo legacy-backend: el trace_id no se propaga a otros servicios (los Go no lo emiten).'));
     log(gray('   ⚠ solo se ven traces con al menos una línea que traiga el uReq; los demás son invisibles'));
