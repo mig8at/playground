@@ -17,7 +17,8 @@ const BOARD = 384;            // CORE — el proyecto donde están MIS tareas (n
 const loading = ref(true);
 const error = ref('');
 const sprint = ref(null);
-const sprints = ref([]);      // los 4 más recientes, del actual hacia atrás
+const sprints = ref([]);      // los más recientes, del actual hacia atrás — los usan las bandas de la jornada
+const SPRINT_TABS = 4;        // cuántos ofrece el selector del header (los demás sólo pintan banda)
 const site = ref('');         // https://<site>.atlassian.net — lo manda el server, sale de su .env
 const issues = ref([]);
 const active = ref(null);     // tarea sobre la que se está registrando
@@ -193,6 +194,8 @@ const logTime = computed(() => ofSprint.value.reduce((n, e) => n + e.min, 0));
 // El chip del header, según el ESTADO del sprint. CORE vive entre sprints (uno cerró, el próximo no
 // arrancó), así que un sprint puede no haber empezado: "5 días restantes" sobre algo que aún no empieza
 // sería mentira. Tres casos: por arrancar · en curso · cerrado.
+const sprintTabs = computed(() => (sprints.value || []).slice(0, SPRINT_TABS));
+
 const sprintDays = computed(() => {
   const s = sprint.value;
   if (!s?.endDate) return null;
@@ -242,89 +245,108 @@ onMounted(() => window.addEventListener('keydown', cerrarConEsc));
 onUnmounted(() => window.removeEventListener('keydown', cerrarConEsc));
 const when = (d) => new Date(d).toLocaleString('es-CO', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
 
-// ── mi jornada: últimos 20 días × horas laborales ───────────────────────────────────────────────
-// Este mapa NO va por sprint: muestra cómo se llenó mi horario laboral (8→18, con almuerzo 12→14) en
-// los últimos 20 días corridos. La pregunta que contesta es distinta a "en qué trabajé": es "cómo
-// trabajé" — mañanas cargadas y tardes flojas, días partidos, jornadas que se estiran. Por eso lee la
-// HORA de cada registro, no solo el día, y es independiente del sprint que estés mirando arriba.
+// ── mi jornada: los últimos días × horas laborales ──────────────────────────────────────────────
+// Este mapa NO va por sprint: muestra cómo se llenó mi horario laboral (8→18, con almuerzo 12→14) en los
+// últimos días corridos. La pregunta que contesta es distinta a "en qué trabajé": es "cómo trabajé" —
+// mañanas cargadas y tardes flojas, días partidos, jornadas que se estiran. Por eso lee la HORA de cada
+// registro, no sólo el día, y es independiente del sprint que estés mirando arriba.
+//
+// LA FUENTE ES EL PULSO, y sólo el pulso: cuándo toqué los repos de la compañía. La bitácora contesta
+// otra pregunta ("en qué trabajé") y vive en su cajón; tenerla acá como segunda fuente obligaba a elegir
+// entre dos cosas que no se comparan, en un mapa cuya gracia es que se lee de un vistazo.
 const startOfDay = (d) => { const x = new Date(d); x.setHours(0, 0, 0, 0); return x; };
 const dayKey = (d) => { const x = startOfDay(d); return `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, '0')}-${String(x.getDate()).padStart(2, '0')}`; };
 
-const DAYS = 20;
 const H_START = 8, H_END = 18;               // jornada: 8am a 6pm
 const LUNCH = new Set([12, 13]);             // 12→14: se MARCA como almuerzo, pero se registra igual
 const HOURS = Array.from({ length: H_END - H_START }, (_, i) => H_START + i); // 8..17 (cada uno = una hora)
 const DOW_NAME = ['do', 'lu', 'ma', 'mi', 'ju', 'vi', 'sá'];
 
-const dayCols = computed(() => Array.from({ length: DAYS }, (_, i) => {
-  const d = startOfDay(today); d.setDate(d.getDate() - (DAYS - 1 - i));
+// Las medidas de la grilla viven ACÁ y el CSS las lee por variables (`gridVars`). Tienen que estar en un
+// solo lado porque el margen entre sprints desplaza las columnas: la banda de arriba no puede
+// posicionarse con una fórmula fija, tiene que sumar los márgenes que la preceden. Con las medidas
+// repartidas entre CSS y JS, ese cálculo se desincroniza al primer cambio de tamaño.
+const CEL = 24, GAP = 4, JHL = 30, SEP = 9; // px: celda · separación normal · etiqueta de hora · margen de sprint
+const gridVars = { '--cel': `${CEL}px`, '--gap': `${GAP}px`, '--jhl': `${JHL}px`, '--sep': `${SEP}px` };
+
+// CUÁNTOS DÍAS ENTRAN. La celda mide fijo (no se estira) porque la banda de sprints se posiciona en px
+// sumando márgenes: con celdas elásticas ese cálculo se desincroniza. Así que en vez de estirar la
+// grilla, se muestran MÁS DÍAS — el ancho disponible decide cuántos. Los días viejos sin actividad
+// quedan rayados ("sin registro"), que es la verdad: el pulso no estaba corriendo.
+const DAYS_MIN = 14, DAYS_MAX = 60;
+const gridW = ref(0);
+const gridEl = ref(null);
+
+// las columnas (sólo las fechas) de una ventana de n días terminada hoy
+const isoCols = (n) => Array.from({ length: n }, (_, i) => {
+  const d = startOfDay(today); d.setDate(d.getDate() - (n - 1 - i));
+  return dayKey(d);
+});
+
+// Cuánto MIDE la grilla con n columnas. No alcanza con `n × (celda + gap)`: entre sprints hay un margen
+// extra (SEP) y con 6 sprints a la vista son ~108 px que desbordaban la card. Y no se puede leer de
+// `spans`, porque `spans` depende de `dayCols` y `dayCols` de esto: sería un ciclo. Así que los bordes
+// se cuentan acá, directo de las fechas de los sprints, que no dependen de nada de la grilla.
+const anchoCon = (n) => {
+  const base = JHL + GAP + n * (CEL + GAP);
+  const cols = isoCols(n);
+  const ini = new Set(), fin = new Set();
+  for (const sp of sprints.value || []) {
+    if (!sp.startDate || !sp.endDate) continue;
+    const s = dayKey(sp.startDate), e = dayKey(sp.endDate);
+    let a = -1, b = -1;
+    cols.forEach((c, i) => { if (c >= s && c <= e) { if (a < 0) a = i; b = i; } });
+    if (a >= 0) { ini.add(a); fin.add(b); }
+  }
+  return base + SEP * (ini.size + fin.size);
+};
+
+// El más grande que entra. Se busca de mayor a menor en vez de despejar la fórmula porque el costo de
+// los márgenes no es lineal: sumar un día puede meter un sprint nuevo y con él dos márgenes de golpe.
+const days = computed(() => {
+  if (!gridW.value) return DAYS_MIN;         // antes de medir: lo mínimo, para no dibujar y re-dibujar
+  for (let n = DAYS_MAX; n > DAYS_MIN; n--) if (anchoCon(n) <= gridW.value) return n;
+  return DAYS_MIN;
+});
+// ResizeObserver y no un listener de `resize`: la card cambia de ancho también cuando aparece el
+// scrollbar o cuando otra sección crece, sin que la ventana se toque.
+//
+// Se engancha con un `watch` y NO en `onMounted`: la grilla vive dentro del `v-else` de la carga, así
+// que al montar todavía no existe y observarla ahí no observaba nada — la ventana se quedaba en 0 y la
+// jornada en el mínimo de días para siempre, sin fallar en ningún lado.
+// La medición INICIAL se hace a mano (`offsetWidth`) y el observer queda para los cambios posteriores.
+// No es redundante: el callback del observer se entrega con el renderizado, que el navegador suspende
+// mientras la pestaña está en segundo plano — si el tablero se abre ahí, la primera medida no llega y la
+// jornada se queda en el mínimo hasta que algo la mueva. Medir directo no depende de que se dibuje.
+const ro = new ResizeObserver(([e]) => { gridW.value = e.contentRect.width; });
+watch(gridEl, (el, viejo) => {
+  if (viejo) ro.unobserve(viejo);
+  if (!el) return;
+  gridW.value = el.offsetWidth;
+  ro.observe(el);
+}, { immediate: true });
+onUnmounted(() => ro.disconnect());
+
+const dayCols = computed(() => Array.from({ length: days.value }, (_, i) => {
+  const d = startOfDay(today); d.setDate(d.getDate() - (days.value - 1 - i));
   return { iso: dayKey(d), num: d.getDate(), dow: DOW_NAME[d.getDay()], weekend: [0, 6].includes(d.getDay()) };
 }));
 
-// minutos por (día, hora) SEPARADOS POR TAREA. Repartimos la duración de cada registro por las horas que
-// cubre (90' a las 9:30 → 30' en el bloque 9 y 60' en el 10). Guardamos el total y el desglose por tarea:
-// el total alimenta los totales del día; el desglose, el FOCO.
-const byDayAndHour = computed(() => {
-  const m = {};
-  for (const e of entries.value) {
-    const start = new Date(e.date);
-    const endMs = start.getTime() + (e.min || 0) * 60000;
-    const k = dayKey(start);
-    for (const h of HOURS) {
-      const b0 = new Date(start); b0.setHours(h, 0, 0, 0);
-      const overlap = Math.min(endMs, b0.getTime() + 3600000) - Math.max(start.getTime(), b0.getTime());
-      if (overlap <= 0) continue;
-      const mins = overlap / 60000;
-      const cell = ((m[k] ??= {})[h] ??= { total: 0, byTask: {} });
-      cell.total += mins;
-      if (e.key) cell.byTask[e.key] = (cell.byTask[e.key] || 0) + mins; // sin tarea (free-title) NO es foco
-    }
-  }
-  return m;
-});
-const cellAt = (iso, h) => byDayAndHour.value[iso]?.[h];
-
-// EL COLOR ES FOCO, no cantidad de trabajo: minutos de la TAREA DOMINANTE en esa hora, sobre 60. Una
-// hora entera en UNA sola tarea llena el cuadro (60/60); si la repartiste entre tareas, o solo trabajaste
-// un rato y el resto en otras cosas (playground, que no es tarea), el dominante es menor → menos color.
-const focusMin = (iso, h) => { const c = cellAt(iso, h); return c ? Math.max(0, ...Object.values(c.byTask)) : 0; };
-const workedMin = (iso, h) => cellAt(iso, h)?.total || 0;
-
-// los 5 tramos siguen siendo fracción de la hora (0..60'): "lleno" = 60' de foco en una sola tarea
-const level = (min) => !min ? 0 : min < 15 ? 1 : min < 35 ? 2 : min < 55 ? 3 : 4;
-const totalOf = (iso) => HOURS.reduce((n, h) => n + workedMin(iso, h), 0); // footer: total TRABAJADO del día
 const hourLabel = (h) => h === 12 ? '12p' : h === 18 ? '6p' : h < 12 ? `${h}a` : `${h - 12}p`;
 const hoursShort = (min) => { if (!min) return ''; const h = min / 60; return (Number.isInteger(h) ? h : h.toFixed(1)) + 'h'; };
 
-// tooltip: el desglose que explica el número de foco (tarea dominante + lo que lo diluyó)
-const logTitle = (d, h) => {
-  const head = `${d.dow} ${d.num} · ${hourLabel(h)}–${hourLabel(h + 1)}`;
-  const c = cellAt(d.iso, h);
-  if (!c || !c.total) return `${head} — ${LUNCH.has(h) ? 'almuerzo' : 'sin registro'}`;
-  const parts = Object.entries(c.byTask).sort((a, b) => b[1] - a[1]).map(([k, m]) => `${k} ${Math.round(m)}m`);
-  const other = c.total - Object.values(c.byTask).reduce((a, b) => a + b, 0);
-  if (other > 0.5) parts.push(`otros ${Math.round(other)}m`);
-  return `${head} · foco ${Math.round(focusMin(d.iso, h))}/60 — ${parts.join(' · ')}`;
-};
-
 // ── el pulso: cuándo toqué los repos de la compañía ─────────────────────────────────────────────
-// La MISMA grilla, otra fuente. La bitácora contesta "en qué trabajé" y depende de que alguien la
-// escriba; el pulso contesta "cuándo estuve tocando código" y no depende de nadie: lo anota un agente
-// (`server/cmd/pulso`) cada 5 minutos, corra o no el tablero.
-//
-// La unidad es el TRAMO DE 5', no los minutos: un commit a las 18:00 no dice cuándo empezaste, así que
-// estimar minutos desde git sería inventar. Una hora tiene 12 tramos y la celda se llena con los que
-// tuvieron cambios — el total del día es tramos × 5', que sí es una medición.
-const SOURCES = [
-  { id: 'code', label: 'código' },
-  { id: 'log', label: 'bitácora' },
-];
-const source = ref('code');   // el pulso arranca elegido: es el que se llena solo
+// Lo anota un agente (`server/cmd/pulso`) cada 5 minutos, corra o no el tablero. La unidad es el TRAMO
+// DE 5', no los minutos: un commit a las 18:00 no dice cuándo empezaste, así que estimar minutos desde
+// git sería inventar. Una hora tiene 12 tramos y la celda se llena con los que tuvieron cambios — el
+// total del día es tramos × 5', que sí es una medición.
 const pulse = ref({ hours: [], installed: false, lastTick: null, slotsPerHour: 12, slotMinutes: 5 });
 
+// Se pide DAYS_MAX y no `days`, aunque hoy se vean menos: así agrandar la ventana no dispara una llamada
+// por cada píxel de arrastre. Son celdas por (día, hora) — 60 días es una respuesta chica.
 async function loadPulse() {
   try {
-    const j = await (await fetch(`${SERVER}/api/pulse?days=${DAYS}`)).json();
+    const j = await (await fetch(`${SERVER}/api/pulse?days=${DAYS_MAX}`)).json();
     if (!j.error) pulse.value = j;
   } catch { /* server caído: `pulseOff` ya avisa que no hay pulso */ }
 }
@@ -346,9 +368,8 @@ const codeClass = (iso, h) => {
   return 'c' + (c.slots <= 2 ? 1 : c.slots <= 5 ? 2 : c.slots <= 9 ? 3 : 4);
 };
 const slotMin = computed(() => pulse.value.slotMinutes || 5);
-const codeMin = (iso, h) => (codeAt(iso, h)?.slots || 0) * slotMin.value;
 
-const codeTitle = (d, h) => {
+const cellTitle = (d, h) => {
   const head = `${d.dow} ${d.num} · ${hourLabel(h)}–${hourLabel(h + 1)}`;
   const c = codeAt(d.iso, h);
   if (!c || (!c.slots && !c.covered)) return `${head} — sin registro: el equipo estaba apagado o el agente detenido`;
@@ -367,31 +388,25 @@ const codeTitle = (d, h) => {
   return [`${head} · ${c.slots}/${pulse.value.slotsPerHour} tramos con cambios${extra.length ? ` · ${extra.join(' · ')}` : ''}`, ...repos].join('\n');
 };
 
-// ── lo que la grilla lee, sea cual sea la fuente ────────────────────────────────────────────────
-const isCode = computed(() => source.value === 'code');
-const cellClass = (iso, h) => isCode.value ? codeClass(iso, h) : 'n' + level(focusMin(iso, h));
-const cellTitle = (d, h) => isCode.value ? codeTitle(d, h) : logTitle(d, h);
-
 // El total del día suma TODAS las horas, no sólo las visibles: un commit a las 7am o a las 8pm es
 // trabajo igual, y recortarlo al horario de oficina daría un número más bonito y más falso. Lo que quedó
 // fuera de la ventana se dice en el tooltip.
-const codeDayMin = (iso) => Object.values(pulseCells.value[iso] || {}).reduce((n, c) => n + c.slots * slotMin.value, 0);
-const codeOutsideMin = (iso) => Object.values(pulseCells.value[iso] || {})
+const dayMin = (iso) => Object.values(pulseCells.value[iso] || {}).reduce((n, c) => n + c.slots * slotMin.value, 0);
+const outsideMin = (iso) => Object.values(pulseCells.value[iso] || {})
   .filter(c => c.hour < H_START || c.hour >= H_END)
   .reduce((n, c) => n + c.slots * slotMin.value, 0);
-const dayMin = (iso) => isCode.value ? codeDayMin(iso) : totalOf(iso);
 const dayTitle = (iso) => {
-  const fuera = isCode.value ? codeOutsideMin(iso) : 0;
+  const fuera = outsideMin(iso);
   return minHhmm(dayMin(iso)) + (fuera ? ` · ${minHhmm(fuera)} fuera de ${hourLabel(H_START)}–${hourLabel(H_END)}` : '');
 };
 const rangeMin = computed(() => dayCols.value.reduce((n, d) => n + dayMin(d.iso), 0));
 
 // El aviso que evita la conclusión equivocada: una grilla vacía sin agente instalado no dice "no
 // trabajé", dice "nadie estaba anotando".
-const pulseOff = computed(() => isCode.value && !pulse.value.installed);
+const pulseOff = computed(() => !pulse.value.installed);
 
-// ── tramos de sprint sobre las 20 columnas ───────────────────────────────────────────────────────
-// La ventana de 20 días cruza sprints (y los huecos entre ellos). Para cada sprint que asoma en el
+// ── tramos de sprint sobre las columnas ─────────────────────────────────────────────────────────
+// La ventana cruza sprints (y los huecos entre ellos). Para cada sprint que asoma en el
 // rango, calculamos QUÉ columnas ocupa: así se dibuja una banda con su nombre arriba y una marca en la
 // primera/última celda. Comparamos por `dayKey` (YYYY-MM-DD): iso lexicográfico ordena bien con ese
 // formato. Un sprint que arranca antes o termina después del rango se recorta a lo que se ve.
@@ -410,13 +425,6 @@ const spans = computed(() => {
 // columnas), no una línea: se ve el corte sin agregarle tinta a la grilla.
 const startCols = computed(() => new Set(spans.value.map(t => t.a)));
 const endCols = computed(() => new Set(spans.value.map(t => t.b)));
-
-// Las medidas viven ACÁ y la grilla las lee por variables CSS (`gridVars`). Tienen que estar en un solo
-// lado porque el margen entre sprints desplaza las columnas: la banda de arriba no puede posicionarse
-// con una fórmula fija, tiene que sumar los márgenes que la preceden. Con las medidas repartidas entre
-// CSS y JS, ese cálculo se desincroniza al primer cambio de tamaño.
-const CEL = 24, GAP = 4, JHL = 30, SEP = 9; // px: celda · separación normal · etiqueta de hora · margen de sprint
-const gridVars = { '--cel': `${CEL}px`, '--gap': `${GAP}px`, '--jhl': `${JHL}px`, '--sep': `${SEP}px` };
 
 // borde izquierdo de la columna i, contando los márgenes de sprint que quedaron atrás
 const leftOf = (i) => {
@@ -506,7 +514,10 @@ async function loadSprint(id) {
 
 onMounted(async () => {
   try {
-    const j = await (await fetch(`${SERVER}/api/sprints?board=${BOARD}&n=4`)).json();
+    // Se piden más de los que el selector muestra: las bandas de «Mi jornada» cubren toda la ventana, y
+    // esa ventana crece con el ancho de la pantalla. Con sólo 4, las columnas más viejas quedaban sin
+    // banda y parecían días fuera de todo sprint, que es otra cosa.
+    const j = await (await fetch(`${SERVER}/api/sprints?board=${BOARD}&n=12`)).json();
     if (!j.error) { sprints.value = j.sprints || []; site.value = j.site || ''; }
   } catch { /* si falla, el selector no aparece y se carga el activo igual */ }
 
@@ -529,8 +540,10 @@ onMounted(async () => {
         <p class="sub">Mi sprint · registro de tiempo y hallazgos</p>
       </div>
       <div class="sp" v-if="sprint">
-        <div class="tabs" v-if="sprints.length > 1">
-          <button v-for="s in sprints" :key="s.id" :class="{ act: s.id === sprint.id }"
+        <!-- `sprintTabs`, no `sprints`: se traen más para las bandas de la jornada, pero el selector
+             sigue mostrando los 4 recientes — 12 pestañas ahí serían un menú, no un selector. -->
+        <div class="tabs" v-if="sprintTabs.length > 1">
+          <button v-for="s in sprintTabs" :key="s.id" :class="{ act: s.id === sprint.id }"
             :title="`${shortDate(s.startDate)} → ${shortDate(s.endDate)}`" @click="loadSprint(s.id)">
             {{ s.name.replace(/^.*?(Sprint)/i, '$1') }}
             <i v-if="s.state === 'active'" class="live" title="sprint activo"></i>
@@ -592,21 +605,14 @@ onMounted(async () => {
 
       <section class="card">
         <h2>Mi jornada
-          <span class="mut">· últimos 20 días{{ rangeMin ? ` · ${minHhmm(rangeMin)}` : '' }}</span>
-          <!-- La misma grilla con dos fuentes: el pulso (automático, "cuándo toqué código") y la
-               bitácora (escrita, "en qué trabajé"). No se mezclan en un color porque no miden lo mismo. -->
-          <div class="tabs src">
-            <button v-for="s in SOURCES" :key="s.id" :class="{ act: source === s.id }"
-              @click="source = s.id">{{ s.label }}</button>
-          </div>
+          <span class="mut">· últimos {{ days }} días{{ rangeMin ? ` · ${minHhmm(rangeMin)}` : '' }}</span>
         </h2>
         <p class="empty" v-if="pulseOff">El pulso todavía no está corriendo, así que esta grilla no dice
           «no trabajé» — dice que nadie estaba anotando. Se instala una vez y arranca solo con la sesión:
           <code>make pulso-install</code>.</p>
-        <p class="empty" v-else-if="!rangeMin && isCode">Sin cambios registrados en los últimos 20 días.</p>
-        <p class="empty" v-else-if="!rangeMin">Todavía no hay registros en los últimos 20 días. El color de
-          cada hora mide el FOCO: se llena cuando la trabajaste entera en una sola tarea.</p>
-        <div class="jm" :style="gridVars">
+        <p class="empty" v-else-if="!rangeMin">Sin cambios registrados en los últimos {{ days }} días.</p>
+        <!-- `gridEl` es lo que mide el ResizeObserver: de su ancho sale cuántos días entran. -->
+        <div class="jm" ref="gridEl" :style="gridVars">
           <div class="jband">
             <div v-for="t in spans" :key="t.name" class="jspan" :class="{ sel: t.id === sprint?.id }"
               :style="spanStyle(t)" :title="t.id === sprint?.id ? `${t.name} · el que estás viendo` : t.name">{{ t.name }}</div>
@@ -616,7 +622,7 @@ onMounted(async () => {
             :class="{ lunch: LUNCH.has(h), gapTop: h === 12 || h === 14 }">
             <span class="jhl">{{ hourLabel(h) }}</span>
             <span v-for="(d, i) in dayCols" :key="d.iso" class="cel"
-              :class="[cellClass(d.iso, h), { weekend: d.weekend, spStart: startCols.has(i), spEnd: endCols.has(i) }]"
+              :class="[codeClass(d.iso, h), { weekend: d.weekend, spStart: startCols.has(i), spEnd: endCols.has(i) }]"
               :title="cellTitle(d, h)"></span>
           </div>
           <!-- las filas de totales y de fechas repiten los mismos márgenes: si no, se desalinean -->
@@ -631,18 +637,12 @@ onMounted(async () => {
               :class="{ weekend: d.weekend, spStart: startCols.has(i), spEnd: endCols.has(i) }">{{ d.num }}</span>
           </div>
         </div>
-        <div class="legend" v-if="isCode">
+        <div class="legend">
           <span>0</span>
           <i v-for="n in [0, 1, 2, 3, 4]" :key="n" :class="'c' + n"></i>
           <span>{{ pulse.slotsPerHour }} tramos de {{ slotMin }}′</span>
           <i class="n0"></i><span>sin registro</span>
           <span class="note">se llena con los tramos en que hubo cambios en los repos de la compañía — no con lo que uno cree que trabajó</span>
-        </div>
-        <div class="legend" v-else>
-          <span>disperso</span>
-          <i v-for="n in [0, 1, 2, 3, 4]" :key="n" :class="'n' + n"></i>
-          <span>enfocado</span>
-          <span class="note">el color es FOCO: una hora entera en una sola tarea llena el cuadro; repartida entre tareas u otras cosas, menos</span>
         </div>
       </section>
 
@@ -906,8 +906,6 @@ h1 { font-size: 20px; margin: 0; letter-spacing: .2px }
   display: flex; align-items: center; gap: 6px }
 /* selector de fuente de la jornada: a la derecha del título, mismo control que el selector de sprints
    (`.tabs`) pero más chico — es un cambio de lente, no una navegación. */
-.card h2 .src { margin-left: auto; text-transform: none; letter-spacing: 0 }
-.card h2 .src button { font-size: 11.5px; padding: 3px 9px }
 .card h2 .on { color: var(--acc); margin-left: 6px }
 .card h2 .mut { color: var(--mut); font-weight: 400; text-transform: none; letter-spacing: 0 }
 
@@ -959,9 +957,9 @@ h1 { font-size: 20px; margin: 0; letter-spacing: .2px }
 .jira-html :deep(input) { pointer-events: none; accent-color: var(--acc); margin-right: 5px }
 .lane .val { font-size: 13.5px; font-weight: 700; font-variant-numeric: tabular-nums }
 
-/* botón de bitácora en el header: mismo truco que `.card h2 .src` (margin-left: auto empuja a la
-   derecha), pero es un solo botón-chip, no un par de tabs — plegada por defecto, así que el estado
-   "hay algo ahí" tiene que verse SIN abrirla (de ahí el contador). */
+/* botón de bitácora en el header: `margin-left: auto` lo empuja a la derecha (el h2 es flex). Es un
+   chip y no una tab porque abre un cajón, no cambia una vista — y como la bitácora está cerrada por
+   defecto, el estado "hay algo ahí" tiene que verse SIN abrirla: de ahí el contador. */
 .bit-btn { margin-left: auto; border: 1px solid var(--line); background: var(--panel2); color: var(--mut);
   font: inherit; font-size: 11.5px; font-weight: 600; text-transform: none; letter-spacing: 0;
   padding: 4px 10px; border-radius: 999px; cursor: pointer; display: flex; align-items: center; gap: 6px }
