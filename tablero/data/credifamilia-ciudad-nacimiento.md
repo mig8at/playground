@@ -4,7 +4,7 @@ title: "Credifamilia — campo Ciudad de nacimiento en cascada (form dinámico G
 stage: tasks
 created: "2026-07-23T15:46:04-05:00"
 context_nodes: [form-service, dynamic-forms, credifamilia]
-jira: []
+jira: [CORE-301]
 jira_title: "Credifamilia: agregar campo 'Ciudad de nacimiento' en cascada al formulario"
 ---
 
@@ -24,6 +24,7 @@ VALIDADO EN DEV: field 233 aplicado, GET/PUT schema + POST response OK (fila en 
 
 HARNESS: bin/asesor ahora pasa VITE_FORM_SERVICE_BASE_URL; panel con pre-warm de sesiones al arrancar.
 CONTEXTO: nodos form-service (nuevo) + dynamic-forms + credifamilia actualizados.
+
 
 ## Tarea (publicable)
 

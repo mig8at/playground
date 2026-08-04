@@ -4,7 +4,7 @@ title: "Codeudor — cierre propio tras la firma (pantalla \"Firma realizada con
 stage: work
 created: "2026-07-27T12:13:57-05:00"
 context_nodes: [formalization, creditopx]
-jira: []
+jira: [CORE-317]
 jira_title: "Codeudor: al terminar la firma ve una confirmación propia en lugar de la pantalla de monto aprobado"
 ---
 
@@ -139,6 +139,7 @@ VERIFICADO
 · typecheck sin errores nuevos: 225 pre-existentes en qa, 225 con el cambio
 · biome check limpio (7 archivos)
 Falta: el camino e2e real (requiere el dato del backend para que alguien caiga en la pantalla nueva).
+
 
 ## Tarea (publicable)
 
