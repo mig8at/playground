@@ -1,18 +1,95 @@
 ---
 id: 15
 title: "Bancolombia · el código de compra lo emite el banco (reemplazo de la API Fondos de Corbeta)"
-stage: evaluation
+stage: work
 created: "2026-07-31T17:13:02-05:00"
 context_nodes: [bancolombia, corbeta]
-jira: []
+jira: [CORE-19]
 jira_title: ""
 ---
 
 # Reemplazar el emisor del código de compra: Corbeta → Bancolombia
 
-> Origen: handoff de Santiago Villaquiran (2026-07-29) + su revisión (2026-07-31) + el OpenAPI del
-> servicio nuevo. **No se ha tocado una línea de los repos reales.**
-> Cuando esto se mergee, lo que quede vivo **gradúa** al nodo `bancolombia` y este esfuerzo se archiva.
+> Origen: handoff de Santiago Villaquiran (2026-07-29) + sus dos revisiones (07-31 y 08-03) + el OpenAPI
+> del servicio nuevo. Jira: **CORE-19**. Cuando esto se mergee, lo que quede vivo **gradúa** al nodo
+> `bancolombia` y este esfuerzo se archiva.
+
+## 0 · SI RETOMÁS ESTO SIN CONTEXTO, EMPEZÁ ACÁ
+
+**Estado al 2026-08-03: los pasos 1 y 2 del plan (§5) están HECHOS y en un PR sin mergear. Lo que sigue
+está bloqueado por el banco, no por nosotros.**
+
+**Dónde está el código**
+
+| | |
+|---|---|
+| repo | `legacy-backend` |
+| rama | `feature/bancolombia-billing-code` — **un solo commit**, PR abierto, sin mergear |
+| archivos | `app/Actions/Lenders/BancolombiaBillingCode.php` (nuevo) · `Modules/Onboarding/App/Services/merchants/CodeGenerationService.php` (el switch) · `Modules/Onboarding/App/Http/Controllers/PurchaseCodeController.php` (import colgado, borrado) · `config/services.php` · 3 archivos de test |
+| mock | `playground/harness/mock-bancolombia/server.mjs` — se le agregaron las 3 rutas del servicio nuevo |
+
+**Qué funciona, y cómo lo comprobás en tres pasos**
+
+```bash
+# 1 · los 19 tests (uno de ellos valida contra el OpenAPI real del banco)
+cd ~/Desktop/CREDITOP/github/legacy-backend
+vendor/bin/pest tests/Unit/Lenders/BancolombiaBillingCode*Test.php tests/Unit/Lenders/CodeGenerationIssuerTest.php
+
+# 2 · el recorrido visual completo (9 pantallas → código en pantalla)
+cd ~/Desktop/CREDITOP/playground && make harness-mocks && make harness-walk PRODUCT=bnpl
+```
+
+⚠ Para el paso 2 hacen falta **tres cosas que cuestan una corrida si no se saben**:
+- el wizard tiene que estar arriba en `:5174` **apuntando al backend local**, y `VITE_API_URL` va
+  **SIN `/api`** (`http://localhost`) — `bin/asesor:202` lo recorta a propósito. Con `/api` el registro da
+  404 y el síntoma es un botón en spinner con un alert genérico;
+- para ver el emisor NUEVO hay que prender el comercio a mano en la BD local:
+  `UPDATE settings SET value='[209]' WHERE \`key\`='bancolombia_billing_code_allieds';` (**dejalo en `[]`
+  cuando termines** — ese es el default que se mergea);
+- hay **DOS cachés** que hacen que la segunda corrida no llame al banco: el `verification_token` en
+  `user_request_additional_information` y la fila en `purchase_codes`. Para repetir sobre la misma
+  solicitud hay que limpiar los dos.
+
+**Lo que BLOQUEA, y de quién depende**
+
+1. **¿El `billingCode` del banco es el mismo PIN que la conciliación cruza contra la factura?** Si no lo
+   es, escribirlo en `verification_token` rompe **en silencio**: nadie pasa a 26 y no se confirma el
+   consumo. → **al banco**.
+2. **¿Bancolombia crea la orden en Corbeta (`setOrder`) o la seguimos creando nosotros?** Es la misma
+   pregunta con otra cara: el híbrido «emitir con Bancolombia, conciliar con Corbeta» **solo funciona si
+   la orden existe en Corbeta**. → **al banco**, y NO se la puede contestar Santi (lo dijo él).
+3. **Credenciales.** El ticket CORE-19 ya dice que Bancolombia debe entregar **credenciales nuevas con
+   coexistencia** (Paula Peláez → Lady Téllez, objetivo 29/05). Además el certificado que hay hoy está
+   **vencido y es autofirmado** (ver §«El certificado está vencido»).
+
+**Los cinco hallazgos que costaron trabajo — no los re-descubras**
+
+1. **El request va ANIDADO**, no con 4 campos planos. La documentación decía plano y los tests con fake
+   pasaban igual, porque comprobaban la misma suposición. Lo cazó el test que lee el OpenAPI.
+2. **`query` de Corbeta NO es 1:1** con `retrieve-order-details`: Corbeta devuelve la LISTA del día y el
+   servicio nuevo contesta una orden por código. Si la conciliación se muda, cambia de patrón.
+3. **El `address` de 20 caracteres**: no se trunca, se abrevia el tipo de vía (así lo hacen los ejemplos
+   del banco) y si no entra, se falla explícito.
+4. **El certificado está vencido hace 400 días y es autofirmado** — verificado contra la BD de dev.
+5. **Bug preexistente arreglado**: `PurchaseCodeService:144` leía `verification_token` sin `??` → 500.
+
+**Lo que NO se pudo hacer y por qué**: llamar a la API real. El host verdadero **no está en el repo**
+(solo placeholders y el mock) — vive en la config del ambiente desplegado.
+
+## 0.bis · Dónde estamos contra los criterios de CORE-19
+
+El ticket tiene criterios propios que conviene mirar, porque no coinciden 1:1 con el plan de §5:
+
+| Criterio del ticket | Estado |
+|---|---|
+| Implementar el consumo del nuevo API Fondos B2B **según el Documento Técnico Funcional v18** | 🚧 implementado y validado **contra el OpenAPI**. ⚠ Nadie verificó que el OpenAPI y el «DTF v18» sean el mismo documento |
+| **Nuevas credenciales con coexistencia** de las actuales | ❌ no entregadas (dependencia del banco, objetivo 29/05) |
+| Cubrir los escenarios del archivo **«Escenarios de prueba API Fondos B2B»** (lo compartió Corbeta) | ❌ **no tenemos el archivo**. Es un insumo que existe y hay que pedirlo |
+| Participar en la sesión de pruebas integrales (~22/06) y dejar registro | ❌ la fecha pasó |
+| Validar el flujo punta a punta antes de producción | 🚧 hecho local con mock; falta contra el banco |
+
+⚠ **Las fechas del ticket ya pasaron** (plan 25/05, credenciales 29/05, sesión ~22/06; el acta de
+referencia es del 21/05/**2026**). Al retomar, lo primero es re-agendar, no re-implementar.
 
 ## 1 · La tarea en una frase
 
