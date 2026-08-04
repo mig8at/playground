@@ -182,7 +182,6 @@ const STAGES = [
   { id: 'tasks', label: 'Tareas creadas' },
 ];
 const stageOf = (id) => STAGES.find(s => s.id === (efforts.value.find(e => e.id === id)?.stage || 'evaluation'));
-const activeLocal = computed(() => taskLocals.value[active.value?.Key] || {});
 
 // ── derivados del sprint ────────────────────────────────────────────────────────────────────────
 const done = computed(() => issues.value.filter(i => i.StatusCategory === 'done').length);
@@ -232,7 +231,22 @@ const ofActive = computed(() => active.value ? ofSprint.value.filter(e => e.key 
 // escanear. Colapsadas a 3 líneas la bitácora vuelve a ser un índice, y el detalle está a un clic.
 const abiertas = ref(new Set());
 const alternar = (id) => { const s = new Set(abiertas.value); s.has(id) ? s.delete(id) : s.add(id); abiertas.value = s; };
-const descAbierta = ref(false);
+// Qué descripciones están desplegadas, POR TAREA (antes era un solo booleano, porque había una única
+// tarjeta de detalle). Colapsada por defecto: la descripción de Jira es material de referencia
+// —contexto, criterios, dependencias— y entera convierte la grilla de tarjetas en un muro.
+const descAbiertas = ref(new Set());
+const alternarDesc = (k) => { const s = new Set(descAbiertas.value); s.has(k) ? s.delete(k) : s.add(k); descAbiertas.value = s; };
+
+// cuántas entradas de bitácora tiene cada tarea — el contador del botón, sin abrir el cajón
+const entriesPorTarea = computed(() => {
+  const m = {};
+  for (const e of ofSprint.value) if (e.key) m[e.key] = (m[e.key] || 0) + 1;
+  return m;
+});
+
+// Abrir la bitácora DE una tarjeta: el cajón lee la tarea activa, así que primero se activa. Sin esto,
+// tocar "Bitácora" en una tarjeta abriría la bitácora de otra.
+const verBitacora = (i) => { active.value = i; bitacoraAbierta.value = true; };
 // La bitácora vive en un CAJÓN, no en una card del tablero: son notas largas que escribe el asistente y
 // que el humano consulta de vez en cuando (quien la lee seguido es un modelo, para retomar contexto).
 // Ocupando una columna fija era ruido permanente por algo que no se mira en cada carga. Se abre desde el
@@ -451,14 +465,16 @@ const qaDone = ref('');   // resultado del último envío, para mostrarlo en la 
 const qaError = ref('');
 const qaProblems = ref([]);
 
-// En pruebas ya no hay nada que avisar; el botón solo aparece antes de eso.
-const inTesting = computed(() => /pruebas/i.test(active.value?.Status || ''));
+// En pruebas ya no hay nada que avisar; el botón solo aparece antes de eso. Es por TAREA y no sobre la
+// activa: ahora cada tarjeta trae su propio botón.
+const enPruebas = (i) => /pruebas/i.test(i?.Status || '');
 
-async function openQA() {
+async function openQA(i) {
+  active.value = i;   // el panel y el envío leen la activa: se fija antes de pedir nada
   qaError.value = ''; qaProblems.value = []; qaDone.value = '';
   qaBusy.value = true;
   try {
-    const j = await (await fetch(`${SERVER}/api/qa-notice?key=${active.value.Key}`)).json();
+    const j = await (await fetch(`${SERVER}/api/qa-notice?key=${i.Key}`)).json();
     if (j.error) qaError.value = j.error; else qa.value = j;
   } catch { qaError.value = 'no se pudo hablar con el server (¿está corriendo en :8787?)'; }
   qaBusy.value = false;
@@ -646,74 +662,13 @@ onMounted(async () => {
         </div>
       </section>
 
-      <section class="card" v-if="active">
-        <h2>La tarea
-          <a v-if="site" class="on link" :href="jiraLink(active.Key)" target="_blank" rel="noopener">{{ active.Key }} <span class="ext">↗</span></a>
-          <span v-else class="on">{{ active.Key }}</span>
-          <!-- el detalle vive plegado: este botón es la única entrada, no una card aparte -->
-          <button class="bit-btn" :class="{ act: bitacoraAbierta }" @click="bitacoraAbierta = !bitacoraAbierta">
-            Bitácora<span v-if="ofActive.length" class="cnt">{{ ofActive.length }}</span>
-          </button>
-        </h2>
+      <!-- MIS TAREAS. Antes había ADEMÁS una tarjeta "La tarea" con el detalle de la seleccionada, y
+           repetía lo mismo: clave, estado, título y descripción ya estaban acá. Lo único que aportaba
+           eran las ACCIONES, así que las acciones bajaron a la tarjeta y el resumen se fue.
 
-        <!-- SOLO LECTURA: el estado y la descripción son los de Jira. Cambiarlos es cosa de Jira (o del
-             asistente por la API), no de esta vista. LA ÚNICA EXCEPCIÓN es el handoff a QA de abajo:
-             pasar a pruebas y avisar es un mismo acto, y partirlo en dos es lo que hace que el aviso
-             se olvide. -->
-        <div class="dual">
-          <div class="lane">
-            <span class="lane-k">Estado <em>en Jira</em></span>
-            <span class="status" :class="statusClass(active.StatusCategory)">{{ active.Status }}</span>
-          </div>
-          <div class="lane" v-if="settings.trackTime && activeLocal.estimateMinutes">
-            <span class="lane-k">Estimado <em>lo estipulado</em></span>
-            <span class="val">{{ minHhmm(activeLocal.estimateMinutes) }}</span>
-          </div>
-          <div class="lane" v-if="settings.trackPoints && activeLocal.estimatePoints">
-            <span class="lane-k">Puntos</span>
-            <span class="val">{{ activeLocal.estimatePoints }}</span>
-          </div>
-        </div>
-
-        <!-- Handoff a QA. El botón desaparece cuando ya está en pruebas: ahí no hay nada que avisar. -->
-        <div class="qa">
-          <button v-if="!inTesting && !qa" class="qa-go" :disabled="qaBusy" @click="openQA()">
-            🧪 Enviar a pruebas y avisar
-          </button>
-          <p v-if="qaDone" class="qa-done">{{ qaDone }}</p>
-          <p v-if="qaError" class="qa-err">{{ qaError }}</p>
-
-          <div v-if="qa" class="qa-box">
-            <p class="qa-head">
-              <span v-if="qa.transition">Va a moverla: <b>{{ qa.transition.name }}</b> → <b>{{ qa.transition.to }}</b></span>
-              <span v-else class="qa-err">{{ qa.blocked }}</span>
-            </p>
-            <label class="fld">El mensaje <em>DM a {{ qa.name || qa.email }} — editalo si querés</em></label>
-            <textarea v-model="qa.text" rows="7" spellcheck="false"></textarea>
-            <ul v-if="qaProblems.length" class="qa-bad">
-              <li v-for="(p, i) in qaProblems" :key="i">{{ p.what }}: «{{ p.found }}»</li>
-            </ul>
-            <div class="qa-acts">
-              <button class="qa-go" :disabled="qaBusy || !qa.transition || !qa.text.trim()" @click="sendQA()">
-                {{ qaBusy ? 'Enviando…' : 'Mover y avisar' }}
-              </button>
-              <button class="qa-no" :disabled="qaBusy" @click="qa = null">Cancelar</button>
-            </div>
-          </div>
-        </div>
-
-        <label class="fld">Descripción <em>lo que hoy dice Jira</em>
-          <!-- Colapsada por defecto: es material de REFERENCIA (contexto, criterios, dependencias), no
-               lectura diaria. Entera empuja la bitácora —que sí se consulta seguido— fuera de pantalla. -->
-          <button class="mas" @click="descAbierta = !descAbierta">{{ descAbierta ? 'contraer' : 'ver completa' }}</button>
-        </label>
-        <!-- HTML renderizado por Jira (renderedFields). Solo lectura: el tablero es visual, el que
-             actualiza en Jira es el asistente por la API. Los checkboxes se ven pero no se togglean. -->
-        <div v-if="active.DescriptionHTML" class="desc jira-html" :class="{ recortada: !descAbierta }" v-html="active.DescriptionHTML"></div>
-        <p v-else-if="active.Description" class="desc" :class="{ recortada: !descAbierta }">{{ active.Description }}</p>
-        <p v-else class="desc none">Esta tarea todavía no tiene descripción en Jira.</p>
-      </section>
-
+           SOLO LECTURA sobre Jira: estado y descripción son los de allá, y cambiarlos es cosa de Jira o
+           del asistente por la API. La única excepción es el handoff a QA — mover la tarjeta y avisarle
+           a quien prueba es un mismo acto, y partirlo en dos es lo que hace que el aviso se olvide. -->
       <section class="card">
         <h2>Mis tareas</h2>
         <template v-for="g in groupedIssues" :key="g.id">
@@ -721,26 +676,79 @@ onMounted(async () => {
             {{ g.title }}
             <span v-if="g.id" class="stg" :class="'s-' + stageOf(g.id)?.id">{{ stageOf(g.id)?.label }}</span>
           </div>
-          <div v-for="i in g.tasks" :key="i.Key" class="task" :class="{ sel: active?.Key === i.Key }" @click="active = i">
-            <div class="tl">
-              <a v-if="site" class="key link" :href="jiraLink(i.Key)" target="_blank" rel="noopener"
-                @click.stop :title="`Abrir ${i.Key} en Jira`">{{ i.Key }} <span class="ext">↗</span></a>
-              <span v-else class="key">{{ i.Key }}</span>
-              <span class="status" :class="statusClass(i.StatusCategory)">{{ i.Status }}</span>
-            </div>
-            <div class="tt">{{ i.Summary }}</div>
-            <!-- lo que HOY dice Jira: lo que el equipo lee. Si está vacía, se avisa (falta definirla) -->
-            <p v-if="i.Description" class="jd" :title="i.Description">{{ i.Description }}</p>
-            <p v-else class="jd none">sin descripción en Jira</p>
-            <div class="tm">
-              <!-- de qué sprint viene: verde = nació en su sprint · rojo = la arrastraron sin terminar -->
-              <span v-if="i.OriginSprint" class="orig" :class="{ carried: i.CarriedOver }"
-                :title="i.CarriedOver ? `Nació en ${i.OriginSprint} y se arrastró sin terminar` : `Nació en ${i.OriginSprint}`">
-                <i></i>{{ i.OriginSprint }}
-              </span>
-              <span v-if="settings.trackPoints && i.HasPoints && i.Points">{{ i.Points }} pts</span>
-              <span v-if="settings.trackTime">{{ hhmm(i.SpentSecs) }} en Jira</span>
-              <span class="mine" v-if="minutesOf(i.Key)">{{ minHhmm(minutesOf(i.Key)) }} sin subir</span>
+          <!-- varias columnas según el ancho: `auto-fill` con un mínimo, así el número de columnas lo
+               decide la pantalla y no un breakpoint escrito a mano -->
+          <div class="tgrid">
+            <div v-for="i in g.tasks" :key="i.Key" class="task" :class="{ sel: active?.Key === i.Key, wide: descAbiertas.has(i.Key) || qa?.key === i.Key }"
+              @click="active = i">
+              <div class="tl">
+                <a v-if="site" class="key link" :href="jiraLink(i.Key)" target="_blank" rel="noopener"
+                  @click.stop :title="`Abrir ${i.Key} en Jira`">{{ i.Key }} <span class="ext">↗</span></a>
+                <span v-else class="key">{{ i.Key }}</span>
+                <span class="status" :class="statusClass(i.StatusCategory)">{{ i.Status }}</span>
+              </div>
+              <div class="tt">{{ i.Summary }}</div>
+
+              <!-- lo que HOY dice Jira: lo que el equipo lee. Si está vacía, se avisa (falta definirla).
+                   Desplegada se muestra el HTML que renderiza Jira; plegada, el texto recortado. -->
+              <template v-if="descAbiertas.has(i.Key)">
+                <div v-if="i.DescriptionHTML" class="desc jira-html" v-html="i.DescriptionHTML"></div>
+                <p v-else-if="i.Description" class="desc">{{ i.Description }}</p>
+                <p v-else class="desc none">Esta tarea todavía no tiene descripción en Jira.</p>
+              </template>
+              <p v-else-if="i.Description" class="jd" :title="i.Description">{{ i.Description }}</p>
+              <p v-else class="jd none">sin descripción en Jira</p>
+
+              <div class="tm">
+                <!-- de qué sprint viene: verde = nació en su sprint · rojo = la arrastraron sin terminar -->
+                <span v-if="i.OriginSprint" class="orig" :class="{ carried: i.CarriedOver }"
+                  :title="i.CarriedOver ? `Nació en ${i.OriginSprint} y se arrastró sin terminar` : `Nació en ${i.OriginSprint}`">
+                  <i></i>{{ i.OriginSprint }}
+                </span>
+                <span v-if="settings.trackPoints && i.HasPoints && i.Points">{{ i.Points }} pts</span>
+                <span v-if="settings.trackTime && taskLocals[i.Key]?.estimateMinutes">{{ minHhmm(taskLocals[i.Key].estimateMinutes) }} estimado</span>
+                <span v-if="settings.trackTime">{{ hhmm(i.SpentSecs) }} en Jira</span>
+                <span class="mine" v-if="minutesOf(i.Key)">{{ minHhmm(minutesOf(i.Key)) }} sin subir</span>
+              </div>
+
+              <!-- Las acciones de la tarea, donde está la tarea. `@click.stop` en todas: la tarjeta
+                   entera selecciona, y un botón no puede además hacer eso por accidente. -->
+              <div class="tacts" @click.stop>
+                <button class="tact" @click="alternarDesc(i.Key)">
+                  {{ descAbiertas.has(i.Key) ? 'contraer' : 'ver completa' }}
+                </button>
+                <button class="tact" :class="{ act: bitacoraAbierta && active?.Key === i.Key }" @click="verBitacora(i)">
+                  Bitácora<span v-if="entriesPorTarea[i.Key]" class="cnt">{{ entriesPorTarea[i.Key] }}</span>
+                </button>
+                <button v-if="!enPruebas(i) && qa?.key !== i.Key" class="tact go" :disabled="qaBusy" @click="openQA(i)">
+                  🧪 A pruebas
+                </button>
+              </div>
+
+              <!-- Handoff a QA, dentro de SU tarjeta. El mensaje se previsualiza y se puede editar: nunca
+                   sale algo que no se vio, y el server lo re-valida contra el guard antes de publicarlo. -->
+              <template v-if="qa?.key === i.Key">
+                <p v-if="qaError" class="qa-err">{{ qaError }}</p>
+                <div class="qa-box" @click.stop>
+                  <p class="qa-head">
+                    <span v-if="qa.transition">Va a moverla: <b>{{ qa.transition.name }}</b> → <b>{{ qa.transition.to }}</b></span>
+                    <span v-else class="qa-err">{{ qa.blocked }}</span>
+                  </p>
+                  <label class="fld">El mensaje <em>DM a {{ qa.name || qa.email }} — editalo si querés</em></label>
+                  <textarea v-model="qa.text" rows="7" spellcheck="false"></textarea>
+                  <ul v-if="qaProblems.length" class="qa-bad">
+                    <li v-for="(p, n) in qaProblems" :key="n">{{ p.what }}: «{{ p.found }}»</li>
+                  </ul>
+                  <div class="qa-acts">
+                    <button class="qa-go" :disabled="qaBusy || !qa.transition || !qa.text.trim()" @click="sendQA()">
+                      {{ qaBusy ? 'Enviando…' : 'Mover y avisar' }}
+                    </button>
+                    <button class="qa-no" :disabled="qaBusy" @click="qa = null">Cancelar</button>
+                  </div>
+                </div>
+              </template>
+              <p v-if="qaDone && active?.Key === i.Key" class="qa-done">{{ qaDone }}</p>
+              <p v-else-if="qaError && !qa && active?.Key === i.Key" class="qa-err">{{ qaError }}</p>
             </div>
           </div>
         </template>
@@ -909,7 +917,15 @@ h1 { font-size: 20px; margin: 0; letter-spacing: .2px }
 .card h2 .on { color: var(--acc); margin-left: 6px }
 .card h2 .mut { color: var(--mut); font-weight: 400; text-transform: none; letter-spacing: 0 }
 
-.task { border: 1px solid var(--line); border-radius: 11px; padding: 12px 13px; margin-bottom: 9px; cursor: pointer; transition: .12s }
+/* Las tareas fluyen en columnas: el ancho decide cuántas, con `auto-fill` y un mínimo por tarjeta. Es
+   preferible a breakpoints escritos a mano porque la card no siempre ocupa la ventana entera.
+   `align-items: start` para que una tarjeta alta no estire a sus vecinas hasta su alto. */
+.tgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 10px;
+  align-items: start; margin-bottom: 10px }
+/* La tarjeta DESPLEGADA (descripción completa o panel de QA) toma la fila entera: ese contenido son
+   párrafos y un textarea, y leerlos en una columna de 300px es peor que no tenerlos. */
+.task.wide { grid-column: 1 / -1 }
+.task { border: 1px solid var(--line); border-radius: 11px; padding: 12px 13px; cursor: pointer; transition: .12s }
 .task:hover { border-color: #a78bfa66 }
 .task.sel { border-color: var(--acc); background: #a78bfa0f }
 .tl { display: flex; align-items: center; gap: 9px; margin-bottom: 5px }
@@ -924,22 +940,36 @@ h1 { font-size: 20px; margin: 0; letter-spacing: .2px }
 .jd { font-size: 12px; line-height: 1.45; color: var(--mut); margin: 0 0 7px;
   display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden }
 .jd.none { font-style: italic; opacity: .6 }
-.tm { display: flex; gap: 12px; font-size: 11.5px; color: var(--mut) }
+.tm { display: flex; gap: 12px; font-size: 11.5px; color: var(--mut); flex-wrap: wrap }
 .tm .mine { color: var(--acc) }
+
+/* acciones de la tarjeta: la fila que reemplazó a la card "La tarea". Van al pie y en tono bajo — la
+   tarjeta se lee primero y se actúa después; botones fuertes acá competirían con el contenido. */
+.tacts { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-top: 10px;
+  padding-top: 9px; border-top: 1px solid var(--line) }
+.tact { border: 1px solid var(--line); background: var(--panel2); color: var(--mut); font: inherit;
+  font-size: 11.5px; font-weight: 600; padding: 4px 9px; border-radius: 999px; cursor: pointer;
+  display: inline-flex; align-items: center; gap: 6px }
+.tact:hover:not(:disabled) { color: var(--txt) }
+.tact:disabled { opacity: .45; cursor: default }
+.tact.act { color: var(--acc); border-color: #4c3d8f; background: #a78bfa1f }
+/* el de QA es el único que ESCRIBE (mueve en Jira y manda un DM): se distingue del resto */
+.tact.go { color: #4ade80; border-color: #2a5f43; background: #0e2718 }
+.tact.go:hover:not(:disabled) { background: #123420; color: #4ade80 }
+.tact .cnt { background: var(--line); color: var(--txt); font-size: 10px; font-weight: 700;
+  padding: 1px 6px; border-radius: 999px }
+.tact.act .cnt { background: var(--acc); color: #1a1330 }
+/* la descripción desplegada dentro de la tarjeta: separada del resto, no pegada al título */
+.task .desc { margin: 2px 0 8px }
 /* origen de la tarea: el punto dice si cerró en su sprint (verde) o la arrastraron (rojo) */
 .orig { display: inline-flex; align-items: center; gap: 5px }
 .orig i { width: 7px; height: 7px; border-radius: 50%; background: #4ade80; flex: none }
 .orig.carried { color: var(--bad) }
 .orig.carried i { background: var(--bad) }
 
-/* la tarjeta "La tarea": las dos verdades (real privada / reportada Jira) + definición + estimado */
-.dual { display: flex; gap: 26px; flex-wrap: wrap; margin-bottom: 15px }
-.lane { display: flex; flex-direction: column; gap: 7px }
-.lane-k { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; color: var(--mut) }
-.lane-k em { font-style: normal; text-transform: none; letter-spacing: 0; color: var(--mut); opacity: .7; font-weight: 400; margin-left: 5px }
 .fld { display: flex; align-items: baseline; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; color: var(--mut); margin-bottom: 7px }
 .fld em { font-style: normal; text-transform: none; letter-spacing: 0; opacity: .7; font-weight: 400; margin-left: 5px }
-/* descripción completa de Jira (acá NO se recorta: es la vista de detalle de la tarea elegida) */
+/* descripción completa de Jira (acá NO se recorta: es lo que se pidió ver entero) */
 .desc { font-size: 13px; line-height: 1.55; color: var(--txt); margin: 0; white-space: pre-wrap }
 .desc.none { color: var(--mut); font-style: italic }
 /* descripción renderizada por Jira (HTML). El scoped no llega al v-html → :deep(). SOLO LECTURA:
@@ -955,20 +985,6 @@ h1 { font-size: 20px; margin: 0; letter-spacing: .2px }
 .jira-html :deep(a:hover) { text-decoration: underline }
 .jira-html :deep(code) { background: var(--panel2); padding: 1px 5px; border-radius: 5px; font-size: 12px }
 .jira-html :deep(input) { pointer-events: none; accent-color: var(--acc); margin-right: 5px }
-.lane .val { font-size: 13.5px; font-weight: 700; font-variant-numeric: tabular-nums }
-
-/* botón de bitácora en el header: `margin-left: auto` lo empuja a la derecha (el h2 es flex). Es un
-   chip y no una tab porque abre un cajón, no cambia una vista — y como la bitácora está cerrada por
-   defecto, el estado "hay algo ahí" tiene que verse SIN abrirla: de ahí el contador. */
-.bit-btn { margin-left: auto; border: 1px solid var(--line); background: var(--panel2); color: var(--mut);
-  font: inherit; font-size: 11.5px; font-weight: 600; text-transform: none; letter-spacing: 0;
-  padding: 4px 10px; border-radius: 999px; cursor: pointer; display: flex; align-items: center; gap: 6px }
-.bit-btn:hover { color: var(--txt) }
-.bit-btn.act { color: var(--acc); border-color: #4c3d8f; background: #a78bfa1f }
-.bit-btn .cnt { background: var(--line); color: var(--txt); font-size: 10px; font-weight: 700;
-  padding: 1px 6px; border-radius: 999px }
-.bit-btn.act .cnt { background: var(--acc); color: #1a1330 }
-
 /* ── el cajón de la bitácora ──────────────────────────────────────────────────────────────────────
    Cubre la ventana entera (`inset: 0`) y el panel se ancla a la derecha. El fondo oscurece el tablero
    en vez de solo captar el clic: mientras se lee la bitácora, el tablero es contexto, no competencia.
@@ -1007,9 +1023,9 @@ h1 { font-size: 20px; margin: 0; letter-spacing: .2px }
 @keyframes drawer-fade { from { opacity: 0 } to { opacity: 1 } }
 @media (prefers-reduced-motion: reduce) { .drawer-p, .drawer-bg { animation: none } }
 
-/* handoff a QA: la ÚNICA acción de la tarjeta que escribe en Jira y manda un mensaje, así que se ve
-   como un botón de acción y no como un link, y el envío pasa por una previsualización editable. */
-.qa { margin-bottom: 15px }
+/* handoff a QA: la ÚNICA acción del tablero que escribe en Jira y manda un mensaje, así que el envío
+   pasa por una previsualización editable. `.qa-go` es el botón de confirmar dentro del panel; el que lo
+   abre desde la tarjeta es `.tact.go`, más discreto porque convive con las otras acciones. */
 .qa-go { border: 1px solid #2a5f43; background: #0e2718; color: #4ade80; font: inherit; font-size: 12.5px;
   font-weight: 600; padding: 7px 13px; border-radius: 9px; cursor: pointer }
 .qa-go:hover:not(:disabled) { background: #123420 }
@@ -1132,10 +1148,6 @@ h1 { font-size: 20px; margin: 0; letter-spacing: .2px }
 .entry .meta b.t-blocker { color: var(--bad) } .entry .meta b.t-progress { color: var(--acc) }
 
 /* ── Barras de progreso ───────────────────────────────────────────────────────────────────────── */
-.desc.recortada { max-height: 108px; overflow: hidden;
-                  -webkit-mask-image: linear-gradient(#000 60%, transparent) }
-.fld .mas { margin-left: auto; text-transform: none; letter-spacing: 0 }
-
 .bar { height: 3px; border-radius: 999px; background: #ffffff14; margin: 2px 0 7px; overflow: hidden }
 .bar i { display: block; height: 100%; background: var(--acc); border-radius: 999px;
          transition: width .3s ease }
