@@ -78,6 +78,79 @@ async function loadTaskLocals() {
   try { const j = await (await fetch(`${SERVER}/api/task-locals`)).json(); if (!j.error) taskLocals.value = j.taskLocals || {}; }
   catch { /* sin capas: todo cae en "sin esfuerzo" */ }
 }
+
+// ── traer de Jira: registrar lo que está a mi nombre y no tengo local ───────────────────────────────
+// Todo el resto del tablero mira el SPRINT del board 384. Esto mira la ASIGNACIÓN, que es más ancha:
+// también trae otros boards (LO, QC) y sprints viejos. Sin esta vista, una tarea asignada fuera de esa
+// ventana no aparecía en ningún lado — ni para registrarla ni para saber que faltaba.
+//
+// NO se carga al abrir la página: son 70+ issues y se usa de vez en cuando (sprint nuevo, alguien te
+// asignó algo). Va con botón para no pagar una llamada a Jira en cada recarga.
+const inbox = ref(null);
+const inboxAll = ref(false);       // incluir las terminadas (nacen archivadas)
+const inboxBusy = ref(false);
+const inboxError = ref('');
+const importBusy = ref(false);
+const importResults = ref([]);
+// clave → qué hacer con ella: '' no traer · 'new' archivo nuevo · '<id>' enlazar a esa tarea local
+const picks = ref({});
+
+// El server ya manda SOLO lo que falta: las que están registradas vienen como número (`registered`).
+const inboxPending = computed(() => inbox.value?.issues || []);
+const picked = computed(() => Object.entries(picks.value).filter(([, v]) => v));
+const ACTION_LABEL = {
+  created: 'quedó en', linked: 'enlazada a', already: 'ya estaba en', error: 'falló:',
+};
+
+async function loadInbox() {
+  inboxBusy.value = true; inboxError.value = ''; importResults.value = [];
+  try {
+    const j = await (await fetch(`${SERVER}/api/jira-inbox${inboxAll.value ? '?all=1' : ''}`)).json();
+    if (j.error) { inboxError.value = j.error; return; }
+    inbox.value = j;
+    // El candidato parecido viene PRESELECCIONADO como enlace, no como archivo nuevo: cuando el
+    // parecido es alto suele ser la misma tarea con otro nombre (el título viajó tal cual a Jira), y
+    // crear un archivo la duplicaría. Se puede cambiar en el select — la decisión sigue siendo tuya.
+    picks.value = Object.fromEntries(
+      j.issues.map(f => [f.issue.key, f.suggestion ? String(f.suggestion.id) : '']),
+    );
+  } catch { inboxError.value = 'no se pudo hablar con el server'; }
+  finally { inboxBusy.value = false; }
+}
+
+// pickAll respeta lo ya sugerido: "todas como tarea nueva" no pisa un enlace propuesto, porque
+// justamente ese es el caso en que crear un archivo estaría mal.
+function pickAll(v) {
+  const p = { ...picks.value };
+  for (const f of inboxPending.value) {
+    p[f.issue.key] = v === 'new' && f.suggestion ? String(f.suggestion.id) : v;
+  }
+  picks.value = p;
+}
+
+async function runImport() {
+  const create = [], link = {};
+  for (const [key, v] of picked.value) {
+    if (v === 'new') create.push(key); else link[key] = Number(v);
+  }
+  importBusy.value = true; importResults.value = [];
+  try {
+    const res = await fetch(`${SERVER}/api/jira-import`, {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ create, link }),
+    });
+    const j = await res.json();
+    if (j.error) { inboxError.value = j.error; return; }
+    // Los tres estados que cambiaron: las tareas locales (hay archivos nuevos), los vínculos (el
+    // listado del sprint se agrupa con ellos) y el cruce (lo traído ya no está pendiente).
+    await loadEfforts(); await loadTaskLocals(); await loadInbox();
+    // El resultado se pone DESPUÉS del refresco: loadInbox() lo limpia al arrancar —para que una
+    // búsqueda nueva no muestre el resultado de la anterior— y ponerlo antes lo borraba justo acá,
+    // dejando la importación sin decir qué archivo tocó.
+    importResults.value = j.results || [];
+  } catch { inboxError.value = 'no se pudo hablar con el server'; }
+  finally { importBusy.value = false; }
+}
 // listado agrupado por esfuerzo; las sin asignar van al final. El encabezado del grupo solo aparece si
 // hay al menos un esfuerzo en juego (si no, el listado va plano como antes).
 const groupedIssues = computed(() => {
@@ -129,7 +202,9 @@ const sprintDays = computed(() => {
   // haya arrancado, y decir "arranca en 0 días" sobre el sprint en el que estás trabajando es absurdo.
   if (now < start) return { state: 'upcoming', startsIn: d(start, now) };
   if (now > end) return { state: 'closed', endedAgo: d(now, end) };
-  return { state: 'ongoing', remaining: d(end, now) };
+  // `pct` es lo CONSUMIDO, para poder pintarlo: "2 días restantes" no dice si son 2 de 3 o 2 de 14.
+  const total = Math.max(1, d(end, start));
+  return { state: 'ongoing', remaining: d(end, now), pct: Math.min(100, Math.round(100 * d(now, start) / total)) };
 });
 
 const hhmm = (s) => { const m = Math.round(s / 60); return m ? `${Math.floor(m / 60)}h ${String(m % 60).padStart(2, '0')}m` : '—'; };
@@ -149,6 +224,12 @@ async function deleteEntry(id) {
 }
 
 const ofActive = computed(() => active.value ? ofSprint.value.filter(e => e.key === active.value.Key) : []);
+// Qué entradas están desplegadas. Las notas de la bitácora son párrafos largos a propósito (las escribe
+// el asistente con el porqué completo); mostrarlas enteras convierte la lista en un muro y se deja de
+// escanear. Colapsadas a 3 líneas la bitácora vuelve a ser un índice, y el detalle está a un clic.
+const abiertas = ref(new Set());
+const alternar = (id) => { const s = new Set(abiertas.value); s.has(id) ? s.delete(id) : s.add(id); abiertas.value = s; };
+const descAbierta = ref(false);
 const when = (d) => new Date(d).toLocaleString('es-CO', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
 
 // ── mi jornada: últimos 20 días × horas laborales ───────────────────────────────────────────────
@@ -364,7 +445,7 @@ onMounted(async () => {
         </div>
         <span v-if="sprintDays?.state === 'upcoming'" class="chip">arranca en {{ sprintDays.startsIn }} día{{ sprintDays.startsIn === 1 ? '' : 's' }}</span>
         <span v-else-if="sprintDays?.state === 'closed'" class="chip warn">cerrado hace {{ sprintDays.endedAgo }} día{{ sprintDays.endedAgo === 1 ? '' : 's' }}</span>
-        <span v-else-if="sprintDays?.state === 'ongoing'" class="chip">{{ sprintDays.remaining }} días restantes</span>
+        <span v-else-if="sprintDays?.state === 'ongoing'" class="chip chip-bar">{{ sprintDays.remaining }} días restantes<i class="mini"><b :style="{ width: sprintDays.pct + '%' }"></b></i></span>
       </div>
       <div class="settings" :class="{ pushed: !sprint }">
         <button class="gear" :class="{ on: showSettings }" @click="showSettings = !showSettings" title="Ajustes">⚙</button>
@@ -395,6 +476,8 @@ onMounted(async () => {
         <div class="stat">
           <div class="k">Tareas</div>
           <div class="v">{{ done }}/{{ issues.length }}</div>
+          <!-- La barra dice de un vistazo lo que el número obliga a dividir mentalmente. -->
+          <div class="bar" v-if="issues.length"><i :style="{ width: (100 * done / issues.length) + '%' }"></i></div>
           <div class="s">terminadas en el sprint</div>
         </div>
         <div class="stat" v-if="settings.trackPoints">
@@ -505,11 +588,15 @@ onMounted(async () => {
           </div>
         </div>
 
-        <label class="fld">Descripción <em>lo que hoy dice Jira</em></label>
+        <label class="fld">Descripción <em>lo que hoy dice Jira</em>
+          <!-- Colapsada por defecto: es material de REFERENCIA (contexto, criterios, dependencias), no
+               lectura diaria. Entera empuja la bitácora —que sí se consulta seguido— fuera de pantalla. -->
+          <button class="mas" @click="descAbierta = !descAbierta">{{ descAbierta ? 'contraer' : 'ver completa' }}</button>
+        </label>
         <!-- HTML renderizado por Jira (renderedFields). Solo lectura: el tablero es visual, el que
              actualiza en Jira es el asistente por la API. Los checkboxes se ven pero no se togglean. -->
-        <div v-if="active.DescriptionHTML" class="desc jira-html" v-html="active.DescriptionHTML"></div>
-        <p v-else-if="active.Description" class="desc">{{ active.Description }}</p>
+        <div v-if="active.DescriptionHTML" class="desc jira-html" :class="{ recortada: !descAbierta }" v-html="active.DescriptionHTML"></div>
+        <p v-else-if="active.Description" class="desc" :class="{ recortada: !descAbierta }">{{ active.Description }}</p>
         <p v-else class="desc none">Esta tarea todavía no tiene descripción en Jira.</p>
       </section>
 
@@ -550,20 +637,98 @@ onMounted(async () => {
           <h2>Bitácora <span class="mut" v-if="active">de {{ active.Key }}</span></h2>
           <p class="empty">La escribe el asistente al analizar la tarea; acá se lee.</p>
           <p v-if="!ofActive.length" class="msg">Sin entradas para esta tarea todavía.</p>
-          <div v-for="e in ofActive" :key="e.id" class="entry">
+          <!-- Timeline: el riel vertical hace que se lea como lo que es, un registro en el tiempo, y no
+               como una lista de párrafos sueltos. El marcador lleva el color del tipo. -->
+          <div v-for="e in ofActive" :key="e.id" class="entry" :class="{ abierta: abiertas.has(e.id) }">
             <span class="icon" :class="'t-' + e.kind">{{ KINDS.find(t => t.id === e.kind)?.icon }}</span>
             <div class="body">
               <div class="meta">
-                <b>{{ KINDS.find(t => t.id === e.kind)?.label }}</b>
+                <b :class="'t-' + e.kind">{{ KINDS.find(t => t.id === e.kind)?.label }}</b>
                 <span>{{ when(e.date) }}</span>
-                <span class="min">{{ e.min }} min</span>
+                <span class="min" v-if="e.min">{{ e.min }} min</span>
                 <button class="x" title="Borrar (queda marcado en la base, no se pierde)" @click="deleteEntry(e.id)">✕</button>
               </div>
-              <p>{{ e.text }}</p>
+              <p @click="alternar(e.id)">{{ e.text }}</p>
+              <button v-if="e.text && e.text.length > 180" class="mas" @click="alternar(e.id)">
+                {{ abiertas.has(e.id) ? 'ver menos' : 'ver más' }}
+              </button>
             </div>
           </div>
         </section>
       </div>
+
+      <!-- TRAER DE JIRA. La única vista que mira por ASIGNACIÓN y no por sprint, y la única que CREA
+           una tarea local. Va al final y colapsada porque es mantenimiento del registro, no la
+           operación del día: se abre cuando arranca un sprint o cuando alguien te asigna algo. -->
+      <section class="card">
+        <h2>Traer de Jira <span class="mut">· lo que está a mi nombre en CORE y no en el registro local</span></h2>
+        <div class="sync-h">
+          <button class="qa-go" :disabled="inboxBusy" @click="loadInbox()">
+            {{ inboxBusy ? 'Preguntando a Jira…' : inbox ? 'Volver a mirar' : 'Buscar lo que falta' }}
+          </button>
+          <label class="sync-all">
+            <input type="checkbox" v-model="inboxAll" @change="inbox && loadInbox()" />
+            <span>incluir terminadas <em>nacen archivadas</em></span>
+          </label>
+          <span v-if="inbox" class="chip">
+            {{ inbox.pending }} sin registro
+            <template v-if="inbox.registered"> · {{ inbox.registered }} ya registradas</template>
+          </span>
+        </div>
+        <p v-if="inboxError" class="msg bad">{{ inboxError }}</p>
+
+        <template v-if="inbox">
+          <p v-if="!inboxPending.length" class="msg">
+            Todo lo que está a tu nombre ya tiene tarea local{{ inboxAll ? '' : ' (sin contar las terminadas)' }}.
+          </p>
+          <template v-else>
+            <div class="sync-acts">
+              <span class="mut">{{ picked.length }} de {{ inboxPending.length }} elegidas</span>
+              <button class="lnk" @click="pickAll('new')">todas como tarea nueva</button>
+              <button class="lnk" @click="pickAll('')">ninguna</button>
+            </div>
+
+            <div v-for="f in inboxPending" :key="f.issue.key" class="sync-row" :class="{ off: !picks[f.issue.key] }">
+              <select v-model="picks[f.issue.key]">
+                <option value="">— no traer —</option>
+                <option value="new">crear tarea local</option>
+                <option v-for="e in inbox.efforts" :key="e.id" :value="String(e.id)">
+                  enlazar a {{ e.file }}{{ e.archived ? ' (archivada)' : '' }}
+                </option>
+              </select>
+              <div class="sync-i">
+                <p class="sync-t">
+                  <a v-if="site" class="key link" :href="jiraLink(f.issue.key)" target="_blank" rel="noopener"
+                    @click.stop>{{ f.issue.key }} <span class="ext">↗</span></a>
+                  <span v-else class="key">{{ f.issue.key }}</span>
+                  <b :class="statusClass(f.issue.category)">{{ f.issue.status }}</b>
+                  {{ f.issue.summary }}
+                </p>
+                <p class="sync-m">
+                  creada {{ f.issue.created }} · movida {{ f.issue.updated }}
+                  <template v-if="f.issue.sprints?.length"> · {{ f.issue.sprints.at(-1) }}</template>
+                  <template v-if="f.issue.reporter"> · la reporta {{ f.issue.reporter }}</template>
+                  <span v-if="f.suggestion" class="sync-sug">
+                    se parece {{ Math.round(f.suggestion.score * 100) }}% a {{ f.suggestion.file }}
+                  </span>
+                </p>
+              </div>
+            </div>
+
+            <button class="qa-go" :disabled="!picked.length || importBusy" @click="runImport()">
+              {{ importBusy ? 'Registrando…' : `Traer ${picked.length}` }}
+            </button>
+          </template>
+
+          <ul v-if="importResults.length" class="sync-res">
+            <li v-for="r in importResults" :key="r.key" :class="{ bad: r.action === 'error' }">
+              <b>{{ r.key }}</b> {{ ACTION_LABEL[r.action] || r.action }}
+              <span class="mut">{{ r.file || r.error }}</span>
+              <span v-if="r.archived" class="chip">archivada</span>
+            </li>
+          </ul>
+        </template>
+      </section>
     </template>
   </div>
 </template>
@@ -641,7 +806,7 @@ h1 { font-size: 20px; margin: 0; letter-spacing: .2px }
 .lane { display: flex; flex-direction: column; gap: 7px }
 .lane-k { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; color: var(--mut) }
 .lane-k em { font-style: normal; text-transform: none; letter-spacing: 0; color: var(--mut); opacity: .7; font-weight: 400; margin-left: 5px }
-.fld { display: block; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; color: var(--mut); margin-bottom: 7px }
+.fld { display: flex; align-items: baseline; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; color: var(--mut); margin-bottom: 7px }
 .fld em { font-style: normal; text-transform: none; letter-spacing: 0; opacity: .7; font-weight: 400; margin-left: 5px }
 /* descripción completa de Jira (acá NO se recorta: es la vista de detalle de la tarea elegida) */
 .desc { font-size: 13px; line-height: 1.55; color: var(--txt); margin: 0; white-space: pre-wrap }
@@ -759,11 +924,40 @@ h1 { font-size: 20px; margin: 0; letter-spacing: .2px }
 .legend i { width: 13px; height: 13px; border-radius: 4px; display: inline-block }
 .legend .note { margin-left: 12px }
 
-.entry { display: flex; gap: 11px; padding: 11px 0; border-top: 1px solid var(--line) }
+/* ── Bitácora como TIMELINE ────────────────────────────────────────────────────────────────────
+   El riel es un pseudo-elemento sobre la columna del icono, no un borde superior por fila: así la
+   línea es CONTINUA entre entradas y se lee como una secuencia en el tiempo. Se corta en la última
+   (`:last-of-type`) para que no quede colgando en el vacío. */
+.entry { display: flex; gap: 11px; padding: 13px 0; position: relative }
+.entry::before { content: ''; position: absolute; left: 11px; top: 0; bottom: 0; width: 1px;
+                 background: var(--line) }
+.entry:first-of-type::before { top: 18px }
+.entry:last-of-type::before { bottom: auto; height: 18px }
+.entry .icon { position: relative; z-index: 1; box-shadow: 0 0 0 4px var(--panel) }
+/* El párrafo nace CORTADO a 3 líneas: las notas son largas a propósito (traen el porqué completo) y
+   enteras convierten la bitácora en un muro que se deja de escanear. El detalle está a un clic. */
+.entry p { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
+           cursor: pointer }
+.entry.abierta p { display: block; overflow: visible }
+.entry .mas { border: 0; background: none; color: var(--acc); cursor: pointer; font-size: 11.5px;
+              padding: 3px 0 0; font-weight: 600 }
+.entry .meta b.t-finding { color: var(--warn) } .entry .meta b.t-test { color: #4ade80 }
+.entry .meta b.t-blocker { color: var(--bad) } .entry .meta b.t-progress { color: var(--acc) }
+
+/* ── Barras de progreso ───────────────────────────────────────────────────────────────────────── */
+.desc.recortada { max-height: 108px; overflow: hidden;
+                  -webkit-mask-image: linear-gradient(#000 60%, transparent) }
+.fld .mas { margin-left: auto; text-transform: none; letter-spacing: 0 }
+
+.bar { height: 3px; border-radius: 999px; background: #ffffff14; margin: 2px 0 7px; overflow: hidden }
+.bar i { display: block; height: 100%; background: var(--acc); border-radius: 999px;
+         transition: width .3s ease }
+.chip-bar { display: inline-flex; align-items: center; gap: 8px }
+.chip-bar .mini { display: block; width: 34px; height: 3px; border-radius: 999px; background: #ffffff1f }
+.chip-bar .mini b { display: block; height: 100%; border-radius: 999px; background: var(--mut) }
 .entry .x { margin-left: auto; border: 0; background: none; color: var(--mut); cursor: pointer; font-size: 12px;
   opacity: 0; transition: .12s; padding: 0 2px }
 .entry:hover .x { opacity: .7 } .entry .x:hover { color: var(--bad); opacity: 1 }
-.entry:first-of-type { border-top: none }
 .icon { width: 24px; height: 24px; border-radius: 8px; display: grid; place-items: center; font-size: 11px; flex: none; background: #ffffff0d }
 .t-finding { color: var(--warn) } .t-test { color: #4ade80 } .t-blocker { color: var(--bad) } .t-progress { color: var(--acc) }
 .body { min-width: 0 }
@@ -773,4 +967,31 @@ h1 { font-size: 20px; margin: 0; letter-spacing: .2px }
 .entry p { margin: 0; font-size: 13px; line-height: 1.5 }
 .msg { color: var(--mut); font-size: 13px }
 .msg.bad { color: var(--bad) }
+
+/* traer de Jira: el cruce contra el registro local. Cada fila es una decisión (no traer / archivo
+   nuevo / enlazar), así que el CONTROL va primero y el texto del issue después — se recorre la columna
+   de selects de arriba a abajo sin leer todo. Las filas en "no traer" se apagan para que las elegidas
+   salten a la vista. */
+.sync-h { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 12px }
+.sync-all { display: flex; gap: 7px; align-items: flex-start; cursor: pointer; font-size: 12.5px }
+.sync-all input { width: auto; accent-color: var(--acc); cursor: pointer; margin-top: 2px }
+.sync-all em { display: block; font-style: normal; font-size: 11px; color: var(--mut) }
+.sync-acts { display: flex; align-items: center; gap: 14px; padding: 9px 0; border-top: 1px solid var(--line);
+  font-size: 12px }
+.lnk { border: 0; background: none; color: var(--acc); font: inherit; font-size: 12px; cursor: pointer; padding: 0 }
+.lnk:hover { text-decoration: underline }
+.sync-row { display: flex; gap: 12px; align-items: flex-start; padding: 9px 0; border-top: 1px solid var(--line) }
+.sync-row.off { opacity: .45 }
+.sync-row select { flex: none; width: 240px; font-size: 12px; padding: 5px 7px; border-radius: 8px;
+  border: 1px solid var(--line); background: var(--panel2); color: var(--txt) }
+.sync-i { min-width: 0 }
+.sync-t { margin: 0; font-size: 13px; line-height: 1.45; display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap }
+.sync-t b { font-size: 10.5px; font-weight: 700; padding: 2px 7px; border-radius: 999px; border: 1px solid;
+  white-space: nowrap }
+.sync-m { margin: 3px 0 0; font-size: 11px; color: var(--mut) }
+.sync-sug { margin-left: 8px; color: var(--acc) }
+.sync-res { list-style: none; margin: 14px 0 0; padding: 12px 0 0; border-top: 1px solid var(--line);
+  font-size: 12.5px; display: grid; gap: 5px }
+.sync-res .bad { color: var(--bad) }
+.sync-res .chip { margin-left: 6px; padding: 1px 8px; font-size: 10.5px }
 </style>
