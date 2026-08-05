@@ -113,6 +113,35 @@ La sucursal **no sabe en qué país está**: no hay `allied_branches.country_id`
 desde la ciudad **una vez** y con check de consistencia, en vez de derivarlo en caliente por dos joins sobre
 una tabla sucia. Y `session('alliedCountry')` pasa a leer el país de la **sucursal**.
 
+## ¿Una entidad puede operar en varios países? El esquema ya contestó: NO
+Si un comercio puede tener sucursales en varios países, la pregunta simétrica es si una **entidad**
+puede. La respuesta no es de criterio, es de esquema: **la economía de la entidad está denominada en
+moneda y vive en `credit_line_by_lenders`, que cuelga de `lender_id` y no tiene dimensión de país.**
+Verificado en la BD local:
+
+| lender | país | `min_amount` | `max_amount` | `rate` |
+|---|---|---|---|---|
+| SmartPay (153) | 60 RD | 1.000 | 100.000 | 10,00 |
+| CrediPullman (77) | 1 *(default)* | 500.000 | 6.000.000 | 1,82 |
+| Creditop X (37) | 1 *(default)* | 1.000.000 | 3.000.000 | 0,20 |
+
+→ **Modelo: una fila de `lenders` por país.** No es una convención que se pueda elegir: es lo que el
+esquema obliga, y es lo que de hecho ya pasa (SmartPay RD es el lender 153/160, no una variante del
+mismo). La alternativa (`lender_countries` N:M) forzaría una dimensión de país en las 8+ tablas que
+cuelgan de `lender_id` — `credit_line_by_lenders`, `lenders_by_allieds`, `lender_users_categories`,
+`creditop_x_conditions_by_amount_by_lender`, tramos, reglas… Eso es un refactor de la plataforma, no
+una internacionalización.
+
+**Dos consecuencias:**
+1. La regla que propone Miguel —*una sucursal solo habilita entidades de su país*— pasa a ser una
+   **igualdad simple** entre dos columnas que ya existen, no un join contra una tabla N:M. Barata.
+2. Y pasa a ser **necesaria**, no opcional: con una fila por país el catálogo crece (N países × M
+   entidades) y sin esa validación el admin puede cablear la fila del país equivocado — que es
+   justamente la fila con la moneda equivocada. Hoy en el dump ya hay **1 fila así**.
+3. El corolario incómodo: cada canal que se gatea **por id de lender** paga un hardcode por país.
+   `isSmartPay()` ya lo demuestra (`id === 160` en prod, 153 en dev). Con una fila por país, la
+   capacidad tiene que ser **columna/flag** (`path_id`, `product`, un `capability`), nunca un id.
+
 ## Plan por bloques
 Orden pensado para que ningún bloque posterior tenga que volver a decidir país.
 
