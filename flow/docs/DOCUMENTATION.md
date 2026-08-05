@@ -345,3 +345,39 @@ fiel (IVA 19% fijo, sin castigo, sin múltiplo) — los campos atenuados NO entr
 Antes de agregar un campo al flow, ubicá en qué eje entra (ver §7): ¿**decide** listado/cupo?
 ¿entra en la **cuota** (lo paga el cliente)? ¿es **cobro al comercio**? ¿**servicing**? Si no
 cae en ninguno y el backend no lo consume, **no se agrega** (sería otro fantasma).
+
+---
+
+## 10. Nodo País (nivel 0) — qué es "país" hoy en CreditOp
+
+**Agregado 2026-08-05.** Nodo **base** (no depende de seleccionar entidad), debajo de *Comercio* y
+conectado a su costado inferior con el punteado de config. Existe porque "país" no es **una** cosa:
+son **tres columnas** —una que manda, una que no se lee y una que no existe— más la fila de
+`countries` que casi nadie consulta. Verificado contra `main` de `legacy-backend`/`frontend-monorepo`
++ BD local.
+
+| Qué | Columna | Estado en el nodo | Por qué |
+|---|---|---|---|
+| País del **comercio** | `allieds.country_id` | **decide** | Es el único que el flujo lee: va a la sesión como `alliedCountry` y el gate `=== 60` manda al **wizard RD entero** (5 pantallas propias), no traduce textos. `NOT NULL DEFAULT 1`, acotado a `[47, 60]`. Dump local: 264 en 47 / 2 en 60 |
+| País de la **sucursal** | *(propuesto)* `allied_branches.country_id` | **propuesto** | La columna **no existe**. Solo derivable `country_city_id → country_cities → country_zones.country_id` (1689/1692 con ciudad), pero `country_zones` está sucia → no sirve como camino canónico. Hoy una sucursal en otro país es **invisible** para el flujo |
+| País de la **entidad** | `lenders.country_id` | **no se usa** | Existe, pero el listado filtra por el **literal** `->where('country_id', 1)` y 155 de 156 filas están en 1 → el valor no es configuración, es una constante |
+| Prefijo telefónico | `countries.dial_code` · `phone_code` | **no se usa** | 28 archivos PHP comparan contra `'+57'` literal. `phone_code` está **vacía en las 250 filas**: su migración siembra por `iso_code_2` (`'CO'`/`'DO'`) y esa columna guarda el **alpha-3** (`COL`/`DOM`) → 0 filas tocadas |
+| Longitud del celular | `countries.cell_phone_lenght` *(sic)* | **no se usa** | El "10 dígitos" está hardcodeado en ≥6 lugares del wizard. El typo de la columna + el `$fillable` con el nombre correcto = ese fillable no escribe nada |
+| Tipos de documento | `lenders_by_allied_branches.document_types` | **fuera de main** | Poblada en **6231/6231** filas del dump, con **cero lectores en `main`**: su único consumidor vive en `feature/motai-v2` (unión por sucursal + piso `["CC","CE"]`). En paralelo el wizard valida con un `z.enum` y el backend con `in:CC,CE,PEP` |
+| Idioma / moneda | `countries.locale` · `currency` | **solo formatea** | Los únicos que sí se leen: viajan al front como `currency_format` desde `allied->country`. Dos notaciones conviven (`es-CO` estilo `Intl` vs `es_DO` estilo PHP). Solo 6 de 250 filas tienen `locale` |
+
+**La sección "¿Operan en este país?"** implementa la regla que el admin **no** valida: cablear en una
+sucursal una entidad de otro país. El nodo la muestra, no la bloquea — porque hoy el sistema lo
+permite (en el dump hay 1 fila así). Y no se puede prender todavía: exige primero poblar
+`lenders.country_id` y cambiar ese `where` literal.
+
+**Hallazgo que el nodo hace visible:** la economía de una entidad está **denominada en moneda** y vive
+en `credit_line_by_lenders`, que cuelga de `lender_id` y **no tiene dimensión de país** — SmartPay RD
+(lender 153, country 60) trae `min/max_amount` **1.000–100.000 (DOP)** contra **500.000–6.000.000
+(COP)** de CrediPullman. O sea que **"una fila de lender por país" no es una convención: es lo que el
+esquema obliga**, y es lo que de hecho ya pasa.
+
+> Fidelidad: el nodo NO modela el deber-ser de la internacionalización. Muestra el estado real de cada
+> columna (`decide` / `no se usa` / `propuesto`) para que el desajuste se vea en vez de esconderse —
+> el mismo criterio de §9 con los campos inertes. El plan de qué hacer con esto vive en la tarea del
+> tablero (`internacionalizacion-onboarding.md`), no acá.

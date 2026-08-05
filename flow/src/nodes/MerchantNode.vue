@@ -29,6 +29,8 @@ import { Store } from 'lucide-vue-next'
         <span v-for="p in merchantProductos" :key="p.key" class="mprod" :class="'mprod--' + p.key" :title="p.label">{{ p.short }}</span>
       </div>
     </div>
+    <!-- El país entra por abajo (nodo País, nivel 0): hoy allieds.country_id es el único que el flujo lee. -->
+    <Handle id="frompais" type="target" :position="Position.Bottom" />
     <Handle id="toflow" type="source" :position="Position.Right" />
   </div>
 </template>

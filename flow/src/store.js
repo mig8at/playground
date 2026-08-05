@@ -87,6 +87,7 @@ export function entidadCfg(lender) {
     lateRate: e.lateRate ?? (t.rate != null ? +(t.rate + 1.5).toFixed(2) : null),
     condonedDues: e.condonedDues ?? 0,
     abacoExtra: !!e.abacoExtra, // Información complementaria (config por entidad): ¿pide ingreso extra vía Ábaco?
+    paisId: e.paisId ?? PAIS_DEFAULT_ID, // lenders.country_id — default 1 en la migración real (ver COUNTRIES)
   }
 }
 // Setters de la Config de entidad (editable desde el nodo Config de lender).
@@ -114,6 +115,10 @@ export function setEntidadDues(lender, str) {
 export function setEntidad(lender, key, val) { if (lender) { lender.entidad = lender.entidad || {}; lender.entidad[key] = val === '' ? null : Number(val) } }
 // Flag "Ábaco (info. complementaria)" de la entidad (booleano; setter aparte de setEntidad, que es numérico).
 export function setEntidadAbaco(lender, on) { if (lender) { lender.entidad = lender.entidad || {}; lender.entidad.abacoExtra = !!on; editTick.n++ } }
+// País de la entidad (lenders.country_id). Ver COUNTRIES: hoy la columna existe pero el listado
+// filtra por el literal 1, así que el valor NO se lee como config. El nodo País lo expone igual
+// para poder ver el desajuste con el país de la sucursal.
+export function setEntidadPais(lender, id) { if (lender) { lender.entidad = lender.entidad || {}; lender.entidad.paisId = Number(id); editTick.n++ } }
 
 // UI: lender seleccionado + campo inerte inspeccionado (sidebar "por qué no tiene efecto").
 export const ui = reactive({ selected: null, fieldInfo: null })
@@ -122,16 +127,77 @@ export function openFieldInfo(key) { ui.fieldInfo = key }
 export function closeFieldInfo() { ui.fieldInfo = null }
 
 /* ============================================================================
+ * PAÍS — el nodo País (nivel 0) modela lo que HOY es "país" en CreditOp, con su
+ * estado real. No es una capa nueva: son tres columnas que ya existen (y una que
+ * no), más la fila de `countries` que casi nadie lee. Verificado contra main de
+ * legacy-backend/frontend-monorepo + BD local, 2026-08-05:
+ *
+ *  · allieds.country_id      → el ÚNICO que el flujo usa (sesión alliedCountry →
+ *    gate `=== 60` que manda al wizard RD). NOT NULL DEFAULT 1. Acotado a [47,60].
+ *  · allied_branches         → NO existe la columna. El país de la sucursal solo se
+ *    puede derivar country_city_id → country_cities → country_zones.country_id
+ *    (1689/1692 con ciudad, pero country_zones está sucia). Acá va como PROPUESTO.
+ *  · lenders.country_id      → existe, pero el listado filtra por el literal
+ *    `->where('country_id', 1)`: 155 de 156 filas están en 1. El valor NO se lee
+ *    como config → "no se usa".
+ *  · countries.*             → dial_code / cell_phone_lenght / locale / currency.
+ *    Solo locale+currency se leen (currency_format del listado y del plan).
+ *    phone_code está VACÍA en las 250 filas: su migración siembra por iso_code_2
+ *    ('CO'/'DO') y esa columna guarda el alpha-3 ('COL'/'DOM') → 0 filas tocadas.
+ *
+ * Los valores de abajo son los de la BD local, no inventados. `docTypes` sale del
+ * código: CO del catálogo del wizard clásico (CC/CE/PEP, además de la columna
+ * lenders_by_allied_branches.document_types que solo vive en feature/motai-v2) y
+ * RD de las regex hardcodeadas del wizard dynamic.
+ * ========================================================================== */
+export const PAIS_DEFAULT_ID = 1 // el default REAL de las migraciones (allieds.country_id / lenders.country_id)
+export const COUNTRIES = [
+  { id: 47, iso: 'CO', name: 'Colombia', dial: '57', phoneLen: 10, locale: 'es-CO', currency: 'COP',
+    docTypes: ['CC', 'CE', 'PEP'] },
+  { id: 60, iso: 'DO', name: 'República Dominicana', dial: '1', phoneLen: 10, locale: 'es-DO', currency: 'DOP',
+    docTypes: ['CED', 'CI_VE', 'PAS', 'PAS_VE'] },
+  // id 1 = Afghanistan en la tabla real: es el DEFAULT de las migraciones, y por eso 155 lenders
+  // "viven" ahí. Se lista para que el desajuste se vea en el nodo en vez de esconderse.
+  { id: 1, iso: '—', name: 'Sin país (default 1)', dial: '', phoneLen: null, locale: null, currency: null,
+    docTypes: [], bogus: true },
+]
+export const countryById = (id) => COUNTRIES.find(c => c.id === Number(id)) || null
+
+/* ============================================================================
  * Comercio y sucursal = etiquetas de contexto (texto libre en el nodo Comercio).
  * La calculadora económica se resuelve por nombre (merchantCalc[nombre]); las
  * entidades se crean en "Entidades del comercio" (customLenders). `enabled`
  * arranca vacío y lo pueblan las entidades custom al crearse.
+ * `paisId` es allieds.country_id (real); `sucursalPaisId` es la columna PROPUESTA
+ * de allied_branches — arranca siguiendo al comercio, como sería su fallback.
  * ========================================================================== */
 export const merchant = reactive({
   nombre: 'Motai',
   sucursal: 'PRINCIPAL',
   enabled: {},
+  paisId: 47,
+  sucursalPaisId: 47,
 })
+// País del comercio: al cambiarlo arrastra el de la sucursal SOLO si esta lo seguía
+// (mismo id) — así se ve que hoy la sucursal no tiene país propio y hereda.
+export function setMerchantPais(id) {
+  const next = Number(id)
+  if (merchant.sucursalPaisId === merchant.paisId) merchant.sucursalPaisId = next
+  merchant.paisId = next
+  editTick.n++
+}
+export function setSucursalPais(id) { merchant.sucursalPaisId = Number(id); editTick.n++ }
+// ¿La entidad opera en el país de la sucursal? Es la regla que el admin NO valida hoy:
+// nada impide cablear en lenders_by_allied_branches una entidad de otro país (en la BD
+// local hay 1 fila así: entidad en país 1 habilitada en la sucursal del comercio RD).
+//   'ok'      → mismo país
+//   'sinPais' → la entidad está en el default 1: la regla no se puede evaluar
+//   'otro'    → países distintos → hoy se cablea igual, sin error
+export function paisMatch(lender) {
+  const e = entidadCfg(lender); if (!e) return 'ok'
+  if (e.paisId === PAIS_DEFAULT_ID) return 'sinPais'
+  return e.paisId === merchant.sucursalPaisId ? 'ok' : 'otro'
+}
 
 /* ============================================================================
  * CANAL: por dónde ENTRA la solicitud. Hoy dos opciones — asesor (en el comercio)
@@ -950,7 +1016,8 @@ const GRAPH_VERSION = 1
 function graphSnapshot() {
   return {
     version: GRAPH_VERSION,
-    merchant: { nombre: merchant.nombre, sucursal: merchant.sucursal, enabled: { ...merchant.enabled } },
+    merchant: { nombre: merchant.nombre, sucursal: merchant.sucursal, enabled: { ...merchant.enabled },
+      paisId: merchant.paisId, sucursalPaisId: merchant.sucursalPaisId },
     canal: { ...canal },
     state: { ...state },
     bureau: { ...bureau },
@@ -979,7 +1046,13 @@ function restoreGraph() {
   if (!snap || snap.version !== GRAPH_VERSION) return
   restoring = true // evita que el watch de numDoc re-siembre el buró encima de lo persistido
   try {
-    if (snap.merchant) { merchant.nombre = snap.merchant.nombre; merchant.sucursal = snap.merchant.sucursal; Object.assign(merchant.enabled, snap.merchant.enabled) }
+    if (snap.merchant) {
+      merchant.nombre = snap.merchant.nombre; merchant.sucursal = snap.merchant.sucursal
+      Object.assign(merchant.enabled, snap.merchant.enabled)
+      // Escenarios guardados ANTES del nodo País no traen estos campos → se quedan en su default (47/47).
+      if (snap.merchant.paisId != null) merchant.paisId = Number(snap.merchant.paisId)
+      merchant.sucursalPaisId = snap.merchant.sucursalPaisId != null ? Number(snap.merchant.sucursalPaisId) : merchant.paisId
+    }
     if (snap.canal) Object.assign(canal, snap.canal)
     if (snap.state) Object.assign(state, snap.state)
     if (snap.bureau) Object.assign(bureau, snap.bureau)

@@ -20,6 +20,7 @@ import SettingsBar from './nodes/SettingsBar.vue'
 import LendersConfigNode from './nodes/LendersConfigNode.vue'
 import DefaultNode from './nodes/DefaultNode.vue'
 import ComercioNode from './nodes/ComercioNode.vue'
+import CountryNode from './nodes/CountryNode.vue'
 import RelacionNode from './nodes/RelacionNode.vue'
 import PerfilamientoNode from './nodes/PerfilamientoNode.vue'
 import CategoryNode from './nodes/CategoryNode.vue'
@@ -68,6 +69,10 @@ onMounted(() => window.addEventListener('keydown', onKey))
 onUnmounted(() => window.removeEventListener('keydown', onKey))
 
 const nodes = ref([
+  // País (nivel 0): DEBAJO del comercio, entra por su costado inferior. Es nodo BASE (no depende de
+  // seleccionar entidad) porque el país acota comercio, sucursal y entidades a la vez. Se ubica en
+  // x=20 y no en la columna de config (x=-300) para no pisar "Configurar comercio"/"sucursal".
+  { id: 'country', type: 'country', position: { x: 20, y: 880 } },
   // Config del comercio: "Entidades del comercio" (incluye los productos CreditopX) entra al merchant desde arriba.
   { id: 'lenders-cfg', type: 'lenderscfg', position: { x: 20, y: 40 } },
   { id: 'merch', type: 'merchant', position: { x: 20, y: 540 } },
@@ -102,6 +107,8 @@ const ec = (k) => EDGE_C[k][isDark.value ? 0 : 1]
 function baseEdges() {
   return [
     { id: 'e-lenders-cfg', source: 'lenders-cfg', sourceHandle: 'tomerch', target: 'merch', targetHandle: 'top', animated: false, style: { stroke: ec('cfg'), strokeWidth: 1.5, strokeDasharray: '5 4' } },
+    // País → comercio: config/herencia (punteado), igual que el resto de la config.
+    { id: 'e-country', source: 'country', sourceHandle: 'out', target: 'merch', targetHandle: 'frompais', animated: false, style: { stroke: ec('cfg'), strokeWidth: 1.5, strokeDasharray: '5 4' } },
     { id: 'e0', source: 'merch', sourceHandle: 'toflow', target: 'canal', targetHandle: 'in', animated: false, style: { stroke: ec('flow'), strokeWidth: 2 } },
     { id: 'e0b', source: 'canal', sourceHandle: 'out', target: 'sol', animated: false, style: { stroke: ec('flow'), strokeWidth: 2 } },
     { id: 'e1', source: 'sol', target: 'buro', targetHandle: 'in', animated: false, style: { stroke: ec('purp'), strokeWidth: 2 } },
@@ -272,6 +279,7 @@ watch([() => ui.selected, isDark, selPasses, selAbaco, selIncome], ([sel]) => {
           <template #node-lenders="props"><LendersNode v-bind="props" /></template>
           <template #node-basetpl="props"><DefaultNode v-bind="props" /></template>
           <template #node-comercio="props"><ComercioNode v-bind="props" /></template>
+          <template #node-country="props"><CountryNode v-bind="props" /></template>
           <template #node-relacion="props"><RelacionNode v-bind="props" /></template>
           <template #node-perfilamiento="props"><PerfilamientoNode v-bind="props" /></template>
           <template #node-categoria="props"><CategoryNode v-bind="props" /></template>
