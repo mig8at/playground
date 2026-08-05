@@ -1,7 +1,7 @@
 <script setup>
 import { computed } from 'vue'
 import { Handle, Position } from '@vue-flow/core'
-import { ui, findLenderDef, entidadCfg, setEntidadProducto, setEntidadMonto, setEntidadRate, setEntidadDues, setEntidad, setEntidadAbaco, openFieldInfo, montoVsEntidad } from '../store'
+import { ui, findLenderDef, entidadCfg, setEntidadProducto, setEntidadMonto, setEntidadRate, setEntidadDues, setEntidad, setEntidadAbaco, setEntidadPais, openFieldInfo, montoVsEntidad, COUNTRIES } from '../store'
 import { Building2, X } from 'lucide-vue-next'
 import MoneyInput from '../MoneyInput.vue'
 import AffixField from '../AffixField.vue'
@@ -29,6 +29,14 @@ const who = computed(() => lender.value ? lender.value.name : '')
       <div class="node__desc"><b>{{ who }}</b> — producto y economía</div>
       <!-- Config de entidad: lo que HOY edita el admin en "Editar entidad" (tabla lenders) -->
       <div class="pl-sec">Config de entidad <span class="pl-hint">· admin · editable</span></div>
+      <!-- País de la entidad (lenders.country_id): la columna existe pero el listado filtra por el
+           literal 1 → el valor no se lee como config. -->
+      <div class="ent-row"><span class="fld-doc" title="clic: dónde vive y por qué" @click="openFieldInfo('pais.entidad')">País</span>
+        <select class="nodrag ent-in" :value="econ.paisId" @change="e => setEntidadPais(lender, e.target.value)">
+          <option v-for="c in COUNTRIES" :key="c.id" :value="c.id">{{ c.bogus ? 'Sin país (default 1)' : c.name }}</option>
+        </select>
+        <span class="fld-tag fld-tag--muerto">no se usa</span>
+      </div>
       <div class="ent-row"><span class="fld-doc" title="clic: dónde vive y por qué" @click="openFieldInfo('ent.producto')">Producto</span>
         <select class="nodrag ent-in" :value="prodVal" @change="e => setEntidadProducto(lender, e.target.value)">
           <option v-for="p in PRODUCTOS" :key="p.key" :value="p.key">{{ p.label }}</option>

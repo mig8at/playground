@@ -314,21 +314,19 @@ body {
 .dn-chips { display: flex; gap: 4px; }
 .dn-edit { width: 100%; margin-top: 8px; background: none; border: 0.5px solid var(--line); color: var(--blue); font-size: 10.5px; cursor: pointer; padding: 4px 8px; border-radius: 6px; }
 .dn-edit:hover { border-color: var(--blue); background: var(--hd-blue); }
-/* ---- Nivel 0 · País (allieds.country_id real · sucursal propuesta · lenders.country_id muerta) ---- */
-.node--country { border-color: var(--blue); min-width: 236px; max-width: 268px; }
-.node--country .vue-flow__handle { border-color: var(--blue); }
+/* ---- País: un select por nivel (entidad · comercio · sucursal). No hay nodo País: el país es una
+   columna de cada nivel, no una etapa del flujo. ---- */
 .cn-sel { font: inherit; font-size: 11px; padding: 3px 6px; border: 1px solid var(--line); border-radius: 5px;
   background: var(--card2); color: var(--ink); cursor: pointer; max-width: 148px; }
-.cn-sel--sm { flex: 0 0 auto; font-size: 10px; padding: 2px 4px; max-width: 74px; }
 .cn-note { font-size: 9.5px; color: var(--mut); line-height: 1.45; margin: 2px 0 6px; }
-.cn-note code { font-size: 9px; }
 .cn-note--warn { color: var(--amber); background: var(--tint-amber); border: 0.5px solid var(--amber);
   border-radius: 6px; padding: 5px 7px; }
-.cn-ro { cursor: pointer; }                       /* la config del país es solo-lectura: el dato es de countries */
-.cn-erow { align-items: center; }
-.cn-erow--otro { border-color: var(--amber); background: var(--tint-amber); }
-.cn-erow--sinPais { border-style: dashed; }        /* entidad en el default 1: la regla no se puede evaluar */
-.cfg-count--warn { color: var(--amber); }
+/* fila de countries del país elegido (docs / prefijo / dígitos / moneda); atenuadas las que nadie lee */
+.cn-chips { display: flex; flex-wrap: wrap; gap: 4px; margin: 0 0 7px; }
+.cn-chip { font-size: 9px; padding: 2px 5px; border-radius: 5px; border: 0.5px solid var(--line);
+  color: var(--mut); background: var(--card2); max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cn-chip b { color: var(--ink); font-weight: 600; }
+.cn-chip--dead { opacity: .55; }
 
 .node--default, .node--relacion, .node--comercio, .node--perfil { max-width: 268px; }
 .node--relacion { border-color: var(--green); }

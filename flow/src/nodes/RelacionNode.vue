@@ -2,13 +2,26 @@
 import { computed } from 'vue'
 import { Handle, Position } from '@vue-flow/core'
 import { ui, findLenderDef, merchant, lenders, sucursalDiag,
-  setDatacredito, toggleDatacredito, datacreditoInherit, resetDatacredito, sucursalActiveCount, openFieldInfo } from '../store'
+  setDatacredito, toggleDatacredito, datacreditoInherit, resetDatacredito, sucursalActiveCount, openFieldInfo,
+  setSucursalPais, paisMatch, COUNTRIES, countryById } from '../store'
 import { X, Check, SlidersHorizontal } from 'lucide-vue-next'
 
 // Config de sucursal (nivel 2) = la 2ª CAPA del cascade: group_rules + datacrédito COPIADOS por
 // sucursal (allied_branch_id). Corren ANTES del perfilamiento. Semántica fiel:
 //   rt=2 falla → EXCLUYE · rt≠2 falla → clasifica al fondo ("prob. baja"; datacrédito solo reordena).
+const PAISES = COUNTRIES.filter(p => !p.bogus)
 const name = computed(() => ui.selected)
+// La fila de `countries` del país elegido + quién la lee de verdad (clic = detalle verificado).
+// `dead` = la columna existe y ningún cálculo la consume (el código usa literales).
+const PAIS_CFG = computed(() => {
+  const p = countryById(merchant.sucursalPaisId)
+  return [
+    { key: 'pais.docTypes', label: 'docs', val: p?.docTypes?.join('/') || '—', dead: true, title: 'Tipos de documento del país — tres catálogos compiten y el de BD no tiene lector en main' },
+    { key: 'pais.dial', label: 'tel', val: p?.dial ? '+' + p.dial : '—', dead: true, title: 'countries.dial_code / phone_code — el código compara contra \'+57\' literal' },
+    { key: 'pais.phoneLen', label: 'díg', val: p?.phoneLen ?? '—', dead: true, title: 'countries.cell_phone_lenght — nadie la lee; el front hardcodea 10' },
+    { key: 'pais.currency', label: 'moneda', val: p?.currency || '—', dead: false, title: 'countries.locale + currency — sí se leen (currency_format)' },
+  ]
+})
 const lender = computed(() => findLenderDef(name.value))
 const diag = computed(() => name.value ? sucursalDiag(name.value) : null)
 const dc = computed(() => diag.value?.datacredito)            // umbrales datacrédito (editable)
@@ -43,6 +56,28 @@ const dcHeredar = (k) => resetDatacredito(name.value, k)
     </div>
     <div class="node__body">
       <div class="node__desc"><b>{{ lender.name }}</b> en {{ merchant.sucursal }} — reglas por sucursal</div>
+      <!-- País de la sucursal: columna PROPUESTA (allied_branches no la tiene). Hoy hereda del comercio,
+           así que una sucursal en otro país es invisible para el flujo. Al elegirlo se ve la fila de
+           `countries` de ese país — tipos de documento, prefijo, celular y moneda — con quién la lee. -->
+      <div class="dr dr--row" :class="{ 'dr--on': merchant.sucursalPaisId !== merchant.paisId }">
+        <div class="dr-top">
+          <span class="dr-l fld-doc" title="clic: dónde vive y por qué" @click="openFieldInfo('pais.sucursal')">País de la sucursal</span>
+          <span class="fld-tag fld-tag--pisado">propuesto</span>
+        </div>
+        <span class="dr-c">
+          <select class="nodrag cn-sel" :value="merchant.sucursalPaisId" @change="e => setSucursalPais(e.target.value)">
+            <option v-for="p in PAISES" :key="p.id" :value="p.id">{{ p.name }}</option>
+          </select>
+        </span>
+      </div>
+      <div class="cn-chips">
+        <span v-for="ch in PAIS_CFG" :key="ch.key" class="cn-chip fld-doc" :class="{ 'cn-chip--dead': ch.dead }"
+              :title="ch.title" @click="openFieldInfo(ch.key)">{{ ch.label }} <b>{{ ch.val }}</b></span>
+      </div>
+      <div v-if="paisMatch(lender) !== 'ok'" class="cn-note cn-note--warn">
+        <template v-if="paisMatch(lender) === 'otro'"><b>{{ lender.name }}</b> declara otro país que esta sucursal. Nada lo valida: el cableado se guarda igual.</template>
+        <template v-else><b>{{ lender.name }}</b> quedó en el <b>default 1</b> — la regla “solo entidades de este país” no se puede evaluar. Es el caso de 155 de 156 entidades.</template>
+      </div>
       <div class="rn-sub">rt{{ lender.rt }} · {{ sucursalActiveCount(name) }} reglas · al fallar:
         <b :class="rt2 ? 'v-excl' : 'v-cls'">{{ rt2 ? 'EXCLUYE (rt2)' : 'clasifica (rt≠2)' }}</b>
       </div>

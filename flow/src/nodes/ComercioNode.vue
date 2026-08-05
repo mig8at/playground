@@ -1,7 +1,7 @@
 <script setup>
 import { computed } from 'vue'
 import { Handle, Position } from '@vue-flow/core'
-import { merchant, ui, calcValue, calcInherit, setCalc, resetCalc, openFieldInfo, montoVsComercio, findLenderDef } from '../store'
+import { merchant, ui, calcValue, calcInherit, setCalc, resetCalc, openFieldInfo, montoVsComercio, findLenderDef, setMerchantPais, COUNTRIES } from '../store'
 import { Calculator } from 'lucide-vue-next'
 import MoneyInput from '../MoneyInput.vue'
 import AffixField from '../AffixField.vue'
@@ -34,6 +34,7 @@ const DEAD = [
   { key: 'multiploIngreso', label: 'Múltiplo del ingreso', unit: '×', dead: 'muerto', docKey: 'calc.multiplo' },
 ]
 const deadTag = { muerto: 'no se usa', pisado: 'se pisa' }
+const PAISES = COUNTRIES.filter(p => !p.bogus) // el alta acota el país del comercio a [47, 60] (Rule::in)
 const c = computed(() => merchant.nombre)
 const selLender = computed(() => findLenderDef(ui.selected)) // Monto máx hereda del rango de ESTA entidad
 const val = (k) => calcValue(c.value, k, selLender.value)
@@ -53,6 +54,19 @@ const parentLabel = (k) => k === 'montoMax' ? 'del rango de la entidad' : 'de la
     </div>
     <div class="node__body">
       <div class="node__desc"><b>{{ ui.selected }}</b> en {{ c }} — calculadora económica</div>
+      <!-- País del comercio (allieds.country_id): el ÚNICO que el flujo lee — va a la sesión como
+           alliedCountry y el gate `=== 60` manda al wizard RD entero. -->
+      <div class="dr dr--row">
+        <div class="dr-top">
+          <span class="dr-l fld-doc" title="clic: dónde vive y por qué" @click="openFieldInfo('pais.comercio')">País del comercio</span>
+          <span class="fld-tag fld-tag--decide">decide</span>
+        </div>
+        <span class="dr-c">
+          <select class="nodrag cn-sel" :value="merchant.paisId" @change="e => setMerchantPais(e.target.value)">
+            <option v-for="p in PAISES" :key="p.id" :value="p.id">{{ p.name }}</option>
+          </select>
+        </span>
+      </div>
       <div class="dr-scroll nowheel nodrag">
         <div v-for="f in FIELDS" :key="f.key" class="dr dr--row" :class="{ 'dr--on': inh(f.key) === 'editada', 'cfg-biz': f.biz, 'dr--fail': f.key === 'montoMax' && montoVsComercio() }">
           <div class="dr-top">
