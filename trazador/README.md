@@ -1,19 +1,61 @@
-# sonda
+# trazador
 
-**¿Puedo leer los logs que CreditOp empuja a Loki, desde acá, ahora?** Una sola pregunta, contestada
-corriendo. No escribe nada: solo `GET`.
+**¿Hasta dónde llegó una solicitud y por qué se rompió?** La herramienta de SOPORTE: se le da una cédula,
+un teléfono o un número de solicitud y contesta con el flujo por etapas, al estilo de un run de CI.
+No escribe nada en ningún ambiente: solo `SELECT` y `GET`.
 
 ```bash
-make sonda-loki
+npm run dev     # Vue en :5192 + server Go en :5199
 ```
 
-## Por qué existe
+## Cómo está armado
 
-Porque "¿ya tengo acceso?" no se contesta con un 200. Un token de Grafana Cloud puede autenticar
-perfecto y no servir para nada: si la access policy quedó en el realm equivocado, `/labels` devuelve
-**200 con la lista vacía** y `query_range` devuelve **cero streams**. Desde afuera los dos casos se leen
-igual —"no hay logs"— y son problemas distintos: uno se **pide**, el otro se arregla **mirando otra
-ventana de tiempo**. La sonda separa las preguntas y dice en cuál se cayó:
+```
+trazador/
+  src/            Vue 3 + Pinia — SOLO pinta; no decide nada del negocio
+  server/         Go: la API (:5199), el ensamblado y los modos de consola
+    mapa/         el flujo declarado como DATO (etapas · sub-pasos · ramales)
+  .env.<target>   local · dev · staging · prod   (gitignoreados)
+```
+
+**La regla que ordena todo:** el ensamblado vive en Go, en un solo lugar (`ArmarTraza`), y la consola, el
+HTML y la Vue **renderizan el mismo `Traza`**. Si la Vue calculara estados habría dos definiciones de «esta
+etapa falló» y en el primer cambio se contradirían.
+
+## Los modos de consola
+
+| | |
+|---|---|
+| `go run . -serve 127.0.0.1:5199` | la API que consume la Vue |
+| `go run . -buscar <cédula\|teléfono\|uReq>` | lista los intentos que coincidan |
+| `go run . -ureq <n> [-html f.html] [-json]` | la traza por etapas |
+| `go run . -validar <corpus>` | audita el mapa: solapes, patrones mudos, decisiones que no resuelven |
+| `go run . -slack <días>` | lee #tech-ops y clasifica los reportes (**solo lectura**) |
+| `go run .` | la sonda de acceso: ¿puedo leer los logs de este ambiente? |
+
+Todos aceptan `-target local|dev|staging|prod`.
+
+## De dónde salen los datos
+
+**La BD dice QUÉ pasó, los logs dicen POR QUÉ.** Un estado ocurrió o no, y eso se puede afirmar; un log
+ausente tiene cuatro causas indistinguibles (no se logueó · el level lo filtró · el batch no hizo flush ·
+lag de ingesta), así que los logs **explican** pero nunca dictaminan.
+
+| target | esqueleto | logs |
+|---|---|---|
+| `local` | MySQL en Docker | Loki local (`harness/bin/loki-local`) |
+| `dev` · `staging` | MySQL dev (compartida) | `creditopdev` |
+| `prod` | **Redash** (`execute_query`, asíncrono y **auditado a nombre del token**) | `creditop` |
+
+⚠ Redash vive detrás de un **ELB interno**: sin VPN el síntoma es un *timeout*, no un 401.
+
+## La sonda de acceso (el modo original)
+
+"¿Ya tengo acceso?" no se contesta con un 200. Un token de Grafana Cloud puede autenticar perfecto y no
+servir para nada: si la access policy quedó en el realm equivocado, `/labels` devuelve **200 con la lista
+vacía** y `query_range` devuelve **cero streams**. Desde afuera los dos casos se leen igual —"no hay
+logs"— y son problemas distintos: uno se **pide**, el otro se arregla **mirando otra ventana de tiempo**.
+La sonda separa las preguntas y dice en cuál se cayó:
 
 | | |
 |---|---|

@@ -1,4 +1,4 @@
-module creditop/trazador
+module creditop/trazador/server
 
 go 1.25.5
 

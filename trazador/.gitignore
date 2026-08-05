@@ -1,3 +1,8 @@
 
-# binario compilado por `go build` (la entrada es `make trazador-acceso`, que usa `go run`)
+# Binarios compilados. La entrada normal es `go run` (vía `npm run dev` o `make trazador-acceso`), que no
+# deja binario; `npm run server:build` sí, y va a server/bin/.
+/server/bin/
 /trazador
+
+# Build de la Vue
+/dist/

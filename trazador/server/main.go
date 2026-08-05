@@ -78,6 +78,12 @@ type config struct {
 	// QUÉ pasó (hecho) y ancla la búsqueda de logs; los logs solo dicen POR QUÉ. Vacío = solo Loki
 	// (el caso de prod hasta que haya una réplica de lectura).
 	dbHost, dbPort, dbName, dbUser, dbPass string
+
+	// Redash: la única puerta a la BD de PRODUCCIÓN. Es SQL sobre HTTP, asíncrono y auditado a nombre del
+	// dueño del token, así que se usa SOLO cuando no hay acceso directo (ver `abrirFuente`).
+	redashURL, redashToken string
+	redashDS               int
+	redashTZ               string
 }
 
 // alias mapea cada campo a los nombres de variable que aceptamos. Los `GRAFANA_LOKI_*` son los que usa
@@ -89,11 +95,15 @@ var alias = map[string][]string{
 	"tenant": {"LOKI_TENANT", "GRAFANA_LOKI_TENANT_ID"},
 	"env":    {"LOKI_ENV", "E2E_LOKI_ENV"},
 	// Los `E2E_DB_*` son los que usa el harness: aceptarlos permite copiar su .env.<target> tal cual.
-	"dbHost": {"DB_HOST", "E2E_DB_HOST"},
-	"dbPort": {"DB_PORT", "E2E_DB_PORT"},
-	"dbName": {"DB_NAME", "E2E_DB_NAME"},
-	"dbUser": {"DB_USER", "E2E_DB_USER"},
-	"dbPass": {"DB_PASS", "E2E_DB_PASS"},
+	"dbHost":      {"DB_HOST", "E2E_DB_HOST"},
+	"dbPort":      {"DB_PORT", "E2E_DB_PORT"},
+	"dbName":      {"DB_NAME", "E2E_DB_NAME"},
+	"dbUser":      {"DB_USER", "E2E_DB_USER"},
+	"dbPass":      {"DB_PASS", "E2E_DB_PASS"},
+	"redashURL":   {"REDASH_URL"},
+	"redashToken": {"REDASH_TOKEN"},
+	"redashDS":    {"REDASH_DATA_SOURCE_ID"},
+	"redashTZ":    {"REDASH_TZ"},
 }
 
 // loadConfig busca los valores en `process.env` y en el `.env.<target>` de la propia herramienta, en ese
@@ -101,9 +111,12 @@ var alias = map[string][]string{
 // autosuficiente por target, que es la convención de la casa desde que se eliminó `env/` el 2026-07-22.
 // La segunda ruta cubre la invocación desde la raíz (`make`) además de desde `sonda/`.
 func loadConfig(target string) (config, []string) {
+	// Los `.env.<target>` viven en la RAÍZ de la herramienta (convención del playground), y el binario
+	// corre desde `server/`. De ahí el `..`: el env es de la herramienta, no del server.
 	files := []string{
+		filepath.Join("..", ".env."+target),
 		".env." + target,
-		filepath.Join("sonda", ".env."+target),
+		filepath.Join("trazador", ".env."+target),
 	}
 
 	var checked []string
@@ -143,7 +156,7 @@ func loadConfig(target string) (config, []string) {
 
 	var c config
 	var origins []string
-	for _, field := range []string{"token", "base", "user", "tenant", "env", "dbHost", "dbPort", "dbName", "dbUser", "dbPass"} {
+	for _, field := range []string{"token", "base", "user", "tenant", "env", "dbHost", "dbPort", "dbName", "dbUser", "dbPass", "redashURL", "redashToken", "redashDS", "redashTZ"} {
 		v, from := pick(field)
 		switch field {
 		case "token":
@@ -166,6 +179,14 @@ func loadConfig(target string) (config, []string) {
 			c.dbUser = v
 		case "dbPass":
 			c.dbPass = v
+		case "redashURL":
+			c.redashURL = v
+		case "redashToken":
+			c.redashToken = v
+		case "redashDS":
+			fmt.Sscanf(v, "%d", &c.redashDS)
+		case "redashTZ":
+			c.redashTZ = v
 		}
 		if from != "" {
 			origins = append(origins, field+" <- "+from)
@@ -529,7 +550,12 @@ func main() {
 	since := flag.Duration("since", time.Hour, "ventana hacia atrás para la lectura corta")
 	limit := flag.Int("limit", 20, "máximo de líneas a pedir")
 	ureq := flag.Int64("ureq", 0, "número de solicitud: arma la TRAZA por etapas (BD + logs) en vez de probar el acceso")
+	slackDias := flag.Int("slack", 0, "lee #tech-ops de los últimos N días y clasifica los reportes (solo lectura)")
+	serve := flag.String("serve", "", "levanta la API para la Vue (ej. 127.0.0.1:5199)")
+	validar := flag.String("validar", "", "ruta a un corpus de líneas CRUDAS (el TSV del censo o un timeline.ndjson): audita el mapa")
+	buscar := flag.String("buscar", "", "teléfono, cédula o número de solicitud: lista los intentos que coincidan")
 	jsonOut := flag.Bool("json", false, "con -ureq: salida estructurada en vez de la vista de etapas")
+	htmlOut := flag.String("html", "", "con -ureq: además escribe la vista de checks en este archivo")
 	flag.Parse()
 
 	c, checked := loadConfig(*target)
@@ -539,8 +565,24 @@ func main() {
 	// Va ANTES de exigir el token a propósito: en modo traza el token es OPCIONAL. La fuente primaria es
 	// la BD (el esqueleto), un Loki local no pide credenciales, y si no hay logs la traza sale igual —
 	// solo sin el porqué. Exigirlo acá bloquearía el caso que más sirve.
+	if *slackDias > 0 {
+		os.Exit(modoSlack(*slackDias))
+	}
+	if *serve != "" {
+		if err := servir(*serve); err != nil {
+			fmt.Fprintf(os.Stderr, "  %s el server murió: %v\n", paint("31", "✘"), err)
+			os.Exit(1)
+		}
+		return
+	}
+	if *validar != "" {
+		os.Exit(ValidarContra(*validar))
+	}
+	if *buscar != "" {
+		os.Exit(modoBuscar(c, *target, *buscar))
+	}
 	if *ureq > 0 {
-		os.Exit(modoTraza(c, *target, *ureq, *jsonOut))
+		os.Exit(modoTraza(c, *target, *ureq, *jsonOut, *htmlOut))
 	}
 
 	if c.token == "" {

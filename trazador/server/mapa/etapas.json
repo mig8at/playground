@@ -1,0 +1,1390 @@
+{
+  "version": "1.2",
+  "nota": "ESTRUCTURA del flujo, verificada contra la BD y el catálogo de estados. Los `matchers` y las `decisiones` los llena el censo de logs — hasta entonces este mapa describe QUÉ etapas hay y qué evidencia estructurada tiene cada una, no cómo reconocerlas en los logs. El orden NO es cosmético: `cupo` va antes de `seleccion` porque para rt=2 el cupo es un filtro del listado (se evalúa para decidir si la entidad se muestra). Eso se descubrió midiendo: en la solicitud 464630 el cupo quedó a las 16:37 y la selección a las 16:43. || MATCHERS Y DECISIONES: derivados de un censo de 313 mensajes distintos medidos en producción y en trazas capturadas de dev/staging (2026-08-05), asignados etapa por etapa y cada uno con su porqué. Preferencia estricta: exacto > prefijo > regex, porque una regex amplia captura dos etapas y reparte mal la evidencia sin que nada avise. `seleccion` queda SIN matchers a propósito: no tiene mensajes propios en el censo, y forzarle uno sería inventar. PENDIENTE: la verificación adversarial de solapes y el reparto por ramal se cayeron con error 529 y se están recuperando. || v1.2: se agrega la etapa `respuesta-lender` (el webhook del agregador) y se corrige el esqueleto de `listado`, que sí existe en profiling_reviews.",
+  "etapas": [
+    {
+      "id": "origen",
+      "label": "Origen",
+      "orden": 10,
+      "porque": "por dónde entró el cliente. `user_requests` NO tiene columna de canal: ecommerce se deriva de `ecommerce_requests.user_request_id`, el resto se asume asesor y se marca como supuesto.",
+      "bd": {
+        "tablas": [
+          "user_requests",
+          "ecommerce_requests"
+        ]
+      },
+      "matchers": [
+        {
+          "tipo": "prefijo",
+          "patron": "Corbeta checkout",
+          "porque": "Las dos líneas crudas empiezan literal con esta cadena (columna ejemplo == columna mensaje, sin verbo de span ni namespace), así que el prefijo alcanza y captura started+finished de un tiro. NO uso 'Corbeta' solo: se tragaría 'Corbeta cancellation started/finished' (desenlace, otra etapa) y el span 'IsCorbetaOnboarding"
+        },
+        {
+          "tipo": "regex",
+          "patron": "IsCorbetaOnboardingService",
+          "porque": "No alcanza prefijo ni exacto: la línea cruda es 'Starting Modules\\AlliedBranchV1\\App\\Services\\IsCorbetaOnboardingService::Modules\\AlliedBranchV1\\App\\Services\\{closure}' — el nombre de la clase cae en el MEDIO, y el único prefijo posible ('Starting Modules\\') matchearía todos los spans de la app. El patrón es un literal"
+        },
+        {
+          "tipo": "regex",
+          "patron": "IsEcommerceRequestService",
+          "porque": "Misma razón que el anterior (clase a mitad de 'Starting Modules\\EcommerceRequestsV1\\App\\Services\\IsEcommerceRequestService::...'); literal sin metacaracteres. Es la pregunta '¿esta solicitud es de ecommerce?' — exactamente la misma que el trazador hoy contesta contra la BD contando ecommerce_requests (etapas.go:259-262"
+        },
+        {
+          "tipo": "regex",
+          "patron": "IsEcommerceBranchService",
+          "porque": "Misma razón (clase a mitad de la línea de span); literal sin metacaracteres. Clasifica la SUCURSAL como ecommerce, no la solicitud — es el otro lado de la misma decisión de canal. Lo dejo como matcher aparte de IsEcommerceRequestService en vez de una alternación, porque son dos preguntas distintas y quiero poder ver en"
+        }
+      ],
+      "decisiones": [
+        {
+          "mensaje": "Corbeta checkout finished",
+          "significa": "El handshake de entrada del canal QR (Corbeta) cerró bien: la solicitud quedó CREADA y atada a la orden del comercio. Es la única línea del censo que liga canal -> user_request + ecommerce_request + monto en un solo evento, o sea el único veredicto de origen que hoy se puede leer",
+          "campos": [
+            "allied_branch_hash",
+            "order_key",
+            "user_request_id",
+            "ecommerce_request_id",
+            "amount"
+          ],
+          "severidad": "ok"
+        },
+        {
+          "mensaje": "Corbeta checkout started",
+          "significa": "Llegada del cliente por el QR: qué sucursal (hash del link) y con qué parámetros de la orden entró. Estrictamente es el lado 'entered' del par de instrumentación del controlador — no trae veredicto —, pero lo declaro acá porque es la ÚNICA línea que nombra el punto de entrada ant",
+          "campos": [
+            "allied_branch_hash",
+            "query_params"
+          ],
+          "severidad": "informativo"
+        }
+      ]
+    },
+    {
+      "id": "registro",
+      "label": "Registro y OTP",
+      "orden": 20,
+      "porque": "registro de celular y validación por OTP",
+      "bd": {
+        "estados": [
+          1,
+          2
+        ]
+      },
+      "matchers": [
+        {
+          "tipo": "prefijo",
+          "patron": "RegisterCellPhoneController::store",
+          "porque": "entrada del POST de registro de celular"
+        },
+        {
+          "tipo": "prefijo",
+          "patron": "RegisterCellPhoneService::processCellPhoneRegistration",
+          "porque": "el orquestador del registro"
+        },
+        {
+          "tipo": "prefijo",
+          "patron": "OtpController::sendOtpCode",
+          "porque": "emisión del OTP (controlador)"
+        },
+        {
+          "tipo": "prefijo",
+          "patron": "OtpService::sendOtpCode",
+          "porque": "emisión del OTP (servicio) — 99 eventos, el más frecuente de la etapa"
+        },
+        {
+          "tipo": "prefijo",
+          "patron": "OtpService::validateOtpCode",
+          "porque": "validación del código"
+        },
+        {
+          "tipo": "prefijo",
+          "patron": "OnboardingController::validateOtpCodeAndRedirect",
+          "porque": "cubre el método y su Orchestrator; ES la línea que trae corbeta_onboarding / ecommerce_request_id / merchant_mode, o sea la evidencia de ORIGEN. La línea es de registro; `origen` lee sus campos sin quedarse con ella"
+        },
+        {
+          "tipo": "prefijo",
+          "patron": "UserService::getOrCreateUser",
+          "porque": "alta o recuperación del cliente"
+        },
+        {
+          "tipo": "prefijo",
+          "patron": "UserService::cleanPhoneNumber",
+          "porque": "normalización del teléfono"
+        },
+        {
+          "tipo": "prefijo",
+          "patron": "UserService::storeTermsAndConditions",
+          "porque": "aceptación de TyC"
+        },
+        {
+          "tipo": "regex",
+          "patron": "ValidateOtpAuthService",
+          "porque": "clase a mitad de la línea de span: ni exacto ni prefijo alcanzan"
+        },
+        {
+          "tipo": "regex",
+          "patron": "OtpRepository",
+          "porque": "idem, clase a mitad del span"
+        },
+        {
+          "tipo": "prefijo",
+          "patron": "Looking up existing user by cell phone",
+          "porque": "búsqueda del cliente por teléfono"
+        },
+        {
+          "tipo": "prefijo",
+          "patron": "findByCellPhone returned",
+          "porque": "guarda de conflicto de documento"
+        },
+        {
+          "tipo": "prefijo",
+          "patron": "processCellPhoneRegistration returned",
+          "porque": "evaluación de ramas del registro"
+        },
+        {
+          "tipo": "prefijo",
+          "patron": "storeTermsAndConditions",
+          "porque": "cubre las variantes de TyC (nuevo y existente)"
+        },
+        {
+          "tipo": "prefijo",
+          "patron": "sendOtpCode returned",
+          "porque": "rama del documento legal sin firmar de Credifamilia"
+        },
+        {
+          "tipo": "prefijo",
+          "patron": "Role assigned",
+          "porque": "asignación de rol al cliente nuevo"
+        }
+      ],
+      "decisiones": []
+    },
+    {
+      "id": "formulario",
+      "label": "Formulario de perfil",
+      "orden": 30,
+      "porque": "datos personales, laborales y estrato",
+      "bd": {
+        "estados": [
+          9
+        ]
+      },
+      "matchers": [
+        {
+          "tipo": "prefijo",
+          "patron": "OnboardingController::validateAndStorePersonalInfo",
+          "porque": "La linea cruda pone el span al PRINCIPIO y el verbo como sufijo (': entered', ': exiting'), asi que el prefijo alcanza y de paso cubre las dos familias del mismo POST (el metodo y su Orchestrator) con un patron. NO uso regex sobre 'storePersonalInfo': sin ancla se traga 7 decisiones de BURO que nombran el metodo en el "
+        },
+        {
+          "tipo": "prefijo",
+          "patron": "OnboardingController::storeLaboralInfo",
+          "porque": "Mismo patron de sufijo: un prefijo cubre el controlador y su orquestador. Verificado contra el roster COMPLETO de spans de Modules/Onboarding: los unicos nombres que empiezan asi son esos dos y 'OnboardingController::storeLaboralInfoOrchestrator.Experian::aciertaQuanto', que sale solo de un startSpan() y nunca como tex"
+        },
+        {
+          "tipo": "prefijo",
+          "patron": "OnboardingService::store",
+          "porque": "Los UNICOS spans 'OnboardingService::store*' del modulo son storePersonalInfo, storeLaboralInformation y storeSocialStratum (verificado enumerando startSpan( en Modules/Onboarding), y los tres SON este formulario: personales, laborales, estrato. Un prefijo reemplaza tres. No corto mas arriba ('OnboardingService::') a p"
+        },
+        {
+          "tipo": "prefijo",
+          "patron": "OnboardingService::isForm1Completed",
+          "porque": "El span del gate de completitud del formulario 1 (datos laborales); su unico llamador es el orquestador de personal info (OnboardingController.php:836). Prefijo porque la linea cruda es 'X: exiting' / 'X: entered'."
+        },
+        {
+          "tipo": "prefijo",
+          "patron": "OnboardingService::getGender",
+          "porque": "Deriva el genero desde el first_name que vino en el formulario, llamando a genderapi.io (OnboardingService.php:1709-1718). Es un CAMPO del perfil, no una central de riesgo — por eso vive aca y no en buro, aunque el resultado lo consuma despues la cascada de identidad."
+        },
+        {
+          "tipo": "prefijo",
+          "patron": "OnboardingService::checkRateLimitPerHour",
+          "porque": "El span del throttle por documento. Verificado que su UNICO llamador es storePersonalInfo (OnboardingService.php:146), o sea que es del formulario y no del OTP: sin ese chequeo uno asumiria que un 'rate limit' es del envio de codigo (registro)."
+        },
+        {
+          "tipo": "exacto",
+          "patron": "Evaluating per-hour rate limit",
+          "porque": "Linea cruda == mensaje del censo, productor unico (OnboardingService.php:140, dentro de storePersonalInfo). Exacto porque no tiene familia ni sufijos."
+        },
+        {
+          "tipo": "prefijo",
+          "patron": "Rate limit check",
+          "porque": "Cubre 'check result' y 'check skipped' con un patron (OnboardingService.php:149 y 178). NO uso el prefijo corto 'Rate limit ': se llevaria 'Rate limit rules fetch returned error' (MobileOnboardingService.php:693, dentro de registerUserOrchestrator), que es del REGISTRO movil. No esta en el censo, pero el codigo lo emit"
+        },
+        {
+          "tipo": "exacto",
+          "patron": "Rate limit OK, continuing",
+          "porque": "Linea cruda == mensaje, productor unico (OnboardingService.php:173). Es el lado 'paso el throttle' del ONB040."
+        },
+        {
+          "tipo": "prefijo",
+          "patron": "Rate limit exceeded, returning",
+          "porque": "Prefijo CORTADO antes del codigo a proposito: el censo normaliza los digitos ('...returning ONBN') y la linea cruda dice '...returning ONB040', asi que el patron sin codigo matchea las dos formas y sobrevive si cambian el codigo. Productor unico verificado (OnboardingService.php:158)."
+        },
+        {
+          "tipo": "exacto",
+          "patron": "Validating expedition date",
+          "porque": "Es validacion de un CAMPO del formulario, no de identidad: es el checkdate() sobre el dia/mes/anio que tipeo el cliente, y su rama de falla devuelve ONB005 + EXPEDITION_DATE_INVALID para que el front resalte el campo (OnboardingService.php:203-215). Exacto: linea cruda == mensaje, productor unico."
+        },
+        {
+          "tipo": "exacto",
+          "patron": "Resolved session flags for flow selection",
+          "porque": "Exacto, productor unico (OnboardingService.php:576). Lo reclamo para formulario aunque los flags se llamen agilData/mareigua: lo que decide NO es consultar un buro sino QUIEN llena el formulario laboral — el if de la linea 616 usa esos dos flags para elegir autocompletar (flow A) o pedirlo (flow B)."
+        },
+        {
+          "tipo": "exacto",
+          "patron": "Flow A: autocompleting labor info from the user summary",
+          "porque": "Exacto, productor unico (OnboardingService.php:617). Es la rama en que el cliente NO tipea los datos laborales."
+        },
+        {
+          "tipo": "exacto",
+          "patron": "Storing labor info (flow A)",
+          "porque": "Exacto, productor unico (OnboardingService.php:658). Trae los tres valores laborales efectivos en su context — es la linea mas valiosa de la etapa."
+        },
+        {
+          "tipo": "exacto",
+          "patron": "Flow B: manual / special allieds",
+          "porque": "EXACTO a proposito, no prefijo 'Flow B': el prefijo se llevaria 'Flow B Pullman/DFS Quanto branch' (OnboardingService.php:764), cuyo veredicto es disparar Experian aciertaQuanto — eso es buro y debe reclamarlo buro con su propio matcher. Es el caso exacto de la regla de oro 1 en un prefijo, no en una regex."
+        }
+      ],
+      "decisiones": [
+        {
+          "mensaje": "OnboardingController::validateAndStorePersonalInfoOrchestrator",
+          "significa": "EL veredicto del envio de datos personales (68 hits, el volumen mas alto de la etapa). El censo colapsa la familia del span, pero la linea cruda lleva el veredicto como sufijo y el codigo en 'error_code': ': document already exists, returning ONB005 DOCUMENT_DUPLICATE' (Onboardin",
+          "campos": [
+            "error_code",
+            "document_number",
+            "document_type",
+            "user_request_id",
+            "user_id",
+            "partner_branch_id"
+          ],
+          "severidad": "informativo"
+        },
+        {
+          "mensaje": "OnboardingService::isForm1Completed",
+          "significa": "Gate: esta lleno el formulario 1 (datos laborales)? Si NO, la consecuencia depende del comercio — para los aliados 209/210/211 (Corbeta) el backend AUTOCOMPLETA con valores fijos (ingreso 1.500.000, 'Empleado', continuity 3) y sigue como si estuviera completo; para cualquier otro",
+          "campos": [
+            "has_record",
+            "required_fields",
+            "form_id",
+            "field_id",
+            "user_id"
+          ],
+          "severidad": "informativo"
+        },
+        {
+          "mensaje": "Storing labor info (flow A)",
+          "significa": "Los tres valores laborales con los que se va a evaluar la solicitud, y que el cliente NO tipeo: salen del user_summary de AgilData/Mareigua. Si no hay summary quedan los DEFAULTS HARDCODEADOS: 'Empleado', ingreso 1.500.000, continuity 3 (OnboardingService.php:617-658). Todo lo de",
+          "campos": [
+            "income_amount",
+            "employment_situation",
+            "continuity"
+          ],
+          "severidad": "informativo"
+        },
+        {
+          "mensaje": "OnboardingService::storeLaboralInformation",
+          "significa": "La escritura efectiva de los datos laborales, con los valores en el context. Es la UNICA linea del censo que los muestra en el flujo MANUAL (flow B) y en el autofill de los aliados 209-211 — 'Storing labor info (flow A)' solo cubre el flujo autocompletado. 'partial_update' distin",
+          "campos": [
+            "income_amount",
+            "employment_situation",
+            "continuity",
+            "partial_update",
+            "user_id",
+            "user_request_id"
+          ],
+          "severidad": "informativo"
+        },
+        {
+          "mensaje": "Resolved session flags for flow selection",
+          "significa": "Decide QUIEN llena el formulario laboral: con agilData o mareigua en sesion va a flow A (autocompletado desde el summary); sin ninguno de los dos va a flow B (manual / aliados especiales). Es el insumo del if de OnboardingService.php:616 y la unica linea que explica por que una s",
+          "campos": [
+            "session.agilData",
+            "session.mareigua"
+          ],
+          "severidad": "informativo"
+        },
+        {
+          "mensaje": "Flow A: autocompleting labor info from the user summary",
+          "significa": "Rama tomada: los datos laborales se autocompletan desde el user_summary y el cliente no los tipea. No trae context — el veredicto ES el mensaje; el valor concreto lo da la linea siguiente ('Storing labor info (flow A)').",
+          "campos": [],
+          "severidad": "informativo"
+        },
+        {
+          "mensaje": "Rate limit exceeded, returning",
+          "significa": "RECHAZO del envio del formulario por exceso de intentos por hora POR DOCUMENTO: devuelve ONB040 y el submit no se guarda. No es una decision de credito, es un throttle — confundirlo con un rechazo de riesgo manda la investigacion a los buros. Verificado OnboardingService.php:158.",
+          "campos": [
+            "document_number",
+            "rate_limit.current_attempt",
+            "rate_limit.max_per_hour"
+          ],
+          "severidad": "rechazo"
+        },
+        {
+          "mensaje": "Rate limit check result",
+          "significa": "La medicion que explica (o descarta) el ONB040: en que intento va ese documento, cual es el techo por hora y cuantos le quedan. 'rate_limit.allowed' es el booleano del veredicto.",
+          "campos": [
+            "rate_limit.allowed",
+            "rate_limit.current_attempt",
+            "rate_limit.max_per_hour",
+            "rate_limit.attempts_remaining",
+            "document_number"
+          ],
+          "severidad": "informativo"
+        },
+        {
+          "mensaje": "Validating expedition date",
+          "significa": "La fecha de expedicion tal como la tipeo el cliente, justo antes del checkdate(). Si es invalida el paso corta con ONB005 + EXPEDITION_DATE_INVALID (mensaje 'Invalid expedition date, returning ONB005', OnboardingService.php:210) — ese gemelo de rechazo NO esta en el censo, asi qu",
+          "campos": [
+            "expedition.day",
+            "expedition.month",
+            "expedition.year"
+          ],
+          "severidad": "informativo"
+        },
+        {
+          "mensaje": "OnboardingService::storeSocialStratum",
+          "significa": "El estrato que quedo guardado (29 hits). Es un span, pero es la UNICA linea del censo que lleva el valor del estrato, y el estrato es insumo del scoring de categoria mas abajo. Su gemelo de rechazo ('Stratum required but missing/out-of-range, returning ONB005', OnboardingService.",
+          "campos": [
+            "social_stratum",
+            "partial_update",
+            "user_id",
+            "user_request_id"
+          ],
+          "severidad": "informativo"
+        }
+      ]
+    },
+    {
+      "id": "buro",
+      "label": "Consulta a burós",
+      "orden": 40,
+      "porque": "centrales de riesgo. La tabla se indexa por `user_id`, NO por solicitud: una consulta puede ser de otro intento del mismo cliente, así que se acota por la ventana de la solicitud.",
+      "bd": {
+        "tablas": [
+          "risk_central_user_data",
+          "risk_centrals"
+        ]
+      },
+      "matchers": [
+        {
+          "tipo": "prefijo",
+          "patron": "Experian disparado desde",
+          "porque": "Familia logExperianTriggered: un mensaje por punto de disparo. Prefijo cubre los 7 orígenes sin tocar nada más (ningún otro mensaje del censo empieza con 'Experian disparado')."
+        },
+        {
+          "tipo": "prefijo",
+          "patron": "Experian NO disparado",
+          "porque": "Gemelo negativo (logExperianSkipped). No uso 'Experian NO disparado desde' porque una variante dice 'en storePersonalInfo' en vez de 'desde'."
+        },
+        {
+          "tipo": "exacto",
+          "patron": "ValidateOtpController: Experian NO disparado (usuario TEMPORAL USER)",
+          "porque": "Mismo veredicto pero el texto arranca con el controller, así que el prefijo 'Experian NO disparado' no lo alcanza."
+        },
+        {
+          "tipo": "exacto",
+          "patron": "ValidateOtpController: invocando userViability (puede disparar Experian)",
+          "porque": "Marca el punto de invocación del buró desde el paso de OTP. Instrumentación, no veredicto."
+        },
+        {
+          "tipo": "exacto",
+          "patron": "Datacredito no evaluado (userViability no ejecutado) desde PersonalInfoController",
+          "porque": "Veredicto de omisión del buró en legacy-application (PersonalInfoController.php:1389, verificado). Texto propio, sin familia."
+        },
+        {
+          "tipo": "prefijo",
+          "patron": "OnboardingController::logExperianTriggered",
+          "porque": "Prefijo para cubrir la forma cruda y la instrumentada ': entering' / ': exiting'."
+        },
+        {
+          "tipo": "prefijo",
+          "patron": "OnboardingController::logExperianSkipped",
+          "porque": "Idem, rama negativa."
+        },
+        {
+          "tipo": "exacto",
+          "patron": "Flow B Pullman/DFS Quanto branch",
+          "porque": "Verificado en OnboardingService.php:764: es la compuerta que inmediatamente llama logExperianTriggered('storePersonalInfo.quanto_block') y Experian::aciertaQuanto. Es el POR QUÉ del disparo (allied 94 Pullman / 189 DFS), no la selección de flujo del formulario."
+        },
+        {
+          "tipo": "exacto",
+          "patron": "Pulling initial Experian credit score (runs unconditionally before validation)",
+          "porque": "OnboardingService.php:127 — jala el score antes de validar. Texto único."
+        },
+        {
+          "tipo": "exacto",
+          "patron": "STAGE 0 — User request data (obtain & validate)",
+          "porque": "TRAMPA: 'STAGE N' NO es exclusivo del buró. Modules/UserRequestV1/App/Services/FlowSignatureService.php emite 'STAGE 0 — User request existence', 'STAGE 1 — User request validations' y 'STAGE 2 — Persist the signed flow id'. Un prefijo 'STAGE ' o regex '^STAGE [0-4]' se comería la firma de flujo. Sólo exacto con el suf"
+        },
+        {
+          "tipo": "exacto",
+          "patron": "STAGE 1 — Existing risk-central data review",
+          "porque": "Ídem: exacto obligatorio por el choque con FlowSignatureService (STAGE 1 — User request validations)."
+        },
+        {
+          "tipo": "exacto",
+          "patron": "STAGE 2 — Frequency review",
+          "porque": "Ídem: choca con 'STAGE 2 — Persist the signed flow id' de FlowSignatureService."
+        },
+        {
+          "tipo": "exacto",
+          "patron": "STAGE 3 — Check flow omitions",
+          "porque": "Etapa del pipeline de CheckExperianTriggerService (RiskV2). Exacto por consistencia con las otras STAGE."
+        },
+        {
+          "tipo": "exacto",
+          "patron": "STAGE 4 — Bypass rules review",
+          "porque": "Ídem. En código existen además STAGE 5/6/7 del mismo servicio, no medidas en el censo (no las invento)."
+        },
+        {
+          "tipo": "prefijo",
+          "patron": "Experian frequency",
+          "porque": "Prefijo y no exacto porque el censo trunca la línea del throttle a ~110 chars; el prefijo matchea la línea completa real y la truncada."
+        },
+        {
+          "tipo": "prefijo",
+          "patron": "Experian query counter advanced before querying Experian",
+          "porque": "era exacto y la línea cruda trae un \\n al final: la igualdad nunca daba | ARREGLADO 2026-08-05: se validaba contra el censo normalizado, no contra la línea cruda que ve Loki."
+        },
+        {
+          "tipo": "prefijo",
+          "patron": "The allied is in the Experian trigger bypass list",
+          "porque": "Prefijo por truncamiento del censo (la línea completa sigue con '; the commerce requires Experian, so the user must be evaluated.')."
+        },
+        {
+          "tipo": "prefijo",
+          "patron": "The allied is not allowed to omit the requested risk central",
+          "porque": "RKV26001 de CheckIfAbleToOmitService (verificado, línea 206). Prefijo para tolerar el punto final y variantes de sufijo."
+        },
+        {
+          "tipo": "exacto",
+          "patron": "No risk central data found.",
+          "porque": "GetRiskCentralDataService.php:185 (RKV21001). Verificado."
+        },
+        {
+          "tipo": "regex",
+          "patron": "(CheckExperianTrigger|CheckIfAbleToOmit|GetRiskCentralData|RiskCentralUserData)(Service|Controller|Repository)",
+          "porque": "Instrumentación del módulo RiskV2 (= centrales de riesgo). Regex y no prefijo porque el censo guarda DOS formas de la misma línea: normalizada ('CheckExperianTriggerService::Modules') y cruda ('Starting Modules\\RiskV2\\App\\Services\\CheckExperianTriggerService::Modules\\...'); no comparten prefijo. Enumero las 6 clases en"
+        },
+        {
+          "tipo": "regex",
+          "patron": "(GetExperianFrequencyByAlliedId|GetExperianQueryCountByAlliedId|IncrementExperianQueryCountByAlliedId|Datacredito(Frequency|QueryByAllied)Repository)",
+          "porque": "Frecuencia y contador de consultas Experian/Datacrédito por comercio. Viven en Modules\\AlliedV1, así que NO puedo usar el namespace como matcher (AlliedV1 tiene cosas de otras etapas): enumero las 5 clases. Regex por la misma razón de dos formas (normalizada + cruda)."
+        },
+        {
+          "tipo": "prefijo",
+          "patron": "Experian::",
+          "porque": "Cliente Experian (app/Actions/RiskCentrals/Experian.php): entrada/salida de los 6 métodos. Un solo prefijo cubre 11 líneas. OJO: las líneas de error del mismo archivo arrancan con 'Error' ('Error in Experian::getCredentials'), así que este prefijo NO las captura — ver dudas."
+        },
+        {
+          "tipo": "regex",
+          "patron": "^(Acierta|Quanto|Acierta\\+Quanto) query finished successfully$",
+          "porque": "Tres variantes hermanas por producto (Experian.php:974/1062/1153) que no comparten prefijo — el producto va adelante. Anclada a inicio y fin para no capturar nada más. El censo trae 2 de las 3 (Quanto solo no se midió)."
+        },
+        {
+          "tipo": "exacto",
+          "patron": "Consulta con acierta+quanto finalizada exitosamente",
+          "porque": "Gemelo en español del cliente Experian de legacy-application (Experian.php:556, verificado). Exacto y no regex /consulta/ porque 'Iniciando consulta con Meddipay|Prami' son consultas a LENDERS, no a burós."
+        },
+        {
+          "tipo": "exacto",
+          "patron": "Looking up RiskCentral by name",
+          "porque": "Resolución de la central de riesgo en getCredentials (Experian.php:56)."
+        },
+        {
+          "tipo": "prefijo",
+          "patron": "RiskCentral resolved",
+          "porque": "Dos continuaciones distintas del mismo punto (Experian.php:62 y 245)."
+        },
+        {
+          "tipo": "exacto",
+          "patron": "Looking up existing credential via findForUserRequest",
+          "porque": "Credenciales Experian por lender (Experian.php:67)."
+        },
+        {
+          "tipo": "exacto",
+          "patron": "findForUserRequest finished, continuing",
+          "porque": "Cierre del lookup de credencial (Experian.php:74)."
+        },
+        {
+          "tipo": "exacto",
+          "patron": "Credential is empty, building from config (fallback)",
+          "porque": "Experian.php:79."
+        },
+        {
+          "tipo": "exacto",
+          "patron": "Fallback credential built from config",
+          "porque": "Experian.php:95."
+        },
+        {
+          "tipo": "prefijo",
+          "patron": "Requesting credentials for Experian",
+          "porque": "Una línea por producto (Acierta / Acierta+Quanto / Quanto); el producto va al final, así que el prefijo las junta."
+        },
+        {
+          "tipo": "exacto",
+          "patron": "Credentials obtained, invoking performRequest",
+          "porque": "Experian.php:962/1052."
+        },
+        {
+          "tipo": "exacto",
+          "patron": "performRequest finished, continuing to close the span",
+          "porque": "Experian.php:968. Es la línea que carga result.score / result.has_score."
+        },
+        {
+          "tipo": "exacto",
+          "patron": "Cache MISS, continuing",
+          "porque": "Texto genérico, pero VERIFICADO exclusivo: app/Actions/RiskCentrals/Experian.php:268 es la única ocurrencia como log. Decide si de verdad se pega al buró (reporte < 1 mes). No confundir con CacheService::Modules (CommonsV1, genérico)."
+        },
+        {
+          "tipo": "exacto",
+          "patron": "Issuing POST /spla/oauth2/v1/token",
+          "porque": "OAuth2 de Experian (Experian.php:157)."
+        },
+        {
+          "tipo": "exacto",
+          "patron": "OAuth2 responded, continuing",
+          "porque": "Experian.php:173. No confundir con 'Token OAuth obtenido exitosamente', que es Bancolombia (etapa desembolso/cupo)."
+        },
+        {
+          "tipo": "exacto",
+          "patron": "Requesting OAuth2 token before hdcplus",
+          "porque": "Experian.php:505."
+        },
+        {
+          "tipo": "exacto",
+          "patron": "Token obtained, calling POST /cs/credit-history/v1/hdcplus",
+          "porque": "Endpoint real del reporte de crédito Experian (Experian.php:507)."
+        },
+        {
+          "tipo": "exacto",
+          "patron": "hdcplus responded, continuing",
+          "porque": "Experian.php:521."
+        },
+        {
+          "tipo": "prefijo",
+          "patron": "Fetching mock settings",
+          "porque": "La línea real es 'Fetching mock settings (MOBA1002)' (Experian.php:394, verificado — es el mock del BURÓ, no de Bancolombia) y el censo la normaliza a '(MOBAN)'. El prefijo matchea ambas."
+        },
+        {
+          "tipo": "exacto",
+          "patron": "Mock enabled by settings, comparing phone number",
+          "porque": "Experian.php:409."
+        },
+        {
+          "tipo": "exacto",
+          "patron": "Phone does not match mock_rules, will use real HTTP",
+          "porque": "Experian.php:414. Decide mock vs HTTP real contra el buró."
+        },
+        {
+          "tipo": "exacto",
+          "patron": "Calling lambda mock host",
+          "porque": "Texto real emitido en Experian.php:491. El censo lo guarda mutilado como 'lambda mock host' en la columna mensaje (el ejemplo sí trae el texto completo): contra Loki este exacto matchea, contra la columna normalizada del censo no."
+        },
+        {
+          "tipo": "exacto",
+          "patron": "Lambda mock responded, continuing",
+          "porque": "Experian.php:496."
+        },
+        {
+          "tipo": "exacto",
+          "patron": "Resolved response source",
+          "porque": "Experian.php:475 — dice si la respuesta salió de fixture, lambda mock o HTTP real (ctx source + experian.product)."
+        },
+        {
+          "tipo": "exacto",
+          "patron": "Product is Acierta+Quanto, evaluating reuse from individual reports",
+          "porque": "Experian.php:272 — rama de reuso de reportes."
+        },
+        {
+          "tipo": "exacto",
+          "patron": "Individual reports lookup finished, evaluating merge",
+          "porque": "Experian.php:288."
+        },
+        {
+          "tipo": "exacto",
+          "patron": "Not enough individual data to merge, continuing",
+          "porque": "Experian.php:326."
+        },
+        {
+          "tipo": "exacto",
+          "patron": "Individual product, evaluating reuse from combined Acierta+Quanto",
+          "porque": "Experian.php:337."
+        },
+        {
+          "tipo": "exacto",
+          "patron": "Reuse accepted: Acierta extracted from combined (models present)",
+          "porque": "Experian.php:350 — explica por qué NO hubo consulta externa."
+        },
+        {
+          "tipo": "exacto",
+          "patron": "Deleting previous records for this product before inserting a fresh one",
+          "porque": "Experian.php:378 — borra el reporte previo del producto antes de guardar el nuevo."
+        },
+        {
+          "tipo": "exacto",
+          "patron": "Persisting fetched report (data + request)",
+          "porque": "Experian.php:527 — persistencia del reporte del buró."
+        },
+        {
+          "tipo": "exacto",
+          "patron": "Computing additional_info from the aggregated payload",
+          "porque": "Experian.php:532."
+        },
+        {
+          "tipo": "exacto",
+          "patron": "Projecting report through updateUserSummary",
+          "porque": "Experian.php:541 — proyecta el reporte al user_summary que después consumen cupo y listado."
+        },
+        {
+          "tipo": "exacto",
+          "patron": "Computed averaged score, persisting",
+          "porque": "Experian.php:547 — el score que queda guardado."
+        },
+        {
+          "tipo": "exacto",
+          "patron": "UserFieldValueRepository resolved from container",
+          "porque": "Experian.php:623, dentro de updateUserSummary."
+        },
+        {
+          "tipo": "exacto",
+          "patron": "valueMonthlyPayment extracted from Experian payload",
+          "porque": "Experian.php:632 — egresos que salen del payload de datacrédito."
+        },
+        {
+          "tipo": "regex",
+          "patron": "(quantoMedio|UserSummary\\.(quanto|datacredito)|productValueList|productCode 62|UserFieldValue field)",
+          "porque": "14 líneas de Experian::updateUserSummary que no comparten prefijo (el sujeto cambia en cada una). Verifiqué que ese vocabulario es exclusivo del buró: 'UserFieldValue field' sólo se loguea en app/Actions/RiskCentrals/Experian.php (4 ocurrencias) y quantoMedio/productValueList/productCode 62 sólo existen en código Exper"
+        },
+        {
+          "tipo": "prefijo",
+          "patron": "Validating identity with ",
+          "porque": "Cascada KYC de identidad AgilData → Mareigua → TusDatos (OnboardingService.php:358/400/463). El proveedor va al final: un prefijo cubre los tres y cualquiera que agreguen."
+        },
+        {
+          "tipo": "exacto",
+          "patron": "AgilData OK, using returned identity data",
+          "porque": "Veredicto del proveedor (OnboardingService.php:363)."
+        },
+        {
+          "tipo": "exacto",
+          "patron": "TusDatos OK, using returned identity data",
+          "porque": "Veredicto del proveedor (OnboardingService.php:468)."
+        },
+        {
+          "tipo": "exacto",
+          "patron": "AgilData inconclusive, will consult Mareigua",
+          "porque": "Escalamiento 1 de la cascada (OnboardingService.php:386)."
+        },
+        {
+          "tipo": "exacto",
+          "patron": "Mareigua inconclusive, will consult TusDatos",
+          "porque": "Escalamiento 2 de la cascada (OnboardingService.php:429)."
+        },
+        {
+          "tipo": "prefijo",
+          "patron": "AgilData returned errors but TusDatos retry is warranted",
+          "porque": "Prefijo para dejar libre el ', continuing' final; existe la hermana de Mareigua (línea 414) todavía no medida."
+        },
+        {
+          "tipo": "prefijo",
+          "patron": "TusDatos errors, returning ONB",
+          "porque": "El subcódigo va al final ('ONB005') y el censo lo normaliza a 'ONBN'; el prefijo matchea la línea real y la normalizada."
+        },
+        {
+          "tipo": "exacto",
+          "patron": "Persisting user after KYC cascade",
+          "porque": "OnboardingService.php:545 — cierre de la cascada de identidad, justo antes de la selección de flujo."
+        },
+        {
+          "tipo": "prefijo",
+          "patron": "OnboardingService::shouldValidateTusDatos",
+          "porque": "Throttle de intentos contra TusDatos (método privado de OnboardingService, invocado desde la cascada en 370 y 413). Prefijo para cubrir ': entered' / ': exiting'."
+        },
+        {
+          "tipo": "prefijo",
+          "patron": "ValidateOtpController: Experian",
+          "porque": "la emite el controlador de OTP pero lo que decide es del BURÓ: por qué no se consultó Experian. Sin este matcher la decisión quedaba declarada y muda (lo cazó `-validar`)."
+        }
+      ],
+      "decisiones": [
+        {
+          "mensaje": "ValidateOtpController: Experian NO disparado (usuario TEMPORAL USER)",
+          "significa": "VEREDICTO de omisión con motivo concreto: el usuario todavía es temporal (sin documento consolidado), así que el buró no se consulta al validar el OTP. Explica por qué el buró recién aparece en el paso de datos personales.",
+          "campos": [
+            "source",
+            "experian_triggered",
+            "reason",
+            "user_id",
+            "document_number",
+            "cell_phone"
+          ],
+          "severidad": "informativo"
+        },
+        {
+          "mensaje": "Datacredito no evaluado (userViability no ejecutado) desde PersonalInfoController",
+          "significa": "VEREDICTO de omisión en legacy-application: no se corrió userViability, así que no hubo consulta a Datacrédito. `has_preapproved_lender` + `approved_lenders` dicen si la omisión fue por cupo ya confirmado (la omisión legítima) o por otra razón.",
+          "campos": [
+            "source",
+            "experian_triggered",
+            "reason",
+            "has_preapproved_lender",
+            "approved_lenders",
+            "allied_id"
+          ],
+          "severidad": "informativo"
+        },
+        {
+          "mensaje": "TusDatos errors, returning ONB005",
+          "significa": "RECHAZO duro de la etapa: el último eslabón de la cascada de identidad (AgilData → Mareigua → TusDatos) falló y la solicitud se corta con el subcódigo ONB005. El cliente no llega ni a buró de riesgo.",
+          "campos": [
+            "subcode"
+          ],
+          "severidad": "rechazo"
+        },
+        {
+          "mensaje": "The allied is not allowed to omit the requested risk central.",
+          "significa": "RECHAZO de configuración (RKV26001, CheckIfAbleToOmitService): el comercio pidió omitir una central de riesgo que no tiene permitido omitir, así que la consulta se hace igual. `risk_central.slug` dice cuál.",
+          "campos": [
+            "module",
+            "allied.id",
+            "risk_central.slug"
+          ],
+          "severidad": "rechazo"
+        },
+        {
+          "mensaje": "The allied is in the Experian trigger bypass list; the commerce requires Experian, so the user must be evaluated.",
+          "significa": "VEREDICTO del STAGE 4: el comercio está en la lista de bypass, pero como igual exige Experian, gana el requerimiento y el usuario se evalúa. Es una de las dos salidas del pipeline de disparo.",
+          "campos": [
+            "module",
+            "allied.id"
+          ],
+          "severidad": "ok"
+        },
+        {
+          "mensaje": "No risk central data found.",
+          "significa": "VEREDICTO del STAGE 1: no existe dato previo de esa central para el usuario, por lo que la consulta no se puede evitar por reuso.",
+          "campos": [
+            "risk_central.id",
+            "module",
+            "user.id"
+          ],
+          "severidad": "informativo"
+        },
+        {
+          "mensaje": "Flow B Pullman/DFS Quanto branch",
+          "significa": "VEREDICTO de disparo con el criterio a la vista: la consulta Quanto se dispara porque el comercio es Pullman (allied 94) o DFS (allied 189). Verificado en OnboardingService.php:764 — la línea siguiente ya es logExperianTriggered + Experian::aciertaQuanto.",
+          "campos": [
+            "is_pullman",
+            "is_dfs"
+          ],
+          "severidad": "ok"
+        },
+        {
+          "mensaje": "performRequest finished, continuing to close the span",
+          "significa": "Instrumentación que carga el dato duro: `result.has_score` dice si el buró devolvió score y `result.score` cuál. Es el único punto del censo que distingue 'consulta exitosa sin score' de 'consulta exitosa con score'.",
+          "campos": [
+            "result.id",
+            "result.has_score",
+            "result.score"
+          ],
+          "severidad": "informativo"
+        },
+        {
+          "mensaje": "Computed averaged score, persisting",
+          "significa": "El score final que queda guardado en risk_central_user_data — el valor que van a leer las etapas siguientes. Si difiere del `result.score` de la consulta, hubo promediado.",
+          "campos": [
+            "risk_central_user_data.score"
+          ],
+          "severidad": "informativo"
+        },
+        {
+          "mensaje": "UserSummary.datacredito updated/created, continuing",
+          "significa": "Resultado consolidado del buró en el user_summary: `summary.score` y `summary.value_monthly_payment` (egresos). Es el puente del buró hacia cupo y listado; si acá no pasó nada, las etapas siguientes deciden con datos viejos.",
+          "campos": [
+            "user.id",
+            "summary.score",
+            "summary.value_monthly_payment"
+          ],
+          "severidad": "ok"
+        },
+        {
+          "mensaje": "quantoMedioAverage valid, writing UserFieldValue field 87 (income) con el valor escalado",
+          "significa": "DECISIÓN con efecto en el resto del flujo: el INGRESO del cliente lo escribe el buró (Quanto), no el formulario. Explica por qué en Pullman/DFS el ingreso del cliente aparece autocompletado y por qué el cupo cambia sin que el cliente haya tecleado nada.",
+          "campos": [
+            "field_id",
+            "value.scaled"
+          ],
+          "severidad": "informativo"
+        },
+        {
+          "mensaje": "Writing UserFieldValue field 90 (egresos) from datacrédito valueMonthlyPayment",
+          "significa": "Los EGRESOS del cliente salen del payload de datacrédito (valueMonthlyPayment = cuota mensual de obligaciones vigentes). `datacredito.found` dice si de verdad había dato; con false el egreso queda en cero y la capacidad de pago sale infladа.",
+          "campos": [
+            "field_id",
+            "user.id",
+            "user_request.id",
+            "datacredito.found",
+            "outstanding_obligations"
+          ],
+          "severidad": "informativo"
+        },
+        {
+          "mensaje": "Cache MISS, continuing",
+          "significa": "No había reporte del buró de menos de 1 mes, así que la consulta externa SÍ se va a hacer (tiene costo). Verificado exclusivo de Experian.php:268 — no confundir con la instrumentación genérica CacheService::Modules.",
+          "campos": [
+            "cache.hit"
+          ],
+          "severidad": "informativo"
+        },
+        {
+          "mensaje": "Resolved response source",
+          "significa": "De dónde salió la respuesta del buró: fixture local, lambda mock o HTTP real (`source`), y para qué producto (`experian.product`). Es la línea que evita el error de creer real un score que salió de un mock.",
+          "campos": [
+            "source",
+            "experian.product"
+          ],
+          "severidad": "informativo"
+        },
+        {
+          "mensaje": "Phone does not match mock_rules, will use real HTTP",
+          "significa": "El mock estaba habilitado por settings pero el celular no matcheó las reglas, así que se consulta el buró de verdad. Su gemela (phone matches → fixture) existe en código y no está en el censo.",
+          "campos": [
+            "mock.match"
+          ],
+          "severidad": "informativo"
+        },
+        {
+          "mensaje": "Experian query counter advanced before querying Experian.",
+          "significa": "El contador de consultas del comercio avanzó (`count.before` → `count.after`) porque se va a consultar. Es lo que se factura y lo que alimenta el throttle del STAGE 2.",
+          "campos": [
+            "count.before",
+            "count.after",
+            "allied.id",
+            "module"
+          ],
+          "severidad": "informativo"
+        },
+        {
+          "mensaje": "ValidateOtpController: Experian NO disparado",
+          "significa": "no se consultó Experian porque el usuario es TEMPORAL. Es una de las tres causas de «no hay fila de buró nueva» que F-60 obliga a descartar antes de afirmar que se omitió el buró.",
+          "campos": [
+            "user_id"
+          ],
+          "severidad": "informativo"
+        }
+      ]
+    },
+    {
+      "id": "cupo",
+      "label": "Cupo / POS",
+      "orden": 50,
+      "porque": "para rt=2 el cupo es un FILTRO DURO del listado, no un paso posterior a elegir. La razón fina NO se persiste a propósito (ver ARQUITECTURA-TRACING), así que la BD no lo puede probar: solo los logs.",
+      "bd": {},
+      "matchers": [
+        {
+          "tipo": "prefijo",
+          "patron": "QUOTA_CHECK_",
+          "porque": "Captura exactamente 3 mensajes del censo y los 3 son el motor de cupo rt=2 en legacy-backend. Verificado aritméticamente: START=144 y APPROVED(35)+REJECTED(109)=144 exacto, o sea la familia es CERRADA (cada apertura tiene un desenlace y ninguno falta del censo). `ejemplo == mensaje` en los 3, asi que el prefijo pega so"
+        },
+        {
+          "tipo": "prefijo",
+          "patron": "CATEGORY_",
+          "porque": "Un solo prefijo cubre los 4 mensajes del motor de categorias y NO captura nada mas en el censo (verificado). La categoria ES el calculo del cupo: CATEGORY_EVALUATION_APPROVED trae `available_from_lender` y QUOTA_CHECK_APPROVED trae el `category_id` que la resuelve, o sea la categoria es el eslabon que produce el monto."
+        },
+        {
+          "tipo": "exacto",
+          "patron": "FIELD_SCORING_COMPLETED",
+          "porque": "Instrumentacion, no veredicto: cierra el span del scoring por campos (`field_score_total`, `field_breakdown`, `duration_ms`). Es un INSUMO del cupo — alimenta el `final_score` que CATEGORY_RESOLUTION_BY_SCORE_COMPLETED convierte en categoria, y de ahi sale el monto. Exacto y no regex `_SCORING_COMPLETED$`: son solo 2 m"
+        },
+        {
+          "tipo": "exacto",
+          "patron": "PAYMENT_CAPACITY_SCORING_COMPLETED",
+          "porque": "Mismo caso que FIELD_SCORING_COMPLETED: instrumentacion con los campos que EXPLICAN el veredicto (`payment_capacity_score`, `total_score_after_capacity`). Es capacidad de pago = cupo, no buro: el score de centrales ya venia calculado y aca se convierte en cuanto puede pagar. Corre 11 veces, igual que FIELD_SCORING y CA"
+        },
+        {
+          "tipo": "exacto",
+          "patron": "Iniciando validación de cupo con Bancolombia BNPL",
+          "porque": "Apertura del cupo para rt=1 (agregador), donde el monto lo decide la API externa y no hay motor local. EXACTO y NUNCA prefijo 'Iniciando validación de': ese prefijo tambien captura 'Iniciando validación de prestamistas pre-aprobados' (n=8) y 'Iniciando validación de reglas para cada entidad'/'por entidad' (n=14 cada un"
+        },
+        {
+          "tipo": "exacto",
+          "patron": "Llamando API de validación de cupo",
+          "porque": "El disparo HTTP del cupo rt=1 (`tipo_documento`, `numero_documento`, `endpoint`). Instrumentacion: dice que se pregunto, no que respondio. Exacto porque el texto no nombra Bancolombia y un prefijo mas corto ('Llamando API') quedaria abierto a cualquier integracion futura; y por lo mismo que el anterior, 'validación de'"
+        },
+        {
+          "tipo": "exacto",
+          "patron": "Error al validar cupo con Bancolombia BNPL",
+          "porque": "El unico FRACASO del cupo que el censo nombra explicitamente (`error`, `controller`, `method`). Vale como veredicto de error de la etapa: para rt=1 el cupo vive en DynamoDB y la BD no lo registra (etapas.go:379), asi que sin esta linea el trazador no puede distinguir 'no hubo cupo' de 'el cupo revento'. Exacto: /cupo/i"
+        },
+        {
+          "tipo": "exacto",
+          "patron": "Obteniendo credenciales de Bancolombia BNPL",
+          "porque": "Instrumentacion de la cadena de cupo rt=1 (`allied_branch_id`). Lo reclamo por CONTEO, no por corazonada: n=1 en legacy-backend y n=1 en legacy-application, o sea 1:1 exacto con 'Iniciando validación de cupo con Bancolombia BNPL' en los dos servicios. Ese 1:1 es lo que lo separa del par OAuth, que en legacy-backend va "
+        }
+      ],
+      "decisiones": [
+        {
+          "mensaje": "QUOTA_CHECK_REJECTED",
+          "significa": "VEREDICTO principal de la etapa: el lender queda excluido porque el cupo no alcanza o no hay categoria que aplique. Es el mensaje mas frecuente del cupo (n=109 de 144 chequeos: el 76% de los chequeos de cupo terminan rechazando). `reason` es el motivo fino, y es la razon por la q",
+          "campos": [
+            "reason",
+            "lender_id",
+            "lender_name",
+            "user_id",
+            "duration_ms",
+            "event"
+          ],
+          "severidad": "rechazo"
+        },
+        {
+          "mensaje": "QUOTA_CHECK_APPROVED",
+          "significa": "VEREDICTO positivo: el lender pasa el filtro de cupo con un monto concreto. `available_amount` es EL cupo y `category_id` dice de que categoria salio, o sea trae el numero y su porque en la misma linea. n=35 de 144.",
+          "campos": [
+            "available_amount",
+            "category_id",
+            "lender_id",
+            "lender_name",
+            "user_id",
+            "event"
+          ],
+          "severidad": "ok"
+        },
+        {
+          "mensaje": "CATEGORY_RULE_REJECTED",
+          "significa": "Veredicto de grano fino: una categoria puntual se cayo y `failed_criteria` dice cual criterio la tumbo. NO es la exclusion del lender — un lender puede perder varias categorias y todavia calificar en otra; la exclusion definitiva solo la dice QUOTA_CHECK_REJECTED. Es el mensaje q",
+          "campos": [
+            "failed_criteria",
+            "rule_id",
+            "category_id",
+            "lender_id",
+            "user_id",
+            "event"
+          ],
+          "severidad": "rechazo"
+        },
+        {
+          "mensaje": "CATEGORY_EVALUATION_APPROVED",
+          "significa": "La categoria aplica y trae el monto que el lender ofrece para ella. `available_from_lender` es el insumo directo del `available_amount` de QUOTA_CHECK_APPROVED, y `category_name` es lo unico legible por humanos en toda la cadena.",
+          "campos": [
+            "available_from_lender",
+            "category_id",
+            "category_name",
+            "lender_id",
+            "user_id",
+            "event"
+          ],
+          "severidad": "ok"
+        },
+        {
+          "mensaje": "CATEGORY_RESOLUTION_BY_SCORE_COMPLETED",
+          "significa": "Cierra la rama de resolucion POR PUNTAJE: dice a que categoria aterrizo el `final_score`. Informativo y no veredicto porque no aprueba ni rechaza, resuelve. Corre 11 veces contra 55 CATEGORY_EVALUATION_START, asi que es la via minoritaria — la mayoria de las categorias se deciden",
+          "campos": [
+            "final_score",
+            "category_id",
+            "category_name",
+            "lender_id",
+            "user_id",
+            "duration_ms"
+          ],
+          "severidad": "informativo"
+        },
+        {
+          "mensaje": "CATEGORY_EVALUATION_START",
+          "significa": "Abre la evaluacion de categorias y deja en el log los TRES insumos con los que se calcula el cupo: `salary`, `continuity_months` y `datacredito_score`. Informativo, pero es la unica linea que muestra con que datos se decidio — si el cupo salio mal, aca se ve si el insumo venia ma",
+          "campos": [
+            "salary",
+            "continuity_months",
+            "datacredito_score",
+            "lender_id",
+            "user_id",
+            "event"
+          ],
+          "severidad": "informativo"
+        },
+        {
+          "mensaje": "Error al validar cupo con Bancolombia BNPL",
+          "significa": "El cupo rt=1 no se pudo resolver: la consulta a la API externa revento. No es rechazo del cliente sino falla de integracion, y la distincion importa porque para rt=1 la BD no guarda nada (el cupo vive en DynamoDB): sin esta linea, un cupo reventado se ve igual que un cupo que nun",
+          "campos": [
+            "error",
+            "user_id",
+            "user_request_id",
+            "controller",
+            "method",
+            "name"
+          ],
+          "severidad": "error"
+        }
+      ]
+    },
+    {
+      "id": "listado",
+      "label": "Listado de entidades",
+      "orden": 60,
+      "porque": "qué entidades se muestran y por qué se excluyó cada una. ⚠ CORREGIDO 2026-08-05: antes decía «sin esqueleto en BD porque displayed_lenders es de lenders-v2 y no existe». No existe como TABLA, pero sí como columna JSON de `profiling_reviews` — 588 filas, todas con `displayed_lenders` y `hard_rules`. Busqué una tabla, no la encontré y concluí que el dato no existía; el dato estaba.",
+      "bd": {
+        "tablas": [
+          "profiling_reviews"
+        ]
+      },
+      "matchers": [
+        {
+          "tipo": "prefijo",
+          "patron": "Iniciando listado de entidades",
+          "porque": "Abre la etapa. El prefijo cubre exactamente las DOS variantes de código (con y sin pre-aprobados) y nada más — verificado contra el censo: 2 capturas, cero fuera de listado. Si el trazador necesita distinguir los dos caminos, partirlo en dos exactos."
+        },
+        {
+          "tipo": "exacto",
+          "patron": "Listado de entidades completado",
+          "porque": "Cierra la etapa y trae el veredicto final (lenders_count, lenders, recommend_lender). Exacto porque es el mensaje más valioso de la etapa y no admite ruido."
+        },
+        {
+          "tipo": "exacto",
+          "patron": "Validando reglas por entidad",
+          "porque": "Entrada al bloque de reglas por lender. Exacto: existe un mensaje casi homónimo (\"Iniciando validación de reglas por entidad\") que es otro punto del código; un prefijo suelto los confundiría."
+        },
+        {
+          "tipo": "prefijo",
+          "patron": "Iniciando validación de reglas",
+          "porque": "Cubre las dos aperturas del bloque de reglas (\"por entidad\" y \"para cada entidad\"), ambas de listado. Verificado: 2 capturas, cero fuera de etapa."
+        },
+        {
+          "tipo": "exacto",
+          "patron": "Evaluando reglas para entidad",
+          "porque": "Instrumentación por lender (abre la evaluación). Exacto para no pisar \"Resultado de evaluación de reglas para entidad\", que es el veredicto."
+        },
+        {
+          "tipo": "exacto",
+          "patron": "Resultado de evaluación de reglas para entidad",
+          "porque": "ES el veredicto por lender (rule_id + result). Exacto: es el corazón del diagnóstico de listado, no se arriesga a ruido."
+        },
+        {
+          "tipo": "exacto",
+          "patron": "Validación de reglas completada",
+          "porque": "Cierre agregado con el conteo aprobados/rechazados. Exacto y no prefijo \"Validación de \" porque ese prefijo también tomaría \"Validación de prestamistas completada\", que es otra decisión con otros campos."
+        },
+        {
+          "tipo": "exacto",
+          "patron": "Obteniendo reglas de grupo para la sucursal aliada",
+          "porque": "Carga de la capa de group rules (base del cascade por sucursal). Instrumentación; exacto por precisión."
+        },
+        {
+          "tipo": "exacto",
+          "patron": "Reglas de grupo obtenidas",
+          "porque": "Cierre de la carga de group rules (group_rules_count). Exacto."
+        },
+        {
+          "tipo": "exacto",
+          "patron": "Aplicando reglas de perfilamiento y centrales de riesgo",
+          "porque": "Marca el tramo donde perfilamiento CLASIFICA el listado. Exacto obligatorio: nombra \"centrales de riesgo\", así que cualquier prefijo/regex por esas palabras se iría a buro."
+        },
+        {
+          "tipo": "exacto",
+          "patron": "DatacreditoRuleEvaluator: rejected",
+          "porque": "Exclusión DURA por datacrédito (motor nuevo, rt=2). Exacto: un prefijo \"Datacredito\" tomaría DatacreditoQueryByAlliedRepository/Controller, que aparece en mensajes de buro (Experian trigger)."
+        },
+        {
+          "tipo": "exacto",
+          "patron": "LenderRuleEvaluator: rejected",
+          "porque": "Exclusión por regla de lender con el campo que falló (field_id). Exacto."
+        },
+        {
+          "tipo": "exacto",
+          "patron": "Lender approved - high probability",
+          "porque": "Veredicto de aprobación en el tramo de pre-aprobación. Exacto: un prefijo \"Lender \" mezclaría aprobación con la exclusión por sucursal inactiva."
+        },
+        {
+          "tipo": "exacto",
+          "patron": "Lender is not active on the allied branch level; no active integrated entity.",
+          "porque": "Exclusión DURA por status en la sucursal (primer filtro del cascade). Exacto — es una frase larga y única."
+        },
+        {
+          "tipo": "exacto",
+          "patron": "Iniciando validación de prestamistas pre-aprobados",
+          "porque": "Abre el tramo de pre-aprobación que recorta el listado. Exacto."
+        },
+        {
+          "tipo": "exacto",
+          "patron": "Validación de prestamistas completada",
+          "porque": "Veredicto agregado de pre-aprobación (aprobados/asíncronos/restantes). Exacto, no prefijo \"Validación de \", que colisiona con el cierre de reglas."
+        },
+        {
+          "tipo": "prefijo",
+          "patron": "Pre-approve lender ",
+          "porque": "Cubre las dos salidas del evaluador de pre-aprobación (evaluated / skipped), ambas de listado y ambas veredictos. Verificado: 2 capturas, cero fuera. El espacio final evita pegar con otros mensajes que empiecen igual."
+        },
+        {
+          "tipo": "exacto",
+          "patron": "Exception in lenderServiceFactory->consult()",
+          "porque": "Falla de infraestructura al consultar un lender: la entidad no se pudo evaluar, así que el listado sale incompleto sin decirlo. Exacto."
+        },
+        {
+          "tipo": "exacto",
+          "patron": "final format_lenders:",
+          "porque": "Payload final formateado que se manda al front (campo format_lenders). Exacto, incluidos los dos puntos, tal como está en el censo."
+        },
+        {
+          "tipo": "regex",
+          "patron": "::alliedsLendersValidator",
+          "porque": "el ancla `$` era el bug: la línea real sigue con \": entered\"/\": exiting\" | ARREGLADO 2026-08-05: se validaba contra el censo normalizado, no contra la línea cruda que ve Loki."
+        },
+        {
+          "tipo": "prefijo",
+          "patron": "OnboardingService::validatePreApproveLender",
+          "porque": "era exacto y la línea real termina en \": exiting\" | ARREGLADO 2026-08-05: se validaba contra el censo normalizado, no contra la línea cruda que ve Loki."
+        },
+        {
+          "tipo": "regex",
+          "patron": "LendersByAlliedBranchRepository",
+          "porque": "la clase cae en el MEDIO de \"Starting Modules\\\\LenderV1\\\\App\\\\Repositories\\\\...\": ni exacto ni prefijo alcanzan | ARREGLADO 2026-08-05: se validaba contra el censo normalizado, no contra la línea cruda que ve Loki."
+        },
+        {
+          "tipo": "regex",
+          "patron": "HasActiveIntegratedEntitiesService",
+          "porque": "idem: clase a mitad del span | ARREGLADO 2026-08-05: se validaba contra el censo normalizado, no contra la línea cruda que ve Loki."
+        }
+      ],
+      "decisiones": [
+        {
+          "mensaje": "Listado de entidades completado",
+          "significa": "Veredicto FINAL de la etapa: qué entidades quedaron visibles para el cliente y cuál se recomienda. Es el mensaje a mirar primero: lenders_count=0 con lenders vacío es el fallo silencioso clásico — el cliente ve pantalla sin ofertas y no hay ningún error en el log.",
+          "campos": [
+            "lenders_count",
+            "lenders",
+            "recommend_lender",
+            "allied_id"
+          ],
+          "severidad": "informativo"
+        },
+        {
+          "mensaje": "Resultado de evaluación de reglas para entidad",
+          "significa": "Veredicto por entidad: qué regla concreta la evaluó y con qué resultado. La polaridad (pasa/no pasa) vive en el campo `result`, no en el texto del mensaje, por eso no lo marco ok ni rechazo. Cruzando lender_id + rule_id se reconstruye exactamente por qué una entidad quedó dentro ",
+          "campos": [
+            "lender_id",
+            "lender_name",
+            "rule_id",
+            "result",
+            "rules_evaluated"
+          ],
+          "severidad": "informativo"
+        },
+        {
+          "mensaje": "Validación de reglas completada",
+          "significa": "Veredicto agregado del bloque de reglas: cuántas entidades entraron, cuántas se aprobaron y cuántas se rechazaron. Sirve de cuadre — si rejected_lenders == total_lenders, todas las entidades murieron en reglas y no hay que buscar la causa más adelante.",
+          "campos": [
+            "total_lenders",
+            "approved_lenders",
+            "rejected_lenders"
+          ],
+          "severidad": "informativo"
+        },
+        {
+          "mensaje": "DatacreditoRuleEvaluator: rejected",
+          "significa": "Exclusión DURA por datacrédito (motor nuevo, el de rt=2): la entidad no se muestra. `user_score` vs `rule_min_score` da la comparación exacta que la tumbó, así que se ve si faltó poco o mucho.",
+          "campos": [
+            "reason",
+            "user_score",
+            "rule_min_score",
+            "lender_id",
+            "rule_id",
+            "user_id"
+          ],
+          "severidad": "rechazo"
+        },
+        {
+          "mensaje": "LenderRuleEvaluator: rejected",
+          "significa": "Exclusión por una regla propia del lender. `field_id` apunta al campo del usuario que la incumplió y `rule_name` la nombra — es la pareja que explica el rechazo sin abrir la BD.",
+          "campos": [
+            "reason",
+            "rule_name",
+            "field_id",
+            "lender_id",
+            "rule_id",
+            "user_id"
+          ],
+          "severidad": "rechazo"
+        },
+        {
+          "mensaje": "Lender is not active on the allied branch level; no active integrated entity.",
+          "significa": "Exclusión DURA y temprana: la entidad no está activa en esa sucursal aliada. Es el primer corte del cascade, antes de cualquier regla de riesgo; si dispara, buscar la causa en configuración de sucursal y no en el perfil del cliente.",
+          "campos": [
+            "lender.id",
+            "allied_branch.id",
+            "module"
+          ],
+          "severidad": "rechazo"
+        },
+        {
+          "mensaje": "Lender approved - high probability",
+          "significa": "Veredicto de aprobación en el tramo de pre-aprobación: la entidad se marca disponible con sus labels de presentación. `available` y `status` son los que deciden cómo se pinta en el listado.",
+          "campos": [
+            "lender_id",
+            "status",
+            "available",
+            "labels"
+          ],
+          "severidad": "ok"
+        },
+        {
+          "mensaje": "Validación de prestamistas completada",
+          "significa": "Veredicto agregado de la pre-aprobación: cuántas entidades quedaron aprobadas, cuántas siguen en curso asíncrono y cuántas restan. `prestamistas_asincronos` importa porque esas todavía no tienen veredicto cuando el listado se arma.",
+          "campos": [
+            "prestamistas_aprobados",
+            "prestamistas_asincronos",
+            "prestamistas_restantes",
+            "total_prestamistas"
+          ],
+          "severidad": "informativo"
+        },
+        {
+          "mensaje": "Pre-approve lender evaluated",
+          "significa": "Cierra la pre-aprobación diciendo si hubo o no una entidad pre-aprobada (`had_pre_approve_lender`). Booleano, pero es un veredicto: en false el listado se armó sin candidato pre-aprobado.",
+          "campos": [
+            "had_pre_approve_lender"
+          ],
+          "severidad": "informativo"
+        },
+        {
+          "mensaje": "Pre-approve lender skipped",
+          "significa": "La pre-aprobación NO corrió, y los dos campos dicen por qué: entorno (`is_production`) y comercio (`is_pullman`). Es un salto condicionado por ambiente — explica una ausencia de pre-aprobados que no es un rechazo de negocio.",
+          "campos": [
+            "is_production",
+            "is_pullman"
+          ],
+          "severidad": "informativo"
+        },
+        {
+          "mensaje": "Exception in lenderServiceFactory->consult()",
+          "significa": "Falla de infraestructura al consultar una entidad: NO es un rechazo de negocio, es una entidad que nunca se pudo evaluar. El listado sale incompleto y no se distingue de una exclusión legítima si sólo se miran los conteos — por eso vale más que su volumen (1 línea).",
+          "campos": [
+            "lender_id",
+            "error",
+            "tipo_error",
+            "labels"
+          ],
+          "severidad": "error"
+        }
+      ]
+    },
+    {
+      "id": "seleccion",
+      "label": "Selección de entidad",
+      "orden": 70,
+      "porque": "el cliente elige una entidad",
+      "bd": {
+        "estados": [
+          3
+        ],
+        "tablas": [
+          "user_requests",
+          "lenders"
+        ]
+      },
+      "matchers": [],
+      "decisiones": []
+    },
+    {
+      "id": "desembolso",
+      "label": "Desembolso",
+      "orden": 80,
+      "porque": "pagaré, autorización y desembolso. El canal QR nunca pasa por 11: sella en 25 y factura en 26.",
+      "bd": {
+        "estados": [
+          10,
+          11,
+          28,
+          5,
+          25,
+          26
+        ]
+      },
+      "matchers": [
+        {
+          "tipo": "exacto",
+          "patron": "ecommerce_store_notify_failed",
+          "porque": "Slug fijo, sin variantes: exacto alcanza y no necesito regex. NO uso el prefijo 'ecommerce_store_notif' porque arrastraria 'ecommerce_store_notified' (el caso exitoso), que existe en el codigo (EcommerceRequestService.php:512) pero NO esta en el censo — no lo invento. Verificado: los dos call sites son de cierre de cre"
+        },
+        {
+          "tipo": "prefijo",
+          "patron": "Corbeta cancellation",
+          "porque": "El prefijo tiene que ser 'Corbeta cancellation' y NUNCA 'Corbeta': 'Corbeta checkout started/finished' es la ENTRADA del canal QR (origen), no el cierre. Verificado en CorbetaCheckoutController::show — decodifica los params base64 del POS (o,p,t,u,ps), crea user_request + ecommerce_request y termina en redirectToResolv"
+        },
+        {
+          "tipo": "exacto",
+          "patron": "Documents retrieved successfully",
+          "porque": "Exacto porque es una frase cerrada. Es el conjunto documental del desembolso: verificado en UserRequestDocumentService::getDocuments, que arma Plan de Pagos + Contrato (Consent) + FGA (Guarantee Acceptance) + PAGARE (Promissory Note) + Estado de cuenta. Ojo: lo marco como instrumentacion, no decision, y lleva salvedad "
+        }
+      ],
+      "decisiones": [
+        {
+          "mensaje": "ecommerce_store_notify_failed",
+          "significa": "Al cerrar el credito (Estado 11) CreditOp no pudo avisarle a la tienda. Veredicto asimetrico y caro: del lado de CreditOp el credito quedo autorizado/desembolsado, pero la tienda nunca se entero y por lo tanto no libera ni confirma el pedido — el cliente queda con credito y sin c",
+          "campos": [
+            "error",
+            "ecommerce_request_id",
+            "user_request_id",
+            "exception"
+          ],
+          "severidad": "error"
+        },
+        {
+          "mensaje": "Corbeta cancellation finished",
+          "significa": "Veredicto de anulacion de la operacion en el canal QR: la caja de Corbeta pidio cancelar la solicitud y este mensaje cierra el resultado. cancellation_code es el motivo; voluntary distingue si la cancelacion fue voluntaria del cliente o forzada por el comercio; out_of_schedule ma",
+          "campos": [
+            "cancellation_code",
+            "voluntary",
+            "out_of_schedule",
+            "user_request_id",
+            "route_params",
+            "payload"
+          ],
+          "severidad": "rechazo"
+        }
+      ]
+    },
+    {
+      "id": "respuesta-lender",
+      "label": "Respuesta del lender",
+      "orden": 75,
+      "porque": "Para rt=1 el veredicto lo da la API EXTERNA y vuelve por el webhook `POST api/onboarding/loan-application/{ureq}/lender-result` (ListLenderController::storeLenderResult → ProfilingReviewController::updateAsyncLender). Es el reporte MÁS FRECUENTE de #tech-ops: «Prami confirma originación pero en CT quedó en seleccionar entidad» — 10 casos en 10 días. ⚠ El webhook NO loguea nada (cero `Log::` en ese controlador) y NO hay tabla que registre su recepción, así que la única evidencia de que se aplicó es `profiling_reviews.disbursed_lender`; y la única de que llegó y FALLÓ es la excepción HTTP con la url del webhook. Por eso esta etapa distingue tres casos y no dos.",
+      "bd": {
+        "tablas": [
+          "profiling_reviews"
+        ]
+      },
+      "matchers": [
+        {
+          "tipo": "regex",
+          "patron": "lender-result",
+          "porque": "la url del webhook vive en el CONTEXT de http_exception_rendering (campo `url`), no en el mensaje —que es siempre el mismo texto genérico—. Sin `campo: url` este matcher jamás disparaba y no fallaba: se quedaba mudo. Es la única forma de distinguir «llegó y falló» de «no llegó».",
+          "campo": "url"
+        },
+        {
+          "tipo": "prefijo",
+          "patron": "updateAsyncLender",
+          "soloEnCodigo": true
+        },
+        {
+          "tipo": "prefijo",
+          "patron": "replaceLenderResults",
+          "soloEnCodigo": true
+        }
+      ],
+      "decisiones": [
+        {
+          "mensaje": "lender-result",
+          "significa": "el webhook del lender llegó y terminó en error: la solicitud queda atrás aunque el agregador haya aprobado. Es la causa del reporte más frecuente de soporte.",
+          "campos": [
+            "status_code",
+            "url",
+            "message",
+            "exception_class"
+          ],
+          "severidad": "error",
+          "campo": "url"
+        }
+      ]
+    }
+  ]
+}

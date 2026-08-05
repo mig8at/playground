@@ -1,0 +1,546 @@
+{
+  "version": "1.1",
+  "nota": "El ÁRBOL DECLARADO: qué sub-pasos tiene cada etapa, para poder dibujar la vista completa ANTES de tener un solo dato y después ir encendiendo lo que la corrida confirma. || LA FRONTERA, que es la decisión de diseño de este archivo: se declara lo que tiene universo CERRADO y estable (los hitos del flujo, las cuatro familias de entidades) y NO se declara lo que es DATO variable (los lenders concretos: son 156 y su response_type cambia por ambiente — medido: Sistecrédito es rt=1 en local y rt=0 en prod, o sea que la misma entidad cae en familias distintas. Declararlos haría que este JSON mintiera en algún ambiente). || LOS HITOS NO SE INVENTARON: salen de los matchers ya medidos en etapas.json, y los de `buro` los nombra el propio backend con sus STAGE 0..4. Cuando el código ya tiene un vocabulario, usar otro es agregar una capa de traducción que nadie pidió. || REGLA: el matcher de un hito tiene que ser un SUBCONJUNTO de los de su etapa. Si un hito captura una línea que su etapa no reclama, el árbol muestra un sub-paso que no cuelga de nada. || `soloEnCodigo: true` marca un hito cuyo mensaje EXISTE en el código pero no apareció en el corpus medido. Es distinto de un patrón MAL escrito, y confundirlos es cómo un validador se vuelve ruidoso y se ignora: `-validar` los reporta aparte, como aviso y no como problema.",
+  "etapas": {
+    "origen": {
+      "bloques": [
+        {
+          "id": "canal",
+          "label": "Canal de entrada",
+          "tipo": "hitos",
+          "nota": "⚠ `asesor` NO deja huella en los logs: se infiere por AUSENCIA de marcas de QR y ecommerce. Los otros dos sí se confirman.",
+          "hitos": [
+            {
+              "id": "qr",
+              "label": "QR en caja (Corbeta)",
+              "matcher": {
+                "tipo": "prefijo",
+                "patron": "Corbeta checkout"
+              }
+            },
+            {
+              "id": "ecommerce",
+              "label": "Tienda (ecommerce)",
+              "matcher": {
+                "tipo": "regex",
+                "patron": "IsEcommerceRequestService|IsEcommerceBranchService"
+              }
+            },
+            {
+              "id": "asesor",
+              "label": "Asesor en punto de venta",
+              "matcher": null,
+              "porque": "no hay mensaje propio: es el default cuando no aparecen los otros dos"
+            }
+          ]
+        }
+      ]
+    },
+    "registro": {
+      "bloques": [
+        {
+          "id": "hitos",
+          "label": "Registro del cliente",
+          "tipo": "hitos",
+          "hitos": [
+            {
+              "id": "lookup",
+              "label": "Buscar o crear el cliente",
+              "matcher": {
+                "tipo": "regex",
+                "patron": "UserService::getOrCreateUser|Looking up existing user by cell phone|findByCellPhone returned"
+              }
+            },
+            {
+              "id": "tyc",
+              "label": "Términos y condiciones",
+              "matcher": {
+                "tipo": "prefijo",
+                "patron": "storeTermsAndConditions"
+              }
+            },
+            {
+              "id": "otp-envio",
+              "label": "Enviar OTP",
+              "matcher": {
+                "tipo": "regex",
+                "patron": "Otp(Controller|Service)::sendOtpCode"
+              }
+            },
+            {
+              "id": "otp-valida",
+              "label": "Validar OTP",
+              "matcher": {
+                "tipo": "regex",
+                "patron": "OtpService::validateOtpCode|ValidateOtpAuthService"
+              }
+            },
+            {
+              "id": "redireccion",
+              "label": "Redirección tras el OTP",
+              "matcher": {
+                "tipo": "prefijo",
+                "patron": "OnboardingController::validateOtpCodeAndRedirect"
+              },
+              "porque": "es la línea que trae `corbeta_onboarding`, `ecommerce_request_id` y `merchant_mode`: la evidencia de ORIGEN vive acá, aunque la etapa sea registro"
+            }
+          ]
+        }
+      ]
+    },
+    "formulario": {
+      "bloques": [
+        {
+          "id": "hitos",
+          "label": "Datos del cliente",
+          "tipo": "hitos",
+          "hitos": [
+            {
+              "id": "rate-limit",
+              "label": "Compuerta de intentos por hora",
+              "matcher": {
+                "tipo": "regex",
+                "patron": "Rate limit|checkRateLimitPerHour|Evaluating per-hour rate limit"
+              },
+              "porque": "medido en la uReq 519245 de producción: la compuerta vive acá, NO en registro. Agotarla devuelve ONB040 y corta el flujo."
+            },
+            {
+              "id": "personales",
+              "label": "Datos personales",
+              "matcher": {
+                "tipo": "prefijo",
+                "patron": "OnboardingController::validateAndStorePersonalInfo"
+              }
+            },
+            {
+              "id": "laborales",
+              "label": "Datos laborales",
+              "matcher": {
+                "tipo": "regex",
+                "patron": "^(OnboardingService::storeLaboralInformation|OnboardingController::storeLaboralInfo|Storing labor info|Flow [AB]: )"
+              },
+              "porque": "dos caminos: Flow A autocompleta del resumen y Flow B es manual / allieds especiales. ⚠ ANCLADO AL INICIO con ^: sin el ancla se llevaba «Experian disparado desde OnboardingController::storeLaboralInfoOrchestrator», que menciona el método EN EL MEDIO pero es de BURÓ. Es el espejo del bug del ancla `$` en etapas.json — lo cazó `-validar`."
+            },
+            {
+              "id": "estrato",
+              "label": "Estrato y género",
+              "matcher": {
+                "tipo": "regex",
+                "patron": "storeSocialStratum|getGender"
+              }
+            },
+            {
+              "id": "validaciones",
+              "label": "Validaciones del formulario",
+              "matcher": {
+                "tipo": "exacto",
+                "patron": "Validating expedition date"
+              }
+            },
+            {
+              "id": "completo",
+              "label": "¿Formulario completo?",
+              "matcher": {
+                "tipo": "prefijo",
+                "patron": "OnboardingService::isForm1Completed"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "buro": {
+      "bloques": [
+        {
+          "id": "decision",
+          "label": "¿Hay que consultar el buró?",
+          "tipo": "hitos",
+          "nota": "Los nombra el PROPIO BACKEND (STAGE 0..4 de la decisión de omisión). Este bloque es la respuesta a «¿por qué no hay fila de buró nueva?», que F-60 obliga a descartar de tres causas antes de afirmar que se omitió.",
+          "hitos": [
+            {
+              "id": "stage0",
+              "label": "STAGE 0 · Datos de la solicitud",
+              "matcher": {
+                "tipo": "prefijo",
+                "patron": "STAGE 0 —"
+              }
+            },
+            {
+              "id": "stage1",
+              "label": "STAGE 1 · ¿Ya hay datos de central?",
+              "matcher": {
+                "tipo": "prefijo",
+                "patron": "STAGE 1 —"
+              }
+            },
+            {
+              "id": "stage2",
+              "label": "STAGE 2 · Frecuencia",
+              "matcher": {
+                "tipo": "prefijo",
+                "patron": "STAGE 2 —"
+              },
+              "porque": "la compuerta de frecuencia es una de las tres causas de «no hay fila nueva»: puede haber cortado antes de consultar"
+            },
+            {
+              "id": "stage3",
+              "label": "STAGE 3 · Omisiones del flujo",
+              "matcher": {
+                "tipo": "prefijo",
+                "patron": "STAGE 3 —"
+              }
+            },
+            {
+              "id": "stage4",
+              "label": "STAGE 4 · Reglas de bypass",
+              "matcher": {
+                "tipo": "prefijo",
+                "patron": "STAGE 4 —"
+              }
+            }
+          ]
+        },
+        {
+          "id": "disparo",
+          "label": "¿Se disparó?",
+          "tipo": "hitos",
+          "hitos": [
+            {
+              "id": "disparado",
+              "label": "Experian disparado",
+              "matcher": {
+                "tipo": "prefijo",
+                "patron": "Experian disparado desde"
+              }
+            },
+            {
+              "id": "no-disparado",
+              "label": "Experian NO disparado",
+              "matcher": {
+                "tipo": "prefijo",
+                "patron": "Experian NO disparado"
+              }
+            },
+            {
+              "id": "frecuencia",
+              "label": "Contador de frecuencia",
+              "matcher": {
+                "tipo": "prefijo",
+                "patron": "Experian frequency"
+              }
+            },
+            {
+              "id": "bypass",
+              "label": "Lista de bypass del comercio",
+              "matcher": {
+                "tipo": "prefijo",
+                "patron": "The allied is"
+              }
+            },
+            {
+              "id": "consulta-ok",
+              "label": "Consulta terminada",
+              "matcher": {
+                "tipo": "regex",
+                "patron": "query finished successfully|Consulta con acierta\\+quanto finalizada"
+              }
+            }
+          ]
+        },
+        {
+          "id": "centrales",
+          "label": "Centrales",
+          "tipo": "catalogo",
+          "fuente": "db:risk_centrals",
+          "nota": "El universo se LEE de la BD, no de acá, porque varía por ambiente (medido: 9 en local, 11 en prod — `Abaco` existe en local y no en prod). Los `conocidos` son solo para dibujar el árbol antes de consultar; en la corrida se reconcilian y lo que sobra o falta se marca. Declararlos como verdad haría que el árbol mintiera en un ambiente.",
+          "conocidos": [
+            {
+              "id": 1,
+              "label": "Experian - Acierta",
+              "nota": "el único que trae score de forma consistente"
+            },
+            {
+              "id": 2,
+              "label": "TusDatos - Validación de Identidad"
+            },
+            {
+              "id": 3,
+              "label": "Agildata",
+              "nota": "NUNCA trae score: 0 de 202 filas medidas"
+            },
+            {
+              "id": 4,
+              "label": "TusDatos - AML"
+            },
+            {
+              "id": 5,
+              "label": "Ado"
+            },
+            {
+              "id": 6,
+              "label": "Mareigua"
+            },
+            {
+              "id": 7,
+              "label": "Deceval"
+            },
+            {
+              "id": 8,
+              "label": "Experian - Quanto"
+            },
+            {
+              "id": 9,
+              "label": "Experian - Acierta+Quanto",
+              "nota": "entrada SEPARADA de Acierta: se puede consultar esta y no aquella (visto en la uReq 519245 de prod)"
+            },
+            {
+              "id": 10,
+              "label": "crosscore - Experian"
+            },
+            {
+              "id": 11,
+              "label": "evidente - Experian"
+            }
+          ]
+        }
+      ]
+    },
+    "cupo": {
+      "bloques": [
+        {
+          "id": "categoria",
+          "label": "Categoría del cliente",
+          "tipo": "hitos",
+          "nota": "⚠ La familia CATEGORY_* sale de UN método (LenderUserCategoryService::getLenderUserCategory) que llaman TRES sitios de DOS etapas (cupo y listado). El context no trae quién llamó, así que la atribución es IMPOSIBLE de medir hoy y vive acá por la regla de dueño único. El arreglo real es pedirle al backend un campo `source` en ese log, como ya lo tiene la familia Experian.",
+          "hitos": [
+            {
+              "id": "cat-start",
+              "label": "Evaluación de categoría",
+              "matcher": {
+                "tipo": "prefijo",
+                "patron": "CATEGORY_EVALUATION_START"
+              }
+            },
+            {
+              "id": "cat-scoring",
+              "label": "Scoring",
+              "matcher": {
+                "tipo": "regex",
+                "patron": "FIELD_SCORING_COMPLETED|PAYMENT_CAPACITY_SCORING_COMPLETED"
+              }
+            },
+            {
+              "id": "cat-rechazo",
+              "label": "Regla de categoría rechazada",
+              "matcher": {
+                "tipo": "prefijo",
+                "patron": "CATEGORY_RULE_REJECTED"
+              }
+            },
+            {
+              "id": "cat-ok",
+              "label": "Categoría aprobada",
+              "matcher": {
+                "tipo": "prefijo",
+                "patron": "CATEGORY_EVALUATION_APPROVED"
+              }
+            }
+          ]
+        },
+        {
+          "id": "quota",
+          "label": "Cupo disponible",
+          "tipo": "hitos",
+          "hitos": [
+            {
+              "id": "quota-start",
+              "label": "Cálculo del cupo",
+              "matcher": {
+                "tipo": "prefijo",
+                "patron": "QUOTA_CHECK_START"
+              }
+            },
+            {
+              "id": "quota-ok",
+              "label": "Cupo aprobado",
+              "matcher": {
+                "tipo": "prefijo",
+                "patron": "QUOTA_CHECK_APPROVED"
+              }
+            },
+            {
+              "id": "quota-rechazo",
+              "label": "Cupo rechazado",
+              "matcher": {
+                "tipo": "prefijo",
+                "patron": "QUOTA_CHECK_REJECTED"
+              },
+              "porque": "trae `reason` y `lender_name`: es el veredicto de por qué una entidad no se mostró"
+            },
+            {
+              "id": "quota-error",
+              "label": "Error calculando el cupo",
+              "matcher": {
+                "tipo": "prefijo",
+                "patron": "QUOTA_CHECK_ERROR"
+              },
+              "soloEnCodigo": true,
+              "porque": "existe en el código (1 archivo) pero los errores de cupo son raros: no cayó en la ventana medida"
+            }
+          ]
+        }
+      ]
+    },
+    "listado": {
+      "bloques": [
+        {
+          "id": "familias",
+          "label": "Entidades por familia",
+          "tipo": "familias",
+          "nota": "⚠ Una solicitud NO elige una familia acá: evalúa entidades de TODAS a la vez (medido en la uReq 464630: 12 entidades entre las cuatro). El camino elegido recién existe en `seleccion`. Un árbol que mostrara «fue por agregador» en el listado estaría mintiendo.",
+          "valores": [
+            {
+              "id": "creditopx",
+              "label": "CreditopX · decide in-platform",
+              "rt": [
+                2,
+                3,
+                4
+              ]
+            },
+            {
+              "id": "agregador",
+              "label": "Agregador · decide la API externa",
+              "rt": [
+                1
+              ]
+            },
+            {
+              "id": "redirect",
+              "label": "Redirect / UTM · desenlace afuera",
+              "rt": [
+                0
+              ]
+            },
+            {
+              "id": "credifamilia",
+              "label": "Credifamilia · KYC V2 y SOAP",
+              "lender": 24
+            }
+          ],
+          "hijos": {
+            "tipo": "dinamico",
+            "fuente": "loki:lender_id + lender_name  →  db:lenders.response_type",
+            "nota": "Los lenders NO se declaran: son 156 y su `response_type` cambia por ambiente (medido: Sistecrédito rt=1 en local, rt=0 en prod). La familia se resuelve en la corrida, contra la BD del target."
+          }
+        }
+      ]
+    },
+    "seleccion": {
+      "bloques": [
+        {
+          "id": "elegida",
+          "label": "Entidad elegida",
+          "tipo": "dinamico",
+          "fuente": "db:user_requests.lender_id",
+          "nota": "El ÚNICO punto del flujo donde hay un camino elegido. `seleccion` no tiene matchers de log a propósito: se verificó en código que ninguna de las dos rutas de selección escribe al tracer, así que la BD (estado 3 + lender_id) es la única fuente. Declarar un matcher aproximado sería inventar."
+        }
+      ]
+    },
+    "desembolso": {
+      "bloques": [
+        {
+          "id": "hitos",
+          "label": "Cierre",
+          "tipo": "hitos",
+          "nota": "El canal QR NUNCA pasa por el estado 11: sella en 25 «Pendiente de facturación» y los crons de conciliación lo mueven a 26 «Facturado». || ⚠ CORREGIDO 2026-08-05: los patrones anteriores (`authorize`, `disburse`, `promissory`) eran nombres de MÉTODO y de endpoint, no textos de log — el mismo error que dejó cinco matchers mudos en etapas.json. Los de abajo salen de grepear los strings reales de Log:: en Modules/Loans.",
+          "hitos": [
+            {
+              "id": "firma",
+              "label": "Firma del pagaré (Netco)",
+              "matcher": {
+                "tipo": "prefijo",
+                "patron": "netco.signFiles"
+              },
+              "porque": "el string real es `netco.signFiles.response`, verificado en Modules/Loans/App/Services/Signing. No cayó en la ventana medida: en 4 horas de producción no hubo una firma de pagaré.",
+              "soloEnCodigo": true
+            },
+            {
+              "id": "firma-error",
+              "label": "Error firmando en Netco",
+              "matcher": {
+                "tipo": "regex",
+                "patron": "Netco"
+              },
+              "soloEnCodigo": true,
+              "porque": "«Error al firmar el documento en Netco.», «Autenticación con Netco rechazada.» — existen en código, no aparecieron en la ventana medida"
+            },
+            {
+              "id": "autorizada",
+              "label": "Confirmación de aprobación",
+              "matcher": {
+                "tipo": "prefijo",
+                "patron": "Error en ApprovedConfirmationController"
+              },
+              "soloEnCodigo": true,
+              "porque": "solo hay log del camino de ERROR: el éxito no se loguea, así que esta etapa se prueba por la BD (estado 11/28)"
+            },
+            {
+              "id": "voucher",
+              "label": "Notificación del voucher",
+              "matcher": {
+                "tipo": "prefijo",
+                "patron": "voucher_disbursement_notification_failed"
+              },
+              "soloEnCodigo": true,
+              "porque": "solo el fallo tiene log"
+            },
+            {
+              "id": "cancel-bloqueado",
+              "label": "Cancelación bloqueada (ya autorizada)",
+              "matcher": {
+                "tipo": "prefijo",
+                "patron": "safe_cancel_blocked_already_authorized"
+              },
+              "soloEnCodigo": true
+            }
+          ]
+        }
+      ]
+    },
+    "respuesta-lender": {
+      "bloques": [
+        {
+          "id": "diagnostico",
+          "label": "¿Respondió el lender?",
+          "tipo": "hitos",
+          "nota": "Los tres casos NO se distinguen con una sola señal, y ahí está el valor: «no llegó» y «llegó y falló» se ven igual desde la BD (disbursed_lender vacío en los dos) y sólo la excepción HTTP los separa. Confundirlos manda a revisar el lugar equivocado: uno es un problema del agregador y el otro nuestro.",
+          "hitos": [
+            {
+              "id": "aplicado",
+              "label": "Llegó y se aplicó",
+              "matcher": null,
+              "porque": "profiling_reviews.disbursed_lender tiene valor → se resuelve por BD, no por log"
+            },
+            {
+              "id": "fallo",
+              "label": "Llegó y falló",
+              "matcher": {
+                "tipo": "regex",
+                "patron": "lender-result",
+                "campo": "url"
+              },
+              "porque": "la excepción HTTP con la url del webhook: es NUESTRO problema, el agregador sí respondió"
+            },
+            {
+              "id": "no-llego",
+              "label": "No llegó",
+              "matcher": null,
+              "porque": "sin disbursed_lender y sin excepción: no hay evidencia de que el webhook haya entrado. ⚠ Es una inferencia por AUSENCIA, y el webhook no loguea su recepción, así que NO se puede afirmar — se declara como «sin evidencia de recepción», no como «el agregador no llamó»."
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

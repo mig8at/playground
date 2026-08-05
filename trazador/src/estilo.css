@@ -1,0 +1,34 @@
+/* El vocabulario visual, en un solo lugar. Es el de GitHub Actions a propósito: check verde, paso que se
+   abre, log con números de línea — el equipo ya lo lee sin que nadie lo explique. */
+:root {
+  --bg:#0d1117; --panel:#161b22; --panel2:#010409; --line:#30363d; --txt:#e6edf3; --dim:#8b949e;
+  --ok:#3fb950; --warn:#d29922; --fail:#f85149; --skip:#6e7681; --unknown:#a371f7; --accent:#58a6ff;
+  --sel:#1f6feb26;
+}
+@media (prefers-color-scheme: light) {
+  :root { --bg:#fff; --panel:#f6f8fa; --panel2:#f6f8fa; --line:#d0d7de; --txt:#1f2328; --dim:#59636e;
+    --ok:#1a7f37; --warn:#9a6700; --fail:#cf222e; --skip:#6e7781; --unknown:#8250df; --accent:#0969da;
+    --sel:#0969da14; }
+}
+* { box-sizing: border-box }
+body { margin:0; background:var(--bg); color:var(--txt);
+  font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif }
+button { font: inherit; color: inherit }
+input { font: inherit }
+
+/* estados: un solo juego de clases para etapas, hitos y puntos */
+.ok{color:var(--ok)} .warn{color:var(--warn)} .fail{color:var(--fail)}
+.skip{color:var(--skip)} .unknown{color:var(--unknown)} .pendiente{color:var(--skip)}
+
+.ico { flex:0 0 20px; height:20px; border-radius:50%; display:grid; place-items:center;
+  font-size:12px; font-weight:700; color:#fff }
+.ico.ok{background:var(--ok)} .ico.warn{background:var(--warn)} .ico.fail{background:var(--fail)}
+.ico.skip,.ico.pendiente{background:transparent; color:var(--skip); border:1px solid var(--line)}
+.ico.unknown{background:transparent; color:var(--unknown); border:1px dashed var(--unknown)}
+.ico.big{flex:0 0 26px; height:26px; font-size:15px}
+
+.badge { display:inline-block; padding:1px 9px; border-radius:999px; font-size:12px; font-weight:600;
+  border:1px solid currentColor }
+.src { font-size:10px; color:var(--dim); border:1px solid var(--line); border-radius:4px; padding:0 5px;
+  white-space:nowrap }
+.dim { color:var(--dim) }

@@ -1,0 +1,275 @@
+{
+  "nota": "Las variantes del flujo. Los ids son los MISMOS que usa `harness/panel/steps.json` a propósito: dos vocabularios para lo mismo es como empiezan a derivar. Qué pasos aplican a cada ramal lo llena el workflow, leyendo los nodos ya validados de `context/`. || RELLENADO 2026-08-05 leyendo los nodos ya validados de context/ (creditopx, aggregator, redirect, credifamilia) + panel/steps.json, un agente por ramal, cada uno citando el doc que respalda su decisión.",
+  "ramales": [
+    {
+      "id": "creditopx",
+      "label": "CreditopX · decide in-platform",
+      "rt": [
+        2,
+        3,
+        4
+      ],
+      "pasos": [
+        {
+          "id": "origen",
+          "obligatorio": false,
+          "porque": "APLICA: el rt=2 entra por los tres canales del wizard ({flow} ∈ ecommerce|merchant|self-service, harness/panel/steps.json:2). NO es obligatoria: en el censo esta etapa solo tiene líneas de QR/Corbeta y de los spans Is*Ecommerce*Service (map"
+        },
+        {
+          "id": "registro",
+          "obligatorio": true,
+          "porque": "APLICA y es obligatoria: el `user_request` NACE en la validación del OTP (steps.json:54 → UserRequestService::createUserRequest), así que sin registro no hay solicitud que trazar. EVIDENCIA SOLO EN BD: la etapa tiene CERO matchers en el cen"
+        },
+        {
+          "id": "formulario",
+          "obligatorio": false,
+          "porque": "APLICA pero NO es obligatoria, porque sus dos pasos son CONDICIONALES: Identidad aparece solo con ONB002 = PERSONAL_INFO_REQUIRED y, si el usuario ya está registrado y completo, el OTP manda DIRECTO a /lenders (steps.json:70, otp-verificati"
+        },
+        {
+          "id": "buro",
+          "obligatorio": true,
+          "porque": "APLICA y es obligatoria como ETAPA, pero la ausencia de consulta NUEVA no prueba falla. Por qué aplica: acá el riesgo se evalúa LOCALMENTE y el datacrédito rt=2 corre inline dentro de la cascada del listado (creditopx/doc.md:27 → LenderVali"
+        },
+        {
+          "id": "cupo",
+          "obligatorio": true,
+          "porque": "APLICA, es obligatoria y es LA etapa que define el ramal — el contraste exacto con agregador: acá el cupo lo decide el motor LOCAL, sin API externa de decisión (creditopx/doc.md:5), así que SÍ se observa en el backend. Para rt=2 es un FILTR"
+        },
+        {
+          "id": "listado",
+          "obligatorio": true,
+          "porque": "APLICA y es obligatoria: toda la decisión de este ramal vive en la cascada de `getLenders` (creditopx/doc.md:22-32) y sin listado el cliente no puede elegir. Es la etapa con más veredictos por entidad del censo: «Resultado de evaluación de "
+        },
+        {
+          "id": "seleccion",
+          "obligatorio": true,
+          "porque": "APLICA y es obligatoria: la selección es literalmente lo que ABRE este ramal — el POST update-user-request entra al switch por `lenders.response_type` y para 2/3/4 sin credencial devuelve standBy + la URL a /self-service/{hash}/{ur}/confirm"
+        },
+        {
+          "id": "desembolso",
+          "obligatorio": true,
+          "porque": "APLICA y es obligatoria: creditopx es el ÚNICO ramal que cierra in-platform hasta el Estado 11 (creditopx/doc.md:2 y :5); la secuencia es pagaré (steps.json:212 — el loader GENERA los documentos, sin ese GET el authorize muere) → OTP de fir"
+        }
+      ],
+      "noAplica": [
+        {
+          "id": "respuesta-lender",
+          "obligatorio": false,
+          "porque": "rt=2 decide in-platform: no hay webhook que esperar"
+        }
+      ],
+      "fuentes": [
+        "/Users/miguelochoa/Desktop/CREDITOP/playground/context/server/data/flows/creditopx/doc.md:2,5,7,22,25,27,28,32,35,36,37,38,45-49,52-57,62,64,66",
+        "/Users/miguelochoa/Desktop/CREDITOP/playground/context/docs/ROUTE-MAP.md:87-89 (nodo creditopx, reference, 15 archivos)",
+        "/Users/miguelochoa/Desktop/CREDITOP/playground/harness/panel/steps.json:2,54,70,87-89,106,113,131,148,194,212,227,241,366-393,397-403,406-427",
+        "/Users/miguelochoa/Desktop/CREDITOP/playground/trazador/mapa/etapas.json:3 (nota del censo, 313 mensajes),6-62 (origen),63-74 (registro),75-293 (formulario),294+ (buro),885+ (cupo, bd vacío),1011+ (listado),1233 (seleccion sin matchers),1248 (desembolso)",
+        "/Users/miguelochoa/Desktop/CREDITOP/playground/trazador/mapa/ramales.json:4 (creditopx, rt [2,3,4], pasos vacío)",
+        "/Users/miguelochoa/Desktop/CREDITOP/github/legacy-backend/Modules/Loans/App/Http/Controllers/Customer/CreditopXQuotaController.php:82,98,386,471,564,647,693 (QUOTA_CHECK_* — verificado en main)"
+      ]
+    },
+    {
+      "id": "agregador",
+      "label": "Agregador · decide la API externa del lender",
+      "rt": [
+        1
+      ],
+      "pasos": [
+        {
+          "id": "origen",
+          "obligatorio": true,
+          "porque": "Aplica igual que en cualquier ramal: el response_type no cambia por donde entro el cliente, y el propio nodo pone la entrada en el TRONCO comun (\"Dos capas independientes sobre el tronco comun (entrada -> OTP -> datos -> marketplace /lender"
+        },
+        {
+          "id": "registro",
+          "obligatorio": true,
+          "porque": "Tronco puro: monto -> celular -> OTP (harness/panel/steps.json:5-56), y el user_request NACE al validar el OTP (steps.json:54, UserRequestService::createUserRequest) -> ninguna solicitud rt=1 puede existir sin haber pasado por aca. Tambien "
+        },
+        {
+          "id": "formulario",
+          "obligatorio": false,
+          "porque": "Aplica (tronco, aggregator/doc.md:12) pero NO es obligatoria en una traza, y esto no es matiz: sus dos pasos son condicionales -- personal-info solo con ONB002 y employment-info solo con ONB004 (steps.json:70-72 y :87-89) -- y hay un bypass"
+        },
+        {
+          "id": "buro",
+          "obligatorio": false,
+          "porque": "Aplica: el buro lo dispara el TRONCO al guardar los datos laborales (OnboardingService::alliedsLendersValidator -> Experian y DatacreditoQueryByAlliedController::userViability, steps.json:87), no el ramal. NO es obligatoria, y la razon es p"
+        },
+        {
+          "id": "cupo",
+          "obligatorio": false,
+          "porque": "APLICA A MEDIAS, y es la diferencia mas grande con rt=2 -- hay que declararla. Para rt=1 CreditOp NO calcula el cupo: llega horneado en la respuesta del lender externo y \"No hay /available-quota para rt=1\" (aggregator/doc.md:15, :5). Consec"
+        },
+        {
+          "id": "listado",
+          "obligatorio": true,
+          "porque": "ES la etapa del ramal: la pre-aprobacion por entidad es lo unico que CreditOp decide en rt=1 (aggregator/doc.md:14-16). Obligatoria: sin listado no hay entidad que elegir, y el ramal no existe. NO tiene esqueleto en la BD -- displayed_lende"
+        },
+        {
+          "id": "seleccion",
+          "obligatorio": true,
+          "porque": "Obligatoria POR CONSTRUCCION: el ramal no se puede ni identificar antes de esta etapa. El trazador deduce el rt del lender ya sellado en la solicitud (l.response_type por LEFT JOIN sobre ur.lender_id, trazador/etapas.go:196-212); sin selecc"
+        },
+        {
+          "id": "desembolso",
+          "obligatorio": false,
+          "porque": "Aplica, pero con OTRO significado que en creditopx: en rt=1 el desembolso lo ejecuta y aprueba el LENDER EXTERNO; CreditOp \"no desembolsa, no firma y no lleva servicing post-desembolso: solo espeja el estado por webhook, polling o el retorn"
+        },
+        {
+          "id": "respuesta-lender",
+          "obligatorio": true,
+          "porque": "para rt=1 el veredicto viene de afuera por webhook: sin esta etapa la solicitud no avanza"
+        }
+      ],
+      "noAplica": [
+        {
+          "id": "cupo:motor-rt2",
+          "obligatorio": false,
+          "porque": "Ninguna de las OCHO etapas queda completamente fuera del ramal agregador, asi que lo que no aplica son MECANISMOS dentro de una etapa, y los declaro con id compuesto para que nadie los confunda con una etapa suprimida (en trazador/mapa.go:2"
+        },
+        {
+          "id": "desembolso:pagare-firma-autorizacion",
+          "obligatorio": false,
+          "porque": "Pagare, firma por OTP y authorize son de creditopx (harness/panel/steps.json ramal creditopx: sign-documents :199, otp-validation :216, loan-approved :231). En rt=1 CreditOp no firma ni desembolsa (aggregator/doc.md:5), asi que en una traza"
+        },
+        {
+          "id": "desembolso:servicing-postdesembolso",
+          "obligatorio": false,
+          "porque": "El servicing (cartera, mora, cuotas; los 6 crons diarios de CreditopX) lo gestiona el lender externo, no CreditOp (aggregator/doc.md:5). No hay etapa posterior al espejo que buscar en los logs de CreditOp para rt=1, asi que un vacio despues"
+        }
+      ],
+      "fuentes": [
+        "/Users/miguelochoa/Desktop/CREDITOP/playground/context/server/data/flows/aggregator/doc.md — :2 (encabezado: \"al dia con main\"), :5 (CreditOp solo origina; la API externa decide monto y cupo; no desembolsa, no firma, no servicing: solo espeja), :12 (tronco comun entrada->OTP->datos->/lenders), :14-16 (las dos capas de pre-aprobacion; v2 = MS Go + espejo storeLenderResult), :18 (seleccion -> POST update-user-request, estado 3, case 1 -> register()/consult()/validate()), :29 (desembolso lo ejecuta el lender externo; LenderTransaction espejo; webhook/polling/webhook propio), :31 (estados 3/6/7/8/10/11/26 + estados propios de LenderTransaction), :33 (minimos de monto quemados), :35 (Prami exige Experian real; CredentialScope), :37 (Corbeta = canal QR sobre Bancolombia rt=1, estado 26), :39 (frontera de simulacion), :42-48 (donde mirar), :54 (filtro [12,23,141,142,166] TEMPORAL: erroran por falta de datos previos de employment-info), :63 (webhook Bancolombia en legacy-backend = copia muerta; rutas vivas en application/routes/api.php:21-30)",
+        "/Users/miguelochoa/Desktop/CREDITOP/playground/context/docs/ROUTE-MAP.md — :55-57 (nodo aggregator), :75-77 (subnodo bancolombia: \"el unico rt=1 con originacion completa DENTRO de CreditOp\"), :79-81 (corbeta re-parentado a merchants; sus tres retail solo tienen 68 y 100)",
+        "/Users/miguelochoa/Desktop/CREDITOP/playground/harness/panel/steps.json — tronco :5-108 (monto/celular/OTP/personal-info/employment-info/lenders; :54 el user_request nace en el OTP; :70-72 y :87-89 pasos condicionales ONB002/ONB004; :87 el buro se dispara al guardar lo laboral), ramal agregador :246-293 (:248 cuando entra el case 1 y que el wizard no navega a ruta propia; :251-265 integracion; :267-280 espera/transaction-status; :283-292 resultado por webhook NO routeado en legacy + EcommerceSimulatorController como doble de prueba), ramal creditopx :111-244 (la cola pagare/firma/aprobado que NO aplica), bypass :397-404 (usuario ya registrado: OTP -> /lenders)",
+        "/Users/miguelochoa/Desktop/CREDITOP/playground/harness/pkg/qr-steps.ts:60-66 y :143-150 — el canal QR de Bancolombia SI pasa por celular + OTP, y el OTP es el punto de decision del canal (bnpl / consumo / no-preapproved)",
+        "/Users/miguelochoa/Desktop/CREDITOP/playground/trazador/mapa/etapas.json — el censo asignado (313 mensajes, 2026-08-05): nota general (preferencia exacto>prefijo>regex; \"seleccion queda SIN matchers a proposito\"), origen (Corbeta checkout started/finished), formulario (22 matchers), buro (55 matchers, familias de omision legitima), cupo (motor rt=2 + las TRES lineas rt=1 de Bancolombia BNPL), listado (22 matchers: pre-aprobados, veredicto por entidad, Exception in lenderServiceFactory->consult()), desembolso (Corbeta cancellation, ecommerce_store_notify_failed). Grep verificado: NINGUN matcher ni decision del censo proviene de preapprovals-service",
+        "/Users/miguelochoa/Desktop/CREDITOP/playground/trazador/mapa/ramales.json — los 4 ramales y la convencion de ids compartida con harness/panel/steps.json"
+      ]
+    },
+    {
+      "id": "redirect",
+      "label": "Redirect / UTM · el desenlace ocurre afuera",
+      "rt": [
+        0
+      ],
+      "pasos": [
+        {
+          "id": "origen",
+          "obligatorio": true,
+          "porque": "Aplica a todo ramal: rt=0 es una familia de LENDER, ortogonal al canal. El cliente recorre el mismo tronco del wizard (harness/panel/steps.json:3-108) y el ramal redirect recién se abre DESPUÉS de /lenders (steps.json:295-297). Obligatoria "
+        },
+        {
+          "id": "registro",
+          "obligatorio": true,
+          "porque": "Tronco previo a cualquier ramal: el user_request NACE al validar el OTP (steps.json:54) y el registro de celular + TyC es el paso anterior (steps.json:37). Obligatoria: sin estados 1/2 (mapa/etapas.json:63-72) no existe la solicitud que des"
+        },
+        {
+          "id": "formulario",
+          "obligatorio": false,
+          "porque": "Aplica (es tronco: personal-info + employment-info) pero es CONDICIONAL por diseño: solo se muestra si el backend lo pide (ONB002 / ONB004), y un usuario ya registrado y completo salta del OTP DIRECTO a /lenders (steps.json:70, :87 y el byp"
+        },
+        {
+          "id": "buro",
+          "obligatorio": false,
+          "porque": "Aplica pero NO es obligatoria, y en este ramal es la etapa más fácil de malinterpretar. Se dispara en el TRONCO al guardar lo laboral (Experian + DatacreditoQueryByAlliedController::userViability, steps.json:87), o sea por comercio/flujo y "
+        },
+        {
+          "id": "listado",
+          "obligatorio": true,
+          "porque": "Imprescindible: el redirect solo existe si la card se mostró — «CreditOp muestra la card en el marketplace y, al seleccionarla, resuelve una url_utm» (doc.md:5) — y es el listado el que carga url_utm en la card (doc.md:31 → ListLenderContro"
+        },
+        {
+          "id": "seleccion",
+          "obligatorio": true,
+          "porque": "Es LA etapa del ramal y la ÚLTIMA observable: al seleccionar, el backend resuelve la URL (branch->url_utm con fallback a allied->url_utm) y SALE — «case 0: case 1:» solo devuelve url_utm (doc.md:12-21; UserRequestService.php:442 sin credenc"
+        }
+      ],
+      "noAplica": [
+        {
+          "id": "cupo",
+          "obligatorio": false,
+          "porque": "No existe para rt=0. «Nadie decide el crédito dentro de la plataforma»: la decisión, el monto y el desenlace ocurren afuera, sin retorno (doc.md:5), y el código lo confirma — case 0 devuelve url_utm y sale, rt=0 nunca integra ni siquiera co"
+        },
+        {
+          "id": "desembolso",
+          "obligatorio": false,
+          "porque": "Imposible dentro de CreditOp: «No hay Estado 11, ni webhook, ni polling, ni cron post-desembolso» y «El cliente sale a una URL del prestamista y la responsabilidad de Creditop termina» (doc.md:25); es el ÚNICO response_type sin ningún mecan"
+        },
+        {
+          "id": "respuesta-lender",
+          "obligatorio": false,
+          "porque": "el desenlace de rt=0 ocurre afuera y no vuelve por webhook"
+        }
+      ],
+      "fuentes": [
+        "/Users/miguelochoa/Desktop/CREDITOP/playground/context/server/data/flows/redirect/doc.md:5 (nadie decide adentro; decisión/monto/desenlace afuera sin retorno), :12-21 (switch de ruteo: case 0: case 1: → url_utm; rt=0 nunca integra), :23 (front STANDARD=0, excluye rt=0 de pre-aprobación, external-redirect/popup), :25 (sin Estado 11, sin webhook, sin polling, sin cron), :29-31 (url_utm COALESCE branch→allied; listado carga url_utm en la card), :38 (único response_type sin mecanismo de cierre), :40 (gate response_type==0 comentado en ListLenderController.php:106), :41 (familia latente: default rt=1, ningún seeder nace rt=0)",
+        "/Users/miguelochoa/Desktop/CREDITOP/playground/harness/panel/steps.json:3-108 (tronco monto→phone→otp→personal-info→employment-info→lenders), :37 (POST phone/register), :54 (acá NACE el user_request), :70 (personal-info condicional ONB002), :87 (employment-info dispara el buró: Experian + userViability), :106 (loader lenders-v2 + switch por response_type), :295-316 (ramal redirect: cuando + único paso «salida», el wizard TERMINA acá, LenderTabBehaviorResolver, user_self_management→WhatsApp), :398-403 (bypass usuario ya registrado: OTP→lenders)",
+        "/Users/miguelochoa/Desktop/CREDITOP/playground/trazador/mapa/etapas.json:3 (nota: seleccion SIN matchers a propósito, no tiene mensajes propios en el censo), :63-72 (registro = estados 1,2), :634-731 (decisiones de omisión de buró: usuario TEMPORAL, throttle de frecuencia, bypass del allied, caché <1 mes), :888-919 (cupo rt=2: QUOTA_CHECK_* / CATEGORY_*), :922-934 (cupo rt=1: Bancolombia BNPL), :1014-1015 (listado sin esqueleto en BD), :1058-1060 (Resultado de evaluación de reglas para entidad), :1068-1076 (pasada de pre-aprobados), :1237-1245 (seleccion = estado 3 + user_requests/lenders), :1252-1261 (desembolso = estados 10,11,28,5,25,26)",
+        "/Users/miguelochoa/Desktop/CREDITOP/playground/trazador/etapas.go:102-109 (estadoEtapa), :119 (sellados = 11,28,5,25,26 — no incluye 3), :319-320 (origen lo prueba la existencia de la solicitud), :375-381 (listado y cupo → sin-evidencia), :549-557 y :651-665 (BrokeAt / etapaDeMuerte)",
+        "/Users/miguelochoa/Desktop/CREDITOP/github/legacy-backend Modules/Onboarding/App/Services/UserRequestService.php:288-297 EN main (VERIFICADO con git show main: updateUserRequest escribe user_request_status_id=3 «Seleccion de entidad» + lender_id antes del switch por response_type y sin condicionar por rt) y el switch case 0 → data['url']=$url (mismo archivo, ~:441/:466)",
+        "/Users/miguelochoa/Desktop/CREDITOP/github/legacy-backend Modules/Onboarding/App/Services/lenders/PreApprovedLenderService.php EN main (grep: NO contiene ninguna referencia a response_type — la exclusión de rt=0 de la pre-aprobación que cita el doc es del FRONT, available-lenders.tsx:150; qué hace el factory del backend con un lender rt=0 NO lo verifiqué)"
+      ]
+    },
+    {
+      "id": "credifamilia",
+      "label": "Credifamilia · KYC V2 y radicación SOAP",
+      "pasos": [
+        {
+          "id": "origen",
+          "obligatorio": true,
+          "porque": "Aplica siempre: la etapa la prueba la existencia misma de la solicitud (trazador/etapas.go:319-320) y sale de la BD, no de los logs (trazador/etapas.go:88 y mapa/etapas.json origen.porque). Para este ramal el doc describe el handoff asesor↔"
+        },
+        {
+          "id": "registro",
+          "obligatorio": true,
+          "porque": "Aplica y es obligatoria: es tronco compartido por los cuatro ramales. El `user_request` NACE en el OTP (harness/panel/steps.json:54) y los estados 1 ('Validación OTP') y 2 ('Cédula cargada') son los que la prueban (trazador/etapas.go:103; n"
+        },
+        {
+          "id": "formulario",
+          "obligatorio": false,
+          "porque": "Aplica, pero OPCIONAL: las pantallas del tronco (personal-info / employment-info) son condicionales — sólo salen con ONB002/ONB004, y con el bypass de usuario ya registrado el OTP manda DIRECTO a /lenders (steps.json:70, :72, :400-402). Que"
+        },
+        {
+          "id": "buro",
+          "obligatorio": true,
+          "porque": "Aplica y es MÁS obligatoria acá que en cualquier otro ramal: la compuerta local de Credifamilia entra sólo `if (isset($this->user->datacredito))` (legacy-backend app/Http/Controllers/Customer/SpecialConditionsController.php:61) y `credifami"
+        },
+        {
+          "id": "listado",
+          "obligatorio": true,
+          "porque": "Aplica y es obligatoria: es donde Credifamilia aparece con `'Pre aprobado'` (doc.md:22), `'Rechazado'` o su tercer estado propio `'En validación'` para el pending async (ms-preapprovals/doc.md:66). Sin esqueleto en BD (`displayed_lenders` n"
+        },
+        {
+          "id": "seleccion",
+          "obligatorio": true,
+          "porque": "Aplica y es obligatoria: estado 3 'Seleccionó entidad' (trazador/etapas.go:105; nombre verificado en el catálogo local). doc.md:22: '/lenders → seleccionar → update-user-request'. Sin matchers a propósito (mapa/etapas.json nota: 'seleccion "
+        },
+        {
+          "id": "desembolso",
+          "obligatorio": true,
+          "porque": "Aplica y es obligatoria (su ausencia = la solicitud no cerró). Recorrido: first-payment-date + plan de cuotas dinámico → payment-schedule → sign-documents (pagaré **Deceval** + docs **Netco**, OTP) → authorize (Estado 11) → formalización SO"
+        },
+        {
+          "id": "respuesta-lender",
+          "obligatorio": false,
+          "porque": "Credifamilia radica por SOAP, no por este webhook"
+        }
+      ],
+      "noAplica": [
+        {
+          "id": "cupo",
+          "obligatorio": false,
+          "porque": "`cupo` (Cupo / POS) NO aplica como etapa observable en los logs de legacy-backend — mismo caso que planteaste para `agregador`, y por dos motivos verificados en código. (1) **El motor de cupo rt=2 nunca corre para este lender**: `stampCredi"
+        }
+      ],
+      "fuentes": [
+        "/Users/miguelochoa/Desktop/CREDITOP/playground/context/server/data/flows/credifamilia/doc.md — líneas 2, 4 (bloqueos locales: pdf-mapper, Deceval X.509, Netco, 'Queda en estado 28'), 7 (lender 24, único rt=4), 11 (gate local + decisión final del lender), 13 (cierre SOAP + polling, 'estados 40/41'), 14 (simulable parcial), 18 (único con polling /v1/preapprovals/check y plan dinámico), 20 (SOAP en Estado 11 si rt==4), 22 (recorrido punta a punta), 29-36 (skip_lender_validation en loan-options), 43 (SpecialConditionsController = bonificación), 44 (form_type 6 servido por form-service, MS Go, no legacy), 48 (gate exigente: economicSector==1, ≥12 N, cuota×1000/ingreso ≤ 0.4), 49 (ambigüedad crítica rt=2 vs rt=4), 52 (form_type 6 sin seeder; flow self-service para verlo)",
+        "/Users/miguelochoa/Desktop/CREDITOP/playground/context/server/data/flows/ms-preapprovals/doc.md — líneas 64 (adapter credifamilia: status==3 && APROBADO, pending para 0/1/2/4, cupo = ValorDisponibleParaComprar, timeout 30s), 66 (buildContractFields propio con el tercer estado 'En validación'), 93 (el front postea visibleLoanOptions a /lender-results), 96 (PreApprovedLenderService::validatePreApproveLender: switch por lender->id, empuja o excluye con unset), 102, 109 (único async)",
+        "/Users/miguelochoa/Desktop/CREDITOP/playground/context/server/data/flows/creditop/doc.md:36 — lender_transaction_statuses es namespace propio (ej. 40/41), espejo de rt=1 y de Credifamilia SOAP",
+        "/Users/miguelochoa/Desktop/CREDITOP/playground/context/server/data/flows/findings/doc.md:378 y :386 — verify-otp → estado 28; el cierre se traba en 28 con 502 createGirador (Deceval)",
+        "/Users/miguelochoa/Desktop/CREDITOP/playground/context/server/data/flows/application/doc.md:89 — la duda declarada sobre si SpecialConditionsController está vivo o muerto (resuelta acá contra código: está vivo en legacy)",
+        "/Users/miguelochoa/Desktop/CREDITOP/playground/context/docs/ROUTE-MAP.md:83-85 — ficha del nodo credifamilia (reference, 135 archivos, padre entities)"
+      ]
+    }
+  ]
+}
