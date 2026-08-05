@@ -1,6 +1,6 @@
 {
-  "version": "1.1",
-  "nota": "El ÁRBOL DECLARADO: qué sub-pasos tiene cada etapa, para poder dibujar la vista completa ANTES de tener un solo dato y después ir encendiendo lo que la corrida confirma. || LA FRONTERA, que es la decisión de diseño de este archivo: se declara lo que tiene universo CERRADO y estable (los hitos del flujo, las cuatro familias de entidades) y NO se declara lo que es DATO variable (los lenders concretos: son 156 y su response_type cambia por ambiente — medido: Sistecrédito es rt=1 en local y rt=0 en prod, o sea que la misma entidad cae en familias distintas. Declararlos haría que este JSON mintiera en algún ambiente). || LOS HITOS NO SE INVENTARON: salen de los matchers ya medidos en etapas.json, y los de `buro` los nombra el propio backend con sus STAGE 0..4. Cuando el código ya tiene un vocabulario, usar otro es agregar una capa de traducción que nadie pidió. || REGLA: el matcher de un hito tiene que ser un SUBCONJUNTO de los de su etapa. Si un hito captura una línea que su etapa no reclama, el árbol muestra un sub-paso que no cuelga de nada. || `soloEnCodigo: true` marca un hito cuyo mensaje EXISTE en el código pero no apareció en el corpus medido. Es distinto de un patrón MAL escrito, y confundirlos es cómo un validador se vuelve ruidoso y se ignora: `-validar` los reporta aparte, como aviso y no como problema.",
+  "version": "1.2",
+  "nota": "El ÁRBOL DECLARADO: qué sub-pasos tiene cada etapa, para poder dibujar la vista completa ANTES de tener un solo dato y después ir encendiendo lo que la corrida confirma. || LA FRONTERA, que es la decisión de diseño de este archivo: se declara lo que tiene universo CERRADO y estable (los hitos del flujo, las cuatro familias de entidades) y NO se declara lo que es DATO variable (los lenders concretos: son 156 y su response_type cambia por ambiente — medido: Sistecrédito es rt=1 en local y rt=0 en prod, o sea que la misma entidad cae en familias distintas. Declararlos haría que este JSON mintiera en algún ambiente). || LOS HITOS NO SE INVENTARON: salen de los matchers ya medidos en etapas.json, y los de `buro` los nombra el propio backend con sus STAGE 0..4. Cuando el código ya tiene un vocabulario, usar otro es agregar una capa de traducción que nadie pidió. || REGLA: el matcher de un hito tiene que ser un SUBCONJUNTO de los de su etapa. Si un hito captura una línea que su etapa no reclama, el árbol muestra un sub-paso que no cuelga de nada. || `soloEnCodigo: true` marca un hito cuyo mensaje EXISTE en el código pero no apareció en el corpus medido. Es distinto de un patrón MAL escrito, y confundirlos es cómo un validador se vuelve ruidoso y se ignora: `-validar` los reporta aparte, como aviso y no como problema. || v1.2: los HITOS son ahora la unidad de agrupación de la vista — el ensamblado reparte las líneas entre hitos declarados y lo que ningún hito reclama queda plegado como «eventos sin nombre de negocio», que es el backlog honesto de hitos por declarar. Los matchers de registro/formulario se ampliaron para cubrir los mensajes frecuentes del censo.",
   "etapas": {
     "origen": {
       "bloques": [
@@ -44,12 +44,22 @@
           "tipo": "hitos",
           "hitos": [
             {
+              "id": "alta-celular",
+              "label": "Registro del celular",
+              "matcher": {
+                "tipo": "prefijo",
+                "patron": "RegisterCellPhone"
+              },
+              "porque": "el POST de registro y su orquestador (RegisterCellPhoneController/Service)"
+            },
+            {
               "id": "lookup",
               "label": "Buscar o crear el cliente",
               "matcher": {
                 "tipo": "regex",
-                "patron": "UserService::getOrCreateUser|Looking up existing user by cell phone|findByCellPhone returned"
-              }
+                "patron": "UserService::getOrCreateUser|UserService::cleanPhoneNumber|Looking up existing user by cell phone|findByCellPhone returned|Role assigned"
+              },
+              "porque": "buscar o crear el cliente: lookup por teléfono, normalización del número, alta y asignación de rol"
             },
             {
               "id": "tyc",
@@ -64,7 +74,7 @@
               "label": "Enviar OTP",
               "matcher": {
                 "tipo": "regex",
-                "patron": "Otp(Controller|Service)::sendOtpCode"
+                "patron": "Otp(Controller|Service)::sendOtpCode|sendOtpCode returned|OtpRepository"
               }
             },
             {
@@ -72,7 +82,7 @@
               "label": "Validar OTP",
               "matcher": {
                 "tipo": "regex",
-                "patron": "OtpService::validateOtpCode|ValidateOtpAuthService"
+                "patron": "OtpService::validateOtpCode|ValidateOtpAuthService|processCellPhoneRegistration returned"
               }
             },
             {
@@ -108,8 +118,8 @@
               "id": "personales",
               "label": "Datos personales",
               "matcher": {
-                "tipo": "prefijo",
-                "patron": "OnboardingController::validateAndStorePersonalInfo"
+                "tipo": "regex",
+                "patron": "^OnboardingController::validateAndStorePersonalInfo|^OnboardingService::storePersonalInfo"
               }
             },
             {
@@ -196,6 +206,54 @@
               "matcher": {
                 "tipo": "prefijo",
                 "patron": "STAGE 4 —"
+              }
+            }
+          ]
+        },
+        {
+          "id": "identidad",
+          "label": "Validación de identidad (KYC)",
+          "tipo": "hitos",
+          "nota": "La cascada AgilData → TusDatos: se intenta con AgilData y, si devuelve errores, se reintenta con TusDatos hasta la compuerta de intentos. Es la fuente de los ONB005/KYC_VALIDATION_FAILED. Los mensajes salen de la traza real 519245 de producción.",
+          "hitos": [
+            {
+              "id": "kyc-agildata",
+              "label": "Identidad con AgilData",
+              "matcher": {
+                "tipo": "prefijo",
+                "patron": "Validating identity with AgilData"
+              }
+            },
+            {
+              "id": "kyc-reintento",
+              "label": "Reintento con TusDatos",
+              "matcher": {
+                "tipo": "prefijo",
+                "patron": "AgilData returned errors but TusDatos"
+              }
+            },
+            {
+              "id": "kyc-tusdatos",
+              "label": "Identidad con TusDatos",
+              "matcher": {
+                "tipo": "regex",
+                "patron": "^Validating identity with TusDatos|^TusDatos (errors|OK)"
+              }
+            },
+            {
+              "id": "kyc-compuerta",
+              "label": "Compuerta de reintentos KYC",
+              "matcher": {
+                "tipo": "prefijo",
+                "patron": "OnboardingService::shouldValidateTusDatos"
+              }
+            },
+            {
+              "id": "kyc-persistencia",
+              "label": "Persistencia tras KYC",
+              "matcher": {
+                "tipo": "prefijo",
+                "patron": "Persisting user after KYC cascade"
               }
             }
           ]
@@ -534,7 +592,7 @@
             },
             {
               "id": "no-llego",
-              "label": "No llegó",
+              "label": "No llegó (o llegó y no dejó huella)",
               "matcher": null,
               "porque": "sin disbursed_lender y sin excepción: no hay evidencia de que el webhook haya entrado. ⚠ Es una inferencia por AUSENCIA, y el webhook no loguea su recepción, así que NO se puede afirmar — se declara como «sin evidencia de recepción», no como «el agregador no llamó»."
             }

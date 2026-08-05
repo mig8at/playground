@@ -2,6 +2,7 @@
 import { onMounted } from 'vue'
 import { useTrazador } from './stores/trazador'
 import Buscador from './components/Buscador.vue'
+import Historia from './components/Historia.vue'
 import Etapas from './components/Etapas.vue'
 import Detalle from './components/Detalle.vue'
 
@@ -34,20 +35,9 @@ const CLASE = { aprobado:'ok', roto:'fail', abandonado:'warn', 'en-curso':'skip'
     <p v-if="t.error" class="err">{{ t.error }}</p>
   </header>
 
-  <!-- Varios intentos: hay que elegir. Un cliente puede tener hasta 228 solicitudes, así que adivinar
-       cuál quería sería peor que preguntar. -->
-  <div v-if="t.resultados?.items?.length > 1" class="intentos">
-    <p class="dim">{{ t.resultados.items.length }} intentos — elegí uno:</p>
-    <button v-for="i in t.resultados.items" :key="i.ureq"
-            :class="['intento', i.desenlace, { act: t.traza?.ureq === i.ureq }]"
-            @click="t.verTraza(i.ureq)">
-      <b>{{ i.ureq }}</b>
-      <span class="dim">{{ i.fecha }}</span>
-      <span :class="CLASE[i.desenlace]">{{ i.estadoN }}</span>
-      <span class="dim">{{ i.comercio }}</span>
-      <span class="dim">{{ i.lender }}</span>
-    </button>
-  </div>
+  <!-- La historia de la persona: sus solicitudes como chips por día. Reemplaza la lista vertical de
+       botones anchos, que con 40 intentos empujaba el árbol de etapas fuera de la pantalla. -->
+  <Historia />
 
   <div class="cols">
     <Etapas />
@@ -62,12 +52,6 @@ h1 { font-size:18px; margin:0; font-weight:600 }
 .ureq { color:var(--dim); font-size:13px }
 .meta { color:var(--dim); font-size:13px; margin:10px 0 0 }
 .err { color:var(--fail); font-size:13px; margin:10px 0 0 }
-.intentos { padding:12px 20px; border-bottom:1px solid var(--line); display:flex; flex-direction:column; gap:5px }
-.intentos > p { margin:0 0 3px; font-size:12px }
-.intento { display:flex; gap:12px; align-items:center; text-align:left; padding:6px 10px;
-  border:1px solid var(--line); border-radius:6px; background:var(--panel); cursor:pointer; font-size:13px }
-.intento:hover { background:var(--sel) }
-.intento.act { border-color:var(--accent) }
 .cols { display:grid; grid-template-columns:290px minmax(0,1fr); min-height:60vh }
 @media (max-width:860px) { .cols { grid-template-columns:1fr } }
 </style>

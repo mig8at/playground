@@ -80,9 +80,12 @@ export const useTrazador = defineStore('trazador', {
       this.buscando = true; this.error = ''; this.resultados = null; this.traza = null
       try {
         this.resultados = await json(`/api/buscar?q=${encodeURIComponent(q)}&target=${this.target}`)
-        // Un solo resultado: se abre directo. Con varios hay que elegir, porque un cliente puede tener
-        // hasta 228 intentos y adivinar cuál quería sería peor que preguntar.
-        if (this.resultados.items?.length === 1) await this.verTraza(this.resultados.items[0].ureq)
+        // Se abre sola la que se PIDIÓ, no «la única»: desde que el server expande a la persona, buscar un
+        // número de solicitud devuelve toda su historia, y con la regla vieja (`items.length === 1`) dejaba
+        // de abrir justo el caso más común — el ureq que llega por Jira. Con varias directas (una cédula
+        // con 12 intentos) no se adivina: se eligen en los chips.
+        const directas = (this.resultados.items || []).filter((i) => i.directa)
+        if (directas.length === 1) await this.verTraza(directas[0].ureq)
       } catch (e) { this.error = e.message }
       finally { this.buscando = false }
     },

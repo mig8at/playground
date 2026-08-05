@@ -80,6 +80,29 @@ rechazos por venir. Detalle en `findings` F-58.
 > Seguimiento de la tarea: **CORE-293** · el detalle de trabajo vive en el tablero (esfuerzo "Omitir
 > consulta de buró cuando el cupo ya está confirmado"), no acá.
 
+## El catálogo real de centrales: son 12, y varía por ambiente
+
+`risk_centrals` tiene **12 filas**, no las 4 o 5 que uno nombra de memoria. La lista completa (ids de prod):
+
+| id | nombre | id | nombre |
+|---|---|---|---|
+| 1 | Experian - Acierta | 7 | Deceval |
+| 2 | TusDatos - Validación de Identidad | 8 | Experian - Quanto |
+| 3 | Agildata | 9 | Experian - Acierta+Quanto |
+| 4 | TusDatos - AML | 10 | crosscore - Experian |
+| 5 | Ado | 11 | evidente - Experian |
+| 6 | Mareigua | — | (`Abaco` existe en el dump local y **no** en prod) |
+
+Tres cosas que no se deducen de la lista y cambian cómo se lee una consulta:
+
+- **`Agildata` NUNCA trae score.** 0 de 202 filas medidas tienen `score`. Un `score` vacío ahí no es un fallo: es lo normal. (Consistente con que sólo Experian aporte score.)
+- **`Acierta` (1) y `Acierta+Quanto` (9) son entradas SEPARADAS**, y se puede consultar una sin la otra. En la uReq 519245 de producción se consultaron `Acierta+Quanto` (score 698), `Agildata`, `TusDatos - Identidad` y `Mareigua`, y **`Acierta` no**. Mirar sólo `risk_central_id = 1` para decidir "si se consultó Experian" da un falso negativo.
+- **El catálogo varía por ambiente.** Cualquier vista que liste centrales tiene que leerlo de la BD del target, no de una lista fija.
+
+Y para la pregunta "¿por qué no hay fila de buró nueva?", el backend **ya declara su propio pipeline** de decisión con cinco mensajes de log —`STAGE 0 — User request data`, `STAGE 1 — Existing risk-central data review`, `STAGE 2 — Frequency review`, `STAGE 3 — Check flow omitions`, `STAGE 4 — Bypass rules review`—, más `Experian frequency…`, `The allied is in the Experian trigger bypass list` y `The allied is not allowed to omit the requested risk central`. Es el vocabulario del código: usar otro agrega una capa de traducción. Leerlos en orden dice **en qué compuerta se cortó**, que es exactamente lo que F-60 obliga a descartar antes de afirmar que se omitió el buró.
+
+> Mostrar el catálogo COMPLETO con las no consultadas marcadas no es cosmético: una ausencia sin universo no se puede interpretar. "No se consultó Mareigua" sólo significa algo si sabés que Mareigua existía como opción.
+
 ## Gotchas / riesgos
 - **EAV forzados**: al procesar Quanto se escribe `29='Empleado'` (`Experian.php:374`) y `160='no'` (`:390`) **hardcodeados** → un usuario sin central queda marcado Empleado/no-reportado artificialmente. Encima, **`field 160` es auto-declarado por el usuario, no del buró**.
 - **Solo `data` cifra**: `additional_info`, `request` y todo `user_summaries` van **PLANOS**. Ágil Data escribe TODO en `additional_info` (sin cifrar), y los derivados de Experian (`negativeAccounts`, `maturationSince`) también. Un INSERT de JSON plano en `data` rompe el descifrado → gate **fail-closed**. Sin el **APP_KEY** correcto Laravel no descifra y el listado falla en silencio.
@@ -98,6 +121,7 @@ rechazos por venir. Detalle en `findings` F-58.
 - **Quanto "certeza"**: la etiqueta de certeza del seed del simulador no se pudo verificar en código; lo verificable es la banda `promedio/inferior/superior` (`productValueList` pos 0/1/2).
 
 ## Bitácora
+- **2026-08-05** — Catálogo real de `risk_centrals` (12 filas, ids de prod) + tres trampas medidas: `Agildata` nunca trae score (0/202), `Acierta` y `Acierta+Quanto` son entradas separadas y consultables por separado (uReq 519245 prod), y el catálogo varía por ambiente. Documentado el pipeline `STAGE 0..4` de la decisión de omisión, que es el vocabulario del propio backend. Ver F-97 (los logs guardan los intentos, la BD el valor final).
 - **2026-07-17** — Contexto sembrado desde playground/flow (nodos Experian/Quanto/Agil/Mareigua/TusDatos/Buro/IngresosExtras + fieldDocs `node.*`/`buro.*` + MAP.md §S4).
 - **2026-07-17** — Fase de data: superficie de código curada + doc enriquecido desde `git 159906a:docs/codigo/{ONBOARDING-DATOS-DECISION-ANALISIS.md, mapeo-datos-buros.json}`. Añadido: rc_ids + acceso por nombre/id (`User.php`), las 3 formas de Experian, cascada de ingreso corregida (Quanto es 3ª fuente vía EAV 87, no 4ª), conteos BD locales, ML H2O muerto, `field 160` auto-declarado, cifrado solo en `data`, KYC V2 Credifamilia (Evidente/CrossCore/Jumio). Line-anchors verificados contra application + legacy-backend.
 

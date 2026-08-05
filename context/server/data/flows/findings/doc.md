@@ -1936,3 +1936,147 @@ Sin `errors`, `['errors'][0]['code']` lanza. Y como lo llama `Integration::handl
 **Estado:** verificado el 2026-08-04 llamando al sandbox con `Client-Id` y `Client-Secret` inválidos. Relacionado: F-81.
 
 ---
+
+### F-93 · `displayed_lenders` no es una tabla: es una columna JSON de `profiling_reviews`
+
+**Síntoma.** Se busca la tabla `displayed_lenders` para saber qué entidades se le mostraron al cliente, no existe en el schema, y se concluye que **el listado no se persiste** — que para rt=2 hay que reconstruirlo re-evaluando el motor y para rt=1 pedirlo a DynamoDB. Se llegó a escribir eso como hecho en un mapa de etapas.
+
+**Causa raíz verificada.** El dato existe, pero como **columna JSON de `profiling_reviews`**, no como tabla propia. Esa tabla guarda el snapshot completo del motor de perfilamiento:
+
+| columna | qué trae |
+|---|---|
+| `displayed_lenders` (json) | `[{id, name, probability, weighted_score, profiling_percentage}, …]` — **lo que el cliente vio**, con su clasificación |
+| `hard_rules` (json) | la evaluación de las reglas duras |
+| `recommended_lender` | la entidad recomendada |
+| `disbursed_lender` | la que terminó desembolsando (la escribe el webhook del lender, ver F-94) |
+| `datacredito_query` | si se consultó datacrédito |
+| `demog_predictions` · `matrix_predictions` · `ML_predictions` (json) | las tres fuentes del orden |
+
+**Evidencia.** `SELECT COUNT(*), SUM(displayed_lenders IS NOT NULL), SUM(hard_rules IS NOT NULL) FROM profiling_reviews` → **588 filas, las 588 con las dos columnas llenas** (dump local, 2026-08-05). Una fila real de la uReq 464542: `recommended_lender = 170` y `displayed_lenders` con `[{"id":170,"name":"Motai RB","probability":"Probabilidad alta","weighted_score":1}, …]`.
+
+**Arreglo.** Para "qué se le mostró al cliente" leer `profiling_reviews.displayed_lenders` de la solicitud, no re-evaluar nada. Es mejor que inferirlo de los logs: es literalmente lo que se renderizó, con la probabilidad ya calculada.
+
+**La pista falsa que hay que romper.** Buscar por nombre de tabla. `information_schema.TABLES LIKE '%display%'` no devuelve nada y eso se lee como "el dato no existe"; hay que buscar también en `COLUMNS`. Lo mismo aplica a cualquier snapshot guardado como JSON.
+
+**Estado:** verificado el 2026-08-05 contra el dump local y contra producción vía Redash.
+
+---
+
+### F-94 · El webhook `lender-result` no deja huella de recepción: «no llegó» y «llegó y falló» se ven igual
+
+**Síntoma.** Es **el reporte más frecuente de #tech-ops** (10 casos en los 10 días del 27-jul al 5-ago): *«Prami confirma originación pero en CT quedó en seleccionar entidad»*, *«Welli ya lo tomó y el estado no cambió»*, *«firmó en prami y no cambió el estado»*. Se revisa la solicitud, está en estado 3 con su lender elegido, y **no hay forma de saber si el webhook del agregador llegó**.
+
+**Causa raíz verificada.** El webhook entra por `POST api/onboarding/loan-application/{user_request_id}/lender-result` (`Modules/Onboarding/routes/webhooks.php:18`) → `ListLenderController::storeLenderResult` → `ProfilingReviewController::updateAsyncLender`. Y en ese camino:
+
+- **`ListLenderController` no tiene ni un `Log::`** (grep del archivo completo). No loguea que llegó, ni el payload, ni el resultado.
+- **No hay tabla que registre la recepción.** Buscando en `information_schema` por `%webhook%`, `%callback%`, `%notification%` la única que aparece es `experian_notifications`, que es de otra cosa.
+
+O sea que del camino **exitoso** la única huella es el efecto: `profiling_reviews.disbursed_lender` con valor. Y del camino **fallido**, la única es que `$this->error(...)` devuelve 404/500 y eso sí queda como `http_exception_rendering` — cuya `url` (en el `context`, no en el mensaje) contiene `lender-result`.
+
+**La consecuencia que importa.** Los dos casos malos son **indistinguibles desde la BD**: `disbursed_lender` está vacío tanto si el agregador nunca llamó como si llamó y explotó. Y mandan a revisar lugares opuestos — uno es problema del tercero, el otro es nuestro. Lo único que los separa es la excepción HTTP.
+
+**Arreglo.** Corto: para diagnosticar, cruzar `disbursed_lender` con la búsqueda de `lender-result` en el campo `url` de las excepciones. De fondo: **falta un log de recepción en `ListLenderController`** — con `user_request_id`, `lender_id`, `is_approved` y el resultado. Sin eso, "no llegó" es una inferencia por ausencia y no se puede afirmar.
+
+**Estado:** verificado el 2026-08-05 leyendo el controlador y el schema. Implementado como etapa `respuesta-lender` en `playground/trazador`, con los tres casos separados.
+
+---
+
+### F-95 · El `response_type` de un lender cambia según el ambiente: verificarlo contra local miente
+
+**Síntoma.** Se clasifica una entidad por familia (`creditopx` rt=2/3/4 · `agregador` rt=1 · `redirect` rt=0), se verifica contra el dump local, y en dev o prod la misma entidad cae en **otra familia**. Parece un bug de la clasificación.
+
+**Causa raíz verificada.** El `response_type` es dato de configuración y **no está sincronizado entre ambientes**. `Sistecrédito` (lender id 9) es el caso claro:
+
+| ambiente | `response_type` | familia |
+|---|---|---|
+| local (dump) | **1** | agregador |
+| dev | **0** | redirect |
+| prod | **0** | redirect |
+
+No es un nombre duplicado: hay un solo `Sistecrédito` y su id es 9 en los tres. Es la misma fila con distinto valor.
+
+**Evidencia.** `SELECT id, response_type, name FROM lenders WHERE id IN (8,9,12,32,39,68)` corrido contra el dump local, contra dev y contra prod (vía Redash) el 2026-08-05. `Bancolombia` (8), `Prami` (12) y `Meddipay` (39) coinciden en rt=1 en los tres; `Sistecrédito` (9) no.
+
+**Arreglo.** Cualquier cosa que dependa del `response_type` se resuelve **contra la BD del target que se está mirando**, nunca contra local ni contra una tabla hardcodeada. Y no se puede cachear entre targets. Por lo mismo, una lista de lenders por familia no puede vivir en un archivo versionado: mentiría en algún ambiente.
+
+**La pista falsa.** Verificar contra local lo que corrió en dev. Es la misma clase de error que F-53 y que la confusión dev/staging: la consulta es correcta, la base es la equivocada.
+
+**Estado:** verificado el 2026-08-05 en los tres ambientes.
+
+---
+
+### F-96 · `user_request_records` repite estados y no es cronológico: «la última fila» puede ser anterior al resto
+
+**Síntoma.** Dos problemas que aparecen juntos al reconstruir el historial de una solicitud:
+
+1. El "historial" muestra el mismo estado muchas veces seguidas, así que **contar filas miente** sobre cuántas veces avanzó el flujo.
+2. Ordenando por `created_at`, **la última fila puede tener una hora anterior** a otras etapas del flujo. Una línea de tiempo armada así se lee como que la solicitud fue hacia atrás.
+
+**Causa raíz verificada.** La tabla escribe **una fila por cada toque**, no por cada transición: si algo actualiza la solicitud cinco veces sin cambiarle el estado, quedan cinco filas iguales. Y las filas **no están garantizadas en orden de flujo** — hay solicitudes con el estado final registrado antes que estados intermedios (reutilización, backfill, o escrituras fuera de secuencia; no se determinó cuál).
+
+**Evidencia.** La uReq 464168 tiene **cinco filas consecutivas de estado 9** («Formulario de perfil») entre 22:35 y 23:04. Y la uReq 464432 (staging) tiene el estado 8 «Cancelado» registrado a las 10:38 mientras el estado 3 «Seleccionó entidad» está a las 16:29 — el desenlace **antes** de la selección.
+
+**Arreglo.** Dos cosas, y las dos hacen falta:
+
+- **Colapsar estados consecutivos repetidos** al leer el historial. Sin eso, cualquier métrica de "cuántos pasos dio" está inflada.
+- **No usar «la última fila» como el evento más reciente.** Si se necesita cuándo ocurrió un estado puntual, buscar ese estado; y si las horas de las etapas no son monótonas, **avisarlo** en vez de reordenar por hora — reordenar esconde el dato y pone la etapa en el lugar equivocado del flujo.
+
+**Estado:** verificado el 2026-08-05 contra dev y staging. Implementado en `playground/trazador` (colapso + aviso de no-monotonía).
+
+---
+
+### F-97 · La BD guarda el documento FINAL, los logs guardan todos los intentos: buscar por cédula puede no encontrar
+
+**Síntoma.** Un cliente llama a soporte y dicta su cédula. Se busca en la BD y **no existe** — pero el caso sí ocurrió, y los logs de esa misma solicitud contienen esa cédula muchas veces.
+
+**Causa raíz verificada.** `users.document_number` guarda el valor que quedó **guardado**; los logs guardan **cada intento**, incluidos los que fallaron. Si el cliente (o el asesor) tipeó mal y corrigió, la BD tiene solo el último y los logs tienen los dos.
+
+**Evidencia.** uReq 519245 en producción. Sus logs traen **dos documentos distintos**:
+
+| documento | líneas de log | ¿está en la BD? |
+|---|---|---|
+| `1006004143` | **26** | **no** |
+| `1006004134` | 7 | sí — es el del `user_id` 375387 |
+
+Dos dígitos transpuestos. Y explica el resto de la traza: los cuatro intentos fallidos con el documento equivocado dispararon `ONB005/DOCUMENT_DUPLICATE` y agotaron la compuerta de intentos por hora (`Rate limit exceeded, returning ONB040`, `current_attempt: 4` de `max_per_hour: 4`).
+
+**Arreglo.** Cuando la búsqueda por documento no encuentra nada, **no concluir que el caso no existe**: buscar ese mismo valor en los logs. Y al revés — un `DOCUMENT_DUPLICATE` seguido de un rate limit es la firma de alguien peleando con un dato mal tipeado, no necesariamente de un fraude o de un cliente ya registrado.
+
+**Estado:** verificado el 2026-08-05 contra producción (BD vía Redash + logs de Loki).
+
+---
+
+### F-98 · Sin `GRAFANA_TEMPO_ENDPOINT` los logs no llevan `trace_id` — y el span lo abre un middleware con alias, no global
+
+**Síntoma.** Los logs llegan a Loki correctamente pero **sin `trace_id`**, así que no se pueden agrupar las líneas de una misma petición: una traza queda como una lista plana de eventos sueltos. Y en el camino contrario, un `php artisan tinker` que loguea a propósito tampoco lleva trace, lo que hace pensar que la instrumentación está rota.
+
+**Causa raíz verificada.** Son **dos condiciones independientes** y las dos tienen que cumplirse:
+
+1. **El processor que estampa el trace solo se registra si Tempo está habilitado.** `app/Providers/GrafanaServiceProvider.php::configureLogging` envuelve el `pushProcessor` en `if (config('grafana.tempo.enabled'))`, y ese processor es el único que escribe `$record->extra['trace_id']`. Además `initializeOpenTelemetry()` arranca con `if (!$endpoint) { return; }` — **sin `GRAFANA_TEMPO_ENDPOINT` el SDK de OpenTelemetry nunca se inicializa**, así que no hay span y `Span::getCurrent()` no está grabando.
+2. **El span de la petición lo abre `App\Http\Middleware\OpenTelemetryMiddleware`**, que está registrado como **alias `'otel'`** en `app/Http/Kernel.php:68` — **no es global**. Una ruta que no lo declare no tiene span, y por lo tanto sus logs no llevan trace aunque Tempo esté configurado. Y nada que corra fuera de una petición HTTP (comandos de artisan, crons, colas) tiene span nunca.
+
+**Evidencia.** Verificado el 2026-08-05 con un Tempo local en Docker: con `GRAFANA_TEMPO_ENABLED=true` y `GRAFANA_TEMPO_ENDPOINT=http://…:4318/v1/traces`, un `Log::channel('loki')` desde `tinker` sale **sin** trace, y una petición a `POST api/onboarding/loan-application/update-user-request/{id}` —que sí tiene el middleware, comprobado con `artisan route:list`— sale **con** un trace de 32 hex, recuperable después en Tempo (`GET /api/traces/<id>` → 200, span `POST api/onboarding/phone/register`).
+
+**Arreglo.** Para que los logs sean agrupables hacen falta las dos cosas: el endpoint de Tempo configurado **y** que la ruta pase por el middleware `otel`. El sampler es `AlwaysOnSampler` mientras `grafana.sampling.rate` sea ≥ 1.0 (el default), así que el muestreo no hay que tocarlo.
+
+**El detalle que cuesta una hora.** El endpoint lleva el path: `…:4318/v1/traces`. `OtlpHttpTransportFactory->create($endpoint, …)` usa la URL tal cual y **no le agrega la ruta**, así que con solo `http://host:4318` el `trace_id` igual aparece en los logs (el span existe) pero las trazas se van a un 404 — funciona a medias y no avisa.
+
+**Estado:** verificado el 2026-08-05 contra un Tempo local.
+
+---
+
+### F-99 · `LOG_CHANNEL=stack` en local puede romper el request: el canal incluye `dynamodb` con `ignore_exceptions => false`
+
+**Síntoma.** Se quiere ver los logs de la app en local, se pone `LOG_CHANNEL=stack` (que es el canal que incluye Loki) y empiezan a fallar peticiones que antes andaban.
+
+**Causa raíz.** En `config/logging.php` el canal `stack` es `['dynamodb', 'loki']` con **`'ignore_exceptions' => false`**. El canal `dynamodb` usa el `DynamoDbHandler` de Monolog contra la tabla `inertia_logs`, con un `new DynamoDbClient([...])` construido **dentro del array de configuración**. En local no hay credenciales de AWS, así que ese handler falla — y con `ignore_exceptions` en `false` la excepción **no se traga**: se propaga desde la llamada a `Log::`.
+
+**Evidencia.** Leído en `config/logging.php` (canal `stack` y canal `dynamodb`) el 2026-08-05. ⚠ **La consecuencia no se probó**: al detectar la configuración se eligió `LOG_CHANNEL=loki` para evitarla, así que "rompe el request" es la lectura del código, no una observación. La configuración sí está verificada.
+
+**Arreglo.** En local usar `LOG_CHANNEL=loki` (un solo destino, el único que existe ahí). Si se quieren archivo **y** Loki, hay que agregar un canal a `config/logging.php` — archivo versionado del repo de la compañía. En los ambientes desplegados `stack` funciona porque sí hay credenciales de AWS.
+
+**El dato de contexto.** En producción la etiqueta `channel` de Loki tiene **dos** valores (`loki` y `production`), o sea que allá llegan logs por más de un canal — consistente con que `stack` esté activo.
+
+**Estado:** configuración verificada el 2026-08-05; la consecuencia es inferida del código y está sin comprobar.
+
+---

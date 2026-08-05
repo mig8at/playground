@@ -52,7 +52,7 @@ Doc: `server/data/flows/creditop/doc.md` · Archivos: `server/data/flows/credito
 **Cuándo:** Cuando la pregunta es de PERMISOS o de quién hace qué: cliente vs asesor vs back-office, login, Cognito y SSO, roles y alcance, y por dónde entra cada uno (QR, link de continuación, autogestión).
 Doc: `server/data/flows/actors/doc.md` · Archivos: `server/data/flows/actors/map.json` · Padre: `creditop`
 
-### aggregator — Aggregator  ·  _reference_ · 105 archivos
+### aggregator — Aggregator  ·  _reference_ · 106 archivos
 **Cuándo:** Cuando el prestamista decide AFUERA por API (rt=1): Bancolombia, Sistecrédito, Welli, Addi, Meddipay, Banco de Bogotá. Pre-aprobación, webhooks, cartera del tercero, y por qué no se puede simular en local.
 Doc: `server/data/flows/aggregator/doc.md` · Archivos: `server/data/flows/aggregator/map.json` · Padre: `entities`
 
@@ -64,7 +64,7 @@ Doc: `server/data/flows/amount-tiers/doc.md` · Archivos: `server/data/flows/amo
 **Cuándo:** Cuando trabajás en el monolito Aliados (el que corre en prod): panel de administración, alta de entidades/comercios/sucursales, crons de cobranza y servicing, Inertia/Vue, rutas por audiencia admin/customer/api.
 Doc: `server/data/flows/application/doc.md` · Archivos: `server/data/flows/application/map.json` · Padre: `architecture`
 
-### architecture — Architecture  ·  _reference_ · 73 archivos
+### architecture — Architecture  ·  _reference_ · 77 archivos
 **Cuándo:** Cuando la duda es en QUÉ REPO vive algo, por qué está duplicado, o cómo se hablan entre sí: base de datos compartida, migraciones duplicadas, cutover al wizard nuevo, allowlist, SSO, VITE_API_URL. Índice de los repos.
 Doc: `server/data/flows/architecture/doc.md` · Archivos: `server/data/flows/architecture/map.json` · Padre: `creditop`
 

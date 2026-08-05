@@ -3,6 +3,8 @@
 # deja binario; `npm run server:build` sí, y va a server/bin/.
 /server/bin/
 /trazador
+# `go build ./...` corrido DENTRO de server/ deja un binario con el nombre de la carpeta.
+/server/server
 
 # Build de la Vue
 /dist/

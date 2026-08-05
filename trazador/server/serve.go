@@ -103,30 +103,28 @@ func servir(addr string) error {
 		}
 		type item struct {
 			UReq      int64  `json:"ureq"`
-			Fecha     string `json:"fecha"`
+			Fecha     string `json:"fecha"` // el día, para agrupar los chips
+			Hora      string `json:"hora"`
 			Estado    int    `json:"estado"`
 			EstadoN   string `json:"estadoN"`
 			Lender    string `json:"lender"`
 			Comercio  string `json:"comercio"`
 			Desenlace string `json:"desenlace"`
+			Directa   bool   `json:"directa"` // la trajo la búsqueda literal, no la expansión a la persona
 		}
 		out := struct {
-			Target string   `json:"target"`
-			Fuente string   `json:"fuente"`
-			Como   []string `json:"como"`
-			Items  []item   `json:"items"`
-		}{Target: target, Fuente: fuente.Nombre(), Como: como}
+			Target   string   `json:"target"`
+			Fuente   string   `json:"fuente"`
+			Como     []string `json:"como"`
+			Historia Historia `json:"historia"`
+			Items    []item   `json:"items"`
+		}{Target: target, Fuente: fuente.Nombre(), Como: como, Historia: armarHistoria(cs)}
 		for _, x := range cs {
-			d := "en-curso"
-			if sellados[x.Estado] {
-				d = "aprobado"
-			} else if malos[x.Estado] != "" {
-				d = "roto"
-			}
+			l := x.Creada.Local()
 			out.Items = append(out.Items, item{
-				UReq: x.UReq, Fecha: x.Creada.Local().Format("2006-01-02 15:04"),
+				UReq: x.UReq, Fecha: l.Format("2006-01-02"), Hora: l.Format("15:04"),
 				Estado: x.Estado, EstadoN: x.EstadoN, Lender: x.Lender,
-				Comercio: x.Comercio, Desenlace: d,
+				Comercio: x.Comercio, Desenlace: desenlaceDe(x.Estado), Directa: x.Directa,
 			})
 		}
 		jsonOK(w, out)

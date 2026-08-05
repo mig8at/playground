@@ -48,6 +48,21 @@ Fuente única de `openNewTab`: `LenderTabBehaviorResolver` (`NON_NEW_TAB_LENDER_
 - **Marketplace + handoff (front)** (frontend-monorepo): `available-lenders.tsx:147` (`VITE_PREAPPROVALS_ENDPOINT`) · `fetch-lender-preapproval.ts:174` (POST directo) · `AvailableLenders.tsx` (oculta por 3 predicados: 5xx propio / fallback / variante Welli) · `welli-shared-risk.service.ts` · `fallback-lender.service.ts` · rutas `bancolombia/{start,purchase-code,bnpl/*,loan/*}.tsx` + `bancolombia-origination/.../use-cases/*`.
 - **Modelos / simulador**: `Lender.php`, `LenderTransaction.php`, `LenderTransactionStatus.php`, `UserRequest.php`, `LenderTransactionRepository.php`; `EcommerceSimulatorController.php` (simulador de resultado agregador, bloqueado en prod).
 
+## El camino de VUELTA: el webhook `lender-result`
+
+El nodo describe cómo se le pregunta al agregador; esto es cómo **responde**. Para rt=1 el veredicto lo da la API externa y vuelve por webhook:
+
+| ruta | controlador | qué recibe |
+|---|---|---|
+| `POST api/onboarding/loan-application/{user_request_id}/lender-result` | `ListLenderController::storeLenderResult` | `lender_id` · `is_approved` · `available_amount?` |
+| `POST …/{user_request_id}/lender-results` (plural) | `ListLenderController::storeLenderResults` | `lenders[]` (con `name?`, `probability?`) · `recommended_lender?` |
+
+Los dos delegan en `ProfilingReviewController` (`updateAsyncLender` el singular, `replaceLenderResults` el plural), que escribe sobre `profiling_reviews` — ver el nodo hermano **Profiling**. El singular devuelve 404 con `profiling_review_not_found` o `lender_not_in_displayed`, y 500 para el resto.
+
+**Su única huella es el efecto.** `profiling_reviews.disbursed_lender` con valor = el webhook se aplicó. No hay más: el controlador **no tiene ni un `Log::`** y no existe tabla que registre la recepción. La consecuencia práctica está en **F-94**: «el agregador nunca llamó» y «llamó y explotó» son **indistinguibles desde la BD** (`disbursed_lender` vacío en los dos) y mandan a revisar lugares opuestos — uno es problema del tercero, el otro nuestro. Lo único que los separa es la excepción HTTP, cuya `url` (en el `context`, no en el mensaje) contiene `lender-result`.
+
+> Esto **no es un caso de borde**: es el reporte más frecuente de `#tech-ops` — 10 casos entre el 27-jul y el 5-ago, con la forma *«Prami confirma originación pero en CT quedó en seleccionar entidad»*. La firma es siempre la misma: estado 3 con `lender_id` elegido y `disbursed_lender` vacío.
+
 ## Gotchas / riesgos
 - **Bug guard muerto** (`application/SelfManagerController.php:87`): `if ($purchaseCode->barcode_checked && ($lender->id == 68 && $lender->id == 133))` — un id no puede ser 68 **Y** 133; el guard de 'código ya utilizado' nunca dispara ahí.
 - **Consumo (100) se muestra sin cupo real**: el `else` de `validatePreApproveLender` lo empuja con 'Probabilidad media'/sort=2 (hay un `// ToDo` del propio código admitiendo que debería mostrar solo pre-aprobados).
@@ -67,6 +82,7 @@ Fuente única de `openNewTab`: `LenderTabBehaviorResolver` (`NON_NEW_TAB_LENDER_
 - `response_type` real en BD de Addi/Compensar/BdB base: confirmado por código, no leído del seeder `lenders`.
 
 ## Bitácora
+- **2026-08-05** — Documentado el camino de VUELTA: las dos rutas `lender-result`/`lender-results`, su cadena hasta `ProfilingReviewController`, y que `profiling_reviews.disbursed_lender` es su única huella porque el controlador no loguea (F-94). Es el reporte más frecuente de #tech-ops (10 casos en 10 días).
 - **2026-07-31** — Carve-out del subcontexto **bancolombia** (BNPL 68 / Consumo 100). Motivo: este doc resumía toda la originación Bancolombia en una celda de tabla mientras el código real tiene 23 endpoints propios, onboarding propio en el wizard, 41 rutas de front y un módulo DDD de 216 archivos; la cobertura curada era 8/19 archivos Bancolombia en legacy-backend. Se corrigió drift verificado contra `origin/main`: `UserRequestService` `:443/:501/:574`→`:444/:502/:597`; se sumaron Lagobo (21/35) y Davivienda (36) al roster de canales; se matizó la "frontera dura" de Bancolombia (hay escenarios sandbox direccionables por cédula **y por celular**); se respondió la pregunta abierta del webhook. La maquinaria genérica rt=1 se queda acá.
 - **2026-07-18** — Carve-out del subcontexto **corbeta** (el canal batch de retail físico). 12 archivos puramente-Corbeta migrados al subnodo (117→105); los compartidos (`Kernel.php` = scheduler global de los StatusCheck de Welli/BdB, `CodeGenerationService`, `routes/api.php`, `config/services.php`) se dejan en AMBOS a propósito.
 - **2026-07-17** — Fase de data: superficie de código curada (117 archivos validados contra el oráculo, +2 vs curado previo: `Welli/WelliService.php` y `Bancolombia/BancolombiaService.php`) + doc enriquecido desde `git 159906a:docs/codigo/AGREGADORES-FLUJO-ANALISIS.md` (+ SERVICIO-PRE-APROBACIONES + fichas Bancolombia/Sistecrédito/Welli). Line-anchors re-verificados contra el código real (drift corregido: Kernel `:57-65`, available-lenders `:147`, fetch-lender-preapproval `:174`, BancolombiaBnpl origination `:601`/validateQuota `:716`/bnplConfirmed `:912`). MS Go `pre-approvals-service` = repo aparte NO indexado → cedido al nodo hermano `ms-preapprovals`.

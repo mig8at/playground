@@ -48,6 +48,24 @@ En **rt=1 CreditOp no perfila** (la API externa del proveedor decide; ver **Bró
 - **Tests (spec de comportamiento)**: `Modules/Loans/tests/Unit/LenderUserCategoryServiceMatchedByRuleTest.php`, `LenderSpecialGrantingServiceTest.php`, `CreditopXDatacreditoAdjustmentServiceTest.php` · `tests/Feature/CreditopXQuotaControllerTest.php`.
 - **Gemelo en parallel-run (application, motor viejo/default hoy)**: `app/Services/lenders/LenderUserCategoryService.php`, `LenderRetrievalService.php` (`:650/701/716`), `LenderSpecialGrantingService.php`, `ProfilingRulesService.php`, `app/Models/LenderUsersCategory.php`, `LenderUsersCategoryRule.php` (misma mecánica, distinto número de línea).
 
+## `profiling_reviews`: el snapshot del motor (y el esqueleto del listado)
+
+Cada solicitud perfilada deja **una fila** con todo lo que el motor decidió. Es la respuesta a "¿qué se le mostró al cliente y con qué criterio", sin re-evaluar nada:
+
+| columna | qué guarda |
+|---|---|
+| `displayed_lenders` (json) | `[{id, name, probability, weighted_score, profiling_percentage}, …]` — **lo que se renderizó**, con la clasificación ya calculada |
+| `hard_rules` (json) | la evaluación de las reglas duras |
+| `recommended_lender` | la entidad recomendada |
+| `disbursed_lender` | la que terminó desembolsando — la escribe el **webhook** del lender (nodo **Aggregator**) |
+| `datacredito_query` | si se consultó datacrédito en esta solicitud |
+| `demog_predictions` · `matrix_predictions` · `ML_predictions` (json) | las tres fuentes del orden |
+| `user_id` · `allied_id` · `user_request_id` | a quién y dónde |
+
+**588 filas, las 588 con `displayed_lenders` y `hard_rules`** (dump local, 2026-08-05).
+
+⚠ **No existe una tabla `displayed_lenders`** — y eso engaña: buscarla en `information_schema.TABLES`, no encontrarla y concluir que el listado no se persiste es un error que ya se cometió y quedó escrito como hecho en un mapa de etapas. Está como **columna**, no como tabla. Ver **F-93**.
+
 ## Gotchas / riesgos
 - **BUG `min_income` NO-OP** (vivo): la columna del tier es `monthly_income` (`migration:21`) pero `evaluateEligibility` lee `$rule->min_income` (`:416`) — atributo inexistente → `null` → `$salary >= null` es **siempre true** en PHP. El **piso de ingreso de la categoría no filtra**; arreglarlo (leer `monthly_income`) **endurece** la asignación. [MEMORY flow-reorg-y-mapa-atributos]
 - **Tier laxo admite, primer tier (menor id, suele el más estricto) da la economía** — el `max_amount`/`min_initial_fee` NO salen del tier que "más fácil" pasa.
@@ -63,6 +81,7 @@ En **rt=1 CreditOp no perfila** (la API externa del proveedor decide; ver **Bró
 - [ ] Lenders rt=2 **sin `cat_rules`** (SmartPay 152, Bold 106…): se sellan por `lender_user_category_scoring_policy_rules` — falta volcar esa tabla para armar sintéticos.
 
 ## Bitácora
+- **2026-08-05** — Documentada `profiling_reviews` como el snapshot completo del motor (588 filas verificadas): `displayed_lenders` y `hard_rules` en JSON, `disbursed_lender` como huella del webhook rt=1, `datacredito_query`, y las tres fuentes del orden. Corrige la creencia de que el listado no se persistía (F-93).
 - **2026-07-17** — Contexto sembrado desde el simulador `playground/flow` (PerfilamientoNode + MAP.md §S5, verificado por workflow). Superficie de código a linkar en la fase de data.
 - **2026-07-17** — Fase de data: superficie de código curada + doc enriquecido desde `git 159906a:docs/codigo/REGLAS-POR-COMERCIO-Y-LENDER.md` §2.3/§3.3 y `MECANICA-CREDITO.md` §4/§5, verificado en legacy (`LenderUserCategoryService`, `CreditopXQuotaController`, modelos de categoría). Correcciones: fórmula de cupo real (4 topes + PV francesa + rama `debt_capacity_amount_validation`), columnas reales de las 2 tablas, **BUG `min_income`**, ruta scoring/`scoring_is_primary`, special granting DENTIX, y re-anclaje application→legacy. Se delegó a **Motor de decisión** las 4 capas/2 motores/synth y a **Amount tiers** las franjas por monto.
 

@@ -27,13 +27,32 @@ etapa falló» y en el primer cambio se contradirían.
 | | |
 |---|---|
 | `go run . -serve 127.0.0.1:5199` | la API que consume la Vue |
-| `go run . -buscar <cédula\|teléfono\|uReq>` | lista los intentos que coincidan |
+| `go run . -buscar <cédula\|teléfono\|uReq>` | la **historia de la persona**, no sólo lo que coincidió |
 | `go run . -ureq <n> [-html f.html] [-json]` | la traza por etapas |
 | `go run . -validar <corpus>` | audita el mapa: solapes, patrones mudos, decisiones que no resuelven |
 | `go run . -slack <días>` | lee #tech-ops y clasifica los reportes (**solo lectura**) |
 | `go run .` | la sonda de acceso: ¿puedo leer los logs de este ambiente? |
 
 Todos aceptan `-target local|dev|staging|prod`.
+
+### Buscar devuelve la persona, no la coincidencia
+
+Se prueban los **tres** campos (`ur.id`, `cell_phone`, `document_number`) y se dice cuál coincidió —
+adivinar por la forma del número muestra la solicitud de otra persona con total seguridad. Después se
+**expande por `user_id`**: un número de solicitud sacado de Jira abre la historia completa del cliente sin
+buscar de nuevo, que era el paso manual de todos los días. Por `user_id` y no por documento a propósito: el
+documento se corrige en el camino (F-97, la cédula transpuesta) y buscar por el valor final se comería los
+intentos hechos con el equivocado.
+
+Lo que trajo la búsqueda literal va marcado (`◂`); el resto es contexto. El resumen —cuántas aprobadas /
+rotas / abandonadas, en qué rango de fechas, cuántas el mismo día, cuántos comercios— sale de Go
+(`armarHistoria`) y no de la vista, porque «roto» es una definición de negocio y ya hubo dos que no
+coincidían: `ArmarTraza` contemplaba `abandonado` y el buscador de la API no, así que la misma solicitud
+salía «en curso» en la lista y «abandonado» al abrirla. Hoy las dos llaman a `desenlaceDe`.
+
+Señales que cambian el diagnóstico y por eso se dicen en texto: **N intentos el mismo día** (reintento, no
+cliente indeciso), **⚠ recortado en 40** (un «12 solicitudes» que en realidad son 228 cambia «reintentó» por
+«algo reintenta solo») y **⚠ N clientes distintos** (el valor es ambiguo: mirá bien cuál buscabas).
 
 ## De dónde salen los datos
 

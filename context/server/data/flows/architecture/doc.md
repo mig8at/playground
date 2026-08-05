@@ -146,6 +146,27 @@ Aparte del grupo autenticado, Onboarding monta un grupo **público** (`webhooks.
 - `legacy-backend/config/documents.php:53` — driver por documento **y por lender** (`blade` \| `microservice`; `24 => 'microservice'`); `:73-78` — `vinculacion` arranca en `microservice` **sin fallback** a Blade por decisión de diseño.
 - `legacy-backend/config/services.php:201-203` — `pre_approvals.base_url`; consumido en `legacy-backend/Modules/Loans/App/Actions/PreApprovalsAction.php:15,37`.
 
+## Observabilidad: dos stacks de Grafana, y etiquetas que engañan
+
+Los logs de la aplicación van a **Grafana Cloud Loki** (`app/Logging/LokiHandler.php`, registrado por `app/Providers/GrafanaServiceProvider.php` según `config/grafana.php`). Hay **dos stacks**, y el nombre del host no dice cuál:
+
+| stack | qué ambientes | `User` de Loki |
+|---|---|---|
+| `creditop.grafana.net` | **producción** | 1339721 |
+| `creditopdev.grafana.net` | **dev y qa a la vez** | 1339770 |
+
+Misma URL de datos (`logs-prod-036.grafana.net`) y mismo token para los dos: lo único que cambia es el `User`, que es **por stack**. ⚠ El `prod` del hostname es de la infraestructura de Grafana, no del ambiente — un stack de dev también vive en un host `logs-prod-NNN`.
+
+**El ambiente NO es una etiqueta, es el stack.** Dentro de `creditop` la etiqueta `environment` tiene un único valor (`production`); dentro de `creditopdev` tiene `development`, `qa`, `local` y `testing`. El servicio `legacy-backend-stg` es el de la rama `qa` (staging). Y como **dev y staging comparten la BD**, un mismo `user_request_id` tiene líneas de las **dos ramas de código**: sin filtrar por `environment` se están mirando dos ramas mezcladas — la misma trampa que ya documenta este nodo para dev vs staging.
+
+Tres trampas de las etiquetas, todas medidas:
+
+- **`service_name` es la única etiqueta universal** (15 servicios). `environment` y `deployment_environment` son convenciones **excluyentes**: la primera la escriben los monolitos Laravel (`LokiHandler`, desde `APP_ENV`) y la segunda los microservicios Go (OTel). Filtrar por una **descarta la otra mitad de la flota en silencio** — `{environment="production"}` devuelve 2 servicios y `{deployment_environment="production"}` devuelve 13.
+- **El `trace_id` no se propaga entre servicios.** `legacy-backend` y `legacy-application` no comparten ni un trace, y los microservicios Go **no emiten `trace_id` en absoluto**. No se puede seguir una solicitud cruzando servicios por trace; dentro de `legacy-backend` sí.
+- **`LokiHandler` promueve `trace_id` y `span_id` a ETIQUETAS**, y en Loki cada valor distinto crea un stream: 959 streams cada 15 minutos. Una consulta amplia sobre el lado Laravel (`{environment="production"}` a 30 días) devuelve 14,5 MB de series y expira. Hay que acotar siempre por `service_name`.
+
+**La BD de producción se lee por Redash** (`redash.creditop.com`, fuente `id=1 "Live"`, permiso `execute_query`), que es la única puerta: no hay acceso directo. Tres cosas que conviene saber antes de usarla: es **asíncrona** (job → polling → resultado), queda **auditada a nombre del dueño del token**, y devuelve los `datetime` en hora **local**, no UTC (ver **F-98** para el efecto de equivocarse con eso). El ELB es **interno**: sin VPN el síntoma es un *timeout*, no un 401.
+
 ## Gotchas / riesgos
 - **`auth.cognito` no autentica.** Resuelve identidad desde cabeceras planas y nunca bloquea: cualquiera que alcance legacy-backend puede suplantar a un usuario con `x-user-id`. El repo asume que **no está expuesto directo** (la barrera real es de red/gateway, no de código). Consecuencia práctica: el puente S2 funciona pese a no mandar `Authorization`.
 - **Tres mecanismos de cutover distintos y sin relación** — filas de `settings` (originación), array PHP hardcodeado (checkout Corbeta) y `config/documents.php` (generación de PDFs). No hay un feature-flag único; para saber qué corre para un comercio hay que mirar los tres.
@@ -166,6 +187,7 @@ Aparte del grupo autenticado, Onboarding monta un grupo **público** (`webhooks.
 - Los **6 módulos sin rutas** (`AuthV1`, `AlliedBranchV1`, …): no se verificó si son andamiaje de una arquitectura en curso o código sin invocar. (Los V2 CON rutas —OnboardingV2/RiskV2— sí están vivos: el front los consume vía `VITE_API_URL`; ver "V1/V2 = evolución" arriba.)
 
 ## Bitácora
+- **2026-08-05** — Documentada la observabilidad: los dos stacks de Grafana (`creditop` prod · `creditopdev` dev+qa) con su `User` por stack, el ambiente como propiedad del STACK y no una etiqueta, las tres trampas de etiquetas medidas (`service_name` como única universal, `trace_id` que no cruza servicios, cardinalidad por `trace_id` como label), y Redash como única puerta a la BD de producción. Ver F-95, F-98, F-99.
 - **2026-07-18** — Fase de data: nodo documentado por ANALISIS DE CODIGO (no habia doc fuente) + superficie curada.
 - **2026-07-17** — Contexto sembrado desde playground/flow (MAP.md §0: tabla de Repos + strangler/parallel-run + tabla response_type).
 

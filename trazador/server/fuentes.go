@@ -493,6 +493,7 @@ func orSi(v, def string) string {
 const sqlBuscar = `
 	SELECT ur.id, ur.user_request_status_id AS st, COALESCE(stt.name,'') AS estado,
 	       COALESCE(l.name,'') AS lender, COALESCE(a.name,'') AS comercio, ur.created_at,
+	       COALESCE(ur.user_id,0) AS uid,
 	       COALESCE(u.document_number,'') AS documento, COALESCE(u.cell_phone,'') AS telefono
 	  FROM user_requests ur
 	  LEFT JOIN user_request_statuses stt ON stt.id = ur.user_request_status_id
@@ -502,7 +503,12 @@ const sqlBuscar = `
 	  LEFT JOIN users u                  ON u.id   = ur.user_id
 	 WHERE `
 
-const sqlBuscarOrden = ` ORDER BY ur.id DESC LIMIT 40`
+// limiteBusqueda: el tope de solicitudes que trae cada sonda. Se declara como constante y no inline en el
+// SQL porque la vista NECESITA saber si se alcanzó — «12 solicitudes» cuando en realidad son 228 cambia el
+// diagnóstico de «el cliente reintentó» a «algo está reintentando solo».
+const limiteBusqueda = 40
+
+var sqlBuscarOrden = fmt.Sprintf(" ORDER BY ur.id DESC LIMIT %d", limiteBusqueda)
 
 // ─── profiling_reviews: el snapshot del listado Y la huella del webhook ─────────────────────────────
 //

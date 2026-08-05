@@ -123,6 +123,23 @@ var malos = map[int]string{
 // sellados = llegó al final. 25 es el sello del canal QR (nunca pasa por 11).
 var sellados = map[int]bool{11: true, 28: true, 5: true, 25: true, 26: true}
 
+// desenlaceDe traduce un estado de `user_requests` a uno de los CUATRO desenlaces. Una sola definición,
+// porque ya había dos y no coincidían: `ArmarTraza` contemplaba `abandonado` (estado 7) y el buscador de
+// la API no, así que la MISMA solicitud salía «en curso» en la lista de intentos y «abandonado» al abrirla.
+// La vista incluso tenía color para un desenlace que su fuente nunca emitía.
+func desenlaceDe(estado int) string {
+	switch {
+	case sellados[estado]:
+		return "aprobado"
+	case malos[estado] != "":
+		return "roto"
+	case estado == 7:
+		return "abandonado"
+	default:
+		return "en-curso"
+	}
+}
+
 // LOS PATRONES YA NO VIVEN ACÁ. Están declarados en `mapa/etapas.json` y los resuelve `mapa.go`.
 //
 // ⚠ POR QUÉ SE MOVIERON, y no fue por prolijidad: la versión anterior era un `map[string]*regexp.Regexp`
@@ -307,7 +324,7 @@ type Traza struct {
 }
 
 // ensamblar arma la traza: primero el esqueleto de la BD (hechos), después el porqué de los logs.
-func ensamblar(mapa *Mapa, s *Solicitud, lineas []Linea, target string,
+func ensamblar(mapa *Mapa, subMapa *SubMapa, s *Solicitud, lineas []Linea, target string,
 	centrales map[int64]string, lenders map[int64]LenderInfo) Traza {
 	t := Traza{UReq: s.ID, Target: target, Sources: []string{"db"}}
 	if len(lineas) > 0 {
@@ -330,16 +347,7 @@ func ensamblar(mapa *Mapa, s *Solicitud, lineas []Linea, target string,
 	visto["origen"] = s.Creada
 
 	// El desenlace sale SOLO de la BD.
-	switch {
-	case sellados[s.Estado]:
-		t.Outcome = "aprobado"
-	case malos[s.Estado] != "":
-		t.Outcome = "roto"
-	case s.Estado == 7:
-		t.Outcome = "abandonado"
-	default:
-		t.Outcome = "en-curso"
-	}
+	t.Outcome = desenlaceDe(s.Estado)
 
 	// Las líneas de log, repartidas por etapa según el mapa declarado (determinista).
 	porEtapa := map[string][]Linea{}
@@ -491,8 +499,17 @@ func ensamblar(mapa *Mapa, s *Solicitud, lineas []Linea, target string,
 		// SUB-STEPS DE LOG — un renglón por método/evento distinto, con su conteo. Agrupar es obligatorio:
 		// sin esto, `registro` tendría 312 renglones y dejaría de ser legible, que es lo contrario de lo
 		// que un resumen tiene que hacer.
-		if o.id != "listado" && len(ls) > 0 {
-			e.Subs = append(e.Subs, gruposDeLog(ls)...)
+		if o.id != "listado" && o.id != "respuesta-lender" && len(ls) > 0 {
+			porNegocio, resto := agruparPorHitos(subMapa.Bloques(o.id), ls)
+			e.Subs = append(e.Subs, porNegocio...)
+			if len(resto) > 0 {
+				e.Subs = append(e.Subs, Sub{
+					Label:  fmt.Sprintf("Eventos sin nombre de negocio (%d líneas)", len(resto)),
+					Status: "skip", Source: "loki",
+					Detail: "candidatos a declararse como hitos en mapa/substeps.json",
+					Hijos:  gruposDeLog(resto),
+				})
+			}
 		}
 
 		// Los eventos crudos, para el panel de log. Se priorizan los errores: si hay que recortar, lo que
@@ -662,6 +679,72 @@ func ensamblar(mapa *Mapa, s *Solicitud, lineas []Linea, target string,
 	}
 	sort.Strings(t.Sources)
 	return t
+}
+
+// agruparPorHitos reparte las líneas de una etapa entre los HITOS declarados en mapa/substeps.json y
+// devuelve un Sub por hito con actividad — con su NOMBRE DE NEGOCIO — más las líneas que ningún hito
+// reclamó. Es lo que hace legible la vista: «Datos personales ×24» dice algo; el nombre del orquestador
+// no. Los nombres viven en el JSON a propósito: afinarlos es editar datos, no Go.
+//
+// Lo no reclamado NO se esconde: se pliega como «eventos sin nombre de negocio», que es el backlog
+// honesto de hitos por declarar. Esconderlo haría parecer que el mapa cubre todo, que es justo lo que no
+// se puede saber sin mirarlo.
+func agruparPorHitos(bloques []*BloqueDef, ls []Linea) ([]Sub, []Linea) {
+	type acc struct {
+		n       int
+		primero int64
+		err     string
+	}
+	porHito := map[string]*acc{}
+	var resto []Linea
+	for _, l := range ls {
+		var dueno *HitoDef
+		for _, b := range bloques {
+			for i := range b.Hitos {
+				h := &b.Hitos[i]
+				if h.Matcher != nil && h.Matcher.coincide(l.msg, l.ctx) {
+					dueno = h
+					break
+				}
+			}
+			if dueno != nil {
+				break
+			}
+		}
+		if dueno == nil {
+			resto = append(resto, l)
+			continue
+		}
+		a := porHito[dueno.ID]
+		if a == nil {
+			a = &acc{primero: l.ts}
+			porHito[dueno.ID] = a
+		}
+		a.n++
+		if l.level == "error" && a.err == "" {
+			if c := pick(l.ctx, []string{"error_code"}); c != "" {
+				a.err = c
+			} else {
+				a.err = "error"
+			}
+		}
+	}
+	var subs []Sub
+	for _, b := range bloques {
+		for _, h := range b.Hitos {
+			a := porHito[h.ID]
+			if a == nil {
+				continue // los hitos SIN actividad los pinta la vista desde el mapa, apagados
+			}
+			st := "ok"
+			det := fmt.Sprintf("×%d · %s", a.n, hhmm(time.UnixMilli(a.primero)))
+			if a.err != "" {
+				st, det = "fail", a.err+" · "+det
+			}
+			subs = append(subs, Sub{Label: h.Label, Status: st, Detail: det, Source: "loki"})
+		}
+	}
+	return subs, resto
 }
 
 // gruposDeLog colapsa las líneas de una etapa en renglones legibles: uno por `Clase::metodo` (o por
@@ -1036,6 +1119,10 @@ func ArmarTraza(target string, ureq int64) (Traza, *Solicitud, error) {
 	if err != nil {
 		return Traza{}, nil, fmt.Errorf("el mapa del flujo no carga: %w", err)
 	}
+	subMapa, err := CargarSub()
+	if err != nil {
+		return Traza{}, nil, fmt.Errorf("el árbol declarado no carga: %w", err)
+	}
 	fuente, err := abrirFuente(c)
 	if err != nil {
 		return Traza{}, nil, err
@@ -1072,7 +1159,7 @@ func ArmarTraza(target string, ureq int64) (Traza, *Solicitud, error) {
 	}
 	lenders := GetLenders(fuente, idsLender)
 
-	t := ensamblar(mapa, s, lineas, target, centrales, lenders)
+	t := ensamblar(mapa, subMapa, s, lineas, target, centrales, lenders)
 	t.Warnings = append(t.Warnings, notas...)
 	return t, s, nil
 }
@@ -1083,58 +1170,14 @@ func Resolver(r Runner, valor string) ([]Coincidencia, []string, error) {
 }
 
 func modoTraza(c config, target string, ureq int64, jsonOut bool, htmlOut string) int {
-	// El mapa se carga primero: si el flujo declarado no es válido, no tiene sentido ir a buscar datos.
-	mapa, err := Cargar()
+	// Render-only: el armado vive en ArmarTraza, que es el MISMO camino del server y del HTML. Este modo
+	// duplicaba ese cuerpo entero — la clase de deriva que este repo señala en trace.ts/veredicto().
+	_ = c
+	t, s, err := ArmarTraza(target, ureq)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "\n  %s el mapa del flujo no carga: %v\n\n", paint("31", "✘"), err)
+		fmt.Fprintf(os.Stderr, "\n  %s no puedo armar la traza para target «%s»: %v\n\n", paint("31", "✘"), target, err)
 		return 2
 	}
-	fuente, err := abrirFuente(c)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "\n  %s no puedo armar la traza para target «%s»: %v\n", paint("31", "✘"), target, err)
-		fmt.Fprintf(os.Stderr, "  El esqueleto sale de la BD: sin ella solo habría logs, y un log ausente no prueba nada.\n\n")
-		return 2
-	}
-	defer fuente.Close()
-
-	s, err := GetSolicitud(fuente, ureq)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "\n  %s la solicitud %d no está en la BD de «%s»: %v\n\n", paint("31", "✘"), ureq, target, err)
-		return 2
-	}
-
-	// Los logs son el segundo paso y son OPCIONALES: si Loki no responde, la traza sale igual con el
-	// esqueleto. Al revés no funciona — de ahí el orden.
-	var lineas []Linea
-	var notas []string
-	if no := porQueNoLoki(c); no != "" {
-		notas = append(notas, "sin logs: "+no)
-	} else {
-		cl := &client{http: &http.Client{Timeout: 60 * time.Second}, cfg: c,
-			current: attempt{base: c.base, auth: authDe(c)}}
-		lineas, notas = traerLineas(cl, s, c.env)
-	}
-
-	// El catálogo de centrales y la info de las entidades vistas en los logs: es lo que convierte una lista
-	// plana en el ÁRBOL (qué buró se consultó y de qué familia es cada lender). Best-effort: si falla, el
-	// árbol se degrada a lista y la traza sale igual.
-	centrales := GetCentrales(fuente)
-	var idsLender []int64
-	for _, l := range lineas {
-		if v := pick(l.ctx, []string{"lender_id"}); v != "" {
-			var id int64
-			if fmt.Sscanf(v, "%d", &id); id > 0 {
-				idsLender = append(idsLender, id)
-			}
-		}
-	}
-	if s.LenderID > 0 {
-		idsLender = append(idsLender, s.LenderID)
-	}
-	lenders := GetLenders(fuente, idsLender)
-
-	t := ensamblar(mapa, s, lineas, target, centrales, lenders)
-	t.Warnings = append(t.Warnings, notas...)
 
 	if jsonOut {
 		b, _ := json.MarshalIndent(t, "", "  ")
@@ -1204,6 +1247,7 @@ func esLokiLocal(u string) bool {
 // Coincidencia es un intento encontrado a partir de lo que se buscó.
 type Coincidencia struct {
 	UReq      int64
+	UserID    int64
 	Estado    int
 	EstadoN   string
 	Lender    string
@@ -1211,6 +1255,10 @@ type Coincidencia struct {
 	Creada    time.Time
 	Documento string
 	Telefono  string
+	// Directa: lo trajo la búsqueda literal, no la expansión a la persona. La distinción no es cosmética
+	// —es la diferencia entre «esto es lo que pediste» y «esto es el resto de su vida»—, y sin marcarla la
+	// lista de un ureq pasa de 1 fila a 40 sin decir cuál era la que se buscó.
+	Directa bool
 }
 
 // resolver traduce lo que el usuario escribió a una lista de solicitudes.
@@ -1238,25 +1286,27 @@ func resolverFuente(r Runner, valor string) ([]Coincidencia, []string, error) {
 	vistos := map[int64]bool{}
 	var out []Coincidencia
 
-	traer := func(where, etiqueta string) error {
-		fs, err := r.Filas(sqlBuscar+where+sqlBuscarOrden, valor)
+	traer := func(where, etiqueta, arg string, directa bool) error {
+		fs, err := r.Filas(sqlBuscar+where+sqlBuscarOrden, arg)
 		if err != nil {
 			return err
 		}
-		if len(fs) > 0 {
-			como = append(como, fmt.Sprintf("%s → %d", etiqueta, len(fs)))
-		}
+		nuevos := 0
 		for _, f := range fs {
 			id := entero(f["id"])
 			if vistos[id] {
 				continue
 			}
 			vistos[id] = true
+			nuevos++
 			out = append(out, Coincidencia{
-				UReq: id, Estado: int(entero(f["st"])), EstadoN: texto(f["estado"]),
+				UReq: id, UserID: entero(f["uid"]), Estado: int(entero(f["st"])), EstadoN: texto(f["estado"]),
 				Lender: texto(f["lender"]), Comercio: texto(f["comercio"]), Creada: fecha(f["created_at"], r.Zona()),
-				Documento: texto(f["documento"]), Telefono: texto(f["telefono"]),
+				Documento: texto(f["documento"]), Telefono: texto(f["telefono"]), Directa: directa,
 			})
+		}
+		if nuevos > 0 && etiqueta != "" {
+			como = append(como, fmt.Sprintf("%s → %d", etiqueta, nuevos))
 		}
 		return nil
 	}
@@ -1269,13 +1319,153 @@ func resolverFuente(r Runner, valor string) ([]Coincidencia, []string, error) {
 		{"u.cell_phone = ?", "teléfono"},
 		{"u.document_number = ?", "documento"},
 	} {
-		if err := traer(p.where, p.etiqueta); err != nil {
+		if err := traer(p.where, p.etiqueta, valor, true); err != nil {
+			return nil, nil, err
+		}
+	}
+
+	// SE EXPANDE A LA PERSONA. Buscar por número de solicitud devolvía UNA fila, y ahí se perdía lo que el
+	// soporte más necesita: si esta persona ya intentó antes y qué le pasó. El caso real es el de todos los
+	// días — llega un ureq por Jira, se abre, y para saber si es un reintento hay que buscar de nuevo por
+	// cédula. La cédula y el teléfono son únicos en `users`, así que esto resuelve a un puñado de user_id
+	// (normalmente uno) y cada uno cuesta una consulta más.
+	//
+	// Con `user_id`, no con el documento: el documento se puede corregir en el camino (ver F-97, el caso de
+	// la cédula transpuesta) y buscar por el valor final se comería los intentos hechos con el equivocado.
+	personas := map[int64]bool{}
+	for _, c := range out {
+		if c.UserID > 0 {
+			personas[c.UserID] = true
+		}
+	}
+	ids := make([]int64, 0, len(personas))
+	for id := range personas {
+		ids = append(ids, id)
+	}
+	sort.Slice(ids, func(i, j int) bool { return ids[i] < ids[j] }) // determinista: el orden de un map no lo es
+	//
+	// La expansión NO entra en `como`: `como` responde «cómo coincidió lo que escribiste», y su aviso de
+	// ambigüedad («⚠ coincidió como documento y como número de solicitud — mirá bien cuál buscabas») se
+	// dispara cuando hay más de una forma. Contar acá la expansión haría saltar ese aviso en casi toda
+	// búsqueda, y un aviso que suena siempre deja de avisar. Lo expandido se cuenta en la Historia.
+	for _, uid := range ids {
+		if err := traer("ur.user_id = ?", "", strconv.FormatInt(uid, 10), false); err != nil {
 			return nil, nil, err
 		}
 	}
 
 	sort.Slice(out, func(i, j int) bool { return out[i].Creada.After(out[j].Creada) })
 	return out, como, nil
+}
+
+// Historia es la vida de una persona en CreditOp, contada por sus solicitudes. El conteo se hace ACÁ y no
+// en la vista por la razón de siempre: «roto» es una definición de negocio (`malos`/`sellados`), y si la
+// Vue tallara sus propios totales habría dos respuestas para «¿cuántas veces le fue mal a esta persona?».
+type Historia struct {
+	Total     int    `json:"total"`
+	Aprobadas int    `json:"aprobadas"`
+	Rotas     int    `json:"rotas"`
+	Abandonad int    `json:"abandonadas"`
+	EnCurso   int    `json:"enCurso"`
+	Desde     string `json:"desde"`
+	Hasta     string `json:"hasta"`
+	Personas  int    `json:"personas"`  // >1 = el valor coincidió con clientes distintos: mirá bien cuál
+	MismoDia  int    `json:"mismoDia"`  // el día con más intentos: 5 en un día es un reintento, no un cliente indeciso
+	Truncada  bool   `json:"truncada"`  // se llegó al LIMIT: hay más solicitudes de las que se ven
+	Comercios int    `json:"comercios"` // intentar en varios comercios distingue «no le alcanza» de «este comercio falla»
+	// Expandidas: las que NO pidió la búsqueda literal y aparecieron por ser del mismo cliente. Se cuenta
+	// acá y no en `como` para no disparar el aviso de ambigüedad en cada búsqueda (ver resolverFuente).
+	Expandidas int `json:"expandidas"`
+}
+
+// plural evita el «1 solicitud(es)», que en una herramienta de soporte se lee como descuido.
+func plural(n int, uno, muchos string) string {
+	if n == 1 {
+		return "1 " + uno
+	}
+	return fmt.Sprintf("%d %s", n, muchos)
+}
+
+// resumirHistoria arma el resumen y su versión en una línea para la consola.
+func armarHistoria(cs []Coincidencia) Historia {
+	h := Historia{Total: len(cs)}
+	if len(cs) == 0 {
+		return h
+	}
+	porDia := map[string]int{}
+	personas, comercios := map[int64]bool{}, map[string]bool{}
+	for _, c := range cs {
+		switch desenlaceDe(c.Estado) {
+		case "aprobado":
+			h.Aprobadas++
+		case "roto":
+			h.Rotas++
+		case "abandonado":
+			h.Abandonad++
+		default:
+			h.EnCurso++
+		}
+		d := c.Creada.Local().Format("2006-01-02")
+		porDia[d]++
+		if porDia[d] > h.MismoDia {
+			h.MismoDia = porDia[d]
+		}
+		if c.UserID > 0 {
+			personas[c.UserID] = true
+		}
+		if c.Comercio != "" {
+			comercios[c.Comercio] = true
+		}
+		if !c.Directa {
+			h.Expandidas++
+		}
+	}
+	h.Personas, h.Comercios = len(personas), len(comercios)
+	// `cs` viene ordenado de más nueva a más vieja (lo ordena resolverFuente).
+	h.Hasta = cs[0].Creada.Local().Format("2006-01-02")
+	h.Desde = cs[len(cs)-1].Creada.Local().Format("2006-01-02")
+	// El LIMIT del buscador. Si se alcanzó exacto, hay que decirlo: un «12 solicitudes» que en realidad son
+	// 228 cambia el diagnóstico de «reintentó» a «algo la está reintentando sola».
+	h.Truncada = len(cs) >= limiteBusqueda
+	return h
+}
+
+func resumirHistoria(cs []Coincidencia) string {
+	h := armarHistoria(cs)
+	if h.Total == 0 {
+		return ""
+	}
+	partes := []string{plural(h.Total, "solicitud", "solicitudes")}
+	for _, p := range []struct {
+		n    int
+		u, m string
+	}{{h.Aprobadas, "aprobada", "aprobadas"}, {h.Rotas, "rota", "rotas"},
+		{h.Abandonad, "abandonada", "abandonadas"}, {h.EnCurso, "en curso", "en curso"}} {
+		if p.n > 0 {
+			partes = append(partes, plural(p.n, p.u, p.m))
+		}
+	}
+	if h.Desde != h.Hasta {
+		partes = append(partes, "de "+h.Desde+" a "+h.Hasta)
+	} else {
+		partes = append(partes, "todas el "+h.Hasta)
+	}
+	if h.MismoDia > 1 {
+		partes = append(partes, fmt.Sprintf("hasta %d el mismo día", h.MismoDia))
+	}
+	if h.Comercios > 1 {
+		partes = append(partes, fmt.Sprintf("%d comercios", h.Comercios))
+	}
+	if h.Personas > 1 {
+		partes = append(partes, fmt.Sprintf("⚠ %d clientes distintos", h.Personas))
+	}
+	if h.Expandidas > 0 {
+		partes = append(partes, fmt.Sprintf("%d por la misma persona", h.Expandidas))
+	}
+	if h.Truncada {
+		partes = append(partes, fmt.Sprintf("⚠ recortado en %d", limiteBusqueda))
+	}
+	return strings.Join(partes, " · ")
 }
 
 // imprimirCoincidencias lista los intentos para elegir. Cuando el mismo valor coincide como DOS cosas
@@ -1294,15 +1484,17 @@ func imprimirCoincidencias(valor string, cs []Coincidencia, como []string, targe
 		fmt.Printf("     %s\n", gray("sin coincidencias"))
 		return
 	}
-	fmt.Println()
+	fmt.Printf("     %s\n\n", gray(resumirHistoria(cs)))
 	for _, c := range cs {
-		res := gray("en curso")
-		if sellados[c.Estado] {
-			res = green("aprobado")
-		} else if malos[c.Estado] != "" {
-			res = red(malos[c.Estado])
+		res := map[string]string{
+			"aprobado": green("aprobado"), "roto": red(malos[c.Estado]),
+			"abandonado": paint("33", "abandonado"), "en-curso": gray("en curso"),
+		}[desenlaceDe(c.Estado)]
+		marca := "  "
+		if c.Directa {
+			marca = paint("36", "◂ ") // lo que se buscó, frente a lo que trajo la expansión a la persona
 		}
-		fmt.Printf("     %-8d %s  %-11s %-24s %s\n", c.UReq, c.Creada.Local().Format("2006-01-02 15:04"),
+		fmt.Printf("   %s%-8d %s  %-11s %-24s %s\n", marca, c.UReq, c.Creada.Local().Format("2006-01-02 15:04"),
 			res, trim(c.Comercio, 24), gray(trim(c.Lender, 26)))
 	}
 	fmt.Printf("\n     %s\n", gray(fmt.Sprintf("para ver una: -ureq <número>  (target %s)", target)))
