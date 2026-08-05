@@ -107,6 +107,34 @@ Departamento→Ciudad de nacimiento de Credifamilia, 2026-07-23).
 RD pida ciudad desde el árbol. Arrancar por ahí gasta la primera semana en higiene de 250 países sin
 mover nada observable, mientras los tres bloqueadores reales siguen intactos.
 
+### ¿Credifamilia creó tablas nuevas? NO — el form-service lee LAS MISMAS
+Verificado en `github/form-service` (rama `main`, 2026-08-05). Sus queries no tienen tabla propia ni
+migraciones: leen el catálogo legacy tal cual, y sus entidades viven bajo
+`internal/core/entities/legacy_forms`.
+
+| Query (`internal/infra/storage/mysql/queries/`) | Tabla | Qué hace |
+|---|---|---|
+| `GetCountryByID` · `GetCountryByISOCode1` · `ListAllCountries` | `countries` | **SELECT** de la fila completa: `dial_code, iso_code_1/2/3, address_format, cell_phone_lenght, phone_code, locale, currency, status` |
+| `ListCountryZonesByCountryID` | `country_zones` | SELECT `WHERE country_id = ? AND status = 1` |
+| `ListCountryCitiesByZoneIDs` | `country_cities` | SELECT `WHERE country_zone_id IN (…) AND status = 1` |
+
+**Es read-only:** en todo el set de queries los únicos INSERT/DELETE son sobre `user_field_values`. No
+hay DDL. → **No existe un segundo catálogo de países/ciudades, y no hay que crear uno.** `countries` ya
+tiene **dos consumidores vivos en repos distintos** (el `currency_format` de legacy y el form-service);
+una tabla paralela sería una tercera opinión del mismo hecho — justo la enfermedad que esta tarea cura.
+
+**Consecuencia para el plan: los cambios a `countries` son ADITIVOS, no un refactor libre.** Tocar esas
+columnas rompe un microservicio en otro repo, con deploy propio:
+- **Renombrar `cell_phone_lenght`** (el typo) rompe `country_queries.sql` — el typo está horneado en el
+  SELECT. Exige PR coordinado en los dos repos o lectura dual transitoria.
+- **Renombrar las columnas ISO corridas** rompe `GetCountryByISOCode1`, que busca por `iso_code_1` — o
+  sea que el form-service **ya depende** de que ahí viva el alpha-2. Mejor: **dejarlas quietas**,
+  documentar el corrimiento y agregar una columna nueva bien nombrada si hace falta.
+- **`status`** es gate vivo (ver arriba): no se reutiliza.
+- **Poblar lo vacío es seguro y es la parte que rinde**: `phone_code`, `address_format`, `locale` y
+  `currency` ya se están SELECTeando y hoy llegan nulos. Llenarlos no rompe nada y le da datos a un
+  consumidor que ya los pide.
+
 **Orden propuesto para el catálogo:**
 
 1. **`countries` como fila de configuración** — el arranque real, y es chico. Ya tiene consumidor vivo
@@ -119,8 +147,9 @@ mover nada observable, mientras los tres bloqueadores reales siguen intactos.
    - `cell_phone_lenght` (typo) vs el `$fillable` con el nombre correcto → renombrar columna + modelo.
    - `locale`: 6/250 pobladas y en dos notaciones (`es-CO` vs `es_DO`) → una sola + convertir en el borde.
    - **agregar**: `otp_length`, `date_format`, `template_suffix` (hoy es el `'do' : 'co'` hardcodeado).
-   - **`status` que signifique algo** (o `is_operating`): las 253 están activas. Es lo que después le da
-     sentido a "esta sucursal solo habilita entidades de este país".
+   - **NO reutilizar `status`: agregar `is_operating`.** Las 253 filas están activas, sí — pero
+     `status = 1` es un **gate vivo del form-service** (filtra countries, zones y cities en las tres
+     consultas). Apagar un país para decir "no operamos acá" lo borraría del formulario dinámico.
 2. **Tipos de documento** — catálogo + aplicabilidad (ver la sección de las tres capas). **No** es parte
    de geo y **no** es una columna JSON de `countries`: meterla ahí pierde los niveles sucursal/entidad
    que ya existen en `lenders_by_allied_branches.document_types`.
@@ -386,5 +415,12 @@ la traducción a un idioma distinto del español.
   de config → tipos de documento → `allied_branches.country_id` (con invariante) → geo como ticket de datos.
   Sumado el hueco de snapshot en `user_requests`. En `flow` quedó el modelo visible: un select de país por
   nodo de config, con el estado real de cada columna.
+- **2026-08-05 (3)** — Resuelta la duda de Credifamilia: el **form-service NO creó tablas propias**, lee
+  `countries` / `country_zones` / `country_cities` legacy y es **read-only** (solo escribe
+  `user_field_values`). Además ya SELECTea la fila completa de `countries` — incluidas `phone_code`,
+  `cell_phone_lenght` y `address_format`, que hoy le llegan vacías. Dos correcciones al plan: los cambios
+  a `countries` son **aditivos** (renombrar el typo o las ISO rompe queries de otro repo con deploy
+  propio) y **`status` NO se puede reutilizar** como "operamos acá" porque es gate vivo de los tres
+  SELECT del form-service → `is_operating` aparte.
 </content>
 </invoke>
