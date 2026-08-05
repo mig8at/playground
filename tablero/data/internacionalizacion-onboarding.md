@@ -34,15 +34,103 @@ de la pantalla de celular redirige a **un wizard entero aparte** (5 pantallas + 
 líneas + `FinancialInfoForm.tsx` de 577). Si el tercer país entra por el mismo camino, son 5 pantallas más y
 un tercer catálogo de documentos.
 
-## Tres nociones de "país" compitiendo, y ninguna es la fuente de verdad
-Verificado contra `main` de `legacy-backend`/`frontend-monorepo` + BD local (2026-08-05):
+## Censo: ya hay CUATRO columnas de país y tres mienten
+El problema no es de cobertura — es del `DEFAULT 1`. Verificado contra `main` de
+`legacy-backend`/`frontend-monorepo` + BD local (2026-08-05):
 
-| dónde | qué pretende decir | estado real |
-|---|---|---|
-| `allieds.country_id` | el país del **comercio** | es el que usa el flujo (sesión `alliedCountry`). `NOT NULL DEFAULT 1`. En el dump: **264 comercios CO / 2 RD** |
-| `allied_branches` | el país de la **sucursal** | **no existe la columna.** Solo `country_city_id` (nullable) → `country_cities.country_zone_id` → `country_zones.country_id`. 1689/1692 sucursales tienen ciudad |
-| `lenders.country_id` | el país de la **entidad** | basura *load-bearing*: **155 filas en `country_id=1`** (default de la migración) y el listado filtra `->where('country_id', 1)` literal. Aun así decide mensajería y tasa |
-| tabla `countries` | la configuración de país | **es la tabla que ya casi sirve y casi nadie lee** (`dial_code`, `cell_phone_lenght`, `locale`, `currency`, iso codes) |
+| Tabla | Columna | Datos reales | Estado |
+|---|---|---|---|
+| `allieds` | `country_id` NOT NULL **DEFAULT 1** | 264 en 47 · 2 en 60 | **sana** — y la única que el flujo lee (sesión `alliedCountry`) |
+| `lenders` | `country_id` NOT NULL **DEFAULT 1** | **155 en 1** · 1 en 60 | basura + **tres** filtros literales `where('country_id', 1)`. Aun así decide mensajería y tasa |
+| `users` | `country_id` NOT NULL **DEFAULT 1** | **215.844 en 1** · 12.183 en 47 · 1 en 60 | basura inconsistente, **sin lector** |
+| `users` | `issue_country` varchar nullable | **0 filas** pobladas | vacía **pero sí se lee** → ver bug abajo |
+| `allied_branches` | — | — | **falta** (la que sí hace falta) |
+| `user_requests` | — | — | **falta** — la solicitud no congela el país |
+| `countries` | la fila de config | `dial_code`, `cell_phone_lenght`, `locale`, `currency`, iso | **es la que ya casi sirve y casi nadie lee** |
+
+**El defecto de diseño es el default, no la tabla.** `DEFAULT 1` apunta a una fila real (`id 1` =
+Afghanistan), así que **"sin definir" es indistinguible de "definido mal"** — y es lo que pasó en las
+tres columnas rotas. Con `NULL` los 155 lenders y los 215.844 usuarios habrían gritado el primer día.
+Regla para lo que se agregue: **sin default, o nullable.**
+
+**Los tres filtros literales `->where('country_id', 1)` hoy funcionan por accidente** —leen el default,
+no un país—: `LenderRetrievalService:458`, `OnboardingService:1782`, `Identity/LenderRepository:52`.
+Poblar bien `lenders.country_id` sin arreglarlos primero **vacía el listado**. La versión parametrizada
+ya existe y nadie la usa en ese camino (`Onboarding/LenderRepository:18-22`).
+
+**Semántica correcta de cada una** (importa para no volver a mezclarlas):
+- `allieds.country_id` = donde el comercio **reporta** (país central). Hoy hace **dos** trabajos: ese y
+  "el país que gobierna el flujo". Con la de la sucursal hay que quitarle el segundo — si no, la columna
+  nueva no arregla nada porque el gate sigue leyendo la del comercio.
+- `allied_branches.country_id` = donde se **opera / se atiende al cliente**. Es la que debe gobernar.
+- `lenders.country_id` = **en qué moneda está denominada esa fila** (no "dónde opera"). Por eso es
+  singular y está bien que lo sea.
+- `users.country_id` / `issue_country` = **de dónde es la persona**. Es OTRO EJE: un colombiano atendido
+  en una sucursal RD es legítimo. No mezclar con el eje de operación.
+
+**Dónde NO ponerla:** en `lenders_by_allied_branches` (el cableado) ni en las tablas de config que
+cuelgan de esas (calculadora, group rules, categorías, tramos). Es derivable de los dos lados y ahí es
+donde una tercera copia fabrica deriva: el cableado **valida** que sucursal y entidad coincidan, no
+guarda una opinión propia.
+
+**La que falta y nadie pidió: `user_requests`.** La solicitud congela `rate`, `initial_fee`,
+`final_amount`, `fee_value`… y **no congela el país** (verificado: no tiene columna de país, moneda ni
+locale). El día que se corrija el país de una sucursal, las solicitudes históricas cambian
+**retroactivamente** de moneda, de documentos válidos y de plantilla de mensaje — en originación eso
+toca documentos ya firmados. Snapshot, no FK viva, igual que el resto de esa tabla.
+
+**Bug ya cobrando:** `issue_country` está en **0 filas** y se lee como
+`$user->issue_country ?? 'COLOMBIANA'` (`OnboardingPayloadBuilder.php:129`) → **todos los documentos
+generados afirman nacionalidad colombiana**, incluidos los de RD.
+
+## Por dónde arrancar: "config de país" y "geolocalización" no son el mismo trabajo
+La geografía **ya existe y es de tres niveles** (`countries` → `country_zones` = departamentos/provincias
+→ `country_cities`), y está más completa de lo que parece. Censo (BD local):
+
+| | |
+|---|---|
+| países | **253**, todos `status=1` → hoy no hay forma de decir "operamos acá" |
+| países con zonas | **214** (4.110 zonas en total) |
+| zonas de **RD** | **32** ✅ — son sus 31 provincias + Distrito Nacional, están bien |
+| ciudades de **RD** | **0** ⛔ |
+| ciudades de **CO** | 1.123 |
+| `address_format` | **0 filas** pobladas |
+| suciedad conocida | `country_zones.code`: de 4.110 filas solo 419 numéricas; en CO 3 malas (`EXT`, `MED`, `TODOS`) |
+
+Y el dato que decide la prioridad: **el wizard RD hoy NO consume `country_cities`.** Su ciudad de
+residencia (`field_id` 162) sale de constantes TS / del forms-service externo, no del árbol. El árbol lo
+consume la **G2** (`form-service`, `PUT /v1/field-options/country-tree/{countryId}`) — que es justamente
+el camino que **ya es multi-país por diseño** y que ya se ejercitó sin escribir código (la cascada
+Departamento→Ciudad de nacimiento de Credifamilia, 2026-07-23).
+
+→ **Cargar las ciudades de RD es un INSERT, no un diseño**, y solo hace falta el día que una pantalla de
+RD pida ciudad desde el árbol. Arrancar por ahí gasta la primera semana en higiene de 250 países sin
+mover nada observable, mientras los tres bloqueadores reales siguen intactos.
+
+**Orden propuesto para el catálogo:**
+
+1. **`countries` como fila de configuración** — el arranque real, y es chico. Ya tiene consumidor vivo
+   (`currency_format`), así que lo que se agregue se usa el día uno.
+   - `phone_code`: re-sembrar (migración no-op) **y decidir si sobrevive**: hoy hay dos columnas para lo
+     mismo (`dial_code` sin `+`, `phone_code` vacía).
+   - **las columnas ISO están corridas** (`iso_code_1`=alpha-2, `iso_code_2`=alpha-3, `iso_code_3`
+     vacía): renombrar o documentar, pero no dejarlo — `PhoneService::resolveCountry` devuelve alpha-2 y
+     cualquier join contra `iso_code_2` falla en silencio.
+   - `cell_phone_lenght` (typo) vs el `$fillable` con el nombre correcto → renombrar columna + modelo.
+   - `locale`: 6/250 pobladas y en dos notaciones (`es-CO` vs `es_DO`) → una sola + convertir en el borde.
+   - **agregar**: `otp_length`, `date_format`, `template_suffix` (hoy es el `'do' : 'co'` hardcodeado).
+   - **`status` que signifique algo** (o `is_operating`): las 253 están activas. Es lo que después le da
+     sentido a "esta sucursal solo habilita entidades de este país".
+2. **Tipos de documento** — catálogo + aplicabilidad (ver la sección de las tres capas). **No** es parte
+   de geo y **no** es una columna JSON de `countries`: meterla ahí pierde los niveles sucursal/entidad
+   que ya existen en `lenders_by_allied_branches.document_types`.
+3. **`allied_branches.country_id`** — la única pieza *geo* que sí es de arranque, porque desbloquea todo
+   lo demás. Va con **invariante**: la ciudad debe pertenecer a una zona de ese país, validado en el
+   único camino de escritura. Sin eso no es una columna nueva, es una quinta opinión (la deriva ya
+   existe: la sucursal del comercio RD apunta a una ciudad colombiana).
+4. **Geo (datos)** — ticket aparte, no bloqueante: **ciudades de RD** (0 hoy), `address_format` y la
+   limpieza de `country_zones.code`. Payoff diferido: recién pesa cuando una pantalla RD pida ciudad
+   desde el árbol.
 
 El patrón que no escala no es "faltan features": es que **el país es un `if` literal en vez de una fila
 cargada una vez por solicitud**. En `main`: **28 archivos PHP con `'+57'` literal**, `?? '+57'` como default
@@ -146,8 +234,10 @@ una internacionalización.
 Orden pensado para que ningún bloque posterior tenga que volver a decidir país.
 
 **A · Fundamento**
-1. `countries` como única fuente de verdad — **pero arreglar los datos primero** (ver Trampas). Agregarle
-   `otp_length`, `date_format`, `template_suffix`, `messaging_channels`.
+1. `countries` como única fuente de verdad — **el arranque**; detalle y orden en «Por dónde arrancar» (los
+   4 arreglos de datos + `otp_length` / `date_format` / `template_suffix` / `status` que discrimine).
+1.bis `allied_branches.country_id` con invariante contra `country_city_id`, y quitarle a
+   `allieds.country_id` el segundo trabajo (dejar de gobernar el flujo).
 2. Un solo resolvedor de país por solicitud, con precedencia escrita (sucursal → comercio → teléfono →
    default) y **un** lugar donde vive el default.
 3. Que el país llegue al front como **payload**, no como `if` en el loader: extender `partner-info` (ya trae
@@ -215,8 +305,17 @@ Orden pensado para que ningún bloque posterior tenga que volver a decidir país
     en dev el del canal es 153 — F-21), así que el canal donde nace la tarea no es probable sin sortear eso.
 
 ## Decisiones abiertas
+- ~~¿Se arranca por enriquecer la geolocalización?~~ **RESUELTO (2026-08-05):** no. El árbol geo ya existe
+  y es de 3 niveles (RD ya tiene sus 32 provincias); lo que falta son datos (ciudades de RD) con payoff
+  diferido. Se arranca por **`countries` como fila de config** → tipos de documento →
+  `allied_branches.country_id`. Detalle en «Por dónde arrancar».
 - **¿Cuál país manda?** Sucursal, comercio, entidad o teléfono del cliente. Hoy los cuatro están cableados en
-  puntos distintos del mismo flujo. El resolvedor (A2) no se escribe sin esta respuesta.
+  puntos distintos del mismo flujo. El resolvedor (A2) no se escribe sin esta respuesta. Recomendación:
+  la **sucursal** (donde se atiende), con el comercio como fallback.
+- **¿`phone_code` sobrevive o se queda solo `dial_code`?** Son dos columnas para lo mismo y una está vacía.
+  Elegir una antes de que el código nuevo lea la equivocada.
+- **¿Se congela el país en `user_requests`?** Sin snapshot, corregir el país de una sucursal reescribe
+  moneda/documentos/plantillas de solicitudes ya firmadas. Yo lo agregaría; es decisión de negocio.
 - **¿`allied_branches.country_id` entra en esta tarea o es prerequisito aparte?** Sin él, "sucursales en otro
   país" no existe; con él, hay que revisar la copia de reglas por sucursal (37.284 copias) y `Rule::in([47,60])`.
 - **¿Se converge el fork de RD (A4) o se acepta un wizard por país?** Convergir es más trabajo ahora y es lo
@@ -240,6 +339,17 @@ Orden pensado para que ningún bloque posterior tenga que volver a decidir país
 - Solo **6 de 250** filas de `countries` tienen `locale`; `currency` igual. `dial_code` viene **sin `+`**
   (`57`, `1`) mientras el código compara contra `'+57'`.
 - `Country::COLOMBIA_ID = 47` existe **solo en `application`**; `legacy-backend` no lo tiene.
+- **`users.issue_country` está en 0 filas y SÍ se lee**: `$user->issue_country ?? 'COLOMBIANA'`
+  (`OnboardingPayloadBuilder.php:129`) → todos los documentos generados afirman nacionalidad colombiana,
+  incluidos los de RD. Arreglo barato y visible.
+- **`users.country_id` es la cuarta columna de país y nadie la lee**: 215.844 filas en el default 1 contra
+  12.183 en 47 y 1 en 60. Algo escribe 47 a veces: hay que encontrar qué antes de darle semántica.
+- **Hay TRES filtros literales `->where('country_id', 1)`** sobre `lenders`, no dos:
+  `LenderRetrievalService:458`, `OnboardingService:1782` y `Identity/LenderRepository:52`.
+- **`countries.status` no discrimina**: las 253 filas están en 1. Hoy no hay forma de expresar "operamos
+  en este país", que es justo lo que necesita la regla de habilitación por sucursal.
+- **`address_format` está vacío en las 253 filas** y `country_zones.code` está sucio (419 numéricas de
+  4.110; en CO `EXT`/`MED`/`TODOS`) → no derivar el país de la solicitud por ese camino.
 
 ## Tarea (publicable)
 Hoy el onboarding asume un solo país en el código: el prefijo y la longitud del celular, los tipos de
@@ -267,5 +377,14 @@ la traducción a un idioma distinto del español.
   `main`** — el problema no es la forma de la tabla, es que nada la consume y los catálogos hardcodeados
   siguen vivos. Pendiente: cerrar las decisiones abiertas y recién ahí escribir `jira_title` + afinar la
   sección publicable.
+- **2026-08-05 (2)** — Aterrizado el arranque. Censo de columnas de país: son **cuatro** y tres mienten
+  (`lenders` 155/156 en el default, `users` 215.844 en el default sin lector, `issue_country` vacía pero
+  leída). El defecto raíz es `DEFAULT 1`, que hace indistinguible "sin definir" de "definido mal".
+  Descartado arrancar por geolocalización: el árbol ya es de 3 niveles y **RD ya tiene sus 32 provincias**
+  — falta cargar sus ciudades (0), pero el wizard RD no consume `country_cities` (las toma de constantes /
+  del forms-service), así que es un INSERT diferido y no un diseño. Orden acordado: `countries` como fila
+  de config → tipos de documento → `allied_branches.country_id` (con invariante) → geo como ticket de datos.
+  Sumado el hueco de snapshot en `user_requests`. En `flow` quedó el modelo visible: un select de país por
+  nodo de config, con el estado real de cada columna.
 </content>
 </invoke>
