@@ -16,27 +16,36 @@ jira_title: ""
 
 ## 0 · SI RETOMÁS ESTO SIN CONTEXTO, EMPEZÁ ACÁ
 
-**Estado al 2026-08-03: los pasos 1 y 2 del plan (§5) están HECHOS y en un PR sin mergear. Lo que sigue
-está bloqueado por el banco, no por nosotros.**
+**Estado al 2026-08-05. LO TÉCNICO ESTÁ HECHO Y VALIDADO CONTRA EL BANCO REAL. Lo único que queda
+bloqueado es el NEGOCIO, y no depende de nosotros.**
+
+En una línea: *el código de compra ya se le pide a Bancolombia y no a Corbeta; el banco acepta nuestra
+petición y devuelve 200 con `billingCode`; pero el ambiente que nos dieron contesta ejemplos
+pre-grabados, así que todavía no sabemos si ese código sirve para conciliar.*
 
 **Dónde está el código**
 
 | | |
 |---|---|
 | repo | `legacy-backend` |
-| rama | `feature/bancolombia-billing-code` — **un solo commit**, PR abierto, sin mergear |
-| archivos | `app/Actions/Lenders/BancolombiaBillingCode.php` (nuevo) · `Modules/Onboarding/App/Services/merchants/CodeGenerationService.php` (el switch) · `Modules/Onboarding/App/Http/Controllers/PurchaseCodeController.php` (import colgado, borrado) · `config/services.php` · 3 archivos de test |
+| rama | `feature/bancolombia-billing-code` — **dos commits**, PR abierto, sin mergear |
+| commits | `4224f951` (el emisor + el Setting) · `4036a5a4` (los dos fixes que salieron de llamar al banco) |
+| archivos | `app/Actions/Lenders/BancolombiaBillingCode.php` (nuevo) · `app/Actions/Lenders/Bancolombia.php` (el `?? null`) · `Modules/Onboarding/App/Services/merchants/CodeGenerationService.php` (el switch) · `Modules/Onboarding/App/Http/Controllers/PurchaseCodeController.php` (import colgado, borrado) · `config/services.php` · 3 archivos de test |
 | mock | `playground/harness/mock-bancolombia/server.mjs` — se le agregaron las 3 rutas del servicio nuevo |
+| sonda contra el banco | `playground/harness/dev/sandbox-bancolombia.ts` → `make harness-sandbox` |
 
 **Qué funciona, y cómo lo comprobás en tres pasos**
 
 ```bash
-# 1 · los 19 tests (uno de ellos valida contra el OpenAPI real del banco)
+# 1 · los tests (16 pasan · 4 se saltean sin el YAML del banco en ~/Downloads)
 cd ~/Desktop/CREDITOP/github/legacy-backend
 vendor/bin/pest tests/Unit/Lenders/BancolombiaBillingCode*Test.php tests/Unit/Lenders/CodeGenerationIssuerTest.php
 
-# 2 · el recorrido visual completo (9 pantallas → código en pantalla)
+# 2 · el recorrido visual completo (9 pantallas → código en pantalla), contra el mock local
 cd ~/Desktop/CREDITOP/playground && make harness-mocks && make harness-walk PRODUCT=bnpl
+
+# 3 · el BANCO REAL: 20 casos, contrato + seguridad. Tarda ~30 s, no escribe nada
+make harness-sandbox
 ```
 
 ⚠ Para el paso 2 hacen falta **tres cosas que cuestan una corrida si no se saben**:
@@ -54,15 +63,39 @@ cd ~/Desktop/CREDITOP/playground && make harness-mocks && make harness-walk PROD
 
 1. **¿El `billingCode` del banco es el mismo PIN que la conciliación cruza contra la factura?** Si no lo
    es, escribirlo en `verification_token` rompe **en silencio**: nadie pasa a 26 y no se confirma el
-   consumo. → **al banco**.
+   consumo. → **al banco**. *Sigue igual de abierta después de llamar a la API: el Sandbox no la puede
+   contestar.*
 2. **¿Bancolombia crea la orden en Corbeta (`setOrder`) o la seguimos creando nosotros?** Es la misma
    pregunta con otra cara: el híbrido «emitir con Bancolombia, conciliar con Corbeta» **solo funciona si
    la orden existe en Corbeta**. → **al banco**, y NO se la puede contestar Santi (lo dijo él).
 3. **Credenciales.** ~~El ticket CORE-19 ya dice que Bancolombia debe entregar credenciales nuevas con
    coexistencia~~ → **YA NO BLOQUEA para probar** (2026-08-04): la credencial que hoy tiene Alkosto
-   (#1124) autentica contra el sandbox y emite código. El certificado vencido tampoco frena. Lo que
-   **sí** falta pedir: (a) habilitar `retrieve-order-details` para ese client, (b) el catálogo
-   **Development/Testing** para validar negocio, (c) renovar el certificado antes de esos ambientes.
+   (#1124) autentica contra el sandbox y emite código. El certificado vencido tampoco frena.
+4. **Acceso a un ambiente con el emisor REAL. Es el bloqueante operativo, y es de RED, no de
+   credenciales.** El único host expuesto a internet es el Sandbox (`.com`), y detrás tiene Microcks.
+   `Development` y `Testing` —los únicos con backend real— están en `.lab` y **no resuelven desde
+   afuera** (verificado: `NXDOMAIN` los dos). Pedirlo como «pásennos la URL» va a devolver una `.lab`
+   inservible: hay que pedir **acceso**, no dirección.
+
+### ⏭ SI RETOMÁS, EL PRÓXIMO PASO ES ESTE
+
+**No es código.** Es conseguir el acceso al catálogo `Development` o `Testing` y, en el mismo pedido,
+las dos preguntas de negocio (1 y 2). Sin eso, el paso 4 del plan (persistencia) no se puede decidir y
+conmutar Alkosto en producción es una apuesta.
+
+**Lo único que sí se puede adelantar sin el banco** es el paso 3 (bitácora en `lender_transactions`
+ANTES del POST), que habilita ejercitar el 409 `BP21000` como recuperación.
+
+**Lo que puede correr Santi si baja la rama** (preguntó por esto):
+- *los tests* → sí, solo con la rama. Necesita el YAML del banco en `~/Downloads/` (o
+  `BANCOLOMBIA_BILLING_CODE_SPEC=<ruta>`) para que corran los 4 del contrato — ese archivo lo tiene él;
+- *el recorrido de 9 pantallas* → sí, pero le faltan tres cosas que **no** vienen en la rama: (a) la
+  variable `BANCOLOMBIA_IN_STORE_BILLING_CODE_PREFIX`, que **no está en `.env.example`** —verificado; ese
+  archivo no documenta hosts de proveedores—, (b) el mock, que vive en playground: es **un archivo suelto
+  sin dependencias**, se le manda y corre con `MOCK_BC_PORT=8104 node server.mjs`, (c) prender el
+  comercio en su BD;
+- *la sonda contra el banco* → no es práctico: necesita desencriptar la credencial con el `APP_KEY`.
+  Más simple correrla acá y pasarle la salida.
 
 **Los cinco hallazgos que costaron trabajo — no los re-descubras**
 
@@ -73,7 +106,17 @@ cd ~/Desktop/CREDITOP/playground && make harness-mocks && make harness-walk PROD
 3. **El `address` de 20 caracteres**: no se trunca, se abrevia el tipo de vía (así lo hacen los ejemplos
    del banco) y si no entra, se falla explícito.
 4. **El certificado está vencido hace 400 días y es autofirmado** — verificado contra la BD de dev.
+   ⚠ Pero **no bloquea**: el gateway lo usa para leer el módulo y verificar la firma del JWT, y **no
+   valida vigencia ni cadena**. El 200 salió con él. Renovarlo hace falta para `Development`/`Testing`.
 5. **Bug preexistente arreglado**: `PurchaseCodeService:144` leía `verification_token` sin `??` → 500.
+6. **Hay DOS 409 y no son lo mismo** (2026-08-04): `BP21000` es el conflicto real de `transactionId` —el
+   escenario de recuperación—; `BP12700001` es el catch-all del simulador ante cualquier dato real.
+   Tratar «409 ⇒ ya se generó» los confunde.
+7. **Sólo UNA de las 4 credenciales Bancolombia distintas está aprovisionada** en el sandbox: la #1124
+   (`application_name = creditop`, la de Alkosto y Creditop). Las otras tres —incluida la de los 167
+   comercios `creditop-bnpl`— dan 401. Si probás y todo da 401, es eso.
+8. **El `message-id` UUID v4 es obligatorio de verdad**: v1 → 400. La bomba de `orderedUuid()` (F-84)
+   está confirmada contra el banco, no era una precaución teórica.
 
 **Lo que NO se pudo hacer y por qué**: llamar a la API real. El host verdadero **no está en el repo**
 (solo placeholders y el mock) — vive en la config del ambiente desplegado.
@@ -489,9 +532,16 @@ desde `application`). Inocuo hoy porque nadie la usaba; un fatal el día que alg
 
 | paso | estado |
 |---|---|
-| 3 · bitácora en `lender_transactions` ANTES del POST | pendiente — habilita ejercitar el 409 como recuperación |
-| **4 · persistencia del código** | **BLOQUEADO** por el banco: ¿el `billingCode` es el mismo PIN? |
+| 3 · bitácora en `lender_transactions` ANTES del POST | pendiente — habilita ejercitar el 409 como recuperación. **Es lo único que se puede avanzar sin el banco** |
+| **4 · persistencia del código** | **BLOQUEADO** por el banco: ¿el `billingCode` es el mismo PIN? El Sandbox no lo puede contestar (2026-08-04) |
 | 6 · conmutar Alkosto (209) y mirar la conciliación | después del 4 |
+
+Y una deuda operativa que no es de código: **`BANCOLOMBIA_IN_STORE_BILLING_CODE_PREFIX` no existe en el
+ambiente desplegado** (no está en la lista de variables que pasó Santi) ni en `.env.example` (ese archivo
+no documenta hosts de proveedores, así que es coherente con el repo, pero hay que acordarse). Al desplegar
+la rama hay que aprovisionarla o el POST se va contra la raíz del host. Para el sandbox el valor es
+`/public-partner/sb/v1/operations/product-specific/loans/consumer-loan/in-store-billing-code/code-management`;
+el catálogo (`/public-partner/sb`) cambia según el ambiente.
 
 Y `departmentCode` arranca con la misma fuente que Corbeta hoy (`city->zone->code`), con la duda BC4
 anotada en el código: el spec se contradice solo (mocks `01/02/03` contra ciudades `11001/05001/76001`).
