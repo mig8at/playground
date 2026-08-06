@@ -514,6 +514,78 @@ hay que sumarla al catálogo (qué buró/proveedor aplica en cada país), no sol
     originación distintiva de SmartPay **es falsa fuera de producción** (`isSmartPay()` hardcodea lender 160;
     en dev el del canal es 153 — F-21), así que el canal donde nace la tarea no es probable sin sortear eso.
 
+## PLAN DE ACCIÓN — la secuencia ejecutable (consolida todo lo anterior)
+> Esta sección es **el orden real de ejecución**; «Plan por bloques» queda como mapa temático y el
+> «Paso a paso CreditopX» como detalle de ese producto. Etiquetas: **[dato]** = SQL/config, sin deploy ·
+> **[código]** = rama en repo real (sin PR hasta que Miguel apruebe) · **[negocio]** = pregunta a personas.
+
+### AHORA — sin tocar código de producción
+- **P1 [dato]** Correr `make harness-paises` contra **dev** (y prod read-only si hay acceso): confirmar
+  que el reparto local (129/0/26) se sostiene. 10 min.
+- **P2 [dato]** `messaging-service`: ubicar dónde viven las filas de config (`LabsMobileConfig`,
+  `WhatsAppConfig`) y **verificar/crear las de `DO`** — sin ellas el envío RD falla con `ErrNotFound`.
+- **P3 [dato]** Poblar `countries.phone_code`: `'+57'` en 47, `'+1'` en 60 (**después** de P2).
+  Riesgo bajo: para CO es no-op (igual al fallback); para RD corrige el prefijo donde esos caminos
+  disparen. Enciende los **11 lectores** que hoy caen al default.
+- **P4 [dato]** Unificar notación de `locale` (4 filas `es_XX` → `es-XX`, BCP-47 como `Intl`).
+- **P5 [negocio]** Dos preguntas: ¿el lender **152** es la operación CO de SmartPay o su consentimiento
+  colombiano está mal para RD? · ¿RD corre solo SmartPay o más canales?
+
+### ETAPA 1 — migraciones aditivas (`legacy-backend`, una rama) [código]
+- **M1** `countries`: `+ is_operating` (true solo 47/60) · `+ otp_length` (default 4) · re-seed de
+  `phone_code` **por `iso_code_1`** (la migración que no falle esta vez). **No renombrar nada** (el
+  form-service lee estas columnas).
+- **M2** `allied_branches.country_id` (nullable, FK): backfill **desde el comercio** — NO desde la
+  ciudad: la única sucursal RD apunta a una ciudad CO *porque RD no tiene ciudades cargadas*; la ciudad
+  queda como **check blando** (warn) hasta que se cargue la geo de RD. Validación en los caminos de
+  escritura de sucursal (application admin + `AlliedManagementService`).
+- **M3** `user_requests`: `+ country_id / locale / currency` (snapshot). Escribirlo en **los tres
+  gemelos** de creación: `UserRequestController` (G1) · `UserRequestService` (G2) ·
+  `FindOrCreateService` (G3).
+- **M4** Quitar el `DEFAULT 1` de `lenders.country_id` y `allieds.country_id` (queda obligatorio al
+  escribir): que "sin definir" vuelva a ser distinguible de "definido mal".
+
+### ETAPA 2 — los 8 filtros literales, con transición sin ventana [código, 2 ramas]
+- **F1** Los 8 `->where('country_id', 1)` → `->whereIn('country_id', [1, $paisResuelto])`
+  (3 en legacy · 5 en application). Deploy. *Acepta ambos mundos durante la transición.*
+- **F2** Backfill `lenders.country_id`: los **129 UPDATE** del dry-run (`SQL=1`) + decidir a mano los
+  **23 huérfanos activos** (o apagarlos).
+- **F3** Limpiar el `1` del `whereIn` → `->where('country_id', $paisResuelto)`. Deploy. Fin: la columna
+  vuelve a ser configuración.
+
+### ETAPA 3 — el resolvedor y el gobierno de la sucursal [código]
+- **R1** `session('alliedCountry')` ← país de la **sucursal** (fallback comercio). Es el cambio chico
+  con blast radius grande: gobierna el gate del wizard.
+- **R2** Un `CountryContext` único (precedencia sucursal → comercio → default) + test que la fije.
+  Unificar los **4** `$isDoLogic` copiados y el `'do':'co'` para que lean de ahí.
+- **R3** `application`: los **7 `'+57'` pelados** (incl. el accessor `User.php:133`) → prefijo del país
+  del contexto, como ya hace legacy. Y los 2 `genderapi country=CO` + el `?? 'COLOMBIANA'` de
+  `OnboardingPayloadBuilder:129` (+ su gemelo en pdf-mapper-editor).
+
+### ETAPA 4 — front [código, `frontend-monorepo`]
+- **Fr1** `partner-info` devuelve `country: { iso2, dial_code, phone_length, otp_length, locale,
+  currency, document_types[] }` → el wizard deja de comparar `=== 60`.
+- **Fr2** Moneda: `formatCurrencyWithSymbol` toma locale/currency del payload y
+  `maximumFractionDigits` **por moneda** (el `0` actual le borra los centavos al DOP); migrar los 58
+  formateos manuales al helper (los del flujo de solicitud primero).
+- **Fr3** `PhoneField` único por país (mata los ≥6 sitios con "10 dígitos"/`+57` cableados) +
+  `normalizePhoneE164` con libphonenumber (hoy etiqueta a los RD como `+57` en analítica).
+
+### ETAPA 5 — tipos de documento [código + dato]
+- **D1** Catálogo `document_types` + `document_type_scopes` + resolvedor (unión ∩ catálogo del país).
+- **D2** Decidir el destino de `lenders_by_allied_branches.document_types` (json de motai-v2): migra o
+  se reemplaza **antes** de mergear — no las dos.
+- **D3** Los mapas por proveedor (`provider_codes`) y quitar los default `'CC'` fail-open.
+
+### ETAPA 6 — validación y guardrail [código, playground]
+- **V1** Eje `country` en el harness (comercio RD e2e; con el bloqueador F-21 documentado).
+- **V2** Guardrail CI: prohibir `=== 60`, `== 47`, `'+57'`, `es-CO`, `in:CC,CE,PEP` fuera de la capa
+  de config — lo único que evitó la recaída en motai-v2.
+
+**Fuera de este alcance, ya anotado:** `America/Bogota` ×10 y `'COP'` en la firma de Wompi (fase
+CreditopX-3: formalización/pagos por país) · geo de RD (INSERT diferido) · i18n de textos (CO y RD
+comparten español) · timezone de servicing.
+
 ## Paso a paso para internacionalizar CreditopX
 CreditopX (rt=2/3 in-platform) es el corte correcto para arrancar: **CreditOp decide con datos locales**,
 así que no hay contrato con un tercero que renegociar por país — al revés de los agregadores rt=1, que son
@@ -696,5 +768,9 @@ la traducción a un idioma distinto del español.
   el menú del admin filtra por país con una lista y el select de departamentos usa el país del comercio.
   Y un pendiente para negocio: el consentimiento del lender 152 ("smartpay", cableado a la sucursal RD)
   es un contrato 100% colombiano.
+- **2026-08-05 (9)** — Consolidado el **PLAN DE ACCIÓN ejecutable**: P1-P5 ahora (datos/preguntas, sin
+  deploy) → M1-M4 migraciones aditivas → F1-F3 los 8 filtros con `whereIn` transicional (sin ventana de
+  listado vacío) → R1-R3 resolvedor + sucursal gobierna → Fr1-Fr3 front → D1-D3 documentos → V1-V2
+  harness y guardrail. Las secciones anteriores quedan como mapa/detalle.
 </content>
 </invoke>
