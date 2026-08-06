@@ -528,7 +528,7 @@ sobre un lender puntual sacada del dump local **no vale**.
 | Lenders cableados en **2 países** | 0 | **1** | ⚠ **hay conflicto en prod** — y es SmartPay |
 | Lender **160** | no existe | **SmartPay · country_id 60 · rt=2 · 12 cableados en países 47 y 60** | ✅ resuelve 2 preguntas abiertas |
 | Lenders 152 / 153 | «smartpay» / «SmartPay» | **«Refurbicredit» / «Crediemo»**, country_id 1, ambos CO | ✅ disuelve la alerta del consentimiento |
-| Comercios · sucursales RD | 2 · 1 | **7 · 11** (vs 308 · 2198 en CO) | huella real pero chica |
+| Comercios · sucursales RD | 2 · 1 | **9 · 13** (vs 308 · 2209 en CO) — **2 son de prueba** | huella real pero chica |
 | `users` por país | 215.844 en 1 · 12.183 en 47 | **363.240 en 1 · 12.189 en 47 · CERO en 60** | ⚠ ningún usuario RD tiene país |
 | `users.issue_country` | 0 | **0 de 375.429** | ✅ bug confirmado en prod |
 
@@ -573,7 +573,7 @@ Queda una pregunta nueva y más chica: **qué documento usa el 160**, que no tie
 nacionales». Es ambiguo y hay que decidirlo **antes** de que el `PhoneField` (Fr3) lo lea, o RD va a
 exigir 11 dígitos en un campo donde el usuario escribe 10.
 
-**5. ⚠ Cero usuarios en país 60**, con 7 comercios y 11 sucursales RD activos. O los usuarios de RD caen
+**5. ⚠ Cero usuarios en país 60**, con 9 comercios y 13 sucursales RD activos. O los usuarios de RD caen
 en el default 1 (lo más probable), o RD casi no origina. Se cruza con el otro dato: el `country_id = 47`
 **dejó de escribirse el 2026-07-06** (el default 1 sigue creciendo hasta hoy). Algo que poblaba el país
 del usuario se apagó hace un mes. Vale una pasada, no bloquea.
@@ -667,6 +667,52 @@ la que cada país instancie.
 - El **hash de sucursal** tiene **4 colisiones en prod** y es `crc32` de un timestamp al segundo. Bajo BD
   por país sería la llave de **ruteo**. Va como finding aparte (F-103).
 
+## 🎯 PRIMER ENTREGABLE: «el paso DO» — que República Dominicana quede bien parada
+Alcance chico, cerrado y verificable: **solo datos + un invariante**. Ningún repo externo, ningún deploy
+riesgoso. Al terminar, RD es un país de primera clase y el modelo acordado se puede encender.
+
+### El hallazgo que lo justifica: «SANTO DOMINGO», la de Antioquia
+Las **13 sucursales** de los comercios RD apuntan todas a una ciudad colombiana llamada
+**SANTO DOMINGO** — que existe (municipio de Antioquia). Alguien escribió «Santo Domingo» en el
+selector, salió una opción plausible, y **el dato equivocado es invisible a ojo**. Sus direcciones reales
+son inequívocamente dominicanas:
+
+| Comercio | Dirección | Provincia RD real |
+|---|---|---|
+| Carrefour · MAGGYSA · Multiservicios La Fe | `Autopista Duarte km 9/10/22`, `La Cuaba, Pedro Brand` | Santo Domingo (Oeste) |
+| MAGGYSA | `Calle 4 Sur #11 Ensanche Luperón` | Distrito Nacional |
+| MAGGYSA | `Av. San Vicente de Paúl 321, Santo Domingo Este` | Santo Domingo (Este) |
+| Hot Tec · 2blea · Gold Clave · La Gracia | `Juan Sánchez Ramírez`, `Plaza Bienaventuranza`, `Plaza Europiel Herrera` | Distrito Nacional / Santo Domingo |
+
+→ Todas están en el área metropolitana de Santo Domingo. **El re-apuntado es mecánico.**
+
+### Los cuatro pasos
+1. **Cargar las ciudades de RD.** ✅ Las **32 provincias ya están** (`country_zones` ids 934-965, códigos
+   de 2 letras, todas `status=1`) — solo falta `country_cities`, que está en **0**. Se cuelgan de las
+   zonas existentes; no hay trabajo de zonas.
+   - ⚠ **Decidir qué va en `country_cities.code`.** Para Colombia es el código DANE de 5 dígitos y el
+     nodo `bancolombia` documenta que *derivar el departamento del código de ciudad es lo correcto*. Para
+     RD no hay consumidor todavía: usar el código de la ONE (o `provincia+secuencia`) y **documentarlo**,
+     porque el día que exista un consumidor va a asumir el formato colombiano.
+   - Alcance mínimo viable: **Distrito Nacional + provincia Santo Domingo**. Completar el resto después.
+2. **Re-apuntar las 13 sucursales** a su ciudad RD real, según la tabla de arriba.
+3. **Completar la fila 60 de `countries`**: `phone_code = '+1'` (hoy NULL, con 11 lectores cayendo al
+   `'+57'`) y **decidir el `cell_phone_lenght = 11`** (CO tiene 10; hay que saber si el 11 incluye el `1`).
+4. **Encender el invariante** ciudad↔país: la ciudad de una sucursal debe pertenecer a una zona del país
+   de su comercio. Recién es posible después de (1) y (2).
+
+### Lo que este entregable NO toca
+Ni los 8 filtros literales, ni el resolvedor, ni el front, ni los tipos de documento. Todo eso viene
+después y **no bloquea** esto. Lo único externo: el `phone_code` del paso 3 exige que exista antes la
+config de `DO` en `messaging-service` (**P2**).
+
+### Limpieza que conviene incluir
+- **12 cableados muertos** del lender 160 a comercios colombianos (0 solicitudes).
+- **2 comercios de prueba en producción** dentro del set RD: `Comercio Prueba` (2 sucursales) y
+  `pruebaaaaaa` (0). Inflan cualquier conteo de comercios por país.
+- **3 sucursales sin comercio** (`allied_id` no resuelve) de 2.212: sin país, no se pueden asignar a
+  ninguna base.
+
 ## PLAN DE ACCIÓN — la secuencia ejecutable (consolida todo lo anterior)
 > Esta sección es **el orden real de ejecución**; «Plan por bloques» queda como mapa temático y el
 > «Paso a paso CreditopX» como detalle de ese producto. Etiquetas: **[dato]** = SQL/config, sin deploy ·
@@ -693,7 +739,8 @@ la que cada país instancie.
 - ~~**P5** ¿el consentimiento del 152 está mal para RD?~~ ✅ **RESUELTO**: en prod el 152 es
   **Refurbicredit** (colombiano) y el documento lo nombra correctamente. Era ruido del dump de dev.
   Queda la versión chica: **qué documento firma el 160**, que no tiene blade propio.
-- **P5 [negocio]** ¿RD corre solo SmartPay o más canales? (7 comercios y 11 sucursales en país 60).
+- **P5 [negocio]** ¿RD corre solo SmartPay o más canales? (9 comercios y 13 sucursales en país 60, de los
+  cuales `Comercio Prueba` y `pruebaaaaaa` son **de prueba, en producción**).
 
 ### ETAPA 1 — migraciones aditivas (`legacy-backend`, una rama) [código]
 - **M1** `countries`: `+ is_operating` (true solo 47/60) · `+ otp_length` (default 4) · re-seed de
@@ -966,6 +1013,14 @@ la traducción a un idioma distinto del español.
   —es el registro de configuración del tenant, las subtablas la necesitan de padre y el form-service la
   consulta—, con la razón de fondo de que así el backend es UN artefacto desplegado N veces en vez de N
   configs divergiendo. Se destapa que la geo de RD sube de diferida a **prerequisito**.
+- **2026-08-05 (14)** — **Aterrizado el primer entregable: «el paso DO».** Confirmado con montos que la
+  operación RD es REAL (207 solicitudes del lender 160: min 1.100 · prom 9.257 · max 70.000 → en DOP es
+  un celular; en COP serían USD 2 y no financia nadie). Lo que está mal es sólo el dato de ciudad: las 13
+  sucursales apuntan a **«SANTO DOMINGO» de Antioquia**, un municipio colombiano que existe — el error es
+  invisible a ojo. Sus direcciones son inequívocamente dominicanas, así que el re-apuntado es mecánico.
+  Las 32 provincias de RD ya están cargadas y limpias; solo faltan las ciudades. Alcance del entregable:
+  cargar ciudades → re-apuntar 13 → completar la fila 60 → encender el invariante. **Corregido el conteo
+  de RD: 9 comercios / 13 sucursales** (antes dije 7/11), de los cuales 2 son de prueba en producción.
 - **2026-08-05 (9)** — Consolidado el **PLAN DE ACCIÓN ejecutable**: P1-P5 ahora (datos/preguntas, sin
   deploy) → M1-M4 migraciones aditivas → F1-F3 los 8 filtros con `whereIn` transicional (sin ventana de
   listado vacío) → R1-R3 resolvedor + sucursal gobierna → Fr1-Fr3 front → D1-D3 documentos → V1-V2
