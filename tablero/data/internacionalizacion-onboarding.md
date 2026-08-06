@@ -347,6 +347,55 @@ hay que sumarla al catálogo (qué buró/proveedor aplica en cada país), no sol
     originación distintiva de SmartPay **es falsa fuera de producción** (`isSmartPay()` hardcodea lender 160;
     en dev el del canal es 153 — F-21), así que el canal donde nace la tarea no es probable sin sortear eso.
 
+## Paso a paso para internacionalizar CreditopX
+CreditopX (rt=2/3 in-platform) es el corte correcto para arrancar: **CreditOp decide con datos locales**,
+así que no hay contrato con un tercero que renegociar por país — al revés de los agregadores rt=1, que son
+instituciones colombianas. Y ya hay prueba de vida: **SmartPay RD es un miembro de la familia corriendo en
+país 60**. La vara de éxito: **dar de alta el tercer país sin escribir código**.
+
+**Fase 0 · Que el dato diga la verdad** *(sin código nuevo; bloquea todo lo demás)*
+1. Script **dry-run** que infiera `lenders.country_id` desde las sucursales donde cada entidad está
+   cableada y liste los conflictos. No escribe nada.
+2. Backfill de `lenders.country_id` **y recién después** matar los tres `->where('country_id', 1)`. En ese
+   orden: al revés el listado queda vacío.
+3. Poblar `countries` para CO y RD (aditivo: `phone_code`, `address_format`, `locale`, `currency`) + agregar
+   `is_operating`, `otp_length`, `date_format`, `template_suffix`.
+
+**Fase 1 · El país de la operación**
+4. `allied_branches.country_id` con invariante contra `country_city_id`.
+5. `session('alliedCountry')` pasa a leer la **sucursal**; `allieds.country_id` queda como origen/fallback.
+6. `user_requests` **congela** país + locale + moneda al nacer (snapshot, no join).
+7. Un resolvedor único con la precedencia escrita, y un test que lo fije.
+
+**Fase 2 · Alta de un lender CreditopX en el país N — la prueba de fuego**
+Todo esto ya cuelga de `lender_id`, así que **una fila por país lo resuelve solo**. Es checklist de datos:
+8. `lenders` (country_id = N) + `credit_line_by_lenders` en moneda local + `lender_users_categories` y sus
+   reglas (`min_income`, `max_amount` en moneda local) + tramos + `creditop_x_lender_configuration`.
+9. Cablearlo en `lenders_by_allied_branches` de las sucursales de ese país, **con la validación de país**.
+10. Empaquetarlo como **seeder**. Si el alta necesita tocar código, no está internacionalizado.
+
+**Fase 3 · Lo que en rt=2 es colombiano y hay que parametrizar** *(el trabajo real)*
+11. **Riesgo/burós.** El gate de datacrédito **pasa si no hay regla** (`DatacreditoRuleEvaluator`: sin regla
+    → skip), y `application` ya bloquea crear reglas para comercios no-CO (`addNewRule:80`). Pero **el
+    gemelo de `legacy-backend` NO tiene esa compuerta** (`AlliedManagementService`): una sucursal RD creada
+    desde legacy recibe reglas colombianas → y ahí el evaluador es **fail-closed** (`no_datacredito_data`)
+    → no se ofrece nada. **Es el primer arreglo de esta fase.** Y decisión de negocio: en un país sin buró,
+    ¿el riesgo lo lleva solo la categoría de perfilamiento?
+12. **Formalización.** Pagaré Deceval + garantía + Netco son colombianos. SmartPay RD ya demostró el
+    reemplazo (un solo acuerdo de bloqueo), pero por `if id==160`. Llevarlo a config
+    (`promissory_type_id`, `signing_provider_id`, plantilla de consentimiento).
+13. **Cuota inicial.** rt=2 con `initial_fee > 0` va a Wompi/Payvalida, y Payvalida está quemado al country
+    `343` (Colombia). Sin pasarela local: o el enganche es 0 en ese país, o hay pasarela por país.
+14. **Regulación.** La usura es colombiana y ya hay dos hardcodes que lo reconocen
+    (`updateUsuryRate` saltea `country_id == 60`; `calculateRate` bifurca en `!= 60`). Volverlos regla de
+    `countries`, no un `60` literal.
+
+**Fase 4 · Front** — país como payload en `partner-info` → `PhoneField` por país → documentos del catálogo
+→ moneda/formatos en todas las respuestas → converger el fork del wizard RD.
+
+**Fase 5 · Prueba** — eje `country` en el harness con un comercio RD. Bloqueador conocido: `isSmartPay()`
+hardcodea el lender 160, así que la originación distintiva **no es ejercitable** fuera de producción (F-21).
+
 ## Decisiones abiertas
 - ~~¿Se arranca por enriquecer la geolocalización?~~ **RESUELTO (2026-08-05):** no. El árbol geo ya existe
   y es de 3 niveles (RD ya tiene sus 32 provincias); lo que falta son datos (ciudades de RD) con payoff
