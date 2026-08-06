@@ -686,6 +686,58 @@ son inequívocamente dominicanas:
 
 → Todas están en el área metropolitana de Santo Domingo. **El re-apuntado es mecánico.**
 
+### Las columnas de `countries`: qué se decide (spec cerrada)
+
+| Columna | Hoy en prod | Decisión | Acción |
+|---|---|---|---|
+| `phone_code` | **NULL** en 253, con **11 lectores** que caen a `'+57'` | **es la columna canónica del prefijo, y lleva el `+`** (los lectores concatenan crudo) | `UPDATE` → `+57` / `+1` |
+| `dial_code` | `57` · `1` (sin `+`), solo esas 2 filas | **se queda** (el form-service la `SELECT`ea) pero **no es la que el código lee** | documentar la diferencia |
+| `cell_phone_lenght` *(sic)* | CO **10** · DO **11** | ⚠ **hoy es inconsistente.** Se define como **dígitos NACIONALES, sin prefijo** → DO debe ser **10** (809/829/849 + 7). «Con prefijo» se calcula: `LEN(dial_code) + esto` | `UPDATE` DO 11→10 |
+| `locale` | `es-CO` · `es-DO` ✓ | correcta; las otras 4 filas usan `_` | `UPDATE` de notación |
+| `currency` | `COP` · `DOP` ✓ | ya está | — |
+| `iso_code_1` | alpha-2 (`CO`/`DO`) | **es la clave real** — `GetCountryByISOCode1` del form-service la usa | no tocar |
+| `iso_code_2` | guarda **alpha-3** (`COL`/`DOM`) | mal nombrada; **NO renombrar** (rompe el MS) | documentar |
+| `image` (la bandera del modelo) | **vacía** en 253 | del modelo, baja prioridad | opcional |
+| `iso_code_3` · `address_format` | **vacías** en 253 | sin consumidor | dejar quietas |
+| `status` | 253 en `1` | **gate vivo** del form-service (countries + zones + cities) | **no reutilizar** |
+| **`is_operating`** | no existe | **AGREGAR** — es lo que dice «operamos acá», y es lo que después habilita la regla de entidades por país | `ALTER` + `UPDATE` 47/60 |
+| **`timezone`** | no existe | **AGREGAR** — hay **10** `America/Bogota` quemados, incluida la **fecha de firma de documentos**. DO es `America/Santo_Domingo` (UTC-4): un contrato firmado 23:30 imprime el día anterior | `ALTER` + poblar; el arreglo de los 10 sitios va después |
+| ~~`otp_length`~~ | — | **descartada**: el largo es 4 o 6 según el **momento** (pagaré = 6), no según el país. Sin consumidor = próxima `iso_code_3` | no se agrega |
+
+### Tipos de documento a nivel país
+
+⚠ **Corrección verificada:** `lenders_by_allied_branches.document_types` **NO existe en producción** —
+vive solo en `feature/motai-v2`. Así que el nivel sucursal está **sin construir en prod**, y eso
+simplifica: no hay forma heredada con la que ser compatible, y el JSON de motai-v2 conviene
+**reemplazarlo antes de mergear** en vez de mergear y migrar.
+
+**Forma:** el catálogo lleva el país, porque **un tipo de documento se define por el país que lo acepta**
+— `CED` es dominicano, `CC` colombiano, `PEP` lo emite Colombia para migrantes. No es un catálogo global
+con aplicabilidad por país: son catálogos distintos.
+
+```
+document_types (id, country_id, code, name, regex, min_length, max_length, sort, status)
+```
+
+**Y el contenido ya existe: está hardcodeado.** Poblarlo es transcribir las reglas que hoy viven en
+código, no inventar reglas nuevas:
+
+| País | Código | Regla de hoy | De dónde sale |
+|---|---|---|---|
+| CO | `CC` | solo dígitos, 5-10, rango `10000..3000000000` | closure de `PersonalInfoRequest` |
+| CO | `CE` · `PEP` | `[A-Za-z0-9]{3,20}` | misma closure |
+| DO | `CED` | **exactamente 11 dígitos** | `dynamic-step-one.ts` |
+| DO | `CI_VE` | 6-11 dígitos | idem |
+| DO | `PAS` · `PAS_VE` | `[A-Z0-9]{6,9}` | idem |
+
+**Los niveles de abajo solo RESTRINGEN.** Comercio / sucursal / entidad eligen un subconjunto de los
+tipos de su país — nunca agregan uno que el país no tenga. La resolución es la que ya eligió motai-v2
+(unión de lo que habilitan las entidades de la sucursal, con piso), **intersectada con el catálogo del
+país**. Sin esa intersección, una sucursal mixta ofrecería `CED` a un colombiano.
+
+**Ámbitos: cuatro, no tres** — país · comercio · sucursal · **entidad**. El último hace falta porque hay
+entidades con regla propia de documento (Magnocell acepta `CE` donde el gate general no).
+
 ### Los cuatro pasos
 1. **Cargar las ciudades de RD.** ✅ Las **32 provincias ya están** (`country_zones` ids 934-965, códigos
    de 2 letras, todas `status=1`) — solo falta `country_cities`, que está en **0**. Se cuelgan de las
@@ -696,8 +748,8 @@ son inequívocamente dominicanas:
      porque el día que exista un consumidor va a asumir el formato colombiano.
    - Alcance mínimo viable: **Distrito Nacional + provincia Santo Domingo**. Completar el resto después.
 2. **Re-apuntar las 13 sucursales** a su ciudad RD real, según la tabla de arriba.
-3. **Completar la fila 60 de `countries`**: `phone_code = '+1'` (hoy NULL, con 11 lectores cayendo al
-   `'+57'`) y **decidir el `cell_phone_lenght = 11`** (CO tiene 10; hay que saber si el 11 incluye el `1`).
+3. **Completar la fila 60 de `countries`** según la spec de arriba: `phone_code = '+1'`,
+   `cell_phone_lenght` 11→**10**, `timezone = 'America/Santo_Domingo'`, `is_operating = 1`.
 4. **Encender el invariante** ciudad↔país: la ciudad de una sucursal debe pertenecer a una zona del país
    de su comercio. Recién es posible después de (1) y (2).
 
@@ -1021,6 +1073,15 @@ la traducción a un idioma distinto del español.
   Las 32 provincias de RD ya están cargadas y limpias; solo faltan las ciudades. Alcance del entregable:
   cargar ciudades → re-apuntar 13 → completar la fila 60 → encender el invariante. **Corregido el conteo
   de RD: 9 comercios / 13 sucursales** (antes dije 7/11), de los cuales 2 son de prueba en producción.
+- **2026-08-05 (15)** — **Cerrada la spec de columnas y de tipos de documento.** `countries`: `phone_code`
+  es la canónica del prefijo y lleva el `+`; `cell_phone_lenght` se define como dígitos **nacionales** y
+  por eso DO baja de 11 a **10**; se agregan **`is_operating`** y **`timezone`** (hay 10 `America/Bogota`
+  quemados, uno en la fecha de firma de documentos); se **descarta `otp_length`** porque el largo lo
+  decide el momento, no el país. Y **corrección verificada: `lenders_by_allied_branches.document_types`
+  NO existe en producción** —solo en `feature/motai-v2`—, así que el nivel sucursal está sin construir y
+  el JSON conviene reemplazarlo **antes** de mergear. El catálogo de documentos lleva `country_id` porque
+  un tipo se define por el país que lo acepta, y **su contenido ya está hardcodeado**: poblarlo es
+  transcribir las reglas de `PersonalInfoRequest` (CO) y `dynamic-step-one.ts` (DO).
 - **2026-08-05 (9)** — Consolidado el **PLAN DE ACCIÓN ejecutable**: P1-P5 ahora (datos/preguntas, sin
   deploy) → M1-M4 migraciones aditivas → F1-F3 los 8 filtros con `whereIn` transicional (sin ventana de
   listado vacío) → R1-R3 resolvedor + sucursal gobierna → Fr1-Fr3 front → D1-D3 documentos → V1-V2
