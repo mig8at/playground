@@ -534,11 +534,31 @@ sobre un lender puntual sacada del dump local **no vale**.
 
 ### Lo que cambia
 
-**1. ⚠ El conflicto existe y es SmartPay (160).** Está cableado en comercios de **Colombia y de RD**
-(`paises_comercio = 47,60`), con `country_id = 60`. Es exactamente el caso que obliga a **partir la fila
-en una por país** — porque su economía (`credit_line_by_lenders`) está en una sola moneda y hoy sirve a
-los dos. **F2 ya no es mecánico**: antes del backfill hay que decidir qué se hace con el 160. Y es el
-canal por el que entró esta tarea.
+**1. ✅ El conflicto de SmartPay (160) es CABLEADO MUERTO — no hay que partir la fila.** Investigado
+contra prod:
+
+| | |
+|---|---|
+| economía (`credit_line_by_lenders`) | `min 2.500 · max 95.000 · rate 1,9 · cuotas 6,8,10,12` → **escala DOP** |
+| `path_id` | **2 = IMEI** → `isImeiPath()` true, y con id 160 `isSmartPay()` dispara |
+| solicitudes | **206, TODAS en país 60**, del 2026-03-03 al 2026-08-05 (vivo hoy) |
+| solicitudes por comercios CO | **CERO** |
+
+Los 12 cableados incluyen comercios colombianos que **nunca se usaron**. Como la economía está en DOP
+—95.000 COP no compra un celular— esos cableados no podían ser legítimos. → **No se parte la fila**: se
+limpian los cableados CO. Y el 160 **ya tiene `country_id = 60` bien puesto**, así que ni siquiera entra
+en los 129 UPDATE del backfill. **F2 vuelve a ser mecánico.**
+
+**1.bis ⚠ Hilo abierto que sale de ahí, y toca a F1/F3.** El 160 tiene `country_id = 60`, así que el
+filtro literal `->where('country_id', 1)` **lo excluye del listado**. Pero tiene 206 solicitudes: o
+SmartPay no se ofrece por `getLenders` (entra por su propio canal IMEI, lo cual es coherente con el
+nodo) o hay otro camino. **Confirmarlo ANTES de tocar los ocho filtros**, para no cambiarle el
+comportamiento al único flujo RD vivo sin darnos cuenta.
+
+**1.ter ✅ El documento del 160 no es problema.** No tiene `consent_160.blade`, pero tampoco lo
+necesita: por el path IMEI firma el **acuerdo de bloqueo**, y `DeviceLockAgreementService` saca locale y
+moneda de `$userRequest->allied?->country` — **el país del COMERCIO**. O sea que se adapta solo: RD →
+`es-DO`/`DOP`, CO → `es-CO`/`COP`. Es la pieza mejor hecha de todo lo auditado.
 
 **2. ✅ Se resuelven dos preguntas abiertas del nodo `smartpay`.** El lender **160 de prod es `rt=2`**
 (el nodo lo daba por dudoso: su seeder lo crea `rt=1`) y su `country_id` **está bien puesto en 60** — no
@@ -566,8 +586,12 @@ del usuario se apagó hace un mes. Vale una pasada, no bloquea.
 ### AHORA — sin tocar código de producción
 - ~~**P1**~~ ✅ **HECHO contra prod** (`make trazador-sql`) — ver «Contraste contra producción». El
   reparto **no** se sostiene: en prod hay **1 conflicto** (SmartPay 160, cableado en 47 y 60).
-- **P1.bis [negocio]** Decidir qué se hace con **SmartPay 160**: ¿se parte en dos filas (una por país,
-  cada una con su moneda) o el cableado a comercios CO es un error a limpiar? **Bloquea F2.**
+- ~~**P1.bis** ¿se parte SmartPay 160 en dos filas?~~ ✅ **RESUELTO con datos: NO.** Su economía está en
+  DOP (2.500–95.000) y sus **206 solicitudes son todas de país 60**; los cableados a comercios CO tienen
+  **cero uso**. Es cableado muerto → se limpia, no se parte. F2 vuelve a ser mecánico.
+- **P1.ter [código, previo a F1]** Confirmar por dónde se ofrece SmartPay: con `country_id = 60` el
+  filtro literal `= 1` lo excluye de `getLenders`, y sin embargo tiene 206 solicitudes. Hay que saber si
+  entra por su canal IMEI antes de tocar los ocho filtros.
 - **P2 [dato]** `messaging-service`: ubicar dónde viven las filas de config (`LabsMobileConfig`,
   `WhatsAppConfig`) y **verificar/crear las de `DO`** — sin ellas el envío RD falla con `ErrNotFound`.
 - **P3 [dato]** Poblar `countries.phone_code`: `'+57'` en 47, `'+1'` en 60 (**después** de P2).
@@ -827,6 +851,13 @@ la traducción a un idioma distinto del español.
   *Refurbicredit*, no SmartPay. Aviso general: **los ids no coinciden entre ambientes**, así que ninguna
   conclusión sobre un lender puntual sacada del dump local vale. Además: `cell_phone_lenght` de DO es
   **11** en prod (no 10) y hay **cero usuarios en país 60**.
+- **2026-08-05 (11)** — Investigado el 160 contra prod: **el conflicto es cableado muerto**. Economía en
+  DOP (2.500–95.000), `path_id=2` (IMEI), **206 solicitudes todas de país 60** y **cero** por los
+  comercios colombianos cableados. No se parte la fila: se limpian los cableados. F2 vuelve a ser
+  mecánico. El documento tampoco es problema — el acuerdo de bloqueo saca locale/moneda del país del
+  **comercio**, así que se adapta solo. Queda un hilo: con `country_id=60` el filtro `= 1` debería
+  excluirlo del listado y aun así originó 206 veces → confirmar que entra por el canal IMEI antes de
+  tocar los ocho filtros.
 - **2026-08-05 (9)** — Consolidado el **PLAN DE ACCIÓN ejecutable**: P1-P5 ahora (datos/preguntas, sin
   deploy) → M1-M4 migraciones aditivas → F1-F3 los 8 filtros con `whereIn` transicional (sin ventana de
   listado vacío) → R1-R3 resolvedor + sucursal gobierna → Fr1-Fr3 front → D1-D3 documentos → V1-V2
