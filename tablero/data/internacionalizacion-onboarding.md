@@ -129,6 +129,47 @@ que encenderla.
 | **Alta / validación** | `Rule::in([47, 60])` en el alta de comercio; `Country::COLOMBIA_ID` solo existe en `application` | **quemado** |
 | **Sin uso** | `users.country_id` (215.844 en el default, sin lector), `iso_code_3`, `address_format`, `image` | muerto |
 
+### Cobertura: 13 repos, no 4
+
+| Repo | Veredicto |
+|---|---|
+| `legacy-backend` | el grueso (ver tabla arriba) |
+| `legacy-application` | 83 `country_id` en 56 archivos · `COLOMBIA_ID` ×4 — **contado, no auditado línea por línea** |
+| `frontend-monorepo` | 7 `alliedCountry` · 64 `es-CO\|es-DO` · helper de moneda con default CO |
+| `form-service` | ✅ read-only sobre el catálogo legacy, **sin hardcodes** |
+| **`messaging-service`** | ✅ **country-first** — ver abajo |
+| **`onboarding-forms-service`** | ⚠ **hardcodeado a RD** — ver abajo |
+| `creditop_mobile` (Flutter) | `+57` en el router y el gateway de Cognito (`app_router.dart:165,189,192`, `cognito_auth_gateway_impl.dart`) |
+| `dynamic-form` | ya tiene un **mapa país→prefijo** (`phone-analyzer.ts:4`: `CO:'57', MX:'52', US:'1', ES:'34', AR:'54', CL:'56'`) + `es-CO` como default ×5 en `logic.ts` |
+| `pdf-mapper-editor` | `defaultValue: 'COLOMBIANA'` (`useEditorStore.ts:54`) — **el segundo sitio del mismo hardcode** |
+| `pre-approvals-service` · `cognito-pre-sign-up` · `microservices` · `vtex` | agnósticos / cero |
+
+### 🟢 `messaging-service` ya está construido country-first
+El MS al que legacy le habla **no hay que internacionalizarlo: ya lo está.**
+- `domain.Message` lleva `Country`; `provider_config.go` tiene `CountryISO2`.
+- **Config de proveedor por país, en tabla**: `labsMobileConfigRepo.GetByCountry(countryISO2)` y
+  `whatsAppConfigRepository.GetByTemplateAndCountry(templateName, countryISO2)`.
+- El sufijo de plantilla **se deriva del ISO**, que es justo lo que propusimos:
+  `fmt.Sprintf("whatsapp_auth_otp_%s", strings.ToLower(msg.Country))` (`send_message.go:65`).
+- `normalizeNationalPhone(country, recipient)` normaliza según el país.
+- Y **falla explícito** si falta la config: *"LabsMobile config disabled for country %s"* /
+  *"WhatsApp config disabled for template %s country %s"*.
+
+→ Dato nuevo: el proveedor SMS es **LabsMobile** (no solo Twilio), y su habilitación es **por país**.
+→ Consecuencia: poblar `countries.phone_code` no alcanza — hay que **verificar que existan las filas de
+config de `DO`** en el MS (LabsMobile + cada plantilla WhatsApp), o el envío falla con `ErrNotFound` en
+vez de mandar mal. Se suma al paso 1.
+
+### ⚠ `onboarding-forms-service` es el espejo invertido: hardcodeado a RD
+El proveedor del wizard dinámico (el de las 5 pantallas RD) **asume República Dominicana**:
+- `const countryISO3166Alpha3Prefix = "dom"` (`supplementary_document_repository.go:25`) — el prefijo de
+  las rutas S3 de documentos, con un **TODO explícito** admitiéndolo, y el README lo repite.
+- `getCountryFromPhone(phoneNumber)` deriva el país del teléfono, y `send_otp.go:166-168` usa
+  `payload.country` con fallback al detectado.
+
+→ O sea: **un servicio asume Colombia y el otro asume República Dominicana, y los dos alimentan el mismo
+wizard.** Es la mejor foto del problema que encontró esta auditoría.
+
 ### Volumen
 `legacy-backend` 71 `country_id` (casi todos `$fillable`/modelos) · `application` 83 en 56 archivos ·
 `frontend-monorepo` 7 `alliedCountry` en 3 archivos, 64 `es-CO|es-DO` en ~20 · `form-service` solo lee ·
@@ -593,5 +634,14 @@ la traducción a un idioma distinto del español.
   sitios (incluida la fecha de firma de documentos), el helper de moneda del front tiene default
   `es-CO`/`COP` **y `maximumFractionDigits: 0`**, que le borra los centavos al DOP, y
   `pre-approvals-service` es agnóstico de país.
+- **2026-08-05 (7)** — Auditoría completada sobre los **13** repos locales (la anterior cubría 4). Dos
+  hallazgos que cambian el paso 1: **`messaging-service` ya es country-first** (config de proveedor y de
+  plantilla por `CountryISO2` en tabla, sufijo derivado del ISO, proveedor SMS **LabsMobile**, y falla
+  explícito si no hay config) → poblar `phone_code` no alcanza, hay que crear las filas de config de
+  `DO` en el MS. Y **`onboarding-forms-service` está hardcodeado a RD** (`countryISO3166Alpha3Prefix =
+  "dom"`, con TODO propio): un servicio asume CO y el otro DO, y los dos alimentan el mismo wizard.
+  Menores: `creditop_mobile` con `+57` en router y Cognito, `dynamic-form` con un mapa país→prefijo ya
+  hecho, `pdf-mapper-editor` con el segundo `'COLOMBIANA'`. **Pendiente: `legacy-application` está
+  contado (83 en 56 archivos) pero no auditado línea por línea.**
 </content>
 </invoke>
