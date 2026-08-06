@@ -514,22 +514,73 @@ hay que sumarla al catálogo (qué buró/proveedor aplica en cada país), no sol
     originación distintiva de SmartPay **es falsa fuera de producción** (`isSmartPay()` hardcodea lender 160;
     en dev el del canal es 153 — F-21), así que el canal donde nace la tarea no es probable sin sortear eso.
 
+## ✅ CONTRASTE CONTRA PRODUCCIÓN (2026-08-05, vía `make trazador-sql`)
+Todo lo anterior se auditó contra el dump local. Se corrió el mismo censo contra **prod** y hay
+diferencias que cambian el plan. **Aviso que vale para todo el resto: los ids NO coinciden entre
+ambientes** — en local el 152 se llama «smartpay» y en prod es «Refurbicredit». Cualquier conclusión
+sobre un lender puntual sacada del dump local **no vale**.
+
+| Pregunta | Local (dev) | **PROD** | Efecto |
+|---|---|---|---|
+| `countries.phone_code` | NULL ×253 | **NULL** | ✅ **P3 confirmado**: los 11 lectores caen al `'+57'` en producción |
+| `cell_phone_lenght` DO | 10 | **11** | ⚠ **corrige lo que dije**: no son «los dos 10 dígitos» |
+| `locale` / `currency` 47·60 | es-CO/COP · es-DO/DOP | **idem** | ✅ la fila de los dos países operativos está completa |
+| Lenders cableados en **2 países** | 0 | **1** | ⚠ **hay conflicto en prod** — y es SmartPay |
+| Lender **160** | no existe | **SmartPay · country_id 60 · rt=2 · 12 cableados en países 47 y 60** | ✅ resuelve 2 preguntas abiertas |
+| Lenders 152 / 153 | «smartpay» / «SmartPay» | **«Refurbicredit» / «Crediemo»**, country_id 1, ambos CO | ✅ disuelve la alerta del consentimiento |
+| Comercios · sucursales RD | 2 · 1 | **7 · 11** (vs 308 · 2198 en CO) | huella real pero chica |
+| `users` por país | 215.844 en 1 · 12.183 en 47 | **363.240 en 1 · 12.189 en 47 · CERO en 60** | ⚠ ningún usuario RD tiene país |
+| `users.issue_country` | 0 | **0 de 375.429** | ✅ bug confirmado en prod |
+
+### Lo que cambia
+
+**1. ⚠ El conflicto existe y es SmartPay (160).** Está cableado en comercios de **Colombia y de RD**
+(`paises_comercio = 47,60`), con `country_id = 60`. Es exactamente el caso que obliga a **partir la fila
+en una por país** — porque su economía (`credit_line_by_lenders`) está en una sola moneda y hoy sirve a
+los dos. **F2 ya no es mecánico**: antes del backfill hay que decidir qué se hace con el 160. Y es el
+canal por el que entró esta tarea.
+
+**2. ✅ Se resuelven dos preguntas abiertas del nodo `smartpay`.** El lender **160 de prod es `rt=2`**
+(el nodo lo daba por dudoso: su seeder lo crea `rt=1`) y su `country_id` **está bien puesto en 60** — no
+es basura como los otros 155. Cuando se toque el nodo, esto gradúa.
+
+**3. ✅ Muere la alerta del consentimiento colombiano.** En prod el lender 152 es **Refurbicredit** — y
+el consentimiento nombra a *REFURBI COLOMBIA S.A.S.*, o sea que **está bien**. La alerta salía de que en
+el dump local el 152 se llama «smartpay». Era ruido de ambiente, no un documento del país equivocado.
+Queda una pregunta nueva y más chica: **qué documento usa el 160**, que no tiene blade propio.
+
+**4. ⚠ `cell_phone_lenght` de RD es 11 en prod, no 10.** Probablemente signifique «1 + los 10
+nacionales». Es ambiguo y hay que decidirlo **antes** de que el `PhoneField` (Fr3) lo lea, o RD va a
+exigir 11 dígitos en un campo donde el usuario escribe 10.
+
+**5. ⚠ Cero usuarios en país 60**, con 7 comercios y 11 sucursales RD activos. O los usuarios de RD caen
+en el default 1 (lo más probable), o RD casi no origina. Se cruza con el otro dato: el `country_id = 47`
+**dejó de escribirse el 2026-07-06** (el default 1 sigue creciendo hasta hoy). Algo que poblaba el país
+del usuario se apagó hace un mes. Vale una pasada, no bloquea.
+
 ## PLAN DE ACCIÓN — la secuencia ejecutable (consolida todo lo anterior)
 > Esta sección es **el orden real de ejecución**; «Plan por bloques» queda como mapa temático y el
 > «Paso a paso CreditopX» como detalle de ese producto. Etiquetas: **[dato]** = SQL/config, sin deploy ·
 > **[código]** = rama en repo real (sin PR hasta que Miguel apruebe) · **[negocio]** = pregunta a personas.
 
 ### AHORA — sin tocar código de producción
-- **P1 [dato]** Correr `make harness-paises` contra **dev** (y prod read-only si hay acceso): confirmar
-  que el reparto local (129/0/26) se sostiene. 10 min.
+- ~~**P1**~~ ✅ **HECHO contra prod** (`make trazador-sql`) — ver «Contraste contra producción». El
+  reparto **no** se sostiene: en prod hay **1 conflicto** (SmartPay 160, cableado en 47 y 60).
+- **P1.bis [negocio]** Decidir qué se hace con **SmartPay 160**: ¿se parte en dos filas (una por país,
+  cada una con su moneda) o el cableado a comercios CO es un error a limpiar? **Bloquea F2.**
 - **P2 [dato]** `messaging-service`: ubicar dónde viven las filas de config (`LabsMobileConfig`,
   `WhatsAppConfig`) y **verificar/crear las de `DO`** — sin ellas el envío RD falla con `ErrNotFound`.
 - **P3 [dato]** Poblar `countries.phone_code`: `'+57'` en 47, `'+1'` en 60 (**después** de P2).
-  Riesgo bajo: para CO es no-op (igual al fallback); para RD corrige el prefijo donde esos caminos
-  disparen. Enciende los **11 lectores** que hoy caen al default.
+  ✅ **Confirmado en prod que está NULL**, y `dial_code` viene **sin `+`** (`57`, `1`) mientras los 11
+  lectores concatenan crudo → el valor va **con** `+`. Riesgo bajo: para CO es no-op (igual al fallback);
+  para RD corrige el prefijo. Enciende los 11 lectores.
+- **P3.bis [negocio]** `cell_phone_lenght` de DO = **11** en prod (CO = 10). Decidir si significa
+  «con el 1» o si está mal, **antes** de que Fr3 lo lea.
 - **P4 [dato]** Unificar notación de `locale` (4 filas `es_XX` → `es-XX`, BCP-47 como `Intl`).
-- **P5 [negocio]** Dos preguntas: ¿el lender **152** es la operación CO de SmartPay o su consentimiento
-  colombiano está mal para RD? · ¿RD corre solo SmartPay o más canales?
+- ~~**P5** ¿el consentimiento del 152 está mal para RD?~~ ✅ **RESUELTO**: en prod el 152 es
+  **Refurbicredit** (colombiano) y el documento lo nombra correctamente. Era ruido del dump de dev.
+  Queda la versión chica: **qué documento firma el 160**, que no tiene blade propio.
+- **P5 [negocio]** ¿RD corre solo SmartPay o más canales? (7 comercios y 11 sucursales en país 60).
 
 ### ETAPA 1 — migraciones aditivas (`legacy-backend`, una rama) [código]
 - **M1** `countries`: `+ is_operating` (true solo 47/60) · `+ otp_length` (default 4) · re-seed de
@@ -768,6 +819,14 @@ la traducción a un idioma distinto del español.
   el menú del admin filtra por país con una lista y el select de departamentos usa el país del comercio.
   Y un pendiente para negocio: el consentimiento del lender 152 ("smartpay", cableado a la sucursal RD)
   es un contrato 100% colombiano.
+- **2026-08-05 (10)** — **Censo corrido contra PRODUCCIÓN** (modo `-sql` nuevo del trazador, vía Redash,
+  solo agregados). Confirma `phone_code` NULL y `issue_country` 0/375.429, y **corrige tres cosas**: hay
+  **1 conflicto de país y es SmartPay 160** (cableado en comercios 47 **y** 60 → F2 deja de ser
+  mecánico); el **160 es rt=2 con country_id 60 bien puesto**, lo que resuelve dos preguntas abiertas del
+  nodo `smartpay`; y la alerta del consentimiento colombiano **se disuelve** — en prod el 152 es
+  *Refurbicredit*, no SmartPay. Aviso general: **los ids no coinciden entre ambientes**, así que ninguna
+  conclusión sobre un lender puntual sacada del dump local vale. Además: `cell_phone_lenght` de DO es
+  **11** en prod (no 10) y hay **cero usuarios en país 60**.
 - **2026-08-05 (9)** — Consolidado el **PLAN DE ACCIÓN ejecutable**: P1-P5 ahora (datos/preguntas, sin
   deploy) → M1-M4 migraciones aditivas → F1-F3 los 8 filtros con `whereIn` transicional (sin ventana de
   listado vacío) → R1-R3 resolvedor + sucursal gobierna → Fr1-Fr3 front → D1-D3 documentos → V1-V2
