@@ -83,6 +83,61 @@ toca documentos ya firmados. Snapshot, no FK viva, igual que el resto de esa tab
 `$user->issue_country ?? 'COLOMBIANA'` (`OnboardingPayloadBuilder.php:129`) → **todos los documentos
 generados afirman nacionalidad colombiana**, incluidos los de RD.
 
+## Auditoría: dónde se usa el país, para qué, y qué está quemado
+Barrido de los 4 repos contra `main` (2026-08-05). La conclusión que no esperaba: **buena parte del
+código YA está parametrizado por país y está inerte porque el DATO está vacío.**
+
+### 🔴 El hallazgo: la mensajería ya es multi-país y nadie lo sabe
+**11 lectores** de `countries.phone_code`, en 6 archivos, todos con el mismo patrón:
+
+```php
+$phoneCode = $userRequest->allied?->country?->phone_code ?? '+57';
+```
+
+`NotificationService` (×5) · `VoucherService` (×2) · `ValidateOtpPromissoryNoteController` (×2) ·
+`TwilioMessagingService` · `TwilioController`.
+
+Y la columna está **vacía en las 253 filas** (su migración sembró por `iso_code_2`, que guarda el
+alpha-3 → 0 filas tocadas). → **Los 11 caen siempre al `'+57'`**: el OTP del pagaré, las notificaciones,
+el voucher y todo Twilio salen con prefijo colombiano **también para RD**.
+
+→ **Corrección al plan: NO matar `phone_code` — poblarla.** Son **dos `UPDATE`** y es el arreglo más
+barato y de mayor impacto de toda la tarea. La capa de mensajería no hay que internacionalizarla: hay
+que encenderla.
+
+### El mapa por propósito
+
+| Para qué | Dónde | ¿Config o quemado? |
+|---|---|---|
+| **Decide el flujo** | `phone-number.tsx:70` `alliedCountry === 60` → wizard RD | lee config, **branch literal** |
+| **Prefijo de mensajería** | 11 lectores de `country->phone_code` | **config ✓** — dato vacío → siempre `+57` |
+| **Ruteo SMS/WhatsApp** | `$isDoLogic` **×4** (`NotificationService` ×3 + `TwilioController:187`) + `getRoutingData` (`'do':'co'`) | **quemado**, y con dos definiciones distintas de "es RD" |
+| **Credenciales Twilio** | `sendWhatsAppNotification`: `if($dialCode){}else{}` + `contentSid`/`messagingServiceSid` literales en el método | **quemado** |
+| **Moneda / formato** | `currency_format` desde `allied->country` (4 controllers) | **config ✓** |
+| | `formatCurrencyWithSymbol(amount, locale="es-CO", currency="COP")` + `maximumFractionDigits: 0` | **quemado** — y el `0` borra los centavos del **DOP** |
+| | 45 `Intl.NumberFormat` crudos + 13 `toLocaleString("es-CO"/"es-DO")` fuera del helper | **quemado** |
+| | `'COP'` literal en `InitialFeePaymentService:312` (Wompi), `ValidateOtpController:135`, `SelfDevelopmentNotifier` ×2, `VtexService:53` | **quemado** |
+| **Fecha / zona horaria** | `America/Bogota` **×7**: `ConsentService` ×2, `OnboardingPayloadBuilder:86` (fecha de firma), `LeaseAgreementService:102`, `DecevalSoap` ×2, `ReminderNotification:81` | **quemado** — en RD (UTC-4) un documento firmado 23:30 imprime el día anterior |
+| | `->locale('es')` ×6 para formatear fechas | **quemado** |
+| **Listado de entidades** | `->where('country_id', 1)` ×3 | **quemado**; existe la versión parametrizada y no se usa |
+| **Tasa y usura** | `PaymentCalculationService:201` (`!= 60`), `updateUsuryRate` (saltea 60) | **quemado**, pero reconocen el problema |
+| **Gate de datacrédito** | `addNewRule:80` no crea reglas si el comercio no es CO | **config-ish ✓** en `application`; **el gemelo de legacy no tiene la compuerta** |
+| **Documentos / KYC** | `issue_country ?? 'COLOMBIANA'`; genderapi `country=CO` ×2; Deceval `CC=>1/CE=>2` ×3 | **quemado** |
+| **Geografía** | form-service lee `countries`/`country_zones`/`country_cities`, read-only, `status=1` | **config ✓** |
+| | `COUNTRY_ID = 47` en `additional-info-form.tsx:34` | **quemado** |
+| **Pagos** | Payvalida country `343` | **quemado** |
+| **Alta / validación** | `Rule::in([47, 60])` en el alta de comercio; `Country::COLOMBIA_ID` solo existe en `application` | **quemado** |
+| **Sin uso** | `users.country_id` (215.844 en el default, sin lector), `iso_code_3`, `address_format`, `image` | muerto |
+
+### Volumen
+`legacy-backend` 71 `country_id` (casi todos `$fillable`/modelos) · `application` 83 en 56 archivos ·
+`frontend-monorepo` 7 `alliedCountry` en 3 archivos, 64 `es-CO|es-DO` en ~20 · `form-service` solo lee ·
+**`pre-approvals-service` es agnóstico** (7 menciones, todas pass-through de `issue_country`).
+
+**Lectura:** el problema no está repartido parejo. Se concentra en **mensajería** (que ya está resuelta y
+apagada), **formato de dinero** (helper con default CO) y **fecha/zona horaria** (7 hardcodes en
+documentos legales). El resto son literales sueltos.
+
 ## Por dónde arrancar: "config de país" y "geolocalización" no son el mismo trabajo
 La geografía **ya existe y es de tres niveles** (`countries` → `country_zones` = departamentos/provincias
 → `country_cities`), y está más completa de lo que parece. Censo (BD local):
@@ -162,7 +217,8 @@ columnas rompe un microservicio en otro repo, con deploy propio:
      `otpLength: 4` quemado en el wizard.
 
    **Arreglar, no agregar:**
-   - **Matar `phone_code`** (0 filas, migración no-op) y quedarse con `dial_code`; decidir si lleva `+`.
+   - **Poblar `phone_code`, NO matarla** — tiene **11 lectores vivos** que hoy caen al `'+57'` por defecto
+     (ver la auditoría). Son dos `UPDATE`. Decidir si el valor lleva `+` (los lectores lo concatenan crudo).
    - **Unificar la notación de `locale`** — hoy la propia tabla se contradice.
    - **`iso_code_2`**: NO renombrar (el form-service depende de `iso_code_1`); documentar el corrimiento.
    - `cell_phone_lenght`: el typo está horneado en el SQL del form-service → renombrar solo con PR
@@ -530,5 +586,12 @@ la traducción a un idioma distinto del español.
   129 entidades a poblar, **0 conflictos**, 26 sin cablear, y un radio de explosión de **128 activas**
   que saldrían del default 1 — confirma que los tres filtros literales se arreglan ANTES del backfill.
   La única entidad no colombiana inferida es SmartPay 152 → 60. Pendiente: correrlo contra dev/prod.
+- **2026-08-05 (6)** — Auditoría de uso del país en los 4 repos. Hallazgo que corrige el plan: **la
+  mensajería YA está parametrizada** — 11 lectores de `countries.phone_code` con fallback `'+57'` — y
+  está inerte porque la columna está vacía en las 253 filas. Poblarla son dos UPDATE y arregla el
+  prefijo de OTP/notificaciones/voucher/Twilio para RD. También: `America/Bogota` quemado en **7**
+  sitios (incluida la fecha de firma de documentos), el helper de moneda del front tiene default
+  `es-CO`/`COP` **y `maximumFractionDigits: 0`**, que le borra los centavos al DOP, y
+  `pre-approvals-service` es agnóstico de país.
 </content>
 </invoke>
