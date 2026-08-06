@@ -14,7 +14,7 @@ const t = useTrazador()
       aria-label="Buscar" />
     <!-- El target se elige acá y no en una config: en soporte se salta de un ambiente a otro, y tener
          que reiniciar para cambiarlo hace que nadie lo cambie. -->
-    <select v-model="t.target" aria-label="Ambiente">
+    <select v-model="t.target" aria-label="Ambiente" @change="t.aURL()">
       <option value="prod">prod</option>
       <option value="staging">staging</option>
       <option value="dev">dev</option>
@@ -35,6 +35,16 @@ const t = useTrazador()
     <span class="dim"> · fuente {{ t.resultados.fuente }}</span>
   </p>
   <p v-else-if="t.resultados" class="como dim">sin coincidencias en {{ t.resultados.target }}</p>
+
+  <!-- Las últimas búsquedas. En soporte se vuelve al mismo puñado de solicitudes todo el día, y volver a
+       tipear el número es fricción pura. Sólo se ven cuando no hay nada abierto: con una traza en pantalla
+       serían ruido compitiendo con los chips de la persona. -->
+  <p v-if="t.recientes.length && !t.traza && !t.resultados" class="recientes">
+    <span class="dim">recientes:</span>
+    <button v-for="r in t.recientes" :key="r" class="chip" @click="t.abrirReciente(r)">
+      {{ r.split(':')[1] }}<span class="dim"> · {{ r.split(':')[0] }}</span>
+    </button>
+  </p>
 </template>
 
 <style scoped>
@@ -48,4 +58,8 @@ button { font-weight:600 }
 button:disabled { opacity:.5; cursor:default }
 .como { font-size:13px; color:var(--dim); margin:10px 0 0 }
 .ojo { color:var(--warn); font-weight:600 }
+.recientes { display:flex; align-items:center; gap:6px; flex-wrap:wrap; margin:10px 0 0; font-size:12px }
+.chip { font-size:12px; color:var(--txt); background:var(--panel); border:1px solid var(--line);
+  border-radius:999px; padding:2px 10px; cursor:pointer; font-variant-numeric:tabular-nums }
+.chip:hover { background:var(--sel); border-color:var(--accent) }
 </style>

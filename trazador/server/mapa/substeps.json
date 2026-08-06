@@ -1,5 +1,5 @@
 {
-  "version": "1.2",
+  "version": "1.6",
   "nota": "El ÁRBOL DECLARADO: qué sub-pasos tiene cada etapa, para poder dibujar la vista completa ANTES de tener un solo dato y después ir encendiendo lo que la corrida confirma. || LA FRONTERA, que es la decisión de diseño de este archivo: se declara lo que tiene universo CERRADO y estable (los hitos del flujo, las cuatro familias de entidades) y NO se declara lo que es DATO variable (los lenders concretos: son 156 y su response_type cambia por ambiente — medido: Sistecrédito es rt=1 en local y rt=0 en prod, o sea que la misma entidad cae en familias distintas. Declararlos haría que este JSON mintiera en algún ambiente). || LOS HITOS NO SE INVENTARON: salen de los matchers ya medidos en etapas.json, y los de `buro` los nombra el propio backend con sus STAGE 0..4. Cuando el código ya tiene un vocabulario, usar otro es agregar una capa de traducción que nadie pidió. || REGLA: el matcher de un hito tiene que ser un SUBCONJUNTO de los de su etapa. Si un hito captura una línea que su etapa no reclama, el árbol muestra un sub-paso que no cuelga de nada. || `soloEnCodigo: true` marca un hito cuyo mensaje EXISTE en el código pero no apareció en el corpus medido. Es distinto de un patrón MAL escrito, y confundirlos es cómo un validador se vuelve ruidoso y se ignora: `-validar` los reporta aparte, como aviso y no como problema. || v1.2: los HITOS son ahora la unidad de agrupación de la vista — el ensamblado reparte las líneas entre hitos declarados y lo que ningún hito reclama queda plegado como «eventos sin nombre de negocio», que es el backlog honesto de hitos por declarar. Los matchers de registro/formulario se ampliaron para cubrir los mensajes frecuentes del censo.",
   "etapas": {
     "origen": {
@@ -222,7 +222,8 @@
               "matcher": {
                 "tipo": "prefijo",
                 "patron": "Validating identity with AgilData"
-              }
+              },
+              "central": 3
             },
             {
               "id": "kyc-reintento",
@@ -238,7 +239,8 @@
               "matcher": {
                 "tipo": "regex",
                 "patron": "^Validating identity with TusDatos|^TusDatos (errors|OK)"
-              }
+              },
+              "central": 2
             },
             {
               "id": "kyc-compuerta",
@@ -307,57 +309,43 @@
         },
         {
           "id": "centrales",
-          "label": "Centrales",
+          "label": "Centrales de riesgo del onboarding",
           "tipo": "catalogo",
           "fuente": "db:risk_centrals",
-          "nota": "El universo se LEE de la BD, no de acá, porque varía por ambiente (medido: 9 en local, 11 en prod — `Abaco` existe en local y no en prod). Los `conocidos` son solo para dibujar el árbol antes de consultar; en la corrida se reconcilian y lo que sobra o falta se marca. Declararlos como verdad haría que el árbol mintiera en un ambiente.",
+          "nota": "El universo se LEE de la BD, no de acá, porque varía por ambiente (medido: 9 en local, 11 en prod — `Abaco` existe en local y no en prod). Los `conocidos` son solo para dibujar el árbol antes de consultar; en la corrida se reconcilian y lo que sobra o falta se marca. Declararlos como verdad haría que el árbol mintiera en un ambiente.\n\n⚠ `risk_centrals` NO es «la lista de burós»: es la tabla donde se GUARDA cualquier dato de un tercero de identidad o riesgo, y sus filas se escriben en momentos distintos del flujo. Volcarla entera en esta etapa hacía que `Ado` saliera «no consultada» bajo «Consulta a burós» — una etapa donde nunca se consulta. Cada central se declara ahora en SU etapa, con el call site que lo prueba en `porque`.",
           "conocidos": [
             {
               "id": 1,
               "label": "Experian - Acierta",
-              "nota": "el único que trae score de forma consistente"
+              "nota": "el único que trae score de forma consistente",
+              "porque": "Modules/Onboarding/App/Services/OnboardingService.php + CreditStudyService.php + OnboardingController.php"
             },
             {
               "id": 2,
-              "label": "TusDatos - Validación de Identidad"
+              "label": "TusDatos - Validación de Identidad",
+              "porque": "cascada MEDIDA en la uReq 519245: «Validating identity with TusDatos» dentro de la ventana del onboarding"
             },
             {
               "id": 3,
               "label": "Agildata",
-              "nota": "NUNCA trae score: 0 de 202 filas medidas"
-            },
-            {
-              "id": 4,
-              "label": "TusDatos - AML"
-            },
-            {
-              "id": 5,
-              "label": "Ado"
+              "nota": "NUNCA trae score: 0 de 202 filas medidas",
+              "porque": "cascada MEDIDA: «Validating identity with AgilData»; el servicio vive en Modules/Identity pero lo llama el onboarding"
             },
             {
               "id": 6,
-              "label": "Mareigua"
-            },
-            {
-              "id": 7,
-              "label": "Deceval"
+              "label": "Mareigua",
+              "porque": "Modules/Onboarding/App/Http/Controllers/OnboardingController.php + Services/KycValidationOutcome.php"
             },
             {
               "id": 8,
-              "label": "Experian - Quanto"
+              "label": "Experian - Quanto",
+              "porque": "app/Actions/RiskCentrals/Experian.php, misma familia que Acierta"
             },
             {
               "id": 9,
               "label": "Experian - Acierta+Quanto",
-              "nota": "entrada SEPARADA de Acierta: se puede consultar esta y no aquella (visto en la uReq 519245 de prod)"
-            },
-            {
-              "id": 10,
-              "label": "crosscore - Experian"
-            },
-            {
-              "id": 11,
-              "label": "evidente - Experian"
+              "nota": "entrada SEPARADA de Acierta: se puede consultar esta y no aquella (visto en la uReq 519245 de prod)",
+              "porque": "app/Actions/RiskCentrals/Experian.php"
             }
           ]
         }
@@ -491,6 +479,86 @@
             "fuente": "loki:lender_id + lender_name  →  db:lenders.response_type",
             "nota": "Los lenders NO se declaran: son 156 y su `response_type` cambia por ambiente (medido: Sistecrédito rt=1 en local, rt=0 en prod). La familia se resuelve en la corrida, contra la BD del target."
           }
+        },
+        {
+          "id": "proceso",
+          "label": "Cómo se armó el listado",
+          "tipo": "hitos",
+          "nota": "El árbol de arriba («Entidades por familia») es el RESULTADO, y sale del snapshot de `profiling_reviews`. Estos hitos son el PROCESO: cómo se llegó a ese resultado. Estaban invisibles porque el ensamblado excluía esta etapa del agrupamiento de logs para no tener dos listas — la cabecera decía «52 líneas» y no había un solo paso donde abrirlas.",
+          "hitos": [
+            {
+              "id": "lst-arranque",
+              "label": "Arranque del listado",
+              "matcher": {
+                "tipo": "prefijo",
+                "patron": "Iniciando listado de entidades"
+              },
+              "porque": "Abre la cascada de getLenders. El sufijo dice el modo: «(sin pre-aprobados)» es la variante que no consulta el MS de pre-aprobación."
+            },
+            {
+              "id": "lst-preaprob",
+              "label": "Pre-aprobación por entidad",
+              "matcher": {
+                "tipo": "regex",
+                "patron": "^(OnboardingService::validatePreApproveLender|Pre-approve lender evaluated)"
+              },
+              "porque": "La consulta al MS de pre-aprobación para los rt≠0 y su veredicto por entidad."
+            },
+            {
+              "id": "lst-reglas-grupo",
+              "label": "Reglas de grupo de la sucursal",
+              "matcher": {
+                "tipo": "regex",
+                "patron": "^(Obteniendo reglas de grupo|Reglas de grupo obtenidas)"
+              },
+              "porque": "Las reglas heredadas por sucursal, antes de evaluar entidad por entidad."
+            },
+            {
+              "id": "lst-reglas-entidad",
+              "label": "Reglas por entidad",
+              "matcher": {
+                "tipo": "regex",
+                "patron": "^(Validando reglas por entidad|Iniciando validación de reglas|Evaluando reglas para entidad|Validación de reglas complet)"
+              },
+              "porque": "La evaluación entidad por entidad: es la que produce los «Rechazado» del árbol de familias."
+            },
+            {
+              "id": "lst-fallo-lender",
+              "label": "Fallo consultando al lender",
+              "matcher": {
+                "tipo": "regex",
+                "patron": "^(Exception in lenderServiceFactory|HTTP request returned status code)"
+              },
+              "porque": "La entidad no respondió o respondió error. Va aparte porque NO es un rechazo de negocio: es una integración caída, y confundirlos manda a revisar reglas cuando el problema es de red."
+            },
+            {
+              "id": "lst-veredicto",
+              "label": "Veredicto por entidad",
+              "matcher": {
+                "tipo": "prefijo",
+                "patron": "Resultado de evaluación de"
+              },
+              "porque": "La línea MÁS informativa de la etapa: una por entidad evaluada, con su resultado. Es el lado de log de lo que el árbol de familias muestra como «Rechazado» / «Probabilidad baja»."
+            },
+            {
+              "id": "lst-perfilamiento",
+              "label": "Reglas de perfilamiento",
+              "matcher": {
+                "tipo": "prefijo",
+                "patron": "Aplicando reglas de perfilamiento"
+              },
+              "porque": "La capa de perfilamiento sobre el listado ya filtrado — clasifica, no excluye (ver nodo profiling)."
+            },
+            {
+              "id": "lst-fin",
+              "label": "Listado terminado",
+              "matcher": {
+                "tipo": "prefijo",
+                "patron": "Listado de entidades complet"
+              },
+              "porque": "El cierre de la cascada. Su AUSENCIA con la etapa iniciada es la firma de que el listado murió a mitad de camino."
+            }
+          ]
         }
       ]
     },
@@ -502,6 +570,23 @@
           "tipo": "dinamico",
           "fuente": "db:user_requests.lender_id",
           "nota": "El ÚNICO punto del flujo donde hay un camino elegido. `seleccion` no tiene matchers de log a propósito: se verificó en código que ninguna de las dos rutas de selección escribe al tracer, así que la BD (estado 3 + lender_id) es la única fuente. Declarar un matcher aproximado sería inventar."
+        },
+        {
+          "id": "proceso",
+          "label": "Qué se escribió al elegir",
+          "tipo": "hitos",
+          "nota": "La etapa la prueba el estado 3; estos hitos son lo que ocurre alrededor.",
+          "hitos": [
+            {
+              "id": "sel-producto",
+              "label": "Producto asociado a la solicitud",
+              "matcher": {
+                "tipo": "regex",
+                "patron": "^(Iniciando upsert de producto|Producto de solicitud de usuario)"
+              },
+              "porque": "AlliedProductsController::upsertUserRequestProduct. Ocurre junto con el estado 3 (medido: 09:01:37 contra el estado a las 09:01:38 en la uReq 519245 de prod)."
+            }
+          ]
         }
       ]
     },
@@ -563,6 +648,19 @@
               "soloEnCodigo": true
             }
           ]
+        },
+        {
+          "id": "centrales",
+          "label": "Centrales de este tramo",
+          "tipo": "catalogo",
+          "nota": "`Deceval` está en `risk_centrals` pero no es una consulta de riesgo: es el PAGARÉ (Modules/Loans/App/Services/PromissoryNote/DecevalPromissoryNoteService.php).",
+          "conocidos": [
+            {
+              "id": 7,
+              "label": "Deceval",
+              "porque": "Modules/Loans/App/Services/PromissoryNote/DecevalPromissoryNoteService.php → es el PAGARÉ, no una consulta de riesgo. Ya estaba dicho en ramales.json (creditopx/credifamilia · desembolso)"
+            }
+          ]
         }
       ]
     },
@@ -595,6 +693,38 @@
               "label": "No llegó (o llegó y no dejó huella)",
               "matcher": null,
               "porque": "sin disbursed_lender y sin excepción: no hay evidencia de que el webhook haya entrado. ⚠ Es una inferencia por AUSENCIA, y el webhook no loguea su recepción, así que NO se puede afirmar — se declara como «sin evidencia de recepción», no como «el agregador no llamó»."
+            }
+          ]
+        }
+      ]
+    },
+    "biometria": {
+      "bloques": [
+        {
+          "id": "centrales",
+          "label": "Centrales de este tramo",
+          "tipo": "catalogo",
+          "nota": "Se escriben DESPUÉS de elegir la entidad, no en el buró. TusDatos - AML y Ado son del tramo creditopx; crosscore/evidente son del KYC V2 de Credifamilia. La evidencia de cada uno está en su `porque`.",
+          "conocidos": [
+            {
+              "id": 4,
+              "label": "TusDatos - AML",
+              "porque": "Modules/Identity/App/Services/TusDatosService.php:508 findByName('TusDatos - AML'); ValidationStatusController lo agrupa con «provider-specific identity validation»"
+            },
+            {
+              "id": 5,
+              "label": "Ado",
+              "porque": "Modules/Identity/App/Http/Controllers/Customer/AdoController.php + AdoService; callback a /self-service/{hash}/{ureq}/identity-validation-status?provider=ado. NO es un buró de onboarding"
+            },
+            {
+              "id": 10,
+              "label": "crosscore - Experian",
+              "porque": "app/Http/Controllers/Api/CredifamiliaV2/CrossCoreController.php — KYC V2 de Credifamilia, después de elegir la entidad"
+            },
+            {
+              "id": 11,
+              "label": "evidente - Experian",
+              "porque": "app/Http/Requests/Api/CredifamiliaV2/Evidente*Request.php — KYC V2 de Credifamilia"
             }
           ]
         }

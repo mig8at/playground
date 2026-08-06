@@ -552,10 +552,16 @@ func main() {
 	ureq := flag.Int64("ureq", 0, "número de solicitud: arma la TRAZA por etapas (BD + logs) en vez de probar el acceso")
 	slackDias := flag.Int("slack", 0, "lee #tech-ops de los últimos N días y clasifica los reportes (solo lectura)")
 	serve := flag.String("serve", "", "levanta la API para la Vue (ej. 127.0.0.1:5199)")
+	incidencias := flag.Int("incidencias", 0, "vuelca los reportes de #tech-ops CON SU HILO de respuestas, para contrastar (solo lectura)")
+	campos := flag.Bool("campos", false, "con -ureq: censo de los campos del contexto de log, para ver qué llave estructural existe")
+	anclas := flag.Bool("anclas", false, "con -ureq: mide cuánto se puede AFIRMAR de cada línea (cierta · probable · por traza · contaminada)")
+	spans := flag.Bool("spans", false, "con -ureq: mide si el `span_id` alcanza para ubicar las líneas que el texto no reclama")
 	validar := flag.String("validar", "", "ruta a un corpus de líneas CRUDAS (el TSV del censo o un timeline.ndjson): audita el mapa")
 	buscar := flag.String("buscar", "", "teléfono, cédula o número de solicitud: lista los intentos que coincidan")
 	jsonOut := flag.Bool("json", false, "con -ureq: salida estructurada en vez de la vista de etapas")
 	htmlOut := flag.String("html", "", "con -ureq: además escribe la vista de checks en este archivo")
+	sqlQuery := flag.String("sql", "", "UNA consulta de solo lectura (SELECT/WITH) contra la fuente del target — ver sql.go")
+	sqlCSV := flag.Bool("csv", false, "con -sql: salida en CSV en vez de tabla")
 	flag.Parse()
 
 	c, checked := loadConfig(*target)
@@ -575,8 +581,23 @@ func main() {
 		}
 		return
 	}
+	if *incidencias > 0 {
+		os.Exit(modoIncidencias(*incidencias))
+	}
+	if *campos && *ureq > 0 {
+		os.Exit(modoCampos(*target, *ureq))
+	}
+	if *anclas && *ureq > 0 {
+		os.Exit(modoAnclas(*target, *ureq))
+	}
+	if *spans && *ureq > 0 {
+		os.Exit(modoSpans(*target, *ureq))
+	}
 	if *validar != "" {
 		os.Exit(ValidarContra(*validar))
+	}
+	if *sqlQuery != "" {
+		os.Exit(modoSQL(c, *target, *sqlQuery, *sqlCSV))
 	}
 	if *buscar != "" {
 		os.Exit(modoBuscar(c, *target, *buscar))

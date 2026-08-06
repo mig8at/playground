@@ -1966,6 +1966,12 @@ Sin `errors`, `['errors'][0]['code']` lanza. Y como lo llama `Integration::handl
 
 **Síntoma.** Es **el reporte más frecuente de #tech-ops** (10 casos en los 10 días del 27-jul al 5-ago): *«Prami confirma originación pero en CT quedó en seleccionar entidad»*, *«Welli ya lo tomó y el estado no cambió»*, *«firmó en prami y no cambió el estado»*. Se revisa la solicitud, está en estado 3 con su lender elegido, y **no hay forma de saber si el webhook del agregador llegó**.
 
+> **RE-MEDIDO el 2026-08-05 leyendo los hilos, no sólo los títulos: 8 casos en 5 días** (31-jul al 5-ago),
+> sobre 35 reportes clasificables — **23 % de todos los incidentes del canal**, y el primero por lejos: el
+> siguiente motivo empata en 4. La resolución fue SIEMPRE manual: generar el voucher a mano, cambiar el
+> estado, o pedirle el `order_id` al agregador. Y en un caso medido (uReq 519064) esa intervención manual se
+> delata sola en la traza — el historial queda con las horas fuera de orden de flujo (ver F-96).
+
 **Causa raíz verificada.** El webhook entra por `POST api/onboarding/loan-application/{user_request_id}/lender-result` (`Modules/Onboarding/routes/webhooks.php:18`) → `ListLenderController::storeLenderResult` → `ProfilingReviewController::updateAsyncLender`. Y en ese camino:
 
 - **`ListLenderController` no tiene ni un `Log::`** (grep del archivo completo). No loguea que llegó, ni el payload, ni el resultado.
@@ -2078,5 +2084,190 @@ Dos dígitos transpuestos. Y explica el resto de la traza: los cuatro intentos f
 **El dato de contexto.** En producción la etiqueta `channel` de Loki tiene **dos** valores (`loki` y `production`), o sea que allá llegan logs por más de un canal — consistente con que `stack` esté activo.
 
 **Estado:** configuración verificada el 2026-08-05; la consecuencia es inferida del código y está sin comprobar.
+
+---
+
+### F-100 · `profiling_reviews.disbursed_lender` tiene TRES escritores: verlo lleno no prueba que llegó un webhook
+
+**Síntoma.** Una herramienta de soporte reporta «el webhook del agregador se aplicó: desembolsa Crediemo»
+sobre una solicitud **rt=2**, que decide in-platform y no espera ningún webhook. Visto en la uReq 520830 de
+prod (Crediemo, rt=2) y en la 509592 (Credifamilia, rt=4, que radica por SOAP). En los dos casos el dato de
+fondo era correcto —esa entidad desembolsó— y la **atribución** era falsa.
+
+**Causa raíz** (verificada). El campo lo escriben **tres** caminos distintos, y ninguno deja marca de cuál
+fue:
+
+1. **`authorize()` in-platform** — `updateDisbursedLender` corre dentro de `handlePostCommitSideEffects`
+   (`Modules/Loans/App/Services/LoanAuthorizationService.php`, ver el nodo `formalization`). Es el camino de
+   rt=2/3 y también el de Credifamilia rt=4, que pasa por `authorize()` antes de la radicación SOAP.
+2. **El webhook del agregador** — `ListLenderController::storeLenderResult` →
+   `ProfilingReviewController::updateAsyncLender`. Es el de rt=1.
+3. **Los espejos de API de lender** — `app/Actions/Lenders/BancoDeBogota.php` y el resto también llaman
+   `updateDisbursedLender` al mapear `Disbursed → 11`.
+
+Y el endpoint del webhook **no filtra por lender**: valida `lender_id` como entero y nada más, sin lista
+blanca ni chequeo de `response_type`. Así que tampoco se puede argumentar «este lender no podría haberlo
+llamado».
+
+**Evidencia.** `disbursed_lender` lleno en 520830 (rt=2, estado 11) y en 509592 (rt=4, estado 11); las dos
+solicitudes pasaron por `authorize()`, que escribe el campo por sí solo. El webhook, además, **no registra
+su recepción** en ninguna tabla ni log (F-94), así que la ausencia de rastro no distingue «no lo llamaron» de
+«lo llamaron y el campo ya estaba escrito».
+
+**Arreglo.** Separar las dos preguntas, que no son la misma:
+
+- *¿quién desembolsa?* → `disbursed_lender`. Es confiable.
+- *¿llegó el webhook?* → **no** se responde con este campo. Para rt=1 en estado 3 la firma es
+  `disbursed_lender` vacío **más** ausencia de excepción con la url del webhook (F-94); para cualquier
+  solicitud que ya alcanzó el estado 11 o el intermedio, el campo lo puede haber escrito `authorize()`.
+
+Concretamente: antes de rotular «webhook», mirá el `response_type`. Si el ramal no espera webhook, el campo
+lo llenó otro camino y decir «webhook» manda a revisar una integración que no existe.
+
+**La pista falsa.** Que el nombre del campo (`disbursed_lender`) y el del endpoint (`lender-result`) suenen a
+lo mismo. Son dos mecanismos que escriben una misma celda.
+
+**Estado:** los tres escritores verificados en código el 2026-08-05; los dos casos de prod medidos vía
+Redash. Cuál de los tres escribió una fila puntual **sigue siendo indeterminable** — es F-94, no se arregla
+sin instrumentar la recepción.
+
+---
+
+### F-101 · `risk_centrals` mezcla dos momentos del flujo: leerla como «la lista de burós» pone ADO en la etapa equivocada
+
+**Síntoma.** Una vista de soporte que muestra el catálogo completo de centrales con las no consultadas
+marcadas —lo correcto, porque una ausencia sin universo no se puede interpretar— acaba mostrando **`Ado` como
+«no consultada» bajo «Consulta a burós»**, una etapa donde `Ado` no se consulta nunca. Lo mismo con
+`TusDatos - AML`, `crosscore`, `evidente` y `Deceval`: cinco de once filas ubicadas en un momento del flujo
+que no les corresponde.
+
+**Causa raíz** (verificada). `risk_centrals` no es el catálogo de burós del onboarding: es la tabla donde se
+guarda **cualquier** dato de un tercero de identidad o riesgo, y sus filas se escriben en tres momentos
+distintos.
+
+- **Onboarding** (antes del listado): Acierta (1), TusDatos-Identidad (2), Agildata (3), Mareigua (6),
+  Quanto (8), Acierta+Quanto (9). Los llama `Modules/Onboarding`.
+- **Post-selección** (tramo de cierre, después de `confirmation`): TusDatos-AML (4), Ado (5), crosscore (10),
+  evidente (11). Los llama `Modules/Identity` / `CredifamiliaV2`.
+- **Ni uno ni otro**: Deceval (7) no es una consulta — es el **pagaré**
+  (`Modules/Loans/App/Services/PromissoryNote/DecevalPromissoryNoteService.php`).
+
+**Evidencia.** Medido en prod el 2026-08-05 (Redash, 21 días): de 2.431 filas de `Ado`, cruzadas con la
+transición a estado 3 del mismo cliente en ventana ±6 h, **1.903 se escriben después de seleccionar entidad y
+186 antes** (91 %, media 24 min después). El cruce es por `user_id` —la tabla no guarda `user_request_id`—
+así que las 186 son compatibles con clientes de varias solicitudes. En código: `AdoController` vive en
+`Modules/Identity/App/Http/Controllers/Customer/` y su callback apunta a
+`/self-service/{hash}/{ureq}/identity-validation-status?provider=ado`; en el wizard el bloque de rutas
+`identity-validation*` está bajo un comentario literal `// creditop x`, después de `lenders` y
+`lender-results` (`frontend-monorepo/apps/loan-request-wizard/app/routes.ts`).
+
+**Y hay un segundo filo:** en el tramo post-selección el proveedor lo elige el **lender**
+(`lender_identity_validation_types`, fallback `lenders.validation_type` → `IdentityValidationStepResolver`),
+y de los 7 valores del enum **sólo `Ado`, `CrossCore` y `Evidente` escriben fila**. Medido en prod: de 119
+lenders in-platform, **64 usan Ado, 46 usan AWS OCR+Rekognition (que no deja fila) y 9 no validan**. O sea
+que **para casi la mitad de los lenders, cero filas en el tramo biométrico es lo normal** — el OCR y el
+reconocimiento facial corrieron y su único rastro son los logs de `Modules/Identity`.
+
+**Arreglo.** Dos reglas, y la segunda es la que no es obvia:
+
+1. Reparte el catálogo **por momento del flujo**, no lo vuelques entero en una etapa. Que el reparto sea un
+   dato editable con el call site que lo prueba, no una lista en código.
+2. Antes de mostrar «centrales no consultadas», decí **qué camino tenía configurado ese lender**. Sin esa
+   línea, la ausencia se lee como un paso que faltó — y para 46 lenders sería un falso positivo cada vez.
+
+**La pista falsa.** La regla «mostrá el catálogo completo con las no consultadas marcadas» es correcta y
+justamente por eso engaña: el universo tiene que ser el del **momento**, no el de la tabla. Un universo
+demasiado grande no es más honesto — afirma que algo pudo pasar donde no puede pasar.
+
+**Estado:** verificado en código y medido en prod el 2026-08-05. Aplicado en `playground/trazador` (etapa
+`biometria`, reparto declarado en `mapa/substeps.json`). Los patrones de log del tramo AWS están declarados
+pero **sin medir**: el censo de mensajes no tiene ninguna línea de ese tramo.
+
+---
+
+### F-102 · Sólo el 13 % de las líneas de log dice a qué solicitud pertenece, y lo dice con tres nombres distintos
+
+**Síntoma.** Reconstruir el recorrido de una solicitud desde los logs no se puede hacer filtrando: hay que
+**anclar y expandir** (buscar las líneas que nombran el uReq o el user_id, sacar sus `trace_id` y traer todas
+las líneas de esos traces). Y esa expansión mezcla solicitudes: un cliente con varias solicitudes arrastra
+las líneas de las otras.
+
+**Causa raíz** (verificada, dos partes independientes).
+
+**(1) El campo falta en la mayoría de las líneas.** Censo de los campos de contexto sobre las 493 líneas de
+una traza real (uReq 519245 de prod): **180 campos distintos y ninguno aparece en más del 23 %**.
+
+| campo | líneas | % |
+|---|---|---|
+| `user_id` | 111 | 23 % |
+| `lender_id` | 81 | 16 % |
+| **`user_request_id`** | **62** | **13 %** |
+| `cell_phone` | 38 | 8 % |
+
+No existe una llave que identifique la solicitud en la mayoría de las líneas. Por eso la expansión por
+`trace_id` no es una comodidad: es la única forma de completar la evidencia, y con ella entra el riesgo.
+
+**(2) Cuando el campo está, viaja con TRES grafías:**
+
+| campo | quién lo escribe |
+|---|---|
+| `context_user_request_id` | el backend, snake_case |
+| `context_userRequestId` | la integración **BNPL de Bancolombia**, camelCase |
+| `context_request_id` | `app/Services/PdfMapperClient.php` — es el id de correlación del MS de PDFs (`$request->requestId ?? Str::uuid()`), o sea que **el nombre del campo no significa «user_request»**; le pasan el uReq |
+
+**Evidencia.** Medido el 2026-08-05 contra producción (Loki + Redash), 8 solicitudes de 7 comercios y 6
+entidades, cubriendo rt 0/1/2/3/4:
+
+| uReq | comercio · lender | rt | líneas ciertas | contaminadas |
+|---|---|---|---|---|
+| 520374 | **Alkosto** · Bancolombia | 1 | **58 %** | 0 |
+| 520830 | Emo · Crediemo | 2 | 20 % | 0 |
+| 519245 | DENTIX · Sistecrédito | 0 | 13 % | 0 |
+| 520835 | Mediarte X | 2 | 13 % | 0 |
+| 519687 | Free Spirit · Credi Free | 3 | 14 % | 0 |
+| 519949 | Free Spirit · Credi Free | 3 | 5 % | 0 |
+| 519372 | DENTIX · **Credifamilia** | 4 | 8 % | **3, de la uReq 519397** |
+| 520530 | Sonría · **Credifamilia** | 4 | 4 % | **5, de la uReq 520535** |
+
+Tres lecturas de esa tabla:
+
+- **La contaminación aparece sólo con clientes de varias solicitudes.** Los dos casos sucios son clientes con
+  4 solicitudes; los seis limpios, de una sola.
+- **El contraste Corbeta (58 %) contra Credifamilia (4 %) no es de volumen** — Corbeta loguea *menos*. Es que
+  identifica lo que loguea. Es la prueba de que esto se arregla logueando distinto, no logueando más.
+- Y hay un daño que no se ve en la columna: en la uReq 520530, **36 líneas vienen de un trace que toca dos
+  solicitudes y no dicen de cuál son**. No se pueden descartar (serían el 20 % de la evidencia) ni afirmar.
+
+**La regresión que lo hizo evidente.** Al cambiar el ancla de substring (`|= "520374"`) a filtro exacto por
+campo (`| json | context_user_request_id="520374"`) —que es estrictamente mejor: filtra en el servidor y no
+gasta el `limit` de 5000 en ruido— la traza de Alkosto pasó de **12 líneas y 5 traces a 6 y 2**, porque BNPL
+usa camelCase. Se detectó comparando antes/después sobre la misma solicitud; sin ese contraste habría quedado
+como una mejora silenciosa que perdía la mitad de la evidencia.
+
+**Arreglo.** Dos cambios en el backend, en orden de impacto:
+
+1. **`user_request_id` en el contexto de TODA línea de log** de una petición de originación. Es una línea en
+   el contexto del logger, no un refactor. Con eso el trazador deja de *inferir* y pasa a *filtrar*: las
+   líneas afirmables van de 13 % a ~100 %, la expansión por trace queda como complemento y la contaminación
+   se vuelve imposible en vez de detectable.
+2. **Una sola grafía**, snake_case, incluida la integración BNPL. Barato y ya costó una regresión.
+
+Y una palanca aparte, que resuelve otro problema (la cobertura del mapa, no la identidad): **conectar
+Tempo**. En el código los spans tienen nombre —`tracer->startSpan('AlliedProductsController::upsertUserRequestProduct')`—
+pero **ese nombre no viaja a Loki**, sólo el `span_id`; vive en Tempo, y el token de Grafana ya tiene
+`traces:read`. Con el nombre del span, ubicar una línea dejaría de depender de reconocer su prosa.
+
+**La pista falsa.** Creer que el problema es que «logs y trazas están separados». No lo están: el `trace_id`
+está en el **100 %** de las líneas y une la petición completa — esa parte funciona. Lo que no está unificado
+es la **identidad de la solicitud dentro del log**.
+
+**Mitigación aplicada mientras tanto** (`playground/trazador`), toda medida, ninguna suficiente:
+- ancla por campo exacto con las tres grafías (`-anclas` mide de quién es cada línea);
+- las líneas que traen OTRO `user_request_id` se descartan — no es una heurística, lo dicen en su propio
+  contexto — y las dudosas de un trace mezclado se declaran en un aviso;
+- herencia por `span_id` para las líneas que ningún patrón reclama (cobertura 92 % → 98 % en la 519245).
+
+**Estado:** medido el 2026-08-05 en producción sobre 8 solicitudes. Los dos arreglos de fondo son del
+backend y **no están hechos**.
 
 ---

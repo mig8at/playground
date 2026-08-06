@@ -112,6 +112,27 @@ type PasoRamal struct {
 	Porque      string `json:"porque,omitempty"`
 }
 
+// CanalDef es una variante del flujo que depende del COMERCIO, no del lender. Hoy hay uno: Corbeta. La
+// diferencia con `RamalDef` no es cosmética — un ramal y un canal se pueden combinar (una solicitud de
+// Alkosto con Bancolombia es «canal corbeta» + «ramal agregador»), así que suprimen etapas por separado.
+type CanalDef struct {
+	ID       string      `json:"id"`
+	Label    string      `json:"label"`
+	Detecta  string      `json:"detecta,omitempty"`
+	Porque   string      `json:"porque,omitempty"`
+	NoAplica []PasoRamal `json:"noAplica,omitempty"`
+}
+
+// Canal devuelve la definición de un canal por id.
+func (m *Mapa) Canal(id string) *CanalDef {
+	for _, c := range m.Canales {
+		if c.ID == id {
+			return c
+		}
+	}
+	return nil
+}
+
 // RamalDef es una variante del flujo. Los ids son los mismos que usa `panel/steps.json` del harness, a
 // propósito: dos vocabularios para lo mismo es como empiezan a derivar.
 type RamalDef struct {
@@ -124,10 +145,14 @@ type RamalDef struct {
 
 // Mapa es el flujo entero.
 type Mapa struct {
-	Version  string      `json:"version"`
-	Nota     string      `json:"nota,omitempty"`
-	Etapas   []*EtapaDef `json:"etapas"`
-	Ramales  []*RamalDef `json:"ramales"`
+	Version string      `json:"version"`
+	Nota    string      `json:"nota,omitempty"`
+	Etapas  []*EtapaDef `json:"etapas"`
+	Ramales []*RamalDef `json:"ramales"`
+	// Canales: el SEGUNDO EJE. Los ramales se eligen por el `response_type` del lender; los canales por el
+	// COMERCIO, y son independientes — el mismo lender 100 consulta buró en Tripleten y no en Alkosto. Un
+	// eje solo no puede describir eso, y por eso el árbol dinámico necesita los dos.
+	Canales  []*CanalDef `json:"canales"`
 	porEtapa map[string]*EtapaDef
 }
 
@@ -151,11 +176,12 @@ func Cargar() (*Mapa, error) {
 
 	var ramales struct {
 		Ramales []*RamalDef `json:"ramales"`
+		Canales []*CanalDef `json:"canales"`
 	}
 	if b, err := mapaFS.ReadFile("mapa/ramales.json"); err == nil {
 		_ = json.Unmarshal(b, &ramales)
 	}
-	m.Ramales = ramales.Ramales
+	m.Ramales, m.Canales = ramales.Ramales, ramales.Canales
 
 	sort.Slice(m.Etapas, func(i, j int) bool { return m.Etapas[i].Orden < m.Etapas[j].Orden })
 	for _, e := range m.Etapas {
@@ -500,6 +526,13 @@ type HitoDef struct {
 	// medido. Es distinto de un patrón mal escrito, y mezclarlos es cómo un validador se vuelve ruidoso y
 	// deja de mirarse. `ValidarSub` lo reporta como aviso, no como problema.
 	SoloEnCodigo bool `json:"soloEnCodigo,omitempty"`
+	// Central: el `risk_centrals.id` del que este hito es EL LADO DE LOG. Cuando está declarado, el
+	// ensamblado FUSIONA los dos en un solo paso en vez de mostrarlos como dos.
+	//
+	// Sin esto el buró listaba «Agildata · sin score · 08:43:18» (la fila de BD) y aparte «Identidad con
+	// AgilData ×5» (sus líneas), que son la misma consulta vista desde dos fuentes. Duplicar el paso obliga a
+	// cruzarlos de cabeza; fusionado queda una sola fila con el HECHO de la BD y la EVIDENCIA del log junta.
+	Central int64 `json:"central,omitempty"`
 }
 
 type ValorFamilia struct {

@@ -43,6 +43,40 @@ asignada a otro lender. Al depurar cuotas que "no deberían salir", mirar acá a
 - **Bonificación / condiciones especiales** (legacy): `Jobs/Lenders/Credifamilia/*`, `SpecialConditionsController`.
 - **Formulario adicional (G2, form_type 6)** — entre la identidad y la firma, Credifamilia muestra el form dinámico "backend-driven" (ruta `additional-info`): datos personales / PEP / TIN + la cascada **Departamento→Ciudad** (nacimiento, residencia, trabajo, expedición CC). Lo sirve el **form-service** (MS Go, no legacy); las respuestas caen en `user_field_values` (`form_id=6`). Ver nodos **form-service** y **dynamic-forms**. Front: `apps/loan-request-wizard/app/routes/additional-info-form.tsx`.
 
+## Por qué «no consulta Credifamilia»: dos causas distintas
+
+Es el segundo reporte más frecuente de #tech-ops después del webhook del agregador (3 casos en 5 días,
+medido el 2026-08-05), y detrás hay **dos** cosas que no se parecen:
+
+**1. Sin situación laboral, Credifamilia LANZA.** `app/Actions/Lenders/Credifamilia.php:216-221` mapea el
+EAV **campo 29** (situación laboral) a su `tipoOcupacion` con un `match` de tres valores —`Empleado`→2,
+`Independiente`→4, `Pensionado`→5— y su `default` es
+`throw new \DomainException('Could not generate a transaction with this employment situation')`. O sea que
+un usuario sin ese campo, o con cualquier otro valor, **no genera transacción**: la entidad no aparece y el
+motivo no es de riesgo sino de dato faltante.
+
+⚠ Y engancha con una trampa ya documentada en **kyc**: el campo 29 se escribe **`'Empleado'` hardcodeado**
+al procesar Quanto (`Experian.php:374`). Así que el valor puede existir sin que nadie lo haya declarado —
+lo cual hace pasar la compuerta, no fallarla. Los dos comportamientos conviven.
+
+**2. Credifamilia puede devolver un APROBADO EN FALSO.** Con un correo que trae caracteres no válidos en la
+parte local (el caso medido: una `é`), su API responde **`Aprobado` sin datos** en vez de un error que diga
+qué pasó; el rechazo real aparece después como
+`{"transactionId":…,"status":3,"status_detail":"Rechazado","valor_disponible_para_comprar":null,"url":null}`.
+Consecuencia para soporte: la primera respuesta parece un éxito y el síntoma que ve el comercio es «no sale
+la opción», que no se parece en nada a la causa.
+
+> **FUENTE: el hilo de #tech-ops del 2026-08-05**, con el JSON pegado por quien lo investigó — no está
+> verificado en código nuestro (es comportamiento de la API de ellos, y del lado nuestro sólo se ve la
+> respuesta). Se registra porque el síntoma es recurrente y la causa no se deduce de los logs.
+
+Sobre el correo hay un cambio en `main` que conviene no malinterpretar:
+`Modules/Onboarding/App/Services/DynamicFormsService.php:1446-1461` reemplazó la regex casera
+`[A-Za-z0-9._%+-]` por la regla `email` de Laravel (RFCValidation). Va en **dirección contraria** a
+«bloquear caracteres especiales»: acepta todos los que el RFC permite en la parte local y rechaza los que
+no. ⚠ No está confirmado que sea el cambio que cerró este incidente — vive en la ruta del **formulario
+dinámico G2**, no en la del onboarding clásico por donde entró el caso.
+
 ## Gotchas / riesgos
 - **Único con flujo legal de documentos completo**: `ENABLED_LENDERS_FOR_LEGAL=[24]` — TyC sin firmar por WhatsApp, PDF vía `pdf-mapper-service`, custodia en **S3**. Es el patrón de firma/custodia que el plan Motai/Alta generaliza.
 - **Gate local exigente** (por qué "no sale" en pruebas): requiere fila de buró con `economicSector==1`, **≥12 'N' consecutivas**, sin negativos, y `cuota×1000/ingreso ≤ 0.4`. El fixture base trae sector 3/4 → `totalNs=0` → **0% por defecto**.
@@ -52,6 +86,7 @@ asignada a otro lender. Al depurar cuotas que "no deberían salir", mirar acá a
 - **El form_type 6 (additional-info) NO tiene seeder** — es data cargada a mano en dev/local. Un campo nuevo se agrega por migración/seeder en legacy-backend resolviendo por **NOMBRE** (los `field_id` son auto-increment y difieren por ambiente: "Ciudad de nacimiento" salió **233** en dev, 221/222 en local). Tras tocar la BD, **`PUT /v1/dynamic-form/6/schema`** para bustear el cache del form-service. Para VER el form: flow **`self-service`** (público), no `merchant`. Ver **form-service**.
 
 ## Bitácora
+- **2026-08-05** — Documentadas las dos causas de «no consulta Credifamilia»: el `DomainException` por situación laboral (verificado en `Credifamilia.php:216-221`) y el aprobado-en-falso por correo con caracteres inválidos (fuente: hilo de #tech-ops, no verificable en código nuestro).
 - **2026-07-23** — Documentado el **formulario adicional G2 (form_type 6)** de Credifamilia: la cascada Departamento→Ciudad, servida por el **form-service** (nodo nuevo), respuestas en `user_field_values`. Tarea real: se agregó "Ciudad de nacimiento" (field 233 dev) en cascada, vía migración `add_ciudad_de_nacimiento_field_to_credifamilia_form` en legacy-backend + validado visualmente en dev.
 - **2026-07-18** — PROMOVIDO al árbol vivo desde `flows-curated/` (era material huérfano: el nodo no existía en el modelo contexto/task). Superficie re-validada contra el índice actual: 134/134 resuelven. Doc adaptado a la plantilla de contexto + campo `when` para el ruteo del MCP.
 - **2026-07-17** — Nodo creado desde la raíz con la documentación de referencia. Superficie curada: **134 archivos** (107 legacy + 27 front, 134/134 resuelven en el índice). Flujo verificado adversarialmente contra el análisis maestro.

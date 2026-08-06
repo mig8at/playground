@@ -285,14 +285,21 @@ func abrirFuente(c config) (Runner, error) {
 // duplicadas por fuente es exactamente cómo empiezan a derivar: se arregla un JOIN en una y no en la otra,
 // y después el mismo uReq cuenta una historia distinta según el ambiente.
 
+// ⚠ `validacion` = CÓMO valida identidad este lender, y sin eso la etapa biométrica es una trampa: medido
+// en prod, **46 de los 119 lenders in-platform validan por AWS OCR+Rekognition**, que NO escribe fila en
+// `risk_central_user_data`. Para ellos «las cuatro centrales no consultadas» se lee como «no pasó nada»
+// cuando el OCR y el reconocimiento facial corrieron completos. Misma precedencia que
+// `CreditopXFlowService.php:117`: la tabla puente primero, la columna del lender como fallback.
 const sqlSolicitud = `
 	SELECT ur.user_id, ur.user_request_status_id AS st, COALESCE(stt.name,'') AS estado,
 	       COALESCE(l.name,'') AS lender, COALESCE(l.id,0) AS lender_id, COALESCE(l.response_type,0) AS rt,
-	       COALESCE(a.name,'') AS comercio, COALESCE(ab.name,'') AS sucursal,
-	       COALESCE(u.document_number,'') AS documento, COALESCE(ur.amount,0) AS monto, ur.created_at
+	       COALESCE(a.name,'') AS comercio, COALESCE(a.id,0) AS allied_id, COALESCE(ab.name,'') AS sucursal,
+	       COALESCE(u.document_number,'') AS documento, COALESCE(ur.amount,0) AS monto, ur.created_at,
+	       COALESCE(livt.identity_validation_type_id, l.validation_type, 0) AS validacion
 	  FROM user_requests ur
 	  LEFT JOIN user_request_statuses stt ON stt.id = ur.user_request_status_id
 	  LEFT JOIN lenders l                ON l.id   = ur.lender_id
+	  LEFT JOIN lender_identity_validation_types livt ON livt.lender_id = l.id
 	  LEFT JOIN allied_branches ab       ON ab.id  = ur.allied_branch_id
 	  LEFT JOIN allieds a                ON a.id   = ab.allied_id
 	  LEFT JOIN users u                  ON u.id   = ur.user_id
@@ -314,6 +321,34 @@ const sqlBuro = `
 
 const sqlCentrales = `SELECT id, COALESCE(name,'') AS name FROM risk_centrals ORDER BY id`
 
+// sqlCorbeta lee el setting que define el CANAL Corbeta. Es una LISTA EN BD, no una constante: en prod hoy
+// vale [24, 209, 210, 211, 311] (Creditop, Alkosto, K-TRONIX, Alkomprar, Kalley) y agregar un comercio es
+// editar el setting. Cablear los ids acá haría que el trazador mintiera el día que Corbeta sume una tienda.
+//
+// El flag decide TRES cosas en `ValidateOtpAuthService::validateOtpAuthOrchestrator` (legacy-backend
+// Modules/OnboardingV2): un usuario temporal NO se manda a datos personales, la info laboral que falta se
+// FABRICA con `storeDefaultEmploymentInformation`, y la respuesta sale con su propio código OBV22007 en vez
+// del OBV22000 normal. Como el buró se dispara al guardar lo laboral, sin formulario no hay buró.
+const sqlCorbeta = "SELECT value FROM settings WHERE `key` = 'corbeta_allieds' LIMIT 1"
+
+// GetCorbetaAllieds devuelve los allied_id del canal Corbeta. Ante cualquier error devuelve vacío: no saber
+// es distinto de saber que no, y un canal mal supuesto esconde etapas que sí ocurrieron.
+func GetCorbetaAllieds(r Runner) map[int64]bool {
+	out := map[int64]bool{}
+	fs, err := r.Filas(sqlCorbeta)
+	if err != nil || len(fs) == 0 {
+		return out
+	}
+	var ids []int64
+	if err := json.Unmarshal([]byte(texto(fs[0]["value"])), &ids); err != nil {
+		return out
+	}
+	for _, id := range ids {
+		out[id] = true
+	}
+	return out
+}
+
 const sqlEsEcommerce = `SELECT COUNT(*) AS n FROM ecommerce_requests WHERE user_request_id = ?`
 
 // GetSolicitud arma el esqueleto usando cualquiera de las dos fuentes.
@@ -330,8 +365,9 @@ func GetSolicitud(r Runner, ureq int64) (*Solicitud, error) {
 		ID: ureq, UserID: entero(f["user_id"]), Estado: int(entero(f["st"])),
 		EstadoN: texto(f["estado"]), Lender: texto(f["lender"]),
 		LenderID: entero(f["lender_id"]), LenderRT: int(entero(f["rt"])),
-		Comercio: texto(f["comercio"]), Sucursal: texto(f["sucursal"]),
+		Comercio: texto(f["comercio"]), AlliedID: entero(f["allied_id"]), Sucursal: texto(f["sucursal"]),
 		Documento: texto(f["documento"]), Monto: decimal(f["monto"]), Creada: fecha(f["created_at"], r.Zona()),
+		Validacion: int(entero(f["validacion"])),
 	}
 
 	if hs, err := r.Filas(sqlHistorial, ureq); err == nil {

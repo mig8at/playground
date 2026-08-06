@@ -46,6 +46,11 @@
           "porque": "APLICA y es obligatoria: la selección es literalmente lo que ABRE este ramal — el POST update-user-request entra al switch por `lenders.response_type` y para 2/3/4 sin credencial devuelve standBy + la URL a /self-service/{hash}/{ur}/confirm"
         },
         {
+          "id": "biometria",
+          "obligatorio": false,
+          "porque": "ES SU TRAMO. El bloque está literalmente comentado `// creditop x` en frontend-monorepo/apps/loan-request-wizard/app/routes.ts: confirmation → identity-validation-instructions → identity-validation → identity-validation-status → additional-identity-validation, todas DESPUÉS de `lenders`/`lender-results`. Acá se escriben las filas de `Ado` y `TusDatos - AML` en `risk_central_user_data` (Modules/Identity/AdoController + TusDatosService:508). NO es obligatoria: que el tramo se exija depende de la configuración del comercio/lender y eso NO lo verifiqué — no lo afirmo."
+        },
+        {
           "id": "desembolso",
           "obligatorio": true,
           "porque": "APLICA y es obligatoria: creditopx es el ÚNICO ramal que cierra in-platform hasta el Estado 11 (creditopx/doc.md:2 y :5); la secuencia es pagaré (steps.json:212 — el loader GENERA los documentos, sin ese GET el authorize muere) → OTP de fir"
@@ -135,6 +140,11 @@
           "id": "desembolso:servicing-postdesembolso",
           "obligatorio": false,
           "porque": "El servicing (cartera, mora, cuotas; los 6 crons diarios de CreditopX) lo gestiona el lender externo, no CreditOp (aggregator/doc.md:5). No hay etapa posterior al espejo que buscar en los logs de CreditOp para rt=1, asi que un vacio despues"
+        },
+        {
+          "id": "biometria",
+          "obligatorio": false,
+          "porque": "rt=1: el veredicto y el KYC los hace el LENDER EXTERNO por su propia API, y CreditOp solo espeja el estado por webhook (aggregator/doc.md:5). No hay biometría de CreditOp que buscar, así que un vacío acá no dice nada del ramal."
         }
       ],
       "fuentes": [
@@ -199,6 +209,11 @@
           "id": "respuesta-lender",
           "obligatorio": false,
           "porque": "el desenlace de rt=0 ocurre afuera y no vuelve por webhook"
+        },
+        {
+          "id": "biometria",
+          "obligatorio": false,
+          "porque": "rt=0: el cliente SALE a una url_utm del prestamista y la responsabilidad de CreditOp termina ahí (redirect/doc.md:25). Es el response_type sin ningún mecanismo de retorno — no hay tramo posterior a `seleccion` que validar."
         }
       ],
       "fuentes": [
@@ -245,6 +260,11 @@
           "porque": "Aplica y es obligatoria: estado 3 'Seleccionó entidad' (trazador/etapas.go:105; nombre verificado en el catálogo local). doc.md:22: '/lenders → seleccionar → update-user-request'. Sin matchers a propósito (mapa/etapas.json nota: 'seleccion "
         },
         {
+          "id": "biometria",
+          "obligatorio": false,
+          "porque": "APLICA con proveedores PROPIOS: el KYC V2 de Credifamilia corre Evidente + CrossCore (+ Jumio) y es lo que escribe las centrales `crosscore - Experian` y `evidente - Experian` (app/Http/Controllers/Api/CredifamiliaV2/CrossCoreController.php, app/Http/Requests/Api/CredifamiliaV2/Evidente*Request.php). ⚠ Que corra en ESTE punto del flujo sale de los call sites, no de una traza medida."
+        },
+        {
           "id": "desembolso",
           "obligatorio": true,
           "porque": "Aplica y es obligatoria (su ausencia = la solicitud no cerró). Recorrido: first-payment-date + plan de cuotas dinámico → payment-schedule → sign-documents (pagaré **Deceval** + docs **Netco**, OTP) → authorize (Estado 11) → formalización SO"
@@ -271,5 +291,24 @@
         "/Users/miguelochoa/Desktop/CREDITOP/playground/context/docs/ROUTE-MAP.md:83-85 — ficha del nodo credifamilia (reference, 135 archivos, padre entities)"
       ]
     }
-  ]
+  ],
+  "canales": [
+    {
+      "id": "corbeta",
+      "label": "Canal Corbeta → Bancolombia",
+      "detecta": "setting `corbeta_allieds` contiene el `allied_id` de la solicitud",
+      "porque": "SEGUNDO EJE DEL FLUJO, independiente del ramal. Los ramales se eligen por el `response_type` del LENDER; esto se elige por el COMERCIO, y la evidencia de que son ejes distintos es directa: el MISMO lender 100 (Bancolombia - Credito de consumo, rt=1) consulta buro en Tripleten (11 de 17) y en Smart Academia (7 de 7), y NO lo consulta en Alkosto (0 de 35), K-TRONIX (0 de 11) ni Alkomprar (0 de 7). Medido en prod el 2026-08-05, ventana de 3 dias.\n\nMECANISMO (verificado en legacy-backend Modules/OnboardingV2/App/Services/ValidateOtpAuthService.php): el flag sale de `IsCorbetaOnboardingService`, que compara el `allied_id` contra el setting `corbeta_allieds` (en prod hoy [24, 209, 210, 211, 311] = Creditop / Alkosto / K-TRONIX / Alkomprar / Kalley). Cuando es true, la validacion del OTP hace TRES cosas distintas: (1) un usuario temporal NO se manda a datos personales; (2) la info laboral que falta se FABRICA con `storeDefaultEmploymentInformation` en vez de pedirla; (3) la respuesta sale con su propio codigo OBV22007 en lugar del OBV22000 normal.\n\nY de ahi sale la consecuencia observable: el buro se dispara al GUARDAR lo laboral, asi que sin formulario no hay consulta de buro. Los datos de riesgo los aporta Bancolombia por su lado.\n\nATENCION: el setting se LEE de la BD del target en cada corrida, no se cablea. Agregar una tienda a Corbeta es editar el setting, y una lista fija en este archivo mentiria ese mismo dia.",
+      "noAplica": [
+        {
+          "id": "formulario",
+          "porque": "No se piden datos personales ni laborales: el usuario temporal no se enruta a personal-info y la info laboral se fabrica por defecto (ValidateOtpAuthService, las dos primeras ramas del flag). MEDIDO: el estado 9 aparece en 4 de 35 solicitudes de Alkosto, y en las que aparece no viene de un formulario del wizard."
+        },
+        {
+          "id": "buro",
+          "porque": "CONSECUENCIA, no decision aparte: el buro se dispara al guardar lo laboral, y aca no hay ese guardado. MEDIDO en prod: 0 consultas de buro de onboarding en 57 solicitudes de los tres comercios Corbeta (Alkosto 0/35, K-TRONIX 0/11, Alkomprar 0/7), contra 60-95 % en el resto. Los datos de riesgo los tiene Bancolombia."
+        }
+      ]
+    }
+  ],
+  "version": "1.1"
 }

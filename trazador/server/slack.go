@@ -89,6 +89,9 @@ type mensajeSlack struct {
 	User string `json:"user"`
 	Text string `json:"text"`
 	Bot  string `json:"bot_id"`
+	// ReplyCount: cuántas respuestas tiene el hilo. Es el filtro más útil del canal — un reporte SIN
+	// respuestas nunca se resolvió ahí, así que no sirve para contrastar «qué contestó el humano».
+	ReplyCount int `json:"reply_count"`
 }
 
 // modoSlack lee el canal y clasifica. Devuelve el exit code.
@@ -232,4 +235,83 @@ func tsAt(ts string) time.Time {
 	sec, _, _ := strings.Cut(ts, ".")
 	n, _ := strconv.ParseInt(sec, 10, 64)
 	return time.Unix(n, 0)
+}
+
+// leerHilo trae las respuestas de un mensaje. Es lo que permite contrastar el REPORTE con su RESOLUCIÓN:
+// sin esto, medir «¿el trazador contestaría esto?» es una opinión sobre el título del incidente. Con la
+// respuesta del humano al lado, la pregunta pasa a ser verificable — ¿el trazador muestra ESE dato?
+//
+// Sólo lectura, igual que el resto de este archivo: `conversations.replies` no escribe nada.
+func leerHilo(token, canal, ts string) ([]mensajeSlack, error) {
+	q := url.Values{"channel": {canal}, "ts": {ts}, "limit": {"60"}}
+	req, _ := http.NewRequest("GET", "https://slack.com/api/conversations.replies?"+q.Encode(), nil)
+	req.Header.Set("Authorization", "Bearer "+token)
+	resp, err := (&http.Client{Timeout: 30 * time.Second}).Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	var body struct {
+		OK       bool           `json:"ok"`
+		Error    string         `json:"error"`
+		Messages []mensajeSlack `json:"messages"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
+		return nil, err
+	}
+	if !body.OK {
+		return nil, fmt.Errorf("slack replies: %s", body.Error)
+	}
+	// La primera es el mensaje original; las respuestas son el resto.
+	if len(body.Messages) > 0 {
+		return body.Messages[1:], nil
+	}
+	return nil, nil
+}
+
+// modoIncidencias vuelca los reportes CON SU HILO, para leerlos y juzgar de verdad si el trazador los
+// contesta. NO clasifica: eso es lo que hace `modoSlack` con regex, y ese enfoque tiene un techo — la
+// etiqueta `directa|parcial|fuera` está cableada por categoría, o sea que mide MI SUPOSICIÓN sobre el tipo
+// de incidente, no el caso. Acá el código sólo junta el material; el juicio lo hace quien lee.
+func modoIncidencias(dias int) int {
+	token := strings.TrimSpace(os.Getenv("SLACK_BOT_TOKEN"))
+	if token == "" {
+		fmt.Fprintf(os.Stderr, "\n  %s falta SLACK_BOT_TOKEN (se exporta en la shell, no vive en ningún .env).\n\n",
+			paint("31", "✘"))
+		return 2
+	}
+	msgs, err := leerCanal(token, canalTechOps, time.Now().AddDate(0, 0, -dias))
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "\n  %s %v\n\n", paint("31", "✘"), err)
+		return 2
+	}
+	limpio := func(s string) string {
+		s = strings.ReplaceAll(s, "\n", " ⏎ ")
+		return strings.Join(strings.Fields(s), " ")
+	}
+	n := 0
+	fmt.Printf("\n  %s\n\n", bold(fmt.Sprintf("── INCIDENCIAS CON SU HILO · últimos %d días ──", dias)))
+	for _, m := range msgs {
+		// Con hilo y con cuerpo: un reporte sin respuestas no se resolvió acá y no sirve para contrastar.
+		if m.Bot != "" || m.ReplyCount == 0 || len(strings.Fields(m.Text)) < 5 {
+			continue
+		}
+		n++
+		fmt.Printf("  %s [%s · %d respuestas]\n", bold(fmt.Sprintf("#%d", n)),
+			tsAt(m.TS).Format("01-02 15:04"), m.ReplyCount)
+		fmt.Printf("     %s %s\n", paint("36", "PREGUNTA:"), limpio(m.Text))
+		rs, err := leerHilo(token, canalTechOps, m.TS)
+		if err != nil {
+			fmt.Printf("     %s\n", gray("(no pude leer el hilo: "+err.Error()+")"))
+		}
+		for _, r := range rs {
+			if r.Bot != "" || len(strings.Fields(r.Text)) < 2 {
+				continue
+			}
+			fmt.Printf("     %s %s\n", paint("32", "→"), limpio(r.Text))
+		}
+		fmt.Println()
+	}
+	fmt.Printf("  %s\n\n", gray(fmt.Sprintf("%d reportes CON hilo, de %d mensajes leídos", n, len(msgs))))
+	return 0
 }

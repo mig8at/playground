@@ -1,5 +1,5 @@
 {
-  "version": "1.2",
+  "version": "1.4",
   "nota": "ESTRUCTURA del flujo, verificada contra la BD y el catálogo de estados. Los `matchers` y las `decisiones` los llena el censo de logs — hasta entonces este mapa describe QUÉ etapas hay y qué evidencia estructurada tiene cada una, no cómo reconocerlas en los logs. El orden NO es cosmético: `cupo` va antes de `seleccion` porque para rt=2 el cupo es un filtro del listado (se evalúa para decidir si la entidad se muestra). Eso se descubrió midiendo: en la solicitud 464630 el cupo quedó a las 16:37 y la selección a las 16:43. || MATCHERS Y DECISIONES: derivados de un censo de 313 mensajes distintos medidos en producción y en trazas capturadas de dev/staging (2026-08-05), asignados etapa por etapa y cada uno con su porqué. Preferencia estricta: exacto > prefijo > regex, porque una regex amplia captura dos etapas y reparte mal la evidencia sin que nada avise. `seleccion` queda SIN matchers a propósito: no tiene mensajes propios en el censo, y forzarle uno sería inventar. PENDIENTE: la verificación adversarial de solapes y el reparto por ramal se cayeron con error 529 y se están recuperando. || v1.2: se agrega la etapa `respuesta-lender` (el webhook del agregador) y se corrige el esqueleto de `listado`, que sí existe en profiling_reviews.",
   "etapas": [
     {
@@ -244,6 +244,11 @@
           "tipo": "exacto",
           "patron": "Flow B: manual / special allieds",
           "porque": "EXACTO a proposito, no prefijo 'Flow B': el prefijo se llevaria 'Flow B Pullman/DFS Quanto branch' (OnboardingService.php:764), cuyo veredicto es disparar Experian aciertaQuanto — eso es buro y debe reclamarlo buro con su propio matcher. Es el caso exacto de la regla de oro 1 en un prefijo, no en una regex."
+        },
+        {
+          "tipo": "prefijo",
+          "patron": "Starting OnboardingService::storePersonalInfo",
+          "porque": "El span de estas líneas abarca `formulario` Y `buro` a la vez —guardar los datos personales dispara la consulta de buró en la misma operación— así que la herencia por span no puede desempatar y hacen falta estas dos palabras. Es el orquestador del formulario: mismo método que ya cubre «Datos personales»."
         }
       ],
       "decisiones": [
@@ -1281,7 +1286,13 @@
           "lenders"
         ]
       },
-      "matchers": [],
+      "matchers": [
+        {
+          "tipo": "regex",
+          "patron": "^(Iniciando upsert de producto|Producto de solicitud de usuario)",
+          "porque": "`AlliedProductsController::upsertUserRequestProduct` asocia el producto a la solicitud. Verificado que va acá por hora medida: 09:01:37 contra el estado 3 «Seleccionó entidad» a las 09:01:38 en la uReq 519245 de prod. Su span no tiene hermanas ubicadas, así que sin patrón no se puede colocar."
+        }
+      ],
       "decisiones": []
     },
     {
@@ -1385,6 +1396,92 @@
           "campo": "url"
         }
       ]
+    },
+    {
+      "id": "biometria",
+      "label": "Validación biométrica",
+      "orden": 78,
+      "porque": "EL TRAMO QUE FALTABA. El mapa saltaba de `seleccion` (70) a `desembolso` (80) y se comía la validación de identidad de creditopx — siete rutas del wizard, bajo un comentario `// creditop x` literal en frontend-monorepo/apps/loan-request-wizard/app/routes.ts (confirmation → identity-validation-instructions → identity-validation → identity-validation-status → additional-identity-validation…), todas DESPUÉS de `lenders` y `lender-results`.\n\n⚠ DOS COSAS SE LLAMAN «validación de identidad» y NO son el mismo momento. (1) La cascada AgilData→TusDatos del ONBOARDING, que corre antes del listado y vive en el bloque `identidad` de la etapa `buro`. (2) ESTE tramo: OCR del documento + comparación facial por AWS Rekognition + enroll en ADO, después de que el cliente eligió la entidad. Confundirlos fue exactamente el error que tenía el mapa: `Ado` aparecía como «no consultada» bajo «Consulta a burós», una etapa donde nunca se consulta.\n\nDónde vive: Modules/Identity/App/Http/Controllers/Customer/AdoController.php y RekognitionController.php; el callback de ADO apunta a `/self-service/{hash}/{ureq}/identity-validation-status?provider=ado` (AdoController.php:54). Las centrales que se escriben acá son TusDatos - AML, Ado, y —para Credifamilia V2— crosscore/evidente (app/Http/Controllers/Api/CredifamiliaV2/).\n\nMEDIDO EN PRODUCCIÓN (2026-08-05, vía Redash). En 21 días hay 2.431 filas de `Ado`. Cruzando cada fila con la transición a estado 3 del mismo cliente (ventana ±6 h): **1.903 se escriben DESPUÉS de seleccionar entidad y 186 antes** — 91 %, en promedio 24 min después. ⚠ El cruce es por `user_id`, no por `user_request_id` (la tabla no guarda la solicitud), así que las 186 «antes» son compatibles con clientes de varias solicitudes: la ventana las limita, no las elimina. El dump LOCAL tiene cero filas de Ado — por eso el mapa se auditó primero contra el código.\n\nEjemplos de prod con el tramo completo: uReq **509592** (Credifamilia rt=4 — las cuatro centrales: AML 12:09:47 → crosscore 12:11:20 → evidente 12:11:47 → Ado 12:35:10, todas entre `seleccion` 12:05:57 y `desembolso` 12:44:19) y **520830** (Crediemo rt=2 — AML 16:00:27 → Ado 16:03:23).",
+      "bd": {
+        "tablas": [
+          "risk_central_user_data"
+        ]
+      },
+      "matchers": [
+        {
+          "tipo": "prefijo",
+          "patron": "Iniciando validación de documento",
+          "porque": "Modules/Identity, tracer->log('info',…). El OCR del documento es el primer paso del tramo: sin documento no hay comparación facial. ⚠ soloEnCodigo: verificado grepeando legacy-backend, NO medido — el censo se armó con trazas que nunca llegaron a este tramo.",
+          "soloEnCodigo": true
+        },
+        {
+          "tipo": "prefijo",
+          "patron": "Validación de documento completada",
+          "porque": "cierre del OCR (tracer->log('info', 'Validación de documento completada exitosamente')). ⚠ soloEnCodigo: verificado grepeando legacy-backend, NO medido — el censo se armó con trazas que nunca llegaron a este tramo.",
+          "soloEnCodigo": true
+        },
+        {
+          "tipo": "regex",
+          "patron": "^Resultado OCR (frente|dorso)",
+          "porque": "las dos caras del documento se loguean por separado; el dorso trae la MRZ. ⚠ soloEnCodigo: verificado grepeando legacy-backend, NO medido — el censo se armó con trazas que nunca llegaron a este tramo.",
+          "soloEnCodigo": true
+        },
+        {
+          "tipo": "prefijo",
+          "patron": "Validación MRZ back",
+          "porque": "lectura de la banda MRZ del dorso. ⚠ soloEnCodigo: verificado grepeando legacy-backend, NO medido — el censo se armó con trazas que nunca llegaron a este tramo.",
+          "soloEnCodigo": true
+        },
+        {
+          "tipo": "regex",
+          "patron": "^(Starting (internal |public )?face comparison|Face comparison completed|Public face comparison completed)",
+          "porque": "AWS Rekognition compareFaces: la selfie contra la foto del documento. Inequívoco del tramo biométrico. ⚠ soloEnCodigo: verificado grepeando legacy-backend, NO medido — el censo se armó con trazas que nunca llegaron a este tramo.",
+          "soloEnCodigo": true
+        },
+        {
+          "tipo": "regex",
+          "patron": "^Validación facial (completada exitosamente|fallida)",
+          "porque": "el veredicto facial en español, incluido el fallo por umbral. ⚠ soloEnCodigo: verificado grepeando legacy-backend, NO medido — el censo se armó con trazas que nunca llegaron a este tramo.",
+          "soloEnCodigo": true
+        },
+        {
+          "tipo": "prefijo",
+          "patron": "La foto selfie es idéntica a una imagen del documento",
+          "porque": "antifraude: se detecta que subieron la foto del documento como selfie. ⚠ soloEnCodigo: verificado grepeando legacy-backend, NO medido — el censo se armó con trazas que nunca llegaron a este tramo.",
+          "soloEnCodigo": true
+        },
+        {
+          "tipo": "prefijo",
+          "patron": "Faltan imágenes requeridas para validación de identidad",
+          "porque": "el tramo se pidió sin las imágenes: no llega a Rekognition. ⚠ soloEnCodigo: verificado grepeando legacy-backend, NO medido — el censo se armó con trazas que nunca llegaron a este tramo.",
+          "soloEnCodigo": true
+        },
+        {
+          "tipo": "prefijo",
+          "patron": "Error al inscribir usuario en ADO",
+          "porque": "el enroll de ADO (AdoController::enroll → AdoService). ADO es de ESTE tramo, no del buró. ⚠ soloEnCodigo: verificado grepeando legacy-backend, NO medido — el censo se armó con trazas que nunca llegaron a este tramo.",
+          "soloEnCodigo": true
+        },
+        {
+          "tipo": "prefijo",
+          "patron": "Error al procesar la respuesta de ADO",
+          "porque": "el callback de ADO (AdoController::enrollCallback / verifyCallback). ⚠ soloEnCodigo: verificado grepeando legacy-backend, NO medido — el censo se armó con trazas que nunca llegaron a este tramo.",
+          "soloEnCodigo": true
+        },
+        {
+          "tipo": "regex",
+          "patron": "^(Iniciando|Disparando) validación manual|^Validación manual disparada",
+          "porque": "el escape manual cuando la automática no resuelve. ⚠ soloEnCodigo: verificado grepeando legacy-backend, NO medido — el censo se armó con trazas que nunca llegaron a este tramo.",
+          "soloEnCodigo": true
+        },
+        {
+          "tipo": "prefijo",
+          "patron": "Reset del estado de validación antes de nuevo intento",
+          "porque": "reintento: explica por qué puede haber dos pasadas del tramo en una misma solicitud. ⚠ soloEnCodigo: verificado grepeando legacy-backend, NO medido — el censo se armó con trazas que nunca llegaron a este tramo.",
+          "soloEnCodigo": true
+        }
+      ],
+      "decisiones": []
     }
   ]
 }

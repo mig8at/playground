@@ -106,7 +106,8 @@ body{margin:0;background:var(--bg);color:var(--txt);
 const D = ` + string(datos) + `;
 
 const ICO = {ok:['✓','ok'], warn:['!','warn'], fail:['✕','fail'], skip:['·','skip'],
-             'sin-evidencia':['?','unknown'], 'sin-registro':['~','skip'], default:['·','skip']};
+             'sin-evidencia':['?','unknown'], 'sin-registro':['~','skip'],
+             'no-aplica':['∅','skip'], condicional:['·','unknown'], default:['·','skip']};
 const FUENTE = {db:'BD', loki:'logs', default:'supuesto'};
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const ic = (st, big) => { const p = ICO[st] || ICO.skip;
@@ -142,7 +143,9 @@ function panel() {
 
   const estado = {ok:'completó', warn:'completó con errores', fail:'FALLÓ',
                   skip:'no se ejecutó', 'sin-evidencia':'sin evidencia en la BD',
-                  'sin-registro':'ocurrió, pero sin registro'}[e.status] || e.status;
+                  'sin-registro':'ocurrió, pero sin registro',
+                  'no-aplica':'no aplica a este ramal',
+                  condicional:'no se puede afirmar si ocurrió'}[e.status] || e.status;
   const parts = [];
   if (e.at) parts.push('a las ' + esc(e.at));
   parts.push('fuente <b>' + esc(FUENTE[e.source] || '—') + '</b>');

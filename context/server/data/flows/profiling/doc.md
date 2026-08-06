@@ -66,6 +66,32 @@ Cada solicitud perfilada deja **una fila** con todo lo que el motor decidió. Es
 
 ⚠ **No existe una tabla `displayed_lenders`** — y eso engaña: buscarla en `information_schema.TABLES`, no encontrarla y concluir que el listado no se persiste es un error que ya se cometió y quedó escrito como hecho en un mapa de etapas. Está como **columna**, no como tabla. Ver **F-93**.
 
+## El perfilamiento NO se puede auditar desde el admin
+
+Es una limitación operativa, no un bug, y explica una clase entera de escalamientos: el comercio ve un
+resultado («probabilidad alta», «pre aprobado», un cupo) y **no hay pantalla que muestre qué reglas se
+evaluaron ni con qué valores**. En palabras del ingeniero que atiende estos casos, sobre uno del 2026-08-05:
+
+> «Es difícil que ellos vean las reglas a partir de lo que muestra esa pantalla, ya que por detrás se
+> realizan varios cálculos para determinar un *overdue account*, no sólo si aparece en datacrédito. […] No
+> hay forma de comparar con lo que aparece en pantalla tampoco.»
+
+Consecuencia medida: de los reportes de #tech-ops de 5 días, **3 son «¿por qué perfiló así?»** y los tres
+terminaron en que alguien leyera los logs a mano. Dos desenlaces reales del mismo período: uno cerró en
+«pasó todas las reglas **porque es una cuenta bancaria, no una deuda**» (o sea: la regla funcionó y la
+lectura del comercio era la equivocada) y otro en «puede ser un error en nuestro perfilador, habría que
+esperar el nuevo» (o sea: la regla estaba mal).
+
+**Lo que SÍ queda en los logs** —y es lo que permite contestar sin abrir el código— son los ids de regla por
+entidad. Medido en la uReq 520704 de prod: `Credi ASYCO → regla 8959`, `Bancolombia CPD → 8568`,
+`Sistecrédito → 8564`, uno por entidad evaluada, más el veredicto (`Pre aprobado · RECOMENDADO`,
+`Probabilidad alta/media/baja`). `playground/trazador` los muestra agrupados en la etapa `listado`
+(«Veredicto por entidad») y en `cupo` («Evaluación de categoría», «Regla de categoría rechazada»).
+
+⚠ Lo que **no** se responde así es *por qué* una regla dio ese resultado: para eso hay que leer su
+definición en `lender_group_rules` / la tabla de la regla y los valores que consumió. El log dice **qué
+regla** decidió, no **con qué cuentas**.
+
 ## Gotchas / riesgos
 - **BUG `min_income` NO-OP** (vivo): la columna del tier es `monthly_income` (`migration:21`) pero `evaluateEligibility` lee `$rule->min_income` (`:416`) — atributo inexistente → `null` → `$salary >= null` es **siempre true** en PHP. El **piso de ingreso de la categoría no filtra**; arreglarlo (leer `monthly_income`) **endurece** la asignación. [MEMORY flow-reorg-y-mapa-atributos]
 - **Tier laxo admite, primer tier (menor id, suele el más estricto) da la economía** — el `max_amount`/`min_initial_fee` NO salen del tier que "más fácil" pasa.
@@ -81,6 +107,7 @@ Cada solicitud perfilada deja **una fila** con todo lo que el motor decidió. Es
 - [ ] Lenders rt=2 **sin `cat_rules`** (SmartPay 152, Bold 106…): se sellan por `lender_user_category_scoring_policy_rules` — falta volcar esa tabla para armar sintéticos.
 
 ## Bitácora
+- **2026-08-05** — Documentado que el perfilamiento no es auditable desde el admin y que los ids de regla por entidad SÍ están en los logs (medido en la uReq 520704 de prod). 3 de los reportes de #tech-ops de 5 días son «¿por qué perfiló así?».
 - **2026-08-05** — Documentada `profiling_reviews` como el snapshot completo del motor (588 filas verificadas): `displayed_lenders` y `hard_rules` en JSON, `disbursed_lender` como huella del webhook rt=1, `datacredito_query`, y las tres fuentes del orden. Corrige la creencia de que el listado no se persistía (F-93).
 - **2026-07-17** — Contexto sembrado desde el simulador `playground/flow` (PerfilamientoNode + MAP.md §S5, verificado por workflow). Superficie de código a linkar en la fase de data.
 - **2026-07-17** — Fase de data: superficie de código curada + doc enriquecido desde `git 159906a:docs/codigo/REGLAS-POR-COMERCIO-Y-LENDER.md` §2.3/§3.3 y `MECANICA-CREDITO.md` §4/§5, verificado en legacy (`LenderUserCategoryService`, `CreditopXQuotaController`, modelos de categoría). Correcciones: fórmula de cupo real (4 topes + PV francesa + rama `debt_capacity_amount_validation`), columnas reales de las 2 tablas, **BUG `min_income`**, ruta scoring/`scoring_is_primary`, special granting DENTIX, y re-anclaje application→legacy. Se delegó a **Motor de decisión** las 4 capas/2 motores/synth y a **Amount tiers** las franjas por monto.

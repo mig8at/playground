@@ -1,5 +1,6 @@
 # KYC · contexto
-> **estado:** al día con main · El estudio del cliente por burós: Experian/Datacrédito da el ÚNICO score; TusDatos identidad+AML; Ágil Data/Mareigua ingreso (PILA); Quanto ingreso estimado; Ado biometría. Reporte crudo cifrado en `risk_central_user_data`, espejado a `user_summaries` + EAV.
+> **estado:** al día con main · El estudio del cliente por burós: Experian/Datacrédito da el ÚNICO score; TusDatos identidad; Ágil Data/Mareigua ingreso (PILA); Quanto ingreso estimado. Reporte crudo cifrado en `risk_central_user_data`, espejado a `user_summaries` + EAV.
+> ⚠ **`risk_centrals` cubre DOS momentos del flujo, no uno.** Lo de arriba es el **onboarding** (antes del listado). La **biometría** —Ado, TusDatos-AML, crosscore, evidente— es del tramo **post-selección**, y su proveedor lo elige el lender: casi la mitad usa AWS Rekognition y **no deja fila en la BD**. Ver «`risk_centrals` NO es la lista de burós» más abajo (F-101) antes de interpretar una ausencia.
 
 ## Qué es
 KYC es la etapa que, disparada desde el formulario personal/laboral (Onboarding), consulta a los burós para armar el **perfil consolidado** — el sujeto que después evalúan las reglas del listado (Onboarding) y del cupo (Profiling/CreditopX). El **único buró que da SCORE** es **Experian/Datacrédito** (producto Acierta); el resto son KYC de identidad/ingreso/biometría y **no dan score**.
@@ -96,12 +97,66 @@ rechazos por venir. Detalle en `findings` F-58.
 Tres cosas que no se deducen de la lista y cambian cómo se lee una consulta:
 
 - **`Agildata` NUNCA trae score.** 0 de 202 filas medidas tienen `score`. Un `score` vacío ahí no es un fallo: es lo normal. (Consistente con que sólo Experian aporte score.)
-- **`Acierta` (1) y `Acierta+Quanto` (9) son entradas SEPARADAS**, y se puede consultar una sin la otra. En la uReq 519245 de producción se consultaron `Acierta+Quanto` (score 698), `Agildata`, `TusDatos - Identidad` y `Mareigua`, y **`Acierta` no**. Mirar sólo `risk_central_id = 1` para decidir "si se consultó Experian" da un falso negativo.
+- **`Acierta` (1) y `Acierta+Quanto` (9) son entradas SEPARADAS**, y se puede consultar una sin la otra. En la uReq 519245 de producción se consultaron `Acierta+Quanto` (**score 209**), `Agildata` y `TusDatos - Identidad`, y **`Acierta` no**. Mirar sólo `risk_central_id = 1` para decidir "si se consultó Experian" da un falso negativo.
+  <br>⚠ *Corregido el 2026-08-05 contra Redash: la versión anterior de esta línea decía «score 698» y listaba `Mareigua` entre las consultadas. Las dos cosas eran falsas — el score es 209 y ese usuario no tiene ninguna fila de Mareigua. Se anota el error en vez de borrarlo porque el número salió de una lectura apresurada de la propia traza, y es el modo de fallar que este nodo tiene que desalentar.*
+- **Los REINTENTOS quedan en la BD, soft-deleted.** La misma 519245 tiene **cinco** filas de `TusDatos - Identidad`: cuatro con `deleted_at` y una viva. Cada reintento de la cascada escribe fila nueva y borra la anterior. Consecuencia práctica: «¿cuántos intentos hubo?» **sí** se responde desde la BD (contando con `deleted_at IS NOT NULL`), no sólo desde los logs — matiza F-97. Y cualquier consulta que filtre `deleted_at IS NULL` —como debe— ve el último intento, no la historia.
 - **El catálogo varía por ambiente.** Cualquier vista que liste centrales tiene que leerlo de la BD del target, no de una lista fija.
 
 Y para la pregunta "¿por qué no hay fila de buró nueva?", el backend **ya declara su propio pipeline** de decisión con cinco mensajes de log —`STAGE 0 — User request data`, `STAGE 1 — Existing risk-central data review`, `STAGE 2 — Frequency review`, `STAGE 3 — Check flow omitions`, `STAGE 4 — Bypass rules review`—, más `Experian frequency…`, `The allied is in the Experian trigger bypass list` y `The allied is not allowed to omit the requested risk central`. Es el vocabulario del código: usar otro agrega una capa de traducción. Leerlos en orden dice **en qué compuerta se cortó**, que es exactamente lo que F-60 obliga a descartar antes de afirmar que se omitió el buró.
 
 > Mostrar el catálogo COMPLETO con las no consultadas marcadas no es cosmético: una ausencia sin universo no se puede interpretar. "No se consultó Mareigua" sólo significa algo si sabés que Mareigua existía como opción.
+
+## `risk_centrals` NO es «la lista de burós»: sus filas se escriben en DOS momentos distintos
+
+Es la trampa más caras de este nodo, porque la línea de resumen de arriba nombra «Ado biometría» al lado de
+Experian y Ágil Data, y eso invita a leer las 12 centrales como si todas se consultaran en la misma etapa.
+**No es así**: `risk_centrals` es la tabla donde se guarda cualquier dato de un tercero de identidad o
+riesgo, y hay dos momentos del flujo que escriben ahí.
+
+| momento | centrales | cuándo |
+|---|---|---|
+| **Onboarding** (antes del listado) | Experian - Acierta (1) · TusDatos - Identidad (2) · Agildata (3) · Mareigua (6) · Experian - Quanto (8) · Acierta+Quanto (9) | disparado por el formulario personal/laboral |
+| **Post-selección** (tramo de cierre) | TusDatos - AML (4) · Ado (5) · crosscore (10) · evidente (11) | después de `confirmation`, antes del plan de pagos |
+| **Ninguno de los dos** | Deceval (7) | no es una consulta: es el **pagaré** (`DecevalPromissoryNoteService`) |
+
+**MEDIDO en prod el 2026-08-05** (Redash, 21 días): hay **2.431 filas de `Ado`**. Cruzando cada una con la
+transición a estado 3 del mismo cliente (ventana ±6 h): **1.903 se escriben DESPUÉS de seleccionar entidad y
+186 antes** — 91 %, en promedio 24 min después. ⚠ El cruce es por `user_id` porque
+`risk_central_user_data` **no guarda la solicitud**, así que las 186 «antes» son compatibles con clientes de
+varias solicitudes: la ventana las limita, no las elimina.
+
+Y el orden completo se ve en la uReq **509592** (Credifamilia): AML 12:09:47 → crosscore 12:11:20 → evidente
+12:11:47 → Ado 12:35:10, **todas** entre `seleccion` (12:05:57) y el estado 11 (12:44:19).
+
+### El proveedor lo elige el LENDER, y casi la mitad no deja fila
+
+El tramo post-selección no tiene un proveedor fijo: `confirmation` lee
+`lender_identity_validation_types.identity_validation_type_id` (fallback `lenders.validation_type`) y
+`IdentityValidationStepResolver::resolve` lo traduce a `step_details.type`
+(`CreditopXFlowService.php:117`). El enum tiene 7 valores
+(`Modules/Identity/App/Enums/IdentityValidationType.php`) y **sólo tres escriben en
+`risk_central_user_data`**:
+
+| id | tipo | `step_details.type` | ¿deja fila? | lenders in-platform en prod |
+|---|---|---|---|---|
+| 1 | None | `no_validation_required` | — | 9 |
+| 2 | AwsOcrRekognition | `aws_validation` | **NO** | **46** |
+| 3 | Questions | — | **NO** | 0 |
+| 4 | Ado | `ado_validation` | sí (rc 5) | **64** |
+| 5 | CrossCore | `crosscore_validation` | sí (rc 10) | Credifamilia |
+| 6 | Evidente | `evidente_validation` | sí (rc 11) | Credifamilia |
+
+> **La consecuencia es la que importa: para 46 de los 119 lenders in-platform, la ausencia de filas de
+> central en el tramo biométrico es lo NORMAL.** El OCR del documento y el reconocimiento facial corren
+> completos por AWS Rekognition y no dejan una sola fila — su único rastro son los logs
+> (`Modules/Identity`: `Iniciando validación de documento`, `Starting face comparison`, `Resultado OCR
+> frente/dorso`, `Validación facial completada exitosamente`). Cualquier vista que muestre «las centrales no
+> consultadas» tiene que decir primero **qué camino tenía configurado ese lender**, o la ausencia se lee como
+> un paso que faltó.
+
+Y el tipo `1 · None` es la razón por la que este tramo es **condicional y no obligatorio**: hay 9 lenders que
+no validan identidad, y para ellos `confirmation` salta directo a `first-payment-date`
+(`loan-confirmation.tsx:218-239`). No hace falta suponerlo: está en el enum.
 
 ## Gotchas / riesgos
 - **EAV forzados**: al procesar Quanto se escribe `29='Empleado'` (`Experian.php:374`) y `160='no'` (`:390`) **hardcodeados** → un usuario sin central queda marcado Empleado/no-reportado artificialmente. Encima, **`field 160` es auto-declarado por el usuario, no del buró**.
@@ -117,10 +172,11 @@ Y para la pregunta "¿por qué no hay fila de buró nueva?", el backend **ya dec
 
 ## Preguntas abiertas
 - **AML**: ¿`hasFindings` (TusDatos) BLOQUEA el listado de TODOS los lenders o solo el flujo Credifamilia? No se localizó un consumidor central que rechace por `aml()`.
-- **rc_ids por entorno**: los ids `risk_centrals` 2/3/4/6 están hardcoded en `User`, pero dependen del **orden de inserción** del entorno; por eso `datacredito` y `ado` se resuelven por **nombre** (ids catálogo Experian=1/Quanto=8/Combinado=9/Ado=5/Deceval=7 son del snapshot local, sin verificar en dev/prod).
+- ~~**rc_ids por entorno**~~ — **RESUELTO el 2026-08-05**: los ids se verificaron contra **prod** vía Redash y coinciden uno a uno con el snapshot local (1 Acierta · 2 TusDatos-Identidad · 3 Agildata · 4 TusDatos-AML · 5 Ado · 6 Mareigua · 7 Deceval · 8 Quanto · 9 Acierta+Quanto · 10 crosscore · 11 evidente). La única diferencia entre ambientes sigue siendo `Abaco`, que existe en el dump local y **no** en prod. Que coincidan hoy no vuelve seguro el hardcode —dependen del orden de inserción— así que resolver por **nombre** sigue siendo lo correcto; lo que ya no hace falta es dudar del mapeo al leer una consulta de prod.
 - **Quanto "certeza"**: la etiqueta de certeza del seed del simulador no se pudo verificar en código; lo verificable es la banda `promedio/inferior/superior` (`productValueList` pos 0/1/2).
 
 ## Bitácora
+- **2026-08-05** (2ª pasada) — **`risk_centrals` mezcla DOS momentos del flujo** (F-101): 6 centrales son del onboarding, 4 del tramo post-selección y `Deceval` no es una consulta sino el pagaré. `Ado` MEDIDO en prod: 1.903 de 2.089 filas se escriben después de seleccionar entidad (91 %, media 24 min). Documentado que el proveedor lo elige el LENDER (enum de 7, `IdentityValidationStepResolver`) y que **46 de 119 lenders in-platform validan por AWS sin dejar fila** — o sea que para casi la mitad, cero filas es lo normal. Cerrada la pregunta abierta de los rc_ids (verificados contra prod). **Corregidos dos errores de la pasada anterior**: el score de la 519245 es 209 (no 698) y Mareigua nunca se consultó ahí.
 - **2026-08-05** — Catálogo real de `risk_centrals` (12 filas, ids de prod) + tres trampas medidas: `Agildata` nunca trae score (0/202), `Acierta` y `Acierta+Quanto` son entradas separadas y consultables por separado (uReq 519245 prod), y el catálogo varía por ambiente. Documentado el pipeline `STAGE 0..4` de la decisión de omisión, que es el vocabulario del propio backend. Ver F-97 (los logs guardan los intentos, la BD el valor final).
 - **2026-07-17** — Contexto sembrado desde playground/flow (nodos Experian/Quanto/Agil/Mareigua/TusDatos/Buro/IngresosExtras + fieldDocs `node.*`/`buro.*` + MAP.md §S4).
 - **2026-07-17** — Fase de data: superficie de código curada + doc enriquecido desde `git 159906a:docs/codigo/{ONBOARDING-DATOS-DECISION-ANALISIS.md, mapeo-datos-buros.json}`. Añadido: rc_ids + acceso por nombre/id (`User.php`), las 3 formas de Experian, cascada de ingreso corregida (Quanto es 3ª fuente vía EAV 87, no 4ª), conteos BD locales, ML H2O muerto, `field 160` auto-declarado, cifrado solo en `data`, KYC V2 Credifamilia (Evidente/CrossCore/Jumio). Line-anchors verificados contra application + legacy-backend.

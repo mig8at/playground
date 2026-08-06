@@ -60,6 +60,7 @@
     "legacy-backend/Modules/Onboarding/App/Http/Controllers/PaymentPlan/CredifamiliaPaymentPlanSummaryController.php",
     "legacy-backend/Modules/Onboarding/App/Http/Controllers/PaymentPlan/CredifamiliaVoucherController.php",
     "legacy-backend/Modules/Onboarding/App/Http/Requests/PaymentPlan/CredifamiliaPaymentPlanRequest.php",
+    "legacy-backend/Modules/Onboarding/App/Services/DynamicFormsService.php",
     "legacy-backend/Modules/Onboarding/App/Services/lenders/CredifamiliaConsumo/CredifamiliaConsumoService.php",
     "legacy-backend/Modules/Onboarding/App/Services/lenders/LenderRetrievalService.php",
     "legacy-backend/Modules/Onboarding/App/Services/lenders/PreApprovedLenderService.php",
