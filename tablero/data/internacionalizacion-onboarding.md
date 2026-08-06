@@ -716,8 +716,14 @@ simplifica: no hay forma heredada con la que ser compatible, y el JSON de motai-
 con aplicabilidad por país: son catálogos distintos.
 
 ```
-document_types (id, country_id, code, name, regex, min_length, max_length, sort, status)
+document_types (id, country_id, code, name, description, regex, min_length, max_length, sort, status)
+   UNIQUE (country_id, code)   -- `PAS` puede existir en los dos países con reglas distintas
 ```
+
+⚠ **Sin `provider_codes`** (decisión de Miguel, correcta): el catálogo describe **qué es** un tipo de
+documento; cómo lo llama Deceval es **mapeo de integración** y sobrecargaría la tabla con lógica de
+negocio. Va en tabla propia (ver abajo). Y **`users.document_type` sigue guardando el código como
+string** — no se convierte en FK ahora: 375.429 filas y todos sus consumidores.
 
 **Y el contenido ya existe: está hardcodeado.** Poblarlo es transcribir las reglas que hoy viven en
 código, no inventar reglas nuevas:
@@ -737,6 +743,37 @@ país**. Sin esa intersección, una sucursal mixta ofrecería `CED` a un colombi
 
 **Ámbitos: cuatro, no tres** — país · comercio · sucursal · **entidad**. El último hace falta porque hay
 entidades con regla propia de documento (Magnocell acepta `CE` donde el gate general no).
+
+### Qué MÁS estamos hardcodeando hoy que merece tabla (verificado)
+
+**Sí vale tabla nueva:**
+
+| Qué | Cómo está hoy | Forma |
+|---|---|---|
+| **Tipos de documento** | tres catálogos hardcodeados (zod enum · closure PHP · constantes TS) | `document_types` (arriba) |
+| **Códigos por integración** | `DecevalSoap` mapea `CC=>1, CE=>2` en **3 sitios** y `WelliRegistrationData` otro; un código desconocido cae al `else` **en silencio** | `(integration_key\|lender_id, document_code, external_code)` — lo que sacamos del catálogo |
+| **Burós/proveedores por país** | ⚠ **ninguna selección de buró mira el país.** Todos son colombianos (Experian/Datacrédito · TusDatos · Ágil Data · Mareigua · Quanto) → una solicitud RD llamaría a Datacrédito con una cédula dominicana | `risk_centrals` **ya existe** como tabla; falta la **N:M con `countries`** |
+| **Reglas regulatorias del país** | ver abajo, los dos verificados | `country_regulatory_rates(country_id, effective_from, usury_rate, tax_rate)` — con **historia**, porque la usura cambia mensualmente y está certificada |
+
+**Los dos regulatorios, verificados en código:**
+- **Impuesto.** `PromissoryNoteController:378` calcula el fondo de garantías con `* (1 + (19 / 100))` y el
+  comentario *«se pone fijo el iva para todos en 19%»* — con la línea que usaba `$lender->iva`
+  **comentada justo arriba**. En RD el ITBIS es **18%**. Es un impuesto: pertenece al país, no al lender.
+- **Tasa de usura.** **No se guarda en ninguna parte.** Sale de un form (`$request->usury_rate`) y hace
+  un **UPDATE masivo destructivo** de `credit_line_by_lenders.rate` para todo lender que la supere,
+  salteando el 140 y el país 60. No queda registro de cuál era el techo en cada momento, y se **pierde**
+  la tasa configurada del lender.
+
+**NO hagas tabla — ya tienen hogar:**
+
+| Qué | Dónde va |
+|---|---|
+| Plantillas y SIDs de WhatsApp/SMS | **`messaging-service` ya los tiene** en tabla por `CountryISO2` (`WhatsAppConfig`, `LabsMobileConfig`). El hardcode de legacy muere **delegando**, no creando tabla |
+| Capacidades por lender (los arrays `[218,219,221,222]`, `MANUAL_BIRTH_*`, Welli `[23,141,142,166]`…) | son **columnas/flags**, y `lender_requirements` ya arrancó ese patrón (`abaco_is_enabled`, `dynamic_form_is_enabled`) |
+| Plantillas de documento por id (`consent_{id}.blade`) | una **columna** `consent_template`, no una tabla |
+| IVA por comercio | la columna **`lenders_by_allieds.iva` ya existe y está poblada** — solo está desconectada. Pero resuelve el caso equivocado: el IVA es impuesto, va al país |
+
+**Anotado, no ahora:** feriados por país (afecta fecha de corte y mora) — es de servicing.
 
 ### Los cuatro pasos
 1. **Cargar las ciudades de RD.** ✅ Las **32 provincias ya están** (`country_zones` ids 934-965, códigos
@@ -1082,6 +1119,16 @@ la traducción a un idioma distinto del español.
   el JSON conviene reemplazarlo **antes** de mergear. El catálogo de documentos lleva `country_id` porque
   un tipo se define por el país que lo acepta, y **su contenido ya está hardcodeado**: poblarlo es
   transcribir las reglas de `PersonalInfoRequest` (CO) y `dynamic-step-one.ts` (DO).
+- **2026-08-05 (16)** — `provider_codes` **sale** del catálogo de documentos (decisión de Miguel: es
+  mapeo de integración, no definición del tipo) → tabla propia. Y relevado **qué más merece tabla**:
+  códigos por integración (Deceval mapea en 3 sitios, fail-open), **burós por país** (`risk_centrals` ya
+  existe, falta la N:M — hoy ninguna selección de buró mira el país) y **reglas regulatorias con
+  historia**, con dos hallazgos nuevos verificados: el **IVA está quemado en 19%** en el cálculo del
+  fondo de garantías con la línea de `$lender->iva` comentada al lado (en RD el ITBIS es 18%), y la
+  **tasa de usura no se guarda en ninguna parte** — sale de un form y hace un UPDATE masivo destructivo
+  de las tasas, sin registro histórico. Y lo que NO merece tabla porque ya tiene hogar: plantillas de
+  mensajería (están en `messaging-service` por país), capacidades por lender (`lender_requirements`) y
+  plantillas de documento (una columna).
 - **2026-08-05 (9)** — Consolidado el **PLAN DE ACCIÓN ejecutable**: P1-P5 ahora (datos/preguntas, sin
   deploy) → M1-M4 migraciones aditivas → F1-F3 los 8 filtros con `whereIn` transicional (sin ventana de
   listado vacío) → R1-R3 resolvedor + sucursal gobierna → Fr1-Fr3 front → D1-D3 documentos → V1-V2
