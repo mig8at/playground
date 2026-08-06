@@ -275,6 +275,20 @@ Orden pensado para que ningún bloque posterior tenga que volver a decidir país
    `request-*` son el mismo flujo con otro catálogo y otra moneda. Se puede pantalla por pantalla, empezando
    por celular/OTP (lo que menos difiere).
 
+**A.bis · La consecuencia más grande del país de la sucursal: los BURÓS**
+Verificado (2026-08-05): **hoy ninguna selección de buró mira el país. Cero.** El buró se elige por reglas
+de entidad/sucursal (`lender_datacredito_rules` copiadas por sucursal, los dos motores de datacrédito) y
+por cascada de proveedores para el ingreso. Todos los proveedores son **colombianos**: Experian/Datacrédito,
+TusDatos, Ágil Data, Mareigua, Quanto. `CreditBureauAggregatorService` sí toca `country_cities`, pero solo
+como filtro de ciudad para listar sucursales — no para elegir proveedor. Y hay un `'country' => 'CO'`
+**quemado** en la llamada a genderapi (`PersonalInfoProcessingService.php:243`, con un gemelo en
+`DynamicFormsService`).
+
+→ Una solicitud de una sucursal RD hoy llamaría a burós colombianos con una cédula dominicana. RD lo
+esquiva de rebote porque `isSmartPay` **saltea el AML** y el path IMEI usa credenciales por-lender: otra
+vez un hardcode haciendo de regla de país. **Los proveedores por país son una dimensión que no existe** y
+hay que sumarla al catálogo (qué buró/proveedor aplica en cada país), no solo prefijo y moneda.
+
 **B · Celular**
 5. Un `PhoneField` único configurado por país. Hoy "10 dígitos" y el prefijo están cableados en ≥6 sitios
    independientes (`imei/Entry.tsx:6-7,49,56`, `register-imei-action.server.ts:13-14` con el **mismo Set
@@ -338,9 +352,11 @@ Orden pensado para que ningún bloque posterior tenga que volver a decidir país
   y es de 3 niveles (RD ya tiene sus 32 provincias); lo que falta son datos (ciudades de RD) con payoff
   diferido. Se arranca por **`countries` como fila de config** → tipos de documento →
   `allied_branches.country_id`. Detalle en «Por dónde arrancar».
-- **¿Cuál país manda?** Sucursal, comercio, entidad o teléfono del cliente. Hoy los cuatro están cableados en
-  puntos distintos del mismo flujo. El resolvedor (A2) no se escribe sin esta respuesta. Recomendación:
-  la **sucursal** (donde se atiende), con el comercio como fallback.
+- ~~¿Cuál país manda?~~ **RESUELTO (2026-08-05, Miguel):** manda el de la **SUCURSAL** — es donde se
+  atiende al cliente, y de ahí salen el prefijo del celular, los burós, la moneda y los documentos. El del
+  **comercio** queda como país de **origen/reporte** (y fallback); el de la **entidad** significa "en qué
+  moneda está denominada esa fila"; el del **usuario** es otro eje (de dónde es la persona). La
+  `user_request` **copia** el de la sucursal al nacer (snapshot, no join vivo).
 - **¿`phone_code` sobrevive o se queda solo `dial_code`?** Son dos columnas para lo mismo y una está vacía.
   Elegir una antes de que el código nuevo lea la equivocada.
 - **¿Se congela el país en `user_requests`?** Sin snapshot, corregir el país de una sucursal reescribe
@@ -422,5 +438,11 @@ la traducción a un idioma distinto del español.
   a `countries` son **aditivos** (renombrar el typo o las ISO rompe queries de otro repo con deploy
   propio) y **`status` NO se puede reutilizar** como "operamos acá" porque es gate vivo de los tres
   SELECT del form-service → `is_operating` aparte.
+- **2026-08-05 (4)** — **Decidido: manda el país de la SUCURSAL.** Los cuatro niveles quedan con semántica
+  separada (sucursal = opera · comercio = reporta/origen · entidad = moneda de la fila · usuario = de dónde
+  es la persona) y la `user_request` copia el de la sucursal al nacer. Con eso el resolvedor ya se puede
+  escribir. Hallazgo que sale de la misma decisión: **la selección de burós no mira el país en ningún
+  lado** — todos los proveedores son colombianos y RD solo lo esquiva por el hardcode de `isSmartPay`. Se
+  suma "proveedores por país" como dimensión del catálogo (bloque A.bis).
 </content>
 </invoke>
