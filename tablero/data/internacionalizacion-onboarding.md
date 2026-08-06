@@ -354,8 +354,16 @@ instituciones colombianas. Y ya hay prueba de vida: **SmartPay RD es un miembro 
 país 60**. La vara de éxito: **dar de alta el tercer país sin escribir código**.
 
 **Fase 0 · Que el dato diga la verdad** *(sin código nuevo; bloquea todo lo demás)*
-1. Script **dry-run** que infiera `lenders.country_id` desde las sucursales donde cada entidad está
-   cableada y liste los conflictos. No escribe nada.
+1. ✅ **HECHO** — `make harness-paises` (`harness/dev/paises.ts`, read-only; `SQL=1` imprime los
+   UPDATE sin ejecutarlos). Corrida contra **local** (2026-08-05): **156 entidades → 129 a poblar ·
+   0 en conflicto · 26 sin cablear (23 activas) · 1 ya correcta** (SmartPay 153).
+   - **Cero conflictos**: hoy ninguna entidad está cableada en sucursales de dos países, así que el
+     backfill es inequívoco para las 129. La única que no es CO es **SmartPay 152 → 60**.
+   - **Radio de explosión: 128 entidades ACTIVAS** saldrían del default 1 al poblar → con los tres
+     filtros literales vivos, desaparecen del listado sin error. **Los filtros van primero.**
+   - Las 23 huérfanas activas se resuelven a mano (o se apagan si están muertas).
+   - Confirmado de paso el desacuerdo de sucursal: **1** con comercio DO y ciudad CO.
+   - Falta correrlo contra **dev/prod**: el reparto puede ser otro.
 2. Backfill de `lenders.country_id` **y recién después** matar los tres `->where('country_id', 1)`. En ese
    orden: al revés el listado queda vacío.
 3. Poblar `countries` para CO y RD (aditivo: `phone_code`, `address_format`, `locale`, `currency`) + agregar
@@ -493,5 +501,9 @@ la traducción a un idioma distinto del español.
   escribir. Hallazgo que sale de la misma decisión: **la selección de burós no mira el país en ningún
   lado** — todos los proveedores son colombianos y RD solo lo esquiva por el hardcode de `isSmartPay`. Se
   suma "proveedores por país" como dimensión del catálogo (bloque A.bis).
+- **2026-08-05 (5)** — **Paso 1 ejecutado.** `make harness-paises` (dry-run, no escribe). En local:
+  129 entidades a poblar, **0 conflictos**, 26 sin cablear, y un radio de explosión de **128 activas**
+  que saldrían del default 1 — confirma que los tres filtros literales se arreglan ANTES del backfill.
+  La única entidad no colombiana inferida es SmartPay 152 → 60. Pendiente: correrlo contra dev/prod.
 </content>
 </invoke>

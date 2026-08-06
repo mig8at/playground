@@ -121,6 +121,9 @@ harness-check: ## @har typecheck del harness
 harness-loki: ## @har ¿por qué terminó así esta solicitud? forense en los logs. UREQ=519245 [SINCE=12h]
 	@cd harness && node dev/loki-trace.ts $(UREQ) $(if $(SINCE),--since $(SINCE))
 
+harness-paises: ## @har ¿de qué país es cada entidad? inferencia DRY-RUN desde el cableado. No escribe. [SQL=1]
+	@cd harness && node dev/paises.ts $(if $(SQL),--sql,)
+
 # Observabilidad LOCAL: Loki (logs) + Tempo (el que le pone trace_id a esos logs). Misma decisión que con
 # MySQL — se corre el servicio real en Docker, no un mock. Un mock obligaría a reimplementar LogQL y el
 # forense quedaría validado contra la imitación en vez de contra Loki.
