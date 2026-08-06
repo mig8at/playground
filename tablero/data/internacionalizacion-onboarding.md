@@ -578,6 +578,54 @@ en el default 1 (lo más probable), o RD casi no origina. Se cruza con el otro d
 **dejó de escribirse el 2026-07-06** (el default 1 sigue creciendo hasta hoy). Algo que poblaba el país
 del usuario se apagó hace un mes. Vale una pasada, no bloquea.
 
+## 🔀 PIVOTE (2026-08-05, decisión de equipo): BD por país
+El modelo acordado: **comercios y entidades son las entidades primarias** y llevan la asociación con
+país; **sucursales heredan** de ellas. La asociación se diseña para poder **replicarse a bases de datos
+separadas, una por país**. (Por ahora se aterriza **solo comercio**.)
+
+**Lo que el pivote cambia conceptualmente:** con BD por país, `country_id` deja de ser un atributo de
+negocio y pasa a ser un **shard key**. Eso es un contrato más estricto: (1) presente en toda fila que
+vaya a moverse, (2) **inmutable** — un comercio no cambia de país, (3) **nunca cruzado en un join**.
+Cumplirlo ahora es lo que hace que el split después sea una copia y no una reescritura.
+
+### Las dos decisiones que el pivote obliga
+
+**1. ⚠ «Un comercio con sucursales en otros países» es INCOMPATIBLE con BD por país.** Una sucursal de
+otro país viviría en otra base, así que no puede colgar de un comercio de esta. Hay que elegir:
+- **(a) el comercio es por país** → una cadena en 2 países son **2 comercios**, y hace falta un
+  **grupo/organización** por encima (global) para que «Alkosto» siga siendo una sola cosa. Preserva las
+  dos intenciones y es barato ahora.
+- **(b) las sucursales cruzan países** → entonces **no se puede shardear por país**.
+
+No se pueden las dos. Recomendado: **(a)**, y crear el nivel `grupo` desde el principio: agregarlo
+después obliga a re-parentar 308 comercios.
+
+**2. Qué es GLOBAL y qué es por país** — hay que decidirlo antes de agregar una sola columna, porque
+determina si una tabla lleva `country_id` o no.
+- Candidatas a **global** (catálogos y referencia): `countries`, `country_zones`, `country_cities`,
+  `document_types`, `risk_centrals`, `response_types`, `paths`, `settings`, y el `grupo` de (a).
+- Por país: `allieds`, `allied_branches`, `lenders` y **toda su config** (`credit_line_by_lenders`,
+  `lenders_by_allieds`, `lenders_by_allied_branches`, `lender_users_categories`, tramos, reglas),
+  `users`, `user_requests` y el ledger.
+- ⚠ En MySQL **no hay join entre bases**: lo global se duplica (y deriva) o se consulta aparte. Y el
+  admin, que hoy lista todos los comercios, pasa a necesitar fan-out o un warehouse.
+
+### El aporte más fuerte del modelo: gubernamental vs negocio
+La distinción que trajo el equipo es correcta y hoy **no existe como capa**: está desperdigada.
+
+| Capa | Qué incluye (verificado en esta auditoría) | Dónde vive hoy |
+|---|---|---|
+| **Regulatoria — del PAÍS, el comercio hereda** | usura · zona horaria legal de los documentos · moneda · tipos de documento válidos · habeas data (Ley 1581) · **qué buró existe** | un `if != 60`, **10** `America/Bogota`, `'COP'` en la firma de Wompi, tres catálogos de documentos, y los burós **sin ninguna** noción de país |
+| **Negocio de CreditOp — del comercio/entidad** | calculadora · categorías · tramos · reglas de datacrédito · cobertura | `lenders_by_allieds` + config por sucursal (bien ubicado) |
+
+→ Formalizar el nivel **país** es lo que le da hogar a la primera columna. Hoy no lo tiene, y por eso
+cada regla regulatoria terminó como un literal en el sitio donde hacía falta.
+
+### ⚠ Y la herencia HOY NO EXISTE: se COPIA
+`addNewRule` **clona** la regla de datacrédito por sucursal (~37k filas, con deriva y huérfanas). Si se
+formaliza «la sucursal hereda del comercio», hay que decidir si ese trigger muere. Para sharding la copia
+es lo peor posible: 37k filas que mover, cada una con su país, y que ya divergen entre sí.
+
 ## PLAN DE ACCIÓN — la secuencia ejecutable (consolida todo lo anterior)
 > Esta sección es **el orden real de ejecución**; «Plan por bloques» queda como mapa temático y el
 > «Paso a paso CreditopX» como detalle de ese producto. Etiquetas: **[dato]** = SQL/config, sin deploy ·
@@ -858,6 +906,14 @@ la traducción a un idioma distinto del español.
   **comercio**, así que se adapta solo. Queda un hilo: con `country_id=60` el filtro `= 1` debería
   excluirlo del listado y aun así originó 206 veces → confirmar que entra por el canal IMEI antes de
   tocar los ocho filtros.
+- **2026-08-05 (12)** — **Pivote de equipo: BD por país.** Comercios y entidades primarias con
+  asociación a país, sucursales heredan, diseñado para replicar a una base por país. Registrado con las
+  dos decisiones que obliga (el comercio pasa a ser por país → hace falta un nivel `grupo` global; y qué
+  tablas son globales vs por país, porque en MySQL no hay join entre bases) y con la observación de que
+  la herencia hoy **se copia**, lo que es el peor punto de partida para shardear. Hallazgo colateral
+  verificado en prod: **el hash de sucursal tiene 4 colisiones** — es `crc32` de un timestamp al segundo,
+  así que dos sucursales creadas en el mismo segundo comparten hash. Va como finding aparte (F-103):
+  es un bug de hoy, no de multipaís, y bajo BD por país el hash sería la llave de RUTEO.
 - **2026-08-05 (9)** — Consolidado el **PLAN DE ACCIÓN ejecutable**: P1-P5 ahora (datos/preguntas, sin
   deploy) → M1-M4 migraciones aditivas → F1-F3 los 8 filtros con `whereIn` transicional (sin ventana de
   listado vacío) → R1-R3 resolvedor + sucursal gobierna → Fr1-Fr3 front → D1-D3 documentos → V1-V2
