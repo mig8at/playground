@@ -138,9 +138,15 @@ harness-obs-down: ## @har baja Loki y Tempo locales (se llevan sus datos)
 # La herramienta de SOPORTE: hasta dónde llegó una solicitud y por qué se rompió. Hoy cubre el primer
 # paso —probar que los logs se pueden leer— y es el único lugar del playground que habla con PRODUCCIÓN.
 # Solo GET: no escribe nada en ningún ambiente.
-.PHONY: trazador-acceso
+# ⚠ El módulo Go vive en `trazador/server/`, no en `trazador/` (se mudó al pasar a Vue + server Go).
+# Desde `trazador/` el go run falla con «cannot find main module».
+.PHONY: trazador-acceso trazador-sql
 trazador-acceso: ## @har ¿puedo leer los logs en Loki? (TARGET=prod|dev QUERY='{...}' SINCE=1h)
-	@cd trazador && go run . $(if $(TARGET),-target $(TARGET)) $(if $(QUERY),-query '$(QUERY)') $(if $(SINCE),-since $(SINCE))
+	@cd trazador/server && go run . $(if $(TARGET),-target $(TARGET)) $(if $(QUERY),-query '$(QUERY)') $(if $(SINCE),-since $(SINCE))
+
+trazador-sql: ## @har UNA consulta de SOLO LECTURA a la BD del ambiente. SQL='SELECT …' [TARGET=prod|local] [CSV=1]
+	@test -n "$(SQL)" || { echo "falta SQL='SELECT …'  ·  ej: make trazador-sql TARGET=local SQL='SELECT id,name FROM countries LIMIT 3'"; exit 2; }
+	@cd trazador/server && go run . -target $(if $(TARGET),$(TARGET),prod) -sql $$'$(subst ','\'',$(SQL))' $(if $(CSV),-csv)
 
 # ── EXPLORACIONES ────────────────────────────────────────────────────────────────────────────────
 # Están acá para poder abrirlas, NO porque sean fuente. No se citan para decidir (ver CLAUDE.md).
