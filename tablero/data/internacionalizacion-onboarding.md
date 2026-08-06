@@ -324,9 +324,9 @@ columnas rompe un microservicio en otro repo, con deploy propio:
    lo demás. Va con **invariante**: la ciudad debe pertenecer a una zona de ese país, validado en el
    único camino de escritura. Sin eso no es una columna nueva, es una quinta opinión (la deriva ya
    existe: la sucursal del comercio RD apunta a una ciudad colombiana).
-4. **Geo (datos)** — ticket aparte, no bloqueante: **ciudades de RD** (0 hoy), `address_format` y la
-   limpieza de `country_zones.code`. Payoff diferido: recién pesa cuando una pantalla RD pida ciudad
-   desde el árbol.
+4. **Geo (datos)** — ⚠ **ya NO es diferido: es prerequisito del invariante ciudad↔país.** En prod las
+   **13 sucursales de comercios RD apuntan a ciudades colombianas** porque RD tiene **0 ciudades**.
+   Cargar las ciudades de RD, `address_format`, y limpiar `country_zones.code`.
 
 El patrón que no escala no es "faltan features": es que **el país es un `if` literal en vez de una fila
 cargada una vez por solicitud**. En `main`: **28 archivos PHP con `'+57'` literal**, `?? '+57'` como default
@@ -578,53 +578,94 @@ en el default 1 (lo más probable), o RD casi no origina. Se cruza con el otro d
 **dejó de escribirse el 2026-07-06** (el default 1 sigue creciendo hasta hoy). Algo que poblaba el país
 del usuario se apagó hace un mes. Vale una pasada, no bloquea.
 
-## 🔀 PIVOTE (2026-08-05, decisión de equipo): BD por país
-El modelo acordado: **comercios y entidades son las entidades primarias** y llevan la asociación con
-país; **sucursales heredan** de ellas. La asociación se diseña para poder **replicarse a bases de datos
-separadas, una por país**. (Por ahora se aterriza **solo comercio**.)
+## 🔀 MODELO ACORDADO (2026-08-05, decisión de equipo): una BD por país
 
-**Lo que el pivote cambia conceptualmente:** con BD por país, `country_id` deja de ser un atributo de
-negocio y pasa a ser un **shard key**. Eso es un contrato más estricto: (1) presente en toda fila que
-vaya a moverse, (2) **inmutable** — un comercio no cambia de país, (3) **nunca cruzado en un join**.
-Cumplirlo ahora es lo que hace que el split después sea una copia y no una reescritura.
+**Cada país es una base de datos**, con sus propias tablas de `allieds` y `lenders`. La jerarquía:
 
-### Las dos decisiones que el pivote obliga
+```
+countries (1 fila = este país)  ──1:N──▶  allieds  ──1:N──▶  allied_branches
+   │  country_zones / country_cities                              │
+   │  tipos de documento · moneda · locale · bandera               │
+   └──────────── se HEREDA hacia abajo ────────────────────────────┘
+                                     allieds ──N:M──▶ lenders  (lenders_by_allieds)
+                                     branch  ──N:M──▶ lenders  (lenders_by_allied_branches)
+                                              ↑ acá la sucursal ACTIVA/DESACTIVA entidad y tipos de doc
+```
 
-**1. ⚠ «Un comercio con sucursales en otros países» es INCOMPATIBLE con BD por país.** Una sucursal de
-otro país viviría en otra base, así que no puede colgar de un comercio de esta. Hay que elegir:
-- **(a) el comercio es por país** → una cadena en 2 países son **2 comercios**, y hace falta un
-  **grupo/organización** por encima (global) para que «Alkosto» siga siendo una sola cosa. Preserva las
-  dos intenciones y es barato ahora.
-- **(b) las sucursales cruzan países** → entonces **no se puede shardear por país**.
+- **Un comercio vive en UN país.** Totto en varios países = `Totto CO`, `Totto MX`, `Totto AR`, cada uno
+  en su base, cada uno con sus sucursales y su config.
+- **Un lender vive en UN país** — hay que recrearlo por país. No es una decisión nueva: el esquema ya lo
+  obliga (la economía cuelga de `lender_id` **sin dimensión de país** y está denominada en moneda) y prod
+  ya lo hace (SmartPay 160: economía en DOP, **206 solicitudes, todas de país 60**).
+- **La sucursal hereda del comercio, y el comercio del país**: tipos de documento, moneda, locale,
+  bandera. La sucursal es el último nivel y puede **activar/desactivar** entidades y tipos de documento.
 
-No se pueden las dos. Recomendado: **(a)**, y crear el nivel `grupo` desde el principio: agregarlo
-después obliga a re-parentar 308 comercios.
+### ✅ La tabla `countries` se queda, aunque tenga UNA fila
+La duda era razonable: dentro de DB-CO tendría una sola fila. Se queda igual, por cuatro razones:
+1. **No es "una tabla de una fila": es el registro de configuración del tenant.** La alternativa es que
+   locale/moneda/prefijo vivan en `config`/`.env` — que es exactamente cómo se llegó a `'+57'` en 28
+   archivos y a `America/Bogota` en 10.
+2. **Las subtablas necesitan padre**: `country_zones.country_id` apunta a esa fila.
+3. **`allieds.country_id` necesita a quién apuntar** (es la relación directa del modelo).
+4. **El form-service ya la consulta** por id y por ISO (`GetCountryByID`, `GetCountryByISOCode1`);
+   matarla rompe otro repo con deploy propio.
 
-**2. Qué es GLOBAL y qué es por país** — hay que decidirlo antes de agregar una sola columna, porque
-determina si una tabla lleva `country_id` o no.
-- Candidatas a **global** (catálogos y referencia): `countries`, `country_zones`, `country_cities`,
-  `document_types`, `risk_centrals`, `response_types`, `paths`, `settings`, y el `grupo` de (a).
-- Por país: `allieds`, `allied_branches`, `lenders` y **toda su config** (`credit_line_by_lenders`,
-  `lenders_by_allieds`, `lenders_by_allied_branches`, `lender_users_categories`, tramos, reglas),
-  `users`, `user_requests` y el ledger.
-- ⚠ En MySQL **no hay join entre bases**: lo global se duplica (y deriva) o se consulta aparte. Y el
-  admin, que hoy lista todos los comercios, pasa a necesitar fan-out o un warehouse.
+Y la razón de fondo: con la config del país **en la BD**, `legacy-backend` es **un artefacto desplegado
+N veces** con distinta conexión. Si vive en el `.env`, la pregunta "de qué país soy" se muda al deploy —
+invisible para SQL y para el admin, y con N configs divergiendo.
 
-### El aporte más fuerte del modelo: gubernamental vs negocio
-La distinción que trajo el equipo es correcta y hoy **no existe como capa**: está desperdigada.
+### ⛔ `allied_branches.country_id` NO se agrega (corrige M2)
+Es derivable: `allied_branches.allied_id → allieds.country_id`. Mi argumento anterior ("el shard key
+tiene que estar en cada fila que se mueve") **no aplica**: el join para extraer las filas de un país se
+hace **una vez, dentro de la misma base, antes de partir**, y después del split la columna es una
+**constante** — la misma enfermedad que este documento persigue (`country_id = 1` en 155 filas + ocho
+`where('country_id', 1)`). Ninguno de los casos que la justificarían aplica: la sucursal no puede ser de
+otro país (decidido), no se shardea por sucursal, y el runtime ya trae el comercio cargado con la
+sucursal (cache de 30 s en `RegisterCellPhoneController` + sesión).
 
-| Capa | Qué incluye (verificado en esta auditoría) | Dónde vive hoy |
-|---|---|---|
-| **Regulatoria — del PAÍS, el comercio hereda** | usura · zona horaria legal de los documentos · moneda · tipos de documento válidos · habeas data (Ley 1581) · **qué buró existe** | un `if != 60`, **10** `America/Bogota`, `'COP'` en la firma de Wompi, tres catálogos de documentos, y los burós **sin ninguna** noción de país |
-| **Negocio de CreditOp — del comercio/entidad** | calculadora · categorías · tramos · reglas de datacrédito · cobertura | `lenders_by_allieds` + config por sucursal (bien ubicado) |
+**Lo mismo vale para el resto**: ninguna tabla necesita columna propia de país, porque toda cadena de
+padres queda **dentro del mismo shard**.
 
-→ Formalizar el nivel **país** es lo que le da hogar a la primera columna. Hoy no lo tiene, y por eso
-cada regla regulatoria terminó como un literal en el sitio donde hacía falta.
+⚠ **Excepción, y por OTRA razón**: el snapshot de `user_requests` (`country_id`/`locale`/`currency`)
+sigue en pie. No es shard key — es **hecho histórico**: el país de la sucursal *hoy* puede no ser el que
+valía cuando esa solicitud se firmó, y ahí lo que se congela es la moneda y los documentos de un
+contrato.
 
-### ⚠ Y la herencia HOY NO EXISTE: se COPIA
-`addNewRule` **clona** la regla de datacrédito por sucursal (~37k filas, con deriva y huérfanas). Si se
-formaliza «la sucursal hereda del comercio», hay que decidir si ese trigger muere. Para sharding la copia
-es lo peor posible: 37k filas que mover, cada una con su país, y que ya divergen entre sí.
+### De dónde lee el flujo "de qué país soy"
+Dos opciones: (a) del comercio (`allieds.country_id → countries`) o (b) de la única fila de `countries`
+de esta base. **Se elige (a)**, porque funciona en los dos mundos: hoy (una base con los dos países) y
+después del split. El resolvedor se escribe una vez. Ojo con el sesgo de diseñar solo para el estado
+final: la convivencia en una sola base va a durar mucho, y puede durar para siempre.
+
+### Herencia de tipos de documento: el nivel que falta es el de ARRIBA
+La cadena que pide el modelo —país → comercio → sucursal— encaja con el diseño de catálogo +
+aplicabilidad + resolvedor. Dos precisiones:
+- **El último eslabón ya existe**: `lenders_by_allied_branches.document_types` (json, en
+  `feature/motai-v2`) es «la sucursal activa/desactiva tipos de documento», con unión + piso
+  `["CC","CE"]`. Lo que falta es el nivel **país** por encima.
+- ⚠ **Pero ese eslabón es por sucursal-ENTIDAD, no por sucursal.** Y está bien que lo sea: hay entidades
+  con reglas propias de documento (Magnocell + `CE`, lender 84). Así que los ámbitos de aplicabilidad son
+  **país · comercio · sucursal · entidad**, no tres.
+
+### La N:M comercio↔entidad que pide el modelo YA EXISTE
+`lenders_by_allieds` (nivel comercio) + `lenders_by_allied_branches` (nivel sucursal, donde se activa y
+desactiva). Esa parte no hay que diseñarla: hay que **usarla** y sumarle el nivel país.
+
+### ⚠ El costo que trae "un lender por país"
+Recrear un lender por país duplica **todo su árbol de config** (`credit_line_by_lenders`,
+`lender_users_categories` + reglas, tramos, `creditop_x_lender_configuration`). Con 5 países son 5 copias
+que derivan. No bloquea nada hoy, pero conviene esperarlo: la salida es una **plantilla de entidad** de
+la que cada país instancie.
+
+### Pendientes de datos que el modelo destapa
+- **Las 13 sucursales de comercios RD apuntan a ciudades colombianas** — porque RD tiene **0 ciudades**.
+  El invariante ciudad↔país es correcto pero **no se puede encender** hasta cargarlas: **la geo de RD
+  deja de ser diferida y pasa a ser prerequisito**.
+- **3 sucursales sin comercio** (`allied_id` no resuelve) de 2.212: sin país, no se pueden asignar a
+  ninguna base. Adoptarlas o borrarlas antes de partir.
+- **`countries.image`** (la bandera del modelo) existe y está **vacía en las 253 filas**.
+- El **hash de sucursal** tiene **4 colisiones en prod** y es `crc32` de un timestamp al segundo. Bajo BD
+  por país sería la llave de **ruteo**. Va como finding aparte (F-103).
 
 ## PLAN DE ACCIÓN — la secuencia ejecutable (consolida todo lo anterior)
 > Esta sección es **el orden real de ejecución**; «Plan por bloques» queda como mapa temático y el
@@ -658,10 +699,12 @@ es lo peor posible: 37k filas que mover, cada una con su país, y que ya diverge
 - **M1** `countries`: `+ is_operating` (true solo 47/60) · `+ otp_length` (default 4) · re-seed de
   `phone_code` **por `iso_code_1`** (la migración que no falle esta vez). **No renombrar nada** (el
   form-service lee estas columnas).
-- **M2** `allied_branches.country_id` (nullable, FK): backfill **desde el comercio** — NO desde la
-  ciudad: la única sucursal RD apunta a una ciudad CO *porque RD no tiene ciudades cargadas*; la ciudad
-  queda como **check blando** (warn) hasta que se cargue la geo de RD. Validación en los caminos de
-  escritura de sucursal (application admin + `AlliedManagementService`).
+- **M2** ~~`allied_branches.country_id`~~ **se cae**: es derivable de `allied_id → allieds.country_id`
+  (ver el modelo acordado). En su lugar: **endurecer `allieds.country_id`** como única fuente —
+  `NOT NULL`, sin default, y dejar EXPLÍCITO que es inmutable (hoy lo es por accidente: no está en el
+  `->only([...])` de `AlliedController::update`; el día que alguien lo agregue, "cambiar el país" pasa a
+  significar "mover de base de datos"). Y el **invariante ciudad↔país** como check al escribir, que
+  tampoco necesita columna — bloqueado hasta cargar las ciudades de RD.
 - **M3** `user_requests`: `+ country_id / locale / currency` (snapshot). Escribirlo en **los tres
   gemelos** de creación: `UserRequestController` (G1) · `UserRequestService` (G2) ·
   `FindOrCreateService` (G3).
@@ -914,6 +957,15 @@ la traducción a un idioma distinto del español.
   verificado en prod: **el hash de sucursal tiene 4 colisiones** — es `crc32` de un timestamp al segundo,
   así que dos sucursales creadas en el mismo segundo comparten hash. Va como finding aparte (F-103):
   es un bug de hoy, no de multipaís, y bajo BD por país el hash sería la llave de RUTEO.
+- **2026-08-05 (13)** — **Modelo cerrado y M2 corregido.** Miguel señaló —con razón— que
+  `allied_branches.country_id` es innecesario: se deriva de `allied_id → allieds.country_id`. Mi
+  argumento del shard key no aplicaba (el join de extracción se hace una vez, antes de partir, y después
+  del split la columna es una constante: la misma enfermedad del `country_id = 1`). Se cae la columna;
+  queda `allieds.country_id` endurecido como única fuente. El snapshot de `user_requests` sobrevive por
+  otra razón: no es shard key, es hecho histórico. Y la tabla `countries` se queda aunque tenga una fila
+  —es el registro de configuración del tenant, las subtablas la necesitan de padre y el form-service la
+  consulta—, con la razón de fondo de que así el backend es UN artefacto desplegado N veces en vez de N
+  configs divergiendo. Se destapa que la geo de RD sube de diferida a **prerequisito**.
 - **2026-08-05 (9)** — Consolidado el **PLAN DE ACCIÓN ejecutable**: P1-P5 ahora (datos/preguntas, sin
   deploy) → M1-M4 migraciones aditivas → F1-F3 los 8 filtros con `whereIn` transicional (sin ventana de
   listado vacío) → R1-R3 resolvedor + sucursal gobierna → Fr1-Fr3 front → D1-D3 documentos → V1-V2
