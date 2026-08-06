@@ -137,19 +137,44 @@ columnas rompe un microservicio en otro repo, con deploy propio:
 
 **Orden propuesto para el catálogo:**
 
-1. **`countries` como fila de configuración** — el arranque real, y es chico. Ya tiene consumidor vivo
-   (`currency_format`), así que lo que se agregue se usa el día uno.
-   - `phone_code`: re-sembrar (migración no-op) **y decidir si sobrevive**: hoy hay dos columnas para lo
-     mismo (`dial_code` sin `+`, `phone_code` vacía).
-   - **las columnas ISO están corridas** (`iso_code_1`=alpha-2, `iso_code_2`=alpha-3, `iso_code_3`
-     vacía): renombrar o documentar, pero no dejarlo — `PhoneService::resolveCountry` devuelve alpha-2 y
-     cualquier join contra `iso_code_2` falla en silencio.
-   - `cell_phone_lenght` (typo) vs el `$fillable` con el nombre correcto → renombrar columna + modelo.
-   - `locale`: 6/250 pobladas y en dos notaciones (`es-CO` vs `es_DO`) → una sola + convertir en el borde.
-   - **agregar**: `otp_length`, `date_format`, `template_suffix` (hoy es el `'do' : 'co'` hardcodeado).
-   - **NO reutilizar `status`: agregar `is_operating`.** Las 253 filas están activas, sí — pero
-     `status = 1` es un **gate vivo del form-service** (filtra countries, zones y cities en las tres
-     consultas). Apagar un país para decir "no operamos acá" lo borraría del formulario dinámico.
+1. **`countries` como fila de configuración** — el arranque real, y es **más chico de lo que parece**.
+
+   **Inventario exacto (BD local, 253 filas):**
+
+   | Columna | Llenas | Qué es | Veredicto |
+   |---|---|---|---|
+   | `name` | 253 | nombre | sirve |
+   | `iso_code_1` | 253 | **alpha-2** (`CO`, `DO`) — la clave real | sirve; es la que usa `GetCountryByISOCode1` del form-service |
+   | `status` | 253 en 1 | activo | **gate vivo** del form-service (countries/zones/cities) — no reutilizar |
+   | `dial_code` | **2** | prefijo sin `+` (`57`, `1`) | solo CO y DO — que son justo los que operamos |
+   | `cell_phone_lenght` *(sic)* | **2** | 10 y 10 | typo; el `$fillable` usa el nombre correcto y no escribe |
+   | `locale` · `currency` | **6** | AR·CO·DO·MX·PE·PR | **dos notaciones dentro de la misma tabla**: `es-CO`/`es-DO` con guion, `es_AR`/`es_MX`/`es_PE`/`es_PR` con guion bajo |
+   | `iso_code_2` | 253 | dice alpha-2 y **guarda alpha-3** (`COL`, `DOM`) | engaña; rompió la migración de `phone_code` |
+   | `iso_code_3` · `address_format` · `image` · `phone_code` | **0** | — | muertas |
+
+   **La buena noticia: para CO y RD la fila YA está completa en lo que sirve** (`dial_code`,
+   `cell_phone_lenght`, `locale`, `currency`, `iso_code_1`). No hay que poblar casi nada.
+
+   **Agregar — solo dos** (lo demás se deriva o no va acá):
+   - **`is_operating`** (bool). No se puede derivar y `status` no se puede reutilizar: es gate vivo del
+     form-service, apagar un país lo borraría del formulario dinámico.
+   - **`otp_length`** (tinyint). Hoy son constantes (`OTP_LENGTH_SHORT=4` / `LONG=6`) más un
+     `otpLength: 4` quemado en el wizard.
+
+   **Arreglar, no agregar:**
+   - **Matar `phone_code`** (0 filas, migración no-op) y quedarse con `dial_code`; decidir si lleva `+`.
+   - **Unificar la notación de `locale`** — hoy la propia tabla se contradice.
+   - **`iso_code_2`**: NO renombrar (el form-service depende de `iso_code_1`); documentar el corrimiento.
+   - `cell_phone_lenght`: el typo está horneado en el SQL del form-service → renombrar solo con PR
+     coordinado en los dos repos.
+
+   **Lo que NO va en `countries`:**
+   - **tipos de documento** → catálogo + aplicabilidad (pierde los niveles sucursal/entidad si va acá).
+   - **burós/proveedores por país** → relación N:M propia, es el bloque A.bis.
+   - **sufijo de plantilla** → se **deriva** de `lower(iso_code_1)`; no hace falta columna.
+   - **formato de fecha / decimales** → los da `Intl` desde `locale` + `currency`.
+   - **`timezone`** → real (CO es UTC-5, RD UTC-4, y hay 6 crons diarios con fecha de corte), pero es de
+     **servicing**: anotado, fuera del alcance de onboarding.
 2. **Tipos de documento** — catálogo + aplicabilidad (ver la sección de las tres capas). **No** es parte
    de geo y **no** es una columna JSON de `countries`: meterla ahí pierde los niveles sucursal/entidad
    que ya existen en `lenders_by_allied_branches.document_types`.
