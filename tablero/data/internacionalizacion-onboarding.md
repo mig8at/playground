@@ -53,10 +53,13 @@ Afghanistan), así que **"sin definir" es indistinguible de "definido mal"** —
 tres columnas rotas. Con `NULL` los 155 lenders y los 215.844 usuarios habrían gritado el primer día.
 Regla para lo que se agregue: **sin default, o nullable.**
 
-**Los tres filtros literales `->where('country_id', 1)` hoy funcionan por accidente** —leen el default,
-no un país—: `LenderRetrievalService:458`, `OnboardingService:1782`, `Identity/LenderRepository:52`.
-Poblar bien `lenders.country_id` sin arreglarlos primero **vacía el listado**. La versión parametrizada
-ya existe y nadie la usa en ese camino (`Onboarding/LenderRepository:18-22`).
+**Los OCHO filtros literales `->where('country_id', 1)` hoy funcionan por accidente** —leen el default,
+no un país. `legacy-backend` (3): `LenderRetrievalService:458` · `OnboardingService:1782` ·
+`Identity/LenderRepository:52`. **`application` (5)**: `Customer/ListLenderController:87` ·
+`Customer/PersonalInfoController:1329` · `Customer/SimulatorController:44` ·
+`Services/lenders/LenderRetrievalService:174` **y** `:459`.
+Poblar bien `lenders.country_id` sin arreglarlos primero **vacía el listado en los dos frentes**. La
+versión parametrizada ya existe y nadie la usa en ese camino (`Onboarding/LenderRepository:18-22`).
 
 **Semántica correcta de cada una** (importa para no volver a mezclarlas):
 - `allieds.country_id` = donde el comercio **reporta** (país central). Hoy hace **dos** trabajos: ese y
@@ -119,7 +122,7 @@ que encenderla.
 | | `'COP'` literal en `InitialFeePaymentService:312` (Wompi), `ValidateOtpController:135`, `SelfDevelopmentNotifier` ×2, `VtexService:53` | **quemado** |
 | **Fecha / zona horaria** | `America/Bogota` **×7**: `ConsentService` ×2, `OnboardingPayloadBuilder:86` (fecha de firma), `LeaseAgreementService:102`, `DecevalSoap` ×2, `ReminderNotification:81` | **quemado** — en RD (UTC-4) un documento firmado 23:30 imprime el día anterior |
 | | `->locale('es')` ×6 para formatear fechas | **quemado** |
-| **Listado de entidades** | `->where('country_id', 1)` ×3 | **quemado**; existe la versión parametrizada y no se usa |
+| **Listado de entidades** | `->where('country_id', 1)` **×8** (3 legacy + **5 application**) | **quemado**; existe la versión parametrizada y no se usa |
 | **Tasa y usura** | `PaymentCalculationService:201` (`!= 60`), `updateUsuryRate` (saltea 60) | **quemado**, pero reconocen el problema |
 | **Gate de datacrédito** | `addNewRule:80` no crea reglas si el comercio no es CO | **config-ish ✓** en `application`; **el gemelo de legacy no tiene la compuerta** |
 | **Documentos / KYC** | `issue_country ?? 'COLOMBIANA'`; genderapi `country=CO` ×2; Deceval `CC=>1/CE=>2` ×3 | **quemado** |
@@ -169,6 +172,48 @@ El proveedor del wizard dinámico (el de las 5 pantallas RD) **asume República 
 
 → O sea: **un servicio asume Colombia y el otro asume República Dominicana, y los dos alimentan el mismo
 wizard.** Es la mejor foto del problema que encontró esta auditoría.
+
+### `legacy-application` — el que más tiene (auditado línea por línea)
+Es el monolito que corre en producción por defecto, y es el **menos** parametrizado de los dos backs.
+
+- **⚠ 5 filtros literales `country_id = 1`** (arriba). Con los 3 de legacy son **ocho**.
+- **`'+57'` pelado en 7 sitios** — y sin el `?->country?->phone_code ?? '+57'` que sí tiene legacy: acá
+  es concatenación cruda al `PhoneNumber` de AWS SNS. `SmsController:21,45` · `OtpController:38` ·
+  `ValidateIdentityController:654` · `ValidateOtpPromissoryNoteController:211` ·
+  `CreditopXPaymentController:1608` · y **`app/Models/User.php:133`**, un accessor del modelo que
+  devuelve `'+57' . $this->cell_phone`: el país está cosido al modelo de usuario.
+- **⚠ La moneda entra en la FIRMA de Wompi**: `Actions/Lenders/Wompi.php:52` → `$rawSignature .= 'COP'`.
+  No es cosmético — cambiar la moneda cambia el hash de integridad de la transacción.
+- **`'COP'` en 9 sitios** de pagos e integraciones: `Wompi:52,116` · `WompiController:164` ·
+  `Payvalida:37` (`'money'`) · `SistecreditoPay:40` · `UserRequestController:158,184` (`codigoMoneda`) ·
+  `EcommerceController:208` · `VtexController:132` · `WoocommerceController:282` (los 3 últimos con
+  fallback `?? 'COP'`).
+- **`America/Bogota` ×3 más**: `ConsentController:66,146` (documentos de consentimiento) y
+  `ReminderNotification:74`. **Total entre los dos repos: 10.**
+- **`!= 60` en dos comandos de cron** (servicing): `CorrectNegativeInterestHistory:453` y
+  `UpdateCreditopXRequestsCommand:64`.
+- **`47` quemado en el front Vue**: `AlliedInfoCreate.vue:116` (`country_id: 47` como default del alta de
+  comercio) y `AlliedRules.vue:1196` (`allied?.country_id === 47`, el gate de datacrédito **también** en
+  el front). Y `AlliedController:86` mezcla las dos formas en una línea:
+  `whereIn('id', [Country::COLOMBIA_ID, 60])`.
+- **`Country::COLOMBIA_ID = 47`** existe solo acá (`app/Models/Country.php:16`), usado en 2 sitios.
+- **Sí hay `lang/`** (a diferencia de legacy-backend), pero son **8 archivos del scaffolding de Laravel**
+  (auth · pagination · passwords · validation) en `es` y `en`. No hay copy de la aplicación: la
+  infraestructura existe y está vacía.
+
+**🟢 Precedentes buenos que conviene copiar** (acá sí está bien hecho):
+- El **menú del admin se filtra por país con una lista**, no con un `if`: `VerticalNavGroup.vue:24`,
+  `VerticalNavLink.vue:16`, `VerticalNavSectionTitle.vue:16` → `countries.includes(auth?.allied_country_id)`.
+- `CreditopXFormController:19` arma el select de departamentos con
+  `CountryZone::where('country_id', $userRequest->allied->country_id)` — el país del comercio, no un literal.
+
+**⚠ Documentos: 10 plantillas PDF nombradas por id de lender**, con el país cosido en el texto legal.
+Y una que hay que **verificar con negocio**: `consent_152.blade.php` — el lender **152 se llama
+"smartpay"** y en el dump está cableado a la sucursal del comercio RD, pero su consentimiento es un
+contrato **100% colombiano**: acreedor *REFURBI COLOMBIA S.A.S.* con NIT, *cédula de ciudadanía*, mora
+según la *Superintendencia Financiera de Colombia* y *Ley 1581 de 2012*. O el cableado del dump es
+ruido, o hay un documento del país equivocado. En cualquiera de los dos casos el **mecanismo** —una
+plantilla por id con el país en el texto— es el problema estructural.
 
 ### Volumen
 `legacy-backend` 71 `country_id` (casi todos `$fillable`/modelos) · `application` 83 en 56 archivos ·
@@ -486,8 +531,8 @@ país 60**. La vara de éxito: **dar de alta el tercer país sin escribir códig
    - Las 23 huérfanas activas se resuelven a mano (o se apagan si están muertas).
    - Confirmado de paso el desacuerdo de sucursal: **1** con comercio DO y ciudad CO.
    - Falta correrlo contra **dev/prod**: el reparto puede ser otro.
-2. Backfill de `lenders.country_id` **y recién después** matar los tres `->where('country_id', 1)`. En ese
-   orden: al revés el listado queda vacío.
+2. Backfill de `lenders.country_id` **y recién después** matar los **ocho** `->where('country_id', 1)`
+   (3 en `legacy-backend` + 5 en `application`). En ese orden: al revés el listado queda vacío.
 3. Poblar `countries` para CO y RD (aditivo: `phone_code`, `address_format`, `locale`, `currency`) + agregar
    `is_operating`, `otp_length`, `date_format`, `template_suffix`.
 
@@ -643,5 +688,13 @@ la traducción a un idioma distinto del español.
   Menores: `creditop_mobile` con `+57` en router y Cognito, `dynamic-form` con un mapa país→prefijo ya
   hecho, `pdf-mapper-editor` con el segundo `'COLOMBIANA'`. **Pendiente: `legacy-application` está
   contado (83 en 56 archivos) pero no auditado línea por línea.**
+- **2026-08-05 (8)** — `legacy-application` auditado. **Corrección: los filtros literales
+  `country_id = 1` son OCHO, no tres** (5 viven en application). Es el repo menos parametrizado: `'+57'`
+  pelado en 7 sitios —incluido un accessor del modelo `User`— sin el fallback de config que sí tiene
+  legacy; `'COP'` en 9 sitios de pagos, y en Wompi **entra en la firma** de la transacción; 3
+  `America/Bogota` más (10 en total); `47` quemado hasta en el front Vue. Precedentes buenos a copiar:
+  el menú del admin filtra por país con una lista y el select de departamentos usa el país del comercio.
+  Y un pendiente para negocio: el consentimiento del lender 152 ("smartpay", cableado a la sucursal RD)
+  es un contrato 100% colombiano.
 </content>
 </invoke>
