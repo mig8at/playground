@@ -117,11 +117,27 @@ const atados = await query<Row>(
       ORDER BY rcud.id`,
     [ur.id, EXPERIAN],
 );
+// ⚠ HASTA DÓNDE LLEGA EL VÍNCULO. La tabla de arriba NO la escribe el producto: se pobló de un backfill
+// (prod 2026-08-07 04:50, 952.413 filas / 441.847 solicitudes en 16 s) y NADA la escribe desde entonces
+// — medido: 0 de 292 solicitudes creadas después del backfill tienen fila. O sea que para una solicitud
+// posterior al techo, el JOIN vuelve vacío SIEMPRE, y sin esta guarda eso se leía como «no se consultó
+// el buró»: un falso negativo silencioso, y justo en las corridas nuevas, que son las que se miran.
+// Ver F-107. Si algún día el producto empieza a escribirla en vivo, esta guarda se apaga sola.
+const [cobertura] = await query<{ hasta: string | null; filas: number }>(
+    'SELECT MAX(created_at) AS hasta, COUNT(*) AS filas FROM user_request_risk_central_user_data',
+);
+const sinVinculo = !Number(cobertura?.filas)
+    || (cobertura.hasta != null && new Date(ur.created_at) > new Date(cobertura.hasta));
+
 const desc = (r: Row) => `#${r.id} '${r.name}' ${r.created_at}`;
 const nuevas = atados.filter((r) => new Date(r.created_at) >= new Date(ur.created_at));
 const reusados = atados.filter((r) => new Date(r.created_at) < new Date(ur.created_at));
 console.log('\n  4 · CONSULTA (reportes Experian atados a esta solicitud)');
-line('consultado', nuevas.length ? nuevas.map(desc).join('\n               ') : 'ninguno — no se consultó el buró para esta solicitud');
+line('consultado', nuevas.length
+    ? nuevas.map(desc).join('\n               ')
+    : sinVinculo
+        ? `SIN DATO — la tabla de vínculo no cubre esta solicitud (llega hasta ${cobertura?.hasta ?? 'nunca: está vacía'}).\n               No es "no se consultó": es que no se puede saber por acá.`
+        : 'ninguno — no se consultó el buró para esta solicitud');
 if (reusados.length) line('reusado', `${reusados.map(desc).join('\n               ')}  ← anterior a la solicitud: vino de caché`);
 
 // ── veredicto ────────────────────────────────────────────────────────────────────────────────────
@@ -132,6 +148,14 @@ if (nuevas.length) {
     texto = firmada
         ? '✗ SE CONSULTÓ el buró pese a la firma — la omisión NO funcionó. Es el caso que había que cazar.'
         : '✗ SE CONSULTÓ el buró, como corresponde a una solicitud sin firmar. No prueba nada sobre la omisión.';
+} else if (sinVinculo) {
+    // Va PRIMERO entre las no-concluyentes: si el vínculo no cubre la solicitud, las otras tres causas
+    // ni siquiera se pueden evaluar — el silencio de la sección 4 no significa nada todavía.
+    texto = '— NO CONCLUYENTE: la tabla `user_request_risk_central_user_data` NO cubre esta solicitud,\n'
+        + `    así que la ausencia de filas no prueba nada (cubre hasta ${cobertura?.hasta ?? 'nunca: está vacía'}).\n`
+        + '    Esa tabla NO la escribe el producto: se pobló de un backfill y no se mantiene (F-107).\n'
+        + '    Para afirmar algo sobre esta solicitud hace falta otra vía — los logs (`dev/loki-trace.ts`)\n'
+        + '    o el trazador, que lee las centrales por `user_id` y avisa de la contaminación.';
 } else if (!firmada) {
     texto = '— NO CONCLUYENTE: la solicitud no está firmada, así que no había nada que omitir.\n'
         + '    Ver el selector no alcanza: hay que elegirlo y que el backend selle el flujo (pasa al verificar el OTP).';

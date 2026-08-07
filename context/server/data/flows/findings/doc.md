@@ -56,6 +56,7 @@ acá, saltá al `F-xx` y leé sólo eso.
 | **«los logs no me dicen de qué solicitud son»** | F-20 · F-98 · F-99 · F-102 |
 | **«no le aparece ninguna entidad en el listado»** | F-04 · F-34 · F-56 · F-75 · F-78 |
 | **«¿qué integra de verdad este comercio / esta entidad?»** | F-25 · F-26 · F-27 · F-28 · F-34 · F-35 · F-37 |
+| **«el buró: ¿se consultó para ESTA solicitud?»** | F-101 · F-107 |
 | **«el crédito no cierra en local»** | F-07 · F-08 · F-09 · F-10 · F-11 · F-12 · F-13 · F-29 · F-30 · F-31 · F-36 |
 | **«falló la validación de identidad / se canceló solo»** | F-10 · F-55 · F-60 · F-62 · F-63 |
 | **«firma, pagaré, OTP de firma»** | F-02 · F-11 · F-12 · F-30 · F-32 · F-36 · F-37 · F-58 |
@@ -2511,5 +2512,53 @@ historial incompleto (F-105), y ahora el 9 — la regla general: **un estado dic
 nunca qué completó**.
 
 **Estado:** verificado el 2026-08-07 sobre 4 trazas + proporción a 30/60 días. Relacionado: F-103, F-105.
+
+---
+
+### F-107 · `user_request_risk_central_user_data`: el vínculo buró↔solicitud existe, se pobló de un backfill el 2026-08-07 y NADIE lo mantiene
+
+**Síntoma.** Cualquier herramienta que use esa tabla para responder «¿se consultó el buró PARA esta
+solicitud?» devuelve vacío en las solicitudes nuevas — y el vacío se lee como «no se consultó». Es un
+falso negativo silencioso, y cae justo en las corridas recientes, que son las que se miran.
+
+**Causa raíz** (medida; el mecanismo de escritura NO se pudo determinar). La tabla la crea la migración
+`2025_03_27_110748_create_user_request_risk_central_user_data_table.php` —que también crea
+`user_request_risk_central_verified`— y **la migración no hace backfill**. Sin embargo:
+
+- **prod**: 952.413 filas / 441.847 solicitudes, todas con `created_at` entre **2026-08-07 04:50:00 y
+  04:50:16** (16 segundos). Cero filas posteriores.
+- **dev**: 566.944 filas, techo `2026-08-07 04:50:42`. Mismo horario ⇒ fue un backfill **cross-ambiente**.
+- **No hay escritor vivo**: de las **292 solicitudes de prod creadas después de las 05:00 de ese día,
+  0 tienen fila**. La cobertura queda congelada y se degrada sola con cada solicitud nueva.
+- **Ningún código del producto la referencia**: `grep` de `user_request_risk_central_user_data` sobre
+  `legacy-backend`, `legacy-application` y `frontend-monorepo` sólo devuelve las dos migraciones.
+  `RiskCentralUserData` no declara la relación en ninguno de los dos repos. Quién corrió el backfill y
+  con qué fin: **no verificado**.
+
+⚠ **Y el vínculo es la respuesta correcta al problema, cuando está.** `risk_central_user_data` se indexa
+por `user_id`, así que filtrar por fecha cuenta consultas de solicitudes POSTERIORES del mismo cliente
+(pasó con la uReq 464334). Esta tabla lo resuelve exacto — por eso duele que no se mantenga.
+
+**Evidencia.** Las cuatro consultas de arriba (`-target prod` y `-target dev` del trazador, sólo
+lectura). El uso previo, con el razonamiento ya escrito, en
+`harness/dev/experian-check.ts:106-118`; y la lectura en `harness/bin/dbops.ts:153`.
+
+**Arreglo.** En el harness, `experian-check.ts` ahora consulta el **techo de cobertura** de la tabla y,
+si la solicitud es posterior, dice «SIN DATO — no se puede saber por acá» en vez de «no se consultó»,
+con un veredicto propio NO CONCLUYENTE que va **antes** que las otras tres causas (si el vínculo no
+cubre, las demás ni se pueden evaluar). La guarda **se apaga sola** el día que el producto empiece a
+escribir la tabla en vivo. Para el trazador: NO usar todavía — serviría para el histórico y fallaría
+para lo nuevo, que es la peor forma de fallar.
+
+⚠ **Pendiente de preguntar**: si viene un PR que empieza a escribirla en vivo, esto deja de ser una
+trampa y pasa a ser el join que le falta al trazador. Vale confirmar con quien corrió el backfill.
+
+**Estado:** verificado el 2026-08-07 contra prod, dev y la copia local. La guarda del harness se probó
+sin regresión contra local (uReq 463424) y dev (464710); **su rama de disparo no se pudo ejercitar** —
+ni local ni dev tienen solicitudes posteriores al techo, sólo prod.
+
+**Nota de hermana**: `user_request_risk_central_verified` (la otra tabla de esa migración) tiene
+**301.690 filas con `created_at` NULL** —insertadas en bruto, sin Eloquent— y tampoco la referencia
+ningún código. Sin investigar.
 
 ---
