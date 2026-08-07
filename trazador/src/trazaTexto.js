@@ -43,6 +43,14 @@ const sub = (s, sangria) => {
   const out = []
   const fuente = FUENTE[s.source] ? ` [${FUENTE[s.source]}]` : ''
   out.push(`${sangria}${PUNTO[s.status] || '○'} ${s.label}${s.detail ? ' — ' + s.detail : ''}${fuente}`)
+  // La BD ANTES que los logs y marcada como tal: en un hilo de soporte, la afirmación y la fila que la
+  // respalda tienen que llegar juntas, o el que lee vuelve a preguntar de dónde salió el número. La
+  // consulta va con el `?` ya resuelto para que se pueda pegar en Redash y comprobar.
+  if (s.evidencia) {
+    out.push(`${sangria}   ── BD · ${s.evidencia.fuente} ──`)
+    s.evidencia.filas.forEach((f) => out.push(`${sangria}   ${f}`))
+    out.push(`${sangria}   ${s.evidencia.sql.split('\n').map((r) => r.trim()).filter(Boolean).join(' ')}`)
+  }
   out.push(...eventos(s.eventos, s.eventosDe, sangria + '   '))
   for (const h of s.hijos || []) out.push(...sub(h, sangria + '   '))
   return out

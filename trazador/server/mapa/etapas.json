@@ -1,12 +1,12 @@
 {
-  "version": "1.4",
+  "version": "2.0",
   "nota": "ESTRUCTURA del flujo, verificada contra la BD y el catálogo de estados. Los `matchers` y las `decisiones` los llena el censo de logs — hasta entonces este mapa describe QUÉ etapas hay y qué evidencia estructurada tiene cada una, no cómo reconocerlas en los logs. El orden NO es cosmético: `cupo` va antes de `seleccion` porque para rt=2 el cupo es un filtro del listado (se evalúa para decidir si la entidad se muestra). Eso se descubrió midiendo: en la solicitud 464630 el cupo quedó a las 16:37 y la selección a las 16:43. || MATCHERS Y DECISIONES: derivados de un censo de 313 mensajes distintos medidos en producción y en trazas capturadas de dev/staging (2026-08-05), asignados etapa por etapa y cada uno con su porqué. Preferencia estricta: exacto > prefijo > regex, porque una regex amplia captura dos etapas y reparte mal la evidencia sin que nada avise. `seleccion` queda SIN matchers a propósito: no tiene mensajes propios en el censo, y forzarle uno sería inventar. PENDIENTE: la verificación adversarial de solapes y el reparto por ramal se cayeron con error 529 y se están recuperando. || v1.2: se agrega la etapa `respuesta-lender` (el webhook del agregador) y se corrige el esqueleto de `listado`, que sí existe en profiling_reviews.",
   "etapas": [
     {
       "id": "origen",
-      "label": "Origen",
+      "label": "amount",
       "orden": 10,
-      "porque": "por dónde entró el cliente. `user_requests` NO tiene columna de canal: ecommerce se deriva de `ecommerce_requests.user_request_id`, el resto se asume asesor y se marca como supuesto.",
+      "porque": "El MONTO pedido — `user_requests.amount`, un hecho de la BD — y, como sub-paso, por dónde entró el cliente. Antes esta etapa era sólo «Origen», y era la única fila del árbol que no se medía: `user_requests` no tiene columna de canal, así que ecommerce se deriva de `ecommerce_requests` y el resto se ASUME asesor. Poner el monto adelante y bajar el canal a sub-paso deja un hecho al frente y la deducción marcada como tal, en vez de abrir la traza con una suposición.\n\nLa pantalla es `request-amount` (`routes/dynamic/request-amount.tsx` y el `merchant-dynamic-layout`): en el flujo de asesor el monto es literalmente la primera pantalla.",
       "bd": {
         "tablas": [
           "user_requests",
@@ -61,11 +61,15 @@
     },
     {
       "id": "registro",
-      "label": "Registro y OTP",
+      "label": "authorization",
       "orden": 20,
       "porque": "registro de celular y validación por OTP",
       "bd": {
         "estados": [
+          1,
+          2
+        ],
+        "cierran": [
           1,
           2
         ]
@@ -161,13 +165,21 @@
     },
     {
       "id": "formulario",
-      "label": "Formulario de perfil",
+      "label": "personal-info",
       "orden": 30,
-      "porque": "datos personales, laborales y estrato",
+      "porque": "datos personales, laborales y estrato\n\n**Incluye la consulta a burós**, que hasta el 2026-08-07 era una etapa aparte. Se fusionó porque el buró NO TIENE PANTALLA: lo dispara el backend al guardar los datos laborales (`OnboardingService::alliedsLendersValidator`), o sea mientras el cliente sigue en el formulario. Como etapa propia partía en dos una sola cosa y obligaba a saltar entre dos filas para contestar «¿por qué no salió ninguna entidad?». Sus 68 matchers viven ahora acá.",
       "bd": {
         "estados": [
           9
-        ]
+        ],
+        "tablas": [
+          "risk_central_user_data",
+          "risk_centrals"
+        ],
+        "detienen": [
+          9
+        ],
+        "nota_estados": "el 9 NO va en `cierran`: la fila se escribe al CREAR la solicitud (medido: ≤1 s del created_at en 4/4 trazas del censo 2026-08-07). Va en `detienen`: estar en 9 es no haber salido de acá."
       },
       "matchers": [
         {
@@ -249,129 +261,7 @@
           "tipo": "prefijo",
           "patron": "Starting OnboardingService::storePersonalInfo",
           "porque": "El span de estas líneas abarca `formulario` Y `buro` a la vez —guardar los datos personales dispara la consulta de buró en la misma operación— así que la herencia por span no puede desempatar y hacen falta estas dos palabras. Es el orquestador del formulario: mismo método que ya cubre «Datos personales»."
-        }
-      ],
-      "decisiones": [
-        {
-          "mensaje": "OnboardingController::validateAndStorePersonalInfoOrchestrator",
-          "significa": "EL veredicto del envio de datos personales (68 hits, el volumen mas alto de la etapa). El censo colapsa la familia del span, pero la linea cruda lleva el veredicto como sufijo y el codigo en 'error_code': ': document already exists, returning ONB005 DOCUMENT_DUPLICATE' (Onboardin",
-          "campos": [
-            "error_code",
-            "document_number",
-            "document_type",
-            "user_request_id",
-            "user_id",
-            "partner_branch_id"
-          ],
-          "severidad": "informativo"
         },
-        {
-          "mensaje": "OnboardingService::isForm1Completed",
-          "significa": "Gate: esta lleno el formulario 1 (datos laborales)? Si NO, la consecuencia depende del comercio — para los aliados 209/210/211 (Corbeta) el backend AUTOCOMPLETA con valores fijos (ingreso 1.500.000, 'Empleado', continuity 3) y sigue como si estuviera completo; para cualquier otro",
-          "campos": [
-            "has_record",
-            "required_fields",
-            "form_id",
-            "field_id",
-            "user_id"
-          ],
-          "severidad": "informativo"
-        },
-        {
-          "mensaje": "Storing labor info (flow A)",
-          "significa": "Los tres valores laborales con los que se va a evaluar la solicitud, y que el cliente NO tipeo: salen del user_summary de AgilData/Mareigua. Si no hay summary quedan los DEFAULTS HARDCODEADOS: 'Empleado', ingreso 1.500.000, continuity 3 (OnboardingService.php:617-658). Todo lo de",
-          "campos": [
-            "income_amount",
-            "employment_situation",
-            "continuity"
-          ],
-          "severidad": "informativo"
-        },
-        {
-          "mensaje": "OnboardingService::storeLaboralInformation",
-          "significa": "La escritura efectiva de los datos laborales, con los valores en el context. Es la UNICA linea del censo que los muestra en el flujo MANUAL (flow B) y en el autofill de los aliados 209-211 — 'Storing labor info (flow A)' solo cubre el flujo autocompletado. 'partial_update' distin",
-          "campos": [
-            "income_amount",
-            "employment_situation",
-            "continuity",
-            "partial_update",
-            "user_id",
-            "user_request_id"
-          ],
-          "severidad": "informativo"
-        },
-        {
-          "mensaje": "Resolved session flags for flow selection",
-          "significa": "Decide QUIEN llena el formulario laboral: con agilData o mareigua en sesion va a flow A (autocompletado desde el summary); sin ninguno de los dos va a flow B (manual / aliados especiales). Es el insumo del if de OnboardingService.php:616 y la unica linea que explica por que una s",
-          "campos": [
-            "session.agilData",
-            "session.mareigua"
-          ],
-          "severidad": "informativo"
-        },
-        {
-          "mensaje": "Flow A: autocompleting labor info from the user summary",
-          "significa": "Rama tomada: los datos laborales se autocompletan desde el user_summary y el cliente no los tipea. No trae context — el veredicto ES el mensaje; el valor concreto lo da la linea siguiente ('Storing labor info (flow A)').",
-          "campos": [],
-          "severidad": "informativo"
-        },
-        {
-          "mensaje": "Rate limit exceeded, returning",
-          "significa": "RECHAZO del envio del formulario por exceso de intentos por hora POR DOCUMENTO: devuelve ONB040 y el submit no se guarda. No es una decision de credito, es un throttle — confundirlo con un rechazo de riesgo manda la investigacion a los buros. Verificado OnboardingService.php:158.",
-          "campos": [
-            "document_number",
-            "rate_limit.current_attempt",
-            "rate_limit.max_per_hour"
-          ],
-          "severidad": "rechazo"
-        },
-        {
-          "mensaje": "Rate limit check result",
-          "significa": "La medicion que explica (o descarta) el ONB040: en que intento va ese documento, cual es el techo por hora y cuantos le quedan. 'rate_limit.allowed' es el booleano del veredicto.",
-          "campos": [
-            "rate_limit.allowed",
-            "rate_limit.current_attempt",
-            "rate_limit.max_per_hour",
-            "rate_limit.attempts_remaining",
-            "document_number"
-          ],
-          "severidad": "informativo"
-        },
-        {
-          "mensaje": "Validating expedition date",
-          "significa": "La fecha de expedicion tal como la tipeo el cliente, justo antes del checkdate(). Si es invalida el paso corta con ONB005 + EXPEDITION_DATE_INVALID (mensaje 'Invalid expedition date, returning ONB005', OnboardingService.php:210) — ese gemelo de rechazo NO esta en el censo, asi qu",
-          "campos": [
-            "expedition.day",
-            "expedition.month",
-            "expedition.year"
-          ],
-          "severidad": "informativo"
-        },
-        {
-          "mensaje": "OnboardingService::storeSocialStratum",
-          "significa": "El estrato que quedo guardado (29 hits). Es un span, pero es la UNICA linea del censo que lleva el valor del estrato, y el estrato es insumo del scoring de categoria mas abajo. Su gemelo de rechazo ('Stratum required but missing/out-of-range, returning ONB005', OnboardingService.",
-          "campos": [
-            "social_stratum",
-            "partial_update",
-            "user_id",
-            "user_request_id"
-          ],
-          "severidad": "informativo"
-        }
-      ]
-    },
-    {
-      "id": "buro",
-      "label": "Consulta a burós",
-      "orden": 40,
-      "porque": "centrales de riesgo. La tabla se indexa por `user_id`, NO por solicitud: una consulta puede ser de otro intento del mismo cliente, así que se acota por la ventana de la solicitud.",
-      "bd": {
-        "tablas": [
-          "risk_central_user_data",
-          "risk_centrals"
-        ]
-      },
-      "matchers": [
         {
           "tipo": "prefijo",
           "patron": "Experian disparado desde",
@@ -715,167 +605,108 @@
       ],
       "decisiones": [
         {
-          "mensaje": "ValidateOtpController: Experian NO disparado (usuario TEMPORAL USER)",
-          "significa": "VEREDICTO de omisión con motivo concreto: el usuario todavía es temporal (sin documento consolidado), así que el buró no se consulta al validar el OTP. Explica por qué el buró recién aparece en el paso de datos personales.",
+          "mensaje": "OnboardingController::validateAndStorePersonalInfoOrchestrator",
+          "significa": "EL veredicto del envio de datos personales (68 hits, el volumen mas alto de la etapa). El censo colapsa la familia del span, pero la linea cruda lleva el veredicto como sufijo y el codigo en 'error_code': ': document already exists, returning ONB005 DOCUMENT_DUPLICATE' (Onboardin",
           "campos": [
-            "source",
-            "experian_triggered",
-            "reason",
-            "user_id",
+            "error_code",
             "document_number",
-            "cell_phone"
+            "document_type",
+            "user_request_id",
+            "user_id",
+            "partner_branch_id"
           ],
           "severidad": "informativo"
         },
         {
-          "mensaje": "Datacredito no evaluado (userViability no ejecutado) desde PersonalInfoController",
-          "significa": "VEREDICTO de omisión en legacy-application: no se corrió userViability, así que no hubo consulta a Datacrédito. `has_preapproved_lender` + `approved_lenders` dicen si la omisión fue por cupo ya confirmado (la omisión legítima) o por otra razón.",
+          "mensaje": "OnboardingService::isForm1Completed",
+          "significa": "Gate: esta lleno el formulario 1 (datos laborales)? Si NO, la consecuencia depende del comercio — para los aliados 209/210/211 (Corbeta) el backend AUTOCOMPLETA con valores fijos (ingreso 1.500.000, 'Empleado', continuity 3) y sigue como si estuviera completo; para cualquier otro",
           "campos": [
-            "source",
-            "experian_triggered",
-            "reason",
-            "has_preapproved_lender",
-            "approved_lenders",
-            "allied_id"
-          ],
-          "severidad": "informativo"
-        },
-        {
-          "mensaje": "TusDatos errors, returning ONB005",
-          "significa": "RECHAZO duro de la etapa: el último eslabón de la cascada de identidad (AgilData → Mareigua → TusDatos) falló y la solicitud se corta con el subcódigo ONB005. El cliente no llega ni a buró de riesgo.",
-          "campos": [
-            "subcode"
-          ],
-          "severidad": "rechazo"
-        },
-        {
-          "mensaje": "The allied is not allowed to omit the requested risk central.",
-          "significa": "RECHAZO de configuración (RKV26001, CheckIfAbleToOmitService): el comercio pidió omitir una central de riesgo que no tiene permitido omitir, así que la consulta se hace igual. `risk_central.slug` dice cuál.",
-          "campos": [
-            "module",
-            "allied.id",
-            "risk_central.slug"
-          ],
-          "severidad": "rechazo"
-        },
-        {
-          "mensaje": "The allied is in the Experian trigger bypass list; the commerce requires Experian, so the user must be evaluated.",
-          "significa": "VEREDICTO del STAGE 4: el comercio está en la lista de bypass, pero como igual exige Experian, gana el requerimiento y el usuario se evalúa. Es una de las dos salidas del pipeline de disparo.",
-          "campos": [
-            "module",
-            "allied.id"
-          ],
-          "severidad": "ok"
-        },
-        {
-          "mensaje": "No risk central data found.",
-          "significa": "VEREDICTO del STAGE 1: no existe dato previo de esa central para el usuario, por lo que la consulta no se puede evitar por reuso.",
-          "campos": [
-            "risk_central.id",
-            "module",
-            "user.id"
-          ],
-          "severidad": "informativo"
-        },
-        {
-          "mensaje": "Flow B Pullman/DFS Quanto branch",
-          "significa": "VEREDICTO de disparo con el criterio a la vista: la consulta Quanto se dispara porque el comercio es Pullman (allied 94) o DFS (allied 189). Verificado en OnboardingService.php:764 — la línea siguiente ya es logExperianTriggered + Experian::aciertaQuanto.",
-          "campos": [
-            "is_pullman",
-            "is_dfs"
-          ],
-          "severidad": "ok"
-        },
-        {
-          "mensaje": "performRequest finished, continuing to close the span",
-          "significa": "Instrumentación que carga el dato duro: `result.has_score` dice si el buró devolvió score y `result.score` cuál. Es el único punto del censo que distingue 'consulta exitosa sin score' de 'consulta exitosa con score'.",
-          "campos": [
-            "result.id",
-            "result.has_score",
-            "result.score"
-          ],
-          "severidad": "informativo"
-        },
-        {
-          "mensaje": "Computed averaged score, persisting",
-          "significa": "El score final que queda guardado en risk_central_user_data — el valor que van a leer las etapas siguientes. Si difiere del `result.score` de la consulta, hubo promediado.",
-          "campos": [
-            "risk_central_user_data.score"
-          ],
-          "severidad": "informativo"
-        },
-        {
-          "mensaje": "UserSummary.datacredito updated/created, continuing",
-          "significa": "Resultado consolidado del buró en el user_summary: `summary.score` y `summary.value_monthly_payment` (egresos). Es el puente del buró hacia cupo y listado; si acá no pasó nada, las etapas siguientes deciden con datos viejos.",
-          "campos": [
-            "user.id",
-            "summary.score",
-            "summary.value_monthly_payment"
-          ],
-          "severidad": "ok"
-        },
-        {
-          "mensaje": "quantoMedioAverage valid, writing UserFieldValue field 87 (income) con el valor escalado",
-          "significa": "DECISIÓN con efecto en el resto del flujo: el INGRESO del cliente lo escribe el buró (Quanto), no el formulario. Explica por qué en Pullman/DFS el ingreso del cliente aparece autocompletado y por qué el cupo cambia sin que el cliente haya tecleado nada.",
-          "campos": [
+            "has_record",
+            "required_fields",
+            "form_id",
             "field_id",
-            "value.scaled"
-          ],
-          "severidad": "informativo"
-        },
-        {
-          "mensaje": "Writing UserFieldValue field 90 (egresos) from datacrédito valueMonthlyPayment",
-          "significa": "Los EGRESOS del cliente salen del payload de datacrédito (valueMonthlyPayment = cuota mensual de obligaciones vigentes). `datacredito.found` dice si de verdad había dato; con false el egreso queda en cero y la capacidad de pago sale infladа.",
-          "campos": [
-            "field_id",
-            "user.id",
-            "user_request.id",
-            "datacredito.found",
-            "outstanding_obligations"
-          ],
-          "severidad": "informativo"
-        },
-        {
-          "mensaje": "Cache MISS, continuing",
-          "significa": "No había reporte del buró de menos de 1 mes, así que la consulta externa SÍ se va a hacer (tiene costo). Verificado exclusivo de Experian.php:268 — no confundir con la instrumentación genérica CacheService::Modules.",
-          "campos": [
-            "cache.hit"
-          ],
-          "severidad": "informativo"
-        },
-        {
-          "mensaje": "Resolved response source",
-          "significa": "De dónde salió la respuesta del buró: fixture local, lambda mock o HTTP real (`source`), y para qué producto (`experian.product`). Es la línea que evita el error de creer real un score que salió de un mock.",
-          "campos": [
-            "source",
-            "experian.product"
-          ],
-          "severidad": "informativo"
-        },
-        {
-          "mensaje": "Phone does not match mock_rules, will use real HTTP",
-          "significa": "El mock estaba habilitado por settings pero el celular no matcheó las reglas, así que se consulta el buró de verdad. Su gemela (phone matches → fixture) existe en código y no está en el censo.",
-          "campos": [
-            "mock.match"
-          ],
-          "severidad": "informativo"
-        },
-        {
-          "mensaje": "Experian query counter advanced before querying Experian.",
-          "significa": "El contador de consultas del comercio avanzó (`count.before` → `count.after`) porque se va a consultar. Es lo que se factura y lo que alimenta el throttle del STAGE 2.",
-          "campos": [
-            "count.before",
-            "count.after",
-            "allied.id",
-            "module"
-          ],
-          "severidad": "informativo"
-        },
-        {
-          "mensaje": "ValidateOtpController: Experian NO disparado",
-          "significa": "no se consultó Experian porque el usuario es TEMPORAL. Es una de las tres causas de «no hay fila de buró nueva» que F-60 obliga a descartar antes de afirmar que se omitió el buró.",
-          "campos": [
             "user_id"
+          ],
+          "severidad": "informativo"
+        },
+        {
+          "mensaje": "Storing labor info (flow A)",
+          "significa": "Los tres valores laborales con los que se va a evaluar la solicitud, y que el cliente NO tipeo: salen del user_summary de AgilData/Mareigua. Si no hay summary quedan los DEFAULTS HARDCODEADOS: 'Empleado', ingreso 1.500.000, continuity 3 (OnboardingService.php:617-658). Todo lo de",
+          "campos": [
+            "income_amount",
+            "employment_situation",
+            "continuity"
+          ],
+          "severidad": "informativo"
+        },
+        {
+          "mensaje": "OnboardingService::storeLaboralInformation",
+          "significa": "La escritura efectiva de los datos laborales, con los valores en el context. Es la UNICA linea del censo que los muestra en el flujo MANUAL (flow B) y en el autofill de los aliados 209-211 — 'Storing labor info (flow A)' solo cubre el flujo autocompletado. 'partial_update' distin",
+          "campos": [
+            "income_amount",
+            "employment_situation",
+            "continuity",
+            "partial_update",
+            "user_id",
+            "user_request_id"
+          ],
+          "severidad": "informativo"
+        },
+        {
+          "mensaje": "Resolved session flags for flow selection",
+          "significa": "Decide QUIEN llena el formulario laboral: con agilData o mareigua en sesion va a flow A (autocompletado desde el summary); sin ninguno de los dos va a flow B (manual / aliados especiales). Es el insumo del if de OnboardingService.php:616 y la unica linea que explica por que una s",
+          "campos": [
+            "session.agilData",
+            "session.mareigua"
+          ],
+          "severidad": "informativo"
+        },
+        {
+          "mensaje": "Flow A: autocompleting labor info from the user summary",
+          "significa": "Rama tomada: los datos laborales se autocompletan desde el user_summary y el cliente no los tipea. No trae context — el veredicto ES el mensaje; el valor concreto lo da la linea siguiente ('Storing labor info (flow A)').",
+          "campos": [],
+          "severidad": "informativo"
+        },
+        {
+          "mensaje": "Rate limit exceeded, returning",
+          "significa": "RECHAZO del envio del formulario por exceso de intentos por hora POR DOCUMENTO: devuelve ONB040 y el submit no se guarda. No es una decision de credito, es un throttle — confundirlo con un rechazo de riesgo manda la investigacion a los buros. Verificado OnboardingService.php:158.",
+          "campos": [
+            "document_number",
+            "rate_limit.current_attempt",
+            "rate_limit.max_per_hour"
+          ],
+          "severidad": "rechazo"
+        },
+        {
+          "mensaje": "Rate limit check result",
+          "significa": "La medicion que explica (o descarta) el ONB040: en que intento va ese documento, cual es el techo por hora y cuantos le quedan. 'rate_limit.allowed' es el booleano del veredicto.",
+          "campos": [
+            "rate_limit.allowed",
+            "rate_limit.current_attempt",
+            "rate_limit.max_per_hour",
+            "rate_limit.attempts_remaining",
+            "document_number"
+          ],
+          "severidad": "informativo"
+        },
+        {
+          "mensaje": "Validating expedition date",
+          "significa": "La fecha de expedicion tal como la tipeo el cliente, justo antes del checkdate(). Si es invalida el paso corta con ONB005 + EXPEDITION_DATE_INVALID (mensaje 'Invalid expedition date, returning ONB005', OnboardingService.php:210) — ese gemelo de rechazo NO esta en el censo, asi qu",
+          "campos": [
+            "expedition.day",
+            "expedition.month",
+            "expedition.year"
+          ],
+          "severidad": "informativo"
+        },
+        {
+          "mensaje": "OnboardingService::storeSocialStratum",
+          "significa": "El estrato que quedo guardado (29 hits). Es un span, pero es la UNICA linea del censo que lleva el valor del estrato, y el estrato es insumo del scoring de categoria mas abajo. Su gemelo de rechazo ('Stratum required but missing/out-of-range, returning ONB005', OnboardingService.",
+          "campos": [
+            "social_stratum",
+            "partial_update",
+            "user_id",
+            "user_request_id"
           ],
           "severidad": "informativo"
         }
@@ -883,7 +714,7 @@
     },
     {
       "id": "cupo",
-      "label": "Cupo / POS",
+      "label": "profiler",
       "orden": 50,
       "porque": "para rt=2 el cupo es un FILTRO DURO del listado, no un paso posterior a elegir. La razón fina NO se persiste a propósito (ver ARQUITECTURA-TRACING), así que la BD no lo puede probar: solo los logs.",
       "bd": {},
@@ -927,6 +758,16 @@
           "tipo": "exacto",
           "patron": "Obteniendo credenciales de Bancolombia BNPL",
           "porque": "Instrumentacion de la cadena de cupo rt=1 (`allied_branch_id`). Lo reclamo por CONTEO, no por corazonada: n=1 en legacy-backend y n=1 en legacy-application, o sea 1:1 exacto con 'Iniciando validación de cupo con Bancolombia BNPL' en los dos servicios. Ese 1:1 es lo que lo separa del par OAuth, que en legacy-backend va "
+        },
+        {
+          "tipo": "exacto",
+          "patron": "Validación de cupo completada exitosamente",
+          "porque": "El ÉXITO del cupo rt=1 de Bancolombia BNPL — el mapa declaraba su fracaso y no su éxito, así que la única línea que contesta «¿el banco dijo que sí?» llegaba por herencia de span (el backlog decía «1 ubicadas por span» en 522220/519772/522238). Censo 2026-08-07: 3/25 trazas."
+        },
+        {
+          "tipo": "regex",
+          "patron": "Autenticando con Meddipay|Autenticación exitosa con Meddipay|Iniciando consulta con Meddipay",
+          "porque": "La FASE DE CONSULTA de Meddipay (996 solicitudes eligieron Meddipay en 35 días). Sus mensajes eran HUÉRFANOS: ninguna etapa los reclamaba. Sólo la consulta va acá; la creación de la orden ocurre a la hora de `seleccion` (medido: 519772 cupo 15:27 · orden 15:32) y va allá."
         }
       ],
       "decisiones": [
@@ -1025,7 +866,7 @@
     },
     {
       "id": "listado",
-      "label": "Listado de entidades",
+      "label": "lenders",
       "orden": 60,
       "porque": "qué entidades se muestran y por qué se excluyó cada una. ⚠ CORREGIDO 2026-08-05: antes decía «sin esqueleto en BD porque displayed_lenders es de lenders-v2 y no existe». No existe como TABLA, pero sí como columna JSON de `profiling_reviews` — 588 filas, todas con `displayed_lenders` y `hard_rules`. Busqué una tabla, no la encontré y concluí que el dato no existía; el dato estaba.",
       "bd": {
@@ -1148,6 +989,12 @@
           "tipo": "regex",
           "patron": "HasActiveIntegratedEntitiesService",
           "porque": "idem: clase a mitad del span | ARREGLADO 2026-08-05: se validaba contra el censo normalizado, no contra la línea cruda que ve Loki."
+        },
+        {
+          "tipo": "exacto",
+          "campo": "service_name",
+          "patron": "preapprovals-service",
+          "porque": "TODO el microservicio de pre-aprobación pertenece a esta etapa: existe para pre-aprobar lenders rt≠0 antes del listado (nodo ms-preapprovals). Se matchea por SERVICIO y no por prosa porque su censo (400 líneas de prod, 4 h) son 12 mensajes que cambiarían con cualquier refactor, y el service_name no. ⚠ Sus líneas llegan con el id en ETIQUETAS (OTel), no en el cuerpo: sin la ancla de etiqueta y la fusión de labels al ctx este matcher no vería nada. ⚠ El MS solo envía logs en PROD — medido 7 días del stack dev: ausente."
         }
       ],
       "decisiones": [
@@ -1274,7 +1121,7 @@
     },
     {
       "id": "seleccion",
-      "label": "Selección de entidad",
+      "label": "selected lender",
       "orden": 70,
       "porque": "el cliente elige una entidad",
       "bd": {
@@ -1284,6 +1131,9 @@
         "tablas": [
           "user_requests",
           "lenders"
+        ],
+        "cierran": [
+          3
         ]
       },
       "matchers": [
@@ -1291,13 +1141,18 @@
           "tipo": "regex",
           "patron": "^(Iniciando upsert de producto|Producto de solicitud de usuario)",
           "porque": "`AlliedProductsController::upsertUserRequestProduct` asocia el producto a la solicitud. Verificado que va acá por hora medida: 09:01:37 contra el estado 3 «Seleccionó entidad» a las 09:01:38 en la uReq 519245 de prod. Su span no tiene hermanas ubicadas, así que sin patrón no se puede colocar."
+        },
+        {
+          "tipo": "regex",
+          "patron": "Creando orden en Meddipay|Orden creada exitosamente en Meddipay",
+          "porque": "La CREACIÓN de la orden Meddipay: trae `order_id`, `credit_limit` y `result`, y el caller (PreApprovedLenderService.php:471-497) usa exactamente eso — result==DEN hace unset y la entidad NO se muestra, sin otra línea que registre ese rechazo. Va en seleccion y no en cupo: medido contra las horas de las etapas (519772, 522227), la orden sigue a la selección."
         }
       ],
       "decisiones": []
     },
     {
       "id": "desembolso",
-      "label": "Desembolso",
+      "label": "disbursement",
       "orden": 80,
       "porque": "pagaré, autorización y desembolso. El canal QR nunca pasa por 11: sella en 25 y factura en 26.",
       "bd": {
@@ -1307,8 +1162,23 @@
           28,
           5,
           25,
+          26,
+          20,
+          30
+        ],
+        "cierran": [
+          11,
+          28,
+          5,
+          25,
           26
-        ]
+        ],
+        "detienen": [
+          10,
+          20,
+          30
+        ],
+        "nota_estados": "20 «Aprobada no desembolsada» y 30 «Autorizado pendiente desembolso» DETIENEN: la solicitud está dentro del tramo final y la plata no se movió (medido: 157 y 12 casos en 5 semanas que hasta ahora no encendían ninguna etapa). Ninguno de los dos cierra."
       },
       "matchers": [
         {
@@ -1325,6 +1195,51 @@
           "tipo": "exacto",
           "patron": "Documents retrieved successfully",
           "porque": "Exacto porque es una frase cerrada. Es el conjunto documental del desembolso: verificado en UserRequestDocumentService::getDocuments, que arma Plan de Pagos + Contrato (Consent) + FGA (Guarantee Acceptance) + PAGARE (Promissory Note) + Estado de cuenta. Ojo: lo marco como instrumentacion, no decision, y lleva salvedad "
+        },
+        {
+          "tipo": "regex",
+          "patron": "^document_(routing_resolved|payload_built|generation_succeeded|generation_failed)",
+          "porque": "El pipeline del generador de PDFs. MEDIDO en la uReq 464709 de staging (11 líneas de cada uno, ~4 documentos). Iba sin matcher, así que las 33 líneas del cierre caían en «sin ubicar» mientras la etapa decía «0 líneas»."
+        },
+        {
+          "tipo": "regex",
+          "patron": "^(Iniciando generación de pagaré Deceval|Deceval create(PromisoryNote|Girador)|Error al generar pagaré Deceval|Error generating promissory note)",
+          "porque": "La radicación del pagaré en Deceval. Es la causa medida de un estado 10 que no avanza: en la uReq 464709 de staging `Deceval createGirador no exitoso` cortó la firma, y esas seis líneas eran la ÚNICA evidencia del porqué — sin este matcher no llegaban a la etapa."
+        },
+        {
+          "tipo": "prefijo",
+          "patron": "Simulated payment schedule",
+          "porque": "La simulación del plan de pagos, donde se fija el plazo. Verificado contra `RegularPaymentScheduleService` (ver el nodo formalization: `confirm` escribe `user_requests.fee_number`)."
+        },
+        {
+          "tipo": "regex",
+          "patron": "CosignerSignatureGateService|CosignerRepository",
+          "porque": "`Modules\\UserRequestV1`: la compuerta de firmante adicional, previa a la firma."
+        },
+        {
+          "tipo": "prefijo",
+          "patron": "Loan authorization",
+          "porque": "La secuencia de autorización (330 líneas/72 h en prod). Cubre los 5 hitos des-auth-* y además «Loan authorization completed», que tiene hito propio. Hoy llegaban por herencia de span (2/2 trazas con el tramo poblado): esto quita la dependencia del span en el tramo donde se decide si el crédito quedó comprometido — endurecimiento, no arreglo de un síntoma observado."
+        },
+        {
+          "tipo": "prefijo",
+          "patron": "Generated promissory note",
+          "porque": "El pagaré generado: 128/72 h en prod."
+        },
+        {
+          "tipo": "prefijo",
+          "patron": "creditop_x_event",
+          "porque": "El ledger de CreditopX: 128/72 h en prod."
+        },
+        {
+          "tipo": "regex",
+          "patron": "^(Request authorized|Loan authorized and committed)",
+          "porque": "El commit de la autorización: 16+16/24 h en prod."
+        },
+        {
+          "tipo": "prefijo",
+          "patron": "netco.signFiles",
+          "porque": "LA FIRMA DEL PAGARÉ: 125 líneas/168 h en prod. El hito `firma` estaba marcado `soloEnCodigo` y era FALSO — el mensaje se emite; lo que faltaba era este matcher de etapa. Sin él, la firma era invisible en el tramo cuyo reporte más común es «falló firmando»."
         }
       ],
       "decisiones": [
@@ -1352,11 +1267,12 @@
           ],
           "severidad": "rechazo"
         }
-      ]
+      ],
+      "nota_matchers": "Deliberadamente FUERA: los mensajes de safe_cancel_blocked y voucher_disbursement (0 líneas en 168 h de prod: hitos soloEnCodigo, no matchers) y la prosa del OTP de firma — «OTP validated successfully» corre a 511/24 h contra 16 autorizaciones/24 h, es vocabulario de mensajería general y desembolso va ÚLTIMA en el orden: la volvería dueña por descarte de todo lo no declarado. Si se quiere cerrar ese hueco (visible en 2/2 trazas del censo), tiene que ser por campo/span del endpoint promissory-note/validate/*, no por prosa."
     },
     {
       "id": "respuesta-lender",
-      "label": "Respuesta del lender",
+      "label": "lender response",
       "orden": 75,
       "porque": "Para rt=1 el veredicto lo da la API EXTERNA y vuelve por el webhook `POST api/onboarding/loan-application/{ureq}/lender-result` (ListLenderController::storeLenderResult → ProfilingReviewController::updateAsyncLender). Es el reporte MÁS FRECUENTE de #tech-ops: «Prami confirma originación pero en CT quedó en seleccionar entidad» — 10 casos en 10 días. ⚠ El webhook NO loguea nada (cero `Log::` en ese controlador) y NO hay tabla que registre su recepción, así que la única evidencia de que se aplicó es `profiling_reviews.disbursed_lender`; y la única de que llegó y FALLÓ es la excepción HTTP con la url del webhook. Por eso esta etapa distingue tres casos y no dos.",
       "bd": {
@@ -1399,7 +1315,7 @@
     },
     {
       "id": "biometria",
-      "label": "Validación biométrica",
+      "label": "validation",
       "orden": 78,
       "porque": "EL TRAMO QUE FALTABA. El mapa saltaba de `seleccion` (70) a `desembolso` (80) y se comía la validación de identidad de creditopx — siete rutas del wizard, bajo un comentario `// creditop x` literal en frontend-monorepo/apps/loan-request-wizard/app/routes.ts (confirmation → identity-validation-instructions → identity-validation → identity-validation-status → additional-identity-validation…), todas DESPUÉS de `lenders` y `lender-results`.\n\n⚠ DOS COSAS SE LLAMAN «validación de identidad» y NO son el mismo momento. (1) La cascada AgilData→TusDatos del ONBOARDING, que corre antes del listado y vive en el bloque `identidad` de la etapa `buro`. (2) ESTE tramo: OCR del documento + comparación facial por AWS Rekognition + enroll en ADO, después de que el cliente eligió la entidad. Confundirlos fue exactamente el error que tenía el mapa: `Ado` aparecía como «no consultada» bajo «Consulta a burós», una etapa donde nunca se consulta.\n\nDónde vive: Modules/Identity/App/Http/Controllers/Customer/AdoController.php y RekognitionController.php; el callback de ADO apunta a `/self-service/{hash}/{ureq}/identity-validation-status?provider=ado` (AdoController.php:54). Las centrales que se escriben acá son TusDatos - AML, Ado, y —para Credifamilia V2— crosscore/evidente (app/Http/Controllers/Api/CredifamiliaV2/).\n\nMEDIDO EN PRODUCCIÓN (2026-08-05, vía Redash). En 21 días hay 2.431 filas de `Ado`. Cruzando cada fila con la transición a estado 3 del mismo cliente (ventana ±6 h): **1.903 se escriben DESPUÉS de seleccionar entidad y 186 antes** — 91 %, en promedio 24 min después. ⚠ El cruce es por `user_id`, no por `user_request_id` (la tabla no guarda la solicitud), así que las 186 «antes» son compatibles con clientes de varias solicitudes: la ventana las limita, no las elimina. El dump LOCAL tiene cero filas de Ado — por eso el mapa se auditó primero contra el código.\n\nEjemplos de prod con el tramo completo: uReq **509592** (Credifamilia rt=4 — las cuatro centrales: AML 12:09:47 → crosscore 12:11:20 → evidente 12:11:47 → Ado 12:35:10, todas entre `seleccion` 12:05:57 y `desembolso` 12:44:19) y **520830** (Crediemo rt=2 — AML 16:00:27 → Ado 16:03:23).",
       "bd": {
@@ -1479,6 +1395,11 @@
           "patron": "Reset del estado de validación antes de nuevo intento",
           "porque": "reintento: explica por qué puede haber dos pasadas del tramo en una misma solicitud. ⚠ soloEnCodigo: verificado grepeando legacy-backend, NO medido — el censo se armó con trazas que nunca llegaron a este tramo.",
           "soloEnCodigo": true
+        },
+        {
+          "tipo": "regex",
+          "patron": "TusDatos AML|Tusdatos en segundo plano|tusdatos\\.aml",
+          "porque": "El vocabulario AML que SÍ se emite (40 líneas huérfanas en 8/25 trazas del censo, 4 familias; 0 solapes contra las 9 etapas y 0 falsos positivos: dispara exactamente en las 8 trazas con biometría probada por BD). El tramo tiene DOS productores: legacy-application `app/Actions/RiskCentrals/Tusdatos.php` y legacy-backend `Modules/Loans/.../ContinueUserFlowController.php:93` + `Modules/Identity/App/Services/TusDatosService.php:535`. La única línea AML que esta regex NO alcanza es «Esperando delay inicial antes de polling» (Tusdatos.php:264, no dice TusDatos). Los 12 matchers `soloEnCodigo` (OCR/Rekognition/ADO) se MANTIENEN: ninguna traza llegó a ese camino aún."
         }
       ],
       "decisiones": []

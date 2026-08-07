@@ -559,7 +559,7 @@ var sqlBuscarOrden = fmt.Sprintf(" ORDER BY ur.id DESC LIMIT %d", limiteBusqueda
 // Su ausencia, con la solicitud en estado 3 y un lender elegido, ES la firma de que el webhook no se aplicó.
 const sqlProfiling = `
 	SELECT recommended_lender, disbursed_lender, datacredito_query,
-	       displayed_lenders, hard_rules, created_at, updated_at
+	       displayed_lenders, hard_rules, ML_predictions, created_at, updated_at
 	  FROM profiling_reviews
 	 WHERE user_request_id = ? AND deleted_at IS NULL
 	 ORDER BY id DESC LIMIT 1`
@@ -571,8 +571,19 @@ type Perfilamiento struct {
 	ConsultoDatacredito bool
 	Mostrados           []LenderMostrado
 	Reglas              string // hard_rules crudo: se guarda entero porque su forma varía y recortarlo perdería el porqué
-	Creado              time.Time
-	Actualizado         time.Time
+	// ML: quién ORDENÓ el listado y si hubo fallback. `ProfilingReviewController` guarda en `ML_predictions`
+	// un `perfilador` (`PerfiladorNuevo`|`PerfiladorAntiguo`|`PerfiladorDesconocido`), un `fallback_triggered`
+	// y, cuando el modelo no respondió, el `error` con el detalle. Es la respuesta de la BD a «¿por qué el
+	// listado salió en este orden?», que hasta ahora no se leía en ninguna parte.
+	Perfilador  string
+	MLFallback  bool
+	MLError     string
+	MLPuntuadas int    // entidades que el perfilador alcanzó a puntuar
+	MLRespondio bool   // contestó algo, aunque fuera vacío
+	MLPrevio    string // por qué falló el perfilador PRIMARIO cuando se cayó al de respaldo
+	MLCrudo     bool   // lo escribió el sistema viejo: guarda la respuesta sin transformar y no dice quién
+	Creado      time.Time
+	Actualizado time.Time
 }
 
 type LenderMostrado struct {
@@ -599,5 +610,65 @@ func GetPerfilamiento(r Runner, ureq int64) *Perfilamiento {
 		Actualizado:         fecha(f["updated_at"], r.Zona()),
 	}
 	_ = json.Unmarshal([]byte(texto(f["displayed_lenders"])), &p.Mostrados)
+
+	// `ML_predictions` tiene TRES formas porque lo escriben DOS SISTEMAS distintos, y hay que probarlas
+	// todas: asumir la del caso feliz hacía que justo el caso que interesa se leyera «sin datos».
+	// Censo en prod del 2026-07-01 al 2026-08-05 (59.841 filas):
+	//
+	//  1. ARRAY  (13.902) — `legacy-backend`: una entrada por entidad, con `perfilador` y `prediction`.
+	//  2. OBJETO (12.480) — `legacy-backend` cuando NINGÚN perfilador respondió: `error` + `previous_attempt`.
+	//  3. SOBRE  (33.459) — `legacy-application` guarda la respuesta CRUDA (`{data,status,message}`), sin
+	//     transformar y sin `perfilador`: por eso esas filas no pueden decir quién ordenó.
+	//
+	// ⚠ `fallback_triggered` NO significa «lo ordenaron las matrices». La estrategia está cableada como
+	// `new_then_legacy` (`ProfilerMLController::mlModelV1`): el PRIMARIO es `NewProfilerMLService` y el
+	// RESPALDO es el modelo H2O de siempre. `true` quiere decir que el nuevo falló y contestó el viejo —
+	// que es lo que dice `perfilador: PerfiladorAntiguo`. Sigue siendo un modelo el que puntúa.
+	crudo := strings.TrimSpace(texto(f["ML_predictions"]))
+	if crudo != "" && crudo != "null" {
+		var arr []struct {
+			Perfilador string `json:"perfilador"`
+			Fallback   bool   `json:"fallback_triggered"`
+		}
+		var obj struct {
+			Perfilador string `json:"perfilador"`
+			Error      string `json:"error"`
+			Fallback   bool   `json:"fallback_triggered"`
+			Estado     string `json:"status"`
+			Mensaje    string `json:"message"`
+			Previo     *struct {
+				Perfilador string `json:"perfilador"`
+				Mensaje    string `json:"message"`
+				Detalles   string `json:"details"`
+			} `json:"previous_attempt"`
+			Data []struct {
+				Nombre string `json:"name"`
+			} `json:"data"`
+		}
+		switch {
+		case json.Unmarshal([]byte(crudo), &arr) == nil && len(arr) > 0:
+			p.Perfilador, p.MLFallback = arr[0].Perfilador, arr[0].Fallback
+			p.MLPuntuadas, p.MLRespondio = len(arr), true
+		case json.Unmarshal([]byte(crudo), &obj) == nil:
+			p.Perfilador, p.MLFallback, p.MLError = obj.Perfilador, obj.Fallback, obj.Error
+			p.MLPuntuadas = len(obj.Data)
+			if obj.Previo != nil {
+				p.MLPrevio = strings.TrimSpace(obj.Previo.Detalles)
+				if p.MLPrevio == "" {
+					p.MLPrevio = strings.TrimSpace(obj.Previo.Mensaje)
+				}
+				if p.MLPrevio != "" && obj.Previo.Perfilador != "" {
+					p.MLPrevio = obj.Previo.Perfilador + ": " + p.MLPrevio
+				}
+			}
+			if obj.Estado != "" { // el sobre crudo del sistema viejo
+				p.MLCrudo = true
+				p.MLRespondio = obj.Estado == "success"
+				if !p.MLRespondio && p.MLError == "" {
+					p.MLError = obj.Mensaje
+				}
+			}
+		}
+	}
 	return p
 }

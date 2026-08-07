@@ -26,11 +26,6 @@
           "porque": "APLICA pero NO es obligatoria, porque sus dos pasos son CONDICIONALES: Identidad aparece solo con ONB002 = PERSONAL_INFO_REQUIRED y, si el usuario ya está registrado y completo, el OTP manda DIRECTO a /lenders (steps.json:70, otp-verificati"
         },
         {
-          "id": "buro",
-          "obligatorio": true,
-          "porque": "APLICA y es obligatoria como ETAPA, pero la ausencia de consulta NUEVA no prueba falla. Por qué aplica: acá el riesgo se evalúa LOCALMENTE y el datacrédito rt=2 corre inline dentro de la cascada del listado (creditopx/doc.md:27 → LenderVali"
-        },
-        {
           "id": "cupo",
           "obligatorio": true,
           "porque": "APLICA, es obligatoria y es LA etapa que define el ramal — el contraste exacto con agregador: acá el cupo lo decide el motor LOCAL, sin API externa de decisión (creditopx/doc.md:5), así que SÍ se observa en el backend. Para rt=2 es un FILTR"
@@ -93,11 +88,6 @@
           "id": "formulario",
           "obligatorio": false,
           "porque": "Aplica (tronco, aggregator/doc.md:12) pero NO es obligatoria en una traza, y esto no es matiz: sus dos pasos son condicionales -- personal-info solo con ONB002 y employment-info solo con ONB004 (steps.json:70-72 y :87-89) -- y hay un bypass"
-        },
-        {
-          "id": "buro",
-          "obligatorio": false,
-          "porque": "Aplica: el buro lo dispara el TRONCO al guardar los datos laborales (OnboardingService::alliedsLendersValidator -> Experian y DatacreditoQueryByAlliedController::userViability, steps.json:87), no el ramal. NO es obligatoria, y la razon es p"
         },
         {
           "id": "cupo",
@@ -179,11 +169,6 @@
           "porque": "Aplica (es tronco: personal-info + employment-info) pero es CONDICIONAL por diseño: solo se muestra si el backend lo pide (ONB002 / ONB004), y un usuario ya registrado y completo salta del OTP DIRECTO a /lenders (steps.json:70, :87 y el byp"
         },
         {
-          "id": "buro",
-          "obligatorio": false,
-          "porque": "Aplica pero NO es obligatoria, y en este ramal es la etapa más fácil de malinterpretar. Se dispara en el TRONCO al guardar lo laboral (Experian + DatacreditoQueryByAlliedController::userViability, steps.json:87), o sea por comercio/flujo y "
-        },
-        {
           "id": "listado",
           "obligatorio": true,
           "porque": "Imprescindible: el redirect solo existe si la card se mostró — «CreditOp muestra la card en el marketplace y, al seleccionarla, resuelve una url_utm» (doc.md:5) — y es el listado el que carga url_utm en la card (doc.md:31 → ListLenderContro"
@@ -245,11 +230,6 @@
           "porque": "Aplica, pero OPCIONAL: las pantallas del tronco (personal-info / employment-info) son condicionales — sólo salen con ONB002/ONB004, y con el bypass de usuario ya registrado el OTP manda DIRECTO a /lenders (steps.json:70, :72, :400-402). Que"
         },
         {
-          "id": "buro",
-          "obligatorio": true,
-          "porque": "Aplica y es MÁS obligatoria acá que en cualquier otro ramal: la compuerta local de Credifamilia entra sólo `if (isset($this->user->datacredito))` (legacy-backend app/Http/Controllers/Customer/SpecialConditionsController.php:61) y `credifami"
-        },
-        {
           "id": "listado",
           "obligatorio": true,
           "porque": "Aplica y es obligatoria: es donde Credifamilia aparece con `'Pre aprobado'` (doc.md:22), `'Rechazado'` o su tercer estado propio `'En validación'` para el pending async (ms-preapprovals/doc.md:66). Sin esqueleto en BD (`displayed_lenders` n"
@@ -302,10 +282,6 @@
         {
           "id": "formulario",
           "porque": "No se piden datos personales ni laborales: el usuario temporal no se enruta a personal-info y la info laboral se fabrica por defecto (ValidateOtpAuthService, las dos primeras ramas del flag). MEDIDO: el estado 9 aparece en 4 de 35 solicitudes de Alkosto, y en las que aparece no viene de un formulario del wizard."
-        },
-        {
-          "id": "buro",
-          "porque": "CONSECUENCIA, no decision aparte: el buro se dispara al guardar lo laboral, y aca no hay ese guardado. MEDIDO en prod: 0 consultas de buro de onboarding en 57 solicitudes de los tres comercios Corbeta (Alkosto 0/35, K-TRONIX 0/11, Alkomprar 0/7), contra 60-95 % en el resto. Los datos de riesgo los tiene Bancolombia."
         }
       ]
     }

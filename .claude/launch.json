@@ -74,6 +74,17 @@
       ],
       "cwd": "domain-model",
       "port": 5196
+    },
+    {
+      "name": "trazador",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "run",
+        "dev",
+        "--prefix",
+        "trazador"
+      ],
+      "port": 5192
     }
   ]
 }

@@ -97,9 +97,16 @@ type EtapaDef struct {
 	Porque string `json:"porque,omitempty"`
 	// BD: de qué evidencia estructurada dispone esta etapa. Vacío = la BD no la registra, y entonces la
 	// ausencia NO prueba nada (se muestra como `sin-evidencia`, no como `no ocurrió`).
+	// La PERTENENCIA (estados) y la SEMÁNTICA (cierran/detienen) son preguntas distintas y costaron un
+	// falso verde cada vez que se mezclaron: el estado 10 pertenece a desembolso pero no lo cierra
+	// (F-103), y el 9 pertenece a formulario pero su fila se escribe al CREAR la solicitud. Declararlas
+	// por separado es lo que permite que el 20 «Aprobada no desembolsada» aparezca como DETENIDA en vez
+	// de pintar la etapa verde.
 	BD struct {
-		Estados []int    `json:"estados,omitempty"`
-		Tablas  []string `json:"tablas,omitempty"`
+		Estados  []int    `json:"estados,omitempty"`
+		Cierran  []int    `json:"cierran,omitempty"`  // prueban que la etapa TERMINÓ
+		Detienen []int    `json:"detienen,omitempty"` // la solicitud está ADENTRO y no salió
+		Tablas   []string `json:"tablas,omitempty"`
 	} `json:"bd"`
 	Matchers   []*Matcher `json:"matchers,omitempty"`
 	Decisiones []Decision `json:"decisiones,omitempty"`
@@ -383,6 +390,29 @@ func (m *Mapa) EstadoEtapa() map[int]string {
 	return out
 }
 
+// EstadoCierra y EstadoDetiene derivan la SEMÁNTICA de los estados desde el mapa, igual que EstadoEtapa
+// deriva la pertenencia. Vivían hardcodeados en etapas.go y `bd.estados` era letra muerta: un estado
+// agregado al JSON no movía nada, y eso no fallaba — daba un mapa distinto del que el JSON afirmaba.
+func (m *Mapa) EstadoCierra() map[int]bool {
+	out := map[int]bool{}
+	for _, e := range m.Etapas {
+		for _, st := range e.BD.Cierran {
+			out[st] = true
+		}
+	}
+	return out
+}
+
+func (m *Mapa) EstadoDetiene() map[int]string {
+	out := map[int]string{}
+	for _, e := range m.Etapas {
+		for _, st := range e.BD.Detienen {
+			out[st] = e.ID
+		}
+	}
+	return out
+}
+
 // TieneEsqueleto dice si la BD puede probar esta etapa. Si no, su ausencia NO significa "no ocurrió".
 func (m *Mapa) TieneEsqueleto(id string) bool {
 	e, ok := m.porEtapa[id]
@@ -533,6 +563,14 @@ type HitoDef struct {
 	// AgilData ×5» (sus líneas), que son la misma consulta vista desde dos fuentes. Duplicar el paso obliga a
 	// cruzarlos de cabeza; fusionado queda una sola fila con el HECHO de la BD y la EVIDENCIA del log junta.
 	Central int64 `json:"central,omitempty"`
+	// Centrales: CANDIDATAS, cuando el mensaje nombra a la entidad pero no dice CUÁL de sus filas del
+	// catálogo. «Experian disparado desde…» es de Experian, pero el catálogo tiene tres Experian (Acierta,
+	// Quanto, Acierta+Quanto) y el texto no distingue. Declarar una fija haría que en la mitad de las
+	// solicitudes el paso colgara de la entidad equivocada — peor que dejarlo suelto.
+	//
+	// Se resuelve EN CADA TRAZA: si exactamente una de las candidatas fue consultada, el hito se fusiona
+	// ahí; si fueron cero o varias, se queda en su bloque y no se atribuye. Sin adivinar.
+	Centrales []int64 `json:"centrales,omitempty"`
 }
 
 type ValorFamilia struct {
@@ -549,10 +587,19 @@ type ItemCatalogo struct {
 }
 
 type BloqueDef struct {
-	ID        string         `json:"id"`
-	Label     string         `json:"label"`
-	Tipo      string         `json:"tipo"` // hitos | catalogo | familias | dinamico
-	Nota      string         `json:"nota,omitempty"`
+	ID    string `json:"id"`
+	Label string `json:"label"`
+	Tipo  string `json:"tipo"` // hitos | catalogo | familias | dinamico
+	Nota  string `json:"nota,omitempty"`
+	// Pantalla: la ruta del wizard que produce este bloque
+	// (`frontend-monorepo/apps/loan-request-wizard/app/routes.ts`). No es decorado: es la traducción entre
+	// el idioma del backend —en el que está todo lo demás— y el idioma en el que llega el reporte de
+	// soporte. «Falló en firma de documentos» es `sign-documents`, y antes aterrizaba en «Desembolso».
+	//
+	// ⚠ Se INFIERE del endpoint que sirvió el backend; nunca se observa. El wizard no manda nada a Loki
+	// (sus logs de ruta salen por OTLP hacia PostHog), así que una pantalla sin llamada al backend es
+	// invisible acá. Por eso se muestra como «pantalla X», no como «el cliente estuvo en X».
+	Pantalla  string         `json:"pantalla,omitempty"`
 	Fuente    string         `json:"fuente,omitempty"`
 	Hitos     []HitoDef      `json:"hitos,omitempty"`
 	Valores   []ValorFamilia `json:"valores,omitempty"`

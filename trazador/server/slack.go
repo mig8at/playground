@@ -52,7 +52,7 @@ var categorias = []categoria{
 		regexp.MustCompile(`(?i)voucher|comprobante|soporte de pago|no.{0,15}descargar`),
 		"parcial", "hay logs de `Failed to generate PDF` y `voucher_disbursement_notification_failed`, " +
 			"pero la generación vive después del cierre y no está mapeada como etapa"},
-	{"buro", "No consultó el buró / resultado raro del buró",
+	{"formulario", "No consultó el buró / resultado raro del buró",
 		regexp.MustCompile(`(?i)no consulta|no.{0,12}est\w+ consultando|credifamilia.{0,30}no|aml|datacr[eé]dito|` +
 			`experian|no coincide`),
 		"directa", "es exactamente el bloque STAGE 0..4 + el árbol de las 12 centrales: dice por qué NO se " +

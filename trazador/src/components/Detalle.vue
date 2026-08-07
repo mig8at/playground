@@ -76,6 +76,13 @@ const coincidencias = (s) => {
   n += (s.eventos || []).filter((ev) => ev.msg.toLowerCase().includes(q)).length
   return n
 }
+// Abrible = tiene algo adentro. Antes era «tiene logs», y por eso los pasos de BD —los que afirman «2 de
+// 6 consultadas» o «DETENIDA acá»— eran los únicos que no se podían auditar desde la vista.
+//
+// Acá vivió además un pliegue de la rutina («N pasos sin novedad»). Se quitó a pedido: decidía qué
+// esconder con una heurística sobre la etiqueta, y esconder por corazonada es el trato equivocado para
+// una vista de auditoría. El resumen de hallazgos ya contesta «¿dónde se rompió?» sin quitar renglones.
+const abrible = (s) => !!(s.eventos?.length || s.evidencia)
 const resalta = (msg) => {
   const q = filtro.value.trim().toLowerCase()
   return q && msg.toLowerCase().includes(q)
@@ -98,6 +105,13 @@ async function copiarSub(s, k) {
   const L = [`── ${s.label}${s.detail ? ' — ' + s.detail : ''}  ·  ${t.traza?.target} / solicitud ${t.traza?.ureq} / ${e.value?.label}`]
   const vuelca = (x, sangria) => {
     if (x !== s) L.push(`${sangria}${x.label}${x.detail ? ' — ' + x.detail : ''}`)
+    // La BD va CON el paso: el punto del botón es pegar una unidad que se explique sola, y un hallazgo
+    // sin la fila que lo respalda obliga a quien lo lee a volver a preguntar de dónde salió.
+    if (x.evidencia) {
+      L.push(`${sangria}   ── BD · ${x.evidencia.fuente} ──`)
+      x.evidencia.filas.forEach((f) => L.push(`${sangria}   ${f}`))
+      L.push(`${sangria}   ${x.evidencia.sql.split('\n').map((r) => r.trim()).filter(Boolean).join(' ')}`)
+    }
     ;(x.eventos || []).forEach((ev, i) => {
       L.push(`${sangria}${String(i + 1).padStart(3)}  ${ev.at}${ev.level === 'error' ? '  ERROR' : ''}  ${ev.msg}`)
     })
@@ -119,7 +133,19 @@ async function copiarSub(s, k) {
 
 // Los sub-pasos declarados SIN actividad: dicen «por acá no pasó», que es media respuesta. Van plegados.
 const apagados = computed(() => {
-  const con = new Set(vivos.value.map((s) => s.label))
+  // ⚠ Los hitos activos casi nunca son subs de PRIMER NIVEL: son hijos de su bloque, y los que se
+  // fusionaron con una entidad viven en el `detail` de esa fila. Comparar sólo contra `vivos` hacía que
+  // «Persistencia tras KYC ×1» apareciera arriba con actividad Y abajo en «sin actividad» — el mismo paso
+  // dicho de las dos formas, que es la peor clase de error en una herramienta que existe para afirmar.
+  const con = new Set()
+  const marca = (s) => {
+    con.add(s.label)
+    // Lo fusionado no deja fila propia: su nombre queda en el detalle de la entidad («score 348 · Experian
+    // disparado · Consulta terminada»). Se cuenta como activo, porque lo está.
+    if (s.detail) for (const parte of s.detail.split(' · ')) con.add(parte.trim())
+    for (const h of s.hijos || []) marca(h)
+  }
+  for (const s of e.value?.vivo?.subs || []) marca(s)
   const out = []
   for (const b of e.value?.bloques || []) {
     for (const h of b.hitos || []) if (!con.has(h.label)) out.push(h)
@@ -167,10 +193,10 @@ const apagados = computed(() => {
       </h3>
       <div class="tabla">
         <template v-for="(s, i) in vivos" :key="i">
-          <div class="fila" :class="{ clic: s.eventos?.length, ab: abierto === i, hit: coincidencias(s) }">
-            <button class="abre" :disabled="!s.eventos?.length" :aria-expanded="abierto === i"
+          <div class="fila" :class="{ clic: abrible(s), ab: abierto === i, hit: coincidencias(s) }">
+            <button class="abre" :disabled="!abrible(s)" :aria-expanded="abierto === i"
                     @click="alternar(i)">
-              <span class="cr" :class="{ on: abierto === i }">{{ s.eventos?.length ? '▸' : '' }}</span>
+              <span class="cr" :class="{ on: abierto === i }">{{ abrible(s) ? '▸' : '' }}</span>
               <span class="dot" :class="s.status" />
               <span class="l" :title="s.label">{{ s.label }}</span>
             </button>
@@ -178,10 +204,18 @@ const apagados = computed(() => {
             <span v-if="errores(s)" class="errn" :title="errores(s) + ' líneas de error'">{{ errores(s) }} err</span>
             <span class="d">{{ s.detail }}</span>
             <span class="src">{{ FUENTE[s.source] || '' }}</span>
-            <button v-if="s.eventos?.length || s.hijos?.length" class="cp" :class="{ ok: copiadoSub === i }"
+            <button v-if="abrible(s) || s.hijos?.length" class="cp" :class="{ ok: copiadoSub === i }"
                     :title="'Copiar «' + s.label + '» con sus logs'" @click.stop="copiarSub(s, i)">
               {{ copiadoSub === i ? '✓' : '⧉' }}
             </button>
+          </div>
+          <!-- LA BD PRIMERO Y APARTE: es un ESTADO, no un evento. Va sin número de línea y sin hora en la
+               misma columna que los logs a propósito — verlas juntas invita a leer una fila de BD como un
+               momento del flujo, y `updated_at` se mueve con el webhook. -->
+          <div v-if="abierto === i && s.evidencia" class="bd">
+            <div class="bdh">BD · {{ s.evidencia.fuente }}</div>
+            <p v-for="(f, k) in s.evidencia.filas" :key="k" class="bdf">{{ f }}</p>
+            <details class="bdq"><summary>la consulta que corrió</summary><pre>{{ s.evidencia.sql }}</pre></details>
           </div>
           <!-- Los logs DE ESTE PASO -->
           <div v-if="abierto === i && s.eventos?.length" class="log">
@@ -199,11 +233,11 @@ const apagados = computed(() => {
           <!-- Los hijos del grupo: cada uno con SUS logs, si los tiene. El grupo (Centrales, Validación
                de identidad, ¿Se disparó?) sale del mapa; el hijo es el paso concreto. -->
           <template v-for="(h, j) in (s.hijos || [])" :key="i + '-' + j">
-            <div class="fila hijo" :class="{ clic: h.eventos?.length, ab: abierto === i + '-' + j,
+            <div class="fila hijo" :class="{ clic: abrible(h), ab: abierto === i + '-' + j,
                                              hit: coincidencias(h) }">
-              <button class="abre" :disabled="!h.eventos?.length" :aria-expanded="abierto === i + '-' + j"
+              <button class="abre" :disabled="!abrible(h)" :aria-expanded="abierto === i + '-' + j"
                       @click="alternar(i + '-' + j)">
-                <span class="cr" :class="{ on: abierto === i + '-' + j }">{{ h.eventos?.length ? '▸' : '' }}</span>
+                <span class="cr" :class="{ on: abierto === i + '-' + j }">{{ abrible(h) ? '▸' : '' }}</span>
                 <span class="dot" :class="h.status" />
                 <span class="l" :title="h.label">{{ h.label }}</span>
               </button>
@@ -211,10 +245,15 @@ const apagados = computed(() => {
               <span v-if="errores(h)" class="errn" :title="errores(h) + ' líneas de error'">{{ errores(h) }} err</span>
               <span class="d">{{ h.detail }}</span>
               <span class="src">{{ FUENTE[h.source] || '' }}</span>
-              <button v-if="h.eventos?.length" class="cp" :class="{ ok: copiadoSub === i + '-' + j }"
+              <button v-if="abrible(h)" class="cp" :class="{ ok: copiadoSub === i + '-' + j }"
                       :title="'Copiar «' + h.label + '» con sus logs'" @click.stop="copiarSub(h, i + '-' + j)">
                 {{ copiadoSub === i + '-' + j ? '✓' : '⧉' }}
               </button>
+            </div>
+            <div v-if="abierto === i + '-' + j && h.evidencia" class="bd">
+              <div class="bdh">BD · {{ h.evidencia.fuente }}</div>
+              <p v-for="(f, k) in h.evidencia.filas" :key="k" class="bdf">{{ f }}</p>
+              <details class="bdq"><summary>la consulta que corrió</summary><pre>{{ h.evidencia.sql }}</pre></details>
             </div>
             <div v-if="abierto === i + '-' + j && h.eventos?.length" class="log">
               <table>
@@ -390,4 +429,16 @@ td.ln { width:1%; text-align:right; color:var(--skip); user-select:none; white-s
 td.tm { width:1%; color:var(--dim); white-space:nowrap; font-variant-numeric:tabular-nums }
 tr.err td:not(.ln) { color:var(--fail) }
 tr:hover td { background:var(--sel) }
+
+/* LA BD, deliberadamente distinta del log: fondo propio, sin numerar y sin columna de hora. Si se pareciera
+   a una tabla de logs, una fila de estado se leería como un evento del flujo. */
+.bd { margin: 0 0 2px 26px; padding: 8px 10px; border-left: 2px solid var(--bd, #8b6cc1);
+      background: color-mix(in srgb, currentColor 4%, transparent); border-radius: 0 3px 3px 0; }
+.bdh { font-size: 10px; letter-spacing: .08em; text-transform: uppercase; opacity: .65; margin-bottom: 5px; }
+.bdf { margin: 0; font: 12px/1.55 ui-monospace, SFMono-Regular, Menlo, monospace; white-space: pre-wrap; }
+.bdq { margin-top: 6px; font-size: 11px; opacity: .7; }
+.bdq summary { cursor: pointer; }
+.bdq pre { margin: 4px 0 0; padding: 6px 8px; overflow-x: auto; font-size: 11px; line-height: 1.5;
+           background: color-mix(in srgb, currentColor 5%, transparent); border-radius: 3px; }
+
 </style>
