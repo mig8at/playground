@@ -117,12 +117,21 @@ const atados = await query<Row>(
       ORDER BY rcud.id`,
     [ur.id, EXPERIAN],
 );
-// ⚠ HASTA DÓNDE LLEGA EL VÍNCULO. La tabla de arriba NO la escribe el producto: se pobló de un backfill
-// (prod 2026-08-07 04:50, 952.413 filas / 441.847 solicitudes en 16 s) y NADA la escribe desde entonces
-// — medido: 0 de 292 solicitudes creadas después del backfill tienen fila. O sea que para una solicitud
-// posterior al techo, el JOIN vuelve vacío SIEMPRE, y sin esta guarda eso se leía como «no se consultó
-// el buró»: un falso negativo silencioso, y justo en las corridas nuevas, que son las que se miran.
-// Ver F-107. Si algún día el producto empieza a escribirla en vivo, esta guarda se apaga sola.
+// ⚠ HASTA DÓNDE LLEGA EL VÍNCULO — y qué es ese vínculo en realidad.
+//
+// La tabla NO la escribe el flujo al consultar el buró: la calcula a posteriori el stored procedure
+// `SP_Update_User_Request_Risk_Centrals` (`legacy-backend/migrate.sql:282`), enganchando cada solicitud
+// con la fila de `risk_central_user_data` del mismo `user_id` cuya FECHA sea la máxima ≤ la de la
+// solicitud. O sea: es la misma inferencia por fecha que haríamos acá, precomputada — y a granularidad
+// de DÍA, así que dos solicitudes del mismo cliente el mismo día comparten fila. No desambigua el caso
+// difícil.
+//
+// Y no corre solo: nadie lo agenda. Se ejecutó a mano el 2026-08-07 04:50 (prod 952.413 filas) y desde
+// entonces cero — 0 de 292 solicitudes posteriores tienen vínculo. Para una solicitud más nueva que el
+// techo, el JOIN vuelve vacío SIEMPRE, y sin esta guarda eso se leía como «no se consultó el buró»: un
+// falso negativo silencioso, justo en las corridas nuevas, que son las que se miran. Ver F-107.
+//
+// La guarda se apaga sola si alguien vuelve a correr el SP (o lo agenda): el techo se mueve con él.
 const [cobertura] = await query<{ hasta: string | null; filas: number }>(
     'SELECT MAX(created_at) AS hasta, COUNT(*) AS filas FROM user_request_risk_central_user_data',
 );

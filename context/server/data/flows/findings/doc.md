@@ -2515,50 +2515,59 @@ nunca qué completó**.
 
 ---
 
-### F-107 · `user_request_risk_central_user_data`: el vínculo buró↔solicitud existe, se pobló de un backfill el 2026-08-07 y NADIE lo mantiene
+### F-107 · El vínculo buró↔solicitud NO es un hecho: lo calcula un stored procedure POR FECHA, y sólo cuando alguien lo corre a mano
 
-**Síntoma.** Cualquier herramienta que use esa tabla para responder «¿se consultó el buró PARA esta
-solicitud?» devuelve vacío en las solicitudes nuevas — y el vacío se lee como «no se consultó». Es un
-falso negativo silencioso, y cae justo en las corridas recientes, que son las que se miran.
+**Síntoma.** `user_request_risk_central_user_data` parece la respuesta al viejo problema de que
+`risk_central_user_data` se indexa por `user_id` y no por solicitud. Se lee como una clave foránea que
+ata cada consulta de buró a SU solicitud. **No lo es** — y creerle produce dos errores: afirmar
+atribución exacta donde hay una heurística, y leer su vacío como «no se consultó el buró».
 
-**Causa raíz** (medida; el mecanismo de escritura NO se pudo determinar). La tabla la crea la migración
-`2025_03_27_110748_create_user_request_risk_central_user_data_table.php` —que también crea
-`user_request_risk_central_verified`— y **la migración no hace backfill**. Sin embargo:
+**Causa raíz** (verificada en el código del procedimiento). Lo llena
+`SP_Update_User_Request_Risk_Centrals`, un stored procedure que vive en
+`legacy-backend/migrate.sql:282-405` — un `.sql` suelto en la raíz del repo, **no** en
+`database/migrations`. Existe en prod desde el **2025-12-11**. Su lógica, por cada central (1 Experian ·
+2 TusDatos · 3 AgilData · 4 AML):
 
-- **prod**: 952.413 filas / 441.847 solicitudes, todas con `created_at` entre **2026-08-07 04:50:00 y
-  04:50:16** (16 segundos). Cero filas posteriores.
-- **dev**: 566.944 filas, techo `2026-08-07 04:50:42`. Mismo horario ⇒ fue un backfill **cross-ambiente**.
-- **No hay escritor vivo**: de las **292 solicitudes de prod creadas después de las 05:00 de ese día,
-  0 tienen fila**. La cobertura queda congelada y se degrada sola con cada solicitud nueva.
-- **Ningún código del producto la referencia**: `grep` de `user_request_risk_central_user_data` sobre
-  `legacy-backend`, `legacy-application` y `frontend-monorepo` sólo devuelve las dos migraciones.
-  `RiskCentralUserData` no declara la relación en ninguno de los dos repos. Quién corrió el backfill y
-  con qué fin: **no verificado**.
+1. toma las solicitudes que NO estén en `user_request_risk_central_verified` (la tabla **marcador** de
+   «ya procesada» — eso explica sus 301.690 filas con `created_at` NULL);
+2. para cada una, engancha la fila de `risk_central_user_data` del **mismo `user_id`** cuya fecha sea la
+   **máxima menor o igual** a la de la solicitud, tomando la última del día
+   (`ROW_NUMBER() … PARTITION BY user_id, DATE(created_at) ORDER BY TIME(created_at) DESC`);
+3. al terminar, marca la solicitud en `_verified`.
 
-⚠ **Y el vínculo es la respuesta correcta al problema, cuando está.** `risk_central_user_data` se indexa
-por `user_id`, así que filtrar por fecha cuenta consultas de solicitudes POSTERIORES del mismo cliente
-(pasó con la uReq 464334). Esta tabla lo resuelve exacto — por eso duele que no se mantenga.
+⚠ **Eso es exactamente la inferencia por fecha, precomputada.** No es un dato que el flujo escriba
+cuando consulta el buró. Y opera a granularidad de **DÍA**: dos solicitudes del mismo cliente el mismo
+día reciben **la misma** fila de buró — que es justo el caso de contaminación que el trazador reporta
+(522213 / 522223 / 522227, mismo cliente, AML a las 11:22-11:23). **No desambigua el caso difícil; sólo
+congela una respuesta plausible para el fácil.**
 
-**Evidencia.** Las cuatro consultas de arriba (`-target prod` y `-target dev` del trazador, sólo
-lectura). El uso previo, con el razonamiento ya escrito, en
-`harness/dev/experian-check.ts:106-118`; y la lectura en `harness/bin/dbops.ts:153`.
+**Y no corre solo.** No hay migración, cron ni scheduler que lo invoque: `grep` del nombre del SP y de
+la tabla sobre `legacy-backend`, `legacy-application` y `frontend-monorepo` no devuelve un solo call
+site. Alguien lo ejecutó **a mano el 2026-08-07 ~04:50** en prod y dev a la vez: prod 952.413 filas /
+441.847 solicitudes escritas entre 04:50:00 y 04:50:16; dev 566.944, techo 04:50:42. Desde entonces,
+**cero filas nuevas** — 0 de las 292 solicitudes de prod creadas después de las 05:00 tienen vínculo.
+Como el SP sólo procesa lo no marcado, es idempotente y está pensado para re-correrse; lo que no existe
+es quién lo dispare.
 
-**Arreglo.** En el harness, `experian-check.ts` ahora consulta el **techo de cobertura** de la tabla y,
-si la solicitud es posterior, dice «SIN DATO — no se puede saber por acá» en vez de «no se consultó»,
-con un veredicto propio NO CONCLUYENTE que va **antes** que las otras tres causas (si el vínculo no
-cubre, las demás ni se pueden evaluar). La guarda **se apaga sola** el día que el producto empiece a
-escribir la tabla en vivo. Para el trazador: NO usar todavía — serviría para el histórico y fallaría
-para lo nuevo, que es la peor forma de fallar.
+**Evidencia.** El cuerpo del SP en `legacy-backend/migrate.sql:282-405` (el `INSERT … _verified` de
+cierre en `:399`). `information_schema.routines` en prod: creado 2025-12-11. Las cuatro consultas de
+conteo/techo contra prod y dev (trazador `-sql`, sólo lectura). Historial: `git log -S` del nombre de la
+tabla en los dos repos sólo devuelve la migración de 2025 — nada en 2026.
 
-⚠ **Pendiente de preguntar**: si viene un PR que empieza a escribirla en vivo, esto deja de ser una
-trampa y pasa a ser el join que le falta al trazador. Vale confirmar con quien corrió el backfill.
+**Arreglo.** En el harness, `experian-check.ts` consulta el **techo de cobertura** y, si la solicitud es
+posterior, dice «SIN DATO — no se puede saber por acá» en vez de «no se consultó», con un veredicto NO
+CONCLUYENTE que va **antes** que las otras tres causas. Para el trazador: **no lo uses como verdad**.
+Sirve como *corroboración* de la inferencia por fecha que ya hace —coinciden por construcción— pero no
+la mejora, y en el caso que importa (varias solicitudes el mismo día) tiene el mismo error. Los avisos
+de contaminación siguen siendo la lectura honesta.
 
-**Estado:** verificado el 2026-08-07 contra prod, dev y la copia local. La guarda del harness se probó
-sin regresión contra local (uReq 463424) y dev (464710); **su rama de disparo no se pudo ejercitar** —
-ni local ni dev tienen solicitudes posteriores al techo, sólo prod.
+**Estado:** verificado el 2026-08-07 contra el código del SP, prod, dev y la copia local.
+⚠ **Corrige una versión anterior de este mismo hallazgo** que decía que la tabla «resuelve exacto» la
+atribución por solicitud: es falso, y el error fue leer el nombre y la forma (dos FKs) sin leer quién la
+escribe. **Un pivote con foreign keys no prueba que el dato sea autoritativo** — hay que buscar el
+escritor.
 
-**Nota de hermana**: `user_request_risk_central_verified` (la otra tabla de esa migración) tiene
-**301.690 filas con `created_at` NULL** —insertadas en bruto, sin Eloquent— y tampoco la referencia
-ningún código. Sin investigar.
+**Pendiente, y vale preguntarlo**: quién lo corrió y para qué. Si la intención es dejarlo agendado, el
+techo deja de degradarse; si además alguien hiciera que el flujo escriba el vínculo **en el momento de
+consultar**, ahí sí pasaría a ser el hecho que hoy no es.
 
----
