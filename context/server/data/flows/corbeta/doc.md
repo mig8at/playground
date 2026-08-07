@@ -31,6 +31,28 @@ Dos sub-variantes conviven:
 
 ---
 
+## Dónde mirar
+
+Las secciones de abajo cuentan cada tramo en detalle; esto es el atajo: por responsabilidad, con la
+línea donde decide.
+
+- **¿Este comercio es Corbeta?** — `legacy-backend/Modules/AlliedBranchV1/App/Services/IsCorbetaOnboardingService.php:96 isCorbetaOnboardingOrchestrator`,
+  que lee `settings.corbeta_allieds` (cache-aside). Es un servicio INTERNO: no tiene ruta HTTP.
+- **Dónde Corbeta cambia la FORMA del flujo** — `legacy-backend/Modules/OnboardingV2/App/Services/ValidateOtpAuthService.php:317`
+  resuelve el flag (⚠ `:317` lo fuerza a `false` bajo Motai renting: los dos están cruzados). Y de ahí
+  cuelgan las tres consecuencias, en el mismo método: `:326` el usuario temporal **no** se enruta a
+  datos personales · `:335` la info laboral **se fabrica** (`storeDefaultEmploymentInformation`) ·
+  `:357` la respuesta sale con `OBV22007` en vez del `OBV22000` normal. **Éste es el archivo que
+  explica por qué un comercio Corbeta no consulta buró**: el buró se dispara al guardar lo laboral, y
+  acá lo laboral nunca se pide.
+- **El código de compra en caja** — ver §3 (rama clásica, `application`) y §4 (checkout ecommerce,
+  `legacy-backend`); son dos ramas distintas y el mismo canal.
+- ⚠ **La deuda está declarada en el propio código**: `ValidateOtpAuthService.php:311-312` dice que la
+  política de un comercio se filtró al orquestador general y que habría que ponerla detrás de una
+  abstracción por comercio. Si vas a tocar ese método, leé ese comentario primero.
+
+---
+
 ## 1. Configuración y gate de pertenencia
 
 - **`corbeta_allieds`** (tabla `settings`, code=`setting`, key=`corbeta_allieds`, array de allied_id)

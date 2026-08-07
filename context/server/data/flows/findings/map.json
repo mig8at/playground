@@ -61,5 +61,6 @@
     "harness/pkg/asesor.ts",
     "legacy-backend/Modules/Loans/App/Services/PaymentSchedule/PaymentCalculationService.php",
     "legacy-backend/Modules/Loans/App/Services/GuaranteeService.php"
-  ]
+  ],
+  "puertas": "n/a: es una BITÁCORA, no dueña código. Su puerta es el índice por síntoma del doc.md; los archivos del map son los que los hallazgos CITAN."
 }

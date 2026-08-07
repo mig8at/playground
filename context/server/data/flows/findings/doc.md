@@ -19,6 +19,21 @@ Agregá una sección `### F-NN · <título>` al final del bloque que corresponda
 
 ---
 
+## Dónde mirar
+
+Este nodo no tiene puertas de código propias: es una **bitácora**, y su puerta es el índice de acá
+abajo. Tres formas de entrar, en orden de rendimiento:
+
+1. **Por síntoma** → la tabla de abajo. Es lo que contesta «¿ya nos pasó esto?» en un salto.
+2. **Por `F-xx`** cuando venís de una cita: `harness/pkg/trace.ts`, `harness/pkg/cognito.ts`,
+   `trazador/server/etapas.go` y `tablero/data/*.md` citan hallazgos por número. Buscá `### F-94`.
+3. **Por texto crudo** cuando el síntoma no está en la tabla: `grep -n "<mensaje de error>"` sobre este
+   archivo. Los hallazgos guardan la evidencia literal —la línea de log, el HTTP status, la consulta—
+   justamente para que se reconozcan así.
+
+⚠ Los archivos del `map.json` de este nodo son los que los hallazgos CITAN, no una superficie que este
+nodo dueñe. Para entender un subsistema, andá a su nodo; acá está lo que ya salió mal en él.
+
 ## Índice · ¿con qué síntoma llegás?
 
 Este archivo pesa **~58.000 tokens**: leerlo entero para responder una pregunta no es viable. Entrá por

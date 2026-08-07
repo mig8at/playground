@@ -99,7 +99,7 @@ Si la tarea llega con una de estas frases, empezá por esos nodos. Si ninguna ma
 
 ## Nodos
 
-### creditop — CreditOp  ·  _root_ · 58 archivos
+### creditop — CreditOp  ·  _root_ · 59 archivos
 **Cuándo:** Cuando la tarea toca material TRANSVERSAL que ningún contexto dueña: tablas y datos clave, máquinas de estado y el `Estado 11`, frontera de pruebas y harness, deuda técnica y hardcodes, glosario y colisiones de id (`24` = lender Credifamilia Y allied Creditop). También cuando no sabés por dónde empezar. ⚠ Y **siempre antes de concluir algo**: trae los 7 INVARIANTES que corrigen las conclusiones obvias-y-falsas — la conducta la decide el PAR (comercio, entidad) y no la entidad (F-34), la config se COPIA y no se hereda, un estado dice DÓNDE está y no QUÉ completó (F-103/105/106), la ausencia de un log no prueba nada (F-94/102).
 Doc: `server/data/flows/creditop/doc.md` · Archivos: `server/data/flows/creditop/map.json`
 

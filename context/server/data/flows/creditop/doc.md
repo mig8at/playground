@@ -42,6 +42,32 @@ a afirmar algo que los contradice, medilo primero.
    `160`/`152`/`153` = SmartPay según el ambiente. Y el `response_type` de un lender **cambia entre
    ambientes**: verificarlo contra local miente (**F-95**).
 
+## Dónde mirar · LA ARISTA (comercio × lender)
+
+CreditOp es un **muchos-a-muchos**: un comercio ofrece varios lenders y un lender está en varios
+comercios. El invariante 1 dice que **la conducta vive en la ARISTA**, no en los nodos — y por eso las
+tablas que la representan son la puerta de entrada más rentable de todo el árbol. Todas en
+`application/app/Models/`:
+
+- **`application/app/Models/LendersByAllied.php:12`** (tabla `lenders_by_allieds`; las columnas de la calculadora, en `:19 $fillable`) — **la calculadora completa** de reglas
+  comercio × entidad. Si una regla «del lender» no se aplica como esperabas, la fila que manda está
+  acá, no en `lenders`.
+- **`LendersByAlliedBranch.php:12`** (tabla `lenders_by_allied_branches`; `:14 $fillable`) — la capa de SUCURSAL: `url_utm`,
+  `sort`, `status`. Es la que decide si la entidad **se ve** y en qué orden.
+- **`LenderAlliedCredential.php:20`** ($fillable) — la credencial del par. **Su existencia decide si la integración
+  se invoca o si el flujo ni siquiera llama** (F-34). Es la tabla que explica «esta entidad funciona en
+  un comercio y no en otro».
+- Los nodos: **`Allied.php:13`** (comercio) → **`AlliedBranch.php:12`** (sucursal, la puerta por `hash`)
+  → **`Lender.php:12`** (entidad; el `response_type` que despacha todo está en su `:27 $fillable`) →
+  **`UserRequest.php:18`** (la solicitud: el evento que une los dos lados).
+
+⚠ **No hay herencia viva: se COPIA** (invariante 2). La copia se dispara al habilitar la entidad en el
+comercio, desde el admin de `application` — ~37.000 filas por sucursal. Cambiar la config «del lender»
+NO toca las copias existentes.
+
+Para la lógica que LEE estas tablas: `creditopx` (la cascada rt=2), `merchants` (config por comercio),
+`entities` (qué es un lender como dato), `actors` (quién puede ver qué).
+
 ## Arquitectura
 Migración **strangler-fig en parallel-run**. La lógica vive repartida entre `application` (el VIEJO) y el par `legacy-backend + frontend-monorepo` (el NUEVO). En NEGOCIO: a `application` se le dice **ALIADOS**; al conjunto `legacy-backend + frontend-monorepo` se le dice **REFACTOR**. Detalle por repo → contextos **application** · **legacy-backend** · **frontend-monorepo** · **architecture**.
 

@@ -65,16 +65,40 @@ invita a armar una línea de tiempo con lo que no es una.
 
 ## Dónde mirar
 
-**El ensamblado**: `trazador/server/etapas.go` es el corazón (~3.400 líneas) — `ArmarTraza` cruza BD y
-logs, reparte líneas por etapa y por hito, fusiona el hecho de BD con la evidencia de log
-(`fusionarCentrales`), y arma el resumen de hallazgos (`armarHallazgos`). **Las fuentes**:
-`fuentes.go` (SQL + Redash + el parseo de `ML_predictions`). **El mapa**: `mapa.go` (tipos, matchers,
-`EstadoEtapa`/`EstadoCierra`/`EstadoDetiene` derivados del JSON). **La API**: `serve.go`. **La vista de
-terminal**: `vista.go` + `imprimirTraza` en `etapas.go`.
+Por responsabilidad, con la línea donde decide. `etapas.go` son ~3.400 líneas: entrar sin esto es
+leerlo entero.
 
-**La UI**: `src/components/Etapas.vue` (el árbol lateral, dibujado desde el mapa declarado aunque no
-haya traza), `src/components/Detalle.vue` (los pasos, sus logs y el bloque de BD), `src/trazaTexto.js`
-(serializa la traza entera a texto plano para pegar en un hilo de soporte).
+- **Punto de entrada** — `trazador/server/etapas.go:2367 ArmarTraza(target, ureq)`: trae BD, trae logs
+  y llama al ensamblado. Es la única puerta; todo lo demás cuelga de acá.
+- **El ensamblado** (el corazón) — `etapas.go:392 ensamblar(mapa, subMapa, s, lineas, target)`:
+  `:472 porEtapa` reparte cada línea a su etapa (por patrón del mapa, y si no, heredando el span) ·
+  `:1436 agruparPorHitos` la reparte a su sub-paso · `:2994 fusionarCentrales` junta el hecho de BD con
+  la evidencia de log en UNA fila (la N:1 que hace que Experian traiga sus tres hitos) ·
+  `:1877 izarErroresSinHito` saca a la vista los errores que cayeron en el cajón de sastre ·
+  `:1904 armarHallazgos` arma el resumen de arriba (sólo hojas: el padre que repite al hijo no entra).
+- **La semántica de los estados** — `etapas.go:1677 etapaDeMuerte` (dónde murió, por evidencia y no por
+  posición) y las tres derivaciones del mapa en `mapa.go:396 EstadoCierra` + sus vecinas
+  `EstadoEtapa`/`EstadoDetiene`. ⚠ Antes vivían hardcodeadas en `etapas.go` y el JSON era letra muerta.
+- **Qué línea va a qué etapa** — `mapa.go:214 EtapaDe(msg, ctx)` devuelve la PRIMERA etapa cuyo matcher
+  coincide, recorriendo por `orden`: por eso `formulario` (30) le gana a `biometria` (78) y un matcher
+  nuevo puede robarle líneas a una etapa anterior. El matcher en sí: `mapa.go:58 Matcher.coincide`.
+- **Los sub-pasos declarados** — `mapa.go:646 SubMapa.Bloques(etapa)` y `mapa.go:550 HitoDef`. La regla
+  del subconjunto (un hito sólo ve líneas que su etapa ya reclamó) la audita
+  `mapa.go:656 SubMapa.ValidarSub`.
+- **Las fuentes** — `fuentes.go:293 sqlSolicitud` (la solicitud + comercio + lender + validación),
+  `:560 sqlProfiling` (el snapshot del motor, incluido `ML_predictions` con sus tres formas),
+  `:498 fecha` (⚠ acá se corrige el desfase de 5 h: la BD llega en UTC). Los logs:
+  `etapas.go:2016 traerLineas` (anclas por `user_request_id` con sus tres grafías, + la etiqueta del MS).
+- **La vista de terminal** — `etapas.go:1743 imprimirTraza` (el árbol, el resumen de hallazgos arriba,
+  y el recorte que NUNCA se come un error). El HTML opcional: `vista.go:23 escribirHTML`.
+- **La API que consume la Vue** — `serve.go:38 servir(addr)` · `:199 targetDe` (de qué ambiente lee) ·
+  `:212 enmascararPII`.
+- **El SQL de solo lectura** — `sql.go:47 esSoloLectura` es la guarda: rechaza todo lo que no sea
+  SELECT/WITH. `:83 modoSQL` es el comando.
+- **La UI** — `src/components/Etapas.vue` (el árbol lateral, dibujado desde el mapa declarado aunque no
+  haya traza), `src/components/Detalle.vue` (los pasos, sus logs y el bloque de BD; acá vive `abrible`,
+  que es lo que hace auditables los pasos que sólo tienen evidencia de BD), `src/trazaTexto.js`
+  (serializa la traza entera a texto plano para pegar en un hilo de soporte).
 
 ## Gotchas / riesgos
 

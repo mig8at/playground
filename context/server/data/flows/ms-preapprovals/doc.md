@@ -95,6 +95,35 @@ El loader de `available-lenders.tsx` lee `VITE_PREAPPROVALS_ENDPOINT` (`:147`) y
 ## Contraparte legacy (parallel-run)
 `PreApprovedLenderService::validatePreApproveLender` (`:41`): switch **bifurcado por `lender->id`** (no polimórfico) que consulta la misma API externa y **empuja** a `$approvedLenders` (sort=1) **o excluye** con `unset`. Filtro **temporal** en `LenderRetrievalService.php:252` `[12, 23, 141, 142, 166]` (Prami + variantes Welli + 166; `// TODO: [TEMPORAL]` en `:248`) los saca del preaprobado sincrónico porque erroran por falta de datos en `employment-info`.
 
+## Dónde mirar
+
+Por responsabilidad, con la línea donde decide. El MS es hexagonal: `handlers` (HTTP) → `usecases`
+(orquestación) → `domain` (reglas) → `storage`/clientes (infra); si buscás una decisión de negocio no
+está en el handler.
+
+- **Punto de entrada HTTP** — `pre-approvals-service/internal/infra/handlers/preapprovals/handler.go:45 Check`
+  (llamada del backend) y `:146 CheckMe` (llamada del propio usuario). Las rutas se registran en
+  `:252 RegisterRoutes` → `:255 POST /preapprovals/check` · `:256 POST /preapprovals/me/check`. Los dos
+  desembocan en `:221 executeCheckPreApproval`, así que un bug de orquestación afecta a ambos.
+- **La validación que responde 4xx** — `handler.go:103 validateLenderRequirements`. ⚠ Es la única fuente
+  de 4xx/422: todo fallo del PROVEEDOR sale 500 (ver Gotchas). Si el front muestra un 422, el problema
+  es de entrada (key/amount/hash), no del lender.
+- **El orquestador** — `internal/core/usecases/preapproval/check_preapproval.go:56 Execute`:
+  `:72 FindLatestPreApproval` (busca el caché) · `:126 cmd.LendingProduct.CheckPreApproval` (la llamada
+  real al proveedor, el único punto donde se sale a la red) · `:131 registerAttempt` (el intento queda
+  registrado SIEMPRE, aunque se haya servido del caché — ver `:89`) · `:160 notifyLenderResult`.
+- **La regla del caché** — `internal/core/domain/preapproval.go:42 ShouldCheckAgain`. Acá se decide si
+  se re-consulta: `pending` **siempre** re-consulta, `rejected` re-consulta sólo si cambió el monto, y
+  **Meddipay re-consulta siempre** (tiene un `TODO` en el código: necesita `order_id` nuevo en cada
+  request). Si un lender «no actualiza su respuesta», empezá acá y no en el adapter.
+- **Los intentos por lender** — `internal/infra/handlers/lender_attempts/handler.go:42 Register` ·
+  `:112 ListByLender`. Es lo que responde «¿cuántas veces se le preguntó a esta entidad?».
+- **Persistencia** — `internal/infra/storage/dynamodb/preapproval_repository.go` (DynamoDB, no MySQL:
+  por eso esta decisión NO se puede auditar con una consulta a la BD del monolito).
+- **El lado cliente (wizard)** — `frontend-monorepo/.../adapters/fetch-lender-preapproval.ts` (el fetch
+  por entidad, uno a uno) y `.../routes/lenders-marketplace/available-lenders.tsx` (el fan-out y el
+  fallback). El badge «Pre aprobado» del marketplace lo decide esta cadena, no legacy (F-78).
+
 ## Fronteras (qué cede este nodo)
 - **Harness** (nodo hermano): el mock/ejercitador del MS (mockery-lambdas, panel de inyección, perfiles `lambdas-local`). Este nodo describe el **servicio real**, no cómo se mockea. Las `sandbox.go`/remaps SÍ son del servicio (viven en él) y se documentan acá; los mocks HTTP externos (welli-mockery-lambda, etc.) son del harness.
 - **Aggregator** (nodo hermano): la **decisión de negocio rt=1** del lender (familia de agregadores, handoff/entrega, Corbeta batch, webhooks de cierre, cartera del tercero). Este nodo NO absorbe la resolución cliente de aggregator; conserva los suyos (`available-lenders.tsx`, `fetch-lender-preapproval.ts`, `preapproval-retry.tsx`, `validate-preapproved-loan.*`, `lender-results` relay).

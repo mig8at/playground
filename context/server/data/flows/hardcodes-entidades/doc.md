@@ -18,6 +18,32 @@ Para sumar una entidad/comercio con un flujo distinto **hay que editar código e
 3. **Branch por nombre (`lender.name ==`) + assets por-id** — `LenderTabBehaviorResolver` por string, y peor: **archivos nombrados por id** (`consent_{id}.blade`, `payment_schedules/lender_{id}`, URLs S3 de T&C por id). Cada lender con doc propio = un archivo con su número.
 > Espejo en el front: `MOTAI_LENDER_IDS` forka la card, la fórmula de precio (duplicada), el routing y el tipo de documento PEP — todo por `id === 158`.
 
+## Dónde mirar
+
+La tabla de abajo lista 24 clusters, pero **casi todos entran por tres puertas**. Si vas a integrar una
+entidad, abrí estas tres y vas a saber en minutos si te toca tocar código o alcanza con config.
+
+- **Puerta 1 · el god-method del dispatch por id** —
+  `legacy-backend/Modules/Onboarding/App/Services/lenders/PreApprovedLenderService.php`: el if-chain
+  con una rama por lender rt=1. Las ramas vivas, con su línea: `:79` Addi (9) · `:167` Bancolombia
+  BNPL (68) · `:193` Bancolombia Consumo (100) · `:307` Credifamilia (24) · `:453` Meddipay (39) ·
+  `:535` Prami (12). **Sumar un agregador = agregar un `if` acá.** ⚠ La ironía está en el mismo repo:
+  `lender->action` YA existe como clase polimórfica y este método no la usa.
+- **Puerta 2 · los arrays de ids quemados** — no tienen un solo archivo, pero sí una firma para
+  grepear: `[24,209,210,211,311]` (Corbeta, y ojo que el setting `corbeta_allieds` existe y es la
+  fuente correcta), `[218,219,221,222]` (Pash), `MOTAI_LENDER_IDS`, Welli `[23,141,142,166]`. En el
+  front: `frontend-monorepo/modules/loan-request-wizard/lenders-marketplace/src/components/available-lenders/AvailableLenders.tsx:555`
+  forka la card por `MOTAI_LENDER_IDS`, y el mismo array vuelve en `hooks/useLenderSelection.ts:8`.
+- **Puerta 3 · el branch por NOMBRE** —
+  `legacy-backend/Modules/Onboarding/App/Services/lenders/LenderTabBehaviorResolver.php`: decide la UX
+  post-selección comparando `lender.name` como string. Se rompe con un renombre en el admin, sin que
+  falle nada visible.
+
+⚠ **Lo que este nodo NO te da**: la línea exacta de los 101 sitios del catálogo. Ésas viven en el
+`map.json` (la columna `sitios` de la tabla las cuenta). Las tres puertas de arriba son el atajo para
+el 80 % de los casos; para el 20 % restante, entrá por la fila de la tabla y grepeá el id en los
+archivos del mapa.
+
 ## Catálogo de BLOQUEADORES (🔴 sumar un similar obliga a tocar código)
 
 <!-- generado del audit; "sitios" = ocurrencias verificadas con file:line en map.json -->
