@@ -3,7 +3,10 @@
   "combination": "pullman",
   "group": "merchants",
   "kind": "reference",
-  "when": "Cuando la tarea es de Amoblando Pullman o su entidad CrediPullman (77): el caso rt=2 vanilla y el canónico para pruebas con usuario sintético, más sus hardcodes por allied_id 94.",
+  "when": "Cuando la tarea es de Amoblando Pullman (`allied_id` 94) o su entidad CrediPullman (lender 77): el caso `response_type` 2 vanilla y el canónico para pruebas con usuario sintético, más sus hardcodes por comercio.",
+  "sintomas": [
+    "«falló en Pullman / CrediPullman»"
+  ],
   "verified": {
     "ref": "main",
     "date": "2026-07-18",

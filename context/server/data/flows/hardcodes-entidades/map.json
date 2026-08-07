@@ -4,6 +4,10 @@
   "group": "creditop",
   "kind": "reference",
   "when": "Cuando la tarea sea INTEGRAR / agregar / parametrizar una entidad (lender) o comercio (allied) nuevo, tocar el flujo de uno existente (Motai/Welli/Bancolombia/Corbeta/Pash/Credifamilia/Meddipay/etc.), o preguntarse por qué un flujo está QUEMADO / CABLEADO / ACOPLADO a un id, por qué CreditOp NO ESCALA o no es config-driven, o vayas a escribir un if por id / array de ids / branch por nombre de lender: el mapa de los 24 acoplamientos hardcodeados que impiden la integración por-config y lo que cuesta des-hardcodear cada uno. DOLOR: leelo ANTES de sumar otro hardcode.",
+  "sintomas": [
+    "«hay que integrar una entidad nueva»",
+    "«¿por qué no le sale esta entidad?»"
+  ],
   "verified": {
     "ref": "main",
     "date": "2026-07-31",

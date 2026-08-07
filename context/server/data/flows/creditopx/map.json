@@ -3,7 +3,11 @@
   "combination": "creditopx",
   "group": "entities",
   "kind": "reference",
-  "when": "Cuando la pregunta es por qué una entidad aparece o NO aparece en el listado, y con qué enganche, cupo y plazo. La cascada in-platform rt=2/3: reglas de grupo, datacrédito, categoría y cupo disponible.",
+  "when": "Cuando la pregunta es por qué una entidad aparece o NO aparece en el listado, y con qué enganche, cupo y plazo. La cascada in-platform rt=2/3: reglas de grupo (`group_rules`), datacrédito, categoría y cupo disponible. La calculadora vive en `lenders_by_allieds` y la visibilidad por sucursal en `lenders_by_allied_branches`. ⚠ La conducta la decide el PAR (comercio, entidad), no la entidad — ver F-34 antes de concluir «esta entidad está rota».",
+  "sintomas": [
+    "«no le apareció ninguna entidad»",
+    "«¿por qué no le sale esta entidad?»"
+  ],
   "verified": {
     "ref": "main",
     "date": "2026-07-31",

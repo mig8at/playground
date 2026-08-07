@@ -208,6 +208,32 @@ humano; el chequeo inverso necesita las rutas estructuradas:
 git dice **cuánto tiempo** lleva viejo un nodo, no solo que hoy lo está. Y la viz read-only lo puede
 leer con el mismo `import.meta.glob` que usa para `tree.json` — sin server, que es lo que se borró.
 
+## Al CERRAR una tarea: ¿el árbol te llevó hasta la causa?
+
+Es la única pregunta que hace que este árbol mejore solo, y son 10 minutos. Hacela **siempre**, aunque
+la tarea haya salido bien — sobre todo si salió bien por `grep`.
+
+**Si el árbol NO te ruteó** (fuiste directo al código, o abriste el nodo equivocado), tres arreglos, en
+este orden:
+
+1. **El archivo causa-raíz al `map.json` del nodo correcto, CON SU PORQUÉ en el `doc.md`.** Listarlo y
+   no explicarlo no sirve: hoy hay 446 archivos citados sin una línea de prosa, y para eso `grep` es más
+   rápido que abrir un nodo.
+2. **La REGLA GENERAL al gotcha, no el caso.** «El export tiene un bug» se arregla y desaparece; «un
+   filtro por rol con `when()` encadenados falla ABIERTO» sigue valiendo para el próximo perfil que
+   alguien cree. Si la regla contradice una conclusión que parecía obvia, va también a los **7
+   invariantes** del nodo `creditop`.
+3. **La frase con la que LLEGÓ el problema, a `sintomas[]` del `map.json`.** Es lo que arma la tabla
+   «Entrá por el síntoma» del ROUTE-MAP. Si dos nodos hacen falta para resolverlo, declarala en los dos:
+   el generador las fusiona en una fila.
+
+**Y si el árbol SÍ te ruteó**, mirá si algo quedó desactualizado por lo que aprendiste: una cita
+`archivo:línea` corrida, un `when` al que le faltó la seña que vos buscaste, un nodo que había que
+sellar de nuevo.
+
+Medí antes de decidir: `make context-salud` dice qué `when` no tiene señas particulares, qué archivos
+están listados y mudos, qué archivos-hub viven en demasiados nodos y qué `F-xx` quedó fuera del índice.
+
 ## Nodo nuevo: dos lugares, los dos a mano
 
 1. `server/data/flows/<id>/map.json` (`name`, `kind`, `when`, `files[]`) + `doc.md` armado desde

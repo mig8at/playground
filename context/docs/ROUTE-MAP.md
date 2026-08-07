@@ -2,9 +2,63 @@
 
 > Índice estático del árbol de contexto (reemplaza al MCP). **Cómo usar:** leé los `Cuándo:` de abajo, elegí 2–4 nodos que matcheen tu tarea, abrí `server/data/flows/<id>/doc.md` (el análisis) y `server/data/flows/<id>/map.json` (la lista de archivos fuente), y de ahí leé el código real. Las rutas de `map.json` son `alias/relpath`.
 
-**Repos (alias → root):** `application`→`~/Desktop/CREDITOP/github/legacy-application` · `frontend-monorepo`→`~/Desktop/CREDITOP/github/frontend-monorepo` · `legacy-backend`→`~/Desktop/CREDITOP/github/legacy-backend` · `pre-approvals-service`→`~/Desktop/CREDITOP/github/pre-approvals-service` · `form-service`→`~/Desktop/CREDITOP/github/form-service` · `harness`→`~/Desktop/CREDITOP/playground/harness`
+**Repos (alias → root):** `application`→`~/Desktop/CREDITOP/github/legacy-application` · `frontend-monorepo`→`~/Desktop/CREDITOP/github/frontend-monorepo` · `legacy-backend`→`~/Desktop/CREDITOP/github/legacy-backend` · `pre-approvals-service`→`~/Desktop/CREDITOP/github/pre-approvals-service` · `form-service`→`~/Desktop/CREDITOP/github/form-service` · `harness`→`~/Desktop/CREDITOP/playground/harness` · `trazador`→`~/Desktop/CREDITOP/playground/trazador`
 
 **Mantenimiento:** validar que las rutas resuelven → `python3 tools/oracle.py <map.json>`. Regenerar este mapa → `python3 tools/build-route-map.py`.
+
+## Entrá por el síntoma
+
+Si la tarea llega con una de estas frases, empezá por esos nodos. Si ninguna matchea, leé los `Cuándo:`.
+
+| Lo que te dicen | Empezá por |
+|---|---|
+| «a este comercio le pasa distinto» | `merchants` |
+| «a este usuario le salen datos de OTRO comercio» | `actors` · `application` |
+| «desde operaciones no puedo ver/validar al usuario» | `backoffice` |
+| «dice que los datos no coinciden» / falla la identidad | `kyc` |
+| «¿dónde se trabó?» | `aggregator` · `formalization` · `trazador` |
+| «el botón Descargar Solicitudes trae mal» | `application` |
+| «el celular no se bloquea» / IMEI | `smartpay` |
+| «el código de compra en caja no sirve» | `corbeta` |
+| «el endpoint devuelve un código raro» (ONB0xx) | `legacy-backend` |
+| «el listado tardó minutos» | `profiling` |
+| «el reporte que descargó trae de más» | `application` |
+| «el webhook del lender no llegó» | `aggregator` |
+| «eligió la entidad y no pasó nada» | `aggregator` |
+| «en este comercio se salta pasos» | `merchants` |
+| «¿en qué repo vive esto?» / «está duplicado» | `architecture` |
+| «entró desde la tienda online y se rompió» | `ecommerce` |
+| «esto anda en local y no en dev/qa» | `findings` · `trazador` |
+| «esto no puede ser, la entidad funciona en otro comercio» | `creditop` |
+| «falló con Bancolombia» | `bancolombia` |
+| «falló con Credifamilia» | `credifamilia` |
+| «falló el renting / Ábaco» | `motai` |
+| «falló en Pullman / CrediPullman» | `pullman` |
+| «falló firmando documentos» | `findings` · `formalization` |
+| «formulario no encontrado» | `dynamic-forms` · `form-service` |
+| «hay que agregar un campo al formulario» | `dynamic-forms` · `form-service` |
+| «hay que integrar una entidad nueva» | `hardcodes-entidades` |
+| «la pantalla del wizard se ve/comporta mal» | `frontend-monorepo` |
+| «lo mandó al sitio del lender y no volvió» | `redirect` |
+| «necesito reproducir/probar un flujo entero» | `findings` · `harness` |
+| «no le apareció ninguna entidad» | `creditopx` · `findings` · `kyc` · `merchants` · `profiling` |
+| «no le consultaron el buró» | `kyc` |
+| «no le llega el OTP del registro» | `onboarding` |
+| «no le llegó el OTP de la firma» | `formalization` |
+| «no puede pasar del formulario» | `onboarding` |
+| «no sé por dónde empezar» | `creditop` |
+| «no tiene permisos» / «ve un panel mutilado» | `actors` |
+| «pagó y no se refleja» / cuota inicial | `payments` |
+| «pidió X y le ofrecieron menos plazo» | `amount-tiers` |
+| «¿por qué el listado salió en ese orden?» | `profiling` |
+| «¿por qué le salió ESE cupo / esa categoría?» | `profiling` |
+| «¿por qué no le sale esta entidad?» | `creditopx` · `hardcodes-entidades` · `merchants` · `ms-preapprovals` |
+| «quedó aprobada y no se desembolsó» | `formalization` |
+| «¿qué integra de verdad esta entidad?» | `entities` |
+| «¿qué le pasó a ESTA solicitud?» | `trazador` |
+| «sale pre-aprobado y no debería» (o al revés) | `ms-preapprovals` |
+| «ya está desembolsado y la cuota está mal» | `servicing` |
+| «ya nos pasó esto antes?» | `findings` |
 
 ## Árbol
 ```
@@ -46,7 +100,7 @@
 ## Nodos
 
 ### creditop — CreditOp  ·  _root_ · 58 archivos
-**Cuándo:** Cuando la tarea toca material TRANSVERSAL que ningún contexto dueña: tablas y datos clave, máquinas de estado y el Estado 11, frontera de pruebas y harness, deuda técnica y hardcodes, glosario y colisiones de id. También cuando no sabés por dónde empezar.
+**Cuándo:** Cuando la tarea toca material TRANSVERSAL que ningún contexto dueña: tablas y datos clave, máquinas de estado y el `Estado 11`, frontera de pruebas y harness, deuda técnica y hardcodes, glosario y colisiones de id (`24` = lender Credifamilia Y allied Creditop). También cuando no sabés por dónde empezar. ⚠ Y **siempre antes de concluir algo**: trae los 7 INVARIANTES que corrigen las conclusiones obvias-y-falsas — la conducta la decide el PAR (comercio, entidad) y no la entidad (F-34), la config se COPIA y no se hereda, un estado dice DÓNDE está y no QUÉ completó (F-103/105/106), la ausencia de un log no prueba nada (F-94/102).
 Doc: `server/data/flows/creditop/doc.md` · Archivos: `server/data/flows/creditop/map.json`
 
 ### actors — Actors  ·  _reference_ · 68 archivos
@@ -54,11 +108,11 @@ Doc: `server/data/flows/creditop/doc.md` · Archivos: `server/data/flows/credito
 Doc: `server/data/flows/actors/doc.md` · Archivos: `server/data/flows/actors/map.json` · Padre: `creditop`
 
 ### aggregator — Aggregator  ·  _reference_ · 106 archivos
-**Cuándo:** Cuando el prestamista decide AFUERA por API (rt=1): Bancolombia, Sistecrédito, Welli, Addi, Meddipay, Banco de Bogotá. Pre-aprobación, webhooks, cartera del tercero, y por qué no se puede simular en local.
+**Cuándo:** Cuando el prestamista decide AFUERA por API (`response_type` 1): Bancolombia (BNPL 68 / Consumo 100), Sistecrédito, Welli, Addi, Meddipay (39), Banco de Bogotá. Pre-aprobación, webhook `lender-result`, cartera del tercero, y por qué no se puede simular en local. ⚠ El webhook NO registra su recepción: «no llegó» y «llegó y falló» se ven igual desde la BD (F-94), y la única huella es `profiling_reviews.disbursed_lender`.
 Doc: `server/data/flows/aggregator/doc.md` · Archivos: `server/data/flows/aggregator/map.json` · Padre: `entities`
 
 ### amount-tiers — Amount tiers  ·  _reference_ · 33 archivos
-**Cuándo:** Cuando el plazo se recorta o el cupo se topea según el MONTO pedido: los tramos por monto de rt=2. Ojo: no tocan el enganche (eso es de la categoría).
+**Cuándo:** Cuando el plazo se recorta o el cupo se topea según el MONTO pedido: los tramos por monto de rt=2, en `creditop_x_conditions_by_amount_by_lender` (con `amount_conditions`, `below_min_amount`). Síntoma típico: «pidió X y le ofrecieron menos plazo del que esperaba». Ojo: los tramos NO tocan el enganche — eso es de la categoría, y va en `profiling`.
 Doc: `server/data/flows/amount-tiers/doc.md` · Archivos: `server/data/flows/amount-tiers/map.json` · Padre: `creditopx`
 
 ### application — application  ·  _reference_ · 85 archivos
@@ -86,7 +140,7 @@ Doc: `server/data/flows/corbeta/doc.md` · Archivos: `server/data/flows/corbeta/
 Doc: `server/data/flows/credifamilia/doc.md` · Archivos: `server/data/flows/credifamilia/map.json` · Padre: `entities`
 
 ### creditopx — CreditopX  ·  _reference_ · 15 archivos
-**Cuándo:** Cuando la pregunta es por qué una entidad aparece o NO aparece en el listado, y con qué enganche, cupo y plazo. La cascada in-platform rt=2/3: reglas de grupo, datacrédito, categoría y cupo disponible.
+**Cuándo:** Cuando la pregunta es por qué una entidad aparece o NO aparece en el listado, y con qué enganche, cupo y plazo. La cascada in-platform rt=2/3: reglas de grupo (`group_rules`), datacrédito, categoría y cupo disponible. La calculadora vive en `lenders_by_allieds` y la visibilidad por sucursal en `lenders_by_allied_branches`. ⚠ La conducta la decide el PAR (comercio, entidad), no la entidad — ver F-34 antes de concluir «esta entidad está rota».
 Doc: `server/data/flows/creditopx/doc.md` · Archivos: `server/data/flows/creditopx/map.json` · Padre: `entities`
 
 ### dynamic-forms — Dynamic Forms  ·  _reference_ · 90 archivos
@@ -98,7 +152,7 @@ Doc: `server/data/flows/dynamic-forms/doc.md` · Archivos: `server/data/flows/dy
 Doc: `server/data/flows/ecommerce/doc.md` · Archivos: `server/data/flows/ecommerce/map.json` · Padre: `creditop`
 
 ### entities — Entities  ·  _reference_ · 50 archivos
-**Cuándo:** Cuando la pregunta es qué ES un prestamista como dato: la fila lenders, sus tablas de configuración, y sobre todo el response_type (0/1/2/3/4) que despacha toda la plataforma. Alta de una entidad nueva.
+**Cuándo:** Cuando la pregunta es qué ES un prestamista como dato: la fila `lenders`, sus tablas de configuración, y sobre todo el `response_type` (0 redirect/UTM · 1 agregador por API · 2 y 3 CreditopX in-platform · 4 Credifamilia SOAP) que despacha toda la plataforma. Alta de una entidad nueva. También `lender_identity_validation_types` (qué camino de identidad le toca). ⚠ El `response_type` CAMBIA según el ambiente: verificarlo contra local miente (F-95).
 Doc: `server/data/flows/entities/doc.md` · Archivos: `server/data/flows/entities/map.json` · Padre: `creditop`
 
 ### findings — Findings  ·  _reference_ · 44 archivos
@@ -106,7 +160,7 @@ Doc: `server/data/flows/entities/doc.md` · Archivos: `server/data/flows/entitie
 Doc: `server/data/flows/findings/doc.md` · Archivos: `server/data/flows/findings/map.json` · Padre: `creditop`
 
 ### form-service — Form Service  ·  _reference_ · 35 archivos
-**Cuándo:** Cuando la tarea toca el microservicio form-service (Go): el formulario dinámico G2 'backend-driven' (pantalla additional-info), cómo se arma el schema desde las 5 tablas legacy, dónde/cómo se guardan las respuestas (user_field_values), el árbol país→departamento→ciudad de los selects, o agregar/editar un campo (ej. la cascada Departamento→Ciudad de nacimiento).
+**Cuándo:** Cuando la tarea toca el microservicio `form-service` (Go): el formulario dinámico G2 'backend-driven' (pantalla `additional-info`), cómo se arma el schema desde las 5 tablas legacy, dónde/cómo se guardan las respuestas (`user_field_values`, EAV), el árbol país→departamento→ciudad de los selects, o agregar/editar un campo sin escribir código. Credifamilia es el `form_type` 6. Síntoma: «formulario no encontrado» = el flujo dinámico sin su schema (F-41).
 Doc: `server/data/flows/form-service/doc.md` · Archivos: `server/data/flows/form-service/map.json` · Padre: `dynamic-forms`
 
 ### formalization — Formalization  ·  _reference_ · 86 archivos
@@ -114,7 +168,7 @@ Doc: `server/data/flows/form-service/doc.md` · Archivos: `server/data/flows/for
 Doc: `server/data/flows/formalization/doc.md` · Archivos: `server/data/flows/formalization/map.json` · Padre: `creditop`
 
 ### frontend-monorepo — frontend-monorepo  ·  _reference_ · 86 archivos
-**Cuándo:** Cuando trabajás en el wizard React: pantallas y rutas del wizard, SSR, repositories, paquetes @creditop, data-testid para pruebas e2e, o a qué backend le pega cada pantalla.
+**Cuándo:** Cuando trabajás en el wizard React (`loan-request-wizard`): pantallas y rutas (`app/routes.ts` declara 134 rutas; el registro canónico es `ROUTE_PATHS` en `route-helpers.ts`), SSR, repositories, paquetes `@creditop`, `data-testid` para pruebas e2e, o a qué backend le pega cada pantalla (`VITE_API_URL`). ⚠ El wizard NO manda logs a Loki: sus logs de ruta salen por OTLP hacia PostHog, así que una pantalla que no llama al backend es invisible para el trazador.
 Doc: `server/data/flows/frontend-monorepo/doc.md` · Archivos: `server/data/flows/frontend-monorepo/map.json` · Padre: `architecture`
 
 ### hardcodes-entidades — Hardcodes de entidades/comercios (deuda que frena la plataforma)  ·  _reference_ · 101 archivos
@@ -122,11 +176,11 @@ Doc: `server/data/flows/frontend-monorepo/doc.md` · Archivos: `server/data/flow
 Doc: `server/data/flows/hardcodes-entidades/doc.md` · Archivos: `server/data/flows/hardcodes-entidades/map.json` · Padre: `creditop`
 
 ### harness — Harness  ·  _reference_ · 44 archivos
-**Cuándo:** Cuando la tarea es “necesito probar / ejercitar / mockear un flujo de originación E2E” — correr un triplete canal→comercio→lender de punta a punta, sembrar/inyectar un perfil aprobado, decidir qué se puede sellar localmente vs. qué lo decide una API externa, o levantar el demo del wizard (2 ventanas / panel).
+**Cuándo:** Cuando la tarea es «necesito probar / ejercitar / mockear un flujo de originación E2E» — correr un triplete canal→comercio→lender de punta a punta, sembrar/inyectar un perfil aprobado, decidir qué se puede sellar localmente vs. qué lo decide una API externa, o levantar el demo del wizard (2 ventanas / panel). ⚠ `E2E_TARGET` por defecto es `dev`, NO `local` (F-18), y escribir a la BD compartida exige exportar `I_KNOW_THIS_TOUCHES_SHARED_DEV` a mano (F-53). El gemelo que LEE lo que ya pasó es `trazador`.
 Doc: `server/data/flows/harness/doc.md` · Archivos: `server/data/flows/harness/map.json` · Padre: `architecture`
 
 ### kyc — KYC  ·  _reference_ · 34 archivos
-**Cuándo:** Cuando la tarea toca burós o datos de riesgo: score, Experian/Datacrédito, ingreso (Ágil Data, Mareigua, Quanto), identidad, AML, biometría, cifrado del reporte, o armar un usuario sintético para pruebas.
+**Cuándo:** Cuando la tarea toca burós o datos de riesgo: score, Experian/Datacrédito, ingreso (Ágil Data, Mareigua, Quanto), identidad, AML, biometría, cifrado del reporte, o armar un usuario sintético para pruebas. Las tablas son `risk_centrals` (el catálogo) y `risk_central_user_data` (lo consultado, ⚠ indexado por `user_id` y NO por solicitud). Síntomas: «dice que los datos no coinciden» (`ONB005`, TusDatos), «no le consultaron el buró», y el AML de TusDatos con su caché de 1 mes.
 Doc: `server/data/flows/kyc/doc.md` · Archivos: `server/data/flows/kyc/map.json` · Padre: `onboarding`
 
 ### legacy-backend — legacy-backend  ·  _reference_ · 90 archivos
@@ -142,15 +196,15 @@ Doc: `server/data/flows/merchants/doc.md` · Archivos: `server/data/flows/mercha
 Doc: `server/data/flows/motai/doc.md` · Archivos: `server/data/flows/motai/map.json` · Padre: `merchants`
 
 ### ms-preapprovals — MS Pre-approvals  ·  _reference_ · 72 archivos
-**Cuándo:** Cuando la pre-aprobacion de un lender rt!=0 falla o hay que tocar el microservicio Go (pre-approvals-service): contrato del servicio (check / me-check / lender-attempts / docs), workflow de 4 etapas, matriz de 8 proveedores (adapter+client+strategy por lender), taxonomia de errores, timeouts/cache DynamoDB, y el consumo cliente en el wizard/legacy.
+**Cuándo:** Cuando la pre-aprobación de un lender `response_type`≠0 falla o hay que tocar el microservicio Go (`pre-approvals-service`): contrato del servicio (`check` / `me-check` / `lender-attempts` / `docs`), workflow de 4 etapas, matriz de 8 proveedores (adapter+client+strategy por lender), taxonomía de errores, timeouts y caché en `DynamoDB`, y el consumo cliente en el wizard. Es quien decide el badge «Pre aprobado» del marketplace (F-78). Sus logs en Loki son sólo de prod.
 Doc: `server/data/flows/ms-preapprovals/doc.md` · Archivos: `server/data/flows/ms-preapprovals/map.json` · Padre: `architecture`
 
 ### onboarding — Onboarding  ·  _reference_ · 88 archivos
-**Cuándo:** Cuando el problema está ANTES del listado: entrada por hash de sucursal, registro de celular y OTP, creación de la user_request, formulario personal y laboral, captura del monto, códigos de error ONB0xx.
+**Cuándo:** Cuando el problema está ANTES del listado: entrada por hash de sucursal, registro de celular y OTP, creación de la `user_request`, formulario personal y laboral, captura del monto, códigos `ONB0xx` (`ONB002` usuario temporal sin Corbeta · `ONB005` TusDatos · `ONB040` rate limit). Las pantallas del wizard son `solicitar`, `otp`, `personal-info` y `employment-info`. ⚠ Guardar lo laboral es lo que dispara el buró.
 Doc: `server/data/flows/onboarding/doc.md` · Archivos: `server/data/flows/onboarding/map.json` · Padre: `creditop`
 
 ### payments — Payments  ·  _reference_ · 65 archivos
-**Cuándo:** Cuando la pregunta es sobre cómo CreditOp habla con la pasarela de pago — Wompi o Payvalida: crear/firmar la transacción, el checkout, el polling o webhook de confirmación, la cuota inicial de formalización (el enganche antes de desembolsar, incl. el rebote rt=2 `initial_fee>0`), el recaudo del préstamo desde la pasarela, los links de pago, o credenciales de gateway.
+**Cuándo:** Cuando la pregunta es sobre cómo CreditOp habla con la pasarela de pago — `Wompi` o `Payvalida`: crear/firmar la transacción, el checkout, el polling o webhook de confirmación, la cuota inicial de formalización (el enganche antes de desembolsar, incl. el rebote rt=2 con `initial_fee>0`), el recaudo del préstamo desde la pasarela, los links de pago, o credenciales de gateway. Síntoma: «pagó y no se refleja».
 Doc: `server/data/flows/payments/doc.md` · Archivos: `server/data/flows/payments/map.json` · Padre: `creditop` · Usa: `formalization`, `servicing`
 
 ### profiling — Profiling  ·  _reference_ · 32 archivos
@@ -158,15 +212,15 @@ Doc: `server/data/flows/payments/doc.md` · Archivos: `server/data/flows/payment
 Doc: `server/data/flows/profiling/doc.md` · Archivos: `server/data/flows/profiling/map.json` · Padre: `creditopx`
 
 ### pullman — Pullman  ·  _reference_ · 13 archivos
-**Cuándo:** Cuando la tarea es de Amoblando Pullman o su entidad CrediPullman (77): el caso rt=2 vanilla y el canónico para pruebas con usuario sintético, más sus hardcodes por allied_id 94.
+**Cuándo:** Cuando la tarea es de Amoblando Pullman (`allied_id` 94) o su entidad CrediPullman (lender 77): el caso `response_type` 2 vanilla y el canónico para pruebas con usuario sintético, más sus hardcodes por comercio.
 Doc: `server/data/flows/pullman/doc.md` · Archivos: `server/data/flows/pullman/map.json` · Padre: `merchants`
 
 ### redirect — Redirect  ·  _reference_ · 24 archivos
-**Cuándo:** Cuando el prestamista es solo un enlace (rt=0, UTM): se arma la url, se redirige al sitio del lender y se pierde visibilidad. Nadie decide el crédito adentro de CreditOp.
+**Cuándo:** Cuando el prestamista es solo un enlace (`response_type` 0, UTM): se arma la `url_utm`, se redirige al sitio del lender y se pierde visibilidad — nadie decide el crédito adentro de CreditOp, así que el desenlace NO se puede trazar. Sistecrédito es el caso típico. Su ramal declara que no espera webhook ni Estado 11.
 Doc: `server/data/flows/redirect/doc.md` · Archivos: `server/data/flows/redirect/map.json` · Padre: `entities`
 
 ### servicing — Servicing  ·  _reference_ · 63 archivos
-**Cuándo:** Cuando el problema es DESPUÉS del desembolso (Estado 11): cartera, causación de interés, fecha de corte, mora, cobranza, pagos y cupo rotativo. Los 6 crons diarios y el ledger del préstamo. Ojo: corre 100% en application.
+**Cuándo:** Cuando el problema es DESPUÉS del desembolso (Estado 11): cartera, causación de interés, fecha de corte, mora, cobranza, pagos y cupo rotativo. Los 6 crons diarios `UpdateCreditopX*` y el ledger `creditop_x_requests_history`. Ojo: corre 100% en `application`, no en legacy-backend.
 Doc: `server/data/flows/servicing/doc.md` · Archivos: `server/data/flows/servicing/map.json` · Padre: `creditop`
 
 ### smartpay — SmartPay  ·  _reference_ · 74 archivos

@@ -3,7 +3,11 @@
   "combination": "onboarding",
   "group": "onboarding",
   "kind": "reference",
-  "when": "Cuando el problema está ANTES del listado: entrada por hash de sucursal, registro de celular y OTP, creación de la user_request, formulario personal y laboral, captura del monto, códigos de error ONB0xx.",
+  "when": "Cuando el problema está ANTES del listado: entrada por hash de sucursal, registro de celular y OTP, creación de la `user_request`, formulario personal y laboral, captura del monto, códigos `ONB0xx` (`ONB002` usuario temporal sin Corbeta · `ONB005` TusDatos · `ONB040` rate limit). Las pantallas del wizard son `solicitar`, `otp`, `personal-info` y `employment-info`. ⚠ Guardar lo laboral es lo que dispara el buró.",
+  "sintomas": [
+    "«no puede pasar del formulario»",
+    "«no le llega el OTP del registro»"
+  ],
   "verified": {
     "ref": "main",
     "date": "2026-07-31",

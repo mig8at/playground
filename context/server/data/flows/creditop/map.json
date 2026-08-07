@@ -3,7 +3,7 @@
   "combination": "creditop",
   "group": "creditop",
   "kind": "root",
-  "when": "Cuando la tarea toca material TRANSVERSAL que ningún contexto dueña: tablas y datos clave, máquinas de estado y el Estado 11, frontera de pruebas y harness, deuda técnica y hardcodes, glosario y colisiones de id. También cuando no sabés por dónde empezar.",
+  "when": "Cuando la tarea toca material TRANSVERSAL que ningún contexto dueña: tablas y datos clave, máquinas de estado y el `Estado 11`, frontera de pruebas y harness, deuda técnica y hardcodes, glosario y colisiones de id (`24` = lender Credifamilia Y allied Creditop). También cuando no sabés por dónde empezar. ⚠ Y **siempre antes de concluir algo**: trae los 7 INVARIANTES que corrigen las conclusiones obvias-y-falsas — la conducta la decide el PAR (comercio, entidad) y no la entidad (F-34), la config se COPIA y no se hereda, un estado dice DÓNDE está y no QUÉ completó (F-103/105/106), la ausencia de un log no prueba nada (F-94/102).",
   "verified": {
     "ref": "main",
     "date": "2026-07-31",
@@ -68,5 +68,9 @@
     "frontend-monorepo/apps/loan-request-wizard/app/context/DynamicFormContext.tsx",
     "frontend-monorepo/modules/loan-request-wizard/backend-driven-form/src/index.ts",
     "frontend-monorepo/modules/loan-request-wizard/abaco/src/infrastructure/repositories/abaco.repository.ts"
+  ],
+  "sintomas": [
+    "«esto no puede ser, la entidad funciona en otro comercio»",
+    "«no sé por dónde empezar»"
   ]
 }

@@ -4,6 +4,10 @@
   "group": "creditop",
   "kind": "reference",
   "when": "Cuando la pregunta es de PERMISOS o de quién hace qué: cliente vs asesor vs back-office, login, Cognito y SSO, roles y alcance, y por dónde entra cada uno (QR, link de continuación, autogestión).",
+  "sintomas": [
+    "«a este usuario le salen datos de OTRO comercio»",
+    "«no tiene permisos» / «ve un panel mutilado»"
+  ],
   "verified": {
     "ref": "main",
     "date": "2026-07-31",

@@ -9,6 +9,39 @@ CreditOp conecta 3 actores: **COMERCIOS** aliados (`allieds`, con SUCURSALES `al
 
 Una operación = combinación de **4 ejes ortogonales**: `response_type` (quién decide/gestiona) · producto/garantía (compra · SmartPay=celular con bloqueo MDM · Motai=arrendamiento/renting) · modo del comercio · canal (WooCommerce/self/VTEX, asesor con QR, Corbeta por lotes). El **Estado 11 es la frontera** entre originación y servicing/cartera.
 
+## Los 7 invariantes · leé esto ANTES de concluir
+
+Cada uno corrige una conclusión que parece obvia y es falsa. Están medidos y tienen su hallazgo; si vas
+a afirmar algo que los contradice, medilo primero.
+
+1. **La conducta la decide el PAR (comercio, entidad), no la entidad.** Si existe
+   `lender_allied_credentials` para ese (lender, sucursal) se invoca la integración; si no existe, el
+   flujo **ni siquiera llama**. Por eso «Bancolombia falla» casi nunca es cierto: falla *Bancolombia en
+   ese comercio*. Explica de una sola vez F-25, F-26 y F-28 → **F-34**.
+2. **No hay herencia viva: la configuración se COPIA.** entidad → comercio → sucursal → categoría, y la
+   copia se dispara al habilitar la entidad (~37.000 filas por sucursal). Cambiar la regla «del lender»
+   no cambia las copias que ya existen.
+3. **Un comercio puede cambiar la FORMA del flujo, no sólo sus reglas.** El setting `corbeta_allieds`
+   ([24, 209, 210, 211, 311]) salta el formulario y **fabrica** la info laboral — y como el buró se
+   dispara al guardar lo laboral, ese comercio no consulta buró. Buscar «por qué no consultó» en el
+   motor de buró es el camino equivocado.
+4. **Un estado dice DÓNDE está la solicitud, nunca QUÉ completó.** El 10 pertenece al tramo de cierre y
+   significa «adentro, sin firmar» (**F-103**); la fila del 9 **se escribe al CREAR** la solicitud
+   (**F-106**); y `user_request_records` **no registra todas las transiciones** — los estados 1 y 10
+   nunca dejan fila (**F-105**). Tres falsos verdes distintos, un solo error de lectura.
+5. **La ausencia de un log no prueba nada.** Sólo ~13 % de las líneas dice a qué solicitud pertenece, y
+   lo dice con tres nombres distintos (**F-102**); el wizard no manda logs a Loki (van a PostHog); y el
+   webhook `lender-result` no registra su recepción (**F-94**). «No aparece en los logs» y «no ocurrió»
+   son afirmaciones distintas.
+6. **Un filtro por rol con `when()` encadenados falla ABIERTO.** Si ninguna condición matchea, no se
+   aplica *ningún* filtro y el usuario ve el universo entero. Es lo que le mostraba a SmartPay los
+   créditos de Mediarte y Pullman. Al crear un perfil nuevo hay que auditar esos encadenados uno por
+   uno → contexto `actors`.
+7. **Verificá el NAMESPACE de un id antes de usarlo.** `24` = lender Credifamilia **y** allied Creditop ·
+   `100` = lender Bancolombia Consumo **y** un allied · `158` = allied Motai **y** su lender ·
+   `160`/`152`/`153` = SmartPay según el ambiente. Y el `response_type` de un lender **cambia entre
+   ambientes**: verificarlo contra local miente (**F-95**).
+
 ## Arquitectura
 Migración **strangler-fig en parallel-run**. La lógica vive repartida entre `application` (el VIEJO) y el par `legacy-backend + frontend-monorepo` (el NUEVO). En NEGOCIO: a `application` se le dice **ALIADOS**; al conjunto `legacy-backend + frontend-monorepo` se le dice **REFACTOR**. Detalle por repo → contextos **application** · **legacy-backend** · **frontend-monorepo** · **architecture**.
 

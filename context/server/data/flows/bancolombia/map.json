@@ -2,6 +2,9 @@
   "name": "Bancolombia",
   "kind": "reference",
   "when": "Cuando la tarea toca Bancolombia (BNPL lender 68 / Consumo lender 100): su onboarding propio en el wizard, la secuencia multi-step de originación (login→cuota→cuenta→términos→clave dinámica→origination; consumo: validate→ofertas→simulación→seguro→e-sign), el código de compra en punto de venta (PIN de Corbeta / In Store Billing Code), los escenarios sandbox por cédula y por celular, JWT RS256 + mTLS, o el webhook de estado que sigue en application. Es el único rt=1 con originación completa DENTRO de CreditOp.",
+  "sintomas": [
+    "«falló con Bancolombia»"
+  ],
   "verified": {
     "ref": "main",
     "date": "2026-07-31",

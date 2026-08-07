@@ -4,6 +4,9 @@
   "group": "creditop",
   "kind": "reference",
   "when": "Cuando la solicitud entra desde el checkout de una tienda online (VTEX, WooCommerce, desarrollo propio) — hay credencial en `allied_ecommerce_credentials`, contrato base64 del carrito, `/vtex/init`+`/settel`, `ecommerce-request/create/{partner_id}`, notificación al comercio o “volver al comercio” (`return_url`/`process_url`).",
+  "sintomas": [
+    "«entró desde la tienda online y se rompió»"
+  ],
   "verified": {
     "ref": "main",
     "date": "2026-07-31",

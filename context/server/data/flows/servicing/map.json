@@ -3,7 +3,10 @@
   "combination": "servicing",
   "group": "servicing",
   "kind": "reference",
-  "when": "Cuando el problema es DESPUÉS del desembolso (Estado 11): cartera, causación de interés, fecha de corte, mora, cobranza, pagos y cupo rotativo. Los 6 crons diarios y el ledger del préstamo. Ojo: corre 100% en application.",
+  "when": "Cuando el problema es DESPUÉS del desembolso (Estado 11): cartera, causación de interés, fecha de corte, mora, cobranza, pagos y cupo rotativo. Los 6 crons diarios `UpdateCreditopX*` y el ledger `creditop_x_requests_history`. Ojo: corre 100% en `application`, no en legacy-backend.",
+  "sintomas": [
+    "«ya está desembolsado y la cuota está mal»"
+  ],
   "verified": {
     "ref": "main",
     "date": "2026-07-31",

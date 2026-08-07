@@ -2,6 +2,9 @@
   "name": "Corbeta",
   "kind": "reference",
   "when": "Cuando la tarea es del GRUPO DE COMERCIOS Corbeta (retail físico: Alkosto 209 / K-TRONIX 210 / Alkomprar 211; el allied 24 del gate es 'Creditop', la cuenta propia de la casa) y la venta se cierra en CAJA: checkout ecommerce base64 → PIN de la API Fondos → factura en tienda → conciliación batch por PIN → estado 26 Facturado → confirmación diferida al lender. Sus tres retail tienen SÓLO Bancolombia habilitado (68 BNPL / 100 Consumo): la decisión de crédito y los endpoints de originación son del nodo `bancolombia`.",
+  "sintomas": [
+    "«el código de compra en caja no sirve»"
+  ],
   "verified": {
     "ref": "main",
     "date": "2026-07-31",

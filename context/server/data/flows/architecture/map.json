@@ -4,6 +4,9 @@
   "group": "creditop",
   "kind": "reference",
   "when": "Cuando la duda es en QUÉ REPO vive algo, por qué está duplicado, o cómo se hablan entre sí: base de datos compartida, migraciones duplicadas, cutover al wizard nuevo, allowlist, SSO, VITE_API_URL. Índice de los repos.",
+  "sintomas": [
+    "«¿en qué repo vive esto?» / «está duplicado»"
+  ],
   "verified": {
     "ref": "main",
     "date": "2026-07-31",

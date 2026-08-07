@@ -4,6 +4,11 @@
   "group": "architecture",
   "kind": "reference",
   "when": "Cuando trabajás en el monolito Aliados (el que corre en prod): panel de administración, alta de entidades/comercios/sucursales, crons de cobranza y servicing, Inertia/Vue, rutas por audiencia admin/customer/api. También cuando el reporte que descarga un comercio trae datos de MÁS comercios, o cualquier cosa del botón «Descargar Solicitudes» / reporte de solicitudes originadas: los exports viven acá y su alcance depende del ROL (ver el nodo `actors`).",
+  "sintomas": [
+    "«a este usuario le salen datos de OTRO comercio»",
+    "«el botón Descargar Solicitudes trae mal»",
+    "«el reporte que descargó trae de más»"
+  ],
   "verified": {
     "ref": "main",
     "date": "2026-07-31",
