@@ -10,6 +10,7 @@
     "source": "manual"
   },
   "files": [
+    "application/app/Exports/CreditopXRequestsReportExport.php",
     "application/app/Http/Controllers/Admin/AlliedCorporateUserController.php",
     "application/app/Http/Controllers/Admin/AlliedModulesController.php",
     "application/app/Http/Controllers/Admin/UserController.php",

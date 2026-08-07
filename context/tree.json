@@ -394,6 +394,19 @@
       "parent": "creditop",
       "created": "2026-07-31T00:00:00Z",
       "updated": "2026-07-31T00:00:00Z"
+    },
+    {
+      "id": "trazador",
+      "name": "Trazador",
+      "parent": "architecture",
+      "targets": {
+        "application": "main",
+        "frontend-monorepo": "main",
+        "legacy-backend": "main"
+      },
+      "baseline": {},
+      "created": "2026-08-07T00:00:00Z",
+      "updated": "2026-08-07T00:00:00Z"
     }
   ]
 }

@@ -5,9 +5,9 @@ una rama). Tenerlo dos veces era una divergencia esperando a pasar: un repo agre
 hace que el oráculo valide contra un universo distinto del que se indexó, y eso no falla — da un
 veredicto equivocado.
 
-⚠ `harness` no es un repo propio: es un SUBDIRECTORIO de `playground`. `git ls-tree` desde ahí
-(sin `--full-name`) devuelve rutas relativas a ese directorio, que es justo el `relpath` que usa el
-índice — por eso funciona igual que los otros cinco sin caso especial.
+⚠ `harness` y `trazador` no son repos propios: son SUBDIRECTORIOS de `playground`. `git ls-tree` desde
+ahí (sin `--full-name`) devuelve rutas relativas a ese directorio, que es justo el `relpath` que usa el
+índice — por eso funcionan igual que los otros cinco sin caso especial.
 """
 import os
 
@@ -18,6 +18,7 @@ ROOTS = {
     "pre-approvals-service": os.path.expanduser("~/Desktop/CREDITOP/github/pre-approvals-service"),
     "form-service": os.path.expanduser("~/Desktop/CREDITOP/github/form-service"),
     "harness": os.path.expanduser("~/Desktop/CREDITOP/playground/harness"),
+    "trazador": os.path.expanduser("~/Desktop/CREDITOP/playground/trazador"),
 }
 
 # Solo código. Un `.md`, `.sql` o `.yaml` SIEMPRE dropea: no va en `files[]`, se menciona en el doc.md.

@@ -3,7 +3,7 @@
   "combination": "merchants",
   "group": "creditop",
   "kind": "reference",
-  "when": "Cuando el problema es 'a este comercio le pasa distinto': configuración por entidad/comercio/sucursal, copia de reglas por sucursal, hash de entrada, credenciales de ecommerce, toggles del comercio.",
+  "when": "Cuando el problema es 'a este comercio le pasa distinto': configuración por entidad/comercio/sucursal, copia de reglas por sucursal, hash de entrada, credenciales de ecommerce, toggles del comercio. También cuando el comercio cambia la FORMA del flujo y no sólo sus reglas — el caso medido es el setting `corbeta_allieds` (Alkosto 209, K-TRONIX 210, Alkomprar 211, Kalley 311, Creditop 24), que salta el formulario y fabrica la info laboral, y por eso ese comercio no consulta buró.",
   "verified": {
     "ref": "main",
     "date": "2026-07-31",

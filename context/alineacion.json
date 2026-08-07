@@ -1,9 +1,9 @@
 {
-  "generado": "2026-08-03",
+  "generado": "2026-08-07",
   "ref": "main",
   "resumen": {
-    "al-dia": 27,
-    "deriva": 4,
+    "al-dia": 26,
+    "deriva": 6,
     "rama-sin-mergear": 1
   },
   "nodos": [
@@ -95,6 +95,60 @@
       }
     },
     {
+      "id": "findings",
+      "estado": "deriva",
+      "verificado": {
+        "ref": "main",
+        "date": "2026-07-31",
+        "source": "manual"
+      },
+      "archivos": 44,
+      "deriva": {
+        "cambiados": 2,
+        "pct": 5,
+        "archivos": [
+          {
+            "ruta": "harness/dev/guided.spec.ts",
+            "ultimo_cambio": "2026-08-04"
+          },
+          {
+            "ruta": "harness/dev/sweep.ts",
+            "ultimo_cambio": "2026-08-04"
+          }
+        ]
+      },
+      "commits": {
+        "total": 2,
+        "autores": {
+          "Miguel Ochoa": 2
+        },
+        "lista": [
+          {
+            "sha": "7efb4ab",
+            "fecha": "2026-08-04",
+            "autor": "Miguel Ochoa",
+            "asunto": "feat(trazador): `sonda` pasa a ser `trazador`, y el forense de Loki corre también en LOCAL",
+            "repo": "harness"
+          },
+          {
+            "sha": "8925069",
+            "fecha": "2026-08-04",
+            "autor": "Miguel Ochoa",
+            "asunto": "feat(harness): forense de logs en Loki — dispara al cerrar cuando el veredicto sale mal",
+            "repo": "harness"
+          }
+        ]
+      },
+      "huerfanos": [
+        "harness/dev/loki-trace.ts",
+        "harness/dev/paises.ts",
+        "harness/dev/sandbox-bancolombia.ts",
+        "harness/pkg/loki.ts"
+      ],
+      "rutas_muertas": [],
+      "pendiente_merge": null
+    },
+    {
       "id": "servicing",
       "estado": "deriva",
       "verificado": {
@@ -102,7 +156,7 @@
         "date": "2026-07-31",
         "source": "manual"
       },
-      "archivos": 62,
+      "archivos": 63,
       "deriva": {
         "cambiados": 2,
         "pct": 3,
@@ -175,6 +229,49 @@
         ]
       },
       "huerfanos": [],
+      "rutas_muertas": [],
+      "pendiente_merge": null
+    },
+    {
+      "id": "harness",
+      "estado": "deriva",
+      "verificado": {
+        "ref": "main",
+        "date": "2026-07-31",
+        "source": "manual"
+      },
+      "archivos": 44,
+      "deriva": {
+        "cambiados": 1,
+        "pct": 2,
+        "archivos": [
+          {
+            "ruta": "harness/dev/guided.spec.ts",
+            "ultimo_cambio": "2026-08-04"
+          }
+        ]
+      },
+      "commits": {
+        "total": 1,
+        "autores": {
+          "Miguel Ochoa": 1
+        },
+        "lista": [
+          {
+            "sha": "8925069",
+            "fecha": "2026-08-04",
+            "autor": "Miguel Ochoa",
+            "asunto": "feat(harness): forense de logs en Loki — dispara al cerrar cuando el veredicto sale mal",
+            "repo": "harness"
+          }
+        ]
+      },
+      "huerfanos": [
+        "harness/dev/loki-trace.ts",
+        "harness/dev/paises.ts",
+        "harness/dev/sandbox-bancolombia.ts",
+        "harness/pkg/loki.ts"
+      ],
       "rutas_muertas": [],
       "pendiente_merge": null
     },
@@ -317,7 +414,7 @@
         "date": "2026-07-31",
         "source": "manual"
       },
-      "archivos": 67,
+      "archivos": 68,
       "deriva": {
         "cambiados": 0,
         "pct": 0,
@@ -338,7 +435,7 @@
         "date": "2026-07-31",
         "source": "git-doc"
       },
-      "archivos": 105,
+      "archivos": 106,
       "deriva": {
         "cambiados": 0,
         "pct": 0,
@@ -378,7 +475,7 @@
         "date": "2026-07-31",
         "source": "manual"
       },
-      "archivos": 73,
+      "archivos": 77,
       "deriva": {
         "cambiados": 0,
         "pct": 0,
@@ -456,7 +553,7 @@
         "date": "2026-07-31",
         "source": "manual"
       },
-      "archivos": 135,
+      "archivos": 136,
       "deriva": {
         "cambiados": 0,
         "pct": 0,
@@ -569,25 +666,6 @@
       "pendiente_merge": null
     },
     {
-      "id": "findings",
-      "estado": "al-dia",
-      "verificado": {
-        "ref": "main",
-        "date": "2026-07-31",
-        "source": "manual"
-      },
-      "archivos": 44,
-      "deriva": {
-        "cambiados": 0,
-        "pct": 0,
-        "archivos": []
-      },
-      "commits": null,
-      "huerfanos": [],
-      "rutas_muertas": [],
-      "pendiente_merge": null
-    },
-    {
       "id": "form-service",
       "estado": "al-dia",
       "verificado": {
@@ -668,25 +746,6 @@
       "pendiente_merge": null
     },
     {
-      "id": "harness",
-      "estado": "al-dia",
-      "verificado": {
-        "ref": "main",
-        "date": "2026-07-31",
-        "source": "manual"
-      },
-      "archivos": 44,
-      "deriva": {
-        "cambiados": 0,
-        "pct": 0,
-        "archivos": []
-      },
-      "commits": null,
-      "huerfanos": [],
-      "rutas_muertas": [],
-      "pendiente_merge": null
-    },
-    {
       "id": "kyc",
       "estado": "al-dia",
       "verificado": {
@@ -694,7 +753,7 @@
         "date": "2026-07-31",
         "source": "manual"
       },
-      "archivos": 28,
+      "archivos": 34,
       "deriva": {
         "cambiados": 0,
         "pct": 0,
@@ -795,7 +854,7 @@
         "date": "2026-07-18",
         "source": "git-doc"
       },
-      "archivos": 30,
+      "archivos": 32,
       "deriva": {
         "cambiados": 0,
         "pct": 0,
@@ -845,6 +904,25 @@
       "huerfanos": [
         "legacy-backend/database/migrations/2026_07_01_120000_add_template_name_to_creditop_x_reminder_messages.php"
       ],
+      "rutas_muertas": [],
+      "pendiente_merge": null
+    },
+    {
+      "id": "trazador",
+      "estado": "al-dia",
+      "verificado": {
+        "ref": "main",
+        "date": "2026-08-07",
+        "source": "cabecera"
+      },
+      "archivos": 15,
+      "deriva": {
+        "cambiados": 0,
+        "pct": 0,
+        "archivos": []
+      },
+      "commits": null,
+      "huerfanos": [],
       "rutas_muertas": [],
       "pendiente_merge": null
     }

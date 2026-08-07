@@ -112,7 +112,54 @@ El loader de `available-lenders.tsx` lee `VITE_PREAPPROVALS_ENDPOINT` (`:147`) y
 - **`creditop_x` es una de las 8 keys del factory** (available-quota rt=2 hardcodeada, NoAuth+NoOpCreds), pero el cupo rt=2 productivo se sella en legacy `/available-quota`; no confundir el nodo (rt≠0/integración) con esa key.
 - **`/v1/lender-attempts` es surface nuevo**: store idempotente de intentos por lender (SUCCESS/FAIL/TIMEOUT), separado del `check`. El `check` registra attempts internamente; el POST expuesto permite registrarlos desde afuera y el GET los lista paginados (trazabilidad de intentos por entidad).
 
+## Sus logs en Loki (medido 2026-08-06)
+
+El MS **sí** loguea a Grafana Cloud, con tres particularidades que deciden cómo buscarlo:
+
+- **Sólo en PROD.** `service_name="preapprovals-service"` existe en el stack `creditop`; en `creditopdev`
+  está AUSENTE (medido con ventana de 7 días). En dev/staging no hay nada que buscar — y esa ausencia no
+  dice nada del MS.
+- **El contexto va en ETIQUETAS (OTel), no en el cuerpo.** El cuerpo es texto plano («preapproval checked
+  successfully»); los datos van como metadata: `user_request_id` (en `saving lender attempt to dynamodb`),
+  `preapproval_id`, `status=approved|rejected`, `lender_name`, `lending_product_id`, `applicant_id`,
+  `merchant_id`, `document_number`. Un pipeline `| json` sobre estas líneas las DESCARTA (el parser marca
+  `__error__`): para filtrarlas es `{service_name="preapprovals-service"} | user_request_id="X"`.
+- **Su `trace_id` es propio y NO es etiqueta indexada.** No se correlaciona con el del monolito (no hay
+  propagación), y además `{trace_id="…"}` como selector devuelve **0** para sus líneas — es metadata
+  estructurada, no label. Para seguir un request suyo: `{service_name="preapprovals-service"} | trace_id="…"`.
+
+**UNA LLAMADA POR LENDER, y cada una es un trace propio.** El front pide la pre-aprobación entidad por
+entidad, así que en Loki no hay «la pre-aprobación de la solicitud» sino N llamadas independientes, cada una
+con su `trace_id`, su `lender_name` y su `status`. Medido en la uReq 521997 de prod: **14 llamadas para 4
+entidades** — `creditop_x` ×6, `credifamilia` ×4, `welli` ×2, `bancolombia_bnpl` ×2.
+
+Ese conteo por sí solo es señal: **seis llamadas al mismo lender son reintentos**, y agrupando los logs por
+tipo de mensaje («Veredicto ×14») esa repetición no se ve. Por eso conviene agrupar por entidad.
+
+⚠ Y las etiquetas están REPARTIDAS entre líneas del mismo trace: `lender_name` viaja en las de la llamada al
+lender y `status` **sólo** en `preapproval checked successfully`. Agrupar directo por `lender_name` manda las
+líneas de veredicto —las únicas con el status— a un cajón sin entidad. La unidad correcta es el **trace**:
+una llamada, un lender, un veredicto.
+
+**Credifamilia es asíncrono en dos fases**, y sus propios logs lo dicen: `credifamilia first call: radicacion
+only` → `credifamilia subsequent call: estado only`. De ahí sale el `status=pending` que este nodo ya
+documentaba como «En validación»: la primera llamada radica y las siguientes consultan estado. Un `pending`
+que no resuelve deja la entidad colgada en el listado.
+
+El censo de mensajes (400 líneas de prod, 4 h): `authenticating` / `obtaining credentials` / `* oauth2:
+requesting token|token obtained` → `calling lending product API` (y la variante BNPL `validate-quota`, donde
+un 4xx es rechazo de negocio) → `calling creditop_x API` → `preapproval checked successfully` → `saving
+lender attempt to dynamodb`. Ese último es el único que lleva `user_request_id`: es la llave de correlación
+con la solicitud, y confirma lo que este nodo ya decía — el esqueleto del MS vive en DynamoDB, no en la BD
+de legacy.
+
+`playground/trazador` los integra desde 2026-08-06: ancla por la etiqueta, expande el trace del MS con
+filtro de metadata, y los muestra como el bloque «Pre-aprobación (microservicio)» dentro de la etapa
+`listado` (medido en la uReq 521997: 94 líneas → 5 pasos).
+
 ## Bitácora
+- **2026-08-06** — Medido que es UNA LLAMADA POR LENDER (14 llamadas / 4 entidades en la uReq 521997), que las etiquetas se reparten entre líneas del mismo trace, y el protocolo de dos fases de Credifamilia (`radicacion only` → `estado only`).
+- **2026-08-06** — Medidos sus logs en Loki: solo prod, contexto en etiquetas OTel, `trace_id` propio y no indexado. Censo de 12 mensajes y la llave `user_request_id` en el guardado a DynamoDB.
 - **2026-07-18** — Refresh: `pre-approvals-service` ahora INDEXADO (133 nodos Go). Sumada la superficie del **lado servidor** (57 archivos Go: contrato/handlers, factory+workflow, matriz de 8 proveedores con adapter/client/strategy, dominio+taxonomía de errores, use case+cache+notify, servicios a legacy, ports) a los 15 previos del lado cliente. 72 archivos, 0 DROP. Nota: el índice solo tiene `.go` — config yaml, docs md, openapi.yaml y el paquete `storage/dynamodb/*` NO están indexados (quedan como conocimiento; se referencian `internal/openapi/types.gen.go` y los ports `preapproval_repository`/`lender_attempt_repository` como equivalentes del contrato/persistencia).
 - **2026-07-17** — Fase de data: superficie de código curada + doc enriquecido desde `git 159906a:docs/codigo/SERVICIO-PRE-APROBACIONES.md`, verificado contra el repo real y los 3 repos indexados.
 

@@ -15,6 +15,49 @@ Agregá una sección `### F-NN · <título>` al final del bloque que corresponda
 - **La causa raíz va verificada.** Si es una hipótesis, decilo (`hipótesis, sin confirmar`).
 - **Guardá la evidencia concreta**: la línea de log, la consulta SQL, el HTTP status. Sirve para reconocer el mismo problema la próxima vez.
 - **Si el síntoma engaña, decilo en el título.** El valor está en romper la pista falsa (ej. "no era Bancolombia, era Payvalida").
+- **Y agregalo al índice de abajo**, bajo la pregunta que contesta. Sin eso el hallazgo existe pero no se encuentra, que para este archivo es casi lo mismo que no existir.
+
+---
+
+## Índice · ¿con qué síntoma llegás?
+
+Este archivo pesa **~58.000 tokens**: leerlo entero para responder una pregunta no es viable. Entrá por
+acá, saltá al `F-xx` y leé sólo eso.
+
+> ⚠ **Las letras A–O NO son temas, son historia.** La convención decía «al final de su sección
+> temática», pero en la práctica lo nuevo se fue appendeando al final físico del archivo: hoy la
+> sección «O · El código de compra en caja» contiene el código de compra (F-79…F-92) **y además**
+> F-93…F-106, que son de datos, logs y estados y no tienen nada que ver. La sección «L · Motai» tiene
+> harness, Cognito y ecommerce adentro. **No confíes en la letra: confiá en este índice**, que está
+> armado por tema real y cruza las secciones. Y los números tampoco van en orden de archivo (F-73…F-77
+> están arriba de todo).
+
+| Si tu síntoma es… | Mirá |
+|---|---|
+| **«esto anda en local y no en dev/qa» / «probé contra el ambiente equivocado»** | F-06 · F-18 · F-61 · F-62 · F-65 · F-73 · F-74 · F-76 · F-77 · F-95 |
+| **«parece un bug del producto» (y es una env faltante)** | F-04 · F-05 · F-23 · F-70 · F-98 · F-99 · F-104 |
+| **«la pantalla no avanza y no hay ningún error»** | F-01 · F-02 · F-03 · F-58 · F-88 · F-91 · F-92 |
+| **«¿qué significa de verdad esta tabla/columna?»** | F-19 · F-24 · F-93 · F-96 · F-97 · F-100 · F-101 · F-103 · F-105 · F-106 |
+| **«los logs no me dicen de qué solicitud son»** | F-20 · F-98 · F-99 · F-102 |
+| **«no le aparece ninguna entidad en el listado»** | F-04 · F-34 · F-56 · F-75 · F-78 |
+| **«¿qué integra de verdad este comercio / esta entidad?»** | F-25 · F-26 · F-27 · F-28 · F-34 · F-35 · F-37 |
+| **«el crédito no cierra en local»** | F-07 · F-08 · F-09 · F-10 · F-11 · F-12 · F-13 · F-29 · F-30 · F-31 · F-36 |
+| **«falló la validación de identidad / se canceló solo»** | F-10 · F-55 · F-60 · F-62 · F-63 |
+| **«firma, pagaré, OTP de firma»** | F-02 · F-11 · F-12 · F-30 · F-32 · F-36 · F-37 · F-58 |
+| **«el webhook del lender no llegó (¿o sí?)»** | F-94 · F-100 |
+| **«el perfilador / el orden del listado / el cupo»** | F-04 · F-93 · F-104 |
+| **Canal Corbeta y código de compra en caja** | F-79 · F-80 · F-81 · F-82 · F-83 · F-84 · F-85 · F-86 · F-87 · F-88 · F-89 · F-90 · F-91 · F-92 |
+| **Bancolombia (BNPL / Consumo)** | F-05 · F-54 · F-83 · F-84 · F-89 · F-90 · F-91 · F-92 |
+| **Motai · Ábaco · renting** | F-46 · F-47 · F-48 · F-49 · F-50 · F-51 · F-68 · F-69 |
+| **SmartPay · IMEI** | F-21 · F-22 · F-23 · F-24 · F-32 |
+| **Ecommerce** | F-40 · F-54 |
+| **Flujo dinámico (RD)** | F-41 · F-42 · F-43 · F-44 · F-45 |
+| **Rotativo (rt=3) y servicing** | F-38 · F-39 |
+| **Tasas, fianza y cálculo** | F-71 · F-72 |
+| **«el harness hace algo raro» (la herramienta, no el producto)** | F-14 · F-15 · F-16 · F-17 · F-33 · F-52 · F-53 · F-57 · F-59 · F-64 · F-66 · F-67 · F-87 · F-90 |
+
+Un `F-xx` puede estar en varias filas a propósito: se entra por el síntoma, y el mismo hallazgo se ve
+distinto según con qué pregunta llegues.
 
 ---
 
@@ -2269,5 +2312,189 @@ es la **identidad de la solicitud dentro del log**.
 
 **Estado:** medido el 2026-08-05 en producción sobre 8 solicitudes. Los dos arreglos de fondo son del
 backend y **no están hechos**.
+
+---
+
+### F-103 · Una solicitud TRABADA no está «rota» en la BD: sigue en curso, y el estado 10 no significa que el desembolso ocurrió
+
+**Síntoma.** Una solicitud que **falló firmando documentos** se ve sana. El desenlace en la BD es «en curso»
+—no hay estado de muerte— y cualquier vista que reparta estados por etapa la pinta como si el tramo de
+cierre hubiera terminado. Reportado sobre la uReq **464709 de staging**: falló la firma y el paso de
+desembolso salía en **verde**.
+
+**Causa raíz** (verificada). Dos cosas distintas que es fácil colapsar en una:
+
+1. **«A qué etapa PERTENECE un estado» ≠ «ese estado prueba que la etapa TERMINÓ».** El estado **10
+   («Pendiente de autorización») pertenece** al tramo de cierre —lo escribe
+   `PaymentScheduleService::handleSelectPaymentDate` al elegir la fecha de pago, ver el nodo
+   `formalization`— pero significa que el flujo está **ADENTRO**, con el pagaré sin firmar. Los que sí
+   cierran son los `sellados` (11, 28, 5, 25, 26). Tratar el 10 como cierre es afirmar un desembolso que no
+   ocurrió.
+2. **Trabada ≠ rota.** `user_request_statuses` tiene estados de muerte (6 Negada, 8 Cancelado, 12
+   Autorización negada, 24 Rechazado por identidad), y **el 10 no es ninguno**. Una solicitud que se queda
+   ahí figura «en curso» para siempre: no aparece en ningún listado de fallidas, y el corte no se ve en
+   ninguna parte salvo que alguien lo busque.
+
+**Evidencia.** uReq 464709 (staging, DENTIX, rt=2): último estado 10, `user_request_records` sin
+transiciones posteriores, cero filas de `Deceval` en `risk_central_user_data`, cero líneas de log en la
+ventana. El desenlace calculado por `desenlaceDe` es «en-curso».
+
+**Arreglo.** Separar los tres conceptos, que son tres y no dos:
+
+| pregunta | qué la contesta |
+|---|---|
+| ¿a qué etapa pertenece este estado? | el reparto estado→etapa (el 10 es de `desembolso`) |
+| ¿la etapa **terminó**? | sólo los estados de cierre (los `sellados` + el terminal propio de cada etapa) |
+| ¿la solicitud quedó **detenida** acá? | el estado final ES de esa etapa y no cierra → **es el corte** |
+
+En `playground/trazador` esto quedó como tres mapas explícitos (`estadoEtapa`, `estadoCierra`,
+`estadoDetiene`), y la etapa donde se detuvo se marca en rojo con el motivo: *«DETENIDA acá: la solicitud
+entró a esta etapa y no salió — estado 10 “Pendiente de autorización”. No figura como rota en la BD, sigue
+en curso.»*
+
+**La pista falsa.** Que el desenlace de la BD diga «en curso» invita a leer la solicitud como viva. Para
+soporte no lo está: nadie la va a mover. **Buscar solicitudes trabadas por su desenlace no las encuentra —
+hay que buscarlas por estado + antigüedad.**
+
+**Y una advertencia de diseño para cualquier vista de flujo:** un sub-paso que DESCRIBE configuración (p. ej.
+«este lender valida identidad con Ado») no es evidencia de que algo ocurrió. Contarlo como tal produce la
+misma clase de falso verde — pasó dos veces en el trazador antes de marcarlo explícitamente como
+declarativo.
+
+**Estado:** verificado el 2026-08-06 contra staging. El comportamiento del backend NO es un bug: el 10 es un
+estado legítimo del tramo de cierre. Lo que era un bug es leerlo como cierre.
+
+---
+
+### F-104 · El perfilador ML nuevo NUNCA corre en producción (falta la env), y el viejo lleva caído desde el 2026-08-05
+
+**Síntoma.** El listado de entidades tarda minutos y en los logs aparecen
+`cURL error 28: Operation timed out after 15002 milliseconds … for
+http://profiler.inertia-production:8000/predict_w_experian`, repetidos varias veces en una misma
+solicitud (4 en la uReq **521997** de prod). El mensaje empieza con `cURL error 28` y no nombra a nadie:
+leerlo sin llegar al final de la URL lleva a atribuírselo al lender que se estaba evaluando en ese
+momento — que es un servicio EXTERNO— cuando el que no responde es INTERNO.
+
+**Causa raíz** (verificada, dos capas independientes):
+
+1. **El perfilador nuevo está apagado por configuración, no por falla.** `ProfilerMLController::mlModelV1`
+   tiene la estrategia **cableada** como `new_then_legacy`: primario `NewProfilerMLService`, respaldo el
+   modelo H2O de siempre. Pero `NewProfilerMLService` arranca con una guarda —si
+   `config('services.new_profiler_ml.host')` viene vacío devuelve `error` sin llamar a nadie— y esa config
+   sale de **`NEW_PROFILER_ML_HOST`**, que en prod **no está puesta**. Resultado: el primario falla
+   *siempre*, y `fallback_triggered` viene en `true` en **13.902 de 13.902** filas con forma de array entre
+   el 2026-07-01 y el 2026-08-05 (**100 %**). La huella queda en la BD:
+   `previous_attempt.details = "Configure services.new_profiler_ml.host para usar el nuevo perfilador."`.
+2. **El respaldo (H2O) está caído desde el 2026-08-05 ~16:00 (Bogotá).** Medido por hora sobre
+   `profiling_reviews`: el 2026-08-06 son **1.513 de 1.513** solicitudes sin ninguna respuesta del modelo
+   (`error` o `status:error` con el 503 «El servidor de predicciones no está disponible»). Hubo una caída
+   igual del **2026-07-24 al 2026-07-28**. En los días buenos ese mismo respaldo sí puntúa.
+
+⚠ **`fallback_triggered: true` NO significa «lo ordenaron las matrices»** — significa que el perfilador
+NUEVO falló y respondió el VIEJO, que sigue siendo un modelo. Leerlo como «el ML está apagado» manda a
+revisar configuración cuando lo que hay es un servicio sin responder (y al revés).
+
+**Evidencia.**
+- `legacy-backend`: `Modules/Risk/App/Http/Controllers/ProfilerML/ProfilerMLController.php` —
+  `$strategy = 'new_then_legacy'`, `profileWithFallback()` marca `fallback_triggered`, y `makePrediction()`
+  usa `->baseUrl(config('services.h2oapi.host'))->timeout(15)` (de ahí los 15002 ms).
+- `Modules/Onboarding/App/Services/ProfilerML/NewProfilerMLService.php` — la guarda `if ($host === '')`.
+- `config/services.php` → `'new_profiler_ml' => ['host' => env('NEW_PROFILER_ML_HOST'), …]`.
+- BD prod (`profiling_reviews.ML_predictions`, 59.841 filas del 2026-07-01 al 2026-08-05) y el corte por
+  hora del 2026-08-05/06.
+
+⚠ **Y cada timeout manda un correo.** El `catch` de `makePrediction` hace
+`Notification::route('mail', ['santiago@creditop.com','jose.guzman@creditop.com'])`. Cuatro timeouts en una
+solicitud son cuatro correos; con ~1.500 solicitudes diarias fallando, el volumen no es anecdótico.
+
+**Arreglo.** Dos, separados: (a) poner `NEW_PROFILER_ML_HOST` en prod **o** dejar de intentar el primario,
+para no pagar el intento fallido en cada solicitud; (b) el 503 de `profiler.inertia-production:8000` es de
+infraestructura y no se arregla desde este código.
+
+**Estado:** verificado el 2026-08-06 contra código (`main`) y datos de producción. **La caída del respaldo
+seguía activa a la hora de medir.** No verificado: qué ordena el listado cuando ningún perfilador responde
+— `matrix_predictions` sólo viene poblada en ~27 % de las filas y esa proporción no cambia en los días de
+caída, así que **no** es el respaldo del orden.
+
+---
+
+### F-105 · `user_request_records` NO registra todas las transiciones: los estados 1 y 10 nunca dejan fila
+
+**Síntoma.** Una solicitud está en el estado 10 («Pendiente de autorización») y su historial de
+transiciones termina en el 3. Cualquier reconstrucción del recorrido hecha sólo con
+`user_request_records` —que es la tabla natural para eso— muestra un camino que **no llega** al estado en
+el que la solicitud está de verdad, y no avisa: no hay hueco visible, la lista simplemente termina antes.
+Encontrado en la uReq **464709 de staging** al poner el historial al lado de la afirmación que se apoyaba
+en él.
+
+**Causa raíz** (medida, mecanismo NO verificado en código). El estado vigente vive en
+**`user_requests.user_request_status_id`** y el recorrido en **`user_request_records`**, y son dos
+escrituras distintas: hay estados que se escriben en la primera y **nunca** en la segunda. Medido en prod
+sobre las solicitudes creadas desde el 2026-08-05:
+
+| estado | solicitudes | sin fila en el historial |
+|---|---|---|
+| **1** | 58 | **58 (100 %)** |
+| **10** «Pendiente de autorización» | 44 | **44 (100 %)** |
+| 11 | 257 | 37 (14 %) |
+| 8 | 92 | 17 (18 %) |
+| 6 | 115 | 4 (3 %) |
+| 9 | 1.075 | 24 (2 %) |
+| 3 | 308 | 1 (0,3 %) |
+
+El 1 y el 10 son **categóricos**, no ruido: en esa ventana no hay una sola solicitud en esos estados con
+fila de historial. Los demás porcentajes parecen carreras (la fila se escribe después) y no se
+investigaron.
+
+⚠ **Lo que NO está verificado**: por qué. No se buscó en el código quién escribe `user_request_records`
+ni con qué condición se lo salta. La tabla de arriba dice **que** pasa y con qué frecuencia; el mecanismo
+es hipótesis.
+
+**Evidencia.** `SELECT ur.user_request_status_id, COUNT(DISTINCT ur.id), COUNT(DISTINCT CASE WHEN r.id IS
+NULL THEN ur.id END) FROM user_requests ur LEFT JOIN user_request_records r ON r.user_request_id = ur.id
+AND r.user_request_status_id = ur.user_request_status_id WHERE ur.created_at >= '2026-08-05' GROUP BY 1`
+(prod). Y el caso puntual: la 464709 de staging tiene filas sólo para los estados 3 y 9, con
+`user_requests.user_request_status_id = 10`.
+
+**Arreglo.** Del lado de quien lee: **el recorrido son las dos tablas**, no una. El trazador ya lo hace —
+el bloque de evidencia del paso «DETENIDA acá» muestra el historial y debajo el estado vigente, y dice
+explícitamente cuándo el segundo no aparece en el primero. Del lado del backend no se propone nada: haría
+falta ver primero por qué se salta la escritura.
+
+**Estado:** verificado el 2026-08-06 (medición en prod + caso en staging). Relacionado con **F-103**: aquel
+dice que el estado 10 no prueba que el desembolso ocurrió; éste dice que además **ni siquiera aparece en
+el historial**, así que un recorrido que termina antes del 10 no significa que no haya llegado.
+
+---
+
+### F-106 · La fila de estado 9 en `user_request_records` se escribe al CREAR la solicitud: no prueba que el formulario se completó
+
+**Síntoma.** Cualquier reconstrucción que lea «hay fila de estado 9» como «el cliente completó el
+formulario» pinta verde la etapa donde más solicitudes mueren. El trazador lo hacía (`estadoCierra[9]`), y
+como el **50,9 % de las solicitudes de los últimos 30 días queda en estado 9 sin elegir entidad**, el falso
+verde caía justo en el caso más consultado por soporte.
+
+**Causa raíz** (medida en 4 trazas; mecanismo en código NO verificado). La fila de estado 9 nace junto con
+la solicitud: en las 4 trazas del censo del 2026-08-07 con esa fila, está a **≤1 segundo** del `created_at`
+de `user_requests` — 520593 (13:30:43/13:30:43), 522154 (06:01:14/06:01:14), 522239 (11:24:33/11:24:33),
+522237 (11:23:14/11:23:15). En 522154 el primer log del formulario llega **30 minutos después** (Agildata
+06:31:22). O sea: estado 9 = «la solicitud existe», no «el formulario se llenó».
+
+⚠ **No verificado**: quién escribe esa fila y por qué en la creación (no se buscó en el código), ni la
+medición poblacional (la consulta de verificación a escala fue bloqueada; el dato fino son esas 4 trazas +
+el 50,9 % que sí está medido con ventana explícita).
+
+**Evidencia.** Los 4 pares created_at/fila-9 de arriba (prod y staging, censo 2026-08-07). La proporción:
+`user_requests` últimos 30 días = 25.841, de las cuales 13.145 en estado 9 sin lender (50,9 %); a 60 días
+49,7 %.
+
+**Arreglo.** Del lado de quien lee: estado 9 **pertenece** a la etapa del formulario pero **no la cierra**
+— la prueba de cierre son los logs del formulario o el paso a un estado posterior. El trazador ya lo
+aplica: `bd.detienen=[9]` en `etapas.json` (estar en 9 = seguir adentro) y la fila se muestra rotulada
+«se escribe al CREAR la solicitud». Es la tercera vez que el mismo patrón engaña — estado 10 (F-103),
+historial incompleto (F-105), y ahora el 9 — la regla general: **un estado dice dónde está la solicitud,
+nunca qué completó**.
+
+**Estado:** verificado el 2026-08-07 sobre 4 trazas + proporción a 30/60 días. Relacionado: F-103, F-105.
 
 ---

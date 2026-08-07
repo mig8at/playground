@@ -222,6 +222,23 @@ leer con el mismo `import.meta.glob` que usa para `tree.json` — sin server, qu
 
 ## Findings
 
-Entrada nueva = `### F-NN` correlativo **al final de su sección temática** (A–L; letra nueva si el
-tema no existe), con los 5 campos síntoma → causa raíz → evidencia → arreglo → estado. La causa raíz
-va **verificada** o marcada `hipótesis, sin confirmar`; si el síntoma engaña, decilo en el título.
+Entrada nueva = `### F-NN` correlativo, con los 5 campos síntoma → causa raíz → evidencia → arreglo →
+estado. La causa raíz va **verificada** o marcada `hipótesis, sin confirmar`; si el síntoma engaña,
+decilo en el título.
+
+**Y agregala al índice `## Índice · ¿con qué síntoma llegás?`**, bajo la pregunta que contesta. Eso es
+lo que la vuelve encontrable: el archivo pesa ~58.000 tokens y nadie lo lee entero.
+
+⚠ **Las letras A–O ya NO son temas, son historia — no intentes clasificar por ahí.** La regla decía «al
+final de su sección temática» y en la práctica dejó de cumplirse: lo nuevo se appendea al final físico
+del archivo, así que hoy la sección «O · El código de compra en caja» contiene el código de compra
+(F-79…F-92) **y además** F-93…F-106, que son de datos, logs y estados. «L · Motai» tiene harness,
+Cognito y ecommerce adentro. Y los números tampoco van en orden de archivo (F-73…F-77 están arriba de
+todo). Se dejó así a propósito: reordenar 106 hallazgos rompería las citas `F-xx` que hacen
+`harness/pkg/trace.ts`, `harness/pkg/cognito.ts`, `trazador/server/etapas.go` y `tablero/data/*.md`.
+**El índice es el que clasifica; la letra sólo dice cuándo se escribió.**
+
+Y por lo mismo: **no muevas hallazgos a otros nodos.** El `F-xx` es un identificador público citado
+desde código de tres herramientas; que todos vivan en `findings/doc.md` es lo que hace que esas citas
+se puedan resolver. Partir el archivo tampoco sale gratis hoy: `refs.py` sólo valida `doc.md`, el
+ROUTE-MAP sólo lo nombra a él y la viz sólo hace glob de `*/doc.md` — habría que tocar las tres.

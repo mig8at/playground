@@ -44,6 +44,7 @@
     "application/app/Http/Controllers/Customer/VoucherController.php",
     "application/app/Http/Controllers/Customer/WoocommerceController.php",
     "application/app/Http/Requests/Admin/CreditopX/RevolvingCreditsListRequests.php",
+    "application/app/Jobs/CreditopXRequestsReportEmail.php",
     "application/app/Jobs/Lenders/Credifamilia/BonificationCheck.php",
     "application/app/Jobs/Lenders/Credifamilia/SendBonificationReport.php",
     "application/app/Jobs/Lenders/Wompi/CheckStatus.php",

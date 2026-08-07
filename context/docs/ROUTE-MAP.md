@@ -16,6 +16,7 @@
     - harness [ref]
     - legacy-backend [ref]
     - ms-preapprovals [ref]
+    - trazador [ref]
   - backoffice [ref]
   - ecommerce [ref]
   - entities [ref]
@@ -48,7 +49,7 @@
 **Cuándo:** Cuando la tarea toca material TRANSVERSAL que ningún contexto dueña: tablas y datos clave, máquinas de estado y el Estado 11, frontera de pruebas y harness, deuda técnica y hardcodes, glosario y colisiones de id. También cuando no sabés por dónde empezar.
 Doc: `server/data/flows/creditop/doc.md` · Archivos: `server/data/flows/creditop/map.json`
 
-### actors — Actors  ·  _reference_ · 67 archivos
+### actors — Actors  ·  _reference_ · 68 archivos
 **Cuándo:** Cuando la pregunta es de PERMISOS o de quién hace qué: cliente vs asesor vs back-office, login, Cognito y SSO, roles y alcance, y por dónde entra cada uno (QR, link de continuación, autogestión).
 Doc: `server/data/flows/actors/doc.md` · Archivos: `server/data/flows/actors/map.json` · Padre: `creditop`
 
@@ -61,7 +62,7 @@ Doc: `server/data/flows/aggregator/doc.md` · Archivos: `server/data/flows/aggre
 Doc: `server/data/flows/amount-tiers/doc.md` · Archivos: `server/data/flows/amount-tiers/map.json` · Padre: `creditopx`
 
 ### application — application  ·  _reference_ · 85 archivos
-**Cuándo:** Cuando trabajás en el monolito Aliados (el que corre en prod): panel de administración, alta de entidades/comercios/sucursales, crons de cobranza y servicing, Inertia/Vue, rutas por audiencia admin/customer/api.
+**Cuándo:** Cuando trabajás en el monolito Aliados (el que corre en prod): panel de administración, alta de entidades/comercios/sucursales, crons de cobranza y servicing, Inertia/Vue, rutas por audiencia admin/customer/api. También cuando el reporte que descarga un comercio trae datos de MÁS comercios, o cualquier cosa del botón «Descargar Solicitudes» / reporte de solicitudes originadas: los exports viven acá y su alcance depende del ROL (ver el nodo `actors`).
 Doc: `server/data/flows/application/doc.md` · Archivos: `server/data/flows/application/map.json` · Padre: `architecture`
 
 ### architecture — Architecture  ·  _reference_ · 77 archivos
@@ -80,7 +81,7 @@ Doc: `server/data/flows/bancolombia/doc.md` · Archivos: `server/data/flows/banc
 **Cuándo:** Cuando la tarea es del GRUPO DE COMERCIOS Corbeta (retail físico: Alkosto 209 / K-TRONIX 210 / Alkomprar 211; el allied 24 del gate es 'Creditop', la cuenta propia de la casa) y la venta se cierra en CAJA: checkout ecommerce base64 → PIN de la API Fondos → factura en tienda → conciliación batch por PIN → estado 26 Facturado → confirmación diferida al lender. Sus tres retail tienen SÓLO Bancolombia habilitado (68 BNPL / 100 Consumo): la decisión de crédito y los endpoints de originación son del nodo `bancolombia`.
 Doc: `server/data/flows/corbeta/doc.md` · Archivos: `server/data/flows/corbeta/map.json` · Padre: `merchants`
 
-### credifamilia — Credifamilia  ·  _reference_ · 135 archivos
+### credifamilia — Credifamilia  ·  _reference_ · 136 archivos
 **Cuándo:** Cuando la tarea toca Credifamilia (lender 24, el único response_type=4): radicación por SOAP, KYC V2 (Evidente/CrossCore/Jumio), plan de cuotas dinámico, o el gate local que hace que no aparezca en pruebas.
 Doc: `server/data/flows/credifamilia/doc.md` · Archivos: `server/data/flows/credifamilia/map.json` · Padre: `entities`
 
@@ -89,7 +90,7 @@ Doc: `server/data/flows/credifamilia/doc.md` · Archivos: `server/data/flows/cre
 Doc: `server/data/flows/creditopx/doc.md` · Archivos: `server/data/flows/creditopx/map.json` · Padre: `entities`
 
 ### dynamic-forms — Dynamic Forms  ·  _reference_ · 90 archivos
-**Cuándo:** Cuando hay que agregar o cambiar un CAMPO del formulario por configuración: las tres generaciones de formulario dinámico, EAV user_field_values, tipos de documento por sucursal.
+**Cuándo:** Cuando hay que agregar o cambiar un CAMPO del formulario por configuración: las tres generaciones de formulario dinámico, EAV `user_field_values`, tipos de documento por sucursal, `form_type` por lender (Credifamilia es el 6). Síntomas típicos: «formulario no encontrado», el form dinámico carga pero no deja avanzar, o hay que sumar un campo en cascada (departamento→ciudad) sin escribir código. La ruta del wizard es `additional-info`.
 Doc: `server/data/flows/dynamic-forms/doc.md` · Archivos: `server/data/flows/dynamic-forms/map.json` · Padre: `formalization`
 
 ### ecommerce — Ecommerce  ·  _reference_ · 71 archivos
@@ -109,7 +110,7 @@ Doc: `server/data/flows/findings/doc.md` · Archivos: `server/data/flows/finding
 Doc: `server/data/flows/form-service/doc.md` · Archivos: `server/data/flows/form-service/map.json` · Padre: `dynamic-forms`
 
 ### formalization — Formalization  ·  _reference_ · 86 archivos
-**Cuándo:** Cuando el problema está DESPUÉS de elegir entidad: plan de pagos, documentos, pagaré, firma con OTP, autorización hasta el Estado 11 y desembolso.
+**Cuándo:** Cuando el problema está DESPUÉS de elegir entidad: plan de pagos, fecha de primer pago, documentos, pagaré, firma con OTP, autorización hasta el Estado 11 y desembolso. Las pantallas del wizard de este tramo son `confirmation`, `payment-schedule`, `first-payment-date`, `payment-reminder`, `additional-info`, `sign-documents`, `otp-validation` y `loan-approved`. Acá caen «falló firmando documentos», «no le llegó el OTP de la firma», «quedó en Pendiente de autorización (estado 10)», «Aprobada no desembolsada (estado 20)», Deceval (pagaré SOAP) y Netco (firma).
 Doc: `server/data/flows/formalization/doc.md` · Archivos: `server/data/flows/formalization/map.json` · Padre: `creditop`
 
 ### frontend-monorepo — frontend-monorepo  ·  _reference_ · 86 archivos
@@ -124,16 +125,16 @@ Doc: `server/data/flows/hardcodes-entidades/doc.md` · Archivos: `server/data/fl
 **Cuándo:** Cuando la tarea es “necesito probar / ejercitar / mockear un flujo de originación E2E” — correr un triplete canal→comercio→lender de punta a punta, sembrar/inyectar un perfil aprobado, decidir qué se puede sellar localmente vs. qué lo decide una API externa, o levantar el demo del wizard (2 ventanas / panel).
 Doc: `server/data/flows/harness/doc.md` · Archivos: `server/data/flows/harness/map.json` · Padre: `architecture`
 
-### kyc — KYC  ·  _reference_ · 28 archivos
+### kyc — KYC  ·  _reference_ · 34 archivos
 **Cuándo:** Cuando la tarea toca burós o datos de riesgo: score, Experian/Datacrédito, ingreso (Ágil Data, Mareigua, Quanto), identidad, AML, biometría, cifrado del reporte, o armar un usuario sintético para pruebas.
 Doc: `server/data/flows/kyc/doc.md` · Archivos: `server/data/flows/kyc/map.json` · Padre: `onboarding`
 
 ### legacy-backend — legacy-backend  ·  _reference_ · 90 archivos
-**Cuándo:** Cuando trabajás en el backend nuevo modular: módulos Onboarding/Loans/Identity/Partner/Risk, rutas /api/*, arquitectura V1 y V2, envelope code/message/data, o dónde poner un endpoint nuevo.
+**Cuándo:** Cuando trabajás en el backend nuevo modular: módulos Onboarding/Loans/Identity/Partner/Risk, rutas /api/*, arquitectura V1 y V2, envelope code/message/data, o dónde poner un endpoint nuevo. También cuando el síntoma llega como un CÓDIGO de error del onboarding (ONB002 usuario temporal sin Corbeta, ONB005 TusDatos, ONB040 rate limit) o como un endpoint concreto: `lenders-v2`, `storePersonalInfo`, `validateOtpCodeAndRedirect`, `lender-result`.
 Doc: `server/data/flows/legacy-backend/doc.md` · Archivos: `server/data/flows/legacy-backend/map.json` · Padre: `architecture`
 
 ### merchants — Merchants  ·  _reference_ · 51 archivos
-**Cuándo:** Cuando el problema es 'a este comercio le pasa distinto': configuración por entidad/comercio/sucursal, copia de reglas por sucursal, hash de entrada, credenciales de ecommerce, toggles del comercio.
+**Cuándo:** Cuando el problema es 'a este comercio le pasa distinto': configuración por entidad/comercio/sucursal, copia de reglas por sucursal, hash de entrada, credenciales de ecommerce, toggles del comercio. También cuando el comercio cambia la FORMA del flujo y no sólo sus reglas — el caso medido es el setting `corbeta_allieds` (Alkosto 209, K-TRONIX 210, Alkomprar 211, Kalley 311, Creditop 24), que salta el formulario y fabrica la info laboral, y por eso ese comercio no consulta buró.
 Doc: `server/data/flows/merchants/doc.md` · Archivos: `server/data/flows/merchants/map.json` · Padre: `creditop`
 
 ### motai — Motai  ·  _reference_ · 48 archivos
@@ -152,8 +153,8 @@ Doc: `server/data/flows/onboarding/doc.md` · Archivos: `server/data/flows/onboa
 **Cuándo:** Cuando la pregunta es sobre cómo CreditOp habla con la pasarela de pago — Wompi o Payvalida: crear/firmar la transacción, el checkout, el polling o webhook de confirmación, la cuota inicial de formalización (el enganche antes de desembolsar, incl. el rebote rt=2 `initial_fee>0`), el recaudo del préstamo desde la pasarela, los links de pago, o credenciales de gateway.
 Doc: `server/data/flows/payments/doc.md` · Archivos: `server/data/flows/payments/map.json` · Padre: `creditop` · Usa: `formalization`, `servicing`
 
-### profiling — Profiling  ·  _reference_ · 30 archivos
-**Cuándo:** Cuando el usuario cae en la categoría equivocada, o el cupo/enganche/plazo salen mal: las categorías rt=2 y sus reglas (ocupación, edad, salario, continuidad, score).
+### profiling — Profiling  ·  _reference_ · 32 archivos
+**Cuándo:** Cuando el usuario cae en la categoría equivocada, o el cupo/enganche/plazo salen mal: las categorías rt=2 y sus reglas (ocupación, edad, salario, continuidad, score). También cuando la pregunta es «¿por qué el listado salió en ESE orden?» o «¿por qué tardó minutos?»: el perfilador ML (H2O, `NEW_PROFILER_ML_HOST`, `predict_w_experian`, timeouts de 15 s) y el snapshot `profiling_reviews` con sus columnas `displayed_lenders`, `hard_rules`, `ML_predictions` y `disbursed_lender`.
 Doc: `server/data/flows/profiling/doc.md` · Archivos: `server/data/flows/profiling/map.json` · Padre: `creditopx`
 
 ### pullman — Pullman  ·  _reference_ · 13 archivos
@@ -164,10 +165,14 @@ Doc: `server/data/flows/pullman/doc.md` · Archivos: `server/data/flows/pullman/
 **Cuándo:** Cuando el prestamista es solo un enlace (rt=0, UTM): se arma la url, se redirige al sitio del lender y se pierde visibilidad. Nadie decide el crédito adentro de CreditOp.
 Doc: `server/data/flows/redirect/doc.md` · Archivos: `server/data/flows/redirect/map.json` · Padre: `entities`
 
-### servicing — Servicing  ·  _reference_ · 62 archivos
+### servicing — Servicing  ·  _reference_ · 63 archivos
 **Cuándo:** Cuando el problema es DESPUÉS del desembolso (Estado 11): cartera, causación de interés, fecha de corte, mora, cobranza, pagos y cupo rotativo. Los 6 crons diarios y el ledger del préstamo. Ojo: corre 100% en application.
 Doc: `server/data/flows/servicing/doc.md` · Archivos: `server/data/flows/servicing/map.json` · Padre: `creditop`
 
 ### smartpay — SmartPay  ·  _reference_ · 74 archivos
 **Cuándo:** Cuando la tarea es de SmartPay: el celular financiado como garantía, IMEI, bloqueo de dispositivo y MDM, salto de AML, desembolso diferido y crons de bloqueo por mora.
 Doc: `server/data/flows/smartpay/doc.md` · Archivos: `server/data/flows/smartpay/map.json` · Padre: `merchants`
+
+### trazador — Trazador  ·  _reference_ · 15 archivos
+**Cuándo:** Cuando la tarea es «¿qué le pasó a ESTA solicitud y por qué?» y hay que leer o tocar el trazador (playground/trazador): la herramienta de soporte que cruza BD (Redash) con logs (Loki) y arma el recorrido por etapas. Acá viven el mapa de etapas y sub-pasos (mapa/etapas.json, mapa/substeps.json, mapa/ramales.json), la semántica de los estados de user_requests (cierran vs detienen), la evidencia SQL que acompaña cada paso, y los diagnósticos -anclas/-campos/-spans/-validar. También cuando hay que agregar un hito nuevo porque un mensaje de log cae en «eventos sin nombre de negocio». NO es para ejercitar flujos: eso es harness.
+Doc: `server/data/flows/trazador/doc.md` · Archivos: `server/data/flows/trazador/map.json` · Padre: `architecture`
