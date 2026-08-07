@@ -57,6 +57,7 @@ acá, saltá al `F-xx` y leé sólo eso.
 | **«no le aparece ninguna entidad en el listado»** | F-04 · F-34 · F-56 · F-75 · F-78 |
 | **«¿qué integra de verdad este comercio / esta entidad?»** | F-25 · F-26 · F-27 · F-28 · F-34 · F-35 · F-37 |
 | **«el buró: ¿se consultó para ESTA solicitud?»** | F-101 · F-107 |
+| **«¿hay evidencia en la BD que el trazador no mira?»** | F-108 |
 | **«el crédito no cierra en local»** | F-07 · F-08 · F-09 · F-10 · F-11 · F-12 · F-13 · F-29 · F-30 · F-31 · F-36 |
 | **«falló la validación de identidad / se canceló solo»** | F-10 · F-55 · F-60 · F-62 · F-63 |
 | **«firma, pagaré, OTP de firma»** | F-02 · F-11 · F-12 · F-30 · F-32 · F-36 · F-37 · F-58 |
@@ -2571,3 +2572,47 @@ escritor.
 techo deja de degradarse; si además alguien hiciera que el flujo escriba el vínculo **en el momento de
 consultar**, ahí sí pasaría a ser el hecho que hoy no es.
 
+
+### F-108 · Hay 14 tablas de LOG en la BD que ninguna herramienta lee — pero sólo 2 sirven para atar a una solicitud
+
+**Síntoma.** El trazador busca el «por qué» sólo en Loki, y declara tramos ciegos (la etapa de validación
+biométrica sale con **0 líneas de log en 25 de 25 trazas** del censo). Mientras tanto la propia BD tiene
+un juego de tablas de auditoría que nadie mira: `otp_logs`, `deceval_logs`, `compare_face_logs`,
+`ocr_logs`, `qr_logs`, `twilio_logs`, `creditop_x_log`, `creditop_x_changes_log`, `deceval_logs`,
+`reminder_dispatch_log`, `reminder_email_log`, `reports_log`, `statements_of_account_log`,
+`allied_status_log`, `log_user_special_credit_grant_by_lender`.
+
+**Causa raíz** (medida en prod). Las cuatro que tocan tramos donde el trazador está ciego **declaran
+`user_request_id`**, pero sólo dos lo llenan:
+
+| tabla | filas | con `user_request_id` | sirve |
+|---|---|---|---|
+| `deceval_logs` | 1.404 | **1.404 (100 %)** · 174 solicitudes | **sí** |
+| `otp_logs` | 983.921 | **10.334 (1 %)** · 8.174 solicitudes | sí, parcial |
+| `compare_face_logs` | 8.115 | **0** | no |
+| `ocr_logs` | 10.633 | **0** | no |
+
+⚠ **`compare_face_logs` y `ocr_logs` tienen la columna y NUNCA la escriben.** Es el mismo patrón que
+F-107 y que `risk_central_user_data`: el esquema promete atribución por solicitud y el dato no la
+entrega. Quien los quiera usar tiene que cruzar por `user_id` — y hereda la contaminación entre
+solicitudes del mismo cliente.
+
+**Evidencia.** Consultas de conteo contra prod (trazador `-sql`, sólo lectura, 2026-08-07). Y el caso
+concreto que lo desinfla: la uReq **464709 de staging** —la que falló firmando documentos, el reporte
+que originó todo este tramo— tiene **0 filas en las cuatro**. `deceval_logs` cubre 174 solicitudes en
+total, así que su cobertura es fina: sirve cuando está, y no está casi nunca.
+
+**Arreglo.** Ninguno aplicado, a propósito. Lo que corresponde es lo que dice la medición:
+`deceval_logs` es el único candidato limpio para sumar al trazador (100 % atado, y cubre justo el tramo
+del pagaré, que es el reporte de soporte más caro). `otp_logs` al 1 % no vale el join. Las otras dos NO
+se deben usar por `user_request_id` — devolverían vacío siempre y eso se leería como «no pasó», el
+mismo falso negativo de F-107.
+
+**Estado:** verificado el 2026-08-07 contra prod y staging. **No verificado**: las otras 10 tablas de
+log (`qr_logs`, `twilio_logs`, `creditop_x_log`…) — no se midió si atan a una solicitud ni qué cubren.
+
+⚠ **La lección, que es la que generaliza**: que una tabla declare `user_request_id` no significa que lo
+escriba. Antes de construir sobre una columna de atribución, contá cuántas filas la traen — dos de
+cuatro dieron cero.
+
+---

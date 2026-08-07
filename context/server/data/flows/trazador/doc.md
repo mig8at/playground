@@ -112,6 +112,14 @@ leerlo entero.
   sea que **la pantalla se INFIERE del endpoint que el backend sirvió**, y una pantalla que no llama al
   backend es invisible. Eso no se arregla con el mapa: es la frontera de lo que la herramienta puede
   afirmar.
+- **Hay evidencia en la BD que este trazador NO mira**: 14 tablas de log de auditoría. Medido: sólo
+  `deceval_logs` ata al 100 % por `user_request_id` (1.404 filas / 174 solicitudes) y es candidata
+  limpia para el tramo del pagaré; `otp_logs` sólo al 1 %; y `compare_face_logs` / `ocr_logs`
+  **declaran la columna y nunca la escriben** (0 de 8.115 y 0 de 10.633) — usarlas por solicitud
+  devolvería vacío siempre y se leería como «no pasó». Ver **F-108**.
+- **Las funciones SQL no loguean.** 42 rutinas de MySQL calculan cosas del negocio (el ingreso, la
+  ocupación, los features del ML) y no escriben una línea: este árbol puede mostrar la entrada y la
+  salida de ese cómputo, nunca el medio. Nodo `db-routines`.
 - **`risk_central_user_data` se cruza por `user_id`, no por solicitud**: un cliente con varias
   solicitudes en la misma ventana contamina la traza abierta. El árbol lo avisa en los warnings, pero
   las filas igual cuentan en los totales.

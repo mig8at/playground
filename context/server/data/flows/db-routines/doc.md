@@ -76,6 +76,28 @@ por la regla de extensiones). Define **38 de las 42** — las otras 4 no tienen 
 - **El parseo por buró está duplicado en dos lugares**: las `FN_Mareigua_*` / `FN_AgilData_*` en la BD, y
   los extractores de `Modules/RiskV2/App/Extractors/RiskCentral/`. No se verificó si coinciden.
 
+## Lo que Redash SÍ y NO puede contestar acá
+
+Medido el 2026-08-07 con el usuario de Redash (`ms_app`):
+
+- ❌ **El CUERPO de una rutina**: `information_schema.routines.routine_definition` viene **NULL** —
+  falta el privilegio. `SHOW CREATE FUNCTION` tampoco (la copia local da lo mismo). O sea que los
+  cuerpos de las 4 sin fuente **no son recuperables con ninguna credencial disponible**: haría falta
+  un dump con acceso de DBA. Eso convierte «no están versionadas» en «no están, punto».
+- ❌ **Qué tablas se usan de verdad**: `performance_schema` está denegado
+  (`SELECT command denied … table_io_waits_summary_by_table`).
+- ⚠ **`information_schema.tables.update_time` sirve como POSITIVO, no como negativo**: en InnoDB es
+  NULL cuando el dato no está en memoria, así que «NULL» NO prueba que la tabla esté muerta. Medido:
+  **72 tablas escritas en los últimos 7 días** (eso sí es firme) y 175 sin dato.
+- ✅ **Qué existe y desde cuándo**: `routine_name`, `routine_type`, `created`, `last_altered`. Esa
+  última columna es la única forma de saber si una rutina cambió — el repo no lo dice.
+- ✅ **La cobertura real de una columna de atribución**: contar `SUM(col IS NOT NULL)`. Es lo que
+  destapó F-108, y la regla que deja: **que una tabla declare `user_request_id` no significa que lo
+  escriba** — dos de cuatro dieron cero.
+
+De las 72 vivas, **45 están nombradas en el árbol (62 %)** y 27 no. De esas 27, catorce son tablas
+de log (ver F-108) y cuatro son framework (`failed_jobs`, `model_has_roles`…).
+
 ## Preguntas abiertas
 
 - [ ] ¿Las 4 sin fuente tienen copia en algún lado (backup, otro repo, la máquina de alguien)? Si no, su
