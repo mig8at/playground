@@ -2615,4 +2615,10 @@ log (`qr_logs`, `twilio_logs`, `creditop_x_log`…) — no se midió si atan a u
 escriba. Antes de construir sobre una columna de atribución, contá cuántas filas la traen — dos de
 cuatro dieron cero.
 
+⚠ **Y una segunda, sobre el ACCESO**: «no se puede leer» depende de POR DÓNDE preguntes. El usuario de
+Redash (prod) no puede leer `routine_definition` ni `performance_schema`; la conexión **directa a MySQL
+de dev sí lee los cuerpos de las 42 rutinas**. Antes de declarar algo irrecuperable, probá las tres vías
+que hay —Redash, MySQL directo de dev, copia local— porque tienen privilegios distintos. Yo declaré
+«irrecuperable con cualquier credencial» habiendo probado dos de las tres.
+
 ---

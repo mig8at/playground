@@ -56,7 +56,8 @@ por la regla de extensiones). Define **38 de las 42** — las otras 4 no tienen 
 
 ## Gotchas / riesgos
 
-- ⚠ **CUATRO rutinas existen en producción y su código NO está en ningún repositorio**:
+- ⚠ **CUATRO rutinas existen en producción y su código NO está en ningún repositorio** (pero SÍ se
+  pueden rescatar desde dev — ver la receta abajo, y hacerlo es la acción pendiente):
   `FN_Mareigua_Incomes_Average` (creada 2025-10-29) · `FN_CreditopX_Revolving_Credit_Multiplier`
   (2025-12-27) · `FN_Replace_Special_Characters` (2025-07-29) · `actualizar_json` (2025-06-11). Las dos
   primeras **se llaman desde PHP en producción**. No se pueden revisar en un PR, ni versionar, ni
@@ -80,10 +81,21 @@ por la regla de extensiones). Define **38 de las 42** — las otras 4 no tienen 
 
 Medido el 2026-08-07 con el usuario de Redash (`ms_app`):
 
-- ❌ **El CUERPO de una rutina**: `information_schema.routines.routine_definition` viene **NULL** —
-  falta el privilegio. `SHOW CREATE FUNCTION` tampoco (la copia local da lo mismo). O sea que los
-  cuerpos de las 4 sin fuente **no son recuperables con ninguna credencial disponible**: haría falta
-  un dump con acceso de DBA. Eso convierte «no están versionadas» en «no están, punto».
+- ⚠ **El CUERPO de una rutina: NO por Redash, SÍ por MySQL directo.** Con el usuario de Redash
+  (prod) `routine_definition` viene **NULL** —falta el privilegio— y `SHOW CREATE FUNCTION` tampoco;
+  la copia local da lo mismo. **Pero la conexión DIRECTA a MySQL de dev sí los lee**: el trazador
+  apunta a `inertia-dev` sin pasar por Redash, y ahí las 42 devuelven cuerpo. La receta:
+
+  ```bash
+  cd trazador/server
+  go run . -target dev -sql "SELECT routine_definition FROM information_schema.routines \
+      WHERE routine_schema='creditop' AND routine_name='<nombre>'"
+  ```
+
+  Eso **rescata las 4 que no tienen fuente en ningún repo**, y hay evidencia fuerte de que la versión
+  de dev es la misma que corre en prod: `created` y `last_altered` coinciden **al segundo** en las
+  cuatro (p. ej. `FN_Mareigua_Incomes_Average` 2025-10-29 20:08:05 en los dos ambientes). No es
+  prueba de identidad byte a byte, pero sí de que las desplegó la misma corrida.
 - ❌ **Qué tablas se usan de verdad**: `performance_schema` está denegado
   (`SELECT command denied … table_io_waits_summary_by_table`).
 - ⚠ **`information_schema.tables.update_time` sirve como POSITIVO, no como negativo**: en InnoDB es
@@ -98,10 +110,26 @@ Medido el 2026-08-07 con el usuario de Redash (`ms_app`):
 De las 72 vivas, **45 están nombradas en el árbol (62 %)** y 27 no. De esas 27, catorce son tablas
 de log (ver F-108) y cuatro son framework (`failed_jobs`, `model_has_roles`…).
 
+## Qué hacen las 4 sin fuente (leídas desde dev el 2026-08-07)
+
+- **`FN_Mareigua_Incomes_Average`** (1.707 B) — el `approximate_real_salary`. Recorre el JSON de
+  aportantes, suma `resultado_pagos[].ingresos` de cada uno (capando la cantidad de pagos a `months`) y
+  divide por **`months`**, no por la cantidad de pagos encontrados. ⚠ Eso significa que **un cliente con
+  historial corto queda diluido**: 3 pagos reportados sobre una ventana de 12 se promedian contra 12. No
+  se determinó si es intencional (ingreso anualizado) o un defecto — pero cambia qué significa ese campo.
+- **`FN_Replace_Special_Characters`** (544 B) — normaliza texto: baja a minúsculas, quita tildes y `ñ`,
+  borra todo lo que no sea alfanumérico y devuelve en MAYÚSCULAS. Utilitaria, sin riesgo de negocio.
+- **`actualizar_json`** (2.201 B) — un cursor que **reescribe `profiling_reviews.ML_predictions`**,
+  desarmando y rearmando el JSON por lender (`lender_id`, `model_name`, `prediction`). Es un script de
+  migración de datos, y explica una de las tres formas de esa columna (ver F-104).
+- **`FN_CreditopX_Revolving_Credit_Multiplier`** (5.973 B) — la más grande de las cuatro; multiplicador
+  del cupo rotativo rt=3. Sin leer en detalle.
+
 ## Preguntas abiertas
 
-- [ ] ¿Las 4 sin fuente tienen copia en algún lado (backup, otro repo, la máquina de alguien)? Si no, su
-      lógica sólo existe en el binario de MySQL de cada ambiente.
+- [x] ~~¿Las 4 sin fuente tienen copia en algún lado?~~ **Sí: se leen desde dev por MySQL directo.** Lo
+      que queda es la ACCIÓN — dumpearlas a `legacy-backend` para que queden versionadas. Es un cambio a
+      un repo real, no se hizo.
 - [ ] ¿Coinciden `FN_Mareigua_*` con `MareiguaExtractor`? Si divergen, dos caminos calculan el mismo
       ingreso distinto — el mismo patrón que las dos convenciones de tasa (F-71).
 - [ ] ¿Prod, dev y staging tienen las MISMAS definiciones? `last_altered` por ambiente lo diría; no se
