@@ -93,8 +93,11 @@ leerlo entero.
   y el recorte que NUNCA se come un error). El HTML opcional: `vista.go:23 escribirHTML`.
 - **La API que consume la Vue** — `serve.go:38 servir(addr)` · `:199 targetDe` (de qué ambiente lee) ·
   `:212 enmascararPII`.
-- **El SQL de solo lectura** — `sql.go:47 esSoloLectura` es la guarda: rechaza todo lo que no sea
-  SELECT/WITH. `:83 modoSQL` es el comando.
+- **El SQL de solo lectura** — `sql.go:47 esSoloLectura` es la guarda, y son CUATRO chequeos, no uno:
+  arranca con SELECT/WITH · una sola sentencia · `INTO OUTFILE|DUMPFILE` (una escritura que empieza
+  como lectura — ver F-109) · y la lista de verbos, que ignora el verbo seguido de `(` porque ahí es
+  una función de cadena y no una sentencia. `:83 modoSQL` es el comando. ⚠ Si tocás esa guarda,
+  probala con la escritura que EMPIEZA como lectura, no sólo con `UPDATE`.
 - **La UI** — `src/components/Etapas.vue` (el árbol lateral, dibujado desde el mapa declarado aunque no
   haya traza), `src/components/Detalle.vue` (los pasos, sus logs y el bloque de BD; acá vive `abrible`,
   que es lo que hace auditables los pasos que sólo tienen evidencia de BD), `src/trazaTexto.js`

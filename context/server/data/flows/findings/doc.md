@@ -58,6 +58,7 @@ acá, saltá al `F-xx` y leé sólo eso.
 | **«¿qué integra de verdad este comercio / esta entidad?»** | F-25 · F-26 · F-27 · F-28 · F-34 · F-35 · F-37 |
 | **«el buró: ¿se consultó para ESTA solicitud?»** | F-101 · F-107 |
 | **«¿hay evidencia en la BD que el trazador no mira?»** | F-108 |
+| **«¿esta herramienta es de verdad solo-lectura?»** | F-109 |
 | **«el crédito no cierra en local»** | F-07 · F-08 · F-09 · F-10 · F-11 · F-12 · F-13 · F-29 · F-30 · F-31 · F-36 |
 | **«falló la validación de identidad / se canceló solo»** | F-10 · F-55 · F-60 · F-62 · F-63 |
 | **«firma, pagaré, OTP de firma»** | F-02 · F-11 · F-12 · F-30 · F-32 · F-36 · F-37 · F-58 |
@@ -2620,5 +2621,41 @@ Redash (prod) no puede leer `routine_definition` ni `performance_schema`; la con
 de dev sí lee los cuerpos de las 42 rutinas**. Antes de declarar algo irrecuperable, probá las tres vías
 que hay —Redash, MySQL directo de dev, copia local— porque tienen privilegios distintos. Yo declaré
 «irrecuperable con cualquier credencial» habiendo probado dos de las tres.
+
+---
+
+### F-109 · El «solo lectura» del `-sql` del trazador dependía del motor, no de su guarda: `INTO OUTFILE` pasaba
+
+**Síntoma.** Ninguno visible — y ése es el punto. La herramienta anuncia «Consulta de solo lectura» y
+rechaza `UPDATE`/`DROP`, así que se usa con esa confianza contra producción. Pero una consulta que
+ESCRIBE podía atravesarla entera.
+
+**Causa raíz** (verificada en código y ejercitada). `esSoloLectura` (`trazador/server/sql.go:47`) tiene
+tres guardas: que arranque con `SELECT`/`WITH`, que sea una sola sentencia, y una lista de verbos de
+escritura. **`SELECT … INTO OUTFILE '/ruta'` pasa las tres**: arranca con SELECT, es una sentencia, y
+`into`/`outfile` no están en la lista de verbos. Medido el 2026-08-07 contra dev: la consulta **llegó a
+MySQL** y sólo la frenó el servidor por falta del privilegio `FILE`. O sea que el «solo lectura» no lo
+garantizaba la herramienta sino la configuración del motor — contra un usuario con `FILE`, habría
+escrito un archivo en el servidor de base de datos.
+
+Y un falso positivo simétrico, del mismo mecanismo: la lista de verbos matcheaba `REPLACE` por palabra,
+así que rechazaba **la función de cadena** `REPLACE(col,'a','b')` como si fuera `REPLACE INTO`. MySQL
+tiene `REPLACE()` e `INSERT()` como funciones; contar saltos de línea con
+`LENGTH(x)-LENGTH(REPLACE(x,CHAR(10),''))` era imposible.
+
+**Evidencia.** `sql.go:47-63`. Ejercitado contra dev: `SELECT 1 INTO OUTFILE '/tmp/x'` →
+«la consulta falló» (llegó al servidor) antes del arreglo; «consulta rechazada» después.
+`SELECT REPLACE('ab','a','x')` → rechazada antes, devuelve fila después.
+
+**Arreglo.** Aplicado. Un patrón propio para `INTO OUTFILE|DUMPFILE` (van de dos palabras, no entran en
+una lista de verbos sueltos), y la lista de verbos ahora **ignora el verbo seguido de `(`** — un
+paréntesis pegado es una función, y la sentencia siempre lleva separador antes del destino
+(`REPLACE INTO`). No debilita: las otras dos guardas siguen intactas y se verificó con 6 casos.
+
+**Estado:** verificado y corregido el 2026-08-07.
+
+⚠ **La lección**: una guarda de «solo lectura» hay que probarla con la escritura que **empieza como una
+lectura**, no sólo con `UPDATE`/`DROP`. Si el único motivo por el que no se escribió es que el usuario
+no tenía el privilegio, la guarda no estaba haciendo su trabajo.
 
 ---

@@ -37,6 +37,13 @@ var reArranqueLectura = regexp.MustCompile(`(?is)^\s*(select|with)\b`)
 
 // Verbos que jamás aparecen en una lectura. Se buscan como PALABRA (`\b`) para no rechazar una columna
 // llamada `updated_at` ni un `SELECT * FROM inserts`.
+// ⚠ `SELECT … INTO OUTFILE/DUMPFILE` ES UNA ESCRITURA, y empieza con SELECT: pasa las dos guardas
+// de arriba (arranca con SELECT, una sola sentencia) y ningún verbo de la lista lo nombra. Medido el
+// 2026-08-07: llegaba a MySQL y sólo lo frenó el servidor por permisos — o sea que el «solo lectura»
+// de esta herramienta dependía de la config del motor, no de esta guarda. Contra un ambiente donde el
+// usuario tenga FILE, habría escrito. Va aparte de la lista porque es de DOS palabras.
+var reEscrituraAArchivo = regexp.MustCompile(`(?is)\binto\s+(outfile|dumpfile)\b`)
+
 var reVerboEscritura = regexp.MustCompile(`(?is)\b(insert|update|delete|drop|alter|create|truncate|replace|grant|revoke|rename|call|load|handler|lock|unlock|commit|rollback|savepoint|prepare|execute|do|set)\b`)
 
 // esSoloLectura decide si la consulta puede salir a la red. Devuelve el motivo del rechazo, o "".
@@ -56,8 +63,25 @@ func esSoloLectura(q string) string {
 	if i := strings.Index(strings.TrimRight(limpia, " \t\r\n;"), ";"); i >= 0 {
 		return "una sola sentencia por corrida (se encontró un ';' intermedio)"
 	}
-	if m := reVerboEscritura.FindString(limpia); m != "" {
-		return fmt.Sprintf("contiene el verbo %q, que no pertenece a una lectura", strings.ToUpper(m))
+	if m := reEscrituraAArchivo.FindString(limpia); m != "" {
+		return fmt.Sprintf("contiene %q: escribe un archivo en el servidor, no es una lectura",
+			strings.ToUpper(strings.Join(strings.Fields(m), " ")))
+	}
+	// ⚠ Un verbo seguido de `(` es una FUNCIÓN, no una sentencia. MySQL tiene `REPLACE(str,a,b)` e
+	// `INSERT(str,pos,len,new)` como funciones de cadena, y la guarda las rechazaba como si fueran
+	// `REPLACE INTO` / `INSERT INTO`. Costó una consulta legítima hoy: contar saltos de línea con
+	// `LENGTH(x)-LENGTH(REPLACE(x, CHAR(10), ''))` salía «contiene el verbo REPLACE».
+	//
+	// No debilita nada: la sentencia siempre lleva separador antes del destino (`REPLACE INTO`,
+	// `INSERT INTO`), nunca paréntesis pegado. Y la consulta ya tiene que EMPEZAR con SELECT/WITH y
+	// ser una sola sentencia — esto es defensa en profundidad, no la única puerta.
+	for _, m := range reVerboEscritura.FindAllStringIndex(limpia, -1) {
+		resto := strings.TrimLeft(limpia[m[1]:], " \t\r\n")
+		if strings.HasPrefix(resto, "(") {
+			continue // función de cadena, no sentencia
+		}
+		return fmt.Sprintf("contiene el verbo %q, que no pertenece a una lectura",
+			strings.ToUpper(limpia[m[0]:m[1]]))
 	}
 	return ""
 }
@@ -146,11 +170,18 @@ func columnas(filas []Fila) []string {
 	return cols
 }
 
+// celda aplana para la TABLA: un salto de línea rompería las columnas. Para CSV se usa `celdaCruda`
+// —`encoding/csv` ya entrecomilla lo que trae saltos—, porque ahí el punto es la fidelidad: aplanar
+// devolvía el cuerpo de una función almacenada en UNA sola línea, imposible de revisar en un diff.
 func celda(v any) string {
+	return strings.ReplaceAll(celdaCruda(v), "\n", " ")
+}
+
+func celdaCruda(v any) string {
 	if v == nil {
 		return "NULL"
 	}
-	return strings.ReplaceAll(fmt.Sprint(v), "\n", " ")
+	return fmt.Sprint(v)
 }
 
 func imprimirTabla(cols []string, filas []Fila) {
@@ -191,7 +222,7 @@ func imprimirCSV(cols []string, filas []Fila) int {
 	for _, f := range filas {
 		rec := make([]string, len(cols))
 		for i, c := range cols {
-			rec[i] = celda(f[c])
+			rec[i] = celdaCruda(f[c])
 		}
 		if err := w.Write(rec); err != nil {
 			fmt.Fprintf(os.Stderr, "  %s %v\n", paint("31", "✘"), err)
