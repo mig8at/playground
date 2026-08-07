@@ -14,6 +14,8 @@ Si la tarea llega con una de estas frases, empezá por esos nodos. Si ninguna ma
 |---|---|
 | «a este comercio le pasa distinto» | `merchants` |
 | «a este usuario le salen datos de OTRO comercio» | `actors` · `application` |
+| «cambió el perfilamiento y no hubo deploy» | `db-routines` |
+| «¿de dónde sale el ingreso / la ocupación del cliente?» | `db-routines` |
 | «desde operaciones no puedo ver/validar al usuario» | `backoffice` |
 | «dice que los datos no coinciden» / falla la identidad | `kyc` |
 | «¿dónde se trabó?» | `aggregator` · `formalization` · `trazador` |
@@ -22,6 +24,7 @@ Si la tarea llega con una de estas frases, empezá por esos nodos. Si ninguna ma
 | «el código de compra en caja no sirve» | `corbeta` |
 | «el endpoint devuelve un código raro» (ONB0xx) | `legacy-backend` |
 | «el listado tardó minutos» | `profiling` |
+| «el número no cuadra y no encuentro dónde se calcula» | `db-routines` |
 | «el reporte que descargó trae de más» | `application` |
 | «el webhook del lender no llegó» | `aggregator` |
 | «eligió la entidad y no pasó nada» | `aggregator` |
@@ -72,6 +75,7 @@ Si la tarea llega con una de estas frases, empezá por esos nodos. Si ninguna ma
     - ms-preapprovals [ref]
     - trazador [ref]
   - backoffice [ref]
+  - db-routines [ref]
   - ecommerce [ref]
   - entities [ref]
     - aggregator [ref]
@@ -142,6 +146,10 @@ Doc: `server/data/flows/credifamilia/doc.md` · Archivos: `server/data/flows/cre
 ### creditopx — CreditopX  ·  _reference_ · 15 archivos
 **Cuándo:** Cuando la pregunta es por qué una entidad aparece o NO aparece en el listado, y con qué enganche, cupo y plazo. La cascada in-platform rt=2/3: reglas de grupo (`group_rules`), datacrédito, categoría y cupo disponible. La calculadora vive en `lenders_by_allieds` y la visibilidad por sucursal en `lenders_by_allied_branches`. ⚠ La conducta la decide el PAR (comercio, entidad), no la entidad — ver F-34 antes de concluir «esta entidad está rota».
 Doc: `server/data/flows/creditopx/doc.md` · Archivos: `server/data/flows/creditopx/map.json` · Padre: `entities`
+
+### db-routines — Rutinas de BD  ·  _reference_ · 7 archivos
+**Cuándo:** Cuando el cálculo que buscás NO aparece en el código PHP: hay 42 procedimientos y funciones almacenados en MySQL con lógica de negocio, invocados como string dentro de `DB::scalar` / `DB::select` / `CALL`, así que grepear el nombre del campo nunca llega a la fórmula. Acá viven el ingreso promedio y la ocupación que deciden la categoría (`FN_User_Income_Average`, `FN_User_Occupation`), las 23 `FN_Experian_*` que arman los features del perfilador ML (`SP_Experian_Extract_Data`), el parseo de Mareigua y AgilData, el revolvente rt=3, el descifrado del reporte (`FN_Decrypt_Data`) y el SP que ata el buró a la solicitud (F-107). ⚠ 4 de las 42 NO tienen fuente en ningún repositorio y dos de ellas se llaman desde producción.
+Doc: `server/data/flows/db-routines/doc.md` · Archivos: `server/data/flows/db-routines/map.json` · Padre: `creditop`
 
 ### dynamic-forms — Dynamic Forms  ·  _reference_ · 90 archivos
 **Cuándo:** Cuando hay que agregar o cambiar un CAMPO del formulario por configuración: las tres generaciones de formulario dinámico, EAV `user_field_values`, tipos de documento por sucursal, `form_type` por lender (Credifamilia es el 6). Síntomas típicos: «formulario no encontrado», el form dinámico carga pero no deja avanzar, o hay que sumar un campo en cascada (departamento→ciudad) sin escribir código. La ruta del wizard es `additional-info`.

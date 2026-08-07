@@ -9,7 +9,7 @@ CreditOp conecta 3 actores: **COMERCIOS** aliados (`allieds`, con SUCURSALES `al
 
 Una operación = combinación de **4 ejes ortogonales**: `response_type` (quién decide/gestiona) · producto/garantía (compra · SmartPay=celular con bloqueo MDM · Motai=arrendamiento/renting) · modo del comercio · canal (WooCommerce/self/VTEX, asesor con QR, Corbeta por lotes). El **Estado 11 es la frontera** entre originación y servicing/cartera.
 
-## Los 7 invariantes · leé esto ANTES de concluir
+## Los 8 invariantes · leé esto ANTES de concluir
 
 Cada uno corrige una conclusión que parece obvia y es falsa. Están medidos y tienen su hallazgo; si vas
 a afirmar algo que los contradice, medilo primero.
@@ -37,7 +37,13 @@ a afirmar algo que los contradice, medilo primero.
    aplica *ningún* filtro y el usuario ve el universo entero. Es lo que le mostraba a SmartPay los
    créditos de Mediarte y Pullman. Al crear un perfil nuevo hay que auditar esos encadenados uno por
    uno → contexto `actors`.
-7. **Verificá el NAMESPACE de un id antes de usarlo.** `24` = lender Credifamilia **y** allied Creditop ·
+7. **Parte de la lógica de negocio vive en la BD y `grep` no la encuentra.** 42 procedimientos y
+   funciones almacenados en MySQL calculan cosas que decide el negocio —el ingreso promedio y la
+   ocupación que fijan la categoría, los 23 features `EX_*` del perfilador ML, el revolvente rt=3— y se
+   invocan como STRING dentro de `DB::scalar`/`CALL`, así que buscar el nombre del campo en el código
+   nunca llega a la fórmula. ⚠ Y **4 de esas 42 no tienen código fuente en ningún repositorio**, dos de
+   ellas llamadas desde producción. Contexto `db-routines`.
+8. **Verificá el NAMESPACE de un id antes de usarlo.** `24` = lender Credifamilia **y** allied Creditop ·
    `100` = lender Bancolombia Consumo **y** un allied · `158` = allied Motai **y** su lender ·
    `160`/`152`/`153` = SmartPay según el ambiente. Y el `response_type` de un lender **cambia entre
    ambientes**: verificarlo contra local miente (**F-95**).
