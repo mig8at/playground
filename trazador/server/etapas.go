@@ -233,6 +233,9 @@ type Solicitud struct {
 	// El snapshot del motor de perfilamiento. Es el esqueleto de `listado` y la huella del webhook del
 	// lender — nil si esta solicitud nunca llegó a perfilarse.
 	Perfilamiento *Perfilamiento
+	// La evaluación de categoría por entidad (`users_category_log`): POR QUÉ una entidad in-platform no le
+	// salió al cliente. Es la única fuente que lo dice criterio por criterio; el log de texto no puede.
+	Categorias []Categoria
 }
 
 type Transicion struct {
@@ -1204,6 +1207,154 @@ func ensamblar(mapa *Mapa, subMapa *SubMapa, s *Solicitud, lineas []Linea, targe
 						e.Subs = append(append(e.Subs[:i:i], e.Subs[i+1:]...), s)
 						break
 					}
+				}
+			}
+		}
+
+		// ── POR QUÉ NO PASÓ LA POLÍTICA: LA EVALUACIÓN, CRITERIO POR CRITERIO ──
+		//
+		// Contesta el reporte más frecuente de soporte —«¿por qué a este cliente no le salió CreditopX?»—
+		// que hasta acá el trazador NO podía contestar: los logs `CATEGORY_*` no traen quién los llamó (el
+		// mapa lo dice en su propia nota), así que ni siquiera se podía atribuir la evaluación a una entidad.
+		// `users_category_log` sí: una fila por entidad, con la evaluación completa en JSON.
+		//
+		// ⚠ TRES cosas que hay que respetar al leerlo, y las tres se aprendieron mirando el escritor:
+		//
+		//  1. **Una clave ausente NO es un criterio que pasó**: es un criterio que NUNCA SE EVALUÓ. El motor
+		//     mide 5 criterios básicos (ocupación, edad, ingreso, género, continuidad) y si alguno falla
+		//     RETORNA sin tocar el buró (`LenderUserCategoryService::evaluateEligibility:425`). Por eso se
+		//     muestra dónde cortó cada tier y no sólo qué falló.
+		//  2. **La misma regla tiene DOS grafías** — `occupation` y `ocupations` — porque la escriben dos
+		//     servicios distintos con el mismo nombre de clase. Ver F-118.
+		//  3. **La fila no dice a qué solicitud pertenece**: se ata por `user_id` + ventana, igual que el
+		//     buró. Lo que se puede afirmar es que cae dentro de ±120 s de la corrida del perfilamiento, y
+		//     eso se marca como inferencia, no como hecho (mismo criterio que F-107).
+		if o.id == "cupo" && len(s.Categorias) > 0 {
+			// ⚠ COLAPSAR ES OBLIGATORIO, no cosmético. `getLenderUserCategory` se llama desde TRES sitios y
+			// la cascada corre varias veces por solicitud: medido en la uReq 522511 de prod, **nueve filas
+			// idénticas de CrediPullman**. Sin colapsar, el paso que existe para contestar «¿por qué no le
+			// salió?» contesta lo mismo nueve veces y esconde a las otras entidades. Se agrupa por
+			// (entidad + resultado + criterios que fallaron): dos evaluaciones que dieron distinto SÍ son
+			// dos renglones, porque eso es información — el motor cambió de opinión.
+			vistas := map[string]int{}
+			unicas := make([]Categoria, 0, len(s.Categorias))
+			repes := map[int]int{}
+			for _, c := range s.Categorias {
+				firma := fmt.Sprintf("%d|%d|%s|%v", c.LenderID, c.CatID, c.Especial, c.Fallas)
+				if i, ya := vistas[firma]; ya {
+					repes[i]++
+					// El REPRESENTANTE del grupo tiene que ser la fila que SÍ se puede atribuir a esta
+					// solicitud. Quedarse con la primera por orden de id hacía que un grupo con nueve filas
+					// —ocho de esta corrida y una de otro intento del mismo cliente— se mostrara con la
+					// advertencia «puede ser de otro intento» puesta al conjunto entero. Medido en la
+					// uReq 522511 de prod, que tiene evaluaciones de dos solicitudes en la misma ventana.
+					if c.Ventana == "misma" && unicas[i].Ventana != "misma" {
+						unicas[i] = c
+					}
+					continue
+				}
+				vistas[firma] = len(unicas)
+				unicas = append(unicas, c)
+			}
+			var subs []Sub
+			conCat, sinCat := 0, 0
+			for idx, c := range unicas {
+				etiqueta := c.Lender
+				if etiqueta == "" {
+					etiqueta = fmt.Sprintf("entidad %d", c.LenderID)
+				}
+				st, det := "ok", ""
+				switch {
+				case c.Especial == "blacklisted":
+					st, det = "fail", "documento en la LISTA NEGRA de esta entidad — se salta toda la evaluación"
+					sinCat++
+				case c.Especial != "":
+					st, det = "warn", "atajo `"+c.Especial+"`: se saltaron TODAS las reglas y se asignó una categoría fija"
+					conCat++
+				case c.CatID > 0:
+					det = "categoría " + orDash(c.CatNombre)
+					if c.Cupo > 0 {
+						det += fmt.Sprintf(" · cupo %s", pesos(c.Cupo))
+					}
+					conCat++
+				default:
+					st = "fail"
+					det = fmt.Sprintf("ninguno de los %s de admisión pasó", plural(c.Tiers, "tier", "tiers"))
+					sinCat++
+				}
+				// El detalle que importa: qué criterio bloqueó, y en qué tier. Se muestran los tiers en orden
+				// y se recorta, porque un lender con 12 tiers repite el mismo motivo doce veces.
+				var lineas []string
+				claves := make([]string, 0, len(c.Fallas))
+				for k := range c.Fallas {
+					claves = append(claves, k)
+				}
+				sort.Strings(claves)
+				for _, k := range claves {
+					lineas = append(lineas, fmt.Sprintf("tier %-6s cortó en %-8s → %s",
+						k, c.Corta[k], strings.Join(c.Fallas[k], ", ")))
+				}
+				if c.Tiers > 0 && len(c.Fallas) == 0 {
+					lineas = append(lineas, fmt.Sprintf("los %d tiers pasaron todos sus criterios", c.Tiers))
+				}
+				if c.Especial != "" {
+					lineas = append(lineas, "bandera de raíz: "+c.Especial+" = true (no hay evaluación de tiers)")
+				}
+				switch c.Ventana {
+				case "otra":
+					lineas = append(lineas, "⚠ fuera de ±120 s de la corrida del perfilamiento: puede ser de OTRO intento del mismo cliente")
+				case "sin-referencia":
+					lineas = append(lineas, "esta solicitud no tiene fila de profiling_reviews: no hay corrida contra la cual fechar esta evaluación")
+				}
+				// El motivo más repetido, arriba: es lo que soporte pega en el ticket.
+				if st == "fail" && len(claves) > 0 {
+					det += " · el criterio que más bloqueó: " + masRepetido(c.Fallas)
+				}
+				// Que se haya evaluado N veces con el MISMO resultado no cambia el diagnóstico, pero sí
+				// dice que la cascada corrió N veces — que es lo que explica un listado lento.
+				if n := repes[idx]; n > 0 {
+					etiqueta += fmt.Sprintf("  ×%d", n+1)
+					lineas = append(lineas, fmt.Sprintf("evaluada %d veces con idéntico resultado (getLenderUserCategory se llama desde 3 sitios)", n+1))
+				}
+				subs = append(subs, Sub{
+					Label: etiqueta, Status: st, Source: "db", Detail: det,
+					Evidencia: evidencia("users_category_log.category_rules_acceptance", sqlCategorias,
+						[]any{s.UserID, "<desde>", "<hasta>"}, lineas...),
+				})
+			}
+			sort.SliceStable(subs, func(a, b int) bool { return subs[a].Status == "fail" && subs[b].Status != "fail" })
+			cab := Sub{Label: "Política por entidad (¿por qué no le salió?)", Source: "db", Hijos: subs,
+				Detail: fmt.Sprintf("%d con categoría · %d sin ninguna", conCat, sinCat)}
+			if len(s.Categorias) > len(unicas) {
+				cab.Detail += fmt.Sprintf(" · %d evaluaciones colapsadas en %d", len(s.Categorias), len(unicas))
+			}
+			cab.Status = "ok"
+			if conCat == 0 {
+				cab.Status = "fail"
+			} else if sinCat > 0 {
+				cab.Status = "warn"
+			}
+			e.Subs = append([]Sub{cab}, e.Subs...)
+			// ── EL STATUS DE `cupo` TAMBIÉN ES UN VEREDICTO ──
+			//
+			// Misma trampa que ya se corrigió en `listado`: la rama genérica «hay líneas ⇒ ok» pintaba
+			// verde una etapa donde el cliente NO obtuvo categoría en ninguna entidad (uReq 522511 de prod:
+			// 9 evaluaciones, 0 categorías, y la etapa salía ✔). Que el motor haya corrido no es que haya
+			// aprobado. Ahora la BD manda, que es la fuente fuerte.
+			if e.Status != "no-aplica" {
+				switch {
+				case conCat == 0:
+					e.Status, e.Source = "fail", "db"
+					if len(unicas) == 1 {
+						e.Detail = "la única entidad evaluada no le dio categoría"
+					} else {
+						e.Detail = fmt.Sprintf("ninguna de las %d entidades evaluadas le dio categoría", len(unicas))
+					}
+				case e.Status == "sin-evidencia" || e.Status == "skip":
+					e.Status, e.Source, e.Detail = "ok", "db", cab.Detail
+				}
+				if e.At == "" && len(s.Categorias) > 0 {
+					e.At = hhmm(s.Categorias[0].At)
 				}
 			}
 		}
@@ -2397,6 +2548,21 @@ func ArmarTraza(target string, ureq int64) (Traza, *Solicitud, error) {
 
 	centrales := GetCentrales(fuente)
 	s.Corbeta = GetCorbetaAllieds(fuente)[s.AlliedID]
+
+	// La evaluación de categoría, entidad por entidad. Va acotada a la ventana de ESTA solicitud porque la
+	// tabla se indexa por `user_id`: un cliente con dos intentos el mismo día trae las filas de los dos.
+	// La ventana es generosa hacia atrás (la categoría se evalúa al armar el listado, que puede empezar
+	// antes de que la fila de `user_requests` quede escrita) y corta hacia adelante.
+	if !s.Creada.IsZero() {
+		// La referencia es la corrida del perfilamiento, NUNCA la creación de la solicitud: la
+		// categorización pasa minutos después de crearse la fila, así que compararla contra `created_at`
+		// tira siempre «fuera de ventana» y la advertencia se vuelve ruido que se aprende a ignorar.
+		var corrida time.Time
+		if s.Perfilamiento != nil {
+			corrida = s.Perfilamiento.Creado
+		}
+		s.Categorias = GetCategorias(fuente, s.UserID, s.Creada.Add(-15*time.Minute), s.Creada.Add(6*time.Hour), corrida)
+	}
 	var idsLender []int64
 	for _, l := range lineas {
 		if v := pick(l.ctx, []string{"lender_id"}); v != "" {
@@ -2642,6 +2808,27 @@ type Historia struct {
 }
 
 // plural evita el «1 solicitud(es)», que en una herramienta de soporte se lee como descuido.
+// masRepetido dice qué criterio bloqueó en MÁS tiers. Un lender con doce tiers repite el mismo motivo
+// doce veces: sin esto, el renglón que soporte pega en el ticket sería una lista y no un diagnóstico.
+func masRepetido(fallas map[string][]string) string {
+	cuenta := map[string]int{}
+	for _, criterios := range fallas {
+		for _, c := range criterios {
+			cuenta[c]++
+		}
+	}
+	mejor, n := "", 0
+	for c, k := range cuenta {
+		if k > n || (k == n && c < mejor) {
+			mejor, n = c, k
+		}
+	}
+	if n > 1 {
+		return fmt.Sprintf("%s (en %d de %d tiers)", mejor, n, len(fallas))
+	}
+	return mejor
+}
+
 func plural(n int, uno, muchos string) string {
 	if n == 1 {
 		return "1 " + uno

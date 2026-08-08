@@ -29,6 +29,7 @@ import (
 	"fmt"
 	"net/http"
 	"regexp"
+	"sort"
 	"strings"
 	"time"
 )
@@ -320,6 +321,151 @@ const sqlBuro = `
 	 WHERE d.user_id = ? AND d.deleted_at IS NULL ORDER BY d.created_at`
 
 const sqlCentrales = `SELECT id, COALESCE(name,'') AS name FROM risk_centrals ORDER BY id`
+
+// ─── users_category_log: POR QUÉ el perfilamiento dijo que no ──────────────────────────────────────
+//
+// Es la evidencia que faltaba, y contesta el reporte más frecuente de soporte («¿por qué a este cliente
+// no le salió CreditopX?»): guarda, POR ENTIDAD y POR TIER, qué criterio de admisión pasó y cuál no.
+// Medido en prod: 26.846 filas en 7 días, TODAS con `category_rules_acceptance`. No es un log de texto
+// que haya que interpretar — es la evaluación completa, en JSON, escrita por el propio motor.
+//
+// ⚠ NO tiene `user_request_id`: se indexa por (`user_id`, `lender_id`), igual que el buró. La ventana
+// acota, no prueba. Y para saber si una fila es de ESTA corrida el backoffice usa una heurística que se
+// replica acá: `|created_at − profiling_reviews.updated_at| <= 120 s`
+// (`Modules/Backoffice/App/Services/ApplicationsService.php:1443`).
+const sqlCategorias = `
+	SELECT ucl.id, ucl.lender_id, COALESCE(l.name,'') AS lender,
+	       ucl.lender_users_category_id AS cat, COALESCE(c.name,'') AS cat_nombre,
+	       ucl.current_available_amount AS cupo, ucl.category_rules_acceptance AS reglas, ucl.created_at
+	  FROM users_category_log ucl
+	  LEFT JOIN lenders l               ON l.id = ucl.lender_id
+	  LEFT JOIN lender_users_categories c ON c.id = ucl.lender_users_category_id
+	 WHERE ucl.user_id = ?
+	   AND ucl.created_at BETWEEN STR_TO_DATE(?, '%Y%m%d%H%i%s') AND STR_TO_DATE(?, '%Y%m%d%H%i%s')
+	 ORDER BY ucl.id`
+
+// ⚠ DOS decisiones en esa cláusula de fecha, y las dos costaron una corrida en vacío:
+//
+//  1. La ventana va como `YYYYMMDDHHMMSS` (dígitos) y no como `'2026-08-07 10:00:00'` porque `Filas`
+//     rechaza todo argumento que no sea de dígitos — la guarda de inyección del camino Redash.
+//  2. **NO se usa `FROM_UNIXTIME`.** Sería lo natural, y da CERO filas en prod: la sesión de MySQL está en
+//     UTC (`@@session.time_zone = UTC`, `NOW()` devuelve UTC) pero las columnas `created_at` guardan hora
+//     de **Bogotá**. `FROM_UNIXTIME(instante)` rinde en UTC y compara contra un valor local: cinco horas
+//     de corrimiento y ninguna fila, sin ningún error. Comparando reloj-de-pared contra reloj-de-pared
+//     —en la zona que declara la fuente— la pregunta queda bien planteada en las dos fuentes.
+
+// Categoria es la evaluación de UNA entidad para este cliente: qué categoría le tocó (0 = ninguna) y,
+// tier por tier, qué criterio falló.
+type Categoria struct {
+	LenderID  int64
+	Lender    string
+	CatID     int64
+	CatNombre string
+	Cupo      float64
+	At        time.Time
+	// Fallas: tier → criterios en `false`. Un tier SIN entrada es un tier que pasó todo.
+	Fallas map[string][]string
+	// Tiers evaluados en total (los que pasaron y los que no): sin esto, «3 tiers fallaron» no dice si
+	// eran 3 de 3 o 3 de 12.
+	Tiers int
+	// Corta dice DÓNDE se detuvo la evaluación de ese tier, que es lo que las claves ausentes significan:
+	// el motor evalúa 5 criterios básicos, y si alguno falla RETORNA sin tocar el buró.
+	// `básicos` = murió antes del buró · `sin buró` = no hay fila de datacrédito · `buró` = llegó.
+	Corta map[string]string
+	// Especial: bandera de nivel raíz, fuera del universo de tiers. Hoy dos: `blacklisted` (documento en
+	// lista negra de esa entidad) y `validacion_venezolanos` (CE + lender 84: SALTA todas las reglas).
+	Especial string
+	// Ventana dice qué se puede AFIRMAR sobre a qué corrida pertenece esta fila, y tiene tres valores
+	// porque dos no alcanzan: `misma` (cae dentro de ±120 s de la corrida del perfilamiento) · `otra`
+	// (cae fuera: puede ser de otro intento del mismo cliente) · `sin-referencia` (no hay fila de
+	// `profiling_reviews` contra la cual comparar). Colapsar los dos últimos hacía que una solicitud sin
+	// perfilamiento advirtiera «puede ser de otro intento» sin tener ninguna base para decirlo — que es
+	// exactamente el error que este trazador comete cuando trata una ausencia como una negación.
+	Ventana string
+}
+
+// GetCategorias trae la evaluación de categoría de todas las entidades para este cliente en la ventana de
+// la solicitud. Ante cualquier error devuelve vacío: no saber no es saber que no.
+func GetCategorias(r Runner, userID int64, desde, hasta time.Time, corrida time.Time) []Categoria {
+	if userID == 0 || desde.IsZero() {
+		return nil
+	}
+	// El reloj de pared TAL COMO LO DEVUELVE ESTA FUENTE: `fecha()` parseó con `r.Zona()`, así que
+	// volver a esa zona reconstruye exactamente el texto que hay en la columna.
+	reloj := func(t time.Time) string { return t.In(r.Zona()).Format("20060102150405") }
+	fs, err := r.Filas(sqlCategorias, userID, reloj(desde), reloj(hasta))
+	if err != nil {
+		return nil
+	}
+	out := make([]Categoria, 0, len(fs))
+	for _, f := range fs {
+		c := Categoria{
+			LenderID: entero(f["lender_id"]), Lender: texto(f["lender"]),
+			CatID: entero(f["cat"]), CatNombre: texto(f["cat_nombre"]),
+			Cupo: decimal(f["cupo"]), At: fecha(f["created_at"], r.Zona()),
+			Fallas: map[string][]string{}, Corta: map[string]string{},
+		}
+		switch {
+		case corrida.IsZero() || c.At.IsZero():
+			c.Ventana = "sin-referencia"
+		default:
+			d := c.At.Sub(corrida)
+			if d > -120*time.Second && d < 120*time.Second {
+				c.Ventana = "misma"
+			} else {
+				c.Ventana = "otra"
+			}
+		}
+		var crudo map[string]json.RawMessage
+		if json.Unmarshal([]byte(texto(f["reglas"])), &crudo) == nil {
+			for k, v := range crudo {
+				// Las banderas de raíz son booleanos sueltos, no mapas de criterios.
+				var flag bool
+				if json.Unmarshal(v, &flag) == nil {
+					if flag {
+						c.Especial = k
+					}
+					continue
+				}
+				var checks map[string]bool
+				if json.Unmarshal(v, &checks) != nil {
+					continue
+				}
+				c.Tiers++
+				var malos []string
+				for nombre, ok := range checks {
+					if !ok {
+						malos = append(malos, nombre)
+					}
+				}
+				sort.Strings(malos)
+				if len(malos) > 0 {
+					c.Fallas[k] = malos
+				}
+				// ⚠ Las dos grafías son reales, no un typo de este parser: `Modules/Loans/…:407` escribe
+				// `occupation` y `Modules/Onboarding/…:93` escribe `ocupations`. Buscar una sola deja
+				// ciegas las filas del otro escritor. Ver F-118.
+				// ⚠ `checks["datacredito"] == false` sería un BUG, y es el mismo que este parser existe para
+				// evitar: en Go una clave AUSENTE devuelve el cero del tipo, o sea `false`. Sin el `, ok`
+				// todo tier que muriera en los cinco básicos —donde la clave `datacredito` ni se escribe—
+				// se leería como «no tiene buró», que manda a buscar un problema de datos donde hay un
+				// criterio de admisión que no se cumplió. Medido en la uReq 522511 de prod: el tier 12 salía
+				// «sin buró» cuando lo que falló fue `employment_continuity`.
+				_, tieneDC := checks["datacredito"]
+				switch {
+				case tieneDC:
+					c.Corta[k] = "sin buró"
+				case len(checks) <= 5:
+					c.Corta[k] = "básicos"
+				default:
+					c.Corta[k] = "buró"
+				}
+			}
+		}
+		out = append(out, c)
+	}
+	return out
+}
 
 // sqlCorbeta lee el setting que define el CANAL Corbeta. Es una LISTA EN BD, no una constante: en prod hoy
 // vale [24, 209, 210, 211, 311] (Creditop, Alkosto, K-TRONIX, Alkomprar, Kalley) y agregar un comercio es
