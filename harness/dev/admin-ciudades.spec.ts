@@ -1,68 +1,82 @@
 import { test, expect } from '@playwright/test';
+import { execFileSync } from 'node:child_process';
 import { mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { adminCreds } from '../pkg/config';
 import { openA } from '../pkg/windows';
 
 /**
- * `make admin-ciudades` — el selector de ciudad del admin filtra por el país del comercio.
+ * `make harness-admin-ciudades` — el selector de ciudad del admin filtra por el país del comercio.
  *
- * Prueba el arreglo de la tarea 44: hasta el 2026-08-08 el endpoint `admin.cities.search` devolvía las
- * **1.123 ciudades colombianas a cualquiera**, sin filtro de país, y por eso los 13 puntos de venta
+ * Prueba el arreglo de la tarea 44. Hasta el 2026-08-08 el endpoint `admin.cities.search` devolvía las
+ * **1.123 ciudades colombianas a cualquiera**, sin filtro de país: por eso los 13 puntos de venta
  * dominicanos quedaron registrados en «Santo Domingo» de **Antioquia**. El nombre coincide, así que
  * ninguna pantalla lo delataba.
  *
- * Qué verifica, en la UI y no en la consulta:
- *   1. con un comercio DOMINICANO, buscar «santo» ofrece sólo municipios de RD;
- *   2. buscar «medel» con ese mismo comercio no ofrece NADA — el error exacto que se cometió es ahora
- *      imposible de cometer;
- *   3. con un comercio COLOMBIANO, «santo» sigue ofreciendo la de Antioquia (Colombia no se movió).
- *
- * ⚠ **Este login NO es Cognito.** `legacy-application` usa Fortify: correo + contraseña contra `users`.
- * Las credenciales salen de `E2E_ADMIN_USER/PASS` o de `.admin.json` (gitignored) — nunca del código.
+ * **Entra SIN contraseña.** `bin/admin-sesion` emite una sesión con el guard real de Laravel y este spec
+ * inyecta la cookie. Se hizo así porque la única credencial disponible es de staging y puede no
+ * corresponder al hash del dump local — y porque una contraseña no tiene por qué andar en un script.
+ * Para ejercitar el login de Fortify de verdad, poné `E2E_ADMIN_LOGIN=1` y credenciales en `.admin.json`.
  *
  * Requiere el admin corriendo en local:
- *   php /ruta/legacy-application/artisan serve --host=127.0.0.1 --port=8000
- * y `APP_HOST=localhost` **sin puerto** en su `.env`: Laravel compara el dominio de la ruta con
- * `getHost()`, que excluye el puerto, así que con `localhost:8000` TODAS las rutas del admin dan 404.
+ *   php <legacy-application>/artisan serve --host=127.0.0.1 --port=8000
+ * con `APP_HOST=localhost` **sin puerto** en su `.env`: Laravel compara el dominio de la ruta con
+ * `getHost()`, que excluye el puerto, así que con `localhost:8000` todas las rutas del admin dan 404.
  *
- * Artefactos (gitignored): `.auth/admin-state.json` + tres capturas en `.auth/`.
+ * Artefactos (gitignored): capturas en `harness/.auth/`.
  */
 
 const BASE = process.env.E2E_ADMIN_URL ?? 'http://admin.localhost:8000';
 
-/** Comercios del dump local. Se pueden pisar por env si el dump de otro ambiente usa otros ids. */
+/** Comercios del dump local. Pisables por env si otro dump usa otros ids. */
 const COMERCIO_RD = process.env.E2E_ADMIN_ALLIED_RD ?? '270'; // CeluRD Test (country_id 60)
-const COMERCIO_CO = process.env.E2E_ADMIN_ALLIED_CO ?? '1';   // el primero colombiano
+const COMERCIO_CO = process.env.E2E_ADMIN_ALLIED_CO ?? '14'; // godentist, tiene sucursal (la 14)
 
-test.skip(!adminCreds.user || !adminCreds.pass,
-    'admin-ciudades: requiere E2E_ADMIN_USER/PASS o .admin.json {user,pass}');
+const POR_FORMULARIO = process.env.E2E_ADMIN_LOGIN === '1';
 
 test('el selector de ciudad del admin filtra por el país del comercio', async ({ browser }) => {
     test.setTimeout(120_000);
-    const { page } = await openA(browser, { baseURL: BASE });
     const artefactos = join(process.cwd(), '.auth');
     mkdirSync(artefactos, { recursive: true });
 
-    // ── 1. Login (Fortify, no Cognito) ────────────────────────────────────────────────────────────
-    await page.goto('/login');
-    await page.getByLabel(/correo/i).fill(adminCreds.user!);
-    await page.getByLabel(/contrase/i).fill(adminCreds.pass!);
-    await page.getByRole('button', { name: /iniciar sesi/i }).click();
+    const { context, page } = await openA(browser, { baseURL: BASE });
 
-    // No se espera una URL concreta: el aterrizaje del admin cambia según el rol del usuario. Lo que
-    // importa es haber SALIDO del login — si seguimos ahí, la credencial no sirve contra ESTA base.
-    await page.waitForLoadState('networkidle').catch(() => {});
-    await page.screenshot({ path: join(artefactos, 'admin-aterrizaje.png'), fullPage: true }).catch(() => {});
-    expect(page.url(), 'seguimos en /login: la contraseña no corresponde al hash de esta base ' +
-        '(¿el dump local vino de otro ambiente?)').not.toMatch(/\/login/);
+    // ── 1. Sesión ─────────────────────────────────────────────────────────────────────────────────
+    if (POR_FORMULARIO) {
+        expect(adminCreds.user && adminCreds.pass,
+            'E2E_ADMIN_LOGIN=1 exige credenciales en .admin.json o E2E_ADMIN_USER/PASS').toBeTruthy();
+        await page.goto('/login');
+        await page.getByLabel(/correo/i).fill(adminCreds.user!);
+        await page.getByLabel(/contrase/i).fill(adminCreds.pass!);
+        await page.getByRole('button', { name: /iniciar sesi/i }).click();
+        await page.waitForLoadState('networkidle').catch(() => {});
+        expect(page.url(), 'seguimos en /login: la contraseña no corresponde al hash de ESTA base ' +
+            '(¿el dump local vino de otro ambiente?)').not.toMatch(/\/login/);
+    } else {
+        const salida = execFileSync(join(process.cwd(), 'bin/admin-sesion'), { encoding: 'utf8' });
+        const s = JSON.parse(salida.trim()) as {
+            cookie: string; value: string; domain: string; email: string; roles: string[];
+        };
+        expect(s.roles, `el usuario ${s.email} no tiene rol Administrador`).toContain('Administrador');
 
-    await page.context().storageState({ path: join(artefactos, 'admin-state.json') });
+        // ⚠ Se pasa `url` y NO `domain`. Laravel emite la cookie con dominio `.localhost` (así lo dice
+        // `SESSION_DOMAIN`) y con eso curl entra sin problema, pero **Chromium la descarta**: `.localhost`
+        // se trata como sufijo público, así que un dominio con punto inicial no se le puede asignar a
+        // `admin.localhost`. Con `url` Playwright deriva host y path del origen real y sí la manda.
+        // Costó una corrida: el endpoint respondía 200 con el HTML del landing —no un 401— porque el
+        // middleware de auth redirige, y eso se lee como «el JSON está mal» y no como «no hay sesión».
+        // El cookie es HttpOnly: no se puede poner desde la página, va por el contexto del navegador.
+        await context.addCookies([{
+            name: s.cookie, value: s.value, url: BASE,
+            httpOnly: true, secure: false, sameSite: 'Lax',
+        }]);
+        console.log(`\n  · sesión emitida sin contraseña para ${s.email} (${s.roles.join(', ')})`);
+    }
 
     // ── 2. El endpoint, con la sesión real del navegador ──────────────────────────────────────────
-    // Se consulta la API en vez de teclear en el autocomplete a propósito: el componente dispara la
-    // búsqueda recién a los 3 caracteres y pinta una lista virtualizada, así que afirmar sobre el DOM
-    // mide el widget. Lo que está bajo prueba es QUÉ ofrece el backend para cada comercio.
+    // Se consulta la API además de mirar la pantalla: el autocomplete busca recién a los 3 caracteres y
+    // pinta una lista virtualizada, así que afirmar SÓLO sobre el DOM mediría el widget. Acá se afirma
+    // sobre lo que ofrece el backend; la pantalla se captura aparte, para el ojo.
     const buscar = async (texto: string, alliedId?: string) => {
         const url = new URL('/get-cities', BASE);
         url.searchParams.set('search', texto);
@@ -72,42 +86,110 @@ test('el selector de ciudad del admin filtra por el país del comercio', async (
         return (await res.json()) as Array<{ name: string; zone?: { country?: { name?: string } } }>;
     };
 
+    // El comodín «TODAS LAS CIUDADES» se descuenta siempre: no es un lugar, se ofrece con filtro y sin
+    // filtro, y vive colgado de Colombia por historia.
     const paises = (filas: Awaited<ReturnType<typeof buscar>>) =>
-        // El comodín «TODAS LAS CIUDADES» se descuenta: no es un lugar y se ofrece siempre, con filtro
-        // o sin filtro (vive colgado de Colombia por historia).
         filas.filter(c => c.name !== 'TODAS LAS CIUDADES')
             .map(c => c.zone?.country?.name ?? '?');
 
-    // 2a. Comercio dominicano: «santo» → sólo RD.
     const santoRD = await buscar('SANTO DOMINGO', COMERCIO_RD);
-    expect(paises(santoRD).length, 'el comercio RD no recibió ninguna ciudad: ¿faltan las de RD en esta base?')
-        .toBeGreaterThan(0);
-    expect(new Set(paises(santoRD)), 'un comercio dominicano no debería poder elegir una ciudad colombiana')
+    expect(paises(santoRD).length,
+        'el comercio RD no recibió ninguna ciudad: ¿faltan las de RD en esta base?').toBeGreaterThan(0);
+    expect(new Set(paises(santoRD)),
+        'un comercio dominicano no debería poder elegir una ciudad colombiana')
         .toEqual(new Set(['Dominican Republic']));
 
-    // 2b. El bug exacto: «medel» con comercio dominicano no ofrece nada.
+    // El bug exacto que se cometió, ahora imposible de cometer.
     const medelRD = await buscar('MEDEL', COMERCIO_RD);
     expect(paises(medelRD), 'MEDELLÍN sigue siendo ofrecible a un comercio dominicano').toHaveLength(0);
 
-    // 2c. Colombia no se movió.
+    // Colombia no se movió.
     const santoCO = await buscar('SANTO DOMINGO', COMERCIO_CO);
     expect(new Set(paises(santoCO)), 'el comercio colombiano perdió sus ciudades')
         .toEqual(new Set(['Colombia']));
 
-    // 2d. La regresión que este arreglo cierra: SIN `allied_id` la trampa sigue ahí. Se afirma en
-    // positivo para que el test falle si algún día alguien "arregla" el default filtrando a Colombia —
-    // eso rompería a los llamadores que no mandan el comercio.
+    // Se afirma en POSITIVO que sin `allied_id` sigue devolviendo todo: si alguien "mejora" el default
+    // filtrando a Colombia, rompería a cualquier llamador que no manda el comercio, y este test lo ataja.
     const sinFiltro = await buscar('SANTO DOMINGO');
     expect(new Set(paises(sinFiltro)),
         'sin allied_id el endpoint debe seguir devolviendo TODO (compatibilidad con otros llamadores)')
         .toEqual(new Set(['Dominican Republic', 'Colombia']));
 
-    // ── 3. Y la pantalla, que es lo que ve quien carga un punto de venta ──────────────────────────
+    // ── 3. El OTRO selector: el del PUNTO DE VENTA, que es donde ocurrió el bug ───────────────────
+    //
+    // ⚠ Hay DOS selectores de ciudad en el admin y no comparten el backend:
+    //   · el del modal de ENTIDADES pide `/get-cities` (el `CityController` de arriba);
+    //   · el del PUNTO DE VENTA recibe la lista entera precargada como `$page.props.cities`, desde
+    //     `AlliedAlliedBranchController`.
+    // El segundo es el que causó los 13 casos, y se descubrió mirando la pantalla — ninguna verificación
+    // del endpoint lo habría encontrado, porque ese formulario no llama al endpoint. Si mañana alguien
+    // arregla uno solo de los dos, este bloque falla.
+    // La lista viaja como prop de Inertia embebida en el HTML de la vista. Se extrae el array
+    // `"cities":[…]` balanceando corchetes en vez de buscar `data-page`: esta app renderiza las props
+    // inline (el `<body id="app">` no lleva el atributo), así que ese camino no existe acá.
+    const ciudadesEnLaPagina = async (alliedId: string) => {
+        const res = await page.request.get(
+            `${BASE}/aliados/${alliedId}/puntosdeventa?allied_branch_id=0`);
+        expect(res.ok(), `la vista de puntos de venta devolvió ${res.status()}`).toBeTruthy();
+        const html = await res.text();
+
+        const marca = html.indexOf('"cities":[');
+        expect(marca, 'no se encontró la prop `cities` en la vista: ¿cambió el controlador?')
+            .toBeGreaterThan(-1);
+        let i = marca + '"cities":'.length, prof = 0, fin = i;
+        for (; i < html.length; i++) {
+            if (html[i] === '[') prof++;
+            else if (html[i] === ']') { prof--; if (prof === 0) { fin = i + 1; break; } }
+        }
+        const cities = JSON.parse(html.slice(marca + '"cities":'.length, fin)) as Array<{ title: string }>;
+        return cities.map(c => c.title).filter(t => t !== 'TODAS LAS CIUDADES');
+    };
+
+    const ciudadesRD = await ciudadesEnLaPagina(COMERCIO_RD);
+    expect(ciudadesRD.length, 'el selector del punto de venta no ofrece ninguna ciudad para el comercio RD')
+        .toBeGreaterThan(0);
+    expect(ciudadesRD, 'el selector del PUNTO DE VENTA sigue ofreciendo MEDELLÍN a un comercio dominicano ' +
+        '— es el formulario donde de verdad ocurrió el bug de los 13 puntos de venta')
+        .not.toContain('MEDELLÍN');
+    expect(ciudadesRD.every(c => c.startsWith('SANTO DOMINGO') || [
+        'BOCA CHICA', 'LOS ALCARRIZOS', 'PEDRO BRAND', 'SAN ANTONIO DE GUERRA',
+    ].includes(c)), `el comercio RD recibió ciudades que no son dominicanas: ${ciudadesRD.join(', ')}`)
+        .toBeTruthy();
+    console.log(`  ✔ punto de venta, comercio RD: ${ciudadesRD.length} ciudades, todas de RD`);
+
     await page.goto(`/aliados/${COMERCIO_RD}/editar`);
     await page.waitForLoadState('networkidle').catch(() => {});
     await page.screenshot({ path: join(artefactos, 'admin-comercio-rd.png'), fullPage: true }).catch(() => {});
 
-    console.log(`\n  ✔ comercio RD (${COMERCIO_RD}): «santo» → ${santoRD.length - 1} municipios, todos de RD`);
+    const ciudadesCO = await ciudadesEnLaPagina(COMERCIO_CO);
+    expect(ciudadesCO, 'el comercio colombiano perdió MEDELLÍN del selector de punto de venta')
+        .toContain('MEDELLÍN');
+    console.log(`  ✔ punto de venta, comercio CO: ${ciudadesCO.length} ciudades (Colombia intacta)`);
+
+    // El modal del selector cuelga de la pestaña de entidades. El nombre exacto de la pestaña y del
+    // botón cambia con el diseño, así que la navegación es best-effort: si no se llega, quedan las
+    // afirmaciones de arriba (que son las que prueban el arreglo) y la captura de la página.
+    const pestaña = page.getByRole('tab', { name: /entidad|lender/i })
+        .or(page.getByText(/^entidades$/i)).first();
+    if (await pestaña.isVisible().catch(() => false)) {
+        await pestaña.click().catch(() => {});
+        await page.waitForTimeout(700);
+        await page.screenshot({ path: join(artefactos, 'admin-pestana-entidades.png'), fullPage: true })
+            .catch(() => {});
+
+        const ciudad = page.getByPlaceholder(/ciudad/i).or(page.getByLabel(/ciudad/i)).first();
+        if (await ciudad.isVisible().catch(() => false)) {
+            await ciudad.fill('santo');                 // el componente busca a los 3 caracteres
+            await page.waitForTimeout(1200);            // deja llegar el XHR y pintar la lista
+            await page.screenshot({ path: join(artefactos, 'admin-ciudades-santo.png'), fullPage: true })
+                .catch(() => {});
+            console.log('  · capturado el desplegable con «santo»');
+        } else {
+            console.log('  · el campo de ciudad no está visible sin abrir el modal de una entidad');
+        }
+    }
+
+    console.log(`  ✔ comercio RD (${COMERCIO_RD}): «santo» → ${paises(santoRD).length} municipios, todos de RD`);
     console.log(`  ✔ comercio RD: «medel» → 0 opciones (antes ofrecía MEDELLÍN)`);
     console.log(`  ✔ comercio CO (${COMERCIO_CO}): «santo» → sólo Colombia`);
     console.log(`  · capturas en harness/.auth/\n`);

@@ -1,0 +1,33 @@
+#!/usr/bin/env bash
+# Emite una sesión autenticada del admin de `legacy-application` SIN contraseña, e imprime UNA línea JSON
+# con la cookie lista para inyectar en el navegador.
+#
+# Por qué: para ver el selector de ciudades en pantalla hay que entrar al admin, y entrar pedía una
+# contraseña que es de staging (puede no corresponder al hash del dump local) y que no tiene por qué
+# andar en scripts. Autenticar por id salta el formulario usando el guard REAL de Laravel: la sesión que
+# sale es indistinguible de una hecha a mano.
+#
+# ⚠ SOLO LOCAL. El PHP aborta si APP_ENV no es `local`.
+#
+# uso: bin/admin-sesion [user_id]
+#   sin id → el primer usuario con rol Administrador de esa base
+#   env: APP_DIR (ruta de legacy-application)
+set -euo pipefail
+
+DIR="$(cd "$(dirname "$0")/.." && pwd)"
+APP_DIR="${APP_DIR:-$HOME/Desktop/CREDITOP/github/legacy-application}"
+UID_ARG="${1:-0}"
+
+if [ ! -f "$APP_DIR/artisan" ]; then
+  echo "admin-sesion: no encuentro legacy-application en $APP_DIR (exportá APP_DIR)" >&2
+  exit 1
+fi
+
+# `cd` al repo de la app: artisan resuelve .env, storage y config desde su propio directorio.
+cd "$APP_DIR"
+
+# El PHP imprime la línea JSON por stdout; los avisos de deprecación de tinker van por stderr y se
+# descartan. Se filtra por `^{` porque tinker mete su propio ruido en stdout según la versión.
+php artisan tinker --execute="\$__uid=${UID_ARG}; require '${DIR}/dev/admin-sesion.php';" 2>/dev/null \
+  | grep -m1 '^{' \
+  || { echo "admin-sesion: no se pudo emitir la sesión (¿APP_ENV=local? ¿hay un usuario Administrador?)" >&2; exit 1; }
