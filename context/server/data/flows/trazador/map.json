@@ -5,6 +5,7 @@
   "sintomas": [
     "«esto anda en local y no en dev/qa»",
     "«¿dónde se trabó?»",
+    "«¿por qué a este cliente no le salió esta entidad?»",
     "«¿qué le pasó a ESTA solicitud?»"
   ],
   "verified": {

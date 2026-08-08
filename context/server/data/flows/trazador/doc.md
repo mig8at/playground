@@ -85,6 +85,12 @@ leerlo entero.
 - **Los sub-pasos declarados** — `mapa.go:646 SubMapa.Bloques(etapa)` y `mapa.go:550 HitoDef`. La regla
   del subconjunto (un hito sólo ve líneas que su etapa ya reclamó) la audita
   `mapa.go:656 SubMapa.ValidarSub`.
+- **Por qué el perfilamiento dijo que no** — `fuentes.go` `GetCategorias` + `sqlCategorias`, que leen
+  `users_category_log` y devuelven, por entidad y por tier, qué criterio bloqueó y **dónde cortó** la
+  evaluación. Es la fuente que hace verde (o roja, con motivo) la etapa `profiler`, que antes salía
+  siempre gris. ⚠ Su parseo respeta tres reglas que no son obvias y están comentadas ahí mismo: la clave
+  ausente **no** es un criterio que pasó, las dos grafías `occupation`/`ocupations`, y las claves de
+  nivel raíz que no son tiers (**F-118**).
 - **Las fuentes** — `fuentes.go:293 sqlSolicitud` (la solicitud + comercio + lender + validación),
   `:560 sqlProfiling` (el snapshot del motor, incluido `ML_predictions` con sus tres formas),
   `:498 fecha` (⚠ acá se corrige el desfase de 5 h: la BD llega en UTC). Los logs:
@@ -115,6 +121,9 @@ leerlo entero.
   sea que **la pantalla se INFIERE del endpoint que el backend sirvió**, y una pantalla que no llama al
   backend es invisible. Eso no se arregla con el mapa: es la frontera de lo que la herramienta puede
   afirmar.
+- **`users_category_log` ya se lee** (desde el 2026-08-07) y era el hueco más caro: la etapa `profiler`
+  salía *siempre* «la BD no registra esta etapa», y sí la registra. Lo que sigue sin leerse son las
+  **14 tablas de log de auditoría**.
 - **Hay evidencia en la BD que este trazador NO mira**: 14 tablas de log de auditoría. Medido: sólo
   `deceval_logs` ata al 100 % por `user_request_id` (1.404 filas / 174 solicitudes) y es candidata
   limpia para el tramo del pagaré; `otp_logs` sólo al 1 %; y `compare_face_logs` / `ocr_logs`
@@ -152,6 +161,10 @@ leerlo entero.
 
 ## Bitácora
 
+- **2026-08-07** — La etapa `profiler` deja de ser gris: se agregó `users_category_log` como fuente
+  (`GetCategorias`), que contesta «¿por qué a este cliente no le salió esta entidad?» por entidad y por
+  tier. Cuatro trampas quedaron comentadas en el código y en **F-118**; el status de `cupo` pasó a ser un
+  veredicto (9 evaluaciones con 0 categorías salía ✔).
 - **2026-08-07** — Nodo creado. La herramienta existía desde julio pero no estaba en el árbol: su
   conocimiento vivía sólo en los comentarios del código. Se agregó `trazador` a `tools/roots.py` (mismo
   caso que `harness`: subdirectorio de playground, no repo propio).

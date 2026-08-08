@@ -68,6 +68,9 @@ acá, saltá al `F-xx` y leé sólo eso.
 | **«el webhook del lender no llegó (¿o sí?)»** | F-94 · F-100 · F-111 |
 | **«el agregador aprobó / el cliente firmó, y sigue en Seleccionó entidad»** | F-111 · F-94 |
 | **«el perfilador / el orden del listado / el cupo»** | F-04 · F-93 · F-104 |
+| **«¿por qué a este cliente no le salió esta entidad?»** | **F-118** · F-112 · F-115 |
+| **«una entidad dejó de salir de un día para otro, sin deploy»** | **F-119** |
+| **«el motor decidió sin evaluar las reglas»** | **F-120** |
 | **Canal Corbeta y código de compra en caja** | F-79 · F-80 · F-81 · F-82 · F-83 · F-84 · F-85 · F-86 · F-87 · F-88 · F-89 · F-90 · F-91 · F-92 |
 | **Bancolombia (BNPL / Consumo)** | F-05 · F-54 · F-83 · F-84 · F-89 · F-90 · F-91 · F-92 |
 | **Motai · Ábaco · renting** | F-46 · F-47 · F-48 · F-49 · F-50 · F-51 · F-68 · F-69 |
@@ -3026,5 +3029,126 @@ continuidad, que al menos es explícito. Hoy se otorga igual, con la penalizaci�
 
 **Estado:** verificado el 2026-08-07. **No verificado**: qué porcentaje de solicitudes rt=3 llega sin
 `agildata` ni `mareigua`. Eso decide si es un caso de borde o el caso normal.
+
+---
+
+### F-118 · `category_rules_acceptance`: una clave AUSENTE no es un criterio que pasó, y la misma regla tiene dos grafías
+
+**Síntoma.** Al leer por qué el perfilamiento rechazó a un cliente, el diagnóstico sale al revés:
+«no tiene datos de buró» cuando lo que falló fue la continuidad laboral, o «este tier pasó todo» cuando
+en realidad nunca se evaluó.
+
+**Causa raíz** (verificada en el escritor y en datos de prod). `users_category_log.category_rules_acceptance`
+es un JSON `{tier_id: {criterio: bool}}` y tiene **dos trampas de lectura**, las dos por cómo se escribe:
+
+1. **La evaluación CORTA, y lo que cortó no deja clave.** `LenderUserCategoryService::evaluateEligibility:403`
+   mide primero cinco criterios sin buró —ocupación, edad, ingreso, género, continuidad— y si alguno da
+   `false` **retorna en `:425`** sin tocar Datacrédito. Un tier con 5 claves murió antes del buró; uno con
+   11-12 llegó. Las claves que faltan **no pasaron: no se evaluaron**. Leerlas como «true» invierte el
+   diagnóstico.
+   ⚠ Y en Go la trampa es peor, porque el lenguaje colabora: `checks["datacredito"] == false` es **true
+   cuando la clave no existe** (el cero del tipo). Hay que usar `_, ok := checks["datacredito"]`. Pasó
+   escribiendo el lector del trazador: el tier 12 de la uReq 522511 salía «sin buró» y lo que falló era
+   `employment_continuity`.
+2. **La misma regla se escribe de DOS formas.** Hay **dos clases llamadas `LenderUserCategoryService`**:
+   `Modules/Loans/App/Services/LenderUserCategoryService.php:407` escribe `occupation` y
+   `Modules/Onboarding/App/Services/lenders/LenderUserCategoryService.php:93` escribe **`ocupations`**.
+   Un parser que busque una sola queda ciego a las filas del otro escritor, en silencio.
+
+Y hay **dos claves de nivel raíz** que no son tiers y hay que descartar antes de iterar:
+`blacklisted` (documento en la lista negra de esa entidad, `CreditopXBlacklistedDocument::isBlacklisted`)
+y `validacion_venezolanos`. Ver F-120 para la segunda.
+
+**Evidencia.** Los dos escritores. El decodificador del backoffice
+(`Modules/Backoffice/App/Services/ApplicationsService.php:1432`), que ya documenta el corte y las dos
+banderas. Y filas de prod del 2026-08-06: el lender 167 escribe `"ocupations"` y los lenders 94 y 46
+escriben `"occupation"`, en el mismo día.
+
+**Arreglo.** El lector del trazador ya respeta las dos reglas (`trazador/server/fuentes.go`
+`GetCategorias`). En el producto no se tocó nada: unificar la grafía es un cambio a un repo real y
+rompería a quien ya parsea la forma vieja.
+
+**Estado:** verificado el 2026-08-07 contra `main` + prod.
+
+---
+
+### F-119 · `loan_limit` es un cupo «mensual» que nunca se reinicia: la categoría desaparece sola y sin aviso
+
+**Síntoma.** «Esta entidad dejó de salirle a todos los clientes de este comercio», sin deploy, sin
+cambio de configuración y sin error.
+
+**Causa raíz** (verificada). `lender_users_categories.loan_limit` es, según la documentación de negocio,
+el *«monto total disponible para colocar **mensualmente** por categoría»* [Confluence · *Preguntas
+frecuentes*, v15]. En el motor es uno de los cuatro topes del cupo: `loan_limit − already_used_loan`
+(`LenderUserCategoryService::calculateAvailableAmountWithInitialFee:491`). Cuando el consumido alcanza al
+tope, el cupo disponible da ≤ 0 y **la entidad se saca del marketplace** — el mismo `unset` que cualquier
+otro rechazo, sin mensaje distinguible.
+
+El problema es que **el contador sólo sube**:
+
+- se incrementa al desembolsar, y sólo en rt=2:
+  `Modules/Loans/App/Services/CreditopXRequestHistoryService.php:415` `$category->already_used_loan += $userRequest->final_amount;`
+- **no hay ningún cron, comando ni job que lo reinicie.** Grepeado en `app/Console` y `routes` de los dos
+  repos: cero. El propio documento de negocio lo admite: *«se debe validar con negocio si corresponde
+  reiniciar. El reinicio se realiza estableciendo el campo `already_used_loan` en NULL»* — o sea, a mano.
+
+Así que un tope pensado como presupuesto **mensual** está implementado como acumulado **de por vida**.
+
+**Evidencia.** El código citado. Y la medición en prod del 2026-08-07, que es la que da la dimensión real:
+de **202 categorías**, ninguna está agotada y ninguna pasa el 80 %; 176 tienen `already_used_loan = 0` y
+**26 acumulan, la mayor en 34,3 %** de su `loan_limit`. O sea: **no es una falla activa, es una que se
+acerca sola** — el contador no puede bajar sin intervención humana.
+
+**Arreglo.** Ninguno aplicado. Lo barato no es el reset automático (decidir el período es de negocio):
+es una **alerta** cuando una categoría cruza el 80 %, porque hoy el evento se manifiesta como «la entidad
+desapareció» y no como «se agotó el cupo del mes».
+
+**Estado:** verificado el 2026-08-07 contra `main` + prod.
+
+---
+
+### F-120 · Un documento CE en el lender 84 SALTA todo el motor de reglas y recibe una categoría fija
+
+**Síntoma.** Ninguno reportado — se encontró leyendo el escritor de `category_rules_acceptance`. Aparece
+como una fila de log con la bandera `validacion_venezolanos` y sin ninguna evaluación de tiers.
+
+⚠ **El árbol YA tenía este hardcode** (`hardcodes-entidades`, fila «Magnocell + CE»), descrito como
+«bypass del gate datacrédito». Esta entrada lo CORRIGE hacia arriba: no salta el gate del buró, salta el
+**motor de reglas completo**.
+
+**Causa raíz** (verificada). `Modules/Onboarding/App/Services/lenders/LenderUserCategoryService.php:40`:
+
+```php
+//Valida para magnocell si es venezolano, de ser as.. salta reglas  y pone 2da categoria
+if ($user->document_type == "CE" && $lender_id == 84) {
+    $lenderUserCategory = LenderUsersCategory::find(22);
+    $acceptances["validacion_venezolanos"] = true;
+    ...
+    return $lenderUserCategory;
+}
+```
+
+Dos cosas, y las dos importan:
+
+- **Es un hardcode de entidad y de categoría**: `lender_id == 84` y `find(22)` literales. Va al nodo
+  `hardcodes-entidades`.
+- **Salta el motor entero.** No evalúa ningún tier: asigna la categoría 22 y retorna. O sea que para ese
+  par (documento extranjero, lender 84) **las políticas de riesgo configuradas no se aplican**, ni las
+  duras ni las de buró.
+
+⚠ Y una asimetría en el propio log: la fila se escribe con `current_available_amount = 0` mientras el
+objeto que se devuelve **sí trae** `available_amount` calculado. El registro dice cupo 0 y el cliente
+recibe cupo. Cualquier reporte que sume esa columna va a subcontar este caso.
+
+**Evidencia.** El código citado. El gemelo en `Modules/Loans/…/LenderUserCategoryService.php:368` tiene el
+mismo bloque **comentado**, o sea que el camino nuevo no lo lleva: los dos motores tratan distinto al
+mismo cliente según cuál lo evalúe.
+
+**Arreglo.** Ninguno. Antes de tocarlo hay que preguntar: si la intención es una política más laxa para
+documento extranjero, eso se expresa como un tier con `occupation`/`min_score` propios y queda auditable
+—hoy la decisión no deja rastro de por qué se otorgó—.
+
+**Estado:** verificado el 2026-08-07 contra `main`. **No verificado**: cuántas solicitudes de prod
+llevan la bandera, y si el lender 84 sigue activo.
 
 ---

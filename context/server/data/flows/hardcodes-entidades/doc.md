@@ -53,7 +53,7 @@ archivos del mapa.
 | **Bancolombia** | 68 BNPL, 100 Consumo | dispatch por id en PreApprovedLenderService (`if id==68 → BancolombiaBnpl`; `id==100 → amount=1000000 + ConsumerLoan`); secuencia multi-step propia | 12 | P1 |
 | **Corbeta** | allied 209/210/211 | onboarding entero: rama self-management (salta confirmación de desembolso) + datos laborales DUMMY | 11 | P1 |
 | **Credifamilia** | lender 24 (+ OnVacation 179 co-listado) | radicación SOAP `register()` + response_type por accessor, solo si `id==24` | 7 | P1 |
-| **Magnocell + CE** | lender 84 + doc `CE` | ⚠ **bypass del gate datacrédito**: cortocircuito ANTES de leer config si `document_type==='CE' && id===84` (venezolanos con cédula de extranjería) | 2 | P1 |
+| **Magnocell + CE** | lender 84 + doc `CE` | ⚠ **salta el MOTOR DE REGLAS ENTERO, no sólo el gate datacrédito**: si `document_type==='CE' && id===84` asigna la **categoría 22 quemada** (`find(22)`) y retorna sin evaluar un solo tier — las políticas configuradas de esa entidad no se aplican. El gemelo de `Modules/Loans` tiene el bloque **comentado**, así que los dos motores tratan distinto al mismo cliente. Ver **F-120** | 2 | P1 |
 | **Meddipay** | lender 39 | toda la integración Meddipay detrás de `id==39` (`new Meddipay->consult`) | 4 | P1 |
 | **Motai (Renting)** | lender 158 · allied_mode 2 · `motai-renting` | TODO el pipeline: confirmación auto-gestión, precio inflado (1.5M+100%+IVA, duplicado), PEP, T&C, salta OTP+cuota inicial | 15 | P1 |
 | **Pash** | allied 218/219/221/222 | `[218,219,221,222]` → `session('isPash')` → pantalla de bienvenida distinta + fork de onboarding | 4 | P1 |

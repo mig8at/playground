@@ -22,6 +22,29 @@ En **rt=1 CreditOp no perfila** (la API externa del proveedor decide; ver **Bró
 
 **Ruta scoring (sin tiers o ninguno pasó):** si el lender no tiene `cat_rules` (o ningún tier pasó), cae a un **motor SQL de scoring** (campos de usuario + capacidad de pago `calculatePaymentCapacity:333` → `getScoreByCapacity` → categoría por score total). `scoring_is_primary` (`:318`) = el lender no tiene tiers pero SÍ scoring-policy → scoring es su categorización *de diseño* (**SmartPay**), no un fallback. Guard **`scoring_policy_fallback_blocked`** (`CreditopXQuotaController.php:331/348`): si hay `cat_rules>0` y ninguno pasó, aprobar por scoring **no da cupo**.
 
+**⭐ `users_category_log`: el perfilamiento SÍ deja rastro, criterio por criterio.** Es la respuesta a
+«¿por qué a este cliente no le salió esta entidad?» —3 de cada 5 reportes de #tech-ops— y estuvo todo el
+tiempo en la BD. Una fila **por entidad evaluada**, con `category_rules_acceptance` = JSON
+`{tier_id: {criterio: bool}}`. Medido en prod: **26.846 filas en 7 días, el 100 % con el JSON**.
+
+Escritores: `Modules/Loans/App/Services/LenderUserCategoryService.php:502 logCategory` y
+`Modules/Onboarding/App/Services/lenders/LenderUserCategoryService.php:30`. Lector de referencia:
+`Modules/Backoffice/App/Services/ApplicationsService.php:1432 decodeAcceptance`.
+
+⚠ **Tres reglas para leerlo, todas necesarias** (ver **F-118**): una clave **ausente** no es un criterio
+que pasó sino uno que **no se evaluó** (la evaluación corta en `:425` tras los cinco criterios sin buró)
+· la misma regla se escribe **`occupation`** y **`ocupations`** según cuál de los dos servicios homónimos
+la escribió · y hay dos claves de **nivel raíz** que no son tiers: `blacklisted` y
+`validacion_venezolanos` (F-120).
+
+⚠ **No trae `user_request_id`**: se indexa por `(user_id, lender_id)`, igual que el buró. Para atribuir
+una fila a una corrida, la heurística del backoffice —replicada en el trazador— es
+`|created_at − profiling_reviews.updated_at| ≤ 120 s`. Y la cascada evalúa la misma entidad **hasta 9
+veces** por solicitud (el método se llama desde tres sitios), así que hay que colapsar.
+
+El trazador ya lo lee: la etapa `profiler` muestra, por entidad y por tier, dónde cortó y qué criterio
+bloqueó (`trazador/server/fuentes.go` `GetCategorias`).
+
 **El scoring por respuestas declaradas: qué es y de quién** (volcado de prod, 2026-08-07). Es el único
 motor de CreditOp que decide **sin buró**: el cliente responde el formulario, cada respuesta suma puntos
 y el total cae en una categoría. Tres tablas y **un solo dueño**:
@@ -38,8 +61,9 @@ y el total cae en una categoría. Tres tablas y **un solo dueño**:
 
 ⚠ **Las tres tablas son 100 % del lender 160 = SmartPay**, que es de **República Dominicana**
 (`country_id 60`; sus rangos de ingreso están en RD$). No hay ningún otro lender con scoring en prod.
-Corrige dos creencias del árbol: SmartPay es el **160**, no el 152; y **Bold 106 no se sella por
-scoring** — no tiene ni tiers ni scoring.
+Dos precisiones sobre lo que decía antes este nodo: el id **en producción es 160** (el 152 es SmartPay
+**fuera** de prod — está declarado así en `hardcodes-entidades`, y este árbol se mide contra prod); y
+**Bold 106 no se sella por scoring**: no tiene ni tiers ni filas de scoring.
 
 ⚠ **Y entonces la «ruta scoring» no es la salida de los lenders sin tiers.** Medido en prod:
 **37 lenders rt=2/3 activos no tienen ni un tier ni una fila de scoring** (23 de 100 en rt=2; **14 de 16
