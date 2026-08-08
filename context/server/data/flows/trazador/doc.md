@@ -158,14 +158,9 @@ leerlo entero.
 - **Los mapas van embebidos** (`go:embed mapa/*.json`): editar un JSON y no reiniciar el server deja la
   UI mostrando el mapa viejo. Es la confusión más frecuente al iterar.
 
-## Preguntas abiertas
-
-- [ ] `-validar` no corre desde el 2026-08-06: el corpus de líneas crudas vivía en un scratchpad y se
-      perdió. Regenerarlo implica decidir si líneas de producción entran al repo.
-- [ ] El tramo `validation` (identity) tiene 12 matchers marcados `soloEnCodigo` (OCR/Rekognition/ADO)
-      que ninguna traza medida alcanzó: se mantienen, pero no están comprobados.
-- [ ] El veredicto del listado por log (`lenders_count`) necesita un campo `campos` en `HitoDef` para
-      mostrarse como hito; hoy lo lee el ensamblador directo.
+## Lo que NO está verificado
+- `-validar` no corre desde el 2026-08-06: el corpus de líneas crudas se perdió con un scratchpad; regenerarlo implica decidir si líneas de producción entran al repo.
+- Los 12 matchers `soloEnCodigo` del tramo identity (OCR/Rekognition/ADO) no fueron alcanzados por ninguna traza medida.
 
 ## Enlaces
 

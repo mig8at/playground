@@ -202,11 +202,8 @@ En G2 **el body gana**: `request()->input('amount') ?? session('amount') ?? 0`. 
 - `OnboardingService.php:127` — `Experian::creditScore($user_request)` está comentado, pero el log inmediatamente anterior sigue afirmando que corre "unconditionally". No confiar en ese trace.
 - `Modules/Onboarding/tests/Unit/*FreezeTest.php` son tests de **congelamiento**: fijan rarezas actuales (ONB001/002/004/006 con HTTP 200, el ternario muerto `corbeta ? 'ONB006' : 'ONB002'`, el centinela `[]` de `createUserRequest`). Cambiar comportamiento rompe estos tests **a propósito**.
 
-## Preguntas abiertas
-- ¿Quién consume `api/v2/onboarding`? El comentario de `OnboardingV2/routes/api.php` habla de un "private-network BFF", pero **no hay ningún llamador en los 3 repos**. Falta confirmar si existe fuera del árbol o si el módulo está esperando cutover.
-- El catálogo completo `user_request_statuses` (id → nombre) no está en código: los ids 1/3/4/6/7/8/9/10/11/25 salen de constantes, comentarios y guardas; 26 (citado en el doc sembrado) **no se pudo confirmar** en esta pasada.
-- `initial_fee`: el simulador lee `allieds.initial_fee` / `allieds.initial_fee_percentage` y `lenders_by_allied_branches.initial_fee_percentage`, o sea que hay config **a nivel comercio y sucursal**. La afirmación del doc sembrado de que "el % lo exige la categoría rt=2, no el comercio" corresponde al cupo CreditopX y pertenece a **Profiling / CreditopX**; no se verificó acá.
-- `ecommerce_requests` / `user_requests_by_ecommerce_request`: la rama ecommerce de `createUserRequest` decide por `order_key` si actualiza o crea. Falta mapear el ciclo de vida completo del `ecommerce_request` (es turf de **Merchants** / **Aggregator**).
+## Lo que NO está verificado
+- `initial_fee` existe a nivel comercio Y sucursal (`allieds.*` y `lenders_by_allied_branches.*`); la regla «el % lo exige la categoría rt=2» es del cupo CreditopX (→ `profiling`) y no se verificó acá.
 
 ## Enlaces
 - Padre: **CreditOp**. Subcontexto: **KYC**.

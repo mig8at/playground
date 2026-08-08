@@ -155,16 +155,9 @@ en los cinco niveles**, o sea que el nivel no cambia nada para ese comercio.
 - **Rotativo ≠ el `revolving` de `servicing`.** Este nodo termina cuando el cupo queda creado; el
   consumo del cupo, la causación y los seis crons diarios son `servicing`.
 
-## Preguntas abiertas
-
-- [ ] ¿Cuál de las dos implementaciones es la intencionada? Si el SP quedó viejo, la pantalla de
-      condiciones está mintiendo; si el viejo es el PHP, se otorga con el motor equivocado.
-- [ ] `FN_CreditopX_Profiling_Multiplier_Risk` (la del SP) no se leyó en detalle: ¿cuántas variables usa
-      y con qué pesos? Está entre las 27 rutinas «sólo internas» del nodo `db-routines`.
-- [ ] Los 7 lenders con el mismo par cuota/FGA en los 5 niveles: ¿es decisión comercial o configuración
-      copiada sin pensar? Se contesta preguntando, no leyendo.
-- [ ] `debtToIncome = 40` en el SP calcula `ingreso × 40 − deuda` (sin dividir por 100) y el bloque que
-      lo usaba está **comentado**. Resto muerto, pero si alguien lo reactiva el número es absurdo.
+## Lo que NO está verificado
+- ¿Cuál de las dos implementaciones es la intencionada? Si el SP quedó viejo, la pantalla de condiciones miente; si el viejo es el PHP, se otorga con el motor equivocado.
+- `FN_CreditopX_Profiling_Multiplier_Risk` (la del SP) no se leyó en detalle — está entre las «solo internas» de `db-routines`.
 
 ## Enlaces
 

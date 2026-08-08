@@ -126,17 +126,8 @@ existe; un servicio que corre sin repo no se puede indexar y se queda en esta ta
 - **`financial-health-service` tiene `feat/n8n` checkeada, no `main`.** El oráculo valida contra `main`
   —que existe— así que no hay problema, pero al abrir el repo a mano se lee otra rama.
 
-## Preguntas abiertas
-
-- [ ] **Clonar `merchant-api` y `self-manager-api`** — son #3 y #4 por volumen y no hay forma de indexar
-      lo que no está en el disco. Hasta entonces, este nodo sólo puede nombrarlos.
-- [ ] ¿Qué son `otp-service`, `reportery-service` y `merchant-gateways-service`? Sólo se sabe que existen
-      y cuánto loguean.
-- [ ] ¿Qué hace el OTRO workflow de CPS (`internal/core/workflows/kyc/`), distinto de
-      `legacycykpipeline`? No se leyó.
-- [ ] La app móvil: `creditop_mobile` está clonado y **no tiene archivos de las extensiones que este
-      árbol indexa**. Decidir si el móvil entra al alcance o se declara fuera — hoy está fuera de hecho,
-      sin haberlo decidido.
+## Lo que NO está verificado
+- El workflow `internal/core/workflows/kyc/` de customer-profiling-service (distinto de `legacykycpipeline`): no se leyó.
 
 ## Enlaces
 

@@ -82,11 +82,9 @@ Los dos primeros redirigen el navegador (`inertia()->location()` si viene el hea
 - **Dos sistemas de CI conviven en el repo (fuera del índice de código, en la raíz)**: `bitbucket-pipelines.yml` mantiene el deploy legado por `git push` + `rsync` de `.env` y `public/build` a un volumen **EFS**, mientras `.github/workflows/main-prod.yaml` despliega por tag a ECR `creditop/legacy-application` en el cluster `inertia-production`, con **4 servicios**: `legacy-application`, `-worker`, `-worker-high`, `-scheduler`. La adaptación stateless ya está mergeada en main (`9d78e995 feature/stateless-ecs`): existe `/health`, `TrustProxies` lee `TRUSTED_PROXIES` (`app/Http/Middleware/TrustProxies.php:32-45`), el scheduler usa `onOneServer()->withoutOverlapping()` en todas las entradas, y `AGILDATA_CERT_PATH` ya es configurable (`config/services.php:64`).
 - **La ruta en disco del doc sembrado quedó vieja**: el repo migró de Bitbucket a GitHub; ya no es `…/bitbucket/application` sino `…/github/legacy-application`.
 
-## Preguntas abiertas
-- **Qué deploy sirve el tráfico hoy.** El `migration.md` de la raíz (auditoría de 2026-06) describe EC2+EFS sirviendo prod y el service Fargate fuera del ALB; los workflows de GitHub ya despliegan 4 servicios en `inertia-production`. No verificado contra AWS en esta pasada.
-- **Valor actual de `allowed_bypass_comerces`**: si contiene `"all"`, el otp-validate y la info laboral de *todos* los comercios ya corren en legacy. Es dato de BD; no está en el repo.
-- **`Admin/AlliedRulesController` (237 l muertas)**: no hay pista en el código de si fue reemplazado por `LenderRulesController` o si quedó de un rediseño abortado.
-- **`Customer/DatacreditoQueryByAlliedController`** no tiene ruta pero sí 4 referencias en `app/`; falta confirmar por dónde se invoca antes de tratarlo como vivo o muerto. Mismo caso con `SpecialConditionsController` (1 referencia).
+## Lo que NO está verificado
+- Qué deploy sirve el tráfico hoy (EC2+EFS vs los 4 servicios Fargate de los workflows): sin verificar contra AWS.
+- `allowed_bypass_comerces` es dato de BD: si contiene `"all"`, el otp-validate y la info laboral de TODOS los comercios ya corren en legacy.
 
 ## Enlaces
 - Padre: **Architecture**. Hermanos: **legacy-backend** (el gemelo strangler), **frontend-monorepo** (el wizard al que este repo redirige), **ms-preapprovals**.

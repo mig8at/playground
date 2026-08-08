@@ -99,16 +99,13 @@ Para ejercer el servicing (in-platform) hay que **sembrar el ledger** `creditop_
 - **Copias en legacy con imports colgantes** (`use App\Http\Controllers\Admin\CreditopXPaymentController` — namespace equivocado): no es "migración parcial funcional", es código muerto que reventaría.
 - **Riesgo trigger huérfano**: apagar `application` rompería la cartera — el cron que mueve el ledger vive solo ahí.
 
-## Preguntas abiertas
-- [ ] Nombres/ids EXACTOS de `user_request_statuses` (sin seeder → requiere `SELECT id,name` en prod).
-- [ ] ¿Hay notificación de **PAZ Y SALVO** (status=3) hacia el comercio/lender? No localizada (sí existe el aviso de Estado 11).
-- [ ] ¿El parallel-run comparte la MISMA RDS? Si sí, legacy origina (11) y application "continúa" el MISMO `CreditopXRequestHistory` → el ciclo ya sería compartido a nivel de datos. Confirmar `DB_HOST` de prod.
-- [ ] ¿rt≠0 recibe algún evento de cobranza/mora/cierre del tercero post-facturación, o el rastro termina 100% en 26?
-- [ ] ¿La versión vieja del motor de servicing copiada en legacy es intento abandonado o punto de partida vigente? (determina borrarla o retomarla).
-
 ## Diferencias vs otros flujos
 - **vs los flujos de originación (creditopx/smartpay/motai/credifamilia/agregadores):** ellos terminan en el Estado 11; este EMPIEZA ahí. No hay decisión de crédito acá — es cartera/cobranza.
 - **vs rt≠0 (agregadores, Credifamilia rt=4):** para ellos NO hay ciclo de vida en CreditOp (prueba negativa: todos los crons post-desembolso son `creditop_x_*`); el préstamo lo gestiona el lender y CreditOp no ve la mora/cierre. **SmartPay** es el caso especial que CONSUME este ledger: sus 3 crons de device-lock leen `creditop_x_requests_history` (mora → bloquea el celular).
+
+## Lo que NO está verificado
+- ¿Hay notificación de PAZ Y SALVO (status=3) hacia el comercio/lender? La del Estado 11 existe; esta no se localizó.
+- ¿rt≠0 recibe algún evento post-facturación del tercero (cobranza/mora/cierre), o el rastro termina en 26?
 
 ## Enlaces
 - Dónde CORRE: **Application** (el servicing vive 100% ahí; en legacy hay 0 superficies activas). De dónde hereda el Estado 11: **Formalization** y **CreditopX**.

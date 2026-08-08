@@ -186,12 +186,6 @@ En una BD compartida (dev) cada dev trabaja en su **seed** (`backend-e2e/pkg/ide
 - **`X-Dev-Session`/`DEV_SESSION_KEY` OBSOLETOS**: el gate de `/merchant/*` hoy es Cognito; el flag existe con comentario pero sin consumidor en código.
 - **`npm test` engaña**: muchos `test.fixme` (del mock-server `:4000` eliminado) aparecen como `fixme`, no como pasados — "todo verde" ≠ cobertura total. El script `test:onboarding` apunta a una carpeta inexistente (roto).
 
-## Preguntas abiertas
-- El flujo ecommerce **por UI en local** sigue degradado (SSR `process.env.VITE_API_URL`) — falta cerrar el gap para no depender de dev.
-- El cierre **Motai por UI** (seleccionar #158 → IMEI/Abaco device flow) está pendiente: faltan testids Grupo E/F + que el marketplace ofrezca #158. Validado solo en backend (`asesor f0548728 158`).
-- `--target=dev` para el **flujo completo** sigue gated (solo read-only + create/clean); endurecerlo contra hosts compartidos es trabajo pendiente (ver `DEV-TARGET.md`, no indexado).
-- 61 `test.fixme` en harness por convertir al stack real (los grandes: `motai.spec.ts` cierre #158, `smartpay-rd.spec.ts`, `credifamilia.spec.ts` rt=4 async).
-
 ## Enlaces
 - Padre: **CreditOp**.
 - Fronteras (cede a): **ms-preapprovals** (contrato/taxonomía del MS de pre-aprobación), **profiling** / **datacredito** (semántica del perfil sintético), **Motai** / **SmartPay** / **Aggregator** (flujos de producto), **onboarding** / **lender-listing** (ruteo y cascada del listado).

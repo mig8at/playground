@@ -88,12 +88,8 @@ Consecuencia: en el wizard v2 el tramo llega **solo** como `amount_conditions` p
 - **Fuga de variable en v1.** En `processRevolvingAndCreditopXLenders` (los dos repos) `$amountConditions` se pisa en cada iteración del loop de lenders rt=2, así que el top-level que sale al front es el del **último** lender procesado. El front se protege filtrando por `r.lender_id === lender.id` — pero si un día se ordena distinto y hay 2 rt=2 con tramos, el front recibe los de uno solo.
 - **v1 exige categoría para que el tramo exista.** En los dos `LenderRetrievalService` todo el bloque cuelga de `if (count($lenderUserCategoryRules) > 0 …)`: un lender rt=2 **con tramos pero sin reglas de categoría** no recibe tope ni entrega `amount_conditions`. En v2 `attachAmountConditions` es incondicional.
 
-## Preguntas abiertas
-- [ ] **Cuántas filas hay y de qué lenders.** No hay dump local ni seeder; el volumen real y qué miembros de la familia CreditopX usan tramos no se pudo verificar (needs-runtime / query a staging).
-- [ ] **¿Quién carga las filas?** No hay CRUD en los 3 repos. Queda por confirmar si algún back-office fuera de estos repos las edita o si es 100% SQL manual.
-- [ ] **¿Cuál es el monto "correcto" para matchear la banda** — bruto, neto de enganche o neto de costos administrativos? Hoy conviven las 3 lecturas; cuál es la intención de negocio no está en el código.
-- [ ] **¿v2 debe recuperar el top-level `amountConditions`?** El bloque comentado (`LenderListingService.php:178-182`) sugiere trabajo a medio terminar; no hay TODO explícito que diga si el enganche por tramo se retiró a propósito.
-- [ ] **¿"Monto por debajo del primer tramo → rechazo"?** El doc sembrado lo afirmaba; **no se encontró ese corte en código** (sin match, simplemente no se aplica restricción). El único rechazo por monto es `below_min_amount` contra `creditLines->min_amount` (`CreditopXQuotaController.php:486`), que no es del tramo. Queda por confirmar si era una regla de negocio deseada y nunca implementada.
+## Lo que NO está verificado
+- Volumen real de filas y quién las carga: no hay CRUD en los tres repos ni dump local — se contesta con una query a staging.
 
 ## Enlaces
 - Padre: **CreditopX**. Hermano: **Profiling** (la categoría — enganche/cupo/plazo por *persona*; el tramo solo por *monto*).

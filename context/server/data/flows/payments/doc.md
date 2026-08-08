@@ -137,18 +137,15 @@ Real*, v2 (2026-08-03), contrastado contra la rama.
 - **Payvalida webhook empuja originación** (a Estado 11 + voucher + Woocommerce) — es más "desembolso/aprobación" que "recaudo"; cruza con el nodo de originación/agregadores. El `generateVoucher`/`updateDisbursedLender` que dispara son de esos nodos.
 - **Costos administrativos** se recalculan al aprobar la cuota inicial (`administrative_costs_percentage` de `LendersByAllied`) — cambia `final_amount`/`amount` del crédito; efecto de negocio escondido en `Wompi::updateStatus`.
 
-## Preguntas abiertas
-- [ ] ¿El `dd()` de `getMerchant` alguna vez se ejecuta en prod, o `getMerchant` está muerto? (¿quién llama `getMerchant`? confirmar si el path está vivo — el riesgo depende de eso.)
-- [ ] ¿La reconciliación (`ReconcileWompiTransactionsCommand`) está **agendada** en algún Kernel, o es manual? (no vista en `app/Console/Kernel.php` de legacy en este pase.)
-- [ ] ¿Cuál pasarela gana en el cutover? La cuota inicial está reescrita como REST en legacy (Modules/Loans) pero el `Actions/Lenders/Wompi.php` es copia literal (con dd) — ¿legacy va a compartir la misma tabla `payment_gateway_transactions` que app en parallel-run?
-- [ ] ¿Payvalida sigue activa o es legado? Solo aparece `bnplbancolombia` como método default — ¿queda algún comercio usándola para recaudo, o es solo la vía Bancolombia BNPL?
-- [ ] Idempotencia de legacy: ¿se va a portar los 3 candados de app antes del cutover, o el mock es el plan?
-
 ## Diferencias vs otros flujos
 - **vs `servicing`:** servicing es la **contabilidad** del pago (imputación, mora, causación, cierre). Payments es solo el **transporte** (hablar con Wompi/Payvalida). El seam exacto: `Wompi::updateStatus` → `processPayment`.
 - **vs `formalization`:** formalization es el **formulario + cronograma + voucher**; payments es solo el **paso de pago** de la cuota inicial dentro de ese wizard.
 - **vs `agregadores`:** Sistecrédito/Bancolombia son **lenders** que deciden y gestionan cartera externa; Payvalida/Wompi son **pasarelas** que mueven plata para CreditOp. (Payvalida borrosa: su webhook toca originación.)
 - **vs `credifamilia`:** el `PaymentPlan/Credifamilia` es cálculo de amortización SOAP, no pasarela.
+
+## Lo que NO está verificado
+- ¿`getMerchant` (el camino del `dd()`) está vivo en prod? El tamaño del riesgo P0 depende de eso; no se localizó el caller.
+- ¿`ReconcileWompiTransactionsCommand` está agendado en algún Kernel o es manual? ¿Y Payvalida sigue activa para recaudo, o solo queda la vía Bancolombia BNPL?
 
 ## Enlaces
 - Dónde CORRE: **Application** (vivo) + copia en **Legacy-backend** (cuota inicial reescrita REST + Modules/Payments para links + reconcile). De dónde recibe el trigger de cuota inicial: **Formalization** / **CreditopX**. A quién le entrega el pago aprobado: **Servicing** (`processPayment`).

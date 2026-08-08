@@ -190,12 +190,9 @@ O sea: el formulario clásico es React fijo con **dos toggles**, uno de los cual
 - **Detalles menores pero reales**: el docblock del repositorio dice `OFS1001` mientras la constante exige `OFS1000`; el endpoint upstream de información suplementaria tiene un typo (`/v1/suplementary-info/`, con una sola `p`) que el cliente replica a propósito; `COUNTRY_ID = 47` está hardcodeado en la ruta de información adicional; y `field_id` 159 (estrato) quedó huérfano tras ser reemplazado por el 30.
 - **El catálogo de campos no está en código.** Sin seeders, no hay forma de saber desde el repo qué campo es un `field_id` que no esté en el censo de arriba.
 
-## Preguntas abiertas
-- ~~¿El form-service persiste las respuestas de G2 en `user_field_values`?~~ **RESUELTO (2026-07-23):** SÍ. El MS está clonado (`github/form-service`, nodo **form-service**) y hace **DELETE+INSERT** en `user_field_values` con `form_id=form_type_id`. Verificado contra código + POST real en dev.
-- **¿`ONBOARDING_FORMS_SERVICE_BASE_URL`, `VITE_ONBOARDING_FORM_SERVICE` y `VITE_FORM_SERVICE_BASE_URL` apuntan al mismo host?** Los tres paths son distintos y solo el último está en `.env.example` (`form-service.inertia-develop:8082`). Sin confirmar en despliegue.
-- **¿Quién llama a `dynamic-forms/create-user`?** No hay caller en el monorepo; la forma del payload (`id` uuid de transacción + `hash` de comercio + `data`) es compatible con un callback del propio form-service, pero es inferencia.
-- **¿`COUNTRY_ID = 47` (árbol de países del form-service) y `alliedCountry === 60` (RD en CreditOp) conviven o se contradicen?** Son espacios de ids distintos; no se verificó el catálogo del proveedor.
-- **El catálogo real de `fields`** (nombre y tipo de cada `field_id`, incluidos 162-172 en la BD): solo obtenible consultando producción.
+## Lo que NO está verificado
+- ¿`ONBOARDING_FORMS_SERVICE_BASE_URL`, `VITE_ONBOARDING_FORM_SERVICE` y `VITE_FORM_SERVICE_BASE_URL` apuntan al mismo host? Solo el último está en `.env.example`; sin confirmar en despliegue.
+- ¿Quién llama a `dynamic-forms/create-user`? No hay caller en el monorepo; que sea un callback del propio form-service es inferencia.
 
 ## Enlaces
 - Padre: **formalization**. **Hijo: form-service** (el MS Go que sirve la G2 — schema, respuestas en `user_field_values`, country-tree). Hermanos: **kyc** (el buró llena los mismos `field_id` 87/29/160/90 que el formulario, y le gana en prioridad), **onboarding** (el journey donde corren estos formularios), **profiling** (cómo el EAV se convierte en categoría y cupo), **entities** (`form_types.lender_id` y `lenders.complementary_form` son config por entidad), **credifamilia** (su additional-info es form_type 6), **legacy-backend** / **frontend-monorepo** / **application** (los tres repos que cruza esta fase).

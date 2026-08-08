@@ -92,9 +92,9 @@ Usado por la ruta `additional-info` (`additional-info.tsx` → gate, `additional
 - **El `form_type` de Credifamilia (id 6) NO tiene seeder** en ningún repo: es data cargada a mano en dev/local (dynamic-forms lo dice: sin seeders de `fields`/`forms`). Un campo nuevo se agrega por **migración/seeder en legacy-backend** resolviendo por NOMBRE (los ids de `fields` son auto-increment y difieren por ambiente).
 - **`GET /schema` es cache-aside** → tras tocar la BD (agregar/editar un campo) hay que **`PUT /v1/dynamic-form/{id}/schema`** o el front sigue viendo el schema viejo.
 
-## Preguntas abiertas
-- [ ] ¿`ONBOARDING_FORMS_SERVICE_BASE_URL` (G1) y `VITE_FORM_SERVICE_BASE_URL` (G2/este) apuntan al mismo despliegue? Son paths y contratos distintos; este es `form-service.inertia-develop:8082`, el otro `onboarding-forms-service.inertia-develop:8092`.
-- [ ] ¿Quién ejerce los `PUT` de schema/field-options en producción (rebuild del cache)? En el harness lo hacemos a mano; falta el trigger real (¿un admin? ¿cron?).
+## Lo que NO está verificado
+- ¿`ONBOARDING_FORMS_SERVICE_BASE_URL` (G1, `:8092`) y `VITE_FORM_SERVICE_BASE_URL` (G2, `:8082`) apuntan al mismo despliegue? Son contratos distintos.
+- ¿Quién ejerce los `PUT` de schema en producción (rebuild del caché)? En el harness se hace a mano.
 
 ## Enlaces
 - Padre: **dynamic-forms** (el concepto de las 3 generaciones; este nodo es el backend de la G2). Consultado por: **credifamilia** (su additional-info es form_type 6), **onboarding** (el journey donde corre), **profiling** (lo que el form escribe, la decisión lo lee vía `user_field_values`).

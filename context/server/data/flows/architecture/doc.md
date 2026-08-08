@@ -186,13 +186,9 @@ Tres trampas de las etiquetas, todas medidas:
 - **`product_type` es fantasma**: no existe la columna; usar `response_type` + `path_id`.
 - Los prefijos de ruta del wizard están **duplicados a mano** en PHP y TS (`NewFrontendUrlService` ↔ `ROUTE_PREFIXES`); nada los mantiene sincronizados.
 
-## Preguntas abiertas
-- **Qué apunta a qué en producción.** `DB_HOST`/`DB_DATABASE` son env: la BD compartida está probada por el código (migraciones y modelos idénticos), no por config verificada. Falta confirmar contra el despliegue real.
-- **Dos puertos para el MS de pre-aprobación**: legacy usa `PRE_APPROVALS_BASE_URL` (default `:8086`) y el front `VITE_PREAPPROVALS_ENDPOINT`. Sin verificar si son el mismo servicio o dos despliegues.
-- **`VITE_PREAPPROVALS_ENDPOINT` no está en `.env.example`** del wizard pese a usarse en loaders SSR: ¿se inyecta en el deploy?
-- **rt=4** aparece en el front como "pre-approval flow" pero no tiene constante ni respaldo verificado en estos 3 repos.
-- **`microservices` y el resto de repos Go** (messaging, otp, code-generation, pdf-mapper) no están en el índice, así que no se pudo verificar cuáles tienen consumidor real. Desde estos 3 repos, los que sí están cableados en config son: `pre_approvals`, `messaging_service`, `otp_service`, `code_generation_service`, `pdf_mapper_service`.
-- Los **6 módulos sin rutas** (`AuthV1`, `AlliedBranchV1`, …): no se verificó si son andamiaje de una arquitectura en curso o código sin invocar. (Los V2 CON rutas —OnboardingV2/RiskV2— sí están vivos: el front los consume vía `VITE_API_URL`; ver "V1/V2 = evolución" arriba.)
+## Lo que NO está verificado
+- Qué apunta a qué en producción: la BD compartida está probada por código (migraciones y modelos idénticos), no por config verificada contra el despliegue.
+- Los dos puertos del MS de pre-aprobación (`PRE_APPROVALS_BASE_URL` default `:8086` vs `VITE_PREAPPROVALS_ENDPOINT`): sin verificar si son el mismo despliegue.
 
 ## Enlaces
 - Raíz: **CreditOp**. Hijos: **application**, **legacy-backend**, **frontend-monorepo**, **ms-preapprovals**, **harness** (arnés de pruebas E2E: `backend-e2e` Go + `harness` Playwright, recién indexados).

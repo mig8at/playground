@@ -103,12 +103,9 @@ a `LoanFlow::markStarted()` a mano (`UserRequestController.php:1514`).
 - **Hardcodes de personas**: 5 celulares personales de staff en `ManualValidationService.php:17-23` y el email `admin.ecommerce@creditop.com` como asesor por defecto hacia los lenders.
 - **Gemelo no ruteado**: `legacy-backend/Modules/Identity/App/Http/Controllers/Customer/AuthController.php` es el port 1:1 (Inertia→JSON) del login del asesor, pero **no está registrado en ninguna ruta**.
 
-## Preguntas abiertas
-- **`corporate_users` en prod**: ningún código la lee ni la escribe, pero no se verificó si tiene filas históricas. Si las tiene, es un dataset huérfano de asesores viejos.
-- **`Entidad Comercio`**: ¿qué `user_profiles.id` tiene? El alta de usuarios del comercio excluye `[1,2,5]`, así que el id no se puede inferir del código.
-- **Reparto real de permisos por rol**: `RoleHasPermissionsTableSeeder` mapea 30 permisos, pero como faltan 15 permisos y un rol, el estado vigente sólo se puede leer en la BD (`role_has_permissions`).
-- **Consumer-hub ↔ merchant**: dado el slot de sesión compartido, no se verificó qué ocurre si una sesión de cliente navega a `/merchant/:hash` — `GetUserDataUc` buscaría su `cognito_id` de cliente y probablemente no resolvería `allied_branch`, pero no se ejecutó.
-- **`allied_branches_by_user` vs `users.allied_branch_id`**: conviven dos formas de decir "sucursal del usuario" (más el override en cache de `UserAllyBranchController`); no se determinó cuál gana en cada pantalla.
+## Lo que NO está verificado
+- El reparto real de permisos por rol vive en la BD (`role_has_permissions`), no en el seeder — el seeder mapea menos permisos de los que existen.
+- Conviven dos formas de decir «sucursal del usuario» (`allied_branches_by_user` vs `users.allied_branch_id`, más el override en caché): sin determinar cuál gana en cada pantalla.
 
 ## Enlaces
 - Padre: raíz **CreditOp**. Hermanos: **Merchants** (alta y configuración del comercio, hash + QR de sucursal), **Entities** (`response_type` = quién decide el crédito), **Onboarding** (las pantallas del cliente), **KYC** (validación de identidad), **Architecture** (application ↔ legacy-backend ↔ frontend-monorepo).

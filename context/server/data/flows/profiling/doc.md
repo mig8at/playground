@@ -159,17 +159,10 @@ regla** decidió, no **con qué cuentas**.
 - **El ORDEN del listado lo decide una cadena de DOS perfiladores, y el primero está apagado por configuración.** `ProfilerMLController::mlModelV1` tiene la estrategia cableada como `new_then_legacy`: primario `NewProfilerMLService`, respaldo el modelo H2O de siempre (`makePrediction`, `->timeout(15)`). Pero `NewProfilerMLService` sale por una guarda `if ($host === '')` cuando falta `NEW_PROFILER_ML_HOST`, que en prod **no está puesta** — así que el primario falla en el 100 % de las solicitudes y la huella queda en `ML_predictions.previous_attempt`. ⚠ Por eso `fallback_triggered: true` **no** significa «lo ordenaron las matrices»: significa que respondió el perfilador viejo, que sigue siendo un modelo. Ver **F-104** para el dato medido y para la caída del respaldo.
 - **`ML_predictions` tiene TRES formas porque la escriben DOS sistemas.** `legacy-backend` guarda un ARRAY (una entrada por entidad, con `perfilador`) o un OBJETO con `error` cuando ninguno respondió; `legacy-application` guarda la respuesta CRUDA de H2O (`{data,status,message}`) **sin transformar y sin `perfilador`** — por eso esas filas no pueden decir quién ordenó. Leer una sola forma hace que justo el caso que interesa se lea como «sin datos».
 
-## Preguntas abiertas
-- [ ] `monthly_income` por tier no está volcado del dump — sin él no se boundary-testea el piso de ingreso (además hoy es NO-OP por el bug).
-- [ ] rt=2 con reglas datacrédito **por sucursal** (#77 tiene 111): en el cupo el motor nuevo lee solo la **genérica** — ¿quedan inertes las por-sucursal? (needs-runtime).
-- [x] ~~Lenders rt=2 sin `cat_rules`: falta volcar `lender_user_category_scoring_policy_rules`.~~ **Volcada
-      el 2026-08-07 (prod), y la respuesta corrige la pregunta**: el scoring **NO** es el destino de los
-      lenders sin tiers. Es de **UN solo lender, SmartPay = 160** (no 152; y es de **República
-      Dominicana**, `country_id 60`, por eso sus rangos están en RD$). Bold 106 **no tiene ni tiers ni
-      scoring**. Ver la sección «El scoring por respuestas declaradas».
-- [ ] **¿Cómo categorizan los 23 lenders rt=2 activos sin tiers Y sin scoring?** Medido en prod el
-      2026-08-07. Si ninguna de las dos rutas aplica, o no otorgan nunca, o hay un tercer camino que el
-      nodo no tiene. Es la pregunta que reemplaza a la de arriba, y es más grande.
+## Lo que NO está verificado
+- `monthly_income` por tier no está volcado del dump — y hoy además es NO-OP por el bug del censo.
+- ¿Las reglas datacrédito POR SUCURSAL quedan inertes en el cupo? El motor nuevo lee solo la genérica; needs-runtime.
+- ¿Cómo categorizan los 23 lenders rt=2 activos sin tiers Y sin scoring (medidos en prod el 2026-08-07)? O no otorgan nunca, o hay un tercer camino que el nodo no tiene.
 
 ## Enlaces
 - Padre/group: **CreditopX**. Hermanos: **Rotativo (rt=3)** (el OTRO motor: multiplicador 1-5, sin tiers — no confundir «capacidad» ni «categoría» entre los dos) · **Amount tiers** (franjas por monto: recortan plazos + topean cupo; el enganche lo fija la categoría, no el tramo).

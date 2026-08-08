@@ -169,13 +169,8 @@ usan y sí hay que leer.
 - **Versión de pnpm inconsistente a tres bandas**: `package.json` pinea `pnpm@8.15.6`, `README.md` pide `>=9.12`, el `Dockerfile` hace `corepack prepare pnpm@9`.
 - **Fuga de capas**: `lenders-marketplace/src/lib/index.ts:1` re-exporta componentes React (`LenderCard`, `LenderLogo`) desde el barrel de dominio/aplicación.
 
-## Preguntas abiertas
-- ¿`APP_ENV` llega realmente como `"staging"` en el cluster de stg? De eso depende que `streamTimeout` sea 240s y no 45s, y el valor viene del task-def / secret (`dev/loan-request-wizard`), no del repo. Si no llega, el corte de Credifamilia es sistemático también en stg.
-- ¿Alguien produce `low_probability`? No hay constructor en este repo; habría que confirmarlo contra el contrato del **MS Pre-approvals**.
-- Las 7 rutas huérfanas: ¿deuda a podar o preparación de features? `soft-update.tsx` es sospechoso porque el endpoint backend (`soft-update-user-request`) sí existe.
-- `apps/admin` (sólo `.gitignore`, último commit 2026-05-25): ¿placeholder reservado o abandonado?
-- El gap de deploy de `packages/shared/**` y `packages/form-engine/**`: ¿se cubre de hecho con los workflows manuales o hubo despliegues con esos paquetes desactualizados?
-- Sin `data-testid` en ningún lado: ¿el harness E2E externo se apoya en texto/roles a propósito, o es deuda a saldar del lado del front?
+## Lo que NO está verificado
+- ¿`APP_ENV` llega como `"staging"` al cluster de stg? De eso depende `streamTimeout` 240s vs 45s, y el valor vive en el task-def, no en el repo.
 
 ## Enlaces
 - **Padre:** Architecture (índice de repos: application / legacy-backend / frontend-monorepo / ms-preapprovals).

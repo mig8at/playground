@@ -1,7 +1,14 @@
 # Ecommerce · contexto
 > **estado:** al día con main · **Canal / storefront** (eje 4 del negocio: response_type × producto × modo × **canal**). Cubre cómo la tienda del comercio (VTEX, WooCommerce, desarrollo propio) hace **handoff del carrito** a CreditOp y cómo CreditOp **vuelve al comercio** con el resultado. NO decide crédito ni cobra: solo transporta la orden y notifica el veredicto.
 
-> ⚠ **CORRECCIÓN (2026-07-19, ver findings F-40):** la puerta de entrada del front descrita abajo (`{front}/ecommerce/{hash}/checkout?o=…`) **ya no existe en el `loan-request-wizard` de main**: el prefijo `:flow/:partner_hash` de `routes.ts` no tiene hijo `checkout` y no hay `routes/ecommerce/checkout.tsx` (lo único "ecommerce" del wizard vive bajo `routes/bancolombia/*`, que es otro flujo). `GET /ecommerce/{hash}/checkout` → **404**. El lado backend sigue vivo (contrato base64, tablas, 10 comercios con credencial), pero el canal NO es ejercitable end-to-end contra el wizard actual, y el eje ecommerce del harness (`bin/ecommerce`, `channel/ecommerce-*.spec.ts`) quedó **stale**. Pregunta abierta para el equipo: ¿la ruta se movió, o el canal la absorbió el flujo Bancolombia?
+> ⏳ **PENDIENTE DE MERGE — la entrada del front.** La ruta unificada `app/routes/ecommerce/checkout.tsx`
+> (enfoque **stateless**, task `ecommerce-web-stateless`) existe pero vive en **develop** (PR frontend
+> [#551](https://github.com/Creditop-SAS/frontend-monorepo/pull/551)), no en `main`: en prod
+> `GET /ecommerce/{hash}/checkout` del wizard da **404** y el entry de los comercios no-Corbeta lo sigue
+> sirviendo el **monolito**. El backend del enfoque (PR
+> [#795](https://github.com/Creditop-SAS/legacy-backend/pull/795)) **sí está en `main`**. Consecuencia
+> para pruebas: el eje ecommerce se ejercita contra **dev**, no local (F-54, que corrige a F-40).
+> Al mergear #551: re-verificar y **borrar esta marca**.
 
 ## Qué es
 El **canal ecommerce** es el punto de entrada donde una **tienda online** (no un asesor en punto físico, no un link directo) inicia una solicitud de crédito CreditOp desde su checkout. El storefront empaqueta el carrito (monto, orden, comprador, URLs de retorno/callback) en un **contrato base64 unificado**, redirige al comprador al wizard de CreditOp, y al final recibe de vuelta el resultado (aprobado/negado) en su `process_url` + el comprador es redirigido a `return_url` ("volver al comercio").
@@ -109,14 +116,9 @@ Lo arma `EcommerceContractBuilder::buildCheckoutUrl` (compartido; lo usa `VtexSe
 - **→ merchants**: la config del comercio como entidad (toggles, sucursales, alta). Cedo el CRUD de sucursales/entidad; me quedo solo con `AlliedEcommerceCredentialsController` (la credencial **es** la llave del canal) como frontera compartida.
 - **→ onboarding**: OTP, formulario, monto, `registrar-celular`. Cedo el wizard de datos del usuario; me quedo con el punto de **entrada** (`create/{partner_id}`, `checkout/{hash}`) y el punto de **link** (`UserRequestService::handleEcommerceRequest`), que son la costura canal↔onboarding.
 
-## Preguntas abiertas
-> **Respuesta (Miguel + verificado 2026-07-18):** la reubicación del canal al wizard nuevo va por el enfoque **stateless (sin cookie)** — task **ecommerce-web-stateless** (PRs [795](https://github.com/Creditop-SAS/legacy-backend/pull/795) backend / [551](https://github.com/Creditop-SAS/frontend-monorepo/pull/551) front). Estado real (`git branch -r --contains`): **backend #795 en main ✅, frontend #551 solo en develop 🟡**. La entrada unificada `app/routes/ecommerce/checkout.tsx` existe pero vive en develop → todavía NO en main. (El intento previo "web-origination" de abril —503/363— quedó sin merge, superado por éste.)
-- ¿Cuándo se completa el cutover del resto de comercios ecommerce (los que no están en `[24,209,210,211,311]`) del monolito a legacy-backend? Hoy la mayoría del checkout WooCommerce/self sigue server-rendered en `application`; el trabajo que lo mueve es la task **ecommerce-web-stateless**, con el front aún en develop.
-- La entrada unificada `/ecommerce/{hash}/checkout` del **front**: ya EXISTE (`ecommerce/checkout.tsx`, stateless) pero está en **develop, no en main** → en prod el entry lo sigue sirviendo el **monolito** para no-Corbeta hasta que #551 promueva.
-- El conector VTEX (`vtex/node/connector.ts`, repo del conector, NO indexado) hardcodea `https://api.creditop.com` + `/vtex/{init,settel}`; el gateway debe enrutar `/vtex/*` a legacy-backend. ¿Está ya ruteado en prod o el conector sigue pegándole al monolito? (Sigue abierta — depende del gateway, no de estas PRs.)
-- Reintento de notificaciones fallidas: `UpdateEcommerceRequestsCommand` quedó no-op en legacy. ¿Se implementó un job/command nuevo para `processed=0`, o hay un hueco de reconciliación?
-- `EcommerceReplayController@replay` (`application`) reprocesa notificaciones; ¿tiene equivalente en legacy o murió con el WoocommerceController?
-- ¿Shopify u otra plataforma en el roadmap? La arquitectura (notifier + config + catálogo `ecommerces` + `ecommerce_type_id`) está pensada para agregar plataformas sin tocar el core; hoy solo hay Woo/self/VTEX sembrados.
+## Lo que NO está verificado
+- ¿El gateway ya rutea `/vtex/*` a legacy-backend en prod, o el conector (que hardcodea `https://api.creditop.com`) sigue pegándole al monolito?
+- Reintento de notificaciones fallidas: `UpdateEcommerceRequestsCommand` quedó no-op en legacy y no se localizó reemplazo para `processed=0` (el replay del monolito era `EcommerceReplayController@replay`).
 
 ## Enlaces
 - **Hermanos que reciben fronteras**: **payments** (Wompi/cuota inicial/recaudo), **aggregator** (decisión rt=1 Bancolombia/Corbeta; comparte `CorbetaCheckoutController` como *entry*), **merchants** (config de entidad/sucursal; comparte la credencial), **onboarding** (OTP/datos/monto; comparte el link `handleEcommerceRequest`).

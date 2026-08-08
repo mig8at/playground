@@ -61,6 +61,12 @@ Los dos delegan en `ProfilingReviewController` (`updateAsyncLender` el singular,
 
 **Su única huella es el efecto.** `profiling_reviews.disbursed_lender` con valor = el webhook se aplicó. No hay más: el controlador **no tiene ni un `Log::`** y no existe tabla que registre la recepción. La consecuencia práctica está en **F-94**: «el agregador nunca llamó» y «llamó y explotó» son **indistinguibles desde la BD** (`disbursed_lender` vacío en los dos) y mandan a revisar lugares opuestos — uno es problema del tercero, el otro nuestro. Lo único que los separa es la excepción HTTP, cuya `url` (en el `context`, no en el mensaje) contiene `lender-result`.
 
+**Quién sirve el cierre rt=1 hoy: `application`** (verificado 2026-07-31 para Bancolombia): las rutas
+vivas de sus webhooks están en `application/routes/api.php:21-30`; el `BancolombiaController` de
+legacy-backend (`:24` bnplWebhook · `:111` consumerLoanWebhook) existe pero **ningún archivo de rutas lo
+registra en `main`** — copia muerta esperando cutover. Para el resto de los rt=1 (self-manager,
+Sistecrédito, crons Corbeta) no se verificó.
+
 > Esto **no es un caso de borde**: es el reporte más frecuente de `#tech-ops` — 10 casos entre el 27-jul y el 5-ago, con la forma *«Prami confirma originación pero en CT quedó en seleccionar entidad»*. La firma es siempre la misma: estado 3 con `lender_id` elegido y `disbursed_lender` vacío.
 
 ## Gotchas / riesgos
@@ -73,13 +79,9 @@ Los dos delegan en `ProfilingReviewController` (`updateAsyncLender` el singular,
 - **Espejo a legacy best-effort**: si el webhook `lender-result` falla, se loguea pero no bloquea → posible deriva entre lo que ve el usuario y lo que persiste `displayed_lenders`. Un `pending` no repuebla (mantiene la misma fila por Replace).
 - **Colisiones de id**: `24` Credifamilia (rt=4; el `application` viejo hardcodeaba rt=1 para el 24 — **NO extrapolar** a Bancolombia, rt=1 genuino) · allied 153 Energiteca vs lender 153 SmartPay · `100` Bancolombia Consumo vs un allied.
 
-## Preguntas abiertas
-- ¿Qué path gana por comercio, MS Go (Capa 1b) vs `PreApprovedLenderService` legacy (Capa 1a)? Coexisten en parallel-run; no verificado cuál gana por comercio en el front nuevo.
-- ~~¿legacy-backend cierra el ciclo rt=1 hoy…?~~ **RESPONDIDO para Bancolombia (2026-07-31)**: NO. `legacy-backend/app/Http/Controllers/Api/BancolombiaController.php` existe (`:24` bnplWebhook, `:111` consumerLoanWebhook) pero **ningún archivo de rutas lo registra en `main`** — copia muerta; las rutas vivas están en `application/routes/api.php:21-30`. Queda abierto para el resto de los rt=1 (self-manager, Sistecrédito, crons Corbeta).
-- Mapeo exacto `id → user_request_statuses`: 3/6/7/8/10/11/26 se infirieron de callers/comentarios, no del seeder fuente.
-- `EstadoOrden` de Corbeta: los crons llaman con `status=3` (facturado) pero el default del método es 2 (`Corbeta.php:131`); sin doc del enum del proveedor (1/2/3/4).
-- BdB CeroPay (133): ¿el cierre Disbursed→11 lo hace solo `selfManager` o hay un checkStatus/purchase-code que confirma antes de sellar el 11? (`StatusCheck` está comentado en CeroPay).
-- `response_type` real en BD de Addi/Compensar/BdB base: confirmado por código, no leído del seeder `lenders`.
+## Lo que NO está verificado
+- ¿Qué path de pre-aprobación gana por comercio, el MS Go o `PreApprovedLenderService` legacy? Coexisten en parallel-run; sin verificar quién decide en el front nuevo.
+- El enum `EstadoOrden` de Corbeta no tiene doc del proveedor: los crons llaman con 3 (facturado) y el default del método es 2 (`Corbeta.php:131`).
 
 ## Enlaces
 - Padre: **Entities** (backbone `response_type` + tabla `lenders`; owns el hardcode Credifamilia id 24). Hermanos: **CreditopX** (rt=2/3, decide in-platform, 100% inyectable), **Redirect** (rt=0, deriva y pierde el hilo).

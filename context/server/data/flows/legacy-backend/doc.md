@@ -134,12 +134,8 @@ Dos apps Laravel sobre la **misma base de datos**. Números duros del diff:
 - **Fuga de frontera módulo→raíz**: `Modules/Onboarding/routes/api.php:93-134` y `routes/webhooks.php:10` rutean a controladores de `app/Http/Controllers/Api/CredifamiliaV2/`, fuera de todo módulo.
 - **La nueva arquitectura declara no tener auth por diseño** (excepción `GLOBAE001`, comentada en cada `routes/api.php` V1/V2): ningún módulo nuevo aplica `auth.cognito` y la seguridad se apoya en el borde de red. Si alguna de esas rutas se publicara por el API Gateway, quedaría abierta.
 
-## Preguntas abiertas
-- **¿Quién consume `/api/loans/lender/available-quota`?** El endpoint existe (`Loans/routes/api.php:107`) y tiene Feature test propio, pero **no tiene ni un llamador** en `application`, `frontend-monorepo` ni dentro de legacy-backend. Su cliente vive fuera de los repos en disco (candidato: `ms-preapprovals`). Hasta confirmarlo, la etiqueta "autoritativo" del cupo rt=2 queda sin verificar por código.
-- **¿Existe el BFF de red privada** que `NEW_ARCHITECTURE.md` nombra como único consumidor de los módulos V1/V2? No está en los 3 repos indexados.
-- **¿Hay ruteo a nivel de infraestructura** (API Gateway / nginx) que mande ciertos paths a legacy-backend sin pasar por el proxy HTTP de `application`? Solo verifiqué el puente aplicativo (`INTERNAL_LEGACY_API_URL`, 3 sitios) y el `VITE_API_URL` del wizard.
-- **¿Cuál de los dos registros de Loans usan los clientes** (`api/loans/...` vs `api/loans/customer/...`)? El front usa el primero en las rutas que revisé, pero no audité las 29.
-- No pude correr `php artisan route:list` (el `vendor/` instalado exige PHP ≥ 8.4.1 y el intérprete local es 8.2.29): los conteos de rutas son estáticos, contando declaraciones `Route::…` por archivo.
+## Lo que NO está verificado
+- Los consumidores que viven FUERA de los repos en disco: quién llama `/api/loans/lender/available-quota` (candidato: ms-preapprovals), si existe el BFF de red privada que nombra `NEW_ARCHITECTURE.md`, y si hay ruteo de infraestructura que salte el proxy de `application`. Además los conteos de rutas del nodo son estáticos (`Route::…` por archivo), no de `route:list`.
 
 ## Enlaces
 - Padre: **Architecture**. Hermanos: **application** (el monolito Inertia y el servicing), **frontend-monorepo** (el wizard que consume estas APIs), **ms-preapprovals** (MS Go rt=1).

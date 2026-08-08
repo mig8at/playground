@@ -100,10 +100,8 @@ vive en el controller, no en `LenderListingService`.. Categoría/cupo Ctopx: `Mo
 - **Perfilamiento/orden SOLO en producción.** `getProfilingData`/`applyProfiling`/`usort` gated a `environment()==='production'` (:231/:244); en local/dev el ranking difiere. El ML `makePrediction` **no responde** — ⚠ y no por estar corto-circuitado: en prod **timeoutea a los 15 s** contra `profiler.inertia-production:8000` (medido 2026-08-06 en la uReq 521997, 4 veces en una solicitud). ⚠ Tampoco «cae a matrices»: el fallback es el OTRO perfilador (estrategia `new_then_legacy`), y el nuevo está apagado porque falta `NEW_PROFILER_ML_HOST` — o sea que el intento primario falla en el 100 % de las solicitudes. Ver **F-104**. La diferencia importa para diagnosticar: un listado lento no es «el ML está apagado», es 15 s de espera por intento; rt=2/3 igual se fuerzan arriba (`weighted_score=1`).
 - **Hardcodes.** `response_type == 2/3` comparado como literal en varios servicios; buckets de monto-por-score quemados en `LenderSpecialGrantingService`. Inventario: `159906a:docs/codigo/LOGICA-QUEMADA.md`.
 
-## Preguntas abiertas
-- [ ] ¿El id de "Autorizada" es exactamente **11** en BD? Varios callers lo asumen; no leído de la tabla fuente (needs-runtime).
-- [ ] La regla GENÉRICA del `DatacreditoRuleEvaluator` (`allied_branch_id IS NULL`, fail-closed) proviene de la memoria `datacredito-rules-per-lender`; el fail-closed sí se verificó en código (`:48`), el `whereNull` exacto no en este pase.
-- [ ] ¿SmartPay prod (160) tiene `response_type` fijado por algún seeder, o solo por `config('lenders.smartpay_lender_id')`? Negocio lo trata como rt=2 (nodo `smartpay`).
+## Lo que NO está verificado
+- La regla GENÉRICA del `DatacreditoRuleEvaluator`: el fail-closed está verificado (`:48`); el `whereNull(allied_branch_id)` exacto, no.
 
 ## Enlaces
 - Padre: **Entities**. Subcontextos: **Profiling** · **Amount tiers**.

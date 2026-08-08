@@ -252,7 +252,7 @@ No es una lectura de `routes.ts`: es el recorrido **caminado clickeando** con
 | # | pantalla | qué pasa ahí |
 |---|---|---|
 | 1 | `self-service/{hash}/solicitar` | celular + documento + 2 checkboxes |
-| 2 | `self-service/{hash}/{tel}/otp` | **punto de decisión**: resuelve la pre-aprobación y bifurca (§ cerradas: PLS001…005) |
+| 2 | `self-service/{hash}/{tel}/otp` | **punto de decisión**: resuelve la pre-aprobación y bifurca (§11: PLS001…005) |
 | 3 | `{tipo}/start/{code}` | redirige al banco (no es pantalla: es el trampolín) |
 | 4 | *banco* | autenticación. Vuelve a `{tipo}/redirect?code=…` |
 | 5 | `bnpl/loan-info/{code}` | cupo + cuentas + monto a solicitar |
@@ -304,31 +304,31 @@ negocio del banco se ve igual que un fallo técnico y el mensaje accionable del 
 `consumo/loan-offer-evaluation`, los `document-detail`, `response/*`, y todo el canal **ecommerce**
 (`payment-success`, `ecommerce-errors-*`, `business-error`), que entra por otra puerta y en local se degrada.
 
-## Preguntas abiertas
-- [ ] **F1/F2 (front)**: ¿el módulo `bancolombia-origination` llama `RetrieveQuota` o `ListAccountsAndQuota` para la cuota BNPL, y reenvía `bnplTransactionId` en pasos posteriores? Explica el hueco de arriba. Requiere diagnóstico del front.
-- [ ] **N1 (negocio)**: ¿el código de compra para **Consumo** ya corrió en producción? En la copia local hay **0** solicitudes de lender 100 en estado 25 (vs 119 del 68) → puede ser habilitación, no reemplazo.
-- [ ] **N2 (negocio)**: `address` del servicio nuevo se describe como *residencia del cliente*, pero hoy se envía `alliedBranch->address` (dirección de la **sucursal**). Además el nuevo tiene `maxLength 20`.
-- [ ] **Al banco**: ¿el 409 `BP21000` devuelve el `billingCode` existente o sólo el error, y hay forma de consultar por `transactionId`? Sin eso, una respuesta perdida deja la orden huérfana (no hay clave de idempotencia; `message-id` identifica el mensaje, no la operación).
-- [ ] ¿Por qué `app/Http/Controllers/Api/BancolombiaController.php` existe en legacy sin ruta? ¿Se registró y se revirtió, o se portó anticipando el cutover?
+### 11 · La compuerta de pre-aprobación: cómo elige BNPL vs Consumo
 
-### Cerradas en esta pasada
-- ✅ **Cómo elige BNPL vs Consumo** (`validatePreApprovedAndRedirect` → `PreApprovedLenderService::validateBancolombiaPreapprove`): consulta **las dos compuertas del banco** con montos fijos y decide por `match`. BNPL: `validateQuota` con **monto 100.000**, lender 68 → `data.validate === true`. Consumo: `validate` con **monto 1.000.000**, lender 100 → `data.validate === 'Success'` (`'Pending'` → pendiente; **409 `BP40920507`** → "persona no habilitada", tratado como sin cupo, **no** como error). El resultado sale como código y fija `lender_id`/`amount` en la solicitud:
+`validatePreApprovedAndRedirect` → `PreApprovedLenderService::validateBancolombiaPreapprove` consulta
+**las dos compuertas del banco** con montos fijos y decide por `match`. BNPL: `validateQuota` con monto
+**100.000**, lender 68 → `data.validate === true`. Consumo: `validate` con monto **1.000.000**, lender
+100 → `data.validate === 'Success'` (`'Pending'` → pendiente; **409 `BP40920507`** → «persona no
+habilitada», tratado como sin cupo, **no** como error). El resultado sale como código y fija
+`lender_id`/`amount` en la solicitud:
 
-  | | condición | código | `lender_id` | `amount` |
-  |---|---|---|---|---|
-  | Multiproducto | `hasBnpl && (hasConsumer\|\|pending)` | `PLS003` | **68** (arranca en BNPL) | 100.000 |
-  | Solo BNPL | `hasBnpl` | `PLS001` | 68 | 100.000 |
-  | Solo Consumo | `hasConsumer` | `PLS002` | 100 | 1.000.000 |
-  | Respuesta al frente | `pending` | `PLS004` | 100 | 1.000.000 |
-  | Ninguno | — | `PLS005` | `null` | `null` | 
+| | condición | código | `lender_id` | `amount` |
+|---|---|---|---|---|
+| Multiproducto | `hasBnpl && (hasConsumer\|\|pending)` | `PLS003` | **68** (arranca en BNPL) | 100.000 |
+| Solo BNPL | `hasBnpl` | `PLS001` | 68 | 100.000 |
+| Solo Consumo | `hasConsumer` | `PLS002` | 100 | 1.000.000 |
+| Respuesta al frente | `pending` | `PLS004` | 100 | 1.000.000 |
+| Ninguno | — | `PLS005` | `null` | `null` |
 
-  Consecuencia práctica para probar: **con las dos compuertas prendidas el recorrido arranca SIEMPRE en BNPL** (multiproducto ⇒ lender 68), así que las pantallas de Consumo no se alcanzan sin apagar la de BNPL. El `?multiproduct=true` que aparece en la URL del wizard es exactamente el `PLS003`. En multiproducto el cambio a Consumo ocurre **en el `authenticate`**, que reescribe `lender_id` y `amount`.
-- ✅ **El estado 25 habilita** (no excluye) en `PurchaseCodeService.php:106` → las cifras calculadas asumiendo que habilita son las correctas.
-- ✅ **`barcode_type` de los allieds 24/209/210/211 = `ean128`** → el riesgo de `ean13` (`^\d{12}$`) no aplica a este alcance.
-- ✅ **`country_zones` está sucio y `country_cities.code` está limpio** (números arriba) → derivar el departamento del código de ciudad es lo correcto.
-- ✅ **El `Message-Id` fijo de no-producción es un v4 válido** (`BancolombiaBnpl.php:413`); el que no lo es (un UUID **v1**) está comentado en `BancolombiaConsumerLoan.php:409`. Riesgo latente si alguien lo descomenta. Ver **F-84**.
-- ✅ **Por el canal ASESOR un comercio Corbeta no cierra ahí: entrega al celular del cliente** (`update-user-request(68)` → `url=/bancolombia/bnpl/explicacion-de-flujo/{code}` + modal de WhatsApp, estado 1→3). El canal asesor converge en las mismas pantallas del self-service. Ver **F-85**.
-- ✅ **Qué es el `allied_id = 24`** (el único `case` sin comentario en `CodeGenerationService.php:22`): es **"Creditop"**, la cuenta de comercio propia de la casa, activa, con **21 lenders** habilitados. Está en `Setting('corbeta_allieds')` y en el switch, pero **no es un retail Corbeta** — conviene tenerlo en cuenta al medir "solicitudes Corbeta".
+Consecuencia práctica para probar: **con las dos compuertas prendidas el recorrido arranca SIEMPRE en
+BNPL** (multiproducto ⇒ lender 68), así que las pantallas de Consumo no se alcanzan sin apagar la de
+BNPL. El `?multiproduct=true` de la URL del wizard es exactamente el `PLS003`; en multiproducto el
+cambio a Consumo ocurre **en el `authenticate`**, que reescribe `lender_id` y `amount`.
+
+## Lo que NO está verificado
+- ¿El módulo `bancolombia-origination` del front llama `RetrieveQuota` o `ListAccountsAndQuota` para la cuota BNPL, y reenvía `bnplTransactionId` después? Explica el hueco del mapa de pantallas; se contesta con diagnóstico del front.
+- ¿El código de compra para Consumo ya corrió en producción? En la copia local hay 0 solicitudes de lender 100 en estado 25 (vs 119 del 68) — puede ser habilitación, no reemplazo.
 
 ## Enlaces
 - Padre: **aggregator** (maquinaria genérica rt=1: `PreApprovedLenderService`, `LenderRetrievalService`, el filtro `[12,23,141,142,166]`, las Actions de los otros lenders, `UserRequestService` con el `case 1` y la tabla de canales).

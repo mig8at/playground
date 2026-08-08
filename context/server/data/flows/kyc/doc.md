@@ -171,10 +171,8 @@ no validan identidad, y para ellos `confirmation` salta directo a `first-payment
 - **Mapper de récord = application**: legacy-backend tiene una copia parallel-run (`app/Actions/RiskCentrals/`) + el rewrite modular (`Modules/Risk*`). El microservicio `kyc-gateway` (Go, **fuera de los 3 repos indexados**) reimplementa los clientes de buró (experian/agildata/mareigua) pero **no es** el mapper que corre.
 - **Dos "PEP"**: el del tipo de doc = Permiso Especial de Permanencia (migratorio); el de AML/TusDatos = Persona Expuesta Políticamente.
 
-## Preguntas abiertas
-- **AML**: ¿`hasFindings` (TusDatos) BLOQUEA el listado de TODOS los lenders o solo el flujo Credifamilia? No se localizó un consumidor central que rechace por `aml()`.
-- ~~**rc_ids por entorno**~~ — **RESUELTO el 2026-08-05**: los ids se verificaron contra **prod** vía Redash y coinciden uno a uno con el snapshot local (1 Acierta · 2 TusDatos-Identidad · 3 Agildata · 4 TusDatos-AML · 5 Ado · 6 Mareigua · 7 Deceval · 8 Quanto · 9 Acierta+Quanto · 10 crosscore · 11 evidente). La única diferencia entre ambientes sigue siendo `Abaco`, que existe en el dump local y **no** en prod. Que coincidan hoy no vuelve seguro el hardcode —dependen del orden de inserción— así que resolver por **nombre** sigue siendo lo correcto; lo que ya no hace falta es dudar del mapeo al leer una consulta de prod.
-- **Quanto "certeza"**: la etiqueta de certeza del seed del simulador no se pudo verificar en código; lo verificable es la banda `promedio/inferior/superior` (`productValueList` pos 0/1/2).
+## Lo que NO está verificado
+- ¿`hasFindings` del AML (TusDatos) bloquea el listado de TODOS los lenders o solo el flujo Credifamilia? No se localizó un consumidor central que rechace por `aml()`.
 
 ## Enlaces
 - Padre: **Onboarding** (cede el buró a este nodo). Hermanos: **Profiling** (los 2 motores de datacrédito + categoría), **CreditopX** (cupo rt=2), **Pullman** (score gate 400 / edad), **SmartPay** (salta AML), **Motai** (Ábaco/gig), **Formalization** (Credifamilia SOAP downstream).

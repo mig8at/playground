@@ -133,16 +133,9 @@ de log (ver F-108) y cuatro son framework (`failed_jobs`, `model_has_roles`…).
   lee dos tablas de configuración** — un `CREATE OR REPLACE` o un `UPDATE` cambian a quién se le presta
   sin un solo commit. Desarmada en el nodo **`rotativo`**.
 
-## Preguntas abiertas
-
-- [x] ~~¿Las 4 sin fuente tienen copia en algún lado?~~ **Sí: se leen desde dev por MySQL directo.** Lo
-      que queda es la ACCIÓN — dumpearlas a `legacy-backend` para que queden versionadas. Es un cambio a
-      un repo real, no se hizo.
-- [ ] ¿Coinciden `FN_Mareigua_*` con `MareiguaExtractor`? Si divergen, dos caminos calculan el mismo
-      ingreso distinto — el mismo patrón que las dos convenciones de tasa (F-71).
-- [ ] ¿Prod, dev y staging tienen las MISMAS definiciones? `last_altered` por ambiente lo diría; no se
-      comparó.
-- [ ] `actualizar_json`: sin call site y sin fuente. ¿Resto o algo que corre por evento?
+## Lo que NO está verificado
+- ¿`FN_Mareigua_*` coincide con `MareiguaExtractor`? Si divergen, dos caminos calculan el mismo ingreso distinto — el patrón de las dos convenciones de tasa (F-71).
+- ¿Prod, dev y staging tienen las MISMAS definiciones? `last_altered` por ambiente lo diría; no se comparó. Y `actualizar_json` sigue sin call site ni fuente.
 
 ## Enlaces
 

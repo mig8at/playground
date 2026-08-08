@@ -175,16 +175,9 @@ saber en qué estado quedó el título.
 > Lo que SÍ está en `main` es el núcleo: `DecevalSoap`, el trait `Soap`,
 > `DecevalPromissoryNoteService`, la factory y `LNDV001`.
 
-## Preguntas abiertas
-
-- [ ] ¿Cuántos casos de `SDL.DA.0439` hay realmente? Hoy no hay alerta ni métrica; el propio documento
-      lo deja como pendiente («medir la incidencia real»). Se contestaría contando en `deceval_logs`.
-- [ ] ¿Qué depositante operó cada caso? La cascada lender→allied de `findForUserRequest` lo decide, pero
-      no queda escrito en `promissory_notes`: hay que reconstruirlo.
-- [ ] El guion de soporte para el 0439 (qué se le dice al cliente, quién gestiona la corrección ante
-      Deceval, cómo se reintenta) **no existe**. Es decisión de operaciones, no de código.
-- [ ] ¿Los créditos rotativos firman igual? `promissory_notes.creditop_x_revolving_credit_id` existe y
-      hay una rama `feature/CRED-121-deceval-rotativo` sin mergear — no se leyó.
+## Lo que NO está verificado
+- La incidencia real de `SDL.DA.0439` y qué depositante operó cada caso: se contesta contando en `deceval_logs` y reconstruyendo la cascada — no queda escrito en `promissory_notes`.
+- ¿Los créditos rotativos firman igual? `promissory_notes.creditop_x_revolving_credit_id` existe y hay una rama `feature/CRED-121-deceval-rotativo` sin mergear, no leída.
 
 ## Enlaces
 
