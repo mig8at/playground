@@ -51,6 +51,7 @@ acá, saltá al `F-xx` y leé sólo eso.
 |---|---|
 | **«le salen menos cuotas de las parametrizadas»** | F-110 |
 | **«le aprobaron cupo a alguien que no debía»** | F-112 |
+| **«no sale la opción de una entidad, sin error»** | F-113 |
 | **«esto anda en local y no en dev/qa» / «probé contra el ambiente equivocado»** | F-06 · F-18 · F-61 · F-62 · F-65 · F-73 · F-74 · F-76 · F-77 · F-95 |
 | **«parece un bug del producto» (y es una env faltante)** | F-04 · F-05 · F-23 · F-70 · F-98 · F-99 · F-104 |
 | **«la pantalla no avanza y no hay ningún error»** | F-01 · F-02 · F-03 · F-58 · F-88 · F-91 · F-92 |
@@ -2820,5 +2821,58 @@ evalúa, incluidos **98 que configuraron un mínimo creyendo que sí aplicaba**.
 convierte esto de matiz en agujero: casi todos los que quisieron poner el límite no lo tienen activo.
 
 **Estado:** verificado el 2026-08-07 contra `main` (legacy-backend) y contra los datos de producción.
+
+---
+
+### F-113 · Credifamilia devuelve «APROBADO» con datos VACÍOS cuando la entrada es inválida, y nuestro código lo acepta como pre-aprobado
+
+**Síntoma.** «No sale la opción para Credifamilia» en el marketplace. No hay error, no hay rechazo: la
+entidad simplemente no aparece. Reportado el 2026-08-05 en #tech-ops **y en paralelo por el propio grupo
+de Credifamilia** — o sea, dos canales el mismo día.
+
+**Causa raíz** (verificada en código; el diagnóstico lo hizo un dev en el hilo). Dos fallas apiladas, y
+la primera tapó a la segunda:
+
+1. **El disparador**: un **correo con tilde** (o cualquier carácter no ASCII). Credifamilia no lo
+   rechaza — responde **`"Aprobado"` con el payload vacío**. Textual del hilo: *«en la respuesta no dice
+   que falló por el correo, dice "Aprobado" sin datos»*.
+2. **Nuestro lado lo acepta.** `legacy-backend/Modules/Onboarding/App/Services/lenders/PreApprovedLenderService.php:325-333`:
+   ```php
+   if ($statusId == 41 && $statusDetail == 'APROBADO') {
+       $lender->probability = 'Pre aprobado';
+       $lender->available = $responseData['valor_disponible_para_comprar'] ?? null;  // ← queda NULL
+       $lender->pre_approved_lender = true;
+   ```
+   La entidad queda marcada **pre-aprobada con cupo `null`**. ⚠ Y la asimetría es lo llamativo: el lado
+   del RECHAZO sí tiene guarda defensiva (`:335` trata como rechazado un estado final sin
+   `statusDetail`, con comentario explicándolo), pero el lado del APROBADO **no valida que venga el
+   cupo**.
+
+**Y una tercera capa que enmascaró el diagnóstico**: Credifamilia tiene un **límite de intentos de su
+lado** (`{"transactionId":…,"status":3,"status_detail":"Rechazado"}`) que se agotó mientras se depuraba.
+Del hilo: *«O desde un principio era rechazo, pero por el correo no lo pudimos ver»* — es decir, nunca se
+supo si el cliente estaba rechazado desde el principio. Los intentos se pueden reiniciar del lado de
+CreditOp, pero el límite es del proveedor y **no está en nuestro código**.
+
+**Evidencia.** El código citado. El hilo de #tech-ops del 2026-08-05 (35 respuestas, el más largo del
+canal). El arreglo del correo **sí se desplegó ese día**: commit `7a1b652c` en `legacy-backend`
+(«feat: backend email restriction improvements», 2026-08-05 14:11) agrega
+`regex:/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/` a `StorePersonalInfoRequest` y
+`PersonalInfoRequest`.
+
+**Arreglo.** El disparador está tapado (ya no entra un correo con tilde). **El falso aprobado NO**: si
+Credifamilia responde `APROBADO` sin `valor_disponible_para_comprar` por cualquier otra causa, el
+comportamiento se repite. Lo dijo el dev en el hilo: *«si bien nosotros no debemos dejar que pase un
+correo con caracteres especiales, ellos no deben enviarnos un aprobado en falso»*. Una guarda simétrica
+a la del rechazo —tratar `APROBADO` sin cupo como no-concluyente en vez de pre-aprobado— cerraría la
+clase entera de fallas, no sólo la del correo.
+
+**Estado:** verificado el 2026-08-07 contra `main`. **No verificado**: qué hace el front con un lender
+`pre_approved_lender = true` y `available = null` (si esconde la card o la rompe) — el síntoma reportado
+es «no sale la opción», pero no se ejercitó.
+
+⚠ **La lección de método**: acá había TRES fallas encadenadas (correo → falso aprobado → límite de
+intentos) y cada una explicaba el síntoma por sí sola. Cuando un caso tarda 35 mensajes en cerrarse, casi
+siempre es esto: arreglar la primera capa hace que el síntoma cambie, no que desaparezca.
 
 ---
