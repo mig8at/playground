@@ -123,6 +123,12 @@ leerlo entero.
 - **Las funciones SQL no loguean.** 42 rutinas de MySQL calculan cosas del negocio (el ingreso, la
   ocupación, los features del ML) y no escriben una línea: este árbol puede mostrar la entrada y la
   salida de ese cómputo, nunca el medio. Nodo `db-routines`.
+- **Un rechazo de cupo ROTATIVO (rt=3) es invisible para esta herramienta, y no es culpa del mapa.** El
+  corte `multiplier <= 3` retorna antes de escribir nada: sin log, sin fila en `revolving_credits` y sin
+  transición de estado. Las tres fuentes que cruza el trazador quedan vacías a la vez, así que la etapa
+  sale `sin-evidencia` — que es lo correcto, pero deja la pregunta «¿por qué 0?» sin contestar. Se
+  arregla en el producto (persistir el JSON del multiplicador), no acá. Ver **F-115** y el nodo
+  `rotativo`.
 - **`risk_central_user_data` se cruza por `user_id`, no por solicitud**: un cliente con varias
   solicitudes en la misma ventana contamina la traza abierta. El árbol lo avisa en los warnings, pero
   las filas igual cuentan en los totales.

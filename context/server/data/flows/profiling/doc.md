@@ -22,6 +22,30 @@ En **rt=1 CreditOp no perfila** (la API externa del proveedor decide; ver **Bró
 
 **Ruta scoring (sin tiers o ninguno pasó):** si el lender no tiene `cat_rules` (o ningún tier pasó), cae a un **motor SQL de scoring** (campos de usuario + capacidad de pago `calculatePaymentCapacity:333` → `getScoreByCapacity` → categoría por score total). `scoring_is_primary` (`:318`) = el lender no tiene tiers pero SÍ scoring-policy → scoring es su categorización *de diseño* (**SmartPay**), no un fallback. Guard **`scoring_policy_fallback_blocked`** (`CreditopXQuotaController.php:331/348`): si hay `cat_rules>0` y ninguno pasó, aprobar por scoring **no da cupo**.
 
+**El scoring por respuestas declaradas: qué es y de quién** (volcado de prod, 2026-08-07). Es el único
+motor de CreditOp que decide **sin buró**: el cliente responde el formulario, cada respuesta suma puntos
+y el total cae en una categoría. Tres tablas y **un solo dueño**:
+
+- `lender_user_fields_scoring_policy` (30 filas) — `(field_id, value) → score`. Los campos son de
+  autodeclaración: `averageMonthlyIncome` (163), `primaryOccupationType` (164), `incomeType` (166),
+  `employmentOrBusinessTenure` (167), `incomeChannels` (168), `activeCredits` (169),
+  `hasActiveCreditCard` (170), (172).
+- `lender_payment_capacity_scoring_policy` (5 filas) — la capacidad de pago en % se convierte a puntos
+  por banda: `0-10 → 20`, `11-30 → 15`, `30-50 → 15`, `50-70 → 10`, `71-100 → 5`. ⚠ **Menos capacidad
+  da MÁS puntos**, y las bandas 11-30/30-50 **se solapan en el 30**.
+- `lender_user_category_scoring_policy_rules` (4 filas) — el total cae en categoría:
+  `140-165 → 139` · `100-139 → 140` · `50-99 → 141` · `0-49 → 142`.
+
+⚠ **Las tres tablas son 100 % del lender 160 = SmartPay**, que es de **República Dominicana**
+(`country_id 60`; sus rangos de ingreso están en RD$). No hay ningún otro lender con scoring en prod.
+Corrige dos creencias del árbol: SmartPay es el **160**, no el 152; y **Bold 106 no se sella por
+scoring** — no tiene ni tiers ni scoring.
+
+⚠ **Y entonces la «ruta scoring» no es la salida de los lenders sin tiers.** Medido en prod:
+**37 lenders rt=2/3 activos no tienen ni un tier ni una fila de scoring** (23 de 100 en rt=2; **14 de 16
+en rt=3**). Los de rt=3 tienen explicación —el rotativo usa otro motor entero, ver el nodo `rotativo`—;
+los 23 de rt=2 **no la tienen todavía**.
+
 **Qué fija la categoría — la economía:**
 - **Enganche** = `category.min_initial_fee` (%). *(El `initial_fee_percentage` del tramo por monto es código muerto en rt=2 — eso vive en **Amount tiers**.)*
 - **Cupo** = `calculateAvailableAmount` (`:697`): gross-up sobre el mínimo de **4 topes** —
@@ -114,16 +138,27 @@ regla** decidió, no **con qué cuentas**.
 ## Preguntas abiertas
 - [ ] `monthly_income` por tier no está volcado del dump — sin él no se boundary-testea el piso de ingreso (además hoy es NO-OP por el bug).
 - [ ] rt=2 con reglas datacrédito **por sucursal** (#77 tiene 111): en el cupo el motor nuevo lee solo la **genérica** — ¿quedan inertes las por-sucursal? (needs-runtime).
-- [ ] Lenders rt=2 **sin `cat_rules`** (SmartPay 152, Bold 106…): se sellan por `lender_user_category_scoring_policy_rules` — falta volcar esa tabla para armar sintéticos.
+- [x] ~~Lenders rt=2 sin `cat_rules`: falta volcar `lender_user_category_scoring_policy_rules`.~~ **Volcada
+      el 2026-08-07 (prod), y la respuesta corrige la pregunta**: el scoring **NO** es el destino de los
+      lenders sin tiers. Es de **UN solo lender, SmartPay = 160** (no 152; y es de **República
+      Dominicana**, `country_id 60`, por eso sus rangos están en RD$). Bold 106 **no tiene ni tiers ni
+      scoring**. Ver la sección «El scoring por respuestas declaradas».
+- [ ] **¿Cómo categorizan los 23 lenders rt=2 activos sin tiers Y sin scoring?** Medido en prod el
+      2026-08-07. Si ninguna de las dos rutas aplica, o no otorgan nunca, o hay un tercer camino que el
+      nodo no tiene. Es la pregunta que reemplaza a la de arriba, y es más grande.
 
 ## Bitácora
+- **2026-08-07** — Volcadas las tres tablas del scoring por respuestas declaradas (prod): son de un solo
+  lender, **SmartPay 160** (RD), no de «los lenders sin tiers». Corregido el id (el nodo decía 152) y la
+  creencia de que Bold 106 se sellaba por scoring. Queda medido que **37 lenders rt=2/3 activos no tienen
+  ninguna de las dos rutas**. El rotativo salió de este nodo a uno propio.
 - **2026-08-05** — Documentado que el perfilamiento no es auditable desde el admin y que los ids de regla por entidad SÍ están en los logs (medido en la uReq 520704 de prod). 3 de los reportes de #tech-ops de 5 días son «¿por qué perfiló así?».
 - **2026-08-05** — Documentada `profiling_reviews` como el snapshot completo del motor (588 filas verificadas): `displayed_lenders` y `hard_rules` en JSON, `disbursed_lender` como huella del webhook rt=1, `datacredito_query`, y las tres fuentes del orden. Corrige la creencia de que el listado no se persistía (F-93).
 - **2026-07-17** — Contexto sembrado desde el simulador `playground/flow` (PerfilamientoNode + MAP.md §S5, verificado por workflow). Superficie de código a linkar en la fase de data.
 - **2026-07-17** — Fase de data: superficie de código curada + doc enriquecido desde `git 159906a:docs/codigo/REGLAS-POR-COMERCIO-Y-LENDER.md` §2.3/§3.3 y `MECANICA-CREDITO.md` §4/§5, verificado en legacy (`LenderUserCategoryService`, `CreditopXQuotaController`, modelos de categoría). Correcciones: fórmula de cupo real (4 topes + PV francesa + rama `debt_capacity_amount_validation`), columnas reales de las 2 tablas, **BUG `min_income`**, ruta scoring/`scoring_is_primary`, special granting DENTIX, y re-anclaje application→legacy. Se delegó a **Motor de decisión** las 4 capas/2 motores/synth y a **Amount tiers** las franjas por monto.
 
 ## Enlaces
-- Padre/group: **CreditopX**. Hermano: **Amount tiers** (franjas por monto: recortan plazos + topean cupo; el enganche lo fija la categoría, no el tramo).
+- Padre/group: **CreditopX**. Hermanos: **Rotativo (rt=3)** (el OTRO motor: multiplicador 1-5, sin tiers — no confundir «capacidad» ni «categoría» entre los dos) · **Amount tiers** (franjas por monto: recortan plazos + topean cupo; el enganche lo fija la categoría, no el tramo).
 - Referencia transversal: **Motor de decisión** (las 4 capas, los 2 motores de datacrédito, la cascada getLenders clasifica-no-excluye, la receta de sintético + frontera de inyectabilidad) · **Modelo de datos** (EAV field 29/87/160, `risk_central_user_data` encriptado, `user_summaries` agildata/mareigua).
 - Fuente (git; `docs/` fuera de main): `git 159906a:docs/codigo/REGLAS-POR-COMERCIO-Y-LENDER.md` §2.3/§3.3 · `git 159906a:docs/codigo/MECANICA-CREDITO.md` §4/§5.
 - Memorias: `reglas-comercio-lender-map` · `datacredito-rules-per-lender` (2 motores) · `onboarding-decision-data-map` (receta sintético) · `flow-reorg-y-mapa-atributos` (BUG min_income) · `nomenclatura-negocio` (categoría=nivel/acuerdo) · `creditopx-modelo-comercio` (economía comercio/comisión).

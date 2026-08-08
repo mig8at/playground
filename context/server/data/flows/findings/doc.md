@@ -74,7 +74,10 @@ acá, saltá al `F-xx` y leé sólo eso.
 | **SmartPay · IMEI** | F-21 · F-22 · F-23 · F-24 · F-32 |
 | **Ecommerce** | F-40 · F-54 |
 | **Flujo dinámico (RD)** | F-41 · F-42 · F-43 · F-44 · F-45 |
-| **Rotativo (rt=3) y servicing** | F-38 · F-39 |
+| **Rotativo (rt=3) y servicing** | F-38 · F-39 · F-114 · F-115 · F-116 · F-117 |
+| **«el rotativo le dio cupo 0 y no sé por qué»** | F-115 · F-117 |
+| **«lo que vio en pantalla no es lo que quedó guardado»** | F-114 |
+| **«el mismo cálculo está hecho dos veces y no coinciden»** | F-71 · F-114 |
 | **Tasas, fianza y cálculo** | F-71 · F-72 |
 | **«el harness hace algo raro» (la herramienta, no el producto)** | F-14 · F-15 · F-16 · F-17 · F-33 · F-52 · F-53 · F-57 · F-59 · F-64 · F-66 · F-67 · F-87 · F-90 |
 
@@ -2874,5 +2877,154 @@ es «no sale la opción», pero no se ejercitó.
 ⚠ **La lección de método**: acá había TRES fallas encadenadas (correo → falso aprobado → límite de
 intentos) y cada una explicaba el síntoma por sí sola. Cuando un caso tarda 35 mensajes en cerrarse, casi
 siempre es esto: arreglar la primera capa hace que el síntoma cambie, no que desaparezca.
+
+---
+
+### F-114 · El cupo rotativo se calcula DOS veces con motores distintos: el que se muestra no es el que se otorga
+
+**Síntoma.** «Las condiciones que vio el cliente en pantalla no son las del cupo que le quedó» — cuota
+inicial distinta, FGA distinto, o un cupo que en pantalla existía y al confirmar es 0.
+
+**Causa raíz** (verificada leyendo los dos cuerpos completos el 2026-08-07). Hay **dos
+implementaciones independientes** del mismo cálculo:
+
+- **La que OTORGA** — `legacy-application/app/Services/lenders/RevolvingLoanConfigService.php:30`, PHP.
+  Es la que crea la fila de `revolving_credits`.
+- **La que MUESTRA condiciones** — `legacy-backend/Modules/Loans/App/Services/RevolvingCreditsService.php:486`
+  → `RevolvingCreditRepository.php:113` → `CALL SP_CreditopX_Revolving_Credit`, todo en SQL.
+
+Divergen en cinco puntos, y **cada uno cambia el número por separado**:
+
+| | PHP (otorga) | SQL (muestra) |
+|---|---|---|
+| función de multiplicador | `FN_CreditopX_Revolving_Credit_Multiplier` — 6 variables, incluye continuidad laboral | `FN_CreditopX_Profiling_Multiplier_Risk` — **otra función**, sólo Experian |
+| deuda CreditOp en la capacidad | la **suma** (`+ ctop_debt`) | la **resta** |
+| rechazo | `multiplier <= 3` → cupo 0 | **no rechaza** |
+| redondeo | a 50.000 (`floor`) | a 10.000 (`TRUNCATE(x,-4)`) |
+| nivel para cuota inicial/FGA | `(int) m` — trunca | `m=5 ? 5 : TRUNCATE(m,0)+1` — **redondea hacia arriba** |
+| plazo mínimo | `ceil(cupo / capacidad)+1` | `trunc(max_rev_credit / capacidad)+1` |
+
+El más visible en soporte es el último de la lista de arriba: con multiplicador **3,7**, el PHP lee la
+fila del **nivel 3** y el SP la del **nivel 4** — distinta cuota inicial y distinto FGA para el mismo
+cliente en la misma sesión.
+
+**Evidencia.** Los dos cuerpos, leídos el 2026-08-07: el PHP en `main`; el SP por
+`go run . -target dev -sql "SELECT routine_definition FROM information_schema.routines WHERE routine_name='SP_CreditopX_Revolving_Credit'"`.
+El SP también está en `legacy-backend/migrate.sql`.
+
+**Arreglo.** Ninguno aplicado. Lo primero no es unificar sino **decidir cuál es la intencionada**: el SP
+tiene bloques comentados (la capacidad de endeudamiento, el redondeo viejo a 50.000) que sugieren que
+quedó atrás, pero es el que alimenta la pantalla que ve el cliente.
+
+**Estado:** verificado el 2026-08-07 contra `main` + prod. **No verificado**: si el front llama de verdad
+al endpoint de condiciones en el flujo vivo, o si sólo lo usa el backoffice. Eso decide si el cliente
+llega a ver los dos números o no.
+
+---
+
+### F-115 · Un rechazo de cupo rotativo no deja NINGÚN rastro: ni log, ni fila, ni estado
+
+**Síntoma.** «Al cliente el rotativo le dio cupo 0 / no le salió la entidad» y no hay forma de contestar
+por qué. El trazador muestra que entró y que no hubo cupo, y ahí se acaba.
+
+**Causa raíz** (verificada). `RevolvingLoanConfigService.php:87`:
+
+```php
+if ($multiplier_results['multiplier'] <= 3) {
+    return ['approved_limit' => 0, 'multiplier' => ..., 'initial_fee' => null, 'min_fee_number' => null];
+}
+```
+
+El `return` sale **antes** de crear cualquier fila. Y cuatro líneas más arriba, `:85`, está el TODO sin
+hacer: `//TODO guardar log con resultados`. La ironía es que el dato existe y es completo: la función
+`FN_CreditopX_Revolving_Credit_Multiplier` devuelve un JSON con **el valor y el puntaje de las seis
+variables** más el multiplicador final. Se decodifica en `:84`, se usa para comparar contra 3, y se
+descarta.
+
+O sea: el cómputo es auditable por construcción y **nadie lo persiste**.
+
+**Evidencia.** El código citado. Y el lado negativo, medido: las rutinas SQL no escriben a Loki (nodo
+`db-routines`), no hay fila en `revolving_credits`, y el rechazo no cambia el estado de la solicitud, así
+que tampoco hay transición en `user_request_records`. Tres fuentes, las tres vacías.
+
+**Arreglo.** No aplicado. Guardar el JSON del multiplicador —en una tabla propia o en el snapshot de
+`profiling_reviews`— convertiría la pregunta «¿por qué le dio 0?» de imposible a trivial. Es el mismo
+patrón que ya resolvió `profiling_reviews` para rt=2 (F-93).
+
+**Estado:** verificado el 2026-08-07 contra `main`.
+
+---
+
+### F-116 · `ctop_debt` descarta las cuotas de los créditos CreditopX por precedencia de `??` en PHP
+
+**Síntoma.** Ninguno visible. La capacidad de pago del rotativo sale más alta de lo que debería para
+clientes que ya tienen cupo rotativo activo **y** créditos CreditopX vigentes.
+
+**Causa raíz** (verificada). `legacy-application/app/Services/lenders/RevolvingLoanConfigService.php:35`:
+
+```php
+$ctop_debt = $revolvingLoanLimit?->installment_amount ?? 0 + $ctopxLoans?->sum('installment_value') ?? 0;
+```
+
+En PHP el `+` liga **más fuerte** que el `??`, así que eso se evalúa como:
+
+```php
+$revolvingLoanLimit?->installment_amount ?? (0 + $ctopxLoans?->sum('installment_value')) ?? 0
+```
+
+Si el cliente **ya tiene** un cupo rotativo activo, `installment_amount` no es null → el `??` corta ahí y
+**la suma de las cuotas de los CreditopX nunca se agrega**. La intención («sumar las dos deudas») sólo se
+cumple en el caso en que la primera es null.
+
+Y el efecto va en la dirección peligrosa: `ctop_debt` **se suma** a la capacidad de pago (`:77`, para
+des-contar la deuda que Experian ya trae doble). Perder un sumando ahí sube la capacidad, y la capacidad
+multiplica el cupo.
+
+**Evidencia.** El código citado, y la tabla de precedencia de PHP: aritméticos por encima de `??`. Es la
+misma familia que el `min_income` NO-OP del nodo `profiling`: un bug que no rompe nada, no tira error y
+cambia el número en silencio.
+
+**Arreglo.** No aplicado — es un repo real. El arreglo es paréntesis:
+`($a ?? 0) + ($b ?? 0)`. ⚠ Ojo: **arreglarlo baja los cupos** de los clientes con deuda CreditopX previa,
+así que no es un cambio cosmético.
+
+**Estado:** verificado el 2026-08-07 contra `main`. **No verificado**: cuántos clientes en producción caen
+en el caso (cupo rotativo activo + créditos CreditopX vigentes).
+
+---
+
+### F-117 · Sin fuente de continuidad laboral, el rotativo castiga con 0 puntos — peor que el peor cliente
+
+**Síntoma.** Clientes que «deberían» clasificar bien salen con multiplicador bajo, o directamente
+rechazados por el corte `<= 3`, sin nada malo en el buró.
+
+**Causa raíz** (verificada leyendo la función y midiendo la tabla de rangos). En
+`FN_CreditopX_Revolving_Credit_Multiplier`, la variable `CONTINUITY` **pesa 20 sobre 100** (empatada en
+segundo lugar con los créditos negativos vigentes) y sale de `agildata` o, si no hay, de `mareigua`. Si
+no hay ninguna de las dos:
+
+```sql
+DECLARE value_CONTINUITY INT DEFAULT 0;
+...
+SET continuityValue = NULL;   -- ninguna fuente
+SELECT value INTO value_CONTINUITY FROM ...rangs... WHERE continuityValue BETWEEN min AND max;
+```
+
+El `BETWEEN` con `NULL` no matchea ninguna fila, el `SELECT … INTO` no asigna, y la variable **conserva
+su `DEFAULT 0`**. Pero el piso de la tabla de rangos es **1** (`continuidad 0 → 1 punto`): el 0 no es un
+valor del dominio, es la marca de «no se pudo calcular». Con peso 20, **la ausencia de datos pesa más
+que la peor continuidad posible**.
+
+**Evidencia.** Cuerpo de la función leído desde dev el 2026-08-07. Los 22 rangos de
+`creditop_x_profiling_multiplier_risk_rangs`, medidos en prod: todos los valores de puntaje son 1..5, sin
+un solo 0 salvo la celda de score que documenta el hermano de este bug (`EXPERIAN_SCORE 1-300 → 0`).
+
+**Arreglo.** No aplicado. Dos caminos, y no son equivalentes: agregar un rango que capture el NULL
+(decisión de producto: ¿ausencia = 1 punto, o = neutro?), o **cortar antes** y no otorgar sin fuente de
+continuidad, que al menos es explícito. Hoy se otorga igual, con la penalización escondida en un
+`DEFAULT`.
+
+**Estado:** verificado el 2026-08-07. **No verificado**: qué porcentaje de solicitudes rt=3 llega sin
+`agildata` ni `mareigua`. Eso decide si es un caso de borde o el caso normal.
 
 ---

@@ -1,424 +1,436 @@
 {
-  "combinations": [
-    {
-      "id": "creditop",
-      "name": "CreditOp",
-      "targets": {
-        "application": "main",
-        "frontend-monorepo": "main",
-        "legacy-backend": "main"
-      },
-      "baseline": {},
-      "created": "2026-07-17T18:00:00Z",
-      "updated": "2026-07-17T18:00:00Z"
-    },
-    {
-      "id": "architecture",
-      "name": "Architecture",
-      "targets": {
-        "application": "main",
-        "frontend-monorepo": "main",
-        "legacy-backend": "main"
-      },
-      "baseline": {},
-      "created": "2026-07-17T18:01:00Z",
-      "updated": "2026-07-17T18:01:00Z",
-      "parent": "creditop"
-    },
-    {
-      "id": "frontend-monorepo",
-      "name": "frontend-monorepo",
-      "parent": "architecture",
-      "targets": {
-        "application": "main",
-        "frontend-monorepo": "main",
-        "legacy-backend": "main"
-      },
-      "baseline": {},
-      "created": "2026-07-17T18:50:00Z",
-      "updated": "2026-07-17T18:50:00Z"
-    },
-    {
-      "id": "legacy-backend",
-      "name": "legacy-backend",
-      "parent": "architecture",
-      "targets": {
-        "application": "main",
-        "frontend-monorepo": "main",
-        "legacy-backend": "main"
-      },
-      "baseline": {},
-      "created": "2026-07-17T18:51:00Z",
-      "updated": "2026-07-17T18:51:00Z"
-    },
-    {
-      "id": "application",
-      "name": "application",
-      "parent": "architecture",
-      "targets": {
-        "application": "main",
-        "frontend-monorepo": "main",
-        "legacy-backend": "main"
-      },
-      "baseline": {},
-      "created": "2026-07-17T18:52:00Z",
-      "updated": "2026-07-17T18:52:00Z"
-    },
-    {
-      "id": "ms-preapprovals",
-      "name": "MS Pre-approvals",
-      "parent": "architecture",
-      "targets": {
-        "application": "main",
-        "frontend-monorepo": "main",
-        "legacy-backend": "main"
-      },
-      "baseline": {},
-      "created": "2026-07-17T18:53:00Z",
-      "updated": "2026-07-17T18:53:00Z"
-    },
-    {
-      "id": "entities",
-      "name": "Entities",
-      "targets": {
-        "application": "main",
-        "frontend-monorepo": "main",
-        "legacy-backend": "main"
-      },
-      "baseline": {},
-      "created": "2026-07-17T18:02:00Z",
-      "updated": "2026-07-17T18:02:00Z",
-      "parent": "creditop"
-    },
-    {
-      "id": "creditopx",
-      "name": "CreditopX",
-      "targets": {
-        "application": "main",
-        "frontend-monorepo": "main",
-        "legacy-backend": "main"
-      },
-      "baseline": {},
-      "created": "2026-07-17T18:03:00Z",
-      "updated": "2026-07-17T18:03:00Z",
-      "parent": "entities"
-    },
-    {
-      "id": "profiling",
-      "name": "Profiling",
-      "parent": "creditopx",
-      "targets": {
-        "application": "main",
-        "frontend-monorepo": "main",
-        "legacy-backend": "main"
-      },
-      "baseline": {},
-      "created": "2026-07-17T19:00:00Z",
-      "updated": "2026-07-17T19:00:00Z"
-    },
-    {
-      "id": "amount-tiers",
-      "name": "Amount tiers",
-      "parent": "creditopx",
-      "targets": {
-        "application": "main",
-        "frontend-monorepo": "main",
-        "legacy-backend": "main"
-      },
-      "baseline": {},
-      "created": "2026-07-17T19:01:00Z",
-      "updated": "2026-07-17T19:01:00Z"
-    },
-    {
-      "id": "aggregator",
-      "name": "Aggregator",
-      "targets": {
-        "application": "main",
-        "frontend-monorepo": "main",
-        "legacy-backend": "main"
-      },
-      "baseline": {},
-      "created": "2026-07-17T18:04:00Z",
-      "updated": "2026-07-17T18:04:00Z",
-      "parent": "entities"
-    },
-    {
-      "id": "redirect",
-      "name": "Redirect",
-      "targets": {
-        "application": "main",
-        "frontend-monorepo": "main",
-        "legacy-backend": "main"
-      },
-      "baseline": {},
-      "created": "2026-07-17T18:05:00Z",
-      "updated": "2026-07-17T18:05:00Z",
-      "parent": "entities"
-    },
-    {
-      "id": "actors",
-      "name": "Actors",
-      "targets": {
-        "application": "main",
-        "frontend-monorepo": "main",
-        "legacy-backend": "main"
-      },
-      "baseline": {},
-      "created": "2026-07-17T18:06:00Z",
-      "updated": "2026-07-17T18:06:00Z",
-      "parent": "creditop"
-    },
-    {
-      "id": "onboarding",
-      "name": "Onboarding",
-      "parent": "creditop",
-      "targets": {
-        "application": "main",
-        "frontend-monorepo": "main",
-        "legacy-backend": "main"
-      },
-      "baseline": {},
-      "created": "2026-07-17T19:10:00Z",
-      "updated": "2026-07-17T19:10:00Z"
-    },
-    {
-      "id": "formalization",
-      "name": "Formalization",
-      "parent": "creditop",
-      "targets": {
-        "application": "main",
-        "frontend-monorepo": "main",
-        "legacy-backend": "main"
-      },
-      "baseline": {},
-      "created": "2026-07-17T19:11:00Z",
-      "updated": "2026-07-17T19:11:00Z"
-    },
-    {
-      "id": "kyc",
-      "name": "KYC",
-      "targets": {
-        "application": "main",
-        "frontend-monorepo": "main",
-        "legacy-backend": "main"
-      },
-      "baseline": {},
-      "created": "2026-07-17T18:07:00Z",
-      "updated": "2026-07-17T18:07:00Z",
-      "parent": "onboarding"
-    },
-    {
-      "id": "dynamic-forms",
-      "name": "Dynamic Forms",
-      "targets": {
-        "application": "main",
-        "frontend-monorepo": "main",
-        "legacy-backend": "main"
-      },
-      "baseline": {},
-      "created": "2026-07-17T18:09:00Z",
-      "updated": "2026-07-17T18:09:00Z",
-      "parent": "formalization"
-    },
-    {
-      "id": "merchants",
-      "name": "Merchants",
-      "targets": {
-        "application": "main",
-        "frontend-monorepo": "main",
-        "legacy-backend": "main"
-      },
-      "baseline": {},
-      "created": "2026-07-17T18:10:00Z",
-      "updated": "2026-07-17T18:10:00Z",
-      "parent": "creditop"
-    },
-    {
-      "id": "motai",
-      "name": "Motai",
-      "targets": {
-        "application": "main",
-        "frontend-monorepo": "main",
-        "legacy-backend": "main"
-      },
-      "baseline": {},
-      "created": "2026-07-17T18:11:00Z",
-      "updated": "2026-07-17T18:11:00Z",
-      "parent": "merchants"
-    },
-    {
-      "id": "smartpay",
-      "name": "SmartPay",
-      "targets": {
-        "application": "main",
-        "frontend-monorepo": "main",
-        "legacy-backend": "main"
-      },
-      "baseline": {},
-      "created": "2026-07-17T18:12:00Z",
-      "updated": "2026-07-17T18:12:00Z",
-      "parent": "merchants"
-    },
-    {
-      "id": "pullman",
-      "name": "Pullman",
-      "targets": {
-        "application": "main",
-        "frontend-monorepo": "main",
-        "legacy-backend": "main"
-      },
-      "baseline": {},
-      "created": "2026-07-17T18:13:00Z",
-      "updated": "2026-07-17T18:13:00Z",
-      "parent": "merchants"
-    },
-    {
-      "id": "corbeta",
-      "name": "Corbeta",
-      "parent": "merchants",
-      "created": "2026-07-18T07:40:00Z",
-      "updated": "2026-07-31T00:00:00Z"
-    },
-    {
-      "id": "credifamilia",
-      "name": "Credifamilia",
-      "targets": {
-        "application": "main",
-        "frontend-monorepo": "main",
-        "legacy-backend": "main"
-      },
-      "baseline": {},
-      "created": "2026-07-18T06:00:00Z",
-      "updated": "2026-07-18T06:00:00Z",
-      "parent": "entities"
-    },
-    {
-      "id": "servicing",
-      "name": "Servicing",
-      "targets": {
-        "application": "main",
-        "frontend-monorepo": "main",
-        "legacy-backend": "main"
-      },
-      "baseline": {},
-      "created": "2026-07-18T06:00:00Z",
-      "updated": "2026-07-18T06:00:00Z",
-      "parent": "creditop"
-    },
-    {
-      "id": "ecommerce",
-      "name": "Ecommerce",
-      "parent": "creditop",
-      "targets": {
-        "application": "main",
-        "frontend-monorepo": "main",
-        "legacy-backend": "main"
-      },
-      "baseline": {},
-      "created": "2026-07-18T07:40:00Z",
-      "updated": "2026-07-18T07:40:00Z"
-    },
-    {
-      "id": "payments",
-      "name": "Payments",
-      "parent": "creditop",
-      "targets": {
-        "application": "main",
-        "frontend-monorepo": "main",
-        "legacy-backend": "main"
-      },
-      "baseline": {},
-      "created": "2026-07-18T07:40:00Z",
-      "updated": "2026-07-18T07:40:00Z",
-      "contexts": [
-        "formalization",
-        "servicing"
-      ]
-    },
-    {
-      "id": "harness",
-      "name": "Harness",
-      "parent": "architecture",
-      "targets": {
-        "application": "main",
-        "frontend-monorepo": "main",
-        "legacy-backend": "main"
-      },
-      "baseline": {},
-      "created": "2026-07-18T07:40:00Z",
-      "updated": "2026-07-18T07:40:00Z"
-    },
-    {
-      "id": "bancolombia",
-      "name": "Bancolombia",
-      "parent": "aggregator",
-      "created": "2026-07-31T00:00:00Z",
-      "updated": "2026-07-31T00:00:00Z"
-    },
-    {
-      "id": "hardcodes-entidades",
-      "name": "Hardcodes de entidades/comercios (deuda que frena la plataforma)",
-      "parent": "creditop",
-      "targets": {
-        "application": "main",
-        "frontend-monorepo": "main",
-        "legacy-backend": "main"
-      },
-      "baseline": {},
-      "created": "2026-07-18T11:00:00Z",
-      "updated": "2026-07-18T11:00:00Z"
-    },
-    {
-      "id": "findings",
-      "name": "Findings",
-      "targets": {
-        "application": "main",
-        "frontend-monorepo": "main",
-        "legacy-backend": "main"
-      },
-      "baseline": {},
-      "created": "2026-07-18T20:00:00Z",
-      "updated": "2026-07-18T20:00:00Z",
-      "parent": "creditop"
-    },
-    {
-      "id": "form-service",
-      "name": "Form Service",
-      "parent": "dynamic-forms",
-      "created": "2026-07-23T00:00:00Z",
-      "updated": "2026-07-23T00:00:00Z"
-    },
-    {
-      "id": "backoffice",
-      "name": "Backoffice",
-      "parent": "creditop",
-      "created": "2026-07-31T00:00:00Z",
-      "updated": "2026-07-31T00:00:00Z"
-    },
-    {
-      "id": "trazador",
-      "name": "Trazador",
-      "parent": "architecture",
-      "targets": {
-        "application": "main",
-        "frontend-monorepo": "main",
-        "legacy-backend": "main"
-      },
-      "baseline": {},
-      "created": "2026-08-07T00:00:00Z",
-      "updated": "2026-08-07T00:00:00Z"
-    },
-    {
-      "id": "db-routines",
-      "name": "Rutinas de BD",
-      "parent": "creditop",
-      "created": "2026-08-07T00:00:00Z",
-      "updated": "2026-08-07T00:00:00Z",
-      "targets": {
-        "application": "main",
-        "frontend-monorepo": "main",
-        "legacy-backend": "main"
-      }
-    }
-  ]
+ "combinations": [
+  {
+   "id": "creditop",
+   "name": "CreditOp",
+   "targets": {
+    "application": "main",
+    "frontend-monorepo": "main",
+    "legacy-backend": "main"
+   },
+   "baseline": {},
+   "created": "2026-07-17T18:00:00Z",
+   "updated": "2026-07-17T18:00:00Z"
+  },
+  {
+   "id": "architecture",
+   "name": "Architecture",
+   "targets": {
+    "application": "main",
+    "frontend-monorepo": "main",
+    "legacy-backend": "main"
+   },
+   "baseline": {},
+   "created": "2026-07-17T18:01:00Z",
+   "updated": "2026-07-17T18:01:00Z",
+   "parent": "creditop"
+  },
+  {
+   "id": "frontend-monorepo",
+   "name": "frontend-monorepo",
+   "parent": "architecture",
+   "targets": {
+    "application": "main",
+    "frontend-monorepo": "main",
+    "legacy-backend": "main"
+   },
+   "baseline": {},
+   "created": "2026-07-17T18:50:00Z",
+   "updated": "2026-07-17T18:50:00Z"
+  },
+  {
+   "id": "legacy-backend",
+   "name": "legacy-backend",
+   "parent": "architecture",
+   "targets": {
+    "application": "main",
+    "frontend-monorepo": "main",
+    "legacy-backend": "main"
+   },
+   "baseline": {},
+   "created": "2026-07-17T18:51:00Z",
+   "updated": "2026-07-17T18:51:00Z"
+  },
+  {
+   "id": "application",
+   "name": "application",
+   "parent": "architecture",
+   "targets": {
+    "application": "main",
+    "frontend-monorepo": "main",
+    "legacy-backend": "main"
+   },
+   "baseline": {},
+   "created": "2026-07-17T18:52:00Z",
+   "updated": "2026-07-17T18:52:00Z"
+  },
+  {
+   "id": "ms-preapprovals",
+   "name": "MS Pre-approvals",
+   "parent": "architecture",
+   "targets": {
+    "application": "main",
+    "frontend-monorepo": "main",
+    "legacy-backend": "main"
+   },
+   "baseline": {},
+   "created": "2026-07-17T18:53:00Z",
+   "updated": "2026-07-17T18:53:00Z"
+  },
+  {
+   "id": "entities",
+   "name": "Entities",
+   "targets": {
+    "application": "main",
+    "frontend-monorepo": "main",
+    "legacy-backend": "main"
+   },
+   "baseline": {},
+   "created": "2026-07-17T18:02:00Z",
+   "updated": "2026-07-17T18:02:00Z",
+   "parent": "creditop"
+  },
+  {
+   "id": "creditopx",
+   "name": "CreditopX",
+   "targets": {
+    "application": "main",
+    "frontend-monorepo": "main",
+    "legacy-backend": "main"
+   },
+   "baseline": {},
+   "created": "2026-07-17T18:03:00Z",
+   "updated": "2026-07-17T18:03:00Z",
+   "parent": "entities"
+  },
+  {
+   "id": "profiling",
+   "name": "Profiling",
+   "parent": "creditopx",
+   "targets": {
+    "application": "main",
+    "frontend-monorepo": "main",
+    "legacy-backend": "main"
+   },
+   "baseline": {},
+   "created": "2026-07-17T19:00:00Z",
+   "updated": "2026-07-17T19:00:00Z"
+  },
+  {
+   "id": "amount-tiers",
+   "name": "Amount tiers",
+   "parent": "creditopx",
+   "targets": {
+    "application": "main",
+    "frontend-monorepo": "main",
+    "legacy-backend": "main"
+   },
+   "baseline": {},
+   "created": "2026-07-17T19:01:00Z",
+   "updated": "2026-07-17T19:01:00Z"
+  },
+  {
+   "id": "rotativo",
+   "name": "Rotativo (rt=3)",
+   "parent": "creditopx",
+   "created": "2026-08-07T00:00:00Z",
+   "updated": "2026-08-07T00:00:00Z",
+   "targets": {
+    "application": "main",
+    "frontend-monorepo": "main",
+    "legacy-backend": "main"
+   }
+  },
+  {
+   "id": "aggregator",
+   "name": "Aggregator",
+   "targets": {
+    "application": "main",
+    "frontend-monorepo": "main",
+    "legacy-backend": "main"
+   },
+   "baseline": {},
+   "created": "2026-07-17T18:04:00Z",
+   "updated": "2026-07-17T18:04:00Z",
+   "parent": "entities"
+  },
+  {
+   "id": "redirect",
+   "name": "Redirect",
+   "targets": {
+    "application": "main",
+    "frontend-monorepo": "main",
+    "legacy-backend": "main"
+   },
+   "baseline": {},
+   "created": "2026-07-17T18:05:00Z",
+   "updated": "2026-07-17T18:05:00Z",
+   "parent": "entities"
+  },
+  {
+   "id": "actors",
+   "name": "Actors",
+   "targets": {
+    "application": "main",
+    "frontend-monorepo": "main",
+    "legacy-backend": "main"
+   },
+   "baseline": {},
+   "created": "2026-07-17T18:06:00Z",
+   "updated": "2026-07-17T18:06:00Z",
+   "parent": "creditop"
+  },
+  {
+   "id": "onboarding",
+   "name": "Onboarding",
+   "parent": "creditop",
+   "targets": {
+    "application": "main",
+    "frontend-monorepo": "main",
+    "legacy-backend": "main"
+   },
+   "baseline": {},
+   "created": "2026-07-17T19:10:00Z",
+   "updated": "2026-07-17T19:10:00Z"
+  },
+  {
+   "id": "formalization",
+   "name": "Formalization",
+   "parent": "creditop",
+   "targets": {
+    "application": "main",
+    "frontend-monorepo": "main",
+    "legacy-backend": "main"
+   },
+   "baseline": {},
+   "created": "2026-07-17T19:11:00Z",
+   "updated": "2026-07-17T19:11:00Z"
+  },
+  {
+   "id": "kyc",
+   "name": "KYC",
+   "targets": {
+    "application": "main",
+    "frontend-monorepo": "main",
+    "legacy-backend": "main"
+   },
+   "baseline": {},
+   "created": "2026-07-17T18:07:00Z",
+   "updated": "2026-07-17T18:07:00Z",
+   "parent": "onboarding"
+  },
+  {
+   "id": "dynamic-forms",
+   "name": "Dynamic Forms",
+   "targets": {
+    "application": "main",
+    "frontend-monorepo": "main",
+    "legacy-backend": "main"
+   },
+   "baseline": {},
+   "created": "2026-07-17T18:09:00Z",
+   "updated": "2026-07-17T18:09:00Z",
+   "parent": "formalization"
+  },
+  {
+   "id": "merchants",
+   "name": "Merchants",
+   "targets": {
+    "application": "main",
+    "frontend-monorepo": "main",
+    "legacy-backend": "main"
+   },
+   "baseline": {},
+   "created": "2026-07-17T18:10:00Z",
+   "updated": "2026-07-17T18:10:00Z",
+   "parent": "creditop"
+  },
+  {
+   "id": "motai",
+   "name": "Motai",
+   "targets": {
+    "application": "main",
+    "frontend-monorepo": "main",
+    "legacy-backend": "main"
+   },
+   "baseline": {},
+   "created": "2026-07-17T18:11:00Z",
+   "updated": "2026-07-17T18:11:00Z",
+   "parent": "merchants"
+  },
+  {
+   "id": "smartpay",
+   "name": "SmartPay",
+   "targets": {
+    "application": "main",
+    "frontend-monorepo": "main",
+    "legacy-backend": "main"
+   },
+   "baseline": {},
+   "created": "2026-07-17T18:12:00Z",
+   "updated": "2026-07-17T18:12:00Z",
+   "parent": "merchants"
+  },
+  {
+   "id": "pullman",
+   "name": "Pullman",
+   "targets": {
+    "application": "main",
+    "frontend-monorepo": "main",
+    "legacy-backend": "main"
+   },
+   "baseline": {},
+   "created": "2026-07-17T18:13:00Z",
+   "updated": "2026-07-17T18:13:00Z",
+   "parent": "merchants"
+  },
+  {
+   "id": "corbeta",
+   "name": "Corbeta",
+   "parent": "merchants",
+   "created": "2026-07-18T07:40:00Z",
+   "updated": "2026-07-31T00:00:00Z"
+  },
+  {
+   "id": "credifamilia",
+   "name": "Credifamilia",
+   "targets": {
+    "application": "main",
+    "frontend-monorepo": "main",
+    "legacy-backend": "main"
+   },
+   "baseline": {},
+   "created": "2026-07-18T06:00:00Z",
+   "updated": "2026-07-18T06:00:00Z",
+   "parent": "entities"
+  },
+  {
+   "id": "servicing",
+   "name": "Servicing",
+   "targets": {
+    "application": "main",
+    "frontend-monorepo": "main",
+    "legacy-backend": "main"
+   },
+   "baseline": {},
+   "created": "2026-07-18T06:00:00Z",
+   "updated": "2026-07-18T06:00:00Z",
+   "parent": "creditop"
+  },
+  {
+   "id": "ecommerce",
+   "name": "Ecommerce",
+   "parent": "creditop",
+   "targets": {
+    "application": "main",
+    "frontend-monorepo": "main",
+    "legacy-backend": "main"
+   },
+   "baseline": {},
+   "created": "2026-07-18T07:40:00Z",
+   "updated": "2026-07-18T07:40:00Z"
+  },
+  {
+   "id": "payments",
+   "name": "Payments",
+   "parent": "creditop",
+   "targets": {
+    "application": "main",
+    "frontend-monorepo": "main",
+    "legacy-backend": "main"
+   },
+   "baseline": {},
+   "created": "2026-07-18T07:40:00Z",
+   "updated": "2026-07-18T07:40:00Z",
+   "contexts": [
+    "formalization",
+    "servicing"
+   ]
+  },
+  {
+   "id": "harness",
+   "name": "Harness",
+   "parent": "architecture",
+   "targets": {
+    "application": "main",
+    "frontend-monorepo": "main",
+    "legacy-backend": "main"
+   },
+   "baseline": {},
+   "created": "2026-07-18T07:40:00Z",
+   "updated": "2026-07-18T07:40:00Z"
+  },
+  {
+   "id": "bancolombia",
+   "name": "Bancolombia",
+   "parent": "aggregator",
+   "created": "2026-07-31T00:00:00Z",
+   "updated": "2026-07-31T00:00:00Z"
+  },
+  {
+   "id": "hardcodes-entidades",
+   "name": "Hardcodes de entidades/comercios (deuda que frena la plataforma)",
+   "parent": "creditop",
+   "targets": {
+    "application": "main",
+    "frontend-monorepo": "main",
+    "legacy-backend": "main"
+   },
+   "baseline": {},
+   "created": "2026-07-18T11:00:00Z",
+   "updated": "2026-07-18T11:00:00Z"
+  },
+  {
+   "id": "findings",
+   "name": "Findings",
+   "targets": {
+    "application": "main",
+    "frontend-monorepo": "main",
+    "legacy-backend": "main"
+   },
+   "baseline": {},
+   "created": "2026-07-18T20:00:00Z",
+   "updated": "2026-07-18T20:00:00Z",
+   "parent": "creditop"
+  },
+  {
+   "id": "form-service",
+   "name": "Form Service",
+   "parent": "dynamic-forms",
+   "created": "2026-07-23T00:00:00Z",
+   "updated": "2026-07-23T00:00:00Z"
+  },
+  {
+   "id": "backoffice",
+   "name": "Backoffice",
+   "parent": "creditop",
+   "created": "2026-07-31T00:00:00Z",
+   "updated": "2026-07-31T00:00:00Z"
+  },
+  {
+   "id": "trazador",
+   "name": "Trazador",
+   "parent": "architecture",
+   "targets": {
+    "application": "main",
+    "frontend-monorepo": "main",
+    "legacy-backend": "main"
+   },
+   "baseline": {},
+   "created": "2026-08-07T00:00:00Z",
+   "updated": "2026-08-07T00:00:00Z"
+  },
+  {
+   "id": "db-routines",
+   "name": "Rutinas de BD",
+   "parent": "creditop",
+   "created": "2026-08-07T00:00:00Z",
+   "updated": "2026-08-07T00:00:00Z",
+   "targets": {
+    "application": "main",
+    "frontend-monorepo": "main",
+    "legacy-backend": "main"
+   }
+  }
+ ]
 }

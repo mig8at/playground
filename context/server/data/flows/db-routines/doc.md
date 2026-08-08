@@ -40,7 +40,9 @@ por la regla de extensiones). Define **38 de las 42** — las otras 4 no tienen 
 - **Revolvente rt=3** — `legacy-backend/Modules/Loans/App/Repositories/RevolvingCreditRepository.php:115`
   (`CALL SP_CreditopX_Revolving_Credit`) y
   `legacy-application/app/Services/lenders/RevolvingLoanConfigService.php:80`
-  (`FN_CreditopX_Revolving_Credit_Multiplier`).
+  (`FN_CreditopX_Revolving_Credit_Multiplier`). ⚠ **No son dos capas de lo mismo: son dos
+  implementaciones que dan resultados distintos** — el SP recalcula todo el otorgamiento en SQL con otra
+  función de multiplicador. Ver **F-114** y el nodo `rotativo`.
 - **Descifrado** — `FN_Decrypt_Data`: 13 usos DENTRO de otras rutinas, **cero** desde PHP. Es la que
   abre el reporte cifrado (`laravel_encrypt`) para que las demás puedan leerlo.
 - **El vínculo buró↔solicitud** — `SP_Update_User_Request_Risk_Centrals`: **cero call sites**. Se corre
@@ -122,8 +124,14 @@ de log (ver F-108) y cuatro son framework (`failed_jobs`, `model_has_roles`…).
 - **`actualizar_json`** (2.201 B) — un cursor que **reescribe `profiling_reviews.ML_predictions`**,
   desarmando y rearmando el JSON por lender (`lender_id`, `model_name`, `prediction`). Es un script de
   migración de datos, y explica una de las tres formas de esa columna (ver F-104).
-- **`FN_CreditopX_Revolving_Credit_Multiplier`** (5.973 B) — la más grande de las cuatro; multiplicador
-  del cupo rotativo rt=3. Sin leer en detalle.
+- **`FN_CreditopX_Revolving_Credit_Multiplier`** (5.973 B) — la más grande de las cuatro, y la de más
+  consecuencia: **es el motor de riesgo entero del cupo rotativo rt=3**. Puntúa seis variables de 1 a 5
+  (score Experian, negativos vigentes, negativos 12 m, consultas 6 m, tarjetas activas, continuidad
+  laboral) y devuelve el promedio ponderado más un JSON con el detalle de cada una. Los pesos y los
+  cortes **tampoco están en el código**: viven en `creditop_x_profiling_multiplier_risk_vars` /
+  `_rangs`. O sea que **la política de riesgo de un producto entero es una función sin versionar que
+  lee dos tablas de configuración** — un `CREATE OR REPLACE` o un `UPDATE` cambian a quién se le presta
+  sin un solo commit. Desarmada en el nodo **`rotativo`**.
 
 ## Preguntas abiertas
 
