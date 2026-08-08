@@ -124,8 +124,3 @@ La decisión del renting **sigue siendo manual**: el asesor la toma en la pantal
 - **Terminología invertida** (C1): el `renting` del código = el *rent-to-own* del PRD (se queda el bien). Fijar diccionario (memoria `nomenclatura-negocio`).
 - **Que el lender esté asociado a la sucursal NO alcanza para que liste**: si no tiene `group_rules` propias en esa sucursal, el listado sale **vacío** (ver `findings` **F-75**). Es config de datos, no código.
 - **IMEI / device-lock (MDM)** es el cierre de la **compra de celulares** del allied Motai, árbol separado sin cruce con Ábaco — fuera de este nodo (patrón afín en **SmartPay**).
-
-## Enlaces
-- Padre: **Merchants** (alta/config/copia de reglas). Hermanos: **SmartPay**, **Pullman**. Tronco in-platform: **CreditopX**; buró/identidad: **kyc**; perfilamiento: **Profiling**; cierre legal: **Formalization**; el formulario dinámico del paso: **form-service**.
-- Simulador: playground/flow (comercio seed "Motai") y `playground/engine` (las dos líneas con su `legalNature`).
-- Memorias: `modelos-canales-flujos`, `abaco-gig-scraping`, `motai-plan-evolucion`, `nomenclatura-negocio`. Fuente profunda: `git 159906a:docs/codigo/MOTAI-FLUJO-ANALISIS.md`.

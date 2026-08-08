@@ -161,9 +161,3 @@ leerlo entero.
 ## Lo que NO está verificado
 - `-validar` no corre desde el 2026-08-06: el corpus de líneas crudas se perdió con un scratchpad; regenerarlo implica decidir si líneas de producción entran al repo.
 - Los 12 matchers `soloEnCodigo` del tramo identity (OCR/Rekognition/ADO) no fueron alcanzados por ninguna traza medida.
-
-## Enlaces
-
-- `harness` — el gemelo que PROVOCA flujos en vez de leerlos.
-- `findings` — F-100…F-106 salieron de usar esta herramienta.
-- `profiling` · `actors` · `entities` — el significado de los datos que el trazador muestra.

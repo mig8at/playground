@@ -173,9 +173,3 @@ no validan identidad, y para ellos `confirmation` salta directo a `first-payment
 
 ## Lo que NO está verificado
 - ¿`hasFindings` del AML (TusDatos) bloquea el listado de TODOS los lenders o solo el flujo Credifamilia? No se localizó un consumidor central que rechace por `aml()`.
-
-## Enlaces
-- Padre: **Onboarding** (cede el buró a este nodo). Hermanos: **Profiling** (los 2 motores de datacrédito + categoría), **CreditopX** (cupo rt=2), **Pullman** (score gate 400 / edad), **SmartPay** (salta AML), **Motai** (Ábaco/gig), **Formalization** (Credifamilia SOAP downstream).
-- Simulador: `playground/flow` (nodos Experian · Acierta / Quanto / Ágil Data / Mareigua / TusDatos / Perfil consolidado / Información complementaria), mapa `playground/flow/MAP.md §S4`.
-- Análisis fuente: `git 159906a:docs/codigo/ONBOARDING-DATOS-DECISION-ANALISIS.md` · `git 159906a:docs/codigo/mapeo-datos-buros.json`.
-- Memorias: mapeo-datos-buros · onboarding-decision-data-map · datacredito-rules-per-lender · abaco-gig-scraping · credifamilia-flujo-mapa.

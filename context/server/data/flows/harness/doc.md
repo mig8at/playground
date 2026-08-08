@@ -185,9 +185,3 @@ En una BD compartida (dev) cada dev trabaja en su **seed** (`backend-e2e/pkg/ide
 - **SmartPay teléfono internacional** (`+57…`): `create-temporary-user` guarda el phone crudo pero `check-user-exists`/`resolve` normalizan a `+`+dígitos; sin el `+` da BDUS004 (usuario no encontrado).
 - **`X-Dev-Session`/`DEV_SESSION_KEY` OBSOLETOS**: el gate de `/merchant/*` hoy es Cognito; el flag existe con comentario pero sin consumidor en código.
 - **`npm test` engaña**: muchos `test.fixme` (del mock-server `:4000` eliminado) aparecen como `fixme`, no como pasados — "todo verde" ≠ cobertura total. El script `test:onboarding` apunta a una carpeta inexistente (roto).
-
-## Enlaces
-- Padre: **CreditOp**.
-- Fronteras (cede a): **ms-preapprovals** (contrato/taxonomía del MS de pre-aprobación), **profiling** / **datacredito** (semántica del perfil sintético), **Motai** / **SmartPay** / **Aggregator** (flujos de producto), **onboarding** / **lender-listing** (ruteo y cascada del listado).
-- Nodos de repo hermanos: **legacy-backend** (el SUT del backend), **frontend-monorepo** (el wizard que maneja harness), **pre-approvals-service** (el MS que mock-preapprovals reemplaza).
-- Memorias: `backend-e2e-dev-target`, `creditop-cli-consolidado`, `synth-credipullman-gates`, `synth-lender-type-boundary`, `datacredito-rules-per-lender`, `harness-setup`, `harness-dev-asesor-login`, `harness-asesor-commands`, `harness-split-view`, `harness-windows-ab`, `harness-wizard-dev-gotchas`, `motai-v2-validacion-local` (el harness panel), `pre-approval-omit-experian-frontend`.

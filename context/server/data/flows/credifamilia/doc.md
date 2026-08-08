@@ -93,8 +93,3 @@ dinámico G2**, no en la del onboarding clásico por donde entró el caso.
 - **Colisión de ID**: lender 24 = Credifamilia, pero **allied 24 = Creditop**. Verificar el namespace antes de tocar un "24".
 - No confundir con **"Credifamilia-addi"** (entrada redirect del catálogo en algunas sucursales).
 - **El form_type 6 (additional-info) NO tiene seeder** — es data cargada a mano en dev/local. Un campo nuevo se agrega por migración/seeder en legacy-backend resolviendo por **NOMBRE** (los `field_id` son auto-increment y difieren por ambiente: "Ciudad de nacimiento" salió **233** en dev, 221/222 en local). Tras tocar la BD, **`PUT /v1/dynamic-form/6/schema`** para bustear el cache del form-service. Para VER el form: flow **`self-service`** (público), no `merchant`. Ver **form-service**.
-
-## Enlaces
-- Padre: **Entities** (qué es un lender como dato + el despacho por `response_type`). Hermanos por familia: **Aggregator** (rt=1, decide una API externa) · **CreditopX** (rt=2/3 in-platform) · **Redirect** (rt=0, solo un link).
-- Etapas que comparte: **KYC** (identidad/buró; acá el KYC V2 es propio y greenfield) · **Formalization** (plan de pagos, firma, Estado 11 — la radicación SOAP se dispara ahí) · **MS Pre-approvals** (pre-aprobación rt≠0) · **Dynamic-forms** / **form-service** (su `additional-info` es el form G2, form_type 6 — la cascada depto/ciudad y las respuestas en `user_field_values`).
-- Análisis fuente: `git 159906a:docs/codigo/CREDIFAMILIA-FLUJO-ANALISIS.md` · `…/CREDIFAMILIA-PIPELINE-DOCUMENTOS.md` · `…/lenders/CREDIFAMILIA.md`. Memoria: `credifamilia-flujo-mapa`.

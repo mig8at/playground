@@ -193,8 +193,3 @@ O sea: el formulario clásico es React fijo con **dos toggles**, uno de los cual
 ## Lo que NO está verificado
 - ¿`ONBOARDING_FORMS_SERVICE_BASE_URL`, `VITE_ONBOARDING_FORM_SERVICE` y `VITE_FORM_SERVICE_BASE_URL` apuntan al mismo host? Solo el último está en `.env.example`; sin confirmar en despliegue.
 - ¿Quién llama a `dynamic-forms/create-user`? No hay caller en el monorepo; que sea un callback del propio form-service es inferencia.
-
-## Enlaces
-- Padre: **formalization**. **Hijo: form-service** (el MS Go que sirve la G2 — schema, respuestas en `user_field_values`, country-tree). Hermanos: **kyc** (el buró llena los mismos `field_id` 87/29/160/90 que el formulario, y le gana en prioridad), **onboarding** (el journey donde corren estos formularios), **profiling** (cómo el EAV se convierte en categoría y cupo), **entities** (`form_types.lender_id` y `lenders.complementary_form` son config por entidad), **credifamilia** (su additional-info es form_type 6), **legacy-backend** / **frontend-monorepo** / **application** (los tres repos que cruza esta fase).
-- Memorias: `onboarding-decision-data-map` (EAV 87/29/160 y frontera de inyectabilidad), `reglas-comercio-lender-map` (dónde entra el ingreso en las 4 capas de reglas), `migracion-application-a-legacy-estado` (por qué hay gemelos sin rutas), `admin-anatomia-creditop` (config por comercio vs por sucursal).
-- El simulador `playground/flow` modela esto como la fila "Form dinámico" de MAP.md §S3 y los inputs del nodo Solicitud, no como nodo propio.

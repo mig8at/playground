@@ -163,9 +163,3 @@ regla** decidió, no **con qué cuentas**.
 - `monthly_income` por tier no está volcado del dump — y hoy además es NO-OP por el bug del censo.
 - ¿Las reglas datacrédito POR SUCURSAL quedan inertes en el cupo? El motor nuevo lee solo la genérica; needs-runtime.
 - ¿Cómo categorizan los 23 lenders rt=2 activos sin tiers Y sin scoring (medidos en prod el 2026-08-07)? O no otorgan nunca, o hay un tercer camino que el nodo no tiene.
-
-## Enlaces
-- Padre/group: **CreditopX**. Hermanos: **Rotativo (rt=3)** (el OTRO motor: multiplicador 1-5, sin tiers — no confundir «capacidad» ni «categoría» entre los dos) · **Amount tiers** (franjas por monto: recortan plazos + topean cupo; el enganche lo fija la categoría, no el tramo).
-- Referencia transversal: **Motor de decisión** (las 4 capas, los 2 motores de datacrédito, la cascada getLenders clasifica-no-excluye, la receta de sintético + frontera de inyectabilidad) · **Modelo de datos** (EAV field 29/87/160, `risk_central_user_data` encriptado, `user_summaries` agildata/mareigua).
-- Fuente (git; `docs/` fuera de main): `git 159906a:docs/codigo/REGLAS-POR-COMERCIO-Y-LENDER.md` §2.3/§3.3 · `git 159906a:docs/codigo/MECANICA-CREDITO.md` §4/§5.
-- Memorias: `reglas-comercio-lender-map` · `datacredito-rules-per-lender` (2 motores) · `onboarding-decision-data-map` (receta sintético) · `flow-reorg-y-mapa-atributos` (BUG min_income) · `nomenclatura-negocio` (categoría=nivel/acuerdo) · `creditopx-modelo-comercio` (economía comercio/comisión).

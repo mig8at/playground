@@ -106,9 +106,3 @@ Para ejercer el servicing (in-platform) hay que **sembrar el ledger** `creditop_
 ## Lo que NO está verificado
 - ¿Hay notificación de PAZ Y SALVO (status=3) hacia el comercio/lender? La del Estado 11 existe; esta no se localizó.
 - ¿rt≠0 recibe algún evento post-facturación del tercero (cobranza/mora/cierre), o el rastro termina en 26?
-
-## Enlaces
-- Dónde CORRE: **Application** (el servicing vive 100% ahí; en legacy hay 0 superficies activas). De dónde hereda el Estado 11: **Formalization** y **CreditopX**.
-- Caso especial que CONSUME este ledger: **SmartPay** (sus crons de device-lock leen la mora para bloquear el celular). Catálogos de estado y frontera de pruebas global: raíz **CreditOp**.
-- Borde de entrada del dinero: **payments** (la pasarela Wompi aplica el pago vía `Wompi::updateStatus`→`processPayment`; de ahí en adelante — cascada de imputación cobranza→mora→interés→seguro→capital, ledger y los 6 crons — vive en ESTE nodo).
-- Análisis fuente: `git 159906a:docs/codigo/CONTINUACION-CREDITO-ANALISIS.md`. Memorias: `continuacion-credito-servicing` · `creditopx-modelo-comercio` (economía de comisión) · `synth-lender-type-boundary`.

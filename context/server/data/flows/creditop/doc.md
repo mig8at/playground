@@ -126,9 +126,3 @@ La tesis de arriba ("ifs quemados por ID") tiene un inventario verificado con `a
 - **Ramas base:** RAÍZ y CONTEXTOS = `main` (documentación al día). TASKS = libres por repo.
 - **Regla de oro playground:** `playground/*` se commitea local, sin push; los repos reales viven en ramas/stashes locales — no armar PRs sin pedir.
 - **Glosario e IDs (colisiones):** verificá el **namespace** antes de tocar un id literal — `24` = lender Credifamilia **vs** allied Creditop · `100` = lender Bancolombia Consumo **vs** un allied · `158` = allied Motai (comercio) **vs** su lender · `160`/`152`/`153` = SmartPay (prod/dev). Glosario canónico (14 choques PRD×código×docs): memoria `nomenclatura-negocio`, `git 159906a:docs/negocio/NOMENCLATURA-NEGOCIO.md`.
-
-## Enlaces
-- **CONTEXTOS por group:** architecture (**application** · **legacy-backend** · **frontend-monorepo** · **ms-preapprovals** · **harness**) · entities (**creditopx** · **aggregator** [subctx → **corbeta**] · **redirect** · **credifamilia**) · creditopx (**profiling** · **amount-tiers**) · merchants (**motai** · **smartpay** · **pullman**) · **onboarding** · **formalization** · **servicing** · **ecommerce** · **payments** · **hardcodes-entidades** (deuda transversal) · **kyc** · **dynamic-forms** · **actors** · **entities** · **merchants** · **architecture**.
-- **TASKS:** **Motai v2** (des-motaización · rama `feature/motai-v2`).
-- **⚠ `playground/docs/` fue absorbido en los nodos y REMOVIDO de main el 2026-07-17.** El análisis maestro `archivo:línea` sobrevive en **git @ `159906a`**: `git show 159906a:docs/<ruta>` (ej `git show 159906a:docs/codigo/FLUJO-CREDITOPX-Y-DEPS-APPLICATION.md`). Ir ahí para re-verificar o regenerar.
-- Memorias del ecosistema: `atlas-mcp-cross-repo`, `modelos-canales-flujos`, `plan-simplificacion`, `nomenclatura-negocio`.

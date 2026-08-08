@@ -90,10 +90,3 @@ Consecuencia: en el wizard v2 el tramo llega **solo** como `amount_conditions` p
 
 ## Lo que NO está verificado
 - Volumen real de filas y quién las carga: no hay CRUD en los tres repos ni dump local — se contesta con una query a staging.
-
-## Enlaces
-- Padre: **CreditopX**. Hermano: **Profiling** (la categoría — enganche/cupo/plazo por *persona*; el tramo solo por *monto*).
-- Consumidores del tramo en otros nodos: **MS-preapprovals** (envuelve `/available-quota`, por donde llega el cupo ya topeado como `lender.available`) · **Pullman** / **SmartPay** / **Motai** (miembros rt=2 candidatos a tener tramos).
-- Repos: **legacy-backend** (repositorio + v2) · **application** (v1, ruta viva del parallel-run) · **frontend-monorepo** (los dos únicos lugares que leen `initial_fee_percentage` del tramo).
-- Simulador: `playground/flow` (nodo "Tramos por monto"), mapa `playground/flow/MAP.md` §S5.
-- Memorias: `lender-listing-cascade` · `migracion-application-a-legacy-estado` · `admin-anatomia-creditop` (por qué el tramo no aparece en el panel) · `reglas-comercio-lender-map` · `orden-lenders-ml-desactivado`.

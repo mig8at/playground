@@ -106,8 +106,3 @@ a `LoanFlow::markStarted()` a mano (`UserRequestController.php:1514`).
 ## Lo que NO está verificado
 - El reparto real de permisos por rol vive en la BD (`role_has_permissions`), no en el seeder — el seeder mapea menos permisos de los que existen.
 - Conviven dos formas de decir «sucursal del usuario» (`allied_branches_by_user` vs `users.allied_branch_id`, más el override en caché): sin determinar cuál gana en cada pantalla.
-
-## Enlaces
-- Padre: raíz **CreditOp**. Hermanos: **Merchants** (alta y configuración del comercio, hash + QR de sucursal), **Entities** (`response_type` = quién decide el crédito), **Onboarding** (las pantallas del cliente), **KYC** (validación de identidad), **Architecture** (application ↔ legacy-backend ↔ frontend-monorepo).
-- Memorias: `admin-anatomia-creditop` (anatomía real del panel admin, `status_per_profiles` = autorización back-office), `harness-dev-asesor-login` (login de asesor contra dev con Cognito real), `harness-split-view` (topología de ventanas A/B en el handoff), `asesor-solicitar-bounce`, `reglas-copia-por-sucursal`.
-- Histórico: el árbol `docs/` fue removido de main; si hace falta, citar como `git 159906a:docs/<ruta>`.

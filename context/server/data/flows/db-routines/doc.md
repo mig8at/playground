@@ -136,11 +136,3 @@ de log (ver F-108) y cuatro son framework (`failed_jobs`, `model_has_roles`…).
 ## Lo que NO está verificado
 - ¿`FN_Mareigua_*` coincide con `MareiguaExtractor`? Si divergen, dos caminos calculan el mismo ingreso distinto — el patrón de las dos convenciones de tasa (F-71).
 - ¿Prod, dev y staging tienen las MISMAS definiciones? `last_altered` por ambiente lo diría; no se comparó. Y `actualizar_json` sigue sin call site ni fuente.
-
-## Enlaces
-
-- `kyc` — los campos `EX_*` y las centrales que estas rutinas leen.
-- `profiling` — las reglas de categoría que consumen `FN_User_Occupation` / `FN_User_Income_Average`.
-- `findings` — **F-107** (el vínculo buró↔solicitud y su SP) · **F-104** (el perfilador ML que consume
-  estos features).
-- `creditopx` — el motor rt=2/3 que usa el revolvente.

@@ -185,9 +185,3 @@ de legacy.
 `playground/trazador` los integra desde 2026-08-06: ancla por la etiqueta, expande el trace del MS con
 filtro de metadata, y los muestra como el bloque «Pre-aprobación (microservicio)» dentro de la etapa
 `listado` (medido en la uReq 521997: 94 líneas → 5 pasos).
-
-## Enlaces
-- Padre: **Architecture** (los repos del ecosistema). Flujos hermanos: **Aggregator** (rt=1: negocio del lender, Corbeta, webhooks) · **Redirect** (rt=0) · **Harness** (mock/inyección del MS). Consumidor del notify: **Profiling** (`displayed_lenders`). Credifamilia = rt=4 (async/polling, su propio flujo).
-- Docs propios del repo (no indexados): `docs/ARCHITECTURE.md`, `docs/CONTEXT.md`, `openapi.yaml`, `README.md`, `config/config.example.yaml`.
-- Fuente profunda histórica: `git 159906a:docs/codigo/SERVICIO-PRE-APROBACIONES.md` · `…/AGREGADORES-FLUJO-ANALISIS.md`.
-- Memorias: `pre-approvals-service`, `synth-lender-type-boundary`, `refactor-perfilamiento-lenders`, `lender-listing-cascade`.

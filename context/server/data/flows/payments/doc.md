@@ -146,7 +146,3 @@ Real*, v2 (2026-08-03), contrastado contra la rama.
 ## Lo que NO está verificado
 - ¿`getMerchant` (el camino del `dd()`) está vivo en prod? El tamaño del riesgo P0 depende de eso; no se localizó el caller.
 - ¿`ReconcileWompiTransactionsCommand` está agendado en algún Kernel o es manual? ¿Y Payvalida sigue activa para recaudo, o solo queda la vía Bancolombia BNPL?
-
-## Enlaces
-- Dónde CORRE: **Application** (vivo) + copia en **Legacy-backend** (cuota inicial reescrita REST + Modules/Payments para links + reconcile). De dónde recibe el trigger de cuota inicial: **Formalization** / **CreditopX**. A quién le entrega el pago aprobado: **Servicing** (`processPayment`).
-- Frontera de pruebas global + catálogos de estado: raíz **CreditOp**. Memorias: `asesor-solicitar-bounce` (el rebote rt=2 `initial_fee>0`→Wompi) · `continuacion-credito-servicing` (la cascada que recibe el pago) · `reglas-comercio-lender-map`.

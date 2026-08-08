@@ -119,8 +119,3 @@ Lo arma `EcommerceContractBuilder::buildCheckoutUrl` (compartido; lo usa `VtexSe
 ## Lo que NO está verificado
 - ¿El gateway ya rutea `/vtex/*` a legacy-backend en prod, o el conector (que hardcodea `https://api.creditop.com`) sigue pegándole al monolito?
 - Reintento de notificaciones fallidas: `UpdateEcommerceRequestsCommand` quedó no-op en legacy y no se localizó reemplazo para `processed=0` (el replay del monolito era `EcommerceReplayController@replay`).
-
-## Enlaces
-- **Hermanos que reciben fronteras**: **payments** (Wompi/cuota inicial/recaudo), **aggregator** (decisión rt=1 Bancolombia/Corbeta; comparte `CorbetaCheckoutController` como *entry*), **merchants** (config de entidad/sucursal; comparte la credencial), **onboarding** (OTP/datos/monto; comparte el link `handleEcommerceRequest`).
-- **Fuente profunda**: `legacy-backend/docs/vtex-migration.md` (migración monolito→legacy con contrato unificado). Rama de la migración: `feature/onboarding/ecommerce-unify-base64-vtex` (mergeada). Ramas del front ecommerce (no en main): `feature/onboarding/ecommerce-web-origination`, `fe-ecommerce-hydration`, `ecommerce-continue-route`.
-- **Memorias**: `vtex-migration-legacy`, `modelos-canales-flujos`, `migracion-application-a-legacy-estado`, `harness-split-view` (topología de ventanas + degradación local), `reglas-copia-por-sucursal`.

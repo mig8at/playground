@@ -189,8 +189,3 @@ Tres trampas de las etiquetas, todas medidas:
 ## Lo que NO está verificado
 - Qué apunta a qué en producción: la BD compartida está probada por código (migraciones y modelos idénticos), no por config verificada contra el despliegue.
 - Los dos puertos del MS de pre-aprobación (`PRE_APPROVALS_BASE_URL` default `:8086` vs `VITE_PREAPPROVALS_ENDPOINT`): sin verificar si son el mismo despliegue.
-
-## Enlaces
-- Raíz: **CreditOp**. Hijos: **application**, **legacy-backend**, **frontend-monorepo**, **ms-preapprovals**, **harness** (arnés de pruebas E2E: `backend-e2e` Go + `harness` Playwright, recién indexados).
-- Nodos relacionados: **onboarding** (el camino que cruza estas costuras), **creditopx** (rt=2/3), **aggregator** (rt=1, los webhooks que siguen en application), **merchants** (comercios/sucursales = la granularidad del allowlist).
-- Memorias: `migracion-application-a-legacy-estado`, `refactor-perfilamiento-lenders`, `docs-consolidacion` (para las verdades de BD; el árbol `docs/` salió de main, se cita como `git 159906a:docs/<ruta>`).

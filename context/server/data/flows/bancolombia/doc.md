@@ -150,20 +150,27 @@ Connect, `x-flow-type: No Monetario`, `x-architecture-layer: Composición`):**
 | Detrás del gateway | APIC es fachada: reenvía a un **FaaS de órdenes** del banco (`faas/order/api/v1/{createOrder,consultOrder}` en `ecosistemas-int*.apps.bancolombia.com`). Útil para localizar una falla: gateway vs backend |
 | Rate limit | `150/1second` |
 
-**Gotchas del contrato (verificados en el spec, no estaban en el handoff):**
-- ⚠ **El request va ANIDADO y acá estaba documentado plano** (corregido 2026-08-03). Decía "4 campos:
-  `transactionId` · `address` · `cityCode` · `departmentCode`", y el `data.required` del spec es
-  `['security','customer']`. El error sobrevivió a 8 tests con `Http::fake` porque los tests comprobaban
-  la misma suposición que el doc; lo encontró un test que **lee el YAML y valida contra él**
-  (`legacy-backend/tests/Unit/Lenders/BancolombiaBillingCodeContractTest.php`). Lección para cualquier
-  contrato de proveedor: un fake escrito desde la documentación no puede contradecir la documentación.
-- **`message-id` está VALIDADO como UUID v4** por regex en el schema — no es una recomendación. Cualquier otro string → `SA400`.
-- **`billingStatus` NO es un enum**: es `string maxLength 35` y los tres valores (`INVOICED`/`PENDING_INVOICE`/`CANCELLED`) viven sólo en la *descripción*. Un `switch` sin `default` es una bomba de tiempo.
-- **`HEAD /health` no exige ninguna cabecera** — sonda de conectividad limpia para aislar "¿es el host/TLS o es mi firma?".
-- **El sandbox no ejercita la seguridad**: el catálogo Sandbox tiene `tlsProfileJWT` **vacío** y no tiene `endpointRetrieve` (todo va a Microcks). Pasar en sandbox **no** valida JWT ni mTLS.
-- **El JWT del catálogo NO es el nuestro**: `kid`/`issuer`/`sub: api-connect`/`expTime` (**3600** en dev/qa/sandbox, **120** en producción) describen el JWT que **APIC firma hacia su backend**. El header `json-web-token` del consumidor no tiene restricción documentada (`type: string`, sin pattern) → **no se puede concluir que nuestro JWT esté mal por no llevar `kid`/`scope`**; hay que preguntarlo. Ambas operaciones son `x-api-type: proxy-jwt`.
-- **La contradicción del `departmentCode` es del contrato, no nuestra**: el schema dice "según la **DIAN**, por ejemplo **05** = Antioquia" pero los 4 mocks usan `01`/`02`/`03` con ciudades `11001`/`05001`/`76001`; y el `example` del propio `cityCode` es `'01010'`, que tampoco es un código real. Ojo: el spec dice **DIAN**, no DANE.
-- **El dispatcher del sandbox vive DENTRO del spec** (`x-microcks-operation`, `dispatcher: SCRIPT`, Groovy). Confirmado al 100%: `generateBillingCode` compara **el JSON completo del request por igualdad estricta** contra 4 juegos literales; `retrieve-order-details` mapea por `billingCode` (`1770694a38b230dbf0f0` facturada · `6f1e621130c0ea7b4161` pendiente · `48799a34f861da1d561b` cancelada · `5aa5078c6d9087cdf158` sin-información). **En ambas el default es `409 BP12700001`** → con datos reales de un `user_request` el sandbox **siempre** responde 409.
+**Gotchas del contrato que ya operan hoy** (verificados en el spec; el consumo del servicio es la
+tarea `bancolombia-billing-code`, no este nodo — su fuente es el YAML de Downloads, abajo):
+- ⚠ **El request va ANIDADO** (`data.required = ['security','customer']`), no plano. El error de
+  documentarlo plano sobrevivió a 8 tests con `Http::fake` porque los fakes comprobaban la misma
+  suposición; lo cazó el test que **lee el YAML** (`tests/Unit/Lenders/BancolombiaBillingCodeContractTest.php`).
+  Lección: un fake escrito desde la documentación no puede contradecir la documentación.
+- **`message-id` VALIDADO como UUID v4** por regex (otro string → `SA400`) · **`billingStatus` NO es
+  enum** (string 35; los tres valores viven solo en la descripción — `switch` sin `default` es bomba) ·
+  **`HEAD /health` sin cabeceras** (aísla "¿host/TLS o mi firma?") · **`departmentCode`**: el spec dice
+  DIAN con ejemplos que no cuadran ni con sus propios mocks — la contradicción es del contrato.
+- **El sandbox no ejercita la seguridad** (`tlsProfileJWT` vacío, todo va a Microcks) y **su dispatcher
+  compara el request por igualdad estricta contra 4 juegos literales** — con datos reales responde
+  **siempre `409 BP12700001`**; `retrieve` mapea por `billingCode` fijo (`1770694a…` facturada ·
+  `6f1e6211…` pendiente · `48799a34…` cancelada · `5aa5078c…` sin-información). El JWT descrito en el
+  catálogo es el que **APIC firma hacia su backend**, no el nuestro (el header del consumidor no tiene
+  pattern documentado — preguntarlo, no inferirlo).
+
+**Fuente del contrato:** `Downloads/api_in-store-billing-code-code-management.yaml` (OpenAPI 3.0.1,
+leído y verificado el 2026-07-31) + el handoff de Santiago (2026-07-29). ⚠ **No vive en ningún repo,
+solo en el Downloads de Miguel: si se pierde, esta sección es la única copia.** El oráculo no indexa
+`.yaml`, así que no puede ir en `files[]`.
 
 Datos duros re-verificados contra la copia local de la BD (respaldan el diseño):
 
@@ -329,10 +336,3 @@ cambio a Consumo ocurre **en el `authenticate`**, que reescribe `lender_id` y `a
 ## Lo que NO está verificado
 - ¿El módulo `bancolombia-origination` del front llama `RetrieveQuota` o `ListAccountsAndQuota` para la cuota BNPL, y reenvía `bnplTransactionId` después? Explica el hueco del mapa de pantallas; se contesta con diagnóstico del front.
 - ¿El código de compra para Consumo ya corrió en producción? En la copia local hay 0 solicitudes de lender 100 en estado 25 (vs 119 del 68) — puede ser habilitación, no reemplazo.
-
-## Enlaces
-- Padre: **aggregator** (maquinaria genérica rt=1: `PreApprovedLenderService`, `LenderRetrievalService`, el filtro `[12,23,141,142,166]`, las Actions de los otros lenders, `UserRequestService` con el `case 1` y la tabla de canales).
-- **Cruce con `corbeta`** (que vive bajo `merchants`, no acá): son **dos ejes distintos** del marketplace — Corbeta es un **grupo de comercios**, Bancolombia es un **lender**. No se anidan en ninguna dirección: Corbeta usa sólo Bancolombia, pero Bancolombia lo usan 109 comercios. Ese nodo tiene el ciclo batch (checkout base64, PIN de la API Fondos, crons de conciliación, estado 26) y es quien **invoca** `bnplConfirmed`/`consumoConfirmed` de acá.
-- Pre-aprobación v2: **ms-preapprovals** (`bancolombia_bnpl` / `bancolombia_consumer_loan` en el MS Go: adapter + client + oauth2_strategy + `sandbox.go`; el challenge `urlAuthenticate`/`customerValidateKey` del Consumo). Deuda de ids: **hardcodes-entidades**. Cutover: **architecture**.
-- Fuentes: `Downloads/MOTAI/BANCOLOMBA/bancolombia-billing-code-handoff.md` (handoff, 2026-07-29) + `Downloads/api_in-store-billing-code-code-management.yaml` (OpenAPI 3.0.1 del servicio nuevo, 2.661 líneas — **leído y verificado el 2026-07-31**; ⚠ **no vive en ningún repo, sólo en el Downloads de Miguel**: si se pierde, el contrato de arriba es la única copia. El oráculo no indexa `.yaml`, así que no puede ir en `files[]`).
-- Memorias: `modelos-canales-flujos`, `synth-lender-type-boundary`, `pre-approvals-service`, `migracion-application-a-legacy-estado`, `lender-listing-cascade`.

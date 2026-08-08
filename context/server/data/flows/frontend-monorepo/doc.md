@@ -171,9 +171,3 @@ usan y sí hay que leer.
 
 ## Lo que NO está verificado
 - ¿`APP_ENV` llega como `"staging"` al cluster de stg? De eso depende `streamTimeout` 240s vs 45s, y el valor vive en el task-def, no en el repo.
-
-## Enlaces
-- **Padre:** Architecture (índice de repos: application / legacy-backend / frontend-monorepo / ms-preapprovals).
-- **Hermanos con frontera explícita:** **MS Pre-approvals** (contrato del MS Go; acá sólo el lado cliente) · **Legacy-backend** (dueño de `lenders-v2`, cupo y reglas) · **Application** (monolito vivo; el wizard nuevo no lo consume) · **Dynamic Forms** (concepto backend-driven; acá sólo repos/rutas) · **Onboarding**, **CreditopX**, **Aggregator**, **Redirect**, **KYC**, **Formalization**, **Profiling** (fases del flujo) · **SmartPay**, **Motai-v2**, **Motai**, **Pullman**, **Merchants** (familias de lender/comercio).
-- **Memorias:** `[[harness-setup]]`, `[[harness-asesor-commands]]`, `[[harness-split-view]]` (el gotcha de `process.env.VITE_API_URL` en SSR), `[[harness-wizard-dev-gotchas]]` (el "Server Timeout" del `streamTimeout`), `[[develop-merge-wizard-deps-fix]]` (form-engine, el único paquete con build), `[[pre-approvals-service]]`, `[[lender-listing-cascade]]`, `[[orden-lenders-ml-desactivado]]`, `[[playground-convention]]`.
-- Material histórico de `playground/docs` (removido de main): citar como `git 159906a:docs/<ruta>`.

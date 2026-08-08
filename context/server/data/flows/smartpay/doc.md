@@ -61,8 +61,3 @@ Todo en `legacy-backend` salvo nota; líneas verificadas contra el código vigen
 - **Enroll destructivo.** Si el `update` del IMEI devuelve 0 filas, `AlliedProductService::enroll` **borra todos los `user_request_products`** de la solicitud y crea uno nuevo (se pierden accesorios).
 - **Inconsistencias menores**: `PRO_CONSUMIDOR_NUMBER='XXX/20XX'` (placeholder, se sustituye por `request_number`); `releaseDevices` usa prefijo `/api/v1/` distinto al resto; los correos de excepción de los jobs van a destinatarios hardcodeados.
 - *Abiertas:* ¿el divergente dev/prod es intencional o debería usar `isSmartpayChannel()`/config? · ¿el lender 160 de prod es rt=2 o rt=1? · ¿corre solo en RD o también en CO? · ¿quién puebla `user_request_device_info.enrollment_status`/`trustonic_device_id` (el `enroll` solo escribe `user_request_products.imei`)?
-
-## Enlaces
-- Padre: **Merchants**. Hermanos: **Pullman** (tronco rt=2 CreditopX que este nodo hereda), **Motai**. Núcleo rt=2: **CreditopX**. Identidad/AML que SmartPay saltea: **KYC**. Firma/desembolso/Estado 11 genéricos: **Formalization**.
-- Fuente profunda: `git 159906a:docs/codigo/SMARTPAY-FLUJO-ANALISIS.md`.
-- Memorias: `modelos-canales-flujos` (SmartPay 152/153/160, MDM device-lock) · `synth-lender-type-boundary` (frontera de inyección rt=2) · `continuacion-credito-servicing` (ledger `creditop_x_requests_history` post-11).

@@ -158,14 +158,3 @@ en los cinco niveles**, o sea que el nivel no cambia nada para ese comercio.
 ## Lo que NO está verificado
 - ¿Cuál de las dos implementaciones es la intencionada? Si el SP quedó viejo, la pantalla de condiciones miente; si el viejo es el PHP, se otorga con el motor equivocado.
 - `FN_CreditopX_Profiling_Multiplier_Risk` (la del SP) no se leyó en detalle — está entre las «solo internas» de `db-routines`.
-
-## Enlaces
-
-- `servicing` — qué pasa con el cupo DESPUÉS: consumo, causación, mora, los 6 crons.
-- `profiling` — el otro motor de categorización (rt=2, por tiers). Comparten vocabulario («capacidad»,
-  «categoría») con significados distintos.
-- `db-routines` — `FN_CreditopX_Revolving_Credit_Multiplier` es una de las 4 rutinas **sin fuente en
-  ningún repo**; `FN_User_Income_Average` y `FN_CreditopX_Profiling_Fixed_Expense_Perc` también viven ahí.
-- `creditopx` — el padre: qué es un lender rt=2/3 y por qué el comercio pone el capital.
-- `trazador` — por qué un rechazo de rotativo sale `sin-evidencia` en el árbol de la solicitud.
-- `findings` — **F-115** (el cómputo sin rastro) · **F-116** (`ctop_debt`) · **F-117** (continuidad NULL).

@@ -178,13 +178,3 @@ saber en qué estado quedó el título.
 ## Lo que NO está verificado
 - La incidencia real de `SDL.DA.0439` y qué depositante operó cada caso: se contesta contando en `deceval_logs` y reconstruyendo la cascada — no queda escrito en `promissory_notes`.
 - ¿Los créditos rotativos firman igual? `promissory_notes.creditop_x_revolving_credit_id` existe y hay una rama `feature/CRED-121-deceval-rotativo` sin mergear, no leída.
-
-## Enlaces
-
-- `formalization` — el tramo del que esto es una pieza: OTP, documentos, desembolso. **F-121** (el pagaré
-  congelado contra el cliente vivo) vive ahí y es hermano directo del 0439.
-- `credifamilia` — uno de los dos lenders que firman con Deceval hoy.
-- `findings` — **F-122** (el guard divergente entre los dos repos) · **F-121** · **F-108** (`deceval_logs`
-  es la única de las 14 tablas de log que ata al 100 % por `user_request_id`).
-- `trazador` — la herramienta que debería leer `deceval_logs` para el tramo del pagaré.
-- `application` · `legacy-backend` — los dos repos donde vive el mismo flujo.

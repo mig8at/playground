@@ -136,9 +136,3 @@ Dos apps Laravel sobre la **misma base de datos**. Números duros del diff:
 
 ## Lo que NO está verificado
 - Los consumidores que viven FUERA de los repos en disco: quién llama `/api/loans/lender/available-quota` (candidato: ms-preapprovals), si existe el BFF de red privada que nombra `NEW_ARCHITECTURE.md`, y si hay ruteo de infraestructura que salte el proxy de `application`. Además los conteos de rutas del nodo son estáticos (`Route::…` por archivo), no de `route:list`.
-
-## Enlaces
-- Padre: **Architecture**. Hermanos: **application** (el monolito Inertia y el servicing), **frontend-monorepo** (el wizard que consume estas APIs), **ms-preapprovals** (MS Go rt=1).
-- Temas que cruzan este repo: **Onboarding**, **Profiling**, **CreditopX**, **KYC**, **Formalization**, **Merchants**.
-- Memorias: [[migracion-application-a-legacy-estado]] · [[refactor-perfilamiento-lenders]] · [[datacredito-rules-per-lender]] · [[lender-listing-cascade]] · [[credifamilia-flujo-mapa]] · [[reglas-copia-por-sucursal]] · [[admin-anatomia-creditop]] · [[playground-convention]].
-- El doc de arquitectura in-repo `NEW_ARCHITECTURE.md` (y los `README.md` / `TECHNICAL_DEBT.md` / `ARCHITECTURE_EXCEPTIONS.md` por módulo) **no** entran en el índice de este árbol (solo indexa código) — leerlos directo en el repo. Material histórico de `playground/docs`: `git 159906a:docs/<ruta>`.

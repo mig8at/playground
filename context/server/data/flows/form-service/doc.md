@@ -95,8 +95,3 @@ Usado por la ruta `additional-info` (`additional-info.tsx` → gate, `additional
 ## Lo que NO está verificado
 - ¿`ONBOARDING_FORMS_SERVICE_BASE_URL` (G1, `:8092`) y `VITE_FORM_SERVICE_BASE_URL` (G2, `:8082`) apuntan al mismo despliegue? Son contratos distintos.
 - ¿Quién ejerce los `PUT` de schema en producción (rebuild del caché)? En el harness se hace a mano.
-
-## Enlaces
-- Padre: **dynamic-forms** (el concepto de las 3 generaciones; este nodo es el backend de la G2). Consultado por: **credifamilia** (su additional-info es form_type 6), **onboarding** (el journey donde corre), **profiling** (lo que el form escribe, la decisión lo lee vía `user_field_values`).
-- Repo: `github/form-service` (README.md · CHANGELOG.md · openapi.yaml · graphify-out/GRAPH_REPORT.md). No hay doc fuente en playground/docs; este nodo ES el análisis.
-- Memorias: `form-service-dynamic-forms` (el mismo hallazgo + la receta de campo en cascada + cómo capturar el render), `onboarding-decision-data-map` (el EAV como insumo de decisión).

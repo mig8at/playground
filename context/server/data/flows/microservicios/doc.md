@@ -128,13 +128,3 @@ existe; un servicio que corre sin repo no se puede indexar y se queda en esta ta
 
 ## Lo que NO está verificado
 - El workflow `internal/core/workflows/kyc/` de customer-profiling-service (distinto de `legacykycpipeline`): no se leyó.
-
-## Enlaces
-
-- `architecture` — el padre: cómo se reparte el sistema.
-- `kyc` · `profiling` — los dos nodos que `customer-profiling-service` va a pisar cuando entre al camino
-  caliente.
-- `form-service` — un microservicio que **sí** tenía nodo. No confundir con `onboarding-forms-service`.
-- `ms-preapprovals` — el otro microservicio con nodo propio.
-- `findings` — **F-123** (la medición y por qué el árbol no lo veía).
-- `trazador` — la herramienta que ya habla con Loki; la receta de este nodo usa sus credenciales.

@@ -45,8 +45,3 @@ Además, allied 94 está en `DatacreditoFrequency` (`every=1`) → el gate datac
 - **`have_ctopx` sin confirmar para allied 94**: el dump muestra allied 94 **sin** `have_ctopx=1` (§9), pero el path rt=2 asume `have_ctopx` para no excluir → ¿otra señal, o §9 del dump truncada? (pregunta abierta).
 - **La regla de edad del `datacredito_trigger` de sucursal es un no-op**: está escrita `age <= min_age && age >= max_age`, solo dispara con rango invertido (`min >= max`).
 - **Orden solo en producción**: el perfilamiento (ranking) está gated a `production` y el ML está corto-circuitado → en local/dev el orden difiere y cae a matrices internas.
-
-## Enlaces
-- Padre: **Merchants**. Hermanos: **SmartPay** (mismo núcleo rt=2 + path IMEI), **Motai** (+ modo/Ábaco). Mecanismo: **CreditopX** (cascade de 8 etapas + subcontextos **Profiling** y **Amount tiers**).
-- Memorias: `synth-credipullman-gates` (los 2 gates + diagnósticos) · `datacredito-rules-per-lender` · `reglas-comercio-lender-map` · `lender-listing-cascade` · `reglas-copia-por-sucursal`.
-- Fuente profunda: `git 159906a:docs/lenders/CREDITOPX.md` · `git 159906a:docs/codigo/REGLAS-POR-COMERCIO-Y-LENDER.md`.

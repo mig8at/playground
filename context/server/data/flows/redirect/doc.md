@@ -39,8 +39,3 @@ El dato clave: **rt=0 comparte código con rt=1-sin-credencial** (`case 0: case 
 - **Divergencia app↔legacy en el fallback COALESCE**: application excluye solo rt=2 del fallback branch→allied; legacy excluye rt=2 **y rt=4** (`UserRequestService.php:414`). Además legacy agrupa rt=4 con 2/3 en la entrega interna; application no maneja rt=4.
 - **Gate rt=0 muerto en el listado**: `ListLenderController.php:106` tenía `&& response_type == 0` para el bloque "Lender UTM"; está **comentado** → hoy `$lender->url = url_utm` se asigna a TODOS (rt=2 la pisa después con su ruta interna).
 - **Familia latente**: `response_type` default=1 y ningún lender del seeder es rt=0 → verificar en la BD real qué entidades (referidos) corren como UTM antes de asumir que el set está vacío.
-
-## Enlaces
-- Padre: **Entities** (3 familias por `response_type`). Hermanos: **Aggregator** (rt=1, incluye los "redirect-aggregators" que SÍ vuelven), **CreditopX** (rt=2/3 in-platform).
-- Memorias: `modelos-canales-flujos` (Agregadores rt=1 vs originación), `reglas-copia-por-sucursal` (por qué `url_utm`-branch es herencia real y las reglas no), `admin-anatomia-creditop` (config por comercio vs sucursal).
-- Fuente profunda: git `159906a:docs/codigo/MAPA-FLUJOS.md` (§Ciclo E2E "UTM rt=0 — solo redirige"), git `159906a:docs/codigo/AGREGADORES-FLUJO-ANALISIS.md` (contraste rt=0 vs rt=1). Simulador: playground/flow (nodo "Formalización" paso Redirección rt=0).

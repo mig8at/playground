@@ -85,9 +85,3 @@ Los dos primeros redirigen el navegador (`inertia()->location()` si viene el hea
 ## Lo que NO está verificado
 - Qué deploy sirve el tráfico hoy (EC2+EFS vs los 4 servicios Fargate de los workflows): sin verificar contra AWS.
 - `allowed_bypass_comerces` es dato de BD: si contiene `"all"`, el otp-validate y la info laboral de TODOS los comercios ya corren en legacy.
-
-## Enlaces
-- Padre: **Architecture**. Hermanos: **legacy-backend** (el gemelo strangler), **frontend-monorepo** (el wizard al que este repo redirige), **ms-preapprovals**.
-- Nodos que cuentan la mecánica que este repo aloja: **Merchants** (alta/config + copia de reglas), **Entities**, **CreditopX**, **Profiling**, **Amount tiers**, **Onboarding**, **Dynamic forms**, **KYC**, **Formalization**, **Aggregator**, **Redirect**, **Motai**, **SmartPay**, **Pullman**.
-- Memorias: `migracion-application-a-legacy-estado`, `continuacion-credito-servicing`, `admin-anatomia-creditop`, `reglas-copia-por-sucursal`, `lender-listing-cascade`, `orden-lenders-ml-desactivado` (revisar: ver la corrección del ML arriba).
-- Docs históricos removidos de main: `git 159906a:docs/<ruta>`.
