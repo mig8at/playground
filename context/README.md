@@ -1,196 +1,71 @@
 # context — mapa de conocimiento cross-repo (CreditOp)
 
-Un árbol de **31 nodos curados** que le dice a un LLM *qué leer* antes de tocar CreditOp: por cada tema,
-un análisis en prosa (`doc.md`) y la lista exacta de archivos fuente que hay que abrir (`map.json`),
-apuntando a **6 repos** distintos. No es un buscador ni un índice automático: es curación a mano,
-verificada contra el código.
+Un árbol de nodos curados que le dice a un LLM *qué leer* antes de tocar CreditOp: por cada tema, un
+análisis en prosa (`doc.md`) y la lista exacta de archivos fuente que hay que abrir (`map.json`),
+apuntando a los repos reales. No es un buscador ni un índice automático: es curación a mano,
+**verificada contra el código**. Existe porque el conocimiento está partido en repos que no se
+referencian entre sí, y ningún grep te dice *cuáles* archivos importan para tu tarea.
 
-Existe porque el conocimiento de CreditOp está partido en repos que no se referencian entre sí
-(`legacy-backend` + `frontend-monorepo` + `application` + micros). Ningún `import` expresa el salto
-frontend↔backend, y ningún grep te dice *cuáles* de los 5.711 archivos importan para tu tarea. El árbol
-responde eso: elegís 2–4 nodos, leés sus docs, abrís sus archivos.
-
-> **⚠ El MCP fue RETIRADO (2026-07-18, commit `50f689e`).** Se borró el server Go, el WebSocket, el
-> conector stdio y el sistema de "derivar". **No lo reconstruyas.** Lo que quedó —y es lo que valía— es
-> el contenido: `ROUTE-MAP.md` + los `flows/<id>/`, un toolkit Python de 92 líneas, y una viz Vue
-> read-only que se agregó después (`f4e9d6d`).
-
----
+Los números vivos (cuántos nodos, cuántos archivos, qué está viejo) los imprimen las herramientas:
+`make context-salud` y `make status`. El **protocolo de curación** (la vara `main`, sellos, marcas
+`⏳ PENDIENTE DE MERGE`, findings, qué hacer al cerrar una tarea) vive en [`CLAUDE.md`](CLAUDE.md).
 
 ## Arranque rápido
 
-**Si sos un LLM (el caso principal): no corras nada.** Abrí [`ROUTE-MAP.md`](docs/ROUTE-MAP.md), leé los
-`Cuándo:` de cada nodo, elegí 2–4 que matcheen la tarea, y abrí sus `doc.md` + `map.json`. Ese archivo
-está diseñado para entrar entero en una ventana de contexto (~16 KB); los 4.275 renglones de doc no.
+**Si sos un LLM (el caso principal): no corras nada.** Abrí [`docs/ROUTE-MAP.md`](docs/ROUTE-MAP.md),
+leé los `Cuándo:` de cada nodo, elegí dos a cuatro que matcheen la tarea, y abrí sus `doc.md` +
+`map.json`. De ahí, el código real.
 
-**Si sos un humano y querés VER la organización:**
-
-```bash
-cd /Users/miguelochoa/Desktop/CREDITOP/playground/context
-npm install
-npm run dev          # Vite en http://localhost:5193 — solo front, sin backend
-```
-
-La viz es **read-only**: lee `tree.json` + todos los `flows/*/{map.json,doc.md}` con `import.meta.glob`
-y los renderiza (árbol de contextos a la izquierda, tasks con sus chips abajo, doc a la derecha).
-Editás un `doc.md` y se actualiza sola por HMR. No hay nada que guardar desde la UI.
-
-**Mantenimiento (después de tocar nodos o repos):**
+**Si sos humano y querés VER el árbol:**
 
 ```bash
-python3 tools/build-index.py                          # reindexa los 6 repos → tools/index.txt
-python3 tools/oracle.py server/data/flows/<id>/map.json   # ¿resuelven las rutas de ese nodo?
-python3 tools/build-route-map.py                      # regenera ROUTE-MAP.md desde tree.json + los map.json
+cd context && npm install && npm run dev   # viz read-only (puerto: .claude/launch.json)
 ```
 
-## El modelo: solo contextos de CreditOp y su código
+Lee `tree.json` + `flows/*/{map.json,doc.md}` + `alineacion.json` por `import.meta.glob` y los
+renderiza. Editás un `doc.md` y se actualiza por HMR. No hay nada que guardar desde la UI.
 
-| Concepto | Qué es | Cuántos hoy |
-|---|---|---|
-| **root** | `creditop` — el tronco, material transversal y "no sé por dónde empezar" | 1 |
-| **reference** | un tema acotado y reutilizable (`kyc`, `aggregator`, `formalization`, `findings`…) | 28 |
+**Mantenimiento** — los hooks corren solos al escribir `map.json` o `tree.json`; a mano:
 
-**Este árbol NO lleva tareas** (2026-07-21). Un contexto describe cómo *es* el sistema y sobrevive a las
-tareas; una tarea es efímera, tiene estado, tiempo y una clave de Jira — y todo eso vive en el **tablero**
-(`playground/tablero`), no acá. Cada esfuerzo del tablero guarda su detalle técnico (`tech_notes`, sin
-guard porque nunca sale) y a qué nodos de este árbol apunta (`context_nodes`).
-
-**La regla al terminar una tarea:** lo que quedó mergeado deja de ser tarea y pasa a ser *cómo funciona
-CreditOp* → **gradúa al nodo de contexto que corresponda** (ejemplo: la omisión de Experian por cupo ya
-confirmado vive hoy en `kyc`, no en un nodo-tarea). Lo que no se mergeó se queda en el tablero.
-
-**Dos archivos, dos responsabilidades:**
-
-- `tree.json` → el **wiring**: qué nodo cuelga de cuál (`parent`). Es lo único que define la forma del árbol.
-- `server/data/flows/<id>/map.json` → el **contenido** del nodo: `name`, `kind`, `when` y `files[]`.
-- `server/data/flows/<id>/doc.md` → el **análisis** en prosa. Es el producto real; todo lo demás es andamiaje.
-
-El campo `when` es el que hace funcionar el ruteo: está escrito en el vocabulario con el que *llega* una
-tarea ("el listado no muestra CrediPullman en el comercio X"), no en el vocabulario del código. Sin
-embeddings, a propósito: el que decide qué abrir es el modelo leyendo esas líneas.
-
-## Los 6 repos indexados
-
-Las rutas de `files[]` son `alias/relpath`. Los alias se resuelven así (definido en `tools/build-index.py`
-y duplicado en `tools/build-route-map.py`):
-
-| alias | root | archivos indexados |
-|---|---|---|
-| `application` | `~/Desktop/CREDITOP/github/legacy-application` | 1.747 |
-| `legacy-backend` | `~/Desktop/CREDITOP/github/legacy-backend` | 2.176 |
-| `frontend-monorepo` | `~/Desktop/CREDITOP/github/frontend-monorepo` | 1.549 |
-| `pre-approvals-service` | `~/Desktop/CREDITOP/github/pre-approvals-service` | 137 |
-| `harness` | `~/Desktop/CREDITOP/playground/harness` | 78 |
-
-Ojo con el alias `application`: apunta a la carpeta **`legacy-application`**. No son dos repos.
-
-## El oráculo, y por qué existe
-
-Una ruta mal escrita en un `map.json` **no falla en ningún lado**: la viz la cuenta, el LLM la lee, e
-intenta abrir un archivo que no existe. Se cae en silencio. `oracle.py` es la defensa: compara los
-`files[]` contra **`main`** (vía `git ls-tree`, read-only: sin checkout ni fetch) y te dice qué no resuelve.
-
-```
-$ python3 tools/oracle.py server/data/flows/findings/map.json
-KEPT 44 / DROPPED 0 (of 44) — contra `main`
+```bash
+python3 tools/oracle.py server/data/flows/<id>/map.json   # ¿las rutas resuelven contra main?
+python3 tools/refs.py [nodo]                              # ¿las citas archivo:línea siguen bien?
+python3 tools/alinear.py                                  # ¿qué nodos quedaron viejos? (tras cada merge)
+python3 tools/build-route-map.py                          # regenera el índice
+make context-salud                                        # ¿el árbol SIRVE para un LLM?
 ```
 
-Valida contra `main` y no contra lo que tengas checkeado porque el error grave no es el falso DROP sino el
-**falso OK**: con otra rama puesta, una ruta que solo existe ahí resuelve perfecto y el nodo queda
-afirmando describir `main`. Con `--worktree` se valida contra el índice (lo checkeado), y con `--ref X`
-contra cualquier otro ref. Exit: `0` limpio · `1` DROPs · `2` algún repo no se pudo consultar.
+## El modelo
 
-**Un `DROP` tiene tres causas posibles, y solo una es un error tuyo:**
-
-1. **Typo o archivo movido** — el caso que querés cazar.
-2. **Extensión no indexada.** `build-index.py` solo indexa `.php .go .ts .tsx .js .jsx .mjs .cjs .vue`.
-   Un `openapi.yaml`, un `.sql` o un `.md` del repo **siempre** va a dropear aunque exista. No los pongas
-   en `files[]`; mencionálos en el `doc.md`.
-3. **La rama checkeada no tiene el archivo.** El índice es un snapshot del *working tree*, no de `main`.
-
-La causa 3 es la que más engaña, y ya mordió dos veces:
-
-- Con los repos en `feature/motai-v2`, `motai` dropeaba 9 rutas (`AlliedMode.php`, `UserRequestMode.php`,
-  `merchant-mode.tsx`…) que **sí existen en `main`**: esa rama las había borrado (des-motaización,
-  commit `936f0a7c`).
-- Al revés (2026-07-21): rutas **nuevas de una rama** dropeaban porque el índice era viejo. Se resolvió
-  con `python3 tools/build-index.py`.
-
-**Antes de sacar una ruta de un `map.json`, fijate en qué rama están los repos y cuándo se construyó el
-índice.** Hoy, con el índice al día, los 31 nodos validan sin drops.
-
-## Cómo está armado
-
-```
-context/
-├── ROUTE-MAP.md      ← GENERADO · el índice que lee un LLM (31 nodos con su `Cuándo`)
-├── tree.json         ← A MANO · el wiring: parent + contexts. Fuente de la forma del árbol
-├── server/data/
-│   ├── flows/<id>/   ← A MANO · 31 nodos: map.json (archivos) + doc.md (análisis)
-│   └── doc-templates/  ← 6 plantillas: raiz · group · contexto · referencia · flujo · tarea
-├── tools/
-│   ├── roots.py            ← FUENTE ÚNICA de los 6 repos y las extensiones
-│   ├── build-index.py      ← camina los 6 repos (working tree) → index.txt
-│   ├── oracle.py           ← valida un map.json contra `main` (o --ref / --worktree)
-│   ├── sellar-verificado.py← pone el sello `verified` (contra qué ref y cuándo)
-│   ├── alinear.py          ← ¿qué nodos quedaron viejos? → alineacion.json
-│   ├── refs.py             ← ¿las 907 citas `archivo:línea` siguen apuntando bien?
-│   ├── build-route-map.py  ← tree.json + map.json → ROUTE-MAP.md
-│   └── index.txt           ← GENERADO, gitignored (6.257 rutas) — solo lo usa --worktree
-├── alineacion.json   ← GENERADO por alinear.py · versionado (su historia = cuánto lleva viejo un nodo)
-├── src/App.vue       ← la viz read-only (pinta la alineación: anillo de color por nodo) (142 líneas, mini-render de markdown sin deps)
-└── package.json      ← solo vue + vite. NO hay scripts de server (los de Go murieron con el MCP)
-```
-
-`server/` ya no tiene código: sobrevive como carpeta de datos porque ahí vivían los flows del MCP y
-mover 31 directorios rompería toda ruta citada en los docs.
+- **`tree.json`** = el wiring (qué nodo cuelga de cuál). **`ROUTE-MAP.md` es GENERADO**: el `Cuándo`
+  se edita en el campo `when` del `map.json`, nunca en el mapa.
+- **`flows/<id>/map.json`** = `name` · `kind` · `when` · `sintomas[]` · `files[]` · `verified`.
+  **`doc.md`** = el análisis en prosa: el producto real; todo lo demás es andamiaje.
+- El `when` está escrito en el vocabulario con el que *llega* una tarea, no en el del código: sin
+  embeddings, esa línea es lo único que rutea al modelo.
+- **El árbol NO lleva tareas** (partición del 2026-07-21): una tarea tiene estado, tiempo y Jira —
+  vive en `tablero/data/`. Al mergear, lo aprendido **gradúa** al nodo que corresponda.
+- **Nodo nuevo:** `flows/<id>/{map.json,doc.md}` desde las plantillas de
+  [`server/data/doc-templates/`](server/data/doc-templates/) (las reglas de escritura están en el
+  comentario de `referencia.md`) **+ registrarlo en `tree.json`** — sin esa entrada el nodo queda
+  invisible para el mapa (el hook lo regenera solo).
 
 ## El nodo `findings` — buscá acá primero
 
-[`server/data/flows/findings/doc.md`](server/data/flows/findings/doc.md) es la **bitácora viva**: 52
-hallazgos (F-01..F-52) de cosas que costaron tiempo descubrir en local, agrupados en secciones A–L.
-Cada uno trae síntoma → causa raíz verificada → evidencia → arreglo → estado.
-
-Se lee al revés de lo que uno espera: **antes de depurar un muro en local, buscalo ahí**. Buena parte de
-lo que parece un bug del producto es una variable de entorno faltante (F-04: `/lenders` da 500 en todo
-local por H2O sin host) o un error que el front se traga en silencio (F-01, F-02) — y F-03 para el caso
-simétrico: el harness reportando verde una corrida rota por un `.catch(() => {})` vacío.
-
-Para agregar uno, seguí las reglas del propio doc: la causa raíz va **verificada** o marcada como
-hipótesis, y si el síntoma engaña, decilo en el título.
+[`server/data/flows/findings/doc.md`](server/data/flows/findings/doc.md) es la bitácora de trampas:
+síntoma → causa raíz verificada → evidencia → arreglo. Se lee al revés de lo que uno espera:
+**antes de depurar un muro, buscá tu síntoma en su índice** — buena parte de lo que parece un bug
+del producto ya está diagnosticado ahí.
 
 ## Gotchas
 
-- **`tools/index.txt` está gitignored, y desde el 2026-07-31 el oráculo NO lo necesita** en su modo
-  default (valida contra `main` con git). Solo lo usa `--worktree`, y ahí sí corta pidiendo
-  `python3 tools/build-index.py`. No es un bug.
-- **`ROUTE-MAP.md` es generado.** Editarlo a mano se pierde al siguiente `build-route-map.py`. El
-  `Cuándo` sale del campo `when` del `map.json` — editá ahí.
-- **`kind` vive en el `map.json`, no en `tree.json`,** y gana. El nodo `payments` tiene `contexts` en
-  `tree.json` pero `kind: reference` en su `map.json`, así que sale como referencia y no como task. Si
-  querés que algo sea task, ponelo en el `map.json`.
-- **Campos muertos.** `targets` y `baseline` en `tree.json`, y `combination` y `group` en los `map.json`,
-  no los lee **nadie** (grepeado sobre `src/` y `tools/`): son restos del engine Go. No los mantengas.
-- **La viz importa los 31 `doc.md` crudos al bundle** → `npm run build` escupe 845 kB y avisa por el
-  tamaño del chunk. Es esperado, no lo optimices.
-- **Las rutas `playground/docs/X.md` que veas por ahí son punteros históricos.** Esa carpeta se borró de
-  `main` el 2026-07-17 (absorbida en estos nodos); se recupera con `git show 159906a:docs/<ruta>`. Los
-  docs del árbol ya citan esa forma — no la "arregles".
-- **Convención playground: commit local, sin push.** Nada de acá va a un PR.
-
-## Relacionados
-
-- [`ROUTE-MAP.md`](docs/ROUTE-MAP.md) — el índice de los 31 nodos. Punto de entrada de toda tarea.
-- `server/data/doc-templates/*.md` — las 6 plantillas de doc, con comentarios HTML que explican qué va
-  en cada sección. Usalas al crear un nodo nuevo.
-- `../EXAMPLES.md` — cheatsheet de demos visuales del wizard vía `harness` (`bin/asesor`,
-  split-view, dbops). El `../README.md` de la raíz es un stub de una línea, no un índice.
-- Las otras herramientas del playground son directorios hermanos:
-  `harness`, `flow`, `soporte`, `domain-model`, `tools`.
-
----
-
-*Verificado el 2026-07-19 contra el código: scripts de `package.json`, puerto en `vite.config.js`, los 3
-tools de `tools/`, y las cuentas (31 nodos · 1.315 archivos únicos en 1.990 referencias · 4.275 líneas de
-doc · 5.711 rutas indexadas). Lo único que no probé es levantar `npm run dev` — sí verifiqué que
-`vite build` compila.*
+- **`server/` no tiene código**: es la carpeta de datos que sobrevivió al MCP (retirado — el porqué
+  y el «no lo reconstruyas» están en `CLAUDE.md`). **No muevas los directorios de `flows/`**: toda
+  ruta citada en los docs apunta ahí.
+- **`ROUTE-MAP.md`, `tools/index.txt` y `alineacion.json` son GENERADOS** — un hook bloquea
+  editarlos a mano.
+- **`kind` vive en el `map.json`** y gana sobre lo que se infiera de `tree.json`. Los campos
+  `targets`/`baseline` (tree.json) y `combination`/`group` (map.json) están muertos: nadie los lee.
+- **Las rutas `playground/docs/X.md` que veas citadas son históricas** (carpeta borrada el
+  2026-07-17; se recupera con `git show 159906a:docs/<ruta>`). No las «arregles».
+- La viz importa los `doc.md` crudos al bundle: el build avisa por el tamaño del chunk. Es esperado.

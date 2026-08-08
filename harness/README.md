@@ -2,9 +2,9 @@
 
 > Harness de pruebas del onboarding de CreditOp: **Playwright + TypeScript manejando el wizard real**
 > (`loan-request-wizard`, :5174) de punta a punta — desde el monto hasta el cierre del crédito.
-> Su hermano headless es [`../backend-e2e`](../backend-e2e) (Go, mismo modelo, sin navegador).
+> Su camino headless es `dev/sweep.ts` (mismo modelo de aserción, sin navegador).
 
-> 🔒 **Repo LOCAL. Nunca se pushea** (convención de `playground/`: commit local, sin remoto).
+> 🔒 Convención de `playground/`: **commit local; el push lo decide Miguel.**
 
 ## Por qué existe
 
@@ -21,7 +21,7 @@ Este harness **corta todo eso sin falsear el producto**:
   no se saltea a ciegas.
 - Los proveedores que en local apuntan a hosts `*.fake` tienen su **mock con puerto propio** (§Mocks).
 
-Es autosuficiente en TS: habla MySQL con `mysql2` (`pkg/db.ts`), **no shellea a `backend-mcp`**.
+Es autosuficiente en TS: habla MySQL directo con `mysql2` (`pkg/db.ts`), sin shellear a nada.
 
 ---
 
@@ -69,11 +69,12 @@ Lo elige `E2E_TARGET`/`CFE_TARGET` y `pkg/db.ts` lee el `.env.<target>` correspo
 `.env.local`, ambos gitignored: credenciales de DB + `APP_KEY`, que es lo que cifra la fila Experian).
 **El panel fuerza `local`, `dev` o `staging`** y agrega el guard solo cuando el target NO es local.
 
-⚠ **`staging` NO es un entorno aparte.** En `legacy-backend` la API y la BD de staging son **las mismas
-que las de dev**; el único con ambiente propio es el **frontend**. Por eso `env/staging.env` son dos
-líneas (`E2E_INHERITS=dev` + `E2E_BASE_URL`) en vez de repetir credenciales: copiarlas garantizaría que
-deriven el día que roten. Consecuencia práctica: **lo que verificás en BD es el mismo dato en dev y en
-staging**, y dos corridas simultáneas se pisan — separalas por teléfono/documento o corré de a una.
+⚠ **`staging` comparte la BD con `dev`, pero NO el backend.** En el cluster `inertia-develop` conviven
+dos servicios: `legacy-backend` (sirve `develop`) y `legacy-backend-qa` (sirve **`qa`**) — el detalle y
+el costo de confundirlos está en [`CLAUDE.md`](CLAUDE.md) §targets. Consecuencia práctica: **lo que
+verificás en BD es el mismo dato en dev y en staging** (dos corridas simultáneas se pisan — separalas
+por teléfono/documento), pero **el código que responde es otro**. La config vive en `.env.staging`
+autosuficiente (la capa compartida `env/` se eliminó el 2026-07-22).
 
 ---
 
@@ -193,7 +194,7 @@ de estos barridos están numerados en el nodo `findings` del árbol de contexto.
 
 ## Estructura
 
-Organizada por los **tres ejes** del modelo `canal → comercio → lender`, espejo de `backend-e2e`:
+Organizada por los **tres ejes** del modelo `canal → comercio → lender`:
 
 ```
 harness/
@@ -283,9 +284,9 @@ Al fallar, Playwright deja `test-results/<test>/{trace.zip,screenshot.png,video.
   nada, porque el loader es **SSR**: el 500 nunca llega al browser como 5xx, llega como HTML del error
   boundary. Y ojo: el health-check de `bin/asesor` pega a `/api/loans/allied/{hash}`, que **responde 200
   aunque `lenders-v2` esté roto** → verde en falso para este fallo.
-- **El eje ecommerce está STALE**: según el barrido de findings (F-40), la ruta de checkout ya no existe en
-  el wizard de `main` → `bin/ecommerce` y los `channel/ecommerce-*.spec.ts` darían 404 ahí. No verificado
-  en esta pasada; tratalo como sospechoso antes de invertir tiempo.
+- **El eje ecommerce solo resuelve Bancolombia (F-54, que corrige a F-40)**: la entrada por checkout
+  existe, pero el marketplace de esa vía quedó acotado y en local se degrada — probalo contra `dev`.
+  Antes de invertir tiempo ahí, leé F-54 en el nodo `findings`.
 - **`npm run test:onboarding` está roto**: apunta a `tests/onboarding`, carpeta que no existe.
 - **Un asesor = un comercio.** Cambiar de comercio en `dev` **escribe en la BD compartida** (reversible,
   con guard). `node bin/dbops.ts revoke` restaura desde `.asesor-snapshot.json`.
@@ -314,7 +315,7 @@ Al fallar, Playwright deja `test-results/<test>/{trace.zip,screenshot.png,video.
 **Contexto de negocio** (qué es CreditOp, `response_type`, estados, entidades): el árbol de contexto en
 [`../context/`](../context/) — empezá por [`../context/docs/ROUTE-MAP.md`](../context/docs/ROUTE-MAP.md) y el nodo
 `harness` (`../context/server/data/flows/harness/doc.md`). El nodo `findings` es la **bitácora de muros
-locales** (F-01..F-52): buscá ahí antes de depurar algo que huele a "ya nos pasó".
+locales**: buscá tu síntoma en su índice antes de depurar algo que huele a "ya nos pasó".
 
 > ⚠ Varios docs de esta carpeta (`VALIDATION.md`, `PLAN-PRUEBAS.md`, `lender/README.md`) y algunos
 > comentarios de specs todavía enlazan `../docs/*.md`. **Esa carpeta fue borrada** de `main` (absorbida por
