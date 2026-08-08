@@ -77,72 +77,88 @@ usuario, que es justo lo que pide un documento por entidad o una validación de 
 364 mil usuarios se vuelven afganos**. Cualquier plan que empiece por «leamos `country_id`» rompe
 producción en el primer deploy.
 
-## LA PROPUESTA
+## LA RECOMENDACIÓN — UNA sola: el «Mercado» de Shopify, con el contenido en forma de Country Spec
 
-### Idea 1 — «País» no es un eje, son cinco. Confundirlos es lo que produjo el desorden
+Miré cómo lo resolvieron cuatro empresas y **descarto tres**, con el motivo:
 
-Es el error que cometen todos los productos que crecen a un segundo país, y el que explica el
-`$isDoLogic`. Un mercado son **cinco decisiones independientes**:
-
-| eje | qué decide | de qué depende de verdad |
+| | qué hacen | por qué NO es lo nuestro |
 |---|---|---|
-| **Jurisdicción** | qué regulación aplica (usura, habeas data, título valor, retención) | del **prestamista**, no del cliente |
-| **Moneda** | en qué se denomina la deuda, con cuántos decimales | del **producto/línea de crédito** |
-| **Locale** | idioma y formato de fecha/número que ve la persona | de la **persona**, no del país |
-| **Geografía** | la división territorial y su codificación | del **domicilio** |
-| **Identidad** | qué documento se pide y quién lo valida | del **país de expedición** |
+| **Airbnb** · [i18n Platform](https://medium.com/airbnb-engineering/building-airbnbs-internationalization-platform-45cf0104b63c) | plataforma central de contenido y traducción: 1M de textos, 62 idiomas, 100 mil millones de requests/día | resuelve **traducción a escala**. CreditOp opera español→español: no es nuestro problema |
+| **Uber** · [UCDP](https://www.uber.com/en-US/blog/how-we-unified-configuration-distribution-across-systems-at-uber) | plataforma de distribución de configuración en capas (global → zonal → local), con UI para que **no-ingenieros** cambien la config por ciudad | es **infraestructura** de distribución. Con el tamaño del equipo, montar eso cuesta más de lo que ahorra. Me quedo con **una** idea suya: la jerarquía con herencia |
+| **Stripe** · [Country Specs](https://docs.stripe.com/api/country_specs/object) | cada país es un **objeto de datos** con `default_currency`, `supported_payment_methods` y —la clave— **`verification_fields`: qué datos hay que recolectar, como DATO** | la forma del contenido es exactamente la que necesitamos, pero está **indexada por país**, y nuestra unidad no es el país |
+| **Shopify** · [Markets](https://shopify.dev/docs/storefronts/headless/hydrogen/markets) | la unidad es el **Mercado** (agrupación comercial, no geográfica), con **submercados** que heredan y sobreescriben unas pocas cosas. Abrir una tienda aparte sólo se justifica con un catálogo y una marca genuinamente distintos | **✅ ES LO NUESTRO** |
 
-No coinciden. Ecuador y Panamá usan USD (moneda ≠ país). Un dominicano en Colombia tiene locale es-DO y
-jurisdicción CO. **La cédula de un colombiano la valida un buró colombiano aunque compre en RD.** Cada
-vez que se los trata como una sola cosa se produce un `$isDoLogic`.
+### Por qué el «Mercado» de Shopify y no los otros
 
-### Idea 2 — El mercado se resuelve UNA vez, en el borde, y se lleva puesto
+**1. Nuestra unidad de negocio no es el país: es el comercio.** CreditOp no le vende a Colombia, le vende
+a comercios. Y el código **ya resuelve el mercado desde el comercio** (`allied->country` en los 4
+controladores). El Mercado de Shopify es exactamente eso: una agrupación **comercial** que *contiene*
+países, no un hecho geográfico. Indexar por país —como Stripe— nos obligaría a torcer el modelo que ya
+tenemos y que ya es correcto.
 
-Lo que hacen las plataformas que operan en varios países: un objeto **`MarketContext`** que se construye
-al entrar la solicitud, a partir de una regla explícita y **una sola** —para CreditOp, el **comercio**
-(`allied`), que ya es lo que usan los 4 controladores— y de ahí en adelante **nadie vuelve a preguntar de
-qué país es esto**. Se pasa, no se re-deriva.
+**2. El submercado es la forma real de RD.** República Dominicana **no es un clon de Colombia**: es el
+mismo flujo con un puñado de excepciones (moneda, largo del teléfono, sin Deceval, otro buró). Eso es
+literalmente un submercado: *heredá todo, sobreescribí estas cinco cosas*. Cualquier modelo que trate a
+RD como un país completo y paralelo nos hace mantener dos de todo.
 
-La prueba de que está bien hecho: **`country_id` deja de aparecer en la lógica de negocio.** Aparece una
-vez, al resolver el contexto, y nunca más. Cada `if country == X` que sobreviva es un sitio que no se
-convirtió.
+**3. La regla que más nos protege es la que dice cuándo NO usarlo.** Shopify es explícito: abrir una
+tienda separada sólo se justifica con un catálogo y una identidad genuinamente distintos; para todo lo
+demás, un mercado. Traducido: **nunca forkear el código por país.** Y esto importa porque ya estamos a un
+paso — el `$isDoLogic` copiado cuatro veces es el primer escalón de ese fork.
 
-### Idea 3 — Cada país es un PAQUETE, no una rama del `if`
+**4. Escala por donde CreditOp crece.** El vector de crecimiento son comercios, no países. Una
+abstracción con forma de comercio crece con el negocio; una con forma de país sólo sirve el día que se
+abre un país.
 
-Un mercado nuevo se da de alta **agregando un paquete y una fila de config**, nunca editando un `switch`.
-El paquete implementa contratos estables:
+### Lo que NO hay que construir: el patrón ya está en casa, funcionando
 
-- **buró/centrales** — CO: Experian/Datacrédito · RD: lo que use BHD
-- **identidad** — qué documento, su formato, su validador
-- **título valor** — CO: pagaré Deceval · RD: el instrumento que corresponda
-- **geografía** — CO: DANE · RD: provincias/municipios
-- **desembolso y recaudo** — CO: Wompi/PSE · RD: el recaudo referenciado BHD
-- **parámetros regulatorios** — usura, salario mínimo, topes
+Éste es el argumento de que no implica reescribir. El `verification_fields` de Stripe —«qué datos pedir
+es un dato, no código»— **ya existe en CreditOp y funciona**:
 
-⚠ **CreditOp ya tiene la mitad de esto y no lo sabe**: `lender->action` es polimórfico y
-`PreApprovedLenderService` no lo usa (nodo `hardcodes-entidades`); `risk_centrals` ya es un catálogo de
-proveedores con credenciales; `promissory_types` ya rutea el instrumento por lender. **Es el mismo patrón
-recurrente de la casa: la solución está a medio construir y el código la esquiva.**
+```php
+// Modules/Loans/App/Services/FormTypeService.php:35
+$formType = $this->formTypeRepository->findLatestActiveByLenderId((int) $lenderId);
+```
 
-### Idea 4 — La plata es un objeto, no un número
+Cero `if`. Un lookup por configuración, un formulario que se renderiza genérico. **Ese es el slot de
+identidad del Country Spec, ya resuelto.** La propuesta no es traer una arquitectura nueva: es
+**generalizar a los otros slots una forma que ya se ganó el lugar en uno.**
 
-El bug ya nos mordió: en el recaudo BHD los montos son **enteros con decimales implícitos**
-(`13045` = RD$ 130,45), mientras en Colombia se manejan pesos enteros sin decimales. Un `float` que cruza
-esa frontera pierde plata o la multiplica por cien. La regla es **importe + moneda juntos, siempre**, con
-unidades mínimas explícitas, y sin `float` en ningún lado.
+Y los demás slots también tienen su hueso puesto:
 
-### Idea 5 — Los parámetros regulatorios son datos CON FECHA, no constantes
+| slot del Mercado | qué ya existe | qué falta |
+|---|---|---|
+| **qué datos pedir** | `FormTypeService` por lender ✅ | que la resolución mire el mercado |
+| **buró / centrales** | `risk_centrals` como catálogo con credenciales ✅ | que el mercado diga cuál |
+| **título valor** | `promissory_types` + `PromissoryNoteSigningFactory` ✅ | que el mercado diga cuál |
+| **moneda y locale** | `countries.currency/locale` + `currency_format` ✅ | **una** fuente, no 4 copias |
+| **jerarquía de config** | `settings.country_id` ✅ | hoy 63 filas, **todas del país 1** — el eje existe y no se usa |
+| **geografía** | `country_cities.code` genérico ✅ | sacar `dane_code` del núcleo |
 
-La usura colombiana cambia todos los meses y el salario mínimo todos los años. Un parámetro así no puede
-ser una constante ni una fila que se sobreescribe: va con **vigencia desde/hasta**, porque para auditar
-un crédito de marzo hay que saber cuál era el tope **en marzo**. Es la misma disciplina que ya usamos
-para el contexto: describir lo que corría, no lo que corre.
+Seis slots, seis huesos ya puestos. **Ninguno pide reescribir: piden que la resolución mire una cosa en
+vez de estar copiada.**
 
-### Idea 6 — El segundo país sólo se sostiene si el CI lo corre
+### La jerarquía (lo único que me llevo de Uber)
 
-Sin esto, todo lo anterior se degrada en tres sprints. La defensa real es **una suite que corre el mismo
-flujo bajo dos mercados** y falla si el de RD se rompe. El `harness` ya sabe correr flujos completos:
-es el lugar natural, y probablemente el entregable de más valor por hora de todo el plan.
+```
+global  →  mercado (Colombia | RD)  →  submercado  →  comercio  →  lender
+```
+
+Se resuelve de abajo hacia arriba y **el primero que define, gana**. Eso da dos cosas gratis: una
+excepción de un comercio no obliga a crear un mercado, y **un mercado nuevo hereda todo** — se declara
+sólo lo que difiere. Es la diferencia entre dar de alta un país en una tarde y en un trimestre.
+
+### Por qué NO obliga a reescribir: el mercado por defecto es lo de hoy
+
+La migración es un [strangler](https://learn.microsoft.com/en-us/azure/architecture/patterns/strangler-fig)
+clásico, y la clave es una sola línea de diseño: **si no hay mercado resuelto, se usa Colombia.**
+
+- El primer deploy **no cambia nada**. Se agrega el punto de resolución y nadie lo consume todavía.
+- Cada sitio se convierte **de a uno**, y cada conversión es un PR chico, independiente y verificable
+  (misma respuesta antes y después para un comercio colombiano).
+- El progreso se **mide**: cuántos de los ~250 sitios ya no leen el hardcode. Empieza en 0 y sube.
+- Si se corta a la mitad, lo convertido **ya quedó mejor** y lo que falta sigue funcionando. No hay
+  estado intermedio roto — que es justo lo que hundió otros refactors de la casa.
 
 ## PLAN POR FASES
 
@@ -158,7 +174,8 @@ se puede verificar comparando respuestas antes/después.
 compartido: que sea **obligatorio**. Eso convierte ~40 hardcodes silenciosos en errores de compilación,
 que es exactamente lo que se quiere.
 
-**F3 · Extraer el primer paquete de país** por el eje que más duele en SmartPay, no por completitud.
+**F3 · El primer slot del Mercado**, por el que más duele en SmartPay, no por completitud. Candidato:
+moneda+locale, porque es el de más sitios y el de verificación más barata (la cifra en pantalla).
 
 **F4 · El CI con dos mercados** (podría adelantarse; es lo que protege F1-F3 de la erosión).
 
