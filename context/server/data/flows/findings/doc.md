@@ -2615,11 +2615,16 @@ concreto que lo desinfla: la uReq **464709 de staging** —la que falló firmand
 que originó todo este tramo— tiene **0 filas en las cuatro**. `deceval_logs` cubre 174 solicitudes en
 total, así que su cobertura es fina: sirve cuando está, y no está casi nunca.
 
-**Arreglo.** Ninguno aplicado, a propósito. Lo que corresponde es lo que dice la medición:
-`deceval_logs` es el único candidato limpio para sumar al trazador (100 % atado, y cubre justo el tramo
-del pagaré, que es el reporte de soporte más caro). `otp_logs` al 1 % no vale el join. Las otras dos NO
-se deben usar por `user_request_id` — devolverían vacío siempre y eso se leería como «no pasó», el
-mismo falso negativo de F-107.
+**Arreglo.** **`deceval_logs` YA SE SUMÓ al trazador** el 2026-08-07 (`GetDeceval`): la etapa
+`disbursement` muestra las cuatro operaciones SOAP con el `codigoError` y el `mensajeRespuesta` de
+Deceval. Era el único candidato limpio (100 % atado, y cubre el tramo del pagaré, el reporte de soporte
+más caro). `otp_logs` al 1 % no vale el join. Las otras dos NO se deben usar por `user_request_id` —
+devolverían vacío siempre y eso se leería como «no pasó», el mismo falso negativo de F-107.
+
+⚠ Y sumarla destapó **un falso negativo que ya estaba**: el bloque `centrales` de la etapa de desembolso
+listaba a Deceval y lo contaba con el tipo `catalogo`, que mira `risk_central_user_data` — tabla en la
+que Deceval **nunca escribe** (usa `risk_centrals` sólo para guardar credenciales). Un pagaré firmado sin
+un solo problema salía como «0 de 1 centrales consultadas». El bloque se eliminó.
 
 **Estado:** verificado el 2026-08-07 contra prod y staging. **No verificado**: las otras 10 tablas de
 log (`qr_logs`, `twilio_logs`, `creditop_x_log`…) — no se midió si atan a una solicitud ni qué cubren.

@@ -85,6 +85,12 @@ leerlo entero.
 - **Los sub-pasos declarados** — `mapa.go:646 SubMapa.Bloques(etapa)` y `mapa.go:550 HitoDef`. La regla
   del subconjunto (un hito sólo ve líneas que su etapa ya reclamó) la audita
   `mapa.go:656 SubMapa.ValidarSub`.
+- **El tramo del pagaré Deceval** — `fuentes.go` `GetDeceval` + `sqlDeceval`: las cuatro operaciones
+  SOAP con el `codigoError` y el `mensajeRespuesta` que devolvió Deceval. Se ancla por
+  `user_request_id` sin heurística (es de las pocas tablas de log que lo escriben). ⚠ Tres trampas
+  comentadas ahí: el XML vive **dentro de un JSON** y el cierre real es `<\/exitoso>` · `firmarPagares`
+  responde con otra forma, **sin `<exitoso>` ni `<codigoError>`** (el código va en el texto de
+  `<descripcion>`) · y el orden de los sub-pasos es de **flujo**, no de hora. Nodo `deceval`.
 - **Por qué el perfilamiento dijo que no** — `fuentes.go` `GetCategorias` + `sqlCategorias`, que leen
   `users_category_log` y devuelven, por entidad y por tier, qué criterio bloqueó y **dónde cortó** la
   evaluación. Es la fuente que hace verde (o roja, con motivo) la etapa `profiler`, que antes salía
@@ -121,9 +127,11 @@ leerlo entero.
   sea que **la pantalla se INFIERE del endpoint que el backend sirvió**, y una pantalla que no llama al
   backend es invisible. Eso no se arregla con el mapa: es la frontera de lo que la herramienta puede
   afirmar.
-- **`users_category_log` ya se lee** (desde el 2026-08-07) y era el hueco más caro: la etapa `profiler`
-  salía *siempre* «la BD no registra esta etapa», y sí la registra. Lo que sigue sin leerse son las
-  **14 tablas de log de auditoría**.
+- **Dos de las tablas de evidencia ya se leen** (desde el 2026-08-07): `users_category_log` —la etapa
+  `profiler` salía *siempre* «la BD no registra esta etapa», y sí la registra— y `deceval_logs`, que era
+  la única de las 14 de auditoría con atribución del 100 % (F-108). Las otras 13 siguen sin leerse, y
+  dos de ellas (`compare_face_logs`, `ocr_logs`) **declaran `user_request_id` y nunca lo escriben**:
+  usarlas devolvería vacío siempre.
 - **Hay evidencia en la BD que este trazador NO mira**: 14 tablas de log de auditoría. Medido: sólo
   `deceval_logs` ata al 100 % por `user_request_id` (1.404 filas / 174 solicitudes) y es candidata
   limpia para el tramo del pagaré; `otp_logs` sólo al 1 %; y `compare_face_logs` / `ocr_logs`
@@ -161,6 +169,11 @@ leerlo entero.
 
 ## Bitácora
 
+- **2026-08-07** — Se agregó `deceval_logs` (`GetDeceval`): la etapa `disbursement` muestra las cuatro
+  operaciones contra Deceval con su respuesta. Y se eliminó el bloque `centrales` de `desembolso` (mapa
+  3.0): su única entrada era Deceval, y el tipo `catalogo` cuenta filas de `risk_central_user_data` —
+  que Deceval **nunca** escribe, así que un pagaré firmado sin un problema salía «0 de 1 centrales
+  consultadas». Un falso negativo que el mapa mismo ya desmentía en una nota.
 - **2026-08-07** — La etapa `profiler` deja de ser gris: se agregó `users_category_log` como fuente
   (`GetCategorias`), que contesta «¿por qué a este cliente no le salió esta entidad?» por entidad y por
   tier. Cuatro trampas quedaron comentadas en el código y en **F-118**; el status de `cupo` pasó a ser un
