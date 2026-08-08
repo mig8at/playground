@@ -64,7 +64,8 @@ acá, saltá al `F-xx` y leé sólo eso.
 | **«¿esta herramienta es de verdad solo-lectura?»** | F-109 |
 | **«el crédito no cierra en local»** | F-07 · F-08 · F-09 · F-10 · F-11 · F-12 · F-13 · F-29 · F-30 · F-31 · F-36 |
 | **«falló la validación de identidad / se canceló solo»** | F-10 · F-55 · F-60 · F-62 · F-63 |
-| **«firma, pagaré, OTP de firma»** | F-02 · F-11 · F-12 · F-30 · F-32 · F-36 · F-37 · F-58 |
+| **«firma, pagaré, OTP de firma»** | F-02 · F-11 · F-12 · F-30 · F-32 · F-36 · F-37 · F-58 · **F-121** |
+| **«el pagaré dice una persona y la BD dice otra»** | **F-121** |
 | **«el webhook del lender no llegó (¿o sí?)»** | F-94 · F-100 · F-111 |
 | **«el agregador aprobó / el cliente firmó, y sigue en Seleccionó entidad»** | F-111 · F-94 |
 | **«el perfilador / el orden del listado / el cupo»** | F-04 · F-93 · F-104 |
@@ -3150,5 +3151,46 @@ documento extranjero, eso se expresa como un tier con `occupation`/`min_score` p
 
 **Estado:** verificado el 2026-08-07 contra `main`. **No verificado**: cuántas solicitudes de prod
 llevan la bandera, y si el lender 84 sigue activo.
+
+---
+
+### F-121 · El pagaré es un PDF congelado y el cliente es una referencia viva: pueden decir personas distintas, y nada lo detecta
+
+**Síntoma.** El pagaré firmado está a nombre de una persona y el dashboard y la BD muestran otra, para
+la misma solicitud. Pasó en producción en **diciembre de 2025** (post mortem cerrado el 2026-01-09).
+
+**Causa raíz** (verificada en el modelo y en el esquema de prod). `promissory_notes` **no guarda los datos
+del firmante**: guarda `promissory_note_url` —el PDF ya generado— más `user_id` y `user_request_id`
+(`legacy-backend/app/Models/PromissoryNote.php:14-24`). O sea:
+
+- el **PDF** es un snapshot congelado en el instante de la firma;
+- el **`user_id`** es un puntero vivo a `users`, cuyos datos de identidad **se pueden editar después**.
+
+Editar el nombre o el documento del usuario después de firmar deja el documento legal y el registro
+apuntando a personas distintas, **sin ningún error y sin ninguna alerta**. Y no es hipotético: el
+procedimiento manual que causó el incidente consistía literalmente en *«registrar un usuario con datos
+personales… modificar posteriormente los datos para asociarlos al usuario final»*.
+
+⚠ Lo que lo vuelve grave no es el desfase sino que **es indetectable después del hecho**: medido en prod
+el 2026-08-07, **no existe ninguna tabla de auditoría de `users`** (las únicas `*_history` del esquema son
+del ledger de CreditopX). No hay forma de preguntarle a la BD quién cambió qué ni cuándo. El incidente de
+diciembre se encontró **abriendo el PDF y comparando a ojo**.
+
+Dos causas contribuyentes que el propio post mortem nombra y que siguen vivas: el flujo **no valida** que
+el usuario ya tenga solicitudes previas antes de dejar continuar, y no hay procedimiento formal para
+registros manuales en producción.
+
+**Evidencia.** El modelo citado. El censo de tablas de prod (0 tablas de auditoría de `users`).
+Confluence · *Post Mortem: Inconsistencias en Registro Manual de Solicitud en Producción por Error
+Humano*, v3, estado **Cerrado** — cerrado el ticket, no el mecanismo.
+
+**Arreglo.** Ninguno aplicado. Lo mínimo que cierra el agujero de detección es barato: **congelar en
+`promissory_notes` el documento y el nombre del firmante** en el momento de generar el PDF. Con eso la
+discrepancia pasa de invisible a una comparación de dos columnas. La validación de «este usuario ya tiene
+solicitudes» es otro cambio, y más invasivo.
+
+**Estado:** verificado el 2026-08-07 contra `main` + prod. **No verificado**: si hoy existe algún camino
+en el backoffice que permita editar documento/nombre de un usuario con crédito desembolsado — el post
+mortem describe el procedimiento manual, no la superficie de UI que lo permite.
 
 ---

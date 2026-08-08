@@ -105,6 +105,12 @@ Las mismas etapas en Inertia (`application/routes/customer.php:78-96`): `/acepta
 - **Gemelo monolítico** (application): `app/Http/Controllers/Customer/ValidateOtpPromissoryNoteController.php:118-228`; rutas en `routes/customer.php:78-96`.
 
 ## Gotchas / riesgos
+- ⚠ **El pagaré y el cliente pueden decir personas distintas, y no hay cómo detectarlo.**
+  `promissory_notes` guarda el **PDF ya generado** (`promissory_note_url`) más un `user_id` que es un
+  puntero VIVO: editar la identidad del usuario después de firmar desincroniza el documento legal del
+  registro, sin error y sin alerta. Y no existe ninguna tabla de auditoría de `users` en prod (medido el
+  2026-08-07), así que la discrepancia sólo se encuentra abriendo el PDF y comparando a ojo — que es como
+  se encontró el incidente de diciembre de 2025. Ver **F-121**.
 - **El estado 30 «Autorizado pendiente desembolso» es un WAYPOINT, no un desenlace.** Lo escribe
   `legacy-backend/Modules/Loans/App/Services/LoanAuthorizationService.php:434 transitionToIntermediate`
   —«Transition to intermediate status after OTP verification. Applies to all flows (IMEI and

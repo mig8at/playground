@@ -27,6 +27,35 @@ mergear es peor que un nodo faltante: se lee como verdad.
   de tener sentido, es tarea. (Ya pasó dos veces en un mismo día: se coló un plan completo y una sección
   de "restricciones del diseño pendiente".)
 
+## Confluence: hay oro, y hay specs disfrazadas de descripciones
+
+`python3 tools/confluence.py espacios | paginas <ESP> | leer <id> | buscar <texto>` (solo lectura;
+credenciales en `.env`, gitignoreado). Ahí vive lo que el código **no** puede decir: por qué una regla
+existe, qué se le ofrece al comercio cuando pide una configuración, qué significa un booleano. El
+espacio `Creditop` tiene ~200 páginas y hay uno por integración (Bancolombia, Credifamilia, Deceval,
+Corbeta, DCE/Experian…).
+
+**Nada de ahí entra al árbol sin pasar por el código.** Toda afirmación se clasifica:
+
+- **confirmada** — el código coincide. Entra, y lo que aporta es el **porqué**, no el qué. El mejor caso
+  real: `debt_capacity_amount_validation` es un booleano cuyo nombre sugiere lo contrario de lo que hace,
+  y el documento lo explica porque es **una pregunta que se le hace al comercio** («¿la capacidad de
+  endeudamiento se usa para bajar de categoría o para ajustar el monto?»).
+- **contradicha** — difieren. Son las más valiosas y hay que decir **las dos cosas**: `loan_limit` es
+  «el monto a colocar mensualmente» y está implementado como un acumulado que nada reinicia (F-119).
+- **no verificable** — política pura, sin huella en el código. Se marca como tal o no se escribe.
+
+⚠ **El error que hay que evitar: el espacio mezcla RUNBOOKS y PRDs, y se leen igual.** *Preguntas
+frecuentes* describe lo que corre (nombres de tabla, pasos operativos, «revisar la columna X»); *Modelo
+de Cobro de Gastos en Cartera en Mora* tiene tablas, cifras y detalle de modelo de datos… de una feature
+que **no existe**: `grep gasto_cobranza` en los tres repos da cero. Copiarla habría metido en `servicing`
+un producto imaginario. Las señas de un PRD son «objetivos», «fuera de alcance», «historias de usuario»,
+«debe modelarse», proyecciones de revenue — pero **la que decide es el grep**, no el título.
+
+⚠ **Un documento viejo es indistinguible de uno equivocado.** Cuando el código y el documento difieren,
+`git log` del archivo suele decir cuál cambió; si no lo dice, la contradicción se escribe como
+contradicción y no se elige ganador.
+
 ## El MCP está retirado — no lo reconstruyas
 
 El server Go, el WebSocket, el conector stdio y el sistema de "derivar" se borraron a propósito
