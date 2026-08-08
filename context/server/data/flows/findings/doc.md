@@ -3365,8 +3365,38 @@ colombiano veía el prefijo dominicano preseleccionado. **No** se escribió la n
 y es deliberado: cambiar lo que se guarda con un lookup de comparación exacta es la forma de crear los
 duplicados que hoy no existen.
 
-**Estado:** verificado el 2026-08-08 contra prod. **No verificado**: si los ~6 malformados rompen algo
-aguas abajo (el envío del mensaje, la firma), ni de dónde salen los dígitos de más.
+**Cierre: los ~6 malformados TAMBIÉN eran de prueba.** El filtro «documento con letras» no los agarró
+porque el padding fue **con dígitos**, y ahí está la firma: el mismo relleno aparece en los DOS campos a
+la vez — documento `1558190300000` con teléfono `+16892539592999`, documento `15581903090909` con teléfono
+`+168925395920909`, documento `123456555550`. Es la misma técnica de los sufijos `-t`/`-o`/`TEMP-`, con
+dígitos en vez de letras: pegar relleno para que el usuario nuevo no choque con uno existente.
+
+Y el corte por comercio lo confirma sin ambigüedad (prod, 2026-08-08):
+
+| comercio | clientes | tel. malformado | doc. sospechoso |
+|---|---:|---:|---:|
+| **Carrefour** | 27 | **15** | 23 |
+| **Comercio Prueba** | 11 | 3 | 9 |
+| MAGGYSA | 31 | 1 | 16 |
+| La Gracia Smartphone | 14 | **0** | 2 |
+| Hot Tec | 10 | **0** | 4 |
+| Gold Clave · 2blea · Multiservicios La Fe | 7 | **0** | 0 |
+
+**Los cinco comercios de operación real tienen CERO teléfonos malformados entre 31 clientes.** Las 19
+anomalías viven en Carrefour y «Comercio Prueba», que son el par de certificación del lanzamiento en
+República Dominicana.
+
+**Conclusión final: no hay ningún problema con el dato del teléfono de clientes reales.** El hilo entero
+—«acumula prefijos», «hay que normalizar», «se duplican los usuarios»— era ruido de pruebas en
+producción. El único cambio que sobrevive es el default de `PhoneForm`, que se justifica solo.
+
+**Estado:** verificado el 2026-08-08 contra prod, con el corte por comercio.
+
+⚠ **Y la tercera lección, la más incómoda: el documento de la tarea YA LO ADVERTÍA.** En su sección de
+limpieza dice «2 comercios de prueba activos en producción, dentro del grupo dominicano — inflan
+cualquier conteo por país». Estaba escrito y no se aplicó al medir. Antes de un censo sobre datos de
+producción, **leer lo que ya se sabe de la contaminación de esos datos** — el corte que faltaba estaba
+documentado, no había que descubrirlo.
 
 ⚠ **La lección, y es de método.** Un agregado (`COUNT` por largo) puede sostener una hipótesis falsa con
 mucha convicción. Lo que la desarmó fueron dos cortes que había que *pensar*: **sacar los sintéticos** y
