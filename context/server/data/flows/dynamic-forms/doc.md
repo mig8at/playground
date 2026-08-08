@@ -124,7 +124,10 @@ Censo verificado de los `field_id` hardcodeados:
 
 Los **87 y 90 son los únicos numéricos**: el modelo los coacciona a entero redondeando **hacia arriba** (`ceil`) antes de guardar.
 
-El mapa del form RD (162-172) es un `const` en el servicio: `cityOfResidence` 162, `averageMonthlyIncome` 163, `primaryOccupationType` 164, `associateNumberScreenshot` 165, `incomeType` 166, `employmentOrBusinessTenure` 167, `incomeChannels` 168, `activeCredits` 169, `hasActiveCreditCard` 170, `approximateMonthlySpend` 171, `hasPaymentDelaysOver30Days` 172. Además de guardar el **texto** del rango, el servicio deriva un **número** hacia 87 y 90 parseando la etiqueta: toma la última cifra del rango; si dice "menos de/hasta/under" usa `techo − 5000`; si dice "más de/o más/above" cae a un fallback fijo (**65000** para ingreso, **55000** para egreso).
+El mapa exacto del form RD (162-172) es un `const` en `DynamicFormsService` — abrilo, no lo copies. Lo
+que NO se ve ahí: además de guardar el **texto** del rango, el servicio deriva un **número** hacia 87 y
+90 parseando la etiqueta — toma la última cifra del rango; «menos de/hasta/under» usa `techo − 5000`;
+«más de/o más/above» cae a un fallback fijo (**65000** ingreso, **55000** egreso).
 
 Y de ahí sale a decisión: el motor de categorías lee el 87 como salario (después de Ágil Data y Mareigua), el 29 como ocupación contra `rule->occupation` (también pipe-separada), y `lender_user_fields_scoring_policy` (`lender_id`, `field_id`, `value`, `score`) suma puntaje por coincidencia exacta de valor. El detalle de esas reglas es del contexto de perfilamiento; acá basta con saber que **lo que el formulario escribe, la decisión lo lee**.
 

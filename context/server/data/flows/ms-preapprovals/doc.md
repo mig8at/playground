@@ -67,9 +67,10 @@ Todos viven en `internal/infra/lending_products/<lender>/` con la tripleta `clie
 
 ## Taxonomía de errores (`domain/lender_error.go`)
 `LenderError{Lender, Stage, Code, Message, StatusCode, Body (sin truncar, por auditoría), Cause, Retryable}` — forma única que todo lender devuelve al workflow, pensada para dashboards Grafana (los códigos son **estables a propósito**).
-- **Stages**: `credentials`, `auth`, `api_call`, `adapt`.
-- **Codes (~20)**: `missing_credentials`, `credentials_lookup_failed`, `invalid_input`, `auth_unauthorized`, `auth_http_error`, `auth_transport_error`, `auth_decode_error`, `auth_empty_token`, `upstream_4xx`, `upstream_5xx`, `upstream_unexpected_status`, `upstream_logical_failure`, `transport_error`, `read_body_failed`, `decode_response_failed`, `missing_transaction_id`, `adapt_failed`, `branch_lookup_failed`, `build_client_failed`, `unknown`.
-- **Retryable=true** en transport y `upstream_5xx` (los `error_adapter.go` de welli/meddipay lo marcan; ej. `apiHTTP`: `>=500`→5xx retryable, `>=400`→4xx no-retryable). El `failStage` emite estos como atributos de span + log estructurado; **el `Retryable` NO se auto-reintenta en el MS** (el reintento lo hace el front vía `preapproval-retry.tsx`).
+- **Stages**: `credentials`, `auth`, `api_call`, `adapt`. Los códigos (estables a propósito, para
+  dashboards) viven en el propio `domain/lender_error.go` — abrilo para la lista.
+- **Retryable=true** solo en transport y `upstream_5xx` — y **el MS NO auto-reintenta**: el reintento lo
+  hace el front (`preapproval-retry.tsx`). `failStage` emite código+stage como atributos de span.
 
 ## Use case / cache / notify (`usecases/preapproval/check_preapproval.go`)
 `Execute(:56)`: coerción amount/branch → **cache lookup** `FindLatestPreApproval` → `ShouldCheckAgain` (`preapproval.go:42`) → si sirve, devuelve cacheado + registra attempt; si no, `GetApplicant` (legacy, trae `ExperianProfile` con score/estimated_income/bucket_mora/edad/sectores) → **override Welli 141/142→'23'** (`:122`; **166 NO se colapsa**) → workflow → `Save` (nueva fila, preserva historial) o `Replace` (si el previo era `pending`: mantiene ID/CreatedAt para no romper el polling) → `registerAttempt` (si hay `user_request_id`) → `notifyLenderResult`.
