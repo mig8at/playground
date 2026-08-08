@@ -25,6 +25,7 @@ Si la tarea llega con una de estas frases, empezá por esos nodos. Si ninguna ma
 | «el código de compra en caja no sirve» | `corbeta` |
 | «el endpoint devuelve un código raro» (ONB0xx) | `legacy-backend` |
 | «el listado tardó minutos» | `profiling` |
+| «el monolito no tiene este endpoint» | `microservicios` |
 | «el número no cuadra y no encuentro dónde se calcula» | `db-routines` |
 | «el pagaré dice una persona y la BD dice otra» | `formalization` |
 | «el reporte que descargó trae de más» | `application` |
@@ -32,6 +33,7 @@ Si la tarea llega con una de estas frases, empezá por esos nodos. Si ninguna ma
 | «el webhook del lender no llegó» | `aggregator` |
 | «eligió la entidad y no pasó nada» | `aggregator` |
 | «en este comercio se salta pasos» | `merchants` |
+| «¿en qué repo vive esto?» | `microservicios` |
 | «¿en qué repo vive esto?» / «está duplicado» | `architecture` |
 | «entró desde la tienda online y se rompió» | `ecommerce` |
 | «esto anda en local y no en dev/qa» | `findings` · `trazador` |
@@ -65,6 +67,7 @@ Si la tarea llega con una de estas frases, empezá por esos nodos. Si ninguna ma
 | «¿por qué le salió ESE cupo / esa categoría?» | `profiling` |
 | «¿por qué no le sale esta entidad?» | `creditopx` · `hardcodes-entidades` · `merchants` · `ms-preapprovals` |
 | «quedó aprobada y no se desembolsó» | `formalization` |
+| «¿qué es este service_name de los logs?» | `microservicios` |
 | «¿qué integra de verdad esta entidad?» | `entities` |
 | «¿qué le pasó a ESTA solicitud?» | `trazador` |
 | «sale pre-aprobado y no debería» (o al revés) | `ms-preapprovals` |
@@ -80,6 +83,7 @@ Si la tarea llega con una de estas frases, empezá por esos nodos. Si ninguna ma
     - frontend-monorepo [ref]
     - harness [ref]
     - legacy-backend [ref]
+    - microservicios [ref]
     - ms-preapprovals [ref]
     - trazador [ref]
   - backoffice [ref]
@@ -165,7 +169,7 @@ Doc: `server/data/flows/db-routines/doc.md` · Archivos: `server/data/flows/db-r
 **Cuándo:** Cuando el problema es la FIRMA DEL PAGARÉ contra Deceval —el depósito de la BVC que custodia los títulos valores digitales—: «el cliente no puede firmar», «los datos no coinciden con el registro», «el pagaré quedó sin número», «se firmó pero no se desembolsó». Acá viven el ruteo por método de firma (`lenders.promissory_type_id` → `deceval` | `ownership`), las cuatro operaciones SOAP (createGirador → createPagare → consultPagare → signPagare), WS-Security con mTLS, las credenciales POR DEPOSITANTE (cada lender tiene su propio código ante Deceval, y cada depositante exige campos distintos del girador), y las dos tablas que reconstruyen un caso: `deceval_logs` (el XML enviado y recibido) y `promissory_notes`. Hoy en producción con Credifamilia y Dentix. NO es el OTP en sí (eso es `formalization`) ni el pagaré tradicional sin Deceval.
 Doc: `server/data/flows/deceval/doc.md` · Archivos: `server/data/flows/deceval/map.json` · Padre: `formalization`
 
-### dynamic-forms — Dynamic Forms  ·  _reference_ · 90 archivos
+### dynamic-forms — Dynamic Forms  ·  _reference_ · 84 archivos
 **Cuándo:** Cuando hay que agregar o cambiar un CAMPO del formulario por configuración: las tres generaciones de formulario dinámico, EAV `user_field_values`, tipos de documento por sucursal, `form_type` por lender (Credifamilia es el 6). Síntomas típicos: «formulario no encontrado», el form dinámico carga pero no deja avanzar, o hay que sumar un campo en cascada (departamento→ciudad) sin escribir código. La ruta del wizard es `additional-info`.
 Doc: `server/data/flows/dynamic-forms/doc.md` · Archivos: `server/data/flows/dynamic-forms/map.json` · Padre: `formalization`
 
@@ -189,7 +193,7 @@ Doc: `server/data/flows/form-service/doc.md` · Archivos: `server/data/flows/for
 **Cuándo:** Cuando el problema está DESPUÉS de elegir entidad: plan de pagos, fecha de primer pago, documentos, pagaré, firma con OTP, autorización hasta el Estado 11 y desembolso. Las pantallas del wizard de este tramo son `confirmation`, `payment-schedule`, `first-payment-date`, `payment-reminder`, `additional-info`, `sign-documents`, `otp-validation` y `loan-approved`. Acá caen «falló firmando documentos», «no le llegó el OTP de la firma», «quedó en Pendiente de autorización (estado 10)», «Aprobada no desembolsada (estado 20)», Deceval (pagaré SOAP) y Netco (firma).
 Doc: `server/data/flows/formalization/doc.md` · Archivos: `server/data/flows/formalization/map.json` · Padre: `creditop`
 
-### frontend-monorepo — frontend-monorepo  ·  _reference_ · 86 archivos
+### frontend-monorepo — frontend-monorepo  ·  _reference_ · 84 archivos
 **Cuándo:** Cuando trabajás en el wizard React (`loan-request-wizard`): pantallas y rutas (`app/routes.ts` declara 134 rutas; el registro canónico es `ROUTE_PATHS` en `route-helpers.ts`), SSR, repositories, paquetes `@creditop`, `data-testid` para pruebas e2e, o a qué backend le pega cada pantalla (`VITE_API_URL`). ⚠ El wizard NO manda logs a Loki: sus logs de ruta salen por OTLP hacia PostHog, así que una pantalla que no llama al backend es invisible para el trazador.
 Doc: `server/data/flows/frontend-monorepo/doc.md` · Archivos: `server/data/flows/frontend-monorepo/map.json` · Padre: `architecture`
 
@@ -212,6 +216,10 @@ Doc: `server/data/flows/legacy-backend/doc.md` · Archivos: `server/data/flows/l
 ### merchants — Merchants  ·  _reference_ · 51 archivos
 **Cuándo:** Cuando el problema es 'a este comercio le pasa distinto': configuración por entidad/comercio/sucursal, copia de reglas por sucursal, hash de entrada, credenciales de ecommerce, toggles del comercio. También cuando el comercio cambia la FORMA del flujo y no sólo sus reglas — el caso medido es el setting `corbeta_allieds` (Alkosto 209, K-TRONIX 210, Alkomprar 211, Kalley 311, Creditop 24), que salta el formulario y fabrica la info laboral, y por eso ese comercio no consulta buró.
 Doc: `server/data/flows/merchants/doc.md` · Archivos: `server/data/flows/merchants/map.json` · Padre: `creditop`
+
+### microservicios — Microservicios (qué corre además del monolito)  ·  _reference_ · 13 archivos
+**Cuándo:** Cuando la tarea toca algo que NO está en `legacy-backend` ni en `legacy-application` y no se sabe dónde vive: «¿quién sirve este endpoint?», «¿qué es este `service_name` que aparece en los logs?», «¿hay un servicio nuevo que hace esto?», «el monolito no tiene este código, ¿dónde está?». Acá está el CENSO de los 14 servicios que emiten logs en producción —medido en Loki, no supuesto—, cuáles están clonados, cuáles indexa el árbol y cuánto pesa cada uno. También la receta para volver a medirlo. Es el nodo que contesta la pregunta previa a cualquier otra: en qué repositorio buscar. Y el que avisa que la app MÓVIL (`financial-health-service`, `MOBA*`) es un producto entero fuera del alcance de este árbol.
+Doc: `server/data/flows/microservicios/doc.md` · Archivos: `server/data/flows/microservicios/map.json` · Padre: `architecture`
 
 ### motai — Motai  ·  _reference_ · 48 archivos
 **Cuándo:** ⏳ OJO: este nodo describe la v2, que vive en `qa` y NO en `main` (ver la marca PENDIENTE DE MERGE en el doc.md). Cuando la tarea es del comercio Motai (allied 158): sus productos renting / rent-to-own / compra (`lenders.product`), Ábaco (validación de ingresos de apps gig) y cómo se prende por lender en `lender_requirements`, el flujo self-service dirigido por `next_step`, o la calculadora del renting (precio vs interés, y por qué toca el techo de usura). OJO si buscás `modos`, `isMotaiRenting`, `merchant_mode` o `partner_modes`: se borraron en la des-motaización (v2) — acá está el modelo nuevo.

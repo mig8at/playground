@@ -34,6 +34,16 @@ def main() -> int:
     destino = payload.get("tool_input", {}).get("file_path") or ""
     ruta = pathlib.Path(destino)
 
+    # tree.json es el wiring del árbol: registrar un nodo ahí sin regenerar el mapa lo deja
+    # INVISIBLE para el ruteo y nada lo avisa — así quedó `microservicios` fuera del ROUTE-MAP.
+    # No corre el oráculo (tree.json no tiene `files[]`); solo rehace el mapa.
+    if ruta.name == "tree.json" and (ruta.parent / "tools" / "build-route-map.py").exists():
+        subprocess.run(
+            [sys.executable, str(ruta.parent / "tools" / "build-route-map.py")],
+            capture_output=True, text=True, timeout=120,
+        )
+        return 0
+
     # El filtro va acá y no en el `matcher` del settings para que el hook sea autocontenido:
     # cualquier archivo que no sea un map.json del árbol sale en microsegundos.
     if ruta.name != "map.json" or "server/data/flows" not in ruta.as_posix():
