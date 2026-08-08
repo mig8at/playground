@@ -1,5 +1,5 @@
 {
-  "version": "2.9",
+  "version": "3.0",
   "nota": "El ÁRBOL DECLARADO: qué sub-pasos tiene cada etapa, para poder dibujar la vista completa ANTES de tener un solo dato y después ir encendiendo lo que la corrida confirma. || LA FRONTERA, que es la decisión de diseño de este archivo: se declara lo que tiene universo CERRADO y estable (los hitos del flujo, las cuatro familias de entidades) y NO se declara lo que es DATO variable (los lenders concretos: son 156 y su response_type cambia por ambiente — medido: Sistecrédito es rt=1 en local y rt=0 en prod, o sea que la misma entidad cae en familias distintas. Declararlos haría que este JSON mintiera en algún ambiente). || LOS HITOS NO SE INVENTARON: salen de los matchers ya medidos en etapas.json, y los de `buro` los nombra el propio backend con sus STAGE 0..4. Cuando el código ya tiene un vocabulario, usar otro es agregar una capa de traducción que nadie pidió. || REGLA: el matcher de un hito tiene que ser un SUBCONJUNTO de los de su etapa. Si un hito captura una línea que su etapa no reclama, el árbol muestra un sub-paso que no cuelga de nada. || `soloEnCodigo: true` marca un hito cuyo mensaje EXISTE en el código pero no apareció en el corpus medido. Es distinto de un patrón MAL escrito, y confundirlos es cómo un validador se vuelve ruidoso y se ignora: `-validar` los reporta aparte, como aviso y no como problema. || v1.2: los HITOS son ahora la unidad de agrupación de la vista — el ensamblado reparte las líneas entre hitos declarados y lo que ningún hito reclama queda plegado como «eventos sin nombre de negocio», que es el backlog honesto de hitos por declarar. Los matchers de registro/formulario se ampliaron para cubrir los mensajes frecuentes del censo.",
   "etapas": {
     "origen": {
@@ -855,22 +855,9 @@
               "porque": "Cada movimiento que CreditopX registra para esta solicitud."
             }
           ]
-        },
-        {
-          "id": "centrales",
-          "label": "Centrales de este tramo",
-          "tipo": "catalogo",
-          "nota": "`Deceval` está en `risk_centrals` pero no es una consulta de riesgo: es el PAGARÉ (Modules/Loans/App/Services/PromissoryNote/DecevalPromissoryNoteService.php).",
-          "conocidos": [
-            {
-              "id": 7,
-              "label": "Deceval",
-              "porque": "Modules/Loans/App/Services/PromissoryNote/DecevalPromissoryNoteService.php → es el PAGARÉ, no una consulta de riesgo. Ya estaba dicho en ramales.json (creditopx/credifamilia · desembolso)"
-            }
-          ]
         }
       ],
-      "nota": "Los bloques de este tramo llevan el nombre de la PANTALLA del wizard que los produce (`frontend-monorepo/apps/loan-request-wizard/app/routes.ts`), no el del backend. Razón: el reporte de soporte llega en ese idioma —«falló en firma de documentos»— y hasta que esto se reorganizó, esa frase aterrizaba en un paso llamado «Desembolso».\n\n⚠ La pantalla se INFIERE del endpoint que el backend sirvió; nunca se observa. El wizard no manda nada a Loki: sus logs de ruta (`withRouteLogging`) salen por OTLP hacia **PostHog**. Verificado el 2026-08-07 buscando en Loki los `service_name` que matchean wizard/front/loan-request/remix/react: cero líneas. Por eso una pantalla sin llamada al backend (p. ej. `identity-validation-instructions`) es invisible acá."
+      "nota": "Los bloques de este tramo llevan el nombre de la PANTALLA del wizard que los produce (`frontend-monorepo/apps/loan-request-wizard/app/routes.ts`), no el del backend. Razón: el reporte de soporte llega en ese idioma —«falló en firma de documentos»— y hasta que esto se reorganizó, esa frase aterrizaba en un paso llamado «Desembolso».\n\n⚠ La pantalla se INFIERE del endpoint que el backend sirvió; nunca se observa. El wizard no manda nada a Loki: sus logs de ruta (`withRouteLogging`) salen por OTLP hacia **PostHog**. Verificado el 2026-08-07 buscando en Loki los `service_name` que matchean wizard/front/loan-request/remix/react: cero líneas. Por eso una pantalla sin llamada al backend (p. ej. `identity-validation-instructions`) es invisible acá. || El bloque `centrales` se ELIMINÓ el 2026-08-07. Tenía una sola entrada, Deceval, y el propio mapa ya declaraba que «no es una consulta de riesgo: es el PAGARÉ». El problema era el tipo `catalogo`, que cuenta filas de `risk_central_user_data` — y Deceval NUNCA escribe ahí, así que un pagaré firmado sin un solo problema salía como «0 de 1 centrales consultadas». Su evidencia real es `deceval_logs`, que ata por `user_request_id` y ahora se renderiza como el bloque «Pagaré digital (Deceval)». Deceval usa `risk_centrals` sólo para guardar sus CREDENCIALES (risk_central_id 7), no para registrar consultas."
     },
     "respuesta-lender": {
       "bloques": [

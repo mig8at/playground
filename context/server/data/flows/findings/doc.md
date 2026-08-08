@@ -81,7 +81,8 @@ acá, saltá al `F-xx` y leé sólo eso.
 | **Rotativo (rt=3) y servicing** | F-38 · F-39 · F-114 · F-115 · F-116 · F-117 |
 | **«el rotativo le dio cupo 0 y no sé por qué»** | F-115 · F-117 |
 | **«lo que vio en pantalla no es lo que quedó guardado»** | F-114 |
-| **«el mismo cálculo está hecho dos veces y no coinciden»** | F-71 · F-114 |
+| **«el mismo cálculo está hecho dos veces y no coinciden»** | F-71 · F-114 · **F-122** |
+| **«el pagaré no se firma / Deceval lo rechaza»** | **F-122** · F-121 |
 | **Tasas, fianza y cálculo** | F-71 · F-72 |
 | **«el harness hace algo raro» (la herramienta, no el producto)** | F-14 · F-15 · F-16 · F-17 · F-33 · F-52 · F-53 · F-57 · F-59 · F-64 · F-66 · F-67 · F-87 · F-90 |
 
@@ -3192,5 +3193,57 @@ solicitudes» es otro cambio, y más invasivo.
 **Estado:** verificado el 2026-08-07 contra `main` + prod. **No verificado**: si hoy existe algún camino
 en el backoffice que permita editar documento/nombre de un usuario con crédito desembolsado — el post
 mortem describe el procedimiento manual, no la superficie de UI que lo permite.
+
+---
+
+### F-122 · El mismo guard de Deceval usa `||` en un repo y `&&` en el otro: en `legacy-application` NUNCA detecta un rechazo
+
+**Síntoma.** El cliente firma —o cree que firma— y el proceso revienta más adelante con un error que no
+se parece a la causa: un null pointer, o un pagaré creado con «cuenta de girador 0» que Deceval rechaza
+después. El rechazo real ocurrió varios pasos antes y nadie lo vio.
+
+**Causa raíz** (verificada leyendo las dos versiones el 2026-08-07). Después de `createGirador` hay que
+comprobar si Deceval respondió `exitoso=true`. Los dos repos escriben el mismo chequeo con distinto
+operador:
+
+```php
+// legacy-backend · Modules/Loans/App/Actions/DecevalSoap.php:352 — CORRECTO
+if ($successfulResponses->count() === 0 || $successfulResponses->item(0)->textContent !== 'true') {
+
+// legacy-application · app/Actions/DecevalSoap.php:294 — IMPOSIBLE
+if ($successfulResponses->count() === 0 && $successfulResponses->item(0)->textContent !== 'true') {
+```
+
+Con `&&` el guard **no puede detectar un rechazo**: si hay respuesta (`count() > 0`), la primera
+condición ya es falsa y el `&&` corta — el `exitoso=false` nunca se mira. La única rama que dispara es
+`count() === 0`, y ahí `item(0)` es `null`, o sea que el chequeo que sí corre es el que además accede a
+una propiedad de null. **La condición está escrita al revés de lo que necesita.**
+
+⚠ El caso concreto que lo destapa es el conflicto de identidad `SDL.DA.0439`: Deceval responde
+`exitoso=false` con `cuentaGirador = 0`, el guard lo deja pasar, y el flujo sigue hasta crear el pagaré
+con cuenta 0 — que falla con `SDL.DA.0388`, un error que no menciona la identidad por ningún lado.
+
+Y **no es un solo lugar**: el mismo patrón aparece en `application/app/Actions/DecevalSoap.php:294` (el
+girador) y `:408` (el pagaré).
+
+**Evidencia.** Las dos versiones en `main` de cada repo. El camino de `legacy-application` **está vivo**:
+`routes/customer.php:79-84` sirve la vista previa y la firma, y `PromissoryNoteController` /
+`ValidateOtpPromissoryNoteController` instancian la factory. La documentación de negocio lo describe como
+historia («el guard del monolito era `count()===0 && !==true` — nunca validó `exitoso`»), pero está en
+presente en el código.
+
+**Arreglo.** No aplicado — es un repo real. Es cambiar `&&` por `||` en dos lugares. ⚠ Y el arreglo
+**hace aparecer errores que hoy no se ven**: casos que llegaban lejos y morían confusamente van a fallar
+temprano y claro, que es lo que se quiere, pero cambia lo que ve soporte.
+
+**Estado:** verificado el 2026-08-07 contra `main` de los dos repos. **No verificado**: qué proporción
+del tráfico de pagarés Deceval sirve hoy `legacy-application` contra `legacy-backend` — de eso depende
+si es una falla latente o activa.
+
+⚠ **La lección general, que vale más que el bug**: durante una migración strangler, el código migrado y
+el original **divergen en silencio**. Acá el arreglo se hizo del lado nuevo y el viejo —que sigue
+sirviendo tráfico— quedó con el defecto. Al leer un comportamiento en el repo migrado, **no asumir que el
+otro hace lo mismo**: es el mismo patrón que las dos implementaciones del rotativo (F-114) y las dos
+convenciones de tasa (F-71).
 
 ---

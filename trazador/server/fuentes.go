@@ -322,6 +322,110 @@ const sqlBuro = `
 
 const sqlCentrales = `SELECT id, COALESCE(name,'') AS name FROM risk_centrals ORDER BY id`
 
+// ─── deceval_logs: el tramo del pagaré digital ─────────────────────────────────────────────────────
+//
+// De las 14 tablas de log de auditoría del esquema, ésta es **la única que ata al 100 % por
+// `user_request_id`** (F-108: 1.404 filas / 174 solicitudes; medido de nuevo el 2026-08-07: 174
+// solicitudes con girador, 157 que llegaron a firmar). No hay que inferir nada por fecha: la fila dice
+// de qué solicitud es.
+//
+// ⚠ **Es best-effort.** Se escribe dentro de un try/catch que nunca rompe la firma, así que **una fila
+// que falta NO prueba que la operación no corrió** — la regla de oro de este trazador, acá literal. Por
+// eso el veredicto del tramo se cruza con `promissory_notes` y no se decide solo con estas filas.
+//
+// ⚠ **El detalle accionable está en `mensajeRespuesta`, no en `descripcion`**, que es genérica. Es lo
+// primero que dice la receta de debugging del runbook y lo primero que se pierde si uno lee el XML por
+// arriba.
+const sqlDeceval = `
+	SELECT id, COALESCE(name,'') AS name, COALESCE(method,'') AS method,
+	       COALESCE(response,'') AS response, created_at
+	  FROM deceval_logs
+	 WHERE user_request_id = ?
+	 ORDER BY id`
+
+// OpDeceval es UNA operación contra Deceval, ya interpretada.
+type OpDeceval struct {
+	Metodo string // createGirador · createPagare · consultPagare · signPagare · createPromisoryNote
+	Nombre string // la etapa legible que escribió el backend
+	At     time.Time
+	// Exitoso: lo que dice el `<exitoso>` de la respuesta. Es un puntero porque «no vino» y «vino false»
+	// son cosas distintas: la primera puede ser una operación sin ese campo (el wrapper), la segunda es
+	// un rechazo. Colapsarlas convertiría un `sin dato` en un `falló`.
+	Exitoso *bool
+	Codigo  string // codigoError (SDL.*)
+	Mensaje string // mensajeRespuesta: el accionable
+}
+
+var (
+	reDecevalExitoso = regexp.MustCompile(`(?i)<(?:\w+:)?exitoso>\s*(true|false)\s*</`)
+	reDecevalCodigo  = regexp.MustCompile(`(?i)<(?:\w+:)?codigoError>\s*([^<]{1,60})\s*</`)
+	reDecevalMensaje = regexp.MustCompile(`(?i)<(?:\w+:)?mensajeRespuesta>\s*([^<]{1,400})\s*</`)
+	reDecevalDescrip = regexp.MustCompile(`(?i)<(?:\w+:)?descripcion>\s*([^<]{1,400})\s*</`)
+	// El código SDL suelto, para las respuestas que no traen `<codigoError>` (ver abajo).
+	reDecevalSDL = regexp.MustCompile(`SDL\.[A-Z]{2}\.\d{4}`)
+)
+
+// codigoDecevalOK es el «todo salió bien» del protocolo. Deceval no usa un booleano en todas las
+// respuestas, así que en varias operaciones ESTE es el único veredicto disponible.
+const codigoDecevalOK = "SDL.SE.0000"
+
+// GetDeceval trae las operaciones contra Deceval de esta solicitud. Ante cualquier error devuelve vacío:
+// no saber no es saber que no.
+func GetDeceval(r Runner, ureq int64) []OpDeceval {
+	fs, err := r.Filas(sqlDeceval, ureq)
+	if err != nil {
+		return nil
+	}
+	out := make([]OpDeceval, 0, len(fs))
+	for _, f := range fs {
+		o := OpDeceval{
+			Metodo: texto(f["method"]), Nombre: texto(f["name"]),
+			At: fecha(f["created_at"], r.Zona()),
+		}
+		// El XML viene dentro de un JSON (`{"soap_response_xml": "..."}`) y con las barras escapadas. No
+		// se parsea como XML a propósito: el envelope trae firma, timestamps y namespaces que no
+		// interesan, y un parser estricto se rompe con respuestas parciales — que son justo las de los
+		// casos que se están depurando.
+		// ⚠ El XML viene DENTRO de un JSON, así que las barras están escapadas: el cierre real es
+		// `<\/exitoso>`, no `</exitoso>`. Un regex que espere `</` no matchea NUNCA y el resultado se lee
+		// como «la respuesta no trae exitoso» — o sea, un dato que sí está se reporta como ausente. Costó
+		// una corrida en la uReq 522008 de prod, que había firmado perfecto.
+		xml := strings.ReplaceAll(texto(f["response"]), `\/`, "/")
+		if m := reDecevalExitoso.FindStringSubmatch(xml); m != nil {
+			v := strings.EqualFold(m[1], "true")
+			o.Exitoso = &v
+		}
+		if m := reDecevalCodigo.FindStringSubmatch(xml); m != nil {
+			o.Codigo = strings.TrimSpace(m[1])
+		}
+		if m := reDecevalMensaje.FindStringSubmatch(xml); m != nil {
+			o.Mensaje = strings.TrimSpace(m[1])
+		}
+		// ⚠ `firmarPagares` responde con OTRA FORMA: `RespuestaFirmarPagaresDTO` **no trae `<exitoso>` ni
+		// `<codigoError>`** — el código va embebido en el texto de `<descripcion>`
+		// («SDL.SE.0000: Exitoso.»). O sea que la regla del runbook —«el detalle está en
+		// `mensajeRespuesta`, la `descripcion` es genérica»— **no vale para la firma**: ahí la descripción
+		// es lo único que hay. Sin este caso, la operación más importante del tramo se reportaba siempre
+		// como «la respuesta no trae exitoso» — un éxito leído como falta de evidencia.
+		if desc := reDecevalDescrip.FindStringSubmatch(xml); desc != nil {
+			if o.Mensaje == "" {
+				o.Mensaje = strings.TrimSpace(desc[1])
+			}
+			if o.Codigo == "" {
+				if m := reDecevalSDL.FindString(desc[1]); m != "" {
+					o.Codigo = m
+				}
+			}
+		}
+		if o.Exitoso == nil && o.Codigo != "" {
+			v := o.Codigo == codigoDecevalOK
+			o.Exitoso = &v
+		}
+		out = append(out, o)
+	}
+	return out
+}
+
 // ─── users_category_log: POR QUÉ el perfilamiento dijo que no ──────────────────────────────────────
 //
 // Es la evidencia que faltaba, y contesta el reporte más frecuente de soporte («¿por qué a este cliente

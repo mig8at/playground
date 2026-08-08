@@ -25,7 +25,9 @@ Si la tarea llega con una de estas frases, empezá por esos nodos. Si ninguna ma
 | «el endpoint devuelve un código raro» (ONB0xx) | `legacy-backend` |
 | «el listado tardó minutos» | `profiling` |
 | «el número no cuadra y no encuentro dónde se calcula» | `db-routines` |
+| «el pagaré dice una persona y la BD dice otra» | `formalization` |
 | «el reporte que descargó trae de más» | `application` |
+| «el rotativo le dio cupo 0 y no sé por qué» | `rotativo` |
 | «el webhook del lender no llegó» | `aggregator` |
 | «eligió la entidad y no pasó nada» | `aggregator` |
 | «en este comercio se salta pasos» | `merchants` |
@@ -42,6 +44,7 @@ Si la tarea llega con una de estas frases, empezá por esos nodos. Si ninguna ma
 | «hay que agregar un campo al formulario» | `dynamic-forms` · `form-service` |
 | «hay que integrar una entidad nueva» | `hardcodes-entidades` |
 | «la pantalla del wizard se ve/comporta mal» | `frontend-monorepo` |
+| «las condiciones que vio no son las del cupo que quedó» | `rotativo` |
 | «lo mandó al sitio del lender y no volvió» | `redirect` |
 | «necesito reproducir/probar un flujo entero» | `findings` · `harness` |
 | «no le apareció ninguna entidad» | `creditopx` · `findings` · `kyc` · `merchants` · `profiling` |
@@ -53,7 +56,9 @@ Si la tarea llega con una de estas frases, empezá por esos nodos. Si ninguna ma
 | «no tiene permisos» / «ve un panel mutilado» | `actors` |
 | «pagó y no se refleja» / cuota inicial | `payments` |
 | «pidió X y le ofrecieron menos plazo» | `amount-tiers` |
+| «¿por qué a este cliente no le salió esta entidad?» | `trazador` |
 | «¿por qué el listado salió en ese orden?» | `profiling` |
+| «¿por qué esta cuota inicial / este FGA?» | `rotativo` |
 | «¿por qué le salió ESE cupo / esa categoría?» | `profiling` |
 | «¿por qué no le sale esta entidad?» | `creditopx` · `hardcodes-entidades` · `merchants` · `ms-preapprovals` |
 | «quedó aprobada y no se desembolsó» | `formalization` |
@@ -84,6 +89,7 @@ Si la tarea llega con una de estas frases, empezá por esos nodos. Si ninguna ma
     - creditopx [ref]
       - amount-tiers [ref]
       - profiling [ref]
+      - rotativo
     - redirect [ref]
   - findings [ref]
   - formalization [ref]
@@ -171,7 +177,7 @@ Doc: `server/data/flows/findings/doc.md` · Archivos: `server/data/flows/finding
 **Cuándo:** Cuando la tarea toca el microservicio `form-service` (Go): el formulario dinámico G2 'backend-driven' (pantalla `additional-info`), cómo se arma el schema desde las 5 tablas legacy, dónde/cómo se guardan las respuestas (`user_field_values`, EAV), el árbol país→departamento→ciudad de los selects, o agregar/editar un campo sin escribir código. Credifamilia es el `form_type` 6. Síntoma: «formulario no encontrado» = el flujo dinámico sin su schema (F-41).
 Doc: `server/data/flows/form-service/doc.md` · Archivos: `server/data/flows/form-service/map.json` · Padre: `dynamic-forms`
 
-### formalization — Formalization  ·  _reference_ · 86 archivos
+### formalization — Formalization  ·  _reference_ · 87 archivos
 **Cuándo:** Cuando el problema está DESPUÉS de elegir entidad: plan de pagos, fecha de primer pago, documentos, pagaré, firma con OTP, autorización hasta el Estado 11 y desembolso. Las pantallas del wizard de este tramo son `confirmation`, `payment-schedule`, `first-payment-date`, `payment-reminder`, `additional-info`, `sign-documents`, `otp-validation` y `loan-approved`. Acá caen «falló firmando documentos», «no le llegó el OTP de la firma», «quedó en Pendiente de autorización (estado 10)», «Aprobada no desembolsada (estado 20)», Deceval (pagaré SOAP) y Netco (firma).
 Doc: `server/data/flows/formalization/doc.md` · Archivos: `server/data/flows/formalization/map.json` · Padre: `creditop`
 
@@ -226,6 +232,10 @@ Doc: `server/data/flows/pullman/doc.md` · Archivos: `server/data/flows/pullman/
 ### redirect — Redirect  ·  _reference_ · 24 archivos
 **Cuándo:** Cuando el prestamista es solo un enlace (`response_type` 0, UTM): se arma la `url_utm`, se redirige al sitio del lender y se pierde visibilidad — nadie decide el crédito adentro de CreditOp, así que el desenlace NO se puede trazar. Sistecrédito es el caso típico. Su ramal declara que no espera webhook ni Estado 11.
 Doc: `server/data/flows/redirect/doc.md` · Archivos: `server/data/flows/redirect/map.json` · Padre: `entities`
+
+### rotativo — Rotativo (rt=3)  ·  _flujo_ · 13 archivos
+**Cuándo:** Cuando la pregunta es sobre el OTORGAMIENTO del cupo rotativo (response_type=3): «¿por qué a este cliente el rotativo le dio cupo 0?», «¿de dónde sale el multiplicador?», «¿por qué la cuota inicial / el FGA de este cliente es esa?», «¿por qué las condiciones que vio en pantalla no son las del cupo que quedó?». Acá viven el multiplicador de riesgo 1-5 (promedio ponderado de 6 variables de Experian + continuidad laboral), el corte duro `multiplier <= 3`, las tablas `creditop_x_profiling_multiplier_risk_vars`/`_rangs`, la cuota inicial y el FGA por nivel (`creditop_x_profiling_down_payment_FGA`), el tope general `lenders.max_rev_credit`, y las DOS implementaciones que divergen (PHP en legacy-application otorga; el SP en SQL alimenta la pantalla de condiciones). NO es para lo que pasa DESPUÉS del desembolso —cartera, causación, cupo que se libera al pagar—: eso es `servicing`. Y NO es la categorización de consumo por tiers: eso es `profiling`.
+Doc: `server/data/flows/rotativo/doc.md` · Archivos: `server/data/flows/rotativo/map.json` · Padre: `creditopx`
 
 ### servicing — Servicing  ·  _reference_ · 63 archivos
 **Cuándo:** Cuando el problema es DESPUÉS del desembolso (Estado 11): cartera, causación de interés, fecha de corte, mora, cobranza, pagos y cupo rotativo. Los 6 crons diarios `UpdateCreditopX*` y el ledger `creditop_x_requests_history`. Ojo: corre 100% en `application`, no en legacy-backend.

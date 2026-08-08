@@ -1,0 +1,37 @@
+{
+  "name": "Deceval (pagaré digital)",
+  "kind": "flujo",
+  "when": "Cuando el problema es la FIRMA DEL PAGARÉ contra Deceval —el depósito de la BVC que custodia los títulos valores digitales—: «el cliente no puede firmar», «los datos no coinciden con el registro», «el pagaré quedó sin número», «se firmó pero no se desembolsó». Acá viven el ruteo por método de firma (`lenders.promissory_type_id` → `deceval` | `ownership`), las cuatro operaciones SOAP (createGirador → createPagare → consultPagare → signPagare), WS-Security con mTLS, las credenciales POR DEPOSITANTE (cada lender tiene su propio código ante Deceval, y cada depositante exige campos distintos del girador), y las dos tablas que reconstruyen un caso: `deceval_logs` (el XML enviado y recibido) y `promissory_notes`. Hoy en producción con Credifamilia y Dentix. NO es el OTP en sí (eso es `formalization`) ni el pagaré tradicional sin Deceval.",
+  "sintomas": [
+    "«el cliente no puede firmar el pagaré»",
+    "«los datos del cliente no coinciden con el registro»",
+    "«firmó y no se desembolsó»"
+  ],
+  "verified": {
+    "ref": "main",
+    "date": "2026-08-07",
+    "source": "cabecera"
+  },
+  "files": [
+    "legacy-backend/Modules/Loans/App/Actions/DecevalSoap.php",
+    "legacy-backend/Modules/Loans/App/Actions/Concerns/Soap.php",
+    "legacy-backend/Modules/Loans/App/Services/PromissoryNote/DecevalPromissoryNoteService.php",
+    "legacy-backend/Modules/Loans/App/Services/PromissoryNote/TraditionalPromissoryNoteService.php",
+    "legacy-backend/Modules/Loans/App/Services/PromissoryNote/PromissoryNoteSigningFactory.php",
+    "legacy-backend/Modules/Loans/App/Services/PromissoryNote/Exceptions/DecevalErrorCode.php",
+    "legacy-backend/Modules/Loans/App/Services/PromissoryNote/Exceptions/DecevalException.php",
+    "legacy-backend/Modules/Loans/App/Services/PromissoryNote/Exceptions/DecevalIntegrationException.php",
+    "legacy-backend/Modules/Loans/App/Http/Controllers/Customer/PromissoryNoteController.php",
+    "legacy-backend/Modules/Loans/App/Http/Controllers/Customer/ValidateOtpPromissoryNoteController.php",
+    "legacy-backend/Modules/Loans/App/Repositories/PromissoryNoteRepository.php",
+    "legacy-backend/app/Models/PromissoryNote.php",
+    "legacy-backend/app/Models/DecevalLog.php",
+    "legacy-backend/app/Models/RiskCentralCredential.php",
+    "application/app/Actions/DecevalSoap.php",
+    "application/app/Actions/Deceval.php",
+    "application/app/Services/PromissoryNote/DecevalPromissoryNoteService.php",
+    "application/app/Services/PromissoryNote/PromissoryNoteSigningFactory.php",
+    "application/app/Http/Controllers/Customer/PromissoryNoteController.php",
+    "application/app/Http/Controllers/Customer/ValidateOtpPromissoryNoteController.php"
+  ]
+}

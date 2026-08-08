@@ -236,6 +236,9 @@ type Solicitud struct {
 	// La evaluación de categoría por entidad (`users_category_log`): POR QUÉ una entidad in-platform no le
 	// salió al cliente. Es la única fuente que lo dice criterio por criterio; el log de texto no puede.
 	Categorias []Categoria
+	// Las operaciones contra Deceval (`deceval_logs`), el tramo del pagaré digital. Vacío = o el lender no
+	// firma con Deceval, o no llegó — el veredicto se cruza con la etapa, no se decide acá.
+	Deceval []OpDeceval
 }
 
 type Transicion struct {
@@ -1208,6 +1211,95 @@ func ensamblar(mapa *Mapa, subMapa *SubMapa, s *Solicitud, lineas []Linea, targe
 						break
 					}
 				}
+			}
+		}
+
+		// ── EL PAGARÉ DIGITAL: LAS CUATRO OPERACIONES CONTRA DECEVAL ──
+		//
+		// Este tramo está al FINAL del embudo —el cliente ya completó todo y ya validó su OTP— así que un
+		// fallo acá es el más caro de todos. Y hasta hoy el trazador no lo veía: `deceval_logs` es de las
+		// pocas tablas de log que escriben `user_request_id` (F-108), o sea que se ancla sin inferir nada.
+		//
+		// ⚠ El detalle accionable es `mensajeRespuesta`; la `<descripcion>` de Deceval es genérica. Y el
+		// log es best-effort (try/catch que nunca rompe la firma): que falte una operación NO prueba que
+		// no corrió, por eso este bloque no baja el status de la etapa por ausencia — sólo por un rechazo
+		// explícito.
+		if o.id == "desembolso" && len(s.Deceval) > 0 {
+			// El wrapper `createPromisoryNote` repite muchas veces por solicitud (medido en prod: 711 filas
+			// para 174 solicitudes) y no aporta veredicto propio: las que deciden son las cuatro
+			// operaciones SOAP. Se cuenta aparte en vez de tirarlo, porque su cantidad dice cuántos
+			// intentos hubo.
+			orden := map[string]int{"createGirador": 1, "createPagare": 2, "consultPagare": 3, "signPagare": 4}
+			var ops []OpDeceval
+			intentos := 0
+			for _, op := range s.Deceval {
+				if orden[op.Metodo] == 0 {
+					intentos++
+					continue
+				}
+				ops = append(ops, op)
+			}
+			var hijos []Sub
+			rechazos, firmo := 0, false
+			for _, op := range ops {
+				st, det := "ok", op.Nombre
+				switch {
+				case op.Exitoso != nil && !*op.Exitoso:
+					st, rechazos = "fail", rechazos+1
+					det = "Deceval rechazó"
+					if op.Codigo != "" {
+						det += " · " + op.Codigo
+					}
+					if op.Mensaje != "" {
+						det += " · " + trim(op.Mensaje, 110)
+					}
+				case op.Exitoso == nil:
+					// Sin `<exitoso>` no se puede afirmar que salió bien. Pintarlo verde sería inventar.
+					st, det = "sin-evidencia", op.Nombre+" · la respuesta no trae «exitoso»"
+				case op.Metodo == "signPagare":
+					firmo = true
+				}
+				etiqueta := map[string]string{
+					"createGirador": "Registro del firmante (girador)",
+					"createPagare":  "Creación del pagaré",
+					"consultPagare": "Vista previa del pagaré (PDF)",
+					"signPagare":    "Firma del pagaré",
+				}[op.Metodo]
+				hijos = append(hijos, Sub{Label: etiqueta, Status: st, Source: "db", Detail: det,
+					Detail2: op.Metodo,
+					Evidencia: evidencia("deceval_logs", sqlDeceval, []any{s.ID},
+						"method            = "+op.Metodo,
+						"name              = "+op.Nombre,
+						"exitoso           = "+cond(op.Exitoso != nil, fmt.Sprintf("%t", op.Exitoso != nil && *op.Exitoso))+cond(op.Exitoso == nil, "(la respuesta no lo trae)"),
+						cond(op.Codigo != "", "codigoError       = "+op.Codigo),
+						cond(op.Mensaje != "", "mensajeRespuesta  = "+op.Mensaje),
+						"created_at        = "+fechaHora(op.At),
+						"⚠ el log es best-effort: una operación que falta NO prueba que no corrió")})
+			}
+			// ⚠ El orden es de FLUJO, no de hora ni de id: `consultPagare` se vuelve a llamar DURANTE la
+			// firma para resolver el id numérico del pagaré, así que ordenar por timestamp lo intercala
+			// después de `signPagare` y se lee como un ida y vuelta que no ocurrió. Mismo criterio que el
+			// orden de las etapas del árbol.
+			sort.SliceStable(hijos, func(a, b int) bool {
+				return orden[hijos[a].Detail2] < orden[hijos[b].Detail2]
+			})
+			cab := Sub{Label: "Pagaré digital (Deceval)", Source: "db", Hijos: hijos}
+			switch {
+			case rechazos > 0:
+				cab.Status = "fail"
+				cab.Detail = fmt.Sprintf("%s de Deceval", plural(rechazos, "rechazo", "rechazos"))
+			case firmo:
+				cab.Status, cab.Detail = "ok", "el pagaré quedó firmado y registrado en Deceval"
+			default:
+				cab.Status, cab.Detail = "warn", "no hay evidencia de la firma"
+			}
+			if intentos > len(ops) {
+				cab.Detail += fmt.Sprintf(" · %d registros del orquestador", intentos)
+			}
+			e.Subs = append([]Sub{cab}, e.Subs...)
+			if rechazos > 0 && e.Status != "no-aplica" {
+				e.Status, e.Source = "fail", "db"
+				e.Detail = "Deceval rechazó el pagaré: " + cab.Detail
 			}
 		}
 
@@ -2563,6 +2655,8 @@ func ArmarTraza(target string, ureq int64) (Traza, *Solicitud, error) {
 		}
 		s.Categorias = GetCategorias(fuente, s.UserID, s.Creada.Add(-15*time.Minute), s.Creada.Add(6*time.Hour), corrida)
 	}
+	// El pagaré digital. Ésta SÍ se ancla por `user_request_id`: no hace falta ventana ni heurística.
+	s.Deceval = GetDeceval(fuente, s.ID)
 	var idsLender []int64
 	for _, l := range lineas {
 		if v := pick(l.ctx, []string{"lender_id"}); v != "" {

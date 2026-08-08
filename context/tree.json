@@ -233,6 +233,18 @@
    "parent": "formalization"
   },
   {
+   "id": "deceval",
+   "name": "Deceval (pagaré digital)",
+   "parent": "formalization",
+   "created": "2026-08-07T00:00:00Z",
+   "updated": "2026-08-07T00:00:00Z",
+   "targets": {
+    "application": "main",
+    "frontend-monorepo": "main",
+    "legacy-backend": "main"
+   }
+  },
+  {
    "id": "merchants",
    "name": "Merchants",
    "targets": {
