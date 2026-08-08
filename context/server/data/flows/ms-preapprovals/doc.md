@@ -8,6 +8,17 @@ Coexiste con el path viejo (`PreApprovedLenderService` PHP en application/legacy
 
 **Frontera de responsabilidad (rt=1):** CreditOp solo (a) decide **qué** lenders consultar, (b) aporta **datos** del solicitante (Experian/KYC vía user-service legacy) y **credenciales** del comercio, (c) **traduce** la respuesta y **ordena**. La **decisión de crédito, monto y cupo la calcula 100% la API externa** — por eso rt=1 **NO es inyectable/simulable** de punta a punta (a lo sumo se mockea el transporte HTTP, tarea del nodo Harness).
 
+## Antes de concluir
+- **Coarsening HTTP**: la taxonomía fina de `LenderError` (20 códigos × 4 stages) **NO llega al status HTTP** — todo fallo de proveedor es `500` para el front (→ card oculta). Las 4xx/422 que ve el front son **validación pre-workflow** (key/amount/hash/mínimo) o applicant-not-found (404). Un **rechazo de negocio** del proveedor NO es error: es HTTP 200 `status:"rejected"` (chip suave).
+- **Dos mundos paralelos que divergen**: Welli id **166 solo existe en application**; en legacy/MS es 23/141/142 — y el MS colapsa 141/142→23 pero **NO** 166.
+- **El espejo a legacy es best-effort**: si `/lender-result` falla se loguea pero no bloquea → posible deriva entre lo que ve el usuario y lo que persiste el profiling. Y **`pending` NO repuebla `displayed_lenders`** (solo approved/rejected disparan el notify).
+- **Meddipay nunca cachea** (`ShouldCheckAgain=true` siempre → nuevo `order_id`). **CreditopX cachea 60min** (TTL corto). El resto expira a 30 días (salvo lo que diga la fecha del proveedor, ej. Meddipay `dateExpiration`).
+- **Credifamilia es el único async**: el único adapter que emite `StatusPending` (status 0/1/2/4); el front tolera más que el `write_timeout=30s` a propósito (abortar mid-flight duplicaba transacciones) y hace polling.
+- **Bancolombia Consumo trae un challenge**: su `transaction_data` (`urlAuthenticate`/`customerValidateKey`) es una **autenticación del cliente** que fluye verbatim al front — matiza la creencia de que el `frontend_response`/`encrypt_code` es puro legacy PHP; el MS también forwardea un blob de challenge para consumer_loan.
+- **Estados que el MS NO emite**: su core enum son 3 (`approved`/`rejected`/`pending`). El front reconoce además `not_eligible` (sin emisor en el core; defensivo). `transaction_data` es un **blob por-lender sin contrato** (`json.RawMessage`) que fluye verbatim al front.
+- **`creditop_x` es una de las 8 keys del factory** (available-quota rt=2 hardcodeada, NoAuth+NoOpCreds), pero el cupo rt=2 productivo se sella en legacy `/available-quota`; no confundir el nodo (rt≠0/integración) con esa key.
+- **`/v1/lender-attempts` es surface nuevo**: store idempotente de intentos por lender (SUCCESS/FAIL/TIMEOUT), separado del `check`. El `check` registra attempts internamente; el POST expuesto permite registrarlos desde afuera y el GET los lista paginados (trazabilidad de intentos por entidad).
+
 ## Arquitectura cliente → MS → proveedor
 ```
 WIZARD (frontend-monorepo)                 MS Go (pre-approvals-service)                    EXTERNOS
@@ -130,17 +141,6 @@ está en el handler.
 - **Aggregator** (nodo hermano): la **decisión de negocio rt=1** del lender (familia de agregadores, handoff/entrega, Corbeta batch, webhooks de cierre, cartera del tercero). Este nodo NO absorbe la resolución cliente de aggregator; conserva los suyos (`available-lenders.tsx`, `fetch-lender-preapproval.ts`, `preapproval-retry.tsx`, `validate-preapproved-loan.*`, `lender-results` relay).
 - **Profiling** (consumidor): recibe el notify y repuebla `displayed_lenders` — este nodo llega hasta `storeLenderResult`, no modela el perfilamiento.
 - **Credifamilia** tiene nodo propio (rt=4, formalización SOAP); acá solo el tramo de pre-aprobación async (el adapter que emite `pending`).
-
-## Gotchas / riesgos
-- **Coarsening HTTP**: la taxonomía fina de `LenderError` (20 códigos × 4 stages) **NO llega al status HTTP** — todo fallo de proveedor es `500` para el front (→ card oculta). Las 4xx/422 que ve el front son **validación pre-workflow** (key/amount/hash/mínimo) o applicant-not-found (404). Un **rechazo de negocio** del proveedor NO es error: es HTTP 200 `status:"rejected"` (chip suave).
-- **Dos mundos paralelos que divergen**: Welli id **166 solo existe en application**; en legacy/MS es 23/141/142 — y el MS colapsa 141/142→23 pero **NO** 166.
-- **El espejo a legacy es best-effort**: si `/lender-result` falla se loguea pero no bloquea → posible deriva entre lo que ve el usuario y lo que persiste el profiling. Y **`pending` NO repuebla `displayed_lenders`** (solo approved/rejected disparan el notify).
-- **Meddipay nunca cachea** (`ShouldCheckAgain=true` siempre → nuevo `order_id`). **CreditopX cachea 60min** (TTL corto). El resto expira a 30 días (salvo lo que diga la fecha del proveedor, ej. Meddipay `dateExpiration`).
-- **Credifamilia es el único async**: el único adapter que emite `StatusPending` (status 0/1/2/4); el front tolera más que el `write_timeout=30s` a propósito (abortar mid-flight duplicaba transacciones) y hace polling.
-- **Bancolombia Consumo trae un challenge**: su `transaction_data` (`urlAuthenticate`/`customerValidateKey`) es una **autenticación del cliente** que fluye verbatim al front — matiza la creencia de que el `frontend_response`/`encrypt_code` es puro legacy PHP; el MS también forwardea un blob de challenge para consumer_loan.
-- **Estados que el MS NO emite**: su core enum son 3 (`approved`/`rejected`/`pending`). El front reconoce además `not_eligible` (sin emisor en el core; defensivo). `transaction_data` es un **blob por-lender sin contrato** (`json.RawMessage`) que fluye verbatim al front.
-- **`creditop_x` es una de las 8 keys del factory** (available-quota rt=2 hardcodeada, NoAuth+NoOpCreds), pero el cupo rt=2 productivo se sella en legacy `/available-quota`; no confundir el nodo (rt≠0/integración) con esa key.
-- **`/v1/lender-attempts` es surface nuevo**: store idempotente de intentos por lender (SUCCESS/FAIL/TIMEOUT), separado del `check`. El `check` registra attempts internamente; el POST expuesto permite registrarlos desde afuera y el GET los lista paginados (trazabilidad de intentos por entidad).
 
 ## Sus logs en Loki (medido 2026-08-06)
 

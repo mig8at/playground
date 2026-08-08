@@ -3,7 +3,6 @@
 
 > ⚠ **CORRECCIÓN (2026-07-19, ver [findings F-39]):** la afirmación "0 crons de servicing en legacy" **ya no es cierta**. `app/Console/Kernel.php` de legacy-backend agenda HOY los 3 crons de cobranza por hardware (`app:lock-devices-past-due` 04:00 · `unlock-devices-paid` 05:00 · `unroll-devices-paid` 06:00) y **funcionan en local**: sembrando mora en `creditop_x_requests_history` (status 2, `days_past_due>=8`) sobre una solicitud con IMEI enrolado, el cron despacha el job, llama al MDM y persiste `device_locks` en `locked`. Receta completa y gotcha del contrato (`devices[]` → `results[]`) en el nodo **findings** (F-39). El RESTO del servicing (cascada de cobranza, intereses, seguros, capital) sí sigue 100% en `application`.
 
-
 ## Qué es
 La originación **termina en el Estado 11** ("Autorizada" = desembolsado). La continuación **empieza ahí, pero SOLO existe para CreditopX in-platform (rt=2/3)**: el préstamo vive como una cadena de snapshots en el ledger `creditop_x_requests_history` (event-sourced), los pagos entran por **polling** y se aplican en cascada, y 6 crons diarios causan interés, facturan, entran en mora y cobran. Para **rt≠0 el rastro se detiene en el 11/26**: el préstamo lo gestiona la API del lender externo, y guards explícitos frenan cualquier re-update tras el 11.
 
@@ -15,6 +14,17 @@ La originación **termina en el Estado 11** ("Autorizada" = desembolsado). La co
 | ¿Quién pone la plata / cobra? | El **comercio** pone el capital/riesgo; CreditOp opera el recaudo y cobra comisión. |
 | ¿Cómo cierra? | **Paz y salvo** (`creditop_x_requests_status_id=3` cuando `total_payment_amount==0`) o **Cancelado** (4, anulación manual del cupo). La mora (2) es indefinida; no hay estado "castigo" persistido (es un bucket derivado `dias_mora>180` + venta de cartera manual). |
 | ¿Simulable E2E? | **Parcial**: in-platform sí (sembrar el ledger + **invocar los crons a mano** + simular el pago por polling); rt≠0 **no** (lo gestiona un tercero). En legacy corren 3 crons de device-lock (SmartPay) que **consumen** el ledger (ver F-39); el resto de la cartera se prueba contra `application`. |
+
+## Antes de concluir
+- **DOS máquinas de estado que se confunden** (`user_request_status_id` originación ≠ `creditop_x_requests_status_id` préstamo); el 11 es el puente.
+- **`status` sobrecargado en 3 sentidos** (vigencia de fila / activo-inactivo de cupo / estado del crédito).
+- **Seeder engañosamente incompleto**: `CreditopXUserRequestsStatusesSeeder` solo siembra 1 y 2; los ids 3/4 viven solo en la BD real. Y `user_request_statuses` **no tiene seeder ni INSERT** (ids 2/7 sin confirmar).
+- **Umbral de colilla 5000 hardcodeado disperso** (~6 sitios); un lender sin `residualBalance` cae al default → puede ocultar centavos en un "saldado".
+- **Pagos por polling, no webhook**: el cron 00:02 (red de seguridad) está hardcodeado a `lender_id=52` y `status_id [21,23]` → otra pasarela colgada no se recoge.
+- **`UserRequestObserver` NO es el motor de estados** (pese al nombre): solo bonos/gamificación. Las transiciones están dispersas imperativamente en ~15 controllers + 5 crons.
+- **Cron 00:30 sin chunking** (carga toda la cartera viva en memoria) · **`cutoff_type_id==2`=quincenal** bifurca fechas en 4 sitios · **`incentive-revolving` desactivado**.
+- **Copias en legacy con imports colgantes** (`use App\Http\Controllers\Admin\CreditopXPaymentController` — namespace equivocado): no es "migración parcial funcional", es código muerto que reventaría.
+- **Riesgo trigger huérfano**: apagar `application` rompería la cartera — el cron que mueve el ledger vive solo ahí.
 
 ## Contenido
 **Los 6 crons diarios** (`app/Console/Kernel.php`, en orden de cadencia):
@@ -87,17 +97,6 @@ acumulan y se registran juntos al final de la corrida. Si un pago "desapareció"
 
 ## Datos de prueba / usuario que pasa
 Para ejercer el servicing (in-platform) hay que **sembrar el ledger** `creditop_x_requests_history` a mano y disparar los crons: fila `status=1` + `creditop_x_requests_status_id=2` + `next_payment_date < hoy` para probar **mora**; `status IN [1,3]` para **al día/recuperación**; `total_payment_amount==0` para **paz y salvo**. El pago requiere simular una `PaymentGatewayTransaction` Wompi aprobada (o `dispatchSync` el `StatusCheck`). No hay "usuario que aprueba": la decisión ya ocurrió en originación; esto es post-11.
-
-## Gotchas / riesgos
-- **DOS máquinas de estado que se confunden** (`user_request_status_id` originación ≠ `creditop_x_requests_status_id` préstamo); el 11 es el puente.
-- **`status` sobrecargado en 3 sentidos** (vigencia de fila / activo-inactivo de cupo / estado del crédito).
-- **Seeder engañosamente incompleto**: `CreditopXUserRequestsStatusesSeeder` solo siembra 1 y 2; los ids 3/4 viven solo en la BD real. Y `user_request_statuses` **no tiene seeder ni INSERT** (ids 2/7 sin confirmar).
-- **Umbral de colilla 5000 hardcodeado disperso** (~6 sitios); un lender sin `residualBalance` cae al default → puede ocultar centavos en un "saldado".
-- **Pagos por polling, no webhook**: el cron 00:02 (red de seguridad) está hardcodeado a `lender_id=52` y `status_id [21,23]` → otra pasarela colgada no se recoge.
-- **`UserRequestObserver` NO es el motor de estados** (pese al nombre): solo bonos/gamificación. Las transiciones están dispersas imperativamente en ~15 controllers + 5 crons.
-- **Cron 00:30 sin chunking** (carga toda la cartera viva en memoria) · **`cutoff_type_id==2`=quincenal** bifurca fechas en 4 sitios · **`incentive-revolving` desactivado**.
-- **Copias en legacy con imports colgantes** (`use App\Http\Controllers\Admin\CreditopXPaymentController` — namespace equivocado): no es "migración parcial funcional", es código muerto que reventaría.
-- **Riesgo trigger huérfano**: apagar `application` rompería la cartera — el cron que mueve el ledger vive solo ahí.
 
 ## Diferencias vs otros flujos
 - **vs los flujos de originación (creditopx/smartpay/motai/credifamilia/agregadores):** ellos terminan en el Estado 11; este EMPIEZA ahí. No hay decisión de crédito acá — es cartera/cobranza.

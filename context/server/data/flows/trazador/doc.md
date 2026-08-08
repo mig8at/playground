@@ -17,6 +17,49 @@ Su regla de oro, que explica casi todas sus decisiones de diseño:
 De ahí sale el resto: un estado de `user_requests` puede pintar una etapa, un log no puede *negar* una
 etapa, y cuando no se puede afirmar nada la etapa sale `sin-evidencia` en vez de `ok` o `skip`.
 
+## Antes de concluir
+
+- **Un estado dice DÓNDE está la solicitud, nunca QUÉ completó.** Es la trampa que ya costó tres veces:
+  el estado 10 pertenece a `disbursement` pero significa «adentro, sin firmar» (F-103); la fila de
+  estado 9 **se escribe al CREAR la solicitud**, no al completar el formulario (F-106); y
+  `user_request_records` **no registra todas las transiciones** — los estados 1 y 10 nunca dejan fila
+  (F-105). Por eso `cierran` y `detienen` están separados en el mapa.
+- **El wizard NO manda logs a Loki**: sus logs de ruta salen por OTLP hacia PostHog. Verificado el
+  2026-08-07 buscando `service_name` que matchee wizard/front/loan-request/remix/react: cero líneas. O
+  sea que **la pantalla se INFIERE del endpoint que el backend sirvió**, y una pantalla que no llama al
+  backend es invisible. Eso no se arregla con el mapa: es la frontera de lo que la herramienta puede
+  afirmar.
+- **Dos de las tablas de evidencia ya se leen** (desde el 2026-08-07): `users_category_log` —la etapa
+  `profiler` salía *siempre* «la BD no registra esta etapa», y sí la registra— y `deceval_logs`, que era
+  la única de las 14 de auditoría con atribución del 100 % (F-108). Las otras 13 siguen sin leerse, y
+  dos de ellas (`compare_face_logs`, `ocr_logs`) **declaran `user_request_id` y nunca lo escriben**:
+  usarlas devolvería vacío siempre.
+- **Hay evidencia en la BD que este trazador NO mira**: 14 tablas de log de auditoría. Medido: sólo
+  `deceval_logs` ata al 100 % por `user_request_id` (1.404 filas / 174 solicitudes) y es candidata
+  limpia para el tramo del pagaré; `otp_logs` sólo al 1 %; y `compare_face_logs` / `ocr_logs`
+  **declaran la columna y nunca la escriben** (0 de 8.115 y 0 de 10.633) — usarlas por solicitud
+  devolvería vacío siempre y se leería como «no pasó». Ver **F-108**.
+- **Las funciones SQL no loguean.** 42 rutinas de MySQL calculan cosas del negocio (el ingreso, la
+  ocupación, los features del ML) y no escriben una línea: este árbol puede mostrar la entrada y la
+  salida de ese cómputo, nunca el medio. Nodo `db-routines`.
+- **Un rechazo de cupo ROTATIVO (rt=3) es invisible para esta herramienta, y no es culpa del mapa.** El
+  corte `multiplier <= 3` retorna antes de escribir nada: sin log, sin fila en `revolving_credits` y sin
+  transición de estado. Las tres fuentes que cruza el trazador quedan vacías a la vez, así que la etapa
+  sale `sin-evidencia` — que es lo correcto, pero deja la pregunta «¿por qué 0?» sin contestar. Se
+  arregla en el producto (persistir el JSON del multiplicador), no acá. Ver **F-115** y el nodo
+  `rotativo`.
+- **`risk_central_user_data` se cruza por `user_id`, no por solicitud**: un cliente con varias
+  solicitudes en la misma ventana contamina la traza abierta. El árbol lo avisa en los warnings, pero
+  las filas igual cuentan en los totales.
+- **Sólo ~13 % de las líneas de log dice a qué solicitud pertenece, y lo dice con tres nombres
+  distintos** (`context_user_request_id`, `context_userRequestId`, `context_request_id`) — F-102. El
+  resto se ubica por herencia de span, y eso se declara en el pie de la traza.
+- **`LOKI_ENV` no es el mismo valor en los dos stacks**: prod es `production`; el stack de dev/qa usa
+  `development|local|testing` y **no tiene el valor `qa`**. Filtrar por `environment=qa` devuelve cero
+  líneas mientras los logs existen. Filtrá por `service_name`.
+- **Los mapas van embebidos** (`go:embed mapa/*.json`): editar un JSON y no reiniciar el server deja la
+  UI mostrando el mapa viejo. Es la confusión más frecuente al iterar.
+
 ## Contenido
 
 **Las 9 etapas** (el orden es de FLUJO, no de hora) usan el vocabulario del wizard, porque el reporte de
@@ -114,49 +157,6 @@ leerlo entero.
   haya traza), `src/components/Detalle.vue` (los pasos, sus logs y el bloque de BD; acá vive `abrible`,
   que es lo que hace auditables los pasos que sólo tienen evidencia de BD), `src/trazaTexto.js`
   (serializa la traza entera a texto plano para pegar en un hilo de soporte).
-
-## Gotchas / riesgos
-
-- **Un estado dice DÓNDE está la solicitud, nunca QUÉ completó.** Es la trampa que ya costó tres veces:
-  el estado 10 pertenece a `disbursement` pero significa «adentro, sin firmar» (F-103); la fila de
-  estado 9 **se escribe al CREAR la solicitud**, no al completar el formulario (F-106); y
-  `user_request_records` **no registra todas las transiciones** — los estados 1 y 10 nunca dejan fila
-  (F-105). Por eso `cierran` y `detienen` están separados en el mapa.
-- **El wizard NO manda logs a Loki**: sus logs de ruta salen por OTLP hacia PostHog. Verificado el
-  2026-08-07 buscando `service_name` que matchee wizard/front/loan-request/remix/react: cero líneas. O
-  sea que **la pantalla se INFIERE del endpoint que el backend sirvió**, y una pantalla que no llama al
-  backend es invisible. Eso no se arregla con el mapa: es la frontera de lo que la herramienta puede
-  afirmar.
-- **Dos de las tablas de evidencia ya se leen** (desde el 2026-08-07): `users_category_log` —la etapa
-  `profiler` salía *siempre* «la BD no registra esta etapa», y sí la registra— y `deceval_logs`, que era
-  la única de las 14 de auditoría con atribución del 100 % (F-108). Las otras 13 siguen sin leerse, y
-  dos de ellas (`compare_face_logs`, `ocr_logs`) **declaran `user_request_id` y nunca lo escriben**:
-  usarlas devolvería vacío siempre.
-- **Hay evidencia en la BD que este trazador NO mira**: 14 tablas de log de auditoría. Medido: sólo
-  `deceval_logs` ata al 100 % por `user_request_id` (1.404 filas / 174 solicitudes) y es candidata
-  limpia para el tramo del pagaré; `otp_logs` sólo al 1 %; y `compare_face_logs` / `ocr_logs`
-  **declaran la columna y nunca la escriben** (0 de 8.115 y 0 de 10.633) — usarlas por solicitud
-  devolvería vacío siempre y se leería como «no pasó». Ver **F-108**.
-- **Las funciones SQL no loguean.** 42 rutinas de MySQL calculan cosas del negocio (el ingreso, la
-  ocupación, los features del ML) y no escriben una línea: este árbol puede mostrar la entrada y la
-  salida de ese cómputo, nunca el medio. Nodo `db-routines`.
-- **Un rechazo de cupo ROTATIVO (rt=3) es invisible para esta herramienta, y no es culpa del mapa.** El
-  corte `multiplier <= 3` retorna antes de escribir nada: sin log, sin fila en `revolving_credits` y sin
-  transición de estado. Las tres fuentes que cruza el trazador quedan vacías a la vez, así que la etapa
-  sale `sin-evidencia` — que es lo correcto, pero deja la pregunta «¿por qué 0?» sin contestar. Se
-  arregla en el producto (persistir el JSON del multiplicador), no acá. Ver **F-115** y el nodo
-  `rotativo`.
-- **`risk_central_user_data` se cruza por `user_id`, no por solicitud**: un cliente con varias
-  solicitudes en la misma ventana contamina la traza abierta. El árbol lo avisa en los warnings, pero
-  las filas igual cuentan en los totales.
-- **Sólo ~13 % de las líneas de log dice a qué solicitud pertenece, y lo dice con tres nombres
-  distintos** (`context_user_request_id`, `context_userRequestId`, `context_request_id`) — F-102. El
-  resto se ubica por herencia de span, y eso se declara en el pie de la traza.
-- **`LOKI_ENV` no es el mismo valor en los dos stacks**: prod es `production`; el stack de dev/qa usa
-  `development|local|testing` y **no tiene el valor `qa`**. Filtrar por `environment=qa` devuelve cero
-  líneas mientras los logs existen. Filtrá por `service_name`.
-- **Los mapas van embebidos** (`go:embed mapa/*.json`): editar un JSON y no reiniciar el server deja la
-  UI mostrando el mapa viejo. Es la confusión más frecuente al iterar.
 
 ## Lo que NO está verificado
 - `-validar` no corre desde el 2026-08-06: el corpus de líneas crudas se perdió con un scratchpad; regenerarlo implica decidir si líneas de producción entran al repo.

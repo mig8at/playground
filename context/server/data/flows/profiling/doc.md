@@ -8,6 +8,25 @@ En lenguaje de negocio es la **"segmentación de clientes"** (de *premium* a *ma
 
 En **rt=1 CreditOp no perfila** (la API externa del proveedor decide; ver **Bróker**); en rt=0 redirige. Perfilar es exclusivo del sombrero operador (rt=2/3).
 
+## Antes de concluir
+- ⚠ **La compuerta de capacidad de endeudamiento corre en 35 de 195 tiers (18 %)** y **no mira los
+  gastos declarados por el cliente**: usa `salario − (cuota_mensual_datacrédito − deuda_ignorada)`
+  (`LenderUserCategoryService.php:664`). Sólo se evalúa si el tier declara `min_debt_capacity > 0`
+  **Y** `debt_capacity_amount_validation == 0` — 133 tiers declaran el mínimo pero **98 de ellos lo
+  tienen inerte** por el segundo flag. Y lo que se llama «capacidad» en `calculatePaymentCapacity`
+  (`:333`) es OTRA cosa: un PORCENTAJE `(ingreso−gastos)/ingreso` que alimenta el scoring, no la
+  compuerta. Negocio y motor llaman «capacidad» a dos cosas distintas — ver **F-112**.
+- **BUG `min_income` NO-OP** (vivo): la columna del tier es `monthly_income` (`migration:21`) pero `evaluateEligibility` lee `$rule->min_income` (`:416`) — atributo inexistente → `null` → `$salary >= null` es **siempre true** en PHP. El **piso de ingreso de la categoría no filtra**; arreglarlo (leer `monthly_income`) **endurece** la asignación. [MEMORY flow-reorg-y-mapa-atributos]
+- **Tier laxo admite, primer tier (menor id, suele el más estricto) da la economía** — el `max_amount`/`min_initial_fee` NO salen del tier que "más fácil" pasa.
+- **FAIL-CLOSED por buró ausente**: la categoría SIEMPRE exige la fila `datacredito` (`:429`); sin ella, ni un tier "pasa-todo de score" aprueba (aunque tenga todos los sub-checks sin umbral).
+- **`consulted_last_6_months` se apaga si el umbral del tier ≥100** (`validateConsultedLast6Months:607`) → las consultas solo gatean donde el tier fija `<100`.
+- **Categoría de USUARIO ≠ categoría de PRODUCTO**: `lender_users_categories` segmenta **usuarios**; la "categoría de lender/producto" del plan Motai v2 (crédito/arrendamiento) es **otra cosa que aún no existe** en BD (ver **Motai v2**). No confundir.
+- **`scoring_policy_fallback_blocked`**: aprobar por scoring tras fallar todas las reglas de tier NO da cupo — solo `scoring_is_primary` (lender sin tiers, ej. SmartPay) usa scoring como diseño.
+- **Los INSUMOS de la categoría los calcula la BD, no PHP.** El ingreso promedio y la ocupación —dos de las cuatro variables de las reglas— salen de `FN_User_Income_Average` y `FN_User_Occupation`, funciones almacenadas de MySQL invocadas con `DB::scalar` desde `ExperianProfileService.php:42` y `:46` (y su gemelo `Prami.php:378` · `:384`). El porcentaje de gasto fijo, igual: `FN_CreditopX_Profiling_Fixed_Expense_Perc` (`:102`). ⚠ Grepear el nombre del campo en el código NO llega a la fórmula: se invocan como string. Y **cambiarlas no deja rastro en ningún repo** — un perfilamiento que cambió sin deploy se explica ahí. Nodo **db-routines**.
+- **Parallel-run**: la lógica corre en `application` (default) y `legacy-backend` (migración). Las líneas citadas son de **legacy** (donde el análisis fuente verificó); el gemelo application tiene la misma mecánica en otras líneas.
+- **El ORDEN del listado lo decide una cadena de DOS perfiladores, y el primero está apagado por configuración.** `ProfilerMLController::mlModelV1` tiene la estrategia cableada como `new_then_legacy`: primario `NewProfilerMLService`, respaldo el modelo H2O de siempre (`makePrediction`, `->timeout(15)`). Pero `NewProfilerMLService` sale por una guarda `if ($host === '')` cuando falta `NEW_PROFILER_ML_HOST`, que en prod **no está puesta** — así que el primario falla en el 100 % de las solicitudes y la huella queda en `ML_predictions.previous_attempt`. Y el respaldo H2O también se cae: **timeoutea a los 15 s** contra `profiler.inertia-production:8000` (medido 2026-08-06: 4 timeouts en una sola solicitud, uReq 521997 — un listado lento no es «ML apagado», son 15 s de espera por intento). ⚠ Por eso `fallback_triggered: true` **no** significa «lo ordenaron las matrices»: significa que respondió el perfilador viejo, que sigue siendo un modelo (F-104).
+- **`ML_predictions` tiene TRES formas porque la escriben DOS sistemas.** `legacy-backend` guarda un ARRAY (una entrada por entidad, con `perfilador`) o un OBJETO con `error` cuando ninguno respondió; `legacy-application` guarda la respuesta CRUDA de H2O (`{data,status,message}`) **sin transformar y sin `perfilador`** — por eso esas filas no pueden decir quién ordenó. Leer una sola forma hace que justo el caso que interesa se lea como «sin datos».
+
 ## Contenido
 
 **Dos tablas (verificado en los modelos):**
@@ -139,25 +158,6 @@ entidad. Medido en la uReq 520704 de prod: `Credi ASYCO → regla 8959`, `Bancol
 ⚠ Lo que **no** se responde así es *por qué* una regla dio ese resultado: para eso hay que leer su
 definición en `lender_group_rules` / la tabla de la regla y los valores que consumió. El log dice **qué
 regla** decidió, no **con qué cuentas**.
-
-## Gotchas / riesgos
-- ⚠ **La compuerta de capacidad de endeudamiento corre en 35 de 195 tiers (18 %)** y **no mira los
-  gastos declarados por el cliente**: usa `salario − (cuota_mensual_datacrédito − deuda_ignorada)`
-  (`LenderUserCategoryService.php:664`). Sólo se evalúa si el tier declara `min_debt_capacity > 0`
-  **Y** `debt_capacity_amount_validation == 0` — 133 tiers declaran el mínimo pero **98 de ellos lo
-  tienen inerte** por el segundo flag. Y lo que se llama «capacidad» en `calculatePaymentCapacity`
-  (`:333`) es OTRA cosa: un PORCENTAJE `(ingreso−gastos)/ingreso` que alimenta el scoring, no la
-  compuerta. Negocio y motor llaman «capacidad» a dos cosas distintas — ver **F-112**.
-- **BUG `min_income` NO-OP** (vivo): la columna del tier es `monthly_income` (`migration:21`) pero `evaluateEligibility` lee `$rule->min_income` (`:416`) — atributo inexistente → `null` → `$salary >= null` es **siempre true** en PHP. El **piso de ingreso de la categoría no filtra**; arreglarlo (leer `monthly_income`) **endurece** la asignación. [MEMORY flow-reorg-y-mapa-atributos]
-- **Tier laxo admite, primer tier (menor id, suele el más estricto) da la economía** — el `max_amount`/`min_initial_fee` NO salen del tier que "más fácil" pasa.
-- **FAIL-CLOSED por buró ausente**: la categoría SIEMPRE exige la fila `datacredito` (`:429`); sin ella, ni un tier "pasa-todo de score" aprueba (aunque tenga todos los sub-checks sin umbral).
-- **`consulted_last_6_months` se apaga si el umbral del tier ≥100** (`validateConsultedLast6Months:607`) → las consultas solo gatean donde el tier fija `<100`.
-- **Categoría de USUARIO ≠ categoría de PRODUCTO**: `lender_users_categories` segmenta **usuarios**; la "categoría de lender/producto" del plan Motai v2 (crédito/arrendamiento) es **otra cosa que aún no existe** en BD (ver **Motai v2**). No confundir.
-- **`scoring_policy_fallback_blocked`**: aprobar por scoring tras fallar todas las reglas de tier NO da cupo — solo `scoring_is_primary` (lender sin tiers, ej. SmartPay) usa scoring como diseño.
-- **Los INSUMOS de la categoría los calcula la BD, no PHP.** El ingreso promedio y la ocupación —dos de las cuatro variables de las reglas— salen de `FN_User_Income_Average` y `FN_User_Occupation`, funciones almacenadas de MySQL invocadas con `DB::scalar` desde `ExperianProfileService.php:42` y `:46` (y su gemelo `Prami.php:378` · `:384`). El porcentaje de gasto fijo, igual: `FN_CreditopX_Profiling_Fixed_Expense_Perc` (`:102`). ⚠ Grepear el nombre del campo en el código NO llega a la fórmula: se invocan como string. Y **cambiarlas no deja rastro en ningún repo** — un perfilamiento que cambió sin deploy se explica ahí. Nodo **db-routines**.
-- **Parallel-run**: la lógica corre en `application` (default) y `legacy-backend` (migración). Las líneas citadas son de **legacy** (donde el análisis fuente verificó); el gemelo application tiene la misma mecánica en otras líneas.
-- **El ORDEN del listado lo decide una cadena de DOS perfiladores, y el primero está apagado por configuración.** `ProfilerMLController::mlModelV1` tiene la estrategia cableada como `new_then_legacy`: primario `NewProfilerMLService`, respaldo el modelo H2O de siempre (`makePrediction`, `->timeout(15)`). Pero `NewProfilerMLService` sale por una guarda `if ($host === '')` cuando falta `NEW_PROFILER_ML_HOST`, que en prod **no está puesta** — así que el primario falla en el 100 % de las solicitudes y la huella queda en `ML_predictions.previous_attempt`. Y el respaldo H2O también se cae: **timeoutea a los 15 s** contra `profiler.inertia-production:8000` (medido 2026-08-06: 4 timeouts en una sola solicitud, uReq 521997 — un listado lento no es «ML apagado», son 15 s de espera por intento). ⚠ Por eso `fallback_triggered: true` **no** significa «lo ordenaron las matrices»: significa que respondió el perfilador viejo, que sigue siendo un modelo (F-104).
-- **`ML_predictions` tiene TRES formas porque la escriben DOS sistemas.** `legacy-backend` guarda un ARRAY (una entrada por entidad, con `perfilador`) o un OBJETO con `error` cuando ninguno respondió; `legacy-application` guarda la respuesta CRUDA de H2O (`{data,status,message}`) **sin transformar y sin `perfilador`** — por eso esas filas no pueden decir quién ordenó. Leer una sola forma hace que justo el caso que interesa se lea como «sin datos».
 
 ## Lo que NO está verificado
 - `monthly_income` por tier no está volcado del dump — y hoy además es NO-OP por el bug del censo.

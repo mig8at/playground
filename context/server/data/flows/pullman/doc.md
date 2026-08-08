@@ -4,6 +4,14 @@
 ## Qué es
 **CrediPullman** es el flujo rt=2 CreditopX **"vanilla"**: el caso base de la familia in-platform, sin las particularidades de SmartPay (path IMEI) ni de Motai (renting/Ábaco). Es la referencia canónica de cómo se ofrece y decide un crédito cuando **CreditOp decide localmente** (motor de categorías) y el más usado en pruebas E2E (100% inyectable, ver **CreditopX**). Dos identidades que no hay que confundir: el **comercio = allied 94 "Amoblando Pullman"** (lo que el código hardcodea) y el **lender = CrediPullman #77** (rt=2, del dump de BD). Ojo: existe además un **lender 94 "Mediarte x 0%"** — otro namespace, nada que ver con el allied 94.
 
+## Antes de concluir
+- **Tres ids que se confunden**: comercio **allied 94** (Amoblando Pullman, en código), lender **77** (CrediPullman, en BD) y lender **94** (Mediarte x 0%, otro namespace).
+- **La edad NO es el corte duro** (corrige el doc previo): el group rule de edad **clasifica** (rt=2 + `have_ctopx`); quien corta es la **categoría cat14** (edad 0-78). Y hay dos topes de edad distintos: group rule ≤69 vs cupo ≤78.
+- **El datacrédito genérico 400 es inocuo** (corrige MEMORY "no hay fila para #77"): **sí** hay fila (dc-gen 400 + 111 por-sucursal), pero 400 es tan laxo que nunca rechaza; las por-sucursal quedan **inertes** en el cupo (el motor nuevo lee solo la genérica).
+- **`have_ctopx` sin confirmar para allied 94**: el dump muestra allied 94 **sin** `have_ctopx=1` (§9), pero el path rt=2 asume `have_ctopx` para no excluir → ¿otra señal, o §9 del dump truncada? (pregunta abierta).
+- **La regla de edad del `datacredito_trigger` de sucursal es un no-op**: está escrita `age <= min_age && age >= max_age`, solo dispara con rango invertido (`min >= max`).
+- **Orden solo en producción**: el perfilamiento (ranking) está gated a `production` y el ML está corto-circuitado → en local/dev el orden difiere y cae a matrices internas.
+
 ## Contenido
 **Capa económica** (matiza el "capital propio"): el comercio pone capital y riesgo; CreditOp **opera** (originación + cobranza + servicing) y gana **comisión por recaudo**. La mecánica in-platform (cascade de 8 etapas, categoría, cupo, Estado 11) es la del group **CreditopX** — acá va solo lo que distingue a Pullman.
 
@@ -38,10 +46,3 @@ Además, allied 94 está en `DatacreditoFrequency` (`every=1`) → el gate datac
 
 > El cascade completo de 8 etapas (base sucursal → filtros duros → group_rules → datacrédito → ML → especiales → pre-aprobados → categoría) vive en el nodo **CreditopX**; acá solo lo específico de Pullman.
 
-## Gotchas / riesgos
-- **Tres ids que se confunden**: comercio **allied 94** (Amoblando Pullman, en código), lender **77** (CrediPullman, en BD) y lender **94** (Mediarte x 0%, otro namespace).
-- **La edad NO es el corte duro** (corrige el doc previo): el group rule de edad **clasifica** (rt=2 + `have_ctopx`); quien corta es la **categoría cat14** (edad 0-78). Y hay dos topes de edad distintos: group rule ≤69 vs cupo ≤78.
-- **El datacrédito genérico 400 es inocuo** (corrige MEMORY "no hay fila para #77"): **sí** hay fila (dc-gen 400 + 111 por-sucursal), pero 400 es tan laxo que nunca rechaza; las por-sucursal quedan **inertes** en el cupo (el motor nuevo lee solo la genérica).
-- **`have_ctopx` sin confirmar para allied 94**: el dump muestra allied 94 **sin** `have_ctopx=1` (§9), pero el path rt=2 asume `have_ctopx` para no excluir → ¿otra señal, o §9 del dump truncada? (pregunta abierta).
-- **La regla de edad del `datacredito_trigger` de sucursal es un no-op**: está escrita `age <= min_age && age >= max_age`, solo dispara con rango invertido (`min >= max`).
-- **Orden solo en producción**: el perfilamiento (ranking) está gated a `production` y el ML está corto-circuitado → en local/dev el orden difiere y cae a matrices internas.

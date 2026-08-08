@@ -14,6 +14,39 @@ Lo que hay que entender antes de tocar nada: **esta fase está implementada TRES
 
 Y hay **dos frentes**: el Inertia de `application` y el wizard React (`frontend-monorepo/apps/loan-request-wizard`). El corte entre uno y otro NO es por repo ni por deploy: es un **allowlist en BD** que se lee en `SimulatorController::indexV2` y decide si redirige al wizard nuevo o renderiza la pantalla vieja.
 
+## Antes de concluir
+
+**Bugs verificados en el camino feliz**
+- `UserRequestController.php:1516` — el `&&` quedó **dentro** del segundo `str_contains`: `str_contains($user->document_number, 'TEMP' && $userRequest->user_request_status_id == 1)`. El needle termina siendo un bool coercionado (`"1"` o `""`), y `str_contains($s, "")` es siempre `true`. La guarda de "usuario temporal en estado 1" no valida lo que dice.
+- `PersonalInfoController.php:1044` — la URL de delegación interpola `$userRequestIdSessionKey` (la **clave** `'user_request_id_v2'`) en vez de `$user_request_id` (asignado en `:1019` y nunca usado). La llamada a `laboral-info/{hash}/user_request_id_v2` no puede resolver → cae siempre al `catch` y al método local. La delegación de laboral-info está **rota en silencio**.
+
+**Parallel-run: qué delega y qué no** (application → legacy, verificado uno por uno)
+- `phone/register`: delegado **siempre**, sin allowlist.
+- `otp-validate`: delegado **sólo** si el comercio está en el Setting `allowed_bypass_comerces`; tres caminos de fallback local (sin sesión / no allowlisted / excepción).
+- `personal-info`: **nunca** se delega — `storePersonalInfoV2` es local.
+- `laboral-info`: allowlisted pero roto (arriba).
+- `lenders`: la delegación está **comentada**; `entidades-v2` resuelve con el `LenderRetrievalService` de `application`.
+
+**Gemelos que divergen**
+- `UserRequestObserver`: en `application` el `updated()` despacha `AchievementCheck` + `BonificationCheck`; en `legacy-backend` esos despachos están **comentados** y en su lugar notifica al comercio en estados finales `[6,7,8,11]`. Quién escribe la UR cambia los efectos secundarios.
+- `createTemporalUser` está duplicado (`RegisterCellPhoneService` y `UserService`).
+- La guarda para pasar a estado 3 es `!= 11` en G1 y `!= 11 && != 25` en G2.
+
+**Entornos y testing**
+- `OnboardingController.php:1270-1272` — en `local`/`development`, `hadPreApproveLender` se stubea con **`random_int(0,1)`**. El flujo es **no determinístico** en local: la misma corrida a veces dispara Experian y a veces la saltea. Hay un segundo stub igual en `:400`.
+- `OtpService.php:443-449` — **ya NO es «1111 fijo sin leer Redis»**: primero intenta `readOtpFromRedis` y **solo si el cache no entrega** cae a **1111**, y solo en `local` (`:447`). En develop/prod no hay caída: se aborta (OBS-OTP-01, `:451-455`) en vez de persistir un espejo en `0`. Con `qa_otp_bypass_phones` (sólo `local`/`development`) el OTP son los **últimos 4 dígitos del teléfono**, y ese mismo bypass **saltea el rate limit** de personal-info.
+- Rate limit de personal-info: por **número de documento**, `4/hora` por defecto, TTL 3600 s, clave `CTOP_LO_STORE_PERSONAL_INFO_RTL_CTRL::{documento}`, configurable en el Setting `personal_info_settings.rate_limit_rules`. La lectura chequea **primero la clave con typo** `store_personal_info_max_requests_per_houre` y después la correcta.
+
+**Contrato y datos**
+- `normalizeOtpErrorCode` (wizard) mapea `ONB003 → expired`, `ONB006 → max_attempts` y `ONB007 → rate_limit`. En el backend `ONB003` es *personal info no validada*, `ONB006` es *onboarding Bancolombia* y **`ONB007` no existe**. Sólo afecta etiquetas de analítica, pero la tabla del front no es el catálogo del back.
+- `lenders-v2` **no es SSE**: el "streaming" lo hace el loader de React Router devolviendo promesas sin `await`.
+- El default `180000` de `lenders-v2` enmascara el monto real si el front no lo manda; es el mínimo de Welli reciclado como constante.
+- `env('INTERNAL_LEGACY_API_URL')` se llama **crudo** (no vía `config()`) en `ValidateOtpController:120` y `PersonalInfoController:1042` — con `config:cache` en producción devuelven `null` (hay un tercer uso en `ListLenderController:259`, pero está dentro del bloque comentado). El mismo valor está expuesto correctamente como `config('services.api.legacy_host')` y así lo usan `RegisterCellPhoneController:185` y `OtpController:371`.
+- `SimulatorController::startV2` define `$alliedBranch` **sólo dentro** del `if (!ecommerce && auth()->check() && user_profile_id == 4)` y lo desreferencia fuera; para cualquier perfil que no sea asesor la variable no está definida.
+- Autofill hardcodeado: para los allieds `[209,210,211]` (Corbeta) sin info laboral, el orquestador de OTP escribe **ingreso 1.500.000 y "Empleado"**.
+- `OnboardingService.php:127` — `Experian::creditScore($user_request)` está comentado, pero el log inmediatamente anterior sigue afirmando que corre "unconditionally". No confiar en ese trace.
+- `Modules/Onboarding/tests/Unit/*FreezeTest.php` son tests de **congelamiento**: fijan rarezas actuales (ONB001/002/004/006 con HTTP 200, el ternario muerto `corbeta ? 'ONB006' : 'ONB002'`, el centinela `[]` de `createUserRequest`). Cambiar comportamiento rompe estos tests **a propósito**.
+
 ## Contenido
 
 ### 1. Las cuatro entradas
@@ -172,39 +205,6 @@ En G2 **el body gana**: `request()->input('amount') ?? session('amount') ?? 0`. 
 - Repositorios del wizard (todos contra `VITE_API_URL` + `/api/onboarding/...`): `phone-number.repository.ts:51` y `:82`, `phone-otp.repository.ts:21-22`, `personal-info.repository.ts:40-41`, `employment-info.repository.ts:21-22`, `partner-info.repository.ts:32-33`.
 
 **Tablas**: `user_requests` · `user_request_statuses` · `user_request_records` (historial; lo escriben los tres gemelos, **no** el observer) · `user_field_values` (EAV) · `allied_ecommerce_credentials` (bifurca canal) · `creditop_x_user_requests_records`.
-
-## Gotchas / riesgos
-
-**Bugs verificados en el camino feliz**
-- `UserRequestController.php:1516` — el `&&` quedó **dentro** del segundo `str_contains`: `str_contains($user->document_number, 'TEMP' && $userRequest->user_request_status_id == 1)`. El needle termina siendo un bool coercionado (`"1"` o `""`), y `str_contains($s, "")` es siempre `true`. La guarda de "usuario temporal en estado 1" no valida lo que dice.
-- `PersonalInfoController.php:1044` — la URL de delegación interpola `$userRequestIdSessionKey` (la **clave** `'user_request_id_v2'`) en vez de `$user_request_id` (asignado en `:1019` y nunca usado). La llamada a `laboral-info/{hash}/user_request_id_v2` no puede resolver → cae siempre al `catch` y al método local. La delegación de laboral-info está **rota en silencio**.
-
-**Parallel-run: qué delega y qué no** (application → legacy, verificado uno por uno)
-- `phone/register`: delegado **siempre**, sin allowlist.
-- `otp-validate`: delegado **sólo** si el comercio está en el Setting `allowed_bypass_comerces`; tres caminos de fallback local (sin sesión / no allowlisted / excepción).
-- `personal-info`: **nunca** se delega — `storePersonalInfoV2` es local.
-- `laboral-info`: allowlisted pero roto (arriba).
-- `lenders`: la delegación está **comentada**; `entidades-v2` resuelve con el `LenderRetrievalService` de `application`.
-
-**Gemelos que divergen**
-- `UserRequestObserver`: en `application` el `updated()` despacha `AchievementCheck` + `BonificationCheck`; en `legacy-backend` esos despachos están **comentados** y en su lugar notifica al comercio en estados finales `[6,7,8,11]`. Quién escribe la UR cambia los efectos secundarios.
-- `createTemporalUser` está duplicado (`RegisterCellPhoneService` y `UserService`).
-- La guarda para pasar a estado 3 es `!= 11` en G1 y `!= 11 && != 25` en G2.
-
-**Entornos y testing**
-- `OnboardingController.php:1270-1272` — en `local`/`development`, `hadPreApproveLender` se stubea con **`random_int(0,1)`**. El flujo es **no determinístico** en local: la misma corrida a veces dispara Experian y a veces la saltea. Hay un segundo stub igual en `:400`.
-- `OtpService.php:443-449` — **ya NO es «1111 fijo sin leer Redis»**: primero intenta `readOtpFromRedis` y **solo si el cache no entrega** cae a **1111**, y solo en `local` (`:447`). En develop/prod no hay caída: se aborta (OBS-OTP-01, `:451-455`) en vez de persistir un espejo en `0`. Con `qa_otp_bypass_phones` (sólo `local`/`development`) el OTP son los **últimos 4 dígitos del teléfono**, y ese mismo bypass **saltea el rate limit** de personal-info.
-- Rate limit de personal-info: por **número de documento**, `4/hora` por defecto, TTL 3600 s, clave `CTOP_LO_STORE_PERSONAL_INFO_RTL_CTRL::{documento}`, configurable en el Setting `personal_info_settings.rate_limit_rules`. La lectura chequea **primero la clave con typo** `store_personal_info_max_requests_per_houre` y después la correcta.
-
-**Contrato y datos**
-- `normalizeOtpErrorCode` (wizard) mapea `ONB003 → expired`, `ONB006 → max_attempts` y `ONB007 → rate_limit`. En el backend `ONB003` es *personal info no validada*, `ONB006` es *onboarding Bancolombia* y **`ONB007` no existe**. Sólo afecta etiquetas de analítica, pero la tabla del front no es el catálogo del back.
-- `lenders-v2` **no es SSE**: el "streaming" lo hace el loader de React Router devolviendo promesas sin `await`.
-- El default `180000` de `lenders-v2` enmascara el monto real si el front no lo manda; es el mínimo de Welli reciclado como constante.
-- `env('INTERNAL_LEGACY_API_URL')` se llama **crudo** (no vía `config()`) en `ValidateOtpController:120` y `PersonalInfoController:1042` — con `config:cache` en producción devuelven `null` (hay un tercer uso en `ListLenderController:259`, pero está dentro del bloque comentado). El mismo valor está expuesto correctamente como `config('services.api.legacy_host')` y así lo usan `RegisterCellPhoneController:185` y `OtpController:371`.
-- `SimulatorController::startV2` define `$alliedBranch` **sólo dentro** del `if (!ecommerce && auth()->check() && user_profile_id == 4)` y lo desreferencia fuera; para cualquier perfil que no sea asesor la variable no está definida.
-- Autofill hardcodeado: para los allieds `[209,210,211]` (Corbeta) sin info laboral, el orquestador de OTP escribe **ingreso 1.500.000 y "Empleado"**.
-- `OnboardingService.php:127` — `Experian::creditScore($user_request)` está comentado, pero el log inmediatamente anterior sigue afirmando que corre "unconditionally". No confiar en ese trace.
-- `Modules/Onboarding/tests/Unit/*FreezeTest.php` son tests de **congelamiento**: fijan rarezas actuales (ONB001/002/004/006 con HTTP 200, el ternario muerto `corbeta ? 'ONB006' : 'ONB002'`, el centinela `[]` de `createUserRequest`). Cambiar comportamiento rompe estos tests **a propósito**.
 
 ## Lo que NO está verificado
 - `initial_fee` existe a nivel comercio Y sucursal (`allieds.*` y `lenders_by_allied_branches.*`); la regla «el % lo exige la categoría rt=2» es del cupo CreditopX (→ `profiling`) y no se verificó acá.

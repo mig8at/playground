@@ -16,6 +16,17 @@ El mismo `PaymentGatewayTransaction` (tabla propia de Wompi) transporta los dos 
 | ¿Dónde vive? | **Vivo en `application`**. `legacy-backend` tiene copia (misma `Actions/Lenders/Wompi.php` con el dd, + `InitialFeePaymentService` reescrito en Modules/Loans + `Modules/Payments` para links). |
 | ¿Simulable? | Sí para in-platform: sembrar `PaymentGatewayTransaction` en `APPROVED` o `dispatchSync(StatusCheck)`. El seam de aplicar el pago es de `servicing`. |
 
+## Antes de concluir
+- 🐞 **`dd($exception)` vivo** en `Wompi::getMerchant` (app:79 / legacy:78) — ver sección P0.
+- **Wompi NO tiene webhook** — todo es polling (`StatusCheck` + reconcile). Un job muerto = pago "colgado" hasta la reconciliación (o para siempre si la reconciliación no lo cubre; el cron 00:02 está hardcodeado a `lender_id=52`, ver servicing).
+- **`status_id` hardcodeados `22`/`21`** en `InitialFeePaymentController` (app) en vez de resolver por nombre — frágil si cambian los ids de `LenderTransactionStatus`.
+- **Idempotencia asimétrica app↔legacy:** los 3 candados anti-doble-cobro solo están en `application`. La copia de legacy tiene un `mockUpdateStatus` (staging) pero su path real no replica los guards → riesgo de re-imputar si se activara.
+- **Wompi = lender 52 mágico** disperso (updateStatus, reconcile, cron): la pasarela se modela como un "lender" en `LenderTransactionStatus`/`LenderAlliedCredential`. Otra pasarela nueva requeriría clonar ese acoplamiento.
+- **`user_request_id=0` = cupo rotativo** (sentinel, no null) en `PaymentGatewayTransaction` — ramifica todo el `updateStatus`/`WompiController`.
+- **Auth Wompi inconsistente**: crear con `wompi_public`, consultar con `wompi_private`, y algunos GET sin token (documentado como rareza de Wompi en comentarios del código).
+- **Payvalida webhook empuja originación** (a Estado 11 + voucher + Woocommerce) — es más "desembolso/aprobación" que "recaudo"; cruza con el nodo de originación/agregadores. El `generateVoucher`/`updateDisbursedLender` que dispara son de esos nodos.
+- **Costos administrativos** se recalculan al aprobar la cuota inicial (`administrative_costs_percentage` de `LendersByAllied`) — cambia `final_amount`/`amount` del crédito; efecto de negocio escondido en `Wompi::updateStatus`.
+
 ## Contenido
 **Flujo Wompi — cuota inicial (formalización):**
 1. **Origen del bounce (rt=2 con `initial_fee>0`):** en el wizard, al elegir un CreditopX in-platform que exige enganche, el flujo desvía al paso de cuota inicial (`useInitialFee.ts` computa `requiresInitialFee`/`minRequiredInitialFee`; `InitialFeeForm.tsx` valida `value >= minRequiredInitialFee`). Ver `available-lenders.tsx` (border con marketplace/profiling).
@@ -117,17 +128,6 @@ contrastado contra la rama.
 - **Cuota inicial:** `UserRequest` de un lender in-platform (rt=2) cuya categoría tenga `min_initial_fee>0`; `LenderAlliedCredential` con `wompi_public/private/integrity` de la sucursal. La txn nace PENDING; para "pagar" sin Wompi, poné `status_id` al APPROVED de lender 52 y corré `StatusCheck`/`validatePayment`.
 - **Recaudo:** usuario con `CreditopXRequestHistory status=1` (consumo) o `RevolvingCredit` (cupo); buscar por documento en `customer/payment/lookup`.
 - **Payvalida:** `PayvalidaTransaction` con `order_uuid` conocido + credencial `payvalida_merchant_id/client_secret`; disparar el webhook con `po_id`.
-
-## Gotchas / riesgos
-- 🐞 **`dd($exception)` vivo** en `Wompi::getMerchant` (app:79 / legacy:78) — ver sección P0.
-- **Wompi NO tiene webhook** — todo es polling (`StatusCheck` + reconcile). Un job muerto = pago "colgado" hasta la reconciliación (o para siempre si la reconciliación no lo cubre; el cron 00:02 está hardcodeado a `lender_id=52`, ver servicing).
-- **`status_id` hardcodeados `22`/`21`** en `InitialFeePaymentController` (app) en vez de resolver por nombre — frágil si cambian los ids de `LenderTransactionStatus`.
-- **Idempotencia asimétrica app↔legacy:** los 3 candados anti-doble-cobro solo están en `application`. La copia de legacy tiene un `mockUpdateStatus` (staging) pero su path real no replica los guards → riesgo de re-imputar si se activara.
-- **Wompi = lender 52 mágico** disperso (updateStatus, reconcile, cron): la pasarela se modela como un "lender" en `LenderTransactionStatus`/`LenderAlliedCredential`. Otra pasarela nueva requeriría clonar ese acoplamiento.
-- **`user_request_id=0` = cupo rotativo** (sentinel, no null) en `PaymentGatewayTransaction` — ramifica todo el `updateStatus`/`WompiController`.
-- **Auth Wompi inconsistente**: crear con `wompi_public`, consultar con `wompi_private`, y algunos GET sin token (documentado como rareza de Wompi en comentarios del código).
-- **Payvalida webhook empuja originación** (a Estado 11 + voucher + Woocommerce) — es más "desembolso/aprobación" que "recaudo"; cruza con el nodo de originación/agregadores. El `generateVoucher`/`updateDisbursedLender` que dispara son de esos nodos.
-- **Costos administrativos** se recalculan al aprobar la cuota inicial (`administrative_costs_percentage` de `LendersByAllied`) — cambia `final_amount`/`amount` del crédito; efecto de negocio escondido en `Wompi::updateStatus`.
 
 ## Diferencias vs otros flujos
 - **vs `servicing`:** servicing es la **contabilidad** del pago (imputación, mora, causación, cierre). Payments es solo el **transporte** (hablar con Wompi/Payvalida). El seam exacto: `Wompi::updateStatus` → `processPayment`.

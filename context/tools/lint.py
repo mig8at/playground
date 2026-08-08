@@ -37,7 +37,9 @@ def falla(check: str, p: pathlib.Path, n: int, linea: str) -> None:
 # Por qué: «52 hallazgos», «31 nodos», «8 mocks» quedaron mintiendo en 7 lugares. Un número que
 # una máquina puede contar no se escribe a mano; la prosa apunta a quien lo computa.
 # NO aplica a flows/: un censo con fecha y método es evidencia legítima.
-L1_RX = re.compile(r"\b\d+\s+(nodos?|hallazgos?|repos\b|roots\b|mocks?\b|citas\b|corridas\b|invariantes\b)")
+# El lookbehind excluye los RANGOS-instrucción («abrí 2–4 nodos»), que no son una afirmación
+# contable sobre el árbol sino una indicación de cuántos leer.
+L1_RX = re.compile(r"(?<![\d–—-])\b\d+\s+(nodos?|hallazgos?|repos\b|roots\b|mocks?\b|citas\b|corridas\b|invariantes\b)")
 L1_FILES = [PLAY / "README.md", PLAY / "CLAUDE.md", ROOT / "README.md", ROOT / "CLAUDE.md",
             PLAY / "harness" / "CLAUDE.md", PLAY / "harness" / "README.md",
             PLAY / "tablero" / "CLAUDE.md", PLAY / "tablero" / "README.md",
@@ -128,6 +130,24 @@ for p in sorted(FLOWS.glob("*/doc.md")):
         if L7_RX.search(l):
             falla("L7 cita-doc-con-línea", p, n, l)
 
+# ── L8 · «Antes de concluir» sepultado bajo la descripción ──────────────────────────────────
+# Por qué: es el bloque que corrige creencias falsas, y en TODOS los nodos menos `creditop`
+# estaba llegando al 60–92% del documento — o sea después de la descripción, donde ya no cambia
+# ninguna decisión. Un modelo abre el nodo con una hipótesis; corregirla al final no sirve.
+# El umbral es la mitad: si el doc crece y el bloque queda abajo, la prioridad se invirtió otra vez.
+L8_RX = re.compile(r"^## (Antes de concluir|Invariantes|Los \d+ invariantes)")
+for p in sorted(FLOWS.glob("*/doc.md")):
+    if p.parent.name == "findings":       # el archivo ENTERO es ese bloque
+        continue
+    ls = leer(p)
+    pos = next((i for i, l in enumerate(ls) if L8_RX.match(l)), None)
+    if pos is None:
+        continue                          # nodo sin nada contraintuitivo: se avisa en salud, no acá
+    if ls and pos > len(ls) // 2:
+        pct = pos * 100 // max(len(ls), 1)
+        fallas.append(f"  L8 bloque-sepultado · {p.relative_to(PLAY)}:{pos + 1} · "
+                      f"«Antes de concluir» arranca al {pct}% del doc (tiene que ir en la primera mitad)")
+
 # ── veredicto ────────────────────────────────────────────────────────────────────────────────
 if fallas:
     print(f"✗ lint: {len(fallas)} violación(es) — cada una fue una mentira real alguna vez:\n")
@@ -135,4 +155,5 @@ if fallas:
     print("\n  (mención legítima → agregá `<!-- lint:ok -->` en esa línea)")
     sys.exit(1)
 print("✓ lint: sin conteos horneados, refs muertas, secciones prohibidas, rutas desnudas,")
-print("        nodos invisibles, kinds fuera de enum ni citas doc→doc con línea.")
+print("        nodos invisibles, kinds fuera de enum, citas doc→doc con línea")
+print("        ni bloques «Antes de concluir» sepultados bajo la descripción.")

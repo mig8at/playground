@@ -16,6 +16,29 @@ ocupación** que deciden la categoría del cliente no los calcula PHP — los ca
 que además recibe el `APP_KEY` como parámetro porque el reporte del buró está cifrado y lo descifra
 adentro de la base.
 
+## Antes de concluir
+
+- ⚠ **CUATRO rutinas existen en producción y su código NO está en ningún repositorio** (pero SÍ se
+  pueden rescatar desde dev — ver la receta abajo, y hacerlo es la acción pendiente):
+  `FN_Mareigua_Incomes_Average` (creada 2025-10-29) · `FN_CreditopX_Revolving_Credit_Multiplier`
+  (2025-12-27) · `FN_Replace_Special_Characters` (2025-07-29) · `actualizar_json` (2025-06-11). Las dos
+  primeras **se llaman desde PHP en producción**. No se pueden revisar en un PR, ni versionar, ni
+  reproducir en un entorno nuevo desde el repo. El propio código ya lo advierte en
+  `MareiguaExtractor.php:23`: *«calls the SQL stored function FN_Mareigua_Incomes_Average, which is NOT
+  defined in the repository's migrations»*.
+- **`migrate.sql` no está bajo el flujo de migraciones.** Vive en la raíz del repo, su último commit es
+  de 2025-08-15 y la tabla `migrations` de prod no lo registra: se corre a mano. O sea que **no hay
+  forma de saber desde el repo qué versión de una rutina está corriendo** — sólo
+  `information_schema.routines` (columnas `created` / `last_altered`) lo dice.
+- **Cambiar una rutina no deja rastro en el código.** Un `CREATE OR REPLACE` en prod altera el cálculo
+  del ingreso o de la ocupación sin un solo commit, sin PR y sin deploy. Al depurar un perfilamiento
+  raro, comparar `last_altered` con la fecha del síntoma es una pregunta legítima.
+- **No emiten logs.** Una función SQL no escribe a Loki, así que el tramo del cómputo es invisible para
+  el trazador: puede mostrar la entrada (la fila del buró) y la salida (la categoría), nunca el medio.
+  Es un límite hermano del «el wizard no manda logs a Loki».
+- **El parseo por buró está duplicado en dos lugares**: las `FN_Mareigua_*` / `FN_AgilData_*` en la BD, y
+  los extractores de `Modules/RiskV2/App/Extractors/RiskCentral/`. No se verificó si coinciden.
+
 ## Dónde mirar
 
 **La fuente** es `legacy-backend/migrate.sql` (113 KB, único `.sql` de los dos repos; no va en `files[]`
@@ -55,29 +78,6 @@ por la regla de extensiones). Define **38 de las 42** — las otras 4 no tienen 
 | **Llamadas desde PHP** | 13 | el camino caliente: los 2 `SP_*_Extract_Data`, los insumos de categoría, Mareigua, revolvente |
 | **Sólo internas** | 27 | las 23 `FN_Experian_*`, `FN_Decrypt_Data`, `FN_User_Continuity`, `FN_CreditopX_Profiling_Multiplier_Risk`… — las usa otra rutina, nunca el código |
 | **Sin call site conocido** | 2 | `SP_Update_User_Request_Risk_Centrals` (F-107) · `actualizar_json` |
-
-## Gotchas / riesgos
-
-- ⚠ **CUATRO rutinas existen en producción y su código NO está en ningún repositorio** (pero SÍ se
-  pueden rescatar desde dev — ver la receta abajo, y hacerlo es la acción pendiente):
-  `FN_Mareigua_Incomes_Average` (creada 2025-10-29) · `FN_CreditopX_Revolving_Credit_Multiplier`
-  (2025-12-27) · `FN_Replace_Special_Characters` (2025-07-29) · `actualizar_json` (2025-06-11). Las dos
-  primeras **se llaman desde PHP en producción**. No se pueden revisar en un PR, ni versionar, ni
-  reproducir en un entorno nuevo desde el repo. El propio código ya lo advierte en
-  `MareiguaExtractor.php:23`: *«calls the SQL stored function FN_Mareigua_Incomes_Average, which is NOT
-  defined in the repository's migrations»*.
-- **`migrate.sql` no está bajo el flujo de migraciones.** Vive en la raíz del repo, su último commit es
-  de 2025-08-15 y la tabla `migrations` de prod no lo registra: se corre a mano. O sea que **no hay
-  forma de saber desde el repo qué versión de una rutina está corriendo** — sólo
-  `information_schema.routines` (columnas `created` / `last_altered`) lo dice.
-- **Cambiar una rutina no deja rastro en el código.** Un `CREATE OR REPLACE` en prod altera el cálculo
-  del ingreso o de la ocupación sin un solo commit, sin PR y sin deploy. Al depurar un perfilamiento
-  raro, comparar `last_altered` con la fecha del síntoma es una pregunta legítima.
-- **No emiten logs.** Una función SQL no escribe a Loki, así que el tramo del cómputo es invisible para
-  el trazador: puede mostrar la entrada (la fila del buró) y la salida (la categoría), nunca el medio.
-  Es un límite hermano del «el wizard no manda logs a Loki».
-- **El parseo por buró está duplicado en dos lugares**: las `FN_Mareigua_*` / `FN_AgilData_*` en la BD, y
-  los extractores de `Modules/RiskV2/App/Extractors/RiskCentral/`. No se verificó si coinciden.
 
 ## Lo que Redash SÍ y NO puede contestar acá
 

@@ -22,6 +22,36 @@ Tres palabras que hay que tener claras porque el SOAP las usa todo el tiempo:
 Es una **capacidad de la plataforma, no un desarrollo por lender**: se habilita configurando, no
 programando. En producción hoy: **Credifamilia y Dentix**.
 
+## Antes de concluir
+
+- ⚠ **`SDL.DA.0439` (identidad no coincide) no tiene arreglo desde la integración, y bloquea el crédito
+  al final del embudo.** El registro de giradores de Deceval **es nacional y compartido entre todas las
+  entidades**: si la cédula del cliente fue registrada años atrás por otra financiera con los nombres
+  escritos distinto (un segundo nombre de más, un typo histórico), Deceval lo rechaza como conflicto de
+  identidad. Devuelve `cuentaGirador = 0`, y un pagaré con cuenta 0 revienta después con `SDL.DA.0388`.
+  **No hay operación de consulta de girador en el WSDL**, así que no se puede detectar antes de
+  intentar. Cambios de correo, dirección o teléfono **no** disparan esto (se actualizan solos), ni las
+  mayúsculas ni los espacios: sólo nombres genuinamente distintos.
+  ⚠ Y notar la asimetría con **F-121**: *Deceval* detecta que el documento y el nombre no concuerdan;
+  *nosotros* no tenemos con qué.
+- ⚠ **La dirección del girador se imprime en el pagaré como domicilio de notificación legal.** No es
+  metadata: la cláusula la pacta como dirección válida para avisos en un cobro judicial. Si el
+  depositante de un lender la exige, el onboarding de ese lender **tiene que capturar la real** — un
+  pagaré con dirección de configuración es un riesgo legal, y el propio documento lo deja como
+  «validación con legal pendiente».
+- ⚠ **El OTP lo valida CreditOp, no Deceval.** La clave de firma que se manda es el OTP propio, y
+  Deceval **no la verifica**: queda como evidencia registrada. Autenticar al firmante es responsabilidad
+  del depositante — o sea nuestra. Verificado contra el sandbox de certificación.
+- **Las credenciales son por ambiente.** Un password de producción en certificación da
+  `wsse:FailedAuthentication` — que se lee como «la firma está mal» y no lo está. Y el sandbox
+  **valida menos que producción** (por ejemplo no verifica la clave de firma): la paridad no está
+  garantizada, así que «pasó en certificación» no es «pasa en prod».
+- **El número del pagaré sale del id de la fila**, no de un contador propio:
+  `{promissory_note.id}-{id en 6 dígitos}` (`:67`). Borrar y recrear la fila cambia el número del título
+  ante Deceval.
+- ⚠ **El guard de `createGirador` está bien en `legacy-backend` y ROTO en `legacy-application`**, que
+  sigue sirviendo el flujo. Ver **F-122** — es la diferencia entre `||` y `&&`.
+
 ## El flujo, y dónde está en el embudo
 
 ```
@@ -124,36 +154,6 @@ saber en qué estado quedó el título.
 | seguridad (WSS4J) | `soap:Fault wsse:*` | firma o credencial — **nunca llegó al servicio** |
 | negocio | respuesta con `exitoso=false` + `codigoError` (`SDL.*`) | rechazo del servicio |
 | detalle | `<mensajeRespuesta>` por ítem | **el error accionable** |
-
-## Gotchas / riesgos
-
-- ⚠ **`SDL.DA.0439` (identidad no coincide) no tiene arreglo desde la integración, y bloquea el crédito
-  al final del embudo.** El registro de giradores de Deceval **es nacional y compartido entre todas las
-  entidades**: si la cédula del cliente fue registrada años atrás por otra financiera con los nombres
-  escritos distinto (un segundo nombre de más, un typo histórico), Deceval lo rechaza como conflicto de
-  identidad. Devuelve `cuentaGirador = 0`, y un pagaré con cuenta 0 revienta después con `SDL.DA.0388`.
-  **No hay operación de consulta de girador en el WSDL**, así que no se puede detectar antes de
-  intentar. Cambios de correo, dirección o teléfono **no** disparan esto (se actualizan solos), ni las
-  mayúsculas ni los espacios: sólo nombres genuinamente distintos.
-  ⚠ Y notar la asimetría con **F-121**: *Deceval* detecta que el documento y el nombre no concuerdan;
-  *nosotros* no tenemos con qué.
-- ⚠ **La dirección del girador se imprime en el pagaré como domicilio de notificación legal.** No es
-  metadata: la cláusula la pacta como dirección válida para avisos en un cobro judicial. Si el
-  depositante de un lender la exige, el onboarding de ese lender **tiene que capturar la real** — un
-  pagaré con dirección de configuración es un riesgo legal, y el propio documento lo deja como
-  «validación con legal pendiente».
-- ⚠ **El OTP lo valida CreditOp, no Deceval.** La clave de firma que se manda es el OTP propio, y
-  Deceval **no la verifica**: queda como evidencia registrada. Autenticar al firmante es responsabilidad
-  del depositante — o sea nuestra. Verificado contra el sandbox de certificación.
-- **Las credenciales son por ambiente.** Un password de producción en certificación da
-  `wsse:FailedAuthentication` — que se lee como «la firma está mal» y no lo está. Y el sandbox
-  **valida menos que producción** (por ejemplo no verifica la clave de firma): la paridad no está
-  garantizada, así que «pasó en certificación» no es «pasa en prod».
-- **El número del pagaré sale del id de la fila**, no de un contador propio:
-  `{promissory_note.id}-{id en 6 dígitos}` (`:67`). Borrar y recrear la fila cambia el número del título
-  ante Deceval.
-- ⚠ **El guard de `createGirador` está bien en `legacy-backend` y ROTO en `legacy-application`**, que
-  sigue sirviendo el flujo. Ver **F-122** — es la diferencia entre `||` y `&&`.
 
 ## ⏳ Lo que el documento describe y NO está en `main`
 

@@ -14,6 +14,17 @@ El hecho estructural central es el **strangler / parallel-run**: mucha lógica e
 
 Este nodo cubre la **frontera**: qué repos hay, cómo se enganchan y dónde está el interruptor de cutover. El detalle interno de cada repo es de sus hijos.
 
+## Antes de concluir
+- **`auth.cognito` no autentica** (el detalle del middleware y quiénes lo usan → `actors`). Lo que importa acá: la barrera real es **de red/gateway, no de código** — y por eso el puente S2 funciona pese a no mandar `Authorization`.
+- **Tres mecanismos de cutover distintos y sin relación** — filas de `settings` (originación), array PHP hardcodeado (checkout Corbeta) y `config/documents.php` (generación de PDFs). No hay un feature-flag único; para saber qué corre para un comercio hay que mirar los tres.
+- **Ningún repo tiene el esquema completo** (47 + 67 migraciones exclusivas). Explica los "no lista el lender" al levantar local con un solo repo.
+- **Las migraciones se copian a mano** (286 byte-idénticas): nada garantiza que la próxima siga sincronizada.
+- **Deriva de gemelos en ambos sentidos** sobre la misma tabla `lenders`: el hardcode de Credifamilia solo en application, `isSmartpayChannel()` solo en legacy. Leer un modelo en un repo **no** dice cómo se comporta el otro.
+- **`app/Http/Controllers` de legacy-backend es una copia mayormente muerta**: 33 controladores, pero **no hay `routes/web.php`** y la raíz solo monta el ping + exceptions. Los únicos alcanzables por ruta son los **dos** de `Api/CredifamiliaV2` (`CrossCoreController`, `EvidenteController`), que además son código nuevo, no heredado.
+- **Share de Inertia muerto:** `HandleInertiaRequests.php:50-55` publica `newFrontendBaseUrl` y `newFrontendBranchHashes` a las páginas Vue, pero `newFrontend` aparece **0 veces** en `resources/`.
+- **`product_type` es fantasma**: no existe la columna; usar `response_type` + `path_id`.
+- Los prefijos de ruta del wizard están **duplicados a mano** en PHP y TS (`NewFrontendUrlService` ↔ `ROUTE_PREFIXES`); nada los mantiene sincronizados.
+
 ## Contenido
 
 ### Los repos (verificado en composer/package + estructura)
@@ -156,17 +167,6 @@ Tres trampas de las etiquetas, todas medidas:
 **Y una cuarta, la que más limita lo que se puede afirmar: sólo el 13 % de las líneas dice a qué solicitud pertenece** — y cuando lo dice, usa tres nombres de campo distintos (`context_user_request_id`, `context_userRequestId` en la integración BNPL, `context_request_id` en el cliente del MS de PDFs). Consecuencia: reconstruir el recorrido de una solicitud obliga a anclar y **expandir por `trace_id`**, y eso mezcla solicitudes de un mismo cliente. Medido en prod sobre 8 solicitudes de 7 comercios; el contraste es Corbeta **58 %** de líneas afirmables contra Credifamilia **4 %**, y no es volumen — Corbeta loguea menos, pero identifica lo que loguea. Detalle, mediciones y el arreglo en **F-102**. ⚠ No confundirlo con «logs y trazas separados»: el `trace_id` está en el **100 %** de las líneas y esa parte funciona; lo que falta es la identidad de la solicitud dentro del log. (Y los **nombres de los spans** —`tracer->startSpan('Clase::metodo')`— tampoco viajan a Loki: viven en Tempo, que hoy no se consulta.)
 
 **La BD de producción se lee por Redash** (`redash.creditop.com`, fuente `id=1 "Live"`, permiso `execute_query`), que es la única puerta: no hay acceso directo. Tres cosas que conviene saber antes de usarla: es **asíncrona** (job → polling → resultado), queda **auditada a nombre del dueño del token**, y devuelve los `datetime` en hora **local**, no UTC (ver **F-98** para el efecto de equivocarse con eso). El ELB es **interno**: sin VPN el síntoma es un *timeout*, no un 401.
-
-## Gotchas / riesgos
-- **`auth.cognito` no autentica** (el detalle del middleware y quiénes lo usan → `actors`). Lo que importa acá: la barrera real es **de red/gateway, no de código** — y por eso el puente S2 funciona pese a no mandar `Authorization`.
-- **Tres mecanismos de cutover distintos y sin relación** — filas de `settings` (originación), array PHP hardcodeado (checkout Corbeta) y `config/documents.php` (generación de PDFs). No hay un feature-flag único; para saber qué corre para un comercio hay que mirar los tres.
-- **Ningún repo tiene el esquema completo** (47 + 67 migraciones exclusivas). Explica los "no lista el lender" al levantar local con un solo repo.
-- **Las migraciones se copian a mano** (286 byte-idénticas): nada garantiza que la próxima siga sincronizada.
-- **Deriva de gemelos en ambos sentidos** sobre la misma tabla `lenders`: el hardcode de Credifamilia solo en application, `isSmartpayChannel()` solo en legacy. Leer un modelo en un repo **no** dice cómo se comporta el otro.
-- **`app/Http/Controllers` de legacy-backend es una copia mayormente muerta**: 33 controladores, pero **no hay `routes/web.php`** y la raíz solo monta el ping + exceptions. Los únicos alcanzables por ruta son los **dos** de `Api/CredifamiliaV2` (`CrossCoreController`, `EvidenteController`), que además son código nuevo, no heredado.
-- **Share de Inertia muerto:** `HandleInertiaRequests.php:50-55` publica `newFrontendBaseUrl` y `newFrontendBranchHashes` a las páginas Vue, pero `newFrontend` aparece **0 veces** en `resources/`.
-- **`product_type` es fantasma**: no existe la columna; usar `response_type` + `path_id`.
-- Los prefijos de ruta del wizard están **duplicados a mano** en PHP y TS (`NewFrontendUrlService` ↔ `ROUTE_PREFIXES`); nada los mantiene sincronizados.
 
 ## Lo que NO está verificado
 - Qué apunta a qué en producción: la BD compartida está probada por código (migraciones y modelos idénticos), no por config verificada contra el despliegue.

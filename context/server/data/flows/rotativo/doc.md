@@ -16,6 +16,56 @@ tiers de consumo.** Medido en prod: de los **16 lenders rt=3 activos, 14 no tien
 `lender_users_category_rules`. En vez de tiers usa un **multiplicador de riesgo de 1 a 5** calculado en
 SQL, y una tabla de cuota inicial + FGA por nivel.
 
+## Antes de concluir
+
+- ⚠ **Los niveles 1 y 2 no se pueden alcanzar nunca.** El corte rechaza `multiplier <= 3` **antes** de
+  leer la tabla de cuota inicial/FGA, así que la fila que se lee es siempre `(int) multiplicador ∈
+  {3, 4, 5}` — y el 3 sólo cuando el promedio cae en `(3, 4)`. Los 13 lenders tienen configurados los 5
+  niveles: **26 de las 65 filas son configuración muerta**. Al leer un tablero de configuración, los
+  niveles 1 y 2 se ven activos y no lo están.
+- ⚠ **El nivel 5 casi tampoco.** `(int)` **trunca**: `4,99 → 4`. Para caer en el nivel 5 hace falta un
+  promedio **exactamente** 5,0, o sea las seis variables en su puntaje máximo.
+- ⚠ **Las dos implementaciones dan resultados distintos para el mismo cliente.** El PHP otorga y el SP
+  alimenta la pantalla de condiciones; divergen en al menos cinco puntos, todos verificados leyendo
+  ambos cuerpos:
+
+  | | PHP (`RevolvingLoanConfigService`) | SQL (`SP_CreditopX_Revolving_Credit`) |
+  |---|---|---|
+  | función de multiplicador | `FN_CreditopX_Revolving_Credit_Multiplier` — 6 variables, **incluye continuidad laboral** | `FN_CreditopX_Profiling_Multiplier_Risk` — **otra función**, sólo Experian |
+  | deuda CreditOp | la **suma** a la capacidad (`+ ctop_debt`) | la **resta** (`+ creditopXInstallment` dentro del paréntesis) |
+  | rechazo | `multiplier <= 3` → cupo 0 | **no rechaza** |
+  | redondeo del cupo | `floor(x/50.000) × 50.000` | `TRUNCATE(x, -4)` → a **10.000** |
+  | nivel para FGA/cuota | `(int) m` — **trunca** | `m = 5 ? 5 : TRUNCATE(m,0) + 1` — **redondea hacia arriba** |
+  | plazo mínimo | `ceil(cupo / capacidad) + 1` | `trunc(**max_rev_credit** / capacidad) + 1` |
+
+  La fila del nivel es la más visible en soporte: para un multiplicador 3,7 el PHP cobra la cuota inicial
+  del **nivel 3** y el SP muestra la del **nivel 4**. **No se determinó cuál de las dos es la
+  intencionada**; lo que sí es seguro es que el número que ve el cliente y el que queda guardado no
+  salen del mismo cálculo.
+- ⚠ **El `+ deuda_creditop` de la capacidad de pago no es un error de signo.** Suma de vuelta lo que
+  CreditOp ya le prestó, porque ese saldo **también** viene dentro del `valueMonthlyPayment` de Experian
+  y si no se devuelve se cuenta dos veces. El propio código lo dice en el TODO de
+  `RevolvingLoanConfigService.php:72`. El SP hace lo contrario. Es el mismo patrón que las dos
+  convenciones de tasa (F-71): dos caminos, dos convenciones, ninguna declarada.
+- ⚠ **`ctop_debt` casi siempre pierde un sumando** (`:35`): `a ?? 0 + $suma ?? 0` se evalúa como
+  `a ?? (0 + $suma) ?? 0` porque en PHP `+` liga más fuerte que `??`. Si el cliente **ya tiene** un cupo
+  rotativo activo, la suma de las cuotas de sus créditos CreditopX **se descarta**. Ver **F-116**.
+- ⚠ **Sin continuidad laboral, la penalización es máxima y silenciosa.** `CONTINUITY` pesa 20 y sus
+  rangos son valores exactos (0, 3, 6, 12). Si no hay ni `agildata` ni `mareigua`, la función deja
+  `continuityValue = NULL`, el `SELECT … INTO` no matchea y la variable **conserva su `DEFAULT 0`** — o
+  sea **0 puntos, peor que el peor cliente** (el piso de la tabla es 1). Un problema de disponibilidad
+  de una fuente de datos se cobra como riesgo del cliente. Ver **F-117**.
+- ⚠ **Un score de 0 puntúa MEJOR que un score de 1 a 300.** El rango `0-0 → 1` y el `1-300 → 0` son las
+  únicas dos celdas de toda la tabla que rompen el piso de 1 punto. Con peso 30, esos 30 puntos separan
+  al que no tiene score del que lo tiene malo, a favor del primero.
+- **El cómputo no deja rastro.** `RevolvingLoanConfigService.php:85` dice literalmente
+  `//TODO guardar log con resultados`, y el JSON con los seis puntajes se descarta. Un rechazo por
+  `multiplier <= 3` no escribe log, no escribe fila y no cambia de estado: el trazador puede mostrar que
+  el cliente entró y que no hubo cupo, **nunca por qué**. Es el hueco de auditoría más grande del
+  producto. Ver **F-115**.
+- **Rotativo ≠ el `revolving` de `servicing`.** Este nodo termina cuando el cupo queda creado; el
+  consumo del cupo, la causación y los seis crons diarios son `servicing`.
+
 ## El motor, paso a paso
 
 El otorgamiento vive en `RevolvingLoanConfigService::getRevolvingLoanConfig` y es una secuencia corta:
@@ -104,56 +154,6 @@ en los cinco niveles**, o sea que el nivel no cambia nada para ese comercio.
   ⚠ **no tiene fuente en ningún repo** — se lee con
   `go run . -target dev -sql "SELECT routine_definition FROM information_schema.routines WHERE routine_name='…'"`.
   `SP_CreditopX_Revolving_Credit` sí está, en `legacy-backend/migrate.sql`. Nodo `db-routines`.
-
-## Gotchas / riesgos
-
-- ⚠ **Los niveles 1 y 2 no se pueden alcanzar nunca.** El corte rechaza `multiplier <= 3` **antes** de
-  leer la tabla de cuota inicial/FGA, así que la fila que se lee es siempre `(int) multiplicador ∈
-  {3, 4, 5}` — y el 3 sólo cuando el promedio cae en `(3, 4)`. Los 13 lenders tienen configurados los 5
-  niveles: **26 de las 65 filas son configuración muerta**. Al leer un tablero de configuración, los
-  niveles 1 y 2 se ven activos y no lo están.
-- ⚠ **El nivel 5 casi tampoco.** `(int)` **trunca**: `4,99 → 4`. Para caer en el nivel 5 hace falta un
-  promedio **exactamente** 5,0, o sea las seis variables en su puntaje máximo.
-- ⚠ **Las dos implementaciones dan resultados distintos para el mismo cliente.** El PHP otorga y el SP
-  alimenta la pantalla de condiciones; divergen en al menos cinco puntos, todos verificados leyendo
-  ambos cuerpos:
-
-  | | PHP (`RevolvingLoanConfigService`) | SQL (`SP_CreditopX_Revolving_Credit`) |
-  |---|---|---|
-  | función de multiplicador | `FN_CreditopX_Revolving_Credit_Multiplier` — 6 variables, **incluye continuidad laboral** | `FN_CreditopX_Profiling_Multiplier_Risk` — **otra función**, sólo Experian |
-  | deuda CreditOp | la **suma** a la capacidad (`+ ctop_debt`) | la **resta** (`+ creditopXInstallment` dentro del paréntesis) |
-  | rechazo | `multiplier <= 3` → cupo 0 | **no rechaza** |
-  | redondeo del cupo | `floor(x/50.000) × 50.000` | `TRUNCATE(x, -4)` → a **10.000** |
-  | nivel para FGA/cuota | `(int) m` — **trunca** | `m = 5 ? 5 : TRUNCATE(m,0) + 1` — **redondea hacia arriba** |
-  | plazo mínimo | `ceil(cupo / capacidad) + 1` | `trunc(**max_rev_credit** / capacidad) + 1` |
-
-  La fila del nivel es la más visible en soporte: para un multiplicador 3,7 el PHP cobra la cuota inicial
-  del **nivel 3** y el SP muestra la del **nivel 4**. **No se determinó cuál de las dos es la
-  intencionada**; lo que sí es seguro es que el número que ve el cliente y el que queda guardado no
-  salen del mismo cálculo.
-- ⚠ **El `+ deuda_creditop` de la capacidad de pago no es un error de signo.** Suma de vuelta lo que
-  CreditOp ya le prestó, porque ese saldo **también** viene dentro del `valueMonthlyPayment` de Experian
-  y si no se devuelve se cuenta dos veces. El propio código lo dice en el TODO de
-  `RevolvingLoanConfigService.php:72`. El SP hace lo contrario. Es el mismo patrón que las dos
-  convenciones de tasa (F-71): dos caminos, dos convenciones, ninguna declarada.
-- ⚠ **`ctop_debt` casi siempre pierde un sumando** (`:35`): `a ?? 0 + $suma ?? 0` se evalúa como
-  `a ?? (0 + $suma) ?? 0` porque en PHP `+` liga más fuerte que `??`. Si el cliente **ya tiene** un cupo
-  rotativo activo, la suma de las cuotas de sus créditos CreditopX **se descarta**. Ver **F-116**.
-- ⚠ **Sin continuidad laboral, la penalización es máxima y silenciosa.** `CONTINUITY` pesa 20 y sus
-  rangos son valores exactos (0, 3, 6, 12). Si no hay ni `agildata` ni `mareigua`, la función deja
-  `continuityValue = NULL`, el `SELECT … INTO` no matchea y la variable **conserva su `DEFAULT 0`** — o
-  sea **0 puntos, peor que el peor cliente** (el piso de la tabla es 1). Un problema de disponibilidad
-  de una fuente de datos se cobra como riesgo del cliente. Ver **F-117**.
-- ⚠ **Un score de 0 puntúa MEJOR que un score de 1 a 300.** El rango `0-0 → 1` y el `1-300 → 0` son las
-  únicas dos celdas de toda la tabla que rompen el piso de 1 punto. Con peso 30, esos 30 puntos separan
-  al que no tiene score del que lo tiene malo, a favor del primero.
-- **El cómputo no deja rastro.** `RevolvingLoanConfigService.php:85` dice literalmente
-  `//TODO guardar log con resultados`, y el JSON con los seis puntajes se descarta. Un rechazo por
-  `multiplier <= 3` no escribe log, no escribe fila y no cambia de estado: el trazador puede mostrar que
-  el cliente entró y que no hubo cupo, **nunca por qué**. Es el hueco de auditoría más grande del
-  producto. Ver **F-115**.
-- **Rotativo ≠ el `revolving` de `servicing`.** Este nodo termina cuando el cupo queda creado; el
-  consumo del cupo, la causación y los seis crons diarios son `servicing`.
 
 ## Lo que NO está verificado
 - ¿Cuál de las dos implementaciones es la intencionada? Si el SP quedó viejo, la pantalla de condiciones miente; si el viejo es el PHP, se otorga con el motor equivocado.

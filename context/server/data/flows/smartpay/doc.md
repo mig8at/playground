@@ -12,6 +12,15 @@
 
 Como subcontexto de **Merchants**, hereda el tronco rt=2 CreditopX del hermano **Pullman** (base sucursal → status → group_rules+datacrédito → categoría/tramo → cupo local); este nodo cubre **solo lo distintivo**: los discriminadores de canal, el skip-AML, el contrato de bloqueo, el desembolso diferido con handoff de 2 dispositivos, y los crons de servicing device-lock. La identidad/AML de fondo es dueña del nodo **KYC**; la firma/desembolso genérica, de **Formalization**.
 
+## Antes de concluir
+- **⚠ [CRÍTICO] Divergencia dev/prod.** `isSmartPay()` hardcodea `id===160`, pero en **DEV el lender SmartPay es 153** → `isSmartPay()` es **false** en dev → skip-AML, `device_lock_agreement`, `generateImeiPathDocuments` y `disburseImeiRequest` **no se activan** (aunque el mailer, que lee config, sí). Probar la originación real en dev exige sortear el hardcode o crear el lender con id 160.
+- **`response_type` ambiguo.** El `SmartPayTestSeeder` crea el lender con **rt=1**, pero negocio/memoria lo tratan como rt=2; el flujo device NO se gatea por rt. Efecto lateral: `cancelOtherClientLoansIfOneDisbursed` corre SIEMPRE en `disburseImeiRequest` (`:296`), vs solo-si-rt==2 en el `authorize` normal. El rt del lender de **prod (160) no lo fija ningún seeder**.
+- **Flujo documentado ≠ cableado.** El seeder documenta rutas `validate-imei`/`associate-imei`/`agreement`, pero las reales son solo `device/register` y `device/{id}/disburse`; la **validación Luhn NO corre en legacy** (`enroll` va directo, la valida el gateway).
+- **Servicing NO autónomo en legacy.** La causación de mora solo está agendada en `application`; con legacy solo, nada se bloquea. Existe una copia del comando en legacy **no agendada**.
+- **Enroll destructivo.** Si el `update` del IMEI devuelve 0 filas, `AlliedProductService::enroll` **borra todos los `user_request_products`** de la solicitud y crea uno nuevo (se pierden accesorios).
+- **Inconsistencias menores**: `PRO_CONSUMIDOR_NUMBER='XXX/20XX'` (placeholder, se sustituye por `request_number`); `releaseDevices` usa prefijo `/api/v1/` distinto al resto; los correos de excepción de los jobs van a destinatarios hardcodeados.
+- *Abiertas:* ¿el divergente dev/prod es intencional o debería usar `isSmartpayChannel()`/config? · ¿el lender 160 de prod es rt=2 o rt=1? · ¿corre solo en RD o también en CO? · ¿quién puebla `user_request_device_info.enrollment_status`/`trustonic_device_id` (el `enroll` solo escribe `user_request_products.imei`)?
+
 ## Contenido
 
 **Tres discriminadores — todo gatea por nivel-lender, nunca por `response_type`:**
@@ -53,11 +62,3 @@ Todo en `legacy-backend` salvo nota; líneas verificadas contra el código vigen
 - **Front (módulo IMEI, `frontend-monorepo`)**: `apps/loan-request-wizard/app/routes/imei/*` + `app/modules/imei/*`, `modules/loan-request-wizard/loan-origination/src/components/imei/*` + `.../lib/application/disburse-device-request.uc.ts` + `.../lib/utils/imei.ts`.
 - **Harness**: mock MDM `tests/mock-server/merchant-gateway.php`, `database/seeders/SmartPayTestSeeder.php`, tests device-lock (`ImeiValidationServiceTest`, `LockDevicesPastDueCommandTest`, `UnlockDevicesOnPaymentTest`, `UnrollDevicesPaidCommandTest`, `DeviceUnrollJobTest`, `PollDeviceReleaseBatchJobTest`, `DeviceLockingApiClientTest`, `DeviceLockMother`).
 
-## Gotchas / riesgos
-- **⚠ [CRÍTICO] Divergencia dev/prod.** `isSmartPay()` hardcodea `id===160`, pero en **DEV el lender SmartPay es 153** → `isSmartPay()` es **false** en dev → skip-AML, `device_lock_agreement`, `generateImeiPathDocuments` y `disburseImeiRequest` **no se activan** (aunque el mailer, que lee config, sí). Probar la originación real en dev exige sortear el hardcode o crear el lender con id 160.
-- **`response_type` ambiguo.** El `SmartPayTestSeeder` crea el lender con **rt=1**, pero negocio/memoria lo tratan como rt=2; el flujo device NO se gatea por rt. Efecto lateral: `cancelOtherClientLoansIfOneDisbursed` corre SIEMPRE en `disburseImeiRequest` (`:296`), vs solo-si-rt==2 en el `authorize` normal. El rt del lender de **prod (160) no lo fija ningún seeder**.
-- **Flujo documentado ≠ cableado.** El seeder documenta rutas `validate-imei`/`associate-imei`/`agreement`, pero las reales son solo `device/register` y `device/{id}/disburse`; la **validación Luhn NO corre en legacy** (`enroll` va directo, la valida el gateway).
-- **Servicing NO autónomo en legacy.** La causación de mora solo está agendada en `application`; con legacy solo, nada se bloquea. Existe una copia del comando en legacy **no agendada**.
-- **Enroll destructivo.** Si el `update` del IMEI devuelve 0 filas, `AlliedProductService::enroll` **borra todos los `user_request_products`** de la solicitud y crea uno nuevo (se pierden accesorios).
-- **Inconsistencias menores**: `PRO_CONSUMIDOR_NUMBER='XXX/20XX'` (placeholder, se sustituye por `request_number`); `releaseDevices` usa prefijo `/api/v1/` distinto al resto; los correos de excepción de los jobs van a destinatarios hardcodeados.
-- *Abiertas:* ¿el divergente dev/prod es intencional o debería usar `isSmartpayChannel()`/config? · ¿el lender 160 de prod es rt=2 o rt=1? · ¿corre solo en RD o también en CO? · ¿quién puebla `user_request_device_info.enrollment_status`/`trustonic_device_id` (el `enroll` solo escribe `user_request_products.imei`)?

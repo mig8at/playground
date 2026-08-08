@@ -32,6 +32,18 @@
 
 ⚠ **El padrón de lenders difiere por ambiente** y eso ya confundió: en **dev/qa** Motai tiene `62` (*Motai X*, credit) y `158` (*Motai Renting*, renting); en el **dump local** hay `168/169/170` (*Motai C/R/RB* = credit/renting/rto) y los ids 169/170 de dev son **otros lenders de otros comercios**. Nunca asumas que un id significa lo mismo en los dos lados: mirá `lenders.product`.
 
+## Antes de concluir
+- **Ábaco NO cablea la decisión**: `average_income` es dato huérfano y el front solo usa el booleano `completed`; la "validación de ingresos" no valida. El PRD MVP2 lo quiere cablear + **revertir el bypass** (Datacrédito 100%): es greenfield, no un toggle.
+- **`lender_requirements` nace VACÍA y con `abaco_is_enabled = false`.** Un lender sin fila no pide Ábaco. Por eso la migración de la v2 hace **backfill** desde `product IN ('renting','rto')`: sin eso, mover la decisión a la tabla apagaría Ábaco en silencio (`MOTV1001` → `MOTV1000`) sin que nadie tocara config.
+- **El endpoint viejo (`motai/check-abaco-requirement`) todavía NO se puede deprecar**: el front lo sigue consumiendo en `api/validation-status`, `identity-validation-status` y `loan-continue` (solo `loan-confirmation` migró a `next_step`). Se dejó como alias a propósito.
+- **`GET init/gig-economy` está ROTO** (`AbacoController` llama `initGigEconomyFromToken()`, inexistente en el service); solo el `POST` funciona.
+- **Webhook `scraping.completed` = NO-OP**: dispatch comentado, solo loguea; además `webhook_enabled=false` por defecto → la finalización se detecta por **polling** del front.
+- **En dev/qa no hay mock de Ábaco** (`mock_pass` solo se usa en `local`): el login va al proveedor **real**, así que con usuario sintético `login/step-2` devuelve `ABAC4005` y la plataforma queda en `error`. **Eso no es un bug** — y encima ejercita el contador de intentos. El camino feliz completo solo se ve en `local` con `bin/mock-abaco`.
+- **PEP migratorio ≠ PEP AML**: aquí PEP = Permiso Especial de Permanencia (migrante gig); el literal `'PEP'` no dispara consulta a centrales. En el AML de TusDatos "PEP" = Persona Expuesta Políticamente.
+- **Terminología invertida** (C1): el `renting` del código = el *rent-to-own* del PRD (se queda el bien). Fijar diccionario (memoria `nomenclatura-negocio`).
+- **Que el lender esté asociado a la sucursal NO alcanza para que liste**: si no tiene `group_rules` propias en esa sucursal, el listado sale **vacío** (ver `findings` **F-75**). Es config de datos, no código.
+- **IMEI / device-lock (MDM)** es el cierre de la **compra de celulares** del allied Motai, árbol separado sin cruce con Ábaco — fuera de este nodo (patrón afín en **SmartPay**).
+
 ## Contenido
 
 ### El flujo lo dirige el backend por `next_step`
@@ -113,14 +125,3 @@ La decisión del renting **sigue siendo manual**: el asesor la toma en la pantal
 - **Front calculadora + decisión**: `LenderCardContent.tsx` / `useLenderSelection.ts` / `AvailableLenders.tsx` (**leen** `calculated`, ya no calculan) · `financial-profile.repository.ts` (decisión manual) · `loan-confirmation.tsx` (maneja `next_step`, incluido `dynamic_form`).
 - **application** = solo scaffolding de esquema (2 migraciones abaco portadas), **cero lógica** — nada que migrar desde ahí.
 
-## Gotchas / riesgos
-- **Ábaco NO cablea la decisión**: `average_income` es dato huérfano y el front solo usa el booleano `completed`; la "validación de ingresos" no valida. El PRD MVP2 lo quiere cablear + **revertir el bypass** (Datacrédito 100%): es greenfield, no un toggle.
-- **`lender_requirements` nace VACÍA y con `abaco_is_enabled = false`.** Un lender sin fila no pide Ábaco. Por eso la migración de la v2 hace **backfill** desde `product IN ('renting','rto')`: sin eso, mover la decisión a la tabla apagaría Ábaco en silencio (`MOTV1001` → `MOTV1000`) sin que nadie tocara config.
-- **El endpoint viejo (`motai/check-abaco-requirement`) todavía NO se puede deprecar**: el front lo sigue consumiendo en `api/validation-status`, `identity-validation-status` y `loan-continue` (solo `loan-confirmation` migró a `next_step`). Se dejó como alias a propósito.
-- **`GET init/gig-economy` está ROTO** (`AbacoController` llama `initGigEconomyFromToken()`, inexistente en el service); solo el `POST` funciona.
-- **Webhook `scraping.completed` = NO-OP**: dispatch comentado, solo loguea; además `webhook_enabled=false` por defecto → la finalización se detecta por **polling** del front.
-- **En dev/qa no hay mock de Ábaco** (`mock_pass` solo se usa en `local`): el login va al proveedor **real**, así que con usuario sintético `login/step-2` devuelve `ABAC4005` y la plataforma queda en `error`. **Eso no es un bug** — y encima ejercita el contador de intentos. El camino feliz completo solo se ve en `local` con `bin/mock-abaco`.
-- **PEP migratorio ≠ PEP AML**: aquí PEP = Permiso Especial de Permanencia (migrante gig); el literal `'PEP'` no dispara consulta a centrales. En el AML de TusDatos "PEP" = Persona Expuesta Políticamente.
-- **Terminología invertida** (C1): el `renting` del código = el *rent-to-own* del PRD (se queda el bien). Fijar diccionario (memoria `nomenclatura-negocio`).
-- **Que el lender esté asociado a la sucursal NO alcanza para que liste**: si no tiene `group_rules` propias en esa sucursal, el listado sale **vacío** (ver `findings` **F-75**). Es config de datos, no código.
-- **IMEI / device-lock (MDM)** es el cierre de la **compra de celulares** del allied Motai, árbol separado sin cruce con Ábaco — fuera de este nodo (patrón afín en **SmartPay**).

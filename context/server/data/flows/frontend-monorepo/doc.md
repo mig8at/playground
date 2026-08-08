@@ -8,6 +8,34 @@ Repo `frontend-monorepo`: **1.198 archivos `.ts/.tsx/.js/.mjs`** en **21 workspa
 
 Dos rarezas estructurales lo definen: (a) **el wizard nuevo NO pasa por el PHP para la pre-aprobación rt≠0** — su loader consume el MS Go server-to-server; y (b) **el "streaming" del marketplace no es SSE ni polling de cliente**: son Promises sin resolver que React Router v7 serializa a través del stream SSR.
 
+## Antes de concluir
+- **`lenders-v2` NO es SSE ni polling de cliente.** El progreso card-por-card sale de **Promises sin resolver serializadas por React Router v7** en el stream SSR (`available-lenders.tsx:252` → `:773` → `deferred-lender-resolution.adapter.ts:16`). El único polling real es **server-side y sólo para Credifamilia** (`fetch-lender-preapproval.ts:266`).
+- **`streamTimeout` (45s) < poll de Credifamilia (180s).** `entry.server.tsx:15` corta el stream a los 45s salvo en staging (240s), mientras `DEFAULT_CREDIFAMILIA_POLL.overallTimeoutMs` es 180s (`fetch-lender-preapproval.ts:54`). Fuera de staging la card puede morir antes de que el MS conteste. El timeout de fetch por intento (40s) sí es **deliberadamente mayor** al `write_timeout` del MS (30s): abortar en el mismo instante duplicaba transacciones en Credifamilia (`:36-41`).
+- **Dos cookies de sesión distintas y fáciles de confundir**: `_session` (un guion bajo, secret `AUTH_SECRET`, dominio `.creditop.com`, 7 días — guarda `user`, `merchant-mode`, `alliedCountry`) en `utils/auth/session.server.ts:5`, vs `__session` (dos guiones, secret `SESSION_SECRET`) en `app/server/services/session.server.ts:7`, que sólo guarda el `sessionId` del form dinámico. Ambos exportan un símbolo llamado `sessionStorage`.
+- **`apps/loan-request-wizard/utils/` está fuera del linter.** El `biome.json` de la app sólo incluye `app/**`, así que los 4 archivos de `utils/auth/` no se formatean ni se lintean (indentan a 2 espacios en vez de 6, usan `any`). Se importan con el alias `@/…` (raíz de la app), distinto de `~/…` (que apunta a `app/`).
+- **`response_type` está duplicado en el front.** `lender.constants.ts` hardcodea la tabla (`STANDARD 0`, `PRE_APPROVED 1`, `CREDITOP_X 2`, `CREDITOP_X_REVOLVING 3`) y **`isPreApprovalFlowLender()` ya acepta `4`** (usado en 4 lugares reales), pese a que `4` no está nombrado en la unión.
+- **IDs de lender quemados en el front**: Credifamilia `24`, Welli `[23,141,142,166]`, Bancolombia `[68,100]`, Motai `[158]`, Meddipay `39`, Prami `12`, y `[160]` (SmartPay) para ocultar el tag de cupo — este último con un `TODO(backend)` explícito. También `path_id 3` = gestión manual y `path_id 2` = flujo IMEI.
+- **El front re-ordena el listado** que ya viene ordenado del back: `filterAndSortLenders()` (`lender-response.mapper.ts:311`) aplica recomendado → bloque pre-aprobado → grupo de probabilidad → `sort`, explícitamente porque "en v2 la probabilidad llega obsoleta".
+- ⚠ **En un dispositivo compartido, PostHog arrastraba la identidad del cliente anterior.** El
+  `posthog.reset()` a nivel de ruta (en `phone-number.tsx`) corría **antes** de que terminara el
+  `init()` —los efectos de React van hijo→padre, y el provider es el último— así que se ignoraba en
+  silencio. Hoy el reset va en el callback `loaded` de `entry.client.tsx:26-29`, justo después del init
+  y antes del `$pageview` inicial, y solo si la URL es una pantalla de arranque de flujo
+  (`FLOW_START_PATH = /\/solicitar\/?$/`, `:16`). Los mostradores de comercio son el caso real: mismo
+  navegador, muchos clientes.
+- ⚠ **Los buckets de probabilidad se renumeraron (2026-07-19).** Entró `VERY_LOW: 5` en
+  `LENDER_PROBABILITY_BUCKETS` (`lender-resolution.service.ts:197-204`), y eso **corrió `ZERO` de 5 a 6 y
+  `REJECTED` de 6 a 7**: cualquier comparación por número literal contra esos valores quedó mal. Además
+  `computeLenderProbabilityBucket` ahora evalúa `"muy baja"` **antes** que `"baja"` (`:247-257`), porque
+  `includes("baja")` capturaba también las "muy baja" y las mezclaba en `LOW`.
+- **`low_probability` es una rama muerta**: el `kind` está declarado (`lender-resolution.entity.ts:35`) y hay tres consumidores, pero **ningún productor** — `statusToState()` nunca lo construye. `encrypt_code` está en el schema (`:23`) y no lo lee nadie dentro del marketplace. **Corrección al doc anterior: `frontend_response` SÍ está vivo** — es la "respuesta al frente" de Bancolombia Consumo, con branch propio en `lender-resolution.service.ts:43` y fix reciente en `main` (a605beb7).
+- **7 rutas huérfanas** existen en `app/routes/` pero no están en `routes.ts` ni las importa nadie: `lenders-marketplace/lenders/soft-update.tsx` (action completo contra `soft-update-user-request`), `dynamic/dynamic.tsx`, `bancolombia/bnpl/ecommerce-errors.tsx`, `merchant/example.tsx`, `request-status.tsx`, `validation-pending.tsx`, `waiting-validation.tsx`. Además **10 de las 46 claves de `ROUTE_PATHS`** no se usan, y `ROUTE_PATHS.requestStatus` apunta a una ruta que ni siquiera está registrada.
+- **El redirect de entrada a `/modes` está comentado** (`phone-number.tsx:134-136`). La ruta sigue viva y se alcanza desde `loan-continue.tsx` y `financial-profile.tsx`, pero el gate automático por `redirectToModes` no corre.
+- **CI: los filtros de path se saltan dos paquetes.** `loans-dev` observa `apps/loan-request-wizard/**` + `packages/ui/**` + `modules/loan-request-wizard/**`, y `loans-stg` cambia a `modules/**`. **Ninguno incluye `packages/shared/**` ni `packages/form-engine/**`**, así que un cambio en `HttpClient` o en el form-engine no dispara deploy (queda el escape manual `loans-manual-*`). El de storybook sí los incluye.
+- **Restos de otro repo en la CI**: `run-migrations.yml` ejecuta `php artisan migrate` en un monorepo 100% TypeScript sin BD (último toque 2025-08-20, y encima le faltan continuaciones de línea). Y `.github/workflows/README.md` documenta workflows que **no existen** (`main-dev.yaml`, `build.yaml`, `push.yaml`, `deploy.yaml`) y un servicio ECS llamado `application`.
+- **Versión de pnpm inconsistente a tres bandas**: `package.json` pinea `pnpm@8.15.6`, `README.md` pide `>=9.12`, el `Dockerfile` hace `corepack prepare pnpm@9`.
+- **Fuga de capas**: `lenders-marketplace/src/lib/index.ts:1` re-exporta componentes React (`LenderCard`, `LenderLogo`) desde el barrel de dominio/aplicación.
+
 ## Contenido
 
 ### Topología: 3 anillos, 21 workspaces
@@ -140,34 +168,6 @@ dos motores donde hay uno, y ése es el costo que se quiere evitar.
 
 ⚠ No confundir con `packages/shared` ni con `modules/loan-request-wizard/backend-driven-form`, que sí se
 usan y sí hay que leer.
-
-## Gotchas / riesgos
-- **`lenders-v2` NO es SSE ni polling de cliente.** El progreso card-por-card sale de **Promises sin resolver serializadas por React Router v7** en el stream SSR (`available-lenders.tsx:252` → `:773` → `deferred-lender-resolution.adapter.ts:16`). El único polling real es **server-side y sólo para Credifamilia** (`fetch-lender-preapproval.ts:266`).
-- **`streamTimeout` (45s) < poll de Credifamilia (180s).** `entry.server.tsx:15` corta el stream a los 45s salvo en staging (240s), mientras `DEFAULT_CREDIFAMILIA_POLL.overallTimeoutMs` es 180s (`fetch-lender-preapproval.ts:54`). Fuera de staging la card puede morir antes de que el MS conteste. El timeout de fetch por intento (40s) sí es **deliberadamente mayor** al `write_timeout` del MS (30s): abortar en el mismo instante duplicaba transacciones en Credifamilia (`:36-41`).
-- **Dos cookies de sesión distintas y fáciles de confundir**: `_session` (un guion bajo, secret `AUTH_SECRET`, dominio `.creditop.com`, 7 días — guarda `user`, `merchant-mode`, `alliedCountry`) en `utils/auth/session.server.ts:5`, vs `__session` (dos guiones, secret `SESSION_SECRET`) en `app/server/services/session.server.ts:7`, que sólo guarda el `sessionId` del form dinámico. Ambos exportan un símbolo llamado `sessionStorage`.
-- **`apps/loan-request-wizard/utils/` está fuera del linter.** El `biome.json` de la app sólo incluye `app/**`, así que los 4 archivos de `utils/auth/` no se formatean ni se lintean (indentan a 2 espacios en vez de 6, usan `any`). Se importan con el alias `@/…` (raíz de la app), distinto de `~/…` (que apunta a `app/`).
-- **`response_type` está duplicado en el front.** `lender.constants.ts` hardcodea la tabla (`STANDARD 0`, `PRE_APPROVED 1`, `CREDITOP_X 2`, `CREDITOP_X_REVOLVING 3`) y **`isPreApprovalFlowLender()` ya acepta `4`** (usado en 4 lugares reales), pese a que `4` no está nombrado en la unión.
-- **IDs de lender quemados en el front**: Credifamilia `24`, Welli `[23,141,142,166]`, Bancolombia `[68,100]`, Motai `[158]`, Meddipay `39`, Prami `12`, y `[160]` (SmartPay) para ocultar el tag de cupo — este último con un `TODO(backend)` explícito. También `path_id 3` = gestión manual y `path_id 2` = flujo IMEI.
-- **El front re-ordena el listado** que ya viene ordenado del back: `filterAndSortLenders()` (`lender-response.mapper.ts:311`) aplica recomendado → bloque pre-aprobado → grupo de probabilidad → `sort`, explícitamente porque "en v2 la probabilidad llega obsoleta".
-- ⚠ **En un dispositivo compartido, PostHog arrastraba la identidad del cliente anterior.** El
-  `posthog.reset()` a nivel de ruta (en `phone-number.tsx`) corría **antes** de que terminara el
-  `init()` —los efectos de React van hijo→padre, y el provider es el último— así que se ignoraba en
-  silencio. Hoy el reset va en el callback `loaded` de `entry.client.tsx:26-29`, justo después del init
-  y antes del `$pageview` inicial, y solo si la URL es una pantalla de arranque de flujo
-  (`FLOW_START_PATH = /\/solicitar\/?$/`, `:16`). Los mostradores de comercio son el caso real: mismo
-  navegador, muchos clientes.
-- ⚠ **Los buckets de probabilidad se renumeraron (2026-07-19).** Entró `VERY_LOW: 5` en
-  `LENDER_PROBABILITY_BUCKETS` (`lender-resolution.service.ts:197-204`), y eso **corrió `ZERO` de 5 a 6 y
-  `REJECTED` de 6 a 7**: cualquier comparación por número literal contra esos valores quedó mal. Además
-  `computeLenderProbabilityBucket` ahora evalúa `"muy baja"` **antes** que `"baja"` (`:247-257`), porque
-  `includes("baja")` capturaba también las "muy baja" y las mezclaba en `LOW`.
-- **`low_probability` es una rama muerta**: el `kind` está declarado (`lender-resolution.entity.ts:35`) y hay tres consumidores, pero **ningún productor** — `statusToState()` nunca lo construye. `encrypt_code` está en el schema (`:23`) y no lo lee nadie dentro del marketplace. **Corrección al doc anterior: `frontend_response` SÍ está vivo** — es la "respuesta al frente" de Bancolombia Consumo, con branch propio en `lender-resolution.service.ts:43` y fix reciente en `main` (a605beb7).
-- **7 rutas huérfanas** existen en `app/routes/` pero no están en `routes.ts` ni las importa nadie: `lenders-marketplace/lenders/soft-update.tsx` (action completo contra `soft-update-user-request`), `dynamic/dynamic.tsx`, `bancolombia/bnpl/ecommerce-errors.tsx`, `merchant/example.tsx`, `request-status.tsx`, `validation-pending.tsx`, `waiting-validation.tsx`. Además **10 de las 46 claves de `ROUTE_PATHS`** no se usan, y `ROUTE_PATHS.requestStatus` apunta a una ruta que ni siquiera está registrada.
-- **El redirect de entrada a `/modes` está comentado** (`phone-number.tsx:134-136`). La ruta sigue viva y se alcanza desde `loan-continue.tsx` y `financial-profile.tsx`, pero el gate automático por `redirectToModes` no corre.
-- **CI: los filtros de path se saltan dos paquetes.** `loans-dev` observa `apps/loan-request-wizard/**` + `packages/ui/**` + `modules/loan-request-wizard/**`, y `loans-stg` cambia a `modules/**`. **Ninguno incluye `packages/shared/**` ni `packages/form-engine/**`**, así que un cambio en `HttpClient` o en el form-engine no dispara deploy (queda el escape manual `loans-manual-*`). El de storybook sí los incluye.
-- **Restos de otro repo en la CI**: `run-migrations.yml` ejecuta `php artisan migrate` en un monorepo 100% TypeScript sin BD (último toque 2025-08-20, y encima le faltan continuaciones de línea). Y `.github/workflows/README.md` documenta workflows que **no existen** (`main-dev.yaml`, `build.yaml`, `push.yaml`, `deploy.yaml`) y un servicio ECS llamado `application`.
-- **Versión de pnpm inconsistente a tres bandas**: `package.json` pinea `pnpm@8.15.6`, `README.md` pide `>=9.12`, el `Dockerfile` hace `corepack prepare pnpm@9`.
-- **Fuga de capas**: `lenders-marketplace/src/lib/index.ts:1` re-exporta componentes React (`LenderCard`, `LenderLogo`) desde el barrel de dominio/aplicación.
 
 ## Lo que NO está verificado
 - ¿`APP_ENV` llega como `"staging"` al cluster de stg? De eso depende `streamTimeout` 240s vs 45s, y el valor vive en el task-def, no en el repo.

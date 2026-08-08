@@ -13,6 +13,23 @@ Credifamilia (lender **24**) es el único `response_type = 4` (un valor sin fila
 | ¿Cómo cierra? | Origina in-platform → **radicación SOAP** → *polling* hasta APROBADO/RECHAZADO (estados **40/41** de `lender_transaction_statuses`, otro namespace que `user_request_statuses`) |
 | ¿Simulable E2E? | ⚠ **Parcial**: el gate local sí es inyectable; KYC V2 (Evidente/CrossCore/Jumio) y la radicación SOAP son externos |
 
+## Antes de concluir
+- ⚠ **Un «APROBADO» de Credifamilia NO garantiza que venga el cupo.** Ante entrada inválida —el caso
+  medido fue un correo con tilde— responde `Aprobado` con el payload **vacío**, y
+  `PreApprovedLenderService.php:325-333` lo marca `pre_approved_lender = true` con
+  `available = null`. El lado del RECHAZO sí tiene guarda para respuestas incompletas (`:335`); el
+  del aprobado no. Síntoma: «no sale la opción para Credifamilia», sin error visible. Ver **F-113**.
+- **Tiene límite de intentos DE SU LADO** (responde `status:3 / Rechazado` al agotarse) y ese límite
+  no existe en nuestro código. Al depurar, un rechazo por intentos agotados es indistinguible de un
+  rechazo de riesgo — y puede tapar el diagnóstico del problema original.
+
+- **Único con flujo legal de documentos completo**: `ENABLED_LENDERS_FOR_LEGAL=[24]` — TyC sin firmar por WhatsApp, PDF vía `pdf-mapper-service`, custodia en **S3**. Es el patrón de firma/custodia que el plan Motai/Alta generaliza.
+- **Gate local exigente** (por qué "no sale" en pruebas): requiere fila de buró con `economicSector==1`, **≥12 'N' consecutivas**, sin negativos, y `cuota×1000/ingreso ≤ 0.4`. El fixture base trae sector 3/4 → `totalNs=0` → **0% por defecto**.
+- **⚠ [CRÍTICO] Ambigüedad rt=2 vs rt=4**: el front y la memoria del equipo lo tratan como **rt=2** (CreditopX), pero la formalización SOAP y el plan extra-details en legacy **solo corren con `response_type==4`**. La BD confirma **rt=4** para id=24. Riesgo de configurarlo mal.
+- **Colisión de ID**: lender 24 = Credifamilia, pero **allied 24 = Creditop**. Verificar el namespace antes de tocar un "24".
+- No confundir con **"Credifamilia-addi"** (entrada redirect del catálogo en algunas sucursales).
+- **El form_type 6 (additional-info) NO tiene seeder** — es data cargada a mano en dev/local. Un campo nuevo se agrega por migración/seeder en legacy-backend resolviendo por **NOMBRE** (los `field_id` son auto-increment y difieren por ambiente: "Ciudad de nacimiento" salió **233** en dev, 221/222 en local). Tras tocar la BD, **`PUT /v1/dynamic-form/6/schema`** para bustear el cache del form-service. Para VER el form: flow **`self-service`** (público), no `merchant`. Ver **form-service**.
+
 ## Contenido
 **Las 3 integraciones = 3 etapas:**
 1. **REST (pre-aprobación)** — Credifamilia es el ÚNICO lender con **polling** contra `/v1/preapprovals/check` (gateado por id=24, backoff 2/4/8/16/20s, 6 intentos, 180s) y el ÚNICO con **plan de cuotas dinámico** por backend (`supportsDynamicPaymentPlan(24)`).
@@ -77,19 +94,3 @@ Sobre el correo hay un cambio en `main` que conviene no malinterpretar:
 no. ⚠ No está confirmado que sea el cambio que cerró este incidente — vive en la ruta del **formulario
 dinámico G2**, no en la del onboarding clásico por donde entró el caso.
 
-## Gotchas / riesgos
-- ⚠ **Un «APROBADO» de Credifamilia NO garantiza que venga el cupo.** Ante entrada inválida —el caso
-  medido fue un correo con tilde— responde `Aprobado` con el payload **vacío**, y
-  `PreApprovedLenderService.php:325-333` lo marca `pre_approved_lender = true` con
-  `available = null`. El lado del RECHAZO sí tiene guarda para respuestas incompletas (`:335`); el
-  del aprobado no. Síntoma: «no sale la opción para Credifamilia», sin error visible. Ver **F-113**.
-- **Tiene límite de intentos DE SU LADO** (responde `status:3 / Rechazado` al agotarse) y ese límite
-  no existe en nuestro código. Al depurar, un rechazo por intentos agotados es indistinguible de un
-  rechazo de riesgo — y puede tapar el diagnóstico del problema original.
-
-- **Único con flujo legal de documentos completo**: `ENABLED_LENDERS_FOR_LEGAL=[24]` — TyC sin firmar por WhatsApp, PDF vía `pdf-mapper-service`, custodia en **S3**. Es el patrón de firma/custodia que el plan Motai/Alta generaliza.
-- **Gate local exigente** (por qué "no sale" en pruebas): requiere fila de buró con `economicSector==1`, **≥12 'N' consecutivas**, sin negativos, y `cuota×1000/ingreso ≤ 0.4`. El fixture base trae sector 3/4 → `totalNs=0` → **0% por defecto**.
-- **⚠ [CRÍTICO] Ambigüedad rt=2 vs rt=4**: el front y la memoria del equipo lo tratan como **rt=2** (CreditopX), pero la formalización SOAP y el plan extra-details en legacy **solo corren con `response_type==4`**. La BD confirma **rt=4** para id=24. Riesgo de configurarlo mal.
-- **Colisión de ID**: lender 24 = Credifamilia, pero **allied 24 = Creditop**. Verificar el namespace antes de tocar un "24".
-- No confundir con **"Credifamilia-addi"** (entrada redirect del catálogo en algunas sucursales).
-- **El form_type 6 (additional-info) NO tiene seeder** — es data cargada a mano en dev/local. Un campo nuevo se agrega por migración/seeder en legacy-backend resolviendo por **NOMBRE** (los `field_id` son auto-increment y difieren por ambiente: "Ciudad de nacimiento" salió **233** en dev, 221/222 en local). Tras tocar la BD, **`PUT /v1/dynamic-form/6/schema`** para bustear el cache del form-service. Para VER el form: flow **`self-service`** (público), no `merchant`. Ver **form-service**.

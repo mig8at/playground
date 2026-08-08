@@ -14,6 +14,23 @@ sus archivos **dropeaba en silencio** por no tener root.
 Este nodo no explica qué hace cada servicio: dice **cuáles hay, cuánto pesan y dónde buscarlos**. Es la
 pregunta que va antes de todas las demás.
 
+## Antes de concluir
+
+- ⚠ **La ausencia de un `service_name` en Loki NO prueba que el servicio esté muerto.** Puede no estar
+  instrumentado, loguear con otro nombre, o mandar a otro backend — es exactamente lo que pasa con el
+  **wizard**, que existe y no manda una sola línea a Loki (sale por OTLP hacia PostHog). Están clonados y
+  no aparecen en el censo: `kyc-gateway`, `web-auth-service`, `messaging-service`, `dynamic-form`,
+  `cognito-pre-sign-up`, `vtex`. **No concluir que son restos.**
+- ⚠ **Cada servicio tiene su propia base**, y varias son **PostgreSQL**. Buscar una tabla en el MySQL de
+  `creditop` y no encontrarla **no prueba nada** sobre un microservicio. Pasó en esta misma medición:
+  `kyc_pipelines` no está en MySQL porque vive en el Postgres de CPS.
+- **`onboarding-forms-service` está clonado DOS veces** (`~/github/onboarding-forms-service` y
+  `~/github/microservices/onboarding-forms-service`), con contenidos parecidos y fechas distintas. El
+  root apunta al de primer nivel, que es el más nuevo. No confundirlo con `form-service`, que es otro
+  servicio y otro repo (ver el nodo `form-service`).
+- **`financial-health-service` tiene `feat/n8n` checkeada, no `main`.** El oráculo valida contra `main`
+  —que existe— así que no hay problema, pero al abrir el repo a mano se lee otra rama.
+
 ## El censo (producción, 2026-08-07)
 
 Volumen = líneas de log en 24 h. No mide importancia, mide **actividad**: sirve para separar el servicio
@@ -108,23 +125,6 @@ curl -s -u "$LOKI_USER:$LOKI_TOKEN" --get "$LOKI_URL/loki/api/v1/query" \
 **El criterio para sumar un root a `tools/roots.py` es este censo, no el disco**: que el servicio esté
 vivo en producción **y** el repo esté clonado. Un repo clonado que no corre documentaría algo que no
 existe; un servicio que corre sin repo no se puede indexar y se queda en esta tabla.
-
-## Gotchas / riesgos
-
-- ⚠ **La ausencia de un `service_name` en Loki NO prueba que el servicio esté muerto.** Puede no estar
-  instrumentado, loguear con otro nombre, o mandar a otro backend — es exactamente lo que pasa con el
-  **wizard**, que existe y no manda una sola línea a Loki (sale por OTLP hacia PostHog). Están clonados y
-  no aparecen en el censo: `kyc-gateway`, `web-auth-service`, `messaging-service`, `dynamic-form`,
-  `cognito-pre-sign-up`, `vtex`. **No concluir que son restos.**
-- ⚠ **Cada servicio tiene su propia base**, y varias son **PostgreSQL**. Buscar una tabla en el MySQL de
-  `creditop` y no encontrarla **no prueba nada** sobre un microservicio. Pasó en esta misma medición:
-  `kyc_pipelines` no está en MySQL porque vive en el Postgres de CPS.
-- **`onboarding-forms-service` está clonado DOS veces** (`~/github/onboarding-forms-service` y
-  `~/github/microservices/onboarding-forms-service`), con contenidos parecidos y fechas distintas. El
-  root apunta al de primer nivel, que es el más nuevo. No confundirlo con `form-service`, que es otro
-  servicio y otro repo (ver el nodo `form-service`).
-- **`financial-health-service` tiene `feat/n8n` checkeada, no `main`.** El oráculo valida contra `main`
-  —que existe— así que no hay problema, pero al abrir el repo a mano se lee otra rama.
 
 ## Lo que NO está verificado
 - El workflow `internal/core/workflows/kyc/` de customer-profiling-service (distinto de `legacykycpipeline`): no se leyó.

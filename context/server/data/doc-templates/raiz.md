@@ -3,15 +3,18 @@
 > <TL;DR: qué es el ecosistema, en 1 frase>
 
 <!-- RAÍZ = el punto de entrada y el HOGAR de lo transversal que ningún flujo dueña: estados,
-     invariantes, glosario, colisiones de id. Los flujos apuntan acá y NO lo repiten. Mismas
-     reglas de escritura que `referencia.md`. -->
+     invariantes, glosario, colisiones de id. Los flujos apuntan acá y NO lo repiten.
+
+     Los INVARIANTES son la versión de «Antes de concluir» de este nodo, y son el bloque que
+     más rinde de todo el árbol: van SEGUNDOS, antes de cualquier descripción. Resto de reglas
+     de escritura: `referencia.md`. -->
 
 ## Qué es
 <El sistema en 1–2 párrafos: qué hace, actores, modelos. La foto grande.>
 
-## Invariantes
-<!-- El bloque que más rinde del árbol: cada invariante CORRIGE una conclusión obvia-y-falsa
-     concreta, en 1–3 líneas, con su F-xx. Leelos antes de concluir nada. -->
+## Invariantes · leé esto ANTES de concluir
+<!-- Cada invariante corrige una conclusión obvia-y-falsa concreta, en 1–3 líneas, con su F-xx.
+     Si vas a afirmar algo que los contradice, medilo primero. -->
 - **<la regla>** — <la conclusión falsa que corrige> (F-xx).
 
 ## Datos / tablas clave
@@ -27,9 +30,6 @@ listan solo sus estados distintivos y apuntan acá.>
 ## Dónde mirar
 <!-- SOLO rutas con ancla y porqué — lo transversal; lo temático vive en cada nodo. -->
 - `repo/ruta/archivo.php:123` — <qué decide ahí>.
-
-## Gotchas / riesgos
-<Lo contraintuitivo VERIFICADO transversal, con recibo.>
 
 ## Lo que NO está verificado <!-- (opcional) -->
 <Con el método que falta. No preguntas hipotéticas.>

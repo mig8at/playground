@@ -12,6 +12,31 @@ La regla que lo hace posible: el perfil aprobado NO se consigue llamando central
 en los specs de contrato negativo. La flota de mocks, sus puertos y quién levanta cada uno: tabla en
 `harness/CLAUDE.md` (un mock por muro concreto, con su F-xx).
 
+## Antes de concluir
+
+- **Un lender solo cierra in-platform si está en `lenders_by_allieds` del comercio**: forzar el 77 (de
+  Pullman) en otro comercio da **pagaré HTTP 500**. Mirá la oferta primero (`dbops lenders-for`).
+- **Muro Wompi (cierre rt=2 por UI) — VOLTEADO (`bin/close-lender`)**: el muro NO era el checkout de
+  Wompi (`pkg/wompi-mock.ts` lo intercepta, verificado) sino el **scoring**: un perfil aprobado cae en
+  categoría con `min_initial_fee=0` → cuota $0 → botón «Pagar» disabled → nunca llega a Wompi. El fix
+  siembra un rt=2 sintético con `min_initial_fee>0` en TODAS las categorías. El cierre backend sigue
+  siendo `asesor 3e67eade 77` (fuerza `initial_fee=0`).
+- **`IPHONE_UA` obligatorio**: el wizard gatea validación y `loan-approved` por `onlyMobileValidation` —
+  con UA de escritorio responde **403** y el loader queda en blanco. A y B usan UA de iPhone.
+- **Reuse de puertos**: `bin/asesor` reusa el wizard :5174 y lo reinicia **solo si apuntaba a otro
+  backend**; `mock-preapprovals` reusa solo si `MOCK_PA_DELAY_MS` coincide (el env se hornea al bootear).
+- **El eje ecommerce se ejercita contra dev, no local** (la entrada del front está PENDIENTE DE MERGE →
+  nodo `ecommerce`; F-54). En local el checkout SSR se degrada.
+- **Timeouts**: el wizard usa lenders-v1 (pre-aprobación sincrónica lenta) → «Server Timeout» del
+  `streamTimeout` (fix por env). `PICK_TIMEOUT` (default 300s) espera tu click por pantalla del guiado.
+- **`MoneyInput` pierde `fill()` por hidratación**: `seedField` reintenta tecla a tecla.
+- **Mutex de la cuenta 1827080**: Motai y SmartPay la necesitan ligada a comercios distintos;
+  `pkg/account-lock.ts` (mkdir atómico) los serializa bajo `fullyParallel` y restaura a Motai al final.
+- **SmartPay teléfono internacional** (`+57…`): `create-temporary-user` guarda el phone crudo pero
+  `check-user-exists` normaliza a `+`+dígitos — sin el `+` da `BDUS004` (usuario no encontrado).
+- **`X-Dev-Session`/`DEV_SESSION_KEY` obsoletos**: el gate de `/merchant/*` hoy es Cognito; el flag
+  existe con comentario pero sin consumidor.
+
 ## La frontera de inyectabilidad (rt por rt) — el eje central
 
 Qué se puede sellar localmente vs. qué lo decide un tercero. Determina si un flujo es probable E2E o
@@ -98,31 +123,6 @@ score pasa, qué regla datacrédito aplica) es turf de `profiling` / `kyc` — a
   clonando el 62.
 - Estado por-spec (qué corre verde y qué es `fixme` y por qué): `harness/docs/VALIDATION.md` — no se
   replica acá porque envejece con cada corrida.
-
-## Gotchas / riesgos
-
-- **Un lender solo cierra in-platform si está en `lenders_by_allieds` del comercio**: forzar el 77 (de
-  Pullman) en otro comercio da **pagaré HTTP 500**. Mirá la oferta primero (`dbops lenders-for`).
-- **Muro Wompi (cierre rt=2 por UI) — VOLTEADO (`bin/close-lender`)**: el muro NO era el checkout de
-  Wompi (`pkg/wompi-mock.ts` lo intercepta, verificado) sino el **scoring**: un perfil aprobado cae en
-  categoría con `min_initial_fee=0` → cuota $0 → botón «Pagar» disabled → nunca llega a Wompi. El fix
-  siembra un rt=2 sintético con `min_initial_fee>0` en TODAS las categorías. El cierre backend sigue
-  siendo `asesor 3e67eade 77` (fuerza `initial_fee=0`).
-- **`IPHONE_UA` obligatorio**: el wizard gatea validación y `loan-approved` por `onlyMobileValidation` —
-  con UA de escritorio responde **403** y el loader queda en blanco. A y B usan UA de iPhone.
-- **Reuse de puertos**: `bin/asesor` reusa el wizard :5174 y lo reinicia **solo si apuntaba a otro
-  backend**; `mock-preapprovals` reusa solo si `MOCK_PA_DELAY_MS` coincide (el env se hornea al bootear).
-- **El eje ecommerce se ejercita contra dev, no local** (la entrada del front está PENDIENTE DE MERGE →
-  nodo `ecommerce`; F-54). En local el checkout SSR se degrada.
-- **Timeouts**: el wizard usa lenders-v1 (pre-aprobación sincrónica lenta) → «Server Timeout» del
-  `streamTimeout` (fix por env). `PICK_TIMEOUT` (default 300s) espera tu click por pantalla del guiado.
-- **`MoneyInput` pierde `fill()` por hidratación**: `seedField` reintenta tecla a tecla.
-- **Mutex de la cuenta 1827080**: Motai y SmartPay la necesitan ligada a comercios distintos;
-  `pkg/account-lock.ts` (mkdir atómico) los serializa bajo `fullyParallel` y restaura a Motai al final.
-- **SmartPay teléfono internacional** (`+57…`): `create-temporary-user` guarda el phone crudo pero
-  `check-user-exists` normaliza a `+`+dígitos — sin el `+` da `BDUS004` (usuario no encontrado).
-- **`X-Dev-Session`/`DEV_SESSION_KEY` obsoletos**: el gate de `/merchant/*` hoy es Cognito; el flag
-  existe con comentario pero sin consumidor.
 
 ## Lo que NO está verificado
 - El flujo ecommerce por UI en local sigue degradado (SSR `process.env.VITE_API_URL`); el cierre Motai

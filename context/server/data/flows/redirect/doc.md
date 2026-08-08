@@ -6,6 +6,14 @@ Familia de prestamistas por **redirección** (`response_type` **0**, canónicame
 
 Es una de las 3 familias por `response_type` bajo **Entities** (rt=0 redirect / rt=1 aggregator / rt=2·3 CreditopX). El `response_type` **default es 1** (migración `create_lenders_table`, comentario inline `url UTM => 0 / lender integration => 1 / lender form => 2`), así que rt=0 es **opt-in por lender**: un admin lo fija explícitamente para un referido. En los seeders del repo **ningún lender nace rt=0** → es una familia **latente/de-config**, no un set fijo de entidades.
 
+## Antes de concluir
+- **rt=0 ≡ rt=1-sin-credencial en el código** (`case 0: case 1:`): un lender rt=1 **sin credencial configurada degrada a redirect puro** (devuelve url_utm y sale, sin consumir la API externa). Un mal-config puede volver "invisible" a un agregador.
+- **NO confundir con el "redirect" como CANAL de entrega de rt=1**: Addi / Banco de Bogotá / Sistecrédito-online son **rt=1** ("redirect-aggregators") que hacen handoff por redirect **pero SÍ vuelven** por webhook `self-manager`/polling. Este nodo es la **familia rt=0** (url_utm, nadie decide, sin retorno). Ese canal de rt=1 es del hermano **Aggregator**.
+- **Callejón sin salida**: sin visibilidad post-redirect no se puede medir conversión ni cartera; el crédito "desaparece" del sistema. Es el único `response_type` sin ningún mecanismo de cierre de estado.
+- **Divergencia app↔legacy en el fallback COALESCE**: application excluye solo rt=2 del fallback branch→allied; legacy excluye rt=2 **y rt=4** (`UserRequestService.php:414`). Además legacy agrupa rt=4 con 2/3 en la entrega interna; application no maneja rt=4.
+- **Gate rt=0 muerto en el listado**: `ListLenderController.php:106` tenía `&& response_type == 0` para el bloque "Lender UTM"; está **comentado** → hoy `$lender->url = url_utm` se asigna a TODOS (rt=2 la pisa después con su ruta interna).
+- **Familia latente**: `response_type` default=1 y ningún lender del seeder es rt=0 → verificar en la BD real qué entidades (referidos) corren como UTM antes de asumir que el set está vacío.
+
 ## Contenido
 **Dónde vive la URL.** `url_utm` es columna de DOS tablas: `lenders_by_allieds.url_utm` (por **comercio**) y `lenders_by_allied_branches.url_utm` (por **sucursal**). La URL efectiva = `COALESCE(branch, allied)`: la sucursal es un override que hereda del comercio. Al guardar sucursales, el branch persiste `url_utm` **solo si difiere** del valor del comercio; si coincide guarda `NULL` y hereda (dedup, `AlliedAlliedBranchController.php:135`). Es la **única herencia viva real** de la config de listado — las reglas/datacrédito, en cambio, se COPIAN por sucursal (memoria `reglas-copia-por-sucursal`).
 
@@ -32,10 +40,3 @@ El dato clave: **rt=0 comparte código con rt=1-sin-credencial** (`case 0: case 
 - **Frontend** (frontend-monorepo): `modules/loan-request-wizard/lenders-marketplace/src/lib/domain/constants/lender.constants.ts:37` (`LENDER_RESPONSE_TYPE.STANDARD=0`) · `apps/loan-request-wizard/app/routes/lenders-marketplace/available-lenders.tsx:85-105` (estrategia external-redirect/popup) `:150,290` (excluye rt=0 de pre-aprobación) · `apps/loan-request-wizard/app/utils/route-helpers.ts:173` (`redirectExternal`).
 - **Otros lectores de url_utm** (pantallas de resumen): application `app/Http/Controllers/Customer/SimulatorController.php:54`, `app/Http/Controllers/Customer/ConfirmationController.php:39` · legacy `Modules/System/App/Http/Controllers/Customer/ConfirmationController.php:38`.
 
-## Gotchas / riesgos
-- **rt=0 ≡ rt=1-sin-credencial en el código** (`case 0: case 1:`): un lender rt=1 **sin credencial configurada degrada a redirect puro** (devuelve url_utm y sale, sin consumir la API externa). Un mal-config puede volver "invisible" a un agregador.
-- **NO confundir con el "redirect" como CANAL de entrega de rt=1**: Addi / Banco de Bogotá / Sistecrédito-online son **rt=1** ("redirect-aggregators") que hacen handoff por redirect **pero SÍ vuelven** por webhook `self-manager`/polling. Este nodo es la **familia rt=0** (url_utm, nadie decide, sin retorno). Ese canal de rt=1 es del hermano **Aggregator**.
-- **Callejón sin salida**: sin visibilidad post-redirect no se puede medir conversión ni cartera; el crédito "desaparece" del sistema. Es el único `response_type` sin ningún mecanismo de cierre de estado.
-- **Divergencia app↔legacy en el fallback COALESCE**: application excluye solo rt=2 del fallback branch→allied; legacy excluye rt=2 **y rt=4** (`UserRequestService.php:414`). Además legacy agrupa rt=4 con 2/3 en la entrega interna; application no maneja rt=4.
-- **Gate rt=0 muerto en el listado**: `ListLenderController.php:106` tenía `&& response_type == 0` para el bloque "Lender UTM"; está **comentado** → hoy `$lender->url = url_utm` se asigna a TODOS (rt=2 la pisa después con su ruta interna).
-- **Familia latente**: `response_type` default=1 y ningún lender del seeder es rt=0 → verificar en la BD real qué entidades (referidos) corren como UTM antes de asumir que el set está vacío.

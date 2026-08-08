@@ -12,6 +12,15 @@ Es el más nuevo de los **tres** "form service" que conviven y que NO hay que co
 2. **onboarding-forms-service** (`VITE_ONBOARDING_FORM_SERVICE`, `/dynamic/{hash}/schema`) — wizard RD (G1).
 3. legacy `/api/partners/dynamic-form/session` + pkg `@creditop/dynamic-form` — sesión del wizard RD.
 
+## Antes de concluir
+- **Sobre-ingeniería en infra, sub-ingeniería en dominio.** 3 stores (MySQL+Redis+**S3**) para datos 100% derivables de MySQL: S3 como 2º tier de cache sobre lo derivado compra poco y el `store_response` gasta párrafos justificando la consistencia MySQL-antes-que-S3.
+- **NO valida semántica al guardar** (`validators.go`): chequea solo que la key sea int>0 y el value string-no-vacío **o entero**. NO chequea que el `field_id` pertenezca al `form_type`, ni tipo, ni requeridos → **el schema se autoría en el backend pero se enforcea en el front**; un cliente roto escribe basura tipada como string y los document builders la leen por magic-number.
+- **Contradicción validator↔mapper**: el validator acepta solo string|entero, pero el mapper (`responseValueString`) está hecho para arrays/bool/JSON → esa rama del mapper es **prácticamente código muerto**, y **decimales / multiselect NO pasan** salvo como string. Para un form de crédito (montos con centavos, multiselección) es una limitación real.
+- **Deuda auto-documentada del `user_id`**: la URL se redujo de `/response/{user_id}/{user_request_id}` (v1.1.0) a `/response/{user_request_id}`, forzando un round-trip a `user_requests` en cada POST. El propio docblock lo marca y culpa al front ("no persiste `user_id` … design error on the client side").
+- **`{form_id}` de la ruta = `form_type_id`** (naming flojo). Y `user_field_values.form_id` = ese mismo id (para Credifamilia = 6).
+- **El `form_type` de Credifamilia (id 6) NO tiene seeder** en ningún repo: es data cargada a mano en dev/local (dynamic-forms lo dice: sin seeders de `fields`/`forms`). Un campo nuevo se agrega por **migración/seeder en legacy-backend** resolviendo por NOMBRE (los ids de `fields` son auto-increment y difieren por ambiente).
+- **`GET /schema` es cache-aside** → tras tocar la BD (agregar/editar un campo) hay que **`PUT /v1/dynamic-form/{id}/schema`** o el front sigue viendo el schema viejo.
+
 ## Contenido
 
 ### El modelo en una línea
@@ -76,15 +85,6 @@ Usado por la ruta `additional-info` (`additional-info.tsx` → gate, `additional
 - **`bin/asesor` ahora pasa `VITE_FORM_SERVICE_BASE_URL`** (antes NO → el loader fetcheaba a `undefined` y el form G2 nunca renderizaba en el harness).
 - **En local NO hay mock G2**: el `mock-forms` del harness es del OTRO servicio (onboarding-forms-service, RD) y no cubre `/v1/dynamic-form` ni `/v1/field-options`. Local apunta igual a dev.
 - Probado E2E en dev: `GET/PUT schema` + `POST response` → filas en `user_field_values`.
-
-## Gotchas / riesgos
-- **Sobre-ingeniería en infra, sub-ingeniería en dominio.** 3 stores (MySQL+Redis+**S3**) para datos 100% derivables de MySQL: S3 como 2º tier de cache sobre lo derivado compra poco y el `store_response` gasta párrafos justificando la consistencia MySQL-antes-que-S3.
-- **NO valida semántica al guardar** (`validators.go`): chequea solo que la key sea int>0 y el value string-no-vacío **o entero**. NO chequea que el `field_id` pertenezca al `form_type`, ni tipo, ni requeridos → **el schema se autoría en el backend pero se enforcea en el front**; un cliente roto escribe basura tipada como string y los document builders la leen por magic-number.
-- **Contradicción validator↔mapper**: el validator acepta solo string|entero, pero el mapper (`responseValueString`) está hecho para arrays/bool/JSON → esa rama del mapper es **prácticamente código muerto**, y **decimales / multiselect NO pasan** salvo como string. Para un form de crédito (montos con centavos, multiselección) es una limitación real.
-- **Deuda auto-documentada del `user_id`**: la URL se redujo de `/response/{user_id}/{user_request_id}` (v1.1.0) a `/response/{user_request_id}`, forzando un round-trip a `user_requests` en cada POST. El propio docblock lo marca y culpa al front ("no persiste `user_id` … design error on the client side").
-- **`{form_id}` de la ruta = `form_type_id`** (naming flojo). Y `user_field_values.form_id` = ese mismo id (para Credifamilia = 6).
-- **El `form_type` de Credifamilia (id 6) NO tiene seeder** en ningún repo: es data cargada a mano en dev/local (dynamic-forms lo dice: sin seeders de `fields`/`forms`). Un campo nuevo se agrega por **migración/seeder en legacy-backend** resolviendo por NOMBRE (los ids de `fields` son auto-increment y difieren por ambiente).
-- **`GET /schema` es cache-aside** → tras tocar la BD (agregar/editar un campo) hay que **`PUT /v1/dynamic-form/{id}/schema`** o el front sigue viendo el schema viejo.
 
 ## Lo que NO está verificado
 - ¿`ONBOARDING_FORMS_SERVICE_BASE_URL` (G1, `:8092`) y `VITE_FORM_SERVICE_BASE_URL` (G2, `:8082`) apuntan al mismo despliegue? Son contratos distintos.

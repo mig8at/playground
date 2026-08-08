@@ -8,6 +8,16 @@ Esto lo separa tajantemente de **CreditopX rt=2/3** (decide in-platform, sella e
 
 **Alcance (ids reales):** Bancolombia (BNPL **68** / Consumo **100** — **subnodo propio `bancolombia`**, no dupliques su máquina de originación acá), Sistecrédito (**9**), Welli (**23** Tasa Full / **141** Tasa Cero / **142** Subvencionada / **166** Riesgo Compartido), Meddipay (**39**), Prami (**12**), Banco de Bogotá (credi-convenio + CeroPay **133**), Compensar, Addi, **Lagobo** (**21**/**35**) y **Davivienda** (**36**) — los dos últimos con rama propia de canal manual en `UserRequestService` (match por `lender->name`; su `response_type` no está confirmado contra BD) — y **Corbeta** (canal retail batch sobre Bancolombia — NO es un lender). Credifamilia (rt=4) y la familia rt=0 tienen sus propios nodos.
 
+## Antes de concluir
+- **Bug guard muerto** (`application/SelfManagerController.php:87`): `if ($purchaseCode->barcode_checked && ($lender->id == 68 && $lender->id == 133))` — un id no puede ser 68 **Y** 133; el guard de 'código ya utilizado' nunca dispara ahí.
+- **Consumo (100) se muestra sin cupo real**: el `else` de `validatePreApproveLender` lo empuja con 'Probabilidad media'/sort=2 (hay un `// ToDo` del propio código admitiendo que debería mostrar solo pre-aprobados).
+- **Filtro `[12,23,141,142,166]` es TEMPORAL, no negocio** (`LenderRetrievalService.php:248-252`): saca Prami + variantes Welli + lender 166 del preaprobado v1 porque erroran por falta de datos previos en `employment-info`. Coincide con la frontera de inyectabilidad.
+- **Welli `STATUS_MAP` `pendiente_desembolso→11`** (`Welli.php:40`): marca desembolsado un crédito que aún no lo está (application lo mapea a estado propio 28) → puede disparar `final_amount` prematuro.
+- **Meddipay nunca cachea** (`ShouldCheckAgain=true` siempre: nuevo `order_id` por request).
+- **Cruce Corbeta frágil por string**: por PIN (`verification_token`) con `LIKE` sobre `type_data`; renombrar el barcode lo rompe en silencio. La ventana del cron BNPL usa `maxDate=hoy 03:30` con `setTime` (no `endOfDay`) → riesgo de perder facturas del día.
+- **Espejo a legacy best-effort**: si el webhook `lender-result` falla, se loguea pero no bloquea → posible deriva entre lo que ve el usuario y lo que persiste `displayed_lenders`. Un `pending` no repuebla (mantiene la misma fila por Replace).
+- **Colisiones de id**: `24` Credifamilia (rt=4; el `application` viejo hardcodeaba rt=1 para el 24 — **NO extrapolar** a Bancolombia, rt=1 genuino) · allied 153 Energiteca vs lender 153 SmartPay · `100` Bancolombia Consumo vs un allied.
+
 ## Contenido
 Dos capas independientes sobre el tronco común (entrada → OTP → datos → marketplace `/lenders`):
 
@@ -68,16 +78,6 @@ registra en `main`** — copia muerta esperando cutover. Para el resto de los rt
 Sistecrédito, crons Corbeta) no se verificó.
 
 > Esto **no es un caso de borde**: es el reporte más frecuente de `#tech-ops` — 10 casos entre el 27-jul y el 5-ago, con la forma *«Prami confirma originación pero en CT quedó en seleccionar entidad»*. La firma es siempre la misma: estado 3 con `lender_id` elegido y `disbursed_lender` vacío.
-
-## Gotchas / riesgos
-- **Bug guard muerto** (`application/SelfManagerController.php:87`): `if ($purchaseCode->barcode_checked && ($lender->id == 68 && $lender->id == 133))` — un id no puede ser 68 **Y** 133; el guard de 'código ya utilizado' nunca dispara ahí.
-- **Consumo (100) se muestra sin cupo real**: el `else` de `validatePreApproveLender` lo empuja con 'Probabilidad media'/sort=2 (hay un `// ToDo` del propio código admitiendo que debería mostrar solo pre-aprobados).
-- **Filtro `[12,23,141,142,166]` es TEMPORAL, no negocio** (`LenderRetrievalService.php:248-252`): saca Prami + variantes Welli + lender 166 del preaprobado v1 porque erroran por falta de datos previos en `employment-info`. Coincide con la frontera de inyectabilidad.
-- **Welli `STATUS_MAP` `pendiente_desembolso→11`** (`Welli.php:40`): marca desembolsado un crédito que aún no lo está (application lo mapea a estado propio 28) → puede disparar `final_amount` prematuro.
-- **Meddipay nunca cachea** (`ShouldCheckAgain=true` siempre: nuevo `order_id` por request).
-- **Cruce Corbeta frágil por string**: por PIN (`verification_token`) con `LIKE` sobre `type_data`; renombrar el barcode lo rompe en silencio. La ventana del cron BNPL usa `maxDate=hoy 03:30` con `setTime` (no `endOfDay`) → riesgo de perder facturas del día.
-- **Espejo a legacy best-effort**: si el webhook `lender-result` falla, se loguea pero no bloquea → posible deriva entre lo que ve el usuario y lo que persiste `displayed_lenders`. Un `pending` no repuebla (mantiene la misma fila por Replace).
-- **Colisiones de id**: `24` Credifamilia (rt=4; el `application` viejo hardcodeaba rt=1 para el 24 — **NO extrapolar** a Bancolombia, rt=1 genuino) · allied 153 Energiteca vs lender 153 SmartPay · `100` Bancolombia Consumo vs un allied.
 
 ## Lo que NO está verificado
 - ¿Qué path de pre-aprobación gana por comercio, el MS Go o `PreApprovedLenderService` legacy? Coexisten en parallel-run; sin verificar quién decide en el front nuevo.

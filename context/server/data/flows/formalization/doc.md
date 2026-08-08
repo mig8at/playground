@@ -8,6 +8,53 @@ Vive casi entera en **`legacy-backend/Modules/Loans`** (el módulo más grande d
 
 Frontera con los hermanos: acá va el **journey de cierre**. La familia del lender (**creditopx** rt=2/3, **aggregator** rt=1, **redirect** rt=0), la biometría (**kyc**), la categoría que fija enganche/cupo/plazo/FGA (**profiling**) y el bloqueo por hardware (**smartpay**) son nodos propios.
 
+## Antes de concluir
+- ⚠ **El pagaré y el cliente pueden decir personas distintas, y no hay cómo detectarlo.**
+  `promissory_notes` guarda el **PDF ya generado** (`promissory_note_url`) más un `user_id` que es un
+  puntero VIVO: editar la identidad del usuario después de firmar desincroniza el documento legal del
+  registro, sin error y sin alerta. Y no existe ninguna tabla de auditoría de `users` en prod (medido el
+  2026-08-07), así que la discrepancia sólo se encuentra abriendo el PDF y comparando a ojo — que es como
+  se encontró el incidente de diciembre de 2025. Ver **F-121**.
+- **El estado 30 «Autorizado pendiente desembolso» es un WAYPOINT, no un desenlace.** Lo escribe
+  `legacy-backend/Modules/Loans/App/Services/LoanAuthorizationService.php:434 transitionToIntermediate`
+  —«Transition to intermediate status after OTP verification. Applies to all flows (IMEI and
+  default)»— y deja el comentario «OTP verificado - pendiente autorización» en el historial. También
+  lo escribe `AdvisorStatusController.php:41` y `:89` por acción del asesor. Una solicitud parada ahí
+  **verificó el OTP de firma y no completó la autorización**; no está aprobada ni muerta. Reportado
+  como «quedó en autorizado pendiente desembolso desde ayer» (#tech-ops 2026-08-01 y 2026-08-06).
+- ⚠ **Un asesor puede mover la solicitud a «Autorizada» a mano SIN pagaré firmado, y entonces el
+  voucher no se puede generar.** Diagnóstico de la dueña de política en #tech-ops (2026-08-01):
+  «el asesor lo cambió a autorizado manualmente, sin embargo el pagaré no quedó firmado, el error
+  vino de Deceval y por eso bloqueó el proceso… no podemos generar voucher porque no hay pagaré
+  firmado». O sea que **el estado 11 NO prueba que el pagaré esté firmado** — es el mismo patrón del
+  invariante 4 (un estado dice dónde está, no qué se completó). ⚠ La ruta exacta del cambio manual y
+  la validación del voucher NO se verificaron en código: por ahora es el testimonio de quien lo
+  diagnosticó, no una lectura del repo.
+- **El enganche NO es un paso del journey nuevo.** `InitialFeePaymentController` + `InitialFeePaymentService` (checkout Wompi, `staging` auto-aprueba, `:116-122`) están portados a legacy-backend y ruteados (`routes/api.php:60-67`), pero **ningún archivo del wizard React referencia `initial-fee-payment`** (grep = 0). El checkout hospedado vive solo en `application` (`/pago-cuota-inicial`). En el wizard, `initial_fee` es un campo del marketplace que se **resta del capital financiado**. El % sí lo fija la categoría de perfilamiento (`InitialFeePaymentService.php:77-78`, `category->min_initial_fee`).
+- **`standBy` es campo muerto en el front nuevo**: el backend lo sigue emitiendo para rt=2/3/4, pero `grep -r standBy` sobre todo `frontend-monorepo` da **0 resultados**. El wizard entra a `/confirmation` por su propio ruteo.
+- **`soft-update.tsx` es una ruta huérfana**: existe el archivo (`apps/loan-request-wizard/app/routes/lenders-marketplace/lenders/soft-update.tsx`) pero **no está registrada en `routes.ts`** → código muerto.
+⚠ **El envío de OTP ya no habla con Twilio/SNS: pasa por el MS del módulo System.** `OtpService`
+perdió `Twilio\Rest\Client`, `Aws\Sns\SnsClient` y `LoanMessagingServiceRepository`, y hoy recibe
+`OtpServiceRepositoryInterface` + `CacheServiceInterface` (Redis). **El código lo escribe el MS en
+Redis** y `OtpService` lo lee con reintentos; solo en `local`, si el cache no entrega, cae a un OTP
+fijo para no bloquear (`OtpService.php:75`, `app()->environment('local')`). Al depurar un OTP que no
+llega, el sospechoso ya no es Twilio sino el MS y Redis.
+
+**El bypass QA sigue restringido a `local`/`development`** — verificado: `OtpBypassService.php:37`
+mantiene `if (!app()->environment('local','development'))`, igual que antes del refactor. Lo único que
+cambió es el comentario en `OtpService`, que dejó de decirlo; el guard está intacto.
+
+- **Bug real: argumento descartado en el envío de OTP.** `ValidateOtpPromissoryNoteController.php:178-183` llama `sendOtpPromissoryNote($user, $action, $phoneCode, $isImei ? 'service' : null)` con **4 argumentos** contra una firma de **3** (`OtpService.php:42`). PHP descarta el extra en silencio → la selección de canal para IMEI nunca llega al servicio.
+- **`eval()` sobre datos de BD**: `GuaranteeService::shouldRequestGuarantee:214-217` construye `"$score $y $w"` desde `lender_guarantee_criteria` (variable/condition/value) y lo ejecuta con `eval`. Un valor mal cargado en la tabla es ejecución de código.
+- **Idempotencia de la radicación rt=4 está comentada**: el docblock de `formalizeExternalManagedIfApplicable` promete "Idempotente: si ya existe una LenderTransaction se reutiliza", pero el bloque que la implementaba está comentado (`LoanAuthorizationService.php:211-222`) → un `authorize()` reintentado puede radicar dos veces. El mismo docblock dice `response_type 5` mientras la constante es **4** (`:43`).
+- **Hardcodes de lender**: `PromissoryNoteController::show:96` (`lender_id === 24` → camino Credifamilia), `CredifamiliaDocumentsBuilder::build` (`lenderId: 24` literal), `UserRequest::isSmartPay:191` (`lender->id === 160`). Consecuencia práctica: en dev/staging SmartPay es el lender **153**, así que `isSmartPay()` da false y el flujo IMEI cae en la rama `authorize()` en vez de `disburseImeiRequest()` (`DeviceController.php:102-106`).
+- **Controllers importados pero sin ruta**: `ConsentController`, `GuaranteeController` y `CustomerDocumentController` se importan en `Modules/Loans/routes/api.php:7-10` y **no tienen ninguna ruta** → los PDFs de consentimiento y FGA solo se producen como efecto colateral del preview y del `authorize`. El acuerdo de bloqueo de dispositivo también está comentado en el listado de documentos (`UserRequestDocumentService.php:53-57`).
+- **Estados que se pisan**: originación (3 → 10 → intermedio → 11/6/7/8) ≠ préstamo vivo (1 al día / 2 mora / 3 paz y salvo / 4 cancelado) ≠ `creditop_x_user_requests_process_statuses` (ids 8 y 9 usados como números mágicos, sin seeder en el repo). El 11 es el puente; la cartera post-11 es otro grafo.
+- **Todo el cierre es desktop-hostil por diseño**: `RedirectIdValidationIfDesktop` responde 403 antes que el controller. Cualquier prueba automatizada del cierre tiene que fingir user-agent móvil o entrar por `/self-service`.
+- **`disbursed_lender` NO es huella del webhook (F-100).** `updateDisbursedLender` corre acá dentro, en el post-commit de `authorize()`, así que el campo aparece lleno en rt=2/3 y en Credifamilia rt=4 **sin que ningún webhook haya existido**. Lo escriben tres caminos —este, el webhook `lender-result` de rt=1, y los espejos de API de lender (`BancoDeBogota.php:233-278`)— y ninguno deja marca de cuál fue. Leerlo como «llegó el webhook» manda a revisar una integración inexistente.
+- **Side effects best-effort**: notificaciones, voucher, `updateDisbursedLender` y la limpieza post-desembolso corren cada uno en su `try/catch` y solo loguean. Una solicitud puede quedar en 11 sin voucher ni correo, sin señal de error al usuario. `RequestCompletionService::processEcommerceRequest` es directamente un stub con la integración WooCommerce comentada (`:63-80`).
+- **Timeouts asimétricos**: el front espera 120 s por el preview de documentos y 180 s por `verify-otp` — porque ahí adentro corren generación de PDFs, Netco y Deceval. Es el tramo más frágil de toda la originación.
+
 ## Contenido
 
 ### Superficie HTTP
@@ -104,49 +151,3 @@ Las mismas etapas en Inertia (`application/routes/customer.php:78-96`): `/acepta
 - **Formalización Credifamilia** (legacy-backend): `app/Services/Pdf/CredifamiliaFormalizationService.php:51-152` y el orden de los 9 documentos en `app/Services/Pdf/CredifamiliaLegalizationDocumentService.php:91-128`.
 - **Gemelo monolítico** (application): `app/Http/Controllers/Customer/ValidateOtpPromissoryNoteController.php:118-228`; rutas en `routes/customer.php:78-96`.
 
-## Gotchas / riesgos
-- ⚠ **El pagaré y el cliente pueden decir personas distintas, y no hay cómo detectarlo.**
-  `promissory_notes` guarda el **PDF ya generado** (`promissory_note_url`) más un `user_id` que es un
-  puntero VIVO: editar la identidad del usuario después de firmar desincroniza el documento legal del
-  registro, sin error y sin alerta. Y no existe ninguna tabla de auditoría de `users` en prod (medido el
-  2026-08-07), así que la discrepancia sólo se encuentra abriendo el PDF y comparando a ojo — que es como
-  se encontró el incidente de diciembre de 2025. Ver **F-121**.
-- **El estado 30 «Autorizado pendiente desembolso» es un WAYPOINT, no un desenlace.** Lo escribe
-  `legacy-backend/Modules/Loans/App/Services/LoanAuthorizationService.php:434 transitionToIntermediate`
-  —«Transition to intermediate status after OTP verification. Applies to all flows (IMEI and
-  default)»— y deja el comentario «OTP verificado - pendiente autorización» en el historial. También
-  lo escribe `AdvisorStatusController.php:41` y `:89` por acción del asesor. Una solicitud parada ahí
-  **verificó el OTP de firma y no completó la autorización**; no está aprobada ni muerta. Reportado
-  como «quedó en autorizado pendiente desembolso desde ayer» (#tech-ops 2026-08-01 y 2026-08-06).
-- ⚠ **Un asesor puede mover la solicitud a «Autorizada» a mano SIN pagaré firmado, y entonces el
-  voucher no se puede generar.** Diagnóstico de la dueña de política en #tech-ops (2026-08-01):
-  «el asesor lo cambió a autorizado manualmente, sin embargo el pagaré no quedó firmado, el error
-  vino de Deceval y por eso bloqueó el proceso… no podemos generar voucher porque no hay pagaré
-  firmado». O sea que **el estado 11 NO prueba que el pagaré esté firmado** — es el mismo patrón del
-  invariante 4 (un estado dice dónde está, no qué se completó). ⚠ La ruta exacta del cambio manual y
-  la validación del voucher NO se verificaron en código: por ahora es el testimonio de quien lo
-  diagnosticó, no una lectura del repo.
-- **El enganche NO es un paso del journey nuevo.** `InitialFeePaymentController` + `InitialFeePaymentService` (checkout Wompi, `staging` auto-aprueba, `:116-122`) están portados a legacy-backend y ruteados (`routes/api.php:60-67`), pero **ningún archivo del wizard React referencia `initial-fee-payment`** (grep = 0). El checkout hospedado vive solo en `application` (`/pago-cuota-inicial`). En el wizard, `initial_fee` es un campo del marketplace que se **resta del capital financiado**. El % sí lo fija la categoría de perfilamiento (`InitialFeePaymentService.php:77-78`, `category->min_initial_fee`).
-- **`standBy` es campo muerto en el front nuevo**: el backend lo sigue emitiendo para rt=2/3/4, pero `grep -r standBy` sobre todo `frontend-monorepo` da **0 resultados**. El wizard entra a `/confirmation` por su propio ruteo.
-- **`soft-update.tsx` es una ruta huérfana**: existe el archivo (`apps/loan-request-wizard/app/routes/lenders-marketplace/lenders/soft-update.tsx`) pero **no está registrada en `routes.ts`** → código muerto.
-⚠ **El envío de OTP ya no habla con Twilio/SNS: pasa por el MS del módulo System.** `OtpService`
-perdió `Twilio\Rest\Client`, `Aws\Sns\SnsClient` y `LoanMessagingServiceRepository`, y hoy recibe
-`OtpServiceRepositoryInterface` + `CacheServiceInterface` (Redis). **El código lo escribe el MS en
-Redis** y `OtpService` lo lee con reintentos; solo en `local`, si el cache no entrega, cae a un OTP
-fijo para no bloquear (`OtpService.php:75`, `app()->environment('local')`). Al depurar un OTP que no
-llega, el sospechoso ya no es Twilio sino el MS y Redis.
-
-**El bypass QA sigue restringido a `local`/`development`** — verificado: `OtpBypassService.php:37`
-mantiene `if (!app()->environment('local','development'))`, igual que antes del refactor. Lo único que
-cambió es el comentario en `OtpService`, que dejó de decirlo; el guard está intacto.
-
-- **Bug real: argumento descartado en el envío de OTP.** `ValidateOtpPromissoryNoteController.php:178-183` llama `sendOtpPromissoryNote($user, $action, $phoneCode, $isImei ? 'service' : null)` con **4 argumentos** contra una firma de **3** (`OtpService.php:42`). PHP descarta el extra en silencio → la selección de canal para IMEI nunca llega al servicio.
-- **`eval()` sobre datos de BD**: `GuaranteeService::shouldRequestGuarantee:214-217` construye `"$score $y $w"` desde `lender_guarantee_criteria` (variable/condition/value) y lo ejecuta con `eval`. Un valor mal cargado en la tabla es ejecución de código.
-- **Idempotencia de la radicación rt=4 está comentada**: el docblock de `formalizeExternalManagedIfApplicable` promete "Idempotente: si ya existe una LenderTransaction se reutiliza", pero el bloque que la implementaba está comentado (`LoanAuthorizationService.php:211-222`) → un `authorize()` reintentado puede radicar dos veces. El mismo docblock dice `response_type 5` mientras la constante es **4** (`:43`).
-- **Hardcodes de lender**: `PromissoryNoteController::show:96` (`lender_id === 24` → camino Credifamilia), `CredifamiliaDocumentsBuilder::build` (`lenderId: 24` literal), `UserRequest::isSmartPay:191` (`lender->id === 160`). Consecuencia práctica: en dev/staging SmartPay es el lender **153**, así que `isSmartPay()` da false y el flujo IMEI cae en la rama `authorize()` en vez de `disburseImeiRequest()` (`DeviceController.php:102-106`).
-- **Controllers importados pero sin ruta**: `ConsentController`, `GuaranteeController` y `CustomerDocumentController` se importan en `Modules/Loans/routes/api.php:7-10` y **no tienen ninguna ruta** → los PDFs de consentimiento y FGA solo se producen como efecto colateral del preview y del `authorize`. El acuerdo de bloqueo de dispositivo también está comentado en el listado de documentos (`UserRequestDocumentService.php:53-57`).
-- **Estados que se pisan**: originación (3 → 10 → intermedio → 11/6/7/8) ≠ préstamo vivo (1 al día / 2 mora / 3 paz y salvo / 4 cancelado) ≠ `creditop_x_user_requests_process_statuses` (ids 8 y 9 usados como números mágicos, sin seeder en el repo). El 11 es el puente; la cartera post-11 es otro grafo.
-- **Todo el cierre es desktop-hostil por diseño**: `RedirectIdValidationIfDesktop` responde 403 antes que el controller. Cualquier prueba automatizada del cierre tiene que fingir user-agent móvil o entrar por `/self-service`.
-- **`disbursed_lender` NO es huella del webhook (F-100).** `updateDisbursedLender` corre acá dentro, en el post-commit de `authorize()`, así que el campo aparece lleno en rt=2/3 y en Credifamilia rt=4 **sin que ningún webhook haya existido**. Lo escriben tres caminos —este, el webhook `lender-result` de rt=1, y los espejos de API de lender (`BancoDeBogota.php:233-278`)— y ninguno deja marca de cuál fue. Leerlo como «llegó el webhook» manda a revisar una integración inexistente.
-- **Side effects best-effort**: notificaciones, voucher, `updateDisbursedLender` y la limpieza post-desembolso corren cada uno en su `try/catch` y solo loguean. Una solicitud puede quedar en 11 sin voucher ni correo, sin señal de error al usuario. `RequestCompletionService::processEcommerceRequest` es directamente un stub con la integración WooCommerce comentada (`:63-80`).
-- **Timeouts asimétricos**: el front espera 120 s por el preview de documentos y 180 s por `verify-otp` — porque ahí adentro corren generación de PDFs, Netco y Deceval. Es el tramo más frágil de toda la originación.

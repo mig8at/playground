@@ -29,16 +29,23 @@ mergear es peor que un nodo faltante: se lee como verdad.
 ## Reglas de escritura de un nodo
 
 Están codificadas en las plantillas (`server/data/doc-templates/`, leé el comentario de
-`referencia.md`) y las vigila `tools/lint.py`. Las cuatro que más costó aprender:
+`referencia.md`) y las vigila `tools/lint.py`. Las cinco que más costó aprender:
 
-1. **Test del párrafo:** o cambia lo que un modelo haría en una tarea plausible, o previene un error
+1. **El `when` se escribe ANTES que el doc.** Es la interfaz real: si no matchea el vocabulario con
+   el que *llega* la tarea, el nodo no se abre nunca y nada de lo que escribas adentro existe.
+2. **«Antes de concluir» va SEGUNDO, no al final.** Un modelo abre 2–4 nodos con una hipótesis ya
+   formada, y lo primero que necesita es qué de esa hipótesis es falso. Se midió: ese bloque estaba
+   llegando al **60–92 %** del documento en todos los nodos menos `creditop` —que lo pone al 8 % y es
+   el que todos usan de ejemplo—, o sea después de toda la descripción, donde ya no cambia nada.
+3. **Test del párrafo:** o cambia lo que un modelo haría en una tarea plausible, o previene un error
    que ya pasó (con su F-xx). Si ninguna de las dos, no va.
-2. **Un hecho, una casa.** Si el hecho pertenece a otro nodo: `→ ver <nodo> § <sección>`, sin repetir.
+4. **Un hecho, una casa.** Si el hecho pertenece a otro nodo: `→ ver <nodo> § <sección>`, sin repetir.
    Lo que vive en el código (columnas, enums, códigos de error) no se copia: se apunta a la línea.
-3. **Nada de estado-vivo contable** («hoy hay N…»): eso lo imprimen las tools. Un número-evidencia de
-   una historia cerrada que sostiene una regla sí puede quedar.
-4. **Historia → git · preguntas → tablero · trampas con síntoma → findings.** Ni bitácoras por nodo
-   (git ya la lleva), ni "preguntas abiertas" hipotéticas (si nadie las va a hacer, no ocupan contexto).
+   Y marcá el estado de cada afirmación: lo **inferido** se declara inferido; leerse igual que lo
+   verificado es como `servicing` llamó «stand-by» al estado 21 durante meses.
+5. **Nada de estado-vivo contable** («hoy hay N…»): eso lo imprimen las tools. Un número-evidencia de
+   una historia cerrada que sostiene una regla sí puede quedar. Y: **historia → git · preguntas →
+   tablero · trampas con síntoma → findings.**
 
 ## Confluence: hay oro, y hay specs disfrazadas de descripciones
 
@@ -197,9 +204,9 @@ la tarea haya salido bien — sobre todo si salió bien por `grep`.
 
 1. **El archivo causa-raíz al `map.json` del nodo correcto, CON SU PORQUÉ en el `doc.md`.** Listarlo
    sin explicarlo no sirve — para eso `grep` es más rápido (`make context-salud` mide los mudos).
-2. **La REGLA GENERAL al gotcha, no el caso.** «El export tiene un bug» se arregla y desaparece; «un
-   filtro por rol con `when()` encadenados falla ABIERTO» sigue valiendo. Si la regla contradice una
-   conclusión que parecía obvia, va también a los **invariantes** del nodo `creditop`.
+2. **La REGLA GENERAL a «Antes de concluir», no el caso.** «El export tiene un bug» se arregla y
+   desaparece; «un filtro por rol con `when()` encadenados falla ABIERTO» sigue valiendo. Si la regla
+   contradice una conclusión que parecía obvia, va también a los **invariantes** del nodo `creditop`.
 3. **La frase con la que LLEGÓ el problema, a `sintomas[]` del `map.json`.** Es lo que arma la tabla
    «Entrá por el síntoma» del ROUTE-MAP.
 

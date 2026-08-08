@@ -8,6 +8,22 @@ La fila es **anémica a propósito**: guarda identidad, branding, ruteo y flags 
 
 El campo que manda es **`response_type` (rt)**: un `integer` que decide **quién decide el crédito** y, con eso, cómo se entrega al usuario y si el resultado es **inyectable/simulable localmente**. Este nodo cubre el **concepto y la configuración**; el recorrido de cada familia vive en los Subcontextos.
 
+## Antes de concluir
+- **HARDCODE Credifamilia (id 24)** en `application/app/Models/Lender.php:59`: es un **accessor de Eloquent**, así que solo aplica a lecturas en memoria (`$lender->response_type`, ~55 sitios). Las **queries** (`Lender::where('response_type', 2)`, 12+ sitios en application) leen la **columna cruda** y lo ignoran → el mismo lender "es" rt=1 en memoria y rt=BD en el `WHERE`.
+- **`response_type` default = 1**: un lender mal configurado nace como integración externa. Y `StoreRequest` no restringe el valor: cualquier entero pasa.
+- **rt=3 y rt=4 no están en `response_types`** → el dropdown del panel no los ofrece; se setean por SQL. Nadie valida `response_type` contra el catálogo.
+- **Comentario mentiroso en el código**: `LoanAuthorizationService.php:184` documenta la formalización externa como "(response_type 5)" cuando la constante que usa es **4** (`:43`). No existe rt=5 en ningún otro lado.
+- **`path_id = 3` no existe en ninguna migración ni seeder** de los dos backs (solo se siembran 1 y 2), pero el front lo consume como `MANAGED_LENDER_PATH_ID` para desviar a gestión manual (`lender-response.mapper.ts:96`). La fila se insertó fuera de migración.
+- **Columna muerta**: `requires_restrictive_list_check` (migración + `->after()` de la siguiente migración) **no tiene un solo consumidor** en application, legacy-backend ni frontend-monorepo. Tampoco está en el `$fillable`.
+- **Bug del panel — el email nunca se guarda**: los dos formularios Vue bindean `form.emails` (plural) y precargan `this.lender.emails`, pero la columna, el `$fillable` y el controlador usan **`email`** (singular). El campo renderiza vacío al editar y el POST no llega a la columna.
+- **Serialización que pisa el escalar**: `edit()` hace `$lender->load([... 'responseType' ...])`; Eloquent serializa esa relación en snake_case como `response_type`, **sombreando el entero**. Por eso el Vue lee `this.lender.response_type.id`. Cualquier consumidor que espere un `int` en ese payload se rompe.
+- **Hardcodes por NOMBRE (string)**: `UserRequestController.php:969` hace `switch ($lender->name)` con `'Compensar' / 'Sistecrédito' / 'Meddipay'`; legacy al menos lo centralizó en `LenderTabBehaviorResolver::NON_NEW_TAB_LENDER_NAMES` — pero sigue comparando por nombre, no por id ni por flag. Renombrar un lender en el panel cambia su comportamiento de entrega.
+- **Código muerto en el gemelo legacy**: `LenderRepository::getActive()` hace `Lender::where('status', 'Activo')` sobre una columna **booleana** (nunca matchea) y `getPaginated()` filtra por `$filters['type']`, columna que **no existe** en `lenders`. Ambos métodos están en la interfaz (`:20-21`) y **no los llama nadie**.
+- **Alta asimétrica rt=3**: `store()` crea `creditop_x_lender_configuration` solo si rt==2; `update()` (application) lo hace para 2 **y** 3. Un lender rotativo recién creado queda sin config hasta que alguien lo edite.
+- **Migraciones no autocontenidas**: el árbol de legacy-backend depende de columnas creadas por migraciones de application (y viceversa). Levantar una base desde cero con un solo repo falla.
+- **El `action` es `eval` disfrazado**: un FQCN guardado en BD e instanciado con `new $lenderClass()`. Si el string apunta a una clase inexistente, el flujo devuelve `'Lender action class not found'` en vez de fallar ruidosamente.
+- **`apps/admin` del frontend-monorepo está vacío** (solo `.gitignore`): la única UI de alta de entidades sigue siendo el panel Inertia de application; la API `Modules/Partner` no tiene consumidor en los repos leídos.
+
 ## Contenido
 
 ### 1 · La tabla `lenders`: qué guarda y qué no
@@ -138,18 +154,3 @@ Asimetría real: el **`store` cubre solo rt==2**, mientras el **`update` de appl
 - `frontend-monorepo/…/lib/domain/entities/loan-option.entity.ts:11` `LenderResponseType = 0|1|2|3` · `:134` el campo en el DTO.
 - `frontend-monorepo/…/lib/mappers/lender-response.mapper.ts:96` (desvío por `MANAGED_LENDER_PATH_ID`) · `:189` mapeo de `response_type`.
 
-## Gotchas / riesgos
-- **HARDCODE Credifamilia (id 24)** en `application/app/Models/Lender.php:59`: es un **accessor de Eloquent**, así que solo aplica a lecturas en memoria (`$lender->response_type`, ~55 sitios). Las **queries** (`Lender::where('response_type', 2)`, 12+ sitios en application) leen la **columna cruda** y lo ignoran → el mismo lender "es" rt=1 en memoria y rt=BD en el `WHERE`.
-- **`response_type` default = 1**: un lender mal configurado nace como integración externa. Y `StoreRequest` no restringe el valor: cualquier entero pasa.
-- **rt=3 y rt=4 no están en `response_types`** → el dropdown del panel no los ofrece; se setean por SQL. Nadie valida `response_type` contra el catálogo.
-- **Comentario mentiroso en el código**: `LoanAuthorizationService.php:184` documenta la formalización externa como "(response_type 5)" cuando la constante que usa es **4** (`:43`). No existe rt=5 en ningún otro lado.
-- **`path_id = 3` no existe en ninguna migración ni seeder** de los dos backs (solo se siembran 1 y 2), pero el front lo consume como `MANAGED_LENDER_PATH_ID` para desviar a gestión manual (`lender-response.mapper.ts:96`). La fila se insertó fuera de migración.
-- **Columna muerta**: `requires_restrictive_list_check` (migración + `->after()` de la siguiente migración) **no tiene un solo consumidor** en application, legacy-backend ni frontend-monorepo. Tampoco está en el `$fillable`.
-- **Bug del panel — el email nunca se guarda**: los dos formularios Vue bindean `form.emails` (plural) y precargan `this.lender.emails`, pero la columna, el `$fillable` y el controlador usan **`email`** (singular). El campo renderiza vacío al editar y el POST no llega a la columna.
-- **Serialización que pisa el escalar**: `edit()` hace `$lender->load([... 'responseType' ...])`; Eloquent serializa esa relación en snake_case como `response_type`, **sombreando el entero**. Por eso el Vue lee `this.lender.response_type.id`. Cualquier consumidor que espere un `int` en ese payload se rompe.
-- **Hardcodes por NOMBRE (string)**: `UserRequestController.php:969` hace `switch ($lender->name)` con `'Compensar' / 'Sistecrédito' / 'Meddipay'`; legacy al menos lo centralizó en `LenderTabBehaviorResolver::NON_NEW_TAB_LENDER_NAMES` — pero sigue comparando por nombre, no por id ni por flag. Renombrar un lender en el panel cambia su comportamiento de entrega.
-- **Código muerto en el gemelo legacy**: `LenderRepository::getActive()` hace `Lender::where('status', 'Activo')` sobre una columna **booleana** (nunca matchea) y `getPaginated()` filtra por `$filters['type']`, columna que **no existe** en `lenders`. Ambos métodos están en la interfaz (`:20-21`) y **no los llama nadie**.
-- **Alta asimétrica rt=3**: `store()` crea `creditop_x_lender_configuration` solo si rt==2; `update()` (application) lo hace para 2 **y** 3. Un lender rotativo recién creado queda sin config hasta que alguien lo edite.
-- **Migraciones no autocontenidas**: el árbol de legacy-backend depende de columnas creadas por migraciones de application (y viceversa). Levantar una base desde cero con un solo repo falla.
-- **El `action` es `eval` disfrazado**: un FQCN guardado en BD e instanciado con `new $lenderClass()`. Si el string apunta a una clase inexistente, el flujo devuelve `'Lender action class not found'` en vez de fallar ruidosamente.
-- **`apps/admin` del frontend-monorepo está vacío** (solo `.gitignore`): la única UI de alta de entidades sigue siendo el panel Inertia de application; la API `Modules/Partner` no tiene consumidor en los repos leídos.
