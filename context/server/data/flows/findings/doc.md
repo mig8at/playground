@@ -56,6 +56,7 @@ acá, saltá al `F-xx` y leé sólo eso.
 | **«parece un bug del producto» (y es una env faltante)** | F-04 · F-05 · F-23 · F-70 · F-98 · F-99 · F-104 |
 | **«la pantalla no avanza y no hay ningún error»** | F-01 · F-02 · F-03 · F-58 · F-88 · F-91 · F-92 |
 | **«¿en qué repo vive esto? / no está en el monolito»** | **F-123** |
+| **«el dato parece corrupto / hay que normalizarlo»** | **F-124** |
 | **«¿qué significa de verdad esta tabla/columna?»** | F-19 · F-24 · F-93 · F-96 · F-97 · F-100 · F-101 · F-103 · F-105 · F-106 |
 | **«los logs no me dicen de qué solicitud son»** | F-20 · F-98 · F-99 · F-102 |
 | **«no le aparece ninguna entidad en el listado»** | F-04 · F-34 · F-56 · F-75 · F-78 |
@@ -3311,5 +3312,71 @@ que el árbol declara.
 ⚠ **Y un corolario para no equivocarse en la dirección opuesta**: *desplegado* no es *usado*.
 `customer-profiling-service` tiene cuatro releases en producción y **5 líneas de log en 24 h**. Para una
 tarea de burós hoy, la verdad sigue estando en el monolito.
+
+---
+
+### F-124 · El teléfono con prefijo NO estaba corrupto: E.164 es lo correcto. La hipótesis de «acumula prefijos» la refutó el dato
+
+**Síntoma que se creyó ver.** Contando dígitos de `users.cell_phone` para clientes de comercios
+dominicanos, apareció esto: 49 con 11 dígitos, 32 con 12, y hasta 15. Sólo 2 de 91 tenían 10 dígitos —
+un número «nacional limpio». La lectura inmediata fue **«el campo acumula prefijos»**, y de ahí salió un
+plan: normalizar el formato al guardar y arreglar a quien concatena.
+
+**Lo que dijo el dato al separarlo bien** (prod, 2026-08-08). Dos cortes cambian la conclusión:
+
+1. **Separar prueba de real** (`document_number` con letras = sintético). De 91, **57 son reales**.
+2. **Mirar QUÉ hay después del prefijo**, no cuántos dígitos hay en total.
+
+De los 33 clientes reales con 11 dígitos: **30 son `+1` + un móvil dominicano** (809/829/849) — o sea
+**E.164 correcto**. El caso que se buscaba, «prefijo `+1` encima de un móvil colombiano», tiene **CERO
+filas reales**. El ejemplo que lo sugería (`13023398616`) pertenece a un documento de prueba. Y los 17
+de 12 dígitos son `+57` + móvil colombiano: también E.164 correcto.
+
+**Causa raíz del error de lectura, que es lo que importa acá.** Se tomó *«tiene prefijo»* como
+*«está contaminado»*. Es al revés: **`+18095551234` es la forma CORRECTA** de guardar un número
+internacional (E.164). Contar dígitos y comparar contra el largo nacional mide la presencia del prefijo,
+no la corrupción — y con dos países en juego, el largo nacional no es una vara.
+
+**Lo que SÍ quedó confirmado, y es mucho menos:**
+
+- **~6 clientes reales con basura al final**: `+573208088778000`, `+16892539592999`,
+  `+168925395920909`, `+5731328044901`. Son E.164 válidos con 1 a 4 dígitos pegados después. Eso sí es
+  malformado, y son 6 de 57.
+- **`findByCellPhone` es `where('cell_phone', $exacto)`**
+  (`Modules/Loans/App/Repositories/UserRepository.php:18`), comparación literal sobre una columna que
+  guarda `+1 809…` (con espacio, del formulario dinámico), `+1809…` (sin espacio, del flujo IMEI),
+  `809…` y `+57…`. El mismo cliente entrando por dos flujos **no se encuentra y se duplica**. El
+  llamador intenta dos variantes (cruda y sólo-dígitos), lo que tapa el caso del espacio pero no los
+  demás. ⚠ **Medido: 4 grupos de colisión, 9 usuarios — y los 9 son sintéticos** (teléfonos con sufijo
+  `-t`/`-o`/`-t1`, documentos `74564456-t3`, `TEMP-916-…`). **Cero clientes reales duplicados.** Es un
+  riesgo latente real, no un incendio.
+- **Dos sitios del front concatenan y con formatos distintos**:
+  `apps/loan-request-wizard/app/routes/dynamic/request-phone.tsx:171` y `:212` arman
+  `` `+${countryCode} ${phone}` `` (**con espacio**), y
+  `apps/loan-request-wizard/app/routes/imei/register-imei-action.server.ts:213` arma
+  `` `${countryCode}${phoneNumber}` `` (sin espacio). El tercero,
+  `modules/loan-request-wizard/consumer-hub/src/lib/infrastructure/phone-number.repository.ts:22`, manda
+  `dialCode` **en su propio campo** — ése es el que está bien.
+
+**Arreglo.** El único cambio que se hizo es el que se sostiene por sí solo, sin depender de esta
+hipótesis: el default de `PhoneForm` deja de ser `+1` fijo y sale del país del comercio, porque el
+formulario dinámico lo usa **Credifamilia** (lender 24, `form_type` 6, **colombiano**) y un cliente
+colombiano veía el prefijo dominicano preseleccionado. **No** se escribió la normalización del formato,
+y es deliberado: cambiar lo que se guarda con un lookup de comparación exacta es la forma de crear los
+duplicados que hoy no existen.
+
+**Estado:** verificado el 2026-08-08 contra prod. **No verificado**: si los ~6 malformados rompen algo
+aguas abajo (el envío del mensaje, la firma), ni de dónde salen los dígitos de más.
+
+⚠ **La lección, y es de método.** Un agregado (`COUNT` por largo) puede sostener una hipótesis falsa con
+mucha convicción. Lo que la desarmó fueron dos cortes que había que *pensar*: **sacar los sintéticos** y
+**mirar el contenido, no el tamaño**. Antes de proponer una migración de datos, hay que preguntarse qué
+corte haría que la hipótesis se caiga — y correrlo. Acá el plan «normalizar el teléfono» habría tocado
+57 filas reales para arreglar 6, con riesgo de duplicar clientes.
+
+⚠ **Y un corolario sobre los datos de prueba en producción**: los sintéticos se marcan con sufijos en el
+documento y en el teléfono (`-t`, `-o`, `TEMP-`), lo cual está bien pensado — pero **inflan cualquier
+conteo por país o por formato**. Todo censo de este tipo tiene que filtrar `document_number REGEXP
+'[^0-9]'` antes de concluir. Sin eso, acá el 38 % de las filas eran ruido.
 
 ---
