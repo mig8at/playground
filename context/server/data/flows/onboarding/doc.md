@@ -25,12 +25,14 @@ Todas resuelven una `AlliedBranch` por **`hash`** y dejan `session('allied')` + 
 4. **Wizard React** — `GET /{merchant|ecommerce|self-service}/{hash}/solicitar`. Los 3 prefijos son `ROUTE_PREFIXES` en `route-helpers.ts`; el mismo componente sirve dos pasos (`?step=amount` → `?step=phoneNumber`).
 
 ### 2. La bifurcación al frontend nuevo (strangler)
-`SimulatorController::indexV2` lee **dos Settings** y, si el comercio matchea, redirige a `NewFrontendUrlService::init($hash)` = `{base}/merchant/{hash}/solicitar`:
+`SimulatorController::indexV2` lee **las dos Settings del cutover** (`new_frontend_allied_branches` /
+`new_frontend_allieds` — su forma y semántica: **`architecture` §costuras**, el dueño) y, si el comercio
+matchea, redirige a `NewFrontendUrlService::init($hash)` = `{base}/merchant/{hash}/solicitar`.
 
-- `new_frontend_allied_branches` → `value['hashes']`, lista de **hashes de sucursal**.
-- `new_frontend_allieds` → mapa `{"<allied_id>": true}`, a nivel **comercio**.
-
-El mismo par de Settings se re-evalúa en `UserRequestController::validateTempUsers` para reanudar una solicitud a medio hacer, y ahí `NewFrontendUrlService` arma el destino exacto (`personalInfo` / `employmentInfo` / `lenders` / `imei`). `NewFrontendUrlService` es la **única** pieza que conoce las rutas del wizard desde PHP.
+El mismo par se re-evalúa en `UserRequestController::validateTempUsers` para reanudar una solicitud a
+medio hacer, y ahí `NewFrontendUrlService` arma el destino exacto (`personalInfo` / `employmentInfo` /
+`lenders` / `imei`). `NewFrontendUrlService` es la **única** pieza que conoce las rutas del wizard
+desde PHP.
 
 ### 3. El contrato real: `error_code` ONB0xx, no HTTP status
 G2 responde **200** para casi todo y pone el veredicto en `data.error_code`. El mapa vive en `OnboardingController::getHttpCodeForError`:
@@ -95,15 +97,17 @@ Consecuencias que ya están documentadas en otros nodos: en ese flujo **Experian
 
 **Valores quemados al crear** (idénticos en los tres): `lender_id = null`, `credit_line_id = 1`, `fee_number = 0`, `fee_value = 0`, `rate = 0`, `user_request_status_id = 1`.
 
-### 5. Estados de `user_requests` (nombres canónicos)
-`FindOrCreateServiceConstants` documenta los tres del onboarding y el frontend confirma las etiquetas:
+### 5. Estados que pisa el onboarding
+El catálogo completo verificado vive en la raíz (**`creditop` §Estados**); los distintivos de este
+tramo, confirmados en `FindOrCreateServiceConstants`:
 
 - **1 · "Validación OTP"** — estado inicial al crear (NO "creada").
 - **3 · "Seleccionó entidad"** — lo escribe la selección de lender.
 - **9 · "Formulario de perfil"** — post-OTP; es el estado con el que se llega al listado.
-- **4** No desembolsada · **6** Negada · **7** No terminó proceso · **8** Cancelado · **10** Pendiente · **11 Autorizada** · **25** (guard extra que G2 agrega y G1 no).
+- **25** — guard extra que G2 agrega y G1 no.
 
-`EDITABLE_STATUS_IDS = [1,3,9]` es la ventana de reciclado. El catálogo completo de nombres vive en la tabla `user_request_statuses` (sin enum en código); el frontend tiene 30 etiquetas mapeadas a variantes visuales en `request-status.ts`.
+`EDITABLE_STATUS_IDS = [1,3,9]` es la ventana de reciclado. El frontend tiene 30 etiquetas mapeadas a
+variantes visuales en `request-status.ts`.
 
 ### 6. El monto: tres orígenes y una precedencia
 1. `session('amount')` — asesor (lo pone `startV2`).

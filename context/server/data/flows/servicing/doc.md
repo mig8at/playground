@@ -54,7 +54,7 @@ acumulan y se registran juntos al final de la corrida. Si un pago "desapareció"
 
 ## Estados y códigos
 **DOS máquinas de estado independientes que se confunden** (el Estado 11 es el puente):
-- **Catálogo A — `user_request_statuses`** (la SOLICITUD/originación, hasta 11/26): 1 Nueva · 3 Selección · 6 Negada · 7 Vencida · 8 Cancelada · 9 Perfil · 10 Pendiente autorización · **11 Autorizada (terminal de originación)** · 21 stand-by · 25 pendiente desembolso · 26 Facturado. ⚠ Sin seeder ni INSERT (ids reconstruidos de código; 2 y 7 los menos confirmados).
+- **Catálogo A — `user_request_statuses`** (la SOLICITUD/originación): el catálogo completo verificado contra BD vive en la raíz → **`creditop` §Estados** (⚠ corrige nombres que este nodo tenía de código: 1 es «Validación OTP», no «Nueva»; 21 es «En aprobación del médico», no «stand-by»; 25 es «Pendiente de facturación»). Los que le importan a servicing: **11 Autorizada (la frontera)** · 26 Facturado · **27 Paz y salvo — de la SOLICITUD, no confundir con el 3 del catálogo B**.
 - **Catálogo B — `creditop_x_user_request_statuses`** (el PRÉSTAMO in-platform, **el que importa post-11**): **1 Al día · 2 En mora · 3 Paz y salvo · 4 Cancelado**. ⚠ El seeder solo crea 1 y 2; los ids 3 y 4 se usan en código pero viven solo en la BD real.
 - **`status` sobrecargado** (3 sentidos, no confundir): en la fila del ledger 1=vigente/0=histórico/3=paz y salvo/5=reversado; en `RevolvingCredit` 1/0=cupo activo/inactivo; y aparte `creditop_x_requests_status_id` (1/2/3/4) = estado del crédito.
 - Catálogo global → raíz.

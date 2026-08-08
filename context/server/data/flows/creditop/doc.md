@@ -22,9 +22,10 @@ a afirmar algo que los contradice, medilo primero.
    copia se dispara al habilitar la entidad (~37.000 filas por sucursal). Cambiar la regla «del lender»
    no cambia las copias que ya existen.
 3. **Un comercio puede cambiar la FORMA del flujo, no sólo sus reglas.** El setting `corbeta_allieds`
-   ([24, 209, 210, 211, 311]) salta el formulario y **fabrica** la info laboral — y como el buró se
-   dispara al guardar lo laboral, ese comercio no consulta buró. Buscar «por qué no consultó» en el
-   motor de buró es el camino equivocado.
+   salta el formulario y **fabrica** la info laboral — y como el buró se dispara al guardar lo laboral,
+   ese comercio no consulta buró. Buscar «por qué no consultó» en el motor de buró es el camino
+   equivocado. (⚠ La lista de allieds «Corbeta» DIVERGE según quién pregunta — setting vs varios
+   hardcodes → `corbeta` §el gate.)
 4. **Un estado dice DÓNDE está la solicitud, nunca QUÉ completó.** El 10 pertenece al tramo de cierre y
    significa «adentro, sin firmar» (**F-103**); la fila del 9 **se escribe al CREAR** la solicitud
    (**F-106**); y `user_request_records` **no registra todas las transiciones** — los estados 1 y 10
@@ -95,11 +96,24 @@ Sustrato transversal que **todos los contextos consultan** (ninguno lo dueña). 
 - Detalle completo (176 columnas, muertas/divergentes, niveles N0-N3): `git 159906a:docs/codigo/MODELO-DATOS.md` + `…/CENSO-CAMPOS-CONFIG.md`. Reglas por comercio/lender: `…/codigo/REGLAS-POR-COMERCIO-Y-LENDER.md`.
 
 ## Estados y catálogos
-Las máquinas de estado son transversales; los contextos referencian ESTO y no lo repiten. **Tres catálogos que NO confundir:**
-- `user_request_statuses` — la SOLICITUD. **Estado 11 (Autorizada) = la frontera** originación↔servicing. Otros: 3 Selección · 6 Negada · 7 Fallida · 8 Cancelada · 9 formulario perfil · 10 confirmación de pago · 26 Facturado.
-- `creditop_x_user_request_statuses` (1-4) — el PRÉSTAMO in-platform post-11: 1 al día · 2 mora · 3 paz y salvo · 4 cancelado. Es "el que importa" para servicing.
-- `lender_transaction_statuses` (namespace propio, ej 40/41) — el espejo de los lenders rt=1/rt=4 (agregadores + Credifamilia SOAP).
-- Detalle (los 2 catálogos + los 6 crons post-11): `git 159906a:docs/codigo/CONTINUACION-CREDITO-ANALISIS.md`. Memoria `continuacion-credito-servicing`.
+Las máquinas de estado son transversales; **este es el catálogo canónico — los contextos apuntan acá y
+listan solo sus estados de llegada distintivos.** Tres catálogos que NO confundir:
+
+- `user_request_statuses` — la SOLICITUD. Catálogo completo (verificado contra la BD local —dump de
+  dev— el 2026-08-08, `SELECT id,name`):
+  **1** Validación OTP · **2** Cédula cargada · **3** Seleccionó entidad · **4** No desembolsada ·
+  **5** Desembolsada · **6** Negada · **7** No terminó proceso · **8** Cancelado · **9** Formulario de
+  perfil · **10** Pendiente de autorización · **11 Autorizada = LA FRONTERA originación↔servicing** ·
+  **12** Autorización negada · **13** Autorizado tesorería · **14** Autorizado contabilidad · **15**
+  Autorizado mesa de servicio · **16** Autorizado analista · **17** Solicita codeudor · **18** Solicita
+  documentación · **19** Cuota Inicial · **20** Aprobada no desembolsada · **21** En aprobación del
+  médico · **22/23** Validación aprobada/rechazada, espera de revisión · **24** Rechazado por validación
+  de identidad · **25** Pendiente de facturación · **26** Facturado · **27** Paz y salvo · **28**
+  Autorizado pendiente desembolso.
+- `creditop_x_user_request_statuses` (1-4) — el PRÉSTAMO in-platform post-11: 1 al día · 2 mora ·
+  3 paz y salvo · 4 cancelado. Es «el que importa» para servicing. ⚠ No confundir su `3 paz y salvo`
+  con el **27** de la solicitud: mismos nombres, namespaces distintos.
+- `lender_transaction_statuses` (namespace propio, ej 40/41) — el espejo de los lenders rt=1/rt=4.
 
 ## Frontera de pruebas / harness
 El mapa GLOBAL de simulación (material del OKR de metodología de pruebas) vive en el nodo **harness**,
@@ -112,9 +126,9 @@ nodos `kyc` y `harness` §inyección.
 ➤ **Inventario VIVO y verificado de los ifs-quemados-por-ID: contexto [[hardcodes-entidades]]** (auditoría 2026-07-18 — 24 de 31 acoplamientos BLOQUEAN la integración por-config; 101 sitios con `archivo:línea`). Es el nodo de DOLOR: si una tarea integra o toca el flujo de una entidad/comercio, entra ahí ANTES de sumar otro hardcode. Reemplaza como fuente viva a los `git 159906a:docs/codigo/LOGICA-QUEMADA.md` de abajo.
 
 La tesis de arriba ("ifs quemados por ID") tiene un inventario verificado con `archivo:línea`. Ítems load-bearing:
-- **P0 vivo**: `dd($exception)` en `Wompi.php:78` corta en prod cualquier request que toque ese path.
-- **~37.284 copias de reglas por sucursal** (5% ya derivada; 42 entidades corriendo el corte de Banco de Bogotá 640 sin decisión explícita) → contexto **merchants**.
-- **Cognito sin validar el JWT** (`auth.cognito`, hallazgo de seguridad #12).
+- **P0 vivo**: el `dd($exception)` de Wompi corta en prod cualquier request que toque ese path → contexto **payments** (el dueño del detalle y su estado).
+- **Copias de reglas por sucursal** (decenas de miles; el conteo y el corte heredado de BdB 640) → contexto **merchants**.
+- **Cognito sin validar el JWT** (`auth.cognito` confía en headers) → contexto **actors**.
 - Inventario completo: `git 159906a:docs/codigo/LOGICA-QUEMADA.md` · `…/HALLAZGO-GESTION-REGLAS-POR-SUCURSAL.md` · `…/operacion/hallazgos-backend.md` · migración `…/codigo/ESTADO-MIGRACION.md` + `…/PENDIENTES-MIGRACION.md`.
 
 ## Cómo se lee este árbol

@@ -86,21 +86,11 @@ creer que hay dos motores donde hay uno.
 Por eso este nodo **ya no la describe**. Antes tenía una sección entera con citas `archivo:línea` hacia
 adentro, y esas citas eran justamente la invitación a leerla. Se borraron a propósito.
 
-**Su eliminación ya está en curso, y es lo único que hay que saber de ella** (medido el 2026-08-08):
-
-| rama | ¿la declara? | ¿alguien la importa? |
-|---|---|---|
-| `main` · `qa` | sí, 3 `package.json` | sí: `apps/loan-request-wizard/app/routes/dynamic/dynamic.tsx` (`FormRenderer`) + una story |
-| **`develop`** | **no, 0** | **no — la ruta que la importaba tampoco existe** |
-
-⚠ **Y de ahí sale una trampa de entorno que ya costó una corrida**: si tenés `node_modules` instalado
-para `main` (que la trae) y te cambiás a `develop` (que no la declara), **el wizard local compila varios
-minutos y después el proceso MUERE**. El síntoma engaña: el chequeo de salud del puerto responde, así que
-parece que levantó, y el fallo aparece recién al servir la primera ruta de verdad — con un
-`ERR_CONNECTION_REFUSED` que parece de red. Al cambiar de rama en el monorepo, reinstalar.
-
-El motor de formularios que **sí** corre es el de las tres piezas de arriba (G0 legacy · G1
-`dynamic-form` · G2 `backend-driven-form` + `form-service`). Si buscás «el form dinámico», es ése.
+El estado de su eliminación rama por rama y la **trampa de entorno** que ya costó una corrida (cambiar
+de `main` a `develop` sin reinstalar mata el wizard con un `ERR_CONNECTION_REFUSED` que parece de red):
+**→ `frontend-monorepo` §form-engine**, el dueño del paquete. Acá lo único que importa: el motor de
+formularios que **sí** corre es el de las tres piezas de arriba (G0 legacy · G1 `dynamic-form` · G2
+`backend-driven-form` + `form-service`). Si buscás «el form dinámico», es ése.
 
 ### El EAV `user_field_values` y su censo de `field_id`
 Tabla plana: `field_id`, `user_id`, `user_request_id`, `form_id`, `value` (text), `file`, `file_name`, `status`. **Sin foreign keys y sin índice único** sobre la terna (`field_id`,`user_id`,`user_request_id`) — la unicidad la sostiene solo el `updateOrCreate` del código.

@@ -49,7 +49,7 @@ El reparto de autoría del esquema se ve en las fechas: application casi no crea
 
 Se evalúan con **OR** (`$isAllowedBranch \|\| $isAllowedAllied`); si da false cae al flujo Inertia de siempre. **Ninguna migración ni seeder crea esas filas** → son datos de operación, y **legacy-backend no las conoce** (cero referencias): la decisión de cutover vive 100 % en application.
 
-**S2 · application → legacy-backend (HTTP).** Hay exactamente **un cliente de código**: `GenerateServicesBridgeClient`, con un solo consumidor (`ClientCodeController@confirmCode`). Postea a `LEGACY_BACKEND_BASE_URL` + `/api/onboarding/generate-services/code/{consult,consumConfirm}`, y **legacy actúa de proxy** hacia el servicio externo de códigos (`/api/v1/generate/code/...`). Aparte de eso hay **un segundo salto, este sí hardcodeado**: el checkout de ecommerce de 5 comercios Corbeta (`[24, 209, 210, 211, 311]`) se redirige a `…/api/onboarding/checkout/{hash}` con **hostnames escritos a mano por ambiente**.
+**S2 · application → legacy-backend (HTTP).** Hay exactamente **un cliente de código**: `GenerateServicesBridgeClient`, con un solo consumidor (`ClientCodeController@confirmCode`). Postea a `LEGACY_BACKEND_BASE_URL` + `/api/onboarding/generate-services/code/{consult,consumConfirm}`, y **legacy actúa de proxy** hacia el servicio externo de códigos (`/api/v1/generate/code/...`). Aparte de eso hay **un segundo salto, este sí hardcodeado**: el checkout de ecommerce de los comercios del gate Corbeta (la lista exacta de esta costura incluye a Kalley 311 y DIVERGE de las demás listas «Corbeta» → `corbeta` §gate) se redirige a `…/api/onboarding/checkout/{hash}` con **hostnames escritos a mano por ambiente**.
 
 **S3 · frontend-monorepo → legacy-backend (HTTP, SSR).** `VITE_API_URL` apunta a legacy-backend (el fallback literal en código es `http://legacy-backend.inertia-develop`). El front consume las APIs modulares: `/api/onboarding/*`, `/api/loans/*`, `/api/identity/*`.
 
@@ -57,32 +57,14 @@ Se evalúan con **OR** (`$isAllowedBranch \|\| $isAllowedAllied`); si da false c
 
 *(La quinta costura —front y legacy contra el MS Go de pre-aprobación, incluido el callback `…/lender-result`— es material del hijo **ms-preapprovals**.)*
 
-### Superficie HTTP de legacy-backend (módulo → prefijo)
+### Superficie HTTP de legacy-backend → nodo `legacy-backend`
 
-`routes/api.php` de la raíz es **un ping de 9 líneas** y **no existe `routes/web.php`**: toda la API la montan los módulos.
-
-| Módulo | Prefijo | Módulo | Prefijo |
-|---|---|---|---|
-| Onboarding | `api/onboarding` | OnboardingV2 | `api/v2/onboarding` |
-| Loans | `api/loans` (+ `/customer`, `/admin`) | RiskV2 | `api/v2/risk` |
-| Identity | `api/identity` | Risk | `api/risk` |
-| Partner | `api/partners` | System | `api/system` |
-| Payments | `api/payments` | UsersV1 | `api/v1/users` |
-
-Hay **20 módulos, los 20 habilitados** (`modules_statuses.json`) y **13 exponen rutas**: los 11 de la
-tabla más **`Auth`** y **`Backoffice`**. Los otros 7 (`AlliedBranchV1`, `AlliedV1`, `AuthV1`,
-`CommonsV1`, `EcommerceRequestsV1`, `LegalV1`, `LenderV1`) son capas internas (`App/Services`,
-`App/Repositories`, `Contracts/`) sin superficie propia.
-
-⚠ **`Backoffice` (`/api/backoffice`) es nuevo y se llevó el dashboard admin**: `UsersController` y
-`ApplicationsController` **salieron de `Loans`** (nota dejada en `Modules/Loans/routes/admin.php`, donde
-hoy quedan solo las rutas admin propias de Loans). Si buscás el listado de usuarios/solicitudes del
-back-office en `Loans`, ya no está ahí. Y `UserRequestV1` **dejó de ser capa interna**: hoy tiene
-`routes/`.
-
-**V1/V2 = evolución, NO gemelos (aclaración del equipo — Miguel, 2026-07-18).** Los prefijos `api/v2/*` no son una copia de los `api/*`: son la versión donde se MOVIÓ lógica al front. Caso confirmado: el endpoint de **lenders v2 quitó la pre-aprobación del backend** — la v2 ya no pre-aprueba los rt≠0 desde legacy, lo hace el **frontend** llamando directo al MS (ver **ms-preapprovals**). Esto explica el aparente "cero consumidores de `/api/v2/*`" que dio el análisis estático: el front no escribe la ruta literal, la arma en runtime desde `VITE_API_URL` + repository classes → un `grep '/api/v2/'` no la encuentra (falso negativo). Los `api/v2` CON rutas (OnboardingV2/RiskV2) están vivos; lo que sigue sin verificar son los 6 módulos SIN rutas de arriba.
-
-Aparte del grupo autenticado, Onboarding monta un grupo **público** (`webhooks.php`, sin Cognito) para lo que entra de afuera: callback biométrico CrossCore, el callback del MS de lenders, y el protocolo **VTEX** (`/vtex/init`, `/vtex/settel`).
+La tabla módulo→prefijo, cuáles de los 20 exponen rutas, la mudanza del dashboard a `Backoffice` y la
+evolución V1/V2 (con el falso negativo del grep) viven en el **nodo del repo** — un hecho, una casa.
+Lo que importa desde el cross-repo: `routes/api.php` de la raíz es un ping y no hay `web.php` (toda la
+API la montan los módulos), y Onboarding monta además un grupo **público** (`webhooks.php`, sin
+Cognito) para lo que entra de afuera: callback biométrico CrossCore, el callback del MS de lenders y el
+protocolo **VTEX** (`/vtex/init`, `/vtex/settel`).
 
 ### Quién atiende qué hoy (parallel-run)
 
@@ -176,7 +158,7 @@ Tres trampas de las etiquetas, todas medidas:
 **La BD de producción se lee por Redash** (`redash.creditop.com`, fuente `id=1 "Live"`, permiso `execute_query`), que es la única puerta: no hay acceso directo. Tres cosas que conviene saber antes de usarla: es **asíncrona** (job → polling → resultado), queda **auditada a nombre del dueño del token**, y devuelve los `datetime` en hora **local**, no UTC (ver **F-98** para el efecto de equivocarse con eso). El ELB es **interno**: sin VPN el síntoma es un *timeout*, no un 401.
 
 ## Gotchas / riesgos
-- **`auth.cognito` no autentica.** Resuelve identidad desde cabeceras planas y nunca bloquea: cualquiera que alcance legacy-backend puede suplantar a un usuario con `x-user-id`. El repo asume que **no está expuesto directo** (la barrera real es de red/gateway, no de código). Consecuencia práctica: el puente S2 funciona pese a no mandar `Authorization`.
+- **`auth.cognito` no autentica** (el detalle del middleware y quiénes lo usan → `actors`). Lo que importa acá: la barrera real es **de red/gateway, no de código** — y por eso el puente S2 funciona pese a no mandar `Authorization`.
 - **Tres mecanismos de cutover distintos y sin relación** — filas de `settings` (originación), array PHP hardcodeado (checkout Corbeta) y `config/documents.php` (generación de PDFs). No hay un feature-flag único; para saber qué corre para un comercio hay que mirar los tres.
 - **Ningún repo tiene el esquema completo** (47 + 67 migraciones exclusivas). Explica los "no lista el lender" al levantar local con un solo repo.
 - **Las migraciones se copian a mano** (286 byte-idénticas): nada garantiza que la próxima siga sincronizada.

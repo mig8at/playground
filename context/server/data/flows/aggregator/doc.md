@@ -28,7 +28,7 @@ Fuente única de `openNewTab`: `LenderTabBehaviorResolver` (`NON_NEW_TAB_LENDER_
 
 **3 · Desembolso + sync** — lo ejecuta/aprueba el **LENDER EXTERNO**; CreditOp crea un `LenderTransaction` **espejo** (clave de cruce `order_id`) y sincroniza el estado por tres vías: **(a) webhook self-manager** (`SelfManagerController::webhook`, redirect-aggregators — VIVO en application), **(b) polling** (`StatusCheck` job → BdB credi-convenio, Welli), o **(c) webhook entrante propio** (`SistecreditoController::webhook`). `UserRequestObserver` notifica al comercio si cae en 6/7/8/11.
 
-**Estados distintivos** (inferidos de callers/comentarios — sin seeder confirmado, ver Preguntas abiertas): **3** Selección · **11** Desembolsado (+voucher; BdB `updateDisbursedLender(5)`, Sistecrédito `(9)`) · **7** Failed (BdB) · **10** Pending · **8** Aborted/Cancelled · **6** Expired/Rejected (Sistecrédito) · **26** FACTURADO (Corbeta). Estados propios de `LenderTransaction`: `Pending` / `Disbursed` / `Aborted` / `PENDIENTE DESEMBOLSO` / `Facturado`.
+**Estados distintivos** (el catálogo completo verificado → `creditop` §Estados): **3** Selección · **11** Desembolsado (+voucher; BdB `updateDisbursedLender(5)`, Sistecrédito `(9)`) · **7** Failed (BdB) · **10** Pending · **8** Aborted/Cancelled · **6** Expired/Rejected (Sistecrédito) · **26** FACTURADO (Corbeta). Estados propios de `LenderTransaction`: `Pending` / `Disbursed` / `Aborted` / `PENDIENTE DESEMBOLSO` / `Facturado`.
 
 **Mínimos de monto quemados** (piso al pre-aprobar): Bancolombia BNPL **$100.000**, Consumo **$1.000.000** (además fuerza `amount=1000000`), Welli **$180.000** (`WelliService.php:36`), Prami **$300.000**, Meddipay **$50.000** (los dos últimos del MS). Corte por horario en Bancolombia (`available_until`).
 

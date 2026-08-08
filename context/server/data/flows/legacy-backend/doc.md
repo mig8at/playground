@@ -1,14 +1,20 @@
 # legacy-backend · contexto
-> **estado:** al día con main · Laravel 10 modular (nwidart) con **DOS generaciones adentro**: 7 módulos "legacy" que reconstruyeron la originación (y son el backend real del wizard nuevo) + 9 módulos V1/V2 de nueva arquitectura por capas, hoy **sin ningún consumidor** en los repos en disco.
+> **estado:** al día con main · Laravel 10 modular (nwidart) con **DOS generaciones adentro**: 7 módulos "legacy" que reconstruyeron la originación (y son el backend real del wizard nuevo) + los de nueva generación (V1/V2, `Auth`, `Backoffice`) — los V1 solo-servicios siguen **sin consumidor** en los repos en disco; OnboardingV2/RiskV2 **SÍ están vivos** (ver abajo).
 
 ## Qué es
-Repo Laravel 10 / PHP `^8.1` (`composer.json`; el `composer.lock` instalado exige >= 8.4.1, por eso el entorno es Sail `sail-8.4/app`) modularizado con `nwidart/laravel-modules ^10.0.3`. **16 módulos**, todos activos en `modules_statuses.json`. 2.158 archivos de código indexados: 995 en `Modules/`, 594 en `app/`, 406 en `database/`, 69 en `tests/`.
+Repo Laravel 10 / PHP `^8.1` (`composer.json`; el `composer.lock` instalado exige >= 8.4.1, por eso el entorno es Sail `sail-8.4/app`) modularizado con `nwidart/laravel-modules ^10.0.3`. **20 módulos, los 20 activos** (`modules_statuses.json` — el conteo vivo es ese archivo; tocado por última vez el 2026-07-23, cuando entraron `Auth` · `AlliedV1` · `Backoffice` · `CommonsV1` · `LenderV1`).
 
 Es el destino de la migración strangler desde `application`, pero leerlo como "la reescritura que todavía no corre" es **incorrecto**. Lo que muestra el código:
 
 1. **El wizard nuevo (`frontend-monorepo`) apunta 100% acá.** `apps/loan-request-wizard/.env` → `VITE_API_URL=http://legacy-backend.inertia-develop/api`, y el front consume **87 rutas distintas** bajo `/api/onboarding` (40), `/api/loans` (29), `/api/partners` (10) e `/api/identity` (8). Ninguna de esas rutas existe en `application` (su `routes/api.php` son solo webhooks de lenders externos).
 2. **El flujo clásico (Inertia de `application`) delega solo 2 tajadas vivas** por HTTP interno, y bajo allowlist por comercio.
-3. **La "nueva arquitectura" (V1/V2) no tiene consumidor** en ninguno de los 3 repos: 0 llamadas a `/api/v1/*` o `/api/v2/*` desde `application` o `frontend-monorepo`. Está construida por delante de su cliente (un BFF de red privada que no vive en estos repos).
+3. **V1/V2 = evolución, NO gemelos** (aclaración del equipo, 2026-07-18): los prefijos `api/v2/*` son
+   la versión donde se MOVIÓ lógica al front — lenders-v2 quitó la pre-aprobación del backend (la hace
+   el front llamando directo al MS → `ms-preapprovals`). ⚠ El «0 consumidores de `/api/v2/*`» del
+   análisis estático era un **falso negativo**: el front arma la URL en runtime (`VITE_API_URL` +
+   repositories), así que un grep del literal no la encuentra. **OnboardingV2/RiskV2 están vivos**; los
+   que siguen sin consumidor en los repos son los V1 solo-servicios (su cliente sería un BFF de red
+   privada que no vive en estos repos).
 
 O sea: no hay un "default" global — el default depende de **qué front** entra.
 
@@ -23,6 +29,15 @@ El repo lleva su propia guía in-repo, `NEW_ARCHITECTURE.md` (156 KB, no indexad
 | **Nueva arq. con API** | OnboardingV2, RiskV2, UsersV1 | 20 / 41 / 23 | `api/v2/onboarding`, `api/v2/risk`, `api/v1/users` |
 | **Nueva arq. solo-servicios** | AuthV1, AlliedBranchV1, UserRequestV1, EcommerceRequestsV1, LegalV1 | 11 / 13 / 10 / 15 / 8 | — (no tienen `RouteServiceProvider`) |
 | **Transversal** | CommonsV1 | 15 | — |
+
+La tabla clasifica la camada original; después entraron `Auth` · `AlliedV1` · `Backoffice` ·
+`CommonsV1` · `LenderV1` (2026-07-23). Hoy **13 de los 20 exponen rutas**, y dos movimientos que
+engañan al buscar código:
+- ⚠ **`Backoffice` (`/api/backoffice`) se llevó el dashboard admin**: `UsersController` y
+  `ApplicationsController` **salieron de `Loans`** (la nota quedó en `Modules/Loans/routes/admin.php`).
+  Si buscás el listado de usuarios/solicitudes del back-office en `Loans`, ya no está ahí → nodo
+  `backoffice`.
+- **`UserRequestV1` dejó de ser capa interna**: hoy tiene `routes/`.
 
 Dominio por módulo (verificado en sus `routes/` y servicios):
 - **Onboarding** — celular/OTP, `loan-application/*` (personal-info, laboral-info, listado v1 y v2), Bancolombia (BNPL / Consumer Loan), Corbeta checkout, ecommerce-request, VTEX, backdoor, scraping Ábaco, plan de pagos Credifamilia. **108 declaraciones de ruta**: el módulo con más superficie HTTP.

@@ -101,28 +101,12 @@ Scope de credencial = **merchant** (una por comercio). Host único `BANCOLOMBIA_
 (`config/services.php:82`).
 
 ### 6 · El código de compra en punto de venta (PIN) — hoy y lo que viene
-**Hoy el PIN lo emite Corbeta, no Bancolombia.** Punto de entrada único
-`POST purchase-code/generate/{user_request_id}` (`api.php:137` → `PurchaseCodeController:33` →
-`PurchaseCodeService::getPurchaseCode`). Sin jobs, sin schedulers, sin webhooks.
-
-- **Guard** (`PurchaseCodeService.php:106`) — **el estado 25 HABILITA** (no excluye): pasa sólo si
-  `isCorbetaAllied(allied)` **Y** `user_request_status_id == 25` **Y** `lender_id ∈ [68,100]`; si no,
-  `PCS000` y no genera. *(Esto cierra una contradicción entre dos diagnósticos previos — el guard está
-  escrito en negativo `!= 25`, que se lee al revés.)*
-- **Proveedor** (`CodeGenerationService.php:21-25`): `switch` por `allied_id` con literales `24`, `209`
-  Alkosto, `210` K-TRONIX, `211` Alkomprar → `getFromCorbeta`; `default` → PIN interno. El convenio sale
-  de un **ternario** (`:51`): `lender_id == 68 ? convenio_bnpl : convenio_consumo` — el `else` captura al
-  100 **y a cualquier otro lender**.
-- **Cliente Corbeta** (`app/Actions/Allieds/Corbeta.php`, gemelo byte-idéntico del de `application`):
-  `:38` `authorize`/`getToken` · `:58` `register`/`setOrder` (**payload de 18 campos**, email fijo
-  `ordenes-corbeta@creditop.com` en `:89`) · `:131` `query`/`getOrder` (**por rango de fechas + estado**,
-  devuelve **lista** deduplicada por `pin`). El PIN viene **embebido en texto**: se extrae con regex
-  `/PIN\s+([a-f0-9]{20,})/i` (`CodeGenerationService.php:72`).
-- **Dónde queda**: `user_request_additional_information.data_json->verification_token` (`longtext`, cast
-  `collection`; **19.692 filas** con token en la copia local). `purchase_codes` sólo guarda `barcode_url`.
-- **Imagen**: `BarcodeService` — `:35` `ean13` exige `^\d{12}$` (`:49`), `:39` `ean128` sin restricción.
-  **Los cuatro allieds Corbeta (24/209/210/211) son `ean128`** (verificado en BD), así que un código de
-  20–30 hex es seguro para este alcance.
+**Hoy el PIN lo emite Corbeta, no Bancolombia** — y el mecanismo completo (guard del estado 25, switch
+por allied, el ternario del convenio que captura «cualquier otro lender» en consumo, la regex que raspa
+el PIN del texto, dónde queda el `verification_token`, ean128) vive en **`corbeta` §3**, el dueño del
+canal retail. Lo que este nodo aporta: el punto de entrada es único
+(`POST purchase-code/generate/{user_request_id}`, sin jobs ni webhooks) y el PIN es **del comercio**,
+no del banco — por eso el reemplazo que viene (abajo) es un cambio de PROVEEDOR de código, no de flujo.
 
 **Lo que viene (diseño, NO implementado):** Bancolombia publicó *In Store Billing Code — Code Management*
 (`POST /generateBillingCode` → `data.billingCode`; `GET /retrieve-order-details?billingCode`; `HEAD /health`)

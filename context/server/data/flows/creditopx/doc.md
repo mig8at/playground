@@ -20,37 +20,11 @@ Mecánica financiera (informativa): amortización **francesa** (cuota FIJA, inte
 
 ## ⚠ El ROTATIVO (rt=3) NO usa categorías — tiene su propio motor
 
-Corregido el **2026-08-07**. Este nodo decía que rt=2 y rt=3 comparten «el motor de categorías». Es
-**falso para rt=3**, y lo confirmaron las dos fuentes: la dueña de política en #tech-ops
-(«Rotativo NO tiene categorías · esas condiciones se manejaron con reglas duras · la política de
-rotativo es estándar para todos, y dependiendo del riesgo puede arrojar un plazo mín») y el código.
-
-**La fórmula, en `application/app/Services/lenders/RevolvingLoanConfigService.php`** (los pasos están
-numerados en el propio archivo):
-
-1. **Ingreso** = `FN_User_Income_Average` (`:64`) — función de BD, ver `db-routines`.
-2. **Deuda mensual** = `datacredito.agregatedInfo.overview.balances.valueMonthlyPayment × 1000` (`:71`).
-3. **Gastos fijos** = `FN_CreditopX_Profiling_Fixed_Expense_Perc(ingreso)` (`:73`), como % del ingreso.
-4. **Capacidad de pago** = ingreso − deuda − gastos + deuda_ya_con_creditop (`:77`).
-5. **Multiplicador de riesgo** = `FN_CreditopX_Revolving_Credit_Multiplier(datacredito, userSummary)`
-   (`:80`). ⚠ Esa función **no tiene fuente en ningún repositorio** — por eso no se puede auditar desde
-   el código ni desde Redash; sólo leyendo la BD de dev (`db-routines`).
-6. **Multiplicador ≤ 3 ⇒ RECHAZO** con cupo 0 (`:86`).
-7. **Cupo** = capacidad × multiplicador, capado por `lenders.max_rev_credit`, **redondeado hacia abajo
-   de a 50.000** (`:90-93`).
-8. **PLAZO MÍNIMO = `ceil(cupo / capacidad_de_pago) + 1`** (`:95`). Es **calculado, no parametrizado**.
-9. **Enganche y FGA** salen de `creditop_x_profiling_down_payments_fga` buscando por
-   **`multiplier_risk`** (`:99-104`) — *no* por categoría. Un lender sin fila ahí queda con enganche 0.
-
-**Por qué esto genera tickets.** Negocio parametriza los plazos del comercio (p. ej. 1, 3 y 6 cuotas) y
-al cliente le aparece **sólo 6**. No es un bug de configuración: el paso 8 calculó un mínimo de 6 y
-recortó las opciones de abajo. Reportado dos veces el 2026-08-03 por dos personas distintas, y la
-respuesta —«por política no tenemos parametrizado el número de cuotas por perfil»— muestra que del lado
-de negocio no se esperaba que el sistema lo acotara solo.
-
-**Y por qué no se puede diagnosticar con los datos**: ni el multiplicador ni la capacidad de pago se
-persisten; el multiplicador además se calcula en una función de BD sin fuente. Es literal lo que dijo
-la dueña de política: *«estaba revisando y no lo pueden ver en redash»*.
+**Es falso que rt=2 y rt=3 compartan «el motor de categorías»** (lo confirmaron política y código): el
+rotativo otorga con multiplicador de riesgo, corte duro `≤3`, tope `max_rev_credit` y **plazo mínimo
+CALCULADO** (por eso negocio parametriza 1/3/6 cuotas y al cliente le aparece solo 6 — no es bug de
+config). El motor completo, sus dos implementaciones divergentes y por qué no se puede auditar por
+Redash: **→ nodo `rotativo`** (el dueño). Acá solo importa la frontera: lo de este nodo describe rt=2.
 
 ## Contenido
 La consolidación rt=2 corre en el orquestador `getLenders`. **Clave: la categoría NO va primero** — `group_rules`+datacrédito corren antes; la **categoría corre AL FINAL** y es la que fija enganche/cupo/plazo (y excluye si no hay categoría o el cupo no alcanza).
@@ -97,7 +71,7 @@ vive en el controller, no en `LenderListingService`.. Categoría/cupo Ctopx: `Mo
 - **rt=3 sin fila de catálogo.** El seeder solo siembra `response_type` 0/1/2; rt=3 (rotativo) existe en código y en el front (`CREDITOP_X_REVOLVING`) pero no como fila sembrada.
 - **App↔legacy divergen (parallel-run).** `getLenders(UserRequest $userRequest)` (app) vs `getLenders(int $userRequestId, …)` (legacy); `getLenderUserCategory($user OBJETO)` vs `(int $userId)`; el gate `no_more` está **vivo en application** y **`= false` (TODO-a-quitar) en legacy**. Misma lógica, dos repos; application sigue siendo el default (memoria `migracion-application-a-legacy-estado`).
 - **Riesgo chequeado dos veces.** Score/negativos/consultas/maduración corren en el datacrédito temprano Y de nuevo dentro de la categoría/cupo al final; la maduración usa comparadores divergentes entre motores (memoria `datacredito-rules-per-lender`).
-- **Perfilamiento/orden SOLO en producción.** `getProfilingData`/`applyProfiling`/`usort` gated a `environment()==='production'` (:231/:244); en local/dev el ranking difiere. El ML `makePrediction` **no responde** — ⚠ y no por estar corto-circuitado: en prod **timeoutea a los 15 s** contra `profiler.inertia-production:8000` (medido 2026-08-06 en la uReq 521997, 4 veces en una solicitud). ⚠ Tampoco «cae a matrices»: el fallback es el OTRO perfilador (estrategia `new_then_legacy`), y el nuevo está apagado porque falta `NEW_PROFILER_ML_HOST` — o sea que el intento primario falla en el 100 % de las solicitudes. Ver **F-104**. La diferencia importa para diagnosticar: un listado lento no es «el ML está apagado», es 15 s de espera por intento; rt=2/3 igual se fuerzan arriba (`weighted_score=1`).
+- **Perfilamiento/orden SOLO en producción.** `getProfilingData`/`applyProfiling`/`usort` gated a `environment()==='production'` (:231/:244); en local/dev el ranking difiere, y rt=2/3 igual se fuerzan arriba (`weighted_score=1`). El porqué de la lentitud del ML (timeout de 15 s por intento, el fallback que NO son las matrices): **→ `profiling` §perfilador ML** (F-104).
 - **Hardcodes.** `response_type == 2/3` comparado como literal en varios servicios; buckets de monto-por-score quemados en `LenderSpecialGrantingService`. Inventario: `159906a:docs/codigo/LOGICA-QUEMADA.md`.
 
 ## Lo que NO está verificado

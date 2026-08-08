@@ -55,8 +55,22 @@ línea donde decide.
 
 ## 1. Configuración y gate de pertenencia
 
+⚠ **NO existe UNA lista de «allieds Corbeta» — hay una FAMILIA de literales que DIVERGE** (verificado
+2026-08-08 contra la BD local y grep en los repos; este nodo es el dueño del hecho, no cites una lista
+única desde otro nodo):
+
+| quién pregunta | lista | dónde |
+|---|---|---|
+| el setting (BD, dump de dev) | `[24,209,210,211]` — **y hay DOS filas con la misma key** (id 21 y 26) | `settings.corbeta_allieds` |
+| el cutover/redirect ecommerce del monolito | `[…,311]` (incluye **Kalley 311**) | `application`: `Customer/WoocommerceController` · `Api/BancolombiaController` · `Api/EcommerceReplayController` |
+| `User.php` (ambos repos) | `[209,210,211]` — **sin el 24** | `$corbetaAlliedIds` |
+| el prefijo Bancolombia BNPL | `[24,209,210,211,218,219,222,221]` | `BancolombiaBnpl.php:387` `$aliadosConPrefijo` |
+
+Consecuencia: «¿este allied es Corbeta?» **depende de quién pregunta** — un comercio puede entrar al
+gate del setting y NO al del redirect (o al revés). Antes de afirmar pertenencia, mirá el sitio exacto.
+
 - **`corbeta_allieds`** (tabla `settings`, code=`setting`, key=`corbeta_allieds`, array de allied_id)
-  es la fuente de verdad de "esto es Corbeta". Se lee en 3 sitios equivalentes:
+  es la fuente de verdad del GATE de onboarding. Se lee en 3 sitios equivalentes:
   - legacy-backend `IsCorbetaOnboardingService::isCorbetaOnboardingOrchestrator()`
     (`legacy-backend/Modules/AlliedBranchV1/App/Services/IsCorbetaOnboardingService.php:113-116`) —
     servicio INTERNO sin ruta HTTP, envelope `ABV12xxx`, devuelve `{isCorbetaOnboarding: bool}`.
@@ -71,8 +85,9 @@ línea donde decide.
 - **`services.corbeta`** (idéntico en `application/config/services.php:215-222` y
   `legacy-backend/config/services.php:303-310`): `host` (API Fondos), `nit` (=UserName+NitCliente),
   `password`, `user_id`, y los **dos convenios**: `convenio_bnpl` y `convenio_consumo`. El convenio
-  se elige por lender: `lender_id==68 ? convenio_bnpl : convenio_consumo`
-  (`application/app/Services/CodeGenerationService.php:51`).
+  se elige por un **ternario** — `lender_id==68 ? convenio_bnpl : convenio_consumo`
+  (`application/app/Services/CodeGenerationService.php:51`) — ⚠ cuyo `else` captura al 100 **y a
+  cualquier otro lender** que pase el gate: no hay rama de error.
 
 ---
 
