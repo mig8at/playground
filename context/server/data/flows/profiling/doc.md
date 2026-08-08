@@ -93,6 +93,13 @@ definición en `lender_group_rules` / la tabla de la regla y los valores que con
 regla** decidió, no **con qué cuentas**.
 
 ## Gotchas / riesgos
+- ⚠ **La compuerta de capacidad de endeudamiento corre en 35 de 195 tiers (18 %)** y **no mira los
+  gastos declarados por el cliente**: usa `salario − (cuota_mensual_datacrédito − deuda_ignorada)`
+  (`LenderUserCategoryService.php:664`). Sólo se evalúa si el tier declara `min_debt_capacity > 0`
+  **Y** `debt_capacity_amount_validation == 0` — 133 tiers declaran el mínimo pero **98 de ellos lo
+  tienen inerte** por el segundo flag. Y lo que se llama «capacidad» en `calculatePaymentCapacity`
+  (`:333`) es OTRA cosa: un PORCENTAJE `(ingreso−gastos)/ingreso` que alimenta el scoring, no la
+  compuerta. Negocio y motor llaman «capacidad» a dos cosas distintas — ver **F-112**.
 - **BUG `min_income` NO-OP** (vivo): la columna del tier es `monthly_income` (`migration:21`) pero `evaluateEligibility` lee `$rule->min_income` (`:416`) — atributo inexistente → `null` → `$salary >= null` es **siempre true** en PHP. El **piso de ingreso de la categoría no filtra**; arreglarlo (leer `monthly_income`) **endurece** la asignación. [MEMORY flow-reorg-y-mapa-atributos]
 - **Tier laxo admite, primer tier (menor id, suele el más estricto) da la economía** — el `max_amount`/`min_initial_fee` NO salen del tier que "más fácil" pasa.
 - **FAIL-CLOSED por buró ausente**: la categoría SIEMPRE exige la fila `datacredito` (`:429`); sin ella, ni un tier "pasa-todo de score" aprueba (aunque tenga todos los sub-checks sin umbral).

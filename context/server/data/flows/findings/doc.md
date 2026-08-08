@@ -50,6 +50,7 @@ acá, saltá al `F-xx` y leé sólo eso.
 | Si tu síntoma es… | Mirá |
 |---|---|
 | **«le salen menos cuotas de las parametrizadas»** | F-110 |
+| **«le aprobaron cupo a alguien que no debía»** | F-112 |
 | **«esto anda en local y no en dev/qa» / «probé contra el ambiente equivocado»** | F-06 · F-18 · F-61 · F-62 · F-65 · F-73 · F-74 · F-76 · F-77 · F-95 |
 | **«parece un bug del producto» (y es una env faltante)** | F-04 · F-05 · F-23 · F-70 · F-98 · F-99 · F-104 |
 | **«la pantalla no avanza y no hay ningún error»** | F-01 · F-02 · F-03 · F-58 · F-88 · F-91 · F-92 |
@@ -2764,5 +2765,60 @@ indistinguibles desde la BD**: el agregador no llamó (F-94), o llamó y el `ord
 **Estado:** verificado el 2026-08-07 contra `main`. **No verificado**: con qué frecuencia falla el match
 en producción — el webhook no deja registro cuando `firstOrFail()` lanza, así que no se puede contar.
 Ése es justamente el motivo por el que se ve como si el agregador no hubiera llamado.
+
+---
+
+### F-112 · La compuerta de capacidad de endeudamiento NO mira los gastos que declara el cliente, y viene APAGADA por defecto
+
+**Síntoma.** Un cliente declara ingresos de $8.219.178 y gastos de $8.327.000 —gasta más de lo que
+gana— y el sistema le aprueba un cupo de $6.445.956. Negocio lo lee como un fallo del motor de riesgo.
+Preguntado en #tech-ops el 2026-08-05 («por lo cual no se le debió haber ofrecido CTX pero se le aprobó
+cupo, ¿por qué?») y **la pregunta quedó sin responder en el hilo**.
+
+**Causa raíz** (verificada en código). Hay **dos cosas distintas** que se llaman «capacidad», y la que
+decide no usa los gastos declarados:
+
+1. **`calculatePaymentCapacity`** (`legacy-backend/Modules/Loans/App/Services/LenderUserCategoryService.php:333`)
+   sí usa los gastos —`floor(((ingreso_field87 − gastos_field90) / ingreso) × 100)`— pero devuelve un
+   **PORCENTAJE**, no un monto, y alimenta el **scoring**. Con los números de arriba da negativo: baja
+   el puntaje, no rechaza.
+2. **La COMPUERTA dura** (`:664`) calcula otra cosa:
+   ```php
+   $debtCapacity    = (int) $salary - ($adjustedMonthlyPayment - $debtToIgnore);
+   $minDebtCapacity = ($rule->min_debt_capacity / 100) * ((int) $salary);
+   ```
+   O sea **salario menos la cuota mensual reportada en DATACRÉDITO**. Los gastos que el cliente declaró
+   **no entran en ningún término**. Un cliente con poca deuda reportada pasa la compuerta por más que
+   declare que gasta todo lo que gana.
+
+**Y la compuerta casi siempre está apagada.** Dos salidas tempranas que devuelven `eligible: true`:
+
+- `:651` — si el tier **no configura** `min_debt_capacity` (o lo deja en ≤ 0), **no hay chequeo**.
+- `:667-673` — el chequeo sólo se aplica cuando `debt_capacity_amount_validation == 0`; con cualquier
+  otro valor **se aprueba sin evaluar**. Es un flag con doble negación: «validación por monto» apagada
+  es lo que ENCIENDE la validación de capacidad.
+
+⚠ Y la deuda reportada además se descuenta: `debtToIgnore` (`:646`) ignora el **100 %** de la cuota de
+una tarjeta cuya próxima cuota iguala el saldo, y el **70 %** de la cuota en el resto de los casos.
+
+**Evidencia.** El código citado. El hilo de #tech-ops del 2026-08-05 con el caso y sus cifras.
+En el mismo hilo, una segunda regla que tampoco estaba escrita: **un embargo de CUENTA BANCARIA no
+bloquea** — «pasó todas las reglas… porque es una cuenta bancaria, no una deuda», y determinar un
+*overdue account* «se calcula por detrás, no es sólo si aparece en datacrédito». Que un embargo deba
+bloquear CTX estaba **en el backlog de producto**, no implementado.
+
+**Arreglo.** Documental. Del lado del producto no se propone nada: que la compuerta mire la deuda
+reportada y no lo declarado puede ser deliberado (lo declarado no se verifica). Lo que faltaba era que
+estuviera escrito, porque **negocio y motor llaman «capacidad» a dos cosas distintas** y por eso el
+mismo caso se lee como bug desde un lado y como correcto desde el otro.
+
+**Cuántos la tienen encendida, medido en prod** (`lender_users_category_rules`, 2026-08-07): de **195
+tiers**, **133 declaran `min_debt_capacity > 0`** … pero sólo **35 tienen además
+`debt_capacity_amount_validation = 0`**, que es lo que de verdad ENCIENDE el chequeo. O sea que **la
+compuerta corre en 35 de 195 tiers (18 %)**: en los otros 160 la capacidad de endeudamiento no se
+evalúa, incluidos **98 que configuraron un mínimo creyendo que sí aplicaba**. Ese es el número que
+convierte esto de matiz en agujero: casi todos los que quisieron poner el límite no lo tienen activo.
+
+**Estado:** verificado el 2026-08-07 contra `main` (legacy-backend) y contra los datos de producción.
 
 ---
