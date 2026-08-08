@@ -251,6 +251,22 @@ Al fallar, Playwright deja `test-results/<test>/{trace.zip,screenshot.png,video.
 
 ---
 
+## Observabilidad local (Loki + Tempo)
+
+`make harness-obs-up` levanta Loki (:3100) y Tempo (:4318) **reales** en Docker (`bin/loki-local` ·
+`bin/tempo-local`), igual que MySQL: un mock obligaría a reimplementar LogQL y el forense quedaría
+validado contra la imitación. Tempo no es opcional si querés `trace_id`: `initializeOpenTelemetry()`
+hace `if (!$endpoint) return;`, y sin SDK no hay span que estampar.
+
+El backend local necesita en su `.env`:
+
+```bash
+GRAFANA_ENABLED=true  GRAFANA_LOKI_ENABLED=true  GRAFANA_TEMPO_ENABLED=true
+GRAFANA_LOKI_ENDPOINT=http://host.docker.internal:3100
+GRAFANA_TEMPO_ENDPOINT=http://host.docker.internal:4318/v1/traces
+# usuario/token vacíos, y LOG_CHANNEL=loki — no `stack` (ver CLAUDE.md: rompe el request)
+```
+
 ## Variables de entorno
 
 | Variable | Default | Para qué |

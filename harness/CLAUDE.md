@@ -118,15 +118,10 @@ que distingue "ventana cerrada" y **tira** (`dev/guided.spec.ts:538-545`); el re
   ancla, no hay trace) · *ventana* (no hay ancla: todo lo de la ventana, **solo con Loki local**, atado a
   la URL y no a una perilla — contra uno compartido serían corridas ajenas).
 
-**Observabilidad en local: `make harness-obs-up`** (Loki :3100 + Tempo :4318, `bin/loki-local` ·
-`bin/tempo-local`). Se corre el servicio **real** en Docker, igual que MySQL: un mock obligaría a
-reimplementar LogQL y el forense quedaría validado contra la imitación. Tempo no es opcional si querés
-`trace_id`: `initializeOpenTelemetry()` hace `if (!$endpoint) return;`, y sin SDK no hay span que estampar.
-El backend local necesita en su `.env`: `GRAFANA_ENABLED`/`GRAFANA_LOKI_ENABLED`/`GRAFANA_TEMPO_ENABLED=true`,
-`GRAFANA_LOKI_ENDPOINT=http://host.docker.internal:3100`,
-`GRAFANA_TEMPO_ENDPOINT=http://host.docker.internal:4318/v1/traces`, usuario/token vacíos, y
-**`LOG_CHANNEL=loki`** — no `stack`, porque ese canal incluye `dynamodb` con `ignore_exceptions => false`
-y sin credenciales de AWS la excepción **rompe el request**.
+**Observabilidad en local: `make harness-obs-up`** (Loki + Tempo **reales** en Docker — un mock
+obligaría a reimplementar LogQL). La receta completa del `.env` del backend está en `README.md`
+§Observabilidad. La trampa que no perdona: **`LOG_CHANNEL=loki`, no `stack`** — `stack` incluye
+`dynamodb` con `ignore_exceptions => false` y sin credenciales de AWS la excepción **rompe el request**.
 
 ⚠ **NO apuntes el target `local` al Loki de dev.** Con la BD funciona (leés las filas que tu corrida
 escribió); con Loki no, porque tu corrida local no escribió allá: leerías la corrida de otro cuyo

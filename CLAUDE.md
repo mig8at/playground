@@ -31,8 +31,8 @@ Se viene a resolver **tareas** sobre CreditOp con tres piezas — **tablero** (l
 
 1. **La TAREA vive en `tablero/data/<tarea>.md`** (una tarea = un archivo): en qué se trabaja, por
    qué y para qué — estado, decisiones, riesgos, preguntas abiertas.
-2. **El CONTEXTO se lee ANTES de investigar.** `context/docs/ROUTE-MAP.md` es el índice (31 nodos
-   validados contra `main`); abrí los que matcheen: `context/server/data/flows/<id>/doc.md` (el
+2. **El CONTEXTO se lee ANTES de investigar.** `context/docs/ROUTE-MAP.md` es el índice (generado,
+   validado contra `main`); abrí los que matcheen: `context/server/data/flows/<id>/doc.md` (el
    análisis) + `map.json` (las rutas fuente exactas). El código real vive **fuera**, en
    `~/Desktop/CREDITOP/github/` (`legacy-backend`, `frontend-monorepo`, `legacy-application`,
    `pre-approvals-service`) — grandes: entrar por grep sin mapa es la forma lenta.
@@ -63,20 +63,10 @@ por no entender la regla — hoy los dos destinos cuestan lo mismo: un archivo m
 
 ## El contexto se mide contra `main`, y lo que no está en main se marca
 
-`context/` describe **lo que corre**, y la vara es `main` (o la rama que sirva ese target — ver abajo).
-Un contexto que describe una rama sin mergear es una trampa: se lee como verdad y no lo es.
-
-Cuando haya que documentar algo que **todavía no está en `main`**, se marca en el propio `doc.md`, en el
-lugar donde aparece:
-
-```markdown
-> ⏳ **PENDIENTE DE MERGE** — esto vive en `feature/motai-v2`, no en `main`.
-> Al mergear: re-verificar con el oráculo, actualizar y **borrar esta marca**.
-```
-
-Dos razones por las que la marca va inline y no en una lista aparte: se ve justo donde engaña, y todas se
-encuentran de una con `grep -rn "PENDIENTE DE MERGE" context/`. Revisá esa lista después de cada merge:
-lo que entró **actualiza el contexto**, y así el árbol siempre describe lo que de verdad está corriendo.
+`context/` describe **lo que corre**, y la vara es `main`. Lo que todavía no mergeó se marca inline con
+`⏳ PENDIENTE DE MERGE` justo donde engaña (`grep -rn "PENDIENTE DE MERGE" context/` las lista todas;
+revisala después de cada merge). El protocolo completo de curación —la marca, los sellos, el oráculo,
+qué hacer al cerrar una tarea— vive en **`context/CLAUDE.md`**.
 
 ## Git
 
@@ -112,16 +102,13 @@ lo que entró **actualiza el contexto**, y así el árbol siempre describe lo qu
 
 Cada herramienta guarda su configuración por target en su propio **`.env.<target>`** (`local` · `dev` ·
 `staging`), **autosuficiente**: ahí viven tanto los **hechos** del entorno (BD, API base, `APP_KEY`)
-como las **perillas** (Cognito, mocks, `SEED`). Ya **no** hay capa compartida `env/<target>.env` — se
-eliminó el 2026-07-22 (solo la usaba `harness`; `backend-e2e`/`backend-mcp`, que la compartían, se
-borraron). Prioridad: `process.env` > `<herramienta>/.env.<target>`.
+como las **perillas** (Cognito, mocks, `SEED`). Ya **no** hay capa compartida `env/` (se eliminó el
+2026-07-22). Prioridad: `process.env` > `<herramienta>/.env.<target>`.
 
-**Qué rama sirve cada target** (`local` → local · `dev` → **develop** · `staging` → **qa**). `staging`
-comparte la **BD** con `dev` (mismas credenciales; si rotan, actualizá las dos) pero **NO el API**: en el
-cluster `inertia-develop` conviven dos servicios —`legacy-backend` (rama `develop`) y
-**`legacy-backend-qa`** (rama `qa`)—, así que el nombre del cluster engaña. Apuntar `staging` al backend
-de dev mezcla ambientes y te hace validar código que no es el del front desplegado; costó varias corridas
-creyendo que un feature estaba roto cuando la rama con el cambio no era la que respondía.
+**Qué rama sirve cada target:** `local` → local · `dev` → **develop** · `staging` → **qa**. ⚠ `staging`
+comparte la **BD** con `dev` (mismas credenciales; si rotan, actualizá las dos) pero **NO el backend** —
+el detalle de los dos servicios del cluster y cómo saber qué rama te respondió: `harness/CLAUDE.md`
+§«Qué es real en cada target».
 
 **Los permisos no van en archivo.** El flag `I_KNOW_THIS_TOUCHES_SHARED_DEV` **no** vive en ningún
 `.env.*`: se exporta a mano en la shell cuando de verdad vas a escribir a la BD compartida de dev (el
