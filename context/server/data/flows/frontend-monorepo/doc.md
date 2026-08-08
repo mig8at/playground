@@ -15,7 +15,7 @@ Dos rarezas estructurales lo definen: (a) **el wizard nuevo NO pasa por el PHP p
 |---|---|---|
 | **`apps/*`** (407 archivos) | Aplicaciones desplegables | `loan-request-wizard` **252** (el producto) · `storybook` **154** (139 stories) · `landing` (Astro, marketing) · **`admin` = solo un `.gitignore`** (ni siquiera es workspace; último toque 2026-05-25) |
 | **`modules/loan-request-wizard/*`** (668) | 11 módulos de negocio, cada uno workspace `@creditop/<nombre>` | ver tabla abajo |
-| **`packages/**`** (120) | Librerías transversales | `ui` 49 (shadcn `new-york` sobre Radix, iconos Tabler) · `shared/{assets,components,hooks,utils}` 39 · `form-engine` 32 · `tsconfig` |
+| **`packages/**`** (120) | Librerías transversales | `ui` 49 (shadcn `new-york` sobre Radix, iconos Tabler) · `shared/{assets,components,hooks,utils}` 39 · ⛔ `form-engine` 32 (**NO LEER — se elimina**, ver abajo) · `tsconfig` |
 
 **Los 11 módulos** (archivos `.ts/.tsx`):
 
@@ -87,7 +87,7 @@ El payload al MS y el mapeo de estados están en `fetch-lender-preapproval.ts`: 
 
 SSR en `entry.server.tsx`: `renderToPipeableStream`, nonce aleatorio por request, CSP + HSTS aplicados en `security-headers.server.ts:110` (con `frame-ancestors 'none'`, `:98`) y **`streamTimeout` = 240s en staging / 45s en el resto** (`:15`), con `abort` a `streamTimeout + 1000` (`:105`).
 
-Deploy (workflows que delegan en `Creditop-SAS/config-ci`): `develop` → dev, `staging` → stg + storybook, **tags** → prod. Cada app se empaqueta con `turbo prune <app> --docker`. **Ningún workspace se publica como artefacto**: todos exportan `./src/index.ts` crudo y el bundler los compila (`vite.config.ts:60`, `ssr.noExternal: [/^@creditop\//]`). La **única excepción es `@creditop/form-engine`**, que sí tiene `build` (tsup → `dist/`) — de ahí que los merges que rompen el empaquetado se manifiesten siempre ahí.
+Deploy (workflows que delegan en `Creditop-SAS/config-ci`): `develop` → dev, `staging` → stg + storybook, **tags** → prod. Cada app se empaqueta con `turbo prune <app> --docker`. **Ningún workspace se publica como artefacto**: todos exportan `./src/index.ts` crudo y el bundler los compila (`vite.config.ts:60`, `ssr.noExternal: [/^@creditop\//]`). La **única excepción es `@creditop/form-engine`**, que sí tiene `build` (tsup → `dist/`). ⚠ Y por eso los problemas de empaquetado se manifiestan siempre ahí — pero **no son un defecto del build: son su ELIMINACIÓN en curso**. `develop` ya no la declara en ningún `package.json` y borró la ruta que la importaba; `main` y `qa` todavía la traen. Un `node_modules` instalado para `main` contra el `package.json` de `develop` deja el wizard compilando minutos y después el proceso MUERE, con el chequeo de puerto respondiendo primero (o sea: parece que levantó). Al cambiar de rama, reinstalar.
 
 Observabilidad: `withRouteLogging(routeId, lifecycle, handler)` (`route-logging.server.ts:26`) envuelve **77 de 104** archivos de ruta con loader/action; los logs salen por **OTLP hacia PostHog** (`posthog-logging.server.ts:126` → `${POSTHOG_HOST}/i/v1/logs`), y la taxonomía de eventos vive en `analytics-taxonomy.ts`.
 
@@ -119,9 +119,27 @@ Scaffolding: `plop/generators/module.js` genera **sólo** `package.json` + `tsco
 
 **Rutas representativas**: `app/routes/loan-application-form/phone-number.tsx:70` (gate RD → flujo *dynamic*) · `app/routes/dynamic/request-amount.tsx:201` · `app/routes/loan-continue.tsx` (handoff/QR) · `app/routes/api/lender-results.tsx` (resource route) · `app/routes/form-preview.tsx` (preview dev del backend-driven-form) · `app/routes/health.tsx` · `app/routes/auth/callback.tsx`.
 
-**Módulos y paquetes (superficie pública)**: los 11 `modules/loan-request-wizard/*/src/index.ts` · `loan-application-form/src/lib/infrastructure/partner-info.repository.ts` (HttpClient) · `customer-profile/src/lib/infrastructure/financial-profile.repository.ts` (`FINANCIAL_HEALTH_API_URL`) · `backend-driven-form/src/infrastructure/repositories/dynamic-form-schema.repository.ts` (`VITE_FORM_SERVICE_BASE_URL`) · `consumer-hub/src/lib/infrastructure/phone-number.repository.ts` (`VITE_GATEWAY_URL`) · `identity-validation/src/lib/infrastructure/identity-validation.repository.ts` (1.012 líneas) · `packages/ui/src/index.ts` · `packages/form-engine/src/{index.ts,renderer.tsx}` · `packages/shared/utils/src/index.ts` · `apps/storybook/src/main.tsx`.
+**Módulos y paquetes (superficie pública)**: los 11 `modules/loan-request-wizard/*/src/index.ts` · `loan-application-form/src/lib/infrastructure/partner-info.repository.ts` (HttpClient) · `customer-profile/src/lib/infrastructure/financial-profile.repository.ts` (`FINANCIAL_HEALTH_API_URL`) · `backend-driven-form/src/infrastructure/repositories/dynamic-form-schema.repository.ts` (`VITE_FORM_SERVICE_BASE_URL`) · `consumer-hub/src/lib/infrastructure/phone-number.repository.ts` (`VITE_GATEWAY_URL`) · `identity-validation/src/lib/infrastructure/identity-validation.repository.ts` (1.012 líneas) · `packages/ui/src/index.ts` · `packages/shared/utils/src/index.ts` · `apps/storybook/src/main.tsx`.
 
 **Scaffolding**: `plopfile.js` · `plop/generators/module.js` · `.cz-config.js`.
+
+## ⛔ `packages/form-engine` no se lee, no se usa y se elimina
+
+**Decisión de Miguel (2026-08-08.)** Se construyó para adoptarse y nunca se adoptó, porque **generaba
+hilos de conocimiento paralelos**: un segundo DSL de formularios con sus propios tipos, operadores y
+condicionales, compitiendo conceptualmente con el form dinámico que sí corre. Leerla hace creer que hay
+dos motores donde hay uno, y ése es el costo que se quiere evitar.
+
+- **No la abras** para entender los formularios. El motor que corre son las tres piezas del nodo
+  `dynamic-forms` (G0 legacy · G1 `dynamic-form` · G2 `backend-driven-form` + `form-service`).
+- **No la uses** en trabajo nuevo, ni siquiera "porque ya está hecha".
+- **Su eliminación está en curso**: `develop` ya no la declara ni tiene la ruta que la importaba; `main`
+  y `qa` sí. Ver el gotcha de reinstalar al cambiar de rama, arriba.
+- Este árbol **dejó de citarla**. Antes `dynamic-forms` tenía una sección entera con citas
+  `archivo:línea` hacia adentro; se borraron a propósito, porque una cita es una invitación a leer.
+
+⚠ No confundir con `packages/shared` ni con `modules/loan-request-wizard/backend-driven-form`, que sí se
+usan y sí hay que leer.
 
 ## Gotchas / riesgos
 - **`lenders-v2` NO es SSE ni polling de cliente.** El progreso card-por-card sale de **Promises sin resolver serializadas por React Router v7** en el stream SSR (`available-lenders.tsx:252` → `:773` → `deferred-lender-resolution.adapter.ts:16`). El único polling real es **server-side y sólo para Credifamilia** (`fetch-lender-preapproval.ts:266`).

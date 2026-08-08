@@ -89,8 +89,6 @@
     "frontend-monorepo/modules/loan-request-wizard/loan-application-form/src/index.ts",
     "frontend-monorepo/modules/loan-request-wizard/loan-application-form/src/lib/infrastructure/partner-info.repository.ts",
     "frontend-monorepo/modules/loan-request-wizard/loan-origination/src/index.ts",
-    "frontend-monorepo/packages/form-engine/src/index.ts",
-    "frontend-monorepo/packages/form-engine/src/renderer.tsx",
     "frontend-monorepo/packages/shared/utils/src/index.ts",
     "frontend-monorepo/packages/shared/utils/src/network/http-client.ts",
     "frontend-monorepo/packages/shared/utils/src/network/result.types.ts",

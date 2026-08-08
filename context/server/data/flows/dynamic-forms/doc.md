@@ -75,13 +75,32 @@ Mecánica del renderer:
 
 **Selects país/departamento/ciudad y la cascada:** las opciones grandes NO viven en el schema — el campo dice de dónde salen (`data_source='field_options.country_tree.zones'` = departamento, `'…zones.cities'` = ciudad) y el front las pide aparte al form-service (`PUT /v1/field-options/country-tree/{countryId}`, Colombia=47). La **cascada** es solo `related_field_id`: la ciudad filtra sus opciones por el valor del departamento que apunta. Agregar un par depto→ciudad es **cero código**: dos filas (`fields`+`forms`) + rebuild del cache (`PUT /schema`). Ejemplo hecho (2026-07-23): "Ciudad de nacimiento" (field 233 en dev, `related_field_id`=Departamento de nacimiento) para Credifamilia, vía migración `add_ciudad_de_nacimiento_field_to_credifamilia_form` en legacy-backend. Detalle en el nodo **form-service**.
 
-### El huérfano: `packages/form-engine`
-Es el motor más completo del árbol — 32 archivos, DSL propio (`defineForm`), 20 tipos de campo, condicionales `showIf` con 8 operadores (`== != > < >= <= in notIn`), pasos/secciones/grid, `recharge` de campos dependientes, OTP con timer, subida de archivos con MIME y tamaño, persistencia en localStorage, tematización, panel de debug de 619 líneas, y hasta un analizador de regex que deriva props de input. **Y no está enchufado a nada:**
+### ⛔ `packages/form-engine` — NO LEER, NO USAR, se elimina
 
-- Su único consumidor en la app es `app/routes/dynamic/dynamic.tsx`, que **no está registrado en `routes.ts`**.
-- En modo remoto el renderer busca su esquema en `/api/{scope}/schema`; **esa ruta no existe** en la app.
-- `createDispatcher` — el proxy que serviría justamente esa ruta — se exporta y **no se usa en ningún lado**.
-- Lo único que lo ejercita es Storybook, cuya story además documenta una ruta (`/dynamic/:scope`) que no existe.
+**Decisión de Miguel (2026-08-08): esta librería no se debe leer, no se usa y no se debería usar. Está
+para eliminarse.** Se construyó para adoptarse y nunca se adoptó, y el motivo es el que importa acá:
+**generaba hilos de conocimiento paralelos** — un segundo DSL de formularios, con sus propios tipos,
+operadores y condicionales, compitiendo conceptualmente con el form dinámico que sí corre. Leerla hace
+creer que hay dos motores donde hay uno.
+
+Por eso este nodo **ya no la describe**. Antes tenía una sección entera con citas `archivo:línea` hacia
+adentro, y esas citas eran justamente la invitación a leerla. Se borraron a propósito.
+
+**Su eliminación ya está en curso, y es lo único que hay que saber de ella** (medido el 2026-08-08):
+
+| rama | ¿la declara? | ¿alguien la importa? |
+|---|---|---|
+| `main` · `qa` | sí, 3 `package.json` | sí: `apps/loan-request-wizard/app/routes/dynamic/dynamic.tsx` (`FormRenderer`) + una story |
+| **`develop`** | **no, 0** | **no — la ruta que la importaba tampoco existe** |
+
+⚠ **Y de ahí sale una trampa de entorno que ya costó una corrida**: si tenés `node_modules` instalado
+para `main` (que la trae) y te cambiás a `develop` (que no la declara), **el wizard local compila varios
+minutos y después el proceso MUERE**. El síntoma engaña: el chequeo de salud del puerto responde, así que
+parece que levantó, y el fallo aparece recién al servir la primera ruta de verdad — con un
+`ERR_CONNECTION_REFUSED` que parece de red. Al cambiar de rama en el monorepo, reinstalar.
+
+El motor de formularios que **sí** corre es el de las tres piezas de arriba (G0 legacy · G1
+`dynamic-form` · G2 `backend-driven-form` + `form-service`). Si buscás «el form dinámico», es ése.
 
 ### El EAV `user_field_values` y su censo de `field_id`
 Tabla plana: `field_id`, `user_id`, `user_request_id`, `form_id`, `value` (text), `file`, `file_name`, `status`. **Sin foreign keys y sin índice único** sobre la terna (`field_id`,`user_id`,`user_request_id`) — la unicidad la sostiene solo el `updateOrCreate` del código.
@@ -142,12 +161,6 @@ O sea: el formulario clásico es React fijo con **dos toggles**, uno de los cual
 - **Normalización**: `.../application/mappers/backend-to-internal.mapper.ts:17-32` (14 tipos) · `:44-46` (fallback silencioso a `text`) · `:56` (`required = nullable === false`) · `:72` (`formKey`).
 - **Visibilidad y payload**: `.../application/field-visibility.ts:21-28` · `.../application/submit-payload-builder.ts:33` (keyed por `field.id`).
 - **Hardcode de país**: `apps/loan-request-wizard/app/routes/additional-info-form.tsx:34` (`COUNTRY_ID = 47`) · `:169` (submit) · `:186` (→ firmar documentos).
-
-**El huérfano form-engine**
-- **DSL**: `packages/form-engine/src/types.ts:14` (8 operadores) · `:120-136` (20 tipos) · `:185-202` (`defineForm`).
-- **Fetch remoto sin ruta que lo sirva**: `packages/form-engine/src/renderer.tsx:188` (`/api/{scope}/schema`).
-- **Proxy exportado y nunca usado**: `packages/form-engine/src/dispatcher.ts:1`, exportado en `packages/form-engine/src/index.ts:24`.
-- **La ruta que no se registra**: `apps/loan-request-wizard/app/routes/dynamic/dynamic.tsx:16` (ausente de `apps/loan-request-wizard/app/routes.ts`).
 
 **G0 y el EAV**
 - **Definición**: `database/migrations/2023_04_20_225944_create_fields_table.php` · `..._230613_create_forms_table.php:17` · `..._230159_create_field_options_table.php` · `..._225653_create_field_categories_table.php` · `..._225816_create_form_types_table.php` + `2026_05_14_030659_add_lender_id_to_form_types_table.php`.
