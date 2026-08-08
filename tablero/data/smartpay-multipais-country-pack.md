@@ -77,6 +77,92 @@ usuario, que es justo lo que pide un documento por entidad o una validación de 
 364 mil usuarios se vuelven afganos**. Cualquier plan que empiece por «leamos `country_id`» rompe
 producción en el primer deploy.
 
+## ATERRIZAJE (2026-08-08) — gana «el paso DO», con UNA cosa agregada
+
+Miguel tenía una propuesta más avanzada («Que República Dominicana quede bien parada») que **no se había
+compartido a propósito**, para no sesgar la búsqueda de alternativas. Comparadas, **la suya es la que se
+entrega**, y por los motivos correctos:
+
+- tiene **daño medido en producción**, no riesgo latente: 13 de 13 puntos de venta dominicanos figuran en
+  Santo Domingo… de Antioquia; los mensajes a clientes dominicanos salen con `+57`; y **0 de 375.429**
+  clientes tienen nacionalidad, así que los contratos dominicanos imprimen «COLOMBIANA»;
+- el alcance es **cerrable**: cuatro pasos, tres de datos y una validación;
+- no toca el flujo del usuario ni servicios de terceros, así que el riesgo es bajo y el ciclo corto.
+
+### Lo que se DESCARTA de la propuesta anterior (este documento, arriba)
+
+Matar lo propio es parte del aterrizaje. De las seis ideas de la sección anterior:
+
+| idea | veredicto |
+|---|---|
+| los cinco ejes (jurisdicción/moneda/locale/geografía/identidad) | **cierta pero no es un entregable.** Es una taxonomía; no mueve la aguja hoy |
+| plata como objeto con moneda | real, pero su forzante (el recaudo BHD) **no está mergeado**. Cuando entre, entra con él |
+| parámetros regulatorios con vigencia | ya está, mejor planteado, en la «segunda ola» del doc de Miguel |
+| **submercados** | **prematuro.** Con dos países no hay de quién heredar. Vuelve cuando haya un tercero |
+| CI con dos mercados | **la validación del paso 4 es estrictamente mejor para ESTA clase de bug.** El 13/13 no fue una regresión de código: fue un dato mal elegido en un formulario. Un invariante al guardar lo ataja en el origen; una suite de tests, no |
+| **el mercado se resuelve UNA vez** | **se queda.** Es lo único que sobrevive, y abajo por qué |
+
+### La ÚNICA cosa que agrego: que «resolver el país» exista una vez
+
+Los pasos 1–3 son datos, y los datos arreglan **hoy**. Lo que no arreglan es **el literal número doce**.
+
+Hoy quien necesita el país escribe `?? '+57'` porque es lo más barato que puede hacer: **no hay función a
+la cual llamar**. Y ya hay dos capas del mismo default, una encima de la otra:
+
+```php
+TwilioController.php:184              $phoneCode = $userRequest->allied?->country?->phone_code ?? '+57';
+TwilioNotificationRepository.php:40   $phoneCode = $params['phone_code'] ?? '+57';
+```
+
+La propuesta es **una función que resuelve el país de una solicitud, con los defaults adentro**. Nada más.
+
+Por qué ésta y no otra:
+
+- **Cabe dentro del alcance actual**: el paso 3 necesita igual un lugar desde donde leer `phone_code`.
+- **No cambia comportamiento**: el default sigue siendo Colombia, así que el primer deploy no mueve nada
+  y se puede verificar comparando respuestas.
+- **Convierte cada `?? '+57'` futuro en una llamada.** El próximo no necesita saber de países: llama.
+- **Le da casa al invariante del paso 4** y colapsa los dos defaults en uno.
+- **Es lo único que hace más barato el tercer país**, y cuesta casi nada ahora.
+
+Y su regla de diseño ya está escrita **en el anexo de Miguel**, con sus palabras: *«El país del punto de
+venta no necesita columna propia: se deriva de su comercio.»* Eso ES el patrón «Mercado» — resolver desde
+el comercio, una vez, sin guardar copias que con el tiempo mienten. La función sólo lo vuelve ejecutable.
+La geografía ya está construida así y lo confirma: `country_cities.country_zone_id` →
+`country_zones.country_id`, sin `country_id` redundante en la ciudad.
+
+### Correcciones y agregados al doc de Miguel (verificados 2026-08-08 contra prod y `main`)
+
+**✅ Confirmado, y yo lo había leído mal**: `phone_code` está **NULL en los tres países** y es la que lee
+el código (**24 referencias**, contra 5 de `dial_code`). Yo había mirado `dial_code` —que sí está poblada
+(57 · 1)— y concluí que el prefijo funcionaba. **El dato existe en la columna equivocada**, así que el
+paso 3 es más chico de lo que parece: copiar `dial_code` a `phone_code` con el `+` adelante (los lectores
+concatenan sin normalizar).
+
+**➕ Falta un paso cero, y es el vecino del que ya se habla.** El anexo dice: *«Ocho consultas filtran por
+un identificador de país fijo… Hay que corregirlas antes de poblar el país de las entidades.»* Correcto,
+y hay una versión peor del mismo problema que no está en el doc:
+
+> **186 lenders y 364.527 usuarios apuntan a `countries.id = 1`, que se llama «Afghanistan»**
+> (`iso_code_3 = AFG`) con la moneda y el locale de Colombia pegados encima. La fila correcta de Colombia
+> es la **47**, y a ella apuntan los 307 comercios. Hoy es inocuo porque el camino vivo resuelve por
+> `allied`. **Pero el paso 3 es justo el que hace que el país importe**: en cuanto algo resuelva el país
+> desde el lender o desde el usuario, esas filas son afganas.
+>
+> Y un segundo filo del mismo asunto: **`iso_code_2` está vacío en las DOS filas de Colombia**, mientras
+> el código compara `$countryIso === 'DO'`. Cualquier chequeo por ISO **ya falla en silencio** para
+> Colombia — sólo que hoy falla del lado correcto.
+
+**➕ Una decisión que conviene endurecer.** El doc dice, sobre unificar las dos pantallas: *«Converger es
+la única forma de que el tercer país no cueste otra copia, pero es un proyecto en sí mismo.»* Las dos
+mitades son ciertas. Propongo convertirlo en **regla escrita**: *no se abre un tercer país antes de que
+las pantallas converjan.* Si no se decide explícitamente, se decide por omisión — y el tercer país llega
+con su tercera copia.
+
+---
+
+# ANEXO · el análisis previo (para trazabilidad)
+
 ## LA RECOMENDACIÓN — UNA sola: el «Mercado» de Shopify, con el contenido en forma de Country Spec
 
 Miré cómo lo resolvieron cuatro empresas y **descarto tres**, con el motivo:
