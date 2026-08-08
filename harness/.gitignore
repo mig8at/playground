@@ -5,6 +5,7 @@ playwright-report/
 *.log
 .DS_Store
 .cognito.json
+.admin.json
 .flows.json
 .asesor-snapshot.json
 .auth/

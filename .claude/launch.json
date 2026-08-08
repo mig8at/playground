@@ -85,6 +85,18 @@
         "trazador"
       ],
       "port": 5192
+    },
+    {
+      "name": "admin",
+      "runtimeExecutable": "php",
+      "runtimeArgs": [
+        "/Users/miguelochoa/Desktop/CREDITOP/github/legacy-application/artisan",
+        "serve",
+        "--host=127.0.0.1",
+        "--port=8000"
+      ],
+      "port": 8000,
+      "url": "http://admin.localhost:8000"
     }
   ]
 }

@@ -1,0 +1,5 @@
+{
+  "_comentario": "Credenciales del ADMIN de legacy-application (Fortify: correo + contraseña contra `users`, NO Cognito). Copiar a `.admin.json` (gitignoreado) y completar. La contraseña tiene que corresponder al hash de la BASE contra la que apuntás: una cuenta de staging sólo entra en la copia local si el dump vino de staging.",
+  "user": "correo@creditop.com",
+  "pass": ""
+}

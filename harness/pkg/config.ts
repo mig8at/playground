@@ -30,6 +30,33 @@ function loadCognitoCreds(): { user?: string; pass?: string } {
 
 export const cognitoCreds = loadCognitoCreds();
 
+/**
+ * Credenciales del ADMIN de `legacy-application` (el panel de operaciones). Mismo orden que las de
+ * Cognito: la cadena por target → archivo gitignored `.admin.json` (`{"user":"…","pass":"…"}`).
+ *
+ * ⚠ **No es Cognito.** `legacy-application` autentica con **Fortify**: correo + contraseña contra la
+ * tabla `users`, sesión de Laravel. Verificado el 2026-08-08 — `config/auth.php` declara un solo guard
+ * `web` con provider `users`, y no hay una sola referencia a Cognito en el repo. Por eso estas
+ * credenciales van aparte y NO se pueden reusar con `cognitoLogin`.
+ *
+ * ⚠ Y la contraseña tiene que existir **en la base contra la que apuntás**. Con la copia local eso
+ * significa que el hash del dump debe corresponder a esa contraseña: una cuenta de staging sólo entra
+ * en local si el dump vino de staging. Si el login falla con credenciales correctas, es la primera
+ * hipótesis — no un bug del script.
+ */
+function loadAdminCreds(): { user?: string; pass?: string } {
+    const user = env('E2E_ADMIN_USER');
+    if (user) return { user, pass: env('E2E_ADMIN_PASS') };
+    try {
+        const raw = JSON.parse(readFileSync(join(process.cwd(), '.admin.json'), 'utf8'));
+        return { user: raw.user, pass: raw.pass };
+    } catch {
+        return {};
+    }
+}
+
+export const adminCreds = loadAdminCreds();
+
 export const config = {
     /** URL del frontend. Por TARGET: local = Vite :5174 · dev/staging = el deploy correspondiente.
      *  Se lee con `env()` (no `process.env` pelado) para que valga ponerla en `env/<target>.env`. */

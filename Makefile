@@ -118,6 +118,9 @@ harness-qr: ## @har el canal QR por API, sin browser: ¿cierra en estado 25 con 
 harness-mocks: ## @har levanta los mocks del canal QR (Bancolombia :8104 + Corbeta :8103)
 	@cd harness && bin/mock-bancolombia start && bin/mock-corbeta start
 
+harness-admin-ciudades: ## @har ¿el selector de ciudad del admin filtra por país? Pide `harness/.admin.json` + el admin en :8000
+	@cd harness && E2E_TARGET=local npx playwright test dev/admin-ciudades.spec.ts --reporter=list
+
 harness-check: ## @har typecheck del harness
 	@cd harness && npm run --silent typecheck
 
