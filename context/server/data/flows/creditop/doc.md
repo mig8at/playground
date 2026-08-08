@@ -102,10 +102,11 @@ Las máquinas de estado son transversales; los contextos referencian ESTO y no l
 - Detalle (los 2 catálogos + los 6 crons post-11): `git 159906a:docs/codigo/CONTINUACION-CREDITO-ANALISIS.md`. Memoria `continuacion-credito-servicing`.
 
 ## Frontera de pruebas / harness
-El mapa GLOBAL de simulación (material del OKR de metodología de pruebas). **El harness despacha por `response_type`:**
-- **rt=2/3 (CreditopX in-platform) = INYECTABLE**: decide 100% en legacy con datos locales → usuario sintético sin KYC real (sembrar categoría + fila Experian encriptada); el harness Go cierra con `ForceOtpValidation`+`authorize`. Contexto **creditopx** = el más simulable.
-- **rt=1 (agregadores) = NO inyectable**: decide una API externa → solo mock HTTP del transporte (contexto **aggregator**). **rt=4 (Credifamilia) = parcial** (gate local sí, KYC V2 + SOAP no).
-- **Cheat-sheet de mocks/bypasses/stashes** (OTP, identidad, forms, PDF, buró) + la **receta de usuario sintético** + la encriptación del buró (`laravel_encrypt` AES-256-CBC): `git 159906a:docs/operacion/HARNESS-ARQUITECTURA.md` + `…/HANDOFF-PRUEBAS-ONBOARDING.md` + `…/E2E-DATA-TESTIDS.md`. Memorias `synth-lender-type-boundary`, `harness-setup`, `backend-e2e-dev-target`, `datacredito-rules-per-lender`.
+El mapa GLOBAL de simulación (material del OKR de metodología de pruebas) vive en el nodo **harness**,
+tabla rt-por-rt. El resumen que no cambia: **lo in-platform (rt=2/3) se INYECTA** con usuario sintético
+y se sella a Estado 11; **lo de integración (rt=0/1/4) lo decide un tercero** — se mockea el host y se
+valida pre-aprobación/handoff, nunca el cierre. La receta del sintético y la fila Experian cifrada:
+nodos `kyc` y `harness` §inyección.
 
 ## Deuda técnica / hardcodes
 ➤ **Inventario VIVO y verificado de los ifs-quemados-por-ID: contexto [[hardcodes-entidades]]** (auditoría 2026-07-18 — 24 de 31 acoplamientos BLOQUEAN la integración por-config; 101 sitios con `archivo:línea`). Es el nodo de DOLOR: si una tarea integra o toca el flujo de una entidad/comercio, entra ahí ANTES de sumar otro hardcode. Reemplaza como fuente viva a los `git 159906a:docs/codigo/LOGICA-QUEMADA.md` de abajo.
