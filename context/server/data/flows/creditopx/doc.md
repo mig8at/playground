@@ -2,7 +2,7 @@
 > **estado:** al día con main · Familia de prestamistas IN-PLATFORM (`response_type` **2**=consumo · **3**=rotativo): CreditOp decide con su motor LOCAL (reglas de grupo → datacrédito → categoría/cupo), fija enganche/cupo/plazo y cierra hasta el **Estado 11** — el único flujo inyectable/simulable.
 
 ## Qué es
-CreditopX **no es un lender: es una FAMILIA** de prestamistas in-platform (`response_type == 2`, y `== 3` para cupo **rotativo**). Todos comparten UN motor: **CreditOp decide el crédito con reglas y datos LOCALES** (sin API externa de decisión → el único flujo 100% inyectable en pruebas), fija **enganche/cupo/plazo** con su motor de **categorías**, y cierra la solicitud in-platform hasta el **Estado 11** (autorizada/desembolso). Miembros (ids de negocio, ficha `159906a:docs/lenders/CREDITOPX.md`): **CrediPullman 77**, **Creditop X 37**, **Celupresto 96**, **SmartPay 152 dev / 160 prod**, **Motai 158**, Magnocréditos…
+CreditopX **no es un lender: es una FAMILIA** de prestamistas in-platform (`response_type == 2`, y `== 3` para cupo **rotativo**). ⚠ **Pero rt=2 y rt=3 NO comparten motor** — ver la sección del rotativo más abajo; lo de acá describe rt=2. Para rt=2: **CreditOp decide el crédito con reglas y datos LOCALES** (sin API externa de decisión → el único flujo 100% inyectable en pruebas), fija **enganche/cupo/plazo** con su motor de **categorías**, y cierra la solicitud in-platform hasta el **Estado 11** (autorizada/desembolso). Miembros (ids de negocio, ficha `159906a:docs/lenders/CREDITOPX.md`): **CrediPullman 77**, **Creditop X 37**, **Celupresto 96**, **SmartPay 152 dev / 160 prod**, **Motai 158**, Magnocréditos…
 
 Este nodo cubre la **capa de DECISIÓN** (qué card aparece y con qué enganche/cupo). El recorrido punta a punta (OTP → ADO → firma OTP → 11), el buró y el servicing post-11 viven en nodos hermanos (**KYC** cede la adquisición de buró; **Formalization** el cierre; servicing post-11 en application, memoria `continuacion-credito-servicing`). Capa económica: el **comercio** pone capital y riesgo y es dueño del crédito; **CreditOp opera** (origina, firma, desembolsa, cobra) y gana **comisión por recaudo** (memoria `creditopx-modelo-comercio`).
 
@@ -17,6 +17,40 @@ Tipos (capacitación de producto, `159906a:docs/codigo/MECANICA-CREDITO.md`):
 Mecánica financiera (informativa): amortización **francesa** (cuota FIJA, interés sobre **saldo diario**); **cuota total = capital+interés + seguro de vida + fondo de garantía (FGA)**.
 
 > ⚠ **Corregido (F-71).** Acá decía que la cadena de tasas era `EA → MV (1+EA)^(1/12)−1 → diaria (1+MV)^(1/30)−1`. **Ese no es el código de CreditopX** — es el de Credifamilia (`app/Services/PaymentPlan/Credifamilia/Math/FinancialMath.php`). CreditopX **divide**, no capitaliza: `rate/100` (`CreditopXPaymentService.php:741`, `CreditopXRequestHistoryService.php:302`) y `rate/30` para la diaria (`CreditopXRequestHistoryService.php:1165`), porque `credit_line_by_lenders.rate_suffix` es **N.M.** (nominal mensual) en las 157 filas — y para una nominal, dividir es lo correcto. Ver **F-71** en `findings`. El **FGA %** y el **enganche** son salidas de la categoría (`lender_users_categories.FGA` / `.min_initial_fee`; ver Subcontextos).
+
+## ⚠ El ROTATIVO (rt=3) NO usa categorías — tiene su propio motor
+
+Corregido el **2026-08-07**. Este nodo decía que rt=2 y rt=3 comparten «el motor de categorías». Es
+**falso para rt=3**, y lo confirmaron las dos fuentes: la dueña de política en #tech-ops
+(«Rotativo NO tiene categorías · esas condiciones se manejaron con reglas duras · la política de
+rotativo es estándar para todos, y dependiendo del riesgo puede arrojar un plazo mín») y el código.
+
+**La fórmula, en `application/app/Services/lenders/RevolvingLoanConfigService.php`** (los pasos están
+numerados en el propio archivo):
+
+1. **Ingreso** = `FN_User_Income_Average` (`:64`) — función de BD, ver `db-routines`.
+2. **Deuda mensual** = `datacredito.agregatedInfo.overview.balances.valueMonthlyPayment × 1000` (`:71`).
+3. **Gastos fijos** = `FN_CreditopX_Profiling_Fixed_Expense_Perc(ingreso)` (`:73`), como % del ingreso.
+4. **Capacidad de pago** = ingreso − deuda − gastos + deuda_ya_con_creditop (`:77`).
+5. **Multiplicador de riesgo** = `FN_CreditopX_Revolving_Credit_Multiplier(datacredito, userSummary)`
+   (`:80`). ⚠ Esa función **no tiene fuente en ningún repositorio** — por eso no se puede auditar desde
+   el código ni desde Redash; sólo leyendo la BD de dev (`db-routines`).
+6. **Multiplicador ≤ 3 ⇒ RECHAZO** con cupo 0 (`:86`).
+7. **Cupo** = capacidad × multiplicador, capado por `lenders.max_rev_credit`, **redondeado hacia abajo
+   de a 50.000** (`:90-93`).
+8. **PLAZO MÍNIMO = `ceil(cupo / capacidad_de_pago) + 1`** (`:95`). Es **calculado, no parametrizado**.
+9. **Enganche y FGA** salen de `creditop_x_profiling_down_payments_fga` buscando por
+   **`multiplier_risk`** (`:99-104`) — *no* por categoría. Un lender sin fila ahí queda con enganche 0.
+
+**Por qué esto genera tickets.** Negocio parametriza los plazos del comercio (p. ej. 1, 3 y 6 cuotas) y
+al cliente le aparece **sólo 6**. No es un bug de configuración: el paso 8 calculó un mínimo de 6 y
+recortó las opciones de abajo. Reportado dos veces el 2026-08-03 por dos personas distintas, y la
+respuesta —«por política no tenemos parametrizado el número de cuotas por perfil»— muestra que del lado
+de negocio no se esperaba que el sistema lo acotara solo.
+
+**Y por qué no se puede diagnosticar con los datos**: ni el multiplicador ni la capacidad de pago se
+persisten; el multiplicador además se calcula en una función de BD sin fuente. Es literal lo que dijo
+la dueña de política: *«estaba revisando y no lo pueden ver en redash»*.
 
 ## Contenido
 La consolidación rt=2 corre en el orquestador `getLenders`. **Clave: la categoría NO va primero** — `group_rules`+datacrédito corren antes; la **categoría corre AL FINAL** y es la que fija enganche/cupo/plazo (y excluye si no hay categoría o el cupo no alcanza).

@@ -49,6 +49,7 @@ acá, saltá al `F-xx` y leé sólo eso.
 
 | Si tu síntoma es… | Mirá |
 |---|---|
+| **«le salen menos cuotas de las parametrizadas»** | F-110 |
 | **«esto anda en local y no en dev/qa» / «probé contra el ambiente equivocado»** | F-06 · F-18 · F-61 · F-62 · F-65 · F-73 · F-74 · F-76 · F-77 · F-95 |
 | **«parece un bug del producto» (y es una env faltante)** | F-04 · F-05 · F-23 · F-70 · F-98 · F-99 · F-104 |
 | **«la pantalla no avanza y no hay ningún error»** | F-01 · F-02 · F-03 · F-58 · F-88 · F-91 · F-92 |
@@ -2657,5 +2658,56 @@ paréntesis pegado es una función, y la sentencia siempre lleva separador antes
 ⚠ **La lección**: una guarda de «solo lectura» hay que probarla con la escritura que **empieza como una
 lectura**, no sólo con `UPDATE`/`DROP`. Si el único motivo por el que no se escribió es que el usuario
 no tenía el privilegio, la guarda no estaba haciendo su trabajo.
+
+---
+
+### F-110 · El rotativo (rt=3) NO usa categorías: calcula un PLAZO MÍNIMO y por eso «desaparecen» las cuotas parametrizadas
+
+**Síntoma.** Negocio parametriza los plazos de un comercio —por ejemplo 1, 3 y 6 cuotas— y al cliente le
+aparece **sólo la más larga**. Se lee como un error de configuración y no lo es. Reportado en #tech-ops
+el 2026-08-03 por **dos personas distintas en el mismo día** («solo le sale a 6 cuotas cuando está
+parametrizado a 1, 3 y 6» · «este cliente lo quería a 3 pero quedó a 1»), lo que lo vuelve un patrón y
+no un caso.
+
+**Causa raíz** (verificada en código, y confirmada por la dueña de política). El rotativo **no pasa por
+el motor de categorías** de rt=2. Tiene su propia cadena en
+`application/app/Services/lenders/RevolvingLoanConfigService.php`, y el paso 8 dice literal:
+
+```php
+//8. Calcular el plazo mínimo. Dividir el cupo aprobado por la capacidad de pago.
+$min_fee_number = ceil($available_amount / $payment_capacity) + 1;
+```
+
+O sea: **el plazo mínimo se CALCULA a partir del cupo y la capacidad de pago**, y recorta por abajo las
+opciones que el comercio dejó configuradas. Si el cupo aprobado son 6 veces la capacidad mensual, el
+mínimo da 6 y las de 1 y 3 desaparecen. El enganche y el FGA, en la misma función, salen de
+`creditop_x_profiling_down_payments_fga` por **`multiplier_risk`**, no por categoría.
+
+**Evidencia.** El hilo de #tech-ops del 2026-08-03: *«Rotativo NO tiene categorías»* · *«esas
+condiciones se manejaron con reglas duras»* · *«la política de rotativo es estándar para todos, y
+dependiendo del riesgo puede arrojar un plazo mín, por eso se le acota»* · *«pero estaba revisando y no
+lo pueden ver en redash»*. Y el código: `RevolvingLoanConfigService.php:64` (ingreso), `:73` (gastos),
+`:77` (capacidad), `:80` (multiplicador), `:86` (multiplicador ≤ 3 ⇒ rechazo), `:90-93` (cupo capado por
+`lenders.max_rev_credit` y redondeado de a 50.000), `:95` (el plazo mínimo), `:99-104` (enganche/FGA por
+`multiplier_risk`).
+
+⚠ **Y por qué no se puede diagnosticar con los datos**: ni el multiplicador ni la capacidad de pago se
+persisten, y el multiplicador lo calcula `FN_CreditopX_Revolving_Credit_Multiplier` — una función
+almacenada **sin fuente en ningún repositorio** (ver el nodo `db-routines`). La frase «no lo pueden ver
+en redash» no es una queja: es una consecuencia estructural.
+
+**Arreglo.** Documental, aplicado: el nodo `creditopx` afirmaba que rt=2 y rt=3 comparten «el motor de
+categorías» — falso para rt=3, corregido con la fórmula completa. Del lado del producto no se propone
+nada: que el plazo mínimo se calcule puede ser exactamente lo que riesgo quiere. Lo que faltaba era que
+estuviera escrito, para que soporte no lo persiga como un error de parametrización.
+
+**Estado:** verificado el 2026-08-07 contra el código de `main`. **No verificado**: si el recorte ocurre
+en el backend o si el front además filtra; y si `min_fee_number` se persiste en `revolving_credits`
+(la columna existe en tres modelos).
+
+⚠ **La lección de método**: esta regla no estaba en el código de forma legible ni en ningún doc — estaba
+en la **respuesta de una persona en un hilo de soporte**. Las preguntas de #tech-ops son un detector de
+huecos de documentación: cuando alguien pregunta «¿por qué el sistema hizo X?», la respuesta suele ser
+una regla de negocio que nadie escribió.
 
 ---
