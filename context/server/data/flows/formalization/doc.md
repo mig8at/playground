@@ -105,6 +105,21 @@ Las mismas etapas en Inertia (`application/routes/customer.php:78-96`): `/acepta
 - **Gemelo monolítico** (application): `app/Http/Controllers/Customer/ValidateOtpPromissoryNoteController.php:118-228`; rutas en `routes/customer.php:78-96`.
 
 ## Gotchas / riesgos
+- **El estado 30 «Autorizado pendiente desembolso» es un WAYPOINT, no un desenlace.** Lo escribe
+  `legacy-backend/Modules/Loans/App/Services/LoanAuthorizationService.php:434 transitionToIntermediate`
+  —«Transition to intermediate status after OTP verification. Applies to all flows (IMEI and
+  default)»— y deja el comentario «OTP verificado - pendiente autorización» en el historial. También
+  lo escribe `AdvisorStatusController.php:41` y `:89` por acción del asesor. Una solicitud parada ahí
+  **verificó el OTP de firma y no completó la autorización**; no está aprobada ni muerta. Reportado
+  como «quedó en autorizado pendiente desembolso desde ayer» (#tech-ops 2026-08-01 y 2026-08-06).
+- ⚠ **Un asesor puede mover la solicitud a «Autorizada» a mano SIN pagaré firmado, y entonces el
+  voucher no se puede generar.** Diagnóstico de la dueña de política en #tech-ops (2026-08-01):
+  «el asesor lo cambió a autorizado manualmente, sin embargo el pagaré no quedó firmado, el error
+  vino de Deceval y por eso bloqueó el proceso… no podemos generar voucher porque no hay pagaré
+  firmado». O sea que **el estado 11 NO prueba que el pagaré esté firmado** — es el mismo patrón del
+  invariante 4 (un estado dice dónde está, no qué se completó). ⚠ La ruta exacta del cambio manual y
+  la validación del voucher NO se verificaron en código: por ahora es el testimonio de quien lo
+  diagnosticó, no una lectura del repo.
 - **El enganche NO es un paso del journey nuevo.** `InitialFeePaymentController` + `InitialFeePaymentService` (checkout Wompi, `staging` auto-aprueba, `:116-122`) están portados a legacy-backend y ruteados (`routes/api.php:60-67`), pero **ningún archivo del wizard React referencia `initial-fee-payment`** (grep = 0). El checkout hospedado vive solo en `application` (`/pago-cuota-inicial`). En el wizard, `initial_fee` es un campo del marketplace que se **resta del capital financiado**. El % sí lo fija la categoría de perfilamiento (`InitialFeePaymentService.php:77-78`, `category->min_initial_fee`).
 - **`standBy` es campo muerto en el front nuevo**: el backend lo sigue emitiendo para rt=2/3/4, pero `grep -r standBy` sobre todo `frontend-monorepo` da **0 resultados**. El wizard entra a `/confirmation` por su propio ruteo.
 - **`soft-update.tsx` es una ruta huérfana**: existe el archivo (`apps/loan-request-wizard/app/routes/lenders-marketplace/lenders/soft-update.tsx`) pero **no está registrada en `routes.ts`** → código muerto.

@@ -63,7 +63,8 @@ acá, saltá al `F-xx` y leé sólo eso.
 | **«el crédito no cierra en local»** | F-07 · F-08 · F-09 · F-10 · F-11 · F-12 · F-13 · F-29 · F-30 · F-31 · F-36 |
 | **«falló la validación de identidad / se canceló solo»** | F-10 · F-55 · F-60 · F-62 · F-63 |
 | **«firma, pagaré, OTP de firma»** | F-02 · F-11 · F-12 · F-30 · F-32 · F-36 · F-37 · F-58 |
-| **«el webhook del lender no llegó (¿o sí?)»** | F-94 · F-100 |
+| **«el webhook del lender no llegó (¿o sí?)»** | F-94 · F-100 · F-111 |
+| **«el agregador aprobó / el cliente firmó, y sigue en Seleccionó entidad»** | F-111 · F-94 |
 | **«el perfilador / el orden del listado / el cupo»** | F-04 · F-93 · F-104 |
 | **Canal Corbeta y código de compra en caja** | F-79 · F-80 · F-81 · F-82 · F-83 · F-84 · F-85 · F-86 · F-87 · F-88 · F-89 · F-90 · F-91 · F-92 |
 | **Bancolombia (BNPL / Consumo)** | F-05 · F-54 · F-83 · F-84 · F-89 · F-90 · F-91 · F-92 |
@@ -2709,5 +2710,59 @@ en el backend o si el front además filtra; y si `min_fee_number` se persiste en
 en la **respuesta de una persona en un hilo de soporte**. Las preguntas de #tech-ops son un detector de
 huecos de documentación: cuando alguien pregunta «¿por qué el sistema hizo X?», la respuesta suele ser
 una regla de negocio que nadie escribió.
+
+---
+
+### F-111 · El webhook de Prami ata SÓLO por `order_id` y con `firstOrFail()`: si no matchea, la solicitud se queda en «Seleccionó entidad» para siempre
+
+**Síntoma.** «Aprobado por Prami / el cliente ya firmó, pero en CreditOp sigue en *Seleccionó entidad*».
+Reportado **seis veces en una semana** en #tech-ops (2026-08-01 al 2026-08-04, cuatro personas
+distintas). Se ve idéntico a «el agregador no llamó», y no lo es: el agregador llamó y CreditOp descartó
+la llamada.
+
+**Causa raíz** (verificada en código; el diagnóstico original lo dio un dev en el hilo del 2026-08-02).
+`legacy-application/app/Http/Controllers/Api/PramiController.php:39-42`:
+
+```php
+$transaction = LenderTransaction::query()
+    ->where('lender_id', $lender->id)
+    ->where('order_id', $request->validated('order_id'))
+    ->firstOrFail();      // ← si el order_id no matchea, LANZA y no se actualiza nada
+```
+
+El único vínculo es el `order_id`. **No hay respaldo por cliente, documento ni solicitud.** Si el
+cliente cotizó dos veces —o si el `order_id` que devuelve Prami no es el de la cotización guardada—
+`firstOrFail()` corta la transacción entera y la solicitud queda intacta. Textual del hilo: *«hay dos
+solicitudes desde Prami, pero ninguno de los `order_id` que llega coincide con la solicitud del cliente
+… por esta razón nunca se actualiza»*.
+
+**Y dos cosas más que el mismo código revela:**
+
+1. **De acá salen los estados 7 y 20** — los que ninguna etapa del trazador mapeaba (F-105/F-106 los
+   dejaron como hueco). El webhook traduce el estado del agregador al nuestro (`:51-56`):
+   `No_Completado`→**7** «No terminó proceso» · `Rechazado`→**6** «Negada» ·
+   `Aprobado`→**20** «Aprobada no desembolsada» · `Originado`→**11** «Autorizada».
+   Mismo mapeo en `MeddipayController.php:61`. O sea que **7 y 20 son estados de AGREGADOR**, no del
+   flujo in-platform: por eso no aparecían en el recorrido de rt=2.
+2. **El webhook PISA el monto**: `'final_amount' => $request->amount` (`:59`). Si hubiera matcheado, el
+   valor de la solicitud pasaba a ser el que manda Prami — y en el caso del hilo diferían ($799.000 del
+   webhook contra $918.900 de la solicitud). Cuando el `order_id` no matchea, esa discrepancia queda
+   invisible; cuando matchea, gana el agregador sin avisar.
+
+⚠ Y el lender se resuelve por **nombre**: `Lender::where('name', 'Prami')->firstOrFail()` (`:37`).
+Renombrar la entidad en el admin rompe el webhook entero, en silencio. Es el anti-patrón 3 de
+`hardcodes-entidades`.
+
+**Evidencia.** El código citado. El hilo de #tech-ops del 2026-08-02 con el diagnóstico del dev, y seis
+reportes del mismo síntoma entre el 2026-08-01 y el 2026-08-04 (Prami ×4, Welli ×1, y uno de firma).
+
+**Arreglo.** Ninguno propuesto: el fallback correcto —¿buscar por cliente? ¿por la última transacción
+pendiente?— es una decisión de negocio, porque elegir mal ataría el resultado a la solicitud equivocada.
+Lo que faltaba era saber que el síntoma «se quedó en seleccionar entidad» tiene **dos causas
+indistinguibles desde la BD**: el agregador no llamó (F-94), o llamó y el `order_id` no matcheó (ésta).
+
+**Estado:** verificado el 2026-08-07 contra `main`. **No verificado**: con qué frecuencia falla el match
+en producción — el webhook no deja registro cuando `firstOrFail()` lanza, así que no se puede contar.
+Ése es justamente el motivo por el que se ve como si el agregador no hubiera llamado.
 
 ---
