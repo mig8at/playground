@@ -1,13 +1,6 @@
 # Bancolombia · referencia (subnodo de `aggregator`)
 > **estado:** validado contra `origin/main` de `legacy-backend` · `frontend-monorepo` · `application` · `pre-approvals-service` el **2026-07-31** (los working trees locales estaban en `qa` / feature) · Bancolombia es `response_type=1` **sólo en la decisión de crédito**: es el único agregador cuya **originación completa corre DENTRO de CreditOp** — onboarding propio, 23 endpoints propios, 41 pantallas del wizard.
 
-## Qué responde
-- ¿Qué pasos tiene el flujo Bancolombia y qué endpoint es cada uno? ¿En qué orden?
-- ¿De dónde sale el `transactionId` de cada producto y **dónde queda persistido**?
-- ¿Cómo fuerzo un escenario (con cupo / sin cupo / sesión expirada / fraude) sin tocar la API real?
-- ¿Por qué el cierre de estado sigue en `application` si el flujo ya está en `legacy-backend`?
-- ¿Cómo se genera hoy el **código de compra en punto de venta** y qué cambia si lo emite Bancolombia?
-
 ## Qué es
 Bancolombia entra a CreditOp como **dos lenders distintos** que comparten infraestructura de auth:
 **BNPL = lender 68** (`BC_PAGA_DESP`) y **Consumo / libre inversión = lender 100** (`BC_CONSUMO`).
@@ -46,7 +39,7 @@ No entra por el marketplace `/lenders`. `routes.ts:146-160` monta un layout apar
 | `…/resolve-ecommerce-flow/:user_request_id` | `routes/bancolombia/ecommerce/resolve-ecommerce-flow.tsx` |
 
 Quién manda ahí: el QR/link público cuando el allied ∈ `Setting('corbeta_allieds')`
-(`onboarding/doc.md:22`) y el checkout Corbeta (`CorbetaCheckoutController:1250`). Después del
+(→ `onboarding` §bifurcación) y el checkout Corbeta (`CorbetaCheckoutController:1250`). Después del
 onboarding, todo cuelga de `bancolombia/:bancolombia_type` (`routes.ts:172`), con
 `bancolombia_type ∈ {bnpl, consumo}`.
 

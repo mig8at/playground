@@ -16,7 +16,7 @@ que ya costaron tiempo** — y el mapa mínimo para no perderse.
 | `bin/` | **Plumbing**: launchers (`asesor` · `ecommerce` · `qr` · `panel`), los 11 `mock-*` y utilidades (`dbops.ts` · `envget.ts` · `steps-check.ts` · `preflight.ts`) | Casi nunca directo — el panel los llama |
 | `dev/` | **Herramientas por consola**, una por pregunta (abajo) | Camino rápido: es TU camino |
 | `pkg/` | La **librería compartida** (25 módulos): `trace.ts` (aserciones) · `db.ts` · `inject.ts` · `cognito.ts` · `qr.ts`+`qr-steps.ts` · `checkout-b64.ts` · `wizard-steps.ts` · `windows.ts` · … | Al agregar capacidad, va acá — no duplicada en dos runners |
-| `mock-*/` | **11 mocks con launcher** + 2 páginas estáticas (`mock-bank/`, `mock-store/`, sin launcher: las sirve el spec) | Cuando el proveedor externo estorba |
+| `mock-*/` | **la flota de mocks con launcher** (la tabla de puertos, abajo) + 2 páginas estáticas (`mock-bank/`, `mock-store/`, sin launcher: las sirve el spec) | Cuando el proveedor externo estorba |
 | `channel/` | **13 suites de caracterización** (`*.spec.ts`): congelan el comportamiento ACTUAL | Antes de cambiar algo, para tener red |
 | `.runs/` · `.auth/` | Forense de la última corrida (volcados, screenshots) | Cuando algo falló y hay que reconstruir |
 

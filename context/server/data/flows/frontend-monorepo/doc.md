@@ -119,9 +119,9 @@ Scaffolding: `plop/generators/module.js` genera **sólo** `package.json` + `tsco
 
 **Rutas representativas**: `app/routes/loan-application-form/phone-number.tsx:70` (gate RD → flujo *dynamic*) · `app/routes/dynamic/request-amount.tsx:201` · `app/routes/loan-continue.tsx` (handoff/QR) · `app/routes/api/lender-results.tsx` (resource route) · `app/routes/form-preview.tsx` (preview dev del backend-driven-form) · `app/routes/health.tsx` · `app/routes/auth/callback.tsx`.
 
-**Módulos y paquetes (superficie pública)**: los 11 `modules/loan-request-wizard/*/src/index.ts` · `loan-application-form/src/lib/infrastructure/partner-info.repository.ts` (HttpClient) · `customer-profile/src/lib/infrastructure/financial-profile.repository.ts` (`FINANCIAL_HEALTH_API_URL`) · `backend-driven-form/src/infrastructure/repositories/dynamic-form-schema.repository.ts` (`VITE_FORM_SERVICE_BASE_URL`) · `consumer-hub/src/lib/infrastructure/phone-number.repository.ts` (`VITE_GATEWAY_URL`) · `identity-validation/src/lib/infrastructure/identity-validation.repository.ts` (1.012 líneas) · `packages/ui/src/index.ts` · `packages/shared/utils/src/index.ts` · `apps/storybook/src/main.tsx`.
+- **Módulos y paquetes (superficie pública)**: los 11 `modules/loan-request-wizard/*/src/index.ts` · `loan-application-form/src/lib/infrastructure/partner-info.repository.ts` (HttpClient) · `customer-profile/src/lib/infrastructure/financial-profile.repository.ts` (`FINANCIAL_HEALTH_API_URL`) · `backend-driven-form/src/infrastructure/repositories/dynamic-form-schema.repository.ts` (`VITE_FORM_SERVICE_BASE_URL`) · `consumer-hub/src/lib/infrastructure/phone-number.repository.ts` (`VITE_GATEWAY_URL`) · `identity-validation/src/lib/infrastructure/identity-validation.repository.ts` (1.012 líneas) · `packages/ui/src/index.ts` · `packages/shared/utils/src/index.ts` · `apps/storybook/src/main.tsx`.
 
-**Scaffolding**: `plopfile.js` · `plop/generators/module.js` · `.cz-config.js`.
+- **Scaffolding**: `plopfile.js` · `plop/generators/module.js` · `.cz-config.js`.
 
 ## ⛔ `packages/form-engine` no se lee, no se usa y se elimina
 

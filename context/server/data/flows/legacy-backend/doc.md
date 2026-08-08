@@ -110,7 +110,7 @@ Dos apps Laravel sobre la **misma base de datos**. Números duros del diff:
 **Arranque y registro** (`legacy-backend`):
 - `bootstrap/app.php` · `routes/api.php` (solo ping) · `config/app.php:178-185` (providers) · `config/modules.php:74,225` (paths + statuses)
 - `app/Http/Kernel.php:49-72` (24 alias de middleware) · `app/Console/Kernel.php:15-18` (las 4 únicas tareas agendadas)
-- `app/Providers/RouteServiceProvider.php` (raíz; solo `routes/api.php` + `exceptions.php`) · `app/Providers/RepositoryServiceProvider.php` (**stub vacío**)
+- **Bootstrap de rutas**: `app/Providers/RouteServiceProvider.php` (raíz; solo `routes/api.php` + `exceptions.php`) · `app/Providers/RepositoryServiceProvider.php` (**stub vacío**)
 
 **Contrato legacy**: `app/Http/Controllers/ApiController.php:7` · `app/Traits/ApiResponse.php:9,33` · `app/Otel/TracerService.php` · `app/Http/Middleware/ResolveCognitoUser.php` (`auth.cognito`)
 

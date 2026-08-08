@@ -74,12 +74,16 @@ pulso-uninstall: ## @dia saca el agente del pulso (lo ya registrado se queda)
 	@cd tablero && server/bin/pulso uninstall
 
 # ── CONTEXTO ─────────────────────────────────────────────────────────────────────────────────────
-.PHONY: context-align context-diff context-refs context-seal context-check context-map context-salud
+.PHONY: context-align context-diff context-refs context-seal context-check context-map context-salud context-lint
 context-align: ## @ctx qué nodos quedaron viejos + escribe alineacion.json (corrélo DESPUÉS DE CADA MERGE)
 	@cd context && python3 tools/alinear.py
 
-context-salud: ## @ctx ¿el árbol SIRVE para un LLM? ruteo, archivos mudos, hubs, findings sin indexar
+context-salud: ## @ctx ¿el árbol SIRVE para un LLM? ruteo, archivos mudos, hubs, findings sin indexar — y el lint
 	@cd context && python3 tools/salud.py
+	@cd context && python3 tools/lint.py
+
+context-lint: ## @ctx la guardia que BLOQUEA: conteos horneados, refs muertas, secciones prohibidas, rutas desnudas, nodos invisibles
+	@cd context && python3 tools/lint.py
 
 context-diff: ## @ctx QUÉ cambió en el código de un nodo desde su sello — lo que se lee para re-verificar. NODE=x [STAT=1]
 	@test -n "$(NODE)" || { echo "falta NODE=<nodo>  ·  ej: make context-diff NODE=onboarding"; exit 2; }

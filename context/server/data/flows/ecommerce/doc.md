@@ -78,7 +78,7 @@ Lo arma `EcommerceContractBuilder::buildCheckoutUrl` (compartido; lo usa `VtexSe
 **Link al user_request + cancelación/retorno (legacy-backend):**
 - `Modules/Onboarding/App/Services/UserRequestService.php:101` `findOrCreateUserRequest` (bifurca por credencial) · `:202` `handleEcommerceRequest` (`:209` id de request||session, `:225` puente `UserRequestsByEcommerceRequest`) — **punto de link, frontera con onboarding**.
 - `Modules/Loans/App/Repositories/UserRequestsByEcommerceRequestRepository.php` (crea el puente) · `Modules/Loans/App/Services/CancelRequestService.php:132` `handleEcommerceRequest` (devuelve `return_url`; `:148` guard `class_exists` de `WoocommerceController` = no-op muerto).
-- `Modules/Onboarding/routes/webhooks.php` (rutas públicas sin Cognito): `/vtex/init`, `/vtex/settel`, `simulator/aggregator-result`, `loan-application/{id}/lender-result[s]`.
+- **Rutas públicas, sin Cognito**: `Modules/Onboarding/routes/webhooks.php` — `/vtex/init`, `/vtex/settel`, `simulator/aggregator-result`, `loan-application/{id}/lender-result[s]`.
 - `Modules/Onboarding/routes/api.php:174-178` prefijo `ecommerce-request` (create/{partner_id}, detail, by-user-request, notify-store) · `:28` `checkout/{allied_branch_hash}`=`CorbetaCheckoutController@show` · `:26` result · `:27` `corbeta/checkout/cancel/{id}`.
 
 **Checkout entry Corbeta/Bancolombia retail (legacy-backend — el cutover ya migrado):**

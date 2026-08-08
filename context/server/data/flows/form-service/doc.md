@@ -4,12 +4,6 @@
 <!-- Este nodo resuelve la caja negra que dynamic-forms daba como "no verificable desde estos repos":
      ahora el repo está clonado (github/form-service) e indexado. -->
 
-## Qué responde
-- ¿El form-service persiste las respuestas de G2 en `user_field_values`? (dynamic-forms lo daba como pregunta abierta) → **SÍ**, verificado.
-- ¿Dónde/cómo se arma el schema del form dinámico G2 y de dónde salen las opciones de los selects?
-- ¿Cómo agrego/edito un campo del form (ej. una cascada Departamento→Ciudad)?
-- ¿Qué valida el backend al guardar, y qué NO?
-
 ## Qué es
 `form-service` es un microservicio **Go** (clean-arch: ports/adapters, `fx` DI, `gin`, oapi-codegen; ~220 archivos) que es el backend del **form dinámico G2** — el que el wizard renderiza en `additional-info` (la "información adicional" por entidad, ver nodo **dynamic-forms**). Lo consume el frontend vía el **workspace package `@creditop/backend-driven-form`** (no en el source de `apps/`, sino en `modules/loan-request-wizard/backend-driven-form/`). Es transversal: cualquier entidad con un `form_type` activo (hoy: **Credifamilia**, `form_type` **id 6**) pasa por acá.
 

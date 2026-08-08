@@ -59,5 +59,5 @@ Cosas que vas a encontrar escritas por ahí y **ya no son ciertas**:
   `docs/X.md` es histórica: `git show 159906a:docs/<ruta>`.
 - **El MCP de `context` está retirado.** Lo que queda es el mapa estático + el toolkit Python + una
   viz read-only. **No lo reconstruyas** — el protocolo completo está en `context/CLAUDE.md`.
-- Referencias a **`soporte/`, `examples/`, `backend-e2e` o `backend-mcp`**: todo eso se borró. El
+- Referencias a **`soporte/`, `examples/`, `backend-e2e` o `backend-mcp`**: todo eso se borró. El <!-- lint:ok -->
   trazador vigente es `playground/trazador` y el harness absorbió lo que hacían las herramientas Go.

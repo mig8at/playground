@@ -97,7 +97,7 @@ Puerto 1:1 del admin de comercios a legacy-backend. Rutas bajo `api/partners` (`
 - `app/Http/Controllers/Admin/AlliedRulesController.php` — 237 líneas de código muerto (ver Gotchas).
 - `routes/admin.php:37-66` el mapa de pantallas (`aliados`, `aliados.puntosdeventa` `:53`, `editar-disparador` `:54`, `aliados.entidades` `:61`, `aliados.modulos` `:65`, `aliados.ecommerce` `:66`) · `:145-149` reglas.
 - Modelos: `app/Models/Allied.php` · `app/Models/AlliedBranch.php` (`:18` default del trigger, `:79` `isEcommerceBranch`, `:83` `hasCreditopX`) · `app/Models/LendersByAllied.php` · `app/Models/LendersByAlliedBranch.php` · `app/Models/AlliedEcommerceCredential.php` · `app/Models/Country.php:16` (`COLOMBIA_ID = 47`).
-- Validación: `app/Http/Requests/Admin/Allied/StoreRequest.php` (`Rule::in([47,60])`, exige `price`) · `app/Http/Requests/Admin/AlliedBranch/UpdateRequest.php` (**no valida `lenders_selected`**).
+- **Validación**: `app/Http/Requests/Admin/Allied/StoreRequest.php` (`Rule::in([47,60])`, exige `price`) · `app/Http/Requests/Admin/AlliedBranch/UpdateRequest.php` (**no valida `lenders_selected`**).
 - Consumo: `app/Services/lenders/LenderRetrievalService.php:533` (`lenders_by_allieds.max_amount` pisa el cupo de la entidad) · `:120-165` (`have_ctopx` + `no_more`) · `app/Http/Controllers/Customer/SimulatorController.php:32-41` (sucursal = membresía / comercio = economía).
 
 **Esquema** (`legacy-backend/database/migrations/`, la lista completa en `map.json`): las tres con
