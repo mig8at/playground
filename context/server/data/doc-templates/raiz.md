@@ -1,43 +1,35 @@
 # <Nombre> · raíz
-> **estado:** al día con main · <TL;DR: qué es el ecosistema, en 1 frase>
+> verificado contra `main` el <YYYY-MM-DD> — <MÉTODO: qué se leyó/corrió/midió para poder afirmarlo>
+> <TL;DR: qué es el ecosistema, en 1 frase>
 
-<!-- RAÍZ = la base del ecosistema (main). Es el punto de entrada: un LLM/humano
-     arranca acá para entender el todo. Documentación productiva, siempre al día con main.
-     Es el HOGAR de lo transversal que ningún flujo dueña (estados, datos, frontera de pruebas):
-     los flujos referencian esto en vez de repetirlo. Secciones sin marca = obligatorias. -->
+<!-- RAÍZ = el punto de entrada y el HOGAR de lo transversal que ningún flujo dueña: estados,
+     invariantes, glosario, colisiones de id. Los flujos apuntan acá y NO lo repiten. Mismas
+     reglas de escritura que `referencia.md`. -->
 
 ## Qué es
 <El sistema en 1–2 párrafos: qué hace, actores, modelos. La foto grande.>
 
-## Arquitectura
-<Los repos y cómo se reparte la lógica: qué corre dónde, acoples, base de datos compartida, etc.>
+## Invariantes
+<!-- El bloque que más rinde del árbol: cada invariante CORRIGE una conclusión obvia-y-falsa
+     concreta, en 1–3 líneas, con su F-xx. Leelos antes de concluir nada. -->
+- **<la regla>** — <la conclusión falsa que corrige> (F-xx).
 
 ## Datos / tablas clave
-<!-- Transversal: los flujos lo consultan, ninguno lo dueña. Compacto + puntero al censo completo. -->
-<Entidades centrales + las capas de config (entidad/comercio/sucursal/categoría) + dónde deciden. Bugs de datos vivos.>
+<Las entidades centrales y DÓNDE deciden — compacto; el censo de columnas vive en el código.>
 
 ## Estados y catálogos
-<!-- Lugar canónico de las máquinas de estado; los flujos apuntan acá y NO las repiten. -->
-<El/los catálogo(s) de estado, la frontera (ej Estado 11), y los namespaces que se confunden (solicitud vs préstamo vs lender_transaction).>
+<El lugar canónico de las máquinas de estado y los namespaces que se confunden. Los flujos
+listan solo sus estados distintivos y apuntan acá.>
 
-## Frontera de pruebas / harness
-<!-- Mapa GLOBAL de simulación + cheat-sheet. Clave para el OKR de pruebas; sin hogar en los flujos. -->
-<Cómo despacha el harness por response_type · qué es inyectable vs frontera dura · cheat-sheet de mocks/bypasses/stashes · receta de usuario sintético.>
+## Convenciones y glosario
+<Nomenclatura de negocio, colisiones de id (ej. allied 24 vs lender 24), reglas de oro.>
 
-## Deuda técnica / hardcodes <!-- (opcional) -->
-<Puntero al inventario de hardcodes con archivo:línea + los ítems load-bearing (bugs P0 vivos, copias de reglas por sucursal).>
+## Dónde mirar
+<!-- SOLO rutas con ancla y porqué — lo transversal; lo temático vive en cada nodo. -->
+- `repo/ruta/archivo.php:123` — <qué decide ahí>.
 
-## Cómo se lee este árbol
-<El modelo: la RAÍZ es la base (main); los FLUJOS cuelgan de acá (documentación de cada flujo,
-al día con main); las TAREAS cuelgan de los flujos (trabajo con ramas propias por repo).>
+## Gotchas / riesgos
+<Lo contraintuitivo VERIFICADO transversal, con recibo.>
 
-## Convenciones
-<Nomenclatura de negocio, ramas base, reglas de oro del ecosistema. Incluí el GLOSARIO + las
-colisiones de ID (ej allied 24 vs lender 24) para que los flujos no repitan la advertencia.>
-
-## Bitácora
-<!-- fechado, append-only: solo cambios ESTRUCTURALES del ecosistema -->
-- **YYYY-MM-DD** — <qué cambió y por qué>
-
-## Enlaces
-<Índices/docs maestros del ecosistema · memorias.>
+## Lo que NO está verificado <!-- (opcional) -->
+<Con el método que falta. No preguntas hipotéticas.>

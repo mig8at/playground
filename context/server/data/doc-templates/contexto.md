@@ -1,31 +1,26 @@
 # <Nombre> · contexto
-> **estado:** al día con main · <TL;DR: qué tema acotado cubre este contexto, en 1 frase>
+> verificado contra `main` el <YYYY-MM-DD> — <MÉTODO: qué se leyó/corrió/midió para poder afirmarlo>
+> <TL;DR: qué tema acotado cubre, en 1 frase>
 
-<!-- CONTEXTO = una pieza de conocimiento ACOTADA y reutilizable de CreditOp (arquitectura de
-     un repo, una familia de prestamista, un subsistema, un concepto). Vive ARRIBA de la raíz.
-     Puede tener SUBCONTEXTOS (nodos más específicos que cuelgan de él). Las TASKS (abajo)
-     lo referencian cuando lo necesitan. Contá solo SU tema, acotado; enlazá lo demás.
-     Secciones sin marca = obligatorias; (opcional) según el contexto. -->
+<!-- CONTEXTO = una pieza de conocimiento acotada que puede tener SUBCONTEXTOS colgando.
+     Contá solo SU tema; lo de los hijos vive en los hijos. Mismas reglas de escritura que
+     `referencia.md`: test del párrafo · un hecho una casa · sin estado-vivo · historia→git,
+     preguntas→tablero, trampas→findings. -->
 
 ## Qué es
-<El tema en 1–2 párrafos: qué cubre, por qué importa, para qué tarea sirve.>
+<El tema en 1 párrafo, la conclusión primero.>
 
-## Contenido
-<!-- El corazón: los datos/mecánica del tema (resumen si es de alto nivel, o datos duros si
-     es técnico). Lo que hace que con leer este nodo te alcance para el tema. -->
+<Cuerpo en secciones ### por responsabilidad.>
 
 ## Subcontextos <!-- (opcional) -->
-<!-- si este contexto se subdivide, listá los nodos hijos + qué cubre cada uno en 1 línea -->
-- **<subcontexto>** — <qué cubre>.
+- **<subcontexto>** — <qué cubre, en 1 línea; el contenido vive allá>.
 
-## Dónde mirar <!-- (opcional) -->
-- **<subsistema>** (<repo>): `archivo` — <qué hace>.
+## Dónde mirar
+<!-- SOLO rutas con ancla y porqué — la lista completa ya vive en map.json. -->
+- `repo/ruta/archivo.php:123` — <qué decide ahí>.
 
-## Gotchas / riesgos <!-- (opcional) -->
-<Lo no-obvio del tema.>
+## Gotchas / riesgos
+<Lo contraintuitivo VERIFICADO, con recibo (F-xx, commit, método).>
 
-## Bitácora
-- **YYYY-MM-DD** — <qué cambió y por qué>
-
-## Enlaces
-<Nodos relacionados · memorias.>
+## Lo que NO está verificado <!-- (opcional) -->
+<Con el método que falta. No preguntas hipotéticas.>

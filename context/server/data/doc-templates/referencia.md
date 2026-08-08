@@ -1,38 +1,30 @@
 # <Nombre> · referencia
-> **estado:** al día con main · <TL;DR: qué sustrato transversal documenta, en 1 frase>
+> verificado contra `main` el <YYYY-MM-DD> — <MÉTODO: qué se leyó/corrió/midió para poder afirmarlo>
+> <TL;DR: qué tema acotado cubre, en 1 frase>
 
-<!-- REFERENCIA = material TRANSVERSAL que los flujos consultan (modelo de datos, motor de
-     decisión, harness, migración, alta/reglas). NO es un flujo: no lleva la tabla
-     quién-decide/cierra. Debe ser AUTOSUFICIENTE — traé los datos duros (ids, columnas,
-     reglas, números, cadencias) para no tener que abrir el doc fuente. Cuelga del group
-     Plataforma. Secciones sin marca = obligatorias. -->
-
-## Qué responde
-<!-- las preguntas/tareas que este nodo debe resolver SOLO (sin abrir docs/) -->
-- <pregunta que hoy te manda a docs/>
+<!-- REFERENCIA = material transversal que los flujos consultan. Reglas de escritura:
+     · Test del párrafo: o cambia lo que un modelo haría en una tarea plausible, o previene un
+       error que YA pasó (citá su F-xx). Si ninguna de las dos, no va.
+     · Un hecho, UNA casa: si pertenece a otro nodo, «→ ver <nodo> § <sección>» y no lo repitas.
+       Lo que vive en el código NO se copia (columnas, enums, códigos): se apunta a la línea.
+     · Nada de estado-vivo contable («hoy hay N…»): eso lo calculan las tools, no la prosa.
+     · Historia → git · preguntas → tablero (son tarea) · trampas con síntoma → findings. -->
 
 ## Qué es
-<El sustrato en 1 párrafo: qué es, por qué es transversal, qué flujos lo consultan.>
+<El tema en 1 párrafo, la conclusión primero: qué decide, dónde vive, qué lo hace no-obvio.>
 
-## Contenido
-<!-- EL CORAZÓN: el material sintetizado (tablas/listas con los datos duros). Lo que hace
-     autosuficiente al nodo. Traé los números/ids/columnas/reglas, no solo "mirá el doc". -->
+<El cuerpo va en secciones ### por responsabilidad: el análisis que NO se deduce leyendo un
+archivo solo — cruces entre repos, orden real de evaluación, vocabulario del dominio que el
+código usa sin definir.>
 
 ## Dónde mirar
-- **<subsistema>** (<repo>): `archivo`, `archivo` — <qué hace>.
-
-## Frontera de simulación / harness <!-- (opcional) -->
-<Si aplica al OKR de pruebas: qué es inyectable, qué mockear, la receta.>
+<!-- SOLO rutas con ancla y porqué — la lista completa de archivos ya vive en map.json. -->
+- `repo/ruta/archivo.php:123` — <la conclusión no-obvia que se ve ahí (dónde DECIDE, no qué es)>.
 
 ## Gotchas / riesgos
-<Lo no-obvio verificado: bugs vivos, campos muertos, colisiones, hardcodes.>
+<Solo lo contraintuitivo VERIFICADO que cambia una decisión, cada uno con su recibo: F-xx,
+commit, o el método con que se comprobó.>
 
-## Preguntas abiertas <!-- (opcional) -->
-- [ ] <lo no confirmado>
-
-## Bitácora
-<!-- fechado, append-only -->
-- **YYYY-MM-DD** — <qué cambió y por qué>
-
-## Enlaces
-<Doc(s) fuente (mientras existan) · nodos que lo consultan · memorias.>
+## Lo que NO está verificado <!-- (opcional) -->
+<Afirmaciones que faltó comprobar, con el método que falta (correr X, mirar la tabla Y).
+NO son preguntas hipotéticas: si ninguna tarea la va a hacer, no ocupa contexto.>
