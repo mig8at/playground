@@ -159,6 +159,130 @@ mitades son ciertas. Propongo convertirlo en **regla escrita**: *no se abre un t
 las pantallas converjan.* Si no se decide explícitamente, se decide por omisión — y el tercer país llega
 con su tercera copia.
 
+## EL PASO A PASO
+
+Ordenado por **dependencia**, no por importancia. Son dos vías que arrancan en paralelo y convergen en el
+invariante. Cada paso dice **cómo se verifica**, porque un paso de datos sin verificación es una creencia.
+
+### Vía A — apagar el daño que ya está pasando
+
+**A1 · El prefijo, donde el código de verdad lo lee.** `phone_code` está **NULL en los tres países** y es
+la que leen los 24 puntos; `dial_code` sí está poblada (57 · 1) y casi nadie la mira. Son **dos UPDATE**:
+copiar `dial_code` a `phone_code` **con el `+` adelante** (los lectores concatenan sin normalizar).
+- *No depende de nada* — los comercios ya apuntan a las filas correctas (47 y 60).
+- *Verificación*: mandar una notificación a un cliente de un comercio dominicano y ver el destino. Y que
+  un colombiano siga saliendo igual.
+- ⚠ Poblar sólo 47 y 60, **no la fila 1**: dejarla NULL mantiene el `?? '+57'` como red mientras exista.
+
+**A2 · La geografía de República Dominicana.** Las 32 provincias ya están en `country_zones`; faltan las
+ciudades. El área metropolitana de Santo Domingo alcanza para los 13 puntos de venta.
+- *Verificación*: que el selector de ciudad muestre ciudades dominicanas al editar un comercio de RD.
+
+**A3 · Corregir los 13 puntos de venta.** Depende de A2. Las direcciones registradas identifican la
+provincia sin ambigüedad, así que es mecánico.
+- *Verificación*: la consulta que destapó el bug tiene que dar cero.
+  ```sql
+  SELECT COUNT(*) FROM allied_branches b
+    JOIN allieds a ON a.id = b.allied_id
+    JOIN country_cities c ON c.id = b.country_city_id
+    JOIN country_zones z ON z.id = c.country_zone_id
+   WHERE z.country_id <> a.country_id;   -- hoy: 13
+  ```
+
+**A4 · La nacionalidad en los documentos.** 0 de 375.429 clientes la tienen, y los contratos imprimen
+«COLOMBIANA» por omisión. **No se arregla poblando 375 mil filas**: se arregla haciendo que el documento
+tome la nacionalidad del **país del comercio** cuando no hay dato del cliente — que es una inferencia
+mucho mejor que «Colombia siempre», y no requiere backfill.
+- *Verificación*: generar el contrato de un caso dominicano y leer el campo.
+
+### Vía B — que no vuelva a pasar
+
+**B1 · Una sola Colombia. Bloquea B3.** Migrar de la fila **1 («Afghanistan»)** a la **47 (Colombia)**:
+186 entidades y 364.527 clientes. Y poblar `iso_code_2` en la 47 (`CO`), que hoy está vacío mientras el
+código compara `$countryIso === 'DO'`.
+- **Por qué bloquea**: el invariante de B3 es *«el país de X es el país de Y»*, y con dos Colombias eso da
+  **falso** para todo comercio en 47 con entidad en 1. **Literalmente no se puede escribir la regla
+  mientras existan dos filas de Colombia.** Ése es el argumento del orden, no el riesgo.
+- *Verificación*: `SELECT COUNT(*) FROM lenders WHERE country_id = 1` → 0. Y el listado de opciones de
+  crédito de un comercio colombiano sigue devolviendo lo mismo (⚠ acá viven las **8 consultas con id de
+  país fijo** del anexo: hay que corregirlas **en el mismo PR**, o el listado queda vacío).
+- ⚠ Es el único paso destructivo. Va con respaldo de las dos columnas antes de tocar.
+
+**B2 · Que «resolver el país» exista una vez.** Una función, con los defaults adentro. Es lo único de
+código de todo el plan, y no cambia comportamiento: el default sigue siendo Colombia.
+- Reemplaza las 4 copias de `currency_format`, las 4 de `$isDoLogic` y los 2 `?? '+57'` encadenados.
+- *Verificación*: comparar la respuesta de los endpoints tocados antes y después, para un comercio de cada
+  país. Tienen que ser idénticas.
+
+**B3 · El invariante, en los dos lados.** Depende de A3 y B1.
+- la **ciudad** de un punto de venta pertenece al país de su comercio;
+- la **entidad** que se asocia a un comercio opera en el país de ese comercio.
+- Hoy los dos se cumplen (medido: **cero** asociaciones cruzadas en `lenders_by_allieds` y en
+  `lenders_by_allied_branches`) — o sea que activar la regla **no rompe nada existente**. Es la mejor
+  ventana posible para ponerla.
+- ⚠ **La validación es la red, no el arreglo.** El arreglo del 13/13 es **filtrar el selector de ciudad
+  por el país del comercio**: si el comercio es dominicano, «Santo Domingo, Antioquia» no aparece en la
+  lista y el error se vuelve imposible de cometer. Una validación que rechaza al guardar avisa tarde y
+  frustra; un selector filtrado no deja equivocarse.
+
+## LA FORMA LIMPIA: el país en comercios y entidades
+
+Lo que hay que dejar armado para que esto no se vuelva a desarmar. La clave es que **el país no significa
+lo mismo en cada lugar**, y hoy están tratados como si sí:
+
+| dónde | qué significa de verdad | quién lo consume | estado hoy |
+|---|---|---|---|
+| **comercio** `allieds.country_id` | **dónde opera** → define el mercado del cliente: moneda, locale, prefijo, geografía | los 4 `currency_format`, el documento firmado | ✅ correcto (307→47 · 9→60) |
+| **entidad** `lenders.country_id` | **dónde está habilitada a prestar** → jurisdicción: tope de tasa, instrumento del título, burós, impuesto | **hoy nada lo lee para decidir** | ⚠ 186 → fila «Afghanistan» |
+| **cliente** `users.country_id` | **nacionalidad / residencia** → tipo de documento. **NO es el mercado** | los documentos | ⚠ 364.527 → «Afghanistan» |
+
+### Tres reglas, y con eso alcanza
+
+**1 · Se GUARDA donde es un hecho propio; se DERIVA donde es una consecuencia.**
+
+| | |
+|---|---|
+| **comercio** | se guarda. **Obligatorio** — es un hecho del comercio |
+| **entidad** | se guarda. **Obligatorio** — es un hecho de su licencia |
+| **sucursal** | **se deriva** del comercio. Nunca columna *(ya es así, y la geografía también: `country_cities.country_zone_id` → `country_zones.country_id`)* |
+| **solicitud** | **se deriva** del comercio de su sucursal. Nunca columna |
+| **cliente** | se guarda, pero **degradado a nacionalidad**: no se usa para decidir mercado |
+
+Ese último punto es el que más simplifica: **si `users.country_id` deja de ser fuente de mercado, las
+364.527 filas que apuntan a «Afghanistan» dejan de ser una mina** y pasan a ser sólo un dato de
+nacionalidad equivocado — que igual hoy no existe (0 de 375.429). Y baja el riesgo de B1: lo que hay que
+migrar con cuidado son las 186 entidades, no las 364 mil personas.
+
+**2 · Un solo invariante los ata: manda el país del comercio.** La ciudad de su sucursal pertenece a ese
+país, y las entidades que se le asocian operan en ese país. Nada más. No hace falta un motor de reglas.
+
+**3 · Una sola función lo resuelve, y el default vive ahí.** `mercadoDe(solicitud)` → sucursal → comercio
+→ país. Nadie más vuelve a preguntar de qué país es algo. La regla que lo hace cierto es de revisión de
+código, no de arquitectura: **si en un PR aparece un literal de país, es un bug**.
+
+### Lo que a propósito NO se construye ahora
+
+**Una entidad opera en UN país: una columna, no una tabla puente.** Hoy son 187 entidades y ninguna opera
+en dos países. Armar la relación muchos-a-muchos «por si acaso» es sobre-diseño: se paga hoy y se usa
+nunca. **El día que una entidad realmente opere en dos países, ése es el momento** — y va a ser un cambio
+chico, porque la resolución ya pasa por un solo lugar (regla 3). Es la misma disciplina que descartó los
+submercados: no se construye la generalización antes del segundo caso.
+
+## ⚠ Discrepancia a resolver (no pude reproducir un número del doc)
+
+El doc menciona en la limpieza *«12 asociaciones de la entidad dominicana con comercios colombianos que
+nunca se usaron»*. **Mis consultas dan cero cruces**, en las dos tablas y con las dos filas de Colombia
+normalizadas:
+
+| tabla | mismo país | cruzadas |
+|---|---:|---:|
+| `lenders_by_allieds` | 1.089 CO↔CO · 8 RD↔RD | **0** |
+| `lenders_by_allied_branches` | 7.522 CO↔CO · 13 RD↔RD | **0** |
+
+Y el lender 160 (SmartPay, RD) tiene sus 8 asociaciones, todas con comercios dominicanos. ¿De qué tabla
+salieron los 12? Puede ser otra tabla, otro estado, o una entidad dominicana que **no está marcada como
+RD** — y esa tercera posibilidad importaría, porque sería un caso más de B1.
+
 ---
 
 # ANEXO · el análisis previo (para trazabilidad)
