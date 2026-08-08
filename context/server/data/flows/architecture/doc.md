@@ -2,6 +2,12 @@
 > **estado:** al día con main · Índice de los 3 repos de originación de CreditOp (application, legacy-backend, frontend-monorepo) y de las **costuras** por las que se hablan: una BD compartida + 4 saltos HTTP.
 
 ## Qué es
+
+> ⚠ **Este nodo describe el monolito y sus vecinos conocidos, y eso NO es todo lo que corre.** Medido en
+> Loki el 2026-08-07: **14 servicios** emiten logs en producción, y el más ruidoso de todos no es el
+> monolito sino `financial-health-service` (el backend de la **app móvil**). El censo completo —con
+> volumen, qué está clonado y qué indexa el árbol— está en el nodo **`microservicios`**. Empezá por ahí
+> si la tarea toca algo que no encontrás en `legacy-backend` ni en `legacy-application`.
 Nodo ÍNDICE del ecosistema. La misma originación de crédito vive repartida —y a menudo **duplicada**— en varios repos, así que antes de leer cualquier flujo conviene saber quién corre en prod, quién es reescritura, y **por dónde pasan los datos de un repo a otro**. Contexto BASE: sirve para casi cualquier tarea.
 
 El hecho estructural central es el **strangler / parallel-run**: mucha lógica existe dos veces (application VIVO ↔ legacy reescrito) sobre la **misma base de datos**. Salvo indicación, **application es el que corre**; legacy solo recibe el tráfico de los comercios que un allowlist habilita explícitamente.

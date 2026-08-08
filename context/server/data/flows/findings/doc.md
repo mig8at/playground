@@ -55,6 +55,7 @@ acá, saltá al `F-xx` y leé sólo eso.
 | **«esto anda en local y no en dev/qa» / «probé contra el ambiente equivocado»** | F-06 · F-18 · F-61 · F-62 · F-65 · F-73 · F-74 · F-76 · F-77 · F-95 |
 | **«parece un bug del producto» (y es una env faltante)** | F-04 · F-05 · F-23 · F-70 · F-98 · F-99 · F-104 |
 | **«la pantalla no avanza y no hay ningún error»** | F-01 · F-02 · F-03 · F-58 · F-88 · F-91 · F-92 |
+| **«¿en qué repo vive esto? / no está en el monolito»** | **F-123** |
 | **«¿qué significa de verdad esta tabla/columna?»** | F-19 · F-24 · F-93 · F-96 · F-97 · F-100 · F-101 · F-103 · F-105 · F-106 |
 | **«los logs no me dicen de qué solicitud son»** | F-20 · F-98 · F-99 · F-102 |
 | **«no le aparece ninguna entidad en el listado»** | F-04 · F-34 · F-56 · F-75 · F-78 |
@@ -3250,5 +3251,65 @@ el original **divergen en silencio**. Acá el arreglo se hizo del lado nuevo y e
 sirviendo tráfico— quedó con el defecto. Al leer un comportamiento en el repo migrado, **no asumir que el
 otro hace lo mismo**: es el mismo patrón que las dos implementaciones del rotativo (F-114) y las dos
 convenciones de tasa (F-71).
+
+---
+
+### F-123 · El árbol describía 5 repos mientras producción corría 14 servicios
+
+**Síntoma.** Una tarea sobre algo que no está en el monolito no rutea a ningún lado: el árbol contesta
+«no lo tengo» cuando la respuesta existe, sólo que en un repositorio que nunca miró. Y peor: una cita a
+un archivo de esos repos **dropea en silencio** —el oráculo no la valida porque el root no existe— así
+que el nodo queda con una ruta muerta que nadie detecta.
+
+**Causa raíz** (medida, no supuesta). `tools/roots.py` listaba **5 repos** (`legacy-application`,
+`frontend-monorepo`, `legacy-backend`, `pre-approvals-service`, `form-service`) más las dos herramientas
+propias. Preguntándole a Loki qué `service_name` emitió logs en producción en los últimos 7 días
+salieron **14 servicios**. El criterio implícito para agregar un root nunca se escribió, y en la práctica
+fue «lo que ya estaba», no «lo que corre».
+
+Volumen medido en 24 h, que es lo que ordena la lista:
+
+| | líneas/24 h | ¿estaba en el árbol? |
+|---|---:|---|
+| `financial-health-service` | **86.350** | ❌ |
+| `legacy-backend` | 75.737 | ✓ |
+| `merchant-api` | 35.840 | ❌ (ni clonado) |
+| `self-manager-api` | 34.584 | ❌ (ni clonado) |
+| `preapprovals-service` | 16.572 | ✓ |
+| `legacy-application` | 11.396 | ✓ |
+| `otp-service` · `onboarding-forms-service` · `merchant-gateways-service` · `reportery-service` · `pdf-mapper-service` · `customer-profiling-service` · `customer-service` | 1.647 → 5 | ❌ |
+
+⚠ **El servicio que más loguea en producción no es el monolito**, y el árbol no sabía que existía:
+`financial-health-service` sirve a la **app móvil** (códigos `MOBA*`, header `X-User-Id`). O sea que
+había un producto entero fuera del alcance, y nadie lo había declarado fuera — simplemente no se veía.
+
+**Evidencia.** Dos consultas a Loki (la receta quedó en el nodo `microservicios` para poder repetirla).
+El censo de repos en disco. Y la comprobación de que `microservices/` contiene **seis clones anidados**
+que ninguna herramienta miraba.
+
+**Arreglo.** Aplicado en parte, el 2026-08-07:
+
+- **5 roots nuevos** en `tools/roots.py` — los que están **vivos en prod Y clonados**:
+  `customer-profiling-service`, `onboarding-forms-service`, `customer-service`,
+  `financial-health-service`, `pdf-mapper-service`. El índice pasó de 6.291 a **6.539 archivos**.
+- **Nodo `microservicios`** con el censo, el volumen y la receta para volver a medirlo.
+- **El criterio quedó escrito** en el docstring de `roots.py`: se agrega un root cuando el servicio está
+  vivo en producción, no cuando el repo aparece en el disco. Un repo clonado que no corre documentaría
+  algo que no existe.
+- **Falta**: `merchant-api` y `self-manager-api` no están clonados. Son #3 y #4 por volumen y no hay nada
+  que indexar hasta que se clonen.
+
+**Estado:** verificado el 2026-08-07 contra producción (Loki) y `main` de cada repo.
+
+⚠ **La lección, que es hermana de la de `db-routines`**: el árbol tiene **puntos ciegos estructurales**
+—cosas que no puede ver por cómo está configurado, no por descuido—, y son invisibles justamente porque
+la herramienta no los reporta como faltantes. `.sql` era uno (42 rutinas con lógica de negocio). Los
+repos no listados eran otro, y más grande. La forma de encontrarlos no es leer más código: es **medir
+contra la realidad de producción** —qué tablas se escriben, qué servicios loguean— y comparar contra lo
+que el árbol declara.
+
+⚠ **Y un corolario para no equivocarse en la dirección opuesta**: *desplegado* no es *usado*.
+`customer-profiling-service` tiene cuatro releases en producción y **5 líneas de log en 24 h**. Para una
+tarea de burós hoy, la verdad sigue estando en el monolito.
 
 ---

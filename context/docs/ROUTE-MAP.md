@@ -2,7 +2,7 @@
 
 > Índice estático del árbol de contexto (reemplaza al MCP). **Cómo usar:** leé los `Cuándo:` de abajo, elegí 2–4 nodos que matcheen tu tarea, abrí `server/data/flows/<id>/doc.md` (el análisis) y `server/data/flows/<id>/map.json` (la lista de archivos fuente), y de ahí leé el código real. Las rutas de `map.json` son `alias/relpath`.
 
-**Repos (alias → root):** `application`→`~/Desktop/CREDITOP/github/legacy-application` · `frontend-monorepo`→`~/Desktop/CREDITOP/github/frontend-monorepo` · `legacy-backend`→`~/Desktop/CREDITOP/github/legacy-backend` · `pre-approvals-service`→`~/Desktop/CREDITOP/github/pre-approvals-service` · `form-service`→`~/Desktop/CREDITOP/github/form-service` · `harness`→`~/Desktop/CREDITOP/playground/harness` · `trazador`→`~/Desktop/CREDITOP/playground/trazador`
+**Repos (alias → root):** `application`→`~/Desktop/CREDITOP/github/legacy-application` · `frontend-monorepo`→`~/Desktop/CREDITOP/github/frontend-monorepo` · `legacy-backend`→`~/Desktop/CREDITOP/github/legacy-backend` · `pre-approvals-service`→`~/Desktop/CREDITOP/github/pre-approvals-service` · `form-service`→`~/Desktop/CREDITOP/github/form-service` · `customer-profiling-service`→`~/Desktop/CREDITOP/github/customer-profiling-service` · `onboarding-forms-service`→`~/Desktop/CREDITOP/github/onboarding-forms-service` · `customer-service`→`~/Desktop/CREDITOP/github/microservices/customer-service` · `financial-health-service`→`~/Desktop/CREDITOP/github/microservices/financial-health-service` · `pdf-mapper-service`→`~/Desktop/CREDITOP/github/microservices/pdf-mapper-service` · `harness`→`~/Desktop/CREDITOP/playground/harness` · `trazador`→`~/Desktop/CREDITOP/playground/trazador`
 
 **Mantenimiento:** validar que las rutas resuelven → `python3 tools/oracle.py <map.json>`. Regenerar este mapa → `python3 tools/build-route-map.py`.
 
@@ -21,6 +21,7 @@ Si la tarea llega con una de estas frases, empezá por esos nodos. Si ninguna ma
 | «¿dónde se trabó?» | `aggregator` · `formalization` · `trazador` |
 | «el botón Descargar Solicitudes trae mal» | `application` |
 | «el celular no se bloquea» / IMEI | `smartpay` |
+| «el cliente no puede firmar el pagaré» | `deceval` |
 | «el código de compra en caja no sirve» | `corbeta` |
 | «el endpoint devuelve un código raro» (ONB0xx) | `legacy-backend` |
 | «el listado tardó minutos» | `profiling` |
@@ -40,12 +41,14 @@ Si la tarea llega con una de estas frases, empezá por esos nodos. Si ninguna ma
 | «falló el renting / Ábaco» | `motai` |
 | «falló en Pullman / CrediPullman» | `pullman` |
 | «falló firmando documentos» | `findings` · `formalization` |
+| «firmó y no se desembolsó» | `deceval` |
 | «formulario no encontrado» | `dynamic-forms` · `form-service` |
 | «hay que agregar un campo al formulario» | `dynamic-forms` · `form-service` |
 | «hay que integrar una entidad nueva» | `hardcodes-entidades` |
 | «la pantalla del wizard se ve/comporta mal» | `frontend-monorepo` |
 | «las condiciones que vio no son las del cupo que quedó» | `rotativo` |
 | «lo mandó al sitio del lender y no volvió» | `redirect` |
+| «los datos del cliente no coinciden con el registro» | `deceval` |
 | «necesito reproducir/probar un flujo entero» | `findings` · `harness` |
 | «no le apareció ninguna entidad» | `creditopx` · `findings` · `kyc` · `merchants` · `profiling` |
 | «no le consultaron el buró» | `kyc` |
@@ -93,6 +96,7 @@ Si la tarea llega con una de estas frases, empezá por esos nodos. Si ninguna ma
     - redirect [ref]
   - findings [ref]
   - formalization [ref]
+    - deceval
     - dynamic-forms [ref]
       - form-service [ref]
   - hardcodes-entidades [ref]
@@ -156,6 +160,10 @@ Doc: `server/data/flows/creditopx/doc.md` · Archivos: `server/data/flows/credit
 ### db-routines — Rutinas de BD  ·  _reference_ · 7 archivos
 **Cuándo:** Cuando el cálculo que buscás NO aparece en el código PHP: hay 42 procedimientos y funciones almacenados en MySQL con lógica de negocio, invocados como string dentro de `DB::scalar` / `DB::select` / `CALL`, así que grepear el nombre del campo nunca llega a la fórmula. Acá viven el ingreso promedio y la ocupación que deciden la categoría (`FN_User_Income_Average`, `FN_User_Occupation`), las 23 `FN_Experian_*` que arman los features del perfilador ML (`SP_Experian_Extract_Data`), el parseo de Mareigua y AgilData, el revolvente rt=3, el descifrado del reporte (`FN_Decrypt_Data`) y el SP que ata el buró a la solicitud (F-107). ⚠ 4 de las 42 NO tienen fuente en ningún repositorio y dos de ellas se llaman desde producción.
 Doc: `server/data/flows/db-routines/doc.md` · Archivos: `server/data/flows/db-routines/map.json` · Padre: `creditop`
+
+### deceval — Deceval (pagaré digital)  ·  _flujo_ · 20 archivos
+**Cuándo:** Cuando el problema es la FIRMA DEL PAGARÉ contra Deceval —el depósito de la BVC que custodia los títulos valores digitales—: «el cliente no puede firmar», «los datos no coinciden con el registro», «el pagaré quedó sin número», «se firmó pero no se desembolsó». Acá viven el ruteo por método de firma (`lenders.promissory_type_id` → `deceval` | `ownership`), las cuatro operaciones SOAP (createGirador → createPagare → consultPagare → signPagare), WS-Security con mTLS, las credenciales POR DEPOSITANTE (cada lender tiene su propio código ante Deceval, y cada depositante exige campos distintos del girador), y las dos tablas que reconstruyen un caso: `deceval_logs` (el XML enviado y recibido) y `promissory_notes`. Hoy en producción con Credifamilia y Dentix. NO es el OTP en sí (eso es `formalization`) ni el pagaré tradicional sin Deceval.
+Doc: `server/data/flows/deceval/doc.md` · Archivos: `server/data/flows/deceval/map.json` · Padre: `formalization`
 
 ### dynamic-forms — Dynamic Forms  ·  _reference_ · 90 archivos
 **Cuándo:** Cuando hay que agregar o cambiar un CAMPO del formulario por configuración: las tres generaciones de formulario dinámico, EAV `user_field_values`, tipos de documento por sucursal, `form_type` por lender (Credifamilia es el 6). Síntomas típicos: «formulario no encontrado», el form dinámico carga pero no deja avanzar, o hay que sumar un campo en cascada (departamento→ciudad) sin escribir código. La ruta del wizard es `additional-info`.

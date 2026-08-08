@@ -78,6 +78,13 @@
    "updated": "2026-07-17T18:53:00Z"
   },
   {
+   "id": "microservicios",
+   "name": "Microservicios",
+   "parent": "architecture",
+   "created": "2026-08-07T00:00:00Z",
+   "updated": "2026-08-07T00:00:00Z"
+  },
+  {
    "id": "entities",
    "name": "Entities",
    "targets": {

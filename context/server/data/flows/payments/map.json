@@ -78,5 +78,12 @@
     "frontend-monorepo/modules/loan-request-wizard/lenders-marketplace/src/lib/application/get-lender-transaction-status.uc.ts",
     "frontend-monorepo/modules/loan-request-wizard/lenders-marketplace/src/lib/infrastructure/repositories/lender-transaction-status.repository.ts",
     "frontend-monorepo/apps/loan-request-wizard/app/routes/lenders-marketplace/available-lenders.tsx"
-  ]
+  ],
+  "pending_merge": {
+    "ref": "origin/feature/CRED-101-recaudo-bhd-inbound-api",
+    "files": [
+      "legacy-backend/Modules/Loans/routes/recaudo_bhd.php",
+      "legacy-backend/Modules/Loans/app/PaymentCollection/Infrastructure/Bhd/BhdPresenter.php"
+    ]
+  }
 }

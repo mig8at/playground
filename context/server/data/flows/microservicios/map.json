@@ -1,0 +1,30 @@
+{
+  "name": "Microservicios (qué corre además del monolito)",
+  "kind": "referencia",
+  "when": "Cuando la tarea toca algo que NO está en `legacy-backend` ni en `legacy-application` y no se sabe dónde vive: «¿quién sirve este endpoint?», «¿qué es este `service_name` que aparece en los logs?», «¿hay un servicio nuevo que hace esto?», «el monolito no tiene este código, ¿dónde está?». Acá está el CENSO de los 14 servicios que emiten logs en producción —medido en Loki, no supuesto—, cuáles están clonados, cuáles indexa el árbol y cuánto pesa cada uno. También la receta para volver a medirlo. Es el nodo que contesta la pregunta previa a cualquier otra: en qué repositorio buscar. Y el que avisa que la app MÓVIL (`financial-health-service`, `MOBA*`) es un producto entero fuera del alcance de este árbol.",
+  "sintomas": [
+    "«¿en qué repo vive esto?»",
+    "«¿qué es este service_name de los logs?»",
+    "«el monolito no tiene este endpoint»"
+  ],
+  "verified": {
+    "ref": "main",
+    "date": "2026-08-07",
+    "source": "cabecera"
+  },
+  "files": [
+    "customer-profiling-service/cmd/http-server/main.go",
+    "customer-profiling-service/internal/core/workflows/legacykycpipeline/workflow.go",
+    "customer-profiling-service/internal/core/workflows/legacykycpipeline/walk.go",
+    "customer-profiling-service/internal/core/workflows/kyc/workflow.go",
+    "customer-profiling-service/internal/core/domain/pipeline.go",
+    "customer-profiling-service/internal/infra/storage/postgres/pipeline_repository.go",
+    "financial-health-service/cmd/http-server/main.go",
+    "financial-health-service/internal/infra/handlers/http/financial_health/http_handler.go",
+    "financial-health-service/internal/infra/handlers/http/financial_profile/http_handler.go",
+    "customer-service/cmd/http-server/main.go",
+    "pdf-mapper-service/cmd/http-server/main.go",
+    "onboarding-forms-service/cmd/http-server/main.go",
+    "legacy-backend/Modules/Onboarding/App/Http/Controllers/OnboardingController.php"
+  ]
+}

@@ -80,6 +80,36 @@ Contexto textual (ambos):
 ```
 Es el **único `dd()`** del dominio de pagos (no hay dd en `Payvalida.php` ni en los controllers). Efecto: cualquier fallo transitorio del endpoint `/merchants/{public-key}` de Wompi rompe el flujo con un dump en vez de degradar. Fix trivial (borrar la línea) pero **no aplicado** en ninguna de las dos ramas. Nota: hay un `//dd($wompiRequest);` **comentado** en `WompiController::store:174` (inofensivo) — no confundir con el activo.
 
+## ⏳ Recaudo referenciado BHD (RD) — existe, y NO está en `main`
+
+> ⏳ **PENDIENTE DE MERGE** — vive en `origin/feature/CRED-101-recaudo-bhd-inbound-api`
+> (último commit 2026-08-03, hans peter). Verificado el 2026-08-07: **cero archivos en `main`**.
+> Al mergear: re-verificar, traer las rutas a `files[]` y **borrar esta marca**.
+
+Va acá y no en un nodo propio justamente porque no corre todavía; lo que sigue es un puntero para que
+nadie lo re-descubra desde cero. **Es un giro de modelo, no una integración más**: en Recaudo BHD
+**CreditOp actúa como empresa recaudadora y el banco es un CANAL DE PAGO, no un lender** — el banco
+consulta la deuda por cédula, notifica el pago y puede reversarlo, todo en tiempo real. Es la primera
+vez que un tercero **entra** a preguntarle a CreditOp cuánto debe alguien.
+
+- **59 archivos** en `Modules/Loans/app/PaymentCollection/` — hexagonal + DDD, con el motor legado detrás
+  de puertos vía anti-corruption layer, y `ProviderRegistry` resolviendo el perfil por `provider_key`.
+  El diseño anticipa más recaudadores: los códigos del banco viven en **un solo lugar**
+  (`Infrastructure/Bhd/BhdPresenter`).
+- **4 endpoints** bajo `api/v1/recaudo` (`Modules/Loans/routes/recaudo_bhd.php`): `/token` (OAuth2
+  client_credentials → JWT HS256, 3600 s), `/consulta` (scope `read_data`), `/pagos` (idempotente por
+  `CodigoTransaccion`), `/reverso` (mismo día, último movimiento).
+- ⚠ **La semántica de errores es al revés de lo habitual**: los errores de NEGOCIO responden **HTTP 200**
+  con un código `MTD*` en `CodigoRespuesta` (así lo exige el contrato de BHD); los 4xx son sólo
+  transporte y validación. Un monitor que cuente 5xx/4xx para medir salud **no vería ningún error de
+  negocio**.
+- ⚠ **Los montos son enteros con decimales implícitos**: `13045` = RD$ 130,45. Y la moneda va en dos
+  formatos según la dirección: la consulta responde el código **alfabético** (`DOP`) y el request de
+  pagos de BHD trae el **numérico** (`000`).
+
+Fuente: Confluence · *Documentación Técnica: Recaudo Referenciado y Arquitectura de Pagos en Tiempo
+Real*, v2 (2026-08-03), contrastado contra la rama.
+
 ## Fronteras (qué cede este nodo)
 - **→ `servicing`:** la **cascada de imputación** (`CreditopXPaymentController::processPayment`, `CreditopXRevolvingCreditPaymentController::processPayment`), el ledger `creditop_x_requests_history`, los 6 crons post-desembolso (incl. `UpdateCreditopXNotAppliedWompiPaymentCommand` 00:02 y `apply-payment`), la contabilidad de mora/interés/FGA, el recaudo **Pullman** (SQL Server, canal aparte no-pasarela) y los reportes/exports de pagos. Regla: donde `updateStatus` llama `processPayment`, ahí termino yo y empieza servicing.
 - **→ `formalization`:** el **formulario** de formalización (dynamic forms, KYC, promissory note, firma), el **cronograma de cuotas** (`PaymentSchedule*`, payment-date, first-payment-date) y el **voucher/comprobante**. Yo solo cubro el **paso de pago** de la cuota inicial (crear txn, firmar, redirigir, confirmar), no el cálculo del enganche mínimo (`LenderUserCategoryService` → viene de config de categoría) ni el resto del wizard.
