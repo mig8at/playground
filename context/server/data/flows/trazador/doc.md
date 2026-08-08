@@ -167,21 +167,6 @@ leerlo entero.
 - [ ] El veredicto del listado por log (`lenders_count`) necesita un campo `campos` en `HitoDef` para
       mostrarse como hito; hoy lo lee el ensamblador directo.
 
-## Bitácora
-
-- **2026-08-07** — Se agregó `deceval_logs` (`GetDeceval`): la etapa `disbursement` muestra las cuatro
-  operaciones contra Deceval con su respuesta. Y se eliminó el bloque `centrales` de `desembolso` (mapa
-  3.0): su única entrada era Deceval, y el tipo `catalogo` cuenta filas de `risk_central_user_data` —
-  que Deceval **nunca** escribe, así que un pagaré firmado sin un problema salía «0 de 1 centrales
-  consultadas». Un falso negativo que el mapa mismo ya desmentía en una nota.
-- **2026-08-07** — La etapa `profiler` deja de ser gris: se agregó `users_category_log` como fuente
-  (`GetCategorias`), que contesta «¿por qué a este cliente no le salió esta entidad?» por entidad y por
-  tier. Cuatro trampas quedaron comentadas en el código y en **F-118**; el status de `cupo` pasó a ser un
-  veredicto (9 evaluaciones con 0 categorías salía ✔).
-- **2026-08-07** — Nodo creado. La herramienta existía desde julio pero no estaba en el árbol: su
-  conocimiento vivía sólo en los comentarios del código. Se agregó `trazador` a `tools/roots.py` (mismo
-  caso que `harness`: subdirectorio de playground, no repo propio).
-
 ## Enlaces
 
 - `harness` — el gemelo que PROVOCA flujos en vez de leerlos.

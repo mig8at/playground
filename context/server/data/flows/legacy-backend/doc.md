@@ -141,10 +141,6 @@ Dos apps Laravel sobre la **misma base de datos**. Números duros del diff:
 - **¿Cuál de los dos registros de Loans usan los clientes** (`api/loans/...` vs `api/loans/customer/...`)? El front usa el primero en las rutas que revisé, pero no audité las 29.
 - No pude correr `php artisan route:list` (el `vendor/` instalado exige PHP ≥ 8.4.1 y el intérprete local es 8.2.29): los conteos de rutas son estáticos, contando declaraciones `Route::…` por archivo.
 
-## Bitácora
-- **2026-07-18** — Fase de data: nodo documentado por ANALISIS DE CODIGO (no habia doc fuente) + superficie curada.
-- **2026-07-17** — Contexto sembrado desde playground/flow (MAP.md §0 tabla Repos + Apéndice C índice legacy + S1-S6, corrección S4 "legacy sí tiene cliente Experian").
-
 ## Enlaces
 - Padre: **Architecture**. Hermanos: **application** (el monolito Inertia y el servicing), **frontend-monorepo** (el wizard que consume estas APIs), **ms-preapprovals** (MS Go rt=1).
 - Temas que cruzan este repo: **Onboarding**, **Profiling**, **CreditopX**, **KYC**, **Formalization**, **Merchants**.

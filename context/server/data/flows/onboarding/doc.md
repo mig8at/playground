@@ -208,10 +208,6 @@ En G2 **el body gana**: `request()->input('amount') ?? session('amount') ?? 0`. 
 - `initial_fee`: el simulador lee `allieds.initial_fee` / `allieds.initial_fee_percentage` y `lenders_by_allied_branches.initial_fee_percentage`, o sea que hay config **a nivel comercio y sucursal**. La afirmación del doc sembrado de que "el % lo exige la categoría rt=2, no el comercio" corresponde al cupo CreditopX y pertenece a **Profiling / CreditopX**; no se verificó acá.
 - `ecommerce_requests` / `user_requests_by_ecommerce_request`: la rama ecommerce de `createUserRequest` decide por `order_key` si actualiza o crea. Falta mapear el ciclo de vida completo del `ecommerce_request` (es turf de **Merchants** / **Aggregator**).
 
-## Bitácora
-- **2026-07-17** — Contexto sembrado desde playground/flow (nodo SolicitudNode + fieldDocs `node.solicitud`/`sol.*` + MAP.md §S3).
-- **2026-07-18** — Fase de data: nodo documentado por ANALISIS DE CODIGO (no habia doc fuente) + superficie curada.
-
 ## Enlaces
 - Padre: **CreditOp**. Subcontexto: **KYC**.
 - Hermanos que continúan el camino: **Dynamic Forms** (esquema EAV y config del formulario), **Merchants** (comercio/sucursal/canal), **Profiling** y **CreditopX** (cupo y reglas), **MS Pre-approvals** y **Aggregator** (resolución del listado), **Formalization** (todo lo posterior al estado 3), **Motai** (modos de comercio e `isMotaiRenting`), **SmartPay** (rama IMEI).

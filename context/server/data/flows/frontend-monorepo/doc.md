@@ -177,10 +177,6 @@ usan y sí hay que leer.
 - El gap de deploy de `packages/shared/**` y `packages/form-engine/**`: ¿se cubre de hecho con los workflows manuales o hubo despliegues con esos paquetes desactualizados?
 - Sin `data-testid` en ningún lado: ¿el harness E2E externo se apoya en texto/roles a propósito, o es deuda a saldar del lado del front?
 
-## Bitácora
-- **2026-07-17** — Contexto sembrado desde playground/flow (MAP.md §0 tabla Repos + Apéndice C índice frontend + S3/S6 camino B).
-- **2026-07-18** — Fase de data: nodo documentado por ANALISIS DE CODIGO (no habia doc fuente) + superficie curada.
-
 ## Enlaces
 - **Padre:** Architecture (índice de repos: application / legacy-backend / frontend-monorepo / ms-preapprovals).
 - **Hermanos con frontera explícita:** **MS Pre-approvals** (contrato del MS Go; acá sólo el lado cliente) · **Legacy-backend** (dueño de `lenders-v2`, cupo y reglas) · **Application** (monolito vivo; el wizard nuevo no lo consume) · **Dynamic Forms** (concepto backend-driven; acá sólo repos/rutas) · **Onboarding**, **CreditopX**, **Aggregator**, **Redirect**, **KYC**, **Formalization**, **Profiling** (fases del flujo) · **SmartPay**, **Motai-v2**, **Motai**, **Pullman**, **Merchants** (familias de lender/comercio).

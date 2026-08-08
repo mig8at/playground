@@ -127,10 +127,6 @@ Puerto 1:1 del admin de comercios a legacy-backend. Rutas bajo `api/partners` (`
 - **Deriva de esquema por parallel-run.** Los dos repos comparten BD pero tienen sets de migraciones distintos: **5 migraciones de comercio solo en application** (`aws_arn`, `production_date`, `guarantee_insurance_per_million`, …) y **14 solo en legacy-backend** (`nit`, `trustonic_tenant_key`, `senary_color`, los 4 `show_*` de 2026, `allied_modes`, …). El caso más filoso: `application` **escribe** `lenders_by_allieds.hide_probability` (`AlliedLenderController:160`, `:238`) pero la migración que crea esa columna vive **solo en legacy-backend** (`2026_06_24_120000_add_hide_probability_to_lenders_by_allieds_table.php`) — el panel vivo depende de que el otro repo haya migrado.
 - **El `__construct` de los controllers de comercio tiene una rama muerta**: `AlliedController.php:32-36` y `AlliedAlliedBranchController.php:32-36` leen `front_url_local` bajo `local_env == 1` y acto seguido lo **pisan incondicionalmente** con `front_url`. Encima difieren en la forma (`->value` vs `->value['url']`).
 
-## Bitácora
-- **2026-07-18** — Fase de data: nodo documentado por ANALISIS DE CODIGO (no habia doc fuente) + superficie curada.
-- **2026-07-17** — Contexto sembrado desde playground/flow (nodos MerchantNode/ComercioNode/CanalNode/BranchStatusNode + fieldDocs `node.comercio`/`node.comercioConfig`/`node.canal`/`suc.status`) y MAP.md §S1-S2. Se conservan los subcontextos motai/smartpay/pullman.
-
 ## Enlaces
 - Padre: **CreditOp** (raíz). Contraparte: **Entities**. Subcontextos: **Motai**, **SmartPay**, **Pullman**, **Corbeta**.
 - Memorias: `admin-anatomia-creditop` (anatomía del panel real ↔ código), `reglas-copia-por-sucursal` (la medición de ≈37.284 copias y la cadena de disparo), `reglas-comercio-lender-map` (las 4 capas de reglas), `lender-listing-cascade` (qué filtra y qué solo clasifica), `migracion-application-a-legacy-estado` (strangler y parallel-run), `modelos-canales-flujos`.

@@ -192,9 +192,6 @@ En una BD compartida (dev) cada dev trabaja en su **seed** (`backend-e2e/pkg/ide
 - `--target=dev` para el **flujo completo** sigue gated (solo read-only + create/clean); endurecerlo contra hosts compartidos es trabajo pendiente (ver `DEV-TARGET.md`, no indexado).
 - 61 `test.fixme` en harness por convertir al stack real (los grandes: `motai.spec.ts` cierre #158, `smartpay-rd.spec.ts`, `credifamilia.spec.ts` rt=4 async).
 
-## Bitácora
-- **2026-07-18** — Nodo `harness` creado. Los dos harness E2E (`backend-e2e` 24 nodos Go + `harness` 66 nodos Playwright/TS) **recién indexados**; antes no eran linkeables. Superficie curada: 66 archivos (24 backend + 42 frontend), 0 DROP. Documentado por análisis de código.
-
 ## Enlaces
 - Padre: **CreditOp**.
 - Fronteras (cede a): **ms-preapprovals** (contrato/taxonomía del MS de pre-aprobación), **profiling** / **datacredito** (semántica del perfil sintético), **Motai** / **SmartPay** / **Aggregator** (flujos de producto), **onboarding** / **lender-listing** (ruteo y cascada del listado).

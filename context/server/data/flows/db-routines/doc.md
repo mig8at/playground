@@ -144,12 +144,6 @@ de log (ver F-108) y cuatro son framework (`failed_jobs`, `model_has_roles`…).
       comparó.
 - [ ] `actualizar_json`: sin call site y sin fuente. ¿Resto o algo que corre por evento?
 
-## Bitácora
-
-- **2026-08-07** — Nodo creado al rastrear quién había hecho el backfill del vínculo buró↔solicitud
-  (F-107). El rastro terminó en `migrate.sql` y destapó que hay 42 rutinas con lógica de negocio que el
-  árbol no indexaba: la regla «`.sql` siempre dropea» tapaba una capa entera.
-
 ## Enlaces
 
 - `kyc` — los campos `EX_*` y las centrales que estas rutinas leen.

@@ -96,9 +96,6 @@ Usado por la ruta `additional-info` (`additional-info.tsx` → gate, `additional
 - [ ] ¿`ONBOARDING_FORMS_SERVICE_BASE_URL` (G1) y `VITE_FORM_SERVICE_BASE_URL` (G2/este) apuntan al mismo despliegue? Son paths y contratos distintos; este es `form-service.inertia-develop:8082`, el otro `onboarding-forms-service.inertia-develop:8092`.
 - [ ] ¿Quién ejerce los `PUT` de schema/field-options en producción (rebuild del cache)? En el harness lo hacemos a mano; falta el trigger real (¿un admin? ¿cron?).
 
-## Bitácora
-- **2026-07-23** — Nodo creado. Repo `github/form-service` clonado + indexado (build-index.py, alias `form-service`, 203 archivos). Resuelve la caja negra G2 de dynamic-forms: verificado que el MS escribe `user_field_values` (DELETE+INSERT), el schema sale de las 5 tablas legacy, y no valida semántica. Disparado por la tarea "agregar Ciudad de nacimiento en cascada al form de Credifamilia" (ver credifamilia / la migración `add_ciudad_de_nacimiento_field_to_credifamilia_form`).
-
 ## Enlaces
 - Padre: **dynamic-forms** (el concepto de las 3 generaciones; este nodo es el backend de la G2). Consultado por: **credifamilia** (su additional-info es form_type 6), **onboarding** (el journey donde corre), **profiling** (lo que el form escribe, la decisión lo lee vía `user_field_values`).
 - Repo: `github/form-service` (README.md · CHANGELOG.md · openapi.yaml · graphify-out/GRAPH_REPORT.md). No hay doc fuente en playground/docs; este nodo ES el análisis.

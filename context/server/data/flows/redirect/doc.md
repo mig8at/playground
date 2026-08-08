@@ -40,10 +40,6 @@ El dato clave: **rt=0 comparte código con rt=1-sin-credencial** (`case 0: case 
 - **Gate rt=0 muerto en el listado**: `ListLenderController.php:106` tenía `&& response_type == 0` para el bloque "Lender UTM"; está **comentado** → hoy `$lender->url = url_utm` se asigna a TODOS (rt=2 la pisa después con su ruta interna).
 - **Familia latente**: `response_type` default=1 y ningún lender del seeder es rt=0 → verificar en la BD real qué entidades (referidos) corren como UTM antes de asumir que el set está vacío.
 
-## Bitácora
-- **2026-07-17** — Fase de data: superficie de código curada + doc enriquecido desde git `159906a:docs/codigo/MAPA-FLUJOS.md` + `AGREGADORES-FLUJO-ANALISIS.md` y verificación en código real (seeder `response_types`, switch `case 0`, COALESCE `url_utm`, `STANDARD=0` en el front).
-- **2026-07-17** — Contexto sembrado desde playground/flow (psel.redirect + LendersNode rt=0 + MAP.md §0/Apéndice A).
-
 ## Enlaces
 - Padre: **Entities** (3 familias por `response_type`). Hermanos: **Aggregator** (rt=1, incluye los "redirect-aggregators" que SÍ vuelven), **CreditopX** (rt=2/3 in-platform).
 - Memorias: `modelos-canales-flujos` (Agregadores rt=1 vs originación), `reglas-copia-por-sucursal` (por qué `url_utm`-branch es herencia real y las reglas no), `admin-anatomia-creditop` (config por comercio vs sucursal).

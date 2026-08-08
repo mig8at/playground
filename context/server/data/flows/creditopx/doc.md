@@ -105,11 +105,6 @@ vive en el controller, no en `LenderListingService`.. Categoría/cupo Ctopx: `Mo
 - [ ] La regla GENÉRICA del `DatacreditoRuleEvaluator` (`allied_branch_id IS NULL`, fail-closed) proviene de la memoria `datacredito-rules-per-lender`; el fail-closed sí se verificó en código (`:48`), el `whereNull` exacto no en este pase.
 - [ ] ¿SmartPay prod (160) tiene `response_type` fijado por algún seeder, o solo por `config('lenders.smartpay_lender_id')`? Negocio lo trata como rt=2 (nodo `smartpay`).
 
-## Bitácora
-- **2026-08-06** — Precisado dos veces: el ML no está corto-circuitado (timeoutea a los 15 s, y por eso el listado puede tardar minutos) y su fallback **no son las matrices** sino el otro perfilador (F-104).
-- **2026-07-17** — Fase de data: superficie de código curada (14 archivos, app+legacy en parallel-run, 14/14 en el índice) + doc enriquecido desde `159906a:docs/codigo/FLUJO-CREDITOPX-Y-DEPS-APPLICATION.md` + `MECANICA-CREDITO.md` + `docs/lenders/CREDITOPX.md`. Verificado en código: cupo enganche-inflado (`LenderUserCategoryService.php:47-50`), sello rt=2 por categoría (`LenderListingService.php:298-310`), seeder sin fila rt=3, `requiresInitialFee` siempre en rt=2, `have_ctopx` sobrevive (:308-327). Enriquecido con ids de la familia, tipos rt2/rt3, mecánica francesa+FGA, y las divergencias app↔legacy. Quitado el comentario de seed.
-- **2026-07-17** — Contexto sembrado desde playground/flow (LendersNode + PerfilamientoNode/CategoryNode/TramoNode + MAP.md §S5 + DOCUMENTATION.md §2-3).
-
 ## Enlaces
 - Padre: **Entities**. Subcontextos: **Profiling** · **Amount tiers**.
 - Variantes de la familia (nodos hermanos): **Pullman** (rt=2 vanilla) · **SmartPay** (path IMEI) · **Motai** / **Motai-v2** (renting). Cierre/firma: **Formalization**. Buró/identidad: **KYC**. Contraste (bróker rt=0/1/4): **Aggregator** · **Redirect** · **MS-preapprovals**.

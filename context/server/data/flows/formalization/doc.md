@@ -151,11 +151,6 @@ cambió es el comentario en `OtpService`, que dejó de decirlo; el guard está i
 - **Side effects best-effort**: notificaciones, voucher, `updateDisbursedLender` y la limpieza post-desembolso corren cada uno en su `try/catch` y solo loguean. Una solicitud puede quedar en 11 sin voucher ni correo, sin señal de error al usuario. `RequestCompletionService::processEcommerceRequest` es directamente un stub con la integración WooCommerce comentada (`:63-80`).
 - **Timeouts asimétricos**: el front espera 120 s por el preview de documentos y 180 s por `verify-otp` — porque ahí adentro corren generación de PDFs, Netco y Deceval. Es el tramo más frágil de toda la originación.
 
-## Bitácora
-- **2026-08-05** — Documentado quién decide el tipo de validación de identidad del paso 1 (`lender_identity_validation_types` → `IdentityValidationStepResolver`, enum de 7) y las tres formas de que el paso no deje rastro en BD, con conteos de prod. Agregado el gotcha de `disbursed_lender` (F-100): lo escriben tres caminos y no es huella del webhook.
-- **2026-07-17** — Contexto sembrado desde playground/flow (nodos `LifecycleNode` + `CreditStatusNode`, `store.js` `POSTSEL_STEPS`/`creditStatus`, `fieldDocs.js` `node.lifecycle`/`psel.*`).
-- **2026-07-18** — Fase de data: nodo documentado por ANALISIS DE CODIGO (no habia doc fuente) + superficie curada.
-
 ## Enlaces
 - Padre: **CreditOp** (raíz). Fase previa: **onboarding**.
 - Familias que cierran distinto: **creditopx** (rt=2/3, el único cierre in-platform), **aggregator** (rt=1, la API externa decide y espeja), **redirect** (rt=0, sin cierre observable), **smartpay** (IMEI, desembolso diferido).

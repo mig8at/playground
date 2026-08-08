@@ -194,13 +194,6 @@ Tres trampas de las etiquetas, todas medidas:
 - **`microservices` y el resto de repos Go** (messaging, otp, code-generation, pdf-mapper) no están en el índice, así que no se pudo verificar cuáles tienen consumidor real. Desde estos 3 repos, los que sí están cableados en config son: `pre_approvals`, `messaging_service`, `otp_service`, `code_generation_service`, `pdf_mapper_service`.
 - Los **6 módulos sin rutas** (`AuthV1`, `AlliedBranchV1`, …): no se verificó si son andamiaje de una arquitectura en curso o código sin invocar. (Los V2 CON rutas —OnboardingV2/RiskV2— sí están vivos: el front los consume vía `VITE_API_URL`; ver "V1/V2 = evolución" arriba.)
 
-## Bitácora
-- **2026-08-06** — Corregida la trampa del trace: los MS Go SÍ emiten trace propio (preapprovals-service, medido) pero como metadata no indexada. Y `preapprovals-service` solo envía logs en prod.
-- **2026-08-05** (2ª pasada) — Medida la identidad de la solicitud dentro del log (F-102): sólo el 13 % de las líneas trae `user_request_id` y viaja con TRES grafías; 8 solicitudes de prod, 7 comercios, 6 entidades. El `trace_id` sí está en el 100 %.
-- **2026-08-05** — Documentada la observabilidad: los dos stacks de Grafana (`creditop` prod · `creditopdev` dev+qa) con su `User` por stack, el ambiente como propiedad del STACK y no una etiqueta, las tres trampas de etiquetas medidas (`service_name` como única universal, `trace_id` que no cruza servicios, cardinalidad por `trace_id` como label), y Redash como única puerta a la BD de producción. Ver F-95, F-98, F-99.
-- **2026-07-18** — Fase de data: nodo documentado por ANALISIS DE CODIGO (no habia doc fuente) + superficie curada.
-- **2026-07-17** — Contexto sembrado desde playground/flow (MAP.md §0: tabla de Repos + strangler/parallel-run + tabla response_type).
-
 ## Enlaces
 - Raíz: **CreditOp**. Hijos: **application**, **legacy-backend**, **frontend-monorepo**, **ms-preapprovals**, **harness** (arnés de pruebas E2E: `backend-e2e` Go + `harness` Playwright, recién indexados).
 - Nodos relacionados: **onboarding** (el camino que cruza estas costuras), **creditopx** (rt=2/3), **aggregator** (rt=1, los webhooks que siguen en application), **merchants** (comercios/sucursales = la granularidad del allowlist).

@@ -95,10 +95,6 @@ Consecuencia: en el wizard v2 el tramo llega **solo** como `amount_conditions` p
 - [ ] **¿v2 debe recuperar el top-level `amountConditions`?** El bloque comentado (`LenderListingService.php:178-182`) sugiere trabajo a medio terminar; no hay TODO explícito que diga si el enganche por tramo se retiró a propósito.
 - [ ] **¿"Monto por debajo del primer tramo → rechazo"?** El doc sembrado lo afirmaba; **no se encontró ese corte en código** (sin match, simplemente no se aplica restricción). El único rechazo por monto es `below_min_amount` contra `creditLines->min_amount` (`CreditopXQuotaController.php:486`), que no es del tramo. Queda por confirmar si era una regla de negocio deseada y nunca implementada.
 
-## Bitácora
-- **2026-07-18** — Fase de data: nodo documentado por ANALISIS DE CODIGO (no habia doc fuente) + superficie curada.
-- **2026-07-17** — Contexto sembrado desde `playground/flow` (TramoNode + MAP.md §S5, verificado). Superficie de código a linkar en la fase de data.
-
 ## Enlaces
 - Padre: **CreditopX**. Hermano: **Profiling** (la categoría — enganche/cupo/plazo por *persona*; el tramo solo por *monto*).
 - Consumidores del tramo en otros nodos: **MS-preapprovals** (envuelve `/available-quota`, por donde llega el cupo ya topeado como `lender.available`) · **Pullman** / **SmartPay** / **Motai** (miembros rt=2 candidatos a tener tramos).

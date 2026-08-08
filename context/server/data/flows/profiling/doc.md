@@ -171,16 +171,6 @@ regla** decidió, no **con qué cuentas**.
       2026-08-07. Si ninguna de las dos rutas aplica, o no otorgan nunca, o hay un tercer camino que el
       nodo no tiene. Es la pregunta que reemplaza a la de arriba, y es más grande.
 
-## Bitácora
-- **2026-08-07** — Volcadas las tres tablas del scoring por respuestas declaradas (prod): son de un solo
-  lender, **SmartPay 160** (RD), no de «los lenders sin tiers». Corregido el id (el nodo decía 152) y la
-  creencia de que Bold 106 se sellaba por scoring. Queda medido que **37 lenders rt=2/3 activos no tienen
-  ninguna de las dos rutas**. El rotativo salió de este nodo a uno propio.
-- **2026-08-05** — Documentado que el perfilamiento no es auditable desde el admin y que los ids de regla por entidad SÍ están en los logs (medido en la uReq 520704 de prod). 3 de los reportes de #tech-ops de 5 días son «¿por qué perfiló así?».
-- **2026-08-05** — Documentada `profiling_reviews` como el snapshot completo del motor (588 filas verificadas): `displayed_lenders` y `hard_rules` en JSON, `disbursed_lender` como huella del webhook rt=1, `datacredito_query`, y las tres fuentes del orden. Corrige la creencia de que el listado no se persistía (F-93).
-- **2026-07-17** — Contexto sembrado desde el simulador `playground/flow` (PerfilamientoNode + MAP.md §S5, verificado por workflow). Superficie de código a linkar en la fase de data.
-- **2026-07-17** — Fase de data: superficie de código curada + doc enriquecido desde `git 159906a:docs/codigo/REGLAS-POR-COMERCIO-Y-LENDER.md` §2.3/§3.3 y `MECANICA-CREDITO.md` §4/§5, verificado en legacy (`LenderUserCategoryService`, `CreditopXQuotaController`, modelos de categoría). Correcciones: fórmula de cupo real (4 topes + PV francesa + rama `debt_capacity_amount_validation`), columnas reales de las 2 tablas, **BUG `min_income`**, ruta scoring/`scoring_is_primary`, special granting DENTIX, y re-anclaje application→legacy. Se delegó a **Motor de decisión** las 4 capas/2 motores/synth y a **Amount tiers** las franjas por monto.
-
 ## Enlaces
 - Padre/group: **CreditopX**. Hermanos: **Rotativo (rt=3)** (el OTRO motor: multiplicador 1-5, sin tiers — no confundir «capacidad» ni «categoría» entre los dos) · **Amount tiers** (franjas por monto: recortan plazos + topean cupo; el enganche lo fija la categoría, no el tramo).
 - Referencia transversal: **Motor de decisión** (las 4 capas, los 2 motores de datacrédito, la cascada getLenders clasifica-no-excluye, la receta de sintético + frontera de inyectabilidad) · **Modelo de datos** (EAV field 29/87/160, `risk_central_user_data` encriptado, `user_summaries` agildata/mareigua).

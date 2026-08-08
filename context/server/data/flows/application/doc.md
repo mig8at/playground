@@ -88,10 +88,6 @@ Los dos primeros redirigen el navegador (`inertia()->location()` si viene el hea
 - **`Admin/AlliedRulesController` (237 l muertas)**: no hay pista en el código de si fue reemplazado por `LenderRulesController` o si quedó de un rediseño abortado.
 - **`Customer/DatacreditoQueryByAlliedController`** no tiene ruta pero sí 4 referencias en `app/`; falta confirmar por dónde se invoca antes de tratarlo como vivo o muerto. Mismo caso con `SpecialConditionsController` (1 referencia).
 
-## Bitácora
-- **2026-07-18** — Fase de data: nodo documentado por ANALISIS DE CODIGO (no habia doc fuente) + superficie curada.
-- **2026-07-17** — Contexto sembrado desde playground/flow (MAP.md §0 tabla Repos + Apéndice C índice application + S1-S6).
-
 ## Enlaces
 - Padre: **Architecture**. Hermanos: **legacy-backend** (el gemelo strangler), **frontend-monorepo** (el wizard al que este repo redirige), **ms-preapprovals**.
 - Nodos que cuentan la mecánica que este repo aloja: **Merchants** (alta/config + copia de reglas), **Entities**, **CreditopX**, **Profiling**, **Amount tiers**, **Onboarding**, **Dynamic forms**, **KYC**, **Formalization**, **Aggregator**, **Redirect**, **Motai**, **SmartPay**, **Pullman**.

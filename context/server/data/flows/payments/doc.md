@@ -150,9 +150,6 @@ Real*, v2 (2026-08-03), contrastado contra la rama.
 - **vs `agregadores`:** Sistecrédito/Bancolombia son **lenders** que deciden y gestionan cartera externa; Payvalida/Wompi son **pasarelas** que mueven plata para CreditOp. (Payvalida borrosa: su webhook toca originación.)
 - **vs `credifamilia`:** el `PaymentPlan/Credifamilia` es cálculo de amortización SOAP, no pasarela.
 
-## Bitácora
-- **2026-07-18** — Nodo creado. Superficie curada: **65 archivos** (application 41 · legacy-backend 18 · frontend-monorepo 6), 65/65 resuelven (0 DROP). **Bug P0 confirmado vivo**: `dd($exception)` en `getMerchant` catch, `application/app/Actions/Lenders/Wompi.php:79` y `legacy-backend/app/Actions/Lenders/Wompi.php:78` (idéntico, no fixeado). Hallazgo: Wompi=polling (2 usos: cuota inicial + recaudo), Payvalida=webhook (empuja Estado 11); idempotencia solo en app; `ReconcileWompiTransactionsCommand` es net-new en legacy.
-
 ## Enlaces
 - Dónde CORRE: **Application** (vivo) + copia en **Legacy-backend** (cuota inicial reescrita REST + Modules/Payments para links + reconcile). De dónde recibe el trigger de cuota inicial: **Formalization** / **CreditopX**. A quién le entrega el pago aprobado: **Servicing** (`processPayment`).
 - Frontera de pruebas global + catálogos de estado: raíz **CreditOp**. Memorias: `asesor-solicitar-bounce` (el rebote rt=2 `initial_fee>0`→Wompi) · `continuacion-credito-servicing` (la cascada que recibe el pago) · `reglas-comercio-lender-map`.

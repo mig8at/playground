@@ -186,12 +186,6 @@ de legacy.
 filtro de metadata, y los muestra como el bloque «Pre-aprobación (microservicio)» dentro de la etapa
 `listado` (medido en la uReq 521997: 94 líneas → 5 pasos).
 
-## Bitácora
-- **2026-08-06** — Medido que es UNA LLAMADA POR LENDER (14 llamadas / 4 entidades en la uReq 521997), que las etiquetas se reparten entre líneas del mismo trace, y el protocolo de dos fases de Credifamilia (`radicacion only` → `estado only`).
-- **2026-08-06** — Medidos sus logs en Loki: solo prod, contexto en etiquetas OTel, `trace_id` propio y no indexado. Censo de 12 mensajes y la llave `user_request_id` en el guardado a DynamoDB.
-- **2026-07-18** — Refresh: `pre-approvals-service` ahora INDEXADO (133 nodos Go). Sumada la superficie del **lado servidor** (57 archivos Go: contrato/handlers, factory+workflow, matriz de 8 proveedores con adapter/client/strategy, dominio+taxonomía de errores, use case+cache+notify, servicios a legacy, ports) a los 15 previos del lado cliente. 72 archivos, 0 DROP. Nota: el índice solo tiene `.go` — config yaml, docs md, openapi.yaml y el paquete `storage/dynamodb/*` NO están indexados (quedan como conocimiento; se referencian `internal/openapi/types.gen.go` y los ports `preapproval_repository`/`lender_attempt_repository` como equivalentes del contrato/persistencia).
-- **2026-07-17** — Fase de data: superficie de código curada + doc enriquecido desde `git 159906a:docs/codigo/SERVICIO-PRE-APROBACIONES.md`, verificado contra el repo real y los 3 repos indexados.
-
 ## Enlaces
 - Padre: **Architecture** (los repos del ecosistema). Flujos hermanos: **Aggregator** (rt=1: negocio del lender, Corbeta, webhooks) · **Redirect** (rt=0) · **Harness** (mock/inyección del MS). Consumidor del notify: **Profiling** (`displayed_lenders`). Credifamilia = rt=4 (async/polling, su propio flujo).
 - Docs propios del repo (no indexados): `docs/ARCHITECTURE.md`, `docs/CONTEXT.md`, `openapi.yaml`, `README.md`, `config/config.example.yaml`.

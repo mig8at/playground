@@ -110,10 +110,6 @@ Para ejercer el servicing (in-platform) hay que **sembrar el ledger** `creditop_
 - **vs los flujos de originación (creditopx/smartpay/motai/credifamilia/agregadores):** ellos terminan en el Estado 11; este EMPIEZA ahí. No hay decisión de crédito acá — es cartera/cobranza.
 - **vs rt≠0 (agregadores, Credifamilia rt=4):** para ellos NO hay ciclo de vida en CreditOp (prueba negativa: todos los crons post-desembolso son `creditop_x_*`); el préstamo lo gestiona el lender y CreditOp no ve la mora/cierre. **SmartPay** es el caso especial que CONSUME este ledger: sus 3 crons de device-lock leen `creditop_x_requests_history` (mora → bloquea el celular).
 
-## Bitácora
-- **2026-07-18** — PROMOVIDO al árbol vivo desde `flows-curated/` (era material huérfano: el nodo no existía en el modelo contexto/task). Superficie re-validada contra el índice actual: 60/60 resuelven. Doc adaptado a la plantilla de contexto + campo `when` para el ruteo del MCP.
-- **2026-07-17** — Nodo creado desde la raíz. Superficie curada: **60 archivos** (application 52 · legacy-backend 8), 60/60 resuelven. Fuente `CONTINUACION-CREDITO-ANALISIS.md` (verified-deep). Es la 2ª mitad del ciclo; los 8 archivos de legacy documentan el estado de migración (servicing = 0 superficies activas, fuera del alcance de la migración de originación).
-
 ## Enlaces
 - Dónde CORRE: **Application** (el servicing vive 100% ahí; en legacy hay 0 superficies activas). De dónde hereda el Estado 11: **Formalization** y **CreditopX**.
 - Caso especial que CONSUME este ledger: **SmartPay** (sus crons de device-lock leen la mora para bloquear el celular). Catálogos de estado y frontera de pruebas global: raíz **CreditOp**.

@@ -110,10 +110,6 @@ a `LoanFlow::markStarted()` a mano (`UserRequestController.php:1514`).
 - **Consumer-hub ↔ merchant**: dado el slot de sesión compartido, no se verificó qué ocurre si una sesión de cliente navega a `/merchant/:hash` — `GetUserDataUc` buscaría su `cognito_id` de cliente y probablemente no resolvería `allied_branch`, pero no se ejecutó.
 - **`allied_branches_by_user` vs `users.allied_branch_id`**: conviven dos formas de decir "sucursal del usuario" (más el override en cache de `UserAllyBranchController`); no se determinó cuál gana en cada pantalla.
 
-## Bitácora
-- **2026-07-18** — Fase de data: nodo documentado por ANALISIS DE CODIGO (no habia doc fuente) + superficie curada.
-- **2026-07-17** — Contexto sembrado desde playground/flow (nodos Canal + Comercio/Merchant + SettingsBar + fieldDocs `node.canal`/`canal.asesor`/`canal.tienda`/`node.comercio` + MAP.md §S1-S3, tabla `response_type`).
-
 ## Enlaces
 - Padre: raíz **CreditOp**. Hermanos: **Merchants** (alta y configuración del comercio, hash + QR de sucursal), **Entities** (`response_type` = quién decide el crédito), **Onboarding** (las pantallas del cliente), **KYC** (validación de identidad), **Architecture** (application ↔ legacy-backend ↔ frontend-monorepo).
 - Memorias: `admin-anatomia-creditop` (anatomía real del panel admin, `status_per_profiles` = autorización back-office), `harness-dev-asesor-login` (login de asesor contra dev con Cognito real), `harness-split-view` (topología de ventanas A/B en el handoff), `asesor-solicitar-bounce`, `reglas-copia-por-sucursal`.

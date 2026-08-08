@@ -197,11 +197,6 @@ O sea: el formulario clásico es React fijo con **dos toggles**, uno de los cual
 - **¿`COUNTRY_ID = 47` (árbol de países del form-service) y `alliedCountry === 60` (RD en CreditOp) conviven o se contradicen?** Son espacios de ids distintos; no se verificó el catálogo del proveedor.
 - **El catálogo real de `fields`** (nombre y tipo de cada `field_id`, incluidos 162-172 en la BD): solo obtenible consultando producción.
 
-## Bitácora
-- **2026-07-23** — Clonado `github/form-service` → nodo **form-service** nuevo (hijo). Resueltas las preguntas abiertas de la G2: el MS escribe `user_field_values` (DELETE+INSERT), no valida semántica. Agregada la cascada país→depto→ciudad (`data_source` + `related_field_id`) con el ejemplo "Ciudad de nacimiento" (migración en legacy-backend).
-- **2026-07-18** — Fase de data: nodo documentado por ANALISIS DE CODIGO (no habia doc fuente) + superficie curada.
-- **2026-07-17** — Contexto sembrado desde playground/flow (nodo `SolicitudNode` + `fieldDocs.js` `sol.*`/`node.solicitud` + MAP.md §S3 fila 6 / §S4 EAV).
-
 ## Enlaces
 - Padre: **formalization**. **Hijo: form-service** (el MS Go que sirve la G2 — schema, respuestas en `user_field_values`, country-tree). Hermanos: **kyc** (el buró llena los mismos `field_id` 87/29/160/90 que el formulario, y le gana en prioridad), **onboarding** (el journey donde corren estos formularios), **profiling** (cómo el EAV se convierte en categoría y cupo), **entities** (`form_types.lender_id` y `lenders.complementary_form` son config por entidad), **credifamilia** (su additional-info es form_type 6), **legacy-backend** / **frontend-monorepo** / **application** (los tres repos que cruza esta fase).
 - Memorias: `onboarding-decision-data-map` (EAV 87/29/160 y frontera de inyectabilidad), `reglas-comercio-lender-map` (dónde entra el ingreso en las 4 capas de reglas), `migracion-application-a-legacy-estado` (por qué hay gemelos sin rutas), `admin-anatomia-creditop` (config por comercio vs por sucursal).

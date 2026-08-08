@@ -46,10 +46,6 @@ Además, allied 94 está en `DatacreditoFrequency` (`every=1`) → el gate datac
 - **La regla de edad del `datacredito_trigger` de sucursal es un no-op**: está escrita `age <= min_age && age >= max_age`, solo dispara con rango invertido (`min >= max`).
 - **Orden solo en producción**: el perfilamiento (ranking) está gated a `production` y el ML está corto-circuitado → en local/dev el orden difiere y cae a matrices internas.
 
-## Bitácora
-- **2026-07-17** — Fase de data: superficie de código curada + doc enriquecido desde `git 159906a:docs/lenders/CREDITOPX.md` y `docs/codigo/REGLAS-POR-COMERCIO-Y-LENDER.md`, verificado contra los repos (5 hardcodes reales por `allied_id==94`, lender 77 vs allied 94, categoría cat14, datacrédito genérico 400). 13 archivos, 13/13 resuelven.
-- **2026-07-17** — Contexto sembrado desde playground/flow (fieldDocs `merch.nombre` hardcode allied_id==94, `buro.edad`, cascade rt=2, store `CREDITOPX_CALCULADORA`) + MAP.md §S5.
-
 ## Enlaces
 - Padre: **Merchants**. Hermanos: **SmartPay** (mismo núcleo rt=2 + path IMEI), **Motai** (+ modo/Ábaco). Mecanismo: **CreditopX** (cascade de 8 etapas + subcontextos **Profiling** y **Amount tiers**).
 - Memorias: `synth-credipullman-gates` (los 2 gates + diagnósticos) · `datacredito-rules-per-lender` · `reglas-comercio-lender-map` · `lender-listing-cascade` · `reglas-copia-por-sucursal`.

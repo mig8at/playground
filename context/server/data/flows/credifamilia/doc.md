@@ -94,12 +94,6 @@ dinámico G2**, no en la del onboarding clásico por donde entró el caso.
 - No confundir con **"Credifamilia-addi"** (entrada redirect del catálogo en algunas sucursales).
 - **El form_type 6 (additional-info) NO tiene seeder** — es data cargada a mano en dev/local. Un campo nuevo se agrega por migración/seeder en legacy-backend resolviendo por **NOMBRE** (los `field_id` son auto-increment y difieren por ambiente: "Ciudad de nacimiento" salió **233** en dev, 221/222 en local). Tras tocar la BD, **`PUT /v1/dynamic-form/6/schema`** para bustear el cache del form-service. Para VER el form: flow **`self-service`** (público), no `merchant`. Ver **form-service**.
 
-## Bitácora
-- **2026-08-05** — Documentadas las dos causas de «no consulta Credifamilia»: el `DomainException` por situación laboral (verificado en `Credifamilia.php:216-221`) y el aprobado-en-falso por correo con caracteres inválidos (fuente: hilo de #tech-ops, no verificable en código nuestro).
-- **2026-07-23** — Documentado el **formulario adicional G2 (form_type 6)** de Credifamilia: la cascada Departamento→Ciudad, servida por el **form-service** (nodo nuevo), respuestas en `user_field_values`. Tarea real: se agregó "Ciudad de nacimiento" (field 233 dev) en cascada, vía migración `add_ciudad_de_nacimiento_field_to_credifamilia_form` en legacy-backend + validado visualmente en dev.
-- **2026-07-18** — PROMOVIDO al árbol vivo desde `flows-curated/` (era material huérfano: el nodo no existía en el modelo contexto/task). Superficie re-validada contra el índice actual: 134/134 resuelven. Doc adaptado a la plantilla de contexto + campo `when` para el ruteo del MCP.
-- **2026-07-17** — Nodo creado desde la raíz con la documentación de referencia. Superficie curada: **134 archivos** (107 legacy + 27 front, 134/134 resuelven en el índice). Flujo verificado adversarialmente contra el análisis maestro.
-
 ## Enlaces
 - Padre: **Entities** (qué es un lender como dato + el despacho por `response_type`). Hermanos por familia: **Aggregator** (rt=1, decide una API externa) · **CreditopX** (rt=2/3 in-platform) · **Redirect** (rt=0, solo un link).
 - Etapas que comparte: **KYC** (identidad/buró; acá el KYC V2 es propio y greenfield) · **Formalization** (plan de pagos, firma, Estado 11 — la radicación SOAP se dispara ahí) · **MS Pre-approvals** (pre-aprobación rt≠0) · **Dynamic-forms** / **form-service** (su `additional-info` es el form G2, form_type 6 — la cascada depto/ciudad y las respuestas en `user_field_values`).

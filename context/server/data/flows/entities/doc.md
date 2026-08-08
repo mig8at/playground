@@ -154,10 +154,6 @@ Asimetría real: el **`store` cubre solo rt==2**, mientras el **`update` de appl
 - **El `action` es `eval` disfrazado**: un FQCN guardado en BD e instanciado con `new $lenderClass()`. Si el string apunta a una clase inexistente, el flujo devuelve `'Lender action class not found'` en vez de fallar ruidosamente.
 - **`apps/admin` del frontend-monorepo está vacío** (solo `.gitignore`): la única UI de alta de entidades sigue siendo el panel Inertia de application; la API `Modules/Partner` no tiene consumidor en los repos leídos.
 
-## Bitácora
-- **2026-07-17** — Contexto sembrado desde playground/flow (LendersConfigNode + LendersNode + MAP.md §0/§S1 + DOCUMENTATION.md §0).
-- **2026-07-18** — Fase de data: nodo documentado por ANALISIS DE CODIGO (no habia doc fuente) + superficie curada.
-
 ## Enlaces
 - **Hijos**: CreditopX · Aggregator · Redirect. Nietos vía CreditopX: Profiling · Amount tiers.
 - **Contraparte**: Merchants (la config por comercio/sucursal vive del lado del comercio). **Raíz**: CreditOp. **Repos**: Application · Legacy-backend · Frontend-monorepo · Architecture.

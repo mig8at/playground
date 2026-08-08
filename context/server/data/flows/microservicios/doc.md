@@ -138,14 +138,6 @@ existe; un servicio que corre sin repo no se puede indexar y se queda en esta ta
       árbol indexa**. Decidir si el móvil entra al alcance o se declara fuera — hoy está fuera de hecho,
       sin haberlo decidido.
 
-## Bitácora
-
-- **2026-08-07** — Nodo creado. Salió de leer en Confluence el *Workflow legacy-kyc-pipeline* y preguntar
-  dónde vivía: no estaba en ningún repo indexado. La pregunta se generalizó a «¿qué más corre que no
-  vemos?» y la respuesta —14 servicios contra 5 repos— resultó ser el hueco estructural más grande que
-  se le midió al árbol. Se agregaron **5 roots** a `tools/roots.py` (+248 archivos indexados). Ver
-  **F-123**.
-
 ## Enlaces
 
 - `architecture` — el padre: cómo se reparte el sistema.

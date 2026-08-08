@@ -118,9 +118,6 @@ Lo arma `EcommerceContractBuilder::buildCheckoutUrl` (compartido; lo usa `VtexSe
 - `EcommerceReplayController@replay` (`application`) reprocesa notificaciones; ¿tiene equivalente en legacy o murió con el WoocommerceController?
 - ¿Shopify u otra plataforma en el roadmap? La arquitectura (notifier + config + catálogo `ecommerces` + `ecommerce_type_id`) está pensada para agregar plataformas sin tocar el core; hoy solo hay Woo/self/VTEX sembrados.
 
-## Bitácora
-- **2026-07-18** — Nodo creado (fase de data). Superficie curada = **71 archivos** validados contra el oráculo (0 DROP): 44 legacy-backend (unified: contrato base64, VtexService/notifiers/observer/CorbetaCheckoutController, migraciones+seeders de `ecommerce_requests`/`allied_ecommerce_credentials`/`woocommerce_statuses`, VtexInitTest), 14 `application` (mundo viejo Woo/VTEX/Ecommerce controllers + admin credential + middleware + rutas), 13 frontend (handoff Corbeta/Bancolombia + return-to-store + errores + env). Doc enriquecido desde `legacy-backend/docs/vtex-migration.md` (no indexado). Hallazgos clave: cutover por-allied hardcodeado `[24,209,210,211,311]`; settle sin HTTP status; entry unificado del front fuera de main; contrato base64 de 6 params round-trip-verificado.
-
 ## Enlaces
 - **Hermanos que reciben fronteras**: **payments** (Wompi/cuota inicial/recaudo), **aggregator** (decisión rt=1 Bancolombia/Corbeta; comparte `CorbetaCheckoutController` como *entry*), **merchants** (config de entidad/sucursal; comparte la credencial), **onboarding** (OTP/datos/monto; comparte el link `handleEcommerceRequest`).
 - **Fuente profunda**: `legacy-backend/docs/vtex-migration.md` (migración monolito→legacy con contrato unificado). Rama de la migración: `feature/onboarding/ecommerce-unify-base64-vtex` (mergeada). Ramas del front ecommerce (no en main): `feature/onboarding/ecommerce-web-origination`, `fe-ecommerce-hydration`, `ecommerce-continue-route`.

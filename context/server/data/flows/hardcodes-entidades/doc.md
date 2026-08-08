@@ -100,6 +100,3 @@ El crítico de completitud levantó 3 que ni entraron al conteo:
 - El **detalle por entidad** vive en sus nodos: **aggregator** (rt=1, el god-method), **motai** / **smartpay** / **pullman** / **credifamilia** / **corbeta**, **entities** (backbone de lenders), **merchants** (comercios/allieds). Este nodo es la LENTE transversal de acoplamiento, no reemplaza esos docs.
 - El **deber-ser**: [[plan-simplificacion]] (flujo único paramétrico + R1-R11) y la task **motai-v2** (des-motaización = el primer bloqueador ya movido a config — prueba de que cada 🔴 es factible).
 - Superficie: **101 sitios verificados** (file:line en `map.json`), 0 drops contra el oráculo. Fuente: auditoría por workflow `wjfw8nvsf` (2026-07-18).
-
-## Bitácora
-- **2026-07-18** — creado desde la auditoría de 40 agentes (206 hallazgos → 31 clusters → 24 bloqueadores + 7 config-ok + 3 gaps). Registrado como nodo de DOLOR para que el brief lo surface al tocar integración de entidades/comercios.

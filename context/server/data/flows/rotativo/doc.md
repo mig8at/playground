@@ -166,14 +166,6 @@ en los cinco niveles**, o sea que el nivel no cambia nada para ese comercio.
 - [ ] `debtToIncome = 40` en el SP calcula `ingreso × 40 − deuda` (sin dividir por 100) y el bloque que
       lo usaba está **comentado**. Resto muerto, pero si alguien lo reactiva el número es absurdo.
 
-## Bitácora
-
-- **2026-08-07** — Nodo creado. Salió de contrastar la documentación de negocio de Confluence
-  (*Solicitud de Políticas Creditop X*) contra el código: el documento afirmaba «cinco niveles de riesgo
-  predefinidos» y buscar dónde vivían destapó el motor completo, que el árbol no tenía en ningún nodo.
-  rt=3 era el flujo con menos cobertura del árbol; `servicing` cubría el después y `profiling` el motor
-  de consumo, pero el otorgamiento del cupo no tenía dueño.
-
 ## Enlaces
 
 - `servicing` — qué pasa con el cupo DESPUÉS: consumo, causación, mora, los 6 crons.

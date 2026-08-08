@@ -62,10 +62,6 @@ Todo en `legacy-backend` salvo nota; líneas verificadas contra el código vigen
 - **Inconsistencias menores**: `PRO_CONSUMIDOR_NUMBER='XXX/20XX'` (placeholder, se sustituye por `request_number`); `releaseDevices` usa prefijo `/api/v1/` distinto al resto; los correos de excepción de los jobs van a destinatarios hardcodeados.
 - *Abiertas:* ¿el divergente dev/prod es intencional o debería usar `isSmartpayChannel()`/config? · ¿el lender 160 de prod es rt=2 o rt=1? · ¿corre solo en RD o también en CO? · ¿quién puebla `user_request_device_info.enrollment_status`/`trustonic_device_id` (el `enroll` solo escribe `user_request_products.imei`)?
 
-## Bitácora
-- **2026-07-17** — Fase de data: superficie de código curada (74 archivos, 74/74 resuelven en el índice) + doc enriquecido desde `git 159906a:docs/codigo/SMARTPAY-FLUJO-ANALISIS.md`, con todas las líneas de "Dónde mirar" re-verificadas contra el código vigente de `legacy-backend`/`application`.
-- **2026-07-17** — Contexto sembrado desde playground/flow (caveats path IMEI + skip AML); los internals de MDM/crons/ids quedaban para la fase de data.
-
 ## Enlaces
 - Padre: **Merchants**. Hermanos: **Pullman** (tronco rt=2 CreditopX que este nodo hereda), **Motai**. Núcleo rt=2: **CreditopX**. Identidad/AML que SmartPay saltea: **KYC**. Firma/desembolso/Estado 11 genéricos: **Formalization**.
 - Fuente profunda: `git 159906a:docs/codigo/SMARTPAY-FLUJO-ANALISIS.md`.

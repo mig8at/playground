@@ -186,13 +186,6 @@ saber en qué estado quedó el título.
 - [ ] ¿Los créditos rotativos firman igual? `promissory_notes.creditop_x_revolving_credit_id` existe y
       hay una rama `feature/CRED-121-deceval-rotativo` sin mergear — no se leyó.
 
-## Bitácora
-
-- **2026-08-07** — Nodo creado desde el documento de Confluence, **contrastado línea por línea contra el
-  código**. El contraste es el hallazgo: la tabla de cinco códigos de error y todo CRED-69 describen
-  trabajo que no está en `main` ni en ninguna rama pusheada. Copiar el documento habría metido en el
-  árbol cuatro códigos de error que producción no emite. De paso salió F-122 (el guard divergente).
-
 ## Enlaces
 
 - `formalization` — el tramo del que esto es una pieza: OTP, documentos, desembolso. **F-121** (el pagaré
