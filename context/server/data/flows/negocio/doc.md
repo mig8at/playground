@@ -24,11 +24,19 @@ cosas que sostienen el negocio.
   directa: para rt=2, **«configuración por lender» y «por comercio» son lo mismo** — y las 3
   excepciones que sí comparten (`Crediteame` 3 comercios, `DENTIX FINANCIAL SERVICES` 2) son
   exactamente donde esa equivalencia se rompe (**F-127**).
-- **CreditOp cobra por cada CUOTA, no al desembolsar** *(dicho por Miguel con «si no estoy mal» — sin
-  verificar contra el código)*. Se toma una parte de cada pago del deudor hasta que el crédito termina,
-  según lo acordado con el comercio (`lenders_by_allieds.comission_percentage`, por par). Si es cierto,
-  **la cascada de imputación es literalmente el momento en que la empresa factura** — y explica por qué
-  el recaudo es la capa que no se puede apagar (→ `application` §5, `servicing`).
+- ⚠ **EL SISTEMA NO COBRA LA COMISIÓN: solo la MUESTRA** (verificado 2026-08-09, contra el código).
+  Se creía que se tomaba una parte de cada cuota; el código dice otra cosa. Hay **un solo lector** de
+  `comission_percentage` en los tres repos: el accessor `UserRequest::getCommissionValueAttribute`
+  (`application/app/Models/UserRequest.php:125`), que calcula
+  **`(comission_percentage / 100) × final_amount`** — un porcentaje del **total del crédito**, una vez,
+  no por cuota. Y sus únicos consumidores son **tres vistas del panel** que lo pintan; **la cascada de
+  imputación no menciona comisión en ninguna línea**. O sea: el reparto de cada pago **no separa** la
+  comisión. Que operativamente se facture por cuota puede ser cierto, pero **pasa fuera del sistema** —
+  acá no queda registro ni se descuenta.
+- ⚠ **Y las vistas no coinciden entre sí sobre «lo que recibe el comercio»**: dos calculan
+  `final_amount − comisión` y una calcula `amount − comisión`. No son la misma base —`amount` incluye
+  el fondo de garantía y `final_amount` no— y **difieren en 30.749 de 81.877 solicitudes (38 %)**. Ver
+  **F-128**.
 - **El «colchón» de las aseguradoras se negocia POR COMERCIO**, y por eso sus porcentajes viven en la
   calculadora del par (`guarantee_fund_percentage`, `guarantee_insurance_per_million`,
   `guarantee_fixed_monthly_percentage`). Es el tercero que cubre el impago para que no lo absorba entero
@@ -72,10 +80,9 @@ afirmación de arriba:
   FGA: es donde el riesgo del comercio se convierte en condiciones para el cliente.
 
 ## Lo que NO está verificado
-- **La mecánica exacta de la comisión.** Miguel la describió como «por cada pago del deudor, por cada
-  cuota, hasta finalizar el crédito», con dudas. Falta confirmar contra el código si se descuenta en la
-  imputación (`CreditopXPaymentController`) o si se liquida aparte, y sobre qué base (capital, cuota
-  total, o el pago recibido). Es la afirmación con más consecuencias del nodo: **verificarla primero**.
+- **Cómo se liquida de verdad la comisión, fuera del sistema.** Verificado que el código no la
+  descuenta (arriba); lo que NO se puede saber desde acá es qué pasa después: si se factura al comercio
+  por cuota o por crédito, contra qué reporte, y quién concilia. Es proceso, no código.
 - **El segundo modelo de comisión con agregadores.** Miguel mencionó que CreditOp «también comisiona por
   llevar el crédito de la persona» con entidades como Bancolombia o Welli, y que **cree que eso se
   maneja fuera de CreditOp**. Sin confirmar: no se sabe si deja huella en el sistema.

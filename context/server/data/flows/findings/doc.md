@@ -27,6 +27,8 @@ orden de archivo — el ancla `### F-xx` es la única dirección.)
 | **«¿este comercio es Corbeta?» / entra por una puerta y no por otra** | F-125 |
 | **«reversar un pago tira 500»** | F-126 |
 | **«se le cambió sola la config de una entidad»** | F-127 |
+| **«al comercio no le cuadra lo que recibe»** | F-128 |
+| F-128 | «Lo que recibe el comercio» se calcula con dos bases distintas según la pantalla (38 % difieren) | TRAMPA |
 | F-127 | La calculadora «por comercio» escribe dos tablas GLOBALES del lender: se pisan entre comercios y a rt≠2 se las borra | TRAMPA |
 | F-126 | Reversar un pago RETENIDO revienta: el código busca «PAGO REVERSADO» y la fila se llama «REVERSADO» | TRAMPA |
 | **«le salen menos cuotas de las parametrizadas»** | F-110 |
@@ -1493,3 +1495,27 @@ en producción — el webhook no deja registro cuando `firstOrFail()` lanza, as�
   condición de recreate, que es el que destruye datos.
 - **Estado:** vivo en `main` de `legacy-application`. No aplicado: es un repo de la compañía. **Es
   material obligatorio para quien construya el panel nuevo de configuración** (→ `merchants` §9).
+
+### F-128 · «Lo que recibe el comercio» se calcula con DOS bases distintas según la pantalla, y difieren en el 38 % de las solicitudes
+
+- **Síntoma:** un comercio ve dos cifras distintas del neto que le queda por el mismo crédito según
+  desde qué pantalla lo mire. Nadie lo reporta como bug porque cada pantalla es internamente coherente.
+- **Causa raíz (verificada 2026-08-09):** la comisión sale de un único accessor,
+  `application/app/Models/UserRequest.php:125` (`getCommissionValueAttribute`) =
+  `(comission_percentage / 100) × final_amount`. Pero al restarla, las vistas no usan la misma base:
+  - `resources/js/components/requests/RequestInfoCard.vue:187` → `final_amount - commission_value`
+  - `resources/js/pages/customer/requests/ResponseRequestRegistration.vue:44` → `final_amount - commission_value`
+  - `resources/js/pages/customer/corporate/requests/RequestsTable.vue:670` → **`amount - commission_value`**
+
+  `amount` y `final_amount` **no son lo mismo**: `final_amount` es capital + administración **sin** el
+  fondo de garantía (`PromissoryNoteService::calculateAmounts`), y `amount` sí lo incluye porque es la
+  base de las cuotas (→ `formalization`).
+- **Evidencia:** `SELECT COUNT(*), SUM(amount<>final_amount) FROM user_requests WHERE final_amount>0`
+  → **30.749 de 81.877 difieren (38 %)**, con una diferencia promedio de ~79.482 y casos en las dos
+  direcciones (uReq 412384: `amount` 2.000.000 vs `final_amount` 500.000).
+- **Por qué importa más de lo que parece:** el comercio es **el cliente que decide** y en CreditopX es
+  **quien puso el capital** (→ `negocio`). La cifra en discusión es exactamente cuánto le vuelve.
+- **Arreglo:** definir cuál es la base correcta —es decisión de negocio, no de código— y dejar UNA
+  fuente. Hoy ni siquiera hay un método que devuelva «neto del comercio»: la resta se hace en el
+  template, tres veces.
+- **Estado:** vivo en `main` de `legacy-application`. No aplicado: es un repo de la compañía.
