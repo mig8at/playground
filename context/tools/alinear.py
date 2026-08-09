@@ -43,6 +43,7 @@ CTX = os.path.dirname(TOOLS)
 FLOWS = os.path.join(CTX, "server", "data", "flows")
 SALIDA = os.path.join(CTX, "alineacion.json")
 DERIVA_ALTA = 25  # % de archivos tocados desde el sello a partir del cual el nodo se marca en rojo
+MAX_NODOS_HUB = 4  # un archivo citado por MÁS de tantos nodos es un HUB (mismo umbral que salud.py)
 
 
 TOPE_COMMITS = 15  # cuántos se guardan en el JSON; el total siempre se reporta entero
@@ -272,11 +273,17 @@ def main():
     ciegos = {a for a, _ in sin_verificar}
     # unión de lo que declara CUALQUIER nodo — para no reclamar como huérfano algo ya ruteado
     declarados = set()
+    # Cuántos nodos citan cada archivo: los HUB (api.php en 12 nodos, routes.ts en 10) se mueven
+    # todo el tiempo y encienden a todos por igual, aunque a casi ninguno le cambie nada de lo suyo.
+    # No se excluyen —un hub puede romperte— pero se cuentan APARTE, para que «deriva» signifique
+    # «se movió algo que ESTE nodo dueña» y no «alguien tocó rutas otra vez».
+    cuantos_nodos = collections.Counter()
     for _nid in sorted(os.listdir(FLOWS)):
         _mp = os.path.join(FLOWS, _nid, "map.json")
         if os.path.isfile(_mp):
             _d = json.load(open(_mp))
             declarados |= set(_d.get("files", []))
+            cuantos_nodos.update(set(_d.get("files", [])))
             # también lo marcado como pendiente de merge: está ruteado, solo que a una rama. Sin
             # esto, un nodo que describe una rama (`motai`) reclama para siempre sus propios
             # archivos de `qa`, que a `files[]` no pueden ir — contra `main` serían rutas muertas.
@@ -298,7 +305,12 @@ def main():
         # señal 3: lo marcado como pendiente, ¿ya está en main?
         ya_mergeadas = [f for f in pm.get("files", []) if f in existen]
 
-        pct = round(100 * len(deriva) / len(files)) if files else 0
+        hubs = {f for f in deriva if cuantos_nodos[f] > MAX_NODOS_HUB}
+        propios = {f: v for f, v in deriva.items() if f not in hubs}
+        # el estado se decide por lo PROPIO: un nodo cuyo único movimiento fue `api.php` no tiene
+        # nada que releer, y marcarlo en rojo gasta la señal.
+        base_propia = len([f for f in files if cuantos_nodos[f] <= MAX_NODOS_HUB])
+        pct = round(100 * len(propios) / base_propia) if base_propia else 0
         if muertas:
             estado = "rutas-muertas"
         elif ya_mergeadas:
@@ -307,8 +319,10 @@ def main():
             estado = "rama-sin-mergear"
         elif pct >= DERIVA_ALTA:
             estado = "deriva-alta"
-        elif deriva:
+        elif propios:
             estado = "deriva"
+        elif deriva:
+            estado = "solo-hubs"   # se movió, pero solo en archivos que comparte con medio árbol
         else:
             estado = "al-dia"
         resumen[estado] += 1
@@ -318,9 +332,11 @@ def main():
             "estado": estado,
             "verificado": sello,
             "archivos": len(files),
-            "deriva": {"cambiados": len(deriva), "pct": pct,
-                       "archivos": [{"ruta": k, "ultimo_cambio": v} for k, v in
-                                    sorted(deriva.items(), key=lambda x: x[1], reverse=True)]},
+            "deriva": {"cambiados": len(propios), "pct": pct, "hubs": len(hubs),
+                       "archivos": [{"ruta": k, "ultimo_cambio": v,
+                                     "hub": cuantos_nodos[k] > MAX_NODOS_HUB}
+                                    for k, v in sorted(deriva.items(),
+                                                       key=lambda x: x[1], reverse=True)]},
             "commits": (commits_desde(files, sello.get("ref", ref), sello["date"])
                         if deriva and sello.get("date") else None),
             "huerfanos": (huerfanos_desde(files, sello.get("ref", ref), sello["date"], declarados)
@@ -330,7 +346,8 @@ def main():
                                  "ya_en_main": ya_mergeadas} if pm else None),
         })
 
-    orden = ["rutas-muertas", "marca-ya-mergeada", "deriva-alta", "rama-sin-mergear", "deriva", "al-dia"]
+    orden = ["rutas-muertas", "marca-ya-mergeada", "deriva-alta", "rama-sin-mergear", "deriva",
+             "solo-hubs", "al-dia"]
     nodos.sort(key=lambda n: (orden.index(n["estado"]), -n["deriva"]["pct"]))
     doc = {
         "generado": str(date.today()),
@@ -343,7 +360,7 @@ def main():
     print(f"ALINEACIÓN DEL CONTEXTO contra `{ref}` · {doc['generado']}\n")
     ETIQ = {"rutas-muertas": "⛔ RUTAS MUERTAS", "marca-ya-mergeada": "🔁 MARCA YA MERGEADA",
             "deriva-alta": "🔴 deriva alta", "rama-sin-mergear": "⏳ rama sin mergear",
-            "deriva": "🟡 deriva", "al-dia": "🟢 al día"}
+            "deriva": "🟡 deriva", "solo-hubs": "⚪ solo hubs", "al-dia": "🟢 al día"}
     for n in nodos:
         if n["estado"] == "al-dia":
             continue
@@ -361,8 +378,9 @@ def main():
             if len(c["autores"]) > 3:
                 quien += f" +{len(c['autores']) - 3}"
             atras = f"  ·  {c['total']:2d} commits · {quien}"
+        hub = f" · +{d['hubs']} hub" if d.get("hubs") else ""
         print(f"  {ETIQ[n['estado']]:22s} {n['id']:22s} {d['cambiados']:3d}/{n['archivos']:<3d} "
-              f"({d['pct']:2d}%) desde {n['verificado'].get('date','?')}{extra}{atras}")
+              f"({d['pct']:2d}%) desde {n['verificado'].get('date','?')}{hub}{extra}{atras}")
     # los huérfanos van APARTE del estado: un nodo puede estar 🟢 al día y tener piezas nuevas sin
     # declarar en sus propios directorios. No es deriva de lo que dice; es que dice de menos.
     conh = [n for n in nodos if n.get("huerfanos")]

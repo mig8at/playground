@@ -37,6 +37,10 @@ BALDES, y separarlos es lo que hace que se le pueda creer:
                archivo no existía, o el nodo no tiene sello). Se cae al chequeo de rango, que es
                débil — y por eso va en su propio balde en vez de disfrazarse de ✓.
   ? ambigua    el nombre matchea varios archivos y ninguno valida.
+  ? corta      `` `:123` `` relativa al contexto: NADIE la valida. Son la mitad de las citas con
+               número de línea del árbol, así que el resumen las declara — un verde que cubre el 50 %
+               y no lo dice es la misma trampa que el chequeo débil de antes. Se arreglan escribiendo
+               la ruta completa; por qué no se resuelven solas, en el comentario de `CORTA`.
   ? no existe  ningún archivo matchea en `main`.
 
 USO
@@ -76,6 +80,26 @@ ANCLA_MIN = 10   # caracteres no-espacio mínimos. Una línea `}` o `]);` matche
 # mintiendo, y un bloque que creció mueve las dos puntas distinto (pasó con `otp-verification.tsx`:
 # el inicio se corrió 8 líneas y el fin 10, porque la función ganó dos líneas adentro).
 REF = re.compile(r'([\w][\w./+\-]*\.(?:ts|tsx|php|mjs|cjs|js|jsx|vue|go)):(\d+)(?:-(\d+))?')
+
+# ── Citas en formato CORTO: `` `:169` ``, relativas al archivo que nombra el contexto ────────────
+# Son la MITAD de las citas con número de línea del árbol, y hasta el 2026-08-08 la herramienta no
+# las veía: decía «0 movidas» sobre el 59% de las citas y el resto podía correrse en silencio. Es la
+# misma familia del bug del docstring —un verde que cubre menos de lo que aparenta—, por otra puerta.
+#
+# ⚠ NO SE RESUELVEN, Y ESO ES UNA DECISIÓN MEDIDA, NO PEREZA. Se intentó el 2026-08-08: resolver la
+# cita corta contra el único archivo nombrado en la línea (o en la sección). Parecía seguro —440 de
+# 903 tenían exactamente un candidato— y produjo **22 fallos falsos**, porque los docs nombran al
+# sujeto por CLASE y no por archivo. El caso que lo tumbó:
+#
+#     hereda `ApiController` (`app/Http/Controllers/ApiController.php:7`) y responde con el trait
+#     `App\Traits\ApiResponse`: `{success…}` (`:9`) o `{success:false…}` (`:33`)
+#
+# `:9` y `:33` son de `ApiResponse.php`, pero el trait no lleva extensión, así que la línea "nombra
+# un solo archivo" y la resolución apunta al controller — que tiene 10 líneas. Es exactamente lo que
+# el docstring de arriba ya había aprendido: forzar el emparejamiento manda a corregir lo que está
+# bien. Así que se CUENTAN y se declaran, no se validan: el número honesto vale más que un verde que
+# cubre la mitad. La salida es convertirlas a ruta completa, que sí se ancla.
+CORTA = re.compile(r'`:(\d+)(?:-(\d+))?`')
 
 
 def git(repo, *args):
@@ -290,10 +314,44 @@ def resolver(cita, existen, por_rel, por_base):
     return por_base.get(cita, [])
 
 
+def evaluar(cita, n, fin, base_cita, idx):
+    """(balde, nota) para una cita ya resuelta a nombre de archivo. Compartido por el formato
+    completo (`ruta/archivo.php:123`) y el corto (`` `:123` `` resuelto contra su contexto)."""
+    existen, por_rel, por_base = idx
+    cands = resolver(cita, existen, por_rel, por_base)
+    if not cands:
+        return "no-existe", ""
+
+    veredictos = []
+    for alias, rel in sorted({(a, r) for a, r in cands}):
+        hoy = en_ref(alias, REF_HOY, rel)
+        if hoy is None:
+            continue
+        hoy = list(hoy)
+        if n > len(hoy):
+            veredictos.append(("fuera", f"{alias}/{rel}: tiene {len(hoy)} líneas"))
+            continue
+        veredictos.append(por_ancla(alias, rel, n, fin, base_cita, hoy)
+                          or ("sin-ancla", "solo se verificó que la línea existe"))
+
+    # Con varios candidatos NO se adivina, pero tampoco se tira la toalla: si ALGUNO valida, la cita
+    # está bien. Con el ancla esto además DESAMBIGUA solo — el archivo equivocado no contiene ese texto.
+    orden = ["ok", "corrida", "movida", "reescrita", "sin-ancla", "fuera"]
+    if not veredictos:
+        return "no-existe", "no se pudo leer"
+    clave, nota = min(veredictos, key=lambda v: orden.index(v[0]))
+    if clave in ("reescrita", "fuera") and len(cands) > 1:
+        clave, nota = "ambigua", f"{len(cands)} candidatos y ninguno valida: {nota}"
+    elif len(cands) > 1:
+        nota += f" · {len(cands)} candidatos"
+    return clave, nota
+
+
 def main():
     args = [a for a in sys.argv[1:] if not a.startswith("--")]
     ver_ok = "--ok" in sys.argv
-    existen, por_rel, por_base = indice()
+    idx = indice()
+    existen, por_rel, por_base = idx
 
     nodos = args or sorted(os.listdir(FLOWS))
     baldes = defaultdict(list)
@@ -312,44 +370,23 @@ def main():
 
         blame = escrita_en(os.path.relpath(doc, CTX))
         for i, linea in enumerate(open(doc).read().splitlines(), 1):
+            donde = f"{nid}/doc.md:{i}"
+            # cuándo se afirmó esta cita: el sello del nodo, o cuándo se escribió la línea si
+            # es posterior (ver `escrita_en`). Sin este max, corregir una cita la rompe de nuevo.
+            base_cita = max(filter(None, (fecha, blame.get(i))), default=None)
+
             for m in REF.finditer(linea):
                 cita, n = m.group(1), int(m.group(2))
                 fin = int(m.group(3)) if m.group(3) else None
                 etiq = f"{cita}:{n}" + (f"-{fin}" if fin else "")
-                cands = resolver(cita, existen, por_rel, por_base)
-                donde = f"{nid}/doc.md:{i}"
-                # cuándo se afirmó esta cita: el sello del nodo, o cuándo se escribió la línea si
-                # es posterior (ver `escrita_en`). Sin este max, corregir una cita la rompe de nuevo.
-                base_cita = max(filter(None, (fecha, blame.get(i))), default=None)
-                if not cands:
-                    baldes["no-existe"].append((donde, etiq, ""))
-                    continue
-
-                veredictos = []
-                for alias, rel in sorted({(a, r) for a, r in cands}):
-                    hoy = en_ref(alias, REF_HOY, rel)
-                    if hoy is None:
-                        continue
-                    hoy = list(hoy)
-                    if n > len(hoy):
-                        veredictos.append(("fuera", f"{alias}/{rel}: tiene {len(hoy)} líneas"))
-                        continue
-                    veredictos.append(por_ancla(alias, rel, n, fin, base_cita, hoy)
-                                      or ("sin-ancla", "solo se verificó que la línea existe"))
-
-                # Con varios candidatos NO se adivina, pero tampoco se tira la toalla: si ALGUNO
-                # valida, la cita está bien. Con el ancla esto además DESAMBIGUA solo — el archivo
-                # equivocado no contiene ese texto.
-                orden = ["ok", "corrida", "movida", "reescrita", "sin-ancla", "fuera"]
-                if not veredictos:
-                    baldes["no-existe"].append((donde, etiq, "no se pudo leer"))
-                    continue
-                clave, nota = min(veredictos, key=lambda v: orden.index(v[0]))
-                if clave in ("reescrita", "fuera") and len(cands) > 1:
-                    clave, nota = "ambigua", f"{len(cands)} candidatos y ninguno valida: {nota}"
-                elif len(cands) > 1:
-                    nota += f" · {len(cands)} candidatos"
+                clave, nota = evaluar(cita, n, fin, base_cita, idx)
                 baldes[clave].append((donde, etiq, nota))
+
+            # Cortas: se CUENTAN, no se validan (ver el comentario de `CORTA`). Van por nodo para
+            # que se vea dónde conviene convertirlas a ruta completa.
+            for m in CORTA.finditer(linea):
+                etiq = f":{m.group(1)}" + (f"-{m.group(2)}" if m.group(2) else "")
+                baldes["corta"].append((donde, etiq, "relativa al contexto: fuera del chequeo"))
 
     ORD = [("movida", "⚠ MOVIDAS — el ancla está en otra parte del archivo (viene la corrección)"),
            ("corrida", f"· CORRIDAS ≤{LEVE} líneas — desalineadas pero apuntan al mismo bloque"),
@@ -357,6 +394,8 @@ def main():
            ("fuera", "⚠ FUERA DE RANGO — la línea no existe"),
            ("ambigua", "? AMBIGUAS — el nombre matchea varios archivos, no se puede afirmar"),
            ("sin-ancla", "· SIN ANCLA — solo se verificó que la línea existe (chequeo débil)"),
+           ("corta", "? CORTAS `:NNN` — relativas al contexto, FUERA del chequeo: nadie las valida. "
+                     "Convertí a ruta completa las que sostengan una afirmación importante"),
            ("no-existe", "? NO EXISTEN en main — artefacto generado / otra rama / herramienta borrada")]
     for clave, titulo in ORD:
         if not baldes[clave]:
@@ -379,6 +418,18 @@ def main():
           f"⚠ {len(baldes['fuera'])} fuera · "
           f"· {len(baldes['sin-ancla'])} sin ancla · ? {len(baldes['ambigua'])} ambiguas · "
           f"? {len(baldes['no-existe'])} no existen")
+    if baldes["corta"]:
+        cortas = len(baldes["corta"])
+        validadas = sum(len(baldes[k]) for k in
+                        ("ok", "corrida", "movida", "reescrita", "fuera", "sin-ancla"))
+        porc = validadas * 100 // (validadas + cortas)
+        por_nodo = defaultdict(int)
+        for donde, _, _ in baldes["corta"]:
+            por_nodo[donde.split("/")[0]] += 1
+        top = " · ".join(f"{n} {c}" for n, c in sorted(por_nodo.items(),
+                                                       key=lambda kv: -kv[1])[:5])
+        print(f"⚠ {cortas} citas en formato corto `:NNN` quedan FUERA del chequeo → lo de arriba "
+              f"cubre el {porc}% de las citas con número de línea. Peores nodos: {top}")
     if sin_sello:
         print(f"⚠ sin `verified.date` en map.json (no se pueden anclar): {', '.join(sorted(sin_sello))}")
     print("Las ambiguas y las que no existen NO son deriva: piden juicio, no arreglo automático.")

@@ -33,6 +33,7 @@ const ETIQ = {
   'deriva-alta': '🔴 deriva alta — muchos de sus archivos cambiaron desde que se verificó',
   'rama-sin-mergear': '⏳ describe una rama sin mergear, no lo que corre en main',
   'deriva': '🟡 deriva — algunos archivos cambiaron desde que se verificó',
+  'solo-hubs': '⚪ solo hubs — lo único que se movió son archivos que comparte con medio árbol (api.php, routes.ts): nada propio que releer',
   'al-dia': '🟢 al día',
 }
 

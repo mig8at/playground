@@ -1,10 +1,10 @@
 {
-  "generado": "2026-08-07",
+  "generado": "2026-08-09",
   "ref": "main",
   "resumen": {
-    "al-dia": 26,
+    "al-dia": 29,
     "deriva": 6,
-    "rama-sin-mergear": 1
+    "rama-sin-mergear": 2
   },
   "nodos": [
     {
@@ -17,28 +17,34 @@
       },
       "archivos": 48,
       "deriva": {
-        "cambiados": 5,
-        "pct": 10,
+        "cambiados": 3,
+        "pct": 7,
+        "hubs": 2,
         "archivos": [
           {
             "ruta": "frontend-monorepo/apps/loan-request-wizard/app/routes/abaco/index.tsx",
-            "ultimo_cambio": "2026-07-30"
+            "ultimo_cambio": "2026-07-30",
+            "hub": false
           },
           {
             "ruta": "frontend-monorepo/modules/loan-request-wizard/abaco/src/infrastructure/repositories/abaco.repository.ts",
-            "ultimo_cambio": "2026-07-30"
+            "ultimo_cambio": "2026-07-30",
+            "hub": false
           },
           {
             "ruta": "frontend-monorepo/modules/loan-request-wizard/abaco/src/ports/abaco-repository.ts",
-            "ultimo_cambio": "2026-07-30"
+            "ultimo_cambio": "2026-07-30",
+            "hub": false
           },
           {
             "ruta": "frontend-monorepo/modules/loan-request-wizard/lenders-marketplace/src/lib/domain/constants/lender.constants.ts",
-            "ultimo_cambio": "2026-07-30"
+            "ultimo_cambio": "2026-07-30",
+            "hub": true
           },
           {
             "ruta": "legacy-backend/Modules/Onboarding/routes/api.php",
-            "ultimo_cambio": "2026-07-30"
+            "ultimo_cambio": "2026-07-30",
+            "hub": true
           }
         ]
       },
@@ -95,6 +101,30 @@
       }
     },
     {
+      "id": "payments",
+      "estado": "rama-sin-mergear",
+      "verificado": {
+        "ref": "main",
+        "date": "2026-07-31",
+        "source": "manual"
+      },
+      "archivos": 65,
+      "deriva": {
+        "cambiados": 0,
+        "pct": 0,
+        "hubs": 0,
+        "archivos": []
+      },
+      "commits": null,
+      "huerfanos": [],
+      "rutas_muertas": [],
+      "pendiente_merge": {
+        "ref": "origin/feature/CRED-101-recaudo-bhd-inbound-api",
+        "archivos": 2,
+        "ya_en_main": []
+      }
+    },
+    {
       "id": "findings",
       "estado": "deriva",
       "verificado": {
@@ -106,14 +136,17 @@
       "deriva": {
         "cambiados": 2,
         "pct": 5,
+        "hubs": 0,
         "archivos": [
           {
             "ruta": "harness/dev/guided.spec.ts",
-            "ultimo_cambio": "2026-08-04"
+            "ultimo_cambio": "2026-08-04",
+            "hub": false
           },
           {
             "ruta": "harness/dev/sweep.ts",
-            "ultimo_cambio": "2026-08-04"
+            "ultimo_cambio": "2026-08-04",
+            "hub": false
           }
         ]
       },
@@ -140,6 +173,65 @@
         ]
       },
       "huerfanos": [
+        "harness/dev/admin-sesion.php",
+        "harness/dev/loki-trace.ts",
+        "harness/dev/paises.ts",
+        "harness/dev/sandbox-bancolombia.ts",
+        "harness/pkg/loki.ts"
+      ],
+      "rutas_muertas": [],
+      "pendiente_merge": null
+    },
+    {
+      "id": "harness",
+      "estado": "deriva",
+      "verificado": {
+        "ref": "main",
+        "date": "2026-07-31",
+        "source": "manual"
+      },
+      "archivos": 44,
+      "deriva": {
+        "cambiados": 2,
+        "pct": 5,
+        "hubs": 0,
+        "archivos": [
+          {
+            "ruta": "harness/pkg/config.ts",
+            "ultimo_cambio": "2026-08-08",
+            "hub": false
+          },
+          {
+            "ruta": "harness/dev/guided.spec.ts",
+            "ultimo_cambio": "2026-08-04",
+            "hub": false
+          }
+        ]
+      },
+      "commits": {
+        "total": 2,
+        "autores": {
+          "Miguel Ochoa": 2
+        },
+        "lista": [
+          {
+            "sha": "171d046",
+            "fecha": "2026-08-08",
+            "autor": "Miguel Ochoa",
+            "asunto": "harness: login del admin de application + el selector de ciudad probado en la UI",
+            "repo": "harness"
+          },
+          {
+            "sha": "8925069",
+            "fecha": "2026-08-04",
+            "autor": "Miguel Ochoa",
+            "asunto": "feat(harness): forense de logs en Loki — dispara al cerrar cuando el veredicto sale mal",
+            "repo": "harness"
+          }
+        ]
+      },
+      "huerfanos": [
+        "harness/dev/admin-sesion.php",
         "harness/dev/loki-trace.ts",
         "harness/dev/paises.ts",
         "harness/dev/sandbox-bancolombia.ts",
@@ -156,18 +248,21 @@
         "date": "2026-07-31",
         "source": "manual"
       },
-      "archivos": 63,
+      "archivos": 65,
       "deriva": {
         "cambiados": 2,
         "pct": 3,
+        "hubs": 0,
         "archivos": [
           {
             "ruta": "legacy-backend/Modules/Loans/App/Services/CreditopXPaymentService.php",
-            "ultimo_cambio": "2026-08-03"
+            "ultimo_cambio": "2026-08-03",
+            "hub": false
           },
           {
             "ruta": "legacy-backend/app/Console/Kernel.php",
-            "ultimo_cambio": "2026-08-03"
+            "ultimo_cambio": "2026-08-03",
+            "hub": false
           }
         ]
       },
@@ -233,44 +328,43 @@
       "pendiente_merge": null
     },
     {
-      "id": "harness",
+      "id": "smartpay",
       "estado": "deriva",
       "verificado": {
         "ref": "main",
         "date": "2026-07-31",
         "source": "manual"
       },
-      "archivos": 44,
+      "archivos": 74,
       "deriva": {
         "cambiados": 1,
         "pct": 2,
+        "hubs": 0,
         "archivos": [
           {
-            "ruta": "harness/dev/guided.spec.ts",
-            "ultimo_cambio": "2026-08-04"
+            "ruta": "legacy-backend/app/Console/Kernel.php",
+            "ultimo_cambio": "2026-08-03",
+            "hub": false
           }
         ]
       },
       "commits": {
         "total": 1,
         "autores": {
-          "Miguel Ochoa": 1
+          "hans peter": 1
         },
         "lista": [
           {
-            "sha": "8925069",
-            "fecha": "2026-08-04",
-            "autor": "Miguel Ochoa",
-            "asunto": "feat(harness): forense de logs en Loki — dispara al cerrar cuando el veredicto sale mal",
-            "repo": "harness"
+            "sha": "9b86c254",
+            "fecha": "2026-06-30",
+            "autor": "hans peter",
+            "asunto": "feat(recordatorios): activar recordatorios de cobranza SmartPay en legacy",
+            "repo": "legacy-backend"
           }
         ]
       },
       "huerfanos": [
-        "harness/dev/loki-trace.ts",
-        "harness/dev/paises.ts",
-        "harness/dev/sandbox-bancolombia.ts",
-        "harness/pkg/loki.ts"
+        "legacy-backend/database/migrations/2026_07_01_120000_add_template_name_to_creditop_x_reminder_messages.php"
       ],
       "rutas_muertas": [],
       "pendiente_merge": null
@@ -283,14 +377,16 @@
         "date": "2026-07-31",
         "source": "manual"
       },
-      "archivos": 85,
+      "archivos": 92,
       "deriva": {
         "cambiados": 1,
         "pct": 1,
+        "hubs": 0,
         "archivos": [
           {
             "ruta": "legacy-backend/app/Console/Kernel.php",
-            "ultimo_cambio": "2026-08-03"
+            "ultimo_cambio": "2026-08-03",
+            "hub": false
           }
         ]
       },
@@ -325,10 +421,12 @@
       "deriva": {
         "cambiados": 1,
         "pct": 1,
+        "hubs": 0,
         "archivos": [
           {
             "ruta": "legacy-backend/app/Console/Kernel.php",
-            "ultimo_cambio": "2026-08-03"
+            "ultimo_cambio": "2026-08-03",
+            "hub": false
           }
         ]
       },
@@ -367,46 +465,6 @@
       "pendiente_merge": null
     },
     {
-      "id": "smartpay",
-      "estado": "deriva",
-      "verificado": {
-        "ref": "main",
-        "date": "2026-07-31",
-        "source": "manual"
-      },
-      "archivos": 74,
-      "deriva": {
-        "cambiados": 1,
-        "pct": 1,
-        "archivos": [
-          {
-            "ruta": "legacy-backend/app/Console/Kernel.php",
-            "ultimo_cambio": "2026-08-03"
-          }
-        ]
-      },
-      "commits": {
-        "total": 1,
-        "autores": {
-          "hans peter": 1
-        },
-        "lista": [
-          {
-            "sha": "9b86c254",
-            "fecha": "2026-06-30",
-            "autor": "hans peter",
-            "asunto": "feat(recordatorios): activar recordatorios de cobranza SmartPay en legacy",
-            "repo": "legacy-backend"
-          }
-        ]
-      },
-      "huerfanos": [
-        "legacy-backend/database/migrations/2026_07_01_120000_add_template_name_to_creditop_x_reminder_messages.php"
-      ],
-      "rutas_muertas": [],
-      "pendiente_merge": null
-    },
-    {
       "id": "actors",
       "estado": "al-dia",
       "verificado": {
@@ -418,6 +476,7 @@
       "deriva": {
         "cambiados": 0,
         "pct": 0,
+        "hubs": 0,
         "archivos": []
       },
       "commits": null,
@@ -439,6 +498,7 @@
       "deriva": {
         "cambiados": 0,
         "pct": 0,
+        "hubs": 0,
         "archivos": []
       },
       "commits": null,
@@ -458,6 +518,7 @@
       "deriva": {
         "cambiados": 0,
         "pct": 0,
+        "hubs": 0,
         "archivos": []
       },
       "commits": null,
@@ -479,6 +540,7 @@
       "deriva": {
         "cambiados": 0,
         "pct": 0,
+        "hubs": 0,
         "archivos": []
       },
       "commits": null,
@@ -500,6 +562,7 @@
       "deriva": {
         "cambiados": 0,
         "pct": 0,
+        "hubs": 0,
         "archivos": []
       },
       "commits": null,
@@ -519,6 +582,7 @@
       "deriva": {
         "cambiados": 0,
         "pct": 0,
+        "hubs": 0,
         "archivos": []
       },
       "commits": null,
@@ -538,6 +602,7 @@
       "deriva": {
         "cambiados": 0,
         "pct": 0,
+        "hubs": 0,
         "archivos": []
       },
       "commits": null,
@@ -557,6 +622,7 @@
       "deriva": {
         "cambiados": 0,
         "pct": 0,
+        "hubs": 0,
         "archivos": []
       },
       "commits": null,
@@ -572,10 +638,11 @@
         "date": "2026-07-31",
         "source": "manual"
       },
-      "archivos": 58,
+      "archivos": 59,
       "deriva": {
         "cambiados": 0,
         "pct": 0,
+        "hubs": 0,
         "archivos": []
       },
       "commits": null,
@@ -595,6 +662,47 @@
       "deriva": {
         "cambiados": 0,
         "pct": 0,
+        "hubs": 0,
+        "archivos": []
+      },
+      "commits": null,
+      "huerfanos": [],
+      "rutas_muertas": [],
+      "pendiente_merge": null
+    },
+    {
+      "id": "db-routines",
+      "estado": "al-dia",
+      "verificado": {
+        "ref": "main",
+        "date": "2026-08-07",
+        "source": "cabecera"
+      },
+      "archivos": 7,
+      "deriva": {
+        "cambiados": 0,
+        "pct": 0,
+        "hubs": 0,
+        "archivos": []
+      },
+      "commits": null,
+      "huerfanos": [],
+      "rutas_muertas": [],
+      "pendiente_merge": null
+    },
+    {
+      "id": "deceval",
+      "estado": "al-dia",
+      "verificado": {
+        "ref": "main",
+        "date": "2026-08-07",
+        "source": "cabecera"
+      },
+      "archivos": 20,
+      "deriva": {
+        "cambiados": 0,
+        "pct": 0,
+        "hubs": 0,
         "archivos": []
       },
       "commits": null,
@@ -610,10 +718,11 @@
         "date": "2026-07-31",
         "source": "manual"
       },
-      "archivos": 90,
+      "archivos": 84,
       "deriva": {
         "cambiados": 0,
         "pct": 0,
+        "hubs": 0,
         "archivos": []
       },
       "commits": null,
@@ -635,6 +744,7 @@
       "deriva": {
         "cambiados": 0,
         "pct": 0,
+        "hubs": 0,
         "archivos": []
       },
       "commits": null,
@@ -656,6 +766,7 @@
       "deriva": {
         "cambiados": 0,
         "pct": 0,
+        "hubs": 0,
         "archivos": []
       },
       "commits": null,
@@ -677,6 +788,7 @@
       "deriva": {
         "cambiados": 0,
         "pct": 0,
+        "hubs": 0,
         "archivos": []
       },
       "commits": null,
@@ -692,10 +804,11 @@
         "date": "2026-07-31",
         "source": "manual"
       },
-      "archivos": 86,
+      "archivos": 87,
       "deriva": {
         "cambiados": 0,
         "pct": 0,
+        "hubs": 0,
         "archivos": []
       },
       "commits": null,
@@ -713,10 +826,11 @@
         "date": "2026-07-31",
         "source": "manual"
       },
-      "archivos": 86,
+      "archivos": 84,
       "deriva": {
         "cambiados": 0,
         "pct": 0,
+        "hubs": 0,
         "archivos": []
       },
       "commits": null,
@@ -736,6 +850,7 @@
       "deriva": {
         "cambiados": 0,
         "pct": 0,
+        "hubs": 0,
         "archivos": []
       },
       "commits": null,
@@ -757,6 +872,7 @@
       "deriva": {
         "cambiados": 0,
         "pct": 0,
+        "hubs": 0,
         "archivos": []
       },
       "commits": null,
@@ -774,16 +890,37 @@
         "date": "2026-07-31",
         "source": "git-doc"
       },
-      "archivos": 51,
+      "archivos": 55,
       "deriva": {
         "cambiados": 0,
         "pct": 0,
+        "hubs": 0,
         "archivos": []
       },
       "commits": null,
       "huerfanos": [
         "legacy-backend/database/migrations/2026_07_01_120000_add_template_name_to_creditop_x_reminder_messages.php"
       ],
+      "rutas_muertas": [],
+      "pendiente_merge": null
+    },
+    {
+      "id": "microservicios",
+      "estado": "al-dia",
+      "verificado": {
+        "ref": "main",
+        "date": "2026-08-07",
+        "source": "cabecera"
+      },
+      "archivos": 13,
+      "deriva": {
+        "cambiados": 0,
+        "pct": 0,
+        "hubs": 0,
+        "archivos": []
+      },
+      "commits": null,
+      "huerfanos": [],
       "rutas_muertas": [],
       "pendiente_merge": null
     },
@@ -799,6 +936,7 @@
       "deriva": {
         "cambiados": 0,
         "pct": 0,
+        "hubs": 0,
         "archivos": []
       },
       "commits": null,
@@ -818,31 +956,13 @@
       "deriva": {
         "cambiados": 0,
         "pct": 0,
+        "hubs": 0,
         "archivos": []
       },
       "commits": null,
       "huerfanos": [
         "legacy-backend/database/migrations/2026_07_01_120000_add_template_name_to_creditop_x_reminder_messages.php"
       ],
-      "rutas_muertas": [],
-      "pendiente_merge": null
-    },
-    {
-      "id": "payments",
-      "estado": "al-dia",
-      "verificado": {
-        "ref": "main",
-        "date": "2026-07-31",
-        "source": "manual"
-      },
-      "archivos": 65,
-      "deriva": {
-        "cambiados": 0,
-        "pct": 0,
-        "archivos": []
-      },
-      "commits": null,
-      "huerfanos": [],
       "rutas_muertas": [],
       "pendiente_merge": null
     },
@@ -858,6 +978,7 @@
       "deriva": {
         "cambiados": 0,
         "pct": 0,
+        "hubs": 0,
         "archivos": []
       },
       "commits": null,
@@ -879,6 +1000,7 @@
       "deriva": {
         "cambiados": 0,
         "pct": 0,
+        "hubs": 0,
         "archivos": []
       },
       "commits": null,
@@ -898,12 +1020,33 @@
       "deriva": {
         "cambiados": 0,
         "pct": 0,
+        "hubs": 0,
         "archivos": []
       },
       "commits": null,
       "huerfanos": [
         "legacy-backend/database/migrations/2026_07_01_120000_add_template_name_to_creditop_x_reminder_messages.php"
       ],
+      "rutas_muertas": [],
+      "pendiente_merge": null
+    },
+    {
+      "id": "rotativo",
+      "estado": "al-dia",
+      "verificado": {
+        "ref": "main",
+        "date": "2026-08-07",
+        "source": "cabecera"
+      },
+      "archivos": 13,
+      "deriva": {
+        "cambiados": 0,
+        "pct": 0,
+        "hubs": 0,
+        "archivos": []
+      },
+      "commits": null,
+      "huerfanos": [],
       "rutas_muertas": [],
       "pendiente_merge": null
     },
@@ -919,6 +1062,7 @@
       "deriva": {
         "cambiados": 0,
         "pct": 0,
+        "hubs": 0,
         "archivos": []
       },
       "commits": null,
