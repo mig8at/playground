@@ -85,6 +85,10 @@ context-salud: ## @ctx ¿el árbol SIRVE para un LLM? ruteo, archivos mudos, hub
 context-lint: ## @ctx la guardia que BLOQUEA: conteos horneados, refs muertas, secciones prohibidas, rutas desnudas, nodos invisibles
 	@cd context && python3 tools/lint.py
 
+context-huella: ## @ctx la huella MEDIDA de un flujo (tablas/eventos/código) desde una corrida. UREQ=x [MYSQL=/tmp/huella-mysql.log]
+	@test -n "$(UREQ)" || { cd context && python3 tools/huella.py; exit 2; }
+	@cd context && python3 tools/huella.py $(UREQ) $(if $(NOMBRE),--nombre "$(NOMBRE)",) $(if $(MYSQL),--mysql $(MYSQL),)
+
 context-diff: ## @ctx QUÉ cambió en el código de un nodo desde su sello — lo que se lee para re-verificar. NODE=x [STAT=1]
 	@test -n "$(NODE)" || { echo "falta NODE=<nodo>  ·  ej: make context-diff NODE=onboarding"; exit 2; }
 	@cd context && python3 tools/diff.py $(NODE) $(if $(STAT),--stat,)
