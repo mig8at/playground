@@ -5,7 +5,9 @@
   "kind": "reference",
   "when": "Cuando el problema es DESPUÉS del desembolso (Estado 11): cartera, causación de interés, fecha de corte, mora, cobranza, pagos y cupo rotativo. Los 6 crons diarios `UpdateCreditopX*` y el ledger `creditop_x_requests_history`. Ojo: corre 100% en `application`, no en legacy-backend.",
   "sintomas": [
-    "«ya está desembolsado y la cuota está mal»"
+    "«ya está desembolsado y la cuota está mal»",
+    "«reversé un pago y tiró error»",
+    "«el pago no se ve reflejado en el saldo»"
   ],
   "verified": {
     "ref": "main",
@@ -40,6 +42,7 @@
     "application/app/Http/Controllers/Admin/CreditopXRevolvingCreditPaymentController.php",
     "application/app/Http/Controllers/Admin/CreditopXRiskController.php",
     "application/app/Http/Controllers/Admin/EndOfMonthReportController.php",
+    "application/app/Http/Controllers/Admin/RevolvingCreditPaymentManageController.php",
     "application/app/Http/Controllers/Admin/RevolvingCreditsController.php",
     "application/app/Http/Controllers/Api/PayvalidaController.php",
     "application/app/Http/Controllers/Customer/ConsentController.php",
@@ -58,6 +61,7 @@
     "application/app/Models/CreditopXLenderCollectionCharge.php",
     "application/app/Models/CreditopXLenderResidualBalance.php",
     "application/app/Models/CreditopXPayment.php",
+    "application/app/Models/CreditopXPaymentRegister.php",
     "application/app/Models/CreditopXRequestHistory.php",
     "application/app/Models/CreditopXRevolvingCreditPayment.php",
     "application/app/Models/CreditopXUserRequestStatus.php",

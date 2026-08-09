@@ -25,6 +25,8 @@ orden de archivo — el ancla `### F-xx` es la única dirección.)
 | Si tu síntoma es… | Mirá |
 |---|---|
 | **«¿este comercio es Corbeta?» / entra por una puerta y no por otra** | F-125 |
+| **«reversar un pago tira 500»** | F-126 |
+| F-126 | Reversar un pago RETENIDO revienta: el código busca «PAGO REVERSADO» y la fila se llama «REVERSADO» | TRAMPA |
 | **«le salen menos cuotas de las parametrizadas»** | F-110 |
 | **«le aprobaron cupo a alguien que no debía»** | F-112 |
 | **«no sale la opción de una entidad, sin error»** | F-113 |
@@ -1437,3 +1439,21 @@ en producción — el webhook no deja registro cuando `firstOrFail()` lanza, as�
 - **Arreglo:** no hay uno único — al razonar pertenencia, mirá la lista del SITIO exacto que ejecuta.
   Deuda: unificar todo en el setting y borrar la fila duplicada.
 - **Estado:** trampa viva.
+
+### F-126 · Reversar un pago RETENIDO revienta: el código busca «PAGO REVERSADO» y la fila se llama «REVERSADO»
+
+- **Síntoma:** desde el admin de cartera, reversar un pago tira **500** (`Attempt to read property "id"
+  on null`). Reversar otros pagos del mismo crédito funciona, así que se lee como intermitente.
+- **Causa raíz (verificada 2026-08-08):** `application/app/Http/Controllers/Admin/CreditopXPaymentController.php:1378`
+  resuelve el tipo con `CreditopXPaymentType::where('name', 'PAGO REVERSADO')->first()->id`, pero en
+  `creditop_x_payment_types` **la fila se llama `REVERSADO`** (id 8). `first()` devuelve `null` y el
+  `->id` es fatal. No hay `try` que lo cubra: el `catch` del método envuelve más abajo.
+- **Por qué parece intermitente:** la línea vive dentro de la rama `if ($payment->paymentType->name == 'RETENIDO')`
+  (`:1377`), o sea **solo los pagos que entraron ANTES de la fecha de corte y todavía no se aplicaron**.
+  Las otras dos ramas —ya aplicado (`:1396`) y ya reversado (`:1387`)— no tocan el catálogo y andan bien.
+- **Evidencia:** `SELECT id,name FROM creditop_x_payment_types WHERE name LIKE '%REVERSAD%'` → una sola
+  fila, `8 · REVERSADO`. Y `SELECT payment_type_id, COUNT(*) FROM creditop_x_payments GROUP BY 1` da
+  **56 pagos en `payment_type_id=1` (RETENIDO)** en el dump local: el camino es alcanzable, no teórico.
+- **Arreglo:** cambiar el literal a `'REVERSADO'` — o mejor, resolver por id contra una constante, que es
+  lo que evita que el próximo rename de una fila de catálogo tumbe un flujo de plata.
+- **Estado:** vivo en `main` de `legacy-application`. No aplicado: es un repo de la compañía.

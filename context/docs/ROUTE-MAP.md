@@ -28,6 +28,7 @@ Si la tarea llega con una de estas frases, empezá por esos nodos. Si ninguna ma
 | «el monolito no tiene este endpoint» | `microservicios` |
 | «el número no cuadra y no encuentro dónde se calcula» | `db-routines` |
 | «el pagaré dice una persona y la BD dice otra» | `formalization` |
+| «el pago no se ve reflejado en el saldo» | `servicing` |
 | «el reporte que descargó trae de más» | `application` |
 | «el rotativo le dio cupo 0 y no sé por qué» | `rotativo` |
 | «el webhook del lender no llegó» | `aggregator` |
@@ -72,6 +73,7 @@ Si la tarea llega con una de estas frases, empezá por esos nodos. Si ninguna ma
 | «¿qué falta para apagar application?» | `application` |
 | «¿qué integra de verdad esta entidad?» | `entities` |
 | «¿qué le pasó a ESTA solicitud?» | `trazador` |
+| «reversé un pago y tiró error» | `servicing` |
 | «sale pre-aprobado y no debería» (o al revés) | `ms-preapprovals` |
 | «ya está desembolsado y la cuota está mal» | `servicing` |
 | «ya nos pasó esto antes?» | `findings` |
@@ -255,7 +257,7 @@ Doc: `server/data/flows/redirect/doc.md` · Archivos: `server/data/flows/redirec
 **Cuándo:** Cuando la pregunta es sobre el OTORGAMIENTO del cupo rotativo (response_type=3): «¿por qué a este cliente el rotativo le dio cupo 0?», «¿de dónde sale el multiplicador?», «¿por qué la cuota inicial / el FGA de este cliente es esa?», «¿por qué las condiciones que vio en pantalla no son las del cupo que quedó?». Acá viven el multiplicador de riesgo 1-5 (promedio ponderado de 6 variables de Experian + continuidad laboral), el corte duro `multiplier <= 3`, las tablas `creditop_x_profiling_multiplier_risk_vars`/`_rangs`, la cuota inicial y el FGA por nivel (`creditop_x_profiling_down_payment_FGA`), el tope general `lenders.max_rev_credit`, y las DOS implementaciones que divergen (PHP en legacy-application otorga; el SP en SQL alimenta la pantalla de condiciones). NO es para lo que pasa DESPUÉS del desembolso —cartera, causación, cupo que se libera al pagar—: eso es `servicing`. Y NO es la categorización de consumo por tiers: eso es `profiling`.
 Doc: `server/data/flows/rotativo/doc.md` · Archivos: `server/data/flows/rotativo/map.json` · Padre: `creditopx`
 
-### servicing — Servicing  ·  _reference_ · 63 archivos
+### servicing — Servicing  ·  _reference_ · 65 archivos
 **Cuándo:** Cuando el problema es DESPUÉS del desembolso (Estado 11): cartera, causación de interés, fecha de corte, mora, cobranza, pagos y cupo rotativo. Los 6 crons diarios `UpdateCreditopX*` y el ledger `creditop_x_requests_history`. Ojo: corre 100% en `application`, no en legacy-backend.
 Doc: `server/data/flows/servicing/doc.md` · Archivos: `server/data/flows/servicing/map.json` · Padre: `creditop`
 

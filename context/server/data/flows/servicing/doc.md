@@ -16,6 +16,23 @@ La originación **termina en el Estado 11** ("Autorizada" = desembolsado). La co
 | ¿Simulable E2E? | **Parcial**: in-platform sí (sembrar el ledger + **invocar los crons a mano** + simular el pago por polling); rt≠0 **no** (lo gestiona un tercero). En legacy corren 3 crons de device-lock (SmartPay) que **consumen** el ledger (ver F-39); el resto de la cartera se prueba contra `application`. |
 
 ## Antes de concluir
+- 🔴 **BUG VIVO: reversar un pago RETENIDO revienta con un fatal.** `reversePayment:1378` resuelve el
+  tipo con `where('name','PAGO REVERSADO')`, y la fila de la tabla se llama **`REVERSADO`** (id 8) —
+  `first()` devuelve `null` y `null->id` tira `Attempt to read property "id" on null`. Solo dispara en
+  esa rama (`:1377`, pagos aún sin aplicar); las otras dos —ya aplicado, ya reversado— funcionan. En el
+  dump local hay **56 pagos en RETENIDO**, o sea que es alcanzable. Ver **F-126**.
+- ⚠ **`movement_type` del ledger está vacío en el 90 % de las filas** (194.113 de ~214.700 en el dump
+  local). Reconstruir la historia de un crédito filtrando por `movement_type` pierde casi todo: los
+  nombres (`FECHA DE CORTE` 7.050 · `APLICACIÓN DE PAGO` 5.894 · `CONDONACIÓN DE COLILLAS` 4.897 ·
+  `CREACIÓN` 2.419) solo cubren los hitos, no la causación diaria.
+- ⚠ **El «medio de pago» lo decide QUIÉN registra, no cómo se pagó**: `payment_method` sale de
+  `corporate_user_id > 0 ? 'Cajas' : 'PSE'` (`:90`). Un pago cargado por un usuario corporativo queda
+  como «Cajas» aunque haya entrado por pasarela. No sirve para conciliar contra el proveedor.
+- **El seguro de vida se cobra solo si `insurance_balance > 0`** (`:133`), condición que la cascada
+  simple no muestra: un crédito con el seguro ya saldado saltea ese escalón y el excedente baja antes
+  a capital.
+- **Sin sucursal, el pago se imputa a la 17**: `allied_branch_id ?? 17` (`:85`), con el comentario
+  «si no tiene branch seríamos nosotros». Los reportes por sucursal heredan ese default.
 - **DOS máquinas de estado que se confunden** (`user_request_status_id` originación ≠ `creditop_x_requests_status_id` préstamo); el 11 es el puente.
 - **`status` sobrecargado en 3 sentidos** (vigencia de fila / activo-inactivo de cupo / estado del crédito).
 - **Seeder engañosamente incompleto**: `CreditopXUserRequestsStatusesSeeder` solo siembra 1 y 2; los ids 3/4 viven solo en la BD real. Y `user_request_statuses` **no tiene seeder ni INSERT** (ids 2/7 sin confirmar).
@@ -61,6 +78,30 @@ acumulan y se registran juntos al final de la corrida. Si un pago "desapareció"
 5. **Ingreso de pago (evento, NO cron):** Wompi/Payvalida se confirman por **polling** (`Jobs/Lenders/Wompi/StatusCheck`, `tries=60`), luego `CreditopXPaymentController::processPayment` aplica en **cascada de imputación**: `gasto de cobranza → mora → interés → seguro de vida → seguro de garantía → capital` (el excedente reduce capital).
 6. **Paz y salvo:** cuando `total_payment_amount == 0`, `applyPayment` fija `status=3` + `creditop_x_requests_status_id=3`.
 7. **Cupo rotativo (rt=3):** al pagar capital libera cupo para reuso con **FGA proporcional** (`corresponding_fga = paid_principal − paid_principal × used_limit/billing_used_limit`); el cron 04:00 resuelve mora del cupo pero NO toca `used_limit`.
+
+### El pago por dentro (`CreditopXPaymentController`, 1.696 líneas — leído 2026-08-08)
+
+Tres mecanismos que no se deducen de la cascada y explican la mayoría de los «no cuadra»:
+
+**1 · La bifurcación de entrada es la fecha de corte, no el monto.** `processPayment:62` mira
+`last_register->next_payment_amount`: si es `> 0` (ya hubo corte) **aplica el pago ya**; si no, lo
+**RETIENE** —lo guarda como `payment_type_id = 1 RETENIDO`— y recién lo aplica el cron de las 03:30 vía
+`applyRetainedPayments:1088`. Un pago hecho antes del corte no mueve el saldo el mismo día, y eso no
+es un error: es el diseño.
+
+**2 · La idempotencia existe pero es MUDA.** Si llega un pago con un `payment_gateway_transaction_id`
+que ya tiene registro, el método hace `return` **sin excepción, sin log y sin valor de retorno**
+(`:64-67`). Para el que llama es indistinguible de un pago aplicado con éxito. Al depurar un pago
+«que se perdió», descartá esto primero mirando `creditop_x_payment_register` por esa transacción.
+
+**3 · Reversar NO borra: reescribe cuál fila del ledger es la vigente.** `reversePayment:1368` marca la
+fila actual `status=0`, la del pago `status=5`, **restaura la anterior a `status=1`** y arrastra el
+`next_register` a 5. Por eso el saldo de un crédito es siempre «la fila con `status=1`», nunca la
+última por fecha — y por eso una reversa mal cortada deja dos filas vigentes o ninguna.
+
+El catálogo que ordena todo esto es **`creditop_x_payment_types`** (verificado en BD local, 2026-08-08):
+**1** RETENIDO · **2** ABONO A CAPITAL · **3** PAGO A CUOTA · **4** PAGO TOTAL · **5** CONDONACIÓN
+INTERESES · **6** DESC. 5% SOBRE CAPITAL · **7** PAGO CUOTA INICIAL · **8** REVERSADO.
 
 ## Estados y códigos
 **DOS máquinas de estado independientes que se confunden** (el Estado 11 es el puente):
