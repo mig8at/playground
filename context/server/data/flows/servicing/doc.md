@@ -83,7 +83,8 @@ acumulan y se registran juntos al final de la corrida. Si un pago "desapareció"
 
 Tres mecanismos que no se deducen de la cascada y explican la mayoría de los «no cuadra»:
 
-**1 · La bifurcación de entrada es la fecha de corte, no el monto.** `processPayment:62` mira
+**1 · La bifurcación de entrada es la fecha de corte, no el monto.**
+`application/app/Http/Controllers/Admin/CreditopXPaymentController.php:62` (`processPayment`) mira
 `last_register->next_payment_amount`: si es `> 0` (ya hubo corte) **aplica el pago ya**; si no, lo
 **RETIENE** —lo guarda como `payment_type_id = 1 RETENIDO`— y recién lo aplica el cron de las 03:30 vía
 `applyRetainedPayments:1088`. Un pago hecho antes del corte no mueve el saldo el mismo día, y eso no
@@ -94,7 +95,8 @@ que ya tiene registro, el método hace `return` **sin excepción, sin log y sin 
 (`:64-67`). Para el que llama es indistinguible de un pago aplicado con éxito. Al depurar un pago
 «que se perdió», descartá esto primero mirando `creditop_x_payment_register` por esa transacción.
 
-**3 · Reversar NO borra: reescribe cuál fila del ledger es la vigente.** `reversePayment:1368` marca la
+**3 · Reversar NO borra: reescribe cuál fila del ledger es la vigente.**
+`application/app/Http/Controllers/Admin/CreditopXPaymentController.php:1368` (`reversePayment`) marca la
 fila actual `status=0`, la del pago `status=5`, **restaura la anterior a `status=1`** y arrastra el
 `next_register` a 5. Por eso el saldo de un crédito es siempre «la fila con `status=1`», nunca la
 última por fecha — y por eso una reversa mal cortada deja dos filas vigentes o ninguna.
