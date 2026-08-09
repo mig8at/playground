@@ -49,6 +49,7 @@ Si la tarea llega con una de estas frases, empezá por esos nodos. Si ninguna ma
 | «formulario no encontrado» | `dynamic-forms` · `form-service` |
 | «hay que agregar un campo al formulario» | `dynamic-forms` · `form-service` |
 | «hay que integrar una entidad nueva» | `hardcodes-entidades` |
+| «hay que rehacer el panel de configuración» | `merchants` |
 | «la pantalla del wizard se ve/comporta mal» | `frontend-monorepo` |
 | «las condiciones que vio no son las del cupo que quedó» | `rotativo` |
 | «lo mandó al sitio del lender y no volvió» | `redirect` |
@@ -75,6 +76,7 @@ Si la tarea llega con una de estas frases, empezá por esos nodos. Si ninguna ma
 | «¿qué le pasó a ESTA solicitud?» | `trazador` |
 | «reversé un pago y tiró error» | `servicing` |
 | «sale pre-aprobado y no debería» (o al revés) | `ms-preapprovals` |
+| «se le cambió sola la config de una entidad» | `merchants` |
 | «ya está desembolsado y la cuota está mal» | `servicing` |
 | «ya nos pasó esto antes?» | `findings` |
 
@@ -217,7 +219,7 @@ Doc: `server/data/flows/kyc/doc.md` · Archivos: `server/data/flows/kyc/map.json
 **Cuándo:** Cuando trabajás en el backend nuevo modular: módulos Onboarding/Loans/Identity/Partner/Risk, rutas /api/*, arquitectura V1 y V2, envelope code/message/data, o dónde poner un endpoint nuevo. También cuando el síntoma llega como un CÓDIGO de error del onboarding (ONB002 usuario temporal sin Corbeta, ONB005 TusDatos, ONB040 rate limit) o como un endpoint concreto: `lenders-v2`, `storePersonalInfo`, `validateOtpCodeAndRedirect`, `lender-result`.
 Doc: `server/data/flows/legacy-backend/doc.md` · Archivos: `server/data/flows/legacy-backend/map.json` · Padre: `architecture`
 
-### merchants — Merchants  ·  _reference_ · 51 archivos
+### merchants — Merchants  ·  _reference_ · 55 archivos
 **Cuándo:** Cuando el problema es 'a este comercio le pasa distinto': configuración por entidad/comercio/sucursal, copia de reglas por sucursal, hash de entrada, credenciales de ecommerce, toggles del comercio. También cuando el comercio cambia la FORMA del flujo y no sólo sus reglas — el caso medido es el setting `corbeta_allieds` (Alkosto 209, K-TRONIX 210, Alkomprar 211, Kalley 311, Creditop 24), que salta el formulario y fabrica la info laboral, y por eso ese comercio no consulta buró.
 Doc: `server/data/flows/merchants/doc.md` · Archivos: `server/data/flows/merchants/map.json` · Padre: `creditop`
 

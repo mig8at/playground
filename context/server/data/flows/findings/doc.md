@@ -26,6 +26,8 @@ orden de archivo — el ancla `### F-xx` es la única dirección.)
 |---|---|
 | **«¿este comercio es Corbeta?» / entra por una puerta y no por otra** | F-125 |
 | **«reversar un pago tira 500»** | F-126 |
+| **«se le cambió sola la config de una entidad»** | F-127 |
+| F-127 | La calculadora «por comercio» escribe dos tablas GLOBALES del lender: se pisan entre comercios y a rt≠2 se las borra | TRAMPA |
 | F-126 | Reversar un pago RETENIDO revienta: el código busca «PAGO REVERSADO» y la fila se llama «REVERSADO» | TRAMPA |
 | **«le salen menos cuotas de las parametrizadas»** | F-110 |
 | **«le aprobaron cupo a alguien que no debía»** | F-112 |
@@ -1457,3 +1459,31 @@ en producción — el webhook no deja registro cuando `firstOrFail()` lanza, as�
 - **Arreglo:** cambiar el literal a `'REVERSADO'` — o mejor, resolver por id contra una constante, que es
   lo que evita que el próximo rename de una fila de catálogo tumbe un flujo de plata.
 - **Estado:** vivo en `main` de `legacy-application`. No aplicado: es un repo de la compañía.
+
+### F-127 · La calculadora «por comercio» escribe dos tablas GLOBALES del lender: los comercios se pisan, y a rt≠2 se las borra
+
+- **Síntoma:** un comercio configura el fondo de garantía o el método de pago de una entidad, y al rato
+  «se le cambió solo» — o directamente desapareció. Otro comercio tocó la misma entidad, o alguien
+  guardó esa pantalla en una entidad que no es rt=2.
+- **Causa raíz (verificada 2026-08-08):** la pantalla es
+  `admin/aliados/{allied}/entidades/{lendersByAllied}` —por comercio— pero
+  `application/app/Http/Controllers/Admin/AlliedLenderController.php:254` y `:265` hacen
+  `LenderGuaranteeCriteria::where('lender_id', …)->delete()` y
+  `PaymentMethodsByLender::where('lender_id', …)->delete()`. **Ninguna de las dos tablas tiene columna
+  de comercio**: en BD son `lender_id` + payload, o sea configuración GLOBAL de la entidad. La UI
+  promete por-par y el esquema es por-entidad.
+- **Dos daños distintos:**
+  1. **Pisada entre comercios** — gana el último que guarde, para todos. Hoy **51 comercios** tienen
+     habilitado algún lender con criterios de garantía cargados.
+  2. **Borrado sin reposición** — el `delete()` corre siempre, pero el `create()` está condicionado a
+     `$lendersByAllied->lender->response_type == 2` (`:255`, `:266`). Guardar la calculadora de un
+     lender rt≠2 **borra y no repone**. Hay **1 fila de garantía viva de un lender rt=3**.
+- **Evidencia:** `SHOW COLUMNS FROM lender_guarantee_criteria` y `… payment_methods_by_lender` → solo
+  `lender_id`, sin `allied_id`. `SELECT l.response_type, COUNT(*) … GROUP BY 1` → garantía: 54 en rt=2
+  y **1 en rt=3**; métodos de pago: 69, todos rt=2.
+- **Arreglo:** es decisión de diseño, no parche — o las tablas ganan `allied_id` (y la config pasa a ser
+  por par, como sugiere la pantalla), o la pantalla deja de ofrecerlas por comercio (y pasa a la ficha
+  de la entidad, como dice el esquema). Mientras tanto: acotar el `delete()` y sacar el `rt == 2` de la
+  condición de recreate, que es el que destruye datos.
+- **Estado:** vivo en `main` de `legacy-application`. No aplicado: es un repo de la compañía. **Es
+  material obligatorio para quien construya el panel nuevo de configuración** (→ `merchants` §9).

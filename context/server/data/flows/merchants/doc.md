@@ -7,6 +7,10 @@ Los **comercios/merchants** aliados (`allieds`) y sus **sucursales** (`allied_br
 El nodo se documentó **leyendo código** (no hay doc fuente). La verdad estructural es más flaca de lo que sugiere el panel: **no existe herencia viva entre niveles**. Lo que el admin llama "configurar la entidad en la sucursal" es en realidad un **snapshot que se clona** al momento de habilitar, y a partir de ahí las dos copias viven vidas separadas.
 
 ## Antes de concluir
+- 🔴 **La pantalla «entidades del comercio» escribe DOS tablas que no son por comercio.**
+  `lender_guarantee_criteria` y `payment_methods_by_lender` solo tienen `lender_id`, y el update las
+  borra y recrea por lender: los comercios se pisan entre sí, y guardar un lender rt≠2 las borra sin
+  reponerlas. El mapa completo de qué escribe cada pantalla está en **§9**; el hallazgo, en **F-127**.
 - **`have_ctopx` es NO-OP en el listado de legacy.** `LenderListingService.php:356` tiene `$no_more = false; // TODO quitar definitivamente`; con eso, `have_ctopx = false` deja la lista vacía y el `elseif (empty(...))` de `:377` la rellena con **todas** las entidades de la sucursal. Ambos valores del flag terminan igual. En `application` (`LenderRetrievalService.php:126`) `$no_more` **sí** se calcula (¿ya tiene un crédito rt=2 en estado 11 en ese comercio?) → **la regla "un CreditopX activo por comercio" existe en application y se perdió en legacy**.
 - **`lenders_by_allied_branches.status` no filtra en el camino principal.** Ninguna de las tres ramas de `resolveLenderIdsByBranch` (legacy) ni de `LenderRetrievalService` (application) lo aplica; sí lo usan la pantalla de reglas, el chequeo de Prami y el simulador viejo. Además **ningún código escribe la columna** (el `create` no la manda y el default de la migración es `true`) → apagar una entidad en una sucursal es una operación **solo-BD**, no de panel. *(Corrige la afirmación sembrada de que era "la 1.ª compuerta dura de getLenders".)*
 - **Guardar una sucursal con lista incompleta borra asociaciones… pero no reglas.** El `update` es DELETE + recreate y `AlliedBranch/UpdateRequest` **no valida `lenders_selected`**. Las `group_rules`/`lender_rules`/`lender_datacredito_rules` ya copiadas **quedan huérfanas** (nadie las borra, ni el `destroy` de `AlliedLenderController:307`).
@@ -99,6 +103,42 @@ Puerto 1:1 del admin de comercios a legacy-backend. Rutas bajo `api/partners` (`
 - **El CRUD de comercios no lo consume nadie.** Los únicos endpoints `api/partners/*` que llama el frontend-monorepo son `requests`, `requests/{id}/continue`, `requests/statistics`, `dynamic-form/session/{id}`, `products/{hash}`, `user-request-product` y `user-requests/{id}/financial-data`. Ni un solo `merchants/*` ni `lenders/*`. El admin vivo sigue siendo el panel Inertia de `application`.
 - **Pero el módulo no es inerte:** su `UrlGenerationService` es infraestructura viva usada por `Loans`, `Identity` y `Onboarding`. Lo muerto son sus métodos de URL de comercio (`generateQrCodeUrl` → `/register/{hash}`, `generateAlliedBranchUrl` → `/{slug}/branch/{hash}`, `generateEcommerceUrl` → `/ecommerce/{hash}`, `:27-58`): **nadie los llama**, y `AlliedManagementService` sigue armando la URL a mano (`:305`, `:782`).
 - **La copia de reglas está duplicada 1:1** en `AlliedManagementService::updateAlliedBranch` (`:237` delete, `:248` create, `:257-258` copia) y `::storeEcommerceCredential` (`:1431-1433`). El fallback a BdB también (`LenderRuleRepository::findDefaultDatacreditoRule` → `lender_id 5`, `:146`), pero **sin la compuerta de país** que sí tiene application.
+
+### 9. El mapa del operador: qué escribe cada pantalla del admin
+
+Lo que hay que replicar para construir el front nuevo de la capa de configuración (la API ya existe en
+`Modules/Partner` y no tiene cliente — §8; el inventario de cutover, en `application` §5). Todas las
+rutas cuelgan de `admin.{host}` (`application/routes/admin.php`), y **una pantalla casi nunca escribe
+una sola tabla**:
+
+| Pantalla (ruta) | Controller | Qué escribe | ⚠ al reimplementar |
+|---|---|---|---|
+| `aliados` | `AlliedController` | `allieds` · `allied_status_logs` | valores quemados al crear (categoría 1, `new_screens`, colores, `hash` = crc32 del segundo) |
+| `aliados/{a}/usuarios` | `AlliedCorporateUserController` | `users` · `model_has_roles` · `allied_branches_by_user` | «crear un usuario» son **tres inserts sin transacción**: si falla el segundo, queda un usuario sin rol |
+| `aliados/{a}/puntosdeventa` | `AlliedAlliedBranchController` | `allied_branches` · `qrs` · `lenders_by_allied_branches` | quien copia las reglas es el **update**, no el store (§3) |
+| **`aliados/{a}/entidades`** (la calculadora) | `AlliedLenderController` | `lenders_by_allieds` · `lender_guarantee_criteria` · `payment_methods_by_lender` · `lender_documentation` | 🔴 **dos de esas tablas no son por comercio** — ver abajo |
+| `aliados/{a}/modulos` | `AlliedModulesController` | `status_per_profiles` | borra **todo** lo del comercio y recrea (`:69-71`) |
+| `aliados/{a}/ecommerce` | `AlliedEcommerceCredentialsController` | `allied_ecommerce_credentials` · **`allied_branches`** · `lenders_by_allied_branches` | crear una credencial **crea una sucursal** (`Ecommerce-<nombre>`) y vuelve a copiar reglas (§3) |
+| `entidades` | `LenderController` | `lenders` · `credit_line_by_lenders` · `creditop_x_lender_configurations` | siempre `credit_line_id = 1`; la config CreditopX solo si `rt == 2` |
+| `reglas` | `LenderRulesController` | `group_rules` · `lender_rules` · `lender_datacredito_rules` | el mayor escritor del panel (8 sitios de `LenderRule::create`) |
+| `editar-disparador` | `AlliedAlliedBranchController@updateTrigger` | `allied_branches.datacredito_trigger` | §6 |
+
+🔴 **La trampa que hay que arreglar al migrar, no replicar.** La pantalla de la calculadora es *por
+comercio*, pero dos de las tablas que toca **no tienen columna de comercio**: `lender_guarantee_criteria`
+y `payment_methods_by_lender` solo tienen `lender_id` (verificado en BD). El `update` hace
+`where('lender_id', …)->delete()` y recrea con lo que mandó **esa** pantalla
+(`AlliedLenderController.php:254` y `:265`). De ahí salen dos daños distintos:
+
+1. **Se pisan entre comercios.** Dos comercios que configuran el mismo lender escriben la misma fila
+   global: gana el último que guarde. Hoy **51 comercios** tienen habilitado algún lender con criterios
+   de garantía cargados.
+2. **Se borran y no se reponen.** El `delete()` corre siempre, pero el `create()` está condicionado a
+   `response_type == 2` (`:255`, `:266`). Guardar la calculadora de un lender que **no** sea rt=2 borra
+   sus criterios y métodos **sin reponerlos**. Hay 1 fila de garantía viva de un lender **rt=3**.
+
+Ver **F-127**. Al construir el panel nuevo, la decisión de diseño es si esas dos tablas deben ganar
+columna de comercio (y volverse config por par, como sugiere la UI) o si la UI debe dejar de
+presentarlas por comercio (y volverse pantalla de entidad, como dice el esquema).
 
 ## Subcontextos
 - **Motai** — flujo Motai (comercio 158, in-platform rt=2): 3 productos CreditopX (crédito/renting/RTO) + Ábaco (info. complementaria, ingreso gig informativo).
