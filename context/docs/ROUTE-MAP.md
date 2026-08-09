@@ -38,6 +38,7 @@ Si la tarea llega con una de estas frases, empezá por esos nodos. Si ninguna ma
 | «entró desde la tienda online y se rompió» | `ecommerce` |
 | «esto anda en local y no en dev/qa» | `findings` · `trazador` |
 | «esto no puede ser, la entidad funciona en otro comercio» | `creditop` |
+| «¿esto ya está en el backoffice nuevo?» | `application` |
 | «falló con Bancolombia» | `bancolombia` |
 | «falló con Credifamilia» | `credifamilia` |
 | «falló el renting / Ábaco» | `motai` |
@@ -68,6 +69,7 @@ Si la tarea llega con una de estas frases, empezá por esos nodos. Si ninguna ma
 | «¿por qué no le sale esta entidad?» | `creditopx` · `hardcodes-entidades` · `merchants` · `ms-preapprovals` |
 | «quedó aprobada y no se desembolsó» | `formalization` |
 | «¿qué es este service_name de los logs?» | `microservicios` |
+| «¿qué falta para apagar application?» | `application` |
 | «¿qué integra de verdad esta entidad?» | `entities` |
 | «¿qué le pasó a ESTA solicitud?» | `trazador` |
 | «sale pre-aprobado y no debería» (o al revés) | `ms-preapprovals` |
@@ -133,7 +135,7 @@ Doc: `server/data/flows/aggregator/doc.md` · Archivos: `server/data/flows/aggre
 **Cuándo:** Cuando el plazo se recorta o el cupo se topea según el MONTO pedido: los tramos por monto de rt=2, en `creditop_x_conditions_by_amount_by_lender` (con `amount_conditions`, `below_min_amount`). Síntoma típico: «pidió X y le ofrecieron menos plazo del que esperaba». Ojo: los tramos NO tocan el enganche — eso es de la categoría, y va en `profiling`.
 Doc: `server/data/flows/amount-tiers/doc.md` · Archivos: `server/data/flows/amount-tiers/map.json` · Padre: `creditopx`
 
-### application — application  ·  _reference_ · 85 archivos
+### application — application  ·  _reference_ · 92 archivos
 **Cuándo:** Cuando trabajás en el monolito Aliados (el que corre en prod): panel de administración, alta de entidades/comercios/sucursales, crons de cobranza y servicing, Inertia/Vue, rutas por audiencia admin/customer/api. También cuando el reporte que descarga un comercio trae datos de MÁS comercios, o cualquier cosa del botón «Descargar Solicitudes» / reporte de solicitudes originadas: los exports viven acá y su alcance depende del ROL (ver el nodo `actors`).
 Doc: `server/data/flows/application/doc.md` · Archivos: `server/data/flows/application/map.json` · Padre: `architecture`
 

@@ -9,6 +9,8 @@ Es el **runtime por defecto** del ecosistema: aunque legacy-backend sea el desti
 **No es modular.** No hay `Modules/` ni bounded contexts: la unidad de organización es la **audiencia**, materializada como subdominio → grupo de middleware → namespace de controllers → archivo de rutas. De ahí se derivan casi todas sus rarezas: duplicación de controllers por audiencia, archivos de 1.700+ líneas y servicios compartidos entre back-office y cliente final.
 
 ## Antes de concluir
+- ⚠ **«El admin no tiene equivalente en ningún otro repo» YA NO ES CIERTO, y creerlo hace planear mal el cutover.** Dos de las tres capas del panel ya están reconstruidas — la de **configuración** en `Modules/Partner` y la de **consulta** en `Modules/Backoffice` + `apps/backoffice`. Lo que NO tiene reemplazo en ningún lado es la **operación de plata**. El inventario medido, capa por capa, en §5.
+- ⚠ **Lo que bloquea matar `application` es el RECAUDO, no el alta.** El alta ya se puede hacer por API; facturar, aplicar un pago, reversarlo o autorizar un desembolso solo existe acá — y es lo único que no se puede apagar sin que alguien deje de cobrar (§5).
 - **HARDCODE Credifamilia (id 24)**: el accessor `Lender::getResponseTypeAttribute` (`app/Models/Lender.php:59-62`) fuerza `response_type = 1` ignorando la BD — y el cascade lo **vuelve a forzar** sobre el listado en `LenderRetrievalService.php:222-227`. Son dos lugares a tocar para removerlo.
 - **El perfilamiento y el orden del marketplace SOLO existen en producción**: `getProfilingData`, el paso de `demog_profiling_response` y `applyProfiling` + `usort` por `weighted_score` están gated a `app()->environment() === 'production'` (`LenderRetrievalService.php:231`, `:240`, `:244-248`, `:278`). En local/dev el listado sale en **otro orden** y sin porcentajes de aprobación.
 - **El ML NO está corto-circuitado en el código**: `ProfilerMLController::makePrediction:75` hace un `POST` real a H2O (timeout 15 s) y no hay ningún `return 404` en el archivo. Lo que pasa en runtime con la cadena de perfiladores: **→ `profiling`** (F-104).
@@ -38,7 +40,7 @@ Es el **runtime por defecto** del ecosistema: aunque legacy-backend sea el desti
 **Consecuencia directa: la misma preocupación se duplica por audiencia.** 14 nombres de controller aparecen en ≥2 namespaces — `HomeController` en 4 (Admin/Customer/Profile/Web), `ValidateOtpController` y `OtpController` en 3, y `UserRequestController`, `CreditopXRequestHistoryController`, `UserController`, `PaymentLinkController`, `AuthorizationController`, `ProfilingReviewController`, `UserProfilingController`, `PurchaseCodeController`, `VideoTutorialController`, `ValidateIdentityController`, `PramiController` en 2. No son wrappers finos: `Customer/ValidateOtpController` = 601 líneas vs `Profile/` 103 vs `Admin/` 69; `Admin/CreditopXRequestHistoryController` = 1.767 vs `Customer/` 395.
 
 ### 2. Lo que aloja EN EXCLUSIVA
-**(a) El panel admin.** No hay equivalente vivo en ningún otro repo. Alta de entidad (`Admin/LenderController::store:196` — siempre crea `credit_line_by_lenders` con `credit_line_id=1` en `:235`, y solo si rt==2 crea `CreditopXLenderConfiguration` en `:249`), de comercio (`Admin/AlliedController::store:101`, con `allied_caterogy_id=1` en `:113` y `new_screens=true` en `:121` quemados) y de sucursal (`Admin/AlliedAlliedBranchController::store:174` — genera `hash = hash('crc32', now)` en `:182` y sube el QR a S3 en `:184-187`). La **copia de reglas por sucursal** dispara en el *update* de la sucursal (`:142-143`, `addNewRule` + `addNewLenderRule`) y otra vez al crear credencial ecommerce (`Admin/AlliedEcommerceCredentialsController::store:98-99`). Mecánica completa en el nodo **Merchants**.
+**(a) El panel admin — pero solo en parte; el inventario por capa está en §5.** Alta de entidad (`Admin/LenderController::store:196` — siempre crea `credit_line_by_lenders` con `credit_line_id=1` en `:235`, y solo si rt==2 crea `CreditopXLenderConfiguration` en `:249`), de comercio (`Admin/AlliedController::store:101`, con `allied_caterogy_id=1` en `:113` y `new_screens=true` en `:121` quemados) y de sucursal (`Admin/AlliedAlliedBranchController::store:174` — genera `hash = hash('crc32', now)` en `:182` y sube el QR a S3 en `:184-187`). La **copia de reglas por sucursal** dispara en el *update* de la sucursal (`:142-143`, `addNewRule` + `addNewLenderRule`) y otra vez al crear credencial ecommerce (`Admin/AlliedEcommerceCredentialsController::store:98-99`). Mecánica completa en el nodo **Merchants**.
 
 **(b) Todo el servicing / cobranza post-desembolso.** El scheduler (`app/Console/Kernel.php:13-69`) corre **19 entradas activas de comando (18 comandos distintos; `lender-disbursements-report` aparece 2 veces, semanal y mensual, excluyentes por `when()`) + 1 job**. Seis son del ciclo de vida CreditopX: `00:02` pagos Wompi no aplicados, `00:10` saldos remanentes, `00:30` causación de intereses (`UpdateCreditopXRequestsCommand`, 381 l), `03:30` aplicación de pagos, `04:00` cupos rotativos, `14:30` recordatorios (`:32-40`). El ledger es `creditop_x_requests_history` (`app/Models/CreditopXRequestHistory.php:14`). De los 27 comandos en disco, 9 no están agendados (los `creditopx:correct-negative-*` de reparación manual, `app:update-creditop-x-requests-n-times`, `app:invoice-process-confirm`, `app:update-initial-fee-payments`, y 2 comentados). **Evidencia de la exclusividad:** legacy-backend tiene copias de esos comandos, pero su `legacy-backend/app/Console/Kernel.php:13-19` solo agenda 4 (3 de device-lock MDM + `mark-stuck-crosscore-evaluations`) → las copias de servicing en legacy están muertas.
 
@@ -71,7 +73,41 @@ Los dos primeros redirigen el navegador (`inertia()->location()` si viene el hea
 ### 4. El motor de originación vive acá (detalle en nodos hermanos)
 `app/Services/lenders/` (11 servicios, ~200 KB) es el corazón: `LenderRetrievalService::getLenders:73` (908 l, orquestador del cascade rt=2, instrumentado con `App\Otel\TracerService`), `PreApprovedLenderService` (775 l, despacho rt=1), `LenderUserCategoryService`, `LenderValidationService`, `ProfilingRulesService`, `RiskCentralValidationService`, `LenderSpecialGrantingService`, `LenderProbabilitySortingService`, `RevolvingLoanConfigService`. Los burós están en `app/Actions/RiskCentrals/` (Experian 24 KB + fixture, Tusdatos 31 KB, Agildata, Mareigua, Ado) y los 20 lenders externos en `app/Actions/Lenders/`. El perfilamiento demográfico es el archivo más grande del repo (`Admin/ProfilingController.php`, 4.770 l), seguido de la matriz (`Customer/Matrix/v1/MatrixModelController.php`, 2.064 l) y el ML (`ProfilerML/ProfilerMLController.php`).
 
+### 5. El inventario de cutover: qué falta para matar `application`
+
+Medido el 2026-08-08 comparando las **118 rutas** de `routes/admin.php` contra `Modules/Partner` +
+`Modules/Backoffice` de legacy-backend y `apps/backoffice` del monorepo. La conclusión que reordena la
+discusión: **el admin no es una cosa, son tres capas con tres estados de migración distintos.**
+
+| capa del panel | en `application` | backend nuevo | front nuevo | estado real |
+|---|---|---|---|---|
+| **Configuración** — alta de comercio/entidad/sucursal, reglas duras y de datacrédito, credenciales de ecommerce, zonas, usuarios corporativos, productos | `Admin/Allied*`, `Admin/Lender*` (VIVO) | ✅ **`Modules/Partner`** — CRUD completo, `AlliedController@store` incluido | ❌ nada | **construido por delante de su cliente** |
+| **Consulta / soporte** — usuarios, solicitudes, perfilamiento, scores Experian, validación manual, OTPs | `Admin/UserRequest*`, `Admin/ManualValidation*`, `Admin/Profiling*` (VIVO) | ✅ **`Modules/Backoffice`** (`cognito.token:staff`) | ✅ **`apps/backoffice`** (`users`, `loan-applications`, `staff-auth`) | **la única capa con las dos mitades** |
+| **Operación de plata** — facturación y recaudo, aplicar/reversar pago, OTP de pago, links de pago, cupos rotativos, cadena de autorización | `Admin/CreditopXPayment*`, `RevolvingCreditPaymentManage*`, `CreditopXRequestHistory*`, `Authorization*` (VIVO) | ❌ **nada** | ❌ **nada** | **huérfana en los dos lados** |
+
+**El bloqueador es la tercera fila, y pesa ~4.400 líneas** en siete controllers, con la cascada de
+imputación entera adentro (`processPayment`, `processEarlyPayment`, `applyPayment`,
+`principalReduction`, `reduceInstallment`, `applyRetainedPayments`, `waiveInterests`,
+`reversePayment`). El recibo de que no hay reemplazo: `Modules/Payments` de legacy-backend solo expone
+**links** de pago (`create`/`disable`/`process`/`return`), y grepear `reversePayment`,
+`facturacion-y-recaudo` o `paymentManagement` en **todo** legacy-backend devuelve **cero**. La mecánica
+de esa cascada es del nodo **`servicing`**, que es su dueño.
+
+⚠ **La primera fila esconde una trampa de planificación.** El CRUD de alta de `Partner` **existe y no
+tiene un solo cliente**: de todas sus rutas, el monorepo consume únicamente las del asesor
+(`requests`, `user-requests`, `products`, `statistics`, `dynamic-form/session`) — el `POST` de
+comercios, las reglas y las credenciales **no los llama nadie**. O sea que «el alta ya está migrada»
+es cierto del backend y falso de punta a punta: apagar el panel de `application` hoy dejaría la
+configuración **sin interfaz**, aunque la API esté lista. Es el mismo patrón de *construido por
+delante de su cliente* que ya tienen los módulos V1 (→ `legacy-backend`).
+
+**Cómo se lee este inventario para decidir:** la capa 2 se puede apagar cuando `apps/backoffice`
+alcance paridad de pantallas; la capa 1 necesita **front nuevo, no backend**; la capa 3 necesita
+**las dos mitades desde cero** — y es la que mueve dinero, así que es la que fija la fecha real.
+
 ## Dónde mirar
+- **El cutover** (§5): `legacy-backend/Modules/Partner/routes/api.php:18` (prefijo `merchants`) y `:21` (`AlliedController@store`, el alta ya reconstruida) · `legacy-backend/Modules/Backoffice/routes/backoffice.php` (todo bajo `cognito.token:staff`) · `frontend-monorepo/apps/backoffice/app/routes.ts` (el alcance real del panel nuevo: users + loan-applications + staff-auth) · `application/routes/admin.php` (las 118 rutas que hay que reemplazar).
+- **La capa huérfana** (solo application): `app/Http/Controllers/Admin/CreditopXPaymentController.php:45` (`store`), `:62` (`processPayment`, la cascada), `:1368` (`reversePayment`) · `Admin/CreditopXPaymentManageController.php` (facturación y recaudo) · `Admin/RevolvingCreditPaymentManageController.php` (facturación de rotativos) · `Admin/AuthorizationController.php` (la cadena tesorería/contabilidad/analista) · `Admin/PaymentLinkController.php`. Mecánica → **`servicing`**.
 - **Boot / audiencias** (application): `app/Providers/RouteServiceProvider.php:45-77` (los 5 dominios + `/health`) · `app/Http/Kernel.php:33-87` (grupos) y `:96-115` (alias) · `routes/{web,admin,customer,api,profile}.php`.
 - **Parallel-run**: `app/Http/Controllers/Customer/SimulatorController.php:121-137` (allowlist → wizard nuevo) · `app/Http/Controllers/Customer/UserRequestController.php:1492-1614` (`validateTempUsers`, los 3 puntos de aterrizaje: personal-info / lenders / employment-info) · `app/Http/Controllers/Customer/ValidateOtpController.php:112-132` y `app/Http/Controllers/Customer/PersonalInfoController.php:1009-1071` (bypass a legacy con fallback) · `app/Http/Middleware/HandleInertiaRequests.php:50-55` (props compartidos al front).
 - **Acople**: `app/Services/Api/BaseApiClient.php:22` · `app/Services/Api/GenerateServicesBridgeClient.php:17-18` · `app/Services/Api/IdentityApiClient.php` · `app/Services/Api/LoansApiClient.php` · `app/Services/NewFrontendUrlService.php:8-14` · `app/Services/LegacyLenderAttemptsService.php:11-31` · `app/Http/Controllers/Customer/RegisterCellPhoneController.php:179-229`.
