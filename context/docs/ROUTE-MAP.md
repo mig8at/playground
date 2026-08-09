@@ -16,6 +16,7 @@ Si la tarea llega con una de estas frases, empezá por esos nodos. Si ninguna ma
 | «a este usuario le salen datos de OTRO comercio» | `actors` · `application` |
 | «cambió el perfilamiento y no hubo deploy» | `db-routines` |
 | «¿de dónde sale el ingreso / la ocupación del cliente?» | `db-routines` |
+| «¿de qué vive CreditOp?» | `negocio` |
 | «desde operaciones no puedo ver/validar al usuario» | `backoffice` |
 | «dice que los datos no coinciden» / falla la identidad | `kyc` |
 | «¿dónde se trabó?» | `aggregator` · `formalization` · `trazador` |
@@ -39,6 +40,7 @@ Si la tarea llega con una de estas frases, empezá por esos nodos. Si ninguna ma
 | «entró desde la tienda online y se rompió» | `ecommerce` |
 | «esto anda en local y no en dev/qa» | `findings` · `trazador` |
 | «esto no puede ser, la entidad funciona en otro comercio» | `creditop` |
+| «¿esto no se puede parametrizar?» | `negocio` |
 | «¿esto ya está en el backoffice nuevo?» | `application` |
 | «falló con Bancolombia» | `bancolombia` |
 | «falló con Credifamilia» | `credifamilia` |
@@ -67,9 +69,12 @@ Si la tarea llega con una de estas frases, empezá por esos nodos. Si ninguna ma
 | «¿por qué a este cliente no le salió esta entidad?» | `trazador` |
 | «¿por qué el listado salió en ese orden?» | `profiling` |
 | «¿por qué esta cuota inicial / este FGA?» | `rotativo` |
+| «¿por qué está hecho así?» | `negocio` |
 | «¿por qué le salió ESE cupo / esa categoría?» | `profiling` |
 | «¿por qué no le sale esta entidad?» | `creditopx` · `hardcodes-entidades` · `merchants` · `ms-preapprovals` |
 | «quedó aprobada y no se desembolsó» | `formalization` |
+| «¿quién pone la plata en este crédito?» | `negocio` |
+| «¿qué es el FGA / el fondo de garantía?» | `negocio` |
 | «¿qué es este service_name de los logs?» | `microservicios` |
 | «¿qué falta para apagar application?» | `application` |
 | «¿qué integra de verdad esta entidad?» | `entities` |
@@ -115,6 +120,7 @@ Si la tarea llega con una de estas frases, empezá por esos nodos. Si ninguna ma
     - motai [ref]
     - pullman [ref]
     - smartpay [ref]
+  - negocio [ref]
   - onboarding [ref]
     - kyc [ref]
   - payments [ref]
@@ -234,6 +240,10 @@ Doc: `server/data/flows/motai/doc.md` · Archivos: `server/data/flows/motai/map.
 ### ms-preapprovals — MS Pre-approvals  ·  _reference_ · 72 archivos
 **Cuándo:** Cuando la pre-aprobación de un lender `response_type`≠0 falla o hay que tocar el microservicio Go (`pre-approvals-service`): contrato del servicio (`check` / `me-check` / `lender-attempts` / `docs`), workflow de 4 etapas, matriz de 8 proveedores (adapter+client+strategy por lender), taxonomía de errores, timeouts y caché en `DynamoDB`, y el consumo cliente en el wizard. Es quien decide el badge «Pre aprobado» del marketplace (F-78). Sus logs en Loki son sólo de prod.
 Doc: `server/data/flows/ms-preapprovals/doc.md` · Archivos: `server/data/flows/ms-preapprovals/map.json` · Padre: `architecture`
+
+### negocio — Negocio (por qué el sistema es así)  ·  _reference_ · 5 archivos
+**Cuándo:** Cuando la tarea toca el PORQUÉ y no el cómo: quién pone la plata, quién cobra, de qué vive CreditOp, a quién hay que tener contento. Leelo ANTES de proponer «simplificar», «parametrizar» o «unificar» algo — los dos sombreros (CreditopX, donde el capital es del COMERCIO y CreditOp cobra comisión por cada cuota; vs agregadores, donde presta y cobra la entidad) no son dos configuraciones sino dos negocios, y los hardcodes por id son el modelo comercial (los comercios piden flujos customizados) y no descuido. También cuando aparezca el fondo de garantía / FGA: es el colchón de un tercero asegurador negociado POR COMERCIO, que no existe como entidad en la BD. Y cuando la pregunta sea qué alerta vale la pena: hoy una solicitud caída por una entidad externa se detecta porque el asesor avisa.
+Doc: `server/data/flows/negocio/doc.md` · Archivos: `server/data/flows/negocio/map.json` · Padre: `creditop`
 
 ### onboarding — Onboarding  ·  _reference_ · 88 archivos
 **Cuándo:** Cuando el problema está ANTES del listado: entrada por hash de sucursal, registro de celular y OTP, creación de la `user_request`, formulario personal y laboral, captura del monto, códigos `ONB0xx` (`ONB002` usuario temporal sin Corbeta · `ONB005` TusDatos · `ONB040` rate limit). Las pantallas del wizard son `solicitar`, `otp`, `personal-info` y `employment-info`. ⚠ Guardar lo laboral es lo que dispara el buró.

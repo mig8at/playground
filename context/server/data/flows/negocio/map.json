@@ -1,0 +1,24 @@
+{
+  "name": "Negocio (por qué el sistema es así)",
+  "kind": "reference",
+  "when": "Cuando la tarea toca el PORQUÉ y no el cómo: quién pone la plata, quién cobra, de qué vive CreditOp, a quién hay que tener contento. Leelo ANTES de proponer «simplificar», «parametrizar» o «unificar» algo — los dos sombreros (CreditopX, donde el capital es del COMERCIO y CreditOp cobra comisión por cada cuota; vs agregadores, donde presta y cobra la entidad) no son dos configuraciones sino dos negocios, y los hardcodes por id son el modelo comercial (los comercios piden flujos customizados) y no descuido. También cuando aparezca el fondo de garantía / FGA: es el colchón de un tercero asegurador negociado POR COMERCIO, que no existe como entidad en la BD. Y cuando la pregunta sea qué alerta vale la pena: hoy una solicitud caída por una entidad externa se detecta porque el asesor avisa.",
+  "sintomas": [
+    "«¿por qué está hecho así?»",
+    "«¿esto no se puede parametrizar?»",
+    "«¿quién pone la plata en este crédito?»",
+    "«¿de qué vive CreditOp?»",
+    "«¿qué es el FGA / el fondo de garantía?»"
+  ],
+  "verified": {
+    "ref": "main",
+    "date": "2026-08-09",
+    "source": "cabecera"
+  },
+  "files": [
+    "application/app/Models/LendersByAllied.php",
+    "application/app/Models/Lender.php",
+    "application/app/Http/Controllers/Admin/AlliedLenderController.php",
+    "application/app/Http/Controllers/Admin/CreditopXPaymentController.php",
+    "application/app/Services/lenders/LenderUserCategoryService.php"
+  ]
+}

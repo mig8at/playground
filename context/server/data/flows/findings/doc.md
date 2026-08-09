@@ -1472,9 +1472,15 @@ en producción — el webhook no deja registro cuando `firstOrFail()` lanza, as�
   `PaymentMethodsByLender::where('lender_id', …)->delete()`. **Ninguna de las dos tablas tiene columna
   de comercio**: en BD son `lender_id` + payload, o sea configuración GLOBAL de la entidad. La UI
   promete por-par y el esquema es por-entidad.
+- ⚠ **CORREGIDO 2026-08-09 con contexto de negocio + medición.** La primera versión decía «51 comercios
+  en riesgo» y **sobreestimaba el daño**. En CreditopX el lender es la **marca blanca del comercio**
+  (Pullman → CrediPullman), así que casi siempre lender y comercio son 1:1 y «global por lender» ES
+  «por comercio»: medido, **71 de los 74 lenders rt=2 están en UN solo comercio**. El daño 1 solo
+  aplica a las **3 excepciones** que sí comparten: `Crediteame` (3 comercios), `DENTIX FINANCIAL
+  SERVICES` (2) y una más. El daño 2 no depende de eso y aplica siempre.
 - **Dos daños distintos:**
-  1. **Pisada entre comercios** — gana el último que guarde, para todos. Hoy **51 comercios** tienen
-     habilitado algún lender con criterios de garantía cargados.
+  1. **Pisada entre comercios — solo en los lenders compartidos.** Gana el último que guarde. Con el
+     modelo 1:1 no pasa; con `Crediteame` y `DENTIX`, sí.
   2. **Borrado sin reposición** — el `delete()` corre siempre, pero el `create()` está condicionado a
      `$lendersByAllied->lender->response_type == 2` (`:255`, `:266`). Guardar la calculadora de un
      lender rt≠2 **borra y no repone**. Hay **1 fila de garantía viva de un lender rt=3**.
