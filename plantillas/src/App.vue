@@ -21,10 +21,7 @@ const cajonAbierto = ref(true)
 let stream = null
 
 const componenteActual = computed(() => registro[sol.value?.paso_tipo] ?? null)
-const etapaAnterior = computed(() => {
-  if (!sol.value || sol.value.etapa_actual < 1) return null
-  return sol.value.etapas[sol.value.etapa_actual - 1]
-})
+const puedeReiniciar = computed(() => sol.value && sol.value.paso_actual > 0)
 
 // ── el URL: solo el ID DE LA SOLICITUD ────────────────────────────────────────────
 // No lleva el paso. El paso lo contesta el server, así no hay nada en la barra de
@@ -94,14 +91,14 @@ function soltar() {
   confirmando.value = null
 }
 
-function reiniciar() {
+function salir() {
   soltar()
   history.pushState({}, '', '/')
 }
 
 // El frontend NO decide el paso siguiente: lo escucha. `paso.avanzado` y
-// `etapa.retrocedida` son lo único que mueve el cursor — así los dos dispositivos ven
-// lo mismo sin coordinarse entre ellos.
+// `solicitud.reiniciada` son lo único que mueve el cursor — así los dos dispositivos
+// ven lo mismo sin coordinarse entre ellos.
 function escuchar(id) {
   stream?.close()
   eventos.value = []
@@ -113,7 +110,7 @@ function escuchar(id) {
     if (eventos.value.some((e) => e.id === ev.id)) return
     eventos.value.unshift(ev)
     if (!sol.value) return
-    if (ev.tipo === 'paso.avanzado' || ev.tipo === 'etapa.retrocedida') releer()
+    if (ev.tipo === 'paso.avanzado' || ev.tipo === 'solicitud.reiniciada') releer()
   }
 }
 
@@ -135,26 +132,18 @@ function releer() {
   }, 40)
 }
 
-// ── volver atrás, por ETAPA ───────────────────────────────────────────────────────
-// Pedir el número y verificar el código son UNA sola cosa para la persona, así que
-// volver desde el perfil devuelve al número —no al código— y hay que verificar otra
-// vez. La pregunta que se le hace sale de la plantilla (`al_volver`), no del front.
+// ── el atrás: reiniciar la solicitud ──────────────────────────────────────────────
+// Una sola regla en vez de un undo por componente: vuelve al primer paso, se conserva
+// lo tipeado y muere lo verificado. La copia está acá y no en la plantilla a propósito:
+// es UN texto: el día que una segunda plantilla necesite otro, pasa a ser dato.
 
-function pedirVolver() {
-  const e = etapaAnterior.value
-  if (!e) return
-  confirmando.value = {
-    etapa: e.etapa,
-    pregunta: e.al_volver || `¿Querés volver a "${e.titulo}"?`,
-  }
-}
+const PREGUNTA = '¿Empezar de nuevo? Vas a poder corregir el número, y el código que ya verificamos deja de valer.'
 
-async function confirmarVolver() {
-  const etapa = confirmando.value.etapa
+async function confirmarReinicio() {
   confirmando.value = null
   error.value = ''
   try {
-    sol.value = await post(`/api/solicitudes/${sol.value.id}/retroceder`, { etapa })
+    sol.value = await post(`/api/solicitudes/${sol.value.id}/reiniciar`)
   } catch (e) {
     error.value = e.message
   }
@@ -178,7 +167,7 @@ const enlace = computed(() => (sol.value ? `${location.origin}/solicitud/${sol.v
 <template>
   <div class="app">
     <header>
-      <a href="/" class="marca" @click.prevent="reiniciar">plantillas</a>
+      <a href="/" class="marca" @click.prevent="salir">plantillas</a>
       <span v-if="sol" class="estado" :class="{ on: conectado }">
         {{ conectado ? 'en vivo' : 'sin conexión' }}
       </span>
@@ -210,10 +199,7 @@ const enlace = computed(() => (sol.value ? `${location.origin}/solicitud/${sol.v
         <summary>el catálogo ({{ catalogo.length }} componentes)</summary>
         <ul>
           <li v-for="c in catalogo" :key="c.tipo">
-            <code>{{ c.tipo }}</code> — {{ c.efecto }}<br />
-            <span class="ayuda">
-              atrás: {{ c.reversible ? 'permitido' : 'bloqueado' }} · deshace: {{ c.deshace }}
-            </span>
+            <code>{{ c.tipo }}</code> — {{ c.efecto }}
           </li>
         </ul>
       </details>
@@ -252,8 +238,8 @@ const enlace = computed(() => (sol.value ? `${location.origin}/solicitud/${sol.v
           front.
         </p>
 
-        <button v-if="etapaAnterior" class="secundario atras" @click="pedirVolver">
-          Atrás · {{ etapaAnterior.titulo }}
+        <button v-if="puedeReiniciar" class="secundario atras" @click="confirmando = true">
+          Empezar de nuevo
         </button>
       </div>
 
@@ -265,10 +251,10 @@ const enlace = computed(() => (sol.value ? `${location.origin}/solicitud/${sol.v
 
     <div v-if="confirmando" class="velo">
       <div class="dialogo">
-        <h3>{{ confirmando.pregunta }}</h3>
+        <h3>{{ PREGUNTA }}</h3>
         <div class="acciones">
           <button class="secundario" @click="confirmando = null">No, seguir</button>
-          <button @click="confirmarVolver">Sí, volver</button>
+          <button @click="confirmarReinicio">Sí, de nuevo</button>
         </div>
       </div>
     </div>

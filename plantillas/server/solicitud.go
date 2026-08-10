@@ -150,7 +150,7 @@ func (s *srv) leer(solicitudID string) (*solicitud, error) {
 		sol.PasoTipo = sol.Pasos[sol.PasoActual]
 	}
 
-	// Los valores capturados viajan de vuelta para que al retroceder el campo venga
+	// Los valores capturados viajan de vuelta para que al reiniciar el campo venga
 	// LLENO. Es del server y no de memoria del browser porque tiene que sobrevivir a
 	// un refresco y a que el segundo dispositivo también lo vea.
 	sol.Valores = map[string]string{}
@@ -218,84 +218,50 @@ func (s *srv) avanzar(sol *solicitud) {
 	}
 }
 
-// retroceder trabaja por ETAPA, no por pantalla: volver desde el perfil manda al
-// número de teléfono —el arranque de la etapa "celular"— y no al código, porque para
-// la persona pedir el número y verificarlo son UNA sola cosa.
+// reiniciar es el "atrás", y es UNA sola regla para todos los componentes: se conserva
+// lo que la persona TIPEÓ y se borra todo lo VERIFICADO o DERIVADO.
 //
-// Sin cuerpo retrocede a la etapa anterior. Y antes de mover nada deshace el efecto
-// de cada paso que se pisa: sin eso, cambiar el teléfono dejaría vivo un OTP
-// verificado contra el número viejo.
+// El criterio es de negocio, no técnico: el motivo real de volver es corregir un dato,
+// así que si el campo vuelve vacío el reinicio no sirve para lo único que la gente hace
+// con él. Y lo que se validó contra el dato viejo —el OTP— no puede sobrevivir al cambio.
 //
-// ⚠ Las escrituras de acá (deshacer + mover el cursor + los eventos) NO están en una
-// sola transacción. Es el lugar donde más se nota el hueco: si el proceso muere en el
-// medio, el OTP quedó borrado y el cursor no volvió. Es lo próximo a arreglar.
-func (s *srv) retroceder(w http.ResponseWriter, r *http.Request) {
+// La solicitud NO se reemplaza por una nueva: mismo id, misma línea de tiempo. Una
+// solicitud nueva por cada corrección dejaría filas huérfanas, partiría la historia en
+// dos (justo lo que hace falta para dar soporte) y, el día que una etapa consulte un
+// buró, podría significar pagar la consulta de nuevo.
+//
+// Se eligió esto en vez de un contrato de undo por componente: para dos componentes,
+// aquello era maquinaria de más. ⚠ Cuando aparezca el primer paso IRREVERSIBLE (una
+// consulta que se cobra, un handoff que ya salió de tu control), reiniciar deja de ser
+// gratis y hace falta una marca en el catálogo — es una columna, no un rediseño.
+//
+// ⚠ Las escrituras de acá (borrar el OTP + mover el cursor + emitir) NO están en una
+// sola transacción. Es el hueco conocido: si el proceso muere en el medio, el OTP quedó
+// borrado y el cursor no volvió.
+func (s *srv) reiniciar(w http.ResponseWriter, r *http.Request) {
 	solicitudID := r.PathValue("id")
 	sol, err := s.leer(solicitudID)
 	if err != nil {
 		errorJSON(w, 404, "solicitud no encontrada")
 		return
 	}
-
-	var in struct {
-		Etapa string `json:"etapa"`
-	}
-	json.NewDecoder(r.Body).Decode(&in)
-
-	destinoEtapa := sol.EtapaActual - 1
-	if in.Etapa != "" {
-		destinoEtapa = -1
-		for i, e := range sol.Etapas {
-			if e.Etapa == in.Etapa {
-				destinoEtapa = i
-				break
-			}
-		}
-		if destinoEtapa < 0 {
-			errorJSON(w, 422, fmt.Sprintf("la etapa %q no está en esta plantilla", in.Etapa))
-			return
-		}
-	}
-	if destinoEtapa < 0 {
-		errorJSON(w, 409, "ya estás en la primera etapa")
-		return
-	}
-	if destinoEtapa > sol.EtapaActual {
-		errorJSON(w, 409, "retroceder es ir hacia atrás")
+	if sol.PasoActual == 0 {
+		errorJSON(w, 409, "la solicitud ya está en el primer paso")
 		return
 	}
 
-	destino := primerPasoDe(sol.Etapas, destinoEtapa)
-	if destino >= sol.PasoActual {
-		errorJSON(w, 409, "no hay nada atrás que rehacer")
-		return
-	}
+	// Muere lo verificado. `valores` queda: es el borrador que la persona vuelve a editar.
+	s.db.Exec(`DELETE FROM otp WHERE solicitud_id = ?`, solicitudID)
+	s.db.Exec(`UPDATE solicitudes SET paso_actual = 0, estado = 'abierta' WHERE id = ?`, solicitudID)
 
-	// Se pisa el rango destino..pasoActual INCLUSIVE: el paso donde estamos parados
-	// también puede tener efectos a medio hacer (un OTP ya emitido y sin verificar).
-	hasta := sol.PasoActual
-	if hasta >= len(sol.Pasos) {
-		hasta = len(sol.Pasos) - 1
-	}
-	for i := destino; i <= hasta; i++ {
-		if !s.esReversible(sol.Pasos[i]) {
-			errorJSON(w, 409, fmt.Sprintf("el paso %q no se puede deshacer", sol.Pasos[i]))
-			return
-		}
-	}
-	for i := hasta; i >= destino; i-- {
-		s.deshacer(solicitudID, sol.Pasos[i])
-	}
-
-	s.db.Exec(`UPDATE solicitudes SET paso_actual = ?, estado = 'abierta' WHERE id = ?`, destino, solicitudID)
-	s.hub.emitir(solicitudID, "etapa.retrocedida", map[string]any{
-		"paso_actual": destino, "etapa": sol.Etapas[destinoEtapa].Etapa,
-		"tipo": sol.Pasos[destino], "desde": sol.Etapas[sol.EtapaActual].Etapa, "estado": "abierta",
+	s.hub.emitir(solicitudID, "solicitud.reiniciada", map[string]any{
+		"paso_actual": 0, "tipo": sol.Pasos[0], "estado": "abierta",
+		"desde_etapa": sol.Etapas[sol.EtapaActual].Etapa,
 	})
 
 	actualizada, err := s.leer(solicitudID)
 	if err != nil {
-		errorJSON(w, 500, "se retrocedió pero no se pudo leer la solicitud")
+		errorJSON(w, 500, "se reinició pero no se pudo leer la solicitud")
 		return
 	}
 	responder(w, 200, actualizada)

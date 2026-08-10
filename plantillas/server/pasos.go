@@ -12,9 +12,8 @@ import (
 	"time"
 )
 
-// Cada componente del catálogo tiene TRES contratos: lo que pinta (su .vue), lo que
-// hace en backend (acá) y lo que deshace si alguien retrocede por encima suyo
-// (`deshacer`, al final). Definir nada más la mitad de UI es cómo se llega a un
+// Cada componente del catálogo tiene DOS contratos: lo que pinta (su .vue) y lo que
+// hace en backend (acá). Definir nada más la mitad de UI es cómo se llega a un
 // renderer que nadie puede servir.
 
 // ── componente `telefono` ──────────────────────────────────────────────────────
@@ -187,25 +186,3 @@ func (s *srv) otpVerificar(w http.ResponseWriter, r *http.Request) {
 	responder(w, 200, map[string]any{"verificado": true})
 }
 
-// ── el tercer contrato: deshacer ───────────────────────────────────────────────
-
-// deshacer es lo que corre cuando alguien RETROCEDE por encima de un paso. El flag
-// `reversible` del catálogo dice si se PUEDE; esto dice qué pasa cuando se hace.
-// Tiene que ser seguro llamarlo aunque el paso no se haya completado (un OTP emitido
-// y sin verificar también hay que matarlo).
-func (s *srv) deshacer(solicitudID, tipo string) {
-	switch tipo {
-	case "otp":
-		// El código viejo se emitió contra el número viejo: no vale para el nuevo.
-		if res, err := s.db.Exec(`DELETE FROM otp WHERE solicitud_id = ?`, solicitudID); err == nil {
-			if n, _ := res.RowsAffected(); n > 0 {
-				s.hub.emitir(solicitudID, "otp.invalidado", map[string]any{})
-			}
-		}
-	case "telefono":
-		// A propósito NO borra el valor: queda de borrador para que el campo venga
-		// lleno y el usuario corrija en vez de tipear todo de nuevo.
-	case "perfil":
-		// Todavía no tiene efecto: nada que deshacer.
-	}
-}

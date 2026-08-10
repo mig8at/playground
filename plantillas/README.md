@@ -23,17 +23,12 @@ varios componentes. «Validá tu celular» es UNA cosa aunque sean dos pantallas
 verificar el código).
 
 ```json
-[{"etapa":"celular","titulo":"Tu celular","pasos":["telefono","otp"],
-  "al_volver":"¿Querés cambiar el número de teléfono? Vas a tener que verificarlo otra vez."},
- {"etapa":"perfil","titulo":"Tu perfil","pasos":["perfil"],"al_volver":""}]
+[{"etapa":"celular","titulo":"Tu celular","pasos":["telefono","otp"]},
+ {"etapa":"perfil","titulo":"Tu perfil","pasos":["perfil"]}]
 ```
 
-Eso es lo que hace que **volver atrás desde el perfil devuelva al número y no al código**: se
-retrocede de etapa, no de pantalla. Y `al_volver` —la pregunta que se le hace a la persona— también
-es dato: no está cableada en el front.
-
-El cursor de la solicitud (`paso_actual`) es un índice **plano** sobre los pasos aplanados; la etapa
-se deriva. Avanzar mueve un paso, retroceder salta al primer paso de una etapa.
+La etapa es lo que se le muestra como progreso. El cursor de la solicitud (`paso_actual`) es un
+índice **plano** sobre los pasos aplanados; la etapa se deriva.
 
 ## Las decisiones que importan
 
@@ -50,7 +45,7 @@ bajo nivel está `sqlite3_update_hook`, en Go vía `RegisterUpdateHook` de `matt
 update hook da `(tabla, rowid)` y **no el contenido de la fila**, es **por conexión** —no ve
 escrituras de otro proceso— y pide CGO. Y el problema de fondo es conceptual: escuchar la tabla
 obliga a reconstruir la *intención* desde el diff. Acá la intención es el dato: `otp.verificado`,
-`etapa.retrocedida`. Son ~60 líneas en `server/hub.go` y ninguna dependencia.
+`solicitud.reiniciada`. Son ~60 líneas en `server/hub.go` y ninguna dependencia.
 
 **3. SSE, no WebSockets.** El tráfico es servidor→cliente y el cliente contesta con POST normales: es
 exactamente la forma de SSE. Además es HTTP plano —pasa proxies y WAF, **funciona dentro de un
@@ -58,18 +53,27 @@ iframe**, que es cómo el wizard vive en los comercios— y reconecta solo con `
 lo respeta). ⚠ Los eventos van **sin `event:` nombrado**: si van nombrados, el `onmessage` del browser
 no dispara y hace falta un listener por tipo.
 
-**4. El frontend no decide el paso siguiente: lo escucha.** `paso.avanzado` y `etapa.retrocedida` son
+**4. El frontend no decide el paso siguiente: lo escucha.** `paso.avanzado` y `solicitud.reiniciada` son
 lo único que mueve el cursor. Por eso el segundo dispositivo funciona sin coordinarse con el primero:
 abrí el mismo link en otra ventana y el **replay** le manda todo lo que ya pasó.
 
-**5. Cada componente tiene TRES contratos:** lo que pinta (su `.vue`), lo que hace en backend
-(`efecto`) y lo que deshace si alguien retrocede por encima suyo (`reversible` + `deshace`, en la
-tabla `componentes`). El tercero es el que hace posible el atrás sin dejar basura: al volver al
-teléfono, el OTP viejo **se borra** —se emitió contra el número viejo— y el número **se conserva** para
-que el campo venga lleno.
+**5. El atrás es UNA regla, no un contrato por componente:** «volver» reinicia la solicitud, y
+**se conserva lo que la persona TIPEÓ y se borra todo lo VERIFICADO o DERIVADO**. Al volver, el número
+sigue en el campo para corregirlo y el OTP muere —se validó contra el dato viejo—.
 
-Ese flag es también el freno: un componente irreversible (consultar un buró ya se cobró; un handoff a
-la entidad ya salió de tu control) hace que el server rechace el retroceso.
+El criterio es de negocio: el motivo real de volver es corregir un dato, así que un campo vacío no
+sirve para lo único que la gente hace con la pantalla. Y el teléfono no es la identidad de la
+solicitud (eso es la cédula), así que cambiarlo no la convierte en otra.
+
+**La solicitud no se reemplaza por una nueva:** mismo id, misma línea de tiempo. Una solicitud nueva
+por corrección dejaría filas huérfanas, partiría en dos la historia que hace falta para dar soporte y,
+el día que una etapa consulte un buró, podría significar pagar la consulta otra vez.
+
+Se llegó acá después de probar lo contrario: un `reversible` + `deshace` por componente. Para dos
+componentes era maquinaria de más (los dos únicos comportamientos eran «borrá el OTP» y «no hagas
+nada»). ⚠ **Cuando aparezca el primer paso irreversible** —una consulta que se cobra, un handoff que
+ya salió de tu control— reiniciar deja de ser gratis y hace falta esa marca: es una columna, no un
+rediseño.
 
 ## Lo que ya nos enseñó el prototipo
 
@@ -80,8 +84,8 @@ refrescos es un SMS pagado por refresco y un usuario con tres mensajes de los qu
 
 ## Las costuras que faltan (a propósito)
 
-- **No hay transacción** entre deshacer, mover el cursor y emitir. Es lo próximo: si el proceso muere
-  en el medio de un retroceso, el OTP quedó borrado y el cursor no volvió. La salida conocida es meter
+- **No hay transacción** entre borrar el OTP, mover el cursor y emitir. Es lo próximo: si el proceso muere
+  en el medio de un reinicio, el OTP quedó borrado y el cursor no volvió. La salida conocida es meter
   estado + evento en un solo commit (*outbox*).
 - El backend decide la secuencia, **no el contenido**: los campos de un paso siguen en su `.vue`. Ese
   hueco es el que el form dinámico real ya llena con su schema.
@@ -95,9 +99,9 @@ refrescos es un SMS pagado por refresco y un usuario con tres mensajes de los qu
 | archivo | qué resuelve |
 |---|---|
 | `server/db.go` | el esquema, que ES la tesis: catálogo cerrado + variación en filas |
-| `server/solicitud.go` | el compositor, el aplanado de etapas, el candado de secuencia y el SSE |
+| `server/solicitud.go` | el compositor, el aplanado de etapas, el candado de secuencia, `reiniciar` y el SSE |
 | `server/hub.go` | fan-out en proceso + persistencia de eventos + replay |
-| `server/pasos.go` | el efecto de backend de cada componente, y su `deshacer` |
+| `server/pasos.go` | el efecto de backend de cada componente |
 | `src/App.vue` | el registro `tipo → componente`; el único lugar del front que sabe de tipos |
 | `src/pasos/*.vue` | la mitad de UI de cada componente |
 

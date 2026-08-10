@@ -13,8 +13,7 @@ import (
 //
 // Y la unidad de la fila son ETAPAS, no pasos: "validá tu celular" es UNA cosa para
 // la persona aunque por debajo sean dos componentes (pedir el número y verificar el
-// código). Eso es lo que hace que volver atrás desde el perfil devuelva al número y
-// no al código: se retrocede de etapa, no de pantalla.
+// código). La etapa es lo que se le muestra como progreso.
 //
 // El id que viaja en el URL es el de la SOLICITUD —el equivalente de `user_requests`
 // en CreditOp—, no un "paso": el paso lo contesta el server y así no hay nada que
@@ -23,9 +22,7 @@ const esquema = `
 CREATE TABLE IF NOT EXISTS componentes (
   tipo        TEXT PRIMARY KEY,
   label       TEXT NOT NULL,
-  efecto      TEXT NOT NULL,
-  reversible  INTEGER NOT NULL DEFAULT 1,
-  deshace     TEXT NOT NULL DEFAULT ''
+  efecto      TEXT NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS plantillas (
@@ -71,28 +68,23 @@ CREATE TABLE IF NOT EXISTS eventos (
 CREATE INDEX IF NOT EXISTS idx_eventos_solicitud ON eventos (solicitud_id, id);
 `
 
-// El catálogo. Cada componente declara TRES cosas: qué pinta (su .vue), qué hace en
-// backend (`efecto`) y qué pasa si alguien retrocede por encima suyo (`reversible` +
-// `deshace`). El tercer contrato es el que hace posible el "atrás" sin dejar basura.
+// El catálogo. Cada componente declara qué pinta (su .vue) y qué hace en backend
+// (`efecto`). NO declara cómo deshacerse: volver atrás es reiniciar la solicitud
+// entera, una sola regla para todos, en vez de un contrato de undo por componente.
+// (Se probó lo otro y para dos componentes era maquinaria de más.)
 var catalogo = []struct {
 	tipo, label, efecto string
-	reversible          bool
-	deshace             string
 }{
-	{"telefono", "Teléfono", "valida prefijo y longitud según el país de la solicitud; guarda en valores", true,
-		"nada: el número queda como borrador para poder corregirlo"},
-	{"otp", "Código de verificación", "genera y verifica un código de 6 dígitos con vencimiento e intentos", true,
-		"borra el código pendiente o verificado: el viejo no vale para otro número"},
-	{"perfil", "Perfil del usuario", "todavía nada: pantalla de texto, sin captura", true, "nada"},
+	{"telefono", "Teléfono", "valida prefijo y longitud según el país de la solicitud; guarda en valores"},
+	{"otp", "Código de verificación", "genera y verifica un código de 6 dígitos con vencimiento e intentos"},
+	{"perfil", "Perfil del usuario", "todavía nada: pantalla de texto, sin captura"},
 }
 
 // Una plantilla, Colombia. Dos etapas: validar el celular (dos componentes, una sola
-// cosa para la persona) y el perfil. `al_volver` es la pregunta que se le hace al
-// usuario antes de retroceder — también es dato, no está cableada en el front.
+// cosa para la persona) y el perfil.
 const etapasCO = `[
-  {"etapa":"celular","titulo":"Tu celular","pasos":["telefono","otp"],
-   "al_volver":"¿Querés cambiar el número de teléfono? Vas a tener que verificarlo otra vez."},
-  {"etapa":"perfil","titulo":"Tu perfil","pasos":["perfil"],"al_volver":""}
+  {"etapa":"celular","titulo":"Tu celular","pasos":["telefono","otp"]},
+  {"etapa":"perfil","titulo":"Tu perfil","pasos":["perfil"]}
 ]`
 
 var semillas = []struct {
@@ -106,6 +98,9 @@ func abrirDB(ruta string) *sql.DB {
 	if err != nil {
 		log.Fatalf("abrir sqlite: %v", err)
 	}
+	// El catálogo es 100% semilla: se rehace en cada arranque. Así cambiarle columnas
+	// no necesita migración ni renombrar el archivo (y no hay dato de nadie ahí).
+	db.Exec(`DROP TABLE IF EXISTS componentes`)
 	if _, err := db.Exec(esquema); err != nil {
 		log.Fatalf("esquema: %v", err)
 	}
@@ -117,14 +112,8 @@ func abrirDB(ruta string) *sql.DB {
 // borrar el archivo (y sin perder las solicitudes de ayer).
 func sembrar(db *sql.DB) {
 	for _, c := range catalogo {
-		rev := 0
-		if c.reversible {
-			rev = 1
-		}
-		db.Exec(`INSERT INTO componentes (tipo, label, efecto, reversible, deshace) VALUES (?,?,?,?,?)
-		         ON CONFLICT(tipo) DO UPDATE SET label = excluded.label, efecto = excluded.efecto,
-		           reversible = excluded.reversible, deshace = excluded.deshace`,
-			c.tipo, c.label, c.efecto, rev, c.deshace)
+		db.Exec(`INSERT INTO componentes (tipo, label, efecto) VALUES (?,?,?)`,
+			c.tipo, c.label, c.efecto)
 	}
 	for _, s := range semillas {
 		var compacto any
@@ -136,12 +125,3 @@ func sembrar(db *sql.DB) {
 	}
 }
 
-// esReversible lee el flag del catálogo. Falla CERRADO: un tipo que no está en el
-// catálogo no se puede deshacer, porque no sabemos qué dejó hecho.
-func (s *srv) esReversible(tipo string) bool {
-	var rev int
-	if err := s.db.QueryRow(`SELECT reversible FROM componentes WHERE tipo = ?`, tipo).Scan(&rev); err != nil {
-		return false
-	}
-	return rev == 1
-}

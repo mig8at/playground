@@ -40,9 +40,9 @@ func main() {
 	mux.HandleFunc("GET /api/solicitudes/{id}", s.verSolicitud)
 	mux.HandleFunc("GET /api/solicitudes/{id}/eventos", s.eventos)
 
-	// Retroceder es una operación DEL MOTOR, no de cada paso, y trabaja por ETAPA:
-	// valida reversibilidad contra el catálogo y deshace los efectos que se pisan.
-	mux.HandleFunc("POST /api/solicitudes/{id}/retroceder", s.retroceder)
+	// El "atrás" es una operación DEL MOTOR y es una sola regla: reinicia la solicitud
+	// conservando lo tipeado y borrando lo verificado. No hay undo por componente.
+	mux.HandleFunc("POST /api/solicitudes/{id}/reiniciar", s.reiniciar)
 
 	// Un endpoint por componente del catálogo. Agregar un componente = agregar acá
 	// su efecto + su .vue, y ya se puede poner en cualquier plantilla.
@@ -71,7 +71,7 @@ func env(k, def string) string {
 }
 
 func (s *srv) verCatalogo(w http.ResponseWriter, r *http.Request) {
-	filas, err := s.db.Query(`SELECT tipo, label, efecto, reversible, deshace FROM componentes ORDER BY tipo`)
+	filas, err := s.db.Query(`SELECT tipo, label, efecto FROM componentes ORDER BY tipo`)
 	if err != nil {
 		errorJSON(w, 500, "no se pudo leer el catálogo")
 		return
@@ -79,18 +79,14 @@ func (s *srv) verCatalogo(w http.ResponseWriter, r *http.Request) {
 	defer filas.Close()
 
 	type comp struct {
-		Tipo       string `json:"tipo"`
-		Label      string `json:"label"`
-		Efecto     string `json:"efecto"`
-		Reversible bool   `json:"reversible"`
-		Deshace    string `json:"deshace"`
+		Tipo   string `json:"tipo"`
+		Label  string `json:"label"`
+		Efecto string `json:"efecto"`
 	}
 	out := []comp{}
 	for filas.Next() {
 		var c comp
-		var rev int
-		if err := filas.Scan(&c.Tipo, &c.Label, &c.Efecto, &rev, &c.Deshace); err == nil {
-			c.Reversible = rev == 1
+		if err := filas.Scan(&c.Tipo, &c.Label, &c.Efecto); err == nil {
 			out = append(out, c)
 		}
 	}
