@@ -27,6 +27,30 @@ Este nodo cubre la **frontera**: qué repos hay, cómo se enganchan y dónde est
 
 ## Contenido
 
+### Por qué hay DOS sistemas: la historia (y por qué se siente como una copia)
+Sin esto, la duplicación se lee como descuido. Fuente: Miguel (2026-08-09), contrastada contra git.
+
+CreditOp **nació en PHP con Inertia** — un monolito donde el back renderiza el front. Después entró un
+arquitecto, **Yamid**, que concluyó que la forma de escalar era **matar Inertia y pasar a APIs y
+microservicios**. De ahí nace `legacy-backend` + el wizard React.
+
+**El problema no fue la decisión, fue el resultado: hubo que seguir manteniendo `application` en
+paralelo, y matarlo viene siendo un problema desde entonces.** Y la forma que tomó la reescritura explica
+lo que este nodo documenta como rarezas: no se le quitó Inertia a `application` para exponer una API REST
+sobre el mismo dominio — **se construyó casi una copia**. De ahí salen las 286 migraciones byte-idénticas,
+los controladores gemelos por audiencia, las copias que divergen en numeración y el código muerto en
+legacy-backend. La lectura retrospectiva de Miguel es que **habría sido mejor sacar Inertia de
+`application` y ponerle API REST encima**, en vez de duplicar el dominio en otro repo.
+
+**Contrastado contra git:** Yamid tiene **118 commits en `legacy-application`** (2025-05 → 2026-07) y
+**123 en `legacy-backend`** (2025-06 → 2026-07), concentrados en `Modules/Onboarding` (48), el módulo con
+más superficie HTTP. El repo nuevo arranca **un mes después** de su actividad en el viejo, y él siguió
+commiteando en los dos — o sea que «mantener las dos cosas» está en el historial, no es una impresión.
+
+Consecuencia práctica para cualquier tarea de migración: **el objetivo no es terminar una reescritura,
+es apagar un sistema que nunca dejó de recibir cambios.** El inventario de qué falta para eso está en
+`application` §5.
+
 ### Los repos (verificado en composer/package + estructura)
 
 | Repo (clave índice) | Ruta en disco | Stack | Rol |

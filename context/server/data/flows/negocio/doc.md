@@ -203,6 +203,28 @@ documentadas: el **mapa del operador** (`merchants` §9 — qué escribe cada pa
 autoservicio tendría que replicar) y el **inventario de cutover** (`application` §5 — la capa de
 configuración ya tiene API en `Modules/Partner` y no tiene front).
 
+## El negocio de los AGREGADORES: se le cobra a los DOS lados
+Es la mitad de la empresa y el árbol no lo tenía. Si el banco presta y el banco cobra, lo que CreditOp
+vende es **distribución + dato**:
+
+- **Le cobra al comercio** (por tener el marketplace) **y también a la entidad** — por **aparecer en los
+  comercios** y por **direccionarle solicitudes**. Es un mercado de dos lados, no un canal gratis.
+- **Y le entrega el perfil «masticado»**: CreditOp valida contra burós y le pasa a la entidad un
+  candidato ya enriquecido, en vez de un dato crudo. Eso reduce el riesgo del lado del banco y es parte
+  del valor que se cobra. ⚠ **No todas lo usan**: Bancolombia hace su propia validación (coherente con
+  que tenga sus dos compuertas propias → `bancolombia`).
+- Y por eso la capa de pre-aprobación **no es solo técnica**: `ms-preapprovals` y el perfilamiento son
+  literalmente el producto que se le vende a la entidad. Degradarlos degrada el ingreso, no solo la UX.
+- La otra mitad del valor es **la integración única**: la entidad se conecta una vez y llega a todos los
+  comercios, en vez de integrarse con cada uno.
+
+## Si un comercio se va, CreditOp sigue cobrando
+La cartera viva **se sigue administrando hasta el último pago**, aunque el comercio ya no origine.
+Consecuencia directa para el sistema: **dar de baja un comercio no puede ser apagar su configuración** —
+los créditos vivos necesitan que el servicing siga corriendo (los 6 crons, el ledger, la imputación →
+`servicing`). Cualquier «desactivar comercio» que corte eso rompe cobranza sobre plata que es del
+comercio.
+
 ## El cliente que manda es el COMERCIO
 CreditOp gana con comercios y con entidades agregadoras, pero el que decide es el comercio: es quien
 firma, quien en CreditopX pone el capital, y cuyos clientes son los que toman el crédito. Eso ordena
@@ -237,6 +259,12 @@ afirmación de arriba:
 - **Quiénes son los fondos de garantía y las aseguradoras.** El broker mencionado es **Seguros Mundial**
   para vida; el fondo de garantía no tiene nombre en el sistema. ⚠ Ninguno de los dos aparece en el
   código (cero referencias): hay que preguntarlo adentro.
+- 🔴 **¿CreditOp está vigilada por la Superintendencia Financiera? SIGUE SIN RESPUESTA, y es la pregunta
+  estructural del nodo.** Producto habla de «obligatorio en entidades supervisadas» como si fueran otras;
+  Miguel supone que sí pero no lo tiene confirmado. Importa porque de eso depende la explicación del
+  modelo entero: **si CreditOp no es vigilada, no puede prestar plata propia, y que el capital sea del
+  comercio deja de ser una elección comercial para ser una consecuencia legal.** Hoy el árbol afirma lo
+  primero sin poder descartar lo segundo. Preguntar a legal o a producto antes de repetirlo.
 - **El prompt de producto.** Manuela quedó en compartir el prompt que el equipo de producto usa para
   explicarle el negocio de agregador y crédito a un modelo. Cuando llegue, es la fuente a contrastar
   contra este nodo.
