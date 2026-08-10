@@ -147,6 +147,62 @@ O sea que la comisión que el negocio describe como su fuente de ingreso **no es
 `comission_percentage` por par comercio-entidad que nadie usa para cobrar (arriba), y existe este cálculo
 hardcodeado para un solo grupo de comercios. Ver **F-129**.
 
+## Con quién hablar (lo más perecedero de este árbol — al 2026-08-09)
+El árbol nunca dijo a quién preguntarle, y es lo que más rinde cuando algo se traba. ⚠ **Es también lo
+que primero se pudre**: la gente cambia de rol. Si una respuesta no cuadra, empezá por dudar de esta
+tabla y no de la persona.
+
+| Para… | Preguntar a |
+|---|---|
+| **Política, y por qué existe algo** | Manuela (producto) |
+| **Qué le pasó a ESTA solicitud** | Joel (soporte) |
+| **La plata después del desembolso** — liquidación, recaudo, mora | Juan Camilo (cobros) |
+| **CreditopX** — motor, cupo, pagos, servicing | Laura, Hans |
+| **Bancolombia** | Santi, Abel |
+| **Qué pidió el comercio de verdad** | Fabián (gestores de cuenta) |
+
+**Contrastado contra git**, y coincide donde más importa: en `Admin/CreditopXPayment*` y
+`Commands/UpdateCreditopX*` firman **Laura Cabra** (27 commits entre sus dos identidades) y **hans
+peter**; en `app/Services/lenders/` (el motor) Laura otra vez, con 38. ⚠ Pero el método tiene un límite
+visible: en `Actions/Lenders/Bancolombia*` los commits recientes son de otras personas, y a quien hay
+que preguntarle es a Santi. **Quien commiteó último no es necesariamente el dueño del tema** — la misma
+advertencia que `alinear.py` ya hace sobre los autores.
+
+## El alta de un comercio: la semana se va en NEGOCIAR, no en configurar
+El dato importa porque contradice la teoría implícita del roadmap. Montar un comercio nuevo lleva
+**cerca de una semana**, y ese tiempo se va en **reuniones de parte y parte**: aclarar el modelo de
+negocio, los porcentajes que ofrece CreditOp, las comisiones, qué entidades quiere prender y en qué
+sucursales.
+
+⚠ **Consecuencia incómoda para el «plug and play».** El norte declarado es que el gestor de cuenta y el
+comercio parametricen sus políticas desde el front para «eliminar la intervención manual prolongada».
+Pero si el cuello de botella es el **acuerdo comercial**, un panel autogestionado ataca la parte que ya
+es rápida —cargar la configuración— y no mueve la semana. No invalida el proyecto: cambia cómo medirlo.
+Prometer «alta en un día» por tener mejor UI es prometer sobre el tramo equivocado. Lo que sí podría
+acortar la negociación es que el formulario **haga las preguntas correctas** y deje el acuerdo
+estructurado, no que sea autoservicio.
+
+## El ciclo de la plata: mensual, con cierre de mes
+El recaudo se le devuelve al comercio **mensualmente**, con cierre de mes. Lo que el sistema automatiza
+de eso es **poco**: la única entrada mensual del scheduler es
+`app:lender-disbursements-report-command`, que corre **el día 4 a las 05:00**
+(`app/Console/Kernel.php:48`) y es un reporte de **desembolsos**, no de liquidación. Todo el resto del
+cierre —consolidar, descontar la comisión, transferir— es manual.
+
+## La reportería real es Redash, no los exports
+⚠ **Corrección importante para quien vaya a buscar «el reporte»** (Miguel, 2026-08-09): en la práctica
+**se entra a la BD o a Redash y se escribe la query**. Los 20 `app/Exports/*` existen, pero no son
+necesariamente lo que se usa, y **no hay una consulta canónica** que se pueda señalar como la fuente de
+la liquidación. Después alguien lo baja a Excel y hace los descuentos a mano. Qué puede y qué no puede
+Redash acá: → `db-routines`.
+
+## La promesa que hoy no se cumple: la autogestión
+Se le vende al comercio que **puede configurar sus propias políticas**, y en la práctica casi todo pasa
+por el equipo técnico. Es la brecha más citable del negocio, y le da destino a dos cosas que ya están
+documentadas: el **mapa del operador** (`merchants` §9 — qué escribe cada pantalla, que es lo que ese
+autoservicio tendría que replicar) y el **inventario de cutover** (`application` §5 — la capa de
+configuración ya tiene API en `Modules/Partner` y no tiene front).
+
 ## El cliente que manda es el COMERCIO
 CreditOp gana con comercios y con entidades agregadoras, pero el que decide es el comercio: es quien
 firma, quien en CreditopX pone el capital, y cuyos clientes son los que toman el crédito. Eso ordena
