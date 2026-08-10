@@ -16,6 +16,14 @@ cosas que sostienen el negocio.
 | De qué vive CreditOp | **comisión al comercio por cada crédito** | comisión de la entidad por llevarle originación |
 | Riesgo de crédito | del comercio (con el colchón, abajo) | de la entidad |
 
+⏳ **Y viene un TERCER modelo, distinto de los dos** (piloto Cuotéalo BCP en Perú, PRD 2026-07-31 — todavía
+sin código): la entidad presta, hace riesgo, KYC, cartera y cobranza… pero **desembolsa a CreditOp**, y
+**CreditOp le abona al comercio a T+1**. O sea que acá **CreditOp toca la plata**, algo que no pasa ni en
+CreditopX (donde el capital es del comercio desde el principio) ni en el agregador clásico (donde la
+entidad le paga al comercio directo). Lo que CreditOp aporta en ese modelo es **originación en punto de
+venta** —el banco es fuerte en digital y débil en POS— más el link de pago y el administrador del
+comercio. Si el piloto escala, es una fila nueva de esta tabla y no una variante de las otras dos.
+
 ## Antes de concluir
 - **El lender de CreditopX ES la marca blanca del comercio, no una entidad financiera.** Pullman tiene
   su lender `CrediPullman`; el comercio le ofrece crédito a sus clientes **sobre los rieles de

@@ -1,149 +1,170 @@
 ---
 id: 45
-title: "BCP Perú — estructurar la entidad para el flujo de registro"
-stage: evaluation
+title: "Cuotéalo BCP (Perú) — acoplar la entidad al flujo y hacerla administrable"
+stage: work
 created: "2026-08-10T09:00:00-05:00"
-context_nodes: [entities, hardcodes-entidades, aggregator, onboarding, merchants, negocio, ms-preapprovals, dynamic-forms]
+context_nodes: [entities, hardcodes-entidades, aggregator, ecommerce, onboarding, merchants, negocio, payments, dynamic-forms]
 jira: [CORE-399]
 jira_title: "Estructurar BCP para el flujo de registro"
 ---
 
-# BCP Perú — estructurar la entidad
-> **estado:** 🔎 en evaluación — bajada de Jira el 2026-08-10. Nada implementado, sin rama.
+# Cuotéalo BCP (Perú) — acoplar la entidad al flujo
+> **estado:** 🔎 levantando información (encargo de Oscar, 2026-08-10). Nada implementado, sin rama.
 >
-> Es el gemelo de lo que hicimos con **comercios** (el mapa del operador de `merchants` §9), pero del lado
-> de las **entidades**: qué hay que tocar, y en qué orden, para que una entidad nueva exista de verdad.
-> BCP es el caso más duro posible porque estrena **tres cosas a la vez**: un país nuevo (Perú), un
-> producto nuevo (vehicular) y un patrón de integración nuevo (simulador embebido del banco).
+> **El encargo, textual:** *«por ahora levanta información, revisa cómo es el flujo… la idea es que tú lo
+> acoples a nuestro flujo y sea administrable, y que José haga toda la recolección de datos de los
+> formularios dinámicos»*. O sea: **mi parte es el acople y la administrabilidad**, no la captura.
+>
+> Fuentes: **PRD «Integración de Cuotéalo BCP»** (Confluence 633208833, v1 2026-07-31) + Figma de BCP
+> (no leído: no tengo acceso a Figma). El PRD cita un documento hermano de preguntas abiertas
+> (`preguntas-abiertas-bcp-ivan.md`) que **todavía no encontré**.
 
-## Contextos que usa
-- **entities** — qué ES una entidad como dato: la fila `lenders`, las ~46 tablas satélite y el
-  `response_type` que despacha todo. Es la base del checklist.
-- **hardcodes-entidades** — los 24 acoplamientos por id que hacen que integrar una entidad cueste
-  código. Leerlo ANTES de proponer cómo entra BCP, para no sumar el 25.º.
-- **aggregator** — si BCP decide afuera (banco), cae en `response_type=1`: pre-aprobación, handoff y
-  webhook. La maquinaria genérica está ahí.
-- **onboarding** — el tramo que las historias del épico describen (inicio, OTP, captura de datos).
-- **merchants** — el par (comercio, entidad) es quien decide la conducta (F-34), y la credencial del par
-  es la que hace que la integración se invoque.
-- **negocio** — de qué lado cobra CreditOp con un banco: al comercio Y a la entidad, y le entrega el
-  perfil enriquecido. Eso define qué tiene que hacer la pre-aprobación acá.
-- **ms-preapprovals** — el patrón para un lender que decide por API externa.
-- **dynamic-forms** — la captura de datos del vehículo va por formulario configurable (CORE-400 es de José).
+## Qué es Cuotéalo, en una frase
+Un piloto **Creditop × BCP en Perú**: BCP tiene buena originación digital pero **débil en punto de venta**,
+y Creditop aporta ese know-how. Arranca con **concesionarios Honda (5–10 comercios)**, canal **POS asesor**,
+en dos flujos: **Consumo** y **Vehicular**.
 
-## El épico: BCP es un flujo VEHICULAR, no un crédito de consumo más
-`CORE-331 · BCP` (épico, sin descripción) tiene **13 historias**, todas en Por Hacer y **todas con la
-descripción vacía**. Leídas en orden, describen el flujo que hay que construir:
+**El reparto de responsabilidades es el dato que ordena todo el diseño:**
 
-| Jira | Historia | Dueño |
+| | Creditop | BCP |
 |---|---|---|
-| CORE-332 | Inicio de solicitud y selección de flujo | — |
-| CORE-333 | Verificación por OTP | — |
-| CORE-334 | **Consulta de preaprobado en el simulador BCP (embebido)** | — |
-| CORE-335 | Captura de datos del **vehículo** para la simulación | — |
-| CORE-336 | **Gate de preaprobado (decisión del asesor)** | — |
-| CORE-337 | Captura de datos del cliente (identidad) | — |
-| CORE-338 | Captura de datos finales del vehículo | — |
-| CORE-339 | Generación y envío del **link de pago** | — |
-| CORE-340 | Recepción del resultado y estados de la transacción | — |
-| CORE-341 | Administrador para el comercio | — |
-| **CORE-399** | **Estructurar BCP para el flujo de registro** | **Miguel** |
-| CORE-400 | Formularios dinámicos para BCP | José |
-| CORE-401 | Permitir a un comercio elegir flujo vehicular | José |
+| Front de originación en POS | ✅ | |
+| Motor de riesgo, política, preaprobado, KYC del cliente | | ✅ |
+| Simulador (cálculo y render de la cuota) | | ✅ **embebido** |
+| Generación y envío del link de pago | ✅ | |
+| Login, 2FA y aceptación del cliente | | ✅ (CIAM) |
+| Desembolso | | ✅ **a Creditop** |
+| Abono al comercio (T+1) | ✅ | |
+| Recaudo y cobranza | | ✅ |
+| Administrador para el comercio | ✅ | |
 
-**Lo que esa lista implica** (y que ninguna historia dice, porque están vacías):
-- **BCP decide, no CreditOp** — hay un «simulador BCP embebido» y un «gate de preaprobado». Eso es
-  `response_type = 1` (agregador), no CreditopX.
-- **Hay un actor que no existe en el modelo actual: el VEHÍCULO.** Dos historias capturan sus datos, y
-  la simulación depende de ellos. Hoy `user_requests` no tiene noción de vehículo salvo el IMEI de
-  SmartPay y el renting de Motai (`lenders.product`).
-- **El gate lo decide el ASESOR**, no el sistema. Eso es un paso humano en medio del flujo.
-- **El cobro va por link de pago**, no por la cuota inicial del wizard.
+⚠ **BCP es la ÚNICA entidad prestamista de esta fase**, y una segunda entidad está explícitamente fuera
+del MVP.
 
-## Lo MEDIDO: el punto de partida (2026-08-10)
+## 🔴 El principio arquitectónico del que se derivan casi todos los problemas
+**Creditop no puede leer el resultado del simulador: es un iframe de BCP.** De esa ceguera salen dos
+piezas que parecen arbitrarias y no lo son:
 
-### BCP no existe en ninguna parte
-`grep -rliE "BCP|Peru|vehicul"` sobre `legacy-backend/app` y `Modules/` → **cero archivos**. No hay
-Action, ni credencial, ni fila de lender, ni configuración. Es greenfield.
+1. **El gate manual** — una pantalla que le pregunta al asesor *«¿el cliente cuenta con una oferta
+   preaprobada?»* con dos botones obligatorios. Es el **disparador técnico** para continuar y el **único
+   punto donde se captura «sin preaprobado / negado»**, porque BCP solo notifica cuando aprueba. Es dato
+   autoreportado, direccional, sin riesgo de fraude (BCP revalida al desembolsar).
+2. **La re-captura de identidad** en un formulario propio de Creditop — no es redundancia: es la única
+   forma de que el administrador del comercio tenga datos, ya que lo del iframe no se ve.
 
-### Perú SÍ existe como país, pero incompleto — y la comparación es el checklist
-Fila `countries.id = 167`, `status = 1`. Contra los dos países que hoy funcionan:
+## Validación de lo que dice Oscar: ¿por qué esto es «parte de lo que estabas trabajando»?
+**Tiene razón, y el vínculo es más fuerte de lo que él planteó: es un prerrequisito directo.** Pero
+«es parte de lo mismo» **no significa «ya está resuelto»**. Verificado contra el código y la BD:
 
-| campo | Colombia (47) | RD (60) | **Perú (167)** |
-|---|---|---|---|
-| `dial_code` | `57` | `1` | **vacío** |
-| `phone_code` | `+57` | `+1` | **NULL** |
-| `cell_phone_lenght` | `10` | `10` | **vacío** |
-| `nationality` | `COLOMBIANA` | `DOMINICANA` | **NULL** |
-| `locale` | `es-CO` | `es-DO` | **`es_PE`** ⚠ |
-| `currency` | `COP` | `DOP` | `PEN` ✓ |
-| `iso_code_1/2` | `CO`/`COL` | `DO`/`DOM` | `PE`/`PER` ✓ |
-| zonas · ciudades | 36 · 1.123 | 32 · 8 | **25 · 0** |
+**Dónde se toca, exactamente.** El flujo de Cuotéalo **arranca con las dos pantallas que el PR de
+internacionalización acaba de tocar**: celular (con el toggle de vehículo) y OTP. Ese PR hizo que
+justamente esas pantallas lean el país del comercio en vez de asumir Colombia
+(`routes/dynamic/request-phone.tsx`, `PhoneForm.tsx`, y del lado backend la resolución de país del
+teléfono). Sin ese trabajo, la pantalla 1 de BCP saldría con **+57** para un cliente peruano.
 
-⚠ **Dos hallazgos que salen de esa tabla y hay que atacar antes de construir encima:**
+**Y dónde NO alcanza.** La fila de Perú (`countries.id = 167`, activa) está incompleta, y el PR **no la
+completa**:
 
-1. **La internacionalización deja a Perú en NULL, en silencio.** La rama de CORE-365 pobla `phone_code`
-   **desde `dial_code`** — y el `dial_code` de Perú está **vacío**. O sea que el trabajo que hace que el
-   flujo lea el prefijo del país **no le va a dar prefijo a Perú**. Hay que cargar `dial_code = 51` (o
-   escribir `phone_code` directo) **antes** de que BCP toque una pantalla de teléfono.
-2. **El `locale` de Perú usa guión BAJO** (`es_PE`) mientras Colombia y RD usan guión medio (`es-CO`,
-   `es-DO`). Cualquier formateo que pase ese valor a `Intl` o a un comparador de locales trata a Perú
-   distinto. Es una fila, pero rompe el formato de plata — y BCP es en `PEN`.
+| campo | Colombia | RD | **Perú** | consecuencia para BCP |
+|---|---|---|---|---|
+| `dial_code` | 57 | 1 | **vacío** | 🔴 la migración del PR pobla `phone_code` **desde acá** → Perú queda en NULL |
+| `phone_code` | +57 | +1 | **NULL** | 🔴 la pantalla 1 no tiene prefijo que mostrar |
+| `cell_phone_lenght` | 10 | 10 | **vacío** | no hay con qué validar el largo (el PRD pide «celular numérico») |
+| `nationality` | COLOMBIANA | DOMINICANA | **NULL** | los documentos quedan sin nacionalidad |
+| `locale` | es-CO | es-DO | **es_PE** ⚠ | guión **bajo**: rompe formateo, y Cuotéalo factura en **PEN** |
+| ciudades | 1.123 | 8 | **0** | ningún selector de ciudad puede ofrecer nada |
 
-Y la tercera, que es la misma que RD ya pagó: **Perú tiene 25 zonas y CERO ciudades**. El selector de
-ciudad no puede ofrecer nada. Es un INSERT, no un diseño (ver cómo se resolvió para RD en la tarea 43).
+**Conclusión de la validación:** el PR es condición necesaria y **no suficiente**. Lo primero de esta
+tarea no es código: es **cargar los datos de Perú** (empezando por `dial_code = 51`) y arreglar el
+`locale`, porque si no, el trabajo de internacionalización deja a Perú en NULL **en silencio**.
 
-## El análisis que falta: ¿qué es «estructurar una entidad»?
-Es el gemelo del mapa del operador de comercios, y está por escribirse. La forma que va a tener, según lo
-que el árbol ya sabe:
+## Cómo acoplarlo: el patrón ya existe, invertido
+La integración con Cuotéalo es un **POST con `FormData` y un único parámetro `data`** (JSON stringificado)
+hacia el site del banco, con `redirectPath` para el éxito y `backUrl` para la cancelación, más
+`ecommerceId` y `merchantId` que identifican al comercio.
 
-- **Capa 1 · la entidad como dato** — la fila `lenders` (anémica a propósito: identidad, branding, ruteo)
-  + `credit_line_by_lenders` + el `response_type` que despacha. El alta la hace
-  `Admin/LenderController::store`, que siempre crea la línea de crédito con `credit_line_id = 1` y solo
-  crea la config CreditopX si `rt == 2` → **para un rt=1 como BCP hay que saber qué NO se crea**.
-- **Capa 2 · el par (comercio, entidad)** — `lenders_by_allieds` (la calculadora) y
-  `lenders_by_allied_branches` (si se ve y en qué orden). Y la pieza que decide si la integración se
-  invoca siquiera: **la credencial del par** (F-34). Sin ella el flujo ni llama.
-- **Capa 3 · la integración** — para rt=1 hay dos caminos vivos: el switch legacy por id
-  (`PreApprovedLenderService`) y el MS Go (`pre-approvals-service`, adapter + auth + strategy por
-  lender). **Cuál de los dos usar es la primera decisión de diseño de esta tarea**, y de ella depende si
-  BCP suma un hardcode o entra por el patrón nuevo.
-- **Capa 4 · lo que BCP estrena y no tiene lugar hoy** — el vehículo como entidad de datos, el gate
-  humano del asesor, el simulador embebido y el link de pago como forma de cobro.
+**Eso es estructuralmente el mismo contrato de checkout que Creditop ya tiene en el canal ecommerce**
+(contrato serializado + token + URL de retorno + URL de callback), **solo al revés**: hoy Creditop
+**recibe** ese POST desde la tienda de un comercio; con BCP, Creditop **lo emite** hacia el checkout del
+banco. No es un patrón nuevo que haya que inventar — es el de `ecommerce` espejado, y ya existe la pieza
+que arma esos contratos.
 
-## Preguntas abiertas (a resolver antes de estimar)
-- [ ] **¿BCP es rt=1?** Todo apunta a que sí (simulador propio, gate de preaprobado), pero hay que
-  confirmarlo con producto: si CreditOp pusiera capital sería CreditopX y cambia todo el diseño.
-- [ ] **¿Por el MS de pre-aprobaciones o por el switch legacy?** Es la decisión que define si esto suma
-  deuda o la evita.
-- [ ] **¿Dónde vive el vehículo?** Tabla nueva, EAV (`user_field_values`) vía formularios dinámicos
-  (CORE-400), o `user_request_products` como SmartPay. Las tres tienen consecuencias distintas para
-  reportería.
-- [ ] **¿El «simulador embebido» es un iframe del banco o una API que consumimos?** Cambia por completo
-  quién valida y dónde queda el dato.
-- [ ] **¿El link de pago es el de CreditOp** (`PaymentLinkController`, ya existe) **o uno de BCP?**
-- [ ] **¿Perú necesita proveedores de identidad y buró propios?** Hoy la selección de burós **no mira el
-  país** — todos los proveedores son colombianos, y RD solo lo esquiva por el hardcode de SmartPay
-  (hallazgo de la tarea 43). Perú con un banco de verdad no lo va a esquivar.
-- [ ] **¿Quién es el comercio?** El épico tiene «Administrador para el comercio» y «permitir a un
-  comercio elegir flujo vehicular»: hay un concesionario detrás. Sin saber cuál, la capa 2 no se puede
-  cerrar.
+**Lo que sí es nuevo y no tiene lugar hoy:**
+- **La encriptación campo por campo** (RSA/ECB/SHA-256/MGF1Padding, 2048 bits; BCP entrega la pública por
+  correo firmado, vigencia 2 años). Ninguna integración actual encripta campo a campo.
+- **El vehículo como entidad de datos** — marca, modelo, versión, año, chasis, motor, seguro
+  (BANA/ENDOSADO), valor, bono, comisión del dealer. La captura la hace José; **el modelo de datos y su
+  administrabilidad son míos**.
+- **El gate humano** en medio del flujo.
+- **El flujo de fondos**: BCP desembolsa **a Creditop** y Creditop abona al comercio **T+1** — un tercer
+  modelo económico, distinto de CreditopX (capital del comercio) y del agregador clásico (el lender le
+  paga al comercio). Acá **Creditop toca la plata**. → ver `negocio`.
 
-## Dependencias
-- **CORE-365** (internacionalización, hoy en pruebas) — es el prerrequisito real: hace que el flujo lea
-  el país del comercio. BCP necesita eso **más** los datos de Perú cargados.
-- **CORE-400** (formularios dinámicos para BCP, José) — la captura del vehículo probablemente sale de ahí.
-- **CORE-401** (elegir flujo vehicular, José) — el toggle por comercio.
+## Lo que el PRD ya define y no hay que preguntar
+- **Comisión del dealer**: 0,1 %–6 %, tope 6 %, y **se suma al interés** en la tasa que se muestra.
+- **La cuota mostrada incluye seguro + comisión** (sin sorpresas al cliente).
+- **Documentos**: DNI / C.E. **OTP de 4 dígitos**, reenvío 4:48. **T&C y Política como DOS documentos con
+  dos checkbox independientes**, tropicalizados a Perú, y **la aceptación se firma con OTP** — para que el
+  asesor no pueda aceptar por el cliente.
+- **Link de pago**: lo genera **Creditop** y va por **correo y WhatsApp simultáneamente**.
+- **Sesión de Cuotéalo: 10 minutos** — la de Creditop **debe superarla**.
+- **Administrador del comercio**: se ve como una pasarela de pago (documento del cliente, comercio, monto,
+  punto de venta, estado del link). **Sin** datos del cliente ni del vehículo. Estados esperados:
+  aprobado / abandonado / expirado.
+- **Usuarios ilimitados por comercio**, cada asesor con credenciales propias (trazabilidad).
+- **Endpoints**: producción `cuotealo.viabcp.com/inicio`; desarrollo, un Azure websites.
+- **Topes de monto por comercio, parametrizables** (valores a negociar).
+
+## 🔴 Los 7 bloqueantes, que son de BCP y no nuestros
+Del §9 del PRD. Los dos primeros bloquean **cualquier prueba**:
+
+| # | Qué falta | Por qué me bloquea |
+|---|---|---|
+| **P1** | Que BCP autorice el iframe (`frame-ancestors` + que `X-Frame-Options` no sea DENY) | sin esto el simulador no se puede embeber y el diseño entero cambia |
+| **P2** | Whitelist de la IP de Creditop en el WAF de Cuotéalo | **el WAF solo permite IPs de Perú**; el equipo prueba desde Colombia → hoy no se puede ni probar en dev |
+| **P7** | ¿iframe embebido o redirect de página completa? | el manual dice redirect, el diseño asume iframe. **Define si el gate manual hace falta** |
+| P3 | Valor de `hasDetail` en vehicular | el manual dice `false`, el ejemplo manda `true` |
+| P4 | Estructura definitiva de los objetos del vehículo (pedir Swagger) | la tabla los pone en raíz, el ejemplo dentro de `productDetails[]` |
+| P5 | Enum completo de `creditStatus` + cómo detectar abandono/expiración | **el administrador necesita esos estados y BCP hoy solo confirma aprobación** |
+| P6 | Cuándo se capturan cuota inicial y valor a financiar | contradicción entre manual y reunión |
+
+⚠ **P7 es el que más cuesta si se resuelve tarde**: si termina siendo redirect de página completa, el
+gate manual **sobra** y dos pantallas del journey se caen. Conviene cerrarlo antes de diseñar nada.
+
+## Mis preguntas (las que quedan después de leer el PRD)
+- [ ] **¿Perú entra como país completo o como parche para BCP?** Cargar `dial_code`, `nationality`,
+  `cell_phone_lenght`, arreglar el `locale` y sembrar ciudades es la base de todo. ¿Va en esta tarea o
+  como continuación de la internacionalización?
+- [ ] **¿BCP entra por el MS de pre-aprobaciones o por el switch legacy por id?** Es la decisión que
+  define si esto suma el hardcode número 25 o si es la primera entidad que entra por el patrón nuevo.
+  ⚠ Ojo: acá la pre-aprobación **no la calculamos nosotros** (es el iframe), así que puede que ninguno de
+  los dos aplique y sea un canal aparte.
+- [ ] **¿El «administrador para el comercio» se construye nuevo o es el panel que ya existe?** La capa de
+  configuración ya tiene API sin front (→ `application` §5) — esto podría ser su primer consumidor.
+- [ ] **¿Dónde vive el vehículo?** Tabla propia, EAV vía formularios dinámicos (lo de José), o
+  `user_request_products` como SmartPay. Decide qué se puede reportar después.
+- [ ] **¿Cómo se prueba sin IP peruana?** Mientras P2 no se resuelva, no hay forma de ejercitar el
+  simulador. Hay que decidir si se mockea (y entonces el harness necesita un mock de Cuotéalo) o si se
+  espera.
+- [ ] **¿Qué pasa con el consentimiento firmado por OTP** frente a lo que ya hace el flujo actual? El PRD
+  lo pide explícitamente para que el asesor no acepte por el cliente.
 
 ## Tarea (publicable)
-_Pendiente: la descripción de CORE-399 está vacía en Jira y no se sube nada hasta cerrar las preguntas
-abiertas de arriba — sobre todo si BCP es rt=1 y por qué camino entra la integración._
+_Pendiente. CORE-399 está sin descripción en Jira y el encargo de esta fase es levantar información: no
+se publica nada hasta cerrar al menos P7 (iframe vs redirect) y decidir por dónde entra la integración._
 
 ## Bitácora
-- **2026-08-10** — Bajada de Jira. CORE-399 llega **sin descripción, sin puntos y sin comentarios**;
-  todo el contexto está en el épico `CORE-331` (también vacío) y en los títulos de sus 13 historias, que
-  son lo único que describe el flujo. Medido el punto de partida: **BCP no existe en el código** (cero
-  archivos) y **Perú existe como país pero incompleto** — `dial_code`, `phone_code`,
-  `cell_phone_lenght` y `nationality` vacíos, `locale` con guión bajo a diferencia de los otros dos
-  países, y 25 zonas con 0 ciudades. De ahí sale el hallazgo que más importa hoy: **la migración de
-  CORE-365 pobla `phone_code` desde `dial_code`, así que a Perú lo deja en NULL sin avisar.**
+- **2026-08-10** — Bajada de Jira. CORE-399 llega **sin descripción, sin puntos y sin comentarios**; el
+  épico `CORE-331` también está vacío, y sus 13 historias son lo único que describía el flujo. Medido el
+  punto de partida: **BCP no existe en el código** (cero archivos) y **Perú existe como país pero
+  incompleto**.
+- **2026-08-10 (2)** — Leído el **PRD de Confluence** que pasó Oscar, y con eso se contestaron cinco de
+  las siete preguntas que había abierto a ciegas: BCP hace riesgo/KYC/cartera/recaudo y es la **única**
+  entidad; el link de pago **es nuestro**; el comercio son **concesionarios Honda**; el simulador es un
+  **iframe** (con P7 abierto); y la captura del vehículo es de José. **Validada la afirmación de Oscar**:
+  el PR de internacionalización es prerrequisito **directo** —el flujo de BCP arranca con las dos
+  pantallas que ese PR tocó— pero **no suficiente**: la migración pobla `phone_code` desde `dial_code`, y
+  el de Perú está vacío, así que deja a Perú en NULL sin avisar. Hallazgo de acople: el contrato de
+  Cuotéalo (POST con `data` JSON + `redirectPath`/`backUrl` + ids de comercio) es **el mismo patrón del
+  checkout de ecommerce que ya tenemos, invertido** — no hay que inventarlo. Y el flujo de fondos es un
+  **tercer modelo económico**: BCP desembolsa a Creditop y Creditop abona al comercio T+1.
