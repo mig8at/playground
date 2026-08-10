@@ -15,8 +15,7 @@ jira_title: "Estructurar BCP para el flujo de registro"
 > acoples a nuestro flujo y sea administrable, y que José haga toda la recolección de datos de los
 > formularios dinámicos»*. O sea: **mi parte es el acople y la administrabilidad**, no la captura.
 >
-> Fuentes: **PRD «Integración de Cuotéalo BCP»** (Confluence 633208833, v1 2026-07-31) + Figma de BCP
-> (no leído: no tengo acceso a Figma). El PRD cita un documento hermano de preguntas abiertas
+> Fuentes: **PRD «Integración de Cuotéalo BCP»** (Confluence 633208833, v1 2026-07-31) + **Figma de BCP** (leído por API el 2026-08-10). El PRD cita un documento hermano de preguntas abiertas
 > (`preguntas-abiertas-bcp-ivan.md`) que **todavía no encontré**.
 
 ## Qué es Cuotéalo, en una frase
@@ -115,6 +114,53 @@ que arma esos contratos.
 - **Endpoints**: producción `cuotealo.viabcp.com/inicio`; desarrollo, un Azure websites.
 - **Topes de monto por comercio, parametrizables** (valores a negociar).
 
+## Lo que dice el FIGMA (leído por API el 2026-08-10)
+Archivo `6W7Q6X21JrhF9L95OMc3Pf`, dos páginas: **✏️ Flujo** y **📲 Protopipo**. Dentro de Flujo, dos
+secciones: `Cuotéalo BCP` (30 nodos) y `cuotealo vehicular` (28). ⚠ Los nombres de los frames **no
+sirven** de inventario —«Formulario», «-», «OPT»— así que el orden real se reconstruyó por su posición
+en el lienzo, y las pantallas se leyeron renderizándolas.
+
+**La secuencia vehicular de escritorio (1440 px), en orden:**
+
+| # | Pantalla | node-id |
+|---|---|---|
+| 1 | Número de celular | `410:899` |
+| 2 | OTP | `410:854` |
+| 3 | Formulario del vehículo | `459:652` |
+| 4 | **Simulador BCP embebido** | `410:689` |
+| 5 | **Completa tu información 1/2** (identidad) | `410:635` |
+| 6 | Formulario (2/2 esperado) | `410:1899` |
+| 7 | Cierre / «finaliza en el celular» | `410:564` |
+| — | **Rechazo** («Lo sentimos, no tenemos una opción…», con logo BCP) | `410:818` |
+
+Las mismas 7 existen en **móvil (430 px)** como frames aparte → es **responsive con dos diseños**, no uno
+adaptativo. Y hay un **segundo set espejado** (ids `602:*`) que probablemente sea el flujo Consumo o una
+versión anterior: hay que preguntar cuál manda antes de tomarlo como fuente.
+
+### 🎯 P7 QUEDA RESUELTO POR EL DISEÑO: es iframe
+**Todas las pantallas están dibujadas dentro de un navegador cuya barra de direcciones dice
+`admin.creditop.com`** — incluida la del simulador, que muestra el contenido de BCP («¡Al instante!
+Descubre cuánto podemos pagar por ti», documento + fecha de nacimiento, con los logos de los retailers
+peruanos) **ocupando el área de contenido de nuestra propia página**. No hay ninguna pantalla que salga a
+`cuotealo.viabcp.com`.
+
+Consecuencias directas:
+- **P1 deja de ser una duda teórica y es EL bloqueante**: si BCP no autoriza `frame-ancestors`, esa
+  pantalla no existe y hay que rediseñar el journey.
+- **El gate manual se justifica** (somos ciegos al iframe), así que no es una pieza que se pueda recortar.
+
+### 🔴 Y el gate manual NO ESTÁ DISEÑADO
+El PRD lo exige —dos botones obligatorios, y es el **único** punto donde se captura «sin preaprobado»
+porque BCP solo notifica al aprobar— pero **el Figma va del simulador (4) directo al formulario de
+identidad (5)**. La pantalla de rechazo existe como rama aparte (`410:818`), no como gate. Sin esa
+pantalla no hay funnel de rechazos, que es justo lo que el PRD quiere medir.
+
+### ⚠ Y el diseño monta el flujo en `admin.creditop.com`
+Hoy las audiencias están separadas por subdominio: el **asesor** vive en `aliados.{host}` y `admin.{host}`
+es el **back-office**. El Figma pone el flujo POS del asesor en `admin.` Puede ser un placeholder del
+diseñador, pero si es literal **cambia dónde se monta todo**: grupo de middleware, namespace y archivo de
+rutas distintos. Hay que confirmarlo antes de escribir una ruta. → `application` §audiencias.
+
 ## 🔴 Los 7 bloqueantes, que son de BCP y no nuestros
 Del §9 del PRD. Los dos primeros bloquean **cualquier prueba**:
 
@@ -122,14 +168,15 @@ Del §9 del PRD. Los dos primeros bloquean **cualquier prueba**:
 |---|---|---|
 | **P1** | Que BCP autorice el iframe (`frame-ancestors` + que `X-Frame-Options` no sea DENY) | sin esto el simulador no se puede embeber y el diseño entero cambia |
 | **P2** | Whitelist de la IP de Creditop en el WAF de Cuotéalo | **el WAF solo permite IPs de Perú**; el equipo prueba desde Colombia → hoy no se puede ni probar en dev |
-| **P7** | ¿iframe embebido o redirect de página completa? | el manual dice redirect, el diseño asume iframe. **Define si el gate manual hace falta** |
+| ~~P7~~ | ~~¿iframe o redirect?~~ **El Figma lo resuelve: es IFRAME** (todas las pantallas dentro de `admin.creditop.com`). Queda pedirle a BCP que lo confirme por escrito, porque su manual dice redirect | ya no bloquea el diseño; sí hay que alinear a BCP |
 | P3 | Valor de `hasDetail` en vehicular | el manual dice `false`, el ejemplo manda `true` |
 | P4 | Estructura definitiva de los objetos del vehículo (pedir Swagger) | la tabla los pone en raíz, el ejemplo dentro de `productDetails[]` |
 | P5 | Enum completo de `creditStatus` + cómo detectar abandono/expiración | **el administrador necesita esos estados y BCP hoy solo confirma aprobación** |
 | P6 | Cuándo se capturan cuota inicial y valor a financiar | contradicción entre manual y reunión |
 
-⚠ **P7 es el que más cuesta si se resuelve tarde**: si termina siendo redirect de página completa, el
-gate manual **sobra** y dos pantallas del journey se caen. Conviene cerrarlo antes de diseñar nada.
+⚠ **Con P7 resuelto por el diseño, el que más cuesta ahora es P1**: sin la autorización del iframe, la
+pantalla del simulador —que es el corazón del flujo— no existe. Y **P2 sigue impidiendo cualquier prueba**
+mientras el WAF solo acepte IPs de Perú.
 
 ## Mis preguntas (las que quedan después de leer el PRD)
 - [ ] **¿Perú entra como país completo o como parche para BCP?** Cargar `dial_code`, `nationality`,
@@ -168,3 +215,21 @@ se publica nada hasta cerrar al menos P7 (iframe vs redirect) y decidir por dón
   Cuotéalo (POST con `data` JSON + `redirectPath`/`backUrl` + ids de comercio) es **el mismo patrón del
   checkout de ecommerce que ya tenemos, invertido** — no hay que inventarlo. Y el flujo de fondos es un
   **tercer modelo económico**: BCP desembolsa a Creditop y Creditop abona al comercio T+1.
+- **2026-08-10 (3)** — **Leído el Figma por API.** Los nombres de los frames no sirven de inventario, así
+  que el orden se reconstruyó por posición en el lienzo y las pantallas se leyeron renderizándolas. Tres
+  hallazgos:
+  - **P7 queda resuelto por el diseño: es IFRAME.** Todas las pantallas están dibujadas dentro de un
+    navegador cuya URL dice `admin.creditop.com`, incluida la del simulador, que muestra el contenido de
+    BCP ocupando el área de nuestra propia página. Ninguna sale a `cuotealo.viabcp.com`. Eso convierte a
+    **P1 (autorización del iframe) en EL bloqueante**: sin eso, el corazón del flujo no existe.
+  - 🔴 **El gate manual NO está diseñado.** El PRD lo exige y es el único lugar donde se captura «sin
+    preaprobado», pero el Figma va del simulador directo al formulario de identidad. La pantalla de
+    rechazo existe como rama aparte, no como gate. Sin el gate no hay funnel de rechazos — que es
+    justamente lo que el PRD quiere medir.
+  - ⚠ **El diseño monta el flujo del asesor en `admin.creditop.com`**, y hoy el asesor vive en
+    `aliados.{host}` mientras `admin.` es el back-office. Si es literal y no un placeholder, cambia
+    subdominio, middleware, namespace y archivo de rutas.
+
+  Anotado además que el set de pantallas existe **dos veces** (escritorio 1440 y móvil 430: responsive con
+  dos diseños, no adaptativo) y que hay un **segundo set espejado** cuya vigencia hay que preguntar antes
+  de usarlo como fuente.
