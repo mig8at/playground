@@ -16,6 +16,13 @@ vendor/
 *.test
 *.out
 
+# SQLite del prototipo `plantillas` (nace en server/ porque el `go run` corre desde ahí;
+# se regenera y se siembra solo al arrancar, así que no se versiona)
+/plantillas/server/plantillas.db
+/plantillas/server/plantillas.db-shm
+/plantillas/server/plantillas.db-wal
+/plantillas/server/bin/
+
 # Playwright
 playwright-report/
 test-results/

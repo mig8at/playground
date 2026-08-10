@@ -87,6 +87,16 @@
       "port": 5192
     },
     {
+      "name": "plantillas",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "run",
+        "dev"
+      ],
+      "cwd": "plantillas",
+      "port": 5198
+    },
+    {
       "name": "admin",
       "runtimeExecutable": "php",
       "runtimeArgs": [

@@ -176,3 +176,10 @@ dict: ## @expl diccionario de negocio (:5194)
 
 domain: ## @expl modelo de dominio deber-ser (sin puerto fijo)
 	@cd domain-model && npm run dev
+
+.PHONY: plantillas plantillas-check
+plantillas: ## @expl PROTOTIPO: onboarding compuesto por el backend, realtime por SSE (:5198 + Go :8090)
+	@cd plantillas && npm run dev
+
+plantillas-check: ## @expl compila el server del prototipo (go vet + build)
+	@cd plantillas/server && go vet ./... && go build -o /dev/null ./... && echo "plantillas: ok"
