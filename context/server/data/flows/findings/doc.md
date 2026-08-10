@@ -28,6 +28,8 @@ orden de archivo — el ancla `### F-xx` es la única dirección.)
 | **«reversar un pago tira 500»** | F-126 |
 | **«se le cambió sola la config de una entidad»** | F-127 |
 | **«al comercio no le cuadra lo que recibe»** | F-128 |
+| **«la comisión del reporte salió en cero»** | F-129 |
+| F-129 | La única comisión que el código calcula es una tabla de 40 tramos hardcodeada en un export, y da 0 fuera de rango | TRAMPA |
 | F-128 | «Lo que recibe el comercio» se calcula con dos bases distintas según la pantalla (38 % difieren) | TRAMPA |
 | F-127 | La calculadora «por comercio» escribe dos tablas GLOBALES del lender: se pisan entre comercios y a rt≠2 se las borra | TRAMPA |
 | F-126 | Reversar un pago RETENIDO revienta: el código busca «PAGO REVERSADO» y la fila se llama «REVERSADO» | TRAMPA |
@@ -1518,4 +1520,31 @@ en producción — el webhook no deja registro cuando `firstOrFail()` lanza, as�
 - **Arreglo:** definir cuál es la base correcta —es decisión de negocio, no de código— y dejar UNA
   fuente. Hoy ni siquiera hay un método que devuelva «neto del comercio»: la resta se hace en el
   template, tres veces.
+- **Estado:** vivo en `main` de `legacy-application`. No aplicado: es un repo de la compañía.
+
+### F-129 · El único cálculo de comisión del código es una tabla de 40 tramos hardcodeada dentro de un export, y falla ABIERTO (comisión cero) fuera de su rango
+
+- **Síntoma:** la comisión de un crédito Corbeta sale en cero, o sale con valores viejos después de
+  renegociar el acuerdo comercial. No hay error: la celda simplemente trae 0.
+- **Causa raíz (verificada 2026-08-09):** `application/app/Exports/UserRequestsCorbetaExport.php:38`
+  define un JSON con **40 tramos** (1.000.000 → 40.000.000, uno por millón) y `:156` lo recorre buscando
+  el tramo por **igualdad exacta**: `if ($row['monto'] == $millones)`, donde
+  `$millones = floor($user_request->final_amount / 1000000) * 1000000` (`:155`). Si el monto truncado no
+  está en la tabla, `$consumoTotal` **queda en 0** y no hay `else` ni log. Los dos huecos:
+  - `final_amount < 1.000.000` → `floor` da **0**, que no está en la tabla → comisión 0.
+  - `final_amount >= 41.000.000` → fuera del último tramo → comisión 0.
+- **Hoy es LATENTE, no activo:** medido en la copia local, de **27** solicitudes del lender 100 con
+  `final_amount`, **ninguna** cae fuera del rango (0 por debajo de 1M, 0 por encima de 40M). Es
+  coherente con la regla de producto —consumo es para tickets > 1 millón— así que el hueco se abre solo
+  si esa regla se relaja o si suben los topes.
+- **El riesgo que sí es estructural** es otro: la tabla es un literal en un archivo de export. Si cambia
+  el acuerdo con Corbeta, **nada obliga a actualizarla** y el reporte sigue saliendo con las cifras
+  viejas, sin avisar. Es la única fuente de ese número.
+- **Contexto:** ese archivo es **el único lugar del código donde se calcula un ingreso de CreditOp**
+  (Consumo: el total se parte 50/50 con Corbeta; BNPL: 1 % CreditOp + 0,5 % Bancolombia). El
+  `comission_percentage` configurable por par comercio-entidad **no se usa para cobrar** (F-128 y el
+  nodo `negocio`), y la liquidación real la hace otro departamento a mano desde el «Reporte de Recaudo».
+- **Arreglo:** sacar la tabla a configuración (o a la BD, junto al resto del acuerdo comercial) y elegir
+  el tramo por rango (`>=`) en vez de por igualdad, para que un monto fuera de la grilla no devuelva 0
+  en silencio.
 - **Estado:** vivo en `main` de `legacy-application`. No aplicado: es un repo de la compañía.

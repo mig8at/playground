@@ -1,7 +1,7 @@
 {
   "name": "Negocio (por qué el sistema es así)",
   "kind": "reference",
-  "when": "Cuando la tarea toca el PORQUÉ y no el cómo: quién pone la plata, quién cobra, de qué vive CreditOp, a quién hay que tener contento. Leelo ANTES de proponer «simplificar», «parametrizar» o «unificar» — los dos sombreros no son dos configuraciones sino DOS NEGOCIOS: en CreditopX el capital y el pagaré son del COMERCIO y CreditOp cobra por administrar cartera y cobranza (el lender es la marca blanca del comercio, 1:1); en agregadores presta y cobra la entidad. Acá está también lo que el código NO hace aunque el negocio lo dé por hecho: el sistema no descuenta la comisión (solo la muestra), el fondo de garantía cobra pero no hay código que lo reclame a los 90 días, y ni el fondo ni la aseguradora existen como entidad en la BD. Distingue FONDO DE GARANTÍA (reemplaza al codeudor, acumula) de SEGURO DE VIDA (broker, opcional). Trae el vocabulario de producto contrastado contra código (capacitación de Manuela, 2026-06-05): corte rotativo/consumo por ticket, amortización francesa sobre saldo diario, cobranza preventiva vs coactiva, refinanciar≠condonar, y el catálogo del EMBUDO (`creditop_x_user_requests_process_statuses`) que está VIVO y contesta «¿dónde se cae la gente?». Y el requisito real de las alertas: hoy una solicitud caída por una entidad externa se detecta porque el asesor avisa.",
+  "when": "Cuando la tarea toca el PORQUÉ y no el cómo: quién pone la plata, quién cobra, de qué vive CreditOp, a quién hay que tener contento. Leelo ANTES de proponer «simplificar», «parametrizar» o «unificar» — los dos sombreros no son dos configuraciones sino DOS NEGOCIOS: en CreditopX el capital y el pagaré son del COMERCIO y CreditOp cobra por administrar cartera y cobranza (el lender es la marca blanca del comercio, 1:1); en agregadores presta y cobra la entidad. Acá está también lo que el código NO hace aunque el negocio lo dé por hecho: el sistema no descuenta la comisión (solo la muestra), el fondo de garantía cobra pero no hay código que lo reclame a los 90 días, y ni el fondo ni la aseguradora existen como entidad en la BD. Distingue FONDO DE GARANTÍA (reemplaza al codeudor, acumula) de SEGURO DE VIDA (broker, opcional). Trae el vocabulario de producto contrastado contra código (capacitación de Manuela, 2026-06-05): corte rotativo/consumo por ticket, amortización francesa sobre saldo diario, cobranza preventiva vs coactiva, refinanciar≠condonar, y el catálogo del EMBUDO (`creditop_x_user_requests_process_statuses`) que está VIVO y contesta «¿dónde se cae la gente?». Y el requisito real de las alertas: hoy una solicitud caída por una entidad externa se detecta porque el asesor avisa. Y la frontera sistema↔proceso: la liquidación NO la hace el código — otro departamento la sigue a mano desde el «Reporte de Recaudo» (`PaymentCollectReportExport`), que no trae la comisión; el único cálculo de ingreso en código es una tabla hardcodeada dentro del export de Corbeta (F-129).",
   "sintomas": [
     "«¿por qué está hecho así?»",
     "«¿esto no se puede parametrizar?»",
@@ -9,7 +9,9 @@
     "«¿de qué vive CreditOp?»",
     "«¿qué es el FGA / el fondo de garantía?»",
     "«¿dónde se cae la gente en el embudo?»",
-    "«¿qué cubre el fondo de garantía?»"
+    "«¿qué cubre el fondo de garantía?»",
+    "«¿de dónde sale el reporte de liquidación?»",
+    "«la comisión del reporte salió en cero»"
   ],
   "verified": {
     "ref": "main",
@@ -17,7 +19,9 @@
     "source": "cabecera"
   },
   "files": [
+    "application/app/Exports/PaymentCollectReportExport.php",
     "application/app/Exports/RequestsCtopXStatsExport.php",
+    "application/app/Exports/UserRequestsCorbetaExport.php",
     "application/app/Http/Controllers/Admin/AlliedLenderController.php",
     "application/app/Http/Controllers/Admin/CreditopXPaymentController.php",
     "application/app/Models/CreditopXUserRequestsProcessStatus.php",

@@ -124,6 +124,29 @@ en solo el 18 % de los tiers y **no mira los gastos declarados** por el cliente.
 visto desde los dos lados — negocio lo vio como conversión perdida, el código lo muestra como una
 compuerta que mide otra cosa de la que su nombre sugiere.
 
+## Dónde termina el sistema y empieza el proceso manual
+La liquidación **no la hace el código**: otro departamento toma un reporte y sigue a mano. Verificado
+2026-08-09 — y la frontera es esta:
+
+**Lo que el sistema entrega es el «Reporte de Recaudo»** (`app/Exports/PaymentCollectReportExport.php`,
+ruta `descarga-recaudo`), con una fila por pago y estas columnas: *Id pago · Documento · Nombre usuario ·
+Monto pagado · Capital pagado · Intereses pagados · Intereses mora pagados · Seguros pagados · Monto
+retenido · Medio de pago · Referencia · Fecha de pago*. Está filtrado por rol, así que un comercio
+descarga lo suyo. **No trae la comisión de CreditOp en ninguna columna**: el reporte dice qué pagó el
+deudor y cómo se imputó, no cuánto le queda a quién.
+
+⚠ **Y hay UNA excepción, que es el único lugar del código donde se calcula un ingreso de CreditOp**:
+`app/Exports/UserRequestsCorbetaExport.php`. Ahí, para los créditos de Corbeta:
+- **Consumo (lender 100)**: una **tabla de 40 tramos escrita a mano** en un JSON dentro del archivo
+  (1M → 40M, uno por millón). El monto se trunca al millón (`floor(final_amount/1e6)*1e6`), se busca el
+  tramo por **igualdad exacta**, y el total se reparte **50/50 entre Corbeta y CreditOp**.
+- **BNPL (lender 68)**: sin tabla — **1 % para CreditOp** y **0,5 % para Bancolombia**, sobre
+  `final_amount`.
+
+O sea que la comisión que el negocio describe como su fuente de ingreso **no está modelada**: existe
+`comission_percentage` por par comercio-entidad que nadie usa para cobrar (arriba), y existe este cálculo
+hardcodeado para un solo grupo de comercios. Ver **F-129**.
+
 ## El cliente que manda es el COMERCIO
 CreditOp gana con comercios y con entidades agregadoras, pero el que decide es el comercio: es quien
 firma, quien en CreditopX pone el capital, y cuyos clientes son los que toman el crédito. Eso ordena

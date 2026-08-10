@@ -16,6 +16,7 @@ Si la tarea llega con una de estas frases, empezá por esos nodos. Si ninguna ma
 | «a este usuario le salen datos de OTRO comercio» | `actors` · `application` |
 | «cambió el perfilamiento y no hubo deploy» | `db-routines` |
 | «¿de dónde sale el ingreso / la ocupación del cliente?» | `db-routines` |
+| «¿de dónde sale el reporte de liquidación?» | `negocio` |
 | «¿de qué vive CreditOp?» | `negocio` |
 | «desde operaciones no puedo ver/validar al usuario» | `backoffice` |
 | «dice que los datos no coinciden» / falla la identidad | `kyc` |
@@ -53,6 +54,7 @@ Si la tarea llega con una de estas frases, empezá por esos nodos. Si ninguna ma
 | «hay que agregar un campo al formulario» | `dynamic-forms` · `form-service` |
 | «hay que integrar una entidad nueva» | `hardcodes-entidades` |
 | «hay que rehacer el panel de configuración» | `merchants` |
+| «la comisión del reporte salió en cero» | `negocio` |
 | «la pantalla del wizard se ve/comporta mal» | `frontend-monorepo` |
 | «las condiciones que vio no son las del cupo que quedó» | `rotativo` |
 | «lo mandó al sitio del lender y no volvió» | `redirect` |
@@ -243,8 +245,8 @@ Doc: `server/data/flows/motai/doc.md` · Archivos: `server/data/flows/motai/map.
 **Cuándo:** Cuando la pre-aprobación de un lender `response_type`≠0 falla o hay que tocar el microservicio Go (`pre-approvals-service`): contrato del servicio (`check` / `me-check` / `lender-attempts` / `docs`), workflow de 4 etapas, matriz de 8 proveedores (adapter+client+strategy por lender), taxonomía de errores, timeouts y caché en `DynamoDB`, y el consumo cliente en el wizard. Es quien decide el badge «Pre aprobado» del marketplace (F-78). Sus logs en Loki son sólo de prod.
 Doc: `server/data/flows/ms-preapprovals/doc.md` · Archivos: `server/data/flows/ms-preapprovals/map.json` · Padre: `architecture`
 
-### negocio — Negocio (por qué el sistema es así)  ·  _reference_ · 8 archivos
-**Cuándo:** Cuando la tarea toca el PORQUÉ y no el cómo: quién pone la plata, quién cobra, de qué vive CreditOp, a quién hay que tener contento. Leelo ANTES de proponer «simplificar», «parametrizar» o «unificar» — los dos sombreros no son dos configuraciones sino DOS NEGOCIOS: en CreditopX el capital y el pagaré son del COMERCIO y CreditOp cobra por administrar cartera y cobranza (el lender es la marca blanca del comercio, 1:1); en agregadores presta y cobra la entidad. Acá está también lo que el código NO hace aunque el negocio lo dé por hecho: el sistema no descuenta la comisión (solo la muestra), el fondo de garantía cobra pero no hay código que lo reclame a los 90 días, y ni el fondo ni la aseguradora existen como entidad en la BD. Distingue FONDO DE GARANTÍA (reemplaza al codeudor, acumula) de SEGURO DE VIDA (broker, opcional). Trae el vocabulario de producto contrastado contra código (capacitación de Manuela, 2026-06-05): corte rotativo/consumo por ticket, amortización francesa sobre saldo diario, cobranza preventiva vs coactiva, refinanciar≠condonar, y el catálogo del EMBUDO (`creditop_x_user_requests_process_statuses`) que está VIVO y contesta «¿dónde se cae la gente?». Y el requisito real de las alertas: hoy una solicitud caída por una entidad externa se detecta porque el asesor avisa.
+### negocio — Negocio (por qué el sistema es así)  ·  _reference_ · 10 archivos
+**Cuándo:** Cuando la tarea toca el PORQUÉ y no el cómo: quién pone la plata, quién cobra, de qué vive CreditOp, a quién hay que tener contento. Leelo ANTES de proponer «simplificar», «parametrizar» o «unificar» — los dos sombreros no son dos configuraciones sino DOS NEGOCIOS: en CreditopX el capital y el pagaré son del COMERCIO y CreditOp cobra por administrar cartera y cobranza (el lender es la marca blanca del comercio, 1:1); en agregadores presta y cobra la entidad. Acá está también lo que el código NO hace aunque el negocio lo dé por hecho: el sistema no descuenta la comisión (solo la muestra), el fondo de garantía cobra pero no hay código que lo reclame a los 90 días, y ni el fondo ni la aseguradora existen como entidad en la BD. Distingue FONDO DE GARANTÍA (reemplaza al codeudor, acumula) de SEGURO DE VIDA (broker, opcional). Trae el vocabulario de producto contrastado contra código (capacitación de Manuela, 2026-06-05): corte rotativo/consumo por ticket, amortización francesa sobre saldo diario, cobranza preventiva vs coactiva, refinanciar≠condonar, y el catálogo del EMBUDO (`creditop_x_user_requests_process_statuses`) que está VIVO y contesta «¿dónde se cae la gente?». Y el requisito real de las alertas: hoy una solicitud caída por una entidad externa se detecta porque el asesor avisa. Y la frontera sistema↔proceso: la liquidación NO la hace el código — otro departamento la sigue a mano desde el «Reporte de Recaudo» (`PaymentCollectReportExport`), que no trae la comisión; el único cálculo de ingreso en código es una tabla hardcodeada dentro del export de Corbeta (F-129).
 Doc: `server/data/flows/negocio/doc.md` · Archivos: `server/data/flows/negocio/map.json` · Padre: `creditop`
 
 ### onboarding — Onboarding  ·  _reference_ · 88 archivos
