@@ -29,6 +29,9 @@ orden de archivo — el ancla `### F-xx` es la única dirección.)
 | **«se le cambió sola la config de una entidad»** | F-127 |
 | **«al comercio no le cuadra lo que recibe»** | F-128 |
 | **«la comisión del reporte salió en cero»** | F-129 |
+| **«un reporte por país trae datos absurdos»** | F-130 · F-131 |
+| F-130 | `countries.iso_code_2` guarda el código de TRES letras y `iso_code_3` está vacío | TRAMPA |
+| F-131 | La fila `countries.id=1` es «Afghanistan» y es el DEFAULT: 155 entidades y 215.844 usuarios apuntan ahí | TRAMPA |
 | F-129 | La única comisión que el código calcula es una tabla de 40 tramos hardcodeada en un export, y da 0 fuera de rango | TRAMPA |
 | F-128 | «Lo que recibe el comercio» se calcula con dos bases distintas según la pantalla (38 % difieren) | TRAMPA |
 | F-127 | La calculadora «por comercio» escribe dos tablas GLOBALES del lender: se pisan entre comercios y a rt≠2 se las borra | TRAMPA |
@@ -1548,3 +1551,35 @@ en producción — el webhook no deja registro cuando `firstOrFail()` lanza, as�
   el tramo por rango (`>=`) en vez de por igualdad, para que un monto fuera de la grilla no devuelva 0
   en silencio.
 - **Estado:** vivo en `main` de `legacy-application`. No aplicado: es un repo de la compañía.
+
+### F-130 · `countries.iso_code_2` guarda el código de TRES letras, y `iso_code_3` está vacío
+
+- **Síntoma:** se manda a un tercero el ISO del país leyendo la columna que «suena» a dos letras y el
+  proveedor rechaza el valor, o al revés: se busca `COL` en `iso_code_1` y no matchea nada.
+- **Causa raíz (verificada 2026-08-09 contra la copia local):** los nombres están corridos una posición.
+  `iso_code_1` trae el **alfa-2** (`CO`, `DO`, `AF`), **`iso_code_2` trae el alfa-3** (`COL`, `DOM`,
+  `AFG`) y **`iso_code_3` está vacío en todas las filas**. O sea que el sufijo numérico **no es la
+  cantidad de letras**, aunque se lea así.
+- **Evidencia:** `SELECT id,name,iso_code_1,iso_code_2,iso_code_3 FROM countries WHERE id IN (1,47,60)`.
+- **Arreglo:** no renombrar — hay otro repo con deploy propio que consulta `countries` (el form-service
+  lee la fila completa), así que un rename rompe queries ajenas. Lo correcto es documentar la semántica
+  donde se use y, si hace falta el alfa-3, leer `iso_code_2` a conciencia.
+- **Estado:** trampa viva. Sin consumidor conocido que la sufra hoy, pero cualquier integración nueva
+  por país la pisa.
+
+### F-131 · La fila `countries.id = 1` es «Afghanistan» y es el DEFAULT: 155 entidades y 215.844 usuarios apuntan ahí
+
+- **Síntoma:** una consulta por país devuelve entidades o usuarios que no tienen nada que ver, o un
+  reporte «por país» sale con un país absurdo.
+- **Causa raíz (verificada 2026-08-09):** las columnas `country_id` nacieron con `DEFAULT 1`, y la fila 1
+  del catálogo es **Afghanistan** — con `dial_code`, `phone_code`, `locale` y `currency` **vacíos o
+  NULL**. Como es el default, «sin definir» y «definido mal» son **indistinguibles**: no se puede saber
+  si alguien eligió esa fila o si nadie eligió nada.
+- **Evidencia:** `SELECT COUNT(*) … WHERE country_id=1` → **155 lenders · 215.844 usuarios · 0
+  comercios**. Los comercios en cero son la clave de por qué hoy es inocuo: el camino vivo resuelve el
+  país **por el comercio**, que sí apunta a la fila correcta.
+- **Arreglo:** es destructivo y va aparte — cambiar el default obliga a revisar en el mismo cambio las
+  consultas con id de país fijo, o el listado de crédito queda vacío. Mientras tanto: **no derivar el
+  país del usuario ni de la entidad**; derivarlo del comercio.
+- **Estado:** vivo. ⚠ Y no confundir con las cifras de otra medición (186 / 364.527): esas son de otro
+  ambiente. Las de arriba son de la copia local.
