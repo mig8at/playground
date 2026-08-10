@@ -8,9 +8,14 @@ jira: []
 jira_title: "El país del comercio deja de estar escrito en el código y pasa a ser configuración"
 ---
 
-ESTADO 2026-08-08: **3 ramas locales, un commit cada una, ninguna pusheada.** Probado contra la copia
-local. Se espera que suban los cambios de Motai a `main` antes de abrir los PRs; las ramas ya nacen de
-`main` al día, así que sólo hay que rebasar y abrir.
+ESTADO 2026-08-09: **las 3 ramas `feature/pais-como-dato` YA ESTÁN PUSHEADAS** (un commit cada una).
+El seguimiento pasó a **CORE-365**, que vive en la tarea `internacionalizacion-onboarding` junto con la
+descripción publicable — el Jira tiene un solo dueño a propósito. Este archivo conserva el detalle
+repo-por-repo del diseño.
+
+⚠ Faltan los **PRs** (no se abrieron todavía) y el **despliegue**. Y la precondición sigue sin cumplirse:
+los cambios de **Motai NO están en `main`** (verificado 2026-08-09), así que los PRs pueden pedir rebase;
+`frontend-monorepo` además está 2 commits detrás.
 
 | repo | rama | commit | archivos |
 |---|---|---|---|

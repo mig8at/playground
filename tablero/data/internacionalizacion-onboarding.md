@@ -1,20 +1,32 @@
 ---
 id: 43
 title: "Internacionalización del onboarding — celular, tipos de documento y mensajes por país"
-stage: evaluation
+stage: tasks
 created: "2026-08-05T17:11:17-05:00"
 context_nodes: [onboarding, dynamic-forms, merchants, entities, smartpay, hardcodes-entidades]
-jira: []
-jira_title: ""
+jira: [CORE-365]
+jira_title: "Internacionalizacion. Flujo de onboarding otros paises. (celular, tipo de documentos y mensajes)"
 ---
 
 # Internacionalización del onboarding
-> **estado:** 🔎 en evaluación — se está definiendo **dónde vive la configuración de país** antes de escribir
-> la descripción de la tarea. Nada implementado. Sin rama.
+> **estado (2026-08-09):** 🧪 **CORE-365 en pruebas.** Implementado en **3 ramas
+> `feature/pais-como-dato`** (un commit por repo), **ya pusheadas**. Descripción y 5 puntos cargados en
+> el ticket.
+>
+> ⚠ **Lo que falta para que QA pueda probar de verdad:** **no hay PRs abiertos** y el código **no está
+> desplegado** en ningún ambiente que QA alcance. Las ramas están arriba; abrir los PRs y desplegar es
+> el paso que sigue.
+>
+> ⚠ **Y la precondición que la tarea 44 pedía sigue sin cumplirse:** los cambios de **Motai NO están en
+> `main`** (verificado el 2026-08-09; el nodo `motai` sigue con su marca de pendiente de merge). Los PRs
+> pueden necesitar rebase cuando entren. `frontend-monorepo` además está 2 commits detrás de `main`.
 >
 > La tarea **llega** por SmartPay (RD), pero el objetivo real es que el onboarding sea multi-país por
 > **filas de configuración** y no por forks: **celular** (prefijo/longitud/validación), **tipos de
 > documento** y **mensajes** (copy, plantillas, moneda y formatos).
+>
+> El detalle repo-por-repo de la implementación se llevó en la tarea **44**
+> (`smartpay-multipais-country-pack`); el Jira y la descripción publicable viven acá.
 
 ## Contextos que usa
 - **onboarding** — el journey que hay que parametrizar: entrada por hash de sucursal → celular/OTP → nace la
@@ -1135,3 +1147,24 @@ la traducción a un idioma distinto del español.
   harness y guardrail. Las secciones anteriores quedan como mapa/detalle.
 </content>
 </invoke>
+- **2026-08-09** — **A pruebas.** Medido el estado real: la implementación existe en **3 ramas
+  `feature/pais-como-dato`**, un commit de trabajo por repo, que hasta hoy eran **solo locales**.
+  Qué trae cada una:
+  - **backend** (`feat(paises)…`, 9 archivos, +554): el país se expone al front (`AlliedInfoController`),
+    entra al payload de onboarding con la nacionalidad, un comando de auditoría de país por sucursal, y
+    **3 migraciones** — poblar `phone_code` desde `dial_code`, agregar nacionalidad a `countries`, y
+    **sembrar las ciudades de República Dominicana** (justo el hueco que el censo había marcado en 0).
+    Incluye **2 archivos de test unitario** (nacionalidad del payload y resolución de país del teléfono).
+  - **wizard** (`feat(wizard)…`, 5 archivos, +128): el país del comercio llega por el tema del aliado y
+    las pantallas de teléfono y de información adicional lo usan en vez de asumir Colombia.
+  - **admin** (`fix(admin)…`, 3 archivos, +62): los dos selectores de ciudad filtran por el país del
+    comercio.
+
+  Hecho hoy: **las 3 ramas se pushearon** (autorizado explícitamente), **CORE-365** recibió la
+  descripción publicable y pasó a **🧪 En pruebas**; los **5 puntos ya estaban** puestos en el ticket.
+  ⚠ Ojo con el campo: el board CORE puntea en **`customfield_10036` («Story Points»)** — 8 de 8 tickets
+  medidos lo usan y ninguno usa `customfield_10016`, que es el que devuelve vacío si uno consulta el
+  equivocado.
+
+  **Pendiente y bloqueante para QA:** abrir los PRs (no se pudo desde acá: `gh` sin sesión) y desplegar.
+  Y los cambios de **Motai siguen fuera de `main`**, así que los PRs pueden pedir rebase.
