@@ -37,24 +37,92 @@ cosas que sostienen el negocio.
   `final_amount − comisión` y una calcula `amount − comisión`. No son la misma base —`amount` incluye
   el fondo de garantía y `final_amount` no— y **difieren en 30.749 de 81.877 solicitudes (38 %)**. Ver
   **F-128**.
-- **El «colchón» de las aseguradoras se negocia POR COMERCIO**, y por eso sus porcentajes viven en la
-  calculadora del par (`guarantee_fund_percentage`, `guarantee_insurance_per_million`,
-  `guarantee_fixed_monthly_percentage`). Es el tercero que cubre el impago para que no lo absorba entero
-  el comercio.
-- ⚠ **La aseguradora NO existe como entidad en el modelo de datos.** No hay tabla: solo porcentajes y
-  unos criterios por lender (`lender_guarantee_criteria`, con `originator_nit`). Consecuencia práctica:
-  **no se puede responder desde la BD «qué tercero cubre este crédito»**, ni auditar el colchón por
-  proveedor. Todo lo que el sistema sabe del acuerdo es cuánto se cobra.
-- **Los hardcodes por id NO son descuido: son el modelo comercial.** Los comercios piden **flujos muy
-  customizados** y cada pedido entró como código. Es la causa raíz de los 24 acoplamientos de
-  `hardcodes-entidades` y de que integrar una entidad nueva cueste desarrollo. Proponer
-  «parametrizar todo» sin entender que la customización **es lo que se vende** es proponer cambiar el
-  producto.
+- ⚠ **SEGURO DE VIDA y FONDO DE GARANTÍA son DOS cosas distintas, y confundirlas es fácil** porque
+  ambas son «un % extra que cubre el impago». La BD las separa y el negocio también:
+  - **Fondo de garantía** (`guarantee_fund_percentage`, `guarantee_insurance_per_million`,
+    `guarantee_fixed_monthly_percentage`) — **reemplaza al CODEUDOR**, que es inviable en microcrédito.
+    Cobra un % adicional sobre el monto (del orden del 5 % o más), **se acumula**, y de ahí se cubren
+    los créditos que no se pagan. Es lo que permite aprobar en línea sin pedir un tercero que firme.
+  - **Seguro de vida** (`life_insurance_percentage`, `life_insurance_fixed`,
+    `insurance_fixed_monthly_percentage`) — cubre **muerte o incapacidad** del cliente. Es **opcional
+    para el comercio** (obligatorio solo en entidades vigiladas) y va por **brokers** para abaratarlo.
+  - Los dos se negocian **por comercio**, y por eso sus porcentajes viven en la calculadora del par.
+- ⚠ **El tercero NO existe como entidad en el modelo de datos** — ni el fondo ni la aseguradora. Solo
+  hay porcentajes y unos criterios por lender (`lender_guarantee_criteria`, con `originator_nit` /
+  `originator_legal_name`, que son los **contratos de asociación**: cuando el producto tiene IVA,
+  CreditopX entra como tercero para que el impuesto sobre intereses no encarezca el crédito).
+  Consecuencia práctica: **no se puede responder desde la BD «qué fondo o qué aseguradora cubre este
+  crédito»**, ni auditarlo por proveedor.
+- 🔴 **El fondo cobra pero el sistema NO sabe reclamarlo.** La regla de negocio es que el fondo cubre
+  las deudas con **más de 90 días de mora** — y `grep` de ese umbral en los tres repos da **cero**: no
+  hay código que marque un crédito como cubierto por el fondo ni que lo descuente. El % entra en cada
+  crédito y la reclamación es proceso manual, invisible para el sistema.
+- **Los hardcodes por id salieron de una demanda comercial real** — los comercios piden flujos muy
+  customizados y cada pedido entró como código (causa raíz de los 24 acoplamientos de
+  `hardcodes-entidades`). ⚠ **Pero eso NO significa que la customización sea el producto deseado**: la
+  posición de producto es que **la POLÍTICA de riesgo debe ser modular y parametrizable, y la
+  personalización de UX debe LIMITARSE** justamente para no pagar ese costo de desarrollo. O sea que el
+  hardcoding es deuda reconocida, no estrategia — y el norte declarado es **plug-and-play**: que el
+  gestor de cuenta y el comercio parametricen sus políticas y activen integraciones **desde el front**,
+  sin desarrollo. Hoy montar un comercio nuevo lleva **cerca de una semana**.
 - 🔴 **Una solicitud que se cae por una entidad externa se detecta porque EL ASESOR AVISA.** No hay
   alerta: el comercio espera que el crédito salga, el asesor pierde el tiempo con el cliente adelante, y
   recién ahí alguien se entera y hay que ir a hablar con la entidad. Es el hueco que justifica el OKR de
   alertas de salud, y da el requisito real: la alerta útil no es «hay 5xx», es **«las solicitudes de
   este lender dejaron de cerrar»**.
+
+## El producto, en el vocabulario de negocio
+De la capacitación de producto (Manuela Romero, 2026-06-05 — grabación y transcripción en el Drive del
+equipo). Lo que sigue está contrastado contra el código: **lo que no coincide va marcado**.
+
+- **CreditopX se vende como «proveedor tecnológico y administrativo», no como financiera.** El comercio
+  es **dueño del pagaré** y financiador; CreditOp le administra cartera y cobranza para que el comercio
+  no monte una financiera propia. El pitch explícito: *no ganamos intereses, ganamos por gestionar*.
+- **Dos modalidades, y el corte es el TICKET**: **cupo rotativo** para tickets **< 1 millón** (el cupo
+  se libera al pagar) y **crédito de consumo** para **> 1 millón** (no se libera). La elección depende
+  del perfil del comercio. *(Umbral no verificado en código: lo que sí existe es el tope
+  `lenders.max_rev_credit` y los tramos por monto → `amount-tiers`, `rotativo`.)*
+- **Amortización francesa con interés sobre SALDO DIARIO**: la cuota que ve el cliente es fija, pero los
+  intereses se causan sobre el saldo del día, así que **el saldo consultado cambia día a día**. Eso es
+  exactamente lo que hace el cron de las 00:30 (→ `servicing`), y explica por qué no se puede responder
+  «cuánto debe» sin decir «a qué fecha».
+- **Cobranza en dos tiempos**: **preventiva** (antes del vencimiento) y **coactiva** (tras la mora),
+  esta última prejudicial y judicial — pero **el cobro jurídico casi no se usa**: cuesta más que el
+  saldo de un microcrédito de menos de 10 millones. Las llamadas las hace un proveedor externo con
+  agentes de IA (**Colbook**). ⚠ **Colbook no aparece en el código** (cero referencias en los tres
+  repos): es relación operativa, no integración.
+- **Segmentación premium → malos, con intención de RESCATE**: a los no bancarizados o reportados se les
+  ofrece crédito con más garantía y cuota inicial alta (ej. 70 %), y se les reporta positivo a
+  Datacrédito para que mejoren historial. La segmentación vive en `profiling`.
+- **Refinanciar ≠ condonar**: la refinanciación estira el plazo para bajar la cuota **sin perdonar**
+  intereses ni capital (la pide seguido Motai). Deja rastro en el ledger como `movement_type`
+  (`REDUCCIÓN DE CUOTA` · `CAMBIO DE PLAZO` · `CAMBIO DE NÚMERO DE CUOTAS` → `servicing`). Los
+  **acuerdos de pago**, en cambio, implican concesiones y **hoy no hay ninguno autorizado**: requieren
+  aprobación explícita de crédito y del comercio.
+- **ADO se elige sobre AWS en algunos comercios porque es más exigente y trae seguro contra fraude**, y
+  porque opera en varios países (RD incluido): se reutiliza la integración cambiando credenciales. Es la
+  estrategia de proveedores para multipaís (→ `kyc`).
+- ⚠ **Motai: los estados «recuperación de producto» y «recuperación por fondo de garantía» NO están en
+  la BD.** El catálogo `creditop_x_user_request_statuses` sigue teniendo **4 filas** (Al día · En mora ·
+  Paz y salvo · Cancelado). Se anunciaron en la capacitación; hoy son pendiente, no realidad. El caso de
+  negocio sí es real: Motai pone GPS y prenda sobre las motos y recupera el vehículo (4 recuperadas), y
+  ahí el crédito queda en saldo cero.
+
+### El embudo SÍ está instrumentado (y casi nadie lo sabe)
+Existe un tercer catálogo de estados que no es ni el de la solicitud ni el del préstamo:
+**`creditop_x_user_requests_process_statuses`** — **15 pasos, 9 activos**, desde «Ingreso a creditop»
+hasta «Crédito originado», con `step_number`. Cada paso se registra en
+`creditop_x_user_requests_records` (medido: **8 escrituras** en una sola corrida rt=2) y lo consume el
+export `RequestsCtopXStatsExport`. Es la respuesta a **«¿dónde se cae la gente?»**, que es la pregunta
+del caso Mediarte — y está viva, no es andamiaje.
+
+**El caso Mediarte, y por qué conecta con F-112.** Mediarte tenía conversión baja; al estudiarla
+encontraron que **clientes con buen score se rechazaban por capacidad de endeudamiento y por deudas
+chicas de servicios públicos**. Con el perfilamiento nuevo pasó de **20 a 350 millones mensuales**,
++25 % de conversión y triplicó el ticket. Ahora leelo junto a **F-112**: la compuerta de capacidad corre
+en solo el 18 % de los tiers y **no mira los gastos declarados** por el cliente. Es el mismo fenómeno
+visto desde los dos lados — negocio lo vio como conversión perdida, el código lo muestra como una
+compuerta que mide otra cosa de la que su nombre sugiere.
 
 ## El cliente que manda es el COMERCIO
 CreditOp gana con comercios y con entidades agregadoras, pero el que decide es el comercio: es quien
@@ -80,9 +148,19 @@ afirmación de arriba:
   FGA: es donde el riesgo del comercio se convierte en condiciones para el cliente.
 
 ## Lo que NO está verificado
-- **Cómo se liquida de verdad la comisión, fuera del sistema.** Verificado que el código no la
-  descuenta (arriba); lo que NO se puede saber desde acá es qué pasa después: si se factura al comercio
-  por cuota o por crédito, contra qué reporte, y quién concilia. Es proceso, no código.
+- **La liquidación de la comisión es MANUAL** (dicho por Miguel): alguien consolida la información de la
+  BD y la pasa al equipo de cobros. El código confirma la mitad —no la calcula ni la descuenta— pero
+  **no hay un reporte ni una consulta canónica** que se pueda señalar como «la fuente de la
+  liquidación». Eso es lo que falta saber: contra qué se factura hoy y quién concilia.
+- **Los umbrales del producto contra el código.** El corte rotativo/consumo en 1 millón, el % del fondo
+  de garantía (≈5 %) y la cuota inicial del 70 % para reportados son cifras de política: no se buscó su
+  equivalente exacto en las tablas de configuración.
+- **Quiénes son los fondos de garantía y las aseguradoras.** El broker mencionado es **Seguros Mundial**
+  para vida; el fondo de garantía no tiene nombre en el sistema. ⚠ Ninguno de los dos aparece en el
+  código (cero referencias): hay que preguntarlo adentro.
+- **El prompt de producto.** Manuela quedó en compartir el prompt que el equipo de producto usa para
+  explicarle el negocio de agregador y crédito a un modelo. Cuando llegue, es la fuente a contrastar
+  contra este nodo.
 - **El segundo modelo de comisión con agregadores.** Miguel mencionó que CreditOp «también comisiona por
   llevar el crédito de la persona» con entidades como Bancolombia o Welli, y que **cree que eso se
   maneja fuera de CreditOp**. Sin confirmar: no se sabe si deja huella en el sistema.

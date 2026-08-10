@@ -19,6 +19,7 @@ Si la tarea llega con una de estas frases, empezá por esos nodos. Si ninguna ma
 | «¿de qué vive CreditOp?» | `negocio` |
 | «desde operaciones no puedo ver/validar al usuario» | `backoffice` |
 | «dice que los datos no coinciden» / falla la identidad | `kyc` |
+| «¿dónde se cae la gente en el embudo?» | `negocio` |
 | «¿dónde se trabó?» | `aggregator` · `formalization` · `trazador` |
 | «el botón Descargar Solicitudes trae mal» | `application` |
 | «el celular no se bloquea» / IMEI | `smartpay` |
@@ -74,6 +75,7 @@ Si la tarea llega con una de estas frases, empezá por esos nodos. Si ninguna ma
 | «¿por qué no le sale esta entidad?» | `creditopx` · `hardcodes-entidades` · `merchants` · `ms-preapprovals` |
 | «quedó aprobada y no se desembolsó» | `formalization` |
 | «¿quién pone la plata en este crédito?» | `negocio` |
+| «¿qué cubre el fondo de garantía?» | `negocio` |
 | «¿qué es el FGA / el fondo de garantía?» | `negocio` |
 | «¿qué es este service_name de los logs?» | `microservicios` |
 | «¿qué falta para apagar application?» | `application` |
@@ -241,8 +243,8 @@ Doc: `server/data/flows/motai/doc.md` · Archivos: `server/data/flows/motai/map.
 **Cuándo:** Cuando la pre-aprobación de un lender `response_type`≠0 falla o hay que tocar el microservicio Go (`pre-approvals-service`): contrato del servicio (`check` / `me-check` / `lender-attempts` / `docs`), workflow de 4 etapas, matriz de 8 proveedores (adapter+client+strategy por lender), taxonomía de errores, timeouts y caché en `DynamoDB`, y el consumo cliente en el wizard. Es quien decide el badge «Pre aprobado» del marketplace (F-78). Sus logs en Loki son sólo de prod.
 Doc: `server/data/flows/ms-preapprovals/doc.md` · Archivos: `server/data/flows/ms-preapprovals/map.json` · Padre: `architecture`
 
-### negocio — Negocio (por qué el sistema es así)  ·  _reference_ · 5 archivos
-**Cuándo:** Cuando la tarea toca el PORQUÉ y no el cómo: quién pone la plata, quién cobra, de qué vive CreditOp, a quién hay que tener contento. Leelo ANTES de proponer «simplificar», «parametrizar» o «unificar» algo — los dos sombreros (CreditopX, donde el capital es del COMERCIO y CreditOp cobra comisión por cada cuota; vs agregadores, donde presta y cobra la entidad) no son dos configuraciones sino dos negocios, y los hardcodes por id son el modelo comercial (los comercios piden flujos customizados) y no descuido. También cuando aparezca el fondo de garantía / FGA: es el colchón de un tercero asegurador negociado POR COMERCIO, que no existe como entidad en la BD. Y cuando la pregunta sea qué alerta vale la pena: hoy una solicitud caída por una entidad externa se detecta porque el asesor avisa.
+### negocio — Negocio (por qué el sistema es así)  ·  _reference_ · 8 archivos
+**Cuándo:** Cuando la tarea toca el PORQUÉ y no el cómo: quién pone la plata, quién cobra, de qué vive CreditOp, a quién hay que tener contento. Leelo ANTES de proponer «simplificar», «parametrizar» o «unificar» — los dos sombreros no son dos configuraciones sino DOS NEGOCIOS: en CreditopX el capital y el pagaré son del COMERCIO y CreditOp cobra por administrar cartera y cobranza (el lender es la marca blanca del comercio, 1:1); en agregadores presta y cobra la entidad. Acá está también lo que el código NO hace aunque el negocio lo dé por hecho: el sistema no descuenta la comisión (solo la muestra), el fondo de garantía cobra pero no hay código que lo reclame a los 90 días, y ni el fondo ni la aseguradora existen como entidad en la BD. Distingue FONDO DE GARANTÍA (reemplaza al codeudor, acumula) de SEGURO DE VIDA (broker, opcional). Trae el vocabulario de producto contrastado contra código (capacitación de Manuela, 2026-06-05): corte rotativo/consumo por ticket, amortización francesa sobre saldo diario, cobranza preventiva vs coactiva, refinanciar≠condonar, y el catálogo del EMBUDO (`creditop_x_user_requests_process_statuses`) que está VIVO y contesta «¿dónde se cae la gente?». Y el requisito real de las alertas: hoy una solicitud caída por una entidad externa se detecta porque el asesor avisa.
 Doc: `server/data/flows/negocio/doc.md` · Archivos: `server/data/flows/negocio/map.json` · Padre: `creditop`
 
 ### onboarding — Onboarding  ·  _reference_ · 88 archivos
