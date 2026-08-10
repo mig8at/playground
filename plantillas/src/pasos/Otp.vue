@@ -2,7 +2,7 @@
 import { ref, onMounted } from 'vue'
 import { post } from '../api.js'
 
-const props = defineProps({ sesion: String })
+const props = defineProps({ solicitud: String })
 const emit = defineEmits(['avanzo'])
 
 const codigo = ref('')
@@ -10,13 +10,15 @@ const error = ref('')
 const enviado = ref(false)
 const ocupado = ref(false)
 
-async function pedirCodigo() {
+// Al montar se pide SIN `reenviar`: si ya hay un código vigente el server no emite
+// otro. Refrescar la pantalla no puede costar un SMS.
+async function pedirCodigo(reenviar = false) {
   error.value = ''
   ocupado.value = true
   try {
-    await post(`/api/sesiones/${props.sesion}/otp/enviar`)
+    await post(`/api/solicitudes/${props.solicitud}/otp/enviar`, { reenviar })
     enviado.value = true
-    codigo.value = ''
+    if (reenviar) codigo.value = ''
   } catch (e) {
     error.value = e.message
   } finally {
@@ -28,7 +30,7 @@ async function verificar() {
   error.value = ''
   ocupado.value = true
   try {
-    await post(`/api/sesiones/${props.sesion}/otp/verificar`, { codigo: codigo.value })
+    await post(`/api/solicitudes/${props.solicitud}/otp/verificar`, { codigo: codigo.value })
     emit('avanzo')
   } catch (e) {
     error.value = e.message
@@ -37,7 +39,7 @@ async function verificar() {
   }
 }
 
-onMounted(pedirCodigo)
+onMounted(() => pedirCodigo(false))
 </script>
 
 <template>
@@ -58,7 +60,7 @@ onMounted(pedirCodigo)
     <button :disabled="ocupado || codigo.length !== 6">
       {{ ocupado ? 'Verificando…' : 'Verificar' }}
     </button>
-    <button type="button" class="secundario" :disabled="ocupado" @click="pedirCodigo">
+    <button type="button" class="secundario" :disabled="ocupado" @click="pedirCodigo(true)">
       Pedir otro código
     </button>
   </form>

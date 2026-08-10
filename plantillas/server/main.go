@@ -23,7 +23,7 @@ type srv struct {
 
 func main() {
 	puerto := flag.String("puerto", env("PORT", "8090"), "puerto HTTP")
-	ruta := flag.String("db", env("PLANTILLAS_DB", "plantillas.db"), "archivo SQLite")
+	ruta := flag.String("db", env("PLANTILLAS_DB", "solicitudes.db"), "archivo SQLite")
 	flag.Parse()
 
 	db := abrirDB(*ruta)
@@ -36,16 +36,19 @@ func main() {
 	mux.HandleFunc("GET /api/catalogo", s.verCatalogo)
 	mux.HandleFunc("GET /api/plantillas", s.verPlantillas)
 
-	mux.HandleFunc("POST /api/sesiones", s.crearSesion)
-	mux.HandleFunc("GET /api/sesiones/{id}", s.verSesion)
-	mux.HandleFunc("GET /api/sesiones/{id}/eventos", s.eventos)
+	mux.HandleFunc("POST /api/solicitudes", s.crearSolicitud)
+	mux.HandleFunc("GET /api/solicitudes/{id}", s.verSolicitud)
+	mux.HandleFunc("GET /api/solicitudes/{id}/eventos", s.eventos)
+
+	// Retroceder es una operación DEL MOTOR, no de cada paso, y trabaja por ETAPA:
+	// valida reversibilidad contra el catálogo y deshace los efectos que se pisan.
+	mux.HandleFunc("POST /api/solicitudes/{id}/retroceder", s.retroceder)
 
 	// Un endpoint por componente del catálogo. Agregar un componente = agregar acá
 	// su efecto + su .vue, y ya se puede poner en cualquier plantilla.
-	mux.HandleFunc("POST /api/sesiones/{id}/telefono", s.pasoTelefono)
-	mux.HandleFunc("POST /api/sesiones/{id}/otp/enviar", s.otpEnviar)
-	mux.HandleFunc("POST /api/sesiones/{id}/otp/verificar", s.otpVerificar)
-	mux.HandleFunc("POST /api/sesiones/{id}/datos", s.pasoDatos)
+	mux.HandleFunc("POST /api/solicitudes/{id}/telefono", s.pasoTelefono)
+	mux.HandleFunc("POST /api/solicitudes/{id}/otp/enviar", s.otpEnviar)
+	mux.HandleFunc("POST /api/solicitudes/{id}/otp/verificar", s.otpVerificar)
 
 	// El build de Vue, si existe (en dev se usa vite en :5198 con proxy).
 	if dist, err := filepath.Abs("../dist"); err == nil {
@@ -68,7 +71,7 @@ func env(k, def string) string {
 }
 
 func (s *srv) verCatalogo(w http.ResponseWriter, r *http.Request) {
-	filas, err := s.db.Query(`SELECT tipo, label, efecto FROM componentes ORDER BY tipo`)
+	filas, err := s.db.Query(`SELECT tipo, label, efecto, reversible, deshace FROM componentes ORDER BY tipo`)
 	if err != nil {
 		errorJSON(w, 500, "no se pudo leer el catálogo")
 		return
@@ -76,14 +79,18 @@ func (s *srv) verCatalogo(w http.ResponseWriter, r *http.Request) {
 	defer filas.Close()
 
 	type comp struct {
-		Tipo   string `json:"tipo"`
-		Label  string `json:"label"`
-		Efecto string `json:"efecto"`
+		Tipo       string `json:"tipo"`
+		Label      string `json:"label"`
+		Efecto     string `json:"efecto"`
+		Reversible bool   `json:"reversible"`
+		Deshace    string `json:"deshace"`
 	}
 	out := []comp{}
 	for filas.Next() {
 		var c comp
-		if err := filas.Scan(&c.Tipo, &c.Label, &c.Efecto); err == nil {
+		var rev int
+		if err := filas.Scan(&c.Tipo, &c.Label, &c.Efecto, &rev, &c.Deshace); err == nil {
+			c.Reversible = rev == 1
 			out = append(out, c)
 		}
 	}
@@ -91,7 +98,7 @@ func (s *srv) verCatalogo(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *srv) verPlantillas(w http.ResponseWriter, r *http.Request) {
-	filas, err := s.db.Query(`SELECT id, comercio, entidad, pais, pasos FROM plantillas ORDER BY id`)
+	filas, err := s.db.Query(`SELECT id, comercio, entidad, pais, etapas FROM plantillas ORDER BY id`)
 	if err != nil {
 		errorJSON(w, 500, "no se pudieron leer las plantillas")
 		return
@@ -99,18 +106,18 @@ func (s *srv) verPlantillas(w http.ResponseWriter, r *http.Request) {
 	defer filas.Close()
 
 	type plant struct {
-		ID       int64    `json:"id"`
-		Comercio string   `json:"comercio"`
-		Entidad  string   `json:"entidad"`
-		Pais     string   `json:"pais"`
-		Pasos    []string `json:"pasos"`
+		ID       int64   `json:"id"`
+		Comercio string  `json:"comercio"`
+		Entidad  string  `json:"entidad"`
+		Pais     string  `json:"pais"`
+		Etapas   []etapa `json:"etapas"`
 	}
 	out := []plant{}
 	for filas.Next() {
 		var p plant
-		var pasos string
-		if err := filas.Scan(&p.ID, &p.Comercio, &p.Entidad, &p.Pais, &pasos); err == nil {
-			json.Unmarshal([]byte(pasos), &p.Pasos)
+		var etapas string
+		if err := filas.Scan(&p.ID, &p.Comercio, &p.Entidad, &p.Pais, &etapas); err == nil {
+			json.Unmarshal([]byte(etapas), &p.Etapas)
 			out = append(out, p)
 		}
 	}

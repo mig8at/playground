@@ -17,10 +17,12 @@ vendor/
 *.out
 
 # SQLite del prototipo `plantillas` (nace en server/ porque el `go run` corre desde ahí;
-# se regenera y se siembra solo al arrancar, así que no se versiona)
-/plantillas/server/plantillas.db
-/plantillas/server/plantillas.db-shm
-/plantillas/server/plantillas.db-wal
+# se regenera y se siembra solo al arrancar, así que no se versiona). `plantillas.db*` es
+# el nombre viejo: el esquema cambió de forma y se dejó el archivo en disco en vez de
+# migrarlo — se puede borrar a mano.
+/plantillas/server/*.db
+/plantillas/server/*.db-shm
+/plantillas/server/*.db-wal
 /plantillas/server/bin/
 
 # Playwright
