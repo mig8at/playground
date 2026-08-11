@@ -171,7 +171,13 @@ func modoPostHog(c config, target string, ureq int64, limite int) int {
 	// Igual que en Loki: los scopes se averiguan ANTES de tener el id del proyecto. Si el token es
 	// estrecho este paso falla y los siguientes andan igual — por eso no corta.
 	step("1 · ¿el token es válido y a qué proyecto apunta?")
-	if id := p.descubrirProyecto(); id != "" && p.project == "" {
+	id, autentica := p.descubrirProyecto()
+	if !autentica {
+		// 401 acá NO es un problema de scope: la key no vale nada y los pasos siguientes solo repetirían
+		// el mismo error con otra cara. Un scope faltante da 403 y sí deja seguir.
+		return 2
+	}
+	if id != "" && p.project == "" {
 		p.project = id
 	}
 	if p.project == "" {
@@ -207,21 +213,31 @@ func modoPostHog(c config, target string, ureq int64, limite int) int {
 
 // descubrirProyecto intenta el paso que nadie hace: sacar el id del propio token. Con `project:read`
 // alcanza, y ahorra el ida y vuelta de «¿cuál es el número del proyecto?».
-func (p *phCliente) descubrirProyecto() string {
+//
+// Devuelve además si el token AUTENTICA, que es una pregunta distinta de si tiene permisos: 401 = la key
+// no vale (típicamente pegaron el `phc_` de ingesta), 403 = la key vale y le falta un scope. Confundirlas
+// manda a pedir scopes cuando lo que hay que cambiar es la key — el mismo error que en Loki hacía leer
+// «legacy auth cannot be upgraded» como una URL equivocada.
+func (p *phCliente) descubrirProyecto() (string, bool) {
 	status, raw, err := p.pedir("GET", "/api/organizations/@current/projects/?limit=20", nil)
 	if err != nil {
 		bad("no se pudo hablar con %s: %v", p.base, err)
-		return ""
+		return "", false
 	}
-	if status == 401 {
-		bad("HTTP 401 — el token no autentica. ¿Es una Personal API key (`phx_`) y no el `phc_` del front?")
-		return ""
+	if status == 401 || esKeyInvalida(raw) {
+		bad("HTTP %d — la key no autentica.", status)
+		detail("PostHog dice: %s", recorte(raw, 200))
+		detail("")
+		detail("Si empieza con `phc_` es la de INGESTA del front (`posthog.init`): sirve para ESCRIBIR")
+		detail("eventos y no consulta nada. La de lectura empieza con `phx_` y se crea en")
+		detail("PostHog → avatar (abajo izq.) → Personal API keys → New key, con scope `query:read`.")
+		return "", false
 	}
 	if status != 200 {
 		// No es un fracaso del modo: el token puede estar bien y solo no tener `project:read`.
 		warn("no pude listar proyectos (HTTP %d) — sigo con el id del .env", status)
 		detail("%s", recorte(raw, 240))
-		return ""
+		return "", true
 	}
 	var out struct {
 		Results []struct {
@@ -231,9 +247,11 @@ func (p *phCliente) descubrirProyecto() string {
 	}
 	if err := json.Unmarshal(raw, &out); err != nil || len(out.Results) == 0 {
 		warn("el token autentica pero no devolvió proyectos")
-		return ""
+		return "", true
 	}
 	ok("token válido · %d proyecto(s) visibles", len(out.Results))
+	// El listado completo es el dato que contesta la pregunta que sigue siempre: ¿hay un proyecto por
+	// ambiente o uno solo? Se imprime aunque el .env ya traiga el id, y el `◂` marca cuál estamos usando.
 	for _, pr := range out.Results {
 		marca := " "
 		if p.project == pr.ID.String() {
@@ -244,7 +262,15 @@ func (p *phCliente) descubrirProyecto() string {
 	if len(out.Results) > 1 && p.project == "" {
 		warn("hay más de uno y el .env no dice cuál: tomo el primero (%s)", out.Results[0].ID.String())
 	}
-	return out.Results[0].ID.String()
+	return out.Results[0].ID.String(), true
+}
+
+// esKeyInvalida reconoce el veredicto que PostHog manda con 403 cuando la key no es una Personal API key
+// (el caso de pegar el `phc_` de ingesta). Sin esto el 403 se lee como «falta un scope» y se va a pedir el
+// permiso equivocado: lo que hay que cambiar es la key, no sus scopes.
+func esKeyInvalida(raw []byte) bool {
+	s := strings.ToLower(string(raw))
+	return strings.Contains(s, "personal api key") && strings.Contains(s, "invalid")
 }
 
 // censo muestra la distribución por ambiente, app y evento. Es el paso que evita la conclusión falsa más
