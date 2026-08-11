@@ -126,6 +126,22 @@ func (p *phCliente) filtroEnv() string {
 	return fmt.Sprintf(" AND properties.environment = '%s'", escapaHogQL(p.env))
 }
 
+// filtroEnvTimeline es el MISMO filtro pero tolerando los que no traen la propiedad, y la diferencia no es
+// cosmética: se descubrió corriendo. Los eventos automáticos de posthog-js ($pageview, $autocapture,
+// $identify) no pasan por `getBaseAnalyticsProperties()`, así que NO llevan `environment` — y en prod son
+// 256.821 de 353.134. Con el filtro estricto, el timeline de una solicitud perdía exactamente lo que uno
+// viene a ver: qué pantallas cargó y qué tocó el cliente.
+//
+// Se puede aflojar sin miedo porque acá el ambiente NO es lo que desambigua: el `distinct_id` ya fija a la
+// persona. Lo único que cubría el filtro era una colisión de ureq entre ambientes, y para eso alcanza con
+// exigir que los eventos que SÍ declaran ambiente sean del nuestro.
+func (p *phCliente) filtroEnvTimeline() string {
+	if p.env == "" {
+		return ""
+	}
+	return fmt.Sprintf(" AND (properties.environment = '%s' OR properties.environment IS NULL)", escapaHogQL(p.env))
+}
+
 // ─── el modo ────────────────────────────────────────────────────────────────────────────────────────
 
 // modoPostHog contesta dos preguntas distintas con las mismas credenciales, igual que la sonda de Loki:
@@ -135,7 +151,7 @@ func (p *phCliente) filtroEnv() string {
 // arreglan distinto: token mal emitido (se pide de nuevo), proyecto equivocado (se cambia un número),
 // filtro de ambiente que no matchea (se borra una línea) o la solicitud es del flujo clásico (no hay nada
 // que arreglar: esta fuente no la cubre).
-func modoPostHog(c config, target string, ureq int64, limite int) int {
+func modoPostHog(c config, target string, ureq int64, tel string, limite int) int {
 	step("Configuración · PostHog (%s)", target)
 	if c.posthogToken == "" {
 		bad("no hay token de PostHog para el target «%s»", target)
@@ -198,17 +214,18 @@ func modoPostHog(c config, target string, ureq int64, limite int) int {
 	}
 
 	// ── 3 · ¿son los eventos de CreditOp, y de qué ambiente?
-	step("3 · ¿qué hay adentro? (últimos 7 días)")
-	p.censo()
-
-	// ── 4 · el empalme con una solicitud
+	//
+	// El censo es el chequeo de la conexión, no parte de la respuesta: cuando se pregunta por UNA
+	// solicitud, cuarenta líneas de agregados antes del timeline entierran lo que se vino a ver.
 	if ureq == 0 {
+		step("3 · ¿qué hay adentro? (últimos 7 días)")
+		p.censo()
 		step("4 · el empalme con una solicitud")
-		detail("Pedí una: -posthog -ureq <n>   (el distinct_id es loan_request_<n>)")
+		detail("Pedí una: -posthog -ureq <n> [-tel <celular>]")
 		detail("Un ureq del wizard de los últimos días — el flujo clásico no emite estos eventos.")
 		return 0
 	}
-	return p.timeline(ureq, limite)
+	return p.timeline(ureq, tel, limite)
 }
 
 // descubrirProyecto intenta el paso que nadie hace: sacar el id del propio token. Con `project:read`
@@ -292,7 +309,11 @@ func (p *phCliente) listarAmbientes() {
 	if json.Unmarshal(raw, &out) != nil || len(out.Results) == 0 {
 		return
 	}
-	ok("%d ambiente(s) — el id es lo que va en POSTHOG_PROJECT, uno por .env.<target>:", len(out.Results))
+	// Sin adjetivar qué SON: en CreditOp (medido 2026-08-11) estos vienen uno por APP —Landing, Loan
+	// Request, Backoffice— y NO uno por ambiente de despliegue: prod, staging y dev del wizard escriben
+	// los tres al mismo proyecto y se separan por `properties.environment`. Decir «uno por target» acá
+	// mandaría a buscar un proyecto de dev que no existe. Quién es quién lo contesta el paso 3, con datos.
+	ok("%d visible(s) — el id es lo que va en POSTHOG_PROJECT (el paso 3 dice qué ambientes hay adentro):", len(out.Results))
 	for _, e := range out.Results {
 		marca := " "
 		if p.project == e.ID.String() {
@@ -359,18 +380,51 @@ func (p *phCliente) censo() {
 	detail("es la llave del empalme con la BD; los que no la traen son de antes del login/anónimos")
 }
 
+// telE164 replica `normalizePhoneE164` del wizard, que es quien arma el `distinct_id` del teléfono. Si
+// las dos normalizaciones divergen, el empalme falla en silencio y parece que la persona no hizo nada.
+func telE164(tel string) string {
+	var d strings.Builder
+	for _, r := range tel {
+		if r >= '0' && r <= '9' {
+			d.WriteRune(r)
+		}
+	}
+	digitos := d.String()
+	if digitos == "" {
+		return ""
+	}
+	if strings.HasPrefix(strings.TrimSpace(tel), "+") {
+		return "+" + digitos
+	}
+	if len(digitos) == 10 {
+		return "+57" + digitos
+	}
+	return "+" + digitos
+}
+
 // timeline es el entregable: qué vio y qué tocó esta persona, en orden. Sale plano y en texto porque el
 // primer uso es pegarlo en un ticket al lado de la traza de etapas.
-func (p *phCliente) timeline(ureq int64, limite int) int {
+func (p *phCliente) timeline(ureq int64, tel string, limite int) int {
 	if limite <= 0 {
 		limite = 200
 	}
 	distinct := fmt.Sprintf("loan_request_%d", ureq)
 	step("4 · solicitud %d · qué vio el cliente en el navegador", ureq)
-	detail("distinct_id = %s   ·   o properties.loan_request_id = '%d'", distinct, ureq)
 
-	// Los DOS caminos en un OR: el `distinct_id` cubre lo identificado y la propiedad cubre los eventos
-	// que se emitieron antes de que el wizard supiera a quién atribuirlos.
+	// TRES llaves, no una. Medido contra producción (7 días): `phone_<e164>` identifica 47.792 eventos y
+	// `loan_request_<n>` solo 24.006 — o sea que la mitad de lo que hizo el cliente pasa ANTES de que
+	// exista la solicitud (la fase de auth), y con la llave del ureq sola no se ve. PostHog NO los une
+	// solos: la persona dueña de `loan_request_<n>` no arrastra los eventos del teléfono.
+	llaves := []string{"distinct_id = '" + escapaHogQL(distinct) + "'"}
+	llaves = append(llaves, fmt.Sprintf("toString(properties.loan_request_id) = '%d'", ureq))
+	detail("distinct_id = %s   ·   o properties.loan_request_id = '%d'", distinct, ureq)
+	if e164 := telE164(tel); e164 != "" {
+		llaves = append(llaves, "distinct_id = '"+escapaHogQL("phone_"+e164)+"'")
+		detail("+ la fase de auth por teléfono: distinct_id = phone_%s", e164)
+	} else {
+		detail("(sin -tel: NO se ve la fase de auth, que en prod es la mitad de los eventos)")
+	}
+
 	consulta := fmt.Sprintf(`SELECT
 	    timestamp,
 	    event,
@@ -381,9 +435,9 @@ func (p *phCliente) timeline(ureq int64, limite int) int {
 	    properties.$session_id AS sesion,
 	    properties.service_runtime AS runtime
 	  FROM events
-	  WHERE (distinct_id = '%s' OR toString(properties.loan_request_id) = '%d')%s
+	  WHERE (%s)%s
 	  ORDER BY timestamp ASC
-	  LIMIT %d`, escapaHogQL(distinct), ureq, p.filtroEnv(), limite)
+	  LIMIT %d`, strings.Join(llaves, " OR "), p.filtroEnvTimeline(), limite)
 
 	_, filas, err := p.hogql(consulta)
 	if err != nil {

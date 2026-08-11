@@ -590,6 +590,7 @@ func main() {
 	sqlQuery := flag.String("sql", "", "UNA consulta de solo lectura (SELECT/WITH) contra la fuente del target — ver sql.go")
 	sqlCSV := flag.Bool("csv", false, "con -sql: salida en CSV en vez de tabla")
 	posthog := flag.Bool("posthog", false, "sonda de acceso a PostHog (qué VIO el cliente); con -ureq, los eventos de esa solicitud")
+	tel := flag.String("tel", "", "con -posthog -ureq: el celular del cliente, para ver además la fase de AUTH (distinct_id phone_<e164>)")
 	flag.Parse()
 
 	c, checked := loadConfig(*target)
@@ -624,7 +625,7 @@ func main() {
 	// Va ANTES del despacho de `-ureq`: `-posthog -ureq N` pregunta por los eventos del NAVEGADOR de esa
 	// solicitud, no por la traza de etapas.
 	if *posthog {
-		os.Exit(modoPostHog(c, *target, *ureq, *limit))
+		os.Exit(modoPostHog(c, *target, *ureq, *tel, *limit))
 	}
 	if *validar != "" {
 		os.Exit(ValidarContra(*validar))
