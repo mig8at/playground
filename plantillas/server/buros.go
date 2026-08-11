@@ -18,6 +18,15 @@ import (
 // tres cosas distintas.
 var claveValida = regexp.MustCompile(`^[a-z][a-zA-Z0-9]*$`)
 
+// Y el TIPO sale de un set cerrado. `date` todavía no lo usa ninguna clave, pero está
+// declarado porque el diccionario tiene que poder decir "esto es una fecha" el día que
+// entre una. `boolean`, `list` y `object` están porque el dato REALMENTE es eso —
+// aplastarlos a string sería mentir sobre lo que guarda la columna.
+var tiposValidos = map[string]bool{
+	"string": true, "number": true, "float": true, "date": true,
+	"boolean": true, "list": true, "object": true,
+}
+
 // Los burós dejan de ser "APIs que devuelven datos" y pasan a ser un CONTRATO:
 // qué necesito para llamarlo (entrada) y qué me devuelve (salida), los dos escritos
 // en las claves del MISMO diccionario.
@@ -48,34 +57,34 @@ CREATE TABLE IF NOT EXISTS proveedores (
 // EL DICCIONARIO. Una clave, una fila: es el punto de todo esto. Los `tipo` y `grupo`
 // salen del mapeo real (`docs/codigo/mapeo-datos-buros.json`, hoy solo en git).
 var claves = []struct{ clave, label, tipo, grupo string }{
-	{"docType", "Tipo de documento", "enum", "identidad"},
-	{"docNumber", "Número de documento", "texto", "identidad"},
-	{"firstName", "Primer nombre", "texto", "identidad"},
-	{"middleName", "Segundo nombre", "texto", "identidad"},
-	{"lastName", "Primer apellido", "texto", "identidad"},
-	{"secondLastName", "Segundo apellido", "texto", "identidad"},
-	{"fullName", "Nombre completo", "texto", "identidad"},
-	{"age", "Edad", "numero", "identidad"},
-	{"gender", "Género", "enum", "identidad"},
+	{"docType", "Tipo de documento", "string", "identidad"},
+	{"docNumber", "Número de documento", "string", "identidad"},
+	{"firstName", "Primer nombre", "string", "identidad"},
+	{"middleName", "Segundo nombre", "string", "identidad"},
+	{"lastName", "Primer apellido", "string", "identidad"},
+	{"secondLastName", "Segundo apellido", "string", "identidad"},
+	{"fullName", "Nombre completo", "string", "identidad"},
+	{"age", "Edad", "number", "identidad"},
+	{"gender", "Género", "string", "identidad"},
 
-	{"monthlyIncome", "Ingreso mensual estimado", "money", "ingreso"},
-	{"incomeMin", "Ingreso estimado (límite inferior)", "money", "ingreso"},
-	{"incomeMax", "Ingreso estimado (límite superior)", "money", "ingreso"},
-	{"contributionBase", "Ingreso Base de Cotización por mes", "lista", "ingreso"},
-	{"lastPayment", "Valor del último pago", "money", "ingreso"},
-	{"lowestPayment", "Valor del menor pago", "money", "ingreso"},
-	{"fixedExpenses", "Gastos fijos estimados", "money", "ingreso"},
-	{"incomeStats", "Estadísticas de ingreso (Mareigua)", "objeto", "ingreso"},
+	{"monthlyIncome", "Ingreso mensual estimado", "float", "ingreso"},
+	{"incomeMin", "Ingreso estimado (límite inferior)", "float", "ingreso"},
+	{"incomeMax", "Ingreso estimado (límite superior)", "float", "ingreso"},
+	{"contributionBase", "Ingreso Base de Cotización por mes", "list", "ingreso"},
+	{"lastPayment", "Valor del último pago", "float", "ingreso"},
+	{"lowestPayment", "Valor del menor pago", "float", "ingreso"},
+	{"fixedExpenses", "Gastos fijos estimados", "float", "ingreso"},
+	{"incomeStats", "Estadísticas de ingreso (Mareigua)", "object", "ingreso"},
 
-	{"employmentStatus", "Situación laboral / ocupación", "enum", "empleo"},
-	{"employerName", "Nombre del empleador o aportante", "texto", "empleo"},
-	{"employerTaxId", "NIT del empleador o aportante", "texto", "empleo"},
-	{"employmentContinuity", "Continuidad laboral (3/6/12 meses)", "bool", "empleo"},
-	{"socialSecurity", "AFP / EPS", "texto", "empleo"},
-	{"educationLevel", "Nivel educativo", "texto", "empleo"},
-	{"publicServant", "Servidor público o contratos con el Estado", "bool", "empleo"},
+	{"employmentStatus", "Situación laboral / ocupación", "string", "empleo"},
+	{"employerName", "Nombre del empleador o aportante", "string", "empleo"},
+	{"employerTaxId", "NIT del empleador o aportante", "string", "empleo"},
+	{"employmentContinuity", "Continuidad laboral (3/6/12 meses)", "boolean", "empleo"},
+	{"socialSecurity", "AFP / EPS", "string", "empleo"},
+	{"educationLevel", "Nivel educativo", "string", "empleo"},
+	{"publicServant", "Servidor público o contratos con el Estado", "boolean", "empleo"},
 
-	{"declaredNegativeReports", "¿Reportes negativos? (AUTO-DECLARADO)", "enum", "declarado"},
+	{"declaredNegativeReports", "¿Reportes negativos? (AUTO-DECLARADO)", "boolean", "declarado"},
 }
 
 // LOS CONTRATOS. `salida` sale del mapeo real (qué campo declara a cada proveedor en
@@ -122,6 +131,9 @@ func abrirBuros(db *sql.DB) {
 	for _, c := range claves {
 		if !claveValida.MatchString(c.clave) {
 			log.Fatalf("la clave %q no sigue la convención (inglés, camelCase, sin guiones bajos)", c.clave)
+		}
+		if !tiposValidos[c.tipo] {
+			log.Fatalf("la clave %q declara el tipo %q, que no está en el set", c.clave, c.tipo)
 		}
 		if _, err := db.Exec(`INSERT INTO claves (clave, label, tipo, grupo) VALUES (?,?,?,?)`,
 			c.clave, c.label, c.tipo, c.grupo); err != nil {

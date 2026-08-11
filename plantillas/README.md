@@ -102,6 +102,16 @@ tres se puede llamar todavía y que faltan `primer_nombre` y `primer_apellido`.
 diccionario — el server no arranca y dice cuál. Sin eso, cada proveedor vuelve a inventar su
 vocabulario y el diccionario queda de adorno.
 
+El diccionario tiene **página propia** (`/diccionario`, link en el header): clave, descripción en
+español y tipo, agrupado y con buscador. La descripción va en español a propósito — se busca en el
+idioma en el que uno piensa («ingreso») y salen las claves en inglés (`monthlyIncome`,
+`contributionBase`, `incomeMin`…).
+
+Los **tipos** salen de un set cerrado y una tercera guarda lo obliga: `string` · `number` · `float` ·
+`date` · `boolean` · `list` · `object`. `date` todavía no lo usa ninguna clave, pero está declarado
+para el día que entre una; `boolean`, `list` y `object` están porque el dato realmente es eso —
+aplastarlos a `string` sería mentir sobre lo que va a guardar la columna.
+
 `GET /api/claves` · `/api/proveedores` · `/api/claves/{clave}/quien-la-da` · `/api/plan`
 
 Pasar a inglés destapó tres cosas que valía la pena arreglar antes de que se multiplicaran:

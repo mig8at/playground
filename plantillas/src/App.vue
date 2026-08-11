@@ -35,6 +35,30 @@ function idDeURL() {
   return m ? m[1] : ''
 }
 
+// Tres vistas, sin librería de routing: la app tiene dos pantallas y un flujo.
+function rutaDeURL() {
+  if (location.pathname.startsWith('/diccionario')) return 'diccionario'
+  return idDeURL() ? 'solicitud' : 'inicio'
+}
+const ruta = ref(rutaDeURL())
+const filtro = ref('')
+
+function irA(path) {
+  history.pushState({}, '', path)
+  ruta.value = rutaDeURL()
+}
+
+// El diccionario agrupado, y filtrable: con 25 claves ya se busca, con 56 más.
+const clavesPorGrupo = computed(() => {
+  const q = filtro.value.trim().toLowerCase()
+  const salen = claves.value.filter(
+    (c) => !q || c.clave.toLowerCase().includes(q) || c.label.toLowerCase().includes(q),
+  )
+  const grupos = {}
+  for (const c of salen) (grupos[c.grupo] ||= []).push(c)
+  return Object.entries(grupos)
+})
+
 onMounted(async () => {
   try {
     ;[plantillas.value, catalogo.value, proveedores.value, claves.value] = await Promise.all([
@@ -66,7 +90,7 @@ async function crear(p) {
     })
     escuchar(s.id)
     sol.value = s
-    history.pushState({}, '', `/solicitud/${s.id}`)
+    irA(`/solicitud/${s.id}`)
   } catch (e) {
     error.value = e.message
   }
@@ -97,7 +121,7 @@ function soltar() {
 
 function salir() {
   soltar()
-  history.pushState({}, '', '/')
+  irA('/')
 }
 
 // El frontend NO decide el paso siguiente: lo escucha. `paso.avanzado` y
@@ -157,9 +181,10 @@ async function confirmarReinicio() {
 // paso: es la consecuencia directa de no tener historial por pantalla, y evita el
 // problema de intentar interceptar una navegación que ya ocurrió.
 function alCambiarElURL() {
+  ruta.value = rutaDeURL()
   const id = idDeURL()
   if (!id) {
-    soltar()
+    if (sol.value) soltar()
     return
   }
   if (!sol.value || sol.value.id !== id) abrir(id)
@@ -172,14 +197,22 @@ const enlace = computed(() => (sol.value ? `${location.origin}/solicitud/${sol.v
   <div class="app">
     <header>
       <a href="/" class="marca" @click.prevent="salir">plantillas</a>
-      <span v-if="sol" class="estado" :class="{ on: conectado }">
-        {{ conectado ? 'en vivo' : 'sin conexión' }}
-      </span>
+      <nav>
+        <a
+          href="/diccionario"
+          :class="{ activo: ruta === 'diccionario' }"
+          @click.prevent="irA('/diccionario')"
+          >diccionario</a
+        >
+        <span v-if="sol" class="estado" :class="{ on: conectado }">
+          {{ conectado ? 'en vivo' : 'sin conexión' }}
+        </span>
+      </nav>
     </header>
 
     <p v-if="error" class="error banner">{{ error }}</p>
 
-    <main v-if="!sol" class="centro">
+    <main v-if="ruta === 'inicio'" class="centro">
       <div class="tarjeta">
         <h2>Solicitud de crédito</h2>
         <p class="ayuda">
@@ -222,17 +255,13 @@ const enlace = computed(() => (sol.value ? `${location.origin}/solicitud/${sol.v
         </ul>
       </details>
 
-      <details class="catalogo">
-        <summary>el diccionario ({{ claves.length }} claves, sin duplicados)</summary>
-        <ul>
-          <li v-for="c in claves" :key="c.clave">
-            <code>{{ c.clave }}</code> · {{ c.tipo }} · {{ c.grupo }} — {{ c.label }}
-          </li>
-        </ul>
-      </details>
+      <p class="ayuda">
+        Las claves con las que hablan el flujo y los burós viven en
+        <a href="/diccionario" @click.prevent="irA('/diccionario')">el diccionario</a>.
+      </p>
     </main>
 
-    <main v-else class="centro">
+    <main v-else-if="ruta === 'solicitud' && sol" class="centro">
       <ol class="tira">
         <li
           v-for="(e, i) in sol.etapas"
@@ -274,6 +303,41 @@ const enlace = computed(() => (sol.value ? `${location.origin}/solicitud/${sol.v
         Segundo dispositivo: abrí <a :href="enlace" target="_blank">este mismo link</a> en otra
         ventana. Refrescá cuando quieras — en el URL va solo el id de la solicitud.
       </p>
+    </main>
+
+
+    <main v-else-if="ruta === 'diccionario'" class="ancho">
+      <h2>Diccionario de claves</h2>
+      <p class="ayuda">
+        Un solo vocabulario para lo que se captura en el flujo y lo que devuelven los burós. Una
+        clave, una fila: si un proveedor nombra algo que no está acá, el server no arranca.
+      </p>
+      <input v-model="filtro" class="buscador" placeholder="Buscar clave o descripción…" />
+      <p class="ayuda" v-if="filtro">
+        {{ clavesPorGrupo.reduce((n, [, cs]) => n + cs.length, 0) }} de {{ claves.length }}
+      </p>
+
+      <section v-for="[grupo, cs] in clavesPorGrupo" :key="grupo" class="grupo">
+        <h3>{{ grupo }}</h3>
+        <table>
+          <thead>
+            <tr>
+              <th>clave</th>
+              <th>descripción</th>
+              <th>tipo</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="c in cs" :key="c.clave">
+              <td><code>{{ c.clave }}</code></td>
+              <td>{{ c.label }}</td>
+              <td><span class="tipo-tag">{{ c.tipo }}</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <p v-if="!clavesPorGrupo.length" class="ayuda">Ninguna clave coincide con «{{ filtro }}».</p>
     </main>
 
     <div v-if="confirmando" class="velo">
@@ -495,6 +559,67 @@ button.secundario {
 }
 button.atras {
   margin-top: 16px;
+}
+
+.ancho {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 36px 20px 0;
+}
+nav {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  font-size: 13px;
+}
+nav a {
+  color: var(--suave);
+  text-decoration: none;
+}
+nav a:hover,
+nav a.activo {
+  color: var(--acento);
+}
+.buscador {
+  margin-bottom: 8px;
+}
+.grupo {
+  margin-top: 26px;
+}
+.grupo h3 {
+  font-size: 13px;
+  color: var(--suave);
+  text-transform: lowercase;
+  margin-bottom: 8px;
+}
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+th {
+  text-align: left;
+  font-weight: 400;
+  font-size: 12px;
+  color: var(--suave);
+  border-bottom: 1px solid var(--borde);
+  padding: 6px 8px;
+}
+td {
+  padding: 8px;
+  border-bottom: 1px solid var(--borde);
+  font-size: 14px;
+  vertical-align: top;
+}
+td code {
+  color: var(--acento);
+}
+.tipo-tag {
+  font-family: ui-monospace, Menlo, monospace;
+  font-size: 12px;
+  color: var(--suave);
+  border: 1px solid var(--borde);
+  border-radius: 5px;
+  padding: 1px 7px;
 }
 
 .velo {
