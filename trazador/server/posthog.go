@@ -230,7 +230,8 @@ func (p *phCliente) descubrirProyecto() (string, bool) {
 		detail("")
 		detail("Si empieza con `phc_` es la de INGESTA del front (`posthog.init`): sirve para ESCRIBIR")
 		detail("eventos y no consulta nada. La de lectura empieza con `phx_` y se crea en")
-		detail("PostHog → avatar (abajo izq.) → Personal API keys → New key, con scope `query:read`.")
+		detail("https://us.posthog.com/settings/user-api-keys  →  New personal API key")
+		detail("scopes: `query:read` (obligatorio) + `project:read` (para listar proyectos/ambientes).")
 		return "", false
 	}
 	if status != 200 {
@@ -262,7 +263,43 @@ func (p *phCliente) descubrirProyecto() (string, bool) {
 	if len(out.Results) > 1 && p.project == "" {
 		warn("hay más de uno y el .env no dice cuál: tomo el primero (%s)", out.Results[0].ID.String())
 	}
+	p.listarAmbientes()
 	return out.Results[0].ID.String(), true
+}
+
+// listarAmbientes contesta «¿y los otros ambientes?», que es la primera pregunta al conectar y la que no
+// se puede responder desde el repo: cada deploy del wizard saca su key de un secreto distinto de AWS
+// (prod/loan-request-wizard · dev/loan-request-wizard-stg · dev/loan-request-wizard), así que si son un
+// proyecto o tres se decide allá, no en el código.
+//
+// PostHog moderno mete un nivel más: un proyecto CONTIENE environments, y cada uno tiene su propio token y
+// su propio id numérico — el que va en el path de la API y en POSTHOG_PROJECT. La página de Settings lo
+// delata al decir «connect SDKs and APIs to this environment».
+//
+// Best-effort a propósito: el endpoint no existe en todas las versiones y el token puede no tener el scope.
+// Un 404 acá no es un problema — el listado de arriba ya sirve.
+func (p *phCliente) listarAmbientes() {
+	status, raw, err := p.pedir("GET", "/api/environments/?limit=30", nil)
+	if err != nil || status != 200 {
+		return
+	}
+	var out struct {
+		Results []struct {
+			ID   json.Number `json:"id"`
+			Name string      `json:"name"`
+		} `json:"results"`
+	}
+	if json.Unmarshal(raw, &out) != nil || len(out.Results) == 0 {
+		return
+	}
+	ok("%d ambiente(s) — el id es lo que va en POSTHOG_PROJECT, uno por .env.<target>:", len(out.Results))
+	for _, e := range out.Results {
+		marca := " "
+		if p.project == e.ID.String() {
+			marca = "◂"
+		}
+		detail("%s %-8s %s", marca, e.ID.String(), e.Name)
+	}
 }
 
 // esKeyInvalida reconoce el veredicto que PostHog manda con 403 cuando la key no es una Personal API key
