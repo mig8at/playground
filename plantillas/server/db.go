@@ -105,6 +105,7 @@ func abrirDB(ruta string) *sql.DB {
 		log.Fatalf("esquema: %v", err)
 	}
 	sembrar(db)
+	abrirBuros(db)
 	return db
 }
 

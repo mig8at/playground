@@ -36,6 +36,12 @@ func main() {
 	mux.HandleFunc("GET /api/catalogo", s.verCatalogo)
 	mux.HandleFunc("GET /api/plantillas", s.verPlantillas)
 
+	// Los burós como CONTRATO (entrada → salida) sobre un diccionario único de claves.
+	mux.HandleFunc("GET /api/claves", s.verClaves)
+	mux.HandleFunc("GET /api/proveedores", s.verProveedores)
+	mux.HandleFunc("GET /api/claves/{clave}/quien-la-da", s.quienDa)
+	mux.HandleFunc("GET /api/plan", s.plan)
+
 	mux.HandleFunc("POST /api/solicitudes", s.crearSolicitud)
 	mux.HandleFunc("GET /api/solicitudes/{id}", s.verSolicitud)
 	mux.HandleFunc("GET /api/solicitudes/{id}/eventos", s.eventos)

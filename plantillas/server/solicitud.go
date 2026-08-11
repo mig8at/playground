@@ -11,10 +11,9 @@ import (
 // etapa es la unidad que ve la PERSONA: un objetivo ("tu celular") que por debajo
 // puede necesitar varios componentes. Retroceder trabaja en esta granularidad.
 type etapa struct {
-	Etapa    string   `json:"etapa"`
-	Titulo   string   `json:"titulo"`
-	AlVolver string   `json:"al_volver"`
-	Pasos    []string `json:"pasos"`
+	Etapa  string   `json:"etapa"`
+	Titulo string   `json:"titulo"`
+	Pasos  []string `json:"pasos"`
 }
 
 type solicitud struct {

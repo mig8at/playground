@@ -12,6 +12,8 @@ const registro = { telefono: Telefono, otp: Otp, perfil: Perfil }
 
 const plantillas = ref([])
 const catalogo = ref([])
+const proveedores = ref([])
+const claves = ref([])
 const sol = ref(null)
 const eventos = ref([])
 const conectado = ref(false)
@@ -35,9 +37,11 @@ function idDeURL() {
 
 onMounted(async () => {
   try {
-    ;[plantillas.value, catalogo.value] = await Promise.all([
+    ;[plantillas.value, catalogo.value, proveedores.value, claves.value] = await Promise.all([
       pedir('/api/plantillas'),
       pedir('/api/catalogo'),
+      pedir('/api/proveedores'),
+      pedir('/api/claves'),
     ])
   } catch (e) {
     error.value = e.message
@@ -200,6 +204,29 @@ const enlace = computed(() => (sol.value ? `${location.origin}/solicitud/${sol.v
         <ul>
           <li v-for="c in catalogo" :key="c.tipo">
             <code>{{ c.tipo }}</code> — {{ c.efecto }}
+          </li>
+        </ul>
+      </details>
+
+      <details class="catalogo">
+        <summary>los burós: contrato entrada → salida ({{ proveedores.length }})</summary>
+        <ul>
+          <li v-for="p in proveedores" :key="p.proveedor">
+            <b>{{ p.proveedor }}</b> <span class="pais">{{ p.rol }}</span><br />
+            <span class="ayuda">
+              pide <code>{{ p.entrada.join(', ') }}</code><br />
+              devuelve {{ p.salida.length }} claves, entre ellas
+              <code>{{ p.salida.slice(0, 4).join(', ') }}</code>
+            </span>
+          </li>
+        </ul>
+      </details>
+
+      <details class="catalogo">
+        <summary>el diccionario ({{ claves.length }} claves, sin duplicados)</summary>
+        <ul>
+          <li v-for="c in claves" :key="c.clave">
+            <code>{{ c.clave }}</code> · {{ c.tipo }} · {{ c.grupo }} — {{ c.label }}
           </li>
         </ul>
       </details>

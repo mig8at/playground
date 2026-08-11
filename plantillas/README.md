@@ -75,6 +75,39 @@ nada»). ⚠ **Cuando aparezca el primer paso irreversible** —una consulta que
 ya salió de tu control— reiniciar deja de ser gratis y hace falta esa marca: es una columna, no un
 rediseño.
 
+## Los burós como contrato, no como API
+
+Un buró deja de ser «una API que devuelve datos» y pasa a declarar dos cosas, las dos escritas en las
+claves de un **diccionario único**:
+
+```
+agildata  pide {documento_tipo, documento_numero, primer_nombre, primer_apellido}
+          da   {ingreso_mensual, ibc_mensual, ocupacion, continuidad_laboral, …15}
+```
+
+Con eso la pregunta se invierte: en vez de «llamá a agildata y sacá el salario» —que es lo que hoy
+está cableado en la cascada de `getSalary`— se puede preguntar **«¿quién me da `ingreso_mensual`, y qué
+le tengo que pasar?»**. Y como la entrada también está declarada, se puede encadenar: `GET
+/api/plan?quiero=ingreso_mensual&tengo=documento_tipo,documento_numero` contesta que ninguno de los
+tres se puede llamar todavía y que faltan `primer_nombre` y `primer_apellido`.
+
+**La guarda es lo que lo hace real:** ningún proveedor puede nombrar una clave que no esté en el
+diccionario — el server no arranca y dice cuál. Sin eso, cada proveedor vuelve a inventar su
+vocabulario y el diccionario queda de adorno.
+
+`GET /api/claves` · `/api/proveedores` · `/api/claves/{clave}/quien-la-da` · `/api/plan`
+
+⚠ **Las `salida` salen del mapeo real** (`docs/codigo/mapeo-datos-buros.json`, hoy solo recuperable con
+`git show ef1d473^:…`, porque se fue con `docs/`). **Las `entrada` NO están verificadas**: ese mapeo
+nunca declaró qué pide cada proveedor. Están sembradas con el mínimo razonable y hay que confirmarlas
+contra `pre-approvals-service`. Es la mitad más valiosa —es la que permite encadenar— y es la que
+falta comprobar.
+
+Falta también lo que el mapeo viejo ya insinuaba y este modelo todavía no cubre: **la procedencia**. La
+cascada real de ingreso mezcla el IBC de nómina con el valor *declarado por el usuario* en la misma
+lista. Si solo sobrevive el número, el sistema sustituye uno por otro en silencio. El resolver debería
+devolver `{valor, fuente}`, no un número.
+
 ## Lo que ya nos enseñó el prototipo
 
 Poner el paso en el URL destapó que `otp/enviar` se llamaba en cada montaje de la pantalla: **6
