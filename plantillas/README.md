@@ -81,9 +81,16 @@ Un buró deja de ser «una API que devuelve datos» y pasa a declarar dos cosas,
 claves de un **diccionario único**:
 
 ```
-agildata  pide {documento_tipo, documento_numero, primer_nombre, primer_apellido}
-          da   {ingreso_mensual, ibc_mensual, ocupacion, continuidad_laboral, …15}
+agildata  pide {docType, docNumber, firstName, lastName}
+          da   {monthlyIncome, contributionBase, employmentStatus, employmentContinuity, …15}
 ```
+
+**Las claves van en inglés, camelCase, sin guiones bajos ni prefijos redundantes** (`docType`, no
+`documento_tipo` ni `document_type`), y una guarda de arranque lo obliga además de la de pertenencia.
+Es la forma que ya usa la capa de datos real y la que evita que en tres meses convivan
+`salario_mensual`, `monthly_income` y `monthlyIncome` como si fueran tres cosas distintas. El flujo
+usa **el mismo** vocabulario: lo que captura el paso `telefono` se guarda como `phone` / `phoneE164`,
+que son claves del diccionario.
 
 Con eso la pregunta se invierte: en vez de «llamá a agildata y sacá el salario» —que es lo que hoy
 está cableado en la cascada de `getSalary`— se puede preguntar **«¿quién me da `ingreso_mensual`, y qué
@@ -96,6 +103,16 @@ diccionario — el server no arranca y dice cuál. Sin eso, cada proveedor vuelv
 vocabulario y el diccionario queda de adorno.
 
 `GET /api/claves` · `/api/proveedores` · `/api/claves/{clave}/quien-la-da` · `/api/plan`
+
+Pasar a inglés destapó tres cosas que valía la pena arreglar antes de que se multiplicaran:
+**`empleador_nit` → `employerTaxId`** (NIT es de Colombia; en Perú es RUC, y todo esto existe para que
+Perú entre sin fork), **`estadisticas_ingreso_mareigua` → `incomeStats`** (un diccionario canónico no
+puede llevar el nombre de un proveedor en una clave) y **`afp_eps` → `socialSecurity`**, que en
+realidad son dos cosas conflacionadas —fondo de pensión y prestador de salud— y en algún momento hay
+que separarlas.
+
+Y una que no se puede arreglar renombrando: **`declaredNegativeReports` lleva la procedencia en el
+nombre**. Eso es el campo `fuente` que falta, asomando como parche de nomenclatura.
 
 ⚠ **Las `salida` salen del mapeo real** (`docs/codigo/mapeo-datos-buros.json`, hoy solo recuperable con
 `git show ef1d473^:…`, porque se fue con `docs/`). **Las `entrada` NO están verificadas**: ese mapeo

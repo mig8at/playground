@@ -254,7 +254,7 @@ const enlace = computed(() => (sol.value ? `${location.origin}/solicitud/${sol.v
           :solicitud="sol.id"
           :pais="sol.pais"
           :valores="sol.valores"
-          :inicial="sol.valores?.telefono"
+          :inicial="sol.valores?.phone"
         />
         <div v-else-if="sol.estado === 'completada'" class="paso">
           <h3>Solicitud completa</h3>

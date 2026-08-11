@@ -10,7 +10,7 @@ defineProps({ solicitud: String, valores: Object })
       declarado sin efecto de backend, para poder tener un paso siguiente sin inventar un formulario.
     </p>
     <p class="ayuda">
-      El número verificado fue <b>{{ valores?.telefono_e164 || '—' }}</b>.
+      El número verificado fue <b>{{ valores?.phoneE164 || '—' }}</b>.
     </p>
   </div>
 </template>

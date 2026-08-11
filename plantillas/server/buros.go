@@ -5,9 +5,18 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"regexp"
 	"sort"
 	"strings"
 )
+
+// LA CONVENCIÓN, y una guarda que la obliga: claves en INGLÉS, camelCase, sin guiones
+// bajos y sin prefijos redundantes (`docType`, no `documento_tipo` ni `document_type`).
+// Es la misma forma que ya usa la capa de datos real —`approximate_real_salary` aparte,
+// las APIs y los mappers de pdf-mapper son camelCase— y la que evita que dentro de tres
+// meses convivan `salario_mensual`, `monthly_income` y `monthlyIncome` como si fueran
+// tres cosas distintas.
+var claveValida = regexp.MustCompile(`^[a-z][a-zA-Z0-9]*$`)
 
 // Los burós dejan de ser "APIs que devuelven datos" y pasan a ser un CONTRATO:
 // qué necesito para llamarlo (entrada) y qué me devuelve (salida), los dos escritos
@@ -31,42 +40,42 @@ CREATE TABLE IF NOT EXISTS claves (
 CREATE TABLE IF NOT EXISTS proveedores (
   proveedor TEXT PRIMARY KEY,
   rol       TEXT NOT NULL,
-  entrada   TEXT NOT NULL,  -- JSON: ["documento_tipo", …] claves del diccionario
-  salida    TEXT NOT NULL   -- JSON: ["ingreso_mensual", …] claves del diccionario
+  entrada   TEXT NOT NULL,  -- JSON: ["docType", …] claves del diccionario
+  salida    TEXT NOT NULL   -- JSON: ["monthlyIncome", …] claves del diccionario
 );
 `
 
 // EL DICCIONARIO. Una clave, una fila: es el punto de todo esto. Los `tipo` y `grupo`
 // salen del mapeo real (`docs/codigo/mapeo-datos-buros.json`, hoy solo en git).
 var claves = []struct{ clave, label, tipo, grupo string }{
-	{"documento_tipo", "Tipo de documento", "enum", "identidad"},
-	{"documento_numero", "Número de documento", "texto", "identidad"},
-	{"primer_nombre", "Primer nombre", "texto", "identidad"},
-	{"segundo_nombre", "Segundo nombre", "texto", "identidad"},
-	{"primer_apellido", "Primer apellido", "texto", "identidad"},
-	{"segundo_apellido", "Segundo apellido", "texto", "identidad"},
-	{"nombre_completo", "Nombre completo", "texto", "identidad"},
-	{"edad", "Edad", "numero", "identidad"},
-	{"genero", "Género", "enum", "identidad"},
+	{"docType", "Tipo de documento", "enum", "identidad"},
+	{"docNumber", "Número de documento", "texto", "identidad"},
+	{"firstName", "Primer nombre", "texto", "identidad"},
+	{"middleName", "Segundo nombre", "texto", "identidad"},
+	{"lastName", "Primer apellido", "texto", "identidad"},
+	{"secondLastName", "Segundo apellido", "texto", "identidad"},
+	{"fullName", "Nombre completo", "texto", "identidad"},
+	{"age", "Edad", "numero", "identidad"},
+	{"gender", "Género", "enum", "identidad"},
 
-	{"ingreso_mensual", "Ingreso mensual estimado", "money", "ingreso"},
-	{"ingreso_limite_inferior", "Ingreso estimado (límite inferior)", "money", "ingreso"},
-	{"ingreso_limite_superior", "Ingreso estimado (límite superior)", "money", "ingreso"},
-	{"ibc_mensual", "Ingreso Base de Cotización por mes", "lista", "ingreso"},
-	{"ultimo_pago", "Valor del último pago", "money", "ingreso"},
-	{"menor_pago", "Valor del menor pago", "money", "ingreso"},
-	{"gastos_fijos", "Gastos fijos estimados", "money", "ingreso"},
-	{"estadisticas_ingreso_mareigua", "Estadísticas de ingreso (Mareigua)", "objeto", "ingreso"},
+	{"monthlyIncome", "Ingreso mensual estimado", "money", "ingreso"},
+	{"incomeMin", "Ingreso estimado (límite inferior)", "money", "ingreso"},
+	{"incomeMax", "Ingreso estimado (límite superior)", "money", "ingreso"},
+	{"contributionBase", "Ingreso Base de Cotización por mes", "lista", "ingreso"},
+	{"lastPayment", "Valor del último pago", "money", "ingreso"},
+	{"lowestPayment", "Valor del menor pago", "money", "ingreso"},
+	{"fixedExpenses", "Gastos fijos estimados", "money", "ingreso"},
+	{"incomeStats", "Estadísticas de ingreso (Mareigua)", "objeto", "ingreso"},
 
-	{"ocupacion", "Situación laboral / ocupación", "enum", "empleo"},
-	{"empleador_nombre", "Nombre del empleador o aportante", "texto", "empleo"},
-	{"empleador_nit", "NIT del empleador o aportante", "texto", "empleo"},
-	{"continuidad_laboral", "Continuidad laboral (3/6/12 meses)", "bool", "empleo"},
-	{"afp_eps", "AFP / EPS", "texto", "empleo"},
-	{"nivel_educativo", "Nivel educativo", "texto", "empleo"},
-	{"servidor_publico", "Servidor público o contratos con el Estado", "bool", "empleo"},
+	{"employmentStatus", "Situación laboral / ocupación", "enum", "empleo"},
+	{"employerName", "Nombre del empleador o aportante", "texto", "empleo"},
+	{"employerTaxId", "NIT del empleador o aportante", "texto", "empleo"},
+	{"employmentContinuity", "Continuidad laboral (3/6/12 meses)", "bool", "empleo"},
+	{"socialSecurity", "AFP / EPS", "texto", "empleo"},
+	{"educationLevel", "Nivel educativo", "texto", "empleo"},
+	{"publicServant", "Servidor público o contratos con el Estado", "bool", "empleo"},
 
-	{"reportes_negativos_declarado", "¿Reportes negativos? (AUTO-DECLARADO)", "enum", "declarado"},
+	{"declaredNegativeReports", "¿Reportes negativos? (AUTO-DECLARADO)", "enum", "declarado"},
 }
 
 // LOS CONTRATOS. `salida` sale del mapeo real (qué campo declara a cada proveedor en
@@ -83,24 +92,24 @@ var proveedores = []struct {
 	salida         []string
 }{
 	{"agildata", "ingreso + empleo (seguridad social)",
-		[]string{"documento_tipo", "documento_numero", "primer_nombre", "primer_apellido"},
-		[]string{"documento_tipo", "documento_numero", "nombre_completo", "edad", "genero",
-			"ingreso_mensual", "ibc_mensual", "ultimo_pago", "menor_pago", "gastos_fijos",
-			"ocupacion", "empleador_nombre", "empleador_nit", "continuidad_laboral",
-			"reportes_negativos_declarado"}},
+		[]string{"docType", "docNumber", "firstName", "lastName"},
+		[]string{"docType", "docNumber", "fullName", "age", "gender",
+			"monthlyIncome", "contributionBase", "lastPayment", "lowestPayment", "fixedExpenses",
+			"employmentStatus", "employerName", "employerTaxId", "employmentContinuity",
+			"declaredNegativeReports"}},
 
 	{"mareigua", "ingreso + empleo (fallback de agildata)",
-		[]string{"documento_tipo", "documento_numero", "primer_nombre", "primer_apellido"},
-		[]string{"documento_tipo", "documento_numero", "primer_nombre", "segundo_nombre",
-			"primer_apellido", "segundo_apellido", "edad", "genero", "ingreso_mensual",
-			"estadisticas_ingreso_mareigua", "ultimo_pago", "menor_pago", "gastos_fijos",
-			"ocupacion", "empleador_nombre", "empleador_nit", "continuidad_laboral",
-			"afp_eps", "nivel_educativo", "servidor_publico", "reportes_negativos_declarado"}},
+		[]string{"docType", "docNumber", "firstName", "lastName"},
+		[]string{"docType", "docNumber", "firstName", "middleName",
+			"lastName", "secondLastName", "age", "gender", "monthlyIncome",
+			"incomeStats", "lastPayment", "lowestPayment", "fixedExpenses",
+			"employmentStatus", "employerName", "employerTaxId", "employmentContinuity",
+			"socialSecurity", "educationLevel", "publicServant", "declaredNegativeReports"}},
 
 	{"quanto", "estimación de ingreso (Experian)",
-		[]string{"documento_tipo", "documento_numero", "primer_nombre", "primer_apellido"},
-		[]string{"ingreso_mensual", "ingreso_limite_inferior", "ingreso_limite_superior",
-			"ocupacion", "reportes_negativos_declarado"}},
+		[]string{"docType", "docNumber", "firstName", "lastName"},
+		[]string{"monthlyIncome", "incomeMin", "incomeMax",
+			"employmentStatus", "declaredNegativeReports"}},
 }
 
 func abrirBuros(db *sql.DB) {
@@ -111,6 +120,9 @@ func abrirBuros(db *sql.DB) {
 		log.Fatalf("esquema buros: %v", err)
 	}
 	for _, c := range claves {
+		if !claveValida.MatchString(c.clave) {
+			log.Fatalf("la clave %q no sigue la convención (inglés, camelCase, sin guiones bajos)", c.clave)
+		}
 		if _, err := db.Exec(`INSERT INTO claves (clave, label, tipo, grupo) VALUES (?,?,?,?)`,
 			c.clave, c.label, c.tipo, c.grupo); err != nil {
 			// PRIMARY KEY: si alguien repite una clave, el diccionario deja de ser uno.
