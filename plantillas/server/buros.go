@@ -85,6 +85,33 @@ var claves = []struct{ clave, label, tipo, grupo string }{
 	{"publicServant", "Servidor público o contratos con el Estado", "boolean", "empleo"},
 
 	{"declaredNegativeReports", "¿Reportes negativos? (AUTO-DECLARADO)", "boolean", "declarado"},
+
+	{"docIssueDate", "Fecha de expedición del documento", "date", "identidad"},
+	{"docIssuePlace", "Lugar de expedición del documento", "string", "identidad"},
+	{"docStatus", "Estado del documento en la registraduría", "string", "identidad"},
+
+	{"creditScore", "Score de crédito (0–1000)", "number", "buro"},
+	{"inquiries6m", "Consultas al buró en los últimos 6 meses", "number", "buro"},
+	{"negativeReports12m", "Reportes negativos en los últimos 12 meses", "number", "buro"},
+	{"currentNegativeAccounts", "Créditos con reporte negativo vigente", "number", "buro"},
+	{"creditHistorySince", "Inicio de la historia crediticia (maduración)", "date", "buro"},
+	{"openDisputes", "Reclamaciones abiertas", "number", "buro"},
+	{"totalDisputes", "Reclamaciones históricas", "number", "buro"},
+	{"openAccounts", "Créditos vigentes", "number", "buro"},
+	{"closedAccounts", "Créditos cerrados", "number", "buro"},
+	{"savingsAccounts", "Productos de ahorro reportados", "list", "buro"},
+	{"microcreditProfile", "Perfil de microcrédito", "object", "buro"},
+	{"inquiryFootprints", "Huellas de consulta dejadas por otros", "list", "buro"},
+
+	{"monthlyDebtPayment", "Cuota mensual de las deudas vigentes", "float", "deuda"},
+	{"totalDebt", "Saldo total de deuda", "float", "deuda"},
+	{"pastDueBalance", "Saldo en mora", "float", "deuda"},
+	{"pastDueByAge", "Saldo en mora por altura de mora", "list", "deuda"},
+	{"debtBySector", "Saldo de deuda por sector (banca, real, etc.)", "list", "deuda"},
+	{"balanceHistory24m", "Vector de saldos de los últimos 24 meses", "list", "deuda"},
+	{"liabilities", "Detalle de pasivos reportados", "list", "deuda"},
+	{"creditCards", "Detalle de tarjetas de crédito", "list", "deuda"},
+	{"debtTrend", "Evolución de la deuda en el tiempo", "object", "deuda"},
 }
 
 // LOS CONTRATOS. `salida` sale del mapeo real (qué campo declara a cada proveedor en
@@ -114,6 +141,17 @@ var proveedores = []struct {
 			"incomeStats", "lastPayment", "lowestPayment", "fixedExpenses",
 			"employmentStatus", "employerName", "employerTaxId", "employmentContinuity",
 			"socialSecurity", "educationLevel", "publicServant", "declaredNegativeReports"}},
+
+
+	{"acierta", "buró Experian: score, comportamiento crediticio y deuda (decisivo para el listado)",
+		[]string{"docType", "docNumber", "firstName", "lastName"},
+		[]string{"docType", "docNumber", "fullName", "firstName", "lastName", "secondLastName",
+			"gender", "age", "docIssueDate", "docIssuePlace", "docStatus", "fixedExpenses",
+			"creditScore", "inquiries6m", "negativeReports12m", "currentNegativeAccounts",
+			"creditHistorySince", "openDisputes", "totalDisputes", "openAccounts", "closedAccounts",
+			"savingsAccounts", "microcreditProfile", "inquiryFootprints",
+			"monthlyDebtPayment", "totalDebt", "pastDueBalance", "pastDueByAge", "debtBySector",
+			"balanceHistory24m", "liabilities", "creditCards", "debtTrend"}},
 
 	{"quanto", "estimación de ingreso (Experian)",
 		[]string{"docType", "docNumber", "firstName", "lastName"},

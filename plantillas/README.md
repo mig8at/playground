@@ -83,7 +83,13 @@ claves de un **diccionario único**:
 ```
 agildata  pide {docType, docNumber, firstName, lastName}
           da   {monthlyIncome, contributionBase, employmentStatus, employmentContinuity, …15}
+acierta   da   {creditScore, monthlyDebtPayment, totalDebt, creditCards, liabilities, …33}
 ```
+
+Cuatro proveedores: **acierta** (el buró de Experian: score, comportamiento y deuda — es el decisivo
+para el listado), **agildata** y **mareigua** (ingreso y empleo desde seguridad social, uno fallback
+del otro) y **quanto** (estimación de ingreso, también de Experian). `creditScore` lo da **uno solo**,
+y eso es un dato de negocio, no un detalle: si acierta no contesta, no hay score.
 
 **Las claves van en inglés, camelCase, sin guiones bajos ni prefijos redundantes** (`docType`, no
 `documento_tipo` ni `document_type`), y una guarda de arranque lo obliga además de la de pertenencia.
@@ -123,6 +129,10 @@ que separarlas.
 
 Y una que no se puede arreglar renombrando: **`declaredNegativeReports` lleva la procedencia en el
 nombre**. Eso es el campo `fuente` que falta, asomando como parche de nomenclatura.
+
+⚠ **`experian_combinado` quedó afuera a propósito.** Su rol dice «Acierta + Quanto», pero el mapeo
+solo registró 9 campos suyos, todos subconjunto de acierta — falta lo de Quanto. Sembrarlo con lo que
+*debería* devolver sería inventar; entra cuando se verifique contra el código.
 
 ⚠ **Las `salida` salen del mapeo real** (`docs/codigo/mapeo-datos-buros.json`, hoy solo recuperable con
 `git show ef1d473^:…`, porque se fue con `docs/`). **Las `entrada` NO están verificadas**: ese mapeo
