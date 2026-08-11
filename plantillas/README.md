@@ -189,13 +189,52 @@ códigos para una sola solicitud**. Inocuo mientras a esa pantalla solo se llega
 refrescos es un SMS pagado por refresco y un usuario con tres mensajes de los que sirve uno. Hoy
 `otp/enviar` es idempotente salvo que se pida `{"reenviar":true}` explícito.
 
+## El backend decide también el CONTENIDO
+
+Un paso-formulario declara sus campos en la plantilla, y **cada campo es una referencia a una clave del
+diccionario** — no un nombre inventado por ese formulario:
+
+```json
+{"etapa":"perfil","titulo":"Tus datos","pasos":["perfil"],
+ "campos":{"perfil":[
+   {"clave":"firstName","label":"Primer nombre","requerido":true},
+   {"clave":"docNumber","label":"Número de documento","requerido":true,"patron":"^[0-9]{6,10}$"}
+ ]}}
+```
+
+El campo dice **cómo se pide** el dato (etiqueta, ayuda, obligatoriedad, formato). **Qué ES** el dato lo
+dice el diccionario, y de ahí sale el tipo. Esa división es la que evita que dos formularios definan
+`docNumber` con tipos distintos — y es lo que form-engine no podía hacer: sus campos eran anónimos,
+cada schema inventaba su vocabulario.
+
+Consecuencias, y son las que importan:
+
+- **Un formulario nuevo no toca código.** `POST /api/solicitudes/{id}/formulario` es un handler
+  genérico que valida contra los campos del paso ACTUAL (no recibe cuál es: lo decide el server), y en
+  el front `Formulario.vue` renderiza lo que le digan. El registro `tipo → componente` quedó solo para
+  los pasos con comportamiento propio, como el OTP.
+- **La validación no se duplica.** El front manda y el server valida contra el `patron` de la
+  plantilla. Dos implementaciones de la misma regla es cómo se llega a un front que acepta lo que el
+  back rechaza.
+- **Cuarta guarda de arranque:** un campo que referencie una clave que no está en el diccionario mata
+  el server, con la plantilla y el paso en el mensaje.
+
+Y acá se cierra el círculo con los burós: `GET /api/solicitudes/{id}/plan?quiero=creditScore` lee lo
+que la solicitud **ya capturó**. Antes del formulario contesta «acierta: faltan docNumber, docType,
+firstName, lastName»; después, «acierta LISTO». **Nadie escribió «para el score llamá a acierta».**
+
+⚠ El schema va por **fetch**, no por SSE. SSE es para eventos («pasó esto»); el schema es estado que
+hace falta para pintar la primera pantalla, y por el stream llegaría después del primer paint. El
+stream sí sirve para avisar que el schema cambió.
+
 ## Las costuras que faltan (a propósito)
 
 - **No hay transacción** entre borrar el OTP, mover el cursor y emitir. Es lo próximo: si el proceso muere
   en el medio de un reinicio, el OTP quedó borrado y el cursor no volvió. La salida conocida es meter
   estado + evento en un solo commit (*outbox*).
-- El backend decide la secuencia, **no el contenido**: los campos de un paso siguen en su `.vue`. Ese
-  hueco es el que el form dinámico real ya llena con su schema.
+- El formulario declara campos planos: **no hay `showIf`** (visibilidad condicional), ni opciones
+  dinámicas desde un endpoint, ni validación remota por campo. Todo eso lo tenía el DSL de form-engine
+  y entra cuando un caso real lo pida, no antes.
 - Las reglas de teléfono por país son un `map` en `server/pasos.go` (hoy solo `CO`). Deberían ser
   tabla, igual que las plantillas.
 - La plantilla es una **secuencia lineal**: no hay ramas condicionales. Y no modela los handoffs a

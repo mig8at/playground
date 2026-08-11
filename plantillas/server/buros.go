@@ -454,6 +454,28 @@ func (s *srv) plan(w http.ResponseWriter, r *http.Request) {
 	responder(w, 200, res)
 }
 
+// planDeSolicitud es el mismo plan, pero leyendo lo que la solicitud YA capturó en vez
+// de que el llamador lo pase a mano. Es donde se cierra el círculo: el formulario captura
+// claves del diccionario, y con esas claves el sistema sabe solo a qué servicio puede
+// llamar. Nadie escribió "para el score llamá a acierta".
+func (s *srv) planDeSolicitud(w http.ResponseWriter, r *http.Request) {
+	solicitudID := r.PathValue("id")
+	sol, err := s.leer(solicitudID)
+	if err != nil {
+		errorJSON(w, 404, "solicitud no encontrada")
+		return
+	}
+	q := r.URL.Query()
+	tengo := make([]string, 0, len(sol.Valores))
+	for k := range sol.Valores {
+		tengo = append(tengo, k)
+	}
+	sort.Strings(tengo)
+	q.Set("tengo", strings.Join(tengo, ","))
+	r.URL.RawQuery = q.Encode()
+	s.plan(w, r)
+}
+
 func contiene(xs []string, x string) bool {
 	for _, v := range xs {
 		if v == x {

@@ -41,6 +41,7 @@ func main() {
 	mux.HandleFunc("GET /api/proveedores", s.verProveedores)
 	mux.HandleFunc("GET /api/claves/{clave}/quien-la-da", s.quienDa)
 	mux.HandleFunc("GET /api/plan", s.plan)
+	mux.HandleFunc("GET /api/solicitudes/{id}/plan", s.planDeSolicitud)
 
 	mux.HandleFunc("POST /api/solicitudes", s.crearSolicitud)
 	mux.HandleFunc("GET /api/solicitudes/{id}", s.verSolicitud)
@@ -52,6 +53,9 @@ func main() {
 
 	// Un endpoint por componente del catálogo. Agregar un componente = agregar acá
 	// su efecto + su .vue, y ya se puede poner en cualquier plantilla.
+	// UN handler para todo paso que sea formulario: los campos los dice la plantilla.
+	mux.HandleFunc("POST /api/solicitudes/{id}/formulario", s.enviarFormulario)
+
 	mux.HandleFunc("POST /api/solicitudes/{id}/telefono", s.pasoTelefono)
 	mux.HandleFunc("POST /api/solicitudes/{id}/otp/enviar", s.otpEnviar)
 	mux.HandleFunc("POST /api/solicitudes/{id}/otp/verificar", s.otpVerificar)

@@ -3,12 +3,15 @@ import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { pedir, post } from './api.js'
 import Telefono from './pasos/Telefono.vue'
 import Otp from './pasos/Otp.vue'
-import Perfil from './pasos/Perfil.vue'
+import Formulario from './pasos/Formulario.vue'
 
 // EL REGISTRO: tipo del catálogo → componente. Es la única tabla de este frontend y es
 // lo que hace que agregar un paso a una plantilla no toque código de flujo. No hay
 // ningún `if comercio === …` en toda la app.
-const registro = { telefono: Telefono, otp: Otp, perfil: Perfil }
+// El registro queda solo para los pasos con COMPORTAMIENTO propio: el OTP pide y verifica
+// un código, eso no es un campo. Todo lo que sea capturar datos lo cubre `Formulario`
+// desde la plantilla, sin pasar por acá.
+const registro = { telefono: Telefono, otp: Otp }
 
 const plantillas = ref([])
 const catalogo = ref([])
@@ -22,7 +25,14 @@ const confirmando = ref(null)
 const cajonAbierto = ref(true)
 let stream = null
 
-const componenteActual = computed(() => registro[sol.value?.paso_tipo] ?? null)
+// Si el paso trae `campos`, gana el formulario GENÉRICO: un paso-formulario nuevo no
+// necesita ni una línea de front. El registro queda para los pasos que sí tienen
+// comportamiento propio (el OTP pide y verifica un código; eso no es un campo).
+const componenteActual = computed(() => {
+  if (!sol.value) return null
+  if (sol.value.campos?.length) return Formulario
+  return registro[sol.value.paso_tipo] ?? null
+})
 const puedeReiniciar = computed(() => sol.value && sol.value.paso_actual > 0)
 
 // ── el URL: solo el ID DE LA SOLICITUD ────────────────────────────────────────────
@@ -144,7 +154,12 @@ function escuchar(id) {
     if (eventos.value.some((e) => e.id === ev.id)) return
     eventos.value.unshift(ev)
     if (!sol.value) return
-    if (ev.tipo === 'paso.avanzado' || ev.tipo === 'solicitud.reiniciada') releer()
+    if (
+      ev.tipo === 'paso.avanzado' ||
+      ev.tipo === 'solicitud.reiniciada' ||
+      ev.tipo === 'formulario.enviado'
+    )
+      releer()
   }
 }
 
@@ -296,6 +311,7 @@ const enlace = computed(() => (sol.value ? `${location.origin}/solicitud/${sol.v
           :solicitud="sol.id"
           :pais="sol.pais"
           :valores="sol.valores"
+          :campos="sol.campos"
           :inicial="sol.valores?.phone"
         />
         <div v-else-if="sol.estado === 'completada'" class="paso">
@@ -562,6 +578,24 @@ h3 {
   display: flex;
   flex-direction: column;
   gap: 12px;
+}
+.campo {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.campo span {
+  font-size: 12px;
+  color: var(--suave);
+}
+.campo em {
+  font-style: normal;
+  opacity: 0.7;
+}
+.campo small {
+  font-size: 11px;
+  color: var(--suave);
+  opacity: 0.8;
 }
 input {
   background: #0d1015;

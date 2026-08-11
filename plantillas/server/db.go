@@ -82,9 +82,22 @@ var catalogo = []struct {
 
 // Una plantilla, Colombia. Dos etapas: validar el celular (dos componentes, una sola
 // cosa para la persona) y el perfil.
+// `campos` es la mitad que faltaba: el backend ya decidía la SECUENCIA, ahora también
+// el CONTENIDO. Y cada campo es una REFERENCIA a una clave del diccionario —no un nombre
+// inventado por este formulario—, así que hereda el tipo y el significado. Es lo que
+// form-engine no podía hacer: sus campos eran anónimos, cada schema inventaba su
+// vocabulario.
 const etapasCO = `[
   {"etapa":"celular","titulo":"Tu celular","pasos":["telefono","otp"]},
-  {"etapa":"perfil","titulo":"Tu perfil","pasos":["perfil"]}
+  {"etapa":"perfil","titulo":"Tus datos","pasos":["perfil"],
+   "campos":{"perfil":[
+     {"clave":"firstName","label":"Primer nombre","requerido":true},
+     {"clave":"lastName","label":"Primer apellido","requerido":true},
+     {"clave":"docType","label":"Tipo de documento","requerido":true,
+      "ayuda":"CC o CE","patron":"^(CC|CE)$"},
+     {"clave":"docNumber","label":"Número de documento","requerido":true,
+      "patron":"^[0-9]{6,10}$"}
+   ]}}
 ]`
 
 var semillas = []struct {
@@ -106,6 +119,7 @@ func abrirDB(ruta string) *sql.DB {
 	}
 	sembrar(db)
 	abrirBuros(db)
+	validarCampos(db)
 	return db
 }
 
@@ -126,3 +140,40 @@ func sembrar(db *sql.DB) {
 	}
 }
 
+
+// validarCampos corre DESPUÉS de sembrar el diccionario: cada campo de cada plantilla
+// tiene que referenciar una clave que exista. Es la misma guarda que ya tienen los
+// proveedores, extendida a los formularios — un formulario que captura un nombre que
+// nadie más conoce es cómo vuelven los sinónimos por la puerta de atrás.
+func validarCampos(db *sql.DB) {
+	filas, err := db.Query(`SELECT comercio, entidad, pais, etapas FROM plantillas`)
+	if err != nil {
+		log.Fatalf("validar campos: %v", err)
+	}
+	defer filas.Close()
+
+	type fila struct{ comercio, entidad, pais, etapas string }
+	var todas []fila
+	for filas.Next() {
+		var f fila
+		if filas.Scan(&f.comercio, &f.entidad, &f.pais, &f.etapas) == nil {
+			todas = append(todas, f)
+		}
+	}
+	for _, f := range todas {
+		var etapas []etapa
+		json.Unmarshal([]byte(f.etapas), &etapas)
+		for _, e := range etapas {
+			for paso, campos := range e.Campos {
+				for _, c := range campos {
+					var existe int
+					db.QueryRow(`SELECT COUNT(*) FROM claves WHERE clave = ?`, c.Clave).Scan(&existe)
+					if existe == 0 {
+						log.Fatalf("la plantilla %s/%s/%s pide en el paso %q el campo %q, que no está en el diccionario",
+							f.comercio, f.entidad, f.pais, paso, c.Clave)
+					}
+				}
+			}
+		}
+	}
+}

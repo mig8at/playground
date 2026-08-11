@@ -6,14 +6,32 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"regexp"
+	"strings"
 )
 
 // etapa es la unidad que ve la PERSONA: un objetivo ("tu celular") que por debajo
 // puede necesitar varios componentes. Retroceder trabaja en esta granularidad.
 type etapa struct {
-	Etapa  string   `json:"etapa"`
-	Titulo string   `json:"titulo"`
-	Pasos  []string `json:"pasos"`
+	Etapa  string             `json:"etapa"`
+	Titulo string             `json:"titulo"`
+	Pasos  []string           `json:"pasos"`
+	Campos map[string][]campo `json:"campos,omitempty"` // por tipo de paso
+}
+
+// campo NO declara su tipo: lo hereda de la clave del diccionario. Acá va solo cómo se
+// PIDE el dato (etiqueta, ayuda, obligatoriedad, formato); qué ES el dato ya lo dice el
+// diccionario. Esa división es la que evita que dos formularios definan `docNumber` con
+// tipos distintos.
+type campo struct {
+	Clave     string `json:"clave"`
+	Label     string `json:"label"`
+	Ayuda     string `json:"ayuda,omitempty"`
+	Requerido bool   `json:"requerido"`
+	Patron    string `json:"patron,omitempty"`
+
+	// Se rellena al servir, desde el diccionario. No se escribe en la plantilla.
+	Tipo string `json:"tipo,omitempty"`
 }
 
 type solicitud struct {
@@ -28,6 +46,7 @@ type solicitud struct {
 	Pasos       []string `json:"pasos"`
 	PasoTipo    string   `json:"paso_tipo"`
 	EtapaActual int      `json:"etapa_actual"`
+	Campos      []campo  `json:"campos"` // los del paso actual, con su tipo resuelto
 }
 
 func aplanar(etapas []etapa) []string {
@@ -147,6 +166,16 @@ func (s *srv) leer(solicitudID string) (*solicitud, error) {
 	sol.EtapaActual = etapaDe(sol.Etapas, sol.PasoActual)
 	if sol.Estado == "abierta" && sol.PasoActual < len(sol.Pasos) {
 		sol.PasoTipo = sol.Pasos[sol.PasoActual]
+	}
+
+	// Los campos del paso actual viajan resueltos: el front no tiene que buscar en el
+	// snapshot ni saber de qué tipo es cada clave.
+	sol.Campos = []campo{}
+	if sol.PasoTipo != "" {
+		for _, c := range sol.Etapas[sol.EtapaActual].Campos[sol.PasoTipo] {
+			s.db.QueryRow(`SELECT tipo FROM claves WHERE clave = ?`, c.Clave).Scan(&c.Tipo)
+			sol.Campos = append(sol.Campos, c)
+		}
 	}
 
 	// Los valores capturados viajan de vuelta para que al reiniciar el campo venga
@@ -274,6 +303,74 @@ func (s *srv) reiniciar(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	responder(w, 200, actualizada)
+}
+
+// enviarFormulario es UN handler para cualquier paso que sea un formulario: valida contra
+// los `campos` que declara la plantilla para el paso ACTUAL y guarda. Agregar un
+// formulario nuevo no toca Go — es una fila.
+//
+// No recibe qué paso es: lo decide el server. Si el cliente pudiera decirlo, podría
+// mandar los campos de otro paso.
+func (s *srv) enviarFormulario(w http.ResponseWriter, r *http.Request) {
+	solicitudID := r.PathValue("id")
+	sol, err := s.leer(solicitudID)
+	if err != nil {
+		errorJSON(w, 404, "solicitud no encontrada")
+		return
+	}
+	if sol.Estado != "abierta" {
+		errorJSON(w, 409, fmt.Sprintf("la solicitud está %s", sol.Estado))
+		return
+	}
+	if len(sol.Campos) == 0 {
+		errorJSON(w, 409, fmt.Sprintf("el paso %q no es un formulario", sol.PasoTipo))
+		return
+	}
+
+	var in map[string]string
+	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
+		errorJSON(w, 400, "cuerpo inválido")
+		return
+	}
+
+	// Se valida TODO antes de guardar nada: un formulario a medio guardar es peor que uno
+	// rechazado.
+	for _, c := range sol.Campos {
+		v := strings.TrimSpace(in[c.Clave])
+		if v == "" {
+			if c.Requerido {
+				errorJSON(w, 422, fmt.Sprintf("falta %s", c.Label))
+				return
+			}
+			continue
+		}
+		if c.Patron != "" {
+			ok, err := regexp.MatchString(c.Patron, v)
+			if err != nil || !ok {
+				errorJSON(w, 422, fmt.Sprintf("%s no tiene el formato esperado", c.Label))
+				return
+			}
+		}
+	}
+
+	guardadas := []string{}
+	for _, c := range sol.Campos {
+		v := strings.TrimSpace(in[c.Clave])
+		if v == "" {
+			continue
+		}
+		if err := s.guardarValor(solicitudID, c.Clave, v); err != nil {
+			errorJSON(w, 500, err.Error())
+			return
+		}
+		guardadas = append(guardadas, c.Clave)
+	}
+
+	s.hub.emitir(solicitudID, "formulario.enviado", map[string]any{
+		"paso": sol.PasoTipo, "claves": guardadas,
+	})
+	s.avanzar(sol)
+	responder(w, 200, map[string]any{"ok": true})
 }
 
 // eventos es el SSE: HTTP plano, pasa WAF y funciona dentro de un iframe. Manda
