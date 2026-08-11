@@ -84,6 +84,18 @@ type config struct {
 	redashURL, redashToken string
 	redashDS               int
 	redashTZ               string
+
+	// PostHog: la TERCERA fuente. La BD dice qué pasó y Loki por qué falló el backend; PostHog dice qué
+	// VIO y qué TOCÓ el cliente en el navegador — el punto ciego de hoy. Se pega a una solicitud sin
+	// heurística: el wizard usa `distinct_id = loan_request_<user_request_id>` (`getLoanRequestDistinctId`
+	// en frontend-monorepo/apps/loan-request-wizard/app/utils/analytics-taxonomy.ts:452).
+	//
+	// ⚠ El token NO es el `phc_` del snippet del front: ese es de ESCRITURA y no consulta nada. Acá va una
+	// Personal API key (`phx_`) con scope de lectura de queries — ver .env.prod.example.
+	posthogToken   string
+	posthogAPI     string // https://us.posthog.com (el host de la API, distinto del de ingesta)
+	posthogProject string // id NUMÉRICO del proyecto; el paso 1 lo descubre solo si el scope alcanza
+	posthogEnv     string // filtro de `properties.environment` (production|staging|dev). Vacío = sin filtro
 }
 
 // alias mapea cada campo a los nombres de variable que aceptamos. Los `GRAFANA_LOKI_*` son los que usa
@@ -104,6 +116,13 @@ var alias = map[string][]string{
 	"redashToken": {"REDASH_TOKEN"},
 	"redashDS":    {"REDASH_DATA_SOURCE_ID"},
 	"redashTZ":    {"REDASH_TZ"},
+	// PostHog. `VITE_PUBLIC_POSTHOG_HOST` es el nombre que usa el wizard para el host de INGESTA: se acepta
+	// como último recurso para no tener que buscarlo, pero la API de lectura vive en otro subdominio y
+	// `normalizePostHogAPI` lo corrige (us.i.posthog.com → us.posthog.com).
+	"posthogToken":   {"POSTHOG_TOKEN", "POSTHOG_PERSONAL_API_KEY"},
+	"posthogAPI":     {"POSTHOG_API", "POSTHOG_HOST", "VITE_PUBLIC_POSTHOG_HOST"},
+	"posthogProject": {"POSTHOG_PROJECT", "POSTHOG_PROJECT_ID"},
+	"posthogEnv":     {"POSTHOG_ENV"},
 }
 
 // loadConfig busca los valores en `process.env` y en el `.env.<target>` de la propia herramienta, en ese
@@ -156,7 +175,7 @@ func loadConfig(target string) (config, []string) {
 
 	var c config
 	var origins []string
-	for _, field := range []string{"token", "base", "user", "tenant", "env", "dbHost", "dbPort", "dbName", "dbUser", "dbPass", "redashURL", "redashToken", "redashDS", "redashTZ"} {
+	for _, field := range []string{"token", "base", "user", "tenant", "env", "dbHost", "dbPort", "dbName", "dbUser", "dbPass", "redashURL", "redashToken", "redashDS", "redashTZ", "posthogToken", "posthogAPI", "posthogProject", "posthogEnv"} {
 		v, from := pick(field)
 		switch field {
 		case "token":
@@ -187,6 +206,14 @@ func loadConfig(target string) (config, []string) {
 			fmt.Sscanf(v, "%d", &c.redashDS)
 		case "redashTZ":
 			c.redashTZ = v
+		case "posthogToken":
+			c.posthogToken = v
+		case "posthogAPI":
+			c.posthogAPI = normalizePostHogAPI(v)
+		case "posthogProject":
+			c.posthogProject = v
+		case "posthogEnv":
+			c.posthogEnv = v
 		}
 		if from != "" {
 			origins = append(origins, field+" <- "+from)
@@ -562,6 +589,7 @@ func main() {
 	htmlOut := flag.String("html", "", "con -ureq: además escribe la vista de checks en este archivo")
 	sqlQuery := flag.String("sql", "", "UNA consulta de solo lectura (SELECT/WITH) contra la fuente del target — ver sql.go")
 	sqlCSV := flag.Bool("csv", false, "con -sql: salida en CSV en vez de tabla")
+	posthog := flag.Bool("posthog", false, "sonda de acceso a PostHog (qué VIO el cliente); con -ureq, los eventos de esa solicitud")
 	flag.Parse()
 
 	c, checked := loadConfig(*target)
@@ -592,6 +620,11 @@ func main() {
 	}
 	if *spans && *ureq > 0 {
 		os.Exit(modoSpans(*target, *ureq))
+	}
+	// Va ANTES del despacho de `-ureq`: `-posthog -ureq N` pregunta por los eventos del NAVEGADOR de esa
+	// solicitud, no por la traza de etapas.
+	if *posthog {
+		os.Exit(modoPostHog(c, *target, *ureq, *limit))
 	}
 	if *validar != "" {
 		os.Exit(ValidarContra(*validar))

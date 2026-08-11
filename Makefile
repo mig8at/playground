@@ -154,9 +154,12 @@ harness-obs-down: ## @har baja Loki y Tempo locales (se llevan sus datos)
 # Solo GET: no escribe nada en ningún ambiente.
 # ⚠ El módulo Go vive en `trazador/server/`, no en `trazador/` (se mudó al pasar a Vue + server Go).
 # Desde `trazador/` el go run falla con «cannot find main module».
-.PHONY: trazador-acceso trazador-sql
+.PHONY: trazador-acceso trazador-sql trazador-posthog
 trazador-acceso: ## @har ¿puedo leer los logs en Loki? (TARGET=prod|dev QUERY='{...}' SINCE=1h)
 	@cd trazador/server && go run . $(if $(TARGET),-target $(TARGET)) $(if $(QUERY),-query '$(QUERY)') $(if $(SINCE),-since $(SINCE))
+
+trazador-posthog: ## @har ¿qué VIO el cliente en el navegador? Sin UREQ = sonda de acceso + censo (TARGET=prod UREQ=n)
+	@cd trazador/server && go run . -posthog $(if $(TARGET),-target $(TARGET)) $(if $(UREQ),-ureq $(UREQ)) $(if $(LIMIT),-limit $(LIMIT))
 
 trazador-sql: ## @har UNA consulta de SOLO LECTURA a la BD del ambiente. SQL='SELECT …' [TARGET=prod|local] [CSV=1]
 	@test -n "$(SQL)" || { echo "falta SQL='SELECT …'  ·  ej: make trazador-sql TARGET=local SQL='SELECT id,name FROM countries LIMIT 3'"; exit 2; }

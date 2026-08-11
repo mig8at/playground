@@ -31,6 +31,7 @@ etapa falló» y en el primer cambio se contradirían.
 | `go run . -ureq <n> [-html f.html] [-json]` | la traza por etapas |
 | `go run . -validar <corpus>` | audita el mapa: solapes, patrones mudos, decisiones que no resuelven |
 | `go run . -slack <días>` | lee #tech-ops y clasifica los reportes (**solo lectura**) |
+| `go run . -posthog [-ureq <n>]` | **qué VIO el cliente en el navegador** — sonda de acceso + censo; con `-ureq`, su timeline |
 | `go run .` | la sonda de acceso: ¿puedo leer los logs de este ambiente? |
 
 Todos aceptan `-target local|dev|staging|prod`.
@@ -67,6 +68,41 @@ lag de ingesta), así que los logs **explican** pero nunca dictaminan.
 | `prod` | **Redash** (`execute_query`, asíncrono y **auditado a nombre del token**) | `creditop` |
 
 ⚠ Redash vive detrás de un **ELB interno**: sin VPN el síntoma es un *timeout*, no un 401.
+
+### La tercera fuente: PostHog dice qué VIO el cliente
+
+La BD y los logs comparten un punto ciego: **el navegador**. Un «abandonado» tapa cuatro historias que
+desde la BD se leen igual —el cliente se fue · el front reventó antes de llegar al backend · nunca vio la
+pantalla · la vio y no lo dejó avanzar— y son cuatro conversaciones distintas con el cliente que llama.
+
+El wizard ya instrumenta eso en PostHog, y el empalme **no es heurística**: identifica con
+`distinct_id = loan_request_<user_request_id>` y manda `loan_request_id` como propiedad canónica de todo
+evento (unificando seis alias) — `analytics-taxonomy.ts` en `frontend-monorepo`. El trazador ya tiene el
+`ureq`, así que el join es exacto. Encima el vocabulario es **cerrado** (≈100 nombres de evento en un
+`z.enum`, 13 `known_exception_reason`), igual que `mapa/etapas.json`: se puede mapear, no adivinar.
+
+Lo que aporta que hoy no existe: `screen_viewed` (la última pantalla que **vio**, contra el último estado
+que llegó a la BD — la diferencia entre las dos es el diagnóstico), `known_exception_captured` con su
+`known_exception_reason` (`otp_invalid`, `no_offers`, `session_expired`…) y el `$session_id`, que los
+eventos de servidor también llevan (`withPostHogSession`) — o sea, el **link a la grabación** si el
+proyecto tiene replay prendido.
+
+⚠ **Cobertura, y va en pantalla:** solo el **wizard nuevo** (`app_name = loan-request-wizard`). Una
+solicitud del flujo clásico de `legacy-application` no aparece, y **«sin eventos» no es «el cliente no
+hizo nada»** — el modo imprime las cuatro causas indistinguibles en vez de dejar creer la fácil.
+
+El token es de **lectura** (Personal API key `phx_`, scope `query:read`) y este archivo solo consulta: el
+trazador **no se instrumenta a sí mismo**. Renderiza cédulas y teléfonos de producción, y mandar eso a un
+SaaS es justo lo que no queremos — ver `.env.prod.example`.
+
+```bash
+go run . -posthog                 # ¿tengo acceso? + censo por ambiente / app / canal / evento
+go run . -posthog -ureq 519245    # el timeline del navegador de esa solicitud + link a la grabación
+```
+
+El **censo se mira antes** de creerle a un timeline vacío: dice si el proyecto es uno por ambiente o uno
+solo, y cuántos eventos traen `loan_request_id`. Por eso `POSTHOG_ENV` arranca vacío — filtrar antes de
+mirar puede esconder todo y leerse como «no hay datos».
 
 ## La sonda de acceso (el modo original)
 
