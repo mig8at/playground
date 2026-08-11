@@ -42,6 +42,7 @@ function rutaDeURL() {
 }
 const ruta = ref(rutaDeURL())
 const filtro = ref('')
+const claseFiltro = ref('')
 
 function irA(path) {
   history.pushState({}, '', path)
@@ -53,10 +54,11 @@ const clavesPorGrupo = computed(() => {
   const q = filtro.value.trim().toLowerCase()
   const salen = claves.value.filter(
     (c) =>
-      !q ||
-      c.clave.toLowerCase().includes(q) ||
-      c.label.toLowerCase().includes(q) ||
-      c.la_dan.some((s) => s.toLowerCase().includes(q)),
+      (!claseFiltro.value || c.clase === claseFiltro.value) &&
+      (!q ||
+        c.clave.toLowerCase().includes(q) ||
+        c.label.toLowerCase().includes(q) ||
+        c.la_dan.some((s) => s.toLowerCase().includes(q))),
   )
   const grupos = {}
   for (const c of salen) (grupos[c.grupo] ||= []).push(c)
@@ -194,6 +196,13 @@ function alCambiarElURL() {
   if (!sol.value || sol.value.id !== id) abrir(id)
 }
 
+// Las clases con su conteo, para los chips. Sale del dato, no de una lista a mano.
+const clases = computed(() => {
+  const n = {}
+  for (const c of claves.value) n[c.clase] = (n[c.clase] || 0) + 1
+  return Object.entries(n).sort((a, b) => b[1] - a[1])
+})
+
 const enlace = computed(() => (sol.value ? `${location.origin}/solicitud/${sol.value.id}` : ''))
 </script>
 
@@ -317,9 +326,28 @@ const enlace = computed(() => (sol.value ? `${location.origin}/solicitud/${sol.v
         clave, una fila: si un proveedor nombra algo que no está acá, el server no arranca.
       </p>
       <input v-model="filtro" class="buscador" placeholder="Buscar clave, descripción o servicio…" />
+      <div class="chips">
+        <button
+          class="chip"
+          :class="{ on: !claseFiltro }"
+          @click="claseFiltro = ''"
+        >
+          todas · {{ claves.length }}
+        </button>
+        <button
+          v-for="[cl, n] in clases"
+          :key="cl"
+          class="chip"
+          :class="[{ on: claseFiltro === cl }, 'c-' + cl]"
+          @click="claseFiltro = claseFiltro === cl ? '' : cl"
+        >
+          {{ cl }} · {{ n }}
+        </button>
+      </div>
       <p class="ayuda">
-        Entre paréntesis, qué servicios traen cada clave. Las que no trae ninguno se capturan en el
-        flujo o las declara la persona.
+        Entre paréntesis, qué servicios traen cada clave. Un <b>atributo</b> describe a la persona y se
+        puede tomar de cualquiera que lo tenga; un <b>veredicto</b> es el resultado de una verificación
+        y <b>no tiene sustituto</b>: si no corrió, falta.
       </p>
       <p class="ayuda" v-if="filtro">
         {{ clavesPorGrupo.reduce((n, [, cs]) => n + cs.length, 0) }} de {{ claves.length }}
@@ -343,7 +371,12 @@ const enlace = computed(() => (sol.value ? `${location.origin}/solicitud/${sol.v
                 <div v-else class="la-dan sin">(no la trae ningún servicio)</div>
               </td>
               <td>{{ c.label }}</td>
-              <td><span class="tipo-tag">{{ c.tipo }}</span></td>
+              <td>
+                <span class="tipo-tag">{{ c.tipo }}</span>
+                <span v-if="c.clase !== 'atributo'" class="tipo-tag clase" :class="'c-' + c.clase">
+                  {{ c.clase }}
+                </span>
+              </td>
             </tr>
           </tbody>
         </table>
@@ -632,6 +665,41 @@ td code {
 }
 .la-dan.sin {
   opacity: 0.55;
+}
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 10px 0 4px;
+}
+.chip {
+  width: auto;
+  background: transparent;
+  border: 1px solid var(--borde);
+  color: var(--suave);
+  font-size: 12px;
+  font-weight: 400;
+  padding: 4px 10px;
+  border-radius: 999px;
+}
+.chip.on {
+  color: var(--texto);
+  border-color: var(--acento);
+}
+.tipo-tag.clase {
+  margin-left: 5px;
+}
+.c-veredicto {
+  color: #ffb454;
+  border-color: #5c4526;
+}
+.c-evidencia {
+  color: #9d8cff;
+  border-color: #3d3468;
+}
+.c-artefacto,
+.c-operativo {
+  color: var(--suave);
 }
 .tipo-tag {
   font-family: ui-monospace, Menlo, monospace;

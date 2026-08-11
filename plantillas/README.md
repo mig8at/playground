@@ -96,6 +96,29 @@ para cualquier servicio externo, no solo para los que devuelven datos de riesgo.
 devuelven **veredictos** (`amlHit`, `identityMatch`, `biometricStatus`), no atributos: son datos que
 deciden, no que describen.
 
+## La clase: qué ES el dato, y si un fallback es legal
+
+Cada clave declara una **clase**, y no es cosmética — decide si se puede sustituir:
+
+| clase | qué es | ¿fallback? |
+|---|---|---|
+| `atributo` (51) | describe a la persona o su historia | **sí**: se toma de quien lo tenga, eso es una cascada |
+| `veredicto` (4) | el resultado de una verificación: decide, no describe | **no**: dos chequeos de listas no se sustituyen, cubren cosas distintas |
+| `evidencia` (2) | el respaldo de un veredicto | no: una regla lee el veredicto, no ramifica sobre la evidencia |
+| `artefacto` (1) | algo que el flujo produce, no que averigua (el pagaré) | no aplica |
+| `operativo` (1) | metadata de la llamada, no del solicitante (`amlJob`) | no aplica |
+
+La consecuencia que importa: **un default para un atributo que falta es una decisión de negocio; un
+default para un veredicto que falta es un bug.** Si el chequeo de listas no corrió no hay valor
+alternativo — hay una ausencia, y una ausencia se resuelve cerrado. Es exactamente por qué el `0` al
+final de la cascada de ingreso es discutible y un `amlHit=false` por omisión sería grave.
+
+`/api/plan` lo dice en la respuesta: para `monthlyIncome` contesta «fallback permitido» y tres
+opciones; para `amlHit`, «NO permitido: un veredicto no tiene sustituto».
+
+⚠ `operativo` es una **clase de uno**, y eso es la señal: `amlJob` no es un dato del solicitante, es
+plumbing de la llamada. Probablemente no debería estar en el diccionario.
+
 En la página, cada clave muestra **entre paréntesis** qué servicios la traen, y el buscador también
 busca por servicio. **19 de 59 claves las trae más de uno** —`docNumber` cuatro, `monthlyIncome` tres—
 y ahí es donde una cascada tiene sentido. `creditScore` lo da **uno solo**, y eso es un dato de

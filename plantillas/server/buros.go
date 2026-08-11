@@ -27,6 +27,49 @@ var tiposValidos = map[string]bool{
 	"boolean": true, "list": true, "object": true,
 }
 
+// LA CLASE dice QUÉ ES el dato, no de qué tipo es. Y no es cosmética: decide si un
+// FALLBACK es legal.
+//
+//   - `atributo`  describe a la persona o su historia (monthlyIncome, creditScore).
+//     Se puede tomar de quien lo tenga: por eso una cascada tiene sentido.
+//   - `veredicto` es el RESULTADO de una verificación: decide, no describe (amlHit,
+//     identityMatch, biometricStatus). No tiene sustituto. Si no corrió, no hay un
+//     valor alternativo: hay una AUSENCIA, y una ausencia de veredicto tiene que
+//     fallar cerrado. Poner un default acá no es una decisión de negocio, es un bug.
+//   - `evidencia` es el respaldo de un veredicto (por qué dio eso). Una regla puede
+//     leer un veredicto; no debería ramificar sobre la evidencia.
+//   - `artefacto` es algo que el flujo PRODUCE, no que averigua (el pagaré).
+//   - `operativo` es metadata de la llamada, no del solicitante (el job de AML).
+var clasesValidas = map[string]bool{
+	"atributo": true, "veredicto": true, "evidencia": true, "artefacto": true, "operativo": true,
+}
+
+// Todo es `atributo` salvo lo que diga acá. Se listan las excepciones y no las 59
+// para que agregar una clave no obligue a decidir de nuevo lo obvio — y para que la
+// lista de lo que NO es un atributo se lea de un vistazo.
+var claseDe = map[string]string{
+	"identityMatch":   "veredicto",
+	"amlHit":          "veredicto",
+	"amlLevel":        "veredicto",
+	"biometricStatus": "veredicto",
+
+	"identityFindings": "evidencia",
+	"amlDetails":       "evidencia",
+
+	"promissoryNote": "artefacto",
+
+	// ⚠ Clase de uno, y eso es la señal: `amlJob` no es un dato del solicitante, es
+	// plumbing de la llamada. Probablemente no debería estar en el diccionario.
+	"amlJob": "operativo",
+}
+
+func clase(clave string) string {
+	if c, ok := claseDe[clave]; ok {
+		return c
+	}
+	return "atributo"
+}
+
 // Los burós dejan de ser "APIs que devuelven datos" y pasan a ser un CONTRATO:
 // qué necesito para llamarlo (entrada) y qué me devuelve (salida), los dos escritos
 // en las claves del MISMO diccionario.
@@ -43,7 +86,8 @@ CREATE TABLE IF NOT EXISTS claves (
   clave TEXT PRIMARY KEY,
   label TEXT NOT NULL,
   tipo  TEXT NOT NULL,
-  grupo TEXT NOT NULL
+  grupo TEXT NOT NULL,
+  clase TEXT NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS proveedores (
@@ -213,8 +257,11 @@ func abrirBuros(db *sql.DB) {
 		if !tiposValidos[c.tipo] {
 			log.Fatalf("la clave %q declara el tipo %q, que no está en el set", c.clave, c.tipo)
 		}
-		if _, err := db.Exec(`INSERT INTO claves (clave, label, tipo, grupo) VALUES (?,?,?,?)`,
-			c.clave, c.label, c.tipo, c.grupo); err != nil {
+		if !clasesValidas[clase(c.clave)] {
+			log.Fatalf("la clave %q declara la clase %q, que no está en el set", c.clave, clase(c.clave))
+		}
+		if _, err := db.Exec(`INSERT INTO claves (clave, label, tipo, grupo, clase) VALUES (?,?,?,?,?)`,
+			c.clave, c.label, c.tipo, c.grupo, clase(c.clave)); err != nil {
 			// PRIMARY KEY: si alguien repite una clave, el diccionario deja de ser uno.
 			log.Fatalf("clave duplicada en el diccionario: %q (%v)", c.clave, err)
 		}
@@ -269,7 +316,7 @@ func (s *srv) contratos() ([]contrato, error) {
 }
 
 func (s *srv) verClaves(w http.ResponseWriter, r *http.Request) {
-	filas, err := s.db.Query(`SELECT clave, label, tipo, grupo FROM claves ORDER BY grupo, clave`)
+	filas, err := s.db.Query(`SELECT clave, label, tipo, grupo, clase FROM claves ORDER BY grupo, clave`)
 	if err != nil {
 		errorJSON(w, 500, "no se pudo leer el diccionario")
 		return
@@ -290,12 +337,13 @@ func (s *srv) verClaves(w http.ResponseWriter, r *http.Request) {
 		Label string   `json:"label"`
 		Tipo  string   `json:"tipo"`
 		Grupo string   `json:"grupo"`
+		Clase string   `json:"clase"`
 		LaDan []string `json:"la_dan"`
 	}
 	out := []cl{}
 	for filas.Next() {
 		var c cl
-		if filas.Scan(&c.Clave, &c.Label, &c.Tipo, &c.Grupo) == nil {
+		if filas.Scan(&c.Clave, &c.Label, &c.Tipo, &c.Grupo, &c.Clase) == nil {
 			c.LaDan = laDan[c.Clave]
 			if c.LaDan == nil {
 				c.LaDan = []string{}
@@ -349,6 +397,12 @@ func (s *srv) plan(w http.ResponseWriter, r *http.Request) {
 		errorJSON(w, 400, "falta ?quiero=<clave>")
 		return
 	}
+	var existe int
+	s.db.QueryRow(`SELECT COUNT(*) FROM claves WHERE clave = ?`, quiero).Scan(&existe)
+	if existe == 0 {
+		errorJSON(w, 404, "esa clave no está en el diccionario")
+		return
+	}
 	tengo := map[string]bool{}
 	for _, k := range strings.Split(r.URL.Query().Get("tengo"), ",") {
 		if k = strings.TrimSpace(k); k != "" {
@@ -384,9 +438,20 @@ func (s *srv) plan(w http.ResponseWriter, r *http.Request) {
 	// Los que se pueden llamar ya, primero.
 	sort.SliceStable(opciones, func(i, j int) bool { return opciones[i].Listo && !opciones[j].Listo })
 
-	responder(w, 200, map[string]any{
-		"quiero": quiero, "tengo": claveSet(tengo), "opciones": opciones,
-	})
+	// Acá la CLASE deja de ser informativa. Para un atributo, varias opciones son una
+	// cascada: se toma de quien lo tenga. Para un veredicto NO son intercambiables —
+	// dos chequeos de listas no se sustituyen entre sí, cubren cosas distintas—, y si
+	// no corrió no hay valor alternativo: hay una ausencia, y se falla cerrado.
+	cl := clase(quiero)
+	res := map[string]any{
+		"quiero": quiero, "clase": cl, "tengo": claveSet(tengo), "opciones": opciones,
+	}
+	if cl == "atributo" {
+		res["fallback"] = "permitido: cualquiera de las opciones sirve"
+	} else {
+		res["fallback"] = "NO permitido: un " + cl + " no tiene sustituto — si no corre, falta, y falta se resuelve cerrado"
+	}
+	responder(w, 200, res)
 }
 
 func contiene(xs []string, x string) bool {
