@@ -86,10 +86,24 @@ agildata  pide {docType, docNumber, firstName, lastName}
 acierta   da   {creditScore, monthlyDebtPayment, totalDebt, creditCards, liabilities, …33}
 ```
 
-Cuatro proveedores: **acierta** (el buró de Experian: score, comportamiento y deuda — es el decisivo
-para el listado), **agildata** y **mareigua** (ingreso y empleo desde seguridad social, uno fallback
-del otro) y **quanto** (estimación de ingreso, también de Experian). `creditScore` lo da **uno solo**,
-y eso es un dato de negocio, no un detalle: si acierta no contesta, no hay score.
+Ocho servicios: **acierta** (buró Experian: score, comportamiento y deuda — el decisivo para el
+listado), **agildata** y **mareigua** (ingreso y empleo desde seguridad social, uno fallback del
+otro), **quanto** (estimación de ingreso, también Experian), **tusdatosId** y **tusdatosAml** (KYC:
+identidad y listas restrictivas), **ado** (biometría) y **deceval** (firma del pagaré).
+
+⚠ **deceval no es un buró** y entra igual: el modelo —entrada → salida sobre el diccionario— sirve
+para cualquier servicio externo, no solo para los que devuelven datos de riesgo. Y los dos de KYC
+devuelven **veredictos** (`amlHit`, `identityMatch`, `biometricStatus`), no atributos: son datos que
+deciden, no que describen.
+
+En la página, cada clave muestra **entre paréntesis** qué servicios la traen, y el buscador también
+busca por servicio. **19 de 59 claves las trae más de uno** —`docNumber` cuatro, `monthlyIncome` tres—
+y ahí es donde una cascada tiene sentido. `creditScore` lo da **uno solo**, y eso es un dato de
+negocio: si acierta no contesta, no hay score.
+
+⚠ **ADO necesita además una CAPTURA** (selfie + foto del documento) que no es una clave del
+diccionario. Es el límite del modelo: la `entrada` asume que todo insumo es un dato con nombre, y hay
+insumos que son un archivo.
 
 **Las claves van en inglés, camelCase, sin guiones bajos ni prefijos redundantes** (`docType`, no
 `documento_tipo` ni `document_type`), y una guarda de arranque lo obliga además de la de pertenencia.

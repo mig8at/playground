@@ -112,6 +112,22 @@ var claves = []struct{ clave, label, tipo, grupo string }{
 	{"liabilities", "Detalle de pasivos reportados", "list", "deuda"},
 	{"creditCards", "Detalle de tarjetas de crédito", "list", "deuda"},
 	{"debtTrend", "Evolución de la deuda en el tiempo", "object", "deuda"},
+
+	{"identityMatch", "Coincidencia de identidad (0 no / 1 parcial / 2 total)", "number", "kyc"},
+	{"identityFindings", "Hallazgos de la validación de identidad", "list", "kyc"},
+	{"amlHit", "¿Aparece en listas restrictivas / AML?", "boolean", "kyc"},
+	{"amlLevel", "Nivel del hallazgo AML", "string", "kyc"},
+	{"amlDetails", "Detalle de los hallazgos AML", "object", "kyc"},
+	{"amlJob", "Job asíncrono de AML (id + estado)", "object", "kyc"},
+	{"biometricStatus", "Resultado de la validación biométrica/documental", "string", "kyc"},
+
+	{"promissoryNote", "Pagaré firmado electrónicamente", "object", "formalizacion"},
+
+	// Capturadas en el flujo, no por un proveedor. Están acá porque el diccionario es UNO:
+	// si lo que se captura vive en otro vocabulario, el día que un componente pida un dato
+	// de buró hay que traducir — y ahí es donde nacen los sinónimos.
+	{"phone", "Celular, como lo tipea la persona", "string", "contacto"},
+	{"phoneE164", "Celular en formato internacional (+57…)", "string", "contacto"},
 }
 
 // LOS CONTRATOS. `salida` sale del mapeo real (qué campo declara a cada proveedor en
@@ -152,6 +168,30 @@ var proveedores = []struct {
 			"savingsAccounts", "microcreditProfile", "inquiryFootprints",
 			"monthlyDebtPayment", "totalDebt", "pastDueBalance", "pastDueByAge", "debtBySector",
 			"balanceHistory24m", "liabilities", "creditCards", "debtTrend"}},
+
+
+	{"tusdatosId", "KYC: validación de identidad contra registraduría (CC/CE)",
+		[]string{"docType", "docNumber", "firstName", "lastName"},
+		[]string{"fullName", "docIssueDate", "docStatus", "identityMatch", "identityFindings"}},
+
+	{"tusdatosAml", "KYC: background y listas restrictivas (AML)",
+		[]string{"docType", "docNumber", "firstName", "lastName"},
+		[]string{"amlHit", "amlLevel", "amlDetails", "amlJob"}},
+
+	// ⚠ ADO además necesita una CAPTURA (selfie + foto del documento) que no es una clave
+	// del diccionario. Es el límite del modelo: la entrada asume que todo insumo es un dato
+	// con nombre, y hay insumos que son un archivo.
+	{"ado", "KYC: validación biométrica y documental",
+		[]string{"docType", "docNumber"},
+		[]string{"docNumber", "biometricStatus"}},
+
+	// ⚠ deceval NO es un buró: firma el pagaré por SOAP. Entra igual porque el modelo
+	// —entrada → salida sobre el diccionario— sirve para cualquier servicio externo, no
+	// solo para los que devuelven datos de riesgo. Su entrada es la MENOS confiable de
+	// todas: no está en el mapeo y no la miré en el código.
+	{"deceval", "formalización: firma electrónica del pagaré (SOAP)",
+		[]string{"docType", "docNumber", "fullName"},
+		[]string{"promissoryNote"}},
 
 	{"quanto", "estimación de ingreso (Experian)",
 		[]string{"docType", "docNumber", "firstName", "lastName"},
@@ -235,16 +275,31 @@ func (s *srv) verClaves(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer filas.Close()
+	// El índice invertido viaja con cada clave: la pregunta "¿quién me la da?" es la que
+	// se hace todo el tiempo, y calcularla en el front sería una segunda implementación.
+	cs, _ := s.contratos()
+	laDan := map[string][]string{}
+	for _, c := range cs {
+		for _, k := range c.Salida {
+			laDan[k] = append(laDan[k], c.Proveedor)
+		}
+	}
+
 	type cl struct {
-		Clave string `json:"clave"`
-		Label string `json:"label"`
-		Tipo  string `json:"tipo"`
-		Grupo string `json:"grupo"`
+		Clave string   `json:"clave"`
+		Label string   `json:"label"`
+		Tipo  string   `json:"tipo"`
+		Grupo string   `json:"grupo"`
+		LaDan []string `json:"la_dan"`
 	}
 	out := []cl{}
 	for filas.Next() {
 		var c cl
 		if filas.Scan(&c.Clave, &c.Label, &c.Tipo, &c.Grupo) == nil {
+			c.LaDan = laDan[c.Clave]
+			if c.LaDan == nil {
+				c.LaDan = []string{}
+			}
 			out = append(out, c)
 		}
 	}

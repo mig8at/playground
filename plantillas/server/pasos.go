@@ -59,8 +59,14 @@ func (s *srv) pasoTelefono(w http.ResponseWriter, r *http.Request) {
 	// E.164 que es el que se usaría para mandar el SMS. Las claves son las MISMAS del
 	// diccionario de burós: un solo vocabulario para lo que se captura y lo que se
 	// consulta afuera.
-	s.guardarValor(solicitudID, "phone", in.Telefono)
-	s.guardarValor(solicitudID, "phoneE164", "+"+regla.prefijo+in.Telefono)
+	if err := s.guardarValor(solicitudID, "phone", in.Telefono); err != nil {
+		errorJSON(w, 500, err.Error())
+		return
+	}
+	if err := s.guardarValor(solicitudID, "phoneE164", "+"+regla.prefijo+in.Telefono); err != nil {
+		errorJSON(w, 500, err.Error())
+		return
+	}
 
 	s.hub.emitir(solicitudID, "telefono.capturado", map[string]any{
 		"pais": sol.Pais, "telefono": "+" + regla.prefijo + enmascarar(in.Telefono),

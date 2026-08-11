@@ -52,7 +52,11 @@ function irA(path) {
 const clavesPorGrupo = computed(() => {
   const q = filtro.value.trim().toLowerCase()
   const salen = claves.value.filter(
-    (c) => !q || c.clave.toLowerCase().includes(q) || c.label.toLowerCase().includes(q),
+    (c) =>
+      !q ||
+      c.clave.toLowerCase().includes(q) ||
+      c.label.toLowerCase().includes(q) ||
+      c.la_dan.some((s) => s.toLowerCase().includes(q)),
   )
   const grupos = {}
   for (const c of salen) (grupos[c.grupo] ||= []).push(c)
@@ -312,7 +316,11 @@ const enlace = computed(() => (sol.value ? `${location.origin}/solicitud/${sol.v
         Un solo vocabulario para lo que se captura en el flujo y lo que devuelven los burós. Una
         clave, una fila: si un proveedor nombra algo que no está acá, el server no arranca.
       </p>
-      <input v-model="filtro" class="buscador" placeholder="Buscar clave o descripción…" />
+      <input v-model="filtro" class="buscador" placeholder="Buscar clave, descripción o servicio…" />
+      <p class="ayuda">
+        Entre paréntesis, qué servicios traen cada clave. Las que no trae ninguno se capturan en el
+        flujo o las declara la persona.
+      </p>
       <p class="ayuda" v-if="filtro">
         {{ clavesPorGrupo.reduce((n, [, cs]) => n + cs.length, 0) }} de {{ claves.length }}
       </p>
@@ -329,7 +337,11 @@ const enlace = computed(() => (sol.value ? `${location.origin}/solicitud/${sol.v
           </thead>
           <tbody>
             <tr v-for="c in cs" :key="c.clave">
-              <td><code>{{ c.clave }}</code></td>
+              <td>
+                <code>{{ c.clave }}</code>
+                <div v-if="c.la_dan.length" class="la-dan">({{ c.la_dan.join(', ') }})</div>
+                <div v-else class="la-dan sin">(no la trae ningún servicio)</div>
+              </td>
               <td>{{ c.label }}</td>
               <td><span class="tipo-tag">{{ c.tipo }}</span></td>
             </tr>
@@ -612,6 +624,14 @@ td {
 }
 td code {
   color: var(--acento);
+}
+.la-dan {
+  font-size: 11px;
+  color: var(--suave);
+  margin-top: 2px;
+}
+.la-dan.sin {
+  opacity: 0.55;
 }
 .tipo-tag {
   font-family: ui-monospace, Menlo, monospace;

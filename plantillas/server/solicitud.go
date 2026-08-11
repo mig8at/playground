@@ -190,10 +190,20 @@ func (s *srv) pasoEsperado(solicitudID, tipo string) (*solicitud, error) {
 	return sol, nil
 }
 
-func (s *srv) guardarValor(solicitudID, campo, valor string) {
-	s.db.Exec(`INSERT INTO valores (solicitud_id, campo, valor) VALUES (?,?,?)
+// guardarValor exige que el campo sea una clave DEL DICCIONARIO. Sin esto, "un solo
+// vocabulario" es una frase del README: el flujo guardaba `phone` mientras el diccionario
+// no lo conocía, y nada avisaba. Falla en vez de loguear, porque un aviso en un log es
+// exactamente cómo se acumulan los sinónimos.
+func (s *srv) guardarValor(solicitudID, campo, valor string) error {
+	var existe int
+	s.db.QueryRow(`SELECT COUNT(*) FROM claves WHERE clave = ?`, campo).Scan(&existe)
+	if existe == 0 {
+		return fmt.Errorf("el campo %q no es una clave del diccionario", campo)
+	}
+	_, err := s.db.Exec(`INSERT INTO valores (solicitud_id, campo, valor) VALUES (?,?,?)
 	           ON CONFLICT(solicitud_id, campo) DO UPDATE SET valor = excluded.valor`,
 		solicitudID, campo, valor)
+	return err
 }
 
 // avanzar mueve el cursor un PASO (no una etapa: adentro de una etapa hay pantallas)
