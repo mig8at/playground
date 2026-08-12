@@ -51,6 +51,37 @@ Esta es la pieza que decide el diseño:
 Entonces **"mis clientes" = clientes con al menos una solicitud en una sucursal del asesor**, y hay
 que resolverlo por la solicitud, nunca por el usuario.
 
+**Para que quede sin ambigüedad, porque es fácil recordarlo al revés** (medido 2026-08-11):
+
+| relación | ¿existe? | poblado |
+|---|---|---|
+| solicitud → **comercio** (`user_requests.allied_id`) | **sí** | 359.791 / 359.823 · 99,99 % |
+| solicitud → **sucursal** (`user_requests.allied_branch_id`) | **sí** | 359.790 / 359.823 · 99,99 % |
+| solicitud → **asesor** (`user_requests.corporate_user_id`) | sí, pero con huecos | 316.388 / 359.823 · **88 %** |
+| **usuario** → comercio / sucursal (`users.allied_id`, `allied_branch_id`) | existe la columna, **no el dato** | **1 / 223.915** |
+
+La que **no** existe es **usuario → comercio**. La de la **solicitud** sí, y además está declarada en
+el modelo (`UserRequest::allied()`, `alliedBranch()`, `corporateUser()`).
+
+⚠ Lo que sí falta en los dos casos: **no hay foreign keys declaradas** en `user_requests` —
+`information_schema.KEY_COLUMN_USAGE` no devuelve ninguna. La integridad es por convención, así que
+nada impide un `allied_branch_id` apuntando a una sucursal borrada. Vale un `LEFT JOIN` defensivo
+antes de confiar en el cruce.
+
+**Y esto decide la pregunta abierta del alcance** — cuántos clientes quedan alcanzables según cómo se
+defina "suyo":
+
+| criterio | clientes alcanzables |
+|---|---|
+| por **sucursal** del asesor | **213.445** |
+| por **asesor que gestionó** (`corporate_user_id`) | **183.836** |
+
+Definirlo por asesor individual es más estricto, pero deja **29.609 clientes sin dueño** (las 43.435
+solicitudes sin `corporate_user_id`): nadie podría atenderlos por el canal, y esos casos terminarían
+igual en el admin viejo — que es justo lo que la tarea quiere dejar de usar. Recomendación: **por
+sucursal**, y registrar en la auditoría al asesor individual que hizo el cambio, que es donde de
+verdad importa la trazabilidad.
+
 Lo mejor: ese cruce **ya está escrito** — `DashboardController::getLegacyUserRequestIds()`, que
 `@index` usa para el rol `Entidad Comercio`. No hay que inventarlo, hay que aplicarlo a quienes sí
 editan. `Entidad Comercio` es el rol **13** en `roles`, y no aparece en `user_profiles` (que llega a
@@ -136,9 +167,10 @@ construir, verde = ya existe) y la fila de auditoría que quedaría.
   está diseñado: enrolamiento de `wa_id` + OTP al celular del perfil.)
 - **¿Un check del cliente o dos?** El prototipo hace dos (autoriza la gestión, después aprueba el
   cambio). Es más seguro y es lo que se pidió, pero es fricción. Se puede colapsar a uno.
-- **Alcance de "sus clientes"**: ¿todas las solicitudes históricas de las sucursales del asesor, o
-  sólo las que él gestionó? La segunda es más estricta pero `user_requests.corporate_user_id` está
-  sin auditar — hay que mirarlo antes de prometerlo.
+- ~~**Alcance de "sus clientes"**~~ — **medido** (ver la tabla de §«El vínculo asesor↔cliente»): por
+  sucursal alcanza **213.445** clientes, por asesor que gestionó **183.836**. Definirlo por asesor
+  deja 29.609 sin dueño, que terminarían atendiéndose por el admin viejo. Recomendación: **por
+  sucursal**, con el asesor individual en la auditoría. Falta que Miguel lo confirme.
 - **Qué pasa con los 63 que hoy editan sin filtro.** Aplicar el filtro los va a romper. ¿Se migra
   gradual, se exceptúa a Administrador, se avisa?
 - **Rate limit y timeout**: 3 reenvíos de OTP, cooldown de 5 min, sesión de 10 min. Hoy sólo existe
