@@ -311,7 +311,7 @@ const steps = [
               buttons:[{t:"✅ Apruebo el cambio"},{t:"❌ Rechazo", goto:"rech"}]},
   {id:"cel8", side:"b", from:"bot", text:"✅ Listo. Tu celular quedó actualizado.<br><br>Si no reconoces este cambio, responde <b>REPORTAR</b> y lo bloqueamos.",
               api:A.confirmar, audit:{campo:"cell_phone", ant:F.cli.celFull, nue:F.cli.celNueFull, estado:"aplicada", cls:"ok", dest:T_CONTACTO}},
-  {id:"cel9", side:"a", from:"bot", text:`✅ Cambio aplicado y registrado.<span class="kv">Registro #MOD-00184\n${F.cli.cel} → ${F.cli.celNue}</span>Queda a tu nombre en la auditoría.`, end:true},
+  {id:"cel9", side:"a", from:"bot", text:`✅ Listo, el celular quedó actualizado.<span class="kv">Celular\n${F.cli.cel}\n→ ${F.cli.celNue}</span>Radicado <b>#MOD-00184</b>, a tu nombre.`, end:true},
 
   // ─── CORREO ───
   {id:"mail1", side:"a", from:"bot", text:`Correo actual: <b>${F.cli.mail}</b><br>Escribe el nuevo correo.`,
@@ -330,7 +330,7 @@ const steps = [
                buttons:[{t:"✅ Apruebo el cambio"},{t:"❌ Rechazo", goto:"rech"}]},
   {id:"mail8", side:"b", from:"bot", text:"✅ Listo. Tu correo quedó actualizado.<br><br>Si no reconoces este cambio, responde <b>REPORTAR</b>.",
                api:A.confirmar, audit:{campo:"email", ant:F.cli.mailFull, nue:F.cli.mailNueFull, estado:"aplicada", cls:"ok", dest:T_CONTACTO}},
-  {id:"mail9", side:"a", from:"bot", text:`✅ Cambio aplicado y registrado.<span class="kv">Registro #MOD-00185\n${F.cli.mail} → ${F.cli.mailNue}</span>`, end:true},
+  {id:"mail9", side:"a", from:"bot", text:`✅ Listo, el correo quedó actualizado.<span class="kv">Correo\n${F.cli.mail}\n→ ${F.cli.mailNue}</span>Radicado <b>#MOD-00185</b>, a tu nombre.`, end:true},
 
   // ─── FECHA DE PAGO ───
   {id:"fec1", side:"a", from:"bot", text:"Verificando si el crédito admite cambios…", api:A.canChange,
@@ -348,8 +348,8 @@ const steps = [
   {id:"fec7", side:"b", from:"bot", text:`Te enviamos un código <b>por SMS</b> al ${F.cli.cel}.<br>Escríbelo acá para aplicar el cambio.<span class="warnline">Nunca te pediremos ese código por otro medio.</span>`,
               api:A.otpCli, sms:"714390", input:{side:"b", value:"714390", ph:"Código de 6 dígitos"}},
   {id:"fec8", side:"b", from:"bot", text:`✅ Código válido. Tu nueva fecha de pago es <b>${F.cli.fechaNue}</b>.<br><br>Podrás pedir otro cambio dentro de 6 meses.`,
-              api:A.aplicaFecha, audit:{campo:"next_payment_date", ant:F.cli.fecha, nue:F.cli.fechaNue, estado:"aplicada", cls:"ok", dest:T_CREDITO}},
-  {id:"fec9", side:"a", from:"bot", text:`✅ Cambio aplicado con OTP validado.<span class="kv">change_type_id: 1 (fecha de pago)\notp_id:         88421  ← ya no es 0\n${F.cli.fecha} → ${F.cli.fechaNue}</span>`, end:true},
+              api:A.aplicaFecha, audit:{campo:"next_payment_date", ant:F.cli.fecha, nue:F.cli.fechaNue, estado:"aplicada", cls:"ok", dest:T_CREDITO, otp:88421}},
+  {id:"fec9", side:"a", from:"bot", text:`✅ Listo, el cambio quedó aplicado.<span class="kv">Fecha de pago\n${F.cli.fecha}\n→ ${F.cli.fechaNue}</span>María Fernanda lo confirmó con su código.<br>Radicado <b>#MOD-00186</b> · podrá pedir otro cambio en 6 meses.`, end:true},
 
   // ─── PLAZO ───
   {id:"pla1", side:"a", from:"bot", text:"Verificando si el crédito admite cambios…", api:A.canChange,
@@ -372,11 +372,11 @@ const steps = [
   {id:"pla7", side:"b", from:"bot", text:`Te enviamos un código <b>por SMS</b> al ${F.cli.cel}.<br>Escríbelo acá para aplicar el cambio.<span class="warnline">Nunca te pediremos ese código por otro medio.</span>`,
               api:A.otpCli, sms:"205671", input:{side:"b", value:"205671", ph:"Código de 6 dígitos"}},
   {id:"pla8", side:"b", from:"bot", text:`✅ Código válido. Tu nuevo plazo es de <b>18 cuotas de $175.200</b>.<br><br>Podrás pedir otro cambio dentro de 6 meses.`,
-              api:A.aplicaPlazo, audit:{campo:"fee_number", ant:F.cli.plazo, nue:F.cli.plazoNue, estado:"aplicada", cls:"ok", dest:T_CREDITO}},
-  {id:"pla9", side:"a", from:"bot", text:`✅ Cambio aplicado con OTP validado.<span class="kv">change_type_id: 2 (plazo)\notp_id:         88422  ← ya no es 0\n${F.cli.plazo} → ${F.cli.plazoNue}</span>`, end:true},
+              api:A.aplicaPlazo, audit:{campo:"fee_number", ant:F.cli.plazo, nue:F.cli.plazoNue, estado:"aplicada", cls:"ok", dest:T_CREDITO, otp:88422}},
+  {id:"pla9", side:"a", from:"bot", text:`✅ Listo, el cambio quedó aplicado.<span class="kv">Plazo del crédito\n${F.cli.plazo}\n→ ${F.cli.plazoNue}</span>María Fernanda lo confirmó con su código.<br>Radicado <b>#MOD-00187</b> · podrá pedir otro cambio en 6 meses.`, end:true},
 
   // ─── SALIDAS COMUNES ───
-  {id:"noeleg", side:"a", from:"bot", text:`🚫 <b>El crédito no admite cambios ahora.</b><span class="kv">error_code: RECENT_CHANGE_EXISTS</span>«Ya hiciste un cambio recientemente. Podrás hacer otro después de 6 meses.»<span class="warnline">La regla la aplica el backend, no el bot. El asesor no la puede saltar.</span>`, end:true},
+  {id:"noeleg", side:"a", from:"bot", text:`🚫 <b>Este crédito no admite cambios ahora.</b><br><br>Ya tuvo un cambio en los últimos 6 meses. Podrá solicitar otro a partir de <b>marzo de 2027</b>.<span class="warnline">Si el cliente insiste, escalá a soporte — desde acá no se puede autorizar.</span>`, end:true},
   {id:"nofui", side:"b", from:"bot", text:"🚫 Bloqueamos la solicitud. Ningún dato tuyo fue modificado.<br><br>Un agente de soporte te contactará por este mismo chat. El intento quedó registrado.",
               api:{...A.rechazar, n:"reason=no_reconocido → escala a soporte y bloquea al asesor sobre este cliente", nuevo:1},
               audit:{estado:"bloqueada", cls:"bad"}},
@@ -456,7 +456,8 @@ function audit(a){
   row.innerHTML=`<td class="mono">${lastAudit.campo||"—"}</td><td class="mono">${lastAudit.ant||"—"}</td>`+
     `<td class="mono">${lastAudit.nue||"—"}</td>`+
     `<td>${F.asesor.nombre}<br><span style="color:var(--page-soft);font-size:11px">id ${F.asesor.id} · ${F.asesor.rol}</span></td>`+
-    `<td><span class="badge ${lastAudit.cls}">${lastAudit.estado}</span></td>`;
+    `<td><span class="badge ${lastAudit.cls}">${lastAudit.estado}</span>`+
+    (lastAudit.otp ? `<br><span style="color:var(--page-soft);font-size:11px">otp_id ${lastAudit.otp}<br>(antes: 0)</span>` : '')+`</td>`;
 }
 
 function askInput(step){
