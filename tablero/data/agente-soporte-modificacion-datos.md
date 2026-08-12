@@ -113,6 +113,26 @@ los de Dentix, no. Eso es lo que hoy no existe y lo que esto corta.
    (hasta 3). El filtro tiene que ser `allied_id ∪ multiple_allieds`, no sólo `allied_id`, o esos
    tres pierden acceso a comercios que sí gestionan.
 
+   Se sospechó que fueran **asesores de prueba** — la intuición era que cada comercio crea su propio
+   asesor y por lo tanto nadie debería estar en dos. La evidencia dice que no (local, 2026-08-11):
+
+   - El dominio `no-email.com` **no marca pruebas**: es el de **los 45** Superadmin comercio, o sea
+     el patrón normal con que se crean.
+   - Los comercios son reales y con volumen: `[41,42,43]` = **Americana de colchones** (2.872
+     solicitudes) + **Serta** (144) + **Dormiluna** (1.862) — tres marcas del mismo grupo de
+     colchones, 4.878 solicitudes entre las tres. El otro caso es `[14,23]` = **godentist** (1.714)
+     + **Wonder** (778).
+
+   O sea el caso de negocio es el **grupo empresarial con varias marcas**, no el asesor compartido
+   entre clientes distintos. La regla «un comercio, un asesor» se cumple casi siempre, pero **no es
+   invariante** y romperla deja sin acceso a quien administra un grupo.
+   ⚠ Medido en la **copia local**, que puede estar desactualizada respecto de producción — la forma
+   del dato sí es concluyente, el conteo exacto conviene reconfirmarlo contra prod antes de decidir.
+
+   ⚠ **Y hay referencias rotas**: el asesor 2678 tiene `multiple_allieds = [63,64]` y **el comercio
+   64 no existe** en `allieds` (266 comercios, id máximo 276). Es la consecuencia directa de que no
+   haya FKs: el filtro tiene que tolerar ids colgados sin romperse ni, peor, sin abrir de más.
+
 Lo mejor: ese cruce **ya está escrito** — `DashboardController::getLegacyUserRequestIds()`, que
 `@index` usa para el rol `Entidad Comercio`. No hay que inventarlo, hay que aplicarlo a quienes sí
 editan. `Entidad Comercio` es el rol **13** en `roles`, y no aparece en `user_profiles` (que llega a
