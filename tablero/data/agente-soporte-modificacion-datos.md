@@ -580,6 +580,34 @@ en Meta, más el markup de Twilio (del orden de US$0.005/mensaje). **El costo no
 esta decisión.** ⚠ Ese número sale de rate cards de terceros, no de Meta directo — confirmarlo en la
 consola de Twilio antes de citarlo a alguien.
 
+### Los componentes de WhatsApp y sus límites (verificado 2026-08-11)
+
+Esto condiciona la redacción, no sólo el diseño: **no es que un texto largo se vea feo, es que no se
+puede enviar.** Y hay dos regímenes distintos según si el mensaje va en conversación abierta o como
+plantilla:
+
+| | en conversación abierta | en plantilla aprobada |
+|---|---|---|
+| **botones** | máx **3** · **20** caracteres | hasta **10** · 25 caracteres |
+| **lista** | máx **10** filas (y 10 secciones) · título **24** · descripción **72** | — |
+| **texto** | libre | cuerpo **1024** · encabezado y pie **60** |
+
+Notas: el encabezado de plantilla **no admite emojis ni formato**; el cuerpo sí (`*negrita*`,
+`_cursiva_`, ` ```monoespaciado``` `). El total de una plantilla —encabezado + cuerpo + pie +
+botones— entra en los 1024.
+
+**El prototipo ya está ajustado a esto**: los 33 controles auditados caben. Tres textos hubo que
+acortar, y sirven de ejemplo de lo ajustado que es el margen:
+
+| decía | largo | límite | quedó |
+|---|---|---|---|
+| `Enviar al cliente para aprobación` | 33 | 20 (botón) | `Enviar al cliente` |
+| `🗓️ Cambiar plazo del crédito` | 28 | 24 (fila) | `🗓️ Cambiar plazo` |
+| `28 de septiembre de 2026` | 24 | 20 (botón) | `28 de septiembre` |
+
+⚠ **Al redactar las plantillas del cliente, contar caracteres desde el principio.** Un texto que no
+entra no se descubre al probar: se descubre cuando Meta rechaza la plantilla, y eso cuesta días.
+
 ### Los menús van como LISTA, no como botones
 
 **En conversación abierta WhatsApp permite máximo 3 botones**; en plantilla aprobada, hasta 10. Dos

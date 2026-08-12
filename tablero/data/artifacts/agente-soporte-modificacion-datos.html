@@ -146,6 +146,13 @@
   .note b{color:var(--warn)}
   .note + .note{border-left-color:var(--contract)}
   .note + .note b{color:var(--contract)}
+  /* los límites de la plataforma, para que el prototipo se lea como especificación */
+  .note.wa{border-left-color:var(--accent)} .note.wa b{color:var(--accent)}
+  table.lim{border-collapse:collapse;margin:10px 0;font-size:12.5px}
+  table.lim th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.04em;
+    color:var(--page-soft);font-weight:600;padding:3px 14px 3px 0}
+  table.lim td{padding:3px 14px 3px 0;border-top:1px solid var(--line)}
+  table.lim td:first-child{color:var(--page-soft)}
   code{font-family:ui-monospace,Menlo,monospace;font-size:12.5px}
 </style>
 
@@ -219,6 +226,20 @@
     número de cédula.
   </div>
 
+  <div class="note wa">
+    <b>Los componentes son los que WhatsApp permite de verdad.</b> Todo control de esta simulación
+    respeta los límites de la plataforma — <b>33 de 33</b> auditados:
+    <table class="lim">
+      <tr><th></th><th>en conversación abierta</th><th>en plantilla aprobada</th></tr>
+      <tr><td>botones</td><td>máx <b>3</b> · <b>20</b> caracteres</td><td>hasta <b>10</b> · 25 caracteres</td></tr>
+      <tr><td>lista</td><td>máx <b>10</b> filas · título <b>24</b> · descripción <b>72</b></td><td>—</td></tr>
+      <tr><td>texto</td><td>libre</td><td>cuerpo <b>1024</b> · encabezado y pie <b>60</b></td></tr>
+    </table>
+    Por eso los dos menús van como <b>lista</b> y no como botones: el de gestión tiene 4 opciones y el
+    de plazos 5. Y por eso «Enviar al cliente» no dice «Enviar al cliente para aprobación» (33
+    caracteres) ni la fecha dice «28 de septiembre de 2026» (24): no entran en un botón.
+  </div>
+
   <div class="note">
     <b>Condiciones del crédito — el agujero es distinto.</b> Fecha de pago y plazo <i>ya</i> tienen endpoints
     (<code>CreditChangeController</code>) y <i>ya</i> validan elegibilidad. Lo que falta es el consentimiento:
@@ -271,7 +292,7 @@ const steps = [
             buttons:[{t:"📱 Cambiar celular", sub:"dato de contacto", goto:"cel1"},
                      {t:"✉️ Cambiar correo", sub:"dato de contacto", goto:"mail1"},
                      {t:"📅 Cambiar fecha de pago", sub:"condición del crédito · pide OTP", goto:"fec1"},
-                     {t:"🗓️ Cambiar plazo del crédito", sub:"condición del crédito · pide OTP", goto:"pla1"}]},
+                     {t:"🗓️ Cambiar plazo", sub:"condición del crédito · pide OTP", goto:"pla1"}]},
 
   // ─── CELULAR ───
   {id:"cel1", side:"a", from:"bot", text:`Celular actual: <b>${F.cli.cel}</b><br>Escribe el nuevo número.`,
@@ -285,7 +306,7 @@ const steps = [
   {id:"cel5", side:"b", from:"bot", text:"Gracias. Te muestro el cambio exacto en un momento.",
               api:A.autorizar, audit:{campo:"cell_phone", ant:F.cli.cel, nue:F.cli.celNue, estado:"autorizada", cls:"wait", dest:T_CONTACTO}},
   {id:"cel6", side:"a", from:"bot", text:`✅ <b>${F.cli.nombre}</b> autorizó la gestión.<br>Confirma el cambio que enviarás:<span class="kv">Actual: ${F.cli.cel}\nNuevo:  ${F.cli.celNue}</span>`,
-              buttons:[{t:"Enviar al cliente para aprobación"},{t:"Cancelar", dis:true}]},
+              buttons:[{t:"Enviar al cliente"},{t:"Cancelar", dis:true}]},
   {id:"cel7", side:"b", from:"bot", text:`Tu asesor solicita este cambio:<span class="kv">Celular actual: ${F.cli.cel}\nNuevo:          ${F.cli.celNue}</span>Si apruebas, <b>las notificaciones de tu crédito irán al número nuevo</b>.`,
               buttons:[{t:"✅ Apruebo el cambio"},{t:"❌ Rechazo", goto:"rech"}]},
   {id:"cel8", side:"b", from:"bot", text:"✅ Listo. Tu celular quedó actualizado.<br><br>Si no reconoces este cambio, responde <b>REPORTAR</b> y lo bloqueamos.",
@@ -304,7 +325,7 @@ const steps = [
   {id:"mail5", side:"b", from:"bot", text:"Gracias. Te muestro el cambio exacto en un momento.",
                api:A.autorizar, audit:{campo:"email", ant:F.cli.mail, nue:F.cli.mailNue, estado:"autorizada", cls:"wait", dest:T_CONTACTO}},
   {id:"mail6", side:"a", from:"bot", text:`✅ Autorizó la gestión. Confirma:<span class="kv">Actual: ${F.cli.mail}\nNuevo:  ${F.cli.mailNue}</span>`,
-               buttons:[{t:"Enviar al cliente para aprobación"},{t:"Cancelar", dis:true}]},
+               buttons:[{t:"Enviar al cliente"},{t:"Cancelar", dis:true}]},
   {id:"mail7", side:"b", from:"bot", text:`Tu asesor solicita este cambio:<span class="kv">Correo actual: ${F.cli.mail}\nNuevo:         ${F.cli.mailNue}</span>Si apruebas, los estados de cuenta irán al correo nuevo.`,
                buttons:[{t:"✅ Apruebo el cambio"},{t:"❌ Rechazo", goto:"rech"}]},
   {id:"mail8", side:"b", from:"bot", text:"✅ Listo. Tu correo quedó actualizado.<br><br>Si no reconoces este cambio, responde <b>REPORTAR</b>.",
@@ -315,7 +336,7 @@ const steps = [
   {id:"fec1", side:"a", from:"bot", text:"Verificando si el crédito admite cambios…", api:A.canChange,
               next:()=> inelig() ? "noeleg" : "fec2"},
   {id:"fec2", side:"a", from:"bot", text:`✅ Crédito elegible.<br>Fecha de pago actual: <b>${F.cli.fecha}</b><br><br>Los ciclos son fijos (5, 16 y 28). Estas son las 2 próximas:`,
-              api:A.dateOpts, buttons:[{t:"28 de septiembre de 2026"},{t:"5 de octubre de 2026", dis:true}]},
+              api:A.dateOpts, buttons:[{t:"28 de septiembre"},{t:"5 de octubre", dis:true}]},
   {id:"fec3", side:"a", from:"bot", text:`Este es un <b>cambio de condiciones del crédito</b>, no un dato de contacto.<span class="warnline">⚠ La clienta tendrá que escribir un código OTP — no basta con que toque un botón.</span>`,
               buttons:[{t:"📨 Enviar solicitud"}]},
   {id:"fec4", side:"a", from:"bot", text:"⏳ Solicitud enviada. Esperando a la clienta…",
