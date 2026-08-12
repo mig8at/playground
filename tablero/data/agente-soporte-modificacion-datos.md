@@ -126,10 +126,14 @@ construir, verde = ya existe) y la fila de auditoría que quedaría.
 
 ## Preguntas abiertas
 
-- **Arquitectura del canal** — n8n vs API directa vs microservicio Go propio. Ver la sección de
-  abajo; falta decidir.
+- **Arquitectura del canal** — se descartó n8n (el flujo tiene estado y la seguridad quedaría
+  repartida) y se inclina por **microservicio Go + Twilio**, que es lo que ya está configurado. Falta
+  que Miguel lo cierre. Ver §«Arquitectura del canal» y §«Cómo funciona la API de WhatsApp».
+- **¿Mismo número o uno nuevo?** Propuesta: nuevo para asesores, el de siempre para clientes. Sin
+  decidir — ver el final de la sección de WhatsApp.
 - **Cómo se autentica el canal contra el backend.** Hoy las rutas usan `auth.cognito`, que es de
-  usuario, no de máquina. Sin definir.
+  usuario, no de máquina. Sin definir. (Distinto del login del asesor **dentro** del bot, que sí
+  está diseñado: enrolamiento de `wa_id` + OTP al celular del perfil.)
 - **¿Un check del cliente o dos?** El prototipo hace dos (autoriza la gestión, después aprueba el
   cambio). Es más seguro y es lo que se pidió, pero es fricción. Se puede colapsar a uno.
 - **Alcance de "sus clientes"**: ¿todas las solicitudes históricas de las sucursales del asesor, o
@@ -142,6 +146,10 @@ construir, verde = ya existe) y la fila de auditoría que quedaría.
   producción **no está clonado** — no se pudo verificar qué límites tiene.
 - **Clientes eliminados** (derecho al olvido / fraude): responder idéntico a "no encontrado".
   Requiere definición de Legal/Compliance sobre qué categorías aplican.
+- **El OTP del asesor le llega al mismo teléfono** donde tiene WhatsApp. El segundo factor se
+  degrada: quien tenga ese aparato desbloqueado tiene los dos. Sigue sirviendo contra el atacante
+  **remoto**, que es el caso que motivó la tarea; contra el que tiene el teléfono en la mano lo que
+  protege es el timeout y que **el cliente igual debe autorizar**. Asumido a conciencia, no resuelto.
 
 ## Deuda aparte (no es de esta tarea, pero se encontró acá)
 
@@ -188,6 +196,117 @@ aprobada por Meta**, con sus botones declarados en la plantilla misma. Consecuen
 - El OTP por SMS esquiva todo esto — otra razón para no mandarlo por WhatsApp.
 
 Esto hay que arrancarlo temprano: es el camino crítico más largo y no depende de nosotros.
+
+## Cómo funciona la API de WhatsApp (verificado 2026-08-11)
+
+Lo que más confunde al arrancar: **no existe «mandá un mensaje y esperá la respuesta»**. No hay
+`respuesta = enviarYEsperar(...)`. El modelo son dos entradas separadas al programa:
+
+1. Vos llamás a la API → sale el mensaje → **la llamada termina** y te devuelve un id.
+2. Cuando la persona responde, **Twilio le pega a una URL tuya** con un POST nuevo, independiente,
+   que trae `Body`, `From` (`whatsapp:+57…`), `WaId`, `ProfileName` y `MessageSid`.
+
+Es el propio WhatsApp como analogía: mandás y seguís con tu vida; cuando el otro contesta, suena el
+teléfono. **Para el usuario se siente instantáneo** — la diferencia es sólo cómo se escribe el
+código. Y de acá sale todo lo demás: la segunda llamada no sabe nada de la primera, así que el
+estado de la conversación lo tenés que guardar vos.
+
+### Qué falta para tener entrada (es poco)
+
+El número que hoy manda los recordatorios **ya es un número corporativo en la WhatsApp Business
+Platform vía Twilio**, y el mismo número puede recibir. Sólo falta:
+
+- **Configurar la URL de entrada** en el Messaging Service (el `MessagingServiceSid` que la config
+  de `messaging-service` ya guarda). Es configuración, no un número nuevo.
+- **Un endpoint público** que la reciba.
+- **Verificar `X-Twilio-Signature`** en cada request — sin eso cualquiera postea mensajes falsos y
+  se hace pasar por un asesor.
+- **Idempotencia por `MessageSid`**: Twilio reintenta ante error o timeout, y un reintento que
+  reprocese un «Sí, autorizo» aplicaría el cambio dos veces.
+
+### El login del asesor: WhatsApp no tiene sesión
+
+Cada mensaje entrante es un POST suelto — sin cookie, sin token, sin conexión. Lo único que
+identifica a quien escribe es su número. Entonces «login» acá es **atar un número a una identidad
+nuestra y recordar esa atadura**:
+
+- **El número como identidad de partida** — débil pero no nula: llega firmado por Twilio y WhatsApp
+  ya verificó que pertenece a ese dispositivo. Más que un correo tipeado, menos que un token; se
+  rompe con SIM swap o teléfono robado desbloqueado.
+- **El OTP no valida el número de WhatsApp: valida que quien escribe controla el celular del
+  asesor.** Escribe desde X, el código va a Y (el del perfil). Si X≠Y, el impostor escribe pero el
+  código le llega al asesor real, que se entera del intento.
+- **La sesión es una fila**: `wa_id → advisor_user_id, state, context, expires_at`. Cada webhook:
+  buscar por `From`, leer el estado, interpretar el mensaje **según ese estado**, transicionar.
+
+⚠ **Un `482913` que llega no significa nada por sí solo.** Es un OTP sólo si el estado es
+`awaiting_otp`; en `awaiting_document` es una cédula mal formada y en `ready` es ruido. **El estado
+es lo que le da sentido al mensaje** — y es la razón técnica de fondo por la que n8n encaja mal:
+cada webhook es un disparo nuevo sin contexto.
+
+**El OTP existente sirve tal cual**: `OtpService::verifyOtpCode` valida contra el `otp-service`
+agrupando por **`identifier`**, no por teléfono («se valida contra el MISMO con el que se generó»,
+dice el comentario). El `identifier` puede ser la sesión de WhatsApp. No hay que inventar OTP nuevo.
+
+**Propuesta: enrolar el número.** La primera vez, cédula + OTP → se ata ese `wa_id` al asesor de
+forma permanente. Después ese número entra directo; un número **nuevo** para el mismo asesor exige
+OTP y **avisa al anterior**; y un mismo `wa_id` no puede ser dos asesores. Es vinculación de
+dispositivo (el patrón de WhatsApp Web): convierte el número de «algo que el atacante afirma» en
+«algo que el asesor tiene», y evita pedir OTP todo el día.
+
+**Límites propios del canal, a tener en cuenta:** no hay logout (el asesor cierra WhatsApp y la
+sesión sigue viva de nuestro lado → de ahí el timeout por inactividad); los webhooks pueden llegar
+**desordenados**, así que la máquina de estados tiene que tolerar un mensaje que no corresponde al
+estado actual sin romperse.
+
+### Costos: el flujo cae casi entero en la parte gratis
+
+Desde julio 2025 Meta factura **por mensaje**, con 4 categorías (Marketing / Utility /
+Authentication / Service). Lo que define el costo es **quién escribió primero**:
+
+- **El asesor escribe primero** → abre su ventana de 24 h → todo su lado es **texto libre y
+  gratis**: menú, búsqueda, confirmaciones. Cero plantillas, cero aprobaciones. Y como trabaja
+  seguido, la ventana se le renueva sola.
+- **Al cliente le escribimos nosotros** → **una** plantilla *Utility* (transaccional: el asesor pidió
+  un cambio sobre su cuenta). Cuando responde, se abre **su** ventana y el resto es gratis.
+- **El OTP va por SMS**, así que ni toca WhatsApp.
+
+→ **Una solicitud de cambio ≈ un solo mensaje facturado.** Colombia tiene la tarifa más barata del
+mundo: **~US$0.0008** por mensaje utility/authentication. Mil solicitudes/mes son menos de un dólar
+en Meta, más el markup de Twilio (del orden de US$0.005/mensaje). **El costo no es un argumento en
+esta decisión.** ⚠ Ese número sale de rate cards de terceros, no de Meta directo — confirmarlo en la
+consola de Twilio antes de citarlo a alguien.
+
+### ⚠ Ajuste pendiente en el prototipo: el menú no entra en botones
+
+**En conversación abierta WhatsApp permite máximo 3 botones**; en plantilla aprobada, hasta 10. El
+menú del asesor del prototipo tiene **4 opciones** (celular · correo · fecha de pago · plazo) y va
+**en sesión**, no en plantilla. Dos salidas: **lista desplegable** (`twilio/list-picker`, hasta 10
+opciones) o **dos niveles** («Datos de contacto» / «Condiciones del crédito»). Se inclina por la
+lista: un solo paso y se lee mejor en el teléfono. **El HTML todavía muestra 4 botones.**
+
+### Siguiente paso propuesto: el sandbox
+
+Twilio tiene un **sandbox de WhatsApp** que da un número de pruebas al que uno se une mandando un
+código, **sin registrar número propio ni esperar aprobación de plantillas**. Sirve para tener el
+flujo real andando en el teléfono en días —dos personas haciendo de asesor y cliente— y recién
+después pasar al número corporativo y al trámite de plantillas. Convierte el HTML en algo que se
+prueba de verdad, y no compromete nada.
+
+### Decisión abierta: ¿mismo número o uno nuevo?
+
+Hoy el número manda recordatorios de cobranza y **nadie espera respuestas**. Montarle el bot encima
+hace que todo el inbound caiga en el mismo webhook —asesores, respuestas a recordatorios, clientes
+perdidos— y cambia la expectativa para todos los clientes que reciben cobranza.
+
+Propuesta: **número nuevo para el canal de asesores** (audiencia interna; aísla el riesgo — un bug
+del bot no toca la cobranza) y **el número de siempre para escribirle al cliente**, que ya reconoce
+la marca. `messaging-service` ya soporta varias configs (la clave es plantilla × país), así que el
+código no sufre.
+
+⚠ **Cuidar la calidad del número**: Meta puntúa cada número por bloqueos y reportes, y si baja
+recorta el límite de envío. Un mensaje de autorización que parezca phishing genera reportes — y el
+castigo pega sobre el número que también se usa para cobrar.
 
 ---
 
