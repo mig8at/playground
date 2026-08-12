@@ -301,10 +301,26 @@ construir, verde = ya existe) y la fila de auditoría que quedaría.
 
 1. **El OTP del asesor va al celular de su perfil**, no al WhatsApp desde el que escribe. Si va al
    que escribe, cualquiera con una cédula ajena y un WhatsApp entra: sería preguntar, no autenticar.
-2. **El OTP del cliente sale por SMS, no por WhatsApp.** Si el código viaja por el mismo canal donde
-   ocurre la conversación, quien ya tomó ese teléfono lo lee y deja de ser segundo factor.
-   `messaging-service` ya manda SMS por LabsMobile — es el mismo `POST /api/v1/messages/send`
-   cambiando el canal. Lo natural al implementar es mandarlo por el mismo chat: **no hacerlo**.
+2. **El OTP debe salir por un canal DISTINTO al de la conversación** — y ⚠ **es un CAMBIO respecto de
+   lo que se hace hoy, no una descripción del presente.**
+
+   **Hoy el OTP ya viaja por WhatsApp.** `OtpServiceRepository::generateOtp(..., ?string $template)`
+   arma `$payload['whatsapp_template'] = $template` y lo postea a `/api/otp/generate` del
+   `otp-service` (`Modules/System/App/Repositories/OtpServiceRepository.php:28-44`); el comentario del
+   bypass de QA lo confirma («no se llama al provider externo ni se envía **SMS/Whatsapp**»). De las
+   cuatro llamadas, dos pasan template (`Loans/…/OtpService.php:64`,
+   `Onboarding/…/OtpService.php:420`) y dos no (`Onboarding:555`, `Auth/…/AuthService.php:633`).
+   ⏳ **Sin confirmar**: si va sólo por WhatsApp o por WhatsApp **y** SMS, y cuál es el template.
+
+   **Por qué igual hay que cambiarlo acá.** Hoy está bien: el cliente recibe el código por WhatsApp
+   mientras usa el **wizard web** — canal distinto del que está usando. En esta tarea es al revés: el
+   cliente autoriza **dentro de WhatsApp**, así que un código al mismo chat deja de ser segundo
+   factor. **La regla no es «SMS sí, WhatsApp no» — es que el canal del OTP no coincida con el de la
+   conversación.**
+
+   Costo del cambio: `messaging-service` ya manda SMS por LabsMobile (mismo
+   `POST /api/v1/messages/send`, otro canal), pero falta ver si el `otp-service` sabe emitir por SMS
+   o sólo hace WhatsApp — **eso decide si es configuración o desarrollo**. El repo no está clonado.
 3. **El aviso va siempre al dato ANTERIOR**, nunca sólo al nuevo. Es lo que permite detectar el
    cambio no autorizado.
 4. **"No es tu cliente" y "no existe" responden idéntico.** Si difieren, el buscador se vuelve un
@@ -350,7 +366,13 @@ construir, verde = ya existe) y la fila de auditoría que quedaría.
 - **El OTP del asesor le llega al mismo teléfono** donde tiene WhatsApp. El segundo factor se
   degrada: quien tenga ese aparato desbloqueado tiene los dos. Sigue sirviendo contra el atacante
   **remoto**, que es el caso que motivó la tarea; contra el que tiene el teléfono en la mano lo que
-  protege es el timeout y que **el cliente igual debe autorizar**. Asumido a conciencia, no resuelto.
+  protege es el timeout y que **el cliente igual debe autorizar**.
+  → **Mitigación barata, sin código**: recomendar que el asesor converse desde **WhatsApp Web en la
+  computadora** y reciba el OTP por SMS en el teléfono — dos dispositivos, factor recuperado. Ver
+  §«El canal del asesor no tiene por qué ser WhatsApp».
+- **¿El OTP se queda en WhatsApp o pasa a SMS?** Hoy va por WhatsApp (§Decisiones tomadas, punto 2).
+  Cambiarlo depende de si el `otp-service` sabe emitir por SMS — el repo no está clonado, así que no
+  se sabe si es configuración o desarrollo.
 
 ## Deuda aparte (no es de esta tarea, pero se encontró acá)
 
@@ -558,6 +580,30 @@ código, **sin registrar número propio ni esperar aprobación de plantillas**. 
 flujo real andando en el teléfono en días —dos personas haciendo de asesor y cliente— y recién
 después pasar al número corporativo y al trámite de plantillas. Convierte el HTML en algo que se
 prueba de verdad, y no compromete nada.
+
+### El canal del asesor no tiene por qué ser WhatsApp (y conviene pensarlo)
+
+**Asesor y cliente son dos conversaciones independientes**, correlacionadas por el ticket. El
+**cliente** tiene que ser WhatsApp —es donde está y donde reconoce la marca—, pero el **asesor** no
+está atado a nada. El mismo modelo de webhook sirve para varios canales (Twilio expone SMS, WhatsApp,
+voz y RCS por la misma API; `messaging-service` ya habla SMS, WhatsApp y email).
+
+| canal para el asesor | a favor | en contra |
+|---|---|---|
+| **WhatsApp** | ya lo usan todo el día, cero adopción; botones y listas | el OTP compite con el canal |
+| **SMS** | webhook idéntico, sin plantillas ni ventana de 24 h | sin botones ni listas: todo texto plano |
+| **Telegram** | bots gratis, sin plantillas, sin ventana, botones nativos | otra app que instalar y sostener |
+| **Panel web** | control total, sin límites de canal | es el admin que ya existe — y el punto era que no lo usan |
+
+Slack/Teams quedan descartados: los asesores son **Superadmin comercio**, gente de los comercios
+(Alkosto, Dentix…), no empleados de CreditOp. No están en el workspace.
+
+⚠ **Lo importante: elegir el canal es lo que arregla el problema del segundo factor.** El riesgo
+anotado en §Preguntas abiertas —el OTP llega al mismo teléfono donde el asesor tiene WhatsApp— **se
+resuelve eligiendo, no programando**: si conversa por **WhatsApp Web en la computadora** y el OTP le
+llega por **SMS al teléfono**, son dos dispositivos y el factor vuelve a valer. Y es lo que va a pasar
+naturalmente: un asesor en un punto de venta trabaja frente a una pantalla. Vale como **recomendación
+de uso** aunque el canal siga siendo WhatsApp.
 
 ### Decisión abierta: ¿mismo número de WhatsApp o uno nuevo?
 
