@@ -280,7 +280,22 @@ Reglas que el backend ya aplica y que el bot **no debe poder saltar** (`CreditCh
 | `EXTERNALLY_SERVICED` | lenders con ciclo de vida gestionado afuera |
 | `NO_ACTIVE_CREDIT` / `USER_REQUEST_NOT_FOUND` | — |
 | fechas ofrecidas | ciclos fijos **5 / 16 / 28**, sólo las **2 próximas** (`getNextPaymentCycles`) |
-| plazos ofrecidos | `fee_numbers` de la línea de crédito, filtrado a `> cuotas pagadas` y `≤ max_fee_number` de la categoría (`simulatePossibleFees`) |
+| plazos ofrecidos | `fee_numbers` de la línea de crédito, filtrado a `> installment_number` y `≤ max_fee_number` de la categoría (`simulatePossibleFees`) |
+
+**El filtro de plazos es aritmético, no una política** — y es fácil leerlo mal. `feeNum >
+installment_number` existe por el cálculo de abajo: `adjustedFeeNumber = possibleFeeNumber -
+installmentNumber + 1`. Si el plazo nuevo fuera igual o menor a lo ya pagado, ese número da cero o
+negativo y la amortización se rompe. Sólo garantiza que **quede al menos una cuota por pagar**.
+
+⚠ **No significa «sólo se puede ampliar».** Con la línea `3,6,9,12,18,24,36,48`, plazo actual 12 y 3
+cuotas pagadas, las opciones válidas son **6, 9, 12, 18 y 24** — todas mayores a 3. El cliente **sí
+puede reducir** el plazo (pagando cuotas más altas); el actual también se ofrece, marcado
+`is_current`. *(El prototipo mostraba sólo 18 y 24 — corregido.)*
+
+Dos cosas del código que conviene no imitar: el comentario dice «must be > installment_number **and
+!= current fee_number**», pero el filtro **no** excluye el actual y el closure captura
+`$currentFeeNumber` sin usarlo; y el `elseif ($possibleFeeNumber <= $installmentNumber)` de más abajo
+es **inalcanzable**, porque el array ya viene filtrado.
 
 ⚠ Las rutas del lado **Customer** salen con
 `withoutMiddleware(['onlyMobileValidation','validate.authorized.status'])`. Revisar qué las protege
@@ -565,13 +580,18 @@ en Meta, más el markup de Twilio (del orden de US$0.005/mensaje). **El costo no
 esta decisión.** ⚠ Ese número sale de rate cards de terceros, no de Meta directo — confirmarlo en la
 consola de Twilio antes de citarlo a alguien.
 
-### ⚠ Ajuste pendiente en el prototipo: el menú no entra en botones
+### Los menús van como LISTA, no como botones
 
-**En conversación abierta WhatsApp permite máximo 3 botones**; en plantilla aprobada, hasta 10. El
-menú del asesor del prototipo tiene **4 opciones** (celular · correo · fecha de pago · plazo) y va
-**en sesión**, no en plantilla. Dos salidas: **lista desplegable** (`twilio/list-picker`, hasta 10
-opciones) o **dos niveles** («Datos de contacto» / «Condiciones del crédito»). Se inclina por la
-lista: un solo paso y se lee mejor en el teléfono. **El HTML todavía muestra 4 botones.**
+**En conversación abierta WhatsApp permite máximo 3 botones**; en plantilla aprobada, hasta 10. Dos
+menús del flujo se pasan de tres:
+
+- el del asesor tras elegir cliente — **4 opciones** (celular · correo · fecha de pago · plazo);
+- el de plazos — **5 opciones** (6, 9, 12, 18, 24), y podrían ser más según la línea de crédito.
+
+Los dos van **en sesión**, así que la salida es **lista desplegable** (`twilio/list-picker`, hasta 10
+opciones): un solo paso y se lee mejor en el teléfono que dos niveles de submenú. ✅ **Aplicado en el
+prototipo** — las opciones llevan además un subtítulo, que es donde se distingue «dato de contacto»
+de «condición del crédito · pide OTP».
 
 ### Siguiente paso propuesto: el sandbox
 

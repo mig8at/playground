@@ -89,6 +89,12 @@
   .qr button:first-child{border-top:none}
   .qr button:hover:not(:disabled){background:rgba(0,0,0,.03)}
   .qr button:disabled{color:#b9c1c6;cursor:default}
+  /* list-picker: en sesión WhatsApp sólo permite 3 botones, así que un menú de 4+ va como lista */
+  .qr.list .hd{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:#667781;
+    padding:7px 10px 3px;text-align:left}
+  .qr.list button{text-align:left;padding:8px 10px;color:#111b21;font-size:13.5px}
+  .qr.list button .sub{display:block;font-size:11.5px;color:#667781;margin-top:1px}
+  .qr.list button:disabled .sub{color:#b9c1c6}
 
   .typing{align-self:flex-start;background:#fff;border-radius:8px;padding:9px 12px;
     box-shadow:0 1px .5px rgba(0,0,0,.13);display:flex;gap:3px}
@@ -230,7 +236,7 @@ const F = {
        mail:"ma******@gmail.com", mailFull:"mafe.gutierrez@gmail.com",
        mailNue:"ma************@outlook.com", mailNueFull:"mafe.gutierrez@outlook.com",
        fecha:"16 de septiembre de 2026", fechaNue:"28 de septiembre de 2026",
-       plazo:"12 cuotas de $245.000", plazoNue:"18 cuotas de $175.200", pagadas:3}
+       plazo:"12 cuotas de $245.000", plazoNue:"18 cuotas de $161.000", pagadas:3}
 };
 const A = {
   otpAsesor:{m:"POST", p:"/api/support/advisor/otp", n:"Resuelve la cédula contra users y manda OTP al celular DEL PERFIL — nunca al que escribe por WhatsApp", nuevo:1},
@@ -261,9 +267,11 @@ const steps = [
   {id:"s4", side:"a", from:"bot", text:"Envía el número de documento del cliente.",
             input:{value:"1032456789", ph:"Documento del cliente"}},
   {id:"s5", side:"a", from:"bot", text:`✅ Cliente encontrado y <b>verificado como tuyo</b>:<span class="kv">${F.cli.nombre}\nCC ${F.cli.cc}\nCelular ${F.cli.cel}\nCorreo  ${F.cli.mail}</span>Solicitud #${F.cli.sol} · ${F.asesor.suc}<br><br>¿Qué deseas gestionar?`,
-            api:A.buscar,
-            buttons:[{t:"📱 Cambiar celular", goto:"cel1"},{t:"✉️ Cambiar correo", goto:"mail1"},
-                     {t:"📅 Cambiar fecha de pago", goto:"fec1"},{t:"🗓️ Cambiar plazo del crédito", goto:"pla1"}]},
+            api:A.buscar, list:"¿Qué deseas gestionar?",
+            buttons:[{t:"📱 Cambiar celular", sub:"dato de contacto", goto:"cel1"},
+                     {t:"✉️ Cambiar correo", sub:"dato de contacto", goto:"mail1"},
+                     {t:"📅 Cambiar fecha de pago", sub:"condición del crédito · pide OTP", goto:"fec1"},
+                     {t:"🗓️ Cambiar plazo del crédito", sub:"condición del crédito · pide OTP", goto:"pla1"}]},
 
   // ─── CELULAR ───
   {id:"cel1", side:"a", from:"bot", text:`Celular actual: <b>${F.cli.cel}</b><br>Escribe el nuevo número.`,
@@ -325,8 +333,13 @@ const steps = [
   // ─── PLAZO ───
   {id:"pla1", side:"a", from:"bot", text:"Verificando si el crédito admite cambios…", api:A.canChange,
               next:()=> inelig() ? "noeleg" : "pla2"},
-  {id:"pla2", side:"a", from:"bot", text:`✅ Crédito elegible.<br>Plazo actual: <b>${F.cli.plazo}</b> · lleva <b>${F.cli.pagadas} pagadas</b><br><br>Opciones de la línea de crédito (solo mayores a las cuotas ya pagadas):`,
-              api:A.feeOpts, buttons:[{t:"18 cuotas · $175.200 c/u"},{t:"24 cuotas · $139.800 c/u", dis:true}]},
+  {id:"pla2", side:"a", from:"bot", text:`✅ Crédito elegible.<br>Plazo actual: <b>${F.cli.plazo}</b> · lleva <b>${F.cli.pagadas} pagadas</b><br><br>Puede <b>reducir o ampliar</b>: el único límite es que el plazo total supere las ${F.cli.pagadas} cuotas ya pagadas.`,
+              api:A.feeOpts, list:"Elegir plazo",
+              buttons:[{t:"6 cuotas",  sub:"$577.000 c/u · quedan 4",  dis:true},
+                       {t:"9 cuotas",  sub:"$340.000 c/u · quedan 7",  dis:true},
+                       {t:"12 cuotas", sub:"$245.000 c/u · actual",    dis:true},
+                       {t:"18 cuotas", sub:"$161.000 c/u · quedan 16"},
+                       {t:"24 cuotas", sub:"$124.600 c/u · quedan 22", dis:true}]},
   {id:"pla3", side:"a", from:"bot", text:`Este es un <b>cambio de condiciones del crédito</b>.<span class="warnline">⚠ La clienta tendrá que escribir un código OTP — no basta con que toque un botón.</span>`,
               buttons:[{t:"📨 Enviar solicitud"}]},
   {id:"pla4", side:"a", from:"bot", text:"⏳ Solicitud enviada. Esperando a la clienta…",
@@ -366,9 +379,15 @@ function bubble(side, from, html, opts={}){
   el.className="msg "+(from==="me"?"mine":"theirs");
   el.innerHTML=html+`<span class="t">${now()}${from==="me"?' <span class="tick">✓✓</span>':''}</span>`;
   if(opts.buttons){
-    const box=document.createElement("div"); box.className="qr";
+    const box=document.createElement("div"); box.className="qr" + (opts.list ? " list" : "");
+    if(opts.list){
+      const hd=document.createElement("div"); hd.className="hd"; hd.textContent=opts.list;
+      box.appendChild(hd);
+    }
     opts.buttons.forEach(b=>{
-      const btn=document.createElement("button"); btn.textContent=b.t;
+      const btn=document.createElement("button");
+      btn.textContent=b.t;
+      if(b.sub){ const s=document.createElement("span"); s.className="sub"; s.textContent=b.sub; btn.appendChild(s); }
       if(b.dis) btn.disabled=true;
       else btn.onclick=()=>{ box.querySelectorAll("button").forEach(x=>x.disabled=true); choose(b, side); };
       box.appendChild(btn);
@@ -455,7 +474,7 @@ async function run(){
     await typing(s.side, s.text.length>200?880:640);
     if(s.api) apiCall(s.api);
     if(s.audit) audit(s.audit);
-    bubble(s.side,"bot",s.text,{buttons:s.buttons});
+    bubble(s.side,"bot",s.text,{buttons:s.buttons, list:s.list});
     if(s.sms){ await sleep(500); smsNotif(s.sms); }
 
     if(s.buttons && s.buttons.some(b=>!b.dis)){
