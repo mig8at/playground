@@ -1,0 +1,87 @@
+/* Los tokens. Registro alto contraste / cero adorno: fondo plano, bordes de 1px muy sutiles, nada
+   de sombras, y COLOR SOLO PARA ESTADO. Lo que antes hacía el verde de marca ahora lo hace el
+   contraste — el botón primario es monocromo invertido (negro sobre blanco / blanco sobre negro).
+   El azul queda para enlaces y para lo que está activo, nunca para decorar. */
+:root{
+  --page:#ffffff; --panel:#ffffff; --panel-2:#fafafa;
+  --line:#eaeaea; --line-fuerte:#d4d4d4;
+  --page-ink:#171717; --page-soft:#666666; --page-tenue:#8f8f8f;
+  --accent:#0068d6;
+  --warn:#a35200; --bad:#c5221f; --ok:#0d7a4d; --contract:#6b46c1;
+  --soft-bg:#fafafa; --soft-bg2:#f2f2f2;
+  --invertido-fondo:#171717; --invertido-texto:#ffffff;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --page:#000000; --panel:#0a0a0a; --panel-2:#111111;
+    --line:#1f1f1f; --line-fuerte:#333333;
+    --page-ink:#ededed; --page-soft:#a1a1a1; --page-tenue:#6f6f6f;
+    --accent:#52a8ff;
+    --warn:#f5a623; --bad:#ff6166; --ok:#4cc38a; --contract:#a78bfa;
+    --soft-bg:#111111; --soft-bg2:#1a1a1a;
+    --invertido-fondo:#ffffff; --invertido-texto:#000000;
+  }
+}
+:root[data-theme="dark"]{
+  --page:#000000; --panel:#0a0a0a; --panel-2:#111111;
+  --line:#1f1f1f; --line-fuerte:#333333;
+  --page-ink:#ededed; --page-soft:#a1a1a1; --page-tenue:#6f6f6f;
+  --accent:#52a8ff;
+  --warn:#f5a623; --bad:#ff6166; --ok:#4cc38a; --contract:#a78bfa;
+  --soft-bg:#111111; --soft-bg2:#1a1a1a;
+  --invertido-fondo:#ffffff; --invertido-texto:#000000;
+}
+
+*{box-sizing:border-box}
+body{margin:0;background:var(--page);color:var(--page-ink);
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;
+  font-size:14px;line-height:1.5;-webkit-font-smoothing:antialiased;
+  /* Cifras de ancho fijo: sin esto los porcentajes y los días bailan al cambiar de valor. */
+  font-variant-numeric:tabular-nums}
+.mono{font-family:ui-monospace,SFMono-Regular,"SF Mono",Menlo,monospace;letter-spacing:-.01em}
+
+h1{font-size:24px;font-weight:600;letter-spacing:-.025em;margin:0}
+h2{letter-spacing:-.02em}
+h3{letter-spacing:-.015em}
+
+/* ── botones ────────────────────────────────────────────────────────────────────────────────── */
+button.ctl{font:inherit;font-size:13px;padding:0 12px;height:32px;border-radius:6px;
+  border:1px solid var(--line);background:var(--panel);color:var(--page-soft);cursor:pointer;
+  display:inline-flex;align-items:center;gap:6px;transition:border-color .15s,color .15s}
+button.ctl:hover{border-color:var(--line-fuerte);color:var(--page-ink)}
+
+/* Monocromo invertido: la firma del registro. Nada de relleno de color. */
+button.primary{font:inherit;font-size:13px;font-weight:500;padding:0 14px;height:32px;
+  border-radius:6px;border:1px solid transparent;
+  background:var(--invertido-fondo);color:var(--invertido-texto);cursor:pointer;
+  display:inline-flex;align-items:center;gap:6px;transition:opacity .15s}
+button.primary:hover{opacity:.85}
+button.primary:disabled{opacity:.35;cursor:not-allowed}
+
+.chip{font:inherit;font-size:13px;padding:0 12px;height:30px;border-radius:6px;
+  border:1px solid var(--line);background:var(--panel);color:var(--page-soft);cursor:pointer;
+  white-space:nowrap;display:inline-flex;align-items:center;gap:6px;
+  transition:border-color .15s,color .15s}
+.chip:hover{border-color:var(--line-fuerte);color:var(--page-ink)}
+.chip[aria-pressed="true"]{background:var(--invertido-fondo);border-color:var(--invertido-fondo);
+  color:var(--invertido-texto);font-weight:500}
+.chip .n{opacity:.55;font-weight:400}
+
+/* ── estado ─────────────────────────────────────────────────────────────────────────────────── */
+/* Punto + texto, sin pastilla de color: la píldora rellena grita, el punto informa. */
+.badge{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;font-weight:450;
+  color:var(--page-soft);white-space:nowrap}
+.badge::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor;
+  flex:0 0 auto}
+.badge.aprobacion{color:var(--warn)}
+.badge.desarrollo{color:var(--page-tenue)}
+.badge.mergeada{color:var(--ok)}
+
+/* ── varios ─────────────────────────────────────────────────────────────────────────────────── */
+.stamp{margin:10px 0 0;font-size:12.5px;color:var(--page-soft);line-height:1.6;max-width:76ch;
+  background:var(--panel-2);border:1px solid var(--line);border-radius:8px;padding:11px 13px}
+.stamp b{color:var(--page-ink);font-weight:500}
+.vacio{color:var(--page-tenue);font-size:13px;padding:16px 2px}
+
+a{color:var(--accent)}
+::selection{background:var(--page-ink);color:var(--page)}

@@ -171,7 +171,7 @@ trazador-sql: ## @har UNA consulta de SOLO LECTURA a la BD del ambiente. SQL='SE
 flow: ## @expl simulador del flujo (:5190)
 	@cd flow && npm run dev
 
-engine: ## @expl motor de reglas (:5197)
+engine: ## @expl motor de reglas (:5196)
 	@cd engine && npm run dev
 
 dict: ## @expl diccionario de negocio (:5194)
@@ -186,3 +186,7 @@ plantillas: ## @expl PROTOTIPO: onboarding compuesto por el backend, realtime po
 
 plantillas-check: ## @expl compila el server del prototipo (go vet + build)
 	@cd plantillas/server && go vet ./... && go build -o /dev/null ./... && echo "plantillas: ok"
+
+.PHONY: cuadrilla
+cuadrilla: ## @expl PROTOTIPO: las épicas del equipo — ramas y PRs por persona (:5197)
+	@cd cuadrilla && npm run dev

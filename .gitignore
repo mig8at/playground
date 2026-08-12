@@ -55,3 +55,7 @@ test-results/
 
 # Volcado forense pre-scrub (harness/.runs/) — estado de solicitudes por corrida, local por máquina
 .runs/
+
+# base local de cuadrilla
+cuadrilla.db
+cuadrilla.db-*

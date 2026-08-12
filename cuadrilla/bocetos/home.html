@@ -1,0 +1,358 @@
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>cuadrilla — épicas</title>
+<style>
+  :root{
+    --page:#f7f8fa; --panel:#ffffff; --line:#e4e7eb; --page-ink:#1a2027; --page-soft:#5d6b7a;
+    --accent:#0a5c4a; --warn:#b54708; --bad:#b42318; --ok:#067647; --contract:#5b3cc4;
+    --soft-bg:rgba(127,127,127,.07); --soft-bg2:rgba(127,127,127,.13);
+    --sombra:0 1px 3px rgba(0,0,0,.06); --sombra-alta:0 6px 20px rgba(0,0,0,.09);
+  }
+  @media (prefers-color-scheme:dark){
+    :root:not([data-theme="light"]){
+      --page:#0f1418; --panel:#182026; --line:#2a353d; --page-ink:#e6edf3; --page-soft:#95a5b3;
+      --accent:#4ec9a8; --warn:#f0a35e; --bad:#f4776a; --ok:#5ed19a; --contract:#a992ff;
+      --soft-bg:rgba(255,255,255,.05); --soft-bg2:rgba(255,255,255,.1);
+      --sombra:0 1px 3px rgba(0,0,0,.3); --sombra-alta:0 6px 20px rgba(0,0,0,.45);
+    }
+  }
+  :root[data-theme="dark"]{
+    --page:#0f1418; --panel:#182026; --line:#2a353d; --page-ink:#e6edf3; --page-soft:#95a5b3;
+    --accent:#4ec9a8; --warn:#f0a35e; --bad:#f4776a; --ok:#5ed19a; --contract:#a992ff;
+    --soft-bg:rgba(255,255,255,.05); --soft-bg2:rgba(255,255,255,.1);
+    --sombra:0 1px 3px rgba(0,0,0,.3); --sombra-alta:0 6px 20px rgba(0,0,0,.45);
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--page);color:var(--page-ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;
+    font-size:15px;line-height:1.5}
+  .wrap{max-width:1080px;margin:0 auto;padding:26px 16px 70px}
+
+  h1{font-size:21px;margin:0 0 4px;letter-spacing:-.01em}
+  h1 .dot{color:var(--accent)}
+  .sub{color:var(--page-soft);font-size:13.5px;margin:0}
+  .stamp{margin:9px 0 0;font-size:12px;color:var(--page-soft);border-left:2px solid var(--line);
+    padding-left:9px;line-height:1.5;max-width:74ch}
+  .stamp b{color:var(--page-ink)}
+
+  /* ── barra de acción ──────────────────────────────────────────────────────────────────────── */
+  .barra{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:22px}
+  .cuenta{font-size:13px;color:var(--page-soft)}
+  .cuenta b{color:var(--page-ink);font-weight:600}
+  .barra .der{margin-left:auto;display:flex;gap:8px;align-items:center}
+  button.ctl{font:inherit;font-size:12.5px;padding:7px 12px;border-radius:8px;border:1px solid var(--line);
+    background:var(--panel);color:var(--page-soft);cursor:pointer}
+  button.ctl:hover{border-color:var(--accent);color:var(--page-ink)}
+  button.primary{font:inherit;font-size:13px;font-weight:600;padding:8px 15px;border-radius:8px;
+    border:1px solid var(--accent);background:var(--accent);color:var(--page);cursor:pointer;
+    display:inline-flex;align-items:center;gap:7px}
+  button.primary:hover{filter:brightness(1.08)}
+  button.primary .mas{font-size:15px;line-height:1}
+
+  /* ── la reja de épicas ────────────────────────────────────────────────────────────────────── */
+  .grid{margin-top:16px;display:grid;gap:13px;grid-template-columns:repeat(auto-fill,minmax(292px,1fr))}
+
+  .epica{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:15px 16px 14px;
+    box-shadow:var(--sombra);cursor:pointer;position:relative;
+    transition:border-color .15s, box-shadow .15s, transform .15s;
+    display:flex;flex-direction:column;min-height:158px}
+  .epica:hover{border-color:var(--accent);box-shadow:var(--sombra-alta);transform:translateY(-2px)}
+  .epica.recien{animation:entra .4s cubic-bezier(.2,.9,.3,1.15)}
+  @keyframes entra{from{opacity:0;transform:translateY(10px) scale(.97)}to{opacity:1;transform:none}}
+
+  .e-nom{font-size:15px;font-weight:600;letter-spacing:-.01em;margin:0;line-height:1.35;
+    padding-right:14px}
+  .e-meta{font-size:11.5px;color:var(--page-soft);margin:5px 0 0}
+  .e-flecha{position:absolute;top:14px;right:15px;color:var(--page-soft);font-size:14px;
+    opacity:0;transition:opacity .15s}
+  .epica:hover .e-flecha{opacity:1;color:var(--accent)}
+
+  .e-pie{margin-top:auto;padding-top:14px;display:flex;align-items:center;gap:12px}
+
+  /* avatares apilados: hasta 4 y el resto en +N */
+  .pila{display:flex;align-items:center}
+  .pila .av{margin-left:-7px;border:2px solid var(--panel)}
+  .pila .av:first-child{margin-left:0}
+  .av{width:29px;height:29px;border-radius:50%;flex:0 0 auto;display:grid;place-items:center;
+    font-size:11px;font-weight:700;color:#fff;background:var(--c,#666)}
+  .av.mas{background:var(--soft-bg2);color:var(--page-soft);font-size:10.5px}
+  .quien{font-size:11.5px;color:var(--page-soft);line-height:1.3;min-width:0}
+  .quien b{color:var(--page-ink);font-weight:600;font-size:12px;display:block}
+
+  /* el anillo: la métrica es el héroe de la card */
+  .anillo{margin-left:auto;position:relative;width:58px;height:58px;flex:0 0 auto}
+  .anillo svg{width:58px;height:58px;transform:rotate(-90deg);display:block}
+  .anillo circle{fill:none;stroke-width:5;stroke-linecap:round}
+  .anillo .pista{stroke:var(--soft-bg2)}
+  .anillo .arco{stroke:var(--accent);transition:stroke-dashoffset .6s cubic-bezier(.2,.8,.3,1)}
+  .anillo.cero .arco{stroke:transparent}
+  .anillo.full .arco{stroke:var(--ok)}
+  /* flex + baseline, no grid: con grid el número y el «%» caen en filas distintas. */
+  .anillo .txt{position:absolute;inset:0;display:flex;align-items:baseline;justify-content:center;
+    font-size:15px;font-weight:700;letter-spacing:-.03em;line-height:58px}
+  .anillo.cero .txt{color:var(--page-soft);font-weight:600}
+  .anillo.full .txt{color:var(--ok)}
+  .anillo .txt small{font-size:9.5px;font-weight:600;opacity:.6;margin-left:.5px}
+
+  /* la card fantasma que agrega */
+  .agregar{background:none;border:1.5px dashed var(--line);border-radius:12px;min-height:158px;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:7px;
+    color:var(--page-soft);cursor:pointer;font:inherit;font-size:13px;
+    transition:border-color .15s,color .15s,background .15s}
+  .agregar:hover{border-color:var(--accent);color:var(--accent);background:var(--soft-bg)}
+  .agregar .mas{font-size:26px;line-height:1;font-weight:300}
+
+  /* ── el modal ─────────────────────────────────────────────────────────────────────────────── */
+  dialog{border:1px solid var(--line);border-radius:14px;background:var(--panel);color:var(--page-ink);
+    padding:0;width:min(480px,calc(100vw - 32px));box-shadow:0 18px 50px rgba(0,0,0,.28)}
+  dialog::backdrop{background:rgba(10,14,18,.5);backdrop-filter:blur(2px)}
+  dialog[open]{animation:sube .22s cubic-bezier(.2,.9,.3,1.1)}
+  @keyframes sube{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+  .d-head{padding:17px 19px 0}
+  .d-head h2{font-size:16px;margin:0;letter-spacing:-.01em}
+  .d-head p{font-size:12.5px;color:var(--page-soft);margin:3px 0 0}
+  .d-body{padding:16px 19px 4px;display:flex;flex-direction:column;gap:16px}
+  /* Hijo DIRECTO a propósito: los chips de abajo también son <label> y este rule los reventaba
+     (mayúsculas, display:block y el avatar cayendo arriba del nombre). */
+  .campo > label{display:block;font-size:11.5px;text-transform:uppercase;letter-spacing:.05em;
+    color:var(--page-soft);font-weight:600;margin-bottom:6px}
+  .campo input[type=text]{width:100%;font:inherit;font-size:14.5px;padding:9px 12px;border-radius:8px;
+    border:1px solid var(--line);background:var(--page);color:var(--page-ink)}
+  .campo input[type=text]:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--soft-bg)}
+  .campo input::placeholder{color:var(--page-soft);opacity:.65}
+  .campo .pista-txt{font-size:11.5px;color:var(--page-soft);margin:6px 0 0}
+
+  .devs{display:flex;flex-wrap:wrap;gap:7px}
+  .dev{display:inline-flex;align-items:center;gap:7px;padding:5px 11px 5px 5px;border-radius:22px;
+    border:1px solid var(--line);background:var(--page);cursor:pointer;font-size:12.5px;
+    color:var(--page-ink);transition:border-color .12s,background .12s}
+  .dev:hover{border-color:var(--accent)}
+  .dev .av{width:22px;height:22px;font-size:9.5px}
+  .dev input{position:absolute;opacity:0;pointer-events:none}
+  .dev.on{border-color:var(--accent);background:var(--soft-bg);font-weight:600}
+  .dev .tick{width:14px;text-align:center;color:var(--accent);font-size:11px;opacity:0}
+  .dev.on .tick{opacity:1}
+
+  .d-foot{padding:15px 19px 17px;display:flex;align-items:center;gap:9px;margin-top:6px}
+  .d-foot .aviso{font-size:11.5px;color:var(--page-soft);margin-right:auto}
+  button.primary:disabled{opacity:.42;cursor:not-allowed;filter:none}
+
+  /* ── nota ─────────────────────────────────────────────────────────────────────────────────── */
+  .notas{margin-top:34px;background:var(--panel);border:1px solid var(--line);border-radius:11px;
+    padding:15px 17px}
+  .notas h2{font-size:13px;text-transform:uppercase;letter-spacing:.05em;margin:0 0 9px;color:var(--accent)}
+  .notas ul{margin:0;padding-left:19px;font-size:13px;color:var(--page-soft);line-height:1.65}
+  .notas ul li{margin-bottom:6px}
+  .notas ul li b{color:var(--page-ink)}
+  .notas .abierto{margin:12px 0 0;padding-top:11px;border-top:1px solid var(--line);
+    font-size:12.5px;color:var(--page-soft);line-height:1.55}
+  .notas .abierto b{color:var(--warn)}
+</style>
+
+<div class="wrap">
+  <h1>cuadrilla<span class="dot">.</span></h1>
+  <p class="sub">Las épicas del equipo: quién está en cada una y cuánto lleva.</p>
+  <p class="stamp">
+    Prototipo <b>visual</b> del 12 ago 2026 — home. Las épicas son de mentira y el
+    <b>porcentaje está puesto a mano</b>: todavía no decidimos de qué sale. Se puede crear una épica
+    y la card aparece, pero nada se guarda: al recargar vuelve a las cuatro de ejemplo.
+  </p>
+
+  <div class="barra">
+    <span class="cuenta" id="cuenta"></span>
+    <span class="der">
+      <button class="ctl" id="tema">tema</button>
+      <button class="primary" id="btnNueva"><span class="mas">＋</span> Nueva épica</button>
+    </span>
+  </div>
+
+  <div class="grid" id="grid"></div>
+
+  <div class="notas">
+    <h2>Qué muestra esta pantalla</h2>
+    <ul>
+      <li><b>La épica es la unidad del home.</b> Una card por épica: nombre, la gente que está encima
+        y un número de avance. Nada más — lo demás vive un nivel adentro.</li>
+      <li><b>La gente se ve antes que el detalle.</b> Los avatares van en la card, no escondidos:
+        entrás y ves de una quién está en qué.</li>
+      <li><b>Estados visuales que ya funcionan:</b> 0% (recién creada), en curso, 100% (verde) y
+        el apilado <span style="font-family:ui-monospace,Menlo,monospace">+N</span> cuando la cuadrilla
+        pasa de cuatro.</li>
+    </ul>
+    <p class="abierto">
+      <b>Sin decidir:</b> de qué sale ese 40%. ¿Tareas cerradas sobre el total? ¿PRs mergeados sobre
+      los abiertos? ¿Puntos de Jira? Cambia el número y cambia para qué sirve la pantalla —
+      lo dejamos para cuando cerremos lo visual.
+    </p>
+  </div>
+</div>
+
+<dialog id="dlg">
+  <div class="d-head">
+    <h2>Nueva épica</h2>
+    <p>El nombre y quiénes se le montan. Lo demás se llena solo con los PRs.</p>
+  </div>
+  <div class="d-body">
+    <div class="campo">
+      <label for="nom">Nombre de la épica</label>
+      <input type="text" id="nom" autocomplete="off" placeholder="Ej: Onboarding con país como dato">
+    </div>
+    <div class="campo">
+      <label>Desarrolladores involucrados</label>
+      <div class="devs" id="devs"></div>
+      <p class="pista-txt" id="pistaDevs">Nadie seleccionado todavía.</p>
+    </div>
+  </div>
+  <div class="d-foot">
+    <span class="aviso" id="avisoForm"></span>
+    <button class="ctl" id="btnCancelar">Cancelar</button>
+    <button class="primary" id="btnCrear" disabled>Crear épica</button>
+  </div>
+</dialog>
+
+<script>
+/* Mismo roster y mismos colores que la vista de PRs, para que se lean como la misma herramienta. */
+const PERSONAS = {
+  joel:   {nombre:'Joel',           c:'#b06f2b'},
+  lucho:  {nombre:'Luis Cabra',     c:'#2f7d8f'},
+  oscar:  {nombre:'Oscar Rincón',   c:'#7a5bbf'},
+  jose:   {nombre:'José Escobar',   c:'#3f7a4b'},
+  guzman: {nombre:'José Guzmán',    c:'#4a7a6a'},
+  miguel: {nombre:'Miguel Ochoa',   c:'#a04a5e'},
+  hans:   {nombre:'Hans Peter',     c:'#5a6f9e'},
+  abel:   {nombre:'Abel Arismendy', c:'#8a7020'},
+  yamid:  {nombre:'Yamid Viloria',  c:'#4f6b8a'},
+};
+
+/* Cuatro de ejemplo, elegidas para que se vea todo el rango visual: 1 persona, 3, 6 (apilado +N),
+   y los tres estados del anillo (bajo, medio, 100%). */
+let EPICAS = [
+  {id:1, nombre:'Onboarding con país como dato',      devs:['miguel','lucho','jose'],                    pct:40},
+  {id:2, nombre:'Migración de application a legacy',  devs:['oscar','joel','lucho','jose','yamid','hans'], pct:72},
+  {id:3, nombre:'Agente de soporte por WhatsApp',     devs:['miguel'],                                    pct:15},
+  {id:4, nombre:'Canal QR Bancolombia',               devs:['joel','abel'],                               pct:100},
+];
+let proxId = 5, recien = null;
+
+const esc = s => String(s).replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const iniciales = n => n.split(' ').map(w=>w[0]).slice(0,2).join('').toUpperCase();
+const avatar = (id, cls='') =>
+  `<span class="av ${cls}" style="--c:${PERSONAS[id].c}" title="${esc(PERSONAS[id].nombre)}">${iniciales(PERSONAS[id].nombre)}</span>`;
+
+/* El anillo. C = 2πr con r=24. El arco se dibuja con dashoffset, así anima solo. */
+const R = 24, C = 2 * Math.PI * R;
+function anillo(pct){
+  const cls = pct === 0 ? ' cero' : pct >= 100 ? ' full' : '';
+  return `<div class="anillo${cls}">
+    <svg viewBox="0 0 58 58" aria-hidden="true">
+      <circle class="pista" cx="29" cy="29" r="${R}"></circle>
+      <circle class="arco"  cx="29" cy="29" r="${R}"
+              stroke-dasharray="${C.toFixed(1)}"
+              stroke-dashoffset="${(C * (1 - pct/100)).toFixed(1)}"></circle>
+    </svg>
+    <span class="txt">${pct}<small>%</small></span>
+  </div>`;
+}
+
+function pilaHTML(devs){
+  const ver = devs.slice(0, 4);
+  const resto = devs.length - ver.length;
+  return `<span class="pila">${ver.map(d=>avatar(d)).join('')}
+    ${resto > 0 ? `<span class="av mas">+${resto}</span>` : ''}</span>`;
+}
+
+function epicaHTML(e){
+  const n = e.devs.length;
+  const nombres = e.devs.map(d=>PERSONAS[d].nombre.split(' ')[0]);
+  const quien = n === 1 ? nombres[0]
+    : n <= 3 ? nombres.slice(0,-1).join(', ') + ' y ' + nombres.at(-1)
+    : nombres.slice(0,2).join(', ') + ` y ${n-2} más`;
+  return `<article class="epica${e.id===recien?' recien':''}" tabindex="0">
+    <span class="e-flecha">→</span>
+    <h3 class="e-nom">${esc(e.nombre)}</h3>
+    <p class="e-meta">${n === 1 ? '1 persona' : `cuadrilla de ${n}`}</p>
+    <div class="e-pie">
+      ${pilaHTML(e.devs)}
+      <span class="quien"><b>${esc(quien)}</b>${e.pct === 0 ? 'sin PRs todavía' : 'avance'}</span>
+      ${anillo(e.pct)}
+    </div>
+  </article>`;
+}
+
+function render(){
+  const gente = new Set(EPICAS.flatMap(e=>e.devs));
+  document.getElementById('cuenta').innerHTML =
+    `<b>${EPICAS.length}</b> ${EPICAS.length===1?'épica':'épicas'} · <b>${gente.size}</b> personas repartidas`;
+  document.getElementById('grid').innerHTML =
+    EPICAS.map(epicaHTML).join('') +
+    `<button class="agregar" id="cardNueva"><span class="mas">＋</span> Nueva épica</button>`;
+  document.getElementById('cardNueva').onclick = abrir;
+  recien = null;
+}
+
+/* ── el modal ─────────────────────────────────────────────────────────────────────────────────── */
+const dlg = document.getElementById('dlg');
+const inpNom = document.getElementById('nom');
+const btnCrear = document.getElementById('btnCrear');
+let elegidos = new Set();
+
+document.getElementById('devs').innerHTML = Object.entries(PERSONAS).map(([id,p])=>
+  `<label class="dev" data-id="${id}">
+     <input type="checkbox" value="${id}">
+     ${avatar(id)}<span>${esc(p.nombre)}</span><span class="tick">✓</span>
+   </label>`).join('');
+
+document.querySelectorAll('.dev input').forEach(chk=>{
+  chk.onchange = () => {
+    const l = chk.closest('.dev');
+    chk.checked ? elegidos.add(chk.value) : elegidos.delete(chk.value);
+    l.classList.toggle('on', chk.checked);
+    revisar();
+  };
+});
+
+function revisar(){
+  const nom = inpNom.value.trim();
+  const n = elegidos.size;
+  document.getElementById('pistaDevs').textContent =
+    n === 0 ? 'Nadie seleccionado todavía.'
+            : `${n} ${n===1?'persona':'personas'} en la cuadrilla.`;
+  const falta = !nom ? 'Falta el nombre' : n === 0 ? 'Falta elegir a alguien' : '';
+  document.getElementById('avisoForm').textContent = falta;
+  btnCrear.disabled = !nom || n === 0;
+}
+inpNom.oninput = revisar;
+
+function abrir(){
+  inpNom.value = '';
+  elegidos.clear();
+  document.querySelectorAll('.dev').forEach(l=>{
+    l.classList.remove('on');
+    l.querySelector('input').checked = false;
+  });
+  revisar();
+  dlg.showModal();
+  inpNom.focus();
+}
+function crear(){
+  const e = {id: proxId++, nombre: inpNom.value.trim(), devs: [...elegidos], pct: 0};
+  EPICAS.unshift(e);          // lo nuevo arriba, para que se vea que pasó algo
+  recien = e.id;
+  dlg.close();
+  render();
+}
+
+document.getElementById('btnNueva').onclick = abrir;
+document.getElementById('btnCancelar').onclick = () => dlg.close();
+btnCrear.onclick = crear;
+// Enter en el nombre crea, si ya hay a quién ponerle.
+inpNom.onkeydown = ev => { if(ev.key === 'Enter' && !btnCrear.disabled) crear(); };
+
+document.getElementById('tema').onclick = () => {
+  const r = document.documentElement;
+  const oscuro = r.getAttribute('data-theme') === 'dark'
+    || (!r.getAttribute('data-theme') && matchMedia('(prefers-color-scheme:dark)').matches);
+  r.setAttribute('data-theme', oscuro ? 'light' : 'dark');
+};
+
+render();
+</script>

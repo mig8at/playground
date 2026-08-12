@@ -1,165 +1,749 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Agente Soporte · Modificación de datos — simulación</title>
 <style>
-  :root{
-    --wa-green:#008069; --wa-chat-bg:#efeae2; --wa-mine:#d9fdd3; --wa-theirs:#ffffff;
-    --wa-bar:#f0f2f5; --wa-link:#027eb5; --wa-tick:#53bdeb;
-    --page:#f7f8fa; --panel:#ffffff; --line:#e4e7eb; --page-ink:#1a2027; --page-soft:#5d6b7a;
-    --accent:#0a5c4a; --warn:#b54708; --bad:#b42318; --ok:#067647; --contract:#5b3cc4;
+  :root {
+    --wa-green: #008069;
+    --wa-chat-bg: #efeae2;
+    --wa-mine: #d9fdd3;
+    --wa-theirs: #ffffff;
+    --wa-bar: #f0f2f5;
+    --wa-link: #027eb5;
+    --wa-tick: #53bdeb;
+    --page: #f7f8fa;
+    --panel: #ffffff;
+    --line: #e4e7eb;
+    --page-ink: #1a2027;
+    --page-soft: #5d6b7a;
+    --accent: #0a5c4a;
+    --warn: #b54708;
+    --bad: #b42318;
+    --ok: #067647;
+    --contract: #5b3cc4;
   }
-  @media (prefers-color-scheme:dark){
-    :root{ --page:#0f1418; --panel:#182026; --line:#2a353d; --page-ink:#e6edf3; --page-soft:#95a5b3;
-           --accent:#4ec9a8; --warn:#f0a35e; --bad:#f4776a; --ok:#5ed19a; --contract:#a992ff; }
-  }
-  :root[data-theme="dark"]{
-    --page:#0f1418; --panel:#182026; --line:#2a353d; --page-ink:#e6edf3; --page-soft:#95a5b3;
-    --accent:#4ec9a8; --warn:#f0a35e; --bad:#f4776a; --ok:#5ed19a; --contract:#a992ff;
-  }
-  :root[data-theme="light"]{
-    --page:#f7f8fa; --panel:#ffffff; --line:#e4e7eb; --page-ink:#1a2027; --page-soft:#5d6b7a;
-    --accent:#0a5c4a; --warn:#b54708; --bad:#b42318; --ok:#067647; --contract:#5b3cc4;
-  }
-  *{box-sizing:border-box}
-  body{margin:0;background:var(--page);color:var(--page-ink);
-    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;
-    font-size:15px;line-height:1.5}
-  .wrap{max-width:1180px;margin:0 auto;padding:22px 16px 60px}
 
-  h1{font-size:20px;margin:0 0 4px;letter-spacing:-.01em}
-  .sub{color:var(--page-soft);font-size:13.5px;margin:0}
+  @media (prefers-color-scheme:dark) {
+    :root {
+      --page: #0f1418;
+      --panel: #182026;
+      --line: #2a353d;
+      --page-ink: #e6edf3;
+      --page-soft: #95a5b3;
+      --accent: #4ec9a8;
+      --warn: #f0a35e;
+      --bad: #f4776a;
+      --ok: #5ed19a;
+      --contract: #a992ff;
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --page: #0f1418;
+    --panel: #182026;
+    --line: #2a353d;
+    --page-ink: #e6edf3;
+    --page-soft: #95a5b3;
+    --accent: #4ec9a8;
+    --warn: #f0a35e;
+    --bad: #f4776a;
+    --ok: #5ed19a;
+    --contract: #a992ff;
+  }
+
+  :root[data-theme="light"] {
+    --page: #f7f8fa;
+    --panel: #ffffff;
+    --line: #e4e7eb;
+    --page-ink: #1a2027;
+    --page-soft: #5d6b7a;
+    --accent: #0a5c4a;
+    --warn: #b54708;
+    --bad: #b42318;
+    --ok: #067647;
+    --contract: #5b3cc4;
+  }
+
+  * {
+    box-sizing: border-box
+  }
+
+  body {
+    margin: 0;
+    background: var(--page);
+    color: var(--page-ink);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    font-size: 15px;
+    line-height: 1.5
+  }
+
+  .wrap {
+    max-width: 1180px;
+    margin: 0 auto;
+    padding: 22px 16px 60px
+  }
+
+  h1 {
+    font-size: 20px;
+    margin: 0 0 4px;
+    letter-spacing: -.01em
+  }
+
+  .sub {
+    color: var(--page-soft);
+    font-size: 13.5px;
+    margin: 0
+  }
+
   /* Un prototipo sin fecha se lee como estado actual. Con fecha se lee como lo que es. */
-  .stamp{margin:8px 0 0;font-size:12px;color:var(--page-soft);border-left:2px solid var(--line);
-    padding-left:9px;line-height:1.45}
-  .stamp b{color:var(--page-ink)}
-  .controls{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px;align-items:center}
-  button.ctl{font:inherit;font-size:13px;padding:7px 13px;border-radius:7px;border:1px solid var(--line);
-    background:var(--panel);color:var(--page-ink);cursor:pointer}
-  button.ctl:hover{border-color:var(--accent)}
-  button.ctl.primary{background:var(--accent);color:var(--page);border-color:var(--accent);font-weight:600}
-  label.tog{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;color:var(--page-soft);
-    padding:7px 11px;border:1px solid var(--line);border-radius:7px;cursor:pointer;background:var(--panel)}
-  label.tog input{margin:0;cursor:pointer}
-  .hint{font-size:12.5px;color:var(--page-soft)}
+  .stamp {
+    margin: 8px 0 0;
+    font-size: 12px;
+    color: var(--page-soft);
+    border-left: 2px solid var(--line);
+    padding-left: 9px;
+    line-height: 1.45
+  }
 
-  .phones{display:grid;grid-template-columns:1fr 1fr;gap:18px;align-items:start;margin-top:18px}
-  @media (max-width:840px){ .phones{grid-template-columns:1fr} }
+  .stamp b {
+    color: var(--page-ink)
+  }
 
-  .phone{border:1px solid var(--line);border-radius:12px;overflow:hidden;background:var(--wa-chat-bg);
-    box-shadow:0 1px 3px rgba(0,0,0,.07)}
-  .ph-head{background:var(--wa-green);color:#fff;padding:10px 14px;display:flex;align-items:center;gap:11px}
-  .avatar{width:34px;height:34px;border-radius:50%;background:rgba(255,255,255,.25);flex:0 0 auto;
-    display:grid;place-items:center;font-size:15px}
-  .ph-who{font-weight:600;font-size:14.5px;line-height:1.2}
-  .ph-sub{font-size:11.5px;opacity:.85;line-height:1.3}
-  .ph-role{margin-left:auto;font-size:10.5px;text-transform:uppercase;letter-spacing:.06em;
-    background:rgba(255,255,255,.2);padding:3px 8px;border-radius:20px}
+  .controls {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-top: 14px;
+    align-items: center
+  }
 
-  .chat{height:460px;overflow-y:auto;padding:14px 12px;display:flex;flex-direction:column;gap:7px;
-    background-color:var(--wa-chat-bg);
-    background-image:radial-gradient(rgba(0,0,0,.035) 1px, transparent 1px);
-    background-size:18px 18px}
-  .msg{max-width:85%;padding:7px 10px 6px;border-radius:8px;font-size:14px;position:relative;
-    box-shadow:0 1px .5px rgba(0,0,0,.13);color:#111b21;word-wrap:break-word;animation:pop .18s ease-out}
-  @keyframes pop{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
-  .msg.theirs{background:var(--wa-theirs);align-self:flex-start;border-top-left-radius:2px}
-  .msg.mine{background:var(--wa-mine);align-self:flex-end;border-top-right-radius:2px}
-  .msg .t{font-size:10.5px;color:#667781;float:right;margin:6px 0 -2px 8px}
-  .msg .t .tick{color:var(--wa-tick);font-size:11px}
-  .msg b{font-weight:600}
-  .msg .kv{display:block;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12.5px;
-    background:rgba(0,0,0,.045);border-radius:4px;padding:5px 7px;margin:5px 0 2px;white-space:pre-wrap}
-  .msg .warnline{color:#b54708;font-size:12.5px;display:block;margin-top:5px}
-  .msg .badline{color:#b42318;font-size:12.5px;display:block;margin-top:5px}
+  button.ctl {
+    font: inherit;
+    font-size: 13px;
+    padding: 7px 13px;
+    border-radius: 7px;
+    border: 1px solid var(--line);
+    background: var(--panel);
+    color: var(--page-ink);
+    cursor: pointer
+  }
+
+  button.ctl:hover {
+    border-color: var(--accent)
+  }
+
+  button.ctl.primary {
+    background: var(--accent);
+    color: var(--page);
+    border-color: var(--accent);
+    font-weight: 600
+  }
+
+  label.tog {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12.5px;
+    color: var(--page-soft);
+    padding: 7px 11px;
+    border: 1px solid var(--line);
+    border-radius: 7px;
+    cursor: pointer;
+    background: var(--panel)
+  }
+
+  label.tog input {
+    margin: 0;
+    cursor: pointer
+  }
+
+  .hint {
+    font-size: 12.5px;
+    color: var(--page-soft)
+  }
+
+  .phones {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 18px;
+    align-items: start;
+    margin-top: 18px
+  }
+
+  @media (max-width:840px) {
+    .phones {
+      grid-template-columns: 1fr
+    }
+  }
+
+  .phone {
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    overflow: hidden;
+    background: var(--wa-chat-bg);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, .07)
+  }
+
+  .ph-head {
+    background: var(--wa-green);
+    color: #fff;
+    padding: 10px 14px;
+    display: flex;
+    align-items: center;
+    gap: 11px
+  }
+
+  .avatar {
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, .25);
+    flex: 0 0 auto;
+    display: grid;
+    place-items: center;
+    font-size: 15px
+  }
+
+  .ph-who {
+    font-weight: 600;
+    font-size: 14.5px;
+    line-height: 1.2
+  }
+
+  .ph-sub {
+    font-size: 11.5px;
+    opacity: .85;
+    line-height: 1.3
+  }
+
+  .ph-role {
+    margin-left: auto;
+    font-size: 10.5px;
+    text-transform: uppercase;
+    letter-spacing: .06em;
+    background: rgba(255, 255, 255, .2);
+    padding: 3px 8px;
+    border-radius: 20px
+  }
+
+  .chat {
+    height: 460px;
+    overflow-y: auto;
+    padding: 14px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+    background-color: var(--wa-chat-bg);
+    background-image: radial-gradient(rgba(0, 0, 0, .035) 1px, transparent 1px);
+    background-size: 18px 18px
+  }
+
+  .msg {
+    max-width: 85%;
+    padding: 7px 10px 6px;
+    border-radius: 8px;
+    font-size: 14px;
+    position: relative;
+    box-shadow: 0 1px .5px rgba(0, 0, 0, .13);
+    color: #111b21;
+    word-wrap: break-word;
+    animation: pop .18s ease-out
+  }
+
+  @keyframes pop {
+    from {
+      opacity: 0;
+      transform: translateY(6px)
+    }
+
+    to {
+      opacity: 1;
+      transform: none
+    }
+  }
+
+  .msg.theirs {
+    background: var(--wa-theirs);
+    align-self: flex-start;
+    border-top-left-radius: 2px
+  }
+
+  .msg.mine {
+    background: var(--wa-mine);
+    align-self: flex-end;
+    border-top-right-radius: 2px
+  }
+
+  .msg .t {
+    font-size: 10.5px;
+    color: #667781;
+    float: right;
+    margin: 6px 0 -2px 8px
+  }
+
+  .msg .t .tick {
+    color: var(--wa-tick);
+    font-size: 11px
+  }
+
+  .msg b {
+    font-weight: 600
+  }
+
+  .msg .kv {
+    display: block;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 12.5px;
+    background: rgba(0, 0, 0, .045);
+    border-radius: 4px;
+    padding: 5px 7px;
+    margin: 5px 0 2px;
+    white-space: pre-wrap
+  }
+
+  .msg .warnline {
+    color: #b54708;
+    font-size: 12.5px;
+    display: block;
+    margin-top: 5px
+  }
+
+  .msg .badline {
+    color: #b42318;
+    font-size: 12.5px;
+    display: block;
+    margin-top: 5px
+  }
+
   /* El OTP NO viaja por WhatsApp: llega por SMS. Se dibuja como notificación del sistema,
      fuera del hilo, para que se vea que es otro canal. */
-  .phone{position:relative}
-  .sms{position:absolute;top:62px;left:12px;right:12px;z-index:5;border-radius:13px;
-    background:rgba(28,34,38,.92);color:#fff;padding:10px 13px;box-shadow:0 8px 24px rgba(0,0,0,.3);
-    backdrop-filter:blur(12px);animation:drop .32s cubic-bezier(.2,.9,.3,1.2)}
-  @keyframes drop{from{opacity:0;transform:translateY(-16px)}to{opacity:1;transform:none}}
-  .sms .hd{display:flex;align-items:center;gap:6px;font-size:11px;opacity:.75;margin-bottom:3px}
-  .sms .hd b{font-weight:600}
-  .sms .bd{font-size:13.5px;line-height:1.4}
-  .sms .code{font-family:ui-monospace,Menlo,monospace;font-weight:700;letter-spacing:.16em;font-size:16px}
-  .sms .via{font-size:10.5px;opacity:.6;margin-top:5px;font-style:italic}
+  .phone {
+    position: relative
+  }
 
-  .qr{margin:6px -10px -6px;border-top:1px solid rgba(0,0,0,.09)}
-  .qr button{display:block;width:100%;background:none;border:none;border-top:1px solid rgba(0,0,0,.09);
-    color:var(--wa-link);font:inherit;font-size:13.5px;padding:8px 6px;cursor:pointer;text-align:center}
-  .qr button:first-child{border-top:none}
-  .qr button:hover:not(:disabled){background:rgba(0,0,0,.03)}
-  .qr button:disabled{color:#b9c1c6;cursor:default}
+  .sms {
+    position: absolute;
+    top: 62px;
+    left: 12px;
+    right: 12px;
+    z-index: 5;
+    border-radius: 13px;
+    background: rgba(28, 34, 38, .92);
+    color: #fff;
+    padding: 10px 13px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, .3);
+    backdrop-filter: blur(12px);
+    animation: drop .32s cubic-bezier(.2, .9, .3, 1.2)
+  }
+
+  @keyframes drop {
+    from {
+      opacity: 0;
+      transform: translateY(-16px)
+    }
+
+    to {
+      opacity: 1;
+      transform: none
+    }
+  }
+
+  .sms .hd {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    opacity: .75;
+    margin-bottom: 3px
+  }
+
+  .sms .hd b {
+    font-weight: 600
+  }
+
+  .sms .bd {
+    font-size: 13.5px;
+    line-height: 1.4
+  }
+
+  .sms .code {
+    font-family: ui-monospace, Menlo, monospace;
+    font-weight: 700;
+    letter-spacing: .16em;
+    font-size: 16px
+  }
+
+  .sms .via {
+    font-size: 10.5px;
+    opacity: .6;
+    margin-top: 5px;
+    font-style: italic
+  }
+
+  .qr {
+    margin: 6px -10px -6px;
+    border-top: 1px solid rgba(0, 0, 0, .09)
+  }
+
+  .qr button {
+    display: block;
+    width: 100%;
+    background: none;
+    border: none;
+    border-top: 1px solid rgba(0, 0, 0, .09);
+    color: var(--wa-link);
+    font: inherit;
+    font-size: 13.5px;
+    padding: 8px 6px;
+    cursor: pointer;
+    text-align: center
+  }
+
+  .qr button:first-child {
+    border-top: none
+  }
+
+  .qr button:hover:not(:disabled) {
+    background: rgba(0, 0, 0, .03)
+  }
+
+  .qr button:disabled {
+    color: #b9c1c6;
+    cursor: default
+  }
+
   /* list-picker: en sesión WhatsApp sólo permite 3 botones, así que un menú de 4+ va como lista */
-  .qr.list .hd{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:#667781;
-    padding:7px 10px 3px;text-align:left}
-  .qr.list button{text-align:left;padding:8px 10px;color:#111b21;font-size:13.5px}
-  .qr.list button .sub{display:block;font-size:11.5px;color:#667781;margin-top:1px}
-  .qr.list button:disabled .sub{color:#b9c1c6}
+  .qr.list .hd {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: .05em;
+    color: #667781;
+    padding: 7px 10px 3px;
+    text-align: left
+  }
 
-  .typing{align-self:flex-start;background:#fff;border-radius:8px;padding:9px 12px;
-    box-shadow:0 1px .5px rgba(0,0,0,.13);display:flex;gap:3px}
-  .typing i{width:6px;height:6px;border-radius:50%;background:#9aa5ab;display:block;animation:bl 1.1s infinite}
-  .typing i:nth-child(2){animation-delay:.18s} .typing i:nth-child(3){animation-delay:.36s}
-  @keyframes bl{0%,60%,100%{opacity:.35}30%{opacity:1}}
+  .qr.list button {
+    text-align: left;
+    padding: 8px 10px;
+    color: #111b21;
+    font-size: 13.5px
+  }
 
-  .composer{background:var(--wa-bar);padding:8px 10px;display:flex;gap:8px;align-items:center;
-    border-top:1px solid rgba(0,0,0,.06)}
-  .composer input{flex:1;font:inherit;font-size:14px;border:none;border-radius:20px;padding:8px 14px;
-    background:#fff;color:#111b21;min-width:0}
-  .composer input:disabled{background:#e9edef;color:#9aa5ab}
-  .composer .send{width:34px;height:34px;border-radius:50%;border:none;background:var(--wa-green);
-    color:#fff;cursor:pointer;font-size:15px;flex:0 0 auto}
-  .composer .send:disabled{background:#c4ccd1;cursor:default}
+  .qr.list button .sub {
+    display: block;
+    font-size: 11.5px;
+    color: #667781;
+    margin-top: 1px
+  }
 
-  .panels{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-top:22px}
-  @media (max-width:840px){ .panels{grid-template-columns:1fr} }
-  .panel{background:var(--panel);border:1px solid var(--line);border-radius:11px;padding:15px 16px}
-  .panel h2{font-size:13px;text-transform:uppercase;letter-spacing:.05em;margin:0 0 3px;color:var(--accent)}
-  .panel .ph{font-size:12.5px;color:var(--page-soft);margin:0 0 12px}
-  .empty{color:var(--page-soft);font-size:13px;font-style:italic}
+  .qr.list button:disabled .sub {
+    color: #b9c1c6
+  }
 
-  ol.trace{list-style:none;margin:0;padding:0;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
-    font-size:11.5px;display:flex;flex-direction:column;gap:6px;max-height:270px;overflow-y:auto}
-  ol.trace li{padding:6px 9px;border-radius:6px;background:rgba(127,127,127,.07);
-    border-left:2.5px solid var(--accent);animation:pop .2s ease-out}
-  ol.trace li.new{border-left-color:var(--warn)}
-  ol.trace li .m{font-weight:700;color:var(--accent)}
-  ol.trace li.new .m{color:var(--warn)}
-  ol.trace li .note{display:block;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
-    color:var(--page-soft);font-size:11.5px;margin-top:2px;line-height:1.4}
+  .typing {
+    align-self: flex-start;
+    background: #fff;
+    border-radius: 8px;
+    padding: 9px 12px;
+    box-shadow: 0 1px .5px rgba(0, 0, 0, .13);
+    display: flex;
+    gap: 3px
+  }
 
-  .dest{font-family:ui-monospace,Menlo,monospace;font-size:12px;padding:5px 9px;border-radius:6px;
-    background:rgba(127,127,127,.09);display:inline-block;margin-bottom:10px}
-  .dest.nueva{color:var(--warn)} .dest.existe{color:var(--contract)}
-  .tblwrap{overflow-x:auto}
-  table{border-collapse:collapse;width:100%;font-size:12.5px;min-width:430px}
-  th,td{text-align:left;padding:6px 9px;border-bottom:1px solid var(--line);vertical-align:top}
-  th{font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--page-soft);font-weight:600}
-  td.mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11.5px}
-  .badge{display:inline-block;padding:2px 7px;border-radius:20px;font-size:11px;font-weight:600}
-  .badge.ok{background:rgba(6,118,71,.13);color:var(--ok)}
-  .badge.bad{background:rgba(180,35,24,.13);color:var(--bad)}
-  .badge.wait{background:rgba(181,71,8,.13);color:var(--warn)}
+  .typing i {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #9aa5ab;
+    display: block;
+    animation: bl 1.1s infinite
+  }
 
-  .note{margin-top:20px;background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--warn);
-    border-radius:9px;padding:13px 16px;font-size:13.5px}
-  .note b{color:var(--warn)}
-  .note + .note{border-left-color:var(--contract)}
-  .note + .note b{color:var(--contract)}
+  .typing i:nth-child(2) {
+    animation-delay: .18s
+  }
+
+  .typing i:nth-child(3) {
+    animation-delay: .36s
+  }
+
+  @keyframes bl {
+
+    0%,
+    60%,
+    100% {
+      opacity: .35
+    }
+
+    30% {
+      opacity: 1
+    }
+  }
+
+  .composer {
+    background: var(--wa-bar);
+    padding: 8px 10px;
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    border-top: 1px solid rgba(0, 0, 0, .06)
+  }
+
+  .composer input {
+    flex: 1;
+    font: inherit;
+    font-size: 14px;
+    border: none;
+    border-radius: 20px;
+    padding: 8px 14px;
+    background: #fff;
+    color: #111b21;
+    min-width: 0
+  }
+
+  .composer input:disabled {
+    background: #e9edef;
+    color: #9aa5ab
+  }
+
+  .composer .send {
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    border: none;
+    background: var(--wa-green);
+    color: #fff;
+    cursor: pointer;
+    font-size: 15px;
+    flex: 0 0 auto
+  }
+
+  .composer .send:disabled {
+    background: #c4ccd1;
+    cursor: default
+  }
+
+  .panels {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 18px;
+    margin-top: 22px
+  }
+
+  @media (max-width:840px) {
+    .panels {
+      grid-template-columns: 1fr
+    }
+  }
+
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 11px;
+    padding: 15px 16px
+  }
+
+  .panel h2 {
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: .05em;
+    margin: 0 0 3px;
+    color: var(--accent)
+  }
+
+  .panel .ph {
+    font-size: 12.5px;
+    color: var(--page-soft);
+    margin: 0 0 12px
+  }
+
+  .empty {
+    color: var(--page-soft);
+    font-size: 13px;
+    font-style: italic
+  }
+
+  ol.trace {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 11.5px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    max-height: 270px;
+    overflow-y: auto
+  }
+
+  ol.trace li {
+    padding: 6px 9px;
+    border-radius: 6px;
+    background: rgba(127, 127, 127, .07);
+    border-left: 2.5px solid var(--accent);
+    animation: pop .2s ease-out
+  }
+
+  ol.trace li.new {
+    border-left-color: var(--warn)
+  }
+
+  ol.trace li .m {
+    font-weight: 700;
+    color: var(--accent)
+  }
+
+  ol.trace li.new .m {
+    color: var(--warn)
+  }
+
+  ol.trace li .note {
+    display: block;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    color: var(--page-soft);
+    font-size: 11.5px;
+    margin-top: 2px;
+    line-height: 1.4
+  }
+
+  .dest {
+    font-family: ui-monospace, Menlo, monospace;
+    font-size: 12px;
+    padding: 5px 9px;
+    border-radius: 6px;
+    background: rgba(127, 127, 127, .09);
+    display: inline-block;
+    margin-bottom: 10px
+  }
+
+  .dest.nueva {
+    color: var(--warn)
+  }
+
+  .dest.existe {
+    color: var(--contract)
+  }
+
+  .tblwrap {
+    overflow-x: auto
+  }
+
+  table {
+    border-collapse: collapse;
+    width: 100%;
+    font-size: 12.5px;
+    min-width: 430px
+  }
+
+  th,
+  td {
+    text-align: left;
+    padding: 6px 9px;
+    border-bottom: 1px solid var(--line);
+    vertical-align: top
+  }
+
+  th {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    color: var(--page-soft);
+    font-weight: 600
+  }
+
+  td.mono {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 11.5px
+  }
+
+  .badge {
+    display: inline-block;
+    padding: 2px 7px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 600
+  }
+
+  .badge.ok {
+    background: rgba(6, 118, 71, .13);
+    color: var(--ok)
+  }
+
+  .badge.bad {
+    background: rgba(180, 35, 24, .13);
+    color: var(--bad)
+  }
+
+  .badge.wait {
+    background: rgba(181, 71, 8, .13);
+    color: var(--warn)
+  }
+
+  .note {
+    margin-top: 20px;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-left: 3px solid var(--warn);
+    border-radius: 9px;
+    padding: 13px 16px;
+    font-size: 13.5px
+  }
+
+  .note b {
+    color: var(--warn)
+  }
+
+  .note+.note {
+    border-left-color: var(--contract)
+  }
+
+  .note+.note b {
+    color: var(--contract)
+  }
+
   /* los límites de la plataforma, para que el prototipo se lea como especificación */
-  .note.wa{border-left-color:var(--accent)} .note.wa b{color:var(--accent)}
-  table.lim{border-collapse:collapse;margin:10px 0;font-size:12.5px}
-  table.lim th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.04em;
-    color:var(--page-soft);font-weight:600;padding:3px 14px 3px 0}
-  table.lim td{padding:3px 14px 3px 0;border-top:1px solid var(--line)}
-  table.lim td:first-child{color:var(--page-soft)}
-  code{font-family:ui-monospace,Menlo,monospace;font-size:12.5px}
+  .note.wa {
+    border-left-color: var(--accent)
+  }
+
+  .note.wa b {
+    color: var(--accent)
+  }
+
+  table.lim {
+    border-collapse: collapse;
+    margin: 10px 0;
+    font-size: 12.5px
+  }
+
+  table.lim th {
+    text-align: left;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    color: var(--page-soft);
+    font-weight: 600;
+    padding: 3px 14px 3px 0
+  }
+
+  table.lim td {
+    padding: 3px 14px 3px 0;
+    border-top: 1px solid var(--line)
+  }
+
+  table.lim td:first-child {
+    color: var(--page-soft)
+  }
+
+  code {
+    font-family: ui-monospace, Menlo, monospace;
+    font-size: 12.5px
+  }
 </style>
 
 <div class="wrap">
   <header>
     <h1>Agente Soporte · Modificación de datos</h1>
-    <p class="sub">El asesor pide el cambio por WhatsApp, el cliente lo autoriza desde el suyo. Nada se escribe hasta el doble check.</p>
+    <p class="sub">El asesor pide el cambio por WhatsApp, el cliente lo autoriza desde el suyo. Nada se escribe hasta el
+      doble check.</p>
     <p class="stamp">Prototipo para acordar el flujo — <b>11 de agosto de 2026</b> · CORE-258.
       Es lo que se propuso ese día, no lo que el sistema hace hoy.</p>
     <div class="controls">
@@ -174,7 +758,10 @@
     <div class="phone">
       <div class="ph-head">
         <div class="avatar">🏢</div>
-        <div><div class="ph-who">CreditOp · Gestión</div><div class="ph-sub" id="st-a">en línea</div></div>
+        <div>
+          <div class="ph-who">CreditOp · Gestión</div>
+          <div class="ph-sub" id="st-a">en línea</div>
+        </div>
         <div class="ph-role">Asesor</div>
       </div>
       <div class="chat" id="chat-a"></div>
@@ -187,7 +774,10 @@
     <div class="phone">
       <div class="ph-head">
         <div class="avatar">🛡️</div>
-        <div><div class="ph-who">CreditOp · Oficial</div><div class="ph-sub" id="st-b">en línea</div></div>
+        <div>
+          <div class="ph-who">CreditOp · Oficial</div>
+          <div class="ph-sub" id="st-b">en línea</div>
+        </div>
         <div class="ph-role">Cliente</div>
       </div>
       <div class="chat" id="chat-b"></div>
@@ -201,8 +791,11 @@
   <div class="panels">
     <div class="panel">
       <h2>Traza de APIs</h2>
-      <p class="ph">Lo que el bot (n8n) le pediría al backend. <b style="color:var(--warn)">Naranja</b> = hay que construirlo · <b style="color:var(--accent)">verde</b> = ya existe.</p>
-      <ol class="trace" id="trace"><li class="empty" style="border:none;background:none">Sin llamadas todavía.</li></ol>
+      <p class="ph">Lo que el bot (n8n) le pediría al backend. <b style="color:var(--warn)">Naranja</b> = hay que
+        construirlo · <b style="color:var(--accent)">verde</b> = ya existe.</p>
+      <ol class="trace" id="trace">
+        <li class="empty" style="border:none;background:none">Sin llamadas todavía.</li>
+      </ol>
     </div>
 
     <div class="panel">
@@ -211,8 +804,20 @@
       <div class="dest" id="dest">— sin destino aún —</div>
       <div class="tblwrap">
         <table>
-          <thead><tr><th>Campo</th><th>Anterior</th><th>Nuevo</th><th>Asesor</th><th>Estado</th></tr></thead>
-          <tbody id="audit"><tr><td colspan="5" class="empty">Sin registros.</td></tr></tbody>
+          <thead>
+            <tr>
+              <th>Campo</th>
+              <th>Anterior</th>
+              <th>Nuevo</th>
+              <th>Asesor</th>
+              <th>Estado</th>
+            </tr>
+          </thead>
+          <tbody id="audit">
+            <tr>
+              <td colspan="5" class="empty">Sin registros.</td>
+            </tr>
+          </tbody>
         </table>
       </div>
     </div>
@@ -230,10 +835,26 @@
     <b>Los componentes son los que WhatsApp permite de verdad.</b> Todo control de esta simulación
     respeta los límites de la plataforma — <b>33 de 33</b> auditados:
     <table class="lim">
-      <tr><th></th><th>en conversación abierta</th><th>en plantilla aprobada</th></tr>
-      <tr><td>botones</td><td>máx <b>3</b> · <b>20</b> caracteres</td><td>hasta <b>10</b> · 25 caracteres</td></tr>
-      <tr><td>lista</td><td>máx <b>10</b> filas · título <b>24</b> · descripción <b>72</b></td><td>—</td></tr>
-      <tr><td>texto</td><td>libre</td><td>cuerpo <b>1024</b> · encabezado y pie <b>60</b></td></tr>
+      <tr>
+        <th></th>
+        <th>en conversación abierta</th>
+        <th>en plantilla aprobada</th>
+      </tr>
+      <tr>
+        <td>botones</td>
+        <td>máx <b>3</b> · <b>20</b> caracteres</td>
+        <td>hasta <b>10</b> · 25 caracteres</td>
+      </tr>
+      <tr>
+        <td>lista</td>
+        <td>máx <b>10</b> filas · título <b>24</b> · descripción <b>72</b></td>
+        <td>—</td>
+      </tr>
+      <tr>
+        <td>texto</td>
+        <td>libre</td>
+        <td>cuerpo <b>1024</b> · encabezado y pie <b>60</b></td>
+      </tr>
     </table>
     Por eso los dos menús van como <b>lista</b> y no como botones: el de gestión tiene 4 opciones y el
     de plazos 5. Y por eso «Enviar al cliente» no dice «Enviar al cliente para aprobación» (33
@@ -244,294 +865,376 @@
     <b>Condiciones del crédito — el agujero es distinto.</b> Fecha de pago y plazo <i>ya</i> tienen endpoints
     (<code>CreditChangeController</code>) y <i>ya</i> validan elegibilidad. Lo que falta es el consentimiento:
     ambos escriben <code>'otp_id' =&gt; 0</code> con el comentario <i>«OTP validation handled by mobile app
-    authentication»</i>. La columna existe en <code>creditop_x_changes_log</code> y está esperando un OTP real
+      authentication»</i>. La columna existe en <code>creditop_x_changes_log</code> y está esperando un OTP real
     — por eso estos dos flujos piden código escrito, no un botón.
   </div>
 </div>
 
 <script>
-const F = {
-  asesor:{nombre:"Andrés Molina", cel:"320****145", rol:"Superadmin comercio", suc:"Alkosto Ochenta", id:4412},
-  cli:{nombre:"María Fernanda Gutiérrez", cc:"1032****789", sol:"487542",
-       cel:"321****207", celFull:"3214567207", celNue:"310****842", celNueFull:"3105558842",
-       mail:"ma******@gmail.com", mailFull:"mafe.gutierrez@gmail.com",
-       mailNue:"ma************@outlook.com", mailNueFull:"mafe.gutierrez@outlook.com",
-       fecha:"16 de septiembre de 2026", fechaNue:"28 de septiembre de 2026",
-       plazo:"12 cuotas de $245.000", plazoNue:"18 cuotas de $161.000", pagadas:3}
-};
-const A = {
-  otpAsesor:{m:"POST", p:"/api/support/advisor/otp", n:"Resuelve la cédula contra users y manda OTP al celular DEL PERFIL — nunca al que escribe por WhatsApp", nuevo:1},
-  verify:{m:"POST", p:"/api/support/advisor/otp/verify", n:"Devuelve token de sesión con TTL. El wa_id queda atado al asesor", nuevo:1},
-  buscar:{m:"GET", p:"/api/support/clients?document=1032456789", n:"Cruza user_requests.allied_id contra el comercio del asesor (users.allied_id ∪ multiple_allieds). Si no es suyo: 404 idéntico al de «no existe»", nuevo:1},
-  crear:{m:"POST", p:"/api/support/change-requests", n:"Crea la fila en pendiente_autorizacion. NO escribe en users", nuevo:1},
-  autorizar:{m:"PATCH", p:"/api/support/change-requests/184/authorize", n:"Primer check: el cliente autoriza la GESTIÓN, todavía no el cambio", nuevo:1},
-  confirmar:{m:"POST", p:"/api/support/change-requests/184/confirm", n:"Segundo check. AHORA sí escribe en users, en la misma transacción que el registro", nuevo:1},
-  rechazar:{m:"PATCH", p:"/api/support/change-requests/184/reject", n:"Queda la fila con el motivo. Sirve para medir la gestión del asesor", nuevo:1},
-  canChange:{m:"GET", p:"/api/loans/consumer/credits/487542/can-change", n:"YA EXISTE · CreditChangeValidationService: bloquea por pago pendiente, lender externally_serviced o cambio en los últimos 6 meses"},
-  dateOpts:{m:"GET", p:"/api/loans/consumer/credits/487542/payment-date-options", n:"YA EXISTE · ciclos fijos 5/16/28, devuelve solo los 2 próximos"},
-  feeOpts:{m:"GET", p:"/api/loans/consumer/credits/487542/fee-number-options", n:"YA EXISTE · fee_numbers de la línea de crédito, filtrado a > cuotas pagadas y ≤ max_fee_number de la categoría"},
-  otpCli:{m:"POST", p:"/api/support/change-requests/184/otp", n:"Manda el OTP por SMS (messaging-service → LabsMobile), NUNCA por el WhatsApp donde ocurre la conversación: si viaja por el mismo canal deja de ser segundo factor", nuevo:1},
-  aplicaFecha:{m:"POST", p:"/api/loans/consumer/credits/487542/change-payment-date", n:"YA EXISTE · hoy escribe otp_id=0. El cambio es pasarle el OTP REAL validado", nuevo:1},
-  aplicaPlazo:{m:"POST", p:"/api/loans/consumer/credits/487542/change-fee-number", n:"YA EXISTE · hoy escribe otp_id=0. El cambio es pasarle el OTP REAL validado", nuevo:1}
-};
-const T_CONTACTO = {t:"user_data_change_requests", cls:"nueva", nota:"tabla NUEVA"};
-const T_CREDITO  = {t:"creditop_x_changes_log", cls:"existe", nota:"tabla que YA existe · con otp_id real"};
-
-const steps = [
-  {id:"s0", side:"a", from:"me",  text:"Hola"},
-  {id:"s1", side:"a", from:"bot", text:"Bienvenido al canal de <b>gestión CreditOp</b> 🏢<br>Para continuar, envía tu número de cédula.",
-            input:{value:"79856214", ph:"Tu cédula"}},
-  {id:"s2", side:"a", from:"bot", text:`Enviamos un código de 6 dígitos al celular registrado en tu perfil <b>${F.asesor.cel}</b>. Ingrésalo acá.`,
-            api:A.otpAsesor, input:{value:"482913", ph:"Código de 6 dígitos"}},
-  {id:"s3", side:"a", from:"bot", text:`✅ Sesión iniciada.<br>Hola <b>${F.asesor.nombre}</b> — ${F.asesor.rol} · ${F.asesor.suc}.<br>La sesión expira tras 10 min sin actividad.`,
-            api:A.verify, buttons:[{t:"🔎 Buscar un cliente"},{t:"Salir", dis:true}]},
-  {id:"s4", side:"a", from:"bot", text:"Envía el número de documento del cliente.",
-            input:{value:"1032456789", ph:"Documento del cliente"}},
-  {id:"s5", side:"a", from:"bot", text:`✅ Cliente encontrado y <b>verificado como tuyo</b>:<span class="kv">${F.cli.nombre}\nCC ${F.cli.cc}\nCelular ${F.cli.cel}\nCorreo  ${F.cli.mail}</span>Solicitud #${F.cli.sol} · ${F.asesor.suc}<br><br>¿Qué deseas gestionar?`,
-            api:A.buscar, list:"¿Qué deseas gestionar?",
-            buttons:[{t:"📱 Cambiar celular", sub:"dato de contacto", goto:"cel1"},
-                     {t:"✉️ Cambiar correo", sub:"dato de contacto", goto:"mail1"},
-                     {t:"📅 Cambiar fecha de pago", sub:"condición del crédito · pide OTP", goto:"fec1"},
-                     {t:"🗓️ Cambiar plazo", sub:"condición del crédito · pide OTP", goto:"pla1"}]},
-
-  // ─── CELULAR ───
-  {id:"cel1", side:"a", from:"bot", text:`Celular actual: <b>${F.cli.cel}</b><br>Escribe el nuevo número.`,
-              input:{value:"3105558842", ph:"Nuevo celular"}},
-  {id:"cel2", side:"a", from:"bot", text:`Voy a pedirle autorización a <b>${F.cli.nombre}</b> por su WhatsApp <b>actual</b> (${F.cli.cel}).<span class="warnline">⚠ No puedes continuar hasta que ella responda.</span>`,
-              buttons:[{t:"📨 Enviar solicitud"}]},
-  {id:"cel3", side:"a", from:"bot", text:"⏳ Solicitud enviada. Esperando respuesta del cliente…",
-              api:A.crear, audit:{campo:"cell_phone", ant:F.cli.cel, nue:F.cli.celNue, estado:"pendiente", cls:"wait", dest:T_CONTACTO}, wake:true},
-  {id:"cel4", side:"b", from:"bot", text:`Hola <b>María Fernanda</b> 👋<br>Somos el canal oficial de CreditOp.<br><br>Tu asesor <b>${F.asesor.nombre}</b> (${F.asesor.suc}) solicita autorización para <b>cambiar tu número de celular</b>.<span class="badline">Si no reconoces esta solicitud, toca «No fui yo».</span>`,
-              buttons:[{t:"✅ Sí, autorizo"},{t:"🚫 No fui yo", goto:"nofui"}]},
-  {id:"cel5", side:"b", from:"bot", text:"Gracias. Te muestro el cambio exacto en un momento.",
-              api:A.autorizar, audit:{campo:"cell_phone", ant:F.cli.cel, nue:F.cli.celNue, estado:"autorizada", cls:"wait", dest:T_CONTACTO}},
-  {id:"cel6", side:"a", from:"bot", text:`✅ <b>${F.cli.nombre}</b> autorizó la gestión.<br>Confirma el cambio que enviarás:<span class="kv">Actual: ${F.cli.cel}\nNuevo:  ${F.cli.celNue}</span>`,
-              buttons:[{t:"Enviar al cliente"},{t:"Cancelar", dis:true}]},
-  {id:"cel7", side:"b", from:"bot", text:`Tu asesor solicita este cambio:<span class="kv">Celular actual: ${F.cli.cel}\nNuevo:          ${F.cli.celNue}</span>Si apruebas, <b>las notificaciones de tu crédito irán al número nuevo</b>.`,
-              buttons:[{t:"✅ Apruebo el cambio"},{t:"❌ Rechazo", goto:"rech"}]},
-  {id:"cel8", side:"b", from:"bot", text:"✅ Listo. Tu celular quedó actualizado.<br><br>Si no reconoces este cambio, responde <b>REPORTAR</b> y lo bloqueamos.",
-              api:A.confirmar, audit:{campo:"cell_phone", ant:F.cli.celFull, nue:F.cli.celNueFull, estado:"aplicada", cls:"ok", dest:T_CONTACTO}},
-  {id:"cel9", side:"a", from:"bot", text:`✅ Listo, el celular quedó actualizado.<span class="kv">Celular\n${F.cli.cel}\n→ ${F.cli.celNue}</span>Radicado <b>#MOD-00184</b>, a tu nombre.`, end:true},
-
-  // ─── CORREO ───
-  {id:"mail1", side:"a", from:"bot", text:`Correo actual: <b>${F.cli.mail}</b><br>Escribe el nuevo correo.`,
-               input:{value:"mafe.gutierrez@outlook.com", ph:"Nuevo correo"}},
-  {id:"mail2", side:"a", from:"bot", text:`Voy a pedirle autorización a <b>${F.cli.nombre}</b> por su WhatsApp actual (${F.cli.cel}) <b>y</b> al correo <b>anterior</b> (${F.cli.mail}).<span class="warnline">⚠ El aviso va siempre al dato viejo, no al nuevo.</span>`,
-               buttons:[{t:"📨 Enviar solicitud"}]},
-  {id:"mail3", side:"a", from:"bot", text:"⏳ Solicitud enviada. Esperando respuesta del cliente…",
-               api:A.crear, audit:{campo:"email", ant:F.cli.mail, nue:F.cli.mailNue, estado:"pendiente", cls:"wait", dest:T_CONTACTO}, wake:true},
-  {id:"mail4", side:"b", from:"bot", text:`Hola <b>María Fernanda</b> 👋<br>Tu asesor <b>${F.asesor.nombre}</b> solicita autorización para <b>cambiar tu correo</b>.<br><br>También te lo avisamos a <b>${F.cli.mail}</b>.<span class="badline">Si no reconoces esta solicitud, toca «No fui yo».</span>`,
-               buttons:[{t:"✅ Sí, autorizo"},{t:"🚫 No fui yo", goto:"nofui"}]},
-  {id:"mail5", side:"b", from:"bot", text:"Gracias. Te muestro el cambio exacto en un momento.",
-               api:A.autorizar, audit:{campo:"email", ant:F.cli.mail, nue:F.cli.mailNue, estado:"autorizada", cls:"wait", dest:T_CONTACTO}},
-  {id:"mail6", side:"a", from:"bot", text:`✅ Autorizó la gestión. Confirma:<span class="kv">Actual: ${F.cli.mail}\nNuevo:  ${F.cli.mailNue}</span>`,
-               buttons:[{t:"Enviar al cliente"},{t:"Cancelar", dis:true}]},
-  {id:"mail7", side:"b", from:"bot", text:`Tu asesor solicita este cambio:<span class="kv">Correo actual: ${F.cli.mail}\nNuevo:         ${F.cli.mailNue}</span>Si apruebas, los estados de cuenta irán al correo nuevo.`,
-               buttons:[{t:"✅ Apruebo el cambio"},{t:"❌ Rechazo", goto:"rech"}]},
-  {id:"mail8", side:"b", from:"bot", text:"✅ Listo. Tu correo quedó actualizado.<br><br>Si no reconoces este cambio, responde <b>REPORTAR</b>.",
-               api:A.confirmar, audit:{campo:"email", ant:F.cli.mailFull, nue:F.cli.mailNueFull, estado:"aplicada", cls:"ok", dest:T_CONTACTO}},
-  {id:"mail9", side:"a", from:"bot", text:`✅ Listo, el correo quedó actualizado.<span class="kv">Correo\n${F.cli.mail}\n→ ${F.cli.mailNue}</span>Radicado <b>#MOD-00185</b>, a tu nombre.`, end:true},
-
-  // ─── FECHA DE PAGO ───
-  {id:"fec1", side:"a", from:"bot", text:"Verificando si el crédito admite cambios…", api:A.canChange,
-              next:()=> inelig() ? "noeleg" : "fec2"},
-  {id:"fec2", side:"a", from:"bot", text:`✅ Crédito elegible.<br>Fecha de pago actual: <b>${F.cli.fecha}</b><br><br>Los ciclos son fijos (5, 16 y 28). Estas son las 2 próximas:`,
-              api:A.dateOpts, buttons:[{t:"28 de septiembre"},{t:"5 de octubre", dis:true}]},
-  {id:"fec3", side:"a", from:"bot", text:`Este es un <b>cambio de condiciones del crédito</b>, no un dato de contacto.<span class="warnline">⚠ La clienta tendrá que escribir un código OTP — no basta con que toque un botón.</span>`,
-              buttons:[{t:"📨 Enviar solicitud"}]},
-  {id:"fec4", side:"a", from:"bot", text:"⏳ Solicitud enviada. Esperando a la clienta…",
-              api:A.crear, audit:{campo:"next_payment_date", ant:F.cli.fecha, nue:F.cli.fechaNue, estado:"pendiente", cls:"wait", dest:T_CREDITO}, wake:true},
-  {id:"fec5", side:"b", from:"bot", text:`Hola <b>María Fernanda</b> 👋<br>Tu asesor <b>${F.asesor.nombre}</b> solicita <b>cambiar la fecha de pago</b> de tu crédito #${F.cli.sol}.<span class="badline">Es un cambio contractual. Si no lo reconoces, toca «No fui yo».</span>`,
-              buttons:[{t:"✅ Sí, autorizo"},{t:"🚫 No fui yo", goto:"nofui"}]},
-  {id:"fec6", side:"b", from:"bot", text:`Este es el cambio solicitado:<span class="kv">Fecha actual: ${F.cli.fecha}\nNueva fecha:  ${F.cli.fechaNue}</span>Para aplicarlo necesitamos tu confirmación con código.`,
-              api:A.autorizar, audit:{campo:"next_payment_date", ant:F.cli.fecha, nue:F.cli.fechaNue, estado:"autorizada", cls:"wait", dest:T_CREDITO}},
-  {id:"fec7", side:"b", from:"bot", text:`Te enviamos un código <b>por SMS</b> al ${F.cli.cel}.<br>Escríbelo acá para aplicar el cambio.<span class="warnline">Nunca te pediremos ese código por otro medio.</span>`,
-              api:A.otpCli, sms:"714390", input:{side:"b", value:"714390", ph:"Código de 6 dígitos"}},
-  {id:"fec8", side:"b", from:"bot", text:`✅ Código válido. Tu nueva fecha de pago es <b>${F.cli.fechaNue}</b>.<br><br>Podrás pedir otro cambio dentro de 6 meses.`,
-              api:A.aplicaFecha, audit:{campo:"next_payment_date", ant:F.cli.fecha, nue:F.cli.fechaNue, estado:"aplicada", cls:"ok", dest:T_CREDITO, otp:88421}},
-  {id:"fec9", side:"a", from:"bot", text:`✅ Listo, el cambio quedó aplicado.<span class="kv">Fecha de pago\n${F.cli.fecha}\n→ ${F.cli.fechaNue}</span>María Fernanda lo confirmó con su código.<br>Radicado <b>#MOD-00186</b> · podrá pedir otro cambio en 6 meses.`, end:true},
-
-  // ─── PLAZO ───
-  {id:"pla1", side:"a", from:"bot", text:"Verificando si el crédito admite cambios…", api:A.canChange,
-              next:()=> inelig() ? "noeleg" : "pla2"},
-  {id:"pla2", side:"a", from:"bot", text:`✅ Crédito elegible.<br>Plazo actual: <b>${F.cli.plazo}</b> · lleva <b>${F.cli.pagadas} pagadas</b><br><br>Puede <b>reducir o ampliar</b>: el único límite es que el plazo total supere las ${F.cli.pagadas} cuotas ya pagadas.`,
-              api:A.feeOpts, list:"Elegir plazo",
-              buttons:[{t:"6 cuotas",  sub:"$577.000 c/u · quedan 4",  dis:true},
-                       {t:"9 cuotas",  sub:"$340.000 c/u · quedan 7",  dis:true},
-                       {t:"12 cuotas", sub:"$245.000 c/u · actual",    dis:true},
-                       {t:"18 cuotas", sub:"$161.000 c/u · quedan 16"},
-                       {t:"24 cuotas", sub:"$124.600 c/u · quedan 22", dis:true}]},
-  {id:"pla3", side:"a", from:"bot", text:`Este es un <b>cambio de condiciones del crédito</b>.<span class="warnline">⚠ La clienta tendrá que escribir un código OTP — no basta con que toque un botón.</span>`,
-              buttons:[{t:"📨 Enviar solicitud"}]},
-  {id:"pla4", side:"a", from:"bot", text:"⏳ Solicitud enviada. Esperando a la clienta…",
-              api:A.crear, audit:{campo:"fee_number", ant:F.cli.plazo, nue:F.cli.plazoNue, estado:"pendiente", cls:"wait", dest:T_CREDITO}, wake:true},
-  {id:"pla5", side:"b", from:"bot", text:`Hola <b>María Fernanda</b> 👋<br>Tu asesor <b>${F.asesor.nombre}</b> solicita <b>cambiar el plazo</b> de tu crédito #${F.cli.sol}.<span class="badline">Es un cambio contractual. Si no lo reconoces, toca «No fui yo».</span>`,
-              buttons:[{t:"✅ Sí, autorizo"},{t:"🚫 No fui yo", goto:"nofui"}]},
-  {id:"pla6", side:"b", from:"bot", text:`Este es el cambio solicitado:<span class="kv">Plazo actual: ${F.cli.plazo}\nNuevo plazo:  ${F.cli.plazoNue}</span>Pagarás menos por cuota, durante más tiempo.`,
-              api:A.autorizar, audit:{campo:"fee_number", ant:F.cli.plazo, nue:F.cli.plazoNue, estado:"autorizada", cls:"wait", dest:T_CREDITO}},
-  {id:"pla7", side:"b", from:"bot", text:`Te enviamos un código <b>por SMS</b> al ${F.cli.cel}.<br>Escríbelo acá para aplicar el cambio.<span class="warnline">Nunca te pediremos ese código por otro medio.</span>`,
-              api:A.otpCli, sms:"205671", input:{side:"b", value:"205671", ph:"Código de 6 dígitos"}},
-  {id:"pla8", side:"b", from:"bot", text:`✅ Código válido. Tu nuevo plazo es de <b>18 cuotas de $175.200</b>.<br><br>Podrás pedir otro cambio dentro de 6 meses.`,
-              api:A.aplicaPlazo, audit:{campo:"fee_number", ant:F.cli.plazo, nue:F.cli.plazoNue, estado:"aplicada", cls:"ok", dest:T_CREDITO, otp:88422}},
-  {id:"pla9", side:"a", from:"bot", text:`✅ Listo, el cambio quedó aplicado.<span class="kv">Plazo del crédito\n${F.cli.plazo}\n→ ${F.cli.plazoNue}</span>María Fernanda lo confirmó con su código.<br>Radicado <b>#MOD-00187</b> · podrá pedir otro cambio en 6 meses.`, end:true},
-
-  // ─── SALIDAS COMUNES ───
-  {id:"noeleg", side:"a", from:"bot", text:`🚫 <b>Este crédito no admite cambios ahora.</b><br><br>Ya tuvo un cambio en los últimos 6 meses. Podrá solicitar otro a partir de <b>marzo de 2027</b>.<span class="warnline">Si el cliente insiste, escalá a soporte — desde acá no se puede autorizar.</span>`, end:true},
-  {id:"nofui", side:"b", from:"bot", text:"🚫 Bloqueamos la solicitud. Ningún dato tuyo fue modificado.<br><br>Un agente de soporte te contactará por este mismo chat. El intento quedó registrado.",
-              api:{...A.rechazar, n:"reason=no_reconocido → escala a soporte y bloquea al asesor sobre este cliente", nuevo:1},
-              audit:{estado:"bloqueada", cls:"bad"}},
-  {id:"nofui2", side:"a", from:"bot", text:"🚫 La clienta <b>no reconoció</b> la solicitud.<br>El cambio fue bloqueado y el caso escaló a soporte.<span class=\"badline\">Este intento quedó registrado a tu nombre.</span>", end:true},
-  {id:"rech", side:"b", from:"bot", text:"❌ Rechazaste el cambio. Nada fue modificado.",
-             api:{...A.rechazar, n:"reason=rechazado_por_cliente. La fila queda para medir la gestión del asesor", nuevo:1},
-             audit:{estado:"rechazada", cls:"bad"}},
-  {id:"rech2", side:"a", from:"bot", text:"❌ La clienta <b>rechazó</b> el cambio. No se modificó nada.<br>El rechazo quedó registrado.", end:true}
-];
-
-const idx={}; steps.forEach((s,i)=>idx[s.id]=i);
-const $=s=>document.querySelector(s);
-const chats={a:$("#chat-a"), b:$("#chat-b")};
-let ptr=0, running=false, auto=false;
-const inelig=()=>$("#ineligible").checked;
-const now=()=>{const d=new Date();return `${d.getHours()}:${String(d.getMinutes()).padStart(2,"0")}`};
-const sleep=ms=>new Promise(r=>setTimeout(r,ms));
-
-function bubble(side, from, html, opts={}){
-  const el=document.createElement("div");
-  el.className="msg "+(from==="me"?"mine":"theirs");
-  el.innerHTML=html+`<span class="t">${now()}${from==="me"?' <span class="tick">✓✓</span>':''}</span>`;
-  if(opts.buttons){
-    const box=document.createElement("div"); box.className="qr" + (opts.list ? " list" : "");
-    if(opts.list){
-      const hd=document.createElement("div"); hd.className="hd"; hd.textContent=opts.list;
-      box.appendChild(hd);
+  const F = {
+    asesor: { nombre: "Andrés Molina", cel: "320****145", rol: "Superadmin comercio", suc: "Alkosto Ochenta", id: 4412 },
+    cli: {
+      nombre: "María Fernanda Gutiérrez", cc: "1032****789", sol: "487542",
+      cel: "321****207", celFull: "3214567207", celNue: "310****842", celNueFull: "3105558842",
+      mail: "ma******@gmail.com", mailFull: "mafe.gutierrez@gmail.com",
+      mailNue: "ma************@outlook.com", mailNueFull: "mafe.gutierrez@outlook.com",
+      fecha: "16 de septiembre de 2026", fechaNue: "28 de septiembre de 2026",
+      plazo: "12 cuotas de $245.000", plazoNue: "18 cuotas de $161.000", pagadas: 3
     }
-    opts.buttons.forEach(b=>{
-      const btn=document.createElement("button");
-      btn.textContent=b.t;
-      if(b.sub){ const s=document.createElement("span"); s.className="sub"; s.textContent=b.sub; btn.appendChild(s); }
-      if(b.dis) btn.disabled=true;
-      else btn.onclick=()=>{ box.querySelectorAll("button").forEach(x=>x.disabled=true); choose(b, side); };
-      box.appendChild(btn);
-    });
-    el.appendChild(box);
-  }
-  chats[side].appendChild(el); chats[side].scrollTop=chats[side].scrollHeight;
-}
-
-async function typing(side, ms){
-  const t=document.createElement("div"); t.className="typing"; t.innerHTML="<i></i><i></i><i></i>";
-  chats[side].appendChild(t); chats[side].scrollTop=chats[side].scrollHeight;
-  $(side==="a"?"#st-a":"#st-b").textContent="escribiendo…";
-  await sleep(ms); t.remove();
-  $(side==="a"?"#st-a":"#st-b").textContent="en línea";
-}
-
-// El OTP llega por SMS (messaging-service → LabsMobile), no por WhatsApp:
-// se pinta como notificación del sistema, fuera del hilo.
-function smsNotif(code){
-  clearSms();
-  const n=document.createElement("div"); n.className="sms"; n.id="sms";
-  n.innerHTML=`<div class="hd">💬 <b>Mensajes</b> · ahora</div>`+
-    `<div class="bd">CreditOp: tu código es <span class="code">${code}</span>. No lo compartas con nadie, ni con un asesor.</div>`+
-    `<div class="via">llega por SMS — otro canal, otro dispositivo posible</div>`;
-  chats.b.parentElement.appendChild(n);
-}
-const clearSms=()=>{ const o=$("#sms"); if(o) o.remove(); };
-
-function apiCall(a){
-  const ol=$("#trace"); if(ol.querySelector(".empty")) ol.innerHTML="";
-  const li=document.createElement("li");
-  if(a.nuevo) li.className="new";
-  li.innerHTML=`<span class="m">${a.m}</span> ${a.p}<span class="note">${a.n}</span>`;
-  ol.appendChild(li); ol.scrollTop=ol.scrollHeight;
-}
-
-let row=null, lastAudit=null;
-function audit(a){
-  const tb=$("#audit");
-  if(!row){ tb.innerHTML=""; row=document.createElement("tr"); tb.appendChild(row); }
-  lastAudit={...lastAudit, ...a};
-  const d=lastAudit.dest;
-  if(d) $("#dest").className="dest "+d.cls, $("#dest").textContent=`→ ${d.t}  ·  ${d.nota}`;
-  row.innerHTML=`<td class="mono">${lastAudit.campo||"—"}</td><td class="mono">${lastAudit.ant||"—"}</td>`+
-    `<td class="mono">${lastAudit.nue||"—"}</td>`+
-    `<td>${F.asesor.nombre}<br><span style="color:var(--page-soft);font-size:11px">id ${F.asesor.id} · ${F.asesor.rol}</span></td>`+
-    `<td><span class="badge ${lastAudit.cls}">${lastAudit.estado}</span>`+
-    (lastAudit.otp ? `<br><span style="color:var(--page-soft);font-size:11px">otp_id ${lastAudit.otp}<br>(antes: 0)</span>` : '')+`</td>`;
-}
-
-function askInput(step){
-  const side=step.input.side||"a";
-  const inp=$(side==="a"?"#in-a":"#in-b"), snd=$(side==="a"?"#snd-a":"#snd-b");
-  const owner=idx[step.id];              // este composer pertenece a ESTE paso
-  inp.disabled=false; snd.disabled=false;
-  inp.placeholder=step.input.ph; inp.value=step.input.value; inp.focus();
-  const go=()=>{
-    const v=inp.value.trim(); if(!v) return;
-    inp.disabled=true; snd.disabled=true; inp.value=""; inp.placeholder="Escribe un mensaje";
-    snd.onclick=null; inp.onkeydown=null;
-    if(ptr!==owner) return;              // quedó huérfano: no debe mover el flujo
-    clearSms();
-    bubble(side,"me",v); ptr++; run();
   };
-  snd.onclick=go;
-  inp.onkeydown=e=>{ if(e.key==="Enter") go(); };
-  if(auto) setTimeout(go, 800);
-}
+  const A = {
+    otpAsesor: { m: "POST", p: "/api/support/advisor/otp", n: "Resuelve la cédula contra users y manda OTP al celular DEL PERFIL — nunca al que escribe por WhatsApp", nuevo: 1 },
+    verify: { m: "POST", p: "/api/support/advisor/otp/verify", n: "Devuelve token de sesión con TTL. El wa_id queda atado al asesor", nuevo: 1 },
+    buscar: { m: "GET", p: "/api/support/clients?document=1032456789", n: "Cruza user_requests.allied_id contra el comercio del asesor (users.allied_id ∪ multiple_allieds). Si no es suyo: 404 idéntico al de «no existe»", nuevo: 1 },
+    crear: { m: "POST", p: "/api/support/change-requests", n: "Crea la fila en pendiente_autorizacion. NO escribe en users", nuevo: 1 },
+    autorizar: { m: "PATCH", p: "/api/support/change-requests/184/authorize", n: "Primer check: el cliente autoriza la GESTIÓN, todavía no el cambio", nuevo: 1 },
+    confirmar: { m: "POST", p: "/api/support/change-requests/184/confirm", n: "Segundo check. AHORA sí escribe en users, en la misma transacción que el registro", nuevo: 1 },
+    rechazar: { m: "PATCH", p: "/api/support/change-requests/184/reject", n: "Queda la fila con el motivo. Sirve para medir la gestión del asesor", nuevo: 1 },
+    canChange: { m: "GET", p: "/api/loans/consumer/credits/487542/can-change", n: "YA EXISTE · CreditChangeValidationService: bloquea por pago pendiente, lender externally_serviced o cambio en los últimos 6 meses" },
+    dateOpts: { m: "GET", p: "/api/loans/consumer/credits/487542/payment-date-options", n: "YA EXISTE · ciclos fijos 5/16/28, devuelve solo los 2 próximos" },
+    feeOpts: { m: "GET", p: "/api/loans/consumer/credits/487542/fee-number-options", n: "YA EXISTE · fee_numbers de la línea de crédito, filtrado a > cuotas pagadas y ≤ max_fee_number de la categoría" },
+    otpCli: { m: "POST", p: "/api/support/change-requests/184/otp", n: "Manda el OTP por SMS (messaging-service → LabsMobile), NUNCA por el WhatsApp donde ocurre la conversación: si viaja por el mismo canal deja de ser segundo factor", nuevo: 1 },
+    aplicaFecha: { m: "POST", p: "/api/loans/consumer/credits/487542/change-payment-date", n: "YA EXISTE · hoy escribe otp_id=0. El cambio es pasarle el OTP REAL validado", nuevo: 1 },
+    aplicaPlazo: { m: "POST", p: "/api/loans/consumer/credits/487542/change-fee-number", n: "YA EXISTE · hoy escribe otp_id=0. El cambio es pasarle el OTP REAL validado", nuevo: 1 }
+  };
+  const T_CONTACTO = { t: "user_data_change_requests", cls: "nueva", nota: "tabla NUEVA" };
+  const T_CREDITO = { t: "creditop_x_changes_log", cls: "existe", nota: "tabla que YA existe · con otp_id real" };
 
-function choose(b, side){
-  bubble(side,"me",b.t);
-  ptr = b.goto!==undefined ? idx[b.goto] : ptr+1;
-  run();
-}
+  const steps = [
+    { id: "s0", side: "a", from: "me", text: "Hola" },
+    {
+      id: "s1", side: "a", from: "bot", text: "Bienvenido al canal de <b>gestión CreditOp</b> 🏢<br>Para continuar, envía tu número de cédula.",
+      input: { value: "79856214", ph: "Tu cédula" }
+    },
+    {
+      id: "s2", side: "a", from: "bot", text: `Enviamos un código de 6 dígitos al celular registrado en tu perfil <b>${F.asesor.cel}</b>. Ingrésalo acá.`,
+      api: A.otpAsesor, input: { value: "482913", ph: "Código de 6 dígitos" }
+    },
+    {
+      id: "s3", side: "a", from: "bot", text: `✅ Sesión iniciada.<br>Hola <b>${F.asesor.nombre}</b> — ${F.asesor.rol} · ${F.asesor.suc}.<br>La sesión expira tras 10 min sin actividad.`,
+      api: A.verify, buttons: [{ t: "🔎 Buscar un cliente" }, { t: "Salir", dis: true }]
+    },
+    {
+      id: "s4", side: "a", from: "bot", text: "Envía el número de documento del cliente.",
+      input: { value: "1032456789", ph: "Documento del cliente" }
+    },
+    {
+      id: "s5", side: "a", from: "bot", text: `✅ Cliente encontrado y <b>verificado como tuyo</b>:<span class="kv">${F.cli.nombre}\nCC ${F.cli.cc}\nCelular ${F.cli.cel}\nCorreo  ${F.cli.mail}</span>Solicitud #${F.cli.sol} · ${F.asesor.suc}<br><br>¿Qué deseas gestionar?`,
+      api: A.buscar, list: "¿Qué deseas gestionar?",
+      buttons: [{ t: "📱 Cambiar celular", sub: "dato de contacto", goto: "cel1" },
+      { t: "✉️ Cambiar correo", sub: "dato de contacto", goto: "mail1" },
+      { t: "📅 Cambiar fecha de pago", sub: "condición del crédito · pide OTP", goto: "fec1" },
+      { t: "🗓️ Cambiar plazo", sub: "condición del crédito · pide OTP", goto: "pla1" }]
+    },
 
-async function run(){
-  if(running) return; running=true;
-  while(ptr<steps.length){
-    const s=steps[ptr];
-    if(s.wake){ $("#in-b").placeholder="Escribe un mensaje"; }
+    // ─── CELULAR ───
+    {
+      id: "cel1", side: "a", from: "bot", text: `Celular actual: <b>${F.cli.cel}</b><br>Escribe el nuevo número.`,
+      input: { value: "3105558842", ph: "Nuevo celular" }
+    },
+    {
+      id: "cel2", side: "a", from: "bot", text: `Voy a pedirle autorización a <b>${F.cli.nombre}</b> por su WhatsApp <b>actual</b> (${F.cli.cel}).<span class="warnline">⚠ No puedes continuar hasta que ella responda.</span>`,
+      buttons: [{ t: "📨 Enviar solicitud" }]
+    },
+    {
+      id: "cel3", side: "a", from: "bot", text: "⏳ Solicitud enviada. Esperando respuesta del cliente…",
+      api: A.crear, audit: { campo: "cell_phone", ant: F.cli.cel, nue: F.cli.celNue, estado: "pendiente", cls: "wait", dest: T_CONTACTO }, wake: true
+    },
+    {
+      id: "cel4", side: "b", from: "bot", text: `Hola <b>María Fernanda</b> 👋<br>Somos el canal oficial de CreditOp.<br><br>Tu asesor <b>${F.asesor.nombre}</b> (${F.asesor.suc}) solicita autorización para <b>cambiar tu número de celular</b>.<span class="badline">Si no reconoces esta solicitud, toca «No fui yo».</span>`,
+      buttons: [{ t: "✅ Sí, autorizo" }, { t: "🚫 No fui yo", goto: "nofui" }]
+    },
+    {
+      id: "cel5", side: "b", from: "bot", text: "Gracias. Te muestro el cambio exacto en un momento.",
+      api: A.autorizar, audit: { campo: "cell_phone", ant: F.cli.cel, nue: F.cli.celNue, estado: "autorizada", cls: "wait", dest: T_CONTACTO }
+    },
+    {
+      id: "cel6", side: "a", from: "bot", text: `✅ <b>${F.cli.nombre}</b> autorizó la gestión.<br>Confirma el cambio que enviarás:<span class="kv">Actual: ${F.cli.cel}\nNuevo:  ${F.cli.celNue}</span>`,
+      buttons: [{ t: "Enviar al cliente" }, { t: "Cancelar", dis: true }]
+    },
+    {
+      id: "cel7", side: "b", from: "bot", text: `Tu asesor solicita este cambio:<span class="kv">Celular actual: ${F.cli.cel}\nNuevo:          ${F.cli.celNue}</span>Si apruebas, <b>las notificaciones de tu crédito irán al número nuevo</b>.`,
+      buttons: [{ t: "✅ Apruebo el cambio" }, { t: "❌ Rechazo", goto: "rech" }]
+    },
+    {
+      id: "cel8", side: "b", from: "bot", text: "✅ Listo. Tu celular quedó actualizado.",
+      api: A.confirmar, audit: { campo: "cell_phone", ant: F.cli.celFull, nue: F.cli.celNueFull, estado: "aplicada", cls: "ok", dest: T_CONTACTO }
+    },
+    { id: "cel9", side: "a", from: "bot", text: `✅ Listo, el celular quedó actualizado.<span class="kv">Celular\n${F.cli.cel}\n→ ${F.cli.celNue}</span>Radicado <b>#MOD-00184</b>, a tu nombre.`, end: true },
 
-    if(s.from==="me"){ bubble(s.side,"me",s.text); ptr++; if(auto) await sleep(420); continue; }
+    // ─── CORREO ───
+    {
+      id: "mail1", side: "a", from: "bot", text: `Correo actual: <b>${F.cli.mail}</b><br>Escribe el nuevo correo.`,
+      input: { value: "mafe.gutierrez@outlook.com", ph: "Nuevo correo" }
+    },
+    {
+      id: "mail2", side: "a", from: "bot", text: `Voy a pedirle autorización a <b>${F.cli.nombre}</b> por su WhatsApp actual (${F.cli.cel}) <b>y</b> al correo <b>anterior</b> (${F.cli.mail}).<span class="warnline">⚠ El aviso va siempre al dato viejo, no al nuevo.</span>`,
+      buttons: [{ t: "📨 Enviar solicitud" }]
+    },
+    {
+      id: "mail3", side: "a", from: "bot", text: "⏳ Solicitud enviada. Esperando respuesta del cliente…",
+      api: A.crear, audit: { campo: "email", ant: F.cli.mail, nue: F.cli.mailNue, estado: "pendiente", cls: "wait", dest: T_CONTACTO }, wake: true
+    },
+    {
+      id: "mail4", side: "b", from: "bot", text: `Hola <b>María Fernanda</b> 👋<br>Tu asesor <b>${F.asesor.nombre}</b> solicita autorización para <b>cambiar tu correo</b>.<br><br>También te lo avisamos a <b>${F.cli.mail}</b>.<span class="badline">Si no reconoces esta solicitud, toca «No fui yo».</span>`,
+      buttons: [{ t: "✅ Sí, autorizo" }, { t: "🚫 No fui yo", goto: "nofui" }]
+    },
+    {
+      id: "mail5", side: "b", from: "bot", text: "Gracias. Te muestro el cambio exacto en un momento.",
+      api: A.autorizar, audit: { campo: "email", ant: F.cli.mail, nue: F.cli.mailNue, estado: "autorizada", cls: "wait", dest: T_CONTACTO }
+    },
+    {
+      id: "mail6", side: "a", from: "bot", text: `✅ Autorizó la gestión. Confirma:<span class="kv">Actual: ${F.cli.mail}\nNuevo:  ${F.cli.mailNue}</span>`,
+      buttons: [{ t: "Enviar al cliente" }, { t: "Cancelar", dis: true }]
+    },
+    {
+      id: "mail7", side: "b", from: "bot", text: `Tu asesor solicita este cambio:<span class="kv">Correo actual: ${F.cli.mail}\nNuevo:         ${F.cli.mailNue}</span>Si apruebas, los estados de cuenta irán al correo nuevo.`,
+      buttons: [{ t: "✅ Apruebo el cambio" }, { t: "❌ Rechazo", goto: "rech" }]
+    },
+    {
+      id: "mail8", side: "b", from: "bot", text: "✅ Listo. Tu correo quedó actualizado.",
+      api: A.confirmar, audit: { campo: "email", ant: F.cli.mailFull, nue: F.cli.mailNueFull, estado: "aplicada", cls: "ok", dest: T_CONTACTO }
+    },
+    { id: "mail9", side: "a", from: "bot", text: `✅ Listo, el correo quedó actualizado.<span class="kv">Correo\n${F.cli.mail}\n→ ${F.cli.mailNue}</span>Radicado <b>#MOD-00185</b>, a tu nombre.`, end: true },
 
-    await typing(s.side, s.text.length>200?880:640);
-    if(s.api) apiCall(s.api);
-    if(s.audit) audit(s.audit);
-    bubble(s.side,"bot",s.text,{buttons:s.buttons, list:s.list});
-    if(s.sms){ await sleep(500); smsNotif(s.sms); }
+    // ─── FECHA DE PAGO ───
+    {
+      id: "fec1", side: "a", from: "bot", text: "Verificando si el crédito admite cambios…", api: A.canChange,
+      next: () => inelig() ? "noeleg" : "fec2"
+    },
+    {
+      id: "fec2", side: "a", from: "bot", text: `✅ Crédito elegible.<br>Fecha de pago actual: <b>${F.cli.fecha}</b><br><br>Los ciclos son fijos (5, 16 y 28). Estas son las 2 próximas:`,
+      api: A.dateOpts, buttons: [{ t: "28 de septiembre" }, { t: "5 de octubre", dis: true }]
+    },
+    {
+      id: "fec3", side: "a", from: "bot", text: `Este es un <b>cambio de condiciones del crédito</b>, no un dato de contacto.<span class="warnline">⚠ La clienta tendrá que escribir un código OTP — no basta con que toque un botón.</span>`,
+      buttons: [{ t: "📨 Enviar solicitud" }]
+    },
+    {
+      id: "fec4", side: "a", from: "bot", text: "⏳ Solicitud enviada. Esperando a la clienta…",
+      api: A.crear, audit: { campo: "next_payment_date", ant: F.cli.fecha, nue: F.cli.fechaNue, estado: "pendiente", cls: "wait", dest: T_CREDITO }, wake: true
+    },
+    {
+      id: "fec5", side: "b", from: "bot", text: `Hola <b>María Fernanda</b> 👋<br>Tu asesor <b>${F.asesor.nombre}</b> solicita <b>cambiar la fecha de pago</b> de tu crédito #${F.cli.sol}.<span class="badline">Es un cambio contractual. Si no lo reconoces, toca «No fui yo».</span>`,
+      buttons: [{ t: "✅ Sí, autorizo" }, { t: "🚫 No fui yo", goto: "nofui" }]
+    },
+    {
+      id: "fec6", side: "b", from: "bot", text: `Este es el cambio solicitado:<span class="kv">Fecha actual: ${F.cli.fecha}\nNueva fecha:  ${F.cli.fechaNue}</span>Para aplicarlo necesitamos tu confirmación con código.`,
+      api: A.autorizar, audit: { campo: "next_payment_date", ant: F.cli.fecha, nue: F.cli.fechaNue, estado: "autorizada", cls: "wait", dest: T_CREDITO }
+    },
+    {
+      id: "fec7", side: "b", from: "bot", text: `Te enviamos un código <b>por SMS</b> al ${F.cli.cel}.<br>Escríbelo acá para aplicar el cambio.<span class="warnline">Nunca te pediremos ese código por otro medio.</span>`,
+      api: A.otpCli, sms: "714390", input: { side: "b", value: "714390", ph: "Código de 6 dígitos" }
+    },
+    {
+      id: "fec8", side: "b", from: "bot", text: `✅ Código válido. Tu nueva fecha de pago es <b>${F.cli.fechaNue}</b>.<br><br>Podrás pedir otro cambio dentro de 6 meses.`,
+      api: A.aplicaFecha, audit: { campo: "next_payment_date", ant: F.cli.fecha, nue: F.cli.fechaNue, estado: "aplicada", cls: "ok", dest: T_CREDITO, otp: 88421 }
+    },
+    { id: "fec9", side: "a", from: "bot", text: `✅ Listo, el cambio quedó aplicado.<span class="kv">Fecha de pago\n${F.cli.fecha}\n→ ${F.cli.fechaNue}</span>María Fernanda lo confirmó con su código.<br>Radicado <b>#MOD-00186</b> · podrá pedir otro cambio en 6 meses.`, end: true },
 
-    if(s.buttons && s.buttons.some(b=>!b.dis)){
-      running=false;
-      if(auto){ await sleep(780);
-        const el=[...chats[s.side].lastElementChild.querySelectorAll(".qr button")].find(b=>!b.disabled);
-        if(el) el.click(); }
-      return;
+    // ─── PLAZO ───
+    {
+      id: "pla1", side: "a", from: "bot", text: "Verificando si el crédito admite cambios…", api: A.canChange,
+      next: () => inelig() ? "noeleg" : "pla2"
+    },
+    {
+      id: "pla2", side: "a", from: "bot", text: `✅ Crédito elegible.<br>Plazo actual: <b>${F.cli.plazo}</b> · lleva <b>${F.cli.pagadas} pagadas</b><br><br>Puede <b>reducir o ampliar</b>: el único límite es que el plazo total supere las ${F.cli.pagadas} cuotas ya pagadas.`,
+      api: A.feeOpts, list: "Elegir plazo",
+      buttons: [{ t: "6 cuotas", sub: "$577.000 c/u · quedan 4", dis: true },
+      { t: "9 cuotas", sub: "$340.000 c/u · quedan 7", dis: true },
+      { t: "12 cuotas", sub: "$245.000 c/u · actual", dis: true },
+      { t: "18 cuotas", sub: "$161.000 c/u · quedan 16" },
+      { t: "24 cuotas", sub: "$124.600 c/u · quedan 22", dis: true }]
+    },
+    {
+      id: "pla3", side: "a", from: "bot", text: `Este es un <b>cambio de condiciones del crédito</b>.<span class="warnline">⚠ La clienta tendrá que escribir un código OTP — no basta con que toque un botón.</span>`,
+      buttons: [{ t: "📨 Enviar solicitud" }]
+    },
+    {
+      id: "pla4", side: "a", from: "bot", text: "⏳ Solicitud enviada. Esperando a la clienta…",
+      api: A.crear, audit: { campo: "fee_number", ant: F.cli.plazo, nue: F.cli.plazoNue, estado: "pendiente", cls: "wait", dest: T_CREDITO }, wake: true
+    },
+    {
+      id: "pla5", side: "b", from: "bot", text: `Hola <b>María Fernanda</b> 👋<br>Tu asesor <b>${F.asesor.nombre}</b> solicita <b>cambiar el plazo</b> de tu crédito #${F.cli.sol}.<span class="badline">Es un cambio contractual. Si no lo reconoces, toca «No fui yo».</span>`,
+      buttons: [{ t: "✅ Sí, autorizo" }, { t: "🚫 No fui yo", goto: "nofui" }]
+    },
+    {
+      id: "pla6", side: "b", from: "bot", text: `Este es el cambio solicitado:<span class="kv">Plazo actual: ${F.cli.plazo}\nNuevo plazo:  ${F.cli.plazoNue}</span>Pagarás menos por cuota, durante más tiempo.`,
+      api: A.autorizar, audit: { campo: "fee_number", ant: F.cli.plazo, nue: F.cli.plazoNue, estado: "autorizada", cls: "wait", dest: T_CREDITO }
+    },
+    {
+      id: "pla7", side: "b", from: "bot", text: `Te enviamos un código <b>por SMS</b> al ${F.cli.cel}.<br>Escríbelo acá para aplicar el cambio.<span class="warnline">Nunca te pediremos ese código por otro medio.</span>`,
+      api: A.otpCli, sms: "205671", input: { side: "b", value: "205671", ph: "Código de 6 dígitos" }
+    },
+    {
+      id: "pla8", side: "b", from: "bot", text: `✅ Código válido. Tu nuevo plazo es de <b>18 cuotas de $175.200</b>.<br><br>Podrás pedir otro cambio dentro de 6 meses.`,
+      api: A.aplicaPlazo, audit: { campo: "fee_number", ant: F.cli.plazo, nue: F.cli.plazoNue, estado: "aplicada", cls: "ok", dest: T_CREDITO, otp: 88422 }
+    },
+    { id: "pla9", side: "a", from: "bot", text: `✅ Listo, el cambio quedó aplicado.<span class="kv">Plazo del crédito\n${F.cli.plazo}\n→ ${F.cli.plazoNue}</span>María Fernanda lo confirmó con su código.<br>Radicado <b>#MOD-00187</b> · podrá pedir otro cambio en 6 meses.`, end: true },
+
+    // ─── SALIDAS COMUNES ───
+    { id: "noeleg", side: "a", from: "bot", text: `🚫 <b>Este crédito no admite cambios ahora.</b><br><br>Ya tuvo un cambio en los últimos 6 meses. Podrá solicitar otro a partir de <b>marzo de 2027</b>.<span class="warnline">Si el cliente insiste, escalá a soporte — desde acá no se puede autorizar.</span>`, end: true },
+    {
+      id: "nofui", side: "b", from: "bot", text: "🚫 Bloqueamos la solicitud. Ningún dato tuyo fue modificado.<br><br>Un agente de soporte te contactará por este mismo chat. El intento quedó registrado.",
+      api: { ...A.rechazar, n: "reason=no_reconocido → escala a soporte y bloquea al asesor sobre este cliente", nuevo: 1 },
+      audit: { estado: "bloqueada", cls: "bad" }
+    },
+    { id: "nofui2", side: "a", from: "bot", text: "🚫 La clienta <b>no reconoció</b> la solicitud.<br>El cambio fue bloqueado y el caso escaló a soporte.<span class=\"badline\">Este intento quedó registrado a tu nombre.</span>", end: true },
+    {
+      id: "rech", side: "b", from: "bot", text: "❌ Rechazaste el cambio. Nada fue modificado.",
+      api: { ...A.rechazar, n: "reason=rechazado_por_cliente. La fila queda para medir la gestión del asesor", nuevo: 1 },
+      audit: { estado: "rechazada", cls: "bad" }
+    },
+    { id: "rech2", side: "a", from: "bot", text: "❌ La clienta <b>rechazó</b> el cambio. No se modificó nada.<br>El rechazo quedó registrado.", end: true }
+  ];
+
+  const idx = {}; steps.forEach((s, i) => idx[s.id] = i);
+  const $ = s => document.querySelector(s);
+  const chats = { a: $("#chat-a"), b: $("#chat-b") };
+  let ptr = 0, running = false, auto = false;
+  const inelig = () => $("#ineligible").checked;
+  const now = () => { const d = new Date(); return `${d.getHours()}:${String(d.getMinutes()).padStart(2, "0")}` };
+  const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+  function bubble(side, from, html, opts = {}) {
+    const el = document.createElement("div");
+    el.className = "msg " + (from === "me" ? "mine" : "theirs");
+    el.innerHTML = html + `<span class="t">${now()}${from === "me" ? ' <span class="tick">✓✓</span>' : ''}</span>`;
+    if (opts.buttons) {
+      const box = document.createElement("div"); box.className = "qr" + (opts.list ? " list" : "");
+      if (opts.list) {
+        const hd = document.createElement("div"); hd.className = "hd"; hd.textContent = opts.list;
+        box.appendChild(hd);
+      }
+      opts.buttons.forEach(b => {
+        const btn = document.createElement("button");
+        btn.textContent = b.t;
+        if (b.sub) { const s = document.createElement("span"); s.className = "sub"; s.textContent = b.sub; btn.appendChild(s); }
+        if (b.dis) btn.disabled = true;
+        else btn.onclick = () => { box.querySelectorAll("button").forEach(x => x.disabled = true); choose(b, side); };
+        box.appendChild(btn);
+      });
+      el.appendChild(box);
     }
-    if(s.input){ running=false; askInput(s); return; }
-    if(s.end){ running=false; auto=false; $("#auto").textContent="▶ Correr solo"; return; }
-    ptr = s.next ? idx[s.next()] : ptr+1;
-    await sleep(380);
+    chats[side].appendChild(el); chats[side].scrollTop = chats[side].scrollHeight;
   }
-  running=false;
-}
 
-function reset(){
-  ptr=0; running=false; row=null; lastAudit=null; clearSms();
-  chats.a.innerHTML=""; chats.b.innerHTML="";
-  $("#trace").innerHTML='<li class="empty" style="border:none;background:none">Sin llamadas todavía.</li>';
-  $("#audit").innerHTML='<tr><td colspan="5" class="empty">Sin registros.</td></tr>';
-  $("#dest").className="dest"; $("#dest").textContent="— sin destino aún —";
-  ["a","b"].forEach(k=>{
-    const i=$("#in-"+k); i.disabled=true; i.value="";
-    i.placeholder = k==="a" ? "Escribe un mensaje" : "Este chat despierta cuando el asesor pide autorización";
-    $("#snd-"+k).disabled=true;
-  });
-  run();
-}
+  async function typing(side, ms) {
+    const t = document.createElement("div"); t.className = "typing"; t.innerHTML = "<i></i><i></i><i></i>";
+    chats[side].appendChild(t); chats[side].scrollTop = chats[side].scrollHeight;
+    $(side === "a" ? "#st-a" : "#st-b").textContent = "escribiendo…";
+    await sleep(ms); t.remove();
+    $(side === "a" ? "#st-a" : "#st-b").textContent = "en línea";
+  }
 
-$("#reset").onclick=()=>{auto=false; $("#auto").textContent="▶ Correr solo"; reset();};
-$("#auto").onclick=()=>{
-  auto=!auto; $("#auto").textContent = auto ? "⏸ Pausar" : "▶ Correr solo";
-  if(auto) reset();   // siempre desde cero: re-entrar a mitad reimprimiría el paso pendiente
-};
-reset();
+  // El OTP llega por SMS (messaging-service → LabsMobile), no por WhatsApp:
+  // se pinta como notificación del sistema, fuera del hilo.
+  function smsNotif(code) {
+    clearSms();
+    const n = document.createElement("div"); n.className = "sms"; n.id = "sms";
+    n.innerHTML = `<div class="hd">💬 <b>Mensajes</b> · ahora</div>` +
+      `<div class="bd">CreditOp: tu código es <span class="code">${code}</span>. No lo compartas con nadie, ni con un asesor.</div>` +
+      `<div class="via">llega por SMS — otro canal, otro dispositivo posible</div>`;
+    chats.b.parentElement.appendChild(n);
+  }
+  const clearSms = () => { const o = $("#sms"); if (o) o.remove(); };
+
+  function apiCall(a) {
+    const ol = $("#trace"); if (ol.querySelector(".empty")) ol.innerHTML = "";
+    const li = document.createElement("li");
+    if (a.nuevo) li.className = "new";
+    li.innerHTML = `<span class="m">${a.m}</span> ${a.p}<span class="note">${a.n}</span>`;
+    ol.appendChild(li); ol.scrollTop = ol.scrollHeight;
+  }
+
+  let row = null, lastAudit = null;
+  function audit(a) {
+    const tb = $("#audit");
+    if (!row) { tb.innerHTML = ""; row = document.createElement("tr"); tb.appendChild(row); }
+    lastAudit = { ...lastAudit, ...a };
+    const d = lastAudit.dest;
+    if (d) $("#dest").className = "dest " + d.cls, $("#dest").textContent = `→ ${d.t}  ·  ${d.nota}`;
+    row.innerHTML = `<td class="mono">${lastAudit.campo || "—"}</td><td class="mono">${lastAudit.ant || "—"}</td>` +
+      `<td class="mono">${lastAudit.nue || "—"}</td>` +
+      `<td>${F.asesor.nombre}<br><span style="color:var(--page-soft);font-size:11px">id ${F.asesor.id} · ${F.asesor.rol}</span></td>` +
+      `<td><span class="badge ${lastAudit.cls}">${lastAudit.estado}</span>` +
+      (lastAudit.otp ? `<br><span style="color:var(--page-soft);font-size:11px">otp_id ${lastAudit.otp}<br>(antes: 0)</span>` : '') + `</td>`;
+  }
+
+  function askInput(step) {
+    const side = step.input.side || "a";
+    const inp = $(side === "a" ? "#in-a" : "#in-b"), snd = $(side === "a" ? "#snd-a" : "#snd-b");
+    const owner = idx[step.id];              // este composer pertenece a ESTE paso
+    inp.disabled = false; snd.disabled = false;
+    inp.placeholder = step.input.ph; inp.value = step.input.value; inp.focus();
+    const go = () => {
+      const v = inp.value.trim(); if (!v) return;
+      inp.disabled = true; snd.disabled = true; inp.value = ""; inp.placeholder = "Escribe un mensaje";
+      snd.onclick = null; inp.onkeydown = null;
+      if (ptr !== owner) return;              // quedó huérfano: no debe mover el flujo
+      clearSms();
+      bubble(side, "me", v); ptr++; run();
+    };
+    snd.onclick = go;
+    inp.onkeydown = e => { if (e.key === "Enter") go(); };
+    if (auto) setTimeout(go, 800);
+  }
+
+  function choose(b, side) {
+    bubble(side, "me", b.t);
+    ptr = b.goto !== undefined ? idx[b.goto] : ptr + 1;
+    run();
+  }
+
+  async function run() {
+    if (running) return; running = true;
+    while (ptr < steps.length) {
+      const s = steps[ptr];
+      if (s.wake) { $("#in-b").placeholder = "Escribe un mensaje"; }
+
+      if (s.from === "me") { bubble(s.side, "me", s.text); ptr++; if (auto) await sleep(420); continue; }
+
+      await typing(s.side, s.text.length > 200 ? 880 : 640);
+      if (s.api) apiCall(s.api);
+      if (s.audit) audit(s.audit);
+      bubble(s.side, "bot", s.text, { buttons: s.buttons, list: s.list });
+      if (s.sms) { await sleep(500); smsNotif(s.sms); }
+
+      if (s.buttons && s.buttons.some(b => !b.dis)) {
+        running = false;
+        if (auto) {
+          await sleep(780);
+          const el = [...chats[s.side].lastElementChild.querySelectorAll(".qr button")].find(b => !b.disabled);
+          if (el) el.click();
+        }
+        return;
+      }
+      if (s.input) { running = false; askInput(s); return; }
+      if (s.end) { running = false; auto = false; $("#auto").textContent = "▶ Correr solo"; return; }
+      ptr = s.next ? idx[s.next()] : ptr + 1;
+      await sleep(380);
+    }
+    running = false;
+  }
+
+  function reset() {
+    ptr = 0; running = false; row = null; lastAudit = null; clearSms();
+    chats.a.innerHTML = ""; chats.b.innerHTML = "";
+    $("#trace").innerHTML = '<li class="empty" style="border:none;background:none">Sin llamadas todavía.</li>';
+    $("#audit").innerHTML = '<tr><td colspan="5" class="empty">Sin registros.</td></tr>';
+    $("#dest").className = "dest"; $("#dest").textContent = "— sin destino aún —";
+    ["a", "b"].forEach(k => {
+      const i = $("#in-" + k); i.disabled = true; i.value = "";
+      i.placeholder = k === "a" ? "Escribe un mensaje" : "Este chat despierta cuando el asesor pide autorización";
+      $("#snd-" + k).disabled = true;
+    });
+    run();
+  }
+
+  $("#reset").onclick = () => { auto = false; $("#auto").textContent = "▶ Correr solo"; reset(); };
+  $("#auto").onclick = () => {
+    auto = !auto; $("#auto").textContent = auto ? "⏸ Pausar" : "▶ Correr solo";
+    if (auto) reset();   // siempre desde cero: re-entrar a mitad reimprimiría el paso pendiente
+  };
+  reset();
 </script>
