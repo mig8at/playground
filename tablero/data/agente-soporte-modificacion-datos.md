@@ -559,11 +559,21 @@ flujo real andando en el teléfono en días —dos personas haciendo de asesor y
 después pasar al número corporativo y al trámite de plantillas. Convierte el HTML en algo que se
 prueba de verdad, y no compromete nada.
 
-### Decisión abierta: ¿mismo número o uno nuevo?
+### Decisión abierta: ¿mismo número de WhatsApp o uno nuevo?
 
-Hoy el número manda recordatorios de cobranza y **nadie espera respuestas**. Montarle el bot encima
-hace que todo el inbound caiga en el mismo webhook —asesores, respuestas a recordatorios, clientes
-perdidos— y cambia la expectativa para todos los clientes que reciben cobranza.
+**Primero, lo que NO está en juego: el OTP no ocupa ningún número.** Sale por **SMS**, y el SMS de
+CreditOp usa **remitente alfanumérico** — `TPOA: "Creditop"` en el cliente de LabsMobile
+(`labsmobile_client.go:65`). Al destinatario le llega un mensaje de «Creditop», no de un teléfono.
+SMS y WhatsApp son infraestructuras distintas (LabsMobile vs Twilio) y **no compiten por número**.
+La pregunta es sólo cuántos números de **WhatsApp Business** hacen falta.
+
+Hoy el número de WhatsApp manda recordatorios de cobranza y **nadie espera respuestas**. Montarle el
+bot encima hace que todo el inbound caiga en el mismo webhook —asesores, respuestas a recordatorios,
+clientes perdidos— y cambia la expectativa para todos los clientes que reciben cobranza.
+
+⚠ **Un número registrado en la WhatsApp Business Platform deja de funcionar en la app normal de
+WhatsApp.** Si el número candidato lo usa hoy alguien desde un celular, se pierde ese uso — hay que
+confirmarlo antes de elegirlo.
 
 Propuesta: **número nuevo para el canal de asesores** (audiencia interna; aísla el riesgo — un bug
 del bot no toca la cobranza) y **el número de siempre para escribirle al cliente**, que ya reconoce
