@@ -17,6 +17,7 @@ const plantillas = ref([])
 const catalogo = ref([])
 const proveedores = ref([])
 const claves = ref([])
+const lenders = ref([])
 const sol = ref(null)
 const eventos = ref([])
 const conectado = ref(false)
@@ -83,6 +84,7 @@ onMounted(async () => {
       pedir('/api/proveedores'),
       pedir('/api/claves'),
     ])
+    lenders.value = await pedir('/api/lenders')
   } catch (e) {
     error.value = e.message
   }
@@ -157,7 +159,8 @@ function escuchar(id) {
     if (
       ev.tipo === 'paso.avanzado' ||
       ev.tipo === 'solicitud.reiniciada' ||
-      ev.tipo === 'formulario.enviado'
+      ev.tipo === 'formulario.enviado' ||
+      ev.tipo.startsWith('intento.')
     )
       releer()
   }
@@ -187,6 +190,32 @@ function releer() {
 // es UN texto: el día que una segunda plantilla necesite otro, pasa a ser dato.
 
 const PREGUNTA = '¿Empezar de nuevo? Vas a poder corregir el número, y el código que ya verificamos deja de valer.'
+
+// Elegir un lender ABRE o RETOMA su intento. El server decide cuál de las dos: si ya
+// hubo uno con ese lender, vuelve con su mismo id y su cursor donde quedó.
+async function elegir(lender) {
+  error.value = ''
+  try {
+    await post(`/api/solicitudes/${sol.value.id}/intentos`, { lender })
+    await releerYa()
+  } catch (e) {
+    error.value = e.message
+  }
+}
+
+async function soltarIntento() {
+  error.value = ''
+  try {
+    await post(`/api/intentos/${sol.value.intento_id}/abandonar`)
+    await releerYa()
+  } catch (e) {
+    error.value = e.message
+  }
+}
+
+async function releerYa() {
+  sol.value = await pedir(`/api/solicitudes/${sol.value.id}`)
+}
 
 async function confirmarReinicio() {
   confirmando.value = null
@@ -314,9 +343,20 @@ const enlace = computed(() => (sol.value ? `${location.origin}/solicitud/${sol.v
           :campos="sol.campos"
           :inicial="sol.valores?.phone"
         />
+        <div v-else-if="sol.estado_solicitud === 'completada' && !sol.intento_id" class="paso">
+          <h3>¿Con quién querés el crédito?</h3>
+          <p class="ayuda">
+            Podés dejar uno a medias y probar con otro: cada intento guarda hasta dónde llegó, y se
+            retoma por su propio id.
+          </p>
+          <button v-for="l in lenders" :key="l.lender" class="secundario" @click="elegir(l.lender)">
+            {{ l.nombre }} <span class="pais">{{ l.nota }}</span>
+          </button>
+        </div>
         <div v-else-if="sol.estado === 'completada'" class="paso">
-          <h3>Solicitud completa</h3>
-          <p class="ayuda">Las etapas se terminaron. El server la cerró, no el front.</p>
+          <h3>Listo con {{ sol.lender }}</h3>
+          <p class="ayuda">El intento se completó. Podés volver a la lista y probar con otro.</p>
+          <button class="secundario" @click="soltarIntento">Ver los otros lenders</button>
         </div>
         <p v-else class="error">
           La plantilla pide el paso <code>{{ sol.paso_tipo }}</code> y no está en el registro del
@@ -326,6 +366,26 @@ const enlace = computed(() => (sol.value ? `${location.origin}/solicitud/${sol.v
         <button v-if="puedeReiniciar" class="secundario atras" @click="confirmando = true">
           Empezar de nuevo
         </button>
+        <button v-if="sol.intento_id && sol.estado !== 'completada'" class="secundario" @click="soltarIntento">
+          Dejar {{ sol.lender }} y probar con otro
+        </button>
+      </div>
+
+      <div v-if="sol.intentos?.length" class="intentos">
+        <h3>Intentos</h3>
+        <ul>
+          <li v-for="i in sol.intentos" :key="i.id">
+            <b>{{ i.lender }}</b>
+            <span class="pais">{{ i.estado }} · paso {{ i.paso_actual }} · {{ i.id }}</span>
+            <button
+              v-if="i.estado !== 'abierto'"
+              class="secundario chico"
+              @click="elegir(i.lender)"
+            >
+              retomar
+            </button>
+          </li>
+        </ul>
       </div>
 
       <p class="ayuda pie">
@@ -766,6 +826,30 @@ td code {
   margin-top: 18px;
 }
 
+.intentos {
+  margin-top: 22px;
+}
+.intentos h3 {
+  font-size: 13px;
+  color: var(--suave);
+}
+.intentos ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.intentos li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 0;
+  border-bottom: 1px solid var(--borde);
+  font-size: 13px;
+}
+.intentos button {
+  width: auto;
+  margin-left: auto;
+}
 .cajon {
   position: fixed;
   left: 0;

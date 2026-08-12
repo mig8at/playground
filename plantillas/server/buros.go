@@ -170,6 +170,8 @@ var claves = []struct{ clave, label, tipo, grupo string }{
 	// Capturadas en el flujo, no por un proveedor. Están acá porque el diccionario es UNO:
 	// si lo que se captura vive en otro vocabulario, el día que un componente pida un dato
 	// de buró hay que traducir — y ahí es donde nacen los sinónimos.
+	{"requestedAmount", "Monto solicitado por la persona", "float", "credito"},
+
 	{"phone", "Celular, como lo tipea la persona", "string", "contacto"},
 	{"phoneE164", "Celular en formato internacional (+57…)", "string", "contacto"},
 }

@@ -227,6 +227,43 @@ firstName, lastName»; después, «acierta LISTO». **Nadie escribió «para el 
 hace falta para pintar la primera pantalla, y por el stream llegaría después del primer paint. El
 stream sí sirve para avisar que el schema cambió.
 
+## Una solicitud, varios intentos
+
+Después de elegir lender el flujo **se bifurca**. Eso obligó a partir el modelo en dos:
+
+```
+solicitud   ← los DATOS (teléfono, documento, nombre): se capturan una vez
+  ├─ intento con bancolombia   ← id propio · cursor propio · estado propio
+  └─ intento con credipullman
+```
+
+**La regla que lo organiza: los datos son de la solicitud, el cursor es del intento.** Por eso cambiar
+de lender no vuelve a pedir el teléfono, y por eso abandonar no pierde nada: el intento queda con su
+estado y su paso, y se **retoma por su propio id** — el mismo, no uno nuevo, porque un id nuevo por
+cada regreso partiría la historia en pedazos.
+
+Los eventos van atados a la solicitud **y opcionalmente a un intento**, así la misma línea de tiempo
+se lee completa o filtrada:
+
+```
+          solicitud.creada / telefono.capturado / otp.verificado / formulario.enviado
+ [7cbb27] intento.abierto      bancolombia
+ [7cbb27] intento.abandonado   se eligió otro lender
+ [65184c] intento.abierto      credipullman
+ [65184c] intento.abandonado   se eligió otro lender
+ [7cbb27] intento.retomado     bancolombia, paso 0
+```
+
+**Por qué importa, medido contra la BD real:** en CreditOp `user_requests` **ya es el intento** (tiene
+`lender_id`), pero **no existe nada por encima que los agrupe**. Un mismo usuario tuvo **7 filas con 3
+lenders el mismo día**; reconstruir «probó con uno, lo dejó, se fue a otro» hoy es adivinar por
+`user_id` + fecha. Este es el nivel que falta.
+
+⚠ Lo que todavía no modela: los datos son **todos** de la solicitud. Cuando aparezca algo que sea del
+intento y no de la persona (la oferta que hizo ese lender, sus condiciones aceptadas), `valores`
+necesita una capa por intento. Y un intento que ya salió al banco **no se puede reiniciar** — ahí
+vuelve a hacer falta la marca de irreversibilidad.
+
 ## Las costuras que faltan (a propósito)
 
 - **No hay transacción** entre borrar el OTP, mover el cursor y emitir. Es lo próximo: si el proceso muere

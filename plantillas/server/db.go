@@ -30,7 +30,8 @@ CREATE TABLE IF NOT EXISTS plantillas (
   comercio  TEXT NOT NULL,
   entidad   TEXT NOT NULL,
   pais      TEXT NOT NULL,
-  etapas    TEXT NOT NULL,
+  etapas    TEXT NOT NULL,  -- antes de elegir lender
+  etapas_lender TEXT NOT NULL DEFAULT '[]', -- dentro de un intento
   UNIQUE (comercio, entidad, pais)
 );
 
@@ -41,6 +42,30 @@ CREATE TABLE IF NOT EXISTS solicitudes (
   paso_actual  INTEGER NOT NULL DEFAULT 0, -- índice PLANO sobre los pasos aplanados
   estado       TEXT NOT NULL DEFAULT 'abierta',
   creada       TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+-- Un INTENTO es la solicitud yendo por un lender. Tiene id propio, su propio cursor y su
+-- propio estado, y NO se borra al abandonarlo: se queda con la historia de hasta dónde
+-- llegó. Es el nivel que en CreditOp no existe — ahí user_requests YA es el intento
+-- (tiene lender_id) pero no hay nada por encima que los agrupe: un mismo usuario tuvo
+-- 7 filas con 3 lenders el mismo día y lo único que las une es adivinar por fecha.
+CREATE TABLE IF NOT EXISTS intentos (
+  id           TEXT PRIMARY KEY,
+  solicitud_id TEXT NOT NULL,
+  lender       TEXT NOT NULL,
+  etapas       TEXT NOT NULL,
+  paso_actual  INTEGER NOT NULL DEFAULT 0,
+  estado       TEXT NOT NULL DEFAULT 'abierto', -- abierto | abandonado | completado
+  creado       TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_intentos_solicitud ON intentos (solicitud_id);
+
+-- Los lenders que se le ofrecen. Semilla: el filtrado real (cupo, reglas por comercio,
+-- datacrédito) es otro problema y no es el que este prototipo está probando.
+CREATE TABLE IF NOT EXISTS lenders (
+  lender TEXT PRIMARY KEY,
+  nombre TEXT NOT NULL,
+  nota   TEXT NOT NULL DEFAULT ''
 );
 
 CREATE TABLE IF NOT EXISTS valores (
@@ -58,9 +83,13 @@ CREATE TABLE IF NOT EXISTS otp (
   verificado   INTEGER NOT NULL DEFAULT 0
 );
 
+-- El evento SIEMPRE es de la solicitud, y OPCIONALMENTE de un intento. Así se puede leer
+-- la historia completa ("empezó con A, lo dejó en el paso 2, arrancó con B") o la de un
+-- intento solo — que es lo que hace falta para validar qué pasó.
 CREATE TABLE IF NOT EXISTS eventos (
   id           INTEGER PRIMARY KEY AUTOINCREMENT,
   solicitud_id TEXT NOT NULL,
+  intento_id   TEXT NOT NULL DEFAULT '',
   tipo         TEXT NOT NULL,
   payload      TEXT NOT NULL,
   ts           TEXT NOT NULL DEFAULT (datetime('now'))
@@ -100,10 +129,21 @@ const etapasCO = `[
    ]}}
 ]`
 
+// Lo que corre DENTRO de un intento, una vez elegido el lender. Por ahora es igual para
+// todos; que dependa del lender es una columna más — y es justo la variación que hoy en
+// el monorepo son 216 archivos.
+const etapasLender = `[
+  {"etapa":"solicitud","titulo":"Tu solicitud","pasos":["monto"],
+   "campos":{"monto":[
+     {"clave":"requestedAmount","label":"¿Cuánto necesitás?","requerido":true,
+      "patron":"^[0-9]{5,9}$","ayuda":"En pesos, sin puntos"}
+   ]}}
+]`
+
 var semillas = []struct {
-	comercio, entidad, pais, etapas string
+	comercio, entidad, pais, etapas, etapasLender string
 }{
-	{"pullman", "credipullman", "CO", etapasCO},
+	{"pullman", "credipullman", "CO", etapasCO, etapasLender},
 }
 
 func abrirDB(ruta string) *sql.DB {
@@ -117,6 +157,11 @@ func abrirDB(ruta string) *sql.DB {
 	if _, err := db.Exec(esquema); err != nil {
 		log.Fatalf("esquema: %v", err)
 	}
+	// `plantillas` NO se puede rehacer como el catálogo: las solicitudes la referencian.
+	// Una columna nueva entra con ALTER; el error se ignora porque el caso normal es
+	// "ya está".
+	db.Exec(`ALTER TABLE plantillas ADD COLUMN etapas_lender TEXT NOT NULL DEFAULT '[]'`)
+	db.Exec(`ALTER TABLE eventos ADD COLUMN intento_id TEXT NOT NULL DEFAULT ''`)
 	sembrar(db)
 	abrirBuros(db)
 	validarCampos(db)
@@ -130,13 +175,25 @@ func sembrar(db *sql.DB) {
 		db.Exec(`INSERT INTO componentes (tipo, label, efecto) VALUES (?,?,?)`,
 			c.tipo, c.label, c.efecto)
 	}
+	db.Exec(`DELETE FROM lenders`)
+	for _, l := range [][3]string{
+		{"bancolombia", "Bancolombia", "el banco decide por fuera (redirect)"},
+		{"credipullman", "CrediPullman", "capital del comercio, decide en plataforma"},
+		{"welli", "Welli", "agregador"},
+	} {
+		db.Exec(`INSERT INTO lenders (lender, nombre, nota) VALUES (?,?,?)`, l[0], l[1], l[2])
+	}
 	for _, s := range semillas {
 		var compacto any
 		json.Unmarshal([]byte(s.etapas), &compacto)
 		crudo, _ := json.Marshal(compacto)
-		db.Exec(`INSERT INTO plantillas (comercio, entidad, pais, etapas) VALUES (?,?,?,?)
-		         ON CONFLICT(comercio, entidad, pais) DO UPDATE SET etapas = excluded.etapas`,
-			s.comercio, s.entidad, s.pais, string(crudo))
+		var compactoL any
+		json.Unmarshal([]byte(s.etapasLender), &compactoL)
+		crudoL, _ := json.Marshal(compactoL)
+		db.Exec(`INSERT INTO plantillas (comercio, entidad, pais, etapas, etapas_lender) VALUES (?,?,?,?,?)
+		         ON CONFLICT(comercio, entidad, pais) DO UPDATE SET etapas = excluded.etapas,
+		           etapas_lender = excluded.etapas_lender`,
+			s.comercio, s.entidad, s.pais, string(crudo), string(crudoL))
 	}
 }
 
@@ -146,23 +203,26 @@ func sembrar(db *sql.DB) {
 // proveedores, extendida a los formularios — un formulario que captura un nombre que
 // nadie más conoce es cómo vuelven los sinónimos por la puerta de atrás.
 func validarCampos(db *sql.DB) {
-	filas, err := db.Query(`SELECT comercio, entidad, pais, etapas FROM plantillas`)
+	filas, err := db.Query(`SELECT comercio, entidad, pais, etapas, etapas_lender FROM plantillas`)
 	if err != nil {
 		log.Fatalf("validar campos: %v", err)
 	}
 	defer filas.Close()
 
-	type fila struct{ comercio, entidad, pais, etapas string }
+	type fila struct{ comercio, entidad, pais, etapas, etapasLender string }
 	var todas []fila
 	for filas.Next() {
 		var f fila
-		if filas.Scan(&f.comercio, &f.entidad, &f.pais, &f.etapas) == nil {
+		if filas.Scan(&f.comercio, &f.entidad, &f.pais, &f.etapas, &f.etapasLender) == nil {
 			todas = append(todas, f)
 		}
 	}
 	for _, f := range todas {
 		var etapas []etapa
 		json.Unmarshal([]byte(f.etapas), &etapas)
+		var deLender []etapa
+		json.Unmarshal([]byte(f.etapasLender), &deLender)
+		etapas = append(etapas, deLender...)
 		for _, e := range etapas {
 			for paso, campos := range e.Campos {
 				for _, c := range campos {

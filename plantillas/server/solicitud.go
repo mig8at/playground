@@ -39,8 +39,20 @@ type solicitud struct {
 	Pais       string            `json:"pais"`
 	Etapas     []etapa           `json:"etapas"`
 	PasoActual int               `json:"paso_actual"`
-	Estado     string            `json:"estado"`
+
+	// OJO con estos dos: `Estado` es el del CURSOR ACTIVO —lo que el front usa para
+	// pintar— y `EstadoSolicitud` es el de la solicitud en sí. Tenerlos en un solo campo
+	// fue un bug: en cuanto había un intento abierto, el de la solicitud quedaba tapado
+	// y "¿ya llegó a elegir lender?" se contestaba mal.
+	Estado          string `json:"estado"`
+	EstadoSolicitud string `json:"estado_solicitud"`
 	Valores    map[string]string `json:"valores"`
+
+	// El intento ABIERTO, si hay: desde que existe, el cursor de abajo es EL SUYO. Los
+	// datos siguen siendo de la solicitud — cambiar de lender no vuelve a pedir nada.
+	IntentoID string    `json:"intento_id"`
+	Lender    string    `json:"lender"`
+	Intentos  []intento `json:"intentos"`
 
 	// Derivados, para que el front no tenga que recalcularlos (ni equivocarse).
 	Pasos       []string `json:"pasos"`
@@ -161,7 +173,21 @@ func (s *srv) leer(solicitudID string) (*solicitud, error) {
 	if err != nil {
 		return nil, err
 	}
+	sol.EstadoSolicitud = sol.Estado
 	json.Unmarshal([]byte(etapasJSON), &sol.Etapas)
+
+	// EL CURSOR ACTIVO: si hay un intento abierto, manda él. Todo lo de abajo —paso,
+	// etapa, campos— se calcula sobre el cursor activo, así los handlers de los pasos no
+	// tienen que saber si están antes o después de elegir lender.
+	sol.Intentos = s.intentosDe(solicitudID)
+	if act, err := s.intentoActivo(solicitudID); err == nil {
+		sol.IntentoID, sol.Lender = act.ID, act.Lender
+		sol.Etapas, sol.PasoActual, sol.Estado = act.Etapas, act.Paso, act.Estado
+		if sol.Estado == "abierto" {
+			sol.Estado = "abierta"
+		}
+	}
+
 	sol.Pasos = aplanar(sol.Etapas)
 	sol.EtapaActual = etapaDe(sol.Etapas, sol.PasoActual)
 	if sol.Estado == "abierta" && sol.PasoActual < len(sol.Pasos) {
@@ -243,16 +269,29 @@ func (s *srv) avanzar(sol *solicitud) {
 	if siguiente >= len(sol.Pasos) {
 		estado = "completada"
 	}
-	s.db.Exec(`UPDATE solicitudes SET paso_actual = ?, estado = ? WHERE id = ?`, siguiente, estado, sol.ID)
+	if sol.IntentoID != "" {
+		e := "abierto"
+		if estado == "completada" {
+			e = "completado"
+		}
+		s.db.Exec(`UPDATE intentos SET paso_actual = ?, estado = ? WHERE id = ?`, siguiente, e, sol.IntentoID)
+	} else {
+		s.db.Exec(`UPDATE solicitudes SET paso_actual = ?, estado = ? WHERE id = ?`, siguiente, estado, sol.ID)
+	}
 
 	payload := map[string]any{"paso_actual": siguiente, "estado": estado}
 	if estado == "abierta" {
 		payload["tipo"] = sol.Pasos[siguiente]
 		payload["etapa"] = sol.Etapas[etapaDe(sol.Etapas, siguiente)].Etapa
 	}
-	s.hub.emitir(sol.ID, "paso.avanzado", payload)
+	s.hub.emitirEn(sol.ID, sol.IntentoID, "paso.avanzado", payload)
 	if estado == "completada" {
-		s.hub.emitir(sol.ID, "solicitud.completada", map[string]any{})
+		if sol.IntentoID != "" {
+			s.hub.emitirEn(sol.ID, sol.IntentoID, "intento.completado",
+				map[string]any{"lender": sol.Lender})
+		} else {
+			s.hub.emitir(sol.ID, "solicitud.completada", map[string]any{})
+		}
 	}
 }
 
@@ -290,9 +329,13 @@ func (s *srv) reiniciar(w http.ResponseWriter, r *http.Request) {
 
 	// Muere lo verificado. `valores` queda: es el borrador que la persona vuelve a editar.
 	s.db.Exec(`DELETE FROM otp WHERE solicitud_id = ?`, solicitudID)
-	s.db.Exec(`UPDATE solicitudes SET paso_actual = 0, estado = 'abierta' WHERE id = ?`, solicitudID)
+	if sol.IntentoID != "" {
+		s.db.Exec(`UPDATE intentos SET paso_actual = 0, estado = 'abierto' WHERE id = ?`, sol.IntentoID)
+	} else {
+		s.db.Exec(`UPDATE solicitudes SET paso_actual = 0, estado = 'abierta' WHERE id = ?`, solicitudID)
+	}
 
-	s.hub.emitir(solicitudID, "solicitud.reiniciada", map[string]any{
+	s.hub.emitirEn(solicitudID, sol.IntentoID, "solicitud.reiniciada", map[string]any{
 		"paso_actual": 0, "tipo": sol.Pasos[0], "estado": "abierta",
 		"desde_etapa": sol.Etapas[sol.EtapaActual].Etapa,
 	})
@@ -366,7 +409,7 @@ func (s *srv) enviarFormulario(w http.ResponseWriter, r *http.Request) {
 		guardadas = append(guardadas, c.Clave)
 	}
 
-	s.hub.emitir(solicitudID, "formulario.enviado", map[string]any{
+	s.hub.emitirEn(solicitudID, sol.IntentoID, "formulario.enviado", map[string]any{
 		"paso": sol.PasoTipo, "claves": guardadas,
 	})
 	s.avanzar(sol)
@@ -398,8 +441,8 @@ func (s *srv) eventos(w http.ResponseWriter, r *http.Request) {
 	// NO dispara y hay que registrar un addEventListener por cada tipo. El tipo va
 	// adentro del JSON, así un panel genérico recibe todo con un solo handler.
 	escribir := func(e evento) {
-		fmt.Fprintf(w, "id: %d\ndata: {\"id\":%d,\"tipo\":%q,\"payload\":%s,\"ts\":%q}\n\n",
-			e.ID, e.ID, e.Tipo, e.Payload, e.TS)
+		fmt.Fprintf(w, "id: %d\ndata: {\"id\":%d,\"tipo\":%q,\"payload\":%s,\"ts\":%q,\"intento_id\":%q}\n\n",
+			e.ID, e.ID, e.Tipo, e.Payload, e.TS, e.Intento)
 		fl.Flush()
 	}
 

@@ -15,6 +15,7 @@ type evento struct {
 	Tipo    string          `json:"tipo"`
 	Payload json.RawMessage `json:"payload"`
 	TS      string          `json:"ts"`
+	Intento string          `json:"intento_id,omitempty"`
 }
 
 type hub struct {
@@ -53,13 +54,21 @@ func (h *hub) desuscribir(solicitud string, ch chan evento) {
 // emitir persiste PRIMERO y después reparte: el que se conecta tarde recibe el
 // historial completo (replay), así el segundo dispositivo no depende de haber
 // estado escuchando desde el principio.
+// emitir sin intento: el hecho es de la solicitud entera.
 func (h *hub) emitir(solicitud, tipo string, payload any) {
+	h.emitirEn(solicitud, "", tipo, payload)
+}
+
+// emitirEn ata el hecho a un INTENTO además de a la solicitud. Con eso la misma línea de
+// tiempo se puede leer completa ("probó con A, lo dejó, arrancó con B") o filtrada por
+// intento, que es lo que hace falta para validar qué pasó con un lender.
+func (h *hub) emitirEn(solicitud, intento, tipo string, payload any) {
 	cuerpo, err := json.Marshal(payload)
 	if err != nil {
 		cuerpo = []byte("{}")
 	}
-	res, err := h.db.Exec(`INSERT INTO eventos (solicitud_id, tipo, payload) VALUES (?,?,?)`,
-		solicitud, tipo, string(cuerpo))
+	res, err := h.db.Exec(`INSERT INTO eventos (solicitud_id, intento_id, tipo, payload) VALUES (?,?,?,?)`,
+		solicitud, intento, tipo, string(cuerpo))
 	if err != nil {
 		log.Printf("emitir %s/%s: %v", solicitud, tipo, err)
 		return
@@ -68,7 +77,7 @@ func (h *hub) emitir(solicitud, tipo string, payload any) {
 
 	var ts string
 	h.db.QueryRow(`SELECT ts FROM eventos WHERE id = ?`, id).Scan(&ts)
-	ev := evento{ID: id, Tipo: tipo, Payload: cuerpo, TS: ts}
+	ev := evento{ID: id, Tipo: tipo, Payload: cuerpo, TS: ts, Intento: intento}
 
 	h.mu.Lock()
 	defer h.mu.Unlock()
@@ -83,7 +92,7 @@ func (h *hub) emitir(solicitud, tipo string, payload any) {
 // historial es el replay: todo lo que pasó en la solicitud, para el que recién llega.
 func (h *hub) historial(solicitud string, desde int64) []evento {
 	filas, err := h.db.Query(
-		`SELECT id, tipo, payload, ts FROM eventos WHERE solicitud_id = ? AND id > ? ORDER BY id`,
+		`SELECT id, tipo, payload, ts, intento_id FROM eventos WHERE solicitud_id = ? AND id > ? ORDER BY id`,
 		solicitud, desde)
 	if err != nil {
 		return nil
@@ -94,7 +103,7 @@ func (h *hub) historial(solicitud string, desde int64) []evento {
 	for filas.Next() {
 		var e evento
 		var p string
-		if err := filas.Scan(&e.ID, &e.Tipo, &p, &e.TS); err == nil {
+		if err := filas.Scan(&e.ID, &e.Tipo, &p, &e.TS, &e.Intento); err == nil {
 			e.Payload = json.RawMessage(p)
 			out = append(out, e)
 		}

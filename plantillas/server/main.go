@@ -37,6 +37,7 @@ func main() {
 	mux.HandleFunc("GET /api/plantillas", s.verPlantillas)
 
 	// Los burós como CONTRATO (entrada → salida) sobre un diccionario único de claves.
+	mux.HandleFunc("GET /api/lenders", s.verLenders)
 	mux.HandleFunc("GET /api/claves", s.verClaves)
 	mux.HandleFunc("GET /api/proveedores", s.verProveedores)
 	mux.HandleFunc("GET /api/claves/{clave}/quien-la-da", s.quienDa)
@@ -50,6 +51,12 @@ func main() {
 	// El "atrás" es una operación DEL MOTOR y es una sola regla: reinicia la solicitud
 	// conservando lo tipeado y borrando lo verificado. No hay undo por componente.
 	mux.HandleFunc("POST /api/solicitudes/{id}/reiniciar", s.reiniciar)
+
+	// Los INTENTOS: una solicitud puede irse por varios lenders, dejar uno a medias y
+	// retomarlo después. Cada uno tiene id propio y no se borra al abandonarlo.
+	mux.HandleFunc("POST /api/solicitudes/{id}/intentos", s.abrirIntento)
+	mux.HandleFunc("GET /api/intentos/{id}", s.verIntento)
+	mux.HandleFunc("POST /api/intentos/{id}/abandonar", s.abandonarIntento)
 
 	// Un endpoint por componente del catálogo. Agregar un componente = agregar acá
 	// su efecto + su .vue, y ya se puede poner en cualquier plantilla.
@@ -125,6 +132,28 @@ func (s *srv) verPlantillas(w http.ResponseWriter, r *http.Request) {
 		if err := filas.Scan(&p.ID, &p.Comercio, &p.Entidad, &p.Pais, &etapas); err == nil {
 			json.Unmarshal([]byte(etapas), &p.Etapas)
 			out = append(out, p)
+		}
+	}
+	responder(w, 200, out)
+}
+
+func (s *srv) verLenders(w http.ResponseWriter, r *http.Request) {
+	filas, err := s.db.Query(`SELECT lender, nombre, nota FROM lenders ORDER BY nombre`)
+	if err != nil {
+		errorJSON(w, 500, "no se pudieron leer los lenders")
+		return
+	}
+	defer filas.Close()
+	type l struct {
+		Lender string `json:"lender"`
+		Nombre string `json:"nombre"`
+		Nota   string `json:"nota"`
+	}
+	out := []l{}
+	for filas.Next() {
+		var x l
+		if filas.Scan(&x.Lender, &x.Nombre, &x.Nota) == nil {
+			out = append(out, x)
 		}
 	}
 	responder(w, 200, out)
