@@ -125,6 +125,52 @@ Es decir, **dos reglas, no una**: la de *visibilidad del cliente* (≥1 solicitu
 y la de *solicitudes operables* (sólo las de sus comercios). La segunda es más estricta y es la que
 aplica al listar créditos para cambiar fecha o plazo.
 
+#### La query — una sola, sin ramas (probada contra la copia local, 2026-08-11)
+
+Lo que el bot hace al buscar: resuelve el documento **y** la pertenencia en un solo paso. Si el
+cliente no es de un comercio del asesor devuelve **cero filas** — el mismo resultado que si no
+existiera, que es justo lo que la regla del 404 indistinguible pide.
+
+```sql
+SELECT c.id, c.document_number, c.full_name, c.cell_phone, c.email
+FROM users c
+WHERE c.document_number = :documento
+  AND EXISTS (
+    SELECT 1
+    FROM user_requests ur, users a
+    WHERE a.id = :asesor
+      AND ur.user_id = c.id
+      AND ( ur.allied_id = a.allied_id
+            OR JSON_CONTAINS(a.multiple_allieds, CAST(ur.allied_id AS JSON)) )
+  );
+```
+
+**El `OR JSON_CONTAINS` es lo que hace que no haga falta un caso especial**: un asesor de un comercio
+y uno de tres pasan por el mismo código. Verificado — la misma query, sin tocar nada, da 105.883
+clientes para un asesor del comercio grande y 3.640 para el de Americana + Serta + Dormiluna
+(2.140 + 107 + 1.415, menos 22 que repiten entre marcas).
+
+**Rinde bien**, y no por casualidad: la query **arranca por el documento** (índice único → 1 fila),
+sigue por las solicitudes de ese cliente (`idx_user_requests_user_id` → un puñado) y **recién
+entonces** evalúa el `JSON_CONTAINS`, sobre esas pocas filas y no sobre las 359.823. El `EXPLAIN` da
+`const / const / ref`, sin un solo table scan. Ya existe además `idx_user_requests_composite
+(user_id, allied_id)`, que es el índice ideal para esto.
+
+⚠ **Al revés sí duele**: para **listar todos** los clientes de un asesor (un panel, un reporte), el
+`JSON_CONTAINS` se evalúa contra toda la tabla y deja de haber índice que valga. Para ese caso,
+resolver primero los comercios en una consulta chica y pasar un `IN (...)`:
+
+```sql
+-- 1) los comercios del asesor (1 fila, PK)
+SELECT allied_id, multiple_allieds FROM users WHERE id = :asesor;
+-- 2) con esa lista ya en la mano
+SELECT DISTINCT c.* FROM users c
+JOIN user_requests ur ON ur.user_id = c.id
+WHERE ur.allied_id IN (:comercios);
+```
+
+Misma regla, dos formas según se busque **uno** o se listen **todos**.
+
 ### ⚠ FUERA DE ALCANCE (va en otra tarea): el filtro es auto-otorgable
 
 **Decidido el 2026-08-11: roles y permisos del admin viejo se atacan aparte.** Queda acá anotado con
