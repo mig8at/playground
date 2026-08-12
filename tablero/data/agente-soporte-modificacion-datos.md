@@ -103,6 +103,44 @@ El máximo sigue siendo alto, pero **el filtro no está para reducir el número:
 cruce entre comercios.** Que el Superadmin de Alkosto vea clientes de Alkosto es legítimo; que vea
 los de Dentix, no. Eso es lo que hoy no existe y lo que esto corta.
 
+### ⚠ El filtro es auto-otorgable: hay que cerrar quién edita `multiple_allieds`
+
+**Un asesor con varios comercios consultando los clientes de esos comercios es legítimo** — la regla
+no es «un asesor, un comercio» sino «ves los comercios a los que perteneces», y el filtro
+`allied_id ∪ multiple_allieds` la implementa bien.
+
+Pero el filtro vale lo que valga el control sobre **quién puede cambiar esos campos**, y hoy no hay
+ninguno (verificado 2026-08-11, `legacy-application`):
+
+- `UpdateRequest::authorize()` es sólo `can('update user')` — permiso que **Superadmin comercio
+  tiene**.
+- `@edit` carga **cualquier** `User` por route-model-binding, sin acotar al ámbito de quien edita.
+- La UI le ofrece **todos los comercios activos**: `Allied::where('status', 1)->get()`
+  (`UserController.php:134`) — **183** comercios.
+- `@update` escribe `multiple_allieds` con lo que venga en el request, sin validar contra el ámbito
+  del editor.
+
+**Consecuencia**: un Superadmin comercio puede editarse a sí mismo —o a cualquier otro usuario— y
+**asignarse cualquiera de los 183 comercios activos**, con lo que pasaría el filtro de forma
+perfectamente «legítima» y alcanzaría hasta **195.546** clientes. Sin OTP, sin aviso y **sin dejar
+rastro**, porque la edición de usuarios tampoco se audita.
+
+Es decir: **poner el filtro sin cerrar esto no cambia nada** — sólo agrega un paso al mismo abuso.
+Lo que hay que cerrar, en este orden:
+
+1. **`multiple_allieds` y `allied_id` no son editables por quien no sea staff de CreditOp.** Un
+   Superadmin comercio no puede tocar el ámbito de nadie, ni el propio.
+2. **La lista de comercios de la UI se filtra** por el ámbito del editor, no `status = 1` a secas.
+3. **`@edit`/`@update` validan que el usuario objetivo esté dentro del ámbito del editor** — hoy
+   alcanza a cualquiera.
+4. **Todo cambio de ámbito se audita y se notifica**, igual que un cambio de datos de contacto. Es
+   una escalada de privilegios: merece el mismo tratamiento.
+
+⚠ **Efecto colateral aparte, en el mismo `@update`**: `'multiple_allieds' => empty($request->multiple_allieds) ? [$user->allied_id] : $request->multiple_allieds`.
+Si alguien edita a un asesor de grupo por cualquier motivo —corregirle el correo— y el formulario no
+manda `multiple_allieds`, **el campo se resetea a `[allied_id]`** y el asesor pierde en silencio los
+otros comercios del grupo. El campo que sostiene el permiso se borra sin querer.
+
 ### Dos huecos que este modelo deja abiertos
 
 1. **Los 18 `Administrador` no tienen comercio** — `allied_id` en **0/18**: son staff interno de
@@ -224,6 +262,9 @@ construir, verde = ya existe) y la fila de auditoría que quedaría.
 - **¿Qué hacemos con los 18 `Administrador`?** No pertenecen a ningún comercio (`allied_id` en 0/18),
   así que el filtro no les aplica. ¿Quedan fuera del canal, o entran con alcance total y cada acción
   auditada y notificada? **Decisión de negocio.**
+- ⚠ **¿Cerrar la edición de ámbito entra en esta tarea o va aparte?** Sin cerrarla el filtro es
+  auto-otorgable (ver §«El filtro es auto-otorgable») y toda la tarea queda decorativa. Es trabajo
+  sobre el admin viejo, no sobre el canal de WhatsApp — pero es **precondición**, no un extra.
 - **Qué pasa con los 63 que hoy editan sin filtro.** Aplicar el filtro los va a romper. ¿Se migra
   gradual, se exceptúa a Administrador, se avisa?
 - **Rate limit y timeout**: 3 reenvíos de OTP, cooldown de 5 min, sesión de 10 min. Hoy sólo existe
