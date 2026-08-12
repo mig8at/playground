@@ -460,6 +460,71 @@ sesión sigue viva de nuestro lado → de ahí el timeout por inactividad); los 
 **desordenados**, así que la máquina de estados tiene que tolerar un mensaje que no corresponde al
 estado actual sin romperse.
 
+### El login del asesor, paso a paso sobre webhook
+
+**Decidido 2026-08-11: se hace con webhook oficial** (Twilio), no con librerías tipo
+`whatsapp-web.js` — ver §«Por qué no una librería no oficial».
+
+La forma mental: **cada mensaje del asesor es un POST independiente**. No hay sesión de transporte,
+así que el estado lo pone la BD. El handler siempre hace lo mismo — *identificar → leer estado →
+interpretar según el estado → transicionar → responder*.
+
+**Los cuatro pasos previos, en TODO mensaje entrante** (antes de mirar el contenido):
+
+1. **Verificar `X-Twilio-Signature`.** Si no valida → 403 y log. Sin esto, cualquiera postea mensajes
+   falsos y se hace pasar por un asesor.
+2. **Idempotencia por `MessageSid`.** Twilio reintenta ante error o timeout; si el sid ya se procesó,
+   responder 200 y salir. Sin esto un reintento puede reprocesar una autorización.
+3. **Responder 200 rápido y hacer el trabajo aparte.** Twilio espera la respuesta unos segundos y
+   reintenta si tarda: validar OTP + escribir en BD + enviar puede pasarse. El mensaje de vuelta se
+   manda por la API (`POST /Messages`), **no** en el cuerpo de la respuesta.
+4. **Buscar la sesión por `wa_id`** (`From`). Lo que venga después depende de en qué estado esté.
+
+**El recorrido:**
+
+| # | llega | estado previo | qué hace el servicio | estado nuevo | responde |
+|---|---|---|---|---|---|
+| 1 | «Hola» | *(sin sesión)* | ¿el `wa_id` está enrolado? Si no, crea sesión | `awaiting_document` | «Enviá tu cédula» |
+| 2 | `79856214` | `awaiting_document` | lo interpreta **como cédula**; resuelve usuario + rol + permiso; genera OTP con `identifier = id de sesión` y lo manda **por SMS al celular del PERFIL** | `awaiting_otp` (+ `pending_advisor_id`, `otp_attempts=0`) | «Código enviado a 320\*\*\*\*145» |
+| 3 | `482913` | `awaiting_otp` | lo interpreta **como OTP**; valida contra el `otp-service` por `identifier`. Si acierta: **enrola** el `wa_id` ↔ asesor | `ready` (+ `advisor_user_id`, `expires_at = now+10m`) | el menú |
+| 4+ | lo que sea | `ready` | cada mensaje **renueva** `expires_at` | según el flujo | … |
+
+**Los caminos que no son el feliz** — son los que hacen la diferencia:
+
+- **Cédula que no existe, o existe sin permiso**: misma respuesta genérica en los dos casos, y contar
+  el intento. Si difieren, el bot se vuelve un oráculo para saber qué cédulas son de asesores.
+- **OTP equivocado**: `otp_attempts++`. Al superar el límite, bloquear la sesión y escalar — no dejar
+  reintentar indefinidamente.
+- **Sesión expirada**: si el `wa_id` **ya está enrolado**, no volver a pedir la cédula: pedir sólo el
+  OTP. La cédula es para el enrolamiento, no para cada login.
+- **Número nuevo para un asesor ya enrolado**: exige OTP **y avisa al número anterior**. Es la señal
+  de alarma barata que detecta un intento de suplantación.
+- **«Salir»**: cierra la sesión a mano, sin esperar el timeout.
+- **Mensaje que no corresponde al estado** (llega una foto en `awaiting_otp`, o algo desordenado): no
+  romper — repetir la consigna del estado actual.
+
+⚠ **El OTP viaja por SMS, no por WhatsApp** (§«Decisiones tomadas»): si va por el mismo chat donde
+ocurre la conversación, deja de ser segundo factor.
+
+### Por qué no una librería no oficial (`whatsapp-web.js` y similares)
+
+Se evaluó y **se descarta**. Automatizan el WhatsApp Web de una cuenta normal, lo que **viola los
+términos de servicio**: el ban es no determinístico —detección heurística, un número aguanta meses y
+otro cae en una semana— y para una fintech regulada, autorizar cambios de datos personales por un
+canal que puede desaparecer sin aviso es un problema de compliance antes que técnico. Además hay que
+mantener viva una sesión de navegador headless que se cae y pide re-escanear el QR; el webhook es un
+endpoint HTTP sin estado propio. Y la vía oficial ya está paga y andando.
+
+En el código la diferencia es mínima —`client.on('message', …)` contra un handler de `POST
+/webhook`—; lo que cambia es quién inicia la conexión. Para desarrollo local, un túnel tipo ngrok da
+una URL pública contra `localhost` y se prueba igual de rápido.
+
+⚠ **Restricción nueva que conviene no descubrir tarde**: desde **enero de 2026 Meta prohíbe los bots
+de «asistente» de IA abiertos** en la WhatsApp Business Platform — sólo se permiten bots
+**estructurados** (menús, estados, FAQs, captura de datos). El prototipo cae del lado permitido, pero
+significa que **no se puede «mejorar» después metiéndole un LLM que converse libremente**. El diseño
+con menú no es sólo el más simple: hoy es el único viable.
+
 ### Costos: el flujo cae casi entero en la parte gratis
 
 Desde julio 2025 Meta factura **por mensaje**, con 4 categorías (Marketing / Utility /
