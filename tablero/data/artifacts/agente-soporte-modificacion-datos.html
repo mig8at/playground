@@ -235,7 +235,7 @@ const F = {
 const A = {
   otpAsesor:{m:"POST", p:"/api/support/advisor/otp", n:"Resuelve la cédula contra users y manda OTP al celular DEL PERFIL — nunca al que escribe por WhatsApp", nuevo:1},
   verify:{m:"POST", p:"/api/support/advisor/otp/verify", n:"Devuelve token de sesión con TTL. El wa_id queda atado al asesor", nuevo:1},
-  buscar:{m:"GET", p:"/api/support/clients?document=1032456789", n:"Cruza user_requests.allied_branch_id contra allied_branches_by_user. Si no es suyo: 404 idéntico al de «no existe»", nuevo:1},
+  buscar:{m:"GET", p:"/api/support/clients?document=1032456789", n:"Cruza user_requests.allied_id contra el comercio del asesor (users.allied_id ∪ multiple_allieds). Si no es suyo: 404 idéntico al de «no existe»", nuevo:1},
   crear:{m:"POST", p:"/api/support/change-requests", n:"Crea la fila en pendiente_autorizacion. NO escribe en users", nuevo:1},
   autorizar:{m:"PATCH", p:"/api/support/change-requests/184/authorize", n:"Primer check: el cliente autoriza la GESTIÓN, todavía no el cambio", nuevo:1},
   confirmar:{m:"POST", p:"/api/support/change-requests/184/confirm", n:"Segundo check. AHORA sí escribe en users, en la misma transacción que el registro", nuevo:1},

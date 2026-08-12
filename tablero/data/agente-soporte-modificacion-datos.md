@@ -43,12 +43,16 @@ Rutas: `legacy-application` → `app/Http/Controllers/Admin/UserController.php:1
 
 Esta es la pieza que decide el diseño:
 
-- En `users` está **vacío**: `allied_branch_id` poblado en **1 de 223.915** clientes. Inservible.
-- En `user_requests` está **completo**: `allied_branch_id` en **359.790 de 359.823** solicitudes.
-- El asesor cuelga de sucursales por `allied_branches_by_user` (**430** filas). Ojo con el nombre:
-  la tabla es `allied_branches_by_user`, singular, aunque el modelo se llame `AlliedBranchesByUser`.
+- Del lado del **cliente**, `users` está **vacío**: `allied_id` y `allied_branch_id` poblados en
+  **1 de 223.915**. Inservible — por eso no se puede preguntar "¿de qué comercio es este cliente?".
+- Del lado de la **solicitud**, `user_requests` está **completo**: `allied_id` en 359.791 de 359.823.
+  Acá sí se puede preguntar.
+- Del lado del **asesor**, lo que hay es `users.allied_id` + `multiple_allieds`, poblado en **45/45**
+  de los Superadmin comercio. ⚠ **NO** `allied_branches_by_user`: esa tabla tiene 430 filas pero sólo
+  **1** es de un usuario con rol — está muerta como mecanismo de permisos (ver §«El modelo del
+  filtro»).
 
-Entonces **"mis clientes" = clientes con al menos una solicitud en una sucursal del asesor**, y hay
+Entonces **"mis clientes" = clientes con al menos una solicitud en un comercio del asesor**, y hay
 que resolverlo por la solicitud, nunca por el usuario.
 
 **Para que quede sin ambigüedad, porque es fácil recordarlo al revés** (medido 2026-08-11):
@@ -68,19 +72,46 @@ el modelo (`UserRequest::allied()`, `alliedBranch()`, `corporateUser()`).
 nada impide un `allied_branch_id` apuntando a una sucursal borrada. Vale un `LEFT JOIN` defensivo
 antes de confiar en el cruce.
 
-**Y esto decide la pregunta abierta del alcance** — cuántos clientes quedan alcanzables según cómo se
-defina "suyo":
+### El modelo del filtro: por COMERCIO. No hay otro con datos
 
-| criterio | clientes alcanzables |
+La cadena es: **el asesor pertenece a un comercio → las solicitudes tienen comercio → los clientes
+son los de esas solicitudes.** Sale de `users.allied_id` (+ `multiple_allieds`) cruzado contra
+`user_requests.allied_id`.
+
+Se evaluaron los tres criterios posibles y **dos se caen por falta de dato** (medido 2026-08-11):
+
+| criterio | ¿hay dato para los que editan? |
 |---|---|
-| por **sucursal** del asesor | **213.445** |
-| por **asesor que gestionó** (`corporate_user_id`) | **183.836** |
+| por **comercio** (`users.allied_id`) | ✅ **45/45** Superadmin comercio lo tienen |
+| por **sucursal** (`allied_branches_by_user`) | ❌ **0/45**. La tabla tiene 430 filas pero **sólo 1** es de un usuario con rol (un Comercial): está muerta como mecanismo de permisos |
+| por **asesor que gestionó** (`corporate_user_id`) | ⚠ existe al 88 %, pero deja 29.609 clientes sin dueño — terminarían atendiéndose por el admin viejo, que es lo que la tarea quiere dejar de usar |
 
-Definirlo por asesor individual es más estricto, pero deja **29.609 clientes sin dueño** (las 43.435
-solicitudes sin `corporate_user_id`): nadie podría atenderlos por el canal, y esos casos terminarían
-igual en el admin viejo — que es justo lo que la tarea quiere dejar de usar. Recomendación: **por
-sucursal**, y registrar en la auditoría al asesor individual que hizo el cambio, que es donde de
-verdad importa la trazabilidad.
+⚠ **Corrección**: una versión anterior de esta tarea recomendaba filtrar **por sucursal**. Está mal —
+para los usuarios que de verdad editan ese vínculo no existe. **Por comercio es la única opción
+implementable hoy.**
+
+**Lo que consigue** (clientes visibles por Superadmin comercio, vía su `allied_id`):
+
+| | clientes |
+|---|---|
+| hoy, sin filtro | **223.915** |
+| mínimo con el filtro | 1 |
+| **promedio** | **7.282** |
+| máximo (el comercio más grande) | 105.883 |
+
+El máximo sigue siendo alto, pero **el filtro no está para reducir el número: está para cortar el
+cruce entre comercios.** Que el Superadmin de Alkosto vea clientes de Alkosto es legítimo; que vea
+los de Dentix, no. Eso es lo que hoy no existe y lo que esto corta.
+
+### Dos huecos que este modelo deja abiertos
+
+1. **Los 18 `Administrador` no tienen comercio** — `allied_id` en **0/18**: son staff interno de
+   CreditOp, no de un comercio, así que no hay de dónde derivarles una lista. Necesitan política
+   propia: o no entran al canal de WhatsApp (y siguen por el admin, con auditoría), o entran con
+   alcance total pero **cada acción registrada y notificada**. **Decisión de negocio, no técnica.**
+2. **`multiple_allieds` no es decorativo**: 44/45 lo tienen poblado y **3 operan más de un comercio**
+   (hasta 3). El filtro tiene que ser `allied_id ∪ multiple_allieds`, no sólo `allied_id`, o esos
+   tres pierden acceso a comercios que sí gestionan.
 
 Lo mejor: ese cruce **ya está escrito** — `DashboardController::getLegacyUserRequestIds()`, que
 `@index` usa para el rol `Entidad Comercio`. No hay que inventarlo, hay que aplicarlo a quienes sí
@@ -167,10 +198,12 @@ construir, verde = ya existe) y la fila de auditoría que quedaría.
   está diseñado: enrolamiento de `wa_id` + OTP al celular del perfil.)
 - **¿Un check del cliente o dos?** El prototipo hace dos (autoriza la gestión, después aprueba el
   cambio). Es más seguro y es lo que se pidió, pero es fricción. Se puede colapsar a uno.
-- ~~**Alcance de "sus clientes"**~~ — **medido** (ver la tabla de §«El vínculo asesor↔cliente»): por
-  sucursal alcanza **213.445** clientes, por asesor que gestionó **183.836**. Definirlo por asesor
-  deja 29.609 sin dueño, que terminarían atendiéndose por el admin viejo. Recomendación: **por
-  sucursal**, con el asesor individual en la auditoría. Falta que Miguel lo confirme.
+- ~~**Alcance de "sus clientes"**~~ — **resuelto: por COMERCIO**, que es el único criterio con datos
+  (ver §«El modelo del filtro»). El asesor individual se registra en la auditoría, que es donde
+  importa la trazabilidad.
+- **¿Qué hacemos con los 18 `Administrador`?** No pertenecen a ningún comercio (`allied_id` en 0/18),
+  así que el filtro no les aplica. ¿Quedan fuera del canal, o entran con alcance total y cada acción
+  auditada y notificada? **Decisión de negocio.**
 - **Qué pasa con los 63 que hoy editan sin filtro.** Aplicar el filtro los va a romper. ¿Se migra
   gradual, se exceptúa a Administrador, se avisa?
 - **Rate limit y timeout**: 3 reenvíos de OTP, cooldown de 5 min, sesión de 10 min. Hoy sólo existe
