@@ -103,14 +103,35 @@ El máximo sigue siendo alto, pero **el filtro no está para reducir el número:
 cruce entre comercios.** Que el Superadmin de Alkosto vea clientes de Alkosto es legítimo; que vea
 los de Dentix, no. Eso es lo que hoy no existe y lo que esto corta.
 
-### ⚠ El filtro es auto-otorgable: hay que cerrar quién edita `multiple_allieds`
+### La regla, en una frase (alcance decidido)
 
-**Un asesor con varios comercios consultando los clientes de esos comercios es legítimo** — la regla
-no es «un asesor, un comercio» sino «ves los comercios a los que perteneces», y el filtro
-`allied_id ∪ multiple_allieds` la implementa bien.
+> **No se muestra ningún cliente que no haya hecho una solicitud a un comercio que el asesor maneja.**
 
-Pero el filtro vale lo que valga el control sobre **quién puede cambiar esos campos**, y hoy no hay
-ninguno (verificado 2026-08-11, `legacy-application`):
+En SQL: `user_requests.allied_id ∈ (asesor.allied_id ∪ asesor.multiple_allieds)`. Un asesor con
+varios comercios ve los clientes de todos ellos, y eso **es legítimo**: la regla no es «un asesor, un
+comercio» sino «ves los comercios a los que perteneces».
+
+**Un matiz que hay que resolver, porque las dos mitades no se comportan igual.** 2.346 clientes
+(1,1 % de los 213.455 con solicitud) tienen solicitudes en **más de un comercio**. Para ellos:
+
+- **Datos de contacto** (celular, correo) — el dato es del **cliente**, no de la solicitud: vive una
+  sola vez en `users`. Cambiarlo afecta también su relación con el otro comercio, y no hay forma de
+  cambiar «sólo la mitad». Es inevitable, y es aceptable porque **el cliente autoriza**.
+- **Condiciones del crédito** (fecha de pago, plazo) — operan sobre **una solicitud concreta**. Acá
+  sí hay que acotar: el asesor sólo puede tocar las solicitudes **de sus comercios**. Si no, el
+  asesor de un comercio podría cambiarle el plazo a un crédito de otro.
+
+Es decir, **dos reglas, no una**: la de *visibilidad del cliente* (≥1 solicitud en un comercio suyo)
+y la de *solicitudes operables* (sólo las de sus comercios). La segunda es más estricta y es la que
+aplica al listar créditos para cambiar fecha o plazo.
+
+### ⚠ FUERA DE ALCANCE (va en otra tarea): el filtro es auto-otorgable
+
+**Decidido el 2026-08-11: roles y permisos del admin viejo se atacan aparte.** Queda acá anotado con
+el detalle para que la tarea futura no tenga que volver a investigarlo — pero **no** es trabajo de
+CORE-258.
+
+Lo que pasa hoy (verificado 2026-08-11, `legacy-application`):
 
 - `UpdateRequest::authorize()` es sólo `can('update user')` — permiso que **Superadmin comercio
   tiene**.
@@ -125,16 +146,21 @@ ninguno (verificado 2026-08-11, `legacy-application`):
 perfectamente «legítima» y alcanzaría hasta **195.546** clientes. Sin OTP, sin aviso y **sin dejar
 rastro**, porque la edición de usuarios tampoco se audita.
 
-Es decir: **poner el filtro sin cerrar esto no cambia nada** — sólo agrega un paso al mismo abuso.
-Lo que hay que cerrar, en este orden:
+**Lo que esto implica para CORE-258, dicho sin adornos:** el filtro por comercio evita que un asesor
+*consulte por accidente o por curiosidad* clientes de otro comercio, y deja rastro del cambio — que
+es la mejora que la tarea busca. Lo que **no** hace es frenar a quien se proponga saltarlo: puede
+asignarse el comercio y pasar el filtro «legítimamente». **Es una mejora real, no un control
+completo**, y conviene no venderla como lo segundo.
 
-1. **`multiple_allieds` y `allied_id` no son editables por quien no sea staff de CreditOp.** Un
-   Superadmin comercio no puede tocar el ámbito de nadie, ni el propio.
-2. **La lista de comercios de la UI se filtra** por el ámbito del editor, no `status = 1` a secas.
-3. **`@edit`/`@update` validan que el usuario objetivo esté dentro del ámbito del editor** — hoy
+Lo que la tarea futura tendrá que cerrar (relevado acá, sin hacer):
+
+1. **`multiple_allieds` y `allied_id` no editables por quien no sea staff de CreditOp.** Un
+   Superadmin comercio no debería tocar el ámbito de nadie, ni el propio.
+2. **La lista de comercios de la UI filtrada** por el ámbito del editor, no `status = 1` a secas.
+3. **`@edit`/`@update` validando que el usuario objetivo esté dentro del ámbito del editor** — hoy
    alcanza a cualquiera.
-4. **Todo cambio de ámbito se audita y se notifica**, igual que un cambio de datos de contacto. Es
-   una escalada de privilegios: merece el mismo tratamiento.
+4. **Todo cambio de ámbito auditado y notificado**, igual que un cambio de datos de contacto: es una
+   escalada de privilegios y merece el mismo tratamiento.
 
 ⚠ **Efecto colateral aparte, en el mismo `@update`**: `'multiple_allieds' => empty($request->multiple_allieds) ? [$user->allied_id] : $request->multiple_allieds`.
 Si alguien edita a un asesor de grupo por cualquier motivo —corregirle el correo— y el formulario no
@@ -262,9 +288,12 @@ construir, verde = ya existe) y la fila de auditoría que quedaría.
 - **¿Qué hacemos con los 18 `Administrador`?** No pertenecen a ningún comercio (`allied_id` en 0/18),
   así que el filtro no les aplica. ¿Quedan fuera del canal, o entran con alcance total y cada acción
   auditada y notificada? **Decisión de negocio.**
-- ⚠ **¿Cerrar la edición de ámbito entra en esta tarea o va aparte?** Sin cerrarla el filtro es
-  auto-otorgable (ver §«El filtro es auto-otorgable») y toda la tarea queda decorativa. Es trabajo
-  sobre el admin viejo, no sobre el canal de WhatsApp — pero es **precondición**, no un extra.
+- ~~**¿Cerrar la edición de ámbito entra en esta tarea?**~~ — **No. Decidido 2026-08-11: va en otra
+  tarea** (roles y permisos del admin viejo). El detalle relevado queda en §«FUERA DE ALCANCE» para
+  que esa tarea no lo re-investigue.
+- **¿El asesor ve TODAS las solicitudes de un cliente compartido, o sólo las de sus comercios?** Para
+  cambios de crédito la respuesta debería ser «sólo las suyas» (ver §«La regla, en una frase»);
+  afecta a 2.346 clientes. Falta confirmarlo.
 - **Qué pasa con los 63 que hoy editan sin filtro.** Aplicar el filtro los va a romper. ¿Se migra
   gradual, se exceptúa a Administrador, se avisa?
 - **Rate limit y timeout**: 3 reenvíos de OTP, cooldown de 5 min, sesión de 10 min. Hoy sólo existe
