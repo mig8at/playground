@@ -182,6 +182,10 @@ const STAGES = [
   { id: 'tasks', label: 'Tareas creadas' },
 ];
 const stageOf = (id) => STAGES.find(s => s.id === (efforts.value.find(e => e.id === id)?.stage || 'evaluation'));
+// PROTOTIPO del esfuerzo: un html autocontenido en `data/artifacts/<slug>.html` que sirve el server.
+// Lo abre una pestaña aparte — es para mirarlo, no para vivir embebido en el tablero.
+const artifactOf = (id) => efforts.value.find(e => e.id === id)?.artifact || '';
+const openArtifact = (id) => window.open(`${SERVER}/artifacts/${artifactOf(id)}`, '_blank', 'noopener');
 
 // ── derivados del sprint ────────────────────────────────────────────────────────────────────────
 const done = computed(() => issues.value.filter(i => i.StatusCategory === 'done').length);
@@ -675,6 +679,9 @@ onMounted(async () => {
           <div v-if="showGroups" class="grp" :class="{ none: !g.id }">
             {{ g.title }}
             <span v-if="g.id" class="stg" :class="'s-' + stageOf(g.id)?.id">{{ stageOf(g.id)?.label }}</span>
+            <!-- el prototipo, si lo hay: se descubre por el nombre del archivo, no se declara -->
+            <button v-if="artifactOf(g.id)" class="proto" @click="openArtifact(g.id)"
+              title="Abrir el prototipo de esta tarea">▶ prototipo</button>
           </div>
           <!-- varias columnas según el ancho: `auto-fill` con un mínimo, así el número de columnas lo
                decide la pantalla y no un breakpoint escrito a mano -->
@@ -1057,6 +1064,11 @@ h1 { font-size: 20px; margin: 0; letter-spacing: .2px }
   border: 1px solid var(--line); color: var(--mut); text-transform: none; white-space: nowrap }
 .s-work { color: #f6c667; border-color: #4a3a16; background: #241a08 }
 .s-tasks { color: #4ade80; border-color: #256b41; background: #0e2718 }
+/* el prototipo de la tarea: sólo aparece si el html existe, así que no hay estado vacío que diseñar */
+.proto { font: inherit; font-size: 9.5px; font-weight: 700; letter-spacing: .3px; text-transform: none;
+  padding: 2px 8px; border-radius: 999px; cursor: pointer; white-space: nowrap;
+  border: 1px solid var(--line); background: transparent; color: var(--mut) }
+.proto:hover { color: var(--acc); border-color: var(--acc) }
 
 
 /* la clave de la tarea abre Jira; la flecha aparece al pasar por encima para no ensuciar el listado */

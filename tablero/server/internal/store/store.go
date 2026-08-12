@@ -152,6 +152,12 @@ func (s *Store) cargar() error {
 // Se busca al principio de línea y se toma la PRIMERA aparición.
 const SECCION = "## Tarea (publicable)"
 
+// ArtifactsDir es el subdirectorio de `data/` con los prototipos, uno por tarea y con su mismo slug.
+// Es el ÚNICO subdirectorio de `data/` que no son tareas y sí se versiona: los otros (entries, pulse,
+// cache) están fuera de git por ser dato personal o descartable, y un prototipo no es ninguna de las
+// dos cosas — es el acuerdo al que se llegó, y perderlo es perder lo acordado.
+const ArtifactsDir = "artifacts"
+
 func (s *Store) leerEffort(slug string) (Effort, string, error) {
 	fm, cuerpo, err := leerMD(filepath.Join(s.dir, slug+".md"))
 	if err != nil {
@@ -176,6 +182,10 @@ func (s *Store) leerEffort(slug string) (Effort, string, error) {
 	}
 	if e.Stage == "" {
 		e.Stage = "evaluation"
+	}
+	// el prototipo se descubre por nombre: si el archivo está, la tarea lo muestra
+	if _, err := os.Stat(filepath.Join(s.dir, ArtifactsDir, slug+".html")); err == nil {
+		e.Artifact = slug + ".html"
 	}
 	// el vínculo esfuerzo → tareas de Jira; las anotaciones (si las hay) se cargan aparte
 	for _, k := range listaYAML(fm["jira"]) {
@@ -552,6 +562,13 @@ type Effort struct {
 	// derivada: "evaluando" y "trabajando" se distinguen por decisión, no por si ya hay tarea.
 	Stage     string `json:"stage"` // evaluation | work | tasks
 	CreatedAt string `json:"createdAt"`
+	// PROTOTIPO de la tarea: `data/artifacts/<slug>.html`, un HTML autocontenido que se abre desde el
+	// tablero. El vínculo es el NOMBRE, no una entrada en el frontmatter: una convención de nombre no
+	// se desincroniza, una lista escrita a mano sí. Vacío = esta tarea no tiene prototipo.
+	// Un artefacto es UN html sin build; si necesita `npm install` no es un artefacto, es una carpeta
+	// del playground. Y NO gradúa a `context/`: describe lo que se acordó un día, no cómo funciona
+	// CreditOp — muere con la tarea.
+	Artifact string `json:"artifact"`
 }
 
 // Stages son las etapas válidas, en orden.

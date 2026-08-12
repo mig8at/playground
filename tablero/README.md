@@ -308,6 +308,29 @@ descartó: **el guard es el mecanismo real** —corre sobre el texto antes de pu
 `F-xx`—, así que el archivo aparte era redundancia. Y el `jira.json` no llevaba nada: sus filas tenían
 sólo la clave de la tarea, o sea existía para guardar una lista.
 
+### El prototipo de una tarea (`data/artifacts/`)
+
+Algunas tareas se aterrizan más rápido mostrando el flujo que describiéndolo. Para eso: un HTML
+autocontenido en `data/artifacts/<slug>.html`, **con el mismo slug** que el `.md` de la tarea. Si el
+archivo existe, la tarjeta del esfuerzo muestra un botón **▶ prototipo** que lo abre en una pestaña,
+servido por el propio server (`GET /artifacts/<slug>.html`).
+
+No hay nada que declarar: el vínculo es el nombre del archivo. Una convención de nombre no se
+desincroniza; una lista en el frontmatter que hay que mantener a mano, sí.
+
+Lo sirve este server y no uno aparte a propósito — **un prototipo que necesita levantar su propio
+puerto deja de abrirse, y entonces no se mira.** Por eso también la regla de que sea *un* archivo sin
+build: si necesita `npm install`, no es un artefacto de una tarea, es una carpeta del playground con
+su entrada en el `Makefile`.
+
+Dos cosas más, que son de higiene y no de mecánica:
+
+- **Lleva la fecha adentro, visible.** Un prototipo sin fecha se lee como estado actual; con fecha se
+  lee como lo que es: lo que se acordó ese día.
+- **No gradúa a `context/`.** Cuando la tarea se archiva, el prototipo se archiva con ella. Describe
+  lo que se propuso, no cómo funciona CreditOp — y un prototipo viejo en el árbol de contexto miente
+  con mucha convicción. Si algo de ahí resultó verdad perenne, se escribe en el nodo con palabras.
+
 ### La bitácora (`entries/`)
 
 Sigue pensada **para análisis de tiempo**, no sólo para que la UI recargue. Las decisiones que importan:

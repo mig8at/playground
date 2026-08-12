@@ -21,8 +21,18 @@ Qué es y cómo se corre: `README.md`. Acá solo las reglas al trabajar con las 
   Tareas nuevas van al **sprint activo del board 384**, no al backlog. Nada se publica sin que
   Miguel lo vea antes.
 - `data/entries/*.jsonl` (bitácora de tiempo), `data/pulse/*.jsonl` (el pulso) y `data/cache/` están
-  **fuera de git** a propósito (dato personal / snapshot descartable); los `.md` de tareas y
-  `settings.json` **sí** se versionan. No lo cambies.
+  **fuera de git** a propósito (dato personal / snapshot descartable); los `.md` de tareas,
+  `data/artifacts/*.html` y `settings.json` **sí** se versionan. No lo cambies.
+- **PROTOTIPOS: `data/artifacts/<slug>.html`**, con el mismo slug que el `.md` de la tarea. Si el
+  archivo existe, el tablero muestra el botón «▶ prototipo» en el grupo y lo abre desde el server
+  (`GET /artifacts/<slug>.html`). El vínculo es el **nombre**, no una entrada en el frontmatter: una
+  convención de nombre no se desincroniza, una lista escrita a mano sí. Tres reglas:
+  1. **Un HTML autocontenido, sin build.** Si necesita `npm install`, no es un artefacto: es una
+     carpeta del playground con su entrada en el `Makefile`.
+  2. **Lleva la fecha visible adentro.** Un prototipo sin fecha se lee como estado actual; con fecha
+     se lee como lo que es — lo que se acordó ese día.
+  3. **No gradúa a `context/`.** Describe lo propuesto, no cómo funciona CreditOp: muere con la
+     tarea. Si algo de ahí resultó verdad perenne, se escribe en el nodo con palabras.
 - **El pulso NO se escribe a mano ni desde el tablero.** Lo anota `server/cmd/pulso` (un LaunchAgent,
   cada 5 min) leyendo git: es la fuente objetiva de *cuándo toqué código*, y editarla la volvería otra
   bitácora. Se lee con `make pulso` o `GET /api/pulse`. El porqué del diseño: `README.md` → «El pulso».

@@ -229,6 +229,12 @@ func main() {
 	mux.HandleFunc("/ws", a.handleWS)
 	mux.HandleFunc("/health", func(w http.ResponseWriter, _ *http.Request) { w.Write([]byte("ok")) })
 
+	// PROTOTIPOS de las tareas: `data/artifacts/<slug>.html`, servidos tal cual para que el botón
+	// «play» del tablero los abra en una pestaña. Los sirve este server y no uno aparte a propósito:
+	// un prototipo que necesita levantar su propio puerto deja de abrirse, y entonces no se mira.
+	mux.Handle("/artifacts/", http.StripPrefix("/artifacts/",
+		http.FileServer(http.Dir(filepath.Join(dataDir, store.ArtifactsDir)))))
+
 	// Sprint + mis tareas, en JSON. Existe para el tablero: el WS sirve el dashboard viejo, pero para
 	// prototipar alcanza con un GET y evita cablear mensajes nuevos por cada campo.
 	//
