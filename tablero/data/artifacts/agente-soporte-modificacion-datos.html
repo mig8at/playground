@@ -155,6 +155,11 @@
     cursor: pointer
   }
 
+  label.tog .off {
+    opacity: .7;
+    font-style: italic
+  }
+
   .hint {
     font-size: 12.5px;
     color: var(--page-soft)
@@ -521,6 +526,11 @@
      COLORES LITERALES, sin var(): igual que los chats de WhatsApp, esta pantalla no sigue el tema
      de la página. Es el teléfono de otra persona, no parte de la UI — en modo oscuro tiene que
      verse igual que los otros dos y no como un panel más del tablero. */
+  /* `display:flex` gana sobre el atributo hidden si no se declara explícito */
+  .phone.gmail[hidden] {
+    display: none
+  }
+
   .phone.gmail {
     background: #fff;
     display: flex;
@@ -1025,6 +1035,7 @@
       <button class="ctl primary" id="reset">↺ Reiniciar</button>
       <button class="ctl" id="auto">▶ Correr solo</button>
       <label class="tog"><input type="checkbox" id="ineligible"> Crédito no elegible (regla de 6 meses)</label>
+      <label class="tog"><input type="checkbox" id="usar-email"> Aviso por correo <span class="off">— sin definir con producto</span></label>
       <span class="hint">Elegí una de las 4 opciones del menú del asesor.</span>
     </div>
   </header>
@@ -1066,7 +1077,7 @@
          la tarea, y es el único canal que sigue en manos del cliente si alguien le tomó el teléfono
          — quien controla un WhatsApp robado no controla la bandeja. Por eso su «No fui yo» bloquea
          igual que el del chat. -->
-    <div class="phone gmail">
+    <div class="phone gmail" id="gmail" hidden>
       <div class="gm-head">
         <span class="burger">☰</span>
         <span class="gm-search">Buscar en el correo</span>
@@ -1271,7 +1282,7 @@
       input: { value: "mafe.gutierrez@outlook.com", ph: "Nuevo correo" }
     },
     {
-      id: "mail2", side: "a", from: "bot", text: `Voy a pedirle autorización a <b>${F.cli.nombre}</b> por su WhatsApp actual (${F.cli.cel}) <b>y</b> al correo <b>anterior</b> (${F.cli.mail}).<span class="warnline">⚠ El aviso va siempre al dato viejo, no al nuevo.</span>`,
+      id: "mail2", side: "a", from: "bot", text: `Voy a pedirle autorización a <b>${F.cli.nombre}</b> por su WhatsApp <b>actual</b> (${F.cli.cel}).<span class="warnline">⚠ El aviso va siempre al dato viejo, no al nuevo.</span>`,
       buttons: [{ t: "📨 Enviar solicitud" }]
     },
     {
@@ -1289,7 +1300,9 @@
       }
     },
     {
-      id: "mail4", side: "b", from: "bot", text: `Hola <b>María Fernanda</b> 👋<br>Tu asesor <b>${F.asesor.nombre}</b> solicita autorización para <b>cambiar tu correo</b>.<br><br>También te lo avisamos a <b>${F.cli.mail}</b>.<span class="badline">Si no reconoces esta solicitud, toca «No fui yo».</span>`,
+      id: "mail4", side: "b", from: "bot", text: () => `Hola <b>María Fernanda</b> 👋<br>Tu asesor <b>${F.asesor.nombre}</b> solicita autorización para <b>cambiar tu correo</b>.`
+        + (usaEmail() ? `<br><br>También te lo avisamos a <b>${F.cli.mail}</b>.` : "")
+        + `<span class="badline">Si no reconoces esta solicitud, toca «No fui yo».</span>`,
       buttons: [{ t: "✅ Sí, autorizo" }, { t: "🚫 No fui yo", goto: "nofui" }]
     },
     {
@@ -1406,6 +1419,10 @@
   const chats = { a: $("#chat-a"), b: $("#chat-b") };
   let ptr = 0, running = false, auto = false;
   const inelig = () => $("#ineligible").checked;
+  // El canal de correo está APAGADO por defecto: el alcance acordado es todo por WhatsApp, y
+  // sumar un canal es decisión de producto, no del prototipo. El check existe para poder
+  // mostrarlo en esa conversación sin volver a construirlo.
+  const usaEmail = () => $("#usar-email").checked;
   const now = () => { const d = new Date(); return `${d.getHours()}:${String(d.getMinutes()).padStart(2, "0")}` };
   const sleep = ms => new Promise(r => setTimeout(r, ms));
 
@@ -1571,12 +1588,13 @@
 
       if (s.from === "me") { bubble(s.side, "me", s.text); ptr++; if (auto) await sleep(420); continue; }
 
-      await typing(s.side, s.text.length > 200 ? 880 : 640);
+      const txt = typeof s.text === "function" ? s.text() : s.text;
+    await typing(s.side, txt.length > 200 ? 880 : 640);
       if (s.api) apiCall(s.api);
       if (s.audit) audit(s.audit);
-      bubble(s.side, "bot", s.text, { buttons: s.buttons, list: s.list });
+      bubble(s.side, "bot", txt, { buttons: s.buttons, list: s.list });
       if (s.sms) { await sleep(500); smsNotif(s.sms); }
-      if (s.mail) { await sleep(420); mailNotif(s.mail); }
+      if (s.mail && usaEmail()) { await sleep(420); mailNotif(s.mail); }
 
       if (s.buttons && s.buttons.some(b => !b.dis)) {
         running = false;
@@ -1610,6 +1628,8 @@
   }
 
   $("#reset").onclick = () => { auto = false; $("#auto").textContent = "▶ Correr solo"; reset(); };
+  // al prender o apagar el canal de correo, la pantalla aparece/desaparece y el flujo vuelve a cero
+  $("#usar-email").onchange = () => { $("#gmail").hidden = !usaEmail(); reset(); };
   $("#auto").onclick = () => {
     auto = !auto; $("#auto").textContent = auto ? "⏸ Pausar" : "▶ Correr solo";
     if (auto) reset();   // siempre desde cero: re-entrar a mitad reimprimiría el paso pendiente

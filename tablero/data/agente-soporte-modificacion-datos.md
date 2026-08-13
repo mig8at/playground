@@ -304,9 +304,13 @@ antes de exponerlas a un canal nuevo.
 ## El prototipo
 
 `tablero/data/artifacts/agente-soporte-modificacion-datos.html` — se abre con el botón **▶ prototipo**
-del tablero. Dos ventanas estilo WhatsApp (asesor · cliente) más un **tercer canal**: el correo al
-dato anterior, con su propio «No fui yo». Cubre las 4 opciones del menú, las dos salidas de rechazo,
-el OTP por SMS como notificación fuera del hilo, y un toggle para ver el bloqueo por regla de negocio.
+del tablero. Dos ventanas estilo WhatsApp (asesor · cliente) con las 4 opciones del menú, las dos
+salidas de rechazo y el OTP como notificación fuera del hilo.
+
+Dos interruptores arriba, ambos **apagados** por defecto, para mostrar lo que no es el camino feliz:
+- **Crédito no elegible** — el bloqueo por la regla de 6 meses, que el backend ya aplica;
+- **Aviso por correo** — el tercer canal, **fuera de alcance** hasta hablar con producto (§Decisiones,
+  punto 3). Al prenderlo aparece la bandeja de la clienta con su propio «No fui yo».
 
 Trae dos paneles que son, en la práctica, **la especificación**: la traza de APIs (naranja = por
 construir, verde = ya existe) y la fila de auditoría que quedaría.
@@ -337,21 +341,26 @@ construir, verde = ya existe) y la fila de auditoría que quedaría.
    Costo del cambio: `messaging-service` ya manda SMS por LabsMobile (mismo
    `POST /api/v1/messages/send`, otro canal), pero falta ver si el `otp-service` sabe emitir por SMS
    o sólo hace WhatsApp — **eso decide si es configuración o desarrollo**. El repo no está clonado.
-3. **El aviso va siempre al dato ANTERIOR**, nunca sólo al nuevo. Es lo que permite detectar el
-   cambio no autorizado — y va **también por correo**, no sólo por WhatsApp.
+3. **El aviso va siempre al dato ANTERIOR**, nunca sólo al nuevo — **por WhatsApp**. Es lo que
+   permite detectar el cambio no autorizado: si alguien pide cambiarte el celular, el aviso llega al
+   viejo, que es el que todavía tienes.
 
-   El correo no es redundancia: es el **único canal que sigue en manos del cliente si alguien le tomó
-   el teléfono**. Quien controla un WhatsApp robado no controla la bandeja de entrada. Por eso su
-   «No fui yo» **bloquea igual** que el del chat — son dos vías al mismo desenlace, y basta una.
+   ⚠ **El canal de correo NO entra en el alcance** (decidido 2026-08-11). El acuerdo es que la
+   gestión ocurra **entera en WhatsApp**, y sumar un segundo canal de notificación es **decisión de
+   producto**, no del prototipo. Mientras no se hable con ellos, no se asume.
 
-   Los dos flujos de contacto lo mandan, con un matiz distinto:
-   - **cambio de celular** → el correo es un canal *independiente* del que se está cambiando;
-   - **cambio de correo** → el correo viejo es *literalmente* el dato anterior, y ese aviso es **el
-     último que esa dirección va a recibir**. Conviene decírselo en el mensaje.
+   Está **construido y apagado**: el prototipo trae el check «Aviso por correo», *off* por defecto.
+   Al prenderlo aparece la bandeja de la clienta con el correo y su propio «No fui yo». Existe para
+   poder mostrarlo en esa conversación sin volver a construirlo — no como parte del entregable.
 
-   Regla de implementación: en cuanto el cliente responde por **cualquiera** de los dos canales, el
-   otro se agota. Un solo desenlace por solicitud, no dos. (Aplicado en el prototipo: el botón del
-   correo queda inhabilitado al responder por WhatsApp, y viceversa.)
+   El argumento a favor, para cuando se discuta: es el **único canal que sigue en manos del cliente
+   si alguien le tomó el teléfono** — quien controla un WhatsApp robado no controla la bandeja. Y el
+   argumento en contra: **ese hueco lo tapa mejor la biometría** (idea de Miguel), que además sirve
+   para el caso de «no tengo el celular a la mano». Son alternativas al mismo problema, no
+   complementos: conviene elegir una, y esa elección es de producto.
+
+   Si algún día entra, la regla de implementación ya está pensada: en cuanto el cliente responde por
+   **cualquiera** de los canales, el otro se agota. Un solo desenlace por solicitud, no dos.
 4. **"No es tu cliente" y "no existe" responden idéntico.** Si difieren, el buscador se vuelve un
    oráculo de qué cédulas están en la base.
 5. **Dos tablas, no una.** Contacto → tabla nueva (nombre propuesto: `user_data_change_requests`).
