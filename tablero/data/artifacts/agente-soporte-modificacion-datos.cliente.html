@@ -378,6 +378,56 @@
     font-style: italic
   }
 
+  /* El código NO viaja por WhatsApp: llega por SMS. Se dibuja como notificación del sistema,
+     fuera del hilo, para que se vea que es otro canal — aunque sea el mismo teléfono. */
+  .sms {
+    position: absolute;
+    top: 62px;
+    left: 12px;
+    right: 12px;
+    z-index: 5;
+    border-radius: 13px;
+    background: rgba(28, 34, 38, .92);
+    color: #fff;
+    padding: 10px 13px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, .3);
+    backdrop-filter: blur(12px);
+    animation: drop .32s cubic-bezier(.2, .9, .3, 1.2)
+  }
+
+  @keyframes drop {
+    from { opacity: 0; transform: translateY(-16px) }
+    to { opacity: 1; transform: none }
+  }
+
+  .sms .hd {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    opacity: .75;
+    margin-bottom: 3px
+  }
+
+  .sms .bd {
+    font-size: 13.5px;
+    line-height: 1.4
+  }
+
+  .sms .code {
+    font-family: ui-monospace, Menlo, monospace;
+    font-weight: 700;
+    letter-spacing: .16em;
+    font-size: 16px
+  }
+
+  .sms .via {
+    font-size: 10.5px;
+    opacity: .6;
+    margin-top: 5px;
+    font-style: italic
+  }
+
   .qr {
     margin: 6px -10px -6px;
     border-top: 1px solid rgba(0, 0, 0, .09)
@@ -1096,10 +1146,10 @@
         <div class="tblwrap">
           <table>
             <thead>
-              <tr><th>Campo</th><th>Anterior</th><th>Nuevo</th><th>Pedido por</th><th>Estado</th></tr>
+              <tr><th>Campo</th><th>Anterior</th><th>Nuevo</th><th>Pedido por</th><th>Prueba</th><th>Estado</th></tr>
             </thead>
             <tbody id="audit">
-              <tr><td colspan="5" class="empty">Sin registros.</td></tr>
+              <tr><td colspan="6" class="empty">Sin registros.</td></tr>
             </tbody>
           </table>
         </div>
@@ -1116,12 +1166,18 @@
   </div>
 
   <div class="note">
-    <b>Los tres factores, y cuánto vale cada uno.</b> El <b>número de WhatsApp</b> es el más fuerte de
-    los tres y es gratis: el bot sabe de qué número viene el mensaje, y ese número está registrado en el
-    crédito — es «algo que tienes». La <b>cédula</b> y la <b>fecha de expedición</b> son las dos «algo que
-    sabes», y las dos están impresas en el mismo documento: quien tenga la cédula física, o una foto,
-    tiene ambas. <b>La barrera real es el celular</b>, no los datos. Si el número no coincide con el
-    registrado, esto no debería dejar pasar aunque los datos estén bien.
+    <b>Quién hace el trabajo de cada cosa.</b> La seguridad la da el <b>número de WhatsApp</b>: el bot
+    sabe de qué número llega el mensaje y ese número está registrado en el crédito — es «algo que
+    tienes», verificado por la plataforma. La <b>cédula</b> confirma de qué crédito hablamos.
+    <br><br>
+    El <b>código</b> no agrega seguridad —llega al mismo teléfono desde el que escribe, así que no
+    prueba nada que no supiéramos—: lo que aporta es <b>evidencia</b>. Deja un acto deliberado y
+    fechado, un código emitido a tal hora y escrito de vuelta a tal otra, y eso es lo que se guarda
+    como prueba de que el dueño autorizó. Era justamente lo que faltaba.
+    <br><br>
+    <b>Antes se pedía la fecha de expedición</b> y se cambió: está impresa en la misma cédula, así que
+    quien tenga el documento tiene las dos cosas. El código es mejor factor y además no obliga a nadie
+    a ir a buscar su cédula para un trámite de dos minutos.
   </div>
 
   <div class="note">
@@ -1143,12 +1199,13 @@
   };
   const A = {
     quienEs: { m: "GET", p: "/api/support/self/by-phone?wa=573214567207", n: "El número de WhatsApp ES el primer factor: resuelve al cliente antes de pedirle nada. Si no está registrado, no se sigue", nuevo: 1 },
-    verificar: { m: "POST", p: "/api/support/self/verify", n: "Contrasta cédula + fecha de expedición contra users. Cuenta intentos: al tercero, bloquea y escala", nuevo: 1 },
+    pedirOtp: { m: "POST", p: "/api/support/self/otp", n: "Emite el código y lo manda al celular del crédito — el MISMO desde el que escribe. Reusa el otp-service con identifier = sesión, así queda una fila a la que apuntar después", nuevo: 1 },
+    verificar: { m: "POST", p: "/api/support/self/otp/verify", n: "Valida el código y abre la sesión. Cuenta intentos: al tercero, bloquea y escala", nuevo: 1 },
     canChange: { m: "GET", p: "/api/loans/consumer/credits/487542/can-change", n: "YA EXISTE · CreditChangeValidationService: pago pendiente, lender externally_serviced o cambio en los últimos 6 meses" },
     dateOpts: { m: "GET", p: "/api/loans/consumer/credits/487542/payment-date-options", n: "YA EXISTE · ciclos fijos 5/16/28, devuelve sólo los 2 próximos" },
     feeOpts: { m: "GET", p: "/api/loans/consumer/credits/487542/fee-number-options", n: "YA EXISTE · fee_numbers de la línea, filtrado a > cuotas pagadas y ≤ max_fee_number de la categoría" },
-    aplicaFecha: { m: "POST", p: "/api/loans/consumer/credits/487542/change-payment-date", n: "YA EXISTE · hoy escribe otp_id=0. Acá hay que decidir QUÉ se guarda como prueba de autorización", nuevo: 1 },
-    aplicaPlazo: { m: "POST", p: "/api/loans/consumer/credits/487542/change-fee-number", n: "YA EXISTE · hoy escribe otp_id=0. Acá hay que decidir QUÉ se guarda como prueba de autorización", nuevo: 1 }
+    aplicaFecha: { m: "POST", p: "/api/loans/consumer/credits/487542/change-payment-date", n: "YA EXISTE · hoy escribe otp_id=0. Ahora recibe el otp_id REAL del código que la clienta escribió — misma prueba que en el flujo del asesor", nuevo: 1 },
+    aplicaPlazo: { m: "POST", p: "/api/loans/consumer/credits/487542/change-fee-number", n: "YA EXISTE · hoy escribe otp_id=0. Ahora recibe el otp_id REAL del código que la clienta escribió — misma prueba que en el flujo del asesor", nuevo: 1 }
   };
   const T_CREDITO = { t: "creditop_x_changes_log", cls: "existe", nota: "tabla que YA existe · ¿qué va en otp_id?" };
 
@@ -1166,9 +1223,9 @@
       input: { value: "1032456789", ph: "Número de cédula" }
     },
     {
-      id: "s3", side: "a", from: "bot",
-      text: `Gracias. Ahora dime la <b>fecha de expedición</b> de tu cédula.<br><br>Escríbela con <b>día/mes/año</b>, por ejemplo <b>14/03/2011</b>. La encuentras en la parte de atrás del documento.`,
-      input: { value: "14/03/2011", ph: "DD/MM/AAAA" },
+      id: "s3", side: "a", from: "bot", api: A.pedirOtp, sms: "509318",
+      text: `Gracias. Te acabo de enviar un <b>código de 6 dígitos</b> por mensaje de texto a este mismo celular.<br><br>Escríbelo acá para confirmar que eres tú.`,
+      input: { value: "509318", ph: "Código de 6 dígitos" },
       next: () => $("#fallo").checked ? "malos" : "s4"
     },
     {
@@ -1194,7 +1251,7 @@
     {
       id: "s7", side: "a", from: "bot", api: A.aplicaFecha,
       text: `✅ Listo, tu nueva fecha de pago es el <b>${F.cli.fechaNue}</b>.<br><br>Te llegará la confirmación por este mismo chat.`,
-      audit: { campo: "next_payment_date", ant: F.cli.fecha, nue: F.cli.fechaNue, estado: "aplicada", cls: "ok", dest: T_CREDITO, quien: "la clienta" },
+      audit: { campo: "next_payment_date", ant: F.cli.fecha, nue: F.cli.fechaNue, estado: "aplicada", cls: "ok", otp: 88431, dest: T_CREDITO, quien: "la clienta" },
       buttons: [{ t: "Cambiar también el plazo", goto: "p1" }, { t: "Eso era todo", goto: "chau" }]
     },
 
@@ -1220,14 +1277,14 @@
     {
       id: "p3", side: "a", from: "bot", api: A.aplicaPlazo,
       text: `✅ Listo, tu nuevo plazo es de <b>18 cuotas de $161.000</b>.`,
-      audit: { campo: "fee_number", ant: F.cli.plazo, nue: F.cli.plazoNue, estado: "aplicada", cls: "ok", dest: T_CREDITO, quien: "la clienta" }
+      audit: { campo: "fee_number", ant: F.cli.plazo, nue: F.cli.plazoNue, estado: "aplicada", cls: "ok", otp: 88431, dest: T_CREDITO, quien: "la clienta" }
     },
     { id: "chau", side: "a", from: "bot", text: "Con gusto 🙌 Cualquier cosa me escribes por acá.", end: true },
 
     // ─── SALIDAS ───
     {
       id: "malos", side: "a", from: "bot", api: A.verificar,
-      text: `No pude confirmar tus datos.<br><br>Te quedan <b>2 intentos</b>. Revisa la fecha de expedición en tu cédula e inténtalo de nuevo.<span class="warnline">Tras el tercer intento fallido bloqueamos la consulta y te contacta un agente.</span>`,
+      text: `Ese código no coincide.<br><br>Te quedan <b>2 intentos</b>. Revisa el mensaje que te llegó e inténtalo de nuevo.<span class="warnline">Tras el tercer intento fallido bloqueamos la consulta y te contacta un agente.</span>`,
       audit: { campo: "—", ant: "—", nue: "—", estado: "sin verificar", cls: "bad", dest: T_CREDITO }, end: true
     },
     {
@@ -1268,6 +1325,17 @@
     chats[side].appendChild(el); chats[side].scrollTop = chats[side].scrollHeight;
   }
 
+  function smsNotif(code) {
+    clearSms();
+    const n = document.createElement("div");
+    n.className = "sms"; n.id = "sms";
+    n.innerHTML = `<div class="hd">💬 <b>Mensajes</b> · ahora</div>` +
+      `<div class="bd">CreditOp: tu código es <span class="code">${code}</span>. No lo compartas con nadie.</div>` +
+      `<div class="via">llega por SMS — deja la prueba de que el cambio lo autorizó su dueño</div>`;
+    chats.a.parentElement.appendChild(n);
+  }
+  const clearSms = () => { const o = $("#sms"); if (o) o.remove(); };
+
   async function typing(side, ms) {
     const t = document.createElement("div"); t.className = "typing"; t.innerHTML = "<i></i><i></i><i></i>";
     chats[side].appendChild(t); chats[side].scrollTop = chats[side].scrollHeight;
@@ -1294,6 +1362,8 @@
     row.innerHTML = `<td class="mono">${lastAudit.campo}</td><td class="mono">${lastAudit.ant}</td>` +
       `<td class="mono">${lastAudit.nue}</td>` +
       `<td>${lastAudit.quien || "la clienta"}<br><span style="color:var(--page-soft);font-size:11px">${F.cli.nombre}<br>CC ${F.cli.cc} · desde su celular</span></td>` +
+      // la prueba: el mismo otp_id que guarda el flujo del asesor, sin caso especial
+      `<td class="mono">${lastAudit.otp ? `otp_id ${lastAudit.otp}<br><span style="color:var(--page-soft);font-size:11px">(antes: 0)</span>` : "—"}</td>` +
       `<td><span class="badge ${lastAudit.cls}">${lastAudit.estado}</span></td>`;
   }
 
@@ -1306,6 +1376,7 @@
       inp.disabled = true; snd.disabled = true; inp.value = ""; inp.placeholder = "Escribe un mensaje";
       snd.onclick = null; inp.onkeydown = null;
       if (ptr !== owner) return;
+      clearSms();
       bubble("a", "me", v);
       // el paso puede bifurcar según lo que se respondió, no sólo avanzar al siguiente
       ptr = step.next ? idx[step.next()] : ptr + 1;
@@ -1333,6 +1404,7 @@
       if (s.api2) apiCall(s.api2);
       if (s.audit) audit(s.audit);
       bubble(s.side, "bot", s.text, { buttons: s.buttons, list: s.list });
+      if (s.sms) { await sleep(450); smsNotif(s.sms); }
 
       if (s.buttons && s.buttons.some(b => !b.dis)) {
         running = false;
@@ -1352,10 +1424,10 @@
   }
 
   function reset() {
-    ptr = 0; running = false; row = null; lastAudit = null;
+    ptr = 0; running = false; row = null; lastAudit = null; clearSms();
     chats.a.innerHTML = "";
     $("#trace").innerHTML = '<li class="empty" style="border:none;background:none">Sin llamadas todavía.</li>';
-    $("#audit").innerHTML = '<tr><td colspan="5" class="empty">Sin registros.</td></tr>';
+    $("#audit").innerHTML = '<tr><td colspan="6" class="empty">Sin registros.</td></tr>';
     $("#dest").className = "dest"; $("#dest").textContent = "— sin destino aún —";
     const i = $("#in-a"); i.disabled = true; i.value = ""; i.placeholder = "Escribe un mensaje";
     $("#snd-a").disabled = true;

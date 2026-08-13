@@ -25,7 +25,7 @@ gestionar **por su cuenta** su fecha de pago y su plazo, sin asesor de por medio
 verdad en el backend, pero **otro recorrido** — se identifica solo y no hay tercero que autorice. Los
 datos de contacto **no** entran en la autogestión: siguen necesitando a un asesor que los pida.
 
-**Qué hay que construir**: 15 endpoints, 10 de ellos nuevos — ver §«Las APIs a entregar».
+**Qué hay que construir**: 16 endpoints, 11 de ellos nuevos — ver §«Las APIs a entregar».
 
 ## Por qué existe — el estado de hoy, verificado
 
@@ -327,13 +327,13 @@ Toda la seguridad se corre a la **autenticación de entrada**.
 |---|---|---|
 | **número de WhatsApp** | algo que tienes | **el más fuerte, y es gratis** — el bot sabe de qué número viene y ese número está en el crédito |
 | cédula | algo que sabes | débil: circula |
-| fecha de expedición | algo que sabes | débil, y **está impresa en la misma cédula** |
+| código al celular | algo que tienes | **⚠ no agrega seguridad acá** — llega al mismo teléfono; su valor es dejar la prueba |
 
-⚠ **La barrera real es el celular, no los datos.** Cédula y fecha de expedición están en el mismo
-documento: quien tenga la cédula física —o una foto— tiene las dos. Si el número de WhatsApp no
-coincide con el registrado, **no debería pasar aunque los datos estén bien**.
+⚠ **La barrera real es el celular, no los datos.** Si el número de WhatsApp no coincide con el
+registrado en el crédito, **no debe pasar** — sin importar qué datos aporte. La cédula sirve para
+saber de qué crédito hablamos, no para autenticar.
 
-#### ⚠ Qué se guarda como prueba de autorización (la pregunta que bloquea)
+#### ✅ Qué se guarda como prueba — decidido 2026-08-12
 
 Cuando alguien cambia la fecha de pago o el plazo, queda una fila en `creditop_x_changes_log`, que
 tiene **cuatro datos y nada más**:
@@ -348,24 +348,29 @@ tiene **cuatro datos y nada más**:
 Esa tercera columna es el punto. Apunta a la fila del código que se le mandó al cliente y que él
 escribió de vuelta: **es la prueba de que el dueño del crédito dio el sí.** Hoy se escribe `0`, que
 no apunta a nada — el registro dice *"se cambió la fecha"* pero no puede decir *"y así fue como el
-cliente lo aprobó"*. Si alguien reclama que nunca autorizó, no hay con qué responder. **Cerrar eso es
-el corazón de la tarea.**
+cliente lo aprobó"*. Si alguien reclama que nunca autorizó, no hay con qué responder.
 
-En el flujo del **asesor** está resuelto: hay OTP, hay fila, hay qué guardar. En **autogestión** no:
-el cliente entra con cédula + fecha de expedición y confirma con un botón, así que al escribir la
-fila **no hay nada que poner**. Y si ponemos `0`, quedamos donde empezamos.
+**La decisión: el cliente también escribe un código.** Se descartó pedirle la **fecha de expedición**,
+que era la propuesta inicial. Dos razones:
 
-**Recomendación: pedir el código también en autogestión**, justo antes de aplicar. Suma un paso, pero:
+- **Es mejor factor.** La fecha de expedición está impresa en la misma cédula: quien tenga el
+  documento —o una foto— tiene los dos datos. El número de WhatsApp es *algo que tienes*, verificado
+  por la plataforma; conseguirlo a distancia es mucho más difícil.
+- **Y produce la prueba**, que es lo que faltaba: una fila con un código emitido a tal hora y escrito
+  de vuelta a tal otra. Los **dos flujos guardan lo mismo**, sin casos especiales en la tabla.
 
-- es un **cambio contractual** sobre un crédito, y la barrera de entrada son datos *impresos en la
-  cédula* — quien tenga el documento los tiene; el código prueba que además controla el teléfono;
-- **los dos flujos guardan lo mismo**, sin casos especiales en la tabla;
-- sería raro que el mismo cambio exija código cuando lo pide un asesor y no cuando lo pide el dueño.
+⚠ **Con una salvedad que conviene no confundir: en autogestión el código NO agrega seguridad.** Llega
+al mismo teléfono desde el que la clienta escribe, así que no prueba nada que no supiéramos — ya
+sabíamos que controla ese número. **Lo que aporta es evidencia**, y da la casualidad de que el
+problema del `otp_id = 0` era de evidencia, no de seguridad. Quien hace el trabajo de seguridad es la
+**validación del número contra el crédito**, no el código. Vale tenerlo claro para no venderlo como
+lo que no es.
 
-Alternativas, para que la decisión sea informada: aceptar `0` en autogestión —y renunciar a la prueba
-justo en el flujo donde no hay testigos—, o guardar otra cosa como evidencia (el id de la sesión
-verificada), lo que exige **cambiar la tabla**. **Falta decidirlo**; sin eso, los dos endpoints
-`change-*` no se pueden cerrar.
+**El caso que hay que resolver: número que no coincide.** La gente cambia de número. Si escribe desde
+uno distinto al registrado, **no debe pasar** — y ahí aparece una vuelta incómoda: para autogestionarse
+necesita que el número coincida, pero para *cambiarlo* necesita un asesor, porque los datos de
+contacto están fuera de la autogestión. Es coherente con el alcance, pero **el bot tiene que decirlo
+con todas las letras** en vez de responder un «no te encuentro» que deja a la persona sin salida.
 
 **Sobre la IA.** La idea era un agente conversacional. Lo que se puede: que el bot **entienda** lo
 que el cliente escribe con sus palabras («quiero cambiar la fecha en que me cobran») y lo enrute a un
@@ -400,7 +405,7 @@ Dos propuestas, cada una con su botón en el tablero: **`▶ asesor`** y **`▶ 
 ### `…-modificacion-datos.cliente.html` — la autogestión
 
 Una sola conversación. El cliente entra desde su celular, escribe en sus palabras, se identifica con
-cédula + fecha de expedición y cambia fecha o plazo. Debajo de cada mensaje libre se ve **lo que el
+cédula + un código al celular y cambia fecha o plazo. Debajo de cada mensaje libre se ve **lo que el
 bot interpretó**, que es lo que permite enrutar sin ser un asistente conversacional. Dos
 interruptores: crédito no elegible, e identidad que no verifica.
 
@@ -419,7 +424,7 @@ construir, verde = ya existe) y la fila de auditoría que quedaría.
 
 **El prototipo no es el diseño final** — es para aterrizar la conversación. Revisar antes de codear.
 
-## Las APIs a entregar — **15 endpoints, 10 nuevos**
+## Las APIs a entregar — **16 endpoints, 11 nuevos**
 
 Inventario sacado de las trazas de los dos prototipos, que se armaron justamente para esto.
 
@@ -437,14 +442,14 @@ Las tres del crédito, y sirven **igual para los dos actores**: no hay que tocar
 
 | | qué cambia |
 |---|---|
-| `POST /credits/{id}/change-payment-date` | hoy escribe `otp_id = 0`; debe recibir y guardar la prueba real de autorización |
+| `POST /credits/{id}/change-payment-date` | hoy escribe `otp_id = 0`; debe recibir y guardar el `otp_id` real |
 | `POST /credits/{id}/change-fee-number` | ídem |
 
-⚠ **Es el corazón de la tarea y tiene una pregunta abierta**: en el flujo del **cliente** no hay OTP
-—se autentica con cédula + fecha de expedición—, así que **qué se guarda ahí** todavía no está
-decidido. Ver §Preguntas abiertas.
+✅ **Es el corazón de la tarea, y ya está resuelto**: los **dos** flujos terminan con un código
+escrito por el cliente, así que los dos guardan un `otp_id` real y **no hay caso especial**. Ver
+§«Qué se guarda como prueba».
 
-### Nuevas — 10
+### Nuevas — 11
 
 **Del flujo del asesor (8).** Son las que sostienen el «pide uno, autoriza otro»:
 
@@ -459,12 +464,13 @@ decidido. Ver §Preguntas abiertas.
 | `POST /support/change-requests/{id}/confirm` | segundo check: **acá sí** escribe, junto con el registro |
 | `PATCH /support/change-requests/{id}/reject` | rechazo o «no fui yo» — bloquea y escala |
 
-**Del flujo del cliente (2).** Mucho más corto porque no hay tercero que autorizar:
+**Del flujo del cliente (3).** Más corto porque no hay tercero que autorizar:
 
 | | qué hace |
 |---|---|
-| `GET /support/self/by-phone?wa=` | resuelve al cliente por el número de WhatsApp desde el que escribe |
-| `POST /support/self/verify` | valida cédula + fecha de expedición y abre la sesión |
+| `GET /support/self/by-phone?wa=` | resuelve al cliente por el número de WhatsApp desde el que escribe. **Si no coincide con el del crédito, no se sigue** |
+| `POST /support/self/otp` | emite el código y lo manda al celular del crédito. Reusa el `otp-service` con `identifier` = sesión, así queda la fila a la que apuntar |
+| `POST /support/self/otp/verify` | valida el código y abre la sesión. Cuenta intentos |
 
 ### Lo que NO construimos nosotros
 
@@ -474,10 +480,14 @@ como entregable nuestro.
 
 ### Cómo se reparte
 
-De los 15, **13 los consume el flujo del asesor y 7 el del cliente** (5 son compartidos). Si hubiera
-que partir la entrega, **el flujo del cliente es el más barato**: 2 endpoints nuevos y las 5 del
+De los 16, **13 los consume el flujo del asesor y 8 el del cliente** (5 son compartidos). Si hubiera
+que partir la entrega, **el flujo del cliente es el más barato**: 3 endpoints nuevos y las 5 del
 crédito que ya existen o sólo se modifican. El del asesor es el caro, porque el «pide uno, autoriza
 otro» es todo nuevo.
+
+**Por dónde empezar.** Las 2 que se modifican (`change-payment-date`, `change-fee-number`) son la
+puerta: hasta que reciban y guarden el `otp_id` real, ningún flujo cierra su registro. Y son el
+cambio más chico de los 16 — un parámetro y una escritura.
 
 ## Decisiones tomadas (y por qué)
 
@@ -909,7 +919,8 @@ del crédito.
 necesitando a un asesor.
 
 - Escribe con sus palabras y el canal lo lleva a la operación que corresponde.
-- Se identifica con su documento y un segundo dato que sólo él conoce.
+- Se identifica con su documento y un código de un solo uso enviado al celular registrado en su
+  crédito, que debe ser el mismo desde el que escribe.
 - Elige entre las opciones que su crédito admite y confirma.
 
 **Común a las dos.**
@@ -921,12 +932,11 @@ necesitando a un asesor.
 - Las reglas de elegibilidad que ya existen para los cambios de crédito se siguen respetando y no
   pueden saltarse desde el canal.
 
-**Entregable técnico:** 15 endpoints, de los cuales 10 son nuevos, 2 son existentes que se modifican
+**Entregable técnico:** 16 endpoints, de los cuales 11 son nuevos, 2 son existentes que se modifican
 y 3 se usan tal cual.
 
-**Pendiente de definición:** el tratamiento de clientes eliminados (requiere Legal), los límites de
-reenvío de códigos, y qué se registra como prueba de autorización cuando el cliente se autogestiona y
-no hay un tercero que confirme.
+**Pendiente de definición:** el tratamiento de clientes eliminados (requiere Legal) y los límites de
+reenvío de códigos.
 
 Se construyeron dos simulaciones navegables —una por entrada— para acordar el detalle antes de
 implementar.
