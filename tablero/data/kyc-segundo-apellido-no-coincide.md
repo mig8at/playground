@@ -334,3 +334,36 @@ Se corrige la comparación para que una no-coincidencia reportada se trate como 
 mensaje y corrige antes de continuar), y se agrega la prueba automatizada del caso, que hoy no existe.
 
 Pendiente de decisión: qué se hace con los registros ya guardados.
+
+## Dónde probar
+
+- Ambiente de pruebas · flujo de solicitud con asesor · pantalla de datos personales.
+- **Precondición:** un cliente cuyo segundo apellido esté escrito distinto de como lo reporta la central
+  de verificación de identidad. Basta con una letra de diferencia — el caso real era una sola.
+- **Y el que más importa:** un cliente que legítimamente tenga **un solo apellido**. Ese es el riesgo del
+  cambio, porque la excepción que se corrigió existía justamente para no molestarlo.
+
+## Cómo validar
+
+1. Segundo apellido escrito distinto del que reporta la central → la solicitud **no avanza**, y el error
+   aparece **en el campo de apellidos**, no como un mensaje genérico.
+2. Corregir el apellido en pantalla → la solicitud avanza con normalidad.
+3. Cliente con **un solo nombre y un solo apellido** → avanza **sin fricción**, igual que antes. No debe
+   pedirle nada que no tenga.
+4. Cliente con dos nombres y dos apellidos, todo correcto → avanza igual que antes (regresión).
+
+## Criterios de aceptación
+
+- [ ] Un segundo apellido reportado como incorrecto detiene la solicitud, con el mensaje en su campo.
+- [ ] Quien tiene un solo apellido —o un solo nombre— sigue pasando sin cambios.
+- [ ] Corregir el dato en pantalla desbloquea el avance, sin tener que reiniciar la solicitud.
+
+## Dependencias / contraparte
+
+Ninguna: no hay cambios de base de datos ni de configuración, y no depende de ningún otro servicio.
+Alcanza con el cambio publicado en el ambiente de pruebas.
+
+⚠ Alcance, para que no se lea como más de lo que es: esto cierra el aviso que se estaba perdiendo, **no
+garantiza que el nombre guardado sea el de la cédula**. El orden en que se consultan las fuentes hace que
+la mayoría de los clientes nunca pase por la que valida contra el documento — eso se está midiendo y va
+por separado.
