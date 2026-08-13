@@ -5,27 +5,30 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Boceto · login unificado de las herramientas internas</title>
 <!--
-  BOCETO para mostrarle a infraestructura cómo entraría la gente a las herramientas internas.
+  BOCETO de la ENTRADA a las herramientas internas. Un archivo suelto, sin build y sin servidor: se
+  abre con doble clic y se proyecta. Los botones NO hablan con Google ni con GitHub — simulan el
+  resultado de cada camino.
 
-  No es una implementación: es un archivo suelto, sin build y sin servidor, para abrir con doble clic
-  y proyectar en una llamada. Los botones NO hablan con Google ni con GitHub — simulan el resultado.
+  El flujo es de dos pasos, y el orden es el mensaje:
 
-  Lo que el boceto tiene que dejar claro, y es la razón de que exista:
-    · UNA sola puerta para todas las herramientas, no un login por herramienta;
-    · DOS credenciales con papeles distintos — Google es la PUERTA (quién entra al edificio),
-      GitHub es IDENTIDAD (qué desarrollador sos, para atarte tus ramas);
-    · DÓNDE se valida cada una: Google en el balanceador, antes del contenedor; GitHub adentro de la
-      herramienta que lo necesita. Eso es lo que hace que la herramienta número cinco no tenga que
-      volver a implementar autenticación.
+    1· Google es la PUERTA. Cualquiera con correo de la compañía entra. Una sola, para todas las
+       herramientas — no un login por herramienta.
+    2· GitHub se OFRECE después, y es opcional. No es un segundo factor de seguridad: es una segunda
+       IDENTIDAD vinculada a la misma sesión, la que le dice a una herramienta qué desarrollador sos
+       para poder mostrarte TUS ramas. Decirle «doble autenticación» sería incorrecto y confunde a
+       quien tiene que aprobarlo.
+
+  Y el detalle que hace que el paso 2 no moleste: la vinculación se guarda. Se pide UNA vez.
 -->
 <style>
-  /* Mismos tokens que el resto de las herramientas, para que se lea como parte de la misma casa:
-     fondo plano, bordes de 1px, cero sombras, y COLOR SOLO PARA ESTADO. */
+  /* Mismos tokens que el resto de las herramientas: fondo plano, bordes de 1px, cero sombras, y color
+     solo para estado. Lo único con color de marca es el logo de Google — la gente reconoce el botón
+     por eso, y pelearle sería vanidad. */
   :root{
     --page:#ffffff; --panel:#ffffff; --panel-2:#fafafa;
     --line:#eaeaea; --line-fuerte:#d4d4d4;
     --ink:#171717; --soft:#666666; --tenue:#8f8f8f;
-    --accent:#0068d6; --warn:#a35200; --ok:#0d7a4d;
+    --accent:#0068d6; --ok:#0d7a4d;
     --soft-bg:#fafafa; --soft-bg2:#f2f2f2;
     --inv-bg:#171717; --inv-ink:#ffffff;
   }
@@ -34,7 +37,7 @@
       --page:#000000; --panel:#0a0a0a; --panel-2:#111111;
       --line:#1f1f1f; --line-fuerte:#333333;
       --ink:#ededed; --soft:#a1a1a1; --tenue:#6f6f6f;
-      --accent:#52a8ff; --warn:#f5a623; --ok:#4cc38a;
+      --accent:#52a8ff; --ok:#4cc38a;
       --soft-bg:#111111; --soft-bg2:#1a1a1a;
       --inv-bg:#ffffff; --inv-ink:#000000;
     }
@@ -43,340 +46,245 @@
     --page:#000000; --panel:#0a0a0a; --panel-2:#111111;
     --line:#1f1f1f; --line-fuerte:#333333;
     --ink:#ededed; --soft:#a1a1a1; --tenue:#6f6f6f;
-    --accent:#52a8ff; --warn:#f5a623; --ok:#4cc38a;
+    --accent:#52a8ff; --ok:#4cc38a;
     --soft-bg:#111111; --soft-bg2:#1a1a1a;
     --inv-bg:#ffffff; --inv-ink:#000000;
   }
 
   *{box-sizing:border-box}
-  body{margin:0;background:var(--page);color:var(--ink);
+  body{margin:0;background:var(--page);color:var(--ink);min-height:100vh;
     font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;
-    font-size:14px;line-height:1.5;-webkit-font-smoothing:antialiased}
+    font-size:14px;line-height:1.5;-webkit-font-smoothing:antialiased;
+    display:flex;flex-direction:column}
   .mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
 
-  /* ── cabecera ─────────────────────────────────────────────────────────────── */
-  header{border-bottom:1px solid var(--line);padding:12px 20px;display:flex;align-items:center;gap:12px}
+  header{border-bottom:1px solid var(--line);padding:12px 20px;display:flex;align-items:center;gap:11px}
   .marca{font-size:14px;font-weight:600;letter-spacing:-.02em}
   .marca span{color:var(--tenue);font-weight:400}
-  .etq-boceto{font-size:10.5px;color:var(--warn);border:1px solid var(--warn);border-radius:5px;
-    padding:1px 7px;letter-spacing:.02em}
-  header .der{margin-left:auto;display:flex;gap:8px;align-items:center}
-  .ctl{background:var(--panel);color:var(--ink);border:1px solid var(--line-fuerte);border-radius:6px;
+  .etq{font-size:10px;color:var(--tenue);border:1px solid var(--line-fuerte);border-radius:5px;
+    padding:1px 7px;letter-spacing:.04em}
+  header .der{margin-left:auto;display:flex;gap:8px}
+  .ctl{background:var(--panel);color:var(--soft);border:1px solid var(--line);border-radius:6px;
     padding:5px 11px;font-size:12px;cursor:pointer;font-family:inherit}
-  .ctl:hover{background:var(--soft-bg)}
+  .ctl:hover{background:var(--soft-bg);color:var(--ink)}
 
-  main{max-width:900px;margin:0 auto;padding:32px 20px 80px}
+  /* El centro: una sola tarjeta, siempre en el mismo lugar. Los tres pasos se reemplazan adentro para
+     que la pantalla no salte cuando se proyecta. */
+  main{flex:1;display:grid;place-items:center;padding:40px 20px 60px}
+  .tarjeta{width:100%;max-width:392px}
 
-  /* ── pantalla 1 · la puerta ───────────────────────────────────────────────── */
-  .puerta{max-width:400px;margin:36px auto 0;text-align:center}
-  .logo-c{width:44px;height:44px;border-radius:10px;background:var(--inv-bg);color:var(--inv-ink);
-    display:grid;place-items:center;margin:0 auto 18px;font-weight:700;font-size:17px}
-  h1{font-size:22px;font-weight:600;letter-spacing:-.02em;margin:0 0 7px}
-  .sub{color:var(--soft);font-size:13.5px;margin:0 0 26px}
+  .logo-c{width:42px;height:42px;border-radius:10px;background:var(--inv-bg);color:var(--inv-ink);
+    display:grid;place-items:center;margin:0 auto 17px;font-weight:700;font-size:17px}
+  h1{font-size:21px;font-weight:600;letter-spacing:-.022em;margin:0 0 7px;text-align:center}
+  .sub{color:var(--soft);font-size:13.5px;margin:0 0 24px;text-align:center;line-height:1.55}
 
-  .botones{display:flex;flex-direction:column;gap:9px;text-align:left}
-  .btn-oauth{display:flex;align-items:center;gap:11px;width:100%;padding:11px 14px;border-radius:8px;
+  .btn{display:flex;align-items:center;gap:11px;width:100%;padding:12px 15px;border-radius:8px;
     border:1px solid var(--line-fuerte);background:var(--panel);color:var(--ink);cursor:pointer;
-    font-size:13.5px;font-family:inherit;transition:background .15s,border-color .15s}
-  .btn-oauth:hover{background:var(--soft-bg);border-color:var(--soft)}
-  .btn-oauth svg{width:17px;height:17px;flex:0 0 auto}
-  .btn-oauth b{font-weight:500}
-  .btn-oauth i{font-style:normal;color:var(--tenue);font-size:11.5px;margin-left:auto;
-    padding-left:10px;text-align:right;line-height:1.3}
+    font-size:13.5px;font-family:inherit;text-align:left;transition:background .15s,border-color .15s}
+  .btn:hover{background:var(--soft-bg);border-color:var(--soft)}
+  .btn svg{width:17px;height:17px;flex:0 0 auto}
+  .btn b{font-weight:500}
+  .btn i{font-style:normal;color:var(--tenue);font-size:11.5px;margin-left:auto;padding-left:12px}
+  .btn.principal{background:var(--inv-bg);color:var(--inv-ink);border-color:var(--inv-bg);
+    justify-content:center}
+  .btn.principal:hover{opacity:.9;background:var(--inv-bg)}
+  .btn.principal i{color:inherit;opacity:.6}
+  .btn.plano{border:none;background:none;color:var(--soft);justify-content:center;padding:9px}
+  .btn.plano:hover{color:var(--ink);background:none}
 
-  .nota{margin-top:22px;font-size:11.5px;color:var(--tenue);line-height:1.6;text-align:left;
-    border-top:1px solid var(--line);padding-top:14px}
-  .nota b{color:var(--soft);font-weight:500}
+  .pila{display:flex;flex-direction:column;gap:9px}
 
-  /* ── pantalla 2 · el catálogo ─────────────────────────────────────────────── */
-  .yo{display:flex;align-items:center;gap:10px;padding:11px 14px;border:1px solid var(--line);
-    border-radius:9px;background:var(--panel-2);margin-bottom:22px}
-  .av{width:28px;height:28px;border-radius:50%;flex:0 0 auto;display:grid;place-items:center;
-    font-size:10.5px;font-weight:700;background:var(--soft-bg2);color:var(--soft)}
+  .pie{margin-top:20px;padding-top:15px;border-top:1px solid var(--line);
+    font-size:11.5px;color:var(--tenue);line-height:1.6}
+  .pie b{color:var(--soft);font-weight:500}
+
+  /* Paso 2 · quién entró ya */
+  .yo{display:flex;align-items:center;gap:10px;padding:10px 13px;border:1px solid var(--line);
+    border-radius:9px;background:var(--panel-2);margin-bottom:20px}
+  .av{width:27px;height:27px;border-radius:50%;flex:0 0 auto;display:grid;place-items:center;
+    font-size:10px;font-weight:700;background:var(--soft-bg2);color:var(--soft)}
   .yo-txt{min-width:0;flex:1}
   .yo-txt b{display:block;font-size:12.5px;font-weight:500;line-height:1.3}
-  .yo-txt span{display:block;font-size:11.5px;color:var(--tenue)}
-  .via{font-size:10.5px;color:var(--tenue);border:1px solid var(--line);border-radius:5px;padding:1px 7px}
+  .yo-txt span{display:block;font-size:11.5px;color:var(--tenue);
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .tic{color:var(--ok);flex:0 0 auto}
+  .tic svg{width:15px;height:15px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;
+    stroke-linejoin:round}
 
-  h2{font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:var(--tenue);
-    margin:26px 0 10px}
-  .lista{display:flex;flex-direction:column;gap:8px}
-  .herr{display:flex;align-items:center;gap:13px;padding:14px 15px;border:1px solid var(--line);
-    border-radius:9px;background:var(--panel);transition:border-color .15s}
-  .herr:hover{border-color:var(--line-fuerte)}
-  .herr.trabada{background:var(--panel-2)}
-  .h-ico{width:30px;height:30px;border-radius:7px;border:1px solid var(--line);flex:0 0 auto;
+  .gana{border:1px solid var(--line);border-radius:9px;padding:13px 14px;margin-bottom:18px;
+    background:var(--panel)}
+  .gana p{margin:0 0 9px;font-size:12.5px;color:var(--soft)}
+  .gana ul{margin:0;padding-left:17px;font-size:12.5px;color:var(--ink)}
+  .gana li{margin:3px 0}
+  .gana li span{color:var(--tenue)}
+
+  /* Paso 3 · lo que quedó habilitado */
+  .fila{display:flex;align-items:center;gap:11px;padding:11px 13px;border:1px solid var(--line);
+    border-radius:8px;background:var(--panel)}
+  .fila + .fila{margin-top:7px}
+  .fila.trabada{background:var(--panel-2)}
+  .fila b{font-size:13px;font-weight:500;flex:1;min-width:0}
+  .fila .marca-quien{font-size:10.5px;color:var(--tenue);border:1px solid var(--line);
+    border-radius:5px;padding:1px 7px;white-space:nowrap}
+  .fila .marca-quien.tech{color:var(--accent);border-color:var(--accent)}
+  .fila .ico{width:26px;height:26px;border-radius:6px;border:1px solid var(--line);flex:0 0 auto;
     display:grid;place-items:center;color:var(--soft)}
-  .h-ico svg{width:15px;height:15px;fill:none;stroke:currentColor;stroke-width:1.5;
+  .fila .ico svg{width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:1.5;
     stroke-linecap:round;stroke-linejoin:round}
-  .h-txt{min-width:0;flex:1}
-  .h-txt b{display:block;font-size:13.5px;font-weight:500;letter-spacing:-.01em}
-  .h-txt span{display:block;font-size:12px;color:var(--soft);line-height:1.45;margin-top:1px}
-  .h-txt em{font-style:normal;color:var(--tenue);font-size:11px}
-  .quien{font-size:10.5px;border:1px solid var(--line);border-radius:5px;padding:1px 7px;
-    color:var(--tenue);white-space:nowrap}
-  .quien.tech{color:var(--accent);border-color:var(--accent)}
-  .abrir{background:var(--inv-bg);color:var(--inv-ink);border:none;border-radius:6px;
-    padding:6px 13px;font-size:12px;cursor:pointer;font-family:inherit;white-space:nowrap}
-  .trabar{display:flex;align-items:center;gap:8px;white-space:nowrap}
-  .candado{color:var(--tenue)}
-  .candado svg{width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:1.5}
-  .vincular{background:var(--panel);color:var(--ink);border:1px solid var(--line-fuerte);
-    border-radius:6px;padding:6px 11px;font-size:12px;cursor:pointer;font-family:inherit;
-    display:flex;align-items:center;gap:7px}
-  .vincular:hover{background:var(--soft-bg)}
-  .vincular svg{width:13px;height:13px}
+  .fila .candado{color:var(--tenue);flex:0 0 auto}
+  .fila .candado svg{width:13px;height:13px;fill:none;stroke:currentColor;stroke-width:1.5}
+  h2{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:var(--tenue);
+    margin:20px 0 8px}
+  h2:first-of-type{margin-top:0}
 
-  /* ── el diagrama ──────────────────────────────────────────────────────────── */
-  .como{margin-top:52px;border-top:1px solid var(--line);padding-top:26px}
-  .como h3{font-size:15px;font-weight:600;margin:0 0 5px;letter-spacing:-.015em}
-  .como p{font-size:13px;color:var(--soft);margin:0 0 20px;max-width:640px}
-  .lienzo{overflow-x:auto}
-  svg.dia{display:block;min-width:640px;width:100%;height:auto}
-  svg.dia .caja{fill:var(--panel);stroke:var(--line-fuerte)}
-  svg.dia .grupo{fill:none;stroke:var(--line);stroke-dasharray:4 4}
-  svg.dia .flecha{stroke:var(--soft);fill:none}
-  svg.dia text{fill:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
-    font-size:12.5px}
-  svg.dia text.chico{fill:var(--soft);font-size:11px}
-  svg.dia text.tenue{fill:var(--tenue);font-size:10.5px}
-  svg.dia text.marca{fill:var(--accent);font-size:10.5px}
-
-  .puntos{margin-top:22px;display:grid;gap:10px;grid-template-columns:repeat(auto-fit,minmax(250px,1fr))}
-  .punto{border:1px solid var(--line);border-radius:9px;padding:13px 14px;background:var(--panel)}
-  .punto b{display:block;font-size:12.5px;font-weight:600;margin-bottom:4px}
-  .punto span{font-size:12px;color:var(--soft);line-height:1.5}
-
-  .oculto{display:none}
+  .paso{font-size:11px;color:var(--tenue);text-align:center;margin:0 0 20px;letter-spacing:.02em}
 </style>
 </head>
 <body>
 
 <header>
   <span class="marca">CreditOp <span>· herramientas</span></span>
-  <span class="etq-boceto">BOCETO</span>
+  <span class="etq">BOCETO</span>
   <div class="der">
-    <button class="ctl" id="volver" style="display:none">volver al login</button>
+    <button class="ctl" id="reiniciar" style="display:none">reiniciar</button>
     <button class="ctl" id="tema">tema</button>
   </div>
 </header>
 
-<main>
-
-  <!-- ══ PANTALLA 1 · la puerta ═══════════════════════════════════════════════ -->
-  <section id="p-login">
-    <div class="puerta">
-      <div class="logo-c">C</div>
-      <h1>Herramientas internas</h1>
-      <p class="sub">Una sola entrada para todas. No hay usuario ni contraseña propios.</p>
-
-      <div class="botones">
-        <button class="btn-oauth" onclick="entrar('google')">
-          <!-- Logo de Google, en su color: es lo único con color de marca en toda la pantalla, y es a
-               propósito — la gente reconoce el botón por eso. -->
-          <svg viewBox="0 0 18 18" aria-hidden="true">
-            <path fill="#4285F4" d="M17.6 9.2c0-.6-.1-1.2-.2-1.8H9v3.4h4.8a4.1 4.1 0 0 1-1.8 2.7v2.2h2.9c1.7-1.6 2.7-3.9 2.7-6.5Z"/>
-            <path fill="#34A853" d="M9 18c2.4 0 4.5-.8 6-2.2l-2.9-2.2c-.8.5-1.8.9-3.1.9-2.4 0-4.4-1.6-5.1-3.8H.9v2.3A9 9 0 0 0 9 18Z"/>
-            <path fill="#FBBC05" d="M3.9 10.7a5.4 5.4 0 0 1 0-3.4V5H.9a9 9 0 0 0 0 8l3-2.3Z"/>
-            <path fill="#EA4335" d="M9 3.6c1.3 0 2.5.5 3.4 1.3l2.6-2.6A9 9 0 0 0 .9 5l3 2.3C4.6 5.2 6.6 3.6 9 3.6Z"/>
-          </svg>
-          <b>Continuar con Google</b>
-          <i>toda la compañía<br>correo @creditop.com</i>
-        </button>
-
-        <button class="btn-oauth" onclick="entrar('github')">
-          <svg viewBox="0 0 16 16" aria-hidden="true" style="fill:currentColor">
-            <path d="M8 .8a7.2 7.2 0 0 0-2.3 14c.4.1.5-.1.5-.4v-1.3c-2 .4-2.5-.5-2.7-1-.1-.2-.5-.9-.9-1.1-.3-.2-.7-.6 0-.6.6 0 1 .6 1.2.8.7 1.2 1.8.9 2.3.7 0-.5.3-.9.5-1.1-1.8-.2-3.6-.9-3.6-4 0-.9.3-1.6.8-2.2 0-.2-.3-1 .1-2.1 0 0 .7-.2 2.2.8a7.4 7.4 0 0 1 4 0c1.5-1 2.2-.8 2.2-.8.4 1.1.2 1.9.1 2.1.5.6.8 1.3.8 2.2 0 3.1-1.9 3.8-3.6 4 .3.3.6.8.6 1.5v2.2c0 .3.1.5.5.4A7.2 7.2 0 0 0 8 .8Z"/>
-          </svg>
-          <b>Continuar con GitHub</b>
-          <i>equipo de Tech<br>miembros de la organización</i>
-        </button>
-      </div>
-
-      <p class="nota">
-        <b>Por qué dos.</b> Google dice <b>quién puede entrar</b>: cualquier persona con correo de la
-        compañía. GitHub dice <b>qué desarrollador sos</b>, que es lo que algunas herramientas necesitan
-        para asociarte tu propio trabajo. Con Google alcanza para casi todo; GitHub solo se pide donde
-        de verdad hace falta.
-      </p>
-    </div>
-  </section>
-
-  <!-- ══ PANTALLA 2 · el catálogo ═════════════════════════════════════════════ -->
-  <section id="p-dentro" class="oculto">
-    <div class="yo">
-      <span class="av" id="yo-av">MO</span>
-      <div class="yo-txt">
-        <b id="yo-nombre">Miguel Angel Ochoa</b>
-        <span id="yo-detalle" class="mono">miguel@creditop.com</span>
-      </div>
-      <span class="via" id="yo-via">entró con Google</span>
-    </div>
-
-    <h2>Para toda la compañía</h2>
-    <div class="lista">
-      <div class="herr">
-        <span class="h-ico"><svg viewBox="0 0 16 16"><path d="M2.5 3.5h11v7h-5l-3 2.5v-2.5h-3z"/></svg></span>
-        <span class="h-txt">
-          <b>Asistente interno</b>
-          <span>Preguntale por Slack y responde con datos de reportería y de logs.
-            <em>· la consola web sirve para ver el historial</em></span>
-        </span>
-        <span class="quien">Google</span>
-        <button class="abrir">Abrir</button>
-      </div>
-      <div class="herr">
-        <span class="h-ico"><svg viewBox="0 0 16 16"><path d="M1.8 11.5 5 6.5l3 2.5 3-5.5 3.2 8z"/></svg></span>
-        <span class="h-txt">
-          <b>Estado de los servicios</b>
-          <span>Qué está arriba, qué se cayó y desde cuándo.</span>
-        </span>
-        <span class="quien">Google</span>
-        <button class="abrir">Abrir</button>
-      </div>
-    </div>
-
-    <h2>Solo para el equipo de Tech</h2>
-    <div class="lista" id="lista-tech"><!-- se pinta según con qué entró --></div>
-
-    <p class="nota" id="nota-tech" style="max-width:640px"></p>
-  </section>
-
-  <!-- ══ el diagrama · esto es lo que le interesa a infraestructura ═══════════ -->
-  <section class="como">
-    <h3>Dónde se valida cada login</h3>
-    <p>
-      Es el punto que queremos consultar: que la puerta de Google se resuelva <b>en el balanceador</b>,
-      antes de llegar al contenedor. Así ninguna herramienta implementa su propio login y el acceso se
-      controla en un solo lugar en vez de en cinco.
-    </p>
-
-    <div class="lienzo">
-      <svg class="dia" viewBox="0 0 660 220" role="img"
-           aria-label="El navegador entra por el balanceador, que valida Google; detrás, cada herramienta es un contenedor y solo algunas piden GitHub adentro.">
-        <!-- grupo: el cluster -->
-        <rect class="grupo" x="196" y="14" width="452" height="192" rx="10"/>
-        <text class="tenue" x="638" y="32" text-anchor="end">cluster de contenedores</text>
-
-        <!-- navegador -->
-        <rect class="caja" x="12" y="78" width="120" height="52" rx="8"/>
-        <text x="72" y="100" text-anchor="middle">Navegador</text>
-        <text class="chico" x="72" y="117" text-anchor="middle">una sola URL</text>
-
-        <!-- flecha 1 -->
-        <path class="flecha" d="M136 104 H208" marker-end="url(#pta)"/>
-
-        <!-- balanceador -->
-        <rect class="caja" x="212" y="66" width="152" height="76" rx="8"/>
-        <text x="288" y="90" text-anchor="middle">Balanceador</text>
-        <text class="marca" x="288" y="108" text-anchor="middle">acá se valida Google</text>
-        <!-- Corto a propósito: el texto largo («…lo manda a la puerta») se desbordaba de la caja de
-             152px y se cruzaba con la flecha de abajo. En un SVG a mano el ancho no lo acomoda nadie. -->
-        <text class="chico" x="288" y="126" text-anchor="middle">sin sesión → a la puerta</text>
-
-        <!-- flechas a las herramientas -->
-        <path class="flecha" d="M368 92 H432" marker-end="url(#pta)"/>
-        <path class="flecha" d="M368 116 H432" marker-end="url(#pta)"/>
-        <path class="flecha" d="M368 116 V166 H432" marker-end="url(#pta)"/>
-
-        <!-- herramientas -->
-        <rect class="caja" x="436" y="70" width="196" height="44" rx="8"/>
-        <text x="450" y="90">Asistente interno</text>
-        <text class="tenue" x="450" y="106">le alcanza con la puerta</text>
-
-        <rect class="caja" x="436" y="122" width="196" height="30" rx="8"/>
-        <text x="450" y="141">Estado de los servicios</text>
-
-        <rect class="caja" x="436" y="160" width="196" height="44" rx="8"/>
-        <text x="450" y="180">Tablero de épicas</text>
-        <text class="marca" x="450" y="196">+ GitHub adentro (qué dev sos)</text>
-
-        <defs>
-          <marker id="pta" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto">
-            <path d="M0 0 L8 4 L0 8 z" fill="var(--soft)"/>
-          </marker>
-        </defs>
-      </svg>
-    </div>
-
-    <div class="puntos">
-      <div class="punto">
-        <b>Una puerta, no cinco</b>
-        <span>La autenticación de la compañía se configura una vez, en el balanceador. La herramienta
-          número cinco no la vuelve a escribir — y no puede olvidarse de ponerla.</span>
-      </div>
-      <div class="punto">
-        <b>GitHub es identidad, no puerta</b>
-        <span>Solo lo piden las herramientas que necesitan saber qué desarrollador sos. Vive adentro de
-          esas, y es de solo lectura.</span>
-      </div>
-      <div class="punto">
-        <b>Quitar un acceso es un solo lugar</b>
-        <span>Si alguien sale de la compañía, deja de pasar la puerta y pierde todas las herramientas a
-          la vez. No hay que acordarse de cinco sistemas.</span>
-      </div>
-    </div>
-  </section>
-
-</main>
+<main><div class="tarjeta" id="tarjeta"></div></main>
 
 <script>
-  /* Estado del boceto: con qué credencial se entró. Nada de esto habla con Google ni con GitHub —
-     el objetivo es mostrar el RESULTADO de cada camino, no implementarlo. */
-  const TECH = [
-    { n:'Tablero de épicas',       d:'En qué anda cada quien y qué está esperando aprobación.',
-      i:'<path d="M2 2.5h5v5H2zM9 2.5h5v5H9zM2 8.5h5v5H2zM9 8.5h5v5H9z"/>' },
-    { n:'Trazador de solicitudes', d:'Seguir una solicitud etapa por etapa cuando algo se traba.',
-      i:'<path d="M3 13V6M8 13V3M13 13V9"/>' },
-    { n:'Panel de pruebas',        d:'Correr un flujo de punta a punta sin armarlo a mano.',
-      i:'<path d="M5.5 2h5v4l3 8H2.5l3-8z"/>' },
+  /* ── Los datos del boceto ────────────────────────────────────────────────────────────────────── */
+
+  const GOOGLE_SVG = `<svg viewBox="0 0 18 18" aria-hidden="true">
+    <path fill="#4285F4" d="M17.6 9.2c0-.6-.1-1.2-.2-1.8H9v3.4h4.8a4.1 4.1 0 0 1-1.8 2.7v2.2h2.9c1.7-1.6 2.7-3.9 2.7-6.5Z"/>
+    <path fill="#34A853" d="M9 18c2.4 0 4.5-.8 6-2.2l-2.9-2.2c-.8.5-1.8.9-3.1.9-2.4 0-4.4-1.6-5.1-3.8H.9v2.3A9 9 0 0 0 9 18Z"/>
+    <path fill="#FBBC05" d="M3.9 10.7a5.4 5.4 0 0 1 0-3.4V5H.9a9 9 0 0 0 0 8l3-2.3Z"/>
+    <path fill="#EA4335" d="M9 3.6c1.3 0 2.5.5 3.4 1.3l2.6-2.6A9 9 0 0 0 .9 5l3 2.3C4.6 5.2 6.6 3.6 9 3.6Z"/></svg>`
+
+  const OCTO_SVG = `<svg viewBox="0 0 16 16" aria-hidden="true" style="fill:currentColor">
+    <path d="M8 .8a7.2 7.2 0 0 0-2.3 14c.4.1.5-.1.5-.4v-1.3c-2 .4-2.5-.5-2.7-1-.1-.2-.5-.9-.9-1.1-.3-.2-.7-.6 0-.6.6 0 1 .6 1.2.8.7 1.2 1.8.9 2.3.7 0-.5.3-.9.5-1.1-1.8-.2-3.6-.9-3.6-4 0-.9.3-1.6.8-2.2 0-.2-.3-1 .1-2.1 0 0 .7-.2 2.2.8a7.4 7.4 0 0 1 4 0c1.5-1 2.2-.8 2.2-.8.4 1.1.2 1.9.1 2.1.5.6.8 1.3.8 2.2 0 3.1-1.9 3.8-3.6 4 .3.3.6.8.6 1.5v2.2c0 .3.1.5.5.4A7.2 7.2 0 0 0 8 .8Z"/></svg>`
+
+  const TIC = `<svg viewBox="0 0 16 16"><path d="M3 8.5l3.2 3.2L13 5"/></svg>`
+  const CANDADO = `<svg viewBox="0 0 16 16"><rect x="3.5" y="7" width="9" height="6.5" rx="1.5"/><path d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2"/></svg>`
+
+  const TODAS = [
+    { n:'Asistente interno',       quien:'google', i:'<path d="M2.5 3.5h11v7h-5l-3 2.5v-2.5h-3z"/>' },
+    { n:'Estado de los servicios', quien:'google', i:'<path d="M1.8 11.5 5 6.5l3 2.5 3-5.5 3.2 8z"/>' },
+    { n:'Tablero de épicas',       quien:'github', i:'<path d="M2 2.5h5v5H2zM9 2.5h5v5H9zM2 8.5h5v5H2zM9 8.5h5v5H9z"/>' },
+    { n:'Trazador de solicitudes', quien:'github', i:'<path d="M3 13V6M8 13V3M13 13V9"/>' },
+    { n:'Panel de pruebas',        quien:'github', i:'<path d="M5.5 2h5v4l3 8H2.5l3-8z"/>' },
   ]
 
-  const CANDADO = '<svg viewBox="0 0 16 16"><rect x="3.5" y="7" width="9" height="6.5" rx="1.5"/><path d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2"/></svg>'
-  const OCTO = '<svg viewBox="0 0 16 16" style="fill:currentColor"><path d="M8 .8a7.2 7.2 0 0 0-2.3 14c.4.1.5-.1.5-.4v-1.3c-2 .4-2.5-.5-2.7-1-.1-.2-.5-.9-.9-1.1-.3-.2-.7-.6 0-.6.6 0 1 .6 1.2.8.7 1.2 1.8.9 2.3.7 0-.5.3-.9.5-1.1-1.8-.2-3.6-.9-3.6-4 0-.9.3-1.6.8-2.2 0-.2-.3-1 .1-2.1 0 0 .7-.2 2.2.8a7.4 7.4 0 0 1 4 0c1.5-1 2.2-.8 2.2-.8.4 1.1.2 1.9.1 2.1.5.6.8 1.3.8 2.2 0 3.1-1.9 3.8-3.6 4 .3.3.6.8.6 1.5v2.2c0 .3.1.5.5.4A7.2 7.2 0 0 0 8 .8Z"/></svg>'
+  const t = document.getElementById('tarjeta')
+  const btnReiniciar = document.getElementById('reiniciar')
 
-  function entrar(via){
-    const conGithub = via === 'github'
-
-    document.getElementById('yo-detalle').textContent = conGithub ? 'mig-creditop' : 'miguel@creditop.com'
-    document.getElementById('yo-via').textContent     = conGithub ? 'entró con GitHub' : 'entró con Google'
-
-    /* El corazón del boceto: con Google las de Tech se VEN pero están trabadas, con un botón para
-       sumar GitHub. Así se entiende de un vistazo que son dos cosas distintas y no dos logins que
-       hacen lo mismo. */
-    document.getElementById('lista-tech').innerHTML = TECH.map(h => `
-      <div class="herr ${conGithub ? '' : 'trabada'}">
-        <span class="h-ico"><svg viewBox="0 0 16 16">${h.i}</svg></span>
-        <span class="h-txt"><b>${h.n}</b><span>${h.d}</span></span>
-        <span class="quien tech">GitHub</span>
-        ${conGithub
-          ? '<button class="abrir">Abrir</button>'
-          : `<span class="trabar"><span class="candado">${CANDADO}</span>
-               <button class="vincular" onclick="entrar('github')">${OCTO} Vincular GitHub</button></span>`}
-      </div>`).join('')
-
-    document.getElementById('nota-tech').innerHTML = conGithub
-      ? 'Entraste con GitHub, así que además de la puerta la herramienta sabe qué desarrollador sos: puede mostrarte <b>tus</b> ramas y anotar a tu nombre lo que escribas.'
-      : 'Ya estás adentro con el correo de la compañía. Estas tres necesitan además saber qué desarrollador sos — por eso piden GitHub, y no antes de entrar.'
-
-    document.getElementById('p-login').classList.add('oculto')
-    document.getElementById('p-dentro').classList.remove('oculto')
-    document.getElementById('volver').style.display = ''
-    scrollTo({ top:0, behavior:'smooth' })
+  /* ── Paso 1 · la puerta ──────────────────────────────────────────────────────────────────────── */
+  function puerta(){
+    btnReiniciar.style.display = 'none'
+    t.innerHTML = `
+      <div class="logo-c">C</div>
+      <h1>Herramientas internas</h1>
+      <p class="sub">Una sola entrada para todas.<br>No hay usuario ni contraseña propios.</p>
+      <div class="pila">
+        <button class="btn" onclick="sumar()">
+          ${GOOGLE_SVG}<b>Continuar con Google</b><i>@creditop.com</i>
+        </button>
+      </div>
+      <p class="pie">
+        Entra cualquier persona con correo de la compañía. Si sos del equipo de Tech, en el paso
+        siguiente podés <b>sumar tu cuenta de GitHub</b> — se pide una sola vez.
+      </p>`
   }
 
-  document.getElementById('volver').onclick = () => {
-    document.getElementById('p-dentro').classList.add('oculto')
-    document.getElementById('p-login').classList.remove('oculto')
-    document.getElementById('volver').style.display = 'none'
+  /* ── Paso 2 · ofrecer GitHub ─────────────────────────────────────────────────────────────────
+     El corazón del boceto. GitHub se ofrece DESPUÉS y es opcional: no es un segundo factor de
+     seguridad, es una segunda identidad. Por eso el texto habla de lo que DESTRABA, no de proteger. */
+  function sumar(){
+    btnReiniciar.style.display = ''
+    const tech = TODAS.filter(h => h.quien === 'github').length
+    t.innerHTML = `
+      <p class="paso">paso 2 de 2 · opcional</p>
+      <div class="yo">
+        <span class="av">MO</span>
+        <div class="yo-txt">
+          <b>Miguel Angel Ochoa</b>
+          <span class="mono">miguel@creditop.com</span>
+        </div>
+        <span class="tic" title="dentro">${TIC}</span>
+      </div>
+
+      <h1>¿Sumás tu GitHub?</h1>
+      <p class="sub">Ya estás adentro. Esto es para las herramientas del equipo de Tech.</p>
+
+      <div class="gana">
+        <p>Vinculando tu cuenta:</p>
+        <ul>
+          <li>se habilitan <b>${tech} herramientas</b> más <span>— las del equipo</span></li>
+          <li>cada una sabe <b>qué desarrollador sos</b> <span>— para mostrarte tus propias ramas</span></li>
+        </ul>
+      </div>
+
+      <div class="pila">
+        <button class="btn principal" onclick="dentro(true)">${OCTO_SVG}<b>Vincular GitHub</b></button>
+        <button class="btn plano" onclick="dentro(false)">Ahora no</button>
+      </div>
+
+      <p class="pie">
+        Se pide <b>una sola vez</b>: queda vinculada a tu correo y la próxima vez entrás con Google y ya
+        tenés todo. Es permiso de <b>lectura</b>, y podés desvincularla cuando quieras.
+      </p>`
   }
 
+  /* ── Paso 3 · lo que quedó habilitado ────────────────────────────────────────────────────────── */
+  function dentro(vinculado){
+    btnReiniciar.style.display = ''
+    const fila = h => {
+      const trabada = h.quien === 'github' && !vinculado
+      return `<div class="fila ${trabada ? 'trabada' : ''}">
+        <span class="ico"><svg viewBox="0 0 16 16">${h.i}</svg></span>
+        <b>${h.n}</b>
+        <span class="marca-quien ${h.quien === 'github' ? 'tech' : ''}">${h.quien === 'github' ? 'Tech' : 'Compañía'}</span>
+        ${trabada ? `<span class="candado" title="requiere GitHub">${CANDADO}</span>` : ''}
+      </div>`
+    }
+    t.innerHTML = `
+      <div class="yo">
+        <span class="av">MO</span>
+        <div class="yo-txt">
+          <b>Miguel Angel Ochoa</b>
+          <span class="mono">miguel@creditop.com${vinculado ? ' · mig-creditop' : ''}</span>
+        </div>
+        <span class="tic">${TIC}</span>
+      </div>
+
+      <h2>${vinculado ? 'Tus herramientas' : 'Habilitadas'}</h2>
+      ${TODAS.filter(h => h.quien === 'google' || vinculado).map(fila).join('')}
+
+      ${vinculado ? '' : `
+        <h2>Requieren GitHub</h2>
+        ${TODAS.filter(h => h.quien === 'github').map(fila).join('')}
+        <div class="pila" style="margin-top:14px">
+          <button class="btn" onclick="dentro(true)">${OCTO_SVG}<b>Vincular GitHub</b>
+            <i>destraba 3</i></button>
+        </div>`}
+
+      <p class="pie">
+        ${vinculado
+          ? 'Entraste con <b>Google</b> y tu identidad de <b>GitHub</b> quedó vinculada: se listan las cinco.'
+          : 'Entraste con <b>Google</b>. Las del equipo siguen visibles a propósito — así se sabe que existen y qué falta para usarlas.'}
+      </p>`
+  }
+
+  btnReiniciar.onclick = puerta
   document.getElementById('tema').onclick = () => {
     const r = document.documentElement
     const oscuro = r.getAttribute('data-theme') === 'dark'
       || (!r.getAttribute('data-theme') && matchMedia('(prefers-color-scheme:dark)').matches)
     r.setAttribute('data-theme', oscuro ? 'light' : 'dark')
   }
+
+  puerta()
 </script>
 </body>
 </html>
