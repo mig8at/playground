@@ -6,44 +6,44 @@
 <title>Boceto · entrada a las herramientas internas</title>
 <!--
   BOCETO de la ENTRADA a las herramientas internas. Archivo suelto: doble clic y se proyecta. Los
-  botones NO hablan con Google ni con GitHub — simulan el resultado de cada camino.
+  botones NO hablan con Google ni con GitHub — simulan el resultado.
 
-  Dos pasos, y el ORDEN es el mensaje:
-    1· Google es la puerta. Entra cualquiera con correo de la compañía. Una sola, para todas.
-    2· GitHub se OFRECE después, opcional. No es un segundo factor de seguridad: es una segunda
-       IDENTIDAD en la misma sesión —vinculación de cuentas— y es lo que le dice a una herramienta qué
-       desarrollador sos. Por eso en ningún texto dice «doble autenticación»: sería incorrecto y hace
-       dudar a quien tiene que aprobarlo.
+  DOS PANTALLAS, no tres. Se entra con Google y se ve lo que hay. Punto.
 
-  ICONOS: trazos de Lucide (lucide.dev, ISC) copiados acá adentro, no por CDN. Un boceto que se
-  proyecta no puede depender de la red de la sala: sin wifi, un CDN lo deja sin iconos. Todos comparten
-  la misma grilla de 24 y el mismo grosor de trazo — eso es lo que hace que se vean de una familia.
+  La versión anterior preguntaba «¿sumás tu GitHub?» ANTES de mostrar nada, y eso era un
+  interrogatorio: a alguien de Cartera le pedía una decisión sobre algo que no conoce, antes de darle
+  una sola razón para estar ahí. Ahora GitHub no interrumpe: vive como una TARJETA FANTASMA en la
+  grilla, en el lugar exacto donde van a aparecer las herramientas que destraba. Se la ve, no molesta,
+  y al tocarla se convierte en lo que promete.
+
+  Quien no es de Tech no ve esa tarjeta. No es seguridad —las herramientas igual piden sesión— es no
+  ofrecerle a alguien algo que no va a poder usar nunca.
+
+  ICONOS: trazos de Lucide (lucide.dev, ISC) copiados acá adentro, no por CDN: un boceto que se
+  proyecta no puede depender de la red de la sala.
 -->
 <style>
   :root{
-    --page:#ffffff; --panel:#ffffff; --panel-2:#fbfbfb;
-    --line:#ebebeb; --line-fuerte:#dcdcdc;
-    --ink:#141414; --soft:#6a6a6a; --tenue:#9a9a9a;
-    --accent:#0068d6; --ok:#0d7a4d;
-    --hover:#f7f7f7;
-    --inv-bg:#141414; --inv-ink:#ffffff;
+    --page:#ffffff; --panel:#ffffff; --panel-2:#fafafa;
+    --line:#ececec; --line-fuerte:#d8d8d8;
+    --ink:#131313; --soft:#666666; --tenue:#9b9b9b;
+    --ok:#0d7a4d; --hover:#f7f7f7;
+    --inv-bg:#131313; --inv-ink:#ffffff;
   }
   @media (prefers-color-scheme:dark){
     :root:not([data-theme="light"]){
-      --page:#000000; --panel:#0a0a0a; --panel-2:#0d0d0d;
-      --line:#1e1e1e; --line-fuerte:#2e2e2e;
-      --ink:#ededed; --soft:#a0a0a0; --tenue:#6a6a6a;
-      --accent:#52a8ff; --ok:#4cc38a;
-      --hover:#141414;
+      --page:#000000; --panel:#0b0b0b; --panel-2:#0e0e0e;
+      --line:#1e1e1e; --line-fuerte:#303030;
+      --ink:#ededed; --soft:#a0a0a0; --tenue:#6b6b6b;
+      --ok:#4cc38a; --hover:#151515;
       --inv-bg:#ffffff; --inv-ink:#000000;
     }
   }
   :root[data-theme="dark"]{
-    --page:#000000; --panel:#0a0a0a; --panel-2:#0d0d0d;
-    --line:#1e1e1e; --line-fuerte:#2e2e2e;
-    --ink:#ededed; --soft:#a0a0a0; --tenue:#6a6a6a;
-    --accent:#52a8ff; --ok:#4cc38a;
-    --hover:#141414;
+    --page:#000000; --panel:#0b0b0b; --panel-2:#0e0e0e;
+    --line:#1e1e1e; --line-fuerte:#303030;
+    --ink:#ededed; --soft:#a0a0a0; --tenue:#6b6b6b;
+    --ok:#4cc38a; --hover:#151515;
     --inv-bg:#ffffff; --inv-ink:#000000;
   }
 
@@ -52,103 +52,110 @@
     font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;
     font-size:14px;line-height:1.5;-webkit-font-smoothing:antialiased;
     display:flex;flex-direction:column}
-  .mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.94em}
+  .mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.93em}
 
-  /* Todo icono hereda el color del texto y el mismo grosor: es lo único que hay que respetar para que
-     un set de iconos se vea como un set y no como estampas pegadas. */
+  /* Un solo lugar define cómo se ven TODOS los iconos: misma grilla de 24, mismo grosor, color
+     heredado. Es lo que hace que un set se vea como un set. */
   .i{width:18px;height:18px;flex:0 0 auto;fill:none;stroke:currentColor;stroke-width:1.75;
     stroke-linecap:round;stroke-linejoin:round}
 
-  header{padding:16px 22px;display:flex;align-items:center;gap:10px}
-  .marca{font-size:13.5px;font-weight:600;letter-spacing:-.02em}
+  /* ── cabecera ─────────────────────────────────────────────────────────────
+     La identidad vive acá arriba, no flotando en el medio: es donde la busca cualquiera. */
+  header{display:flex;align-items:center;gap:10px;padding:14px 26px;border-bottom:1px solid var(--line)}
+  .marca{display:flex;align-items:center;gap:9px;font-size:13.5px;font-weight:600;letter-spacing:-.02em}
+  .marca .cuadro{width:23px;height:23px;border-radius:7px;background:var(--inv-bg);color:var(--inv-ink);
+    display:grid;place-items:center;font-size:11px;font-weight:700}
   .marca span{color:var(--tenue);font-weight:400}
   .etq{font-size:9.5px;color:var(--tenue);border:1px solid var(--line-fuerte);border-radius:4px;
     padding:1px 6px;letter-spacing:.06em}
-  header .der{margin-left:auto;display:flex;gap:6px;align-items:center}
+  header .der{margin-left:auto;display:flex;align-items:center;gap:8px}
+
+  .sesion{display:flex;align-items:center;gap:8px;padding:4px 11px 4px 5px;border:1px solid var(--line);
+    border-radius:99px;background:var(--panel-2);max-width:340px}
+  .av{width:23px;height:23px;border-radius:50%;flex:0 0 auto;display:grid;place-items:center;
+    font-size:8.5px;font-weight:700;background:var(--inv-bg);color:var(--inv-ink)}
+  .sesion .txt{font-size:11.5px;color:var(--soft);min-width:0;overflow:hidden;
+    text-overflow:ellipsis;white-space:nowrap}
+  .sesion .i{width:13px;height:13px;color:var(--ok)}
+
   .ctl{background:none;color:var(--tenue);border:none;border-radius:6px;padding:5px 9px;
     font-size:12px;cursor:pointer;font-family:inherit}
   .ctl:hover{background:var(--hover);color:var(--ink)}
 
-  /* Control DEL BOCETO, no del producto: quién entra. Es lo que hace demostrable que la misma puerta
-     da dos experiencias distintas — y que quien no es de Tech ni se entera de que GitHub existe. */
-  .simular{display:flex;align-items:center;gap:1px;border:1px solid var(--line);border-radius:7px;
-    padding:2px;margin-right:6px}
-  .simular span{font-size:10px;color:var(--tenue);padding:0 7px 0 5px;letter-spacing:.03em}
-  .simular button{background:none;border:none;border-radius:5px;padding:4px 9px;font-size:11.5px;
+  /* Control DEL BOCETO: quién entra. En el producto no se elige — sale del grupo de Workspace que
+     viaja en el token de Google. Está acá para poder mostrar las dos experiencias en una demo. */
+  .simular{display:flex;align-items:center;border:1px solid var(--line);border-radius:7px;padding:2px}
+  .simular span{font-size:9.5px;color:var(--tenue);padding:0 7px 0 6px;letter-spacing:.05em;
+    text-transform:uppercase}
+  .simular button{background:none;border:none;border-radius:5px;padding:4px 10px;font-size:11.5px;
     color:var(--tenue);cursor:pointer;font-family:inherit}
   .simular button:hover{color:var(--ink)}
   .simular button[aria-pressed="true"]{background:var(--inv-bg);color:var(--inv-ink)}
 
-  main{flex:1;display:grid;place-items:center;padding:24px 22px 72px}
-  .caja{width:100%;max-width:392px}
-  .caja.ancha{max-width:520px}
+  main{flex:1;display:flex;flex-direction:column}
 
-  h1{font-size:20px;font-weight:600;letter-spacing:-.025em;margin:0 0 6px;text-align:center}
-  .sub{color:var(--soft);font-size:13px;margin:0 0 26px;text-align:center}
-  .pie{margin-top:18px;font-size:11.5px;color:var(--tenue);text-align:center}
-
-  .marca-c{width:38px;height:38px;border-radius:11px;background:var(--inv-bg);color:var(--inv-ink);
-    display:grid;place-items:center;margin:8px auto 16px;font-weight:700;font-size:15px}
-
-  /* ── botones ─────────────────────────────────────────────────────────────── */
-  .btn{display:flex;align-items:center;justify-content:center;gap:10px;width:100%;padding:12px 16px;
+  /* ── pantalla 1 · la puerta ───────────────────────────────────────────────── */
+  .puerta{flex:1;display:grid;place-items:center;padding:24px 26px 80px}
+  .puerta .centro{width:100%;max-width:352px;text-align:center}
+  .puerta .cuadro-g{width:40px;height:40px;border-radius:12px;background:var(--inv-bg);
+    color:var(--inv-ink);display:grid;place-items:center;margin:0 auto 18px;
+    font-size:16px;font-weight:700}
+  .puerta h1{font-size:20px;font-weight:600;letter-spacing:-.025em;margin:0 0 7px}
+  .puerta p{color:var(--soft);font-size:13px;margin:0 0 26px}
+  .btn-g{display:flex;align-items:center;justify-content:center;gap:10px;width:100%;padding:12px 16px;
     border-radius:10px;border:1px solid var(--line-fuerte);background:var(--panel);color:var(--ink);
     cursor:pointer;font-size:13.5px;font-weight:500;font-family:inherit;
     transition:background .15s,border-color .15s}
-  .btn:hover{background:var(--hover);border-color:var(--soft)}
-  .btn.principal{background:var(--inv-bg);color:var(--inv-ink);border-color:var(--inv-bg)}
-  .btn.principal:hover{background:var(--inv-bg);opacity:.88}
-  .btn.plano{border-color:transparent;background:none;color:var(--tenue);font-weight:400;padding:9px}
-  .btn.plano:hover{background:none;color:var(--ink)}
-  .pila{display:flex;flex-direction:column;gap:8px}
+  .btn-g:hover{background:var(--hover);border-color:var(--soft)}
+  .puerta .nota{margin:18px 0 0;font-size:11.5px;color:var(--tenue)}
 
-  /* ── la identidad, en chip ───────────────────────────────────────────────── */
-  .quien{display:flex;align-items:center;gap:9px;padding:8px 12px 8px 9px;border:1px solid var(--line);
-    border-radius:99px;background:var(--panel-2);width:fit-content;margin:0 auto 22px;max-width:100%}
-  .av{width:24px;height:24px;border-radius:50%;flex:0 0 auto;display:grid;place-items:center;
-    font-size:9px;font-weight:700;background:var(--inv-bg);color:var(--inv-ink)}
-  .quien .txt{font-size:12px;color:var(--soft);min-width:0;overflow:hidden;text-overflow:ellipsis;
-    white-space:nowrap}
-  .quien .i{width:15px;height:15px;color:var(--ok)}
+  /* ── pantalla 2 · el catálogo ─────────────────────────────────────────────── */
+  .catalogo{width:100%;max-width:748px;margin:0 auto;padding:40px 26px 90px}
+  .titulo{display:flex;align-items:baseline;gap:11px;margin-bottom:22px}
+  .titulo h1{font-size:21px;font-weight:600;letter-spacing:-.025em;margin:0}
+  .titulo em{font-style:normal;font-size:12.5px;color:var(--tenue)}
 
-  /* ── LAS TARJETAS ────────────────────────────────────────────────────────── */
-  .grilla{display:grid;gap:9px;grid-template-columns:repeat(2,minmax(0,1fr))}
-  @media (max-width:460px){ .grilla{grid-template-columns:1fr} }
+  .grilla{display:grid;gap:11px;grid-template-columns:repeat(auto-fill,minmax(212px,1fr))}
 
-  .tarjeta{position:relative;border:1px solid var(--line);border-radius:12px;padding:15px 15px 14px;
-    background:var(--panel);transition:border-color .15s,background .15s;cursor:pointer;
-    display:flex;flex-direction:column;gap:9px;min-height:104px}
-  .tarjeta:hover{border-color:var(--line-fuerte);background:var(--panel-2)}
-  .tarjeta .i{width:19px;height:19px;color:var(--ink)}
-  .tarjeta b{font-size:13px;font-weight:500;letter-spacing:-.01em;line-height:1.3}
-  .tarjeta em{font-style:normal;font-size:11px;color:var(--tenue);margin-top:-5px}
-  .tarjeta .esquina{position:absolute;top:13px;right:13px;color:var(--tenue)}
-  .tarjeta .esquina .i{width:14px;height:14px;color:var(--tenue)}
+  .tarjeta{position:relative;display:flex;flex-direction:column;gap:10px;
+    border:1px solid var(--line);border-radius:13px;padding:17px 17px 16px;background:var(--panel);
+    cursor:pointer;min-height:116px;
+    transition:border-color .16s,background .16s,transform .16s}
+  .tarjeta:hover{border-color:var(--line-fuerte);background:var(--panel-2);transform:translateY(-1px)}
+  .tarjeta .i{width:20px;height:20px}
+  .tarjeta b{font-size:13.5px;font-weight:550;letter-spacing:-.012em;line-height:1.3}
+  .tarjeta em{font-style:normal;font-size:11.5px;color:var(--tenue);line-height:1.45;margin-top:-6px}
+  /* La flecha aparece al pasar por encima: es lo que le dice a la tarjeta «soy un enlace». Sin esto
+     una tarjeta se lee como un cartel, no como algo que se abre. */
+  .tarjeta .flecha{position:absolute;top:16px;right:16px;color:var(--tenue);opacity:0;
+    transition:opacity .16s,transform .16s;transform:translate(-2px,2px)}
+  .tarjeta:hover .flecha{opacity:1;transform:none}
+  .tarjeta .flecha .i{width:15px;height:15px}
 
-  /* Trabada: no se tacha ni se pinta de rojo — se apaga. Que se vea es el punto: así se sabe que
-     existe y qué falta para usarla. */
-  .tarjeta.trabada{background:var(--panel-2);cursor:default}
-  .tarjeta.trabada .i,
-  .tarjeta.trabada b{color:var(--tenue)}
-  .tarjeta.trabada:hover{border-color:var(--line)}
+  /* LA TARJETA FANTASMA — el botón no intrusivo. Ocupa el lugar donde van a aparecer las que
+     destraba, con borde punteado: se lee como un hueco por llenar, no como un aviso. */
+  .fantasma{border-style:dashed;background:none;justify-content:center;gap:8px;color:var(--tenue)}
+  .fantasma:hover{border-style:dashed;border-color:var(--soft);background:var(--panel-2)}
+  .fantasma .i{width:19px;height:19px}
+  .fantasma b{font-size:13px;font-weight:500;color:var(--ink)}
+  .fantasma em{margin-top:-7px}
+  .fantasma:hover b{text-decoration:underline;text-underline-offset:3px}
 
-  /* La salida del que dijo «ahora no»: una línea, no una tarjeta. Discreta pero presente — si
-     desaparece del todo, el desarrollador no vuelve a enterarse de que esas herramientas existen. */
-  .rescate{margin-top:18px;padding-top:15px;border-top:1px solid var(--line);
-    display:flex;align-items:center;gap:10px;font-size:12px;color:var(--tenue)}
-  .rescate .i{width:15px;height:15px}
-  .rescate button{margin-left:auto;background:none;border:1px solid var(--line-fuerte);
-    border-radius:7px;padding:5px 11px;font-size:12px;color:var(--ink);cursor:pointer;
-    font-family:inherit;white-space:nowrap}
-  .rescate button:hover{background:var(--hover)}
+  /* Lo recién sumado entra con un fundido corto: deja ver QUÉ cambió sin animar media pantalla. */
+  @keyframes entra{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+  .nuevo{animation:entra .22s ease-out both}
 
-  .oculto{display:none}
+  @media (max-width:600px){
+    header{padding:12px 16px;flex-wrap:wrap}
+    .simular{order:3}
+    .catalogo{padding:28px 16px 60px}
+  }
 </style>
 </head>
 <body>
 
 <header>
-  <span class="marca">CreditOp <span>· herramientas</span></span>
+  <span class="marca"><span class="cuadro">C</span>CreditOp <span>· herramientas</span></span>
   <span class="etq">BOCETO</span>
   <div class="der">
     <div class="simular">
@@ -156,15 +163,15 @@
       <button id="s-comp" aria-pressed="true"  onclick="quienEntra('compania')">Compañía</button>
       <button id="s-tech" aria-pressed="false" onclick="quienEntra('tech')">Tech</button>
     </div>
-    <button class="ctl" id="reiniciar" style="display:none">reiniciar</button>
+    <div id="sesion"></div>
     <button class="ctl" id="tema">tema</button>
   </div>
 </header>
 
-<main><div class="caja" id="caja"></div></main>
+<main id="main"></main>
 
 <script>
-  /* ── Iconos: trazos de Lucide (lucide.dev, ISC). Misma grilla de 24, mismo grosor. ───────────── */
+  /* ── Iconos: trazos de Lucide (lucide.dev, ISC) ───────────────────────────────────────────────── */
   const ICO = {
     bot:     '<path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/>',
     activity:'<path d="M22 12h-4l-3 9L9 3l-3 9H2"/>',
@@ -172,13 +179,13 @@
     rama:    '<line x1="6" x2="6" y1="3" y2="15"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M18 9a9 9 0 0 1-9 9"/>',
     matraz:  '<path d="M10 2v7.5a2 2 0 0 1-.2.9L4.7 20.6a1 1 0 0 0 .9 1.4h12.8a1 1 0 0 0 .9-1.4l-5.1-10.2a2 2 0 0 1-.2-.9V2"/><path d="M8.5 2h7"/><path d="M7 16h10"/>',
     tic:     '<path d="M20 6 9 17l-5-5"/>',
-    candado: '<rect width="18" height="11" x="3" y="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>',
+    salida:  '<path d="M7 7h10v10"/><path d="M7 17 17 7"/>',
     github:  '<path d="M15 22v-4a4.8 4.8 0 0 0-1-3.5c3 0 5-2 5-5.5.08-1.25-.27-2.48-1-3.5.28-1.15.28-2.35 0-3.5 0 0-1 0-3 1.5-2.64-.5-5.36-.5-8 0C5 2 4 2 4 2c-.3 1.15-.3 2.35 0 3.5A5.4 5.4 0 0 0 3 9c0 3.5 2 5.5 5 5.5-.39.49-.68 1.05-.85 1.65-.17.6-.22 1.23-.15 1.85v4"/><path d="M9 18c-4.51 2-5-2-7-2"/>',
   }
-  const i = (n, clase = '') => `<svg class="i ${clase}" viewBox="0 0 24 24" aria-hidden="true">${ICO[n]}</svg>`
+  const i = n => `<svg class="i" viewBox="0 0 24 24" aria-hidden="true">${ICO[n]}</svg>`
 
-  /* Google va con su logo de marca y a color: es lo único con color acá, y es a propósito — la gente
-     reconoce ese botón por eso. Redibujarlo en trazo lo haría más "coherente" y menos usable. */
+  /* Google va con su logo de marca, a color: es lo único con color en toda la pantalla y es a
+     propósito — ese botón se reconoce por eso. */
   const GOOGLE = `<svg width="17" height="17" viewBox="0 0 18 18" aria-hidden="true" style="flex:0 0 auto">
     <path fill="#4285F4" d="M17.6 9.2c0-.6-.1-1.2-.2-1.8H9v3.4h4.8a4.1 4.1 0 0 1-1.8 2.7v2.2h2.9c1.7-1.6 2.7-3.9 2.7-6.5Z"/>
     <path fill="#34A853" d="M9 18c2.4 0 4.5-.8 6-2.2l-2.9-2.2c-.8.5-1.8.9-3.1.9-2.4 0-4.4-1.6-5.1-3.8H.9v2.3A9 9 0 0 0 9 18Z"/>
@@ -186,92 +193,84 @@
     <path fill="#EA4335" d="M9 3.6c1.3 0 2.5.5 3.4 1.3l2.6-2.6A9 9 0 0 0 .9 5l3 2.3C4.6 5.2 6.6 3.6 9 3.6Z"/></svg>`
 
   const HERR = [
-    { n:'Asistente interno',       ico:'bot',      via:'google', d:'preguntá por Slack' },
-    { n:'Estado de los servicios', ico:'activity', via:'google', d:'qué está arriba' },
-    { n:'Tablero de épicas',       ico:'grid',     via:'github', d:'en qué anda cada quien' },
-    { n:'Trazador de solicitudes', ico:'rama',     via:'github', d:'seguir una solicitud' },
-    { n:'Panel de pruebas',        ico:'matraz',   via:'github', d:'correr un flujo' },
+    { n:'Asistente interno',       ico:'bot',      via:'google', d:'Preguntale por Slack' },
+    { n:'Estado de los servicios', ico:'activity', via:'google', d:'Qué está arriba y qué no' },
+    { n:'Tablero de épicas',       ico:'grid',     via:'github', d:'En qué anda cada quien' },
+    { n:'Trazador de solicitudes', ico:'rama',     via:'github', d:'Seguir una solicitud' },
+    { n:'Panel de pruebas',        ico:'matraz',   via:'github', d:'Correr un flujo entero' },
   ]
 
-  const caja = document.getElementById('caja')
-  const btnReiniciar = document.getElementById('reiniciar')
+  const main = document.getElementById('main')
+  const barraSesion = document.getElementById('sesion')
 
-  /* QUIÉN ENTRA. En el producto esto NO se elige: sale del propio login de Google — el grupo de
-     Workspace (tech@creditop.com) viaja en el token. Acá es un botón solo para poder mostrar las dos
-     experiencias en la misma demo.
+  let PERSONA = 'compania'   // en el producto sale del grupo de Workspace, no de un botón
+  let VINCULADO = false
 
-     La regla que se está mostrando: si no sos de Tech, GitHub no existe para vos. Ni el paso 2, ni
-     tarjetas trabadas, ni un candado. No es esconder por seguridad —esas herramientas igual piden
-     sesión— es no ofrecerle a alguien de Cartera algo que no va a poder usar nunca. */
-  let PERSONA = 'compania'
-  function quienEntra(p){
-    PERSONA = p
-    document.getElementById('s-comp').setAttribute('aria-pressed', String(p === 'compania'))
-    document.getElementById('s-tech').setAttribute('aria-pressed', String(p === 'tech'))
-    puerta()
-  }
   const esTech = () => PERSONA === 'tech'
   const correo = () => esTech() ? 'miguel@creditop.com' : 'laura@creditop.com'
   const iniciales = () => esTech() ? 'MO' : 'LG'
 
-  const chip = extra => `<div class="quien"><span class="av">${iniciales()}</span>
-      <span class="txt mono">${correo()}${extra || ''}</span>${i('tic')}</div>`
+  function quienEntra(p){
+    PERSONA = p; VINCULADO = false
+    document.getElementById('s-comp').setAttribute('aria-pressed', String(p === 'compania'))
+    document.getElementById('s-tech').setAttribute('aria-pressed', String(p === 'tech'))
+    puerta()
+  }
+
+  function pintarSesion(dentro){
+    barraSesion.innerHTML = dentro
+      ? `<div class="sesion"><span class="av">${iniciales()}</span>
+           <span class="txt mono">${correo()}${VINCULADO ? ' · mig-creditop' : ''}</span>${i('tic')}</div>`
+      : ''
+  }
 
   /* ── 1 · la puerta ───────────────────────────────────────────────────────── */
   function puerta(){
-    btnReiniciar.style.display = 'none'
-    caja.className = 'caja'
-    caja.innerHTML = `
-      <div class="marca-c">C</div>
-      <h1>Herramientas internas</h1>
-      <p class="sub">Una sola entrada para todas.</p>
-      <div class="pila">
-        <button class="btn" onclick="${esTech() ? 'sumar()' : 'dentro(false)'}">
-          ${GOOGLE} Continuar con Google</button>
-      </div>
-      <p class="pie">Con tu correo de la compañía.</p>`
+    pintarSesion(false)
+    main.innerHTML = `
+      <div class="puerta"><div class="centro">
+        <div class="cuadro-g">C</div>
+        <h1>Herramientas internas</h1>
+        <p>Una sola entrada para todas.</p>
+        <button class="btn-g" onclick="catalogo()">${GOOGLE} Continuar con Google</button>
+        <p class="nota">Con tu correo de la compañía.</p>
+      </div></div>`
   }
 
-  /* ── 2 · ofrecer GitHub ──────────────────────────────────────────────────── */
-  function sumar(){
-    btnReiniciar.style.display = ''
-    caja.className = 'caja'
-    const n = HERR.filter(h => h.via === 'github').length
-    caja.innerHTML = `
-      ${chip()}
-      <h1>¿Sumás tu GitHub?</h1>
-      <p class="sub">Habilita ${n} herramientas del equipo, y cada una<br>sabe qué desarrollador sos.</p>
-      <div class="pila">
-        <button class="btn principal" onclick="dentro(true)">${i('github')} Vincular GitHub</button>
-        <button class="btn plano" onclick="dentro(false)">Ahora no</button>
-      </div>
-      <p class="pie">Se pide una sola vez. Solo lectura.</p>`
-  }
-
-  /* ── 3 · las tarjetas ─────────────────────────────────────────────────────
-     Solo lo que la persona PUEDE usar. Nada trabado, ningún candado: quien no es de Tech ve dos
-     tarjetas y se va a trabajar. El único que necesita una salida es el desarrollador que dijo
-     «ahora no», y la tiene abajo en una línea. */
-  function dentro(vinculado){
-    btnReiniciar.style.display = ''
-    caja.className = 'caja ancha'
-
-    const tarjeta = h => `<div class="tarjeta">${i(h.ico)}<b>${h.n}</b><em>${h.d}</em></div>`
-    const mias = HERR.filter(h => h.via === 'google' || vinculado)
+  /* ── 2 · el catálogo ─────────────────────────────────────────────────────── */
+  function catalogo(recienVinculado){
+    pintarSesion(true)
+    const mias   = HERR.filter(h => h.via === 'google' || VINCULADO)
     const faltan = HERR.length - mias.length
 
-    caja.innerHTML = `
-      ${chip(vinculado ? ' · mig-creditop' : '')}
-      <div class="grilla">${mias.map(tarjeta).join('')}</div>
-      ${esTech() && !vinculado ? `
-        <div class="rescate">
-          ${i('github')}
-          <span>Sos del equipo de Tech: vinculá GitHub y sumás ${faltan} herramientas.</span>
-          <button onclick="dentro(true)">Vincular</button>
-        </div>` : ''}`
+    const tarjeta = h => `
+      <div class="tarjeta ${recienVinculado && h.via === 'github' ? 'nuevo' : ''}">
+        <span class="flecha">${i('salida')}</span>
+        ${i(h.ico)}<b>${h.n}</b><em>${h.d}</em>
+      </div>`
+
+    /* El botón no intrusivo: una tarjeta más, en el hueco que van a llenar las que destraba. */
+    const fantasma = `
+      <div class="tarjeta fantasma" onclick="vincular()">
+        ${i('github')}<b>Vincular GitHub</b><em>${faltan} herramientas del equipo</em>
+      </div>`
+
+    main.innerHTML = `
+      <div class="catalogo">
+        <div class="titulo">
+          <h1>Herramientas</h1>
+          <em>${mias.length} disponible${mias.length === 1 ? '' : 's'}${
+            esTech() && !VINCULADO ? ` · ${faltan} requieren GitHub` : ''}</em>
+        </div>
+        <div class="grilla">
+          ${mias.map(tarjeta).join('')}
+          ${esTech() && !VINCULADO ? fantasma : ''}
+        </div>
+      </div>`
   }
 
-  btnReiniciar.onclick = puerta
+  function vincular(){ VINCULADO = true; catalogo(true) }
+
   document.getElementById('tema').onclick = () => {
     const r = document.documentElement
     const oscuro = r.getAttribute('data-theme') === 'dark'
