@@ -1,7 +1,7 @@
 ---
 id: 46
 title: "Agente Soporte — modificación de datos con autorización del cliente por WhatsApp"
-stage: evaluation
+stage: work
 created: "2026-08-11T18:20:00-05:00"
 context_nodes: [actors, application, microservicios, servicing, backoffice]
 jira: [CORE-258]
@@ -10,8 +10,8 @@ jira_title: "AGENTE SOPORTE- Modificacion de datos"
 
 # Agente Soporte · modificación de datos
 
-> **CORE-258** · `⏳ Por Hacer` · **5 pts** · nació en **Sprint 8** y se arrastró sin terminar
-> · en aterrizaje, sin rama todavía
+> **CORE-258** · `⏳ Por Hacer` en Jira · **5 pts** · nació en **Sprint 8** y se arrastró sin terminar
+> · **en progreso**: aterrizada y con los dos prototipos acordados, sin rama todavía
 >
 > Los 9 criterios de aceptación de Jira están completos allá (4.406 caracteres). Acá no se repiten:
 > abajo está lo que se averiguó del sistema y lo que se decidió, que es lo que Jira no tiene.
@@ -19,6 +19,13 @@ jira_title: "AGENTE SOPORTE- Modificacion de datos"
 Un asesor no debería poder cambiar los datos de un cliente sin que el cliente se entere y lo apruebe.
 Hoy puede. La tarea pone al **dueño del dato** en el medio: el asesor pide el cambio desde WhatsApp,
 el cliente lo autoriza desde el suyo, y nada se escribe hasta que hay consentimiento.
+
+**Y desde la reunión con Manuela y Filipo (2026-08-12), un segundo frente**: el cliente puede
+gestionar **por su cuenta** su fecha de pago y su plazo, sin asesor de por medio. Mismo canal, misma
+verdad en el backend, pero **otro recorrido** — se identifica solo y no hay tercero que autorice. Los
+datos de contacto **no** entran en la autogestión: siguen necesitando a un asesor que los pida.
+
+**Qué hay que construir**: 15 endpoints, 10 de ellos nuevos — ver §«Las APIs a entregar».
 
 ## Por qué existe — el estado de hoy, verificado
 
@@ -383,6 +390,66 @@ Trae dos paneles que son, en la práctica, **la especificación**: la traza de A
 construir, verde = ya existe) y la fila de auditoría que quedaría.
 
 **El prototipo no es el diseño final** — es para aterrizar la conversación. Revisar antes de codear.
+
+## Las APIs a entregar — **15 endpoints, 10 nuevos**
+
+Inventario sacado de las trazas de los dos prototipos, que se armaron justamente para esto.
+
+### Ya existen y se usan tal cual — 3
+
+Las tres del crédito, y sirven **igual para los dos actores**: no hay que tocarlas.
+
+| | qué da |
+|---|---|
+| `GET /credits/{id}/can-change` | si el crédito admite cambios (6 meses, pago pendiente, `externally_serviced`) |
+| `GET /credits/{id}/payment-date-options` | las 2 próximas fechas de los ciclos 5/16/28 |
+| `GET /credits/{id}/fee-number-options` | los plazos válidos con su cuota |
+
+### Existen pero hay que MODIFICARLAS — 2
+
+| | qué cambia |
+|---|---|
+| `POST /credits/{id}/change-payment-date` | hoy escribe `otp_id = 0`; debe recibir y guardar la prueba real de autorización |
+| `POST /credits/{id}/change-fee-number` | ídem |
+
+⚠ **Es el corazón de la tarea y tiene una pregunta abierta**: en el flujo del **cliente** no hay OTP
+—se autentica con cédula + fecha de expedición—, así que **qué se guarda ahí** todavía no está
+decidido. Ver §Preguntas abiertas.
+
+### Nuevas — 10
+
+**Del flujo del asesor (8).** Son las que sostienen el «pide uno, autoriza otro»:
+
+| | qué hace |
+|---|---|
+| `POST /support/advisor/otp` | resuelve la cédula del asesor y manda OTP **al celular del perfil** |
+| `POST /support/advisor/otp/verify` | valida el código y abre la sesión |
+| `GET /support/clients?document=` | busca cliente **ya filtrado por comercio**; si no es suyo, 404 idéntico a «no existe» |
+| `POST /support/change-requests` | crea la solicitud en `pendiente_autorizacion` — **no escribe el dato** |
+| `PATCH /support/change-requests/{id}/authorize` | primer check: el cliente autoriza la gestión |
+| `POST /support/change-requests/{id}/otp` | manda el OTP al cliente (cambios de crédito) |
+| `POST /support/change-requests/{id}/confirm` | segundo check: **acá sí** escribe, junto con el registro |
+| `PATCH /support/change-requests/{id}/reject` | rechazo o «no fui yo» — bloquea y escala |
+
+**Del flujo del cliente (2).** Mucho más corto porque no hay tercero que autorizar:
+
+| | qué hace |
+|---|---|
+| `GET /support/self/by-phone?wa=` | resuelve al cliente por el número de WhatsApp desde el que escribe |
+| `POST /support/self/verify` | valida cédula + fecha de expedición y abre la sesión |
+
+### Lo que NO construimos nosotros
+
+`POST /nlu/interpretar` aparece en la traza del prototipo del cliente, pero **es de Filipo**: la capa
+que entiende lo que la persona escribe y la enruta. Se lista para que quede claro dónde encaja, no
+como entregable nuestro.
+
+### Cómo se reparte
+
+De los 15, **13 los consume el flujo del asesor y 7 el del cliente** (5 son compartidos). Si hubiera
+que partir la entrega, **el flujo del cliente es el más barato**: 2 endpoints nuevos y las 5 del
+crédito que ya existen o sólo se modifican. El del asesor es el caro, porque el «pide uno, autoriza
+otro» es todo nuevo.
 
 ## Decisiones tomadas (y por qué)
 
@@ -772,31 +839,53 @@ castigo pega sobre el número que también se usa para cobrar.
 
 ## Tarea (publicable)
 
-Hoy un asesor puede modificar los datos de contacto de un cliente sin que el cliente se entere: el
-cambio no requiere su autorización y no queda registro de quién lo hizo ni de qué valor había antes.
-Se están reportando casos de gestión indebida.
+Hoy un asesor puede modificar los datos de un cliente sin que el cliente se entere: el cambio no
+requiere su autorización y no queda registro de quién lo hizo ni de qué valor había antes. Se están
+reportando casos de gestión indebida.
 
-Objetivo: que ningún cambio sobre los datos de un cliente se aplique sin que el propio cliente lo
-autorice, y que todo cambio quede registrado.
+Además, un cliente que sólo quiere mover su fecha de pago o cambiar el plazo de su crédito hoy
+depende de que un asesor se lo gestione, aunque sea una operación que puede resolver él mismo.
 
-Alcance propuesto — un canal de atención por WhatsApp donde:
+**Objetivo.** Que ningún cambio sobre los datos de un cliente se aplique sin que el propio cliente lo
+autorice, que todo cambio quede registrado, y que el cliente pueda gestionar por su cuenta lo que le
+corresponde.
 
-- El asesor se identifica con su documento y un código de un solo uso enviado al celular registrado
-  en su perfil.
-- Sólo puede consultar y gestionar clientes que le corresponden. Un cliente que no le corresponde
-  responde exactamente igual que un cliente inexistente.
+Se resuelve con un canal de atención por WhatsApp con **dos entradas**.
+
+**1 · El asesor gestiona, el cliente autoriza.** Para cambios de datos de contacto y de condiciones
+del crédito.
+
+- El asesor se identifica con su documento y un código de un solo uso que llega al celular registrado
+  en su perfil, no al que escribe.
+- Sólo ve clientes de los comercios que maneja. Un cliente que no le corresponde responde exactamente
+  igual que un cliente inexistente.
 - Los datos personales se muestran parcialmente ocultos durante toda la conversación.
-- Al solicitar un cambio, el cliente recibe la solicitud en su canal actual — nunca en el nuevo — y
-  debe autorizarla. Puede indicar que no la reconoce, lo que bloquea el cambio y lo escala a soporte.
-- Los cambios sobre las condiciones del crédito (fecha de pago y plazo) exigen además un código de
-  un solo uso escrito por el cliente, enviado por un canal distinto al de la conversación.
-- Ningún cambio se aplica hasta completar la confirmación, y cada solicitud queda registrada con el
-  asesor que la pidió, el valor anterior, el nuevo y el desenlace.
+- Al pedir un cambio, el cliente lo recibe en su canal actual — nunca en el nuevo — y debe
+  autorizarlo. Puede indicar que no lo reconoce, y eso bloquea el cambio y lo escala a soporte.
+- Ningún cambio se aplica hasta que el cliente confirma.
+
+**2 · El cliente se autogestiona.** Sólo fecha de pago y plazo; los datos de contacto siguen
+necesitando a un asesor.
+
+- Escribe con sus palabras y el canal lo lleva a la operación que corresponde.
+- Se identifica con su documento y un segundo dato que sólo él conoce.
+- Elige entre las opciones que su crédito admite y confirma.
+
+**Común a las dos.**
+
+- Los cambios sobre las condiciones del crédito exigen un código de un solo uso, enviado por un canal
+  distinto al de la conversación.
+- Cada solicitud queda registrada con quién la pidió, el valor anterior, el nuevo y el desenlace —
+  incluidos los rechazos, que son los que permiten detectar un patrón.
 - Las reglas de elegibilidad que ya existen para los cambios de crédito se siguen respetando y no
   pueden saltarse desde el canal.
 
-Pendiente de definición: la tecnología del canal, el mecanismo de autenticación entre el canal y los
-servicios, el tratamiento de clientes eliminados (requiere Legal) y los límites de reenvío de códigos.
+**Entregable técnico:** 15 endpoints, de los cuales 10 son nuevos, 2 son existentes que se modifican
+y 3 se usan tal cual.
 
-Se construyó una simulación navegable del flujo completo para acordar el detalle antes de
+**Pendiente de definición:** el tratamiento de clientes eliminados (requiere Legal), los límites de
+reenvío de códigos, y qué se registra como prueba de autorización cuando el cliente se autogestiona y
+no hay un tercero que confirme.
+
+Se construyeron dos simulaciones navegables —una por entrada— para acordar el detalle antes de
 implementar.
