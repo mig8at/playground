@@ -333,11 +333,39 @@ Toda la seguridad se corre a la **autenticación de entrada**.
 documento: quien tenga la cédula física —o una foto— tiene las dos. Si el número de WhatsApp no
 coincide con el registrado, **no debería pasar aunque los datos estén bien**.
 
-⚠ **Qué se guarda como prueba de autorización.** El flujo del asesor termina con un OTP y por eso
-puede llenar `otp_id` en `creditop_x_changes_log`. Acá no hay OTP: la autorización es la
-autenticación de entrada. **Falta decidir qué se escribe en esa columna** — si el id de la sesión
-verificada, un registro nuevo, o se agrega igual un OTP al confirmar. Sin definir; es la pregunta
-abierta más concreta de esta propuesta.
+#### ⚠ Qué se guarda como prueba de autorización (la pregunta que bloquea)
+
+Cuando alguien cambia la fecha de pago o el plazo, queda una fila en `creditop_x_changes_log`, que
+tiene **cuatro datos y nada más**:
+
+| columna | qué guarda |
+|---|---|
+| `user_request_id` | de qué crédito |
+| `change_type_id` | qué se cambió: 1 = fecha, 2 = plazo |
+| **`otp_id`** | **cuál fue el código con que el cliente lo autorizó** |
+| `created_at` | cuándo |
+
+Esa tercera columna es el punto. Apunta a la fila del código que se le mandó al cliente y que él
+escribió de vuelta: **es la prueba de que el dueño del crédito dio el sí.** Hoy se escribe `0`, que
+no apunta a nada — el registro dice *"se cambió la fecha"* pero no puede decir *"y así fue como el
+cliente lo aprobó"*. Si alguien reclama que nunca autorizó, no hay con qué responder. **Cerrar eso es
+el corazón de la tarea.**
+
+En el flujo del **asesor** está resuelto: hay OTP, hay fila, hay qué guardar. En **autogestión** no:
+el cliente entra con cédula + fecha de expedición y confirma con un botón, así que al escribir la
+fila **no hay nada que poner**. Y si ponemos `0`, quedamos donde empezamos.
+
+**Recomendación: pedir el código también en autogestión**, justo antes de aplicar. Suma un paso, pero:
+
+- es un **cambio contractual** sobre un crédito, y la barrera de entrada son datos *impresos en la
+  cédula* — quien tenga el documento los tiene; el código prueba que además controla el teléfono;
+- **los dos flujos guardan lo mismo**, sin casos especiales en la tabla;
+- sería raro que el mismo cambio exija código cuando lo pide un asesor y no cuando lo pide el dueño.
+
+Alternativas, para que la decisión sea informada: aceptar `0` en autogestión —y renunciar a la prueba
+justo en el flujo donde no hay testigos—, o guardar otra cosa como evidencia (el id de la sesión
+verificada), lo que exige **cambiar la tabla**. **Falta decidirlo**; sin eso, los dos endpoints
+`change-*` no se pueden cerrar.
 
 **Sobre la IA.** La idea era un agente conversacional. Lo que se puede: que el bot **entienda** lo
 que el cliente escribe con sus palabras («quiero cambiar la fecha en que me cobran») y lo enrute a un
@@ -506,9 +534,8 @@ otro» es todo nuevo.
 
 ## Preguntas abiertas
 
-- **Arquitectura del canal** — se descartó n8n (el flujo tiene estado y la seguridad quedaría
-  repartida) y se inclina por **microservicio Go + Twilio**, que es lo que ya está configurado. Falta
-  que Miguel lo cierre. Ver §«Arquitectura del canal» y §«Cómo funciona la API de WhatsApp».
+- ~~**Arquitectura del canal**~~ — **decidido 2026-08-12: `Modules/SupportAgent` en legacy-backend**,
+  con Twilio como proveedor y webhook oficial. Ver §«Arquitectura del canal».
 - **¿Mismo número o uno nuevo?** Propuesta: nuevo para asesores, el de siempre para clientes. Sin
   decidir — ver el final de la sección de WhatsApp.
 - **Cómo se autentica el canal contra el backend.** Hoy las rutas usan `auth.cognito`, que es de
@@ -553,21 +580,35 @@ edición (`bcrypt($document_number)`). Cambiarle el correo a alguien le deja la 
 Es independiente del canal de WhatsApp y ya está en `main`. **Pendiente de registrar como finding**
 en `context/server/data/flows/findings/doc.md` — Miguel lo decide.
 
-## Arquitectura del canal — la decisión abierta
+## Arquitectura del canal — ✅ DECIDIDO: `Modules/SupportAgent` en legacy-backend
 
-**n8n** llega antes a un piloto, pero el flujo tiene estado (sesión del asesor, ticket, espera del
-cliente, timeout, rate limit) y una máquina de estados conversacional con dos actores se vuelve
-frágil ahí. Peor: la lógica de seguridad quedaría repartida entre el workflow y el backend, que es
-justo lo que no conviene con permisos.
+**Decidido el 2026-08-12.** Un módulo Laravel dentro de `legacy-backend`, no un microservicio
+aparte. Tres razones, en orden de peso:
 
-**Microservicio Go** es coherente con la casa — `messaging-service`, `customer-service`,
-`form-service`, `customer-profiling-service`, `financial-health-service` y `pdf-mapper-service` ya
-son Go con hexagonal + OpenAPI-first, y comparten el repo privado `Creditop-SAS/platform`. Los
-criterios de seguridad son código, no nodos.
+1. **Atomicidad.** Escribir el cambio y su registro de auditoría **en la misma transacción**. Con un
+   servicio aparte hablando HTTP eso no existe: o se inventan sagas y compensaciones, o se acepta que
+   un fallo intermedio deje el dato cambiado sin registro. La auditoría es el corazón de esta tarea;
+   no conviene que sea eventual.
+2. **Reusa sin exponer.** `OtpService`, `CreditChangeValidationService`, los modelos y los permisos
+   Spatie entran por inyección de dependencias. Desaparece el trabajo de diseñar, versionar y
+   asegurar los endpoints HTTP intermedios — y con él, la pregunta de cómo se autentica el canal
+   contra el backend, que estaba abierta desde el principio.
+3. **Precedente directo.** `Modules/Backoffice` hizo exactamente esto: superficie nueva, con su
+   propia API y su propia autenticación, dentro de legacy. Son 20 módulos; la arquitectura está
+   hecha para esto.
 
-**Lo que ninguna de las dos resuelve**: la escritura sigue viviendo en el MySQL de legacy, con sus
-efectos colaterales (password, `ModelHasRoles`, `AlliedBranchesByUser`) y sus permisos Spatie.
-Cualquier opción que escriba directo a la BD los duplica o los omite en silencio.
+**Lo que se acepta a cambio**, para que quede dicho: es PHP y el equipo viene haciendo Go; el
+monolito crece, aunque legacy sea hoy el *destino* de la migración y no el origen; y el estado
+conversacional (sesiones, máquina de estados) va a vivir en el MySQL transaccional.
+
+⚠ **Condición: frontera limpia desde el primer commit.** Tablas propias con prefijo
+(`support_agent_*`), namespace propio, y hablar con el resto **por servicios inyectados, nunca por
+queries sueltas contra tablas ajenas**. Si algún día se extrae, el trabajo debe ser reemplazar
+inyecciones por llamadas HTTP — no desenredar.
+
+**Descartados**: microservicio Go (pierde la transacción única, que es lo que más importa acá) y n8n
+como dueño del flujo (la lógica de seguridad quedaría repartida entre el workflow y el backend). n8n
+**sí** queda, pero sólo como capa conversacional — ver §«Reparto del trabajo».
 
 **Sobre WhatsApp**: hoy `messaging-service` es **sólo salida** (`/api/v1/messages/send`,
 `/api/v1/emails/send`) — cero webhooks, cero inbound. Usa **Twilio** con `ContentSid` (plantillas
