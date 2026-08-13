@@ -1,0 +1,1402 @@
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Autogestión del cliente · fecha y plazo — simulación</title>
+<style>
+  :root {
+    --wa-green: #008069;
+    --wa-chat-bg: #efeae2;
+    --wa-mine: #d9fdd3;
+    --wa-theirs: #ffffff;
+    --wa-bar: #f0f2f5;
+    --wa-link: #027eb5;
+    --wa-tick: #53bdeb;
+    --page: #f7f8fa;
+    --panel: #ffffff;
+    --line: #e4e7eb;
+    --page-ink: #1a2027;
+    --page-soft: #5d6b7a;
+    --accent: #0a5c4a;
+    --warn: #b54708;
+    --bad: #b42318;
+    --ok: #067647;
+    --contract: #5b3cc4;
+  }
+
+  @media (prefers-color-scheme:dark) {
+    :root {
+      --page: #0f1418;
+      --panel: #182026;
+      --line: #2a353d;
+      --page-ink: #e6edf3;
+      --page-soft: #95a5b3;
+      --accent: #4ec9a8;
+      --warn: #f0a35e;
+      --bad: #f4776a;
+      --ok: #5ed19a;
+      --contract: #a992ff;
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --page: #0f1418;
+    --panel: #182026;
+    --line: #2a353d;
+    --page-ink: #e6edf3;
+    --page-soft: #95a5b3;
+    --accent: #4ec9a8;
+    --warn: #f0a35e;
+    --bad: #f4776a;
+    --ok: #5ed19a;
+    --contract: #a992ff;
+  }
+
+  :root[data-theme="light"] {
+    --page: #f7f8fa;
+    --panel: #ffffff;
+    --line: #e4e7eb;
+    --page-ink: #1a2027;
+    --page-soft: #5d6b7a;
+    --accent: #0a5c4a;
+    --warn: #b54708;
+    --bad: #b42318;
+    --ok: #067647;
+    --contract: #5b3cc4;
+  }
+
+  * {
+    box-sizing: border-box
+  }
+
+  body {
+    margin: 0;
+    background: var(--page);
+    color: var(--page-ink);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    font-size: 15px;
+    line-height: 1.5
+  }
+
+  .wrap {
+    max-width: 1180px;
+    margin: 0 auto;
+    padding: 22px 16px 60px
+  }
+
+  h1 {
+    font-size: 20px;
+    margin: 0 0 4px;
+    letter-spacing: -.01em
+  }
+
+  .sub {
+    color: var(--page-soft);
+    font-size: 13.5px;
+    margin: 0
+  }
+
+  /* Un prototipo sin fecha se lee como estado actual. Con fecha se lee como lo que es. */
+  .stamp {
+    margin: 8px 0 0;
+    font-size: 12px;
+    color: var(--page-soft);
+    border-left: 2px solid var(--line);
+    padding-left: 9px;
+    line-height: 1.45
+  }
+
+  .stamp b {
+    color: var(--page-ink)
+  }
+
+  .controls {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-top: 14px;
+    align-items: center
+  }
+
+  button.ctl {
+    font: inherit;
+    font-size: 13px;
+    padding: 7px 13px;
+    border-radius: 7px;
+    border: 1px solid var(--line);
+    background: var(--panel);
+    color: var(--page-ink);
+    cursor: pointer
+  }
+
+  button.ctl:hover {
+    border-color: var(--accent)
+  }
+
+  button.ctl.primary {
+    background: var(--accent);
+    color: var(--page);
+    border-color: var(--accent);
+    font-weight: 600
+  }
+
+  label.tog {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12.5px;
+    color: var(--page-soft);
+    padding: 7px 11px;
+    border: 1px solid var(--line);
+    border-radius: 7px;
+    cursor: pointer;
+    background: var(--panel)
+  }
+
+  label.tog input {
+    margin: 0;
+    cursor: pointer
+  }
+
+  label.tog .off {
+    opacity: .7;
+    font-style: italic
+  }
+
+  .hint {
+    font-size: 12.5px;
+    color: var(--page-soft)
+  }
+
+  /* tres pantallas: asesor · cliente · su correo. auto-fit las colapsa solas al angostar */
+  .phones {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(330px, 1fr));
+    gap: 16px;
+    align-items: stretch;
+    margin-top: 18px
+  }
+
+  .phone {
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    overflow: hidden;
+    background: var(--wa-chat-bg);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, .07)
+  }
+
+  .ph-head {
+    background: var(--wa-green);
+    color: #fff;
+    padding: 10px 14px;
+    display: flex;
+    align-items: center;
+    gap: 11px
+  }
+
+  .avatar {
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, .25);
+    flex: 0 0 auto;
+    display: grid;
+    place-items: center;
+    font-size: 15px
+  }
+
+  .ph-who {
+    font-weight: 600;
+    font-size: 14.5px;
+    line-height: 1.2
+  }
+
+  .ph-sub {
+    font-size: 11.5px;
+    opacity: .85;
+    line-height: 1.3
+  }
+
+  .ph-role {
+    margin-left: auto;
+    font-size: 10.5px;
+    text-transform: uppercase;
+    letter-spacing: .06em;
+    background: rgba(255, 255, 255, .2);
+    padding: 3px 8px;
+    border-radius: 20px
+  }
+
+  .chat {
+    height: 460px;
+    overflow-y: auto;
+    padding: 14px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+    background-color: var(--wa-chat-bg);
+    background-image: radial-gradient(rgba(0, 0, 0, .035) 1px, transparent 1px);
+    background-size: 18px 18px
+  }
+
+  .msg {
+    max-width: 85%;
+    padding: 7px 10px 6px;
+    border-radius: 8px;
+    font-size: 14px;
+    position: relative;
+    box-shadow: 0 1px .5px rgba(0, 0, 0, .13);
+    color: #111b21;
+    word-wrap: break-word;
+    animation: pop .18s ease-out
+  }
+
+  @keyframes pop {
+    from {
+      opacity: 0;
+      transform: translateY(6px)
+    }
+
+    to {
+      opacity: 1;
+      transform: none
+    }
+  }
+
+  .msg.theirs {
+    background: var(--wa-theirs);
+    align-self: flex-start;
+    border-top-left-radius: 2px
+  }
+
+  .msg.mine {
+    background: var(--wa-mine);
+    align-self: flex-end;
+    border-top-right-radius: 2px
+  }
+
+  .msg .t {
+    font-size: 10.5px;
+    color: #667781;
+    float: right;
+    margin: 6px 0 -2px 8px
+  }
+
+  .msg .t .tick {
+    color: var(--wa-tick);
+    font-size: 11px
+  }
+
+  .msg b {
+    font-weight: 600
+  }
+
+  .msg .kv {
+    display: block;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 12.5px;
+    background: rgba(0, 0, 0, .045);
+    border-radius: 4px;
+    padding: 5px 7px;
+    margin: 5px 0 2px;
+    white-space: pre-wrap
+  }
+
+  .msg .warnline {
+    color: #b54708;
+    font-size: 12.5px;
+    display: block;
+    margin-top: 5px
+  }
+
+  .msg .badline {
+    color: #b42318;
+    font-size: 12.5px;
+    display: block;
+    margin-top: 5px
+  }
+
+  /* El OTP NO viaja por WhatsApp: llega por SMS. Se dibuja como notificación del sistema,
+     fuera del hilo, para que se vea que es otro canal. */
+  .phone {
+    position: relative
+  }
+
+  .sms {
+    position: absolute;
+    top: 62px;
+    left: 12px;
+    right: 12px;
+    z-index: 5;
+    border-radius: 13px;
+    background: rgba(28, 34, 38, .92);
+    color: #fff;
+    padding: 10px 13px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, .3);
+    backdrop-filter: blur(12px);
+    animation: drop .32s cubic-bezier(.2, .9, .3, 1.2)
+  }
+
+  @keyframes drop {
+    from {
+      opacity: 0;
+      transform: translateY(-16px)
+    }
+
+    to {
+      opacity: 1;
+      transform: none
+    }
+  }
+
+  .sms .hd {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    opacity: .75;
+    margin-bottom: 3px
+  }
+
+  .sms .hd b {
+    font-weight: 600
+  }
+
+  .sms .bd {
+    font-size: 13.5px;
+    line-height: 1.4
+  }
+
+  .sms .code {
+    font-family: ui-monospace, Menlo, monospace;
+    font-weight: 700;
+    letter-spacing: .16em;
+    font-size: 16px
+  }
+
+  .sms .via {
+    font-size: 10.5px;
+    opacity: .6;
+    margin-top: 5px;
+    font-style: italic
+  }
+
+  .qr {
+    margin: 6px -10px -6px;
+    border-top: 1px solid rgba(0, 0, 0, .09)
+  }
+
+  .qr button {
+    display: block;
+    width: 100%;
+    background: none;
+    border: none;
+    border-top: 1px solid rgba(0, 0, 0, .09);
+    color: var(--wa-link);
+    font: inherit;
+    font-size: 13.5px;
+    padding: 8px 6px;
+    cursor: pointer;
+    text-align: center
+  }
+
+  .qr button:first-child {
+    border-top: none
+  }
+
+  .qr button:hover:not(:disabled) {
+    background: rgba(0, 0, 0, .03)
+  }
+
+  .qr button:disabled {
+    color: #b9c1c6;
+    cursor: default
+  }
+
+  /* list-picker: en sesión WhatsApp sólo permite 3 botones, así que un menú de 4+ va como lista */
+  .qr.list .hd {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: .05em;
+    color: #667781;
+    padding: 7px 10px 3px;
+    text-align: left
+  }
+
+  .qr.list button {
+    text-align: left;
+    padding: 8px 10px;
+    color: #111b21;
+    font-size: 13.5px
+  }
+
+  .qr.list button .sub {
+    display: block;
+    font-size: 11.5px;
+    color: #667781;
+    margin-top: 1px
+  }
+
+  .qr.list button:disabled .sub {
+    color: #b9c1c6
+  }
+
+  .typing {
+    align-self: flex-start;
+    background: #fff;
+    border-radius: 8px;
+    padding: 9px 12px;
+    box-shadow: 0 1px .5px rgba(0, 0, 0, .13);
+    display: flex;
+    gap: 3px
+  }
+
+  .typing i {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #9aa5ab;
+    display: block;
+    animation: bl 1.1s infinite
+  }
+
+  .typing i:nth-child(2) {
+    animation-delay: .18s
+  }
+
+  .typing i:nth-child(3) {
+    animation-delay: .36s
+  }
+
+  @keyframes bl {
+
+    0%,
+    60%,
+    100% {
+      opacity: .35
+    }
+
+    30% {
+      opacity: 1
+    }
+  }
+
+  .composer {
+    background: var(--wa-bar);
+    padding: 8px 10px;
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    border-top: 1px solid rgba(0, 0, 0, .06)
+  }
+
+  .composer input {
+    flex: 1;
+    font: inherit;
+    font-size: 14px;
+    border: none;
+    border-radius: 20px;
+    padding: 8px 14px;
+    background: #fff;
+    color: #111b21;
+    min-width: 0
+  }
+
+  .composer input:disabled {
+    background: #e9edef;
+    color: #9aa5ab
+  }
+
+  .composer .send {
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    border: none;
+    background: var(--wa-green);
+    color: #fff;
+    cursor: pointer;
+    font-size: 15px;
+    flex: 0 0 auto
+  }
+
+  .composer .send:disabled {
+    background: #c4ccd1;
+    cursor: default
+  }
+
+  /* el correo al dato ANTERIOR: otro canal, otra estética — no es un chat */
+  /* TERCER CANAL — bandeja de la clienta.
+     COLORES LITERALES, sin var(): igual que los chats de WhatsApp, esta pantalla no sigue el tema
+     de la página. Es el teléfono de otra persona, no parte de la UI — en modo oscuro tiene que
+     verse igual que los otros dos y no como un panel más del tablero. */
+  /* `display:flex` gana sobre el atributo hidden si no se declara explícito */
+  .phone.gmail[hidden] {
+    display: none
+  }
+
+  .phone.gmail {
+    background: #fff;
+    display: flex;
+    flex-direction: column;
+    color: #1f1f1f
+  }
+
+  .gm-head {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 11px 13px;
+    border-bottom: 1px solid #e8eaed;
+    flex: 0 0 auto
+  }
+
+  .gm-head .burger {
+    color: #5f6368;
+    font-size: 15px
+  }
+
+  .gm-search {
+    flex: 1;
+    background: #f0f4f9;
+    border-radius: 20px;
+    padding: 7px 13px;
+    font-size: 13px;
+    color: #5f6368
+  }
+
+  .gm-av {
+    width: 27px;
+    height: 27px;
+    border-radius: 50%;
+    background: #c2185b;
+    color: #fff;
+    font-size: 11px;
+    font-weight: 700;
+    display: grid;
+    place-items: center;
+    flex: 0 0 auto
+  }
+
+  /* flex:1 en vez de alto fijo: la columna se estira al alto de los teléfonos de WhatsApp */
+  .gm-body {
+    flex: 1;
+    overflow-y: auto;
+    position: relative
+  }
+
+  /* barra inferior de Gmail móvil: pill azul en el activo */
+  .gm-tabs {
+    display: flex;
+    align-items: center;
+    justify-content: space-around;
+    border-top: 1px solid #e8eaed;
+    background: #f0f4f9;
+    padding: 7px 0 9px;
+    flex: 0 0 auto
+  }
+
+  .gm-tabs span {
+    display: grid;
+    place-items: center;
+    width: 62px;
+    height: 32px;
+    border-radius: 16px;
+    font-size: 17px;
+    color: #444746
+  }
+
+  .gm-tabs .on {
+    background: #d3e3fd;
+    color: #041e49
+  }
+
+  /* botón Compose, flotante sobre la lista */
+  .gm-compose {
+    position: absolute;
+    right: 12px;
+    bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: #c2e7ff;
+    color: #001d35;
+    font-size: 13.5px;
+    font-weight: 500;
+    padding: 11px 17px;
+    border-radius: 16px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, .18);
+    pointer-events: none
+  }
+
+  /* una fila de la bandeja */
+  .gm-row {
+    display: flex;
+    gap: 11px;
+    padding: 11px 13px;
+    border-bottom: 1px solid #f1f3f4;
+    cursor: default
+  }
+
+  .gm-row.nuevo {
+    cursor: pointer;
+    animation: drop .34s cubic-bezier(.2, .9, .3, 1.2)
+  }
+
+  .gm-row.nuevo:hover {
+    background: #f6f8fc
+  }
+
+  .gm-ava {
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    font-size: 14px;
+    font-weight: 700;
+    color: #fff;
+    flex: 0 0 auto
+  }
+
+  .gm-txt {
+    min-width: 0;
+    flex: 1
+  }
+
+  .gm-de {
+    display: flex;
+    gap: 8px;
+    font-size: 13.5px
+  }
+
+  .gm-de b {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-weight: 500
+  }
+
+  .gm-de .hora {
+    font-size: 11.5px;
+    color: #5f6368;
+    flex: 0 0 auto
+  }
+
+  .gm-asu,
+  .gm-pre {
+    font-size: 12.5px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap
+  }
+
+  .gm-asu {
+    color: #1f1f1f;
+    margin-top: 1px
+  }
+
+  .gm-pre {
+    color: #5f6368
+  }
+
+  .gm-row.sinleer .gm-de b,
+  .gm-row.sinleer .gm-asu {
+    font-weight: 700
+  }
+
+  .gm-row.sinleer .gm-de .hora {
+    color: #0b57d0;
+    font-weight: 700
+  }
+
+  /* el correo abierto */
+  .gm-open {
+    padding: 14px 15px;
+    font-size: 13.5px;
+    line-height: 1.55;
+    animation: pop .2s ease-out
+  }
+
+  .gm-back {
+    background: none;
+    border: none;
+    font: inherit;
+    font-size: 12.5px;
+    color: #0b57d0;
+    cursor: pointer;
+    padding: 0 0 10px
+  }
+
+  .gm-open .subj {
+    font-size: 15px;
+    font-weight: 600;
+    margin: 0 0 9px
+  }
+
+  .gm-open .from {
+    display: flex;
+    gap: 9px;
+    align-items: center;
+    margin-bottom: 11px;
+    padding-bottom: 11px;
+    border-bottom: 1px solid #e8eaed
+  }
+
+  .gm-open .from .gm-ava {
+    width: 30px;
+    height: 30px;
+    font-size: 12px
+  }
+
+  .gm-open .from .q {
+    font-size: 12px;
+    color: #5f6368;
+    line-height: 1.35
+  }
+
+  .gm-open .from .q b {
+    color: #1f1f1f;
+    font-size: 13px
+  }
+
+  .gm-open .kv {
+    display: block;
+    font-family: ui-monospace, Menlo, monospace;
+    font-size: 11.5px;
+    background: #f1f3f4;
+    border-radius: 5px;
+    padding: 8px 9px;
+    margin: 9px 0;
+    white-space: pre-wrap
+  }
+
+  .gm-open p {
+    margin: 8px 0
+  }
+
+  .gm-open .act button {
+    font: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    padding: 9px 14px;
+    border-radius: 7px;
+    border: 1px solid #b3261e;
+    background: transparent;
+    color: #b3261e;
+    cursor: pointer;
+    margin-top: 6px
+  }
+
+  .gm-open .act button:hover:not(:disabled) {
+    background: #b3261e;
+    color: #fff
+  }
+
+  .gm-open .act button:disabled {
+    opacity: .4;
+    cursor: default;
+    border-color: #dadce0;
+    color: #5f6368
+  }
+
+  .gm-open .foot {
+    font-size: 11.5px;
+    color: #5f6368;
+    border-top: 1px solid #e8eaed;
+    margin-top: 13px;
+    padding-top: 10px
+  }
+
+
+  .panels {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 18px;
+    margin-top: 22px
+  }
+
+  @media (max-width:840px) {
+    .panels {
+      grid-template-columns: 1fr
+    }
+  }
+
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 11px;
+    padding: 15px 16px
+  }
+
+  .panel h2 {
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: .05em;
+    margin: 0 0 3px;
+    color: var(--accent)
+  }
+
+  .panel .ph {
+    font-size: 12.5px;
+    color: var(--page-soft);
+    margin: 0 0 12px
+  }
+
+  .empty {
+    color: var(--page-soft);
+    font-size: 13px;
+    font-style: italic
+  }
+
+  ol.trace {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 11.5px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    max-height: 270px;
+    overflow-y: auto
+  }
+
+  ol.trace li {
+    padding: 6px 9px;
+    border-radius: 6px;
+    background: rgba(127, 127, 127, .07);
+    border-left: 2.5px solid var(--accent);
+    animation: pop .2s ease-out
+  }
+
+  ol.trace li.new {
+    border-left-color: var(--warn)
+  }
+
+  ol.trace li .m {
+    font-weight: 700;
+    color: var(--accent)
+  }
+
+  ol.trace li.new .m {
+    color: var(--warn)
+  }
+
+  ol.trace li .note {
+    display: block;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    color: var(--page-soft);
+    font-size: 11.5px;
+    margin-top: 2px;
+    line-height: 1.4
+  }
+
+  .dest {
+    font-family: ui-monospace, Menlo, monospace;
+    font-size: 12px;
+    padding: 5px 9px;
+    border-radius: 6px;
+    background: rgba(127, 127, 127, .09);
+    display: inline-block;
+    margin-bottom: 10px
+  }
+
+  .dest.nueva {
+    color: var(--warn)
+  }
+
+  .dest.existe {
+    color: var(--contract)
+  }
+
+  .tblwrap {
+    overflow-x: auto
+  }
+
+  table {
+    border-collapse: collapse;
+    width: 100%;
+    font-size: 12.5px;
+    min-width: 430px
+  }
+
+  th,
+  td {
+    text-align: left;
+    padding: 6px 9px;
+    border-bottom: 1px solid var(--line);
+    vertical-align: top
+  }
+
+  th {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    color: var(--page-soft);
+    font-weight: 600
+  }
+
+  td.mono {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 11.5px
+  }
+
+  .badge {
+    display: inline-block;
+    padding: 2px 7px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 600
+  }
+
+  .badge.ok {
+    background: rgba(6, 118, 71, .13);
+    color: var(--ok)
+  }
+
+  .badge.bad {
+    background: rgba(180, 35, 24, .13);
+    color: var(--bad)
+  }
+
+  .badge.wait {
+    background: rgba(181, 71, 8, .13);
+    color: var(--warn)
+  }
+
+  .note {
+    margin-top: 20px;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-left: 3px solid var(--warn);
+    border-radius: 9px;
+    padding: 13px 16px;
+    font-size: 13.5px
+  }
+
+  .note b {
+    color: var(--warn)
+  }
+
+  .note+.note {
+    border-left-color: var(--contract)
+  }
+
+  .note+.note b {
+    color: var(--contract)
+  }
+
+  /* los límites de la plataforma, para que el prototipo se lea como especificación */
+  .note.wa {
+    border-left-color: var(--accent)
+  }
+
+  .note.wa b {
+    color: var(--accent)
+  }
+
+  table.lim {
+    border-collapse: collapse;
+    margin: 10px 0;
+    font-size: 12.5px
+  }
+
+  table.lim th {
+    text-align: left;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    color: var(--page-soft);
+    font-weight: 600;
+    padding: 3px 14px 3px 0
+  }
+
+  table.lim td {
+    padding: 3px 14px 3px 0;
+    border-top: 1px solid var(--line)
+  }
+
+  table.lim td:first-child {
+    color: var(--page-soft)
+  }
+
+  code {
+    font-family: ui-monospace, Menlo, monospace;
+    font-size: 12.5px
+  }
+</style><style>
+  /* una sola conversación: el teléfono a la izquierda, los paneles al lado */
+  .solo {
+    display: grid;
+    grid-template-columns: minmax(330px, 400px) 1fr;
+    gap: 18px;
+    align-items: stretch;
+    margin-top: 18px
+  }
+
+  @media (max-width:860px) {
+    .solo {
+      grid-template-columns: 1fr
+    }
+  }
+
+  .lado {
+    display: flex;
+    flex-direction: column;
+    gap: 16px
+  }
+
+  .lado .panel {
+    margin: 0
+  }
+
+  /* lo que el bot ENTENDIÓ de un mensaje libre: se muestra aparte para no mezclarlo con el chat */
+  .nlu {
+    align-self: flex-start;
+    max-width: 85%;
+    font-size: 11.5px;
+    color: #5f6368;
+    background: rgba(0, 0, 0, .04);
+    border-left: 2px solid #8696a0;
+    border-radius: 0 6px 6px 0;
+    padding: 5px 9px;
+    margin: -2px 0 2px;
+    font-family: ui-monospace, Menlo, monospace;
+    animation: pop .18s ease-out
+  }
+
+  .nlu b {
+    color: #111b21;
+    font-weight: 600
+  }
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>Autogestión del cliente · fecha de pago y plazo</h1>
+    <p class="sub">El cliente escribe desde su celular, se identifica y cambia él mismo las condiciones de su crédito. Sin asesor de por medio.</p>
+    <p class="stamp">Segunda propuesta de <b>CORE-258</b> — <b>13 de agosto de 2026</b>, tras la reunión con Manuela y Filipo.
+      Es lo que se propuso ese día, no lo que el sistema hace hoy.</p>
+    <div class="controls">
+      <button class="ctl primary" id="reset">↺ Reiniciar</button>
+      <button class="ctl" id="auto">▶ Correr solo</button>
+      <label class="tog"><input type="checkbox" id="ineligible"> Crédito no elegible (regla de 6 meses)</label>
+      <label class="tog"><input type="checkbox" id="fallo"> Falla la verificación de identidad</label>
+    </div>
+  </header>
+
+  <div class="solo">
+    <div class="phone">
+      <div class="ph-head">
+        <div class="avatar">🤖</div>
+        <div>
+          <div class="ph-who">CreditOp</div>
+          <div class="ph-sub" id="st-a">en línea</div>
+        </div>
+        <div class="ph-role">Cliente</div>
+      </div>
+      <div class="chat" id="chat-a"></div>
+      <div class="composer">
+        <input id="in-a" disabled placeholder="Escribe un mensaje">
+        <button class="send" id="snd-a" disabled>➤</button>
+      </div>
+    </div>
+
+    <div class="lado">
+      <div class="panel">
+        <h2>Traza de APIs</h2>
+        <p class="ph"><b style="color:var(--warn)">Naranja</b> = hay que construirlo · <b style="color:var(--accent)">verde</b> = ya existe.</p>
+        <ol class="trace" id="trace">
+          <li class="empty" style="border:none;background:none">Sin llamadas todavía.</li>
+        </ol>
+      </div>
+
+      <div class="panel">
+        <h2>Registro de auditoría</h2>
+        <p class="ph">Quién pidió el cambio, qué había antes y con qué se autenticó.</p>
+        <div class="dest" id="dest">— sin destino aún —</div>
+        <div class="tblwrap">
+          <table>
+            <thead>
+              <tr><th>Campo</th><th>Anterior</th><th>Nuevo</th><th>Pedido por</th><th>Estado</th></tr>
+            </thead>
+            <tbody id="audit">
+              <tr><td colspan="5" class="empty">Sin registros.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="note wa">
+    <b>Qué cambia respecto del flujo con asesor.</b> Acá <b>no hay un segundo actor que autorice</b>: el
+    cliente pide y el cliente confirma. Toda la seguridad recae en la <b>autenticación de entrada</b>, así
+    que lo que se pida ahí es la única barrera. Y el alcance es más chico a propósito — sólo
+    <b>fecha de pago</b> y <b>plazo</b>. Los datos de contacto (celular, correo) <b>no</b> se
+    autogestionan: cambiar el celular desde el propio celular no prueba nada.
+  </div>
+
+  <div class="note">
+    <b>Los tres factores, y cuánto vale cada uno.</b> El <b>número de WhatsApp</b> es el más fuerte de
+    los tres y es gratis: el bot sabe de qué número viene el mensaje, y ese número está registrado en el
+    crédito — es «algo que tienes». La <b>cédula</b> y la <b>fecha de expedición</b> son las dos «algo que
+    sabes», y las dos están impresas en el mismo documento: quien tenga la cédula física, o una foto,
+    tiene ambas. <b>La barrera real es el celular</b>, no los datos. Si el número no coincide con el
+    registrado, esto no debería dejar pasar aunque los datos estén bien.
+  </div>
+
+  <div class="note">
+    <b>Sin IA conversacional abierta.</b> Desde enero de 2026 Meta sólo permite bots <b>estructurados</b>
+    en WhatsApp. El bot puede <b>entender</b> lo que el cliente escribe en sus palabras y enrutarlo a una
+    opción — eso es lo que se ve acá bajo cada mensaje libre —, pero no puede ser un asistente que
+    conversa de cualquier cosa. La diferencia práctica: interpretar la intención, sí; improvisar la
+    respuesta, no.
+  </div>
+</div>
+<script>
+  const F = {
+    cli: {
+      nombre: "María Fernanda Gutiérrez", cc: "1032****789", ccFull: "1032456789",
+      exp: "14/03/2011", cel: "321****207", sol: "487542",
+      fecha: "16 de septiembre de 2026", fechaNue: "28 de septiembre de 2026",
+      plazo: "12 cuotas de $245.000", plazoNue: "18 cuotas de $161.000", pagadas: 3
+    }
+  };
+  const A = {
+    quienEs: { m: "GET", p: "/api/support/self/by-phone?wa=573214567207", n: "El número de WhatsApp ES el primer factor: resuelve al cliente antes de pedirle nada. Si no está registrado, no se sigue", nuevo: 1 },
+    verificar: { m: "POST", p: "/api/support/self/verify", n: "Contrasta cédula + fecha de expedición contra users. Cuenta intentos: al tercero, bloquea y escala", nuevo: 1 },
+    canChange: { m: "GET", p: "/api/loans/consumer/credits/487542/can-change", n: "YA EXISTE · CreditChangeValidationService: pago pendiente, lender externally_serviced o cambio en los últimos 6 meses" },
+    dateOpts: { m: "GET", p: "/api/loans/consumer/credits/487542/payment-date-options", n: "YA EXISTE · ciclos fijos 5/16/28, devuelve sólo los 2 próximos" },
+    feeOpts: { m: "GET", p: "/api/loans/consumer/credits/487542/fee-number-options", n: "YA EXISTE · fee_numbers de la línea, filtrado a > cuotas pagadas y ≤ max_fee_number de la categoría" },
+    aplicaFecha: { m: "POST", p: "/api/loans/consumer/credits/487542/change-payment-date", n: "YA EXISTE · hoy escribe otp_id=0. Acá hay que decidir QUÉ se guarda como prueba de autorización", nuevo: 1 },
+    aplicaPlazo: { m: "POST", p: "/api/loans/consumer/credits/487542/change-fee-number", n: "YA EXISTE · hoy escribe otp_id=0. Acá hay que decidir QUÉ se guarda como prueba de autorización", nuevo: 1 }
+  };
+  const T_CREDITO = { t: "creditop_x_changes_log", cls: "existe", nota: "tabla que YA existe · ¿qué va en otp_id?" };
+
+  const steps = [
+    { id: "s0", side: "a", from: "me", text: "Hola, buenas tardes" },
+    {
+      id: "s1", side: "a", from: "bot", api: A.quienEs,
+      text: `¡Hola! 👋 Soy el asistente de <b>CreditOp</b>.<br>Puedo ayudarte con tu crédito. ¿Qué necesitas?`,
+      input: { value: "quiero cambiar la fecha en que me cobran", ph: "Escribe lo que necesitas" }
+    },
+    {
+      id: "s2", side: "a", from: "bot",
+      nlu: 'intención: cambio_fecha_pago · confianza 0.94 → enruta a un flujo FIJO, no improvisa',
+      text: `Entiendo, quieres <b>cambiar la fecha de pago</b> de tu crédito.<br><br>Antes necesito confirmar que eres tú. ¿Me confirmas tu número de cédula?`,
+      input: { value: "1032456789", ph: "Número de cédula" }
+    },
+    {
+      id: "s3", side: "a", from: "bot",
+      text: `Gracias. Ahora dime la <b>fecha de expedición</b> de tu cédula, como aparece en el documento.`,
+      input: { value: "14/03/2011", ph: "DD/MM/AAAA" },
+      next: () => $("#fallo").checked ? "malos" : "s4"
+    },
+    {
+      id: "s4", side: "a", from: "bot", api: A.verificar,
+      text: `✅ Verificado. Hola <b>María Fernanda</b>.<br><br>Estás en tu crédito #${F.cli.sol}. Déjame revisar si admite cambios…`,
+      api2: A.canChange, next: () => $("#ineligible").checked ? "noeleg" : "s5"
+    },
+    {
+      id: "s5", side: "a", from: "bot", api: A.dateOpts,
+      text: `Tu fecha de pago actual es el <b>${F.cli.fecha}</b>.<br><br>Estas son las opciones disponibles:`,
+      list: "Elegir nueva fecha",
+      buttons: [
+        { t: "28 de septiembre", sub: "próximo ciclo de corte" },
+        { t: "5 de octubre", sub: "el siguiente", dis: true }
+      ]
+    },
+    {
+      id: "s6", side: "a", from: "bot",
+      text: `Confirmemos el cambio:<span class="kv">Fecha actual: ${F.cli.fecha}\nNueva fecha:  ${F.cli.fechaNue}</span>Tu cuota no cambia, sólo el día en que se cobra.<span class="warnline">Podrás pedir otro cambio dentro de 6 meses.</span>`,
+      audit: { campo: "next_payment_date", ant: F.cli.fecha, nue: F.cli.fechaNue, estado: "pendiente", cls: "wait", dest: T_CREDITO },
+      buttons: [{ t: "✅ Confirmar" }, { t: "Cancelar", goto: "cancel" }]
+    },
+    {
+      id: "s7", side: "a", from: "bot", api: A.aplicaFecha,
+      text: `✅ Listo, tu nueva fecha de pago es el <b>${F.cli.fechaNue}</b>.<br><br>Te llegará la confirmación por este mismo chat.`,
+      audit: { campo: "next_payment_date", ant: F.cli.fecha, nue: F.cli.fechaNue, estado: "aplicada", cls: "ok", dest: T_CREDITO, quien: "la clienta" },
+      buttons: [{ t: "Cambiar también el plazo", goto: "p1" }, { t: "Eso era todo", goto: "chau" }]
+    },
+
+    // ─── PLAZO, enganchado desde el final del anterior ───
+    {
+      id: "p1", side: "a", from: "bot", api: A.feeOpts,
+      text: `Tu plazo actual es de <b>${F.cli.plazo}</b> y llevas <b>${F.cli.pagadas} pagadas</b>.<br><br>Puedes bajarlo o subirlo; el límite es que el total supere las cuotas que ya pagaste.`,
+      list: "Elegir plazo",
+      buttons: [
+        { t: "6 cuotas", sub: "$577.000 c/u · quedan 4", dis: true },
+        { t: "9 cuotas", sub: "$340.000 c/u · quedan 7", dis: true },
+        { t: "12 cuotas", sub: "$245.000 c/u · el actual", dis: true },
+        { t: "18 cuotas", sub: "$161.000 c/u · quedan 16" },
+        { t: "24 cuotas", sub: "$124.600 c/u · quedan 22", dis: true }
+      ]
+    },
+    {
+      id: "p2", side: "a", from: "bot",
+      text: `Confirmemos:<span class="kv">Plazo actual: ${F.cli.plazo}\nNuevo plazo:  ${F.cli.plazoNue}</span>Pagarás <b>menos por cuota</b>, durante más tiempo.`,
+      audit: { campo: "fee_number", ant: F.cli.plazo, nue: F.cli.plazoNue, estado: "pendiente", cls: "wait", dest: T_CREDITO },
+      buttons: [{ t: "✅ Confirmar" }, { t: "Cancelar", goto: "cancel" }]
+    },
+    {
+      id: "p3", side: "a", from: "bot", api: A.aplicaPlazo,
+      text: `✅ Listo, tu nuevo plazo es de <b>18 cuotas de $161.000</b>.`,
+      audit: { campo: "fee_number", ant: F.cli.plazo, nue: F.cli.plazoNue, estado: "aplicada", cls: "ok", dest: T_CREDITO, quien: "la clienta" }
+    },
+    { id: "chau", side: "a", from: "bot", text: "Con gusto 🙌 Cualquier cosa me escribes por acá.", end: true },
+
+    // ─── SALIDAS ───
+    {
+      id: "malos", side: "a", from: "bot", api: A.verificar,
+      text: `No pude confirmar tus datos.<br><br>Te quedan <b>2 intentos</b>. Revisa la fecha de expedición en tu cédula e inténtalo de nuevo.<span class="warnline">Tras el tercer intento fallido bloqueamos la consulta y te contacta un agente.</span>`,
+      audit: { campo: "—", ant: "—", nue: "—", estado: "sin verificar", cls: "bad", dest: T_CREDITO }, end: true
+    },
+    {
+      id: "noeleg", side: "a", from: "bot",
+      text: `Tu crédito <b>no admite cambios en este momento</b>.<br><br>Ya tuviste un cambio en los últimos 6 meses. Podrás solicitar otro a partir de <b>marzo de 2027</b>.<br><br>Si necesitas algo distinto, escribe <b>ASESOR</b> y te contactamos.`, end: true
+    },
+    { id: "cancel", side: "a", from: "bot", text: "Sin problema, no cambié nada. ¿Necesitas algo más?", end: true }
+  ];
+
+  const idx = {}; steps.forEach((s, i) => idx[s.id] = i);
+  const $ = s => document.querySelector(s);
+  const chats = { a: $("#chat-a") };
+  let ptr = 0, running = false, auto = false;
+  const now = () => { const d = new Date(); return `${d.getHours()}:${String(d.getMinutes()).padStart(2, "0")}` };
+  const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+  function bubble(side, from, html, opts = {}) {
+    const el = document.createElement("div");
+    el.className = "msg " + (from === "me" ? "mine" : "theirs");
+    el.innerHTML = html + `<span class="t">${now()}${from === "me" ? ' <span class="tick">✓✓</span>' : ''}</span>`;
+    if (opts.buttons) {
+      const box = document.createElement("div");
+      box.className = "qr" + (opts.list ? " list" : "");
+      if (opts.list) {
+        const hd = document.createElement("div"); hd.className = "hd"; hd.textContent = opts.list;
+        box.appendChild(hd);
+      }
+      opts.buttons.forEach(b => {
+        const btn = document.createElement("button");
+        btn.textContent = b.t;
+        if (b.sub) { const s = document.createElement("span"); s.className = "sub"; s.textContent = b.sub; btn.appendChild(s); }
+        if (b.dis) btn.disabled = true;
+        else btn.onclick = () => { box.querySelectorAll("button").forEach(x => x.disabled = true); choose(b, side); };
+        box.appendChild(btn);
+      });
+      el.appendChild(box);
+    }
+    chats[side].appendChild(el); chats[side].scrollTop = chats[side].scrollHeight;
+  }
+
+  // lo que el bot ENTENDIÓ. Se muestra aparte del chat porque no es un mensaje: es la interpretación
+  // que permite enrutar a un flujo fijo sin ser un asistente conversacional (prohibido por Meta).
+  function verNLU(txt) {
+    const el = document.createElement("div");
+    el.className = "nlu"; el.innerHTML = `<b>NLU</b> · ${txt}`;
+    chats.a.appendChild(el); chats.a.scrollTop = chats.a.scrollHeight;
+  }
+
+  async function typing(side, ms) {
+    const t = document.createElement("div"); t.className = "typing"; t.innerHTML = "<i></i><i></i><i></i>";
+    chats[side].appendChild(t); chats[side].scrollTop = chats[side].scrollHeight;
+    $("#st-a").textContent = "escribiendo…";
+    await sleep(ms); t.remove();
+    $("#st-a").textContent = "en línea";
+  }
+
+  function apiCall(a) {
+    const ol = $("#trace"); if (ol.querySelector(".empty")) ol.innerHTML = "";
+    const li = document.createElement("li");
+    if (a.nuevo) li.className = "new";
+    li.innerHTML = `<span class="m">${a.m}</span> ${a.p}<span class="note">${a.n}</span>`;
+    ol.appendChild(li); ol.scrollTop = ol.scrollHeight;
+  }
+
+  let row = null, lastAudit = null;
+  function audit(a) {
+    const tb = $("#audit");
+    if (!row) { tb.innerHTML = ""; row = document.createElement("tr"); tb.appendChild(row); }
+    lastAudit = { ...lastAudit, ...a };
+    const d = lastAudit.dest;
+    if (d) { $("#dest").className = "dest " + d.cls; $("#dest").textContent = `→ ${d.t}  ·  ${d.nota}`; }
+    row.innerHTML = `<td class="mono">${lastAudit.campo}</td><td class="mono">${lastAudit.ant}</td>` +
+      `<td class="mono">${lastAudit.nue}</td>` +
+      `<td>${lastAudit.quien || "la clienta"}<br><span style="color:var(--page-soft);font-size:11px">${F.cli.nombre}<br>CC ${F.cli.cc} · desde su celular</span></td>` +
+      `<td><span class="badge ${lastAudit.cls}">${lastAudit.estado}</span></td>`;
+  }
+
+  function askInput(step) {
+    const inp = $("#in-a"), snd = $("#snd-a"), owner = idx[step.id];
+    inp.disabled = false; snd.disabled = false;
+    inp.placeholder = step.input.ph; inp.value = step.input.value; inp.focus();
+    const go = () => {
+      const v = inp.value.trim(); if (!v) return;
+      inp.disabled = true; snd.disabled = true; inp.value = ""; inp.placeholder = "Escribe un mensaje";
+      snd.onclick = null; inp.onkeydown = null;
+      if (ptr !== owner) return;
+      bubble("a", "me", v);
+      // el paso puede bifurcar según lo que se respondió, no sólo avanzar al siguiente
+      ptr = step.next ? idx[step.next()] : ptr + 1;
+      run();
+    };
+    snd.onclick = go;
+    inp.onkeydown = e => { if (e.key === "Enter") go(); };
+    if (auto) setTimeout(go, 850);
+  }
+
+  function choose(b, side) {
+    bubble(side, "me", b.t);
+    ptr = b.goto !== undefined ? idx[b.goto] : ptr + 1;
+    run();
+  }
+
+  async function run() {
+    if (running) return; running = true;
+    while (ptr < steps.length) {
+      const s = steps[ptr];
+      if (s.from === "me") { bubble(s.side, "me", s.text); ptr++; if (auto) await sleep(420); continue; }
+
+      await typing(s.side, s.text.length > 200 ? 880 : 640);
+      if (s.api) apiCall(s.api);
+      if (s.api2) apiCall(s.api2);
+      if (s.audit) audit(s.audit);
+      if (s.nlu) verNLU(s.nlu);
+      bubble(s.side, "bot", s.text, { buttons: s.buttons, list: s.list });
+
+      if (s.buttons && s.buttons.some(b => !b.dis)) {
+        running = false;
+        if (auto) {
+          await sleep(780);
+          const el = [...chats[s.side].lastElementChild.querySelectorAll(".qr button")].find(b => !b.disabled);
+          if (el) el.click();
+        }
+        return;
+      }
+      if (s.input) { running = false; askInput(s); return; }
+      if (s.end) { running = false; auto = false; $("#auto").textContent = "▶ Correr solo"; return; }
+      ptr = s.next ? idx[s.next()] : ptr + 1;
+      await sleep(380);
+    }
+    running = false;
+  }
+
+  function reset() {
+    ptr = 0; running = false; row = null; lastAudit = null;
+    chats.a.innerHTML = "";
+    $("#trace").innerHTML = '<li class="empty" style="border:none;background:none">Sin llamadas todavía.</li>';
+    $("#audit").innerHTML = '<tr><td colspan="5" class="empty">Sin registros.</td></tr>';
+    $("#dest").className = "dest"; $("#dest").textContent = "— sin destino aún —";
+    const i = $("#in-a"); i.disabled = true; i.value = ""; i.placeholder = "Escribe un mensaje";
+    $("#snd-a").disabled = true;
+    run();
+  }
+
+  $("#reset").onclick = () => { auto = false; $("#auto").textContent = "▶ Correr solo"; reset(); };
+  $("#auto").onclick = () => {
+    auto = !auto; $("#auto").textContent = auto ? "⏸ Pausar" : "▶ Correr solo";
+    if (auto) reset();
+  };
+  $("#ineligible").onchange = reset;
+  $("#fallo").onchange = reset;
+  reset();
+</script>

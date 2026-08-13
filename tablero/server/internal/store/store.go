@@ -158,6 +158,39 @@ const SECCION = "## Tarea (publicable)"
 // dos cosas — es el acuerdo al que se llegó, y perderlo es perder lo acordado.
 const ArtifactsDir = "artifacts"
 
+// Artifact es un prototipo de una tarea: el archivo que se sirve y cómo se llama en la UI.
+type Artifact struct {
+	File  string `json:"file"`
+	Label string `json:"label"`
+}
+
+// artefactosDe lista los prototipos de una tarea, ordenados alfabéticamente para que el orden de
+// los botones no dependa de cómo los devuelva el sistema de archivos.
+// `<slug>.html` se etiqueta «prototipo»; `<slug>.<variante>.html` toma la variante como etiqueta.
+func (s *Store) artefactosDe(slug string) []Artifact {
+	entradas, err := os.ReadDir(filepath.Join(s.dir, ArtifactsDir))
+	if err != nil {
+		return nil
+	}
+	var out []Artifact
+	for _, d := range entradas {
+		n := d.Name()
+		if d.IsDir() || !strings.HasSuffix(n, ".html") || !strings.HasPrefix(n, slug) {
+			continue
+		}
+		resto := strings.TrimSuffix(strings.TrimPrefix(n, slug), ".html")
+		switch {
+		case resto == "": // <slug>.html
+			out = append(out, Artifact{File: n, Label: "prototipo"})
+		case strings.HasPrefix(resto, "."): // <slug>.<variante>.html
+			out = append(out, Artifact{File: n, Label: strings.ReplaceAll(resto[1:], "-", " ")})
+		}
+		// cualquier otra cosa es de OTRA tarea cuyo slug empieza igual: se ignora
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].Label < out[j].Label })
+	return out
+}
+
 func (s *Store) leerEffort(slug string) (Effort, string, error) {
 	fm, cuerpo, err := leerMD(filepath.Join(s.dir, slug+".md"))
 	if err != nil {
@@ -183,10 +216,7 @@ func (s *Store) leerEffort(slug string) (Effort, string, error) {
 	if e.Stage == "" {
 		e.Stage = "evaluation"
 	}
-	// el prototipo se descubre por nombre: si el archivo está, la tarea lo muestra
-	if _, err := os.Stat(filepath.Join(s.dir, ArtifactsDir, slug+".html")); err == nil {
-		e.Artifact = slug + ".html"
-	}
+	e.Artifacts = s.artefactosDe(slug)
 	// el vínculo esfuerzo → tareas de Jira; las anotaciones (si las hay) se cargan aparte
 	for _, k := range listaYAML(fm["jira"]) {
 		tl := s.locals[k]
@@ -562,13 +592,17 @@ type Effort struct {
 	// derivada: "evaluando" y "trabajando" se distinguen por decisión, no por si ya hay tarea.
 	Stage     string `json:"stage"` // evaluation | work | tasks
 	CreatedAt string `json:"createdAt"`
-	// PROTOTIPO de la tarea: `data/artifacts/<slug>.html`, un HTML autocontenido que se abre desde el
+	// PROTOTIPOS de la tarea: los HTML autocontenidos de `data/artifacts/` que se abren desde el
 	// tablero. El vínculo es el NOMBRE, no una entrada en el frontmatter: una convención de nombre no
-	// se desincroniza, una lista escrita a mano sí. Vacío = esta tarea no tiene prototipo.
+	// se desincroniza, una lista escrita a mano sí.
+	//   <slug>.html            → una sola propuesta, se etiqueta «prototipo»
+	//   <slug>.<variante>.html → varias propuestas de la MISMA tarea, cada una con su etiqueta
+	// Lo segundo existe porque una tarea suele tener más de un actor o más de un camino posible, y
+	// verlos al lado es lo que permite decidir entre ellos.
 	// Un artefacto es UN html sin build; si necesita `npm install` no es un artefacto, es una carpeta
 	// del playground. Y NO gradúa a `context/`: describe lo que se acordó un día, no cómo funciona
 	// CreditOp — muere con la tarea.
-	Artifact string `json:"artifact"`
+	Artifacts []Artifact `json:"artifacts"`
 }
 
 // Stages son las etapas válidas, en orden.

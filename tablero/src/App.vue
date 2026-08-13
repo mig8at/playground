@@ -182,10 +182,11 @@ const STAGES = [
   { id: 'tasks', label: 'Tareas creadas' },
 ];
 const stageOf = (id) => STAGES.find(s => s.id === (efforts.value.find(e => e.id === id)?.stage || 'evaluation'));
-// PROTOTIPO del esfuerzo: un html autocontenido en `data/artifacts/<slug>.html` que sirve el server.
-// Lo abre una pestaña aparte — es para mirarlo, no para vivir embebido en el tablero.
-const artifactOf = (id) => efforts.value.find(e => e.id === id)?.artifact || '';
-const openArtifact = (id) => window.open(`${SERVER}/artifacts/${artifactOf(id)}`, '_blank', 'noopener');
+// PROTOTIPOS del esfuerzo: los html autocontenidos de `data/artifacts/` que sirve el server. Son
+// varios porque una tarea suele tener más de un actor o más de un camino, y verlos al lado es lo
+// que permite decidir. Se abren en pestaña aparte — son para mirarlos, no para vivir embebidos acá.
+const artifactsOf = (id) => efforts.value.find(e => e.id === id)?.artifacts || [];
+const openArtifact = (file) => window.open(`${SERVER}/artifacts/${file}`, '_blank', 'noopener');
 
 // ── derivados del sprint ────────────────────────────────────────────────────────────────────────
 const done = computed(() => issues.value.filter(i => i.StatusCategory === 'done').length);
@@ -679,9 +680,9 @@ onMounted(async () => {
           <div v-if="showGroups" class="grp" :class="{ none: !g.id }">
             {{ g.title }}
             <span v-if="g.id" class="stg" :class="'s-' + stageOf(g.id)?.id">{{ stageOf(g.id)?.label }}</span>
-            <!-- el prototipo, si lo hay: se descubre por el nombre del archivo, no se declara -->
-            <button v-if="artifactOf(g.id)" class="proto" @click="openArtifact(g.id)"
-              title="Abrir el prototipo de esta tarea">▶ prototipo</button>
+            <!-- los prototipos, si los hay: se descubren por el nombre del archivo, no se declaran -->
+            <button v-for="a in artifactsOf(g.id)" :key="a.file" class="proto" @click="openArtifact(a.file)"
+              :title="`Abrir «${a.label}» de esta tarea`">▶ {{ a.label }}</button>
           </div>
           <!-- varias columnas según el ancho: `auto-fill` con un mínimo, así el número de columnas lo
                decide la pantalla y no un breakpoint escrito a mano -->

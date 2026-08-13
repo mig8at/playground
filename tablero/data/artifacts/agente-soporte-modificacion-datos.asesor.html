@@ -1566,7 +1566,10 @@
       snd.onclick = null; inp.onkeydown = null;
       if (ptr !== owner) return;              // quedó huérfano: no debe mover el flujo
       clearSms();
-      bubble(side, "me", v); ptr++; run();
+      bubble(side, "me", v);
+      // el paso puede bifurcar según lo respondido, no sólo avanzar al siguiente
+      ptr = step.next ? idx[step.next()] : ptr + 1;
+      run();
     };
     snd.onclick = go;
     inp.onkeydown = e => { if (e.key === "Enter") go(); };

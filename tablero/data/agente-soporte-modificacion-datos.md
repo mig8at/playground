@@ -301,10 +301,58 @@ es **inalcanzable**, porque el array ya viene filtrado.
 `withoutMiddleware(['onlyMobileValidation','validate.authorized.status'])`. Revisar qué las protege
 antes de exponerlas a un canal nuevo.
 
-## El prototipo
+## Segunda propuesta: el CLIENTE se autogestiona (2026-08-13)
 
-`tablero/data/artifacts/agente-soporte-modificacion-datos.html` — se abre con el botón **▶ prototipo**
-del tablero. Dos ventanas estilo WhatsApp (asesor · cliente) con las 4 opciones del menú, las dos
+De la reunión con **Manuela y Filipo**: además del canal del asesor, el **cliente** puede cambiar
+**él mismo** su fecha de pago y su plazo. Sólo eso — los datos de contacto **no** se autogestionan.
+
+**Por qué el alcance es más chico y no es arbitrario**: cambiar el celular desde el propio celular no
+prueba nada. Si alguien tomó el teléfono, dejarle cambiar el número de contacto le entrega la cuenta.
+Fecha y plazo, en cambio, son reversibles y no mueven el canal por el que se avisa.
+
+**Lo que cambia respecto del flujo con asesor:** no hay un segundo actor que autorice. Allá el asesor
+pedía y la clienta aprobaba —dos personas, dos canales—; acá **la misma persona pide y confirma**.
+Toda la seguridad se corre a la **autenticación de entrada**.
+
+**Los tres factores, y cuánto vale cada uno:**
+
+| factor | tipo | qué tan fuerte |
+|---|---|---|
+| **número de WhatsApp** | algo que tienes | **el más fuerte, y es gratis** — el bot sabe de qué número viene y ese número está en el crédito |
+| cédula | algo que sabes | débil: circula |
+| fecha de expedición | algo que sabes | débil, y **está impresa en la misma cédula** |
+
+⚠ **La barrera real es el celular, no los datos.** Cédula y fecha de expedición están en el mismo
+documento: quien tenga la cédula física —o una foto— tiene las dos. Si el número de WhatsApp no
+coincide con el registrado, **no debería pasar aunque los datos estén bien**.
+
+⚠ **Qué se guarda como prueba de autorización.** El flujo del asesor termina con un OTP y por eso
+puede llenar `otp_id` en `creditop_x_changes_log`. Acá no hay OTP: la autorización es la
+autenticación de entrada. **Falta decidir qué se escribe en esa columna** — si el id de la sesión
+verificada, un registro nuevo, o se agrega igual un OTP al confirmar. Sin definir; es la pregunta
+abierta más concreta de esta propuesta.
+
+**Sobre la IA.** La idea era un agente conversacional. Lo que se puede: que el bot **entienda** lo
+que el cliente escribe con sus palabras («quiero cambiar la fecha en que me cobran») y lo enrute a un
+flujo fijo. Lo que **no** se puede: un asistente que converse libremente — Meta lo prohíbe desde
+enero de 2026 (ver §«Por qué no una librería no oficial»). El prototipo muestra la interpretación
+debajo de cada mensaje libre, para que la diferencia quede visible: **interpretar la intención, sí;
+improvisar la respuesta, no.**
+
+## Los prototipos
+
+Dos propuestas, cada una con su botón en el tablero: **`▶ asesor`** y **`▶ cliente`**.
+
+### `…-modificacion-datos.cliente.html` — la autogestión
+
+Una sola conversación. El cliente entra desde su celular, escribe en sus palabras, se identifica con
+cédula + fecha de expedición y cambia fecha o plazo. Debajo de cada mensaje libre se ve **lo que el
+bot interpretó**, que es lo que permite enrutar sin ser un asistente conversacional. Dos
+interruptores: crédito no elegible, e identidad que no verifica.
+
+### `…-modificacion-datos.asesor.html` — el canal del asesor
+
+Dos ventanas estilo WhatsApp (asesor · cliente) con las 4 opciones del menú, las dos
 salidas de rechazo y el OTP como notificación fuera del hilo.
 
 Dos interruptores arriba, ambos **apagados** por defecto, para mostrar lo que no es el camino feliz:
