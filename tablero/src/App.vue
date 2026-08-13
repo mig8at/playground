@@ -187,6 +187,14 @@ const stageOf = (id) => STAGES.find(s => s.id === (efforts.value.find(e => e.id 
 // que permite decidir. Se abren en pestaña aparte — son para mirarlos, no para vivir embebidos acá.
 const artifactsOf = (id) => efforts.value.find(e => e.id === id)?.artifacts || [];
 const openArtifact = (file) => window.open(`${SERVER}/artifacts/${file}`, '_blank', 'noopener');
+// los prototipos cuelgan del ESFUERZO, pero se piden desde la tarjeta de una TAREA: se resuelve el
+// esfuerzo por su clave, igual que la bitácora
+const protosDe = (key) => artifactsOf(taskLocals.value[key]?.effortId || 0);
+const protosAbiertos = ref(false);
+function verProtos(i) {
+  if (protosAbiertos.value && active.value?.Key === i.Key) { protosAbiertos.value = false; return; }
+  active.value = i; protosAbiertos.value = true; bitacoraAbierta.value = false;
+}
 
 // ── derivados del sprint ────────────────────────────────────────────────────────────────────────
 const done = computed(() => issues.value.filter(i => i.StatusCategory === 'done').length);
@@ -251,7 +259,8 @@ const entriesPorTarea = computed(() => {
 
 // Abrir la bitácora DE una tarjeta: el cajón lee la tarea activa, así que primero se activa. Sin esto,
 // tocar "Bitácora" en una tarjeta abriría la bitácora de otra.
-const verBitacora = (i) => { active.value = i; bitacoraAbierta.value = true; };
+// los dos cajones son excluyentes: abrir uno cierra el otro, o quedan montados los dos encima
+const verBitacora = (i) => { active.value = i; bitacoraAbierta.value = true; protosAbiertos.value = false; };
 // La bitácora vive en un CAJÓN, no en una card del tablero: son notas largas que escribe el asistente y
 // que el humano consulta de vez en cuando (quien la lee seguido es un modelo, para retomar contexto).
 // Ocupando una columna fija era ruido permanente por algo que no se mira en cada carga. Se abre desde el
@@ -259,7 +268,7 @@ const verBitacora = (i) => { active.value = i; bitacoraAbierta.value = true; };
 const bitacoraAbierta = ref(false);
 // Esc cierra. Va en `window` y no en el elemento: el cajón nace sin foco, así que un @keydown local sólo
 // respondería después de hacerle clic — que es justo cuando ya no hace falta el atajo.
-const cerrarConEsc = (e) => { if (e.key === 'Escape') bitacoraAbierta.value = false; };
+const cerrarConEsc = (e) => { if (e.key === 'Escape') { bitacoraAbierta.value = false; protosAbiertos.value = false; } };
 onMounted(() => window.addEventListener('keydown', cerrarConEsc));
 onUnmounted(() => window.removeEventListener('keydown', cerrarConEsc));
 const when = (d) => new Date(d).toLocaleString('es-CO', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
@@ -680,9 +689,6 @@ onMounted(async () => {
           <div v-if="showGroups" class="grp" :class="{ none: !g.id }">
             {{ g.title }}
             <span v-if="g.id" class="stg" :class="'s-' + stageOf(g.id)?.id">{{ stageOf(g.id)?.label }}</span>
-            <!-- los prototipos, si los hay: se descubren por el nombre del archivo, no se declaran -->
-            <button v-for="a in artifactsOf(g.id)" :key="a.file" class="proto" @click="openArtifact(a.file)"
-              :title="`Abrir «${a.label}» de esta tarea`">▶ {{ a.label }}</button>
           </div>
           <!-- varias columnas según el ancho: `auto-fill` con un mínimo, así el número de columnas lo
                decide la pantalla y no un breakpoint escrito a mano -->
@@ -727,6 +733,12 @@ onMounted(async () => {
                 </button>
                 <button class="tact" :class="{ act: bitacoraAbierta && active?.Key === i.Key }" @click="verBitacora(i)">
                   Bitácora<span v-if="entriesPorTarea[i.Key]" class="cnt">{{ entriesPorTarea[i.Key] }}</span>
+                </button>
+                <!-- los prototipos de la tarea: sólo si los hay, y se abren en un panel aparte porque
+                     suelen ser varios y con nombres largos -->
+                <button v-if="protosDe(i.Key).length" class="tact" :class="{ act: protosAbiertos && active?.Key === i.Key }"
+                  @click="verProtos(i)">
+                  Prototipos<span class="cnt">{{ protosDe(i.Key).length }}</span>
                 </button>
                 <button v-if="!enPruebas(i) && qa?.key !== i.Key" class="tact go" :disabled="qaBusy" @click="openQA(i)">
                   🧪 A pruebas
@@ -843,6 +855,33 @@ onMounted(async () => {
 
          Va FUERA de las cards a propósito: `position: fixed` dentro de una card con `overflow` o
          `transform` se ancla a la card en vez de a la ventana, y el cajón aparecería recortado. -->
+    <!-- PROTOTIPOS de la tarea. Panel aparte y no botones sueltos: una tarea puede tener varias
+         propuestas, y verlas listadas con su descripción es lo que permite elegir cuál abrir. -->
+    <div v-if="protosAbiertos" class="drawer">
+      <div class="drawer-bg" @click="protosAbiertos = false"></div>
+      <aside class="drawer-p">
+        <header class="drawer-h">
+          <div>
+            <h3>Prototipos</h3>
+            <p v-if="active">de {{ active.Key }} · {{ protosDe(active.Key).length }}
+              {{ protosDe(active.Key).length === 1 ? 'propuesta' : 'propuestas' }}</p>
+          </div>
+          <button class="drawer-x" title="Cerrar (Esc)" @click="protosAbiertos = false">✕</button>
+        </header>
+        <div class="drawer-b">
+          <p class="empty">Cada uno es un HTML autocontenido. Se abren en una pestaña nueva.</p>
+          <button v-for="a in protosDe(active?.Key)" :key="a.file" class="proto-row" @click="openArtifact(a.file)">
+            <span class="proto-play">▶</span>
+            <span class="proto-txt">
+              <b>{{ a.label }}</b>
+              <span class="proto-file">{{ a.file }}</span>
+            </span>
+            <span class="proto-ext">↗</span>
+          </button>
+        </div>
+      </aside>
+    </div>
+
     <div v-if="bitacoraAbierta" class="drawer">
       <div class="drawer-bg" @click="bitacoraAbierta = false"></div>
       <aside class="drawer-p">
@@ -1010,6 +1049,18 @@ h1 { font-size: 20px; margin: 0; letter-spacing: .2px }
 .drawer-x { margin-left: auto; border: 0; background: none; color: var(--mut); font: inherit; font-size: 15px;
   cursor: pointer; padding: 0 2px; line-height: 1 }
 .drawer-x:hover { color: var(--txt) }
+/* una propuesta en el panel: el nombre del archivo abajo, que es lo que la identifica en disco */
+.proto-row { display: flex; align-items: center; gap: 12px; width: 100%; text-align: left; cursor: pointer;
+  background: none; border: 1px solid var(--line); border-radius: 9px; padding: 12px 14px; margin-bottom: 9px;
+  font: inherit; color: var(--txt) }
+.proto-row:hover { border-color: var(--acc); background: #ffffff08 }
+.proto-play { color: var(--acc); font-size: 12px }
+.proto-txt { flex: 1; min-width: 0 }
+.proto-txt b { display: block; font-size: 13.5px; font-weight: 600; text-transform: capitalize }
+.proto-file { display: block; font-size: 11px; color: var(--mut); font-family: ui-monospace, Menlo, monospace;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-top: 2px }
+.proto-ext { color: var(--mut); font-size: 12px }
+.proto-row:hover .proto-ext { color: var(--acc) }
 /* el cuerpo scrollea solo: el encabezado queda fijo y no se pierde de qué tarea es lo que se está leyendo */
 .drawer-b { flex: 1; overflow-y: auto; padding: 0 18px 18px }
 .drawer-b .empty { margin-top: 14px }

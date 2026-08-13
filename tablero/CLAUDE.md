@@ -23,10 +23,12 @@ Qué es y cómo se corre: `README.md`. Acá solo las reglas al trabajar con las 
 - `data/entries/*.jsonl` (bitácora de tiempo), `data/pulse/*.jsonl` (el pulso) y `data/cache/` están
   **fuera de git** a propósito (dato personal / snapshot descartable); los `.md` de tareas,
   `data/artifacts/*.html` y `settings.json` **sí** se versionan. No lo cambies.
-- **PROTOTIPOS: `data/artifacts/<slug>.html`**, con el mismo slug que el `.md` de la tarea. Si el
-  archivo existe, el tablero muestra el botón «▶ prototipo» en el grupo y lo abre desde el server
-  (`GET /artifacts/<slug>.html`). El vínculo es el **nombre**, no una entrada en el frontmatter: una
-  convención de nombre no se desincroniza, una lista escrita a mano sí. Tres reglas:
+- **PROTOTIPOS: `data/artifacts/<slug>.html`**, con el mismo slug que el `.md` de la tarea — y
+  `<slug>.<variante>.html` cuando hay **varias propuestas** para la misma tarea (la variante es la
+  etiqueta). La tarjeta de la tarea muestra entonces el botón **Prototipos**, al lado de Bitácora, que
+  abre un cajón con la lista; cada uno se sirve en `GET /artifacts/<archivo>`. El vínculo es el
+  **nombre**, no una entrada en el frontmatter: una convención de nombre no se desincroniza, una lista
+  escrita a mano sí. Tres reglas:
   1. **Un HTML autocontenido, sin build.** Si necesita `npm install`, no es un artefacto: es una
      carpeta del playground con su entrada en el `Makefile`.
   2. **Lleva la fecha visible adentro.** Un prototipo sin fecha se lee como estado actual; con fecha

@@ -311,9 +311,15 @@ sólo la clave de la tarea, o sea existía para guardar una lista.
 ### El prototipo de una tarea (`data/artifacts/`)
 
 Algunas tareas se aterrizan más rápido mostrando el flujo que describiéndolo. Para eso: un HTML
-autocontenido en `data/artifacts/<slug>.html`, **con el mismo slug** que el `.md` de la tarea. Si el
-archivo existe, la tarjeta del esfuerzo muestra un botón **▶ prototipo** que lo abre en una pestaña,
-servido por el propio server (`GET /artifacts/<slug>.html`).
+autocontenido en `data/artifacts/<slug>.html`, **con el mismo slug** que el `.md` de la tarea.
+
+Y una tarea suele tener **más de una propuesta** — otro actor, otro camino posible —, así que también
+vale `data/artifacts/<slug>.<variante>.html`: la variante es la etiqueta con que aparece. Verlas al
+lado es lo que permite decidir entre ellas.
+
+Si hay al menos uno, la tarjeta de la tarea muestra el botón **Prototipos** junto a Bitácora, que abre
+un cajón con la lista; cada uno se abre en una pestaña, servido por el propio server
+(`GET /artifacts/<archivo>`).
 
 No hay nada que declarar: el vínculo es el nombre del archivo. Una convención de nombre no se
 desincroniza; una lista en el frontmatter que hay que mantener a mano, sí.
