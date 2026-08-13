@@ -12,7 +12,19 @@ Todo aterriza en tres lugares: el **reporte crudo** en `risk_central_user_data.d
 - **Solo `data` cifra**: `additional_info`, `request` y todo `user_summaries` van **PLANOS**. Ágil Data escribe TODO en `additional_info` (sin cifrar), y los derivados de Experian (`negativeAccounts`, `maturationSince`) también. Un INSERT de JSON plano en `data` rompe el descifrado → gate **fail-closed**. Sin el **APP_KEY** correcto Laravel no descifra y el listado falla en silencio.
 - **`users.age` es COLUMNA real** (no accessor de `date_of_birth`): se calcula al capturar la persona (`PersonalInfoController.php:158`); es el gate de edad (Pullman).
 - **Caché 1 mes**: Experian/Mareigua/Ágil reusan `risk_central_user_data < 1 mes` sin reconsultar (`Experian.php:73`); una fila inyectada se reusa (borrar la fila para refrescar).
-- **`verifyCoincidence` (match de nombres) SIEMPRE true** en local/development.
+- **`verifyCoincidence` (match de nombres) SIEMPRE true** en local/development
+  (`MareiguaService.php:362` · `AgildataService.php:357` · `TusDatosService.php:458`). ⚠ Y la consecuencia
+  que no es obvia: **el único entorno donde se pueden inyectar fakes es el único donde la comparación
+  está apagada**, así que el match estricto de nombres **no se puede reproducir en local**. No es un
+  detalle de comodidad — es por lo que **F-132** vivió meses. Para probarlo hay que salir de
+  `local`/`development` (un test) o llegar a TusDatos por la rama CC, que decide por `match_code` de la
+  respuesta y **no** pasa por `verifyCoincidence`.
+- **La cascada de identidad es una COMPUERTA, no una FUENTE.** Ágil, Mareigua y TusDatos devuelven los
+  tres `'names' => $form_name` (`AgildataService.php:105` · `MareiguaService.php:127` ·
+  `TusDatosService.php:242`): **te devuelven lo que les mandaste**. Pueden **vetar** el nombre, nunca
+  completarlo ni corregirlo — ni siquiera cuando ellos tienen la versión correcta. ⚠ No asumas simetría
+  con el flujo viejo: `[application] PersonalInfoController.php:208-209` **sí** sobreescribía con el
+  `primer_nombre`/`segundo_nombre` de Mareigua. Ver § «El nombre».
 - **Local/dev MOCKEA el buró** (`ExperianFixture`, 212 KB) → score/`additional_info` sintéticos; no es el score real.
 - **DÓNDE se calculan los `EX_*`**: en la BD, no en PHP. Son **23 funciones `FN_Experian_*`** (`CC_Debt_Balance`, `CC_Vector_Overdue`, `Liabilities_*`, `Savings_Is_Seized`…) que envuelve `SP_Experian_Extract_Data`, invocado desde `ProfilerMLController.php:290`. Ninguna se llama desde PHP directamente y ninguna está indexada en este árbol — ver el nodo **db-routines**.
 - **ML sin responder** (no «muerto»): ~20 campos `EX_*` de Experian se calculan y **se tiran** — gran parte del reporte no decide nada hoy, pero el intento cuesta tiempo de respuesta y genera correos. La cadena exacta de perfiladores, el timeout y por qué NO «cae a matrices»: **→ `profiling` §orden del listado** (F-104).
@@ -36,7 +48,47 @@ documento, `passed` y un `reason` clasificado — `match` · `provider_no_data` 
 
 **Es SOLO monitoreo y nunca lanza**: un error al registrar no tumba la validación de identidad. O sea
 que **no decide nada** — no lo confundas con un filtro. Sirve para responder «¿por qué esta identidad
-no cuadró?» con datos en vez de suposiciones.
+no cuadró?» con datos en vez de suposiciones. ⚠ Sus filas de **tusdatos** guardan `user_request_id`
+NULL (`TusDatosService.php:197`): para cruzarlas con las de las otras centrales hay que empalmar por
+`user_id` + `entered_name`, no por solicitud.
+
+## El nombre
+
+**El modelo no tiene lugar para el nombre completo.** `users` solo tiene `first_name`, `surname` y
+`full_name` — no hay columnas de segundo nombre ni segundo apellido (verificado contra el esquema de
+prod). Todo consumidor que necesita las cuatro partes las **re-deriva partiendo por espacios**, y hay
+**cuatro partidores distintos con reglas distintas**: `TusDatosService::separateNames` (para verificar),
+`PayloadFormatters::splitGivenNames`/`splitSurname` (para los PDF de vinculación, el más cuidadoso:
+maneja partículas y no duplica), `DecevalSoap` (`Str::before`/`Str::after` — **duplica** el apellido
+único, **F-133**) y `[application] AgildataController::formatName`. Y **dos consumidores lo mandan sin
+partir**: `Credifamilia.php:205-206` (`primerNombre`/`primerApellido`) y
+`CredifamiliaConsumo/TransactionRequest.php:73-74` (`nombre`/`apellido`), o sea que la entidad recibe los
+dos apellidos dentro del campo del primero.
+
+**El orden de la cascada está invertido respecto de la autoridad.** La secuencia es Ágil → Mareigua →
+TusDatos y **corta en la primera que resuelve** (`OnboardingService::storePersonalInfo`). Pero el nombre
+de Ágil y Mareigua sale de la **planilla de seguridad social, o sea lo tecleó el empleador**, mientras
+que TusDatos valida contra Registraduría *(inferido de los comentarios del código y respaldado por su
+respuesta, que trae vigencia de cédula; **no** verificado contra el contrato del proveedor)*. Resultado:
+**la fuente registral es la última y condicional**, y quien decide de hecho es la de nómina.
+
+Tres mediciones sobre `kyc_name_checks` en prod (2026-07-23 → 2026-08-13, ~9.800 comparaciones) que
+sostienen la regla:
+
+- **3.843 personas** pasaron el nombre **solo** por nómina, sin llegar nunca a la registral (2.824 por
+  Ágil, 1.019 por Mareigua). No es el caso raro: es el camino habitual.
+- Cuando nómina marca el nombre, la registral **la contradice ~1 de cada 3 veces**: **207 personas**
+  fueron marcadas por Ágil o Mareigua y la registral avaló ese mismo nombre tecleado.
+- De los desacuerdos de nómina, **dos tercios son ortografía** (misma cantidad de palabras, la mitad de
+  esos con **un solo carácter** de diferencia — el clásico `RAMIRES`/`RAMIREZ`, `GONZALES`/`GONZALEZ`), y
+  el resto es **una parte del nombre que no se tecleó** (127 personas con 2 o 3 partes escritas y 4
+  reales). Los errores frecuentes son **sistemáticos**, así que «el asesor y la planilla se equivocaron
+  igual» es mucho más probable que el azar — y cuando coinciden, nadie más mira.
+
+**Consecuencia para cualquier tarea que toque el nombre:** no lo trates como verificado por el hecho de
+que la validación pasó. Y no uses el nombre de Ágil/Mareigua como veredicto de identidad: es un dato de
+rebote de un sistema hecho para ingreso y empleo. Descartar su versión está bien; **descartar el aviso de
+que hay discrepancia es lo que cuesta caro** — es exactamente lo que le faltó al caso de **F-132**.
 
 - **Ado** (rc_id 5) — validación **biométrica/liveness** (Jumio-like, `GET .../Validation/{id}` async, 18 códigos `mapAdoState`, `IdState` 1=ok / 17=cancelado). Valida identidad; **no aporta capacidad de pago ni gatea la oferta**. 0 filas.
 

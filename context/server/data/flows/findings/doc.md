@@ -30,8 +30,12 @@ orden de archivo — el ancla `### F-xx` es la única dirección.)
 | **«al comercio no le cuadra lo que recibe»** | F-128 |
 | **«la comisión del reporte salió en cero»** | F-129 |
 | **«un reporte por país trae datos absurdos»** | F-130 · F-131 |
+| **«se guardó el nombre mal / con un solo apellido, y nada avisó»** | **F-132** · F-133 |
+| **«Deceval rechaza por identidad» / el pagaré dice otra persona** | **F-133** · F-121 · F-122 |
 | F-130 | `countries.iso_code_2` guarda el código de TRES letras y `iso_code_3` está vacío | TRAMPA |
 | F-131 | La fila `countries.id=1` es «Afghanistan» y es el DEFAULT: 155 entidades y 215.844 usuarios apuntan ahí | TRAMPA |
+| F-132 | Un «no coincide» en el SEGUNDO nombre/apellido se descartaba como campo no enviado (`0 == null`) | TRAMPA |
+| F-133 | Con un solo apellido, el pagaré de Deceval lo registra dos veces (`Str::after` sin separador) | TRAMPA |
 | F-129 | La única comisión que el código calcula es una tabla de 40 tramos hardcodeada en un export, y da 0 fuera de rango | TRAMPA |
 | F-128 | «Lo que recibe el comercio» se calcula con dos bases distintas según la pantalla (38 % difieren) | TRAMPA |
 | F-127 | La calculadora «por comercio» escribe dos tablas GLOBALES del lender: se pisan entre comercios y a rt≠2 se las borra | TRAMPA |
@@ -1583,3 +1587,42 @@ en producción — el webhook no deja registro cuando `firstOrFail()` lanza, as�
   país del usuario ni de la entidad**; derivarlo del comercio.
 - **Estado:** vivo. ⚠ Y no confundir con las cifras de otra medición (186 / 364.527): esas son de otro
   ambiente. Las de arriba son de la copia local.
+
+### F-132 · Un «no coincide» de la central en el SEGUNDO nombre/apellido se descartaba como si el campo no se hubiera enviado
+
+- **Síntoma:** un cliente queda guardado con el segundo apellido mal escrito y **no hay ningún error**.
+  El crédito avanza, los documentos se firman con ese nombre y la entidad lo acepta. Desde soporte llega
+  como «se guardó un usuario solo con un nombre y con un apellido».
+- **Causa raíz (verificada 2026-08-13):** `TusDatosService.php:189` decide si un no-match cuenta como
+  error. La tolerancia es correcta y deliberada —un cliente puede **no tener** segundo nombre o segundo
+  apellido, y entonces el campo no se envía y TusDatos devuelve `match_code = null`— pero estaba escrita
+  con comparación laxa: `$matchCode == null`. En PHP **`0 == null` es `true`**, y `0` es el código de
+  TusDatos para **«no coincide»**. O sea que «está mal» se descartaba con el mismo silencio que «no lo
+  mandé». El `match` de `:182` es estricto y sí construye el mensaje «Segundo apellido no coincide»; el
+  `if` lo tira.
+- **Evidencia:** `SELECT` sobre `kyc_name_checks` en prod (4.874 chequeos de TusDatos desde 2026-07-23):
+  **198** validaciones pasaron con un no-coincide declarado — 87 de segundo apellido, 87 de segundo
+  nombre, 24 de segundo apellido sin segundo nombre. Caso testigo uReq 523201: `{first_name: 1,
+  middle_name: null, first_surname: 1, second_surname: 0}` y `passed = 1`.
+- **Arreglo:** `=== null`. ⏳ **PENDIENTE DE MERGE** — vive en `fix/kyc-second-surname-mismatch`
+  (`7f4c2903`), no en `main`.
+- **Estado:** vivo en `main`. ⚠ **El arreglo NO cierra el agujero**, solo tapa la fuga de la última
+  línea de defensa: TusDatos es el ÚLTIMO de la cascada y solo se consulta si Ágil y Mareigua fallan, así
+  que para la mayoría de los clientes ese aviso nunca se pide. Ver **kyc** § «El nombre».
+
+### F-133 · Con un solo apellido, el pagaré de Deceval lo registra DOS veces
+
+- **Síntoma:** el pagaré sale con el mismo apellido en primer y segundo apellido. Nadie lo ve hasta que
+  Deceval rechaza por conflicto de identidad (`SDL.DA.0439`), al final del embudo.
+- **Causa raíz (verificada 2026-08-13):** `Modules/Loans/App/Actions/DecevalSoap.php:283-284` parte el
+  apellido con `Str::before($user->surname, ' ')` y `Str::after($user->surname, ' ')`. En Laravel,
+  **`Str::after` devuelve la cadena COMPLETA si no encuentra el separador**, así que con
+  `surname = "LICONA"` salen `primerApellido_Nat = LICONA` **y** `segundoApellido_Nat = LICONA`.
+- **Evidencia:** comprobado contra el vendor del contenedor: `Str::after("LICONA", " ")` → `"LICONA"`.
+  De las 1.574 solicitudes de Credifamilia en estado 11, **37** tienen un solo nombre y un solo apellido.
+  Caso testigo uReq 519533: la traza confirma girador creado y pagaré firmado.
+- **Arreglo:** partir con `preg_split` y devolver `''` cuando no hay segundo apellido — el mismo criterio
+  que ya usa `PayloadFormatters::splitSurname` para los PDF de vinculación, que **sí** lo hace bien.
+  No aplicado.
+- **Estado:** vivo en `main`. Hay **cuatro** partidores de nombre distintos sobre las mismas dos
+  columnas; este es el único que duplica. Ver **kyc** § «El nombre».

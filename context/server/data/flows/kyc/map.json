@@ -4,16 +4,17 @@
   "group": "creditop",
   "kind": "reference",
   "when": "Cuando la tarea toca burós o datos de riesgo: score, Experian/Datacrédito, ingreso (Ágil Data, Mareigua, Quanto), identidad, AML, biometría, cifrado del reporte, o armar un usuario sintético para pruebas. Las tablas son `risk_centrals` (el catálogo) y `risk_central_user_data` (lo consultado, ⚠ indexado por `user_id` y NO por solicitud). Síntomas: «dice que los datos no coinciden» (`ONB005`, TusDatos), «no le consultaron el buró», y el AML de TusDatos con su caché de 1 mes.",
+  "verified": {
+    "ref": "main",
+    "date": "2026-08-13",
+    "source": "manual"
+  },
   "sintomas": [
     "«dice que los datos no coinciden» / falla la identidad",
     "«no le apareció ninguna entidad»",
-    "«no le consultaron el buró»"
+    "«no le consultaron el buró»",
+    "«se guardó el nombre mal / con un solo apellido» y nada avisó"
   ],
-  "verified": {
-    "ref": "main",
-    "date": "2026-07-31",
-    "source": "manual"
-  },
   "files": [
     "application/app/Actions/RiskCentrals/Ado.php",
     "application/app/Actions/RiskCentrals/Agildata.php",
@@ -48,6 +49,8 @@
     "legacy-backend/app/Services/Lenders/CredifamiliaV2/CrossCore/CrossCoreClient.php",
     "legacy-backend/app/Services/Lenders/CredifamiliaV2/CrossCore/JumioOnboardingService.php",
     "legacy-backend/app/Services/Lenders/CredifamiliaV2/Evidente/EvidenteClient.php",
-    "legacy-backend/database/migrations/2026_07_20_120000_create_kyc_name_checks_table.php"
+    "legacy-backend/database/migrations/2026_07_20_120000_create_kyc_name_checks_table.php",
+    "legacy-backend/Modules/Identity/App/Services/MareiguaService.php",
+    "legacy-backend/Modules/Identity/App/Services/AgildataService.php"
   ]
 }
