@@ -64,10 +64,20 @@
   .marca span{color:var(--tenue);font-weight:400}
   .etq{font-size:9.5px;color:var(--tenue);border:1px solid var(--line-fuerte);border-radius:4px;
     padding:1px 6px;letter-spacing:.06em}
-  header .der{margin-left:auto;display:flex;gap:6px}
+  header .der{margin-left:auto;display:flex;gap:6px;align-items:center}
   .ctl{background:none;color:var(--tenue);border:none;border-radius:6px;padding:5px 9px;
     font-size:12px;cursor:pointer;font-family:inherit}
   .ctl:hover{background:var(--hover);color:var(--ink)}
+
+  /* Control DEL BOCETO, no del producto: quién entra. Es lo que hace demostrable que la misma puerta
+     da dos experiencias distintas — y que quien no es de Tech ni se entera de que GitHub existe. */
+  .simular{display:flex;align-items:center;gap:1px;border:1px solid var(--line);border-radius:7px;
+    padding:2px;margin-right:6px}
+  .simular span{font-size:10px;color:var(--tenue);padding:0 7px 0 5px;letter-spacing:.03em}
+  .simular button{background:none;border:none;border-radius:5px;padding:4px 9px;font-size:11.5px;
+    color:var(--tenue);cursor:pointer;font-family:inherit}
+  .simular button:hover{color:var(--ink)}
+  .simular button[aria-pressed="true"]{background:var(--inv-bg);color:var(--inv-ink)}
 
   main{flex:1;display:grid;place-items:center;padding:24px 22px 72px}
   .caja{width:100%;max-width:392px}
@@ -122,9 +132,15 @@
   .tarjeta.trabada b{color:var(--tenue)}
   .tarjeta.trabada:hover{border-color:var(--line)}
 
-  .rotulo{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;
-    color:var(--tenue);margin:0 0 9px}
-  .rotulo + .grilla{margin-bottom:20px}
+  /* La salida del que dijo «ahora no»: una línea, no una tarjeta. Discreta pero presente — si
+     desaparece del todo, el desarrollador no vuelve a enterarse de que esas herramientas existen. */
+  .rescate{margin-top:18px;padding-top:15px;border-top:1px solid var(--line);
+    display:flex;align-items:center;gap:10px;font-size:12px;color:var(--tenue)}
+  .rescate .i{width:15px;height:15px}
+  .rescate button{margin-left:auto;background:none;border:1px solid var(--line-fuerte);
+    border-radius:7px;padding:5px 11px;font-size:12px;color:var(--ink);cursor:pointer;
+    font-family:inherit;white-space:nowrap}
+  .rescate button:hover{background:var(--hover)}
 
   .oculto{display:none}
 </style>
@@ -135,6 +151,11 @@
   <span class="marca">CreditOp <span>· herramientas</span></span>
   <span class="etq">BOCETO</span>
   <div class="der">
+    <div class="simular">
+      <span>entra</span>
+      <button id="s-comp" aria-pressed="true"  onclick="quienEntra('compania')">Compañía</button>
+      <button id="s-tech" aria-pressed="false" onclick="quienEntra('tech')">Tech</button>
+    </div>
     <button class="ctl" id="reiniciar" style="display:none">reiniciar</button>
     <button class="ctl" id="tema">tema</button>
   </div>
@@ -174,8 +195,27 @@
 
   const caja = document.getElementById('caja')
   const btnReiniciar = document.getElementById('reiniciar')
-  const chip = extra => `<div class="quien"><span class="av">MO</span>
-      <span class="txt mono">miguel@creditop.com${extra || ''}</span>${i('tic')}</div>`
+
+  /* QUIÉN ENTRA. En el producto esto NO se elige: sale del propio login de Google — el grupo de
+     Workspace (tech@creditop.com) viaja en el token. Acá es un botón solo para poder mostrar las dos
+     experiencias en la misma demo.
+
+     La regla que se está mostrando: si no sos de Tech, GitHub no existe para vos. Ni el paso 2, ni
+     tarjetas trabadas, ni un candado. No es esconder por seguridad —esas herramientas igual piden
+     sesión— es no ofrecerle a alguien de Cartera algo que no va a poder usar nunca. */
+  let PERSONA = 'compania'
+  function quienEntra(p){
+    PERSONA = p
+    document.getElementById('s-comp').setAttribute('aria-pressed', String(p === 'compania'))
+    document.getElementById('s-tech').setAttribute('aria-pressed', String(p === 'tech'))
+    puerta()
+  }
+  const esTech = () => PERSONA === 'tech'
+  const correo = () => esTech() ? 'miguel@creditop.com' : 'laura@creditop.com'
+  const iniciales = () => esTech() ? 'MO' : 'LG'
+
+  const chip = extra => `<div class="quien"><span class="av">${iniciales()}</span>
+      <span class="txt mono">${correo()}${extra || ''}</span>${i('tic')}</div>`
 
   /* ── 1 · la puerta ───────────────────────────────────────────────────────── */
   function puerta(){
@@ -186,7 +226,8 @@
       <h1>Herramientas internas</h1>
       <p class="sub">Una sola entrada para todas.</p>
       <div class="pila">
-        <button class="btn" onclick="sumar()">${GOOGLE} Continuar con Google</button>
+        <button class="btn" onclick="${esTech() ? 'sumar()' : 'dentro(false)'}">
+          ${GOOGLE} Continuar con Google</button>
       </div>
       <p class="pie">Con tu correo de la compañía.</p>`
   }
@@ -207,29 +248,26 @@
       <p class="pie">Se pide una sola vez. Solo lectura.</p>`
   }
 
-  /* ── 3 · las tarjetas ────────────────────────────────────────────────────── */
+  /* ── 3 · las tarjetas ─────────────────────────────────────────────────────
+     Solo lo que la persona PUEDE usar. Nada trabado, ningún candado: quien no es de Tech ve dos
+     tarjetas y se va a trabajar. El único que necesita una salida es el desarrollador que dijo
+     «ahora no», y la tiene abajo en una línea. */
   function dentro(vinculado){
     btnReiniciar.style.display = ''
     caja.className = 'caja ancha'
 
-    const tarjeta = h => {
-      const trabada = h.via === 'github' && !vinculado
-      return `<div class="tarjeta ${trabada ? 'trabada' : ''}">
-        ${trabada ? `<span class="esquina" title="requiere GitHub">${i('candado')}</span>` : ''}
-        ${i(h.ico)}<b>${h.n}</b><em>${h.d}</em></div>`
-    }
-    const abiertas = HERR.filter(h => h.via === 'google' || vinculado)
-    const trabadas = vinculado ? [] : HERR.filter(h => h.via === 'github')
+    const tarjeta = h => `<div class="tarjeta">${i(h.ico)}<b>${h.n}</b><em>${h.d}</em></div>`
+    const mias = HERR.filter(h => h.via === 'google' || vinculado)
+    const faltan = HERR.length - mias.length
 
     caja.innerHTML = `
       ${chip(vinculado ? ' · mig-creditop' : '')}
-      ${trabadas.length ? '<p class="rotulo">Habilitadas</p>' : ''}
-      <div class="grilla">${abiertas.map(tarjeta).join('')}</div>
-      ${trabadas.length ? `
-        <p class="rotulo">Requieren GitHub</p>
-        <div class="grilla">${trabadas.map(tarjeta).join('')}</div>
-        <div class="pila">
-          <button class="btn" onclick="dentro(true)">${i('github')} Vincular GitHub</button>
+      <div class="grilla">${mias.map(tarjeta).join('')}</div>
+      ${esTech() && !vinculado ? `
+        <div class="rescate">
+          ${i('github')}
+          <span>Sos del equipo de Tech: vinculá GitHub y sumás ${faltan} herramientas.</span>
+          <button onclick="dentro(true)">Vincular</button>
         </div>` : ''}`
   }
 
