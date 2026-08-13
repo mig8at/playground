@@ -521,6 +521,103 @@
     cursor: default
   }
 
+  /* el correo al dato ANTERIOR: otro canal, otra estética — no es un chat */
+  .mail {
+    margin-top: 18px;
+    border: 1px solid var(--line);
+    border-radius: 11px;
+    overflow: hidden;
+    background: var(--panel);
+    animation: drop .34s cubic-bezier(.2, .9, .3, 1.2)
+  }
+
+  .mail .top {
+    background: rgba(127, 127, 127, .07);
+    padding: 9px 15px;
+    font-size: 12px;
+    color: var(--page-soft);
+    border-bottom: 1px solid var(--line);
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    flex-wrap: wrap
+  }
+
+  .mail .top b {
+    color: var(--page-ink);
+    font-weight: 600
+  }
+
+  .mail .top .tag {
+    margin-left: auto;
+    font-size: 10.5px;
+    text-transform: uppercase;
+    letter-spacing: .06em;
+    background: rgba(127, 127, 127, .14);
+    padding: 2px 8px;
+    border-radius: 20px
+  }
+
+  .mail .body {
+    padding: 15px 18px;
+    font-size: 14px;
+    line-height: 1.55;
+    max-width: 640px
+  }
+
+  .mail .subj {
+    font-size: 15.5px;
+    font-weight: 600;
+    margin: 0 0 10px
+  }
+
+  .mail .kv {
+    display: block;
+    font-family: ui-monospace, Menlo, monospace;
+    font-size: 12.5px;
+    background: rgba(127, 127, 127, .09);
+    border-radius: 5px;
+    padding: 8px 10px;
+    margin: 10px 0;
+    white-space: pre-wrap
+  }
+
+  .mail .act {
+    margin: 14px 0 4px
+  }
+
+  .mail .act button {
+    font: inherit;
+    font-size: 13.5px;
+    font-weight: 600;
+    padding: 9px 16px;
+    border-radius: 7px;
+    border: 1px solid var(--bad);
+    background: transparent;
+    color: var(--bad);
+    cursor: pointer
+  }
+
+  .mail .act button:hover:not(:disabled) {
+    background: var(--bad);
+    color: var(--page)
+  }
+
+  .mail .act button:disabled {
+    opacity: .45;
+    cursor: default;
+    border-color: var(--line);
+    color: var(--page-soft)
+  }
+
+  .mail .foot {
+    font-size: 12px;
+    color: var(--page-soft);
+    border-top: 1px solid var(--line);
+    padding: 10px 18px;
+    background: rgba(127, 127, 127, .04)
+  }
+
   .panels {
     display: grid;
     grid-template-columns: 1fr 1fr;
@@ -788,6 +885,12 @@
     </div>
   </div>
 
+  <!-- TERCER CANAL. El aviso al dato ANTERIOR es el criterio central de la tarea, y es el único
+       que sigue funcionando si alguien tomó el teléfono del cliente: quien controla el WhatsApp
+       robado no controla el correo viejo. Va acá abajo y no como tercera columna porque no es una
+       conversación — es un aviso que llega una vez. -->
+  <div id="mail-slot"></div>
+
   <div class="panels">
     <div class="panel">
       <h2>Traza de APIs</h2>
@@ -938,7 +1041,18 @@
     },
     {
       id: "cel3", side: "a", from: "bot", text: "⏳ Solicitud enviada. Esperando respuesta del cliente…",
-      api: A.crear, audit: { campo: "cell_phone", ant: F.cli.cel, nue: F.cli.celNue, estado: "pendiente", cls: "wait", dest: T_CONTACTO }, wake: true
+      api: A.crear, audit: { campo: "cell_phone", ant: F.cli.cel, nue: F.cli.celNue, estado: "pendiente", cls: "wait", dest: T_CONTACTO }, wake: true,
+      mail: {
+        para: F.cli.mail,
+        asunto: "Solicitud de cambio de tu número de celular",
+        cuerpo: `<p>Hola María Fernanda,</p>
+          <p>Tu asesor <b>${F.asesor.nombre}</b> (${F.asesor.suc}) solicitó cambiar el celular
+          registrado en tu crédito.</p>
+          <span class="kv">Celular actual: ${F.cli.cel}\nNuevo:          ${F.cli.celNue}</span>
+          <p>Si reconoces la solicitud no tienes que hacer nada acá: apruébala desde WhatsApp.
+          <b>Si no fuiste tú, bloquéala desde este correo</b> — te avisamos por acá justamente
+          porque quien pidió el cambio no controla tu bandeja.</p>`
+      }
     },
     {
       id: "cel4", side: "b", from: "bot", text: `Hola <b>María Fernanda</b> 👋<br>Somos el canal oficial de CreditOp.<br><br>Tu asesor <b>${F.asesor.nombre}</b> (${F.asesor.suc}) solicita autorización para <b>cambiar tu número de celular</b>.<span class="badline">Si no reconoces esta solicitud, toca «No fui yo».</span>`,
@@ -973,7 +1087,17 @@
     },
     {
       id: "mail3", side: "a", from: "bot", text: "⏳ Solicitud enviada. Esperando respuesta del cliente…",
-      api: A.crear, audit: { campo: "email", ant: F.cli.mail, nue: F.cli.mailNue, estado: "pendiente", cls: "wait", dest: T_CONTACTO }, wake: true
+      api: A.crear, audit: { campo: "email", ant: F.cli.mail, nue: F.cli.mailNue, estado: "pendiente", cls: "wait", dest: T_CONTACTO }, wake: true,
+      mail: {
+        para: F.cli.mail,
+        asunto: "Solicitud de cambio de tu correo de contacto",
+        cuerpo: `<p>Hola María Fernanda,</p>
+          <p>Tu asesor <b>${F.asesor.nombre}</b> (${F.asesor.suc}) solicitó cambiar el correo
+          registrado en tu crédito.</p>
+          <span class="kv">Correo actual: ${F.cli.mail}\nNuevo:         ${F.cli.mailNue}</span>
+          <p><b>Este es el último aviso que recibirás en esta dirección.</b> Si el cambio se aplica,
+          los próximos irán al correo nuevo. Si no reconoces la solicitud, bloquéala desde acá.</p>`
+      }
     },
     {
       id: "mail4", side: "b", from: "bot", text: `Hola <b>María Fernanda</b> 👋<br>Tu asesor <b>${F.asesor.nombre}</b> solicita autorización para <b>cambiar tu correo</b>.<br><br>También te lo avisamos a <b>${F.cli.mail}</b>.<span class="badline">Si no reconoces esta solicitud, toca «No fui yo».</span>`,
@@ -1139,6 +1263,36 @@
   }
   const clearSms = () => { const o = $("#sms"); if (o) o.remove(); };
 
+  // Aviso al DATO ANTERIOR por correo. Es el único canal que sigue en manos del cliente si
+  // alguien le tomó el teléfono: quien controla el WhatsApp robado no controla el correo viejo.
+  // Por eso su «No fui yo» bloquea igual que el del chat.
+  function mailNotif(cfg) {
+    const s = $("#mail-slot");
+    s.innerHTML = `
+      <div class="mail">
+        <div class="top">
+          ✉️ <b>CreditOp</b> &lt;notificaciones@creditop.com&gt;
+          <span>· para <b>${cfg.para}</b></span>
+          <span class="tag">correo · dato anterior</span>
+        </div>
+        <div class="body">
+          <p class="subj">${cfg.asunto}</p>
+          ${cfg.cuerpo}
+          <div class="act"><button id="mail-no">🚫 No fui yo — bloquear el cambio</button></div>
+        </div>
+        <div class="foot">Este aviso se envió al correo que tienes registrado <b>hoy</b>, no al nuevo.
+          Si alguien más está gestionando tu cuenta, es acá donde te enteras.</div>
+      </div>`;
+    $("#mail-no").onclick = () => {
+      mailUsado();
+      bubble("b", "me", "🚫 No fui yo <i>(desde el correo)</i>");
+      ptr = idx["nofui"]; run();
+    };
+  }
+  // se agota cuando el cliente ya respondió por WhatsApp: un solo desenlace, no dos
+  const mailUsado = () => { const b = $("#mail-no"); if (b) b.disabled = true; };
+  const clearMail = () => { $("#mail-slot").innerHTML = ""; };
+
   function apiCall(a) {
     const ol = $("#trace"); if (ol.querySelector(".empty")) ol.innerHTML = "";
     const li = document.createElement("li");
@@ -1181,6 +1335,7 @@
   }
 
   function choose(b, side) {
+    if (side === "b") mailUsado();   // ya respondió por el chat: un solo desenlace
     bubble(side, "me", b.t);
     ptr = b.goto !== undefined ? idx[b.goto] : ptr + 1;
     run();
@@ -1199,6 +1354,7 @@
       if (s.audit) audit(s.audit);
       bubble(s.side, "bot", s.text, { buttons: s.buttons, list: s.list });
       if (s.sms) { await sleep(500); smsNotif(s.sms); }
+      if (s.mail) { await sleep(420); mailNotif(s.mail); }
 
       if (s.buttons && s.buttons.some(b => !b.dis)) {
         running = false;
@@ -1218,7 +1374,7 @@
   }
 
   function reset() {
-    ptr = 0; running = false; row = null; lastAudit = null; clearSms();
+    ptr = 0; running = false; row = null; lastAudit = null; clearSms(); clearMail();
     chats.a.innerHTML = ""; chats.b.innerHTML = "";
     $("#trace").innerHTML = '<li class="empty" style="border:none;background:none">Sin llamadas todavía.</li>';
     $("#audit").innerHTML = '<tr><td colspan="5" class="empty">Sin registros.</td></tr>';

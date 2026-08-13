@@ -303,9 +303,10 @@ antes de exponerlas a un canal nuevo.
 
 ## El prototipo
 
-`playground/sim-soporte/agente-soporte-simulacion.html` — dos ventanas estilo WhatsApp (asesor ·
-cliente) con el flujo completo, las 4 opciones, las dos salidas de rechazo y un toggle para ver el
-bloqueo por regla de negocio. Se levanta con la config `sim-soporte` de `.claude/launch.json` (:5299).
+`tablero/data/artifacts/agente-soporte-modificacion-datos.html` — se abre con el botón **▶ prototipo**
+del tablero. Dos ventanas estilo WhatsApp (asesor · cliente) más un **tercer canal**: el correo al
+dato anterior, con su propio «No fui yo». Cubre las 4 opciones del menú, las dos salidas de rechazo,
+el OTP por SMS como notificación fuera del hilo, y un toggle para ver el bloqueo por regla de negocio.
 
 Trae dos paneles que son, en la práctica, **la especificación**: la traza de APIs (naranja = por
 construir, verde = ya existe) y la fila de auditoría que quedaría.
@@ -337,7 +338,20 @@ construir, verde = ya existe) y la fila de auditoría que quedaría.
    `POST /api/v1/messages/send`, otro canal), pero falta ver si el `otp-service` sabe emitir por SMS
    o sólo hace WhatsApp — **eso decide si es configuración o desarrollo**. El repo no está clonado.
 3. **El aviso va siempre al dato ANTERIOR**, nunca sólo al nuevo. Es lo que permite detectar el
-   cambio no autorizado.
+   cambio no autorizado — y va **también por correo**, no sólo por WhatsApp.
+
+   El correo no es redundancia: es el **único canal que sigue en manos del cliente si alguien le tomó
+   el teléfono**. Quien controla un WhatsApp robado no controla la bandeja de entrada. Por eso su
+   «No fui yo» **bloquea igual** que el del chat — son dos vías al mismo desenlace, y basta una.
+
+   Los dos flujos de contacto lo mandan, con un matiz distinto:
+   - **cambio de celular** → el correo es un canal *independiente* del que se está cambiando;
+   - **cambio de correo** → el correo viejo es *literalmente* el dato anterior, y ese aviso es **el
+     último que esa dirección va a recibir**. Conviene decírselo en el mensaje.
+
+   Regla de implementación: en cuanto el cliente responde por **cualquiera** de los dos canales, el
+   otro se agota. Un solo desenlace por solicitud, no dos. (Aplicado en el prototipo: el botón del
+   correo queda inhabilitado al responder por WhatsApp, y viceversa.)
 4. **"No es tu cliente" y "no existe" responden idéntico.** Si difieren, el buscador se vuelve un
    oráculo de qué cédulas están en la base.
 5. **Dos tablas, no una.** Contacto → tabla nueva (nombre propuesto: `user_data_change_requests`).
