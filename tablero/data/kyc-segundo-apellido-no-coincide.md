@@ -8,9 +8,25 @@ jira: []
 jira_title: "La validación de identidad acepta un segundo apellido que la central reporta como incorrecto"
 ---
 
-ESTADO 2026-08-13: causa raíz **VERIFICADA** en producción (BD vía Redash + Loki) y **REPRODUCIDA en
-test**. Arreglo aplicado en rama local `fix/kyc-second-surname-mismatch` (desde `main` = `9a972697`,
-sin push). Los 6 stashes intactos. Para volver: `git checkout feature/pais-como-dato`.
+**ESTADO 2026-08-13 · EN PRUEBAS** — el arreglo está hecho, verificado en dos capas y **pusheado**;
+falta que alguien lo valide antes de mergear.
+
+> ⚠ `stage: work` porque el tablero sólo tiene tres estados (`evaluation` · `work` · `tasks`) y
+> ninguno es «pruebas». No se inventa un valor que la UI no sabe pintar ni el guard conoce: el estado
+> real va acá, en el cuerpo. Si «en pruebas» va a repetirse, el arreglo es agregar la etapa al tablero
+> (`src/App.vue` → `STAGES`), no meter un `stage` fantasma en el frontmatter.
+
+- **Rama:** `fix/kyc-second-surname-mismatch` en `legacy-backend`, commit `7f4c2903`, **pusheada a
+  `origin`** el 2026-08-13. **Sin PR** — se abre cuando pase la validación.
+- **Qué hay que probar:** que un cliente con segundo apellido mal escrito ya NO avance (ve el error en
+  el campo apellido y lo corrige), y que un cliente que legítimamente tiene **un solo** apellido siga
+  pasando sin fricción. Lo segundo es lo que hay que mirar con lupa: es el riesgo de este cambio.
+- **Cómo probarlo en un comando** (stack local, drivers de KYC en fake):
+  `cd playground/harness && node dev/kyc-apellido.ts` → exit 0 correcto · 1 defecto vivo · 2 no
+  concluyente.
+- Causa raíz **VERIFICADA** en producción (BD vía Redash + Loki) y **REPRODUCIDA** en test y por API.
+- `legacy-backend` quedó en esta rama; los 6 stashes intactos. Para volver a lo tuyo:
+  `git checkout feature/pais-como-dato`.
 
 **Pasos 2, 3 y 5 HECHOS.** Secuencia medida:
 

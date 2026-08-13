@@ -119,6 +119,13 @@ export const fakeScenarios = {
         nameMismatch: 'name-mismatch',
         documentNotFound: 'document-not-found',
         amlFindings: 'aml-findings',
+        /** SEGUNDO apellido «no coincide» (match_code 0) con el resto en coincidencia — el caso
+         *  de la uReq 523201. Distinto de `nameMismatch`, que pega en el PRIMER nombre/apellido:
+         *  la tolerancia de los campos SEGUNDOS es donde vivía el defecto. Ver dev/kyc-apellido.ts. */
+        secondSurnameMismatch: 'second-surname-mismatch',
+        /** Cliente de UN nombre y UN apellido, todo coincidente (campos segundos AUSENTES).
+         *  Es la red: esta persona debe seguir pasando. */
+        singleNameAndSurname: 'single-name-and-surname',
     },
     /** Driver Experian fake (riesgo/scoring). */
     experian: {
