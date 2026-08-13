@@ -160,18 +160,13 @@
     color: var(--page-soft)
   }
 
+  /* tres pantallas: asesor · cliente · su correo. auto-fit las colapsa solas al angostar */
   .phones {
     display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 18px;
+    grid-template-columns: repeat(auto-fit, minmax(330px, 1fr));
+    gap: 16px;
     align-items: start;
     margin-top: 18px
-  }
-
-  @media (max-width:840px) {
-    .phones {
-      grid-template-columns: 1fr
-    }
   }
 
   .phone {
@@ -522,101 +517,253 @@
   }
 
   /* el correo al dato ANTERIOR: otro canal, otra estética — no es un chat */
-  .mail {
-    margin-top: 18px;
-    border: 1px solid var(--line);
-    border-radius: 11px;
-    overflow: hidden;
+  /* TERCER CANAL — bandeja de la clienta. Estética de cliente de correo, no de chat:
+     que se lea como otro medio y no como una burbuja más. */
+  .phone.gmail {
     background: var(--panel);
-    animation: drop .34s cubic-bezier(.2, .9, .3, 1.2)
-  }
-
-  .mail .top {
-    background: rgba(127, 127, 127, .07);
-    padding: 9px 15px;
-    font-size: 12px;
-    color: var(--page-soft);
-    border-bottom: 1px solid var(--line);
     display: flex;
-    gap: 8px;
-    align-items: center;
-    flex-wrap: wrap
+    flex-direction: column
   }
 
-  .mail .top b {
-    color: var(--page-ink);
+  .gm-head {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 11px 13px;
+    border-bottom: 1px solid var(--line)
+  }
+
+  .gm-head .burger {
+    color: var(--page-soft);
+    font-size: 15px
+  }
+
+  .gm-search {
+    flex: 1;
+    background: rgba(127, 127, 127, .12);
+    border-radius: 20px;
+    padding: 7px 13px;
+    font-size: 13px;
+    color: var(--page-soft)
+  }
+
+  .gm-av {
+    width: 27px;
+    height: 27px;
+    border-radius: 50%;
+    background: #c2185b;
+    color: #fff;
+    font-size: 11px;
+    font-weight: 700;
+    display: grid;
+    place-items: center;
+    flex: 0 0 auto
+  }
+
+  .gm-body {
+    height: 428px;
+    overflow-y: auto
+  }
+
+  .gm-tabs {
+    display: flex;
+    border-top: 1px solid var(--line);
+    background: rgba(127, 127, 127, .05)
+  }
+
+  .gm-tabs span {
+    flex: 1;
+    text-align: center;
+    padding: 9px 0;
+    font-size: 12px;
+    color: var(--page-soft)
+  }
+
+  .gm-tabs .on {
+    color: var(--accent);
     font-weight: 600
   }
 
-  .mail .top .tag {
-    margin-left: auto;
-    font-size: 10.5px;
-    text-transform: uppercase;
-    letter-spacing: .06em;
-    background: rgba(127, 127, 127, .14);
-    padding: 2px 8px;
-    border-radius: 20px
+  /* una fila de la bandeja */
+  .gm-row {
+    display: flex;
+    gap: 11px;
+    padding: 11px 13px;
+    border-bottom: 1px solid var(--line);
+    cursor: default
   }
 
-  .mail .body {
-    padding: 15px 18px;
+  .gm-row.nuevo {
+    cursor: pointer;
+    animation: drop .34s cubic-bezier(.2, .9, .3, 1.2)
+  }
+
+  .gm-row.nuevo:hover {
+    background: rgba(127, 127, 127, .06)
+  }
+
+  .gm-ava {
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
     font-size: 14px;
+    font-weight: 700;
+    color: #fff;
+    flex: 0 0 auto
+  }
+
+  .gm-txt {
+    min-width: 0;
+    flex: 1
+  }
+
+  .gm-de {
+    display: flex;
+    gap: 8px;
+    font-size: 13.5px
+  }
+
+  .gm-de b {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-weight: 500
+  }
+
+  .gm-de .hora {
+    font-size: 11.5px;
+    color: var(--page-soft);
+    flex: 0 0 auto
+  }
+
+  .gm-asu,
+  .gm-pre {
+    font-size: 12.5px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap
+  }
+
+  .gm-asu {
+    color: var(--page-ink);
+    margin-top: 1px
+  }
+
+  .gm-pre {
+    color: var(--page-soft)
+  }
+
+  .gm-row.sinleer .gm-de b,
+  .gm-row.sinleer .gm-asu {
+    font-weight: 700
+  }
+
+  .gm-row.sinleer .gm-de .hora {
+    color: var(--accent);
+    font-weight: 700
+  }
+
+  /* el correo abierto */
+  .gm-open {
+    padding: 14px 15px;
+    font-size: 13.5px;
     line-height: 1.55;
-    max-width: 640px
+    animation: pop .2s ease-out
   }
 
-  .mail .subj {
-    font-size: 15.5px;
+  .gm-back {
+    background: none;
+    border: none;
+    font: inherit;
+    font-size: 12.5px;
+    color: var(--accent);
+    cursor: pointer;
+    padding: 0 0 10px
+  }
+
+  .gm-open .subj {
+    font-size: 15px;
     font-weight: 600;
-    margin: 0 0 10px
+    margin: 0 0 9px
   }
 
-  .mail .kv {
+  .gm-open .from {
+    display: flex;
+    gap: 9px;
+    align-items: center;
+    margin-bottom: 11px;
+    padding-bottom: 11px;
+    border-bottom: 1px solid var(--line)
+  }
+
+  .gm-open .from .gm-ava {
+    width: 30px;
+    height: 30px;
+    font-size: 12px
+  }
+
+  .gm-open .from .q {
+    font-size: 12px;
+    color: var(--page-soft);
+    line-height: 1.35
+  }
+
+  .gm-open .from .q b {
+    color: var(--page-ink);
+    font-size: 13px
+  }
+
+  .gm-open .kv {
     display: block;
     font-family: ui-monospace, Menlo, monospace;
-    font-size: 12.5px;
+    font-size: 11.5px;
     background: rgba(127, 127, 127, .09);
     border-radius: 5px;
-    padding: 8px 10px;
-    margin: 10px 0;
+    padding: 8px 9px;
+    margin: 9px 0;
     white-space: pre-wrap
   }
 
-  .mail .act {
-    margin: 14px 0 4px
+  .gm-open p {
+    margin: 8px 0
   }
 
-  .mail .act button {
+  .gm-open .act button {
     font: inherit;
-    font-size: 13.5px;
+    font-size: 13px;
     font-weight: 600;
-    padding: 9px 16px;
+    padding: 9px 14px;
     border-radius: 7px;
     border: 1px solid var(--bad);
     background: transparent;
     color: var(--bad);
-    cursor: pointer
+    cursor: pointer;
+    margin-top: 6px
   }
 
-  .mail .act button:hover:not(:disabled) {
+  .gm-open .act button:hover:not(:disabled) {
     background: var(--bad);
     color: var(--page)
   }
 
-  .mail .act button:disabled {
+  .gm-open .act button:disabled {
     opacity: .45;
     cursor: default;
     border-color: var(--line);
     color: var(--page-soft)
   }
 
-  .mail .foot {
-    font-size: 12px;
+  .gm-open .foot {
+    font-size: 11.5px;
     color: var(--page-soft);
     border-top: 1px solid var(--line);
-    padding: 10px 18px;
-    background: rgba(127, 127, 127, .04)
+    margin-top: 13px;
+    padding-top: 10px
   }
+
 
   .panels {
     display: grid;
@@ -883,13 +1030,21 @@
         <button class="send" id="snd-b" disabled>➤</button>
       </div>
     </div>
-  </div>
 
-  <!-- TERCER CANAL. El aviso al dato ANTERIOR es el criterio central de la tarea, y es el único
-       que sigue funcionando si alguien tomó el teléfono del cliente: quien controla el WhatsApp
-       robado no controla el correo viejo. Va acá abajo y no como tercera columna porque no es una
-       conversación — es un aviso que llega una vez. -->
-  <div id="mail-slot"></div>
+    <!-- TERCER CANAL: el correo de la clienta. El aviso al dato ANTERIOR es el criterio central de
+         la tarea, y es el único canal que sigue en manos del cliente si alguien le tomó el teléfono
+         — quien controla un WhatsApp robado no controla la bandeja. Por eso su «No fui yo» bloquea
+         igual que el del chat. -->
+    <div class="phone gmail">
+      <div class="gm-head">
+        <span class="burger">☰</span>
+        <span class="gm-search">Buscar en el correo</span>
+        <span class="gm-av">MF</span>
+      </div>
+      <div class="gm-body" id="inbox"></div>
+      <div class="gm-tabs"><span class="on">✉ Recibidos</span><span>🕘 Enviados</span></div>
+    </div>
+  </div>
 
   <div class="panels">
     <div class="panel">
@@ -1263,35 +1418,67 @@
   }
   const clearSms = () => { const o = $("#sms"); if (o) o.remove(); };
 
-  // Aviso al DATO ANTERIOR por correo. Es el único canal que sigue en manos del cliente si
-  // alguien le tomó el teléfono: quien controla el WhatsApp robado no controla el correo viejo.
-  // Por eso su «No fui yo» bloquea igual que el del chat.
-  function mailNotif(cfg) {
-    const s = $("#mail-slot");
-    s.innerHTML = `
-      <div class="mail">
-        <div class="top">
-          ✉️ <b>CreditOp</b> &lt;notificaciones@creditop.com&gt;
-          <span>· para <b>${cfg.para}</b></span>
-          <span class="tag">correo · dato anterior</span>
+  // TERCER CANAL — la bandeja de la clienta. El aviso al DATO ANTERIOR es el único que sigue en
+  // sus manos si alguien le tomó el teléfono: quien controla un WhatsApp robado no controla el
+  // correo viejo. Por eso su «No fui yo» bloquea igual que el del chat.
+  const RELLENO = [
+    { de: "Alkosto", ini: "A", col: "#1a73e8", asu: "Gracias por tu compra", pre: "Tu factura electrónica ya está disponible", hora: "1:04 p.m." },
+    { de: "Nequi", ini: "N", col: "#8e24aa", asu: "Comprobante de pago", pre: "Registramos tu pago del 11 de agosto por", hora: "9:31 a.m." },
+    { de: "Laura Restrepo", ini: "L", col: "#00897b", asu: "Fotos del sábado", pre: "Te mando las que salieron mejor, avisame si", hora: "ayer" },
+  ];
+  const filaHTML = (m, cls = "") => `
+    <div class="gm-row ${cls}">
+      <div class="gm-ava" style="background:${m.col}">${m.ini}</div>
+      <div class="gm-txt">
+        <div class="gm-de"><b>${m.de}</b><span class="hora">${m.hora}</span></div>
+        <div class="gm-asu">${m.asu}</div>
+        <div class="gm-pre">${m.pre}</div>
+      </div>
+    </div>`;
+
+  let mailCfg = null;             // el correo de CreditOp, si ya llegó
+  const pintarInbox = () => {
+    const box = $("#inbox");
+    box.innerHTML = (mailCfg ? filaHTML({
+      de: "CreditOp", ini: "C", col: "#0a5c4a", asu: mailCfg.asunto,
+      pre: "Tu asesor solicitó un cambio en tus datos", hora: "3:12 p.m."
+    }, "nuevo sinleer") : "") + RELLENO.map(m => filaHTML(m)).join("");
+    const fila = box.querySelector(".gm-row.nuevo");
+    if (fila) fila.onclick = abrirMail;
+    box.scrollTop = 0;
+  };
+
+  function abrirMail() {
+    $("#inbox").innerHTML = `
+      <div class="gm-open">
+        <button class="gm-back">← Recibidos</button>
+        <p class="subj">${mailCfg.asunto}</p>
+        <div class="from">
+          <div class="gm-ava" style="background:#0a5c4a">C</div>
+          <div class="q"><b>CreditOp</b><br>notificaciones@creditop.com · para ${mailCfg.para}</div>
         </div>
-        <div class="body">
-          <p class="subj">${cfg.asunto}</p>
-          ${cfg.cuerpo}
-          <div class="act"><button id="mail-no">🚫 No fui yo — bloquear el cambio</button></div>
-        </div>
-        <div class="foot">Este aviso se envió al correo que tienes registrado <b>hoy</b>, no al nuevo.
+        ${mailCfg.cuerpo}
+        <div class="act"><button id="mail-no" ${mailCfg.usado ? "disabled" : ""}>🚫 No fui yo — bloquear</button></div>
+        <div class="foot">Este aviso llegó al correo que tienes registrado <b>hoy</b>, no al nuevo.
           Si alguien más está gestionando tu cuenta, es acá donde te enteras.</div>
       </div>`;
+    $(".gm-back").onclick = pintarInbox;
     $("#mail-no").onclick = () => {
-      mailUsado();
+      mailCfg.usado = true;
+      $("#mail-no").disabled = true;
       bubble("b", "me", "🚫 No fui yo <i>(desde el correo)</i>");
       ptr = idx["nofui"]; run();
     };
   }
-  // se agota cuando el cliente ya respondió por WhatsApp: un solo desenlace, no dos
-  const mailUsado = () => { const b = $("#mail-no"); if (b) b.disabled = true; };
-  const clearMail = () => { $("#mail-slot").innerHTML = ""; };
+
+  const mailNotif = cfg => { mailCfg = { ...cfg, usado: false }; pintarInbox(); };
+  // se agota cuando la clienta ya respondió por WhatsApp: un solo desenlace, no dos
+  const mailUsado = () => {
+    if (!mailCfg) return;
+    mailCfg.usado = true;
+    const b = $("#mail-no"); if (b) b.disabled = true;
+  };
+  const clearMail = () => { mailCfg = null; pintarInbox(); };
 
   function apiCall(a) {
     const ol = $("#trace"); if (ol.querySelector(".empty")) ol.innerHTML = "";
