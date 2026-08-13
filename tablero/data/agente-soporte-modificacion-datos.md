@@ -428,15 +428,29 @@ construir, verde = ya existe) y la fila de auditoría que quedaría.
 
 Inventario sacado de las trazas de los dos prototipos, que se armaron justamente para esto.
 
-### Ya existen y se usan tal cual — 3
+### Ya existen y se usan tal cual — 3 ✅ **ejercitadas contra datos reales 2026-08-13**
 
 Las tres del crédito, y sirven **igual para los dos actores**: no hay que tocarlas.
 
-| | qué da |
-|---|---|
-| `GET /credits/{id}/can-change` | si el crédito admite cambios (6 meses, pago pendiente, `externally_serviced`) |
-| `GET /credits/{id}/payment-date-options` | las 2 próximas fechas de los ciclos 5/16/28 |
-| `GET /credits/{id}/fee-number-options` | los plazos válidos con su cuota |
+| | qué da | verificado |
+|---|---|---|
+| `GET /credits/{id}/can-change` | si el crédito admite cambios | ✅ `true` en créditos activos sin pago pendiente |
+| `GET /credits/{id}/payment-date-options` | las 2 próximas fechas de los ciclos 5/16/28 | ✅ «28 de enero \| 5 de febrero» |
+| `GET /credits/{id}/fee-number-options` | los plazos válidos con su cuota | ⚠ funciona, **pero puede devolver lista vacía** |
+
+⚠ **Un estado que el prototipo no contempla: elegible PERO sin opciones.** El crédito `126135`
+responde `can_change = true` y **cero plazos**. No es un bug: su línea de crédito ofrece `3,6,9`,
+lleva 3 cuotas pagadas (deja `6,9`) y su **categoría** tiene `max_fee_number = 3`, que descarta las
+dos. Son **dos preguntas distintas** y hay que hacer las dos: que el crédito admita cambios no
+garantiza que haya a qué cambiarse.
+
+**El bot tiene que manejarlo** — hoy ofrecería un menú vacío. Y el mensaje no puede ser «no se puede»
+a secas, porque para la *fecha* sí se puede: es sólo el plazo el que no tiene alternativas.
+
+**Cómo se verificó** (por si hay que repetirlo): créditos con `creditop_x_requests_history.status IN
+(1,8)` — ése es el filtro de «activo» de `getActiveByUserRequest`, y ojo que **211.572 de 214.777
+filas tienen `status = 0`**, así que la mayoría de la tabla no sirve para probar. Usados: `126135`
+(el del caso raro), `352432` y `352520`.
 
 ### Existen pero hay que MODIFICARLAS — 2
 
@@ -570,6 +584,9 @@ cambio más chico de los 16 — un parámetro y una escritura.
 - **Rate limit y timeout**: 3 reenvíos de OTP, cooldown de 5 min, sesión de 10 min. Hoy sólo existe
   `OtpService::canSendOtp($user, $cooldownMinutes = 2)` en legacy, y el `otp-service` real de
   producción **no está clonado** — no se pudo verificar qué límites tiene.
+- **¿Qué dice el bot si el crédito es elegible pero no hay plazos disponibles?** Pasa de verdad (ver
+  §«Las APIs a entregar»): la categoría del cliente puede descartar todas las opciones. Ofrecer un
+  menú vacío no sirve, y decir «no se puede» tampoco, porque la *fecha* sí se puede cambiar.
 - **Clientes eliminados** (derecho al olvido / fraude): responder idéntico a "no encontrado".
   Requiere definición de Legal/Compliance sobre qué categorías aplican.
 - **El OTP del asesor le llega al mismo teléfono** donde tiene WhatsApp. El segundo factor se
@@ -582,6 +599,24 @@ cambio más chico de los 16 — un parámetro y una escritura.
 - **¿El OTP se queda en WhatsApp o pasa a SMS?** Hoy va por WhatsApp (§Decisiones tomadas, punto 2).
   Cambiarlo depende de si el `otp-service` sabe emitir por SMS — el repo no está clonado, así que no
   se sabe si es configuración o desarrollo.
+
+## Cómo se valida esto — y el estado de los tests
+
+**⚠ La suite de módulos de `legacy-backend` está rota en `main`** (medido 2026-08-13, antes de tocar
+nada): **284 tests fallan** contra 387 que pasan. Las causas son deuda acumulada, no del entorno —
+**96 «Too few arguments»** (constructores que cambiaron y los tests quedaron viejos) más 14 de
+columnas o tablas que ya no existen.
+
+Consecuencia práctica: **«la suite pasa» no sirve como criterio de cierre**. Los tests de este módulo
+hay que correrlos aislados por path, y conviene decirlo en la PR para que nadie los mezcle con el
+ruido de fondo.
+
+**El harness NO es la herramienta acá.** Es Playwright sobre el wizard, pensado para UI; estos son
+endpoints REST y sus pruebas viven mejor en el repo, junto al código y corriendo en CI.
+
+**Lo ya verificado a mano** contra la copia local: las 3 APIs de consulta responden correctamente
+(ver §«Las APIs a entregar»), y `GET /support/self/by-phone` en sus tres casos — cliente real 200,
+placeholder 404, sin parámetro 422.
 
 ## Deuda aparte (no es de esta tarea, pero se encontró acá)
 
