@@ -23,34 +23,17 @@ import (
 
 	"creditop/tablero/server/internal/atlassian"
 	"creditop/tablero/server/internal/env"
+	"creditop/tablero/server/internal/guard"
 	"creditop/tablero/server/internal/pulso"
 	"creditop/tablero/server/internal/slack"
 	"creditop/tablero/server/internal/store"
 )
 
 // ── guard: lo que se registra termina en Jira, y no puede filtrar el playground ─────────────────
-// FUENTE ÚNICA de los patrones prohibidos. La UI los pide por /api/guard (para bloquear el botón con
-// feedback inmediato) y el POST los re-aplica antes del INSERT (para que nada sucio entre a la base
-// aunque el cliente se lo salte). Dos copias —una en JS, otra acá— ya habrían derivado.
-// Sintaxis compatible RE2 (Go) y JS a la vez: nada de lookbehind ni named groups.
-// `what` (el motivo) es texto para mostrar en la UI → va en español; el resto son identificadores.
-var forbidden = []struct {
-	Re   string `json:"re"`
-	What string `json:"what"`
-}{
-	{`\bF-\d+\b`, "referencia a un hallazgo interno"},
-	{`playground`, "menciona el playground"},
-	{`harness|backend-e2e|legacy-backend|frontend-monorepo|creditop-woocommerce`, "nombra un repo interno"},
-	{`[\w/-]+\.(ts|tsx|php|go|vue|json|mjs)\b`, "incluye una ruta de archivo"},
-}
-
-var forbiddenRe = func() []*regexp.Regexp {
-	out := make([]*regexp.Regexp, len(forbidden))
-	for i, p := range forbidden {
-		out[i] = regexp.MustCompile(`(?i)` + p.Re)
-	}
-	return out
-}()
+// Los patrones se movieron a `internal/guard` para que sigan siendo UNA sola fuente ahora que
+// también los necesita `cmd/issue-create` (publicar por consola sin el guard sería un agujero en el
+// control, y copiarlos acá era la tercera copia que este comentario venía advirtiendo).
+// La UI los sigue pidiendo por `/api/guard` y el POST los sigue re-aplicando antes de escribir.
 
 // issueKeyRe valida una clave de issue antes de interpolarla en un JQL o en una URL de Jira.
 var issueKeyRe = regexp.MustCompile(`^[A-Z][A-Z0-9]+-\d+$`)
@@ -154,16 +137,9 @@ func cuerpoImportado(d atlassian.IssueDetail, hoy string) string {
 	return b.String()
 }
 
-// violations devuelve qué reglas rompe una nota (vacío = publicable).
-func violations(note string) []map[string]string {
-	var out []map[string]string
-	for i, re := range forbiddenRe {
-		if m := re.FindString(note); m != "" {
-			out = append(out, map[string]string{"what": forbidden[i].What, "found": m})
-		}
-	}
-	return out
-}
+// violations devuelve qué reglas rompe una nota (vacío = publicable). Delega en `internal/guard`,
+// que es la fuente única compartida con `cmd/issue-create`.
+func violations(note string) []map[string]string { return guard.Violations(note) }
 
 type app struct {
 	slack       *slack.Client     // bot token (xoxb-): mensajes "como CrediBot"
@@ -306,7 +282,7 @@ func main() {
 	// DELETE /api/entries/{id}            → borrado suave
 	mux.HandleFunc("/api/guard", func(w http.ResponseWriter, _ *http.Request) {
 		cors(w)
-		json.NewEncoder(w).Encode(map[string]any{"patterns": forbidden})
+		json.NewEncoder(w).Encode(map[string]any{"patterns": guard.Patterns})
 	})
 
 	// GET  /api/settings → flags del tablero (trackTime, trackPoints); PUT actualiza los que vengan

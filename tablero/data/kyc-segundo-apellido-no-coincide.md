@@ -4,12 +4,14 @@ title: "KYC: el «no coincide» del segundo apellido se traga — `0 == null` en
 stage: work
 created: "2026-08-13T09:16:27-05:00"
 context_nodes: [kyc, credifamilia, deceval]
-jira: []
+jira: [CORE-420]
 jira_title: "La validación de identidad acepta un segundo apellido que la central reporta como incorrecto"
 ---
 
 **ESTADO 2026-08-13 · EN PRUEBAS** — el arreglo está hecho, verificado en dos capas y **pusheado**;
 falta que alguien lo valide antes de mergear.
+
+**Jira: [CORE-420]** · CORE Sprint 11 · 3 puntos · estado «🧪 En pruebas».
 
 > ⚠ `stage: work` porque el tablero sólo tiene tres estados (`evaluation` · `work` · `tasks`) y
 > ninguno es «pruebas». No se inventa un valor que la UI no sabe pintar ni el guard conoce: el estado

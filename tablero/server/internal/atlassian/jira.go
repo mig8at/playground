@@ -188,7 +188,15 @@ type CreateIssueParams struct {
 	IssueTypeID string // id del tipo, ej "10005" (gana sobre IssueType; evita ambigüedad por nombres duplicados)
 	AssigneeID  string // accountId (opcional)
 	Description string // texto plano (opcional; se convierte a ADF)
+	// Points setea Story Points si no es nil. Se manda EN LA CREACIÓN y no en un PUT aparte para que
+	// la tarjeta no exista ni un instante sin estimación. ⚠ El id del campo es por instancia: acá es
+	// el mismo `customfield_10036` que lee `MySprintIssues` en agile.go — si cambia, cambia en los dos.
+	Points *float64
 }
+
+// StoryPointsField es el campo de Story Points de ESTA instancia de Jira (proyecto CORE).
+// Vive acá para que la escritura y la lectura (`agile.go`) no puedan desincronizarse en silencio.
+const StoryPointsField = "customfield_10036"
 
 // CreatedIssue es la respuesta de crear un issue.
 type CreatedIssue struct {
@@ -350,6 +358,9 @@ func (c *Client) CreateIssue(ctx context.Context, p CreateIssueParams) (*Created
 	}
 	if p.Description != "" {
 		fields["description"] = mdToADF(p.Description)
+	}
+	if p.Points != nil {
+		fields[StoryPointsField] = *p.Points
 	}
 
 	var out CreatedIssue
