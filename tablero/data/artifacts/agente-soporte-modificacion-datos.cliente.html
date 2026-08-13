@@ -1047,26 +1047,6 @@
   .lado .panel {
     margin: 0
   }
-
-  /* lo que el bot ENTENDIÓ de un mensaje libre: se muestra aparte para no mezclarlo con el chat */
-  .nlu {
-    align-self: flex-start;
-    max-width: 85%;
-    font-size: 11.5px;
-    color: #5f6368;
-    background: rgba(0, 0, 0, .04);
-    border-left: 2px solid #8696a0;
-    border-radius: 0 6px 6px 0;
-    padding: 5px 9px;
-    margin: -2px 0 2px;
-    font-family: ui-monospace, Menlo, monospace;
-    animation: pop .18s ease-out
-  }
-
-  .nlu b {
-    color: #111b21;
-    font-weight: 600
-  }
 </style>
 
 <div class="wrap">
@@ -1181,7 +1161,7 @@
     },
     {
       id: "s2", side: "a", from: "bot",
-      nlu: 'intención: cambio_fecha_pago · confianza 0.94 → enruta a un flujo FIJO, no improvisa',
+      api: { m: "POST", p: "/api/support/nlu/interpretar", n: "Traduce lo que la clienta escribió a una de las intenciones que el bot sabe atender. Sólo ENRUTA a un flujo fijo — no redacta la respuesta: un asistente conversacional abierto está prohibido en la plataforma desde enero de 2026", nuevo: 1 },
       text: `Entiendo, quieres <b>cambiar la fecha de pago</b> de tu crédito.<br><br>Antes necesito confirmar que eres tú. ¿Me confirmas tu número de cédula?`,
       input: { value: "1032456789", ph: "Número de cédula" }
     },
@@ -1288,14 +1268,6 @@
     chats[side].appendChild(el); chats[side].scrollTop = chats[side].scrollHeight;
   }
 
-  // lo que el bot ENTENDIÓ. Se muestra aparte del chat porque no es un mensaje: es la interpretación
-  // que permite enrutar a un flujo fijo sin ser un asistente conversacional (prohibido por Meta).
-  function verNLU(txt) {
-    const el = document.createElement("div");
-    el.className = "nlu"; el.innerHTML = `<b>NLU</b> · ${txt}`;
-    chats.a.appendChild(el); chats.a.scrollTop = chats.a.scrollHeight;
-  }
-
   async function typing(side, ms) {
     const t = document.createElement("div"); t.className = "typing"; t.innerHTML = "<i></i><i></i><i></i>";
     chats[side].appendChild(t); chats[side].scrollTop = chats[side].scrollHeight;
@@ -1360,7 +1332,6 @@
       if (s.api) apiCall(s.api);
       if (s.api2) apiCall(s.api2);
       if (s.audit) audit(s.audit);
-      if (s.nlu) verNLU(s.nlu);
       bubble(s.side, "bot", s.text, { buttons: s.buttons, list: s.list });
 
       if (s.buttons && s.buttons.some(b => !b.dis)) {
