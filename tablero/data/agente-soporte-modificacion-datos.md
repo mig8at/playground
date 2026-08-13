@@ -339,6 +339,25 @@ enero de 2026 (ver §«Por qué no una librería no oficial»). El prototipo mue
 debajo de cada mensaje libre, para que la diferencia quede visible: **interpretar la intención, sí;
 improvisar la respuesta, no.**
 
+### Reparto del trabajo: la conversación es de Filipo (n8n)
+
+**Filipo arma la capa conversacional en n8n** — entender lo que escribe el cliente y redactar las
+respuestas. Eso reabre parcialmente la discusión de §«Arquitectura del canal», y en este reparto n8n
+sí encaja: no lleva la lógica de negocio ni los permisos, sólo la conversación.
+
+⚠ **Con una condición, que es donde esto se puede torcer: el ESTADO de la sesión no vive en n8n.**
+Cada mensaje entrante es un webhook independiente, y en algún lado hay que recordar en qué punto va
+la conversación —si ya se identificó, qué eligió, cuántos intentos lleva—. Si eso queda en n8n:
+
+- no es auditable (la evidencia de quién autorizó qué tiene que estar en la BD, no en un workflow);
+- no sobrevive a un reinicio ni a un despliegue de n8n;
+- y los límites de intentos se vuelven falsificables desde afuera.
+
+**Entonces**: n8n manda el mensaje al backend, el backend responde *qué sigue*, y n8n lo redacta y lo
+envía. El backend es dueño del estado y de la decisión; n8n, de la forma. Así la capa conversacional
+se puede rehacer sin tocar la seguridad, que es justo lo que se quiere si las respuestas van a
+iterarse mucho.
+
 ## Los prototipos
 
 Dos propuestas, cada una con su botón en el tablero: **`▶ asesor`** y **`▶ cliente`**.

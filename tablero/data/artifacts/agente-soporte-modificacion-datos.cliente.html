@@ -1187,7 +1187,7 @@
     },
     {
       id: "s3", side: "a", from: "bot",
-      text: `Gracias. Ahora dime la <b>fecha de expedición</b> de tu cédula, como aparece en el documento.`,
+      text: `Gracias. Ahora dime la <b>fecha de expedición</b> de tu cédula.<br><br>Escríbela con <b>día/mes/año</b>, por ejemplo <b>14/03/2011</b>. La encuentras en la parte de atrás del documento.`,
       input: { value: "14/03/2011", ph: "DD/MM/AAAA" },
       next: () => $("#fallo").checked ? "malos" : "s4"
     },
