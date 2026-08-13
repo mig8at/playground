@@ -600,6 +600,36 @@ cambio más chico de los 16 — un parámetro y una escritura.
   Cambiarlo depende de si el `otp-service` sabe emitir por SMS — el repo no está clonado, así que no
   se sabe si es configuración o desarrollo.
 
+## Las tablas: qué existe y qué hay que crear
+
+Verificado contra la copia local el 2026-08-13.
+
+| tabla | ¿existe? | para qué |
+|---|---|---|
+| `creditop_x_changes_log` | ✅ **sí** | condiciones del crédito (fecha, plazo) |
+| `user_data_change_requests` | ❌ **hay que crearla** | datos de contacto, con su ciclo de autorización |
+| sesiones del bot | ❌ **hay que crearla** | en qué punto va cada conversación |
+
+**Para las condiciones del crédito NO hace falta migración.** `creditop_x_changes_log` ya tiene la
+columna `otp_id` como `bigint unsigned NOT NULL` — pasar el id real en vez de `0` es un cambio de
+código, no de esquema. Es la parte más barata de toda la tarea.
+
+**Las dos que faltan:**
+
+1. **Sesiones del bot.** Es la que sostiene todo lo demás: cada mensaje entrante es un webhook
+   independiente y sin esto no hay forma de saber en qué punto va la conversación. Necesita al menos
+   `wa_id`, a quién resolvió, el estado, el contexto y cuándo expira. Va con prefijo propio
+   (`support_bot_*`) por la frontera limpia que se acordó.
+   ⚠ Acá vive también el **enrolamiento** del número del asesor — si es la misma tabla o una aparte
+   está sin decidir: la sesión es efímera y el enrolamiento permanente, así que probablemente sean
+   dos.
+2. **`user_data_change_requests`.** La solicitud de cambio de contacto con su ciclo
+   (`pendiente_autorizacion → autorizada → aplicada | rechazada | bloqueada`). Sólo la necesita el
+   flujo del **asesor**: en autogestión no hay tercero que autorice, y los datos de contacto están
+   fuera de ese alcance.
+
+**Nada de esto está escrito todavía** — lo hecho hasta hoy sólo lee.
+
 ## Cómo se valida esto — y el estado de los tests
 
 **⚠ La suite de módulos de `legacy-backend` está rota en `main`** (medido 2026-08-13, antes de tocar
@@ -614,9 +644,19 @@ ruido de fondo.
 **El harness NO es la herramienta acá.** Es Playwright sobre el wizard, pensado para UI; estos son
 endpoints REST y sus pruebas viven mejor en el repo, junto al código y corriendo en CI.
 
-**Lo ya verificado a mano** contra la copia local: las 3 APIs de consulta responden correctamente
-(ver §«Las APIs a entregar»), y `GET /support/self/by-phone` en sus tres casos — cliente real 200,
-placeholder 404, sin parámetro 422.
+**Lo ya verificado** contra la copia local:
+
+- Las **3 APIs de consulta** responden correctamente (ver §«Las APIs a entregar»).
+- **12 tests del módulo pasan** (`Modules/SupportBot/Tests`), en 2 segundos.
+- **Ejercitado con un asesor y clientes reales de la base**, que es distinto de los tests porque usa
+  la forma real de los datos: asesor **1073** (comercio 48, AHL) contra un cliente suyo, uno de otro
+  comercio y un documento inventado. Los cuatro casos correctos, **incluido el que importa: el
+  cliente de otro comercio no aparece**. El mismo cliente se resuelve por las dos vías —documento
+  (asesor) y celular (autogestión)—, y el documento sale enmascarado (`1037****684`).
+
+⚠ Los tests pasan **en local**. En CI fallarían como los otros 273 mientras las migraciones sigan
+rotas: el esquema de la base de tests es hoy un paso manual, y el comando quedó escrito en el propio
+test.
 
 ## Deuda aparte (no es de esta tarea, pero se encontró acá)
 
