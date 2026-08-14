@@ -68,29 +68,60 @@
   .marca span{color:var(--tenue);font-weight:400}
   .etq{font-size:9.5px;color:var(--tenue);border:1px solid var(--line-fuerte);border-radius:4px;
     padding:1px 6px;letter-spacing:.06em}
+  /* La fecha va VISIBLE y en toda captura: un prototipo sin fecha se lee como el estado actual, y con
+     fecha se lee como lo que es — lo que se acordó ese día. */
+  .fecha{font-size:10.5px;color:var(--tenue)}
   header .der{margin-left:auto;display:flex;align-items:center;gap:8px}
 
-  .sesion{display:flex;align-items:center;gap:8px;padding:4px 11px 4px 5px;border:1px solid var(--line);
-    border-radius:99px;background:var(--panel-2);max-width:340px}
+  /* ── la cuenta ────────────────────────────────────────────────────────────
+     El gesto está tomado del menú de perfil del navegador: el avatar arriba a la derecha, y adentro
+     las identidades con la opción de sumar una. Es donde la gente ya busca lo de su cuenta.
+     Lo que NO se copia es la palabra «perfil»: en el navegador los perfiles son excluyentes —estás en
+     uno— y acá las dos identidades SE SUMAN. Llamarlas perfiles prometería cambiar de contexto. */
+  .cuenta{position:relative}
+  .sesion{display:flex;align-items:center;gap:8px;padding:4px 9px 4px 5px;border:1px solid var(--line);
+    border-radius:99px;background:var(--panel-2);max-width:340px;cursor:pointer;font-family:inherit;
+    transition:border-color .15s}
+  .sesion:hover{border-color:var(--line-fuerte)}
   .av{width:23px;height:23px;border-radius:50%;flex:0 0 auto;display:grid;place-items:center;
     font-size:8.5px;font-weight:700;background:var(--inv-bg);color:var(--inv-ink)}
   .sesion .txt{font-size:11.5px;color:var(--soft);min-width:0;overflow:hidden;
     text-overflow:ellipsis;white-space:nowrap}
-  .sesion .i{width:13px;height:13px;color:var(--ok)}
+  .sesion .chev{width:13px;height:13px;color:var(--tenue);transition:transform .15s}
+  .sesion[aria-expanded="true"] .chev{transform:rotate(180deg)}
+  /* Un punto, no un tic: dice «hay dos» de un vistazo, sin abrir el menú. */
+  .sesion .par{display:flex;gap:3px;flex:0 0 auto}
+  .sesion .par b{width:5px;height:5px;border-radius:50%;background:var(--ok)}
+  .sesion .par b.vacio{background:none;border:1px solid var(--line-fuerte)}
+
+  .menu{position:absolute;top:calc(100% + 8px);right:0;width:276px;z-index:10;
+    border:1px solid var(--line-fuerte);border-radius:13px;background:var(--panel);
+    padding:7px;display:none}
+  .menu.abierto{display:block;animation:baja .16s ease-out both}
+  @keyframes baja{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
+  .menu .rotulo{font-size:9.5px;text-transform:uppercase;letter-spacing:.07em;color:var(--tenue);
+    padding:6px 9px 5px}
+  .ident{display:flex;align-items:center;gap:10px;padding:9px;border-radius:9px}
+  .ident + .ident{margin-top:1px}
+  .ident .quien{min-width:0;flex:1}
+  .ident .quien b{display:block;font-size:12.5px;font-weight:500;line-height:1.3;
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .ident .quien span{display:block;font-size:11px;color:var(--tenue)}
+  .ident .i{width:15px;height:15px;color:var(--ok);flex:0 0 auto}
+  .ident.suelta{background:var(--panel-2)}
+  .ident.suelta .quien b{color:var(--tenue);font-weight:400}
+  .sumar{background:var(--inv-bg);color:var(--inv-ink);border:none;border-radius:7px;
+    padding:5px 11px;font-size:11.5px;cursor:pointer;font-family:inherit;flex:0 0 auto}
+  .sumar:hover{opacity:.88}
+  .menu hr{border:none;border-top:1px solid var(--line);margin:6px 3px}
+  .menu .salir{display:block;width:100%;text-align:left;background:none;border:none;
+    border-radius:8px;padding:8px 9px;font-size:12.5px;color:var(--soft);cursor:pointer;
+    font-family:inherit}
+  .menu .salir:hover{background:var(--hover);color:var(--ink)}
 
   .ctl{background:none;color:var(--tenue);border:none;border-radius:6px;padding:5px 9px;
     font-size:12px;cursor:pointer;font-family:inherit}
   .ctl:hover{background:var(--hover);color:var(--ink)}
-
-  /* Control DEL BOCETO: quién entra. En el producto no se elige — sale del grupo de Workspace que
-     viaja en el token de Google. Está acá para poder mostrar las dos experiencias en una demo. */
-  .simular{display:flex;align-items:center;border:1px solid var(--line);border-radius:7px;padding:2px}
-  .simular span{font-size:9.5px;color:var(--tenue);padding:0 7px 0 6px;letter-spacing:.05em;
-    text-transform:uppercase}
-  .simular button{background:none;border:none;border-radius:5px;padding:4px 10px;font-size:11.5px;
-    color:var(--tenue);cursor:pointer;font-family:inherit}
-  .simular button:hover{color:var(--ink)}
-  .simular button[aria-pressed="true"]{background:var(--inv-bg);color:var(--inv-ink)}
 
   main{flex:1;display:flex;flex-direction:column}
 
@@ -156,7 +187,6 @@
 
   @media (max-width:600px){
     header{padding:12px 16px;flex-wrap:wrap}
-    .simular{order:3}
     .catalogo{padding:28px 16px 60px}
   }
 </style>
@@ -166,13 +196,9 @@
 <header>
   <span class="marca"><span class="cuadro">C</span>CreditOp <span>· herramientas</span></span>
   <span class="etq">BOCETO</span>
+  <span class="fecha">13 de agosto de 2026</span>
   <div class="der">
-    <div class="simular">
-      <span>entra</span>
-      <button id="s-comp" aria-pressed="true"  onclick="quienEntra('compania')">Compañía</button>
-      <button id="s-tech" aria-pressed="false" onclick="quienEntra('tech')">Tech</button>
-    </div>
-    <div id="sesion"></div>
+    <div class="cuenta" id="cuenta"></div>
     <button class="ctl" id="tema">tema</button>
   </div>
 </header>
@@ -201,6 +227,9 @@
     <path fill="#FBBC05" d="M3.9 10.7a5.4 5.4 0 0 1 0-3.4V5H.9a9 9 0 0 0 0 8l3-2.3Z"/>
     <path fill="#EA4335" d="M9 3.6c1.3 0 2.5.5 3.4 1.3l2.6-2.6A9 9 0 0 0 .9 5l3 2.3C4.6 5.2 6.6 3.6 9 3.6Z"/></svg>`
 
+  // El mismo logo a la medida de las filas del menú, para que quede en la grilla de los otros iconos.
+  const GOOGLE_CHICO = GOOGLE.replace('width="17" height="17"', 'width="15" height="15"')
+
   const HERR = [
     { n:'Asistente interno',       ico:'bot',      via:'google', d:'Preguntale por Slack' },
     { n:'Estado de los servicios', ico:'activity', via:'google', d:'Qué está arriba y qué no' },
@@ -210,27 +239,65 @@
   ]
 
   const main = document.getElementById('main')
-  const barraSesion = document.getElementById('sesion')
+  const cuenta = document.getElementById('cuenta')
 
-  let PERSONA = 'compania'   // en el producto sale del grupo de Workspace, no de un botón
+  /* Quién entró. En el producto NO se elige: sale del grupo de Workspace que viaja en el token de
+     Google. Acá se abre por dirección —`#tech` o `#compania`— y no con botones en el encabezado: un
+     control de demo metido en la interfaz es lo primero que confunde a quien está mirando. */
+  let PERSONA = 'tech'
   let VINCULADO = false
 
   const esTech = () => PERSONA === 'tech'
   const correo = () => esTech() ? 'miguel@creditop.com' : 'laura@creditop.com'
   const iniciales = () => esTech() ? 'MO' : 'LG'
 
-  function quienEntra(p){
-    PERSONA = p; VINCULADO = false
-    document.getElementById('s-comp').setAttribute('aria-pressed', String(p === 'compania'))
-    document.getElementById('s-tech').setAttribute('aria-pressed', String(p === 'tech'))
-    puerta()
-  }
-
   function pintarSesion(dentro){
-    barraSesion.innerHTML = dentro
-      ? `<div class="sesion"><span class="av">${iniciales()}</span>
-           <span class="txt mono">${correo()}${VINCULADO ? ' · mig-creditop' : ''}</span>${i('tic')}</div>`
-      : ''
+    if (!dentro) { cuenta.innerHTML = ''; return }
+
+    /* En el botón: dos puntos, uno por identidad. Lleno = vinculada, hueco = disponible. Dice «te
+       falta una» sin una sola palabra ni abrir el menú. */
+    const puntos = esTech()
+      ? `<span class="par"><b></b><b${VINCULADO ? '' : ' class="vacio"'}></b></span>`
+      : `<span class="par"><b></b></span>`
+
+    const filaGithub = VINCULADO
+      ? `<div class="ident">${i('github')}
+           <span class="quien"><b class="mono">mig-creditop</b><span>GitHub · identidad</span></span>
+           ${i('tic')}</div>`
+      : `<div class="ident suelta">${i('github')}
+           <span class="quien"><b>Sin vincular</b><span>GitHub · identidad</span></span>
+           <button class="sumar" onclick="vincular()">Vincular</button></div>`
+
+    cuenta.innerHTML = `
+      <button class="sesion" id="btn-cuenta" aria-expanded="false">
+        <span class="av">${iniciales()}</span>
+        <span class="txt mono">${correo()}</span>
+        ${puntos}
+        <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"
+             stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+      </button>
+      <div class="menu" id="menu-cuenta">
+        <p class="rotulo">Tu sesión</p>
+        <div class="ident">${GOOGLE_CHICO}
+          <span class="quien"><b class="mono">${correo()}</b><span>Google · la puerta</span></span>
+          ${i('tic')}</div>
+        ${esTech() ? filaGithub : ''}
+        <hr>
+        <button class="salir" onclick="puerta()">Salir</button>
+      </div>`
+
+    const btn = document.getElementById('btn-cuenta')
+    const menu = document.getElementById('menu-cuenta')
+    btn.onclick = e => {
+      e.stopPropagation()
+      const abierto = menu.classList.toggle('abierto')
+      btn.setAttribute('aria-expanded', String(abierto))
+    }
+    // Cerrar al tocar afuera: sin esto un menú abierto se queda abierto para siempre.
+    addEventListener('click', () => {
+      menu.classList.remove('abierto'); btn.setAttribute('aria-expanded', 'false')
+    })
+    menu.onclick = e => e.stopPropagation()
   }
 
   /* ── 1 · la puerta ───────────────────────────────────────────────────────── */
@@ -309,10 +376,9 @@
     if (tema === 'light' || tema === 'dark') document.documentElement.setAttribute('data-theme', tema)
 
     const donde = (location.hash || '').replace('#', '')
-    PERSONA   = donde.startsWith('tech') ? 'tech' : 'compania'
+    // Por defecto, Tech: es el caso completo. `#compania` muestra la otra audiencia.
+    PERSONA   = donde === 'compania' ? 'compania' : 'tech'
     VINCULADO = donde === 'tech-listo'
-    document.getElementById('s-comp').setAttribute('aria-pressed', String(PERSONA === 'compania'))
-    document.getElementById('s-tech').setAttribute('aria-pressed', String(PERSONA === 'tech'))
 
     if (donde === 'compania' || donde.startsWith('tech')) catalogo()
     else puerta()
