@@ -117,6 +117,15 @@
 
   .grilla{display:grid;gap:11px;grid-template-columns:repeat(auto-fill,minmax(212px,1fr))}
 
+  /* Grupos. Con cinco herramientas ya ordenan, y con quince son la diferencia entre un catálogo y una
+     pared de tarjetas. El rótulo aparece SOLO si hay dos grupos: para quien ve un grupo solo, titularlo
+     es explicarle algo que no necesita saber.
+     (El buscador todavía NO está, a propósito: con cinco tarjetas sería un campo vacío pidiendo
+     atención. Entra cuando el catálogo pase de ~10.) */
+  .grupo + .grupo{margin-top:26px}
+  .grupo h2{font-size:10.5px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;
+    color:var(--tenue);margin:0 0 10px}
+
   .tarjeta{position:relative;display:flex;flex-direction:column;gap:10px;
     border:1px solid var(--line);border-radius:13px;padding:17px 17px 16px;background:var(--panel);
     cursor:pointer;min-height:116px;
@@ -227,6 +236,9 @@
   /* ── 1 · la puerta ───────────────────────────────────────────────────────── */
   function puerta(){
     pintarSesion(false)
+    // Sin sello: la puerta es el estado por defecto, y dejar `#tech` colgado haría que un refresco
+    // aterrice adentro cuando la persona está afuera.
+    try { history.replaceState(null, '', location.pathname) } catch (e) {}
     main.innerHTML = `
       <div class="puerta"><div class="centro">
         <div class="cuadro-g">C</div>
@@ -240,8 +252,12 @@
   /* ── 2 · el catálogo ─────────────────────────────────────────────────────── */
   function catalogo(recienVinculado){
     pintarSesion(true)
-    const mias   = HERR.filter(h => h.via === 'google' || VINCULADO)
-    const faltan = HERR.length - mias.length
+    sellar(esTech() ? (VINCULADO ? 'tech-listo' : 'tech') : 'compania')
+
+    const deCompania = HERR.filter(h => h.via === 'google')
+    const deTech     = VINCULADO ? HERR.filter(h => h.via === 'github') : []
+    const faltan     = HERR.filter(h => h.via === 'github').length
+    const disponibles = deCompania.length + deTech.length
 
     const tarjeta = h => `
       <div class="tarjeta ${recienVinculado && h.via === 'github' ? 'nuevo' : ''}">
@@ -249,23 +265,26 @@
         ${i(h.ico)}<b>${h.n}</b><em>${h.d}</em>
       </div>`
 
-    /* El botón no intrusivo: una tarjeta más, en el hueco que van a llenar las que destraba. */
+    /* El botón no intrusivo: una tarjeta más, parada en el hueco que van a llenar las que destraba —
+       y desde que hay grupos, parada DENTRO del grupo vacío. El grupo dice «acá va algo tuyo». */
     const fantasma = `
       <div class="tarjeta fantasma" onclick="vincular()">
         ${i('github')}<b>Vincular GitHub</b><em>${faltan} herramientas del equipo</em>
       </div>`
 
+    const grupo = (titulo, dentro) => `
+      <section class="grupo">${esTech() ? `<h2>${titulo}</h2>` : ''}
+        <div class="grilla">${dentro}</div></section>`
+
     main.innerHTML = `
       <div class="catalogo">
         <div class="titulo">
           <h1>Herramientas</h1>
-          <em>${mias.length} disponible${mias.length === 1 ? '' : 's'}${
+          <em>${disponibles} disponible${disponibles === 1 ? '' : 's'}${
             esTech() && !VINCULADO ? ` · ${faltan} requieren GitHub` : ''}</em>
         </div>
-        <div class="grilla">
-          ${mias.map(tarjeta).join('')}
-          ${esTech() && !VINCULADO ? fantasma : ''}
-        </div>
+        ${grupo('De la compañía', deCompania.map(tarjeta).join(''))}
+        ${esTech() ? grupo('Del equipo de Tech', VINCULADO ? deTech.map(tarjeta).join('') : fantasma) : ''}
       </div>`
   }
 
@@ -278,7 +297,29 @@
     r.setAttribute('data-theme', oscuro ? 'light' : 'dark')
   }
 
-  puerta()
+  /* ── Cada pantalla tiene su dirección ───────────────────────────────────────
+     `#compania` · `#tech` · `#tech-listo`, y `?tema=light|dark` para forzar el modo. Dos razones, las
+     dos prácticas: en una demo se abre directo el estado que se quiere mostrar sin hacer clics en
+     vivo, y las capturas para el correo se generan sin tener que simular la interacción.
+     Se escribe con replaceState para no ensuciar el historial ni disparar `hashchange`. */
+  const sellar = h => { try { history.replaceState(null, '', '#' + h) } catch (e) {} }
+
+  function desdeLaUrl(){
+    const tema = new URLSearchParams(location.search).get('tema')
+    if (tema === 'light' || tema === 'dark') document.documentElement.setAttribute('data-theme', tema)
+
+    const donde = (location.hash || '').replace('#', '')
+    PERSONA   = donde.startsWith('tech') ? 'tech' : 'compania'
+    VINCULADO = donde === 'tech-listo'
+    document.getElementById('s-comp').setAttribute('aria-pressed', String(PERSONA === 'compania'))
+    document.getElementById('s-tech').setAttribute('aria-pressed', String(PERSONA === 'tech'))
+
+    if (donde === 'compania' || donde.startsWith('tech')) catalogo()
+    else puerta()
+  }
+
+  addEventListener('hashchange', desdeLaUrl)
+  desdeLaUrl()
 </script>
 </body>
 </html>
