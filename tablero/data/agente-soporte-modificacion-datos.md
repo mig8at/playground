@@ -16,38 +16,83 @@ jira_title: "AGENTE SOPORTE- Modificacion de datos"
 > Los 9 criterios de aceptación de Jira están completos allá (4.406 caracteres). Acá no se repiten:
 > abajo está lo que se averiguó del sistema y lo que se decidió, que es lo que Jira no tiene.
 
-## Estado del código — 2026-08-14
+## Estado del código — 2026-08-14 · **PRIMER TRAMO EN REVIEW**
 
-- **Rama:** `feature/support-bot` en `legacy-backend`, commit **`e535c605`** (2026-08-13 17:49) — el
-  módulo `Modules/SupportBot` (proveedores, rutas, middleware de token, `ClientLookupService`,
-  `SelfServiceController`, comando de humo), **3 migraciones** (`support_bot_enrollments`,
-  `support_bot_sessions`, `user_data_change_requests`) y el refactor de los dos
-  `CreditChangeController` (Consumer + Customer) extrayendo `CreditChangeService`.
-  26 archivos, +1793 / −464.
-- **PR [#1089](https://github.com/Creditop-SAS/legacy-backend/pull/1089) ABIERTO contra `main`**,
-  0 reviews.
-- 🔴 **El PR muestra una versión VIEJA.** Apunta a `4f403626` (16:44), no a `e535c605` (17:49): al
-  remoto le faltan las 3 migraciones, `CreditChangeService`, `config/services.php` y el resto —
-  ~1.320 líneas que **sólo existen en el disco local**. Quien abra el PR ve la mitad del trabajo, y un
-  `reset --hard` acá borraría lo único que hay. **Asegurarlo es lo primero:**
-  `git push --force-with-lease origin feature/support-bot`.
-- **⏳ PEDIDO: bajar a `staging`, no a `main`.** Hecha la rama gemela
-  **`feature/support-bot-onto-staging`** (commit `12d7c6d4`, base `origin/staging` `eddc3644`) —
-  **local, sin pushear**. Cherry-pick verificado: **1793 agregadas / 464 borradas**, idénticas a las de
-  la rama sobre `main` salvo las dos comas de las listas de módulos.
-  - Conflictos: `composer.json` y `modules_statuses.json`, los dos del tipo «ambos agregaron al final
-    de la lista». Resueltos conservando la lista de `staging` y añadiendo `SupportBot` al final; los
-    dos JSON validan. ⚠ `staging` **no tiene** los módulos `Backoffice` ni `Auth` ni la dependencia
-    `firebase/php-jwt` — este módulo no usa ninguno, verificado clase por clase sobre los `use` del
-    commit.
-  - **Verificado corriendo** dentro de `legacy-backend-laravel.test-1`: `Modules/SupportBot/Tests` da
-    **3 fallos / 17 verdes**, y la rama original sobre `main` da **exactamente lo mismo** — o sea que
-    esos 3 no los trae el trasplante. `Modules/Loans/Tests` da **129 fallos / 237 verdes**, cifra
-    calcada de `staging` limpio: **cero regresiones**.
-  - Los 3 fallos propios son de **BD local desfasada**, no de lógica: falta la columna
-    `next_payment_guarantee` en `creditop_x_requests_history` (revienta en
-    `CreditChangeService.php:156` vía `CreditopXRequestHistoryRepository.php:22`). Correr migraciones
-    antes de darles peso.
+**PR [#1095](https://github.com/Creditop-SAS/legacy-backend/pull/1095) → `staging`, mergeable**, un
+solo commit **`9e094e20`**, 29 archivos, +1846 / −464. Rama
+`feature/support-bot-onto-staging` en `legacy-backend`, sobre el HEAD de `origin/staging`
+(`eddc3644`). **27 tests del módulo en verde.**
+
+Qué trae: el módulo `Modules/SupportBot` (proveedores, rutas, middleware de token,
+`ClientLookupService`, `SelfServiceController`, `SupportBotRequest`, `AuthorizationState`, comando de
+humo), las **3 migraciones**, y el refactor de los dos `CreditChangeController` (Consumer + Customer)
+extrayendo `CreditChangeService`.
+
+**Sólo 1 de los 16 endpoints está construido**: `GET /api/support/self/by-phone`. Faltan 15 — ver
+§«Las APIs a entregar» y §«Lo que falta para que el canal funcione».
+
+### Cómo se llegó acá (por si hay que reconstruir el razonamiento)
+
+- La rama nació de `main`; se pidió bajarla a `staging`. Se hizo por cherry-pick, verificado línea por
+  línea: las **1793 agregadas y 464 borradas son idénticas** a las de la rama sobre `main`, salvo las
+  dos comas de las listas de módulos. La rama original `feature/support-bot` (commit `e535c605`) queda
+  como respaldo, y su **PR #1089 se cerró** apuntando al #1095.
+- Conflictos del trasplante: `composer.json` y `modules_statuses.json`, los dos «ambos agregaron al
+  final de la lista». ⚠ `staging` **no tiene** los módulos `Backoffice` ni `Auth` ni la dependencia
+  `firebase/php-jwt`; este módulo no usa ninguno, verificado clase por clase sobre los `use` del
+  commit.
+- ⚠ **`staging` y `main` son líneas largamente divergidas**: se separaron el 2026-07-22 (`21e46a0d`) y
+  `main` le lleva ~117 commits. Cambiarle la base a un PR desde GitHub **no sirve** — mostraría esos
+  117 como ruido. Hay que rebasar.
+- **El refactor no cambia comportamiento, medido**: se compararon **144 peticiones** a los 18
+  endpoints que pasan por los controllers refactorizados —mismo id, mismo endpoint— contra `staging`
+  sin el cambio: idénticas en código HTTP, cuerpo y claves (80×200, 64×422). ⚠ Hay que **reiniciar
+  php-fpm entre corridas**: `opcache.revalidate_freq=2` sirve el código de la rama anterior y
+  contamina la comparación (me pasó, y la primera medición dio un falso «mejoró»).
+
+### Defecto propio encontrado y arreglado: el 302
+
+`FormRequest` elige el formato de la respuesta con `expectsJson()`, o sea con la cabecera `Accept` del
+cliente. Sin ella responde **302 al home** y deja los errores en sesión — correcto para un formulario
+web, inservible para el bot, que no tiene navegador y puede no mandar `Accept`. Medido: una llamada
+sin el parámetro `wa` recibía la página de inicio, que el bot no puede distinguir de una caída.
+
+Arreglado con `SupportBotRequest`, base del canal que sobrescribe `failedValidation`. **No** se fuerza
+la cabecera de entrada a propósito: cambiaría también el formato de los errores que no son de
+validación. Los 11 endpoints que faltan heredan el comportamiento.
+
+**Decidido: la validación de `wa` se queda como está** (presente, texto, ≤32 caracteres, sin validar
+formato de teléfono). Consecuencia aceptada: un `wa=abc` pasa la validación y sale por
+`404 CLIENT_NOT_FOUND`, indistinguible de un número real no registrado.
+
+### Migraciones: **ya corridas en la BD de dev/staging**
+
+Las 3 tablas creadas el 2026-08-14, **0 migraciones pendientes** allá. Los 3 pendientes que había en
+dev eran exactamente los de esta tarea, así que no se arrastró nada ajeno. Son puro `Schema::create`,
+sin `ALTER` sobre tablas existentes ni foreign keys, y con `dropIfExists` en el `down()`: reversible
+con `migrate:rollback --step=3`. **Quedan pendientes para producción.**
+
+### Validado contra la BD de dev
+
+Con la app local corriendo este código apuntada a la base de dev (227.793 usuarios allá contra
+228.048 en la copia local — así se comprueba que de verdad leía dev). Los 8 casos correctos: 401 sin
+token y con token equivocado, **422 sin el parámetro `wa`** (el 302 arreglado), 404 para número
+inexistente / `TEMPORAL USER` / perfil no-cliente, y 200 con documento enmascarado para un cliente
+real, en formato nacional y en formato Twilio. **Las 3 tablas del canal quedaron en 0 filas**: el
+canal lee y no escribe.
+
+### Para desplegar — lo único que falta de infraestructura
+
+1. **Una variable de entorno: `SUPPORT_BOT_TOKEN`.** Es la única que el commit introduce (verificado
+   contra el diff de `.env.example` y `config/services.php`). Aleatoria y distinta por ambiente
+   (`openssl rand -hex 32`). Sin ella el canal responde **503 a propósito** — falla cerrado.
+2. **Exponer `/api/support/*` en el API Gateway.** Con el comodín alcanza para las 16: no hay que
+   volver a tocarlo. Estas rutas **no pasan por Cognito**.
+3. ⚠ **Preguntar de paso**: ¿el gateway **descarta** las cabeceras `x-user-id` y
+   `x-cognito-identity-id` que manda el cliente antes de poner las suyas? `ResolveCognitoUser` las
+   acepta **sin verificar token** (son 20 líneas, leídas). Si el gateway las reenvía, cualquiera
+   podría hacerse pasar por cualquier usuario en las rutas ya expuestas. Es independiente de esta
+   tarea, pero conviene aprovechar que alguien va a tocar esa configuración.
 
 Un asesor no debería poder cambiar los datos de un cliente sin que el cliente se entere y lo apruebe.
 Hoy puede. La tarea pone al **dueño del dato** en el medio: el asesor pide el cambio desde WhatsApp,
@@ -431,6 +476,40 @@ envía. El backend es dueño del estado y de la decisión; n8n, de la forma. As�
 se puede rehacer sin tocar la seguridad, que es justo lo que se quiere si las respuestas van a
 iterarse mucho.
 
+#### ✅ REFINADO 2026-08-14 · «el estado» eran dos cosas, y sólo una es del backend
+
+Lo de arriba decía «el backend es dueño del estado» sin separar qué estado, y eso llevaba a que el
+backend conociera los pasos del menú. **Se dividió así, y está fijado en código:**
+
+| | quién | por qué |
+|---|---|---|
+| **Estado de AUTORIZACIÓN** — si se identificó, si el OTP se verificó, cuántos intentos quedan, hasta cuándo vale | **backend** | reiniciar n8n no puede regalar intentos de OTP, ni afirmar quién está autenticado. Es el mismo problema del `x-user-id`: si lo dice el llamador, no vale |
+| **Recorrido de la CONVERSACIÓN** — qué menú se mostró, qué opción eligió, cómo se repregunta, en qué idioma | **n8n** | si el backend los conociera, **cada ajuste de redacción sería un despliegue del backend**, y esos pasos cambian todo el tiempo mientras se afina el canal |
+
+**El argumento que decide**: la seguridad no necesita que el backend lleve la conversación. Necesita
+que el endpoint que escribe el dato **exija un `otp_id` que el backend mismo emitió y verificó**. Con
+eso, aunque n8n se equivoque o se reemplace mañana por otra cosa, no se puede cambiar un dato sin
+autorización real.
+
+**Cómo quedó en el código** (commit `9e094e20`): `Modules\SupportBot\App\Support\AuthorizationState`
+—un enum PHP, no de MySQL— con **cinco estados que no crecen**: `anonymous → identified → otp_sent →
+otp_verified → expired`. Fija las transiciones válidas y concentra dos preguntas: `allowsWrite()`
+(sólo con OTP verificado) y `consumesOtpAttempts()`.
+
+Del grafo, lo que más importa: **nada vuelve de `otp_verified` a un estado anterior** salvo vencer. Si
+se pudiera bajar a `identified`, quedaría una sesión con menos privilegio pero reutilizable, que es la
+forma habitual de ese agujero. Sí se permite `identified → otp_sent → identified`, porque reenviar el
+código es legítimo (un SMS que no llega) y lo que acota el reenvío es `otp_attempts`, no el grafo.
+
+**7 tests fijan la frontera**, incluido uno que se pone rojo si alguien agrega un estado
+conversacional al enum —y el mensaje le dice dónde va ese estado— y otro que impide bajar el
+privilegio. Los comentarios de la migración, que antes decían `awaiting_document` / `awaiting_otp` /
+`ready`, se corrigieron: sólo cambiaron **comentarios**, cero líneas de esquema, así que la tabla ya
+creada en dev sigue idéntica.
+
+⚠ **Nadie escribió esto antes porque la tarea no lo aclaraba.** Es decisión de Miguel, tomada el
+2026-08-14.
+
 ## Los prototipos
 
 Dos propuestas, cada una con su botón en el tablero: **`▶ asesor`** y **`▶ cliente`**.
@@ -621,10 +700,71 @@ cambio más chico de los 16 — un parámetro y una escritura.
    (`pendiente_autorizacion → autorizada → aplicada | rechazada | bloqueada`). Un log guarda el
    desenlace; acá el registro **es** el flujo.
 
+## Lo que falta para que el canal funcione — 2026-08-14
+
+Suponiendo el PR mergeado, desplegado, con la variable puesta y la ruta en el gateway: **funciona una
+sola cosa** — resolver de quién es un número de WhatsApp. Después de identificar a la persona no hay
+siguiente paso.
+
+### El camino más corto a algo usable: la autogestión
+
+Y hay una razón para empezar por ahí que no es de esfuerzo: **las plantillas de Meta sólo bloquean el
+flujo del asesor**. Ahí el cliente *no escribió primero* —lo estamos interrumpiendo— y el primer
+mensaje tiene que ser plantilla aprobada. En autogestión **el cliente escribe primero**, así que la
+ventana de 24 h está abierta y el texto libre está permitido. La autogestión no espera a Meta.
+
+| pieza | de quién | estado |
+|---|---|---|
+| identificar por número | nuestro | ✅ hecho |
+| OTP + máquina de sesión | nuestro | **no existe nada**: la tabla está creada pero ningún código la lee ni escribe |
+| 3 rutas de lectura (`can-change`, fechas, plazos) | nuestro | la lógica ya está probada, falta la capa HTTP |
+| 2 rutas de cambio, con `otp_id` real | nuestro | ídem, y dependen del OTP |
+| webhook de WhatsApp + conversación | Filipo | **no existe en ningún lado** |
+
+Son **7 rutas y la sesión** de nuestro lado. La pieza crítica es el OTP: sin él no hay sesión, sin
+sesión no hay nada, y sin `otp_id` real el cambio se sigue guardando sin prueba de autorización — que
+es el problema que la tarea vino a resolver. **Las 31 filas de `creditop_x_changes_log` en dev tienen
+todas `otp_id = 0`** (verificado 2026-08-14).
+
+El flujo del asesor son **8 rutas más**, y ese sí depende de las plantillas. Va después, en paralelo
+con la aprobación.
+
+**Buena noticia para estimar**: parte de esas 15 ya tiene la lógica hecha y probada en el PR.
+`ClientLookupService` expone `findForAdvisor`, `alliedsOf` y `operableRequestsFor`, los tres con tests
+en verde, y son exactamente lo que necesita `GET /support/clients?document=`. Lo que hay que construir
+de cero es la sesión y el OTP — y para el OTP hay servicios reusables en el repo
+(`Modules/Onboarding/App/Services/OtpService.php`, `Modules/Loans/App/Services/OtpService.php`,
+`Modules/System/App/Repositories/OtpServiceRepository.php`): habría que ver cuál sirve y meterlo por
+inyección, no escribir otro.
+
+### Qué puede avanzar Filipo desde ya, sin esperarnos
+
+- **Las plantillas de Meta** — el camino crítico más largo, con lead time de días y rechazos posibles.
+- **El webhook de entrada con verificación de firma**, que hoy no existe en ningún lado.
+- **La capa NLU** (`POST /nlu/interpretar`), que ya está listada como entregable suyo.
+- Y con el contrato ya fijado —bearer token, envelope `{success, message, errors.error_code}`, los 4
+  códigos— puede escribir su cliente HTTP, el manejo de errores y los reintentos **una vez** y
+  reusarlos para los 16. **Darle la especificación de los 15 que faltan lo desbloquea sin que
+  esperemos a implementarlas**: armaría el flujo de n8n contra un mock y después sólo cambia la URL
+  base.
+
 ## Preguntas abiertas
 
+- 🔴 **¿Quién manda el mensaje de confirmación después de un cambio?** Descubierto 2026-08-14 y **sin
+  dueño**. Los dos `CreditChangeController` llaman a `TwilioMessagingService`
+  (`sendPaymentDateConfirmation`) — y eso **ya estaba en `staging` antes del refactor**, verificado: 2
+  usos en cada uno, iguales antes y después. Pero el `CreditChangeService` extraído tiene **cero**
+  código de notificación. O sea que cuando el canal llame al servicio, **ese mensaje no sale**. Hay que
+  decidir: o lo manda el bot por n8n, o subimos la notificación al servicio. Si no se decide, sale
+  duplicado o no sale.
+- 🔴 **¿De qué lado cae el webhook de entrada de WhatsApp?** El doc dice que n8n maneja la conversación
+  pero también que el estado vive en el backend. Nunca se definió quién lo monta, y no está en el plan
+  de ningún tramo.
 - ~~**Arquitectura del canal**~~ — **decidido 2026-08-12: `Modules/SupportAgent` en legacy-backend**,
   con Twilio como proveedor y webhook oficial. Ver §«Arquitectura del canal».
+  ⚠ El módulo terminó llamándose **`Modules/SupportBot`** y las tablas **`support_bot_*`**, no
+  `SupportAgent` / `support_agent_*` como decía el acuerdo. Es sólo el nombre; la condición de frontera
+  limpia se respetó.
 - **¿Mismo número o uno nuevo?** Propuesta: nuevo para asesores, el de siempre para clientes. Sin
   decidir — ver el final de la sección de WhatsApp.
 - **Cómo se autentica el canal contra el backend.** Hoy las rutas usan `auth.cognito`, que es de
@@ -709,10 +849,53 @@ ruido de fondo.
 **El harness NO es la herramienta acá.** Es Playwright sobre el wizard, pensado para UI; estos son
 endpoints REST y sus pruebas viven mejor en el repo, junto al código y corriendo en CI.
 
+### ⚠ La receta para correr los tests — costó media tarde encontrarla (2026-08-14)
+
+**Los tests NO usan tu BD local.** Usan el schema **`testing`** (`phpunit.xml` → `DB_DATABASE=testing`).
+El `creditop` local es un dump de prod y está sano; `testing` estaba **151 migraciones atrasado**, y de
+ahí venían los fallos — no del código.
+
+Y hay tres trampas encadenadas:
+
+1. **Desde la shell del host no conectan.** `DB_HOST=mysql` es el nombre del servicio de Docker y sólo
+   resuelve dentro de la red del contenedor. Desde la terminal todos los tests con BD mueren al
+   instante con error de DNS. **Hay que correrlos dentro**:
+   `docker exec legacy-backend-laravel.test-1 sh -c 'cd /var/www/html && vendor/bin/pest Modules/SupportBot/Tests'`
+2. **`testing` no se puede reconstruir con `migrate:fresh`.** La migración
+   `2025_02_12_212827_add_insurance_per_million_to_lenders_by_allieds` hace
+   `->after('initial_fee_percentage')` sobre `lenders_by_allieds`, y esa columna nunca se crea ahí (la
+   de 2024 la agrega a `allieds`, otra tabla). En los ambientes reales nadie lo notó porque sus bases
+   vienen de dumps, no de replayar migraciones. **Arreglo: borrar ese `->after(...)`** — el orden de
+   columnas en MySQL es cosmético. Va en su propia rama, no mezclado con esta tarea.
+3. 🔴 **Hay 42 funciones y procedimientos de MySQL que NO están en ninguna migración.** Viven sólo en
+   la base (`FN_Mareigua_Occupation`, `FN_Experian_*`, `SP_Experian_Extract_Data`…). Una base armada
+   desde el repo nace sin ellas y el código revienta con *«FUNCTION … does not exist»*. Y el usuario
+   `creditop` **no puede ni leerlas** — hace falta root. **Esto es lo que hay que copiar y lo que se
+   olvida.**
+
+**La receta que funciona** (estructura + rutinas, **sin datos** — los datos son indiferentes, lo
+comprobé en los dos sentidos):
+
+```
+# estructura + tabla migrations
+mysqldump -ucreditop -p… --no-data --routines --triggers creditop | mysql -ucreditop -p… testing
+mysqldump -ucreditop -p… creditop migrations | mysql -ucreditop -p… testing
+# las 42 rutinas, con ROOT y sin DEFINER (mysqldump --routines con el usuario normal trae 1 de 42)
+mysqldump -uroot -p… --routines --no-create-info --no-data --skip-triggers creditop \
+  | sed -E 's/DEFINER=`[^`]*`@`[^`]*` //g' | mysql -uroot -p… testing
+```
+
+⚠ **No apuntar pest a `creditop` ni a la BD de dev.** 8 archivos del repo usan `RefreshDatabase`, que
+hace `migrate:fresh` y **borra la base a la que apunte** — 5 en `Modules/Loans/tests/` y 3 en
+`tests/Feature/`. Ninguno es de esta tarea: los 4 de este módulo usan `DatabaseTransactions` y
+revierten lo suyo (verificado: los conteos de `testing` quedan idénticos antes y después). Correr
+siempre con el filtro de path.
+
 **Lo ya verificado** contra la copia local:
 
 - Las **3 APIs de consulta** responden correctamente (ver §«Las APIs a entregar»).
-- **12 tests del módulo pasan** (`Modules/SupportBot/Tests`), en 2 segundos.
+- **27 tests del módulo pasan** (`Modules/SupportBot/Tests`), en 3 segundos — 20 del canal más 7 de
+  `AuthorizationState`.
 - **Ejercitado con un asesor y clientes reales de la base**, que es distinto de los tests porque usa
   la forma real de los datos: asesor **1073** (comercio 48, AHL) contra un cliente suyo, uno de otro
   comercio y un documento inventado. Los cuatro casos correctos, **incluido el que importa: el
@@ -1030,6 +1213,16 @@ castigo pega sobre el número que también se usa para cobrar.
 
 ## Tarea (publicable)
 
+> **Estado al 2026-08-14 — primer tramo en revisión.** Está construida la base del canal: el módulo
+> donde vive, el registro de auditoría que antes no existía, la autenticación del bot y el primer
+> paso del flujo del cliente (reconocer de quién es el número de WhatsApp desde el que escribe). Se
+> unificó además el código de cambio de condiciones, que estaba duplicado, y se verificó midiendo que
+> ese cambio no altera el comportamiento actual. Las tablas nuevas ya están creadas en el ambiente de
+> pruebas.
+>
+> Para que el canal quede utilizable falta el código de un solo uso y la sesión que lo sostiene, y del
+> lado de la capa conversacional, el canal de entrada de WhatsApp.
+
 Hoy un asesor puede modificar los datos de un cliente sin que el cliente se entere: el cambio no
 requiere su autorización y no queda registro de quién lo hizo ni de qué valor había antes. Se están
 reportando casos de gestión indebida.
@@ -1072,11 +1265,26 @@ necesitando a un asesor.
 - Las reglas de elegibilidad que ya existen para los cambios de crédito se siguen respetando y no
   pueden saltarse desde el canal.
 
-**Entregable técnico:** 16 endpoints, de los cuales 11 son nuevos, 2 son existentes que se modifican
-y 3 se usan tal cual.
+**Entregable técnico:** 16 servicios, todos publicados bajo la misma entrada del canal y con la misma
+autenticación. Once son nuevos; cinco reutilizan lógica de cambio de condiciones que ya existe y está
+probada, pero se sirven por el canal y no por su acceso actual — así la autorización la decide el
+backend y no quien llama, y se puede exigir el código de un solo uso sin afectar a la aplicación móvil
+que hoy usa esos servicios.
 
-**Pendiente de definición:** el tratamiento de clientes eliminados (requiere Legal) y los límites de
-reenvío de códigos.
+**Orden sugerido de entrega.** Conviene empezar por la autogestión del cliente y no por el flujo del
+asesor, por una razón que no es de esfuerzo: el flujo del asesor interrumpe al cliente, y WhatsApp
+exige que el primer mensaje de una conversación no iniciada por el usuario sea una plantilla aprobada
+por Meta, cuya aprobación toma días. En la autogestión el cliente escribe primero, así que no depende
+de esa aprobación. La autogestión son siete servicios; el flujo del asesor, ocho más.
+
+**Para desplegar hace falta**, además del código: una variable de entorno con la credencial del canal
+(distinta por ambiente; sin ella el canal queda cerrado a propósito), publicar la entrada del canal en
+el API Gateway —una sola vez, cubre los 16—, y correr las migraciones en cada ambiente. En el ambiente
+de pruebas ya están corridas.
+
+**Pendiente de definición:** el tratamiento de clientes eliminados (requiere Legal), los límites de
+reenvío de códigos, quién envía el mensaje de confirmación posterior al cambio, y de qué lado se monta
+el canal de entrada de WhatsApp.
 
 Se construyeron dos simulaciones navegables —una por entrada— para acordar el detalle antes de
 implementar.
