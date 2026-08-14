@@ -70,6 +70,18 @@ el ingresado vs el devuelto (crudo y normalizado), `central` (`agildata`|`mareig
 documento, `passed` y un `reason` clasificado — `match` · `provider_no_data` · `wrong_document`
 (ninguna palabra en común: típicamente la cédula consultada no es de esa persona) · `token_mismatch`.
 
+⚠ **Ese «típicamente» ya tiene número, y cambia a quién hay que mirar.** Cruzando el documento que la
+fila guardó contra el que el usuario tiene hoy: cuando el `reason` es `wrong_document`, **el 72 % de las
+veces la cédula se corrigió después** — contra el 8 % en `token_mismatch` y el **1 %** en `match`. O sea
+que un nombre «completamente distinto» casi nunca es un error de la central: es que **le mandamos la
+cédula equivocada** y devolvió, correctamente, al dueño de esa cédula.
+
+**Consecuencia práctica para soporte:** si la central devuelve un nombre que no se parece en nada, lo
+primero a revisar es **el número de documento**, no el nombre. Y la lectura de fondo: el vínculo
+cédula→persona de Ágil y Mareigua es **confiable** —está anclado por el sistema de seguridad social—;
+lo que es una copia transcripta es la **ortografía**, que la teclea el área de nómina del empleador. Por
+eso su nombre pesa más que el del asesor sin ser palabra santa (§ «El nombre»).
+
 **Es SOLO monitoreo y nunca lanza**: un error al registrar no tumba la validación de identidad. O sea
 que **no decide nada** — no lo confundas con un filtro. Sirve para responder «¿por qué esta identidad
 no cuadró?» con datos en vez de suposiciones. ⚠ Sus filas de **tusdatos** guardan `user_request_id`
