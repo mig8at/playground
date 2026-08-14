@@ -11,10 +11,43 @@ jira_title: "AGENTE SOPORTE- Modificacion de datos"
 # Agente Soporte · modificación de datos
 
 > **CORE-258** · `⏳ Por Hacer` en Jira · **5 pts** · nació en **Sprint 8** y se arrastró sin terminar
-> · **en progreso**: aterrizada y con los dos prototipos acordados, sin rama todavía
+> · **en progreso**: aterrizada, con los dos prototipos acordados **y con la primera rama en código**
 >
 > Los 9 criterios de aceptación de Jira están completos allá (4.406 caracteres). Acá no se repiten:
 > abajo está lo que se averiguó del sistema y lo que se decidió, que es lo que Jira no tiene.
+
+## Estado del código — 2026-08-14
+
+- **Rama:** `feature/support-bot` en `legacy-backend`, commit **`e535c605`** (2026-08-13 17:49) — el
+  módulo `Modules/SupportBot` (proveedores, rutas, middleware de token, `ClientLookupService`,
+  `SelfServiceController`, comando de humo), **3 migraciones** (`support_bot_enrollments`,
+  `support_bot_sessions`, `user_data_change_requests`) y el refactor de los dos
+  `CreditChangeController` (Consumer + Customer) extrayendo `CreditChangeService`.
+  26 archivos, +1793 / −464.
+- **PR [#1089](https://github.com/Creditop-SAS/legacy-backend/pull/1089) ABIERTO contra `main`**,
+  0 reviews.
+- 🔴 **El PR muestra una versión VIEJA.** Apunta a `4f403626` (16:44), no a `e535c605` (17:49): al
+  remoto le faltan las 3 migraciones, `CreditChangeService`, `config/services.php` y el resto —
+  ~1.320 líneas que **sólo existen en el disco local**. Quien abra el PR ve la mitad del trabajo, y un
+  `reset --hard` acá borraría lo único que hay. **Asegurarlo es lo primero:**
+  `git push --force-with-lease origin feature/support-bot`.
+- **⏳ PEDIDO: bajar a `staging`, no a `main`.** Hecha la rama gemela
+  **`feature/support-bot-onto-staging`** (commit `12d7c6d4`, base `origin/staging` `eddc3644`) —
+  **local, sin pushear**. Cherry-pick verificado: **1793 agregadas / 464 borradas**, idénticas a las de
+  la rama sobre `main` salvo las dos comas de las listas de módulos.
+  - Conflictos: `composer.json` y `modules_statuses.json`, los dos del tipo «ambos agregaron al final
+    de la lista». Resueltos conservando la lista de `staging` y añadiendo `SupportBot` al final; los
+    dos JSON validan. ⚠ `staging` **no tiene** los módulos `Backoffice` ni `Auth` ni la dependencia
+    `firebase/php-jwt` — este módulo no usa ninguno, verificado clase por clase sobre los `use` del
+    commit.
+  - **Verificado corriendo** dentro de `legacy-backend-laravel.test-1`: `Modules/SupportBot/Tests` da
+    **3 fallos / 17 verdes**, y la rama original sobre `main` da **exactamente lo mismo** — o sea que
+    esos 3 no los trae el trasplante. `Modules/Loans/Tests` da **129 fallos / 237 verdes**, cifra
+    calcada de `staging` limpio: **cero regresiones**.
+  - Los 3 fallos propios son de **BD local desfasada**, no de lógica: falta la columna
+    `next_payment_guarantee` en `creditop_x_requests_history` (revienta en
+    `CreditChangeService.php:156` vía `CreditopXRequestHistoryRepository.php:22`). Correr migraciones
+    antes de darles peso.
 
 Un asesor no debería poder cambiar los datos de un cliente sin que el cliente se entere y lo apruebe.
 Hoy puede. La tarea pone al **dueño del dato** en el medio: el asesor pide el cambio desde WhatsApp,

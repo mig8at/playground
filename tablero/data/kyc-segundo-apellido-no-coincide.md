@@ -18,9 +18,32 @@ falta que alguien lo valide antes de mergear.
 > real va acá, en el cuerpo. Si «en pruebas» va a repetirse, el arreglo es agregar la etapa al tablero
 > (`src/App.vue` → `STAGES`), no meter un `stage` fantasma en el frontmatter.
 
-- **Rama:** `fix/kyc-second-surname-mismatch` en `legacy-backend`, **un solo commit `1cf40ca8`**
-  (aplastado y force-pusheado con lease sobre `7f4c2903` el 2026-08-13). **Sin PR** — se abre cuando
-  pase la validación.
+- **Rama:** `fix/kyc-second-surname-mismatch` en `legacy-backend`, **un solo commit `9244b7e1`**
+  (aplastado y force-pusheado con lease; antes fue `1cf40ca8` y `7f4c2903`). Local y remoto
+  **sincronizados**. **PR [#1082](https://github.com/Creditop-SAS/legacy-backend/pull/1082) ABIERTO
+  contra `main`**, mergeable, **0 reviews** — se abrió el 2026-08-13 16:57, después de escribir la
+  línea anterior de este archivo que decía «sin PR».
+- **⏳ 2026-08-14 · PEDIDO: bajar a `staging`, no a `main`.** Hecha la rama gemela
+  **`fix/kyc-second-surname-mismatch-onto-staging`** (commit `a59fcc62`, base `origin/staging`
+  `eddc3644`) — **local, sin pushear**. Es un cherry-pick verificado: las **924 líneas agregadas y los
+  2 borrados son idénticos** a los de la rama sobre `main` (comparados línea por línea). La original
+  queda intacta como respaldo.
+  - **Los dos conflictos fueron de contexto, no de dependencia**: `main` tiene un bloque de
+    `KycNameCheckRecorder` (monitoreo no bloqueante) metido en las mismas líneas donde entra este
+    cambio, y `staging`/`qa` **no lo tienen** — `KycNameCheckRecorder.php` y `app/Models/KycNameCheck.php`
+    son exclusivos de `main`. Se resolvió descartando el recorder (su clase no existe en esa base) y
+    conservando el hunk. Todas las clases que el commit importa —incluida `OnboardingLogger` con
+    `COMPONENT_KYC`— existen byte-idénticas en las tres ramas: no hay dependencia rota.
+  - **Verificado corriendo** dentro de `legacy-backend-laravel.test-1` (desde la shell del host los
+    tests fallan por DNS: piden el host `mysql`, que sólo resuelve en la red de Docker):
+    `Modules/Identity/tests` da **47 fallos / 167 verdes** contra **47 fallos / 160 verdes** de
+    `staging` limpio — **el conjunto de fallos es idéntico** (los 47 son preexistentes de `staging`) y
+    los 7 verdes de diferencia son exactamente los tests nuevos de esta tarea. Cero regresiones.
+    `NameSimilarityTest` (28 verdes) y `TusdatosHttpFakeTest` pasan también.
+  - **⚠ Queda una decisión abierta:** 4 líneas de comentario afirman que los valores crudos quedan en
+    `kyc_name_checks`, tabla que **en `staging` no existe** (`MareiguaService` 99/106/128,
+    `AgildataService` 92, más 2 en `NameSimilarity`). Sobre esa base el comentario miente. Las
+    opciones son reescribir esas líneas o traer el recorder también — no se tocó la prosa sin decidirlo.
 - **Qué hay que probar:** que un cliente con segundo apellido mal escrito ya NO avance (ve el error en
   el campo apellido y lo corrige), y que un cliente que legítimamente tiene **un solo** apellido siga
   pasando sin fricción. Lo segundo es lo que hay que mirar con lupa: es el riesgo de este cambio.
@@ -32,8 +55,12 @@ falta que alguien lo valide antes de mergear.
   `cd playground/harness && node dev/kyc-apellido.ts` → exit 0 correcto · 1 defecto vivo · 2 no
   concluyente.
 - Causa raíz **VERIFICADA** en producción (BD vía Redash + Loki) y **REPRODUCIDA** en test y por API.
-- `legacy-backend` quedó en esta rama; los 6 stashes intactos. Para volver a lo tuyo:
-  `git checkout feature/pais-como-dato`.
+- `legacy-backend` quedó en `feature/support-bot-onto-staging` (ver la otra tarea); los **6 stashes
+  intactos**. Para volver a lo tuyo: `git checkout feature/pais-como-dato`.
+- ⚠ **`staging` y `qa` NO son «main + extras»**: se separaron de `main` el 2026-07-22 (`21e46a0d`) y
+  **`main` les lleva 117 commits**. `staging` además no tiene los módulos `Backoffice` ni `Auth` ni la
+  dependencia `firebase/php-jwt`. Cambiarle la base al PR #1082 desde GitHub **no sirve**: mostraría
+  esos 117 commits como ruido. Hay que rebasar, que es lo que se hizo.
 
 **Pasos 2, 3 y 5 HECHOS.** Secuencia medida:
 
