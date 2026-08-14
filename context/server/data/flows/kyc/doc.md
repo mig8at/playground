@@ -19,6 +19,13 @@ Todo aterriza en tres lugares: el **reporte crudo** en `risk_central_user_data.d
   detalle de comodidad — es por lo que **F-132** vivió meses. Para probarlo hay que salir de
   `local`/`development` (un test) o llegar a TusDatos por la rama CC, que decide por `match_code` de la
   respuesta y **no** pasa por `verifyCoincidence`.
+- ⚠ **El nombre no es sólo un dato que se guarda: es parte de la LLAVE con la que se pide el reporte de
+  crédito.** Experian se consulta con documento + `personLastName`, y ahí va **sólo el primer apellido**
+  (`Experian.php:437`, `str($user->surname)->words(1, '')`). Consecuencia: un **primer** apellido mal
+  escrito puede hacer que la consulta no encuentre a la persona —y sin score no hay listado—, mientras
+  que un segundo apellido mal **no afecta** a Experian, porque no se lo manda. *(Leído del código; no
+  hay un caso observado que lo confirme. Es medible: buscar personas a las que se les corrigió el primer
+  apellido y ver si su consulta a Experian fallaba antes.)*
 - **La cascada de identidad es una COMPUERTA, no una FUENTE.** Ágil, Mareigua y TusDatos devuelven los
   tres `'names' => $form_name` (`AgildataService.php:105` · `MareiguaService.php:127` ·
   `TusDatosService.php:242`): **te devuelven lo que les mandaste**. Pueden **vetar** el nombre, nunca
@@ -33,6 +40,23 @@ Todo aterriza en tres lugares: el **reporte crudo** en `risk_central_user_data.d
 - **Dos "PEP"**: el del tipo de doc = Permiso Especial de Permanencia (migratorio); el de AML/TusDatos = Persona Expuesta Políticamente.
 
 ## Contenido
+**La forma de cada consulta — qué le das y qué te devuelve.** Es el encuadre que explica el resto del
+nodo, porque de acá sale qué puede hacer cada proveedor con el nombre (verificado contra `main`
+2026-08-13):
+
+| proveedor | le das | te devuelve |
+|---|---|---|
+| **Ágil Data** | tipo + número de documento, y nada más (`Agildata.php:130`, Basic Auth + **mTLS** con cert de S3 en `:105`) | **el nombre completo en UN string** (`respuesta.datosBasicos.nombre`), edad, género, y el historial de aportes con sus pagos |
+| **Mareigua** | tipo + número + producto (`Mareigua.php:89-93`; token OAuth en `:157-160`) | **el nombre en CUATRO campos separados** (`primer_nombre_persona_natural` …), género, `tipo_cotizante`, aportes |
+| **TusDatos** | **el nombre ya partido en 4** + número + fecha de expedición (`Tusdatos.php:90-97`) | una **calificación por campo** (`findings.*.match_code` 0/1/2/null) + vigencia del documento |
+| **Experian** | número + **sólo el primer apellido** (`Experian.php:437`) | score, negativos, consultas recientes, cuota de deuda |
+
+⚠ **Y de ahí sale la asimetría que ordena todo lo demás: quién tiene que saber el nombre de antemano.**
+A Ágil y Mareigua les das sólo el documento y **ellos te dicen cómo se llama la persona** — por eso
+pueden **corregir**. A TusDatos le das el nombre y **te pone nota** — por eso sólo puede **validar**, y
+nunca te va a decir cómo se escribe bien. La fuente que podría corregirte es la de nómina; la que sabe
+la verdad registral sólo contesta sí o no. Ver § «El nombre».
+
 **Proveedores** (id de `risk_centrals` + cómo lo lee `User`; conteos = BD local, snapshot 2026-07-03):
 
 - **Experian · Acierta** — el ÚNICO con score. OAuth2 `POST /spla/oauth2/v1/token` + `POST /cs/credit-history/v1/hdcplus` con `ProductId 64`. `score` = **promedio de `ReportHDCplus.models[].scoreValue`**; de `agregatedInfo.overview.principals`: **negativos 12m** (`negativeHistoricalLast12Months`), **consultas 6m** (`consultedLast6Months`), **créditos en negativo** (`currentNegativeCredits`), **maduración** (`maturationSince`); de `balances`: **cuota deuda/mes** (`valueMonthlyPayment`, ×1000). `User::datacredito()` lo resuelve **por NOMBRE** `IN ('Experian - Acierta','Experian - Acierta+Quanto')` + `latest` (NO por id). 258 filas (257 con score).
@@ -64,6 +88,12 @@ maneja partículas y no duplica), `DecevalSoap` (`Str::before`/`Str::after` — 
 partir**: `Credifamilia.php:205-206` (`primerNombre`/`primerApellido`) y
 `CredifamiliaConsumo/TransactionRequest.php:73-74` (`nombre`/`apellido`), o sea que la entidad recibe los
 dos apellidos dentro del campo del primero.
+
+**Sólo las de nómina pueden CORREGIR el nombre; la registral sólo puede vetarlo.** Es consecuencia
+directa de la forma de cada consulta (§ «Contenido» → «La forma de cada consulta»): a Ágil y Mareigua se
+les da el documento y **devuelven el nombre**; a TusDatos se le da el nombre y **devuelve una nota por
+campo**. Cualquier diseño que espere que la fuente registral «diga cómo se escribe bien» está pidiendo
+algo que esa API no hace.
 
 **La fuente más barata decide el nombre, y la registral es la última — por COSTO, no por descuido.** La
 secuencia es Ágil → Mareigua → TusDatos y **corta en la primera que resuelve**
