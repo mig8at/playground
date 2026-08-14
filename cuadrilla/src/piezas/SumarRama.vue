@@ -1,6 +1,6 @@
 <script setup>
 import { ref, computed, watch, onUnmounted } from 'vue'
-import { persona, baseDe, buscarRemotas, cuantasSuyas, dias } from '../datos.js'
+import { persona, baseDe, buscarRemotas, cuantasSuyas, ocultasPorBase, dias } from '../datos.js'
 import { trabarFondo } from '../scroll.js'
 import Avatar from './Avatar.vue'
 
@@ -26,6 +26,7 @@ const nombre = computed(() => quienEs.value?.nombre.split(' ')[0] ?? '')
 const resultados = computed(() => buscarRemotas(props.epica, texto.value, props.quien, todas.value))
 const libres = computed(() => resultados.value.filter(r => !r.tomada).length)
 const suyas = computed(() => cuantasSuyas(props.epica, props.quien))
+const ocultas = computed(() => ocultasPorBase(props.epica, props.quien))
 
 /* La rama base NO se elige acá: la épica ya declaró de qué rama sale cada repo, y ofrecer un
    selector permitía contradecir esa directiva desde el lugar más fácil de pasar por alto.
@@ -87,12 +88,12 @@ function confirmar(){
         <span v-if="quienEs" class="de"><Avatar :quien="quien" :tam="20" /> {{ quienEs.nombre }}</span>
       </h2>
       <p v-if="!elegida && !todas">
-        Las ramas que <b>{{ nombre }}</b> pusheó a <span class="mono">origin</span>, en los repos de
-        la épica. Creala y pusheala en tu local y aparece acá.
+        Las ramas de <b>{{ nombre }}</b> que salen de la base que la épica asignó a cada repo.
+        Creala y pusheala en tu local y aparece acá.
       </p>
       <p v-else-if="!elegida">
-        Todas las ramas de <span class="mono">origin</span> en los repos de la épica, no solo las de
-        {{ nombre }}.
+        <b>Sin filtrar:</b> todas las ramas de <span class="mono">origin</span> en los repos de la
+        épica, salgan de donde salgan y sean de quien sean.
       </p>
       <p v-else>Confirmá en qué vas a trabajar.</p>
     </div>
@@ -133,16 +134,26 @@ function confirmar(){
             No hay ramas de <b>{{ nombre }}</b> en <span class="mono">origin</span> dentro de estos
             repos. ¿Ya le hiciste push?
           </template>
+          <template v-else-if="!todas && ocultas">
+            Ninguna rama de <b>{{ nombre }}</b> sale de la base que declaró la épica.
+          </template>
           <template v-else>Nada acá.</template>
         </p>
 
-        <!-- La salida. `empujo` es el autor del último commit, no «quien creó la rama»: si pusheó
-             con otro usuario de git, o si otro le metió un commit encima, su rama no figura como
-             suya. Sin esta salida eso se vuelve un callejón. -->
+        <!-- Se dice cuántas quedaron afuera y por qué. Filtrar en silencio es lo que después hace
+             que alguien jure que su rama no está en origin. -->
+        <p v-if="!todas && ocultas" class="escape">
+          {{ ocultas === 1 ? '1 rama tuya queda afuera' : `${ocultas} ramas tuyas quedan afuera` }}
+          por salir de otra base que la que declaró la épica.
+        </p>
+
+        <!-- La otra salida: `empujo` es el autor del último commit, no «quien creó la rama». Si
+             pusheó con otro usuario de git, o si otro le metió un commit encima, su rama no figura
+             como suya. Y la base se ESTIMA, así que también puede errar. -->
         <p class="escape">
           <template v-if="!todas">
-            ¿No la ves? Puede estar pusheada con otro usuario de git.
-            <button type="button" class="link" @click="todas = true">ver todas las ramas</button>
+            ¿No la ves? Puede estar pusheada con otro usuario, o la base mal detectada.
+            <button type="button" class="link" @click="todas = true">ver todas sin filtrar</button>
           </template>
           <template v-else>
             <button type="button" class="link" @click="todas = false">volver a las de {{ nombre }}</button>
@@ -192,7 +203,11 @@ function confirmar(){
         <template v-else-if="!elegida">{{ libres }} disponibles en origin</template>
       </span>
       <button class="ctl" @click="emit('cerrar')">Cancelar</button>
-      <button v-if="elegida" class="primary" :disabled="!base" @click="confirmar">Agregar rama</button>
+      <!-- Sin `:disabled`: el botón solo existe cuando ya hay rama elegida, y la nota es opcional.
+           Antes decía `:disabled="!base"` y `base` había dejado de existir al sacar el selector —
+           una variable que no existe resuelve a `undefined` en el template, así que quedaba
+           deshabilitado siempre y en silencio. -->
+      <button v-if="elegida" class="primary" @click="confirmar">Agregar rama</button>
     </div>
   </dialog>
 </template>

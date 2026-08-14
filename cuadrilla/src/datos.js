@@ -42,7 +42,7 @@ export const PERSONAS = {
 /* Color estable a partir del identificador. Los miembros reales de la org no están en PERSONAS y
    sin esto saldrían todos del mismo gris. Hash simple → tono; saturación y luz fijas para que
    ninguno quede ilegible ni en claro ni en oscuro. */
-export function colorDe(id){
+function colorDe(id){
   let h = 0
   for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) % 360
   return `hsl(${h} 40% 42%)`
@@ -72,7 +72,7 @@ export const REPOS = [
 
 // Las ramas compartidas que existen de verdad en los repos (origin/develop, origin/qa, origin/main,
 // origin/staging). `develop` es la base normal; las otras son la excepción y por eso se avisan.
-export const BASES = ['develop', 'qa', 'main', 'staging']
+const BASES = ['develop', 'qa', 'main', 'staging']
 
 /* Qué ramas base tiene CADA repo. No todos tienen las mismas —`pre-approvals-service` solo tiene
    develop y main—, y ofrecer `qa` donde no existe es mandar a alguien a ramificar de la nada.
@@ -102,7 +102,7 @@ export const basesDistintas = epica => [...new Set((epica.repos ?? []).map(r => 
    ⚠ Ojo cuando esto sea real: la API de GitHub NO te dice de qué rama salió una rama. Se estima con
    `git merge-base` contra las candidatas (develop/qa/main/staging) y puede errar en ramas viejas o
    ya rebasadas — por eso el formulario deja corregirla a mano.                                   */
-export const REMOTAS = [
+const REMOTAS = [
   // ── legacy-backend
   { repo:'legacy-backend', rama:'fix/CORE-368-correcciones-producto',            empujo:'joel',   dias:2,  base:'develop' },
   { repo:'legacy-backend', rama:'feat/CORE-362-conexion-flujo',                  empujo:'joel',   dias:2,  base:'develop' },
@@ -235,7 +235,7 @@ export function buscarEpica(id){
    nada se guarda aparte — dos fuentes para el mismo número es cómo empiezan a discrepar.        */
 
 // Cada rama con su épica al lado. Es la base de todo lo transversal.
-export function ramasGlobales(){
+function ramasGlobales(){
   return EPICAS.flatMap(e => e.ramas.map(r => ({ ...r, epica: e })))
 }
 
@@ -288,7 +288,43 @@ export function represadoPorPersona(){
   return { filas, tope: Math.max(1, ...filas.map(f => f.n)) }
 }
 
-export function resumenPersona(quien){
+/* ═══ EL PODIO ══════════════════════════════════════════════════════════════════════════════════
+   Quiénes sostienen la revisión del equipo. Ordena por cantidad de PRs aprobados, pero muestra dos
+   cosas más al lado, y no de adorno:
+
+     · `lineas` — cuánto código miró de verdad (+/− de lo que aprobó);
+     · `demora` — cuántos días promedio tardó en responder.
+
+   Un contador de aprobaciones a secas premia al que pasa el sello sin leer, que es lo contrario de
+   lo que este podio quiere reconocer. Con las tres columnas, ocho aprobaciones de 20 líneas en el
+   mismo día se distinguen de ocho de 3.000 — y eso lo juzga quien mira, sin que la herramienta
+   invente una fórmula. */
+export function podio(){
+  const cuenta = new Map()
+  for (const r of ramasGlobales()) {
+    for (const a of r.aprobada ?? []) {
+      const x = cuenta.get(a.quien) ?? { quien: a.quien, n: 0, lineas: 0, demoras: [] }
+      x.n++
+      x.lineas += (r.mas ?? 0) + (r.men ?? 0)
+      x.demoras.push(a.demora ?? 0)
+      cuenta.set(a.quien, x)
+    }
+  }
+  return [...cuenta.values()]
+    .map(x => ({
+      ...x,
+      demora: x.demoras.length
+        ? Math.round(x.demoras.reduce((a, b) => a + b, 0) / x.demoras.length * 10) / 10
+        : 0,
+    }))
+    .sort((a, b) => b.n - a.n || b.lineas - a.lineas || a.demora - b.demora)
+}
+
+// Cuántos PRs hay aprobados en total: sirve para decir «de N» y para saber si el podio tiene sentido.
+export const aprobacionesTotales = () =>
+  ramasGlobales().reduce((n, r) => n + (r.aprobada?.length ?? 0), 0)
+
+function resumenPersona(quien){
   const suyas = ramasGlobales().filter(r => r.autor === quien)
   const esperando = suyas.filter(r => r.estado === 'aprobacion')
   const mergeadas = suyas.filter(r => r.estado === 'mergeada').length
@@ -324,11 +360,6 @@ export async function crearEpica(nombre, devs, repos){
 
 export const renombrarEpica = async (epica, nombre) => refrescar(await api.renombrar(epica.id, nombre))
 
-export async function borrarEpica(epica){
-  await api.borrar(epica.id)
-  const i = EPICAS.findIndex(x => x.id === epica.id)
-  if (i >= 0) EPICAS.splice(i, 1)
-}
 
 export const sumarDev = async (epica, quien) => refrescar(await api.sumarDev(epica.id, quien))
 export const sacarDev = async (epica, quien) => refrescar(await api.sacarDev(epica.id, quien))
@@ -399,19 +430,19 @@ export async function agregarRama(epica, { repo, rama, base, quien, nota }){
    Lo que cada quien deja escrito DENTRO de una épica para el resto de la cuadrilla. Es por persona
    y por épica: la misma persona documenta cosas distintas en épicas distintas.
 
-   Dos campos y no uno: `texto` es qué hizo y dónde quedó, y `trampa` es lo que le costó tiempo.
-   Sin el segundo campo la gente escribe un diario; con él escribe lo que al otro le sirve —
-   es el mismo criterio del nodo `findings` del playground.
+   UN campo, en markdown. Antes eran dos («qué hiciste» y «ojo con esto»), y el segundo existía para
+   forzar a escribir las trampas. Se unificó el 2026-08-12: con markdown, «## Ojo con esto» es un
+   título como cualquier otro y no hace falta una columna para conseguirlo. Lo que sí se mantiene es
+   pedirlo en el placeholder — el hábito lo sostiene el texto de ayuda, no el esquema.
 
    `dias` = cuándo se actualizó. Una documentación sin fecha se lee como vigente aunque tenga
    meses; con fecha, el que lee decide cuánto confiar. */
 export const docDe = (epica, quien) => epica.docs?.[quien] ?? null
 
-// Vaciar los dos campos borra la entrada: de eso se encarga el server, que es el que sabe si había.
-export const guardarDoc = async (epica, quien, { texto, trampa }) =>
-  refrescar(await api.escribirDoc(epica.id, quien, { texto, trampa }))
+// Vaciar el campo borra la entrada: de eso se encarga el server, que es el que sabe si había.
+export const guardarDoc = async (epica, quien, { texto }) =>
+  refrescar(await api.escribirDoc(epica.id, quien, { texto }))
 
-export const cuantasDocs = epica => Object.keys(epica.docs ?? {}).length
 
 export const dias = n => (n === 0 ? 'hoy' : n === 1 ? '1 día' : `${n} días`)
 

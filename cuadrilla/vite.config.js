@@ -22,6 +22,11 @@ export default defineConfig({
       '/api': {
         target: `http://127.0.0.1:${process.env.PUERTO || 8091}`,
         changeOrigin: false,
+        /* `timeout: 0` es OBLIGATORIO por el stream SSE del juego: esa conexión se queda abierta
+           minutos, y cualquier timeout del proxy la corta. El síntoma engaña —el chat se congela
+           sin error ni en consola ni en el log del server—. Mismo caso que en `plantillas`. */
+        timeout: 0,
+        proxyTimeout: 0,
       },
     },
   },

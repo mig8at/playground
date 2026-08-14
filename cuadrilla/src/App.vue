@@ -49,9 +49,15 @@ function tema(){
           <svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6.3"/><path d="M8 4.3V8l2.5 1.6"/></svg>
           Revisión <i class="n" :class="{ ojo: p.aprobacion }">{{ p.aprobacion }}</i>
         </RouterLink>
-        <RouterLink to="/mcp" class="op">
+        <RouterLink to="/api" class="op">
           <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 5.5 1 8l2 2.5"/><path d="M13 5.5 15 8l-2 2.5"/><path d="M9.6 3.6 6.4 12.4"/></svg>
-          MCP <i class="n">6</i>
+          API <i class="n">5</i>
+        </RouterLink>
+        <!-- GAMES va abajo y separado: no es el tablero, es lo que hace que la gente entre. -->
+        <span class="grupo">games</span>
+        <RouterLink to="/games/impostor" class="op">
+          <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 1.6 14 5v6l-6 3.4L2 11V5Z"/><circle cx="8" cy="8" r="2"/></svg>
+          Impostor
         </RouterLink>
       </nav>
 
@@ -111,6 +117,8 @@ function tema(){
 .marca .dot{color:var(--page-tenue)}
 
 nav{display:flex;flex-direction:column;gap:1px}
+.grupo{font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--page-tenue);
+  padding:14px 9px 5px;border-top:1px solid var(--line);margin-top:12px}
 .op{display:flex;align-items:center;gap:9px;padding:7px 9px;border-radius:6px;
   font-size:13.5px;color:var(--page-soft);text-decoration:none;
   transition:background .15s,color .15s}

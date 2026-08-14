@@ -3,6 +3,7 @@ import { ref, computed } from 'vue'
 import { persona, ESTADOS, buscarEpica, avance, conteo, masVieja, ramasDe, genteDe,
          agregarRama, docDe, guardarDoc, baseDe, sacarRama, estadoDatos,
          dias, fraccion, enumerar } from '../datos.js'
+import { aHtml } from '../markdown.js'
 import Avatar from '../piezas/Avatar.vue'
 import Barra from '../piezas/Barra.vue'
 import Rama from '../piezas/Rama.vue'
@@ -16,6 +17,19 @@ const epica = computed(() => buscarEpica(props.id))
 const filtro = ref('todo')
 const abriendo = ref(null)      // de quién es la card que abrió el buscador de ramas
 const documentando = ref(null)  // de quién es la card que abrió la documentación
+const desplegadas = ref(new Set())   // docs abiertas, por persona
+
+const desplegada = q => desplegadas.value.has(q)
+function alternarDoc(q){
+  const s = new Set(desplegadas.value)
+  s.has(q) ? s.delete(q) : s.add(q)
+  desplegadas.value = s
+}
+
+/* «leer más» solo aparece si de verdad hay más que leer: un enlace que despliega lo mismo que ya
+   se ve es peor que no tenerlo. Se mide sobre el markdown crudo —umbral ~2 líneas—; medir el HTML
+   renderizado contaría las etiquetas y una nota corta con dos negritas pediría desplegarse. */
+const hayMas = d => (d.texto?.length ?? 0) > 110
 const editando = ref(false)
 
 const av = computed(() => avance(epica.value))
@@ -67,7 +81,11 @@ async function quitar(r){
 }
 
 async function documentar(datos){
-  await guardarDoc(epica.value, documentando.value, datos)
+  const quien = documentando.value
+  await guardarDoc(epica.value, quien, datos)
+  // Se despliega la que acabás de escribir: verla colapsada justo después de guardarla deja la
+  // duda de si se guardó.
+  desplegadas.value = new Set([...desplegadas.value, quien])
   documentando.value = null
 }
 </script>
@@ -144,7 +162,10 @@ async function documentar(datos){
         <header>
           <Avatar :quien="p.quien" :tam="32" />
           <div class="p-nom">
-            <b>{{ p.nombre }}</b>
+            <!-- El nombre lleva a su tarea: la página propia de lo que esa persona toca acá. -->
+            <RouterLink :to="{ name: 'tarea', params: { id: epica.id, quien: p.quien } }" class="p-link">
+              <b>{{ p.nombre }}</b>
+            </RouterLink>
             <span class="p-frac">{{ p.total ? fraccion(p.mergeadas, p.total) : 'sin ramas todavía' }}</span>
           </div>
           <span v-if="p.esperando" class="badge aprobacion">
@@ -179,8 +200,14 @@ async function documentar(datos){
             <span class="cuando">actualizada {{ p.doc.dias === 0 ? 'hoy' : `hace ${dias(p.doc.dias)}` }}</span>
             <button class="editar" @click="documentando = p.quien">editar</button>
           </div>
-          <p v-if="p.doc.texto" class="doc-texto">{{ p.doc.texto }}</p>
-          <p v-if="p.doc.trampa" class="doc-trampa"><b>Ojo:</b> {{ p.doc.trampa }}</p>
+
+          <!-- Sanitizado en `markdown.js` antes de llegar acá. -->
+          <div class="doc-texto md-cuerpo" :class="{ recortado: !desplegada(p.quien) }"
+               v-html="aHtml(p.doc.texto)"></div>
+
+          <button v-if="hayMas(p.doc)" class="mas-doc" @click="alternarDoc(p.quien)">
+            {{ desplegada(p.quien) ? 'leer menos' : 'leer más' }}
+          </button>
         </div>
       </section>
 
@@ -243,6 +270,8 @@ async function documentar(datos){
    líneas antes de bajar los botones a la fila siguiente. Que baje lo que sobra, no el nombre. */
 .p-nom{flex:1 1 auto;min-width:150px}
 .p-nom b{font-size:14px;font-weight:500;display:block;line-height:1.35;white-space:nowrap}
+.p-link{text-decoration:none;color:inherit}
+.p-link:hover b{text-decoration:underline}
 .p-frac{font-size:12px;color:var(--page-tenue);white-space:nowrap}
 .persona .avance{flex:0 1 130px;min-width:90px}
 /* Los dos botones se mueven juntos: partirlos en filas distintas se ve accidental. */
@@ -270,9 +299,13 @@ async function documentar(datos){
   color:var(--page-soft);cursor:pointer;padding:0;text-decoration:underline}
 .editar:hover{color:var(--page-ink)}
 .doc-texto{margin:0;font-size:12.5px;line-height:1.65;color:var(--page-soft);white-space:pre-wrap}
-.doc-trampa{margin:9px 0 0;font-size:12.5px;line-height:1.6;color:var(--page-soft);
-  white-space:pre-wrap;border-top:1px solid var(--line);padding-top:9px}
-.doc-trampa b{color:var(--warn);font-weight:500}
+/* Recorte a 2 líneas con line-clamp: corta por LÍNEA renderizada, no por cantidad de caracteres,
+   así el corte cae donde el texto realmente se pasa y no a mitad de una palabra corta. */
+.doc-texto.recortado{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;
+  overflow:hidden;white-space:normal}
+.mas-doc{margin-top:7px;background:none;border:none;padding:0;font:inherit;font-size:11.5px;
+  color:var(--page-soft);cursor:pointer;text-decoration:underline}
+.mas-doc:hover{color:var(--page-ink)}
 
 ul.ramas{list-style:none;margin:12px 0 0;padding:0;display:flex;flex-direction:column;gap:1px;
   border:1px solid var(--line);border-radius:8px;overflow:hidden;background:var(--line)}

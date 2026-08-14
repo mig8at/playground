@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router'
 import { EPICAS, avance, conteo, masVieja, crearEpica, basesDistintas, estadoDatos, dias, fraccion, enumerar } from '../datos.js'
 import Pila from '../piezas/Pila.vue'
 import Barra from '../piezas/Barra.vue'
+import Podio from '../piezas/Podio.vue'
 import Resumen from '../piezas/Resumen.vue'
 import NuevaEpica from '../piezas/NuevaEpica.vue'
 
@@ -34,6 +35,9 @@ async function nueva(nombre, devs, repos){
     </div>
     <button class="primary" @click="modal = true"><span class="mas">＋</span> Nueva épica</button>
   </div>
+
+  <!-- El podio va arriba y a lo ancho: es reconocimiento, no una métrica más de la reja. -->
+  <Podio class="podio-banda" />
 
   <Resumen class="resumen" />
 
@@ -118,7 +122,8 @@ async function nueva(nombre, devs, repos){
 .sub b{color:var(--page-ink);font-weight:500}
 .primary .mas{font-size:14px;line-height:1}
 
-.resumen{margin-top:18px}
+.podio-banda{margin-top:18px}
+.resumen{margin-top:12px}
 .grid{margin-top:12px;display:grid;gap:12px;grid-template-columns:repeat(auto-fill,minmax(288px,1fr))}
 .sin-server{margin:16px 0 0;font-size:12.5px;color:var(--bad);line-height:1.6}
 .pie-mock{margin:22px 0 0;font-size:11.5px;color:var(--page-tenue);line-height:1.6;max-width:80ch}

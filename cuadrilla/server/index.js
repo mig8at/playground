@@ -3,6 +3,7 @@ import { randomBytes, timingSafeEqual } from 'node:crypto'
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import * as db from './db.js'
+import * as impostor from './impostor.js'
 
 /* ═══ EL SERVIDOR DE SESIÓN ═════════════════════════════════════════════════════════════════════
    Existe por una razón concreta: **el navegador no puede hacer el login de GitHub solo**. El
@@ -35,10 +36,9 @@ const SIN_ORG = process.env.CUADRILLA_SKIP_ORG === '1'
 
 const configurado = () => Boolean(CLIENT_ID && CLIENT_SECRET)
 
-/* Sesiones en memoria: al reiniciar el server hay que volver a entrar. Para un prototipo local es
-   lo correcto — una tabla de sesiones persistida es una base de datos más que mantener, y acá
-   todavía no sabemos si esto sobrevive. */
-const sesiones = new Map()
+/* Las sesiones viven en SQLite (`db.leerSesion` / `db.guardarSesion`). Estaban en memoria, pero al
+   exigir autenticación para escribir, cada reinicio del server dejaba a todo el mundo sin poder
+   usar la app hasta volver a loguearse. */
 const pendientes = new Map()   // state → cuándo se emitió, para el chequeo anti-CSRF
 
 const VIDA_STATE = 10 * 60 * 1000
@@ -84,6 +84,35 @@ async function cuerpo(req){
   return JSON.parse(Buffer.concat(trozos).toString('utf8'))
 }
 
+/* ═══ QUIÉN ESTÁ ESCRIBIENDO ════════════════════════════════════════════════════════════════════
+   Dos caminos con permisos distintos a propósito:
+
+     · cookie de sesión → una persona en el navegador. Puede escribir por otro: un lead ordenando la
+       documentación de la épica es un caso real y útil.
+     · Bearer token     → un agente. Solo puede escribir COMO SU DUEÑO. Un token que puede
+       suplantar vuelve inverificable el campo `autor`, que es justo lo que este tablero existe
+       para saber.
+
+   `quien` es el id del tablero (`miguel`), no el login de GitHub (`mig-creditop`): la tabla
+   `identidades` traduce. Si el login no está atado a nadie, el token no puede escribir — y el
+   mensaje lo dice, en vez de guardar la doc bajo un id que nadie mira. */
+function quienEscribe(req){
+  const cabecera = req.headers.authorization ?? ''
+  if (cabecera.startsWith('Bearer ')) {
+    const t = db.porToken(cabecera.slice(7).trim())
+    if (!t) return { error: 'token inválido o revocado', codigo: 401 }
+    const quien = db.quienEs(t.login)
+    if (!quien) {
+      return { error: `el login ${t.login} no está atado a ninguna persona del tablero`, codigo: 409 }
+    }
+    return { via: 'token', login: t.login, quien, puedeEscribirPorOtro: false }
+  }
+
+  const s = db.leerSesion(cookies(req).cuadrilla_sid)
+  if (!s) return { error: 'hay que entrar con GitHub, o usar un token', codigo: 401 }
+  return { via: 'sesion', login: s.login, quien: db.quienEs(s.login), puedeEscribirPorOtro: true }
+}
+
 async function gh(url, token){
   const r = await fetch(url, {
     headers: {
@@ -101,16 +130,65 @@ const server = createServer(async (req, res) => {
   const ruta = url.pathname
 
   try {
-    /* ═══ LAS ÉPICAS ══════════════════════════════════════════════════════════════════════════
-       Todo lo que se DECLARA vive en SQLite y se toca solo por acá.
+    /* ═══ IMPOSTOR ════════════════════════════════════════════════════════════════════════════
+       El juego. Va antes que todo porque el stream NO debe pasar por ningún `await cuerpo(req)`
+       ni por los chequeos de sesión: es una conexión que se queda abierta, no un pedido que
+       responde y termina.
 
-       ⚠ Las escrituras NO piden sesión todavía. Es deliberado para el prototipo: la app tiene que
-       seguir usable mientras la org no apruebe la OAuth App. El día que esto salga de localhost,
-       acá va un `if (!sesiones.get(...)) return json(res, 401, …)` — y el `autor` de una rama
-       debería salir de la sesión, no del cuerpo del pedido. */
+       No pide autenticación: es un juego de oficina y exigir login para jugar es la forma más
+       rápida de que nadie juegue. La identidad es el nombre que cada uno escribe. */
+    if (ruta.startsWith('/api/impostor')) {
+      const accion = ruta.slice('/api/impostor'.length).replace(/^\//, '')
+
+      if (accion === 'eventos') {
+        const id = url.searchParams.get('jugador') ?? ''
+        return impostor.suscribir(req, res, id)
+      }
+      if (accion === 'estado' && req.method === 'GET') return json(res, 200, impostor.estado())
+
+      if (req.method === 'POST') {
+        const b = await cuerpo(req)
+        const jugador = b.jugador ?? ''
+        const r = accion === 'entrar'    ? impostor.entrar(b.nombre)
+                : accion === 'salir'     ? impostor.salir(jugador)
+                : accion === 'arrancar'  ? impostor.arrancar()
+                : accion === 'pista'     ? impostor.pista(jugador, b.texto)
+                : accion === 'avotar'    ? impostor.aVotar()
+                : accion === 'votar'     ? impostor.votar(jugador, b.aQuien)
+                : accion === 'reiniciar' ? impostor.reiniciar()
+                : { error: 'acción desconocida' }
+        return json(res, r?.error ? 400 : 200, r ?? { ok: true })
+      }
+      return json(res, 405, { error: 'método no soportado' })
+    }
+
+    /* ═══ LAS ÉPICAS ══════════════════════════════════════════════════════════════════════════
+       Todo lo que se DECLARA vive en SQLite y se toca solo por acá. Las lecturas son abiertas; las
+       escrituras piden sesión o token (ver `quienEscribe`). */
     const m = ruta.match(/^\/api\/epicas(?:\/([^/]+))?(?:\/(devs|repos|ramas|docs)(?:\/(.+))?)?$/)
     if (m) {
       const [, id, sub, resto] = m
+
+      /* La puerta única de escritura: un solo lugar donde decidir, en vez de repetir el chequeo en
+         los ocho handlers y olvidarlo en uno.
+
+         Un TOKEN solo toca lo suyo: su documentación y sus ramas. El contrato de la épica —nombre,
+         quiénes están, qué repos, desde qué rama— es un acuerdo del equipo, y no debería cambiarlo
+         un agente en medio de una tarea. Para eso está la sesión del navegador, donde hay una
+         persona mirando lo que aprieta. */
+      let yo = null
+      if (req.method !== 'GET') {
+        yo = quienEscribe(req)
+        if (yo.error) return json(res, yo.codigo, { error: yo.error })
+
+        const esDeLaEpica = !sub || sub === 'devs' || sub === 'repos'
+        if (yo.via === 'token' && esDeLaEpica) {
+          return json(res, 403, {
+            error: 'un token solo puede tocar tus ramas y tu documentación; ' +
+                   'el contrato de la épica se edita desde el navegador',
+          })
+        }
+      }
 
       if (!id) {
         if (req.method === 'GET') return json(res, 200, db.epicas())
@@ -166,8 +244,11 @@ const server = createServer(async (req, res) => {
       if (id && sub === 'ramas') {
         if (req.method === 'POST') {
           const b = await cuerpo(req)
-          if (!b.repo || !b.rama || !b.autor) return json(res, 400, { error: 'faltan repo, rama o autor' })
-          db.agregarRama(id, b)
+          // Con token, el autor NO se acepta del cuerpo: sale de quién es el token. Un agente no
+          // debería poder cargar una rama a nombre de un compañero.
+          const autor = yo.puedeEscribirPorOtro ? b.autor : yo.quien
+          if (!b.repo || !b.rama || !autor) return json(res, 400, { error: 'faltan repo, rama o autor' })
+          db.agregarRama(id, { ...b, autor })
           return json(res, 200, db.epica(id))
         }
         /* El nombre de una rama trae barras (`feat/algo`), así que va por query y no por ruta:
@@ -175,16 +256,59 @@ const server = createServer(async (req, res) => {
         if (req.method === 'DELETE') {
           const repo = url.searchParams.get('repo'), rama = url.searchParams.get('rama')
           if (!repo || !rama) return json(res, 400, { error: 'faltan repo y rama' })
+          // Con token, solo se saca la propia: quitar la rama de un compañero es borrarle trabajo
+          // del tablero, y eso no lo hace un agente por su cuenta.
+          if (!yo.puedeEscribirPorOtro) {
+            const suya = db.epica(id).ramas.find(r => r.repo === repo && r.rama === rama)
+            if (!suya) return json(res, 404, { error: 'esa rama no está en la épica' })
+            if (suya.autor !== yo.quien) {
+              return json(res, 403, { error: `esa rama es de ${suya.autor}, no tuya` })
+            }
+          }
           db.quitarRama(id, repo, rama)
           return json(res, 200, db.epica(id))
         }
       }
 
-      if (id && sub === 'docs' && resto && req.method === 'PUT') {
-        db.guardarDoc(id, decodeURIComponent(resto), await cuerpo(req))
+      /* `PUT .../docs/:quien` desde el navegador y `PUT .../docs` desde un agente: sin `:quien`, el
+         dueño sale del token. Así la llamada del agente es más corta Y no puede mentir sobre la
+         autoría; si igual manda un `:quien` que no es el suyo, se rechaza en vez de ignorarlo en
+         silencio — un 403 explícito es lo que evita que alguien crea que escribió donde no. */
+      if (id && sub === 'docs' && req.method === 'PUT') {
+        const pedido = resto ? decodeURIComponent(resto) : yo.quien
+        if (!pedido) return json(res, 400, { error: 'falta de quién es la documentación' })
+        if (!yo.puedeEscribirPorOtro && pedido !== yo.quien) {
+          return json(res, 403, { error: `ese token solo puede escribir la documentación de ${yo.quien}` })
+        }
+        db.guardarDoc(id, pedido, await cuerpo(req))
         return json(res, 200, db.epica(id))
       }
 
+      return json(res, 405, { error: 'método no soportado' })
+    }
+
+    /* ── tokens personales ────────────────────────────────────────────────────────────────────
+       Se administran SOLO con sesión de navegador: un token no puede emitir otro token. Si pudiera,
+       filtrar uno bastaría para fabricarse acceso permanente aunque revoquen el original. */
+    const mt = ruta.match(/^\/api\/tokens(?:\/([\w-]+))?$/)
+    if (mt) {
+      const s = db.leerSesion(cookies(req).cuadrilla_sid)
+      if (!s) return json(res, 401, { error: 'entrá con GitHub para administrar tus tokens' })
+      const idTok = mt[1]
+
+      if (!idTok && req.method === 'GET') {
+        return json(res, 200, { login: s.login, quien: db.quienEs(s.login), tokens: db.tokensDe(s.login) })
+      }
+      if (!idTok && req.method === 'POST') {
+        const b = await cuerpo(req)
+        const { id, plano } = db.crearToken(s.login, b.nota)
+        // `plano` viaja UNA vez y no se vuelve a poder leer: en la base queda solo el hash.
+        return json(res, 201, { id, token: plano, tokens: db.tokensDe(s.login) })
+      }
+      if (idTok && req.method === 'DELETE') {
+        db.revocarToken(s.login, idTok)
+        return json(res, 200, { tokens: db.tokensDe(s.login) })
+      }
       return json(res, 405, { error: 'método no soportado' })
     }
 
@@ -195,7 +319,7 @@ const server = createServer(async (req, res) => {
 
     // ── quién soy
     if (ruta === '/api/me') {
-      const s = sesiones.get(cookies(req).cuadrilla_sid)
+      const s = db.leerSesion(cookies(req).cuadrilla_sid)
       // Campo por campo, NUNCA `s` entero: la sesión guarda el token de GitHub y devolverla tal
       // cual lo publicaría en un fetch que cualquiera puede hacer desde la consola del navegador.
       return json(res, 200, s ? { login: s.login, nombre: s.nombre, avatar: s.avatar } : null)
@@ -206,7 +330,7 @@ const server = createServer(async (req, res) => {
        que depende de que la org le haya dado acceso a la app: si no, devuelve `disponible:false`
        con el motivo y el front cae al roster local en vez de mostrar una lista vacía. */
     if (ruta === '/api/members') {
-      const s = sesiones.get(cookies(req).cuadrilla_sid)
+      const s = db.leerSesion(cookies(req).cuadrilla_sid)
       if (!s) return json(res, 200, { disponible: false, motivo: 'sinSesion', miembros: [] })
 
       const fresco = cacheMiembros && Date.now() - cacheMiembros.cuando < VIDA_CACHE
@@ -252,7 +376,7 @@ const server = createServer(async (req, res) => {
        vacía NO significa «la org no tiene repos» sino «no tengo permiso para verlos», y así se
        reporta para que el front no muestre una lista vacía sin explicación. */
     if (ruta === '/api/repos') {
-      const s = sesiones.get(cookies(req).cuadrilla_sid)
+      const s = db.leerSesion(cookies(req).cuadrilla_sid)
       if (!s) return json(res, 200, { disponible: false, motivo: 'sinSesion', repos: [] })
 
       const fresco = cacheRepos && Date.now() - cacheRepos.cuando < VIDA_CACHE
@@ -283,7 +407,7 @@ const server = createServer(async (req, res) => {
        Se pide al hacer clic en el repo, no de entrada: traer las ramas de todos los repos por si
        acaso son decenas de llamadas para una lista que a lo mejor nadie abre. */
     if (ruta === '/api/branches') {
-      const s = sesiones.get(cookies(req).cuadrilla_sid)
+      const s = db.leerSesion(cookies(req).cuadrilla_sid)
       const repo = url.searchParams.get('repo') ?? ''
       if (!s) return json(res, 200, { disponible: false, motivo: 'sinSesion', ramas: [] })
       if (!/^[\w.-]+$/.test(repo)) return json(res, 400, { error: 'repo inválido' })
@@ -380,12 +504,13 @@ const server = createServer(async (req, res) => {
         }
       }
 
-      const sid = randomBytes(24).toString('hex')
-      /* El token SÍ se guarda, pero solo de este lado: hace falta para consultar la org (los
-         miembros del equipo) en nombre de quien entró. Nunca sale en una respuesta —`/api/me`
+      /* El token de GitHub SÍ se guarda, pero solo de este lado: hace falta para consultar la org
+         (los miembros del equipo) en nombre de quien entró. Nunca sale en una respuesta —`/api/me`
          devuelve solo login/nombre/avatar— y se borra al salir. Alcance del daño si se filtrara:
          `read:user read:org`, o sea leer perfiles y membresías. NO da acceso al código. */
-      sesiones.set(sid, { login: u.login, nombre: u.name ?? u.login, avatar: u.avatar_url, token: tok.access_token })
+      const sid = db.guardarSesion({
+        login: u.login, nombre: u.name ?? u.login, avatar: u.avatar_url, token: tok.access_token,
+      })
       res.writeHead(302, {
         'set-cookie': `cuadrilla_sid=${sid}; HttpOnly; SameSite=Lax; Path=/; Max-Age=${8 * 3600}`,
         location: `${APP_URL}/`,
@@ -396,7 +521,7 @@ const server = createServer(async (req, res) => {
     // ── salir
     if (ruta === '/api/logout' && req.method === 'POST') {
       const sid = cookies(req).cuadrilla_sid
-      if (sid) sesiones.delete(sid)
+      if (sid) db.borrarSesion(sid)
       res.writeHead(200, {
         'set-cookie': 'cuadrilla_sid=; HttpOnly; SameSite=Lax; Path=/; Max-Age=0',
         'content-type': 'application/json',
@@ -418,8 +543,8 @@ const ARCHIVO_DB = process.env.CUADRILLA_DB
   ?? join(dirname(fileURLToPath(import.meta.url)), '..', 'cuadrilla.db')
 db.abrir(ARCHIVO_DB)
 
-server.listen(PUERTO, '127.0.0.1', () => {
-  console.log(`  cuadrilla · sesión en http://127.0.0.1:${PUERTO}`)
+server.listen(PUERTO, HOST, () => {
+  console.log(`  cuadrilla · sesión en http://${HOST}:${PUERTO}`)
   console.log(`  base: ${ARCHIVO_DB}`)
   if (!configurado()) {
     console.log('  ⚠ sin GITHUB_CLIENT_ID / GITHUB_CLIENT_SECRET: el login queda deshabilitado')

@@ -34,3 +34,10 @@ export const sumarRama     = (id, datos)        => pedir(`${base}/${q(id)}/ramas
 export const sacarRama     = (id, repo, rama)   => pedir(`${base}/${q(id)}/ramas?repo=${q(repo)}&rama=${q(rama)}`, { method: 'DELETE' })
 
 export const escribirDoc   = (id, quien, doc)   => pedir(`${base}/${q(id)}/docs/${q(quien)}`, { method: 'PUT', body: doc })
+
+/* ── tokens personales ─────────────────────────────────────────────────────────────────────────
+   El texto plano del token llega SOLO en la respuesta de `crearToken` y no se guarda en ningún
+   lado del front: si se pierde, se revoca y se hace otro. */
+export const listarTokens  = ()        => pedir('/api/tokens')
+export const crearToken    = (nota)    => pedir('/api/tokens', { method: 'POST', body: { nota } })
+export const revocarToken  = (id)      => pedir(`/api/tokens/${q(id)}`, { method: 'DELETE' })
