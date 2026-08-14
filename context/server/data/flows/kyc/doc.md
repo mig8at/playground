@@ -65,12 +65,20 @@ partir**: `Credifamilia.php:205-206` (`primerNombre`/`primerApellido`) y
 `CredifamiliaConsumo/TransactionRequest.php:73-74` (`nombre`/`apellido`), o sea que la entidad recibe los
 dos apellidos dentro del campo del primero.
 
-**El orden de la cascada está invertido respecto de la autoridad.** La secuencia es Ágil → Mareigua →
-TusDatos y **corta en la primera que resuelve** (`OnboardingService::storePersonalInfo`). Pero el nombre
-de Ágil y Mareigua sale de la **planilla de seguridad social, o sea lo tecleó el empleador**, mientras
-que TusDatos valida contra Registraduría *(inferido de los comentarios del código y respaldado por su
-respuesta, que trae vigencia de cédula; **no** verificado contra el contrato del proveedor)*. Resultado:
-**la fuente registral es la última y condicional**, y quien decide de hecho es la de nómina.
+**La fuente más barata decide el nombre, y la registral es la última — por COSTO, no por descuido.** La
+secuencia es Ágil → Mareigua → TusDatos y **corta en la primera que resuelve**
+(`OnboardingService::storePersonalInfo`). El nombre de Ágil y Mareigua sale de la **planilla de
+seguridad social, o sea lo tecleó el empleador**, mientras que TusDatos valida contra Registraduría
+*(inferido de los comentarios del código y respaldado por su respuesta, que trae vigencia de cédula;
+**no** verificado contra el contrato del proveedor)*.
+
+⚠ **No lo leas como un orden equivocado**: cada consulta se paga, y cortar en la primera que resuelve es
+la decisión de costo *(según Miguel, 2026-08-13 — es un hecho de negocio, no una inferencia del código)*.
+La consecuencia sí es real y hay que tenerla presente: **el nombre guardado no está garantizado contra
+la cédula**, porque quien lo valida de hecho es una fuente que lo copió de una planilla. Así que la
+pregunta útil no es «¿por qué no se consulta siempre la registral?» sino **«¿cuándo vale pagarla?»** —
+y ahí hay respuestas acotadas (antes de firmar el pagaré; cuando las dos fuentes de nómina se
+contradicen entre sí), que son un puñado de consultas y no todas.
 
 Tres mediciones sobre `kyc_name_checks` en prod (2026-07-23 → 2026-08-13, ~9.800 comparaciones) que
 sostienen la regla:
