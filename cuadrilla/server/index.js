@@ -23,6 +23,14 @@ import * as impostor from './impostor.js'
    httpOnly. Si el front tuviera un XSS, se lleva la cookie de esta app, no una llave de la org.  */
 
 const PUERTO = Number(process.env.PUERTO) || 8091
+
+/* En LOCAL se ata a 127.0.0.1 y no a `0.0.0.0`: este server guarda la sesión de GitHub y no tiene por
+   qué ser alcanzable desde la red: sirve solo al Vite de al lado.
+   En un contenedor hay que ponerlo en `0.0.0.0`: ahí el aislamiento lo da el contenedor, y con
+   127.0.0.1 el proxy de al lado no puede llegarle —el síntoma es un 502 con el server «arriba» y sin
+   un solo error en su log—. */
+const HOST = process.env.CUADRILLA_HOST ?? '127.0.0.1'
+
 const CLIENT_ID = process.env.GITHUB_CLIENT_ID ?? ''
 const CLIENT_SECRET = process.env.GITHUB_CLIENT_SECRET ?? ''
 const ORG = process.env.CUADRILLA_ORG ?? 'Creditop-SAS'
