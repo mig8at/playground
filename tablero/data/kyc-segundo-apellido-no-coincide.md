@@ -18,11 +18,16 @@ falta que alguien lo valide antes de mergear.
 > real va acá, en el cuerpo. Si «en pruebas» va a repetirse, el arreglo es agregar la etapa al tablero
 > (`src/App.vue` → `STAGES`), no meter un `stage` fantasma en el frontmatter.
 
-- **Rama:** `fix/kyc-second-surname-mismatch` en `legacy-backend`, commit `7f4c2903`, **pusheada a
-  `origin`** el 2026-08-13. **Sin PR** — se abre cuando pase la validación.
+- **Rama:** `fix/kyc-second-surname-mismatch` en `legacy-backend`, **un solo commit `1cf40ca8`**
+  (aplastado y force-pusheado con lease sobre `7f4c2903` el 2026-08-13). **Sin PR** — se abre cuando
+  pase la validación.
 - **Qué hay que probar:** que un cliente con segundo apellido mal escrito ya NO avance (ve el error en
   el campo apellido y lo corrige), y que un cliente que legítimamente tiene **un solo** apellido siga
   pasando sin fricción. Lo segundo es lo que hay que mirar con lupa: es el riesgo de este cambio.
+- **⚠ El alcance CRECIÓ después de crear CORE-420.** La tarjeta describe sólo el arreglo del
+  `0 == null`; la rama trae además la **regla de adopción de nombre** que autorizó Oscar y su techo de
+  distancia. Antes de que QA valide, la descripción del issue tiene que actualizarse o van a probar la
+  mitad. Ver § «Lo que se sumó después».
 - **Cómo probarlo en un comando** (stack local, drivers de KYC en fake):
   `cd playground/harness && node dev/kyc-apellido.ts` → exit 0 correcto · 1 defecto vivo · 2 no
   concluyente.
@@ -369,3 +374,68 @@ Alcanza con el cambio publicado en el ambiente de pruebas.
 garantiza que el nombre guardado sea el de la cédula**. El orden en que se consultan las fuentes hace que
 la mayoría de los clientes nunca pase por la que valida contra el documento — eso se está midiendo y va
 por separado.
+
+## Lo que se sumó después (2026-08-13, tarde)
+
+Con el arreglo ya hecho, Oscar autorizó ir más lejos: **si la central resuelve la cédula y devuelve el
+nombre, ese gana sobre el que tecleó el asesor**. Está en la misma rama.
+
+**Por qué importa el orden en que se hizo.** El arreglo del `0 == null` tapa la fuga de la ÚLTIMA línea
+de defensa; esta regla ataca la causa de arriba. Las dos juntas cubren el caso de ANDREA por los dos
+lados: Mareigua nos había dado el apellido bien escrito y lo tirábamos.
+
+**Se aplicó a las DOS centrales de nómina, y eso no era opcional:** la cascada corta en la primera que
+resuelve y **Ágil atiende ~73 %** de las consultas, así que aplicarla sólo a Mareigua la habría dejado
+casi sin ejecutar.
+
+**Con techo, y el techo fue idea de Miguel** (distancia de Levenshtein). El caso que evita no es el
+typo sino el peor: que la central devuelva a **otra persona** —20 personas en Ágil y 13 en Mareigua
+entraron con «ninguna palabra en común»— y se le escriba encima el nombre de un tercero.
+
+- El umbral quedó **proporcional (una letra cada cuatro, mínimo 1)** y no fijo. La propuesta inicial era
+  3 fijo y se descartó **midiendo**: con 3 pasaban `PEREZ`/`LOPEZ`, `DIAZ`/`RUIZ`, `LEON`/`LUNA` y
+  `SILVA`/`SOLIS` como la misma persona. Después un test destapó que la primera versión por tramos
+  (≤2 de 5 a 8) todavía dejaba pasar `GOMEZ`/`LOPEZ`.
+- ⚠ **Lo que el techo NO puede hacer**, y conviene no pedírselo: distinguir un typo de un apellido
+  distinto en palabras cortas. `MORA`/`MOLA`, `ROJAS`/`ROSAS` y `CASTRO`/`CASTAO` están todos a
+  distancia 1. Sólo veta lo absurdo.
+- **Ágil devuelve el nombre completo en un solo string.** No se parte por heurística: se respeta la
+  frontera nombre/apellido que puso el asesor —él lee la cédula— y se corrige sólo la ortografía. Si
+  las cantidades de partes no coinciden, no se adopta. O sea que **corrige ortografía, no completa un
+  nombre incompleto**: el caso de CANDIDA queda fuera a propósito y sigue abierto.
+
+**Y el tramo dejó de ser ciego.** Cada decisión emite `kyc.name_adoption` (`OnboardingLogger`,
+componente `kyc`, mismo evento en las dos centrales) con `user_request_id` como ancla —sin ella la línea
+no se ata a ninguna traza, F-102—, la decisión (`adopted` | `kept_entered`), el motivo (`identical` ·
+`reordered` · `within_tolerance` · `fewer_parts` · `distance_exceeded` · `different_person` ·
+`shape_mismatch` · `empty`) y **la distancia y la tolerancia por palabra**, que es lo que contesta
+«¿por cuánto no pasó?».
+
+⚠ **Los nombres NO viajan a Loki**: va la forma y el motivo. Los valores crudos ya quedan en
+`kyc_name_checks`, que es tabla con control de acceso, y `PiiSanitizer` enmascara esas claves de todos
+modos. Hay un test que verifica el payload real, ya sanitizado.
+
+**Para soporte, la consulta es:** `kyc.name_adoption` filtrando por el `user_request_id` de la
+solicitud. Dice si se adoptó, de qué central y por qué no, sin abrir la BD.
+
+## Verificación (2026-08-13)
+
+- **76 passed / 141 assertions** en las suites tocadas.
+- El test del defecto **falla sin el arreglo, y por el motivo correcto** — eso es la prueba de que el
+  problema estaba en el código y no en los datos.
+- **29 tests unitarios** del comparador, en 0.07 s y sin BD, con los pares medidos como casos.
+- **Recorrido completo por API** contra el stack local con los burós en fake
+  (`harness/dev/kyc-apellido.ts`): sin el arreglo guarda el nombre equivocado y sale con exit 1; con él
+  responde ONB005 con el mensaje en el campo apellido y no crea la fila.
+- Dos veces una prueba dio verde o rojo **por el motivo equivocado** y se corrigió: un `issue_date`
+  ausente que hacía fallar por la fecha, y un test de log que no registraba aserciones («risky») porque
+  las de adentro de un closure de Mockery no cuentan.
+
+## Deuda de infraestructura que este trabajo destapó (no es de este caso)
+
+1. **`migrate:fresh` está roto en `main`** → todo test con BD en rojo. Workaround usado:
+   `DatabaseTransactions` sobre el esquema `testing`.
+2. **El esquema `testing` no tenía NINGUNA rutina almacenada** (0 de 42) y el flujo de Mareigua llama a
+   `FN_Mareigua_Occupation`. Se cargaron desde la copia local; es setup de ambiente, no del repo.
+3. **`TusDatosServiceTest` está 100 % rojo** (33 tests, `ArgumentCountError`) y `AdoServiceTest` 3/20 —
+   los dos **antes** de tocar nada, verificado con stash.
