@@ -85,8 +85,12 @@ sostienen la regla:
 
 - **3.843 personas** pasaron el nombre **solo** por nómina, sin llegar nunca a la registral (2.824 por
   Ágil, 1.019 por Mareigua). No es el caso raro: es el camino habitual.
-- Cuando nómina marca el nombre, la registral **la contradice ~1 de cada 3 veces**: **207 personas**
-  fueron marcadas por Ágil o Mareigua y la registral avaló ese mismo nombre tecleado.
+- **Cuando nómina marca el nombre, acierta unas 2 veces por cada 1 del asesor.** Tomando la registral
+  como árbitro sobre los casos en disputa: la nómina tenía razón en **232** personas y el asesor en
+  **126**. ⚠ Ojo con medir esto por el `passed` de la fila de tusdatos: ese veredicto mezcla nombre con
+  fecha de expedición, y además —mientras el `0 == null` estuvo vivo— marcaba como «pasó» a quienes
+  tenían el segundo nombre o apellido reportado como incorrecto. Hay que leer los `match_codes` campo
+  por campo del `detail`.
 - De los desacuerdos de nómina, **dos tercios son ortografía** (misma cantidad de palabras, la mitad de
   esos con **un solo carácter** de diferencia — el clásico `RAMIRES`/`RAMIREZ`, `GONZALES`/`GONZALEZ`), y
   el resto es **una parte del nombre que no se tecleó** (127 personas con 2 o 3 partes escritas y 4

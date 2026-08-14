@@ -25,7 +25,7 @@ falta que alguien lo valide antes de mergear.
   el campo apellido y lo corrige), y que un cliente que legítimamente tiene **un solo** apellido siga
   pasando sin fricción. Lo segundo es lo que hay que mirar con lupa: es el riesgo de este cambio.
 - **⚠ El alcance CRECIÓ después de crear CORE-420.** La tarjeta describe sólo el arreglo del
-  `0 == null`; la rama trae además la **regla de adopción de nombre** que autorizó Oscar y su techo de
+  `0 == null`; la rama trae además la **regla de adopción de nombre** (decisión de producto) y su techo de
   distancia. Antes de que QA valide, la descripción del issue tiene que actualizarse o van a probar la
   mitad. Ver § «Lo que se sumó después».
 - **Cómo probarlo en un comando** (stack local, drivers de KYC en fake):
@@ -335,7 +335,7 @@ Consecuencia: la solicitud avanzaba con el nombre tal como se escribió, se firm
 ese nombre y se radicaba así ante la entidad. En los dos casos revisados la entidad lo aceptó sin
 observaciones, o sea que el error no se detectaba en ningún punto posterior.
 
-**2. NUEVO — autorizado por Oscar: la fuente que consulta la cédula corrige el nombre.** Si Ágil Data o
+**2. NUEVO — decisión de producto: la fuente que consulta la cédula corrige el nombre.** Si Ágil Data o
 Mareigua resuelven la cédula y devuelven el nombre, ese es el que se guarda, por encima del que escribió
 el asesor. Antes, un desacuerdo **frenaba** al cliente con un mensaje pidiéndole que escribiera sus
 apellidos como en el documento; ahora se corrige solo y la solicitud sigue.
@@ -344,11 +344,15 @@ Con un límite: sólo se adopta si sigue siendo **la misma persona escrita con e
 devuelve la fuente es un nombre distinto —porque la cédula consultada no correspondía a esa persona— no
 se sobrescribe nada. Sin ese límite se le escribiría a un cliente el nombre de un tercero.
 
-⚠ **Riesgo conocido y aceptado, para que quede a la vista de quien aprueba:** en **207 personas** de las
-últimas tres semanas una fuente de seguridad social marcó el nombre y la fuente registral confirmó que
-el escrito por el asesor estaba **bien**. En esos casos esta regla adopta la escritura de la planilla
-del empleador sobre una correcta. Se decidió con ese número sobre la mesa. Queda registro de cada
-decisión para poder medir el efecto después.
+**El balance, medido sobre las últimas tres semanas.** En los casos donde las dos versiones del nombre
+no coinciden, se tomó la fuente registral como árbitro para ver quién tenía razón:
+
+- la fuente de seguridad social acertaba en **232** personas;
+- el asesor acertaba en **126**.
+
+O sea que corregir acierta unas **dos veces por cada una que se equivoca**. ⚠ Esas 126 son el costo
+asumido: en ellas se adopta la escritura de la planilla del empleador sobre un nombre que estaba bien.
+Queda registro de cada decisión para poder medir el efecto después.
 
 ⚠ **Las dos fuentes no se comportan igual:** Mareigua envía el nombre en campos separados, así que
 cuando trae un apellido de más sabemos a qué corresponde y **lo agrega**. Ágil Data envía todo junto en
