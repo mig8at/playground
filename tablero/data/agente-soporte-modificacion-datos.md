@@ -28,8 +28,58 @@ Qué trae: el módulo `Modules/SupportBot` (proveedores, rutas, middleware de to
 humo), las **3 migraciones**, y el refactor de los dos `CreditChangeController` (Consumer + Customer)
 extrayendo `CreditChangeService`.
 
-**Sólo 1 de los 16 endpoints está construido**: `GET /api/support/self/by-phone`. Faltan 15 — ver
-§«Las APIs a entregar» y §«Lo que falta para que el canal funcione».
+**3 de los 16 endpoints están construidos**: `GET /api/support/self/by-phone`, `POST /api/support/self/otp`
+y `POST /api/support/self/otp/verify`. Faltan 13 — ver §«Las APIs a entregar» y §«Lo que falta para
+que el canal funcione».
+
+### 🔑 El OTP ya estaba hecho — el hallazgo que más cambia la estimación (2026-08-14)
+
+`Modules/Onboarding/App/Services/OtpService.php` tiene el ciclo completo (`sendOtpCode`,
+`validateOtpCode`, `verifyOtpCode`, `markOtpAsValidated`, `enableOtpAgain`, envío por SMS y por
+WhatsApp) y la tabla `otps` tiene **295.450 filas**: está en producción hace rato. Y la firma es
+
+```
+validateOtpCode(ValidateOtpCodeRequest $req, bool $includeOtpId = false): array
+```
+
+con el docblock diciendo `'otp_id' => ?int (only when $includeOtpId)`. **Ese parámetro devuelve
+exactamente lo que CORE-258 necesita como prueba de autorización.** Alguien ya lo previó. El tramo del
+OTP fue **cablear, no construir**.
+
+⚠ Dos cosas al reusarlo. Una: `OtpService` manda por **Twilio directo**
+(`config('services.twilio.sms_sid')`, con `messagingServiceSid` hardcodeado), **no** por
+`messaging-service` — y legacy-backend sí tiene clientes de `messaging-service` en otros lados
+(`MessagingServiceClient`, `MessagingServiceRepository`). Hay **dos caminos a Twilio conviviendo**; se
+eligió reusar `OtpService` tal cual y dejar la unificación como deuda aparte. Dos: `messaging-service`
+sólo tiene 4 endpoints (`/api/v1/messages`, `/messages/send`, `/emails`, `/emails/send`) — es
+**transporte**, no sabe de OTP. Filipo no puede resolver el OTP con él: generar y validar tiene que
+ser nuestro, o el `otp_id` no prueba nada.
+
+### El segundo factor, construido (commit `fe19d64e`)
+
+`POST /self/otp` emite y manda; `POST /self/otp/verify` valida y abre la sesión. Encima,
+`SessionService` + `SupportBotSession` sobre `AuthorizationState`.
+
+**La decisión que define el diseño: el `otp_id` NUNCA sale en una respuesta.** Se guarda en el
+contexto de la sesión y de ahí lo van a leer los endpoints de cambio. Si viajara al bot, éste podría
+reusarlo o inventarlo y la fila de auditoría volvería a no significar nada. Hay un test que se pone
+rojo si alguien lo agrega a la respuesta.
+
+Detalles que costaron pensarse y conviene no revertir por descuido:
+
+- **Los intentos se cuentan en la BD** (3), no en memoria: reiniciar n8n no puede regalar intentos o
+  el código de 6 dígitos sería fuerza-bruteable. Al agotarlos vuelve a `identified` —sigue siendo
+  quien es, pero la prueba empieza de cero— **y se resetean**, si no el reintento nacería agotado.
+- **`lockForUpdate` en las transiciones**: dos mensajes del mismo número pueden llegar casi juntos
+  (WhatsApp no serializa nada) y sin el lock dos fallos concurrentes contarían como uno.
+- **Un `code` con letras se rechaza por forma ANTES de tocar el OTP**: un error del orquestador no
+  debería costarle a la persona uno de sus tres intentos. Con `wa` es al revés y a propósito, porque
+  la consecuencia es distinta.
+- **La sesión dura 15 minutos** y el reloj se reinicia al verificar, no al empezar a escribir.
+- ⚠ **En local el código siempre valida**: `ONBOARDING_DRIVER_OTP=fake`. La rama del código
+  equivocado sólo se ejercita en los tests, con el `OtpService` simulado. Por eso el mock está: el
+  real manda un SMS de verdad por Twilio, y contra la copia local —que es un dump de prod— le
+  llegaría a un cliente real.
 
 ### Cómo se llegó acá (por si hay que reconstruir el razonamiento)
 
@@ -716,15 +766,20 @@ ventana de 24 h está abierta y el texto libre está permitido. La autogestión 
 | pieza | de quién | estado |
 |---|---|---|
 | identificar por número | nuestro | ✅ hecho |
-| OTP + máquina de sesión | nuestro | **no existe nada**: la tabla está creada pero ningún código la lee ni escribe |
+| OTP + máquina de sesión | nuestro | ✅ **hecho** (commit `fe19d64e`) |
 | 3 rutas de lectura (`can-change`, fechas, plazos) | nuestro | la lógica ya está probada, falta la capa HTTP |
-| 2 rutas de cambio, con `otp_id` real | nuestro | ídem, y dependen del OTP |
+| 2 rutas de cambio, con `otp_id` real | nuestro | ídem; ya hay sesión de donde leer el `otp_id` |
 | webhook de WhatsApp + conversación | Filipo | **no existe en ningún lado** |
 
-Son **7 rutas y la sesión** de nuestro lado. La pieza crítica es el OTP: sin él no hay sesión, sin
-sesión no hay nada, y sin `otp_id` real el cambio se sigue guardando sin prueba de autorización — que
-es el problema que la tarea vino a resolver. **Las 31 filas de `creditop_x_changes_log` en dev tienen
-todas `otp_id = 0`** (verificado 2026-08-14).
+Quedan **5 rutas** de nuestro lado, y ya no hay nada bloqueante: la sesión existe y guarda el `otp_id`
+verificado. Cuando se construyan, dos reglas no negociables — **exigir sesión en `otp_verified`** (si
+no, el `user_request_id` en la URL es enumerable y se leerían las condiciones de cualquier cliente) y
+**tomar el `otp_id` de la sesión y no de la petición**. Ambas están escritas en
+`routes/supportbot.php`.
+
+Recordatorio de por qué importa el `otp_id`: **las 31 filas de `creditop_x_changes_log` en dev tienen
+todas `otp_id = 0`** (verificado 2026-08-14). Hasta que esos 2 endpoints existan, el cambio se sigue
+guardando sin prueba de autorización.
 
 El flujo del asesor son **8 rutas más**, y ese sí depende de las plantillas. Va después, en paralelo
 con la aprobación.
@@ -1220,8 +1275,12 @@ castigo pega sobre el número que también se usa para cobrar.
 > ese cambio no altera el comportamiento actual. Las tablas nuevas ya están creadas en el ambiente de
 > pruebas.
 >
-> Para que el canal quede utilizable falta el código de un solo uso y la sesión que lo sostiene, y del
-> lado de la capa conversacional, el canal de entrada de WhatsApp.
+> Se sumó además el segundo factor: el cliente recibe un código de un solo uso por un canal distinto
+> al de la conversación y prueba su identidad antes de poder hacer nada. La sesión que lo sostiene
+> vive en el backend, no en la capa conversacional, para que reiniciarla no regale intentos.
+>
+> Para cerrar la autogestión faltan cinco servicios de consulta y cambio del crédito, que ya tienen
+> sobre qué apoyarse. Del lado de la capa conversacional, falta el canal de entrada de WhatsApp.
 
 Hoy un asesor puede modificar los datos de un cliente sin que el cliente se entere: el cambio no
 requiere su autorización y no queda registro de quién lo hizo ni de qué valor había antes. Se están
