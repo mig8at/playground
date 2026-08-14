@@ -461,9 +461,41 @@ construir, verde = ya existe) y la fila de auditoría que quedaría.
 
 Inventario sacado de las trazas de los dos prototipos, que se armaron justamente para esto.
 
+> ### ✅ DECIDIDO 2026-08-14 · las 16 se sirven por `/api/support/*`, sin excepción
+>
+> «Ya existen y se usan tal cual» se refiere a la **lógica**, no a la ruta. El bot **no** llama a los
+> endpoints del crédito por su URL actual: los 5 que ya existen se envuelven en rutas del canal. La
+> razón es de seguridad y se verificó leyendo el middleware:
+>
+> - `api/loans/consumer/credits/*` (las 3 de lectura + `can-change`) va detrás de
+>   `App\Http\Middleware\ResolveCognitoUser`, que resuelve al usuario **leyendo la cabecera
+>   `x-user-id` sin verificar ningún token** (son 20 líneas, no hay más). Si el bot llamara ahí,
+>   tendría que declarar él mismo de quién es el crédito, y el token compartido pasaría de decir
+>   «quien llama es el bot» a ser **llave maestra sobre los 228.048 clientes**.
+> - `api/loans/requests/*` y `api/loans/customer/requests/*` **no tienen autenticación alguna** (sólo
+>   `api` + `AddOriginationFlowType`).
+>
+> Bajo `/api/support/*` decide el **backend** y no el llamador: token + sesión verificada
+> (`support_bot_sessions`, abierta sólo tras el OTP contra el celular que coincide). Y el `otp_id`
+> ahí se puede **exigir**, cosa que en las rutas viejas no, porque rompería la app móvil que hoy las
+> consume — por eso `CreditChangeService` lo recibe como parámetro que los controllers no pasan.
+>
+> **Consecuencia operativa:** al API Gateway se expone **una** superficie, `/api/support/*`. Las
+> rutas de `credits/*` siguen como están, para la app móvil.
+>
+> ⚠ **Los 5 envoltorios NO van en el primer PR** ([#1095](https://github.com/Creditop-SAS/legacy-backend/pull/1095)),
+> y es a propósito: hoy la tabla `support_bot_sessions` está creada pero **ningún código la usa**, no
+> hay servicio de OTP y el canal tiene una sola ruta. Sin sesión, los 3 de lectura quedarían detrás
+> de sólo el token con el `user_request_id` en la URL —enumerable, o sea que se podrían leer las
+> condiciones de cualquier cliente— y los 2 de escritura no tendrían un `otp_id` real que pasar, con
+> lo que escribirían 0: el defecto que esta tarea viene a arreglar. **Van junto con los endpoints de
+> OTP**, en el tramo siguiente. La decisión quedó escrita también en
+> `Modules/SupportBot/routes/supportbot.php`.
+
 ### Ya existen y se usan tal cual — 3 ✅ **ejercitadas contra datos reales 2026-08-13**
 
-Las tres del crédito, y sirven **igual para los dos actores**: no hay que tocarlas.
+Las tres del crédito, y sirven **igual para los dos actores**: la lógica no hay que tocarla (la ruta
+sí cambia — ver la decisión de arriba).
 
 | | qué da | verificado |
 |---|---|---|
