@@ -45,6 +45,12 @@ const UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_5 like Mac OS X) AppleWebKit/6
 const NOMBRE = 'ANDREA';
 const APELLIDOS = 'MUSUSU NEMPEGIE';
 
+/** Lo que devuelve `AgildataHttpFake::employeeSuccess()`. Para probar la ADOPCIÓN hay que teclear
+ *  un nombre parecido a ése: la regla corrige la ortografía, no inventa el nombre. */
+const AGIL_NOMBRE = 'FAKE';
+const AGIL_APELLIDOS_BIEN = 'EMPLOYEE NAME';
+const AGIL_APELLIDOS_MAL = 'EMPLOYEE NAMES';   // una letra de más, dentro del umbral de 3
+
 type Resp = { status: number; json: any };
 
 async function http(method: string, path: string, body?: unknown, scenario?: string): Promise<Resp> {
@@ -105,14 +111,14 @@ async function sembrar(phone: string): Promise<number | null> {
 
 type Desenlace = { aceptado: boolean; status: number; subcode: string; mensaje: string; guardado: string };
 
-async function correr(scenario: string): Promise<Desenlace | null> {
+async function correr(scenario: string, nombre = NOMBRE, apellidos = APELLIDOS): Promise<Desenlace | null> {
     const { phone, doc, email } = unico();
     const ureq = await sembrar(phone);
     if (ureq === null) return null;
 
     const r = await http('POST', `/api/onboarding/loan-application/personal-info/${PARTNER}/${ureq}`, {
         document_type: 'CC', document_number: doc,
-        name: NOMBRE, surname: APELLIDOS, email,
+        name: nombre, surname: apellidos, email,
         expedition_day: 27, expedition_month: 3, expedition_year: 2013,
         // ⚠ La fecha de NACIMIENTO figura `nullable|sometimes` en `PersonalInfoRequest`, pero el
         // servicio la valida aparte y sin ella responde ONB005 / `BIRTH_DATE_INVALID`. Son las
@@ -168,9 +174,25 @@ imprimir('escenario  second-surname-mismatch', 'RECHAZADO, con el error en el ca
 const bueno = await correr('single-name-and-surname');
 imprimir('escenario  single-name-and-surname', 'ACEPTADO (no tener segundo apellido es legítimo)', bueno);
 
+// La regla de adopción: con el escenario `success` Ágil Data resuelve y devuelve su nombre, así que lo
+// que quede en `users` tiene que ser el de la CENTRAL y no el que se tecleó. Se prueba acá y no sólo en
+// un test porque es el único lugar donde se ve el recorrido entero: la cascada elige la central, el
+// servicio decide, y `OnboardingService` escribe.
+//
+// ⚠ El bypass de `verifyCoincidence` en local NO estorba: la adopción decide por `NameSimilarity`, que
+// no pasa por ahí. Por eso este chequeo sí discrimina en local.
+const adopcion = await correr('success', AGIL_NOMBRE, AGIL_APELLIDOS_MAL);
+imprimir(
+    'regla de adopción (Ágil Data resuelve)',
+    `ACEPTADO y guardado como «${AGIL_NOMBRE} / ${AGIL_APELLIDOS_BIEN}», corrigiendo lo tecleado`,
+    adopcion,
+);
+
 await close();
 
-if (!malo || !bueno) {
+const adopto = adopcion?.guardado === `${AGIL_NOMBRE} / ${AGIL_APELLIDOS_BIEN}`;
+
+if (!malo || !bueno || !adopcion) {
     console.log('\n  ⇒ NO CONCLUYENTE: no se pudo completar el recorrido.\n');
     process.exit(2);
 }
@@ -188,5 +210,13 @@ if (!bueno.aceptado) {
     process.exit(1);
 }
 
-console.log('\n  ⇒ CORRECTO: rechaza el apellido que no coincide y acepta al de un solo apellido.\n');
+if (!adopto) {
+    console.log('\n  ⇒ LA ADOPCIÓN NO ESTÁ ACTUANDO: quedó guardado «' + adopcion.guardado + '»');
+    console.log(`     y se esperaba «${AGIL_NOMBRE} / ${AGIL_APELLIDOS_BIEN}» (el nombre de la central).`);
+    console.log('     El nombre de la central debe ganar sobre el tecleado.\n');
+    process.exit(1);
+}
+
+console.log('\n  ⇒ CORRECTO: rechaza el apellido que no coincide, acepta al de un solo apellido,');
+console.log('     y adopta la ortografía de la central por encima de la del asesor.\n');
 process.exit(0);
