@@ -8,8 +8,8 @@ jira: [CORE-420]
 jira_title: "Identidad: un «no coincide» reportado ya no se ignora, y la fuente que consulta la cédula corrige el nombre"
 ---
 
-**ESTADO 2026-08-13 · EN PRUEBAS** — el arreglo está hecho, verificado en dos capas y **pusheado**;
-falta que alguien lo valide antes de mergear.
+**ESTADO 2026-08-14 · EN PRUEBAS, LISTO PARA MERGEAR** — el arreglo está hecho, verificado en tres
+capas (tests, regresión y recorrido por API) y **pusheado**, con PR abierto contra `staging`.
 
 **Jira: [CORE-420]** · CORE Sprint 11 · 3 puntos · estado «🧪 En pruebas».
 
@@ -18,33 +18,48 @@ falta que alguien lo valide antes de mergear.
 > real va acá, en el cuerpo. Si «en pruebas» va a repetirse, el arreglo es agregar la etapa al tablero
 > (`src/App.vue` → `STAGES`), no meter un `stage` fantasma en el frontmatter.
 
-- **Rama:** `fix/kyc-second-surname-mismatch` en `legacy-backend`, **un solo commit `9244b7e1`**
-  (aplastado y force-pusheado con lease; antes fue `1cf40ca8` y `7f4c2903`). Local y remoto
-  **sincronizados**. **PR [#1082](https://github.com/Creditop-SAS/legacy-backend/pull/1082) ABIERTO
-  contra `main`**, mergeable, **0 reviews** — se abrió el 2026-08-13 16:57, después de escribir la
-  línea anterior de este archivo que decía «sin PR».
-- **⏳ 2026-08-14 · PEDIDO: bajar a `staging`, no a `main`.** Hecha la rama gemela
-  **`fix/kyc-second-surname-mismatch-onto-staging`** (commit `a59fcc62`, base `origin/staging`
-  `eddc3644`) — **local, sin pushear**. Es un cherry-pick verificado: las **924 líneas agregadas y los
-  2 borrados son idénticos** a los de la rama sobre `main` (comparados línea por línea). La original
-  queda intacta como respaldo.
-  - **Los dos conflictos fueron de contexto, no de dependencia**: `main` tiene un bloque de
-    `KycNameCheckRecorder` (monitoreo no bloqueante) metido en las mismas líneas donde entra este
-    cambio, y `staging`/`qa` **no lo tienen** — `KycNameCheckRecorder.php` y `app/Models/KycNameCheck.php`
-    son exclusivos de `main`. Se resolvió descartando el recorder (su clase no existe en esa base) y
-    conservando el hunk. Todas las clases que el commit importa —incluida `OnboardingLogger` con
-    `COMPONENT_KYC`— existen byte-idénticas en las tres ramas: no hay dependencia rota.
-  - **Verificado corriendo** dentro de `legacy-backend-laravel.test-1` (desde la shell del host los
-    tests fallan por DNS: piden el host `mysql`, que sólo resuelve en la red de Docker):
-    `Modules/Identity/tests` da **47 fallos / 167 verdes** contra **47 fallos / 160 verdes** de
-    `staging` limpio — **el conjunto de fallos es idéntico** (los 47 son preexistentes de `staging`) y
-    los 7 verdes de diferencia son exactamente los tests nuevos de esta tarea. Cero regresiones.
-    `NameSimilarityTest` (28 verdes) y `TusdatosHttpFakeTest` pasan también.
-  - **⚠ Queda una decisión abierta:** 4 líneas de comentario afirman que los valores crudos quedan en
-    `kyc_name_checks`, tabla que **en `staging` no existe** (`MareiguaService` 99/106/128,
-    `AgildataService` 92, más 2 en `NameSimilarity`). Sobre esa base el comentario miente. Las
-    opciones son reescribir esas líneas o traer el recorder también — no se tocó la prosa sin decidirlo.
-- **Qué hay que probar:** que un cliente con segundo apellido mal escrito ya NO avance (ve el error en
+- **Rama de respaldo:** `fix/kyc-second-surname-mismatch` en `legacy-backend`, commit `9244b7e1`,
+  sobre `main`. Su PR #1082 quedó **cerrado** el 2026-08-14 apuntando al #1098. La rama se conserva.
+- **✅ 2026-08-14 · BAJADO A `staging`.** Rama **`fix/kyc-second-surname-mismatch-onto-staging`**,
+  commit **`eb429dda`**, **PR [#1098](https://github.com/Creditop-SAS/legacy-backend/pull/1098)
+  contra `staging`**, mergeable. **12 archivos, +923.** El PR #1082 contra `main` quedó **cerrado**
+  apuntando al nuevo, y la rama original queda como respaldo.
+  - **Rebasado sobre el `staging` de después del merge del canal de WhatsApp**, así que el PR trae
+    **sólo** el commit de KYC: 12 archivos, cero ajenos. Sin ese rebase habría mostrado el trabajo del
+    canal como parte del cambio.
+  - **Nada se perdió al rebasar**: 924 líneas agregadas y 2 borradas, idénticas tanto a antes del
+    rebase como a la rama original sobre `main`.
+  - **✅ Resuelta la decisión de los comentarios sobre `kyc_name_checks`.** Las 7 menciones no eran
+    iguales, y la distinción es la que importaba: **3 son de procedencia** —«medido sobre
+    `kyc_name_checks`, 3 semanas en prod»— y son ciertas, porque la medición se hizo ahí; **4
+    afirmaban dónde queda el dato hoy** y en esta base son falsas, porque la tabla no existe. Esas 4
+    se reescribieron para decir lo que sí es cierto: que los nombres no viajan al log, que va la forma
+    y el motivo, y que `PiiSanitizer` enmascara. La misma corrección iba en el mensaje del commit.
+  - **Los dos conflictos del trasplante fueron de contexto, no de dependencia**: `main` tiene un
+    bloque de `KycNameCheckRecorder` (monitoreo no bloqueante) en las mismas líneas donde entra este
+    cambio, y `staging` no lo tiene — esa clase y `app/Models/KycNameCheck.php` son exclusivas de
+    `main`. Se descartó el recorder y se conservó el hunk. Todas las clases que el commit importa
+    —incluida `OnboardingLogger` con `COMPONENT_KYC`— existen byte-idénticas en las dos bases.
+
+### Verificación sobre esta base
+
+- **47 tests verdes.** El test del defecto **falla sin el arreglo, por el motivo correcto**: el
+  servicio acepta la identidad con el segundo apellido reportado como no coincidente.
+- **Cero regresiones**: 805 tests de `Modules/Identity` + `Modules/Loans` + `Modules/SupportBot` dan
+  el mismo resultado **test por test** que `staging` sin el cambio, comparado con salida JUnit y
+  reconstruyendo el esquema antes de cada corrida. Los 7 de diferencia son los que aporta la rama.
+- **Recorrido completo por API** (`harness/dev/kyc-apellido.ts`, exit 0), que es la prueba que más
+  vale porque toca las tres conductas:
+
+| escenario | resultado |
+|---|---|
+| segundo apellido que la central reporta mal | **RECHAZADO** · `ONB005 / KYC_VALIDATION_FAILED` · mensaje en el campo apellido · **no queda fila en `users`** |
+| cliente con **un solo** apellido (legítimo) | **ACEPTADO**, sin fricción — es el riesgo del cambio y sigue pasando |
+| Ágil Data resolviendo | **ACEPTADO** y guardado con la ortografía de la central, corrigiendo lo tecleado |
+
+### Lo que queda por hacer
+
+- **Qué tiene que probar QA:** que un cliente con segundo apellido mal escrito ya NO avance (ve el error en
   el campo apellido y lo corrige), y que un cliente que legítimamente tiene **un solo** apellido siga
   pasando sin fricción. Lo segundo es lo que hay que mirar con lupa: es el riesgo de este cambio.
 - **⚠ El alcance CRECIÓ después de crear CORE-420.** La tarjeta describe sólo el arreglo del
@@ -55,11 +70,11 @@ falta que alguien lo valide antes de mergear.
   `cd playground/harness && node dev/kyc-apellido.ts` → exit 0 correcto · 1 defecto vivo · 2 no
   concluyente.
 - Causa raíz **VERIFICADA** en producción (BD vía Redash + Loki) y **REPRODUCIDA** en test y por API.
-- `legacy-backend` quedó en `feature/support-bot-onto-staging` (ver la otra tarea); los **6 stashes
+- `legacy-backend` quedó en `fix/kyc-second-surname-mismatch-onto-staging`; los **6 stashes
   intactos**. Para volver a lo tuyo: `git checkout feature/pais-como-dato`.
 - ⚠ **`staging` y `qa` NO son «main + extras»**: se separaron de `main` el 2026-07-22 (`21e46a0d`) y
   **`main` les lleva 117 commits**. `staging` además no tiene los módulos `Backoffice` ni `Auth` ni la
-  dependencia `firebase/php-jwt`. Cambiarle la base al PR #1082 desde GitHub **no sirve**: mostraría
+  dependencia `firebase/php-jwt`. Cambiarle la base a un PR desde GitHub **no sirve**: mostraría
   esos 117 commits como ruido. Hay que rebasar, que es lo que se hizo.
 
 **Pasos 2, 3 y 5 HECHOS.** Secuencia medida:
@@ -87,8 +102,8 @@ sentidos contra el stack local con los drivers en fake:
 | exit code | **1** | **0** |
 
 O sea que el daño de producción se reproduce entero por API: el mismo nombre mal escrito termina
-escrito en `users`. **Falta el recorrido VISUAL** (panel + wizard), que es el carril de Miguel — ver
-abajo qué quedó listo para eso. Y faltan los pasos 6-8.
+escrito en `users`. Lo que **falta es el recorrido VISUAL** (panel + wizard), que es el carril de
+Miguel — ver abajo qué quedó listo para eso.
 
 Entró por soporte: «se guardó un usuario solo con un nombre y un apellido», dos cédulas —
 **26115588** y **1015452769**.

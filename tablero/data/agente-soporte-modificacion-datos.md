@@ -10,8 +10,9 @@ jira_title: "AGENTE SOPORTE- Modificacion de datos"
 
 # Agente Soporte · modificación de datos
 
-> **CORE-258** · `⏳ Por Hacer` en Jira · **5 pts** · nació en **Sprint 8** y se arrastró sin terminar
-> · **en progreso**: aterrizada, con los dos prototipos acordados **y con la primera rama en código**
+> **CORE-258** · `🧪 En pruebas` en Jira · **5 pts** · nació en **Sprint 8** y se arrastró sin terminar
+> · **MERGEADO a `staging` el 2026-08-14** (PR #1095): los 16 endpoints del canal, desplegados y
+> verificados en el ambiente. Falta la variable de entorno para que atienda.
 >
 > Los 9 criterios de aceptación de Jira están completos allá (4.406 caracteres). Acá no se repiten:
 > abajo está lo que se averiguó del sistema y lo que se decidió, que es lo que Jira no tiene.
