@@ -40,13 +40,26 @@ Todo aterriza en tres lugares: el **reporte crudo** en `risk_central_user_data.d
   con el flujo viejo: `[application] PersonalInfoController.php:208-209` **sí** sobreescribía con el
   `primer_nombre`/`segundo_nombre` de Mareigua. Ver § «El nombre».
 - **Local/dev MOCKEA el buró** (`ExperianFixture`, 212 KB) → score/`additional_info` sintéticos; no es el score real.
-- ⚠ **En dev/staging Ágil devuelve SIEMPRE la misma identidad: `JUAN SANTIAGO DOE RAMANUYAN`.** No es
-  un mock nuestro —los drivers fake de `config/onboarding.php` **no están activados** ahí, comprobado
-  en Loki: `kyc.fake.http_drivers_registered` da 0 líneas— sino el sandbox del propio proveedor.
-  Verificado 2026-08-15 sobre las 3 filas de `kyc_name_checks` de dev y reproducido en una corrida
-  real. Consecuencia: **cualquier prueba de nombre contra esos entornos compara contra un enlatado**,
-  así que un «no coincide» ahí no dice nada de la persona. Y como `verifyCoincidence` además devuelve
-  `true` en esos entornos, la solicitud pasa igual.
+- ⚠ **En local/dev/staging las centrales las atiende un LAMBDA DE MOCKS de la empresa**, no el
+  proveedor. Es `Creditop-SAS/risk-services-mockery-lambda` — un Mockoon serverless, repo propio, creado
+  por Yamid y mantenido por Joel, que replica el contrato de las cuatro (una ruta por central,
+  prefijada con su nombre). Se activa por `<CENTRAL>_MOCK_HOST` + entorno `local`/`development`
+  (`Agildata.php:70` y equivalentes). ⚠ **NO son los drivers fake de `config/onboarding.php`**: ésos
+  están apagados ahí (`kyc.fake.http_drivers_registered` da 0 líneas en Loki). Son mecanismos
+  distintos, y el de los drivers gana si alguna vez se enciende, porque intercepta más arriba.
+  - Por eso Ágil devuelve **siempre `JUAN SANTIAGO DOE RAMANUYAN`** para cualquier cédula sin regla:
+    es el fixture del mock. *(Corrección del 2026-08-15: acá se afirmó que era «el sandbox del
+    proveedor». Era falso — el mismo nombre está en `app/Actions/RiskCentrals/AgildataFixture.php`.)*
+  - Consecuencia práctica: **probar con datos propios ahí nunca coincide.** Para pasar hay que teclear
+    ese nombre; con cualquier otro el techo de `NameSimilarity` lo trata como otra persona. Y como
+    `verifyCoincidence` además está relajado en esos entornos, la solicitud avanza igual.
+  - **Confirmado con `MOCK_HOST` en staging**: Ágil, Mareigua y Experian (2026-08-15, traza en Loki).
+    De TusDatos no hay evidencia todavía — no llegó a correr.
+- **Caché de 1 mes, y muerde en las pruebas**: si el usuario ya tiene fila en `risk_central_user_data`
+  de menos de un mes, el servicio la reusa y **ni siquiera llama al mock** (`Agildata.php:27-43`). Al
+  preparar un caso hay que borrar esa fila, o el escenario que armaste no se nota.
+- **El mock se puede DICTAR en caliente** desde el 2026-08-15 (PR #27/#28 del lambda): una variable
+  global cuya clave lleva la cédula. → ver la tarea 49 del tablero para la receta completa.
 - **DÓNDE se calculan los `EX_*`**: en la BD, no en PHP. Son **23 funciones `FN_Experian_*`** (`CC_Debt_Balance`, `CC_Vector_Overdue`, `Liabilities_*`, `Savings_Is_Seized`…) que envuelve `SP_Experian_Extract_Data`, invocado desde `ProfilerMLController.php:290`. Ninguna se llama desde PHP directamente y ninguna está indexada en este árbol — ver el nodo **db-routines**.
 - **ML sin responder** (no «muerto»): ~20 campos `EX_*` de Experian se calculan y **se tiran** — gran parte del reporte no decide nada hoy, pero el intento cuesta tiempo de respuesta y genera correos. La cadena exacta de perfiladores, el timeout y por qué NO «cae a matrices»: **→ `profiling` §orden del listado** (F-104).
 - **Dos motores, mismo reporte, campos/comparadores distintos** (maduración `<=` viejo rt≠2 vs `<` nuevo rt=2) — el detalle vive en **Profiling**.

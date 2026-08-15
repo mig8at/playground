@@ -8,9 +8,11 @@ jira: [CORE-420]
 jira_title: "Identidad: un «no coincide» reportado ya no se ignora, y la fuente que consulta la cédula corrige el nombre"
 ---
 
-**ESTADO 2026-08-15 · MERGEADO A `staging` Y VERIFICADO EN VIVO** — tres PRs mergeados, desplegados
-y confirmados en Grafana con una solicitud real. Lo que queda no depende de código: variables de
-entorno (Dani) y la fecha del TusDatos nuevo (Joel). Detalle en § «Cierre del 2026-08-15».
+**ESTADO 2026-08-15 · MERGEADO A `staging`, DESPLEGADO Y VERIFICADO DE PUNTA A PUNTA** — tres PRs
+en `staging`, y la regla de adopción confirmada funcionando con datos controlados (§ «La regla de
+adopción, verificada en staging»). Del lado del código **no queda nada**. Lo único abierto es de
+terceros: la fecha del TusDatos nuevo (Joel). ⚠ Ya NO hacen falta variables de Dani para los mocks —
+esa afirmación era falsa, ver la tarea 49.
 
 **Jira: [CORE-420]** · CORE Sprint 11 · 3 puntos · estado «🧪 En pruebas».
 
@@ -102,13 +104,17 @@ no se pierda.
 - **Ágil devuelve un enlatado en staging**: `JUAN SANTIAGO DOE RAMANUYAN`, siempre. Las distancias
   `[5,6,4,9]` de las pruebas son exactamente eso, verificado con Levenshtein. El dato estaba en
   `kyc_name_checks` de dev desde el 5 de agosto — la respuesta a «qué devuelve el buró» ya existía y
-  no hizo falta ninguna prueba nueva para tenerla.
+  no hizo falta ninguna prueba nueva para tenerla. ⚠ **No es el sandbox del proveedor**: sale del
+  lambda de mocks de la empresa, y el mismo nombre está en `AgildataFixture.php`. Se puede dictar otro
+  — ver tarea 49.
 - **El OTP real en staging está roto**: el proveedor manda el SMS pero el backend no logra leer el
   código de la caché (`ONB014`) y **nunca guarda la fila** de `otps`, así que validar es imposible.
   Peor: el endpoint de registro **igual responde `success`**. Sólo se puede pasar con un teléfono de
   `settings.qa_otp_bypass_phones` (código = últimos 4 dígitos), porque ese camino retorna antes del
   chequeo que falla.
-- **Los drivers fake existen desde mayo y nunca se activaron en staging.** El diseño los contemplaba
+- **Los drivers fake (`ONBOARDING_DRIVER_*`) existen desde mayo y nunca se activaron en staging** —
+  ⚠ pero eso NO significa que staging no simule: lo hace con el **lambda de mocks**, que es otro
+  mecanismo y sí está activo (ver tarea 49). El diseño de los drivers los contemplaba
   —el propio `config/onboarding.php` dice «suitable for local, **staging** and tests» y el header
   `X-Fake-Scenario` dice «intended for QA in **staging**»— pero las variables nunca se pusieron, y el
   default de cada una es `real`. Comprobado en Loki: `fake.http_drivers_registered` da 0 líneas.
@@ -193,6 +199,18 @@ reconciliación a mano donde es fácil perder el recorder o el techo sin que nad
 distinto —lo mergeado es «no cambia comportamiento», esto sí lo cambia—; (3) la especificación aún se
 mueve, porque el TusDatos nuevo es un borrador. Orden sugerido: variables de Dani → reconciliar
 `staging`↔`main` → el contrato.
+
+### ✅ La regla de adopción, verificada en staging (2026-08-15 23:51Z)
+
+Lo que el 14 no se pudo probar —porque el mock devolvía otra persona y el techo la frenaba, con
+razón— quedó verificado el 15 dictando la respuesta del mock:
+
+```
+kyc.name_adoption   central=mareigua · decision=adopted · reason=within_tolerance
+```
+
+Se tecleó `RUIZ MENDOSA` y en `users` quedó **`RUIZ MENDOZA`**. Solicitud 464879, ya borrada.
+La receta para repetirlo está en la tarea 49 § «Cómo se prueba HOY».
 
 ### De acá salió la tarea 49
 

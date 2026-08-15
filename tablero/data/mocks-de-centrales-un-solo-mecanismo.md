@@ -8,11 +8,74 @@ jira: []
 jira_title: "Pruebas de originación: unificar la simulación de las centrales de riesgo"
 ---
 
-**ESTADO 2026-08-15 · SPIKE DESCARTADO EN SU PARTE DE BORRADO.** Joel contestó y desmintió la premisa:
-las dos cosas que el spike borraba **hay que conservarlas**. Lo que queda por rescatar son los tests.
-Ver § «La respuesta de Joel» — es lo primero que hay que leer de esta tarea.
+**ESTADO 2026-08-15 · RESUELTO POR OTRO CAMINO, Y VERIFICADO EN STAGING.** El spike del header se
+descarta entero; el mecanismo quedó en el lambda y **ya está desplegado y probado de punta a punta**.
+Si volvés a esta tarea sin contexto, leé en este orden: § «Cómo se prueba HOY» → § «La respuesta de
+Joel» → § «Lo que queda».
 
-Rama `spike/fake-response-por-header` en `legacy-backend`, local, **sin commitear**, 16 archivos.
+## Cómo se prueba HOY (la receta, verificada 2026-08-15 23:51Z)
+
+Todo lo demás de esta tarea es historia. Esto es lo que sirve:
+
+```bash
+LAMBDA=https://ub79ck0htd.execute-api.us-east-2.amazonaws.com/development
+API=http://legacy-backend-stg.inertia-develop
+DOC=1077665544          # una cédula NUEVA cada corrida
+CEL=3108000011          # un bypass LIMPIO (ver más abajo cómo elegirlo)
+
+# 1· dictar qué responde cada central para esa cédula (sin token: el admin API está abierto)
+curl -X POST "$LAMBDA/mockoon-admin/global-vars" -H 'Content-Type: application/json' \
+  -d '{"key":"agildata_'$DOC'","value":"{\"codRespuesta\":\"16\",\"respuesta\":null}"}'
+curl -X POST "$LAMBDA/mockoon-admin/global-vars" -H 'Content-Type: application/json' \
+  -d '{"key":"mareigua_'$DOC'","value":"{\"respuesta_id\":4,\"primer_nombre_persona_natural\":\"CARLOS\",...}"}'
+
+# 2· correr el flujo:  register → otp-validate (código = últimos 4 del teléfono) → personal-info
+
+# 3· limpiar
+curl -X POST "$LAMBDA/mockoon-admin/state/purge"
+```
+
+Claves por central: `agildata_<céd>` · `mareigua_<céd>` · `tusdatos_<céd>` ·
+`experian_<céd>` / `experian_quanto_<céd>` / `experian_acierta_quanto_<céd>`.
+
+**Las cuatro trampas que costaron intentos** — sin esto la receta no funciona:
+
+1. **Caché de 1 mes.** Si el usuario ya tiene fila en `risk_central_user_data`, el backend la reusa y
+   **ni llama al mock**. Cédula nueva cada corrida, o borrar la fila.
+2. **Teléfono de bypass LIMPIO.** Reutilizar uno con solicitud abierta da
+   `document number already in use`. Elegir así:
+   `SELECT tel WHERE (SELECT COUNT(*) FROM users WHERE cell_phone=tel)=0` sobre
+   `settings.qa_otp_bypass_phones` (35 teléfonos; el código OTP son sus últimos 4 dígitos).
+3. **`otp-validate` devuelve el `user_request_id` dentro de `errors.payload`**, no de `payload`,
+   cuando el usuario es temporal (`ONB005`→ en realidad `ONB002 "temporal user found"`). Parsear ahí.
+4. **Mockoon no valida el JSON** que se le dicta: lo emite tal cual con `200`. Un JSON roto se lee
+   después como «respuesta inválida del proveedor». Validar antes con `jq .`.
+
+**Lo que esa corrida demostró** (traza completa en Loki, 23:51:28-29Z, solicitud 464879):
+
+```
+Agildata: calling lambda mock host        [source=lambda · 200]
+AgilData inconclusive, will consult Mareigua        ← la cascada AVANZA
+Mareigua: calling lambda mock host        [source=lambda · 200]
+kyc.name_adoption  central=mareigua · decision=adopted · reason=within_tolerance
+```
+
+Se tecleó `RUIZ MENDOSA` y en `users` quedó **`RUIZ MENDOZA`**: la central corrigió la ortografía. Es
+la primera vez que la regla de CORE-420 se ve funcionando en staging con datos controlados.
+
+## Lo que se subió (todo mergeado y desplegado el 2026-08-15)
+
+| repo | PR | qué |
+|---|---|---|
+| `legacy-backend` | #1108 | las 4 centrales loguean `risk_central.source` = `real`/`lambda`/`fixture`/`fixture_fallback`, y el mensaje cuando el lambda falla. Antes sólo Experian dejaba rastro |
+| `risk-services-mockery-lambda` | #27 | dictar la respuesta por cédula: `{{#if getGlobalVar}}` en las 6 rutas + admin API condicionado a token |
+| `risk-services-mockery-lambda` | #28 | admin API **encendido siempre**; el token sigue siendo opcional |
+
+⚠ **El admin API del lambda quedó ABIERTO** (sin `ADMIN_API_TOKEN`). Decisión consciente: el stack es
+`risk-services-mockery-development` —los dos workflows despliegan al mismo, no hay uno de producción—
+y lo alterable son respuestas de mentira. **Para cerrarlo basta definir `ADMIN_API_TOKEN` en el
+entorno del Lambda**, sin tocar código. El riesgo real no es un atacante: es que alguien dicte una
+variable, no la limpie, y deje el mock respondiendo raro para todos.
 
 Salió de la tarea 47 (KYC). Al buscar por qué una prueba en staging no concluía, aparecieron **tres**
 mecanismos distintos para simular las mismas cuatro centrales, hechos por tres personas en tres meses.
@@ -59,11 +122,16 @@ tocar el frontend. El header queda redundante con un lambda bien usado.
   (`ValueError` extiende `Error`, no `Exception`).
 - El inventario de los tres caminos y su precedencia, que queda documentado más abajo.
 
-### La única pregunta que falta
+### La pregunta que faltaba — RESPONDIDA
 
-**¿El lambda ya varía la respuesta según la cédula?** Si sí, **no hay nada que construir**: la tarea se
-cierra documentando cómo usarlo, y lo único pendiente son las variables de Dani para que staging lo
-use. Si no, hay trabajo — pero en el repo del lambda, no en `legacy-backend`.
+**¿El lambda varía la respuesta según la cédula?** Sí: ya traía una regla para `1234512345` (Ágil y
+Mareigua sin información) y ahora además se puede dictar cualquier respuesta en caliente.
+
+**Y NO hacen falta variables de Dani para los mocks.** Ágil, Mareigua y Experian ya tienen su
+`<CENTRAL>_MOCK_HOST` en staging — confirmado en la traza del 2026-08-15. *(Acá se afirmó dos veces
+que «sólo Experian la tiene»; era falso, y salía de confundir «no hay log» con «no está configurado»
+— exactamente el error que el PR #1108 vino a cerrar.)* De TusDatos no hay evidencia: no llegó a
+correr.
 
 ## Los tres mecanismos que conviven hoy
 
@@ -194,14 +262,40 @@ Los escenarios con nombre. **El harness los usa en 9 archivos con 13 escenarios*
 Propuesta: el header es el camino para casos nuevos; los escenarios quedan como recetas de lo que ya
 se usa. Cuando el harness migre, se borran los de burós. Los de OTP se quedan.
 
-## Antes de subir
+## Lo que QUEDA (estado al cerrar el 2026-08-15)
 
-- **José** — ¿`mock_rules` MOBA1002 se está usando? Es de mayo y lo leen las cuatro centrales. Cero
-  tests rotos no significa cero uso: significa que nadie lo cubrió.
-- **Joel** — ¿los `*_MOCK_HOST` apuntan a algo vivo? Uno respondió en staging el 2026-08-15.
-- **Duncan** — ¿le sirve una extensión de navegador para inyectar el header?
-- Y **separarlo en dos PRs**: el borrado y el header son decisiones distintas —una es de terceros, la
-  otra es de Miguel—. Mezclados, si alguien objeta el borrado se cae también el header.
+**Sin commitear en `legacy-backend`** — hay que decidir qué se hace:
+
+- Rama **`spike/fake-response-por-header`** + un `git stash` («spike-completo»): el borrado de
+  `mock_rules`/lambda y el mecanismo del header. **Se descarta entero** — Joel desmintió la premisa y
+  el lambda resolvió el problema mejor. Tirar rama y stash.
+- **6 tests + fixtures que SÍ valen**, sin PR:
+  `Modules/Identity/tests/Feature/Services/CascadaConFixturesDelLambdaTest.php` y
+  `Modules/Identity/tests/Fixtures/lambda-riskservices.json`. Son la cascada contra los fixtures
+  reales del lambda —copiados de su `riskservices.json` con las plantillas de Mockoon resueltas a
+  valores fijos— y pasan sobre `staging` limpio. Requieren mockear `MobileOnboardingSettingsService`
+  en el `beforeEach`, si no `mock_rules` corta antes con «<central> no se encuentra disponible».
+
+**De terceros:**
+
+- **Joel** — el lambda de **Experian** falló **25 de 55 veces** en 30 días en staging: 18 con
+  `500 {"error":"boom"}` y 7 con `404` devolviendo HTML. Ese `boom` **no está** en su
+  `riskservices.json` de `main`, así que puede haber otra versión desplegada. Quedó preguntado en el
+  PR #27.
+- **Dani** — `SUPPORT_BOT_TOKEN` en staging (es de la tarea 46, no de ésta; las 16 rutas del canal de
+  WhatsApp responden `CHANNEL_NOT_CONFIGURED` desde el 2026-08-14). ⚠ **NO le pidas las variables de
+  mocks**: ya están.
+- **Duncan** — todavía no se le preguntó nada. Con el lambda ya no hace falta la extensión de
+  navegador: la cédula viaja sola desde el front, así que puede probar sin nada extra.
+
+**Mejoras chicas, si duelen:**
+
+- Documentar la receta en el README del lambda, sobre todo **la caché de un mes** — es la trampa que
+  hace parecer que el mecanismo no funciona.
+- La línea `lambda mock responded` no lleva `risk_central.source`, sólo `response.status`. Un panel
+  que filtre por esa etiqueta ve los inicios y los fallos, pero no los éxitos.
+- `mock_rules` sigue **sin un solo test** que lo cubra, y sostiene el mock de Mobile que Apple y
+  Google exigen. Es el mecanismo más frágil de los tres y el de mayor consecuencia si se rompe.
 
 ## Tarea (publicable)
 
