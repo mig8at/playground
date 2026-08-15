@@ -34,12 +34,14 @@ orden de archivo — el ancla `### F-xx` es la única dirección.)
 | **«Deceval rechaza por identidad» / el pagaré dice otra persona** | **F-133** · F-121 · F-122 |
 | **«desplegué y el log no aparece en Grafana» / «esto no está desplegado»** | **F-134** |
 | **«me llegó el SMS pero dice que no hay OTP» / `NO_PREVIOUS_OTP` en staging** | **F-135** |
+| **«está autorizada pero no puedo sacar el voucher»** | **F-136** |
 | F-130 | `countries.iso_code_2` guarda el código de TRES letras y `iso_code_3` está vacío | TRAMPA |
 | F-131 | La fila `countries.id=1` es «Afghanistan» y es el DEFAULT: 155 entidades y 215.844 usuarios apuntan ahí | TRAMPA |
 | F-132 | Un «no coincide» en el SEGUNDO nombre/apellido se descartaba como campo no enviado (`0 == null`) | TRAMPA |
 | F-133 | Con un solo apellido, el pagaré de Deceval lo registra dos veces (`Str::after` sin separador) | TRAMPA |
 | F-134 | Una línea ausente en Loki no prueba que el código no corrió: sólo `TracerService` fija el canal | TRAMPA |
 | F-135 | El OTP real de staging no se puede validar: el SMS sale, el código no vuelve de la caché y no queda fila | TRAMPA |
+| F-136 | En un lender con path IMEI que no sea el 160, el voucher no lo genera nadie: se difiere a una rama que exige ese id | TRAMPA |
 | F-129 | La única comisión que el código calcula es una tabla de 40 tramos hardcodeada en un export, y da 0 fuera de rango | TRAMPA |
 | F-128 | «Lo que recibe el comercio» se calcula con dos bases distintas según la pantalla (38 % difieren) | TRAMPA |
 | F-127 | La calculadora «por comercio» escribe dos tablas GLOBALES del lender: se pisan entre comercios y a rt≠2 se las borra | TRAMPA |
@@ -1674,3 +1676,34 @@ en producción — el webhook no deja registro cuando `firstOrFail()` lanza, as�
   inyecta para leer de vuelta. No aplicado.
 - **Estado:** vivo. **Rodeo mientras tanto:** un teléfono de `settings.qa_otp_bypass_phones` (código =
   últimos 4 dígitos) sí pasa, porque `OtpBypassService` retorna **antes** del chequeo de fila vacía.
+
+### F-136 · «El voucher todavía no se ha generado» en un lender IMEI no es un error temporal: no lo genera nadie
+
+- **Síntoma:** la solicitud está en **estado 11 «Autorizada»** —el admin lo muestra, Redash lo confirma,
+  el cliente recibió sus documentos— y el voucher de desembolso no existe. El mensaje del panel
+  («todavía no se ha generado») se lee como *«esperá un rato»*, y esperar no cambia nada. Llega
+  reportado como «error de hoy» porque hoy alguien fue a buscar un voucher, no porque hoy empezara.
+- **Causa raíz (verificada 2026-08-15):** el voucher se genera en **dos ramas mutuamente excluyentes**, y
+  hay lenders que no caen en ninguna. `Modules/Loans/App/Services/LoanAuthorizationService.php:484` calcula
+  `$isImeiFlow = lender->path->name === 'IMEI'` y con eso **saltea** `generateVoucher`,
+  `updateDisbursedLender` y `completeRequest` (`:496`), difiriéndolos al desembolso. El único lugar que
+  los ejecuta después es `handlePostDisbursementSideEffects:323` (`:343` el voucher), dentro de
+  `disburseImeiRequest` — y `Modules/Loans/App/Http/Controllers/Customer/DeviceController.php:102`
+  sólo llega ahí si `isSmartPay()`, que es
+  `isImeiPath() && lender->id === 160` (`app/Models/UserRequest.php:190`). Un lender con `path_id=2`
+  que **no** sea el 160 se cierra por `authorize()`, o sea por la rama que acaba de saltear el voucher.
+  El que **saltea** mira el path; el que **ejecuta** mira el id. Es el hardcode de **F-21** visto desde
+  producción: allá impedía probar SmartPay fuera de prod, acá deja sin voucher a otro lender real.
+- **Evidencia:** prod, lender **164 CREDIMOVIL** (`path_id=2`, `path='IMEI'`, rt=2). Solicitud 528704:
+  IMEI registrado 13:55:56, estado 11 a las 13:55:58, `Notifications sent` 13:56:20 — y **ni una línea
+  de voucher** en la traza. En Loki prod: `Voucher generation failed` **0 líneas en 24 h** (no falla:
+  no se llama), `Voucher generated` 15 líneas en 12 h (los no-IMEI andan) y
+  `Voucher generated (IMEI disbursement)` 1 línea (el 160, cuando sí llega). En BD, **999 solicitudes
+  del 164 en estado 11 desde el 2026-03-27**: Credimovil no tuvo voucher nunca.
+- **Arreglo:** que el ejecutor tenga la misma condición que el que saltea — `disburse` bifurcando por
+  `isImeiPath()`, o `disburseImeiRequest` sin el 160. **No** agregar el 164 al hardcode: el próximo
+  lender IMEI vuelve a caer en el hueco. No aplicado. **Rodeo:** el botón manual del panel (permiso
+  `regenerate request voucher`, id 67 en prod, otorgado a 4 usuarios) genera el que falte, de a uno.
+- **Estado:** vivo en `main`. La regla que sobrevive al arreglo: **cuando un side-effect se «difiere»,
+  verificá que quien lo ejecuta se active con la misma condición que usó quien lo salteó.** Si difieren,
+  el hueco no tira excepción ni deja log — y su ausencia se lee como «todavía no».
