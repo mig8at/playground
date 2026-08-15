@@ -62,10 +62,19 @@ Tres decisiones de diseño que salieron al construirlo:
 - **`kyc.fake.http_drivers_registered` ahora dice qué centrales vinieron dictadas por header**, así
   que en Grafana se puede responder «esa corrida, ¿qué simuló?».
 
-**Y elimina `ONBOARDING_FAKES_ALLOW_HEADER`** (decisión de Miguel): era redundante. Si el driver ya
-dice `fake`, ese entorno ya está simulando; elegir CUÁL respuesta sintética no es un permiso
-adicional. Las guardas que sí importan siguen en pie: el driver en `fake`, y que la app **se niegue a
-arrancar** con fakes bajo `APP_ENV=production`.
+**Y elimina DOS variables de entorno** (las dos, decisión de Miguel — el mismo criterio aplicado dos
+veces: si el driver ya dice `fake`, lo demás se deduce):
+
+- **`ONBOARDING_FAKES_ALLOW_HEADER`** — redundante. Si el entorno ya está simulando, elegir CUÁL
+  respuesta sintética no es un permiso adicional. Las guardas que importan siguen: el driver en
+  `fake`, y que la app **se niegue a arrancar** con fakes bajo `APP_ENV=production`.
+- **`ONBOARDING_FAKES_DEFAULT_SCENARIO`** — poner `fake` YA significa «camino feliz por defecto», y
+  una variable que dejara un ambiente entero fallando por omisión es una trampa, no una función.
+  ⚠ **La CLAVE de config se conserva** (`'default_scenario' => 'success'`): es el único punto de
+  inyección donde no hay petición —consola, colas, crons— y **cuatro archivos de tests la usan** con
+  `config()->set()` para forzar `provider-down` y los subcódigos de OTP.
+
+De nueve variables quedan **siete**, y de esas sólo seis son perillas reales.
 
 Cabe en un header: medido sobre las 169.977 respuestas reales de Ágil en producción, la mediana pesa
 **~1 KB** y **sólo una** supera los 8 KB del límite típico. Y como `additional_info` se guarda sin
@@ -92,23 +101,38 @@ solo test que los cubriera**.
 El último apareció solo al escribir los otros. Era un defecto teórico —el censo dice 0 de 131.046 en
 dos años— y el header lo volvió reproducible en una línea. Es el mejor argumento a favor del cambio.
 
-## El hueco: QA por el front
+## Cómo prueba QA por el front (⚠ corregido dos veces)
 
-⚠ **Borrar `mock_rules` quita el único mecanismo que funcionaba desde el navegador.** El header lo
-manda quien llama, y el navegador no manda headers propios.
+**Primera versión, equivocada:** «una extensión tipo ModHeader resuelve el caso porque el front llama
+al backend directamente». **Falso.** El wizard es **React Router v7 en modo framework — SSR**: el
+navegador manda un `form POST` a una `action` que corre en el SERVIDOR, y esa action llama a
+legacy-backend con headers propios. `buildBackendAuthHeaders` arma **exactamente uno**
+(`x-cognito-identity-id`) y no reenvía nada de la petición entrante. Un header puesto en el navegador
+muere en el SSR.
 
-El front llama al backend **directamente** desde el navegador (`VITE_API_URL`, `VITE_GATEWAY_URL`), así
-que una extensión tipo ModHeader o Requestly resuelve el caso: Duncan pone el header ahí y navega
-normal. Es la práctica estándar de QA y no necesita nada del servidor.
+**Y el hueco es más chico de lo que parecía** (observación de Miguel): con los drivers en `fake` y el
+escenario por defecto en `success`, **QA tiene camino feliz determinista por el front sin tocar un
+solo header**. Las cuatro centrales responden lo mismo siempre. Los headers quedan sólo para casos
+específicos.
 
-⚠ Un **comando de consola NO resuelve esto**: corre del lado servidor, y al haber borrado el estado en
-BD no queda dónde dejar la selección. Si se quisiera esa vía habría que reintroducir estado
-compartido — que es justo lo que se está sacando, y que además hace que dos personas probando se
-pisen (`mock_rules` tiene UN solo `phone_number`).
+Eso reordena la prioridad: lo del SSR deja de ser bloqueante y pasa a ser mejora.
 
-**Hay que confirmarlo con Duncan antes de subir.** Si la extensión no le sirve, la alternativa es que
-el front reenvíe el header desde un parámetro de URL o `localStorage` — pero eso es un cambio en el
-front y otra tarea.
+| qué | cómo se resuelve |
+|---|---|
+| camino feliz por el front | **variables de Dani, sin código** |
+| casos específicos por API | el header — ya funciona |
+| casos específicos por el front | pendiente: reenvío en el SSR |
+
+**Y el reenvío en el SSR es viable en un solo punto.** El nodo `frontend-monorepo` avisa que NO hay
+cliente HTTP único —34 de 49 repositorios usan `fetch` crudo, sólo 13 usan `HttpClient`— pero
+`installObservedFetch()` (`observed-fetch.server.ts:24`, invocado en `entry.server.tsx:18`)
+**monkey-patchea `globalThis.fetch` en el servidor**: todo lo que sale pasa por ahí. Y ya existe
+`AsyncLocalStorage` (`trace-context.server.ts`, `route-logging.server.ts`) para propagar contexto por
+petición, que es justo lo que haría falta para llevar los `X-Fake-*` desde la entrada hasta la salida.
+Cambio chico, un archivo, sobre rieles ya tendidos — pero **es otro repo y otro PR**.
+
+⚠ **No borrar `mock_rules` hasta que 1 y 3 estén andando.** Si no, queda una ventana donde QA no
+tiene con qué simular desde el front.
 
 ## Lo que NO se tocó, y por qué
 
