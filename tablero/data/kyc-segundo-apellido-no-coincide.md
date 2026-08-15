@@ -8,8 +8,9 @@ jira: [CORE-420]
 jira_title: "Identidad: un «no coincide» reportado ya no se ignora, y la fuente que consulta la cédula corrige el nombre"
 ---
 
-**ESTADO 2026-08-14 · EN PRUEBAS, LISTO PARA MERGEAR** — el arreglo está hecho, verificado en tres
-capas (tests, regresión y recorrido por API) y **pusheado**, con PR abierto contra `staging`.
+**ESTADO 2026-08-15 · MERGEADO A `staging` Y VERIFICADO EN VIVO** — tres PRs mergeados, desplegados
+y confirmados en Grafana con una solicitud real. Lo que queda no depende de código: variables de
+entorno (Dani) y la fecha del TusDatos nuevo (Joel). Detalle en § «Cierre del 2026-08-15».
 
 **Jira: [CORE-420]** · CORE Sprint 11 · 3 puntos · estado «🧪 En pruebas».
 
@@ -56,6 +57,189 @@ capas (tests, regresión y recorrido por API) y **pusheado**, con PR abierto con
 | segundo apellido que la central reporta mal | **RECHAZADO** · `ONB005 / KYC_VALIDATION_FAILED` · mensaje en el campo apellido · **no queda fila en `users`** |
 | cliente con **un solo** apellido (legítimo) | **ACEPTADO**, sin fricción — es el riesgo del cambio y sigue pasando |
 | Ágil Data resolviendo | **ACEPTADO** y guardado con la ortografía de la central, corrigiendo lo tecleado |
+
+## Cierre del 2026-08-15
+
+### Los tres PRs, y por qué son tres
+
+La tarea llegó a `staging` en tres merges. Se evaluó revertir los dos primeros para subir uno solo y
+**se descartó**: revertir un merge deja la rama marcada como integrada, y al querer traerla de nuevo
+git no la reaplica — una trampa que habría estallado en el merge `staging → main`, que ya es delicado
+por los 119 commits de divergencia. Además el historial quedaba con 5 commits en vez de 2. Y el punto
+que lo cierra: **cuando `staging` vaya a `main`, los tres entran como un único merge**, así que «una
+tarea, una unidad» ya se cumple donde importa. Se enlazaron entre sí con comentarios.
+
+| PR | qué trae |
+|---|---|
+| [#1098](https://github.com/Creditop-SAS/legacy-backend/pull/1098) `eb429dda` | el arreglo de CORE-420 y la regla de adopción de nombre |
+| [#1100](https://github.com/Creditop-SAS/legacy-backend/pull/1100) `ed2c37d6` | el canal del log — sin esto `kyc.name_adoption` no llegaba a Grafana |
+| [#1103](https://github.com/Creditop-SAS/legacy-backend/pull/1103) `458b9148` | `verifyCoincidence` consolidado: una copia en vez de tres, con aviso |
+
+Deploy `6d3da3d` (17:46→17:51Z) en verde, y la verificación en vivo a las **17:52:58Z**, solicitud
+464874, con las dos líneas conviviendo:
+
+```
+kyc.name_match_relaxed   central: agildata · environment: development
+kyc.name_adoption        decision: kept_entered · reason: different_person
+                         distances: [5,6,4,9]
+```
+
+Eso prueba tres cosas de una: el código está vivo, la comparación corre **después** de la adopción
+(el reordenamiento), y **staging no valida nombres** — un hecho que existía desde siempre y era
+invisible. Los datos de la corrida se borraron después (0 filas con la cédula, el fixture 1827325
+restaurado a `TEMPORAL USER`).
+
+### Lo que se descubrió y no era el objetivo
+
+Todo esto salió de perseguir «¿el despliegue llegó?». Ninguno es de esta tarea; se anota acá para que
+no se pierda.
+
+- **`verifyCoincidence` devolvía `true` sin comparar** en `local`/`development` — o sea que en staging
+  cualquier nombre pasaba contra cualquier cédula. Es lo que hizo perder una noche concluyendo que un
+  despliegue no había llegado. **Arreglado en #1103** (una copia, con log, lista blanca). En
+  producción la comparación sí funciona: 10.885 chequeos en 3 semanas, **cero** casos de otra persona
+  aprobada (Redash).
+- **Ágil devuelve un enlatado en staging**: `JUAN SANTIAGO DOE RAMANUYAN`, siempre. Las distancias
+  `[5,6,4,9]` de las pruebas son exactamente eso, verificado con Levenshtein. El dato estaba en
+  `kyc_name_checks` de dev desde el 5 de agosto — la respuesta a «qué devuelve el buró» ya existía y
+  no hizo falta ninguna prueba nueva para tenerla.
+- **El OTP real en staging está roto**: el proveedor manda el SMS pero el backend no logra leer el
+  código de la caché (`ONB014`) y **nunca guarda la fila** de `otps`, así que validar es imposible.
+  Peor: el endpoint de registro **igual responde `success`**. Sólo se puede pasar con un teléfono de
+  `settings.qa_otp_bypass_phones` (código = últimos 4 dígitos), porque ese camino retorna antes del
+  chequeo que falla.
+- **Los drivers fake existen desde mayo y nunca se activaron en staging.** El diseño los contemplaba
+  —el propio `config/onboarding.php` dice «suitable for local, **staging** and tests» y el header
+  `X-Fake-Scenario` dice «intended for QA in **staging**»— pero las variables nunca se pusieron, y el
+  default de cada una es `real`. Comprobado en Loki: `fake.http_drivers_registered` da 0 líneas.
+- **Censo de Ágil en producción**: 298.776 respuestas reales, 11 códigos distintos. El código **`99`
+  es de facturación**, no del cliente — el manual dice que se devuelve cuando la consulta «no genera
+  cobro» y que Ágil **guarda la respuesta real**. Son **74.206 casos, el 25%**. Probablemente detrás
+  hay respuestas que igual no traían datos (hipótesis de Miguel, la más razonable), pero es
+  preguntable porque ellos lo tienen guardado.
+- **Los dos casos que se encontraron con fakes resultaron teóricos**: «Ágil resuelve sin nombre» y
+  `detalladoEmpleos` vacío dan **0 de 131.046** en dos años. El fake permitió construir un caso que el
+  proveedor no produce. (El segundo además reventaría con `ValueError` del `max()`, que **no** lo
+  atrapa el `catch (\Exception)` — `ValueError` extiende `Error`. Sigue siendo cierto, pero no ocurre.)
+- **~60 bypasses por entorno en `legacy-backend`**, en unas 20 familias de archivo. Los dos del OTP
+  están bien hechos (lista en `settings`, compuerta en un lugar, **loguean**). El resto no. Los tres
+  que más importan:
+  - `OnboardingController:400` y `CreditStudyService:273` — `$hadPreApproveLender = (bool) random_int(0, 1)`
+    en local/development. **Staging no es reproducible** en ese tramo y nada lo dice.
+  - `BancolombiaBnpl` / `BancolombiaConsumerLoanOfferEvaluation` — ~35 ternarios
+    `environment === 'production' ? real : literal`, con montos e ingresos de prueba incrustados.
+  - `InitialFeePaymentService:116` — `if (config('app.env') === 'staging')`, un HACK para Wompi que
+    **probablemente nunca dispara**, porque todo indica que staging corre como `development` (el
+    bypass de OTP funciona ahí, y exige `local`/`development`). Confirmable preguntando el `APP_ENV`.
+
+### Lo que aportaron los manuales de los proveedores (los pasó Joel)
+
+- **Mareigua** (MaCIA v25.0, 2024-09-15) — el **Anexo 2** trae el catálogo de `respuesta_id` que no se
+  podía sacar de la BD porque sus respuestas van cifradas: `4` = Exitosa, más 8 estados de fallo.
+  `MareiguaService:50` acepta sólo el `4` y devuelve el resto con `errors => null`, o sea
+  **inconcluyente → siguiente buró**. Correcto. El `16` es «máximo de consultas del día sobre la misma
+  identificación» — gemelo del `98` de Ágil.
+- **Ágil Data** (v2, junio 2022) — está **desactualizado**: su tabla no incluye el `98` que sí aparece
+  en el censo. Y tiene **cuatro** servicios; usamos `historicoDetalladoEmpleo`, que trae identidad
+  **e** ingreso en una sola llamada. Hay un «Datos Básicos» sólo de identidad, pero usarlo sería una
+  segunda consulta (y un segundo cobro) para lo mismo: está bien como está.
+- **TusDatos «Verificación exprés»** (v1.0, 2025-07-24) — ⚠ es un **BORRADOR con el endpoint sin
+  definir**, y cambia el modelo: *«no expone los datos personales… compara la información que entregas
+  y devuelve un resultado de las coincidencias»*. O sea que **va a dejar de devolver el nombre**.
+  Además define por fin los umbrales, que respaldan CORE-420 con el contrato del proveedor:
+  `1` = coincide (>99%) · `2` = coincide parcialmente (90–98,9%) · `0` = **no coincide** (<89,9%) ·
+  `null` = no proporcionado.
+
+### El contrato unificado (diseño aterrizado, NO implementado)
+
+Idea de Miguel: que los tres servicios devuelvan una respuesta parecida para que el flujo no haga
+lógica de más. El problema de fondo no es que las respuestas sean pobres — es que **el desenlace está
+implícito**: `OnboardingService` lo reconstruye mirando si `errors` viene lleno, y `errors` es el
+payload de mensajes para la UI. Por eso «el buró no trajo nombre» termina clasificado como «el asesor
+tecleó mal».
+
+Forma propuesta — y con la corrección de Miguel, que el objeto lleve identidad **e** ingreso, porque
+`historicoDetalladoEmpleo` trae los dos y ahí está el doble propósito:
+
+```php
+BureauReading::resolved(identity: …, income: …, provider: ['cod' => '01']);
+BureauReading::inconclusive(reason: Reason::SIN_AFILIACION, provider: ['cod' => '16']);
+```
+
+Y **dos tipos separados**, porque la asimetría es real y se va a profundizar con el TusDatos nuevo:
+`BureauReading` para las de nómina (cédula → identidad+ingreso) y `IdentityVerdict` para la registral
+(nombre → veredicto por campo). Aplanarlas es lo que produce enredo, no lo que lo evita.
+
+La especificación, ya cerrada con doc + censo:
+
+| central | código | desenlace |
+|---|---|---|
+| Ágil | `01`, `21` | **resuelto** — identidad + ingreso |
+| | `16`, `19`, `02`, `03`, `99` | inconcluyente · sin datos |
+| | `98`, `05`, `12`, `20` | inconcluyente · **reintentable** |
+| Mareigua | `4` | **resuelto** — identidad + ingreso |
+| | `1`, `5` | inconcluyente · sin datos |
+| | `16` | inconcluyente · **reintentable** (límite diario) |
+| | `2`, `3`, `6`, `7`, `11` | inconcluyente · error |
+| TusDatos | `match_code` por campo | **veredicto** — nunca identidad |
+
+La categoría que hoy **no existe** es «reintentable»: Ágil `98` y Mareigua `16` son «volvé más tarde»
+y se tratan igual que «esta persona no tiene datos» — el cliente se va sin crédito por un límite de
+concurrencia del proveedor.
+
+**Por qué NO se hizo junto con lo demás**, en orden de peso: (1) toca los mismos métodos donde `main`
+tiene el `KycNameCheckRecorder`, y reescribirlos sobre `staging` volvería el merge a `main` una
+reconciliación a mano donde es fácil perder el recorder o el techo sin que nada avise; (2) se revisa
+distinto —lo mergeado es «no cambia comportamiento», esto sí lo cambia—; (3) la especificación aún se
+mueve, porque el TusDatos nuevo es un borrador. Orden sugerido: variables de Dani → reconciliar
+`staging`↔`main` → el contrato.
+
+### Preguntas abiertas
+
+- ¿Qué hay detrás de los **74.206 códigos `99`** de Ágil? Ellos guardan la respuesta real.
+- ¿Cuándo aterriza el **TusDatos nuevo**? Con eso se reescribe `TusDatosService`.
+- ¿El `random_int(0,1)` de pre-aprobados es deliberado? Hace staging irreproducible.
+- ¿Cuál es el **`APP_ENV` de staging**? Decide si el HACK de Wompi es código vivo o muerto.
+- Cuando la central devuelve **otra persona** (`different_person`), el mensaje dice «corregí el
+  nombre» — pero lo más probable es que el error esté en la **cédula**. Es sólo copy, y es medible:
+  `kyc_name_checks` ya distingue esos casos.
+
+### Dónde se agregan las variables de entorno
+
+**AWS Secrets Manager**, secreto **`dev/legacy-backend-stg`**, región `us-east-2`. Lo declara
+`.github/workflows/main-stg.yaml`:
+
+```
+ecs_cluster: inertia-develop · service_name: legacy-backend-stg
+task_definition: legacy-backend-stg-develop · secret_name: dev/legacy-backend-stg
+```
+
+No hace falta rebuild de imagen: el Dockerfile no cachea config (`config:cache` no se corre), así que
+alcanza con actualizar el secreto y reiniciar el servicio.
+
+**Lo que hay que pedirle a Dani** (las nueve están documentadas en `.env.example:122-133`):
+
+```
+ONBOARDING_DRIVER_OTP=fake
+ONBOARDING_DRIVER_CACHE=fake        ← ésta es la que destraba el OTP
+ONBOARDING_DRIVER_EXPERIAN=fake
+ONBOARDING_DRIVER_MAREIGUA=fake
+ONBOARDING_DRIVER_AGILDATA=fake
+ONBOARDING_DRIVER_TUSDATOS=fake
+ONBOARDING_FAKES_DEFAULT_SCENARIO=success
+ONBOARDING_FAKES_ALLOW_HEADER=true
+ONBOARDING_FAKE_CACHE_MODE=normal
+```
+
+⚠ `ONBOARDING_DRIVER_CACHE=fake` es imprescindible y casi se deja afuera: el driver fake de OTP
+reemplaza al **proveedor**, pero la app igual va a la caché a leer el código que el proveedor
+escribió, y ese paso es el que falla. `OtpService:42` lo inyecta como `CacheServiceInterface`, que es
+justo lo que `FakeCacheService` implementa.
+
+Con los fakes: el OTP deja de necesitar SMS ni lista de teléfonos (el fake escribe el código él mismo,
+`1234` para 4 dígitos), los escenarios se piden por header, y los nombres pasan a ser controlables.
+El costo real es que staging deja de probar la integración con el proveedor — mitigado porque cada
+arranque emite `kyc.fake.http_drivers_registered`, que desde #1100 llega a Grafana.
 
 ### La prueba en staging no concluyó, y por qué (2026-08-14, noche)
 
