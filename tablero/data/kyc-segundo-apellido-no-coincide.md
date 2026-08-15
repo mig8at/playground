@@ -57,8 +57,37 @@ capas (tests, regresión y recorrido por API) y **pusheado**, con PR abierto con
 | cliente con **un solo** apellido (legítimo) | **ACEPTADO**, sin fricción — es el riesgo del cambio y sigue pasando |
 | Ágil Data resolviendo | **ACEPTADO** y guardado con la ortografía de la central, corrigiendo lo tecleado |
 
+### La prueba en staging no concluyó, y por qué (2026-08-14, noche)
+
+Se desplegó a staging (PR #1098, merge `df28b34`, deploy `02:14→02:18Z` sobre `legacy-backend-stg`,
+en verde) y se corrió una solicitud real con el segundo apellido mal escrito a propósito. Loki
+mostró la traza completa —`Validating identity with AgilData` → `AgilData OK, using returned
+identity data` → `Persisting user after KYC cascade`— pero **ninguna línea de `kyc.name_adoption`**.
+
+Se leyó como «el arreglo no está desplegado». **Era una conclusión equivocada**, y la causa es que
+`OnboardingLogger` escribía por `Log::getFacadeRoot()` —el canal por defecto, que depende de
+`LOG_CHANNEL`— mientras que todo lo demás de la traza sale por `TracerService`, que fija
+`Log::channel('loki')`. O sea que el evento podía no llegar nunca a Grafana, y su ausencia no
+prueba nada sobre si el código corrió.
+
+Dos cosas más que quedaron sin resolver de esa noche:
+
+- **La evidencia de BD se destruyó antes de exprimirla.** Las solicitudes 464871 y 464872 se
+  borraron en la limpieza de datos personales. Que existieron está probado por el contador
+  `AUTO_INCREMENT = 464873` de `user_requests` — que de paso confirma que **staging escribe en la
+  misma BD que dev** (`inertia-dev`), no en una propia.
+- **`LOG_CHANNEL` de staging no se pudo leer** (vive en el secreto de AWS `dev/legacy-backend-stg`),
+  así que no se sabe si el canal por defecto llegaba o no. La rama
+  `fix/onboarding-logger-loki-channel` vuelve irrelevante la pregunta: fija el canal a `loki` con el
+  mismo fallback de `TracerService`. ⏳ PENDIENTE DE MERGE.
+
+**Lección para la próxima vez que un log «falte» en Loki:** mirar primero por qué canal sale. En
+este repo sólo `TracerService` nombra el canal; cualquier otro `Log::` depende del entorno.
+
 ### Lo que queda por hacer
 
+- **Repetir la corrida real en staging** una vez mergeado el arreglo del canal. Recién ahí el log
+  dice qué decidió el flujo y la prueba se lee sola, sin gastar consultas a ciegas.
 - **Qué tiene que probar QA:** que un cliente con segundo apellido mal escrito ya NO avance (ve el error en
   el campo apellido y lo corrige), y que un cliente que legítimamente tiene **un solo** apellido siga
   pasando sin fricción. Lo segundo es lo que hay que mirar con lupa: es el riesgo de este cambio.
