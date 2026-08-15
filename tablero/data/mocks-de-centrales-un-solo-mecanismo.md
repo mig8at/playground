@@ -8,12 +8,62 @@ jira: []
 jira_title: "Pruebas de originación: unificar la simulación de las centrales de riesgo"
 ---
 
-**ESTADO 2026-08-15 · SPIKE HECHO, LOCAL, SIN COMMITEAR.** Rama `spike/fake-response-por-header` en
-`legacy-backend`, 16 archivos. Verificado: **0 tests rotos** de 509, 14 nuevos en verde. Falta hablar
-con José y con Joel antes de subir nada — y resolver el hueco de QA por el front (§ «El hueco»).
+**ESTADO 2026-08-15 · SPIKE DESCARTADO EN SU PARTE DE BORRADO.** Joel contestó y desmintió la premisa:
+las dos cosas que el spike borraba **hay que conservarlas**. Lo que queda por rescatar son los tests.
+Ver § «La respuesta de Joel» — es lo primero que hay que leer de esta tarea.
+
+Rama `spike/fake-response-por-header` en `legacy-backend`, local, **sin commitear**, 16 archivos.
 
 Salió de la tarea 47 (KYC). Al buscar por qué una prueba en staging no concluía, aparecieron **tres**
 mecanismos distintos para simular las mismas cuatro centrales, hechos por tres personas en tres meses.
+
+## La respuesta de Joel (2026-08-15) — desmiente la premisa
+
+Preguntado por los dos mecanismos, Joel —que mantiene el lambda— contestó dos cosas que dan vuelta
+la tarea:
+
+**1 · `mock_rules` NO se puede retirar.** No es un mock de centrales: es el mock del onboarding
+**Mobile**, y existe porque **Apple y Google exigen un usuario de prueba** para revisar y aprobar la
+app. Es un requisito externo con consecuencias reales. Textual: *«no lo puede retirar porque eso
+mantiene el mock de mobile»*. El spike lo borraba.
+
+**2 · El lambda es el mecanismo canónico, no duplicación.** *«La forma única de simular centrales ya
+existe: es la lambda. Ese tiene todas las centrales, agildata mareigua y tus datos»*, y la vía para
+casos nuevos es **agregar fixtures ahí** — *«mejor edite la lambda, es más viable»*. Es un repo propio
+(`Creditop-SAS/risk-services-mockery-lambda`), creado por Yamid y mantenido por Joel. El spike también
+lo borraba.
+
+⚠ **Entonces el spike borra exactamente las dos cosas que hay que conservar.** Se descarta esa mitad.
+
+### Y hay que ser honesto sobre el header
+
+El argumento a favor era que el catálogo de escenarios es cerrado y global. Pero **el lambda recibe el
+número de documento en todas las llamadas** (Ágil en la URL, las otras tres en el cuerpo), así que
+puede variar la respuesta por cédula — y eso resuelve lo mismo:
+
+| lo que se buscaba | por header | por el lambda |
+|---|---|---|
+| casos nuevos sin tocar el catálogo | sí | sí, agregando fixtures |
+| combinaciones entre centrales | sí | sí, si la cédula manda en las tres |
+| dos personas sin pisarse | sí | sí, cada una con su cédula |
+| **funciona desde el front** | **NO** — muere en el SSR | **sí** — la cédula viaja igual |
+
+La última fila decide: **el lambda ya resuelve el hueco de QA que el header no podía cerrar** sin
+tocar el frontend. El header queda redundante con un lambda bien usado.
+
+### Lo que SÍ vale rescatar del spike
+
+- **Los 7 tests de cascada** — no dependen del header, se reescriben con `Http::fake` directo. Son la
+  primera cobertura que existe de la cascada completa.
+- **El hallazgo del `ValueError`** del `max()` con `detalladoEmpleos` vacío, que ningún `catch` agarra
+  (`ValueError` extiende `Error`, no `Exception`).
+- El inventario de los tres caminos y su precedencia, que queda documentado más abajo.
+
+### La única pregunta que falta
+
+**¿El lambda ya varía la respuesta según la cédula?** Si sí, **no hay nada que construir**: la tarea se
+cierra documentando cómo usarlo, y lo único pendiente son las variables de Dani para que staging lo
+use. Si no, hay trabajo — pero en el repo del lambda, no en `legacy-backend`.
 
 ## Los tres mecanismos que conviven hoy
 
