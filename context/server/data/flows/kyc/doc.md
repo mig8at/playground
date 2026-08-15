@@ -13,7 +13,7 @@ Todo aterriza en tres lugares: el **reporte crudo** en `risk_central_user_data.d
 - **`users.age` es COLUMNA real** (no accessor de `date_of_birth`): se calcula al capturar la persona (`PersonalInfoController.php:158`); es el gate de edad (Pullman).
 - **Caché 1 mes**: Experian/Mareigua/Ágil reusan `risk_central_user_data < 1 mes` sin reconsultar (`Experian.php:73`); una fila inyectada se reusa (borrar la fila para refrescar).
 - **`verifyCoincidence` (match de nombres) SIEMPRE true** en local/development
-  (`MareiguaService.php:362` · `AgildataService.php:357` · `TusDatosService.php:458`). ⚠ Y la consecuencia
+  (`MareiguaService.php:368` · `AgildataService.php:363` · `TusDatosService.php:464`). ⚠ Y la consecuencia
   que no es obvia: **el único entorno donde se pueden inyectar fakes es el único donde la comparación
   está apagada**, así que el match estricto de nombres **no se puede reproducir en local**. No es un
   detalle de comodidad — es por lo que **F-132** vivió meses. Para probarlo hay que salir de
@@ -27,12 +27,26 @@ Todo aterriza en tres lugares: el **reporte crudo** en `risk_central_user_data.d
   hay un caso observado que lo confirme. Es medible: buscar personas a las que se les corrigió el primer
   apellido y ver si su consulta a Experian fallaba antes.)*
 - **La cascada de identidad es una COMPUERTA, no una FUENTE.** Ágil, Mareigua y TusDatos devuelven los
-  tres `'names' => $form_name` (`AgildataService.php:105` · `MareiguaService.php:127` ·
-  `TusDatosService.php:242`): **te devuelven lo que les mandaste**. Pueden **vetar** el nombre, nunca
-  completarlo ni corregirlo — ni siquiera cuando ellos tienen la versión correcta. ⚠ No asumas simetría
+  tres `'names' => $form_name` (`AgildataService.php:111` · `MareiguaService.php:137` ·
+  `TusDatosService.php:250`): **te devuelven lo que les mandaste**. Pueden **vetar** el nombre, nunca
+  completarlo ni corregirlo — ni siquiera cuando ellos tienen la versión correcta.
+
+  > ⏳ **PENDIENTE DE MERGE** — esto se INVIERTE en `staging` (PR #1098, #1103): la central que
+  > resuelve la cédula pasa a corregir la ortografía del nombre tecleado, con un techo de distancia
+  > para no escribir encima el nombre de otra persona. Sigue siendo cierto en `main`.
+  > Al mergear: re-verificar con el oráculo, reescribir este punto y **borrar esta marca**.
+
+  ⚠ No asumas simetría
   con el flujo viejo: `[application] PersonalInfoController.php:208-209` **sí** sobreescribía con el
   `primer_nombre`/`segundo_nombre` de Mareigua. Ver § «El nombre».
 - **Local/dev MOCKEA el buró** (`ExperianFixture`, 212 KB) → score/`additional_info` sintéticos; no es el score real.
+- ⚠ **En dev/staging Ágil devuelve SIEMPRE la misma identidad: `JUAN SANTIAGO DOE RAMANUYAN`.** No es
+  un mock nuestro —los drivers fake de `config/onboarding.php` **no están activados** ahí, comprobado
+  en Loki: `kyc.fake.http_drivers_registered` da 0 líneas— sino el sandbox del propio proveedor.
+  Verificado 2026-08-15 sobre las 3 filas de `kyc_name_checks` de dev y reproducido en una corrida
+  real. Consecuencia: **cualquier prueba de nombre contra esos entornos compara contra un enlatado**,
+  así que un «no coincide» ahí no dice nada de la persona. Y como `verifyCoincidence` además devuelve
+  `true` en esos entornos, la solicitud pasa igual.
 - **DÓNDE se calculan los `EX_*`**: en la BD, no en PHP. Son **23 funciones `FN_Experian_*`** (`CC_Debt_Balance`, `CC_Vector_Overdue`, `Liabilities_*`, `Savings_Is_Seized`…) que envuelve `SP_Experian_Extract_Data`, invocado desde `ProfilerMLController.php:290`. Ninguna se llama desde PHP directamente y ninguna está indexada en este árbol — ver el nodo **db-routines**.
 - **ML sin responder** (no «muerto»): ~20 campos `EX_*` de Experian se calculan y **se tiran** — gran parte del reporte no decide nada hoy, pero el intento cuesta tiempo de respuesta y genera correos. La cadena exacta de perfiladores, el timeout y por qué NO «cae a matrices»: **→ `profiling` §orden del listado** (F-104).
 - **Dos motores, mismo reporte, campos/comparadores distintos** (maduración `<=` viejo rt≠2 vs `<` nuevo rt=2) — el detalle vive en **Profiling**.
@@ -56,6 +70,52 @@ A Ágil y Mareigua les das sólo el documento y **ellos te dicen cómo se llama 
 pueden **corregir**. A TusDatos le das el nombre y **te pone nota** — por eso sólo puede **validar**, y
 nunca te va a decir cómo se escribe bien. La fuente que podría corregirte es la de nómina; la que sabe
 la verdad registral sólo contesta sí o no. Ver § «El nombre».
+
+### El código de respuesta de cada central: cuáles traen datos y cuáles no
+
+Es la pregunta que decide la cascada, y el código la contesta con un `in_array` de UN valor por
+central. Verificado 2026-08-15 contra los manuales de proveedor **y** contra 298.776 respuestas reales
+de producción (`additional_info` de Ágil va plano; consulta por Redash, fuente 1 «Live»).
+
+**Ágil Data** — `codRespuesta`, 11 valores observados entre 2024-07 y 2026-08. **Sólo `01` y `21`
+traen bloque `respuesta`**; los otros nueve vienen con `respuesta: null`, y por eso
+`AgildataService.php:50` acepta exactamente esos dos:
+
+| cód | qué es | filas (prod, 2 años) |
+|---|---|---|
+| `01` · `21` | Consulta exitosa · Pensionado exitoso | 130.009 · 1.037 |
+| `99` | **«no exitosa para la ENTIDAD»** — ver abajo | **74.206** |
+| `16` · `19` | sin afiliación al sistema pensional · sin histórico detallado | 50.162 · 42.750 |
+| `02` · `03` | no afiliado a las 4 AFP · pensionado | 176 · 16 |
+| `98` · `05` · `12` | **saturación del proveedor** · error técnico · campos obligatorios | 264 · 62 · 87 |
+
+⚠ **El `99` NO es un hecho del cliente: es de FACTURACIÓN.** El manual (v2, junio 2022, §2.3.1) dice
+que se devuelve cuando la respuesta «no genera cobro o facturación» para la entidad, que **no se
+muestra información** y que Ágil **guarda la respuesta real**. Es el 25 % de las consultas. Lo más
+probable es que detrás haya respuestas que igual no traían datos, pero **es preguntable** porque ellos
+la tienen. ⚠ Y el manual **está desactualizado**: no lista el `98`, que sí aparece en producción.
+
+**Mareigua** — `respuesta_id` (Anexo 2 del manual MaCIA v25.0, 2024-09-15). Sus respuestas van
+**cifradas** en `data`, así que el catálogo no se puede censar desde la BD: sale del manual. `4` =
+Exitosa, y `MareiguaService.php:50` acepta sólo ese. Los otros: `1` no contiene información · `5`
+datos incompletos · `2` datos erróneos · `3` error de forma · `6` falló la comunicación con los
+operadores · `7` error del servidor · `11` ambiente no autorizado · **`16` alcanzó el máximo de
+consultas del día sobre la misma identificación**.
+
+**TusDatos** — `match_code` por campo, y el manual de «Verificación exprés» (v1.0, 2025-07-24) por fin
+da los umbrales: **`1` coincide (>99 % de similitud) · `2` coincide parcialmente (90–98,9 %) · `0` NO
+coincide (<89,9 %) · `null` no proporcionado**. Eso es lo que hace que confundir `0` con `null` sea un
+defecto y no una tolerancia — ver F-132.
+
+⚠ **Falta una categoría: «reintentable».** Ágil `98` y Mareigua `16` son límites del proveedor
+(«volvé más tarde»), y el flujo los trata igual que «esta persona no tiene datos»: el cliente se va
+sin crédito por una saturación ajena. Ninguno de los dos se reintenta hoy.
+
+⚠ **Cómo clasifica la cascada, y con qué**: `OnboardingService` decide mirando si el servicio devolvió
+`errors` poblado. `errors` lleno → **rechaza** (ONB005 o retry de TusDatos); `errors => null` →
+**inconcluyente**, consulta la siguiente central. O sea que el control de flujo se apoya en el payload
+de mensajes **para la UI**, no en un desenlace explícito. Consecuencia real: «el buró no trajo nombre»
+y «el asesor tecleó mal» llenan los dos `errors`, y son indistinguibles desde afuera.
 
 **Proveedores** (id de `risk_centrals` + cómo lo lee `User`; conteos = BD local, snapshot 2026-07-03):
 

@@ -32,10 +32,14 @@ orden de archivo — el ancla `### F-xx` es la única dirección.)
 | **«un reporte por país trae datos absurdos»** | F-130 · F-131 |
 | **«se guardó el nombre mal / con un solo apellido, y nada avisó»** | **F-132** · F-133 |
 | **«Deceval rechaza por identidad» / el pagaré dice otra persona** | **F-133** · F-121 · F-122 |
+| **«desplegué y el log no aparece en Grafana» / «esto no está desplegado»** | **F-134** |
+| **«me llegó el SMS pero dice que no hay OTP» / `NO_PREVIOUS_OTP` en staging** | **F-135** |
 | F-130 | `countries.iso_code_2` guarda el código de TRES letras y `iso_code_3` está vacío | TRAMPA |
 | F-131 | La fila `countries.id=1` es «Afghanistan» y es el DEFAULT: 155 entidades y 215.844 usuarios apuntan ahí | TRAMPA |
 | F-132 | Un «no coincide» en el SEGUNDO nombre/apellido se descartaba como campo no enviado (`0 == null`) | TRAMPA |
 | F-133 | Con un solo apellido, el pagaré de Deceval lo registra dos veces (`Str::after` sin separador) | TRAMPA |
+| F-134 | Una línea ausente en Loki no prueba que el código no corrió: sólo `TracerService` fija el canal | TRAMPA |
+| F-135 | El OTP real de staging no se puede validar: el SMS sale, el código no vuelve de la caché y no queda fila | TRAMPA |
 | F-129 | La única comisión que el código calcula es una tabla de 40 tramos hardcodeada en un export, y da 0 fuera de rango | TRAMPA |
 | F-128 | «Lo que recibe el comercio» se calcula con dos bases distintas según la pantalla (38 % difieren) | TRAMPA |
 | F-127 | La calculadora «por comercio» escribe dos tablas GLOBALES del lender: se pisan entre comercios y a rt≠2 se las borra | TRAMPA |
@@ -1604,8 +1608,10 @@ en producción — el webhook no deja registro cuando `firstOrFail()` lanza, as�
   **198** validaciones pasaron con un no-coincide declarado — 87 de segundo apellido, 87 de segundo
   nombre, 24 de segundo apellido sin segundo nombre. Caso testigo uReq 523201: `{first_name: 1,
   middle_name: null, first_surname: 1, second_surname: 0}` y `passed = 1`.
-- **Arreglo:** `=== null`. ⏳ **PENDIENTE DE MERGE** — vive en `fix/kyc-second-surname-mismatch`
-  (`7f4c2903`), no en `main`.
+- **Arreglo:** `=== null`. ⏳ **PENDIENTE DE MERGE en `main`** — mergeado a **`staging`** el 2026-08-15
+  (PR #1098, `eb429dda`; la rama original sobre `main` quedó como respaldo y su PR #1082 se cerró).
+  El manual del proveedor lo confirma desde su lado («Verificación exprés» v1.0, 2025-07-24):
+  `0` = **no coincide** (<89,9 % de similitud) y `null` = no proporcionado. No eran lo mismo.
 - **Estado:** vivo en `main`. ⚠ **El arreglo NO cierra el agujero**, solo tapa la fuga de la última
   línea de defensa: TusDatos es el ÚLTIMO de la cascada y solo se consulta si Ágil y Mareigua fallan, así
   que para la mayoría de los clientes ese aviso nunca se pide. Ver **kyc** § «El nombre».
@@ -1626,3 +1632,45 @@ en producción — el webhook no deja registro cuando `firstOrFail()` lanza, as�
   No aplicado.
 - **Estado:** vivo en `main`. Hay **cuatro** partidores de nombre distintos sobre las mismas dos
   columnas; este es el único que duplica. Ver **kyc** § «El nombre».
+
+### F-134 · Una línea que no aparece en Loki NO significa que el código no corrió: mirá por qué canal sale
+
+- **Síntoma:** se despliega un cambio, se busca su log en Grafana, no está — y se concluye que el
+  despliegue no llegó. La conclusión es falsa y cuesta horas: el código corría, el log no viajaba.
+- **Causa raíz (verificada 2026-08-15):** en este repo **sólo `TracerService::log()` fija el canal**
+  (`app/Otel/TracerService.php:307`, `Log::channel('loki')`). Cualquier otro `Log::` usa el canal por
+  defecto, que depende de `LOG_CHANNEL` del entorno — y varios `.env` del repo lo ponen en `single`,
+  o sea un archivo dentro del contenedor. `app/Support/Logging/OnboardingLogger.php` delegaba en
+  `Log::getFacadeRoot()`, así que sus eventos (`kyc.*`, `otp.*`) podían no llegar nunca a Grafana.
+- **Evidencia:** solicitud 464872 en staging, 2026-08-15 03:09Z. La traza aparece completa —93 líneas,
+  todas de `TracerService`, incluidas `Validating identity with AgilData` y `AgilData OK`— pero el
+  evento `kyc.name_adoption`, que ese mismo código emite, **no está**. Se leyó como «el arreglo no
+  está desplegado» cuando el deploy había terminado 51 minutos antes.
+- **Arreglo:** que `OnboardingLogger` fije `Log::channel('loki')` con el mismo fallback de
+  `TracerService`. **Aplicado en `staging`** (PR #1100, `ed2c37d6`) con 4 tests; 3 fallan sin él.
+  ⏳ **Pendiente en `main`.**
+- **Estado:** vivo en `main`. La regla general sigue valiendo aunque se arregle este caso: **antes de
+  concluir que un código no corrió por la ausencia de su log, verificá por qué canal sale.** Un log
+  que no llega no sólo no informa — desinforma, porque su ausencia se lee como evidencia.
+
+### F-135 · El OTP real de staging no se puede validar: el proveedor manda el SMS y el código no vuelve de la caché
+
+- **Síntoma:** el usuario recibe el SMS, digita el código y la validación responde `NO_PREVIOUS_OTP`.
+  Desde afuera parece que digitó mal o que la sesión expiró. **Y el registro del teléfono responde
+  `success`**, así que nada avisa en el paso anterior.
+- **Causa raíz (verificada 2026-08-15):** `Modules/Onboarding/App/Services/OtpService.php:432` lee el
+  código generado desde la caché (`readOtpFromRedis`) en todos los entornos salvo `local`, que tiene
+  el atajo `1111`. Si la caché no lo entrega, el flujo aborta con `ONB014_OTP_GENERATION_FAILED` y
+  **no persiste la fila de `otps`** — deliberadamente, para no dejar un espejo en `0`. Sin esa fila,
+  `validateOtpCode` no encuentra nada y devuelve `NO_PREVIOUS_OTP`.
+- **Evidencia:** staging, 2026-08-15 03:48Z. La traza muestra
+  `OtpService::sendOtpCode: cache did not deliver the generated code, returning ONB014` y, dos líneas
+  después, `Skipping unsigned legal document (no Credifamilia or OTP failed)` — pero el controlador
+  igual devolvió `success` («Result contains user, returning success response»).
+- **Arreglo:** dos caminos. (a) arreglar la caché de staging; (b) `ONBOARDING_DRIVER_CACHE=fake` junto
+  con `ONBOARDING_DRIVER_OTP=fake`: el fake de OTP escribe el código en la caché él mismo
+  (`FakeOtpServiceRepository::generateOtp`), así que el paso deja de fallar. ⚠ El driver fake de OTP
+  **solo no alcanza**: reemplaza al proveedor, no al `CacheServiceInterface` que `OtpService:42`
+  inyecta para leer de vuelta. No aplicado.
+- **Estado:** vivo. **Rodeo mientras tanto:** un teléfono de `settings.qa_otp_bypass_phones` (código =
+  últimos 4 dígitos) sí pasa, porque `OtpBypassService` retorna **antes** del chequeo de fila vacía.
