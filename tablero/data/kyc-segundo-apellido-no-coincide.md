@@ -194,6 +194,17 @@ distinto —lo mergeado es «no cambia comportamiento», esto sí lo cambia—; 
 mueve, porque el TusDatos nuevo es un borrador. Orden sugerido: variables de Dani → reconciliar
 `staging`↔`main` → el contrato.
 
+### De acá salió la tarea 49
+
+Perseguir «¿el despliegue llegó?» destapó que hay **tres mecanismos distintos** para simular las
+centrales, hechos por tres personas en tres meses (`mock_rules` de José, el lambda `*_MOCK_HOST` de
+Joel, y los drivers fake + `X-Fake-Scenario`). Se hizo un spike que los unifica en uno solo dictado
+por header — local, sin commitear, 0 tests rotos de 509.
+
+Vive en su propia tarea: **`mocks-de-centrales-un-solo-mecanismo.md` (id 49)**. Ahí están el
+inventario de los tres, los 7 casos de cascada que se probaron, el hueco de QA por el front y las
+tres conversaciones pendientes (José, Joel, Duncan).
+
 ### Preguntas abiertas
 
 - ¿Qué hay detrás de los **74.206 códigos `99`** de Ágil? Ellos guardan la respuesta real.
