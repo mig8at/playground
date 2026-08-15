@@ -1103,7 +1103,7 @@
   <header>
     <h1>Autogestión del cliente · fecha de pago y plazo</h1>
     <p class="sub">El cliente escribe desde su celular, se identifica y cambia él mismo las condiciones de su crédito. Sin asesor de por medio.</p>
-    <p class="stamp">Segunda propuesta de <b>CORE-258</b> — <b>13 de agosto de 2026</b>, tras la reunión con Manuela y Filipo.
+    <p class="stamp">Segunda propuesta de <b>CORE-258</b> — <b>13 de agosto de 2026</b>, tras la reunión con Manuela y Filipo. <b style="color:#c2410c">Rutas actualizadas el 14 de agosto de 2026</b>: los servicios del crédito ya no se llaman por su ruta actual sino a través del canal (<code>/api/support/credits/…</code>), para que la pertenencia del crédito la decida el backend y no el llamador.
       Es lo que se propuso ese día, no lo que el sistema hace hoy.</p>
     <div class="controls">
       <button class="ctl primary" id="reset">↺ Reiniciar</button>
@@ -1201,11 +1201,11 @@
     quienEs: { m: "GET", p: "/api/support/self/by-phone?wa=573214567207", n: "El número de WhatsApp ES el primer factor: resuelve al cliente antes de pedirle nada. Si no está registrado, no se sigue", nuevo: 1 },
     pedirOtp: { m: "POST", p: "/api/support/self/otp", n: "Emite el código y lo manda al celular del crédito — el MISMO desde el que escribe. Reusa el otp-service con identifier = sesión, así queda una fila a la que apuntar después", nuevo: 1 },
     verificar: { m: "POST", p: "/api/support/self/otp/verify", n: "Valida el código y abre la sesión. Cuenta intentos: al tercero, bloquea y escala", nuevo: 1 },
-    canChange: { m: "GET", p: "/api/loans/consumer/credits/487542/can-change", n: "YA EXISTE · CreditChangeValidationService: pago pendiente, lender externally_serviced o cambio en los últimos 6 meses" },
-    dateOpts: { m: "GET", p: "/api/loans/consumer/credits/487542/payment-date-options", n: "YA EXISTE · ciclos fijos 5/16/28, devuelve sólo los 2 próximos" },
-    feeOpts: { m: "GET", p: "/api/loans/consumer/credits/487542/fee-number-options", n: "YA EXISTE · fee_numbers de la línea, filtrado a > cuotas pagadas y ≤ max_fee_number de la categoría" },
-    aplicaFecha: { m: "POST", p: "/api/loans/consumer/credits/487542/change-payment-date", n: "YA EXISTE · hoy escribe otp_id=0. Ahora recibe el otp_id REAL del código que la clienta escribió — misma prueba que en el flujo del asesor", nuevo: 1 },
-    aplicaPlazo: { m: "POST", p: "/api/loans/consumer/credits/487542/change-fee-number", n: "YA EXISTE · hoy escribe otp_id=0. Ahora recibe el otp_id REAL del código que la clienta escribió — misma prueba que en el flujo del asesor", nuevo: 1 }
+    canChange: { m: "GET", p: "/api/support/credits/487542/can-change", n: "Reusa CreditChangeValidationService (lógica que ya existe), servido por el canal: pago pendiente, lender externally_serviced o cambio en los últimos 6 meses" },
+    dateOpts: { m: "GET", p: "/api/support/credits/487542/payment-date-options", n: "Reusa la lógica que ya existe · ciclos fijos 5/16/28, devuelve sólo los 2 próximos" },
+    feeOpts: { m: "GET", p: "/api/support/credits/487542/fee-number-options", n: "YA EXISTE · fee_numbers de la línea, filtrado a > cuotas pagadas y ≤ max_fee_number de la categoría" },
+    aplicaFecha: { m: "POST", p: "/api/support/credits/487542/change-payment-date", n: "YA EXISTE · hoy escribe otp_id=0. Ahora recibe el otp_id REAL del código que la clienta escribió — misma prueba que en el flujo del asesor", nuevo: 1 },
+    aplicaPlazo: { m: "POST", p: "/api/support/credits/487542/change-fee-number", n: "YA EXISTE · hoy escribe otp_id=0. Ahora recibe el otp_id REAL del código que la clienta escribió — misma prueba que en el flujo del asesor", nuevo: 1 }
   };
   const T_CREDITO = { t: "creditop_x_changes_log", cls: "existe", nota: "tabla que YA existe · ¿qué va en otp_id?" };
 
