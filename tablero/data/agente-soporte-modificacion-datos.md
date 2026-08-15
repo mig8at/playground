@@ -28,9 +28,61 @@ Qué trae: el módulo `Modules/SupportBot` (proveedores, rutas, middleware de to
 humo), las **3 migraciones**, y el refactor de los dos `CreditChangeController` (Consumer + Customer)
 extrayendo `CreditChangeService`.
 
-**3 de los 16 endpoints están construidos**: `GET /api/support/self/by-phone`, `POST /api/support/self/otp`
-y `POST /api/support/self/otp/verify`. Faltan 13 — ver §«Las APIs a entregar» y §«Lo que falta para
-que el canal funcione».
+**LOS 16 ENDPOINTS ESTÁN CONSTRUIDOS**, y coinciden uno a uno con los de los prototipos. Del canal no
+falta código: lo que queda es desplegar y dos decisiones sin dueño (ver §«Preguntas abiertas»).
+
+### Lo que se decidió con Miguel el 2026-08-14, en orden
+
+1. **Todo lo que consume el bot entra por `/api/support/*`**, incluidas las 5 capacidades que también
+   existen como endpoints del crédito. Ver el bloque en §«Las APIs a entregar».
+2. **La validación de `wa` se deja sin formato** (presente, texto, ≤32). Un `wa=abc` sale por 404,
+   indistinguible de un número no registrado.
+3. **El backend lleva sólo el estado de AUTORIZACIÓN**; el recorrido conversacional es de n8n. Ver
+   §«Reparto del trabajo» → «el estado eran dos cosas».
+4. **El correo queda fuera por alcance.** Los prototipos sólo recorren celular, fecha de pago y plazo.
+   Sumarlo después es una línea en `CAMPOS_CONTACTO` más su validación de forma.
+5. **La autogestión exige celular + cédula.** El número dice de quién es la línea, la cédula de qué
+   crédito hablamos. Una cédula que no coincide responde con el cuerpo **idéntico** al de un número no
+   registrado: distinguirlos sería un oráculo, porque `by-phone` ya deja ver 7 de los 10 dígitos del
+   documento y se podría completar el resto probando.
+6. **El OTP es nuestro, no de n8n.** Filipo propuso validar el código de su lado y avisarnos «está
+   correcto»; se descartó porque el `otp_id` desaparecería y un booleano en un request es una
+   afirmación, no una prueba. La diferencia con su propuesta es un solo paso: nos reenvía el código en
+   vez de un «sí». Para él es menos trabajo —no guarda códigos, ni vencimientos, ni contadores— y lo
+   protege: si hay una disputa, «el workflow dijo que estaba ok» le pone la responsabilidad encima.
+
+### 🔴 Un defecto de `main`/`staging` que el refactor destapó y corrige
+
+Los dos `CreditChangeController` **no eran copias literales**. El de Consumer llama a
+`UserRequestRepository::update()` —que existe— y el de Customer a **`updateUserRequest()`, que no
+existe ni en el repositorio ni en su interfaz** (verificado: no está en ningún lado; las que se llaman
+parecido son de otros servicios con otra firma).
+
+O sea que el cambio de plazo por `requests/{id}/change-fee-number` y
+`customer/requests/{id}/change-fee-number` **falla siempre** con «Call to undefined method», pasadas
+la validación y la elegibilidad. Al unificar queda la llamada correcta: **esas dos rutas pasan de 500
+a funcionar**. Es un cambio de comportamiento sobre una ruta que consume la app móvil, y es lo único
+que yo miraría con lupa en review.
+
+### Verificación de impacto antes de mergear
+
+Lo que importaba no era la respuesta HTTP sino **qué queda escrito**: `creditop_x_requests_history` es
+un ledger event-sourced que consumen 6 crons de servicing en `application` y 3 de bloqueo de
+dispositivos en legacy (nodos `servicing` y `creditopx`).
+
+Se ejecutaron **un cambio de fecha y uno de plazo reales**, desde el mismo estado de partida, con y
+sin el cambio, contra una copia de la BD local: **mismas filas** en `creditop_x_requests_history`,
+`creditop_x_changes_log`, `creditop_x_log` y `user_requests`. Para el plazo la referencia fue la
+implementación de **Consumer**, que es la que sí funcionaba.
+
+Además: nadie fuera del módulo usa `CreditChangeService`; las 4 migraciones no chocan (3 `CREATE` y 1
+`ALTER` sobre tabla propia); el módulo no pisa ninguna ruta ni alias, y no hay rutas duplicadas en
+todo el repo.
+
+⚠ **Dos mediciones mías dieron falsos positivos antes de corregirlas**, y conviene saberlo para
+repetir el trabajo: `opcache.revalidate_freq=2` sirve el código de la rama anterior si no se reinicia
+php-fpm entre corridas, y un `git switch` falla en silencio si el árbol está sucio — con lo que se
+termina comparando una rama contra sí misma. La confianza está en las corridas finales.
 
 ### 🔑 El OTP ya estaba hecho — el hallazgo que más cambia la estimación (2026-08-14)
 
@@ -765,17 +817,21 @@ ventana de 24 h está abierta y el texto libre está permitido. La autogestión 
 
 | pieza | de quién | estado |
 |---|---|---|
-| identificar por número | nuestro | ✅ hecho |
-| OTP + máquina de sesión | nuestro | ✅ **hecho** (commit `fe19d64e`) |
-| 3 rutas de lectura (`can-change`, fechas, plazos) | nuestro | la lógica ya está probada, falta la capa HTTP |
-| 2 rutas de cambio, con `otp_id` real | nuestro | ídem; ya hay sesión de donde leer el `otp_id` |
+| identificar por número + cédula | nuestro | ✅ hecho |
+| OTP + máquina de sesión | nuestro | ✅ hecho |
+| 3 rutas de lectura (`can-change`, fechas, plazos) | nuestro | ✅ hecho |
+| 2 rutas de cambio, con `otp_id` real | nuestro | ✅ hecho |
+| flujo del asesor (8 rutas) | nuestro | ✅ hecho |
 | webhook de WhatsApp + conversación | Filipo | **no existe en ningún lado** |
 
-Quedan **5 rutas** de nuestro lado, y ya no hay nada bloqueante: la sesión existe y guarda el `otp_id`
-verificado. Cuando se construyan, dos reglas no negociables — **exigir sesión en `otp_verified`** (si
-no, el `user_request_id` en la URL es enumerable y se leerían las condiciones de cualquier cliente) y
-**tomar el `otp_id` de la sesión y no de la petición**. Ambas están escritas en
-`routes/supportbot.php`.
+**De nuestro lado no queda ninguna ruta.** Las dos reglas que sostienen las de crédito quedaron
+aplicadas y escritas en `routes/supportbot.php`: exigen sesión en `otp_verified` —si no, el
+`user_request_id` va en la URL y es enumerable— y toman el `otp_id` de la sesión, nunca de la
+petición.
+
+Lo que falta para que el canal FUNCIONE es de infraestructura y de Filipo: las 4 migraciones en cada
+ambiente, `SUPPORT_BOT_TOKEN`, exponer `/api/support/*` en el gateway, y del otro lado el webhook de
+entrada con verificación de firma más la capa conversacional.
 
 Recordatorio de por qué importa el `otp_id`: **las 31 filas de `creditop_x_changes_log` en dev tienen
 todas `otp_id = 0`** (verificado 2026-08-14). Hasta que esos 2 endpoints existan, el cambio se sigue
