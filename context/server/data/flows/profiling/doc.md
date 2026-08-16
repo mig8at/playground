@@ -159,6 +159,33 @@ entidad. Medido en la uReq 520704 de prod: `Credi ASYCO → regla 8959`, `Bancol
 definición en `lender_group_rules` / la tabla de la regla y los valores que consumió. El log dice **qué
 regla** decidió, no **con qué cuentas**.
 
+### El vocabulario del CÓDIGO, que es con el que hay que buscar en Loki
+
+Arriba los eventos van por su **etiqueta del trazador** («Evaluación de categoría», «Regla de categoría
+rechazada»). En los logs **no existen con ese nombre**: buscarlos así no devuelve nada, y esa capa de
+traducción es la misma trampa que el nodo **KYC** documenta para las compuertas `STAGE 0…4`. El motor de
+categorías declara su propio pipeline en
+`Modules/Loans/App/Services/LenderUserCategoryService.php`:
+
+| marcador | dónde | qué contesta |
+|---|---|---|
+| `CATEGORY_EVALUATION_START` | `:92` | arrancó la evaluación del par (usuario, entidad) |
+| `CATEGORY_EVALUATION_SPECIAL_CASE` | `:68` | entró por **special granting**, no por tiers |
+| `CATEGORY_EVALUATION_APPROVED` | `:131` | **cayó en categoría**, y con qué: `category_id`, `max_amount`, `available_from_lender`, `rules_evaluated`, `salary`, `continuity_months`, `datacredito_score` |
+| `CATEGORY_RULE_REJECTED` | `:159` | **el tier NO matcheó**: `rule_id`, `category_id` y sobre todo **`failed_criteria`** (`:165`) — la lista exacta de criterios incumplidos (`negative_reports_last_12_months`, `overdue_accounts`, `score`) — más `criteria_details` |
+| `FIELD_SCORING_COMPLETED` · `PAYMENT_CAPACITY_SCORING_COMPLETED` · `CATEGORY_RESOLUTION_BY_SCORE_COMPLETED` | `:203` · `:234` · `:267` | el camino por **scoring**, el que corre cuando ningún tier matcheó |
+
+`CATEGORY_RULE_REJECTED` es la única respuesta directa a «¿por qué no le apareció esta entidad?» que **no**
+obliga a re-evaluar las reglas a mano: dice *qué criterio* falló, no solo que falló. Es exactamente lo que
+falta en la pantalla del admin (sección de arriba) y lo que los tres escalamientos de #tech-ops fueron a
+buscar a mano.
+
+⚠ Sale a nivel **`debug`** —el propio código dice «para no saturar» (`:158`)—, a diferencia de todos los
+demás, que son `info`. Si el ambiente filtra `debug`, el marcador que contesta la pregunta es justo el que
+no está: una ausencia acá **no** significa que la regla no se evaluó.
+
+Los rechazos por **cupo** tienen sus propios marcadores y viven en otros servicios → ver **CreditopX**.
+
 ## Lo que NO está verificado
 - `monthly_income` por tier no está volcado del dump — y hoy además es NO-OP por el bug del censo.
 - ¿Las reglas datacrédito POR SUCURSAL quedan inertes en el cupo? El motor nuevo lee solo la genérica; needs-runtime.

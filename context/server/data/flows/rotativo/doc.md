@@ -150,6 +150,17 @@ en los cinco niveles**, o sea que el nivel no cambia nada para ese comercio.
   `:140 getRevolvingCreditDetails` (pagaré, garantía, consentimientos) · `:235 simulatePaymentSchedule`.
 - **El front** — `frontend-monorepo/…/loan-origination/src/components/RevolvingCreditIntro.tsx`, la
   pantalla que introduce el producto en el wizard.
+- **Los marcadores de log del otorgamiento** — los seis viven dentro de **`getRevolvingCreditConditions`**
+  (`legacy-backend/Modules/Loans/App/Services/RevolvingCreditsService.php:395`), la función que sí otorga
+  (no confundir con los tres métodos de consulta de arriba): `REVOLVING_CREDIT_START` (`:398`) ·
+  `REVOLVING_CREDIT_CACHED` (`:416`, contestó de caché y **no** recalculó) · `REVOLVING_CREDIT_REJECTED`
+  (`:442`, rechazo temprano) · `REVOLVING_CREDIT_SP_CALL` / `REVOLVING_CREDIT_SP_RESULT` (`:476` / `:500`) ·
+  y el cierre `:544`, que emite `REVOLVING_CREDIT_ASSIGNED` o `REVOLVING_CREDIT_REJECTED` según
+  `approvedLimit > 0` — o sea que **el mismo marcador de rechazo sale en dos lugares con significados
+  distintos** (antes o después de correr el SP), y distinguirlos pide mirar la línea, no el nombre.
+  <br>⚠ Utilidad concreta para la pregunta abierta de este nodo: `REVOLVING_CREDIT_SP_RESULT` es **la única
+  forma de ver qué devolvió** `FN_CreditopX_Revolving_Credit_Multiplier` sin poder leer su fuente. Todos son
+  `info` (los de categoría rt=2 no → ver **Profiling § El vocabulario del CÓDIGO**).
 - **Las rutinas SQL** (ninguna está en `files[]`, son `.sql`): `FN_CreditopX_Revolving_Credit_Multiplier`
   ⚠ **no tiene fuente en ningún repo** — se lee con
   `go run . -target dev -sql "SELECT routine_definition FROM information_schema.routines WHERE routine_name='…'"`.

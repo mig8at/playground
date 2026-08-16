@@ -13,7 +13,8 @@
     "«dice que los datos no coinciden» / falla la identidad",
     "«no le apareció ninguna entidad»",
     "«no le consultaron el buró»",
-    "«se guardó el nombre mal / con un solo apellido» y nada avisó"
+    "«se guardó el nombre mal / con un solo apellido» y nada avisó",
+    "«ayer se saltaba la validación de identidad y hoy se la vuelve a pedir»"
   ],
   "files": [
     "application/app/Actions/RiskCentrals/Ado.php",
@@ -36,6 +37,9 @@
     "legacy-backend/Modules/Identity/App/Enums/IdentityValidationType.php",
     "legacy-backend/Modules/Identity/App/Http/Controllers/Customer/AdoController.php",
     "legacy-backend/Modules/Identity/App/Services/IdentityValidationStepResolver.php",
+    "legacy-backend/Modules/Identity/App/Services/IdentityValidationService.php",
+    "legacy-backend/Modules/Identity/App/Models/IdentityValidationAttempt.php",
+    "legacy-backend/Modules/Loans/tests/Unit/CreditopXFlowServiceValidationTypeTest.php",
     "legacy-backend/Modules/Identity/App/Services/KycNameCheckRecorder.php",
     "legacy-backend/Modules/Identity/App/Services/TusDatosService.php",
     "legacy-backend/Modules/Loans/App/Services/CreditopXFlowService.php",

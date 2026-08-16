@@ -102,6 +102,12 @@ invita a armar una línea de tiempo con lo que no es una.
 ## Fronteras (qué cede este nodo)
 
 - **Qué significa cada tabla/columna** del dominio → `profiling`, `entities`, `actors`.
+- **Con qué string se busca cada decisión de negocio en los logs** → el nodo dueño de esa decisión, que
+  documenta sus marcadores con archivo y línea: categoría rt=2 (`CATEGORY_*`, incluido el
+  `CATEGORY_RULE_REJECTED` que trae `failed_criteria`) → `profiling` · cupo (`QUOTA_CHECK_REJECTED`) →
+  `creditopx` · rotativo (`REVOLVING_CREDIT_*`) → `rotativo` · compuertas de buró (`STAGE 0…4`) → `kyc`.
+  ⚠ **Las etiquetas en español que muestra el trazador NO son los strings del log** («Regla de categoría
+  rechazada» ≠ `CATEGORY_RULE_REJECTED`): buscar en Loki por la etiqueta no devuelve nada.
 - **Por qué el sistema se comporta así** (reglas, ramales, integraciones) → los nodos de flujo.
 - **Los hallazgos** que el trazador ayudó a encontrar viven en `findings` (F-100…F-106), no acá.
 - **Ejercitar/mockear un flujo** es `harness`. El trazador LEE lo que ya pasó; el harness lo PROVOCA.

@@ -15,6 +15,7 @@ Si la tarea llega con una de estas frases, empezá por esos nodos. Si ninguna ma
 | «a este comercio le pasa distinto» | `merchants` |
 | «a este usuario le salen datos de OTRO comercio» | `actors` · `application` |
 | «¿a quién le pregunto esto?» | `negocio` |
+| «ayer se saltaba la validación de identidad y hoy se la vuelve a pedir» | `kyc` |
 | «cambió el perfilamiento y no hubo deploy» | `db-routines` |
 | «¿de dónde sale el ingreso / la ocupación del cliente?» | `db-routines` |
 | «¿de dónde sale el reporte de liquidación?» | `negocio` |
@@ -226,7 +227,7 @@ Doc: `server/data/flows/hardcodes-entidades/doc.md` · Archivos: `server/data/fl
 **Cuándo:** Cuando la tarea es «necesito probar / ejercitar / mockear un flujo de originación E2E» — correr un triplete canal→comercio→lender de punta a punta, sembrar/inyectar un perfil aprobado, decidir qué se puede sellar localmente vs. qué lo decide una API externa, o levantar el demo del wizard (2 ventanas / panel). ⚠ `E2E_TARGET` por defecto es `dev`, NO `local` (F-18), y escribir a la BD compartida exige exportar `I_KNOW_THIS_TOUCHES_SHARED_DEV` a mano (F-53). El gemelo que LEE lo que ya pasó es `trazador`.
 Doc: `server/data/flows/harness/doc.md` · Archivos: `server/data/flows/harness/map.json` · Padre: `architecture`
 
-### kyc — KYC  ·  _reference_ · 36 archivos
+### kyc — KYC  ·  _reference_ · 39 archivos
 **Cuándo:** Cuando la tarea toca burós o datos de riesgo: score, Experian/Datacrédito, ingreso (Ágil Data, Mareigua, Quanto), identidad, AML, biometría, cifrado del reporte, o armar un usuario sintético para pruebas. Las tablas son `risk_centrals` (el catálogo) y `risk_central_user_data` (lo consultado, ⚠ indexado por `user_id` y NO por solicitud). Síntomas: «dice que los datos no coinciden» (`ONB005`, TusDatos), «no le consultaron el buró», y el AML de TusDatos con su caché de 1 mes.
 Doc: `server/data/flows/kyc/doc.md` · Archivos: `server/data/flows/kyc/map.json` · Padre: `onboarding`
 

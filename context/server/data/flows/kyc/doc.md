@@ -340,11 +340,37 @@ El tramo post-selección no tiene un proveedor fijo: `confirmation` lee
 
 > **La consecuencia es la que importa: para 46 de los 119 lenders in-platform, la ausencia de filas de
 > central en el tramo biométrico es lo NORMAL.** El OCR del documento y el reconocimiento facial corren
-> completos por AWS Rekognition y no dejan una sola fila — su único rastro son los logs
-> (`Modules/Identity`: `Iniciando validación de documento`, `Starting face comparison`, `Resultado OCR
-> frente/dorso`, `Validación facial completada exitosamente`). Cualquier vista que muestre «las centrales no
-> consultadas» tiene que decir primero **qué camino tenía configurado ese lender**, o la ausencia se lee como
-> un paso que faltó.
+> completos por AWS Rekognition y no dejan una sola fila en `risk_central_user_data` — sus rastros son los
+> logs (`Modules/Identity`: `Iniciando validación de documento` (`IdentityValidationService.php:737`),
+> `Resultado OCR frente/dorso` (`:943`/`:977`), `Starting face comparison`) **y la tabla propia de abajo**.
+> Cualquier vista que muestre «las centrales no consultadas» tiene que decir primero **qué camino tenía
+> configurado ese lender**, o la ausencia se lee como un paso que faltó.
+
+⚠ **El camino Rekognition SÍ tiene tabla propia: `identity_validation_attempts`** — no hay que caer en los
+logs. La escribe el mismo servicio (`IdentityValidationService.php`, que inyecta `RekognitionService` en
+`:31`): crea la fila en `:303` y la va actualizando por tramo, con **un estado por pieza** —
+`front_status` (`:324`/`:330`), `back_status` (`:408`/`:414`) y `face_status` (`:484`/`:504`/`:515`), cada
+uno `pending → processing → validated|failed`— más **`failure_reason`** con el motivo textual del fallo,
+los tres `*_hash` y un `trace` json (`IdentityValidationAttempt.php:9-22`, casteado a array). El cierre
+exitoso pone `face_status = validated`, `active = false` y `completed_at` (`:515`).
+
+Y **el historial se guarda igual que en `risk_central_user_data`, pero con otro mecanismo**: cada intento
+nuevo llama `invalidateActiveAttempts($userRequestId)` (`:301`) antes de crear la fila, así que la
+convención es **`active = true`**, no `deleted_at IS NULL`. Una consulta escrita para el patrón de las
+centrales no sirve acá.
+
+**Y `no_validation_required` NO significa siempre «este lender no valida identidad».** La tabla de arriba
+lo mapea al tipo `1 · None` (`IdentityValidationStepResolver.php:22`), pero hay una **segunda** fuente que
+emite exactamente el mismo `step_details.type`: `CreditopXFlowService.php:77`, cuando el usuario tiene
+`manual_validation` **y** validó hace menos de **24 horas**. La ventana es literal —
+`calculateValidationTime` (`:33`) computa `hours_since_last_validation` desde `users.last_validation` y
+marca `validated_less_than_24_hours` con `< 24` (`:40`); `isManualValidationRecent` (`:53`) lo recalcula
+con `Carbon::now()->subHours(24)`— y la compuerta es el `&&` de `:73`: **las dos condiciones juntas**.
+Consecuencias prácticas: (a) leer `no_validation_required` como propiedad del lender es un falso positivo
+si el usuario venía validado a mano; (b) **`users.last_validation` vence**, así que un usuario de prueba
+que ayer saltaba la biometría hoy no la salta — y nada en la UI lo anuncia. El comportamiento está fijado
+en `Modules/Loans/tests/Unit/CreditopXFlowServiceValidationTypeTest.php:160`
+(`returns_no_validation_required_when_manual_validation_is_recent`).
 
 Y el tipo `1 · None` es la razón por la que este tramo es **condicional y no obligatorio**: hay 9 lenders que
 no validan identidad, y para ellos `confirmation` salta directo a `first-payment-date`
