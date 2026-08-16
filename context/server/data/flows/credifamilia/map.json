@@ -65,6 +65,7 @@
     "legacy-backend/Modules/Onboarding/App/Http/Requests/PaymentPlan/CredifamiliaPaymentPlanRequest.php",
     "legacy-backend/Modules/Onboarding/App/Services/DynamicFormsService.php",
     "legacy-backend/Modules/Onboarding/App/Services/lenders/CredifamiliaConsumo/CredifamiliaConsumoService.php",
+    "legacy-backend/Modules/Onboarding/App/Providers/OnboardingServiceProvider.php",
     "legacy-backend/Modules/Onboarding/App/Services/lenders/LenderRetrievalService.php",
     "legacy-backend/Modules/Onboarding/App/Services/lenders/PreApprovedLenderService.php",
     "legacy-backend/app/Actions/Lenders/Credifamilia.php",

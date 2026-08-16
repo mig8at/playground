@@ -35,17 +35,7 @@ orden de archivo — el ancla `### F-xx` es la única dirección.)
 | **«desplegué y el log no aparece en Grafana» / «esto no está desplegado»** | **F-134** |
 | **«me llegó el SMS pero dice que no hay OTP» / `NO_PREVIOUS_OTP` en staging** | **F-135** |
 | **«está autorizada pero no puedo sacar el voucher»** | **F-136** |
-| F-130 | `countries.iso_code_2` guarda el código de TRES letras y `iso_code_3` está vacío | TRAMPA |
-| F-131 | La fila `countries.id=1` es «Afghanistan» y es el DEFAULT: 155 entidades y 215.844 usuarios apuntan ahí | TRAMPA |
-| F-132 | Un «no coincide» en el SEGUNDO nombre/apellido se descartaba como campo no enviado (`0 == null`) | TRAMPA |
-| F-133 | Con un solo apellido, el pagaré de Deceval lo registra dos veces (`Str::after` sin separador) | TRAMPA |
-| F-134 | Una línea ausente en Loki no prueba que el código no corrió: sólo `TracerService` fija el canal | TRAMPA |
-| F-135 | El OTP real de staging no se puede validar: el SMS sale, el código no vuelve de la caché y no queda fila | TRAMPA |
-| F-136 | En un lender con path IMEI que no sea el 160, el voucher no lo genera nadie: se difiere a una rama que exige ese id | TRAMPA |
-| F-129 | La única comisión que el código calcula es una tabla de 40 tramos hardcodeada en un export, y da 0 fuera de rango | TRAMPA |
-| F-128 | «Lo que recibe el comercio» se calcula con dos bases distintas según la pantalla (38 % difieren) | TRAMPA |
-| F-127 | La calculadora «por comercio» escribe dos tablas GLOBALES del lender: se pisan entre comercios y a rt≠2 se las borra | TRAMPA |
-| F-126 | Reversar un pago RETENIDO revienta: el código busca «PAGO REVERSADO» y la fila se llama «REVERSADO» | TRAMPA |
+| **«sembré las credenciales y el SOAP sigue sin encontrarlas»** | **F-137** |
 | **«le salen menos cuotas de las parametrizadas»** | F-110 |
 | **«le aprobaron cupo a alguien que no debía»** | F-112 |
 | **«no sale la opción de una entidad, sin error»** | F-113 |
@@ -219,6 +209,18 @@ distinto según con qué pregunta llegues.
 | F-123 | El árbol describía 5 repos mientras producción corría 14 servicios | → microservicios |
 | F-124 | El teléfono con prefijo NO estaba corrupto: E.164 es lo correcto. La hipótesis de «acumula prefi… | cerrado |
 | F-125 | «¿Este comercio es Corbeta?» tiene CUATRO respuestas distintas — no cites una lista única | TRAMPA |
+| F-126 | Reversar un pago RETENIDO revienta: el código busca «PAGO REVERSADO» y la fila se llama «REVERSADO» | TRAMPA |
+| F-127 | La calculadora «por comercio» escribe dos tablas GLOBALES del lender: se pisan entre comercios y a rt≠2 se las borra | TRAMPA |
+| F-128 | «Lo que recibe el comercio» se calcula con dos bases distintas según la pantalla (38 % difieren) | TRAMPA |
+| F-129 | La única comisión que el código calcula es una tabla de 40 tramos hardcodeada en un export, y da 0 fuera de rango | TRAMPA |
+| F-130 | `countries.iso_code_2` guarda el código de TRES letras y `iso_code_3` está vacío | TRAMPA |
+| F-131 | La fila `countries.id=1` es «Afghanistan» y es el DEFAULT: 155 entidades y 215.844 usuarios apuntan ahí | TRAMPA |
+| F-132 | Un «no coincide» en el SEGUNDO nombre/apellido se descartaba como campo no enviado (`0 == null`) | TRAMPA |
+| F-133 | Con un solo apellido, el pagaré de Deceval lo registra dos veces (`Str::after` sin separador) | TRAMPA |
+| F-134 | Una línea ausente en Loki no prueba que el código no corrió: sólo `TracerService` fija el canal | TRAMPA |
+| F-135 | El OTP real de staging no se puede validar: el SMS sale, el código no vuelve de la caché y no queda fila | TRAMPA |
+| F-136 | En un lender con path IMEI que no sea el 160, el voucher no lo genera nadie: se difiere a una rama que exige ese id | TRAMPA |
+| F-137 | El comando que siembra las credenciales del SOAP de Credifamilia escribe tres claves que el Action no lee nunca | TRAMPA |
 
 ---
 
@@ -1707,3 +1709,31 @@ en producción — el webhook no deja registro cuando `firstOrFail()` lanza, as�
 - **Estado:** vivo en `main`. La regla que sobrevive al arreglo: **cuando un side-effect se «difiere»,
   verificá que quien lo ejecuta se active con la misma condición que usó quien lo salteó.** Si difieren,
   el hueco no tira excepción ni deja log — y su ausencia se lee como «todavía no».
+
+### F-137 · El comando que siembra las credenciales del SOAP de Credifamilia escribe tres claves que el Action no lee nunca
+
+- **Síntoma:** seguís el README de la integración, corrés `credifamilia-consumo:seed-credentials`, el
+  comando responde OK e idempotente — y la radicación SOAP igual falla por credencial. O peor: **funciona**,
+  y entonces nadie se entera de nada. Las dos cosas dependen de un dato que el comando no mira.
+- **Causa raíz (verificada 2026-08-15, contra `main`):** el que **escribe** y el que **lee** usan claves
+  distintas dentro del mismo JSON `lender_allied_credentials.credential`.
+  `app/Console/Commands/SeedCredifamiliaConsumoCredentialCommand.php:295-297` escribe
+  `credifamilia_consumo_cert`, `credifamilia_consumo_key` y `credifamilia_consumo_cert_password`. El Action
+  lee las del **REST**: `app/Actions/Lenders/CredifamiliaConsumo/CredifamiliaConsumo.php:411-412`
+  (`credifamilia_cert` / `credifamilia_key`) y `:426` (`credifamilia_password`). Del prefijo
+  `credifamilia_consumo_` sólo sobrevive un Setting sin relación, el timeout (`:429`). Así que la siembra
+  es **inerte**: si la fila ya tenía el par REST, el SOAP anda —y parece que el comando sirvió—; si no lo
+  tenía, revienta por clave ausente después de haber "sembrado bien".
+- **Evidencia:** el docblock del comando hermano lo declara al revés de lo que hace el código —
+  `app/Console/Commands/TestCredifamiliaConsumoSoapCommand.php:16` dice literalmente que el Action lee
+  `credifamilia_consumo_{cert,key}`. Y `docs/lenders/credifamilia/README.md:111-118` (2026-06-01) trae la
+  tabla que separa las claves REST de las «SOAP Consumo». Los tres coinciden entre sí y **difieren del
+  Action**, que es el único que corre.
+- **Arreglo:** decidir cuál es la fuente y alinear los otros dos. Si el cert es el mismo para REST y SOAP
+  —que es lo que hace hoy el código— el comando y sus docs sobran y confunden: sacarlos. Si de verdad van
+  a ser certificados distintos, el Action tiene que leer el prefijo `_consumo_` con *fallback* al REST. **No
+  aplicado, y la intención no está confirmada**: no se pudo determinar si el reuso del cert REST fue una
+  decisión o el comando quedó vestigial de una versión anterior. → ver nodo **credifamilia**.
+- **Estado:** vivo en `main`. La regla general: **cuando un comando de operación y el código que consume
+  el dato viven en archivos distintos, la clave del JSON es un contrato sin compilador** — nada falla al
+  desincronizarse, y el modo de falla («funciona por casualidad») es peor que el error.

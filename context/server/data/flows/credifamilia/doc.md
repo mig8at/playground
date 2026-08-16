@@ -60,6 +60,58 @@ asignada a otro lender. Al depurar cuotas que "no deberían salir", mirar acá a
 - **Bonificación / condiciones especiales** (legacy): `Jobs/Lenders/Credifamilia/*`, `SpecialConditionsController`.
 - **Formulario adicional (G2, form_type 6)** — entre la identidad y la firma, Credifamilia muestra el form dinámico "backend-driven" (ruta `additional-info`): datos personales / PEP / TIN + la cascada **Departamento→Ciudad** (nacimiento, residencia, trabajo, expedición CC). Lo sirve el **form-service** (MS Go, no legacy); las respuestas caen en `user_field_values` (`form_id=6`). Ver nodos **form-service** y **dynamic-forms**. Front: `apps/loan-request-wizard/app/routes/additional-info-form.tsx`.
 
+## La mecánica del SOAP de radicación (lo que los 9 archivos de `CredifamiliaConsumo` no dicen solos)
+
+**Quién lo dispara.** No es un job ni un endpoint: `CredifamiliaConsumoService` implementa
+`LenderFinalizationServiceInterface` y está registrado en
+`Modules/Onboarding/App/Providers/OnboardingServiceProvider.php:185`. Entra por `finalize()` — su
+`consult()` **lanza `LogicException`** a propósito (la pre-aprobación viene por el REST, no por acá).
+Deja rastro con los marcadores `CredifamiliaConsumo finalize started` y `… finalize request built`.
+
+**Dos operaciones, y los namespaces CAMBIAN entre ellas** (`SoapClient.php:31-45`, `:63`):
+
+| operación | wrapper | namespace de los hijos |
+|---|---|---|
+| `transaccionConsumo` | `<ns:request>` | `http://request.web.proptech.credifamilia.com/` |
+| `guardarDocumentoOpenKm` | `<ns:documentoConsumo>` | `http://dto.proptech.credifamilia.com/` |
+
+Comparten `http://web.proptech.credifamilia.com` para la operación en sí. Confundir el wrapper no da un
+error de esquema: rompe el handler del otro lado con **`Index out of bounds`**.
+
+⚠ **El nombre del segundo servicio en el manual del proveedor (V5.3) es incorrecto.** Llamar
+`guardarDocumento` —como dice el manual— devuelve **`EPR not found`**; el WSDL solo expone
+`guardarDocumentoOpenKm`.
+
+⚠ **Hay una capa de firma que el manual tampoco documenta: WS-Security X.509, además del mTLS.** Se
+descubre leyendo el `wsp:Policy` del WSDL. Hay que firmar **`<soapenv:Body>` Y `<wsu:Timestamp>`**
+(canonicalización exclusiva + RSA-SHA256, `:243-253`) y embeber el cert como `<wsse:BinarySecurityToken>`.
+Consecuencia de diseño: **el `\SoapClient` nativo de PHP no sirve** —no deja inyectar el header antes del
+send—, por eso el transporte es cURL directo con `CURLOPT_SSLCERT`/`SSLKEY` (`:448`). Se resuelve con PHP
+core (`DOMDocument::C14N` + `openssl_sign`), sin `robrichards/wse-php` ni `xmlseclibs`.
+
+**Estados e idempotencia** (`CredifamiliaConsumo.php:62-66`): `CREDIT_REGISTERED` (200) ·
+`CREDIT_DUPLICATED` (409) · `CREDIT_INVALID` (400) · `CREDIT_ERROR` (500/SoapFault) · `CREDIT_COMPLETED`
+(tras el documento). ⚠ **Son otro namespace que los estados 40/41** de la tabla de arriba. `register()` no
+re-llama si ya existe una `LenderTransaction` `REGISTERED`/`DUPLICATED`/`COMPLETED` para ese
+`user_request_id` (`:388`), y en el documento **200 y 409 mapean los dos a `COMPLETED`** — el 409 como
+idempotencia, con la nota del propio código: *«no documentado pero seguro»* (`:338`).
+
+⚠ **Las credenciales las siembra un comando que escribe claves que el Action no lee → F-137.** El Action
+lee las del REST (`credifamilia_cert` / `credifamilia_key` / `credifamilia_password`), no las
+`credifamilia_consumo_*`. Antes de depurar «falta la credencial», leé el finding.
+
+**El PDF unificado va en orden fijo**: formulario · FGA (fianza) · tratamiento de datos · autorización de
+desembolso · cédula. Lo arma `pdf-mapper-service` (Go) y el Action recibe el base64 ya generado.
+
+**Reglas de formato que impone el proveedor** y que explican rechazos por dato, no por riesgo: fechas
+`DD/MM/YYYY`, celular de 10 dígitos que empieza en `3`, dirección solo con `#` y `-`, plazo del enum
+`{6,9,12,18,24,36,48,60}`, día de pago `02` o `16`, `tipoFianza` `Mensual`/`Anticipada`.
+
+> Los `.md` del repo — `legacy-backend/docs/lenders/credifamilia/` (README, ESTADO, RESUMEN,
+> PRUEBAS-Y-CONSULTAS, FORMALIZACION-PDF-CONTEXTO, `test/README`) — son de **2026-06-01** y describen como
+> pendiente lo que ya corre: dan el trigger por «a definir» cuando existe, y separan credenciales que el
+> código unificó. Sirven para el manual del proveedor y el detalle campo a campo; **para el estado, no**.
+
 ## Por qué «no consulta Credifamilia»: dos causas distintas
 
 Es el segundo reporte más frecuente de #tech-ops después del webhook del agregador (3 casos en 5 días,
