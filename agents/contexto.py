@@ -30,6 +30,7 @@ CODE_INDEX = PLAYGROUND / "code-index"
 sys.path.insert(0, str(CONTEXT / "tools"))
 sys.path.insert(0, str(CODE_INDEX))
 from roots import ROOTS  # noqa: E402
+import extraer as _extraer  # noqa: E402  — de acá sale el `h` que el agente devuelve
 import indice as _code_index  # noqa: E402  — el índice por repo es su propio proyecto, se importa
 
 MAX_LINEAS = 260  # tope por lectura: un archivo de 3.000 líneas no entra ni sirve entero
@@ -102,6 +103,15 @@ def _subramas(alias):
     return _code_index.subramas(alias)
 
 
+def _con_hash(d):
+    """Suma `h` a cada archivo de un resultado del buscador: el agente contesta con hashes, así que
+    toda herramienta que le muestre archivos tiene que darle el identificador con el que responder."""
+    for a in d.get("archivos", []):
+        if "ruta" in a:
+            a["h"] = _extraer.hash_de(a["ruta"])
+    return d
+
+
 def indice_de_repos():
     """El OTRO índice: por repo en vez de por pregunta. Qué es cada repositorio, con qué está hecho,
     cuándo nació y los pocos archivos que explican cómo se ensambla. Usalo cuando la pregunta sea de
@@ -118,11 +128,19 @@ def abrir_nodo(id):
     m = json.loads((d / "map.json").read_text(encoding="utf-8"))
     # Cada archivo va con su tamaño: es lo que permite elegir SIN abrir. Un nodo puede citar un
     # archivo de 163 KB, y saberlo antes evita quemar la ventana en una sola lectura.
+    # ⚠ Cada archivo va con su `h`. Sin esto, un agente al que se le pide devolver hashes NUNCA VIO
+    # ninguno y devuelve lo único que tiene —la ruta—, que después no resuelve. La instrucción y los
+    # datos tienen que coincidir: pedir un campo que las herramientas no entregan es un bug de diseño,
+    # no del modelo.
     archivos = []
     for f in m.get("files", []):
         b = _code_index.peso(f)
-        archivos.append({"ruta": f, "kb": round(b / 1024, 1),
-                         "leer_por_tramos": b > _code_index.GRANDE} if b else {"ruta": f})
+        e = {"ruta": f, "h": _extraer.hash_de(f)}
+        if b:
+            e["kb"] = round(b / 1024, 1)
+            if b > _code_index.GRANDE:
+                e["leer_por_tramos"] = True
+        archivos.append(e)
     return {
         "nodo": id,
         "cuando": m.get("when", ""),
@@ -229,7 +247,7 @@ HERRAMIENTAS = {
         "parameters": {"type": "object", "properties": {
             "que_necesito": {"type": "string", "description": "en palabras, p. ej. 'dónde se decide el cupo por categoría'"},
         }, "required": ["que_necesito"]},
-    }, lambda que_necesito: _code_index.buscar(que_necesito)),
+    }, lambda que_necesito: _con_hash(_code_index.buscar(que_necesito))),
 
     "abrir_nodo": ({
         "name": "abrir_nodo",
