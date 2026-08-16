@@ -64,6 +64,19 @@ eligió *modelos y repositorios*. Salió de la prohibición, no de la instrucci�
 4. **Devolvé**: la respuesta con sus citas `archivo:línea`, y abajo una nota corta de **qué forma le
    diste al pipeline y por qué**, más lo que haya quedado flojo.
 
+## ⚠ Si verificás algo, verificalo contra `main`
+
+Esto ya falló una vez y de la peor forma: el orquestador «corrigió» los números de línea del lector
+—que estaban BIEN— hacia números equivocados, porque los chequeó contra el working tree. Los repos de
+la compañía trabajan en ramas: `legacy-backend` estaba en `fix/trazar-fallback-…`, donde el mismo
+código está seis líneas más arriba. Una corrección con aire de diligencia y el dato peor que antes.
+
+    git -C <repo> show main:<relpath> | grep -n "<lo que buscás>"     # ✅
+    grep -n "<lo que buscás>" <repo>/<relpath>                        # ❌ lee la rama que haya
+
+Y si corregís algo, **decí cómo lo comprobaste**. Una corrección sin método es una opinión con
+formato de dato.
+
 ## Reglas
 
 - ⚠ **Cuesta plata y hay cuota.** Cada seleccionador son ~8-12 llamadas a la API. No lances 4 ángulos

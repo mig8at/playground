@@ -1,0 +1,48 @@
+{
+  "archivos": [
+    {
+      "prioridad": "alta",
+      "por_que": "Modelo Eloquent del catálogo `user_request_statuses`, que define la entidad base de los estados de solicitud (IDs 3, 10, 11, etc.).",
+      "h": "1D7BEA8"
+    },
+    {
+      "por_que": "Modelo Eloquent central `UserRequest` en legacy-backend, que contiene las claves foráneas a los estados, scopes, atributos de estado y relaciones con tablas satélite.",
+      "prioridad": "alta",
+      "h": "1257716"
+    },
+    {
+      "h": "5AD3698",
+      "prioridad": "alta",
+      "por_que": "Migración que crea e inserta el estado 'Autorizado pendiente desembolso' (waypoint intermedio tras validar OTP antes del Estado 11)."
+    },
+    {
+      "por_que": "Definiciones de TypeScript, tipos y enums de los estados de solicitud que gobiernan las vistas y transiciones en el frontend monorepo.",
+      "prioridad": "media",
+      "h": "70BA9D4"
+    },
+    {
+      "h": "3E11A30",
+      "por_que": "Modelo Eloquent de `creditop_x_user_requests_process_statuses`, catálogo satélite de sub-estados del embudo de formalización (ej. IDs 8 y 9).",
+      "prioridad": "media"
+    },
+    {
+      "por_que": "Migración DDL original que crea la tabla `user_request_statuses` y define su estructura y restricciones en base de datos.",
+      "h": "0341DF2",
+      "prioridad": "media"
+    },
+    {
+      "prioridad": "media",
+      "por_que": "Observer Eloquent de `UserRequest` que monitorea las transiciones de `user_request_status_id` (especialmente hacia 11 y terminales 6, 7, 8) y dispara notificaciones post-commit.",
+      "h": "ADE7359"
+    }
+  ],
+  "nodos_consultados": [
+    "creditop",
+    "formalization",
+    "trazador"
+  ],
+  "ya_respondido": "La documentación documenta con precisión los catálogos y semántica de estados:\n1. Catálogo `user_request_statuses`: Estado 3 ('Seleccionó entidad'), Estado 10 ('Pendiente de autorización' escrito al elegir fecha de primer pago), Estado intermedio 'Autorizado pendiente desembolso' (insertado por migración y asignado tras verificar OTP de firma), y Estado 11 ('Autorizada', la frontera definitiva entre originación y servicing).\n2. Distinción de namespaces: No confundir `user_request_statuses` con `creditop_x_user_request_statuses` (1 al día, 2 mora, 3 paz y salvo, 4 cancelado en servicing) ni con `creditop_x_user_requests_process_statuses` (embudo de sub-pasos).\n3. Invariantes de persistencia: Un estado refleja dónde está la solicitud, no qué completó; los estados 1 y 10 no dejan fila en `user_request_records`, y el Estado 11 no garantiza pagaré firmado si hubo intervención manual del asesor.",
+  "advertencias": "La lista se enfoca estrictamente en la perspectiva de 'Estados como dato': catálogo de estados (user_request_statuses), modelos Eloquent de solicitud y estados satélite de embudo/proceso, migraciones DDL/DML de estados, tipados/enums del front y observers de transición. Se excluyeron deliberadamente los archivos ya seleccionados por otros agentes (controllers, services de cálculo/firma y rutas del wizard).",
+  "angulo": "LOS ESTADOS COMO DATO, no como código: el catálogo de user_request_status (de dónde salen los números 3, 10, 11, 28, 30), los enums/constantes, los modelos Eloquent de user_requests y sus tablas satélite, las MIGRACIONES que crearon esas columnas, los seeders y los TESTS que fijan la conducta de la transición",
+  "pregunta": "¿Cómo funciona la formalización de punta a punta en CreditOp — desde que el cliente ya eligió entidad hasta que la solicitud queda en Estado 11 «Autorizada»? ¿Cuáles son las etapas, qué dispara cada una, dónde se decide y qué puede fallar en el camino?"
+}

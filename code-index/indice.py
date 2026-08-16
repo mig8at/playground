@@ -162,6 +162,13 @@ GLOSARIO_NEGOCIO = {
     "pago": ["payment"], "pagos": ["payment"], "tasa": ["rate"], "seguro": ["insurance"],
     "listado": ["listing", "retrieval"], "asesor": ["advisor", "merchant"],
     "documento": ["document"], "formulario": ["form"], "rotativo": ["revolving"],
+    # ⚠ Tercera vez que aparece el mismo bug español↔inglés. Lo destapó el orquestador: un
+    # seleccionador quiso las migraciones que crean `user_request_statuses`, `buscar` devolvió 0
+    # —«migración» nunca iba a matchear «migrations»— y el modelo terminó INVENTANDO dos hashes.
+    # Cuando el índice no ofrece lo que se necesita, el modelo lo fabrica.
+    "migración": ["migration"], "migracion": ["migration"], "migraciones": ["migration"],
+    "tabla": ["table"], "columna": ["column"], "estado": ["status", "state"],
+    "estados": ["status", "state"], "catálogo": ["catalog", "status"],
 }
 
 def buscar(que_necesito, tope=12):
