@@ -116,12 +116,19 @@ def abrir_nodo(id):
         disponibles = sorted(p.name for p in FLOWS.iterdir() if p.is_dir())
         return {"error": f"no existe el nodo '{id}'", "nodos": disponibles}
     m = json.loads((d / "map.json").read_text(encoding="utf-8"))
+    # Cada archivo va con su tamaño: es lo que permite elegir SIN abrir. Un nodo puede citar un
+    # archivo de 163 KB, y saberlo antes evita quemar la ventana en una sola lectura.
+    archivos = []
+    for f in m.get("files", []):
+        b = _code_index.peso(f)
+        archivos.append({"ruta": f, "kb": round(b / 1024, 1),
+                         "leer_por_tramos": b > _code_index.GRANDE} if b else {"ruta": f})
     return {
         "nodo": id,
         "cuando": m.get("when", ""),
         "sintomas": m.get("sintomas", []),
         "verificado": m.get("verified", {}),
-        "archivos": m.get("files", []),
+        "archivos": archivos,
         "doc": (d / "doc.md").read_text(encoding="utf-8"),
     }
 
@@ -141,7 +148,14 @@ def leer_codigo(ruta, desde=1, hasta=0):
     if hasta - desde + 1 > MAX_LINEAS:
         hasta = desde + MAX_LINEAS - 1
     tramo = "\n".join(f"{i}: {lineas[i - 1]}" for i in range(desde, hasta + 1))
-    return {"ruta": ruta, "lineas_totales": total, "mostrando": f"{desde}-{hasta}", "codigo": tramo}
+    r = {"ruta": ruta, "lineas_totales": total, "mostrando": f"{desde}-{hasta}", "codigo": tramo}
+    if hasta < total:
+        # Decirle cuánto QUEDA evita las dos fallas: pedir el resto de un archivo enorme sin darse
+        # cuenta, y creer que lo leyó entero cuando vio el 8%.
+        r["quedan_sin_leer"] = total - hasta
+        r["aviso"] = (f"viste {hasta}/{total} líneas. Pedí otro tramo sólo si lo que buscabas no "
+                      f"estaba acá — no leas el resto 'por las dudas'.")
+    return r
 
 
 def buscar_en_codigo(patron, alias, subruta=""):

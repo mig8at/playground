@@ -40,6 +40,49 @@ def cargar():
     return json.loads(INDICE.read_text(encoding="utf-8"))
 
 
+# El tamaño NO se guarda en repos.json: cambia con cada commit, así que escrito sería un número que
+# miente en silencio. Se deriva de `main` con UNA llamada por repo y se cachea mientras dure el proceso.
+GRANDE = 50 * 1024   # a partir de acá no entra de una: hay que leer por tramos
+_TAM = {}
+
+
+def tamanos(alias):
+    """{ruta → bytes} de todo el repo en `main`. Una sola llamada a git, cacheada."""
+    if alias in _TAM:
+        return _TAM[alias]
+    root = ROOTS.get(alias)
+    if not root or not Path(root).is_dir():
+        return {}
+    r = subprocess.run(["git", "-C", root, "ls-tree", "-r", "-l", "main"],
+                       capture_output=True, text=True, timeout=180)
+    d = {}
+    for linea in r.stdout.splitlines():
+        # formato: <modo> blob <sha> <tamaño>\t<ruta>   (el tamaño es '-' para submódulos)
+        partes = linea.split(None, 4)
+        if len(partes) == 5 and partes[3].isdigit():
+            d[partes[4]] = int(partes[3])
+    _TAM[alias] = d
+    return d
+
+
+def peso(ruta):
+    """Bytes de un `alias/relpath`, o 0 si no se pudo saber."""
+    if "/" not in ruta:
+        return 0
+    alias, rel = ruta.split("/", 1)
+    return tamanos(alias).get(rel, 0)
+
+
+def etiqueta_peso(b):
+    """Cómo se le muestra el tamaño a quien elige: con el aviso cuando no entra de una."""
+    if not b:
+        return ""
+    kb = b / 1024
+    if b > GRANDE:
+        return f" [{kb:.0f} KB ⚠ leer por tramos]"
+    return f" [{kb:.0f} KB]" if kb >= 1 else " [<1 KB]"
+
+
 def _existe_en_main(alias, rel):
     """¿La ruta está en `main`? Contra main y no contra el working tree, como todo el árbol: los repos
     reales trabajan en ramas, y un archivo que sólo existe en la tuya daría un falso OK."""
@@ -206,6 +249,9 @@ def buscar(que_necesito, tope=12):
         "archivos": [{
             "ruta": f, "puntaje": final(f), "nodo": mejor[f][1],
             "por_que": mejor[f][2], "en_cuantos_nodos": citado.get(f, 1),
+            # El tamaño va acá porque acá es donde se ELIGE: saber que un archivo pesa 163 KB antes de
+            # abrirlo es lo que evita quemar la ventana en una sola lectura.
+            "bytes": peso(f), "leer_por_tramos": peso(f) > GRANDE,
         } for f in orden],
         "nota": "puntaje alto = el NOMBRE del archivo habla del tema y un nodo pertinente lo cita",
     }
@@ -219,7 +265,7 @@ def ver_buscar(que):
     print(f"\n  «{d['busque']}» → {d['encontrados']} archivos candidatos, los mejores {len(d['archivos'])}:\n")
     for a in d["archivos"]:
         hub = f"  (en {a['en_cuantos_nodos']} nodos)" if a["en_cuantos_nodos"] > 4 else ""
-        print(f"  [{a['puntaje']:>3}] {a['ruta']}{hub}")
+        print(f"  [{a['puntaje']:>3}] {a['ruta']}{etiqueta_peso(a['bytes'])}{hub}")
         print(f"        · {' · '.join(a['por_que'])}")
     print(f"\n  {d['nota']}\n")
     return 0
@@ -406,9 +452,13 @@ def ver(filtro=None):
         print(f"  nació: {r['nacio']}")
         print(f"  cómo se ensambla: {r['como_se_ensambla']}")
         print("  por dónde entrar:")
+        total = 0
         for e in r["entrada"]:
-            print(f"    · {e['ruta']}")
+            b = peso(e["ruta"]); total += b
+            print(f"    · {e['ruta']}{etiqueta_peso(b)}")
             print(f"        {e['por_que']}")
+        if total > GRANDE:
+            print(f"    ⚠ los {len(r['entrada'])} juntos son {total/1024:.0f} KB — no los abras todos de una.")
         # El puente al otro árbol. Derivado de los map.json, no escrito acá.
         nodos = puente.get(alias, [])
         if nodos:
