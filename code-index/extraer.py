@@ -1,0 +1,277 @@
+#!/usr/bin/env python3
+"""extraer — genera los NODESLITE de un repo: qué hay en cada archivo, compactado y con presupuesto.
+
+    python3 extraer.py legacy-backend --ruta Modules/Loans
+    python3 extraer.py frontend-monorepo --ruta modules --tope 40
+    python3 extraer.py legacy-backend --ruta Modules/Loans --json > nodos.json
+
+QUÉ ES UN NODOLITE — por archivo, y nada más que esto:
+
+    p  ruta        ·  l  líneas
+    i  imports     ·  d  definiciones (clases, funciones, interfaces)
+    r  rutas HTTP  ·  x  infra (docker, terraform, workflows)
+
+Las claves son de UNA LETRA a propósito: esto se le pasa a un modelo, y `"path"` repetido 3.000 veces
+son 12 KB de nada. Es el mismo criterio que el resto del proyecto — el índice existe para que alguien
+ELIJA, así que lo que no ayuda a elegir, no va.
+
+CÓMO SE RECORTA (el corazón, y lo que lo hace usable): no se manda todo. Cada archivo se PUNTÚA por
+cuánta estructura tiene, se ordena por puntaje, y se llena hasta un presupuesto en KB. Un archivo con
+rutas y clases entra antes que uno con dos funciones sueltas, y cuando se acaba el presupuesto se
+corta — pero se dice cuánto quedó afuera, que es la diferencia entre recortar y mentir.
+
+    rutas ×12 · clases ×6 · imports ×3 · funciones ×1 · infra ×8
+    +10 si es `service`/`controller`  ·  +12 si es un archivo de rutas  ·  +15 si es infra pura
+
+⚠ SÓLO CÓDIGO E INFRA. Nada de `.md`: la prosa se lee, no se extrae, y son justo los archivos que
+revientan la ventana (el `NEW_ARCHITECTURE.md` de legacy-backend pesa 163 KB él solo).
+
+⚠ Y se lee de `main`, no del working tree: los repos reales trabajan en ramas.
+
+El algoritmo está portado de `carto` (Rust, `src-tauri/src/extraction` + `ai/payload_builder.rs`),
+adaptado a los lenguajes de CreditOp: PHP/Laravel, TypeScript/React y Go.
+"""
+import json
+import re
+import subprocess
+import sys
+from pathlib import Path
+
+RAIZ = Path(__file__).resolve().parent
+sys.path.insert(0, str(RAIZ.parent / "context" / "tools"))
+from roots import ROOTS  # noqa: E402
+
+CODIGO = {"php", "ts", "tsx", "js", "jsx", "mjs", "cjs", "vue", "go", "py", "rs"}
+INFRA_EXT = {"tf", "tfvars"}
+INFRA_NOMBRE = ("dockerfile", "docker-compose", "taskfile", "makefile", ".github/workflows/")
+IGNORAR = ("node_modules/", "vendor/", "dist/", "build/", ".turbo/", "coverage/",
+           "/migrations/", ".min.js", "-lock.",
+           # ⚠ Los tests van afuera, y hay que nombrar las TRES convenciones: sin `_test.go`, los
+           # tests de Go rankeaban ARRIBA del código que prueban (client_test.go 109 vs client.go 82)
+           # — tienen más definiciones porque cada caso es una función.
+           "/tests/", "/test/", ".spec.", ".test.", "_test.go", "test_")
+
+# ── patrones, por lenguaje ───────────────────────────────────────────────────────────────────────
+IMPORTS = {
+    "php": [re.compile(r"^use\s+([\w\\]+)", re.M)],
+    "go": [re.compile(r'^\s*(?:[\w.]+\s+)?"([^"]+)"', re.M)],
+    "js": [re.compile(r"""(?:import|export)\s+.*?\s+from\s+['"]([^'"]+)['"]"""),
+           re.compile(r"""require\s*\(\s*['"]([^'"]+)['"]\s*\)"""),
+           re.compile(r"""import\s*\(\s*['"]([^'"]+)['"]\s*\)""")],
+}
+DEFINICIONES = {
+    "php": [re.compile(r"^\s*(?:final\s+|abstract\s+)?class\s+(\w+)", re.M),
+            re.compile(r"^\s*interface\s+(\w+)", re.M),
+            re.compile(r"^\s*(?:public|protected|private)?\s*(?:static\s+)?function\s+(\w+)", re.M)],
+    "go": [re.compile(r"^func\s+(?:\([^)]*\)\s*)?(\w+)", re.M),
+           re.compile(r"^type\s+(\w+)\s+(?:struct|interface)", re.M)],
+    "js": [re.compile(r"^\s*export\s+(?:default\s+)?(?:async\s+)?function\s+(\w+)", re.M),
+           re.compile(r"^\s*export\s+(?:const|let)\s+(\w+)"),
+           re.compile(r"^\s*(?:export\s+)?class\s+(\w+)", re.M),
+           re.compile(r"^\s*(?:export\s+)?interface\s+(\w+)", re.M),
+           re.compile(r"^\s*(?:export\s+)?type\s+(\w+)\s*=", re.M)],
+}
+# Rutas: el enfoque de carto — buscar strings entre comillas que parezcan camino, y el verbo cerca.
+CANDIDATA = re.compile(r"""['"`]((?:/[\w\-.$#{}:*]+)+)['"`]""")
+VERBO = re.compile(r"\b(get|post|put|delete|patch|options)\b", re.I)
+PARAM = re.compile(r"\{[^}]+\}|:\w+")
+
+
+def _lenguaje(ruta):
+    ext = ruta.rsplit(".", 1)[-1].lower() if "." in ruta else ""
+    if ext == "php":
+        return "php", ext
+    if ext == "go":
+        return "go", ext
+    if ext in {"ts", "tsx", "js", "jsx", "mjs", "cjs", "vue"}:
+        return "js", ext
+    return None, ext
+
+
+def _es_infra(ruta):
+    bajo = ruta.lower()
+    return (bajo.rsplit(".", 1)[-1] in INFRA_EXT) or any(n in bajo for n in INFRA_NOMBRE)
+
+
+def _rutas_http(texto, ruta):
+    """Rutas HTTP declaradas o consumidas. Devuelve strings tipo 'POST /api/loans/{id}'."""
+    fuera = set()
+    for linea in texto.splitlines():
+        s = linea.strip()
+        if s.startswith(("//", "*", "#", "/*")):
+            continue
+        for m in CANDIDATA.finditer(linea):
+            camino = m.group(1)
+            # Descarta lo que parece camino pero no lo es: imports relativos, rutas de disco, globs.
+            if len(camino) < 4 or camino.count("/") > 6 or " " in camino:
+                continue
+            if camino.startswith(("//", "/*")) or camino.endswith((".ts", ".tsx", ".php", ".css", ".png", ".svg")):
+                continue
+            verbo = VERBO.search(linea)
+            metodo = verbo.group(1).upper() if verbo else "?"
+            fuera.add(f"{metodo} {PARAM.sub('{}', camino)}")
+        if len(fuera) > 40:
+            break
+    return sorted(fuera)
+
+
+def extraer_uno(ruta, texto):
+    """Un NodoLite. `ruta` es alias/relpath; `texto` el contenido en main."""
+    lang, ext = _lenguaje(ruta)
+    infra = _es_infra(ruta)
+    if not lang and not infra:
+        return None
+
+    lineas = texto.count("\n") + 1
+    imports, defs = [], []
+    if lang:
+        for rx in IMPORTS.get(lang, []):
+            imports.extend(rx.findall(texto))
+        for rx in DEFINICIONES.get(lang, []):
+            defs.extend(rx.findall(texto))
+    # Los imports propios (relativos o del monorepo) valen; los de librería son ruido.
+    imports = sorted({i for i in imports if i.startswith((".", "@creditop", "App\\", "Modules\\"))})[:25]
+    defs = sorted({d for d in defs if d and not d.startswith("_")})[:30]
+    rutas = _rutas_http(texto, ruta) if (lang or infra) else []
+
+    señales = []
+    if infra:
+        señales.append(ruta.rsplit("/", 1)[-1])
+
+    nodo = {"p": ruta, "l": lineas}
+    if imports:
+        nodo["i"] = imports
+    if defs:
+        nodo["d"] = defs
+    if rutas:
+        nodo["r"] = rutas[:15]
+    if señales:
+        nodo["x"] = señales
+    return nodo
+
+
+def puntuar(nodo):
+    """Cuánta ESTRUCTURA tiene el archivo. Portado de `payload_builder.rs` de carto."""
+    p = nodo["p"].lower()
+    n = (len(nodo.get("r", [])) * 12
+         + len(nodo.get("d", [])) * 3
+         + len(nodo.get("i", [])) * 3
+         + len(nodo.get("x", [])) * 8)
+    if "service" in p or "controller" in p:
+        n += 10
+    if "/routes/" in p or p.endswith(("routes.ts", "api.php", "web.php")):
+        n += 12
+    if _es_infra(nodo["p"]):
+        n += 15
+    return n
+
+
+def _blobs(alias, subruta="", tope_archivos=4000):
+    """Lee de `main` los archivos que nos interesan. Usa `git cat-file --batch`: un solo proceso para
+    miles de archivos, en vez de un `git show` por cada uno (que tardaba minutos)."""
+    root = ROOTS.get(alias)
+    if not root or not Path(root).is_dir():
+        return []
+    r = subprocess.run(["git", "-C", root, "ls-tree", "-r", "main"] + ([subruta] if subruta else []),
+                       capture_output=True, text=True, timeout=180)
+    quiero = []
+    for linea in r.stdout.splitlines():
+        try:
+            meta, camino = linea.split("\t", 1)
+            sha = meta.split()[2]
+        except (ValueError, IndexError):
+            continue
+        bajo = camino.lower()
+        if any(x in bajo for x in IGNORAR):
+            continue
+        ext = bajo.rsplit(".", 1)[-1] if "." in bajo else ""
+        if ext in CODIGO or _es_infra(camino):
+            quiero.append((sha, camino))
+    quiero = quiero[:tope_archivos]
+    if not quiero:
+        return []
+
+    p = subprocess.Popen(["git", "-C", root, "cat-file", "--batch"],
+                         stdin=subprocess.PIPE, stdout=subprocess.PIPE)
+    salida, _ = p.communicate(("\n".join(s for s, _ in quiero) + "\n").encode(), timeout=300)
+
+    fuera, pos = [], 0
+    for _, camino in quiero:
+        nl = salida.find(b"\n", pos)
+        if nl == -1:
+            break
+        cab = salida[pos:nl].split()
+        if len(cab) < 3:
+            break
+        largo = int(cab[2])
+        cuerpo = salida[nl + 1:nl + 1 + largo]
+        pos = nl + 1 + largo + 1
+        fuera.append((camino, cuerpo.decode("utf-8", "replace")))
+    return fuera
+
+
+def extraer(alias, subruta="", tope_kb=60):
+    """Los nodoslite de un repo (o de una subruta), recortados a un presupuesto."""
+    nodos = []
+    for camino, texto in _blobs(alias, subruta):
+        n = extraer_uno(f"{alias}/{camino}", texto)
+        if n and (n.get("d") or n.get("r") or n.get("i") or n.get("x")):
+            nodos.append(n)
+
+    nodos.sort(key=puntuar, reverse=True)
+    presupuesto, usado, dentro = tope_kb * 1024, 0, []
+    for n in nodos:
+        cuesta = len(json.dumps(n, ensure_ascii=False))
+        if usado + cuesta > presupuesto:
+            continue
+        dentro.append(n)
+        usado += cuesta
+    return {
+        "repo": alias, "subruta": subruta or "(todo)",
+        "encontrados": len(nodos), "entregados": len(dentro),
+        "kb": round(usado / 1024, 1), "tope_kb": tope_kb,
+        "nodos": dentro,
+    }
+
+
+def main():
+    args = sys.argv[1:]
+    if not args or args[0] in ("-h", "--help"):
+        print(__doc__)
+        return 0
+    alias = args[0]
+    if alias not in ROOTS:
+        print(f"alias desconocido '{alias}'. Válidos: {', '.join(sorted(ROOTS))}", file=sys.stderr)
+        return 2
+    sub = args[args.index("--ruta") + 1] if "--ruta" in args else ""
+    tope = int(args[args.index("--tope") + 1]) if "--tope" in args else 60
+
+    d = extraer(alias, sub, tope)
+    if "--json" in args:
+        print(json.dumps(d, ensure_ascii=False, indent=1))
+        return 0
+
+    print(f"\n▸ {d['repo']} · {d['subruta']} — {d['entregados']}/{d['encontrados']} archivos "
+          f"· {d['kb']} KB de {d['tope_kb']} KB\n")
+    for n in d["nodos"][:30]:
+        marcas = []
+        if n.get("r"):
+            marcas.append(f"{len(n['r'])} rutas")
+        if n.get("d"):
+            marcas.append(f"{len(n['d'])} defs")
+        if n.get("i"):
+            marcas.append(f"{len(n['i'])} imports")
+        if n.get("x"):
+            marcas.append("infra")
+        print(f"  [{puntuar(n):>3}] {n['p'].split('/', 1)[1]}  ({n['l']} líneas · {' · '.join(marcas)})")
+        if n.get("r"):
+            print(f"        rutas: {' · '.join(n['r'][:3])}")
+    if d["encontrados"] > d["entregados"]:
+        print(f"\n  ⚠ {d['encontrados'] - d['entregados']} archivos quedaron fuera del presupuesto. "
+              f"Subí --tope o acotá con --ruta. (Recortar y decirlo; nunca recortar en silencio.)")
+    print()
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

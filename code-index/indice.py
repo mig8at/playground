@@ -83,6 +83,29 @@ def etiqueta_peso(b):
     return f" [{kb:.0f} KB]" if kb >= 1 else " [<1 KB]"
 
 
+def escribir_pesos():
+    """Escribe el tamaño de cada archivo de entrada DENTRO de `repos.json`.
+
+    ⚠ Es un dato derivado guardado a mano, o sea de los que se ponen viejos solos: el archivo crece y
+    el número se queda. Por eso no va suelto — va con las dos piezas que lo hacen sostenible:
+      · `check` compara lo escrito contra `main` y canta la deriva (no lo tapa);
+      · este comando lo refresca en un paso, para que corregirlo no cueste nada.
+    Es la misma jugada que el sello `verified` de los nodos: un número escrito vale si algo lo audita.
+    """
+    d = cargar()
+    tocados = 0
+    for alias, r in d["repos"].items():
+        for e in r["entrada"]:
+            b = peso(e["ruta"])
+            if b and e.get("bytes") != b:
+                e["bytes"] = b
+                tocados += 1
+    INDICE.write_text(json.dumps(d, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    total = sum(e.get("bytes", 0) for r in d["repos"].values() for e in r["entrada"])
+    print(f"pesos actualizados: {tocados} entrada(s) · total del índice {total/1024:.0f} KB")
+    return 0
+
+
 def _existe_en_main(alias, rel):
     """¿La ruta está en `main`? Contra main y no contra el working tree, como todo el árbol: los repos
     reales trabajan en ramas, y un archivo que sólo existe en la tuya daría un falso OK."""
@@ -477,7 +500,7 @@ def ver(filtro=None):
 def check():
     d = cargar()
     vivas = muertas = sin_repo = 0
-    problemas = []
+    problemas, desactualizados = [], []
     for alias, r in d["repos"].items():
         for e in r["entrada"]:
             ruta = e["ruta"]
@@ -497,6 +520,14 @@ def check():
                 sin_repo += 1
             elif estado:
                 vivas += 1
+                # El `bytes` escrito es un dato derivado guardado a mano: se audita, no se confía.
+                real, guardado = peso(ruta), e.get("bytes")
+                if guardado is None:
+                    desactualizados.append(f"{ruta} — sin `bytes` (corré `pesos`)")
+                elif guardado != real:
+                    delta = (real - guardado) / 1024
+                    desactualizados.append(
+                        f"{ruta} — dice {guardado/1024:.0f} KB y son {real/1024:.0f} KB ({delta:+.0f} KB)")
             else:
                 problemas.append(f"{ruta} — NO existe en main")
                 muertas += 1
@@ -504,6 +535,12 @@ def check():
     if problemas:
         print("⚠ problemas:")
         for p in problemas:
+            print(f"    {p}")
+    if desactualizados:
+        # Deriva de tamaño: NO es una ruta muerta, así que no tumba el check — pero se canta, que es
+        # la única forma de que un dato derivado-y-guardado no se vuelva mentira.
+        print(f"⚠ tamaños desactualizados ({len(desactualizados)}) — corré `pesos` para refrescarlos:")
+        for p in desactualizados[:8]:
             print(f"    {p}")
     extra = f" · {sin_repo} sin repo clonado" if sin_repo else ""
     print(f"\nrepos.json: {len(d['repos'])} repos · {vivas} rutas vivas en main · {muertas} muertas{extra}")
@@ -535,6 +572,8 @@ if __name__ == "__main__":
     verbo = args[0] if args else "ver"
     if verbo == "check":
         sys.exit(check())
+    if verbo == "pesos":
+        sys.exit(escribir_pesos())
     if verbo == "puente":
         sys.exit(ver_puente())
     if verbo == "buscar":
