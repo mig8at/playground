@@ -112,8 +112,8 @@ context-map: ## @ctx regenera docs/ROUTE-MAP.md (el hook ya lo hace al editar un
 
 # El otro índice: el ROUTE-MAP entra por PREGUNTA DE NEGOCIO, éste entra por REPO. Contesta «¿cómo está
 # armado esto y por dónde empiezo a leer?», que ningún nodo contestaba porque los nodos cruzan repos.
-context-repos: ## @ctx índice POR REPO: qué es, cómo se ensambla y por dónde entrar. ALIAS=<repo> para uno · CHECK=1 valida las rutas
-	@cd context && python3 tools/repos.py $(if $(CHECK),check,ver $(ALIAS))
+context-repos: ## @ctx índice POR REPO: qué es, cómo se ensambla y por dónde entrar. ALIAS=<repo> · CHECK=1 valida rutas · PUENTE=1 cobertura por repo
+	@cd context && python3 tools/repos.py $(if $(CHECK),check,$(if $(PUENTE),puente,ver $(ALIAS)))
 
 context-subramas: ## @ctx las unidades DENTRO de un repo (workspaces, módulos), descubiertas de main. ALIAS=frontend-monorepo
 	@test -n "$(ALIAS)" || { echo "falta ALIAS=<repo>  ·  ej: make context-subramas ALIAS=frontend-monorepo"; exit 2; }

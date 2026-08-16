@@ -39,6 +39,35 @@ def _existe_en_main(alias, rel):
     return r.returncode == 0
 
 
+def nodos_por_repo():
+    """EL PUENTE entre los dos árboles: qué nodos de contexto describen cada repo.
+
+    No se escribe a mano y no se guarda: se deriva. Cada `map.json` ya lista sus archivos como
+    `alias/relpath`, así que la pertenencia repo→nodo está en los datos desde siempre — sólo faltaba
+    leerla al revés. Un nodo nuevo aparece acá solo; uno que deja de tocar un repo, desaparece solo.
+
+    Devuelve {alias: [(nodo, cuántos archivos de ese repo cita), …]}, ordenado por peso: el primero es
+    el nodo que más habla de ese repo.
+    """
+    flows = RAIZ / "server" / "data" / "flows"
+    porRepo = {}
+    for d in sorted(p for p in flows.iterdir() if p.is_dir()):
+        m = d / "map.json"
+        if not m.is_file():
+            continue
+        try:
+            files = json.loads(m.read_text(encoding="utf-8")).get("files", [])
+        except json.JSONDecodeError:
+            continue
+        cuenta = {}
+        for f in files:
+            if "/" in f:
+                cuenta[f.split("/", 1)[0]] = cuenta.get(f.split("/", 1)[0], 0) + 1
+        for alias, n in cuenta.items():
+            porRepo.setdefault(alias, []).append((d.name, n))
+    return {a: sorted(v, key=lambda x: -x[1]) for a, v in porRepo.items()}
+
+
 def _arbol(alias):
     """Todas las rutas del repo en `main`, en una sola llamada a git."""
     root = ROOTS.get(alias)
@@ -141,6 +170,7 @@ def ver_subramas(alias):
 
 def ver(filtro=None):
     d = cargar()
+    puente = nodos_por_repo()
     print(f"\n{'═' * 96}")
     for linea in d["la_historia_en_una_linea"]:
         print(f"  {linea}")
@@ -156,6 +186,13 @@ def ver(filtro=None):
         for e in r["entrada"]:
             print(f"    · {e['ruta']}")
             print(f"        {e['por_que']}")
+        # El puente al otro árbol. Derivado de los map.json, no escrito acá.
+        nodos = puente.get(alias, [])
+        if nodos:
+            top = " · ".join(f"{n} ({c})" for n, c in nodos[:6])
+            print(f"  qué nodos lo describen: {top}" + (f"  …y {len(nodos) - 6} más" if len(nodos) > 6 else ""))
+        else:
+            print("  qué nodos lo describen: ninguno todavía — el árbol de negocio no lo cubre")
     if not filtro:
         print()
         for linea in d["_los_go_comparten_molde"]:
@@ -200,11 +237,33 @@ def check():
     return 1 if muertas else 0
 
 
+def ver_puente():
+    """La cobertura del árbol de negocio POR REPO. Es una medición, no una lista: dice de qué repos
+    sabemos y de cuáles casi nada."""
+    d = cargar()
+    puente = nodos_por_repo()
+    print("\n  Cobertura del árbol de negocio, por repo (derivado de los map.json)\n")
+    print(f"  {'repo':28} {'nodos':>6} {'citas':>7}   el que más lo describe")
+    print(f"  {'─' * 28} {'─' * 6} {'─' * 7}   {'─' * 30}")
+    for alias in d["repos"]:
+        v = puente.get(alias, [])
+        citas = sum(c for _, c in v)
+        top = v[0][0] if v else "—"
+        aviso = "  ⚠ casi sin cubrir" if 0 < citas <= 6 else ("  ⚠ SIN cubrir" if not citas else "")
+        print(f"  {alias:28} {len(v):>6} {citas:>7}   {top}{aviso}")
+    print("\n  ⚠ «casi sin cubrir» no es un error: es dónde falta escribir contexto. Los microservicios")
+    print("     se sumaron como roots recién el 2026-08-07 (F-123), así que era esperable — pero ahora")
+    print("     se ve, que es la diferencia.\n")
+    return 0
+
+
 if __name__ == "__main__":
     args = sys.argv[1:]
     verbo = args[0] if args else "ver"
     if verbo == "check":
         sys.exit(check())
+    if verbo == "puente":
+        sys.exit(ver_puente())
     if verbo == "subramas":
         if len(args) < 2:
             print("falta el repo: python3 tools/repos.py subramas frontend-monorepo")
