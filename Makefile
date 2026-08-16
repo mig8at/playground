@@ -40,7 +40,7 @@ define listar
 endef
 
 # ── DÍA A DÍA ────────────────────────────────────────────────────────────────────────────────────
-.PHONY: status context tablero panel
+.PHONY: status context tablero panel trazador trazador-buscar trazador-ureq
 status: ## @dia ¿está el contexto al día? (resumen, no escribe nada)
 	@cd context && python3 tools/alinear.py --ver | tail -n 25
 	@echo ""
@@ -54,6 +54,21 @@ tablero: ## @dia abre el tablero: las tareas a realizar (:5191)
 
 panel: ## @dia abre el panel del harness para probar flujos (:5195)
 	@cd harness && npm run dev
+
+# ⚠ El trazador estuvo meses con SÓLO su plomería en este catálogo —la sonda de acceso, el SQL crudo—
+# mientras su modo principal, el que contesta «¿qué le pasó a esta persona?», no figuraba en ninguna
+# parte. Es la herramienta más parecida a Redash que hay acá y no se usaba porque no se veía. El
+# catálogo existe para que eso no pase: si un comando no está, la herramienta no existe.
+trazador: ## @dia ¿QUÉ LE PASÓ a esta solicitud? el flujo por etapas, del sistema real (:5192)
+	@cd trazador && npm run dev
+
+trazador-buscar: ## @dia la HISTORIA de una persona por cédula, teléfono o solicitud. Q=1012345678 [TARGET=prod]
+	@test -n "$(Q)" || { echo "falta Q=<cédula|teléfono|uReq>  ·  ej: make trazador-buscar Q=1012345678"; exit 2; }
+	@cd trazador/server && go run . -target $(or $(TARGET),prod) -buscar $(Q)
+
+trazador-ureq: ## @dia la traza por etapas de UNA solicitud. UREQ=519245 [TARGET=prod] [HTML=f.html]
+	@test -n "$(UREQ)" || { echo "falta UREQ=<n>  ·  ej: make trazador-ureq UREQ=519245"; exit 2; }
+	@cd trazador/server && go run . -target $(or $(TARGET),prod) -ureq $(UREQ) $(if $(HTML),-html $(HTML))
 
 # ── PULSO ────────────────────────────────────────────────────────────────────────────────────────
 # Cuándo toqué los repos de la compañía, en tramos de 5'. Alimenta «Mi jornada» del tablero y se
@@ -179,7 +194,7 @@ harness-obs-down: ## @har baja Loki y Tempo locales (se llevan sus datos)
 # subestimaba la herramienta, y a un help se le cree — el que lo leía concluía que no podía consultar
 # staging. Si agregás un target, tocá los tres lugares: serve.go, el `.env.<target>` y estas líneas.
 .PHONY: trazador-acceso trazador-sql trazador-posthog confluence
-trazador-acceso: ## @har ¿puedo leer los logs en Loki? [TARGET=prod|staging|dev|local] QUERY='{...}' SINCE=1h
+trazador-acceso: ## @har SONDA: ¿puedo leer los logs en Loki? (para diagnosticar acceso, no para investigar) [TARGET=prod|staging|dev|local] QUERY='{...}' SINCE=1h
 	@cd trazador/server && go run . $(if $(TARGET),-target $(TARGET)) $(if $(QUERY),-query '$(QUERY)') $(if $(SINCE),-since $(SINCE))
 
 trazador-posthog: ## @har ¿qué VIO el cliente en el navegador? Sin UREQ = sonda de acceso + censo (TARGET=prod UREQ=n)
