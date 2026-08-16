@@ -1,0 +1,84 @@
+{
+  "_que_es_esto": [
+    "EL DICCIONARIO DE NEGOCIO, en forma que un programa pueda usar. El árbol de contexto ya sabe",
+    "todo esto —que el 160 es SmartPay, que rt=2 es CreditopX, que el estado 11 es «autorizada»—",
+    "pero lo sabe EN PROSA, y ningún filtro puede leer prosa. Acá está lo mismo, tabulado.",
+    "",
+    "⚠ NO es una segunda fuente de verdad: cada grupo dice de qué nodo salió (`fuente`). Ante una",
+    "diferencia manda el nodo, y lo que hay que arreglar es esta tabla. Es la única copia que se",
+    "permite en todo el proyecto, y sólo porque lo derivado no alcanza: nadie puede deducir de un",
+    "número que 160 es SmartPay.",
+    "",
+    "PARA QUÉ: enriquecer los nodoslite del extractor. Un archivo deja de ser «tiene 20 funciones» y",
+    "pasa a ser «toca SmartPay, response_type 2, la tabla user_requests y emite QUOTA_CHECK_REJECTED».",
+    "Eso es lo que convierte una extracción genérica en una que sirve para CreditOp."
+  ],
+
+  "lenders": {
+    "_fuente": "nodos creditopx · credifamilia · smartpay · motai · pullman · findings F-136",
+    "24": "Credifamilia", "37": "Creditop X", "39": "Meddipay", "77": "CrediPullman",
+    "84": "Magnocréditos", "96": "Celupresto", "152": "SmartPay (dev)", "158": "Motai",
+    "160": "SmartPay (prod)", "162": "Crédito Directo X", "164": "CREDIMOVIL",
+    "172": "My tech ya", "187": "Crédito Directo X LB",
+    "5": "Banco de Bogotá", "135": "UMA Occidente", "136": "UMA Finanzauto", "137": "UMA Santander"
+  },
+
+  "allieds": {
+    "_fuente": "nodos pullman · merchants · motai — ⚠ OTRO namespace que los lenders: allied 94 es Pullman, pero lender 94 es «Mediarte x 0%»",
+    "94": "Amoblando Pullman", "158": "Motai", "189": "DENTIX / DFS"
+  },
+
+  "response_type": {
+    "_fuente": "nodo creditopx · aggregator · credifamilia",
+    "0": "UTM / redirect — sin integración",
+    "1": "Integración: decide una API externa (agregadores)",
+    "2": "CreditopX — decide CreditOp con motor local. El único 100% inyectable",
+    "3": "Rotativo — motor propio, NO usa categorías",
+    "4": "Credifamilia — híbrido, radica por SOAP"
+  },
+
+  "estados": {
+    "_fuente": "nodos formalization · payments · corbeta · smartpay",
+    "_columna": "user_requests.user_request_status_id",
+    "_trampa": "⚠ La columna es `user_request_status_id`, NO `status` — mirar la equivocada hace creer que una solicitud cancelada está sana (F-50)",
+    "3": "Seleccionó entidad", "6": "Anulada", "7": "Vencida", "8": "Cancelada",
+    "9": "Formulario de perfil (recién nace)", "10": "Pendiente",
+    "11": "Autorizada / desembolsada", "25": "QR — código de compra", "26": "Facturado"
+  },
+
+  "tablas": {
+    "_fuente": "los `map.json` y docs del árbol; el conteo de citas lo da `cli.py puente`",
+    "user_requests": "la SOLICITUD — unidad central de casi toda pregunta",
+    "user_field_values": "los datos declarados del cliente (EAV). ⚠ el ingreso es field_id 87",
+    "lenders_by_allied_branches": "qué entidad se ofrece en qué sucursal — la base del listado",
+    "lenders_by_allieds": "la calculadora por comercio",
+    "lender_users_categories": "la categoría rt=2 con su economía (cupo, enganche, plazo)",
+    "lender_users_category_rules": "los tiers: criterios de admisión de cada categoría",
+    "users_category_log": "qué evaluó el motor de categorías. ⚠ NO tiene user_request_id: se ata por tiempo",
+    "profiling_reviews": "el snapshot del perfilamiento: displayed_lenders, hard_rules, ML_predictions",
+    "risk_central_user_data": "lo consultado a los burós. ⚠ indexado por user_id, NO por solicitud",
+    "risk_centrals": "el catálogo de centrales — se escribe en DOS momentos del flujo",
+    "user_request_risk_central_user_data": "el vínculo buró↔solicitud. ⚠ un EVENT la RECONSTRUYE entera cada noche",
+    "creditop_x_requests_history": "el crédito ya desembolsado y sus movimientos",
+    "lender_allied_credentials": "credenciales por par (lender, comercio), JSON encriptado",
+    "otps": "envío y validación de códigos"
+  },
+
+  "marcas_de_log": {
+    "_fuente": "nodos profiling · creditopx · rotativo · kyc (escritas el 2026-08-15)",
+    "_por_que": "Son los strings del CÓDIGO. Las etiquetas en español de las herramientas NO sirven para buscar en Loki",
+    "CATEGORY_RULE_REJECTED": "profiling — el tier no matcheó, trae `failed_criteria`. ⚠ nivel debug",
+    "CATEGORY_EVALUATION_APPROVED": "profiling — cayó en categoría, con salary y datacredito_score",
+    "CATEGORY_EVALUATION_SPECIAL_CASE": "profiling — ⚠ NO es special granting: es el bypass venezolano",
+    "QUOTA_CHECK_REJECTED": "creditopx — rechazo por cupo, con más de una decena de salidas",
+    "REVOLVING_CREDIT_REJECTED": "rotativo — sale en DOS lugares con sentidos distintos",
+    "REVOLVING_CREDIT_SP_RESULT": "rotativo — la única forma de ver qué devolvió la rutina sin fuente",
+    "EXPERIAN_NOT_TRIGGERED": "kyc — no se disparó el buró, con `failed_rules`"
+  },
+
+  "gates_de_ambiente": {
+    "_fuente": "CLAUDE.md raíz · nodo formalization",
+    "_trampa": "⚠ staging corre con APP_ENV=development, así que TODA condición `environment(['local','development'])` aplica en staging — incluida la que apaga la validación de nombre del KYC",
+    "patrones": ["environment(", "APP_ENV", "app()->isLocal", "config('app.env')"]
+  }
+}

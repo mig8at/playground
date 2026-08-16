@@ -282,10 +282,15 @@ def agrupar(nodos, alias, base, niveles):
     return sorted(cajas.values(), key=lambda c: -c["puntaje"])
 
 
-def extraer(alias, subruta="", tope_kb=60, langs=None, prof=0):
-    """Los nodoslite de un repo (o de una subruta), recortados a un presupuesto."""
+def extraer(alias, subruta="", tope_kb=60, langs=None, prof=0, guardar_textos=None):
+    """Los nodoslite de un repo (o de una subruta), recortados a un presupuesto.
+
+    `guardar_textos`: si le pasás un dict, queda {relpath: contenido} — para que la capa de CreditOp
+    analice el negocio sin volver a pedirle los blobs a git."""
     nodos, descartados = [], {"lenguaje": 0, "profundidad": 0}
     for camino, texto in _blobs(alias, subruta):
+        if guardar_textos is not None:
+            guardar_textos[camino] = texto
         if not _es_del_lenguaje(camino, langs):
             descartados["lenguaje"] += 1
             continue
@@ -349,6 +354,11 @@ def imprimir(d, zoom=0):
         if n.get("x"):
             marcas.append("infra")
         print(f"  [{puntuar(n):>3}] {n['p'].split('/', 1)[1]}  ({n['l']} lineas · {' · '.join(marcas)})")
+        if n.get("cx"):
+            import creditop
+            linea = creditop.resumen(n["cx"])
+            if linea:
+                print(f"        {linea}")
         if n.get("r"):
             print(f"        rutas: {' · '.join(n['r'][:3])}")
     if d["encontrados"] > d["entregados"]:

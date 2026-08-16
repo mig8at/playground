@@ -87,6 +87,25 @@ Puntúa por cuánta estructura tiene cada archivo y llena hasta un presupuesto e
 lo dice. `--zoom N` no filtra: agrupa en carpetas de N niveles, que es la única forma de entender un
 repo de miles de archivos (todo `legacy-backend` en diez líneas y 1,3 s).
 
+**6 · La capa de CreditOp** — `extraer` es **genérico** a propósito: no sabe nada de este negocio, y
+por eso se probó igual en PHP, TypeScript y Go. Encima corre `creditop.py`, que traduce lo extraído a
+lo que acá significa algo:
+
+```
+Modules/Onboarding/App/Services/OnboardingService.php
+   [com. Amoblando Pullman] [com. DENTIX/DFS] · rt=2
+   tablas: lenders_by_allied_branches, user_requests · ⚠ bifurca por AMBIENTE
+```
+
+De «1960 líneas, 28 definiciones» a una descripción de nodo, derivada del código. Habilita
+`--lender 160` · `--allied 94` · `--rt 2` · `--tabla profiling_reviews` · `--marca QUOTA_CHECK_REJECTED`
+· `--gates` (los que bifurcan por ambiente: **la trampa de staging**, que corre con `APP_ENV=development`).
+
+⚠ Va **separado** y no adentro del extractor por dos razones: aquél sigue sirviendo para cualquier
+repo, y —más importante— meterle negocio lo volvería un **segundo lugar donde vive ese conocimiento**,
+compitiendo con `context/`. El diccionario (`creditop.json`) declara de qué nodo salió cada grupo; ante
+una diferencia **manda el nodo**.
+
 ## La regla que gobierna todo esto
 
 > **Lo que se puede derivar, no se escribe.** Sólo se escribe a mano lo que ninguna máquina puede

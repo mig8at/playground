@@ -20,12 +20,20 @@ Los subcomandos, de más general a más específico:
     puente     cobertura del árbol de contexto, por repo
     buscar     describís lo que necesitás y te devuelve archivos
     extraer    lee el CÓDIGO y saca qué define, qué importa y qué rutas expone
+    rutas      qué rutas comparten dos o más repos — quién le habla a quién
     check      ¿las rutas escritas a mano siguen vivas en main?
+
+LA CAPA DE CREDITOP: `extraer` es genérico (anda en cualquier repo), pero encima corre una capa que
+traduce lo extraído al negocio de acá — qué lenders, qué response_type, qué tablas, qué marcadores de
+log y si bifurca por ambiente. Eso habilita `--lender 160`, `--rt 2`, `--tabla x`, `--marca X` y
+`--gates`. El diccionario vive aparte (`creditop.json`) y declara de qué nodo salió cada grupo: NO es
+una segunda fuente de verdad, y ante una diferencia manda el nodo.
 """
 import argparse
 import json
 import sys
 
+import creditop as _cx
 import extraer as _ex
 import indice as _ix
 
@@ -74,6 +82,20 @@ def main():
                    help="NO filtra: agrupa en carpetas de N niveles. La vista para un repo grande")
     s.add_argument("--tope", type=int, default=60, metavar="KB",
                    help="presupuesto en KB; se llena por puntaje y se avisa qué quedó afuera (60)")
+    g = s.add_argument_group("filtros de CreditOp (la capa de negocio sobre el extractor genérico)")
+    g.add_argument("--lender", type=int, metavar="ID",
+                   help="sólo archivos que tocan esa entidad. 24 Credifamilia · 77 CrediPullman · "
+                        "160 SmartPay · 164 CREDIMOVIL · 158 Motai (ver creditop.json)")
+    g.add_argument("--allied", type=int, metavar="ID",
+                   help="sólo los que tocan ese COMERCIO. 94 Pullman · 189 DENTIX · 158 Motai. "
+                        "⚠ otro namespace que los lenders")
+    g.add_argument("--rt", type=int, metavar="N",
+                   help="por response_type: 0 UTM · 1 integración · 2 CreditopX · 3 rotativo · 4 Credifamilia")
+    g.add_argument("--tabla", metavar="T", help="sólo los que tocan esa tabla del dominio")
+    g.add_argument("--marca", metavar="M", help="sólo los que emiten ese marcador de log")
+    g.add_argument("--gates", action="store_true",
+                   help="sólo los que BIFURCAN POR AMBIENTE. ⚠ staging corre con APP_ENV=development, "
+                        "así que esas condiciones aplican ahí y casi nadie lo tiene presente")
 
     s = con_json(sub.add_parser(
         "rutas", help="qué rutas HTTP comparten dos o más repos (quién le habla a quién)",
@@ -131,7 +153,27 @@ def main():
             print(f"lenguaje desconocido: {', '.join(langs - set(_ex.LENGUAJES))}. "
                   f"Válidos: {', '.join(sorted(_ex.LENGUAJES))}", file=sys.stderr)
             return 2
-        d = _ex.extraer(a.alias, a.ruta, a.tope, langs, a.prof)
+        filtra = any([a.lender, a.allied, a.rt, a.tabla, a.marca, a.gates])
+        textos = {}
+        # Con filtros de negocio hay que extraer SIN presupuesto y recortar después: si no, se
+        # descartaría por puntaje antes de saber cuáles son del lender que buscás.
+        d = _ex.extraer(a.alias, a.ruta, 10_000 if filtra else a.tope, langs, a.prof, textos)
+        _cx.enriquecer(d["nodos"], textos)
+        if filtra:
+            quedan = [n for n in d["nodos"] if _cx.coincide(
+                n, a.lender, a.rt, a.tabla, a.marca, a.gates, a.allied)]
+            d["filtro_negocio"] = {k: v for k, v in {
+                "lender": a.lender, "allied": a.allied, "rt": a.rt,
+                "tabla": a.tabla, "marca": a.marca, "gates": a.gates or None}.items() if v}
+            d["encontrados"] = len(quedan)
+            usado, dentro = 0, []
+            for n in quedan:
+                cuesta = len(json.dumps(n, ensure_ascii=False))
+                if usado + cuesta > a.tope * 1024:
+                    continue
+                dentro.append(n); usado += cuesta
+            d["nodos"], d["entregados"], d["kb"] = dentro, len(dentro), round(usado / 1024, 1)
+            d["tope_kb"] = a.tope
         if a.zoom:
             # El zoom se calcula sobre TODO lo encontrado, no sobre lo que entró al presupuesto: si
             # no, la forma de un repo dependería de cuánto lugar quedaba.
