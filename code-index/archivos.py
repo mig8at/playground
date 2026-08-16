@@ -1,9 +1,7 @@
 #!/usr/bin/env python3
-"""El DICCIONARIO DE ARCHIVOS: `{hash_de_ruta: {…qué representa ese archivo…}}`.
+"""El DICCIONARIO DE ARCHIVOS: `{ruta: {…qué representa ese archivo…}}`. Información general, rápida.
 
-    "A3F9C1": {
-      "p": "legacy-backend/Modules/Loans/App/Services/LenderUserCategoryService.php",
-      "h": "569a8393",                        <- sha del CONTENIDO cuando se calculó: la frescura
+    "legacy-backend/Modules/Loans/App/Services/LenderUserCategoryService.php": {
       "lenders":  [{"id": 77, "nombre": "CrediPullman"}],
       "comercios":[{"id": 94, "nombre": "Amoblando Pullman"}],
       "rt": [2], "estados": [11],
@@ -14,24 +12,21 @@
       "notas": []                             <- lo curado a mano, si algún día hace falta
     }
 
-POR QUÉ LA LLAVE ES LA RUTA Y NO EL CONTENIDO — y por qué convive con `tags.py`, que hace lo contrario:
+LA LLAVE ES LA RUTA, y adentro NO va ningún hash. Se probaron las tres formas y ésta gana:
 
-  · llave por CONTENIDO (`tags.py`) = CACHÉ. Se autoinvalida solo, pero al editar un archivo se pierde
-    todo lo que tuviera anotado: el sha cambia y la entrada vieja queda huérfana.
-  · llave por RUTA (esto) = REGISTRO. Identidad ESTABLE: la anotación sobrevive a las ediciones. Es lo
-    que hace falta si acá va a acumularse conocimiento —derivado hoy, curado a mano mañana—, porque
-    nadie quiere reescribir una nota cada vez que alguien toca una línea.
+    llave hash + la ruta adentro : 472 KB  <- lo peor de los dos: opaco Y redundante
+    la ruta como llave           : 428 KB  <- legible, grepeable, y el `git diff` dice QUÉ archivo cambió
+    sólo hash, sin la ruta       : 255 KB  <- 40% menos, pero no podés leer tu propio diccionario
 
-El precio de la estabilidad es que puede quedar vieja, y por eso cada entrada guarda `h`: el sha del
-contenido con el que se calculó. `verificar()` compara contra `main` y dice cuáles cambiaron. No se
-tapa el problema — se hace VISIBLE, que es la única forma honesta de guardar algo derivado.
+Y NO guarda el sha del contenido. Lo tuvo un rato como «marca de frescura» para poder auditar si una
+entrada quedó vieja, y sobra por dos razones: saber si un archivo cambió ya es trabajo de GIT, y esto
+se reconstruye entero en 3 segundos — auditar algo que se regenera en 3 segundos es ceremonia. Si
+dudás de que esté fresco, lo regenerás. No se audita: se rehace.
 
-    ./cli.py archivos --construir      arma o actualiza el diccionario
-    ./cli.py archivos --verificar      ¿alguna entrada quedó vieja?
+    ./cli.py archivos --construir      lo arma (3 s, los 12 repos)
     ./cli.py archivos --buscar smartpay
     ./cli.py archivos --ruta legacy-backend/Modules/...   qué sabemos de un archivo
 """
-import hashlib
 import json
 import subprocess
 import sys
@@ -46,13 +41,9 @@ import extraer as _ex  # noqa: E402
 from roots import ROOTS  # noqa: E402
 
 DICC = RAIZ / "archivos.json"
-LARGO_LLAVE = 6
 
 
-def llave(ruta):
-    """Hash corto y estable de la RUTA. Determinista: la misma ruta da siempre la misma llave, así que
-    dos corridas distintas producen el mismo diccionario y el diff de git es legible."""
-    return hashlib.sha1(ruta.encode()).hexdigest()[:LARGO_LLAVE].upper()
+
 
 
 def _nodos_que_lo_citan():
@@ -121,8 +112,8 @@ def construir(aliases=None, verboso=True):
             if not (cx or tipo or nodos):
                 continue  # nada que decir de este archivo: no ocupa lugar
 
-            k = llave(ruta)
-            ent = {"p": ruta, "h": sha[:8]}
+            k = ruta
+            ent = {}
             if cx.get("lenders"):
                 ent["lenders"] = cx["lenders"]
             if cx.get("allieds"):
@@ -146,7 +137,7 @@ def construir(aliases=None, verboso=True):
 
             if k not in viejo:
                 nuevos += 1
-            elif viejo[k].get("h") != ent["h"]:
+            elif viejo[k] != ent:
                 actualizados += 1
             nuevo[k] = ent
         if verboso:
@@ -163,42 +154,6 @@ def construir(aliases=None, verboso=True):
 
 def cargar():
     return json.loads(DICC.read_text(encoding="utf-8")) if DICC.exists() else {}
-
-
-def verificar():
-    """¿Alguna entrada quedó vieja? Compara el `h` guardado contra el sha de `main`.
-
-    Es el precio de guardar algo derivado, y se paga a la vista: un diccionario que no se puede
-    auditar es un diccionario que miente y nadie se entera.
-    """
-    d = cargar()
-    if not d:
-        print("no hay diccionario todavía: corré `cli.py archivos --construir`")
-        return 1
-    actuales = {}
-    for alias in ROOTS:
-        for camino, sha in _ex._shas(alias, solo_codigo=True).items():
-            actuales[f"{alias}/{camino}"] = sha[:8]
-
-    viejas = [e for e in d.values() if e["p"] in actuales and actuales[e["p"]] != e.get("h")]
-    muertas = [e for e in d.values() if e["p"] not in actuales]
-    nuevas = set(actuales) - {e["p"] for e in d.values()}
-
-    print(f"\n  diccionario: {len(d)} archivos")
-    print(f"  · al día        {len(d) - len(viejas) - len(muertas)}")
-    print(f"  · CAMBIARON     {len(viejas)}   (el archivo se editó desde que se calculó)")
-    print(f"  · ya no existen {len(muertas)}")
-    # ⚠ «sin entrada» NO es un hueco: son los archivos que no tocan nada del negocio ni los cita
-    # ningún nodo, así que no hay qué registrar de ellos. Decirlo como «faltan» invitaba a
-    # «completar» un diccionario que está completo.
-    print(f"  · sin entrada   {len(nuevas)}   (no tocan nada del dominio: correcto que no estén)")
-    for e in viejas[:8]:
-        print(f"      cambió: {e['p']}")
-    if viejas or muertas:
-        print("\n  → `cli.py archivos --construir` lo pone al día (las `notas` a mano se conservan).\n")
-    else:
-        print("\n  todo al día.\n")
-    return 1 if (viejas or muertas) else 0
 
 
 def buscar(termino):
@@ -239,12 +194,11 @@ def buscar(termino):
         else:
             ok = t in json.dumps(e, ensure_ascii=False).lower()
         if ok:
-            fuera.append({"llave": k, **e})
+            fuera.append({"p": k, **e})
     return {"busque": termino, "cuantos": len(fuera),
             "archivos": sorted(fuera, key=lambda x: x["p"])}
 
 
 def de_ruta(ruta):
-    d = cargar()
-    e = d.get(llave(ruta))
-    return e or {"error": f"sin entrada para {ruta}", "llave_esperada": llave(ruta)}
+    return cargar().get(ruta) or {"error": f"sin entrada para {ruta}",
+                                  "quizas": "¿la ruta va como 'alias/camino'? ej: legacy-backend/app/..."}

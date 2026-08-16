@@ -144,11 +144,10 @@ def main():
     s.add_argument("--repo", metavar="ALIAS", help="acotar a un repo")
 
     s = con_json(sub.add_parser(
-        "archivos", help="el DICCIONARIO {hash de ruta: qué representa ese archivo}",
-        description="Llave por RUTA (identidad estable: lo curado sobrevive a las ediciones). Cada "
-                    "entrada guarda el sha del contenido con el que se calculó, para poder auditarla."))
+        "archivos", help="el DICCIONARIO {ruta: qué representa ese archivo} — info general, rápida",
+        description="Llave por RUTA: legible y grepeable. No guarda hashes — si un archivo cambió, "
+                    "eso lo sabe git; y esto se reconstruye entero en 3 s."))
     s.add_argument("--construir", action="store_true", help="armar o actualizar")
-    s.add_argument("--verificar", action="store_true", help="¿alguna entrada quedó vieja?")
     s.add_argument("--buscar", metavar="T", help="smartpay · lender:77 · gates · tabla:user_requests")
     s.add_argument("--ruta", metavar="R", help="qué sabemos de un archivo (alias/camino)")
 
@@ -224,8 +223,6 @@ def main():
         if a.construir:
             _ar.construir()
             return 0
-        if a.verificar:
-            return _ar.verificar()
         if a.ruta:
             return _salida(_ar.de_ruta(a.ruta),
                            lambda: print(json.dumps(_ar.de_ruta(a.ruta), ensure_ascii=False, indent=1)), j)
@@ -236,7 +233,7 @@ def main():
                 return 0
             print(f"\n  «{d['busque']}» → {d['cuantos']} archivos\n")
             for e in d["archivos"][:20]:
-                print(f"  [{e['llave']}] {e['p']}")
+                print(f"  {e['p']}")
                 print(f"      {_ar_resumen(e)}")
             print()
             return 0
