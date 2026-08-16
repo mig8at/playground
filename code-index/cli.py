@@ -35,6 +35,7 @@ import sys
 
 import creditop as _cx
 import extraer as _ex
+import tags as _tg
 import indice as _ix
 
 
@@ -115,6 +116,14 @@ def main():
     s.add_argument("a")
     s.add_argument("b")
 
+    s = con_json(sub.add_parser(
+        "tags", help="el índice {sha: [tags]} — precalculado, para machear sin recalcular",
+        description="La llave es el sha del CONTENIDO, no el de la ruta: así el caché se autoinvalida "
+                    "(un archivo cambiado tiene otra llave) y dos archivos idénticos comparten entrada."))
+    s.add_argument("--construir", action="store_true", help="recorrer los repos y armar el índice")
+    s.add_argument("--tag", metavar="T", help="qué archivos tienen ese tag (ej: lender:160, gates)")
+    s.add_argument("--repo", metavar="ALIAS", help="acotar a un repo")
+
     sub.add_parser("check", help="¿las rutas escritas a mano siguen vivas en main?")
     sub.add_parser("pesos", help="refresca los tamaños guardados en repos.json")
 
@@ -153,6 +162,35 @@ def main():
             return 2
         d = _ex.gemelos(a.a, a.b)
         return _salida(d, lambda: _ex.imprimir_gemelos(d), j)
+
+    if a.cmd == "tags":
+        if a.construir:
+            _tg.construir([a.repo] if a.repo else None)
+            return 0
+        if a.tag:
+            d = _tg.por_tag(a.tag, [a.repo] if a.repo else None)
+            if j or "error" in d:
+                print(json.dumps(d, ensure_ascii=False, indent=1) if j else f"⚠ {d['error']}")
+                return 1 if "error" in d else 0
+            print(f"\n  «{a.tag}» → {d['cuantos']} archivos\n")
+            for x in d["archivos"][:25]:
+                print(f"  {x['ruta']}")
+                print(f"     {' · '.join(t for t in x['tags'] if t != a.tag)[:110]}")
+            print()
+            return 0
+        fam = _tg.catalogo()
+        if j:
+            print(json.dumps(fam, ensure_ascii=False, indent=1))
+            return 0
+        if not fam:
+            print("no hay índice todavía: corré `cli.py tags --construir`")
+            return 1
+        print("\n  Los tags que existen, y cuántos archivos tiene cada uno:\n")
+        for familia, ts in fam.items():
+            print(f"  {familia}:")
+            print("     " + " · ".join(f"{t.split(':',1)[-1]}({n})" for t, n in ts[:14]))
+        print()
+        return 0
 
     if a.cmd == "check":
         return _ix.check()

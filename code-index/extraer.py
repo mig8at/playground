@@ -136,8 +136,12 @@ def _rutas_http(texto, ruta):
     return sorted(fuera)
 
 
-def extraer_uno(ruta, texto):
-    """Un NodoLite. `ruta` es alias/relpath; `texto` el contenido en main."""
+def extraer_uno(ruta, texto, sha=""):
+    """Un NodoLite. `ruta` es alias/relpath; `texto` el contenido en main; `sha` el blob de git.
+
+    El `h` (hash corto del CONTENIDO) NO reemplaza a la ruta: es la llave para machear contra el
+    índice de tags sin recalcular. La ruta se queda porque es lo que dice de qué trata un archivo
+    antes de abrirlo — un identificador opaco obligaría a abrirlo para averiguarlo."""
     lang, ext = _lenguaje(ruta)
     infra = _es_infra(ruta)
     if not lang and not infra:
@@ -160,6 +164,8 @@ def extraer_uno(ruta, texto):
         señales.append(ruta.rsplit("/", 1)[-1])
 
     nodo = {"p": ruta, "l": lineas}
+    if sha:
+        nodo["h"] = sha[:8]
     if imports:
         nodo["i"] = imports
     if defs:
@@ -217,7 +223,7 @@ def _blobs(alias, subruta="", tope_archivos=4000):
     salida, _ = p.communicate(("\n".join(s for s, _ in quiero) + "\n").encode(), timeout=300)
 
     fuera, pos = [], 0
-    for _, camino in quiero:
+    for sha, camino in quiero:
         nl = salida.find(b"\n", pos)
         if nl == -1:
             break
@@ -227,7 +233,7 @@ def _blobs(alias, subruta="", tope_archivos=4000):
         largo = int(cab[2])
         cuerpo = salida[nl + 1:nl + 1 + largo]
         pos = nl + 1 + largo + 1
-        fuera.append((camino, cuerpo.decode("utf-8", "replace")))
+        fuera.append((camino, cuerpo.decode("utf-8", "replace"), sha))
     return fuera
 
 
@@ -288,7 +294,7 @@ def extraer(alias, subruta="", tope_kb=60, langs=None, prof=0, guardar_textos=No
     `guardar_textos`: si le pasás un dict, queda {relpath: contenido} — para que la capa de CreditOp
     analice el negocio sin volver a pedirle los blobs a git."""
     nodos, descartados = [], {"lenguaje": 0, "profundidad": 0}
-    for camino, texto in _blobs(alias, subruta):
+    for camino, texto, sha in _blobs(alias, subruta):
         if guardar_textos is not None:
             guardar_textos[camino] = texto
         if not _es_del_lenguaje(camino, langs):
@@ -297,7 +303,7 @@ def extraer(alias, subruta="", tope_kb=60, langs=None, prof=0, guardar_textos=No
         if prof and _profundidad(camino, subruta) > prof:
             descartados["profundidad"] += 1
             continue
-        n = extraer_uno(f"{alias}/{camino}", texto)
+        n = extraer_uno(f"{alias}/{camino}", texto, sha)
         if n and (n.get("d") or n.get("r") or n.get("i") or n.get("x")):
             nodos.append(n)
 

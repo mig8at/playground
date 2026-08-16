@@ -106,6 +106,29 @@ repo, y —más importante— meterle negocio lo volvería un **segundo lugar do
 compitiendo con `context/`. El diccionario (`creditop.json`) declara de qué nodo salió cada grupo; ante
 una diferencia **manda el nodo**.
 
+**7 · El índice de tags** — `./cli.py tags --construir` recorre los 12 repos y arma
+`{sha: [tags]}`: qué lender, qué comercio, qué `response_type`, qué tabla, qué marcador de log y si
+bifurca por ambiente. 1.514 entradas, 63 KB, 2,5 s. Después `--tag lender:160` responde en 0,2 s.
+
+⚠ **La llave es el sha del CONTENIDO, no el de la ruta**, y ésa es la decisión que hace que no se
+pudra: con hash de ruta, un archivo modificado deja los tags viejos y **nada lo detecta**; con hash de
+contenido el archivo cambiado tiene otra llave, así que el caché **no puede devolver algo viejo** —
+simplemente no matchea y se recalcula. Se autoinvalida. De yapa, los archivos idénticos entre repos
+comparten entrada (hay 321 entre los dos monolitos).
+
+El nodolite lleva `p` (ruta) **y** `h` (sha corto). El hash **no reemplaza** a la ruta: la ruta es lo
+que dice de qué trata un archivo antes de abrirlo; el hash es sólo la llave para machear.
+
+`./cli.py tags` sin argumentos lista **qué tags existen y cuántos archivos tiene cada uno** — que
+terminó siendo un censo del código por concepto de negocio, algo que nadie había contado:
+
+```
+lender:  credifamilia(182) · meddipay(59) · smartpay(48) · credipullman(37)
+tabla:   user_requests(202) · risk_central_user_data(56) · user_field_values(29)
+gates:   93 archivos bifurcan por AMBIENTE
+rt:      2(83) · 3(42) · 0(22) · 1(18) · 4(8)
+```
+
 ## La regla que gobierna todo esto
 
 > **Lo que se puede derivar, no se escribe.** Sólo se escribe a mano lo que ninguna máquina puede
