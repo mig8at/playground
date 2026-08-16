@@ -210,6 +210,9 @@ agente-modelos: ## @ag ¿qué modelos habilita mi key hoy? (correlo primero, y a
 agente-frontend: ## @ag ¿el frontend está sano hoy, y si no, qué lo rompió? PREGUNTA='…' para otra cosa
 	@cd agents && python3 frontend.py $(if $(PREGUNTA),"$(PREGUNTA)")
 
+agente-seleccion: ## @ag NO contesta: dice QUÉ ARCHIVOS habría que leer y por qué. Sólo índices. PREGUNTA='…'
+	@cd agents && python3 seleccion.py $(if $(PREGUNTA),"$(PREGUNTA)")
+
 agente-contexto: ## @ag el que RUTEA SOLO: lee context/, elige qué archivos necesita y recién ahí contesta. PREGUNTA='…'
 	@cd agents && python3 contexto.py $(if $(PREGUNTA),"$(PREGUNTA)")
 

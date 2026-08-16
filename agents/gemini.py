@@ -121,14 +121,20 @@ def modelos(key):
 
 
 # ── el bucle ─────────────────────────────────────────────────────────────────────────────────────
-def correr(pregunta, herramientas, instrucciones="", cfg=None, verboso=True):
+def correr(pregunta, herramientas, instrucciones="", cfg=None, verboso=True, terminales=()):
     """Corre un agente hasta que conteste.
 
     `herramientas` es un dict {nombre: (declaración, función python)}:
       - declaración = el esquema que ve el modelo (name, description, parameters)
       - función     = lo que se ejecuta de verdad, y devuelve algo serializable
 
-    Devuelve el texto final. Si se acaban los pasos, lo dice en vez de mentir con una respuesta a medias.
+    `terminales` son nombres de herramientas que TERMINAN el bucle: se ejecutan y su resultado es la
+    respuesta. Sirve para que la salida sea ESTRUCTURADA en vez de prosa — el modelo no «escribe» una
+    lista, llama a una función con la lista, y así llega tipada y lista para que la consuma otro agente.
+    Sin esto, pedir estructura obliga a parsear texto, que es donde se rompe.
+
+    Devuelve el texto final (o el dict de la terminal). Si se acaban los pasos, lo dice en vez de
+    mentir con una respuesta a medias.
     """
     cfg = cfg or config()
     declaraciones = [d for d, _ in herramientas.values()]
@@ -180,6 +186,10 @@ def correr(pregunta, herramientas, instrucciones="", cfg=None, verboso=True):
                     # El error se le DEVUELVE al modelo en vez de reventar: así puede corregir el
                     # argumento y reintentar, que es media gracia de tener un bucle.
                     resultado = {"error": f"{type(e).__name__}: {e}"}
+                if nombre in terminales and not (isinstance(resultado, dict) and "error" in resultado):
+                    if verboso:
+                        print(f"  · entregó en el paso {paso}\n")
+                    return resultado
             respuestas.append({
                 "functionResponse": {"name": nombre, "response": {"resultado": resultado}}
             })
