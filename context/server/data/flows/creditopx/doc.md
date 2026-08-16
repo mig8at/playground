@@ -26,6 +26,28 @@ Mecánica financiera (informativa): amortización **francesa** (cuota FIJA, inte
 - **Perfilamiento/orden SOLO en producción.** `getProfilingData`/`applyProfiling`/`usort` gated a `environment()==='production'` (:231/:244); en local/dev el ranking difiere, y rt=2/3 igual se fuerzan arriba (`weighted_score=1`). El porqué de la lentitud del ML (timeout de 15 s por intento, el fallback que NO son las matrices): **→ `profiling` §perfilador ML** (F-104).
 - **Hardcodes.** `response_type == 2/3` comparado como literal en varios servicios; buckets de monto-por-score quemados en `LenderSpecialGrantingService`. Inventario: `159906a:docs/codigo/LOGICA-QUEMADA.md`.
 
+## ⚠ «No apareció» significa cosas distintas según el `response_type`
+
+Fallar las reglas duras **no se ve igual** para todos, y de ahí que dos reportes idénticos del comercio
+(«no le salió») tengan causas y diagnósticos distintos. Al cerrar la validación, el listado recorre los
+rechazados y les pone `'Probabilidad muy baja'` — y **después** decide quién sobrevive
+(`application/app/Services/lenders/LenderValidationService.php:372-385`, verificado):
+
+| quién | qué ve el asesor |
+|---|---|
+| **rt=2** (CreditopX) | **nada**: `unset` de la lista. Desaparece sin mensaje ni traza en pantalla |
+| **Banco de Bogotá 5 · UMA 135/136/137** | **«0% de probabilidad»**, con `sort=15` (al fondo) |
+| **todos los demás** | «Probabilidad muy baja», `sort=4` |
+
+Son **tres** conductas, no dos. Consecuencia para soporte: si la entidad que reclaman es CreditopX,
+«no apareció» es el **comportamiento normal del rechazo**, no una falla del listado — y el motivo hay
+que ir a buscarlo a los logs o al back-office, porque la pantalla del cliente no lo dice. Si es una de
+las cuatro del medio, el «0%» tampoco es un bug: está cableado por id.
+
+⚠ Y hay un paso ANTES: con `have_ctopx`, un rt=2 que falla **ni siquiera llega** a esa lista
+(`:311-324` — solo entra a `false_lenders` `if (!$user_request->allied->have_ctopx)`), así que
+sobrevive hasta el corte de categoría. Los dos mecanismos conviven y el segundo tapa al primero.
+
 ## ⚠ El ROTATIVO (rt=3) NO usa categorías — tiene su propio motor
 
 **Es falso que rt=2 y rt=3 compartan «el motor de categorías»** (lo confirmaron política y código): el

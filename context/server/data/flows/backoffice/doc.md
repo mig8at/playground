@@ -64,6 +64,42 @@ filtrado por `paths: apps/backoffice/**`, delegando en `Creditop-SAS/config-ci`
 (`service_name: backoffice`, `secret_name: prod/backoffice`). **No hay workflow de dev ni de staging**
 para esta app.
 
+## «Ver Perfilamiento»: la única pantalla que contesta «¿por qué no le salió esta entidad?»
+
+Es lo más valioso del panel y no estaba escrito acá pese a que el archivo ya figuraba en `files[]`.
+`GET /api/backoffice/applications/{userRequest}/profiling` → `ApplicationsController::profiling` →
+`ApplicationsService::getProfiling` devuelve, **por entidad evaluada**:
+
+- `state` (`pass` · `fail` · `off`) y el marcador de **evaluada pero no ofertada** — que es justo el
+  caso que desde el listado del cliente se ve como «no apareció» (→ ver **creditopx** § «No apareció
+  significa cosas distintas»).
+- **`reasonLong`**: el motivo **redactado**, del tipo *«\<regla\> debe ser \<operador\> \<esperado\> y
+  es \<real\>»*. Es el «motivo concreto» que pide soporte, ya armado — no hay que re-evaluar reglas.
+- Regla por regla: `expected`, `actual`, si pasó, y **de qué campo salió el dato** (`field:<id>` o
+  `tabla:columna`).
+- Las corridas del motor de categorías (`users_category_log`) con sus `failedChecks` por tier.
+
+Front: `frontend-monorepo/apps/backoffice/app/routes/users.profiling.tsx`. La mecánica de las reglas y
+los tiers vive en **profiling**; acá solo que existe la pantalla y con qué cuidados se lee.
+
+**Dos cuidados antes de pasarle el motivo a un comercio:**
+
+⚠ **La fila «apagada» afirma una causa que el listado NO aplica.** Cuando la entidad tiene
+`lenders_by_allied_branches.status = 0`, la pantalla dice que *«no se evaluaron reglas ni categoría»*
+por estar apagada en el punto de venta. Pero las tres ramas de
+`Modules/Onboarding/App/Services/lenders/LenderListingService.php` `resolveLenderIdsByBranch` arman la
+base con `where('allied_branch_id', …)->pluck('lender_id')` **sin filtrar por `status`** (verificado
+contra `main`) — así que el `status = 0` no es lo que impidió la evaluación. Es una explicación
+plausible presentada como hecho: dársela al comercio tal cual puede ser darle un motivo equivocado.
+Concuerda con lo que ya dice **merchants**: apagar una entidad en una sucursal es una operación
+solo-BD que el camino principal no lee.
+
+⚠ **La atribución de `users_category_log` a «esta corrida» es una heurística de tiempo, no una
+llave.** Esa tabla **no tiene `user_request_id`**: se ata por `(user_id, lender_id)` y una ventana de
+**±120 s** contra el `updated_at` del review (`ApplicationsService.php`, y el mismo criterio replicado
+en `trazador/server/fuentes.go`). Un cliente con varias solicitudes cercanas ensucia la atribución: es
+correlación, no prueba.
+
 ## Dónde mirar
 
 - **API** (legacy-backend): `Modules/Backoffice/routes/backoffice.php` — el mapa completo de endpoints ·

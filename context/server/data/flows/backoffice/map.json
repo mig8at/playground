@@ -3,7 +3,9 @@
   "kind": "reference",
   "when": "Cuando la tarea toca el PANEL NUEVO de back-office (React/Refine, /api/backoffice) o el login de staff por Cognito: buscar un usuario o una solicitud desde operaciones, ver su perfilamiento/Experian/OTPs, validar identidad a mano, o el módulo Auth y sus dos pools (staff | comercios). NO es el admin viejo de Inertia — ese vive en `actors`/`application`.",
   "sintomas": [
-    "«desde operaciones no puedo ver/validar al usuario»"
+    "«desde operaciones no puedo ver/validar al usuario»",
+    "«necesito decirle al comercio POR QUÉ no le salió esa entidad»",
+    "«¿hay dónde ver qué regla falló y con qué valor?»"
   ],
   "files": [
     "frontend-monorepo/apps/backoffice/app/components/AdminCommandBar.tsx",

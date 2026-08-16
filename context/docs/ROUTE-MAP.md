@@ -53,6 +53,7 @@ Si la tarea llega con una de estas frases, empezá por esos nodos. Si ninguna ma
 | «falló firmando documentos» | `findings` · `formalization` |
 | «firmó y no se desembolsó» | `deceval` |
 | «formulario no encontrado» | `dynamic-forms` · `form-service` |
+| «¿hay dónde ver qué regla falló y con qué valor?» | `backoffice` |
 | «hay que agregar un campo al formulario» | `dynamic-forms` · `form-service` |
 | «hay que integrar una entidad nueva» | `hardcodes-entidades` |
 | «hay que rehacer el panel de configuración» | `merchants` |
@@ -61,6 +62,7 @@ Si la tarea llega con una de estas frases, empezá por esos nodos. Si ninguna ma
 | «las condiciones que vio no son las del cupo que quedó» | `rotativo` |
 | «lo mandó al sitio del lender y no volvió» | `redirect` |
 | «los datos del cliente no coinciden con el registro» | `deceval` |
+| «necesito decirle al comercio POR QUÉ no le salió esa entidad» | `backoffice` |
 | «necesito reproducir/probar un flujo entero» | `findings` · `harness` |
 | «no le apareció ninguna entidad» | `creditopx` · `findings` · `kyc` · `merchants` · `profiling` |
 | «no le consultaron el buró» | `kyc` |

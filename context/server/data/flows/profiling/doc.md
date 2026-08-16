@@ -34,10 +34,11 @@ En **rt=1 CreditOp no perfila** (la API externa del proveedor decide; ver **Bró
 - `lender_users_category_rules` = el **tier** (criterios de admisión): `occupation` (field 29), `min_age`/`max_age`, `monthly_income`, `gender`, `negative_reports_last_12_months`, `current_delinquencies`, `financial_history_length`, `min_score`, `employment_continuity`, `min_credit_cards`, `tc_vector_validation`, `min_available_credit_card_balance`, `min_vigent_obligations`, `consulted_last_6_months`, `min_debt_capacity` (baja categoría), `debt_capacity_amount_validation` (baja el monto) (`LenderUsersCategoryRule.php:14-35`).
 
 **Cómo gana un tier** (`LenderUserCategoryService::getLenderUserCategory:54`):
-1. Ordena los tiers por `lender_users_category_id ASC` (`:79`) y devuelve el **PRIMER tier que pasa** (`foreach`+`return`, `:105`). NO ordena por `min_score`/`priority`.
+1. Ordena los tiers por **`priority` ASC y `lender_users_category_id` ASC como desempate**, y devuelve el **PRIMER tier que pasa** (`foreach`+`return`). El orden lo fija el repositorio, no el servicio: `Modules/Loans/App/Repositories/LenderUsersCategoryRuleRepository.php` `getByLenderId` (`orderBy('priority')->orderBy('lender_users_category_id')`), con su docblock —«menor = se evalúa primero = preferida»— y el mismo criterio en las dos copias (`Modules/Onboarding/.../LenderUserCategoryService.php`, `application/app/Services/lenders/LenderUserCategoryService.php`).
+   <br>⚠ **Cambió el 2026-08-07** (commit `08a4e4ce`): antes ordenaba **solo** por id, y este nodo lo afirmaba así hasta que el auditor lo refutó. Con `priority` NULL en todas las filas el resultado es idéntico al viejo (MySQL ordena NULL primero), así que **el cambio es invisible hasta que alguien carga un valor** — y ahí cambia qué tier gana, o sea la economía que ve el cliente. Cuántas filas tienen `priority` cargado hoy: ver «Lo que NO está verificado».
 2. `evaluateEligibility:403` = **AND con early-exit**: ocupación (`:407`) → edad `users.age∈[min,max]` (`:412`) → `min_income` (`:416`) → género (`:419`) → continuidad (`:421`) → **exige `$user->datacredito`** (`:429`) → sub-checks de buró: neg12 `<=` (`:440`), moras `currentNegativeCredits<=` (`:448`), maturación `diffInMonths>=` (`:453`), score `>=` (`:459`), TC/vectores (`:464`), consultas (`:467`), capacidad (`:477`). Basta UN criterio `false` para descartar ESE tier y saltar al siguiente.
 3. **FAIL-CLOSED por dato de buró ausente** (al revés de group rules): score/neg12/maturación/creditCard nulos → `false`; un sintético DEBE inyectar la fila Experian completa.
-4. El tier **más laxo** admite, pero como gana el de **menor id** (que suele ser el 700/Empleado más estricto), las **condiciones económicas salen del PRIMER tier que matchee**, no del laxo.
+4. El tier **más laxo** admite, pero gana el **primero del orden** (`priority`, id como desempate — que sin `priority` cargado es el de menor id, y suele ser el 700/Empleado, más estricto): las **condiciones económicas salen del PRIMER tier que matchee**, no del laxo.
 
 **Ruta scoring (sin tiers o ninguno pasó):** si el lender no tiene `cat_rules` (o ningún tier pasó), cae a un **motor SQL de scoring** (campos de usuario + capacidad de pago `calculatePaymentCapacity:333` → `getScoreByCapacity` → categoría por score total). `scoring_is_primary` (`:318`) = el lender no tiene tiers pero SÍ scoring-policy → scoring es su categorización *de diseño* (**SmartPay**), no un fallback. Guard **`scoring_policy_fallback_blocked`** (`CreditopXQuotaController.php:331/348`): si hay `cat_rules>0` y ninguno pasó, aprobar por scoring **no da cupo**.
 
@@ -72,9 +73,16 @@ y el total cae en una categoría. Tres tablas y **un solo dueño**:
   autodeclaración: `averageMonthlyIncome` (163), `primaryOccupationType` (164), `incomeType` (166),
   `employmentOrBusinessTenure` (167), `incomeChannels` (168), `activeCredits` (169),
   `hasActiveCreditCard` (170), (172).
-- `lender_payment_capacity_scoring_policy` (5 filas) — la capacidad de pago en % se convierte a puntos
-  por banda: `0-10 → 20`, `11-30 → 15`, `30-50 → 15`, `50-70 → 10`, `71-100 → 5`. ⚠ **Menos capacidad
-  da MÁS puntos**, y las bandas 11-30/30-50 **se solapan en el 30**.
+- `lender_payment_capacity_scoring_policy` (5 filas) — puntos por banda: `0-10 → 20`, `11-30 → 15`,
+  `30-50 → 15`, `50-70 → 10`, `71-100 → 5`; las bandas 11-30/30-50 **se solapan en el 30**.
+  <br>⚠ **La columna que indexa la banda NO es la capacidad libre: es `100 − capacidad`**, o sea el
+  **% del ingreso ya comprometido**. El servicio invierte antes de buscar
+  (`$capacity = 100 - $user_payment_capacity` y recién ahí `getScoreByCapacity`, en
+  `Modules/Loans/App/Services/LenderUserCategoryService.php` `evaluatePaymentCapacityScoring`). Así
+  que **más capacidad libre da MÁS puntos**, como corresponde: capacidad libre 90-100% cae en la banda
+  `0-10` → 20 puntos, y un cliente con 5% libre cae en `71-100` → 5. Este nodo afirmó lo contrario
+  («menos capacidad da más puntos») hasta que el auditor lo refutó: el error salió de leer la tabla de
+  bandas sin leer la línea que invierte el argumento.
 - `lender_user_category_scoring_policy_rules` (4 filas) — el total cae en categoría:
   `140-165 → 139` · `100-139 → 140` · `50-99 → 141` · `0-49 → 142`.
 
@@ -133,7 +141,20 @@ Cada solicitud perfilada deja **una fila** con todo lo que el motor decidió. Es
 
 ⚠ **No existe una tabla `displayed_lenders`** — y eso engaña: buscarla en `information_schema.TABLES`, no encontrarla y concluir que el listado no se persiste es un error que ya se cometió y quedó escrito como hecho en un mapa de etapas. Está como **columna**, no como tabla. Ver **F-93**.
 
-## El perfilamiento NO se puede auditar desde el admin
+## El perfilamiento no se puede auditar desde el admin VIEJO — pero el back-office nuevo SÍ
+
+> ⚠ **Esta sección decía «no hay pantalla» a secas, y hoy es falso.** El back-office nuevo tiene una:
+> `GET /api/backoffice/applications/{userRequest}/profiling` →
+> `Modules/Backoffice/App/Services/ApplicationsService.php` `getProfiling`, que por cada entidad
+> evaluada devuelve `state` (`pass`/`fail`/`off`), un `reasonLong` redactado —*«\<regla\> debe ser
+> \<operador\> \<esperado\> y es \<real\>»*— y regla por regla el `expected`, el `actual` y **de qué
+> campo salió el dato**; más las corridas de `users_category_log` con sus `failedChecks` por tier. El
+> front está en `frontend-monorepo/apps/backoffice/app/routes/users.profiling.tsx`. Detalle y trampas
+> → nodo **backoffice**. Lo de abajo sigue valiendo para el **admin viejo de Inertia** (`actors` /
+> `application`), que es donde estaba mirando quien reportó esto, y explica por qué los escalamientos
+> del 2026-08-05 terminaron en leer logs a mano.
+
+### Por qué igual se sigue escalando (el admin viejo)
 
 Es una limitación operativa, no un bug, y explica una clase entera de escalamientos: el comercio ve un
 resultado («probabilidad alta», «pre aprobado», un cupo) y **no hay pantalla que muestre qué reglas se
@@ -170,10 +191,15 @@ categorías declara su propio pipeline en
 | marcador | dónde | qué contesta |
 |---|---|---|
 | `CATEGORY_EVALUATION_START` | `:92` | arrancó la evaluación del par (usuario, entidad) |
-| `CATEGORY_EVALUATION_SPECIAL_CASE` | `:68` | entró por **special granting**, no por tiers |
+| `CATEGORY_EVALUATION_SPECIAL_CASE` | `:68` | ⚠ **NO es special granting**: es el **bypass de venezolanos en Magnocell** (documento `CE` + lender 84) — `isVenezuelanMagnocell` → `handleVenezuelanCase`, con `event: venezuelan_magnocell_case`. La otorgación especial de DENTIX/DFS **no pasa por acá**: loguea como `QUOTA_CHECK_*` con `is_special_granting`, en `CreditopXQuotaController` |
 | `CATEGORY_EVALUATION_APPROVED` | `:131` | **cayó en categoría**, y con qué: `category_id`, `max_amount`, `available_from_lender`, `rules_evaluated`, `salary`, `continuity_months`, `datacredito_score` |
 | `CATEGORY_RULE_REJECTED` | `:159` | **el tier NO matcheó**: `rule_id`, `category_id` y sobre todo **`failed_criteria`** (`:165`) — la lista exacta de criterios incumplidos (`negative_reports_last_12_months`, `overdue_accounts`, `score`) — más `criteria_details` |
 | `FIELD_SCORING_COMPLETED` · `PAYMENT_CAPACITY_SCORING_COMPLETED` · `CATEGORY_RESOLUTION_BY_SCORE_COMPLETED` | `:203` · `:234` · `:267` | el camino por **scoring**, el que corre cuando ningún tier matcheó |
+
+⚠ **El nombre del marcador no dice lo que hace.** `CATEGORY_EVALUATION_SPECIAL_CASE` suena a la
+otorgación especial y es otra cosa; esta tabla lo afirmó mal el día que se escribió, **por inferir del
+nombre en vez de leer el código**. Es la misma trampa que la etiqueta en español, un nivel más abajo:
+antes de usar un marcador como evidencia, leé la función que lo emite.
 
 `CATEGORY_RULE_REJECTED` es la única respuesta directa a «¿por qué no le apareció esta entidad?» que **no**
 obliga a re-evaluar las reglas a mano: dice *qué criterio* falló, no solo que falló. Es exactamente lo que
@@ -187,6 +213,7 @@ no está: una ausencia acá **no** significa que la regla no se evaluó.
 Los rechazos por **cupo** tienen sus propios marcadores y viven en otros servicios → ver **CreditopX**.
 
 ## Lo que NO está verificado
+- **¿Cuántas filas de `lender_users_category_rules` tienen `priority` cargado en prod, y con qué valores?** Es la pregunta que decide si el cambio de orden del 2026-08-07 ya movió qué tier gana o sigue siendo inerte (con `priority` NULL en todas, el efecto es el orden viejo). ⚠ Y de paso: **no se encontró la migración que crea la columna** en `main` de legacy-backend — el modelo sí la lista en `fillable`. Si no existe en prod, el `orderBy` fallaría; si existe, la creó algo que no está versionado ahí. Medir antes de concluir cualquiera de las dos.
 - `monthly_income` por tier no está volcado del dump — y hoy además es NO-OP por el bug del censo.
 - ¿Las reglas datacrédito POR SUCURSAL quedan inertes en el cupo? El motor nuevo lee solo la genérica; needs-runtime.
 - ¿Cómo categorizan los 23 lenders rt=2 activos sin tiers Y sin scoring (medidos en prod el 2026-08-07)? O no otorgan nunca, o hay un tercer camino que el nodo no tiene.
