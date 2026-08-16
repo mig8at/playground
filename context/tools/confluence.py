@@ -54,7 +54,31 @@ def get(ruta, params=None):
         with urllib.request.urlopen(req, timeout=60) as r:
             return json.load(r)
     except urllib.error.HTTPError as e:
-        sys.exit(f"HTTP {e.code} en {ruta}: {e.read()[:300].decode('utf-8', 'replace')}")
+        cuerpo = e.read()[:300].decode("utf-8", "replace")
+        # ⚠ Atlassian NO contesta 401 cuando la credencial no sirve: en `/wiki` devuelve 403 y en la
+        # API v2 devuelve **404**. Leído tal cual, un 404 en `/wiki/api/v2/spaces` se diagnostica como
+        # ruta mal armada o espacio inexistente — y son tres pasos hasta descubrir que el token venció.
+        # El que sí dice la verdad es el endpoint de Jira: 401 «Client must be authenticated».
+        if e.code in (401, 403, 404):
+            base, email, _ = credenciales()
+            req = urllib.request.Request(
+                base + "/rest/api/3/myself",
+                headers={"Authorization": req.headers["Authorization"], "Accept": "application/json"},
+            )
+            try:
+                urllib.request.urlopen(req, timeout=30).read()
+            except urllib.error.HTTPError as sonda:
+                if sonda.code == 401:
+                    sys.exit(
+                        f"HTTP {e.code} en {ruta}, pero la causa es la CREDENCIAL: "
+                        f"{base}/rest/api/3/myself devuelve 401.\n"
+                        f"El token de {email} venció o fue revocado. Generá uno nuevo en\n"
+                        f"  https://id.atlassian.com/manage-profile/security/api-tokens\n"
+                        f"y actualizá CONFLUENCE_TOKEN en context/.env (gitignoreado)."
+                    )
+            except Exception:
+                pass  # la sonda es un extra: si falla, seguimos con el error original
+        sys.exit(f"HTTP {e.code} en {ruta}: {cuerpo}")
 
 
 # ── storage format (XHTML de Confluence) → texto plano legible ───────────────────────────────────

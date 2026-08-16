@@ -11,9 +11,27 @@
     "              corrió) pero devuelve los DROPs como error para que no queden sin arreglar.",
     "",
     "Los dos filtran por ruta ADENTRO del script, así que cualquier otro archivo sale en microsegundos.",
-    "Y si un hook se rompe, sale 1: avisa y la sesión sigue."
+    "Y si un hook se rompe, sale 1: avisa y la sesión sigue.",
+    "",
+    "SessionStart · herramientas: imprime el catálogo de `make` y lo suma al contexto (para este",
+    "              evento, el stdout entra como texto plano). Sin matcher a propósito: también",
+    "              dispara al REANUDAR y DESPUÉS DE COMPACTAR, que es cuando se pierde. ~1.200",
+    "              tokens por sesión, y es el precio de que un modelo no decida que no puede leer",
+    "              Loki cuando sí puede. Se genera del Makefile: un target nuevo aparece solo."
   ],
   "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PROJECT_DIR}/.claude/hooks/herramientas.py",
+            "args": [],
+            "timeout": 30
+          }
+        ]
+      }
+    ],
     "PreToolUse": [
       {
         "matcher": "Write|Edit",

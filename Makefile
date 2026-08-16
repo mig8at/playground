@@ -154,14 +154,25 @@ harness-obs-down: ## @har baja Loki y Tempo locales (se llevan sus datos)
 # Solo GET: no escribe nada en ningún ambiente.
 # ⚠ El módulo Go vive en `trazador/server/`, no en `trazador/` (se mudó al pasar a Vue + server Go).
 # Desde `trazador/` el go run falla con «cannot find main module».
-.PHONY: trazador-acceso trazador-sql trazador-posthog
-trazador-acceso: ## @har ¿puedo leer los logs en Loki? (TARGET=prod|dev QUERY='{...}' SINCE=1h)
+# ⚠ Los TARGET son cuatro —`prod` · `staging` · `dev` · `local`— y están los cuatro `.env.<target>`
+# (`trazador/server/serve.go:36` es la lista autoritativa). El help decía `prod|dev` y `prod|local`:
+# subestimaba la herramienta, y a un help se le cree — el que lo leía concluía que no podía consultar
+# staging. Si agregás un target, tocá los tres lugares: serve.go, el `.env.<target>` y estas líneas.
+.PHONY: trazador-acceso trazador-sql trazador-posthog confluence
+trazador-acceso: ## @har ¿puedo leer los logs en Loki? [TARGET=prod|staging|dev|local] QUERY='{...}' SINCE=1h
 	@cd trazador/server && go run . $(if $(TARGET),-target $(TARGET)) $(if $(QUERY),-query '$(QUERY)') $(if $(SINCE),-since $(SINCE))
 
 trazador-posthog: ## @har ¿qué VIO el cliente en el navegador? Sin UREQ = sonda de acceso + censo (TARGET=prod UREQ=n)
 	@cd trazador/server && go run . -posthog $(if $(TARGET),-target $(TARGET)) $(if $(UREQ),-ureq $(UREQ)) $(if $(LIMIT),-limit $(LIMIT))
 
-trazador-sql: ## @har UNA consulta de SOLO LECTURA a la BD del ambiente. SQL='SELECT …' [TARGET=prod|local] [CSV=1]
+# El «por qué» del negocio (política de riesgo, contratos con lenders, PRDs) no está en el código:
+# está en Confluence. El script ya existía en `context/tools/` desde antes, pero fuera del Makefile —
+# o sea invisible para quien no leyera `context/CLAUDE.md`. Solo lectura: no hay verbo que escriba.
+# ⚠ Nada de ahí entra al árbol sin pasar por el código (el protocolo, en `context/CLAUDE.md`).
+confluence: ## @har el POR QUÉ del negocio, que el código no tiene. Sin CMD muestra su ayuda. CMD='buscar "cupo rotativo"' | 'espacios' | 'paginas Creditop' | 'leer <id>'
+	@cd context && python3 tools/confluence.py $(CMD)
+
+trazador-sql: ## @har UNA consulta de SOLO LECTURA a la BD del ambiente. SQL='SELECT …' [TARGET=prod|staging|dev|local] [CSV=1]
 	@test -n "$(SQL)" || { echo "falta SQL='SELECT …'  ·  ej: make trazador-sql TARGET=local SQL='SELECT id,name FROM countries LIMIT 3'"; exit 2; }
 	@cd trazador/server && go run . -target $(if $(TARGET),$(TARGET),prod) -sql $$'$(subst ','\'',$(SQL))' $(if $(CSV),-csv)
 
