@@ -86,7 +86,7 @@ HERRAMIENTAS["entregar_seleccion"] = ({
                 "h": {"type": "string", "description": "el HASH del archivo, tal cual figura en el campo `h` del índice. NO escribas la ruta: un hash mal copiado no resuelve y se detecta; una ruta inventada parece plausible y no"},
                 "por_que": {"type": "string", "description": "qué esperás encontrar en ESE archivo"},
                 "prioridad": {"type": "string", "description": "alta | media | baja"},
-            }, "required": ["ruta", "por_que", "prioridad"]},
+            }, "required": ["h", "por_que", "prioridad"]},
         },
         "nodos_consultados": {"type": "array", "items": {"type": "string"},
                               "description": "qué nodos abriste para decidir"},
@@ -112,10 +112,21 @@ def main():
 
         if r.get("nodos_consultados"):
             print(f"nodos consultados: {', '.join(r['nodos_consultados'])}\n")
+        # El agente devuelve hashes; acá se resuelven a rutas para que un humano pueda leer la
+        # selección — y para que los inventados salten a la vista en vez de pasar por buenos.
+        sys.path.insert(0, str(PLAYGROUND / "code-index"))
+        sys.path.insert(0, str(PLAYGROUND / "context" / "tools"))
+        import extraer as _ex
+        res = _ex.resolver([a.get("h", "") for a in r["archivos"]])
         print(f"ARCHIVOS A LEER ({len(r['archivos'])})\n")
         for i, a in enumerate(r["archivos"], 1):
-            print(f"  {i}. [{a.get('prioridad', '?'):5}] {a.get('h', a.get('ruta', '?'))}")
+            h = a.get("h", "?")
+            ruta = res["resueltos"].get(h)
+            print(f"  {i}. [{a.get('prioridad', '?'):5}] {ruta or f'{h}  ⚠ NO EXISTE (inventado)'}")
             print(f"           {a['por_que']}\n")
+        if res["no_existen"]:
+            print(f"⚠ {len(res['no_existen'])} hash(es) que el modelo se inventó: "
+                  f"{', '.join(res['no_existen'])}\n")
         if r.get("ya_respondido"):
             print(f"YA LO CONTESTA LA DOCUMENTACIÓN:\n  {r['ya_respondido']}\n")
         if r.get("advertencias"):
