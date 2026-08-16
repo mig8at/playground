@@ -27,6 +27,18 @@ PREGUNTA = (
     "Necesito poder darle al comercio un motivo concreto."
 )
 
+# Parametrizado para que un orquestador pueda lanzar VARIOS con ángulos distintos, en vez de tener
+# cableado «uno y su contraste». El ángulo y los topes son la decisión de quien orquesta: la cantidad
+# de archivos correcta depende de la pregunta —una de soporte se contesta con 8, una de arquitectura
+# necesita 30— y un número fijo va a estar mal casi siempre.
+USO = """
+    python3 seleccion.py "<pregunta>" [opciones]
+      --angulo "..."     desde dónde mirar (ej: «los tests y las migraciones»)
+      --evitar a.json    no repetir lo ya elegido en esos archivos (varios, con coma)
+      --min N --max M    objetivo de cantidad (por defecto 4 y 12)
+      --salida x.json    dónde guardar (por defecto _ultima-seleccion.json)
+"""
+
 # Sólo los índices. Sin `leer_codigo` ni `buscar_en_codigo`: acá se ELIGE, no se lee.
 DE_INDICE = ["mapa_de_rutas", "indice_de_repos", "subramas_del_repo",
              "mapa_de_negocio_del_repo", "buscar_archivos", "abrir_nodo"]
@@ -47,8 +59,9 @@ CÓMO ELEGÍS:
    todo el trabajo**: una lista de 20 archivos no es una selección, es no haber elegido.
 
 REGLAS:
-- Máximo 8 archivos. Si creés que hacen falta más, es señal de que la pregunta es demasiado ancha:
-  decilo en `advertencias` y elegí los 8 que más rinden.
+- Apuntá a entre {min} y {max} archivos. Si de verdad no hay tantos que aporten, NO RELLENES:
+  devolvé los que valen y explicá en `advertencias` por qué. Un archivo de relleno le come presupuesto
+  al siguiente paso — es peor que no mandarlo.
 - Cada archivo va con un `por_que` concreto: qué esperás encontrar AHÍ. «Es relevante» no sirve;
   «acá se decide la exclusión por cupo» sí.
 - Poné `prioridad` alta sólo a los que, si leés uno solo, contestan lo principal.
@@ -98,14 +111,53 @@ HERRAMIENTAS["entregar_seleccion"] = ({
 }, entregar_seleccion)
 
 
+def _opt(args, nombre, defecto=None):
+    return args[args.index(nombre) + 1] if nombre in args else defecto
+
+
 def main():
     args = sys.argv[1:]
+    if args and args[0] in ("-h", "--help"):
+        print(USO)
+        return 0
+    angulo = _opt(args, "--angulo", "")
+    minimo = int(_opt(args, "--min", 4))
+    maximo = int(_opt(args, "--max", 12))
+    salida = _opt(args, "--salida", "_ultima-seleccion.json")
+
+    # Lo ya elegido por otros: se le pasa para que NO lo repita, y se verifica al recibir.
+    ya, rutas_ya = set(), []
+    for f in (_opt(args, "--evitar", "") or "").split(","):
+        p = PLAYGROUND / "agents" / f.strip()
+        if f.strip() and p.exists():
+            for a in json.loads(p.read_text(encoding="utf-8")).get("archivos", []):
+                ya.add(a.get("h", "").upper())
+
     try:
         cfg = gemini.config()
-        pregunta = args[0] if args else PREGUNTA
-        print(f"\n¿? {pregunta}\n\nmodelo: {cfg['modelo']}  ·  sólo índices, sin leer código\n")
-        r = gemini.correr(pregunta, HERRAMIENTAS, INSTRUCCIONES, cfg,
-                          terminales=("entregar_seleccion",))
+        pregunta = args[0] if args and not args[0].startswith("--") else PREGUNTA
+        sys.path.insert(0, str(PLAYGROUND / "code-index"))
+        import extraer as _ex
+        if ya:
+            rutas_ya = [_ex.resolver([h])["resueltos"].get(h, h) for h in ya]
+
+        instr = INSTRUCCIONES.format(min=minimo, max=maximo)
+        if angulo:
+            instr += (f"\n⚠ TU ÁNGULO: {angulo}\nOtros agentes están mirando esto desde otros lados. "
+                      f"Vos mirá DESDE AHÍ — no intentes cubrir todo.\n")
+        entrada = f"PREGUNTA: {pregunta}"
+        if rutas_ya:
+            instr += ("\n⚠ NO REPITAS los archivos que ya eligieron otros: se descartan al recibir y "
+                      "perdés ese lugar. Están listados abajo.\n")
+            entrada += "\n\nYA ELEGIDOS POR OTROS (no los repitas):\n" + "\n".join(
+                f"  - {r}" for r in rutas_ya)
+
+        print(f"\n¿? {pregunta}")
+        if angulo:
+            print(f"   ángulo: {angulo}")
+        print(f"\nmodelo: {cfg['modelo']}  ·  sólo índices  ·  objetivo {minimo}-{maximo} archivos"
+              + (f"  ·  evitando {len(ya)}" if ya else "") + "\n")
+        r = gemini.correr(entrada, HERRAMIENTAS, instr, cfg, terminales=("entregar_seleccion",))
         if isinstance(r, str):
             print(r)
             return 1
@@ -114,11 +166,13 @@ def main():
             print(f"nodos consultados: {', '.join(r['nodos_consultados'])}\n")
         # El agente devuelve hashes; acá se resuelven a rutas para que un humano pueda leer la
         # selección — y para que los inventados salten a la vista en vez de pasar por buenos.
-        sys.path.insert(0, str(PLAYGROUND / "code-index"))
-        sys.path.insert(0, str(PLAYGROUND / "context" / "tools"))
-        import extraer as _ex
+        # La regla de no repetir se VERIFICA, no se confía al prompt.
+        antes = len(r["archivos"])
+        r["archivos"] = [a for a in r["archivos"] if a.get("h", "").upper() not in ya]
+        repetidos = antes - len(r["archivos"])
         res = _ex.resolver([a.get("h", "") for a in r["archivos"]])
-        print(f"ARCHIVOS A LEER ({len(r['archivos'])})\n")
+        print(f"ARCHIVOS A LEER ({len(r['archivos'])})"
+              + (f"  ⚠ {repetidos} repetidos, descartados" if repetidos else "") + "\n")
         for i, a in enumerate(r["archivos"], 1):
             h = a.get("h", "?")
             ruta = res["resueltos"].get(h)
@@ -132,7 +186,8 @@ def main():
         if r.get("advertencias"):
             print(f"⚠ ADVERTENCIAS:\n  {r['advertencias']}\n")
 
-        destino = PLAYGROUND / "agents" / "_ultima-seleccion.json"
+        r["angulo"] = angulo
+        destino = PLAYGROUND / "agents" / salida
         # La pregunta viaja con la selección: el paso 2 tiene que saber qué se estaba
         # respondiendo, o recortaría los archivos buscando las palabras equivocadas.
         r["pregunta"] = pregunta

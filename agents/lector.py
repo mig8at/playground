@@ -224,13 +224,12 @@ def cargar_nodos(sel, pregunta, tope_tokens):
     hace el sistema, el nodo dice qué se VERIFICÓ y con qué trampas —los `F-xx`, el «antes de
     concluir»—. Sin eso el modelo re-deduce cosas que ya sabemos, y a veces las re-deduce mal.
     """
-    nodos = sel.get("nodos_consultados") or []
-    cpath = PLAYGROUND / "agents" / "_ultimo-contraste.json"
-    if cpath.exists():
+    nodos = []
+    for f in sorted((PLAYGROUND / "agents").glob("_*.json")):
         try:
-            nodos += json.loads(cpath.read_text(encoding="utf-8")).get("nodos_consultados") or []
-        except json.JSONDecodeError:
-            pass
+            nodos += json.loads(f.read_text(encoding="utf-8")).get("nodos_consultados") or []
+        except (json.JSONDecodeError, AttributeError):
+            continue
     nodos = list(dict.fromkeys(nodos))
     if not nodos:
         return "", []
@@ -322,24 +321,50 @@ def main():
     if not sel_path.exists():
         print(f"no hay selección todavía: corré primero `seleccion.py`", file=sys.stderr)
         return 1
-    sel = json.loads(sel_path.read_text(encoding="utf-8"))
+    # TODAS las selecciones que haya, no dos fijas: el orquestador puede lanzar N ángulos y esto los
+    # junta sin saber cuántos son. Se DEDUPLICA por hash —dos agentes pueden coincidir pese al aviso—
+    # y se conserva el orden: primero los de la primera selección, que es la que tiene la prioridad
+    # principal, y así el reparto de izquierda a derecha sigue honrando ese orden.
+    # ⚠ La PRIMARIA va primero. Ordenar alfabético ponía `_seleccion-2` antes que
+    # `_ultima-seleccion`, y como el reparto del presupuesto va de izquierda a derecha, eso le daba
+    # el contexto entero al ángulo secundario y recortaba al principal. El orden de las fuentes ES
+    # la prioridad.
+    d = PLAYGROUND / "agents"
+    fuentes = [f for f in [d / "_ultima-seleccion.json"] if f.exists()]
+    fuentes += [f for f in sorted(d.glob("_*.json"))
+                if f not in fuentes and f.name != "_ultima-seleccion.json"
+                and ("seleccion" in f.name or "contraste" in f.name or "angulo" in f.name)]
+    sel, archivos, vistos, de_donde = None, [], set(), []
+    for f in fuentes:
+        try:
+            d = json.loads(f.read_text(encoding="utf-8"))
+        except json.JSONDecodeError:
+            continue
+        if sel is None:
+            sel = d
+        etiqueta = d.get("angulo") or f.stem.lstrip("_")
+        n = 0
+        for a in d.get("archivos", []):
+            h = a.get("h", "").upper()
+            if h in vistos:
+                continue
+            vistos.add(h)
+            archivos.append(dict(a, origen=etiqueta))
+            n += 1
+        if n:
+            de_donde.append(f"{etiqueta} ({n})")
+    if sel is None:
+        print("no hay ninguna selección: corré `seleccion.py` antes", file=sys.stderr)
+        return 1
     pregunta = args[0] if args else sel.get("pregunta") or (
         "¿Por qué a un cliente no le apareció esa entidad en el listado?")
-
-    # El CONTRASTE, si existe. Se marca de dónde vino cada archivo: que el modelo sepa que una mitad
-    # la eligió alguien buscando lo que la otra NO miró es parte de la información.
-    archivos = [dict(a, origen="selección") for a in sel["archivos"]]
-    cpath = PLAYGROUND / "agents" / "_ultimo-contraste.json"
-    if cpath.exists():
-        c = json.loads(cpath.read_text(encoding="utf-8"))
-        if c.get("pregunta") == pregunta or not args:
-            archivos += [dict(a, origen="contraste") for a in c["archivos"]]
 
     try:
         cfg = gemini.config()
         # Los NODOS primero y con presupuesto propio: traen las trampas verificadas («antes de
         # concluir», los F-xx) que el código no puede mostrar, y son lo que evita que el modelo
         # re-descubra mal algo que ya se sabe. Se les da un 15% del total.
+        print(f"\nFUENTES: {' · '.join(de_donde)}")
         docs, nodos_usados = cargar_nodos(sel, pregunta, int(TOPE_TOKENS * 0.15))
         bloque, informe, chars = cargar_seleccion(archivos, pregunta,
                                                   TOPE_TOKENS - len(docs) // CHARS_POR_TOKEN)
