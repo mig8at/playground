@@ -115,6 +115,10 @@ context-map: ## @ctx regenera docs/ROUTE-MAP.md (el hook ya lo hace al editar un
 context-repos: ## @ctx índice POR REPO: qué es, cómo se ensambla y por dónde entrar. ALIAS=<repo> para uno · CHECK=1 valida las rutas
 	@cd context && python3 tools/repos.py $(if $(CHECK),check,ver $(ALIAS))
 
+context-subramas: ## @ctx las unidades DENTRO de un repo (workspaces, módulos), descubiertas de main. ALIAS=frontend-monorepo
+	@test -n "$(ALIAS)" || { echo "falta ALIAS=<repo>  ·  ej: make context-subramas ALIAS=frontend-monorepo"; exit 2; }
+	@cd context && python3 tools/repos.py subramas $(ALIAS)
+
 # ── PRUEBAS (harness) ────────────────────────────────────────────────────────────────────────────
 .PHONY: harness-contract harness-sandbox harness-walk harness-qr harness-mocks harness-check
 harness-contract: ## @har ¿el mock de Bancolombia cumple los esquemas zod del front? (sin browser ni BD)

@@ -178,6 +178,31 @@
     }
   },
 
+  "_como_funcionan_las_subramas": [
+    "Las subunidades de un repo —los workspaces del monorepo, los módulos del backend— NO se listan",
+    "acá: las descubre `tools/repos.py subramas <alias>` leyendo `main`. Es a propósito: son ~45 entre",
+    "los dos repos grandes, cambian seguido, y una lista a mano de eso se pudre en una semana.",
+    "⚠ Y se descubren de `main`, NO del working tree. Medido el 2026-08-15: `legacy-backend` estaba",
+    "checkeado en una rama donde `Modules/Backoffice` no existe — caminar el disco lo habría borrado",
+    "del índice sin que nada avisara.",
+    "Lo único que se escribe a mano es lo que NO se puede derivar: por qué una subrama importa. Eso va",
+    "en `notas_de_subramas`, y sólo donde agrega algo — si la nota repite el nombre, no va."
+  ],
+
+  "notas_de_subramas": {
+    "frontend-monorepo/apps/loan-request-wizard": "El wizard que ve el cliente: la app más grande y la que más cambia. Casi toda tarea de originación toca acá.",
+    "frontend-monorepo/apps/backoffice": "El panel NUEVO de operaciones (React + Refine). ⚠ Su README quedó del nombre viejo: se titula «admin» y manda a crear `apps/admin/.env`, carpeta que ya no existe.",
+    "frontend-monorepo/modules/loan-request-wizard/lenders-marketplace": "El listado de entidades — donde el cliente ve (o no ve) cada lender. Punto de entrada de «no le apareció esta entidad».",
+    "frontend-monorepo/modules/loan-request-wizard/dynamic-form": "⚠ Uno de los dos paquetes que rompieron el empaquetado al mergear `fixes-to-production` a `develop` (claves duplicadas en su package.json). Mirarlo primero ante un build roto.",
+    "frontend-monorepo/modules/loan-request-wizard/backend-driven-form": "El form dinámico G2: el front genérico que renderiza lo que le manda `form-service`. No confundir con `dynamic-form`, que es el viejo.",
+    "frontend-monorepo/packages/form-engine": "⚠ El otro paquete del quiebre de empaquetado. Trae tres docs propios (README + BACKEND + VALIDATION): es el más documentado del monorepo.",
+    "frontend-monorepo/modules/loan-request-wizard/identity-validation": "La jornada de identidad (Evidente / CrossCore+Jumio / AWS). Ver el nodo `kyc`.",
+    "legacy-backend/Modules/Backoffice": "⚠ EXISTE SÓLO EN `main`: no está en `develop` ni en `staging`, así que `/api/backoffice` da 404 en dev y en staging y NO es un bug.",
+    "legacy-backend/Modules/Loans": "El módulo más grande por lejos (23 archivos de rutas). Acá viven categoría, cupo, formalización y firma.",
+    "legacy-backend/Modules/RiskV2": "El módulo V2 mejor documentado (README de 869 líneas). Sirve de plantilla para entender cualquier módulo nuevo.",
+    "legacy-backend/Modules/Onboarding": "El listado de entidades del lado backend (`lenders-v2`) y las compuertas de buró. Convive con su gemelo viejo en `application`."
+  },
+
   "_los_go_comparten_molde": [
     "Los cinco microservicios Go están hechos con la MISMA plantilla y eso ahorra leerlos de a uno:",
     "`cmd/` (los binarios) · `internal/` (el código, no importable desde afuera) · `config/` ·",

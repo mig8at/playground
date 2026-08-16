@@ -39,6 +39,106 @@ def _existe_en_main(alias, rel):
     return r.returncode == 0
 
 
+def _arbol(alias):
+    """Todas las rutas del repo en `main`, en una sola llamada a git."""
+    root = ROOTS.get(alias)
+    if not root or not Path(root).is_dir():
+        return []
+    r = subprocess.run(["git", "-C", root, "ls-tree", "-r", "--name-only", "main"],
+                       capture_output=True, text=True, timeout=120)
+    return r.stdout.splitlines() if r.returncode == 0 else []
+
+
+def _leer(alias, rel):
+    root = ROOTS[alias]
+    r = subprocess.run(["git", "-C", root, "show", f"main:./{rel}"],
+                       capture_output=True, text=True, timeout=30)
+    return r.stdout if r.returncode == 0 else ""
+
+
+def subramas(alias):
+    """Las unidades con ENSAMBLADO PROPIO dentro de un repo: workspaces del monorepo, módulos del
+    backend. No se guardan en `repos.json` a propósito — se derivan acá, y de `main`.
+
+    ⚠ Por qué de main y no del disco: el working tree suele estar en otra rama. Medido el 2026-08-15,
+    `legacy-backend` estaba en una rama donde `Modules/Backoffice` NO EXISTE — caminar el filesystem lo
+    habría borrado del índice sin que nada avisara. Lo derivado se deriva de la vara, no de lo que
+    tengas puesto.
+    """
+    if alias not in ROOTS:
+        return {"error": f"alias desconocido '{alias}'", "validos": sorted(ROOTS)}
+    rutas = _arbol(alias)
+    if not rutas:
+        return {"error": f"no se pudo leer main de '{alias}' (¿repo clonado?)"}
+
+    notas = cargar().get("notas_de_subramas", {})
+    # Clave = la carpeta. ⚠ Los módulos de Laravel también traen `package.json`, así que la misma
+    # unidad la encuentran los DOS descubridores; sin esto salía duplicada, una vez como workspace y
+    # otra como módulo. Se fusiona: el que corre segundo completa al primero, no lo repite.
+    porUnidad = {}
+
+    def sumar(carpeta, **campos):
+        u = porUnidad.setdefault(carpeta, {"unidad": carpeta, "nota": notas.get(f"{alias}/{carpeta}", "")})
+        for k, v in campos.items():
+            if v and not u.get(k):
+                u[k] = v
+        return u
+
+    # ── monorepo pnpm: una unidad = una carpeta con package.json propio ──
+    manifiestos = sorted(p for p in rutas if p.endswith("package.json") and p.count("/") >= 2)
+    for m in manifiestos:
+        carpeta = m.rsplit("/", 1)[0]
+        try:
+            pkg = json.loads(_leer(alias, m) or "{}")
+        except json.JSONDecodeError:
+            pkg = {}
+        docs = [p for p in rutas if p.startswith(carpeta + "/") and p.lower().endswith(".md")
+                and p.count("/") == carpeta.count("/") + 1]
+        sumar(carpeta, nombre=pkg.get("name", ""), tipo=carpeta.split("/", 1)[0],
+              manifiesto=m, docs=docs)
+
+    # ── Laravel modules: una unidad = una carpeta bajo Modules/ ──
+    modulos = sorted({p.split("/")[1] for p in rutas if p.startswith("Modules/") and "/" in p[8:]})
+    for mod in modulos:
+        base = f"Modules/{mod}"
+        docs = [p for p in rutas if p.startswith(base + "/") and p.lower().endswith(".md")
+                and p.count("/") == 2]
+        rutas_mod = [p for p in rutas if p.startswith(f"{base}/routes/")]
+        u = sumar(base, nombre=mod, manifiesto=f"{base}/module.json" if f"{base}/module.json" in rutas else "",
+                  docs=docs, rutas=rutas_mod)
+        # El tipo del módulo MANDA sobre el que puso el descubridor de workspaces: un módulo de Laravel
+        # con package.json sigue siendo un módulo, no un workspace de npm.
+        u["tipo"] = "módulo V1/V2" if mod[-2:] in ("V1", "V2") else "módulo"
+
+    unidades = list(porUnidad.values())
+    return {"repo": alias, "contra": "main", "unidades": unidades, "cuantas": len(unidades)}
+
+
+def ver_subramas(alias):
+    d = subramas(alias)
+    if "error" in d:
+        print(f"⚠ {d['error']}")
+        return 1
+    if not d["cuantas"]:
+        # Cero NO es una falla: es la respuesta. Un Laravel plano o un servicio Go de un solo binario
+        # no tienen subunidades, y decirlo así evita que se lea como «el descubridor no anduvo».
+        print(f"\n▸ {alias} — sin subramas: no usa workspaces ni módulos, es una unidad sola.")
+        print("  Su estructura está en `repos.json` (cómo se ensambla + por dónde entrar).\n")
+        return 0
+    print(f"\n▸ {alias} — {d['cuantas']} unidades con ensamblado propio (contra main)\n")
+    for u in sorted(d["unidades"], key=lambda x: (x["tipo"], x["unidad"])):
+        etiqueta = f"[{u['tipo']}]"
+        print(f"  {etiqueta:16} {u['unidad']}" + (f"   ({u['nombre']})" if u["nombre"] else ""))
+        if u.get("docs"):
+            print(f"                   docs: {', '.join(p.rsplit('/', 1)[1] for p in u['docs'])}")
+        if u.get("rutas"):
+            print(f"                   rutas: {len(u['rutas'])} archivo(s)")
+        if u.get("nota"):
+            print(f"                   ↳ {u['nota']}")
+    print()
+    return 0
+
+
 def ver(filtro=None):
     d = cargar()
     print(f"\n{'═' * 96}")
@@ -105,4 +205,9 @@ if __name__ == "__main__":
     verbo = args[0] if args else "ver"
     if verbo == "check":
         sys.exit(check())
+    if verbo == "subramas":
+        if len(args) < 2:
+            print("falta el repo: python3 tools/repos.py subramas frontend-monorepo")
+            sys.exit(2)
+        sys.exit(ver_subramas(args[1]))
     sys.exit(ver(args[1] if len(args) > 1 else None))

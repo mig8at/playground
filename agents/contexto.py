@@ -27,6 +27,7 @@ FLOWS = CONTEXT / "server" / "data" / "flows"
 # qué —tenerla dos veces es una divergencia que no falla, sólo da veredictos equivocados.
 sys.path.insert(0, str(CONTEXT / "tools"))
 from roots import ROOTS  # noqa: E402
+import repos as _repos_tool  # noqa: E402  — el descubridor de subramas vive allá, no acá
 
 MAX_LINEAS = 260  # tope por lectura: un archivo de 3.000 líneas no entra ni sirve entero
 
@@ -90,6 +91,12 @@ def _resolver(ruta):
 def mapa_de_rutas():
     """El índice del árbol de contexto: la tabla de síntomas y el «Cuándo:» de cada nodo. Empezá acá."""
     return (CONTEXT / "docs" / "ROUTE-MAP.md").read_text(encoding="utf-8")
+
+
+def _subramas(alias):
+    """Las unidades internas de un repo. Se delega a `context/tools/repos.py`, que es su implementación
+    única: duplicar acá el descubrimiento sería la divergencia que `roots.py` advierte."""
+    return _repos_tool.subramas(alias)
 
 
 def indice_de_repos():
@@ -166,6 +173,20 @@ HERRAMIENTAS = {
         ),
         "parameters": {"type": "object", "properties": {}},
     }, indice_de_repos),
+
+    "subramas_del_repo": ({
+        "name": "subramas_del_repo",
+        "description": (
+            "Las unidades con ensamblado propio DENTRO de un repo: los workspaces del monorepo "
+            "(apps, packages, modules) o los módulos del backend, con su nombre, sus docs y sus "
+            "rutas. Se descubren de main en el momento, no están escritas a mano. Usalo después de "
+            "`indice_de_repos` cuando necesites bajar un nivel: «¿qué apps hay?», «¿en qué módulo "
+            "vive esto?»."
+        ),
+        "parameters": {"type": "object", "properties": {
+            "alias": {"type": "string", "description": "repo, p. ej. 'frontend-monorepo' o 'legacy-backend'"},
+        }, "required": ["alias"]},
+    }, lambda alias: _subramas(alias)),
 
     "abrir_nodo": ({
         "name": "abrir_nodo",
