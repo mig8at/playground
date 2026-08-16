@@ -19,6 +19,7 @@ El modelo NUNCA ejecuta nada. Elige qué se ejecuta; el código decide qué exis
 """
 import json
 import os
+import socket
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -26,7 +27,11 @@ from pathlib import Path
 
 RAIZ = Path(__file__).resolve().parent
 API = "https://generativelanguage.googleapis.com/v1beta"
-TIMEOUT = 120
+# ⚠ 300 y no 120. Un agente que rutea acumula TODO en la conversación —el índice, cada doc que abre,
+# cada tramo de código— así que las últimas vueltas mandan un payload grande y tardan. Con 120 s el
+# agente de contexto se cortaba en el paso 5, después de haber ruteado bien: se perdía todo el trabajo
+# por el final. Si igual se corta, el problema no es el tope: es cuánto se está acumulando.
+TIMEOUT = 300
 
 
 class GeminiError(Exception):
@@ -90,7 +95,18 @@ def _pedir(ruta, key, cuerpo=None):
         if e.code == 429:
             raise GeminiError(f"Cuota agotada o demasiadas llamadas ({e.code}): {detalle}")
         raise GeminiError(f"HTTP {e.code}: {detalle}")
+    except (socket.timeout, TimeoutError):
+        # No lo cubre URLError: sin este caso salía un traceback de 30 líneas que no dice qué pasó.
+        raise GeminiError(
+            f"La API no contestó en {TIMEOUT} s.\n"
+            "Casi siempre es que la conversación se hizo grande: cada herramienta que corre queda "
+            "acumulada y el payload crece vuelta a vuelta.\n"
+            "Qué hacer: pedirle al agente que lea RANGOS de archivo en vez de archivos enteros, o "
+            "acotar la pregunta. Subir el timeout tapa el síntoma, no la causa."
+        )
     except urllib.error.URLError as e:
+        if isinstance(getattr(e, "reason", None), socket.timeout):
+            raise GeminiError(f"La API no contestó en {TIMEOUT} s (la conversación puede estar muy grande).")
         raise GeminiError(f"No se pudo llegar a la API: {e.reason}")
 
 
@@ -124,6 +140,12 @@ def correr(pregunta, herramientas, instrucciones="", cfg=None, verboso=True):
 
     for paso in range(1, cfg["max_pasos"] + 1):
         cuerpo = dict(cuerpo_base, contents=contenidos)
+        if verboso:
+            # Mostrar cuánto se acumula hace visible lo que si no aparece sólo como «está lento»:
+            # la conversación crece con CADA resultado de herramienta, y eso es lo que hay que
+            # gobernar (leer rangos, no archivos enteros).
+            kb = len(json.dumps(contenidos)) / 1024
+            print(f"  ({kb:,.0f} KB acumulados)", end="  ", flush=True)
         r = _pedir(f"models/{cfg['modelo']}:generateContent", cfg["key"], cuerpo)
 
         candidatos = r.get("candidates") or []
