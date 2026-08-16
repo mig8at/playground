@@ -133,6 +133,9 @@ def main():
             print(f"⚠ ADVERTENCIAS:\n  {r['advertencias']}\n")
 
         destino = PLAYGROUND / "agents" / "_ultima-seleccion.json"
+        # La pregunta viaja con la selección: el paso 2 tiene que saber qué se estaba
+        # respondiendo, o recortaría los archivos buscando las palabras equivocadas.
+        r["pregunta"] = pregunta
         destino.write_text(json.dumps(r, ensure_ascii=False, indent=2), encoding="utf-8")
         print(f"(guardada en {destino.name} — lista para pasársela al que lee)")
         return 0

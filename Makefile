@@ -225,6 +225,9 @@ agente-frontend: ## @ag ¿el frontend está sano hoy, y si no, qué lo rompió? 
 agente-seleccion: ## @ag NO contesta: dice QUÉ ARCHIVOS habría que leer y por qué. Sólo índices. PREGUNTA='…'
 	@cd agents && python3 seleccion.py $(if $(PREGUNTA),"$(PREGUNTA)")
 
+agente-lector: ## @ag PASO 2: lee los archivos que eligió `agente-seleccion` y contesta. Recorta a 300k tokens
+	@cd agents && python3 lector.py $(if $(PREGUNTA),"$(PREGUNTA)")
+
 agente-contexto: ## @ag el que RUTEA SOLO: lee context/, elige qué archivos necesita y recién ahí contesta. PREGUNTA='…'
 	@cd agents && python3 contexto.py $(if $(PREGUNTA),"$(PREGUNTA)")
 

@@ -146,6 +146,24 @@ def nodos_por_repo():
     return {a: sorted(v, key=lambda x: -x[1]) for a, v in porRepo.items()}
 
 
+GLOSARIO_NEGOCIO = {
+    "cupo": ["quota", "available", "limit"], "categoría": ["category"], "categoria": ["category"],
+    "reglas": ["rule"], "regla": ["rule"], "duras": ["rule", "validation"],
+    "perfilamiento": ["profiling"], "perfil": ["profil"],
+    "entidad": ["lender"], "entidades": ["lender"], "prestamista": ["lender"],
+    "comercio": ["allied", "merchant"], "comercios": ["allied", "merchant"],
+    "sucursal": ["branch"], "solicitud": ["request"], "solicitudes": ["request"],
+    "firma": ["sign", "signature"], "firmar": ["sign"], "pagaré": ["promissory"],
+    "pagare": ["promissory"], "desembolso": ["disburse"], "desembolsar": ["disburse"],
+    "enganche": ["initial", "fee"], "cuota": ["fee", "installment"], "cuotas": ["fee"],
+    "plazo": ["term", "fee_number"], "monto": ["amount"], "ingreso": ["income"],
+    "buró": ["risk", "central", "experian"], "buro": ["risk", "central"],
+    "identidad": ["identity"], "usuario": ["user"], "cliente": ["user", "customer"],
+    "pago": ["payment"], "pagos": ["payment"], "tasa": ["rate"], "seguro": ["insurance"],
+    "listado": ["listing", "retrieval"], "asesor": ["advisor", "merchant"],
+    "documento": ["document"], "formulario": ["form"], "rotativo": ["revolving"],
+}
+
 def buscar(que_necesito, tope=12):
     """EL BUSCADOR: describí lo que necesitás y te devuelve archivos, sin tener que saber rutas.
 
@@ -173,25 +191,9 @@ def buscar(que_necesito, tope=12):
     # «perfilamiento reglas duras» no encontraba `ProfilingRulesService` — buscaba «reglas» contra
     # «Rules». No es traducción general: son los términos del NEGOCIO de CreditOp, que es donde el
     # vocabulario de la tarea y el del código se separan.
-    GLOSARIO = {
-        "cupo": ["quota", "available", "limit"], "categoría": ["category"], "categoria": ["category"],
-        "reglas": ["rule"], "regla": ["rule"], "duras": ["rule", "validation"],
-        "perfilamiento": ["profiling"], "perfil": ["profil"],
-        "entidad": ["lender"], "entidades": ["lender"], "prestamista": ["lender"],
-        "comercio": ["allied", "merchant"], "comercios": ["allied", "merchant"],
-        "sucursal": ["branch"], "solicitud": ["request"], "solicitudes": ["request"],
-        "firma": ["sign", "signature"], "firmar": ["sign"], "pagaré": ["promissory"],
-        "pagare": ["promissory"], "desembolso": ["disburse"], "desembolsar": ["disburse"],
-        "enganche": ["initial", "fee"], "cuota": ["fee", "installment"], "cuotas": ["fee"],
-        "plazo": ["term", "fee_number"], "monto": ["amount"], "ingreso": ["income"],
-        "buró": ["risk", "central", "experian"], "buro": ["risk", "central"],
-        "identidad": ["identity"], "usuario": ["user"], "cliente": ["user", "customer"],
-        "pago": ["payment"], "pagos": ["payment"], "tasa": ["rate"], "seguro": ["insurance"],
-        "listado": ["listing", "retrieval"], "asesor": ["advisor", "merchant"],
-        "documento": ["document"], "formulario": ["form"], "rotativo": ["revolving"],
-    }
+    # (el glosario vive a nivel de módulo: lo reusa también el recorte del agente lector)
     for t in list(terminos):
-        terminos.extend(x for x in GLOSARIO.get(t, []) if x not in terminos)
+        terminos.extend(x for x in GLOSARIO_NEGOCIO.get(t, []) if x not in terminos)
     if not terminos:
         return {"error": "no quedó ningún término útil: usá palabras de 4+ letras y con contenido "
                          "(«cupo», «pagaré», «perfilamiento»), no una frase entera de conectores"}
