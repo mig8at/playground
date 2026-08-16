@@ -18,7 +18,8 @@ recordar en qué carpeta vive cada script.
 | `make context-refs [NODE=x]` | ¿las citas `archivo:línea` apuntan a lo que dicen? |
 | `make context-seal NODE=x` | "este nodo lo verifiqué hoy" — **solo si de verdad lo revisaste** |
 | `make harness-contract` · `make harness-walk` · `make harness-qr` | probar el canal QR / Bancolombia |
-| `make trazador-acceso` | **¿puedo leer los logs?** Loki: permisos, etiquetas y líneas de verdad (prod incluido) |
+| `make trazador-acceso` | **¿qué pasó en una solicitud real?** Loki (dev · qa · prod): permisos, etiquetas y líneas de verdad |
+| ↳ y en `trazador/.env.prod` | **las credenciales de REDASH** — así se le pregunta a la BD de **producción**. Es la única forma de contestar «¿esto pasa de verdad, y cuánto?» |
 
 Convención: los **nombres propios** se quedan (`context`, `tablero`, `harness` son carpetas; `panel`
 es la UI del harness) y los **verbos** van en inglés (`align`, `refs`, `seal`, `check`), como
@@ -44,6 +45,11 @@ Se viene a resolver **tareas** sobre CreditOp con tres piezas — **tablero** (l
      ya nos pasó, está ahí.
 4. **Probar de verdad es `harness/`** (panel, runners, mocks): se comprueba **corriendo**, no
    leyendo. Una afirmación que se puede verificar ahí se verifica **antes** de escribirla como cierta.
+   ⚠ **Y en local/dev/staging las centrales de riesgo NO las atiende el proveedor**, sino un lambda de
+   mocks de la empresa (`Creditop-SAS/risk-services-mockery-lambda`, un Mockoon; no está entre los
+   repos de arriba). Se le puede **dictar la respuesta por cédula** — la receta, con sus trampas, en
+   `tablero/data/mocks-de-centrales-un-solo-mecanismo.md`. Sin saber esto, una prueba de identidad ahí
+   siempre devuelve la misma persona y parece que el código está roto.
 5. **Al mergear, GRADÚA:** lo mergeado deja de ser tarea y pasa al nodo de contexto — ahí es "cómo
    funciona CreditOp". La tarea se marca `archived` en su frontmatter. Ejemplo hecho: la omisión de
    Experian por cupo ya confirmado vive hoy en el nodo `kyc`.
@@ -105,10 +111,22 @@ Cada herramienta guarda su configuración por target en su propio **`.env.<targe
 como las **perillas** (Cognito, mocks, `SEED`). Ya **no** hay capa compartida `env/` (se eliminó el
 2026-07-22). Prioridad: `process.env` > `<herramienta>/.env.<target>`.
 
-**Qué rama sirve cada target:** `local` → local · `dev` → **develop** · `staging` → **qa**. ⚠ `staging`
-comparte la **BD** con `dev` (mismas credenciales; si rotan, actualizá las dos) pero **NO el backend** —
-el detalle de los dos servicios del cluster y cómo saber qué rama te respondió: `harness/CLAUDE.md`
-§«Qué es real en cada target».
+**Qué rama sirve cada target:** `local` → local · `dev` → **develop** · `staging` → **la rama
+`staging`**. *(Acá decía «`staging` → qa». Está mal: se fueron sumando ambientes para poder probar,
+pero **el real es `staging`** — corregido por Miguel el 2026-08-14. El workflow lo confirma:
+`main-stg.yaml` dispara con push a `staging` y despliega el servicio `legacy-backend-stg`.)*
+
+⚠ `staging` comparte la **BD con `dev`** — es la misma (`inertia-dev`), confirmado el 2026-08-15 por
+el contador `AUTO_INCREMENT` de `user_requests`: una solicitud creada desde staging aparece ahí. Si
+las credenciales rotan, actualizá las dos. Pero **NO comparten backend** — el detalle de los dos
+servicios del cluster y cómo saber qué rama te respondió: `harness/CLAUDE.md` §«Qué es real en cada
+target».
+
+⚠ **`staging` corre con `APP_ENV=development`**, no `staging`. Se deduce de que el bypass de OTP de QA
+funciona ahí y ese exige `local`/`development`. Importa más de lo que parece: **todas las condiciones
+`app()->environment(['local','development'])` del código aplican en staging** — incluida la que apaga
+la validación de nombre del KYC. Y al revés, un `config('app.env') === 'staging'` (hay uno en
+`InitialFeePaymentService`) probablemente nunca dispara.
 
 **Los permisos no van en archivo.** El flag `I_KNOW_THIS_TOUCHES_SHARED_DEV` **no** vive en ningún
 `.env.*`: se exporta a mano en la shell cuando de verdad vas a escribir a la BD compartida de dev (el
