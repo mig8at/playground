@@ -124,7 +124,13 @@ def _rutas_http(texto, ruta):
                 continue
             verbo = VERBO.search(linea)
             metodo = verbo.group(1).upper() if verbo else "?"
-            fuera.add(f"{metodo} {PARAM.sub('{}', camino)}")
+            # ⚠ QUÉ CLASE DE RUTA ES — portado del `kind` de carto, y sin esto el cruce entre repos
+            # no sirve: el front devuelve rutas de NAVEGACIÓN (`/merchant/{}/lenders/{}`) y el backend
+            # rutas de API (`/v1/lender-attempts`). Comparar unas con otras da cero y parece que no se
+            # hablan, cuando lo que pasa es que se estaban comparando peras con manzanas.
+            norm = PARAM.sub("{}", camino).replace("${}", "{}")
+            es_api = bool(verbo) or norm.startswith(("/api/", "/v1/", "/v2/")) or "/api/" in norm
+            fuera.add(f"{metodo} {norm}" if es_api else f"UI {norm}")
         if len(fuera) > 40:
             break
     return sorted(fuera)
@@ -353,3 +359,88 @@ def imprimir(d, zoom=0):
 
 
 # La entrada de consola es `cli.py`: este modulo es la LOGICA y se importa.
+
+
+# ── cruce de rutas entre repos ───────────────────────────────────────────────────────────────────
+def _es_api(r):
+    """Una ruta cruzable: la de API. Las de navegación (UI) se marcan y no se cruzan por default."""
+    return not r.startswith("UI ")
+
+
+def _solo_camino(r):
+    """'POST /api/x/{}' → '/api/x/{}'. El VERBO se descarta para cruzar: la detección de método es
+    débil (sale de buscar el verbo cerca en la misma línea) y descartar por un '?' perdería matches
+    ciertos. El camino sí es confiable."""
+    return r.split(" ", 1)[1] if " " in r else r
+
+
+def cruzar_rutas(aliases, sufijo_min=2, tope_kb=10_000, solo_api=True):
+    """Qué rutas HTTP aparecen en MÁS DE UN repo. Es el mapa de quién le habla a quién.
+
+    ⚠ No alcanza con comparar caminos iguales: el front pide
+    `/api/onboarding/loan-application/lenders-v2/{}` y el backend la declara como `lenders-v2/{}`
+    adentro de un grupo con prefijo. Por eso el cruce es por SUFIJO — comparten los últimos N
+    segmentos — que es como se ven de verdad las dos puntas de una misma llamada.
+    """
+    porRepo = {}
+    for a in aliases:
+        d = extraer(a, "", tope_kb)
+        caminos = {}
+        for n in d["nodos"]:
+            for r in n.get("r", []):
+                if solo_api and not _es_api(r):
+                    continue
+                c = _solo_camino(r)
+                segs = [s for s in c.split("/") if s]
+                if len(segs) < sufijo_min:
+                    continue
+                clave = segs[-sufijo_min:]
+                # ⚠ Un sufijo de puros parámetros (`/{}/{}`) matchea CUALQUIER cosa con cualquier
+                # cosa: es la coincidencia falsa clásica. Se exige al menos un segmento literal.
+                if not any(s != "{}" for s in clave):
+                    continue
+                caminos.setdefault("/".join(clave), []).append((c, n["p"]))
+        porRepo[a] = caminos
+
+    coincidencias = []
+    for clave in set().union(*(set(c) for c in porRepo.values())) if porRepo else []:
+        donde = {a: porRepo[a][clave] for a in aliases if clave in porRepo[a]}
+        if len(donde) < 2:
+            continue
+        coincidencias.append({
+            "sufijo": "/" + clave,
+            "repos": list(donde),
+            "puntas": {a: sorted({f"{c}  ←  {p.split('/', 1)[1]}" for c, p in v})[:3]
+                       for a, v in donde.items()},
+        })
+    coincidencias.sort(key=lambda x: (-len(x["repos"]), x["sufijo"]))
+    # Cuántas rutas aportó cada repo: si uno trae 0, el «ninguna» es porque ese repo no declara
+    # rutas de esa clase — no porque no se hablen. Decirlo evita la conclusión equivocada.
+    aporte = {a: len(porRepo[a]) for a in aliases}
+    return {"repos": list(aliases), "sufijo_min": sufijo_min, "solo_api": solo_api,
+            "rutas_por_repo": aporte, "coincidencias": coincidencias, "cuantas": len(coincidencias)}
+
+
+def imprimir_cruce(d, tope=25):
+    print(f"\n> rutas compartidas entre {' + '.join(d['repos'])} "
+          f"(coinciden los ultimos {d['sufijo_min']} segmentos)\n")
+    print(f"  rutas {'de API' if d['solo_api'] else '(API + UI)'} que aporto cada uno: "
+          + " · ".join(f"{a}: {n}" for a, n in d["rutas_por_repo"].items()) + "\n")
+    if not d["cuantas"]:
+        vacios = [a for a, n in d["rutas_por_repo"].items() if not n]
+        if vacios:
+            print(f"  ninguna, y la razon es que {' y '.join(vacios)} no aporto ninguna ruta de API.")
+            print("  Probá con --con-ui, o es que ese repo arma sus llamadas en otro lado (un cliente")
+            print("  con base URL, un SDK generado). NO concluyas que no se hablan.\n")
+        else:
+            print("  ninguna. O no se hablan, o lo hacen por otra via (cola, evento, SDK).\n")
+        return 0
+    for c in d["coincidencias"][:tope]:
+        print(f"  {c['sufijo']}   [{' + '.join(c['repos'])}]")
+        for a, puntas in c["puntas"].items():
+            for p in puntas:
+                print(f"      {a}: {p}")
+    if d["cuantas"] > tope:
+        print(f"\n  ! {d['cuantas'] - tope} coincidencias mas, no mostradas.")
+    print()
+    return 0

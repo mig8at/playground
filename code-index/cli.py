@@ -75,6 +75,17 @@ def main():
     s.add_argument("--tope", type=int, default=60, metavar="KB",
                    help="presupuesto en KB; se llena por puntaje y se avisa qué quedó afuera (60)")
 
+    s = con_json(sub.add_parser(
+        "rutas", help="qué rutas HTTP comparten dos o más repos (quién le habla a quién)",
+        description="Cruza las rutas extraídas del código. El cruce es por SUFIJO porque el que "
+                    "llama usa la ruta completa y el que la declara suele hacerlo bajo un prefijo."))
+    s.add_argument("alias", nargs="+", help="dos o más repos")
+    s.add_argument("--segmentos", type=int, default=2, metavar="N",
+                   help="cuántos segmentos finales tienen que coincidir (2). Subilo si hay ruido")
+    s.add_argument("--con-ui", action="store_true",
+                   help="incluir rutas de NAVEGACIÓN, no sólo de API. Por default se cruzan sólo las "
+                        "de API: mezclar pantallas con endpoints da coincidencias falsas")
+
     sub.add_parser("check", help="¿las rutas escritas a mano siguen vivas en main?")
     sub.add_parser("pesos", help="refresca los tamaños guardados en repos.json")
 
@@ -95,6 +106,17 @@ def main():
     if a.cmd == "buscar":
         q = " ".join(a.que)
         return _salida(_ix.buscar(q, a.tope), lambda: _ix.ver_buscar(q), j)
+    if a.cmd == "rutas":
+        if len(a.alias) < 2:
+            print("hacen falta al menos DOS repos para cruzar", file=sys.stderr)
+            return 2
+        malos = [x for x in a.alias if x not in _ex.ROOTS]
+        if malos:
+            print(f"alias desconocido: {', '.join(malos)}", file=sys.stderr)
+            return 2
+        d = _ex.cruzar_rutas(a.alias, a.segmentos, solo_api=not a.con_ui)
+        return _salida(d, lambda: _ex.imprimir_cruce(d), j)
+
     if a.cmd == "check":
         return _ix.check()
     if a.cmd == "pesos":
