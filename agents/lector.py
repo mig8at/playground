@@ -153,7 +153,7 @@ def recortar(texto, claves, tope_chars):
 def cargar_seleccion(hashes, pregunta, tope_tokens=TOPE_TOKENS):
     """Carga los archivos elegidos dentro del presupuesto. Devuelve el bloque y el informe de qué entró."""
     presupuesto = tope_tokens * CHARS_POR_TOKEN
-    usado, partes, informe = 0, [], []
+    vivos, informe = [], []
     for item in hashes:
         h = item.get("h", "")
         ruta = _resolver_uno(h)
@@ -164,19 +164,57 @@ def cargar_seleccion(hashes, pregunta, tope_tokens=TOPE_TOKENS):
         if texto is None:
             informe.append({"ruta": ruta, "estado": "no está en main"})
             continue
+        vivos.append({"ruta": ruta, "texto": texto, "por_que": item.get("por_que", "")})
 
-        # Lo que queda del presupuesto, repartido entre los que faltan: así el primero no se lo come
-        # todo y el último no se queda sin nada.
-        restantes = max(1, len(hashes) - len(partes))
-        cupo = max(8_000, (presupuesto - usado) // restantes)
-        claves = [pregunta, item.get("por_que", "")]
-        cuerpo, omitidas = recortar(texto, claves, cupo)
-        partes.append(f"### {ruta}\n# por qué se pidió: {item.get('por_que','')}\n"
-                      f"{'# ⚠ RECORTADO — los huecos están marcados' if omitidas else ''}\n{cuerpo}")
-        usado += len(cuerpo)
-        informe.append({"ruta": ruta, "estado": "recortado" if omitidas else "completo",
-                        "lineas_omitidas": omitidas, "kb": round(len(cuerpo) / 1024, 1)})
-    return "\n\n".join(partes), informe, usado
+    # ── EL REPARTO: piso para todos, y el resto de IZQUIERDA A DERECHA ────────────────────────────
+    # Se midió con las tres formas, forzando que no entrara (8 archivos, 318 KB, tope 60 KB):
+    #
+    #   cuota por archivo   7k 7k 7k 7k 7k 5k 7k 7k   <- reparte parejo… y RECORTA EL #1, que es el
+    #                                                    que tiene la respuesta, para darle al #8
+    #   izquierda a derecha 44k 15k 0 0 0 0 0 0       <- respeta la prioridad pero deja CINCO en cero
+    #   piso + izq a der    44k 2k 2k 2k 2k 2k 2k 2k  <- el prioritario ENTERO y nadie invisible
+    #
+    # Va la tercera. El orden lo puso el agente que eligió y hay que honrarlo: si dijo que el primero
+    # es «alta», recortarlo para hacerle lugar al último es repartir mal. Pero el piso importa igual:
+    # con 0 el modelo no sabe ni qué métodos existen, y no puede pedir el tramo que le falta.
+    # El piso se ADAPTA: con un presupuesto chico, 2.500 por archivo puede no entrar ni siquiera como
+    # piso (8 archivos × 2.500 = 20.000). Un piso fijo que no cabe convierte el mínimo en el máximo y
+    # el total se pasa igual.
+    PISO = 2_500
+
+    def cabecera(v):
+        """Lo que se le pone ADELANTE a cada archivo. Cuesta y hay que contarlo: la primera versión lo
+        ignoraba y el total se pasaba ~210 chars por archivo. Mismo error de antes, un nivel más
+        arriba — si el presupuesto no cuenta TODO lo que se manda, no es un presupuesto."""
+        return (f"### {v['ruta']}\n# por qué se pidió: {v['por_que']}\n"
+                f"{'# ⚠ RECORTADO — los huecos están marcados' if v.get('om') else ''}\n")
+
+    # ⚠ En el PEOR CASO: la cabecera crece si el archivo termina recortado, y eso se sabe después.
+    # Contarla sin esa línea dejaba el total ~40 chars por archivo recortado por encima del tope.
+    # Se reserva de más y se usa de menos: pasarse es un error, sobrar no.
+    fijo = sum(len(cabecera(dict(v, om=1))) + 2 for v in vivos)
+    disponible = max(0, presupuesto - fijo)
+
+    piso = min(PISO, max(400, disponible // max(1, len(vivos))))
+    for v in vivos:
+        v["cuerpo"], v["om"] = recortar(v["texto"], [pregunta, v["por_que"]], piso)
+    usado = sum(len(v["cuerpo"]) for v in vivos)
+
+    for v in vivos:
+        queda = disponible - usado
+        if queda <= 0:
+            break
+        cuerpo, om = recortar(v["texto"], [pregunta, v["por_que"]], len(v["cuerpo"]) + queda)
+        usado += len(cuerpo) - len(v["cuerpo"])
+        v["cuerpo"], v["om"] = cuerpo, om
+
+    partes = []
+    for v in vivos:
+        partes.append(cabecera(v) + v["cuerpo"])
+        informe.append({"ruta": v["ruta"], "estado": "recortado" if v["om"] else "completo",
+                        "lineas_omitidas": v["om"], "kb": round(len(v["cuerpo"]) / 1024, 1)})
+    completo = "\n\n".join(partes)
+    return completo, informe, len(completo)
 
 
 def arbol(alias, ruta=""):
