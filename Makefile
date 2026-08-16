@@ -124,6 +124,10 @@ code-index-subramas: ## @idx las unidades DENTRO de un repo (workspaces, módulo
 	@test -n "$(ALIAS)" || { echo "falta ALIAS=<repo>  ·  ej: make code-index-subramas ALIAS=frontend-monorepo"; exit 2; }
 	@cd code-index && python3 indice.py subramas $(ALIAS)
 
+code-index-buscar: ## @idx describí lo que necesitás y te devuelve ARCHIVOS, sin saber rutas. Q='cupo categoría'
+	@test -n "$(Q)" || { echo "falta Q='…'  ·  ej: make code-index-buscar Q='firma pagaré'"; exit 2; }
+	@cd code-index && python3 indice.py buscar "$(Q)"
+
 code-index-mapa: ## @idx qué parte del NEGOCIO vive en cada unidad de un repo (bancolombia, backoffice, onboarding…). ALIAS=frontend-monorepo
 	@test -n "$(ALIAS)" || { echo "falta ALIAS=<repo>  ·  ej: make code-index-mapa ALIAS=frontend-monorepo"; exit 2; }
 	@cd code-index && python3 indice.py mapa $(ALIAS)

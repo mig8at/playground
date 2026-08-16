@@ -29,7 +29,7 @@ PREGUNTA = (
 
 # Sólo los índices. Sin `leer_codigo` ni `buscar_en_codigo`: acá se ELIGE, no se lee.
 DE_INDICE = ["mapa_de_rutas", "indice_de_repos", "subramas_del_repo",
-             "mapa_de_negocio_del_repo", "abrir_nodo"]
+             "mapa_de_negocio_del_repo", "buscar_archivos", "abrir_nodo"]
 
 INSTRUCCIONES = """\
 Tu trabajo NO es contestar la pregunta. Es decidir QUÉ ARCHIVOS habría que leer para contestarla, y

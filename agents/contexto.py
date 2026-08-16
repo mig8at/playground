@@ -204,6 +204,19 @@ HERRAMIENTAS = {
         }, "required": ["alias"]},
     }, lambda alias: _code_index.mapa_de_negocio(alias)),
 
+    "buscar_archivos": ({
+        "name": "buscar_archivos",
+        "description": (
+            "Describí en palabras lo que necesitás y te devuelve ARCHIVOS candidatos, con el puntaje "
+            "y por qué. No hace falta saber rutas ni qué nodo mirar. Entiende vocabulario de negocio "
+            "en español (cupo, entidad, pagaré, perfilamiento) y lo cruza con el código, que está en "
+            "inglés. Usalo cuando no sepas por dónde empezar, o para completar lo que un nodo no citó."
+        ),
+        "parameters": {"type": "object", "properties": {
+            "que_necesito": {"type": "string", "description": "en palabras, p. ej. 'dónde se decide el cupo por categoría'"},
+        }, "required": ["que_necesito"]},
+    }, lambda que_necesito: _code_index.buscar(que_necesito)),
+
     "abrir_nodo": ({
         "name": "abrir_nodo",
         "description": "El análisis de un nodo (doc.md) y la lista de archivos fuente que cita. Devuelve además su «cuándo», sus síntomas y cuándo se verificó.",

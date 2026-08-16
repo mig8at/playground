@@ -80,6 +80,151 @@ def nodos_por_repo():
     return {a: sorted(v, key=lambda x: -x[1]) for a, v in porRepo.items()}
 
 
+def buscar(que_necesito, tope=12):
+    """EL BUSCADOR: describí lo que necesitás y te devuelve archivos, sin tener que saber rutas.
+
+    Por qué no hashes cortos: se midió (2026-08-15). Las rutas son el 8% de abrir un nodo y el 1,6% de
+    lo que acumula una corrida — el peso son los `doc.md`. Y sobre todo, **la ruta es la señal con la
+    que se elige**: un nombre de archivo dice qué hay adentro ANTES de abrirlo, y un identificador
+    opaco obliga a abrirlo para averiguarlo. Gastaría más. Lo que sí faltaba es esto: buscar por
+    intención en vez de recordar caminos.
+
+    Puntúa cada archivo citado por el árbol con tres señales, de la más fuerte a la más débil:
+      · el término aparece en su NOMBRE          (fuerte: es de lo que trata el archivo)
+      · el término aparece en el `when`/síntomas del nodo que lo cita  (el vocabulario de la tarea)
+      · el término aparece en el `doc.md` del nodo que lo cita        (contexto, más difuso)
+    """
+    # ⚠ Se filtran las vacías y se exige 4 letras. Sin esto, «por» (3 letras) matcheaba «CorPORate» y
+    # el primer resultado de «¿por qué no le apareció la entidad?» era un controller de usuarios
+    # corporativos. Matchear por substring con palabras cortas y comunes es ruido garantizado.
+    VACIAS = {"para", "porque", "sobre", "donde", "cuando", "cual", "cuales", "esta", "este", "esto",
+              "eso", "esa", "ese", "como", "mas", "menos", "todo", "toda", "todos", "hay", "tiene",
+              "puede", "debe", "sino", "pero", "desde", "hasta", "entre", "cada", "otro", "otra",
+              "quiero", "necesito", "saber", "decir", "dar", "ver", "algo", "nada", "muy"}
+    terminos = [t.strip("¿?¡!.,;:()«»\"'").lower() for t in que_necesito.split()]
+    terminos = [t for t in terminos if len(t) >= 4 and t not in VACIAS]
+    # ⚠ EL PUENTE QUE MÁS RINDE: se pregunta en español y el código está en inglés. Sin esto,
+    # «perfilamiento reglas duras» no encontraba `ProfilingRulesService` — buscaba «reglas» contra
+    # «Rules». No es traducción general: son los términos del NEGOCIO de CreditOp, que es donde el
+    # vocabulario de la tarea y el del código se separan.
+    GLOSARIO = {
+        "cupo": ["quota", "available", "limit"], "categoría": ["category"], "categoria": ["category"],
+        "reglas": ["rule"], "regla": ["rule"], "duras": ["rule", "validation"],
+        "perfilamiento": ["profiling"], "perfil": ["profil"],
+        "entidad": ["lender"], "entidades": ["lender"], "prestamista": ["lender"],
+        "comercio": ["allied", "merchant"], "comercios": ["allied", "merchant"],
+        "sucursal": ["branch"], "solicitud": ["request"], "solicitudes": ["request"],
+        "firma": ["sign", "signature"], "firmar": ["sign"], "pagaré": ["promissory"],
+        "pagare": ["promissory"], "desembolso": ["disburse"], "desembolsar": ["disburse"],
+        "enganche": ["initial", "fee"], "cuota": ["fee", "installment"], "cuotas": ["fee"],
+        "plazo": ["term", "fee_number"], "monto": ["amount"], "ingreso": ["income"],
+        "buró": ["risk", "central", "experian"], "buro": ["risk", "central"],
+        "identidad": ["identity"], "usuario": ["user"], "cliente": ["user", "customer"],
+        "pago": ["payment"], "pagos": ["payment"], "tasa": ["rate"], "seguro": ["insurance"],
+        "listado": ["listing", "retrieval"], "asesor": ["advisor", "merchant"],
+        "documento": ["document"], "formulario": ["form"], "rotativo": ["revolving"],
+    }
+    for t in list(terminos):
+        terminos.extend(x for x in GLOSARIO.get(t, []) if x not in terminos)
+    if not terminos:
+        return {"error": "no quedó ningún término útil: usá palabras de 4+ letras y con contenido "
+                         "(«cupo», «pagaré», «perfilamiento»), no una frase entera de conectores"}
+
+    flows = CONTEXT / "server" / "data" / "flows"
+    mejor = {}   # ruta → (puntaje del MEJOR nodo, ese nodo, por qué)
+    citado = {}  # ruta → en cuántos nodos aparece
+
+    # ⚠ Se toma el MEJOR nodo, NO la suma. Primera versión sumaba y ganaban los archivos-hub: uno
+    # citado por 20 nodos acumulaba 20 puntos sin ser más pertinente que otro citado por uno solo.
+    # Es el bug clásico de puntuar por frecuencia. Lo que importa es «¿hay UN nodo que hable de esto
+    # y lo cite?», no «¿cuántos lo mencionan de pasada?».
+    for d in sorted(p for p in flows.iterdir() if p.is_dir()):
+        try:
+            m = json.loads((d / "map.json").read_text(encoding="utf-8"))
+        except (json.JSONDecodeError, FileNotFoundError):
+            continue
+        cuando = (m.get("when", "") + " " + " ".join(m.get("sintomas", []))).lower()
+        try:
+            doc = (d / "doc.md").read_text(encoding="utf-8").lower()
+        except FileNotFoundError:
+            doc = ""
+        en_cuando = sum(1 for t in terminos if t in cuando)
+        en_doc = sum(1 for t in terminos if t in doc)
+        base = 4 * en_cuando + (1 if en_doc else 0)
+
+        # Dónde aparece cada término dentro del doc: sirve para medir CERCANÍA con la mención del
+        # archivo. Sin esto, todos los archivos de un nodo que matchea empatan y el orden entre ellos
+        # queda al azar — era el caso de «perfilamiento reglas duras», que devolvía controllers de
+        # admin. El doc cita archivos en prosa; si el término y el archivo están en el mismo párrafo,
+        # el doc está hablando de ESE archivo para ESE tema.
+        posiciones = []
+        for t in terminos:
+            desde = doc.find(t)
+            while desde != -1 and len(posiciones) < 400:
+                posiciones.append(desde)
+                desde = doc.find(t, desde + 1)
+
+        for f in m.get("files", []):
+            citado[f] = citado.get(f, 0) + 1
+            if not base:
+                continue
+            nombre = f.rsplit("/", 1)[-1].lower()
+            # El nombre del archivo es la señal más fuerte: dice de qué trata ANTES de abrirlo.
+            puntaje = base + 8 * sum(1 for t in terminos if t in nombre)
+
+            cerca = False
+            if posiciones and nombre in doc:
+                p = doc.find(nombre)
+                while p != -1 and not cerca:
+                    cerca = any(abs(p - q) < 700 for q in posiciones)
+                    p = doc.find(nombre, p + 1)
+            if cerca:
+                puntaje += 7
+
+            if puntaje > mejor.get(f, (0,))[0]:
+                razon = []
+                if any(t in nombre for t in terminos):
+                    razon.append("el nombre del archivo habla del tema")
+                if cerca:
+                    razon.append(f"`{d.name}` lo explica justo donde habla de eso")
+                elif en_cuando:
+                    razon.append(f"el nodo `{d.name}` se abre con ese vocabulario")
+                elif en_doc:
+                    razon.append(f"el nodo `{d.name}` lo menciona")
+                mejor[f] = (puntaje, d.name, razon)
+
+    # Un archivo que vive en muchos nodos es plomería compartida: se penaliza apenas, para que no
+    # desplace al específico. `make context-salud` ya llama «hubs» a eso.
+    def final(f):
+        p, _, _ = mejor[f]
+        return p - min(3, citado.get(f, 1) // 4)
+
+    orden = sorted(mejor, key=lambda f: -final(f))[:tope]
+    return {
+        "busque": que_necesito,
+        "encontrados": len(mejor),
+        "archivos": [{
+            "ruta": f, "puntaje": final(f), "nodo": mejor[f][1],
+            "por_que": mejor[f][2], "en_cuantos_nodos": citado.get(f, 1),
+        } for f in orden],
+        "nota": "puntaje alto = el NOMBRE del archivo habla del tema y un nodo pertinente lo cita",
+    }
+
+
+def ver_buscar(que):
+    d = buscar(que)
+    if "error" in d:
+        print(f"⚠ {d['error']}")
+        return 1
+    print(f"\n  «{d['busque']}» → {d['encontrados']} archivos candidatos, los mejores {len(d['archivos'])}:\n")
+    for a in d["archivos"]:
+        hub = f"  (en {a['en_cuantos_nodos']} nodos)" if a["en_cuantos_nodos"] > 4 else ""
+        print(f"  [{a['puntaje']:>3}] {a['ruta']}{hub}")
+        print(f"        · {' · '.join(a['por_que'])}")
+    print(f"\n  {d['nota']}\n")
+    return 0
+
+
 def _arbol(alias):
     """Todas las rutas del repo en `main`, en una sola llamada a git."""
     root = ROOTS.get(alias)
@@ -342,6 +487,11 @@ if __name__ == "__main__":
         sys.exit(check())
     if verbo == "puente":
         sys.exit(ver_puente())
+    if verbo == "buscar":
+        if len(args) < 2:
+            print("falta qué buscar: python3 indice.py buscar 'por qué no aparece una entidad'")
+            sys.exit(2)
+        sys.exit(ver_buscar(" ".join(args[1:])))
     if verbo == "mapa":
         if len(args) < 2:
             print("falta el repo: python3 indice.py mapa frontend-monorepo")
