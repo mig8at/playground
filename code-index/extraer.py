@@ -40,6 +40,7 @@ revientan la ventana (el `NEW_ARCHITECTURE.md` de legacy-backend pesa 163 KB él
 El algoritmo está portado de `carto` (Rust, `src-tauri/src/extraction` + `ai/payload_builder.rs`),
 adaptado a los lenguajes de CreditOp: PHP/Laravel, TypeScript/React y Go.
 """
+import hashlib
 import json
 import re
 import subprocess
@@ -87,6 +88,45 @@ DEFINICIONES = {
 CANDIDATA = re.compile(r"""['"`]((?:/[\w\-.$#{}:*]+)+)['"`]""")
 VERBO = re.compile(r"\b(get|post|put|delete|patch|options)\b", re.I)
 PARAM = re.compile(r"\{[^}]+\}|:\w+")
+
+
+LARGO_H = 7  # medido sobre los 5.123 archivos de los 12 repos: con 6 hay 1 colisión, con 7 hay 0
+
+
+def hash_de(ruta):
+    """Identificador corto y estable de una RUTA. Es lo que el agente DEVUELVE, no lo que recibe.
+
+    ⚠ Sirve para el lado de la SALIDA del modelo, y ahí el argumento es distinto que en la entrada:
+      · en la entrada el ahorro es despreciable (1,6% medido) y la ruta es la señal con la que elige;
+      · en la SALIDA el modelo tiene que ESCRIBIR los identificadores. Treinta rutas son ~2.100
+        caracteres y treinta chances de equivocarse — y una ruta inventada PARECE PLAUSIBLE. Un hash
+        inventado no resuelve, y se detecta en el acto. Es corrección, no compresión.
+
+    Del CAMINO y no del contenido: el agente referencia un archivo, y si el contenido cambiara a mitad
+    de sesión la referencia no tiene por qué romperse.
+    """
+    return hashlib.sha1(ruta.encode()).hexdigest()[:LARGO_H].upper()
+
+
+def resolver(hashes, aliases=None):
+    """Hashes -> rutas. Lo que se corre cuando el agente contesta con su lista.
+
+    Devuelve los resueltos y —sobre todo— LOS QUE NO: un hash que no existe es un archivo que el
+    modelo se inventó, y hay que verlo, no ignorarlo en silencio.
+    """
+    tabla, choques = {}, []
+    for alias in (aliases or list(ROOTS)):
+        for rel in _shas(alias, solo_codigo=False):
+            ruta = f"{alias}/{rel}"
+            k = hash_de(ruta)
+            if k in tabla and tabla[k] != ruta:
+                choques.append((k, tabla[k], ruta))
+            tabla[k] = ruta
+    pedidos = [h.strip().upper() for h in hashes if h.strip()]
+    ok = {h: tabla[h] for h in pedidos if h in tabla}
+    fantasmas = [h for h in pedidos if h not in tabla]
+    return {"pedidos": len(pedidos), "resueltos": ok, "no_existen": fantasmas,
+            "colisiones": choques}
 
 
 def _lenguaje(ruta):
@@ -163,7 +203,9 @@ def extraer_uno(ruta, texto, sha=""):
     if infra:
         señales.append(ruta.rsplit("/", 1)[-1])
 
-    nodo = {"p": ruta, "l": lineas}
+    # `h` = identificador corto para que el AGENTE lo devuelva. La ruta se queda porque es con lo que
+    # elige; el hash es con lo que contesta.
+    nodo = {"p": ruta, "h": hash_de(ruta), "l": lineas}
     if imports:
         nodo["i"] = imports
     if defs:

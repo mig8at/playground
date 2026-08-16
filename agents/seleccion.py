@@ -56,7 +56,9 @@ REGLAS:
   falta leer código para esa parte, y eso es lo más valioso que podés reportar.
 - Si los índices NO te alcanzaron para elegir con confianza, decilo en `advertencias` y explicá qué
   te faltó (un `when` sin la seña, un nodo que no cubre el tema). Eso vale tanto como la lista.
-- Nunca inventes rutas: sólo las que viste en un `map.json` o en el índice de repos, tal cual.
+- Devolvés HASHES (`h`), no rutas. Es a propósito: escribir treinta rutas son treinta chances de
+  equivocarse, y una ruta inventada parece plausible. Un hash que no existe no resuelve, y quien te
+  invocó lo ve al instante. Copiá el `h` tal cual figura en el índice.
 
 Cuando tengas la lista, llamá a `entregar_seleccion`. No escribas la respuesta en prosa.
 """
@@ -81,7 +83,7 @@ HERRAMIENTAS["entregar_seleccion"] = ({
             "type": "array",
             "description": "hasta 8, ordenados por prioridad",
             "items": {"type": "object", "properties": {
-                "ruta": {"type": "string", "description": "'alias/camino', tal cual figura en el índice"},
+                "h": {"type": "string", "description": "el HASH del archivo, tal cual figura en el campo `h` del índice. NO escribas la ruta: un hash mal copiado no resuelve y se detecta; una ruta inventada parece plausible y no"},
                 "por_que": {"type": "string", "description": "qué esperás encontrar en ESE archivo"},
                 "prioridad": {"type": "string", "description": "alta | media | baja"},
             }, "required": ["ruta", "por_que", "prioridad"]},
@@ -112,7 +114,7 @@ def main():
             print(f"nodos consultados: {', '.join(r['nodos_consultados'])}\n")
         print(f"ARCHIVOS A LEER ({len(r['archivos'])})\n")
         for i, a in enumerate(r["archivos"], 1):
-            print(f"  {i}. [{a.get('prioridad', '?'):5}] {a['ruta']}")
+            print(f"  {i}. [{a.get('prioridad', '?'):5}] {a.get('h', a.get('ruta', '?'))}")
             print(f"           {a['por_que']}\n")
         if r.get("ya_respondido"):
             print(f"YA LO CONTESTA LA DOCUMENTACIÓN:\n  {r['ya_respondido']}\n")

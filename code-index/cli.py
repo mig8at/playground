@@ -138,6 +138,13 @@ def main():
         "tags", help="el censo: qué tags existen en el código y cuántos archivos tiene cada uno",
         description="Sale del diccionario (`archivos`). Es el catálogo de lo que se puede filtrar."))
 
+    s = con_json(sub.add_parser(
+        "resolver", help="hashes -> rutas: lo que se corre cuando el agente devuelve su lista",
+        description="El agente recibe el índice con `p` (para elegir) y `h` (para contestar), y "
+                    "responde con hashes. Esto los traduce, y avisa cuáles NO EXISTEN: un hash "
+                    "inventado no resuelve, mientras que una ruta inventada parece plausible."))
+    s.add_argument("hash", nargs="+", help="los que devolvió el agente")
+
     sub.add_parser("check", help="¿las rutas escritas a mano siguen vivas en main?")
     sub.add_parser("pesos", help="refresca los tamaños guardados en repos.json")
 
@@ -191,6 +198,25 @@ def main():
             print("     " + " · ".join(f"{t.split(':',1)[-1]}({n})" for t, n in ts[:14]))
         print()
         return 0
+
+    if a.cmd == "resolver":
+        d = _ex.resolver(a.hash)
+        if j:
+            print(json.dumps(d, ensure_ascii=False, indent=1))
+            return 0
+        print(f"\n  {len(d['resueltos'])}/{d['pedidos']} resueltos\n")
+        for h, r in d["resueltos"].items():
+            print(f"  {h}  {r}")
+        if d["no_existen"]:
+            print(f"\n  ⚠ NO EXISTEN ({len(d['no_existen'])}): {', '.join(d['no_existen'])}")
+            print("     Son archivos que el modelo se inventó. Con rutas esto pasaba igual pero")
+            print("     parecían plausibles y nadie lo notaba.")
+        if d["colisiones"]:
+            print(f"\n  ⚠ COLISIÓN de hash ({len(d['colisiones'])}): subí LARGO_H en extraer.py")
+            for k, a_, b_ in d["colisiones"][:3]:
+                print(f"     {k}: {a_}  vs  {b_}")
+        print()
+        return 1 if d["no_existen"] else 0
 
     if a.cmd == "check":
         return _ix.check()
