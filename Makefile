@@ -23,6 +23,7 @@ help: ## esta lista
 	@$(call listar,@dia,LO QUE SE USA TODOS LOS DÍAS)
 	@$(call listar,@ctx,CONTEXTO — el conocimiento validado contra main)
 	@$(call listar,@har,HARNESS — validar una tarea corriéndola contra el código real)
+	@$(call listar,@ag,AGENTES PROPIOS — la mecánica de un agente, a la vista)
 	@$(call listar,@expl,EXPLORACIONES — NO son fuente de contexto (ver CLAUDE.md))
 	@echo ""
 
@@ -179,6 +180,17 @@ confluence: ## @har el POR QUÉ del negocio, que el código no tiene. Sin CMD mu
 trazador-sql: ## @har UNA consulta de SOLO LECTURA a la BD del ambiente. SQL='SELECT …' [TARGET=prod|staging|dev|local] [CSV=1]
 	@test -n "$(SQL)" || { echo "falta SQL='SELECT …'  ·  ej: make trazador-sql TARGET=local SQL='SELECT id,name FROM countries LIMIT 3'"; exit 2; }
 	@cd trazador/server && go run . -target $(if $(TARGET),$(TARGET),prod) -sql $$'$(subst ','\'',$(SQL))' $(if $(CSV),-csv)
+
+# ── AGENTES PROPIOS ──────────────────────────────────────────────────────────────────────────────
+# Banco de pruebas para entender la mecánica de un agente por dentro (modelo + herramientas + bucle),
+# escrito a mano contra Gemini. ⚠ NO confundir con `.claude/agents/`: aquello son definiciones que
+# consume Claude Code; esto tiene el bucle a la vista. Detalle en `agents/README.md`.
+.PHONY: agente-modelos agente-frontend
+agente-modelos: ## @ag ¿qué modelos habilita mi key hoy? (correlo primero, y ante cualquier 404 de modelo)
+	@cd agents && python3 frontend.py --modelos
+
+agente-frontend: ## @ag ¿el frontend está sano hoy, y si no, qué lo rompió? PREGUNTA='…' para otra cosa
+	@cd agents && python3 frontend.py $(if $(PREGUNTA),"$(PREGUNTA)")
 
 # ── EXPLORACIONES ────────────────────────────────────────────────────────────────────────────────
 # Están acá para poder abrirlas, NO porque sean fuente. No se citan para decidir (ver CLAUDE.md).
