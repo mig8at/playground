@@ -104,9 +104,53 @@ def analizar(texto, ruta=""):
     return cx
 
 
-def enriquecer(nodos, blobs):
-    """Suma `cx` a cada nodolite. `blobs` es {ruta_relativa: texto}, tal como lo devuelve el extractor."""
+def _del_diccionario(nodos):
+    """Los tags ya calculados, si el diccionario existe. Es la razón de que exista: el `cx` de un
+    archivo no cambia entre corridas, así que recalcularlo cada vez era trabajo tirado."""
+    try:
+        import archivos
+        d = archivos.cargar()
+    except Exception:
+        return 0
+    if not d:
+        return 0
+    puestos = 0
     for n in nodos:
+        e = d.get(n["p"])
+        if not e:
+            continue
+        cx = {}
+        if e.get("lenders"):
+            cx["lenders"] = e["lenders"]
+        if e.get("comercios"):
+            cx["allieds"] = e["comercios"]
+        if e.get("rt"):
+            cx["rt"] = [{"valor": v, "que_es": RT.get(str(v), "")} for v in e["rt"]]
+        if e.get("estados"):
+            cx["estados"] = [{"id": v, "que_es": ESTADOS.get(str(v), "")} for v in e["estados"]]
+        for c in ("tablas", "marcas"):
+            if e.get(c):
+                cx[c] = e[c]
+        if e.get("gates"):
+            cx["gates"] = True
+        if cx:
+            n["cx"] = cx
+            puestos += 1
+    return puestos
+
+
+def enriquecer(nodos, blobs):
+    """Suma `cx` a cada nodolite.
+
+    Primero intenta el DICCIONARIO (`archivos.json`): ahí están los tags ya calculados y es una
+    lectura de un archivo contra releer miles de blobs. Sólo cae a analizar el texto para los que no
+    figuren — un archivo nuevo, o el diccionario sin construir todavía. Así el filtro es instantáneo
+    sin dejar de funcionar si el caché no está: degrada, no falla.
+    """
+    del_dicc = _del_diccionario(nodos)
+    for n in nodos:
+        if "cx" in n:
+            continue
         rel = n["p"].split("/", 1)[1]
         texto = blobs.get(rel)
         if texto is None:

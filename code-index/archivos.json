@@ -1,4 +1,19 @@
 {
+ "application/.github/workflows/main-dev.yaml": {
+  "tipo": [
+   "infra"
+  ]
+ },
+ "application/.github/workflows/main-prod.yaml": {
+  "tipo": [
+   "infra"
+  ]
+ },
+ "application/Dockerfile": {
+  "tipo": [
+   "infra"
+  ]
+ },
  "application/app/Actions/Allies/Corbeta.php": {
   "nodos": [
    "corbeta"
@@ -4005,6 +4020,11 @@
    "actors"
   ]
  },
+ "application/aws/Dockerfile": {
+  "tipo": [
+   "infra"
+  ]
+ },
  "application/config/api_bancolombia_loan_requests.php": {
   "nodos": [
    "aggregator",
@@ -4069,6 +4089,11 @@
  },
  "application/config/session.php": {
   "gates": true
+ },
+ "application/docker-compose.yml": {
+  "tipo": [
+   "infra"
+  ]
  },
  "application/get-pip.py": {
   "tablas": [
@@ -4450,9 +4475,39 @@
    "application"
   ]
  },
+ "customer-profiling-service/.github/workflows/main-dev.yaml": {
+  "tipo": [
+   "infra"
+  ]
+ },
+ "customer-profiling-service/.github/workflows/main-pr.yaml": {
+  "tipo": [
+   "infra"
+  ]
+ },
+ "customer-profiling-service/.github/workflows/main-prod.yaml": {
+  "tipo": [
+   "infra"
+  ]
+ },
+ "customer-profiling-service/Dockerfile": {
+  "tipo": [
+   "infra"
+  ]
+ },
+ "customer-profiling-service/Taskfile.yml": {
+  "tipo": [
+   "infra"
+  ]
+ },
  "customer-profiling-service/cmd/http-server/main.go": {
   "nodos": [
    "microservicios"
+  ]
+ },
+ "customer-profiling-service/docker-compose.yml": {
+  "tipo": [
+   "infra"
   ]
  },
  "customer-profiling-service/internal/core/domain/pipeline.go": {
@@ -4523,9 +4578,59 @@
    "service"
   ]
  },
+ "customer-service/.github/workflows/main-dev.yaml": {
+  "tipo": [
+   "infra"
+  ]
+ },
+ "customer-service/.github/workflows/main-pr.yaml": {
+  "tipo": [
+   "infra"
+  ]
+ },
+ "customer-service/.github/workflows/main-prod.yaml": {
+  "tipo": [
+   "infra"
+  ]
+ },
+ "customer-service/Dockerfile": {
+  "tipo": [
+   "infra"
+  ]
+ },
+ "customer-service/Taskfile.yml": {
+  "tipo": [
+   "infra"
+  ]
+ },
  "customer-service/cmd/http-server/main.go": {
   "nodos": [
    "microservicios"
+  ]
+ },
+ "customer-service/docker-compose.yml": {
+  "tipo": [
+   "infra"
+  ]
+ },
+ "financial-health-service/.github/workflows/main-dev.yaml": {
+  "tipo": [
+   "infra"
+  ]
+ },
+ "financial-health-service/.github/workflows/main-prod.yaml": {
+  "tipo": [
+   "infra"
+  ]
+ },
+ "financial-health-service/Dockerfile": {
+  "tipo": [
+   "infra"
+  ]
+ },
+ "financial-health-service/Taskfile.yml": {
+  "tipo": [
+   "infra"
   ]
  },
  "financial-health-service/cmd/http-server/main.go": {
@@ -4583,9 +4688,39 @@
    "repositorio"
   ]
  },
+ "form-service/.github/workflows/main-dev.yaml": {
+  "tipo": [
+   "infra"
+  ]
+ },
+ "form-service/.github/workflows/main-pr.yaml": {
+  "tipo": [
+   "infra"
+  ]
+ },
+ "form-service/.github/workflows/main-prod.yaml": {
+  "tipo": [
+   "infra"
+  ]
+ },
+ "form-service/Dockerfile": {
+  "tipo": [
+   "infra"
+  ]
+ },
+ "form-service/Taskfile.yml": {
+  "tipo": [
+   "infra"
+  ]
+ },
  "form-service/cmd/http-server/main.go": {
   "nodos": [
    "form-service"
+  ]
+ },
+ "form-service/docker-compose.yml": {
+  "tipo": [
+   "infra"
   ]
  },
  "form-service/internal/commons/core/usecases/observability.go": {
@@ -4883,6 +5018,77 @@
  "frontend-monorepo/.cz-config.js": {
   "nodos": [
    "frontend-monorepo"
+  ]
+ },
+ "frontend-monorepo/.github/workflows/README.md": {
+  "gates": true,
+  "tipo": [
+   "infra"
+  ]
+ },
+ "frontend-monorepo/.github/workflows/backoffice-prod.yaml": {
+  "gates": true,
+  "tipo": [
+   "infra"
+  ]
+ },
+ "frontend-monorepo/.github/workflows/landing-dev.yaml": {
+  "tipo": [
+   "infra"
+  ]
+ },
+ "frontend-monorepo/.github/workflows/landing-prod.yaml": {
+  "tipo": [
+   "infra"
+  ]
+ },
+ "frontend-monorepo/.github/workflows/loans-dev.yaml": {
+  "tipo": [
+   "infra"
+  ]
+ },
+ "frontend-monorepo/.github/workflows/loans-manual-dev.yaml": {
+  "tipo": [
+   "infra"
+  ]
+ },
+ "frontend-monorepo/.github/workflows/loans-manual-prod.yaml": {
+  "gates": true,
+  "tipo": [
+   "infra"
+  ]
+ },
+ "frontend-monorepo/.github/workflows/loans-prod.yaml": {
+  "gates": true,
+  "tipo": [
+   "infra"
+  ]
+ },
+ "frontend-monorepo/.github/workflows/loans-stg.yaml": {
+  "tipo": [
+   "infra"
+  ]
+ },
+ "frontend-monorepo/.github/workflows/run-migrations.yml": {
+  "tipo": [
+   "infra"
+  ]
+ },
+ "frontend-monorepo/.github/workflows/storybook-prod.yaml": {
+  "tipo": [
+   "infra"
+  ]
+ },
+ "frontend-monorepo/apps/backoffice/Dockerfile": {
+  "gates": true,
+  "tipo": [
+   "infra"
+  ]
+ },
+ "frontend-monorepo/apps/backoffice/Dockerfile.production": {
+  "gates": true,
+  "tipo": [
+   "infra"
   ]
  },
  "frontend-monorepo/apps/backoffice/app/components/AdminCommandBar.tsx": {
@@ -5257,6 +5463,18 @@
  "frontend-monorepo/apps/backoffice/app/vite-env.d.ts": {
   "nodos": [
    "backoffice"
+  ]
+ },
+ "frontend-monorepo/apps/loan-request-wizard/Dockerfile": {
+  "gates": true,
+  "tipo": [
+   "infra"
+  ]
+ },
+ "frontend-monorepo/apps/loan-request-wizard/Dockerfile.production": {
+  "gates": true,
+  "tipo": [
+   "infra"
   ]
  },
  "frontend-monorepo/apps/loan-request-wizard/app/.server/posthog/init.server.ts": {
@@ -8851,6 +9069,11 @@
    "frontend-monorepo"
   ]
  },
+ "harness/Makefile": {
+  "tipo": [
+   "infra"
+  ]
+ },
  "harness/bin/dbops.ts": {
   "tablas": [
    "lenders_by_allied_branches",
@@ -9313,6 +9536,70 @@
  "harness/playwright.config.ts": {
   "nodos": [
    "harness"
+  ]
+ },
+ "legacy-backend/.github/workflows/README.md": {
+  "gates": true,
+  "tipo": [
+   "infra"
+  ]
+ },
+ "legacy-backend/.github/workflows/main-dev-manual.yaml": {
+  "gates": true,
+  "tipo": [
+   "infra"
+  ]
+ },
+ "legacy-backend/.github/workflows/main-dev.yaml": {
+  "gates": true,
+  "tipo": [
+   "infra"
+  ]
+ },
+ "legacy-backend/.github/workflows/main-prod-manua.yaml": {
+  "gates": true,
+  "tipo": [
+   "infra"
+  ]
+ },
+ "legacy-backend/.github/workflows/main-prod-manual.yaml": {
+  "gates": true,
+  "tipo": [
+   "infra"
+  ]
+ },
+ "legacy-backend/.github/workflows/main-prod.yaml": {
+  "gates": true,
+  "tipo": [
+   "infra"
+  ]
+ },
+ "legacy-backend/.github/workflows/main-stg.yaml": {
+  "gates": true,
+  "tipo": [
+   "infra"
+  ]
+ },
+ "legacy-backend/.github/workflows/run-migrations.yml": {
+  "tipo": [
+   "infra"
+  ]
+ },
+ "legacy-backend/Dockerfile": {
+  "gates": true,
+  "lenders": [
+   {
+    "id": 24,
+    "nombre": "Credifamilia"
+   }
+  ],
+  "tipo": [
+   "infra"
+  ]
+ },
+ "legacy-backend/Makefile": {
+  "tipo": [
+   "infra"
   ]
  },
  "legacy-backend/Modules/AlliedBranchV1/App/Commands/IsCorbetaOnboardingCommand.php": {
@@ -19032,6 +19319,11 @@
    "service"
   ]
  },
+ "legacy-backend/docker-compose.yml": {
+  "tipo": [
+   "infra"
+  ]
+ },
  "legacy-backend/resources/views/creditopxpdf/consent.blade.php": {
   "rt": [
    2,
@@ -19134,6 +19426,31 @@
    "architecture"
   ]
  },
+ "onboarding-forms-service/.github/workflows/main-dev.yaml": {
+  "tipo": [
+   "infra"
+  ]
+ },
+ "onboarding-forms-service/.github/workflows/main-pr.yaml": {
+  "tipo": [
+   "infra"
+  ]
+ },
+ "onboarding-forms-service/.github/workflows/main-prod.yaml": {
+  "tipo": [
+   "infra"
+  ]
+ },
+ "onboarding-forms-service/Dockerfile": {
+  "tipo": [
+   "infra"
+  ]
+ },
+ "onboarding-forms-service/Taskfile.yml": {
+  "tipo": [
+   "infra"
+  ]
+ },
  "onboarding-forms-service/cmd/http-server/main.go": {
   "nodos": [
    "microservicios"
@@ -19197,9 +19514,39 @@
    "repositorio"
   ]
  },
+ "pdf-mapper-service/.github/workflows/main-dev.yaml": {
+  "tipo": [
+   "infra"
+  ]
+ },
+ "pdf-mapper-service/.github/workflows/main-pr.yaml": {
+  "tipo": [
+   "infra"
+  ]
+ },
+ "pdf-mapper-service/.github/workflows/main-prod.yaml": {
+  "tipo": [
+   "infra"
+  ]
+ },
+ "pdf-mapper-service/Dockerfile": {
+  "tipo": [
+   "infra"
+  ]
+ },
+ "pdf-mapper-service/Taskfile.yml": {
+  "tipo": [
+   "infra"
+  ]
+ },
  "pdf-mapper-service/cmd/http-server/main.go": {
   "nodos": [
    "microservicios"
+  ]
+ },
+ "pdf-mapper-service/docker-compose.yml": {
+  "tipo": [
+   "infra"
   ]
  },
  "pdf-mapper-service/internal/services/mapper_service.go": {
@@ -19222,6 +19569,31 @@
    "service"
   ]
  },
+ "pre-approvals-service/.github/workflows/main-dev.yaml": {
+  "tipo": [
+   "infra"
+  ]
+ },
+ "pre-approvals-service/.github/workflows/main-pr.yaml": {
+  "tipo": [
+   "infra"
+  ]
+ },
+ "pre-approvals-service/.github/workflows/main-prod.yaml": {
+  "tipo": [
+   "infra"
+  ]
+ },
+ "pre-approvals-service/Dockerfile": {
+  "tipo": [
+   "infra"
+  ]
+ },
+ "pre-approvals-service/Taskfile.yml": {
+  "tipo": [
+   "infra"
+  ]
+ },
  "pre-approvals-service/cmd/http-server/config_loader.go": {
   "nodos": [
    "ms-preapprovals"
@@ -19230,6 +19602,11 @@
  "pre-approvals-service/cmd/http-server/main.go": {
   "nodos": [
    "ms-preapprovals"
+  ]
+ },
+ "pre-approvals-service/docker-compose.yml": {
+  "tipo": [
+   "infra"
   ]
  },
  "pre-approvals-service/internal/core/domain/allied_branch.go": {

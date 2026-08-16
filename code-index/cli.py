@@ -256,10 +256,27 @@ def main():
                   f"Válidos: {', '.join(sorted(_ex.LENGUAJES))}", file=sys.stderr)
             return 2
         filtra = any([a.lender, a.allied, a.rt, a.tabla, a.marca, a.gates])
-        textos = {}
+        textos, blanca = {}, None
+        if filtra:
+            # EL ATAJO: el diccionario ya sabe qué archivos tocan qué. Se le pregunta primero y se
+            # leen SÓLO ésos — en vez de leer todo el repo y descartar al final.
+            dicc = _ar.cargar()
+            if dicc:
+                pref = a.alias + "/"
+                blanca = set()
+                for ruta, e in dicc.items():
+                    if not ruta.startswith(pref):
+                        continue
+                    n = {"cx": {"lenders": e.get("lenders", []), "allieds": e.get("comercios", []),
+                                "rt": [{"valor": v} for v in e.get("rt", [])],
+                                "tablas": e.get("tablas", []), "marcas": e.get("marcas", []),
+                                "gates": e.get("gates")}}
+                    if _cx.coincide(n, a.lender, a.rt, a.tabla, a.marca, a.gates, a.allied):
+                        blanca.add(ruta[len(pref):])
         # Con filtros de negocio hay que extraer SIN presupuesto y recortar después: si no, se
         # descartaría por puntaje antes de saber cuáles son del lender que buscás.
-        d = _ex.extraer(a.alias, a.ruta, 10_000 if filtra else a.tope, langs, a.prof, textos)
+        d = _ex.extraer(a.alias, a.ruta, 10_000 if filtra else a.tope, langs, a.prof, textos,
+                        solo_rutas=blanca)
         _cx.enriquecer(d["nodos"], textos)
         if filtra:
             quedan = [n for n in d["nodos"] if _cx.coincide(

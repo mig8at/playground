@@ -193,7 +193,7 @@ def puntuar(nodo):
     return n
 
 
-def _blobs(alias, subruta="", tope_archivos=4000):
+def _blobs(alias, subruta="", tope_archivos=4000, solo_rutas=None):
     """Lee de `main` los archivos que nos interesan. Usa `git cat-file --batch`: un solo proceso para
     miles de archivos, en vez de un `git show` por cada uno (que tardaba minutos)."""
     root = ROOTS.get(alias)
@@ -210,6 +210,8 @@ def _blobs(alias, subruta="", tope_archivos=4000):
             continue
         bajo = camino.lower()
         if any(x in bajo for x in IGNORAR) or bajo.startswith(IGNORAR_PREFIJO):
+            continue
+        if solo_rutas is not None and camino not in solo_rutas:
             continue
         ext = bajo.rsplit(".", 1)[-1] if "." in bajo else ""
         if ext in CODIGO or _es_infra(camino):
@@ -288,13 +290,16 @@ def agrupar(nodos, alias, base, niveles):
     return sorted(cajas.values(), key=lambda c: -c["puntaje"])
 
 
-def extraer(alias, subruta="", tope_kb=60, langs=None, prof=0, guardar_textos=None):
+def extraer(alias, subruta="", tope_kb=60, langs=None, prof=0, guardar_textos=None,
+            solo_rutas=None):
     """Los nodoslite de un repo (o de una subruta), recortados a un presupuesto.
 
     `guardar_textos`: si le pasás un dict, queda {relpath: contenido} — para que la capa de CreditOp
     analice el negocio sin volver a pedirle los blobs a git."""
     nodos, descartados = [], {"lenguaje": 0, "profundidad": 0}
-    for camino, texto, sha in _blobs(alias, subruta):
+    # `solo_rutas` es la lista blanca que arma el diccionario: si ya sabemos QUÉ archivos matchean el
+    # filtro de negocio, no hay por qué leer los otros mil. El filtro pasa ANTES de extraer, no después.
+    for camino, texto, sha in _blobs(alias, subruta, solo_rutas=solo_rutas):
         if guardar_textos is not None:
             guardar_textos[camino] = texto
         if not _es_del_lenguaje(camino, langs):
@@ -481,7 +486,11 @@ def _shas(alias, solo_codigo=True):
         bajo = camino.lower()
         if any(x in bajo for x in IGNORAR) or bajo.startswith(IGNORAR_PREFIJO):
             continue
-        if not solo_codigo or bajo.rsplit(".", 1)[-1] in CODIGO:
+        # ⚠ El universo tiene que ser el MISMO que mira `_blobs`, o sea código + INFRA. Cuando el
+        # diccionario indexaba sólo extensiones de código, la lista blanca perdía los archivos de
+        # infra y `--gates` devolvía 44 en vez de 52 — una optimización que borra resultados en
+        # silencio es peor que no tenerla.
+        if not solo_codigo or bajo.rsplit(".", 1)[-1] in CODIGO or _es_infra(camino):
             d[camino] = sha
     return d
 
