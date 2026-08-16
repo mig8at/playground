@@ -1696,12 +1696,27 @@ en producción — el webhook no deja registro cuando `firstOrFail()` lanza, as�
   que **no** sea el 160 se cierra por `authorize()`, o sea por la rama que acaba de saltear el voucher.
   El que **saltea** mira el path; el que **ejecuta** mira el id. Es el hardcode de **F-21** visto desde
   producción: allá impedía probar SmartPay fuera de prod, acá deja sin voucher a otro lender real.
+- **Alcance real: son CUATRO lenders, no uno** (re-medido en prod el 2026-08-15, independientemente).
+  Todos los `path_id=2` que no son el 160 caen en el hueco: **164 CREDIMOVIL** · **162 Crédito Directo
+  X** · **187 Crédito Directo X LB** · **172 My tech ya**. El 160 SmartPay es el único cubierto. El
+  164 es apenas el 62% del problema; el resto se estaba pasando por alto porque el reporte llegó por
+  Credimovil.
+  <br>⚠ **Y NO se puede medir con `profiling_reviews.disbursed_lender`**, aunque tiente: esa columna
+  se escribe junto al voucher en casi todos los call sites, **pero también** cuando un comercio marca
+  la solicitud como desembolsada desde el panel
+  (`Modules/Partner/App/Services/UserRequestManagementService.php:188`, `STATUS_DISBURSED = 11`), que
+  **no genera voucher**. Medir por ahí exonera al 162 por error: su ratio alto es vía de ingreso
+  distinta, no vouchers. La huella en BD del voucher **no existe** — `VoucherService::generateVoucher`
+  solo escribe el PDF a S3 y no deja fila; el log `Voucher generated` lo emite el
+  `LoanAuthorizationService`, no el service. Confirmar solicitud por solicitud pide listar S3.
 - **Evidencia:** prod, lender **164 CREDIMOVIL** (`path_id=2`, `path='IMEI'`, rt=2). Solicitud 528704:
   IMEI registrado 13:55:56, estado 11 a las 13:55:58, `Notifications sent` 13:56:20 — y **ni una línea
   de voucher** en la traza. En Loki prod: `Voucher generation failed` **0 líneas en 24 h** (no falla:
   no se llama), `Voucher generated` 15 líneas en 12 h (los no-IMEI andan) y
   `Voucher generated (IMEI disbursement)` 1 línea (el 160, cuando sí llega). En BD, **999 solicitudes
-  del 164 en estado 11 desde el 2026-03-27**: Credimovil no tuvo voucher nunca.
+  del 164 en estado 11 desde el 2026-03-27**: Credimovil no tuvo voucher nunca. **Y sigue vivo:** la
+  re-medición del día siguiente dio **1002, con tres entradas de ese mismo día** — no es un incidente
+  cerrado que quedó en la historia, es un goteo de ~7 diarias.
 - **Arreglo:** que el ejecutor tenga la misma condición que el que saltea — `disburse` bifurcando por
   `isImeiPath()`, o `disburseImeiRequest` sin el 160. **No** agregar el 164 al hardcode: el próximo
   lender IMEI vuelve a caer en el hueco. No aplicado. **Rodeo:** el botón manual del panel (permiso

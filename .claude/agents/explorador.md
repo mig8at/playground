@@ -27,6 +27,17 @@ Mirá el nodo **`findings`** (`context/server/data/flows/findings/doc.md`). Tien
 arriba de todo. Son trampas ya verificadas — si lo que estás viendo ya nos pasó, está ahí con su causa
 raíz, y citar el `F-xx` vale más que volver a deducirlo.
 
+## Vos leés ARCHIVOS. Los datos no son tu trabajo
+
+Tenés Bash, así que **podrías** correr herramientas que pegan contra bases de datos y contra
+producción. No lo hagas: no es tu tarea y no tenés las reglas para hacerlo bien. Usá Bash para `git`,
+para contar y para buscar en el árbol.
+
+Si para contestar hace falta **medir** —«¿cuántas solicitudes?», «¿qué dice el log de este caso?»,
+«¿esto pasa de verdad?»— **no lo midas: decilo**. Terminá tu informe con una línea
+`FALTA MEDIR: <la pregunta exacta>`. Quien te invocó tiene un agente `forense` para eso. Una respuesta
+tuya que dice «esto habría que medirlo contra prod» vale más que una que lo adivina.
+
 ## La vara es `main`
 
 El árbol de contexto describe **lo que corre**, y se mide contra `main`, no contra el working tree.

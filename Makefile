@@ -132,7 +132,11 @@ harness-admin-ciudades: ## @har ¿el selector de ciudad del admin filtra por pa�
 harness-check: ## @har typecheck del harness
 	@cd harness && npm run --silent typecheck
 
-harness-loki: ## @har ¿por qué terminó así esta solicitud? forense en los logs. UREQ=519245 [SINCE=12h]
+# ⚠ NO llega a producción: el harness no tiene `.env.prod` (solo local/dev/staging) y este comando no
+# acepta TARGET — va por `E2E_TARGET`, que por defecto es **dev**. Pedirle una solicitud de prod
+# devuelve CERO anclas sin decir por qué, y eso se lee como «no hay logs» en vez de «buscaste en otro
+# lado». Para producción: `make trazador-acceso TARGET=prod`.
+harness-loki: ## @har ¿por qué terminó así esta solicitud? forense en los logs. ⚠ dev/staging/local, NO prod. UREQ=519245 [SINCE=12h]
 	@cd harness && node dev/loki-trace.ts $(UREQ) $(if $(SINCE),--since $(SINCE))
 
 harness-paises: ## @har ¿de qué país es cada entidad? inferencia DRY-RUN desde el cableado. No escribe. [SQL=1]
