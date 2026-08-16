@@ -1,13 +1,21 @@
 #!/usr/bin/env python3
-"""`repos.json` — imprimirlo y VALIDARLO. La guardia del índice por repo.
+"""code-index — el índice de los PROYECTOS: qué es cada repo, cómo se ensambla y por dónde entrar.
 
-Por qué no lo valida `oracle.py`: aquel dropea a propósito `.md`, `.sql` y `.yaml`, porque el mapa de
-un nodo indexa CÓDIGO y esa regla evita que se llene de migraciones. Pero este índice contesta otra
-pregunta —«¿cómo se ensambla este proyecto?»— y ahí el `composer.json`, el `turbo.json`, el `openapi.yaml`
-y el ADR **son** la respuesta. Distinta pregunta, distinta regla, validador propio.
+    python3 indice.py ver [alias]        # legible: para leer o para pasárselo a un agente
+    python3 indice.py subramas <alias>   # las unidades de adentro (workspaces, módulos), de main
+    python3 indice.py puente             # cobertura del árbol de negocio por repo
+    python3 indice.py check              # ¿todas las rutas existen en main?
 
-    python3 tools/repos.py ver [alias]   # legible, para leer o para pasarle a un agente
-    python3 tools/repos.py check         # ¿todas las rutas existen en main?
+POR QUÉ VIVE APARTE DE `context/` — son dos preguntas distintas y se notó al chocar dos veces:
+`context/` contesta «cómo FUNCIONA CreditOp» (negocio, entra por síntoma); esto contesta «cómo están
+CONSTRUIDOS los proyectos» (arquitectura, entra por repo). Y las reglas difieren: `oracle.py` dropea
+`.md`, `.sql` y `.yaml` a propósito, porque el mapa de un nodo indexa CÓDIGO; acá el `composer.json`,
+el `turbo.json`, el `openapi.yaml` y el ADR **son** la respuesta. Distinta pregunta, distinta regla,
+validador propio — que es este archivo.
+
+LA DEPENDENCIA VA EN UN SOLO SENTIDO: este proyecto lee `context/` (su `roots.py` y sus `map.json`),
+y `context/` no sabe que esto existe. Misma regla que la del tablero con los nodos: el enlace
+unidireccional evita que al mover una pieza quede la otra mintiendo.
 
 `check` sale 1 si hay rutas muertas: un índice que apunta a un archivo que ya no está es peor que no
 tenerlo, porque un modelo lo abre, no lo encuentra, y concluye cualquier cosa.
@@ -17,10 +25,14 @@ import subprocess
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parent))
+RAIZ = Path(__file__).resolve().parent
+CONTEXT = RAIZ.parent / "context"
+
+# La tabla alias→repo NO se copia: se importa de su fuente única, que vive en context/tools. El propio
+# `roots.py` explica por qué tenerla dos veces «no falla, sólo da veredictos equivocados».
+sys.path.insert(0, str(CONTEXT / "tools"))
 from roots import ROOTS  # noqa: E402
 
-RAIZ = Path(__file__).resolve().parent.parent
 INDICE = RAIZ / "repos.json"
 
 
@@ -49,7 +61,7 @@ def nodos_por_repo():
     Devuelve {alias: [(nodo, cuántos archivos de ese repo cita), …]}, ordenado por peso: el primero es
     el nodo que más habla de ese repo.
     """
-    flows = RAIZ / "server" / "data" / "flows"
+    flows = CONTEXT / "server" / "data" / "flows"
     porRepo = {}
     for d in sorted(p for p in flows.iterdir() if p.is_dir()):
         m = d / "map.json"
@@ -266,7 +278,7 @@ if __name__ == "__main__":
         sys.exit(ver_puente())
     if verbo == "subramas":
         if len(args) < 2:
-            print("falta el repo: python3 tools/repos.py subramas frontend-monorepo")
+            print("falta el repo: python3 indice.py subramas frontend-monorepo")
             sys.exit(2)
         sys.exit(ver_subramas(args[1]))
     sys.exit(ver(args[1] if len(args) > 1 else None))

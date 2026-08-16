@@ -23,6 +23,7 @@ help: ## esta lista
 	@$(call listar,@dia,LO QUE SE USA TODOS LOS DÍAS)
 	@$(call listar,@ctx,CONTEXTO — el conocimiento validado contra main)
 	@$(call listar,@har,HARNESS — validar una tarea corriéndola contra el código real)
+	@$(call listar,@idx,CODE-INDEX — cómo están CONSTRUIDOS los proyectos)
 	@$(call listar,@ag,AGENTES PROPIOS — la mecánica de un agente, a la vista)
 	@$(call listar,@expl,EXPLORACIONES — NO son fuente de contexto (ver CLAUDE.md))
 	@echo ""
@@ -110,14 +111,18 @@ context-check: ## @ctx ¿las rutas de TODOS los nodos existen en main? (el hook 
 context-map: ## @ctx regenera docs/ROUTE-MAP.md (el hook ya lo hace al editar un map.json)
 	@cd context && python3 tools/build-route-map.py
 
-# El otro índice: el ROUTE-MAP entra por PREGUNTA DE NEGOCIO, éste entra por REPO. Contesta «¿cómo está
-# armado esto y por dónde empiezo a leer?», que ningún nodo contestaba porque los nodos cruzan repos.
-context-repos: ## @ctx índice POR REPO: qué es, cómo se ensambla y por dónde entrar. ALIAS=<repo> · CHECK=1 valida rutas · PUENTE=1 cobertura por repo
-	@cd context && python3 tools/repos.py $(if $(CHECK),check,$(if $(PUENTE),puente,ver $(ALIAS)))
+# ── CODE-INDEX ───────────────────────────────────────────────────────────────────────────────────
+# El OTRO índice, y por eso es proyecto aparte: `context` entra por PREGUNTA DE NEGOCIO (síntoma →
+# nodo) y contesta «cómo funciona CreditOp»; éste entra por REPO y contesta «cómo están construidos
+# los proyectos». Distinta pregunta y distintas reglas — acá `.md` y `.yaml` SON la respuesta, así que
+# tiene validador propio. La dependencia va en un sentido: code-index lee context, no al revés.
+.PHONY: code-index code-index-subramas
+code-index: ## @idx qué es cada repo, cómo se ensambla y por dónde entrar. ALIAS=<repo> · CHECK=1 valida rutas · PUENTE=1 cobertura del árbol por repo
+	@cd code-index && python3 indice.py $(if $(CHECK),check,$(if $(PUENTE),puente,ver $(ALIAS)))
 
-context-subramas: ## @ctx las unidades DENTRO de un repo (workspaces, módulos), descubiertas de main. ALIAS=frontend-monorepo
-	@test -n "$(ALIAS)" || { echo "falta ALIAS=<repo>  ·  ej: make context-subramas ALIAS=frontend-monorepo"; exit 2; }
-	@cd context && python3 tools/repos.py subramas $(ALIAS)
+code-index-subramas: ## @idx las unidades DENTRO de un repo (workspaces, módulos), descubiertas de main. ALIAS=frontend-monorepo
+	@test -n "$(ALIAS)" || { echo "falta ALIAS=<repo>  ·  ej: make code-index-subramas ALIAS=frontend-monorepo"; exit 2; }
+	@cd code-index && python3 indice.py subramas $(ALIAS)
 
 # ── PRUEBAS (harness) ────────────────────────────────────────────────────────────────────────────
 .PHONY: harness-contract harness-sandbox harness-walk harness-qr harness-mocks harness-check

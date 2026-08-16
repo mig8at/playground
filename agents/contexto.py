@@ -25,9 +25,12 @@ FLOWS = CONTEXT / "server" / "data" / "flows"
 
 # La tabla alias→repo NO se copia acá: se importa de su fuente única. El propio `roots.py` explica por
 # qué —tenerla dos veces es una divergencia que no falla, sólo da veredictos equivocados.
+CODE_INDEX = PLAYGROUND / "code-index"
+
 sys.path.insert(0, str(CONTEXT / "tools"))
+sys.path.insert(0, str(CODE_INDEX))
 from roots import ROOTS  # noqa: E402
-import repos as _repos_tool  # noqa: E402  — el descubridor de subramas vive allá, no acá
+import indice as _code_index  # noqa: E402  — el índice por repo es su propio proyecto, se importa
 
 MAX_LINEAS = 260  # tope por lectura: un archivo de 3.000 líneas no entra ni sirve entero
 
@@ -94,16 +97,16 @@ def mapa_de_rutas():
 
 
 def _subramas(alias):
-    """Las unidades internas de un repo. Se delega a `context/tools/repos.py`, que es su implementación
+    """Las unidades internas de un repo. Se delega a `code-index/indice.py`, que es su implementación
     única: duplicar acá el descubrimiento sería la divergencia que `roots.py` advierte."""
-    return _repos_tool.subramas(alias)
+    return _code_index.subramas(alias)
 
 
 def indice_de_repos():
     """El OTRO índice: por repo en vez de por pregunta. Qué es cada repositorio, con qué está hecho,
     cuándo nació y los pocos archivos que explican cómo se ensambla. Usalo cuando la pregunta sea de
     ARQUITECTURA («¿cómo está armado el monorepo?», «¿dónde arranca este servicio?») y no de negocio."""
-    return json.loads((CONTEXT / "repos.json").read_text(encoding="utf-8"))
+    return json.loads((CODE_INDEX / "repos.json").read_text(encoding="utf-8"))
 
 
 def abrir_nodo(id):

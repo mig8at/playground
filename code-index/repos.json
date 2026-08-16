@@ -13,9 +13,9 @@
     "⚠ Acá SÍ entran .md y .yaml, al revés que en los `map.json` de los nodos. La regla de extensiones",
     "existe para que el mapa de un nodo no se llene de migraciones; pero para entender cómo se ensambla",
     "un proyecto, el `composer.json`, el `turbo.json` y el ADR SON la respuesta. Por eso este archivo",
-    "lo valida `tools/repos.py check` y no `oracle.py`.",
+    "lo valida `code-index/indice.py` y no `oracle.py` — son proyectos distintos a propósito.",
     "",
-    "Se mide contra `main`, como todo el árbol. `make context-repos` imprime y valida."
+    "Se mide contra `main`, como todo el árbol. `make code-index` imprime y `CHECK=1` valida."
   ],
 
   "verificado": { "ref": "main", "date": "2026-08-15", "source": "manual" },
@@ -180,7 +180,7 @@
 
   "_como_funcionan_las_subramas": [
     "Las subunidades de un repo —los workspaces del monorepo, los módulos del backend— NO se listan",
-    "acá: las descubre `tools/repos.py subramas <alias>` leyendo `main`. Es a propósito: son ~45 entre",
+    "acá: las descubre `make code-index-subramas ALIAS=<repo>` leyendo `main`. Son ~45 entre",
     "los dos repos grandes, cambian seguido, y una lista a mano de eso se pudre en una semana.",
     "⚠ Y se descubren de `main`, NO del working tree. Medido el 2026-08-15: `legacy-backend` estaba",
     "checkeado en una rama donde `Modules/Backoffice` no existe — caminar el disco lo habría borrado",
