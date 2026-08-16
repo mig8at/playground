@@ -128,9 +128,9 @@ code-index-buscar: ## @idx describí lo que necesitás y te devuelve ARCHIVOS, s
 	@test -n "$(Q)" || { echo "falta Q='…'  ·  ej: make code-index-buscar Q='firma pagaré'"; exit 2; }
 	@cd code-index && python3 indice.py buscar "$(Q)"
 
-code-index-extraer: ## @idx EXTRAE los nodoslite de un repo: qué define, qué importa y qué rutas expone cada archivo. ALIAS=x [RUTA=sub] [TOPE=60] [JSON=1]
-	@test -n "$(ALIAS)" || { echo "falta ALIAS=<repo>  ·  ej: make code-index-extraer ALIAS=legacy-backend RUTA=Modules/Loans"; exit 2; }
-	@cd code-index && python3 extraer.py $(ALIAS) $(if $(RUTA),--ruta $(RUTA)) $(if $(TOPE),--tope $(TOPE)) $(if $(JSON),--json)
+code-index-extraer: ## @idx EXTRAE del código: qué define, importa y qué rutas expone cada archivo. ALIAS=x [RUTA=] [LANG=go,php] [PROF=3] [ZOOM=2] [TOPE=60] [JSON=1]
+	@test -n "$(ALIAS)" || { echo "falta ALIAS=<repo>  ·  ej: make code-index-extraer ALIAS=legacy-backend ZOOM=2"; exit 2; }
+	@cd code-index && python3 extraer.py $(ALIAS) $(if $(RUTA),--ruta $(RUTA)) $(if $(LANG),--lang $(LANG)) $(if $(PROF),--prof $(PROF)) $(if $(ZOOM),--agrupar $(ZOOM)) $(if $(TOPE),--tope $(TOPE)) $(if $(JSON),--json)
 
 code-index-mapa: ## @idx qué parte del NEGOCIO vive en cada unidad de un repo (bancolombia, backoffice, onboarding…). ALIAS=frontend-monorepo
 	@test -n "$(ALIAS)" || { echo "falta ALIAS=<repo>  ·  ej: make code-index-mapa ALIAS=frontend-monorepo"; exit 2; }

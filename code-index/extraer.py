@@ -2,8 +2,17 @@
 """extraer — genera los NODESLITE de un repo: qué hay en cada archivo, compactado y con presupuesto.
 
     python3 extraer.py legacy-backend --ruta Modules/Loans
-    python3 extraer.py frontend-monorepo --ruta modules --tope 40
+    python3 extraer.py legacy-backend --agrupar 2            # ZOOM: la forma del repo en 10 líneas
+    python3 extraer.py pdf-mapper-service --lang go
+    python3 extraer.py frontend-monorepo --lang ts --prof 3  # solo TS, hasta 3 niveles
     python3 extraer.py legacy-backend --ruta Modules/Loans --json > nodos.json
+
+TRES FORMAS DE ACOTAR, y sirven para cosas distintas:
+  --lang     un corte por stack: `go`, `php`, `ts`, `front`, `infra`… (varios con coma)
+  --prof N   filtra a N niveles de carpeta, RELATIVOS a --ruta
+  --agrupar N  no filtra: hace ZOOM. En vez de archivos devuelve carpetas a N niveles con lo que
+             tienen adentro. Es la vista que un repo de miles de archivos necesita para entenderse:
+             `legacy-backend --agrupar 2` lo resume entero en diez líneas y 1,3 segundos.
 
 QUÉ ES UN NODOLITE — por archivo, y nada más que esto:
 
@@ -50,6 +59,9 @@ IGNORAR = ("node_modules/", "vendor/", "dist/", "build/", ".turbo/", "coverage/"
            # tests de Go rankeaban ARRIBA del código que prueban (client_test.go 109 vs client.go 82)
            # — tienen más definiciones porque cada caso es una función.
            "/tests/", "/test/", ".spec.", ".test.", "_test.go", "test_")
+# ⚠ Y los que arrancan en la RAÍZ del repo: `tests/Unit/…` no empieza con "/tests/",
+# así que el filtro de arriba lo dejaba pasar y los tests aparecían en el zoom.
+IGNORAR_PREFIJO = ("tests/", "test/", "docs/", "database/seeders/")
 
 # ── patrones, por lenguaje ───────────────────────────────────────────────────────────────────────
 IMPORTS = {
@@ -105,7 +117,10 @@ def _rutas_http(texto, ruta):
             # Descarta lo que parece camino pero no lo es: imports relativos, rutas de disco, globs.
             if len(camino) < 4 or camino.count("/") > 6 or " " in camino:
                 continue
-            if camino.startswith(("//", "/*")) or camino.endswith((".ts", ".tsx", ".php", ".css", ".png", ".svg")):
+            # Un asset no es un endpoint: `/resources/assets/js/app.js` salía como ruta.
+            if camino.startswith(("//", "/*")) or camino.endswith(
+                    (".ts", ".tsx", ".js", ".jsx", ".vue", ".php", ".css", ".scss",
+                     ".png", ".svg", ".jpg", ".ico", ".woff", ".woff2", ".map", ".json")):
                 continue
             verbo = VERBO.search(linea)
             metodo = verbo.group(1).upper() if verbo else "?"
@@ -182,7 +197,7 @@ def _blobs(alias, subruta="", tope_archivos=4000):
         except (ValueError, IndexError):
             continue
         bajo = camino.lower()
-        if any(x in bajo for x in IGNORAR):
+        if any(x in bajo for x in IGNORAR) or bajo.startswith(IGNORAR_PREFIJO):
             continue
         ext = bajo.rsplit(".", 1)[-1] if "." in bajo else ""
         if ext in CODIGO or _es_infra(camino):
@@ -210,10 +225,67 @@ def _blobs(alias, subruta="", tope_archivos=4000):
     return fuera
 
 
-def extraer(alias, subruta="", tope_kb=60):
+LENGUAJES = {  # alias amable → extensiones reales
+    "php": {"php"}, "go": {"go"}, "py": {"py"}, "rust": {"rs"},
+    "ts": {"ts", "tsx"}, "js": {"js", "jsx", "mjs", "cjs"}, "vue": {"vue"},
+    "front": {"ts", "tsx", "js", "jsx", "mjs", "cjs", "vue"},
+    "infra": set(),  # se resuelve por nombre, no por extensión
+}
+
+
+def _es_del_lenguaje(ruta, langs):
+    if not langs:
+        return True
+    if "infra" in langs and _es_infra(ruta):
+        return True
+    ext = ruta.rsplit(".", 1)[-1].lower() if "." in ruta else ""
+    return any(ext in LENGUAJES.get(l, {l}) for l in langs)
+
+
+def _profundidad(rel, base=""):
+    """Cuántos niveles de carpeta tiene una ruta, RELATIVOS a `base`. Relativo y no absoluto porque
+    es lo que espera quien pide `--ruta Modules/Loans --prof 2`: dos niveles DESDE ahí."""
+    if base and rel.startswith(base.rstrip("/") + "/"):
+        rel = rel[len(base.rstrip("/")) + 1:]
+    return rel.count("/")
+
+
+def agrupar(nodos, alias, base, niveles):
+    """ZOOM: en vez de archivos, carpetas a `niveles` de profundidad, con lo que hay adentro.
+
+    Es la vista que le falta a un repo grande: `legacy-backend` tiene miles de archivos y nadie los
+    entiende de a uno, pero agrupado a 2 niveles se ve la forma en veinte líneas.
+    """
+    cajas = {}
+    for n in nodos:
+        rel = n["p"].split("/", 1)[1]
+        corto = rel[len(base.rstrip("/")) + 1:] if base and rel.startswith(base.rstrip("/") + "/") else rel
+        partes = corto.split("/")
+        clave = "/".join(partes[:niveles]) if len(partes) > niveles else "/".join(partes[:-1]) or "."
+        if base:
+            clave = f"{base.rstrip('/')}/{clave}" if clave != "." else base.rstrip("/")
+        c = cajas.setdefault(clave, {"carpeta": clave, "archivos": 0, "lineas": 0,
+                                     "rutas": [], "defs": 0, "puntaje": 0})
+        c["archivos"] += 1
+        c["lineas"] += n["l"]
+        c["defs"] += len(n.get("d", []))
+        c["rutas"].extend(n.get("r", []))
+        c["puntaje"] += puntuar(n)
+    for c in cajas.values():
+        c["rutas"] = sorted(set(c["rutas"]))[:4]
+    return sorted(cajas.values(), key=lambda c: -c["puntaje"])
+
+
+def extraer(alias, subruta="", tope_kb=60, langs=None, prof=0):
     """Los nodoslite de un repo (o de una subruta), recortados a un presupuesto."""
-    nodos = []
+    nodos, descartados = [], {"lenguaje": 0, "profundidad": 0}
     for camino, texto in _blobs(alias, subruta):
+        if not _es_del_lenguaje(camino, langs):
+            descartados["lenguaje"] += 1
+            continue
+        if prof and _profundidad(camino, subruta) > prof:
+            descartados["profundidad"] += 1
+            continue
         n = extraer_uno(f"{alias}/{camino}", texto)
         if n and (n.get("d") or n.get("r") or n.get("i") or n.get("x")):
             nodos.append(n)
@@ -228,7 +300,10 @@ def extraer(alias, subruta="", tope_kb=60):
         usado += cuesta
     return {
         "repo": alias, "subruta": subruta or "(todo)",
+        "lenguajes": sorted(langs) if langs else "todos",
+        "profundidad_max": prof or None,
         "encontrados": len(nodos), "entregados": len(dentro),
+        "descartados": {k: v for k, v in descartados.items() if v},
         "kb": round(usado / 1024, 1), "tope_kb": tope_kb,
         "nodos": dentro,
     }
@@ -245,14 +320,54 @@ def main():
         return 2
     sub = args[args.index("--ruta") + 1] if "--ruta" in args else ""
     tope = int(args[args.index("--tope") + 1]) if "--tope" in args else 60
+    langs = set(args[args.index("--lang") + 1].split(",")) if "--lang" in args else None
+    prof = int(args[args.index("--prof") + 1]) if "--prof" in args else 0
+    agr = int(args[args.index("--agrupar") + 1]) if "--agrupar" in args else 0
 
-    d = extraer(alias, sub, tope)
+    if langs:
+        desconocidos = langs - set(LENGUAJES)
+        if desconocidos:
+            print(f"lenguaje desconocido: {', '.join(desconocidos)}. "
+                  f"Válidos: {', '.join(sorted(LENGUAJES))}", file=sys.stderr)
+            return 2
+
+    d = extraer(alias, sub, tope, langs, prof)
+
+    if agr:
+        # El ZOOM se calcula sobre TODO lo encontrado, no sobre lo que entró al presupuesto: si no,
+        # el mapa de un repo dependería de cuánto lugar quedaba, que no tiene nada que ver.
+        cajas = agrupar(
+            [n for n in d["nodos"]] if d["entregados"] == d["encontrados"]
+            else extraer(alias, sub, 10_000, langs, prof)["nodos"],
+            alias, sub, agr)
+        d["carpetas"] = cajas
+        d.pop("nodos", None)
+
     if "--json" in args:
         print(json.dumps(d, ensure_ascii=False, indent=1))
         return 0
 
+    filtros = []
+    if d["lenguajes"] != "todos":
+        filtros.append(f"lang={','.join(d['lenguajes'])}")
+    if d["profundidad_max"]:
+        filtros.append(f"prof≤{d['profundidad_max']}")
+    cab = f"  ·  {' · '.join(filtros)}" if filtros else ""
+
+    if agr:
+        print(f"\n▸ {d['repo']} · {d['subruta']} — agrupado a {agr} nivel(es){cab}\n")
+        for c in d["carpetas"][:25]:
+            print(f"  [{c['puntaje']:>5}] {c['carpeta']}/   "
+                  f"{c['archivos']} archivos · {c['lineas']:,} líneas · {c['defs']} defs")
+            if c["rutas"]:
+                print(f"           rutas: {' · '.join(c['rutas'][:3])}")
+        if len(d["carpetas"]) > 25:
+            print(f"\n  ⚠ {len(d['carpetas']) - 25} carpetas más, no mostradas.")
+        print()
+        return 0
+
     print(f"\n▸ {d['repo']} · {d['subruta']} — {d['entregados']}/{d['encontrados']} archivos "
-          f"· {d['kb']} KB de {d['tope_kb']} KB\n")
+          f"· {d['kb']} KB de {d['tope_kb']} KB{cab}\n")
     for n in d["nodos"][:30]:
         marcas = []
         if n.get("r"):
