@@ -191,6 +191,19 @@ HERRAMIENTAS = {
         }, "required": ["alias"]},
     }, lambda alias: _subramas(alias)),
 
+    "mapa_de_negocio_del_repo": ({
+        "name": "mapa_de_negocio_del_repo",
+        "description": (
+            "Qué parte del NEGOCIO vive en cada unidad de un repo: para cada carpeta con ensamblado "
+            "propio, qué nodos de contexto la describen. Es el puente entre «dónde está el código» y "
+            "«de qué se trata». Usalo cuando sepas el repo y necesites ubicar el área "
+            "(«¿dónde está lo de Bancolombia en el monorepo?», «¿qué módulo hace la formalización?»)."
+        ),
+        "parameters": {"type": "object", "properties": {
+            "alias": {"type": "string", "description": "repo, p. ej. 'frontend-monorepo' o 'legacy-backend'"},
+        }, "required": ["alias"]},
+    }, lambda alias: _code_index.mapa_de_negocio(alias)),
+
     "abrir_nodo": ({
         "name": "abrir_nodo",
         "description": "El análisis de un nodo (doc.md) y la lista de archivos fuente que cita. Devuelve además su «cuándo», sus síntomas y cuándo se verificó.",

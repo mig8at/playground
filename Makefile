@@ -124,6 +124,10 @@ code-index-subramas: ## @idx las unidades DENTRO de un repo (workspaces, módulo
 	@test -n "$(ALIAS)" || { echo "falta ALIAS=<repo>  ·  ej: make code-index-subramas ALIAS=frontend-monorepo"; exit 2; }
 	@cd code-index && python3 indice.py subramas $(ALIAS)
 
+code-index-mapa: ## @idx qué parte del NEGOCIO vive en cada unidad de un repo (bancolombia, backoffice, onboarding…). ALIAS=frontend-monorepo
+	@test -n "$(ALIAS)" || { echo "falta ALIAS=<repo>  ·  ej: make code-index-mapa ALIAS=frontend-monorepo"; exit 2; }
+	@cd code-index && python3 indice.py mapa $(ALIAS)
+
 # ── PRUEBAS (harness) ────────────────────────────────────────────────────────────────────────────
 .PHONY: harness-contract harness-sandbox harness-walk harness-qr harness-mocks harness-check
 harness-contract: ## @har ¿el mock de Bancolombia cumple los esquemas zod del front? (sin browser ni BD)

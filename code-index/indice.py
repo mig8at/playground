@@ -155,6 +155,72 @@ def subramas(alias):
     return {"repo": alias, "contra": "main", "unidades": unidades, "cuantas": len(unidades)}
 
 
+def mapa_de_negocio(alias):
+    """LA SEPARACIÓN DE NEGOCIO DE UN REPO — derivada, no escrita.
+
+    «En frontend-monorepo hay cosas separadas: bancolombia, backoffice, onboarding…» es cierto, y ya
+    está en los datos DOS veces: el repo lo separa en carpetas (subramas) y el árbol de contexto lo
+    separa en nodos. Sólo faltaba cruzarlos: para cada unidad del repo, qué nodos de negocio la citan.
+
+    Escribir esto a mano —un map.json por área y por repo— sería una TERCERA copia, y la que se pudre
+    primero porque nadie la regenera. Acá sale de `main` y de los `map.json` en el momento.
+
+    Devuelve por unidad los nodos que la tocan, ordenados por cuántos archivos citan de ella.
+    """
+    sub = [u["unidad"] for u in subramas(alias).get("unidades", [])]
+    if not sub:
+        return {"alias": alias, "unidades": {}, "sueltos": {}, "sin_subramas": True}
+    sub.sort(key=len, reverse=True)  # el prefijo más largo gana: modules/x/y antes que modules/x
+
+    flows = CONTEXT / "server" / "data" / "flows"
+    porUnidad, sueltos = {}, {}
+    for d in sorted(p for p in flows.iterdir() if p.is_dir()):
+        m = d / "map.json"
+        if not m.is_file():
+            continue
+        try:
+            files = json.loads(m.read_text(encoding="utf-8")).get("files", [])
+        except json.JSONDecodeError:
+            continue
+        for f in files:
+            if not f.startswith(alias + "/"):
+                continue
+            rel = f.split("/", 1)[1]
+            u = next((s for s in sub if rel.startswith(s + "/")), None)
+            destino = porUnidad.setdefault(u, {}) if u else sueltos
+            destino[d.name] = destino.get(d.name, 0) + 1
+
+    return {
+        "alias": alias,
+        "total_unidades": len(sub),
+        "unidades": {u: sorted(v.items(), key=lambda x: -x[1]) for u, v in porUnidad.items()},
+        "sueltos": sorted(sueltos.items(), key=lambda x: -x[1]),
+    }
+
+
+def ver_mapa(alias):
+    d = mapa_de_negocio(alias)
+    if d.get("sin_subramas"):
+        print(f"\n▸ {alias} — no tiene subramas, así que no hay separación interna que cruzar.")
+        print("  Los nodos que lo describen salen de `puente`.\n")
+        return 0
+    us = d["unidades"]
+    print(f"\n▸ {alias} — qué parte del negocio vive en cada unidad (derivado de main + los map.json)\n")
+    ancho = min(52, max((len(u) for u in us), default=20))
+    for u in sorted(us, key=lambda x: -sum(c for _, c in us[x])):
+        top = " · ".join(f"{n} ({c})" for n, c in us[u][:3])
+        print(f"  {u:<{ancho}}  {top}")
+    mudas = d["total_unidades"] - len(us)
+    print(f"\n  {len(us)}/{d['total_unidades']} unidades tienen nodo que las describa.")
+    if mudas:
+        print(f"  ⚠ {mudas} sin ningún nodo: o son plomería, o son negocio que el árbol no cubre todavía.")
+    if d["sueltos"]:
+        cuantos = sum(c for _, c in d["sueltos"])
+        print(f"  ⚠ {cuantos} archivo(s) citados fuera de toda subrama (raíz del repo o carpeta sin manifiesto).")
+    print()
+    return 0
+
+
 def ver_subramas(alias):
     d = subramas(alias)
     if "error" in d:
@@ -276,6 +342,11 @@ if __name__ == "__main__":
         sys.exit(check())
     if verbo == "puente":
         sys.exit(ver_puente())
+    if verbo == "mapa":
+        if len(args) < 2:
+            print("falta el repo: python3 indice.py mapa frontend-monorepo")
+            sys.exit(2)
+        sys.exit(ver_mapa(args[1]))
     if verbo == "subramas":
         if len(args) < 2:
             print("falta el repo: python3 indice.py subramas frontend-monorepo")

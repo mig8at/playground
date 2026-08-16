@@ -51,6 +51,22 @@ cuando es una carpeta. Por eso `application` da **cero** y está bien: es Larave
 lista sus archivos como `alias/relpath`, así que la pertenencia estaba en los datos; sólo faltaba leerla
 al revés. Un nodo nuevo aparece solo.
 
+**4 · El mapa de negocio** — `make code-index-mapa ALIAS=…`. Cruza las capas 2 y 3: para **cada unidad**
+del repo, qué nodos de negocio la citan. Es la respuesta a *«en el monorepo hay cosas separadas:
+bancolombia, backoffice, onboarding…»* — cierto, y **ya estaba en los datos dos veces**: el repo lo
+separa en carpetas y el árbol lo separa en nodos. Sólo faltaba cruzarlos.
+
+```
+apps/backoffice                              backoffice (56)
+modules/…/bancolombia-origination            bancolombia (48)
+modules/…/loan-application-form              onboarding (15)
+Modules/Loans          (legacy-backend)      formalization (47) · smartpay (19) · profiling (14)
+```
+
+⚠ Escribir esto a mano —un `map.json` por área y por repo— sería una **tercera copia**, y la primera en
+pudrirse porque nadie la regenera. Además el comando mide **lo que NO está cubierto**: hoy 19 de 25
+unidades del monorepo tienen nodo que las describa; las otras 6 son plomería o negocio sin escribir.
+
 ## La regla que gobierna todo esto
 
 > **Lo que se puede derivar, no se escribe.** Sólo se escribe a mano lo que ninguna máquina puede
