@@ -217,6 +217,36 @@ def cargar_seleccion(hashes, pregunta, tope_tokens=TOPE_TOKENS):
     return completo, informe, len(completo)
 
 
+def cargar_nodos(sel, pregunta, tope_tokens):
+    """Los `doc.md` de los nodos que consultó el seleccionador.
+
+    Van ANTES del código y con presupuesto aparte porque cumplen otra función: el código dice qué
+    hace el sistema, el nodo dice qué se VERIFICÓ y con qué trampas —los `F-xx`, el «antes de
+    concluir»—. Sin eso el modelo re-deduce cosas que ya sabemos, y a veces las re-deduce mal.
+    """
+    nodos = sel.get("nodos_consultados") or []
+    cpath = PLAYGROUND / "agents" / "_ultimo-contraste.json"
+    if cpath.exists():
+        try:
+            nodos += json.loads(cpath.read_text(encoding="utf-8")).get("nodos_consultados") or []
+        except json.JSONDecodeError:
+            pass
+    nodos = list(dict.fromkeys(nodos))
+    if not nodos:
+        return "", []
+    cupo_total, partes, usados = tope_tokens * CHARS_POR_TOKEN, [], []
+    por_nodo = max(3_000, cupo_total // len(nodos))
+    for n in nodos:
+        f = CONTEXT / "server" / "data" / "flows" / n / "doc.md"
+        if not f.is_file():
+            continue
+        texto = f.read_text(encoding="utf-8")
+        cuerpo, om = recortar(texto, [pregunta], por_nodo)
+        partes.append(f"## nodo `{n}`" + (" (recortado)" if om else "") + f"\n{cuerpo}")
+        usados.append(n)
+    return "\n\n".join(partes), usados
+
+
 def arbol(alias, ruta=""):
     """El árbol de archivos de un repo, por si hace falta uno que no estaba en la selección.
     Devuelve rutas con su `h`, que es con lo que se piden."""
@@ -296,9 +326,23 @@ def main():
     pregunta = args[0] if args else sel.get("pregunta") or (
         "¿Por qué a un cliente no le apareció esa entidad en el listado?")
 
+    # El CONTRASTE, si existe. Se marca de dónde vino cada archivo: que el modelo sepa que una mitad
+    # la eligió alguien buscando lo que la otra NO miró es parte de la información.
+    archivos = [dict(a, origen="selección") for a in sel["archivos"]]
+    cpath = PLAYGROUND / "agents" / "_ultimo-contraste.json"
+    if cpath.exists():
+        c = json.loads(cpath.read_text(encoding="utf-8"))
+        if c.get("pregunta") == pregunta or not args:
+            archivos += [dict(a, origen="contraste") for a in c["archivos"]]
+
     try:
         cfg = gemini.config()
-        bloque, informe, chars = cargar_seleccion(sel["archivos"], pregunta)
+        # Los NODOS primero y con presupuesto propio: traen las trampas verificadas («antes de
+        # concluir», los F-xx) que el código no puede mostrar, y son lo que evita que el modelo
+        # re-descubra mal algo que ya se sabe. Se les da un 15% del total.
+        docs, nodos_usados = cargar_nodos(sel, pregunta, int(TOPE_TOKENS * 0.15))
+        bloque, informe, chars = cargar_seleccion(archivos, pregunta,
+                                                  TOPE_TOKENS - len(docs) // CHARS_POR_TOKEN)
         print(f"\n¿? {pregunta}\n")
         print(f"CARGADOS ({len(informe)} archivos · ~{chars // CHARS_POR_TOKEN:,} tokens de "
               f"{TOPE_TOKENS:,})\n")
@@ -307,7 +351,11 @@ def main():
             print(f"  {marca} {i.get('ruta', i.get('h'))}  {i.get('kb', '')} KB"
                   + (f"  ({i['lineas_omitidas']} líneas omitidas)" if i.get("lineas_omitidas") else ""))
         print()
-        entrada = f"PREGUNTA: {pregunta}\n\nARCHIVOS:\n\n{bloque}"
+        if nodos_usados:
+            print(f"  + contexto: {', '.join(nodos_usados)}  ({len(docs)//CHARS_POR_TOKEN:,} tokens)\n")
+        entrada = (f"PREGUNTA: {pregunta}\n\n"
+                   f"{'CONTEXTO VERIFICADO (los nodos del árbol — leelo ANTES del código):' if docs else ''}\n"
+                   f"{docs}\n\nARCHIVOS:\n\n{bloque}")
         print(gemini.correr(entrada, HERRAMIENTAS, INSTRUCCIONES, cfg))
         return 0
     except gemini.GeminiError as e:

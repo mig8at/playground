@@ -225,6 +225,13 @@ agente-frontend: ## @ag ¿el frontend está sano hoy, y si no, qué lo rompió? 
 agente-seleccion: ## @ag NO contesta: dice QUÉ ARCHIVOS habría que leer y por qué. Sólo índices. PREGUNTA='…'
 	@cd agents && python3 seleccion.py $(if $(PREGUNTA),"$(PREGUNTA)")
 
+agente-contraste: ## @ag PASO 2: otro agente elige archivos que el primero NO miró, para contrastar
+	@cd agents && python3 contraste.py
+
+agente-analisis: ## @ag LOS TRES PASOS: elegir → contrastar → leer y concluir. PREGUNTA='…'
+	@test -n "$(PREGUNTA)" || { echo "falta PREGUNTA='…'"; exit 2; }
+	@cd agents && python3 seleccion.py "$(PREGUNTA)" && python3 contraste.py && python3 lector.py
+
 agente-lector: ## @ag PASO 2: lee los archivos que eligió `agente-seleccion` y contesta. Recorta a 300k tokens
 	@cd agents && python3 lector.py $(if $(PREGUNTA),"$(PREGUNTA)")
 

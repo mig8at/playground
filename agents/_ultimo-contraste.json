@@ -1,0 +1,51 @@
+{
+  "archivos": [
+    {
+      "por_que": "Maneja el filtrado de lenders preaprobados y reglas especiales para Pullman (allied_id 94).",
+      "h": "2124B44",
+      "prioridad": "alta"
+    },
+    {
+      "por_que": "Evaluador de reglas de Datacrédito y validación de scoring para CrediPullman (lender 77).",
+      "prioridad": "alta",
+      "h": "5E139F7"
+    },
+    {
+      "h": "525BCA9",
+      "por_que": "Determina la categoría y cupo asignado del usuario en CreditopX para CrediPullman.",
+      "prioridad": "alta"
+    },
+    {
+      "h": "E716C66",
+      "por_que": "Repositorio de reglas de datacrédito asociadas al lender CrediPullman.",
+      "prioridad": "media"
+    },
+    {
+      "h": "B237555",
+      "por_que": "Modelo de condiciones y tiers por monto y lender para CreditopX.",
+      "prioridad": "media"
+    },
+    {
+      "h": "7D50FA3",
+      "por_que": "Modelo de reglas de Datacrédito para lenders.",
+      "prioridad": "baja"
+    },
+    {
+      "prioridad": "baja",
+      "por_que": "Modelo de reglas de grupo aplicadas al comercio aliado Pullman.",
+      "h": "D2D7A79"
+    },
+    {
+      "por_que": "Servicio de notificaciones específico para el flujo de CrediPullman.",
+      "h": "6E29AB0",
+      "prioridad": "baja"
+    }
+  ],
+  "nodos_consultados": [
+    "pullman",
+    "amount-tiers"
+  ],
+  "ya_respondido": "Para el aliado Amoblando Pullman (allied_id 94) y su entidad CrediPullman (lender 77), existe un hardcode en el controlador de consultas donde si el monto solicitado es menor o igual a $600.000 COP (`amount <= 600000`), la solicitud se marca como no viable bajo la causal `pullman_min_amount`, por lo que una solicitud de 500.000 es rechazada/excluida de entrada.",
+  "advertencias": "La causa directa de que no aparezca CrediPullman para un monto de 500.000 es el hardcode de monto mínimo para Amoblando Pullman (allied_id == 94), donde montos menores o iguales a $600.000 COP resultan en 'pullman_min_amount' y no viabilidad.",
+  "pregunta": "¿Por qué a un cliente de Pullman que pidió 500.000 no le apareció CrediPullman?"
+}
