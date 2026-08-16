@@ -1,0 +1,194 @@
+{
+  "_que_es_esto": [
+    "ÍNDICE POR REPO — la puerta que faltaba. El árbol de contexto indexa por PREGUNTA DE NEGOCIO",
+    "(ROUTE-MAP → síntoma → nodo → archivos). Eso contesta «¿por qué no le salió esta entidad?» pero",
+    "NO contesta «¿cómo está armado este repo?»: los nodos cruzan repos y ninguno describe uno entero.",
+    "Acá va lo otro: qué es cada repo, CÓMO SE ENSAMBLA, cuándo nació, y los pocos archivos que lo",
+    "explican de un vistazo. Está pensado para dárselo entero a un agente y que ELIJA qué abrir.",
+    "",
+    "Por qué pocos archivos y no todos: `tools/index.txt` ya tiene miles de rutas y por eso es inútil",
+    "para elegir. Acá el criterio es «si leo esto, entiendo cómo se arma» — manifiestos, ensamblado,",
+    "puntos de entrada y los docs de arquitectura. Si un archivo no cambia lo que harías, no va.",
+    "",
+    "⚠ Acá SÍ entran .md y .yaml, al revés que en los `map.json` de los nodos. La regla de extensiones",
+    "existe para que el mapa de un nodo no se llene de migraciones; pero para entender cómo se ensambla",
+    "un proyecto, el `composer.json`, el `turbo.json` y el ADR SON la respuesta. Por eso este archivo",
+    "lo valida `tools/repos.py check` y no `oracle.py`.",
+    "",
+    "Se mide contra `main`, como todo el árbol. `make context-repos` imprime y valida."
+  ],
+
+  "verificado": { "ref": "main", "date": "2026-08-15", "source": "manual" },
+
+  "la_historia_en_una_linea": [
+    "El origen explica la arquitectura: `application` es el monolito ORIGINAL (dic-2023, 7.166 commits).",
+    "`legacy-backend` y `frontend-monorepo` nacieron con DOS SEMANAS de diferencia a mediados de 2025",
+    "(jun-25 y jul-09) — son las dos mitades del reemplazo, y por eso hay parallel-run: el viejo sigue",
+    "sirviendo por defecto mientras el nuevo toma comercios por allowlist. Todo lo demás (los 5",
+    "microservicios Go, 2025-12 en adelante) son pedazos que se fueron sacando del monolito.",
+    "Consecuencia práctica: ante una duda de comportamiento, la pregunta no es «¿qué dice el código?»",
+    "sino «¿CUÁL de los dos códigos atendió a este comercio?». Ver el nodo `architecture`."
+  ],
+
+  "repos": {
+    "application": {
+      "que_es": "El monolito ORIGINAL y todavía la ruta viva por defecto en el parallel-run: origina créditos de punta a punta y sirve además el admin viejo.",
+      "stack": "Laravel 10 + Inertia + Vue 3 + Vuetify — SPA servida por el servidor, no hay API separada para su propio front.",
+      "nacio": "2023-12-22 · Joar Esteban Buitrago Carrillo · 7.166 commits (el más viejo y el más grande)",
+      "como_se_ensambla": "Laravel clásico, sin módulos: todo cuelga de `app/`. El front vive DENTRO del mismo repo (`resources/js`) y se acopla vía Inertia, así que un controlador devuelve una página Vue en vez de JSON. Por eso no se puede probar su front sin levantar el backend.",
+      "entrada": [
+        { "ruta": "application/composer.json", "por_que": "el stack PHP y la versión de Laravel; confirma que NO usa laravel-modules" },
+        { "ruta": "application/package.json", "por_que": "el stack del front acoplado (Vue 3, Vuetify) — la prueba de que front y back son el mismo despliegue" },
+        { "ruta": "application/app/Http/Middleware/HandleInertiaRequests.php", "por_que": "el puente Inertia: qué props comparte el servidor con TODAS las páginas, incluidos los flags del parallel-run" },
+        { "ruta": "application/routes/web.php", "por_que": "el mapa de entrada del monolito" },
+        { "ruta": "application/config/app.php", "por_que": "entorno, providers y de qué depende arrancar" }
+      ]
+    },
+
+    "legacy-backend": {
+      "que_es": "El backend NUEVO que está reemplazando al monolito. Expone API para el wizard nuevo y el back-office, y ya se llevó los flujos de originación, riesgo y formalización.",
+      "stack": "Laravel + `nwidart/laravel-modules` + OpenTelemetry.",
+      "nacio": "2025-06-25 · yamid-creditop · 2.385 commits",
+      "como_se_ensambla": "Ésta es la clave y lo que más confunde: NO es un Laravel plano. `nwidart/laravel-modules` parte el código en 19 módulos bajo `Modules/`, cada uno con sus propias rutas, providers y migraciones. Hay DOS generaciones conviviendo: los de nombre pelado (`Loans`, `Onboarding`, `Identity`, `Risk`) y los `V1`/`V2` (`UsersV1`, `RiskV2`, `OnboardingV2`…) que son la arquitectura nueva, con su README y su TECHNICAL_DEBT propios. Buscar una clase sin saber en qué módulo vive es la forma lenta.",
+      "entrada": [
+        { "ruta": "legacy-backend/NEW_ARCHITECTURE.md", "por_que": "1.329 líneas: la arquitectura V1/V2 explicada por quien la escribió. El documento más denso del repo" },
+        { "ruta": "legacy-backend/composer.json", "por_que": "`nwidart/laravel-modules` — la línea que explica por qué el código no está donde uno lo busca" },
+        { "ruta": "legacy-backend/CLAUDE.md", "por_que": "las convenciones vigentes del repo, escritas para que las siga un modelo" },
+        { "ruta": "legacy-backend/Modules/RiskV2/README.md", "por_que": "el módulo V2 mejor documentado (869 líneas): sirve de plantilla para entender cómo se estructura CUALQUIER módulo nuevo" },
+        { "ruta": "legacy-backend/config/app.php", "por_que": "entorno y providers globales — dónde se engancha lo que no es de un módulo" },
+        { "ruta": "legacy-backend/migrate.sql", "por_que": "⚠ las rutinas y vistas de MySQL. NO está bajo el flujo de migraciones y su última versión es de hace un año: lo que corre en la base puede ser otra cosa. Ver el nodo `db-routines`" }
+      ]
+    },
+
+    "frontend-monorepo": {
+      "que_es": "Todo el front nuevo: el wizard de solicitud, el back-office de operaciones, la landing y el storybook.",
+      "stack": "pnpm workspaces + turbo + React Router 7 + Biome. Nada de Inertia: acá el front habla por API.",
+      "nacio": "2025-07-09 · yamid-creditop · 1.845 commits (dos semanas después del backend nuevo — son las dos mitades del mismo reemplazo)",
+      "como_se_ensambla": "Tres niveles y hay que tenerlos claros o todo confunde: `apps/*` son los desplegables (backoffice, loan-request-wizard, landing, storybook), `packages/**` son librerías compartidas (auth, ui, form-engine, refine-ui, shared, tsconfig) y `modules/**` son features que se comparten entre apps. `pnpm-workspace.yaml` declara esos tres globs y `turbo.json` define las tareas (build, lint, dev, deploy) con su grafo de dependencias — por eso `pnpm build` en la raíz construye en orden y no app por app. Los módulos nuevos NO se escriben a mano: los genera `plop` (`pnpm generate:module`). ⚠ Su modo de falla repetido es el EMPAQUETADO: los merges de `fixes-to-production` a `develop` rompieron dependencias más de una vez.",
+        "entrada": [
+        { "ruta": "frontend-monorepo/pnpm-workspace.yaml", "por_que": "las tres carpetas que son workspace — el mapa mental del monorepo en 4 líneas" },
+        { "ruta": "frontend-monorepo/turbo.json", "por_que": "qué tareas existen y en qué orden corren; explica por qué un build de la raíz construye dependencias primero" },
+        { "ruta": "frontend-monorepo/package.json", "por_que": "los scripts reales de la raíz (`build`, `lint`, `deploy:changed`) y la versión de pnpm fijada" },
+        { "ruta": "frontend-monorepo/DECISIONS.md", "por_que": "los ADR: POR QUÉ está armado así. Es lo que el código no puede decir" },
+        { "ruta": "frontend-monorepo/CLAUDE.md", "por_que": "las convenciones vigentes" },
+        { "ruta": "frontend-monorepo/plopfile.js", "por_que": "el generador de módulos: la forma canónica de un módulo nuevo está acá, no en la documentación" }
+      ]
+    },
+
+    "pre-approvals-service": {
+      "que_es": "Microservicio que orquesta la pre-aprobación contra las APIs externas de los lenders que deciden afuera (response_type ≠ 0).",
+      "stack": "Go. Contrato primero: la API se define en OpenAPI y el código del servidor se GENERA de ahí.",
+      "nacio": "2025-12-15 · Yamid Viloria · 162 commits",
+      "como_se_ensambla": "El más maduro de los Go. `openapi.yaml` es la fuente de verdad del contrato y `oapi-codegen.yaml` dice cómo se genera el código a partir de él — o sea que tocar los handlers a mano sin tocar el spec es pelearse con el generador.",
+      "entrada": [
+        { "ruta": "pre-approvals-service/openapi.yaml", "por_que": "el CONTRATO, que acá es la fuente y no la documentación" },
+        { "ruta": "pre-approvals-service/oapi-codegen.yaml", "por_que": "qué se genera del spec — explica qué archivos NO hay que editar a mano" },
+        { "ruta": "pre-approvals-service/go.mod", "por_que": "dependencias y versión de Go" },
+        { "ruta": "pre-approvals-service/Taskfile.yml", "por_que": "los comandos reales del proyecto (build, test, generate). Es el equivalente a los scripts de npm" },
+        { "ruta": "pre-approvals-service/README.md", "por_que": "el arranque contado por sus autores" }
+      ]
+    },
+
+    "form-service": {
+      "que_es": "Backend del formulario dinámico G2: sirve el esquema del form desde plantillas en BD y recibe las respuestas.",
+      "stack": "Go, mismo molde que los demás microservicios.",
+      "nacio": "2026-05-04 · Jose Escobar · 16 commits (el más nuevo)",
+      "como_se_ensambla": "Molde compartido de los servicios Go (ver `_los_go_comparten_molde`). Lo propio es el modelo de datos: el template del formulario vive en cinco tablas del legacy y este servicio lo convierte en JSON para que el front lo renderice genéricamente.",
+      "entrada": [
+        { "ruta": "form-service/go.mod", "por_que": "dependencias y versión" },
+        { "ruta": "form-service/README.md", "por_que": "qué expone y cómo se corre" },
+        { "ruta": "form-service/Taskfile.yml", "por_que": "los comandos del proyecto" }
+      ]
+    },
+
+    "financial-health-service": {
+      "que_es": "Microservicio de salud financiera del cliente.",
+      "stack": "Go, molde compartido.",
+      "nacio": "2025-12-17 · Yamid Viloria · 99 commits",
+      "como_se_ensambla": "Molde compartido de los Go.",
+      "entrada": [
+        { "ruta": "financial-health-service/go.mod", "por_que": "dependencias y versión" },
+        { "ruta": "financial-health-service/README.md", "por_que": "qué expone" }
+      ]
+    },
+
+    "customer-profiling-service": {
+      "que_es": "Microservicio de perfilamiento de clientes.",
+      "stack": "Go, molde compartido.",
+      "nacio": "2026-02-25 · yamid-creditop · 23 commits",
+      "como_se_ensambla": "Molde compartido de los Go.",
+      "entrada": [
+        { "ruta": "customer-profiling-service/go.mod", "por_que": "dependencias y versión" },
+        { "ruta": "customer-profiling-service/README.md", "por_que": "qué expone" }
+      ]
+    },
+
+    "onboarding-forms-service": {
+      "que_es": "Microservicio de formularios de onboarding. ⚠ No confundir con `form-service`: son cosas distintas.",
+      "stack": "Go, molde compartido.",
+      "nacio": "2026-02-10 · joseesco24-creditop · 61 commits",
+      "como_se_ensambla": "Molde compartido de los Go.",
+      "entrada": [
+        { "ruta": "onboarding-forms-service/go.mod", "por_que": "dependencias y versión" },
+        { "ruta": "onboarding-forms-service/README.md", "por_que": "qué expone" }
+      ]
+    },
+
+    "customer-service": {
+      "que_es": "Microservicio de clientes.",
+      "stack": "Go, molde compartido. Vive anidado en `github/microservices/`.",
+      "nacio": "2026-02-18 · yamid-creditop · 10 commits (el más chico)",
+      "como_se_ensambla": "Molde compartido de los Go.",
+      "entrada": [
+        { "ruta": "customer-service/go.mod", "por_que": "dependencias y versión" },
+        { "ruta": "customer-service/README.md", "por_que": "qué expone" }
+      ]
+    },
+
+    "pdf-mapper-service": {
+      "que_es": "Microservicio que rellena plantillas PDF (los documentos que firma el cliente). S3 es su única fuente de plantillas.",
+      "stack": "Go, molde compartido. Vive anidado en `github/microservices/`.",
+      "nacio": "2026-05-07 · Miguel Ochoa · 60 commits",
+      "como_se_ensambla": "Molde compartido de los Go. Tiene además un editor propio en otro repo (`pdf-mapper-editor`) que diseña los mappers que este servicio consume.",
+      "entrada": [
+        { "ruta": "pdf-mapper-service/go.mod", "por_que": "dependencias y versión" },
+        { "ruta": "pdf-mapper-service/README.md", "por_que": "qué expone y cómo se le pasan las plantillas" }
+      ]
+    },
+
+    "harness": {
+      "que_es": "NO es de la compañía: es la herramienta de pruebas de este playground. Ejercita flujos reales contra local/dev/staging.",
+      "stack": "TypeScript + Playwright. Es un subdirectorio de `playground`, no un repo aparte.",
+      "nacio": "vive en playground; su historia es la de este repo",
+      "como_se_ensambla": "El panel (`make panel`) es la entrada; los `bin/` son plomería. ⚠ `E2E_TARGET` por defecto es `dev`, NO `local`.",
+      "entrada": [
+        { "ruta": "harness/CLAUDE.md", "por_que": "qué es real en cada target — la pieza que evita probar contra el ambiente equivocado" },
+        { "ruta": "harness/README.md", "por_que": "cómo se corre" }
+      ]
+    },
+
+    "trazador": {
+      "que_es": "NO es de la compañía: la herramienta de SOPORTE de este playground. Lee Loki, Redash y PostHog para reconstruir qué le pasó a una solicitud.",
+      "stack": "Go (server) + Vue (viz). Subdirectorio de `playground`.",
+      "nacio": "vive en playground; ex-`sonda`",
+      "como_se_ensambla": "El módulo Go vive en `trazador/server/`, NO en `trazador/`. Soporta cuatro targets: prod, staging, dev y local. Solo lectura en todos.",
+      "entrada": [
+        { "ruta": "trazador/README.md", "por_que": "qué contesta y cómo se corre" }
+      ]
+    }
+  },
+
+  "_los_go_comparten_molde": [
+    "Los cinco microservicios Go están hechos con la MISMA plantilla y eso ahorra leerlos de a uno:",
+    "`cmd/` (los binarios) · `internal/` (el código, no importable desde afuera) · `config/` ·",
+    "`Taskfile.yml` (los comandos, el equivalente a los scripts de npm) · `go.mod` · `Dockerfile`.",
+    "Entendido uno, entendidos los cinco. Lo que cambia entre ellos es el dominio, no la forma."
+  ],
+
+  "_pendiente": [
+    "Los repos que existen en disco y NO están acá porque no son roots del árbol: `creditop_mobile`,",
+    "`messaging-service`, `dynamic-form`, `vtex`, `cognito-pre-sign-up`, `pdf-mapper-editor`,",
+    "`credibrain`, `qa-ui`. El criterio de ROOTS es que el servicio esté VIVO EN PRODUCCIÓN (F-123),",
+    "así que sumar uno acá es primero comprobar eso, no que el clon exista."
+  ]
+}

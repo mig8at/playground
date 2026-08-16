@@ -41,8 +41,14 @@ Contestás preguntas sobre CreditOp (fintech colombiana de originación de créd
 
 EL MÉTODO, en este orden y sin saltearte pasos:
 
-1. `mapa_de_rutas()` primero, SIEMPRE. Tiene una tabla «Entrá por el síntoma» y los «Cuándo:» de cada
-   nodo. Elegí 2 a 4 nodos que matcheen y decí por qué elegiste esos.
+1. Elegí el índice según QUÉ TE PREGUNTAN, y empezá por ahí:
+   - pregunta de NEGOCIO («¿por qué no le salió esta entidad?», «¿dónde se decide X?») →
+     `mapa_de_rutas()`, que tiene la tabla «Entrá por el síntoma» y los «Cuándo:» de cada nodo.
+     Elegí 2 a 4 nodos que matcheen y decí por qué esos.
+   - pregunta de ARQUITECTURA («¿cómo está armado el monorepo?», «¿dónde arranca este servicio?»,
+     «¿por qué el código no está donde lo busco?») → `indice_de_repos()`, que te da por repo el
+     stack, cuándo nació, cómo se ensambla y los pocos archivos que lo explican.
+   Si la pregunta tiene las dos mitades, usá los dos — primero el de repos para ubicarte.
 2. `abrir_nodo(id)` en los que elegiste. Te devuelve el análisis (doc.md) y la LISTA DE ARCHIVOS del
    nodo. Leé el doc con atención: muchas veces ya trae la respuesta y las trampas conocidas.
 3. DECIDÍ QUÉ ARCHIVOS NECESITÁS, y justificá cada uno en una frase antes de abrirlo. No los abras
@@ -84,6 +90,13 @@ def _resolver(ruta):
 def mapa_de_rutas():
     """El índice del árbol de contexto: la tabla de síntomas y el «Cuándo:» de cada nodo. Empezá acá."""
     return (CONTEXT / "docs" / "ROUTE-MAP.md").read_text(encoding="utf-8")
+
+
+def indice_de_repos():
+    """El OTRO índice: por repo en vez de por pregunta. Qué es cada repositorio, con qué está hecho,
+    cuándo nació y los pocos archivos que explican cómo se ensambla. Usalo cuando la pregunta sea de
+    ARQUITECTURA («¿cómo está armado el monorepo?», «¿dónde arranca este servicio?») y no de negocio."""
+    return json.loads((CONTEXT / "repos.json").read_text(encoding="utf-8"))
 
 
 def abrir_nodo(id):
@@ -142,6 +155,17 @@ HERRAMIENTAS = {
         "description": "El índice del árbol de contexto: tabla «entrá por el síntoma» y el «Cuándo:» de cada nodo. Empezá SIEMPRE por acá.",
         "parameters": {"type": "object", "properties": {}},
     }, mapa_de_rutas),
+
+    "indice_de_repos": ({
+        "name": "indice_de_repos",
+        "description": (
+            "Índice POR REPO: qué es cada repositorio, con qué stack, cuándo nació y los pocos "
+            "archivos que explican cómo se ensambla. Para preguntas de ARQUITECTURA («¿cómo está "
+            "armado el monorepo?», «¿por dónde arranca este servicio?»). El mapa_de_rutas es para "
+            "preguntas de NEGOCIO; éste, para entender los proyectos."
+        ),
+        "parameters": {"type": "object", "properties": {}},
+    }, indice_de_repos),
 
     "abrir_nodo": ({
         "name": "abrir_nodo",

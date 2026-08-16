@@ -110,6 +110,11 @@ context-check: ## @ctx ¿las rutas de TODOS los nodos existen en main? (el hook 
 context-map: ## @ctx regenera docs/ROUTE-MAP.md (el hook ya lo hace al editar un map.json)
 	@cd context && python3 tools/build-route-map.py
 
+# El otro índice: el ROUTE-MAP entra por PREGUNTA DE NEGOCIO, éste entra por REPO. Contesta «¿cómo está
+# armado esto y por dónde empiezo a leer?», que ningún nodo contestaba porque los nodos cruzan repos.
+context-repos: ## @ctx índice POR REPO: qué es, cómo se ensambla y por dónde entrar. ALIAS=<repo> para uno · CHECK=1 valida las rutas
+	@cd context && python3 tools/repos.py $(if $(CHECK),check,ver $(ALIAS))
+
 # ── PRUEBAS (harness) ────────────────────────────────────────────────────────────────────────────
 .PHONY: harness-contract harness-sandbox harness-walk harness-qr harness-mocks harness-check
 harness-contract: ## @har ¿el mock de Bancolombia cumple los esquemas zod del front? (sin browser ni BD)
