@@ -34,9 +34,28 @@ import json
 import sys
 
 import creditop as _cx
+import archivos as _ar
 import extraer as _ex
 import tags as _tg
 import indice as _ix
+
+
+def _ar_resumen(e):
+    p = []
+    for c, pre in (("lenders", ""), ("comercios", "com. ")):
+        if e.get(c):
+            p.append(" ".join(f"[{pre}{x['nombre']}]" for x in e[c][:3]))
+    if e.get("rt"):
+        p.append("rt=" + ",".join(map(str, e["rt"])))
+    if e.get("tablas"):
+        p.append("tablas: " + ", ".join(e["tablas"][:3]))
+    if e.get("marcas"):
+        p.append("logs: " + ", ".join(e["marcas"][:2]))
+    if e.get("gates"):
+        p.append("⚠ AMBIENTE")
+    if e.get("nodos"):
+        p.append("nodos: " + ", ".join(e["nodos"][:3]))
+    return " · ".join(p)
 
 
 def _salida(datos, texto_fn, como_json):
@@ -124,6 +143,15 @@ def main():
     s.add_argument("--tag", metavar="T", help="qué archivos tienen ese tag (ej: lender:160, gates)")
     s.add_argument("--repo", metavar="ALIAS", help="acotar a un repo")
 
+    s = con_json(sub.add_parser(
+        "archivos", help="el DICCIONARIO {hash de ruta: qué representa ese archivo}",
+        description="Llave por RUTA (identidad estable: lo curado sobrevive a las ediciones). Cada "
+                    "entrada guarda el sha del contenido con el que se calculó, para poder auditarla."))
+    s.add_argument("--construir", action="store_true", help="armar o actualizar")
+    s.add_argument("--verificar", action="store_true", help="¿alguna entrada quedó vieja?")
+    s.add_argument("--buscar", metavar="T", help="smartpay · lender:77 · gates · tabla:user_requests")
+    s.add_argument("--ruta", metavar="R", help="qué sabemos de un archivo (alias/camino)")
+
     sub.add_parser("check", help="¿las rutas escritas a mano siguen vivas en main?")
     sub.add_parser("pesos", help="refresca los tamaños guardados en repos.json")
 
@@ -190,6 +218,30 @@ def main():
             print(f"  {familia}:")
             print("     " + " · ".join(f"{t.split(':',1)[-1]}({n})" for t, n in ts[:14]))
         print()
+        return 0
+
+    if a.cmd == "archivos":
+        if a.construir:
+            _ar.construir()
+            return 0
+        if a.verificar:
+            return _ar.verificar()
+        if a.ruta:
+            return _salida(_ar.de_ruta(a.ruta),
+                           lambda: print(json.dumps(_ar.de_ruta(a.ruta), ensure_ascii=False, indent=1)), j)
+        if a.buscar:
+            d = _ar.buscar(a.buscar)
+            if j:
+                print(json.dumps(d, ensure_ascii=False, indent=1))
+                return 0
+            print(f"\n  «{d['busque']}» → {d['cuantos']} archivos\n")
+            for e in d["archivos"][:20]:
+                print(f"  [{e['llave']}] {e['p']}")
+                print(f"      {_ar_resumen(e)}")
+            print()
+            return 0
+        d = _ar.cargar()
+        print(f"\n  diccionario: {len(d)} archivos. Usá --buscar, --ruta, --verificar o --construir.\n")
         return 0
 
     if a.cmd == "check":
