@@ -202,3 +202,27 @@ def buscar(termino):
 def de_ruta(ruta):
     return cargar().get(ruta) or {"error": f"sin entrada para {ruta}",
                                   "quizas": "¿la ruta va como 'alias/camino'? ej: legacy-backend/app/..."}
+
+
+def censo():
+    """Qué tags EXISTEN en todo el código y cuántos archivos tiene cada uno.
+
+    Es el `--help` de los datos: sin esto no se sabe qué se puede pedir. Y salió más interesante que
+    su motivo original — es un censo del código por concepto de negocio, algo que nadie había contado.
+    """
+    import creditop as _cx
+    cuenta = {}
+    for e in cargar().values():
+        cx = {"lenders": e.get("lenders", []), "allieds": e.get("comercios", []),
+              "rt": [{"valor": v} for v in e.get("rt", [])],
+              "estados": [{"id": v} for v in e.get("estados", [])],
+              "tablas": e.get("tablas", []), "marcas": e.get("marcas", []),
+              "gates": e.get("gates")}
+        for tag in _cx.a_tags(cx):
+            cuenta[tag] = cuenta.get(tag, 0) + 1
+        for tp in e.get("tipo", []):
+            cuenta[f"tipo:{tp}"] = cuenta.get(f"tipo:{tp}", 0) + 1
+    porFamilia = {}
+    for tag, n in sorted(cuenta.items(), key=lambda x: -x[1]):
+        porFamilia.setdefault(tag.split(":")[0], []).append((tag, n))
+    return porFamilia

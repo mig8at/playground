@@ -179,6 +179,54 @@ def coincide(nodo, lender=None, rt=None, tabla=None, marca=None, gates=False, al
     return True
 
 
+def a_tags(cx):
+    """El bloque `cx` como lista PLANA de tags. Formato `familia:valor`, una sola convención.
+
+    Por qué plano y no un objeto: el objeto repetía la descripción de cada cosa en CADA archivo que la
+    tocaba —«rt=2 es CreditopX, el único inyectable» aparecía 32 veces—, y para un modelo eso es ruido
+    caro. Ahora el tag es corto y el significado vive UNA vez, en el glosario del payload.
+    """
+    t = []
+    for l in cx.get("lenders", []):
+        t.append(f"lender:{l['id']}")
+    for a in cx.get("allieds", []):
+        t.append(f"com:{a['id']}")
+    for r in cx.get("rt", []):
+        t.append(f"rt:{r['valor']}")
+    for e in cx.get("estados", []):
+        t.append(f"estado:{e['id']}")
+    for x in cx.get("tablas", []):
+        t.append(f"tabla:{x}")
+    for m in cx.get("marcas", []):
+        t.append(f"marca:{m}")
+    if cx.get("gates"):
+        t.append("gates")
+    return sorted(set(t))
+
+
+def glosario(tags):
+    """Qué significa cada tag — SÓLO los que aparecen. No es el diccionario entero: es el subconjunto
+    que hace falta para leer este payload, que es lo que lo mantiene chico."""
+    g = {}
+    for tag in sorted(set(tags)):
+        familia, _, v = tag.partition(":")
+        if tag == "gates":
+            g[tag] = DIC["gates_de_ambiente"]["_trampa"]
+        elif familia == "lender":
+            g[tag] = LENDERS.get(v, "")
+        elif familia == "com":
+            g[tag] = ALLIEDS.get(v, "")
+        elif familia == "rt":
+            g[tag] = RT.get(v, "")
+        elif familia == "estado":
+            g[tag] = ESTADOS.get(v, "")
+        elif familia == "tabla":
+            g[tag] = DIC["tablas"].get(v, "")
+        elif familia == "marca":
+            g[tag] = DIC["marcas_de_log"].get(v, "")
+    return {k: v for k, v in g.items() if v}
+
+
 def resumen(cx):
     """Una línea legible de lo que toca un archivo."""
     p = []

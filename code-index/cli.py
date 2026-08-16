@@ -36,7 +36,6 @@ import sys
 import creditop as _cx
 import archivos as _ar
 import extraer as _ex
-import tags as _tg
 import indice as _ix
 
 
@@ -135,21 +134,9 @@ def main():
     s.add_argument("a")
     s.add_argument("b")
 
-    s = con_json(sub.add_parser(
-        "tags", help="el índice {sha: [tags]} — precalculado, para machear sin recalcular",
-        description="La llave es el sha del CONTENIDO, no el de la ruta: así el caché se autoinvalida "
-                    "(un archivo cambiado tiene otra llave) y dos archivos idénticos comparten entrada."))
-    s.add_argument("--construir", action="store_true", help="recorrer los repos y armar el índice")
-    s.add_argument("--tag", metavar="T", help="qué archivos tienen ese tag (ej: lender:160, gates)")
-    s.add_argument("--repo", metavar="ALIAS", help="acotar a un repo")
-
-    s = con_json(sub.add_parser(
-        "archivos", help="el DICCIONARIO {ruta: qué representa ese archivo} — info general, rápida",
-        description="Llave por RUTA: legible y grepeable. No guarda hashes — si un archivo cambió, "
-                    "eso lo sabe git; y esto se reconstruye entero en 3 s."))
-    s.add_argument("--construir", action="store_true", help="armar o actualizar")
-    s.add_argument("--buscar", metavar="T", help="smartpay · lender:77 · gates · tabla:user_requests")
-    s.add_argument("--ruta", metavar="R", help="qué sabemos de un archivo (alias/camino)")
+    con_json(sub.add_parser(
+        "tags", help="el censo: qué tags existen en el código y cuántos archivos tiene cada uno",
+        description="Sale del diccionario (`archivos`). Es el catálogo de lo que se puede filtrar."))
 
     sub.add_parser("check", help="¿las rutas escritas a mano siguen vivas en main?")
     sub.add_parser("pesos", help="refresca los tamaños guardados en repos.json")
@@ -191,54 +178,18 @@ def main():
         return _salida(d, lambda: _ex.imprimir_gemelos(d), j)
 
     if a.cmd == "tags":
-        if a.construir:
-            _tg.construir([a.repo] if a.repo else None)
-            return 0
-        if a.tag:
-            d = _tg.por_tag(a.tag, [a.repo] if a.repo else None)
-            if j or "error" in d:
-                print(json.dumps(d, ensure_ascii=False, indent=1) if j else f"⚠ {d['error']}")
-                return 1 if "error" in d else 0
-            print(f"\n  «{a.tag}» → {d['cuantos']} archivos\n")
-            for x in d["archivos"][:25]:
-                print(f"  {x['ruta']}")
-                print(f"     {' · '.join(t for t in x['tags'] if t != a.tag)[:110]}")
-            print()
-            return 0
-        fam = _tg.catalogo()
+        fam = _ar.censo()
         if j:
             print(json.dumps(fam, ensure_ascii=False, indent=1))
             return 0
         if not fam:
-            print("no hay índice todavía: corré `cli.py tags --construir`")
+            print("no hay diccionario todavía: corré `cli.py archivos --construir`")
             return 1
         print("\n  Los tags que existen, y cuántos archivos tiene cada uno:\n")
         for familia, ts in fam.items():
             print(f"  {familia}:")
             print("     " + " · ".join(f"{t.split(':',1)[-1]}({n})" for t, n in ts[:14]))
         print()
-        return 0
-
-    if a.cmd == "archivos":
-        if a.construir:
-            _ar.construir()
-            return 0
-        if a.ruta:
-            return _salida(_ar.de_ruta(a.ruta),
-                           lambda: print(json.dumps(_ar.de_ruta(a.ruta), ensure_ascii=False, indent=1)), j)
-        if a.buscar:
-            d = _ar.buscar(a.buscar)
-            if j:
-                print(json.dumps(d, ensure_ascii=False, indent=1))
-                return 0
-            print(f"\n  «{d['busque']}» → {d['cuantos']} archivos\n")
-            for e in d["archivos"][:20]:
-                print(f"  {e['p']}")
-                print(f"      {_ar_resumen(e)}")
-            print()
-            return 0
-        d = _ar.cargar()
-        print(f"\n  diccionario: {len(d)} archivos. Usá --buscar, --ruta o --construir.\n")
         return 0
 
     if a.cmd == "check":
@@ -300,6 +251,16 @@ def main():
                 a.alias, a.ruta, 10_000, langs, a.prof)
             d["carpetas"] = _ex.agrupar(completo["nodos"], a.alias, a.ruta, a.zoom)
             d.pop("nodos", None)
+        # `cx` -> `tags` planos, y el significado UNA vez arriba. Antes cada nodo repetía la
+        # descripción de lo que tocaba; con 32 archivos rt=2, el mismo texto 32 veces.
+        todos = []
+        for n in d.get("nodos", []):
+            cx = n.pop("cx", None)
+            if cx:
+                n["tags"] = _cx.a_tags(cx)
+                todos.extend(n["tags"])
+        if todos:
+            d["glosario"] = _cx.glosario(todos)
         return _salida(d, lambda: _ex.imprimir(d, a.zoom), j)
 
     return 0

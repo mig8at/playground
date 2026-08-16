@@ -137,11 +137,11 @@ def _rutas_http(texto, ruta):
 
 
 def extraer_uno(ruta, texto, sha=""):
-    """Un NodoLite. `ruta` es alias/relpath; `texto` el contenido en main; `sha` el blob de git.
+    """Un NodoLite. `ruta` es alias/relpath; `texto` el contenido en main.
 
-    El `h` (hash corto del CONTENIDO) NO reemplaza a la ruta: es la llave para machear contra el
-    índice de tags sin recalcular. La ruta se queda porque es lo que dice de qué trata un archivo
-    antes de abrirlo — un identificador opaco obligaría a abrirlo para averiguarlo."""
+    ⚠ NO lleva hash. Lo tuvo mientras la llave del diccionario era el contenido; al pasar a llave por
+    ruta quedó huérfano, y un campo que ya no significa nada es peor que uno que falta: alguien lo
+    interpreta."""
     lang, ext = _lenguaje(ruta)
     infra = _es_infra(ruta)
     if not lang and not infra:
@@ -164,8 +164,6 @@ def extraer_uno(ruta, texto, sha=""):
         señales.append(ruta.rsplit("/", 1)[-1])
 
     nodo = {"p": ruta, "l": lineas}
-    if sha:
-        nodo["h"] = sha[:8]
     if imports:
         nodo["i"] = imports
     if defs:
@@ -354,6 +352,13 @@ def imprimir(d, zoom=0):
 
     print(f"\n> {d['repo']} · {d['subruta']} — {d['entregados']}/{d['encontrados']} archivos "
           f"· {d['kb']} KB de {d['tope_kb']} KB{cab}\n")
+    if d.get("glosario"):
+        print("  glosario de los tags que aparecen:")
+        for k, v in list(d["glosario"].items())[:8]:
+            print(f"    {k:34} {v[:76]}")
+        if len(d["glosario"]) > 8:
+            print(f"    … y {len(d['glosario']) - 8} mas")
+        print()
     for n in d["nodos"][:30]:
         marcas = []
         if n.get("r"):
@@ -365,7 +370,9 @@ def imprimir(d, zoom=0):
         if n.get("x"):
             marcas.append("infra")
         print(f"  [{puntuar(n):>3}] {n['p'].split('/', 1)[1]}  ({n['l']} lineas · {' · '.join(marcas)})")
-        if n.get("cx"):
+        if n.get("tags"):
+            print(f"        {' · '.join(n['tags'])}")
+        elif n.get("cx"):
             import creditop
             linea = creditop.resumen(n["cx"])
             if linea:
