@@ -38,6 +38,14 @@ adentro de la base.
   Es un límite hermano del «el wizard no manda logs a Loki».
 - **El parseo por buró está duplicado en dos lugares**: las `FN_Mareigua_*` / `FN_AgilData_*` en la BD, y
   los extractores de `Modules/RiskV2/App/Extractors/RiskCentral/`. No se verificó si coinciden.
+- ⚠ **Las rutinas no son lo único invisible: hay un EVENT** que borra y reconstruye una tabla entera
+  todas las noches, sin fuente en ningún repo. Ver «El EVENT» abajo — es el objeto de más riesgo del
+  nodo, y el censo original no lo vio porque miró sólo `ROUTINES`.
+- **TRIGGERS: no hay.** Cero en el schema `creditop`, en prod y en dev (medido el 2026-08-15). Y es un
+  cero **firme**, no un artefacto de permisos: se verificó antes que el usuario tiene el privilegio
+  `TRIGGER` sobre el schema, que es el que filtra esa vista de `information_schema`. Los 14 triggers
+  que aparecen en dev son de RDS y de MySQL (`sys`, `mysql`), ninguno de la aplicación. **Nada dispara
+  en cada escritura**, y eso vale saberlo: descarta de entrada toda una familia de hipótesis.
 
 ## Dónde mirar
 
@@ -77,7 +85,67 @@ por la regla de extensiones). Define **38 de las 42** — las otras 4 no tienen 
 |---|---|---|
 | **Llamadas desde PHP** | 13 | el camino caliente: los 2 `SP_*_Extract_Data`, los insumos de categoría, Mareigua, revolvente |
 | **Sólo internas** | 27 | las 23 `FN_Experian_*`, `FN_Decrypt_Data`, `FN_User_Continuity`, `FN_CreditopX_Profiling_Multiplier_Risk`… — las usa otra rutina, nunca el código |
-| **Sin call site conocido** | 2 | `SP_Update_User_Request_Risk_Centrals` (F-107) · `actualizar_json` |
+| **Sin call site conocido** | 2 | ⚠ **corregido el 2026-08-15 — eran dos y es una**: a `SP_Update_User_Request_Risk_Centrals` la dispara un **EVENT** todas las noches (abajo), no «se corre a mano». La única realmente huérfana es `actualizar_json`: sin call site en código, **y verificado que tampoco la llama ningún event, ninguna rutina ni ninguna vista** |
+
+## El EVENT: algo reconstruye ~1M de filas cada noche, y no está en ningún repo
+
+El censo original miró `ROUTINES` y nada más. Al mirar el resto de `information_schema` (2026-08-15)
+apareció **un** event en `creditop` — uno solo, y es de los objetos de más consecuencia del sistema:
+
+| | |
+|---|---|
+| nombre | `ejecutar_Update_User_Request_Risk_Centrals` |
+| cuerpo | `CALL SP_Update_User_Request_Risk_Centrals()` |
+| cadencia | cada **1 DAY**, desde las 04:50 UTC (23:50 Colombia) |
+| definer | `william@%` · creado 2025-11-11 |
+| fuente en repos | **ninguna** — `grep` de `CREATE EVENT` sobre los cuatro repos no lo encuentra |
+
+⚠ **En prod figura `SLAVESIDE_DISABLED` y eso NO significa apagado.** El endpoint de prod que atiende
+Redash es una **réplica de lectura** (`@@read_only = 1`, medido), y una réplica siempre muestra así un
+event que está activo en el primario. Leer ese estado como «no corre» es el error natural acá.
+
+**La prueba de que corre son los datos, no la columna:** `user_request_risk_central_user_data` tiene
+**969.866 filas y UNA sola fecha distinta** — todas escritas entre las 04:50:00 y las 04:50:16 de esa
+madrugada (medido en prod el 2026-08-15). Dieciséis segundos para casi un millón de filas es la firma
+de un `TRUNCATE` + reconstrucción total.
+
+**Y `migrate.sql` describe lo contrario de lo que corre.** Su versión del SP (último commit
+**2025-08-15**, un año) hace lo **incremental**: arma una tabla temporal `user_request_missing`, une por
+`ur.created_at` y filtra `risk_central_id = 1`; **no tiene un solo `TRUNCATE`** (verificado). La viva
+trunca todo, une por `ur.updated_at` y toma `risk_central_id IN (1, 9)`. Quien lea el repo para
+entender esta tabla, entiende otra cosa.
+
+Tres consecuencias, la primera medida y las otras dos leídas del cuerpo (que sólo se puede leer desde
+dev — ver la sección de Redash):
+
+1. **Esa tabla no tiene historia.** Su `created_at` no es cuándo se vinculó el buró con la solicitud:
+   es cuándo fue el último rebuild. Hoy todas dicen hoy. Cualquier análisis temporal sobre esa columna
+   es falso.
+2. **La atribución puede cambiar sola de una noche a otra.** La unión va contra `updated_at`, que se
+   mueve: tocar una solicitud puede reasignarle **otro** reporte de buró en el próximo rebuild. **F-107**
+   ya decía que el vínculo es una inferencia por fecha y no un hecho; el mecanismo lo confirma y agrega
+   lo peor: **la inferencia se rehace todas las noches**.
+3. **Las vistas que leen esa tabla cambian de salida sin que cambie nada más** — ver abajo.
+
+## Las VISTAS también calculan (28 en prod)
+
+No son proyecciones: varias son motor. Las que deciden o computan:
+
+- **`VW_User_Request_Track`** — calcula `INCOMES_AVERAGE`, `CONTINUITY`, `OCCUPATION`, `FIXED_EXPENSES`
+  y además **`REVOLVING_LOAN` / `PAYMENT_CAPACITY`** llamando a `FN_CreditopX_Revolving_Credit` y
+  `FN_CreditopX_Profiling_Multiplier_Risk`. Es el motor del rotativo expuesto como vista → **rotativo**.
+- **`VW_Matrix_Income_Continuity_Occupation`** — los insumos de la categoría, todos por función SQL.
+- **`VW_Risk_Central_*`** (Experian, Mareigua, TusDatos, AgilData) — desarman el JSON del buró
+  descifrándolo. Son las más consumidas por el código: entran por
+  `Modules/Onboarding/App/Services/ExperianProfileService.php` y `app/Actions/Lenders/Prami.php`.
+
+⚠ **Las dos primeras leen `user_request_risk_central_user_data`**, la tabla que el event trunca: **su
+salida puede cambiar de un día para otro sin que cambie una línea de código ni un dato de la solicitud.**
+
+⚠ **Doce de las 28 llevan un literal de clave embebido en su propia definición** (el que se le pasa a
+`FN_Decrypt_Data`), y **ese mismo literal está commiteado en `migrate.sql`**, que es un archivo
+versionado. Es un asunto de seguridad, no de contexto: no se resuelve en este nodo y **no se transcribe
+acá**.
 
 ## Lo que Redash SÍ y NO puede contestar acá
 
@@ -135,4 +203,17 @@ de log (ver F-108) y cuatro son framework (`failed_jobs`, `model_has_roles`…).
 
 ## Lo que NO está verificado
 - ¿`FN_Mareigua_*` coincide con `MareiguaExtractor`? Si divergen, dos caminos calculan el mismo ingreso distinto — el patrón de las dos convenciones de tasa (F-71).
-- ¿Prod, dev y staging tienen las MISMAS definiciones? `last_altered` por ambiente lo diría; no se comparó. Y `actualizar_json` sigue sin call site ni fuente.
+- **¿Prod y dev tienen el MISMO CUERPO? Sigue sin poder contestarse, y ahora se sabe por qué.** Se
+  comparó el 2026-08-15 hasta donde se pudo: **prod 42 · dev 47**, y **ninguna existe sólo en prod**
+  (dev es superconjunto, así que la receta de rescate cubre las 42). Las 5 de más en dev son
+  instrumental de índices creado el 2026-06-23, no negocio — ⚠ pero dos de ellas **cambian la
+  visibilidad de índices**, o sea el plan de ejecución: una consulta puede rendir distinto en dev que
+  en prod por algo que sólo existe en dev. De las 42 comunes, **41 tienen `created` y `last_altered`
+  idénticos al segundo** y **una diverge**: `FN_CreditopX_Revolving_Credit`, mismo día pero **55
+  minutos de diferencia** entre ambientes, con `created == last_altered` en los dos — dos despliegues
+  manuales separados. Justo la que `VW_User_Request_Track` usa para el rotativo, familia que **F-114**
+  ya marca como divergente. **Comparar los cuerpos es imposible con el acceso actual**:
+  `routine_definition` viene NULL en 42 de 42 con el usuario de Redash, así que el timestamp es un
+  proxy, no una prueba de identidad.
+- `actualizar_json` sigue sin fuente y ahora **sin ningún invocador conocido**: se descartó que la
+  llame un event, otra rutina o una vista. Coherente con que sea un script de migración que quedó.

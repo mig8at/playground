@@ -17,6 +17,7 @@ Si la tarea llega con una de estas frases, empezá por esos nodos. Si ninguna ma
 | «¿a quién le pregunto esto?» | `negocio` |
 | «ayer se saltaba la validación de identidad y hoy se la vuelve a pedir» | `kyc` |
 | «cambió el perfilamiento y no hubo deploy» | `db-routines` |
+| «cambió el resultado y no hubo deploy ni cambió el dato» | `db-routines` |
 | «¿de dónde sale el ingreso / la ocupación del cliente?» | `db-routines` |
 | «¿de dónde sale el reporte de liquidación?» | `negocio` |
 | «¿de qué vive CreditOp?» | `negocio` |
@@ -58,6 +59,7 @@ Si la tarea llega con una de estas frases, empezá por esos nodos. Si ninguna ma
 | «hay que integrar una entidad nueva» | `hardcodes-entidades` |
 | «hay que rehacer el panel de configuración» | `merchants` |
 | «la comisión del reporte salió en cero» | `negocio` |
+| «la fecha de esa tabla no coincide con nada» | `db-routines` |
 | «la pantalla del wizard se ve/comporta mal» | `frontend-monorepo` |
 | «las condiciones que vio no son las del cupo que quedó» | `rotativo` |
 | «lo mandó al sitio del lender y no volvió» | `redirect` |
@@ -186,7 +188,7 @@ Doc: `server/data/flows/credifamilia/doc.md` · Archivos: `server/data/flows/cre
 Doc: `server/data/flows/creditopx/doc.md` · Archivos: `server/data/flows/creditopx/map.json` · Padre: `entities`
 
 ### db-routines — Rutinas de BD  ·  _reference_ · 7 archivos
-**Cuándo:** Cuando el cálculo que buscás NO aparece en el código PHP: hay 42 procedimientos y funciones almacenados en MySQL con lógica de negocio, invocados como string dentro de `DB::scalar` / `DB::select` / `CALL`, así que grepear el nombre del campo nunca llega a la fórmula. Acá viven el ingreso promedio y la ocupación que deciden la categoría (`FN_User_Income_Average`, `FN_User_Occupation`), las 23 `FN_Experian_*` que arman los features del perfilador ML (`SP_Experian_Extract_Data`), el parseo de Mareigua y AgilData, el revolvente rt=3, el descifrado del reporte (`FN_Decrypt_Data`) y el SP que ata el buró a la solicitud (F-107). ⚠ 4 de las 42 NO tienen fuente en ningún repositorio y dos de ellas se llaman desde producción.
+**Cuándo:** Cuando el cálculo que buscás NO aparece en el código PHP: hay 42 procedimientos y funciones almacenados en MySQL con lógica de negocio, invocados como string dentro de `DB::scalar` / `DB::select` / `CALL`, así que grepear el nombre del campo nunca llega a la fórmula. Acá viven el ingreso promedio y la ocupación que deciden la categoría (`FN_User_Income_Average`, `FN_User_Occupation`), las 23 `FN_Experian_*` que arman los features del perfilador ML (`SP_Experian_Extract_Data`), el parseo de Mareigua y AgilData, el revolvente rt=3, el descifrado del reporte (`FN_Decrypt_Data`) y el SP que ata el buró a la solicitud (F-107). ⚠ 4 de las 42 NO tienen fuente en ningún repositorio y dos de ellas se llaman desde producción. ⚠ Y no son sólo rutinas: hay un EVENT nocturno que reconstruye entera `user_request_risk_central_user_data` (sin fuente en ningún repo), 28 vistas que calculan, y CERO triggers (medido).
 Doc: `server/data/flows/db-routines/doc.md` · Archivos: `server/data/flows/db-routines/map.json` · Padre: `creditop`
 
 ### deceval — Deceval (pagaré digital)  ·  _flujo_ · 20 archivos
