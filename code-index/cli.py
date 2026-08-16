@@ -238,7 +238,7 @@ def main():
             print()
             return 0
         d = _ar.cargar()
-        print(f"\n  diccionario: {len(d)} archivos. Usá --buscar, --ruta, --verificar o --construir.\n")
+        print(f"\n  diccionario: {len(d)} archivos. Usá --buscar, --ruta o --construir.\n")
         return 0
 
     if a.cmd == "check":
