@@ -7,19 +7,49 @@ una tarea.
 ## `make` es la puerta única
 
 `make` sin argumentos lista todo lo que se puede correr, agrupado por para qué sirve. No hace falta
-recordar en qué carpeta vive cada script.
+recordar en qué carpeta vive cada script — ni correr `make`: el hook `SessionStart`
+(`.claude/hooks/herramientas.py`) inyecta ese catálogo al arrancar, al reanudar y **después de
+compactar**. Por eso acá **no hay lista de comandos**: la que había era una copia a mano que quedaba
+vieja (llegó a anunciar un target `qa` que no existe). Lo que va acá es lo que `make` no puede decir:
+**cuál elegir, y contra qué ambiente**.
 
-| | |
+⚠ **Antes de decir «no tengo acceso a eso», mirá el catálogo.** Loki, Redash, las cuatro bases de
+datos, PostHog y Confluence ya están cableados y con credenciales. El error caro no es no tener la
+herramienta: es suponer que no está y contestar de memoria.
+
+### Qué herramienta según qué estás preguntando
+
+| Tu pregunta | Con qué se contesta |
 |---|---|
-| `make status` | **¿está el contexto al día?** Resumen de deriva + citas. No escribe nada |
-| `make context` · `make tablero` · `make panel` | abre cada pieza (:5193 · :5191 · :5195) |
-| `make pulso` | **¿cuánto trabajé?** Cuándo toqué los repos de la compañía, en tramos de 5′ |
-| `make context-align` | qué nodos quedaron viejos — **después de cada merge** |
-| `make context-refs [NODE=x]` | ¿las citas `archivo:línea` apuntan a lo que dicen? |
-| `make context-seal NODE=x` | "este nodo lo verifiqué hoy" — **solo si de verdad lo revisaste** |
-| `make harness-contract` · `make harness-walk` · `make harness-qr` | probar el canal QR / Bancolombia |
-| `make trazador-acceso` | **¿qué pasó en una solicitud real?** Loki (dev · qa · prod): permisos, etiquetas y líneas de verdad |
-| ↳ y en `trazador/.env.prod` | **las credenciales de REDASH** — así se le pregunta a la BD de **producción**. Es la única forma de contestar «¿esto pasa de verdad, y cuánto?» |
+| **¿cómo funciona X?** | `context/` — no es una herramienta: `docs/ROUTE-MAP.md` → nodo. **Siempre primero** |
+| **¿ya nos pasó?** | `context/server/data/flows/findings/doc.md`, entrando por su índice de síntomas |
+| **¿por qué existe esta regla?** (política, contrato, qué se le ofreció al comercio) | `make confluence` — el porqué del negocio no está en el código |
+| **¿esto pasa de verdad, y cuánto?** | `make trazador-sql` contra **prod**. Es la única forma de contestarlo |
+| **¿qué le pasó a ESTA solicitud?** | `make harness-loki UREQ=…` · `make trazador-acceso` |
+| **¿qué VIO el cliente en pantalla?** | `make trazador-posthog` |
+| **¿funciona, corriéndolo?** | `harness` (`make panel`) — se comprueba corriendo, no leyendo |
+| **¿en qué anda el equipo?** | Slack (MCP) · `make cuadrilla` · `make tablero` |
+
+Regla de oro: **una afirmación verificable se verifica antes de escribirla**, y la herramienta que la
+verifica casi siempre existe ya.
+
+### Contra qué ambiente
+
+Elegí **el más chico que conteste la pregunta**. Subir de ambiente agrega riesgo, no verdad.
+
+| | qué es | regla |
+|---|---|---|
+| `local` | tuyo, Docker | ⚠ **`E2E_TARGET` por defecto es `dev`, NO `local`** — omitirlo pega contra el dev compartido |
+| `dev` | rama `develop`, **compartido con el equipo** | leer libre; **escribir** pide `I_KNOW_THIS_TOUCHES_SHARED_DEV` a mano (F-53) |
+| `staging` | rama `staging`, backend propio | ⚠ **comparte la BD con `dev`** (es la misma) y corre con `APP_ENV=development` |
+| `prod` | lo real | **SOLO LECTURA, siempre.** Las herramientas del trazador no escriben en ningún ambiente |
+
+⚠ Y no asumas que el código está en los cuatro: **`Modules/Backoffice` existe sólo en `main`** — no
+está en `develop` ni en `staging`, así que `/api/backoffice` da 404 en dev y en staging **y no es un
+bug**. Antes de depurar un 404 de un módulo nuevo: `git -C <repo> ls-tree -r --name-only <rama> <ruta>`.
+
+El detalle de cada `.env.<target>`, la partición de credenciales y por qué los permisos no van en
+archivo: §«Variables de entorno», al final.
 
 Convención: los **nombres propios** se quedan (`context`, `tablero`, `harness` son carpetas; `panel`
 es la UI del harness) y los **verbos** van en inglés (`align`, `refs`, `seal`, `check`), como
