@@ -454,3 +454,83 @@ def imprimir_cruce(d, tope=25):
         print(f"\n  ! {d['cuantas'] - tope} coincidencias mas, no mostradas.")
     print()
     return 0
+
+
+# ── gemelos entre repos (por hash de CONTENIDO) ──────────────────────────────────────────────────
+def _shas(alias, solo_codigo=True):
+    """{relpath: blob_sha} de `main`. El sha lo calcula git y es identidad EXACTA: dos archivos con el
+    mismo sha son el mismo archivo, byte a byte, sin leerlos."""
+    root = ROOTS.get(alias)
+    if not root or not Path(root).is_dir():
+        return {}
+    r = subprocess.run(["git", "-C", root, "ls-tree", "-r", "main"],
+                       capture_output=True, text=True, timeout=180)
+    d = {}
+    for linea in r.stdout.splitlines():
+        try:
+            meta, camino = linea.split("\t", 1)
+            sha = meta.split()[2]
+        except (ValueError, IndexError):
+            continue
+        bajo = camino.lower()
+        if any(x in bajo for x in IGNORAR) or bajo.startswith(IGNORAR_PREFIJO):
+            continue
+        if not solo_codigo or bajo.rsplit(".", 1)[-1] in CODIGO:
+            d[camino] = sha
+    return d
+
+
+def gemelos(a, b):
+    """Qué comparten DOS repos a nivel contenido. Pensado para el parallel-run: `application` y
+    `legacy-backend` son dos mitades del mismo reemplazo, y esto dice en qué estado está la copia.
+
+    Tres categorías, y la del medio es la que importa:
+      · COPIADOS   misma ruta, mismo sha  → se copió y nadie lo tocó
+      · DIVERGIERON misma ruta, sha distinto → ⚠ dos conductas para el mismo archivo. EL RIESGO
+      · MUDADOS    ruta distinta, mismo sha → se copió y se renombró (`Allies/` → `Allieds/`)
+
+    Usa el sha del blob que ya calculó git: identidad exacta sin leer un solo archivo.
+    """
+    A, B = _shas(a), _shas(b)
+    comunes = set(A) & set(B)
+    copiados = sorted(p for p in comunes if A[p] == B[p])
+    divergen = sorted(p for p in comunes if A[p] != B[p])
+
+    # Mudados: mismo contenido en rutas distintas. Se indexa por sha para no comparar todos contra todos.
+    porShaB = {}
+    for p, s in B.items():
+        porShaB.setdefault(s, []).append(p)
+    mudados = []
+    for p, s in A.items():
+        if p in comunes:
+            continue
+        for q in porShaB.get(s, []):
+            if q not in comunes:
+                mudados.append({"en_" + a: p, "en_" + b: q})
+    return {
+        "repos": [a, b], "archivos": {a: len(A), b: len(B)},
+        "copiados": copiados, "divergieron": divergen, "mudados": mudados,
+        "resumen": {"copiados": len(copiados), "divergieron": len(divergen), "mudados": len(mudados)},
+    }
+
+
+def imprimir_gemelos(d, tope=20):
+    a, b = d["repos"]
+    r = d["resumen"]
+    print(f"\n> {a} ({d['archivos'][a]} archivos de codigo)  vs  {b} ({d['archivos'][b]})\n")
+    print(f"  copiados tal cual : {r['copiados']:>4}   (misma ruta, mismo contenido)")
+    print(f"  DIVERGIERON       : {r['divergieron']:>4}   <-- misma ruta, DOS conductas. El riesgo del parallel-run")
+    print(f"  mudados           : {r['mudados']:>4}   (mismo contenido, lo renombraron)\n")
+    if d["divergieron"]:
+        print("  Los que divergieron y son servicios o controllers (los que deciden):")
+        interesantes = [p for p in d["divergieron"] if "Service" in p or "Controller" in p]
+        for p in interesantes[:tope]:
+            print(f"    {p}")
+        if len(interesantes) > tope:
+            print(f"    ... y {len(interesantes) - tope} mas")
+    if d["mudados"]:
+        print("\n  Mudados (mismo archivo, otra ruta):")
+        for m in d["mudados"][:5]:
+            print(f"    {m['en_' + a]}\n       -> {m['en_' + b]}")
+    print()
+    return 0

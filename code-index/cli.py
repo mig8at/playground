@@ -108,6 +108,13 @@ def main():
                    help="incluir rutas de NAVEGACIÓN, no sólo de API. Por default se cruzan sólo las "
                         "de API: mezclar pantallas con endpoints da coincidencias falsas")
 
+    s = con_json(sub.add_parser(
+        "gemelos", help="qué comparten dos repos a nivel CONTENIDO (para el parallel-run)",
+        description="Compara por hash de blob: identidad exacta sin leer archivos. Dice qué se copió "
+                    "tal cual, qué se copió y DIVERGIÓ (el riesgo) y qué se renombró."))
+    s.add_argument("a")
+    s.add_argument("b")
+
     sub.add_parser("check", help="¿las rutas escritas a mano siguen vivas en main?")
     sub.add_parser("pesos", help="refresca los tamaños guardados en repos.json")
 
@@ -138,6 +145,14 @@ def main():
             return 2
         d = _ex.cruzar_rutas(a.alias, a.segmentos, solo_api=not a.con_ui)
         return _salida(d, lambda: _ex.imprimir_cruce(d), j)
+
+    if a.cmd == "gemelos":
+        malos = [x for x in (a.a, a.b) if x not in _ex.ROOTS]
+        if malos:
+            print(f"alias desconocido: {', '.join(malos)}", file=sys.stderr)
+            return 2
+        d = _ex.gemelos(a.a, a.b)
+        return _salida(d, lambda: _ex.imprimir_gemelos(d), j)
 
     if a.cmd == "check":
         return _ix.check()
