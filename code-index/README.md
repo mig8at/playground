@@ -4,13 +4,25 @@ El índice que entra **por repo**. Qué es cada proyecto de CreditOp, con qué e
 cómo se ensambla y los pocos archivos que lo explican de un vistazo. Pensado para dárselo entero a un
 agente y que **elija** qué abrir.
 
+**Es un CLI, no un puñado de targets de `make`** — porque la usa tanto una persona como un modelo, y
+un modelo necesita **descubrirla**. `--help` lista los subcomandos; `<subcomando> --help`, sus opciones
+con los valores válidos. La ayuda es la documentación y no se desincroniza, porque sale del código que
+corre. Todo acepta `--json`.
+
 ```bash
-make code-index                                  # todo
-make code-index ALIAS=frontend-monorepo          # uno
-make code-index-subramas ALIAS=legacy-backend    # las unidades de adentro
-make code-index PUENTE=1                         # cobertura del árbol de negocio por repo
-make code-index CHECK=1                          # ¿siguen vivas las rutas en main?
+cd code-index
+./cli.py --help                       # qué sabe hacer
+./cli.py repos frontend-monorepo      # qué es y por dónde entrar
+./cli.py subramas legacy-backend      # las unidades de adentro
+./cli.py mapa frontend-monorepo       # qué parte del negocio vive en cada unidad
+./cli.py buscar "firma pagaré"        # describís y te da archivos
+./cli.py extraer legacy-backend --zoom 2   # la forma del repo, del CÓDIGO
+./cli.py puente                       # cobertura del árbol por repo
+./cli.py check                        # ¿siguen vivas las rutas escritas a mano?
 ```
+
+Desde la raíz, `make code-index` muestra esa misma ayuda (y `ARGS='…'` reenvía) — así aparece en el
+catálogo que el hook inyecta, sin duplicar la interfaz.
 
 ## Por qué es un proyecto aparte y no vive en `context/`
 
@@ -51,7 +63,7 @@ cuando es una carpeta. Por eso `application` da **cero** y está bien: es Larave
 lista sus archivos como `alias/relpath`, así que la pertenencia estaba en los datos; sólo faltaba leerla
 al revés. Un nodo nuevo aparece solo.
 
-**4 · El mapa de negocio** — `make code-index-mapa ALIAS=…`. Cruza las capas 2 y 3: para **cada unidad**
+**4 · El mapa de negocio** — `./cli.py mapa <alias>`. Cruza las capas 2 y 3: para **cada unidad**
 del repo, qué nodos de negocio la citan. Es la respuesta a *«en el monorepo hay cosas separadas:
 bancolombia, backoffice, onboarding…»* — cierto, y **ya estaba en los datos dos veces**: el repo lo
 separa en carpetas y el árbol lo separa en nodos. Sólo faltaba cruzarlos.
@@ -67,6 +79,14 @@ Modules/Loans          (legacy-backend)      formalization (47) · smartpay (19)
 pudrirse porque nadie la regenera. Además el comando mide **lo que NO está cubierto**: hoy 19 de 25
 unidades del monorepo tienen nodo que las describa; las otras 6 son plomería o negocio sin escribir.
 
+**5 · La extracción** — `./cli.py extraer <alias>`. Lee el CÓDIGO y saca por archivo qué **define**,
+qué **importa** y qué **rutas HTTP** expone. Es lo único que no depende de que alguien haya escrito
+nada: sale del código mismo. Algoritmo portado de `carto`, adaptado a PHP/Laravel, TypeScript y Go.
+
+Puntúa por cuánta estructura tiene cada archivo y llena hasta un presupuesto en KB — y cuando corta,
+lo dice. `--zoom N` no filtra: agrupa en carpetas de N niveles, que es la única forma de entender un
+repo de miles de archivos (todo `legacy-backend` en diez líneas y 1,3 s).
+
 ## La regla que gobierna todo esto
 
 > **Lo que se puede derivar, no se escribe.** Sólo se escribe a mano lo que ninguna máquina puede
@@ -77,8 +97,8 @@ momento — y por eso no se pudre.
 
 ## Mantenimiento
 
-`make code-index CHECK=1` valida que las rutas escritas a mano sigan existiendo en `main`; sale 1 si
+`./cli.py check` valida que las rutas escritas a mano sigan existiendo en `main`; sale 1 si
 alguna murió. **Un índice que apunta a un archivo que ya no está es peor que no tenerlo**, porque un
 modelo lo abre, no lo encuentra y concluye cualquier cosa.
 
-Las otras dos capas no necesitan mantenimiento: se derivan.
+Las otras capas no necesitan mantenimiento: se derivan de `main` en el momento.

@@ -112,29 +112,18 @@ context-map: ## @ctx regenera docs/ROUTE-MAP.md (el hook ya lo hace al editar un
 	@cd context && python3 tools/build-route-map.py
 
 # ── CODE-INDEX ───────────────────────────────────────────────────────────────────────────────────
-# El OTRO índice, y por eso es proyecto aparte: `context` entra por PREGUNTA DE NEGOCIO (síntoma →
-# nodo) y contesta «cómo funciona CreditOp»; éste entra por REPO y contesta «cómo están construidos
-# los proyectos». Distinta pregunta y distintas reglas — acá `.md` y `.yaml` SON la respuesta, así que
-# tiene validador propio. La dependencia va en un sentido: code-index lee context, no al revés.
-.PHONY: code-index code-index-subramas
-code-index: ## @idx qué es cada repo, cómo se ensambla y por dónde entrar. ALIAS=<repo> · CHECK=1 valida rutas · PUENTE=1 cobertura del árbol por repo
-	@cd code-index && python3 indice.py $(if $(CHECK),check,$(if $(PUENTE),puente,ver $(ALIAS)))
-
-code-index-subramas: ## @idx las unidades DENTRO de un repo (workspaces, módulos), descubiertas de main. ALIAS=frontend-monorepo
-	@test -n "$(ALIAS)" || { echo "falta ALIAS=<repo>  ·  ej: make code-index-subramas ALIAS=frontend-monorepo"; exit 2; }
-	@cd code-index && python3 indice.py subramas $(ALIAS)
-
-code-index-buscar: ## @idx describí lo que necesitás y te devuelve ARCHIVOS, sin saber rutas. Q='cupo categoría'
-	@test -n "$(Q)" || { echo "falta Q='…'  ·  ej: make code-index-buscar Q='firma pagaré'"; exit 2; }
-	@cd code-index && python3 indice.py buscar "$(Q)"
-
-code-index-extraer: ## @idx EXTRAE del código: qué define, importa y qué rutas expone cada archivo. ALIAS=x [RUTA=] [LANG=go,php] [PROF=3] [ZOOM=2] [TOPE=60] [JSON=1]
-	@test -n "$(ALIAS)" || { echo "falta ALIAS=<repo>  ·  ej: make code-index-extraer ALIAS=legacy-backend ZOOM=2"; exit 2; }
-	@cd code-index && python3 extraer.py $(ALIAS) $(if $(RUTA),--ruta $(RUTA)) $(if $(LANG),--lang $(LANG)) $(if $(PROF),--prof $(PROF)) $(if $(ZOOM),--agrupar $(ZOOM)) $(if $(TOPE),--tope $(TOPE)) $(if $(JSON),--json)
-
-code-index-mapa: ## @idx qué parte del NEGOCIO vive en cada unidad de un repo (bancolombia, backoffice, onboarding…). ALIAS=frontend-monorepo
-	@test -n "$(ALIAS)" || { echo "falta ALIAS=<repo>  ·  ej: make code-index-mapa ALIAS=frontend-monorepo"; exit 2; }
-	@cd code-index && python3 indice.py mapa $(ALIAS)
+# El OTRO índice: `context` entra por PREGUNTA DE NEGOCIO y contesta «cómo funciona CreditOp»; éste
+# entra por REPO y contesta «cómo están construidos los proyectos». La dependencia va en un sentido:
+# code-index lee context, no al revés.
+#
+# ⚠ Acá NO hay un target por verbo, a propósito. code-index es un CLI de verdad y se maneja solo:
+# `code-index/cli.py --help` lista los subcomandos y `cli.py <subcomando> --help` sus opciones con
+# los valores válidos. Un target de make (`ALIAS=x ZOOM=2`) no puede decir eso — y esta herramienta
+# la usa tanto Miguel como un modelo, que necesita DESCUBRIRLA, no que se la expliquen. La ayuda es
+# la documentación y no se desincroniza, porque sale del mismo código que corre.
+.PHONY: code-index
+code-index: ## @idx cómo están CONSTRUIDOS los proyectos. Es un CLI: corré `code-index/cli.py --help`. Subcomandos: repos · subramas · mapa · puente · buscar · extraer · check
+	@cd code-index && ./cli.py $(if $(ARGS),$(ARGS),--help)
 
 # ── PRUEBAS (harness) ────────────────────────────────────────────────────────────────────────────
 .PHONY: harness-contract harness-sandbox harness-walk harness-qr harness-mocks harness-check

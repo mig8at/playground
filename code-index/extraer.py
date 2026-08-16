@@ -309,64 +309,28 @@ def extraer(alias, subruta="", tope_kb=60, langs=None, prof=0):
     }
 
 
-def main():
-    args = sys.argv[1:]
-    if not args or args[0] in ("-h", "--help"):
-        print(__doc__)
-        return 0
-    alias = args[0]
-    if alias not in ROOTS:
-        print(f"alias desconocido '{alias}'. Válidos: {', '.join(sorted(ROOTS))}", file=sys.stderr)
-        return 2
-    sub = args[args.index("--ruta") + 1] if "--ruta" in args else ""
-    tope = int(args[args.index("--tope") + 1]) if "--tope" in args else 60
-    langs = set(args[args.index("--lang") + 1].split(",")) if "--lang" in args else None
-    prof = int(args[args.index("--prof") + 1]) if "--prof" in args else 0
-    agr = int(args[args.index("--agrupar") + 1]) if "--agrupar" in args else 0
-
-    if langs:
-        desconocidos = langs - set(LENGUAJES)
-        if desconocidos:
-            print(f"lenguaje desconocido: {', '.join(desconocidos)}. "
-                  f"Válidos: {', '.join(sorted(LENGUAJES))}", file=sys.stderr)
-            return 2
-
-    d = extraer(alias, sub, tope, langs, prof)
-
-    if agr:
-        # El ZOOM se calcula sobre TODO lo encontrado, no sobre lo que entró al presupuesto: si no,
-        # el mapa de un repo dependería de cuánto lugar quedaba, que no tiene nada que ver.
-        cajas = agrupar(
-            [n for n in d["nodos"]] if d["entregados"] == d["encontrados"]
-            else extraer(alias, sub, 10_000, langs, prof)["nodos"],
-            alias, sub, agr)
-        d["carpetas"] = cajas
-        d.pop("nodos", None)
-
-    if "--json" in args:
-        print(json.dumps(d, ensure_ascii=False, indent=1))
-        return 0
-
+def imprimir(d, zoom=0):
+    """La vista legible. Vive acá y no en el CLI porque es parte de la herramienta, no del parseo."""
     filtros = []
     if d["lenguajes"] != "todos":
         filtros.append(f"lang={','.join(d['lenguajes'])}")
     if d["profundidad_max"]:
-        filtros.append(f"prof≤{d['profundidad_max']}")
+        filtros.append(f"prof<={d['profundidad_max']}")
     cab = f"  ·  {' · '.join(filtros)}" if filtros else ""
 
-    if agr:
-        print(f"\n▸ {d['repo']} · {d['subruta']} — agrupado a {agr} nivel(es){cab}\n")
+    if zoom:
+        print(f"\n> {d['repo']} · {d['subruta']} — agrupado a {zoom} nivel(es){cab}\n")
         for c in d["carpetas"][:25]:
             print(f"  [{c['puntaje']:>5}] {c['carpeta']}/   "
-                  f"{c['archivos']} archivos · {c['lineas']:,} líneas · {c['defs']} defs")
+                  f"{c['archivos']} archivos · {c['lineas']:,} lineas · {c['defs']} defs")
             if c["rutas"]:
                 print(f"           rutas: {' · '.join(c['rutas'][:3])}")
         if len(d["carpetas"]) > 25:
-            print(f"\n  ⚠ {len(d['carpetas']) - 25} carpetas más, no mostradas.")
+            print(f"\n  ! {len(d['carpetas']) - 25} carpetas mas, no mostradas.")
         print()
         return 0
 
-    print(f"\n▸ {d['repo']} · {d['subruta']} — {d['entregados']}/{d['encontrados']} archivos "
+    print(f"\n> {d['repo']} · {d['subruta']} — {d['entregados']}/{d['encontrados']} archivos "
           f"· {d['kb']} KB de {d['tope_kb']} KB{cab}\n")
     for n in d["nodos"][:30]:
         marcas = []
@@ -378,15 +342,14 @@ def main():
             marcas.append(f"{len(n['i'])} imports")
         if n.get("x"):
             marcas.append("infra")
-        print(f"  [{puntuar(n):>3}] {n['p'].split('/', 1)[1]}  ({n['l']} líneas · {' · '.join(marcas)})")
+        print(f"  [{puntuar(n):>3}] {n['p'].split('/', 1)[1]}  ({n['l']} lineas · {' · '.join(marcas)})")
         if n.get("r"):
             print(f"        rutas: {' · '.join(n['r'][:3])}")
     if d["encontrados"] > d["entregados"]:
-        print(f"\n  ⚠ {d['encontrados'] - d['entregados']} archivos quedaron fuera del presupuesto. "
-              f"Subí --tope o acotá con --ruta. (Recortar y decirlo; nunca recortar en silencio.)")
+        print(f"\n  ! {d['encontrados'] - d['entregados']} archivos quedaron fuera del presupuesto. "
+              f"Subi --tope o acota con --ruta. (Recortar y decirlo; nunca recortar en silencio.)")
     print()
     return 0
 
 
-if __name__ == "__main__":
-    sys.exit(main())
+# La entrada de consola es `cli.py`: este modulo es la LOGICA y se importa.
