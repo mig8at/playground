@@ -34,6 +34,7 @@ import sys
 from pathlib import Path
 
 import gemini
+import contexto
 from contexto import (
     CONTEXT, PLAYGROUND, ROOTS, _extraer, buscar_en_codigo, leer_codigo,
 )
@@ -482,6 +483,12 @@ HERRAMIENTAS = {
             "patron": {"type": "string"}, "alias": {"type": "string"}, "subruta": {"type": "string"},
         }, "required": ["patron", "alias"]},
     }, buscar_en_codigo),
+
+    # Leyendo aparece la pregunta «¿y el otro monolito hace lo mismo?». Sin esto, la única salida era
+    # suponer la ruta del gemelo — y una ruta supuesta que no existe se lee como «no está en el otro
+    # repo», que es una conclusión, no un error.
+    "gemelos": contexto.HERRAMIENTAS["gemelos"],
+    "que_hay_en": contexto.HERRAMIENTAS["que_hay_en"],
 }
 
 INSTRUCCIONES = """\

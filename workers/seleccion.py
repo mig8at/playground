@@ -40,8 +40,15 @@ USO = """
 """
 
 # Sólo los índices. Sin `leer_codigo` ni `buscar_en_codigo`: acá se ELIGE, no se lee.
+# Las que ven los seleccionadores: TODO lo que sea índice, y nada que lea código.
+# ⚠ `gemelos` y `archivos_por_tag` entraron el 2026-08-16 y tapan un hueco vergonzoso: a estos
+# agentes se les pedía el ángulo «mirá el gemelo en el otro repo» y no tenían con qué encontrarlo
+# —adivinaban la ruta del otro lado—, y se les hablaba de tablas y lenders sin darles forma de
+# filtrar por ellos. Pedir un ángulo sin la herramienta para recorrerlo es cómo se fabrica una
+# respuesta inventada; ya pasó con los hashes de las migraciones.
 DE_INDICE = ["mapa_de_rutas", "indice_de_repos", "subramas_del_repo",
-             "mapa_de_negocio_del_repo", "buscar_archivos", "abrir_nodo"]
+             "mapa_de_negocio_del_repo", "buscar_archivos", "archivos_por_tag",
+             "gemelos", "que_hay_en", "abrir_nodo"]
 
 INSTRUCCIONES = """\
 Tu trabajo NO es contestar la pregunta. Es decidir QUÉ ARCHIVOS habría que leer para contestarla, y

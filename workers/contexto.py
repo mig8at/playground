@@ -143,6 +143,67 @@ def buscar_en_codigo(patron, alias, subruta=""):
     return {"patron": patron, "alias": alias, "coincidencias": len(hits), "donde": hits}
 
 
+def archivos_por_tag(termino, cuantos=40):
+    """Los archivos que TOCAN algo concreto, por tag estructural: una tabla, un lender, un comercio,
+    un `response_type`, un estado, o los que bifurcan por ambiente.
+
+    Es el complemento exacto de `buscar_archivos`: aquél entiende lo que describís en palabras y
+    puntúa por parecido; éste no interpreta nada — responde con hechos del código. «¿qué toca
+    `user_requests`?» son 209 archivos y son ESOS, no los que más se le parecen a la frase.
+    """
+    import archivos as _arch
+    r = _arch.buscar(termino)
+    lista = r.get("archivos", [])[:max(1, min(int(cuantos or 40), 120))]
+    for a in lista:
+        a["h"] = _extraer.hash_de(a["p"])
+    return {"busque": r.get("busque", termino), "cuantos_hay": r.get("cuantos", 0),
+            "devueltos": len(lista), "archivos": lista,
+            "sintaxis": "tabla:x · lender:N · allied:N · rt:N · estado:N · gates · o texto libre"}
+
+
+def gemelos(a="application", b="legacy-backend", filtro="", cuantos=40):
+    """Qué archivos existen en LOS DOS repos, y cuáles **divergieron**.
+
+    ⚠ Existe porque a los agentes se les pide explícitamente el ángulo «mirá el gemelo en el otro
+    repo» —casi todo CreditOp vive dos veces, `application` (el monolito viejo, la ruta viva por
+    defecto) y `legacy-backend` (el nuevo)— y no tenían NINGUNA forma de encontrarlo: adivinaban la
+    ruta del otro lado. Pedir un ángulo sin dar la herramienta para recorrerlo es cómo se fabrica una
+    respuesta inventada.
+
+    `copiados` son idénticos (si leíste uno, leíste los dos). **`divergieron` es donde está el
+    interés**: mismo archivo, distinto contenido — y cuando difieren, ESO suele ser la respuesta.
+    """
+    g = _extraer.gemelos(a, b)
+    f = (filtro or "").lower()
+    div = [r for r in g.get("divergieron", []) if not f or f in r.lower()]
+    cop = [r for r in g.get("copiados", []) if not f or f in r.lower()]
+    n = max(1, min(int(cuantos or 40), 120))
+    return {
+        "repos": [a, b], "filtro": filtro or "(todo)",
+        "resumen": {"copiados_identicos": len(g.get("copiados", [])),
+                    "DIVERGIERON": len(g.get("divergieron", []))},
+        "divergieron": [{"ruta": r, "h_a": _extraer.hash_de(f"{a}/{r}"),
+                         "h_b": _extraer.hash_de(f"{b}/{r}")} for r in div[:n]],
+        "copiados": cop[:15],
+        "nota": "los que DIVERGIERON son los que importan: mismo archivo, distinto código. "
+                "Pedí los dos lados (h_a y h_b) y compará.",
+    }
+
+
+def que_hay_en(ruta):
+    """Qué significa un archivo EN EL NEGOCIO, sin abrirlo: qué lenders, comercios, tablas, estados y
+    `response_type` toca, qué nodos lo describen y si bifurca por ambiente.
+
+    Sirve para decidir si vale la pena abrirlo: un archivo de 60 KB cuesta ~15.000 tokens y esto
+    cuesta veinte."""
+    import archivos as _arch
+    d = _arch.de_ruta(ruta)
+    if not d:
+        return {"ruta": ruta, "sin_datos": "no está en el índice de tags — puede ser un archivo que "
+                                           "no toca nada del vocabulario de negocio, o una ruta mal escrita"}
+    return dict(d, ruta=ruta, h=_extraer.hash_de(ruta))
+
+
 HERRAMIENTAS = {
     "mapa_de_rutas": ({
         "name": "mapa_de_rutas",
@@ -200,6 +261,50 @@ HERRAMIENTAS = {
             "que_necesito": {"type": "string", "description": "en palabras, p. ej. 'dónde se decide el cupo por categoría'"},
         }, "required": ["que_necesito"]},
     }, lambda que_necesito: _con_hash(_code_index.buscar(que_necesito))),
+
+    "archivos_por_tag": ({
+        "name": "archivos_por_tag",
+        "description": (
+            "Los archivos que TOCAN algo concreto, por hecho del código y no por parecido: "
+            "`tabla:user_requests` · `lender:24` · `allied:94` · `rt:2` · `estado:11` · `gates` "
+            "(los que bifurcan por AMBIENTE). Complementa a `buscar_archivos`: aquél interpreta lo "
+            "que describís, éste no interpreta nada. Usalo cuando sepas EXACTAMENTE qué tabla, "
+            "entidad o comercio está en juego."
+        ),
+        "parameters": {"type": "object", "properties": {
+            "termino": {"type": "string", "description": "p. ej. 'tabla:user_requests', 'lender:24', 'gates'"},
+            "cuantos": {"type": "integer", "description": "máximo a devolver (tope 120, por defecto 40)"},
+        }, "required": ["termino"]},
+    }, archivos_por_tag),
+
+    "gemelos": ({
+        "name": "gemelos",
+        "description": (
+            "Qué archivos existen en LOS DOS monolitos y cuáles DIVERGIERON. Casi todo CreditOp vive "
+            "dos veces: `application` (el viejo, la ruta viva por defecto) y `legacy-backend` (el "
+            "nuevo). Es la herramienta del ángulo «mirá el gemelo en el otro repo» — y cuando dos "
+            "gemelos difieren, esa diferencia suele SER la respuesta. `filtro` acota por ruta "
+            "(ej. 'lenders')."
+        ),
+        "parameters": {"type": "object", "properties": {
+            "a": {"type": "string", "description": "repo A, por defecto 'application'"},
+            "b": {"type": "string", "description": "repo B, por defecto 'legacy-backend'"},
+            "filtro": {"type": "string", "description": "subcadena de la ruta, para acotar"},
+            "cuantos": {"type": "integer", "description": "máximo a devolver (tope 120)"},
+        }},
+    }, gemelos),
+
+    "que_hay_en": ({
+        "name": "que_hay_en",
+        "description": (
+            "Qué significa un archivo en el NEGOCIO sin abrirlo: qué lenders, comercios, tablas, "
+            "estados y response_type toca, qué nodos lo describen, si bifurca por ambiente. Cuesta "
+            "veinte tokens contra los ~15.000 de abrir un archivo grande. Usalo para decidir si vale."
+        ),
+        "parameters": {"type": "object", "properties": {
+            "ruta": {"type": "string", "description": "'alias/camino' tal cual figura en los índices"},
+        }, "required": ["ruta"]},
+    }, que_hay_en),
 
     "abrir_nodo": ({
         "name": "abrir_nodo",
