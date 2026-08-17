@@ -78,6 +78,15 @@ RACIMOS: list[tuple[str, str, str]] = [
 UMBRAL_VACIA = 0        # sin filas en prod
 UMBRAL_CATALOGO = 100   # menos que esto es un catálogo, no un registro de negocio
 
+# ⚠ `viva` SIGNIFICA «tiene filas», NO «se está usando». Medido el 2026-08-17 contra las 5.038
+# solicitudes de una semana: `user_request_risk_central_verified` (276.696 filas), `ocr_logs`,
+# `compare_face_logs`, `user_request_documentations`, `request_authorizations` y
+# `user_request_comments` recibieron **cero** escrituras — son historia, no camino vivo. El censo
+# cuenta el acumulado de años y no distingue eso. Para saber si una tabla se usa HOY hay que contar
+# filas nuevas en una ventana:
+#     SELECT COUNT(DISTINCT x.user_request_id) FROM <tabla> x
+#     JOIN user_requests r ON r.id = x.user_request_id WHERE r.created_at > NOW() - INTERVAL 7 DAY
+
 
 def _cargar(nombre: str, clave: str) -> tuple[dict, dict]:
     d = json.loads((AQUI / nombre).read_text(encoding="utf-8"))

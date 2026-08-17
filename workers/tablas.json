@@ -991,5 +991,6 @@
    "filas": 5,
    "tipo": "tabla"
   }
- }
+ },
+ "_ojo": "`filas` es el ACUMULADO de años, no actividad. Seis tablas con filas de sobra recibieron CERO escrituras en la semana del 2026-08-10 al 17 (user_request_risk_central_verified, ocr_logs, compare_face_logs, user_request_documentations, request_authorizations, user_request_comments): tienen historia, no camino vivo. «Viva» acá quiere decir «tiene filas», nunca «se usa hoy»."
 }
