@@ -107,6 +107,8 @@ a la vista en `gemini.py` y lo reusan todos.
 |---|---|
 | `gemini.py` | el **cliente**: una llamada a la API y el bucle de herramientas. No sabe nada de CreditOp. `--modelos` dice qué habilita tu key hoy |
 | `contexto.py` | **no es un agente**: la caja de herramientas compartida (índices + leer código de `main`) |
+| `plan.py` | el primero de la fila: no busca, decide **cuántos ángulos y cuáles** + el puente español→código |
+| `analisis.py` | corre la fila entera (plan → N seleccionadores → lector). La entrada normal |
 | `seleccion.py` | **no contesta**: dice qué archivos habría que leer, y por qué. Sólo ve índices |
 | `contraste.py` | el segundo seleccionador: elige lo que el primero NO miró. Tiene prohibido repetir |
 | `lector.py` | lee lo que eligieron los otros + los nodos de `context/`, y concluye. Recorta a 300k tokens |
@@ -142,23 +144,55 @@ eso exactamente (el glosario español↔inglés, `esquema`, `agrupar_logs`).
 *(Esto era el prompt del subagente `orquestador` de `.claude/agents/`, retirado en la unificación: lo
 que decidía es una receta, y una receta se lee mejor de un archivo que de un agente.)*
 
-## El pipeline de código
+## El pipeline de código — la fila de hormigas
 
 ```bash
-cd workers
-rm -f _angulo-*.json                       # ⚠ selecciones de una pregunta anterior contaminan el lector
-
-# 1) uno o VARIOS seleccionadores, cada uno con su ángulo. Sólo ven índices, no código.
-python3 seleccion.py "<pregunta>" --min 4 --max 12 --salida _ultima-seleccion.json
-python3 seleccion.py "<pregunta>" --angulo "…" --min 4 --max 10 \
-        --evitar _ultima-seleccion.json --salida _angulo-2.json
-
-# 2) el lector: junta TODAS las selecciones + los doc.md de los nodos, y concluye
-python3 lector.py
+make agente-analisis PREGUNTA='…'     # la fila entera; es la entrada normal
 ```
 
-⚠ La PRIMERA selección va siempre a `_ultima-seleccion.json`: el lector reparte el presupuesto de
-izquierda a derecha y esa fuente va primero — ahí tiene que ir el ángulo principal.
+    plan  →  N seleccionadores (uno por ángulo, cada uno evitando a los anteriores)  →  lector
+
+**1 · `plan.py`** — no busca archivos: decide **cómo** se va a buscar. Ve sólo la superficie de
+RUTEO (ROUTE-MAP + el vocabulario de negocio ≈ 10k tokens; los 38 `doc.md` enteros serían **208.636**,
+el 70% de la ventana del lector) y devuelve: qué **clase** de pregunta es, los **ángulos** —uno por
+seleccionador—, el **puente español→código**, los nodos y la **ambigüedad** si la hay.
+
+> ⚠ **No reescribe la pregunta**, y es deliberado. La tentación era «mejorarla» antes de pasarla: es
+> una mala idea con forma de buena, porque si el refinador la entiende mal, el error lo heredan TODOS
+> los de abajo **y queda invisible** — un punto de falla único y silencioso en el primer paso. La
+> pregunta viaja verbatim; el plan se **suma**.
+
+Los ángulos eran hasta hoy texto libre que alguien escribía a mano (los decidía el subagente
+`orquestador`; al retirarlo quedaron sin dueño). El puente al código mata en el origen el bug
+español↔inglés que apareció **tres veces** — «migración» nunca iba a matchear `migrations`.
+
+**2 · `seleccion.py` ×N** — cada uno con su ángulo y con `--evitar` de los anteriores. Sólo ven
+índices. Devuelven hashes.
+
+**3 · `lector.py`** — junta todo, recorta a 300k y concluye.
+
+Los pasos sueltos siguen disponibles (`agente-plan`, `agente-seleccion`, `agente-contraste`,
+`agente-lector`) para inspeccionar una etapa. ⚠ Corriéndolos a mano, la PRIMERA selección va siempre a
+`_ultima-seleccion.json`: el lector reparte de izquierda a derecha y ahí tiene que ir el ángulo
+principal. `analisis.py` ya lo hace, y además **borra los `_*.json` viejos** — el lector junta todos
+los que encuentre, así que una selección de otra pregunta entraría al payload sin avisar.
+
+### Medido, en una corrida real de punta a punta
+
+Pregunta: *«¿por qué a un cliente no le apareció una entidad y el comercio reclama?»* → forma
+`mecanismo`, 3 ángulos (config comercial · motor local de riesgo · pre-aprobaciones externas), cada
+uno entrando por nodos distintos:
+
+| pieza | tokens |
+|---|---|
+| 23 archivos de los 3 ángulos | 153.168 |
+| 9 `doc.md`, recortados por secciones | 34.541 |
+| el mapa del vecindario (456 archivos visibles) | 12.123 |
+| **el triaje: 4 archivos que los tres ángulos perdieron** | 19.085 |
+
+Los que rescató el triaje: `ProfilingRulesService`, `LenderSpecialGrantingService`,
+`ListLenderController` de `application` y el mapper del front. Con tres seleccionadores encima, la
+red de abajo **igual encontró cuatro**.
 
 ## El vecindario y el triaje — la red bajo el seleccionador
 

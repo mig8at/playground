@@ -141,6 +141,23 @@ def main():
             rutas_ya = [_ex.resolver([h])["resueltos"].get(h, h) for h in ya]
 
         instr = INSTRUCCIONES.format(min=minimo, max=maximo)
+
+        # El PUENTE al código, si hay un plan. Se pregunta en español y el código está en inglés: es
+        # el error más repetido de esta herramienta —«migración» nunca iba a matchear `migrations`,
+        # «cupo» nunca a `available_amount`— y hasta acá se parcheaba a mano en el glosario cada vez
+        # que aparecía. El plan lo resuelve donde corresponde: ANTES de buscar, y para esta pregunta.
+        plan = PLAYGROUND / "workers" / "_plan.json"
+        if plan.exists():
+            try:
+                terminos = json.loads(plan.read_text(encoding="utf-8")).get("terminos") or []
+            except json.JSONDecodeError:
+                terminos = []
+            if terminos:
+                lineas = "\n".join(f"  «{t.get('dice','')}» se llama {t.get('en_el_codigo','')}"
+                                   for t in terminos)
+                instr += ("\n⚠ CÓMO SE LLAMA EN EL CÓDIGO lo que la pregunta nombra en español. "
+                          "Buscá por estos términos, no por los del enunciado:\n" + lineas + "\n")
+
         if angulo:
             instr += (f"\n⚠ TU ÁNGULO: {angulo}\nOtros agentes están mirando esto desde otros lados. "
                       f"Vos mirá DESDE AHÍ — no intentes cubrir todo.\n")

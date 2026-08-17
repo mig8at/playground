@@ -214,7 +214,7 @@ trazador-sql: ## @har UNA consulta de SOLO LECTURA a la BD del ambiente. SQL='SE
 
 # Los agentes de workers: el bucle a la vista, contra Gemini. La receta de CÓMO combinarlos —cuántos
 # ángulos, cuántos archivos, cuándo medir en vez de leer— está en `workers/README.md` §«Cómo se orquesta».
-.PHONY: agente-modelos agente-seleccion agente-contraste agente-analisis agente-lector agente-datos
+.PHONY: agente-modelos agente-plan agente-seleccion agente-contraste agente-analisis agente-lector agente-datos
 agente-modelos: ## @wrk ¿qué modelos habilita mi key hoy? (correlo primero, y ante cualquier 404 de modelo)
 	@cd workers && python3 gemini.py --modelos
 
@@ -224,9 +224,13 @@ agente-seleccion: ## @wrk NO contesta: dice QUÉ ARCHIVOS habría que leer y por
 agente-contraste: ## @wrk PASO 2: otro agente elige archivos que el primero NO miró, para contrastar
 	@cd workers && python3 contraste.py
 
-agente-analisis: ## @wrk LOS TRES PASOS: elegir → contrastar → leer y concluir. PREGUNTA='…'
+agente-plan: ## @wrk NO busca: decide cuántos ángulos y cómo se dice en el código. PREGUNTA='…'
 	@test -n "$(PREGUNTA)" || { echo "falta PREGUNTA='…'"; exit 2; }
-	@cd workers && python3 seleccion.py "$(PREGUNTA)" && python3 contraste.py && python3 lector.py
+	@cd workers && python3 plan.py "$(PREGUNTA)"
+
+agente-analisis: ## @wrk LA FILA ENTERA: plan → N seleccionadores por ángulo → lector. PREGUNTA='…'
+	@test -n "$(PREGUNTA)" || { echo "falta PREGUNTA='…'"; exit 2; }
+	@cd workers && python3 analisis.py "$(PREGUNTA)"
 
 agente-lector: ## @wrk PASO 2: lee los archivos que eligió `agente-seleccion` y contesta. Recorta a 300k tokens
 	@cd workers && python3 lector.py $(if $(PREGUNTA),"$(PREGUNTA)")
