@@ -28,6 +28,8 @@
     "legacy-backend/Modules/Onboarding/App/Services/lenders/LenderListingService.php",
     "legacy-backend/Modules/UserRequestV1/App/Constants/Flow.php",
     "legacy-backend/app/Models/Lender.php",
-    "legacy-backend/database/seeders/ResponseTypesTableSeeder.php"
+    "legacy-backend/database/seeders/ResponseTypesTableSeeder.php",
+    "legacy-backend/Modules/Onboarding/App/Services/lenders/RiskCentralValidationService.php",
+    "legacy-backend/Modules/Onboarding/tests/Unit/LenderListingCanCheckPreapprovalTest.php"
   ]
 }

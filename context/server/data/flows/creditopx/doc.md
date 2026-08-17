@@ -99,3 +99,41 @@ vive en el controller, no en `LenderListingService`.. Categoría/cupo Ctopx: `Mo
 
 ## Lo que NO está verificado
 - La regla GENÉRICA del `DatacreditoRuleEvaluator`: el fail-closed está verificado (`:48`); el `whereNull(allied_branch_id)` exacto, no.
+
+## `can_check_preapproval` — el flag fail-closed que el front todavía no lee
+
+Entró a `main` el **2026-08-10** (`3a6d59de`, Santiago). Es un booleano **por entidad** que el listado
+**v2** agrega a cada card para decirle al front si debe disparar la consulta al microservicio de
+pre-aprobados para ESA entidad. Su mensaje de commit lo resume: *«el front necesita saber si debe
+disparar la consulta al microservicio de pre-aprobados para cada entidad, según las políticas de
+datacrédito del lender»*.
+
+**Nace en `false` y se siembra ANTES de cualquier bifurcación** (`LenderListingService`, sobre la
+colección recién traída y antes del branch de `$hasGroupRules`), porque las dos ramas derivan de esas
+mismas instancias: así ninguna entidad puede llegar a la respuesta sin el campo. Al final del pipeline
+hay una **red idempotente** que cubre las instancias que no pasaron por la siembra — hoy sólo el
+Magnocell 84.
+
+**Lo sube a `true` un solo lugar**: `RiskCentralValidationService`, con
+`$scorePassed && $negativeAccountsPassed && $maturationPassed` — las tres validaciones de datacrédito
+(score, cuentas negativas, antigüedad en el sector financiero). Es **fail-closed de verdad**: una
+validación que no se pudo correr *por dato ausente del cliente* NO cuenta como pasada.
+
+Tres cosas que cambian cómo se lee este campo:
+
+- **NO filtra.** No participa de `$remove_lender`: la entidad sigue apareciendo en el listado. Sólo
+  dice si se puede consultar pre-aprobación.
+- **Nunca se evalúa si las políticas duras ya hundieron la card.** El bloque entero está adentro del
+  `if` que exige que `probability` no sea `Probabilidad muy baja` ni `0% de probabilidad` — o sea que
+  para esas entidades el flag se queda en el `false` de la siembra. Se conecta con la asimetría de
+  probabilidades de más arriba en este mismo nodo.
+- ⚠ **Su significado es exclusivo de lenders-v2.** `RiskCentralValidationService` es compartido con el
+  listado **v1** (`LenderRetrievalService`), así que el atributo también aparece allá — pero v1
+  resuelve sus pre-aprobados por otro camino (`validatePreApproveLender`) y **debe ignorarlo**. Leer
+  este campo en una respuesta de v1 lleva a la conclusión equivocada.
+
+⚠ **El front todavía NO lo consume.** Medido el 2026-08-16 sobre `main` de `frontend-monorepo`: cero
+apariciones, en snake_case y en camelCase. Es una entrega backend-first esperando su mitad — si estás
+depurando por qué el front no cambia de comportamiento, la respuesta es que aún no lo lee, no que el
+backend lo mande mal. Su contrato sí está fijado por
+`Modules/Onboarding/tests/Unit/LenderListingCanCheckPreapprovalTest.php`.
