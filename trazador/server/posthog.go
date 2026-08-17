@@ -535,3 +535,87 @@ func rutaDe(u string) string {
 	}
 	return u
 }
+
+// ── LO QUE VIO EL CLIENTE, dentro de la traza ───────────────────────────────────────────────────
+//
+// POR QUÉ ACÁ Y NO OTRO MAPA. La pregunta era si convenía un mapa evento→archivo del front, como el
+// de logs del backend. Medido, no: los 141 eventos declarados se emiten desde ~6 rutas del wizard,
+// así que un mapa contestaría siempre «una de estas seis» — y encima 2 de los 3 lugares donde
+// aparece cada nombre son declaraciones (la taxonomía y el tipo TS), no emisores. El backend
+// justificaba su mapa porque son miles de archivos; el front no es un pajar.
+//
+// Lo que PostHog SÍ tiene y no tiene nadie más es QUÉ VIO la persona. Y eso no necesita mapa: la
+// llave ya existe (`loan_request_<n>` / `properties.loan_request_id`) y este archivo ya sabe
+// consultarla. Era juntar, no construir.
+
+// PantallaVista es un renglón del recorrido del cliente: la pantalla y cuándo la vio por primera vez.
+type PantallaVista struct {
+	Cuando  string `json:"cuando"`
+	Que     string `json:"que"`
+	Detalle string `json:"detalle,omitempty"`
+}
+
+// pantallasDeSolicitud devuelve el recorrido VISTO por el cliente, compacto: una entrada por pantalla
+// distinta, en orden de primera aparición.
+//
+// ⚠ SIN `-tel` SE VE LA MITAD. Medido en prod sobre 7 días: `phone_<e164>` identifica 47.792 eventos
+// y `loan_request_<n>` sólo 24.006 — o sea que la fase de AUTH ocurre antes de que exista la
+// solicitud, y PostHog no une las dos identidades solo. Un recorrido que empieza en «monto» no es
+// que el cliente haya entrado por ahí: es que no le pasamos el teléfono.
+func pantallasDeSolicitud(c config, ureq int64, tel string) ([]PantallaVista, string) {
+	if c.posthogToken == "" {
+		return nil, ""
+	}
+	base := c.posthogAPI
+	if base == "" {
+		base = posthogAPIDefault
+	}
+	p := &phCliente{base: base, token: c.posthogToken, project: c.posthogProject, env: c.posthogEnv,
+		http: &http.Client{Timeout: 30 * time.Second}}
+	if p.project == "" {
+		if id, ok := p.descubrirProyecto(); ok {
+			p.project = id
+		} else {
+			return nil, ""
+		}
+	}
+	llaves := []string{
+		"distinct_id = '" + escapaHogQL(fmt.Sprintf("loan_request_%d", ureq)) + "'",
+		fmt.Sprintf("toString(properties.loan_request_id) = '%d'", ureq),
+	}
+	aviso := "⚠ sin `-tel` no se ve la fase de AUTH, que en prod es la mitad de los eventos"
+	if e164 := telE164(tel); e164 != "" {
+		llaves = append(llaves, "distinct_id = '"+escapaHogQL("phone_"+e164)+"'")
+		aviso = ""
+	}
+	q := fmt.Sprintf(`SELECT min(timestamp) AS t,
+	    coalesce(properties.screen_name, event) AS que,
+	    any(properties.known_exception_reason) AS motivo
+	  FROM events
+	  WHERE (%s)%s AND event NOT LIKE '$%%'
+	  GROUP BY que ORDER BY t ASC LIMIT 40`, strings.Join(llaves, " OR "), p.filtroEnvTimeline())
+	_, filas, err := p.hogql(q)
+	if err != nil {
+		return nil, ""
+	}
+	var fuera []PantallaVista
+	for _, f := range filas {
+		if len(f) < 2 {
+			continue
+		}
+		v := PantallaVista{Cuando: comoTexto(f[0]), Que: comoTexto(f[1])}
+		// ⚠ `comoTexto` de un NULL de HogQL devuelve «<nil>», y pegarlo al lado de cada pantalla
+		// llenaba la vista de ruido que además parece un error del sistema. El motivo sólo existe
+		// en los eventos que fallaron: cuando no está, no se muestra.
+		if len(f) > 2 {
+			if d := comoTexto(f[2]); d != "" && d != "<nil>" && d != "null" {
+				v.Detalle = d
+			}
+		}
+		if len(v.Cuando) > 19 {
+			v.Cuando = v.Cuando[11:19] // sólo la hora: la fecha ya la da la traza
+		}
+		fuera = append(fuera, v)
+	}
+	return fuera, aviso
+}

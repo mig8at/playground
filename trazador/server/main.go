@@ -680,7 +680,7 @@ func main() {
 		os.Exit(modoBuscar(c, *target, *buscar, *jsonOut))
 	}
 	if *ureq > 0 {
-		os.Exit(modoTraza(c, *target, *ureq, *jsonOut, *htmlOut))
+		os.Exit(modoTraza(c, *target, *ureq, *tel, *jsonOut, *htmlOut))
 	}
 
 	if c.token == "" {

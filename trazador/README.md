@@ -55,6 +55,33 @@ Señales que cambian el diagnóstico y por eso se dicen en texto: **N intentos e
 cliente indeciso), **⚠ recortado en 40** (un «12 solicitudes» que en realidad son 228 cambia «reintentó» por
 «algo reintenta solo») y **⚠ N clientes distintos** (el valor es ambiguo: mirá bien cuál buscabas).
 
+## Y QUÉ VIO EL CLIENTE en el navegador
+
+Al lado del código, la otra mitad: los eventos de PostHog de esa solicitud, en orden.
+
+       17:32:06  registration_form_viewed
+       17:32:56  expedition_date_screen_viewed
+       17:34:06  registration_field_error
+       17:34:06  identity_validation_error
+       17:43:36  expedition_date_identity_rejected
+       17:48:46  results_screen_viewed
+
+Contesta lo que el backend no puede: *«el backend dice que llegó a firmar — ¿el cliente llegó a ver
+esa pantalla?»*.
+
+⚠ **Sin `-tel` se ve la mitad.** Medido sobre 7 días: `phone_<e164>` identifica 47.792 eventos y
+`loan_request_<n>` sólo 24.006 — la fase de AUTH ocurre **antes de que exista la solicitud** y PostHog
+no une las dos identidades solo. Un recorrido que empieza en «monto» no es que el cliente entrara por
+ahí: es que no le pasamos el teléfono.
+
+⚠ Y **no todas las solicitudes tienen eventos**: esta fuente cubre el **wizard**, no el flujo clásico
+de `legacy-application`. Cuando no hay, la sección no aparece — no es que el cliente no viera nada.
+
+⚠ **No hizo falta un mapa evento→archivo.** Se evaluó: los 141 eventos del wizard se emiten desde ~6
+rutas, y 2 de los 3 lugares donde aparece cada nombre son declaraciones (la taxonomía y el tipo TS).
+Un mapa así contestaría siempre «una de estas seis». El backend justifica el suyo porque son miles de
+archivos; el front no es un pajar.
+
 ## Y el CÓDIGO que dejó rastro
 
 Al final de la traza, qué archivos emitieron esas líneas — en orden de primera aparición y con las

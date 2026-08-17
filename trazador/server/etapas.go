@@ -389,6 +389,11 @@ type Traza struct {
 	// ⚠ Dice qué archivos DEJARON RASTRO, no cuáles se ejecutaron: uno sin logs es invisible acá, y
 	// eso no prueba que no corrió — la misma regla que rige toda esta herramienta.
 	Archivos    []ArchivoDeTraza `json:"archivos,omitempty"`
+	// Pantallas: QUÉ VIO el cliente en el navegador, de PostHog. Es la mitad que el backend no puede
+	// contar — «el backend dice que llegó a firmar, ¿el cliente llegó a ver esa pantalla?»— y hasta
+	// ahora vivía en otro comando. No hace falta un mapa: la llave (`loan_request_<n>`) ya existe.
+	Pantallas   []PantallaVista `json:"pantallas,omitempty"`
+	AvisoPH     string          `json:"avisoPosthog,omitempty"`
 	SinResolver int              `json:"archivosSinResolver,omitempty"`
 	// El estado ACTUAL de la solicitud. Sin esto el outcome no se podía auditar desde el JSON: una traza
 	// decía «aprobado» y no había forma de saber contra qué estado se calculó (la 522238 cambió de estado
@@ -2116,6 +2121,19 @@ func imprimirTraza(t Traza, s *Solicitud) {
 	}
 
 	fmt.Println()
+	if len(t.Pantallas) > 0 {
+		fmt.Printf("\n     %s\n", bold("QUÉ VIO EL CLIENTE EN EL NAVEGADOR"))
+		for _, p := range t.Pantallas {
+			extra := ""
+			if p.Detalle != "" {
+				extra = gray("  · " + p.Detalle)
+			}
+			fmt.Printf("       %s  %s%s\n", gray(p.Cuando), p.Que, extra)
+		}
+		if t.AvisoPH != "" {
+			fmt.Printf("       %s\n", gray(t.AvisoPH))
+		}
+	}
 	if len(t.Archivos) > 0 {
 		fmt.Printf("\n     %s\n", bold("EL CÓDIGO QUE DEJÓ RASTRO"))
 		for _, a := range t.Archivos {
@@ -2725,14 +2743,23 @@ func Resolver(r Runner, valor string) ([]Coincidencia, []string, error) {
 	return resolverFuente(r, valor)
 }
 
-func modoTraza(c config, target string, ureq int64, jsonOut bool, htmlOut string) int {
+func modoTraza(c config, target string, ureq int64, tel string, jsonOut bool, htmlOut string) int {
 	// Render-only: el armado vive en ArmarTraza, que es el MISMO camino del server y del HTML. Este modo
 	// duplicaba ese cuerpo entero — la clase de deriva que este repo señala en trace.ts/veredicto().
-	_ = c
 	t, s, err := ArmarTraza(target, ureq)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "\n  %s no puedo armar la traza para target «%s»: %v\n\n", paint("31", "✘"), target, err)
 		return 2
+	}
+
+	// LA TERCERA FUENTE. Va acá y no en `ensamblar` porque es el único punto con la config —y por lo
+	// tanto con las credenciales—; `ensamblar` es el camino compartido con el server y el HTML, y
+	// meterle una llamada de red lo volvería no-determinista para los dos.
+	// Si no hay credenciales no se agrega nada y no se anuncia: un bloque vacío se leería como «el
+	// cliente no vio nada», que es distinto de «no miramos».
+	if pant, aviso := pantallasDeSolicitud(c, ureq, tel); len(pant) > 0 {
+		t.Pantallas, t.AvisoPH = pant, aviso
+		t.Sources = append(t.Sources, "posthog")
 	}
 
 	if jsonOut {
