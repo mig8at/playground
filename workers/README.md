@@ -138,6 +138,25 @@ y resultaron mejor material, porque llevan el recorrido y los códigos:
     Ecommerce LOCAL real: /checkout → solicitar → amount → phone → OTP(real) → personal-info
     fecha imposible (31/02/2010) → ONB005 + EXPEDITION_DATE_INVALID
 
+**El flujo REAL, el que nadie escribió:**
+
+```bash
+./cli.py flujos --traza <trace_id>    # los pasos de una corrida, en orden
+```
+
+    1. OnboardingController::storeLaboralInfo: entered
+    2. Experian disparado desde storeLaboralInfoOrchestrator
+    3. Requesting credentials for Experian Acierta+Quanto
+    …
+   12. quantoMedioAverage valid, writing UserFieldValue field 87 (income)
+
+⚠ Es el recorrido de **una** corrida, no el flujo canónico: otra solicitud puede diferir. Para el
+deber ser está `context/`, que es donde vive lo verificado.
+
+⚠ Y se entra por **traza**, no por ureq: sólo el 11% de las líneas llevan el `user_request_id` en su
+texto, así que anclar por ureq devolvía casi siempre cero — que se lee como «no hizo nada». Para
+entrar por solicitud está `make trazador-ureq`, que cruza la BD.
+
 **El cruce**: `logs.json` sabe qué códigos existen en el código, este mapa sabe cuáles prueba un spec,
 y la diferencia es trabajo pendiente. Medido: **6 códigos que el cliente recibe y ningún spec recorre**
 — `ONB004`, `ONB021`, `ONB022`, `ONB023`, `ONB040`, `ONB014_OTP_GENERATION_FAILED`.

@@ -115,3 +115,55 @@ def codigos_sin_prueba(desde="24h", target="prod"):
                     "—CATEGORY_*, QUOTA_*— y NO son fallos: van aparte porque no hay nada que probar "
                     "de ellas, y mezclarlas infla el número. Para priorizar un código, mirá si "
                     "aparece en prod: `make agente-datos TARGET=prod`."}
+
+
+# ── EL FLUJO REAL, el que nadie escribió ────────────────────────────────────────────────────────
+#
+# La pregunta que abrió esto: ¿y si `flujos.json` fuera escrito a mano, y los logs sirvieran para
+# encontrar los pasos que no anotamos? La primera mitad no hizo falta: LOS LOGS YA DAN LA SECUENCIA,
+# en orden y en prosa de negocio. Escribirla a mano sería escribir a mano algo derivable — y encima
+# la versión escrita sería una creencia, mientras que ésta es evidencia.
+#
+# Lo que SÍ conviene escribir a mano es lo que no se deriva: qué flujos IMPORTAN y por qué. Eso ya
+# vive en `context/`, y por eso acá no se duplica.
+
+
+def secuencia(mensajes):
+    """De las líneas de UNA traza a los PASOS en orden, sin repetir.
+
+    Los mensajes llegan con su hora y muchos se repiten (un mismo paso loguea entrada y salida, o
+    corre en bucle). Acá se colapsan a la primera aparición: lo que queda es el RECORRIDO.
+
+    ⚠ Es el recorrido de UNA corrida, no el flujo canónico. Dos solicitudes del mismo tipo pueden
+    diferir —un reintento, un lender distinto—, así que esto describe lo que pasó, no lo que debería
+    pasar. Para lo segundo está `context/`, que es donde vive el deber ser verificado.
+    """
+    fuera, vistos = [], set()
+    for m in mensajes:
+        m = " ".join(str(m).split())
+        if not m:
+            continue
+        # Se colapsa por prefijo: `checkRateLimitPerHour: entered` y `: exiting` son el mismo paso
+        # visto dos veces, y listarlos por separado convierte un recorrido en un volcado.
+        k = m.split(":")[0][:52] if ":" in m[:60] else m[:52]
+        if k in vistos:
+            continue
+        vistos.add(k)
+        fuera.append(m)
+    return fuera
+
+
+# ⚠ ACÁ VIVIÓ `pasos_sin_probar`, que cruzaba los pasos de una corrida contra los escenarios del
+# harness para decir cuáles no están probados. Se quitó el mismo día que se escribió, y el motivo
+# vale más que la función: daba 58 «sin cubrir» de 64 pasos — o sea casi todo, que es la firma de una
+# comparación rota, no de un hallazgo.
+#
+# La causa no era léxica sino de GRANULARIDAD: un paso de log es UNA llamada («Rate limit OK,
+# continuing») y un nombre de test es UN ESCENARIO ENTERO («Ecommerce sin cookie: /checkout → phone →
+# OTP → …»). Un escenario cubre docenas de pasos; matchearlos uno a uno por palabras no podía dar
+# otra cosa. Arreglar el vocabulario español↔inglés lo habría maquillado sin arreglar nada.
+#
+# La comparación honesta a este nivel necesitaría que los tests declararan sus pasos —y eso existe
+# (`new Flow(...).step()`) pero está en 4 de 45 specs—. Cuando se propague, la función se puede
+# escribir de verdad. Hasta entonces, `secuencia()` sola ya contesta lo que se preguntó: cuáles son
+# los pasos reales, incluido lo que nadie anotó.

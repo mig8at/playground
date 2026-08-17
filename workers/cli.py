@@ -163,6 +163,11 @@ def main():
         "flujos", help="qué sabe PROBAR el harness — y qué códigos de error no cubre nadie"))
     s.add_argument("--construir", action="store_true", help="rearma el mapa leyendo los specs")
     s.add_argument("--codigos", action="store_true", help="sólo el cruce: códigos sin prueba")
+    # ⚠ Por TRAZA y no por ureq: sólo el 11% de las líneas llevan el `user_request_id` en su texto
+    # (medido), así que anclar por ureq acá devolvía casi siempre cero — que se lee como «no hizo
+    # nada». Resolver ureq→traza bien exige cruzar la BD, y eso ya lo hace el trazador: `make
+    # trazador-ureq` da las etapas y los archivos. Acá se entra por lo que agrupa de verdad.
+    s.add_argument("--traza", help="los PASOS reales de una traza, en orden (trace_id de Loki)")
 
     sub.add_parser("check", help="¿las rutas escritas a mano siguen vivas en main?")
     sub.add_parser("pesos", help="refresca los tamaños guardados en repos.json")
@@ -266,6 +271,30 @@ def main():
         import flujos as _fl
         if a.construir:
             _fl.construir(); return 0
+        if a.traza:
+            import datos as _d, json as _j, re as _re
+            _d.TARGET = "prod"
+            sel = '{service_name="legacy-backend"} | trace_id="' + a.traza + '"'
+            crudas = _d._lineas_crudas(sel, "24h", 500)
+            # ⚠ `_lineas_crudas` devuelve MÁS NUEVO PRIMERO (así se leen los logs: lo último arriba).
+            # Un RECORRIDO se lee al derecho, así que acá se invierte. Sin esto el paso 1 era
+            # «exiting» y el flujo salía de atrás para adelante — legible, plausible y al revés.
+            if isinstance(crudas, list):
+                crudas = list(reversed(crudas))
+            msgs = []
+            for _, _, c in (crudas if isinstance(crudas, list) else []):
+                try: msgs.append(_j.loads(c).get("message", ""))
+                except Exception:
+                    g = _re.search(r'"message"\s*:\s*"((?:[^"\\]|\\.)*)"', c)
+                    if g: msgs.append(g.group(1))
+            pasos = _fl.secuencia([m for m in msgs if m])
+            if j:
+                print(json.dumps({"traza": a.traza, "pasos": pasos}, ensure_ascii=False, indent=2)); return 0
+            print(f"\n  traza {a.traza[:16]}… · {len(pasos)} pasos, en orden de primera aparición\n")
+            for i, p_ in enumerate(pasos, 1):
+                print(f"    {i:3}. {p_[:96]}")
+            print("\n  ⚠ es el recorrido de UNA corrida, no el flujo canónico: otra solicitud puede diferir.\n")
+            return 0
         if a.codigos:
             r = _fl.codigos_sin_prueba()
             if j:
