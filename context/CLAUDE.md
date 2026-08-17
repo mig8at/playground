@@ -188,6 +188,24 @@ Tres señales: **⛔ rutas muertas** (el mapa miente) · **🔴🟡 deriva** (ar
 después del sello) · **🔁 marca ya mergeada** (un `pending_merge` cuyos archivos ya están en `main`:
 devolvé las rutas a `files[]`, re-verificá y borrá la marca).
 
+⚠ **La deriva NO ve el hueco más grande: lo que el árbol nunca supo.** `alinear.py` compara los
+archivos que el nodo YA declara — si mergea una funcionalidad entera que ningún `map.json` cita, no
+aparece en ninguna señal. El silencio del árbol se lee igual que «no existe», y eso es lo que hace
+que un modelo conteste con confianza sobre un sistema que ya cambió.
+
+Para eso están los dos movimientos complementarios, probados el 2026-08-16:
+
+- **`tools/diff.py <nodo>`** — qué cambió en el CÓDIGO de un nodo desde su sello. Encuentra cosas que
+  la deriva no prioriza: `can_check_preapproval` salió del diff de un nodo con deriva **baja** (3
+  archivos), y era una funcionalidad entera de 19 líneas.
+- **`workers/`** — el índice se deriva de `main`, así que cubre lo que nadie escribió.
+  `workers/cli.py buscar "…"`, o `make agente-analisis PREGUNTA='…'` si hay mucho que leer. Un archivo
+  que se repite en la deriva de varios nodos es la pista clásica: así apareció el endpoint de
+  regeneración de Credifamilia, citado por muchos y descrito por ninguno.
+
+Después de encontrarlo: verificá contra `main`, escribí la sección, sumá las rutas al `map.json`, y
+**no sellés** — el sello dice «revisé el nodo entero», no «agregué una parte».
+
 ⚠ **«Cambió» se mide con el diff NETO (`git diff <sello>..main`), no con `git log`** — log falló dos
 veces en silencio (no imprime archivos en merges con `--name-only`, y con first-parent reporta
 movimiento de ida y vuelta como deriva). El diff neto contesta la pregunta exacta: *¿este archivo es

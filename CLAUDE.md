@@ -24,15 +24,26 @@ herramienta: es suponer que no está y contestar de memoria.
 | **¿cómo funciona X?** | `context/` — no es una herramienta: `docs/ROUTE-MAP.md` → nodo. **Siempre primero** |
 | **¿ya nos pasó?** | `context/server/data/flows/findings/doc.md`, entrando por su índice de síntomas |
 | **¿por qué existe esta regla?** (política, contrato, qué se le ofreció al comercio) | `make confluence` — el porqué del negocio no está en el código |
+| **…y si `context/` no lo cubre** | `workers/` — el índice se deriva de `main`, así que cubre TODO el código, incluido lo que nadie escribió (ver abajo) |
+| **¿qué archivos toco para esto?** | `workers/cli.py buscar "…"` — describís en palabras, te da archivos con el porqué |
+| **¿cómo está construido este repo?** | `workers/cli.py repos <alias>` · `subramas` · `mapa` — entra POR REPO, no por síntoma |
+| **¿quién llama a esto?** · **¿difieren los dos monolitos?** | herramientas de los agentes (`quien_usa`, `gemelos`); a mano, `workers/cli.py gemelos` |
+| **hay MUCHO código que leer para contestar** | `make agente-analisis PREGUNTA='…'` — plan → N buscadores → lector de 300k. La receta: `workers/README.md` §«Cómo se orquesta» |
 | **¿esto pasa de verdad, y cuánto?** | `make trazador-sql` contra **prod**. Es la única forma de contestarlo. Con agente: `make agente-datos TARGET=prod` |
-| **¿cómo está construido, y hay MUCHO código que leer?** | `make agente-analisis PREGUNTA='…'` — workers/: elige archivos → contrasta → concluye. La receta (cuántos ángulos, cuándo medir en vez de leer): `workers/README.md` §«Cómo se orquesta» |
 | **¿qué le pasó a ESTA solicitud?** | `make harness-loki UREQ=…` · `make trazador-acceso` |
 | **¿qué VIO el cliente en pantalla?** | `make trazador-posthog` |
 | **¿funciona, corriéndolo?** | `harness` (`make panel`) — se comprueba corriendo, no leyendo |
 | **¿en qué anda el equipo?** | Slack (MCP) · `make cuadrilla` · `make tablero` |
 
+⚠ **El silencio de `context/` NO es «no existe».** El árbol sólo sabe lo que alguien escribió, y su
+hueco se lee igual que una ausencia real. Medido el 2026-08-16: dos funcionalidades mergeadas —el
+endpoint de regeneración de Credifamilia (13/8) y el flag `can_check_preapproval` (10/8)— no estaban
+en ningún nodo. **Cuando el árbol no diga nada de algo que debería existir, no concluyas: preguntale
+a `workers/`, que se deriva del código.**
+
 Regla de oro: **una afirmación verificable se verifica antes de escribirla**, y la herramienta que la
-verifica casi siempre existe ya.
+verifica casi siempre existe ya. Y la salida de un agente **también se verifica** —contra `main`, con
+`git show main:<ruta>`, nunca contra el working tree: los repos viven en ramas.
 
 ### Contra qué ambiente
 
@@ -58,8 +69,9 @@ es la UI del harness) y los **verbos** van en inglés (`align`, `refs`, `seal`, 
 
 ## EL CICLO — acá siempre pasa lo mismo
 
-Se viene a resolver **tareas** sobre CreditOp con tres piezas — **tablero** (la tarea), **context**
-(el conocimiento) y **harness** (la prueba) — y el circuito es fijo:
+Se viene a resolver **tareas** sobre CreditOp con cuatro piezas — **tablero** (la tarea), **context**
+(el conocimiento curado), **workers** (el índice derivado del código, para lo que el conocimiento aún
+no cubre) y **harness** (la prueba) — y el circuito es fijo:
 
 1. **La TAREA vive en `tablero/data/<tarea>.md`** (una tarea = un archivo): en qué se trabaja, por
    qué y para qué — estado, decisiones, riesgos, preguntas abiertas.
@@ -85,8 +97,25 @@ Se viene a resolver **tareas** sobre CreditOp con tres piezas — **tablero** (l
    funciona CreditOp". La tarea se marca `archived` en su frontmatter. Ejemplo hecho: la omisión de
    Experian por cupo ya confirmado vive hoy en el nodo `kyc`.
 
+### Y lo que mergea OTRO — el bucle para que el árbol no quede viejo
+
+El paso 5 cubre lo que mergeás vos. Lo que mergea el resto del equipo entra sin que nadie lo escriba, y
+el hueco no avisa. **El bucle, probado el 2026-08-16 y que encontró dos funcionalidades invisibles:**
+
+1. `make context-align` — qué nodos quedaron viejos. Y `make context-diff NODE=x` — **qué cambió** en
+   el código de uno. ⚠ Los dos aportan cosas distintas: Credifamilia salió de la deriva (un archivo
+   repitiéndose en la de VARIOS nodos), y `can_check_preapproval` salió del diff de un nodo con deriva
+   **baja**. Mirar sólo el ranking de deriva se pierde lo segundo.
+2. Confirmá que el hueco es real: `git log main --oneline -- <ruta>` (cuándo entró y quién) + un grep
+   en los `doc.md`. Si nadie lo menciona, ahí hay algo.
+3. Preguntá. `make agente-analisis PREGUNTA='…'` si hay mucho que leer; a mano si son 3 archivos.
+4. **Verificá contra `main`** lo que devuelva, y recién ahí escribilo en el nodo + su `map.json`.
+   Validá con `python3 tools/oracle.py`, `make context-lint` y `tools/refs.py <nodo>`.
+5. **NO sellés el nodo** por haber agregado una sección: sellar dice «lo revisé entero». El método de
+   re-verificación completo está en `context/CLAUDE.md`.
+
 ⚠ **El resto de carpetas NO son herramientas para contextualizarte** — hoy: `flow`, `engine`,
-`domain-model`, `diccionario`, `creditop-woocommerce`. Son exploraciones que Miguel armó para entender
+`domain-model`, `diccionario`, `plantillas`, `cuadrilla`, `creditop-woocommerce`. Son exploraciones que Miguel armó para entender
 él mismo el negocio: **no están validadas contra el código** y varias describen un *deber ser*, no lo
 que corre en producción. **No las cites como fuente ni las uses para decidir.** Si algo de ahí resulta
 cierto, se verifica contra el código y gradúa a `context/` — hasta entonces, no existe para tu tarea.
@@ -126,6 +155,13 @@ qué hacer al cerrar una tarea— vive en **`context/CLAUDE.md`**.
 
 - En `user_requests`, el estado de la solicitud es **`user_request_status_id`**, no `status`. Mirar la
   columna equivocada hace creer que una solicitud cancelada está sana (F-50).
+- **El estado 11 es «Autorizada», y ES terminal**: medido en prod, de 10.182 solicitudes que lo
+  tocaron en 90 días **3** avanzaron. El catálogo tiene estados posteriores (5 «Desembolsada», 20, 28,
+  30) pero el desembolso y la cartera se llevan en otro lado. **No cuentes desembolsos con esa columna.**
+- ⚠ **`make trazador-acceso` es una SONDA: te muestra una MUESTRA.** Con `-limit 200` trae 200 líneas
+  e **imprime cuatro**, y las cuatro se ven idénticas a doscientas. Contarlas dio «46% de los errores
+  son del profiler» cuando el número real era **9,2%**. Para contar, la expresión métrica:
+  `QUERY='sum(count_over_time({service_name="x", level="error"} [24h]))'`.
 - `playground/docs/` **fue borrada** de `main` (absorbida por `context/`). Toda ruta `docs/X.md` que veas
   citada es histórica: `git show 159906a:docs/<archivo>`.
 
