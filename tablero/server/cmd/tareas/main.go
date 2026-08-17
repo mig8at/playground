@@ -205,18 +205,168 @@ func verUna(ref string, comoJSON bool) int {
 	return 0
 }
 
+// verSprint lee el SNAPSHOT de Jira que alimenta la UI (`data/cache/jira.json`).
+//
+// ⚠ Es una foto, no el estado vivo: cada fila trae su `seen_at` y acá se imprime, porque un tablero
+// de sprint presentado como actual siendo de hace días es peor que no tenerlo — se decide sobre él.
+// Para el dato fresco hay que pasar por Jira (el server al refrescar, o los `jira-*` del Makefile).
+func verSprint(comoJSON bool) int {
+	b, err := os.ReadFile(filepath.Join(dirDatos(), "cache", "jira.json"))
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "no hay snapshot de Jira todavía:", err)
+		return 2
+	}
+	var d struct {
+		Sprints []struct {
+			ID     int    `json:"id"`
+			Name   string `json:"name"`
+			State  string `json:"state"`
+			SeenAt string `json:"seen_at"`
+		} `json:"sprints"`
+		Tasks []struct {
+			Key      string   `json:"key"`
+			Summary  string   `json:"summary"`
+			Status   string   `json:"status"`
+			Category string   `json:"category"`
+			Points   *float64 `json:"points"`
+			SprintID int      `json:"sprint_id"`
+			SeenAt   string   `json:"seen_at"`
+		} `json:"tasks"`
+	}
+	if err := json.Unmarshal(b, &d); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return 2
+	}
+	activo, nombre, visto := 0, "", ""
+	for _, s := range d.Sprints {
+		if s.State == "active" {
+			activo, nombre, visto = s.ID, s.Name, s.SeenAt
+		}
+	}
+	var enSprint []int
+	for i, t := range d.Tasks {
+		if t.SprintID == activo {
+			enSprint = append(enSprint, i)
+		}
+	}
+	if comoJSON {
+		_ = json.NewEncoder(os.Stdout).Encode(map[string]any{"sprint": nombre, "sprint_id": activo,
+			"seen_at": visto, "tareas": d.Tasks})
+		return 0
+	}
+	if activo == 0 {
+		fmt.Println("\n  no hay sprint activo en el snapshot")
+		return 0
+	}
+	fmt.Printf("\n  %s  (#%d)\n  ⚠ SNAPSHOT tomado %s — no es el estado vivo de Jira\n\n", nombre, activo, visto)
+	puntos := 0.0
+	for _, i := range enSprint {
+		t := d.Tasks[i]
+		p := ""
+		if t.Points != nil {
+			p = fmt.Sprintf("%.0f pt", *t.Points)
+			puntos += *t.Points
+		}
+		fmt.Printf("  %-10s %-6s %-22s %s\n", t.Key, p, t.Status, t.Summary)
+	}
+	fmt.Printf("\n  %d tarea(s) · %.0f puntos\n", len(enSprint), puntos)
+	return 0
+}
+
+// verBitacora lee `data/entries/*.jsonl` — el tiempo registrado, que es dato PERSONAL y está fuera
+// de git a propósito. Se agrupa por día porque la pregunta real es «¿en qué se fue el día?», no el
+// listado de asientos.
+func verBitacora(dias int, comoJSON bool) int {
+	rutas, _ := filepath.Glob(filepath.Join(dirDatos(), "entries", "*.jsonl"))
+	type entrada struct {
+		Day       string `json:"day"`
+		TaskKey   string `json:"taskKey"`
+		FreeTitle string `json:"freeTitle"`
+		Minutes   int    `json:"minutes"`
+		Note      string `json:"note"`
+		Kind      string `json:"kind"`
+	}
+	var todas []entrada
+	for _, r := range rutas {
+		b, err := os.ReadFile(r)
+		if err != nil {
+			continue
+		}
+		for _, l := range strings.Split(string(b), "\n") {
+			if strings.TrimSpace(l) == "" {
+				continue
+			}
+			var e entrada
+			if json.Unmarshal([]byte(l), &e) == nil {
+				todas = append(todas, e)
+			}
+		}
+	}
+	sort.Slice(todas, func(i, j int) bool { return todas[i].Day > todas[j].Day })
+	porDia := map[string][]entrada{}
+	var orden []string
+	for _, e := range todas {
+		if _, ok := porDia[e.Day]; !ok {
+			orden = append(orden, e.Day)
+		}
+		porDia[e.Day] = append(porDia[e.Day], e)
+	}
+	if dias > 0 && len(orden) > dias {
+		orden = orden[:dias]
+	}
+	if comoJSON {
+		_ = json.NewEncoder(os.Stdout).Encode(todas)
+		return 0
+	}
+	fmt.Printf("\n  bitácora · %d asiento(s) en %d día(s)\n", len(todas), len(porDia))
+	for _, d := range orden {
+		tot := 0
+		for _, e := range porDia[d] {
+			tot += e.Minutes
+		}
+		fmt.Printf("\n  %s — %dh %02dm\n", d, tot/60, tot%60)
+		for _, e := range porDia[d] {
+			qué := e.TaskKey
+			if qué == "" {
+				qué = e.FreeTitle
+			}
+			// La nota se RECORTA acá y no en el dato: son párrafos enteros —el registro de esfuerzo
+			// se escribe en prosa— y sin recortar la vista es ilegible. `-json` la devuelve completa,
+			// que es la forma en que la quiere un modelo.
+			// ⚠ Se corta por RUNAS, no por bytes. `n[:96]` parte un carácter multibyte por la mitad
+			// y saca un `�` — y en español pasa casi siempre, porque las tildes y la ñ son de
+			// dos bytes. Un recorte que rompe el texto que venía a hacer legible.
+			r := []rune(strings.Join(strings.Fields(e.Note), " "))
+			n := string(r)
+			if len(r) > 96 {
+				n = string(r[:96]) + "…"
+			}
+			fmt.Printf("      %3dm  %-34.34s  %s\n", e.Minutes, qué, n)
+		}
+	}
+	return 0
+}
+
 func main() {
 	var (
 		una      = flag.String("n", "", "una tarea, por slug o por id (acepta subcadena del slug)")
 		guardar  = flag.String("guard", "", "¿el texto de este archivo puede salir a Jira? sale 1 si no")
 		stage    = flag.String("stage", "", "filtrar por etapa (p. ej. work)")
 		conTodas = flag.Bool("todas", false, "incluir las archivadas")
+		sprint   = flag.Bool("sprint", false, "el sprint activo, del snapshot de Jira (dice cuándo se tomó)")
+		bitacora = flag.Int("bitacora", 0, "el tiempo registrado, agrupado por día: cuántos días mirar")
 		comoJSON = flag.Bool("json", false, "salida en JSON")
 	)
 	flag.Parse()
 
 	if *guardar != "" {
 		os.Exit(verGuard(*guardar, *comoJSON))
+	}
+	if *sprint {
+		os.Exit(verSprint(*comoJSON))
+	}
+	if *bitacora > 0 {
+		os.Exit(verBitacora(*bitacora, *comoJSON))
 	}
 	if *una != "" {
 		os.Exit(verUna(*una, *comoJSON))

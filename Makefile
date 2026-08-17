@@ -39,7 +39,7 @@ define listar
 endef
 
 # ── DÍA A DÍA ────────────────────────────────────────────────────────────────────────────────────
-.PHONY: status context tablero tareas tareas-guard panel trazador trazador-buscar trazador-ureq
+.PHONY: status context tablero tareas tareas-guard sprint bitacora panel trazador trazador-buscar trazador-ureq
 status: ## @dia ¿está el contexto al día? (resumen, no escribe nada)
 	@cd context && python3 tools/alinear.py --ver | tail -n 25
 	@echo ""
@@ -55,8 +55,16 @@ tablero: ## @dia abre el tablero: las tareas a realizar (:5191)
 # rincón del playground que un modelo no puede leer sin levantar un server»— pero preguntar EN QUÉ SE
 # TRABAJA seguía obligando a parsear los frontmatters a mano, y el GUARD sólo corría al publicar,
 # cuando ya es tarde para decidir cómo escribir.
-tareas: ## @dia las tareas abiertas, sin abrir la UI. N=<slug|id> para una · STAGE=work · TODAS=1 · JSON=1
+tareas: ## @dia las tareas abiertas, sin abrir la UI. N=<slug|id> · STAGE=work · TODAS=1 · JSON=1
 	@cd tablero/server && go run ./cmd/tareas $(if $(N),-n $(N)) $(if $(STAGE),-stage $(STAGE)) $(if $(TODAS),-todas) $(if $(JSON),-json)
+
+# ⚠ Lee el SNAPSHOT de Jira, no el estado vivo — e imprime cuándo se tomó, porque un tablero
+# presentado como actual siendo de hace días es peor que no tenerlo: se decide sobre él.
+sprint: ## @dia el sprint activo con sus tareas y puntos, del snapshot (dice cuándo se tomó). JSON=1
+	@cd tablero/server && go run ./cmd/tareas -sprint $(if $(JSON),-json)
+
+bitacora: ## @dia el tiempo registrado, agrupado por día. DAYS=7 · JSON=1 (la nota entera va en el json)
+	@cd tablero/server && go run ./cmd/tareas -bitacora $(or $(DAYS),7) $(if $(JSON),-json)
 
 # ⚠ Sale 1 si el texto NO puede salir: sirve para frenar antes de publicar, no sólo para informar.
 tareas-guard: ## @dia ¿este texto puede salir a Jira? (el cuerpo de una tarea NO: nombra repos y rutas). F=<archivo>

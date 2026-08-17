@@ -22,6 +22,8 @@ Qué es y cómo se corre: `README.md`. Acá solo las reglas al trabajar con las 
       make tareas N=kyc-segundo         una: separa lo PÚBLICO de lo PRIVADO y chequea el guard
       make tareas STAGE=work TODAS=1 JSON=1
       make tareas-guard F=<archivo>     ¿este texto puede salir a Jira? SALE 1 si no
+      make sprint                       el sprint activo con puntos, del SNAPSHOT
+      make bitacora DAYS=7              el tiempo registrado, por día
 
   El `-guard` reusa `internal/guard`, que es la fuente única (la UI compila esos mismos patrones y
   `issue-create` los aplica al publicar). Correlo ANTES de escribir lo publicable, no después: el
