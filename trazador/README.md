@@ -55,6 +55,28 @@ Señales que cambian el diagnóstico y por eso se dicen en texto: **N intentos e
 cliente indeciso), **⚠ recortado en 40** (un «12 solicitudes» que en realidad son 228 cambia «reintentó» por
 «algo reintenta solo») y **⚠ N clientes distintos** (el valor es ambiguo: mirá bien cuál buscabas).
 
+## Y el CÓDIGO que dejó rastro
+
+Al final de la traza, qué archivos emitieron esas líneas — en orden de primera aparición y con las
+líneas exactas. Es la pregunta que sigue a «¿por qué se rompió?», y hasta ahora obligaba a copiar el
+mensaje a otra herramienta:
+
+       6×  …/RegisterCellPhoneController.php  :43,57,48,73,69,63
+      15×  …/RegisterCellPhoneService.php     :72,83,67,87,121,125,94,221
+       9×  …/OtpService.php                   :376,364,358,392,415,438,488,499
+
+⚠ **El mapa lo construye Python, no esto.** `workers/logs.py` lee los 12 repos y arma
+`workers/logs.json`; acá sólo se consume (`archivos.go`). Es a propósito: tener la misma tabla en dos
+lenguajes ya costó dos veces en este playground, y una divergencia acá no fallaría — **atribuiría
+líneas al archivo equivocado**, que es peor. Lo único reimplementado es la búsqueda, y hay una prueba
+que compara Go contra Python sobre mensajes reales: `go test ./... -run Mapa`.
+
+Si el mapa no está construido (`workers/cli.py logs --construir`), la sección **no aparece** en vez de
+mostrar cero — un «0 archivos» se leería como «no corrió ninguno».
+
+⚠ Y dice qué archivos **dejaron rastro**, no cuáles se ejecutaron. Lo que no loguea es invisible acá:
+la misma regla que rige toda esta herramienta.
+
 ## De dónde salen los datos
 
 **La BD dice QUÉ pasó, los logs dicen POR QUÉ.** Un estado ocurrió o no, y eso se puede afirmar; un log

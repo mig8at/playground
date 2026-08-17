@@ -383,6 +383,13 @@ type Traza struct {
 	// Hallazgos: el resumen de auditoría — todo lo que quedó en fail, con su ruta, ANTES del árbol. Existe
 	// para que soporte lea cinco renglones y sepa dónde abrir, en vez de escanear el árbol buscando rojos.
 	Hallazgos []string `json:"hallazgos,omitempty"`
+	// Archivos: QUÉ CÓDIGO dejó rastro en esta traza, en orden de primera aparición. Sale de resolver
+	// cada mensaje contra `workers/logs.json` (ver archivos.go). Es la pregunta que sigue a «¿por qué
+	// se rompió?» y hasta ahora obligaba a copiar el mensaje a otra herramienta.
+	// ⚠ Dice qué archivos DEJARON RASTRO, no cuáles se ejecutaron: uno sin logs es invisible acá, y
+	// eso no prueba que no corrió — la misma regla que rige toda esta herramienta.
+	Archivos    []ArchivoDeTraza `json:"archivos,omitempty"`
+	SinResolver int              `json:"archivosSinResolver,omitempty"`
 	// El estado ACTUAL de la solicitud. Sin esto el outcome no se podía auditar desde el JSON: una traza
 	// decía «aprobado» y no había forma de saber contra qué estado se calculó (la 522238 cambió de estado
 	// entre dos lecturas y la diferencia era invisible).
@@ -1663,6 +1670,17 @@ func ensamblar(mapa *Mapa, subMapa *SubMapa, s *Solicitud, lineas []Linea, targe
 		t.Warnings = append(t.Warnings, "sin líneas de log: el porqué no se pudo enriquecer (¿fuera de retención? ¿backend sin instrumentar?)")
 	}
 	sort.Strings(t.Sources)
+	// De los mensajes al CÓDIGO. Si el mapa no está construido devuelve -1 y no se agrega nada: un
+	// bloque «0 archivos» se leería como «no corrió ninguno», que es falso.
+	{
+		msgs := make([]string, 0, len(lineas))
+		for _, l := range lineas {
+			msgs = append(msgs, l.msg)
+		}
+		if arch, sin := archivosDeTraza(msgs); sin >= 0 {
+			t.Archivos, t.SinResolver = arch, sin
+		}
+	}
 	izarErroresSinHito(&t)
 	armarHallazgos(&t)
 	return t
@@ -2098,6 +2116,21 @@ func imprimirTraza(t Traza, s *Solicitud) {
 	}
 
 	fmt.Println()
+	if len(t.Archivos) > 0 {
+		fmt.Printf("\n     %s\n", bold("EL CÓDIGO QUE DEJÓ RASTRO"))
+		for _, a := range t.Archivos {
+			donde := ""
+			if len(a.Lineas) > 0 {
+				donde = gray("  :" + strings.Join(a.Lineas, ","))
+			}
+			fmt.Printf("       %3d×  %s%s\n", a.Veces, a.Ruta, donde)
+		}
+		if t.SinResolver > 0 {
+			fmt.Printf("       %s\n", gray(fmt.Sprintf(
+				"(%d mensajes no matchean ningún literal del código — el mapa no los conoce)", t.SinResolver)))
+		}
+		fmt.Println()
+	}
 	fmt.Printf("     %s %s\n", gray("fuentes:"), strings.Join(t.Sources, " + "))
 	for _, w := range t.Warnings {
 		fmt.Printf("     %s %s\n", paint("33", "⚠"), w)
