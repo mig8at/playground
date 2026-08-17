@@ -145,6 +145,11 @@ def main():
                     "inventado no resuelve, mientras que una ruta inventada parece plausible."))
     s.add_argument("hash", nargs="+", help="los que devolvió el agente")
 
+    s = con_json(sub.add_parser(
+        "logs", help="de un MENSAJE de log al archivo que lo emitió (mapa precargado)"))
+    s.add_argument("mensaje", nargs="*", help="el mensaje, o la línea cruda")
+    s.add_argument("--construir", action="store_true", help="rearma el mapa leyendo los repos")
+
     sub.add_parser("check", help="¿las rutas escritas a mano siguen vivas en main?")
     sub.add_parser("pesos", help="refresca los tamaños guardados en repos.json")
 
@@ -217,6 +222,31 @@ def main():
                 print(f"     {k}: {a_}  vs  {b_}")
         print()
         return 1 if d["no_existen"] else 0
+
+    if a.cmd == "logs":
+        import logs as _logs
+        if a.construir:
+            _logs.construir()
+            return 0
+        q = " ".join(a.mensaje)
+        if not q:
+            m = _logs.cargar()
+            print(f"\n  {len(m):,} mensajes mapeados. Pasá uno para resolverlo, "
+                  f"o --construir para rearmar.\n")
+            return 0
+        r = _logs.resolver(q)
+        if not r:
+            print("  sin resolver: ni literal ni nombre de clase en el mensaje")
+            return 1
+        if j:
+            print(json.dumps(r, ensure_ascii=False, indent=2)); return 0
+        print(f"\n  «{r['literal']}»  ({r['cubre']})")
+        for x in r["archivos"]:
+            print(f"    {x['ruta']}:{x['linea']}   h={x['h']}")
+        if r.get("ambiguo"):
+            print("  ⚠ aparece en muchos archivos: no identifica uno solo")
+        print()
+        return 0
 
     if a.cmd == "check":
         return _ix.check()

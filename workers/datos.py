@@ -140,6 +140,34 @@ def _loki(ruta, params):
                          + "  ·  para diagnosticar el ACCESO: make trazador-acceso"}
 
 
+def archivos_de_la_traza(selector, desde="1h", muestra=300):
+    """QUÉ ARCHIVOS CORRIERON detrás de estas líneas de log, en orden de primera aparición.
+
+    Es el salto de «leí logs» a «leí el código que los produjo»: resuelve cada mensaje contra el mapa
+    precargado (`logs.json`, derivado del código) y devuelve archivos con su `h`, listo para
+    `codigo_de_log`, `que_hay_en` o pedirlo entero. Medido sobre una traza real de producción: 101
+    líneas → 6 archivos, 0 sin resolver.
+
+    ⚠ Dice qué archivos DEJARON RASTRO, no cuáles se ejecutaron. Uno sin logs es invisible acá y eso
+    no prueba que no corrió — un log ausente tiene cuatro causas indistinguibles.
+    """
+    import json as _j, re as _re
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    import logs as _logs
+    crudas = _lineas_crudas(selector, desde, max(30, min(int(muestra or 300), 900)))
+    if isinstance(crudas, dict):
+        return crudas
+    msgs = []
+    for _, _, c in crudas:
+        try:
+            msgs.append(_j.loads(c).get("message", ""))
+        except Exception:
+            g = _re.search(r'"message"\s*:\s*"((?:[^"\\]|\\.)*)"', c)
+            if g:
+                msgs.append(g.group(1))
+    return _logs.archivos_de_traza([m for m in msgs if m])
+
+
 def _lineas_crudas(selector, desde, lim):
     """Las líneas SIN recortar ni formatear. Existe separado porque `agrupar_logs` necesita el JSON
     entero para sacarle el `message`: si agrupara sobre lo que muestra `leer_logs` —ya truncado— el
@@ -277,6 +305,19 @@ HERRAMIENTAS = {
     # necesita saber de qué archivo salió— y porque la llave es el MENSAJE, que sólo se tiene después
     # de leer el log. La línea no trae el archivo: `extra_file` apunta al framework (medido en prod).
     "codigo_de_log": _ctx.HERRAMIENTAS["codigo_de_log"],
+
+    "archivos_de_la_traza": ({
+        "name": "archivos_de_la_traza",
+        "description": "QUÉ ARCHIVOS corrieron detrás de un selector de logs, en orden de primera "
+                       "aparición, con sus líneas y su `h`. Es el salto de «leí logs» a «leí el "
+                       "código». Usalo con un selector acotado (un trace_id, un ureq, un error) — "
+                       "sobre un selector ancho devuelve el mapa de todo, que no dice nada.",
+        "parameters": {"type": "object", "properties": {
+            "selector": {"type": "string", "description": "selector LogQL, acotado"},
+            "desde": {"type": "string", "description": "ventana: '1h', '24h'"},
+            "muestra": {"type": "integer", "description": "líneas a mirar (30-900, por defecto 300)"}},
+            "required": ["selector"]},
+    }, archivos_de_la_traza),
 
     "tablas": ({
         "name": "tablas",
