@@ -529,6 +529,49 @@ func (q queryResp) lines() int {
 	return n
 }
 
+// esMatrix dice si la respuesta es de una consulta MÉTRICA (`sum(count_over_time(…))`) en vez de una
+// lectura de líneas. Es una respuesta legítima de query_range y aun así no encaja en `queryResp`: su
+// `resultType` es `matrix` y los timestamps vienen como NÚMERO, no como string, así que el Unmarshal
+// de allá falla entero y el modo `-query` contestaba «el cuerpo no es una respuesta de query_range»,
+// sugiriendo que el servicio no existía, con el número pedido adentro del cuerpo.
+//
+// ⚠ Por qué contar merece su propia rama: leer y contar son preguntas distintas, y este modo sólo
+// sabía leer. Las líneas que imprime son una MUESTRA (cuatro, aunque haya traído 200), así que
+// contarlas miente — medido el 2026-08-16: un agente contó sobre la muestra y reportó 46% donde el
+// número real era 9,2%.
+func esMatrix(body []byte) bool {
+	var m struct {
+		Data struct {
+			ResultType string `json:"resultType"`
+		} `json:"data"`
+	}
+	return json.Unmarshal(body, &m) == nil && m.Data.ResultType == "matrix"
+}
+
+// valorInstantaneo lee el número de una consulta métrica hecha contra `/query` (instantánea).
+//
+// ⚠ Tiene que ser instantánea y NO `query_range`: un range de `count_over_time([24h])` devuelve una
+// SERIE de ventanas de 24h SOLAPADAS —una por cada `step`, alineadas a límites absolutos de tiempo—,
+// no un total. Quedarse con el último punto, o con el máximo, da un número plausible y equivocado:
+// medido, la serie daba 35.036 y 3.488 para una ventana cuyo total real era 3.343.
+func valorInstantaneo(body []byte) (string, bool) {
+	var m struct {
+		Data struct {
+			Result []struct {
+				Value [2]json.RawMessage `json:"value"`
+			} `json:"result"`
+		} `json:"data"`
+	}
+	if json.Unmarshal(body, &m) != nil || len(m.Data.Result) == 0 {
+		return "", false
+	}
+	var v string
+	if json.Unmarshal(m.Data.Result[0].Value[1], &v) != nil || v == "" {
+		return "", false
+	}
+	return v, true
+}
+
 // ─── salida ─────────────────────────────────────────────────────────────────────────────────────────
 
 var color = func() bool {
@@ -866,6 +909,24 @@ func main() {
 		}
 		if status != http.StatusOK {
 			bad("%s", explain(status, body))
+			return false
+		}
+		// Antes de intentar leerlo como líneas: si es una consulta MÉTRICA la respuesta es un número,
+		// y hay que volver a pedirlo como INSTANTÁNEA — el range da ventanas solapadas, no un total.
+		if esMatrix(body) {
+			st, cuerpo, err := cl.get("/loki/api/v1/query", url.Values{
+				"query": {selector},
+				"time":  {nano(now)},
+			})
+			if err != nil || st != http.StatusOK {
+				bad("la consulta métrica no se pudo resolver como instantánea: %v", err)
+				return false
+			}
+			if v, hay := valorInstantaneo(cuerpo); hay {
+				ok("%s = %s  ·  contado por Loki sobre la ventana de la expresión, NO es una muestra", selector, v)
+				return true
+			}
+			warn("la consulta métrica no devolvió valor — ¿la expresión matchea algo?")
 			return false
 		}
 		var qr queryResp

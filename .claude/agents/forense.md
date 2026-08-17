@@ -32,6 +32,19 @@ lee como «no hay logs» cuando en realidad buscaste en otro stack. **Para prod 
 `trazador-acceso`.** (Ya nos pasó: un forense reportó «el trazador no engancha en prod» y en verdad
 estaba consultando dev.)
 
+⚠ **`trazador-acceso` es una SONDA, no un lector: te muestra una MUESTRA.** Con `-limit 200` trae 200
+líneas e **imprime cuatro**, y las cuatro se ven idénticas a doscientas desde donde estás parado.
+Medido el 2026-08-16 — un agente contó sobre esa muestra y reportó «46% de los errores son del
+profiler»; el número real era **9,2%** (307 de 3.343). **Nunca cuentes las líneas que te imprime.**
+Sirve para VER un error crudo y para diagnosticar acceso. Para CONTAR:
+
+    # el total real lo cuenta Loki, no vos
+    make trazador-acceso TARGET=prod SINCE=24h \
+      QUERY='sum(count_over_time({service_name="legacy-backend", level="error"} [24h]))'
+
+Y para cualquier «¿cuántas veces?» que viva en la base, la respuesta es `trazador-sql`, no los logs:
+Loki guarda una ventana corta y **la ausencia de líneas viejas no prueba nada**.
+
 **Y siempre corré un CONTROL.** Antes de concluir «no hay rastro de X», repetí la misma consulta
 sobre un caso que SÍ debería aparecer. Si el control tampoco aparece, el problema es tu consulta o tu
 ambiente — no el sistema. Es lo que salvó la medición la primera vez que se usó este agente.

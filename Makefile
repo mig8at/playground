@@ -215,7 +215,7 @@ trazador-sql: ## @har UNA consulta de SOLO LECTURA a la BD del ambiente. SQL='SE
 # Banco de pruebas para entender la mecánica de un agente por dentro (modelo + herramientas + bucle),
 # escrito a mano contra Gemini. ⚠ NO confundir con `.claude/agents/`: aquello son definiciones que
 # consume Claude Code; esto tiene el bucle a la vista. Detalle en `agents/README.md`.
-.PHONY: agente-modelos agente-frontend
+.PHONY: agente-modelos agente-frontend agente-datos
 agente-modelos: ## @ag ¿qué modelos habilita mi key hoy? (correlo primero, y ante cualquier 404 de modelo)
 	@cd agents && python3 frontend.py --modelos
 
@@ -237,6 +237,13 @@ agente-lector: ## @ag PASO 2: lee los archivos que eligió `agente-seleccion` y 
 
 agente-contexto: ## @ag el que RUTEA SOLO: lee context/, elige qué archivos necesita y recién ahí contesta. PREGUNTA='…'
 	@cd agents && python3 contexto.py $(if $(PREGUNTA),"$(PREGUNTA)")
+
+# El resto de los agentes leen CÓDIGO. Éste MIDE: base de datos y logs reales, un ambiente por corrida.
+# Es seguro contra prod porque la guarda de solo-lectura vive en Go (`trazador/server/sql.go`), no en el
+# prompt — un prompt se convence, esa función no.
+agente-datos: ## @ag NO lee código: MIDE contra la BD y los logs reales. PREGUNTA='…' [TARGET=local|dev|staging|prod]
+	@test -n "$(PREGUNTA)" || { echo "falta PREGUNTA='…'  ·  ej: make agente-datos TARGET=prod PREGUNTA='¿cuántas solicitudes quedan en estado 3?'"; exit 2; }
+	@cd agents && python3 datos.py "$(PREGUNTA)" --target $(if $(TARGET),$(TARGET),local)
 
 # ── EXPLORACIONES ────────────────────────────────────────────────────────────────────────────────
 # Están acá para poder abrirlas, NO porque sean fuente. No se citan para decidir (ver CLAUDE.md).
