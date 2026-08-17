@@ -172,6 +172,8 @@ def main():
     s = con_json(sub.add_parser(
         "negocio", help="LA ESPINA: los conceptos de CreditOp en orden, y dónde mirar cada uno"))
     s.add_argument("concepto", nargs="?", help="uno solo (acepta sinónimos: «buró», «tier», «ureq»)")
+    s.add_argument("--zoom", type=int, default=2, choices=[1, 2, 3],
+                   help="1 = el recorrido en una pantalla · 2 = normal · 3 = todo lo derivado")
 
     sub.add_parser("check", help="¿las rutas escritas a mano siguen vivas en main?")
     sub.add_parser("pesos", help="refresca los tamaños guardados en repos.json")
@@ -290,12 +292,36 @@ def main():
                       f"  ({c.get('archivos_del_nodo', 0)} archivos)")
             print()
             return 0
+        if a.zoom == 1:
+            print("\n  EL RECORRIDO\n")
+            for fase, items in _neg.por_fase(cs):
+                print(f"  {fase.upper():18}  " + " → ".join(c["n"] for c in items))
+            print("\n  `--zoom 2` agrega el nombre en código y el nodo · `--zoom 3`, todo.\n")
+            return 0
+        if a.zoom == 3:
+            print("\n  LA ESPINA · todo lo que se puede derivar de cada concepto\n")
+            for fase, items in _neg.por_fase(cs):
+                print(f"  ══ {fase.upper()}")
+                for c in items:
+                    print(f"\n    {c['n']}  ·  {c['codigo']}")
+                    print(f"      {c['que_es']}")
+                    if c.get("es"):
+                        print(f"      también:  {', '.join(c['es'])}")
+                    if c.get("tabla"):
+                        tr = _neg.trazable(c) or {}
+                        print(f"      tabla:    {c['tabla']}  ·  {tr.get('archivos', 0)} archivos la tocan"
+                              f"  ·  {tr.get('con_logs', 0)} dejan rastro en prod")
+                    print(f"      detalle:  context/…/flows/{c['nodo']}/doc.md"
+                          f"  ({c.get('archivos_del_nodo', 0)} archivos)")
+                print()
+            return 0
         print("\n  LA ESPINA · los conceptos en el orden en que se encadenan\n")
-        for i, c in enumerate(cs, 1):
-            extra = f"· {c['archivos_que_tocan_la_tabla']} arch." if c.get("archivos_que_tocan_la_tabla") else ""
-            print(f"  {i:2}. {c['n']:28} {c['codigo']:26} [{c['nodo']}] {extra}")
-            print(f"      {c['que_es'][:96]}")
-        print("\n  `negocio <concepto>` para uno solo. El detalle vive en su nodo, no acá.\n")
+        for fase, items in _neg.por_fase(cs):
+            print(f"  ── {fase}")
+            for c in items:
+                extra = f"· {c['archivos_que_tocan_la_tabla']} arch." if c.get("archivos_que_tocan_la_tabla") else ""
+                print(f"     {c['n']:28} {c['codigo']:26} [{c['nodo']}] {extra}")
+        print("\n  `--zoom 1` el recorrido solo · `--zoom 3` todo · `negocio <concepto>` para uno.\n")
         return 0
 
     if a.cmd == "flujos":

@@ -13,7 +13,9 @@ eso `negocio.json` es corto y no puede quedar viejo: lo que envejece no está es
 ⚠ Y NO REEMPLAZA A `context/`: acá va UNA LÍNEA por concepto, la que ubica. El detalle y las trampas
 viven en el nodo, y cada entrada dice cuál.
 
-    ./cli.py negocio            la espina, con lo que se deriva de cada concepto
+    ./cli.py negocio --zoom 1   el recorrido en una pantalla: sólo los nombres, agrupados por fase
+    ./cli.py negocio            (zoom 2) cada concepto con su nombre en código y su nodo
+    ./cli.py negocio --zoom 3   todo lo derivado: sinónimos, tabla, cuántos archivos, si se puede trazar
     ./cli.py negocio cupo       un concepto y por dónde seguir
 """
 import json
@@ -50,3 +52,30 @@ def ver(nombre=None):
         cs = [c for c in cs if n in c["n"].lower() or any(n in s.lower() for s in c.get("es", []))
               or n == (c.get("codigo") or "").lower()]
     return [enriquecer(c) for c in cs]
+
+
+def por_fase(cs):
+    """Agrupa conservando el ORDEN de aparición: las fases salen en la secuencia del recorrido, no
+    alfabéticas — que es lo que las vuelve legibles de un vistazo."""
+    fuera, orden = {}, []
+    for c in cs:
+        f = c.get("fase", "—")
+        if f not in fuera:
+            fuera[f] = []
+            orden.append(f)
+        fuera[f].append(c)
+    return [(f, fuera[f]) for f in orden]
+
+
+def trazable(c):
+    """¿Este concepto DEJA RASTRO en producción? Se deriva de `logs.json` vía la tabla: si ningún
+    archivo que la toca emite logs, no hay traza que buscar. Es el dato que decide si una pregunta
+    de soporte sobre este concepto se va a poder contestar."""
+    if not c.get("tabla"):
+        return None
+    import archivos as _arch
+    d = _arch.cargar()
+    tocan = [k for k, v in d.items()
+             if c["tabla"] in [t for t in (v.get("tablas") or [])]]
+    con = [k for k in tocan if d[k].get("loguea")]
+    return {"archivos": len(tocan), "con_logs": len(con)}

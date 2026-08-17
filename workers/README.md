@@ -29,9 +29,18 @@ se pudre.
 # La espina — por dónde empezar
 
 ```bash
-./cli.py negocio          # los conceptos de CreditOp, en el orden en que se encadenan
-./cli.py negocio cupo     # uno solo, con dónde seguir
+./cli.py negocio --zoom 1   # el recorrido en seis renglones
+./cli.py negocio            # normal: cada concepto con su nombre en código y su nodo
+./cli.py negocio --zoom 3   # todo lo derivado, incluido si DEJA RASTRO en producción
+./cli.py negocio cupo       # uno solo, con dónde seguir
 ```
+
+    CONFIGURACIÓN   comercio → sucursal → entidad → la arista → response_type → canal
+    LA SOLICITUD    solicitud → estado → cliente → OTP → datos declarados
+    LA DECISIÓN     central de riesgo → perfilamiento → categoría → reglas → cupo → enganche
+    LA OFERTA       listado de entidades → pre-aprobación
+    EL CIERRE       formalización → pagaré → documentos de legalización
+    DESPUÉS DEL 11  servicing
 
 Había tres vocabularios y ninguno contestaba la pregunta de quien llega: `creditop.json` traduce ids
 a nombres, el glosario traduce español a código, y los nodos explican cada área en profundidad.

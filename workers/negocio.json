@@ -16,76 +16,296 @@
     "codigo": "cómo se llama en el código (inglés). Es el puente que evita buscar en el idioma equivocado",
     "tabla": "dónde vive el dato, si vive en una",
     "nodo": "qué nodo de context/ lo explica en serio",
-    "es": "sinónimos que se oyen en reuniones y en tickets"
+    "es": "sinónimos que se oyen en reuniones y en tickets",
+    "fase": "el tramo del recorrido — agrupa, y es lo que hace legible el nivel general"
   },
   "conceptos": [
-    { "n": "comercio", "es": ["aliado", "allied", "merchant"], "codigo": "allied", "tabla": "allieds", "nodo": "merchants",
-      "que_es": "Quien VENDE. En el modelo CreditopX además pone el capital y es dueño del crédito y del riesgo." },
-
-    { "n": "sucursal", "es": ["branch", "punto de venta"], "codigo": "allied_branch", "tabla": "lenders_by_allied_branches", "nodo": "merchants",
-      "que_es": "Dónde se vende — y la UNIDAD REAL DE CONFIGURACIÓN: las reglas se copian por sucursal, no se heredan." },
-
-    { "n": "entidad", "es": ["lender", "prestamista", "financiera"], "codigo": "lender", "tabla": "lenders_by_allied_branches", "nodo": "entities",
-      "que_es": "Quien PRESTA. Lo que el cliente ve como una card en el listado." },
-
-    { "n": "la arista comercio × entidad", "es": ["el par", "la calculadora"], "codigo": "lenders_by_allieds", "tabla": "lenders_by_allieds", "nodo": "merchants",
-      "que_es": "Casi toda la configuración cuelga del PAR, no de la entidad sola: montos, tasas, comisiones." },
-
-    { "n": "response_type", "es": ["rt", "modo de la entidad"], "codigo": "response_type", "tabla": null, "nodo": "creditop",
-      "que_es": "QUIÉN DECIDE el crédito. Es el eje que más cambia el flujo: 2 y 3 deciden acá, 1 y 4 deciden afuera." },
-
-    { "n": "canal", "es": ["origen", "por dónde entra"], "codigo": "flow_id", "tabla": null, "nodo": "ecommerce",
-      "que_es": "Ecommerce, asesor con QR, autogestión, Corbeta por lotes. ⚠ `user_requests` NO tiene columna de canal." },
-
-    { "n": "solicitud", "es": ["user request", "ureq", "el caso"], "codigo": "user_request", "tabla": "user_requests", "nodo": "onboarding",
-      "que_es": "LA UNIDAD de casi toda pregunta. Su estado vive en `user_request_status_id`, NO en `status`." },
-
-    { "n": "estado", "es": ["status", "etapa"], "codigo": "user_request_status_id", "tabla": "user_request_records", "nodo": "onboarding",
-      "que_es": "Dónde está la solicitud. El 11 (Autorizada) es la FRONTERA entre originación y cartera." },
-
-    { "n": "cliente", "es": ["usuario", "user", "solicitante"], "codigo": "user", "tabla": "users", "nodo": "actors",
-      "que_es": "Quien pide. ⚠ Los datos de buró se indexan por `user_id`, no por solicitud." },
-
-    { "n": "OTP", "es": ["código", "segundo factor"], "codigo": "otp", "tabla": "otps", "nodo": "onboarding",
-      "que_es": "Autentica al cliente. Su id se reusa como prueba de autorización en la firma." },
-
-    { "n": "datos declarados", "es": ["campos", "formulario"], "codigo": "user_field_values", "tabla": "user_field_values", "nodo": "dynamic-forms",
-      "que_es": "Lo que el cliente dice de sí mismo, en EAV. ⚠ el ingreso es el `field_id` 87." },
-
-    { "n": "central de riesgo", "es": ["buró", "buro", "Experian", "Datacrédito", "TusDatos"], "codigo": "risk_central", "tabla": "risk_central_user_data", "nodo": "kyc",
-      "que_es": "De dónde sale el score y el historial. En local/dev/staging NO las atiende el proveedor sino un lambda de mocks." },
-
-    { "n": "perfilamiento", "es": ["profiling", "perfil"], "codigo": "profiling", "tabla": "profiling_reviews", "nodo": "profiling",
-      "que_es": "Qué tan bueno es este cliente PARA ESTA ENTIDAD. Decide qué card aparece y con qué números." },
-
-    { "n": "categoría", "es": ["tier", "nivel"], "codigo": "lender_user_category", "tabla": "lender_users_categories", "nodo": "profiling",
-      "que_es": "El escalón que le toca al cliente, con su economía: cupo, enganche y plazo. Sólo rt=2." },
-
-    { "n": "reglas de admisión", "es": ["tiers", "criterios", "reglas duras"], "codigo": "category_rules", "tabla": "lender_users_category_rules", "nodo": "profiling",
-      "que_es": "Qué hay que cumplir para caer en una categoría. Se evalúan por `priority`, gana la primera que cumple todo." },
-
-    { "n": "cupo", "es": ["monto disponible", "quota", "límite"], "codigo": "available_amount", "tabla": null, "nodo": "creditopx",
-      "que_es": "Cuánto se le presta. Sale del mínimo entre capacidad de pago, tope de categoría y límite de la entidad." },
-
-    { "n": "enganche", "es": ["cuota inicial", "initial fee"], "codigo": "initial_fee", "tabla": null, "nodo": "creditopx",
-      "que_es": "Lo que el cliente pone de entrada. Sube el monto financiable y cambia a qué categoría entra." },
-
-    { "n": "listado de entidades", "es": ["marketplace", "lenders", "las cards"], "codigo": "lenders-v2", "tabla": "profiling_reviews", "nodo": "creditopx",
-      "que_es": "Lo que el cliente ve para elegir. Su snapshot queda en `displayed_lenders`." },
-
-    { "n": "pre-aprobación", "es": ["preapproval", "consulta externa"], "codigo": "pre_approval", "tabla": null, "nodo": "ms-preapprovals",
-      "que_es": "Para rt=1: la entidad decide por API y CreditOp sólo pregunta. No es simulable en pruebas." },
-
-    { "n": "formalización", "es": ["cierre", "firma"], "codigo": "formalization", "tabla": null, "nodo": "formalization",
-      "que_es": "De la selección al crédito: plan de pagos, documentos, firma con OTP y autorización." },
-
-    { "n": "pagaré", "es": ["promissory note", "título valor"], "codigo": "promissory_note", "tabla": "promissory_notes", "nodo": "deceval",
-      "que_es": "El título que hace exigible la deuda. Va por Deceval, aparte de los otros documentos." },
-
-    { "n": "documentos de legalización", "es": ["consent", "docs firmados"], "codigo": "netco_signing_documents", "tabla": "netco_signing_documents", "nodo": "credifamilia",
-      "que_es": "Consentimiento, autorización de desembolso, garantía, plan de pagos. Se firman con Netco." },
-
-    { "n": "servicing", "es": ["cartera", "cobranza", "post-desembolso"], "codigo": "servicing", "tabla": "creditop_x_requests_history", "nodo": "servicing",
-      "que_es": "Lo que pasa DESPUÉS del estado 11. Vive en otro sistema: no se cuenta con las columnas de la solicitud." }
+    {
+      "n": "comercio",
+      "es": [
+        "aliado",
+        "allied",
+        "merchant"
+      ],
+      "codigo": "allied",
+      "tabla": "allieds",
+      "nodo": "merchants",
+      "que_es": "Quien VENDE. En el modelo CreditopX además pone el capital y es dueño del crédito y del riesgo.",
+      "fase": "configuración"
+    },
+    {
+      "n": "sucursal",
+      "es": [
+        "branch",
+        "punto de venta"
+      ],
+      "codigo": "allied_branch",
+      "tabla": "lenders_by_allied_branches",
+      "nodo": "merchants",
+      "que_es": "Dónde se vende — y la UNIDAD REAL DE CONFIGURACIÓN: las reglas se copian por sucursal, no se heredan.",
+      "fase": "configuración"
+    },
+    {
+      "n": "entidad",
+      "es": [
+        "lender",
+        "prestamista",
+        "financiera"
+      ],
+      "codigo": "lender",
+      "tabla": "lenders_by_allied_branches",
+      "nodo": "entities",
+      "que_es": "Quien PRESTA. Lo que el cliente ve como una card en el listado.",
+      "fase": "configuración"
+    },
+    {
+      "n": "la arista comercio × entidad",
+      "es": [
+        "el par",
+        "la calculadora"
+      ],
+      "codigo": "lenders_by_allieds",
+      "tabla": "lenders_by_allieds",
+      "nodo": "merchants",
+      "que_es": "Casi toda la configuración cuelga del PAR, no de la entidad sola: montos, tasas, comisiones.",
+      "fase": "configuración"
+    },
+    {
+      "n": "response_type",
+      "es": [
+        "rt",
+        "modo de la entidad"
+      ],
+      "codigo": "response_type",
+      "tabla": null,
+      "nodo": "creditop",
+      "que_es": "QUIÉN DECIDE el crédito. Es el eje que más cambia el flujo: 2 y 3 deciden acá, 1 y 4 deciden afuera.",
+      "fase": "configuración"
+    },
+    {
+      "n": "canal",
+      "es": [
+        "origen",
+        "por dónde entra"
+      ],
+      "codigo": "flow_id",
+      "tabla": null,
+      "nodo": "ecommerce",
+      "que_es": "Ecommerce, asesor con QR, autogestión, Corbeta por lotes. ⚠ `user_requests` NO tiene columna de canal.",
+      "fase": "configuración"
+    },
+    {
+      "n": "solicitud",
+      "es": [
+        "user request",
+        "ureq",
+        "el caso"
+      ],
+      "codigo": "user_request",
+      "tabla": "user_requests",
+      "nodo": "onboarding",
+      "que_es": "LA UNIDAD de casi toda pregunta. Su estado vive en `user_request_status_id`, NO en `status`.",
+      "fase": "la solicitud"
+    },
+    {
+      "n": "estado",
+      "es": [
+        "status",
+        "etapa"
+      ],
+      "codigo": "user_request_status_id",
+      "tabla": "user_request_records",
+      "nodo": "onboarding",
+      "que_es": "Dónde está la solicitud. El 11 (Autorizada) es la FRONTERA entre originación y cartera.",
+      "fase": "la solicitud"
+    },
+    {
+      "n": "cliente",
+      "es": [
+        "usuario",
+        "user",
+        "solicitante"
+      ],
+      "codigo": "user",
+      "tabla": "users",
+      "nodo": "actors",
+      "que_es": "Quien pide. ⚠ Los datos de buró se indexan por `user_id`, no por solicitud.",
+      "fase": "la solicitud"
+    },
+    {
+      "n": "OTP",
+      "es": [
+        "código",
+        "segundo factor"
+      ],
+      "codigo": "otp",
+      "tabla": "otps",
+      "nodo": "onboarding",
+      "que_es": "Autentica al cliente. Su id se reusa como prueba de autorización en la firma.",
+      "fase": "la solicitud"
+    },
+    {
+      "n": "datos declarados",
+      "es": [
+        "campos",
+        "formulario"
+      ],
+      "codigo": "user_field_values",
+      "tabla": "user_field_values",
+      "nodo": "dynamic-forms",
+      "que_es": "Lo que el cliente dice de sí mismo, en EAV. ⚠ el ingreso es el `field_id` 87.",
+      "fase": "la solicitud"
+    },
+    {
+      "n": "central de riesgo",
+      "es": [
+        "buró",
+        "buro",
+        "Experian",
+        "Datacrédito",
+        "TusDatos"
+      ],
+      "codigo": "risk_central",
+      "tabla": "risk_central_user_data",
+      "nodo": "kyc",
+      "que_es": "De dónde sale el score y el historial. En local/dev/staging NO las atiende el proveedor sino un lambda de mocks.",
+      "fase": "la decisión"
+    },
+    {
+      "n": "perfilamiento",
+      "es": [
+        "profiling",
+        "perfil"
+      ],
+      "codigo": "profiling",
+      "tabla": "profiling_reviews",
+      "nodo": "profiling",
+      "que_es": "Qué tan bueno es este cliente PARA ESTA ENTIDAD. Decide qué card aparece y con qué números.",
+      "fase": "la decisión"
+    },
+    {
+      "n": "categoría",
+      "es": [
+        "tier",
+        "nivel"
+      ],
+      "codigo": "lender_user_category",
+      "tabla": "lender_users_categories",
+      "nodo": "profiling",
+      "que_es": "El escalón que le toca al cliente, con su economía: cupo, enganche y plazo. Sólo rt=2.",
+      "fase": "la decisión"
+    },
+    {
+      "n": "reglas de admisión",
+      "es": [
+        "tiers",
+        "criterios",
+        "reglas duras"
+      ],
+      "codigo": "category_rules",
+      "tabla": "lender_users_category_rules",
+      "nodo": "profiling",
+      "que_es": "Qué hay que cumplir para caer en una categoría. Se evalúan por `priority`, gana la primera que cumple todo.",
+      "fase": "la decisión"
+    },
+    {
+      "n": "cupo",
+      "es": [
+        "monto disponible",
+        "quota",
+        "límite"
+      ],
+      "codigo": "available_amount",
+      "tabla": null,
+      "nodo": "creditopx",
+      "que_es": "Cuánto se le presta. Sale del mínimo entre capacidad de pago, tope de categoría y límite de la entidad.",
+      "fase": "la decisión"
+    },
+    {
+      "n": "enganche",
+      "es": [
+        "cuota inicial",
+        "initial fee"
+      ],
+      "codigo": "initial_fee",
+      "tabla": null,
+      "nodo": "creditopx",
+      "que_es": "Lo que el cliente pone de entrada. Sube el monto financiable y cambia a qué categoría entra.",
+      "fase": "la decisión"
+    },
+    {
+      "n": "listado de entidades",
+      "es": [
+        "marketplace",
+        "lenders",
+        "las cards"
+      ],
+      "codigo": "lenders-v2",
+      "tabla": "profiling_reviews",
+      "nodo": "creditopx",
+      "que_es": "Lo que el cliente ve para elegir. Su snapshot queda en `displayed_lenders`.",
+      "fase": "la oferta"
+    },
+    {
+      "n": "pre-aprobación",
+      "es": [
+        "preapproval",
+        "consulta externa"
+      ],
+      "codigo": "pre_approval",
+      "tabla": null,
+      "nodo": "ms-preapprovals",
+      "que_es": "Para rt=1: la entidad decide por API y CreditOp sólo pregunta. No es simulable en pruebas.",
+      "fase": "la oferta"
+    },
+    {
+      "n": "formalización",
+      "es": [
+        "cierre",
+        "firma"
+      ],
+      "codigo": "formalization",
+      "tabla": null,
+      "nodo": "formalization",
+      "que_es": "De la selección al crédito: plan de pagos, documentos, firma con OTP y autorización.",
+      "fase": "el cierre"
+    },
+    {
+      "n": "pagaré",
+      "es": [
+        "promissory note",
+        "título valor"
+      ],
+      "codigo": "promissory_note",
+      "tabla": "promissory_notes",
+      "nodo": "deceval",
+      "que_es": "El título que hace exigible la deuda. Va por Deceval, aparte de los otros documentos.",
+      "fase": "el cierre"
+    },
+    {
+      "n": "documentos de legalización",
+      "es": [
+        "consent",
+        "docs firmados"
+      ],
+      "codigo": "netco_signing_documents",
+      "tabla": "netco_signing_documents",
+      "nodo": "credifamilia",
+      "que_es": "Consentimiento, autorización de desembolso, garantía, plan de pagos. Se firman con Netco.",
+      "fase": "el cierre"
+    },
+    {
+      "n": "servicing",
+      "es": [
+        "cartera",
+        "cobranza",
+        "post-desembolso"
+      ],
+      "codigo": "servicing",
+      "tabla": "creditop_x_requests_history",
+      "nodo": "servicing",
+      "que_es": "Lo que pasa DESPUÉS del estado 11. Vive en otro sistema: no se cuenta con las columnas de la solicitud.",
+      "fase": "después del 11"
+    }
   ]
 }
