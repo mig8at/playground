@@ -15,6 +15,7 @@ trabajan en ramas y stashes locales, así que leer el working tree daría respue
 está corriendo.
 """
 import json
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -190,6 +191,59 @@ def gemelos(a="application", b="legacy-backend", filtro="", cuantos=40):
     }
 
 
+_DEFINE = re.compile(r"\b(class|interface|trait|abstract class|final class|function|def|const|type|enum)\s+$",
+                     re.I)
+
+
+def quien_usa(simbolo, repos=None, cuantos=40):
+    """Dónde se usa un símbolo —una clase, un método, una constante— en TODOS los repos a la vez,
+    separando **dónde se define** de **dónde se llama**.
+
+    Es la pregunta central al seguir un flujo («¿quién invoca esto?») y hasta acá no se podía hacer:
+    `buscar_en_codigo` exige elegir UN repo, así que había que saber de antemano dónde mirar — que es
+    justo lo que no se sabe. Y en CreditOp la respuesta suele estar del otro lado: casi todo vive dos
+    veces, y un método puede estar vivo en un monolito y muerto en el otro.
+
+    ⚠ Va por `git grep` y no por el índice, medido: para `LenderUserCategoryService` el índice
+    encuentra 11 archivos y el grep 22. El índice está acotado por presupuesto de extracción y su
+    parseo de imports no cubre todas las formas — sirve para orientarse, no para afirmar «nadie lo
+    usa». Una respuesta parcial a «¿quién llama a esto?» es peor que ninguna: se lee como código
+    muerto.
+    """
+    alias = [a for a in (repos or list(ROOTS)) if a in ROOTS]
+    if not simbolo or len(simbolo.strip()) < 3:
+        return {"error": "pasá un símbolo de al menos 3 caracteres"}
+    s = simbolo.strip()
+    define, usan, fallaron = [], [], []
+    for a in alias:
+        r = subprocess.run(["git", "-C", ROOTS[a], "grep", "-n", "--no-color", "-F", s, "main"],
+                           capture_output=True, text=True, timeout=120)
+        if r.returncode not in (0, 1):
+            fallaron.append(a)
+            continue
+        for linea in r.stdout.splitlines():
+            sin_ref = linea.replace("main:", "", 1)
+            ruta, _, resto = sin_ref.partition(":")
+            n, _, texto = resto.partition(":")
+            item = {"ruta": f"{a}/{ruta}", "linea": n, "codigo": texto.strip()[:150]}
+            # El texto ANTES del símbolo decide si es una declaración: `protected function <s>` sí,
+            # `$this-><s>(` no. ⚠ Sin rstrip: la regex pide el espacio separador, y quitarlo antes
+            # de buscarlo hacía que nada matchee nunca — `lo_definen` daba 0 siempre.
+            antes = texto[:texto.find(s)] if s in texto else ""
+            (define if _DEFINE.search(antes) else usan).append(item)
+    n = max(1, min(int(cuantos or 40), 120))
+    return {
+        "simbolo": s, "repos_mirados": alias,
+        "resumen": {"lo_definen": len(define), "lo_usan": len(usan)},
+        "definido_en": [dict(d, h=_extraer.hash_de(d["ruta"])) for d in define[:12]],
+        "usado_en": [dict(u, h=_extraer.hash_de(u["ruta"])) for u in usan[:n]],
+        "no_se_pudo_mirar": fallaron,
+        "nota": ("⚠ si `lo_definen` es más de 1, el símbolo vive en varios repos: mirá cuál de las "
+                 "copias es la que corre. Y un 0 en `lo_usan` sólo prueba que no aparece por texto "
+                 "exacto — puede invocarse dinámicamente."),
+    }
+
+
 def que_hay_en(ruta):
     """Qué significa un archivo EN EL NEGOCIO, sin abrirlo: qué lenders, comercios, tablas, estados y
     `response_type` toca, qué nodos lo describen y si bifurca por ambiente.
@@ -293,6 +347,23 @@ HERRAMIENTAS = {
             "cuantos": {"type": "integer", "description": "máximo a devolver (tope 120)"},
         }},
     }, gemelos),
+
+    "quien_usa": ({
+        "name": "quien_usa",
+        "description": (
+            "Dónde se DEFINE y dónde se USA un símbolo (clase, método, constante) en TODOS los repos "
+            "a la vez, separando las dos cosas. Es la pregunta de seguir un flujo: «¿quién invoca "
+            "esto?». Usala cuando tengas un nombre concreto — `buscar_en_codigo` te obliga a elegir "
+            "un repo, y en CreditOp la respuesta suele estar del otro lado. ⚠ Si `lo_definen` es más "
+            "de 1, el símbolo vive en varios repos: fijate cuál es el que corre."
+        ),
+        "parameters": {"type": "object", "properties": {
+            "simbolo": {"type": "string", "description": "el nombre exacto, p. ej. 'stampCreditopXApproval'"},
+            "repos": {"type": "array", "items": {"type": "string"},
+                      "description": "acotar a estos alias; vacío = los 12"},
+            "cuantos": {"type": "integer", "description": "máximo de usos a devolver (tope 120)"},
+        }, "required": ["simbolo"]},
+    }, quien_usa),
 
     "que_hay_en": ({
         "name": "que_hay_en",

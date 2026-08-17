@@ -489,6 +489,7 @@ HERRAMIENTAS = {
     # repo», que es una conclusión, no un error.
     "gemelos": contexto.HERRAMIENTAS["gemelos"],
     "que_hay_en": contexto.HERRAMIENTAS["que_hay_en"],
+    "quien_usa": contexto.HERRAMIENTAS["quien_usa"],
 }
 
 INSTRUCCIONES = """\

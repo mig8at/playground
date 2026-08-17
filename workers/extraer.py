@@ -451,7 +451,27 @@ def cruzar_rutas(aliases, sufijo_min=2, tope_kb=10_000, solo_api=True):
     `/api/onboarding/loan-application/lenders-v2/{}` y el backend la declara como `lenders-v2/{}`
     adentro de un grupo con prefijo. Por eso el cruce es por SUFIJO — comparten los últimos N
     segmentos — que es como se ven de verdad las dos puntas de una misma llamada.
+
+    ⚠⚠ MIDE POCO, Y SE SABE POR QUÉ. Con front + legacy-backend encuentra **una** coincidencia sobre
+    157 y 178 rutas. No es un bug de este cruce: es que del lado de Laravel la ruta extraída es sólo
+    el FRAGMENTO interno (`register`, `send`, `otp/resend`) porque el camino real se arma en tres
+    lugares —el prefijo del módulo, que vive fuera del archivo de rutas; los `Route::prefix()->group()`
+    anidados; y la ruta misma—. Reconstruirlo sin correr Laravel no es un arreglo chico.
+
+    Por eso esta función NO está expuesta como herramienta de agente: devolvería casi siempre «no se
+    hablan», que es una conclusión falsa y no un resultado vacío. Cuando exista la reconstrucción de
+    prefijos, se expone.
     """
+    # ⚠ Se indexa CADA sufijo posible, no sólo el de largo `sufijo_min`, y ahí estaba el defecto que
+    # volvía inútil este cruce. Medido el 2026-08-16: front y backend tenían 157 y 178 rutas y
+    # cruzaban UNA. La causa: Laravel declara las rutas DENTRO de grupos con prefijo, así que del
+    # lado del backend quedan de UN solo segmento (`bancolombia`, `lenders-v2/{}`) mientras el front
+    # pide `/api/onboarding/bancolombia`. Exigir dos segmentos hacía imposible el match justo para
+    # la forma más común del repo — el filtro descartaba lo que venía a buscar, en silencio.
+    #
+    # Ahora se guardan todos los sufijos y después se elige el MÁS LARGO que coincida: un match de 3
+    # segmentos es casi seguro la misma llamada, uno de 1 puede ser casualidad, y quien lo consume
+    # necesita saber cuál le tocó. Por eso el largo viaja en el resultado y no se esconde.
     porRepo = {}
     for a in aliases:
         d = extraer(a, "", tope_kb)
@@ -462,14 +482,22 @@ def cruzar_rutas(aliases, sufijo_min=2, tope_kb=10_000, solo_api=True):
                     continue
                 c = _solo_camino(r)
                 segs = [s for s in c.split("/") if s]
-                if len(segs) < sufijo_min:
-                    continue
-                clave = segs[-sufijo_min:]
-                # ⚠ Un sufijo de puros parámetros (`/{}/{}`) matchea CUALQUIER cosa con cualquier
-                # cosa: es la coincidencia falsa clásica. Se exige al menos un segmento literal.
-                if not any(s != "{}" for s in clave):
-                    continue
-                caminos.setdefault("/".join(clave), []).append((c, n["p"]))
+                for largo in range(max(1, sufijo_min), min(len(segs), 4) + 1):
+                    clave = segs[-largo:]
+                    # ⚠ Un sufijo de puros parámetros (`/{}/{}`) matchea CUALQUIER cosa con
+                    # cualquier cosa: es la coincidencia falsa clásica. Al menos un literal.
+                    if not any(s != "{}" for s in clave):
+                        continue
+                    # ⚠ NO se cruza por UN solo segmento, y se probó. Bajar a 1 sube de 1 a 6
+                    # coincidencias y CINCO son falsas: `/api/auth/forgot/confirm` contra
+                    # `/disbursements/confirm`, `/api/posthog/session` contra `/auth/session` —
+                    # terminan igual y no son la misma llamada. Un filtro por largo de segmento
+                    # (≥4 caracteres) no salva nada: `confirm`, `register`, `session` y `login`
+                    # lo pasan. Devolver seis pares confiados de los que cinco mienten es peor que
+                    # devolver uno: el que consume no tiene cómo distinguirlos.
+                    if largo == 1:
+                        continue
+                    caminos.setdefault("/".join(clave), []).append((c, n["p"]))
         porRepo[a] = caminos
 
     coincidencias = []
@@ -479,11 +507,23 @@ def cruzar_rutas(aliases, sufijo_min=2, tope_kb=10_000, solo_api=True):
             continue
         coincidencias.append({
             "sufijo": "/" + clave,
+            "segmentos": clave.count("/") + 1,
             "repos": list(donde),
             "puntas": {a: sorted({f"{c}  ←  {p.split('/', 1)[1]}" for c, p in v})[:3]
                        for a, v in donde.items()},
         })
-    coincidencias.sort(key=lambda x: (-len(x["repos"]), x["sufijo"]))
+    # ⚠ Un sufijo contenido en otro más largo es la MISMA llamada contada dos veces: si cruzó
+    # `credits/{}/documents`, el `{}/documents` de abajo es ruido. Se queda el más específico.
+    largos = sorted(coincidencias, key=lambda x: -x["segmentos"])
+    vistos, unicas = [], []
+    for c in largos:
+        if any(v["sufijo"].endswith(c["sufijo"]) and v["repos"] == c["repos"] for v in vistos):
+            continue
+        vistos.append(c)
+        unicas.append(c)
+    coincidencias = unicas
+    # Primero los cruces de MÁS segmentos: son los que casi seguro son la misma llamada.
+    coincidencias.sort(key=lambda x: (-len(x["repos"]), -x["segmentos"], x["sufijo"]))
     # Cuántas rutas aportó cada repo: si uno trae 0, el «ninguna» es porque ese repo no declara
     # rutas de esa clase — no porque no se hablen. Decirlo evita la conclusión equivocada.
     aporte = {a: len(porRepo[a]) for a in aliases}

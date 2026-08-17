@@ -312,6 +312,31 @@ Go (`trazador/server/sql.go`, `esSoloLectura`) — exige `SELECT`/`WITH`, prohí
 verbos de escritura y el `INTO OUTFILE` que una vez se les coló. **Un prompt se convence; esa función
 no.** Todo lo demás son GET.
 
+### Las herramientas que ven los que eligen y el que lee
+
+| herramienta | qué contesta |
+|---|---|
+| `mapa_de_rutas` · `abrir_nodo` | el árbol de contexto: por síntoma → nodo → sus archivos |
+| `indice_de_repos` · `subramas_del_repo` · `mapa_de_negocio_del_repo` | cómo está armado cada repo, y qué negocio vive en cada carpeta |
+| `buscar_archivos` | describís en palabras y te da candidatos, puntuados por parecido |
+| `archivos_por_tag` | los que **tocan** algo, por hecho y no por parecido: `tabla:x` · `lender:N` · `rt:N` · `gates` |
+| `gemelos` | qué existe en los DOS monolitos y qué **divergió** (321 idénticos · 213 divergidos) |
+| `quien_usa` | dónde se **define** y dónde se **usa** un símbolo, en los 12 repos a la vez |
+| `que_hay_en` | qué significa un archivo en el negocio **sin abrirlo** (~20 tokens contra ~15.000) |
+| `leer_codigo` · `buscar_en_codigo` · `pedir_archivo` | el código real, siempre desde `main` |
+
+Las cuatro del medio entraron el 2026-08-16 tapando un hueco que se encontró **comparando lo que el
+índice sabía hacer contra lo que los agentes podían pedir**. La peor: se les pedía por escrito el
+ángulo «mirá el gemelo en el otro repo» y no tenían con qué encontrarlo — adivinaban la ruta del otro
+lado. *Pedir un ángulo sin la herramienta para recorrerlo es cómo se fabrica una respuesta inventada.*
+
+⚠ `cruzar_rutas` (qué rutas HTTP comparten dos repos) existe en el CLI y **no se expuso**: mide 1
+coincidencia sobre 157 y 178 rutas, porque del lado de Laravel la ruta extraída es sólo el fragmento
+interno —el camino real se arma con el prefijo del módulo y los `Route::prefix()->group()` anidados—.
+Devolvería «no se hablan», que es una conclusión falsa y no un resultado vacío.
+
+### Las del que mide
+
 | herramienta | qué hace |
 |---|---|
 | `esquema` · `tablas` | las columnas y tablas **reales**. El antídoto contra inventarlas |
