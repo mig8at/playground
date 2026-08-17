@@ -2720,7 +2720,7 @@ func modoTraza(c config, target string, ureq int64, jsonOut bool, htmlOut string
 
 // modoBuscar lista los intentos que coinciden con lo que se escribió. Es la puerta natural del soporte:
 // quien llama dice su cédula o su celular, no un `user_request_id`.
-func modoBuscar(c config, target, valor string) int {
+func modoBuscar(c config, target, valor string, comoJSON bool) int {
 	fuente, err := abrirFuente(c)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "\n  %s sin BD para «%s»: %v\n\n", paint("31", "✘"), target, err)
@@ -2732,7 +2732,55 @@ func modoBuscar(c config, target, valor string) int {
 		fmt.Fprintf(os.Stderr, "\n  %s %v\n\n", paint("31", "✘"), err)
 		return 2
 	}
+	if comoJSON {
+		return buscarJSON(valor, cs, como, target)
+	}
 	imprimirCoincidencias(valor, cs, como, target)
+	if len(cs) == 0 {
+		return 2
+	}
+	return 0
+}
+
+// buscarJSON es la MISMA búsqueda, renderizada para quien no mira una pantalla.
+//
+// Por qué existe: `-json` sólo servía con `-ureq`, así que la pregunta que más se hace por consola
+// —«¿qué le pasó a esta persona?», por cédula— sólo tenía la vista humana: columnas alineadas, colores
+// y una tabla pensada para el ojo. Un modelo puede leerla, pero la parsea, y parsear una tabla de
+// ancho fijo es exactamente donde se inventan datos.
+//
+// ⚠ NO incluye documento ni teléfono, y es deliberado: el JSON se pega en un informe o se encadena a
+// otro comando, y ahí un dato personal viaja a lugares que nadie miró. Para identificar una fila
+// alcanzan `ureq` y `user_id`; quien de verdad necesite el documento tiene la vista humana, que se
+// mira una vez y no se guarda.
+func buscarJSON(valor string, cs []Coincidencia, como []string, target string) int {
+	type fila struct {
+		UReq     int64  `json:"ureq"`
+		UserID   int64  `json:"user_id"`
+		Estado   int    `json:"estado"`
+		EstadoN  string `json:"estado_nombre"`
+		Lender   string `json:"lender,omitempty"`
+		Comercio string `json:"comercio,omitempty"`
+		Creada   string `json:"creada"`
+		Directa  bool   `json:"directa"`
+	}
+	out := struct {
+		Busque   string `json:"busque"`
+		Target   string `json:"target"`
+		ComoSe   []string `json:"resuelto_como"`
+		Cuantas  int    `json:"cuantas"`
+		Nota     string `json:"nota"`
+		Filas    []fila `json:"solicitudes"`
+	}{Busque: valor, Target: target, ComoSe: como, Cuantas: len(cs),
+		Nota: "`directa:true` es lo que matcheó lo que buscaste; el resto es el historial de la " +
+			"misma persona. Sin documento ni teléfono a propósito: identificá por ureq/user_id."}
+	for _, x := range cs {
+		out.Filas = append(out.Filas, fila{x.UReq, x.UserID, x.Estado, x.EstadoN, x.Lender,
+			x.Comercio, x.Creada.Format(time.RFC3339), x.Directa})
+	}
+	e := json.NewEncoder(os.Stdout)
+	e.SetIndent("", "  ")
+	_ = e.Encode(out)
 	if len(cs) == 0 {
 		return 2
 	}

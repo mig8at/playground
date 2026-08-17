@@ -628,7 +628,7 @@ func main() {
 	spans := flag.Bool("spans", false, "con -ureq: mide si el `span_id` alcanza para ubicar las líneas que el texto no reclama")
 	validar := flag.String("validar", "", "ruta a un corpus de líneas CRUDAS (el TSV del censo o un timeline.ndjson): audita el mapa")
 	buscar := flag.String("buscar", "", "teléfono, cédula o número de solicitud: lista los intentos que coincidan")
-	jsonOut := flag.Bool("json", false, "con -ureq: salida estructurada en vez de la vista de etapas")
+	jsonOut := flag.Bool("json", false, "con -ureq o -buscar: salida estructurada, para encadenar o para un modelo")
 	htmlOut := flag.String("html", "", "con -ureq: además escribe la vista de checks en este archivo")
 	sqlQuery := flag.String("sql", "", "UNA consulta de solo lectura (SELECT/WITH) contra la fuente del target — ver sql.go")
 	sqlCSV := flag.Bool("csv", false, "con -sql: salida en CSV en vez de tabla")
@@ -677,7 +677,7 @@ func main() {
 		os.Exit(modoSQL(c, *target, *sqlQuery, *sqlCSV))
 	}
 	if *buscar != "" {
-		os.Exit(modoBuscar(c, *target, *buscar))
+		os.Exit(modoBuscar(c, *target, *buscar, *jsonOut))
 	}
 	if *ureq > 0 {
 		os.Exit(modoTraza(c, *target, *ureq, *jsonOut, *htmlOut))

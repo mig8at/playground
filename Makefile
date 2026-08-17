@@ -106,13 +106,13 @@ panel: ## @dia abre el panel del harness para probar flujos (:5195)
 trazador: ## @dia ¿QUÉ LE PASÓ a esta solicitud? el flujo por etapas, del sistema real (:5192)
 	@cd trazador && npm run dev
 
-trazador-buscar: ## @dia la HISTORIA de una persona por cédula, teléfono o solicitud. Q=1012345678 [TARGET=prod]
+trazador-buscar: ## @dia la HISTORIA de una persona por cédula, teléfono o solicitud. Q=1012345678 [TARGET=prod] [JSON=1]
 	@test -n "$(Q)" || { echo "falta Q=<cédula|teléfono|uReq>  ·  ej: make trazador-buscar Q=1012345678"; exit 2; }
-	@cd trazador/server && go run . -target $(or $(TARGET),prod) -buscar $(Q)
+	@cd trazador/server && go run . -target $(or $(TARGET),prod) -buscar $(Q) $(if $(JSON),-json)
 
-trazador-ureq: ## @dia la traza por etapas de UNA solicitud. UREQ=519245 [TARGET=prod] [HTML=f.html]
+trazador-ureq: ## @dia la traza por etapas de UNA solicitud. UREQ=519245 [TARGET=prod] [HTML=f.html] [JSON=1]
 	@test -n "$(UREQ)" || { echo "falta UREQ=<n>  ·  ej: make trazador-ureq UREQ=519245"; exit 2; }
-	@cd trazador/server && go run . -target $(or $(TARGET),prod) -ureq $(UREQ) $(if $(HTML),-html $(HTML))
+	@cd trazador/server && go run . -target $(or $(TARGET),prod) -ureq $(UREQ) $(if $(HTML),-html $(HTML)) $(if $(JSON),-json)
 
 # ── PULSO ────────────────────────────────────────────────────────────────────────────────────────
 # Cuándo toqué los repos de la compañía, en tramos de 5'. Alimenta «Mi jornada» del tablero y se
