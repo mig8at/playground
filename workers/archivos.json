@@ -1558,6 +1558,13 @@
     "nombre": "Credifamilia"
    }
   ],
+  "loguea": {
+   "mensajes": 2,
+   "muestra": [
+    "Experian NO disparado desde DatacreditoQueryByAlliedController::userViability",
+    "Experian disparado desde DatacreditoQueryByAlliedController::userViability"
+   ]
+  },
   "marcas": [
    "EXPERIAN_NOT_TRIGGERED"
   ],
@@ -1757,12 +1764,12 @@
    }
   ],
   "loguea": {
-   "mensajes": 9,
+   "mensajes": 13,
    "muestra": [
-    "Experian disparado desde storeEmploymentInfo",
-    "Experian disparado desde storePersonalInfo",
-    "Experian disparado desde storePersonalInfo (consultQuanto)",
-    "PersonalInfoController::alliedsLendersValidator: entered"
+    "Datacredito no evaluado (userViability no ejecutado) desde PersonalInfoController",
+    "Experian NO disparado en storeEmploymentInfo (allied_id fuera de experian_trigger_allieds)",
+    "Experian NO disparado en storePersonalInfo (allied no es Pullman ni DFS)",
+    "Experian NO disparado en storePersonalInfo (allied_id fuera de experian_trigger_allieds)"
    ]
   },
   "nodos": [
@@ -2095,6 +2102,13 @@
     "nombre": "Motai"
    }
   ],
+  "loguea": {
+   "mensajes": 2,
+   "muestra": [
+    "Validación facial (onboarding): compareFaces lanzó excepción",
+    "Validación facial (onboarding): score por debajo del umbral"
+   ]
+  },
   "nodos": [
    "hardcodes-entidades"
   ],
@@ -2115,6 +2129,14 @@
    9,
    11
   ],
+  "loguea": {
+   "mensajes": 3,
+   "muestra": [
+    "ValidateOtpController: Experian NO disparado (usuario TEMPORAL USER)",
+    "ValidateOtpController: invocando userViability (puede disparar Experian)",
+    "ValidateOtpController: userViability NO invocado (hadPreApproveLender=true)"
+   ]
+  },
   "nodos": [
    "application",
    "hardcodes-entidades",
@@ -10990,7 +11012,7 @@
    }
   ],
   "loguea": {
-   "mensajes": 4,
+   "mensajes": 5,
    "muestra": [
     "Error al crear validación de TusDatos AML",
     "Error al verificar estado de TusDatos",
@@ -11406,6 +11428,15 @@
   ]
  },
  "legacy-backend/Modules/Loans/App/Http/Controllers/Consumer/CreditChangeController.php": {
+  "loguea": {
+   "mensajes": 11,
+   "muestra": [
+    "Cannot change fee number",
+    "Cannot change payment date",
+    "Error changing fee number",
+    "Error changing payment date"
+   ]
+  },
   "tipo": [
    "controller"
   ]
@@ -11416,6 +11447,13 @@
   ]
  },
  "legacy-backend/Modules/Loans/App/Http/Controllers/Consumer/UserRequestDocumentController.php": {
+  "loguea": {
+   "mensajes": 2,
+   "muestra": [
+    "Documents retrieved successfully",
+    "Error retrieving documents"
+   ]
+  },
   "tipo": [
    "controller"
   ]
@@ -11492,6 +11530,15 @@
   ]
  },
  "legacy-backend/Modules/Loans/App/Http/Controllers/Customer/CreditChangeController.php": {
+  "loguea": {
+   "mensajes": 11,
+   "muestra": [
+    "Cannot change fee number",
+    "Cannot change payment date",
+    "Error changing fee number",
+    "Error changing payment date"
+   ]
+  },
   "tipo": [
    "controller"
   ]
@@ -11557,6 +11604,15 @@
     "nombre": "SmartPay (prod)"
    }
   ],
+  "loguea": {
+   "mensajes": 4,
+   "muestra": [
+    "Client IMEI notification failed",
+    "Device registration failed",
+    "IMEI disbursement error",
+    "IMEI disbursement failed"
+   ]
+  },
   "nodos": [
    "formalization",
    "smartpay"
@@ -11597,11 +11653,27 @@
   ]
  },
  "legacy-backend/Modules/Loans/App/Http/Controllers/Customer/PaymentInfoController.php": {
+  "loguea": {
+   "mensajes": 2,
+   "muestra": [
+    "Error retrieving payment info",
+    "Payment info retrieved successfully"
+   ]
+  },
   "tipo": [
    "controller"
   ]
  },
  "legacy-backend/Modules/Loans/App/Http/Controllers/Customer/PaymentScheduleController.php": {
+  "loguea": {
+   "mensajes": 8,
+   "muestra": [
+    "Error confirming payment date",
+    "Error confirming payment schedule",
+    "Error selecting payment date",
+    "Error simulating payment schedule"
+   ]
+  },
   "nodos": [
    "formalization"
   ],
@@ -11620,6 +11692,15 @@
     "nombre": "SmartPay (prod)"
    }
   ],
+  "loguea": {
+   "mensajes": 12,
+   "muestra": [
+    "Error generating promissory note",
+    "Generated Credifamilia documents",
+    "Generated Credifamilia documents (Netco signing prepared)",
+    "Generated device lock agreement preview"
+   ]
+  },
   "nodos": [
    "deceval",
    "formalization",
@@ -11643,6 +11724,13 @@
   ]
  },
  "legacy-backend/Modules/Loans/App/Http/Controllers/Customer/UserRequestDocumentController.php": {
+  "loguea": {
+   "mensajes": 2,
+   "muestra": [
+    "Documents retrieved successfully",
+    "Error retrieving documents"
+   ]
+  },
   "tipo": [
    "controller"
   ]
@@ -11653,6 +11741,15 @@
   ]
  },
  "legacy-backend/Modules/Loans/App/Http/Controllers/Customer/ValidateOtpPromissoryNoteController.php": {
+  "loguea": {
+   "mensajes": 14,
+   "muestra": [
+    "Authorization error",
+    "Authorization failed",
+    "Failed to fetch user request",
+    "Failed to send OTP"
+   ]
+  },
   "nodos": [
    "deceval",
    "findings",
@@ -12246,6 +12343,14 @@
     "nombre": "Credifamilia"
    }
   ],
+  "loguea": {
+   "mensajes": 3,
+   "muestra": [
+    "ado.id_documents.fetch_failed",
+    "ado.id_documents.no_images",
+    "ado.id_documents.persisted"
+   ]
+  },
   "nodos": [
    "credifamilia",
    "formalization"
@@ -12425,6 +12530,12 @@
   ]
  },
  "legacy-backend/Modules/Loans/App/Services/DocumentGeneration/DocumentGeneratorFactory.php": {
+  "loguea": {
+   "mensajes": 1,
+   "muestra": [
+    "document_routing_resolved"
+   ]
+  },
   "nodos": [
    "formalization"
   ],
@@ -12473,6 +12584,12 @@
   ]
  },
  "legacy-backend/Modules/Loans/App/Services/DocumentGeneration/FallbackDocumentGenerator.php": {
+  "loguea": {
+   "mensajes": 1,
+   "muestra": [
+    "document_fallback_to_blade"
+   ]
+  },
   "tipo": [
    "service"
   ]
@@ -12494,6 +12611,15 @@
     "nombre": "Credifamilia"
    }
   ],
+  "loguea": {
+   "mensajes": 7,
+   "muestra": [
+    "onboarding_payload_breakdown_failed",
+    "onboarding_payload_client_code_missing",
+    "onboarding_payload_credifamilia_plan_failed",
+    "onboarding_payload_enum_mapping_unknown"
+   ]
+  },
   "nodos": [
    "credifamilia"
   ],
@@ -12535,6 +12661,15 @@
     "nombre": "SmartPay (prod)"
    }
   ],
+  "loguea": {
+   "mensajes": 8,
+   "muestra": [
+    "Firma de pagaré Deceval completada",
+    "Firma de pagaré Deceval iniciada",
+    "Pagaré Deceval ya firmado, recuperado (idempotente)",
+    "netco.sign.tracking_rows_backfilled"
+   ]
+  },
   "nodos": [
    "credifamilia",
    "formalization",
@@ -12699,6 +12834,15 @@
     "nombre": "Credifamilia"
    }
   ],
+  "loguea": {
+   "mensajes": 37,
+   "muestra": [
+    "Advisor notification failed",
+    "External-managed formalization completed",
+    "External-managed formalization failed",
+    "External-managed formalization skipped: radicación already exists"
+   ]
+  },
   "nodos": [
    "credifamilia",
    "creditop",
@@ -12965,6 +13109,12 @@
    10,
    11
   ],
+  "loguea": {
+   "mensajes": 1,
+   "muestra": [
+    "creditop_x_event"
+   ]
+  },
   "nodos": [
    "amount-tiers",
    "formalization"
@@ -13758,11 +13908,12 @@
  "legacy-backend/Modules/Onboarding/App/Http/Controllers/CorbetaCheckoutController.php": {
   "gates": true,
   "loguea": {
-   "mensajes": 3,
+   "mensajes": 21,
    "muestra": [
-    "Corbeta ecommerce BNPL error redirect prepared",
-    "Corbeta ecommerce error context prepared",
-    "Corbeta ecommerce front error redirect prepared"
+    "Corbeta cancellation failed",
+    "Corbeta cancellation finished",
+    "Corbeta cancellation rejected: missing user_request_id",
+    "Corbeta cancellation rejected: user request not found"
    ]
   },
   "nodos": [
@@ -13889,12 +14040,12 @@
    }
   ],
   "loguea": {
-   "mensajes": 100,
+   "mensajes": 103,
    "muestra": [
     "Error reactivando el OTP",
-    "OnboardingController::logExperianSkipped: entered",
-    "OnboardingController::logExperianSkipped: exiting",
-    "OnboardingController::logExperianSkipped: failed to emit tracing log via app(TracerService::class)"
+    "Experian NO disparado desde OnboardingController",
+    "Experian disparado desde OnboardingController",
+    "OnboardingController"
    ]
   },
   "nodos": [
@@ -14630,6 +14781,15 @@
   ]
  },
  "legacy-backend/Modules/Onboarding/App/Services/GenerateServiceProxyService.php": {
+  "loguea": {
+   "mensajes": 9,
+   "muestra": [
+    "Generate service bridge consult request",
+    "Generate service bridge consult response",
+    "Generate service bridge consult returned invalid user id",
+    "Generate service bridge consult returned unknown user"
+   ]
+  },
   "tipo": [
    "service"
   ]
@@ -14667,7 +14827,7 @@
  },
  "legacy-backend/Modules/Onboarding/App/Services/MobileOnboardingService.php": {
   "loguea": {
-   "mensajes": 23,
+   "mensajes": 25,
    "muestra": [
     "API rules fetch returned error",
     "Auth rules fetch returned error",
@@ -14725,7 +14885,7 @@
    }
   ],
   "loguea": {
-   "mensajes": 121,
+   "mensajes": 124,
    "muestra": [
     "AgilData OK, using returned identity data",
     "AgilData errors and no TusDatos retry, returning ONB005",
@@ -14965,6 +15125,15 @@
     "nombre": "Credifamilia"
    }
   ],
+  "loguea": {
+   "mensajes": 7,
+   "muestra": [
+    "CredifamiliaConsumo finalize completed",
+    "CredifamiliaConsumo finalize failed",
+    "CredifamiliaConsumo finalize request built",
+    "CredifamiliaConsumo finalize started"
+   ]
+  },
   "nodos": [
    "credifamilia"
   ],
@@ -15842,6 +16011,15 @@
   ]
  },
  "legacy-backend/Modules/Partner/App/Services/AlliedProductService.php": {
+  "loguea": {
+   "mensajes": 7,
+   "muestra": [
+    "IMEI enroll error",
+    "IMEI enroll init",
+    "IMEI enroll response",
+    "IMEI enroll success"
+   ]
+  },
   "nodos": [
    "smartpay"
   ],
@@ -16274,7 +16452,7 @@
    }
   ],
   "loguea": {
-   "mensajes": 61,
+   "mensajes": 63,
    "muestra": [
     "Age within the disqualifying range, marking not viable",
     "Applying Pullman (allied 94) special rule",
@@ -17598,6 +17776,15 @@
     "nombre": "Credifamilia"
    }
   ],
+  "loguea": {
+   "mensajes": 11,
+   "muestra": [
+    "credifamilia_consumo.submit_document.credential.DocumentRequest",
+    "credifamilia_consumo.submit_document.credential.request",
+    "credifamilia_consumo.submit_document.credential.resolved",
+    "credifamilia_consumo.submit_document.credential.writeCredentialFiles"
+   ]
+  },
   "nodos": [
    "credifamilia"
   ],
@@ -20772,6 +20959,15 @@
     "nombre": "Credifamilia"
    }
   ],
+  "loguea": {
+   "mensajes": 11,
+   "muestra": [
+    "credifamilia.formalize.documents.missing",
+    "credifamilia.formalize.documents.request",
+    "credifamilia.formalize.documents.response",
+    "credifamilia.formalize.done"
+   ]
+  },
   "nodos": [
    "credifamilia",
    "formalization"

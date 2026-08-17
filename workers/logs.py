@@ -36,7 +36,11 @@ MAPA = AQUI / "logs.json"
 # legacy-backend) y el `Log::` de Laravel, donde el mensaje es el PRIMER argumento (~170).
 # Se acepta comilla simple o doble; en PHP la simple no interpola, así que el literal es exacto.
 PATRONES = [
-    re.compile(r"""tracer\s*->\s*log\s*\(\s*['"][a-z]+['"]\s*,\s*['"]([^'"]{12,})['"]""", re.I),
+    # ⚠ NO se ancla en el nombre de la variable, y ésa fue la tercera vez que el mismo error costó
+    # cobertura. Enumeradas en el código, las formas son cinco —`$this->tracer->`, `$tracer->`,
+    # `$this->tracerService->` (190 llamadas), `$obsTracer->`, `$this->`— y cada patrón que nombraba
+    # una perdía las otras en silencio. Lo estable es la FIRMA: `->log('nivel', 'mensaje'`.
+    re.compile(r"""->\s*log\s*\(\s*['"][a-z]+['"]\s*,\s*['"]([^'"]{12,})['"]""", re.I),
     re.compile(r"""Log\s*::\s*(?:info|error|warning|debug|critical|notice|alert|emergency)\s*\(\s*['"]([^'"]{12,})['"]""", re.I),
     re.compile(r"""logger\s*\(\s*\)\s*->\s*[a-z]+\s*\(\s*['"]([^'"]{12,})['"]""", re.I),
     re.compile(r"""Log\s*::\s*channel\s*\([^)]*\)\s*->\s*[a-z]+\s*\(\s*['"]([^'"]{12,})['"]""", re.I),
@@ -66,10 +70,18 @@ def construir(verboso=True):
         # entraba y `$obsTracer->log(` no —T mayúscula—, y con eso se perdían cientos de mensajes de
         # `OnboardingService`. Un prefiltro más angosto que lo que filtra es un recorte invisible:
         # el resultado se ve completo y le falta la mitad.
+        # ⚠ `-e` antes del patrón, y NO es opcional: el patrón empieza con `-` (`->log(`) y sin `-e`
+        # git lo toma como bandera —«unknown switch `>`»— y sale con 129.
         r = subprocess.run(["git", "-C", root, "grep", "-n", "--no-color", "-I", "-i", "-E",
-                            r"tracer->log\(|Log::|logger\(\)->|logger\.|slog\.", "main"],
+                            "-e", r"->log\(|Log::|logger\(\)->|logger\.|slog\.", "main"],
                            capture_output=True, text=True, timeout=300)
+        # ⚠ Y un fallo del grep se REPORTA. Antes era `continue` a secas: el repo entero quedaba
+        # fuera del mapa sin una línea de aviso, y el resultado —«0 mensajes»— se leía como «este
+        # repo no loguea». Es el fallo mudo que ya cazamos tres veces hoy, cometido por mí en el
+        # manejo de errores de la herramienta que vino a cazarlo.
         if r.returncode not in (0, 1):
+            print(f"  ⚠ {alias}: el grep falló ({r.returncode}) — {(r.stderr or '').splitlines()[0][:80]}",
+                  file=sys.stderr)
             continue
         n = 0
         for linea in r.stdout.splitlines():
