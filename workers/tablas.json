@@ -992,5 +992,5 @@
    "tipo": "tabla"
   }
  },
- "_ojo": "`filas` es el ACUMULADO de años, no actividad. Seis tablas con filas de sobra recibieron CERO escrituras en la semana del 2026-08-10 al 17 (user_request_risk_central_verified, ocr_logs, compare_face_logs, user_request_documentations, request_authorizations, user_request_comments): tienen historia, no camino vivo. «Viva» acá quiere decir «tiene filas», nunca «se usa hoy»."
+ "_ojo": "`filas` es el ACUMULADO de años, no actividad de hoy. Para medir actividad, la ventana va sobre la fecha de LA FILA (`SELECT COUNT(*) FROM <tabla> WHERE created_at > NOW() - INTERVAL 7 DAY`), NO sobre la de la solicitud: una solicitud firma, sube cédula o pasa biometría días después de crearse, así que unir a user_requests y filtrar por r.created_at da ceros falsos — pasó el 2026-08-17 y dio 'muertas' cuatro tablas que estaban escribiendo esa semana. Y aun bien medido, un cero puede ser simplemente que ese lender o ese comercio no originó nada: biometría y firma no las usan todos. Lo que sí decide es MAX(created_at) — a 2026-08-17, user_request_documentations y user_request_comments no reciben una fila desde 2024."
 }

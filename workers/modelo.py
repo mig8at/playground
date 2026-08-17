@@ -78,14 +78,26 @@ RACIMOS: list[tuple[str, str, str]] = [
 UMBRAL_VACIA = 0        # sin filas en prod
 UMBRAL_CATALOGO = 100   # menos que esto es un catálogo, no un registro de negocio
 
-# ⚠ `viva` SIGNIFICA «tiene filas», NO «se está usando». Medido el 2026-08-17 contra las 5.038
-# solicitudes de una semana: `user_request_risk_central_verified` (276.696 filas), `ocr_logs`,
-# `compare_face_logs`, `user_request_documentations`, `request_authorizations` y
-# `user_request_comments` recibieron **cero** escrituras — son historia, no camino vivo. El censo
-# cuenta el acumulado de años y no distingue eso. Para saber si una tabla se usa HOY hay que contar
-# filas nuevas en una ventana:
-#     SELECT COUNT(DISTINCT x.user_request_id) FROM <tabla> x
-#     JOIN user_requests r ON r.id = x.user_request_id WHERE r.created_at > NOW() - INTERVAL 7 DAY
+# ⚠ `viva` SIGNIFICA «tiene filas», NO «se está usando». El censo suma el acumulado de años.
+#
+# ⚠⚠ Y PARA MEDIR SI SE USA HOY, LA VENTANA VA SOBRE LA FILA, NO SOBRE LA SOLICITUD. Es el error que
+# se cometió acá el 2026-08-17 y dio seis tablas «muertas» de las que CUATRO estaban escribiendo esa
+# misma semana. La consulta equivocada unía a `user_requests` y filtraba por `r.created_at`:
+#
+#     ✗ FROM <tabla> x JOIN user_requests r ON r.id = x.user_request_id
+#       WHERE r.created_at > NOW() - INTERVAL 7 DAY      ← la fecha de la SOLICITUD
+#     ✓ FROM <tabla> WHERE created_at > NOW() - INTERVAL 7 DAY   ← la fecha de la FILA
+#
+# La diferencia no es sutil: una solicitud firma documentos, sube cédula o pasa biometría DÍAS o
+# semanas después de crearse, así que sus filas cuelgan de solicitudes viejas y quedan fuera de la
+# ventana. `netco_signing_documents` daba 0 y son 252 filas; `compare_face_logs` daba 0 y había
+# escrito ese mismo día.
+#
+# ⚠⚠⚠ Y aun con la ventana bien puesta, un cero NO prueba que el código esté muerto: estas tablas
+# cuelgan de flujos de UN lender o UN comercio (biometría y firma no las usan todos), así que una
+# semana sin originación de esa entidad da cero con el camino perfectamente vivo. Lo que sí decide
+# es `MAX(created_at)`: `user_request_documentations` y `user_request_comments` no reciben una fila
+# desde **2024**, y eso ya no es falta de tráfico.
 
 
 def _cargar(nombre: str, clave: str) -> tuple[dict, dict]:
