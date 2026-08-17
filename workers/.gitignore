@@ -3,3 +3,4 @@
 _*.json
 # derivado del código: `./cli.py logs --construir` lo rearma
 logs.json
+flujos.json

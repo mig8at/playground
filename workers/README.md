@@ -120,6 +120,34 @@ Para qué sirve, en una frase: **decide si una pregunta de soporte se va a poder
 prometerlo.** Si el archivo que importa está en esa lista, no hay traza que buscar — hay que
 instrumentar primero.
 
+### El mapa de FLUJOS: qué es demostrable corriéndolo
+
+```bash
+./cli.py flujos --construir   # lee los specs del harness
+./cli.py flujos               # qué escenarios sabe probar
+./cli.py flujos --codigos     # ⟵ el cruce que lo justifica
+```
+
+`context/` dice cómo funciona, `logs.json` qué dejó rastro, `archivos.json` qué significa un archivo.
+**Ninguno sabe qué es demostrable CORRIÉNDOLO** — y eso vive sólo en `harness/`.
+
+⚠ Sale de los nombres de `test()`, **no de los pasos**. `new Flow(...).step()` declara pasos con
+descripción y está en **4 de 45** specs: un patrón demo que no se propagó. Los `test('…')` están en 37
+y resultaron mejor material, porque llevan el recorrido y los códigos:
+
+    Ecommerce LOCAL real: /checkout → solicitar → amount → phone → OTP(real) → personal-info
+    fecha imposible (31/02/2010) → ONB005 + EXPEDITION_DATE_INVALID
+
+**El cruce**: `logs.json` sabe qué códigos existen en el código, este mapa sabe cuáles prueba un spec,
+y la diferencia es trabajo pendiente. Medido: **6 códigos que el cliente recibe y ningún spec recorre**
+— `ONB004`, `ONB021`, `ONB022`, `ONB023`, `ONB040`, `ONB014_OTP_GENERATION_FAILED`.
+
+⚠ Separado de la **telemetría interna** (`CATEGORY_*`, `QUOTA_*`), que no son fallos y no hay nada que
+probar de ellos. Mezclarlos daba 24 en vez de 6 e inflaba el número hasta volverlo inútil.
+
+Y lo construye **workers, no harness**: la misma regla que con `context/` — workers **lee** las otras
+herramientas y no escribe en ellas.
+
 ### Auditar `context/` sin tocarlo
 
 ```bash

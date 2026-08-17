@@ -159,6 +159,11 @@ def main():
         "menu", help="cuando un agente abre un nodo de context, ¿cuánto del menú es señal?"))
     s.add_argument("nodo", nargs="?", help="un nodo; vacío = todos los que citan 15+ archivos")
 
+    s = con_json(sub.add_parser(
+        "flujos", help="qué sabe PROBAR el harness — y qué códigos de error no cubre nadie"))
+    s.add_argument("--construir", action="store_true", help="rearma el mapa leyendo los specs")
+    s.add_argument("--codigos", action="store_true", help="sólo el cruce: códigos sin prueba")
+
     sub.add_parser("check", help="¿las rutas escritas a mano siguen vivas en main?")
     sub.add_parser("pesos", help="refresca los tamaños guardados en repos.json")
 
@@ -254,6 +259,38 @@ def main():
             print(f"    {x['ruta']}:{x['linea']}   h={x['h']}")
         if r.get("ambiguo"):
             print("  ⚠ aparece en muchos archivos: no identifica uno solo")
+        print()
+        return 0
+
+    if a.cmd == "flujos":
+        import flujos as _fl
+        if a.construir:
+            _fl.construir(); return 0
+        if a.codigos:
+            r = _fl.codigos_sin_prueba()
+            if j:
+                print(json.dumps(r, ensure_ascii=False, indent=2)); return 0
+            print(f"\n  {len(r['probados'])} códigos cubiertos por algún spec")
+            print(f"\n  ⚠ CÓDIGOS QUE EL CLIENTE RECIBE Y NADIE PRUEBA ({len(r['codigos_sin_prueba'])}):")
+            for c in r["codigos_sin_prueba"]:
+                print(f"      {c}")
+            print(f"\n  (telemetría interna sin prueba, que NO son fallos: {len(r['marcas_sin_prueba'])})")
+            print(f"\n  {r['nota']}\n")
+            return 0
+        d = _fl.cargar()
+        if not d:
+            print("  el mapa no está construido: ./cli.py flujos --construir"); return 1
+        if j:
+            print(json.dumps(d, ensure_ascii=False, indent=2)); return 0
+        ejes = {}
+        for k, v in d.items():
+            ejes.setdefault(v["eje"], []).append((k, v))
+        print(f"\n  {len(d)} specs · {sum(len(v['escenarios']) for v in d.values())} escenarios\n")
+        for eje, items in sorted(ejes.items()):
+            print(f"  ── {eje}")
+            for k, v in items[:6]:
+                print(f"     {k.split('/')[-1][:44]:46} {len(v['escenarios'])} escenario(s)"
+                      + (f" · {', '.join(v['codigos'][:3])}" if v.get("codigos") else ""))
         print()
         return 0
 
