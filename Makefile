@@ -24,6 +24,7 @@ help: ## esta lista
 	@$(call listar,@ctx,CONTEXTO — el conocimiento validado contra main)
 	@$(call listar,@har,HARNESS — validar una tarea corriéndola contra el código real)
 	@$(call listar,@wrk,WORKERS — el índice de los repos y los agentes que lo consumen)
+	@$(call subcomandos,workers/cli.py)
 	@$(call listar,@expl,EXPLORACIONES — NO son fuente de contexto (ver CLAUDE.md))
 	@echo ""
 
@@ -36,6 +37,20 @@ define listar
 	grep -hE "^[a-z][a-zA-Z0-9_-]*:.*## $(1) " $(MAKEFILE_LIST) \
 	  | sed -E 's/^([a-z][a-zA-Z0-9_-]*):.*## $(1) /\1\t/' \
 	  | awk -F'\t' '{printf "    \033[36m%-18s\033[0m %s\n", $$1, $$2}'
+endef
+
+# subcomandos <cli> — los subcomandos de un CLI, SACADOS DEL CLI.
+#
+# ⚠ Por qué no van escritos en el `##` del target, que sería lo obvio. Ahí estaban, y quedaron viejos:
+# la línea anunciaba 7 de 18 — `logs`, `negocio`, `relaciones` y otros 8 no existían para nadie que no
+# los hubiera escrito. Un subcomando que el catálogo no nombra es un subcomando que no se usa, y esta
+# es la MISMA copia-a-mano que el CLAUDE.md de la raíz ya escarmentó una vez con la lista de comandos.
+# Sale del `--help`, así que uno nuevo aparece acá el día que se agrega, sin que nadie se acuerde.
+define subcomandos
+	printf "    \033[36m%-18s\033[0m " "$(patsubst %/,%,$(dir $(1))) ↳"; \
+	($(1) --help 2>/dev/null | sed -n '/^positional arguments:/,/^optional\|^options/p' \
+	  | grep -E "^    [a-z-]+ " | awk '{printf "%s%s", (NR>1?" · ":""), $$1}' \
+	  || true); echo ""
 endef
 
 # ── DÍA A DÍA ────────────────────────────────────────────────────────────────────────────────────
@@ -183,7 +198,7 @@ context-map: ## @ctx regenera docs/ROUTE-MAP.md (el hook ya lo hace al editar un
 # usa tanto Miguel como un modelo, que necesita DESCUBRIRLA, no que se la expliquen. La ayuda es la
 # documentación y no se desincroniza, porque sale del mismo código que corre.
 .PHONY: workers
-workers: ## @wrk cómo están CONSTRUIDOS los proyectos. Es un CLI: corré `workers/cli.py --help`. Subcomandos: repos · subramas · mapa · puente · buscar · extraer · check
+workers: ## @wrk el índice de los repos, sus logs y su modelo de datos. CLI: `workers/cli.py <sub> --help`
 	@cd workers && ./cli.py $(if $(ARGS),$(ARGS),--help)
 
 # ── PRUEBAS (harness) ────────────────────────────────────────────────────────────────────────────
