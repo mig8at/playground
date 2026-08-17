@@ -27,6 +27,27 @@ Dos motivos distintos que terminaron en el mismo repo:
 Los clientes de `internal/` los comparten los tres binarios: lo que se agrega para el MCP queda disponible
 para el dashboard y viceversa.
 
+## Por consola, sin levantar nada
+
+El dashboard es una vista, no la única puerta. Todo el dominio del tablero se lee desde la terminal —
+que es lo que sirve cuando quien pregunta es un modelo, o cuando no hay ganas de abrir un navegador:
+
+```bash
+make tareas                      # las abiertas, con etapa, Jira y nodos
+make tareas N=kyc-segundo        # una: separa lo PÚBLICO de lo PRIVADO y chequea el guard
+make tareas STAGE=work TODAS=1 JSON=1
+make tareas-guard F=<archivo>    # ¿este texto puede salir a Jira? SALE 1 si no
+make sprint                      # el sprint activo con puntos, del SNAPSHOT (dice cuándo se tomó)
+make bitacora DAYS=7             # el tiempo registrado, por día
+```
+
+Funciona porque **los datos son archivos** (ver «Los datos») y el server lee exactamente los mismos:
+no hay estado suyo al que haya que llegar, así que la consola y la UI no pueden contradecirse.
+
+⚠ `tareas-guard` sale con **código 1** cuando el texto no puede salir. Es a propósito: sirve para
+frenar antes de publicar, no sólo para informar. Corrélo ANTES de escribir lo publicable — el cuerpo
+de una tarea nunca pasa, y ésa es justamente la frontera.
+
 ## Arranque rápido
 
 ```bash
@@ -272,10 +293,9 @@ data/
   tareas-locales.json        anotaciones de tareas, sólo si hay alguna
 ```
 
-**Por qué se salió de SQLite:** eran 44 filas con un WAL de 1,9 MB para 139 KB de datos, pero el tamaño
-no era la razón. El detalle técnico de una tarea sólo se podía leer **por API**, así que el tablero era el
-único rincón del playground que un modelo no puede leer sin levantar un server — mientras `context/` es
-markdown que lee cualquiera. Y en archivos los esfuerzos tienen **historia en git**.
+**Por qué archivos y no una base:** para que el detalle técnico de una tarea se lea **sin levantar
+nada** —como `context/`, que es markdown que lee cualquiera— y para que los esfuerzos tengan **historia
+en git**. Una base devolvería el tablero al único rincón del playground que exige un server para leerse.
 
 ### La tarea: un solo archivo suelto en `data/`, con la frontera del guard adentro
 
@@ -302,11 +322,9 @@ la descripción que va a Jira — PUBLICABLE: pasa el guard
 
 > **La regla en una frase:** todo lo que está fuera de `## Tarea (publicable)` nunca sale de local.
 
-Se probó con tres archivos (`effort.md` + `jira.md` + `jira.json`) en una carpeta por tarea para hacer
-*física* esa frontera y se
-descartó: **el guard es el mecanismo real** —corre sobre el texto antes de publicar y ataja repos, rutas y
-`F-xx`—, así que el archivo aparte era redundancia. Y el `jira.json` no llevaba nada: sus filas tenían
-sólo la clave de la tarea, o sea existía para guardar una lista.
+La frontera es **lógica y no física**: un archivo, con una marca adentro. Separarla en archivos
+distintos sería redundante, porque **el guard es el mecanismo real** — corre sobre el texto antes de
+publicar y ataja repos, rutas y `F-xx` (`make tareas-guard F=…` lo pregunta sin publicar nada).
 
 ### El prototipo de una tarea (`data/artifacts/`)
 
