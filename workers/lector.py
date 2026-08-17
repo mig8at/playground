@@ -336,6 +336,16 @@ def mapa_del_vecindario(nodos, cargados, tope_chars):
     ~2% del presupuesto el lector deja de ser ciego a lo que no le dieron, y `pedir_archivo` —que ya
     existía— pasa de ser un salto de fe a una decisión informada.
     """
+    # {ruta: cuántos mensajes emite}, de `logs.json`. Se invierte una vez por corrida; si el mapa no
+    # está construido queda vacío y las filas simplemente no traen el dato — no se inventa un cero.
+    _cuantos_logs = {}
+    try:
+        import logs as _logs
+        for _m, _donde in _logs.cargar().items():
+            for _x in _donde:
+                _cuantos_logs[_x["ruta"]] = _cuantos_logs.get(_x["ruta"], 0) + 1
+    except Exception:
+        pass
     vistos, filas, saltados = set(), [], 0
     for n in nodos:
         f = CONTEXT / "server" / "data" / "flows" / n / "map.json"
@@ -355,9 +365,14 @@ def mapa_del_vecindario(nodos, cargados, tope_chars):
             # Lo que DEFINE es lo que dice de qué trata; los imports no aportan al elegir.
             define = ", ".join(lite.get("d", [])[:6]) or "—"
             rutas_http = f" · {len(lite['r'])} rutas HTTP" if lite.get("r") else ""
+            # Cuántos mensajes de log emite, de `logs.json`. Diez caracteres que cambian una decisión:
+            # un archivo con logs se puede SEGUIR en producción; uno sin logs es invisible en Loki, y
+            # eso hay que saberlo al elegirlo, no después de prometer una investigación sobre él.
+            nlog = _cuantos_logs.get(ruta, 0)
+            traza = f" · loguea {nlog}" if nlog else " · SIN LOGS"
             marca = "✓" if ya else f"h={lite.get('h', _extraer.hash_de(ruta))}"
             filas.append((ya, f"{'✓' if ya else ' '} {ruta}  [{lite.get('l', '?')} l]"
-                              f"{rutas_http}\n     define: {define}"
+                              f"{rutas_http}{traza}\n     define: {define}"
                               + ("" if ya else f"   ({marca})")))
     if not filas:
         return "", 0

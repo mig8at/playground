@@ -83,6 +83,12 @@ cada grupo; ante una diferencia **manda el nodo**. Y sus **datos duros se midier
 catálogo de estados es la tabla `user_request_statuses` leída de producción el 2026-08-16, no una
 glosa — la glosa a mano tenía mal el estado más frecuente del sistema (`6 = Negada`, no «Anulada»).
 
+> ⚠ **El mapa de logs NO se construye acá, y es a propósito.** `extraer` llena hasta un presupuesto
+> en KB y **corta**: es selectivo. Un mapa de mensajes tiene que ser **completo**, o los lookups
+> fallan en silencio sobre los archivos que no entraron al corte. Por eso vive en `logs.py`, con su
+> propio recorrido. Lo que sí hace el nodolite es **llevar el dato**: cada archivo del «vecindario»
+> dice `loguea N` o `SIN LOGS`, que es lo que decide si se lo va a poder seguir en producción.
+
 **7 · El índice de tags** — `./cli.py tags --construir` recorre los repos y arma `{sha: [tags]}`.
 Después `--tag lender:160` responde en 0,2 s. ⚠ **La llave es el sha del CONTENIDO, no de la ruta**:
 un archivo cambiado tiene otra llave, así que el caché no puede devolver algo viejo — se autoinvalida.
