@@ -113,10 +113,10 @@ una sola tabla**:
 
 | Pantalla (ruta) | Controller | Qué escribe | ⚠ al reimplementar |
 |---|---|---|---|
-| `aliados` | `AlliedController` | `allieds` · `allied_status_logs` | valores quemados al crear (categoría 1, `new_screens`, colores, `hash` = crc32 del segundo) |
+| `aliados` | `AlliedController` | `allieds` · `allied_status_log` | valores quemados al crear (categoría 1, `new_screens`, colores, `hash` = crc32 del segundo) |
 | `aliados/{a}/usuarios` | `AlliedCorporateUserController` | `users` · `model_has_roles` · `allied_branches_by_user` | «crear un usuario» son **tres inserts sin transacción**: si falla el segundo, queda un usuario sin rol |
 | `aliados/{a}/puntosdeventa` | `AlliedAlliedBranchController` | `allied_branches` · `qrs` · `lenders_by_allied_branches` | quien copia las reglas es el **update**, no el store (§3) |
-| **`aliados/{a}/entidades`** (la calculadora) | `AlliedLenderController` | `lenders_by_allieds` · `lender_guarantee_criteria` · `payment_methods_by_lender` · `lender_documentation` | 🔴 **dos de esas tablas no son por comercio** — ver abajo |
+| **`aliados/{a}/entidades`** (la calculadora) | `AlliedLenderController` | `lenders_by_allieds` · `lender_guarantee_criteria` · `payment_methods_by_lender` · `lender_documentations` | 🔴 **dos de esas tablas no son por comercio** — ver abajo |
 | `aliados/{a}/modulos` | `AlliedModulesController` | `status_per_profiles` | borra **todo** lo del comercio y recrea (`:69-71`) |
 | `aliados/{a}/ecommerce` | `AlliedEcommerceCredentialsController` | `allied_ecommerce_credentials` · **`allied_branches`** · `lenders_by_allied_branches` | crear una credencial **crea una sucursal** (`Ecommerce-<nombre>`) y vuelve a copiar reglas (§3) |
 | `entidades` | `LenderController` | `lenders` · `credit_line_by_lenders` · `creditop_x_lender_configurations` | siempre `credit_line_id = 1`; la config CreditopX solo si `rt == 2` |

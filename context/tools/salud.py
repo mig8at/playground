@@ -23,6 +23,12 @@ mide primero:
    error: son puntos de cruce reales. Pero si nadie dice POR QUÉ está en cada uno, es ruido.
 4. `F-xx` FUERA DEL ÍNDICE — `findings` pesa ~58k tokens; un hallazgo que no está en la tabla de
    síntomas existe y no se encuentra, que para ese archivo es casi lo mismo que no existir.
+5. TABLAS MUDAS — una tabla que en PRODUCCIÓN tiene cientos de miles de filas y que ningún `doc.md`
+   nombra ni una vez. Las otras cuatro señales miran el árbol contra sí mismo o contra el código;
+   ésta lo mira contra **lo que de verdad se está escribiendo en la base**, que es la única fuente
+   que no depende de que alguien haya documentado algo. Un área entera puede faltar sin que ninguna
+   de las otras señales se mueva: el árbol no tiene un hueco donde mirar, tiene un hueco donde NO
+   mirar. Se apoya en `workers/` (el censo de prod y los vecindarios) — si no está, la señal se salta.
 
 ⚠ El orden de arriba es el de VALOR, no el de esfuerzo: los síntomas (la tabla del ROUTE-MAP) son un
 caché de casos resueltos y no rutean nada nuevo. Si hay que elegir dónde invertir, se invierte en 0.
@@ -135,9 +141,66 @@ def main():
         if fantasma:
             print(f"      ⚠ en el índice y NO existen: {' '.join(fantasma)}")
 
+    tablas_mudas(nodos)
+
     print(f"\n  Esto ORIENTA, no bloquea: ningún umbral de acá es un veredicto.")
     print(f"  ¿El árbol dice la verdad? → oracle.py (rutas) · refs.py (citas) · alinear.py (deriva)\n")
     return 0
+
+
+# Vecindarios que NO piden nodo aunque estén vivos y grandes: son plomería del framework o bitácoras
+# de auditoría. `sessions` con 251 filas y `oauth_access_tokens` con 24k son ciertas y no le importan
+# a nadie que esté depurando una solicitud. Meterlas en el conteo infla el hueco con ruido y el
+# número deja de doler donde tiene que doler.
+RACIMOS_SIN_NODO = {"plomería", "auth", "vistas"}
+MIN_FILAS_MUDA = 1000  # por debajo, «viva» y «muda» no dice gran cosa
+
+
+def tablas_mudas(nodos):
+    """Señal 5: tablas que la base carga de verdad y que el árbol no nombra nunca.
+
+    ⚠ Se busca la tabla como SUBCADENA del texto entero, no con `\\b`: los doc.md la escriben tanto
+    suelta como dentro de `user_requests.status_id` o de una ruta. Buscar con frontera de palabra
+    daba mudas que sí estaban mencionadas — un falso hueco es peor que ningún hueco, porque manda a
+    documentar lo que ya está documentado.
+    """
+    import importlib.util
+    ruta = os.path.join(os.path.dirname(ROOT), "workers", "modelo.py")
+    if not os.path.exists(ruta):
+        return
+    try:
+        sys.path.insert(0, os.path.dirname(ruta))
+        spec = importlib.util.spec_from_file_location("modelo", ruta)
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        m = mod.cargar()
+    except Exception as e:
+        print(f"\n  5 · TABLAS MUDAS — no se pudo leer el modelo de workers/ ({e})")
+        return
+
+    texto = "\n".join(open(os.path.join(FLOWS, n, "doc.md"), encoding="utf-8").read()
+                      for n in nodos if os.path.exists(os.path.join(FLOWS, n, "doc.md")))
+    candidatas = {t: v for t, v in m["tablas"].items()
+                  if v["estado"] == "viva" and v["racimo"] not in RACIMOS_SIN_NODO
+                  and (v["filas"] or 0) >= MIN_FILAS_MUDA}
+    mudas = {t: v for t, v in candidatas.items() if t not in texto}
+
+    print(f"\n  5 · TABLAS MUDAS (vivas en prod, sin una sola mención en ningún doc)")
+    print(f"      {len(mudas)} de {len(candidatas)} · prod medido el {m['medido']}"
+          f" · sin contar {', '.join(sorted(RACIMOS_SIN_NODO))}")
+    por = collections.defaultdict(list)
+    for t, v in mudas.items():
+        por[v["racimo"]].append((v["filas"], t))
+    # ordenadas por CUÁNTO del vecindario está mudo, no por tamaño: un área con 11 de 13 sin
+    # documentar es un hueco de área; una tabla grande suelta es una tabla grande suelta.
+    def hueco(r):
+        return len(por[r]) / max(1, sum(1 for v in candidatas.values() if v["racimo"] == r))
+    for r in sorted(por, key=hueco, reverse=True):
+        vivas_r = sum(1 for v in candidatas.values() if v["racimo"] == r)
+        marca = "  ← área entera" if hueco(r) > .6 and vivas_r >= 4 else ""
+        print(f"        {r:14} {len(por[r]):2} de {vivas_r:2}{marca}")
+        for f, t in sorted(por[r], reverse=True)[:3]:
+            print(f"            {f:>10,}  {t}")
 
 
 if __name__ == "__main__":

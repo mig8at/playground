@@ -163,7 +163,7 @@ En G2 **el body gana**: `request()->input('amount') ?? session('amount') ?? 0`. 
 **Entradas y bifurcación (application)**
 - `application/routes/customer.php:113-137` — las 6 rutas de la fase (`aliados/onboarding` deprecated, `registrar-celular`, `registrar-celular-eccommerce`, `validar-otp`, `informacion-personal`, `informacion-laboral`) · `:169` `entidades-v2` · `:184-189` simulador v1 deprecated / v2.
 - `application/app/Http/Controllers/Customer/RegisterCellPhoneController.php:24` (`oldIndex`, QR) · `:46-47` hardcode Pash · `:59-60` Setting `corbeta_allieds` · `:77` (`index`) · `:138-146` cache 30s del hash + `session(['allied_branch' => $allied_branch])` · `:179` (`store`) · `:184-194` delega a legacy · `:189-191` `terms/policies/otp_length=4` quemados · `:201-209` `CreditopXUserRequestsRecord` estado 2 · `:232-241` ecommerce base64.
-- `application/app/Http/Controllers/Customer/SimulatorController.php:110` (`indexV2`) · `:121-136` **el allowlist del frontend nuevo** · `:168-178` config de montos (min/max/rate desde `credit_lines_by_lender`) · `:190-211` (`startV2`: sólo sesión + redirect).
+- `application/app/Http/Controllers/Customer/SimulatorController.php:110` (`indexV2`) · `:121-136` **el allowlist del frontend nuevo** · `:168-178` config de montos (min/max/rate desde `credit_line_by_lenders`) · `:190-211` (`startV2`: sólo sesión + redirect).
 - `application/app/Services/NewFrontendUrlService.php:68` (`init` → `/{prefix}/{hash}/solicitar`) · `:87` `personalInfo` · `:154` `employmentInfo` · `:182` `lenders` · `:218` `bancolombiaSelfService`.
 
 **Delegación paso a paso (application → legacy)**
