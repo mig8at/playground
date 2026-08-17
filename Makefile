@@ -39,7 +39,7 @@ define listar
 endef
 
 # ── DÍA A DÍA ────────────────────────────────────────────────────────────────────────────────────
-.PHONY: status context tablero panel trazador trazador-buscar trazador-ureq
+.PHONY: status context tablero tareas tareas-guard panel trazador trazador-buscar trazador-ureq
 status: ## @dia ¿está el contexto al día? (resumen, no escribe nada)
 	@cd context && python3 tools/alinear.py --ver | tail -n 25
 	@echo ""
@@ -50,6 +50,18 @@ context: ## @dia abre la viz del árbol de contexto (:5193)
 
 tablero: ## @dia abre el tablero: las tareas a realizar (:5191)
 	@cd tablero && npm run dev
+
+# El tablero por CONSOLA. El store ya había resuelto la mitad —pasó a archivos porque «era el único
+# rincón del playground que un modelo no puede leer sin levantar un server»— pero preguntar EN QUÉ SE
+# TRABAJA seguía obligando a parsear los frontmatters a mano, y el GUARD sólo corría al publicar,
+# cuando ya es tarde para decidir cómo escribir.
+tareas: ## @dia las tareas abiertas, sin abrir la UI. N=<slug|id> para una · STAGE=work · TODAS=1 · JSON=1
+	@cd tablero/server && go run ./cmd/tareas $(if $(N),-n $(N)) $(if $(STAGE),-stage $(STAGE)) $(if $(TODAS),-todas) $(if $(JSON),-json)
+
+# ⚠ Sale 1 si el texto NO puede salir: sirve para frenar antes de publicar, no sólo para informar.
+tareas-guard: ## @dia ¿este texto puede salir a Jira? (el cuerpo de una tarea NO: nombra repos y rutas). F=<archivo>
+	@test -n "$(F)" || { echo "falta F=<archivo>  ·  ej: make tareas-guard F=tablero/data/x.md"; exit 2; }
+	@cd tablero/server && go run ./cmd/tareas -guard ../../$(F)
 
 # ── JIRA, por consola ────────────────────────────────────────────────────────────────────────────
 # Existían desde hace rato en `tablero/server/cmd/` y NO figuraban acá: el único target del tablero

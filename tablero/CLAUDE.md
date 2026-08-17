@@ -16,6 +16,18 @@ Qué es y cómo se corre: `README.md`. Acá solo las reglas al trabajar con las 
 - **El test de enrutamiento**: *si esto se mergea mañana, ¿sigue siendo cierto?* Sí → es contexto,
   va a `context/`. Habla de decisiones, riesgos o preguntas de ESTA tarea → va acá. Al mergear,
   lo aprendido **gradúa** al nodo y la tarea se archiva.
+- **El tablero se lee por CONSOLA, sin levantar nada** — su propio dominio, no el de terceros:
+
+      make tareas                       las abiertas, con etapa, Jira y nodos
+      make tareas N=kyc-segundo         una: separa lo PÚBLICO de lo PRIVADO y chequea el guard
+      make tareas STAGE=work TODAS=1 JSON=1
+      make tareas-guard F=<archivo>     ¿este texto puede salir a Jira? SALE 1 si no
+
+  El `-guard` reusa `internal/guard`, que es la fuente única (la UI compila esos mismos patrones y
+  `issue-create` los aplica al publicar). Correlo ANTES de escribir lo publicable, no después: el
+  cuerpo de una tarea NUNCA pasa —nombra el playground, repos y rutas—, y esa es justamente la
+  frontera. Que salga con código 1 es a propósito: sirve para frenar, no sólo para informar.
+
 - **Jira y Slack tienen TRES caminos**, no dos: el server (`npm run dev` → :8787, botones con vista
   previa), los conectores MCP (`cmd/jira-mcp`, stdio — sólo si están registrados) y **la CONSOLA**,
   que es la que sirve cuando no hay UI a mano y **no depende del server corriendo**:
