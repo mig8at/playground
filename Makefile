@@ -23,8 +23,7 @@ help: ## esta lista
 	@$(call listar,@dia,LO QUE SE USA TODOS LOS DÍAS)
 	@$(call listar,@ctx,CONTEXTO — el conocimiento validado contra main)
 	@$(call listar,@har,HARNESS — validar una tarea corriéndola contra el código real)
-	@$(call listar,@idx,CODE-INDEX — cómo están CONSTRUIDOS los proyectos)
-	@$(call listar,@ag,AGENTES PROPIOS — la mecánica de un agente, a la vista)
+	@$(call listar,@wrk,WORKERS — el índice de los repos y los agentes que lo consumen)
 	@$(call listar,@expl,EXPLORACIONES — NO son fuente de contexto (ver CLAUDE.md))
 	@echo ""
 
@@ -126,19 +125,21 @@ context-check: ## @ctx ¿las rutas de TODOS los nodos existen en main? (el hook 
 context-map: ## @ctx regenera docs/ROUTE-MAP.md (el hook ya lo hace al editar un map.json)
 	@cd context && python3 tools/build-route-map.py
 
-# ── CODE-INDEX ───────────────────────────────────────────────────────────────────────────────────
-# El OTRO índice: `context` entra por PREGUNTA DE NEGOCIO y contesta «cómo funciona CreditOp»; éste
-# entra por REPO y contesta «cómo están construidos los proyectos». La dependencia va en un sentido:
-# code-index lee context, no al revés.
+# ── WORKERS ──────────────────────────────────────────────────────────────────────────────────────
+# UN proyecto con dos mitades que se necesitan: el ÍNDICE de cómo están construidos los repos
+# (`context` entra por pregunta de negocio; esto entra POR REPO) y los AGENTES de Gemini que lo
+# consumen. Van juntos porque la medición fue una sola: los agentes rinden cuando cada herramienta
+# devuelve exactamente lo que hace falta — el trabajo fino vive en los índices, no en el prompt.
+# La dependencia sigue en un sentido: workers lee context, no al revés.
 #
-# ⚠ Acá NO hay un target por verbo, a propósito. code-index es un CLI de verdad y se maneja solo:
-# `code-index/cli.py --help` lista los subcomandos y `cli.py <subcomando> --help` sus opciones con
-# los valores válidos. Un target de make (`ALIAS=x ZOOM=2`) no puede decir eso — y esta herramienta
-# la usa tanto Miguel como un modelo, que necesita DESCUBRIRLA, no que se la expliquen. La ayuda es
-# la documentación y no se desincroniza, porque sale del mismo código que corre.
-.PHONY: code-index
-code-index: ## @idx cómo están CONSTRUIDOS los proyectos. Es un CLI: corré `code-index/cli.py --help`. Subcomandos: repos · subramas · mapa · puente · buscar · extraer · check
-	@cd code-index && ./cli.py $(if $(ARGS),$(ARGS),--help)
+# ⚠ El índice NO tiene un target por verbo, a propósito: es un CLI de verdad y se maneja solo.
+# `workers/cli.py --help` lista los subcomandos y `cli.py <subcomando> --help` sus opciones con los
+# valores válidos. Un target de make (`ALIAS=x ZOOM=2`) no puede decir eso — y esta herramienta la
+# usa tanto Miguel como un modelo, que necesita DESCUBRIRLA, no que se la expliquen. La ayuda es la
+# documentación y no se desincroniza, porque sale del mismo código que corre.
+.PHONY: workers
+workers: ## @wrk cómo están CONSTRUIDOS los proyectos. Es un CLI: corré `workers/cli.py --help`. Subcomandos: repos · subramas · mapa · puente · buscar · extraer · check
+	@cd workers && ./cli.py $(if $(ARGS),$(ARGS),--help)
 
 # ── PRUEBAS (harness) ────────────────────────────────────────────────────────────────────────────
 .PHONY: harness-contract harness-sandbox harness-walk harness-qr harness-mocks harness-check
@@ -194,7 +195,7 @@ harness-obs-down: ## @har baja Loki y Tempo locales (se llevan sus datos)
 # subestimaba la herramienta, y a un help se le cree — el que lo leía concluía que no podía consultar
 # staging. Si agregás un target, tocá los tres lugares: serve.go, el `.env.<target>` y estas líneas.
 .PHONY: trazador-acceso trazador-sql trazador-posthog confluence
-trazador-acceso: ## @har SONDA: ¿puedo leer los logs en Loki? (para diagnosticar acceso, no para investigar) [TARGET=prod|staging|dev|local] QUERY='{...}' SINCE=1h
+trazador-acceso: ## @har SONDA Loki: ¿puedo leer? ⚠ MUESTRA líneas, no las cuentes. Para CONTAR: QUERY='sum(count_over_time({...}[24h]))'. [TARGET=…] QUERY='{...}' SINCE=1h
 	@cd trazador/server && go run . $(if $(TARGET),-target $(TARGET)) $(if $(QUERY),-query '$(QUERY)') $(if $(SINCE),-since $(SINCE))
 
 trazador-posthog: ## @har ¿qué VIO el cliente en el navegador? Sin UREQ = sonda de acceso + censo (TARGET=prod UREQ=n)
@@ -211,39 +212,31 @@ trazador-sql: ## @har UNA consulta de SOLO LECTURA a la BD del ambiente. SQL='SE
 	@test -n "$(SQL)" || { echo "falta SQL='SELECT …'  ·  ej: make trazador-sql TARGET=local SQL='SELECT id,name FROM countries LIMIT 3'"; exit 2; }
 	@cd trazador/server && go run . -target $(if $(TARGET),$(TARGET),prod) -sql $$'$(subst ','\'',$(SQL))' $(if $(CSV),-csv)
 
-# ── AGENTES PROPIOS ──────────────────────────────────────────────────────────────────────────────
-# Banco de pruebas para entender la mecánica de un agente por dentro (modelo + herramientas + bucle),
-# escrito a mano contra Gemini. ⚠ NO confundir con `.claude/agents/`: aquello son definiciones que
-# consume Claude Code; esto tiene el bucle a la vista. Detalle en `agents/README.md`.
-.PHONY: agente-modelos agente-frontend agente-datos
-agente-modelos: ## @ag ¿qué modelos habilita mi key hoy? (correlo primero, y ante cualquier 404 de modelo)
-	@cd agents && python3 frontend.py --modelos
+# Los agentes de workers: el bucle a la vista, contra Gemini. La receta de CÓMO combinarlos —cuántos
+# ángulos, cuántos archivos, cuándo medir en vez de leer— está en `workers/README.md` §«Cómo se orquesta».
+.PHONY: agente-modelos agente-seleccion agente-contraste agente-analisis agente-lector agente-datos
+agente-modelos: ## @wrk ¿qué modelos habilita mi key hoy? (correlo primero, y ante cualquier 404 de modelo)
+	@cd workers && python3 gemini.py --modelos
 
-agente-frontend: ## @ag ¿el frontend está sano hoy, y si no, qué lo rompió? PREGUNTA='…' para otra cosa
-	@cd agents && python3 frontend.py $(if $(PREGUNTA),"$(PREGUNTA)")
+agente-seleccion: ## @wrk NO contesta: dice QUÉ ARCHIVOS habría que leer y por qué. Sólo índices. PREGUNTA='…'
+	@cd workers && python3 seleccion.py $(if $(PREGUNTA),"$(PREGUNTA)")
 
-agente-seleccion: ## @ag NO contesta: dice QUÉ ARCHIVOS habría que leer y por qué. Sólo índices. PREGUNTA='…'
-	@cd agents && python3 seleccion.py $(if $(PREGUNTA),"$(PREGUNTA)")
+agente-contraste: ## @wrk PASO 2: otro agente elige archivos que el primero NO miró, para contrastar
+	@cd workers && python3 contraste.py
 
-agente-contraste: ## @ag PASO 2: otro agente elige archivos que el primero NO miró, para contrastar
-	@cd agents && python3 contraste.py
-
-agente-analisis: ## @ag LOS TRES PASOS: elegir → contrastar → leer y concluir. PREGUNTA='…'
+agente-analisis: ## @wrk LOS TRES PASOS: elegir → contrastar → leer y concluir. PREGUNTA='…'
 	@test -n "$(PREGUNTA)" || { echo "falta PREGUNTA='…'"; exit 2; }
-	@cd agents && python3 seleccion.py "$(PREGUNTA)" && python3 contraste.py && python3 lector.py
+	@cd workers && python3 seleccion.py "$(PREGUNTA)" && python3 contraste.py && python3 lector.py
 
-agente-lector: ## @ag PASO 2: lee los archivos que eligió `agente-seleccion` y contesta. Recorta a 300k tokens
-	@cd agents && python3 lector.py $(if $(PREGUNTA),"$(PREGUNTA)")
+agente-lector: ## @wrk PASO 2: lee los archivos que eligió `agente-seleccion` y contesta. Recorta a 300k tokens
+	@cd workers && python3 lector.py $(if $(PREGUNTA),"$(PREGUNTA)")
 
-agente-contexto: ## @ag el que RUTEA SOLO: lee context/, elige qué archivos necesita y recién ahí contesta. PREGUNTA='…'
-	@cd agents && python3 contexto.py $(if $(PREGUNTA),"$(PREGUNTA)")
-
-# El resto de los agentes leen CÓDIGO. Éste MIDE: base de datos y logs reales, un ambiente por corrida.
+# Los otros agentes leen CÓDIGO. Éste MIDE: base de datos y logs reales, un ambiente por corrida.
 # Es seguro contra prod porque la guarda de solo-lectura vive en Go (`trazador/server/sql.go`), no en el
 # prompt — un prompt se convence, esa función no.
-agente-datos: ## @ag NO lee código: MIDE contra la BD y los logs reales. PREGUNTA='…' [TARGET=local|dev|staging|prod]
+agente-datos: ## @wrk NO lee código: MIDE contra la BD y los logs reales. PREGUNTA='…' [TARGET=local|dev|staging|prod]
 	@test -n "$(PREGUNTA)" || { echo "falta PREGUNTA='…'  ·  ej: make agente-datos TARGET=prod PREGUNTA='¿cuántas solicitudes quedan en estado 3?'"; exit 2; }
-	@cd agents && python3 datos.py "$(PREGUNTA)" --target $(if $(TARGET),$(TARGET),local)
+	@cd workers && python3 datos.py "$(PREGUNTA)" --target $(if $(TARGET),$(TARGET),local)
 
 # ── EXPLORACIONES ────────────────────────────────────────────────────────────────────────────────
 # Están acá para poder abrirlas, NO porque sean fuente. No se citan para decidir (ver CLAUDE.md).

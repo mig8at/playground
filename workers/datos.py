@@ -9,7 +9,7 @@ preguntas que se hacen de verdad — «¿esto pasa?», «¿cuántas veces?», «
 ESTA solicitud?» — y son justo las que no se pueden contestar leyendo. Un `if` que existe en el código
 puede no haber disparado nunca en producción; una rama muerta se ve idéntica a una caliente.
 
-Es el gemelo Gemini del subagente `forense` de `.claude/agents/`.
+Nació como gemelo del subagente `forense` de `.claude/agents/`, retirado en la unificación: éste lo reemplaza.
 
 UN AMBIENTE POR CORRIDA, y es deliberado. Las herramientas NO reciben `target`: lo fija quien la lanza
 y el agente no puede cambiarlo. Así cada número del informe tiene procedencia inequívoca — no existe
@@ -359,10 +359,10 @@ HERRAMIENTAS = {
 
 # ── el prompt ────────────────────────────────────────────────────────────────────────────────────
 def _diccionario():
-    """El vocabulario de negocio, de `code-index/creditop.json`. Va EMBEBIDO y no como herramienta:
+    """El vocabulario de negocio, de `creditop.json` (vecino). Va EMBEBIDO y no como herramienta:
     sin esto el agente escribe SQL sintácticamente válido contra las columnas equivocadas, y una
     consulta que corre y mide otra cosa es peor que una que falla."""
-    f = PLAYGROUND / "code-index" / "creditop.json"
+    f = Path(__file__).resolve().parent / "creditop.json"
     if not f.is_file():
         return ""
     d = json.loads(f.read_text(encoding="utf-8"))
@@ -437,6 +437,10 @@ CÓMO CONTESTÁS — corto, y en este orden:
 
 ⚠ Nunca completes un número que no mediste. Si una herramienta falló, decí que falló. Tu único valor
 frente a leer el código es que ESTO PASÓ DE VERDAD; un número inventado destruye esa ventaja entera.
+
+⚠ Nunca pongas datos personales del cliente en tu informe — ni cédulas, ni teléfonos, ni correos,
+aunque los hayas visto en una fila o en un log. Referite a las personas por `user_id` o por número de
+solicitud.
 
 EL VOCABULARIO DEL NEGOCIO — usalo para escribir el SQL, y creele a las trampas marcadas con ⚠:
 {diccionario}

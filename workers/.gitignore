@@ -1,0 +1,3 @@
+.tags.json
+# artefactos de corrida de los agentes (selecciones, contrastes, ángulos) — se regeneran por pregunta
+_*.json

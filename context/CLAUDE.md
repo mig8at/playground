@@ -129,6 +129,28 @@ puede: un nodo con todas las rutas resolviendo puede describir código que cambi
 **Al re-verificar un nodo, sellalo:** `python3 tools/sellar-verificado.py <nodo>`. Si no, el nodo queda
 contando una deriva que ya arreglaste.
 
+### Cómo se re-verifica un nodo (el método, antes de sellar)
+
+El árbol afirma; re-verificar es intentar **refutarlo** contra el código. Una afirmación no auditada no
+es una afirmación confirmada. El método, destilado de las veces que falló:
+
+1. **Extraé del doc las afirmaciones verificables** — las que, si fueran falsas, cambiarían lo que un
+   modelo hace. La prosa conectiva no se audita.
+2. **Clasificá antes de verificar:** **CÓDIGO** (se decide leyendo `main` — se verifica acá) · **DATO**
+   (habla de la BD o de prod: conteos, umbrales — **no lo leas: medilo**, `make trazador-sql` /
+   `make agente-datos`) · **HISTORIA** (algo que pasó, con fecha — no se re-verifica; sólo marcá si el
+   texto lo presenta como estado actual siendo viejo).
+3. **Verificá el SIGNIFICADO, no el ancla.** ⚠ La lección que originó este método: una cita
+   `archivo:línea` puede apuntar a una línea que existe, con el texto esperado — y ser de OTRA función
+   que no hace lo que el doc dice (pasó con un «sello rt=2» que era un stamp post-listado). Leé la
+   función alrededor. Un número corrido ≤3 líneas no es un hallazgo; la función equivocada, sí.
+4. **Contra `main`, con git** (`git -C <repo> show main:<relpath>`), nunca el working tree — los repos
+   viven en ramas. Las secciones `⏳ PENDIENTE DE MERGE` se verifican contra la rama que la marca
+   nombra; si sus archivos ya están en `main`, eso es «marca ya mergeada» y vale oro.
+5. **Al contar confirmadas, separá chequeo fuerte** (leíste la función y hace lo que el doc dice) **de
+   débil** (sólo viste que el símbolo existe). Un ok débil declarado fuerte es la mentira que este
+   árbol ya sufrió una vez. De ese conteo depende si el nodo se sella.
+
 ## `refs.py`: ¿las citas `archivo:línea` siguen apuntando a lo que dicen?
 
 ```bash

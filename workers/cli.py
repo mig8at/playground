@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-"""code-index — la herramienta de línea de comandos para entender CÓMO ESTÁN CONSTRUIDOS los proyectos.
+"""workers — la herramienta de línea de comandos para entender CÓMO ESTÁN CONSTRUIDOS los proyectos.
 
     ./cli.py --help              qué sabe hacer
     ./cli.py extraer --help      las opciones de un subcomando
 
 POR QUÉ UN CLI Y NO TARGETS DE `make`: esto lo maneja tanto una persona como un modelo, y un modelo
-necesita **descubrir** la herramienta, no que se la expliquen. `make code-index-extraer ALIAS=x ZOOM=2`
+necesita **descubrir** la herramienta, no que se la expliquen. un target de make (`ALIAS=x ZOOM=2`)
 no dice qué otros flags hay ni qué valores toman; `./cli.py extraer --help` sí. La ayuda ES la
 documentación, y no se desincroniza porque sale del mismo código que corre.
 
@@ -66,7 +66,7 @@ def _salida(datos, texto_fn, como_json):
 
 def main():
     p = argparse.ArgumentParser(
-        prog="code-index", description=__doc__,
+        prog="workers", description=__doc__,
         formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = p.add_subparsers(dest="cmd", metavar="<subcomando>")
 

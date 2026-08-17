@@ -54,7 +54,7 @@ Devolvés HASHES (`h`), tal cual figuran en el índice. Al final llamá a `entre
 
 
 def main():
-    prev = PLAYGROUND / "agents" / "_ultima-seleccion.json"
+    prev = PLAYGROUND / "workers" / "_ultima-seleccion.json"
     if not prev.exists():
         print("no hay una primera selección: corré `seleccion.py` antes", file=sys.stderr)
         return 1
@@ -63,8 +63,7 @@ def main():
     ya = {a.get("h", "").upper() for a in A["archivos"]}
 
     # Las rutas de A van EN EL PROMPT: sin verlas no puede evitarlas, y le pediríamos algo imposible.
-    sys.path.insert(0, str(PLAYGROUND / "code-index"))
-    import extraer as _ex
+    import extraer as _ex  # vecino: vive en esta misma carpeta desde la unificación
     res = _ex.resolver(list(ya))
     listado = "\n".join(f"  - {res['resueltos'].get(h, h)}" for h in ya)
 
@@ -101,7 +100,7 @@ def main():
 
         r["archivos"] = nuevos
         r["pregunta"] = pregunta
-        (PLAYGROUND / "agents" / "_ultimo-contraste.json").write_text(
+        (PLAYGROUND / "workers" / "_ultimo-contraste.json").write_text(
             json.dumps(r, ensure_ascii=False, indent=2), encoding="utf-8")
         print("(guardado en _ultimo-contraste.json)")
         return 0

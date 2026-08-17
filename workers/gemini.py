@@ -200,3 +200,21 @@ def correr(pregunta, herramientas, instrucciones="", cfg=None, verboso=True, ter
         "Subí MAX_PASOS en .env, o mirá arriba si el agente está pidiendo la misma herramienta en "
         "círculo — eso suele ser una descripción de herramienta que no dice bien qué devuelve."
     )
+
+
+# El único punto de entrada directo del cliente: ¿qué modelos habilita la key HOY? Vivía en
+# `frontend.py --modelos` — al retirarse ese agente, la utilidad se mudó a su dueño natural.
+if __name__ == "__main__":
+    import sys as _sys
+    if "--modelos" in _sys.argv:
+        try:
+            _cfg = config()
+            print(f"Modelos disponibles para tu key (el configurado es «{_cfg['modelo']}»):\n")
+            for _n, _t in modelos(_cfg["key"]):
+                print(f" {'→' if _n == _cfg['modelo'] else ' '} {_n:42} {_t}")
+        except GeminiError as _e:
+            print(f"\n{_e}", file=_sys.stderr)
+            raise SystemExit(1)
+    else:
+        print("gemini.py es el CLIENTE, no un agente. Único modo directo: --modelos", file=_sys.stderr)
+        raise SystemExit(2)

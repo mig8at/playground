@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""code-index — el índice de los PROYECTOS: qué es cada repo, cómo se ensambla y por dónde entrar.
+"""workers — el índice de los PROYECTOS: qué es cada repo, cómo se ensambla y por dónde entrar.
 
     python3 indice.py ver [alias]        # legible: para leer o para pasárselo a un agente
     python3 indice.py subramas <alias>   # las unidades de adentro (workspaces, módulos), de main

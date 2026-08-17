@@ -35,7 +35,7 @@ from pathlib import Path
 
 import gemini
 from contexto import (
-    CODE_INDEX, CONTEXT, PLAYGROUND, ROOTS, _extraer, buscar_en_codigo, leer_codigo,
+    CONTEXT, PLAYGROUND, ROOTS, _extraer, buscar_en_codigo, leer_codigo,
 )
 
 TOPE_TOKENS = 300_000
@@ -67,11 +67,10 @@ def _claves(frases):
 
     ⚠ Mismo problema que ya tuvo el buscador del índice: se pregunta en español y el código está en
     inglés. Buscar «categoría» nunca iba a encontrar `getLenderUserCategory`, ni «cupo» —que además
-    tiene 4 letras— a `available_amount`. Se reusa el MISMO glosario de `code-index/indice.py`; tener
+    tiene 4 letras— a `available_amount`. Se reusa el MISMO glosario de `indice.py`; tener
     dos habría sido la divergencia de siempre.
     """
-    sys.path.insert(0, str(CODE_INDEX))
-    import indice
+    import indice  # vecino: vive en esta misma carpeta desde la unificación
     fuera = set()
     for p in re.findall(r"[A-Za-zÁ-úñÑ_]{4,}", " ".join(frases)):
         b = p.lower()
@@ -225,7 +224,7 @@ def cargar_nodos(sel, pregunta, tope_tokens):
     concluir»—. Sin eso el modelo re-deduce cosas que ya sabemos, y a veces las re-deduce mal.
     """
     nodos = []
-    for f in sorted((PLAYGROUND / "agents").glob("_*.json")):
+    for f in sorted((PLAYGROUND / "workers").glob("_*.json")):
         try:
             nodos += json.loads(f.read_text(encoding="utf-8")).get("nodos_consultados") or []
         except (json.JSONDecodeError, AttributeError):
@@ -317,7 +316,7 @@ Distinguí siempre lo que VERIFICASTE leyendo de lo que estás infiriendo.
 
 def main():
     args = sys.argv[1:]
-    sel_path = PLAYGROUND / "agents" / "_ultima-seleccion.json"
+    sel_path = PLAYGROUND / "workers" / "_ultima-seleccion.json"
     if not sel_path.exists():
         print(f"no hay selección todavía: corré primero `seleccion.py`", file=sys.stderr)
         return 1
@@ -329,7 +328,7 @@ def main():
     # `_ultima-seleccion`, y como el reparto del presupuesto va de izquierda a derecha, eso le daba
     # el contexto entero al ángulo secundario y recortaba al principal. El orden de las fuentes ES
     # la prioridad.
-    d = PLAYGROUND / "agents"
+    d = PLAYGROUND / "workers"
     fuentes = [f for f in [d / "_ultima-seleccion.json"] if f.exists()]
     fuentes += [f for f in sorted(d.glob("_*.json"))
                 if f not in fuentes and f.name != "_ultima-seleccion.json"

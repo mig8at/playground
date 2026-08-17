@@ -128,7 +128,7 @@ def main():
     # Lo ya elegido por otros: se le pasa para que NO lo repita, y se verifica al recibir.
     ya, rutas_ya = set(), []
     for f in (_opt(args, "--evitar", "") or "").split(","):
-        p = PLAYGROUND / "agents" / f.strip()
+        p = PLAYGROUND / "workers" / f.strip()
         if f.strip() and p.exists():
             for a in json.loads(p.read_text(encoding="utf-8")).get("archivos", []):
                 ya.add(a.get("h", "").upper())
@@ -136,8 +136,7 @@ def main():
     try:
         cfg = gemini.config()
         pregunta = args[0] if args and not args[0].startswith("--") else PREGUNTA
-        sys.path.insert(0, str(PLAYGROUND / "code-index"))
-        import extraer as _ex
+        import extraer as _ex  # vecino: vive en esta misma carpeta desde la unificación
         if ya:
             rutas_ya = [_ex.resolver([h])["resueltos"].get(h, h) for h in ya]
 
@@ -187,7 +186,7 @@ def main():
             print(f"⚠ ADVERTENCIAS:\n  {r['advertencias']}\n")
 
         r["angulo"] = angulo
-        destino = PLAYGROUND / "agents" / salida
+        destino = PLAYGROUND / "workers" / salida
         # La pregunta viaja con la selección: el paso 2 tiene que saber qué se estaba
         # respondiendo, o recortaría los archivos buscando las palabras equivocadas.
         r["pregunta"] = pregunta

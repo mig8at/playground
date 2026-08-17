@@ -24,7 +24,8 @@ herramienta: es suponer que no está y contestar de memoria.
 | **¿cómo funciona X?** | `context/` — no es una herramienta: `docs/ROUTE-MAP.md` → nodo. **Siempre primero** |
 | **¿ya nos pasó?** | `context/server/data/flows/findings/doc.md`, entrando por su índice de síntomas |
 | **¿por qué existe esta regla?** (política, contrato, qué se le ofreció al comercio) | `make confluence` — el porqué del negocio no está en el código |
-| **¿esto pasa de verdad, y cuánto?** | `make trazador-sql` contra **prod**. Es la única forma de contestarlo |
+| **¿esto pasa de verdad, y cuánto?** | `make trazador-sql` contra **prod**. Es la única forma de contestarlo. Con agente: `make agente-datos TARGET=prod` |
+| **¿cómo está construido, y hay MUCHO código que leer?** | `make agente-analisis PREGUNTA='…'` — workers/: elige archivos → contrasta → concluye. La receta (cuántos ángulos, cuándo medir en vez de leer): `workers/README.md` §«Cómo se orquesta» |
 | **¿qué le pasó a ESTA solicitud?** | `make harness-loki UREQ=…` · `make trazador-acceso` |
 | **¿qué VIO el cliente en pantalla?** | `make trazador-posthog` |
 | **¿funciona, corriéndolo?** | `harness` (`make panel`) — se comprueba corriendo, no leyendo |
