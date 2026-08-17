@@ -1,0 +1,995 @@
+{
+ "_que_es": "El CENSO de la base de datos de PRODUCCIÓN: qué tablas existen y cuántas filas tiene cada una. Es una FOTO, no un cálculo — dice `_medido` para que se sepa de cuándo. Sirve para lo que el esquema solo no dice: separar las tablas que cargan el negocio de las que están vacías. ⚠ `filas` es la ESTIMACIÓN de information_schema (InnoDB), no un COUNT(*): sirve para el orden de magnitud y para distinguir 0 de mucho, NO para reportar cifras. Se refresca a mano —`workers` no pega contra ninguna BD, y no se le va a agregar esa puerta— con: make trazador-sql TARGET=prod CSV=1 SQL='SELECT TABLE_NAME AS a_tabla, TABLE_TYPE AS b_tipo, IFNULL(TABLE_ROWS,0) AS c_filas FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() ORDER BY TABLE_NAME'",
+ "_medido": "2026-08-17",
+ "_fuente": "information_schema.TABLES @ prod (solo lectura)",
+ "tablas": {
+  "TEMP_EXPERIAN_MOVEMENTS": {
+   "filas": 2292,
+   "tipo": "tabla"
+  },
+  "TEMP_EXPERIAN_REPORT": {
+   "filas": 0,
+   "tipo": "tabla"
+  },
+  "VW_CtopX_Credits_Summary": {
+   "filas": 0,
+   "tipo": "vista"
+  },
+  "VW_CtopX_Credits_Summary_Users_Filtered_Credits": {
+   "filas": 0,
+   "tipo": "vista"
+  },
+  "VW_CtopX_Credits_Summary_by_Month": {
+   "filas": 0,
+   "tipo": "vista"
+  },
+  "VW_CtopX_Experian_Report": {
+   "filas": 0,
+   "tipo": "vista"
+  },
+  "VW_CtopX_Insurances_Credits": {
+   "filas": 0,
+   "tipo": "vista"
+  },
+  "VW_CtopX_Payments_Outer_Filtered_Report": {
+   "filas": 0,
+   "tipo": "vista"
+  },
+  "VW_CtopX_Payments_Report": {
+   "filas": 0,
+   "tipo": "vista"
+  },
+  "VW_Matrix_Income_Continuity_Occupation": {
+   "filas": 0,
+   "tipo": "vista"
+  },
+  "VW_OTPs": {
+   "filas": 0,
+   "tipo": "vista"
+  },
+  "VW_Profiling_Metrics": {
+   "filas": 0,
+   "tipo": "vista"
+  },
+  "VW_Profiling_Predictions": {
+   "filas": 0,
+   "tipo": "vista"
+  },
+  "VW_Profiling_Predictions_ML": {
+   "filas": 0,
+   "tipo": "vista"
+  },
+  "VW_Profiling_Predictions_Only_New": {
+   "filas": 0,
+   "tipo": "vista"
+  },
+  "VW_Profiling_Predictions_V2": {
+   "filas": 0,
+   "tipo": "vista"
+  },
+  "VW_Revolving_Payments_Report": {
+   "filas": 0,
+   "tipo": "vista"
+  },
+  "VW_Risk_Central_ADO": {
+   "filas": 0,
+   "tipo": "vista"
+  },
+  "VW_Risk_Central_AML": {
+   "filas": 0,
+   "tipo": "vista"
+  },
+  "VW_Risk_Central_AgilData": {
+   "filas": 0,
+   "tipo": "vista"
+  },
+  "VW_Risk_Central_Experian": {
+   "filas": 0,
+   "tipo": "vista"
+  },
+  "VW_Risk_Central_Mareigua": {
+   "filas": 0,
+   "tipo": "vista"
+  },
+  "VW_Risk_Central_TusDatos": {
+   "filas": 0,
+   "tipo": "vista"
+  },
+  "VW_Risk_Central_User_Request_Resume": {
+   "filas": 0,
+   "tipo": "vista"
+  },
+  "VW_User_Field_Values_Resume": {
+   "filas": 0,
+   "tipo": "vista"
+  },
+  "VW_User_Request_Costs": {
+   "filas": 0,
+   "tipo": "vista"
+  },
+  "VW_User_Request_Costs_Risk_Centrals": {
+   "filas": 0,
+   "tipo": "vista"
+  },
+  "VW_User_Request_Track": {
+   "filas": 0,
+   "tipo": "vista"
+  },
+  "VW_Users_Filtered": {
+   "filas": 0,
+   "tipo": "vista"
+  },
+  "VW_request_w_Profiling_Predictions": {
+   "filas": 0,
+   "tipo": "vista"
+  },
+  "achievements": {
+   "filas": 1448,
+   "tipo": "tabla"
+  },
+  "allied_branches": {
+   "filas": 1661,
+   "tipo": "tabla"
+  },
+  "allied_branches_by_user": {
+   "filas": 730,
+   "tipo": "tabla"
+  },
+  "allied_categories": {
+   "filas": 0,
+   "tipo": "tabla"
+  },
+  "allied_ecommerce_credentials": {
+   "filas": 56,
+   "tipo": "tabla"
+  },
+  "allied_errors_captures": {
+   "filas": 2069,
+   "tipo": "tabla"
+  },
+  "allied_industries": {
+   "filas": 17,
+   "tipo": "tabla"
+  },
+  "allied_modes": {
+   "filas": 2,
+   "tipo": "tabla"
+  },
+  "allied_status_log": {
+   "filas": 89,
+   "tipo": "tabla"
+  },
+  "allied_transfer_accounts": {
+   "filas": 0,
+   "tipo": "tabla"
+  },
+  "allied_types": {
+   "filas": 4,
+   "tipo": "tabla"
+  },
+  "allied_zones": {
+   "filas": 28,
+   "tipo": "tabla"
+  },
+  "allieds": {
+   "filas": 315,
+   "tipo": "tabla"
+  },
+  "assistance_fee_by_merchant_event": {
+   "filas": 12,
+   "tipo": "tabla"
+  },
+  "backup_final_amount_ecommerce": {
+   "filas": 36,
+   "tipo": "tabla"
+  },
+  "banks": {
+   "filas": 28,
+   "tipo": "tabla"
+  },
+  "beneficiaries_by_allieds": {
+   "filas": 23,
+   "tipo": "tabla"
+  },
+  "bkp_user_requests_final_amount_20260703": {
+   "filas": 50,
+   "tipo": "tabla"
+  },
+  "bonifications": {
+   "filas": 74,
+   "tipo": "tabla"
+  },
+  "cache": {
+   "filas": 45805,
+   "tipo": "tabla"
+  },
+  "cache_locks": {
+   "filas": 0,
+   "tipo": "tabla"
+  },
+  "cities_by_lender": {
+   "filas": 0,
+   "tipo": "tabla"
+  },
+  "colombian_holidays": {
+   "filas": 36,
+   "tipo": "tabla"
+  },
+  "compare_face_logs": {
+   "filas": 6055,
+   "tipo": "tabla"
+  },
+  "confirmation_email_logs": {
+   "filas": 0,
+   "tipo": "tabla"
+  },
+  "contact_web_forms": {
+   "filas": 396,
+   "tipo": "tabla"
+  },
+  "corporate_users": {
+   "filas": 23,
+   "tipo": "tabla"
+  },
+  "countries": {
+   "filas": 253,
+   "tipo": "tabla"
+  },
+  "country_cities": {
+   "filas": 1122,
+   "tipo": "tabla"
+  },
+  "country_municipalities": {
+   "filas": 1119,
+   "tipo": "tabla"
+  },
+  "country_zones": {
+   "filas": 4109,
+   "tipo": "tabla"
+  },
+  "credit_line_by_lenders": {
+   "filas": 160,
+   "tipo": "tabla"
+  },
+  "credit_lines": {
+   "filas": 0,
+   "tipo": "tabla"
+  },
+  "credit_scores": {
+   "filas": 0,
+   "tipo": "tabla"
+  },
+  "creditop_x_adjustments_by_lender_scoring": {
+   "filas": 7,
+   "tipo": "tabla"
+  },
+  "creditop_x_attachments": {
+   "filas": 0,
+   "tipo": "tabla"
+  },
+  "creditop_x_blacklisted_documents": {
+   "filas": 528,
+   "tipo": "tabla"
+  },
+  "creditop_x_changes_log": {
+   "filas": 155,
+   "tipo": "tabla"
+  },
+  "creditop_x_conditions_by_amount_by_lender": {
+   "filas": 9,
+   "tipo": "tabla"
+  },
+  "creditop_x_consent_types": {
+   "filas": 0,
+   "tipo": "tabla"
+  },
+  "creditop_x_consents": {
+   "filas": 8729,
+   "tipo": "tabla"
+  },
+  "creditop_x_cutoff_types": {
+   "filas": 0,
+   "tipo": "tabla"
+  },
+  "creditop_x_lender_collection_charges": {
+   "filas": 380,
+   "tipo": "tabla"
+  },
+  "creditop_x_lender_configuration": {
+   "filas": 106,
+   "tipo": "tabla"
+  },
+  "creditop_x_lender_early_payment_discount": {
+   "filas": 5,
+   "tipo": "tabla"
+  },
+  "creditop_x_lender_payment_method": {
+   "filas": 6,
+   "tipo": "tabla"
+  },
+  "creditop_x_lender_residual_balances": {
+   "filas": 0,
+   "tipo": "tabla"
+  },
+  "creditop_x_lender_scoring": {
+   "filas": 53,
+   "tipo": "tabla"
+  },
+  "creditop_x_log": {
+   "filas": 1232561,
+   "tipo": "tabla"
+  },
+  "creditop_x_occupation_multiplier_by_lender": {
+   "filas": 3,
+   "tipo": "tabla"
+  },
+  "creditop_x_payment_methods": {
+   "filas": 6,
+   "tipo": "tabla"
+  },
+  "creditop_x_payment_register": {
+   "filas": 25680,
+   "tipo": "tabla"
+  },
+  "creditop_x_payment_statuses": {
+   "filas": 2,
+   "tipo": "tabla"
+  },
+  "creditop_x_payment_types": {
+   "filas": 7,
+   "tipo": "tabla"
+  },
+  "creditop_x_payments": {
+   "filas": 33899,
+   "tipo": "tabla"
+  },
+  "creditop_x_principal_payment_types": {
+   "filas": 3,
+   "tipo": "tabla"
+  },
+  "creditop_x_profiling_down_payment_FGA": {
+   "filas": 46,
+   "tipo": "tabla"
+  },
+  "creditop_x_profiling_fixed_expenses": {
+   "filas": 1,
+   "tipo": "tabla"
+  },
+  "creditop_x_profiling_multiplier_risk_rangs": {
+   "filas": 22,
+   "tipo": "tabla"
+  },
+  "creditop_x_profiling_multiplier_risk_vars": {
+   "filas": 5,
+   "tipo": "tabla"
+  },
+  "creditop_x_pullman_pos": {
+   "filas": 76,
+   "tipo": "tabla"
+  },
+  "creditop_x_quota_restrictions": {
+   "filas": 12,
+   "tipo": "tabla"
+  },
+  "creditop_x_reminder_messages": {
+   "filas": 8,
+   "tipo": "tabla"
+  },
+  "creditop_x_requests_history": {
+   "filas": 959466,
+   "tipo": "tabla"
+  },
+  "creditop_x_revolving_credit_payments": {
+   "filas": 35,
+   "tipo": "tabla"
+  },
+  "creditop_x_revolving_credits": {
+   "filas": 516,
+   "tipo": "tabla"
+  },
+  "creditop_x_revolving_credits_history": {
+   "filas": 578,
+   "tipo": "tabla"
+  },
+  "creditop_x_social_strata_multiplier_by_lender": {
+   "filas": 6,
+   "tipo": "tabla"
+  },
+  "creditop_x_user_request_statuses": {
+   "filas": 6,
+   "tipo": "tabla"
+  },
+  "creditop_x_user_requests_process_statuses": {
+   "filas": 15,
+   "tipo": "tabla"
+  },
+  "creditop_x_user_requests_records": {
+   "filas": 274030,
+   "tipo": "tabla"
+  },
+  "crosscore_evaluations": {
+   "filas": 74,
+   "tipo": "tabla"
+  },
+  "datacredito_frequencies": {
+   "filas": 152,
+   "tipo": "tabla"
+  },
+  "datacredito_query_by_allieds": {
+   "filas": 175,
+   "tipo": "tabla"
+  },
+  "deceval_logs": {
+   "filas": 1713,
+   "tipo": "tabla"
+  },
+  "device_locks": {
+   "filas": 425,
+   "tipo": "tabla"
+  },
+  "ecommerce_requests": {
+   "filas": 18686,
+   "tipo": "tabla"
+  },
+  "ecommerce_requests_log": {
+   "filas": 58548,
+   "tipo": "tabla"
+  },
+  "ecommerces": {
+   "filas": 2,
+   "tipo": "tabla"
+  },
+  "email_survey_answers": {
+   "filas": 4018,
+   "tipo": "tabla"
+  },
+  "email_survey_comments": {
+   "filas": 258,
+   "tipo": "tabla"
+  },
+  "email_survey_links": {
+   "filas": 58788,
+   "tipo": "tabla"
+  },
+  "email_survey_options": {
+   "filas": 2,
+   "tipo": "tabla"
+  },
+  "email_surveys": {
+   "filas": 0,
+   "tipo": "tabla"
+  },
+  "error_codes": {
+   "filas": 0,
+   "tipo": "tabla"
+  },
+  "evidente_flow_steps": {
+   "filas": 100,
+   "tipo": "tabla"
+  },
+  "experian_notifications": {
+   "filas": 465,
+   "tipo": "tabla"
+  },
+  "failed_jobs": {
+   "filas": 21978,
+   "tipo": "tabla"
+  },
+  "field_categories": {
+   "filas": 20,
+   "tipo": "tabla"
+  },
+  "field_options": {
+   "filas": 139,
+   "tipo": "tabla"
+  },
+  "fields": {
+   "filas": 209,
+   "tipo": "tabla"
+  },
+  "form_types": {
+   "filas": 6,
+   "tipo": "tabla"
+  },
+  "forms": {
+   "filas": 133,
+   "tipo": "tabla"
+  },
+  "group_rules": {
+   "filas": 8805,
+   "tipo": "tabla"
+  },
+  "guarantee_acceptances": {
+   "filas": 4488,
+   "tipo": "tabla"
+  },
+  "identity_validation_attempts": {
+   "filas": 203,
+   "tipo": "tabla"
+  },
+  "identity_validation_types": {
+   "filas": 6,
+   "tipo": "tabla"
+  },
+  "jumio_accounts": {
+   "filas": 45,
+   "tipo": "tabla"
+  },
+  "kyc_name_checks": {
+   "filas": 11646,
+   "tipo": "tabla"
+  },
+  "lender_allied_credentials": {
+   "filas": 1306,
+   "tipo": "tabla"
+  },
+  "lender_datacredito_rules": {
+   "filas": 7700,
+   "tipo": "tabla"
+  },
+  "lender_documentations": {
+   "filas": 6,
+   "tipo": "tabla"
+  },
+  "lender_error_codes": {
+   "filas": 23,
+   "tipo": "tabla"
+  },
+  "lender_guarantee_criteria": {
+   "filas": 77,
+   "tipo": "tabla"
+  },
+  "lender_identity_validation_types": {
+   "filas": 108,
+   "tipo": "tabla"
+  },
+  "lender_integration_flows": {
+   "filas": 7873,
+   "tipo": "tabla"
+  },
+  "lender_payment_capacity_scoring_policy": {
+   "filas": 5,
+   "tipo": "tabla"
+  },
+  "lender_rules": {
+   "filas": 40434,
+   "tipo": "tabla"
+  },
+  "lender_term_capital_adjustment_factors": {
+   "filas": 24,
+   "tipo": "tabla"
+  },
+  "lender_transaction_statuses": {
+   "filas": 114,
+   "tipo": "tabla"
+  },
+  "lender_transactions": {
+   "filas": 212263,
+   "tipo": "tabla"
+  },
+  "lender_user_category_scoring_policy_rules": {
+   "filas": 3,
+   "tipo": "tabla"
+  },
+  "lender_user_fields_scoring_policy": {
+   "filas": 30,
+   "tipo": "tabla"
+  },
+  "lender_users_categories": {
+   "filas": 214,
+   "tipo": "tabla"
+  },
+  "lender_users_category_rules": {
+   "filas": 194,
+   "tipo": "tabla"
+  },
+  "lenders": {
+   "filas": 184,
+   "tipo": "tabla"
+  },
+  "lenders_by_allied_branches": {
+   "filas": 7450,
+   "tipo": "tabla"
+  },
+  "lenders_by_allieds": {
+   "filas": 1080,
+   "tipo": "tabla"
+  },
+  "log_return_wompi_initial_fee": {
+   "filas": 372,
+   "tipo": "tabla"
+  },
+  "log_user_special_credit_grant_by_lender": {
+   "filas": 86862,
+   "tipo": "tabla"
+  },
+  "logs": {
+   "filas": 9039239,
+   "tipo": "tabla"
+  },
+  "merchant_events": {
+   "filas": 1,
+   "tipo": "tabla"
+  },
+  "metamap_logs": {
+   "filas": 0,
+   "tipo": "tabla"
+  },
+  "migrations": {
+   "filas": 418,
+   "tipo": "tabla"
+  },
+  "modal_survey_answers": {
+   "filas": 9380,
+   "tipo": "tabla"
+  },
+  "modal_survey_questions": {
+   "filas": 3,
+   "tipo": "tabla"
+  },
+  "modal_surveys": {
+   "filas": 0,
+   "tipo": "tabla"
+  },
+  "model_has_permissions": {
+   "filas": 9329,
+   "tipo": "tabla"
+  },
+  "model_has_roles": {
+   "filas": 364218,
+   "tipo": "tabla"
+  },
+  "netco_signing_documents": {
+   "filas": 923,
+   "tipo": "tabla"
+  },
+  "oauth_access_tokens": {
+   "filas": 24450,
+   "tipo": "tabla"
+  },
+  "oauth_auth_codes": {
+   "filas": 0,
+   "tipo": "tabla"
+  },
+  "oauth_clients": {
+   "filas": 126,
+   "tipo": "tabla"
+  },
+  "oauth_personal_access_clients": {
+   "filas": 63,
+   "tipo": "tabla"
+  },
+  "oauth_refresh_tokens": {
+   "filas": 0,
+   "tipo": "tabla"
+  },
+  "ocr_logs": {
+   "filas": 6665,
+   "tipo": "tabla"
+  },
+  "otp_logs": {
+   "filas": 857546,
+   "tipo": "tabla"
+  },
+  "otps": {
+   "filas": 477115,
+   "tipo": "tabla"
+  },
+  "password_reset_tokens": {
+   "filas": 0,
+   "tipo": "tabla"
+  },
+  "paths": {
+   "filas": 2,
+   "tipo": "tabla"
+  },
+  "payment_gateway_transactions": {
+   "filas": 32584,
+   "tipo": "tabla"
+  },
+  "payment_links": {
+   "filas": 0,
+   "tipo": "tabla"
+  },
+  "payment_methods": {
+   "filas": 4,
+   "tipo": "tabla"
+  },
+  "payment_methods_by_lender": {
+   "filas": 108,
+   "tipo": "tabla"
+  },
+  "payvalida_transaction_statuses": {
+   "filas": 5,
+   "tipo": "tabla"
+  },
+  "payvalida_transactions": {
+   "filas": 3849,
+   "tipo": "tabla"
+  },
+  "permissions": {
+   "filas": 57,
+   "tipo": "tabla"
+  },
+  "personal_access_tokens": {
+   "filas": 8,
+   "tipo": "tabla"
+  },
+  "product_categories": {
+   "filas": 3,
+   "tipo": "tabla"
+  },
+  "products": {
+   "filas": 1167,
+   "tipo": "tabla"
+  },
+  "products_by_lender_users_categories": {
+   "filas": 0,
+   "tipo": "tabla"
+  },
+  "profile_data": {
+   "filas": 342804,
+   "tipo": "tabla"
+  },
+  "profile_logs": {
+   "filas": 3117,
+   "tipo": "tabla"
+  },
+  "profiling_reviews": {
+   "filas": 390382,
+   "tipo": "tabla"
+  },
+  "profilings": {
+   "filas": 0,
+   "tipo": "tabla"
+  },
+  "promissory_notes": {
+   "filas": 9138,
+   "tipo": "tabla"
+  },
+  "promissory_types": {
+   "filas": 2,
+   "tipo": "tabla"
+  },
+  "promotions_by_lenders": {
+   "filas": 2,
+   "tipo": "tabla"
+  },
+  "purchase_codes": {
+   "filas": 18646,
+   "tipo": "tabla"
+  },
+  "qr_logs": {
+   "filas": 47990,
+   "tipo": "tabla"
+  },
+  "reminder_dispatch_log": {
+   "filas": 78987,
+   "tipo": "tabla"
+  },
+  "reminder_email_log": {
+   "filas": 115985,
+   "tipo": "tabla"
+  },
+  "reports_log": {
+   "filas": 217237,
+   "tipo": "tabla"
+  },
+  "request_authorizations": {
+   "filas": 566,
+   "tipo": "tabla"
+  },
+  "response_types": {
+   "filas": 2,
+   "tipo": "tabla"
+  },
+  "revenue_allieds": {
+   "filas": 88,
+   "tipo": "tabla"
+  },
+  "revenue_lenders": {
+   "filas": 40,
+   "tipo": "tabla"
+  },
+  "revenue_saas": {
+   "filas": 78,
+   "tipo": "tabla"
+  },
+  "revolving_credit_incentive_logs": {
+   "filas": 0,
+   "tipo": "tabla"
+  },
+  "revolving_credit_incentive_messages": {
+   "filas": 0,
+   "tipo": "tabla"
+  },
+  "risk_central_credentials": {
+   "filas": 8,
+   "tipo": "tabla"
+  },
+  "risk_central_user_data": {
+   "filas": 1020675,
+   "tipo": "tabla"
+  },
+  "risk_centrals": {
+   "filas": 8,
+   "tipo": "tabla"
+  },
+  "role_has_permissions": {
+   "filas": 107,
+   "tipo": "tabla"
+  },
+  "roles": {
+   "filas": 12,
+   "tipo": "tabla"
+  },
+  "security_questions": {
+   "filas": 4,
+   "tipo": "tabla"
+  },
+  "sending_methods": {
+   "filas": 2,
+   "tipo": "tabla"
+  },
+  "sending_methods_by_reminder_messages": {
+   "filas": 8,
+   "tipo": "tabla"
+  },
+  "sessions": {
+   "filas": 251,
+   "tipo": "tabla"
+  },
+  "settings": {
+   "filas": 58,
+   "tipo": "tabla"
+  },
+  "short_url_visits": {
+   "filas": 14165,
+   "tipo": "tabla"
+  },
+  "short_urls": {
+   "filas": 36372,
+   "tipo": "tabla"
+  },
+  "signing_providers": {
+   "filas": 0,
+   "tipo": "tabla"
+  },
+  "sistecredito_transaction_statuses": {
+   "filas": 11,
+   "tipo": "tabla"
+  },
+  "sistecredito_transactions": {
+   "filas": 1799,
+   "tipo": "tabla"
+  },
+  "statements_of_account_log": {
+   "filas": 40155,
+   "tipo": "tabla"
+  },
+  "status_per_profiles": {
+   "filas": 150,
+   "tipo": "tabla"
+  },
+  "temp_guarantee_updates": {
+   "filas": 599,
+   "tipo": "tabla"
+  },
+  "temp_pulllman_almacenes": {
+   "filas": 76,
+   "tipo": "tabla"
+  },
+  "temporal_requests": {
+   "filas": 0,
+   "tipo": "tabla"
+  },
+  "terms_and_conditions": {
+   "filas": 17,
+   "tipo": "tabla"
+  },
+  "treasury_calculations": {
+   "filas": 3,
+   "tipo": "tabla"
+  },
+  "twilio_logs": {
+   "filas": 925059,
+   "tipo": "tabla"
+  },
+  "user_achievements": {
+   "filas": 6298,
+   "tipo": "tabla"
+  },
+  "user_field_values": {
+   "filas": 1444549,
+   "tipo": "tabla"
+  },
+  "user_profiles": {
+   "filas": 11,
+   "tipo": "tabla"
+  },
+  "user_request_additional_information": {
+   "filas": 257122,
+   "tipo": "tabla"
+  },
+  "user_request_comments": {
+   "filas": 193,
+   "tipo": "tabla"
+  },
+  "user_request_device_info": {
+   "filas": 0,
+   "tipo": "tabla"
+  },
+  "user_request_documentations": {
+   "filas": 133,
+   "tipo": "tabla"
+  },
+  "user_request_modes": {
+   "filas": 63,
+   "tipo": "tabla"
+  },
+  "user_request_products": {
+   "filas": 18963,
+   "tipo": "tabla"
+  },
+  "user_request_records": {
+   "filas": 1295997,
+   "tipo": "tabla"
+  },
+  "user_request_risk_central_user_data": {
+   "filas": 970788,
+   "tipo": "tabla"
+  },
+  "user_request_risk_central_verified": {
+   "filas": 276696,
+   "tipo": "tabla"
+  },
+  "user_request_statuses": {
+   "filas": 29,
+   "tipo": "tabla"
+  },
+  "user_requests": {
+   "filas": 561142,
+   "tipo": "tabla"
+  },
+  "user_requests_by_ecommerce_request": {
+   "filas": 16593,
+   "tipo": "tabla"
+  },
+  "user_requests_by_payment_links": {
+   "filas": 0,
+   "tipo": "tabla"
+  },
+  "user_summaries": {
+   "filas": 216983,
+   "tipo": "tabla"
+  },
+  "user_terms_acepteds": {
+   "filas": 540818,
+   "tipo": "tabla"
+  },
+  "users": {
+   "filas": 363855,
+   "tipo": "tabla"
+  },
+  "users_category_log": {
+   "filas": 1455515,
+   "tipo": "tabla"
+  },
+  "users_modified_for_unfiltering": {
+   "filas": 2,
+   "tipo": "tabla"
+  },
+  "validations": {
+   "filas": 2,
+   "tipo": "tabla"
+  },
+  "variables_by_security_question": {
+   "filas": 12,
+   "tipo": "tabla"
+  },
+  "woocommerce_statuses": {
+   "filas": 5,
+   "tipo": "tabla"
+  }
+ }
+}

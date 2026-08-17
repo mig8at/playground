@@ -179,8 +179,11 @@ def main():
     s.add_argument("--traza", help="qué hizo el sistema en esta traza, agrupado por acción")
 
     s = con_json(sub.add_parser(
-        "relaciones", help="el MODELO DE DATOS reconstruido: qué columna apunta a qué tabla"))
-    s.add_argument("tabla", nargs="?", help="una tabla: qué apunta a ella y a qué apunta")
+        "relaciones", help="el MODELO DE DATOS: 247 tablas en vecindarios, y con qué se une cada una"))
+    s.add_argument("tabla", nargs="?", metavar="<vecindario|tabla>",
+                   help="un vecindario (`riesgo`, `plata`…) o una tabla suelta")
+    s.add_argument("--html", nargs="?", const="modelo.html", metavar="<archivo>",
+                   help="la CARTA: la misma info en una página navegable, para leerla de un vistazo")
 
     sub.add_parser("check", help="¿las rutas escritas a mano siguen vivas en main?")
     sub.add_parser("pesos", help="refresca los tamaños guardados en repos.json")
@@ -281,34 +284,76 @@ def main():
         return 0
 
     if a.cmd == "relaciones":
-        import json as _j, pathlib as _pl, collections as _c
-        d = _j.loads((_pl.Path(__file__).parent / "relaciones.json").read_text(encoding="utf-8"))
-        rel = d["relaciones"]
+        import json as _j, collections as _c
+        import modelo as _mod
+        m = _mod.cargar()
+        T, grupos = m["tablas"], _mod.por_racimo(m)
+        if a.html:
+            import modelo_html as _mh, pathlib as _pl
+            d = _mh.generar(_pl.Path(a.html).expanduser().resolve())
+            print(f"\n  carta escrita: {d}\n  ábrila con: open {d}\n")
+            return 0
         if j:
-            print(_j.dumps(d, ensure_ascii=False, indent=2)); return 0
+            print(_j.dumps(m, ensure_ascii=False, indent=2)); return 0
+
+        # Un vecindario: sus tablas, la que más carga primero.
+        if a.tabla in grupos:
+            print(f"\n  {a.tabla} — {_mod.descripcion(a.tabla)}\n")
+            for t in grupos[a.tabla]:
+                v = T[t]
+                peso = f"{v['filas']:>10,}" if v["filas"] else " " * 10
+                marca = "" if v["estado"] in ("viva", "vista") else f"  ({v['estado']})"
+                print(f"    {peso}  {t}{marca}")
+            print(f"\n  `relaciones <tabla>` para el detalle de una.\n")
+            return 0
+
+        # Una tabla: con qué se une, y en qué vecindario vive.
         if a.tabla:
-            sale = {k: v for k, v in rel.items() if k.startswith(a.tabla + ".")}
-            entra = {k: v for k, v in rel.items() if v["a"] == a.tabla}
-            print(f"\n  {a.tabla}\n")
-            print(f"    APUNTA A ({len(sale)}):")
-            for k, v in sale.items():
-                marca = "  ⚠" if v.get("⚠") else ""
-                print(f"      {k.split('.', 1)[1]:34} → {v['a']:32} [{v['via']}]{marca}")
-                if v.get("rol"): print(f"        {v['rol'][:88]}")
-            print(f"\n    LE APUNTAN ({len(entra)}):")
-            for k in list(entra)[:20]:
+            v = T.get(a.tabla)
+            if not v:
+                # subcadena Y parecido: `user_reqest` no contiene a `user_requests`, y un typo es
+                # justo el caso en que uno necesita la sugerencia
+                import difflib as _dl
+                cerca = ([t for t in T if a.tabla.lower() in t.lower()]
+                         or _dl.get_close_matches(a.tabla, T, n=5, cutoff=0.6))[:8]
+                print(f"\n  no existe `{a.tabla}`."
+                      + (f" ¿alguna de estas? {', '.join(cerca)}" if cerca else "")
+                      + f"\n  vecindarios: {' · '.join(sorted(grupos))}\n")
+                return 1
+            peso = f"{v['filas']:,} filas" if v["filas"] else v["estado"]
+            hered = "  (vecindario heredado de a dónde apunta)" if v["heredado"] else ""
+            print(f"\n  {a.tabla}   ·   {v['racimo']}   ·   {peso}{hered}\n")
+            print(f"    APUNTA A ({len(v['apunta_a'])}):")
+            for col, r in v["apunta_a"]:
+                print(f"      {col:34} → {r['a']:32} [{r['via']}]"
+                      + ("  ⚠ no se sostiene en los datos" if r.get("⚠") else ""))
+                if r.get("rol"):
+                    print(f"        {r['rol'][:88]}")
+            print(f"\n    LE APUNTAN ({len(v['le_apuntan'])}):")
+            for k in v["le_apuntan"][:24]:
                 print(f"      {k}")
+            if len(v["le_apuntan"]) > 24:
+                print(f"      … y {len(v['le_apuntan']) - 24} más")
             print()
             return 0
-        via = _c.Counter(v["via"] for v in rel.values())
-        rotas = [k for k, v in rel.items() if v.get("⚠")]
-        print(f"\n  {len(rel)} relaciones reconstruidas\n")
-        for k, n_ in via.most_common():
-            print(f"    {k:16} {n_:4}")
-        print(f"\n  ⚠ {len(rotas)} inferidas NO se sostienen en los datos:")
-        for k in rotas[:6]:
-            print(f"      {k} → {rel[k]['a']}")
-        print("\n  `relaciones <tabla>` para una sola. `--json` para el mapa entero.\n")
+
+        # El mapa: los vecindarios y la columna vertebral.
+        n_rel = sum(len(v["apunta_a"]) for v in T.values())
+        rotas = [(t, c) for t, v in T.items() for c, r in v["apunta_a"] if r.get("⚠")]
+        print(f"\n  {len(T)} tablas · {n_rel} relaciones · prod medido el {m['medido']}\n")
+        for k in sorted(grupos, key=lambda k: -len(grupos[k])):
+            vivas = sum(1 for t in grupos[k] if T[t]["estado"] == "viva")
+            print(f"    {k:14} {len(grupos[k]):3} tablas, {vivas:2} con datos"
+                  f"   {_mod.descripcion(k)}")
+        print(f"\n  LA ESPINA — todo cuelga de estas cuatro:")
+        for t, n_ in _mod.espina(m):
+            print(f"    {t:16} le apuntan {n_:3} columnas   ({T[t]['filas']:,} filas)")
+        via = _c.Counter(r["via"] for v in T.values() for _, r in v["apunta_a"])
+        print(f"\n  DE DÓNDE SALE CADA RELACIÓN: "
+              + " · ".join(f"{k} {n_}" for k, n_ in via.most_common()))
+        print(f"  ⚠ {len(rotas)} inferidas NO se sostienen en los datos "
+              f"({', '.join(f'{t}.{c}' for t, c in rotas[:3])}…)")
+        print("\n  `relaciones <vecindario>` · `relaciones <tabla>` · `--json`\n")
         return 0
 
     if a.cmd == "negocio":

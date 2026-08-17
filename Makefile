@@ -269,7 +269,11 @@ confluence: ## @har el POR QUÉ del negocio, que el código no tiene. Sin CMD mu
 	@cd context && python3 tools/confluence.py $(CMD)
 
 trazador-sql: ## @har UNA consulta de SOLO LECTURA a la BD del ambiente. SQL='SELECT …' [TARGET=prod|staging|dev|local] [CSV=1]
-	@test -n "$(SQL)" || { echo "falta SQL='SELECT …'  ·  ej: make trazador-sql TARGET=local SQL='SELECT id,name FROM countries LIMIT 3'"; exit 2; }
+	@# ⚠ el mismo escapado que la línea de abajo, y por la misma razón: `test -n "$(SQL)"` se rompía
+	@# con cualquier consulta que llevara comillas DOBLES (`WHERE x = "y"`), porque make expande antes
+	@# que el shell y las dobles del dato cerraban las del test. Fallaba con «binary operator expected»
+	@# y el mensaje de ayuda hacía creer que faltaba SQL, cuando SQL estaba y era válido.
+	@test -n $$'$(subst ','\'',$(SQL))' || { echo "falta SQL='SELECT …'  ·  ej: make trazador-sql TARGET=local SQL='SELECT id,name FROM countries LIMIT 3'"; exit 2; }
 	@cd trazador/server && go run . -target $(if $(TARGET),$(TARGET),prod) -sql $$'$(subst ','\'',$(SQL))' $(if $(CSV),-csv)
 
 # Los agentes de workers: el bucle a la vista, contra Gemini. La receta de CÓMO combinarlos —cuántos

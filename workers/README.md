@@ -291,9 +291,28 @@ Curarlo a mano es a propósito.
 ### El modelo de datos, reconstruido
 
 ```bash
-./cli.py relaciones                     # de dónde salió cada relación
+./cli.py relaciones                     # el mapa: 13 vecindarios y la espina
+./cli.py relaciones riesgo              # las tablas de un vecindario, la que más carga primero
 ./cli.py relaciones profiling_reviews   # qué apunta a una tabla y a qué apunta
+./cli.py relaciones --html carta.html   # la misma info, para leerla de un vistazo
 ```
+
+**Los 432 datos sueltos no eran un mapa**, y por eso hay vecindarios: para contestar «¿qué tablas
+toco para X?» había que leer las 432. Los trece salen del nombre y, lo que el nombre no alcanza, de a
+dónde apunta la tabla — **derivados en `modelo.py`, no escritos en ningún JSON**, así que una tabla
+nueva cae en su vecindario el día que aparece.
+
+Y se le pega el **peso en producción** (`tablas.json`, una foto con su fecha), que es lo que separa
+el modelo del modelo que se usa: de 219 tablas base, **28 están vacías** y 82 son catálogos de menos
+de 100 filas. **109 cargan el negocio.** El vecindario más grande, `creditopx`, tiene 40 tablas y
+sólo 12 con datos.
+
+⚠ **NO hay buscador de caminos de JOIN, y es a propósito.** Se probó: el camino más corto entre
+`users` y `lenders` es `users.lender_id` — una columna real, que significa «el lender al que
+pertenece un usuario **del staff**», no los lenders que se le ofrecieron a un cliente. Cuatro tablas
+concentran el 61% de las relaciones (`users` 80, `lenders` 72, `user_requests` 70, `allieds` 43), así
+que cualquier par queda a dos saltos por un hub y el camino sale **sintáctico y falso**. Una unión
+equivocada devuelta con seguridad se copia a un SQL y el número que sale parece bueno.
 
 La base tiene **487 columnas `_id` y sólo 44 claves foráneas declaradas**: las relaciones viven en el
 código, no en el esquema. **432 reconstruidas**, y el `via` dice de dónde salió cada una porque **no
