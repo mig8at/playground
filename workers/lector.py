@@ -245,6 +245,66 @@ def cargar_nodos(sel, pregunta, tope_tokens):
     return "\n\n".join(partes), usados
 
 
+def mapa_del_vecindario(nodos, cargados, tope_chars):
+    """El MAPA de todo lo que citan los nodos consultados: una línea por archivo, con lo que DEFINE.
+
+    Por qué existe, que es la corrección de un agujero de diseño: hasta acá un archivo tenía sólo dos
+    estados para el lector —cargado entero (~4.000 tokens) o ausente— y el segundo era además
+    INVISIBLE. Si el seleccionador se dejaba afuera el archivo que contestaba, el lector no tenía
+    forma de sospecharlo: contestaba con lo que había, seguro.
+
+    Tenía `arbol_de_archivos` para recuperarse, pero devuelve RUTAS PELADAS — una guía telefónica.
+    Elegir de ahí es adivinar por el nombre del archivo.
+
+    El nodolite es el estado intermedio que faltaba, y sale gratis al lado del código: MEDIDO sobre
+    los nodos reales, el mapa entero cuesta **27-37x menos** que cargar esos mismos archivos (`kyc`:
+    39 archivos = 5.337 tokens de mapa contra 197.177 enteros; `creditopx`: 2.370 contra 63.712). Por
+    ~2% del presupuesto el lector deja de ser ciego a lo que no le dieron, y `pedir_archivo` —que ya
+    existía— pasa de ser un salto de fe a una decisión informada.
+    """
+    vistos, filas, saltados = set(), [], 0
+    for n in nodos:
+        f = CONTEXT / "server" / "data" / "flows" / n / "map.json"
+        if not f.is_file():
+            continue
+        for ruta in json.loads(f.read_text(encoding="utf-8")).get("files", []):
+            if ruta in vistos:
+                continue
+            vistos.add(ruta)
+            ya = ruta in cargados
+            texto = _texto(ruta)
+            if texto is None:
+                continue
+            lite = _extraer.extraer_uno(ruta, texto)
+            if not lite:
+                continue
+            # Lo que DEFINE es lo que dice de qué trata; los imports no aportan al elegir.
+            define = ", ".join(lite.get("d", [])[:6]) or "—"
+            rutas_http = f" · {len(lite['r'])} rutas HTTP" if lite.get("r") else ""
+            marca = "✓" if ya else f"h={lite.get('h', _extraer.hash_de(ruta))}"
+            filas.append((ya, f"{'✓' if ya else ' '} {ruta}  [{lite.get('l', '?')} l]"
+                              f"{rutas_http}\n     define: {define}"
+                              + ("" if ya else f"   ({marca})")))
+    if not filas:
+        return "", 0
+    # Los NO cargados primero: son los que el lector puede accionar. Los ✓ son sólo para que no
+    # pida algo que ya tiene.
+    filas.sort(key=lambda x: x[0])
+    cuerpo, usado = [], 0
+    for _, linea in filas:
+        if usado + len(linea) > tope_chars:
+            saltados += 1
+            continue
+        cuerpo.append(linea)
+        usado += len(linea)
+    faltan = sum(1 for ya, _ in filas if not ya)
+    cab = (f"EL VECINDARIO — los {len(filas)} archivos que citan los nodos consultados. "
+           f"Los ✓ ({len(filas) - faltan}) ya los tenés completos abajo; los otros {faltan} NO te los "
+           f"dieron y podés traerlos con `pedir_archivo(h)` si lo que leés indica que hacen falta.\n"
+           + (f"⚠ {saltados} no entraron en este mapa.\n" if saltados else ""))
+    return cab + "\n".join(cuerpo), faltan
+
+
 def arbol(alias, ruta=""):
     """El árbol de archivos de un repo, por si hace falta uno que no estaba en la selección.
     Devuelve rutas con su `h`, que es con lo que se piden."""
@@ -265,6 +325,63 @@ def pedir_archivo(h, desde=1, hasta=0):
     if not ruta:
         return {"error": f"el hash {h} no existe. Sacalo del árbol o del índice, no lo inventes"}
     return leer_codigo(ruta, desde, hasta)
+
+
+def _entregar_faltantes(faltan=None, motivo=""):
+    """Terminal del triaje: el modelo no escribe la lista, LLAMA a esto con ella."""
+    return {"faltan": [h.strip().upper() for h in (faltan or []) if h and h.strip()],
+            "motivo": motivo}
+
+
+TRIAJE = {"entregar_faltantes": ({
+    "name": "entregar_faltantes",
+    "description": "Entregá los `h` de los archivos del mapa que hacen falta (lista vacía si ninguno).",
+    "parameters": {"type": "object", "properties": {
+        "faltan": {"type": "array", "items": {"type": "string"},
+                   "description": "los `h` tal cual figuran en el mapa; vacío si ninguno"},
+        "motivo": {"type": "string", "description": "en una frase, por qué esos (o por qué ninguno)"},
+    }, "required": ["faltan"]},
+}, _entregar_faltantes)}
+
+TRIAJE_INSTR = """\
+Te paso una pregunta y el MAPA de archivos que existen y que NO se cargaron. Tu único trabajo es
+decidir cuáles de ESOS harían falta para contestar bien. No contestás la pregunta.
+
+Mirá el nombre y las definiciones de cada uno. Pedí los que respondan MEJOR que el resto, no todo lo
+que suene relacionado: cada uno que pidas le come lugar al que sí importa. Entre 0 y 4.
+Si ninguno aporta, devolvé la lista vacía — es una respuesta válida y barata.
+Al final llamá a `entregar_faltantes`."""
+
+
+def triaje(pregunta, mapa, cfg, tope=4):
+    """El paso que decide si a la selección le faltó algo — y lo da el PROGRAMA, no el modelo.
+
+    ⚠ Acá está la lección, y costó dos intentos fallidos el 2026-08-16. Se le sacó a propósito de la
+    selección el archivo que tenía la respuesta (`LenderListingService`, con `stampCreditopXApproval`),
+    dejándolo en el mapa con ese nombre a la vista. El lector no lo pidió: contestó con lo que tenía,
+    describió el camino v1 y **se perdió el v2 entero**, sin una señal de duda.
+
+    Intento 1: una instrucción («mirá el vecindario antes de contestar»). No la siguió.
+    Intento 2: una herramienta con «OBLIGATORIA» en su descripción y en el prompt. No la llamó.
+
+    La causa no es que le falte información ni énfasis: **un modelo que ya tiene UNA respuesta deja de
+    buscar**, y un archivo que falta no se siente como un hueco — se siente como una respuesta
+    completa. Pedirlo mejor no cambia eso. Lo que lo cambia es que la decisión ocurra en una llamada
+    APARTE, antes de que exista una respuesta a la que aferrarse, y que esa llamada la haga el código.
+
+    Es la misma forma que el `--evitar` del contraste: la calidad no salió de pedir diversidad, salió
+    de impedirle el camino fácil.
+    """
+    if not mapa:
+        return [], ""
+    try:
+        r = gemini.correr(f"PREGUNTA: {pregunta}\n\n{mapa}", TRIAJE, TRIAJE_INSTR, cfg,
+                          verboso=False, terminales=("entregar_faltantes",))
+    except gemini.GeminiError:
+        return [], "(el triaje falló; se sigue sin él)"
+    if not isinstance(r, dict):
+        return [], "(el triaje no devolvió lista)"
+    return r.get("faltan", [])[:tope], r.get("motivo", "")
 
 
 HERRAMIENTAS = {
@@ -303,8 +420,14 @@ EXISTA: es que no entraba en el presupuesto. Nunca concluyas desde una ausencia 
 recortado. Si necesitás lo que falta, pedilo con `pedir_archivo(h, desde, hasta)` o ubicalo con
 `buscar_en_codigo`.
 
-Si te falta un archivo que nadie eligió, buscalo en `arbol_de_archivos` y pedilo — pero decilo en tu
-respuesta: significa que la selección se quedó corta, y eso es información sobre el índice.
+«EL VECINDARIO» es la lista de los archivos que citan los nodos y que NO se cargaron, con lo que
+define cada uno. Ya pasaron por un triaje y lo que hacía falta se trajo — pero si leyendo aparece que
+falta otro, pedilo por su `h` con `pedir_archivo`. Nunca concluyas «el código no hace X» sin fijarte
+si el archivo que haría X está en esa lista.
+
+Si te falta algo que ni el vecindario lista, buscalo en `arbol_de_archivos`. En todos los casos,
+**decilo en tu respuesta**: que un archivo haya hecho falta es información sobre el índice, tan
+valiosa como la respuesta misma.
 
 CÓMO CONTESTÁS:
 1. La respuesta, en dos o tres frases.
@@ -377,9 +500,37 @@ def main():
         print()
         if nodos_usados:
             print(f"  + contexto: {', '.join(nodos_usados)}  ({len(docs)//CHARS_POR_TOKEN:,} tokens)\n")
+
+        # El MAPA del vecindario: barato (mide 27-37x menos que el código) y es lo único que hace
+        # VISIBLE lo que la selección dejó afuera. Se arma con lo que sobró, con un techo del 4%.
+        cargados = {i.get("ruta") for i in informe if i.get("ruta")}
+        mapa, sin_cargar = mapa_del_vecindario(nodos_usados, cargados,
+                                               int(TOPE_TOKENS * 0.04) * CHARS_POR_TOKEN)
+        if mapa:
+            print(f"  + mapa del vecindario: {sin_cargar} archivos que NO se cargaron, visibles "
+                  f"({len(mapa)//CHARS_POR_TOKEN:,} tokens)")
+            # El TRIAJE, en una llamada aparte y ANTES de armar el payload final. Ver `triaje()`:
+            # dejárselo al lector como instrucción o como herramienta «obligatoria» no funcionó las
+            # dos veces que se probó — el paso tiene que darlo el programa.
+            faltan, motivo = triaje(pregunta, mapa, cfg)
+            if faltan:
+                # `cargar_seleccion` toma la forma de una selección ({h, prioridad, …}), no hashes
+                # pelados: el triaje devuelve strings y hay que vestirlos.
+                extra, inf2, ch2 = cargar_seleccion(
+                    [{"h": h, "prioridad": "alta", "por_que": motivo} for h in faltan],
+                    pregunta, int(TOPE_TOKENS * 0.15))
+                bloque += "\n\n" + extra
+                print(f"  ⚠ TRIAJE: la selección se quedó corta — {len(inf2)} archivo(s) rescatados "
+                      f"({ch2 // CHARS_POR_TOKEN:,} tokens)\n    motivo: {motivo}")
+                for i in inf2:
+                    print(f"      + {i.get('ruta', i.get('h'))}")
+            else:
+                print(f"    triaje: no falta ninguno · {motivo}")
+            print()
+
         entrada = (f"PREGUNTA: {pregunta}\n\n"
                    f"{'CONTEXTO VERIFICADO (los nodos del árbol — leelo ANTES del código):' if docs else ''}\n"
-                   f"{docs}\n\nARCHIVOS:\n\n{bloque}")
+                   f"{docs}\n\n{mapa}\n\nARCHIVOS:\n\n{bloque}")
         print(gemini.correr(entrada, HERRAMIENTAS, INSTRUCCIONES, cfg))
         return 0
     except gemini.GeminiError as e:

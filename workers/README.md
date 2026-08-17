@@ -160,6 +160,43 @@ python3 lector.py
 ⚠ La PRIMERA selección va siempre a `_ultima-seleccion.json`: el lector reparte el presupuesto de
 izquierda a derecha y esa fuente va primero — ahí tiene que ir el ángulo principal.
 
+## El vecindario y el triaje — la red bajo el seleccionador
+
+Un archivo tenía sólo dos estados para el lector: **cargado entero** (~4.000 tokens) o **ausente** — y
+el segundo era además **invisible**. Si el seleccionador se dejaba afuera el que contestaba, el lector
+no tenía cómo sospecharlo: contestaba con lo que había, seguro.
+
+El estado intermedio que faltaba es el **nodolite**, y sale casi gratis: MEDIDO, el mapa de todos los
+archivos de un nodo cuesta **27-37x menos** que cargarlos (`kyc`: 39 archivos = 5.337 tokens de mapa
+contra 197.177 enteros). Por eso el lector recibe ahora **«EL VECINDARIO»**: una línea por archivo del
+nodo con lo que **define** cada uno, marcando los que ya tiene. ~0,7% del presupuesto.
+
+Y arriba de eso, el **triaje**: una llamada chica y aparte que ve sólo la pregunta y el mapa, y
+devuelve los `h` que faltan. Lo que pida se carga antes de armar el payload final.
+
+### Por qué el triaje es una llamada del programa y no una instrucción
+
+Costó dos intentos fallidos, y es la lección más transferible del día. Prueba: se le sacó a propósito
+de la selección el archivo que tenía la respuesta (`LenderListingService`, con
+`stampCreditopXApproval`), **dejándolo listado en el mapa con ese nombre a la vista**.
+
+| intento | resultado |
+|---|---|
+| Instrucción en el prompt: «mirá el vecindario antes de contestar» | **no la siguió** |
+| Herramienta con «OBLIGATORIA» en su descripción y en el prompt | **no la llamó** |
+| Llamada aparte, hecha por el código, antes del payload | **rescató exacto ese archivo**, con el motivo correcto |
+
+Sin el triaje la respuesta describía el camino **v1** y se perdía el **v2 entero**, sin una señal de
+duda. Con el triaje cubre los dos. Control negativo: con la selección completa devuelve «no falta
+ninguno» y explica por qué — no es un mecanismo que traiga archivos por las dudas.
+
+> La causa no era falta de información ni de énfasis: **un modelo que ya tiene UNA respuesta deja de
+> buscar**, y un archivo que falta no se siente como un hueco — se siente como una respuesta completa.
+> Pedirlo mejor no cambia eso. Lo cambia que la decisión ocurra **antes de que exista una respuesta a
+> la que aferrarse**, y que la dispare el código.
+
+Es la misma forma que el `--evitar` del contraste: la calidad no salió de pedir, salió de **estructurar**.
+
 ## Cuántos ángulos y cuántos archivos
 
 No hay número correcto fijo: depende de la pregunta.
