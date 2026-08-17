@@ -346,6 +346,27 @@ Devolvería «no se hablan», que es una conclusión falsa y no un resultado vac
 | `traza_de_solicitud` · `historia_de_persona` | el trazador por etapas, y los intentos de una persona |
 | `codigo_de_log` | la única que no mide: del log al CÓDIGO que lo emitió |
 
+### El mapa de logs: para qué sirve, en criollo
+
+Un log te dice **qué pasó**. No te dice **dónde**. Y ahí se va el rato: leés un error, y ahora hay que
+encontrar de qué archivo salió, entre miles.
+
+El mapa hace ese salto. Se arma una vez leyendo el código —qué mensaje escribe cada archivo— y después:
+
+- **de un error → el archivo**, con su línea;
+- **de una corrida entera → la lista de archivos que corrieron**, en orden.
+
+Sirve para tres cosas concretas:
+
+1. **Depurar un incidente sin adivinar.** En vez de sospechar qué mirar, los logs te lo dicen. Medido:
+   126 archivos candidatos por parecido, contra **2 por evidencia** — y el que fallaba tenía 298 hits.
+2. **Darle al agente la lista buena.** Esos archivos vienen listos para que otro los abra y explique.
+3. **Ver el punto ciego.** Si algo no aparece nunca, es que **no deja rastro**. Así encontramos que el
+   cliente de una API que falla 28 veces por día no escribe un solo log.
+
+⚠ Y lo que NO dice: qué archivos **corrieron**. Dice cuáles **dejaron rastro**. Lo que no loguea es
+invisible acá — y a veces eso invisible es justo la causa.
+
 ### Del log al código: la llave es el MENSAJE, no un hash
 
 La cadena natural sería `log → hash de archivo → contenido`, pero **falta el primer eslabón: la línea

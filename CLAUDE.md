@@ -31,6 +31,7 @@ herramienta: es suponer que no está y contestar de memoria.
 | **hay MUCHO código que leer para contestar** | `make agente-analisis PREGUNTA='…'` — plan → N buscadores → lector de 300k. La receta: `workers/README.md` §«Cómo se orquesta» |
 | **¿esto pasa de verdad, y cuánto?** | `make trazador-sql` contra **prod**. Es la única forma de contestarlo. Con agente: `make agente-datos TARGET=prod` |
 | **¿qué le pasó a ESTA solicitud?** | `make harness-loki UREQ=…` · `make trazador-acceso` |
+| **leí un error, ¿de qué archivo salió?** | `workers/cli.py logs "<mensaje>"` — el mapa va del mensaje al archivo y su línea. Para una corrida entera, la herramienta `archivos_de_la_traza` del agente que mide |
 | **¿qué VIO el cliente en pantalla?** | `make trazador-posthog` |
 | **¿funciona, corriéndolo?** | `harness` (`make panel`) — se comprueba corriendo, no leyendo |
 | **¿en qué anda el equipo?** | Slack (MCP) · `make cuadrilla` · `make tablero` |
