@@ -288,6 +288,32 @@ componentes de presentación** —`AdminHeader`, `AdminLayout`— o sea bien cla
 para quien cura, no una lista para borrar: las herramientas **auditan** el `map.json`, no lo escriben.
 Curarlo a mano es a propósito.
 
+### El modelo de datos, reconstruido
+
+```bash
+./cli.py relaciones                     # de dónde salió cada relación
+./cli.py relaciones profiling_reviews   # qué apunta a una tabla y a qué apunta
+```
+
+La base tiene **487 columnas `_id` y sólo 44 claves foráneas declaradas**: las relaciones viven en el
+código, no en el esquema. **432 reconstruidas**, y el `via` dice de dónde salió cada una porque **no
+valen lo mismo**:
+
+| origen | cuántas | qué tan firme |
+|---|---|---|
+| convención (`X_id` → `Xs`) | 317 | mecánico y exacto |
+| FK declarada | 44 | está en el esquema |
+| inferida por un agente | 71 | roles y abreviaturas — **verificada contra los datos** |
+
+Las inferidas son las que la convención no puede dar: `disbursed_lender_id` y `recommended_lender_id`
+apuntan **las dos** a `lenders` y significan cosas distintas. El agente las resolvió con **36 de 36
+tablas válidas** — pero al verificarlas contra los datos, **5 no se sostienen** (hay huérfanos reales)
+y quedaron marcadas con ⚠. Las había declarado todas «alta confianza».
+
+⚠ **En este esquema `0` significa «ninguno», no una referencia.** Un JOIN que no lo excluye cuenta 156
+huérfanos donde hay cero — me pasó verificando `related_field_id`, y por poco descarto una relación
+que estaba bien.
+
 ## Mantenimiento
 
 `./cli.py check` valida que las rutas escritas a mano sigan existiendo en `main`; sale 1 si alguna

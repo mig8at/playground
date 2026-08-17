@@ -178,6 +178,10 @@ def main():
                    help="el vocabulario de ACCIONES: qué HACE el sistema, no de qué habla")
     s.add_argument("--traza", help="qué hizo el sistema en esta traza, agrupado por acción")
 
+    s = con_json(sub.add_parser(
+        "relaciones", help="el MODELO DE DATOS reconstruido: qué columna apunta a qué tabla"))
+    s.add_argument("tabla", nargs="?", help="una tabla: qué apunta a ella y a qué apunta")
+
     sub.add_parser("check", help="¿las rutas escritas a mano siguen vivas en main?")
     sub.add_parser("pesos", help="refresca los tamaños guardados en repos.json")
 
@@ -274,6 +278,37 @@ def main():
         if r.get("ambiguo"):
             print("  ⚠ aparece en muchos archivos: no identifica uno solo")
         print()
+        return 0
+
+    if a.cmd == "relaciones":
+        import json as _j, pathlib as _pl, collections as _c
+        d = _j.loads((_pl.Path(__file__).parent / "relaciones.json").read_text(encoding="utf-8"))
+        rel = d["relaciones"]
+        if j:
+            print(_j.dumps(d, ensure_ascii=False, indent=2)); return 0
+        if a.tabla:
+            sale = {k: v for k, v in rel.items() if k.startswith(a.tabla + ".")}
+            entra = {k: v for k, v in rel.items() if v["a"] == a.tabla}
+            print(f"\n  {a.tabla}\n")
+            print(f"    APUNTA A ({len(sale)}):")
+            for k, v in sale.items():
+                marca = "  ⚠" if v.get("⚠") else ""
+                print(f"      {k.split('.', 1)[1]:34} → {v['a']:32} [{v['via']}]{marca}")
+                if v.get("rol"): print(f"        {v['rol'][:88]}")
+            print(f"\n    LE APUNTAN ({len(entra)}):")
+            for k in list(entra)[:20]:
+                print(f"      {k}")
+            print()
+            return 0
+        via = _c.Counter(v["via"] for v in rel.values())
+        rotas = [k for k, v in rel.items() if v.get("⚠")]
+        print(f"\n  {len(rel)} relaciones reconstruidas\n")
+        for k, n_ in via.most_common():
+            print(f"    {k:16} {n_:4}")
+        print(f"\n  ⚠ {len(rotas)} inferidas NO se sostienen en los datos:")
+        for k in rotas[:6]:
+            print(f"      {k} → {rel[k]['a']}")
+        print("\n  `relaciones <tabla>` para una sola. `--json` para el mapa entero.\n")
         return 0
 
     if a.cmd == "negocio":

@@ -1,0 +1,1829 @@
+{
+ "_que_es": [
+  "El MODELO DE DATOS reconstruido: qué columna apunta a qué tabla.",
+  "La base tiene 487 columnas `_id` y sólo 44 claves foráneas DECLARADAS — las relaciones viven en",
+  "el código, no en el esquema. Esto las recupera.",
+  "",
+  "`via` dice de dónde salió cada una, y no es lo mismo:",
+  "  · «FK declarada» — está en el esquema. 44.",
+  "  · «convención»   — `X_id` → tabla `Xs`. Mecánico y exacto. La mayoría.",
+  "  · «inferida»     — la propuso un agente y NO resuelve por nombre (roles, abreviaturas).",
+  "                     Verificadas contra los datos: 27 se sostienen, 5 NO (marcadas con ⚠).",
+  "",
+  "⚠ EN ESTE ESQUEMA `0` SIGNIFICA «NINGUNO», no una referencia. Un JOIN que no lo excluye cuenta",
+  "156 huérfanos donde hay cero — me pasó verificando, y es la trampa que este archivo debe evitar."
+ ],
+ "relaciones": {
+  "TEMP_EXPERIAN_MOVEMENTS.user_id": {
+   "a": "users",
+   "via": "convención"
+  },
+  "TEMP_EXPERIAN_MOVEMENTS.user_request_id": {
+   "a": "user_requests",
+   "via": "convención"
+  },
+  "TEMP_EXPERIAN_REPORT.user_id": {
+   "a": "users",
+   "via": "convención"
+  },
+  "TEMP_EXPERIAN_REPORT.user_request_id": {
+   "a": "user_requests",
+   "via": "convención"
+  },
+  "VW_CtopX_Credits_Summary.allied_branch_id": {
+   "a": "allied_branches",
+   "via": "convención"
+  },
+  "VW_CtopX_Credits_Summary.allied_id": {
+   "a": "allieds",
+   "via": "convención"
+  },
+  "VW_CtopX_Credits_Summary.lender_id": {
+   "a": "lenders",
+   "via": "convención"
+  },
+  "VW_CtopX_Credits_Summary.user_id": {
+   "a": "users",
+   "via": "convención"
+  },
+  "VW_CtopX_Credits_Summary.user_request_id": {
+   "a": "user_requests",
+   "via": "convención"
+  },
+  "VW_CtopX_Credits_Summary_Users_Filtered_Credits.allied_branch_id": {
+   "a": "allied_branches",
+   "via": "convención"
+  },
+  "VW_CtopX_Credits_Summary_Users_Filtered_Credits.allied_id": {
+   "a": "allieds",
+   "via": "convención"
+  },
+  "VW_CtopX_Credits_Summary_Users_Filtered_Credits.lender_id": {
+   "a": "lenders",
+   "via": "convención"
+  },
+  "VW_CtopX_Credits_Summary_Users_Filtered_Credits.user_id": {
+   "a": "users",
+   "via": "convención"
+  },
+  "VW_CtopX_Credits_Summary_Users_Filtered_Credits.user_request_id": {
+   "a": "user_requests",
+   "via": "convención"
+  },
+  "VW_CtopX_Credits_Summary_by_Month.allied_branch_id": {
+   "a": "allied_branches",
+   "via": "convención"
+  },
+  "VW_CtopX_Credits_Summary_by_Month.allied_id": {
+   "a": "allieds",
+   "via": "convención"
+  },
+  "VW_CtopX_Credits_Summary_by_Month.lender_id": {
+   "a": "lenders",
+   "via": "convención"
+  },
+  "VW_CtopX_Credits_Summary_by_Month.user_id": {
+   "a": "users",
+   "via": "convención"
+  },
+  "VW_CtopX_Credits_Summary_by_Month.user_request_id": {
+   "a": "user_requests",
+   "via": "convención"
+  },
+  "VW_CtopX_Experian_Report.user_id": {
+   "a": "users",
+   "via": "convención"
+  },
+  "VW_CtopX_Experian_Report.user_request_id": {
+   "a": "user_requests",
+   "via": "convención"
+  },
+  "VW_CtopX_Insurances_Credits.allied_branch_id": {
+   "a": "allied_branches",
+   "via": "convención"
+  },
+  "VW_CtopX_Insurances_Credits.allied_id": {
+   "a": "allieds",
+   "via": "convención"
+  },
+  "VW_CtopX_Insurances_Credits.lender_id": {
+   "a": "lenders",
+   "via": "convención"
+  },
+  "VW_CtopX_Insurances_Credits.user_id": {
+   "a": "users",
+   "via": "convención"
+  },
+  "VW_CtopX_Insurances_Credits.user_request_id": {
+   "a": "user_requests",
+   "via": "convención"
+  },
+  "VW_CtopX_Payments_Outer_Filtered_Report.allied_branch_id": {
+   "a": "allied_branches",
+   "via": "convención"
+  },
+  "VW_CtopX_Payments_Outer_Filtered_Report.allied_id": {
+   "a": "allieds",
+   "via": "convención"
+  },
+  "VW_CtopX_Payments_Outer_Filtered_Report.lender_id": {
+   "a": "lenders",
+   "via": "convención"
+  },
+  "VW_CtopX_Payments_Outer_Filtered_Report.user_id": {
+   "a": "users",
+   "via": "convención"
+  },
+  "VW_CtopX_Payments_Outer_Filtered_Report.user_request_id": {
+   "a": "user_requests",
+   "via": "convención"
+  },
+  "VW_CtopX_Payments_Report.allied_branch_id": {
+   "a": "allied_branches",
+   "via": "convención"
+  },
+  "VW_CtopX_Payments_Report.allied_id": {
+   "a": "allieds",
+   "via": "convención"
+  },
+  "VW_CtopX_Payments_Report.lender_id": {
+   "a": "lenders",
+   "via": "convención"
+  },
+  "VW_CtopX_Payments_Report.user_id": {
+   "a": "users",
+   "via": "convención"
+  },
+  "VW_CtopX_Payments_Report.user_request_id": {
+   "a": "user_requests",
+   "via": "convención"
+  },
+  "VW_OTPs.user_id": {
+   "a": "users",
+   "via": "convención"
+  },
+  "VW_Profiling_Metrics.allied_branch_id": {
+   "a": "allied_branches",
+   "via": "convención"
+  },
+  "VW_Profiling_Metrics.allied_id": {
+   "a": "allieds",
+   "via": "convención"
+  },
+  "VW_Profiling_Metrics.lender_id": {
+   "a": "lenders",
+   "via": "convención"
+  },
+  "VW_Profiling_Metrics.user_id": {
+   "a": "users",
+   "via": "convención"
+  },
+  "VW_Profiling_Metrics.user_request_id": {
+   "a": "user_requests",
+   "via": "convención"
+  },
+  "VW_Profiling_Predictions.allied_id": {
+   "a": "allieds",
+   "via": "convención"
+  },
+  "VW_Profiling_Predictions.lender_id": {
+   "a": "lenders",
+   "via": "convención"
+  },
+  "VW_Profiling_Predictions.user_id": {
+   "a": "users",
+   "via": "convención"
+  },
+  "VW_Profiling_Predictions_ML.allied_id": {
+   "a": "allieds",
+   "via": "convención"
+  },
+  "VW_Profiling_Predictions_ML.lender_id": {
+   "a": "lenders",
+   "via": "convención"
+  },
+  "VW_Profiling_Predictions_ML.user_id": {
+   "a": "users",
+   "via": "convención"
+  },
+  "VW_Profiling_Predictions_Only_New.allied_id": {
+   "a": "allieds",
+   "via": "convención"
+  },
+  "VW_Profiling_Predictions_Only_New.lender_id": {
+   "a": "lenders",
+   "via": "convención"
+  },
+  "VW_Profiling_Predictions_Only_New.user_id": {
+   "a": "users",
+   "via": "convención"
+  },
+  "VW_Profiling_Predictions_Only_New.user_request_id": {
+   "a": "user_requests",
+   "via": "convención"
+  },
+  "VW_Profiling_Predictions_V2.allied_id": {
+   "a": "allieds",
+   "via": "convención"
+  },
+  "VW_Profiling_Predictions_V2.lender_id": {
+   "a": "lenders",
+   "via": "convención"
+  },
+  "VW_Profiling_Predictions_V2.user_id": {
+   "a": "users",
+   "via": "convención"
+  },
+  "VW_Profiling_Predictions_V2.user_request_id": {
+   "a": "user_requests",
+   "via": "convención"
+  },
+  "VW_Revolving_Payments_Report.allied_id": {
+   "a": "allieds",
+   "via": "convención"
+  },
+  "VW_Risk_Central_User_Request_Resume.user_id": {
+   "a": "users",
+   "via": "convención"
+  },
+  "VW_User_Field_Values_Resume.user_id": {
+   "a": "users",
+   "via": "convención"
+  },
+  "VW_User_Request_Costs.allied_branch_id": {
+   "a": "allied_branches",
+   "via": "convención"
+  },
+  "VW_User_Request_Costs.allied_id": {
+   "a": "allieds",
+   "via": "convención"
+  },
+  "VW_User_Request_Costs.lender_id": {
+   "a": "lenders",
+   "via": "convención"
+  },
+  "VW_User_Request_Costs.user_id": {
+   "a": "users",
+   "via": "convención"
+  },
+  "VW_User_Request_Costs.user_request_id": {
+   "a": "user_requests",
+   "via": "convención"
+  },
+  "VW_User_Request_Track.allied_branch_id": {
+   "a": "allied_branches",
+   "via": "convención"
+  },
+  "VW_User_Request_Track.allied_id": {
+   "a": "allieds",
+   "via": "convención"
+  },
+  "VW_User_Request_Track.lender_id": {
+   "a": "lenders",
+   "via": "convención"
+  },
+  "VW_User_Request_Track.user_id": {
+   "a": "users",
+   "via": "convención"
+  },
+  "VW_User_Request_Track.user_request_id": {
+   "a": "user_requests",
+   "via": "convención"
+  },
+  "VW_request_w_Profiling_Predictions.user_request_id": {
+   "a": "user_requests",
+   "via": "convención"
+  },
+  "achievements.allied_id": {
+   "a": "allieds",
+   "via": "FK declarada"
+  },
+  "allied_branches.allied_id": {
+   "a": "allieds",
+   "via": "convención"
+  },
+  "allied_branches.allied_zone_id": {
+   "a": "allied_zones",
+   "via": "convención"
+  },
+  "allied_branches_by_user.allied_branch_id": {
+   "a": "allied_branches",
+   "via": "convención"
+  },
+  "allied_branches_by_user.user_id": {
+   "a": "users",
+   "via": "convención"
+  },
+  "allied_ecommerce_credentials.allied_branch_id": {
+   "a": "allied_branches",
+   "via": "convención"
+  },
+  "allied_ecommerce_credentials.allied_id": {
+   "a": "allieds",
+   "via": "convención"
+  },
+  "allied_errors_captures.user_id": {
+   "a": "users",
+   "via": "convención"
+  },
+  "allied_errors_captures.user_request_id": {
+   "a": "user_requests",
+   "via": "convención"
+  },
+  "allied_modes.allied_id": {
+   "a": "allieds",
+   "via": "convención"
+  },
+  "allied_status_log.allied_id": {
+   "a": "allieds",
+   "via": "convención"
+  },
+  "allied_status_log.user_id": {
+   "a": "users",
+   "via": "convención"
+  },
+  "allied_transfer_accounts.allied_id": {
+   "a": "allieds",
+   "via": "convención"
+  },
+  "allied_zones.allied_id": {
+   "a": "allieds",
+   "via": "convención"
+  },
+  "allieds.allied_type_id": {
+   "a": "allied_types",
+   "via": "convención"
+  },
+  "assistance_fee_by_merchant_event.merchant_event_id": {
+   "a": "merchant_events",
+   "via": "convención"
+  },
+  "beneficiaries_by_allieds.allied_id": {
+   "a": "allieds",
+   "via": "convención"
+  },
+  "beneficiaries_by_allieds.user_request_id": {
+   "a": "user_requests",
+   "via": "convención"
+  },
+  "bonifications.user_id": {
+   "a": "users",
+   "via": "FK declarada"
+  },
+  "cities_by_lender.lender_id": {
+   "a": "lenders",
+   "via": "convención"
+  },
+  "compare_face_logs.user_id": {
+   "a": "users",
+   "via": "convención"
+  },
+  "compare_face_logs.user_request_id": {
+   "a": "user_requests",
+   "via": "convención"
+  },
+  "confirmation_email_logs.allied_id": {
+   "a": "allieds",
+   "via": "convención"
+  },
+  "confirmation_email_logs.lender_id": {
+   "a": "lenders",
+   "via": "convención"
+  },
+  "confirmation_email_logs.user_request_id": {
+   "a": "user_requests",
+   "via": "convención"
+  },
+  "corporate_users.allied_branch_id": {
+   "a": "allied_branches",
+   "via": "convención"
+  },
+  "corporate_users.allied_id": {
+   "a": "allieds",
+   "via": "convención"
+  },
+  "country_cities.country_zone_id": {
+   "a": "country_zones",
+   "via": "convención"
+  },
+  "credit_line_by_lenders.credit_line_id": {
+   "a": "credit_lines",
+   "via": "convención"
+  },
+  "credit_line_by_lenders.lender_id": {
+   "a": "lenders",
+   "via": "convención"
+  },
+  "credit_scores.user_id": {
+   "a": "users",
+   "via": "convención"
+  },
+  "creditop_x_adjustments_by_lender_scoring.lender_id": {
+   "a": "lenders",
+   "via": "convención"
+  },
+  "creditop_x_blacklisted_documents.lender_id": {
+   "a": "lenders",
+   "via": "convención"
+  },
+  "creditop_x_changes_log.otp_id": {
+   "a": "otps",
+   "via": "convención"
+  },
+  "creditop_x_changes_log.user_request_id": {
+   "a": "user_requests",
+   "via": "convención"
+  },
+  "creditop_x_conditions_by_amount_by_lender.lender_id": {
+   "a": "lenders",
+   "via": "convención"
+  },
+  "creditop_x_consents.creditop_x_consent_type_id": {
+   "a": "creditop_x_consent_types",
+   "via": "convención"
+  },
+  "creditop_x_consents.creditop_x_revolving_credit_id": {
+   "a": "creditop_x_revolving_credits",
+   "via": "convención"
+  },
+  "creditop_x_consents.otp_id": {
+   "a": "otps",
+   "via": "convención"
+  },
+  "creditop_x_consents.user_id": {
+   "a": "users",
+   "via": "convención"
+  },
+  "creditop_x_consents.user_request_id": {
+   "a": "user_requests",
+   "via": "convención"
+  },
+  "creditop_x_lender_collection_charges.lender_id": {
+   "a": "lenders",
+   "via": "FK declarada"
+  },
+  "creditop_x_lender_configuration.lender_id": {
+   "a": "lenders",
+   "via": "convención"
+  },
+  "creditop_x_lender_early_payment_discount.lender_id": {
+   "a": "lenders",
+   "via": "convención"
+  },
+  "creditop_x_lender_payment_method.lender_id": {
+   "a": "lenders",
+   "via": "FK declarada"
+  },
+  "creditop_x_lender_payment_method.payment_method_id": {
+   "a": "creditop_x_payment_methods",
+   "via": "FK declarada"
+  },
+  "creditop_x_lender_residual_balances.lender_id": {
+   "a": "lenders",
+   "via": "convención"
+  },
+  "creditop_x_lender_scoring.lender_id": {
+   "a": "lenders",
+   "via": "convención"
+  },
+  "creditop_x_log.corporate_user_id": {
+   "a": "corporate_users",
+   "via": "convención"
+  },
+  "creditop_x_log.creditop_x_revolving_credit_id": {
+   "a": "creditop_x_revolving_credits",
+   "via": "convención"
+  },
+  "creditop_x_log.user_request_id": {
+   "a": "user_requests",
+   "via": "convención"
+  },
+  "creditop_x_occupation_multiplier_by_lender.lender_id": {
+   "a": "lenders",
+   "via": "convención"
+  },
+  "creditop_x_payment_register.allied_branch_id": {
+   "a": "allied_branches",
+   "via": "convención"
+  },
+  "creditop_x_payment_register.creditop_x_revolving_credit_payment_id": {
+   "a": "creditop_x_revolving_credit_payments",
+   "via": "convención"
+  },
+  "creditop_x_payment_register.payment_gateway_transaction_id": {
+   "a": "payment_gateway_transactions",
+   "via": "convención"
+  },
+  "creditop_x_payment_register.payment_method_id": {
+   "a": "creditop_x_payment_methods",
+   "via": "FK declarada"
+  },
+  "creditop_x_payment_register.user_id": {
+   "a": "users",
+   "via": "convención"
+  },
+  "creditop_x_payment_register.user_request_id": {
+   "a": "user_requests",
+   "via": "convención"
+  },
+  "creditop_x_payments.user_id": {
+   "a": "users",
+   "via": "convención"
+  },
+  "creditop_x_payments.user_request_id": {
+   "a": "user_requests",
+   "via": "convención"
+  },
+  "creditop_x_profiling_down_payment_FGA.lender_id": {
+   "a": "lenders",
+   "via": "FK declarada"
+  },
+  "creditop_x_profiling_multiplier_risk_rangs.variable_id": {
+   "a": "creditop_x_profiling_multiplier_risk_vars",
+   "via": "FK declarada"
+  },
+  "creditop_x_pullman_pos.allied_branch_id": {
+   "a": "allied_branches",
+   "via": "convención"
+  },
+  "creditop_x_quota_restrictions.lender_id": {
+   "a": "lenders",
+   "via": "convención"
+  },
+  "creditop_x_reminder_messages.creditop_x_user_request_status_id": {
+   "a": "creditop_x_user_request_statuses",
+   "via": "convención"
+  },
+  "creditop_x_requests_history.user_id": {
+   "a": "users",
+   "via": "convención"
+  },
+  "creditop_x_requests_history.user_request_id": {
+   "a": "user_requests",
+   "via": "convención"
+  },
+  "creditop_x_revolving_credit_payments.creditop_x_revolving_credit_id": {
+   "a": "creditop_x_revolving_credits",
+   "via": "convención"
+  },
+  "creditop_x_revolving_credit_payments.user_id": {
+   "a": "users",
+   "via": "convención"
+  },
+  "creditop_x_revolving_credits.allied_id": {
+   "a": "allieds",
+   "via": "convención"
+  },
+  "creditop_x_revolving_credits.lender_id": {
+   "a": "lenders",
+   "via": "convención"
+  },
+  "creditop_x_revolving_credits.user_id": {
+   "a": "users",
+   "via": "convención"
+  },
+  "creditop_x_revolving_credits_history.lender_id": {
+   "a": "lenders",
+   "via": "convención"
+  },
+  "creditop_x_revolving_credits_history.user_id": {
+   "a": "users",
+   "via": "convención"
+  },
+  "creditop_x_social_strata_multiplier_by_lender.lender_id": {
+   "a": "lenders",
+   "via": "convención"
+  },
+  "creditop_x_user_requests_records.allied_branch_id": {
+   "a": "allied_branches",
+   "via": "convención"
+  },
+  "creditop_x_user_requests_records.creditop_x_user_requests_process_statuses_id": {
+   "a": "creditop_x_user_requests_process_statuses",
+   "via": "convención"
+  },
+  "creditop_x_user_requests_records.user_id": {
+   "a": "users",
+   "via": "convención"
+  },
+  "creditop_x_user_requests_records.user_request_id": {
+   "a": "user_requests",
+   "via": "convención"
+  },
+  "crosscore_evaluations.lender_id": {
+   "a": "lenders",
+   "via": "convención"
+  },
+  "crosscore_evaluations.user_id": {
+   "a": "users",
+   "via": "convención"
+  },
+  "crosscore_evaluations.user_request_id": {
+   "a": "user_requests",
+   "via": "convención"
+  },
+  "datacredito_frequencies.allied_id": {
+   "a": "allieds",
+   "via": "convención"
+  },
+  "datacredito_query_by_allieds.allied_id": {
+   "a": "allieds",
+   "via": "convención"
+  },
+  "deceval_logs.user_id": {
+   "a": "users",
+   "via": "convención"
+  },
+  "deceval_logs.user_request_id": {
+   "a": "user_requests",
+   "via": "convención"
+  },
+  "device_locks.user_request_product_id": {
+   "a": "user_request_products",
+   "via": "FK declarada"
+  },
+  "ecommerce_requests.allied_branch_id": {
+   "a": "allied_branches",
+   "via": "convención"
+  },
+  "ecommerce_requests.allied_id": {
+   "a": "allieds",
+   "via": "convención"
+  },
+  "ecommerce_requests.ecommerce_id": {
+   "a": "ecommerces",
+   "via": "convención"
+  },
+  "ecommerce_requests.user_id": {
+   "a": "users",
+   "via": "convención"
+  },
+  "ecommerce_requests.user_request_id": {
+   "a": "user_requests",
+   "via": "convención"
+  },
+  "ecommerce_requests_log.ecommerce_request_id": {
+   "a": "ecommerce_requests",
+   "via": "convención"
+  },
+  "ecommerce_requests_log.user_id": {
+   "a": "users",
+   "via": "convención"
+  },
+  "ecommerce_requests_log.user_request_id": {
+   "a": "user_requests",
+   "via": "convención"
+  },
+  "email_survey_answers.email_survey_link_id": {
+   "a": "email_survey_links",
+   "via": "FK declarada"
+  },
+  "email_survey_answers.email_survey_option_id": {
+   "a": "email_survey_options",
+   "via": "FK declarada"
+  },
+  "email_survey_comments.email_survey_link_id": {
+   "a": "email_survey_links",
+   "via": "FK declarada"
+  },
+  "email_survey_links.email_survey_id": {
+   "a": "email_surveys",
+   "via": "FK declarada"
+  },
+  "email_survey_links.user_id": {
+   "a": "users",
+   "via": "FK declarada"
+  },
+  "email_survey_options.email_survey_id": {
+   "a": "email_surveys",
+   "via": "FK declarada"
+  },
+  "evidente_flow_steps.lender_id": {
+   "a": "lenders",
+   "via": "convención"
+  },
+  "evidente_flow_steps.user_id": {
+   "a": "users",
+   "via": "convención"
+  },
+  "evidente_flow_steps.user_request_id": {
+   "a": "user_requests",
+   "via": "convención"
+  },
+  "experian_notifications.user_request_id": {
+   "a": "user_requests",
+   "via": "FK declarada"
+  },
+  "field_options.field_id": {
+   "a": "fields",
+   "via": "convención"
+  },
+  "form_types.lender_id": {
+   "a": "lenders",
+   "via": "FK declarada"
+  },
+  "forms.field_id": {
+   "a": "fields",
+   "via": "convención"
+  },
+  "forms.form_type_id": {
+   "a": "form_types",
+   "via": "convención"
+  },
+  "group_rules.allied_branch_id": {
+   "a": "allied_branches",
+   "via": "convención"
+  },
+  "guarantee_acceptances.creditop_x_revolving_credit_id": {
+   "a": "creditop_x_revolving_credits",
+   "via": "convención"
+  },
+  "guarantee_acceptances.otp_id": {
+   "a": "otps",
+   "via": "convención"
+  },
+  "guarantee_acceptances.user_id": {
+   "a": "users",
+   "via": "convención"
+  },
+  "guarantee_acceptances.user_request_id": {
+   "a": "user_requests",
+   "via": "convención"
+  },
+  "identity_validation_attempts.user_id": {
+   "a": "users",
+   "via": "convención"
+  },
+  "identity_validation_attempts.user_request_id": {
+   "a": "user_requests",
+   "via": "convención"
+  },
+  "jumio_accounts.lender_id": {
+   "a": "lenders",
+   "via": "convención"
+  },
+  "jumio_accounts.user_id": {
+   "a": "users",
+   "via": "convención"
+  },
+  "jumio_accounts.user_request_id": {
+   "a": "user_requests",
+   "via": "convención"
+  },
+  "kyc_name_checks.user_id": {
+   "a": "users",
+   "via": "convención"
+  },
+  "kyc_name_checks.user_request_id": {
+   "a": "user_requests",
+   "via": "convención"
+  },
+  "lender_allied_credentials.allied_id": {
+   "a": "allieds",
+   "via": "convención"
+  },
+  "lender_allied_credentials.lender_id": {
+   "a": "lenders",
+   "via": "convención"
+  },
+  "lender_datacredito_rules.allied_branch_id": {
+   "a": "allied_branches",
+   "via": "convención"
+  },
+  "lender_datacredito_rules.lender_id": {
+   "a": "lenders",
+   "via": "convención"
+  },
+  "lender_documentations.allied_id": {
+   "a": "allieds",
+   "via": "convención"
+  },
+  "lender_documentations.lender_id": {
+   "a": "lenders",
+   "via": "convención"
+  },
+  "lender_error_codes.lender_id": {
+   "a": "lenders",
+   "via": "FK declarada"
+  },
+  "lender_guarantee_criteria.lender_id": {
+   "a": "lenders",
+   "via": "convención"
+  },
+  "lender_identity_validation_types.identity_validation_type_id": {
+   "a": "identity_validation_types",
+   "via": "convención"
+  },
+  "lender_identity_validation_types.lender_id": {
+   "a": "lenders",
+   "via": "FK declarada"
+  },
+  "lender_integration_flows.lender_id": {
+   "a": "lenders",
+   "via": "convención"
+  },
+  "lender_integration_flows.user_request_id": {
+   "a": "user_requests",
+   "via": "convención"
+  },
+  "lender_payment_capacity_scoring_policy.lender_id": {
+   "a": "lenders",
+   "via": "convención"
+  },
+  "lender_rules.field_id": {
+   "a": "fields",
+   "via": "convención"
+  },
+  "lender_rules.group_rule_id": {
+   "a": "group_rules",
+   "via": "convención"
+  },
+  "lender_rules.lender_id": {
+   "a": "lenders",
+   "via": "convención"
+  },
+  "lender_term_capital_adjustment_factors.lender_id": {
+   "a": "lenders",
+   "via": "convención"
+  },
+  "lender_transaction_statuses.lender_id": {
+   "a": "lenders",
+   "via": "convención"
+  },
+  "lender_transactions.lender_id": {
+   "a": "lenders",
+   "via": "convención"
+  },
+  "lender_transactions.status_id": {
+   "a": "lender_transaction_statuses",
+   "via": "FK declarada"
+  },
+  "lender_transactions.user_request_id": {
+   "a": "user_requests",
+   "via": "convención"
+  },
+  "lender_user_category_scoring_policy_rules.lender_id": {
+   "a": "lenders",
+   "via": "convención"
+  },
+  "lender_user_fields_scoring_policy.field_id": {
+   "a": "fields",
+   "via": "convención"
+  },
+  "lender_user_fields_scoring_policy.lender_id": {
+   "a": "lenders",
+   "via": "convención"
+  },
+  "lender_users_categories.lender_id": {
+   "a": "lenders",
+   "via": "convención"
+  },
+  "lender_users_category_rules.lender_id": {
+   "a": "lenders",
+   "via": "convención"
+  },
+  "lenders.path_id": {
+   "a": "paths",
+   "via": "FK declarada"
+  },
+  "lenders.promissory_type_id": {
+   "a": "promissory_types",
+   "via": "FK declarada"
+  },
+  "lenders.signing_provider_id": {
+   "a": "signing_providers",
+   "via": "FK declarada"
+  },
+  "lenders_by_allied_branches.allied_branch_id": {
+   "a": "allied_branches",
+   "via": "convención"
+  },
+  "lenders_by_allied_branches.lender_id": {
+   "a": "lenders",
+   "via": "convención"
+  },
+  "lenders_by_allieds.allied_id": {
+   "a": "allieds",
+   "via": "convención"
+  },
+  "lenders_by_allieds.bank_id": {
+   "a": "banks",
+   "via": "convención"
+  },
+  "lenders_by_allieds.lender_id": {
+   "a": "lenders",
+   "via": "convención"
+  },
+  "log_return_wompi_initial_fee.payment_gateway_transaction_id": {
+   "a": "payment_gateway_transactions",
+   "via": "convención"
+  },
+  "log_return_wompi_initial_fee.user_request_id": {
+   "a": "user_requests",
+   "via": "convención"
+  },
+  "log_user_special_credit_grant_by_lender.lender_id": {
+   "a": "lenders",
+   "via": "convención"
+  },
+  "log_user_special_credit_grant_by_lender.user_id": {
+   "a": "users",
+   "via": "convención"
+  },
+  "logs.user_id": {
+   "a": "users",
+   "via": "convención"
+  },
+  "logs.user_request_id": {
+   "a": "user_requests",
+   "via": "convención"
+  },
+  "merchant_events.allied_branch_id": {
+   "a": "allied_branches",
+   "via": "convención"
+  },
+  "merchant_events.allied_id": {
+   "a": "allieds",
+   "via": "convención"
+  },
+  "metamap_logs.user_id": {
+   "a": "users",
+   "via": "convención"
+  },
+  "modal_survey_answers.modal_survey_question_id": {
+   "a": "modal_survey_questions",
+   "via": "FK declarada"
+  },
+  "modal_survey_answers.user_id": {
+   "a": "users",
+   "via": "FK declarada"
+  },
+  "modal_survey_questions.modal_survey_id": {
+   "a": "modal_surveys",
+   "via": "FK declarada"
+  },
+  "model_has_permissions.permission_id": {
+   "a": "permissions",
+   "via": "FK declarada"
+  },
+  "model_has_roles.role_id": {
+   "a": "roles",
+   "via": "FK declarada"
+  },
+  "netco_signing_documents.otp_id": {
+   "a": "otps",
+   "via": "convención"
+  },
+  "netco_signing_documents.user_request_id": {
+   "a": "user_requests",
+   "via": "convención"
+  },
+  "oauth_access_tokens.user_id": {
+   "a": "users",
+   "via": "convención"
+  },
+  "oauth_auth_codes.user_id": {
+   "a": "users",
+   "via": "convención"
+  },
+  "oauth_clients.user_id": {
+   "a": "users",
+   "via": "convención"
+  },
+  "ocr_logs.user_id": {
+   "a": "users",
+   "via": "convención"
+  },
+  "ocr_logs.user_request_id": {
+   "a": "user_requests",
+   "via": "convención"
+  },
+  "otp_logs.user_id": {
+   "a": "users",
+   "via": "convención"
+  },
+  "otp_logs.user_request_id": {
+   "a": "user_requests",
+   "via": "convención"
+  },
+  "otps.user_id": {
+   "a": "users",
+   "via": "convención"
+  },
+  "payment_gateway_transactions.creditop_x_payment_type_id": {
+   "a": "creditop_x_payment_types",
+   "via": "convención"
+  },
+  "payment_gateway_transactions.creditop_x_revolving_credit_id": {
+   "a": "creditop_x_revolving_credits",
+   "via": "convención"
+  },
+  "payment_gateway_transactions.lender_id": {
+   "a": "lenders",
+   "via": "convención"
+  },
+  "payment_gateway_transactions.status_id": {
+   "a": "lender_transaction_statuses",
+   "via": "FK declarada"
+  },
+  "payment_gateway_transactions.user_request_id": {
+   "a": "user_requests",
+   "via": "convención"
+  },
+  "payment_links.allied_branch_id": {
+   "a": "allied_branches",
+   "via": "convención"
+  },
+  "payment_links.allied_id": {
+   "a": "allieds",
+   "via": "convención"
+  },
+  "payment_methods_by_lender.lender_id": {
+   "a": "lenders",
+   "via": "convención"
+  },
+  "payvalida_transactions.transaction_status_id": {
+   "a": "payvalida_transaction_statuses",
+   "via": "FK declarada"
+  },
+  "payvalida_transactions.user_id": {
+   "a": "users",
+   "via": "convención"
+  },
+  "payvalida_transactions.user_request_id": {
+   "a": "user_requests",
+   "via": "convención"
+  },
+  "product_categories.allied_id": {
+   "a": "allieds",
+   "via": "convención"
+  },
+  "product_categories.merchant_event_id": {
+   "a": "merchant_events",
+   "via": "convención"
+  },
+  "products.allied_id": {
+   "a": "allieds",
+   "via": "convención"
+  },
+  "products.lender_id": {
+   "a": "lenders",
+   "via": "convención"
+  },
+  "products.merchant_event_id": {
+   "a": "merchant_events",
+   "via": "convención"
+  },
+  "products_by_lender_users_categories.product_id": {
+   "a": "products",
+   "via": "convención"
+  },
+  "profile_logs.user_id": {
+   "a": "users",
+   "via": "convención"
+  },
+  "profiling_reviews.allied_id": {
+   "a": "allieds",
+   "via": "convención"
+  },
+  "profiling_reviews.user_id": {
+   "a": "users",
+   "via": "convención"
+  },
+  "profiling_reviews.user_request_id": {
+   "a": "user_requests",
+   "via": "convención"
+  },
+  "promissory_notes.creditop_x_revolving_credit_id": {
+   "a": "creditop_x_revolving_credits",
+   "via": "convención"
+  },
+  "promissory_notes.otp_id": {
+   "a": "otps",
+   "via": "convención"
+  },
+  "promissory_notes.user_id": {
+   "a": "users",
+   "via": "convención"
+  },
+  "promissory_notes.user_request_id": {
+   "a": "user_requests",
+   "via": "convención"
+  },
+  "promotions_by_lenders.lender_id": {
+   "a": "lenders",
+   "via": "convención"
+  },
+  "purchase_codes.user_request_id": {
+   "a": "user_requests",
+   "via": "convención"
+  },
+  "qr_logs.allied_branch_id": {
+   "a": "allied_branches",
+   "via": "convención"
+  },
+  "qr_logs.allied_id": {
+   "a": "allieds",
+   "via": "convención"
+  },
+  "reminder_dispatch_log.lender_id": {
+   "a": "lenders",
+   "via": "convención"
+  },
+  "reminder_dispatch_log.user_id": {
+   "a": "users",
+   "via": "convención"
+  },
+  "reminder_dispatch_log.user_request_id": {
+   "a": "user_requests",
+   "via": "convención"
+  },
+  "reminder_email_log.lender_id": {
+   "a": "lenders",
+   "via": "convención"
+  },
+  "reminder_email_log.user_id": {
+   "a": "users",
+   "via": "convención"
+  },
+  "reports_log.user_id": {
+   "a": "users",
+   "via": "convención"
+  },
+  "request_authorizations.user_id": {
+   "a": "users",
+   "via": "convención"
+  },
+  "request_authorizations.user_request_id": {
+   "a": "user_requests",
+   "via": "convención"
+  },
+  "revenue_allieds.allied_id": {
+   "a": "allieds",
+   "via": "convención"
+  },
+  "revenue_lenders.allied_id": {
+   "a": "allieds",
+   "via": "convención"
+  },
+  "revenue_lenders.lender_id": {
+   "a": "lenders",
+   "via": "convención"
+  },
+  "revenue_saas.allied_id": {
+   "a": "allieds",
+   "via": "convención"
+  },
+  "risk_central_credentials.risk_central_id": {
+   "a": "risk_centrals",
+   "via": "FK declarada"
+  },
+  "risk_central_user_data.risk_central_id": {
+   "a": "risk_centrals",
+   "via": "FK declarada"
+  },
+  "risk_central_user_data.user_id": {
+   "a": "users",
+   "via": "convención"
+  },
+  "role_has_permissions.permission_id": {
+   "a": "permissions",
+   "via": "FK declarada"
+  },
+  "role_has_permissions.role_id": {
+   "a": "roles",
+   "via": "FK declarada"
+  },
+  "sending_methods_by_reminder_messages.sending_method_id": {
+   "a": "sending_methods",
+   "via": "convención"
+  },
+  "sessions.user_id": {
+   "a": "users",
+   "via": "convención"
+  },
+  "short_url_visits.short_url_id": {
+   "a": "short_urls",
+   "via": "FK declarada"
+  },
+  "sistecredito_transactions.transaction_status_id": {
+   "a": "sistecredito_transaction_statuses",
+   "via": "FK declarada"
+  },
+  "sistecredito_transactions.user_id": {
+   "a": "users",
+   "via": "convención"
+  },
+  "sistecredito_transactions.user_request_id": {
+   "a": "user_requests",
+   "via": "convención"
+  },
+  "statements_of_account_log.user_id": {
+   "a": "users",
+   "via": "convención"
+  },
+  "statements_of_account_log.user_request_id": {
+   "a": "user_requests",
+   "via": "convención"
+  },
+  "status_per_profiles.allied_id": {
+   "a": "allieds",
+   "via": "convención"
+  },
+  "status_per_profiles.user_profile_id": {
+   "a": "user_profiles",
+   "via": "convención"
+  },
+  "status_per_profiles.user_request_status_id": {
+   "a": "user_request_statuses",
+   "via": "convención"
+  },
+  "temp_guarantee_updates.user_request_id": {
+   "a": "user_requests",
+   "via": "convención"
+  },
+  "twilio_logs.user_id": {
+   "a": "users",
+   "via": "convención"
+  },
+  "twilio_logs.user_request_id": {
+   "a": "user_requests",
+   "via": "convención"
+  },
+  "user_achievements.achievement_id": {
+   "a": "achievements",
+   "via": "FK declarada"
+  },
+  "user_achievements.user_id": {
+   "a": "users",
+   "via": "FK declarada"
+  },
+  "user_field_values.field_id": {
+   "a": "fields",
+   "via": "convención"
+  },
+  "user_field_values.form_id": {
+   "a": "forms",
+   "via": "convención"
+  },
+  "user_field_values.user_id": {
+   "a": "users",
+   "via": "convención"
+  },
+  "user_field_values.user_request_id": {
+   "a": "user_requests",
+   "via": "convención"
+  },
+  "user_request_additional_information.corporate_user_id": {
+   "a": "corporate_users",
+   "via": "convención"
+  },
+  "user_request_additional_information.user_request_id": {
+   "a": "user_requests",
+   "via": "convención"
+  },
+  "user_request_comments.corporate_user_id": {
+   "a": "corporate_users",
+   "via": "convención"
+  },
+  "user_request_comments.user_request_id": {
+   "a": "user_requests",
+   "via": "convención"
+  },
+  "user_request_device_info.user_request_id": {
+   "a": "user_requests",
+   "via": "FK declarada"
+  },
+  "user_request_documentations.lender_documentation_id": {
+   "a": "lender_documentations",
+   "via": "convención"
+  },
+  "user_request_documentations.user_id": {
+   "a": "users",
+   "via": "convención"
+  },
+  "user_request_documentations.user_request_id": {
+   "a": "user_requests",
+   "via": "convención"
+  },
+  "user_request_modes.allied_mode_id": {
+   "a": "allied_modes",
+   "via": "convención"
+  },
+  "user_request_modes.user_request_id": {
+   "a": "user_requests",
+   "via": "convención"
+  },
+  "user_request_products.product_id": {
+   "a": "products",
+   "via": "FK declarada"
+  },
+  "user_request_products.user_request_id": {
+   "a": "user_requests",
+   "via": "FK declarada"
+  },
+  "user_request_records.user_id": {
+   "a": "users",
+   "via": "convención"
+  },
+  "user_request_records.user_request_id": {
+   "a": "user_requests",
+   "via": "convención"
+  },
+  "user_request_records.user_request_status_id": {
+   "a": "user_request_statuses",
+   "via": "convención"
+  },
+  "user_request_risk_central_user_data.risk_central_user_data_id": {
+   "a": "risk_central_user_data",
+   "via": "FK declarada"
+  },
+  "user_request_risk_central_user_data.user_request_id": {
+   "a": "user_requests",
+   "via": "FK declarada"
+  },
+  "user_request_risk_central_verified.user_request_id": {
+   "a": "user_requests",
+   "via": "FK declarada"
+  },
+  "user_requests.allied_branch_id": {
+   "a": "allied_branches",
+   "via": "convención"
+  },
+  "user_requests.allied_id": {
+   "a": "allieds",
+   "via": "convención"
+  },
+  "user_requests.corporate_user_id": {
+   "a": "corporate_users",
+   "via": "convención"
+  },
+  "user_requests.credit_line_id": {
+   "a": "credit_lines",
+   "via": "convención"
+  },
+  "user_requests.lender_id": {
+   "a": "lenders",
+   "via": "convención"
+  },
+  "user_requests.payment_method_id": {
+   "a": "payment_methods",
+   "via": "convención"
+  },
+  "user_requests.user_id": {
+   "a": "users",
+   "via": "convención"
+  },
+  "user_requests.user_request_status_id": {
+   "a": "user_request_statuses",
+   "via": "convención"
+  },
+  "user_requests_by_ecommerce_request.ecommerce_request_id": {
+   "a": "ecommerce_requests",
+   "via": "convención"
+  },
+  "user_requests_by_ecommerce_request.user_request_id": {
+   "a": "user_requests",
+   "via": "convención"
+  },
+  "user_requests_by_payment_links.payment_link_id": {
+   "a": "payment_links",
+   "via": "convención"
+  },
+  "user_requests_by_payment_links.user_request_id": {
+   "a": "user_requests",
+   "via": "convención"
+  },
+  "user_summaries.user_id": {
+   "a": "users",
+   "via": "convención"
+  },
+  "user_terms_acepteds.otp_id": {
+   "a": "otps",
+   "via": "convención"
+  },
+  "user_terms_acepteds.terms_and_conditions_id": {
+   "a": "terms_and_conditions",
+   "via": "convención"
+  },
+  "user_terms_acepteds.user_id": {
+   "a": "users",
+   "via": "convención"
+  },
+  "user_terms_acepteds.user_request_id": {
+   "a": "user_requests",
+   "via": "convención"
+  },
+  "users.allied_branch_id": {
+   "a": "allied_branches",
+   "via": "convención"
+  },
+  "users.allied_id": {
+   "a": "allieds",
+   "via": "convención"
+  },
+  "users.corporate_user_id": {
+   "a": "corporate_users",
+   "via": "convención"
+  },
+  "users.lender_id": {
+   "a": "lenders",
+   "via": "convención"
+  },
+  "users.user_profile_id": {
+   "a": "user_profiles",
+   "via": "convención"
+  },
+  "users_category_log.lender_id": {
+   "a": "lenders",
+   "via": "convención"
+  },
+  "users_category_log.user_id": {
+   "a": "users",
+   "via": "convención"
+  },
+  "users_modified_for_unfiltering.user_id": {
+   "a": "users",
+   "via": "convención"
+  },
+  "validations.user_id": {
+   "a": "users",
+   "via": "convención"
+  },
+  "validations.user_request_id": {
+   "a": "user_requests",
+   "via": "convención"
+  },
+  "variables_by_security_question.security_question_id": {
+   "a": "security_questions",
+   "via": "convención"
+  },
+  "allied_categories.country_id": {
+   "a": "countries",
+   "via": "inferida",
+   "rol": ""
+  },
+  "allied_industries.country_id": {
+   "a": "countries",
+   "via": "inferida",
+   "rol": ""
+  },
+  "allied_types.country_id": {
+   "a": "countries",
+   "via": "inferida",
+   "rol": ""
+  },
+  "allieds.country_id": {
+   "a": "countries",
+   "via": "inferida",
+   "rol": ""
+  },
+  "corporate_users.country_id": {
+   "a": "countries",
+   "via": "inferida",
+   "rol": ""
+  },
+  "country_zones.country_id": {
+   "a": "countries",
+   "via": "inferida",
+   "rol": ""
+  },
+  "credit_lines.country_id": {
+   "a": "countries",
+   "via": "inferida",
+   "rol": ""
+  },
+  "lenders.country_id": {
+   "a": "countries",
+   "via": "inferida",
+   "rol": ""
+  },
+  "settings.country_id": {
+   "a": "countries",
+   "via": "inferida",
+   "rol": ""
+  },
+  "users.country_id": {
+   "a": "countries",
+   "via": "inferida",
+   "rol": ""
+  },
+  "VW_CtopX_Credits_Summary.allied_branch_city_id": {
+   "a": "country_cities",
+   "via": "inferida",
+   "rol": "Ciudad donde se ubica la sucursal del aliado comercial"
+  },
+  "VW_CtopX_Credits_Summary_Users_Filtered_Credits.allied_branch_city_id": {
+   "a": "country_cities",
+   "via": "inferida",
+   "rol": "Ciudad donde se ubica la sucursal del aliado comercial"
+  },
+  "VW_CtopX_Credits_Summary_by_Month.allied_branch_city_id": {
+   "a": "country_cities",
+   "via": "inferida",
+   "rol": "Ciudad donde se ubica la sucursal del aliado comercial"
+  },
+  "VW_CtopX_Insurances_Credits.allied_branch_city_id": {
+   "a": "country_cities",
+   "via": "inferida",
+   "rol": "Ciudad donde se ubica la sucursal del aliado comercial"
+  },
+  "VW_CtopX_Payments_Outer_Filtered_Report.allied_branch_city_id": {
+   "a": "country_cities",
+   "via": "inferida",
+   "rol": "Ciudad donde se ubica la sucursal del aliado comercial"
+  },
+  "VW_CtopX_Payments_Report.allied_branch_city_id": {
+   "a": "country_cities",
+   "via": "inferida",
+   "rol": "Ciudad donde se ubica la sucursal del aliado comercial"
+  },
+  "VW_Profiling_Predictions.disbursed_lender_id": {
+   "a": "lenders",
+   "via": "inferida",
+   "rol": "Prestamista/entidad financiera que desembolsó el crédito"
+  },
+  "VW_Profiling_Predictions_ML.disbursed_lender_id": {
+   "a": "lenders",
+   "via": "inferida",
+   "rol": "Prestamista/entidad financiera que desembolsó el crédito"
+  },
+  "VW_Profiling_Predictions_Only_New.disbursed_lender_id": {
+   "a": "lenders",
+   "via": "inferida",
+   "rol": "Prestamista/entidad financiera que desembolsó el crédito"
+  },
+  "VW_Profiling_Predictions_V2.disbursed_lender_id": {
+   "a": "lenders",
+   "via": "inferida",
+   "rol": "Prestamista/entidad financiera que desembolsó el crédito"
+  },
+  "VW_Profiling_Predictions.recommended_lender_id": {
+   "a": "lenders",
+   "via": "inferida",
+   "rol": "Prestamista/entidad financiera sugerida o recomendada por el modelo"
+  },
+  "VW_Profiling_Predictions_ML.recommended_lender_id": {
+   "a": "lenders",
+   "via": "inferida",
+   "rol": "Prestamista/entidad financiera sugerida o recomendada por el modelo"
+  },
+  "VW_Profiling_Predictions_Only_New.recommended_lender_id": {
+   "a": "lenders",
+   "via": "inferida",
+   "rol": "Prestamista/entidad financiera sugerida o recomendada por el modelo"
+  },
+  "VW_Profiling_Predictions_V2.recommended_lender_id": {
+   "a": "lenders",
+   "via": "inferida",
+   "rol": "Prestamista/entidad financiera sugerida o recomendada por el modelo"
+  },
+  "TEMP_EXPERIAN_MOVEMENTS.creditop_x_requests_status_id": {
+   "a": "creditop_x_user_request_statuses",
+   "via": "inferida",
+   "rol": "Estado del proceso o solicitud de CreditOp X"
+  },
+  "creditop_x_requests_history.creditop_x_requests_status_id": {
+   "a": "creditop_x_user_request_statuses",
+   "via": "inferida",
+   "rol": "Estado del proceso o solicitud de CreditOp X"
+  },
+  "creditop_x_revolving_credits.creditop_x_requests_status_id": {
+   "a": "creditop_x_user_request_statuses",
+   "via": "inferida",
+   "rol": "Estado del proceso o solicitud de CreditOp X"
+  },
+  "TEMP_EXPERIAN_MOVEMENTS.revolving_credit_id": {
+   "a": "creditop_x_revolving_credits",
+   "via": "inferida",
+   "rol": "Crédito rotativo al que pertenece el movimiento o log"
+  },
+  "creditop_x_requests_history.revolving_credit_id": {
+   "a": "creditop_x_revolving_credits",
+   "via": "inferida",
+   "rol": "Crédito rotativo al que pertenece el movimiento o log"
+  },
+  "revolving_credit_incentive_logs.revolving_credit_id": {
+   "a": "creditop_x_revolving_credits",
+   "via": "inferida",
+   "rol": "Crédito rotativo al que pertenece el movimiento o log"
+  },
+  "lender_users_category_rules.lender_users_category_id": {
+   "a": "lender_users_categories",
+   "via": "inferida",
+   "rol": ""
+  },
+  "products_by_lender_users_categories.lender_users_category_id": {
+   "a": "lender_users_categories",
+   "via": "inferida",
+   "rol": ""
+  },
+  "users_category_log.lender_users_category_id": {
+   "a": "lender_users_categories",
+   "via": "inferida",
+   "rol": ""
+  },
+  "oauth_access_tokens.client_id": {
+   "a": "oauth_clients",
+   "via": "inferida",
+   "rol": "Cliente OAuth autenticado"
+  },
+  "oauth_auth_codes.client_id": {
+   "a": "oauth_clients",
+   "via": "inferida",
+   "rol": "Cliente OAuth autenticado"
+  },
+  "oauth_personal_access_clients.client_id": {
+   "a": "oauth_clients",
+   "via": "inferida",
+   "rol": "Cliente OAuth autenticado"
+  },
+  "reminder_dispatch_log.reminder_message_id": {
+   "a": "creditop_x_reminder_messages",
+   "via": "inferida",
+   "rol": "Mensaje de recordatorio asociado al envío o log"
+  },
+  "reminder_email_log.reminder_message_id": {
+   "a": "creditop_x_reminder_messages",
+   "via": "inferida",
+   "rol": "Mensaje de recordatorio asociado al envío o log"
+  },
+  "sending_methods_by_reminder_messages.reminder_message_id": {
+   "a": "creditop_x_reminder_messages",
+   "via": "inferida",
+   "rol": "Mensaje de recordatorio asociado al envío o log"
+  },
+  "TEMP_EXPERIAN_REPORT.rh_id": {
+   "a": "creditop_x_requests_history",
+   "via": "inferida",
+   "rol": "Registro en el historial de solicitudes de CreditOp X",
+   "⚠": "no se sostiene en los datos: hay huérfanos reales"
+  },
+  "VW_CtopX_Credits_Summary_by_Month.rh_id": {
+   "a": "creditop_x_requests_history",
+   "via": "inferida",
+   "rol": "Registro en el historial de solicitudes de CreditOp X",
+   "⚠": "no se sostiene en los datos: hay huérfanos reales"
+  },
+  "allied_branches.country_city_id": {
+   "a": "country_cities",
+   "via": "inferida",
+   "rol": "Ciudad geográfica asociada"
+  },
+  "cities_by_lender.country_city_id": {
+   "a": "country_cities",
+   "via": "inferida",
+   "rol": "Ciudad geográfica asociada"
+  },
+  "creditop_x_payment_register.payment_type_id": {
+   "a": "creditop_x_payment_types",
+   "via": "inferida",
+   "rol": "Tipo de pago registrado"
+  },
+  "creditop_x_payments.payment_type_id": {
+   "a": "creditop_x_payment_types",
+   "via": "inferida",
+   "rol": "Tipo de pago registrado"
+  },
+  "creditop_x_reminder_messages.attachment_id": {
+   "a": "creditop_x_attachments",
+   "via": "inferida",
+   "rol": "Archivo adjunto del recordatorio",
+   "⚠": "no se sostiene en los datos: hay huérfanos reales"
+  },
+  "reminder_dispatch_log.attachment_id": {
+   "a": "creditop_x_attachments",
+   "via": "inferida",
+   "rol": "Archivo adjunto del recordatorio",
+   "⚠": "no se sostiene en los datos: hay huérfanos reales"
+  },
+  "model_has_permissions.model_id": {
+   "a": "users",
+   "via": "inferida",
+   "rol": "Usuario titular del rol o permiso",
+   "⚠": "no se sostiene en los datos: hay huérfanos reales"
+  },
+  "model_has_roles.model_id": {
+   "a": "users",
+   "via": "inferida",
+   "rol": "Usuario titular del rol o permiso",
+   "⚠": "no se sostiene en los datos: hay huérfanos reales"
+  },
+  "VW_Risk_Central_User_Request_Resume.matched_user_request_id": {
+   "a": "user_requests",
+   "via": "inferida",
+   "rol": "Solicitud de usuario con la que se generó coincidencia en centrales"
+  },
+  "VW_Risk_Central_User_Request_Resume.rcud_id": {
+   "a": "risk_central_user_data",
+   "via": "inferida",
+   "rol": "Registro de datos del usuario retornado por la central de riesgo"
+  },
+  "allied_ecommerce_credentials.ecommerce_type_id": {
+   "a": "ecommerces",
+   "via": "inferida",
+   "rol": "Tipo o plataforma de comercio electrónico"
+  },
+  "allieds.allied_caterogy_id": {
+   "a": "allied_categories",
+   "via": "inferida",
+   "rol": "Categoría asignada al aliado comercial"
+  },
+  "allieds.allied_industry_id": {
+   "a": "allied_industries",
+   "via": "inferida",
+   "rol": "Industria o sector económico del aliado"
+  },
+  "country_municipalities.zone_id": {
+   "a": "country_zones",
+   "via": "inferida",
+   "rol": "Zona o región geográfica del municipio"
+  },
+  "creditop_x_log.creditop_x_request_history_id": {
+   "a": "creditop_x_requests_history",
+   "via": "inferida",
+   "rol": "Historial de solicitud de CreditOp X",
+   "⚠": "no se sostiene en los datos: hay huérfanos reales"
+  },
+  "creditop_x_payment_register.status_id": {
+   "a": "creditop_x_payment_statuses",
+   "via": "inferida",
+   "rol": "Estado del registro de pago"
+  },
+  "creditop_x_payments.payment_register_id": {
+   "a": "creditop_x_payment_register",
+   "via": "inferida",
+   "rol": "Registro de pago consolidado/cabecera",
+   "⚠": "no se sostiene en los datos: hay huérfanos reales"
+  },
+  "creditop_x_payments.request_history_id": {
+   "a": "creditop_x_requests_history",
+   "via": "inferida",
+   "rol": "Historial de la solicitud a la que se imputa el pago",
+   "⚠": "no se sostiene en los datos: hay huérfanos reales"
+  },
+  "ecommerce_requests.original_user_request_id": {
+   "a": "user_requests",
+   "via": "inferida",
+   "rol": "Solicitud original de originación de crédito"
+  },
+  "fields.field_category_id": {
+   "a": "field_categories",
+   "via": "inferida",
+   "rol": "Categoría del campo dinámico"
+  },
+  "fields.parent_id": {
+   "a": "fields",
+   "via": "inferida",
+   "rol": "Campo padre del cual depende este campo"
+  },
+  "fields.related_field_id": {
+   "a": "fields",
+   "via": "inferida",
+   "rol": "Campo relacionado condicionalmente"
+  },
+  "lender_user_category_scoring_policy_rules.lender_user_category_id": {
+   "a": "lender_users_categories",
+   "via": "inferida",
+   "rol": "Categoría de usuario del prestamista evaluada en la regla"
+  },
+  "lenders.cutoff_type_id": {
+   "a": "creditop_x_cutoff_types",
+   "via": "inferida",
+   "rol": "Tipo de corte o ciclo de facturación del prestamista",
+   "⚠": "no se sostiene en los datos: hay huérfanos reales"
+  },
+  "oauth_refresh_tokens.access_token_id": {
+   "a": "oauth_access_tokens",
+   "via": "inferida",
+   "rol": "Token de acceso al que está asociado el token de actualización"
+  },
+  "payment_gateway_transactions.principal_payment_type_id": {
+   "a": "creditop_x_principal_payment_types",
+   "via": "inferida",
+   "rol": "Tipo de pago principal de la transacción"
+  },
+  "personal_access_tokens.tokenable_id": {
+   "a": "users",
+   "via": "inferida",
+   "rol": "Usuario titular del token de acceso de API",
+   "⚠": "no se sostiene en los datos: hay huérfanos reales"
+  },
+  "products.product_category_id": {
+   "a": "product_categories",
+   "via": "inferida",
+   "rol": "Categoría a la que pertenece el producto"
+  },
+  "users.new_id": {
+   "a": "users",
+   "via": "inferida",
+   "rol": "Nuevo identificador del usuario consolidado/migrado",
+   "⚠": "no se sostiene en los datos: hay huérfanos reales"
+  },
+  "woocommerce_statuses.creditop_status_id": {
+   "a": "user_request_statuses",
+   "via": "inferida",
+   "rol": "Estado interno de solicitud homologado al estado de WooCommerce"
+  }
+ }
+}
