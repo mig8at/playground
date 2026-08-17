@@ -170,6 +170,46 @@ def construir(aliases=None, verboso=True):
     return nuevo
 
 
+def sin_rastro(solo_logica=True):
+    """EL CRUCE que ningún mapa contesta solo: qué archivos el NEGOCIO documenta y NO dejan rastro
+    en producción — o sea, código que importa y es invisible en Loki.
+
+    Sale de juntar tres mapas por la ruta: `context/` dice qué archivos describe un nodo (`nodos`),
+    `logs.json` dice cuáles emiten mensajes (`loguea`), y este diccionario dice de qué tipo es cada
+    uno. Ninguno de los tres lo sabe por su cuenta.
+
+    ⚠ `solo_logica` filtra a services y controllers de backend, y NO es cosmético: sin él el 88% del
+    árbol sale «ciego» y el número no significa nada, porque encabezan archivos de rutas, config y
+    front — que no loguean POR DISEÑO. Un `routes/api.php` sin logs no es un problema. Un
+    `CreditopXFlowService` sin logs, sí.
+
+    Para qué sirve: decide si una pregunta de soporte se va a poder contestar ANTES de prometerlo.
+    Si el archivo que te importa está en esta lista, no hay traza que buscar — hay que instrumentar
+    primero.
+    """
+    d = cargar()
+
+    def es_logica(k, v):
+        t = set(v.get("tipo") or [])
+        return bool(t & {"service", "controller"}) and k.split("/")[0] in ("legacy-backend", "application") \
+            and "test" not in k.lower()
+
+    doc = {k: v for k, v in d.items()
+           if v.get("nodos") and (not solo_logica or es_logica(k, v))}
+    ciegos = {k: v for k, v in doc.items() if not v.get("loguea")}
+    orden = sorted(ciegos.items(), key=lambda kv: -len(kv[1].get("nodos", [])))
+    return {
+        "documentados": len(doc), "con_logs": len(doc) - len(ciegos), "sin_rastro": len(ciegos),
+        "solo_logica": solo_logica,
+        "archivos": [{"ruta": k, "nodos": v["nodos"], "tablas": v.get("tablas", []),
+                      "lenders": [x["nombre"] for x in v.get("lenders", [])]}
+                     for k, v in orden[:40]],
+        "nota": "ordenados por cuántos nodos de negocio los citan. Que no logueen no es un bug en sí: "
+                "es que NO SE PUEDEN TRAZAR en producción, y eso hay que saberlo antes de prometer "
+                "una investigación sobre ellos.",
+    }
+
+
 def cargar():
     return json.loads(DICC.read_text(encoding="utf-8")) if DICC.exists() else {}
 

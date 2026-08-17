@@ -88,6 +88,32 @@ Después `--tag lender:160` responde en 0,2 s. ⚠ **La llave es el sha del CONT
 un archivo cambiado tiene otra llave, así que el caché no puede devolver algo viejo — se autoinvalida.
 `./cli.py tags` sin argumentos es el censo del código por concepto de negocio.
 
+## Los mapas se cruzan — y ahí aparece lo que ninguno sabe solo
+
+Todos comparten la misma llave, la **ruta**, así que se juntan sin ceremonia:
+
+    context/ (map.json)  →  qué archivos describe cada nodo de negocio   → campo `nodos`
+    logs.json            →  qué archivos emiten mensajes                 → campo `loguea`
+    el extractor         →  de qué tipo es cada archivo                  → campo `tipo`
+
+Cruzarlos contesta algo que ninguno contesta por su cuenta:
+
+```bash
+./cli.py sin-rastro     # qué código que el negocio documenta es INVISIBLE en producción
+```
+
+Medido: de **390** services y controllers que un nodo describe, **269 no emiten una sola línea de
+log** — no se pueden trazar. Encabezan `CreditopXFlowService`, `SimulatorController` y los dos
+controladores del listado de entidades.
+
+⚠ El filtro a services y controllers **no es cosmético**: sin él sale que el 88% del árbol es ciego,
+y ese número no significa nada — encabezan archivos de rutas, config y front, que **no loguean por
+diseño**. Un `routes/api.php` sin logs no es un problema; un `CreditopXFlowService` sin logs, sí.
+
+Para qué sirve, en una frase: **decide si una pregunta de soporte se va a poder contestar antes de
+prometerlo.** Si el archivo que importa está en esa lista, no hay traza que buscar — hay que
+instrumentar primero.
+
 ## Mantenimiento
 
 `./cli.py check` valida que las rutas escritas a mano sigan existiendo en `main`; sale 1 si alguna

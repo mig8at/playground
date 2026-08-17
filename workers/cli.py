@@ -150,6 +150,11 @@ def main():
     s.add_argument("mensaje", nargs="*", help="el mensaje, o la línea cruda")
     s.add_argument("--construir", action="store_true", help="rearma el mapa leyendo los repos")
 
+    s = con_json(sub.add_parser(
+        "sin-rastro", help="qué código que el negocio documenta es INVISIBLE en producción"))
+    s.add_argument("--todo", action="store_true",
+                   help="no filtrar a services/controllers (incluye rutas y config, que no loguean por diseño)")
+
     sub.add_parser("check", help="¿las rutas escritas a mano siguen vivas en main?")
     sub.add_parser("pesos", help="refresca los tamaños guardados en repos.json")
 
@@ -246,6 +251,21 @@ def main():
         if r.get("ambiguo"):
             print("  ⚠ aparece en muchos archivos: no identifica uno solo")
         print()
+        return 0
+
+    if a.cmd == "sin-rastro":
+        import archivos as _arch
+        r = _arch.sin_rastro(solo_logica=not a.todo)
+        if j:
+            print(json.dumps(r, ensure_ascii=False, indent=2)); return 0
+        print(f"\n  {r['documentados']} archivos que un nodo de context describe"
+              f"{' (services y controllers de backend)' if r['solo_logica'] else ''}")
+        print(f"    con logs   {r['con_logs']}")
+        print(f"    SIN RASTRO {r['sin_rastro']}  ← no se pueden trazar en producción\n")
+        for x in r["archivos"][:15]:
+            extra = f"  [{', '.join(x['lenders'])}]" if x["lenders"] else ""
+            print(f"    {len(x['nodos'])} nodos  {x['ruta'].split('/', 1)[1][:64]}{extra}")
+        print(f"\n  {r['nota']}\n")
         return 0
 
     if a.cmd == "check":
