@@ -79,3 +79,54 @@ def trazable(c):
              if c["tabla"] in [t for t in (v.get("tablas") or [])]]
     con = [k for k in tocan if d[k].get("loguea")]
     return {"archivos": len(tocan), "con_logs": len(con)}
+
+
+def _etiquetar(msg, acc, conc):
+    b = msg.lower()
+    a = [x["n"] for x in acc if any(p in b for p in x["patrones"])]
+    c = [x["n"] for x in conc if any(w in b for w in x["_ws"])]
+    fallo = "FALLÓ" in a
+    a = [x for x in a if x != "FALLÓ"]
+    return (a[0] if a else None), (c[0] if c else None), fallo
+
+
+def resumir(mensajes):
+    """De N líneas de log a QUÉ HIZO EL SISTEMA, agrupado por acción y en orden.
+
+    Es la capa que faltaba entre las 7 etapas del trazador (muy grueso) y la secuencia cruda de
+    decenas de pasos (muy fino): el vocabulario de ACCIONES —validar credenciales, consultar buró,
+    generar documentos— que dice qué pasó sin obligar a leer cada línea.
+
+    ⚠ Los patrones salieron del CORPUS, no de la imaginación: se miró qué palabras usan los 1.576
+    mensajes reales. Y «FALLÓ» va aparte porque no es una acción sino un DESENLACE — puede acompañar
+    a cualquiera, y contarlo como una más escondería cuál falló.
+    """
+    d = cargar()
+    acc = d["acciones"]
+    conc = []
+    for c in d["conceptos"]:
+        ws = {c["n"], c["codigo"]} | set(c.get("es", []))
+        if c.get("tabla"):
+            ws.add(c["tabla"])
+        conc.append(dict(c, _ws={w.lower() for w in ws if len(w) > 3}))
+
+    orden, grupos, sin = [], {}, 0
+    for m in mensajes:
+        a, c, fallo = _etiquetar(m, acc, conc)
+        # ⚠ Una línea con concepto pero SIN acción no es un paso: es contexto. Mezclarla con las
+        # acciones llena el árbol de renglones como «(sobre cliente) 11×», que no dicen qué pasó y
+        # empujan hacia abajo lo que sí. Van a un bucket aparte, contadas.
+        if not a:
+            sin += 1
+            continue
+        k = a
+        if k not in grupos:
+            grupos[k] = {"accion": k, "lineas": 0, "fallos": 0, "conceptos": set(), "ejemplo": m[:100]}
+            orden.append(k)
+        g = grupos[k]
+        g["lineas"] += 1
+        g["fallos"] += bool(fallo)
+        if c:
+            g["conceptos"].add(c)
+    return {"pasos": [dict(grupos[k], conceptos=sorted(grupos[k]["conceptos"])) for k in orden],
+            "lineas": len(mensajes), "sin_clasificar": sin}

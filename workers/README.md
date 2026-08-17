@@ -56,6 +56,32 @@ los otros mapas. Por eso es corto y **no puede quedar viejo: lo que envejece no 
 ⚠ Y **no reemplaza a `context/`**: una línea por concepto, la que ubica. El detalle y las trampas
 viven en el nodo.
 
+## Y el otro eje: las ACCIONES
+
+Los conceptos son **sustantivos** y no alcanzan: «validar credenciales» y «enviar código» no son
+cosas, son **actos**. Por eso hay un segundo vocabulario:
+
+```bash
+./cli.py negocio --acciones          # las 12 acciones
+./cli.py negocio --traza <trace_id>  # qué hizo el sistema en una corrida
+```
+
+    QUÉ HIZO EL SISTEMA · 69 líneas → 6 acciones
+
+       16×  consultar buró          [central de riesgo, cliente, comercio]
+        2×  validar identidad       [cliente]
+        2×  armar el listado        [comercio, entidad]  ⚠ 1 fallo(s)
+        2×  validar credenciales    [sucursal]
+
+Es **la capa que faltaba**: el trazador agrupa en 7 etapas (muy grueso) y la secuencia cruda son
+decenas de pasos (muy fino). Esto dice qué pasó sin obligar a leer cada línea, y marca **dónde falló**.
+
+⚠ Los patrones salieron del CORPUS, no de la imaginación: se miró qué palabras usan los 1.576
+mensajes reales. Cobertura medida: **69%**.
+
+⚠ Y `FALLÓ` va **aparte**, porque no es una acción sino un **desenlace**: puede acompañar a cualquiera,
+y contarlo como una más escondería cuál falló.
+
 ---
 
 # El índice

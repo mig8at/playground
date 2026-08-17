@@ -17,7 +17,8 @@
     "tabla": "dónde vive el dato, si vive en una",
     "nodo": "qué nodo de context/ lo explica en serio",
     "es": "sinónimos que se oyen en reuniones y en tickets",
-    "fase": "el tramo del recorrido — agrupa, y es lo que hace legible el nivel general"
+    "fase": "el tramo del recorrido — agrupa, y es lo que hace legible el nivel general",
+    "acciones": "el SEGUNDO EJE: qué HACE el sistema, no de qué habla. Los conceptos son sustantivos y no alcanzan —«validar credenciales» y «enviar OTP» no son cosas, son actos—. Los patrones salieron de mirar qué palabras usan los 1.576 mensajes que el corpus ya tiene, no de imaginarlas."
   },
   "conceptos": [
     {
@@ -306,6 +307,163 @@
       "nodo": "servicing",
       "que_es": "Lo que pasa DESPUÉS del estado 11. Vive en otro sistema: no se cuenta con las columnas de la solicitud.",
       "fase": "después del 11"
+    }
+  ],
+  "acciones": [
+    {
+      "n": "validar credenciales",
+      "patrones": [
+        "credential",
+        "credencial",
+        "findforuserrequest"
+      ],
+      "que_es": "Resolver y verificar las credenciales del par (entidad, comercio) antes de llamar afuera."
+    },
+    {
+      "n": "consultar buró",
+      "patrones": [
+        "experian",
+        "datacredito",
+        "datacrédito",
+        "tusdatos",
+        "agildata",
+        "mareigua",
+        "acierta",
+        "quanto",
+        "risk central",
+        "riskcentral",
+        "score"
+      ],
+      "que_es": "Preguntarle a una central de riesgo por el historial o el score del cliente."
+    },
+    {
+      "n": "validar identidad",
+      "patrones": [
+        "identity",
+        "identidad",
+        "jumio",
+        "evidente",
+        "crosscore",
+        "expedition",
+        "document_number",
+        "kyc"
+      ],
+      "que_es": "Comprobar que la persona es quien dice — cédula, fecha de expedición, biometría."
+    },
+    {
+      "n": "evaluar reglas",
+      "patrones": [
+        "rule",
+        "regla",
+        "category_evaluation",
+        "categor",
+        "profiling",
+        "perfilamiento",
+        "scoring"
+      ],
+      "que_es": "Correr el motor de decisión local: reglas duras, categoría y su economía."
+    },
+    {
+      "n": "calcular cupo",
+      "patrones": [
+        "quota",
+        "available_amount",
+        "cupo",
+        "payment_capacity",
+        "capacidad",
+        "amount_condition"
+      ],
+      "que_es": "Resolver cuánto se le presta, con sus topes."
+    },
+    {
+      "n": "armar el listado",
+      "patrones": [
+        "listado",
+        "lenders",
+        "marketplace",
+        "format_lenders",
+        "displayed",
+        "recommend"
+      ],
+      "que_es": "Decidir qué entidades ve el cliente y en qué orden."
+    },
+    {
+      "n": "enviar código",
+      "patrones": [
+        "otp",
+        "sms",
+        "twilio",
+        "messaging",
+        "código",
+        "codigo"
+      ],
+      "que_es": "Mandar y validar el segundo factor."
+    },
+    {
+      "n": "generar documentos",
+      "patrones": [
+        "document",
+        "pdf",
+        "pagar",
+        "promissory",
+        "netco",
+        "deceval",
+        "signature",
+        "firma",
+        "sign"
+      ],
+      "que_es": "Producir y firmar el pagaré y los documentos de legalización."
+    },
+    {
+      "n": "cobrar / pagar",
+      "patrones": [
+        "payment",
+        "pago",
+        "wompi",
+        "payvalida",
+        "disbursement",
+        "desembolso"
+      ],
+      "que_es": "Cuota inicial, desembolso y todo lo que mueve plata."
+    },
+    {
+      "n": "notificar",
+      "patrones": [
+        "notification",
+        "notificar",
+        "webhook",
+        "notify",
+        "email",
+        "correo"
+      ],
+      "que_es": "Avisarle al comercio, al cliente o a un tercero."
+    },
+    {
+      "n": "bloquear dispositivo",
+      "patrones": [
+        "device_lock",
+        "device lock",
+        "mdm",
+        "trustonic",
+        "imei",
+        "unlock"
+      ],
+      "que_es": "SmartPay: bloquear o liberar el celular según el estado del crédito."
+    },
+    {
+      "n": "FALLÓ",
+      "patrones": [
+        "failed",
+        "error",
+        "exception",
+        "unexpected",
+        "timeout",
+        "rejected",
+        "invalid",
+        "conflict",
+        "missing"
+      ],
+      "que_es": "⚠ No es una acción sino un DESENLACE, y por eso va al final: puede acompañar a cualquiera de las de arriba."
     }
   ]
 }

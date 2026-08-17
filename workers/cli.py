@@ -174,6 +174,9 @@ def main():
     s.add_argument("concepto", nargs="?", help="uno solo (acepta sinónimos: «buró», «tier», «ureq»)")
     s.add_argument("--zoom", type=int, default=2, choices=[1, 2, 3],
                    help="1 = el recorrido en una pantalla · 2 = normal · 3 = todo lo derivado")
+    s.add_argument("--acciones", action="store_true",
+                   help="el vocabulario de ACCIONES: qué HACE el sistema, no de qué habla")
+    s.add_argument("--traza", help="qué hizo el sistema en esta traza, agrupado por acción")
 
     sub.add_parser("check", help="¿las rutas escritas a mano siguen vivas en main?")
     sub.add_parser("pesos", help="refresca los tamaños guardados en repos.json")
@@ -275,6 +278,34 @@ def main():
 
     if a.cmd == "negocio":
         import negocio as _neg
+        if a.acciones:
+            d = _neg.cargar()
+            print("\n  LAS ACCIONES · qué HACE el sistema (el otro eje: los conceptos son sustantivos)\n")
+            for x in d["acciones"]:
+                print(f"    {x['n']:24} {x['que_es'][:78]}")
+            print("\n  `--traza <trace_id>` para ver cuáles ocurrieron en una corrida.\n")
+            return 0
+        if a.traza:
+            import datos as _d, json as _j, re as _re
+            _d.TARGET = "prod"
+            sel = '{service_name="legacy-backend"} | trace_id="' + a.traza + '"'
+            crudas = _d._lineas_crudas(sel, "24h", 600)
+            msgs = []
+            for _, _, cc in (list(reversed(crudas)) if isinstance(crudas, list) else []):
+                try: msgs.append(_j.loads(cc).get("message", ""))
+                except Exception:
+                    g = _re.search(r'"message"\s*:\s*"((?:[^"\\]|\\.)*)"', cc)
+                    if g: msgs.append(g.group(1))
+            r = _neg.resumir([m for m in msgs if m])
+            if j:
+                print(json.dumps(r, ensure_ascii=False, indent=2)); return 0
+            print(f"\n  QUÉ HIZO EL SISTEMA · {r['lineas']} líneas → {len(r['pasos'])} acciones\n")
+            for x in r["pasos"]:
+                f = f"  ⚠ {x['fallos']} fallo(s)" if x["fallos"] else ""
+                c = f"  [{', '.join(x['conceptos'][:3])}]" if x["conceptos"] else ""
+                print(f"    {x['lineas']:3}×  {x['accion']:24}{c}{f}")
+            print(f"\n  ({r['sin_clasificar']} líneas sin acción reconocida — contexto, no pasos)\n")
+            return 0
         cs = _neg.ver(a.concepto)
         if j:
             print(json.dumps(cs, ensure_ascii=False, indent=2)); return 0
