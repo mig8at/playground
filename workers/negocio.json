@@ -19,7 +19,8 @@
     "es": "sinónimos que se oyen en reuniones y en tickets",
     "fase": "el tramo del recorrido — agrupa, y es lo que hace legible el nivel general",
     "acciones": "el SEGUNDO EJE: qué HACE el sistema, no de qué habla. Los conceptos son sustantivos y no alcanzan —«validar credenciales» y «enviar OTP» no son cosas, son actos—. Los patrones salieron de mirar qué palabras usan los 1.576 mensajes que el corpus ya tiene, no de imaginarlas.",
-    "jerarquia": "EL TERCER NIVEL: 10 pasos mayores × 4-6 sub-pasos. Lo propuso un agente leyendo el CORPUS ENTERO de 1.576 mensajes —no la documentación, los mensajes que el sistema de verdad emite— y se verificó que las 46 `senal` existen literalmente en él: 46 de 46. Cubre el 39% de los mensajes contra el 69% de las 12 acciones, y eso NO es peor: un sub-paso es más específico, acierta menos veces y dice mucho más. Son dos lentes."
+    "jerarquia": "EL TERCER NIVEL: 10 pasos mayores × 4-6 sub-pasos. Lo propuso un agente leyendo el CORPUS ENTERO de 1.576 mensajes —no la documentación, los mensajes que el sistema de verdad emite— y se verificó que las 46 `senal` existen literalmente en él: 46 de 46. Cubre el 39% de los mensajes contra el 69% de las 12 acciones, y eso NO es peor: un sub-paso es más específico, acierta menos veces y dice mucho más. Son dos lentes.",
+    "arbol": "EL ÁRBOL: 10 keys × 39 subkeys. Dos pasadas de un agente — la primera leyendo el corpus del código, la segunda agregándole LOGS REALES de producción (frecuencia + 8 recorridos en orden). Cada subkey trae `senal` (verificadas 39/39 contra el código) y `visto_en_prod`, que NO se le creyó al modelo: se midió, y de 39 declaraciones 3 estaban mal —las tres afirmando que algo ocurre sin evidencia—. 21 subkeys ocurren de verdad; 18 sólo existen en el código."
   },
   "conceptos": [
     {
@@ -467,296 +468,508 @@
       "que_es": "⚠ No es una acción sino un DESENLACE, y por eso va al final: puede acompañar a cualquiera de las de arriba."
     }
   ],
-  "jerarquia": [
-    {
-      "sub": [
-        {
-          "n": "Identificar comercio y sucursal",
-          "falla_tipica": "Allied branch not found for the given id",
-          "senal": "allied branch, findByHash, partner branch"
-        },
-        {
-          "n": "Registrar celular del cliente",
-          "senal": "RegisterCellPhoneService, processCellPhoneRegistration, cleanPhoneNumber",
-          "falla_tipica": "CellPhone/document conflict detected"
-        },
-        {
-          "falla_tipica": "phone belongs to a commercial advisor",
-          "senal": "commercial advisor, advisor check, phone belongs to a commercial advisor",
-          "n": "Validar teléfono de asesor comercial"
-        },
-        {
-          "n": "Controlar límite de intentos",
-          "senal": "checkRateLimitPerHour, rate limit, per-hour rate limit",
-          "falla_tipica": "Rate limit exceeded, returning ONB040"
-        },
-        {
-          "falla_tipica": "Backdoor terms payload validation failed",
-          "senal": "storeTermsAndConditions, terms_and_conditions, AcceptTermsAndConditions",
-          "n": "Aceptar términos y condiciones iniciales"
-        }
-      ],
-      "n": "Entrada al canal y registro",
-      "que_es": "Inicia la solicitud en el canal de venta, valida la sucursal y verifica que el cliente no tenga conflictos de registro."
+  "arbol": {
+    "entrada_y_registro": {
+      "_n": "Entrada al canal y registro",
+      "_que_es": "Inicia la solicitud, verifica conflictos del número telefónico y asocia los términos iniciales al usuario.",
+      "_cuando": "siempre",
+      "registro_celular": {
+        "n": "Registrar y validar celular",
+        "senal": [
+          "Starting RegisterCellPhoneController::store",
+          "RegisterCellPhoneService::processCellPhoneRegistration called with input parameters",
+          "Normalizing document_number and cleaning phone_number",
+          "RegisterCellPhoneController::store finished successfully (user branch)"
+        ],
+        "visto_en_prod": true,
+        "falla": "CellPhone/document conflict detected, returning conflict response"
+      },
+      "filtro_asesor_comercial": {
+        "n": "Validar teléfono de asesor comercial",
+        "senal": [
+          "Commercial advisor phone check completed",
+          "Allied is not associated with SmartPay lender, skipping advisor phone check",
+          "Standard user disabled (phone matched a commercial advisor of the allied)"
+        ],
+        "visto_en_prod": false,
+        "falla": "Backdoor update user phone rejected: phone belongs to a commercial advisor"
+      },
+      "control_tasa_intentos": {
+        "n": "Controlar límite de intentos por hora",
+        "senal": [
+          "Evaluating per-hour rate limit",
+          "OnboardingService::checkRateLimitPerHour: entered",
+          "Rate limit OK, continuing",
+          "Rate limit check result"
+        ],
+        "visto_en_prod": true,
+        "falla": "Rate limit exceeded, returning ONB040"
+      },
+      "aceptacion_terminos_iniciales": {
+        "n": "Aceptar términos y condiciones legales",
+        "senal": [
+          "Role assigned, calling storeTermsAndConditions for new user",
+          "Resolving legal context via resolveLegalContext",
+          "Legal context resolved",
+          "storeTermsAndConditions finished, calling otpController->sendOtpCode (no internal TyC persistence)"
+        ],
+        "visto_en_prod": true,
+        "falla": "Backdoor terms payload validation failed"
+      }
     },
-    {
-      "n": "Autenticación por OTP",
-      "sub": [
-        {
-          "falla_tipica": "OTP Redis never delivered the generated code",
-          "n": "Generar código OTP",
-          "senal": "otp-service, generateOtp, createOtpRecord"
-        },
-        {
-          "n": "Enviar código por SMS",
-          "falla_tipica": "Failed to send OTP",
-          "senal": "sendOtpCode, messaging service, Send OTP"
-        },
-        {
-          "n": "Reenviar código OTP",
-          "falla_tipica": "Resend OTP failed",
-          "senal": "resendOtpCode, Resend OTP"
-        },
-        {
-          "senal": "validateOtpCode, verifyOtpCode, OTP validated",
-          "n": "Validar código ingresado",
-          "falla_tipica": "provider rejected the code"
-        },
-        {
-          "n": "Crear solicitud de crédito",
-          "falla_tipica": "createUserRequest returned empty, returning ONB030",
-          "senal": "createUserRequest, attachMotaiRentingMode, user_requests"
-        }
-      ],
-      "que_es": "Genera, despacha y valida el código de segundo factor para verificar al cliente y formalizar la creación de la solicitud."
+    "autenticacion_otp": {
+      "_n": "Autenticación y validación OTP",
+      "_que_es": "Genera el código de segundo factor por SMS, lo valida y formaliza la creación de la solicitud de crédito.",
+      "_cuando": "siempre",
+      "generar_y_despachar_otp": {
+        "n": "Generar y despachar código OTP",
+        "senal": [
+          "OtpService::sendOtpCode: entered",
+          "OtpService::sendOtpCode: calling userService->getOrCreateUser",
+          "OtpService::sendOtpCode: calling otpServiceRepository->generateOtp",
+          "OtpService::sendOtpCode: reading OTP value from cache (or local-env shortcut)",
+          "OtpService::sendOtpCode: calling createOtpRecord and createLogs",
+          "OtpService::sendOtpCode: completed successfully"
+        ],
+        "visto_en_prod": true,
+        "falla": "OtpService::sendOtpCode: cache did not deliver the generated code, returning ONB014_OTP_GENERATION_FAILED"
+      },
+      "reenviar_codigo_otp": {
+        "n": "Reenviar código OTP al cliente",
+        "senal": [
+          "OtpController::resendOtpCode: entered",
+          "OtpController::resendOtpCode: delegating to otpService->sendOtpCode",
+          "OtpController::resendOtpCode: completed"
+        ],
+        "visto_en_prod": false,
+        "falla": "Resend OTP failed"
+      },
+      "validar_codigo_otp": {
+        "n": "Validar código OTP ingresado",
+        "senal": [
+          "OnboardingController::validateOtpCodeAndRedirect: entered",
+          "OtpService::validateOtpCode: calling verifyOtpCode",
+          "OtpService::validateOtpCode: OTP valid, calling markOtpAsValidated and updateUserValidation",
+          "OtpService::validateOtpCode: completed successfully (otp_id included)"
+        ],
+        "visto_en_prod": true,
+        "falla": "OnboardingController::validateOtpCodeAndRedirectOrchestrator: OTP validation failed, returning ONB001"
+      },
+      "crear_solicitud_credito": {
+        "n": "Crear solicitud de crédito en sistema",
+        "senal": [
+          "OnboardingController::validateOtpCodeAndRedirectOrchestrator: calling userRequestService->createUserRequest",
+          "OnboardingController::validateOtpCodeAndRedirectOrchestrator: calling attachMotaiRentingModeIfNeeded",
+          "OnboardingController::validateOtpCodeAndRedirectOrchestrator: calling onboardingService->validateCorbetaOnboarding"
+        ],
+        "visto_en_prod": true,
+        "falla": "OnboardingController::validateOtpCodeAndRedirectOrchestrator: createUserRequest returned empty, returning ONB030"
+      }
     },
-    {
-      "n": "Formulario y datos del cliente",
-      "sub": [
-        {
-          "n": "Obtener esquema de formulario dinámico",
-          "senal": "dynamic-forms, onboarding-forms-service, Dynamic forms",
-          "falla_tipica": "Error interno al obtener formulario dinámico"
-        },
-        {
-          "senal": "validateAndStorePersonalInfo, storePersonalInfo, user_field_values",
-          "n": "Registrar datos personales",
-          "falla_tipica": "document already exists, returning ONB005"
-        },
-        {
-          "falla_tipica": "user has no laboral information, returning ONB004",
-          "senal": "storeLaboralInformation, employment_situation, income_amount",
-          "n": "Registrar ocupación e ingresos"
-        },
-        {
-          "senal": "storeSocialStratum, Storing address, social_stratum",
-          "n": "Registrar estrato y dirección",
-          "falla_tipica": "Stratum required but missing/out-of-range"
-        },
-        {
-          "senal": "initGigEconomy, AbacoParserService, ABACO",
-          "n": "Capturar datos de economía gig",
-          "falla_tipica": "ABACO /platforms returned empty or failed"
-        }
-      ],
-      "que_es": "Captura y almacena la información sociodemográfica, laboral y de ingresos requerida para el estudio."
+    "validacion_identidad_kyc": {
+      "_n": "Validación de identidad y KYC",
+      "_que_es": "Valida la expedición del documento, realiza la cascada de verificación de identidad y enriquece el perfil sociodemográfico.",
+      "_cuando": "siempre",
+      "validar_fecha_expedicion": {
+        "n": "Validar fecha de expedición del documento",
+        "senal": [
+          "Validating expedition date",
+          "Carbon could not parse the expedition date, returning ONB005"
+        ],
+        "visto_en_prod": true,
+        "falla": "Invalid expedition date, returning ONB005"
+      },
+      "cascada_identidad_registraduria": {
+        "n": "Cascada de identidad en bases públicas",
+        "senal": [
+          "Validating identity with AgilData",
+          "AgilData inconclusive, will consult Mareigua",
+          "Validating identity with Mareigua",
+          "Mareigua inconclusive, will consult TusDatos",
+          "Validating identity with TusDatos",
+          "TusDatos OK, using returned identity data",
+          "AgilData OK, using returned identity data"
+        ],
+        "visto_en_prod": true,
+        "falla": "AgilData errors and no TusDatos retry, returning ONB005"
+      },
+      "inferencia_genero": {
+        "n": "Consultar género por servicio externo",
+        "senal": [
+          "OnboardingService::getGender: entered",
+          "OnboardingService::getGender: calling external genderapi.io for gender lookup",
+          "OnboardingService::getGender: resolved"
+        ],
+        "visto_en_prod": true,
+        "falla": "OnboardingService::getGender: unexpected exception, rethrowing"
+      },
+      "biometria_facial_ado": {
+        "n": "Validar biometría facial y OCR",
+        "senal": [
+          "Iniciando validación de identidad",
+          "Iniciando proceso de verificación con Ado",
+          "Resultado OCR frente",
+          "Resultado OCR dorso",
+          "Face comparison completed",
+          "Validación facial completada exitosamente"
+        ],
+        "visto_en_prod": false,
+        "falla": "Validación facial fallida - umbrales no alcanzados"
+      },
+      "consulta_antecedentes_aml": {
+        "n": "Consultar antecedentes en TusDatos AML",
+        "senal": [
+          "Solicitando consulta de antecedentes a TusDatos AML",
+          "Consulta de antecedentes TusDatos AML iniciada exitosamente",
+          "Verificando estado TusDatos AML",
+          "TusDatos AML finalizado exitosamente"
+        ],
+        "visto_en_prod": false,
+        "falla": "TusDatos AML timeout - máximo de intentos alcanzado"
+      }
     },
-    {
-      "que_es": "Valida la autenticidad del documento, la biometría facial del solicitante y la ausencia en listas de riesgo AML.",
-      "sub": [
-        {
-          "falla_tipica": "Nombres no coinciden durante validación con centrales de riesgo",
-          "n": "Verificar identidad en bases públicas",
-          "senal": "AgilData, Mareigua, TusDatos"
-        },
-        {
-          "senal": "Resultado OCR, validateDocumentConflict, detectTextImage",
-          "falla_tipica": "ado.enroll.document_mismatch",
-          "n": "Procesar documento y OCR"
-        },
-        {
-          "senal": "compareFaces, face comparison, AWS Rekognition",
-          "falla_tipica": "Validación facial fallida - umbrales no alcanzados",
-          "n": "Comparar biometría facial"
-        },
-        {
-          "falla_tipica": "Validación manual de identidad: el microservicio rechazó la operación",
-          "n": "Escalar a validación manual",
-          "senal": "validación manual, manual validation, Backoffice"
-        },
-        {
-          "falla_tipica": "TusDatos AML timeout - máximo de intentos alcanzado",
-          "senal": "TusDatos AML, tusdatos.aml, antecedentes",
-          "n": "Consultar antecedentes TusDatos AML"
-        }
-      ],
-      "n": "Validación de identidad y KYC"
+    "formulario_y_datos_laborales": {
+      "_n": "Formulario y datos laborales",
+      "_que_es": "Persiste la información sociodemográfica, laboral, nivel de ingresos y estrato social del solicitante.",
+      "_cuando": "siempre",
+      "almacenar_informacion_laboral": {
+        "n": "Almacenar información laboral e ingresos",
+        "senal": [
+          "Storing labor info (flow A)",
+          "OnboardingService::storeLaboralInformation: entered",
+          "OnboardingService::storeLaboralInformation: persisting field 29 (employment_situation)",
+          "OnboardingService::storeLaboralInformation: completed (4 fields persisted: 29, 87, 160, 161)"
+        ],
+        "visto_en_prod": true,
+        "falla": "OnboardingController::storeLaboralInfoOrchestrator: user has no laboral information, returning ONB004"
+      },
+      "almacenar_estrato_direccion": {
+        "n": "Registrar estrato socioeconómico y dirección",
+        "senal": [
+          "OnboardingService::storeSocialStratum: entered",
+          "OnboardingService::storeSocialStratum: partial update path, checking whether field 30 already exists",
+          "OnboardingService::storeSocialStratum: creating field 30 (social_stratum) via userFieldValueRepository->create",
+          "OnboardingService::storeSocialStratum: completed"
+        ],
+        "visto_en_prod": true,
+        "falla": "Stratum required but missing/out-of-range, returning ONB005"
+      },
+      "validar_completitud_formulario": {
+        "n": "Validar completitud del formulario",
+        "senal": [
+          "OnboardingService::isForm1Completed: entered",
+          "OnboardingService::isForm1Completed: querying UserFieldValue for required field",
+          "OnboardingService::isForm1Completed: all required fields present, returning true"
+        ],
+        "visto_en_prod": true,
+        "falla": "Error interno al obtener formulario dinámico desde onboarding-forms-service"
+      },
+      "integracion_gig_economy": {
+        "n": "Capturar ingresos por plataformas gig",
+        "senal": [
+          "Motai abaco validation API request received",
+          "Motai abaco validation API request completed",
+          "initGigEconomy",
+          "AbacoParserService::updateUserSummary failed"
+        ],
+        "visto_en_prod": true,
+        "falla": "ABACO /platforms returned empty or failed"
+      }
     },
-    {
-      "n": "Consulta a centrales de riesgo",
-      "que_es": "Evalúa reglas de disparo y consulta el historial crediticio, score y capacidad de endeudamiento en burós.",
-      "sub": [
-        {
-          "senal": "Experian frequency, trigger rules, userViability",
-          "falla_tipica": "User profile is not allowed for the Experian trigger evaluation",
-          "n": "Evaluar disparadores y frecuencia de buró"
-        },
-        {
-          "n": "Autenticar con central de riesgo",
-          "senal": "Experian::authorize, spla/oauth2, getCredentials",
-          "falla_tipica": "Error in Experian::authorize while obtaining OAuth2 token"
-        },
-        {
-          "n": "Consultar reporte crediticio y score",
-          "falla_tipica": "Experian::performRequest failed",
-          "senal": "Experian::creditScore, aciertaQuanto, quanto"
-        },
-        {
-          "n": "Extraer variables y capacidad estimada",
-          "senal": "Merging Acierta + Quanto, extractDatacredito, productCode 62",
-          "falla_tipica": "Experian quanto result not successful"
-        },
-        {
-          "senal": "updateUserSummary, UserSummary.datacredito, UserSummary.quanto",
-          "n": "Actualizar resumen de riesgo del usuario",
-          "falla_tipica": ""
-        }
-      ]
+    "consulta_centrales_riesgo": {
+      "_n": "Consulta a centrales de riesgo",
+      "_que_es": "Autentica y consulta el reporte de crédito Acierta/Quanto en Experian para estimar capacidad de endeudamiento.",
+      "_cuando": "siempre",
+      "evaluar_disparadores_buro": {
+        "n": "Evaluar reglas de disparo y frecuencia de buró",
+        "senal": [
+          "OnboardingService::alliedsLendersValidator: entered",
+          "OnboardingService::commerceHasCreditopX: querying LendersByAlliedBranch for lender ids",
+          "OnboardingService::alliedsLendersValidator: triggered (commerce has CreditopX)",
+          "OnboardingService::alliedsLendersValidator: triggered (allied in list)",
+          "DatacreditoQueryByAlliedController::userViability called with input parameters",
+          "Frequency configured for allied, evaluating trigger rules"
+        ],
+        "visto_en_prod": true,
+        "falla": "User profile is not allowed for the Experian trigger evaluation"
+      },
+      "autenticar_experian": {
+        "n": "Autenticar con API OAuth2 de Experian",
+        "senal": [
+          "Requesting credentials for Experian Acierta+Quanto",
+          "Experian::getCredentials called with input parameters",
+          "Fallback credential built from config",
+          "Requesting OAuth2 token before hdcplus",
+          "Experian::authorize called with input parameters",
+          "Issuing POST /spla/oauth2/v1/token",
+          "OAuth2 responded, continuing"
+        ],
+        "visto_en_prod": true,
+        "falla": "Error in Experian::authorize while obtaining OAuth2 token"
+      },
+      "consultar_reporte_experian": {
+        "n": "Consultar reporte crediticio Acierta y Quanto",
+        "senal": [
+          "Experian::aciertaQuanto called with input parameters",
+          "Experian::performRequest called with input parameters",
+          "Cache MISS, continuing",
+          "Token obtained, calling POST /cs/credit-history/v1/hdcplus",
+          "hdcplus responded, continuing",
+          "Persisting fetched report (data + request)",
+          "Experian::performRequest finished successfully",
+          "Acierta+Quanto query finished successfully"
+        ],
+        "visto_en_prod": true,
+        "falla": "Experian::performRequest failed"
+      },
+      "extraer_variables_capacidad": {
+        "n": "Extraer capacidad y actualizar resumen de riesgo",
+        "senal": [
+          "Computing additional_info from the aggregated payload",
+          "Projecting report through updateUserSummary",
+          "Product includes Acierta, updating UserSummary.datacredito",
+          "valueMonthlyPayment extracted from Experian payload",
+          "Writing UserFieldValue field 90 (egresos) from datacrédito valueMonthlyPayment",
+          "Product includes Quanto, processing productValueList",
+          "productValueList has entries at [0], filtering products with productCode 62",
+          "quantoMedioAverage valid, writing UserFieldValue field 87 (income) with the scaled value",
+          "UserSummary.quanto updated/created, continuing",
+          "extractDatacredito finished"
+        ],
+        "visto_en_prod": true,
+        "falla": "Experian quanto result not successful (no productcode 62 with value > 0)"
+      }
     },
-    {
-      "que_es": "Ejecuta el motor de reglas de admisión, asigna categoría, calcula el cupo y consulta entidades integradas por API.",
-      "sub": [
-        {
-          "falla_tipica": "Lender filtered: age out of range",
-          "senal": "CATEGORY_RULE_REJECTED, LenderRuleEvaluator, specialGranting",
-          "n": "Evaluar reglas de admisión duras"
-        },
-        {
-          "falla_tipica": "",
-          "n": "Asignar categoría de riesgo",
-          "senal": "CATEGORY_EVALUATION_START, CATEGORY_EVALUATION_APPROVED, lender_users_categories"
-        },
-        {
-          "falla_tipica": "QUOTA_CHECK_REJECTED",
-          "senal": "PAYMENT_CAPACITY_SCORING, QUOTA_CHECK_START, available_amount",
-          "n": "Calcular cupo disponible y capacidad de pago"
-        },
-        {
-          "n": "Consultar pre-aprobaciones externas",
-          "senal": "Bancolombia BNPL, Sistecrédito, Meddipay, Prami",
-          "falla_tipica": "Cliente no aprobado en Sistecrédito"
-        }
-      ],
-      "n": "Perfilamiento y evaluación crediticia"
+    "perfilamiento_y_evaluacion_crediticia": {
+      "_n": "Perfilamiento y evaluación crediticia",
+      "_que_es": "Ejecuta los motores de reglas de riesgo, pre-aprobaciones por entidad y cálculo del cupo disponible.",
+      "_cuando": "siempre",
+      "consultar_preaprobaciones_externas": {
+        "n": "Consultar pre-aprobaciones con entidades",
+        "senal": [
+          "OnboardingService::validatePreApproveLender: entered",
+          "Iniciando consulta con Meddipay",
+          "Autenticando con Meddipay",
+          "Creando orden en Meddipay",
+          "Orden creada exitosamente en Meddipay",
+          "Solicitando token OAuth a Bancolombia",
+          "Token OAuth obtenido exitosamente",
+          "Validando con Sistecrédito"
+        ],
+        "visto_en_prod": true,
+        "falla": "Exception in lenderServiceFactory->consult()"
+      },
+      "evaluar_reglas_entidades": {
+        "n": "Evaluar reglas de admisión duras por entidad",
+        "senal": [
+          "CATEGORY_EVALUATION_START",
+          "Evaluando reglas para entidad",
+          "Resultado de evaluación de reglas para entidad",
+          "CATEGORY_EVALUATION_APPROVED",
+          "CATEGORY_RULE_REJECTED",
+          "DatacreditoRuleEvaluator: rejected"
+        ],
+        "visto_en_prod": true,
+        "falla": "DatacreditoRuleEvaluator: rejected"
+      },
+      "calcular_cupo_y_capacidad": {
+        "n": "Calcular capacidad de pago y cupo de crédito",
+        "senal": [
+          "QUOTA_CHECK_START",
+          "QUOTA_CHECK_APPROVED",
+          "QUOTA_CHECK_REJECTED",
+          "PAYMENT_CAPACITY_SCORING_COMPLETED"
+        ],
+        "visto_en_prod": true,
+        "falla": "QUOTA_CHECK_REJECTED"
+      }
     },
-    {
-      "sub": [
-        {
-          "falla_tipica": "No se encontraron entidades disponibles",
-          "senal": "format_lenders, Entidades entregadas por list lender, displayed_lenders",
-          "n": "Armar listado de entidades disponibles"
-        },
-        {
-          "senal": "upsertUserRequestProduct, updateAmount, calculateAmounts",
-          "falla_tipica": "Error al hacer upsert del producto",
-          "n": "Seleccionar entidad y producto a financiar"
-        },
-        {
-          "n": "Configurar cuotas y fecha de pago",
-          "senal": "fee number, payment date, fee number options",
-          "falla_tipica": "Cannot change payment date"
-        },
-        {
-          "n": "Simular y confirmar plan de pagos",
-          "falla_tipica": "Error simulating payment schedule",
-          "senal": "simulating payment schedule, Simulation - Response, payment schedule"
-        }
-      ],
-      "que_es": "Presenta las opciones de financiación al cliente y le permite elegir la entidad, monto, cuotas y fechas de pago.",
-      "n": "Selección de oferta y plan de pagos"
+    "seleccion_oferta_y_plan_pagos": {
+      "_n": "Selección de oferta y plan de pagos",
+      "_que_es": "Presenta los prestamistas aprobados y permite configurar las cuotas, fechas de pago y plan de amortización.",
+      "_cuando": "según el canal",
+      "listar_ofertas_disponibles": {
+        "n": "Presentar ofertas de crédito disponibles",
+        "senal": [
+          "Listado de entidades completado",
+          "Entidades entregadas por list lender",
+          "final format_lenders"
+        ],
+        "visto_en_prod": true,
+        "falla": "No se encontraron entidades disponibles"
+      },
+      "seleccionar_producto_entidad": {
+        "n": "Seleccionar producto y monto a financiar",
+        "senal": [
+          "Iniciando upsert de producto para solicitud de usuario",
+          "Producto de solicitud de usuario actualizado/creado correctamente",
+          "IMEI calculateAmounts"
+        ],
+        "visto_en_prod": false,
+        "falla": "Error al hacer upsert del producto"
+      },
+      "configurar_cuotas_y_fecha": {
+        "n": "Configurar cuotas y fecha de vencimiento",
+        "senal": [
+          "Payment date options retrieved",
+          "Payment date confirmed successfully",
+          "Fee number options retrieved",
+          "Fee number changed successfully"
+        ],
+        "visto_en_prod": false,
+        "falla": "Cannot change payment date"
+      },
+      "simular_plan_pagos": {
+        "n": "Simular y confirmar plan de pagos",
+        "senal": [
+          "ConsumerLoan - Simulation - Response",
+          "Simulated payment schedule successfully",
+          "Payment schedule confirmed successfully"
+        ],
+        "visto_en_prod": false,
+        "falla": "Error simulating payment schedule"
+      }
     },
-    {
-      "n": "Generación y firma de documentos",
-      "sub": [
-        {
-          "senal": "Deceval createGirador, Deceval createPagare, createPromisoryNote",
-          "n": "Crear girador y pagaré en Deceval",
-          "falla_tipica": "Deceval createPagare SOAP falló"
-        },
-        {
-          "n": "Firmar pagaré electrónico Deceval",
-          "falla_tipica": "Error al firmar pagaré Deceval",
-          "senal": "Deceval signPagare, signPromisoryNote, Firma de pagaré Deceval"
-        },
-        {
-          "n": "Generar contratos y documentos de legalización",
-          "senal": "Generated Credifamilia documents, document_routing_resolved, pdf_mapper_call",
-          "falla_tipica": "Failed to generate PDF"
-        },
-        {
-          "senal": "netco.signFiles, netco_batch_sign_failed, ESignDocument",
-          "n": "Firmar paquete documental con Netco",
-          "falla_tipica": "netco_batch_sign_failed"
-        },
-        {
-          "senal": "Generated device lock agreement preview, IMEI contract notification",
-          "falla_tipica": "",
-          "n": "Generar acuerdo de garantía de celular"
-        }
-      ],
-      "que_es": "Produce los títulos valores y el paquete contractual legal para su firma electrónica mediante OTP."
+    "generacion_y_firma_documentos": {
+      "_n": "Generación y firma de documentos legales",
+      "_que_es": "Genera pagarés en Deceval o contratos PDF y los envía a firma electrónica mediante el proveedor Netco.",
+      "_cuando": "según el lender",
+      "crear_pagare_deceval": {
+        "n": "Crear girador y pagaré en Deceval",
+        "senal": [
+          "Iniciando generación de pagaré Deceval",
+          "Deceval createGirador iniciado",
+          "Deceval createGirador exitoso",
+          "Deceval createPagare iniciado",
+          "Deceval createPagare exitoso",
+          "Generated promissory note"
+        ],
+        "visto_en_prod": false,
+        "falla": "Deceval createPagare SOAP falló"
+      },
+      "firmar_pagare_deceval": {
+        "n": "Firmar pagaré electrónico Deceval",
+        "senal": [
+          "Iniciando firma de pagaré Deceval",
+          "Deceval signPagare iniciado",
+          "Deceval signPagare exitoso",
+          "Firma de pagaré Deceval completada",
+          "Pagaré Deceval ya firmado, recuperado (idempotente)"
+        ],
+        "visto_en_prod": false,
+        "falla": "Error al firmar pagaré Deceval"
+      },
+      "generar_contrato_lender": {
+        "n": "Generar contratos y paquete documental",
+        "senal": [
+          "Generated Credifamilia documents",
+          "credifamilia.formalize.start",
+          "credifamilia.formalize.documents.response",
+          "pdf_mapper_call",
+          "Generated device lock agreement preview"
+        ],
+        "visto_en_prod": false,
+        "falla": "Failed to generate PDF"
+      },
+      "firma_electronica_netco": {
+        "n": "Firmar documentos con Netco OTP",
+        "senal": [
+          "netco.signFiles.response",
+          "ConsumerLoan - ESignDocument - Response",
+          "signing.transition",
+          "netco.sign.tracking_rows_backfilled"
+        ],
+        "visto_en_prod": false,
+        "falla": "netco_batch_sign_failed"
+      }
     },
-    {
-      "que_es": "Procesa el recaudo de la cuota inicial y ejecuta la autorización y desembolso formal del crédito.",
-      "n": "Cobro de enganche y desembolso",
-      "sub": [
-        {
-          "n": "Cobrar cuota inicial en pasarela",
-          "falla_tipica": "Failed to check status with Wompi",
-          "senal": "Initial fee payment initiated, Wompi, PaymentGatewayTransaction"
-        },
-        {
-          "falla_tipica": "Loan authorization failed and rolled back",
-          "senal": "Loan authorization started, Request authorized, Loan authorized and committed",
-          "n": "Autorizar y comprometer el crédito"
-        },
-        {
-          "senal": "Loan authorization cancelled other client loans, cancelOtherClientLoansIfOneDisbursed",
-          "n": "Cancelar solicitudes paralelas del cliente",
-          "falla_tipica": ""
-        },
-        {
-          "falla_tipica": "IMEI disbursement failed",
-          "senal": "Voucher generated, IMEI disbursement, voucher_disbursement",
-          "n": "Generar comprobante y desembolsar crédito"
-        }
-      ]
+    "cobro_enganche_y_desembolso": {
+      "_n": "Cobro de enganche y desembolso del crédito",
+      "_que_es": "Procesa el pago de cuota inicial en pasarela y formaliza el desembolso y activación contable del crédito.",
+      "_cuando": "según el lender",
+      "cobrar_cuota_inicial": {
+        "n": "Recaudar cuota inicial con Wompi",
+        "senal": [
+          "Initial fee payment initiated",
+          "Initial fee payment registered",
+          "Transaction status updated from Wompi",
+          "Reconciliación Wompi: Transacción actualizada"
+        ],
+        "visto_en_prod": false,
+        "falla": "Failed to check status with Wompi"
+      },
+      "autorizar_y_comprometer_credito": {
+        "n": "Autorizar y comprometer desembolso del crédito",
+        "senal": [
+          "Loan authorization started",
+          "Loan authorization request number generated",
+          "Loan authorized and committed",
+          "Request authorized",
+          "Loan authorization completed"
+        ],
+        "visto_en_prod": false,
+        "falla": "Loan authorization failed and rolled back"
+      },
+      "cancelar_solicitudes_paralelas_y_voucher": {
+        "n": "Cancelar solicitudes paralelas y generar voucher",
+        "senal": [
+          "Loan authorization cancelled other client loans",
+          "IMEI cancelOtherClientLoansIfOneDisbursed",
+          "Voucher generated",
+          "Voucher generated (IMEI disbursement)",
+          "IMEI request disbursed"
+        ],
+        "visto_en_prod": false,
+        "falla": "IMEI disbursement failed"
+      }
     },
-    {
-      "sub": [
-        {
-          "senal": "device_lock.lock, IMEI enroll init, Trustonic",
-          "n": "Enrolar y bloquear celular en SmartPay",
-          "falla_tipica": "device_lock.lock.api_failure"
-        },
-        {
-          "n": "Notificar a cliente, comercio y asesor",
-          "falla_tipica": "Advisor notification failed",
-          "senal": "ecommerce_store_notified, WhatsApp notification, SMS notification"
-        },
-        {
-          "senal": "Revolving credits report, Revolving payments report, creditop_x_event",
-          "n": "Reportar y sincronizar con cartera",
-          "falla_tipica": "Revolving credits report failed"
-        },
-        {
-          "senal": "device_lock.unlock, device_lock.unroll, device_release",
-          "n": "Gestionar desbloqueo o liberación de dispositivo",
-          "falla_tipica": "device_lock.unlock.api_failure"
-        }
-      ],
-      "que_es": "Enrola el dispositivo en la plataforma de bloqueo, notifica a los actores y transfiere el crédito a cartera.",
-      "n": "Activación de garantías y post-originación"
+    "post_originacion_y_garantias": {
+      "_n": "Activación de garantías y post-originación",
+      "_que_es": "Enrola el celular financiado en SmartPay, despacha notificaciones finales y reporta a cartera.",
+      "_cuando": "según el lender",
+      "enrolamiento_smartpay_imei": {
+        "n": "Enrolar y bloquear equipo en SmartPay",
+        "senal": [
+          "IMEI enroll init",
+          "IMEI enroll success",
+          "device_lock.lock.started",
+          "device_lock.lock.success"
+        ],
+        "visto_en_prod": false,
+        "falla": "device_lock.lock.api_failure"
+      },
+      "notificaciones_postventa": {
+        "n": "Notificar a comercio, cliente y asesor",
+        "senal": [
+          "ecommerce_store_notified",
+          "WhatsApp notification sent successfully",
+          "Notifications sent",
+          "IMEI contract notification sent"
+        ],
+        "visto_en_prod": false,
+        "falla": "Notification failed"
+      },
+      "reporte_cartera_rotativo": {
+        "n": "Sincronizar y exportar reportes de cartera",
+        "senal": [
+          "creditop_x_event",
+          "Revolving credits report sent",
+          "Revolving payments report sent"
+        ],
+        "visto_en_prod": false,
+        "falla": "Revolving credits report failed"
+      },
+      "gestion_desbloqueo_dispositivo": {
+        "n": "Gestionar desbloqueo o liberación de celular",
+        "senal": [
+          "device_lock.unlock.started",
+          "device_lock.unlock.success",
+          "device_lock.unroll.started",
+          "device_lock.unroll.success"
+        ],
+        "visto_en_prod": false,
+        "falla": "device_lock.unlock.api_failure"
+      }
     }
-  ]
+  }
 }

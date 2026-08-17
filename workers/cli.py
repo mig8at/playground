@@ -280,17 +280,26 @@ def main():
         import negocio as _neg
         if a.zoom == 4:
             d = _neg.cargar()
-            print("\n  EL RECORRIDO, PASO A PASO · 10 tramos × sus sub-pasos\n")
-            for i, p_ in enumerate(d["jerarquia"], 1):
-                print(f"  {i:2}. {p_['n'].upper()}")
-                print(f"      {p_['que_es']}")
-                for s in p_["sub"]:
-                    falla = f"   ⚠ {s['falla_tipica'][:52]}" if s.get("falla_tipica") else ""
-                    print(f"        · {s['n']:42}{falla}")
-                    print(f"          señal: {s['senal'][:76]}")
+            arb = d["arbol"]
+            if j:
+                print(json.dumps(arb, ensure_ascii=False, indent=2)); return 0
+            vistos = sum(1 for k, v_ in arb.items() for s in v_ if not s.startswith("_")
+                         and v_[s].get("visto_en_prod"))
+            tot = sum(1 for k, v_ in arb.items() for s in v_ if not s.startswith("_"))
+            print(f"\n  EL ÁRBOL · {len(arb)} tramos × {tot} pasos  "
+                  f"({vistos} ocurren en producción · {tot - vistos} sólo existen en el código)\n")
+            for i, (k, v_) in enumerate(arb.items(), 1):
+                print(f"  {i:2}. {k}")
+                print(f"      {v_['_n']}  ·  {v_['_cuando']}")
+                for sk, s in v_.items():
+                    if sk.startswith("_"):
+                        continue
+                    marca = "●" if s["visto_en_prod"] else "○"
+                    falla = f"   ⚠ {s['falla'][:46]}" if s.get("falla") else ""
+                    print(f"        {marca} {sk:38}{falla}")
                 print()
-            print("  las `señal` están LITERALMENTE en los logs: es lo que permite reconocer el paso "
-                  "en una traza.\n")
+            print("  ● ocurre en producción  ·  ○ sólo existe en el código (medido en 6h)")
+            print("  `--zoom 4 --json` para el árbol entero con sus señales.\n")
             return 0
         if a.acciones:
             d = _neg.cargar()

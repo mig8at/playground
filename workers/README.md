@@ -56,29 +56,32 @@ los otros mapas. Por eso es corto y **no puede quedar viejo: lo que envejece no 
 ⚠ Y **no reemplaza a `context/`**: una línea por concepto, la que ubica. El detalle y las trampas
 viven en el nodo.
 
-## El paso a paso · 10 tramos × sus sub-pasos
+## El árbol · 10 tramos × 39 pasos
 
 ```bash
-./cli.py negocio --zoom 4
+./cli.py negocio --zoom 4          # el árbol
+./cli.py negocio --zoom 4 --json   # con sus señales, para consumir
 ```
 
-    2. AUTENTICACIÓN POR OTP
-       Genera, despacha y valida el código de segundo factor…
-         · Generar código OTP          ⚠ OTP Redis never delivered the generated code
-           señal: otp-service, generateOtp, createOtpRecord
-         · Enviar código por SMS       ⚠ Failed to send OTP
-         · Validar código ingresado    ⚠ provider rejected the code
-         · Crear solicitud de crédito  ⚠ createUserRequest returned empty, returning ONB030
+     3. validacion_identidad_kyc
+        Validación de identidad y KYC  ·  siempre
+          ● validar_fecha_expedicion        ⚠ Invalid expedition date, returning ONB005
+          ● cascada_identidad_registraduria ⚠ AgilData errors and no TusDatos retry
+          ○ biometria_facial_ado            ⚠ Validación facial fallida
+          ○ consulta_antecedentes_aml       ⚠ TusDatos AML timeout
 
-**10 pasos, 46 sub-pasos**, cada uno con la **señal** que lo reconoce en una traza y la **falla típica**
-de ese punto.
+    ● ocurre en producción  ·  ○ sólo existe en el código
 
-⚠ **Lo propuso un agente leyendo el CORPUS ENTERO** —los 1.576 mensajes que el sistema emite, no la
-documentación— y **se verificó**: las 46 señales existen literalmente en él, **46 de 46**. Ninguna
-inventada.
+**Dos pasadas de un agente**: la primera leyendo el corpus del código (1.576 mensajes), la segunda
+agregándole **logs reales de producción** — frecuencia y 8 recorridos en orden cronológico.
 
-⚠ Cubre el **39%** de los mensajes contra el **69%** de las 12 acciones, y eso **no es peor**: un
-sub-paso es más específico, acierta menos veces y dice mucho más. Son dos lentes, no un reemplazo.
+Lo que aportaron los logs reales, y no estaba en el corpus: **de los 1.576 mensajes que el código
+puede emitir, sólo 297 aparecieron en 6 horas.** Cuatro de cada cinco pasos que el código sabe dar,
+no los da — y un árbol que los trata igual miente sobre lo que pasa.
+
+⚠ **Todo verificado, y no todo pasó.** Las 39 señales existen en el código: **39/39**. Pero el
+`visto_en_prod` NO se le creyó al modelo, se **midió**: de 39 declaraciones, **3 estaban mal** — las
+tres afirmando que algo ocurre sin evidencia. Corregidas por la medición.
 
 ## Y el otro eje: las ACCIONES
 
