@@ -167,3 +167,102 @@ def secuencia(mensajes):
 # (`new Flow(...).step()`) pero está en 4 de 45 specs—. Cuando se propague, la función se puede
 # escribir de verdad. Hasta entonces, `secuencia()` sola ya contesta lo que se preguntó: cuáles son
 # los pasos reales, incluido lo que nadie anotó.
+
+
+def huella_por_lender(desde="6h", minimo=2):
+    """{lender_id: los ARCHIVOS por los que pasan sus solicitudes}, derivado de producción.
+
+    La idea: si una traza tiene un lender y sus mensajes resuelven a archivos, entonces cada lender
+    tiene una HUELLA — el conjunto de código que sus solicitudes recorren. Sirve para dos cosas que
+    hoy no se pueden contestar: «¿por dónde pasa ESTE lender que no pasa aquél?» y «¿qué código toco
+    si cambio algo de este lender?».
+
+    ⚠ CUÁNTO SE PUEDE ATRIBUIR, medido en prod: el `lender_id` aparece en el 15% de las LÍNEAS, pero
+    basta una por traza — y así el 57% de las trazas quedan atribuidas. Con el COMERCIO no alcanza:
+    `allied_id` está en el 1% de las líneas y sólo el 8% de las trazas, así que un
+    `{comercio: [archivos]}` saldría casi vacío y parecería que esos comercios no operan. No se
+    construye a propósito; cuando el backend loguee el allied_id, se agrega y ya.
+
+    ⚠ Y es una MUESTRA de la ventana, no el catálogo: un lender sin tráfico en esas horas no aparece,
+    y eso no significa que no tenga flujo.
+
+    ⚠⚠ LO QUE ESTO NO ES, y es la lectura que más importa: **no es el recorrido del lender, es dónde
+    su identificador queda escrito**. Medido: los lenders 77, 46 y 94 devuelven LOS MISMOS TRES
+    ARCHIVOS —CreditopXQuotaController, LenderUserCategoryService, DatacreditoRuleEvaluator—, que son
+    el chequeo de cupo. No es que todos hagan lo mismo: es que `lender_id` sólo se loguea ahí. Su paso
+    por el listado, la formalización o la firma es invisible acá porque esas líneas no lo nombran.
+
+    Así que sirve para «¿qué código escribe el lender_id?» y NO todavía para «¿por dónde va este
+    lender?». La segunda necesita que el backend propague el lender_id al contexto de log, que es un
+    cambio de una línea por sitio y convertiría esta función en lo que se quería.
+    """
+    import re as _re, json as _json, collections as _c, time as _t
+    import datos as _d, logs as _logs
+    _d.TARGET = "prod"
+    seg = {"h": 3600, "d": 86400}
+    m = _re.fullmatch(r"(\d+)([hd])", desde or "6h")
+    ventana = int(m.group(1)) * seg[m.group(2)] if m else 21600
+    d = _d._loki("query_range", {"query": '{service_name="legacy-backend"}', "limit": 1500,
+                                 "start": f"{int(_t.time()) - ventana}000000000",
+                                 "direction": "backward"})
+    if "error" in d:
+        return d
+    mapa = _logs.cargar()
+    if not mapa:
+        return {"error": "el mapa de logs no está construido: ./cli.py logs --construir"}
+
+    trazas = _c.defaultdict(lambda: {"lender": set(), "msgs": []})
+    for st in d.get("data", {}).get("result", []):
+        tid = st.get("stream", {}).get("trace_id", "")
+        if not tid:
+            continue
+        for ns, txt in st.get("values", []):
+            try:
+                msg = _json.loads(txt).get("message", "")
+            except Exception:
+                g = _re.search(r'"message"\s*:\s*"((?:[^"\\]|\\.)*)"', txt)
+                msg = g.group(1) if g else ""
+            if msg:
+                trazas[tid]["msgs"].append((int(ns), msg))
+            for lid in _re.findall(r'"lender_id"\s*:\s*"?(\d+)', txt):
+                trazas[tid]["lender"].add(lid)
+
+    porLender = _c.defaultdict(lambda: {"trazas": 0, "archivos": _c.Counter(), "orden": []})
+    sin_lender = 0
+    for tid, tr in trazas.items():
+        if not tr["lender"]:
+            sin_lender += 1
+            continue
+        # ⚠ Si la traza nombra DOS lenders es el listado comparándolos, no el flujo de uno: se
+        # descarta en vez de atribuirle a ambos un recorrido que no es suyo.
+        if len(tr["lender"]) != 1:
+            continue
+        lid = next(iter(tr["lender"]))
+        e = porLender[lid]
+        e["trazas"] += 1
+        for _, msg in sorted(tr["msgs"]):
+            r = _logs.resolver(msg, mapa)
+            if not r:
+                continue
+            for a in r["archivos"]:
+                if a["ruta"] not in e["archivos"]:
+                    e["orden"].append(a["ruta"])
+                e["archivos"][a["ruta"]] += 1
+
+    import extraer as _ex
+    fuera = {}
+    for lid, e in sorted(porLender.items(), key=lambda kv: -kv[1]["trazas"]):
+        if e["trazas"] < minimo:
+            continue
+        fuera[lid] = {
+            "trazas": e["trazas"],
+            "archivos": [{"h": _ex.hash_de(r), "ruta": r, "lineas": e["archivos"][r]}
+                         for r in e["orden"]],
+        }
+    return {"ventana": desde, "lenders": fuera,
+            "trazas_sin_lender": sin_lender, "trazas_totales": len(trazas),
+            "nota": "⚠ NO es el recorrido del lender: es DÓNDE SE ESCRIBE SU ID. Medido, varios "
+                    "lenders devuelven los mismos 3 archivos (el chequeo de cupo) porque ahí es el "
+                    "único lugar que loguea `lender_id` — su paso por listado, formalización y firma "
+                    "no lo nombra y es invisible acá. Y el COMERCIO no se puede agrupar: `allied_id` "
+                    "llega al 8% de las trazas."}

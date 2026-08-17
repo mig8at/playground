@@ -167,6 +167,26 @@ probar de ellos. Mezclarlos daba 24 en vez de 6 e inflaba el número hasta volve
 Y lo construye **workers, no harness**: la misma regla que con `context/` — workers **lee** las otras
 herramientas y no escribe en ellas.
 
+### La huella por lender — y por qué la de comercio no existe
+
+`flujos.huella_por_lender()` agrupa las trazas por su `lender_id` y devuelve los archivos que
+recorren. Funciona, **y dice menos de lo que parece**:
+
+| | atribuible a nivel TRAZA |
+|---|---|
+| `lender_id` | **57%** (aparece en el 15% de las líneas, y basta una por traza) |
+| `allied_id` | **8%** (aparece en el 1%) |
+
+Por eso **no hay mapa por comercio**: al 8%, saldría casi vacío y se leería como «este comercio no
+opera», que es peor que no tenerlo.
+
+⚠ Y la huella del lender **no es su recorrido: es dónde se escribe su id**. Medido: los lenders 77,
+46 y 94 devuelven los **mismos tres archivos** —el chequeo de cupo— porque ahí es el único lugar que
+loguea `lender_id`. Su paso por el listado, la formalización y la firma no lo nombra y es invisible.
+
+Es una limitación de la **instrumentación**, no del método: propagar `lender_id`/`allied_id` al
+contexto de log convertiría esto en lo que promete.
+
 ### Auditar `context/` sin tocarlo
 
 ```bash
