@@ -85,7 +85,25 @@ Cuando tengas la lista, llamá a `entregar_seleccion`. No escribas la respuesta 
 
 
 def entregar_seleccion(archivos, nodos_consultados=None, ya_respondido="", advertencias=""):
-    """Entrega la selección final de archivos a leer. Llamala UNA vez, cuando ya elegiste."""
+    """Entrega la selección final de archivos a leer. Llamala UNA vez, cuando ya elegiste.
+
+    ⚠ VALIDA LOS HASHES ANTES DE ACEPTAR, y devuelve error si alguno no existe — y devolver error en
+    una terminal NO corta el bucle: el modelo lo ve y puede corregir. Antes la entrega se aceptaba
+    con hashes inventados adentro y el descarte pasaba DESPUÉS, callado: el lugar se perdía y nadie
+    aprendía nada. Pasó dos veces (las migraciones, y un `266291F` en la prueba de device_lock) — un
+    modelo al que el índice no le ofrece lo que quiere, lo fabrica; la respuesta no es pedirle que no,
+    es rebotarle la entrega con el dato de cuáles, para que elija de lo que existe."""
+    import extraer as _ex
+    hs = [a.get("h", "").strip().upper() for a in (archivos or [])]
+    if not hs:
+        return {"error": "la selección vino vacía: entregá al menos un archivo, o explicá en "
+                         "`advertencias` por qué no hay ninguno que aporte"}
+    res = _ex.resolver(hs)
+    muertos = [h for h in hs if h not in res.get("resueltos", {})]
+    if muertos:
+        return {"error": f"estos hashes NO existen en el índice: {', '.join(muertos)}. "
+                         "No construyas hashes: copiá el campo `h` tal cual te lo dio una herramienta "
+                         "(abrir_nodo, buscar_archivos, quien_usa…). Reemplazá esos y entregá de nuevo."}
     return {
         "archivos": archivos,
         "nodos_consultados": nodos_consultados or [],

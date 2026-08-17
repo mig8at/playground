@@ -15,7 +15,7 @@ el índice se ordena de más largo a más corto y gana el prefijo más específi
 
     ./cli.py logs --construir     lee los repos y arma logs.json
     ./cli.py logs "<mensaje>"     de un mensaje al archivo
-    ./cli.py logs --ureq 529621   ⟵ lo que motivó todo: qué archivos corrieron en una traza
+    (la traza entera la resuelve el agente: `archivos_de_la_traza` en datos.py)
 
 Se deriva del código, así que no se pudre: se reconstruye y listo.
 """
@@ -107,7 +107,7 @@ def cargar():
     return json.loads(MAPA.read_text(encoding="utf-8"))
 
 
-_ORDEN = None
+_ORDEN = None      # (orden, id_del_mapa): se invalida cuando cambia el mapa, no en cada llamada
 
 # Segunda vía, para los mensajes que se arman ENTEROS con variables: muchísimos tienen la forma
 # `'Ending ' . __CLASS__ . '::' . __METHOD__`, así que el literal es «Ending » —siete caracteres, una
@@ -149,12 +149,16 @@ def resolver(mensaje, mapa=None):
     """De un mensaje de runtime al archivo. Devuelve el candidato de PREFIJO MÁS LARGO."""
     global _ORDEN
     mapa = mapa if mapa is not None else cargar()
-    if _ORDEN is None or mapa is not cargar.__dict__.get("_ultimo"):
-        _ORDEN = sorted(mapa, key=len, reverse=True)
+    # ⚠ El caché original comparaba contra `cargar.__dict__["_ultimo"]`, que NADIE escribía: la
+    # condición era siempre verdadera y se reordenaban 1.400 llaves en CADA llamada. Un caché que
+    # nunca acierta es peor que no tenerlo, porque se lee como si ahorrara. Ahora se invalida por
+    # identidad del mapa, que es lo que de verdad cambia.
+    if _ORDEN is None or _ORDEN[1] is not mapa:
+        _ORDEN = (sorted(mapa, key=len, reverse=True), mapa)
     m = _normalizar(mensaje)
     if not m:
         return None
-    for k in _ORDEN:
+    for k in _ORDEN[0]:
         if m.startswith(k):
             v = mapa[k]
             reales = [x for x in v if not x["es_test"]] or v
@@ -187,6 +191,12 @@ def archivos_de_traza(lineas, mapa=None):
     trazador — la BD dice qué pasó, los logs dicen por qué.
     """
     mapa = mapa if mapa is not None else cargar()
+    # ⚠ Sin mapa, CADA línea sale «sin resolver» — que se lee como «no corrió nada» cuando lo que
+    # pasa es que nadie construyó el índice. El error de la ausencia silenciosa, otra vez: un vacío
+    # tiene que decir POR QUÉ está vacío.
+    if not mapa:
+        return {"error": "el mapa de logs no está construido: corré `./cli.py logs --construir` "
+                         "(tarda ~10s y se deriva del código)"}
     pares = [(x[0], x[1]) if isinstance(x, (tuple, list)) else ("", x) for x in lineas]
     orden, datos = [], {}
 
