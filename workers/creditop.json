@@ -85,6 +85,10 @@
   "tablas": {
     "_fuente": "los `map.json` y docs del árbol; el conteo de citas lo da `cli.py puente`",
     "user_requests": "la SOLICITUD — unidad central de casi toda pregunta",
+    "allieds": "el COMERCIO. 266 filas en el dump local — la unidad de la que cuelga casi toda la configuración",
+    "users": "el CLIENTE. ⚠ los datos de buró se indexan por `user_id`, no por solicitud",
+    "promissory_notes": "el PAGARÉ. Va por Deceval, separado de los documentos que firma Netco",
+    "netco_signing_documents": "los documentos de legalización y su estado de firma. Regenerarlos los resetea a `generated`",
     "user_request_records": "el HISTORIAL de estados de una solicitud: una fila por transición, con `user_request_status_id`, `created_at`, `update_by` y `comment`. Es lo que permite preguntar CUÁNDO cambió, QUIÉN la cambió y si SIGUIÓ avanzando — `user_requests` sólo guarda el estado actual y no sabe nada de la historia.",
     "user_field_values": "los datos declarados del cliente (EAV). ⚠ el ingreso es field_id 87",
     "lenders_by_allied_branches": "qué entidad se ofrece en qué sucursal — la base del listado",

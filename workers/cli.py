@@ -169,6 +169,10 @@ def main():
     # trazador-ureq` da las etapas y los archivos. Acá se entra por lo que agrupa de verdad.
     s.add_argument("--traza", help="los PASOS reales de una traza, en orden (trace_id de Loki)")
 
+    s = con_json(sub.add_parser(
+        "negocio", help="LA ESPINA: los conceptos de CreditOp en orden, y dónde mirar cada uno"))
+    s.add_argument("concepto", nargs="?", help="uno solo (acepta sinónimos: «buró», «tier», «ureq»)")
+
     sub.add_parser("check", help="¿las rutas escritas a mano siguen vivas en main?")
     sub.add_parser("pesos", help="refresca los tamaños guardados en repos.json")
 
@@ -265,6 +269,33 @@ def main():
         if r.get("ambiguo"):
             print("  ⚠ aparece en muchos archivos: no identifica uno solo")
         print()
+        return 0
+
+    if a.cmd == "negocio":
+        import negocio as _neg
+        cs = _neg.ver(a.concepto)
+        if j:
+            print(json.dumps(cs, ensure_ascii=False, indent=2)); return 0
+        if not cs:
+            print(f"  no encontré «{a.concepto}» en la espina. Corré sin argumento para verla entera.")
+            return 1
+        if a.concepto and len(cs) <= 3:
+            for c in cs:
+                print(f"\n  {c['n'].upper()}")
+                print(f"    {c['que_es']}")
+                print(f"\n    en el código   {c['codigo']}")
+                if c.get("es"):    print(f"    también        {', '.join(c['es'])}")
+                if c.get("tabla"): print(f"    tabla          {c['tabla']}  ({c.get('archivos_que_tocan_la_tabla', 0)} archivos la tocan)")
+                print(f"    el detalle en  context/server/data/flows/{c['nodo']}/doc.md"
+                      f"  ({c.get('archivos_del_nodo', 0)} archivos)")
+            print()
+            return 0
+        print("\n  LA ESPINA · los conceptos en el orden en que se encadenan\n")
+        for i, c in enumerate(cs, 1):
+            extra = f"· {c['archivos_que_tocan_la_tabla']} arch." if c.get("archivos_que_tocan_la_tabla") else ""
+            print(f"  {i:2}. {c['n']:28} {c['codigo']:26} [{c['nodo']}] {extra}")
+            print(f"      {c['que_es'][:96]}")
+        print("\n  `negocio <concepto>` para uno solo. El detalle vive en su nodo, no acá.\n")
         return 0
 
     if a.cmd == "flujos":

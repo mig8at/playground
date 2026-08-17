@@ -29,6 +29,11 @@
    "deceval"
   ]
  },
+ "application/app/Actions/Fortify/UpdateUserProfileInformation.php": {
+  "tablas": [
+   "users"
+  ]
+ },
  "application/app/Actions/Lenders/Addi.php": {
   "nodos": [
    "aggregator"
@@ -266,6 +271,9 @@
  "application/app/Console/Commands/AlliedsDailyReportCommand.php": {
   "nodos": [
    "servicing"
+  ],
+  "tablas": [
+   "allieds"
   ]
  },
  "application/app/Console/Commands/ConsumerLoansWeeklyReport.php": {
@@ -350,6 +358,11 @@
    "servicing"
   ]
  },
+ "application/app/Console/Commands/TuboletaReportCommand.php": {
+  "tablas": [
+   "users"
+  ]
+ },
  "application/app/Console/Commands/UpdateCreditopXApplyPaymentCommand.php": {
   "nodos": [
    "application",
@@ -396,6 +409,11 @@
    "corbeta"
   ]
  },
+ "application/app/Console/Commands/UpdateProfileData.php": {
+  "tablas": [
+   "users"
+  ]
+ },
  "application/app/Console/Kernel.php": {
   "lenders": [
    {
@@ -411,11 +429,19 @@
    "negocio",
    "servicing",
    "smartpay"
+  ],
+  "tablas": [
+   "allieds"
   ]
  },
  "application/app/Criteria/RevolvingCredit/BranchCriteria.php": {
   "tablas": [
    "user_requests"
+  ]
+ },
+ "application/app/Criteria/RevolvingCredit/RoleCriteria.php": {
+  "tablas": [
+   "allieds"
   ]
  },
  "application/app/Events/Lenders/Meddipay/TransactionUpdate.php": {
@@ -445,13 +471,17 @@
   ],
   "tablas": [
    "risk_centrals",
-   "user_requests"
+   "user_requests",
+   "users"
   ]
  },
  "application/app/Exports/CreditopXRequestsReportExport.php": {
   "nodos": [
    "actors",
    "servicing"
+  ],
+  "tablas": [
+   "allieds"
   ]
  },
  "application/app/Exports/DailyReportExport.php": {
@@ -463,7 +493,8 @@
   ],
   "tablas": [
    "risk_centrals",
-   "user_requests"
+   "user_requests",
+   "users"
   ]
  },
  "application/app/Exports/EndMonthReportExport.php": {
@@ -479,6 +510,7 @@
    11
   ],
   "tablas": [
+   "allieds",
    "user_requests"
   ]
  },
@@ -487,7 +519,13 @@
    "negocio"
   ],
   "tablas": [
+   "allieds",
    "user_requests"
+  ]
+ },
+ "application/app/Exports/RequestsCtopXPaymentsExport.php": {
+  "tablas": [
+   "allieds"
   ]
  },
  "application/app/Exports/RequestsCtopXRiskExport.php": {
@@ -497,6 +535,7 @@
    12
   ],
   "tablas": [
+   "allieds",
    "user_requests"
   ]
  },
@@ -514,12 +553,23 @@
    2
   ],
   "tablas": [
-   "user_requests"
+   "allieds",
+   "user_requests",
+   "users"
   ]
  },
  "application/app/Exports/RevolvingCreditsExport.php": {
   "nodos": [
    "servicing"
+  ],
+  "tablas": [
+   "allieds",
+   "users"
+  ]
+ },
+ "application/app/Exports/RevolvingPaymentsExport.php": {
+  "tablas": [
+   "allieds"
   ]
  },
  "application/app/Exports/UserRequestsBancolombiaExport.php": {
@@ -530,6 +580,7 @@
    "hardcodes-entidades"
   ],
   "tablas": [
+   "allieds",
    "user_requests"
   ]
  },
@@ -542,6 +593,7 @@
    "negocio"
   ],
   "tablas": [
+   "allieds",
    "user_requests"
   ]
  },
@@ -552,6 +604,7 @@
    12
   ],
   "tablas": [
+   "allieds",
    "user_requests"
   ]
  },
@@ -567,13 +620,17 @@
    }
   ],
   "tablas": [
-   "user_requests"
+   "allieds",
+   "user_requests",
+   "users"
   ]
  },
  "application/app/Exports/UsersExport.php": {
   "tablas": [
+   "allieds",
    "user_field_values",
-   "user_requests"
+   "user_requests",
+   "users"
   ]
  },
  "application/app/Http/Controllers/Admin/AlliedAlliedBranchController.php": {
@@ -584,6 +641,7 @@
    "redirect"
   ],
   "tablas": [
+   "allieds",
    "lenders_by_allied_branches",
    "lenders_by_allieds",
    "risk_centrals"
@@ -598,6 +656,10 @@
    "creditop",
    "merchants"
   ],
+  "tablas": [
+   "allieds",
+   "users"
+  ],
   "tipo": [
    "controller"
   ]
@@ -610,6 +672,10 @@
   "rt": [
    2
   ],
+  "tablas": [
+   "allieds",
+   "users"
+  ],
   "tipo": [
    "controller"
   ]
@@ -619,6 +685,9 @@
    "application",
    "ecommerce",
    "merchants"
+  ],
+  "tablas": [
+   "allieds"
   ],
   "tipo": [
    "controller"
@@ -645,6 +714,10 @@
   "rt": [
    2
   ],
+  "tablas": [
+   "allieds",
+   "users"
+  ],
   "tipo": [
    "controller"
   ]
@@ -655,11 +728,17 @@
    "application",
    "merchants"
   ],
+  "tablas": [
+   "allieds"
+  ],
   "tipo": [
    "controller"
   ]
  },
  "application/app/Http/Controllers/Admin/AlliedProductsController.php": {
+  "tablas": [
+   "allieds"
+  ],
   "tipo": [
    "controller"
   ]
@@ -670,6 +749,9 @@
    "creditop",
    "merchants"
   ],
+  "tablas": [
+   "allieds"
+  ],
   "tipo": [
    "controller"
   ]
@@ -677,6 +759,9 @@
  "application/app/Http/Controllers/Admin/AlliedZoneController.php": {
   "nodos": [
    "merchants"
+  ],
+  "tablas": [
+   "allieds"
   ],
   "tipo": [
    "controller"
@@ -708,6 +793,9 @@
   ]
  },
  "application/app/Http/Controllers/Admin/CredentialsController.php": {
+  "tablas": [
+   "allieds"
+  ],
   "tipo": [
    "controller"
   ]
@@ -723,7 +811,9 @@
    ]
   },
   "tablas": [
-   "user_requests"
+   "allieds",
+   "user_requests",
+   "users"
   ],
   "tipo": [
    "controller"
@@ -752,6 +842,7 @@
    2
   ],
   "tablas": [
+   "allieds",
    "creditop_x_requests_history",
    "user_requests"
   ],
@@ -781,8 +872,10 @@
    3
   ],
   "tablas": [
+   "allieds",
    "creditop_x_requests_history",
-   "user_requests"
+   "user_requests",
+   "users"
   ],
   "tipo": [
    "controller"
@@ -809,7 +902,9 @@
    2
   ],
   "tablas": [
-   "user_requests"
+   "allieds",
+   "user_requests",
+   "users"
   ],
   "tipo": [
    "controller"
@@ -829,8 +924,10 @@
    2
   ],
   "tablas": [
+   "allieds",
    "creditop_x_requests_history",
-   "user_requests"
+   "user_requests",
+   "users"
   ],
   "tipo": [
    "controller"
@@ -852,7 +949,9 @@
    ]
   },
   "tablas": [
-   "user_requests"
+   "allieds",
+   "user_requests",
+   "users"
   ],
   "tipo": [
    "controller"
@@ -871,7 +970,9 @@
    "servicing"
   ],
   "tablas": [
-   "user_requests"
+   "allieds",
+   "user_requests",
+   "users"
   ],
   "tipo": [
    "controller"
@@ -910,6 +1011,9 @@
    2,
    3
   ],
+  "tablas": [
+   "allieds"
+  ],
   "tipo": [
    "controller"
   ]
@@ -935,7 +1039,9 @@
    "merchants"
   ],
   "tablas": [
-   "risk_centrals"
+   "allieds",
+   "risk_centrals",
+   "users"
   ],
   "tipo": [
    "controller"
@@ -983,6 +1089,9 @@
    "application",
    "payments"
   ],
+  "tablas": [
+   "allieds"
+  ],
   "tipo": [
    "controller"
   ]
@@ -997,7 +1106,8 @@
   ],
   "tablas": [
    "user_field_values",
-   "user_requests"
+   "user_requests",
+   "users"
   ],
   "tipo": [
    "controller"
@@ -1005,6 +1115,7 @@
  },
  "application/app/Http/Controllers/Admin/ProfilingModelTestController.php": {
   "tablas": [
+   "allieds",
    "user_requests"
   ],
   "tipo": [
@@ -1016,6 +1127,7 @@
    2
   ],
   "tablas": [
+   "allieds",
    "user_requests"
   ],
   "tipo": [
@@ -1042,6 +1154,7 @@
    2
   ],
   "tablas": [
+   "allieds",
    "creditop_x_requests_history"
   ],
   "tipo": [
@@ -1056,13 +1169,19 @@
    3
   ],
   "tablas": [
-   "user_requests"
+   "allieds",
+   "promissory_notes",
+   "user_requests",
+   "users"
   ],
   "tipo": [
    "controller"
   ]
  },
  "application/app/Http/Controllers/Admin/RiskCentralCredentialController.php": {
+  "tablas": [
+   "allieds"
+  ],
   "tipo": [
    "controller"
   ]
@@ -1092,13 +1211,18 @@
    2
   ],
   "tablas": [
-   "user_field_values"
+   "allieds",
+   "user_field_values",
+   "users"
   ],
   "tipo": [
    "controller"
   ]
  },
  "application/app/Http/Controllers/Admin/UserProfilingController.php": {
+  "tablas": [
+   "users"
+  ],
   "tipo": [
    "controller"
   ]
@@ -1125,13 +1249,18 @@
    "actors"
   ],
   "tablas": [
-   "user_requests"
+   "allieds",
+   "user_requests",
+   "users"
   ],
   "tipo": [
    "controller"
   ]
  },
  "application/app/Http/Controllers/Admin/UserRequestDocumentationController.php": {
+  "tablas": [
+   "users"
+  ],
   "tipo": [
    "controller"
   ]
@@ -1144,6 +1273,9 @@
  "application/app/Http/Controllers/Admin/UserRequestRequestController.php": {
   "estados": [
    11
+  ],
+  "tablas": [
+   "users"
   ],
   "tipo": [
    "controller"
@@ -1179,7 +1311,8 @@
    "application"
   ],
   "tablas": [
-   "user_requests"
+   "user_requests",
+   "users"
   ],
   "tipo": [
    "controller"
@@ -1230,6 +1363,9 @@
   ]
  },
  "application/app/Http/Controllers/Api/BulkloadController.php": {
+  "tablas": [
+   "users"
+  ],
   "tipo": [
    "controller"
   ]
@@ -1413,6 +1549,9 @@
   "rt": [
    2
   ],
+  "tablas": [
+   "allieds"
+  ],
   "tipo": [
    "controller"
   ]
@@ -1499,6 +1638,9 @@
   "rt": [
    3
   ],
+  "tablas": [
+   "users"
+  ],
   "tipo": [
    "controller"
   ]
@@ -1519,6 +1661,9 @@
   ],
   "rt": [
    2
+  ],
+  "tablas": [
+   "users"
   ],
   "tipo": [
    "controller"
@@ -1597,6 +1742,9 @@
   "rt": [
    3
   ],
+  "tablas": [
+   "users"
+  ],
   "tipo": [
    "controller"
   ]
@@ -1623,6 +1771,9 @@
   ],
   "nodos": [
    "bancolombia"
+  ],
+  "tablas": [
+   "users"
   ],
   "tipo": [
    "controller"
@@ -1709,6 +1860,9 @@
    0,
    1
   ],
+  "tablas": [
+   "allieds"
+  ],
   "tipo": [
    "controller"
   ]
@@ -1783,6 +1937,7 @@
    2
   ],
   "tablas": [
+   "allieds",
    "lenders_by_allied_branches",
    "user_field_values",
    "user_requests"
@@ -1833,7 +1988,8 @@
    3
   ],
   "tablas": [
-   "user_requests"
+   "user_requests",
+   "users"
   ],
   "tipo": [
    "controller"
@@ -1845,6 +2001,9 @@
   ],
   "nodos": [
    "corbeta"
+  ],
+  "tablas": [
+   "users"
   ],
   "tipo": [
    "controller"
@@ -1863,6 +2022,7 @@
    "onboarding"
   ],
   "tablas": [
+   "allieds",
    "user_requests"
   ],
   "tipo": [
@@ -1888,7 +2048,8 @@
    3
   ],
   "tablas": [
-   "user_requests"
+   "user_requests",
+   "users"
   ],
   "tipo": [
    "controller"
@@ -1917,11 +2078,17 @@
    "rotativo",
    "servicing"
   ],
+  "tablas": [
+   "allieds"
+  ],
   "tipo": [
    "controller"
   ]
  },
  "application/app/Http/Controllers/Customer/SelfManager/FinalizePurchaseQrController.php": {
+  "tablas": [
+   "users"
+  ],
   "tipo": [
    "controller"
   ]
@@ -1939,6 +2106,9 @@
    "merchants",
    "onboarding",
    "redirect"
+  ],
+  "tablas": [
+   "allieds"
   ],
   "tipo": [
    "controller"
@@ -2028,6 +2198,9 @@
   ]
  },
  "application/app/Http/Controllers/Customer/UserProfilingController.php": {
+  "tablas": [
+   "users"
+  ],
   "tipo": [
    "controller"
   ]
@@ -2072,7 +2245,9 @@
    2
   ],
   "tablas": [
-   "user_requests"
+   "allieds",
+   "user_requests",
+   "users"
   ],
   "tipo": [
    "controller"
@@ -2117,7 +2292,8 @@
   ],
   "tablas": [
    "risk_central_user_data",
-   "user_requests"
+   "user_requests",
+   "users"
   ],
   "tipo": [
    "controller"
@@ -2147,6 +2323,7 @@
    2
   ],
   "tablas": [
+   "allieds",
    "user_requests"
   ],
   "tipo": [
@@ -2183,6 +2360,9 @@
   "nodos": [
    "hardcodes-entidades",
    "servicing"
+  ],
+  "tablas": [
+   "allieds"
   ],
   "tipo": [
    "controller"
@@ -2254,6 +2434,10 @@
   ]
  },
  "application/app/Http/Controllers/Profile/UserAlliedsController.php": {
+  "tablas": [
+   "allieds",
+   "users"
+  ],
   "tipo": [
    "controller"
   ]
@@ -2263,7 +2447,9 @@
    11
   ],
   "tablas": [
-   "user_field_values"
+   "allieds",
+   "user_field_values",
+   "users"
   ],
   "tipo": [
    "controller"
@@ -2275,6 +2461,9 @@
   ]
  },
  "application/app/Http/Controllers/Profile/ValidateIdentityController.php": {
+  "tablas": [
+   "users"
+  ],
   "tipo": [
    "controller"
   ]
@@ -2372,6 +2561,9 @@
    "actors",
    "application",
    "architecture"
+  ],
+  "tablas": [
+   "allieds"
   ]
  },
  "application/app/Http/Middleware/NoIndex.php": {
@@ -2412,6 +2604,11 @@
    "application"
   ]
  },
+ "application/app/Http/Requests/Admin/Allied/IndexRequest.php": {
+  "tablas": [
+   "allieds"
+  ]
+ },
  "application/app/Http/Requests/Admin/Allied/StoreRequest.php": {
   "nodos": [
    "merchants"
@@ -2432,23 +2629,49 @@
    2
   ]
  },
+ "application/app/Http/Requests/Admin/Authorization/IndexRequest.php": {
+  "tablas": [
+   "users"
+  ]
+ },
+ "application/app/Http/Requests/Admin/CorporateUser/StoreRequest.php": {
+  "tablas": [
+   "users"
+  ]
+ },
  "application/app/Http/Requests/Admin/Credentials/StoreRequest.php": {
   "tablas": [
+   "allieds",
    "lender_allied_credentials"
   ]
  },
  "application/app/Http/Requests/Admin/CreditBuroAggregatorRequest.php": {
   "tablas": [
+   "allieds",
    "user_requests"
+  ]
+ },
+ "application/app/Http/Requests/Admin/CreditopX/DownloadRequest.php": {
+  "tablas": [
+   "users"
+  ]
+ },
+ "application/app/Http/Requests/Admin/CreditopX/ListRequests.php": {
+  "tablas": [
+   "allieds"
   ]
  },
  "application/app/Http/Requests/Admin/CreditopX/RevolvingCreditsListRequests.php": {
   "nodos": [
    "servicing"
+  ],
+  "tablas": [
+   "allieds"
   ]
  },
  "application/app/Http/Requests/Admin/DashboardRequest.php": {
   "tablas": [
+   "allieds",
    "user_requests"
   ]
  },
@@ -2457,9 +2680,25 @@
    "entities"
   ]
  },
+ "application/app/Http/Requests/Admin/LenderTransaction/RegisterRequest.php": {
+  "tablas": [
+   "allieds",
+   "users"
+  ]
+ },
  "application/app/Http/Requests/Admin/ManualValidation/StoreRequest.php": {
   "tablas": [
    "user_requests"
+  ]
+ },
+ "application/app/Http/Requests/Admin/ReportRequest.php": {
+  "tablas": [
+   "allieds"
+  ]
+ },
+ "application/app/Http/Requests/Admin/Request/ListRequests.php": {
+  "tablas": [
+   "allieds"
   ]
  },
  "application/app/Http/Requests/Admin/Request/UpdateRequest.php": {
@@ -2467,9 +2706,24 @@
    11
   ]
  },
+ "application/app/Http/Requests/Admin/RiskCentral/ExperianRequest.php": {
+  "tablas": [
+   "users"
+  ]
+ },
  "application/app/Http/Requests/Admin/RiskCentralCredentials/StoreRequest.php": {
   "tablas": [
    "risk_centrals"
+  ]
+ },
+ "application/app/Http/Requests/Admin/User/DownloadRequest.php": {
+  "tablas": [
+   "users"
+  ]
+ },
+ "application/app/Http/Requests/Admin/User/ListRequests.php": {
+  "tablas": [
+   "users"
   ]
  },
  "application/app/Http/Requests/Admin/User/ManualValidationRequest.php": {
@@ -2477,9 +2731,19 @@
    "actors"
   ]
  },
+ "application/app/Http/Requests/Admin/User/UpdateRequest.php": {
+  "tablas": [
+   "users"
+  ]
+ },
  "application/app/Http/Requests/Admin/UserRequestDocumentation/StoreRequest.php": {
   "tablas": [
    "user_requests"
+  ]
+ },
+ "application/app/Http/Requests/Admin/UserRequestUser/UpdateRequest.php": {
+  "tablas": [
+   "users"
   ]
  },
  "application/app/Http/Requests/Api/Bancolombia/UserRequestWebhookRequest.php": {
@@ -2515,12 +2779,30 @@
    "user_requests"
   ]
  },
+ "application/app/Http/Requests/Customer/Authorization/IndexRequest.php": {
+  "tablas": [
+   "users"
+  ]
+ },
+ "application/app/Http/Requests/Customer/CreditopX/ListRequestsSearch.php": {
+  "tablas": [
+   "allieds"
+  ]
+ },
+ "application/app/Http/Requests/Customer/Onboarding/GenericFormRequest.php": {
+  "tablas": [
+   "users"
+  ]
+ },
  "application/app/Http/Requests/Customer/Onboarding/PersonalInfoRequest.php": {
   "lenders": [
    {
     "id": 39,
     "nombre": "Meddipay"
    }
+  ],
+  "tablas": [
+   "users"
   ]
  },
  "application/app/Http/Requests/Customer/Onboarding/PersonalInfoRequestLegacy.php": {
@@ -2532,6 +2814,14 @@
   ],
   "nodos": [
    "hardcodes-entidades"
+  ],
+  "tablas": [
+   "users"
+  ]
+ },
+ "application/app/Http/Requests/Customer/Onboarding/ResendOtpCodeEmailRequest.php": {
+  "tablas": [
+   "users"
   ]
  },
  "application/app/Http/Requests/Customer/Onboarding/StoreRegisterCellPhoneRequest.php": {
@@ -2540,12 +2830,27 @@
    "onboarding"
   ]
  },
+ "application/app/Http/Requests/Customer/User/UpdateEmailRequest.php": {
+  "tablas": [
+   "users"
+  ]
+ },
  "application/app/Http/Requests/Customer/WompiRequest.php": {
   "nodos": [
    "payments"
   ],
   "tablas": [
    "user_requests"
+  ]
+ },
+ "application/app/Http/Requests/Profile/UpdateRequest.php": {
+  "tablas": [
+   "users"
+  ]
+ },
+ "application/app/Imports/BulkloadImport.php": {
+  "tablas": [
+   "allieds"
   ]
  },
  "application/app/Jobs/CreditopXRequestsReportEmail.php": {
@@ -2619,6 +2924,11 @@
    "servicing"
   ]
  },
+ "application/app/Jobs/RequestsReportEmail.php": {
+  "tablas": [
+   "allieds"
+  ]
+ },
  "application/app/Jobs/RiskCentrals/Ado/StatusCheck.php": {
   "nodos": [
    "kyc"
@@ -2627,6 +2937,11 @@
  "application/app/Jobs/RiskCentrals/Tusdatos/CheckBackgroundJobStatus.php": {
   "nodos": [
    "kyc"
+  ]
+ },
+ "application/app/Jobs/UsersCreditopXReportEmail.php": {
+  "tablas": [
+   "users"
   ]
  },
  "application/app/Jobs/ValidatePullmanPayment.php": {
@@ -2648,6 +2963,9 @@
   ]
  },
  "application/app/Models/Achievement.php": {
+  "tablas": [
+   "users"
+  ],
   "tipo": [
    "modelo"
   ]
@@ -2658,6 +2976,9 @@
    "architecture",
    "creditop",
    "merchants"
+  ],
+  "tablas": [
+   "allieds"
   ],
   "tipo": [
    "modelo"
@@ -2739,6 +3060,9 @@
   ]
  },
  "application/app/Models/BeneficiariesByAllied.php": {
+  "tablas": [
+   "allieds"
+  ],
   "tipo": [
    "modelo"
   ]
@@ -2779,6 +3103,9 @@
  "application/app/Models/CorporateUser.php": {
   "nodos": [
    "actors"
+  ],
+  "tablas": [
+   "users"
   ],
   "tipo": [
    "modelo"
@@ -3031,6 +3358,9 @@
   "nodos": [
    "kyc"
   ],
+  "tablas": [
+   "allieds"
+  ],
   "tipo": [
    "modelo"
   ]
@@ -3143,6 +3473,9 @@
   "rt": [
    1
   ],
+  "tablas": [
+   "allieds"
+  ],
   "tipo": [
    "modelo"
   ]
@@ -3221,7 +3554,8 @@
    "profiling"
   ],
   "tablas": [
-   "lender_users_categories"
+   "lender_users_categories",
+   "users"
   ],
   "tipo": [
    "modelo"
@@ -3232,7 +3566,8 @@
    "profiling"
   ],
   "tablas": [
-   "lender_users_category_rules"
+   "lender_users_category_rules",
+   "users"
   ],
   "tipo": [
    "modelo"
@@ -3248,6 +3583,7 @@
    "redirect"
   ],
   "tablas": [
+   "allieds",
    "lenders_by_allieds"
   ],
   "tipo": [
@@ -3405,7 +3741,8 @@
  },
  "application/app/Models/ProductsByLenderUsersCategories.php": {
   "tablas": [
-   "lender_users_categories"
+   "lender_users_categories",
+   "users"
   ],
   "tipo": [
    "modelo"
@@ -3435,6 +3772,9 @@
   ]
  },
  "application/app/Models/PromissoryNote.php": {
+  "tablas": [
+   "promissory_notes"
+  ],
   "tipo": [
    "modelo"
   ]
@@ -3529,6 +3869,9 @@
   ]
  },
  "application/app/Models/RiskCentralCredential.php": {
+  "tablas": [
+   "allieds"
+  ],
   "tipo": [
    "modelo"
   ]
@@ -3622,6 +3965,10 @@
    "hardcodes-entidades",
    "kyc"
   ],
+  "tablas": [
+   "allieds",
+   "users"
+  ],
   "tipo": [
    "modelo"
   ]
@@ -3658,6 +4005,7 @@
   ],
   "tablas": [
    "user_requests",
+   "users",
    "users_category_log"
   ],
   "tipo": [
@@ -3735,6 +4083,7 @@
  },
  "application/app/Models/UsersCategoryLog.php": {
   "tablas": [
+   "users",
    "users_category_log"
   ],
   "tipo": [
@@ -3777,6 +4126,11 @@
  "application/app/Notifications/Payvalida/TransactionStatusChanged.php": {
   "nodos": [
    "payments"
+  ]
+ },
+ "application/app/Notifications/Users/UsersProfileReport.php": {
+  "tablas": [
+   "users"
   ]
  },
  "application/app/Observers/UserRequestObserver.php": {
@@ -3854,6 +4208,9 @@
    "application",
    "architecture"
   ],
+  "tablas": [
+   "users"
+  ],
   "tipo": [
    "service"
   ]
@@ -3918,6 +4275,9 @@
   "nodos": [
    "application"
   ],
+  "tablas": [
+   "users"
+  ],
   "tipo": [
    "service"
   ]
@@ -3932,6 +4292,9 @@
   ]
  },
  "application/app/Services/BarcodeService.php": {
+  "tablas": [
+   "users"
+  ],
   "tipo": [
    "service"
   ]
@@ -3981,6 +4344,9 @@
   ],
   "rt": [
    3
+  ],
+  "tablas": [
+   "users"
   ],
   "tipo": [
    "service"
@@ -4046,8 +4412,10 @@
    2
   ],
   "tablas": [
+   "allieds",
    "profiling_reviews",
-   "user_requests"
+   "user_requests",
+   "users"
   ],
   "tipo": [
    "service"
@@ -4134,7 +4502,8 @@
    3
   ],
   "tablas": [
-   "user_requests"
+   "user_requests",
+   "users"
   ],
   "tipo": [
    "service"
@@ -4162,6 +4531,9 @@
    "creditopx",
    "negocio",
    "profiling"
+  ],
+  "tablas": [
+   "users"
   ],
   "tipo": [
    "service"
@@ -4256,6 +4628,9 @@
   "rt": [
    2
   ],
+  "tablas": [
+   "allieds"
+  ],
   "tipo": [
    "service"
   ]
@@ -4319,11 +4694,22 @@
  "application/config/auth.php": {
   "nodos": [
    "actors"
+  ],
+  "tablas": [
+   "users"
+  ]
+ },
+ "application/config/dompdf.php": {
+  "tablas": [
+   "users"
   ]
  },
  "application/config/fortify.php": {
   "nodos": [
    "actors"
+  ],
+  "tablas": [
+   "users"
   ]
  },
  "application/config/grafana.php": {
@@ -4379,14 +4765,67 @@
    "otps"
   ]
  },
+ "application/resources/js/@layouts/components/VerticalNavGroup.vue": {
+  "tablas": [
+   "allieds"
+  ]
+ },
+ "application/resources/js/@layouts/components/VerticalNavLink.vue": {
+  "tablas": [
+   "allieds"
+  ]
+ },
+ "application/resources/js/@layouts/components/VerticalNavSectionTitle.vue": {
+  "tablas": [
+   "allieds"
+  ]
+ },
  "application/resources/js/app.js": {
   "nodos": [
    "application"
   ]
  },
+ "application/resources/js/components/allieds/AlliedBranchCreateModal.vue": {
+  "tablas": [
+   "allieds"
+  ]
+ },
+ "application/resources/js/components/allieds/AlliedBranchEdit.vue": {
+  "tablas": [
+   "allieds"
+  ]
+ },
+ "application/resources/js/components/allieds/AlliedInfoCard.vue": {
+  "tablas": [
+   "allieds"
+  ]
+ },
+ "application/resources/js/components/allieds/AlliedInfoCreate.vue": {
+  "tablas": [
+   "allieds"
+  ]
+ },
+ "application/resources/js/components/allieds/AlliedInfoEdit.vue": {
+  "tablas": [
+   "allieds"
+  ]
+ },
+ "application/resources/js/components/allieds/ZoneCreateModal.vue": {
+  "tablas": [
+   "allieds"
+  ]
+ },
+ "application/resources/js/components/allieds/lenders/AlliedLenderCreateModal.vue": {
+  "tablas": [
+   "allieds"
+  ]
+ },
  "application/resources/js/components/allieds/lenders/AlliedLenderEditModal.vue": {
   "rt": [
    2
+  ],
+  "tablas": [
+   "allieds"
   ]
  },
  "application/resources/js/components/creditopx/PaymentDialog.vue": {
@@ -4395,11 +4834,19 @@
     "id": 77,
     "nombre": "CrediPullman"
    }
+  ],
+  "tablas": [
+   "allieds"
   ]
  },
  "application/resources/js/components/end-of-moth-report/CardTopUsers.vue": {
   "tablas": [
    "user_requests"
+  ]
+ },
+ "application/resources/js/components/organisms/AlliedsSection.vue": {
+  "tablas": [
+   "allieds"
   ]
  },
  "application/resources/js/components/organisms/LenderSection.vue": {
@@ -4408,6 +4855,16 @@
     "id": 5,
     "nombre": "Banco de Bogotá"
    }
+  ]
+ },
+ "application/resources/js/components/organisms/revolvingCredits/StatisticsRevolvingCredits.vue": {
+  "tablas": [
+   "users"
+  ]
+ },
+ "application/resources/js/components/payment-link/PaymentLinkInfoCreate.vue": {
+  "tablas": [
+   "allieds"
   ]
  },
  "application/resources/js/components/requests/RequestTable.vue": {
@@ -4421,6 +4878,20 @@
   "rt": [
    1,
    2
+  ],
+  "tablas": [
+   "allieds"
+  ]
+ },
+ "application/resources/js/components/users/PersonalInfoTab.vue": {
+  "tablas": [
+   "allieds",
+   "users"
+  ]
+ },
+ "application/resources/js/components/users/UserInfoCard.vue": {
+  "tablas": [
+   "users"
   ]
  },
  "application/resources/js/components/users/profile/UserRequestCards.vue": {
@@ -4428,9 +4899,129 @@
    2
   ]
  },
+ "application/resources/js/components/web/allieds/Section1.vue": {
+  "tablas": [
+   "allieds"
+  ]
+ },
+ "application/resources/js/components/web/allieds/Section3.vue": {
+  "tablas": [
+   "allieds"
+  ]
+ },
+ "application/resources/js/components/web/users/UserSection1.vue": {
+  "tablas": [
+   "allieds",
+   "users"
+  ]
+ },
+ "application/resources/js/content/dashboard/charts/standard/transactions/ConversionTable.vue": {
+  "tablas": [
+   "users"
+  ]
+ },
+ "application/resources/js/content/dashboard/statistics/Customers.vue": {
+  "tablas": [
+   "users"
+  ]
+ },
+ "application/resources/js/content/dashboard/statistics/Statistics.vue": {
+  "tablas": [
+   "allieds"
+  ]
+ },
+ "application/resources/js/layouts/components/NavbarSearch.vue": {
+  "tablas": [
+   "users"
+  ]
+ },
+ "application/resources/js/layouts/customer/Layout.vue": {
+  "tablas": [
+   "users"
+  ]
+ },
+ "application/resources/js/layouts/web/foot.vue": {
+  "tablas": [
+   "allieds",
+   "users"
+  ]
+ },
+ "application/resources/js/layouts/web/navbar.vue": {
+  "tablas": [
+   "allieds",
+   "users"
+  ]
+ },
  "application/resources/js/navigation/vertical/configuration.js": {
   "nodos": [
    "actors"
+  ],
+  "tablas": [
+   "allieds",
+   "users"
+  ]
+ },
+ "application/resources/js/navigation/vertical/management.js": {
+  "tablas": [
+   "allieds",
+   "users"
+  ]
+ },
+ "application/resources/js/navigation/vertical/reports.js": {
+  "tablas": [
+   "users"
+  ]
+ },
+ "application/resources/js/pages/admin/allieds/Index.vue": {
+  "tablas": [
+   "allieds"
+  ]
+ },
+ "application/resources/js/pages/admin/allieds/allied-create/AlliedCreate.vue": {
+  "tablas": [
+   "allieds"
+  ]
+ },
+ "application/resources/js/pages/admin/allieds/allied-detail/AlliedDetail.vue": {
+  "tablas": [
+   "allieds",
+   "users"
+  ]
+ },
+ "application/resources/js/pages/admin/allieds/allied-detail/AlliedTabUsers.vue": {
+  "tablas": [
+   "allieds",
+   "users"
+  ]
+ },
+ "application/resources/js/pages/admin/allieds/allied-edit/AlliedEdit.vue": {
+  "tablas": [
+   "allieds"
+  ]
+ },
+ "application/resources/js/pages/admin/allieds/allied-edit/AlliedEditTabAlliedBranches.vue": {
+  "tablas": [
+   "allieds"
+  ]
+ },
+ "application/resources/js/pages/admin/allieds/allied-edit/AlliedEditTabEcommerceCredentials.vue": {
+  "tablas": [
+   "allieds"
+  ]
+ },
+ "application/resources/js/pages/admin/allieds/allied-edit/AlliedEditTabLenders.vue": {
+  "tablas": [
+   "allieds"
+  ]
+ },
+ "application/resources/js/pages/admin/allieds/allied-edit/AlliedEditTabModules.vue": {
+  "tablas": [
+   "allieds"
+  ]
+ },
+ "application/resources/js/pages/admin/allieds/allied-edit/AlliedEditTabProducts.vue": {
+  "tablas": [
+   "allieds"
   ]
  },
  "application/resources/js/pages/admin/allieds/allied-rules/AlliedRules.vue": {
@@ -4444,9 +5035,15 @@
    "risk_centrals"
   ]
  },
+ "application/resources/js/pages/admin/credit-bureau-aggregator/Index.vue": {
+  "tablas": [
+   "users"
+  ]
+ },
  "application/resources/js/pages/admin/end-of-month-report/Index.vue": {
   "tablas": [
-   "user_requests"
+   "user_requests",
+   "users"
   ]
  },
  "application/resources/js/pages/admin/lenders/lender-create/LenderCreate.vue": {
@@ -4459,13 +5056,25 @@
    "entities"
   ]
  },
+ "application/resources/js/pages/admin/paymentLinks/Index.vue": {
+  "tablas": [
+   "allieds"
+  ]
+ },
+ "application/resources/js/pages/admin/paymentLinks/payment-link-create/PaymentLinkCreate.vue": {
+  "tablas": [
+   "allieds"
+  ]
+ },
  "application/resources/js/pages/admin/profiling-model/profiling-model-test/Index.vue": {
   "tablas": [
+   "allieds",
    "user_requests"
   ]
  },
  "application/resources/js/pages/admin/profiling-review/user-validation/Index.vue": {
   "tablas": [
+   "allieds",
    "user_requests"
   ]
  },
@@ -4483,6 +5092,14 @@
     "id": 39,
     "nombre": "Meddipay"
    }
+  ],
+  "tablas": [
+   "users"
+  ]
+ },
+ "application/resources/js/pages/admin/requests/request-detail/RequestDetail.vue": {
+  "tablas": [
+   "users"
   ]
  },
  "application/resources/js/pages/admin/requests/request-detail/RequestTabDocumentation.vue": {
@@ -4497,10 +5114,49 @@
    11
   ]
  },
+ "application/resources/js/pages/admin/requestsCreditopX/Index.vue": {
+  "tablas": [
+   "allieds",
+   "users"
+  ]
+ },
+ "application/resources/js/pages/admin/revolvingCredits/request-detail/RequestDetail.vue": {
+  "tablas": [
+   "allieds"
+  ]
+ },
+ "application/resources/js/pages/admin/riskCreditopX/Index.vue": {
+  "tablas": [
+   "users"
+  ]
+ },
+ "application/resources/js/pages/admin/statsCreditopX/Index.vue": {
+  "tablas": [
+   "users"
+  ]
+ },
+ "application/resources/js/pages/admin/users/Index.vue": {
+  "tablas": [
+   "users"
+  ]
+ },
+ "application/resources/js/pages/admin/users/user-detail/UserDetail.vue": {
+  "tablas": [
+   "users"
+  ]
+ },
+ "application/resources/js/pages/admin/users/user-detail/UserTabDocuments.vue": {
+  "tablas": [
+   "users"
+  ]
+ },
  "application/resources/js/pages/admin/validations/manual/ManualValidation.vue": {
   "estados": [
    3,
    21
+  ],
+  "tablas": [
+   "users"
   ]
  },
  "application/resources/js/pages/admin/video-tutorials/Index.vue": {
@@ -4530,6 +5186,15 @@
    1,
    2,
    3
+  ],
+  "tablas": [
+   "allieds",
+   "users"
+  ]
+ },
+ "application/resources/js/pages/customer/lenders/actions/bancolombia/bnpl/FinalizePurchase.vue": {
+  "tablas": [
+   "allieds"
   ]
  },
  "application/resources/js/pages/customer/lenders/actions/bancolombia/bnpl/response-process/ResponseProcessCard.vue": {
@@ -4590,9 +5255,29 @@
    "payments"
   ]
  },
+ "application/resources/js/pages/customer/products/LoanApprovalSuccess.vue": {
+  "tablas": [
+   "users"
+  ]
+ },
  "application/resources/js/pages/customer/promisory-note/PromisoryNote.vue": {
   "estados": [
    10
+  ]
+ },
+ "application/resources/js/pages/customer/purchase-code/FinalizePurchase.vue": {
+  "tablas": [
+   "allieds"
+  ]
+ },
+ "application/resources/js/pages/customer/purchase-code/FinalizePurchaseQr.vue": {
+  "tablas": [
+   "allieds"
+  ]
+ },
+ "application/resources/js/pages/customer/requestsCreditopX/Index.vue": {
+  "tablas": [
+   "allieds"
   ]
  },
  "application/resources/js/pages/customer/requestsCreditopX/InitialFeePayment.vue": {
@@ -4603,6 +5288,16 @@
  "application/resources/js/pages/customer/requestsCreditopX/InitialFeePaymentResponse.vue": {
   "nodos": [
    "payments"
+  ]
+ },
+ "application/resources/js/pages/customer/requestsCreditopX/request-detail/RequestDetail.vue": {
+  "tablas": [
+   "allieds"
+  ]
+ },
+ "application/resources/js/pages/customer/revolvingCredits/request-detail/RequestDetail.vue": {
+  "tablas": [
+   "allieds"
   ]
  },
  "application/resources/js/pages/customer/video-tutorials/Index.vue": {
@@ -4622,9 +5317,22 @@
    "payments"
   ]
  },
+ "application/resources/js/pages/profile/creditop/UserCreditopRequestsDetailTab.vue": {
+  "tablas": [
+   "users"
+  ]
+ },
  "application/resources/js/pages/profile/creditop/UserCreditopRequestsTab.vue": {
   "rt": [
    2
+  ],
+  "tablas": [
+   "users"
+  ]
+ },
+ "application/resources/js/pages/profile/riskCentralData/UserRiskCentralInfoTab.vue": {
+  "tablas": [
+   "users"
   ]
  },
  "application/resources/js/pages/web/DataTreatment.vue": {
@@ -4639,6 +5347,12 @@
    }
   ]
  },
+ "application/resources/js/pages/web/Index.vue": {
+  "tablas": [
+   "allieds",
+   "users"
+  ]
+ },
  "application/resources/js/pages/web/TermsAndConditions.vue": {
   "lenders": [
    {
@@ -4651,6 +5365,11 @@
   "rt": [
    2,
    3
+  ]
+ },
+ "application/resources/views/creditopxpdf/lenders/lender_155.blade.php": {
+  "tablas": [
+   "allieds"
   ]
  },
  "application/resources/views/creditopxpdf/lenders/lender_164.blade.php": {
@@ -4669,6 +5388,16 @@
    }
   ]
  },
+ "application/resources/views/creditopxpdf/paymentschedule.blade.php": {
+  "tablas": [
+   "users"
+  ]
+ },
+ "application/resources/views/creditopxpdf/paymentschedulefeechange.blade.php": {
+  "tablas": [
+   "users"
+  ]
+ },
  "application/resources/views/email/lenders/credifamilia/bonification-report.blade.php": {
   "lenders": [
    {
@@ -4679,7 +5408,8 @@
  },
  "application/resources/views/email/reports/end-of-month-report.blade.php": {
   "tablas": [
-   "user_requests"
+   "user_requests",
+   "users"
   ]
  },
  "application/routes/admin.php": {
@@ -4691,6 +5421,10 @@
    "ecommerce",
    "entities",
    "merchants"
+  ],
+  "tablas": [
+   "allieds",
+   "users"
   ]
  },
  "application/routes/api.php": {
@@ -4737,7 +5471,8 @@
    "onboarding"
   ],
   "tablas": [
-   "risk_central_user_data"
+   "risk_central_user_data",
+   "users"
   ]
  },
  "application/routes/profile.php": {
@@ -4745,6 +5480,9 @@
    "actors",
    "application",
    "architecture"
+  ],
+  "tablas": [
+   "allieds"
   ]
  },
  "application/routes/web.php": {
@@ -4782,6 +5520,9 @@
   ]
  },
  "customer-profiling-service/Taskfile.yml": {
+  "tablas": [
+   "users"
+  ],
   "tipo": [
    "infra"
   ]
@@ -4808,7 +5549,8 @@
  },
  "customer-profiling-service/internal/core/ports/legacy_service.go": {
   "tablas": [
-   "user_requests"
+   "user_requests",
+   "users"
   ],
   "tipo": [
    "service"
@@ -4832,11 +5574,19 @@
  "customer-profiling-service/internal/core/workflows/legacykycpipeline/workflow.go": {
   "nodos": [
    "microservicios"
+  ],
+  "tablas": [
+   "users"
   ]
  },
  "customer-profiling-service/internal/infra/clients/customer_service_client.go": {
   "tipo": [
    "service"
+  ]
+ },
+ "customer-profiling-service/internal/infra/clients/legacy_client.go": {
+  "tablas": [
+   "users"
   ]
  },
  "customer-profiling-service/internal/infra/clients/risk_service_client.go": {
@@ -4846,7 +5596,8 @@
  },
  "customer-profiling-service/internal/infra/handlers/legacykycpipeline/http_handler.go": {
   "tablas": [
-   "user_requests"
+   "user_requests",
+   "users"
   ]
  },
  "customer-profiling-service/internal/infra/storage/postgres/pipeline_repository.go": {
@@ -4885,6 +5636,9 @@
   ]
  },
  "customer-service/Taskfile.yml": {
+  "tablas": [
+   "users"
+  ],
   "tipo": [
    "infra"
   ]
@@ -5380,6 +6134,9 @@
  "frontend-monorepo/apps/backoffice/app/components/AdminCommandBar.tsx": {
   "nodos": [
    "backoffice"
+  ],
+  "tablas": [
+   "users"
   ]
  },
  "frontend-monorepo/apps/backoffice/app/components/AdminHeader.tsx": {
@@ -5390,16 +6147,25 @@
  "frontend-monorepo/apps/backoffice/app/components/AdminLayout.tsx": {
   "nodos": [
    "backoffice"
+  ],
+  "tablas": [
+   "users"
   ]
  },
  "frontend-monorepo/apps/backoffice/app/components/AdminShell.tsx": {
   "nodos": [
    "backoffice"
+  ],
+  "tablas": [
+   "users"
   ]
  },
  "frontend-monorepo/apps/backoffice/app/components/DateFormatSelector.tsx": {
   "nodos": [
    "backoffice"
+  ],
+  "tablas": [
+   "users"
   ]
  },
  "frontend-monorepo/apps/backoffice/app/components/HelpDialog.tsx": {
@@ -5432,7 +6198,9 @@
    "backoffice"
   ],
   "tablas": [
-   "lenders_by_allieds"
+   "allieds",
+   "lenders_by_allieds",
+   "users"
   ]
  },
  "frontend-monorepo/apps/backoffice/app/components/profiling/UserLenderCard.tsx": {
@@ -5443,7 +6211,9 @@
    0
   ],
   "tablas": [
-   "lenders_by_allieds"
+   "allieds",
+   "lenders_by_allieds",
+   "users"
   ]
  },
  "frontend-monorepo/apps/backoffice/app/components/profiling/simulate-calc.ts": {
@@ -5452,11 +6222,17 @@
   ],
   "rt": [
    3
+  ],
+  "tablas": [
+   "users"
   ]
  },
  "frontend-monorepo/apps/backoffice/app/config/resources.tsx": {
   "nodos": [
    "backoffice"
+  ],
+  "tablas": [
+   "users"
   ]
  },
  "frontend-monorepo/apps/backoffice/app/entry.client.tsx": {
@@ -5478,6 +6254,9 @@
  "frontend-monorepo/apps/backoffice/app/providers/applications/application-admin.repository.ts": {
   "nodos": [
    "backoffice"
+  ],
+  "tablas": [
+   "users"
   ]
  },
  "frontend-monorepo/apps/backoffice/app/providers/applications/applications-data-provider.ts": {
@@ -5498,6 +6277,9 @@
  "frontend-monorepo/apps/backoffice/app/providers/mock-data-provider.ts": {
   "nodos": [
    "backoffice"
+  ],
+  "tablas": [
+   "users"
   ]
  },
  "frontend-monorepo/apps/backoffice/app/providers/users-data-provider.ts": {
@@ -5505,7 +6287,8 @@
    "backoffice"
   ],
   "tablas": [
-   "otps"
+   "otps",
+   "users"
   ]
  },
  "frontend-monorepo/apps/backoffice/app/root.tsx": {
@@ -5517,6 +6300,9 @@
   "nodos": [
    "application",
    "backoffice"
+  ],
+  "tablas": [
+   "users"
   ],
   "tipo": [
    "rutas"
@@ -5558,6 +6344,9 @@
   "nodos": [
    "backoffice"
   ],
+  "tablas": [
+   "users"
+  ],
   "tipo": [
    "rutas"
   ]
@@ -5565,6 +6354,9 @@
  "frontend-monorepo/apps/backoffice/app/routes/loan-applications.tsx": {
   "nodos": [
    "backoffice"
+  ],
+  "tablas": [
+   "users"
   ],
   "tipo": [
    "rutas"
@@ -5662,6 +6454,9 @@
   "nodos": [
    "backoffice"
   ],
+  "tablas": [
+   "users"
+  ],
   "tipo": [
    "rutas"
   ]
@@ -5671,7 +6466,8 @@
    "backoffice"
   ],
   "tablas": [
-   "otps"
+   "otps",
+   "users"
   ],
   "tipo": [
    "rutas"
@@ -5681,6 +6477,9 @@
   "nodos": [
    "backoffice"
   ],
+  "tablas": [
+   "users"
+  ],
   "tipo": [
    "rutas"
   ]
@@ -5688,6 +6487,9 @@
  "frontend-monorepo/apps/backoffice/app/routes/users.profiling.tsx": {
   "nodos": [
    "backoffice"
+  ],
+  "tablas": [
+   "users"
   ],
   "tipo": [
    "rutas"
@@ -5698,7 +6500,8 @@
    "backoffice"
   ],
   "tablas": [
-   "otps"
+   "otps",
+   "users"
   ],
   "tipo": [
    "rutas"
@@ -5707,6 +6510,9 @@
  "frontend-monorepo/apps/backoffice/app/utils/analytics.ts": {
   "nodos": [
    "backoffice"
+  ],
+  "tablas": [
+   "users"
   ]
  },
  "frontend-monorepo/apps/backoffice/app/utils/auth/access-token.server.ts": {
@@ -5891,9 +6697,19 @@
    "frontend-monorepo"
   ]
  },
+ "frontend-monorepo/apps/loan-request-wizard/app/modules/request-management/types/loan-request.ts": {
+  "tablas": [
+   "allieds"
+  ]
+ },
  "frontend-monorepo/apps/loan-request-wizard/app/modules/request-management/types/request-status.ts": {
   "nodos": [
    "onboarding"
+  ]
+ },
+ "frontend-monorepo/apps/loan-request-wizard/app/modules/request-management/types/statistics.ts": {
+  "tablas": [
+   "users"
   ]
  },
  "frontend-monorepo/apps/loan-request-wizard/app/modules/user-profiling/infrastructure/user-profiling.repository.ts": {
@@ -6039,7 +6855,8 @@
  },
  "frontend-monorepo/apps/loan-request-wizard/app/routes/api/kyc-status.tsx": {
   "tablas": [
-   "user_requests"
+   "user_requests",
+   "users"
   ],
   "tipo": [
    "rutas"
@@ -6794,6 +7611,9 @@
   ]
  },
  "frontend-monorepo/apps/loan-request-wizard/app/routes/loan-application-form/kyc-processing.tsx": {
+  "tablas": [
+   "users"
+  ],
   "tipo": [
    "rutas"
   ]
@@ -6967,6 +7787,9 @@
   ]
  },
  "frontend-monorepo/apps/loan-request-wizard/app/routes/request-management/index.tsx": {
+  "tablas": [
+   "users"
+  ],
   "tipo": [
    "rutas"
   ]
@@ -7079,7 +7902,8 @@
  },
  "frontend-monorepo/apps/loan-request-wizard/app/server/services/kyc-pipeline.server.ts": {
   "tablas": [
-   "user_requests"
+   "user_requests",
+   "users"
   ],
   "tipo": [
    "service"
@@ -7276,6 +8100,11 @@
    }
   ]
  },
+ "frontend-monorepo/apps/storybook/src/stories/components/organisms/PhoneNumberForm.stories.tsx": {
+  "tablas": [
+   "users"
+  ]
+ },
  "frontend-monorepo/apps/storybook/src/stories/flows/lenders-marketplace.stories.tsx": {
   "lenders": [
    {
@@ -7423,6 +8252,9 @@
   ]
  },
  "frontend-monorepo/apps/storybook/src/stories/routes/bancolombia/no-preapproved.stories.tsx": {
+  "tablas": [
+   "users"
+  ],
   "tipo": [
    "rutas"
   ]
@@ -7626,6 +8458,9 @@
    1,
    2
   ],
+  "tablas": [
+   "users"
+  ],
   "tipo": [
    "rutas"
   ]
@@ -7757,24 +8592,88 @@
    "rutas"
   ]
  },
+ "frontend-monorepo/modules/backoffice/users/src/components/ApplicationDetailView.tsx": {
+  "tablas": [
+   "users"
+  ]
+ },
+ "frontend-monorepo/modules/backoffice/users/src/components/ApplicationOverview.tsx": {
+  "tablas": [
+   "users"
+  ]
+ },
+ "frontend-monorepo/modules/backoffice/users/src/components/ExperianDetailView.tsx": {
+  "tablas": [
+   "users"
+  ]
+ },
+ "frontend-monorepo/modules/backoffice/users/src/components/FiltersBar.tsx": {
+  "tablas": [
+   "users"
+  ]
+ },
  "frontend-monorepo/modules/backoffice/users/src/components/OtpLogPopover.tsx": {
   "tablas": [
-   "otps"
+   "otps",
+   "users"
+  ]
+ },
+ "frontend-monorepo/modules/backoffice/users/src/components/PerfilamientoView.tsx": {
+  "tablas": [
+   "users"
+  ]
+ },
+ "frontend-monorepo/modules/backoffice/users/src/components/QuickActions.tsx": {
+  "tablas": [
+   "users"
+  ]
+ },
+ "frontend-monorepo/modules/backoffice/users/src/components/ResultsList.tsx": {
+  "tablas": [
+   "users"
+  ]
+ },
+ "frontend-monorepo/modules/backoffice/users/src/components/SearchCard.tsx": {
+  "tablas": [
+   "users"
+  ]
+ },
+ "frontend-monorepo/modules/backoffice/users/src/components/SearchHistoryCard.tsx": {
+  "tablas": [
+   "users"
   ]
  },
  "frontend-monorepo/modules/backoffice/users/src/components/UserDetail.tsx": {
   "tablas": [
-   "otps"
+   "otps",
+   "users"
   ]
  },
  "frontend-monorepo/modules/backoffice/users/src/components/UserHeader.tsx": {
   "tablas": [
-   "otps"
+   "otps",
+   "users"
   ]
  },
  "frontend-monorepo/modules/backoffice/users/src/components/UserTabs.tsx": {
   "tablas": [
-   "otps"
+   "otps",
+   "users"
+  ]
+ },
+ "frontend-monorepo/modules/backoffice/users/src/components/applications/ApplicationCard.tsx": {
+  "tablas": [
+   "users"
+  ]
+ },
+ "frontend-monorepo/modules/backoffice/users/src/components/applications/ApplicationInfoPopover.tsx": {
+  "tablas": [
+   "users"
+  ]
+ },
+ "frontend-monorepo/modules/backoffice/users/src/components/applications/DownloadApplicationsDialog.tsx": {
+  "tablas": [
+   "users"
   ]
  },
  "frontend-monorepo/modules/backoffice/users/src/components/profiling/CalcSection.tsx": {
@@ -7782,12 +8681,115 @@
    3
   ],
   "tablas": [
-   "lenders_by_allieds"
+   "allieds",
+   "lenders_by_allieds",
+   "users"
+  ]
+ },
+ "frontend-monorepo/modules/backoffice/users/src/components/profiling/CategoriesSection.tsx": {
+  "tablas": [
+   "users"
+  ]
+ },
+ "frontend-monorepo/modules/backoffice/users/src/components/profiling/HardRulesSection.tsx": {
+  "tablas": [
+   "users"
+  ]
+ },
+ "frontend-monorepo/modules/backoffice/users/src/components/profiling/ProfilingHeader.tsx": {
+  "tablas": [
+   "users"
+  ]
+ },
+ "frontend-monorepo/modules/backoffice/users/src/components/profiling/ProfilingView.tsx": {
+  "tablas": [
+   "users"
+  ]
+ },
+ "frontend-monorepo/modules/backoffice/users/src/components/tabs/CentralesTab.tsx": {
+  "tablas": [
+   "users"
+  ]
+ },
+ "frontend-monorepo/modules/backoffice/users/src/components/tabs/CreditoActivoTab.tsx": {
+  "tablas": [
+   "users"
+  ]
+ },
+ "frontend-monorepo/modules/backoffice/users/src/components/tabs/DocumentsTab.tsx": {
+  "tablas": [
+   "users"
+  ]
+ },
+ "frontend-monorepo/modules/backoffice/users/src/components/tabs/FinancieraTab.tsx": {
+  "tablas": [
+   "users"
+  ]
+ },
+ "frontend-monorepo/modules/backoffice/users/src/components/tabs/HistorialTab.tsx": {
+  "tablas": [
+   "users"
   ]
  },
  "frontend-monorepo/modules/backoffice/users/src/components/tabs/OtpsTab.tsx": {
   "tablas": [
-   "otps"
+   "otps",
+   "users"
+  ]
+ },
+ "frontend-monorepo/modules/backoffice/users/src/components/tabs/ProfileTab.tsx": {
+  "tablas": [
+   "users"
+  ]
+ },
+ "frontend-monorepo/modules/backoffice/users/src/components/tabs/SolicitudesTab.tsx": {
+  "tablas": [
+   "users"
+  ]
+ },
+ "frontend-monorepo/modules/backoffice/users/src/components/tabs/SummaryTab.tsx": {
+  "tablas": [
+   "users"
+  ]
+ },
+ "frontend-monorepo/modules/backoffice/users/src/components/tabs/ValidacionTab.tsx": {
+  "tablas": [
+   "users"
+  ]
+ },
+ "frontend-monorepo/modules/backoffice/users/src/components/tabs/validacion/CentralsAccordion.tsx": {
+  "tablas": [
+   "users"
+  ]
+ },
+ "frontend-monorepo/modules/backoffice/users/src/components/tabs/validacion/FlowSection.tsx": {
+  "tablas": [
+   "users"
+  ]
+ },
+ "frontend-monorepo/modules/backoffice/users/src/components/tabs/validacion/InfoGroups.tsx": {
+  "tablas": [
+   "users"
+  ]
+ },
+ "frontend-monorepo/modules/backoffice/users/src/components/tabs/validacion/ManualValidationCard.tsx": {
+  "tablas": [
+   "users"
+  ]
+ },
+ "frontend-monorepo/modules/backoffice/users/src/components/tabs/validacion/NameChecksSection.tsx": {
+  "tablas": [
+   "users"
+  ]
+ },
+ "frontend-monorepo/modules/backoffice/users/src/components/tabs/validacion/primitives.tsx": {
+  "tablas": [
+   "users"
+  ]
+ },
+ "frontend-monorepo/modules/backoffice/users/src/components/tabs/validacion/useManualValidation.ts": {
+  "tablas": [
+   "users"
   ]
  },
  "frontend-monorepo/modules/backoffice/users/src/index.ts": {
@@ -7828,6 +8830,7 @@
    3
   ],
   "tablas": [
+   "users",
    "users_category_log"
   ]
  },
@@ -7839,11 +8842,17 @@
  "frontend-monorepo/modules/backoffice/users/src/lib/index.ts": {
   "nodos": [
    "backoffice"
+  ],
+  "tablas": [
+   "users"
   ]
  },
  "frontend-monorepo/modules/backoffice/users/src/lib/mock/search.ts": {
   "nodos": [
    "backoffice"
+  ],
+  "tablas": [
+   "users"
   ]
  },
  "frontend-monorepo/modules/backoffice/users/src/lib/mock/users.ts": {
@@ -7914,6 +8923,9 @@
  "frontend-monorepo/modules/loan-request-wizard/abaco/src/domain/platforms.ts": {
   "nodos": [
    "motai"
+  ],
+  "tablas": [
+   "allieds"
   ]
  },
  "frontend-monorepo/modules/loan-request-wizard/abaco/src/domain/validation-status-abaco.ts": {
@@ -9362,13 +10374,15 @@
  },
  "harness/bin/dbops.ts": {
   "tablas": [
+   "allieds",
    "lenders_by_allied_branches",
    "lenders_by_allieds",
    "risk_central_user_data",
    "user_field_values",
    "user_request_records",
    "user_request_risk_central_user_data",
-   "user_requests"
+   "user_requests",
+   "users"
   ]
  },
  "harness/bin/steps-check.ts": {
@@ -9403,10 +10417,12 @@
    3
   ],
   "tablas": [
+   "allieds",
    "lender_users_categories",
    "lender_users_category_rules",
    "lenders_by_allied_branches",
-   "lenders_by_allieds"
+   "lenders_by_allieds",
+   "users"
   ]
  },
  "harness/create3.ts": {
@@ -9423,17 +10439,23 @@
    2
   ],
   "tablas": [
+   "allieds",
    "lender_users_categories",
    "lender_users_category_rules",
    "lenders_by_allied_branches",
-   "lenders_by_allieds"
+   "lenders_by_allieds",
+   "users"
   ]
  },
  "harness/dev/admin-sesion.php": {
-  "gates": true
+  "gates": true,
+  "tablas": [
+   "users"
+  ]
  },
  "harness/dev/experian-api.ts": {
   "tablas": [
+   "allieds",
    "user_requests"
   ]
  },
@@ -9442,6 +10464,7 @@
    "EXPERIAN_NOT_TRIGGERED"
   ],
   "tablas": [
+   "allieds",
    "risk_central_user_data",
    "risk_centrals",
    "user_request_risk_central_user_data",
@@ -9454,6 +10477,9 @@
     "id": 24,
     "nombre": "Credifamilia"
    }
+  ],
+  "tablas": [
+   "users"
   ]
  },
  "harness/dev/loki-trace.ts": {
@@ -9463,13 +10489,17 @@
  },
  "harness/dev/paises.ts": {
   "tablas": [
-   "lenders_by_allied_branches"
+   "allieds",
+   "lenders_by_allied_branches",
+   "users"
   ]
  },
  "harness/dev/qr-corbeta.ts": {
   "tablas": [
+   "allieds",
    "lender_allied_credentials",
-   "user_requests"
+   "user_requests",
+   "users"
   ]
  },
  "harness/dev/sandbox-bancolombia.ts": {
@@ -9496,7 +10526,8 @@
   ],
   "tablas": [
    "lenders_by_allied_branches",
-   "user_requests"
+   "user_requests",
+   "users"
   ]
  },
  "harness/e2e/triplet.ts": {
@@ -9521,7 +10552,8 @@
    2
   ],
   "tablas": [
-   "lender_users_categories"
+   "lender_users_categories",
+   "users"
   ]
  },
  "harness/merchant/seed.ts": {
@@ -9535,7 +10567,8 @@
    "lender_users_categories",
    "otps",
    "risk_central_user_data",
-   "user_requests"
+   "user_requests",
+   "users"
   ]
  },
  "harness/mock-abaco/server.mjs": {
@@ -9544,10 +10577,16 @@
    "findings"
   ]
  },
+ "harness/mock-bancolombia/server.mjs": {
+  "tablas": [
+   "allieds"
+  ]
+ },
  "harness/mock-financial-health/server.ts": {
   "tablas": [
    "user_field_values",
-   "user_requests"
+   "user_requests",
+   "users"
   ]
  },
  "harness/mock-forms/server.mjs": {
@@ -9561,6 +10600,7 @@
    "findings"
   ],
   "tablas": [
+   "allieds",
    "user_requests"
   ]
  },
@@ -9584,6 +10624,9 @@
   ],
   "nodos": [
    "findings"
+  ],
+  "tablas": [
+   "allieds"
   ]
  },
  "harness/mock-payvalida/server.mjs": {
@@ -9634,6 +10677,7 @@
    0
   ],
   "tablas": [
+   "allieds",
    "lenders_by_allied_branches",
    "lenders_by_allieds",
    "risk_central_user_data",
@@ -9647,10 +10691,12 @@
    "harness"
   ],
   "tablas": [
+   "promissory_notes",
    "risk_central_user_data",
    "user_field_values",
    "user_request_records",
-   "user_requests"
+   "user_requests",
+   "users"
   ]
  },
  "harness/pkg/close.ts": {
@@ -9673,7 +10719,8 @@
   ],
   "tablas": [
    "otps",
-   "user_requests"
+   "user_requests",
+   "users"
   ]
  },
  "harness/pkg/cognito.ts": {
@@ -9703,6 +10750,9 @@
  "harness/pkg/config.ts": {
   "nodos": [
    "harness"
+  ],
+  "tablas": [
+   "users"
   ]
  },
  "harness/pkg/db.ts": {
@@ -9754,7 +10804,8 @@
    "risk_central_user_data",
    "risk_centrals",
    "user_field_values",
-   "user_requests"
+   "user_requests",
+   "users"
   ]
  },
  "harness/pkg/laravel-crypt.ts": {
@@ -9769,6 +10820,11 @@
   "gates": true,
   "marcas": [
    "CATEGORY_RULE_REJECTED"
+  ]
+ },
+ "harness/pkg/merchants.ts": {
+  "tablas": [
+   "allieds"
   ]
  },
  "harness/pkg/mock-control.ts": {
@@ -9788,6 +10844,9 @@
  "harness/pkg/pdf-mock.ts": {
   "nodos": [
    "findings"
+  ],
+  "tablas": [
+   "users"
   ]
  },
  "harness/pkg/qr.ts": {
@@ -9795,12 +10854,14 @@
    25
   ],
   "tablas": [
+   "allieds",
    "lenders_by_allied_branches",
    "user_requests"
   ]
  },
  "harness/pkg/trace.ts": {
   "tablas": [
+   "allieds",
    "user_requests"
   ]
  },
@@ -9893,6 +10954,9 @@
  "legacy-backend/Modules/AlliedBranchV1/App/Commands/IsCorbetaOnboardingCommand.php": {
   "nodos": [
    "corbeta"
+  ],
+  "tablas": [
+   "allieds"
   ]
  },
  "legacy-backend/Modules/AlliedBranchV1/App/Providers/AlliedBranchV1ServiceProvider.php": {
@@ -9962,6 +11026,9 @@
    "hardcodes-entidades",
    "merchants"
   ],
+  "tablas": [
+   "allieds"
+  ],
   "tipo": [
    "service"
   ]
@@ -9990,6 +11057,21 @@
    "repositorio"
   ]
  },
+ "legacy-backend/Modules/AlliedV1/App/Commands/GetExperianQueryCountByAlliedIdCommand.php": {
+  "tablas": [
+   "allieds"
+  ]
+ },
+ "legacy-backend/Modules/AlliedV1/App/Commands/IncrementExperianQueryCountByAlliedIdCommand.php": {
+  "tablas": [
+   "allieds"
+  ]
+ },
+ "legacy-backend/Modules/AlliedV1/App/Domain/DatacreditoQueryByAlliedData.php": {
+  "tablas": [
+   "allieds"
+  ]
+ },
  "legacy-backend/Modules/AlliedV1/App/Providers/AlliedV1ServiceProvider.php": {
   "tipo": [
    "service"
@@ -10001,6 +11083,9 @@
   ]
  },
  "legacy-backend/Modules/AlliedV1/App/Repositories/DatacreditoQueryByAlliedRepository.php": {
+  "tablas": [
+   "allieds"
+  ],
   "tipo": [
    "repositorio"
   ]
@@ -10038,6 +11123,9 @@
     "Command data"
    ]
   },
+  "tablas": [
+   "allieds"
+  ],
   "tipo": [
    "service"
   ]
@@ -10048,6 +11136,9 @@
   ]
  },
  "legacy-backend/Modules/AlliedV1/Contracts/Repositories/DatacreditoQueryByAlliedRepositoryInterface.php": {
+  "tablas": [
+   "allieds"
+  ],
   "tipo": [
    "repositorio"
   ]
@@ -10181,7 +11272,8 @@
    "backoffice"
   ],
   "tablas": [
-   "otps"
+   "otps",
+   "users"
   ],
   "tipo": [
    "service"
@@ -10199,7 +11291,8 @@
    "backoffice"
   ],
   "tablas": [
-   "otps"
+   "otps",
+   "users"
   ],
   "tipo": [
    "service"
@@ -10221,6 +11314,9 @@
  "legacy-backend/Modules/Auth/config/config.php": {
   "nodos": [
    "backoffice"
+  ],
+  "tablas": [
+   "users"
   ]
  },
  "legacy-backend/Modules/Auth/routes/auth.php": {
@@ -10256,6 +11352,9 @@
   ]
  },
  "legacy-backend/Modules/AuthV1/App/Repositories/UserRepository.php": {
+  "tablas": [
+   "users"
+  ],
   "tipo": [
    "repositorio"
   ]
@@ -10272,7 +11371,8 @@
    ]
   },
   "tablas": [
-   "otps"
+   "otps",
+   "users"
   ],
   "tipo": [
    "service"
@@ -10284,6 +11384,9 @@
   ]
  },
  "legacy-backend/Modules/AuthV1/Contracts/Repositories/UserRepositoryInterface.php": {
+  "tablas": [
+   "users"
+  ],
   "tipo": [
    "repositorio"
   ]
@@ -10315,7 +11418,8 @@
    "backoffice"
   ],
   "tablas": [
-   "otps"
+   "otps",
+   "users"
   ],
   "tipo": [
    "controller"
@@ -10337,6 +11441,9 @@
  "legacy-backend/Modules/Backoffice/App/Http/Requests/Users/ListRequest.php": {
   "nodos": [
    "backoffice"
+  ],
+  "tablas": [
+   "users"
   ]
  },
  "legacy-backend/Modules/Backoffice/App/Providers/BackofficeServiceProvider.php": {
@@ -10365,10 +11472,12 @@
    3
   ],
   "tablas": [
+   "allieds",
    "lenders_by_allied_branches",
    "lenders_by_allieds",
    "profiling_reviews",
    "user_requests",
+   "users",
    "users_category_log"
   ],
   "tipo": [
@@ -10391,9 +11500,11 @@
    2
   ],
   "tablas": [
+   "allieds",
    "otps",
    "risk_centrals",
-   "user_field_values"
+   "user_field_values",
+   "users"
   ],
   "tipo": [
    "service"
@@ -10405,7 +11516,8 @@
    "backoffice"
   ],
   "tablas": [
-   "otps"
+   "otps",
+   "users"
   ],
   "tipo": [
    "rutas"
@@ -10455,6 +11567,16 @@
  "legacy-backend/Modules/CommonsV1/App/Services/SettingsService.php": {
   "tipo": [
    "service"
+  ]
+ },
+ "legacy-backend/Modules/CommonsV1/App/Utils/PhoneUtils.php": {
+  "tablas": [
+   "users"
+  ]
+ },
+ "legacy-backend/Modules/CommonsV1/App/Utils/StringUtils.php": {
+  "tablas": [
+   "allieds"
   ]
  },
  "legacy-backend/Modules/CommonsV1/App/Utils/TracingUtils.php": {
@@ -10673,7 +11795,8 @@
  },
  "legacy-backend/Modules/Identity/App/Http/Requests/AdoVerifyCallbackRequest.php": {
   "tablas": [
-   "risk_centrals"
+   "risk_centrals",
+   "users"
   ]
  },
  "legacy-backend/Modules/Identity/App/Http/Requests/CancelRequestRequest.php": {
@@ -10912,6 +12035,9 @@
   "nodos": [
    "kyc"
   ],
+  "tablas": [
+   "users"
+  ],
   "tipo": [
    "service"
   ]
@@ -10952,6 +12078,9 @@
   },
   "nodos": [
    "actors"
+  ],
+  "tablas": [
+   "users"
   ],
   "tipo": [
    "service"
@@ -10994,6 +12123,9 @@
     "AWS Rekognition error in face comparison"
    ]
   },
+  "tablas": [
+   "users"
+  ],
   "tipo": [
    "service"
   ]
@@ -11220,11 +12352,13 @@
  },
  "legacy-backend/Modules/LenderV1/App/Commands/GetActiveLendersByAlliedIdCommand.php": {
   "tablas": [
+   "allieds",
    "lenders_by_allieds"
   ]
  },
  "legacy-backend/Modules/LenderV1/App/Commands/HasActiveIntegratedEntitiesCommand.php": {
   "tablas": [
+   "allieds",
    "lenders_by_allied_branches",
    "lenders_by_allieds"
   ]
@@ -11236,6 +12370,7 @@
  },
  "legacy-backend/Modules/LenderV1/App/Domain/LendersByAlliedData.php": {
   "tablas": [
+   "allieds",
    "lenders_by_allieds"
   ]
  },
@@ -11262,6 +12397,7 @@
  },
  "legacy-backend/Modules/LenderV1/App/Repositories/LendersByAlliedRepository.php": {
   "tablas": [
+   "allieds",
    "lenders_by_allieds"
   ],
   "tipo": [
@@ -11290,6 +12426,7 @@
    ]
   },
   "tablas": [
+   "allieds",
    "lenders_by_allieds"
   ],
   "tipo": [
@@ -11331,6 +12468,7 @@
  },
  "legacy-backend/Modules/LenderV1/Contracts/Repositories/LendersByAlliedRepositoryInterface.php": {
   "tablas": [
+   "allieds",
    "lenders_by_allieds"
   ],
   "tipo": [
@@ -11374,6 +12512,9 @@
   ],
   "nodos": [
    "credifamilia"
+  ],
+  "tablas": [
+   "netco_signing_documents"
   ],
   "tipo": [
    "controller"
@@ -11573,6 +12714,9 @@
    2,
    3
   ],
+  "tablas": [
+   "users"
+  ],
   "tipo": [
    "controller"
   ]
@@ -11593,6 +12737,9 @@
   ]
  },
  "legacy-backend/Modules/Loans/App/Http/Controllers/Customer/DebtSummaryController.php": {
+  "tablas": [
+   "users"
+  ],
   "tipo": [
    "controller"
   ]
@@ -11647,6 +12794,9 @@
  "legacy-backend/Modules/Loans/App/Http/Controllers/Customer/LenderUserCategoryController.php": {
   "nodos": [
    "profiling"
+  ],
+  "tablas": [
+   "users"
   ],
   "tipo": [
    "controller"
@@ -11706,6 +12856,9 @@
    "formalization",
    "smartpay"
   ],
+  "tablas": [
+   "users"
+  ],
   "tipo": [
    "controller"
   ]
@@ -11719,6 +12872,9 @@
   ]
  },
  "legacy-backend/Modules/Loans/App/Http/Controllers/Customer/UserProfilingController.php": {
+  "tablas": [
+   "users"
+  ],
   "tipo": [
    "controller"
   ]
@@ -11899,6 +13055,11 @@
    "user_requests"
   ]
  },
+ "legacy-backend/Modules/Loans/App/Http/Requests/ManualValidationRequest.php": {
+  "tablas": [
+   "users"
+  ]
+ },
  "legacy-backend/Modules/Loans/App/Http/Requests/Payment/GetPaymentInfoRequest.php": {
   "tablas": [
    "user_requests"
@@ -11906,11 +13067,13 @@
  },
  "legacy-backend/Modules/Loans/App/Http/Requests/PaymentSchedule/ConfirmPaymentScheduleRequest.php": {
   "tablas": [
+   "allieds",
    "user_requests"
   ]
  },
  "legacy-backend/Modules/Loans/App/Http/Requests/PaymentSchedule/SimulatePaymentScheduleRequest.php": {
   "tablas": [
+   "allieds",
    "user_requests"
   ]
  },
@@ -12060,6 +13223,7 @@
  },
  "legacy-backend/Modules/Loans/App/Repositories/CreditopXRequestHistoryRepository.php": {
   "tablas": [
+   "allieds",
    "creditop_x_requests_history",
    "user_requests"
   ],
@@ -12160,6 +13324,9 @@
   "nodos": [
    "profiling"
   ],
+  "tablas": [
+   "users"
+  ],
   "tipo": [
    "repositorio"
   ]
@@ -12223,6 +13390,9 @@
   "nodos": [
    "db-routines",
    "rotativo"
+  ],
+  "tablas": [
+   "users"
   ],
   "tipo": [
    "repositorio"
@@ -12309,6 +13479,10 @@
   "rt": [
    2
   ],
+  "tablas": [
+   "allieds",
+   "users"
+  ],
   "tipo": [
    "repositorio"
   ]
@@ -12355,6 +13529,9 @@
    "credifamilia",
    "formalization"
   ],
+  "tablas": [
+   "users"
+  ],
   "tipo": [
    "service"
   ]
@@ -12385,6 +13562,9 @@
   "rt": [
    3
   ],
+  "tablas": [
+   "users"
+  ],
   "tipo": [
    "service"
   ]
@@ -12407,6 +13587,10 @@
   },
   "nodos": [
    "credifamilia"
+  ],
+  "tablas": [
+   "netco_signing_documents",
+   "promissory_notes"
   ],
   "tipo": [
    "service"
@@ -12465,7 +13649,9 @@
    3
   ],
   "tablas": [
-   "user_requests"
+   "allieds",
+   "user_requests",
+   "users"
   ],
   "tipo": [
    "service"
@@ -12514,6 +13700,9 @@
   "nodos": [
    "formalization",
    "smartpay"
+  ],
+  "tablas": [
+   "users"
   ],
   "tipo": [
    "service"
@@ -12623,11 +13812,17 @@
   "nodos": [
    "credifamilia"
   ],
+  "tablas": [
+   "users"
+  ],
   "tipo": [
    "service"
   ]
  },
  "legacy-backend/Modules/Loans/App/Services/DocumentGeneration/Payload/PayloadFormatters.php": {
+  "tablas": [
+   "users"
+  ],
   "tipo": [
    "service"
   ]
@@ -12678,6 +13873,9 @@
   "rt": [
    3
   ],
+  "tablas": [
+   "netco_signing_documents"
+  ],
   "tipo": [
    "service"
   ]
@@ -12703,6 +13901,9 @@
   ],
   "rt": [
    3
+  ],
+  "tablas": [
+   "users"
   ],
   "tipo": [
    "service"
@@ -12744,6 +13945,9 @@
   ],
   "nodos": [
    "formalization"
+  ],
+  "tablas": [
+   "users"
   ],
   "tipo": [
    "service"
@@ -12818,6 +14022,7 @@
    "pullman"
   ],
   "tablas": [
+   "users",
    "users_category_log"
   ],
   "tipo": [
@@ -13058,6 +14263,9 @@
   "rt": [
    3
   ],
+  "tablas": [
+   "users"
+  ],
   "tipo": [
    "service"
   ]
@@ -13122,6 +14330,9 @@
   "rt": [
    3
   ],
+  "tablas": [
+   "users"
+  ],
   "tipo": [
    "service"
   ]
@@ -13159,6 +14370,9 @@
   "rt": [
    2,
    3
+  ],
+  "tablas": [
+   "allieds"
   ],
   "tipo": [
    "service"
@@ -13299,6 +14513,10 @@
    "credifamilia",
    "formalization"
   ],
+  "tablas": [
+   "netco_signing_documents",
+   "users"
+  ],
   "tipo": [
    "service"
   ]
@@ -13327,8 +14545,10 @@
    ]
   },
   "tablas": [
+   "allieds",
    "profiling_reviews",
-   "user_requests"
+   "user_requests",
+   "users"
   ],
   "tipo": [
    "service"
@@ -13345,6 +14565,9 @@
  "legacy-backend/Modules/Loans/App/Services/UserRequestService.php": {
   "nodos": [
    "aggregator"
+  ],
+  "tablas": [
+   "allieds"
   ],
   "tipo": [
    "service"
@@ -13388,6 +14611,9 @@
   "nodos": [
    "formalization"
   ],
+  "tablas": [
+   "allieds"
+  ],
   "tipo": [
    "service"
   ]
@@ -13417,6 +14643,19 @@
   ],
   "tipo": [
    "service"
+  ]
+ },
+ "legacy-backend/Modules/Loans/App/Traits/PdfGenerationTrait.php": {
+  "loguea": {
+   "mensajes": 3,
+   "muestra": [
+    "Failed to generate PDF",
+    "Failed to store PDF",
+    "Generating PDF with empty data"
+   ]
+  },
+  "tablas": [
+   "users"
   ]
  },
  "legacy-backend/Modules/Loans/Contracts/Repositories/ActiveCreditRepositoryInterface.php": {
@@ -13728,6 +14967,9 @@
    "credifamilia",
    "legacy-backend"
   ],
+  "tablas": [
+   "users"
+  ],
   "tipo": [
    "rutas"
   ]
@@ -13764,6 +15006,7 @@
    "merchants"
   ],
   "tablas": [
+   "allieds",
    "lenders_by_allied_branches"
   ]
  },
@@ -13866,6 +15109,9 @@
    "bancolombia",
    "hardcodes-entidades"
   ],
+  "tablas": [
+   "allieds"
+  ],
   "tipo": [
    "controller"
   ]
@@ -13895,6 +15141,9 @@
   },
   "nodos": [
    "bancolombia"
+  ],
+  "tablas": [
+   "allieds"
   ],
   "tipo": [
    "controller"
@@ -14056,6 +15305,10 @@
    "microservicios",
    "motai",
    "onboarding"
+  ],
+  "tablas": [
+   "allieds",
+   "users"
   ],
   "tipo": [
    "controller"
@@ -14302,6 +15555,11 @@
    "motai"
   ]
  },
+ "legacy-backend/Modules/Onboarding/App/Http/Requests/AcceptTermsRequest.php": {
+  "tablas": [
+   "users"
+  ]
+ },
  "legacy-backend/Modules/Onboarding/App/Http/Requests/CreateEcommerceRequest.php": {
   "nodos": [
    "ecommerce"
@@ -14346,6 +15604,19 @@
  "legacy-backend/Modules/Onboarding/App/Http/Requests/PersonalInfoRequest.php": {
   "nodos": [
    "onboarding"
+  ],
+  "tablas": [
+   "users"
+  ]
+ },
+ "legacy-backend/Modules/Onboarding/App/Http/Requests/ResendOtpCodeEmailRequest.php": {
+  "tablas": [
+   "users"
+  ]
+ },
+ "legacy-backend/Modules/Onboarding/App/Http/Requests/SendOtpCodeRequest.php": {
+  "tablas": [
+   "users"
   ]
  },
  "legacy-backend/Modules/Onboarding/App/Http/Requests/ValidateOtpCodeRequest.php": {
@@ -14585,6 +15856,10 @@
   "nodos": [
    "hardcodes-entidades"
   ],
+  "tablas": [
+   "allieds",
+   "users"
+  ],
   "tipo": [
    "service"
   ]
@@ -14705,7 +15980,8 @@
   ],
   "tablas": [
    "user_field_values",
-   "user_requests"
+   "user_requests",
+   "users"
   ],
   "tipo": [
    "service"
@@ -14732,6 +16008,9 @@
   "nodos": [
    "bancolombia",
    "ecommerce"
+  ],
+  "tablas": [
+   "allieds"
   ],
   "tipo": [
    "service"
@@ -14800,6 +16079,9 @@
   ]
  },
  "legacy-backend/Modules/Onboarding/App/Services/KycValidationOutcome.php": {
+  "tablas": [
+   "allieds"
+  ],
   "tipo": [
    "service"
   ]
@@ -14819,6 +16101,7 @@
    "hardcodes-entidades"
   ],
   "tablas": [
+   "allieds",
    "lenders_by_allieds"
   ],
   "tipo": [
@@ -14906,6 +16189,7 @@
    2
   ],
   "tablas": [
+   "allieds",
    "lenders_by_allied_branches",
    "user_requests"
   ],
@@ -14951,7 +16235,8 @@
    "onboarding"
   ],
   "tablas": [
-   "otps"
+   "otps",
+   "users"
   ],
   "tipo": [
    "service"
@@ -15015,6 +16300,9 @@
   "nodos": [
    "motai",
    "onboarding"
+  ],
+  "tablas": [
+   "users"
   ],
   "tipo": [
    "service"
@@ -15085,6 +16373,9 @@
   "nodos": [
    "hardcodes-entidades",
    "onboarding"
+  ],
+  "tablas": [
+   "users"
   ],
   "tipo": [
    "service"
@@ -15208,6 +16499,7 @@
   ],
   "tablas": [
    "user_requests",
+   "users",
    "users_category_log"
   ],
   "tipo": [
@@ -15262,7 +16554,8 @@
    3
   ],
   "tablas": [
-   "user_requests"
+   "user_requests",
+   "users"
   ],
   "tipo": [
    "service"
@@ -15313,6 +16606,9 @@
   "nodos": [
    "legacy-backend",
    "profiling"
+  ],
+  "tablas": [
+   "users"
   ],
   "tipo": [
    "service"
@@ -15408,6 +16704,9 @@
   "rt": [
    2
   ],
+  "tablas": [
+   "allieds"
+  ],
   "tipo": [
    "service"
   ]
@@ -15470,6 +16769,9 @@
   "nodos": [
    "bancolombia"
   ],
+  "tablas": [
+   "users"
+  ],
   "tipo": [
    "service"
   ]
@@ -15492,6 +16794,10 @@
    "bancolombia",
    "corbeta",
    "hardcodes-entidades"
+  ],
+  "tablas": [
+   "allieds",
+   "users"
   ],
   "tipo": [
    "service"
@@ -15725,6 +17031,9 @@
   ]
  },
  "legacy-backend/Modules/OnboardingV2/App/Repositories/UserRepository.php": {
+  "tablas": [
+   "users"
+  ],
   "tipo": [
    "repositorio"
   ]
@@ -15774,11 +17083,18 @@
    "legacy-backend",
    "onboarding"
   ],
+  "tablas": [
+   "allieds",
+   "users"
+  ],
   "tipo": [
    "service"
   ]
  },
  "legacy-backend/Modules/OnboardingV2/Contracts/Repositories/UserRepositoryInterface.php": {
+  "tablas": [
+   "users"
+  ],
   "tipo": [
    "repositorio"
   ]
@@ -15815,6 +17131,9 @@
   "nodos": [
    "creditop"
   ],
+  "tablas": [
+   "allieds"
+  ],
   "tipo": [
    "controller"
   ]
@@ -15822,6 +17141,10 @@
  "legacy-backend/Modules/Partner/App/Http/Controllers/AlliedCorporateUserController.php": {
   "nodos": [
    "actors"
+  ],
+  "tablas": [
+   "allieds",
+   "users"
   ],
   "tipo": [
    "controller"
@@ -15838,6 +17161,9 @@
   ],
   "rt": [
    2
+  ],
+  "tablas": [
+   "users"
   ],
   "tipo": [
    "controller"
@@ -15881,6 +17207,9 @@
  "legacy-backend/Modules/Partner/App/Http/Controllers/LenderController.php": {
   "nodos": [
    "entities"
+  ],
+  "tablas": [
+   "allieds"
   ],
   "tipo": [
    "controller"
@@ -16002,9 +17331,11 @@
    2
   ],
   "tablas": [
+   "allieds",
    "lenders_by_allied_branches",
    "lenders_by_allieds",
-   "risk_centrals"
+   "risk_centrals",
+   "users"
   ],
   "tipo": [
    "service"
@@ -16050,6 +17381,9 @@
    1,
    2
   ],
+  "tablas": [
+   "allieds"
+  ],
   "tipo": [
    "service"
   ]
@@ -16059,7 +17393,9 @@
    "merchants"
   ],
   "tablas": [
-   "risk_centrals"
+   "allieds",
+   "risk_centrals",
+   "users"
   ],
   "tipo": [
    "service"
@@ -16074,6 +17410,9 @@
   ]
  },
  "legacy-backend/Modules/Partner/App/Services/UserFinancialDataService.php": {
+  "tablas": [
+   "users"
+  ],
   "tipo": [
    "service"
   ]
@@ -16086,7 +17425,9 @@
    "hardcodes-entidades"
   ],
   "tablas": [
-   "user_requests"
+   "allieds",
+   "user_requests",
+   "users"
   ],
   "tipo": [
    "service"
@@ -16160,6 +17501,9 @@
    "legacy-backend",
    "merchants"
   ],
+  "tablas": [
+   "users"
+  ],
   "tipo": [
    "rutas"
   ]
@@ -16185,6 +17529,7 @@
    "payments"
   ],
   "tablas": [
+   "allieds",
    "user_requests"
   ],
   "tipo": [
@@ -16220,6 +17565,9 @@
   ]
  },
  "legacy-backend/Modules/Payments/App/Repositories/PaymentLinkRepository.php": {
+  "tablas": [
+   "allieds"
+  ],
   "tipo": [
    "repositorio"
   ]
@@ -16231,6 +17579,9 @@
   ]
  },
  "legacy-backend/Modules/Payments/App/Repositories/UserRepository.php": {
+  "tablas": [
+   "users"
+  ],
   "tipo": [
    "repositorio"
   ]
@@ -16281,6 +17632,9 @@
   ]
  },
  "legacy-backend/Modules/Payments/App/Services/UserPermissionService.php": {
+  "tablas": [
+   "users"
+  ],
   "tipo": [
    "service"
   ]
@@ -16355,7 +17709,8 @@
   ],
   "tablas": [
    "user_field_values",
-   "user_requests"
+   "user_requests",
+   "users"
   ],
   "tipo": [
    "controller"
@@ -16363,6 +17718,7 @@
  },
  "legacy-backend/Modules/Risk/App/Http/Controllers/Admin/ProfilingModelTestController.php": {
   "tablas": [
+   "allieds",
    "user_requests"
   ],
   "tipo": [
@@ -16371,6 +17727,7 @@
  },
  "legacy-backend/Modules/Risk/App/Http/Controllers/Admin/ProfilingReviewController.php": {
   "tablas": [
+   "allieds",
    "user_requests"
   ],
   "tipo": [
@@ -16378,6 +17735,9 @@
   ]
  },
  "legacy-backend/Modules/Risk/App/Http/Controllers/Admin/RiskCentralCredentialController.php": {
+  "tablas": [
+   "allieds"
+  ],
   "tipo": [
    "controller"
   ]
@@ -16552,6 +17912,9 @@
   ]
  },
  "legacy-backend/Modules/Risk/App/Services/CreditBureauAggregatorService.php": {
+  "tablas": [
+   "allieds"
+  ],
   "tipo": [
    "service"
   ]
@@ -16620,6 +17983,11 @@
    "rutas"
   ]
  },
+ "legacy-backend/Modules/RiskV2/App/Commands/CheckIfAbleToOmitCommand.php": {
+  "tablas": [
+   "allieds"
+  ]
+ },
  "legacy-backend/Modules/RiskV2/App/Commands/GetRiskCentralDataCommand.php": {
   "tablas": [
    "risk_central_user_data"
@@ -16685,6 +18053,9 @@
     "id": 94,
     "nombre": "Amoblando Pullman"
    }
+  ],
+  "tablas": [
+   "allieds"
   ]
  },
  "legacy-backend/Modules/RiskV2/App/ExperianLenderValidators/Base/ExperianLenderTriggerValidatorResolver.php": {
@@ -16782,6 +18153,9 @@
     "Request data"
    ]
   },
+  "tablas": [
+   "allieds"
+  ],
   "tipo": [
    "controller"
   ]
@@ -16911,6 +18285,9 @@
   ]
  },
  "legacy-backend/Modules/RiskV2/App/Repositories/UserRepository.php": {
+  "tablas": [
+   "users"
+  ],
   "tipo": [
    "repositorio"
   ]
@@ -16934,7 +18311,9 @@
    "kyc"
   ],
   "tablas": [
-   "user_field_values"
+   "allieds",
+   "user_field_values",
+   "users"
   ],
   "tipo": [
    "service"
@@ -16952,6 +18331,9 @@
   },
   "nodos": [
    "kyc"
+  ],
+  "tablas": [
+   "allieds"
   ],
   "tipo": [
    "service"
@@ -17044,6 +18426,9 @@
   ]
  },
  "legacy-backend/Modules/RiskV2/Contracts/Repositories/UserRepositoryInterface.php": {
+  "tablas": [
+   "users"
+  ],
   "tipo": [
    "repositorio"
   ]
@@ -17066,11 +18451,17 @@
    "architecture",
    "legacy-backend"
   ],
+  "tablas": [
+   "allieds"
+  ],
   "tipo": [
    "rutas"
   ]
  },
  "legacy-backend/Modules/System/App/Http/Controllers/Admin/CredentialsController.php": {
+  "tablas": [
+   "allieds"
+  ],
   "tipo": [
    "controller"
   ]
@@ -17082,7 +18473,9 @@
    12
   ],
   "tablas": [
-   "user_requests"
+   "allieds",
+   "user_requests",
+   "users"
   ],
   "tipo": [
    "controller"
@@ -17096,7 +18489,9 @@
    "servicing"
   ],
   "tablas": [
-   "user_requests"
+   "allieds",
+   "user_requests",
+   "users"
   ],
   "tipo": [
    "controller"
@@ -17232,7 +18627,9 @@
    8
   ],
   "tablas": [
-   "user_requests"
+   "allieds",
+   "user_requests",
+   "users"
   ],
   "tipo": [
    "repositorio"
@@ -17278,6 +18675,9 @@
   ]
  },
  "legacy-backend/Modules/System/App/Services/DashboardService.php": {
+  "tablas": [
+   "users"
+  ],
   "tipo": [
    "service"
   ]
@@ -17415,6 +18815,19 @@
    "user_requests"
   ]
  },
+ "legacy-backend/Modules/UserRequestV1/App/FlowValidators/Flow/AlreadyConfirmedPreApprovalFlowValidator.php": {
+  "loguea": {
+   "mensajes": 3,
+   "muestra": [
+    "Already-confirmed-pre-approval flow validation; running its actions",
+    "The allied is allowed to omit Experian Acierta; the already-confirmed-pre-approval flow change is valid",
+    "The allied is not allowed to omit Experian Acierta; the already-confirmed-pre-approval flow change is not permitted"
+   ]
+  },
+  "tablas": [
+   "allieds"
+  ]
+ },
  "legacy-backend/Modules/UserRequestV1/App/Http/Controllers/FlowSignatureController.php": {
   "loguea": {
    "mensajes": 1,
@@ -17517,6 +18930,9 @@
  "legacy-backend/Modules/UsersV1/App/Commands/GetUserCommand.php": {
   "nodos": [
    "legacy-backend"
+  ],
+  "tablas": [
+   "users"
   ]
  },
  "legacy-backend/Modules/UsersV1/App/Constants/FindByCellPhoneServiceConstants.php": {
@@ -17529,9 +18945,22 @@
    "service"
   ]
  },
+ "legacy-backend/Modules/UsersV1/App/Constants/ModuleConstants.php": {
+  "tablas": [
+   "users"
+  ]
+ },
  "legacy-backend/Modules/UsersV1/App/Constants/StoreDefaultEmploymentInformationServiceConstants.php": {
+  "tablas": [
+   "allieds"
+  ],
   "tipo": [
    "service"
+  ]
+ },
+ "legacy-backend/Modules/UsersV1/App/Domain/UserData.php": {
+  "tablas": [
+   "allieds"
   ]
  },
  "legacy-backend/Modules/UsersV1/App/Http/Controllers/GetUserController.php": {
@@ -17544,19 +18973,33 @@
   "nodos": [
    "legacy-backend"
   ],
+  "tablas": [
+   "users"
+  ],
   "tipo": [
    "controller"
+  ]
+ },
+ "legacy-backend/Modules/UsersV1/App/Http/Requests/GetUserRequest.php": {
+  "tablas": [
+   "users"
   ]
  },
  "legacy-backend/Modules/UsersV1/App/Providers/RouteServiceProvider.php": {
   "nodos": [
    "legacy-backend"
   ],
+  "tablas": [
+   "users"
+  ],
   "tipo": [
    "service"
   ]
  },
  "legacy-backend/Modules/UsersV1/App/Providers/UsersV1ServiceProvider.php": {
+  "tablas": [
+   "users"
+  ],
   "tipo": [
    "service"
   ]
@@ -17566,7 +19009,8 @@
    "legacy-backend"
   ],
   "tablas": [
-   "user_field_values"
+   "user_field_values",
+   "users"
   ],
   "tipo": [
    "repositorio"
@@ -17579,6 +19023,9 @@
     "Command data"
    ]
   },
+  "tablas": [
+   "users"
+  ],
   "tipo": [
    "service"
   ]
@@ -17611,6 +19058,9 @@
   "nodos": [
    "legacy-backend"
   ],
+  "tablas": [
+   "users"
+  ],
   "tipo": [
    "service"
   ]
@@ -17622,6 +19072,9 @@
     "Command data"
    ]
   },
+  "tablas": [
+   "users"
+  ],
   "tipo": [
    "service"
   ]
@@ -17633,6 +19086,9 @@
     "Command data"
    ]
   },
+  "tablas": [
+   "users"
+  ],
   "tipo": [
    "service"
   ]
@@ -17644,13 +19100,17 @@
     "Command data"
    ]
   },
+  "tablas": [
+   "users"
+  ],
   "tipo": [
    "service"
   ]
  },
  "legacy-backend/Modules/UsersV1/Contracts/Repositories/UserRepositoryInterface.php": {
   "tablas": [
-   "user_field_values"
+   "user_field_values",
+   "users"
   ],
   "tipo": [
    "repositorio"
@@ -17660,6 +19120,9 @@
   "nodos": [
    "architecture",
    "legacy-backend"
+  ],
+  "tablas": [
+   "users"
   ],
   "tipo": [
    "rutas"
@@ -17674,6 +19137,11 @@
  "legacy-backend/app/Actions/Concerns/HandlesExceptions.php": {
   "nodos": [
    "bancolombia"
+  ]
+ },
+ "legacy-backend/app/Actions/Fortify/UpdateUserProfileInformation.php": {
+  "tablas": [
+   "users"
   ]
  },
  "legacy-backend/app/Actions/Lenders/Addi.php": {
@@ -17832,8 +19300,10 @@
    "credifamilia"
   ],
   "tablas": [
+   "allieds",
    "user_field_values",
-   "user_requests"
+   "user_requests",
+   "users"
   ]
  },
  "legacy-backend/app/Actions/Lenders/Integration.php": {
@@ -17981,6 +19451,11 @@
    "risk_central_user_data"
   ]
  },
+ "legacy-backend/app/Console/Commands/AlliedsDailyReportCommand.php": {
+  "tablas": [
+   "allieds"
+  ]
+ },
  "legacy-backend/app/Console/Commands/AuditOrphanDatacreditoRulesCommand.php": {
   "rt": [
    2
@@ -17990,6 +19465,11 @@
   "gates": true,
   "nodos": [
    "bancolombia"
+  ]
+ },
+ "legacy-backend/app/Console/Commands/EcommerceTestNotifyCommand.php": {
+  "tablas": [
+   "allieds"
   ]
  },
  "legacy-backend/app/Console/Commands/LockDevicesPastDueCommand.php": {
@@ -18128,6 +19608,11 @@
    "ecommerce"
   ]
  },
+ "legacy-backend/app/Console/Commands/UpdateProfileData.php": {
+  "tablas": [
+   "users"
+  ]
+ },
  "legacy-backend/app/Console/Kernel.php": {
   "nodos": [
    "application",
@@ -18165,7 +19650,13 @@
   ],
   "tablas": [
    "risk_centrals",
-   "user_requests"
+   "user_requests",
+   "users"
+  ]
+ },
+ "legacy-backend/app/Exports/CreditopXRequestsReportExport.php": {
+  "tablas": [
+   "allieds"
   ]
  },
  "legacy-backend/app/Exports/DailyReportExport.php": {
@@ -18174,7 +19665,8 @@
   ],
   "tablas": [
    "risk_centrals",
-   "user_requests"
+   "user_requests",
+   "users"
   ]
  },
  "legacy-backend/app/Exports/EndMonthReportExport.php": {
@@ -18190,11 +19682,13 @@
    11
   ],
   "tablas": [
+   "allieds",
    "user_requests"
   ]
  },
  "legacy-backend/app/Exports/PaymentCollectReportExport.php": {
   "tablas": [
+   "allieds",
    "user_requests"
   ]
  },
@@ -18205,13 +19699,16 @@
    12
   ],
   "tablas": [
+   "allieds",
    "user_requests"
   ]
  },
  "legacy-backend/app/Exports/UsersExport.php": {
   "tablas": [
+   "allieds",
    "user_field_values",
-   "user_requests"
+   "user_requests",
+   "users"
   ]
  },
  "legacy-backend/app/Http/Controllers/Admin/CityController.php": {
@@ -18229,7 +19726,9 @@
    2
   ],
   "tablas": [
-   "user_field_values"
+   "allieds",
+   "user_field_values",
+   "users"
   ],
   "tipo": [
    "controller"
@@ -18247,7 +19746,8 @@
    }
   ],
   "tablas": [
-   "user_requests"
+   "user_requests",
+   "users"
   ],
   "tipo": [
    "controller"
@@ -18287,6 +19787,9 @@
   ]
  },
  "legacy-backend/app/Http/Controllers/Api/BulkloadController.php": {
+  "tablas": [
+   "users"
+  ],
   "tipo": [
    "controller"
   ]
@@ -18452,6 +19955,9 @@
   ]
  },
  "legacy-backend/app/Http/Controllers/Profile/UserAlliedsController.php": {
+  "tablas": [
+   "allieds"
+  ],
   "tipo": [
    "controller"
   ]
@@ -18498,6 +20004,11 @@
    "legacy-backend"
   ]
  },
+ "legacy-backend/app/Http/Middleware/HandleInertiaRequests.php": {
+  "tablas": [
+   "allieds"
+  ]
+ },
  "legacy-backend/app/Http/Middleware/OpenTelemetryMiddleware.php": {
   "nodos": [
    "architecture"
@@ -18529,14 +20040,56 @@
    "risk_central_user_data"
   ]
  },
+ "legacy-backend/app/Http/Requests/Admin/Allied/IndexRequest.php": {
+  "tablas": [
+   "allieds"
+  ]
+ },
  "legacy-backend/app/Http/Requests/Admin/AlliedLender/UpdateRequest.php": {
   "rt": [
    2
   ]
  },
+ "legacy-backend/app/Http/Requests/Admin/Authorization/IndexRequest.php": {
+  "tablas": [
+   "users"
+  ]
+ },
+ "legacy-backend/app/Http/Requests/Admin/CorporateUser/StoreRequest.php": {
+  "tablas": [
+   "users"
+  ]
+ },
  "legacy-backend/app/Http/Requests/Admin/Credentials/StoreRequest.php": {
   "tablas": [
+   "allieds",
    "lender_allied_credentials"
+  ]
+ },
+ "legacy-backend/app/Http/Requests/Admin/CreditBuroAggregatorRequest.php": {
+  "tablas": [
+   "allieds"
+  ]
+ },
+ "legacy-backend/app/Http/Requests/Admin/CreditopX/DownloadRequest.php": {
+  "tablas": [
+   "users"
+  ]
+ },
+ "legacy-backend/app/Http/Requests/Admin/CreditopX/ListRequests.php": {
+  "tablas": [
+   "allieds"
+  ]
+ },
+ "legacy-backend/app/Http/Requests/Admin/DashboardRequest.php": {
+  "tablas": [
+   "allieds"
+  ]
+ },
+ "legacy-backend/app/Http/Requests/Admin/LenderTransaction/RegisterRequest.php": {
+  "tablas": [
+   "allieds",
+   "users"
   ]
  },
  "legacy-backend/app/Http/Requests/Admin/ManualValidation/StoreRequest.php": {
@@ -18544,9 +20097,24 @@
    "user_requests"
   ]
  },
+ "legacy-backend/app/Http/Requests/Admin/ReportRequest.php": {
+  "tablas": [
+   "allieds"
+  ]
+ },
+ "legacy-backend/app/Http/Requests/Admin/Request/ListRequests.php": {
+  "tablas": [
+   "allieds"
+  ]
+ },
  "legacy-backend/app/Http/Requests/Admin/Request/UpdateRequest.php": {
   "estados": [
    11
+  ]
+ },
+ "legacy-backend/app/Http/Requests/Admin/RiskCentral/ExperianRequest.php": {
+  "tablas": [
+   "users"
   ]
  },
  "legacy-backend/app/Http/Requests/Admin/RiskCentralCredentials/StoreRequest.php": {
@@ -18554,9 +20122,29 @@
    "risk_centrals"
   ]
  },
+ "legacy-backend/app/Http/Requests/Admin/User/DownloadRequest.php": {
+  "tablas": [
+   "users"
+  ]
+ },
+ "legacy-backend/app/Http/Requests/Admin/User/ListRequests.php": {
+  "tablas": [
+   "users"
+  ]
+ },
+ "legacy-backend/app/Http/Requests/Admin/User/UpdateRequest.php": {
+  "tablas": [
+   "users"
+  ]
+ },
  "legacy-backend/app/Http/Requests/Admin/UserRequestDocumentation/StoreRequest.php": {
   "tablas": [
    "user_requests"
+  ]
+ },
+ "legacy-backend/app/Http/Requests/Admin/UserRequestUser/UpdateRequest.php": {
+  "tablas": [
+   "users"
   ]
  },
  "legacy-backend/app/Http/Requests/Api/Bancolombia/BnplWebhookRequest.php": {
@@ -18703,6 +20291,11 @@
    "user_requests"
   ]
  },
+ "legacy-backend/app/Http/Requests/Customer/Authorization/IndexRequest.php": {
+  "tablas": [
+   "users"
+  ]
+ },
  "legacy-backend/app/Http/Requests/Customer/Lenders/Bancolombia/FinancialInfoOfferEvaluationRequest.php": {
   "nodos": [
    "bancolombia"
@@ -18713,12 +20306,25 @@
    "bancolombia"
   ]
  },
+ "legacy-backend/app/Http/Requests/Customer/Onboarding/GenericFormRequest.php": {
+  "tablas": [
+   "users"
+  ]
+ },
  "legacy-backend/app/Http/Requests/Customer/Onboarding/PersonalInfoRequest.php": {
   "comercios": [
    {
     "id": 94,
     "nombre": "Amoblando Pullman"
    }
+  ],
+  "tablas": [
+   "users"
+  ]
+ },
+ "legacy-backend/app/Http/Requests/Customer/Tusdatos/BackgroundRequest.php": {
+  "tablas": [
+   "users"
   ]
  },
  "legacy-backend/app/Http/Requests/Customer/Tusdatos/CheckStatusRequest.php": {
@@ -18726,9 +20332,24 @@
    "user_requests"
   ]
  },
+ "legacy-backend/app/Http/Requests/Customer/UserProfiling/ListRequests.php": {
+  "tablas": [
+   "allieds"
+  ]
+ },
  "legacy-backend/app/Http/Requests/Customer/WompiRequest.php": {
   "tablas": [
    "user_requests"
+  ]
+ },
+ "legacy-backend/app/Http/Requests/Profile/UpdateRequest.php": {
+  "tablas": [
+   "users"
+  ]
+ },
+ "legacy-backend/app/Imports/BulkloadImport.php": {
+  "tablas": [
+   "allieds"
   ]
  },
  "legacy-backend/app/Jobs/Credifamilia/CrossCore/ProcessCrossCoreEvaluation.php": {
@@ -18872,6 +20493,11 @@
    }
   ]
  },
+ "legacy-backend/app/Jobs/UsersCreditopXReportEmail.php": {
+  "tablas": [
+   "users"
+  ]
+ },
  "legacy-backend/app/Logging/LokiHandler.php": {
   "nodos": [
    "architecture"
@@ -18889,6 +20515,9 @@
   ]
  },
  "legacy-backend/app/Models/Achievement.php": {
+  "tablas": [
+   "users"
+  ],
   "tipo": [
    "modelo"
   ]
@@ -18903,6 +20532,7 @@
    2
   ],
   "tablas": [
+   "allieds",
    "creditop_x_requests_history"
   ],
   "tipo": [
@@ -18982,6 +20612,9 @@
   ]
  },
  "legacy-backend/app/Models/BeneficiariesByAllied.php": {
+  "tablas": [
+   "allieds"
+  ],
   "tipo": [
    "modelo"
   ]
@@ -19017,11 +20650,17 @@
   ]
  },
  "legacy-backend/app/Models/CorporateUser.php": {
+  "tablas": [
+   "users"
+  ],
   "tipo": [
    "modelo"
   ]
  },
  "legacy-backend/app/Models/Country.php": {
+  "tablas": [
+   "allieds"
+  ],
   "tipo": [
    "modelo"
   ]
@@ -19207,6 +20846,9 @@
   ]
  },
  "legacy-backend/app/Models/DatacreditoQueryByAllied.php": {
+  "tablas": [
+   "allieds"
+  ],
   "tipo": [
    "modelo"
   ]
@@ -19382,6 +21024,9 @@
    "hardcodes-entidades",
    "smartpay"
   ],
+  "tablas": [
+   "allieds"
+  ],
   "tipo": [
    "modelo"
   ]
@@ -19489,7 +21134,8 @@
    "profiling"
   ],
   "tablas": [
-   "lender_users_categories"
+   "lender_users_categories",
+   "users"
   ],
   "tipo": [
    "modelo"
@@ -19500,7 +21146,8 @@
    "profiling"
   ],
   "tablas": [
-   "lender_users_category_rules"
+   "lender_users_category_rules",
+   "users"
   ],
   "tipo": [
    "modelo"
@@ -19513,6 +21160,7 @@
    "redirect"
   ],
   "tablas": [
+   "allieds",
    "lenders_by_allieds"
   ],
   "tipo": [
@@ -19584,6 +21232,9 @@
  "legacy-backend/app/Models/NetcoSigningDocument.php": {
   "nodos": [
    "formalization"
+  ],
+  "tablas": [
+   "netco_signing_documents"
   ],
   "tipo": [
    "modelo"
@@ -19657,7 +21308,8 @@
  },
  "legacy-backend/app/Models/ProductsByLenderUsersCategories.php": {
   "tablas": [
-   "lender_users_categories"
+   "lender_users_categories",
+   "users"
   ],
   "tipo": [
    "modelo"
@@ -19690,6 +21342,9 @@
   "nodos": [
    "deceval",
    "formalization"
+  ],
+  "tablas": [
+   "promissory_notes"
   ],
   "tipo": [
    "modelo"
@@ -19772,6 +21427,9 @@
  "legacy-backend/app/Models/RiskCentralCredential.php": {
   "nodos": [
    "deceval"
+  ],
+  "tablas": [
+   "allieds"
   ],
   "tipo": [
    "modelo"
@@ -19857,6 +21515,10 @@
    "architecture",
    "creditop"
   ],
+  "tablas": [
+   "allieds",
+   "users"
+  ],
   "tipo": [
    "modelo"
   ]
@@ -19901,6 +21563,7 @@
   ],
   "tablas": [
    "user_requests",
+   "users",
    "users_category_log"
   ],
   "tipo": [
@@ -19990,6 +21653,7 @@
  },
  "legacy-backend/app/Models/UsersCategoryLog.php": {
   "tablas": [
+   "users",
    "users_category_log"
   ],
   "tipo": [
@@ -20047,6 +21711,11 @@
  },
  "legacy-backend/app/Notifications/Errors/ExceptionNotification.php": {
   "gates": true
+ },
+ "legacy-backend/app/Notifications/Users/UsersProfileReport.php": {
+  "tablas": [
+   "users"
+  ]
  },
  "legacy-backend/app/Observers/UserRequestObserver.php": {
   "lenders": [
@@ -20131,6 +21800,9 @@
   "nodos": [
    "architecture",
    "legacy-backend"
+  ],
+  "tablas": [
+   "users"
   ],
   "tipo": [
    "service"
@@ -20222,7 +21894,8 @@
    "kyc"
   ],
   "tablas": [
-   "risk_central_user_data"
+   "risk_central_user_data",
+   "users"
   ],
   "tipo": [
    "service"
@@ -20395,6 +22068,9 @@
   },
   "nodos": [
    "credifamilia"
+  ],
+  "tablas": [
+   "users"
   ],
   "tipo": [
    "service"
@@ -20987,6 +22663,9 @@
    "credifamilia",
    "formalization"
   ],
+  "tablas": [
+   "netco_signing_documents"
+  ],
   "tipo": [
    "service"
   ]
@@ -21093,6 +22772,11 @@
    "legacy-backend"
   ]
  },
+ "legacy-backend/config/auth.php": {
+  "tablas": [
+   "users"
+  ]
+ },
  "legacy-backend/config/documents.php": {
   "lenders": [
    {
@@ -21106,10 +22790,20 @@
    "formalization"
   ]
  },
+ "legacy-backend/config/dompdf.php": {
+  "tablas": [
+   "users"
+  ]
+ },
  "legacy-backend/config/ecommerce.php": {
   "nodos": [
    "bancolombia",
    "ecommerce"
+  ]
+ },
+ "legacy-backend/config/fortify.php": {
+  "tablas": [
+   "users"
   ]
  },
  "legacy-backend/config/grafana.php": {
@@ -21196,6 +22890,9 @@
    "payments",
    "smartpay"
   ],
+  "tablas": [
+   "users"
+  ],
   "tipo": [
    "service"
   ]
@@ -21237,6 +22934,11 @@
   "rt": [
    2,
    3
+  ]
+ },
+ "legacy-backend/resources/views/creditopxpdf/lenders/lender_155.blade.php": {
+  "tablas": [
+   "allieds"
   ]
  },
  "legacy-backend/resources/views/creditopxpdf/lenders/lender_164.blade.php": {
@@ -21289,7 +22991,8 @@
  },
  "legacy-backend/resources/views/email/reports/end-of-month-report.blade.php": {
   "tablas": [
-   "user_requests"
+   "user_requests",
+   "users"
   ]
  },
  "legacy-backend/routes/api.php": {
@@ -21352,6 +23055,16 @@
    "service"
   ]
  },
+ "onboarding-forms-service/internal/core/usecases/onboarding_forms/find_user_by_document_number.go": {
+  "tablas": [
+   "users"
+  ]
+ },
+ "onboarding-forms-service/internal/core/usecases/onboarding_forms/find_user_by_email.go": {
+  "tablas": [
+   "users"
+  ]
+ },
  "onboarding-forms-service/internal/core/usecases/onboarding_forms/validate_otp.go": {
   "lenders": [
    {
@@ -21381,6 +23094,9 @@
   ]
  },
  "onboarding-forms-service/internal/infra/storage/mysql/repositories/user_repository.go": {
+  "tablas": [
+   "users"
+  ],
   "tipo": [
    "repositorio"
   ]
@@ -21664,6 +23380,11 @@
    "ms-preapprovals"
   ]
  },
+ "pre-approvals-service/internal/infra/lending_products/bancolombia_bnpl/sandbox.go": {
+  "tablas": [
+   "users"
+  ]
+ },
  "pre-approvals-service/internal/infra/lending_products/bancolombia_consumer_loan/adapter.go": {
   "nodos": [
    "ms-preapprovals"
@@ -21672,6 +23393,11 @@
  "pre-approvals-service/internal/infra/lending_products/bancolombia_consumer_loan/client.go": {
   "nodos": [
    "ms-preapprovals"
+  ]
+ },
+ "pre-approvals-service/internal/infra/lending_products/bancolombia_consumer_loan/sandbox.go": {
+  "tablas": [
+   "users"
   ]
  },
  "pre-approvals-service/internal/infra/lending_products/contract_fields.go": {
@@ -21877,6 +23603,9 @@
   "nodos": [
    "ms-preapprovals"
   ],
+  "tablas": [
+   "allieds"
+  ],
   "tipo": [
    "service"
   ]
@@ -21949,11 +23678,13 @@
    2
   ],
   "tablas": [
+   "allieds",
    "profiling_reviews",
    "risk_central_user_data",
    "risk_centrals",
    "user_request_records",
    "user_requests",
+   "users",
    "users_category_log"
   ]
  },
@@ -21972,12 +23703,15 @@
    1
   ],
   "tablas": [
+   "allieds",
    "lender_users_categories",
    "profiling_reviews",
+   "promissory_notes",
    "risk_central_user_data",
    "risk_centrals",
    "user_request_records",
    "user_requests",
+   "users",
    "users_category_log"
   ]
  },

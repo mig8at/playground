@@ -26,6 +26,29 @@ se pudre.
 
 ---
 
+# La espina — por dónde empezar
+
+```bash
+./cli.py negocio          # los conceptos de CreditOp, en el orden en que se encadenan
+./cli.py negocio cupo     # uno solo, con dónde seguir
+```
+
+Había tres vocabularios y ninguno contestaba la pregunta de quien llega: `creditop.json` traduce ids
+a nombres, el glosario traduce español a código, y los nodos explican cada área en profundidad.
+**Faltaba el orden.**
+
+Son **23 conceptos**, de `comercio` a `servicing`, cada uno con: cómo se llama en el código, sus
+sinónimos de reunión, su tabla, y **qué nodo lo explica en serio**.
+
+⚠ Se escribe a mano **sólo el orden y el concepto** — eso no se deriva, sale de entender el negocio.
+Todo lo demás (cuántos archivos tocan esa tabla, cuántos tiene el nodo) se resuelve al vuelo contra
+los otros mapas. Por eso es corto y **no puede quedar viejo: lo que envejece no está escrito ahí**.
+
+⚠ Y **no reemplaza a `context/`**: una línea por concepto, la que ubica. El detalle y las trampas
+viven en el nodo.
+
+---
+
 # El índice
 
 **Es un CLI, no un puñado de targets de `make`** — porque lo usa tanto una persona como un modelo, y
