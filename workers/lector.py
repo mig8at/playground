@@ -81,6 +81,63 @@ def _claves(frases):
     return sorted(fuera)
 
 
+def recortar_secciones(texto, claves, tope_chars, minimo_secciones=8):
+    """Recorte por SECCIONES ENTERAS, para documentos. Devuelve (texto, secciones_omitidas).
+
+    ⚠ Por qué no alcanza el recorte por líneas de abajo. MEDIDO el 2026-08-16 sobre el nodo
+    `findings` —el más valioso del árbol, 147.003 chars, 137 entradas `### F-xx`—: con un cupo de
+    45.000 chars, el recorte por líneas devolvía 45.000 chars con 131 cortes internos y **CERO de las
+    137 entradas conservaba su título**. O sea: cuarenta y cinco mil caracteres de fragmentos
+    anónimos. El modelo no podía saber ni qué finding estaba leyendo, mucho menos citarlo.
+
+    La causa es que la unidad de sentido de un documento no es la línea, es la SECCIÓN: un finding
+    sirve entero (síntoma → causa raíz → evidencia → arreglo) y no sirve nada en pedazos — un síntoma
+    sin su arreglo es peor que no traerlo, porque parece información.
+
+    Dos reglas, y las dos importan:
+      1. El PREÁMBULO (todo lo anterior a la primera sección) va SIEMPRE y completo: ahí vive el
+         índice, que es el router. El propio `findings` lo dice: «nadie lee este archivo entero:
+         entrá por el índice y leé sólo ese F-xx».
+      2. Las secciones entran ENTERAS o no entran, ordenadas por cuánto matchean. Y se dice cuántas
+         quedaron afuera, para que la ausencia no se lea como inexistencia.
+
+    Resultado sobre el mismo caso: preámbulo + las entradas que matchean ≈ 5.400 tokens contra 36.750
+    del doc entero, y esta vez legibles.
+    """
+    if len(texto) <= tope_chars:
+        return texto, 0
+    partes = re.split(r"^(?=#{2,3} )", texto, flags=re.M)
+    if len(partes) < minimo_secciones:
+        return None, -1  # sin estructura suficiente: que lo maneje el recorte por líneas
+    preambulo, secciones = partes[0], partes[1:]
+    palabras = _claves(claves)
+
+    def puntos(s):
+        bajo = s.lower()
+        titulo = s.splitlines()[0].lower() if s else ""
+        # Un match en el TÍTULO vale mucho más que uno en el cuerpo: es de lo que trata la sección.
+        return sum(8 if p in titulo else bajo.count(p) for p in palabras)
+
+    ranking = sorted(secciones, key=lambda s: (-puntos(s), len(s)))
+    # El aviso se reserva ANTES de llenar. Contarlo después es el mismo error que ya costó tres
+    # sobrepasos en este archivo: el presupuesto se mide sobre lo que se ENVÍA, no sobre el cuerpo.
+    usado, elegidas = len(preambulo) + 260, []
+    for s in ranking:
+        if puntos(s) <= 0:
+            continue          # sin relación con la pregunta: no se rellena con ruido
+        if usado + len(s) > tope_chars:
+            continue
+        elegidas.append(s)
+        usado += len(s)
+    # Se devuelven en el ORDEN DEL DOCUMENTO, no por puntaje: un doc leído fuera de orden confunde.
+    elegidas = [s for s in secciones if s in elegidas]
+    omitidas = len(secciones) - len(elegidas)
+    aviso = (f"\n\n> ⚠ De este documento se incluyeron {len(elegidas)} de {len(secciones)} secciones "
+             f"—las que matchean la pregunta—, ENTERAS. Las otras {omitidas} existen y no están acá: "
+             f"no concluyas que algo no está documentado porque no lo veas.\n") if omitidas else ""
+    return preambulo + aviso + "".join(elegidas), omitidas
+
+
 def recortar(texto, claves, tope_chars):
     """Recorte DIRIGIDO: cabecera + ventanas alrededor de lo que se está buscando.
 
@@ -199,11 +256,21 @@ def cargar_seleccion(hashes, pregunta, tope_tokens=TOPE_TOKENS):
         v["cuerpo"], v["om"] = recortar(v["texto"], [pregunta, v["por_que"]], piso)
     usado = sum(len(v["cuerpo"]) for v in vivos)
 
+    # ⚠ TECHO POR ARCHIVO. El reparto de arriba le da al primero todo lo que quiera, y eso es correcto
+    # cuando el primero es el que tiene la respuesta. Pero hay archivos citados por los nodos que son
+    # ENORMES y no son razonamiento: `ExperianFixture.php` son 207 KB (~53.000 tokens) de datos de
+    # prueba, y `ListLenders.vue` 182 KB. Si uno de ésos sale primero, se lleva el pase completo y los
+    # demás se quedan con el piso.
+    # No es hoy un problema de presupuesto —las corridas reales usan 31k de 300k— sino de ATENCIÓN:
+    # cincuenta mil tokens de fixture no compiten por lugar, compiten por foco. Esto es un seguro
+    # barato, no el arreglo de algo medido: ningún archivo se lleva más de un tercio.
+    TECHO = max(piso, int(disponible * 0.33))
     for v in vivos:
         queda = disponible - usado
         if queda <= 0:
             break
-        cuerpo, om = recortar(v["texto"], [pregunta, v["por_que"]], len(v["cuerpo"]) + queda)
+        cupo = min(len(v["cuerpo"]) + queda, TECHO)
+        cuerpo, om = recortar(v["texto"], [pregunta, v["por_que"]], cupo)
         usado += len(cuerpo) - len(v["cuerpo"])
         v["cuerpo"], v["om"] = cuerpo, om
 
@@ -239,8 +306,14 @@ def cargar_nodos(sel, pregunta, tope_tokens):
         if not f.is_file():
             continue
         texto = f.read_text(encoding="utf-8")
-        cuerpo, om = recortar(texto, [pregunta], por_nodo)
-        partes.append(f"## nodo `{n}`" + (" (recortado)" if om else "") + f"\n{cuerpo}")
+        # Primero por SECCIONES: un doc se lee por unidades de sentido, no por líneas sueltas. Si no
+        # tiene estructura suficiente devuelve None y cae al recorte por líneas, que es el genérico.
+        cuerpo, om = recortar_secciones(texto, [pregunta], por_nodo)
+        como = "secciones"
+        if cuerpo is None:
+            cuerpo, om = recortar(texto, [pregunta], por_nodo)
+            como = "líneas"
+        partes.append(f"## nodo `{n}`" + (f" (recortado por {como})" if om else "") + f"\n{cuerpo}")
         usados.append(n)
     return "\n\n".join(partes), usados
 
