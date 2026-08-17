@@ -55,6 +55,33 @@ Señales que cambian el diagnóstico y por eso se dicen en texto: **N intentos e
 cliente indeciso), **⚠ recortado en 40** (un «12 solicitudes» que en realidad son 228 cambia «reintentó» por
 «algo reintenta solo») y **⚠ N clientes distintos** (el valor es ambiguo: mirá bien cuál buscabas).
 
+## DÓNDE QUEDÓ · el recorrido en 39 pasos
+
+Las 7 etapas contestan «hasta dónde llegó» a grano grueso y están ancladas en la BD —son hechos—.
+El árbol contesta lo mismo con **39 puntos**, anclado en los logs, y por eso dice cosas que la etapa
+no puede:
+
+       validacion_identidad_kyc
+         ● validar_fecha_expedicion            2 líneas
+         ● cascada_identidad_registraduria    10 líneas
+         · biometria_facial_ado
+         · consulta_antecedentes_aml
+       seleccion_oferta_y_plan_pagos
+         ● listar_ofertas_disponibles          1 línea   ◄ hasta acá llegó
+         · seleccionar_producto_entidad
+         · configurar_cuotas_y_fecha
+
+No «falló la validación», sino **«pasó por la cascada de Registraduría y la biometría facial ni se
+intentó»**. Y muestra los pasos NO alcanzados a propósito: el valor está en el contraste — una lista
+de lo que sí pasó no dice dónde se cortó.
+
+⚠ El árbol vive en `workers/negocio.json` y acá **sólo se consume**. Lo caro —proponerlo leyendo el
+corpus, verificar que las 39 señales existan, medir cuáles ocurren en producción— se hizo una vez, en
+Python, al lado de los otros mapas.
+
+⚠ Si ese archivo no está, la sección **no aparece**: un árbol vacío se leería como «no hizo ninguno de
+los 39 pasos», que es la conclusión más equivocada posible sobre una solicitud que llegó a Estado 11.
+
 ## Y QUÉ VIO EL CLIENTE en el navegador
 
 Al lado del código, la otra mitad: los eventos de PostHog de esa solicitud, en orden.

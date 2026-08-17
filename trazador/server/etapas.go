@@ -392,6 +392,11 @@ type Traza struct {
 	// Pantallas: QUÉ VIO el cliente en el navegador, de PostHog. Es la mitad que el backend no puede
 	// contar — «el backend dice que llegó a firmar, ¿el cliente llegó a ver esa pantalla?»— y hasta
 	// ahora vivía en otro comando. No hace falta un mapa: la llave (`loan_request_<n>`) ya existe.
+	// Arbol: los 39 pasos del árbol de negocio, con cuántas líneas tocó cada uno. Contesta «dónde
+	// quedó» con grano fino — no «falló la validación» sino «falló en la cascada de identidad, y la
+	// biometría ni se intentó». Se deriva de `workers/negocio.json`; ver arbol.go.
+	Arbol       []PasoAlcanzado `json:"arbol,omitempty"`
+	ArbolUltimo int             `json:"arbolUltimo,omitempty"`
 	Pantallas   []PantallaVista `json:"pantallas,omitempty"`
 	AvisoPH     string          `json:"avisoPosthog,omitempty"`
 	SinResolver int              `json:"archivosSinResolver,omitempty"`
@@ -1685,6 +1690,9 @@ func ensamblar(mapa *Mapa, subMapa *SubMapa, s *Solicitud, lineas []Linea, targe
 		if arch, sin := archivosDeTraza(msgs); sin >= 0 {
 			t.Archivos, t.SinResolver = arch, sin
 		}
+		if pasos, ult := pasosAlcanzados(msgs); ult >= 0 {
+			t.Arbol, t.ArbolUltimo = pasos, ult
+		}
 	}
 	izarErroresSinHito(&t)
 	armarHallazgos(&t)
@@ -2121,6 +2129,35 @@ func imprimirTraza(t Traza, s *Solicitud) {
 	}
 
 	fmt.Println()
+	if len(t.Arbol) > 0 {
+		fmt.Printf("\n     %s\n", bold("DÓNDE QUEDÓ · el recorrido en 39 pasos"))
+		tramo := ""
+		for i, p := range t.Arbol {
+			// Sólo se imprimen los tramos que tuvieron algo, MÁS el que sigue al último alcanzado:
+			// el valor está en ver dónde se cortó, no en listar 39 renglones vacíos.
+			if p.Lineas == 0 && i > t.ArbolUltimo+3 {
+				continue
+			}
+			if p.Tramo != tramo {
+				tramo = p.Tramo
+				fmt.Printf("       %s\n", gray(tramo))
+			}
+			marca, det := gray("·"), ""
+			if p.Lineas > 0 {
+				marca = paint("32", "●")
+				plural := "líneas"
+				if p.Lineas == 1 {
+					plural = "línea"
+				}
+				det = gray(fmt.Sprintf("  %d %s", p.Lineas, plural))
+			}
+			if i == t.ArbolUltimo {
+				det += paint("33", "   ◄ hasta acá llegó")
+			}
+			fmt.Printf("         %s %-40s%s\n", marca, p.Paso, det)
+		}
+		fmt.Println()
+	}
 	if len(t.Pantallas) > 0 {
 		fmt.Printf("\n     %s\n", bold("QUÉ VIO EL CLIENTE EN EL NAVEGADOR"))
 		for _, p := range t.Pantallas {
