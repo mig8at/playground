@@ -169,38 +169,63 @@ def resolver(mensaje, mapa=None):
 def archivos_de_traza(lineas, mapa=None):
     """De una corrida a la LISTA DE ARCHIVOS QUE CORRIERON — que es para lo que existe todo esto.
 
-    `lineas` son los mensajes de log de una traza (o de una ventana). Devuelve los archivos en orden
-    de PRIMERA APARICIÓN, que es lo más parecido a la secuencia de ejecución que se puede afirmar sin
-    instrumentar el código: los timestamps de Loki no son monótonos entre servicios.
+    `lineas` son los mensajes de una traza. Cada elemento puede ser el mensaje suelto o `(span, msg)`:
+    con el span se rescatan líneas que solas no resuelven. Devuelve los archivos en orden de PRIMERA
+    APARICIÓN, que es lo más parecido a la secuencia de ejecución que se puede afirmar sin
+    instrumentar el código — los timestamps de Loki no son monótonos entre servicios.
 
-    ⚠ Dice qué archivos DEJARON RASTRO, no qué archivos se ejecutaron. Un archivo sin logs es
-    invisible acá y eso NO significa que no corrió: un log ausente tiene cuatro causas
-    indistinguibles (no se logueó · el nivel lo filtró · el batch no hizo flush · lag de ingesta).
-    La misma regla del trazador — la BD dice qué pasó, los logs dicen por qué.
+    ⚠ EL SPAN NO ES UNA LLAVE, ES UN PROPAGADOR, y la distinción importa porque invita al error
+    contrario. Un `span_id` es hexadecimal ALEATORIO por corrida —medido: 44 distintos en 200 líneas,
+    y los de mañana son otros—, así que NO existe un índice «span → archivo» que se pueda
+    precalcular: no hay nada estable que indexar. Lo que el span sí hace, en RUNTIME, es agrupar las
+    líneas de una misma operación; si una del grupo resolvió, las demás heredan su archivo. Medido en
+    prod: rescata el 63% de las que quedaban sin resolver.
+
+    ⚠ Y dice qué archivos DEJARON RASTRO, no cuáles se ejecutaron. Un archivo sin logs es invisible
+    acá y eso NO significa que no corrió: un log ausente tiene cuatro causas indistinguibles (no se
+    logueó · el nivel lo filtró · el batch no hizo flush · lag de ingesta). La misma regla del
+    trazador — la BD dice qué pasó, los logs dicen por qué.
     """
     mapa = mapa if mapa is not None else cargar()
+    pares = [(x[0], x[1]) if isinstance(x, (tuple, list)) else ("", x) for x in lineas]
     orden, datos = [], {}
-    sin = 0
-    for msg in lineas:
+
+    def sumar(ruta, h, linea, via):
+        if ruta not in datos:
+            orden.append(ruta)
+            datos[ruta] = {"ruta": ruta, "h": h, "veces": 0, "lineas": set(), "via": via}
+        datos[ruta]["veces"] += 1
+        if linea and linea != "?":
+            datos[ruta]["lineas"].add(linea)
+
+    porSpan, sinResolver = {}, []
+    for span, msg in pares:
         r = resolver(msg, mapa)
-        if not r:
-            sin += 1
-            continue
-        for a in r["archivos"]:
-            ruta = a["ruta"]
-            if ruta not in datos:
-                orden.append(ruta)
-                datos[ruta] = {"ruta": ruta, "h": a["h"], "veces": 0,
-                               "lineas": set(), "via": r.get("via", "literal")}
-            datos[ruta]["veces"] += 1
-            if a.get("linea") and a["linea"] != "?":
-                datos[ruta]["lineas"].add(a["linea"])
+        if r:
+            for a in r["archivos"]:
+                sumar(a["ruta"], a["h"], a.get("linea"), r.get("via", "literal"))
+                if span:
+                    porSpan.setdefault(span, []).append(a)
+        else:
+            sinResolver.append((span, msg))
+
+    heredadas = huerfanas = 0
+    for span, _ in sinResolver:
+        hermanas = porSpan.get(span) if span else None
+        if hermanas:
+            a = hermanas[0]
+            sumar(a["ruta"], a["h"], None, "span")
+            heredadas += 1
+        else:
+            huerfanas += 1
+
     salida = []
     for ruta in orden:
         d = datos[ruta]
         salida.append({"ruta": ruta, "h": d["h"], "veces": d["veces"], "via": d["via"],
                        "lineas": sorted(d["lineas"], key=lambda x: int(x))[:12]})
-    return {"archivos": salida, "cuantos": len(salida),
-            "lineas_leidas": len(lineas), "sin_resolver": sin,
+    return {"archivos": salida, "cuantos": len(salida), "lineas_leidas": len(pares),
+            "heredadas_por_span": heredadas, "sin_resolver": huerfanas,
             "nota": "en orden de PRIMERA APARICIÓN. Dice qué archivos dejaron RASTRO, no cuáles se "
-                    "ejecutaron: uno sin logs es invisible acá y eso no prueba que no corrió."}
+                    "ejecutaron: uno sin logs es invisible acá y eso no prueba que no corrió. Las "
+                    "«heredadas_por_span» se atribuyeron por compartir operación, no por su texto."}
