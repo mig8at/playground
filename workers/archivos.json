@@ -57,6 +57,14 @@
   ]
  },
  "application/app/Actions/Lenders/Bancolombia.php": {
+  "loguea": {
+   "mensajes": 3,
+   "muestra": [
+    "Error al obtener token OAuth de Bancolombia",
+    "Solicitando token OAuth a Bancolombia",
+    "Token OAuth obtenido exitosamente"
+   ]
+  },
   "nodos": [
    "aggregator",
    "bancolombia"
@@ -64,6 +72,15 @@
  },
  "application/app/Actions/Lenders/BancolombiaBnpl.php": {
   "gates": true,
+  "loguea": {
+   "mensajes": 6,
+   "muestra": [
+    "Error al validar cupo con Bancolombia BNPL",
+    "Iniciando validación de cupo con Bancolombia BNPL",
+    "Llamando API de validación de cupo",
+    "Obteniendo credenciales de Bancolombia BNPL"
+   ]
+  },
   "nodos": [
    "aggregator",
    "bancolombia"
@@ -111,6 +128,15 @@
     "nombre": "Meddipay"
    }
   ],
+  "loguea": {
+   "mensajes": 8,
+   "muestra": [
+    "Autenticación exitosa con Meddipay",
+    "Autenticando con Meddipay",
+    "Creando orden en Meddipay",
+    "Error al consultar Meddipay"
+   ]
+  },
   "nodos": [
    "aggregator"
   ]
@@ -122,6 +148,15 @@
   ]
  },
  "application/app/Actions/Lenders/Prami.php": {
+  "loguea": {
+   "mensajes": 10,
+   "muestra": [
+    "Credenciales no encontradas para el aliado en Prami",
+    "Error al consultar Prami",
+    "Faltan datos básicos en datacredito",
+    "Faltan datos de Agildata para el usuario"
+   ]
+  },
   "nodos": [
    "aggregator"
   ]
@@ -174,6 +209,15 @@
  },
  "application/app/Actions/RiskCentrals/Experian.php": {
   "gates": true,
+  "loguea": {
+   "mensajes": 6,
+   "muestra": [
+    "Consulta con acierta finalizada exitosamente",
+    "Consulta con acierta+quanto finalizada exitosamente",
+    "Consulta con quanto finalizada exitosamente",
+    "Error consultando experian::acierta"
+   ]
+  },
   "nodos": [
    "application",
    "dynamic-forms",
@@ -198,6 +242,15 @@
   ]
  },
  "application/app/Actions/RiskCentrals/Tusdatos.php": {
+  "loguea": {
+   "mensajes": 23,
+   "muestra": [
+    "Consulta de antecedentes TusDatos AML iniciada exitosamente",
+    "Consulta de antecedentes TusDatos AML iniciada exitosamente (sync)",
+    "Datos de TusDatos AML encontrados en cache",
+    "Datos de TusDatos AML encontrados en cache (finalizado)"
+   ]
+  },
   "nodos": [
    "kyc"
   ],
@@ -227,6 +280,12 @@
   ]
  },
  "application/app/Console/Commands/CorrectNegativeHistoriesBatch.php": {
+  "loguea": {
+   "mensajes": 1,
+   "muestra": [
+    "Error corrigiendo crédito"
+   ]
+  },
   "tablas": [
    "creditop_x_requests_history"
   ]
@@ -237,6 +296,12 @@
   ]
  },
  "application/app/Console/Commands/IncentiveRevolvingCreditsCommand.php": {
+  "loguea": {
+   "mensajes": 1,
+   "muestra": [
+    "Incentive message failed"
+   ]
+  },
   "nodos": [
    "servicing"
   ],
@@ -321,6 +386,12 @@
   "estados": [
    26
   ],
+  "loguea": {
+   "mensajes": 1,
+   "muestra": [
+    "Error al consultar Corbeta"
+   ]
+  },
   "nodos": [
    "corbeta"
   ]
@@ -554,6 +625,15 @@
   ]
  },
  "application/app/Http/Controllers/Admin/AlliedLenderController.php": {
+  "loguea": {
+   "mensajes": 7,
+   "muestra": [
+    "Allied lender creation completed successfully",
+    "Configuring CreditopX lender",
+    "CreditopX permissions granted",
+    "Failed to create allied lender"
+   ]
+  },
   "nodos": [
    "application",
    "creditop",
@@ -636,6 +716,12 @@
   "estados": [
    11
   ],
+  "loguea": {
+   "mensajes": 1,
+   "muestra": [
+    "getBureauData failed"
+   ]
+  },
   "tablas": [
    "user_requests"
   ],
@@ -756,6 +842,15 @@
    11,
    12
   ],
+  "loguea": {
+   "mensajes": 23,
+   "muestra": [
+    "dashboard.standard requested",
+    "dashboard.standard.chartsPerCommerce completed",
+    "dashboard.standard.chartsPerCommerce failed",
+    "dashboard.standard.chartsPerLender completed"
+   ]
+  },
   "tablas": [
    "user_requests"
   ],
@@ -982,6 +1077,14 @@
   ]
  },
  "application/app/Http/Controllers/Admin/UserController.php": {
+  "loguea": {
+   "mensajes": 3,
+   "muestra": [
+    "Validación manual de identidad: el microservicio rechazó la operación",
+    "Validación manual de identidad: fallo al enviar socket",
+    "Validación manual de identidad: socket enviado"
+   ]
+  },
   "nodos": [
    "actors"
   ],
@@ -1142,6 +1245,12 @@
   ]
  },
  "application/app/Http/Controllers/Api/EcommerceReplayController.php": {
+  "loguea": {
+   "mensajes": 1,
+   "muestra": [
+    "[EcommerceReplay] process() falló"
+   ]
+  },
   "nodos": [
    "ecommerce"
   ],
@@ -1282,6 +1391,15 @@
   ]
  },
  "application/app/Http/Controllers/Customer/AdoController.php": {
+  "loguea": {
+   "mensajes": 4,
+   "muestra": [
+    "Creando registro de verificación Ado en base de datos",
+    "Error en proceso de verificación Ado",
+    "Iniciando proceso de verificación con Ado",
+    "Verificación Ado iniciada exitosamente"
+   ]
+  },
   "tablas": [
    "risk_central_user_data",
    "user_requests"
@@ -1321,6 +1439,15 @@
   ]
  },
  "application/app/Http/Controllers/Customer/ClientCodeController.php": {
+  "loguea": {
+   "mensajes": 7,
+   "muestra": [
+    "Client code consult failed",
+    "Client code consume failed",
+    "Client code flow could not create user request",
+    "Client code flow failed to cleanup generated user request"
+   ]
+  },
   "nodos": [
    "architecture"
   ],
@@ -1380,6 +1507,12 @@
   "estados": [
    11
   ],
+  "loguea": {
+   "mensajes": 1,
+   "muestra": [
+    "ContinueUserFlow API error"
+   ]
+  },
   "nodos": [
    "creditop",
    "hardcodes-entidades"
@@ -1545,6 +1678,15 @@
     "nombre": "Credifamilia"
    }
   ],
+  "loguea": {
+   "mensajes": 14,
+   "muestra": [
+    "Client code flow lender filter applied",
+    "Client code flow lender not present in current lenders list, using default list",
+    "Error filtering lenders by additional rules",
+    "Error filtering lenders by client code flow"
+   ]
+  },
   "nodos": [
    "aggregator",
    "amount-tiers",
@@ -1614,6 +1756,15 @@
     "nombre": "Meddipay"
    }
   ],
+  "loguea": {
+   "mensajes": 9,
+   "muestra": [
+    "Experian disparado desde storeEmploymentInfo",
+    "Experian disparado desde storePersonalInfo",
+    "Experian disparado desde storePersonalInfo (consultQuanto)",
+    "PersonalInfoController::alliedsLendersValidator: entered"
+   ]
+  },
   "nodos": [
    "application",
    "hardcodes-entidades",
@@ -1895,6 +2046,13 @@
     "nombre": "Meddipay"
    }
   ],
+  "loguea": {
+   "mensajes": 2,
+   "muestra": [
+    "Error saving product selection to user request",
+    "Error saving product selection with quantity to user request"
+   ]
+  },
   "nodos": [
    "application",
    "architecture",
@@ -2176,6 +2334,12 @@
   ]
  },
  "application/app/Http/Middleware/EnsureLoanFlowStarted.php": {
+  "loguea": {
+   "mensajes": 1,
+   "muestra": [
+    "Acceso a vista de entidades sin flujo iniciado, no se consultan proveedores"
+   ]
+  },
   "nodos": [
    "actors",
    "architecture"
@@ -2396,6 +2560,12 @@
     "nombre": "Credifamilia"
    }
   ],
+  "loguea": {
+   "mensajes": 1,
+   "muestra": [
+    "Sending mail to Credifamilia"
+   ]
+  },
   "nodos": [
    "servicing"
   ]
@@ -3571,7 +3741,13 @@
     "id": 24,
     "nombre": "Credifamilia"
    }
-  ]
+  ],
+  "loguea": {
+   "mensajes": 1,
+   "muestra": [
+    "Notifying to {$notifiable->email} that got a commission of {$this->amount}"
+   ]
+  }
  },
  "application/app/Notifications/Errors/ExceptionNotification.php": {
   "gates": true
@@ -3595,6 +3771,13 @@
   ]
  },
  "application/app/Otel/TracerService.php": {
+  "loguea": {
+   "mensajes": 2,
+   "muestra": [
+    "Failed to initialize tracer",
+    "TracerService"
+   ]
+  },
   "nodos": [
    "application"
   ],
@@ -3668,6 +3851,13 @@
   ]
  },
  "application/app/Services/Api/BaseApiClient.php": {
+  "loguea": {
+   "mensajes": 2,
+   "muestra": [
+    "API Request Exception: {$endpoint}",
+    "API Request Failed: {$endpoint}"
+   ]
+  },
   "nodos": [
    "application"
   ],
@@ -3676,6 +3866,15 @@
   ]
  },
  "application/app/Services/Api/GenerateServicesBridgeClient.php": {
+  "loguea": {
+   "mensajes": 8,
+   "muestra": [
+    "Generate services bridge base URL is missing",
+    "Generate services bridge connection failure",
+    "Generate services bridge payload validation failed",
+    "Generate services bridge request"
+   ]
+  },
   "nodos": [
    "application",
    "architecture",
@@ -3795,6 +3994,12 @@
   ]
  },
  "application/app/Services/RevolvingCreditIncentiveService.php": {
+  "loguea": {
+   "mensajes": 1,
+   "muestra": [
+    "Incentive message (SID pending)"
+   ]
+  },
   "tipo": [
    "service"
   ]
@@ -3881,6 +4086,15 @@
     "nombre": "CrediPullman"
    }
   ],
+  "loguea": {
+   "mensajes": 6,
+   "muestra": [
+    "Aplicando reglas de perfilamiento y centrales de riesgo",
+    "Error al aplicar reglas de perfilamiento",
+    "Iniciando listado de entidades para usuario",
+    "Listado de entidades completado"
+   ]
+  },
   "nodos": [
    "aggregator",
    "amount-tiers",
@@ -3942,6 +4156,15 @@
     "nombre": "Magnocréditos"
    }
   ],
+  "loguea": {
+   "mensajes": 8,
+   "muestra": [
+    "Aplicando excepción especial para usuario venezolano con Magnocell",
+    "Evaluando reglas para entidad",
+    "Iniciando validación de reglas para cada entidad",
+    "Iniciando validación de reglas por entidad"
+   ]
+  },
   "nodos": [
    "application",
    "creditopx",
@@ -3983,6 +4206,15 @@
     "nombre": "Meddipay"
    }
   ],
+  "loguea": {
+   "mensajes": 11,
+   "muestra": [
+    "Cliente con morosidad en Sistecrédito",
+    "Cliente no aprobado en Sistecrédito",
+    "Error al consultar Sistecrédito",
+    "Iniciando validación de prestamistas pre-aprobados"
+   ]
+  },
   "nodos": [
    "aggregator",
    "application",
@@ -9657,6 +9889,13 @@
   ]
  },
  "legacy-backend/Modules/AlliedBranchV1/App/Services/FindByHashService.php": {
+  "loguea": {
+   "mensajes": 2,
+   "muestra": [
+    "Command data",
+    "No allied branch found for hash"
+   ]
+  },
   "nodos": [
    "legacy-backend",
    "merchants"
@@ -9666,16 +9905,36 @@
   ]
  },
  "legacy-backend/Modules/AlliedBranchV1/App/Services/GetAlliedbranchByHashService.php": {
+  "loguea": {
+   "mensajes": 2,
+   "muestra": [
+    "Command data",
+    "No allied branch found for hash"
+   ]
+  },
   "tipo": [
    "service"
   ]
  },
  "legacy-backend/Modules/AlliedBranchV1/App/Services/GetAlliedbranchService.php": {
+  "loguea": {
+   "mensajes": 2,
+   "muestra": [
+    "Command data",
+    "No allied branch found for id"
+   ]
+  },
   "tipo": [
    "service"
   ]
  },
  "legacy-backend/Modules/AlliedBranchV1/App/Services/IsCorbetaOnboardingService.php": {
+  "loguea": {
+   "mensajes": 1,
+   "muestra": [
+    "Command data"
+   ]
+  },
   "nodos": [
    "corbeta",
    "hardcodes-entidades",
@@ -9686,6 +9945,12 @@
   ]
  },
  "legacy-backend/Modules/AlliedBranchV1/App/Services/IsEcommerceBranchService.php": {
+  "loguea": {
+   "mensajes": 1,
+   "muestra": [
+    "Command data"
+   ]
+  },
   "nodos": [
    "merchants"
   ],
@@ -9719,11 +9984,24 @@
   ]
  },
  "legacy-backend/Modules/AlliedV1/App/Services/GetExperianFrequencyByAlliedIdService.php": {
+  "loguea": {
+   "mensajes": 2,
+   "muestra": [
+    "Command data",
+    "No Experian frequency rule found for allied id"
+   ]
+  },
   "tipo": [
    "service"
   ]
  },
  "legacy-backend/Modules/AlliedV1/App/Services/GetExperianQueryCountByAlliedIdService.php": {
+  "loguea": {
+   "mensajes": 1,
+   "muestra": [
+    "Command data"
+   ]
+  },
   "nodos": [
    "kyc"
   ],
@@ -9732,6 +10010,12 @@
   ]
  },
  "legacy-backend/Modules/AlliedV1/App/Services/IncrementExperianQueryCountByAlliedIdService.php": {
+  "loguea": {
+   "mensajes": 1,
+   "muestra": [
+    "Command data"
+   ]
+  },
   "tipo": [
    "service"
   ]
@@ -9747,6 +10031,12 @@
   ]
  },
  "legacy-backend/Modules/Auth/App/Cognito/CognitoGateway.php": {
+  "loguea": {
+   "mensajes": 1,
+   "muestra": [
+    "auth.markPhoneVerified: no se pudo actualizar el pool"
+   ]
+  },
   "nodos": [
    "backoffice"
   ]
@@ -9765,6 +10055,12 @@
   ]
  },
  "legacy-backend/Modules/Auth/App/Http/Middleware/EnsureCognitoAccessToken.php": {
+  "loguea": {
+   "mensajes": 1,
+   "muestra": [
+    "cognito.token: pool no configurado para el audience"
+   ]
+  },
   "nodos": [
    "actors",
    "backoffice"
@@ -9852,6 +10148,13 @@
   ]
  },
  "legacy-backend/Modules/Auth/App/Services/AuthService.php": {
+  "loguea": {
+   "mensajes": 2,
+   "muestra": [
+    "auth.forgot: usuario en DB pero ausente en Cognito",
+    "auth.reset: no se pudo verificar el principal del reto"
+   ]
+  },
   "nodos": [
    "backoffice"
   ],
@@ -9863,6 +10166,13 @@
   ]
  },
  "legacy-backend/Modules/Auth/App/Services/OtpAuditService.php": {
+  "loguea": {
+   "mensajes": 2,
+   "muestra": [
+    "auth.otp_audit: Redis no entregó el código para el espejo (best-effort)",
+    "auth.otp_audit: fallo escribiendo auditoría OTP"
+   ]
+  },
   "nodos": [
    "backoffice"
   ],
@@ -9900,6 +10210,15 @@
   ]
  },
  "legacy-backend/Modules/AuthV1/App/Http/Clients/OtpClient.php": {
+  "loguea": {
+   "mensajes": 4,
+   "muestra": [
+    "post to {$endpoint} payload",
+    "post to {$endpoint} response code = {$statusCode}",
+    "post to {$endpoint} response payload",
+    "post to {$endpoint} successfully realized"
+   ]
+  },
   "nodos": [
    "legacy-backend"
   ]
@@ -9921,6 +10240,15 @@
  },
  "legacy-backend/Modules/AuthV1/App/Services/ValidateOtpService.php": {
   "gates": true,
+  "loguea": {
+   "mensajes": 8,
+   "muestra": [
+    "Command data",
+    "OTP invalid (QA bypass): the submitted code does not match the bypass code",
+    "OTP invalid: no previous unvalidated OTP found",
+    "OTP marked as validated (QA bypass)"
+   ]
+  },
   "tablas": [
    "otps"
   ],
@@ -9947,6 +10275,12 @@
   ]
  },
  "legacy-backend/Modules/Backoffice/App/Http/Controllers/MeController.php": {
+  "loguea": {
+   "mensajes": 1,
+   "muestra": [
+    "backoffice.me: fallo consultando atributos en Cognito"
+   ]
+  },
   "nodos": [
    "backoffice"
   ],
@@ -10020,6 +10354,14 @@
   ]
  },
  "legacy-backend/Modules/Backoffice/App/Services/UsersService.php": {
+  "loguea": {
+   "mensajes": 3,
+   "muestra": [
+    "Validación manual de identidad: el servicio rechazó la operación",
+    "Validación manual de identidad: fallo al enviar socket",
+    "Validación manual de identidad: socket enviado"
+   ]
+  },
   "nodos": [
    "backoffice"
   ],
@@ -10067,6 +10409,12 @@
   ]
  },
  "legacy-backend/Modules/CommonsV1/App/Services/BaseService.php": {
+  "loguea": {
+   "mensajes": 1,
+   "muestra": [
+    "Service method failed; the exception was caught and the internal-error envelope is returned instead of letting it bubble up to the client, so the client gets a readable internal-error response and not a Laravel stack trace"
+   ]
+  },
   "nodos": [
    "legacy-backend"
   ],
@@ -10123,11 +10471,24 @@
   ]
  },
  "legacy-backend/Modules/EcommerceRequestsV1/App/Services/AttachUserRequestService.php": {
+  "loguea": {
+   "mensajes": 2,
+   "muestra": [
+    "Command data",
+    "Ecommerce_request_id missing for ecommerce branch"
+   ]
+  },
   "tipo": [
    "service"
   ]
  },
  "legacy-backend/Modules/EcommerceRequestsV1/App/Services/IsEcommerceRequestService.php": {
+  "loguea": {
+   "mensajes": 1,
+   "muestra": [
+    "Command data"
+   ]
+  },
   "nodos": [
    "legacy-backend"
   ],
@@ -10136,6 +10497,12 @@
   ]
  },
  "legacy-backend/Modules/EcommerceRequestsV1/App/Services/ShouldCreateSeparateUserRequestService.php": {
+  "loguea": {
+   "mensajes": 1,
+   "muestra": [
+    "Command data"
+   ]
+  },
   "tipo": [
    "service"
   ]
@@ -10162,6 +10529,15 @@
   ]
  },
  "legacy-backend/Modules/Identity/App/Http/Controllers/Customer/AdoController.php": {
+  "loguea": {
+   "mensajes": 5,
+   "muestra": [
+    "Error al despachar el trabajo de verificación de estado",
+    "Error al inscribir usuario en ADO",
+    "Error al procesar la respuesta de ADO",
+    "Error al verificar estado de ADO"
+   ]
+  },
   "nodos": [
    "kyc",
    "smartpay"
@@ -10182,6 +10558,12 @@
   ]
  },
  "legacy-backend/Modules/Identity/App/Http/Controllers/Customer/IdentityValidationProvidersController.php": {
+  "loguea": {
+   "mensajes": 1,
+   "muestra": [
+    "Error getting identity validation providers"
+   ]
+  },
   "tipo": [
    "controller"
   ]
@@ -10207,11 +10589,24 @@
   ]
  },
  "legacy-backend/Modules/Identity/App/Http/Controllers/Customer/SwitchValidationProviderController.php": {
+  "loguea": {
+   "mensajes": 1,
+   "muestra": [
+    "Error switching identity validation provider"
+   ]
+  },
   "tipo": [
    "controller"
   ]
  },
  "legacy-backend/Modules/Identity/App/Http/Controllers/Customer/TusdatosController.php": {
+  "loguea": {
+   "mensajes": 2,
+   "muestra": [
+    "Error creating TusDatos background validation",
+    "Error getting TusDatos validation status"
+   ]
+  },
   "tablas": [
    "risk_central_user_data"
   ],
@@ -10220,11 +10615,26 @@
   ]
  },
  "legacy-backend/Modules/Identity/App/Http/Controllers/Customer/ValidateIdentityController.php": {
+  "loguea": {
+   "mensajes": 8,
+   "muestra": [
+    "Disparando validación manual automática desde controlador",
+    "Error al disparar validación manual",
+    "Exception during identity validation",
+    "Exception during segmented identity validation"
+   ]
+  },
   "tipo": [
    "controller"
   ]
  },
  "legacy-backend/Modules/Identity/App/Http/Controllers/Customer/ValidationStatusController.php": {
+  "loguea": {
+   "mensajes": 1,
+   "muestra": [
+    "Error getting validation status"
+   ]
+  },
   "tipo": [
    "controller"
   ]
@@ -10441,6 +10851,14 @@
   ]
  },
  "legacy-backend/Modules/Identity/App/Services/AdoService.php": {
+  "loguea": {
+   "mensajes": 3,
+   "muestra": [
+    "Error al verificar estado de ADO",
+    "Error inesperado al verificar estado de ADO",
+    "ado.enroll.document_mismatch"
+   ]
+  },
   "tipo": [
    "service"
   ]
@@ -10460,6 +10878,15 @@
   ]
  },
  "legacy-backend/Modules/Identity/App/Services/IdentityValidationService.php": {
+  "loguea": {
+   "mensajes": 19,
+   "muestra": [
+    "Error guardando imágenes",
+    "Excepción en validación de documento",
+    "Excepción en validación de identidad",
+    "Excepción en validación facial"
+   ]
+  },
   "nodos": [
    "kyc"
   ],
@@ -10478,6 +10905,12 @@
   ]
  },
  "legacy-backend/Modules/Identity/App/Services/KycNameCheckRecorder.php": {
+  "loguea": {
+   "mensajes": 1,
+   "muestra": [
+    "KycNameCheckRecorder falló (no bloquea la validación)"
+   ]
+  },
   "nodos": [
    "kyc"
   ],
@@ -10486,6 +10919,15 @@
   ]
  },
  "legacy-backend/Modules/Identity/App/Services/ManualValidationService.php": {
+  "loguea": {
+   "mensajes": 5,
+   "muestra": [
+    "Failed to log manual validation start",
+    "Failed to log notification",
+    "Failed to send WhatsApp notification",
+    "Manual validation notification"
+   ]
+  },
   "nodos": [
    "actors"
   ],
@@ -10521,6 +10963,15 @@
   ]
  },
  "legacy-backend/Modules/Identity/App/Services/RekognitionService.php": {
+  "loguea": {
+   "mensajes": 23,
+   "muestra": [
+    "AWS Rekognition Error en compareFaces",
+    "AWS Rekognition error in compareFacesInternal",
+    "AWS Rekognition error in detectTextImage",
+    "AWS Rekognition error in face comparison"
+   ]
+  },
   "tipo": [
    "service"
   ]
@@ -10538,6 +10989,15 @@
     "nombre": "SmartPay (prod)"
    }
   ],
+  "loguea": {
+   "mensajes": 4,
+   "muestra": [
+    "Error al crear validación de TusDatos AML",
+    "Error al verificar estado de TusDatos",
+    "Error inesperado al crear validación de TusDatos AML",
+    "Error inesperado al verificar estado de TusDatos"
+   ]
+  },
   "nodos": [
    "kyc"
   ],
@@ -10555,6 +11015,15 @@
     "nombre": "Credifamilia"
    }
   ],
+  "loguea": {
+   "mensajes": 5,
+   "muestra": [
+    "Error getting ADO status",
+    "Error getting CrossCore status",
+    "Error getting TusDatos AML status",
+    "identity.validation_type.drift_detected"
+   ]
+  },
   "nodos": [
    "credifamilia",
    "entities",
@@ -10704,6 +11173,12 @@
     "nombre": "Credifamilia"
    }
   ],
+  "loguea": {
+   "mensajes": 1,
+   "muestra": [
+    "Command data"
+   ]
+  },
   "nodos": [
    "legacy-backend"
   ],
@@ -10772,6 +11247,12 @@
   ]
  },
  "legacy-backend/Modules/LenderV1/App/Services/GetActiveLendersByAlliedBranchIdService.php": {
+  "loguea": {
+   "mensajes": 1,
+   "muestra": [
+    "Command data"
+   ]
+  },
   "tablas": [
    "lenders_by_allied_branches"
   ],
@@ -10780,6 +11261,12 @@
   ]
  },
  "legacy-backend/Modules/LenderV1/App/Services/GetActiveLendersByAlliedIdService.php": {
+  "loguea": {
+   "mensajes": 1,
+   "muestra": [
+    "Command data"
+   ]
+  },
   "tablas": [
    "lenders_by_allieds"
   ],
@@ -10788,6 +11275,15 @@
   ]
  },
  "legacy-backend/Modules/LenderV1/App/Services/HasActiveIntegratedEntitiesService.php": {
+  "loguea": {
+   "mensajes": 6,
+   "muestra": [
+    "A full integration validation will be performed for the lender",
+    "Command data",
+    "Lender is not active on the allied branch level; no active integrated entity",
+    "Lender is not active on the allied level; no active integrated entity"
+   ]
+  },
   "tablas": [
    "lender_allied_credentials"
   ],
@@ -10825,6 +11321,15 @@
   ]
  },
  "legacy-backend/Modules/Loans/App/Actions/DecevalSoap.php": {
+  "loguea": {
+   "mensajes": 24,
+   "muestra": [
+    "Deceval consultPagare SOAP falló",
+    "Deceval consultPagare exitoso",
+    "Deceval consultPagare iniciado",
+    "Deceval consultPagare no exitoso"
+   ]
+  },
   "nodos": [
    "credifamilia",
    "deceval",
@@ -10844,6 +11349,9 @@
     "id": 24,
     "nombre": "Credifamilia"
    }
+  ],
+  "nodos": [
+   "credifamilia"
   ],
   "tipo": [
    "controller"
@@ -10932,6 +11440,12 @@
   ]
  },
  "legacy-backend/Modules/Loans/App/Http/Controllers/Customer/ApprovedConfirmationController.php": {
+  "loguea": {
+   "mensajes": 1,
+   "muestra": [
+    "Error en ApprovedConfirmationController::show"
+   ]
+  },
   "nodos": [
    "formalization"
   ],
@@ -10955,6 +11469,15 @@
     "nombre": "SmartPay (prod)"
    }
   ],
+  "loguea": {
+   "mensajes": 4,
+   "muestra": [
+    "Ejecutando proceso de Tusdatos en segundo plano",
+    "Error al ejecutar proceso de Tusdatos en segundo plano",
+    "Extra details payment plan request failed",
+    "Extra details payment plan returned error"
+   ]
+  },
   "nodos": [
    "credifamilia",
    "entities",
@@ -10979,6 +11502,15 @@
   ]
  },
  "legacy-backend/Modules/Loans/App/Http/Controllers/Customer/CreditopXQuotaController.php": {
+  "loguea": {
+   "mensajes": 6,
+   "muestra": [
+    "QUOTA_CHECK_AMOUNT_CONDITION_APPLIED",
+    "QUOTA_CHECK_APPROVED",
+    "QUOTA_CHECK_ERROR",
+    "QUOTA_CHECK_REJECTED"
+   ]
+  },
   "marcas": [
    "QUOTA_CHECK_REJECTED"
   ],
@@ -11135,6 +11667,12 @@
   ]
  },
  "legacy-backend/Modules/Loans/App/Http/Middleware/AddOriginationFlowType.php": {
+  "loguea": {
+   "mensajes": 1,
+   "muestra": [
+    "Error al agregar metadata de originación"
+   ]
+  },
   "nodos": [
    "actors",
    "entities",
@@ -11315,6 +11853,9 @@
     "id": 24,
     "nombre": "Credifamilia"
    }
+  ],
+  "nodos": [
+   "credifamilia"
   ]
  },
  "legacy-backend/Modules/Loans/App/Http/Requests/ValidateOtpPromissoryNoteRequest.php": {
@@ -11334,6 +11875,7 @@
  "legacy-backend/Modules/Loans/App/Providers/RouteServiceProvider.php": {
   "nodos": [
    "architecture",
+   "credifamilia",
    "formalization",
    "legacy-backend"
   ],
@@ -11541,6 +12083,12 @@
   ]
  },
  "legacy-backend/Modules/Loans/App/Repositories/LoanMessagingServiceRepository.php": {
+  "loguea": {
+   "mensajes": 1,
+   "muestra": [
+    "Message Sent Failure"
+   ]
+  },
   "tipo": [
    "service",
    "repositorio"
@@ -11648,6 +12196,14 @@
    11,
    15
   ],
+  "loguea": {
+   "mensajes": 3,
+   "muestra": [
+    "safe_cancel_blocked_already_authorized",
+    "safe_cancel_blocked_has_core_creation",
+    "safe_cancel_request_not_found"
+   ]
+  },
   "nodos": [
    "actors",
    "findings",
@@ -11699,6 +12255,13 @@
   ]
  },
  "legacy-backend/Modules/Loans/App/Services/CancelRequestService.php": {
+  "loguea": {
+   "mensajes": 2,
+   "muestra": [
+    "Failed to delete QR code from S3",
+    "Failed to handle ecommerce request"
+   ]
+  },
   "nodos": [
    "ecommerce",
    "findings"
@@ -11727,6 +12290,18 @@
     "id": 24,
     "nombre": "Credifamilia"
    }
+  ],
+  "loguea": {
+   "mensajes": 4,
+   "muestra": [
+    "credifamilia.regenerate.done",
+    "credifamilia.regenerate.lock_unavailable",
+    "credifamilia.regenerate.rows_created",
+    "credifamilia.regenerate.start"
+   ]
+  },
+  "nodos": [
+   "credifamilia"
   ],
   "tipo": [
    "service"
@@ -11798,6 +12373,12 @@
     "nombre": "Magnocréditos"
    }
   ],
+  "loguea": {
+   "mensajes": 1,
+   "muestra": [
+    "DatacreditoRuleEvaluator: rejected"
+   ]
+  },
   "nodos": [
    "creditop",
    "creditopx",
@@ -11931,6 +12512,14 @@
   ]
  },
  "legacy-backend/Modules/Loans/App/Services/DocumentGeneration/TracedDocumentGenerator.php": {
+  "loguea": {
+   "mensajes": 3,
+   "muestra": [
+    "document_generation_failed",
+    "document_generation_succeeded",
+    "document_payload_built"
+   ]
+  },
   "tipo": [
    "service"
   ]
@@ -11994,6 +12583,15 @@
  },
  "legacy-backend/Modules/Loans/App/Services/InitialFeePaymentService.php": {
   "gates": true,
+  "loguea": {
+   "mensajes": 7,
+   "muestra": [
+    "Failed to check status with Wompi",
+    "Initial fee payment initiated",
+    "Initial fee payment registered",
+    "Payment register already exists for this transaction"
+   ]
+  },
   "nodos": [
    "formalization",
    "payments"
@@ -12017,6 +12615,12 @@
   ]
  },
  "legacy-backend/Modules/Loans/App/Services/LenderRuleEvaluator.php": {
+  "loguea": {
+   "mensajes": 1,
+   "muestra": [
+    "LenderRuleEvaluator: rejected"
+   ]
+  },
   "nodos": [
    "legacy-backend"
   ],
@@ -12028,6 +12632,14 @@
   ]
  },
  "legacy-backend/Modules/Loans/App/Services/LenderSpecialGrantingService.php": {
+  "loguea": {
+   "mensajes": 3,
+   "muestra": [
+    "Error en applyQuotaRestrictions",
+    "Error en specialGrantingCriteriaValidation",
+    "specialGranting: rechazado, no se recibió sucursal (city)"
+   ]
+  },
   "nodos": [
    "creditopx",
    "hardcodes-entidades",
@@ -12048,6 +12660,15 @@
     "nombre": "SmartPay (prod)"
    }
   ],
+  "loguea": {
+   "mensajes": 7,
+   "muestra": [
+    "CATEGORY_EVALUATION_APPROVED",
+    "CATEGORY_EVALUATION_SPECIAL_CASE",
+    "CATEGORY_EVALUATION_START",
+    "CATEGORY_RESOLUTION_BY_SCORE_COMPLETED"
+   ]
+  },
   "marcas": [
    "CATEGORY_EVALUATION_APPROVED",
    "CATEGORY_EVALUATION_SPECIAL_CASE",
@@ -12101,6 +12722,12 @@
     "nombre": "SmartPay (prod)"
    }
   ],
+  "loguea": {
+   "mensajes": 1,
+   "muestra": [
+    "SMS Contract Notification failed (non-blocking)"
+   ]
+  },
   "nodos": [
    "formalization",
    "smartpay"
@@ -12269,6 +12896,15 @@
   ]
  },
  "legacy-backend/Modules/Loans/App/Services/PromissoryNote/DecevalPromissoryNoteService.php": {
+  "loguea": {
+   "mensajes": 4,
+   "muestra": [
+    "Error al firmar pagaré Deceval",
+    "Error al generar pagaré Deceval",
+    "Iniciando firma de pagaré Deceval",
+    "Iniciando generación de pagaré Deceval"
+   ]
+  },
   "nodos": [
    "credifamilia",
    "deceval",
@@ -12354,6 +12990,15 @@
   ]
  },
  "legacy-backend/Modules/Loans/App/Services/RevolvingCreditsService.php": {
+  "loguea": {
+   "mensajes": 5,
+   "muestra": [
+    "REVOLVING_CREDIT_CACHED",
+    "REVOLVING_CREDIT_REJECTED",
+    "REVOLVING_CREDIT_SP_CALL",
+    "REVOLVING_CREDIT_SP_RESULT"
+   ]
+  },
   "marcas": [
    "REVOLVING_CREDIT_REJECTED",
    "REVOLVING_CREDIT_SP_RESULT"
@@ -12471,6 +13116,14 @@
   ]
  },
  "legacy-backend/Modules/Loans/App/Services/Signing/Netco/NetcoSignerClient.php": {
+  "loguea": {
+   "mensajes": 3,
+   "muestra": [
+    "netco.login.no_session_cookie",
+    "netco.signFiles.response",
+    "netco_response"
+   ]
+  },
   "nodos": [
    "credifamilia"
   ],
@@ -12485,6 +13138,13 @@
     "nombre": "Credifamilia"
    }
   ],
+  "loguea": {
+   "mensajes": 2,
+   "muestra": [
+    "netco.s3_put_failed_after_sign",
+    "signing.transition"
+   ]
+  },
   "nodos": [
    "credifamilia",
    "formalization"
@@ -12509,6 +13169,13 @@
   ]
  },
  "legacy-backend/Modules/Loans/App/Services/UserProfilingService.php": {
+  "loguea": {
+   "mensajes": 2,
+   "muestra": [
+    "UserProfiling: invalid final_date filter",
+    "UserProfiling: invalid initial_date filter"
+   ]
+  },
   "tablas": [
    "profiling_reviews",
    "user_requests"
@@ -12534,6 +13201,13 @@
   ]
  },
  "legacy-backend/Modules/Loans/App/Services/UserService.php": {
+  "loguea": {
+   "mensajes": 2,
+   "muestra": [
+    "Manual validation approved by admin",
+    "Manual validation rejected by admin"
+   ]
+  },
   "tipo": [
    "service"
   ]
@@ -12554,6 +13228,13 @@
     "nombre": "SmartPay (prod)"
    }
   ],
+  "loguea": {
+   "mensajes": 2,
+   "muestra": [
+    "voucher_disbursement_notification_failed",
+    "voucher_payment_notification_failed"
+   ]
+  },
   "nodos": [
    "formalization"
   ],
@@ -12894,6 +13575,7 @@
   ],
   "nodos": [
    "architecture",
+   "credifamilia",
    "legacy-backend"
   ],
   "tipo": [
@@ -12955,6 +13637,14 @@
     "nombre": "Meddipay"
    }
   ],
+  "loguea": {
+   "mensajes": 3,
+   "muestra": [
+    "AlliedBranchController::getByHash branch lookup failed; serving defaults",
+    "AlliedBranchController::getByHash branch not found; serving defaults",
+    "AlliedBranchController::resolveCorporateUserEmail query failed; using default email"
+   ]
+  },
   "nodos": [
    "actors",
    "merchants"
@@ -12964,16 +13654,42 @@
   ]
  },
  "legacy-backend/Modules/Onboarding/App/Http/Controllers/BackDoorController.php": {
+  "loguea": {
+   "mensajes": 5,
+   "muestra": [
+    "Backdoor update user phone API request completed",
+    "Backdoor update user phone API request failed",
+    "Backdoor update user phone API request received",
+    "Backdoor update user phone controller finished"
+   ]
+  },
   "tipo": [
    "controller"
   ]
  },
  "legacy-backend/Modules/Onboarding/App/Http/Controllers/BackDoorTermsController.php": {
+  "loguea": {
+   "mensajes": 3,
+   "muestra": [
+    "Backdoor terms API request completed",
+    "Backdoor terms API request failed",
+    "Backdoor terms API request received"
+   ]
+  },
   "tipo": [
    "controller"
   ]
  },
  "legacy-backend/Modules/Onboarding/App/Http/Controllers/BackDoorUserController.php": {
+  "loguea": {
+   "mensajes": 12,
+   "muestra": [
+    "Backdoor check user exists API request completed",
+    "Backdoor check user exists API request failed",
+    "Backdoor check user exists API request received",
+    "Backdoor create temporary user API request completed"
+   ]
+  },
   "nodos": [
    "motai"
   ],
@@ -12987,6 +13703,15 @@
    10,
    25
   ],
+  "loguea": {
+   "mensajes": 11,
+   "muestra": [
+    "BNPL - AccountSelect - Response",
+    "BNPL - BancolombiaBNPLAcceptTermsAndConditions",
+    "BNPL - BancolombiaBNPLAccountSelect",
+    "BNPL - DynamicKeySignature - Response"
+   ]
+  },
   "nodos": [
    "bancolombia",
    "hardcodes-entidades"
@@ -13009,6 +13734,15 @@
    10,
    25
   ],
+  "loguea": {
+   "mensajes": 15,
+   "muestra": [
+    "ConsumerLoan - Confirm (SelectInsurance) - Response",
+    "ConsumerLoan - ESignDocument - Response",
+    "ConsumerLoan - EnableOffers - Response",
+    "ConsumerLoan - EnableOffersFormFront - Response"
+   ]
+  },
   "nodos": [
    "bancolombia"
   ],
@@ -13023,6 +13757,14 @@
  },
  "legacy-backend/Modules/Onboarding/App/Http/Controllers/CorbetaCheckoutController.php": {
   "gates": true,
+  "loguea": {
+   "mensajes": 3,
+   "muestra": [
+    "Corbeta ecommerce BNPL error redirect prepared",
+    "Corbeta ecommerce error context prepared",
+    "Corbeta ecommerce front error redirect prepared"
+   ]
+  },
   "nodos": [
    "corbeta",
    "ecommerce"
@@ -13037,6 +13779,14 @@
   ]
  },
  "legacy-backend/Modules/Onboarding/App/Http/Controllers/DynamicFormsController.php": {
+  "loguea": {
+   "mensajes": 3,
+   "muestra": [
+    "Dynamic forms API request completed",
+    "Dynamic forms API request failed",
+    "Dynamic forms API request received"
+   ]
+  },
   "nodos": [
    "dynamic-forms"
   ],
@@ -13054,6 +13804,12 @@
  },
  "legacy-backend/Modules/Onboarding/App/Http/Controllers/EcommerceSimulatorController.php": {
   "gates": true,
+  "loguea": {
+   "mensajes": 1,
+   "muestra": [
+    "aggregator_simulator.result"
+   ]
+  },
   "nodos": [
    "aggregator",
    "ecommerce"
@@ -13112,6 +13868,14 @@
   ]
  },
  "legacy-backend/Modules/Onboarding/App/Http/Controllers/MotaiValidationController.php": {
+  "loguea": {
+   "mensajes": 3,
+   "muestra": [
+    "Motai abaco validation API request completed",
+    "Motai abaco validation API request failed",
+    "Motai abaco validation API request received"
+   ]
+  },
   "tipo": [
    "controller"
   ]
@@ -13124,6 +13888,15 @@
     "nombre": "Credifamilia"
    }
   ],
+  "loguea": {
+   "mensajes": 100,
+   "muestra": [
+    "Error reactivando el OTP",
+    "OnboardingController::logExperianSkipped: entered",
+    "OnboardingController::logExperianSkipped: exiting",
+    "OnboardingController::logExperianSkipped: failed to emit tracing log via app(TracerService::class)"
+   ]
+  },
   "nodos": [
    "creditop",
    "dynamic-forms",
@@ -13144,6 +13917,15 @@
     "nombre": "Credifamilia"
    }
   ],
+  "loguea": {
+   "mensajes": 10,
+   "muestra": [
+    "OtpController::resendOtpCode: completed",
+    "OtpController::resendOtpCode: delegating to otpService->sendOtpCode",
+    "OtpController::resendOtpCode: entered",
+    "OtpController::resendOtpCode: exiting"
+   ]
+  },
   "nodos": [
    "onboarding"
   ],
@@ -13263,6 +14045,15 @@
   ]
  },
  "legacy-backend/Modules/Onboarding/App/Http/Controllers/RegisterCellPhoneController.php": {
+  "loguea": {
+   "mensajes": 11,
+   "muestra": [
+    "Calling RegisterCellPhoneService::processCellPhoneRegistration",
+    "Error in RegisterCellPhoneController::store",
+    "RegisterCellPhoneController::store called with input parameters",
+    "RegisterCellPhoneController::store finished successfully (user branch)"
+   ]
+  },
   "nodos": [
    "onboarding"
   ],
@@ -13305,6 +14096,13 @@
   ]
  },
  "legacy-backend/Modules/Onboarding/App/Http/Controllers/VtexController.php": {
+  "loguea": {
+   "mensajes": 2,
+   "muestra": [
+    "vtex.init.exception",
+    "vtex.settle.exception"
+   ]
+  },
   "nodos": [
    "ecommerce"
   ],
@@ -13313,6 +14111,15 @@
   ]
  },
  "legacy-backend/Modules/Onboarding/App/Http/Controllers/WelliController.php": {
+  "loguea": {
+   "mensajes": 5,
+   "muestra": [
+    "InvalidArgumentException in updateAmount",
+    "Throwable caught in updateAmount",
+    "UserRequest not found",
+    "WelliService response received"
+   ]
+  },
   "tipo": [
    "controller"
   ]
@@ -13323,6 +14130,13 @@
   ]
  },
  "legacy-backend/Modules/Onboarding/App/Http/Requests/Abaco/AbacoWebhookRequest.php": {
+  "loguea": {
+   "mensajes": 2,
+   "muestra": [
+    "ABACO Webhook Received (Raw)",
+    "ABACO Webhook Rejected: Invalid Secret"
+   ]
+  },
   "nodos": [
    "motai"
   ]
@@ -13454,6 +14268,15 @@
   ]
  },
  "legacy-backend/Modules/Onboarding/App/Repositories/DynamicFormsRepository.php": {
+  "loguea": {
+   "mensajes": 4,
+   "muestra": [
+    "Error interno al obtener formulario dinámico desde onboarding-forms-service",
+    "Finalizó obtención de formulario dinámico en onboarding-forms-service",
+    "Iniciando obtención de formulario dinámico en onboarding-forms-service",
+    "Respuesta inválida desde onboarding-forms-service al obtener formulario dinámico"
+   ]
+  },
   "nodos": [
    "dynamic-forms"
   ],
@@ -13470,6 +14293,15 @@
   ]
  },
  "legacy-backend/Modules/Onboarding/App/Repositories/GenerateServiceRepository.php": {
+  "loguea": {
+   "mensajes": 4,
+   "muestra": [
+    "Code generation service connection failed",
+    "Code generation service request failed",
+    "Code generation service returned an invalid JSON payload",
+    "Code generation service returned an unexpected content type"
+   ]
+  },
   "nodos": [
    "architecture"
   ],
@@ -13549,6 +14381,13 @@
   ]
  },
  "legacy-backend/Modules/Onboarding/App/Services/AbacoParserService.php": {
+  "loguea": {
+   "mensajes": 2,
+   "muestra": [
+    "AbacoParserService::updateUserSummary failed",
+    "Error in AbacoParserService::parseAndStoreResults"
+   ]
+  },
   "nodos": [
    "motai"
   ],
@@ -13558,6 +14397,15 @@
  },
  "legacy-backend/Modules/Onboarding/App/Services/AbacoService.php": {
   "gates": true,
+  "loguea": {
+   "mensajes": 11,
+   "muestra": [
+    "ABACO /platforms returned empty or failed",
+    "ABACO /platforms: no platforms online and available in settings",
+    "ABACO Webhook Engine Failure",
+    "ABACO Webhook Processed: scraping.completed"
+   ]
+  },
   "nodos": [
    "hardcodes-entidades",
    "motai"
@@ -13574,6 +14422,15 @@
     "nombre": "SmartPay (prod)"
    }
   ],
+  "loguea": {
+   "mensajes": 37,
+   "muestra": [
+    "Aliado no encontrado durante backdoor create user",
+    "Allied is not associated with SmartPay lender, skipping advisor phone check",
+    "Apellidos no coinciden durante validación con centrales de riesgo",
+    "Backdoor update user phone change completed"
+   ]
+  },
   "nodos": [
    "hardcodes-entidades"
   ],
@@ -13582,6 +14439,14 @@
   ]
  },
  "legacy-backend/Modules/Onboarding/App/Services/BackDoorTermsService.php": {
+  "loguea": {
+   "mensajes": 3,
+   "muestra": [
+    "Backdoor terms facade failed",
+    "Backdoor terms orchestrator failed",
+    "Backdoor terms payload validation failed"
+   ]
+  },
   "tipo": [
    "service"
   ]
@@ -13594,6 +14459,15 @@
     "nombre": "SmartPay (prod)"
    }
   ],
+  "loguea": {
+   "mensajes": 25,
+   "muestra": [
+    "Allied branch not found or without allied, skipping advisor check",
+    "Allied is not associated with lender 160, skipping advisor check",
+    "Backdoor check user exists facade failed",
+    "Backdoor check user exists orchestrator failed"
+   ]
+  },
   "nodos": [
    "hardcodes-entidades",
    "motai"
@@ -13603,6 +14477,13 @@
   ]
  },
  "legacy-backend/Modules/Onboarding/App/Services/CognitoService.php": {
+  "loguea": {
+   "mensajes": 2,
+   "muestra": [
+    "Datos de la petición no válidos para createAndAutenticateUser",
+    "Error interno en el api de creación y autenticación de usuario"
+   ]
+  },
   "nodos": [
    "actors"
   ],
@@ -13611,6 +14492,14 @@
   ]
  },
  "legacy-backend/Modules/Onboarding/App/Services/CommerceService.php": {
+  "loguea": {
+   "mensajes": 3,
+   "muestra": [
+    "Datos de la petición no válidos",
+    "Error interno en el api de obtención de tipo de comercio",
+    "FetchCommerceTypeOrchestrator error: allied branch not found"
+   ]
+  },
   "nodos": [
    "onboarding"
   ],
@@ -13635,11 +14524,29 @@
  },
  "legacy-backend/Modules/Onboarding/App/Services/CreditStudyService.php": {
   "gates": true,
+  "loguea": {
+   "mensajes": 46,
+   "muestra": [
+    "Cabezera de autorización no encontrada",
+    "Correo de confirmación UMA enviado exitosamente",
+    "Datos de la petición no válidos",
+    "Ejecutando módulo de viabilidad de usuario"
+   ]
+  },
   "tipo": [
    "service"
   ]
  },
  "legacy-backend/Modules/Onboarding/App/Services/DynamicFormsService.php": {
+  "loguea": {
+   "mensajes": 23,
+   "muestra": [
+    "Dynamic forms age calculation failed",
+    "Dynamic forms dynamic validation failed",
+    "Dynamic forms field map validation failed",
+    "Dynamic forms gender calculation failed"
+   ]
+  },
   "nodos": [
    "credifamilia",
    "dynamic-forms",
@@ -13696,6 +14603,15 @@
   ]
  },
  "legacy-backend/Modules/Onboarding/App/Services/EcommerceRequestService.php": {
+  "loguea": {
+   "mensajes": 9,
+   "muestra": [
+    "CreateEcommerceRequestOrchestrator error: allied branch not found",
+    "CreateEcommerceRequestOrchestrator error: invalid amount",
+    "CreateEcommerceRequestOrchestrator error: invalid token for allied branch",
+    "Error interno en el api de creación de solicitud de ecommerce"
+   ]
+  },
   "nodos": [
    "bancolombia",
    "ecommerce",
@@ -13750,6 +14666,15 @@
   ]
  },
  "legacy-backend/Modules/Onboarding/App/Services/MobileOnboardingService.php": {
+  "loguea": {
+   "mensajes": 23,
+   "muestra": [
+    "API rules fetch returned error",
+    "Auth rules fetch returned error",
+    "Data rules fetch returned error",
+    "Default laboral data fetch returned error"
+   ]
+  },
   "tablas": [
    "otps",
    "risk_central_user_data"
@@ -13764,6 +14689,15 @@
   ]
  },
  "legacy-backend/Modules/Onboarding/App/Services/MotaiValidationService.php": {
+  "loguea": {
+   "mensajes": 5,
+   "muestra": [
+    "Motai abaco validation allied mode not found",
+    "Motai abaco validation facade failed",
+    "Motai abaco validation orchestrator failed",
+    "Motai abaco validation request failed"
+   ]
+  },
   "nodos": [
    "findings",
    "hardcodes-entidades"
@@ -13790,6 +14724,15 @@
     "nombre": "Meddipay"
    }
   ],
+  "loguea": {
+   "mensajes": 121,
+   "muestra": [
+    "AgilData OK, using returned identity data",
+    "AgilData errors and no TusDatos retry, returning ONB005",
+    "AgilData inconclusive, will consult Mareigua",
+    "AgilData returned errors but TusDatos retry is warranted, continuing"
+   ]
+  },
   "nodos": [
    "creditop",
    "dynamic-forms",
@@ -13812,6 +14755,13 @@
  },
  "legacy-backend/Modules/Onboarding/App/Services/OtpBypassService.php": {
   "gates": true,
+  "loguea": {
+   "mensajes": 2,
+   "muestra": [
+    "[OtpBypassService] Error leyendo setting qa_otp_bypass_phones",
+    "[OtpBypassService] OTP bypass activado para teléfono"
+   ]
+  },
   "nodos": [
    "formalization",
    "onboarding"
@@ -13828,6 +14778,15 @@
     "nombre": "Credifamilia"
    }
   ],
+  "loguea": {
+   "mensajes": 30,
+   "muestra": [
+    "OTP Redis never delivered the generated code",
+    "OTP Redis read failed",
+    "OtpService::sendOtpCode: Legal file previsualization enabled, sending unsigned legal document after 250ms",
+    "OtpService::sendOtpCode: QA bypass active, delegating to sendOtpCodeBypassed"
+   ]
+  },
   "nodos": [
    "onboarding"
   ],
@@ -13884,6 +14843,15 @@
     "nombre": "Credifamilia"
    }
   ],
+  "loguea": {
+   "mensajes": 40,
+   "muestra": [
+    "Calling maybeSendUnsignedLegalDocument",
+    "Calling storeTermsAndConditions for existing user",
+    "Caught QueryException, evaluating whether it is a document_number unique violation",
+    "CellPhone/document conflict detected, returning conflict response"
+   ]
+  },
   "nodos": [
    "motai",
    "onboarding"
@@ -13914,6 +14882,12 @@
     "nombre": "SmartPay (prod)"
    }
   ],
+  "loguea": {
+   "mensajes": 1,
+   "muestra": [
+    "handleEcommerceRequest: No se encontró ecommerce_request_id para vincular"
+   ]
+  },
   "nodos": [
    "aggregator",
    "ecommerce",
@@ -13939,6 +14913,15 @@
     "nombre": "Credifamilia"
    }
   ],
+  "loguea": {
+   "mensajes": 31,
+   "muestra": [
+    "UserService::assignUserRole: assigning role to user (Spatie)",
+    "UserService::assignUserRole: entered",
+    "UserService::assignUserRole: exiting",
+    "UserService::assignUserRole: unexpected exception, rethrowing"
+   ]
+  },
   "nodos": [
    "hardcodes-entidades",
    "onboarding"
@@ -14033,6 +15016,15 @@
     "nombre": "CrediPullman"
    }
   ],
+  "loguea": {
+   "mensajes": 5,
+   "muestra": [
+    "Failed to register CreditopX pre-approval attempt (v2)",
+    "Iniciando listado de entidades (sin pre-aprobados)",
+    "Listado de entidades completado",
+    "No se encontraron entidades disponibles"
+   ]
+  },
   "nodos": [
    "amount-tiers",
    "creditop",
@@ -14076,6 +15068,15 @@
     "nombre": "SmartPay (prod)"
    }
   ],
+  "loguea": {
+   "mensajes": 7,
+   "muestra": [
+    "Aplicando reglas de perfilamiento y centrales de riesgo",
+    "Error al aplicar reglas de perfilamiento",
+    "Failed to register lender attempt for lender 160",
+    "Iniciando listado de entidades para usuario"
+   ]
+  },
   "nodos": [
    "aggregator",
    "amount-tiers",
@@ -14159,6 +15160,15 @@
     "nombre": "Magnocréditos"
    }
   ],
+  "loguea": {
+   "mensajes": 8,
+   "muestra": [
+    "Aplicando excepción especial para usuario venezolano con Magnocell",
+    "Evaluando reglas para entidad",
+    "Iniciando validación de reglas para cada entidad",
+    "Iniciando validación de reglas por entidad"
+   ]
+  },
   "nodos": [
    "hardcodes-entidades",
    "redirect"
@@ -14198,6 +15208,15 @@
     "nombre": "Meddipay"
    }
   ],
+  "loguea": {
+   "mensajes": 7,
+   "muestra": [
+    "Error al consultar Sistecrédito",
+    "Iniciando validación de prestamistas pre-aprobados",
+    "Pre-aprobado con Sistecrédito",
+    "Respuesta 400 de Sistecrédito"
+   ]
+  },
   "nodos": [
    "aggregator",
    "bancolombia",
@@ -14232,6 +15251,7 @@
    }
   ],
   "nodos": [
+   "creditopx",
    "hardcodes-entidades",
    "legacy-backend",
    "profiling"
@@ -14261,6 +15281,13 @@
   ]
  },
  "legacy-backend/Modules/Onboarding/App/Services/lenders/Welli/WelliService.php": {
+  "loguea": {
+   "mensajes": 2,
+   "muestra": [
+    "Skipping API call - user has previous approved request",
+    "Using cached API response"
+   ]
+  },
   "nodos": [
    "aggregator",
    "hardcodes-entidades",
@@ -14302,6 +15329,12 @@
   ]
  },
  "legacy-backend/Modules/Onboarding/App/Traits/BancolombiaAcceptTermsTrait.php": {
+  "loguea": {
+   "mensajes": 1,
+   "muestra": [
+    "{$logPrefix} - AcceptTermsAndConditions"
+   ]
+  },
   "nodos": [
    "bancolombia"
   ]
@@ -14481,6 +15514,12 @@
   ]
  },
  "legacy-backend/Modules/OnboardingV2/App/Http/Controllers/StorePersonalInfoController.php": {
+  "loguea": {
+   "mensajes": 1,
+   "muestra": [
+    "Request data"
+   ]
+  },
   "nodos": [
    "onboarding"
   ],
@@ -14489,6 +15528,12 @@
   ]
  },
  "legacy-backend/Modules/OnboardingV2/App/Http/Controllers/ValidateOtpAuthController.php": {
+  "loguea": {
+   "mensajes": 1,
+   "muestra": [
+    "Request data"
+   ]
+  },
   "nodos": [
    "onboarding"
   ],
@@ -14529,6 +15574,15 @@
   ]
  },
  "legacy-backend/Modules/OnboardingV2/App/Services/StorePersonalInfoService.php": {
+  "loguea": {
+   "mensajes": 6,
+   "muestra": [
+    "Internal error in personal info store orchestrator",
+    "Personal info api request validation failed",
+    "Request data",
+    "User not found"
+   ]
+  },
   "nodos": [
    "legacy-backend",
    "onboarding"
@@ -14538,6 +15592,14 @@
   ]
  },
  "legacy-backend/Modules/OnboardingV2/App/Services/ValidateOtpAuthService.php": {
+  "loguea": {
+   "mensajes": 3,
+   "muestra": [
+    "Command data",
+    "Otp auth request validation failed",
+    "Request data"
+   ]
+  },
   "nodos": [
    "hardcodes-entidades",
    "legacy-backend",
@@ -14618,6 +15680,15 @@
   ]
  },
  "legacy-backend/Modules/Partner/App/Http/Controllers/AlliedProductsController.php": {
+  "loguea": {
+   "mensajes": 5,
+   "muestra": [
+    "Error al hacer upsert del producto",
+    "Excepción en upsertUserRequestProduct",
+    "Iniciando upsert de producto para solicitud de usuario",
+    "Parámetros faltantes en upsertUserRequestProduct"
+   ]
+  },
   "tablas": [
    "user_requests"
   ],
@@ -15202,6 +16273,15 @@
     "nombre": "Credifamilia"
    }
   ],
+  "loguea": {
+   "mensajes": 61,
+   "muestra": [
+    "Age within the disqualifying range, marking not viable",
+    "Applying Pullman (allied 94) special rule",
+    "Branch has datacredito-credentialed lenders, evaluating per-employment rules",
+    "Calling Experian::creditScore from frequency-matched branch"
+   ]
+  },
   "marcas": [
    "EXPERIAN_NOT_TRIGGERED"
   ],
@@ -15413,7 +16493,13 @@
     "id": 94,
     "nombre": "Amoblando Pullman"
    }
-  ]
+  ],
+  "loguea": {
+   "mensajes": 1,
+   "muestra": [
+    "Pullman amount at or below the minimum; user not viable"
+   ]
+  }
  },
  "legacy-backend/Modules/RiskV2/App/ExperianAlliedValidators/Base/ExperianTriggerValidatorResolver.php": {
   "comercios": [
@@ -15437,7 +16523,16 @@
     "id": 24,
     "nombre": "Credifamilia"
    }
-  ]
+  ],
+  "loguea": {
+   "mensajes": 7,
+   "muestra": [
+    "No Agildata summary available; the Credifamilia rule cannot be evaluated",
+    "The approximate real salary label is missing from the Agildata summary; the Credifamilia rule cannot be evaluated",
+    "The employment situation is missing; the Credifamilia rule cannot be evaluated",
+    "The employment situation is not supported by the Credifamilia rule; user not viable"
+   ]
+  }
  },
  "legacy-backend/Modules/RiskV2/App/Extractors/Base/ExtractorResult.php": {
   "tablas": [
@@ -15445,6 +16540,13 @@
   ]
  },
  "legacy-backend/Modules/RiskV2/App/Extractors/RiskCentral/AgildataExtractor.php": {
+  "loguea": {
+   "mensajes": 2,
+   "muestra": [
+    "Agildata response code is not one of the supported values (01, 21), no summary produced",
+    "Agildata summary skipped: unexpected response code"
+   ]
+  },
   "tablas": [
    "risk_central_user_data"
   ]
@@ -15460,6 +16562,12 @@
   ]
  },
  "legacy-backend/Modules/RiskV2/App/Extractors/RiskCentral/ExperianQuantoExtractor.php": {
+  "loguea": {
+   "mensajes": 1,
+   "muestra": [
+    "Experian quanto summary skipped: income values could not be read correctly"
+   ]
+  },
   "tablas": [
    "risk_central_user_data"
   ]
@@ -15479,51 +16587,123 @@
   ]
  },
  "legacy-backend/Modules/RiskV2/App/Http/Controllers/CheckExperianTriggerController.php": {
+  "loguea": {
+   "mensajes": 1,
+   "muestra": [
+    "Request data"
+   ]
+  },
   "tipo": [
    "controller"
   ]
  },
  "legacy-backend/Modules/RiskV2/App/Http/Controllers/CheckIfAbleToOmitController.php": {
+  "loguea": {
+   "mensajes": 1,
+   "muestra": [
+    "Request data"
+   ]
+  },
   "tipo": [
    "controller"
   ]
  },
  "legacy-backend/Modules/RiskV2/App/Http/Controllers/GetRiskCentralDataController.php": {
+  "loguea": {
+   "mensajes": 1,
+   "muestra": [
+    "Request data"
+   ]
+  },
   "tipo": [
    "controller"
   ]
  },
  "legacy-backend/Modules/RiskV2/App/Http/Controllers/StoreRiskCentralDataController.php": {
+  "loguea": {
+   "mensajes": 1,
+   "muestra": [
+    "Request data"
+   ]
+  },
   "tipo": [
    "controller"
   ]
  },
  "legacy-backend/Modules/RiskV2/App/PreProcessors/RiskCentral/AgildataPreProcessor.php": {
+  "loguea": {
+   "mensajes": 3,
+   "muestra": [
+    "Agildata record older than 30 days, no longer valid",
+    "Agildata result not successful (response code not in 01/21)",
+    "Evaluating agildata response code"
+   ]
+  },
   "tablas": [
    "risk_central_user_data"
   ]
  },
  "legacy-backend/Modules/RiskV2/App/PreProcessors/RiskCentral/ExperianAciertaPreProcessor.php": {
+  "loguea": {
+   "mensajes": 3,
+   "muestra": [
+    "Evaluating experian acierta productresult.responsecode",
+    "Experian acierta record older than 30 days, no longer valid",
+    "Experian acierta result not successful (productresult.responsecode != 13)"
+   ]
+  },
   "tablas": [
    "risk_central_user_data"
   ]
  },
  "legacy-backend/Modules/RiskV2/App/PreProcessors/RiskCentral/ExperianAciertaQuantoPreProcessor.php": {
+  "loguea": {
+   "mensajes": 3,
+   "muestra": [
+    "Evaluating experian acierta+quanto productresult.responsecode",
+    "Experian acierta+quanto record older than 30 days, no longer valid",
+    "Experian acierta+quanto result not successful (productresult.responsecode != 13)"
+   ]
+  },
   "tablas": [
    "risk_central_user_data"
   ]
  },
  "legacy-backend/Modules/RiskV2/App/PreProcessors/RiskCentral/ExperianQuantoPreProcessor.php": {
+  "loguea": {
+   "mensajes": 3,
+   "muestra": [
+    "Evaluating experian quanto productcode 62 income value",
+    "Experian quanto record older than 30 days, no longer valid",
+    "Experian quanto result not successful (no productcode 62 with value > 0)"
+   ]
+  },
   "tablas": [
    "risk_central_user_data"
   ]
  },
  "legacy-backend/Modules/RiskV2/App/PreProcessors/RiskCentral/MareiguaPreProcessor.php": {
+  "loguea": {
+   "mensajes": 3,
+   "muestra": [
+    "Evaluating mareigua response id",
+    "Mareigua record older than 30 days, no longer valid",
+    "Mareigua result not successful (response id != 4)"
+   ]
+  },
   "tablas": [
    "risk_central_user_data"
   ]
  },
  "legacy-backend/Modules/RiskV2/App/PreProcessors/RiskCentral/TusDatosPreProcessor.php": {
+  "loguea": {
+   "mensajes": 3,
+   "muestra": [
+    "Evaluating tusdatos success signals",
+    "Tusdatos record older than 30 days, no longer valid",
+    "Tusdatos result not successful (no success signal present)"
+   ]
+  },
   "tablas": [
    "risk_central_user_data"
   ]
@@ -15563,6 +16743,15 @@
   ]
  },
  "legacy-backend/Modules/RiskV2/App/Services/CheckExperianTriggerService.php": {
+  "loguea": {
+   "mensajes": 45,
+   "muestra": [
+    "Age within the disqualifying range; user not viable",
+    "All checks passed; the user is viable to be queried in Experian",
+    "Allied branch not found for the given id",
+    "At least one integrated entity requires an Experian query; the user must be evaluated"
+   ]
+  },
   "nodos": [
    "kyc"
   ],
@@ -15574,6 +16763,15 @@
   ]
  },
  "legacy-backend/Modules/RiskV2/App/Services/CheckIfAbleToOmitService.php": {
+  "loguea": {
+   "mensajes": 7,
+   "muestra": [
+    "Check if able to omit request validation failed",
+    "Command data",
+    "No partner branch found for the given hash",
+    "Request data"
+   ]
+  },
   "nodos": [
    "kyc"
   ],
@@ -15582,6 +16780,15 @@
   ]
  },
  "legacy-backend/Modules/RiskV2/App/Services/GetRiskCentralDataService.php": {
+  "loguea": {
+   "mensajes": 6,
+   "muestra": [
+    "Command data",
+    "No risk central data found",
+    "Request data",
+    "Risk central data rejected by pre-processor"
+   ]
+  },
   "tablas": [
    "risk_central_user_data"
   ],
@@ -15596,6 +16803,14 @@
     "nombre": "Credifamilia"
    }
   ],
+  "loguea": {
+   "mensajes": 3,
+   "muestra": [
+    "Command data",
+    "No stored summary found for the given user and risk central",
+    "The risk central has no mapped user_summaries column; no summary can be returned"
+   ]
+  },
   "tablas": [
    "risk_central_user_data"
   ],
@@ -15604,11 +16819,27 @@
   ]
  },
  "legacy-backend/Modules/RiskV2/App/Services/IsUserValidatedWithRiskCentralsService.php": {
+  "loguea": {
+   "mensajes": 2,
+   "muestra": [
+    "Command data",
+    "Risk central validation status resolved"
+   ]
+  },
   "tipo": [
    "service"
   ]
  },
  "legacy-backend/Modules/RiskV2/App/Services/StoreRiskCentralDataService.php": {
+  "loguea": {
+   "mensajes": 6,
+   "muestra": [
+    "Command data",
+    "No user_summaries column mapped for risk central",
+    "Request data",
+    "Risk central data store request validation failed"
+   ]
+  },
   "tablas": [
    "risk_central_user_data"
   ],
@@ -15830,12 +17061,30 @@
   ]
  },
  "legacy-backend/Modules/System/App/Repositories/MessagingServiceRepository.php": {
+  "loguea": {
+   "mensajes": 4,
+   "muestra": [
+    "Messaging service connection failed",
+    "Messaging service health check failed",
+    "Messaging service request failed",
+    "Messaging service unexpected error"
+   ]
+  },
   "tipo": [
    "service",
    "repositorio"
   ]
  },
  "legacy-backend/Modules/System/App/Repositories/OtpServiceRepository.php": {
+  "loguea": {
+   "mensajes": 5,
+   "muestra": [
+    "OTP service call rejected: invalid identifier",
+    "OTP service connection failed",
+    "OTP service health check failed",
+    "OTP service request failed"
+   ]
+  },
   "nodos": [
    "legacy-backend"
   ],
@@ -15857,6 +17106,15 @@
  },
  "legacy-backend/Modules/System/App/Services/NotificationService.php": {
   "gates": true,
+  "loguea": {
+   "mensajes": 5,
+   "muestra": [
+    "Email notification failed",
+    "Google Chat notification failed",
+    "SMS notification failed",
+    "Webhook notification failed"
+   ]
+  },
   "tipo": [
    "service"
   ]
@@ -15980,6 +17238,12 @@
   ]
  },
  "legacy-backend/Modules/UserRequestV1/App/Http/Controllers/FlowSignatureController.php": {
+  "loguea": {
+   "mensajes": 1,
+   "muestra": [
+    "Request data"
+   ]
+  },
   "tipo": [
    "controller"
   ]
@@ -16008,6 +17272,12 @@
   ]
  },
  "legacy-backend/Modules/UserRequestV1/App/Services/FindOrCreateService.php": {
+  "loguea": {
+   "mensajes": 1,
+   "muestra": [
+    "Command data"
+   ]
+  },
   "nodos": [
    "legacy-backend",
    "onboarding"
@@ -16020,6 +17290,15 @@
   ]
  },
  "legacy-backend/Modules/UserRequestV1/App/Services/FlowSignatureService.php": {
+  "loguea": {
+   "mensajes": 11,
+   "muestra": [
+    "Command data",
+    "Flow signature request validation failed",
+    "New flow id equals the current one; no DB change is needed",
+    "Request data"
+   ]
+  },
   "tablas": [
    "user_requests"
   ],
@@ -16028,6 +17307,13 @@
   ]
  },
  "legacy-backend/Modules/UserRequestV1/App/Services/GetUserRequestService.php": {
+  "loguea": {
+   "mensajes": 2,
+   "muestra": [
+    "Command data",
+    "No user request found for id"
+   ]
+  },
   "tipo": [
    "service"
   ]
@@ -16071,6 +17357,12 @@
   ]
  },
  "legacy-backend/Modules/UsersV1/App/Http/Controllers/GetUserController.php": {
+  "loguea": {
+   "mensajes": 1,
+   "muestra": [
+    "Request data"
+   ]
+  },
   "nodos": [
    "legacy-backend"
   ],
@@ -16103,11 +17395,24 @@
   ]
  },
  "legacy-backend/Modules/UsersV1/App/Services/FindByCellPhoneService.php": {
+  "loguea": {
+   "mensajes": 1,
+   "muestra": [
+    "Command data"
+   ]
+  },
   "tipo": [
    "service"
   ]
  },
  "legacy-backend/Modules/UsersV1/App/Services/GetUserFieldValuesService.php": {
+  "loguea": {
+   "mensajes": 2,
+   "muestra": [
+    "Command data",
+    "No field values found for the user"
+   ]
+  },
   "tablas": [
    "user_field_values"
   ],
@@ -16116,6 +17421,15 @@
   ]
  },
  "legacy-backend/Modules/UsersV1/App/Services/GetUserService.php": {
+  "loguea": {
+   "mensajes": 5,
+   "muestra": [
+    "Command data",
+    "Request data",
+    "User is disabled",
+    "User not found"
+   ]
+  },
   "nodos": [
    "legacy-backend"
   ],
@@ -16124,16 +17438,34 @@
   ]
  },
  "legacy-backend/Modules/UsersV1/App/Services/HasEmploymentInformationService.php": {
+  "loguea": {
+   "mensajes": 1,
+   "muestra": [
+    "Command data"
+   ]
+  },
   "tipo": [
    "service"
   ]
  },
  "legacy-backend/Modules/UsersV1/App/Services/IsTemporalUserService.php": {
+  "loguea": {
+   "mensajes": 1,
+   "muestra": [
+    "Command data"
+   ]
+  },
   "tipo": [
    "service"
   ]
  },
  "legacy-backend/Modules/UsersV1/App/Services/StoreDefaultEmploymentInformationService.php": {
+  "loguea": {
+   "mensajes": 1,
+   "muestra": [
+    "Command data"
+   ]
+  },
   "tipo": [
    "service"
   ]
@@ -16195,6 +17527,14 @@
   ]
  },
  "legacy-backend/app/Actions/Lenders/Bancolombia.php": {
+  "loguea": {
+   "mensajes": 3,
+   "muestra": [
+    "Error al obtener token OAuth de Bancolombia",
+    "Solicitando token OAuth a Bancolombia",
+    "Token OAuth obtenido exitosamente"
+   ]
+  },
   "nodos": [
    "aggregator",
    "bancolombia"
@@ -16202,12 +17542,27 @@
  },
  "legacy-backend/app/Actions/Lenders/BancolombiaBnpl.php": {
   "gates": true,
+  "loguea": {
+   "mensajes": 6,
+   "muestra": [
+    "Error al validar cupo con Bancolombia BNPL",
+    "Iniciando validación de cupo con Bancolombia BNPL",
+    "Llamando API de validación de cupo",
+    "Obteniendo credenciales de Bancolombia BNPL"
+   ]
+  },
   "nodos": [
    "aggregator",
    "bancolombia"
   ]
  },
  "legacy-backend/app/Actions/Lenders/BancolombiaConsumerLoan.php": {
+  "loguea": {
+   "mensajes": 1,
+   "muestra": [
+    "registerTerms"
+   ]
+  },
   "nodos": [
    "aggregator",
    "bancolombia"
@@ -16279,6 +17634,12 @@
     "nombre": "Credifamilia"
    }
   ],
+  "loguea": {
+   "mensajes": 1,
+   "muestra": [
+    "TransactionRequest: soap payload log failed"
+   ]
+  },
   "nodos": [
    "bancolombia",
    "credifamilia"
@@ -16301,6 +17662,15 @@
     "nombre": "Meddipay"
    }
   ],
+  "loguea": {
+   "mensajes": 8,
+   "muestra": [
+    "Autenticación exitosa con Meddipay",
+    "Autenticando con Meddipay",
+    "Creando orden en Meddipay",
+    "Error al consultar Meddipay"
+   ]
+  },
   "nodos": [
    "aggregator"
   ]
@@ -16312,6 +17682,15 @@
   ]
  },
  "legacy-backend/app/Actions/Lenders/Prami.php": {
+  "loguea": {
+   "mensajes": 10,
+   "muestra": [
+    "Credenciales no encontradas para el aliado en Prami",
+    "Error al consultar Prami",
+    "Faltan datos básicos en datacredito",
+    "Faltan datos de Agildata para el usuario"
+   ]
+  },
   "nodos": [
    "aggregator",
    "db-routines"
@@ -16336,6 +17715,14 @@
   "estados": [
    11
   ],
+  "loguea": {
+   "mensajes": 3,
+   "muestra": [
+    "Welli update amount API response received",
+    "Welli update amount API returned error",
+    "Welli update amount exception"
+   ]
+  },
   "nodos": [
    "aggregator"
   ]
@@ -16348,6 +17735,14 @@
  },
  "legacy-backend/app/Actions/RiskCentrals/Abaco.php": {
   "gates": true,
+  "loguea": {
+   "mensajes": 3,
+   "muestra": [
+    "ABACO Connection Exception",
+    "ABACO General Exception",
+    "ABACO Request Exception"
+   ]
+  },
   "nodos": [
    "kyc",
    "motai"
@@ -16366,6 +17761,15 @@
  },
  "legacy-backend/app/Actions/RiskCentrals/Experian.php": {
   "gates": true,
+  "loguea": {
+   "mensajes": 95,
+   "muestra": [
+    "Acierta query finished successfully",
+    "Acierta+Quanto query finished successfully",
+    "Cache HIT, returning existing report without calling Experian",
+    "Cache MISS, continuing"
+   ]
+  },
   "nodos": [
    "kyc",
    "legacy-backend"
@@ -16379,6 +17783,13 @@
  },
  "legacy-backend/app/Actions/RiskCentrals/Tusdatos.php": {
   "gates": true,
+  "loguea": {
+   "mensajes": 2,
+   "muestra": [
+    "tusdatos.aml.launch.failed",
+    "tusdatos.aml.launch.resolved"
+   ]
+  },
   "tablas": [
    "risk_central_user_data"
   ]
@@ -16395,6 +17806,13 @@
   ]
  },
  "legacy-backend/app/Console/Commands/LockDevicesPastDueCommand.php": {
+  "loguea": {
+   "mensajes": 2,
+   "muestra": [
+    "device_lock.command.finished",
+    "device_lock.command.started"
+   ]
+  },
   "nodos": [
    "smartpay"
   ]
@@ -16416,6 +17834,13 @@
   ]
  },
  "legacy-backend/app/Console/Commands/ReconcileWompiTransactionsCommand.php": {
+  "loguea": {
+   "mensajes": 2,
+   "muestra": [
+    "Reconciliación Wompi: Error al procesar transacción",
+    "Reconciliación Wompi: Transacción actualizada"
+   ]
+  },
   "nodos": [
    "payments"
   ]
@@ -16483,11 +17908,25 @@
   ]
  },
  "legacy-backend/app/Console/Commands/UnlockDevicesPaidCommand.php": {
+  "loguea": {
+   "mensajes": 2,
+   "muestra": [
+    "device_lock.unlock_command.finished",
+    "device_lock.unlock_command.started"
+   ]
+  },
   "nodos": [
    "smartpay"
   ]
  },
  "legacy-backend/app/Console/Commands/UnrollDevicesPaidCommand.php": {
+  "loguea": {
+   "mensajes": 2,
+   "muestra": [
+    "device_lock.unroll_command.finished",
+    "device_lock.unroll_command.started"
+   ]
+  },
   "nodos": [
    "smartpay"
   ]
@@ -16672,6 +18111,12 @@
     "nombre": "Credifamilia"
    }
   ],
+  "loguea": {
+   "mensajes": 1,
+   "muestra": [
+    "Jumio callback secret is not configured"
+   ]
+  },
   "nodos": [
    "architecture",
    "credifamilia"
@@ -17106,16 +18551,43 @@
     "nombre": "Credifamilia"
    }
   ],
+  "loguea": {
+   "mensajes": 4,
+   "muestra": [
+    "CrossCore evaluation could not be prepared from Jumio callback",
+    "CrossCore evaluation triggered from Jumio callback finished with non-success response",
+    "Skipping duplicate CrossCore evaluation job because another evaluation is already in progress",
+    "Unexpected error while processing CrossCore evaluation from Jumio callback"
+   ]
+  },
   "nodos": [
    "credifamilia"
   ]
  },
  "legacy-backend/app/Jobs/DeviceLockStatusJob.php": {
+  "loguea": {
+   "mensajes": 20,
+   "muestra": [
+    "device_lock.lock.api_failure",
+    "device_lock.lock.api_request",
+    "device_lock.lock.async_pending",
+    "device_lock.lock.exception"
+   ]
+  },
   "nodos": [
    "smartpay"
   ]
  },
  "legacy-backend/app/Jobs/DeviceUnrollJob.php": {
+  "loguea": {
+   "mensajes": 12,
+   "muestra": [
+    "device_lock.unroll.api_failure",
+    "device_lock.unroll.api_request",
+    "device_lock.unroll.async_pending",
+    "device_lock.unroll.exception"
+   ]
+  },
   "nodos": [
    "smartpay"
   ]
@@ -17143,6 +18615,12 @@
     "nombre": "Credifamilia"
    }
   ],
+  "loguea": {
+   "mensajes": 1,
+   "muestra": [
+    "Sending mail to Credifamilia"
+   ]
+  },
   "nodos": [
    "credifamilia"
   ]
@@ -17158,16 +18636,43 @@
   ]
  },
  "legacy-backend/app/Jobs/PollDeviceLockBatchJob.php": {
+  "loguea": {
+   "mensajes": 8,
+   "muestra": [
+    "device_lock.batch_poll.batch_failed",
+    "device_lock.batch_poll.exception",
+    "device_lock.batch_poll.max_polls_reached",
+    "device_lock.batch_poll.missing_tenant_key"
+   ]
+  },
   "nodos": [
    "smartpay"
   ]
  },
  "legacy-backend/app/Jobs/PollDeviceReleaseBatchJob.php": {
+  "loguea": {
+   "mensajes": 8,
+   "muestra": [
+    "device_release.batch_poll.batch_failed",
+    "device_release.batch_poll.exception",
+    "device_release.batch_poll.max_polls_reached",
+    "device_release.batch_poll.missing_tenant_key"
+   ]
+  },
   "nodos": [
    "smartpay"
   ]
  },
  "legacy-backend/app/Jobs/RiskCentrals/Tusdatos/CheckBackgroundJobStatus.php": {
+  "loguea": {
+   "mensajes": 4,
+   "muestra": [
+    "Error checking TusDatos background job status",
+    "tusdatos.aml.poll.failed",
+    "tusdatos.aml.poll.pending",
+    "tusdatos.aml.poll.resolved"
+   ]
+  },
   "tablas": [
    "risk_central_user_data"
   ]
@@ -18337,7 +19842,13 @@
     "id": 24,
     "nombre": "Credifamilia"
    }
-  ]
+  ],
+  "loguea": {
+   "mensajes": 1,
+   "muestra": [
+    "Notifying to {$notifiable->email} that got a commission of {$this->amount}"
+   ]
+  }
  },
  "legacy-backend/app/Notifications/Customer/VoucherEmailNotification.php": {
   "lenders": [
@@ -18365,6 +19876,13 @@
   ]
  },
  "legacy-backend/app/Otel/TracerService.php": {
+  "loguea": {
+   "mensajes": 2,
+   "muestra": [
+    "Failed to initialize tracer",
+    "TracerService"
+   ]
+  },
   "nodos": [
    "legacy-backend"
   ],
@@ -18481,6 +19999,14 @@
     "nombre": "Credifamilia"
    }
   ],
+  "loguea": {
+   "mensajes": 3,
+   "muestra": [
+    "CrossCore auth request completed",
+    "CrossCore auth request started",
+    "CrossCore auth token cache hit"
+   ]
+  },
   "nodos": [
    "credifamilia"
   ],
@@ -18495,6 +20021,15 @@
     "nombre": "Credifamilia"
    }
   ],
+  "loguea": {
+   "mensajes": 10,
+   "muestra": [
+    "CrossCore document image URLs could not be stored on user",
+    "CrossCore evaluation completed",
+    "CrossCore evaluation failed with CrossCoreException",
+    "CrossCore evaluation failed with connection error"
+   ]
+  },
   "nodos": [
    "credifamilia",
    "kyc"
@@ -18597,6 +20132,13 @@
     "nombre": "Credifamilia"
    }
   ],
+  "loguea": {
+   "mensajes": 2,
+   "muestra": [
+    "Jumio account creation completed",
+    "Jumio account creation started"
+   ]
+  },
   "nodos": [
    "credifamilia"
   ],
@@ -18611,6 +20153,14 @@
     "nombre": "Credifamilia"
    }
   ],
+  "loguea": {
+   "mensajes": 3,
+   "muestra": [
+    "Jumio auth request completed",
+    "Jumio auth request started",
+    "Jumio auth token cache hit"
+   ]
+  },
   "nodos": [
    "credifamilia"
   ],
@@ -18625,6 +20175,15 @@
     "nombre": "Credifamilia"
    }
   ],
+  "loguea": {
+   "mensajes": 5,
+   "muestra": [
+    "Jumio callback recorded",
+    "Jumio onboarding failed with CrossCoreException",
+    "Jumio onboarding failed with unexpected exception",
+    "Jumio onboarding started successfully"
+   ]
+  },
   "nodos": [
    "credifamilia",
    "kyc"
@@ -18640,6 +20199,13 @@
     "nombre": "Credifamilia"
    }
   ],
+  "loguea": {
+   "mensajes": 2,
+   "muestra": [
+    "Jumio document image stored in S3",
+    "Jumio document images synchronized"
+   ]
+  },
   "nodos": [
    "credifamilia"
   ],
@@ -18654,6 +20220,14 @@
     "nombre": "Credifamilia"
    }
   ],
+  "loguea": {
+   "mensajes": 3,
+   "muestra": [
+    "Evidente auth request completed",
+    "Evidente auth request started",
+    "Evidente auth token cache hit"
+   ]
+  },
   "nodos": [
    "credifamilia"
   ],
@@ -18668,6 +20242,14 @@
     "nombre": "Credifamilia"
    }
   ],
+  "loguea": {
+   "mensajes": 3,
+   "muestra": [
+    "Evidente service connection error",
+    "Evidente service request failed",
+    "Evidente service request started"
+   ]
+  },
   "nodos": [
    "credifamilia",
    "kyc"
@@ -18683,6 +20265,14 @@
     "nombre": "Credifamilia"
    }
   ],
+  "loguea": {
+   "mensajes": 3,
+   "muestra": [
+    "Evidente consumption could not be stored because the risk central could not be resolved",
+    "Evidente consumption could not be stored in risk_central_user_data",
+    "Evidente consumption stored"
+   ]
+  },
   "nodos": [
    "credifamilia"
   ],
@@ -18729,6 +20319,12 @@
     "nombre": "Credifamilia"
    }
   ],
+  "loguea": {
+   "mensajes": 1,
+   "muestra": [
+    "Evidente validar flow completed"
+   ]
+  },
   "nodos": [
    "credifamilia",
    "legacy-backend"
@@ -18744,6 +20340,15 @@
     "nombre": "Credifamilia"
    }
   ],
+  "loguea": {
+   "mensajes": 4,
+   "muestra": [
+    "Evidente flow state forget skipped for protected stage",
+    "Evidente flow state loaded",
+    "Evidente flow state persisted",
+    "Evidente stale flow state write skipped"
+   ]
+  },
   "nodos": [
    "credifamilia"
   ],
@@ -18758,6 +20363,12 @@
     "nombre": "Credifamilia"
    }
   ],
+  "loguea": {
+   "mensajes": 1,
+   "muestra": [
+    "Failed to persist Evidente flow step"
+   ]
+  },
   "nodos": [
    "credifamilia"
   ],
@@ -18847,6 +20458,14 @@
     "nombre": "Credifamilia"
    }
   ],
+  "loguea": {
+   "mensajes": 3,
+   "muestra": [
+    "CredifamiliaPayloadBuilder: connection failed",
+    "CredifamiliaPayloadBuilder: no approved attempt found",
+    "CredifamiliaPayloadBuilder: pre-approval fetch failed"
+   ]
+  },
   "nodos": [
    "credifamilia",
    "hardcodes-entidades"
@@ -19196,6 +20815,12 @@
   ]
  },
  "legacy-backend/app/Services/PdfMapperClient.php": {
+  "loguea": {
+   "mensajes": 1,
+   "muestra": [
+    "pdf_mapper_call"
+   ]
+  },
   "nodos": [
    "findings"
   ],

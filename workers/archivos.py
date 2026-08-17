@@ -84,6 +84,16 @@ def construir(aliases=None, verboso=True):
     """Recorre los repos y arma/actualiza el diccionario. Preserva `notas` de lo que ya estaba."""
     aliases = aliases or list(ROOTS)
     viejo = cargar()
+    # Se lee UNA vez y se invierte: {archivo: [mensajes]}. Si no está construido, no pasa nada —
+    # el campo simplemente no aparece, en vez de romper la reconstrucción del diccionario entero.
+    _loguean = {}
+    try:
+        import logs as _logs
+        for msg, donde in _logs.cargar().items():
+            for x in donde:
+                _loguean.setdefault(x["ruta"], set()).add(msg)
+    except Exception:
+        pass
     nuevo, citan = {}, _nodos_que_lo_citan()
     nuevos = actualizados = 0
 
@@ -131,6 +141,14 @@ def construir(aliases=None, verboso=True):
                 ent["tipo"] = tipo
             if nodos:
                 ent["nodos"] = sorted(nodos)
+            # Lo que LOGUEA, derivado de `logs.json`: qué mensajes emite este archivo. Es la mitad
+            # que faltaba —el campo `marcas` cubría 10 archivos y hay 224 que loguean— y es la que
+            # convierte «este archivo existe» en «este archivo deja rastro, y así se lo reconoce en
+            # una traza». Sub-objeto y no lista plana para poder filtrar por cuánto y por qué.
+            lg = _loguean.get(k)
+            if lg:
+                ent["loguea"] = {"mensajes": len(lg), "muestra": sorted(lg)[:4]}
+
             # Lo curado a mano SOBREVIVE a la reconstrucción: es la razón de que la llave sea la ruta.
             if viejo.get(k, {}).get("notas"):
                 ent["notas"] = viejo[k]["notas"]
