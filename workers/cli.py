@@ -155,6 +155,10 @@ def main():
     s.add_argument("--todo", action="store_true",
                    help="no filtrar a services/controllers (incluye rutas y config, que no loguean por diseño)")
 
+    s = con_json(sub.add_parser(
+        "menu", help="cuando un agente abre un nodo de context, ¿cuánto del menú es señal?"))
+    s.add_argument("nodo", nargs="?", help="un nodo; vacío = todos los que citan 15+ archivos")
+
     sub.add_parser("check", help="¿las rutas escritas a mano siguen vivas en main?")
     sub.add_parser("pesos", help="refresca los tamaños guardados en repos.json")
 
@@ -251,6 +255,20 @@ def main():
         if r.get("ambiguo"):
             print("  ⚠ aparece en muchos archivos: no identifica uno solo")
         print()
+        return 0
+
+    if a.cmd == "menu":
+        import archivos as _arch
+        r = _arch.menu_de_nodo(a.nodo)
+        if j:
+            print(json.dumps(r, ensure_ascii=False, indent=2)); return 0
+        print("\n  cuando un agente abre un nodo, ¿cuánto del menú tiene señal de negocio?\n")
+        for x in r["nodos"][:15]:
+            print(f"    {x['nodo']:16} {x['con_negocio']:3}/{x['citados']:3} con negocio"
+                  f"  ·  {x['mudos']:3} mudos = {x['kb_mudos']:4} KB")
+            if a.nodo:
+                print(f"       ej: {', '.join(x['ejemplos'])}")
+        print(f"\n  {r['nota']}\n")
         return 0
 
     if a.cmd == "sin-rastro":

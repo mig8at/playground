@@ -114,6 +114,22 @@ Para qué sirve, en una frase: **decide si una pregunta de soporte se va a poder
 prometerlo.** Si el archivo que importa está en esa lista, no hay traza que buscar — hay que
 instrumentar primero.
 
+### Auditar `context/` sin tocarlo
+
+```bash
+./cli.py menu              # ¿cuánto del menú de cada nodo tiene señal de negocio?
+./cli.py menu backoffice   # con ejemplos
+```
+
+Un `map.json` es una lista **curada a mano**, y con el tiempo se le suma plomería. El costo no es el
+archivo: es que el **menú del seleccionador se diluye**, y elegir bien es todo su trabajo. Medido:
+`backoffice` cita 119 archivos y **22 tienen negocio**; `bancolombia`, 29 de 145.
+
+⚠ **«Mudo» no significa sobrante.** Se muestrearon 24 mudos del front y **22 eran de verdad
+componentes de presentación** —`AdminHeader`, `AdminLayout`— o sea bien clasificados. Es una señal
+para quien cura, no una lista para borrar: las herramientas **auditan** el `map.json`, no lo escriben.
+Curarlo a mano es a propósito.
+
 ## Mantenimiento
 
 `./cli.py check` valida que las rutas escritas a mano sigan existiendo en `main`; sale 1 si alguna

@@ -28,6 +28,7 @@ dudás de que esté fresco, lo regenerás. No se audita: se rehace.
     ./cli.py archivos --ruta legacy-backend/Modules/...   qué sabemos de un archivo
 """
 import json
+import json as _json
 import subprocess
 import sys
 from pathlib import Path
@@ -41,6 +42,7 @@ import extraer as _ex  # noqa: E402
 from roots import ROOTS  # noqa: E402
 
 DICC = RAIZ / "archivos.json"
+_RAIZ = RAIZ
 
 
 
@@ -168,6 +170,45 @@ def construir(aliases=None, verboso=True):
         print(f"\n  diccionario: {len(nuevo)} archivos · {nuevos} nuevos · {actualizados} cambiaron "
               f"· {len(fueron)} desaparecieron · {DICC.stat().st_size / 1024:.0f} KB")
     return nuevo
+
+
+def menu_de_nodo(nodo=None, minimo=15):
+    """Cuando un agente abre un nodo, ¿cuánto de lo que ve es SEÑAL?
+
+    Un `map.json` es una lista curada a mano, y con el tiempo se le van sumando archivos de plomería
+    —`AdminHeader.tsx`, `AdminLayout.tsx`— que están bien citados pero no enseñan nada de negocio. El
+    costo no es el archivo: es que el MENÚ del seleccionador se diluye, y elegir bien es todo su
+    trabajo.
+
+    «Mudo» = el diccionario no le conoce ningún rasgo de negocio (ni tabla, ni lender, ni rt, ni
+    estado, ni logs). ⚠ Y mudo NO ES SOBRANTE: se muestreó y 22 de 24 mudos del front eran de verdad
+    componentes de presentación, o sea bien clasificados. Esto es una señal PARA EL CURADOR, no una
+    lista para borrar — el `map.json` se cura a mano a propósito, y un nodo puede querer nombrar su
+    plomería. Lo que sí se puede afirmar es cuánto pesa esa parte del menú.
+    """
+    d = cargar()
+    F = _RAIZ.parent / "context" / "server" / "data" / "flows"
+    import sys as _s
+    _s.path.insert(0, str(_RAIZ))
+    import indice as _ix
+    fuera = []
+    for mj in sorted(F.glob("*/map.json")):
+        n_ = mj.parent.name
+        if nodo and n_ != nodo:
+            continue
+        fs = _json.loads(mj.read_text(encoding="utf-8")).get("files", [])
+        if not fs or (not nodo and len(fs) < minimo):
+            continue
+        mudos = [f for f in fs if not (set(d.get(f, {})) - {"tipo", "nodos"})]
+        kb = sum(_ix.peso(f) or 0 for f in mudos) / 1024
+        fuera.append({"nodo": n_, "citados": len(fs), "con_negocio": len(fs) - len(mudos),
+                      "mudos": len(mudos), "kb_mudos": round(kb),
+                      "ejemplos": [m.rsplit("/", 1)[-1] for m in mudos[:5]]})
+    fuera.sort(key=lambda x: -x["mudos"])
+    return {"nodos": fuera,
+            "nota": "«mudo» = sin rasgo de negocio conocido. NO significa sobrante: se muestreó y la "
+                    "mayoría son componentes de presentación bien clasificados. Es una señal para "
+                    "quien cura el map.json, no una lista para borrar."}
 
 
 def sin_rastro(solo_logica=True):
