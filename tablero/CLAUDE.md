@@ -16,10 +16,22 @@ Qué es y cómo se corre: `README.md`. Acá solo las reglas al trabajar con las 
 - **El test de enrutamiento**: *si esto se mergea mañana, ¿sigue siendo cierto?* Sí → es contexto,
   va a `context/`. Habla de decisiones, riesgos o preguntas de ESTA tarea → va acá. Al mergear,
   lo aprendido **gradúa** al nodo y la tarea se archiva.
-- **Jira y Slack van por el server** (`npm run dev` → :8787, botones con vista previa) o por los
-  conectores MCP (`cmd/jira-mcp`, stdio) — el browser no puede hablar con ninguno de los dos.
-  Tareas nuevas van al **sprint activo del board 384**, no al backlog. Nada se publica sin que
-  Miguel lo vea antes.
+- **Jira y Slack tienen TRES caminos**, no dos: el server (`npm run dev` → :8787, botones con vista
+  previa), los conectores MCP (`cmd/jira-mcp`, stdio — sólo si están registrados) y **la CONSOLA**,
+  que es la que sirve cuando no hay UI a mano y **no depende del server corriendo**:
+
+      make jira-create JSON=t.json     # crea y mete al sprint activo; el único que puede ESTIMAR
+      make jira-move KEY=CORE-309 A=prueba
+      make jira-edit JSON=t.json
+
+  ⚠ El `status` de `jira-create` es una lista **ORDENADA** de subcadenas, no un destino suelto: el
+  workflow de CORE no deja saltar estados — para «pruebas» hay que pasar por «progreso» primero.
+  Y por consola es el único camino que **estima**: el del server crea y mete al sprint pero no tiene
+  campo de puntos.
+
+  Los tres necesitan `ATLASSIAN_*` en `tablero/.env`. Tareas nuevas van al **sprint activo del board
+  384**, no al backlog. **Nada se publica sin que Miguel lo vea antes** — los tres escriben hacia
+  afuera y lo ve el equipo.
 - `data/entries/*.jsonl` (bitácora de tiempo), `data/pulse/*.jsonl` (el pulso) y `data/cache/` están
   **fuera de git** a propósito (dato personal / snapshot descartable); los `.md` de tareas,
   `data/artifacts/*.html` y `settings.json` **sí** se versionan. No lo cambies.

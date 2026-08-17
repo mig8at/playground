@@ -51,6 +51,31 @@ context: ## @dia abre la viz del árbol de contexto (:5193)
 tablero: ## @dia abre el tablero: las tareas a realizar (:5191)
 	@cd tablero && npm run dev
 
+# ── JIRA, por consola ────────────────────────────────────────────────────────────────────────────
+# Existían desde hace rato en `tablero/server/cmd/` y NO figuraban acá: el único target del tablero
+# abría la UI. Es exactamente lo que ya pasó con el trazador —capacidad real, invisible en el
+# catálogo, y por lo tanto inexistente para quien no la conociera de memoria—. Corren SIN el server.
+#
+# `jira` y no `tablero-issue-…` por la misma razón que `pulso` y `panel`: es un nombre propio más, y
+# los nombres largos desalinean la ayuda.
+#
+# ⚠ ESTOS ESCRIBEN EN JIRA, que es hacia afuera y lo ve el equipo. Pedí confirmación antes de correr
+# cualquiera de los tres. Y necesitan `ATLASSIAN_*` en `tablero/.env` — hoy ese archivo NO existe.
+.PHONY: jira-create jira-move jira-edit
+jira-create: ## @dia ⚠ ESCRIBE: crea una tarea en Jira y la mete al SPRINT ACTIVO. JSON={summary,description,points?,status?,sprint?}
+	@test -n "$(JSON)" || { echo "falta JSON=<archivo.json>  ·  {summary, description, points?, status?, sprint?}"; exit 2; }
+	@cd tablero/server && go run ./cmd/issue-create $(JSON)
+
+# ⚠ `status` es una lista ORDENADA de subcadenas, no un destino suelto: el workflow de CORE no deja
+# saltar estados — para «pruebas» hay que pasar por «progreso» primero.
+jira-move: ## @dia ⚠ ESCRIBE: mueve un issue de estado (subcadena del nombre). KEY=CORE-309 A=prueba
+	@test -n "$(KEY)" -a -n "$(A)" || { echo "faltan KEY=<CORE-309> y A=<subcadena del estado>"; exit 2; }
+	@cd tablero/server && go run ./cmd/issue-transition $(KEY) $(A)
+
+jira-edit: ## @dia ⚠ ESCRIBE: edita título y/o descripción de un issue. JSON={key,summary?,description?}
+	@test -n "$(JSON)" || { echo "falta JSON=<archivo.json>  ·  {key, summary?, description?}"; exit 2; }
+	@cd tablero/server && go run ./cmd/issue-update $(JSON)
+
 panel: ## @dia abre el panel del harness para probar flujos (:5195)
 	@cd harness && npm run dev
 
