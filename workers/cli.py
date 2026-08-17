@@ -172,8 +172,8 @@ def main():
     s = con_json(sub.add_parser(
         "negocio", help="LA ESPINA: los conceptos de CreditOp en orden, y dónde mirar cada uno"))
     s.add_argument("concepto", nargs="?", help="uno solo (acepta sinónimos: «buró», «tier», «ureq»)")
-    s.add_argument("--zoom", type=int, default=2, choices=[1, 2, 3],
-                   help="1 = el recorrido en una pantalla · 2 = normal · 3 = todo lo derivado")
+    s.add_argument("--zoom", type=int, default=2, choices=[1, 2, 3, 4],
+                   help="1 = el recorrido · 2 = normal · 3 = todo lo derivado · 4 = PASO A PASO (10×5)")
     s.add_argument("--acciones", action="store_true",
                    help="el vocabulario de ACCIONES: qué HACE el sistema, no de qué habla")
     s.add_argument("--traza", help="qué hizo el sistema en esta traza, agrupado por acción")
@@ -278,6 +278,20 @@ def main():
 
     if a.cmd == "negocio":
         import negocio as _neg
+        if a.zoom == 4:
+            d = _neg.cargar()
+            print("\n  EL RECORRIDO, PASO A PASO · 10 tramos × sus sub-pasos\n")
+            for i, p_ in enumerate(d["jerarquia"], 1):
+                print(f"  {i:2}. {p_['n'].upper()}")
+                print(f"      {p_['que_es']}")
+                for s in p_["sub"]:
+                    falla = f"   ⚠ {s['falla_tipica'][:52]}" if s.get("falla_tipica") else ""
+                    print(f"        · {s['n']:42}{falla}")
+                    print(f"          señal: {s['senal'][:76]}")
+                print()
+            print("  las `señal` están LITERALMENTE en los logs: es lo que permite reconocer el paso "
+                  "en una traza.\n")
+            return 0
         if a.acciones:
             d = _neg.cargar()
             print("\n  LAS ACCIONES · qué HACE el sistema (el otro eje: los conceptos son sustantivos)\n")

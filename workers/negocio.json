@@ -18,7 +18,8 @@
     "nodo": "qué nodo de context/ lo explica en serio",
     "es": "sinónimos que se oyen en reuniones y en tickets",
     "fase": "el tramo del recorrido — agrupa, y es lo que hace legible el nivel general",
-    "acciones": "el SEGUNDO EJE: qué HACE el sistema, no de qué habla. Los conceptos son sustantivos y no alcanzan —«validar credenciales» y «enviar OTP» no son cosas, son actos—. Los patrones salieron de mirar qué palabras usan los 1.576 mensajes que el corpus ya tiene, no de imaginarlas."
+    "acciones": "el SEGUNDO EJE: qué HACE el sistema, no de qué habla. Los conceptos son sustantivos y no alcanzan —«validar credenciales» y «enviar OTP» no son cosas, son actos—. Los patrones salieron de mirar qué palabras usan los 1.576 mensajes que el corpus ya tiene, no de imaginarlas.",
+    "jerarquia": "EL TERCER NIVEL: 10 pasos mayores × 4-6 sub-pasos. Lo propuso un agente leyendo el CORPUS ENTERO de 1.576 mensajes —no la documentación, los mensajes que el sistema de verdad emite— y se verificó que las 46 `senal` existen literalmente en él: 46 de 46. Cubre el 39% de los mensajes contra el 69% de las 12 acciones, y eso NO es peor: un sub-paso es más específico, acierta menos veces y dice mucho más. Son dos lentes."
   },
   "conceptos": [
     {
@@ -464,6 +465,298 @@
         "missing"
       ],
       "que_es": "⚠ No es una acción sino un DESENLACE, y por eso va al final: puede acompañar a cualquiera de las de arriba."
+    }
+  ],
+  "jerarquia": [
+    {
+      "sub": [
+        {
+          "n": "Identificar comercio y sucursal",
+          "falla_tipica": "Allied branch not found for the given id",
+          "senal": "allied branch, findByHash, partner branch"
+        },
+        {
+          "n": "Registrar celular del cliente",
+          "senal": "RegisterCellPhoneService, processCellPhoneRegistration, cleanPhoneNumber",
+          "falla_tipica": "CellPhone/document conflict detected"
+        },
+        {
+          "falla_tipica": "phone belongs to a commercial advisor",
+          "senal": "commercial advisor, advisor check, phone belongs to a commercial advisor",
+          "n": "Validar teléfono de asesor comercial"
+        },
+        {
+          "n": "Controlar límite de intentos",
+          "senal": "checkRateLimitPerHour, rate limit, per-hour rate limit",
+          "falla_tipica": "Rate limit exceeded, returning ONB040"
+        },
+        {
+          "falla_tipica": "Backdoor terms payload validation failed",
+          "senal": "storeTermsAndConditions, terms_and_conditions, AcceptTermsAndConditions",
+          "n": "Aceptar términos y condiciones iniciales"
+        }
+      ],
+      "n": "Entrada al canal y registro",
+      "que_es": "Inicia la solicitud en el canal de venta, valida la sucursal y verifica que el cliente no tenga conflictos de registro."
+    },
+    {
+      "n": "Autenticación por OTP",
+      "sub": [
+        {
+          "falla_tipica": "OTP Redis never delivered the generated code",
+          "n": "Generar código OTP",
+          "senal": "otp-service, generateOtp, createOtpRecord"
+        },
+        {
+          "n": "Enviar código por SMS",
+          "falla_tipica": "Failed to send OTP",
+          "senal": "sendOtpCode, messaging service, Send OTP"
+        },
+        {
+          "n": "Reenviar código OTP",
+          "falla_tipica": "Resend OTP failed",
+          "senal": "resendOtpCode, Resend OTP"
+        },
+        {
+          "senal": "validateOtpCode, verifyOtpCode, OTP validated",
+          "n": "Validar código ingresado",
+          "falla_tipica": "provider rejected the code"
+        },
+        {
+          "n": "Crear solicitud de crédito",
+          "falla_tipica": "createUserRequest returned empty, returning ONB030",
+          "senal": "createUserRequest, attachMotaiRentingMode, user_requests"
+        }
+      ],
+      "que_es": "Genera, despacha y valida el código de segundo factor para verificar al cliente y formalizar la creación de la solicitud."
+    },
+    {
+      "n": "Formulario y datos del cliente",
+      "sub": [
+        {
+          "n": "Obtener esquema de formulario dinámico",
+          "senal": "dynamic-forms, onboarding-forms-service, Dynamic forms",
+          "falla_tipica": "Error interno al obtener formulario dinámico"
+        },
+        {
+          "senal": "validateAndStorePersonalInfo, storePersonalInfo, user_field_values",
+          "n": "Registrar datos personales",
+          "falla_tipica": "document already exists, returning ONB005"
+        },
+        {
+          "falla_tipica": "user has no laboral information, returning ONB004",
+          "senal": "storeLaboralInformation, employment_situation, income_amount",
+          "n": "Registrar ocupación e ingresos"
+        },
+        {
+          "senal": "storeSocialStratum, Storing address, social_stratum",
+          "n": "Registrar estrato y dirección",
+          "falla_tipica": "Stratum required but missing/out-of-range"
+        },
+        {
+          "senal": "initGigEconomy, AbacoParserService, ABACO",
+          "n": "Capturar datos de economía gig",
+          "falla_tipica": "ABACO /platforms returned empty or failed"
+        }
+      ],
+      "que_es": "Captura y almacena la información sociodemográfica, laboral y de ingresos requerida para el estudio."
+    },
+    {
+      "que_es": "Valida la autenticidad del documento, la biometría facial del solicitante y la ausencia en listas de riesgo AML.",
+      "sub": [
+        {
+          "falla_tipica": "Nombres no coinciden durante validación con centrales de riesgo",
+          "n": "Verificar identidad en bases públicas",
+          "senal": "AgilData, Mareigua, TusDatos"
+        },
+        {
+          "senal": "Resultado OCR, validateDocumentConflict, detectTextImage",
+          "falla_tipica": "ado.enroll.document_mismatch",
+          "n": "Procesar documento y OCR"
+        },
+        {
+          "senal": "compareFaces, face comparison, AWS Rekognition",
+          "falla_tipica": "Validación facial fallida - umbrales no alcanzados",
+          "n": "Comparar biometría facial"
+        },
+        {
+          "falla_tipica": "Validación manual de identidad: el microservicio rechazó la operación",
+          "n": "Escalar a validación manual",
+          "senal": "validación manual, manual validation, Backoffice"
+        },
+        {
+          "falla_tipica": "TusDatos AML timeout - máximo de intentos alcanzado",
+          "senal": "TusDatos AML, tusdatos.aml, antecedentes",
+          "n": "Consultar antecedentes TusDatos AML"
+        }
+      ],
+      "n": "Validación de identidad y KYC"
+    },
+    {
+      "n": "Consulta a centrales de riesgo",
+      "que_es": "Evalúa reglas de disparo y consulta el historial crediticio, score y capacidad de endeudamiento en burós.",
+      "sub": [
+        {
+          "senal": "Experian frequency, trigger rules, userViability",
+          "falla_tipica": "User profile is not allowed for the Experian trigger evaluation",
+          "n": "Evaluar disparadores y frecuencia de buró"
+        },
+        {
+          "n": "Autenticar con central de riesgo",
+          "senal": "Experian::authorize, spla/oauth2, getCredentials",
+          "falla_tipica": "Error in Experian::authorize while obtaining OAuth2 token"
+        },
+        {
+          "n": "Consultar reporte crediticio y score",
+          "falla_tipica": "Experian::performRequest failed",
+          "senal": "Experian::creditScore, aciertaQuanto, quanto"
+        },
+        {
+          "n": "Extraer variables y capacidad estimada",
+          "senal": "Merging Acierta + Quanto, extractDatacredito, productCode 62",
+          "falla_tipica": "Experian quanto result not successful"
+        },
+        {
+          "senal": "updateUserSummary, UserSummary.datacredito, UserSummary.quanto",
+          "n": "Actualizar resumen de riesgo del usuario",
+          "falla_tipica": ""
+        }
+      ]
+    },
+    {
+      "que_es": "Ejecuta el motor de reglas de admisión, asigna categoría, calcula el cupo y consulta entidades integradas por API.",
+      "sub": [
+        {
+          "falla_tipica": "Lender filtered: age out of range",
+          "senal": "CATEGORY_RULE_REJECTED, LenderRuleEvaluator, specialGranting",
+          "n": "Evaluar reglas de admisión duras"
+        },
+        {
+          "falla_tipica": "",
+          "n": "Asignar categoría de riesgo",
+          "senal": "CATEGORY_EVALUATION_START, CATEGORY_EVALUATION_APPROVED, lender_users_categories"
+        },
+        {
+          "falla_tipica": "QUOTA_CHECK_REJECTED",
+          "senal": "PAYMENT_CAPACITY_SCORING, QUOTA_CHECK_START, available_amount",
+          "n": "Calcular cupo disponible y capacidad de pago"
+        },
+        {
+          "n": "Consultar pre-aprobaciones externas",
+          "senal": "Bancolombia BNPL, Sistecrédito, Meddipay, Prami",
+          "falla_tipica": "Cliente no aprobado en Sistecrédito"
+        }
+      ],
+      "n": "Perfilamiento y evaluación crediticia"
+    },
+    {
+      "sub": [
+        {
+          "falla_tipica": "No se encontraron entidades disponibles",
+          "senal": "format_lenders, Entidades entregadas por list lender, displayed_lenders",
+          "n": "Armar listado de entidades disponibles"
+        },
+        {
+          "senal": "upsertUserRequestProduct, updateAmount, calculateAmounts",
+          "falla_tipica": "Error al hacer upsert del producto",
+          "n": "Seleccionar entidad y producto a financiar"
+        },
+        {
+          "n": "Configurar cuotas y fecha de pago",
+          "senal": "fee number, payment date, fee number options",
+          "falla_tipica": "Cannot change payment date"
+        },
+        {
+          "n": "Simular y confirmar plan de pagos",
+          "falla_tipica": "Error simulating payment schedule",
+          "senal": "simulating payment schedule, Simulation - Response, payment schedule"
+        }
+      ],
+      "que_es": "Presenta las opciones de financiación al cliente y le permite elegir la entidad, monto, cuotas y fechas de pago.",
+      "n": "Selección de oferta y plan de pagos"
+    },
+    {
+      "n": "Generación y firma de documentos",
+      "sub": [
+        {
+          "senal": "Deceval createGirador, Deceval createPagare, createPromisoryNote",
+          "n": "Crear girador y pagaré en Deceval",
+          "falla_tipica": "Deceval createPagare SOAP falló"
+        },
+        {
+          "n": "Firmar pagaré electrónico Deceval",
+          "falla_tipica": "Error al firmar pagaré Deceval",
+          "senal": "Deceval signPagare, signPromisoryNote, Firma de pagaré Deceval"
+        },
+        {
+          "n": "Generar contratos y documentos de legalización",
+          "senal": "Generated Credifamilia documents, document_routing_resolved, pdf_mapper_call",
+          "falla_tipica": "Failed to generate PDF"
+        },
+        {
+          "senal": "netco.signFiles, netco_batch_sign_failed, ESignDocument",
+          "n": "Firmar paquete documental con Netco",
+          "falla_tipica": "netco_batch_sign_failed"
+        },
+        {
+          "senal": "Generated device lock agreement preview, IMEI contract notification",
+          "falla_tipica": "",
+          "n": "Generar acuerdo de garantía de celular"
+        }
+      ],
+      "que_es": "Produce los títulos valores y el paquete contractual legal para su firma electrónica mediante OTP."
+    },
+    {
+      "que_es": "Procesa el recaudo de la cuota inicial y ejecuta la autorización y desembolso formal del crédito.",
+      "n": "Cobro de enganche y desembolso",
+      "sub": [
+        {
+          "n": "Cobrar cuota inicial en pasarela",
+          "falla_tipica": "Failed to check status with Wompi",
+          "senal": "Initial fee payment initiated, Wompi, PaymentGatewayTransaction"
+        },
+        {
+          "falla_tipica": "Loan authorization failed and rolled back",
+          "senal": "Loan authorization started, Request authorized, Loan authorized and committed",
+          "n": "Autorizar y comprometer el crédito"
+        },
+        {
+          "senal": "Loan authorization cancelled other client loans, cancelOtherClientLoansIfOneDisbursed",
+          "n": "Cancelar solicitudes paralelas del cliente",
+          "falla_tipica": ""
+        },
+        {
+          "falla_tipica": "IMEI disbursement failed",
+          "senal": "Voucher generated, IMEI disbursement, voucher_disbursement",
+          "n": "Generar comprobante y desembolsar crédito"
+        }
+      ]
+    },
+    {
+      "sub": [
+        {
+          "senal": "device_lock.lock, IMEI enroll init, Trustonic",
+          "n": "Enrolar y bloquear celular en SmartPay",
+          "falla_tipica": "device_lock.lock.api_failure"
+        },
+        {
+          "n": "Notificar a cliente, comercio y asesor",
+          "falla_tipica": "Advisor notification failed",
+          "senal": "ecommerce_store_notified, WhatsApp notification, SMS notification"
+        },
+        {
+          "senal": "Revolving credits report, Revolving payments report, creditop_x_event",
+          "n": "Reportar y sincronizar con cartera",
+          "falla_tipica": "Revolving credits report failed"
+        },
+        {
+          "senal": "device_lock.unlock, device_lock.unroll, device_release",
+          "n": "Gestionar desbloqueo o liberación de dispositivo",
+          "falla_tipica": "device_lock.unlock.api_failure"
+        }
+      ],
+      "que_es": "Enrola el dispositivo en la plataforma de bloqueo, notifica a los actores y transfiere el crédito a cartera.",
+      "n": "Activación de garantías y post-originación"
     }
   ]
 }

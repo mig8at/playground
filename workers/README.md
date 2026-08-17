@@ -56,6 +56,30 @@ los otros mapas. Por eso es corto y **no puede quedar viejo: lo que envejece no 
 ⚠ Y **no reemplaza a `context/`**: una línea por concepto, la que ubica. El detalle y las trampas
 viven en el nodo.
 
+## El paso a paso · 10 tramos × sus sub-pasos
+
+```bash
+./cli.py negocio --zoom 4
+```
+
+    2. AUTENTICACIÓN POR OTP
+       Genera, despacha y valida el código de segundo factor…
+         · Generar código OTP          ⚠ OTP Redis never delivered the generated code
+           señal: otp-service, generateOtp, createOtpRecord
+         · Enviar código por SMS       ⚠ Failed to send OTP
+         · Validar código ingresado    ⚠ provider rejected the code
+         · Crear solicitud de crédito  ⚠ createUserRequest returned empty, returning ONB030
+
+**10 pasos, 46 sub-pasos**, cada uno con la **señal** que lo reconoce en una traza y la **falla típica**
+de ese punto.
+
+⚠ **Lo propuso un agente leyendo el CORPUS ENTERO** —los 1.576 mensajes que el sistema emite, no la
+documentación— y **se verificó**: las 46 señales existen literalmente en él, **46 de 46**. Ninguna
+inventada.
+
+⚠ Cubre el **39%** de los mensajes contra el **69%** de las 12 acciones, y eso **no es peor**: un
+sub-paso es más específico, acierta menos veces y dice mucho más. Son dos lentes, no un reemplazo.
+
 ## Y el otro eje: las ACCIONES
 
 Los conceptos son **sustantivos** y no alcanzan: «validar credenciales» y «enviar código» no son
