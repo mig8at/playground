@@ -146,3 +146,44 @@ Sobre el correo hay un cambio en `main` que conviene no malinterpretar:
 no. ⚠ No está confirmado que sea el cambio que cerró este incidente — vive en la ruta del **formulario
 dinámico G2**, no en la del onboarding clásico por donde entró el caso.
 
+
+## Regenerar los documentos de legalización — el endpoint sin autenticación
+
+Entró a `main` el **2026-08-13** (dos commits de Oscar Rincon: *«locked endpoint»* → *«ship it
+unlocked»*). Regenera y **vuelve a firmar electrónicamente ante Netco** los documentos de legalización
+de una solicitud ya formalizada, sin que el cliente participe.
+
+    POST /api/loans/admin/user-requests/{userRequestId}/regenerate-credifamilia-documents
+    body: doc_types[] ⊂ {consent, disbursement_authorization, guarantee,
+                         payment_schedule, regulation, terms_conditions}
+
+Qué hace, en orden: arma los PDFs con `pdf-mapper-service`, **resetea las filas de
+`netco_signing_documents` a `generated`** limpiando el `netco_uid` anterior para forzar la refirma, y
+manda a firmar. El **pagaré queda afuera a propósito** porque va por Deceval, no por Netco.
+
+⚠ **Reutiliza el ÚLTIMO OTP del usuario** (`otpRepository->findLatestByUserId`) en vez de pedirle uno
+nuevo: la firma nueva se ata a una autenticación que el cliente hizo antes, para otra cosa. Y toma un
+lock de caché `netco-sign:{userRequestId}` por 120 s para no chocar con una firma del cliente en curso
+— la existencia de ese lock dice que las dos cosas pueden pasar a la vez.
+
+### ⚠ El grupo `api/loans/admin` NO tiene autenticación
+
+`Modules/Loans/App/Providers/RouteServiceProvider.php` monta ese prefijo con `->middleware('api')` y
+nada más: sin `auth`, sin Cognito, sin roles. `admin.php` tampoco agrega middleware de grupo, y el
+`authorize()` del FormRequest devuelve `true`. **No es un descuido y está documentado en el propio
+controlador**, que además trae el interruptor:
+
+    private const UNLOCKED = true;   // en `false` responde 423 y no ejecuta nada
+
+El comentario del autor lo dice con todas las letras: *«el endpoint es ejecutable por cualquiera que
+alcance la red»*, y que regenerar *«produce una firma electrónica NUEVA, con marca de tiempo nueva,
+sobre un documento que el cliente pudo haber firmado ya»*.
+
+⚠ **No es sólo este endpoint**: `POST /{userRequestId}/formalize-external-managed` vive en el mismo
+grupo y hereda la misma falta de autenticación.
+
+### No valida estado de la solicitud
+
+No exige ningún `user_request_status_id`. Lo que sí exige de hecho: que la solicitud tenga configurado
+el proveedor **Netco** y que el usuario tenga un OTP previo en la base. Una solicitud sin OTP no se
+puede regenerar — y ése es el único freno real que hay.

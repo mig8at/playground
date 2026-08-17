@@ -1,12 +1,236 @@
 {
-  "generado": "2026-08-09",
+  "generado": "2026-08-16",
   "ref": "main",
   "resumen": {
-    "al-dia": 29,
-    "deriva": 6,
+    "deriva": 23,
+    "al-dia": 8,
+    "solo-hubs": 4,
+    "deriva-alta": 1,
     "rama-sin-mergear": 2
   },
   "nodos": [
+    {
+      "id": "frontend-monorepo",
+      "estado": "deriva-alta",
+      "verificado": {
+        "ref": "main",
+        "date": "2026-07-31",
+        "source": "manual"
+      },
+      "archivos": 84,
+      "deriva": {
+        "cambiados": 22,
+        "pct": 29,
+        "hubs": 6,
+        "archivos": [
+          {
+            "ruta": "frontend-monorepo/apps/loan-request-wizard/app/layouts/default-layout.tsx",
+            "ultimo_cambio": "2026-08-14",
+            "hub": true
+          },
+          {
+            "ruta": "frontend-monorepo/apps/loan-request-wizard/app/entry.server.tsx",
+            "ultimo_cambio": "2026-08-13",
+            "hub": false
+          },
+          {
+            "ruta": "frontend-monorepo/apps/loan-request-wizard/app/routes.ts",
+            "ultimo_cambio": "2026-08-13",
+            "hub": true
+          },
+          {
+            "ruta": "frontend-monorepo/apps/loan-request-wizard/app/routes/lenders-marketplace/available-lenders.tsx",
+            "ultimo_cambio": "2026-08-13",
+            "hub": true
+          },
+          {
+            "ruta": "frontend-monorepo/apps/loan-request-wizard/app/utils/analytics-taxonomy.ts",
+            "ultimo_cambio": "2026-08-13",
+            "hub": false
+          },
+          {
+            "ruta": "frontend-monorepo/apps/loan-request-wizard/app/utils/route-helpers.ts",
+            "ultimo_cambio": "2026-08-13",
+            "hub": true
+          },
+          {
+            "ruta": "frontend-monorepo/modules/loan-request-wizard/lenders-marketplace/src/components/available-lenders/AvailableLenders.tsx",
+            "ultimo_cambio": "2026-08-13",
+            "hub": true
+          },
+          {
+            "ruta": "frontend-monorepo/modules/loan-request-wizard/lenders-marketplace/src/components/available-lenders/hooks/useProgressiveLenderResolution.ts",
+            "ultimo_cambio": "2026-08-13",
+            "hub": false
+          },
+          {
+            "ruta": "frontend-monorepo/modules/loan-request-wizard/lenders-marketplace/src/lib/domain/constants/lender.constants.ts",
+            "ultimo_cambio": "2026-08-13",
+            "hub": true
+          },
+          {
+            "ruta": "frontend-monorepo/modules/loan-request-wizard/lenders-marketplace/src/lib/domain/entities/loan-option.entity.ts",
+            "ultimo_cambio": "2026-08-13",
+            "hub": false
+          },
+          {
+            "ruta": "frontend-monorepo/modules/loan-request-wizard/lenders-marketplace/src/lib/domain/services/lender-resolution.service.ts",
+            "ultimo_cambio": "2026-08-13",
+            "hub": false
+          },
+          {
+            "ruta": "frontend-monorepo/modules/loan-request-wizard/lenders-marketplace/src/lib/index.ts",
+            "ultimo_cambio": "2026-08-13",
+            "hub": false
+          },
+          {
+            "ruta": "frontend-monorepo/packages/shared/utils/src/network/http-client.ts",
+            "ultimo_cambio": "2026-08-13",
+            "hub": false
+          },
+          {
+            "ruta": "frontend-monorepo/apps/loan-request-wizard/app/utils/security-headers.server.ts",
+            "ultimo_cambio": "2026-08-11",
+            "hub": false
+          },
+          {
+            "ruta": "frontend-monorepo/apps/loan-request-wizard/vite.config.ts",
+            "ultimo_cambio": "2026-08-11",
+            "hub": false
+          },
+          {
+            "ruta": "frontend-monorepo/apps/loan-request-wizard/app/layouts/base-layout.tsx",
+            "ultimo_cambio": "2026-08-10",
+            "hub": false
+          },
+          {
+            "ruta": "frontend-monorepo/apps/loan-request-wizard/app/layouts/merchant-dynamic-layout.tsx",
+            "ultimo_cambio": "2026-08-10",
+            "hub": false
+          },
+          {
+            "ruta": "frontend-monorepo/apps/loan-request-wizard/app/layouts/navbar-layout.tsx",
+            "ultimo_cambio": "2026-08-10",
+            "hub": false
+          },
+          {
+            "ruta": "frontend-monorepo/apps/loan-request-wizard/app/modules/allied-theme/infrastructure/allied-theme.repository.ts",
+            "ultimo_cambio": "2026-08-10",
+            "hub": false
+          },
+          {
+            "ruta": "frontend-monorepo/apps/loan-request-wizard/app/modules/user/infrastructure/user.repository.ts",
+            "ultimo_cambio": "2026-08-10",
+            "hub": false
+          },
+          {
+            "ruta": "frontend-monorepo/apps/loan-request-wizard/app/routes/auth/callback.tsx",
+            "ultimo_cambio": "2026-08-10",
+            "hub": false
+          },
+          {
+            "ruta": "frontend-monorepo/apps/loan-request-wizard/app/routes/dynamic/request-amount.tsx",
+            "ultimo_cambio": "2026-08-10",
+            "hub": false
+          },
+          {
+            "ruta": "frontend-monorepo/apps/loan-request-wizard/app/routes/loan-application-form/phone-number.tsx",
+            "ultimo_cambio": "2026-08-10",
+            "hub": false
+          },
+          {
+            "ruta": "frontend-monorepo/apps/loan-request-wizard/app/routes/loan-continue.tsx",
+            "ultimo_cambio": "2026-08-10",
+            "hub": false
+          },
+          {
+            "ruta": "frontend-monorepo/apps/loan-request-wizard/app/utils/observed-fetch.server.ts",
+            "ultimo_cambio": "2026-08-10",
+            "hub": false
+          },
+          {
+            "ruta": "frontend-monorepo/apps/loan-request-wizard/app/utils/route-logging.server.ts",
+            "ultimo_cambio": "2026-08-10",
+            "hub": false
+          },
+          {
+            "ruta": "frontend-monorepo/apps/loan-request-wizard/utils/auth/auth-helpers.server.ts",
+            "ultimo_cambio": "2026-08-10",
+            "hub": false
+          },
+          {
+            "ruta": "frontend-monorepo/apps/loan-request-wizard/utils/auth/auth.server.ts",
+            "ultimo_cambio": "2026-08-10",
+            "hub": false
+          }
+        ]
+      },
+      "commits": {
+        "total": 6,
+        "autores": {
+          "yamid-creditop": 2,
+          "Oscar Rincon": 2,
+          "Yamid Viloria": 1,
+          "Joel": 1
+        },
+        "lista": [
+          {
+            "sha": "c9cfdc7b",
+            "fecha": "2026-08-14",
+            "autor": "Yamid Viloria",
+            "asunto": "fix(loan-request-wizard): persistir alliedCountry en la sesión",
+            "repo": "frontend-monorepo"
+          },
+          {
+            "sha": "59dd80f4",
+            "fecha": "2026-08-13",
+            "autor": "yamid-creditop",
+            "asunto": "Staging (#812)",
+            "repo": "frontend-monorepo"
+          },
+          {
+            "sha": "f7f1fe3c",
+            "fecha": "2026-08-10",
+            "autor": "yamid-creditop",
+            "asunto": "perf(loan-request-wizard): hotfix de performance del funnel (#791)",
+            "repo": "frontend-monorepo"
+          },
+          {
+            "sha": "6de725fb",
+            "fecha": "2026-08-10",
+            "autor": "Oscar Rincon",
+            "asunto": "chore(loan-application-form): eliminar merchant-mode picker y payload isMotaiRenting",
+            "repo": "frontend-monorepo"
+          },
+          {
+            "sha": "7a553065",
+            "fecha": "2026-08-10",
+            "autor": "Joel",
+            "asunto": "fix(CRED-175): render PDFs on older mobile browsers",
+            "repo": "frontend-monorepo"
+          },
+          {
+            "sha": "4fddc205",
+            "fecha": "2026-08-07",
+            "autor": "Oscar Rincon",
+            "asunto": "fix(loan-request-wizard): desatar el poll de Credifamilia del signal del loader",
+            "repo": "frontend-monorepo"
+          }
+        ]
+      },
+      "huerfanos": [
+        "frontend-monorepo/apps/loan-request-wizard/app/routes/api/kyc-status.tsx",
+        "frontend-monorepo/apps/loan-request-wizard/app/routes/dev-actions.tsx",
+        "frontend-monorepo/apps/loan-request-wizard/app/routes/loan-application-form/kyc-processing.tsx",
+        "frontend-monorepo/apps/loan-request-wizard/app/server/services/cache.server.ts",
+        "frontend-monorepo/apps/loan-request-wizard/app/server/services/kyc-pipeline.server.ts",
+        "frontend-monorepo/apps/loan-request-wizard/app/server/services/reference-data.server.ts",
+        "frontend-monorepo/modules/loan-request-wizard/lenders-marketplace/src/components/available-lenders/MeddipayAmountRepricer.tsx",
+        "frontend-monorepo/packages/ui/src/vite-asset-imports.d.ts"
+      ],
+      "rutas_muertas": [],
+      "pendiente_merge": null
+    },
     {
       "id": "motai",
       "estado": "rama-sin-mergear",
@@ -110,19 +334,632 @@
       },
       "archivos": 65,
       "deriva": {
-        "cambiados": 0,
-        "pct": 0,
-        "hubs": 0,
-        "archivos": []
+        "cambiados": 1,
+        "pct": 2,
+        "hubs": 1,
+        "archivos": [
+          {
+            "ruta": "frontend-monorepo/apps/loan-request-wizard/app/routes/lenders-marketplace/available-lenders.tsx",
+            "ultimo_cambio": "2026-08-13",
+            "hub": true
+          },
+          {
+            "ruta": "frontend-monorepo/modules/loan-request-wizard/lenders-marketplace/src/components/available-lenders/hooks/useInitialFee.ts",
+            "ultimo_cambio": "2026-08-10",
+            "hub": false
+          }
+        ]
       },
-      "commits": null,
-      "huerfanos": [],
+      "commits": {
+        "total": 4,
+        "autores": {
+          "yamid-creditop": 2,
+          "Oscar Rincon": 2
+        },
+        "lista": [
+          {
+            "sha": "59dd80f4",
+            "fecha": "2026-08-13",
+            "autor": "yamid-creditop",
+            "asunto": "Staging (#812)",
+            "repo": "frontend-monorepo"
+          },
+          {
+            "sha": "f7f1fe3c",
+            "fecha": "2026-08-10",
+            "autor": "yamid-creditop",
+            "asunto": "perf(loan-request-wizard): hotfix de performance del funnel (#791)",
+            "repo": "frontend-monorepo"
+          },
+          {
+            "sha": "6de725fb",
+            "fecha": "2026-08-10",
+            "autor": "Oscar Rincon",
+            "asunto": "chore(loan-application-form): eliminar merchant-mode picker y payload isMotaiRenting",
+            "repo": "frontend-monorepo"
+          },
+          {
+            "sha": "4fddc205",
+            "fecha": "2026-08-07",
+            "autor": "Oscar Rincon",
+            "asunto": "fix(loan-request-wizard): desatar el poll de Credifamilia del signal del loader",
+            "repo": "frontend-monorepo"
+          }
+        ]
+      },
+      "huerfanos": [
+        "legacy-backend/Modules/Loans/App/Services/CredifamiliaDocumentRegenerationService.php"
+      ],
       "rutas_muertas": [],
       "pendiente_merge": {
         "ref": "origin/feature/CRED-101-recaudo-bhd-inbound-api",
         "archivos": 2,
         "ya_en_main": []
       }
+    },
+    {
+      "id": "onboarding",
+      "estado": "deriva",
+      "verificado": {
+        "ref": "main",
+        "date": "2026-07-31",
+        "source": "manual"
+      },
+      "archivos": 88,
+      "deriva": {
+        "cambiados": 13,
+        "pct": 19,
+        "hubs": 3,
+        "archivos": [
+          {
+            "ruta": "frontend-monorepo/apps/loan-request-wizard/app/routes.ts",
+            "ultimo_cambio": "2026-08-13",
+            "hub": true
+          },
+          {
+            "ruta": "frontend-monorepo/apps/loan-request-wizard/app/routes/lenders-marketplace/available-lenders.tsx",
+            "ultimo_cambio": "2026-08-13",
+            "hub": true
+          },
+          {
+            "ruta": "frontend-monorepo/apps/loan-request-wizard/app/routes/loan-application-form/employment-info.tsx",
+            "ultimo_cambio": "2026-08-13",
+            "hub": false
+          },
+          {
+            "ruta": "frontend-monorepo/apps/loan-request-wizard/app/routes/loan-application-form/loan-request-form.tsx",
+            "ultimo_cambio": "2026-08-13",
+            "hub": false
+          },
+          {
+            "ruta": "frontend-monorepo/apps/loan-request-wizard/app/routes/loan-application-form/otp-verification.tsx",
+            "ultimo_cambio": "2026-08-13",
+            "hub": false
+          },
+          {
+            "ruta": "frontend-monorepo/apps/loan-request-wizard/app/utils/route-helpers.ts",
+            "ultimo_cambio": "2026-08-13",
+            "hub": true
+          },
+          {
+            "ruta": "frontend-monorepo/modules/loan-request-wizard/loan-application-form/src/lib/infrastructure/phone-otp.repository.ts",
+            "ultimo_cambio": "2026-08-13",
+            "hub": false
+          },
+          {
+            "ruta": "frontend-monorepo/apps/loan-request-wizard/app/routes/dynamic/request-amount.tsx",
+            "ultimo_cambio": "2026-08-10",
+            "hub": false
+          },
+          {
+            "ruta": "frontend-monorepo/apps/loan-request-wizard/app/routes/loan-application-form/phone-number.tsx",
+            "ultimo_cambio": "2026-08-10",
+            "hub": false
+          },
+          {
+            "ruta": "frontend-monorepo/modules/loan-request-wizard/loan-application-form/src/components/phone-number.tsx",
+            "ultimo_cambio": "2026-08-10",
+            "hub": false
+          },
+          {
+            "ruta": "frontend-monorepo/modules/loan-request-wizard/loan-application-form/src/lib/application/save-personal-info.uc.ts",
+            "ultimo_cambio": "2026-08-10",
+            "hub": false
+          },
+          {
+            "ruta": "frontend-monorepo/modules/loan-request-wizard/loan-application-form/src/lib/application/save-phone-number.uc.ts",
+            "ultimo_cambio": "2026-08-10",
+            "hub": false
+          },
+          {
+            "ruta": "frontend-monorepo/modules/loan-request-wizard/loan-application-form/src/lib/application/verify-phone-otp.uc.ts",
+            "ultimo_cambio": "2026-08-10",
+            "hub": false
+          },
+          {
+            "ruta": "frontend-monorepo/modules/loan-request-wizard/loan-application-form/src/lib/infrastructure/personal-info.repository.ts",
+            "ultimo_cambio": "2026-08-10",
+            "hub": false
+          },
+          {
+            "ruta": "frontend-monorepo/modules/loan-request-wizard/loan-application-form/src/lib/infrastructure/phone-number.repository.ts",
+            "ultimo_cambio": "2026-08-10",
+            "hub": false
+          },
+          {
+            "ruta": "legacy-backend/Modules/Onboarding/App/Http/Requests/PersonalInfoRequest.php",
+            "ultimo_cambio": "2026-08-05",
+            "hub": false
+          }
+        ]
+      },
+      "commits": {
+        "total": 5,
+        "autores": {
+          "yamid-creditop": 2,
+          "Oscar Rincon": 2,
+          "joseesco24-creditop": 1
+        },
+        "lista": [
+          {
+            "sha": "59dd80f4",
+            "fecha": "2026-08-13",
+            "autor": "yamid-creditop",
+            "asunto": "Staging (#812)",
+            "repo": "frontend-monorepo"
+          },
+          {
+            "sha": "f7f1fe3c",
+            "fecha": "2026-08-10",
+            "autor": "yamid-creditop",
+            "asunto": "perf(loan-request-wizard): hotfix de performance del funnel (#791)",
+            "repo": "frontend-monorepo"
+          },
+          {
+            "sha": "6de725fb",
+            "fecha": "2026-08-10",
+            "autor": "Oscar Rincon",
+            "asunto": "chore(loan-application-form): eliminar merchant-mode picker y payload isMotaiRenting",
+            "repo": "frontend-monorepo"
+          },
+          {
+            "sha": "4fddc205",
+            "fecha": "2026-08-07",
+            "autor": "Oscar Rincon",
+            "asunto": "fix(loan-request-wizard): desatar el poll de Credifamilia del signal del loader",
+            "repo": "frontend-monorepo"
+          },
+          {
+            "sha": "7a1b652c",
+            "fecha": "2026-08-05",
+            "autor": "joseesco24-creditop",
+            "asunto": "feat: backend email restriction improvements",
+            "repo": "legacy-backend"
+          }
+        ]
+      },
+      "huerfanos": [
+        "frontend-monorepo/apps/loan-request-wizard/app/routes/loan-application-form/kyc-processing.tsx",
+        "legacy-backend/database/migrations/2026_07_01_120000_add_template_name_to_creditop_x_reminder_messages.php",
+        "legacy-backend/database/migrations/2026_07_23_193000_add_ciudad_de_nacimiento_field_to_credifamilia_form.php",
+        "legacy-backend/database/migrations/2026_08_06_120000_add_regenerate_request_voucher_permission.php"
+      ],
+      "rutas_muertas": [],
+      "pendiente_merge": null
+    },
+    {
+      "id": "aggregator",
+      "estado": "deriva",
+      "verificado": {
+        "ref": "main",
+        "date": "2026-07-31",
+        "source": "git-doc"
+      },
+      "archivos": 106,
+      "deriva": {
+        "cambiados": 12,
+        "pct": 14,
+        "hubs": 2,
+        "archivos": [
+          {
+            "ruta": "frontend-monorepo/apps/loan-request-wizard/app/routes/lenders-marketplace/available-lenders.tsx",
+            "ultimo_cambio": "2026-08-13",
+            "hub": true
+          },
+          {
+            "ruta": "frontend-monorepo/modules/loan-request-wizard/lenders-marketplace/src/components/available-lenders/AvailableLenders.tsx",
+            "ultimo_cambio": "2026-08-13",
+            "hub": true
+          },
+          {
+            "ruta": "frontend-monorepo/modules/loan-request-wizard/lenders-marketplace/src/lib/domain/services/lender-resolution.service.ts",
+            "ultimo_cambio": "2026-08-13",
+            "hub": false
+          },
+          {
+            "ruta": "frontend-monorepo/modules/loan-request-wizard/lenders-marketplace/src/lib/domain/services/lender-transaction-data.service.ts",
+            "ultimo_cambio": "2026-08-13",
+            "hub": false
+          },
+          {
+            "ruta": "frontend-monorepo/apps/loan-request-wizard/app/routes/bancolombia/bnpl/response.tsx",
+            "ultimo_cambio": "2026-08-10",
+            "hub": false
+          },
+          {
+            "ruta": "frontend-monorepo/apps/loan-request-wizard/app/routes/bancolombia/loan/response.tsx",
+            "ultimo_cambio": "2026-08-10",
+            "hub": false
+          },
+          {
+            "ruta": "frontend-monorepo/apps/loan-request-wizard/app/routes/bancolombia/purchase-code.tsx",
+            "ultimo_cambio": "2026-08-10",
+            "hub": false
+          },
+          {
+            "ruta": "frontend-monorepo/apps/loan-request-wizard/app/routes/bancolombia/start.tsx",
+            "ultimo_cambio": "2026-08-10",
+            "hub": false
+          },
+          {
+            "ruta": "frontend-monorepo/apps/loan-request-wizard/app/routes/lenders-marketplace/lenders/update-amount.tsx",
+            "ultimo_cambio": "2026-08-10",
+            "hub": false
+          },
+          {
+            "ruta": "frontend-monorepo/modules/loan-request-wizard/lenders-marketplace/src/components/lender-card/LenderCardProcessing.tsx",
+            "ultimo_cambio": "2026-08-10",
+            "hub": false
+          },
+          {
+            "ruta": "frontend-monorepo/modules/loan-request-wizard/lenders-marketplace/src/lib/domain/services/lender-approval.service.ts",
+            "ultimo_cambio": "2026-08-10",
+            "hub": false
+          },
+          {
+            "ruta": "legacy-backend/Modules/Risk/App/Http/Controllers/Customer/ProfilingReviewController.php",
+            "ultimo_cambio": "2026-08-10",
+            "hub": false
+          },
+          {
+            "ruta": "legacy-backend/app/Actions/Lenders/Welli.php",
+            "ultimo_cambio": "2026-08-08",
+            "hub": false
+          },
+          {
+            "ruta": "legacy-backend/app/Actions/Lenders/BancolombiaBnpl.php",
+            "ultimo_cambio": "2026-08-05",
+            "hub": false
+          }
+        ]
+      },
+      "commits": {
+        "total": 7,
+        "autores": {
+          "Oscar Rincon": 3,
+          "yamid-creditop": 2,
+          "sanvipi-ctop": 2
+        },
+        "lista": [
+          {
+            "sha": "59dd80f4",
+            "fecha": "2026-08-13",
+            "autor": "yamid-creditop",
+            "asunto": "Staging (#812)",
+            "repo": "frontend-monorepo"
+          },
+          {
+            "sha": "f7f1fe3c",
+            "fecha": "2026-08-10",
+            "autor": "yamid-creditop",
+            "asunto": "perf(loan-request-wizard): hotfix de performance del funnel (#791)",
+            "repo": "frontend-monorepo"
+          },
+          {
+            "sha": "6de725fb",
+            "fecha": "2026-08-10",
+            "autor": "Oscar Rincon",
+            "asunto": "chore(loan-application-form): eliminar merchant-mode picker y payload isMotaiRenting",
+            "repo": "frontend-monorepo"
+          },
+          {
+            "sha": "3a6d59de",
+            "fecha": "2026-08-10",
+            "autor": "sanvipi-ctop",
+            "asunto": "feat(lenders-v2): agregar can_check_preapproval por entidad",
+            "repo": "legacy-backend"
+          },
+          {
+            "sha": "34d57247",
+            "fecha": "2026-08-08",
+            "autor": "Oscar Rincon",
+            "asunto": "feat(welli): map risk_in_process and fraud statuses",
+            "repo": "legacy-backend"
+          },
+          {
+            "sha": "4fddc205",
+            "fecha": "2026-08-07",
+            "autor": "Oscar Rincon",
+            "asunto": "fix(loan-request-wizard): desatar el poll de Credifamilia del signal del loader",
+            "repo": "frontend-monorepo"
+          },
+          {
+            "sha": "f8ff094e",
+            "fecha": "2026-08-05",
+            "autor": "sanvipi-ctop",
+            "asunto": "feat(bnpl): enviar NIT con dígito de verificación en subThirdParty para Corbeta ecommerce",
+            "repo": "legacy-backend"
+          }
+        ]
+      },
+      "huerfanos": [
+        "frontend-monorepo/modules/loan-request-wizard/lenders-marketplace/src/components/available-lenders/MeddipayAmountRepricer.tsx",
+        "legacy-backend/Modules/Loans/App/Http/Controllers/Admin/CredifamiliaDocumentRegenerationController.php",
+        "legacy-backend/Modules/Loans/App/Services/CredifamiliaDocumentRegenerationService.php"
+      ],
+      "rutas_muertas": [],
+      "pendiente_merge": null
+    },
+    {
+      "id": "amount-tiers",
+      "estado": "deriva",
+      "verificado": {
+        "ref": "main",
+        "date": "2026-07-31",
+        "source": "manual"
+      },
+      "archivos": 33,
+      "deriva": {
+        "cambiados": 3,
+        "pct": 14,
+        "hubs": 2,
+        "archivos": [
+          {
+            "ruta": "frontend-monorepo/apps/loan-request-wizard/app/routes/lenders-marketplace/available-lenders.tsx",
+            "ultimo_cambio": "2026-08-13",
+            "hub": true
+          },
+          {
+            "ruta": "frontend-monorepo/modules/loan-request-wizard/lenders-marketplace/src/components/available-lenders/hooks/useInstallmentOptions.ts",
+            "ultimo_cambio": "2026-08-13",
+            "hub": false
+          },
+          {
+            "ruta": "frontend-monorepo/modules/loan-request-wizard/lenders-marketplace/src/lib/domain/entities/loan-option.entity.ts",
+            "ultimo_cambio": "2026-08-13",
+            "hub": false
+          },
+          {
+            "ruta": "legacy-backend/Modules/Onboarding/App/Services/lenders/LenderListingService.php",
+            "ultimo_cambio": "2026-08-10",
+            "hub": true
+          },
+          {
+            "ruta": "frontend-monorepo/modules/loan-request-wizard/lenders-marketplace/src/components/available-lenders/hooks/useInitialFee.ts",
+            "ultimo_cambio": "2026-08-10",
+            "hub": false
+          }
+        ]
+      },
+      "commits": {
+        "total": 5,
+        "autores": {
+          "yamid-creditop": 2,
+          "Oscar Rincon": 2,
+          "sanvipi-ctop": 1
+        },
+        "lista": [
+          {
+            "sha": "59dd80f4",
+            "fecha": "2026-08-13",
+            "autor": "yamid-creditop",
+            "asunto": "Staging (#812)",
+            "repo": "frontend-monorepo"
+          },
+          {
+            "sha": "3a6d59de",
+            "fecha": "2026-08-10",
+            "autor": "sanvipi-ctop",
+            "asunto": "feat(lenders-v2): agregar can_check_preapproval por entidad",
+            "repo": "legacy-backend"
+          },
+          {
+            "sha": "f7f1fe3c",
+            "fecha": "2026-08-10",
+            "autor": "yamid-creditop",
+            "asunto": "perf(loan-request-wizard): hotfix de performance del funnel (#791)",
+            "repo": "frontend-monorepo"
+          },
+          {
+            "sha": "6de725fb",
+            "fecha": "2026-08-10",
+            "autor": "Oscar Rincon",
+            "asunto": "chore(loan-application-form): eliminar merchant-mode picker y payload isMotaiRenting",
+            "repo": "frontend-monorepo"
+          },
+          {
+            "sha": "4fddc205",
+            "fecha": "2026-08-07",
+            "autor": "Oscar Rincon",
+            "asunto": "fix(loan-request-wizard): desatar el poll de Credifamilia del signal del loader",
+            "repo": "frontend-monorepo"
+          }
+        ]
+      },
+      "huerfanos": [
+        "legacy-backend/Modules/Loans/App/Services/CredifamiliaDocumentRegenerationService.php",
+        "legacy-backend/database/migrations/2026_07_01_120000_add_template_name_to_creditop_x_reminder_messages.php",
+        "legacy-backend/database/migrations/2026_07_23_193000_add_ciudad_de_nacimiento_field_to_credifamilia_form.php",
+        "legacy-backend/database/migrations/2026_08_06_120000_add_regenerate_request_voucher_permission.php"
+      ],
+      "rutas_muertas": [],
+      "pendiente_merge": null
+    },
+    {
+      "id": "bancolombia",
+      "estado": "deriva",
+      "verificado": {
+        "ref": "main",
+        "date": "2026-07-31",
+        "source": "cabecera"
+      },
+      "archivos": 145,
+      "deriva": {
+        "cambiados": 19,
+        "pct": 14,
+        "hubs": 1,
+        "archivos": [
+          {
+            "ruta": "frontend-monorepo/apps/loan-request-wizard/app/routes.ts",
+            "ultimo_cambio": "2026-08-13",
+            "hub": true
+          },
+          {
+            "ruta": "frontend-monorepo/apps/loan-request-wizard/app/routes/bancolombia/bnpl/loan-info-view.tsx",
+            "ultimo_cambio": "2026-08-10",
+            "hub": false
+          },
+          {
+            "ruta": "frontend-monorepo/apps/loan-request-wizard/app/routes/bancolombia/bnpl/loan-summary.tsx",
+            "ultimo_cambio": "2026-08-10",
+            "hub": false
+          },
+          {
+            "ruta": "frontend-monorepo/apps/loan-request-wizard/app/routes/bancolombia/bnpl/processing.tsx",
+            "ultimo_cambio": "2026-08-10",
+            "hub": false
+          },
+          {
+            "ruta": "frontend-monorepo/apps/loan-request-wizard/app/routes/bancolombia/bnpl/response.tsx",
+            "ultimo_cambio": "2026-08-10",
+            "hub": false
+          },
+          {
+            "ruta": "frontend-monorepo/apps/loan-request-wizard/app/routes/bancolombia/bnpl/signature.tsx",
+            "ultimo_cambio": "2026-08-10",
+            "hub": false
+          },
+          {
+            "ruta": "frontend-monorepo/apps/loan-request-wizard/app/routes/bancolombia/ecommerce/resolve-ecommerce-flow.tsx",
+            "ultimo_cambio": "2026-08-10",
+            "hub": false
+          },
+          {
+            "ruta": "frontend-monorepo/apps/loan-request-wizard/app/routes/bancolombia/loan-explanation-steps.tsx",
+            "ultimo_cambio": "2026-08-10",
+            "hub": false
+          },
+          {
+            "ruta": "frontend-monorepo/apps/loan-request-wizard/app/routes/bancolombia/loan/loan-info-view.tsx",
+            "ultimo_cambio": "2026-08-10",
+            "hub": false
+          },
+          {
+            "ruta": "frontend-monorepo/apps/loan-request-wizard/app/routes/bancolombia/loan/loan-summary.tsx",
+            "ultimo_cambio": "2026-08-10",
+            "hub": false
+          },
+          {
+            "ruta": "frontend-monorepo/apps/loan-request-wizard/app/routes/bancolombia/loan/no-quota.tsx",
+            "ultimo_cambio": "2026-08-10",
+            "hub": false
+          },
+          {
+            "ruta": "frontend-monorepo/apps/loan-request-wizard/app/routes/bancolombia/loan/processing.tsx",
+            "ultimo_cambio": "2026-08-10",
+            "hub": false
+          },
+          {
+            "ruta": "frontend-monorepo/apps/loan-request-wizard/app/routes/bancolombia/loan/response.tsx",
+            "ultimo_cambio": "2026-08-10",
+            "hub": false
+          },
+          {
+            "ruta": "frontend-monorepo/apps/loan-request-wizard/app/routes/bancolombia/onboarding/otp.tsx",
+            "ultimo_cambio": "2026-08-10",
+            "hub": false
+          },
+          {
+            "ruta": "frontend-monorepo/apps/loan-request-wizard/app/routes/bancolombia/onboarding/register.tsx",
+            "ultimo_cambio": "2026-08-10",
+            "hub": false
+          },
+          {
+            "ruta": "frontend-monorepo/apps/loan-request-wizard/app/routes/bancolombia/payment-success.tsx",
+            "ultimo_cambio": "2026-08-10",
+            "hub": false
+          },
+          {
+            "ruta": "frontend-monorepo/apps/loan-request-wizard/app/routes/bancolombia/purchase-code.tsx",
+            "ultimo_cambio": "2026-08-10",
+            "hub": false
+          },
+          {
+            "ruta": "frontend-monorepo/apps/loan-request-wizard/app/routes/bancolombia/start.tsx",
+            "ultimo_cambio": "2026-08-10",
+            "hub": false
+          },
+          {
+            "ruta": "legacy-backend/app/Actions/Lenders/BancolombiaBnpl.php",
+            "ultimo_cambio": "2026-08-05",
+            "hub": false
+          },
+          {
+            "ruta": "legacy-backend/app/Actions/Lenders/CredifamiliaConsumo/TransactionRequest.php",
+            "ultimo_cambio": "2026-08-05",
+            "hub": false
+          }
+        ]
+      },
+      "commits": {
+        "total": 5,
+        "autores": {
+          "yamid-creditop": 2,
+          "Oscar Rincon": 1,
+          "lhCabra-creditop": 1,
+          "sanvipi-ctop": 1
+        },
+        "lista": [
+          {
+            "sha": "59dd80f4",
+            "fecha": "2026-08-13",
+            "autor": "yamid-creditop",
+            "asunto": "Staging (#812)",
+            "repo": "frontend-monorepo"
+          },
+          {
+            "sha": "f7f1fe3c",
+            "fecha": "2026-08-10",
+            "autor": "yamid-creditop",
+            "asunto": "perf(loan-request-wizard): hotfix de performance del funnel (#791)",
+            "repo": "frontend-monorepo"
+          },
+          {
+            "sha": "6de725fb",
+            "fecha": "2026-08-10",
+            "autor": "Oscar Rincon",
+            "asunto": "chore(loan-application-form): eliminar merchant-mode picker y payload isMotaiRenting",
+            "repo": "frontend-monorepo"
+          },
+          {
+            "sha": "15ceb678",
+            "fecha": "2026-08-05",
+            "autor": "lhCabra-creditop",
+            "asunto": "fix(credifamilia): source birth city from EAV field 228",
+            "repo": "legacy-backend"
+          },
+          {
+            "sha": "f8ff094e",
+            "fecha": "2026-08-05",
+            "autor": "sanvipi-ctop",
+            "asunto": "feat(bnpl): enviar NIT con dígito de verificación en subThirdParty para Corbeta ecommerce",
+            "repo": "legacy-backend"
+          }
+        ]
+      },
+      "huerfanos": [],
+      "rutas_muertas": [],
+      "pendiente_merge": null
     },
     {
       "id": "findings",
@@ -134,10 +971,35 @@
       },
       "archivos": 44,
       "deriva": {
-        "cambiados": 2,
-        "pct": 5,
-        "hubs": 0,
+        "cambiados": 5,
+        "pct": 12,
+        "hubs": 2,
         "archivos": [
+          {
+            "ruta": "frontend-monorepo/apps/loan-request-wizard/app/layouts/default-layout.tsx",
+            "ultimo_cambio": "2026-08-14",
+            "hub": true
+          },
+          {
+            "ruta": "frontend-monorepo/apps/loan-request-wizard/app/routes.ts",
+            "ultimo_cambio": "2026-08-13",
+            "hub": true
+          },
+          {
+            "ruta": "frontend-monorepo/apps/loan-request-wizard/app/routes/loan-confirmation.tsx",
+            "ultimo_cambio": "2026-08-10",
+            "hub": false
+          },
+          {
+            "ruta": "frontend-monorepo/apps/loan-request-wizard/app/routes/payment-schedule.tsx",
+            "ultimo_cambio": "2026-08-10",
+            "hub": false
+          },
+          {
+            "ruta": "frontend-monorepo/apps/loan-request-wizard/app/routes/sign-documents.tsx",
+            "ultimo_cambio": "2026-08-10",
+            "hub": false
+          },
           {
             "ruta": "harness/dev/guided.spec.ts",
             "ultimo_cambio": "2026-08-04",
@@ -151,11 +1013,42 @@
         ]
       },
       "commits": {
-        "total": 2,
+        "total": 6,
         "autores": {
-          "Miguel Ochoa": 2
+          "yamid-creditop": 2,
+          "Miguel Ochoa": 2,
+          "Yamid Viloria": 1,
+          "Oscar Rincon": 1
         },
         "lista": [
+          {
+            "sha": "c9cfdc7b",
+            "fecha": "2026-08-14",
+            "autor": "Yamid Viloria",
+            "asunto": "fix(loan-request-wizard): persistir alliedCountry en la sesión",
+            "repo": "frontend-monorepo"
+          },
+          {
+            "sha": "59dd80f4",
+            "fecha": "2026-08-13",
+            "autor": "yamid-creditop",
+            "asunto": "Staging (#812)",
+            "repo": "frontend-monorepo"
+          },
+          {
+            "sha": "f7f1fe3c",
+            "fecha": "2026-08-10",
+            "autor": "yamid-creditop",
+            "asunto": "perf(loan-request-wizard): hotfix de performance del funnel (#791)",
+            "repo": "frontend-monorepo"
+          },
+          {
+            "sha": "6de725fb",
+            "fecha": "2026-08-10",
+            "autor": "Oscar Rincon",
+            "asunto": "chore(loan-application-form): eliminar merchant-mode picker y payload isMotaiRenting",
+            "repo": "frontend-monorepo"
+          },
           {
             "sha": "7efb4ab",
             "fecha": "2026-08-04",
@@ -173,11 +1066,971 @@
         ]
       },
       "huerfanos": [
+        "frontend-monorepo/apps/loan-request-wizard/app/routes/dev-actions.tsx",
         "harness/dev/admin-sesion.php",
+        "harness/dev/kyc-apellido.ts",
         "harness/dev/loki-trace.ts",
         "harness/dev/paises.ts",
         "harness/dev/sandbox-bancolombia.ts",
-        "harness/pkg/loki.ts"
+        "harness/pkg/loki.ts",
+        "legacy-backend/Modules/Loans/App/Services/CredifamiliaDocumentRegenerationService.php"
+      ],
+      "rutas_muertas": [],
+      "pendiente_merge": null
+    },
+    {
+      "id": "actors",
+      "estado": "deriva",
+      "verificado": {
+        "ref": "main",
+        "date": "2026-07-31",
+        "source": "manual"
+      },
+      "archivos": 68,
+      "deriva": {
+        "cambiados": 6,
+        "pct": 11,
+        "hubs": 3,
+        "archivos": [
+          {
+            "ruta": "frontend-monorepo/apps/loan-request-wizard/app/layouts/default-layout.tsx",
+            "ultimo_cambio": "2026-08-14",
+            "hub": true
+          },
+          {
+            "ruta": "frontend-monorepo/apps/loan-request-wizard/app/routes.ts",
+            "ultimo_cambio": "2026-08-13",
+            "hub": true
+          },
+          {
+            "ruta": "frontend-monorepo/apps/loan-request-wizard/app/utils/analytics-taxonomy.ts",
+            "ultimo_cambio": "2026-08-13",
+            "hub": false
+          },
+          {
+            "ruta": "frontend-monorepo/apps/loan-request-wizard/app/utils/route-helpers.ts",
+            "ultimo_cambio": "2026-08-13",
+            "hub": true
+          },
+          {
+            "ruta": "frontend-monorepo/apps/loan-request-wizard/app/routes/auth/callback.tsx",
+            "ultimo_cambio": "2026-08-10",
+            "hub": false
+          },
+          {
+            "ruta": "frontend-monorepo/apps/loan-request-wizard/app/routes/consumer-hub/otp-login.tsx",
+            "ultimo_cambio": "2026-08-10",
+            "hub": false
+          },
+          {
+            "ruta": "frontend-monorepo/apps/loan-request-wizard/utils/auth/auth-helpers.server.ts",
+            "ultimo_cambio": "2026-08-10",
+            "hub": false
+          },
+          {
+            "ruta": "frontend-monorepo/apps/loan-request-wizard/utils/auth/auth.server.ts",
+            "ultimo_cambio": "2026-08-10",
+            "hub": false
+          },
+          {
+            "ruta": "legacy-backend/Modules/Identity/App/Services/ManualValidationService.php",
+            "ultimo_cambio": "2026-08-07",
+            "hub": false
+          }
+        ]
+      },
+      "commits": {
+        "total": 5,
+        "autores": {
+          "yamid-creditop": 2,
+          "Yamid Viloria": 1,
+          "Oscar Rincon": 1,
+          "lhCabra-creditop": 1
+        },
+        "lista": [
+          {
+            "sha": "c9cfdc7b",
+            "fecha": "2026-08-14",
+            "autor": "Yamid Viloria",
+            "asunto": "fix(loan-request-wizard): persistir alliedCountry en la sesión",
+            "repo": "frontend-monorepo"
+          },
+          {
+            "sha": "59dd80f4",
+            "fecha": "2026-08-13",
+            "autor": "yamid-creditop",
+            "asunto": "Staging (#812)",
+            "repo": "frontend-monorepo"
+          },
+          {
+            "sha": "f7f1fe3c",
+            "fecha": "2026-08-10",
+            "autor": "yamid-creditop",
+            "asunto": "perf(loan-request-wizard): hotfix de performance del funnel (#791)",
+            "repo": "frontend-monorepo"
+          },
+          {
+            "sha": "6de725fb",
+            "fecha": "2026-08-10",
+            "autor": "Oscar Rincon",
+            "asunto": "chore(loan-application-form): eliminar merchant-mode picker y payload isMotaiRenting",
+            "repo": "frontend-monorepo"
+          },
+          {
+            "sha": "08a4e4ce",
+            "fecha": "2026-08-07",
+            "autor": "lhCabra-creditop",
+            "asunto": "feat: enhance category rules priority handling and add new WhatsApp numbers for notifications",
+            "repo": "legacy-backend"
+          }
+        ]
+      },
+      "huerfanos": [
+        "legacy-backend/database/migrations/2026_07_01_120000_add_template_name_to_creditop_x_reminder_messages.php",
+        "legacy-backend/database/migrations/2026_07_23_193000_add_ciudad_de_nacimiento_field_to_credifamilia_form.php",
+        "legacy-backend/database/migrations/2026_08_06_120000_add_regenerate_request_voucher_permission.php"
+      ],
+      "rutas_muertas": [],
+      "pendiente_merge": null
+    },
+    {
+      "id": "hardcodes-entidades",
+      "estado": "deriva",
+      "verificado": {
+        "ref": "main",
+        "date": "2026-07-31",
+        "source": "manual"
+      },
+      "archivos": 101,
+      "deriva": {
+        "cambiados": 8,
+        "pct": 11,
+        "hubs": 6,
+        "archivos": [
+          {
+            "ruta": "frontend-monorepo/apps/loan-request-wizard/app/layouts/default-layout.tsx",
+            "ultimo_cambio": "2026-08-14",
+            "hub": true
+          },
+          {
+            "ruta": "frontend-monorepo/apps/loan-request-wizard/app/routes/lenders-marketplace/available-lenders.tsx",
+            "ultimo_cambio": "2026-08-13",
+            "hub": true
+          },
+          {
+            "ruta": "frontend-monorepo/apps/loan-request-wizard/app/routes/loan-application-form/otp-verification.tsx",
+            "ultimo_cambio": "2026-08-13",
+            "hub": false
+          },
+          {
+            "ruta": "frontend-monorepo/modules/loan-request-wizard/lenders-marketplace/src/components/available-lenders/AvailableLenders.tsx",
+            "ultimo_cambio": "2026-08-13",
+            "hub": true
+          },
+          {
+            "ruta": "frontend-monorepo/modules/loan-request-wizard/lenders-marketplace/src/components/available-lenders/hooks/useInstallmentOptions.ts",
+            "ultimo_cambio": "2026-08-13",
+            "hub": false
+          },
+          {
+            "ruta": "frontend-monorepo/modules/loan-request-wizard/lenders-marketplace/src/components/lender-card/LenderCardContent.tsx",
+            "ultimo_cambio": "2026-08-13",
+            "hub": false
+          },
+          {
+            "ruta": "frontend-monorepo/modules/loan-request-wizard/lenders-marketplace/src/lib/domain/constants/lender.constants.ts",
+            "ultimo_cambio": "2026-08-13",
+            "hub": true
+          },
+          {
+            "ruta": "frontend-monorepo/apps/loan-request-wizard/app/routes/bancolombia/start.tsx",
+            "ultimo_cambio": "2026-08-10",
+            "hub": false
+          },
+          {
+            "ruta": "frontend-monorepo/apps/loan-request-wizard/app/routes/loan-application-form/phone-number.tsx",
+            "ultimo_cambio": "2026-08-10",
+            "hub": false
+          },
+          {
+            "ruta": "frontend-monorepo/modules/loan-request-wizard/lenders-marketplace/src/components/available-lenders/hooks/useLenderSelection.ts",
+            "ultimo_cambio": "2026-08-10",
+            "hub": false
+          },
+          {
+            "ruta": "frontend-monorepo/modules/loan-request-wizard/loan-application-form/src/components/forms/personal-info-form.tsx",
+            "ultimo_cambio": "2026-08-10",
+            "hub": false
+          },
+          {
+            "ruta": "legacy-backend/Modules/Onboarding/App/Services/lenders/LenderListingService.php",
+            "ultimo_cambio": "2026-08-10",
+            "hub": true
+          },
+          {
+            "ruta": "legacy-backend/Modules/Onboarding/App/Services/lenders/RiskCentralValidationService.php",
+            "ultimo_cambio": "2026-08-10",
+            "hub": false
+          },
+          {
+            "ruta": "legacy-backend/Modules/Loans/App/Services/LenderUserCategoryService.php",
+            "ultimo_cambio": "2026-08-07",
+            "hub": true
+          }
+        ]
+      },
+      "commits": {
+        "total": 7,
+        "autores": {
+          "yamid-creditop": 2,
+          "Oscar Rincon": 2,
+          "Yamid Viloria": 1,
+          "sanvipi-ctop": 1,
+          "lhCabra-creditop": 1
+        },
+        "lista": [
+          {
+            "sha": "c9cfdc7b",
+            "fecha": "2026-08-14",
+            "autor": "Yamid Viloria",
+            "asunto": "fix(loan-request-wizard): persistir alliedCountry en la sesión",
+            "repo": "frontend-monorepo"
+          },
+          {
+            "sha": "59dd80f4",
+            "fecha": "2026-08-13",
+            "autor": "yamid-creditop",
+            "asunto": "Staging (#812)",
+            "repo": "frontend-monorepo"
+          },
+          {
+            "sha": "f7f1fe3c",
+            "fecha": "2026-08-10",
+            "autor": "yamid-creditop",
+            "asunto": "perf(loan-request-wizard): hotfix de performance del funnel (#791)",
+            "repo": "frontend-monorepo"
+          },
+          {
+            "sha": "6de725fb",
+            "fecha": "2026-08-10",
+            "autor": "Oscar Rincon",
+            "asunto": "chore(loan-application-form): eliminar merchant-mode picker y payload isMotaiRenting",
+            "repo": "frontend-monorepo"
+          },
+          {
+            "sha": "3a6d59de",
+            "fecha": "2026-08-10",
+            "autor": "sanvipi-ctop",
+            "asunto": "feat(lenders-v2): agregar can_check_preapproval por entidad",
+            "repo": "legacy-backend"
+          },
+          {
+            "sha": "4fddc205",
+            "fecha": "2026-08-07",
+            "autor": "Oscar Rincon",
+            "asunto": "fix(loan-request-wizard): desatar el poll de Credifamilia del signal del loader",
+            "repo": "frontend-monorepo"
+          },
+          {
+            "sha": "08a4e4ce",
+            "fecha": "2026-08-07",
+            "autor": "lhCabra-creditop",
+            "asunto": "feat: enhance category rules priority handling and add new WhatsApp numbers for notifications",
+            "repo": "legacy-backend"
+          }
+        ]
+      },
+      "huerfanos": [
+        "frontend-monorepo/apps/loan-request-wizard/app/routes/dev-actions.tsx",
+        "frontend-monorepo/apps/loan-request-wizard/app/routes/loan-application-form/kyc-processing.tsx",
+        "frontend-monorepo/modules/loan-request-wizard/lenders-marketplace/src/components/available-lenders/MeddipayAmountRepricer.tsx",
+        "legacy-backend/Modules/Loans/App/Services/CredifamiliaDocumentRegenerationService.php",
+        "legacy-backend/database/migrations/2026_07_01_120000_add_template_name_to_creditop_x_reminder_messages.php",
+        "legacy-backend/database/migrations/2026_07_23_193000_add_ciudad_de_nacimiento_field_to_credifamilia_form.php",
+        "legacy-backend/database/migrations/2026_08_06_120000_add_regenerate_request_voucher_permission.php"
+      ],
+      "rutas_muertas": [],
+      "pendiente_merge": null
+    },
+    {
+      "id": "profiling",
+      "estado": "deriva",
+      "verificado": {
+        "ref": "main",
+        "date": "2026-07-18",
+        "source": "git-doc"
+      },
+      "archivos": 32,
+      "deriva": {
+        "cambiados": 3,
+        "pct": 11,
+        "hubs": 1,
+        "archivos": [
+          {
+            "ruta": "legacy-backend/Modules/Onboarding/App/Services/lenders/RiskCentralValidationService.php",
+            "ultimo_cambio": "2026-08-10",
+            "hub": false
+          },
+          {
+            "ruta": "legacy-backend/Modules/Loans/App/Repositories/LenderUsersCategoryRuleRepository.php",
+            "ultimo_cambio": "2026-08-07",
+            "hub": false
+          },
+          {
+            "ruta": "legacy-backend/Modules/Loans/App/Services/LenderUserCategoryService.php",
+            "ultimo_cambio": "2026-08-07",
+            "hub": true
+          },
+          {
+            "ruta": "legacy-backend/app/Models/LenderUsersCategoryRule.php",
+            "ultimo_cambio": "2026-08-07",
+            "hub": false
+          }
+        ]
+      },
+      "commits": {
+        "total": 2,
+        "autores": {
+          "sanvipi-ctop": 1,
+          "lhCabra-creditop": 1
+        },
+        "lista": [
+          {
+            "sha": "3a6d59de",
+            "fecha": "2026-08-10",
+            "autor": "sanvipi-ctop",
+            "asunto": "feat(lenders-v2): agregar can_check_preapproval por entidad",
+            "repo": "legacy-backend"
+          },
+          {
+            "sha": "08a4e4ce",
+            "fecha": "2026-08-07",
+            "autor": "lhCabra-creditop",
+            "asunto": "feat: enhance category rules priority handling and add new WhatsApp numbers for notifications",
+            "repo": "legacy-backend"
+          }
+        ]
+      },
+      "huerfanos": [
+        "legacy-backend/Modules/Loans/App/Services/CredifamiliaDocumentRegenerationService.php",
+        "legacy-backend/database/migrations/2026_07_01_120000_add_template_name_to_creditop_x_reminder_messages.php",
+        "legacy-backend/database/migrations/2026_07_23_193000_add_ciudad_de_nacimiento_field_to_credifamilia_form.php",
+        "legacy-backend/database/migrations/2026_08_06_120000_add_regenerate_request_voucher_permission.php"
+      ],
+      "rutas_muertas": [],
+      "pendiente_merge": null
+    },
+    {
+      "id": "creditop",
+      "estado": "deriva",
+      "verificado": {
+        "ref": "main",
+        "date": "2026-07-31",
+        "source": "manual"
+      },
+      "archivos": 59,
+      "deriva": {
+        "cambiados": 3,
+        "pct": 9,
+        "hubs": 2,
+        "archivos": [
+          {
+            "ruta": "frontend-monorepo/apps/loan-request-wizard/app/routes.ts",
+            "ultimo_cambio": "2026-08-13",
+            "hub": true
+          },
+          {
+            "ruta": "frontend-monorepo/modules/loan-request-wizard/lenders-marketplace/src/lib/index.ts",
+            "ultimo_cambio": "2026-08-13",
+            "hub": false
+          },
+          {
+            "ruta": "frontend-monorepo/packages/shared/utils/src/network/http-client.ts",
+            "ultimo_cambio": "2026-08-13",
+            "hub": false
+          },
+          {
+            "ruta": "frontend-monorepo/apps/loan-request-wizard/app/modules/user/infrastructure/user.repository.ts",
+            "ultimo_cambio": "2026-08-10",
+            "hub": false
+          },
+          {
+            "ruta": "legacy-backend/Modules/Onboarding/App/Services/lenders/LenderListingService.php",
+            "ultimo_cambio": "2026-08-10",
+            "hub": true
+          }
+        ]
+      },
+      "commits": {
+        "total": 4,
+        "autores": {
+          "yamid-creditop": 2,
+          "Oscar Rincon": 1,
+          "sanvipi-ctop": 1
+        },
+        "lista": [
+          {
+            "sha": "59dd80f4",
+            "fecha": "2026-08-13",
+            "autor": "yamid-creditop",
+            "asunto": "Staging (#812)",
+            "repo": "frontend-monorepo"
+          },
+          {
+            "sha": "f7f1fe3c",
+            "fecha": "2026-08-10",
+            "autor": "yamid-creditop",
+            "asunto": "perf(loan-request-wizard): hotfix de performance del funnel (#791)",
+            "repo": "frontend-monorepo"
+          },
+          {
+            "sha": "6de725fb",
+            "fecha": "2026-08-10",
+            "autor": "Oscar Rincon",
+            "asunto": "chore(loan-application-form): eliminar merchant-mode picker y payload isMotaiRenting",
+            "repo": "frontend-monorepo"
+          },
+          {
+            "sha": "3a6d59de",
+            "fecha": "2026-08-10",
+            "autor": "sanvipi-ctop",
+            "asunto": "feat(lenders-v2): agregar can_check_preapproval por entidad",
+            "repo": "legacy-backend"
+          }
+        ]
+      },
+      "huerfanos": [
+        "legacy-backend/Modules/Loans/App/Services/CredifamiliaDocumentRegenerationService.php"
+      ],
+      "rutas_muertas": [],
+      "pendiente_merge": null
+    },
+    {
+      "id": "formalization",
+      "estado": "deriva",
+      "verificado": {
+        "ref": "main",
+        "date": "2026-07-31",
+        "source": "manual"
+      },
+      "archivos": 87,
+      "deriva": {
+        "cambiados": 6,
+        "pct": 8,
+        "hubs": 2,
+        "archivos": [
+          {
+            "ruta": "frontend-monorepo/apps/loan-request-wizard/app/routes.ts",
+            "ultimo_cambio": "2026-08-13",
+            "hub": true
+          },
+          {
+            "ruta": "frontend-monorepo/apps/loan-request-wizard/app/utils/route-helpers.ts",
+            "ultimo_cambio": "2026-08-13",
+            "hub": true
+          },
+          {
+            "ruta": "frontend-monorepo/modules/loan-request-wizard/loan-origination/src/lib/infrastructure/promissory-note.repository.ts",
+            "ultimo_cambio": "2026-08-13",
+            "hub": false
+          },
+          {
+            "ruta": "frontend-monorepo/apps/loan-request-wizard/app/routes/first-payment-date.tsx",
+            "ultimo_cambio": "2026-08-10",
+            "hub": false
+          },
+          {
+            "ruta": "frontend-monorepo/apps/loan-request-wizard/app/routes/loan-confirmation.tsx",
+            "ultimo_cambio": "2026-08-10",
+            "hub": false
+          },
+          {
+            "ruta": "frontend-monorepo/apps/loan-request-wizard/app/routes/otp-validation.tsx",
+            "ultimo_cambio": "2026-08-10",
+            "hub": false
+          },
+          {
+            "ruta": "frontend-monorepo/apps/loan-request-wizard/app/routes/payment-schedule.tsx",
+            "ultimo_cambio": "2026-08-10",
+            "hub": false
+          },
+          {
+            "ruta": "frontend-monorepo/apps/loan-request-wizard/app/routes/sign-documents.tsx",
+            "ultimo_cambio": "2026-08-10",
+            "hub": false
+          }
+        ]
+      },
+      "commits": {
+        "total": 3,
+        "autores": {
+          "yamid-creditop": 2,
+          "Oscar Rincon": 1
+        },
+        "lista": [
+          {
+            "sha": "59dd80f4",
+            "fecha": "2026-08-13",
+            "autor": "yamid-creditop",
+            "asunto": "Staging (#812)",
+            "repo": "frontend-monorepo"
+          },
+          {
+            "sha": "f7f1fe3c",
+            "fecha": "2026-08-10",
+            "autor": "yamid-creditop",
+            "asunto": "perf(loan-request-wizard): hotfix de performance del funnel (#791)",
+            "repo": "frontend-monorepo"
+          },
+          {
+            "sha": "6de725fb",
+            "fecha": "2026-08-10",
+            "autor": "Oscar Rincon",
+            "asunto": "chore(loan-application-form): eliminar merchant-mode picker y payload isMotaiRenting",
+            "repo": "frontend-monorepo"
+          }
+        ]
+      },
+      "huerfanos": [
+        "frontend-monorepo/apps/loan-request-wizard/app/routes/dev-actions.tsx",
+        "legacy-backend/Modules/Loans/App/Services/CredifamiliaDocumentRegenerationService.php",
+        "legacy-backend/database/migrations/2026_07_01_120000_add_template_name_to_creditop_x_reminder_messages.php",
+        "legacy-backend/database/migrations/2026_07_23_193000_add_ciudad_de_nacimiento_field_to_credifamilia_form.php",
+        "legacy-backend/database/migrations/2026_08_06_120000_add_regenerate_request_voucher_permission.php"
+      ],
+      "rutas_muertas": [],
+      "pendiente_merge": null
+    },
+    {
+      "id": "smartpay",
+      "estado": "deriva",
+      "verificado": {
+        "ref": "main",
+        "date": "2026-07-31",
+        "source": "manual"
+      },
+      "archivos": 74,
+      "deriva": {
+        "cambiados": 5,
+        "pct": 8,
+        "hubs": 0,
+        "archivos": [
+          {
+            "ruta": "legacy-backend/app/Services/DeviceLockingApiClient.php",
+            "ultimo_cambio": "2026-08-12",
+            "hub": false
+          },
+          {
+            "ruta": "legacy-backend/tests/Feature/Jobs/DeviceUnrollJobTest.php",
+            "ultimo_cambio": "2026-08-12",
+            "hub": false
+          },
+          {
+            "ruta": "legacy-backend/tests/Unit/DeviceLockingApiClientTest.php",
+            "ultimo_cambio": "2026-08-12",
+            "hub": false
+          },
+          {
+            "ruta": "legacy-backend/tests/mock-server/merchant-gateway.php",
+            "ultimo_cambio": "2026-08-12",
+            "hub": false
+          },
+          {
+            "ruta": "legacy-backend/app/Console/Kernel.php",
+            "ultimo_cambio": "2026-08-03",
+            "hub": false
+          }
+        ]
+      },
+      "commits": {
+        "total": 2,
+        "autores": {
+          "hans peter": 2
+        },
+        "lista": [
+          {
+            "sha": "144c0203",
+            "fecha": "2026-08-06",
+            "autor": "hans peter",
+            "asunto": "fix(device-locking): drop duplicated /api/v1 prefix from release endpoint",
+            "repo": "legacy-backend"
+          },
+          {
+            "sha": "9b86c254",
+            "fecha": "2026-06-30",
+            "autor": "hans peter",
+            "asunto": "feat(recordatorios): activar recordatorios de cobranza SmartPay en legacy",
+            "repo": "legacy-backend"
+          }
+        ]
+      },
+      "huerfanos": [
+        "legacy-backend/Modules/Loans/App/Services/CredifamiliaDocumentRegenerationService.php",
+        "legacy-backend/database/migrations/2026_07_01_120000_add_template_name_to_creditop_x_reminder_messages.php",
+        "legacy-backend/database/migrations/2026_07_23_193000_add_ciudad_de_nacimiento_field_to_credifamilia_form.php",
+        "legacy-backend/database/migrations/2026_08_06_120000_add_regenerate_request_voucher_permission.php"
+      ],
+      "rutas_muertas": [],
+      "pendiente_merge": null
+    },
+    {
+      "id": "trazador",
+      "estado": "deriva",
+      "verificado": {
+        "ref": "main",
+        "date": "2026-08-07",
+        "source": "cabecera"
+      },
+      "archivos": 15,
+      "deriva": {
+        "cambiados": 1,
+        "pct": 7,
+        "hubs": 0,
+        "archivos": [
+          {
+            "ruta": "trazador/server/main.go",
+            "ultimo_cambio": "2026-08-16",
+            "hub": false
+          }
+        ]
+      },
+      "commits": {
+        "total": 3,
+        "autores": {
+          "Miguel Ochoa": 3
+        },
+        "lista": [
+          {
+            "sha": "3c219e5",
+            "fecha": "2026-08-16",
+            "autor": "Miguel Ochoa",
+            "asunto": "agents: `datos` — el agente que MIDE, y las tres mentiras que hubo que matar para soltarlo",
+            "repo": "trazador"
+          },
+          {
+            "sha": "773aa48",
+            "fecha": "2026-08-11",
+            "autor": "Miguel Ochoa",
+            "asunto": "trazador: PostHog VALIDADO contra prod — y tres cosas que el repo decía mal",
+            "repo": "trazador"
+          },
+          {
+            "sha": "434fb3b",
+            "fecha": "2026-08-11",
+            "autor": "Miguel Ochoa",
+            "asunto": "trazador: PostHog como TERCERA fuente — qué VIO el cliente, empalmado por loan_request_<ureq>",
+            "repo": "trazador"
+          }
+        ]
+      },
+      "huerfanos": [
+        "trazador/server/posthog.go"
+      ],
+      "rutas_muertas": [],
+      "pendiente_merge": null
+    },
+    {
+      "id": "architecture",
+      "estado": "deriva",
+      "verificado": {
+        "ref": "main",
+        "date": "2026-07-31",
+        "source": "manual"
+      },
+      "archivos": 77,
+      "deriva": {
+        "cambiados": 3,
+        "pct": 6,
+        "hubs": 3,
+        "archivos": [
+          {
+            "ruta": "frontend-monorepo/apps/loan-request-wizard/app/entry.server.tsx",
+            "ultimo_cambio": "2026-08-13",
+            "hub": false
+          },
+          {
+            "ruta": "frontend-monorepo/apps/loan-request-wizard/app/routes.ts",
+            "ultimo_cambio": "2026-08-13",
+            "hub": true
+          },
+          {
+            "ruta": "frontend-monorepo/apps/loan-request-wizard/app/utils/route-helpers.ts",
+            "ultimo_cambio": "2026-08-13",
+            "hub": true
+          },
+          {
+            "ruta": "frontend-monorepo/modules/loan-request-wizard/lenders-marketplace/src/lib/domain/constants/lender.constants.ts",
+            "ultimo_cambio": "2026-08-13",
+            "hub": true
+          },
+          {
+            "ruta": "frontend-monorepo/packages/shared/utils/src/network/http-client.ts",
+            "ultimo_cambio": "2026-08-13",
+            "hub": false
+          },
+          {
+            "ruta": "legacy-backend/Modules/Loans/routes/admin.php",
+            "ultimo_cambio": "2026-08-13",
+            "hub": false
+          }
+        ]
+      },
+      "commits": {
+        "total": 6,
+        "autores": {
+          "yamid-creditop": 2,
+          "Oscar Rincon": 2,
+          "lhCabra-creditop": 2
+        },
+        "lista": [
+          {
+            "sha": "59dd80f4",
+            "fecha": "2026-08-13",
+            "autor": "yamid-creditop",
+            "asunto": "Staging (#812)",
+            "repo": "frontend-monorepo"
+          },
+          {
+            "sha": "ff3a4e7c",
+            "fecha": "2026-08-13",
+            "autor": "Oscar Rincon",
+            "asunto": "feat(loans): add locked endpoint to regenerate Credifamilia legalization documents",
+            "repo": "legacy-backend"
+          },
+          {
+            "sha": "f7f1fe3c",
+            "fecha": "2026-08-10",
+            "autor": "yamid-creditop",
+            "asunto": "perf(loan-request-wizard): hotfix de performance del funnel (#791)",
+            "repo": "frontend-monorepo"
+          },
+          {
+            "sha": "6de725fb",
+            "fecha": "2026-08-10",
+            "autor": "Oscar Rincon",
+            "asunto": "chore(loan-application-form): eliminar merchant-mode picker y payload isMotaiRenting",
+            "repo": "frontend-monorepo"
+          },
+          {
+            "sha": "4f89b13e",
+            "fecha": "2026-08-01",
+            "autor": "lhCabra-creditop",
+            "asunto": "revert(loans): remove Deceval promissory-note retry endpoint",
+            "repo": "legacy-backend"
+          },
+          {
+            "sha": "5ab1e304",
+            "fecha": "2026-08-01",
+            "autor": "lhCabra-creditop",
+            "asunto": "feat(loans): add Deceval promissory-note retry endpoint reusing validated OTP",
+            "repo": "legacy-backend"
+          }
+        ]
+      },
+      "huerfanos": [
+        "legacy-backend/database/migrations/2026_07_01_120000_add_template_name_to_creditop_x_reminder_messages.php",
+        "legacy-backend/database/migrations/2026_07_23_193000_add_ciudad_de_nacimiento_field_to_credifamilia_form.php",
+        "legacy-backend/database/migrations/2026_08_06_120000_add_regenerate_request_voucher_permission.php"
+      ],
+      "rutas_muertas": [],
+      "pendiente_merge": null
+    },
+    {
+      "id": "legacy-backend",
+      "estado": "deriva",
+      "verificado": {
+        "ref": "main",
+        "date": "2026-07-31",
+        "source": "manual"
+      },
+      "archivos": 90,
+      "deriva": {
+        "cambiados": 4,
+        "pct": 6,
+        "hubs": 2,
+        "archivos": [
+          {
+            "ruta": "legacy-backend/Modules/Loans/routes/admin.php",
+            "ultimo_cambio": "2026-08-13",
+            "hub": false
+          },
+          {
+            "ruta": "legacy-backend/Modules/Onboarding/App/Services/lenders/LenderListingService.php",
+            "ultimo_cambio": "2026-08-10",
+            "hub": true
+          },
+          {
+            "ruta": "legacy-backend/Modules/Onboarding/App/Services/lenders/RiskCentralValidationService.php",
+            "ultimo_cambio": "2026-08-10",
+            "hub": false
+          },
+          {
+            "ruta": "legacy-backend/Modules/Risk/App/Http/Controllers/Customer/ProfilingReviewController.php",
+            "ultimo_cambio": "2026-08-10",
+            "hub": false
+          },
+          {
+            "ruta": "legacy-backend/Modules/Loans/App/Services/LenderUserCategoryService.php",
+            "ultimo_cambio": "2026-08-07",
+            "hub": true
+          },
+          {
+            "ruta": "legacy-backend/app/Console/Kernel.php",
+            "ultimo_cambio": "2026-08-03",
+            "hub": false
+          }
+        ]
+      },
+      "commits": {
+        "total": 6,
+        "autores": {
+          "lhCabra-creditop": 3,
+          "Oscar Rincon": 1,
+          "sanvipi-ctop": 1,
+          "hans peter": 1
+        },
+        "lista": [
+          {
+            "sha": "ff3a4e7c",
+            "fecha": "2026-08-13",
+            "autor": "Oscar Rincon",
+            "asunto": "feat(loans): add locked endpoint to regenerate Credifamilia legalization documents",
+            "repo": "legacy-backend"
+          },
+          {
+            "sha": "3a6d59de",
+            "fecha": "2026-08-10",
+            "autor": "sanvipi-ctop",
+            "asunto": "feat(lenders-v2): agregar can_check_preapproval por entidad",
+            "repo": "legacy-backend"
+          },
+          {
+            "sha": "08a4e4ce",
+            "fecha": "2026-08-07",
+            "autor": "lhCabra-creditop",
+            "asunto": "feat: enhance category rules priority handling and add new WhatsApp numbers for notifications",
+            "repo": "legacy-backend"
+          },
+          {
+            "sha": "4f89b13e",
+            "fecha": "2026-08-01",
+            "autor": "lhCabra-creditop",
+            "asunto": "revert(loans): remove Deceval promissory-note retry endpoint",
+            "repo": "legacy-backend"
+          },
+          {
+            "sha": "5ab1e304",
+            "fecha": "2026-08-01",
+            "autor": "lhCabra-creditop",
+            "asunto": "feat(loans): add Deceval promissory-note retry endpoint reusing validated OTP",
+            "repo": "legacy-backend"
+          },
+          {
+            "sha": "9b86c254",
+            "fecha": "2026-06-30",
+            "autor": "hans peter",
+            "asunto": "feat(recordatorios): activar recordatorios de cobranza SmartPay en legacy",
+            "repo": "legacy-backend"
+          }
+        ]
+      },
+      "huerfanos": [
+        "legacy-backend/Modules/Loans/App/Services/CredifamiliaDocumentRegenerationService.php"
+      ],
+      "rutas_muertas": [],
+      "pendiente_merge": null
+    },
+    {
+      "id": "dynamic-forms",
+      "estado": "deriva",
+      "verificado": {
+        "ref": "main",
+        "date": "2026-07-31",
+        "source": "manual"
+      },
+      "archivos": 84,
+      "deriva": {
+        "cambiados": 4,
+        "pct": 5,
+        "hubs": 2,
+        "archivos": [
+          {
+            "ruta": "frontend-monorepo/apps/loan-request-wizard/app/routes.ts",
+            "ultimo_cambio": "2026-08-13",
+            "hub": true
+          },
+          {
+            "ruta": "frontend-monorepo/apps/loan-request-wizard/app/layouts/merchant-dynamic-layout.tsx",
+            "ultimo_cambio": "2026-08-10",
+            "hub": false
+          },
+          {
+            "ruta": "frontend-monorepo/apps/loan-request-wizard/app/routes/dynamic/request-amount.tsx",
+            "ultimo_cambio": "2026-08-10",
+            "hub": false
+          },
+          {
+            "ruta": "frontend-monorepo/apps/loan-request-wizard/app/routes/dynamic/request-personal-info.tsx",
+            "ultimo_cambio": "2026-08-10",
+            "hub": false
+          },
+          {
+            "ruta": "frontend-monorepo/apps/loan-request-wizard/app/routes/loan-application-form/phone-number.tsx",
+            "ultimo_cambio": "2026-08-10",
+            "hub": false
+          },
+          {
+            "ruta": "legacy-backend/Modules/Loans/App/Services/LenderUserCategoryService.php",
+            "ultimo_cambio": "2026-08-07",
+            "hub": true
+          }
+        ]
+      },
+      "commits": {
+        "total": 4,
+        "autores": {
+          "yamid-creditop": 2,
+          "Oscar Rincon": 1,
+          "lhCabra-creditop": 1
+        },
+        "lista": [
+          {
+            "sha": "59dd80f4",
+            "fecha": "2026-08-13",
+            "autor": "yamid-creditop",
+            "asunto": "Staging (#812)",
+            "repo": "frontend-monorepo"
+          },
+          {
+            "sha": "f7f1fe3c",
+            "fecha": "2026-08-10",
+            "autor": "yamid-creditop",
+            "asunto": "perf(loan-request-wizard): hotfix de performance del funnel (#791)",
+            "repo": "frontend-monorepo"
+          },
+          {
+            "sha": "6de725fb",
+            "fecha": "2026-08-10",
+            "autor": "Oscar Rincon",
+            "asunto": "chore(loan-application-form): eliminar merchant-mode picker y payload isMotaiRenting",
+            "repo": "frontend-monorepo"
+          },
+          {
+            "sha": "08a4e4ce",
+            "fecha": "2026-08-07",
+            "autor": "lhCabra-creditop",
+            "asunto": "feat: enhance category rules priority handling and add new WhatsApp numbers for notifications",
+            "repo": "legacy-backend"
+          }
+        ]
+      },
+      "huerfanos": [
+        "frontend-monorepo/apps/loan-request-wizard/app/routes/dev-actions.tsx",
+        "frontend-monorepo/apps/loan-request-wizard/app/routes/loan-application-form/kyc-processing.tsx",
+        "legacy-backend/Modules/Loans/App/Services/CredifamiliaDocumentRegenerationService.php",
+        "legacy-backend/database/migrations/2026_07_01_120000_add_template_name_to_creditop_x_reminder_messages.php",
+        "legacy-backend/database/migrations/2026_07_23_193000_add_ciudad_de_nacimiento_field_to_credifamilia_form.php",
+        "legacy-backend/database/migrations/2026_08_06_120000_add_regenerate_request_voucher_permission.php"
       ],
       "rutas_muertas": [],
       "pendiente_merge": null
@@ -198,7 +2051,7 @@
         "archivos": [
           {
             "ruta": "harness/pkg/config.ts",
-            "ultimo_cambio": "2026-08-08",
+            "ultimo_cambio": "2026-08-13",
             "hub": false
           },
           {
@@ -209,11 +2062,18 @@
         ]
       },
       "commits": {
-        "total": 2,
+        "total": 3,
         "autores": {
-          "Miguel Ochoa": 2
+          "Miguel Ochoa": 3
         },
         "lista": [
+          {
+            "sha": "3a0bbf1",
+            "fecha": "2026-08-13",
+            "autor": "Miguel Ochoa",
+            "asunto": "tarea 47: el «no coincide» del segundo apellido se tragaba — arreglado y en pruebas",
+            "repo": "harness"
+          },
           {
             "sha": "171d046",
             "fecha": "2026-08-08",
@@ -232,10 +2092,297 @@
       },
       "huerfanos": [
         "harness/dev/admin-sesion.php",
+        "harness/dev/kyc-apellido.ts",
         "harness/dev/loki-trace.ts",
         "harness/dev/paises.ts",
         "harness/dev/sandbox-bancolombia.ts",
         "harness/pkg/loki.ts"
+      ],
+      "rutas_muertas": [],
+      "pendiente_merge": null
+    },
+    {
+      "id": "corbeta",
+      "estado": "deriva",
+      "verificado": {
+        "ref": "main",
+        "date": "2026-07-31",
+        "source": "cabecera"
+      },
+      "archivos": 28,
+      "deriva": {
+        "cambiados": 1,
+        "pct": 4,
+        "hubs": 0,
+        "archivos": [
+          {
+            "ruta": "frontend-monorepo/apps/loan-request-wizard/app/routes/bancolombia/ecommerce/resolve-ecommerce-flow.tsx",
+            "ultimo_cambio": "2026-08-10",
+            "hub": false
+          }
+        ]
+      },
+      "commits": {
+        "total": 1,
+        "autores": {
+          "yamid-creditop": 1
+        },
+        "lista": [
+          {
+            "sha": "f7f1fe3c",
+            "fecha": "2026-08-10",
+            "autor": "yamid-creditop",
+            "asunto": "perf(loan-request-wizard): hotfix de performance del funnel (#791)",
+            "repo": "frontend-monorepo"
+          }
+        ]
+      },
+      "huerfanos": [
+        "frontend-monorepo/apps/loan-request-wizard/app/server/services/cache.server.ts",
+        "frontend-monorepo/apps/loan-request-wizard/app/server/services/kyc-pipeline.server.ts",
+        "frontend-monorepo/apps/loan-request-wizard/app/server/services/reference-data.server.ts"
+      ],
+      "rutas_muertas": [],
+      "pendiente_merge": null
+    },
+    {
+      "id": "credifamilia",
+      "estado": "deriva",
+      "verificado": {
+        "ref": "main",
+        "date": "2026-07-31",
+        "source": "manual"
+      },
+      "archivos": 137,
+      "deriva": {
+        "cambiados": 5,
+        "pct": 4,
+        "hubs": 3,
+        "archivos": [
+          {
+            "ruta": "frontend-monorepo/apps/loan-request-wizard/app/routes/lenders-marketplace/available-lenders.tsx",
+            "ultimo_cambio": "2026-08-13",
+            "hub": true
+          },
+          {
+            "ruta": "frontend-monorepo/modules/loan-request-wizard/lenders-marketplace/src/components/available-lenders/AvailableLenders.tsx",
+            "ultimo_cambio": "2026-08-13",
+            "hub": true
+          },
+          {
+            "ruta": "frontend-monorepo/modules/loan-request-wizard/lenders-marketplace/src/lib/domain/constants/lender.constants.ts",
+            "ultimo_cambio": "2026-08-13",
+            "hub": true
+          },
+          {
+            "ruta": "frontend-monorepo/modules/loan-request-wizard/lenders-marketplace/src/lib/domain/services/lender-resolution.service.ts",
+            "ultimo_cambio": "2026-08-13",
+            "hub": false
+          },
+          {
+            "ruta": "frontend-monorepo/apps/loan-request-wizard/app/routes/lenders-marketplace/lenders/payment-plan-options.tsx",
+            "ultimo_cambio": "2026-08-10",
+            "hub": false
+          },
+          {
+            "ruta": "frontend-monorepo/apps/loan-request-wizard/app/routes/loan-confirmation.tsx",
+            "ultimo_cambio": "2026-08-10",
+            "hub": false
+          },
+          {
+            "ruta": "frontend-monorepo/apps/loan-request-wizard/app/routes/loan-continue.tsx",
+            "ultimo_cambio": "2026-08-10",
+            "hub": false
+          },
+          {
+            "ruta": "legacy-backend/app/Actions/Lenders/CredifamiliaConsumo/TransactionRequest.php",
+            "ultimo_cambio": "2026-08-05",
+            "hub": false
+          }
+        ]
+      },
+      "commits": {
+        "total": 5,
+        "autores": {
+          "yamid-creditop": 2,
+          "Oscar Rincon": 2,
+          "lhCabra-creditop": 1
+        },
+        "lista": [
+          {
+            "sha": "59dd80f4",
+            "fecha": "2026-08-13",
+            "autor": "yamid-creditop",
+            "asunto": "Staging (#812)",
+            "repo": "frontend-monorepo"
+          },
+          {
+            "sha": "f7f1fe3c",
+            "fecha": "2026-08-10",
+            "autor": "yamid-creditop",
+            "asunto": "perf(loan-request-wizard): hotfix de performance del funnel (#791)",
+            "repo": "frontend-monorepo"
+          },
+          {
+            "sha": "6de725fb",
+            "fecha": "2026-08-10",
+            "autor": "Oscar Rincon",
+            "asunto": "chore(loan-application-form): eliminar merchant-mode picker y payload isMotaiRenting",
+            "repo": "frontend-monorepo"
+          },
+          {
+            "sha": "4fddc205",
+            "fecha": "2026-08-07",
+            "autor": "Oscar Rincon",
+            "asunto": "fix(loan-request-wizard): desatar el poll de Credifamilia del signal del loader",
+            "repo": "frontend-monorepo"
+          },
+          {
+            "sha": "15ceb678",
+            "fecha": "2026-08-05",
+            "autor": "lhCabra-creditop",
+            "asunto": "fix(credifamilia): source birth city from EAV field 228",
+            "repo": "legacy-backend"
+          }
+        ]
+      },
+      "huerfanos": [
+        "frontend-monorepo/apps/loan-request-wizard/app/routes/dev-actions.tsx",
+        "frontend-monorepo/modules/loan-request-wizard/lenders-marketplace/src/components/available-lenders/MeddipayAmountRepricer.tsx",
+        "legacy-backend/Modules/Loans/App/Services/CredifamiliaDocumentRegenerationService.php"
+      ],
+      "rutas_muertas": [],
+      "pendiente_merge": null
+    },
+    {
+      "id": "merchants",
+      "estado": "deriva",
+      "verificado": {
+        "ref": "main",
+        "date": "2026-07-31",
+        "source": "git-doc"
+      },
+      "archivos": 55,
+      "deriva": {
+        "cambiados": 2,
+        "pct": 4,
+        "hubs": 2,
+        "archivos": [
+          {
+            "ruta": "frontend-monorepo/apps/loan-request-wizard/app/layouts/default-layout.tsx",
+            "ultimo_cambio": "2026-08-14",
+            "hub": true
+          },
+          {
+            "ruta": "frontend-monorepo/apps/loan-request-wizard/app/modules/allied-theme/infrastructure/allied-theme.repository.ts",
+            "ultimo_cambio": "2026-08-10",
+            "hub": false
+          },
+          {
+            "ruta": "frontend-monorepo/modules/loan-request-wizard/loan-application-form/src/lib/types/api-responses.ts",
+            "ultimo_cambio": "2026-08-10",
+            "hub": false
+          },
+          {
+            "ruta": "legacy-backend/Modules/Onboarding/App/Services/lenders/LenderListingService.php",
+            "ultimo_cambio": "2026-08-10",
+            "hub": true
+          }
+        ]
+      },
+      "commits": {
+        "total": 4,
+        "autores": {
+          "Yamid Viloria": 1,
+          "yamid-creditop": 1,
+          "Oscar Rincon": 1,
+          "sanvipi-ctop": 1
+        },
+        "lista": [
+          {
+            "sha": "c9cfdc7b",
+            "fecha": "2026-08-14",
+            "autor": "Yamid Viloria",
+            "asunto": "fix(loan-request-wizard): persistir alliedCountry en la sesión",
+            "repo": "frontend-monorepo"
+          },
+          {
+            "sha": "f7f1fe3c",
+            "fecha": "2026-08-10",
+            "autor": "yamid-creditop",
+            "asunto": "perf(loan-request-wizard): hotfix de performance del funnel (#791)",
+            "repo": "frontend-monorepo"
+          },
+          {
+            "sha": "6de725fb",
+            "fecha": "2026-08-10",
+            "autor": "Oscar Rincon",
+            "asunto": "chore(loan-application-form): eliminar merchant-mode picker y payload isMotaiRenting",
+            "repo": "frontend-monorepo"
+          },
+          {
+            "sha": "3a6d59de",
+            "fecha": "2026-08-10",
+            "autor": "sanvipi-ctop",
+            "asunto": "feat(lenders-v2): agregar can_check_preapproval por entidad",
+            "repo": "legacy-backend"
+          }
+        ]
+      },
+      "huerfanos": [
+        "legacy-backend/database/migrations/2026_07_01_120000_add_template_name_to_creditop_x_reminder_messages.php",
+        "legacy-backend/database/migrations/2026_07_23_193000_add_ciudad_de_nacimiento_field_to_credifamilia_form.php",
+        "legacy-backend/database/migrations/2026_08_06_120000_add_regenerate_request_voucher_permission.php"
+      ],
+      "rutas_muertas": [],
+      "pendiente_merge": null
+    },
+    {
+      "id": "entities",
+      "estado": "deriva",
+      "verificado": {
+        "ref": "main",
+        "date": "2026-07-31",
+        "source": "manual"
+      },
+      "archivos": 50,
+      "deriva": {
+        "cambiados": 1,
+        "pct": 3,
+        "hubs": 1,
+        "archivos": [
+          {
+            "ruta": "frontend-monorepo/modules/loan-request-wizard/lenders-marketplace/src/lib/domain/constants/lender.constants.ts",
+            "ultimo_cambio": "2026-08-13",
+            "hub": true
+          },
+          {
+            "ruta": "frontend-monorepo/modules/loan-request-wizard/lenders-marketplace/src/lib/domain/entities/loan-option.entity.ts",
+            "ultimo_cambio": "2026-08-13",
+            "hub": false
+          }
+        ]
+      },
+      "commits": {
+        "total": 1,
+        "autores": {
+          "yamid-creditop": 1
+        },
+        "lista": [
+          {
+            "sha": "59dd80f4",
+            "fecha": "2026-08-13",
+            "autor": "yamid-creditop",
+            "asunto": "Staging (#812)",
+            "repo": "frontend-monorepo"
+          }
+        ]
+      },
+      "huerfanos": [
+        "legacy-backend/Modules/Loans/App/Services/CredifamiliaDocumentRegenerationService.php",
+        "legacy-backend/database/migrations/2026_07_01_120000_add_template_name_to_creditop_x_reminder_messages.php",
+        "legacy-backend/database/migrations/2026_07_23_193000_add_ciudad_de_nacimiento_field_to_credifamilia_form.php",
+        "legacy-backend/database/migrations/2026_08_06_120000_add_regenerate_request_voucher_permission.php"
       ],
       "rutas_muertas": [],
       "pendiente_merge": null
@@ -323,48 +2470,76 @@
           }
         ]
       },
-      "huerfanos": [],
+      "huerfanos": [
+        "legacy-backend/Modules/Loans/App/Services/CredifamiliaDocumentRegenerationService.php"
+      ],
       "rutas_muertas": [],
       "pendiente_merge": null
     },
     {
-      "id": "smartpay",
+      "id": "ecommerce",
       "estado": "deriva",
       "verificado": {
         "ref": "main",
         "date": "2026-07-31",
         "source": "manual"
       },
-      "archivos": 74,
+      "archivos": 71,
       "deriva": {
         "cambiados": 1,
         "pct": 2,
-        "hubs": 0,
+        "hubs": 1,
         "archivos": [
           {
-            "ruta": "legacy-backend/app/Console/Kernel.php",
-            "ultimo_cambio": "2026-08-03",
+            "ruta": "frontend-monorepo/apps/loan-request-wizard/app/routes.ts",
+            "ultimo_cambio": "2026-08-13",
+            "hub": true
+          },
+          {
+            "ruta": "frontend-monorepo/apps/loan-request-wizard/app/routes/bancolombia/ecommerce/resolve-ecommerce-flow.tsx",
+            "ultimo_cambio": "2026-08-10",
             "hub": false
           }
         ]
       },
       "commits": {
-        "total": 1,
+        "total": 3,
         "autores": {
-          "hans peter": 1
+          "yamid-creditop": 2,
+          "Oscar Rincon": 1
         },
         "lista": [
           {
-            "sha": "9b86c254",
-            "fecha": "2026-06-30",
-            "autor": "hans peter",
-            "asunto": "feat(recordatorios): activar recordatorios de cobranza SmartPay en legacy",
-            "repo": "legacy-backend"
+            "sha": "59dd80f4",
+            "fecha": "2026-08-13",
+            "autor": "yamid-creditop",
+            "asunto": "Staging (#812)",
+            "repo": "frontend-monorepo"
+          },
+          {
+            "sha": "f7f1fe3c",
+            "fecha": "2026-08-10",
+            "autor": "yamid-creditop",
+            "asunto": "perf(loan-request-wizard): hotfix de performance del funnel (#791)",
+            "repo": "frontend-monorepo"
+          },
+          {
+            "sha": "6de725fb",
+            "fecha": "2026-08-10",
+            "autor": "Oscar Rincon",
+            "asunto": "chore(loan-application-form): eliminar merchant-mode picker y payload isMotaiRenting",
+            "repo": "frontend-monorepo"
           }
         ]
       },
       "huerfanos": [
-        "legacy-backend/database/migrations/2026_07_01_120000_add_template_name_to_creditop_x_reminder_messages.php"
+        "frontend-monorepo/apps/loan-request-wizard/app/server/services/cache.server.ts",
+        "frontend-monorepo/apps/loan-request-wizard/app/server/services/kyc-pipeline.server.ts",
+        "frontend-monorepo/apps/loan-request-wizard/app/server/services/reference-data.server.ts",
+        "legacy-backend/Modules/Loans/App/Services/CredifamiliaDocumentRegenerationService.php",
+        "legacy-backend/database/migrations/2026_07_01_120000_add_template_name_to_creditop_x_reminder_messages.php",
+        "legacy-backend/database/migrations/2026_07_23_193000_add_ciudad_de_nacimiento_field_to_credifamilia_form.php",
+        "legacy-backend/database/migrations/2026_08_06_120000_add_regenerate_request_voucher_permission.php"
       ],
       "rutas_muertas": [],
       "pendiente_merge": null
@@ -410,142 +2585,257 @@
       "pendiente_merge": null
     },
     {
-      "id": "legacy-backend",
-      "estado": "deriva",
+      "id": "creditopx",
+      "estado": "solo-hubs",
       "verificado": {
         "ref": "main",
         "date": "2026-07-31",
         "source": "manual"
       },
-      "archivos": 90,
+      "archivos": 15,
       "deriva": {
-        "cambiados": 1,
-        "pct": 1,
-        "hubs": 0,
+        "cambiados": 0,
+        "pct": 0,
+        "hubs": 3,
         "archivos": [
           {
-            "ruta": "legacy-backend/app/Console/Kernel.php",
-            "ultimo_cambio": "2026-08-03",
-            "hub": false
+            "ruta": "frontend-monorepo/modules/loan-request-wizard/lenders-marketplace/src/lib/domain/constants/lender.constants.ts",
+            "ultimo_cambio": "2026-08-13",
+            "hub": true
+          },
+          {
+            "ruta": "legacy-backend/Modules/Onboarding/App/Services/lenders/LenderListingService.php",
+            "ultimo_cambio": "2026-08-10",
+            "hub": true
+          },
+          {
+            "ruta": "legacy-backend/Modules/Loans/App/Services/LenderUserCategoryService.php",
+            "ultimo_cambio": "2026-08-07",
+            "hub": true
           }
         ]
       },
       "commits": {
         "total": 3,
         "autores": {
-          "lhCabra-creditop": 2,
-          "hans peter": 1
+          "yamid-creditop": 1,
+          "sanvipi-ctop": 1,
+          "lhCabra-creditop": 1
         },
         "lista": [
           {
-            "sha": "4f89b13e",
-            "fecha": "2026-08-01",
-            "autor": "lhCabra-creditop",
-            "asunto": "revert(loans): remove Deceval promissory-note retry endpoint",
+            "sha": "59dd80f4",
+            "fecha": "2026-08-13",
+            "autor": "yamid-creditop",
+            "asunto": "Staging (#812)",
+            "repo": "frontend-monorepo"
+          },
+          {
+            "sha": "3a6d59de",
+            "fecha": "2026-08-10",
+            "autor": "sanvipi-ctop",
+            "asunto": "feat(lenders-v2): agregar can_check_preapproval por entidad",
             "repo": "legacy-backend"
           },
           {
-            "sha": "5ab1e304",
-            "fecha": "2026-08-01",
+            "sha": "08a4e4ce",
+            "fecha": "2026-08-07",
             "autor": "lhCabra-creditop",
-            "asunto": "feat(loans): add Deceval promissory-note retry endpoint reusing validated OTP",
-            "repo": "legacy-backend"
-          },
-          {
-            "sha": "9b86c254",
-            "fecha": "2026-06-30",
-            "autor": "hans peter",
-            "asunto": "feat(recordatorios): activar recordatorios de cobranza SmartPay en legacy",
+            "asunto": "feat: enhance category rules priority handling and add new WhatsApp numbers for notifications",
             "repo": "legacy-backend"
           }
         ]
       },
-      "huerfanos": [],
-      "rutas_muertas": [],
-      "pendiente_merge": null
-    },
-    {
-      "id": "actors",
-      "estado": "al-dia",
-      "verificado": {
-        "ref": "main",
-        "date": "2026-07-31",
-        "source": "manual"
-      },
-      "archivos": 68,
-      "deriva": {
-        "cambiados": 0,
-        "pct": 0,
-        "hubs": 0,
-        "archivos": []
-      },
-      "commits": null,
       "huerfanos": [
-        "legacy-backend/database/migrations/2026_07_01_120000_add_template_name_to_creditop_x_reminder_messages.php"
+        "legacy-backend/Modules/Loans/App/Services/CredifamiliaDocumentRegenerationService.php"
       ],
       "rutas_muertas": [],
       "pendiente_merge": null
     },
     {
-      "id": "aggregator",
-      "estado": "al-dia",
+      "id": "ms-preapprovals",
+      "estado": "solo-hubs",
       "verificado": {
         "ref": "main",
         "date": "2026-07-31",
+        "source": "manual"
+      },
+      "archivos": 72,
+      "deriva": {
+        "cambiados": 0,
+        "pct": 0,
+        "hubs": 2,
+        "archivos": [
+          {
+            "ruta": "frontend-monorepo/apps/loan-request-wizard/app/routes/lenders-marketplace/available-lenders.tsx",
+            "ultimo_cambio": "2026-08-13",
+            "hub": true
+          },
+          {
+            "ruta": "frontend-monorepo/modules/loan-request-wizard/lenders-marketplace/src/components/available-lenders/AvailableLenders.tsx",
+            "ultimo_cambio": "2026-08-13",
+            "hub": true
+          }
+        ]
+      },
+      "commits": {
+        "total": 4,
+        "autores": {
+          "yamid-creditop": 2,
+          "Oscar Rincon": 2
+        },
+        "lista": [
+          {
+            "sha": "59dd80f4",
+            "fecha": "2026-08-13",
+            "autor": "yamid-creditop",
+            "asunto": "Staging (#812)",
+            "repo": "frontend-monorepo"
+          },
+          {
+            "sha": "f7f1fe3c",
+            "fecha": "2026-08-10",
+            "autor": "yamid-creditop",
+            "asunto": "perf(loan-request-wizard): hotfix de performance del funnel (#791)",
+            "repo": "frontend-monorepo"
+          },
+          {
+            "sha": "6de725fb",
+            "fecha": "2026-08-10",
+            "autor": "Oscar Rincon",
+            "asunto": "chore(loan-application-form): eliminar merchant-mode picker y payload isMotaiRenting",
+            "repo": "frontend-monorepo"
+          },
+          {
+            "sha": "4fddc205",
+            "fecha": "2026-08-07",
+            "autor": "Oscar Rincon",
+            "asunto": "fix(loan-request-wizard): desatar el poll de Credifamilia del signal del loader",
+            "repo": "frontend-monorepo"
+          }
+        ]
+      },
+      "huerfanos": [
+        "frontend-monorepo/apps/loan-request-wizard/app/routes/api/kyc-status.tsx",
+        "frontend-monorepo/modules/loan-request-wizard/lenders-marketplace/src/components/available-lenders/MeddipayAmountRepricer.tsx"
+      ],
+      "rutas_muertas": [],
+      "pendiente_merge": null
+    },
+    {
+      "id": "pullman",
+      "estado": "solo-hubs",
+      "verificado": {
+        "ref": "main",
+        "date": "2026-07-18",
         "source": "git-doc"
       },
-      "archivos": 106,
+      "archivos": 13,
       "deriva": {
         "cambiados": 0,
         "pct": 0,
-        "hubs": 0,
-        "archivos": []
+        "hubs": 1,
+        "archivos": [
+          {
+            "ruta": "legacy-backend/Modules/Loans/App/Services/LenderUserCategoryService.php",
+            "ultimo_cambio": "2026-08-07",
+            "hub": true
+          }
+        ]
       },
-      "commits": null,
-      "huerfanos": [],
-      "rutas_muertas": [],
-      "pendiente_merge": null
-    },
-    {
-      "id": "amount-tiers",
-      "estado": "al-dia",
-      "verificado": {
-        "ref": "main",
-        "date": "2026-07-31",
-        "source": "manual"
+      "commits": {
+        "total": 1,
+        "autores": {
+          "lhCabra-creditop": 1
+        },
+        "lista": [
+          {
+            "sha": "08a4e4ce",
+            "fecha": "2026-08-07",
+            "autor": "lhCabra-creditop",
+            "asunto": "feat: enhance category rules priority handling and add new WhatsApp numbers for notifications",
+            "repo": "legacy-backend"
+          }
+        ]
       },
-      "archivos": 33,
-      "deriva": {
-        "cambiados": 0,
-        "pct": 0,
-        "hubs": 0,
-        "archivos": []
-      },
-      "commits": null,
       "huerfanos": [
-        "legacy-backend/database/migrations/2026_07_01_120000_add_template_name_to_creditop_x_reminder_messages.php"
+        "legacy-backend/Modules/Loans/App/Services/CredifamiliaDocumentRegenerationService.php"
       ],
       "rutas_muertas": [],
       "pendiente_merge": null
     },
     {
-      "id": "architecture",
-      "estado": "al-dia",
+      "id": "redirect",
+      "estado": "solo-hubs",
       "verificado": {
         "ref": "main",
         "date": "2026-07-31",
         "source": "manual"
       },
-      "archivos": 77,
+      "archivos": 24,
       "deriva": {
         "cambiados": 0,
         "pct": 0,
-        "hubs": 0,
-        "archivos": []
+        "hubs": 3,
+        "archivos": [
+          {
+            "ruta": "frontend-monorepo/apps/loan-request-wizard/app/routes/lenders-marketplace/available-lenders.tsx",
+            "ultimo_cambio": "2026-08-13",
+            "hub": true
+          },
+          {
+            "ruta": "frontend-monorepo/apps/loan-request-wizard/app/utils/route-helpers.ts",
+            "ultimo_cambio": "2026-08-13",
+            "hub": true
+          },
+          {
+            "ruta": "frontend-monorepo/modules/loan-request-wizard/lenders-marketplace/src/lib/domain/constants/lender.constants.ts",
+            "ultimo_cambio": "2026-08-13",
+            "hub": true
+          }
+        ]
       },
-      "commits": null,
+      "commits": {
+        "total": 4,
+        "autores": {
+          "yamid-creditop": 2,
+          "Oscar Rincon": 2
+        },
+        "lista": [
+          {
+            "sha": "59dd80f4",
+            "fecha": "2026-08-13",
+            "autor": "yamid-creditop",
+            "asunto": "Staging (#812)",
+            "repo": "frontend-monorepo"
+          },
+          {
+            "sha": "f7f1fe3c",
+            "fecha": "2026-08-10",
+            "autor": "yamid-creditop",
+            "asunto": "perf(loan-request-wizard): hotfix de performance del funnel (#791)",
+            "repo": "frontend-monorepo"
+          },
+          {
+            "sha": "6de725fb",
+            "fecha": "2026-08-10",
+            "autor": "Oscar Rincon",
+            "asunto": "chore(loan-application-form): eliminar merchant-mode picker y payload isMotaiRenting",
+            "repo": "frontend-monorepo"
+          },
+          {
+            "sha": "4fddc205",
+            "fecha": "2026-08-07",
+            "autor": "Oscar Rincon",
+            "asunto": "fix(loan-request-wizard): desatar el poll de Credifamilia del signal del loader",
+            "repo": "frontend-monorepo"
+          }
+        ]
+      },
       "huerfanos": [
-        "legacy-backend/database/migrations/2026_07_01_120000_add_template_name_to_creditop_x_reminder_messages.php"
+        "legacy-backend/database/migrations/2026_07_01_120000_add_template_name_to_creditop_x_reminder_messages.php",
+        "legacy-backend/database/migrations/2026_07_23_193000_add_ciudad_de_nacimiento_field_to_credifamilia_form.php",
+        "legacy-backend/database/migrations/2026_08_06_120000_add_regenerate_request_voucher_permission.php"
       ],
       "rutas_muertas": [],
       "pendiente_merge": null
@@ -559,106 +2849,6 @@
         "source": "cabecera"
       },
       "archivos": 119,
-      "deriva": {
-        "cambiados": 0,
-        "pct": 0,
-        "hubs": 0,
-        "archivos": []
-      },
-      "commits": null,
-      "huerfanos": [],
-      "rutas_muertas": [],
-      "pendiente_merge": null
-    },
-    {
-      "id": "bancolombia",
-      "estado": "al-dia",
-      "verificado": {
-        "ref": "main",
-        "date": "2026-07-31",
-        "source": "cabecera"
-      },
-      "archivos": 145,
-      "deriva": {
-        "cambiados": 0,
-        "pct": 0,
-        "hubs": 0,
-        "archivos": []
-      },
-      "commits": null,
-      "huerfanos": [],
-      "rutas_muertas": [],
-      "pendiente_merge": null
-    },
-    {
-      "id": "corbeta",
-      "estado": "al-dia",
-      "verificado": {
-        "ref": "main",
-        "date": "2026-07-31",
-        "source": "cabecera"
-      },
-      "archivos": 28,
-      "deriva": {
-        "cambiados": 0,
-        "pct": 0,
-        "hubs": 0,
-        "archivos": []
-      },
-      "commits": null,
-      "huerfanos": [],
-      "rutas_muertas": [],
-      "pendiente_merge": null
-    },
-    {
-      "id": "credifamilia",
-      "estado": "al-dia",
-      "verificado": {
-        "ref": "main",
-        "date": "2026-07-31",
-        "source": "manual"
-      },
-      "archivos": 136,
-      "deriva": {
-        "cambiados": 0,
-        "pct": 0,
-        "hubs": 0,
-        "archivos": []
-      },
-      "commits": null,
-      "huerfanos": [],
-      "rutas_muertas": [],
-      "pendiente_merge": null
-    },
-    {
-      "id": "creditop",
-      "estado": "al-dia",
-      "verificado": {
-        "ref": "main",
-        "date": "2026-07-31",
-        "source": "manual"
-      },
-      "archivos": 59,
-      "deriva": {
-        "cambiados": 0,
-        "pct": 0,
-        "hubs": 0,
-        "archivos": []
-      },
-      "commits": null,
-      "huerfanos": [],
-      "rutas_muertas": [],
-      "pendiente_merge": null
-    },
-    {
-      "id": "creditopx",
-      "estado": "al-dia",
-      "verificado": {
-        "ref": "main",
-        "date": "2026-07-31",
-        "source": "manual"
-      },
-      "archivos": 15,
       "deriva": {
         "cambiados": 0,
         "pct": 0,
@@ -711,72 +2901,6 @@
       "pendiente_merge": null
     },
     {
-      "id": "dynamic-forms",
-      "estado": "al-dia",
-      "verificado": {
-        "ref": "main",
-        "date": "2026-07-31",
-        "source": "manual"
-      },
-      "archivos": 84,
-      "deriva": {
-        "cambiados": 0,
-        "pct": 0,
-        "hubs": 0,
-        "archivos": []
-      },
-      "commits": null,
-      "huerfanos": [
-        "legacy-backend/database/migrations/2026_07_01_120000_add_template_name_to_creditop_x_reminder_messages.php"
-      ],
-      "rutas_muertas": [],
-      "pendiente_merge": null
-    },
-    {
-      "id": "ecommerce",
-      "estado": "al-dia",
-      "verificado": {
-        "ref": "main",
-        "date": "2026-07-31",
-        "source": "manual"
-      },
-      "archivos": 71,
-      "deriva": {
-        "cambiados": 0,
-        "pct": 0,
-        "hubs": 0,
-        "archivos": []
-      },
-      "commits": null,
-      "huerfanos": [
-        "legacy-backend/database/migrations/2026_07_01_120000_add_template_name_to_creditop_x_reminder_messages.php"
-      ],
-      "rutas_muertas": [],
-      "pendiente_merge": null
-    },
-    {
-      "id": "entities",
-      "estado": "al-dia",
-      "verificado": {
-        "ref": "main",
-        "date": "2026-07-31",
-        "source": "manual"
-      },
-      "archivos": 50,
-      "deriva": {
-        "cambiados": 0,
-        "pct": 0,
-        "hubs": 0,
-        "archivos": []
-      },
-      "commits": null,
-      "huerfanos": [
-        "legacy-backend/database/migrations/2026_07_01_120000_add_template_name_to_creditop_x_reminder_messages.php"
-      ],
-      "rutas_muertas": [],
-      "pendiente_merge": null
-    },
-    {
       "id": "form-service",
       "estado": "al-dia",
       "verificado": {
@@ -792,70 +2916,9 @@
         "archivos": []
       },
       "commits": null,
-      "huerfanos": [],
-      "rutas_muertas": [],
-      "pendiente_merge": null
-    },
-    {
-      "id": "formalization",
-      "estado": "al-dia",
-      "verificado": {
-        "ref": "main",
-        "date": "2026-07-31",
-        "source": "manual"
-      },
-      "archivos": 87,
-      "deriva": {
-        "cambiados": 0,
-        "pct": 0,
-        "hubs": 0,
-        "archivos": []
-      },
-      "commits": null,
       "huerfanos": [
-        "legacy-backend/database/migrations/2026_07_01_120000_add_template_name_to_creditop_x_reminder_messages.php"
-      ],
-      "rutas_muertas": [],
-      "pendiente_merge": null
-    },
-    {
-      "id": "frontend-monorepo",
-      "estado": "al-dia",
-      "verificado": {
-        "ref": "main",
-        "date": "2026-07-31",
-        "source": "manual"
-      },
-      "archivos": 84,
-      "deriva": {
-        "cambiados": 0,
-        "pct": 0,
-        "hubs": 0,
-        "archivos": []
-      },
-      "commits": null,
-      "huerfanos": [],
-      "rutas_muertas": [],
-      "pendiente_merge": null
-    },
-    {
-      "id": "hardcodes-entidades",
-      "estado": "al-dia",
-      "verificado": {
-        "ref": "main",
-        "date": "2026-07-31",
-        "source": "manual"
-      },
-      "archivos": 101,
-      "deriva": {
-        "cambiados": 0,
-        "pct": 0,
-        "hubs": 0,
-        "archivos": []
-      },
-      "commits": null,
-      "huerfanos": [
-        "legacy-backend/database/migrations/2026_07_01_120000_add_template_name_to_creditop_x_reminder_messages.php"
+        "frontend-monorepo/apps/loan-request-wizard/app/routes/dev-actions.tsx",
+        "legacy-backend/Modules/Loans/App/Services/CredifamiliaDocumentRegenerationService.php"
       ],
       "rutas_muertas": [],
       "pendiente_merge": null
@@ -865,10 +2928,10 @@
       "estado": "al-dia",
       "verificado": {
         "ref": "main",
-        "date": "2026-07-31",
+        "date": "2026-08-15",
         "source": "manual"
       },
-      "archivos": 34,
+      "archivos": 39,
       "deriva": {
         "cambiados": 0,
         "pct": 0,
@@ -876,31 +2939,7 @@
         "archivos": []
       },
       "commits": null,
-      "huerfanos": [
-        "legacy-backend/database/migrations/2026_07_01_120000_add_template_name_to_creditop_x_reminder_messages.php"
-      ],
-      "rutas_muertas": [],
-      "pendiente_merge": null
-    },
-    {
-      "id": "merchants",
-      "estado": "al-dia",
-      "verificado": {
-        "ref": "main",
-        "date": "2026-07-31",
-        "source": "git-doc"
-      },
-      "archivos": 55,
-      "deriva": {
-        "cambiados": 0,
-        "pct": 0,
-        "hubs": 0,
-        "archivos": []
-      },
-      "commits": null,
-      "huerfanos": [
-        "legacy-backend/database/migrations/2026_07_01_120000_add_template_name_to_creditop_x_reminder_messages.php"
-      ],
+      "huerfanos": [],
       "rutas_muertas": [],
       "pendiente_merge": null
     },
@@ -925,14 +2964,14 @@
       "pendiente_merge": null
     },
     {
-      "id": "ms-preapprovals",
+      "id": "negocio",
       "estado": "al-dia",
       "verificado": {
         "ref": "main",
-        "date": "2026-07-31",
-        "source": "manual"
+        "date": "2026-08-09",
+        "source": "cabecera"
       },
-      "archivos": 72,
+      "archivos": 11,
       "deriva": {
         "cambiados": 0,
         "pct": 0,
@@ -941,92 +2980,6 @@
       },
       "commits": null,
       "huerfanos": [],
-      "rutas_muertas": [],
-      "pendiente_merge": null
-    },
-    {
-      "id": "onboarding",
-      "estado": "al-dia",
-      "verificado": {
-        "ref": "main",
-        "date": "2026-07-31",
-        "source": "manual"
-      },
-      "archivos": 88,
-      "deriva": {
-        "cambiados": 0,
-        "pct": 0,
-        "hubs": 0,
-        "archivos": []
-      },
-      "commits": null,
-      "huerfanos": [
-        "legacy-backend/database/migrations/2026_07_01_120000_add_template_name_to_creditop_x_reminder_messages.php"
-      ],
-      "rutas_muertas": [],
-      "pendiente_merge": null
-    },
-    {
-      "id": "profiling",
-      "estado": "al-dia",
-      "verificado": {
-        "ref": "main",
-        "date": "2026-07-18",
-        "source": "git-doc"
-      },
-      "archivos": 32,
-      "deriva": {
-        "cambiados": 0,
-        "pct": 0,
-        "hubs": 0,
-        "archivos": []
-      },
-      "commits": null,
-      "huerfanos": [
-        "legacy-backend/database/migrations/2026_07_01_120000_add_template_name_to_creditop_x_reminder_messages.php"
-      ],
-      "rutas_muertas": [],
-      "pendiente_merge": null
-    },
-    {
-      "id": "pullman",
-      "estado": "al-dia",
-      "verificado": {
-        "ref": "main",
-        "date": "2026-07-18",
-        "source": "git-doc"
-      },
-      "archivos": 13,
-      "deriva": {
-        "cambiados": 0,
-        "pct": 0,
-        "hubs": 0,
-        "archivos": []
-      },
-      "commits": null,
-      "huerfanos": [],
-      "rutas_muertas": [],
-      "pendiente_merge": null
-    },
-    {
-      "id": "redirect",
-      "estado": "al-dia",
-      "verificado": {
-        "ref": "main",
-        "date": "2026-07-31",
-        "source": "manual"
-      },
-      "archivos": 24,
-      "deriva": {
-        "cambiados": 0,
-        "pct": 0,
-        "hubs": 0,
-        "archivos": []
-      },
-      "commits": null,
-      "huerfanos": [
-        "legacy-backend/database/migrations/2026_07_01_120000_add_template_name_to_creditop_x_reminder_messages.php"
-      ],
       "rutas_muertas": [],
       "pendiente_merge": null
     },
@@ -1046,27 +2999,11 @@
         "archivos": []
       },
       "commits": null,
-      "huerfanos": [],
-      "rutas_muertas": [],
-      "pendiente_merge": null
-    },
-    {
-      "id": "trazador",
-      "estado": "al-dia",
-      "verificado": {
-        "ref": "main",
-        "date": "2026-08-07",
-        "source": "cabecera"
-      },
-      "archivos": 15,
-      "deriva": {
-        "cambiados": 0,
-        "pct": 0,
-        "hubs": 0,
-        "archivos": []
-      },
-      "commits": null,
-      "huerfanos": [],
+      "huerfanos": [
+        "legacy-backend/Modules/Loans/App/Http/Requests/RegenerateCredifamiliaDocumentsRequest.php",
+        "legacy-backend/Modules/Loans/App/Services/CredifamiliaDocumentRegenerationService.php",
+        "legacy-backend/database/migrations/2026_08_06_120000_add_regenerate_request_voucher_permission.php"
+      ],
       "rutas_muertas": [],
       "pendiente_merge": null
     }

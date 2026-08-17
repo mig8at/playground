@@ -142,6 +142,13 @@ def main():
 
     try:
         cfg = gemini.config()
+        # ⚠ Los pasos se agrandan con las herramientas, y esto lo aprendí rompiéndolo: al pasar de 6
+        # a 10 herramientas el seleccionador empezó a agotar los 12 pasos del default JUSTO cuando
+        # ya tenía la respuesta —medido sobre la regeneración de documentos de Credifamilia: en el
+        # paso 6 encontró el servicio con `quien_usa` y en el 12 se cortó sin entregar—. Dar
+        # capacidad sin dar lugar para ejercerla la convierte en una trampa: explora más, y se queda
+        # sin margen para concluir.
+        cfg["max_pasos"] = max(cfg["max_pasos"], 18)
         pregunta = args[0] if args and not args[0].startswith("--") else PREGUNTA
         import extraer as _ex  # vecino: vive en esta misma carpeta desde la unificación
         if ya:

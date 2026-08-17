@@ -211,9 +211,16 @@ def quien_usa(simbolo, repos=None, cuantos=40):
     muerto.
     """
     alias = [a for a in (repos or list(ROOTS)) if a in ROOTS]
-    if not simbolo or len(simbolo.strip()) < 3:
-        return {"error": "pasá un símbolo de al menos 3 caracteres"}
-    s = simbolo.strip()
+    # Acepta varios símbolos por la misma razón que `que_hay_en`: tantear nombres es de a tandas —
+    # medido, un seleccionador quemó cuatro pasos probando cuatro candidatos de uno en uno.
+    simbolos = [simbolo] if isinstance(simbolo, str) else list(simbolo or [])
+    simbolos = [x.strip() for x in simbolos if x and len(x.strip()) >= 3][:6]
+    if not simbolos:
+        return {"error": "pasá al menos un símbolo de 3 caracteres o más"}
+    if len(simbolos) > 1:
+        return {"buscados": simbolos,
+                "resultados": [quien_usa(s, repos, cuantos) for s in simbolos]}
+    s = simbolos[0]
     define, usan, fallaron = [], [], []
     for a in alias:
         r = subprocess.run(["git", "-C", ROOTS[a], "grep", "-n", "--no-color", "-F", s, "main"],
@@ -245,17 +252,27 @@ def quien_usa(simbolo, repos=None, cuantos=40):
 
 
 def que_hay_en(ruta):
-    """Qué significa un archivo EN EL NEGOCIO, sin abrirlo: qué lenders, comercios, tablas, estados y
-    `response_type` toca, qué nodos lo describen y si bifurca por ambiente.
+    """Qué significan uno o VARIOS archivos EN EL NEGOCIO, sin abrirlos: qué lenders, comercios,
+    tablas, estados y `response_type` tocan, qué nodos los describen y si bifurcan por ambiente.
 
-    Sirve para decidir si vale la pena abrirlo: un archivo de 60 KB cuesta ~15.000 tokens y esto
-    cuesta veinte."""
+    Sirve para decidir si vale la pena abrirlos: un archivo de 60 KB cuesta ~15.000 tokens y esto
+    cuesta veinte.
+
+    ⚠ Acepta una LISTA, y no es un adorno. Medido el 2026-08-16: un seleccionador gastó los pasos 8,
+    9, 10, 11 y 12 —los últimos que tenía— llamando a esto una vez por archivo, y se quedó sin
+    presupuesto con la respuesta ya en la mano. Una herramienta que se llama cinco veces seguidas
+    para cinco cosas del mismo tipo tiene que aceptar las cinco: el paso es el recurso escaso, no el
+    dato.
+    """
     import archivos as _arch
-    d = _arch.de_ruta(ruta)
-    if not d:
-        return {"ruta": ruta, "sin_datos": "no está en el índice de tags — puede ser un archivo que "
-                                           "no toca nada del vocabulario de negocio, o una ruta mal escrita"}
-    return dict(d, ruta=ruta, h=_extraer.hash_de(ruta))
+    rutas = [ruta] if isinstance(ruta, str) else list(ruta or [])
+    fuera = []
+    for r in rutas[:20]:
+        d = _arch.de_ruta(r)
+        fuera.append(dict(d, ruta=r, h=_extraer.hash_de(r)) if d else
+                     {"ruta": r, "sin_datos": "no está en el índice de tags — puede ser un archivo "
+                                              "que no toca vocabulario de negocio, o una ruta mal escrita"})
+    return fuera[0] if len(fuera) == 1 else {"cuantos": len(fuera), "archivos": fuera}
 
 
 HERRAMIENTAS = {
@@ -358,7 +375,8 @@ HERRAMIENTAS = {
             "de 1, el símbolo vive en varios repos: fijate cuál es el que corre."
         ),
         "parameters": {"type": "object", "properties": {
-            "simbolo": {"type": "string", "description": "el nombre exacto, p. ej. 'stampCreditopXApproval'"},
+            "simbolo": {"type": "array", "items": {"type": "string"},
+                        "description": "uno o VARIOS nombres exactos (hasta 6) — pedí todos los candidatos de una, no de a uno"},
             "repos": {"type": "array", "items": {"type": "string"},
                       "description": "acotar a estos alias; vacío = los 12"},
             "cuantos": {"type": "integer", "description": "máximo de usos a devolver (tope 120)"},
@@ -373,7 +391,8 @@ HERRAMIENTAS = {
             "veinte tokens contra los ~15.000 de abrir un archivo grande. Usalo para decidir si vale."
         ),
         "parameters": {"type": "object", "properties": {
-            "ruta": {"type": "string", "description": "'alias/camino' tal cual figura en los índices"},
+            "ruta": {"type": "array", "items": {"type": "string"},
+                     "description": "una o VARIAS rutas 'alias/camino' (hasta 20) — pedí todas de una, no de a una"},
         }, "required": ["ruta"]},
     }, que_hay_en),
 

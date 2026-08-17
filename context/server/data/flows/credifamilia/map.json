@@ -149,6 +149,11 @@
     "legacy-backend/app/Services/Pdf/CredifamiliaFormalizationService.php",
     "legacy-backend/app/Services/Pdf/CredifamiliaLegalizationDocumentService.php",
     "legacy-backend/app/Services/Pdf/PdfMergeService.php",
-    "legacy-backend/database/seeders/Lenders/CredifamiliaConsumoSeeder.php"
+    "legacy-backend/database/seeders/Lenders/CredifamiliaConsumoSeeder.php",
+    "legacy-backend/Modules/Loans/App/Services/CredifamiliaDocumentRegenerationService.php",
+    "legacy-backend/Modules/Loans/App/Http/Controllers/Admin/CredifamiliaDocumentRegenerationController.php",
+    "legacy-backend/Modules/Loans/App/Http/Requests/RegenerateCredifamiliaDocumentsRequest.php",
+    "legacy-backend/Modules/Loans/routes/admin.php",
+    "legacy-backend/Modules/Loans/App/Providers/RouteServiceProvider.php"
   ]
 }
