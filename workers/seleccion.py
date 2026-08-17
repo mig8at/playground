@@ -150,7 +150,7 @@ def main():
         # sin margen para concluir.
         cfg["max_pasos"] = max(cfg["max_pasos"], 18)
         pregunta = args[0] if args and not args[0].startswith("--") else PREGUNTA
-        import extraer as _ex  # vecino: vive en esta misma carpeta desde la unificación
+        import extraer as _ex  # vecino: vive en esta misma carpeta
         if ya:
             rutas_ya = [_ex.resolver([h])["resueltos"].get(h, h) for h in ya]
 

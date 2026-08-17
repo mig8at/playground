@@ -63,7 +63,7 @@ def main():
     ya = {a.get("h", "").upper() for a in A["archivos"]}
 
     # Las rutas de A van EN EL PROMPT: sin verlas no puede evitarlas, y le pediríamos algo imposible.
-    import extraer as _ex  # vecino: vive en esta misma carpeta desde la unificación
+    import extraer as _ex  # vecino: vive en esta misma carpeta
     res = _ex.resolver(list(ya))
     listado = "\n".join(f"  - {res['resueltos'].get(h, h)}" for h in ya)
 

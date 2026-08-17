@@ -9,8 +9,6 @@ preguntas que se hacen de verdad — «¿esto pasa?», «¿cuántas veces?», «
 ESTA solicitud?» — y son justo las que no se pueden contestar leyendo. Un `if` que existe en el código
 puede no haber disparado nunca en producción; una rama muerta se ve idéntica a una caliente.
 
-Nació como gemelo del subagente `forense` de `.claude/agents/`, retirado en la unificación: éste lo reemplaza.
-
 UN AMBIENTE POR CORRIDA, y es deliberado. Las herramientas NO reciben `target`: lo fija quien la lanza
 y el agente no puede cambiarlo. Así cada número del informe tiene procedencia inequívoca — no existe
 la duda de «¿ese conteo era de prod o del dev compartido?», que es exactamente el error que vuelve

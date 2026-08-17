@@ -71,7 +71,7 @@ def _claves(frases):
     tiene 4 letras— a `available_amount`. Se reusa el MISMO glosario de `indice.py`; tener
     dos habría sido la divergencia de siempre.
     """
-    import indice  # vecino: vive en esta misma carpeta desde la unificación
+    import indice  # vecino: vive en esta misma carpeta
     fuera = set()
     for p in re.findall(r"[A-Za-zÁ-úñÑ_]{4,}", " ".join(frases)):
         b = p.lower()

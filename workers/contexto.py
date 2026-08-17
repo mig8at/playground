@@ -5,11 +5,6 @@ No es un agente: es lo que los agentes importan. `seleccion.py` toma de acá sus
 en cada agente es la divergencia que no falla en ningún lado, sólo contesta distinto según a quién le
 preguntes.
 
-(Hasta 2026-08-16 este archivo era además un agente autónomo —el que «ruteaba solo»: mapa → nodos →
-leer → contestar—. Se retiró al unificar: el pipeline partido en seleccion→contraste→lector hace el
-mismo trabajo con presupuesto gobernado, y dos formas de lo mismo es exactamente lo que se vino a
-podar. El bucle viejo está en git: `git log --follow -- workers/contexto.py`.)
-
 ⚠ Todo acá es sólo lectura, y contra `main` — no contra lo que tengas checkeado. Los repos reales
 trabajan en ramas y stashes locales, así que leer el working tree daría respuestas sobre código que no
 está corriendo.

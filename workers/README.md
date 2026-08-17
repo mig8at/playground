@@ -7,12 +7,10 @@ Un solo proyecto con dos mitades que se necesitan:
 - **los AGENTES** — Gemini con el bucle a la vista, que consumen ese índice para elegir archivos,
   leerlos y concluir; y uno que no lee código: **mide** contra la base y los logs reales.
 
-Vivieron separados (`code-index/` y `agents/`) hasta 2026-08-16. Se unificaron porque la medición fue
-una sola: **los agentes rinden cuando cada herramienta les devuelve exactamente lo que hace falta** —
-concluyen bien sobre contexto ya armado, y queman presupuesto cuando tienen que *descubrir* (¿cómo se
-filtra un error? ¿qué columna es? ¿qué archivos existen?). O sea: el trabajo fino vive en los índices
-y en las herramientas, no en el prompt. Dos carpetas para eso era una frontera artificial — los
-seleccionadores ya importaban el índice.
+Van juntos porque **los agentes rinden cuando cada herramienta les devuelve exactamente lo que hace
+falta**: concluyen bien sobre contexto ya armado, y queman presupuesto cuando tienen que *descubrir*
+(¿cómo se filtra un error? ¿qué columna es? ¿qué archivos existen?). El trabajo fino vive en los
+índices y en las herramientas, no en el prompt — separarlos sería una frontera de mentira.
 
 > ⚠ La dependencia va en un solo sentido: **workers lee `context/`** (su `roots.py`, sus `map.json`)
 > **y `context/` no sabe que esto existe.** El enlace unidireccional evita que al mover una pieza la
@@ -346,38 +344,22 @@ Devolvería «no se hablan», que es una conclusión falsa y no un resultado vac
 | `contar_logs` | **cuántas** líneas matchean, contadas por Loki sobre la ventana entera |
 | `traza_de_solicitud` · `historia_de_persona` | el trazador por etapas, y los intentos de una persona |
 
-### La trampa que casi se queda adentro: una muestra disfrazada de conjunto
+### Contar y mirar son cosas distintas — las dos formas de mentir con logs
 
-La primera versión de `leer_logs` llamaba a `trazador -query`, que ya sabe hablar con Loki. Anduvo a la
-primera y el agente devolvió un informe con porcentajes. **Estaban todos mal.**
+**Una herramienta que devuelve un subconjunto tiene que decir que lo es.** `trazador -query` es una
+sonda de acceso: con `-limit 200` trae 200 líneas e **imprime cuatro**, y desde adentro las cuatro se
+ven idénticas a doscientas. Contarlas dio *«46% de los errores son del profiler»*; el real era **9,2%**
+(307 de 3.343 en 24h). Por eso `leer_logs` avisa cuando llegó al tope, y **`contar_logs` existe aparte**:
+contar no puede depender de mirar.
 
-`trazador -query` es una **sonda de acceso**, no un lector: con `-limit 200` trae 200 líneas e imprime
-**cuatro**. Para un humano que pregunta «¿puedo leer?» está perfecto. Para un agente es veneno — recibe
-una muestra presentada como el conjunto, cuenta sobre ella y devuelve *«46% de los errores son del
-profiler»* con total confianza. El número real, contado por Loki: **9,2%** (307 de 3.343 en 24h).
+**Y contar mal es más silencioso todavía.** Un `count_over_time(…[24h])` pedido por RANGO no da un
+total: da una ventana de 24h por cada `step`, todas solapadas y alineadas a límites absolutos. Quedarse
+con el máximo devolvió **35.036** donde el total era **3.343** — un entero plausible, sin ninguna señal
+de que estaba mal. El total lo da la consulta **instantánea** (`/query`). Mismo arreglo en el trazador
+(`valorInstantaneo`).
 
-Lo que falló no fue el modelo: **fue la herramienta, que le mintió**. Y ninguna instrucción del prompt
-lo habría salvado, porque desde adentro las cuatro líneas se ven idénticas a doscientas. De ahí salen
-las dos reglas:
-
-- una herramienta que devuelve un subconjunto **tiene que decir que lo es** (`leer_logs` avisa cuando
-  llegó al tope);
-- y contar nunca puede depender de mirar: por eso `contar_logs` existe aparte, y le pregunta a Loki.
-
-### Y el segundo error, que se cometió arreglando el primero
-
-`contar_logs` nació usando `query_range` y quedándose con el `max()` de la serie. Devolvió **35.036**.
-El total real era **3.343**.
-
-Un `count_over_time(…[24h])` pedido por rango no devuelve un total: devuelve **una ventana de 24h por
-cada `step`**, todas solapadas y alineadas a límites absolutos de tiempo. Quedarse con el máximo elige
-la ventana más grande, que cubre **otro período**. El total lo da la consulta **instantánea**
-(`/query`), que evalúa la expresión una sola vez.
-
-Es peor que el error que vino a corregir, porque **no se nota**: devuelve un entero plausible, sin
-señal de que algo salió mal. Y se escribió con la lección anterior fresca. Por eso las dos correcciones
-viven acá y no sólo en el commit: *el reflejo de «ya lo arreglé» es exactamente cuando se mete el
-siguiente*. El mismo arreglo fue al trazador (`trazador/server/main.go`, `valorInstantaneo`).
+> Los dos errores fueron de la herramienta, no del modelo — y el segundo se escribió arreglando el
+> primero. **El reflejo de «ya lo arreglé» es exactamente cuando se mete el siguiente.**
 
 ---
 
@@ -388,6 +370,3 @@ siguiente*. El mismo arreglo fue al trazador (`trazador/server/main.go`, `valorI
 - **La key nunca se commitea**: `.env` está gitignoreado, `.env.example` es la plantilla versionada.
   Los `_*.json` (selecciones, contrastes) son artefactos de corrida y tampoco se commitean.
 - Python **3.9** del sistema y **solo stdlib** (`urllib`) — sin `pip install`, sin venv.
-- Hubo dos agentes más: `frontend.py` (¿el frontend está sano hoy?, el primero que se escribió) y el
-  `contexto.py` autónomo (ruteaba solo por el árbol). Se retiraron en la unificación — el pipeline los
-  superó y dos formas de lo mismo era el problema a podar. Viven en git: `git log --follow -- workers/`.
