@@ -269,7 +269,15 @@ def historia_de_persona(q):
     return _trazador("-buscar", v, timeout=300)
 
 
+import contexto as _ctx
+
 HERRAMIENTAS = {
+    # ⚠ La única herramienta de este agente que NO mide: va del log al CÓDIGO que lo emitió. Está acá
+    # porque el circuito se cierra en este lado —quien acaba de leer una línea de error es quien
+    # necesita saber de qué archivo salió— y porque la llave es el MENSAJE, que sólo se tiene después
+    # de leer el log. La línea no trae el archivo: `extra_file` apunta al framework (medido en prod).
+    "codigo_de_log": _ctx.HERRAMIENTAS["codigo_de_log"],
+
     "tablas": ({
         "name": "tablas",
         "description": "Qué tablas existen en la base, con su conteo aproximado de filas. `patron` "

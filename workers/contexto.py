@@ -246,6 +246,79 @@ def quien_usa(simbolo, repos=None, cuantos=40):
     }
 
 
+def codigo_de_log(mensaje, repos=None):
+    """De una línea de LOG al CÓDIGO que la emitió.
+
+    La idea que lo motivó: pasar de un log al archivo y de ahí a su contenido e imports. El eslabón
+    que faltaba no era el hash —ése ya existe— sino la LLAVE, porque **la línea de log no trae el
+    archivo**. Medido en prod el 2026-08-17 sobre una solicitud real: el campo `extra_file` aparece
+    en ~5% de las líneas y apunta a `vendor/laravel/framework`, o sea el logger registrando su propia
+    línea, no la de quien llamó. Cero rutas de la app.
+
+    Pero el MENSAJE es un literal del código, y por lo tanto resuelve a un archivo. Ésa es la llave.
+    Devuelve el `h`, así que enganchado con `que_hay_en(h)` o `pedir_archivo(h)` la cadena queda
+    completa: log → archivo → qué toca → el código.
+
+    ⚠ Dos cosas que hay que leer bien en el resultado:
+      · Los mensajes suelen llevar valores interpolados («… para entidad 24»), así que se busca el
+        PREFIJO estático más largo que matchee. `prefijo_usado` dice con cuánto se resolvió.
+      · Casi todo CreditOp vive DOS VECES, así que un mensaje suele aparecer en `application` y en
+        `legacy-backend`. No es ambigüedad del método: es el parallel-run. El `service_name` de la
+        línea de log dice cuál de los dos corrió.
+    """
+    if not mensaje or len(mensaje.strip()) < 12:
+        return {"error": "pasá un fragmento de mensaje de al menos 12 caracteres"}
+    # Si viene una LÍNEA entera se le saca el `message`. ⚠ El JSON puede venir TRUNCADO —las líneas
+    # de log se recortan para mostrarlas, y ahí `json.loads` falla—, así que hay un segundo intento
+    # por regex. Sin él, pegar una línea copiada de pantalla buscaba el JSON crudo como si fuera el
+    # mensaje y no encontraba nada: el fallo silencioso de siempre.
+    m = mensaje.strip()
+    if '"message"' in m or m.startswith("{"):
+        try:
+            m = json.loads(m).get("message", m)
+        except json.JSONDecodeError:
+            g = re.search(r'"message"\s*:\s*"((?:[^"\\]|\\.)*)"', m)
+            if g:
+                m = g.group(1).encode().decode("unicode_escape", "replace")
+    m = " ".join(m.split())
+    alias = [a for a in (repos or list(ROOTS)) if a in ROOTS]
+
+    # Se prueba el mensaje entero y después prefijos cada vez más cortos: la parte interpolada está
+    # casi siempre al final, así que el prefijo es lo que sobrevive.
+    for corte in (len(m), 80, 60, 45, 32, 22, 14):
+        p = m[:corte].rstrip(" :.-,")
+        if len(p) < 12:
+            break
+        hits = []
+        for a in alias:
+            r = subprocess.run(["git", "-C", ROOTS[a], "grep", "-n", "--no-color", "-F", p, "main"],
+                               capture_output=True, text=True, timeout=120)
+            if r.returncode not in (0, 1):
+                continue
+            for linea in r.stdout.splitlines()[:40]:
+                sin = linea.replace("main:", "", 1)
+                ruta, _, resto = sin.partition(":")
+                n, _, texto = resto.partition(":")
+                full = f"{a}/{ruta}"
+                hits.append({"ruta": full, "linea": n, "h": _extraer.hash_de(full),
+                             "es_test": "test" in ruta.lower(),
+                             "codigo": texto.strip()[:150]})
+        if hits:
+            reales = [h for h in hits if not h["es_test"]]
+            return {
+                "busque": p, "prefijo_usado": f"{len(p)}/{len(m)} chars",
+                "cuantos": len(hits),
+                "candidatos": (reales or hits)[:12],
+                "tests": len(hits) - len(reales),
+                "nota": ("varios candidatos suele ser el PARALLEL-RUN, no ambigüedad: el mismo mensaje "
+                         "vive en `application` y en `legacy-backend`. El `service_name` de la línea de "
+                         "log dice cuál corrió. Con el `h` pedí el archivo o preguntá `que_hay_en`."),
+            }
+    return {"busque": m[:60], "cuantos": 0,
+            "nota": "ningún literal matchea. Puede ser un mensaje armado por completo con variables, "
+                    "venir de una librería (no del código de CreditOp), o de un repo fuera de ROOTS."}
+
+
 def que_hay_en(ruta):
     """Qué significan uno o VARIOS archivos EN EL NEGOCIO, sin abrirlos: qué lenders, comercios,
     tablas, estados y `response_type` tocan, qué nodos los describen y si bifurcan por ambiente.
@@ -377,6 +450,21 @@ HERRAMIENTAS = {
             "cuantos": {"type": "integer", "description": "máximo de usos a devolver (tope 120)"},
         }, "required": ["simbolo"]},
     }, quien_usa),
+
+    "codigo_de_log": ({
+        "name": "codigo_de_log",
+        "description": (
+            "De una línea de LOG al CÓDIGO que la emitió. Pasale el mensaje (o la línea entera, "
+            "aunque venga truncada) y devuelve archivo:línea con su `h`, para pedir el archivo o "
+            "preguntar `que_hay_en`. ⚠ Varios candidatos suele ser el parallel-run —el mismo mensaje "
+            "vive en `application` y en `legacy-backend`—: el `service_name` del log dice cuál corrió."
+        ),
+        "parameters": {"type": "object", "properties": {
+            "mensaje": {"type": "string", "description": "el mensaje del log, o la línea cruda"},
+            "repos": {"type": "array", "items": {"type": "string"},
+                      "description": "acotar a estos alias; vacío = los 12"},
+        }, "required": ["mensaje"]},
+    }, codigo_de_log),
 
     "que_hay_en": ({
         "name": "que_hay_en",

@@ -321,6 +321,7 @@ no.** Todo lo demás son GET.
 | `gemelos` | qué existe en los DOS monolitos y qué **divergió** (321 idénticos · 213 divergidos) |
 | `quien_usa` | dónde se **define** y dónde se **usa** un símbolo, en los 12 repos a la vez |
 | `que_hay_en` | qué significa un archivo en el negocio **sin abrirlo** (~20 tokens contra ~15.000) |
+| `codigo_de_log` | de una línea de LOG al código que la emitió — devuelve `archivo:línea` con su `h` |
 | `leer_codigo` · `buscar_en_codigo` · `pedir_archivo` | el código real, siempre desde `main` |
 
 Las cuatro del medio entraron el 2026-08-16 tapando un hueco que se encontró **comparando lo que el
@@ -343,6 +344,25 @@ Devolvería «no se hablan», que es una conclusión falsa y no un resultado vac
 | `agrupar_logs` | los TIPOS de mensaje, agrupados por forma. La taxonomía en un paso |
 | `contar_logs` | **cuántas** líneas matchean, contadas por Loki sobre la ventana entera |
 | `traza_de_solicitud` · `historia_de_persona` | el trazador por etapas, y los intentos de una persona |
+| `codigo_de_log` | la única que no mide: del log al CÓDIGO que lo emitió |
+
+### Del log al código: la llave es el MENSAJE, no un hash
+
+La cadena natural sería `log → hash de archivo → contenido`, pero **falta el primer eslabón: la línea
+de log no trae el archivo**. Medido en prod: el campo `extra_file` aparece en ~5% de las líneas y
+apunta a `vendor/laravel/framework` — el logger registrando su propia línea, no la de quien llamó.
+
+Lo que sí resuelve es el **mensaje**, porque es un literal del código. Probado sobre seis líneas
+crudas de producción: **seis de seis** resolvieron a un `archivo:línea` único. Y como devuelve el `h`,
+engancha con el resto:
+
+    log → codigo_de_log → h → que_hay_en(h)   qué toca ese archivo, sin abrirlo
+                            → leer_codigo(h)  el código, en su línea
+
+⚠ Dos lecturas que hay que hacer bien: los mensajes llevan valores interpolados, así que busca el
+prefijo estático más largo (`prefijo_usado` dice con cuánto resolvió); y **varios candidatos suele ser
+el parallel-run**, no ambigüedad — el mismo mensaje vive en los dos monolitos, y el `service_name` de
+la línea dice cuál corrió.
 
 ### Contar y mirar son cosas distintas — las dos formas de mentir con logs
 
