@@ -11,6 +11,13 @@ con descripción— está en 4 de 45 specs; es un patrón demo que no se propag�
     Ecommerce LOCAL real: /checkout → solicitar → amount → phone → OTP(real) → personal-info
     fecha imposible (31/02/2010) → ONB005 + EXPEDITION_DATE_INVALID
 
+⚠ ES DERIVADO, PERO DE PROSA HUMANA — y eso lo hace distinto de los otros mapas. `archivos.json` sale
+de la ESTRUCTURA del código (nombres de tabla, de clase): si el código cambia, el mapa cambia bien.
+Acá el contenido es una frase que alguien escribió en un `test('…')`, así que **el mapa hereda la
+calidad del nombre**. Un test mal nombrado produce una entrada inútil, y renombrarlo cambia el mapa.
+No es un defecto que se pueda arreglar acá: es una propiedad de la fuente, y conviene saberla al leer.
+Medido hoy: mediana de 64 caracteres por escenario, mínimo 18 — o sea que el equipo los nombra bien.
+
 ⚠ Y LO CONSTRUYE `workers`, NO `harness`, siguiendo la regla que ya rige con `context/`: workers LEE
 las otras herramientas y no escribe en ellas. El harness sigue siendo dueño de sus specs; acá sólo se
 derivan. Si un spec cambia de nombre, se reconstruye y listo.
@@ -27,7 +34,11 @@ HARNESS = AQUI.parent / "harness"
 MAPA = AQUI / "flujos.json"
 
 # Un nombre de test es la unidad: existe en 37 de 45 specs y describe el escenario entero.
-_TEST = re.compile(r"\btest(?:\.\w+)?\(\s*['\"`]([^'\"`]{8,})['\"`]")
+# ⚠ El delimitador se CAPTURA y se exige el mismo al cerrar. Con una clase `[^'"`]` el nombre se
+# corta en la primera comilla de cualquier tipo — y los nombres de acá empiezan con una: el test
+# `'"Sí" → GUARDA flow_id=2 en DB → el buró LEE la DB y lo OMITE'` quedaba en «Pullman ·». Un recorte
+# que no rompe nada: deja un nombre corto y plausible, que es la peor forma de perder datos.
+_TEST = re.compile(r"""\btest(?:\.\w+)?\(\s*(['"`])((?:\\.|(?!\1).)*?)\1""", re.S)
 _STEP = re.compile(r"\.step\(\s*'((?:[^'\\]|\\.)*)'\s*,\s*'((?:[^'\\]|\\.)*)'", re.S)
 # Los códigos de error de CreditOp: ONB002, ONB005… y los SCREAMING_SNAKE del front/back.
 _COD = re.compile(r"\b(ONB\d{3}|[A-Z][A-Z0-9]{2,}(?:_[A-Z0-9]+){1,})\b")
@@ -45,7 +56,7 @@ def construir(verboso=True):
             continue
         rel = str(p.relative_to(HARNESS))
         t = p.read_text(encoding="utf-8", errors="replace")
-        escenarios = [" ".join(x.split()) for x in _TEST.findall(t)]
+        escenarios = [" ".join(m[1].split()) for m in _TEST.findall(t) if len(m[1]) >= 8]
         if not escenarios:
             continue
         pasos = [{"que": a, "detalle": b} for a, b in _STEP.findall(t)]
