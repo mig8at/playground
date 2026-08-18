@@ -144,10 +144,11 @@
         <p class="nota oculto" id="ag_apagado">No responde: se le dicta <code>codRespuesta 16</code>
           (sin afiliación). La cascada sigue a Mareigua.</p>
         <p class="nota ag_datos">⚠ Si responde pero el nombre <b>no cuadra</b>, la solicitud NO se frena
-          de una: reintenta con TusDatos. Sólo frena cuando se agotan los intentos
-          (<code>personal_info_validation_error_max_attempts</code>, hoy <b>2</b> en local) — y ese
-          contador es <b>por usuario y cacheado</b>, así que el mismo cliente reintentando se comporta
-          distinto en la segunda vuelta.</p>
+          de una: reintenta con TusDatos. Los <b>dos primeros</b> intentos pasan a TusDatos; el
+          <b>tercero</b> devuelve <code>ONB005</code> y ahí sí va al cliente
+          (<code>personal_info_validation_error_max_attempts = 2</code>, igual en prod que en local).
+          El contador es <b>por usuario</b> y vive en caché <b>5 minutos</b>: si probás el mismo caso
+          tres veces seguidas, la tercera se comporta distinto — y si esperás 5 minutos, se reinicia.</p>
       </div>
 
       <!-- 3 · MAREIGUA -->

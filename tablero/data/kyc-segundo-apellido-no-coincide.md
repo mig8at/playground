@@ -183,10 +183,21 @@ destildarlo no deshabilitaba nada — cortaba la cascada ahí. Ese caso ya no ex
 **Las DOS salidas de «resuelve pero el nombre no cuadra».** Corregido tras una observación de Miguel,
 que esperaba que ese caso fuera directo al cliente. El código hace las dos cosas
 (`OnboardingService:370`): mientras haya reintentos va a **TusDatos**; cuando se agotan devuelve
-**ONB005** y ahí sí va al cliente. Lo decide
-`personal_info_validation_error_max_attempts` — **2** en la base local — y ⚠ el contador es **por
-usuario y cacheado**, así que el mismo cliente reintentando se comporta distinto en la segunda vuelta.
-El diagrama estaba incompleto, no equivocado; ahora dibuja las dos.
+**ONB005** y ahí sí va al cliente. El diagrama estaba
+incompleto, no equivocado; ahora dibuja las dos.
+
+⚠ **Ese ruteo NO es nuestro y conviene que quede escrito**: `shouldValidateTusDatos` y las dos ramas
+que lo consultan vienen del refactor de Jose Escobar del **2025-08-20** (`55fad0fc`, PR #36), con la
+estructura ya idéntica a la de hoy. Lo único que se le sumó después fue observabilidad (`91e7fb46`,
+2026-05-28). De esta rama sale sólo el arreglo de los dos strings que mentían.
+
+**El contador, medido en prod el 2026-08-18:** `personal_info_validation_error_max_attempts` = **2**,
+igual que en local. `personal_info_validation_error_cache_duration` **no existe como fila**, así que
+cae al default del código: **5 minutos**. La semántica exacta —leída del código, no supuesta— es que
+los **dos primeros** intentos con el nombre mal pasan a TusDatos y el **tercero** devuelve `ONB005`;
+la clave es `personal-info-validation-error-{user_id}`, o sea **por usuario**, y se renueva en cada
+escritura. Para QA importa: probar el mismo caso tres veces seguidas da un resultado distinto la
+tercera, y esperar 5 minutos lo reinicia.
 
 **Verificado corriendo, dos veces.** Desde la página se dictó Ágil `16` + Mareigua `1` + segundo
 apellido en «NO coincide»; el flujo por API respondió `ONB005` / `KYC_VALIDATION_FAILED` («TusDatos
