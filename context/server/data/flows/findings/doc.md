@@ -1898,3 +1898,30 @@ en producción — el webhook no deja registro cuando `firstOrFail()` lanza, as�
   muerto fallan distinto** — la segunda da un error de red que el código suele capturar, la primera un
   `TypeError` que nadie esperaba y que escala. Cuando se apaga una integración en un ambiente, conviene
   apuntarla a un puerto cerrado antes que borrarla.
+
+### F-143 · Una entidad cableada a la SUCURSAL pero no al COMERCIO tira el listado entero
+
+- **Síntoma:** el listado de un comercio revienta con `Attempt to read property "sort" on null`. No
+  falla la card de esa entidad: **falla el listado completo**, y el comercio queda sin ofrecer nada.
+- **Causa raíz (verificada 2026-08-18 en local contra `main`):** el listado se arma desde
+  `lenders_by_allied_branches` (nivel SUCURSAL) pero el `sort` se busca en `lenders_by_allieds` (nivel
+  COMERCIO) — `Modules/Onboarding/App/Services/lenders/LenderProbabilitySortingService.php:26-27`:
+  `$lender_sort = $lenders_sort_data->get($lender->id); $lender->sort = $lender_sort->sort;` sin
+  comprobar null. Una entidad presente en la sucursal y ausente del comercio devuelve `null` y el
+  acceso a `->sort` lanza.
+- **Por qué la inconsistencia es POSIBLE:** los dos niveles son tablas separadas y **no hay herencia
+  viva** entre ellas — habilitar una entidad copia filas, no las deriva. Nada impide que una sucursal
+  tenga una entidad que su comercio no tiene.
+- **Evidencia y alcance:** el comercio `Creditop` (allied 24) tiene en sus sucursales tres entidades
+  que NO están en `lenders_by_allieds`: **57 (Crédito Claro), 11 (Su+pay) y 52 (Wompi)**. En el dump
+  local, **5 comercios** tienen al menos una entidad en esa situación.
+- **⚠ Se confunde con F-142.** Los dos se ven igual desde afuera —listado vacío, «el comercio no
+  ofrece nada»— y son causas distintas: aquélla es una variable de entorno ausente, ésta es data
+  inconsistente. Sólo el mensaje de la excepción los separa, y por eso el runner lo imprime en vez de
+  reportar «0 entidades».
+- **Arreglo:** en el servicio, tolerar el null (`$lender_sort?->sort ?? <default>`) o excluir la card;
+  y en los datos, decidir si una entidad de sucursal sin fila de comercio es válida. **No aplicado** —
+  la decisión de producto no está tomada.
+- **Estado:** vivo en `main`. La regla general: **cuando dos tablas describen lo mismo a distinto
+  nivel y no hay herencia, la que consulta tiene que tolerar el hueco** — el `->` directo convierte un
+  dato faltante de UNA entidad en una caída de TODAS.
