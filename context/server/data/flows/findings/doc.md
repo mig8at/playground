@@ -1842,3 +1842,29 @@ en producción — el webhook no deja registro cuando `firstOrFail()` lanza, as�
 - **Estado:** vivo. La regla general: **un mock que responde 200 a todo convierte un fallo de
   integración en una ausencia silenciosa**, que es indistinguible de una exclusión por reglas. Un mock
   que devolviera 404 en las rutas que no conoce haría ruido — y el ruido acá sería la señal.
+
+### F-141 · La pre-aprobación de `rt≠0` la dispara el FRONT, así que una corrida por API no la ejercita
+
+- **Síntoma:** corrés el flujo entero por API —sin navegador— hasta el listado, y concluís sobre qué
+  entidades quedaron pre-aprobadas. La conclusión es **incompleta y no avisa**: para la mayoría de las
+  `rt≠0` la pre-aprobación **nunca se consultó** en esa corrida.
+- **Causa raíz (verificada 2026-08-18 contra `main` de `frontend-monorepo`):** el listado del backend
+  devuelve las cards, y es el **loader del wizard** quien dispara una promesa de pre-aprobación por
+  entidad elegible contra el microservicio —
+  `apps/loan-request-wizard/app/routes/lenders-marketplace/available-lenders.tsx:149`
+  (`process.env.VITE_PREAPPROVALS_ENDPOINT`), server-to-server, con streaming por entidad. Sin front,
+  ese paso no ocurre: el backend ya devolvió su respuesta y nadie llama al MS.
+- **⚠ La excepción que confunde:** **Meddipay (39) SÍ se resuelve en el backend**, inline, dentro de
+  `Modules/Onboarding/App/Services/lenders/PreApprovedLenderService.php:453` (`if ($lender->id == 39)`,
+  id quemado). Así que una corrida por API **sí** ejercita su pre-aprobación y **no** la de las demás.
+  Ver una entidad pre-aprobada en una corrida headless no autoriza a suponer que las otras pasaron por
+  el mismo camino.
+- **Evidencia:** el mock del MS (`harness/mock-preapprovals`, :8095) acepta el escenario por petición
+  (`?status=`, header `x-mock-status`, `body.force_status`) — y en las corridas headless del
+  2026-08-18 **no recibió una sola llamada**, mientras que el mock de integraciones (:8099) sí
+  registró el `/User/Login` y el `/CREDITOP/Customer/CreateOrder` de Meddipay.
+- **Arreglo:** para validar el MS hay dos caminos y ninguno es la corrida headless actual: levantar el
+  wizard, o llamar al MS directamente con el contrato que el front usa. **No aplicado.**
+- **Estado:** vivo. La regla general: **cuando un paso del flujo vive en el cliente, una prueba
+  server-to-server lo saltea sin fallar** — y el resultado se ve completo. Antes de concluir sobre una
+  etapa, conviene preguntarse quién la dispara.

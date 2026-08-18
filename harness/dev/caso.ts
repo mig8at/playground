@@ -48,6 +48,9 @@ const LAMBDA = process.env.RISK_LAMBDA_URL
 // teléfonos ya tomados en ESTA corrida: dos casos en paralelo no pueden compartir uno
 const usados = new Set<string>();
 
+// El mock de integraciones de entidades (`mock-lenders`), donde se dicta qué contesta cada proveedor.
+const MOCK_LENDERS = process.env.MOCK_LENDERS_URL ?? 'http://localhost:8099';
+
 const arg = (n: string, d = ''): string => {
     const i = process.argv.indexOf(`--${n}`);
     return i > 0 && process.argv[i + 1] && !process.argv[i + 1].startsWith('--') ? process.argv[i + 1] : d;
@@ -61,6 +64,8 @@ const telefono = (i: number) => `313${String(2_000_000 + i).slice(0, 7)}`;
 type Caso = {
     comercio: string; lender: number | null;
     amount?: number; income?: number; score?: number;
+    // qué debe contestar cada integración PARA ESTE CASO: `pullman@meddipay=rechaza`
+    escenarios?: Record<string, string>;
 };
 
 /** `pullman` · `pullman:77` · `pullman@score=300,income=900000` · `pullman:77@amount=5000000`
@@ -75,7 +80,11 @@ function parseCaso(spec: string, dflt: { amount: number; income: number; score: 
     const c: Caso = { comercio, lender: l ? Number(l) : null, ...dflt };
     for (const kv of (params ?? '').split(',').filter(Boolean)) {
         const [k, v] = kv.split('=');
-        if (k === 'amount' || k === 'income' || k === 'score') c[k] = Number(v);
+        if (k === 'amount' || k === 'income' || k === 'score') { c[k] = Number(v); continue; }
+        // cualquier otra clave es el ESCENARIO de una entidad: `pullman@meddipay=rechaza`.
+        // Se dicta al mock de integraciones POR CÉDULA, así que dos casos en paralelo pueden pedir
+        // cosas distintas de la misma entidad sin pisarse.
+        (c.escenarios ??= {})[k] = v;
     }
     return c;
 }
@@ -212,6 +221,15 @@ async function dictarTodos(casos: Caso[]): Promise<string[]> {
     const fallos: string[] = [];
     for (let i = 0; i < casos.length; i++) {
         const doc = cedulaDe(i);
+        // el escenario de cada integración va acá también: es preparación del caso, y se dicta
+        // POR CÉDULA para que dos casos en paralelo puedan pedir cosas opuestas de la misma entidad
+        for (const [lender, modo] of Object.entries(casos[i].escenarios ?? {})) {
+            const r = await fetch(`${MOCK_LENDERS}/__mock/escenario`, {
+                method: 'POST', headers: { 'content-type': 'application/json' },
+                body: JSON.stringify({ lender, modo, doc }), signal: AbortSignal.timeout(8_000),
+            }).catch(() => null);
+            if (!r?.ok) fallos.push(`${lender}=${modo}`);
+        }
         const ok = await dictar(doc, 'agildata', respuestaAgildata(doc, casos[i].income!));
         if (ok) dictados.add(doc); else fallos.push(doc);
     }
@@ -220,6 +238,14 @@ async function dictarTodos(casos: Caso[]): Promise<string[]> {
 
 async function correrLambda(c: Caso, i: number): Promise<Res> {
     const doc = cedulaDe(i);
+    // los escenarios de integración se dictan JUNTO con el caso y por cédula
+    for (const [lender, modo] of Object.entries(c.escenarios ?? {})) {
+        const r = await fetch(`${MOCK_LENDERS}/__mock/escenario`, {
+            method: 'POST', headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ lender, modo, doc }), signal: AbortSignal.timeout(8_000),
+        }).catch(() => null);
+        if (!r?.ok) return { ...base, detalle: `no se pudo dictar ${lender}=${modo} al mock de integraciones` };
+    }
     const base: Res = { caso: c, ok: false, phone: '' };
 
     const tel = await telefonoBypass(i);
