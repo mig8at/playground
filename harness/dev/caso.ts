@@ -23,6 +23,16 @@
 // usuario y sus solicitudes. Si dos casos se pisan igual, es que comparten algo REAL (un lock de
 // comercio, un cupo, un asesor) — y eso es justo lo que uno quiere descubrir.
 //
+// VALIDADO A 10 EN PARALELO (2026-08-18). Tres rondas de 10 casos simultáneos con comercios
+// distintos, más dos fijos de control en las tres. 28 de 29 cerraron, ~31s por ronda, y los dos
+// controles devolvieron el listado **idéntico** en las tres rondas:
+//     pullman     [77, 100, 39, 68, 6, 9, 32]
+//     kreditkasa  [68, 6, 5, 41, 7, 29, 17, 30, 31, 16, 19, 34]
+// O sea que correr diez a la vez no altera el resultado de ninguno. El único fallo (`orthoarte`)
+// **también falla corriéndolo solo**: es un comercio roto en local por F-142, no una carrera. Esa
+// distinción —volver a correr el caso SOLO— es la que separa un hallazgo de un artefacto, y conviene
+// hacerla siempre antes de reportar un fallo de una corrida paralela.
+//
 // Gotchas heredados, que acá aplican igual: `E2E_TARGET` default es dev → se fuerza local · UA de
 // iPhone SIEMPRE (con UA de escritorio, 403) · en `main` sin `H2O_API_HOST` el listado da 500.
 
