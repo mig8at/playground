@@ -31,6 +31,16 @@
 // ⚠ Cerrar cuesta: ~90s por caso contra ~6s hasta el listado. Para barrer muchos comercios conviene
 // no pedirlo, y reservarlo para los que se quieren probar de punta a punta.
 //
+// ESCALA MEDIDA (2026-08-18, contra el backend local en Docker):
+//     10 casos → 29s     20 → 60s     30 → 90s
+// Crece LINEAL, así que el cuello es el backend y no el runner: no hay paralelismo real del lado del
+// servidor, pero tampoco degradación. Y lo que importa, la CORRECCIÓN aguanta: a 30 en paralelo los
+// dos controles devolvieron su listado conocido, idéntico al de la corrida de a uno.
+//     pullman     [77, 100, 39, 68, 6, 9, 32]
+//     kreditkasa  [68, 6, 5, 41, 7, 29, 17, 30, 31, 16, 19, 34]
+// A 30 fallaron 3 de 30, y los TRES por F-142 (Credifamilia con host nulo se lleva el listado entero).
+// Ninguno fue carrera.
+//
 // VALIDADO A 10 EN PARALELO (2026-08-18). Tres rondas de 10 casos simultáneos con comercios
 // distintos, más dos fijos de control en las tres. 28 de 29 cerraron, ~31s por ronda, y los dos
 // controles devolvieron el listado **idéntico** en las tres rondas:
@@ -242,22 +252,25 @@ function conductaDe(d: any): string {
 
 /** Elige un teléfono de bypass LIMPIO (sin usuario) del setting `qa_otp_bypass_phones`. El OTP es
  *  sus últimos 4 dígitos. Se saltea el de `mock_rules`, que iría al fixture. */
-async function telefonoBypass(i: number): Promise<string | null> {
+async function telefonoBypass(_i: number): Promise<string | null> {
     const row = await one<{ value: string }>(
         "SELECT value FROM settings WHERE `key`='qa_otp_bypass_phones'").catch(() => null);
     const tels: string[] = JSON.parse(row?.value ?? '[]').map(String);
     for (const t of tels) {
-        const n = await one<{ n: number }>('SELECT COUNT(*) AS n FROM users WHERE cell_phone=?', [t])
-            .catch(() => null);
-        if ((n?.n ?? 1) === 0 && !usados.has(t)) { usados.add(t); return t; }
-    }
-    // ⚠ Si no queda ninguno limpio, se RECICLA: cada corrida consume un teléfono (deja un usuario), y
-    // los 64 del setting se agotan en unas decenas de casos. Se scrubbea SÓLO el que este caso va a
-    // usar —nunca la lista entera— porque dos casos en paralelo borrándose usuarios entre sí es
-    // exactamente el fallo que este runner existe para evitar.
-    for (const t of tels) {
+        // ⚠ LA RESERVA VA ANTES DEL `await`, y no después de comprobar que está limpio. La versión
+        // anterior hacía `await` para contar usuarios y RECIÉN ahí `usados.add(t)`: entre esas dos
+        // líneas hay una ventana en la que otro caso concurrente pasa el mismo chequeo y se lleva el
+        // MISMO teléfono. A 10 en paralelo no mordió; a 30 mordería, y el síntoma sería un caso
+        // fallando por «documento ya en uso» — que no se parece en nada a su causa.
         if (usados.has(t)) continue;
         usados.add(t);
+        const n = await one<{ n: number }>('SELECT COUNT(*) AS n FROM users WHERE cell_phone=?', [t])
+            .catch(() => null);
+        if ((n?.n ?? 1) === 0) return t;
+        // Sucio: se RECICLA el que ya quedó reservado. Cada corrida consume un teléfono (deja un
+        // usuario) y los 64 del setting se agotan en unas decenas de casos. Se scrubbea SÓLO éste,
+        // nunca la lista entera: dos casos borrándose usuarios entre sí es el fallo que este runner
+        // existe para evitar.
         spawnSync('node', ['bin/dbops.ts', 'scrubphone', t],
                   { cwd: new URL('..', import.meta.url).pathname });
         return t;
@@ -408,7 +421,15 @@ async function correrLambda(c: Caso, i: number): Promise<Res> {
         original_amount: c.amount, amount: c.amount });
     // ⚠ el uReq viene en `errors.payload`, NO en `payload`: el usuario es temporal y la respuesta
     // llega como error `ONB002 "temporal user found"`. Es la trampa 3 del documento de la tarea.
-    const ur = otp.json?.errors?.payload?.user_request_id ?? otp.json?.payload?.user_request_id;
+    // ⚠ EL uReq VIENE EN TRES LUGARES DISTINTOS según cómo terminó la validación, y mirar sólo dos
+    // hace fallar el caso con «otp-validate sin uReq (HTTP 200)» — un mensaje que se contradice solo:
+    // HTTP 200 y sin dato. Se vio a 30 en paralelo, con el comercio `creditop`.
+    //   · usuario TEMPORAL  → llega como ERROR `ONB002 "temporal user found"` en `errors.payload`
+    //   · usuario ya válido → llega como éxito en `data.payload`
+    //   · variante suelta   → `payload` a secas
+    const ur = otp.json?.errors?.payload?.user_request_id
+        ?? otp.json?.data?.payload?.user_request_id
+        ?? otp.json?.payload?.user_request_id;
     if (!ur) return { ...base, detalle: `otp-validate sin uReq (HTTP ${otp.status})` };
     base.ur = ur;
 
