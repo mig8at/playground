@@ -1299,9 +1299,18 @@ dicen «COLOMBIANA». No falta funcionalidad: falta que el país sea un dato que
   **queda vacío**. En prod no pasa: los 325 comercios se reparten 314 Colombia / 11 RD y ninguno cae en
   la fila 1. Es un artefacto de los datos de dev, pero se va a reportar como bug si QA cae ahí.
 
-  **Novedad que desbloquea el ticket:** `gh` **ya tiene sesión** (`mig-creditop`, scope `repo`), así que
-  el bloqueante «no se pudieron abrir los PRs» del 2026-08-09 ya no aplica. ⚠ El base por defecto de
-  `legacy-backend` es `main`: un PR para staging hay que apuntarlo con `--base staging` a mano.
+  **🔴 Y el bloqueante real NO era abrir los PRs: es la REVISIÓN.** Medido el 2026-08-18: los **tres PRs
+  ya estaban abiertos desde el 2026-08-10** —front **#785**, backend **#1061**, admin **#50**, los tres
+  contra `main`— y siguen **OPEN, en `REVIEW_REQUIRED` y sin un solo toque desde ese día**. O sea que la
+  nota del 2026-08-09 («no hay PRs abiertos») quedó vieja al día siguiente, y lo que frena hace 8 días es
+  que nadie los revisó. (`gh` sí tiene sesión ahora — `mig-creditop`, scope `repo` — por si hay que
+  operarlos por consola.)
+
+  ⚠ **Y esos 3 PRs apuntan a `main`, no a `staging`.** El backend llegó a staging por un PR aparte
+  (**#1121**, `feature/pais-como-dato-onto-staging` → `staging`, mergeado hoy 13:40). Para que el
+  **front** llegue a staging hace falta el mismo movimiento: cortar de `origin/staging` y cherry-pickear
+  `410976d4` — simulado, entra **limpio**. El base por defecto de estos repos es `main`, así que un PR
+  para staging se apunta con `--base staging` a mano.
 
   **Y un arreglo del propio archivo:** la marca `## Tarea (publicable)` estaba **arriba** de la
   `## Bitácora`, y el extractor (`store.go`, «lo de abajo se publica») tomaba entonces **20.437 chars de
