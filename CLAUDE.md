@@ -28,6 +28,7 @@ herramienta: es suponer que no está y contestar de memoria.
 | **…y si `context/` no lo cubre** | `workers/` — el índice se deriva de `main`, así que cubre TODO el código, incluido lo que nadie escribió (ver abajo) |
 | **¿qué archivos toco para esto?** | `workers/cli.py buscar "…"` — describís en palabras, te da archivos con el porqué |
 | **¿cómo está construido este repo?** | `workers/cli.py repos <alias>` · `subramas` · `mapa` — entra POR REPO, no por síntoma |
+| **¿por qué este comercio/lender se porta distinto?** | `workers/cli.py quemado` — los lugares donde el código decide por IDENTIDAD y no por config, con cada id resuelto a su nombre. ⚠ indexado por (columna, id): `24` es Credifamilia como lender y *Creditop* como comercio |
 | **¿con qué se une esta tabla?** · **¿qué tablas toco para X?** | `workers/cli.py relaciones` — las 247 en 13 vecindarios. ⚠ el esquema declara **44** FK: las otras 388 relaciones están reconstruidas y cada una dice de dónde salió |
 | **¿quién llama a esto?** · **¿difieren los dos monolitos?** | herramientas de los agentes (`quien_usa`, `gemelos`); a mano, `workers/cli.py gemelos` |
 | **hay MUCHO código que leer para contestar** | `make agente-analisis PREGUNTA='…'` — plan → N buscadores → lector de 300k. La receta: `workers/README.md` §«Cómo se orquesta» |

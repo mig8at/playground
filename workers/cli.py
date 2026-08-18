@@ -185,6 +185,12 @@ def main():
     s.add_argument("--html", nargs="?", const="modelo.html", metavar="<archivo>",
                    help="la CARTA: la misma info en una página navegable, para leerla de un vistazo")
 
+    s = con_json(sub.add_parser(
+        "quemado", help="dónde el código decide por IDENTIDAD y no por configuración"))
+    s.add_argument("categoria", nargs="?",
+                   choices=["despacho", "id_quemado", "lista_ids", "ambiente"],
+                   help="una sola categoría, con sus archivos y líneas")
+
     sub.add_parser("check", help="¿las rutas escritas a mano siguen vivas en main?")
     sub.add_parser("pesos", help="refresca los tamaños guardados en repos.json")
 
@@ -354,6 +360,59 @@ def main():
         print(f"  ⚠ {len(rotas)} inferidas NO se sostienen en los datos "
               f"({', '.join(f'{t}.{c}' for t, c in rotas[:3])}…)")
         print("\n  `relaciones <vecindario>` · `relaciones <tabla>` · `--json`\n")
+        return 0
+
+    if a.cmd == "quemado":
+        import json as _j, collections as _c
+        import quemado as _q
+        hits = _q.barrer()
+        if j:
+            print(_j.dumps({"coincidencias": hits,
+                            "archivos_por_entidad": _q.plantillas_por_entidad()},
+                           ensure_ascii=False, indent=2))
+            return 0
+        errs = [x for x in hits if "error" in x]
+        for e in errs:
+            print(f"  ⚠ {e['repo']}/{e['categoria']}: {e['error']}")
+
+        if a.categoria:
+            ss = [x for x in hits if x["categoria"] == a.categoria and "error" not in x]
+            desc = next(d for c, _, _, _, d in _q.PATRONES if c == a.categoria)
+            print(f"\n  {a.categoria} — {desc}\n")
+            visto = set()
+            for x in sorted(ss, key=lambda x: (x["repo"], x["archivo"], x["linea"])):
+                clave = (x["repo"], x["archivo"], x["linea"])
+                if clave in visto:
+                    continue
+                visto.add(clave)
+                quienes = " · ".join(
+                    f"{y['columna']} {y['id']} = {y['quien']}"
+                    for y in ss if (y["repo"], y["archivo"], y["linea"]) == clave and y.get("quien"))
+                print(f"    {x['repo']}/{x['archivo']}:{x['linea']}")
+                if quienes:
+                    print(f"      → {quienes}")
+            print()
+            return 0
+
+        cats = _c.Counter(x["categoria"] for x in hits if "error" not in x)
+        print(f"\n  {sum(cats.values())} lugares donde el código decide por identidad\n")
+        for c, _, _, _, d in _q.PATRONES:
+            if cats.get(c):
+                print(f"    {c:12} {cats[c]:4}   {d}")
+                cats[c] = 0
+        con_id = [x for x in hits if x.get("id")]
+        print(f"\n  A QUIÉN NOMBRAN — {len(con_id)} ids quemados, "
+              f"{sum(1 for x in con_id if x.get('quien'))} resueltos a un nombre:")
+        for (col, i, quien), n in _c.Counter(
+                (x["columna"], x["id"], x["quien"]) for x in con_id).most_common(12):
+            print(f"    {n}×  {col} {i:>4}  =  {quien}")
+        pl = _q.plantillas_por_entidad()
+        print(f"\n  ARCHIVOS BAUTIZADOS CON UN ID: {sum(len(v) for v in pl.values())} "
+              f"para {len(pl)} entidades")
+        print(f"    quien no tiene el suyo cae al genérico, y no hay dónde consultarlo:")
+        for i in sorted(pl, key=int):
+            print(f"      {i:>4}  {len(pl[i])} archivo(s)")
+        print("\n  `quemado <categoria>` para los archivos y líneas · `--json`\n")
         return 0
 
     if a.cmd == "negocio":

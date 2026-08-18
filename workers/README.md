@@ -288,6 +288,41 @@ componentes de presentación** —`AdminHeader`, `AdminLayout`— o sea bien cla
 para quien cura, no una lista para borrar: las herramientas **auditan** el `map.json`, no lo escriben.
 Curarlo a mano es a propósito.
 
+### Lo quemado — por qué el mismo flujo se porta distinto
+
+```bash
+./cli.py quemado                # el mapa por categoría, y a quién nombra cada id
+./cli.py quemado id_quemado     # los archivos y líneas de una categoría
+./cli.py quemado despacho       # los que arman el nombre de un archivo con un id
+```
+
+El modelo de datos dice qué se **guarda**; esto dice por qué dos clientes reciben conductas
+distintas. Cuando eso depende de un id escrito en un `if`, no hay tabla ni pantalla de admin que lo
+muestre: **hay que leer el código**. Por eso el mapa resuelve cada número a un nombre — hoy **27 de
+27**.
+
+⚠ **Se indexa por (COLUMNA, id), nunca por el id solo.** Medido en prod: `24` como **lender** es
+Credifamilia y como **allied** es *Creditop*, el comercio propio de la empresa; `154` es
+TuboletaTeCree o Mediarte Monteria según dónde se lea. Un mapa indexado por el número nombraría mal
+la empresa entera.
+
+Las cuatro categorías, y por qué cada una:
+
+| | qué es | por qué duele |
+|---|---|---|
+| `despacho` | el nombre de un archivo se **arma** con un id | `consent_' . $lender->id` y si no existe, fallback mudo al genérico. **El consentimiento legal que firma un cliente depende de si alguien creó ese archivo**, y no hay dónde consultarlo: hay que hacer `ls` |
+| `id_quemado` | una conducta atada a UNA entidad, en un `if` | `allied_id==24 && allied_branch_id!=17 && !=570 && !=928` — el comercio propio, salvo tres sucursales, repetido en 4 controladores |
+| `lista_ids` | un conjunto escrito a mano | nadie lo actualiza al agregar una entidad |
+| `ambiente` | el código cambia según el ambiente | ⚠ **staging corre con `APP_ENV=development`**, así que esas ramas aplican ahí y no en prod: lo que probaste no es lo que corre |
+
+**Dónde está**, que cambia la lectura: el hardcoding por entidad vive **4× más en
+`legacy-application`** (21 vs 5), el monolito que se está migrando — o sea que la migración lo está
+limpiando. Pero los chequeos de ambiente son **más en `legacy-backend`** (91 vs 73), el nuevo.
+
+⚠ **Un cero acá no es «no hay», es «mi patrón no lo vio».** Los patrones son de PHP y TS escritos como
+los escribe este equipo; una forma nueva de quemar un id no aparece hasta que alguien la agregue a
+`quemado.py`.
+
 ### El modelo de datos, reconstruido
 
 ```bash
