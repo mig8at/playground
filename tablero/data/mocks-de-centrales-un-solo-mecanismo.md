@@ -50,6 +50,12 @@ Claves por central: `agildata_<céd>` · `mareigua_<céd>` · `tusdatos_<céd>` 
    cuando el usuario es temporal (`ONB005`→ en realidad `ONB002 "temporal user found"`). Parsear ahí.
 4. **Mockoon no valida el JSON** que se le dicta: lo emite tal cual con `200`. Un JSON roto se lee
    después como «respuesta inválida del proveedor». Validar antes con `jq .`.
+5. **El payload de TusDatos exige `status: "success"`** — esa palabra, literal. `TusDatosService:150`
+   retorna `errors => null` ante cualquier otro valor y el flujo lo lee como *inconcluyente*: sigue
+   con los nombres del formulario y la solicitud **avanza**. Dictar `"ok"` hace que un rechazo que sí
+   funciona parezca que no. Y ojo con la forma: para documento **CC** el veredicto sale de
+   `data.findings.<campo>.match_code` (0 = no coincide), NO de comparar `nombre_completo` — esa
+   comparación vive en la rama **CE**. Verificado corriendo el 2026-08-18.
 
 **Lo que esa corrida demostró** (traza completa en Loki, 23:51:28-29Z, solicitud 464879):
 
@@ -282,6 +288,17 @@ dependen de los drivers — `channel/kyc-subcodes.spec.ts` (OBS-KYC-03, fuerza c
 caminos de ERROR con nombre (`tusdatos.nameMismatch`, `experian.serverError`, `kyc.dateMismatch`): el
 lambda dicta el CONTENIDO de la respuesta, y forzar un 500 del proveedor o un mismatch pide otra
 receta. **Migrarlos o dejar los drivers prendidos sólo para esa suite es lo que queda abierto.**
+
+⚠ **Son CINCO, no cuatro** (2026-08-18): falta `harness/dev/kyc-apellido.ts`, que simula con
+`x-fake-scenario` + drivers fake igual que las specs — y es justo el «probalo en un comando» que la
+tarea 47 recomienda para CORE-420. Migrarlo al lambda es parte del mismo trabajo.
+
+⚠ **Y dejó de ser opcional** (2026-08-18): al eliminarse el relajo de nombre por entorno (tarea 47,
+commit `cacf4656`) los flujos del harness que atraviesan KYC ya no pasan solos. El harness inyecta
+`SYNTH TEST USER` (`pkg/inject.ts:141`) mientras Ágil devuelve `JUAN SANTIAGO DOE RAMANUYAN` y
+Mareigua `FAKE EMPLOYEE NAME`: no coinciden ni entran en la tolerancia de 3 letras, así que la
+comparación los frena. Dos salidas — alinear el nombre inyectado con el del fixture, o dictarlo por
+cédula al lambda antes de cada corrida. La segunda es la que escala: no ata el harness a un fixture.
 
 ## Lo que NO se tocó, y por qué
 

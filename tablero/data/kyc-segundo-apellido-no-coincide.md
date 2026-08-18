@@ -8,11 +8,84 @@ jira: [CORE-420]
 jira_title: "Identidad: un «no coincide» reportado ya no se ignora, y la fuente que consulta la cédula corrige el nombre"
 ---
 
-**ESTADO 2026-08-15 · MERGEADO A `staging`, DESPLEGADO Y VERIFICADO DE PUNTA A PUNTA** — tres PRs
-en `staging`, y la regla de adopción confirmada funcionando con datos controlados (§ «La regla de
-adopción, verificada en staging»). Del lado del código **no queda nada**. Lo único abierto es de
-terceros: la fecha del TusDatos nuevo (Joel). ⚠ Ya NO hacen falta variables de Dani para los mocks —
-esa afirmación era falsa, ver la tarea 49.
+**ESTADO 2026-08-18 · LA RAMA QUE VA A `main` ES LA DE `develop`, y el bypass de nombre MURIÓ.**
+Lo de `staging` (abajo) sigue siendo cierto pero ya no es la punta: la rama viva es
+**`fix/kyc-name-match-onto-develop`** → PR
+[#1127](https://github.com/Creditop-SAS/legacy-backend/pull/1127) contra `develop`, **abierto**.
+Detalle en § «El trasplante a develop».
+
+⚠ Del 2026-08-15 quedó escrito «del lado del código no queda nada». **Era falso para esta rama**:
+dos cosas se habían quedado sólo en `staging` y no habían bajado. Ver la sección nueva.
+
+Lo único abierto de terceros sigue siendo la fecha del TusDatos nuevo (Joel). ⚠ Ya NO hacen falta
+variables de Dani para los mocks — esa afirmación era falsa, ver la tarea 49.
+
+## El trasplante a develop (2026-08-18)
+
+Al reconciliar `fix/kyc-name-match-onto-develop` contra lo que de verdad se probó en `staging`
+faltaban **dos** piezas, las dos de observabilidad y las dos necesarias para poder volver a probar:
+
+- **el canal del log del PR #1100** — `OnboardingLogger` en `develop` escribía por
+  `Log::getFacadeRoot()`, o sea el canal por defecto: `kyc.name_adoption` y `kyc.name_match_relaxed`
+  no llegaban a Grafana. Es la trampa que ya costó una noche;
+- **el trazado del fallback del lambda** — si el lambda falla, el código cae a un fixture del repo y
+  sigue. En `develop` sólo Experian dejaba línea; las otras tres hacían `report()` a secas, así que
+  una corrida degradada se leía igual que una sana. Importó de inmediato: fue lo que permitió
+  descartar «el lambda no contestó» en el primer intento fallido de la corrida de abajo.
+
+**Y se eliminó el relajo por entorno de la coincidencia de nombre** (`NameMatchPolicy::enforced()`,
+el `!app()->environment('local','development')`). Ya no tenía motivo: existía porque las centrales de
+esos ambientes devolvían utilería, y el lambda permite dictar el nombre por cédula. Con él se fueron
+el aviso `kyc.name_match_relaxed`, el contador de una-vez-por-proceso y el singleton;
+`NameMatchPolicy` se queda como comparación exacta, porque su valor era tener UNA casa.
+`NameMatchPorEntornoTest` **se invirtió** en vez de borrarse: los mismos siete entornos, ahora
+fijando que ninguno deja pasar una identidad ajena.
+
+Todo en **un commit, `cacf4656`**. 70 tests de la tarea en verde; sobre `Modules/Identity` completo
+los rojos son preexistentes y el conjunto es idéntico test por test antes y después.
+
+### La corrida en local, con las tres centrales dictadas por el lambda
+
+Stack local, `APP_ENV=local`, burós **fuera** del `.env` (resuelven a `real`) y los cuatro
+`*_MOCK_HOST` al lambda; OTP y caché en `fake`. La receta es la de la tarea 49.
+
+| escenario | resultado |
+|---|---|
+| Ágil `16` → Mareigua `4` con `RUIZ MENDOZA`, se teclea `RUIZ MENDOSA` | **ACEPTADO** y en `users` queda `MENDOZA` — la adopción intacta |
+| Ágil `16`, Mareigua `1`, TusDatos `second_surname: 0` | **RECHAZADO** · `ONB005` / `KYC_VALIDATION_FAILED` · «Segundo apellido no coincide.» · **0 filas en `users`** |
+| identidad ajena en las tres | **RECHAZADO** · `ONB005` — antes del cambio esto **pasaba** |
+
+El A/B del bypass, en la traza de Loki local, mismo escenario:
+
+```
+antes  (uReq 464959)   kyc.name_adoption → kyc.name_match_relaxed → «Mareigua OK, using returned
+                       identity data» → ACEPTADA
+después (uReq 464961)  kyc.name_adoption → «Mareigua returned errors» → reintento a TusDatos
+```
+
+### Tres cosas que se aprendieron corriéndolo
+
+- ⚠ **TusDatos, para documento CC, NUNCA compara el nombre como cadena**: su camino termina en los
+  `match_code` y devuelve los nombres del formulario. El `verifyCoincidence` de
+  `TusDatosService:325` está en la rama **CE**. O sea que el relajo de nombre no afectaba a TusDatos
+  con cédula colombiana — el rechazo de CORE-420 siempre funcionó ahí, y por eso se podía probar en
+  local aun con el bypass puesto.
+- ⚠ **`TusDatosService:150` exige `status === 'success'`**. Con cualquier otro valor retorna
+  `errors => null` y el flujo lo lee como *inconcluyente*: sigue con los nombres del formulario y la
+  solicitud **avanza**. Un payload mal dictado se ve idéntico a «el código no valida». Me costó un
+  intento entero.
+- **Mareigua rechazando no rechaza la solicitud**: `shouldValidateTusDatos` concede reintento y la
+  cascada sigue a TusDatos. Para ver un rechazo por identidad ajena hay que dictar **las tres**.
+
+### Lo que queda de esto
+
+- **El harness quedó desalineado y hay que arreglarlo aparte** (otro repo): inyecta
+  `SYNTH TEST USER` mientras los mocks devuelven otra identidad, así que sus flujos que atraviesan
+  KYC pasaban **gracias a este relajo**. Hay que alinear el nombre inyectado o dictarlo por cédula.
+  Alcance en la tarea 49.
+- Los datos de la corrida quedaron en la BD **local** (cédulas 1079621612, 189810124, 1243914449,
+  1058215730, 2522567332, 934336077 — las dos últimas rechazadas, sin fila). Las variables del
+  lambda se purgaron.
 
 **Jira: [CORE-420]** · CORE Sprint 11 · 3 puntos · estado «🧪 En pruebas».
 
