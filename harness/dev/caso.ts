@@ -23,6 +23,14 @@
 // usuario y sus solicitudes. Si dos casos se pisan igual, es que comparten algo REAL (un lock de
 // comercio, un cupo, un asesor) — y eso es justo lo que uno quiere descubrir.
 //
+// EL CASO COMPLETO, con `--cerrar`: buró dictado → listado → integración del proveedor dictada →
+// pre-aprobación (la que haría el front) → SELECCIÓN del lender CreditopX del comercio y cierre hasta
+// estado 11. Si el comercio no tiene rt=2, el caso cierra BIEN diciendo «sin CreditopX»: es un hecho
+// del comercio y no un fallo — contarlo como error haría ver rota la mitad del catálogo. Medido:
+// Pullman cierra en 11; automarquet, kreditkasa y godentist no tienen CreditopX.
+// ⚠ Cerrar cuesta: ~90s por caso contra ~6s hasta el listado. Para barrer muchos comercios conviene
+// no pedirlo, y reservarlo para los que se quieren probar de punta a punta.
+//
 // VALIDADO A 10 EN PARALELO (2026-08-18). Tres rondas de 10 casos simultáneos con comercios
 // distintos, más dos fijos de control en las tres. 28 de 29 cerraron, ~31s por ronda, y los dos
 // controles devolvieron el listado **idéntico** en las tres rondas:
@@ -75,6 +83,60 @@ const CREDITOP_X_PRODUCT_KEY = 'creditop_x';   // rt 2 y 3 comparten UN producto
 const WELLI_IDS = [23, 141, 142, 166];         // las cuatro variantes comparten `welli`
 const claveDeProducto = (rt: number, id: number, slug: string) =>
     (rt === 2 || rt === 3) ? CREDITOP_X_PRODUCT_KEY : WELLI_IDS.includes(id) ? 'welli' : slug;
+
+/** EL CIERRE rt=2. La secuencia NO se dedujo: es la misma de `dev/sweep.ts close`, que a su vez la
+ *  sacó corriendo el wizard. Dos cosas que costaron un 404 y un "PromissoryNote no encontrado" y que
+ *  por eso van comentadas allá y acá: las pantallas de fecha y cronograma viven BAJO el prefijo
+ *  `promissory-note`, y hay que pedir el `show` del pagaré ANTES de firmar, porque es ese loader el
+ *  que genera los documentos.
+ *
+ *  ⚠ Si el comercio NO tiene una entidad rt=2, esto NO es un fallo: es un hecho del comercio. Se
+ *  reporta «sin CreditopX» y el caso cierra bien. Contarlo como error haría que la mitad del catálogo
+ *  se viera rota. */
+async function cerrarCreditopX(arr: any[], ur: number, tel: string, amount: number,
+                               post: any, get: any) {
+    const ctopx = arr.find((l) => Number(l.response_type) === 2);
+    if (!ctopx) return { cerro: false, motivo: 'sin CreditopX', estado: null as number | null };
+
+    const sel = await post(`/api/onboarding/loan-application/update-user-request/${ur}`, {
+        lender_id: Number(ctopx.id), fee_number: 4, original_amount: amount, amount,
+        initial_fee: 0, rate: '0', transaction_data: null });
+    // `standBy` es la marca de in-platform: sin eso el flujo se va por otro lado y el cierre no aplica
+    if (!sel.json?.data?.standBy) {
+        return { cerro: false, motivo: `${ctopx.name}: no devolvió standBy`, estado: null };
+    }
+
+    const PN = '/api/loans/requests/promissory-note';
+    await get(`/api/loans/requests/${ur}`);
+    await post('/api/loans/requests/confirm', { user_request_id: ur });
+
+    const dates = await get(`${PN}/${ur}/select-payment-date`);
+    const dOpts = dates.json?.data?.nextPaymentDates ?? dates.json?.data?.dates ?? [];
+    const firstDate = Array.isArray(dOpts) ? (dOpts[0]?.date ?? dOpts[0]) : null;
+    await post(`${PN}/${ur}/confirm-payment-date`, { user_request_id: ur, payment_date: firstDate, date: firstDate });
+
+    const sim = await get(`${PN}/${ur}/simulate-payment-schedule`);
+    const cycles = sim.json?.data?.cycles ?? sim.json?.data?.simulations ?? sim.json?.data ?? [];
+    const cyc = Array.isArray(cycles) ? cycles[0] : cycles;
+    const urRow = await one<{ a: number }>('SELECT allied_id a FROM user_requests WHERE id=?', [ur]).catch(() => null);
+    await post(`${PN}/${ur}/confirm-payment-schedule`, {
+        user_request_id: ur, amount, lender_id: Number(ctopx.id), allied_id: urRow?.a,
+        fee_number: cyc?.fee_number ?? cyc?.feeNumber ?? 4, selected_cycle: cyc ?? {} });
+
+    await get(`${PN}/${ur}`);                       // genera los documentos
+    await post('/api/loans/requests/promissory-note/validate/send-otp', { user_request_id: ur });
+    await post('/api/loans/requests/promissory-note/validate/verify-otp',
+               { user_request_id: ur, otp: tel.slice(-6) });
+    const aut = await post('/api/loans/requests/promissory-note/validate/authorize', { user_request_id: ur });
+
+    const fin = await one<{ e: number }>(
+        'SELECT user_request_status_id e FROM user_requests WHERE id=?', [ur]).catch(() => null);
+    return {
+        cerro: fin?.e === 11,
+        motivo: `${ctopx.name} · HTTP ${aut.status}`,
+        estado: fin?.e ?? null,
+    };
+}
 
 /** Lo que el wizard dispara por cada entidad elegible después de recibir el listado.
  *  ⚠ Sólo para `response_type !== 0`: las STANDARD nunca usan el microservicio. */
@@ -152,6 +214,7 @@ type Res = {
     caso: Caso; ok: boolean; ur?: number; phone: string; nombre?: string;
     enListado?: boolean; listado?: number[]; conducta?: string; detalle?: string;
     preaprobados?: { id: number; estado: string; cupo?: unknown }[];
+    cierre?: { cerro: boolean; motivo: string; estado: number | null };
 };
 
 async function http(method: string, path: string, body: unknown, phone: string) {
@@ -319,6 +382,13 @@ async function correrLambda(c: Caso, i: number): Promise<Res> {
     if (!dictados.has(doc)) return { ...base, detalle: 'la respuesta del buró no quedó dictada' };
 
     const H = { 'content-type': 'application/json', accept: 'application/json', 'user-agent': UA };
+    const get = async (ruta: string) => {
+        const r = await fetch(`${API}${ruta}`, { headers: H, signal: AbortSignal.timeout(90_000) })
+            .catch((e) => e as Error);
+        if (r instanceof Error) return { status: 0, json: {} as any };
+        const t = await r.text();
+        try { return { status: r.status, json: JSON.parse(t) }; } catch { return { status: r.status, json: {} as any }; }
+    };
     const post = async (ruta: string, body: unknown) => {
         const r = await fetch(`${API}${ruta}`, { method: 'POST', headers: H,
             body: JSON.stringify(body), signal: AbortSignal.timeout(150_000) }).catch((e) => e as Error);
@@ -376,8 +446,16 @@ async function correrLambda(c: Caso, i: number): Promise<Res> {
             preAprobar(l, ur, uid, br.allied, br.hash, c.amount!, c.escenarios?.preaprobado)));
     }
 
+    let cierre = '';
+    if (flag('cerrar')) {
+        const r = await cerrarCreditopX(arr, ur, tel, c.amount!, post, get);
+        base.cierre = r;
+        cierre = r.cerro ? ` · CERRÓ en estado ${r.estado} (${r.motivo})`
+                         : ` · NO cerró: ${r.motivo}${r.estado ? ` (quedó en estado ${r.estado})` : ''}`;
+    }
+
     return { ...base, ok: arr.length > 0, nombre: `doc ${doc}`,
-             conducta: `listado con ${arr.length} entidades · buró dictado: ibc ${c.income!.toLocaleString('es-CO')}` };
+             conducta: `listado con ${arr.length} entidades · buró dictado: ibc ${c.income!.toLocaleString('es-CO')}${cierre}` };
 }
 
 async function correr(c: Caso, i: number): Promise<Res> {
@@ -514,6 +592,21 @@ async function main(): Promise<number> {
         if (conListado.every((r) => r.listado!.length === comun.length)) {
             console.log(`\n    ⚠ todos idénticos. Antes de concluir «no influye», verificá que el dato`);
             console.log(`      LLEGÓ: SELECT agildata FROM user_summaries WHERE user_id=… (F-139)`);
+        }
+    }
+
+    // El recuento del cierre va aparte del de casos: «sin CreditopX» NO es un fallo, es un hecho del
+    // comercio, y mezclarlos haría ver rota la mitad del catálogo.
+    const conCierre = res.filter((r) => r.cierre);
+    if (conCierre.length) {
+        const cerraron = conCierre.filter((r) => r.cierre!.cerro).length;
+        const sinCtopx = conCierre.filter((r) => r.cierre!.motivo === 'sin CreditopX').length;
+        const trabados = conCierre.length - cerraron - sinCtopx;
+        console.log(`\n  CIERRE rt=2 — ${cerraron} cerraron en estado 11 · ${sinCtopx} sin CreditopX`
+            + (trabados ? ` · ⚠ ${trabados} se trabaron` : ''));
+        for (const r of conCierre.filter((x) => !x.cierre!.cerro && x.cierre!.motivo !== 'sin CreditopX')) {
+            console.log(`      ⚠ ${r.caso.comercio}: ${r.cierre!.motivo}`
+                + (r.cierre!.estado ? ` · quedó en estado ${r.cierre!.estado}` : ''));
         }
     }
 
