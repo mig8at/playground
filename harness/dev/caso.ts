@@ -384,6 +384,29 @@ async function main(): Promise<number> {
                 + (r.caso.lender === null ? '' : ` · la pedida ${r.enListado ? 'SÍ' : '**NO**'} estaba`) : ''));
         console.log(`      ${r.conducta ?? '—'}${r.detalle ? ` · ${r.detalle}` : ''}`);
     }
+    // EL CONTRASTE, que es para lo que sirve correr varios. Una lista por caso obliga a diffear a
+    // ojo, y el ojo se equivoca justo cuando los conjuntos son parecidos — que es el caso interesante.
+    const conListado = res.filter((r) => r.listado?.length);
+    if (conListado.length > 1) {
+        const sets = conListado.map((r) => new Set(r.listado!));
+        const comun = [...sets[0]].filter((x) => sets.every((s) => s.has(x)));
+        console.log(`\n  EN QUÉ SE DIFERENCIAN\n`);
+        console.log(`    en TODOS los casos : ${comun.length ? comun.join(', ') : '(ninguna)'}`);
+        for (let k = 0; k < conListado.length; k++) {
+            const solo = conListado[k].listado!.filter((x) => !sets.every((s) => s.has(x)));
+            const c = conListado[k].caso;
+            const etiq = `${c.comercio}${c.lender === null ? '' : ':' + c.lender}`;
+            console.log(`    sólo en ${etiq.padEnd(18)}: ${solo.length ? solo.join(', ') : '(nada propio)'}`);
+        }
+        // ⚠ listados IDÉNTICOS no significan «el parámetro no influye»: puede significar que el
+        // parámetro nunca llegó. Con `--lambda`, la comprobación es que `approximate_real_salary` en
+        // `user_summaries` sea distinto por caso (ver F-139).
+        if (conListado.every((r) => r.listado!.length === comun.length)) {
+            console.log(`\n    ⚠ todos idénticos. Antes de concluir «no influye», verificá que el dato`);
+            console.log(`      LLEGÓ: SELECT agildata FROM user_summaries WHERE user_id=… (F-139)`);
+        }
+    }
+
     const malos = res.filter((r) => !r.ok).length;
     console.log(`\n  ${res.length - malos}/${res.length} cerraron · ${((Date.now() - t0) / 1000).toFixed(1)}s`);
     // ⚠ uReq REPETIDO entre casos sería la señal de que se pisaron. Con teléfono por caso no debería
