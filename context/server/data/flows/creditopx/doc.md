@@ -48,6 +48,29 @@ las cuatro del medio, el «0%» tampoco es un bug: está cableado por id.
 (`:311-324` — solo entra a `false_lenders` `if (!$user_request->allied->have_ctopx)`), así que
 sobrevive hasta el corte de categoría. Los dos mecanismos conviven y el segundo tapa al primero.
 
+## El INGRESO no decide quién aparece — medido, no deducido
+
+Corridas contra `local` el **2026-08-17** en Amoblando Pullman (sucursal `e9409aff`, 7 entidades
+cableadas), pidiéndole de antemano a la lambda de mocks qué contestar el buró y variando **sólo** el
+ingreso:
+
+| ingreso dictado | entidades en el listado |
+|---|---|
+| 200.000 · 700.000 · 2.500.000 · 15.000.000 · 50.000.000 | **las mismas 6, siempre** (sólo cambia el orden) |
+
+**250× entre los extremos y ni una entidad entra o sale.** Verificado que el dato llegó de verdad —
+`employed: true`, `continuity_3_months: true` y `approximate_real_salary` igual a lo dictado, distinto
+en cada caso— porque sin esa comprobación «no cambia» es indistinguible de «nunca llegó».
+
+Es coherente con el cascade de arriba y lo afina: el ingreso **no participa de ningún corte**. Los
+cortes son el **score de datacrédito** (punto 3) y la **categoría** (punto 8). Bajando el score a 300
+en la misma sucursal, CrediPullman **sí** desaparece.
+
+⚠ Alcance: **un comercio y la etapa del listado**. Que el ingreso no decida quién aparece no dice nada
+sobre el cupo ni sobre las etapas siguientes. Se reproduce con
+`make harness-caso CASOS='pullman@income=700000;pullman@income=15000000' PAR=1 LAMBDA=1` — y ⚠ pide
+que los drivers fake estén apagados (**F-139**), o el buró contesta siempre lo mismo.
+
 ## ⚠ El ROTATIVO (rt=3) NO usa categorías — tiene su propio motor
 
 **Es falso que rt=2 y rt=3 compartan «el motor de categorías»** (lo confirmaron política y código): el

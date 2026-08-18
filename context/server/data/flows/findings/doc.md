@@ -1783,3 +1783,34 @@ en producción — el webhook no deja registro cuando `firstOrFail()` lanza, as�
   deliberado (el listado clasifica además de filtrar), y esa respuesta no está en el código.
 - **Estado:** vivo en `main`. La regla general: **un FormRequest que no nombra un campo no lo está
   dejando pasar a propósito — no lo está mirando**, y el que revienta después es el que sí lo usa.
+
+### F-139 · En local hay TRES simuladores de centrales apilados, y el de más arriba contesta siempre lo mismo
+
+- **Síntoma:** dictás la respuesta de un buró para una cédula, corrés el flujo, y el backend guarda
+  datos que nadie pidió — **siempre los mismos**. Peor: el flujo **termina bien**, así que uno concluye
+  «el ingreso no cambia el listado» cuando el ingreso nunca llegó. Con tres corridas variando el
+  ingreso 21× salió el mismo `last_payment_value` en las tres.
+- **Causa raíz (verificada 2026-08-17 contra `main`, medido en local):** conviven **tres** mecanismos
+  y el orden de precedencia no está escrito en ningún lado —
+  **drivers fake → `mock_rules` → lambda → red**:
+  1. `ONBOARDING_DRIVER_<CENTRAL>=fake` hace que `app/Providers/OnboardingDriverServiceProvider.php:110-139`
+     registre un `Http::fake()` que intercepta **en la capa HTTP**, arriba de todo. Gana siempre.
+  2. `mock_rules` (MOBA1002, fila en BD) marca `$isMock` sólo si el **teléfono** del usuario coincide
+     con su `phone_number` (en local: `3099000000`).
+  3. Recién si ninguno aplica, `app/Actions/RiskCentrals/*` evalúa `$useLambdaMock`, que además exige
+     `filled(config('services.<central>.mock_host'))` y entorno `local`/`development`.
+- **Evidencia:** con `ONBOARDING_DRIVER_AGILDATA=fake` el log trae `kyc.fake.http_drivers_registered`
+  y `user_summaries.agildata` queda con `last_payment_value: 2910715` en toda corrida, sea cual sea lo
+  dictado. Poniendo los cuatro drivers en `real` y con los `*_MOCK_HOST` cargados, la misma corrida
+  devuelve el ingreso dictado (700.000 / 2.500.000 / 15.000.000, uno por caso) y Loki registra
+  `Resolved response source` con `source: lambda`.
+- **⚠ Un control negativo que NO sirve:** apuntar el `*_MOCK_HOST` a un puerto muerto **no prueba
+  nada**. El Action hace `->throw()`, cae al **fixture en silencio** y el flujo termina igual de
+  rápido. La única evidencia válida de que la lambda participó es el log `source=lambda`.
+- **Arreglo:** para ejercitar centrales de verdad en local, los tres tienen que estar alineados: los
+  cuatro `ONBOARDING_DRIVER_*` de KYC en `real`, los cuatro `*_MOCK_HOST` apuntando a la lambda, y
+  `php artisan config:clear`. **No aplicado en el repo** — es configuración de `.env`, que no se
+  versiona. La receta de qué dictar está en `tablero/data/mocks-de-centrales-un-solo-mecanismo.md`.
+- **Estado:** vivo en `main`. La regla general: **cuando tres mecanismos resuelven lo mismo y ninguno
+  declara su precedencia, el que gana es el que intercepta más arriba** — y como todos devuelven algo
+  plausible, la única forma de saber cuál contestó es que cada uno deje su marca en el log.
