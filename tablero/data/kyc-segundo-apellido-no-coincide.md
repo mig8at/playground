@@ -33,15 +33,25 @@ faltaban **dos** piezas, las dos de observabilidad y las dos necesarias para pod
   una corrida degradada se leía igual que una sana. Importó de inmediato: fue lo que permitió
   descartar «el lambda no contestó» en el primer intento fallido de la corrida de abajo.
 
-**Y se eliminó el relajo por entorno de la coincidencia de nombre** (`NameMatchPolicy::enforced()`,
-el `!app()->environment('local','development')`). Ya no tenía motivo: existía porque las centrales de
-esos ambientes devolvían utilería, y el lambda permite dictar el nombre por cédula. Con él se fueron
-el aviso `kyc.name_match_relaxed`, el contador de una-vez-por-proceso y el singleton;
-`NameMatchPolicy` se queda como comparación exacta, porque su valor era tener UNA casa.
+**Y se eliminó el relajo por entorno de la coincidencia de nombre** (el
+`!app()->environment('local','development')` que decidía si se exigía coincidencia). Ya no tenía
+motivo: existía porque las centrales de esos ambientes devolvían utilería, y el lambda permite
+dictar el nombre por cédula. Con él se fueron el aviso `kyc.name_match_relaxed`, el contador de
+una-vez-por-proceso y el singleton.
+
+⚠ **Y NO quedó ninguna clase nueva.** Se había creado `NameMatchPolicy` para que el criterio
+tuviera una sola casa —el bug original fue que vivía copiado en tres servicios con el atajo adentro—.
+Sin el relajo, el criterio es `$a === $b`: no hay decisión que centralizar, y una clase que envuelve
+un operador sólo agrega dos saltos para leerla. Se borró junto con su test.
+
+**Lo que impide que el atajo vuelva no es dónde viva la línea: es el test.**
+`NameMatchPorEntornoTest` corre el servicio REAL contra siete entornos afirmando que ninguno deja
+pasar una identidad ajena. Ese es el guardia, y es el que se conserva. (Lo contrario se defendió
+primero y estaba mal: la clase no garantizaba nada que el test no garantice.)
 `NameMatchPorEntornoTest` **se invirtió** en vez de borrarse: los mismos siete entornos, ahora
 fijando que ninguno deja pasar una identidad ajena.
 
-**La rama quedó en UN SOLO commit, `d4d31d8a`** (23 archivos, +1553): se unificaron los tres que
+**La rama quedó en UN SOLO commit, `9012f289`** (21 archivos, +1442): se unificaron los tres que
 tenía, así el PR #1127 se lee como una unidad. ⚠ Eso reescribió el historial — para actualizar el PR
 hay que `push --force-with-lease`, y **no está pusheado**.
 

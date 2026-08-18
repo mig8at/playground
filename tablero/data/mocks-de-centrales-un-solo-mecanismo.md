@@ -294,7 +294,7 @@ receta. **Migrarlos o dejar los drivers prendidos sólo para esa suite es lo que
 tarea 47 recomienda para CORE-420. Migrarlo al lambda es parte del mismo trabajo.
 
 ⚠ **Y dejó de ser opcional** (2026-08-18): al eliminarse el relajo de nombre por entorno (tarea 47,
-commit `d4d31d8a`) los flujos del harness que atraviesan KYC ya no pasan solos. El harness inyecta
+commit `9012f289`) los flujos del harness que atraviesan KYC ya no pasan solos. El harness inyecta
 `SYNTH TEST USER` (`pkg/inject.ts:141`) mientras Ágil devuelve `JUAN SANTIAGO DOE RAMANUYAN` y
 Mareigua `FAKE EMPLOYEE NAME`: no coinciden ni entran en la tolerancia de 3 letras, así que la
 comparación los frena. Dos salidas — alinear el nombre inyectado con el del fixture, o dictarlo por
