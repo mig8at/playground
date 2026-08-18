@@ -524,6 +524,56 @@ async function correr(c: Caso, i: number): Promise<Res> {
     return { ...base, ok: true, conducta: conductaDe(sel.json?.data) };
 }
 
+/** PREVUELO. Todo lo que este runner necesita vive FUERA del repo —el `.env` del backend y dos mocks
+ *  levantados a mano— y cuando falta algo, el flujo NO se rompe: devuelve un resultado plausible y
+ *  equivocado. Las tres formas ya documentadas:
+ *    · drivers KYC en `fake` → el buró contesta siempre lo mismo → «el ingreso no cambia nada» (F-139)
+ *    · mock de integraciones caído → la entidad desaparece → «la excluye una regla» (F-140)
+ *    · `CREDIFAMILIA_HOST_OAUTH` ausente → el listado revienta → «el comercio no ofrece nada» (F-142)
+ *  Las tres se leen como hechos del negocio. Por eso esto avisa ANTES, en vez de dejar que el próximo
+ *  las descubra una por una como pasó el 2026-08-18. */
+async function prevuelo(): Promise<string[]> {
+    const faltan: string[] = [];
+    const vivo = async (url: string) =>
+        !!(await fetch(url, { signal: AbortSignal.timeout(5_000) }).catch(() => null));
+
+    if (!(await vivo(`${API}/`))) faltan.push(`el backend no responde en ${API}`);
+    if (!(await vivo(`${MOCK_LENDERS}/`))) {
+        faltan.push(`mock de integraciones caído (${MOCK_LENDERS}) → las rt=1 desaparecen del listado`
+            + ' y parece regla de negocio (F-140). Levantalo: node mock-lenders/server.mjs');
+    }
+    if (flag('preaprobados') && !(await vivo(PREAPPROVALS.replace(/\/v1\/.*$/, '/')))) {
+        faltan.push(`mock de pre-aprobados caído (${PREAPPROVALS}). Levantalo: node mock-preapprovals/server.mjs`);
+    }
+    if (flag('lambda') && !(await vivo(`${LAMBDA}/agildata/agildata-services/rest/afiliado/historicoDetalladoEmpleo/1/1`))) {
+        faltan.push(`la lambda de centrales no responde (${LAMBDA})`);
+    }
+    return faltan;
+}
+
+/** POSTVUELO del buró: ¿el ingreso que se DICTÓ llegó de verdad? Es la única comprobación que
+ *  distingue «el parámetro no influye» de «el parámetro nunca llegó», y las dos se ven igual en el
+ *  listado. Si los drivers KYC están en `fake`, acá salta. */
+async function buroLlego(res: Res[]): Promise<string | null> {
+    const conUr = res.filter((r) => r.ur && r.caso.income);
+    if (!conUr.length) return null;
+    const vistos = new Set<number>();
+    for (const r of conUr) {
+        const row = await one<{ a: string }>(
+            'SELECT s.agildata a FROM user_requests u JOIN user_summaries s ON s.user_id=u.user_id WHERE u.id=?',
+            [r.ur]).catch(() => null);
+        const m = /"last_payment_value":\s*(\d+)/.exec(row?.a ?? '');
+        if (m) vistos.add(Number(m[1]));
+    }
+    const pedidos = new Set(conUr.map((r) => r.caso.income!));
+    if (vistos.size === 1 && pedidos.size > 1) {
+        return `el buró devolvió SIEMPRE ${[...vistos][0].toLocaleString('es-CO')} pese a que se`
+            + ` dictaron ${pedidos.size} ingresos distintos → los drivers KYC están en \`fake\` e`
+            + ' interceptan antes que la lambda (F-139). No concluyas nada de estas corridas.';
+    }
+    return null;
+}
+
 async function main(): Promise<number> {
     const dflt = {
         amount: Number(arg('amount', '2000000')),
@@ -536,6 +586,13 @@ async function main(): Promise<number> {
     const par = flag('paralelo');
 
     console.log(`\n  CASOS · ${casos.length} · ${par ? 'EN PARALELO' : 'en serie'} · ${API}\n`);
+    const faltan = await prevuelo();
+    if (faltan.length) {
+        console.log('  ⚠ PREVUELO — falta algo, y sin esto el resultado MIENTE:\n');
+        for (const f of faltan) console.log(`      · ${f}`);
+        console.log('');
+        return 2;
+    }
     if (flag('lambda')) {
         const fallos = await dictarTodos(casos);
         console.log(`  respuestas del buró pedidas a la lambda: ${casos.length - fallos.length}/${casos.length}`
@@ -609,6 +666,9 @@ async function main(): Promise<number> {
                 + (r.cierre!.estado ? ` · quedó en estado ${r.cierre!.estado}` : ''));
         }
     }
+
+    const mentira = await buroLlego(res);
+    if (mentira) console.log(`\n  ⚠ ${mentira}`);
 
     const malos = res.filter((r) => !r.ok).length;
     console.log(`\n  ${res.length - malos}/${res.length} cerraron · ${((Date.now() - t0) / 1000).toFixed(1)}s`);
