@@ -42,8 +42,18 @@ PATRONES = [
     ("id_quemado", ["legacy-backend", "legacy-application"], ["*.php"],
      r"(lender_id|allied_id|allied_branch_id|merchant_id|lender->id|allied->id)\s*(===?|!==?|<>)\s*[0-9]+",
      "una conducta atada a UNA entidad concreta, dentro de un if"),
+    # ⚠ DOS lecciones acá, las dos aprendidas fallando el 2026-08-17.
+    #
+    # 1) `git grep -E` es ERE de POSIX y **`\s` no es un espacio**: los patrones que lo usan matchean
+    #    por casualidad o no matchean, y no avisan. Va `[[:space:]]`, o un ` +` literal.
+    # 2) La primera versión sólo miraba `in_array`/`whereIn` con DOS números, y se perdía la forma más
+    #    común de todas: la CONSTANTE de clase. En legacy-backend hay 19, incluida
+    #    `MANUAL_BIRTH_LENDER_IDS = [39, 23, 141, 142, 166]` y `SOCKET_CONFIRMATION_LENDERS = [39]`,
+    #    esta última con el comentario «para sumar un lender agregá su id aquí (requiere deploy)»
+    #    escrito al lado. Una lista de UNO es el caso más quemado, no el menos.
     ("lista_ids", ["legacy-backend", "legacy-application"], ["*.php"],
-     r"(in_array|whereIn)\s*\([^)]*[\[(]\s*[0-9]+\s*,\s*[0-9]+",
+     r"(in_array|whereIn)[[:space:]]*\([^)]*[\[(][[:space:]]*[0-9]+[[:space:]]*,[[:space:]]*[0-9]+"
+     r"|const +[A-Z][A-Z0-9_]* *= *\[ *[0-9]",
      "un conjunto de entidades escrito a mano, que nadie mantiene al agregar una"),
     ("ambiente", ["legacy-backend", "legacy-application"], ["*.php"],
      r"app\(\)->environment\(|config\('app\.env'\)",
@@ -89,6 +99,24 @@ def _nombre(dic: dict, columna: str, ident: str) -> str | None:
     return v
 
 
+# Sobre QUÉ es una lista quemada. Sin esto el conteo miente: `whereIn('user_request_status_id',
+# [10,12])` y `in_array($alliedId, [209,210,211])` matchean el mismo patrón y no son lo mismo — el
+# primero es una máquina de estados escrita en SQL (normal), el segundo es tres comercios concretos
+# con conducta propia (lo que hace que CreditOp no sea predecible). Contarlos juntos dio 181 y
+# escondió que sólo una parte es lo que se está buscando.
+SOBRE = [
+    (re.compile(r"allied|lender|merchant|branch|partner", re.I), "entidad"),
+    (re.compile(r"status|estado|response_type|risk_central|profile|field", re.I), "estado/enum"),
+]
+
+
+def _sobre(texto: str) -> str:
+    for rx, n in SOBRE:
+        if rx.search(texto):
+            return n
+    return "otro"
+
+
 def barrer() -> list[dict]:
     dic = diccionario()
     out = []
@@ -112,7 +140,8 @@ def barrer() -> list[dict]:
                 except ValueError:
                     continue
                 base = {"categoria": cat, "repo": repo, "archivo": arch,
-                        "linea": int(nlin), "texto": texto.strip()[:150]}
+                        "linea": int(nlin), "texto": texto.strip()[:150],
+                        "sobre": _sobre(texto) if cat == "lista_ids" else None}
                 ps = pares(texto)
                 if not ps:
                     out.append({**base, "columna": None, "id": None, "quien": None})

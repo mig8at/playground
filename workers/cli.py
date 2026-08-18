@@ -399,6 +399,13 @@ def main():
         for c, _, _, _, d in _q.PATRONES:
             if cats.get(c):
                 print(f"    {c:12} {cats[c]:4}   {d}")
+                if c == "lista_ids":
+                    # el desglose no es cosmético: 97 de estas son máquinas de estado en SQL
+                    # (normales) y sólo las de ENTIDAD son conducta atada a un comercio o un lender
+                    sob = _c.Counter(x.get("sobre") for x in hits
+                                     if x["categoria"] == "lista_ids" and x.get("sobre"))
+                    print(f"    {'':12} {'':4}   └ "
+                          + " · ".join(f"{n} de {k}" for k, n in sob.most_common()))
                 cats[c] = 0
         con_id = [x for x in hits if x.get("id")]
         print(f"\n  A QUIÉN NOMBRAN — {len(con_id)} ids quemados, "
