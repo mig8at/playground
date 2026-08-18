@@ -148,6 +148,43 @@ después (uReq 464961)  kyc.name_adoption → «Mareigua returned errors» → r
 - **Mareigua rechazando no rechaza la solicitud**: `shouldValidateTusDatos` concede reintento y la
   cascada sigue a TusDatos. Para ver un rechazo por identidad ajena hay que dictar **las tres**.
 
+### Prototipo: dictar las centrales desde una pantalla (2026-08-18)
+
+`data/artifacts/kyc-segundo-apellido-no-coincide.dictar-centrales.html` — se abre desde el botón
+**Prototipos** de esta tarea.
+
+**Qué resuelve.** Hoy dictarle al lambda es un `curl` con cuatro trampas, así que en la práctica sólo
+lo usa quien las conoce. Y por el front QA no tiene cómo forzar casos: la tarea 49 registra que un
+header puesto en el navegador **muere en el SSR** del wizard. La dictada esquiva eso entero, porque
+no viaja por la app — le habla al mock antes de arrancar. QA dicta la cédula, entra al wizard y la
+teclea.
+
+Traduce a formulario la DECISIÓN de negocio, no el JSON: Ágil resuelve o se abstiene (y con cuál
+código, porque `16` y `98` no son lo mismo); Mareigua resuelve o no; TusDatos da su veredicto **campo
+por campo**, que es donde vivía el defecto; Experian define el score. Las trampas van escritas al
+lado del campo que arruinan.
+
+**Verificado corriendo, no sólo dibujado.** Desde la página se dictó Ágil `16` + Mareigua `1` +
+TusDatos con el segundo apellido en «NO coincide» para la cédula 480334590, y el flujo por API
+respondió `ONB005` / `KYC_VALIDATION_FAILED` con «Segundo apellido no coincide.» (solicitud 464987).
+El purgado también se probó desde ahí.
+
+**Lo que lo hace posible:** el admin del lambda responde con `access-control-allow-origin: *`, así que
+un HTML suelto puede postearle desde el navegador sin backend intermedio.
+
+**Límites conocidos, y están escritos en la pantalla:**
+
+- el admin **no tiene `GET`**: no se puede preguntar qué hay dictado. La lista es la memoria de esa
+  pestaña y se pierde al recargar;
+- de Experian se dicta **una** de sus tres claves (`experian_`, y no `experian_quanto_` ni
+  `experian_acierta_quanto_`);
+- el mock sólo se consulta en `local` y `development`.
+
+**Si esto se adopta, no vive acá.** Un artefacto del tablero lo abre Miguel, no QA. El siguiente paso
+es moverlo al repo de herramientas internas (`Creditop-SAS/playground`), que ya tiene deploy e
+identidad por OIDC — pero eso se acuerda con Dani, y primero conviene que QA le dé una mirada a la
+forma.
+
 ### Lo que queda de esto
 
 - **El harness quedó desalineado y hay que arreglarlo aparte** (otro repo): inyecta
