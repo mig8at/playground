@@ -1752,3 +1752,34 @@ en producción — el webhook no deja registro cuando `firstOrFail()` lanza, as�
 - **Estado:** vivo en `main`. La regla general: **cuando un comando de operación y el código que consume
   el dato viven en archivos distintos, la clave del JSON es un contrato sin compilador** — nada falla al
   desincronizarse, y el modo de falla («funciona por casualidad») es peor que el error.
+
+### F-138 · `update-user-request` no valida `lender_id`: una entidad ajena revienta con un null, y una regla inventada tira 500
+
+- **Síntoma:** seleccionar una entidad que el comercio **no tiene cableada** no devuelve un error de
+  validación sino un 500 de PHP: `Attempt to read property "id" on null` (o `"url_utm" on null`). Y una
+  entidad que **sí está cableada pero no salió en el listado** se acepta sin chistar. O sea: el endpoint
+  no distingue «no es tuya», «no existe» y «no te la ofrecí» — dos revientan igual y la tercera pasa.
+- **Causa raíz (verificada 2026-08-17, contra `main`):** `app/Http/Requests/Customer/UserRequest/UpdateRequest.php:22-38`
+  es el FormRequest de la ruta, y **`lender_id` no figura en `rules()`**. Sólo se exige `amount`. Sin
+  `exists` ni una regla que ate la entidad a `lenders_by_allied_branches`, el id entra crudo y
+  `ListLenderController@updateUserRequest`
+  (`Modules/Onboarding/App/Http/Controllers/ListLenderController.php:66-73`) lo pasa al servicio, que
+  deshace una relación que vino `null`.
+- **Y hay un segundo defecto en el mismo `rules()`:** tres campos declaran `'optional'`, que **no es una
+  regla de Laravel** (las reales son `sometimes` / `nullable`). Mientras el campo no venga, no pasa nada;
+  el día que alguien manda `ecommerce_request_id`, el request muere con
+  `BadMethodCallException: Method Illuminate\Validation\Validator::validateOptional does not exist`.
+  Es una validación que sólo falla cuando por fin se usa.
+- **Evidencia:** medido contra `local` (`main`) el 2026-08-17 con `harness/dev/caso.ts`, comercio
+  Amoblando Pullman (sucursal `e9409aff`, 7 entidades cableadas):
+  `lender 160` (SmartPay, existe pero no es de ese comercio) → `"id" on null`; `lender 24`
+  (Credifamilia, ídem) → `"url_utm" on null`; `lender 999` (no existe) → **el mismo error que 160**;
+  `lender 39` (Meddipay, cableada y ausente del listado) → **aceptada**, devuelve modal de autogestión.
+  El `BadMethodCallException` se reprodujo mandando `ecommerce_request_id: 123` por curl.
+- **Arreglo:** agregar a `rules()` `'lender_id' => ['required','integer','exists:lenders,id']` y, encima,
+  una regla que verifique la arista `lenders_by_allied_branches` para la sucursal de esa solicitud —
+  que es la que convierte un 500 en un 422 honesto. Y reemplazar los tres `'optional'` por `'sometimes'`.
+  **No aplicado:** falta decidir si aceptar una entidad cableada-pero-no-listada es un bug o un permiso
+  deliberado (el listado clasifica además de filtrar), y esa respuesta no está en el código.
+- **Estado:** vivo en `main`. La regla general: **un FormRequest que no nombra un campo no lo está
+  dejando pasar a propósito — no lo está mirando**, y el que revienta después es el que sí lo usa.

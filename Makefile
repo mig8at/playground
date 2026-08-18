@@ -202,7 +202,7 @@ workers: ## @wrk el índice de los repos, sus logs y su modelo de datos. CLI: `w
 	@cd workers && ./cli.py $(if $(ARGS),$(ARGS),--help)
 
 # ── PRUEBAS (harness) ────────────────────────────────────────────────────────────────────────────
-.PHONY: harness-contract harness-sandbox harness-walk harness-qr harness-mocks harness-listado harness-check
+.PHONY: harness-contract harness-sandbox harness-walk harness-qr harness-mocks harness-listado harness-caso harness-check
 harness-contract: ## @har ¿el mock de Bancolombia cumple los esquemas zod del front? (sin browser ni BD)
 	@cd harness && npm run --silent contrato:bancolombia
 
@@ -223,6 +223,9 @@ harness-admin-ciudades: ## @har ¿el selector de ciudad del admin filtra por pa�
 
 harness-listado: ## @har del COMERCIO al listado de entidades, por API y sin browser: ¿cuáles le salen a un cliente y por qué NO las otras? [COMERCIO=pullman] [MONTO=2000000]
 	@cd harness && node dev/listado.ts $(if $(COMERCIO),--comercio $(COMERCIO)) $(if $(MONTO),--amount $(MONTO)) $(if $(BRANCH),--branch $(BRANCH)) $(if $(V2),--v2)
+
+harness-caso: ## @har CASOS hipotéticos de punta a punta, en PARALELO. CASOS='pullman@score=700;pullman@score=300' [PAR=1]
+	@cd harness && node dev/caso.ts $(if $(CASOS),--casos '$(CASOS)') $(if $(COMERCIO),--comercio $(COMERCIO)) $(if $(LENDER),--lender $(LENDER)) $(if $(MONTO),--amount $(MONTO)) $(if $(PAR),--paralelo)
 
 harness-check: ## @har typecheck del harness
 	@cd harness && npm run --silent typecheck
