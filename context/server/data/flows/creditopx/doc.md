@@ -63,7 +63,7 @@ Orden real del cascade (application, la ruta **viva por defecto** en parallel-ru
 1. **Base sucursal** (`lenders_by_allied_branches`) + gate `no_more`: si el usuario ya tiene una solicitud rt=2, excluye los rt=2 (`LenderRetrievalService.php:121`).
 2. **Filtros duros** `status=1` / `country=1`.
 3. **`group_rules` (AND) + datacrédito rt=2 inline** (`LenderValidationService.php:176-262`): score `>=` (:206) · negativos 12m `<=` (:219) · consultas 6m `<=` (:232) · maduración `>=` (:249). Un rt=2 que falla se **EXCLUYE** (se hace `unset` de `false_lenders`, :376) — **salvo `have_ctopx`** (sobrevive hasta la categoría, :308-327). El datacrédito rt≠2 solo **REORDENA**.
-4. **ML/matrices** `weighted_score` — **solo en producción** (`environment()==='production'`, :231/:244); rt=2/3 forzados a `weighted_score=1` (arriba, :586/:600).
+4. **ML/matrices** `weighted_score` — **solo en producción** (`application/app/Services/lenders/LenderRetrievalService.php:231` y `:244`); rt=2/3 forzados a `weighted_score=1` (arriba, `:586`/`:600` del MISMO archivo). ⚠ Ojo con el archivo: este punto **cambia de archivo** respecto del 3. Las sub-líneas sueltas (`:206`, `:219`…) del punto 3 continúan `LenderValidationService.php`, y acá los `:231/:244` iban sueltos también — se leían como del mismo archivo y son de **Retrieval**, no de **Validation**. Los dos viven en la misma carpeta y se diferencian en una palabra.
 5. **Special granting** (buckets monto-por-score, casos DENTIX/especiales): `LenderSpecialGrantingService`.
 6. Pre-aprobados rt=1 (nodo `aggregator` / `ms-preapprovals`).
 7. Orden por probabilidad.
