@@ -1811,8 +1811,12 @@ en producción — el webhook no deja registro cuando `firstOrFail()` lanza, as�
   cuatro `ONBOARDING_DRIVER_*` de KYC en `real`, los cuatro `*_MOCK_HOST` apuntando a la lambda, y
   `php artisan config:clear`. **No aplicado en el repo** — es configuración de `.env`, que no se
   versiona. La receta de qué dictar está en `tablero/data/mocks-de-centrales-un-solo-mecanismo.md`.
-- **Estado:** vivo en `main`. La regla general: **cuando tres mecanismos resuelven lo mismo y ninguno
-  declara su precedencia, el que gana es el que intercepta más arriba** — y como todos devuelven algo
+- **Estado:** vivo en `main`, pero **resuelto por decisión** (Miguel, 2026-08-18): los drivers fake de
+  burós quedan **sin usar** y el mecanismo es el lambda, que cubre lo mismo y se dicta por cédula sin
+  desplegar. Los de OTP y CACHE siguen en `fake` — el de OTP no pasa por `Http::fake` y el lambda no
+  lo reemplaza. Detalle y lo que queda abierto (4 specs del harness que inyectan escenarios de burós):
+  `tablero/data/mocks-de-centrales-un-solo-mecanismo.md` §«DECISIÓN». La regla general: **cuando tres
+  mecanismos resuelven lo mismo y ninguno declara su precedencia, el que gana es el que intercepta más arriba** — y como todos devuelven algo
   plausible, la única forma de saber cuál contestó es que cada uno deje su marca en el log.
 
 ### F-140 · En local, una entidad rt=1 cuya integración no esté mockeada DESAPARECE del listado sin decir nada

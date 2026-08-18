@@ -252,6 +252,31 @@ Cambio chico, un archivo, sobre rieles ya tendidos — pero **es otro repo y otr
 ⚠ **No borrar `mock_rules` hasta que 1 y 3 estén andando.** Si no, queda una ventana donde QA no
 tiene con qué simular desde el front.
 
+## DECISIÓN (Miguel, 2026-08-18): los drivers fake de BURÓS quedan sin usar
+
+Los `Http::fake` de las centrales los hizo Miguel para poder inyectar por inyección de dependencias
+cuando no había otra forma de probar. Después Yamid hizo el lambda, que **cumple el mismo objetivo y
+mejor**: se le pide de antemano qué contestar POR CÉDULA, sin reiniciar ni desplegar, y sirve igual en
+local que en staging. Teniendo los dos, mantener ambos es cargar una precedencia que nadie declaró —
+y que ya costó: los drivers ganan sobre el lambda porque interceptan más arriba, así que con ellos
+prendidos lo que se dicta **no llega y el flujo igual termina bien** (F-139).
+
+**Queda:** `ONBOARDING_DRIVER_{EXPERIAN,MAREIGUA,AGILDATA,TUSDATOS}=real` y los cuatro `*_MOCK_HOST`
+apuntando al lambda. Verificado corriendo: dos casos con ingreso dictado 1.200.000 y 9.500.000
+guardaron exactamente eso en `user_summaries`, y Loki registra `source: lambda`.
+
+⚠ **NO toca los drivers de OTP ni de CACHE**, que siguen en `fake`. El de OTP **no pasa por
+`Http::fake`** —va por el driver del contenedor— así que el lambda no lo reemplaza, y sus escenarios
+(`otp.success`, `otp.invalidCode`, `otp.expired`…) siguen siendo el único mecanismo.
+
+**Lo que cuesta, y hay que decidir aparte:** cuatro specs del harness inyectan escenarios de BURÓS y
+dependen de los drivers — `channel/kyc-subcodes.spec.ts` (OBS-KYC-03, fuerza cada sufijo `ONB005`),
+`channel/kyc-ui.spec.ts`, `e2e/happy-path.spec.ts` y `merchant/motai.spec.ts`. Con los drivers en
+`real` esa inyección no ocurre. Lo que esos specs cubren y el lambda todavía no replica son los
+caminos de ERROR con nombre (`tusdatos.nameMismatch`, `experian.serverError`, `kyc.dateMismatch`): el
+lambda dicta el CONTENIDO de la respuesta, y forzar un 500 del proveedor o un mismatch pide otra
+receta. **Migrarlos o dejar los drivers prendidos sólo para esa suite es lo que queda abierto.**
+
 ## Lo que NO se tocó, y por qué
 
 Los escenarios con nombre. **El harness los usa en 9 archivos con 13 escenarios**
