@@ -173,10 +173,20 @@ mensaje exacto y en qué campo sale. ⚠ Es una **segunda implementación** de `
 sirve para no tener que correr por cada tanteo, pero si esa clase cambia, esto queda mintiendo. La
 verdad la sigue dando correrlo, y está dicho en la pantalla.
 
-**El check «dictar» no es «deshabilitar», y está dicho en pantalla.** Sin dictar, el mock responde su
-enlatado — y el de Ágil **resuelve** (`JUAN SANTIAGO DOE RAMANUYAN`), o sea que la cascada corta ahí.
-Para que una central no resuelva hay que dictarle que se abstenga. Confundir las dos es la forma más
-fácil de creer que la herramienta no funciona.
+**Una sola perilla por central: responde o no responde.** Se descartaron los desplegables de códigos
+(`16`/`98`/`99`/`02`, `1`/`16`/`2`) porque obligaban a QA a saber qué significa cada uno; la
+herramienta elige el más limpio —Ágil `16` «sin afiliación», Mareigua `1` «sin información»— y lo dice
+en el nodo. Y **las tres se dictan siempre**, con lo cual desaparece la trampa que había antes: el
+check «dictar» dejaba que el mock respondiera su enlatado, que en Ágil **resuelve**, así que
+destildarlo no deshabilitaba nada — cortaba la cascada ahí. Ese caso ya no existe.
+
+**Las DOS salidas de «resuelve pero el nombre no cuadra».** Corregido tras una observación de Miguel,
+que esperaba que ese caso fuera directo al cliente. El código hace las dos cosas
+(`OnboardingService:370`): mientras haya reintentos va a **TusDatos**; cuando se agotan devuelve
+**ONB005** y ahí sí va al cliente. Lo decide
+`personal_info_validation_error_max_attempts` — **2** en la base local — y ⚠ el contador es **por
+usuario y cacheado**, así que el mismo cliente reintentando se comporta distinto en la segunda vuelta.
+El diagrama estaba incompleto, no equivocado; ahora dibuja las dos.
 
 **Verificado corriendo, dos veces.** Desde la página se dictó Ágil `16` + Mareigua `1` + segundo
 apellido en «NO coincide»; el flujo por API respondió `ONB005` / `KYC_VALIDATION_FAILED` («TusDatos

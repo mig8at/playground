@@ -40,7 +40,7 @@
   code{font:12px var(--mono);background:var(--bg);border:1px solid var(--linea);
        border-radius:4px;padding:1px 5px}
 
-  .lienzo{position:relative;padding:4px 96px 4px 4px}
+  .lienzo{position:relative;padding:4px 96px 4px 104px}
   .lienzo svg{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;overflow:visible}
   .nodo{position:relative;background:var(--panel);border:1.5px solid var(--linea);border-radius:12px;
         padding:14px 16px;width:min(440px,100%);margin:0 auto 62px;transition:opacity .15s,border-color .15s}
@@ -129,20 +129,10 @@
         <header>
           <span class="paso">2</span><h3>Ágil Data</h3>
           <span class="fin no" id="ag_fin">✓ resuelve: termina acá</span>
-          <label class="sw" style="margin:0"><input type="checkbox" id="ag_on" checked onchange="pintar()"> dictar</label>
+          <label class="sw" style="margin:0"><input type="checkbox" id="ag_responde" checked onchange="pintar()"> responde</label>
         </header>
         <p class="que">Primera de la cascada. Devuelve el nombre completo en un solo string.</p>
         <div class="campos">
-          <div class="ancho">
-            <label for="ag_modo">Qué hace</label>
-            <select id="ag_modo" onchange="pintar()">
-              <option value="01">Resuelve — devuelve identidad e ingreso</option>
-              <option value="16">Se abstiene — sin afiliación (16)</option>
-              <option value="98">Se abstiene — límite diario (98)</option>
-              <option value="99">Se abstiene — consulta no exitosa (99)</option>
-              <option value="02">Se abstiene — error (02)</option>
-            </select>
-          </div>
           <div class="ag_datos ancho">
             <p class="espejo" id="ag_espejo"></p>
             <label for="ag_nombre">Nombre completo que devuelve</label>
@@ -151,8 +141,13 @@
           <div class="ag_datos ancho"><label for="ag_ingreso">Ingreso mensual (IBC)</label>
             <input id="ag_ingreso" value="3500000"></div>
         </div>
-        <p class="nota ojo oculto" id="ag_apagado">Sin dictar, Ágil responde su enlatado
-          (<code>JUAN SANTIAGO DOE RAMANUYAN</code>) y <b>resuelve</b>. La cascada corta acá.</p>
+        <p class="nota oculto" id="ag_apagado">No responde: se le dicta <code>codRespuesta 16</code>
+          (sin afiliación). La cascada sigue a Mareigua.</p>
+        <p class="nota ag_datos">⚠ Si responde pero el nombre <b>no cuadra</b>, la solicitud NO se frena
+          de una: reintenta con TusDatos. Sólo frena cuando se agotan los intentos
+          (<code>personal_info_validation_error_max_attempts</code>, hoy <b>2</b> en local) — y ese
+          contador es <b>por usuario y cacheado</b>, así que el mismo cliente reintentando se comporta
+          distinto en la segunda vuelta.</p>
       </div>
 
       <!-- 3 · MAREIGUA -->
@@ -160,32 +155,23 @@
         <header>
           <span class="paso">3</span><h3>Mareigua</h3>
           <span class="fin no" id="mg_fin">✓ resuelve: termina acá</span>
-          <label class="sw" style="margin:0"><input type="checkbox" id="mg_on" checked onchange="pintar()"> dictar</label>
+          <label class="sw" style="margin:0"><input type="checkbox" id="mg_responde" checked onchange="pintar()"> responde</label>
         </header>
-        <p class="que">Sólo corre si Ágil se abstuvo. Devuelve nombres y apellidos por separado.</p>
+        <p class="que">Sólo corre si Ágil no respondió. Devuelve nombres y apellidos por separado.</p>
         <div class="campos">
-          <div class="ancho">
-            <label for="mg_modo">Qué hace</label>
-            <select id="mg_modo" onchange="pintar()">
-              <option value="4">Resuelve — devuelve identidad</option>
-              <option value="1">No resuelve — sin información (1)</option>
-              <option value="16">No resuelve — límite diario (16)</option>
-              <option value="2">No resuelve — error (2)</option>
-            </select>
-          </div>
           <div class="mg_datos ancho"><p class="espejo" id="mg_espejo"></p></div>
           <div class="mg_datos"><label for="mg_nombres">Nombres</label><input id="mg_nombres" oninput="mg_tocado=true;pintar()"></div>
           <div class="mg_datos"><label for="mg_apellidos">Apellidos</label><input id="mg_apellidos" oninput="mg_tocado=true;pintar()"></div>
         </div>
-        <p class="nota ojo oculto" id="mg_apagado">Sin dictar responde su enlatado
-          (<code>FAKE EMPLOYEE NAME</code>) y resuelve.</p>
+        <p class="nota oculto" id="mg_apagado">No responde: se le dicta <code>respuesta_id 1</code>
+          (sin información). La cascada sigue a TusDatos.</p>
       </div>
 
       <!-- 4 · TUSDATOS -->
       <div class="nodo" id="n_td">
         <header>
           <span class="paso">4</span><h3>TusDatos</h3>
-          <label class="sw" style="margin:0"><input type="checkbox" id="td_on" checked onchange="pintar()"> dictar</label>
+          <label class="sw" style="margin:0"><input type="checkbox" id="td_responde" checked onchange="pintar()"> responde</label>
         </header>
         <p class="que">La última. Para cédula colombiana <b>no</b> devuelve nombre adoptable: da un
            veredicto campo por campo. Acá vivía el defecto de CORE-420.</p>
@@ -200,6 +186,8 @@
         </div>
         <p class="nota ojo"><b>«No coincide» y «no lo mandé» no son lo mismo</b>, y confundirlos fue el
           bug: en PHP <code>0 == null</code> es <code>true</code>.</p>
+        <p class="nota oculto" id="td_apagado">No responde: la solicitud <b>avanza igual</b>, con los
+          nombres tal como los tecleó el asesor. Nadie los verificó.</p>
       </div>
 
       <!-- 5 · EL CLIENTE -->
@@ -296,7 +284,7 @@ const ETIQ = {td_first_name:'Primer nombre', td_middle_name:'Segundo nombre',
 function veredicto(agResuelve, mgResuelve, corre){
   const tn=val('as_nombres'), ta=val('as_apellidos');
   if (corre.ag && agResuelve){
-    const full = $('ag_on').checked ? val('ag_nombre') : 'JUAN SANTIAGO DOE RAMANUYAN';
+    const full = val('ag_nombre');
     const ad = alignedSplit(tn, ta, full);
     if (ad) return {pasa:true, quien:'Ágil Data', guarda:`${ad.nombres} | ${ad.apellidos}`,
                     motivo: compare(`${tn} ${ta}`, full).reason};
@@ -306,8 +294,7 @@ function veredicto(agResuelve, mgResuelve, corre){
             campos:[['nombres',MSG_AG],['apellidos',MSG_AG]], sigue:'TusDatos'};
   }
   if (corre.mg && mgResuelve){
-    const mn = $('mg_on').checked ? val('mg_nombres') : 'FAKE',
-          ma = $('mg_on').checked ? val('mg_apellidos') : 'EMPLOYEE NAME';
+    const mn = val('mg_nombres'), ma = val('mg_apellidos');
     const cn=compare(tn,mn), ca=compare(ta,ma);
     if (mn && ma && cn.same && ca.same){
       // el motivo útil es el del campo que NO vino idéntico: si los dos lo son, «identical».
@@ -322,8 +309,9 @@ function veredicto(agResuelve, mgResuelve, corre){
     return {pasa:false, quien:'Mareigua', motivo:(cn.same?ca.reason:cn.reason), campos, sigue:'TusDatos'};
   }
   // TusDatos: veredicto por campo, no comparación de nombre
-  if (!$('td_on').checked)
-    return {pasa:true, quien:'TusDatos', guarda:`${tn} | ${ta}`, motivo:'el enlatado del mock coincide'};
+  if (!$('td_responde').checked)
+    return {pasa:true, quien:'nadie', guarda:`${tn} | ${ta}`,
+            motivo:'ninguna central resolvió: se guarda lo tecleado, sin verificar'};
   if (val('td_estado') !== 'VIGENTE')
     return {pasa:false, quien:'TusDatos', motivo:'documento no vigente',
             campos:[['cédula',`La cedula se encuentra ${val('td_estado')}`]]};
@@ -376,27 +364,37 @@ function espejar(){
 
 function pintar(){
   espejar();
-  const agDicta=$('ag_on').checked, mgDicta=$('mg_on').checked;
-  // ⚠ NO dictar ≠ que se abstenga: sin dictar el mock responde su enlatado, que RESUELVE.
-  const agResuelve = !agDicta || $('ag_modo').value==='01';
-  const mgResuelve = !mgDicta || $('mg_modo').value==='4';
+  // Una sola perilla por central: responde o no. Las tres se dictan SIEMPRE, así el enlatado del
+  // mock nunca entra en juego — era la trampa más fácil de pisar.
+  const agResuelve = $('ag_responde').checked, mgResuelve = $('mg_responde').checked;
 
-  document.querySelectorAll('.ag_datos').forEach(e=>e.classList.toggle('oculto', !agDicta || $('ag_modo').value!=='01'));
-  document.querySelectorAll('.mg_datos').forEach(e=>e.classList.toggle('oculto', !mgDicta || $('mg_modo').value!=='4'));
-  $('ag_apagado').classList.toggle('oculto', agDicta);
-  $('mg_apagado').classList.toggle('oculto', mgDicta);
+  document.querySelectorAll('.ag_datos').forEach(e=>e.classList.toggle('oculto', !agResuelve));
+  document.querySelectorAll('.mg_datos').forEach(e=>e.classList.toggle('oculto', !mgResuelve));
+  document.querySelectorAll('#n_td .campos').forEach(e=>e.classList.toggle('oculto', !$('td_responde').checked));
+  $('ag_apagado').classList.toggle('oculto', agResuelve);
+  $('mg_apagado').classList.toggle('oculto', mgResuelve);
+  $('td_apagado').classList.toggle('oculto', $('td_responde').checked);
 
-  const camino=['as-ag'];
-  if(agResuelve) camino.push('ag-td');
-  else { camino.push('ag-mg'); if(!mgResuelve) camino.push('mg-td'); }
+  // El veredicto se calcula PRIMERO y el camino se deriva de él: así la flecha encendida es la que
+  // de verdad se va a tomar, no una aproximación.
   const corre = {ag:true, mg:!agResuelve, td:agResuelve || !mgResuelve};
-  $('ag_fin').className = 'fin' + (agResuelve ? '' : ' no');
-  $('mg_fin').className = 'fin' + (!agResuelve && mgResuelve ? '' : ' no');
-  $('n_ag').className='nodo activo';
-  $('n_mg').className='nodo'+(corre.mg?' activo':' gris');
-  $('n_td').className='nodo'+(corre.td?' activo':' gris');
-
   const v = veredicto(agResuelve, mgResuelve, corre);
+
+  const camino = ['as-ag'];
+  if (agResuelve){
+    if (v.quien === 'Ágil Data' && v.pasa) { /* termina en Ágil: ninguna arista de salida */ }
+    else camino.push('ag-td', 'ag-cli');   // no cuadra → reintenta o frena, según el contador
+  } else {
+    camino.push('ag-mg');
+    if (!mgResuelve) camino.push('mg-td');
+    else if (!v.pasa) camino.push('mg-td');
+  }
+  $('ag_fin').className = 'fin' + (agResuelve && v.pasa && v.quien==='Ágil Data' ? '' : ' no');
+  $('mg_fin').className = 'fin' + (!agResuelve && mgResuelve && v.pasa && v.quien==='Mareigua' ? '' : ' no');
+  $('n_ag').className = 'nodo activo';
+  $('n_mg').className = 'nodo' + (corre.mg ? ' activo' : ' gris');
+  $('n_td').className = 'nodo' + (camino.includes('mg-td') || camino.includes('ag-td') ? ' activo' : ' gris');
+
   camino.push(v.pasa ? 'td-cli-ok' : 'td-cli-no');
   pintarVeredicto(v);
   requestAnimationFrame(()=>dibujar(camino, v.quien));
@@ -408,7 +406,7 @@ function dibujar(camino, decide){
     return {x:r.left-base.left,y:r.top-base.top,w:r.width,h:r.height,
             cx:r.left-base.left+r.width/2,bot:r.top-base.top+r.height,top:r.top-base.top};};
   const as=caja('n_as'), ag=caja('n_ag'), mg=caja('n_mg'), td=caja('n_td'), cli=caja('n_cli');
-  const canal=ag.x+ag.w+46;
+  const canal=ag.x+ag.w+46, izq=ag.x-46;
   const on=k=>camino.includes(k)?' class="on"':'';
   const punta=k=>`url(#${camino.includes(k)?'pon':'p'})`;
   const txt=(x,y,t,k,anc='middle')=>`<text x="${x}" y="${y}" text-anchor="${anc}"${camino.includes(k)?' class="on"':''}>${t}</text>`;
@@ -430,9 +428,16 @@ function dibujar(camino, decide){
              Q ${canal} ${ag.top+ag.h/2} ${canal} ${ag.top+ag.h/2+14} L ${canal} ${td.top+16}
              Q ${canal} ${td.top+30} ${canal-14} ${td.top+30} L ${td.x+td.w+9} ${td.top+30}"
           marker-end="${punta('ag-td')}"${on('ag-td')}/>
-    ${txt(canal+7,(ag.bot+td.top)/2-7,'resuelve, pero','ag-td','start')}
-    ${txt(canal+7,(ag.bot+td.top)/2+7,'el nombre','ag-td','start')}
-    ${txt(canal+7,(ag.bot+td.top)/2+21,'no cuadra','ag-td','start')}
+    ${txt(canal+7,(ag.bot+td.top)/2-14,'no cuadra:','ag-td','start')}
+    ${txt(canal+7,(ag.bot+td.top)/2,'reintenta','ag-td','start')}
+    ${txt(canal+7,(ag.bot+td.top)/2+14,'con TusDatos','ag-td','start')}
+    <path d="M ${ag.x} ${ag.top+ag.h/2} L ${izq+14} ${ag.top+ag.h/2}
+             Q ${izq} ${ag.top+ag.h/2} ${izq} ${ag.top+ag.h/2+14} L ${izq} ${cli.top+16}
+             Q ${izq} ${cli.top+30} ${izq+14} ${cli.top+30} L ${cli.x-9} ${cli.top+30}"
+          marker-end="${punta('ag-cli')}"${on('ag-cli')}/>
+    ${txt(izq-7,(ag.bot+cli.top)/2-14,'no cuadra y','ag-cli','end')}
+    ${txt(izq-7,(ag.bot+cli.top)/2,'sin reintentos:','ag-cli','end')}
+    ${txt(izq-7,(ag.bot+cli.top)/2+14,'ONB005','ag-cli','end')}
     <path d="M ${td.cx} ${td.bot} L ${cli.cx} ${cli.top-9}"
           marker-end="${punta(camino.includes('td-cli-ok')?'td-cli-ok':'td-cli-no')}"
           ${camino.includes('td-cli-ok')||camino.includes('td-cli-no')?' class="on"':''}/>
@@ -443,9 +448,10 @@ pintar();
 
 // ── los cuerpos, con la forma que el backend de verdad lee ────────────────────────────────────
 function cuerpoAgil(){
-  const cod=$('ag_modo').value;
-  if(cod!=='01') return {usuario:null,respuesta:null,codConsulta:"0",codRespuesta:cod,
-                         observaciones:"Consulta no exitosa."};
+  // «No responde» = 16, sin afiliación. Es el más limpio de los códigos de abstención: significa
+  // «esta persona no tiene datos acá», no un error del proveedor.
+  if(!$('ag_responde').checked) return {usuario:null,respuesta:null,codConsulta:"0",
+    codRespuesta:"16",observaciones:"Consulta no exitosa."};
   const ibc=Number(val('ag_ingreso'))||0;
   const pagos=[1,2,3,4,5,6].map(i=>({id:i,ibc,periodo:"20260"+i,fechaPago:`2026-0${i}-15 00:00:00`,
     diasCotizados:30,valorCotizacionObligatoria:Math.round(ibc*0.115)}));
@@ -457,7 +463,7 @@ function cuerpoAgil(){
     fechaVinculacion:null},codConsulta:"1",codRespuesta:"01",observaciones:"Consulta Exitosa."};
 }
 function cuerpoMareigua(){
-  const id=Number($('mg_modo').value);
+  const id = $('mg_responde').checked ? 4 : 1;   // 4 = exitosa · 1 = sin información
   const [n1,...nr]=norm(val('mg_nombres')).split(' '), [a1,...ar]=norm(val('mg_apellidos')).split(' ');
   const b={respuesta_id:id,fecha:"2026-08-18T00:00:00",genero:"M",AFP:"COLPENSIONES",EPS:"COMPENSAR",
     numero_identificacion_persona_natural:val('as_doc'),tipo_identificacion_persona_natural_id:1,
@@ -474,6 +480,9 @@ function cuerpoMareigua(){
 function cuerpoTusDatos(){
   const mc=id=>{const v=$(id).value; return v==='null'?null:Number(v);};
   const tn=val('as_nombres'), ta=val('as_apellidos');
+  // ⚠ Cualquier `status` que no sea `success` el backend lo lee como INCONCLUYENTE: no rechaza,
+  // sigue con los nombres del formulario. Eso es «no responde».
+  if(!$('td_responde').checked) return {status:"error", data:null};
   return {status:"success",            // ⚠ literal: otro valor lo lee como inconcluyente y AVANZA
     data:{estado:val('td_estado'),nombre_completo:`${tn} ${ta}`.trim(),
       findings:{first_name:{match_code:mc('td_first_name')},middle_name:{match_code:mc('td_middle_name')},
@@ -503,9 +512,9 @@ async function dictar(){
   if(!/^\d{6,10}$/.test(doc)){ alert('La cédula tiene que ser de 6 a 10 dígitos.'); return; }
   $('btn').disabled=true; $('btn').textContent='Dictando…';
   log(`── cédula ${doc} · ${new Date().toLocaleString('es-CO')}`);
-  if($('ag_on').checked) await poner(`agildata_${doc}`,cuerpoAgil());
-  if($('mg_on').checked) await poner(`mareigua_${doc}`,cuerpoMareigua());
-  if($('td_on').checked) await poner(`tusdatos_${doc}`,cuerpoTusDatos());
+  await poner(`agildata_${doc}`,cuerpoAgil());
+  await poner(`mareigua_${doc}`,cuerpoMareigua());
+  await poner(`tusdatos_${doc}`,cuerpoTusDatos());
   log(`── listo. En el wizard: cédula ${doc}, «${val('as_nombres')} ${val('as_apellidos')}», celular ${val('as_cel')}.`);
   $('btn').disabled=false; $('btn').textContent='Dictar al mock';
 }
