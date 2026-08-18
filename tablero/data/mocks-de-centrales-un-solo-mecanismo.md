@@ -261,9 +261,15 @@ local que en staging. Teniendo los dos, mantener ambos es cargar una precedencia
 y que ya costó: los drivers ganan sobre el lambda porque interceptan más arriba, así que con ellos
 prendidos lo que se dicta **no llega y el flujo igual termina bien** (F-139).
 
-**Queda:** `ONBOARDING_DRIVER_{EXPERIAN,MAREIGUA,AGILDATA,TUSDATOS}=real` y los cuatro `*_MOCK_HOST`
-apuntando al lambda. Verificado corriendo: dos casos con ingreso dictado 1.200.000 y 9.500.000
-guardaron exactamente eso en `user_summaries`, y Loki registra `source: lambda`.
+**Queda:** las cuatro `ONBOARDING_DRIVER_{EXPERIAN,MAREIGUA,AGILDATA,TUSDATOS}` **se quitan del
+`.env`** —no se ponen en `real`— y los cuatro `*_MOCK_HOST` apuntan al lambda.
+
+⚠ **Quitarlas y ponerlas en `real` NO son lo mismo aunque resuelvan igual.** `config/onboarding.php`
+ya usa `'real'` como default (`env('ONBOARDING_DRIVER_EXPERIAN', 'real')`), así que la línea explícita
+resuelve al mismo valor pero **dice otra cosa**: sugiere un override deliberado que no existe. Los
+ambientes desplegados no las tienen, y local tiene que verse igual — si no, el próximo que compare
+dos `.env` cree que hay una diferencia de configuración donde no la hay. Verificado corriendo, ya SIN las variables: ingresos dictados 3.300.000 y 11.000.000 quedaron
+exactamente así en `user_summaries`, con dos `Calling lambda mock host` en Loki.
 
 ⚠ **NO toca los drivers de OTP ni de CACHE**, que siguen en `fake`. El de OTP **no pasa por
 `Http::fake`** —va por el driver del contenedor— así que el lambda no lo reemplaza, y sus escenarios
