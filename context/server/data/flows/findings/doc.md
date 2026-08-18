@@ -1868,3 +1868,29 @@ en producción — el webhook no deja registro cuando `firstOrFail()` lanza, as�
 - **Estado:** vivo. La regla general: **cuando un paso del flujo vive en el cliente, una prueba
   server-to-server lo saltea sin fallar** — y el resultado se ve completo. Antes de concluir sobre una
   etapa, conviene preguntarse quién la dispara.
+
+### F-142 · Una entidad con host nulo tira el listado ENTERO del comercio, y el síntoma parece «no ofrece nada»
+
+- **Síntoma:** el listado de un comercio devuelve **cero** entidades, teniendo varias cableadas y con
+  las reglas aprobándolas. Se lee como un hecho de negocio («ese comercio no ofrece nada»), y es una
+  excepción de PHP.
+- **Causa raíz (verificada 2026-08-18 en local contra `main`):** `app/Actions/Lenders/Credifamilia.php:69`
+  hace `->baseUrl(config('services.credifamilia.host_oauth'))`, y esa clave sale de
+  `CREDIFAMILIA_HOST_OAUTH` (`config/services.php:121`), que **no está en el `.env` local**. Con la
+  variable ausente `config()` devuelve `null` y `PendingRequest::baseUrl()` tira
+  `TypeError: Argument #1 ($url) must be of type string, null given`. La excepción **no queda contenida
+  en esa card**: se lleva la construcción del listado completo.
+- **Alcance medido:** **17 comercios** tienen a Credifamilia (lender 24) cableada en el dump local. En
+  todos, el listado revienta igual. Es el mismo modo de falla que ya se conocía para `H2O_API_HOST`
+  —donde la variable sí está, apuntando a un puerto cerrado a propósito, y por eso NO rompe—: la
+  diferencia entre «apunta a algo muerto» y «no apunta a nada» es un `TypeError` contra un `cURL error`.
+- **⚠ Cómo NO diagnosticarlo:** contando entidades. Una herramienta que reporte «0 entidades» sin mirar
+  si la respuesta fue un error hace concluir exactamente lo contrario de lo que pasa. `dev/caso.ts` lo
+  hacía y se corrigió el mismo día: ahora distingue «el LISTADO falló» de «cero entidades».
+- **Arreglo:** agregar `CREDIFAMILIA_HOST_OAUTH` al `.env` local (aunque apunte a un host muerto, como
+  hace `H2O_API_HOST`), o hacer que el Action tolere el nulo. **No aplicado** — `.env` no se versiona,
+  y el arreglo en el Action es decisión de quien lo mantiene.
+- **Estado:** vivo en local. La regla general: **una variable AUSENTE y una variable que apunta a algo
+  muerto fallan distinto** — la segunda da un error de red que el código suele capturar, la primera un
+  `TypeError` que nadie esperaba y que escala. Cuando se apaga una integración en un ambiente, conviene
+  apuntarla a un puerto cerrado antes que borrarla.

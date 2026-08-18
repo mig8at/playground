@@ -344,6 +344,15 @@ async function correrLambda(c: Caso, i: number): Promise<Res> {
 
     const lis = await fetch(`${API}/api/onboarding/loan-application/lenders/${ur}`, { headers: H })
         .then((r) => r.json()).catch(() => null);
+    // ⚠ «CERO ENTIDADES» Y «LA LLAMADA FALLÓ» NO SON LO MISMO, y hasta el 2026-08-18 esto los
+    // reportaba igual: un comercio cuyo listado reventaba salía como «0 entidades», que se lee como
+    // un hecho de negocio («no ofrece nada») cuando es una excepción de PHP. Pasó de verdad — un
+    // lender con host nulo tira `PendingRequest::baseUrl(): Argument #1 must be of type string, null
+    // given` y se lleva el listado ENTERO del comercio, no sólo esa card.
+    if (lis?.exception || (lis?.success === false) || (lis?.message && !lis?.data)) {
+        return { ...base, ok: false, nombre: `doc ${doc}`, conducta: 'el LISTADO falló',
+                 detalle: String(lis.message ?? lis.exception).split('\n')[0].slice(0, 110) };
+    }
     const crudo = lis?.data ?? lis;
     const arr: any[] = Array.isArray(crudo) ? crudo : Array.isArray(crudo?.lenders) ? crudo.lenders : [];
     base.listado = arr.map((x) => Number(x.id ?? x.lender_id)).filter(Boolean);
