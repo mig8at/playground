@@ -1814,3 +1814,31 @@ en producción — el webhook no deja registro cuando `firstOrFail()` lanza, as�
 - **Estado:** vivo en `main`. La regla general: **cuando tres mecanismos resuelven lo mismo y ninguno
   declara su precedencia, el que gana es el que intercepta más arriba** — y como todos devuelven algo
   plausible, la única forma de saber cuál contestó es que cada uno deje su marca en el log.
+
+### F-140 · En local, una entidad rt=1 cuya integración no esté mockeada DESAPARECE del listado sin decir nada
+
+- **Síntoma:** un comercio tiene N entidades cableadas y el listado devuelve N-1. La que falta **no
+  sale con «Probabilidad muy baja»** ni con ningún mensaje: no está en la respuesta. Y no es la
+  conducta que uno esperaría del rechazo, porque las reglas la **aprobaron**.
+- **Causa raíz (verificada 2026-08-17 contra `main`, medido en local):** las entidades `rt=1` se
+  autentican contra la **API del proveedor** antes de entrar al listado. En local los hosts apuntan a
+  un mock genérico (`harness` :8099, `{"mock":"lenders-gateway"}`) que responde **200 a cualquier
+  ruta** con un cuerpo genérico. `app/Actions/Lenders/Meddipay.php:232-235` pide algo concreto:
+  `if (!$auth || !isset($auth['data']['token']))` → sin esa clave da la autenticación por fallida y la
+  entidad queda fuera. El mock contesta `{"status":"OK","approved":true,…}`: **200 y sin `data.token`**.
+- **Evidencia:** Amoblando Pullman (sucursal `03d5dea0`) tiene 7 entidades cableadas y el listado
+  devuelve **6**; falta Meddipay (39). En los logs, para esa misma corrida:
+  `Resultado de evaluación de reglas para entidad {"lender_id":39,"result":"aprobado"}` y, más
+  adelante, `Autenticando con Meddipay {"allied_branch_id":389}` seguido de
+  `Fallo en la autenticación con Meddipay`. Las credenciales **existen** (`lender_allied_credentials`
+  tiene fila para lender 39 + Pullman), así que no es una fila faltante.
+- **⚠ Cómo NO diagnosticarlo:** comparando configuración. Meddipay y Sistecrédito (que sí aparece) son
+  idénticas en `lenders`, en `lenders_by_allied_branches` y en `lenders_by_allieds`; ninguna de las dos
+  tiene ciudades de cobertura. La diferencia no está en ninguna tabla: está en si el mock sabe
+  contestarle a ESA integración.
+- **Arreglo:** para probar una entidad rt=1 en local hay que mockear **su** contrato, no alcanzar con
+  el gateway genérico. **No aplicado.** Y mientras tanto: **una ausencia en el listado local no prueba
+  una regla de negocio** — hay que mirar los logs de la corrida antes de concluir.
+- **Estado:** vivo. La regla general: **un mock que responde 200 a todo convierte un fallo de
+  integración en una ausencia silenciosa**, que es indistinguible de una exclusión por reglas. Un mock
+  que devolviera 404 en las rutas que no conoce haría ruido — y el ruido acá sería la señal.
