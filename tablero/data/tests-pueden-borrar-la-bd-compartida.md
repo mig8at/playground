@@ -1,7 +1,7 @@
 ---
 id: 50
 title: "La suite de tests puede borrar la base de datos compartida, y el trait que lo hace ni siquiera funciona"
-stage: work
+stage: evaluation
 created: "2026-08-18T18:30:00-05:00"
 context_nodes: [findings]
 jira: [CORE-431]
@@ -9,7 +9,12 @@ jira_title: "Blindar la suite de pruebas para que no pueda borrar la base de dat
 ---
 
 # La suite de tests puede borrar la BD compartida
-> **estado (2026-08-18):** 🔴 **abierta, medida corriendo.** Salió al preparar el PR del canal de
+> **estado (2026-08-18):** ⏸ **CORE-431 creada y SACADA del sprint**, a pedido de Miguel: se queda en el
+> backlog hasta aterrizar bien la vulnerabilidad. El ticket conserva descripción y 3 puntos; no se borró
+> (borrar un issue de Jira es permanente y no hay papelera). Para volver a meterla al sprint, alcanza con
+> arrastrarla desde el backlog.
+>
+> 🔴 **El hallazgo en sí sigue abierto y medido corriendo.** Salió al preparar el PR del canal de
 > WhatsApp: antes de correr los tests del módulo revisé cuáles tocaban la base, y apareció que la única
 > barrera que separa la suite de una base real es condicional. Al medirlo apareció algo mejor: **el trait
 > destructivo no puede funcionar en este repo**, así que quitarlo no cuesta nada.
@@ -137,6 +142,19 @@ que **aborta** en vez de conectar. Contra una base desechable, nunca contra `ine
   vacía desechable: **`migrate` desde cero falla en la 207 de 358**, así que `RefreshDatabase` no puede
   funcionar en este repo y solo entrega su mitad destructiva. Eso vuelve el arreglo casi gratis y destapa
   un hallazgo aparte: no se puede bootstrapear un ambiente migrando.
+- **2026-08-18 (3)** — Creada **CORE-431** (sprint 11, 3 puntos) y **sacada del sprint el mismo día**:
+  Miguel prefiere aterrizar la vulnerabilidad antes de ponerla a rodar con el equipo. Queda en el backlog.
+  Además, leídas las dos pruebas para saber si conviene arreglarlas o borrarlas — **ninguna se borra**:
+  - `SafeCancelTest` (Feature, 5 casos) blinda el bug de los **16 casos de CreditopX** que quedaron en
+    estado 8 «Cancelado» con la CREACIÓN **viva en el core**, porque la ruta de borrado se registró sin el
+    middleware de estado. ⚠ **Esta SÍ necesita base**: dos de sus asserts comprueban que una fila **no** se
+    escribió en `user_request_records`, y eso no se verifica sin base. A esta solo se le cambia el
+    mecanismo; no se le quita la base.
+  - `CreditopXDatacreditoAdjustmentServiceTest` (8 casos) reconcilia lo que sabe el core contra lo que
+    reporta DataCrédito, que va con retraso: crédito nuevo aún no reportado → ajuste **+cuota**; crédito ya
+    pagado que la central sigue reportando → **−cuota**; pago parcial con cuota vieja inflada → negativo.
+    Decide **cuánto se le presta a la persona**. Es aritmética sobre datos: **esta es la que sobra la base**,
+    y la necesita solo porque el servicio consulta por su cuenta.
 
 ## Tarea (publicable)
 La suite de pruebas automatizadas puede borrar por completo la base de datos de un ambiente compartido.
