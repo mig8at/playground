@@ -54,7 +54,10 @@
 // Gotchas heredados, que acá aplican igual: `E2E_TARGET` default es dev → se fuerza local · UA de
 // iPhone SIEMPRE (con UA de escritorio, 403) · en `main` sin `H2O_API_HOST` el listado da 500.
 
-import { spawnSync } from 'node:child_process';
+// ⚠ Marca de MÓDULO. Al sacar el último `import` estático, node pasó a leer este archivo como CJS y
+// `await` de nivel superior dejó de ser válido (lo delató `node --check`). Un `export {}` vacío
+// alcanza y no cambia nada más.
+export {};
 
 process.env.E2E_TARGET ||= 'local';
 process.env.CFE_TARGET ||= 'local';
@@ -73,8 +76,6 @@ const UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_5 like Mac OS X) AppleWebKit/6
 const LAMBDA = process.env.RISK_LAMBDA_URL
     ?? 'https://ub79ck0htd.execute-api.us-east-2.amazonaws.com/development';
 
-// teléfonos ya tomados en ESTA corrida: dos casos en paralelo no pueden compartir uno
-const usados = new Set<string>();
 
 // El mock de integraciones de entidades (`mock-lenders`), donde se dicta qué contesta cada proveedor.
 const MOCK_LENDERS = process.env.MOCK_LENDERS_URL ?? 'http://localhost:8099';
@@ -252,31 +253,28 @@ function conductaDe(d: any): string {
 
 /** Elige un teléfono de bypass LIMPIO (sin usuario) del setting `qa_otp_bypass_phones`. El OTP es
  *  sus últimos 4 dígitos. Se saltea el de `mock_rules`, que iría al fixture. */
-async function telefonoBypass(_i: number): Promise<string | null> {
-    const row = await one<{ value: string }>(
-        "SELECT value FROM settings WHERE `key`='qa_otp_bypass_phones'").catch(() => null);
-    const tels: string[] = JSON.parse(row?.value ?? '[]').map(String);
-    for (const t of tels) {
-        // ⚠ LA RESERVA VA ANTES DEL `await`, y no después de comprobar que está limpio. La versión
-        // anterior hacía `await` para contar usuarios y RECIÉN ahí `usados.add(t)`: entre esas dos
-        // líneas hay una ventana en la que otro caso concurrente pasa el mismo chequeo y se lleva el
-        // MISMO teléfono. A 10 en paralelo no mordió; a 30 mordería, y el síntoma sería un caso
-        // fallando por «documento ya en uso» — que no se parece en nada a su causa.
-        if (usados.has(t)) continue;
-        usados.add(t);
-        const n = await one<{ n: number }>('SELECT COUNT(*) AS n FROM users WHERE cell_phone=?', [t])
-            .catch(() => null);
-        if ((n?.n ?? 1) === 0) return t;
-        // Sucio: se RECICLA el que ya quedó reservado. Cada corrida consume un teléfono (deja un
-        // usuario) y los 64 del setting se agotan en unas decenas de casos. Se scrubbea SÓLO éste,
-        // nunca la lista entera: dos casos borrándose usuarios entre sí es el fallo que este runner
-        // existe para evitar.
-        spawnSync('node', ['bin/dbops.ts', 'scrubphone', t],
-                  { cwd: new URL('..', import.meta.url).pathname });
-        return t;
-    }
-    return null;
-}
+// La raíz única de la corrida: de acá salen la cédula y el teléfono de cada caso, así ninguna
+// corrida pisa a la anterior.
+const BASE_DOC = 1090000000 + ((Date.now() / 100) % 9_000_000 | 0);
+
+/** El teléfono de un caso. DERIVADO, como la cédula — no sale de una lista.
+ *
+ *  Hasta el 2026-08-18 esto elegía uno de los 64 de `settings.qa_otp_bypass_phones`, los reciclaba
+ *  con `scrubphone` cuando se agotaban, y necesitaba un candado para que dos casos en paralelo no se
+ *  llevaran el mismo. Toda esa maquinaria era INNECESARIA: con `ONBOARDING_DRIVER_OTP=fake`,
+ *  `FakeOtpServiceRepository::validateOtp` **ignora el código tecleado** y no exige que el teléfono
+ *  esté en ninguna lista. Verificado con un teléfono inventado y el código `9999`: `otp-validate`
+ *  devolvió el `uReq` igual.
+ *
+ *  Lo que se gana no es sólo código menos: desaparece el tope de 64 casos, desaparece el borrado de
+ *  usuarios ajenos (`scrubphone` borra TODOS los del teléfono) y desaparece la carrera por reservar.
+ *
+ *  ⚠ Depende de que el driver de OTP siga en `fake`. Si alguien lo pone en `real`, esto deja de
+ *  andar y hay que volver a los de `qa_otp_bypass_phones` —cuyo código son sus últimos 4 dígitos—.
+ *  El síntoma sería `otp-validate` rechazando el código, que es explícito y no engaña. */
+//  ⚠ El índice va con DOS dígitos, no con `i % 10`: con `% 10` treinta casos comparten diez
+//  teléfonos, y tres de ellos pelean por el mismo usuario. Así soporta 100 casos por corrida.
+const telefonoDe = (i: number) => `31${String(BASE_DOC).slice(-6)}${String(i % 100).padStart(2, '0')}`;
 
 /** Le dicta a la lambda qué contesta cada central PARA ESA CÉDULA. Es el paso que vuelve el caso
  *  hipotético: se pide de antemano la respuesta que se quiere recibir. */
@@ -301,7 +299,6 @@ async function dictar(doc: string, central: string, valor: unknown): Promise<boo
  *  electrónico ya se encuentra registrado» — un error que no se parece a su causa. Peor: la caché de
  *  un mes de `risk_central_user_data` habría servido la consulta anterior en vez de llamar a la
  *  central, que es justo lo que se quiere ejercitar. */
-const BASE_DOC = 1090000000 + ((Date.now() / 100) % 9_000_000 | 0);
 const cedulaDe = (i: number) => String(BASE_DOC + i);
 
 /** La respuesta que se le pide a la central para este caso. El ingreso del caso se vuelve el `ibc`
@@ -381,8 +378,7 @@ async function correrLambda(c: Caso, i: number): Promise<Res> {
     const doc = cedulaDe(i);
     const base: Res = { caso: c, ok: false, phone: '' };
 
-    const tel = await telefonoBypass(i);
-    if (!tel) return { ...base, detalle: 'no quedan teléfonos de bypass limpios' };
+    const tel = telefonoDe(i);
     base.phone = tel;
 
     const br = await one<{ hash: string; com: string }>(
