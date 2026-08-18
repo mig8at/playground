@@ -51,6 +51,56 @@ const usados = new Set<string>();
 // El mock de integraciones de entidades (`mock-lenders`), donde se dicta qué contesta cada proveedor.
 const MOCK_LENDERS = process.env.MOCK_LENDERS_URL ?? 'http://localhost:8099';
 
+// El microservicio de PRE-APROBADOS. Lo llama el FRONT, no el backend (F-141), así que una corrida
+// por API lo saltea sin fallar: el listado se ve completo y la etapa no ocurrió. Acá se REPLICA esa
+// llamada para poder validarla sin levantar el wizard.
+// ⚠ la ruta va COMPLETA: `VITE_PREAPPROVALS_ENDPOINT` del wizard es una URL con path
+// (`…:8082/v1/preapprovals/check`), no un host. Apuntando sólo al host, el mock responde 404 a todo
+// y las cinco consultas «fallan» por una razón que no tiene nada que ver con el negocio.
+const PREAPPROVALS = process.env.PREAPPROVALS_URL ?? 'http://localhost:8095/v1/preapprovals/check';
+
+// El `lending_product_key` NO es el slug siempre — el contrato lo arma
+// `fetch-lender-preapproval.ts:148-153` del monorepo, y son tres casos:
+const CREDITOP_X_PRODUCT_KEY = 'creditop_x';   // rt 2 y 3 comparten UN producto
+const WELLI_IDS = [23, 141, 142, 166];         // las cuatro variantes comparten `welli`
+const claveDeProducto = (rt: number, id: number, slug: string) =>
+    (rt === 2 || rt === 3) ? CREDITOP_X_PRODUCT_KEY : WELLI_IDS.includes(id) ? 'welli' : slug;
+
+/** Lo que el wizard dispara por cada entidad elegible después de recibir el listado.
+ *  ⚠ Sólo para `response_type !== 0`: las STANDARD nunca usan el microservicio. */
+async function preAprobar(lender: any, ureq: number, userId: number, alliedId: number,
+                          hash: string, amount: number, estadoMock?: string) {
+    const payload: Record<string, unknown> = {
+        applicant_id: userId,
+        lending_product_key: claveDeProducto(Number(lender.response_type), Number(lender.id), String(lender.slug ?? '')),
+        lending_product_id: String(lender.id),
+        merchant_id: alliedId,
+        user_request_id: ureq,
+        allied_branch_hash: hash,
+    };
+    // ⚠ el monto va SÓLO si es > 0: welli, meddipay, prami y bancolombia_consumer_loan rechazan la
+    // consulta sin monto positivo, y para el resto el MS lo trata como opcional.
+    if (amount > 0) payload.amount = amount;
+    // ⚠ `?status=` NO es parte del contrato: es una perilla del MOCK (`mock-preapprovals`), que
+    // también acepta `x-mock-status` y `body.force_status`. Va en la URL y no en el cuerpo a
+    // propósito — el cuerpo tiene que seguir siendo EXACTAMENTE el que manda el front, o la prueba
+    // deja de probar el contrato real. Contra el MS de verdad, este parámetro se ignora.
+    const url = estadoMock ? `${PREAPPROVALS}?status=${encodeURIComponent(estadoMock)}` : PREAPPROVALS;
+    const r = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+        body: JSON.stringify(payload), signal: AbortSignal.timeout(45_000),
+    }).catch((e) => e as Error);
+    if (r instanceof Error) return { id: lender.id, estado: `sin respuesta (${String(r.message).slice(0, 40)})` };
+    if (r.status === 422) {
+        const b: any = await r.json().catch(() => ({}));
+        return { id: lender.id, estado: `bajo el mínimo (${b?.minimum_amount ?? '?'})` };
+    }
+    if (!r.ok) return { id: lender.id, estado: `http_${r.status}` };
+    const j: any = await r.json().catch(() => ({}));
+    return { id: lender.id, estado: String(j?.status ?? 'sin status'), cupo: j?.approved_amount ?? j?.available ?? null };
+}
+
 const arg = (n: string, d = ''): string => {
     const i = process.argv.indexOf(`--${n}`);
     return i > 0 && process.argv[i + 1] && !process.argv[i + 1].startsWith('--') ? process.argv[i + 1] : d;
@@ -91,6 +141,7 @@ function parseCaso(spec: string, dflt: { amount: number; income: number; score: 
 type Res = {
     caso: Caso; ok: boolean; ur?: number; phone: string; nombre?: string;
     enListado?: boolean; listado?: number[]; conducta?: string; detalle?: string;
+    preaprobados?: { id: number; estado: string; cupo?: unknown }[];
 };
 
 async function http(method: string, path: string, body: unknown, phone: string) {
@@ -224,6 +275,10 @@ async function dictarTodos(casos: Caso[]): Promise<string[]> {
         // el escenario de cada integración va acá también: es preparación del caso, y se dicta
         // POR CÉDULA para que dos casos en paralelo puedan pedir cosas opuestas de la misma entidad
         for (const [lender, modo] of Object.entries(casos[i].escenarios ?? {})) {
+            // ⚠ `preaprobado` NO es una entidad: es el estado que debe devolver el MICROSERVICIO de
+            // pre-aprobados, y se aplica en su propia llamada. Mandarlo al admin API del mock de
+            // integraciones lo rechaza y hace fallar la preparación del caso entero.
+            if (lender === 'preaprobado') continue;
             const r = await fetch(`${MOCK_LENDERS}/__mock/escenario`, {
                 method: 'POST', headers: { 'content-type': 'application/json' },
                 body: JSON.stringify({ lender, modo, doc }), signal: AbortSignal.timeout(8_000),
@@ -238,14 +293,6 @@ async function dictarTodos(casos: Caso[]): Promise<string[]> {
 
 async function correrLambda(c: Caso, i: number): Promise<Res> {
     const doc = cedulaDe(i);
-    // los escenarios de integración se dictan JUNTO con el caso y por cédula
-    for (const [lender, modo] of Object.entries(c.escenarios ?? {})) {
-        const r = await fetch(`${MOCK_LENDERS}/__mock/escenario`, {
-            method: 'POST', headers: { 'content-type': 'application/json' },
-            body: JSON.stringify({ lender, modo, doc }), signal: AbortSignal.timeout(8_000),
-        }).catch(() => null);
-        if (!r?.ok) return { ...base, detalle: `no se pudo dictar ${lender}=${modo} al mock de integraciones` };
-    }
     const base: Res = { caso: c, ok: false, phone: '' };
 
     const tel = await telefonoBypass(i);
@@ -273,7 +320,8 @@ async function correrLambda(c: Caso, i: number): Promise<Res> {
     const reg = await post('/api/onboarding/phone/register', {
         phone_number: tel, phoneNumber: tel, terms: true, policies: true,
         otp_length: 4, otpLength: 4, partner_branch_hash: br.hash, partnerBranchHash: br.hash });
-    if (!reg.json?.data?.user?.id) return { ...base, detalle: `register HTTP ${reg.status}` };
+    const uid = reg.json?.data?.user?.id;
+    if (!uid) return { ...base, detalle: `register HTTP ${reg.status}` };
 
     const otp = await post(`/api/onboarding/loan-application/otp-validate/${br.hash}`, {
         cell_phone: tel, otp_code: tel.slice(-4),
@@ -299,6 +347,16 @@ async function correrLambda(c: Caso, i: number): Promise<Res> {
     const crudo = lis?.data ?? lis;
     const arr: any[] = Array.isArray(crudo) ? crudo : Array.isArray(crudo?.lenders) ? crudo.lenders : [];
     base.listado = arr.map((x) => Number(x.id ?? x.lender_id)).filter(Boolean);
+
+    // LO QUE HARÍA EL FRONT. Sin esto la corrida termina en el listado y la pre-aprobación NO ocurre
+    // —sin fallar, que es lo peor (F-141)—. Se dispara una por entidad elegible y en paralelo, igual
+    // que el loader del wizard, con el payload de `fetch-lender-preapproval.ts:154-170`.
+    if (flag('preaprobados')) {
+        const elegibles = arr.filter((l) => Number(l.response_type) !== 0);
+        base.preaprobados = await Promise.all(elegibles.map((l) =>
+            preAprobar(l, ur, uid, br.allied, br.hash, c.amount!, c.escenarios?.preaprobado)));
+    }
+
     return { ...base, ok: arr.length > 0, nombre: `doc ${doc}`,
              conducta: `listado con ${arr.length} entidades · buró dictado: ibc ${c.income!.toLocaleString('es-CO')}` };
 }
@@ -409,6 +467,13 @@ async function main(): Promise<number> {
             + (r.listado ? ` · listado: [${r.listado.join(', ')}]`
                 + (r.caso.lender === null ? '' : ` · la pedida ${r.enListado ? 'SÍ' : '**NO**'} estaba`) : ''));
         console.log(`      ${r.conducta ?? '—'}${r.detalle ? ` · ${r.detalle}` : ''}`);
+        if (r.preaprobados?.length) {
+            console.log(`      PRE-APROBADOS (lo que dispara el front · ${r.preaprobados.length} entidades):`);
+            for (const q of r.preaprobados) {
+                console.log(`          ${String(q.id).padStart(4)}  ${q.estado}`
+                    + (q.cupo ? `  cupo ${Number(q.cupo).toLocaleString('es-CO')}` : ''));
+            }
+        }
     }
     // EL CONTRASTE, que es para lo que sirve correr varios. Una lista por caso obliga a diffear a
     // ojo, y el ojo se equivoca justo cuando los conjuntos son parecidos — que es el caso interesante.
