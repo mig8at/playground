@@ -158,11 +158,20 @@ las conoce. Y por el front QA no puede forzar casos: la tarea 49 registra que un
 navegador **muere en el SSR** del wizard. La dictada esquiva eso porque no viaja por la app — le habla
 al mock antes de arrancar. QA dicta la cédula, entra al wizard y la teclea.
 
-**La cascada dibujada, que es lo que justifica la pantalla.** Tres nodos con sus campos adentro y las
-flechas del ruteo, encendidas según lo configurado. Muestra lo que todos entendimos mal alguna vez:
-Ágil tiene **tres** salidas, no dos — resuelve y termina · se abstiene y pasa a Mareigua · **resuelve
-pero el nombre no cuadra y salta a TusDatos, salteando Mareigua**. Cuando Ágil resuelve, Mareigua se
-pinta en gris: no va a correr.
+**El caso entero, no sólo los mocks.** Cinco nodos: **el asesor teclea** (celular, cédula, nombres,
+apellidos, expedición, correo) → las **tres centrales** → **lo que ve el cliente**. Arranca en paso
+feliz: las centrales devuelven lo mismo que se tecleó —el espejo se mantiene solo hasta que tocás un
+campo— y Ágil resuelve.
+
+**La cascada dibujada es lo que justifica la pantalla.** Muestra lo que todos entendimos mal alguna
+vez: Ágil tiene **tres** salidas, no dos — resuelve y termina · se abstiene y pasa a Mareigua ·
+**resuelve pero el nombre no cuadra y salta a TusDatos, salteando Mareigua**. Cuando Ágil resuelve,
+Mareigua se pinta en gris: no va a correr.
+
+**El nodo del cliente anticipa el desenlace** — si avanza y con qué ortografía queda guardado, o el
+mensaje exacto y en qué campo sale. ⚠ Es una **segunda implementación** de `NameSimilarity` en JS:
+sirve para no tener que correr por cada tanteo, pero si esa clase cambia, esto queda mintiendo. La
+verdad la sigue dando correrlo, y está dicho en la pantalla.
 
 **El check «dictar» no es «deshabilitar», y está dicho en pantalla.** Sin dictar, el mock responde su
 enlatado — y el de Ágil **resuelve** (`JUAN SANTIAGO DOE RAMANUYAN`), o sea que la cascada corta ahí.

@@ -3,17 +3,17 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Dictar las centrales · prototipo</title>
+<title>El caso, de punta a punta · prototipo</title>
 <style>
   :root{
     --bg:#faf9f7; --panel:#fff; --tinta:#1c1a17; --suave:#6b6660; --linea:#e5e1db;
-    --acento:#1f6feb; --ok:#1a7f4b; --alerta:#9a5b00; --alerta-bg:#fff8e8; --stop:#b4232a;
-    --apagado:#b8b2aa; --mono:ui-monospace,SFMono-Regular,Menlo,monospace;
+    --acento:#1f6feb; --ok:#1a7f4b; --ok-bg:#eefaf2; --alerta:#9a5b00; --alerta-bg:#fff8e8;
+    --stop:#b4232a; --stop-bg:#fdeeee; --apagado:#b8b2aa; --mono:ui-monospace,SFMono-Regular,Menlo,monospace;
   }
   @media (prefers-color-scheme:dark){:root{
     --bg:#161513; --panel:#1e1d1a; --tinta:#eceae6; --suave:#a09a92; --linea:#332f2a;
-    --acento:#6ea8fe; --ok:#4ade80; --alerta:#e0b341; --alerta-bg:#2a2317; --stop:#ff6b6b;
-    --apagado:#4a453e;}}
+    --acento:#6ea8fe; --ok:#4ade80; --ok-bg:#16251c; --alerta:#e0b341; --alerta-bg:#2a2317;
+    --stop:#ff6b6b; --stop-bg:#2b1a1a; --apagado:#4a453e;}}
   *{box-sizing:border-box}
   body{margin:0;background:var(--bg);color:var(--tinta);
        font:15px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif}
@@ -35,11 +35,11 @@
   button{border:0;border-radius:8px;padding:10px 16px;font-size:14px;font-weight:600;
          cursor:pointer;background:var(--acento);color:#fff}
   button.gris{background:transparent;color:var(--tinta);border:1px solid var(--linea)}
+  button.mini{padding:4px 9px;font-size:11px;font-weight:500}
   button:disabled{opacity:.5;cursor:not-allowed}
   code{font:12px var(--mono);background:var(--bg);border:1px solid var(--linea);
        border-radius:4px;padding:1px 5px}
 
-  /* ── el grafo ─────────────────────────────────────────────────────────── */
   .lienzo{position:relative;padding:4px 96px 4px 4px}
   .lienzo svg{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;overflow:visible}
   .nodo{position:relative;background:var(--panel);border:1.5px solid var(--linea);border-radius:12px;
@@ -47,10 +47,11 @@
   .nodo:last-child{margin-bottom:0}
   .nodo.activo{border-color:var(--acento)}
   .nodo.gris{opacity:.42}
-  .nodo header{display:flex;align-items:center;gap:10px;margin-bottom:2px}
+  .nodo.persona{border-style:dashed}
+  .nodo header{display:flex;align-items:center;gap:9px;margin-bottom:2px;flex-wrap:wrap}
   .nodo h3{font-size:15px;margin:0;flex:1}
-  .nodo .paso{font:11px var(--mono);color:var(--suave);border:1px solid var(--linea);
-              border-radius:99px;padding:2px 7px}
+  .paso{font:11px var(--mono);color:var(--suave);border:1px solid var(--linea);
+        border-radius:99px;padding:2px 7px}
   .fin{font:11px var(--mono);color:var(--ok);border:1px solid var(--ok);border-radius:99px;
        padding:2px 8px;white-space:nowrap}
   .fin.no{display:none}
@@ -60,20 +61,27 @@
   .sw{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--suave);cursor:pointer}
   .sw input{width:auto}
   .oculto{display:none}
-  .nota{font-size:12px;color:var(--suave);margin:10px 0 0;padding-left:10px;
-        border-left:2px solid var(--linea)}
+  .nota{font-size:12px;color:var(--suave);margin:10px 0 0;padding-left:10px;border-left:2px solid var(--linea)}
   .nota.ojo{border-color:var(--alerta);color:var(--alerta)}
+  .espejo{font:11px var(--mono);color:var(--ok);margin:0 0 10px}
   text{font:11px var(--mono);fill:var(--suave)}
   text.on{fill:var(--acento);font-weight:600}
   path{fill:none;stroke:var(--apagado);stroke-width:1.5}
   path.on{stroke:var(--acento);stroke-width:2}
 
+  .veredicto{border-radius:9px;padding:12px 14px;font-size:14px;margin-top:4px}
+  .veredicto.pasa{background:var(--ok-bg);border:1px solid var(--ok)}
+  .veredicto.frena{background:var(--stop-bg);border:1px solid var(--stop)}
+  .veredicto .titulo{font-weight:700;margin-bottom:6px}
+  .veredicto.pasa .titulo{color:var(--ok)} .veredicto.frena .titulo{color:var(--stop)}
+  .campo-err{font:12px var(--mono);margin-top:6px;padding-left:10px;border-left:2px solid var(--stop)}
+  .campo-err b{color:var(--stop)}
+
   table{width:100%;border-collapse:collapse;font-size:13px}
   th,td{text-align:left;padding:7px 8px;border-bottom:1px solid var(--linea)}
   th{color:var(--suave);font-weight:600;font-size:11px;text-transform:uppercase}
-  .bitacora{font:12px/1.7 var(--mono);white-space:pre-wrap;word-break:break-word;
-            max-height:220px;overflow:auto;background:var(--bg);border:1px solid var(--linea);
-            border-radius:8px;padding:12px}
+  .bitacora{font:12px/1.7 var(--mono);white-space:pre-wrap;word-break:break-word;max-height:200px;
+            overflow:auto;background:var(--bg);border:1px solid var(--linea);border-radius:8px;padding:12px}
   .ok{color:var(--ok)} .stop{color:var(--stop)}
   .fila{display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap}
 </style>
@@ -81,42 +89,46 @@
 <body>
 <div class="wrap">
 
-  <h1>Dictar las centrales</h1>
-  <p class="sub">Decile a los mocks qué contestar para una cédula, antes de entrar al wizard.</p>
+  <h1>El caso, de punta a punta</h1>
+  <p class="sub">Lo que teclea el asesor · lo que contestan las centrales · lo que termina viendo el cliente.</p>
   <span class="fecha">PROTOTIPO · propuesta del 2026-08-18 · no es documentación de cómo funciona hoy</span>
 
   <div class="aviso">
     <b>Por qué esto sirve donde el header no.</b> Un header puesto en el navegador muere en el SSR del
     wizard, así que hoy no se pueden forzar casos desde el front. Esto no viaja por la app: le habla
-    directo al mock <em>antes</em> de arrancar. Dictás, entrás al wizard y tecleás esa cédula.
-  </div>
-
-  <div class="panel">
-    <div class="fila">
-      <div style="flex:1;min-width:200px">
-        <label for="doc">Cédula — es la llave: cada una tiene su hoja en el cuaderno del mock</label>
-        <input id="doc">
-      </div>
-      <button class="gris" onclick="nuevaCedula()">Generar una nueva</button>
-    </div>
-    <div class="aviso" style="margin:12px 0 0">
-      <b>Una cédula nueva por corrida.</b> El backend cachea la respuesta de la central por un mes: si
-      esa persona ya consultó, no vuelve a llamar al mock y lo que dictes no se usa.
-    </div>
+    directo al mock <em>antes</em> de arrancar. Dictás, entrás al wizard y tecleás estos datos.
   </div>
 
   <div class="panel">
     <p class="que" style="color:var(--suave);font-size:13px;margin:0 0 16px">
-      La cascada corta en la primera central que resuelve. Las flechas encendidas son el camino que va
-      a tomar con lo que tenés configurado.</p>
+      Arranca en <b>paso feliz</b>: las centrales devuelven lo mismo que se tecleó y Ágil resuelve.
+      Cambiá lo que quieras romper y mirá abajo qué le pasa al cliente.</p>
 
     <div class="lienzo" id="lienzo">
       <svg id="svg"></svg>
 
-      <!-- ÁGIL -->
+      <!-- 1 · EL ASESOR -->
+      <div class="nodo persona activo" id="n_as">
+        <header><span class="paso">1</span><h3>El asesor teclea</h3></header>
+        <p class="que">Los datos del formulario. Son los mismos que después vas a poner en el wizard.</p>
+        <div class="campos">
+          <div><label for="as_cel">Celular</label><input id="as_cel"></div>
+          <div><label for="as_doc">Cédula</label><input id="as_doc"></div>
+          <div><label for="as_nombres">Nombres</label><input id="as_nombres" value="CARLOS ANDRES" oninput="pintar()"></div>
+          <div><label for="as_apellidos">Apellidos</label><input id="as_apellidos" value="RUIZ MENDOZA" oninput="pintar()"></div>
+          <div><label for="as_exp">Fecha de expedición</label><input id="as_exp" type="date" value="2013-03-27"></div>
+          <div><label for="as_mail">Correo</label><input id="as_mail" value="qa.prueba@gmail.com"></div>
+        </div>
+        <p class="nota ojo"><b>Una cédula nueva por corrida.</b> El backend cachea la respuesta de la
+          central por un mes: si esa persona ya consultó, no vuelve a llamar al mock.
+          <button class="mini gris" style="margin-left:6px" onclick="nuevaCedula()">generar otra</button></p>
+      </div>
+
+      <!-- 2 · ÁGIL -->
       <div class="nodo" id="n_ag">
         <header>
-          <span class="paso">1</span><h3>Ágil Data</h3><span class="fin no" id="ag_fin">✓ resuelve: termina acá</span>
+          <span class="paso">2</span><h3>Ágil Data</h3>
+          <span class="fin no" id="ag_fin">✓ resuelve: termina acá</span>
           <label class="sw" style="margin:0"><input type="checkbox" id="ag_on" checked onchange="pintar()"> dictar</label>
         </header>
         <p class="que">Primera de la cascada. Devuelve el nombre completo en un solo string.</p>
@@ -131,21 +143,23 @@
               <option value="02">Se abstiene — error (02)</option>
             </select>
           </div>
-          <div class="ag_datos ancho"><label for="ag_nombre">Nombre completo que devuelve</label>
-            <input id="ag_nombre" value="CARLOS ANDRES RUIZ MENDOZA"></div>
+          <div class="ag_datos ancho">
+            <p class="espejo" id="ag_espejo"></p>
+            <label for="ag_nombre">Nombre completo que devuelve</label>
+            <input id="ag_nombre" oninput="ag_tocado=true;pintar()">
+          </div>
           <div class="ag_datos ancho"><label for="ag_ingreso">Ingreso mensual (IBC)</label>
             <input id="ag_ingreso" value="3500000"></div>
         </div>
-        <p class="nota ojo oculto" id="ag_apagado">Sin dictar, Ágil responde su enlatado —
-          <code>JUAN SANTIAGO DOE RAMANUYAN</code> — y <b>resuelve</b>. La cascada corta acá.</p>
-        <p class="nota ag_datos">Si trae más partes que las tecleadas no se sabe cuál es nombre y cuál
-          apellido, y la solicitud se frena. Mareigua, que devuelve campos separados, sí completa.</p>
+        <p class="nota ojo oculto" id="ag_apagado">Sin dictar, Ágil responde su enlatado
+          (<code>JUAN SANTIAGO DOE RAMANUYAN</code>) y <b>resuelve</b>. La cascada corta acá.</p>
       </div>
 
-      <!-- MAREIGUA -->
+      <!-- 3 · MAREIGUA -->
       <div class="nodo" id="n_mg">
         <header>
-          <span class="paso">2</span><h3>Mareigua</h3><span class="fin no" id="mg_fin">✓ resuelve: termina acá</span>
+          <span class="paso">3</span><h3>Mareigua</h3>
+          <span class="fin no" id="mg_fin">✓ resuelve: termina acá</span>
           <label class="sw" style="margin:0"><input type="checkbox" id="mg_on" checked onchange="pintar()"> dictar</label>
         </header>
         <p class="que">Sólo corre si Ágil se abstuvo. Devuelve nombres y apellidos por separado.</p>
@@ -159,37 +173,40 @@
               <option value="2">No resuelve — error (2)</option>
             </select>
           </div>
-          <div class="mg_datos"><label for="mg_n1">Primer nombre</label><input id="mg_n1" value="CARLOS"></div>
-          <div class="mg_datos"><label for="mg_n2">Segundo nombre</label><input id="mg_n2" value="ANDRES"></div>
-          <div class="mg_datos"><label for="mg_a1">Primer apellido</label><input id="mg_a1" value="RUIZ"></div>
-          <div class="mg_datos"><label for="mg_a2">Segundo apellido</label><input id="mg_a2" value="MENDOZA"></div>
+          <div class="mg_datos ancho"><p class="espejo" id="mg_espejo"></p></div>
+          <div class="mg_datos"><label for="mg_nombres">Nombres</label><input id="mg_nombres" oninput="mg_tocado=true;pintar()"></div>
+          <div class="mg_datos"><label for="mg_apellidos">Apellidos</label><input id="mg_apellidos" oninput="mg_tocado=true;pintar()"></div>
         </div>
-        <p class="nota ojo oculto" id="mg_apagado">Sin dictar, Mareigua responde su enlatado
+        <p class="nota ojo oculto" id="mg_apagado">Sin dictar responde su enlatado
           (<code>FAKE EMPLOYEE NAME</code>) y resuelve.</p>
       </div>
 
-      <!-- TUSDATOS -->
+      <!-- 4 · TUSDATOS -->
       <div class="nodo" id="n_td">
         <header>
-          <span class="paso">3</span><h3>TusDatos</h3>
+          <span class="paso">4</span><h3>TusDatos</h3>
           <label class="sw" style="margin:0"><input type="checkbox" id="td_on" checked onchange="pintar()"> dictar</label>
         </header>
         <p class="que">La última. Para cédula colombiana <b>no</b> devuelve nombre adoptable: da un
            veredicto campo por campo. Acá vivía el defecto de CORE-420.</p>
         <div class="campos">
+          <div><label for="td_first_name">Primer nombre</label><select id="td_first_name" class="mc" onchange="pintar()"></select></div>
+          <div><label for="td_middle_name">Segundo nombre</label><select id="td_middle_name" class="mc" onchange="pintar()"></select></div>
+          <div><label for="td_first_surname">Primer apellido</label><select id="td_first_surname" class="mc" onchange="pintar()"></select></div>
+          <div><label for="td_second_surname">Segundo apellido</label><select id="td_second_surname" class="mc" onchange="pintar()"></select></div>
+          <div><label for="td_issue_date">Fecha de expedición</label><select id="td_issue_date" class="mc" onchange="pintar()"></select></div>
           <div><label for="td_estado">Estado del documento</label>
-            <select id="td_estado"><option>VIGENTE</option><option>CANCELADA</option></select></div>
-          <div><label for="td_nombre">Nombre que reporta</label>
-            <input id="td_nombre" value="CARLOS ANDRES RUIZ MENDOZA"></div>
-          <div><label for="td_first_name">Primer nombre</label><select id="td_first_name" class="mc"></select></div>
-          <div><label for="td_middle_name">Segundo nombre</label><select id="td_middle_name" class="mc"></select></div>
-          <div><label for="td_first_surname">Primer apellido</label><select id="td_first_surname" class="mc"></select></div>
-          <div><label for="td_second_surname">Segundo apellido</label><select id="td_second_surname" class="mc"></select></div>
-          <div class="ancho"><label for="td_issue_date">Fecha de expedición</label><select id="td_issue_date" class="mc"></select></div>
+            <select id="td_estado" onchange="pintar()"><option>VIGENTE</option><option>CANCELADA</option></select></div>
         </div>
         <p class="nota ojo"><b>«No coincide» y «no lo mandé» no son lo mismo</b>, y confundirlos fue el
-          bug: en PHP <code>0 == null</code> es <code>true</code>. Poné <b>NO coincide</b> en el segundo
-          apellido para reproducirlo.</p>
+          bug: en PHP <code>0 == null</code> es <code>true</code>.</p>
+      </div>
+
+      <!-- 5 · EL CLIENTE -->
+      <div class="nodo persona" id="n_cli">
+        <header><span class="paso">5</span><h3>Lo que ve el cliente</h3></header>
+        <p class="que">Predicción del prototipo con las reglas del código. La verdad la da correrlo.</p>
+        <div id="veredicto"></div>
       </div>
     </div>
   </div>
@@ -210,13 +227,6 @@
     <table id="tabla"><thead><tr><th>Hora</th><th>Clave</th><th>Resultado</th></tr></thead><tbody></tbody></table>
     <div class="bitacora" id="log" style="margin-top:12px">Todavía no se dictó nada.</div>
   </div>
-
-  <div class="aviso">
-    <b>Si el resultado no es el esperado</b>, el orden de sospecha: ¿la cédula ya estaba usada (caché de
-    un mes)? · ¿el ambiente es <code>local</code> o <code>development</code>? (el mock no actúa en otro)
-    · ¿la traza dice <code>lambda</code> o <code>fixture_fallback</code>? Lo último significa que el
-    mock falló y respondió el enlatado del repo.
-  </div>
 </div>
 
 <script>
@@ -224,6 +234,7 @@ const LAMBDA = "https://ub79ck0htd.execute-api.us-east-2.amazonaws.com/developme
 document.getElementById('destino').textContent = LAMBDA.replace('https://','');
 const $ = id => document.getElementById(id);
 const val = id => $(id).value.trim();
+let ag_tocado = false, mg_tocado = false;
 
 const MATCH = [["1","coincide"],["2","coincide parcialmente"],["0","NO coincide"],["null","no se envió"]];
 document.querySelectorAll('select.mc').forEach(s => {
@@ -231,150 +242,279 @@ document.querySelectorAll('select.mc').forEach(s => {
   if (s.id === 'td_middle_name') s.value = 'null';
 });
 
-function nuevaCedula(){ $('doc').value = String(Math.floor(Math.random()*2_800_000_000)+100_000_000); }
+function nuevaCedula(){
+  $('as_doc').value = String(Math.floor(Math.random()*2_800_000_000)+100_000_000);
+  $('as_cel').value = '31' + String(Math.floor(Math.random()*90_000_000)+10_000_000);
+}
 nuevaCedula();
 
-// ── el grafo: se dibuja midiendo las cajas, así aguanta que se escondan campos ────────────────
-function flecha(x1,y1,x2,y2,curva=0){
-  return curva
-    ? `M ${x1} ${y1} C ${x1+curva} ${y1}, ${x2+curva} ${y2}, ${x2} ${y2}`
-    : `M ${x1} ${y1} L ${x2} ${y2}`;
+/* ── El algoritmo, espejando `NameSimilarity` del backend ──────────────────────────────────────
+   ⚠ Es una SEGUNDA implementación de una regla que vive en PHP. Sirve para anticipar el desenlace
+   sin correr, no para reemplazarlo: si `NameSimilarity` cambia, esto queda mintiendo. Techo de
+   typos, orden de las reglas y comparación posicional son los del original.                     */
+const MAX_TYPOS = 3;
+const norm = s => (s||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toUpperCase()
+                         .replace(/\s+/g,' ').trim();
+function lev(a,b){
+  const m=a.length, n=b.length; if(!m) return n; if(!n) return m;
+  let prev=[...Array(n+1).keys()], cur=new Array(n+1);
+  for(let i=1;i<=m;i++){ cur[0]=i;
+    for(let j=1;j<=n;j++) cur[j]=Math.min(prev[j]+1, cur[j-1]+1, prev[j-1]+(a[i-1]===b[j-1]?0:1));
+    [prev,cur]=[cur,prev]; }
+  return prev[n];
 }
-function dibujar(camino){
-  const svg = $('svg'), base = $('lienzo').getBoundingClientRect();
-  const caja = id => { const r = $(id).getBoundingClientRect();
-    return {x:r.left-base.left, y:r.top-base.top, w:r.width, h:r.height,
-            cx:r.left-base.left+r.width/2, bot:r.top-base.top+r.height, top:r.top-base.top}; };
-  const ag = caja('n_ag'), mg = caja('n_mg'), td = caja('n_td');
-  const canal = ag.x + ag.w + 46;                 // el carril del desvío, dentro del contenedor
-  const on = k => camino.includes(k) ? ' class="on"' : '';
-  const punta = k => `url(#${camino.includes(k) ? 'pon' : 'p'})`;
-  const txt = (x,y,t,k,anc='middle') =>
-    `<text x="${x}" y="${y}" text-anchor="${anc}"${camino.includes(k)?' class="on"':''}>${t}</text>`;
+function compare(entered, returned){
+  const a=norm(entered), b=norm(returned);
+  if(!a||!b) return {same:false, reason:'empty'};
+  if(a===b)  return {same:true,  reason:'identical'};
+  const wa=a.split(' '), wb=b.split(' ');
+  if([...wa].sort().join('|')===[...wb].sort().join('|')) return {same:true, reason:'reordered'};
+  if(wb.length<wa.length) return {same:false, reason:'fewer_parts'};
+  const d = wa.map((w,i)=>lev(w,wb[i]));
+  const same = d.every(x=>x<=MAX_TYPOS);
+  return {same, reason: same ? 'within_tolerance'
+    : (d.every(x=>x>MAX_TYPOS) ? 'different_person' : 'distance_exceeded'), distances:d};
+}
+function alignedSplit(nombres, apellidos, full){
+  const n=norm(nombres), a=norm(apellidos), f=norm(full);
+  if(!n||!a||!f) return null;
+  const wn=n.split(' '), wa=a.split(' '), wf=f.split(' ');
+  if(wf.length !== wn.length+wa.length) return null;
+  const nn=wf.slice(0,wn.length).join(' '), na=wf.slice(wn.length).join(' ');
+  if(!compare(n,nn).same || !compare(a,na).same) return null;
+  return {nombres:nn, apellidos:na};
+}
 
-  svg.innerHTML = `
+// ── el veredicto ───────────────────────────────────────────────────────────────────────────────
+const MSG_AG = 'Debes ingresar tus nombres y apellidos completos tal como aparecen en el documento.';
+const MSG_MG_N = 'Debes ingresar tus nombres completos tal como aparecen en el documento.';
+const MSG_MG_A = 'Debes ingresar tus apellidos completos tal como aparecen en el documento.';
+const ETIQ = {td_first_name:'Primer nombre', td_middle_name:'Segundo nombre',
+              td_first_surname:'Primer apellido', td_second_surname:'Segundo apellido',
+              td_issue_date:'Fecha de expedicion'};
+
+function veredicto(agResuelve, mgResuelve, corre){
+  const tn=val('as_nombres'), ta=val('as_apellidos');
+  if (corre.ag && agResuelve){
+    const full = $('ag_on').checked ? val('ag_nombre') : 'JUAN SANTIAGO DOE RAMANUYAN';
+    const ad = alignedSplit(tn, ta, full);
+    if (ad) return {pasa:true, quien:'Ágil Data', guarda:`${ad.nombres} | ${ad.apellidos}`,
+                    motivo: compare(`${tn} ${ta}`, full).reason};
+    if (norm(`${tn} ${ta}`) === norm(full))
+      return {pasa:true, quien:'Ágil Data', guarda:`${tn} | ${ta}`, motivo:'identical'};
+    return {pasa:false, quien:'Ágil Data', motivo: compare(`${tn} ${ta}`, full).reason,
+            campos:[['nombres',MSG_AG],['apellidos',MSG_AG]], sigue:'TusDatos'};
+  }
+  if (corre.mg && mgResuelve){
+    const mn = $('mg_on').checked ? val('mg_nombres') : 'FAKE',
+          ma = $('mg_on').checked ? val('mg_apellidos') : 'EMPLOYEE NAME';
+    const cn=compare(tn,mn), ca=compare(ta,ma);
+    if (mn && ma && cn.same && ca.same){
+      // el motivo útil es el del campo que NO vino idéntico: si los dos lo son, «identical».
+      const motivo = cn.reason !== 'identical' ? cn.reason
+                   : (ca.reason !== 'identical' ? ca.reason : 'identical');
+      return {pasa:true, quien:'Mareigua', guarda:`${norm(mn)} | ${norm(ma)}`, motivo};
+    }
+    const campos=[];
+    if (norm(tn)!==norm(mn)) campos.push(['nombres',MSG_MG_N]);
+    if (norm(ta)!==norm(ma)) campos.push(['apellidos',MSG_MG_A]);
+    if (!campos.length) return {pasa:true, quien:'Mareigua', guarda:`${tn} | ${ta}`, motivo:'identical'};
+    return {pasa:false, quien:'Mareigua', motivo:(cn.same?ca.reason:cn.reason), campos, sigue:'TusDatos'};
+  }
+  // TusDatos: veredicto por campo, no comparación de nombre
+  if (!$('td_on').checked)
+    return {pasa:true, quien:'TusDatos', guarda:`${tn} | ${ta}`, motivo:'el enlatado del mock coincide'};
+  if (val('td_estado') !== 'VIGENTE')
+    return {pasa:false, quien:'TusDatos', motivo:'documento no vigente',
+            campos:[['cédula',`La cedula se encuentra ${val('td_estado')}`]]};
+  const errs = {nombres:'', apellidos:'', 'fecha de expedición':''};
+  const grupo = {td_first_name:'nombres', td_middle_name:'nombres',
+                 td_first_surname:'apellidos', td_second_surname:'apellidos',
+                 td_issue_date:'fecha de expedición'};
+  for (const id of Object.keys(ETIQ)){
+    const v = $(id).value;
+    if (v === 'null'){                       // ⚠ tolerado SÓLO en los dos campos opcionales
+      if (id === 'td_middle_name' || id === 'td_second_surname') continue;
+      errs[grupo[id]] += `${ETIQ[id]} no proporcionado. `;
+    }
+    else if (v === '0') errs[grupo[id]] += `${ETIQ[id]} no coincide. `;
+    else if (v === '2') errs[grupo[id]] += `${ETIQ[id]} coincide parcialmente. `;
+  }
+  const campos = Object.entries(errs).filter(([,m])=>m).map(([c,m])=>[c,m.trim()]);
+  if (campos.length) return {pasa:false, quien:'TusDatos', motivo:'veredicto por campo', campos};
+  return {pasa:true, quien:'TusDatos', guarda:`${tn} | ${ta}`, motivo:'todos los campos coinciden'};
+}
+
+function pintarVeredicto(v){
+  const caja = $('veredicto');
+  if (v.pasa){
+    caja.className = 'veredicto pasa';
+    caja.innerHTML = `<div class="titulo">✓ La solicitud avanza</div>`+
+      `Resolvió <b>${v.quien}</b> · <code>${v.motivo}</code><br>`+
+      `Queda guardado: <code>${v.guarda}</code>`+
+      (norm(v.guarda) !== norm(`${val('as_nombres')} | ${val('as_apellidos')}`)
+        ? `<div class="nota" style="margin-top:8px">La central <b>corrigió</b> lo que tecleó el asesor.</div>` : '');
+  } else {
+    caja.className = 'veredicto frena';
+    caja.innerHTML = `<div class="titulo">✕ Se frena · ONB005 · KYC_VALIDATION_FAILED</div>`+
+      `Lo rechazó <b>${v.quien}</b> · <code>${v.motivo}</code>`+
+      v.campos.map(([c,m])=>`<div class="campo-err"><b>${c}:</b> ${m}</div>`).join('')+
+      (v.sigue ? `<div class="nota" style="margin-top:8px">Antes de frenar, la cascada reintenta con
+        <b>${v.sigue}</b> — si ésa acepta, la solicitud avanza igual.</div>` : '')+
+      `<div class="nota" style="margin-top:8px">No queda fila en <code>users</code>.</div>`;
+  }
+}
+
+// ── espejo: por defecto las centrales devuelven lo tecleado (paso feliz) ───────────────────────
+function espejar(){
+  const tn=val('as_nombres'), ta=val('as_apellidos');
+  if(!ag_tocado) $('ag_nombre').value = `${tn} ${ta}`.trim();
+  if(!mg_tocado){ $('mg_nombres').value = tn; $('mg_apellidos').value = ta; }
+  $('ag_espejo').textContent = ag_tocado ? '' : '↳ igual a lo tecleado (paso feliz)';
+  $('mg_espejo').textContent = mg_tocado ? '' : '↳ igual a lo tecleado (paso feliz)';
+}
+
+function pintar(){
+  espejar();
+  const agDicta=$('ag_on').checked, mgDicta=$('mg_on').checked;
+  // ⚠ NO dictar ≠ que se abstenga: sin dictar el mock responde su enlatado, que RESUELVE.
+  const agResuelve = !agDicta || $('ag_modo').value==='01';
+  const mgResuelve = !mgDicta || $('mg_modo').value==='4';
+
+  document.querySelectorAll('.ag_datos').forEach(e=>e.classList.toggle('oculto', !agDicta || $('ag_modo').value!=='01'));
+  document.querySelectorAll('.mg_datos').forEach(e=>e.classList.toggle('oculto', !mgDicta || $('mg_modo').value!=='4'));
+  $('ag_apagado').classList.toggle('oculto', agDicta);
+  $('mg_apagado').classList.toggle('oculto', mgDicta);
+
+  const camino=['as-ag'];
+  if(agResuelve) camino.push('ag-td');
+  else { camino.push('ag-mg'); if(!mgResuelve) camino.push('mg-td'); }
+  const corre = {ag:true, mg:!agResuelve, td:agResuelve || !mgResuelve};
+  $('ag_fin').className = 'fin' + (agResuelve ? '' : ' no');
+  $('mg_fin').className = 'fin' + (!agResuelve && mgResuelve ? '' : ' no');
+  $('n_ag').className='nodo activo';
+  $('n_mg').className='nodo'+(corre.mg?' activo':' gris');
+  $('n_td').className='nodo'+(corre.td?' activo':' gris');
+
+  const v = veredicto(agResuelve, mgResuelve, corre);
+  camino.push(v.pasa ? 'td-cli-ok' : 'td-cli-no');
+  pintarVeredicto(v);
+  requestAnimationFrame(()=>dibujar(camino, v.quien));
+}
+
+function dibujar(camino, decide){
+  const svg=$('svg'), base=$('lienzo').getBoundingClientRect();
+  const caja=id=>{const r=$(id).getBoundingClientRect();
+    return {x:r.left-base.left,y:r.top-base.top,w:r.width,h:r.height,
+            cx:r.left-base.left+r.width/2,bot:r.top-base.top+r.height,top:r.top-base.top};};
+  const as=caja('n_as'), ag=caja('n_ag'), mg=caja('n_mg'), td=caja('n_td'), cli=caja('n_cli');
+  const canal=ag.x+ag.w+46;
+  const on=k=>camino.includes(k)?' class="on"':'';
+  const punta=k=>`url(#${camino.includes(k)?'pon':'p'})`;
+  const txt=(x,y,t,k,anc='middle')=>`<text x="${x}" y="${y}" text-anchor="${anc}"${camino.includes(k)?' class="on"':''}>${t}</text>`;
+  const recta=(a,b)=>`M ${a.cx} ${a.bot} L ${b.cx} ${b.top-9}`;
+  svg.innerHTML=`
     <defs>
       <marker id="p" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto">
         <path d="M0,0 L7,3.5 L0,7 z" fill="var(--apagado)" stroke="none"/></marker>
       <marker id="pon" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto">
         <path d="M0,0 L7,3.5 L0,7 z" fill="var(--acento)" stroke="none"/></marker>
     </defs>
-    <path d="M ${ag.cx} ${ag.bot} L ${mg.cx} ${mg.top-9}" marker-end="${punta('ag-mg')}"${on('ag-mg')}/>
-    ${txt(ag.cx-8, ag.bot+34, 'se abstiene', 'ag-mg', 'end')}
-    <path d="M ${mg.cx} ${mg.bot} L ${td.cx} ${td.top-9}" marker-end="${punta('mg-td')}"${on('mg-td')}/>
-    ${txt(mg.cx-8, mg.bot+34, 'no resuelve', 'mg-td', 'end')}
-    <path d="M ${ag.x+ag.w} ${ag.top+ag.h/2}
-             L ${canal-14} ${ag.top+ag.h/2}
-             Q ${canal} ${ag.top+ag.h/2} ${canal} ${ag.top+ag.h/2+14}
-             L ${canal} ${td.top+16}
-             Q ${canal} ${td.top+30} ${canal-14} ${td.top+30}
-             L ${td.x+td.w+9} ${td.top+30}" marker-end="${punta('ag-td')}"${on('ag-td')}/>
-    ${txt(canal+7, (ag.bot+td.top)/2-7, 'resuelve, pero', 'ag-td', 'start')}
-    ${txt(canal+7, (ag.bot+td.top)/2+7, 'el nombre', 'ag-td', 'start')}
-    ${txt(canal+7, (ag.bot+td.top)/2+21, 'no cuadra', 'ag-td', 'start')}`;
-}
-function pintar(){
-  const agDicta = $('ag_on').checked, mgDicta = $('mg_on').checked;
-  // ⚠ NO dictar ≠ que se abstenga: sin dictar, el mock responde su enlatado, que RESUELVE.
-  const agResuelve = !agDicta || $('ag_modo').value === '01';
-  const mgResuelve = !mgDicta || $('mg_modo').value === '4';
-
-  document.querySelectorAll('.ag_datos').forEach(e => e.classList.toggle('oculto', !agDicta || $('ag_modo').value !== '01'));
-  document.querySelectorAll('.mg_datos').forEach(e => e.classList.toggle('oculto', !mgDicta || $('mg_modo').value !== '4'));
-  $('ag_apagado').classList.toggle('oculto', agDicta);
-  $('mg_apagado').classList.toggle('oculto', mgDicta);
-
-  const camino = [];
-  if (agResuelve) camino.push('ag-td');
-  else {
-    camino.push('ag-mg');
-    if (!mgResuelve) camino.push('mg-td');
-  }
-  const corre = { ag:true, mg:!agResuelve, td:!agResuelve && !mgResuelve || agResuelve };
-  $('ag_fin').className = 'fin' + (agResuelve ? '' : ' no');
-  $('mg_fin').className = 'fin' + (!agResuelve && mgResuelve ? '' : ' no');
-  $('n_ag').className = 'nodo activo';
-  $('n_mg').className = 'nodo' + (corre.mg ? ' activo' : ' gris');
-  $('n_td').className = 'nodo' + (camino.includes('mg-td') || camino.includes('ag-td') ? ' activo' : ' gris');
-  requestAnimationFrame(() => dibujar(camino));
+    <path d="${recta(as,ag)}" marker-end="${punta('as-ag')}"${on('as-ag')}/>
+    ${txt(as.cx-8, as.bot+34,'consulta la cédula','as-ag','end')}
+    <path d="${recta(ag,mg)}" marker-end="${punta('ag-mg')}"${on('ag-mg')}/>
+    ${txt(ag.cx-8, ag.bot+34,'se abstiene','ag-mg','end')}
+    <path d="${recta(mg,td)}" marker-end="${punta('mg-td')}"${on('mg-td')}/>
+    ${txt(mg.cx-8, mg.bot+34,'no resuelve','mg-td','end')}
+    <path d="M ${ag.x+ag.w} ${ag.top+ag.h/2} L ${canal-14} ${ag.top+ag.h/2}
+             Q ${canal} ${ag.top+ag.h/2} ${canal} ${ag.top+ag.h/2+14} L ${canal} ${td.top+16}
+             Q ${canal} ${td.top+30} ${canal-14} ${td.top+30} L ${td.x+td.w+9} ${td.top+30}"
+          marker-end="${punta('ag-td')}"${on('ag-td')}/>
+    ${txt(canal+7,(ag.bot+td.top)/2-7,'resuelve, pero','ag-td','start')}
+    ${txt(canal+7,(ag.bot+td.top)/2+7,'el nombre','ag-td','start')}
+    ${txt(canal+7,(ag.bot+td.top)/2+21,'no cuadra','ag-td','start')}
+    <path d="M ${td.cx} ${td.bot} L ${cli.cx} ${cli.top-9}"
+          marker-end="${punta(camino.includes('td-cli-ok')?'td-cli-ok':'td-cli-no')}"
+          ${camino.includes('td-cli-ok')||camino.includes('td-cli-no')?' class="on"':''}/>
+    ${txt(td.cx-8, td.bot+34, `decide ${decide}`, camino.includes('td-cli-ok')?'td-cli-ok':'td-cli-no', 'end')}`;
 }
 window.addEventListener('resize', pintar);
 pintar();
 
 // ── los cuerpos, con la forma que el backend de verdad lee ────────────────────────────────────
 function cuerpoAgil(){
-  const cod = $('ag_modo').value;
-  if (cod !== '01') return {usuario:null, respuesta:null, codConsulta:"0", codRespuesta:cod,
-                            observaciones:"Consulta no exitosa."};
-  const ibc = Number(val('ag_ingreso')) || 0;
-  const pagos = [1,2,3,4,5,6].map(i => ({id:i, ibc, periodo:"20260"+i, fechaPago:`2026-0${i}-15 00:00:00`,
-    diasCotizados:30, valorCotizacionObligatoria:Math.round(ibc*0.115)}));
-  return {usuario:null, respuesta:{type:"aorg.asofondos.agildata.domain.AfiliadoDetalladoa",
-      datosBasicos:{edad:30, type:"org.asofondos.agildata.domain.AfiliadoDatosBasicos", genero:"M",
-        nombre:val('ag_nombre'), tipoId:"CC", numeroId:val('doc'), viabilidad:null},
-      detalladoEmpleos:[{id:1, pagos, nombreEmpleador:"EMPRESA DE PRUEBA SAS", telefonoEmpleador:null,
-        direccionEmpleador:null, identifiacionEmpleador:"900101010", tipoIdentifiacionEmpleador:"NI"}],
-      fechaVinculacion:null},
-    codConsulta:"1", codRespuesta:"01", observaciones:"Consulta Exitosa."};
+  const cod=$('ag_modo').value;
+  if(cod!=='01') return {usuario:null,respuesta:null,codConsulta:"0",codRespuesta:cod,
+                         observaciones:"Consulta no exitosa."};
+  const ibc=Number(val('ag_ingreso'))||0;
+  const pagos=[1,2,3,4,5,6].map(i=>({id:i,ibc,periodo:"20260"+i,fechaPago:`2026-0${i}-15 00:00:00`,
+    diasCotizados:30,valorCotizacionObligatoria:Math.round(ibc*0.115)}));
+  return {usuario:null,respuesta:{type:"aorg.asofondos.agildata.domain.AfiliadoDetalladoa",
+    datosBasicos:{edad:30,type:"org.asofondos.agildata.domain.AfiliadoDatosBasicos",genero:"M",
+      nombre:val('ag_nombre'),tipoId:"CC",numeroId:val('as_doc'),viabilidad:null},
+    detalladoEmpleos:[{id:1,pagos,nombreEmpleador:"EMPRESA DE PRUEBA SAS",telefonoEmpleador:null,
+      direccionEmpleador:null,identifiacionEmpleador:"900101010",tipoIdentifiacionEmpleador:"NI"}],
+    fechaVinculacion:null},codConsulta:"1",codRespuesta:"01",observaciones:"Consulta Exitosa."};
 }
 function cuerpoMareigua(){
-  const id = Number($('mg_modo').value);
-  const b = {respuesta_id:id, fecha:"2026-08-18T00:00:00", genero:"M", AFP:"COLPENSIONES", EPS:"COMPENSAR",
-    numero_identificacion_persona_natural:val('doc'), tipo_identificacion_persona_natural_id:1,
-    primer_nombre_persona_natural:"", segundo_nombre_persona_natural:"",
-    primer_apellido_persona_natural:"", segundo_apellido_persona_natural:"",
-    aportantes:[], resumen_general_ingresos:{}, numero_contratos:0, valor_contratos:0, valor_facturado:0,
-    valor_pendiente:0, servidor_publico:false, tiene_contratos_estado:false, meses_remanentes:0,
-    meses_servidor:0, nivel_educativo:"", rango_edad:"", periodo_finalizacion:"", consulta_id:1};
-  if (id === 4) Object.assign(b, {primer_nombre_persona_natural:val('mg_n1'),
-    segundo_nombre_persona_natural:val('mg_n2'), primer_apellido_persona_natural:val('mg_a1'),
-    segundo_apellido_persona_natural:val('mg_a2')});
+  const id=Number($('mg_modo').value);
+  const [n1,...nr]=norm(val('mg_nombres')).split(' '), [a1,...ar]=norm(val('mg_apellidos')).split(' ');
+  const b={respuesta_id:id,fecha:"2026-08-18T00:00:00",genero:"M",AFP:"COLPENSIONES",EPS:"COMPENSAR",
+    numero_identificacion_persona_natural:val('as_doc'),tipo_identificacion_persona_natural_id:1,
+    primer_nombre_persona_natural:"",segundo_nombre_persona_natural:"",
+    primer_apellido_persona_natural:"",segundo_apellido_persona_natural:"",
+    aportantes:[],resumen_general_ingresos:{},numero_contratos:0,valor_contratos:0,valor_facturado:0,
+    valor_pendiente:0,servidor_publico:false,tiene_contratos_estado:false,meses_remanentes:0,
+    meses_servidor:0,nivel_educativo:"",rango_edad:"",periodo_finalizacion:"",consulta_id:1};
+  if(id===4) Object.assign(b,{primer_nombre_persona_natural:n1||"",
+    segundo_nombre_persona_natural:nr.join(' '),primer_apellido_persona_natural:a1||"",
+    segundo_apellido_persona_natural:ar.join(' ')});
   return b;
 }
 function cuerpoTusDatos(){
-  const mc = id => { const v = $(id).value; return v === 'null' ? null : Number(v); };
-  return {status:"success",              // ⚠ literal: otro valor lo lee como inconcluyente y AVANZA
-    data:{estado:val('td_estado'), nombre_completo:val('td_nombre'),
-      findings:{first_name:{match_code:mc('td_first_name')}, middle_name:{match_code:mc('td_middle_name')},
-        first_surname:{match_code:mc('td_first_surname')}, second_surname:{match_code:mc('td_second_surname')},
+  const mc=id=>{const v=$(id).value; return v==='null'?null:Number(v);};
+  const tn=val('as_nombres'), ta=val('as_apellidos');
+  return {status:"success",            // ⚠ literal: otro valor lo lee como inconcluyente y AVANZA
+    data:{estado:val('td_estado'),nombre_completo:`${tn} ${ta}`.trim(),
+      findings:{first_name:{match_code:mc('td_first_name')},middle_name:{match_code:mc('td_middle_name')},
+        first_surname:{match_code:mc('td_first_surname')},second_surname:{match_code:mc('td_second_surname')},
         issue_date:{match_code:mc('td_issue_date')}}}};
 }
 
 // ── mandar ────────────────────────────────────────────────────────────────────────────────────
-const filas = [];
-function anotar(clave, ok, detalle){
-  filas.unshift({t:new Date().toLocaleTimeString('es-CO'), clave, ok, detalle});
-  document.querySelector('#tabla tbody').innerHTML = filas.map(f =>
+const filas=[];
+function anotar(clave,ok,detalle){
+  filas.unshift({t:new Date().toLocaleTimeString('es-CO'),clave,ok,detalle});
+  document.querySelector('#tabla tbody').innerHTML=filas.map(f=>
     `<tr><td>${f.t}</td><td><code>${f.clave}</code></td><td class="${f.ok?'ok':'stop'}">${f.ok?'✓ ':'✗ '}${f.detalle}</td></tr>`).join('');
 }
-function log(t){ const l=$('log'); if (l.textContent.startsWith('Todavía')) l.textContent=''; l.textContent += t+'\n'; l.scrollTop = l.scrollHeight; }
-
-async function poner(clave, cuerpo){
-  const texto = JSON.stringify(cuerpo);
+function log(t){const l=$('log'); if(l.textContent.startsWith('Todavía')) l.textContent=''; l.textContent+=t+'\n'; l.scrollTop=l.scrollHeight;}
+async function poner(clave,cuerpo){
+  const texto=JSON.stringify(cuerpo);
   try{
-    const r = await fetch(`${LAMBDA}/mockoon-admin/global-vars`, {method:'POST',
-      headers:{'Content-Type':'application/json'}, body:JSON.stringify({key:clave, value:texto})});
-    anotar(clave, r.ok, r.ok ? 'dictado' : `HTTP ${r.status}`);
+    const r=await fetch(`${LAMBDA}/mockoon-admin/global-vars`,{method:'POST',
+      headers:{'Content-Type':'application/json'},body:JSON.stringify({key:clave,value:texto})});
+    anotar(clave,r.ok,r.ok?'dictado':`HTTP ${r.status}`);
     log(`${clave}  ←  ${texto.slice(0,140)}${texto.length>140?'…':''}`);
-  }catch(e){ anotar(clave, false, String(e.message).slice(0,60)); }
+  }catch(e){ anotar(clave,false,String(e.message).slice(0,60)); }
 }
 async function dictar(){
-  const doc = val('doc');
-  if (!/^\d{6,10}$/.test(doc)) { alert('La cédula tiene que ser de 6 a 10 dígitos.'); return; }
-  $('btn').disabled = true; $('btn').textContent = 'Dictando…';
+  const doc=val('as_doc');
+  if(!/^\d{6,10}$/.test(doc)){ alert('La cédula tiene que ser de 6 a 10 dígitos.'); return; }
+  $('btn').disabled=true; $('btn').textContent='Dictando…';
   log(`── cédula ${doc} · ${new Date().toLocaleString('es-CO')}`);
-  if ($('ag_on').checked) await poner(`agildata_${doc}`, cuerpoAgil());
-  if ($('mg_on').checked) await poner(`mareigua_${doc}`, cuerpoMareigua());
-  if ($('td_on').checked) await poner(`tusdatos_${doc}`, cuerpoTusDatos());
-  log(`── listo. Entrá al wizard con la cédula ${doc}.`);
-  $('btn').disabled = false; $('btn').textContent = 'Dictar al mock';
+  if($('ag_on').checked) await poner(`agildata_${doc}`,cuerpoAgil());
+  if($('mg_on').checked) await poner(`mareigua_${doc}`,cuerpoMareigua());
+  if($('td_on').checked) await poner(`tusdatos_${doc}`,cuerpoTusDatos());
+  log(`── listo. En el wizard: cédula ${doc}, «${val('as_nombres')} ${val('as_apellidos')}», celular ${val('as_cel')}.`);
+  $('btn').disabled=false; $('btn').textContent='Dictar al mock';
 }
 async function purgar(){
   try{
-    const r = await fetch(`${LAMBDA}/mockoon-admin/state/purge`, {method:'POST'});
-    anotar('(purge)', r.ok, r.ok ? 'todo borrado' : `HTTP ${r.status}`);
+    const r=await fetch(`${LAMBDA}/mockoon-admin/state/purge`,{method:'POST'});
+    anotar('(purge)',r.ok,r.ok?'todo borrado':`HTTP ${r.status}`);
     log('── purgado: el mock vuelve a sus respuestas de fábrica.');
-  }catch(e){ anotar('(purge)', false, String(e.message).slice(0,60)); }
+  }catch(e){ anotar('(purge)',false,String(e.message).slice(0,60)); }
 }
 </script>
 </body>
