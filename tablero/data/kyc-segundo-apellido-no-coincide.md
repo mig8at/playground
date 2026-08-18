@@ -41,8 +41,69 @@ el aviso `kyc.name_match_relaxed`, el contador de una-vez-por-proceso y el singl
 `NameMatchPorEntornoTest` **se invirtió** en vez de borrarse: los mismos siete entornos, ahora
 fijando que ninguno deja pasar una identidad ajena.
 
-Todo en **un commit, `cacf4656`**. 70 tests de la tarea en verde; sobre `Modules/Identity` completo
-los rojos son preexistentes y el conjunto es idéntico test por test antes y después.
+**La rama quedó en UN SOLO commit, `d4d31d8a`** (23 archivos, +1553): se unificaron los tres que
+tenía, así el PR #1127 se lee como una unidad. ⚠ Eso reescribió el historial — para actualizar el PR
+hay que `push --force-with-lease`, y **no está pusheado**.
+
+70 tests de la tarea en verde; sobre `Modules/Identity` completo los rojos son preexistentes y el
+conjunto es idéntico test por test antes y después.
+
+### La cascada, aclarada (se estaba leyendo mal)
+
+No es una fila donde cada central le pasa a la siguiente. Ágil tiene **tres** desenlaces y sólo uno
+lleva a Mareigua:
+
+| Ágil devuelve | qué sigue |
+|---|---|
+| resuelve y el nombre cuadra | **termina ahí** — ni Mareigua ni TusDatos |
+| inconcluyente (`16`, `98`, `99`…) o excepción | → **Mareigua** |
+| resuelve pero el nombre NO cuadra | → **TusDatos**, salteando Mareigua. Sólo corta con `ONB005` cuando se agotan los intentos (`personal_info_validation_error_max_attempts`, 3 por defecto) |
+
+O sea que **Mareigua nunca se consulta si Ágil resolvió**. Y TusDatos, para documento CC, no
+devuelve nombre que se pueda adoptar: emite un veredicto por campo sobre lo que le mandamos y, si
+pasa, retorna los nombres del formulario tal cual. **Sólo puede vetar, nunca corregir.**
+
+### La matriz de nombres: 500 en frío + 20 por API (2026-08-18)
+
+Corpus propio de 100 nombres de mujer, 100 de hombre y 100 apellidos colombianos, combinados en 12
+clases de perturbación, 250 casos de cada género. Sin diferencia por género. Las 20 corridas por API
+cubren las DOS ramas de la cascada —incluida la de Ágil, que hasta entonces nunca se había
+ejecutado— y coinciden con la matriz clase por clase.
+
+| clase | ruta Ágil | ruta Mareigua |
+|---|---|---|
+| idéntico · typo ≤3 · variante ortográfica (`GONZALES/GONZALEZ`, `JHON/JOHN`) | acepta y corrige | acepta y corrige |
+| typo de 4 letras · otra persona · la central trae menos | `ONB005` | `ONB005` |
+| invertido dentro del campo | acepta | acepta |
+| nombres y apellidos cruzados entre campos | `ONB005` | `ONB005` |
+| **la central agrega una parte** | **`ONB005`** | **acepta y COMPLETA** |
+
+### Dos hallazgos de esa corrida
+
+- ⚠ **La regla de adopción sólo funciona en media cascada.** `central_agrega` es el caso de las «127
+  personas medidas» del docblock —el cliente tiene dos nombres y se tecleó uno—. Mareigua lo
+  completa; **Ágil lo rechaza**. La causa es mecánica: Mareigua devuelve los campos separados y Ágil
+  todo en un string, así que `alignedSplit` se niega a adivinar dónde va la parte que sobra. Los
+  motivos lo separan: `within_tolerance` si sobra al final (`shape_mismatch` en el log),
+  `distance_exceeded` si sobra en el medio, porque la comparación es posicional y un segundo nombre
+  insertado corre todo lo demás. Como Ágil responde primero y su rechazo salta a TusDatos —que sólo
+  veta—, esas personas **no se benefician de la regla**. No es regresión: antes también se
+  rechazaban. Pero el beneficio real es menor que el número del docblock. **Sin resolver.**
+- **`shouldValidateTusDatos` logueaba al revés de lo que devuelve** (`return false` bajo el texto
+  «returning true», y viceversa). Comportamiento correcto, log mentiroso — y es el helper que decide
+  si la solicitud sigue o muere. **Arreglado** en este commit; son dos strings.
+
+### Sobre los apellidos invertidos: se midió, y NO hay nada que quitar
+
+Se dudó de la regla `reordered` («deberíamos asumir que los nombres llegan en orden»). Medido en
+`kyc_name_checks` de prod, 5.989 comparaciones en 26 días: **11 personas** con las mismas palabras en
+otro orden. Y 8 de esas 11 no son apellidos invertidos, sino **el asesor tecleando los apellidos en
+el campo de nombres**, porque así los imprime la cédula.
+
+Lo importante: ese caso —el cruzado entre campos— **ya se rechaza**, por las dos rutas (0 de 26 en la
+matriz). La regla `reordered` sólo actúa dentro de un mismo campo, donde la central es la autoridad
+sobre el orden y adoptar lo normaliza. O sea que el riesgo que se temía —persistir el nombre en el
+campo equivocado— no existe. Se deja como está.
 
 ### La corrida en local, con las tres centrales dictadas por el lambda
 
