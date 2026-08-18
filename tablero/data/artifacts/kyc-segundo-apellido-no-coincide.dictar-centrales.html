@@ -8,15 +8,16 @@
   :root{
     --bg:#faf9f7; --panel:#fff; --tinta:#1c1a17; --suave:#6b6660; --linea:#e5e1db;
     --acento:#1f6feb; --ok:#1a7f4b; --alerta:#9a5b00; --alerta-bg:#fff8e8; --stop:#b4232a;
-    --mono:ui-monospace,SFMono-Regular,Menlo,monospace;
+    --apagado:#b8b2aa; --mono:ui-monospace,SFMono-Regular,Menlo,monospace;
   }
   @media (prefers-color-scheme:dark){:root{
     --bg:#161513; --panel:#1e1d1a; --tinta:#eceae6; --suave:#a09a92; --linea:#332f2a;
-    --acento:#6ea8fe; --ok:#4ade80; --alerta:#e0b341; --alerta-bg:#2a2317; --stop:#ff6b6b;}}
+    --acento:#6ea8fe; --ok:#4ade80; --alerta:#e0b341; --alerta-bg:#2a2317; --stop:#ff6b6b;
+    --apagado:#4a453e;}}
   *{box-sizing:border-box}
   body{margin:0;background:var(--bg);color:var(--tinta);
        font:15px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif}
-  .wrap{max-width:1120px;margin:0 auto;padding:28px 20px 80px}
+  .wrap{max-width:1000px;margin:0 auto;padding:28px 20px 80px}
   h1{font-size:26px;margin:0 0 4px;letter-spacing:-.02em}
   .sub{color:var(--suave);margin:0 0 20px}
   .fecha{display:inline-block;font:12px/1 var(--mono);color:var(--suave);
@@ -26,40 +27,62 @@
   .aviso b{color:var(--alerta)}
   .panel{background:var(--panel);border:1px solid var(--linea);border-radius:12px;
          padding:18px 20px;margin-bottom:16px}
-  .panel h2{font-size:16px;margin:0 0 2px;display:flex;align-items:center;gap:10px}
-  .panel .que{color:var(--suave);font-size:13px;margin:0 0 14px}
-  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px}
-  label{display:block;font-size:12px;color:var(--suave);margin-bottom:4px;
+  label{display:block;font-size:11px;color:var(--suave);margin-bottom:4px;
         text-transform:uppercase;letter-spacing:.04em}
-  input,select{width:100%;padding:8px 10px;border:1px solid var(--linea);border-radius:7px;
-               background:var(--bg);color:var(--tinta);font:14px var(--mono)}
+  input,select{width:100%;padding:7px 9px;border:1px solid var(--linea);border-radius:7px;
+               background:var(--bg);color:var(--tinta);font:13px var(--mono)}
   input:focus,select:focus{outline:2px solid var(--acento);outline-offset:-1px}
-  .fila{display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap}
   button{border:0;border-radius:8px;padding:10px 16px;font-size:14px;font-weight:600;
          cursor:pointer;background:var(--acento);color:#fff}
   button.gris{background:transparent;color:var(--tinta);border:1px solid var(--linea)}
   button:disabled{opacity:.5;cursor:not-allowed}
-  .sw{display:flex;align-items:center;gap:7px;font-size:13px;color:var(--suave);
-      text-transform:none;letter-spacing:0;margin:0}
+  code{font:12px var(--mono);background:var(--bg);border:1px solid var(--linea);
+       border-radius:4px;padding:1px 5px}
+
+  /* ── el grafo ─────────────────────────────────────────────────────────── */
+  .lienzo{position:relative;padding:4px 96px 4px 4px}
+  .lienzo svg{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;overflow:visible}
+  .nodo{position:relative;background:var(--panel);border:1.5px solid var(--linea);border-radius:12px;
+        padding:14px 16px;width:min(440px,100%);margin:0 auto 62px;transition:opacity .15s,border-color .15s}
+  .nodo:last-child{margin-bottom:0}
+  .nodo.activo{border-color:var(--acento)}
+  .nodo.gris{opacity:.42}
+  .nodo header{display:flex;align-items:center;gap:10px;margin-bottom:2px}
+  .nodo h3{font-size:15px;margin:0;flex:1}
+  .nodo .paso{font:11px var(--mono);color:var(--suave);border:1px solid var(--linea);
+              border-radius:99px;padding:2px 7px}
+  .fin{font:11px var(--mono);color:var(--ok);border:1px solid var(--ok);border-radius:99px;
+       padding:2px 8px;white-space:nowrap}
+  .fin.no{display:none}
+  .nodo .que{color:var(--suave);font-size:12.5px;margin:0 0 12px}
+  .campos{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .campos .ancho{grid-column:1/-1}
+  .sw{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--suave);cursor:pointer}
   .sw input{width:auto}
   .oculto{display:none}
+  .nota{font-size:12px;color:var(--suave);margin:10px 0 0;padding-left:10px;
+        border-left:2px solid var(--linea)}
+  .nota.ojo{border-color:var(--alerta);color:var(--alerta)}
+  text{font:11px var(--mono);fill:var(--suave)}
+  text.on{fill:var(--acento);font-weight:600}
+  path{fill:none;stroke:var(--apagado);stroke-width:1.5}
+  path.on{stroke:var(--acento);stroke-width:2}
+
   table{width:100%;border-collapse:collapse;font-size:13px}
   th,td{text-align:left;padding:7px 8px;border-bottom:1px solid var(--linea)}
-  th{color:var(--suave);font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.04em}
-  code{font:13px var(--mono);background:var(--bg);border:1px solid var(--linea);
-       border-radius:4px;padding:1px 5px}
+  th{color:var(--suave);font-weight:600;font-size:11px;text-transform:uppercase}
   .bitacora{font:12px/1.7 var(--mono);white-space:pre-wrap;word-break:break-word;
-            max-height:260px;overflow:auto;background:var(--bg);border:1px solid var(--linea);
+            max-height:220px;overflow:auto;background:var(--bg);border:1px solid var(--linea);
             border-radius:8px;padding:12px}
   .ok{color:var(--ok)} .stop{color:var(--stop)}
-  .scroll{overflow-x:auto}
+  .fila{display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap}
 </style>
 </head>
 <body>
 <div class="wrap">
 
   <h1>Dictar las centrales</h1>
-  <p class="sub">Decile a los mocks qué tienen que contestar para una cédula, antes de entrar al wizard.</p>
+  <p class="sub">Decile a los mocks qué contestar para una cédula, antes de entrar al wizard.</p>
   <span class="fecha">PROTOTIPO · propuesta del 2026-08-18 · no es documentación de cómo funciona hoy</span>
 
   <div class="aviso">
@@ -69,158 +92,213 @@
   </div>
 
   <div class="panel">
-    <h2>1 · La cédula</h2>
-    <p class="que">Es la llave: cada cédula tiene su propia hoja en el cuaderno del mock.</p>
     <div class="fila">
-      <div style="flex:1;min-width:220px">
-        <label for="doc">Número de documento</label>
-        <input id="doc" value="">
+      <div style="flex:1;min-width:200px">
+        <label for="doc">Cédula — es la llave: cada una tiene su hoja en el cuaderno del mock</label>
+        <input id="doc">
       </div>
       <button class="gris" onclick="nuevaCedula()">Generar una nueva</button>
     </div>
-    <div class="aviso" style="margin:14px 0 0">
-      <b>Usá una cédula nueva cada corrida.</b> El backend cachea la respuesta de la central por un mes:
-      si esa persona ya consultó, no vuelve a llamar al mock y lo que dictes no se usa. Es la trampa que
-      hace parecer que esto no funciona.
+    <div class="aviso" style="margin:12px 0 0">
+      <b>Una cédula nueva por corrida.</b> El backend cachea la respuesta de la central por un mes: si
+      esa persona ya consultó, no vuelve a llamar al mock y lo que dictes no se usa.
     </div>
   </div>
 
   <div class="panel">
-    <h2>2 · Ágil Data <span class="sw"><input type="checkbox" id="ag_on" checked> dictar</span></h2>
-    <p class="que">Primera de la cascada. Si resuelve, las otras dos no se consultan.</p>
-    <div class="grid">
-      <div>
-        <label for="ag_modo">Qué hace</label>
-        <select id="ag_modo" onchange="pintar()">
-          <option value="01">Resuelve — devuelve identidad e ingreso</option>
-          <option value="16">Se abstiene — sin afiliación (16)</option>
-          <option value="98">Se abstiene — límite diario de consultas (98)</option>
-          <option value="99">Se abstiene — consulta no exitosa (99)</option>
-          <option value="02">Se abstiene — error 02</option>
-        </select>
-      </div>
-      <div class="ag_datos">
-        <label for="ag_nombre">Nombre completo que devuelve</label>
-        <input id="ag_nombre" value="CARLOS ANDRES RUIZ MENDOZA">
-      </div>
-      <div class="ag_datos">
-        <label for="ag_ingreso">Ingreso mensual (IBC)</label>
-        <input id="ag_ingreso" value="3500000">
-      </div>
-    </div>
-    <div class="aviso ag_datos" style="margin:14px 0 0">
-      Ágil devuelve el nombre <b>en un solo string</b>. Si trae más partes de las que teclea el asesor
-      —un segundo nombre que no se escribió— no se puede saber cuál es nombre y cuál apellido, y la
-      solicitud se <b>rechaza</b>. Mareigua, que devuelve los campos separados, sí lo completa.
-    </div>
-  </div>
+    <p class="que" style="color:var(--suave);font-size:13px;margin:0 0 16px">
+      La cascada corta en la primera central que resuelve. Las flechas encendidas son el camino que va
+      a tomar con lo que tenés configurado.</p>
 
-  <div class="panel">
-    <h2>3 · Mareigua <span class="sw"><input type="checkbox" id="mg_on" checked> dictar</span></h2>
-    <p class="que">Sólo la consulta si Ágil se abstuvo. Devuelve nombres y apellidos por separado.</p>
-    <div class="grid">
-      <div>
-        <label for="mg_modo">Qué hace</label>
-        <select id="mg_modo" onchange="pintar()">
-          <option value="4">Resuelve — devuelve identidad</option>
-          <option value="1">No resuelve — sin información (1)</option>
-          <option value="16">No resuelve — límite diario (16)</option>
-          <option value="2">No resuelve — error (2)</option>
-        </select>
-      </div>
-      <div class="mg_datos"><label for="mg_n1">Primer nombre</label><input id="mg_n1" value="CARLOS"></div>
-      <div class="mg_datos"><label for="mg_n2">Segundo nombre</label><input id="mg_n2" value="ANDRES"></div>
-      <div class="mg_datos"><label for="mg_a1">Primer apellido</label><input id="mg_a1" value="RUIZ"></div>
-      <div class="mg_datos"><label for="mg_a2">Segundo apellido</label><input id="mg_a2" value="MENDOZA"></div>
-    </div>
-  </div>
+    <div class="lienzo" id="lienzo">
+      <svg id="svg"></svg>
 
-  <div class="panel">
-    <h2>4 · TusDatos <span class="sw"><input type="checkbox" id="td_on" checked> dictar</span></h2>
-    <p class="que">La última. Para cédula colombiana no devuelve un nombre que se pueda adoptar:
-       da un veredicto <b>campo por campo</b>. Acá vivía el defecto de CORE-420.</p>
-    <div class="grid">
-      <div>
-        <label for="td_estado">Estado del documento</label>
-        <select id="td_estado"><option>VIGENTE</option><option>CANCELADA</option></select>
+      <!-- ÁGIL -->
+      <div class="nodo" id="n_ag">
+        <header>
+          <span class="paso">1</span><h3>Ágil Data</h3><span class="fin no" id="ag_fin">✓ resuelve: termina acá</span>
+          <label class="sw" style="margin:0"><input type="checkbox" id="ag_on" checked onchange="pintar()"> dictar</label>
+        </header>
+        <p class="que">Primera de la cascada. Devuelve el nombre completo en un solo string.</p>
+        <div class="campos">
+          <div class="ancho">
+            <label for="ag_modo">Qué hace</label>
+            <select id="ag_modo" onchange="pintar()">
+              <option value="01">Resuelve — devuelve identidad e ingreso</option>
+              <option value="16">Se abstiene — sin afiliación (16)</option>
+              <option value="98">Se abstiene — límite diario (98)</option>
+              <option value="99">Se abstiene — consulta no exitosa (99)</option>
+              <option value="02">Se abstiene — error (02)</option>
+            </select>
+          </div>
+          <div class="ag_datos ancho"><label for="ag_nombre">Nombre completo que devuelve</label>
+            <input id="ag_nombre" value="CARLOS ANDRES RUIZ MENDOZA"></div>
+          <div class="ag_datos ancho"><label for="ag_ingreso">Ingreso mensual (IBC)</label>
+            <input id="ag_ingreso" value="3500000"></div>
+        </div>
+        <p class="nota ojo oculto" id="ag_apagado">Sin dictar, Ágil responde su enlatado —
+          <code>JUAN SANTIAGO DOE RAMANUYAN</code> — y <b>resuelve</b>. La cascada corta acá.</p>
+        <p class="nota ag_datos">Si trae más partes que las tecleadas no se sabe cuál es nombre y cuál
+          apellido, y la solicitud se frena. Mareigua, que devuelve campos separados, sí completa.</p>
       </div>
-      <div><label for="td_nombre">Nombre completo que reporta</label><input id="td_nombre" value="CARLOS ANDRES RUIZ MENDOZA"></div>
-    </div>
-    <div class="grid" style="margin-top:12px">
-      <div><label for="td_first_name">Primer nombre</label><select id="td_first_name" class="mc"></select></div>
-      <div><label for="td_middle_name">Segundo nombre</label><select id="td_middle_name" class="mc"></select></div>
-      <div><label for="td_first_surname">Primer apellido</label><select id="td_first_surname" class="mc"></select></div>
-      <div><label for="td_second_surname">Segundo apellido</label><select id="td_second_surname" class="mc"></select></div>
-      <div><label for="td_issue_date">Fecha de expedición</label><select id="td_issue_date" class="mc"></select></div>
-    </div>
-    <div class="aviso" style="margin:14px 0 0">
-      <b>«No coincide» y «no lo mandé» NO son lo mismo</b>, y confundirlos fue el bug: en PHP
-      <code>0 == null</code> es <code>true</code>, así que un «está mal» se descartaba igual que un
-      campo ausente. Poné <b>no coincide</b> en el segundo apellido para reproducirlo.
-    </div>
-  </div>
 
-  <div class="panel">
-    <h2>5 · Experian <span class="sw"><input type="checkbox" id="ex_on"> dictar</span></h2>
-    <p class="que">No es de identidad: define el score y con eso, qué entidades le salen al cliente.</p>
-    <div class="grid">
-      <div><label for="ex_score">Score</label><input id="ex_score" value="720"></div>
-      <div><label for="ex_neg">Créditos negativos vigentes</label><input id="ex_neg" value="0"></div>
-      <div><label for="ex_cuota">Cuota mensual (miles)</label><input id="ex_cuota" value="850"></div>
-    </div>
-    <div class="aviso" style="margin:14px 0 0">
-      Su mock tiene <b>tres claves distintas</b> (<code>experian_</code>, <code>experian_quanto_</code>,
-      <code>experian_acierta_quanto_</code>) y acá se dicta sólo la primera. Además es el que más falla:
-      25 de 55 llamadas en 30 días medidas en staging. Si el resultado no cambia, mirá la traza antes de
-      pelearte con el formulario.
+      <!-- MAREIGUA -->
+      <div class="nodo" id="n_mg">
+        <header>
+          <span class="paso">2</span><h3>Mareigua</h3><span class="fin no" id="mg_fin">✓ resuelve: termina acá</span>
+          <label class="sw" style="margin:0"><input type="checkbox" id="mg_on" checked onchange="pintar()"> dictar</label>
+        </header>
+        <p class="que">Sólo corre si Ágil se abstuvo. Devuelve nombres y apellidos por separado.</p>
+        <div class="campos">
+          <div class="ancho">
+            <label for="mg_modo">Qué hace</label>
+            <select id="mg_modo" onchange="pintar()">
+              <option value="4">Resuelve — devuelve identidad</option>
+              <option value="1">No resuelve — sin información (1)</option>
+              <option value="16">No resuelve — límite diario (16)</option>
+              <option value="2">No resuelve — error (2)</option>
+            </select>
+          </div>
+          <div class="mg_datos"><label for="mg_n1">Primer nombre</label><input id="mg_n1" value="CARLOS"></div>
+          <div class="mg_datos"><label for="mg_n2">Segundo nombre</label><input id="mg_n2" value="ANDRES"></div>
+          <div class="mg_datos"><label for="mg_a1">Primer apellido</label><input id="mg_a1" value="RUIZ"></div>
+          <div class="mg_datos"><label for="mg_a2">Segundo apellido</label><input id="mg_a2" value="MENDOZA"></div>
+        </div>
+        <p class="nota ojo oculto" id="mg_apagado">Sin dictar, Mareigua responde su enlatado
+          (<code>FAKE EMPLOYEE NAME</code>) y resuelve.</p>
+      </div>
+
+      <!-- TUSDATOS -->
+      <div class="nodo" id="n_td">
+        <header>
+          <span class="paso">3</span><h3>TusDatos</h3>
+          <label class="sw" style="margin:0"><input type="checkbox" id="td_on" checked onchange="pintar()"> dictar</label>
+        </header>
+        <p class="que">La última. Para cédula colombiana <b>no</b> devuelve nombre adoptable: da un
+           veredicto campo por campo. Acá vivía el defecto de CORE-420.</p>
+        <div class="campos">
+          <div><label for="td_estado">Estado del documento</label>
+            <select id="td_estado"><option>VIGENTE</option><option>CANCELADA</option></select></div>
+          <div><label for="td_nombre">Nombre que reporta</label>
+            <input id="td_nombre" value="CARLOS ANDRES RUIZ MENDOZA"></div>
+          <div><label for="td_first_name">Primer nombre</label><select id="td_first_name" class="mc"></select></div>
+          <div><label for="td_middle_name">Segundo nombre</label><select id="td_middle_name" class="mc"></select></div>
+          <div><label for="td_first_surname">Primer apellido</label><select id="td_first_surname" class="mc"></select></div>
+          <div><label for="td_second_surname">Segundo apellido</label><select id="td_second_surname" class="mc"></select></div>
+          <div class="ancho"><label for="td_issue_date">Fecha de expedición</label><select id="td_issue_date" class="mc"></select></div>
+        </div>
+        <p class="nota ojo"><b>«No coincide» y «no lo mandé» no son lo mismo</b>, y confundirlos fue el
+          bug: en PHP <code>0 == null</code> es <code>true</code>. Poné <b>NO coincide</b> en el segundo
+          apellido para reproducirlo.</p>
+      </div>
     </div>
   </div>
 
   <div class="panel">
     <div class="fila">
       <button onclick="dictar()" id="btn">Dictar al mock</button>
-      <button class="gris" onclick="purgar()">Purgar todo lo dictado</button>
-      <span class="sw" style="margin-left:auto">Destino: <code id="destino"></code></span>
+      <button class="gris" onclick="purgar()">Purgar todo</button>
+      <span style="margin-left:auto;font-size:12px;color:var(--suave)">→ <code id="destino"></code></span>
     </div>
   </div>
 
   <div class="panel">
-    <h2>Lo dictado en esta sesión</h2>
-    <p class="que">El admin del mock <b>no tiene GET</b>: no se le puede preguntar qué hay cargado.
-       Esta lista es la memoria de esta pestaña, y se pierde al recargar.</p>
-    <div class="scroll"><table id="tabla"><thead><tr><th>Cuándo</th><th>Clave</th><th>Resultado</th></tr></thead><tbody></tbody></table></div>
+    <h3 style="margin:0 0 2px;font-size:15px">Lo dictado en esta sesión</h3>
+    <p class="que" style="color:var(--suave);font-size:12.5px;margin:0 0 12px">
+      El admin del mock <b>no tiene GET</b>: no se le puede preguntar qué hay cargado. Esta lista es la
+      memoria de esta pestaña y se pierde al recargar.</p>
+    <table id="tabla"><thead><tr><th>Hora</th><th>Clave</th><th>Resultado</th></tr></thead><tbody></tbody></table>
     <div class="bitacora" id="log" style="margin-top:12px">Todavía no se dictó nada.</div>
   </div>
 
   <div class="aviso">
-    <b>Después de dictar:</b> entrá al wizard y usá esa cédula. Si el resultado no es el que esperabas,
-    el orden de sospecha es — ¿la cédula ya estaba usada (caché de un mes)? · ¿el ambiente es
-    <code>local</code> o <code>development</code>? (el mock no actúa en ninguno otro) · ¿la traza dice
-    <code>lambda</code> o <code>fixture_fallback</code>? Lo último quiere decir que el mock falló y
-    respondió el enlatado del repo.
+    <b>Si el resultado no es el esperado</b>, el orden de sospecha: ¿la cédula ya estaba usada (caché de
+    un mes)? · ¿el ambiente es <code>local</code> o <code>development</code>? (el mock no actúa en otro)
+    · ¿la traza dice <code>lambda</code> o <code>fixture_fallback</code>? Lo último significa que el
+    mock falló y respondió el enlatado del repo.
   </div>
-
 </div>
+
 <script>
 const LAMBDA = "https://ub79ck0htd.execute-api.us-east-2.amazonaws.com/development";
 document.getElementById('destino').textContent = LAMBDA.replace('https://','');
+const $ = id => document.getElementById(id);
+const val = id => $(id).value.trim();
 
 const MATCH = [["1","coincide"],["2","coincide parcialmente"],["0","NO coincide"],["null","no se envió"]];
 document.querySelectorAll('select.mc').forEach(s => {
-  MATCH.forEach(([v,t]) => s.add(new Option(t, v)));
+  MATCH.forEach(([v,t]) => s.add(new Option(t,v)));
   if (s.id === 'td_middle_name') s.value = 'null';
 });
-
-const $ = id => document.getElementById(id);
-const val = id => $(id).value.trim();
 
 function nuevaCedula(){ $('doc').value = String(Math.floor(Math.random()*2_800_000_000)+100_000_000); }
 nuevaCedula();
 
-function pintar(){
-  document.querySelectorAll('.ag_datos').forEach(e => e.classList.toggle('oculto', $('ag_modo').value !== '01'));
-  document.querySelectorAll('.mg_datos').forEach(e => e.classList.toggle('oculto', $('mg_modo').value !== '4'));
+// ── el grafo: se dibuja midiendo las cajas, así aguanta que se escondan campos ────────────────
+function flecha(x1,y1,x2,y2,curva=0){
+  return curva
+    ? `M ${x1} ${y1} C ${x1+curva} ${y1}, ${x2+curva} ${y2}, ${x2} ${y2}`
+    : `M ${x1} ${y1} L ${x2} ${y2}`;
 }
+function dibujar(camino){
+  const svg = $('svg'), base = $('lienzo').getBoundingClientRect();
+  const caja = id => { const r = $(id).getBoundingClientRect();
+    return {x:r.left-base.left, y:r.top-base.top, w:r.width, h:r.height,
+            cx:r.left-base.left+r.width/2, bot:r.top-base.top+r.height, top:r.top-base.top}; };
+  const ag = caja('n_ag'), mg = caja('n_mg'), td = caja('n_td');
+  const canal = ag.x + ag.w + 46;                 // el carril del desvío, dentro del contenedor
+  const on = k => camino.includes(k) ? ' class="on"' : '';
+  const punta = k => `url(#${camino.includes(k) ? 'pon' : 'p'})`;
+  const txt = (x,y,t,k,anc='middle') =>
+    `<text x="${x}" y="${y}" text-anchor="${anc}"${camino.includes(k)?' class="on"':''}>${t}</text>`;
+
+  svg.innerHTML = `
+    <defs>
+      <marker id="p" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto">
+        <path d="M0,0 L7,3.5 L0,7 z" fill="var(--apagado)" stroke="none"/></marker>
+      <marker id="pon" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto">
+        <path d="M0,0 L7,3.5 L0,7 z" fill="var(--acento)" stroke="none"/></marker>
+    </defs>
+    <path d="M ${ag.cx} ${ag.bot} L ${mg.cx} ${mg.top-9}" marker-end="${punta('ag-mg')}"${on('ag-mg')}/>
+    ${txt(ag.cx-8, ag.bot+34, 'se abstiene', 'ag-mg', 'end')}
+    <path d="M ${mg.cx} ${mg.bot} L ${td.cx} ${td.top-9}" marker-end="${punta('mg-td')}"${on('mg-td')}/>
+    ${txt(mg.cx-8, mg.bot+34, 'no resuelve', 'mg-td', 'end')}
+    <path d="M ${ag.x+ag.w} ${ag.top+ag.h/2}
+             L ${canal-14} ${ag.top+ag.h/2}
+             Q ${canal} ${ag.top+ag.h/2} ${canal} ${ag.top+ag.h/2+14}
+             L ${canal} ${td.top+16}
+             Q ${canal} ${td.top+30} ${canal-14} ${td.top+30}
+             L ${td.x+td.w+9} ${td.top+30}" marker-end="${punta('ag-td')}"${on('ag-td')}/>
+    ${txt(canal+7, (ag.bot+td.top)/2-7, 'resuelve, pero', 'ag-td', 'start')}
+    ${txt(canal+7, (ag.bot+td.top)/2+7, 'el nombre', 'ag-td', 'start')}
+    ${txt(canal+7, (ag.bot+td.top)/2+21, 'no cuadra', 'ag-td', 'start')}`;
+}
+function pintar(){
+  const agDicta = $('ag_on').checked, mgDicta = $('mg_on').checked;
+  // ⚠ NO dictar ≠ que se abstenga: sin dictar, el mock responde su enlatado, que RESUELVE.
+  const agResuelve = !agDicta || $('ag_modo').value === '01';
+  const mgResuelve = !mgDicta || $('mg_modo').value === '4';
+
+  document.querySelectorAll('.ag_datos').forEach(e => e.classList.toggle('oculto', !agDicta || $('ag_modo').value !== '01'));
+  document.querySelectorAll('.mg_datos').forEach(e => e.classList.toggle('oculto', !mgDicta || $('mg_modo').value !== '4'));
+  $('ag_apagado').classList.toggle('oculto', agDicta);
+  $('mg_apagado').classList.toggle('oculto', mgDicta);
+
+  const camino = [];
+  if (agResuelve) camino.push('ag-td');
+  else {
+    camino.push('ag-mg');
+    if (!mgResuelve) camino.push('mg-td');
+  }
+  const corre = { ag:true, mg:!agResuelve, td:!agResuelve && !mgResuelve || agResuelve };
+  $('ag_fin').className = 'fin' + (agResuelve ? '' : ' no');
+  $('mg_fin').className = 'fin' + (!agResuelve && mgResuelve ? '' : ' no');
+  $('n_ag').className = 'nodo activo';
+  $('n_mg').className = 'nodo' + (corre.mg ? ' activo' : ' gris');
+  $('n_td').className = 'nodo' + (camino.includes('mg-td') || camino.includes('ag-td') ? ' activo' : ' gris');
+  requestAnimationFrame(() => dibujar(camino));
+}
+window.addEventListener('resize', pintar);
 pintar();
 
 // ── los cuerpos, con la forma que el backend de verdad lee ────────────────────────────────────
@@ -229,87 +307,57 @@ function cuerpoAgil(){
   if (cod !== '01') return {usuario:null, respuesta:null, codConsulta:"0", codRespuesta:cod,
                             observaciones:"Consulta no exitosa."};
   const ibc = Number(val('ag_ingreso')) || 0;
-  const pagos = [1,2,3,4,5,6].map((i) => ({id:i, ibc, periodo:"20260"+i, fechaPago:"2026-0"+i+"-15 00:00:00",
-                                           diasCotizados:30, valorCotizacionObligatoria:Math.round(ibc*0.115)}));
-  return {usuario:null,
-    respuesta:{type:"aorg.asofondos.agildata.domain.AfiliadoDetalladoa",
+  const pagos = [1,2,3,4,5,6].map(i => ({id:i, ibc, periodo:"20260"+i, fechaPago:`2026-0${i}-15 00:00:00`,
+    diasCotizados:30, valorCotizacionObligatoria:Math.round(ibc*0.115)}));
+  return {usuario:null, respuesta:{type:"aorg.asofondos.agildata.domain.AfiliadoDetalladoa",
       datosBasicos:{edad:30, type:"org.asofondos.agildata.domain.AfiliadoDatosBasicos", genero:"M",
-                    nombre:val('ag_nombre'), tipoId:"CC", numeroId:val('doc'), viabilidad:null},
+        nombre:val('ag_nombre'), tipoId:"CC", numeroId:val('doc'), viabilidad:null},
       detalladoEmpleos:[{id:1, pagos, nombreEmpleador:"EMPRESA DE PRUEBA SAS", telefonoEmpleador:null,
-                         direccionEmpleador:null, identifiacionEmpleador:"900101010",
-                         tipoIdentifiacionEmpleador:"NI"}],
+        direccionEmpleador:null, identifiacionEmpleador:"900101010", tipoIdentifiacionEmpleador:"NI"}],
       fechaVinculacion:null},
     codConsulta:"1", codRespuesta:"01", observaciones:"Consulta Exitosa."};
 }
-
 function cuerpoMareigua(){
   const id = Number($('mg_modo').value);
-  const base = {respuesta_id:id, fecha:"2026-08-18T00:00:00", genero:"M", AFP:"COLPENSIONES", EPS:"COMPENSAR",
+  const b = {respuesta_id:id, fecha:"2026-08-18T00:00:00", genero:"M", AFP:"COLPENSIONES", EPS:"COMPENSAR",
     numero_identificacion_persona_natural:val('doc'), tipo_identificacion_persona_natural_id:1,
     primer_nombre_persona_natural:"", segundo_nombre_persona_natural:"",
     primer_apellido_persona_natural:"", segundo_apellido_persona_natural:"",
-    aportantes:[], resumen_general_ingresos:{}, numero_contratos:0, valor_contratos:0,
-    valor_facturado:0, valor_pendiente:0, servidor_publico:false, tiene_contratos_estado:false,
-    meses_remanentes:0, meses_servidor:0, nivel_educativo:"", rango_edad:"", periodo_finalizacion:"",
-    consulta_id:1};
-  if (id === 4) Object.assign(base, {
-    primer_nombre_persona_natural:val('mg_n1'), segundo_nombre_persona_natural:val('mg_n2'),
-    primer_apellido_persona_natural:val('mg_a1'), segundo_apellido_persona_natural:val('mg_a2')});
-  return base;
+    aportantes:[], resumen_general_ingresos:{}, numero_contratos:0, valor_contratos:0, valor_facturado:0,
+    valor_pendiente:0, servidor_publico:false, tiene_contratos_estado:false, meses_remanentes:0,
+    meses_servidor:0, nivel_educativo:"", rango_edad:"", periodo_finalizacion:"", consulta_id:1};
+  if (id === 4) Object.assign(b, {primer_nombre_persona_natural:val('mg_n1'),
+    segundo_nombre_persona_natural:val('mg_n2'), primer_apellido_persona_natural:val('mg_a1'),
+    segundo_apellido_persona_natural:val('mg_a2')});
+  return b;
 }
-
 function cuerpoTusDatos(){
   const mc = id => { const v = $(id).value; return v === 'null' ? null : Number(v); };
-  return {status:"success",                      // ⚠ literal: cualquier otro valor lo lee como inconcluyente
+  return {status:"success",              // ⚠ literal: otro valor lo lee como inconcluyente y AVANZA
     data:{estado:val('td_estado'), nombre_completo:val('td_nombre'),
-      findings:{first_name:{match_code:mc('td_first_name')},
-                middle_name:{match_code:mc('td_middle_name')},
-                first_surname:{match_code:mc('td_first_surname')},
-                second_surname:{match_code:mc('td_second_surname')},
-                issue_date:{match_code:mc('td_issue_date')}}}};
-}
-
-function cuerpoExperian(){
-  return {ReportHDCplus:{
-    productResult:{securityCode:"proto", consultDate:new Date().toISOString(), responseCode:13,
-                   responseDesc:"La consulta fue efectiva"},
-    basicInformation:{gender:4, genderDesc:"Hombre", names:"", firstLastName:"", secondLastName:"", fullName:""},
-    liabilities:[],
-    agregatedInfo:{overview:{principals:{currentNegativeCredits:Number(val('ex_neg'))||0,
-                                         maturationSince:"2026-07-18"},
-                             balances:{valueMonthlyPayment:Number(val('ex_cuota'))||0,
-                                       totalValueBalanceOverdue:0}}},
-    models:[{scoreValue:Number(val('ex_score'))||0}],
-    productValueList:[]}};
+      findings:{first_name:{match_code:mc('td_first_name')}, middle_name:{match_code:mc('td_middle_name')},
+        first_surname:{match_code:mc('td_first_surname')}, second_surname:{match_code:mc('td_second_surname')},
+        issue_date:{match_code:mc('td_issue_date')}}}};
 }
 
 // ── mandar ────────────────────────────────────────────────────────────────────────────────────
 const filas = [];
 function anotar(clave, ok, detalle){
   filas.unshift({t:new Date().toLocaleTimeString('es-CO'), clave, ok, detalle});
-  const tb = document.querySelector('#tabla tbody');
-  tb.innerHTML = filas.map(f => `<tr><td>${f.t}</td><td><code>${f.clave}</code></td>`+
-    `<td class="${f.ok?'ok':'stop'}">${f.ok?'✓ ':'✗ '}${f.detalle}</td></tr>`).join('');
+  document.querySelector('#tabla tbody').innerHTML = filas.map(f =>
+    `<tr><td>${f.t}</td><td><code>${f.clave}</code></td><td class="${f.ok?'ok':'stop'}">${f.ok?'✓ ':'✗ '}${f.detalle}</td></tr>`).join('');
 }
-function log(txt){
-  const l = $('log');
-  if (l.textContent.startsWith('Todavía')) l.textContent = '';
-  l.textContent += txt + '\n'; l.scrollTop = l.scrollHeight;
-}
+function log(t){ const l=$('log'); if (l.textContent.startsWith('Todavía')) l.textContent=''; l.textContent += t+'\n'; l.scrollTop = l.scrollHeight; }
 
 async function poner(clave, cuerpo){
-  let texto;
-  try { texto = JSON.stringify(cuerpo); }
-  catch(e){ anotar(clave,false,'JSON inválido'); return; }
+  const texto = JSON.stringify(cuerpo);
   try{
-    const r = await fetch(`${LAMBDA}/mockoon-admin/global-vars`, {
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({key:clave, value:texto})});
+    const r = await fetch(`${LAMBDA}/mockoon-admin/global-vars`, {method:'POST',
+      headers:{'Content-Type':'application/json'}, body:JSON.stringify({key:clave, value:texto})});
     anotar(clave, r.ok, r.ok ? 'dictado' : `HTTP ${r.status}`);
-    log(`${clave}  ←  ${texto.slice(0,150)}${texto.length>150?'…':''}`);
-  }catch(e){ anotar(clave,false,String(e.message).slice(0,60)); }
+    log(`${clave}  ←  ${texto.slice(0,140)}${texto.length>140?'…':''}`);
+  }catch(e){ anotar(clave, false, String(e.message).slice(0,60)); }
 }
-
 async function dictar(){
   const doc = val('doc');
   if (!/^\d{6,10}$/.test(doc)) { alert('La cédula tiene que ser de 6 a 10 dígitos.'); return; }
@@ -318,11 +366,9 @@ async function dictar(){
   if ($('ag_on').checked) await poner(`agildata_${doc}`, cuerpoAgil());
   if ($('mg_on').checked) await poner(`mareigua_${doc}`, cuerpoMareigua());
   if ($('td_on').checked) await poner(`tusdatos_${doc}`, cuerpoTusDatos());
-  if ($('ex_on').checked) await poner(`experian_${doc}`, cuerpoExperian());
   log(`── listo. Entrá al wizard con la cédula ${doc}.`);
   $('btn').disabled = false; $('btn').textContent = 'Dictar al mock';
 }
-
 async function purgar(){
   try{
     const r = await fetch(`${LAMBDA}/mockoon-admin/state/purge`, {method:'POST'});
