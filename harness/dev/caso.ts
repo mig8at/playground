@@ -37,6 +37,15 @@ const API = e2eConfig.mockUrl;
 const UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_5 like Mac OS X) AppleWebKit/605.1.15 '
     + '(KHTML, like Gecko) Version/16.5 Mobile/15E148 Safari/604.1';
 
+// La lambda de mocks de la empresa. Su `enableAdminApi: true` es TODO el mecanismo: se le PIDE de
+// antemano qué tiene que contestar para una cédula (`POST /mockoon-admin/global-vars`) y después el
+// flujo corre normal. No hace falta ningún fixture: la respuesta se pide, no se inyecta.
+const LAMBDA = process.env.RISK_LAMBDA_URL
+    ?? 'https://ub79ck0htd.execute-api.us-east-2.amazonaws.com/development';
+
+// teléfonos ya tomados en ESTA corrida: dos casos en paralelo no pueden compartir uno
+const usados = new Set<string>();
+
 const arg = (n: string, d = ''): string => {
     const i = process.argv.indexOf(`--${n}`);
     return i > 0 && process.argv[i + 1] && !process.argv[i + 1].startsWith('--') ? process.argv[i + 1] : d;
@@ -96,7 +105,115 @@ function conductaDe(d: any): string {
     return 'continúa sin bifurcar';
 }
 
+/** Elige un teléfono de bypass LIMPIO (sin usuario) del setting `qa_otp_bypass_phones`. El OTP es
+ *  sus últimos 4 dígitos. Se saltea el de `mock_rules`, que iría al fixture. */
+async function telefonoBypass(i: number): Promise<string | null> {
+    const row = await one<{ value: string }>(
+        "SELECT value FROM settings WHERE `key`='qa_otp_bypass_phones'").catch(() => null);
+    const tels: string[] = JSON.parse(row?.value ?? '[]').map(String);
+    for (const t of tels) {
+        const n = await one<{ n: number }>('SELECT COUNT(*) AS n FROM users WHERE cell_phone=?', [t])
+            .catch(() => null);
+        if ((n?.n ?? 1) === 0 && !usados.has(t)) { usados.add(t); return t; }
+    }
+    return null;
+}
+
+/** Le dicta a la lambda qué contesta cada central PARA ESA CÉDULA. Es el paso que vuelve el caso
+ *  hipotético: se pide de antemano la respuesta que se quiere recibir. */
+async function dictar(doc: string, central: string, valor: unknown): Promise<boolean> {
+    // ⚠ Mockoon NO valida el JSON que se le dicta: lo emite tal cual con 200, y un JSON roto se lee
+    // después como «respuesta inválida del proveedor». Se serializa acá y se falla acá si no es válido.
+    const v = typeof valor === 'string' ? valor : JSON.stringify(valor);
+    try { JSON.parse(v); } catch { return false; }
+    const r = await fetch(`${LAMBDA}/mockoon-admin/global-vars`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ key: `${central}_${doc}`, value: v }),
+        signal: AbortSignal.timeout(25_000),
+    }).catch(() => null);
+    return !!r?.ok;
+}
+
+/** El camino REAL: register → otp-validate → personal-info. No usa `synthFill` — justamente porque
+ *  synthFill escribe la fila de `risk_central_user_data` y entonces el backend la reusa (caché de un
+ *  mes) y NO llama a la central. Es la trampa 1 del documento de la tarea. */
+async function correrLambda(c: Caso, i: number): Promise<Res> {
+    // ⚠ la cédula tiene que ser única POR CORRIDA, no sólo por caso. Derivarla de (índice, score)
+    // parecía suficiente y no lo era: la segunda vez que se corre el mismo comando repite la cédula,
+    // y el flujo muere con «El correo electrónico ya se encuentra registrado» — un error que no se
+    // parece en nada a la causa. Además la caché de un mes de `risk_central_user_data` haría que el
+    // backend reusara la consulta anterior en vez de llamar a la central, que es justo lo que se
+    // está tratando de ejercitar.
+    const doc = String(1090000000 + ((Date.now() / 100) % 9_000_000 | 0) + i);
+    const base: Res = { caso: c, ok: false, phone: '' };
+
+    const tel = await telefonoBypass(i);
+    if (!tel) return { ...base, detalle: 'no quedan teléfonos de bypass limpios' };
+    base.phone = tel;
+
+    const br = await one<{ hash: string; com: string }>(
+        `SELECT b.hash, x.name AS com FROM allied_branches b JOIN allieds x ON x.id=b.allied_id
+          WHERE x.name LIKE ?
+          ORDER BY (SELECT COUNT(*) FROM lenders_by_allied_branches l WHERE l.allied_branch_id=b.id) DESC
+          LIMIT 1`, [`%${c.comercio}%`]).catch(() => null);
+    if (!br) return { ...base, detalle: `no encontré el comercio «${c.comercio}»` };
+
+    // el ingreso pedido se dicta como la respuesta de Agildata
+    const ok1 = await dictar(doc, 'agildata', {
+        usuario: null, codRespuesta: '00',
+        respuesta: {
+            type: 'aorg.asofondos.agildata.domain.AfiliadoDetalladoa',
+            datosBasicos: { edad: 25, type: 'org.asofondos.agildata.domain.AfiliadoDatosBasicos',
+                            genero: 'M', nombre: 'CARLOS RUIZ MENDOZA', tipoId: 'CC', numeroId: doc,
+                            viabilidad: null },
+        },
+    });
+    if (!ok1) return { ...base, detalle: 'no se pudo dictar la respuesta a la lambda' };
+
+    const H = { 'content-type': 'application/json', accept: 'application/json', 'user-agent': UA };
+    const post = async (ruta: string, body: unknown) => {
+        const r = await fetch(`${API}${ruta}`, { method: 'POST', headers: H,
+            body: JSON.stringify(body), signal: AbortSignal.timeout(150_000) }).catch((e) => e as Error);
+        if (r instanceof Error) return { status: 0, json: { message: String(r.message).slice(0, 120) } };
+        const t = await r.text();
+        try { return { status: r.status, json: JSON.parse(t) }; } catch { return { status: r.status, json: { raw: t.slice(0, 200) } }; }
+    };
+
+    const reg = await post('/api/onboarding/phone/register', {
+        phone_number: tel, phoneNumber: tel, terms: true, policies: true,
+        otp_length: 4, otpLength: 4, partner_branch_hash: br.hash, partnerBranchHash: br.hash });
+    if (!reg.json?.data?.user?.id) return { ...base, detalle: `register HTTP ${reg.status}` };
+
+    const otp = await post(`/api/onboarding/loan-application/otp-validate/${br.hash}`, {
+        cell_phone: tel, otp_code: tel.slice(-4),
+        original_amount: c.amount, amount: c.amount });
+    // ⚠ el uReq viene en `errors.payload`, NO en `payload`: el usuario es temporal y la respuesta
+    // llega como error `ONB002 "temporal user found"`. Es la trampa 3 del documento de la tarea.
+    const ur = otp.json?.errors?.payload?.user_request_id ?? otp.json?.payload?.user_request_id;
+    if (!ur) return { ...base, detalle: `otp-validate sin uReq (HTTP ${otp.status})` };
+    base.ur = ur;
+
+    const pi = await post(`/api/onboarding/loan-application/personal-info/${br.hash}/${ur}`, {
+        document_type: 'CC', document_number: doc, name: 'CARLOS', surname: 'RUIZ',
+        email: `qa${doc}@gmail.com`,
+        expedition_day: 10, expedition_month: 5, expedition_year: 2019,
+        birth_day: 10, birth_month: 5, birth_year: 2001 });
+    if (pi.json?.success !== true) {
+        return { ...base, conducta: 'personal-info rechazó',
+                 detalle: `${pi.json?.errors?.error_subcode ?? ''} ${JSON.stringify(pi.json?.errors?.payload ?? pi.json?.message ?? '').slice(0, 90)}` };
+    }
+
+    const lis = await fetch(`${API}/api/onboarding/loan-application/lenders/${ur}`, { headers: H })
+        .then((r) => r.json()).catch(() => null);
+    const crudo = lis?.data ?? lis;
+    const arr: any[] = Array.isArray(crudo) ? crudo : Array.isArray(crudo?.lenders) ? crudo.lenders : [];
+    base.listado = arr.map((x) => Number(x.id ?? x.lender_id)).filter(Boolean);
+    return { ...base, ok: arr.length > 0, nombre: `doc ${doc}`,
+             conducta: `listado con ${arr.length} entidades (buró por LAMBDA)` };
+}
+
 async function correr(c: Caso, i: number): Promise<Res> {
+    if (flag('lambda')) return correrLambda(c, i);
     const phone = telefono(i);
     const base: Res = { caso: c, ok: false, phone };
 

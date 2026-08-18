@@ -224,8 +224,8 @@ harness-admin-ciudades: ## @har ¿el selector de ciudad del admin filtra por pa�
 harness-listado: ## @har del COMERCIO al listado de entidades, por API y sin browser: ¿cuáles le salen a un cliente y por qué NO las otras? [COMERCIO=pullman] [MONTO=2000000]
 	@cd harness && node dev/listado.ts $(if $(COMERCIO),--comercio $(COMERCIO)) $(if $(MONTO),--amount $(MONTO)) $(if $(BRANCH),--branch $(BRANCH)) $(if $(V2),--v2)
 
-harness-caso: ## @har CASOS hipotéticos de punta a punta, en PARALELO. CASOS='pullman@score=700;pullman@score=300' [PAR=1]
-	@cd harness && node dev/caso.ts $(if $(CASOS),--casos '$(CASOS)') $(if $(COMERCIO),--comercio $(COMERCIO)) $(if $(LENDER),--lender $(LENDER)) $(if $(MONTO),--amount $(MONTO)) $(if $(PAR),--paralelo)
+harness-caso: ## @har CASOS hipotéticos de punta a punta, en PARALELO. CASOS='pullman;pullman' [PAR=1] [LAMBDA=1 = buró REAL, respuesta pedida de antemano]
+	@cd harness && node dev/caso.ts $(if $(CASOS),--casos '$(CASOS)') $(if $(COMERCIO),--comercio $(COMERCIO)) $(if $(LENDER),--lender $(LENDER)) $(if $(MONTO),--amount $(MONTO)) $(if $(PAR),--paralelo) $(if $(LAMBDA),--lambda)
 
 harness-check: ## @har typecheck del harness
 	@cd harness && npm run --silent typecheck
