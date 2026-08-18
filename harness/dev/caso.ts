@@ -26,6 +26,8 @@
 // Gotchas heredados, que acá aplican igual: `E2E_TARGET` default es dev → se fuerza local · UA de
 // iPhone SIEMPRE (con UA de escritorio, 403) · en `main` sin `H2O_API_HOST` el listado da 500.
 
+import { spawnSync } from 'node:child_process';
+
 process.env.E2E_TARGET ||= 'local';
 process.env.CFE_TARGET ||= 'local';
 
@@ -116,6 +118,17 @@ async function telefonoBypass(i: number): Promise<string | null> {
             .catch(() => null);
         if ((n?.n ?? 1) === 0 && !usados.has(t)) { usados.add(t); return t; }
     }
+    // ⚠ Si no queda ninguno limpio, se RECICLA: cada corrida consume un teléfono (deja un usuario), y
+    // los 64 del setting se agotan en unas decenas de casos. Se scrubbea SÓLO el que este caso va a
+    // usar —nunca la lista entera— porque dos casos en paralelo borrándose usuarios entre sí es
+    // exactamente el fallo que este runner existe para evitar.
+    for (const t of tels) {
+        if (usados.has(t)) continue;
+        usados.add(t);
+        spawnSync('node', ['bin/dbops.ts', 'scrubphone', t],
+                  { cwd: new URL('..', import.meta.url).pathname });
+        return t;
+    }
     return null;
 }
 
@@ -137,14 +150,76 @@ async function dictar(doc: string, central: string, valor: unknown): Promise<boo
 /** El camino REAL: register → otp-validate → personal-info. No usa `synthFill` — justamente porque
  *  synthFill escribe la fila de `risk_central_user_data` y entonces el backend la reusa (caché de un
  *  mes) y NO llama a la central. Es la trampa 1 del documento de la tarea. */
+/** La cédula de un caso. Única POR CORRIDA, no sólo por caso: derivarla de (índice, score) hacía que
+ *  la segunda vez que se corría el mismo comando repitiera cédula, y el flujo moría con «El correo
+ *  electrónico ya se encuentra registrado» — un error que no se parece a su causa. Peor: la caché de
+ *  un mes de `risk_central_user_data` habría servido la consulta anterior en vez de llamar a la
+ *  central, que es justo lo que se quiere ejercitar. */
+const BASE_DOC = 1090000000 + ((Date.now() / 100) % 9_000_000 | 0);
+const cedulaDe = (i: number) => String(BASE_DOC + i);
+
+/** La respuesta que se le pide a la central para este caso. El ingreso del caso se vuelve el `ibc`
+ *  (Ingreso Base de Cotización) de los pagos: el backend NO lo recibe inyectado, lo descubre
+ *  consultando. Se emiten 8 períodos para que las reglas de continuidad (3/6/12 meses) tengan de
+ *  dónde calcular — con menos, «no continuo» sería un artefacto del mock y no del caso planteado. */
+function respuestaAgildata(doc: string, ibc: number) {
+    // ⚠ EL PERÍODO ES `YYYYMM` Y NO SE PUEDE RESTAR COMO ENTERO. `202603 - k` parece razonable y a
+    // partir del cuarto pago da 202599, 202598… meses que no existen. El backend calcula la
+    // continuidad (3/6/12 meses) contando períodos, así que con basura ahí devuelve `employed: false`,
+    // continuidad en cero y `approximate_real_salary: 0` — el ingreso llega y NO SIRVE. El caso que
+    // uno creyó plantar («alguien que gana 15M») termina siendo «alguien sin empleo», y el listado no
+    // cambia por la razón equivocada.
+    const pagos = Array.from({ length: 8 }, (_, k) => {
+        // ⚠ RELATIVO A HOY, no a una fecha fija. `validateContractType` compara el último período
+        // contra la fecha de la solicitud: una serie que termina hace cinco meses da `employed:false`
+        // por vieja, no por el caso que se quiso plantear. Una fecha horneada acá envejece sola y
+        // rompe el runner en silencio unos meses después.
+        const hoy = new Date();
+        const meses = hoy.getFullYear() * 12 + hoy.getMonth() - k;
+        const [y, m] = [Math.floor(meses / 12), (meses % 12) + 1];
+        const mm = String(m).padStart(2, '0');
+        return {
+            id: k + 1, ibc, periodo: Number(`${y}${mm}`),
+            fechaPago: `${y}-${mm}-15 00:00:00`,
+            diasCotizados: 30, valorCotizacionObligatoria: Math.round(ibc * 0.115),
+        };
+    });
+    return {
+        usuario: null, codRespuesta: '01', observaciones: 'Consulta Exitosa.',
+        codConsulta: 14744568681490196,
+        respuesta: {
+            type: 'aorg.asofondos.agildata.domain.AfiliadoDetalladoa', fechaVinculacion: null,
+            datosBasicos: { edad: 25, type: 'org.asofondos.agildata.domain.AfiliadoDatosBasicos',
+                            genero: 'M', nombre: 'CARLOS RUIZ MENDOZA', tipoId: 'CC',
+                            numeroId: doc, viabilidad: null },
+            detalladoEmpleos: [{
+                id: 1, pagos, nombreEmpleador: 'STANGERSON SAS', telefonoEmpleador: null,
+                direccionEmpleador: null, identifiacionEmpleador: '900101010',
+                tipoIdentifiacionEmpleador: 'NI' }],
+        },
+    };
+}
+
+const dictados = new Set<string>();
+
+/** ⚠ DICTAR VA EN SERIE, AUNQUE LOS CASOS CORRAN EN PARALELO. La lambda es serverless y sus
+ *  global-vars viven en la MEMORIA DEL CONTENEDOR: tres POST concurrentes caen en contenedores
+ *  distintos y dos de los tres dictados se pierden — medido el 2026-08-17, y no es una carrera que se
+ *  resuelva sola: la cédula perdida devuelve la respuesta por defecto para siempre. El síntoma es
+ *  cruel, porque el flujo TERMINA BIEN con datos que nadie pidió, y uno concluye «el ingreso no
+ *  cambia el listado» cuando en realidad el ingreso nunca llegó. En serie, las tres quedan. */
+async function dictarTodos(casos: Caso[]): Promise<string[]> {
+    const fallos: string[] = [];
+    for (let i = 0; i < casos.length; i++) {
+        const doc = cedulaDe(i);
+        const ok = await dictar(doc, 'agildata', respuestaAgildata(doc, casos[i].income!));
+        if (ok) dictados.add(doc); else fallos.push(doc);
+    }
+    return fallos;
+}
+
 async function correrLambda(c: Caso, i: number): Promise<Res> {
-    // ⚠ la cédula tiene que ser única POR CORRIDA, no sólo por caso. Derivarla de (índice, score)
-    // parecía suficiente y no lo era: la segunda vez que se corre el mismo comando repite la cédula,
-    // y el flujo muere con «El correo electrónico ya se encuentra registrado» — un error que no se
-    // parece en nada a la causa. Además la caché de un mes de `risk_central_user_data` haría que el
-    // backend reusara la consulta anterior en vez de llamar a la central, que es justo lo que se
-    // está tratando de ejercitar.
-    const doc = String(1090000000 + ((Date.now() / 100) % 9_000_000 | 0) + i);
+    const doc = cedulaDe(i);
     const base: Res = { caso: c, ok: false, phone: '' };
 
     const tel = await telefonoBypass(i);
@@ -158,17 +233,7 @@ async function correrLambda(c: Caso, i: number): Promise<Res> {
           LIMIT 1`, [`%${c.comercio}%`]).catch(() => null);
     if (!br) return { ...base, detalle: `no encontré el comercio «${c.comercio}»` };
 
-    // el ingreso pedido se dicta como la respuesta de Agildata
-    const ok1 = await dictar(doc, 'agildata', {
-        usuario: null, codRespuesta: '00',
-        respuesta: {
-            type: 'aorg.asofondos.agildata.domain.AfiliadoDetalladoa',
-            datosBasicos: { edad: 25, type: 'org.asofondos.agildata.domain.AfiliadoDatosBasicos',
-                            genero: 'M', nombre: 'CARLOS RUIZ MENDOZA', tipoId: 'CC', numeroId: doc,
-                            viabilidad: null },
-        },
-    });
-    if (!ok1) return { ...base, detalle: 'no se pudo dictar la respuesta a la lambda' };
+    if (!dictados.has(doc)) return { ...base, detalle: 'la respuesta del buró no quedó dictada' };
 
     const H = { 'content-type': 'application/json', accept: 'application/json', 'user-agent': UA };
     const post = async (ruta: string, body: unknown) => {
@@ -209,7 +274,7 @@ async function correrLambda(c: Caso, i: number): Promise<Res> {
     const arr: any[] = Array.isArray(crudo) ? crudo : Array.isArray(crudo?.lenders) ? crudo.lenders : [];
     base.listado = arr.map((x) => Number(x.id ?? x.lender_id)).filter(Boolean);
     return { ...base, ok: arr.length > 0, nombre: `doc ${doc}`,
-             conducta: `listado con ${arr.length} entidades (buró por LAMBDA)` };
+             conducta: `listado con ${arr.length} entidades · buró dictado: ibc ${c.income!.toLocaleString('es-CO')}` };
 }
 
 async function correr(c: Caso, i: number): Promise<Res> {
@@ -290,6 +355,11 @@ async function main(): Promise<number> {
     const par = flag('paralelo');
 
     console.log(`\n  CASOS · ${casos.length} · ${par ? 'EN PARALELO' : 'en serie'} · ${API}\n`);
+    if (flag('lambda')) {
+        const fallos = await dictarTodos(casos);
+        console.log(`  respuestas del buró pedidas a la lambda: ${casos.length - fallos.length}/${casos.length}`
+            + (fallos.length ? `  ⚠ fallaron ${fallos.join(', ')}` : '') + '\n');
+    }
     const t0 = Date.now();
     const res = par
         ? await Promise.all(casos.map((c, i) => correr(c, i).catch((e) => (
