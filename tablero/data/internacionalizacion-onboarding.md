@@ -9,17 +9,25 @@ jira_title: "Internacionalizacion. Flujo de onboarding otros paises. (celular, t
 ---
 
 # Internacionalización del onboarding
-> **estado (2026-08-09):** 🧪 **CORE-365 en pruebas.** Implementado en **3 ramas
-> `feature/pais-como-dato`** (un commit por repo), **ya pusheadas**. Descripción y 5 puntos cargados en
-> el ticket.
+> **estado (2026-08-18):** 🚀 **el backend está MERGEADO a `staging`, desplegado y migrado.** Entró por
+> `feature/pais-como-dato-onto-staging` (cherry-pick del commit original sobre `origin/staging`, sin
+> conflictos), corre en `legacy-backend-stg` y sus **3 migraciones ya se aplicaron** a la BD compartida
+> dev+staging. Validado contra el ambiente — el detalle, en la bitácora del 2026-08-18.
 >
-> ⚠ **Lo que falta para que QA pueda probar de verdad:** **no hay PRs abiertos** y el código **no está
-> desplegado** en ningún ambiente que QA alcance. Las ramas están arriba; abrir los PRs y desplegar es
-> el paso que sigue.
+> ⚠ **El front NO está mergeado**, ni en `main` ni en `staging`. Verificado por patch-id, que detecta
+> squash: `git cherry -v origin/main origin/feature/pais-como-dato` devuelve `+`. O sea que el `country`
+> que el backend ya publica **no lo consume nadie**: el wizard sigue asumiendo el prefijo. Es el
+> siguiente paso, y sin él las pantallas de teléfono no cambian.
 >
-> ⚠ **Y sigue sin cumplirse la precondición para abrir los PRs:** los cambios de **Motai NO están en
-> `main`** (verificado el 2026-08-09; el nodo `motai` sigue con su marca de pendiente de merge). Los PRs
-> pueden necesitar rebase cuando entren. `frontend-monorepo` además está 2 commits detrás de `main`.
+> ⚠ **El admin (`legacy-application`) no tiene ambiente de staging**: ese repo solo tiene `develop` (dev)
+> y `main` (prod) — ni rama ni workflow `stg`, ni referencia a un servicio `-stg`. Los dos criterios de
+> aceptación del selector de ciudad **no se validan en staging**; van en dev, y ya tienen con qué porque
+> dev y staging comparten la BD y las ciudades de RD quedaron sembradas.
+>
+> ⚠ **`qa` y `staging` son DOS ramas divergentes y vivas**, y **Motai vive solo en `qa`**. Por eso el
+> cherry-pick a `staging` entró limpio y a `qa` choca en `AlliedInfoController` (Motai agregó
+> `allowed_document_types` en el mismo hueco del array donde países agrega `country`). Trampa asociada:
+> `harness/.env.staging` apunta a `legacy-backend-qa`, que es **la rama equivocada** para verificar esto.
 >
 > La tarea **llega** por SmartPay (RD), pero el objetivo real es que el onboarding sea multi-país por
 > **filas de configuración** y no por forks: **celular** (prefijo/longitud/validación), **tipos de
@@ -1014,10 +1022,15 @@ hardcodea el lender 160, así que la originación distintiva **no es ejercitable
 > validar sin preguntar. Subirlo es una decisión, no un automatismo.
 
 ### Lo que NO entró en las ramas, y por qué (backlog real)
-- **La corrección de los 13 puntos de venta dominicanos.** Es el daño que ya está en producción y **no es
-  código**: 4 de las 13 direcciones traen el municipio inequívoco, 2 no tienen dirección usable («Tienda
-  1», «Tienda 2») y el resto son ambiguas — la Autopista Duarte cruza varios municipios. Hay que
-  preguntarle a los comercios. El comando ya imprime la dirección de cada uno para eso.
+- **La corrección de los puntos de venta dominicanos. SIGUE PENDIENTE** — las 3 migraciones **no la
+  hacen**, y es a propósito: sembrar las ciudades es la *precondición* (antes no había a dónde
+  moverlos), no la corrección. **Re-medido en prod el 2026-08-18: son 16, no 13**, y las 16 son
+  comercios dominicanos apuntando al «SANTO DOMINGO» de Antioquia. Cruzadas las direcciones contra los 8
+  municipios sembrados, **solo 3 se resuelven solas**: 2201 → `SANTO DOMINGO ESTE`, 2234 →
+  `LOS ALCARRIZOS`, y 2221 → `PEDRO BRAND` (⚠ ésta se contradice: la dirección dice «Pedro Brand» *y*
+  «Santo Domingo Oeste»). Las otras 13 hay que **preguntárselas al comercio**: 2 no tienen dirección
+  usable («Tienda 1», «Tienda 2») y varias son «Autopista Duarte km N», que cruza varios municipios. El
+  comando `paises:auditar-sucursales` imprime la dirección de cada uno justamente para esto.
 - **El registro de países mal cargado.** La fila `countries.id = 1` se llama «Afghanistan» y tiene moneda
   e idioma de Colombia; a ella apuntan **186 entidades y 364.527 usuarios**. Hoy es inocuo porque el
   camino vivo resuelve por comercio, que apunta a la fila correcta. **Tarea aparte por ser destructiva**,
@@ -1082,24 +1095,6 @@ dicen «COLOMBIANA». No falta funcionalidad: falta que el país sea un dato que
 - Un comercio colombiano se comporta exactamente igual que antes en las cuatro pantallas tocadas.
 - El documento de una solicitud dominicana no dice «COLOMBIANA».
 - Si el país de un comercio no está configurado, el flujo sigue funcionando con el comportamiento actual.
-
-## Tarea (publicable)
-Hoy el onboarding asume un solo país en el código: el prefijo y la longitud del celular, los tipos de
-documento válidos, los textos, la moneda y los formatos están escritos en el programa en vez de venir de
-configuración. Por eso el segundo país se resolvió con una copia paralela de las pantallas de solicitud, y un
-tercero costaría otra copia.
-
-El objetivo es que el país sea **configuración**: una sola definición de país (prefijo telefónico, longitud
-del celular, tipos de documento admitidos, idioma, moneda y formato de fecha) que el flujo consulte una vez
-por solicitud, y una sola pantalla de solicitud que se adapte a esa configuración. Con eso, habilitar un país
-nuevo pasa a ser cargar datos, no publicar una versión.
-
-Incluye: definir dónde vive esa configuración y con qué precedencia cuando comercio, sucursal y entidad no
-coinciden; unificar la captura y validación del celular; convertir los tipos de documento en catálogo
-configurable por país y por sucursal; y separar los textos del programa para poder tenerlos por país.
-
-Queda fuera de esta tarea el resto del recorrido posterior a la solicitud (firma, desembolso y cobranza), y
-la traducción a un idioma distinto del español.
 
 ## Bitácora
 - **2026-08-05** — Tarea abierta en evaluación. Barrido de contexto + verificación contra `main` de los dos
@@ -1222,8 +1217,6 @@ la traducción a un idioma distinto del español.
   deploy) → M1-M4 migraciones aditivas → F1-F3 los 8 filtros con `whereIn` transicional (sin ventana de
   listado vacío) → R1-R3 resolvedor + sucursal gobierna → Fr1-Fr3 front → D1-D3 documentos → V1-V2
   harness y guardrail. Las secciones anteriores quedan como mapa/detalle.
-</content>
-</invoke>
 - **2026-08-09** — **A pruebas.** Medido el estado real: la implementación existe en **3 ramas
   `feature/pais-como-dato`**, un commit de trabajo por repo, que hasta hoy eran **solo locales**.
   Qué trae cada una:
@@ -1245,3 +1238,91 @@ la traducción a un idioma distinto del español.
 
   **Pendiente y bloqueante para QA:** abrir los PRs (no se pudo desde acá: `gh` sin sesión) y desplegar.
   Y los cambios de **Motai siguen fuera de `main`**, así que los PRs pueden pedir rebase.
+
+- **2026-08-18** — **El backend llegó a `staging`: portado, probado, mergeado, desplegado y migrado.**
+  El encargo era pasar lo trabajado sobre `main` a `staging` partiendo de que «staging va más
+  adelantado». **Medido, esa premisa es cierta a medias:** en `legacy-backend`, `staging` bifurcó de
+  `main` el 22-07 y **`main` lleva 123 commits que `staging` no tiene**, contra 24 propios de staging; en
+  `frontend-monorepo` sí va adelante (main 5 / staging 15). Y apareció una tercera rama viva, **`qa`**
+  (105 commits sobre staging), que es la que el harness llama «staging».
+
+  **El port.** Simulado antes de tocar nada con `git merge-tree` (no escribe): a `staging` el commit
+  entra **limpio** en backend y en wizard —los archivos tocados son byte-idénticos entre main y
+  staging—; a `qa` **choca** (backend en `AlliedInfoController`, wizard en `allied-theme.repository.ts` y
+  `allied-theme.ts`), justo el rebase por Motai que esta tarea venía anticipando. Se siguió la convención
+  que el repo ya usa (`*-onto-staging`, con dos ramas así ya mergeadas): rama
+  `feature/pais-como-dato-onto-staging` desde `origin/staging` + cherry-pick. ⚠ Ojo con un detalle que
+  casi muerde: `git checkout -b … origin/staging` deja el **upstream apuntando a `staging`**, así que un
+  `git push` pelado podría querer escribir en la rama de ambiente (lo salvó que `push.default` es
+  `simple`, que rechaza cuando los nombres difieren). Se pusheó con refspec explícito.
+
+  **La prueba de las migraciones, antes de subir.** El local **ya no servía como banco**: estaba migrado
+  desde el desarrollo (`phone_code` poblado, columna `nationality`, 8 ciudades RD), o sea que probaba el
+  estado final, no el camino. Y un `rollback` estaba descartado porque las 3 están en los lotes 182-184 y
+  el último es el 188 — se habría llevado migraciones ajenas. Así que se armó una **BD de scratch**
+  (`creditop_stgtest` en el MySQL local) forzada al **pre-estado exacto medido en staging**: sin columna
+  `nationality`, `phone_code` NULL en las 253 filas, 0 ciudades dominicanas, y las provincias
+  `Distrito Nacional` (934) y `Santo Domingo` (964) presentes —sin las cuales la migración de ciudades
+  **lanza excepción**—. Resultados: las 3 corren; **idempotentes** (segunda corrida: sigue en 8 ciudades,
+  0 duplicados, la columna no revienta); el **rollback devuelve el pre-estado exacto**; y el guard del
+  `down()` cumple su promesa —con una sucursal apuntando a BOCA CHICA, borró las otras 7 y **dejó esa**,
+  sin huérfanos—. Los 2 tests unitarios pasan **sobre la base de staging** (11 assertions).
+
+  **🔴 Hallazgo de infraestructura: ni el deploy ni el CI corren migraciones.** El workflow reutilizable
+  de `config-ci` (`deploy-ecs-service.yaml`) tiene jobs de gitleaks, build, trivy, sonar, push,
+  update-catalog, deploy, summary y slack — **ningún paso de migraciones**. Y el workflow que debería
+  hacerlo, `run-migrations.yml`, **está roto y nunca corrió** (cero corridas en la historia del repo): a
+  la línea `--env AWS_ACCESS_KEY_ID=…` le falta el `\` de continuación, así que el `docker run` termina
+  ahí, sin la imagen y sin el `php artisan migrate`; encima esos `inputs.aws_*` no están declarados.
+  Corolario medido: de las 385 migraciones de `qa`, **1 sigue sin aplicar** en la BD compartida
+  (`2026_08_16_110000_add_pending_cosigner_signature_request_status`) — se aplican a mano.
+
+  **Cómo se aplicaron.** Desde el contenedor local apuntado a la BD de staging, con `--path` para correr
+  **solo las 3** y no arrastrar la pendiente ajena de `qa`. ⚠ Trampa de shell que costó un intento: la
+  contraseña de `harness/.env.staging` **contiene `$`**, así que `set -a; . archivo` la expande y el
+  login falla con `Access denied`; hay que leer el valor literal (`grep … | cut -d= -f2-`).
+
+  **Validado contra staging** (`legacy-backend-stg`, no `-qa`), con foto de antes y después:
+  - el payload de `GET /api/loans/allied/{hash}` **antes** traía `branch, colors, id, image, lender,
+    name, slug`; **ahora** los mismos **+ `country`** — nada se perdió;
+  - comercio dominicano (`1bfb8cd0`, CeluRD) → `id 60 · DOM · phone_code +1 · DOP · es-DO`;
+  - comercio colombiano (`7426056a`, godentist) → `id 47 · COL · phone_code +57 · COP · es-CO`
+    (**regresión OK**);
+  - datos: 2 `phone_code` poblados (solo COL y DOM, las otras 251 quedan NULL a propósito), columna
+    `nationality` con `COLOMBIANA`/`DOMINICANA`, y **8 municipios** dominicanos en sus dos provincias;
+  - la auditoría reporta **5 sucursales** desalineadas en staging: **1676** (CeluRD Santo Domingo →
+    MEDELLÍN) y **2021** (EXCELSIOR → SAN CRISTÓBAL) son los casos reales, y **2020/2024/2055** son de
+    comercios pegados a la fila mal cargada `countries.id = 1` («Afghanistan»).
+
+  ⚠ **Y un efecto lateral del admin, para cuando se pruebe en dev:** esos 3 comercios apuntan a
+  `country_id = 1`, un país con 32 zonas y **0 ciudades**, así que con el filtro del admin su selector
+  **queda vacío**. En prod no pasa: los 325 comercios se reparten 314 Colombia / 11 RD y ninguno cae en
+  la fila 1. Es un artefacto de los datos de dev, pero se va a reportar como bug si QA cae ahí.
+
+  **Novedad que desbloquea el ticket:** `gh` **ya tiene sesión** (`mig-creditop`, scope `repo`), así que
+  el bloqueante «no se pudieron abrir los PRs» del 2026-08-09 ya no aplica. ⚠ El base por defecto de
+  `legacy-backend` es `main`: un PR para staging hay que apuntarlo con `--base staging` a mano.
+
+  **Y un arreglo del propio archivo:** la marca `## Tarea (publicable)` estaba **arriba** de la
+  `## Bitácora`, y el extractor (`store.go`, «lo de abajo se publica») tomaba entonces **20.437 chars de
+  cuerpo privado** como publicables — por eso el guard fallaba con repos y rutas. Se movió la marca al
+  final: ahora lo publicable son 1.222 chars y **pasa el guard**. ⚠ El mismo descuido está en
+  `bcp-peru-estructurar-entidad.md`.
+
+## Tarea (publicable)
+Hoy el onboarding asume un solo país en el código: el prefijo y la longitud del celular, los tipos de
+documento válidos, los textos, la moneda y los formatos están escritos en el programa en vez de venir de
+configuración. Por eso el segundo país se resolvió con una copia paralela de las pantallas de solicitud, y un
+tercero costaría otra copia.
+
+El objetivo es que el país sea **configuración**: una sola definición de país (prefijo telefónico, longitud
+del celular, tipos de documento admitidos, idioma, moneda y formato de fecha) que el flujo consulte una vez
+por solicitud, y una sola pantalla de solicitud que se adapte a esa configuración. Con eso, habilitar un país
+nuevo pasa a ser cargar datos, no publicar una versión.
+
+Incluye: definir dónde vive esa configuración y con qué precedencia cuando comercio, sucursal y entidad no
+coinciden; unificar la captura y validación del celular; convertir los tipos de documento en catálogo
+configurable por país y por sucursal; y separar los textos del programa para poder tenerlos por país.
+
+Queda fuera de esta tarea el resto del recorrido posterior a la solicitud (firma, desembolso y cobranza), y
+la traducción a un idioma distinto del español.
