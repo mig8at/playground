@@ -257,27 +257,41 @@ que **aborta** en vez de conectar. Contra una base desechable, nunca contra `ine
     y la necesita solo porque el servicio consulta por su cuenta.
 
 ## Tarea (publicable)
-La suite de pruebas automatizadas puede borrar por completo la base de datos de un ambiente compartido.
+⚠ YA NO ES PREVENTIVO: el 19/08 ocurrió. La base de datos que comparten el ambiente de desarrollo y el de pruebas quedó vacía a media mañana y hubo que restaurarla de una copia. Los dos ambientes estuvieron caídos y el equipo detenido mientras tanto.
 
-Dos pruebas usan un mecanismo que **vacía la base antes de correr** y luego la reconstruye. La
-configuración de pruebas cambia el nombre de la base para que eso ocurra en una base aparte, pero no
-cambia el servidor, y ese cambio de nombre se omite en silencio cuando el valor ya viene del entorno —
-que es justamente lo que ocurre dentro de un contenedor desplegado.
+CÓMO OCURRE
 
-El agravante es que **la reconstrucción no funciona**: la secuencia de cambios de estructura no se puede
-aplicar desde cero, y se corta a mitad de camino. O sea que el mecanismo cumple su parte destructiva y no
-la de recuperación. Las dos pruebas que lo usan no pueden estar pasando hoy en ningún ambiente, así que
-quitarlo no cuesta nada.
+Hay pruebas automáticas que vacían la base entera antes de correr y luego la reconstruyen. La configuración de pruebas intenta desviar eso a una base aparte cambiándole el NOMBRE, pero:
 
-La base afectada la comparten el ambiente de desarrollo y el de pruebas: son la misma, y no se podría
-reconstruir aplicando los cambios de estructura — habría que restaurar una copia de respaldo. Perderla
-detiene al equipo y a quienes están validando.
+- no cambia el SERVIDOR: la suite se conecta al que diga la configuración del entorno, con credenciales de administrador;
+- el cambio de nombre se omite EN SILENCIO cuando el valor ya viene puesto en el entorno (una variable cargada en la terminal, un contenedor con variables inyectadas, o correr la prueba desde el editor, que a veces ignora esa configuración por completo);
+- y existe además una variable que define la conexión entera en una sola línea y le gana a todas las demás.
 
-La propuesta, en orden: quitar ese mecanismo y reemplazarlo por uno que **revierta en vez de borrar**;
-quitarle la dependencia de base a la prueba que no debería tenerla, atacando la causa —el código
-consultado hace sus propias consultas en vez de recibirlas—; y agregar una verificación que **falle
-cerrado**, comprobando contra qué servidor se va a escribir antes de empezar y deteniéndose si no es uno
-permitido.
+Quien lo dispara no ve ninguna advertencia: sólo una prueba que falla por algo que parece otra cosa.
 
-No hay evidencia de que haya ocurrido. Es preventivo, y el disparador sería una persona corriendo las
-pruebas de buena fe: hoy nada la detiene.
+EL AGRAVANTE
+
+La reconstrucción no funciona: la secuencia de cambios de estructura se corta a mitad de camino. El mecanismo cumple su parte destructiva y no la de recuperación — la base queda vacía y a medio armar.
+
+LO QUE SE HIZO (dos PR abiertos, uno por sistema)
+
+1. Se eliminaron las dos pruebas destructivas del sistema principal. No se pierde cobertura real: hoy no pasan en ningún ambiente, porque la reconstrucción falla. En el cambio queda documentado caso por caso qué cubrían, para rearmarlas sin la parte destructiva (el patrón seguro ya existe en el propio código: siete pruebas vecinas usan una base en memoria).
+
+2. Se agregó una verificación que falla cerrado, en los DOS sistemas. Antes de correr cualquier prueba se comprueba el destino de la conexión — servidor Y nombre de la base — sobre la configuración YA RESUELTA, que es el valor final con el que el sistema se va a conectar. Si el servidor no es local o la base no es la de pruebas, la corrida se niega a arrancar con un mensaje que explica el motivo y cómo corregirlo. Al leer el valor final, no importa por dónde entre el desvío: variable en la terminal, contenedor, editor o la variable de conexión única — todos llegan ya resueltos al chequeo.
+
+3. Se endureció además la configuración de pruebas (nombre forzado + variable de conexión única anulada). Medido: esto por sí solo NO alcanza — el runner de pruebas escribe las variables en dos de los tres lugares donde el framework las busca, y el framework mira primero el que queda sin escribir. Por eso la protección real es el punto 2; esto queda como refuerzo.
+
+VALIDACIÓN
+
+Se reprodujo el incidente sobre una copia local desechable de la base (244 tablas). Sin la verificación, el mismo ataque la dejó en 160 tablas y cero datos — el incidente en miniatura. Con la verificación: nueve variantes de ataque probadas entre los dos sistemas (incluida la de variables inyectadas dentro del contenedor, que es la que derrota a la configuración de pruebas) y todas bloqueadas, con la copia intacta. Las pruebas legítimas siguen pasando igual.
+
+LO QUE QUEDA ABIERTO (infraestructura; no se puede cerrar desde el código)
+
+Un comando destructivo escrito a mano no pasa por el arranque de las pruebas y sigue llegando a cualquier base. Se cierra con:
+
+1. Cuentas de base de datos acotadas para el día a día — sin permiso de eliminar tablas. Es la única medida que cubre todos los caminos a la vez. Hoy las credenciales que circulan son las del administrador total.
+2. Rotar la contraseña actual (los dos ambientes la comparten).
+3. Separar las bases de desarrollo y pruebas: hoy son la misma instancia y un accidente se lleva los dos ambientes juntos.
+4. Una pipeline de cambios de estructura que funcione, para que nadie tenga que apuntar su máquina a la base compartida.
+
+Y aparte, arreglar la secuencia de cambios de estructura que no corre desde cero (tarea propia): mientras siga rota, cualquier reconstrucción destruye sin recuperar. Salió también que las quince pruebas del segundo sistema que dependen de base hoy no pasan en ningún lado por esa misma secuencia — quedaron confinadas, pero arreglarlas es trabajo aparte.
