@@ -201,6 +201,11 @@ context-map: ## @ctx regenera docs/ROUTE-MAP.md (el hook ya lo hace al editar un
 workers: ## @wrk el índice de los repos, sus logs y su modelo de datos. CLI: `workers/cli.py <sub> --help`
 	@cd workers && ./cli.py $(if $(ARGS),$(ARGS),--help)
 
+# Muestra 3 caracteres del valor a propósito: alcanza para distinguir `loc`alhost de `ine`rtia-dev, y
+# no alcanza para usar un secreto. Lo que se busca no es el valor: es a DÓNDE apunta cada conexión.
+env-auditoria: ## @wrk ¿a qué apunta cada .env del playground? clave + 3 caracteres, marcando lo COMPARTIDO. [RAIZ=ruta]
+	@python3 workers/env_auditoria.py $(if $(RAIZ),$(RAIZ))
+
 # ── PRUEBAS (harness) ────────────────────────────────────────────────────────────────────────────
 .PHONY: harness-contract harness-sandbox harness-walk harness-qr harness-mocks harness-listado harness-caso harness-check
 harness-contract: ## @har ¿el mock de Bancolombia cumple los esquemas zod del front? (sin browser ni BD)
