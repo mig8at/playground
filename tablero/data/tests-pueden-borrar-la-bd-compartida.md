@@ -60,6 +60,28 @@ jira_title: "Blindar la suite de pruebas para que no pueda borrar la base de dat
 > eslabones, qué encaja con lo observado y cómo confirmarlo o descartarlo. Deliberadamente **no nombra
 > a nadie**: el punto es el mecanismo, que lleva 14 meses abierto y es invisible para quien lo pisa.
 >
+> 🔎 **Barrido de los 11 `.env` del playground (`make env-auditoria`, nuevo el 19/08).** Imprime cada
+> clave con los **3 primeros caracteres** del valor —alcanza para distinguir `loc`alhost de
+> `ine`rtia-dev, no alcanza para usar un secreto— y clasifica por riesgo. Destapó **un choque de nombres
+> que nadie había visto**:
+>
+> `trazador/.env.{dev,staging,local}` definía sus variables **sin prefijo**: `DB_HOST`, `DB_PORT`,
+> `DB_NAME`, `DB_USER`, `DB_PASS`. Las dos primeras son **exactamente** los nombres que lee Laravel
+> (`config/database.php`), y apuntaban al RDS compartido. Un `set -a; . trazador/.env.dev` —el patrón
+> que este mismo repo documenta como trampa— dejaba `DB_HOST` exportado, y a partir de ahí **cualquier
+> `artisan` en esa terminal heredaba el host compartido**. Las credenciales no colisionan
+> (`DB_USER`≠`DB_USERNAME`), así que por sí solo no completaba la cadena; pero era el ingrediente que
+> convierte «cargué un archivo de configuración» en «mis comandos apuntan a otro lado».
+>
+> ✅ **Corregido el 19/08**, y salió gratis: `trazador/server/main.go` ya aceptaba los dos nombres
+> (`alias` mapea `dbHost` → `{"DB_HOST", "E2E_DB_HOST"}` y `pick()` recorre la lista entera), así que
+> **el arreglo fue renombrar las claves en los 3 archivos a `E2E_DB_*` — cero cambios de código**. Se
+> dejó un aviso en la cabecera de cada archivo explicando por qué el prefijo no se saca. `harness/` ya
+> usaba el prefijo y por eso nunca tuvo el problema.
+>
+> ⚠ **Lo que el barrido NO puede arreglar y sigue en rojo:** las 6 entradas donde el usuario de BD es
+> `admin` (el maestro del RDS) o `root`. Eso es cambio de infraestructura, no de archivo.
+>
 > 👉 **Esto reabre la prioridad**: la tarea estaba en backlog «hasta aterrizar bien la vulnerabilidad».
 > Ya se aterrizó sola, con un ambiente compartido caído.
 
