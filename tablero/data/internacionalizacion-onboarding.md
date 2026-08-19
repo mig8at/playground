@@ -11,9 +11,9 @@ jira_title: "Internacionalizacion. Flujo de onboarding otros paises. (celular, t
 # Internacionalización del onboarding
 > **estado (2026-08-19, tarde):** el trabajo está hecho en los tres repos; lo que está desordenado es
 > **dónde quedó cada pieza**. Abajo, en §«Las ramas de esta tarea», está la única tabla que hay que
-> mirar. Resumen: **backend ✅ en `develop`** · **admin ⚠ se mergeó a `main` por afán, falta rehacerlo
-> contra `develop`** (hecho: **PR #68**) · **front ✅ aprobado y en verde, y NO se mergea todavía por
-> decisión de Miguel** (primero las pruebas).
+> mirar. Resumen: **backend ✅ en `develop`** · **admin ✅ en `develop`** (PR #68; su merge previo a
+> `main` por afán quedó como percance registrado, ver abajo) · **front 🟡 el ÚNICO que falta** — #834
+> aprobado y en verde contra `staging`, sin mergear por decisión de Miguel (primero las pruebas).
 >
 > ⚠ **El percance del admin (19/8): `legacy-application` #50 se aprobó y mergeó a `main`.** Verificado
 > que **no rompe nada** —el detalle medido está en la bitácora del 19/8 (2)— y que **todavía no llegó a
@@ -68,7 +68,7 @@ estorba, se cierra; no se mergea.
 | repo | rama de trabajo | va contra | estado |
 |---|---|---|---|
 | `legacy-backend` | `feature/pais-como-dato-onto-develop` | **`develop`** | ✅ **mergeada** (PR #1126, 18/8) y desplegada a dev |
-| `legacy-application` | `feature/pais-como-dato-onto-develop` | **`develop`** | 🟡 **PR #68 abierto** (19/8), `MERGEABLE / CLEAN`, revisor pedido a Joelsrh23. `develop` no tiene protección: **Miguel sí puede mergearlo** cuando esté aprobado |
+| `legacy-application` | `feature/pais-como-dato-onto-develop` | **`develop`** | ✅ **mergeada** (PR #68, 19/8, la mergeó Miguel sin revisión: `develop` no tiene ruleset) |
 | `frontend-monorepo` | `feature/pais-como-dato-onto-staging` | **`staging`** | 🟡 **PR #834 abierto y bien planteado — NO mergear todavía** (falta Sonar; el fix está en local sin pushear) |
 
 **Por qué cada uno va a donde va:**
@@ -1543,6 +1543,17 @@ dicen «COLOMBIANA». No falta funcionalidad: falta que el país sea un dato que
   **Queda un cabo suelto deliberado:** los PR viejos a `main` (#785 del front, #1061 del backend) siguen
   abiertos y ya no son el camino. No se tocaron: cerrarlos es decisión de Miguel, y hacerlo sin avisar
   borraría la discusión que tienen encima.
+
+- **2026-08-19 (5)** — **El admin quedó en `develop`: Miguel mergeó #68 él mismo** (15:17), sin esperar
+  revisión. Podía: ese repo **no tiene ruleset en `develop`**, así que no hay aprobación obligatoria. ⚠
+  Matiz que conviene no confundir: **GitHub no deja aprobar tu propio PR** —era el autor—, así que lo
+  que hizo no fue auto-aprobar sino **mergear directo**, que es otra cosa y ahí sí estaba habilitado. La
+  petición de revisión a Joelsrh23 queda como cortesía, no como requisito.
+
+  **Con eso quedan DOS de las tres piezas en su lugar** (`legacy-backend` y `legacy-application`, las
+  dos en `develop` y desplegadas a dev) y **falta una sola: el front**. #834 está aprobado, con Sonar en
+  verde y el hilo resuelto; lo único que lo frena es la decisión de probar primero — y, cuando se
+  decida, que lo apriete alguien con bypass en el ruleset de `staging`.
 
 ## Tarea (publicable)
 Hoy el onboarding asume un solo país en el código: el prefijo y la longitud del celular, los tipos de
