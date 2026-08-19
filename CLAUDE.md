@@ -71,6 +71,47 @@ Convención: los **nombres propios** se quedan (`context`, `tablero`, `harness` 
 es la UI del harness) y los **verbos** van en inglés (`align`, `refs`, `seal`, `check`), como
 `proyecto-verbo`.
 
+### ⛔ La suite de PHPUnit de `legacy-backend` NO se corre entera. Nunca, en ningún ambiente
+
+**El 2026-08-19 la BD compartida de dev+staging quedó vacía.** La causa raíz está medida y sigue
+abierta: `phpunit.xml` fija `DB_DATABASE=testing` **pero nunca fijó `DB_HOST`** (cero commits en toda
+la historia del repo), así que las pruebas se conectan **al servidor que diga el `.env`** — y las
+credenciales que circulan son las del usuario **maestro del RDS, con `DROP`**. Dos tests usan
+`RefreshDatabase`, que corre `migrate:fresh`: **borra todas las tablas** y después migra. El detalle
+completo: `tablero/data/tests-pueden-borrar-la-bd-compartida.md` (CORE-431) y su documento de arranque
+en `data/artifacts/…hipotesis.md`.
+
+**Los dos archivos prohibidos** — no los corras, ni sueltos ni dentro de una tanda, ni con el `.env`
+apuntando a local:
+
+    Modules/Loans/tests/Feature/SafeCancelTest.php
+    Modules/Loans/tests/Unit/CreditopXDatacreditoAdjustmentServiceTest.php
+
+**Lo que NO se hace:**
+
+- `make test` en `legacy-backend` (es `artisan test` pelado: corre los 140 archivos, incluidos los dos)
+- `make fresh` (es `migrate:fresh --seed --force`: hace el mismo daño sin pasar por ningún test)
+- `artisan test` / `artisan migrate:fresh` sin ruta
+- darle *Run* a un archivo de test desde el editor: PhpStorm y VS Code **no siempre cargan
+  `phpunit.xml`**, así que ahí no hay ni siquiera el candado del nombre
+
+**Lo que sí se hace: correr SOLO lo que valida la tarea, siempre con ruta explícita.**
+
+    ./vendor/bin/sail artisan test <ruta/al/archivo o carpeta>       # una ruta, siempre
+    ./vendor/bin/sail artisan test --filter=nombreDelTest <ruta>     # aún más angosto
+    make test-onboarding                                            # ya viene acotado por rutas
+
+Antes de correr cualquier carpeta, comprobá que no arrastra uno de los dos:
+
+    grep -rlE '^\s*use RefreshDatabase;' <ruta>
+
+⚠ Grepear sólo `RefreshDatabase` da **7 archivos y 5 son falsos positivos** (lo mencionan en un import,
+o está comentado en el scaffold de Laravel). Hay que anclar el `use` al principio de línea.
+
+**Y si de verdad hiciera falta correr algo destructivo**, no alcanza con mirar el `.env`: es el `.env`
+**más** el entorno de la shell **más** `DATABASE_URL`, que pisa a todos. La regla práctica es más
+simple: **no corras nada destructivo; si creés que hace falta, preguntá.**
+
 ## EL CICLO — acá siempre pasa lo mismo
 
 Se viene a resolver **tareas** sobre CreditOp con cuatro piezas — **tablero** (la tarea), **context**
