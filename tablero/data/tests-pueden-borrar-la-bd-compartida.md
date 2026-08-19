@@ -82,6 +82,10 @@ jira_title: "Blindar la suite de pruebas para que no pueda borrar la base de dat
 > ⚠ **Lo que el barrido NO puede arreglar y sigue en rojo:** las 6 entradas donde el usuario de BD es
 > `admin` (el maestro del RDS) o `root`. Eso es cambio de infraestructura, no de archivo.
 >
+> 🚧 **CORE-431 está EN PROGRESO desde el 2026-08-19** (verificada contra Jira vivo: existe, «Blindar la
+> suite de pruebas…», Tarea, 3 pt; estaba «Por Hacer» en backlog y se movió con `jira-move`). Los
+> `Ref: CORE-431` de los commits y el «Ver CORE-431» del mensaje de la guarda apuntan a ese ticket.
+>
 > ✅ **Los DOS PR del arreglo están abiertos (2026-08-19), con revisor pedido (Joelsrh23):**
 > - `legacy-backend` **#1140** — borra los 2 tests destructivos **y** agrega la guarda
 >   (`fix/CORE-431-remove-destructive-db-tests`, 1 commit, +87/−534).
