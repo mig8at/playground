@@ -74,6 +74,15 @@ orden de archivo — el ancla `### F-xx` es la única dirección.)
 | **«el pagaré no se firma / Deceval lo rechaza»** | **F-122** · F-121 |
 | **Tasas, fianza y cálculo** | F-71 · F-72 |
 | **«el harness hace algo raro» (la herramienta, no el producto)** | F-14 · F-15 · F-16 · F-17 · F-33 · F-52 · F-53 · F-57 · F-59 · F-64 · F-66 · F-67 · F-87 · F-90 |
+| **«cambio la entidad de una solicitud y tira 500»** | F-138 |
+| **«dicto una respuesta al mock y sigue contestando lo mismo»** | F-139 |
+| **«al comercio le faltan entidades en el listado, sin mensaje»** | F-140 |
+| **«por API no se dispara la pre-aprobación»** | F-141 |
+| **«el comercio no ofrece NINGUNA entidad»** | F-142 |
+| **«el comercio no ofrece ninguna entidad, y una está sólo en la sucursal»** | F-143 |
+| **«le dicté un rechazo al mock y la solicitud pasó igual»** | F-144 |
+| **«cambié el nombre que devuelve la central y no rechaza»** | F-145 |
+| **«lo arreglé y por el otro camino sigue distinto» / «ese flujo ya no se usa»** | F-146 |
 
 Un `F-xx` puede estar en varias filas a propósito: se entra por el síntoma, y el mismo hallazgo se ve
 distinto según con qué pregunta llegues.
@@ -221,6 +230,15 @@ distinto según con qué pregunta llegues.
 | F-135 | El OTP real de staging no se puede validar: el SMS sale, el código no vuelve de la caché y no queda fila | TRAMPA |
 | F-136 | En un lender con path IMEI que no sea el 160, el voucher no lo genera nadie: se difiere a una rama que exige ese id | TRAMPA |
 | F-137 | El comando que siembra las credenciales del SOAP de Credifamilia escribe tres claves que el Action no lee nunca | TRAMPA |
+| F-138 | `update-user-request` no valida `lender_id`: entidad ajena → null, regla inventada → 500 | TRAMPA |
+| F-139 | En local hay TRES simuladores de centrales apilados y gana el de más arriba | TRAMPA |
+| F-140 | Una entidad rt=1 sin su integración mockeada DESAPARECE del listado en silencio | TRAMPA |
+| F-141 | La pre-aprobación de rt≠0 la dispara el FRONT: por API no se ejercita | TRAMPA |
+| F-142 | Una entidad con host nulo tira el listado ENTERO del comercio | TRAMPA |
+| F-143 | Una entidad cableada a la sucursal pero no al comercio tira el listado entero | TRAMPA |
+| F-144 | El `status` de TusDatos tiene que ser `success` o el rechazo se lee como inconcluyente | TRAMPA |
+| F-145 | Con CC, TusDatos no compara el nombre: el veto sale del `match_code` | TRAMPA |
+| F-146 | El límite de intentos está INVERTIDO entre los dos monolitos, y el viejo no veta | ABIERTO |
 
 ---
 
@@ -1925,3 +1943,60 @@ en producción — el webhook no deja registro cuando `firstOrFail()` lanza, as�
 - **Estado:** vivo en `main`. La regla general: **cuando dos tablas describen lo mismo a distinto
   nivel y no hay herencia, la que consulta tiene que tolerar el hueco** — el `->` directo convierte un
   dato faltante de UNA entidad en una caída de TODAS.
+
+### F-144 · Le dictás a TusDatos un rechazo y la solicitud AVANZA igual: el `status` tiene que ser la palabra `success`
+
+- **Síntoma:** se le dicta al mock un veredicto de rechazo (`match_code: 0`) y la solicitud pasa
+  lo mismo, guardando el nombre que tecleó el asesor. El mock respondió `200` y con el cuerpo pedido,
+  así que todo parece bien.
+- **Causa raíz (verificada 2026-08-18 contra `main`, medido en local):**
+  `legacy-backend/Modules/Identity/App/Services/TusDatosService.php:150` corta con
+  `if ($tusDatos->status !== 'success')` y retorna `errors => null`. Ese `errors` vacío es lo que
+  `Modules/Onboarding/App/Services/OnboardingService.php:461` lee como **inconcluyente**, no como
+  rechazo: sigue con los nombres del formulario y la solicitud avanza. Ninguna otra palabra sirve.
+- **Evidencia:** dictando `{"status":"ok", …, "second_surname":{"match_code":0}}` la solicitud 464958
+  avanzó y en la traza aparece `TusDatos inconclusive, falling back to form-provided names`. Con el
+  mismo cuerpo y `"status":"success"`, la 464960 devolvió `ONB005 / KYC_VALIDATION_FAILED` con
+  «Segundo apellido no coincide».
+- **⚠ Cómo NO diagnosticarlo:** revisando si el mock contestó. Contestó `200` y el cuerpo llegó
+  entero — se puede leer decodificando la fila de `risk_central_user_data`. El problema no es el
+  transporte, es una palabra.
+- **Arreglo:** dictar `status: "success"`, literal. **Estado:** vigente.
+
+### F-145 · Con cédula colombiana, TusDatos NUNCA compara el nombre como cadena: su veto sale del `match_code`
+
+- **Síntoma:** se le dicta a TusDatos un `nombre_completo` que es de otra persona y la solicitud pasa
+  igual. Parece que la validación de nombre no funciona.
+- **Causa raíz (verificada 2026-08-18 contra `main`):** para `document_type = 'CC'` el camino termina
+  en el bucle de `match_code` de `TusDatosService.php:182-194` y, si ninguno reporta error, retorna
+  éxito con **los nombres del formulario** — nunca compara `nombre_completo`. El `verifyCoincidence`
+  que sí lo compara (`TusDatosService.php:325`) vive en la rama de **CE**.
+- **Evidencia:** solicitud 464963 — Ágil abstenido, Mareigua devolviendo otra persona y TusDatos con
+  `nombre_completo` ajeno pero todos los `match_code` en `1`: **ACEPTADA**. El mismo caso con
+  `first_name`, `first_surname` y `second_surname` en `0`: `ONB005` (solicitud 464964).
+- **⚠ Consecuencia al leer el código:** el arreglo del `0 == null` de CORE-420 vive en ese bucle, no
+  en la comparación de cadena — por eso ese rechazo sí se podía probar en local aun cuando la
+  comparación de nombre estaba relajada por entorno.
+- **Arreglo:** para forzar un rechazo con CC hay que poner `match_code: 0`; dictar un nombre distinto
+  no alcanza. **Estado:** vigente.
+
+### F-146 · El mismo cliente con el nombre mal se comporta AL REVÉS según por qué monolito entre
+
+- **Síntoma:** se corrige el comportamiento en el flujo nuevo y el viejo sigue distinto; o un caso
+  que se reproduce por un camino no se reproduce por el otro, con la misma configuración.
+- **Causa raíz (verificada 2026-08-18 contra `main`):** la misma función, con el mismo nombre y
+  leyendo **las mismas claves de `settings`**, devuelve valores opuestos.
+  `legacy-backend/Modules/Onboarding/App/Services/OnboardingService.php:1334` retorna `false` al
+  agotar los intentos; `application/app/Http/Controllers/Customer/PersonalInfoController.php:504`
+  retorna `true`. El llamador es idéntico en los dos. Resultado: el flujo nuevo consulta la fuente
+  registral en los dos primeros intentos y frena al tercero; el viejo **rechaza** los dos primeros y
+  consulta al tercero.
+- **⚠ Y en el flujo viejo el veto de la fuente registral NO EXISTE:** `PersonalInfoController.php:628-652`
+  sólo mira el caso de éxito; ante cualquier error escribe los nombres del formulario y guarda. No hay
+  rama para `errors`, y después del `save()` no queda ninguna otra validación de identidad.
+- **Evidencia:** lectura de código línea por línea. Y el flujo viejo **sigue vivo**: 9.454 líneas/día
+  en Loki de producción, con `PersonalInfoController::alliedsLendersValidator` corriendo hoy.
+- **⚠ Cómo NO diagnosticarlo:** por logs. La cascada de identidad del monolito viejo **no emite
+  ninguno**, así que buscar en Loki una frase del flujo nuevo da cero y parece que ese camino está
+  muerto. No lo está.
+- **Arreglo:** pendiente, con la decisión de cuál de las dos políticas es la correcta. **Estado:** abierto.

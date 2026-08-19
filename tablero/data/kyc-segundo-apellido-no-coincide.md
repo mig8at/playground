@@ -147,6 +147,10 @@ después (uReq 464961)  kyc.name_adoption → «Mareigua returned errors» → r
 
 ### Tres cosas que se aprendieron corriéndolo
 
+*(Las tres graduaron a `findings` el 2026-08-18: **F-144** el `status` literal · **F-145** que TusDatos
+con CC no compara el nombre · **F-146** el helper invertido entre los dos monolitos. Acá se queda la
+historia —cómo se encontró y qué se probó—; la trampa reutilizable vive allá.)*
+
 - ⚠ **TusDatos, para documento CC, NUNCA compara el nombre como cadena**: su camino termina en los
   `match_code` y devuelve los nombres del formulario. El `verifyCoincidence` de
   `TusDatosService:325` está en la rama **CE**. O sea que el relajo de nombre no afectaba a TusDatos
