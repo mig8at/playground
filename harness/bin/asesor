@@ -174,6 +174,17 @@ else
     I_KNOW_THIS_TOUCHES_SHARED_DEV=1 node bin/dbops.ts assign "$SUB" "$MERCHANT" "$HASH" "$SUB" >/dev/null \
       || { echo "✗ falló el assign (corré: node bin/dbops.ts assign $SUB $MERCHANT $HASH $SUB)"; exit 1; }
     ok "load-permiso" "asignado → '$MERCHANT' ($HASH) [antes: ${CUR:-ninguno}]"
+    # El wizard FIJA el comercio del asesor en su cookie de sesión AL LOGUEAR: si la asignación cambió,
+    # una sesión cacheada sigue entrando al comercio ANTERIOR — el deploy responde 302 al hash viejo y
+    # la corrida "se va" por otro comercio (visto contra originaciones-stg el 2026-08-19: pediste dentix
+    # y el front te devolvió a celurd). Se invalida el cache para que ESTA corrida loguee de nuevo y la
+    # sesión nazca con la asignación nueva. La clave espeja a pkg/cognito.ts (SESSION_KEY): front del
+    # ambiente cachea por target; front local (o una ruta) cachea como 'dev'.
+    if [ "${CFE_FRONT:-}" = "ambiente" ]; then SESKEY="$TARGET"; else SESKEY="dev"; fi
+    if [ -f ".auth/cognito-state.$SESKEY.json" ]; then
+      rm -f ".auth/cognito-state.$SESKEY.json"
+      echo "  ↻ sesión cacheada invalidada (cognito-state.$SESKEY.json): el comercio cambió — esta corrida loguea de nuevo"
+    fi
   fi
 fi
 
