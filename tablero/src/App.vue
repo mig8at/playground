@@ -52,7 +52,11 @@ const KINDS = [
 // INICIO del bloque trabajado (Date real; el mapa de jornada reparte por horas), `sprint` ata la
 // entrada al sprint donde se registró.
 const fromApi = (r) => ({ id: r.id, key: r.taskKey, kind: r.kind, min: r.minutes,
-  date: new Date(r.startedAt), sprint: r.sprintId, text: r.note, uploaded: !!r.uploadedAt });
+  date: new Date(r.startedAt), sprint: r.sprintId, text: r.note, uploaded: !!r.uploadedAt,
+  // El ESFUERZO es lo que de verdad ata una entrada a una tarea: 10 de 18 entradas no tienen
+  // `taskKey` (se escribieron sobre el esfuerzo, no sobre el issue de Jira) y sin esto quedaban
+  // huérfanas para siempre.
+  effortId: r.effortId || 0 });
 const today = new Date();
 const entries = ref([]);
 
@@ -238,7 +242,20 @@ async function deleteEntry(id) {
   } catch { /* si falló, la entrada sigue visible: coherente con la base */ }
 }
 
-const ofActive = computed(() => active.value ? ofSprint.value.filter(e => e.key === active.value.Key) : []);
+// ⚠ Sobre TODAS las entradas, no sobre `ofSprint`. La bitácora de una tarea es su HISTORIA: si abrís
+// CORE-19 querés leer lo que se escribió sobre CORE-19, sea de qué sprint sea. Filtrarla por el sprint
+// activo la vaciaba entera el día que el sprint rotaba —pasó con Sprint 11→12, y las notas parecían
+// perdidas cuando estaban ahí—. El filtro por sprint SÍ se queda en los contadores de tiempo
+// (`logTime`, `minutesOf`), que es donde significa algo: minutos trabajados EN este sprint.
+//
+// Se resuelve por esfuerzo además de por clave, igual que `protosDe`: es lo que rescata las entradas
+// que no tienen `taskKey`.
+const esfuerzoDe = (key) => taskLocals.value[key]?.effortId || 0;
+const ofActive = computed(() => {
+  if (!active.value) return [];
+  const k = active.value.Key, ef = esfuerzoDe(k);
+  return entries.value.filter(e => e.key === k || (ef && e.effortId === ef));
+});
 // Qué entradas están desplegadas. Las notas de la bitácora son párrafos largos a propósito (las escribe
 // el asistente con el porqué completo); mostrarlas enteras convierte la lista en un muro y se deja de
 // escanear. Colapsadas a 3 líneas la bitácora vuelve a ser un índice, y el detalle está a un clic.
@@ -253,7 +270,13 @@ const alternarDesc = (k) => { const s = new Set(descAbiertas.value); s.has(k) ? 
 // cuántas entradas de bitácora tiene cada tarea — el contador del botón, sin abrir el cajón
 const entriesPorTarea = computed(() => {
   const m = {};
-  for (const e of ofSprint.value) if (e.key) m[e.key] = (m[e.key] || 0) + 1;
+  // Cuenta lo MISMO que abre el cajón (todas las entradas, por clave o por esfuerzo). Contaba sobre
+  // `ofSprint` y por clave: el botón decía 0 en tareas que sí tenían notas, así que nadie lo abría.
+  for (const i of issues.value) {
+    const ef = esfuerzoDe(i.Key);
+    const n = entries.value.filter(e => e.key === i.Key || (ef && e.effortId === ef)).length;
+    if (n) m[i.Key] = n;
+  }
   return m;
 });
 
