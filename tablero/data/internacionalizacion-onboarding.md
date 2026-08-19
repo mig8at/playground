@@ -11,9 +11,10 @@ jira_title: "Internacionalizacion. Flujo de onboarding otros paises. (celular, t
 # Internacionalización del onboarding
 > **estado (2026-08-19, tarde):** el trabajo está hecho en los tres repos; lo que está desordenado es
 > **dónde quedó cada pieza**. Abajo, en §«Las ramas de esta tarea», está la única tabla que hay que
-> mirar. Resumen: **backend ✅ en `develop`** · **admin ✅ en `develop`** (PR #68; su merge previo a
-> `main` por afán quedó como percance registrado, ver abajo) · **front 🟡 el ÚNICO que falta** — #834
-> aprobado y en verde contra `staging`, sin mergear por decisión de Miguel (primero las pruebas).
+> mirar. Resumen: **las TRES piezas mergeadas y desplegadas** — backend y admin en `develop`, front en
+> `staging`. El merge del admin a `main` que se hizo por afán quedó como percance registrado (abajo), y
+> **sigue sin llegar a producción porque ese repo despliega por TAG**. Lo que sigue son las pruebas, y
+> **contra qué ambiente correrlas no es obvio**: ver §«Dónde se prueba esto».
 >
 > ⚠ **El percance del admin (19/8): `legacy-application` #50 se aprobó y mergeó a `main`.** Verificado
 > que **no rompe nada** —el detalle medido está en la bitácora del 19/8 (2)— y que **todavía no llegó a
@@ -69,7 +70,7 @@ estorba, se cierra; no se mergea.
 |---|---|---|---|
 | `legacy-backend` | `feature/pais-como-dato-onto-develop` | **`develop`** | ✅ **mergeada** (PR #1126, 18/8) y desplegada a dev |
 | `legacy-application` | `feature/pais-como-dato-onto-develop` | **`develop`** | ✅ **mergeada** (PR #68, 19/8, la mergeó Miguel sin revisión: `develop` no tiene ruleset) |
-| `frontend-monorepo` | `feature/pais-como-dato-onto-staging` | **`staging`** | 🟡 **PR #834 abierto y bien planteado — NO mergear todavía** (falta Sonar; el fix está en local sin pushear) |
+| `frontend-monorepo` | `feature/pais-como-dato-onto-staging` | **`staging`** | ✅ **mergeada** (PR #834, 19/8 15:22, la apretó sanvipi-ctop) y desplegada a `loan-request-wizard-stg` |
 
 **Por qué cada uno va a donde va:**
 - **backend → `develop`**: es el ambiente compartido donde el equipo prueba, y sus 3 migraciones ya
@@ -81,6 +82,39 @@ estorba, se cierra; no se mergea.
   `main`, `loans-dev.yaml` sin correr), así que mergear ahí no pondría el cambio «en dev»: publicaría un
   build de hace mes y medio. Y no hace falta, porque el harness levanta el wizard **local** contra la
   API de dev, que ya publica `country`.
+
+### Dónde se prueba esto (medido el 2026-08-19, después de mergear las tres)
+
+**El wizard de staging NO habla con el backend de staging.** `loans-stg.yaml` construye
+`loan-request-wizard-stg` con `VITE_API_URL=http://legacy-backend.inertia-develop` — o sea el servicio
+de **dev**, exactamente el mismo que usa el wizard de dev. El servicio `legacy-backend-stg` (que sirve
+la rama `staging`) **no es** lo que responde detrás del wizard desplegado en staging.
+
+Eso resuelve el rompecabezas: **la pareja que sirve hoy es «front de `staging`» + «backend de
+`develop`», y las dos mitades tienen el cambio.** Se puede probar de punta a punta ya.
+
+⚠ Corolario incómodo: el port del backend a `staging` (#1121), que costó un día de trabajo, **no es lo
+que sirve al wizard de staging**. Alimenta a `legacy-backend-stg`, un servicio aparte. No estuvo de más
+—deja `staging` coherente consigo mismo— pero no era el camino crítico.
+
+⚠ Y esto sale de los **build args** del workflow: un secreto de runtime (`dev/loan-request-wizard-stg`)
+podría sobrescribirlo. Confirmarlo empíricamente en la primera corrida antes de sacar conclusiones de un
+resultado raro.
+
+**🔴 La trampa que va a morder: `E2E_TARGET=staging` del harness NO es staging.** Apunta a
+`legacy-backend-qa` (rama **`qa`**) y a `originaciones-qa.dev.creditop.com` (el front de **`qa`**). El
+commit de países **no está en `qa`** y encima **choca** ahí. Correr las pruebas con ese target mide la
+rama equivocada y va a parecer que el cambio no funciona.
+
+| qué probar | dónde | por qué |
+|---|---|---|
+| **wizard** (celular, prefijo, país) | wizard desplegado de `staging`, **o** wizard local `:5174` con `E2E_TARGET=dev` | el front de `staging` y el backend de `develop` tienen los dos el cambio |
+| **admin** (selectores de ciudad) | **dev** (`main-dev.yaml`, desplegado `success` el 19/8) | `legacy-application` no tiene staging, y dev comparte BD con staging: las ciudades de RD ya están sembradas |
+| ~~`qa`~~ | **no** | el commit no está ahí y choca al portarlo (Motai) |
+
+📌 **Dato que falta:** la URL pública del servicio `loan-request-wizard-stg` no está escrita en ningún
+lado del playground —lo único documentado es `originaciones-qa.dev.creditop.com`, que es **qa**—. Hay
+que averiguarla y anotarla acá, o probar con el wizard local contra dev, que ya funciona.
 
 ### El desorden, dicho sin adornos (retrospectiva del 19/8)
 
@@ -1554,6 +1588,26 @@ dicen «COLOMBIANA». No falta funcionalidad: falta que el país sea un dato que
   dos en `develop` y desplegadas a dev) y **falta una sola: el front**. #834 está aprobado, con Sonar en
   verde y el hilo resuelto; lo único que lo frena es la decisión de probar primero — y, cuando se
   decida, que lo apriete alguien con bypass en el ruleset de `staging`.
+
+- **2026-08-19 (6)** — **Las tres piezas mergeadas y desplegadas, y el mapa de pruebas corregido.**
+  #834 lo mergeó **sanvipi-ctop** a las 15:22 (los dos commits —país y el fix de Sonar— confirmados en
+  `origin/staging` por patch-id) y `loans-stg.yaml` terminó **`success`**. El admin (#68) ya había
+  cerrado su deploy a dev, también **`success`**. Estado: backend `develop` ✅ · admin `develop` ✅ ·
+  front `staging` ✅.
+
+  **🔴 Y al ir a preparar las pruebas apareció el hallazgo que las ordena: el wizard de staging no
+  habla con el backend de staging.** `loans-stg.yaml` construye `loan-request-wizard-stg` con
+  `VITE_API_URL=http://legacy-backend.inertia-develop` — el servicio de **dev**, el mismo que usa el
+  wizard de dev. `legacy-backend-stg` no es lo que responde detrás. La consecuencia es buena: la pareja
+  viva es **front de `staging` + backend de `develop`**, y las dos tienen el cambio, así que se puede
+  probar ya. La consecuencia incómoda es que **el port del backend a `staging` (#1121) no era el camino
+  crítico**: alimenta un servicio aparte. ⚠ Sale de los build args del workflow; un secreto de runtime
+  podría sobrescribirlo, así que conviene confirmarlo en la primera corrida.
+
+  **Y queda avisada la trampa que iba a morder:** `E2E_TARGET=staging` del harness apunta a
+  `legacy-backend-qa` (rama `qa`) y a `originaciones-qa`, donde el commit **no está** y además choca.
+  Probar con ese target mediría la rama equivocada. El mapa completo quedó arriba en §«Dónde se prueba
+  esto».
 
 ## Tarea (publicable)
 Hoy el onboarding asume un solo país en el código: el prefijo y la longitud del celular, los tipos de
