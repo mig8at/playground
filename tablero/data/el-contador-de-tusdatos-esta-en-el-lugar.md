@@ -74,6 +74,60 @@ sobre la misma configuración.
 frases del backend ahí no prueba ausencia — prueba que esa frase no existe en ese código. Me pasó y
 casi concluyo lo contrario.
 
+## ⚠ LO MÁS GRAVE, y no lo estábamos buscando: en `application` el veto de TusDatos NO EXISTE
+
+Salió de pasarle el flujo a un agente de Gemini (`make agente-lector` con los cinco archivos), y está
+**verificado a mano contra `main`**. `PersonalInfoController.php:628-652`:
+
+```php
+$tusDatosApplied = false;
+try {
+    $dataTD = $tusDatosController->validateUserDataTusDatosV2($request, $user);
+    if (!($dataTD['error'])) { …aplica los datos…; $tusDatosApplied = true; }   // sólo el ÉXITO
+} catch (\Exception $exception) { }
+if (!$tusDatosApplied) {                       // cualquier error cae acá
+    $user->first_name = Str::upper($request->name);
+    $user->surname = Str::upper($request->surname);
+    …
+}
+$user->save();
+```
+
+**No hay rama para `errors`.** TusDatos diciendo «Segundo apellido no coincide» no rechaza: se
+descarta el veredicto y se guarda **lo que tecleó el asesor**. Después del `save()` sólo se crea la
+solicitud; no queda ninguna otra validación de identidad (verificado hasta `:672`).
+
+Es el mismo daño de CORE-420 pero **total**: allá el `0 == null` se tragaba un código puntual, acá se
+tira el veredicto entero.
+
+### Y encadenado con el contador invertido, se puede pasar reintentando
+
+Con `max_attempts = 2`, para un cliente cuyo nombre no coincide en Ágil o Mareigua:
+
+| intento | contador de `application` | qué pasa |
+|---|---|---|
+| 1º | no hay clave → pone 1 → `false` | **rechaza** |
+| 2º | `1 < 2` → pone 2 → `false` | **rechaza** |
+| 3º | `2 >= 2` → **`true`** | consulta TusDatos → **y pase lo que pase, guarda lo tecleado** |
+
+O sea: **insistir tres veces alcanza para entrar con cualquier nombre.** ⚠ Esto es lectura de código,
+no reproducido corriendo — `application` no está en el stack local. Antes de moverlo, reprodúzcase.
+
+## Lo que aportó el agente, y qué se hizo con cada cosa
+
+Se le pasaron los cinco archivos del flujo y se le pidió que no asumiera que el código es correcto.
+
+| lo que dijo | estado |
+|---|---|
+| la inversión de `shouldValidateTusDatos` entre los dos monolitos | **confirma** lo que ya habíamos encontrado, por lectura independiente |
+| el contador no interviene en los caminos inconcluyente/excepción | **confirma** la medición del 86,6% |
+| `application` descarta el veto de TusDatos | **NUEVO · verificado a mano** (arriba) |
+| `getGender($dataTD['names'])` en el `catch` de TusDatos (`OnboardingService:535`), con `$dataTD` posiblemente indefinido | **verificado que existe.** `getGender(null)` lanzaría `TypeError`, que extiende `Error` y **no** lo atrapa el `catch (\Exception)` — misma familia que el `ValueError` de la tarea 47 |
+| Ágil `98`/`99` y Mareigua `16` tratados como «sin datos» en vez de reintentables | **corrobora** lo que la tarea 47 ya tenía escrito |
+| mensaje de error de Mareigua en el `catch` de Ágil, en `application` | sin verificar |
+| `code => 400` en aciertos de caché | sin verificar |
+| `users.age` del buró contra `date_of_birth` sintética | sin verificar |
+
 ## Lo que propongo
 
 Separar en dos lo que hoy está fundido:
