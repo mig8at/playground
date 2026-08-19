@@ -12,8 +12,8 @@ jira_title: "Internacionalizacion. Flujo de onboarding otros paises. (celular, t
 > **estado (2026-08-19, tarde):** el trabajo está hecho en los tres repos; lo que está desordenado es
 > **dónde quedó cada pieza**. Abajo, en §«Las ramas de esta tarea», está la única tabla que hay que
 > mirar. Resumen: **backend ✅ en `develop`** · **admin ⚠ se mergeó a `main` por afán, falta rehacerlo
-> contra `develop`** · **front ✅ aprobado y en verde, y NO se mergea todavía por decisión de Miguel**
-> (primero las pruebas).
+> contra `develop`** (hecho: **PR #68**) · **front ✅ aprobado y en verde, y NO se mergea todavía por
+> decisión de Miguel** (primero las pruebas).
 >
 > ⚠ **El percance del admin (19/8): `legacy-application` #50 se aprobó y mergeó a `main`.** Verificado
 > que **no rompe nada** —el detalle medido está en la bitácora del 19/8 (2)— y que **todavía no llegó a
@@ -68,7 +68,7 @@ estorba, se cierra; no se mergea.
 | repo | rama de trabajo | va contra | estado |
 |---|---|---|---|
 | `legacy-backend` | `feature/pais-como-dato-onto-develop` | **`develop`** | ✅ **mergeada** (PR #1126, 18/8) y desplegada a dev |
-| `legacy-application` | *(falta crearla)* `feature/pais-como-dato-onto-develop` | **`develop`** | ⛔ **por hacer** — cortar de `origin/develop`, cherry-pick de `c81320b0` (entra limpio), PR nuevo y **pedir revisor** |
+| `legacy-application` | `feature/pais-como-dato-onto-develop` | **`develop`** | 🟡 **PR #68 abierto** (19/8), `MERGEABLE / CLEAN`, revisor pedido a Joelsrh23. `develop` no tiene protección: **Miguel sí puede mergearlo** cuando esté aprobado |
 | `frontend-monorepo` | `feature/pais-como-dato-onto-staging` | **`staging`** | 🟡 **PR #834 abierto y bien planteado — NO mergear todavía** (falta Sonar; el fix está en local sin pushear) |
 
 **Por qué cada uno va a donde va:**
@@ -1520,6 +1520,29 @@ dicen «COLOMBIANA». No falta funcionalidad: falta que el país sea un dato que
   `AlliedInfoController.php` — es el rebase por Motai, que vive sólo en esa rama. Pasar a `qa` no es
   mergear: es un tercer port con resolución de conflictos a mano. **Antes de prometer QA en `qa`,
   decidir si las pruebas van ahí o en `staging`** (donde el backend ya está y el front ya está listo).
+
+- **2026-08-19 (4)** — **Armado el PR del admin contra `develop`: #68.** Rama
+  `feature/pais-como-dato-onto-develop` cortada de `origin/develop` **con `--no-track`** (para que no
+  quede apuntando a la rama de ambiente: es la trampa que casi muerde en el port a staging del backend)
+  y cherry-pick de `c81320b0`. Entró limpio y **el diff resultante es idéntico byte a byte al de
+  `main`** —verificado comparando `git show` de los dos commits—, así que no hay deriva entre lo que se
+  mergeó por error y lo que se va a probar. Pusheado con refspec explícito; `origin/develop` intacto.
+
+  Estado del PR: `MERGEABLE / CLEAN`, revisor pedido a **Joelsrh23** (el mismo que revisó el front de
+  esta tarea, así que llega con el contexto puesto). El cuerpo del PR explica por qué existe teniendo
+  #50 ya mergeado, que no trae migraciones, y deja los 3 pasos de prueba en dev **más el aviso de los 3
+  comercios pegados a `countries.id = 1`**, que van a ver el selector vacío por datos de dev y no por el
+  cambio.
+
+  📌 **Y un dato que cambia quién puede hacer qué: `develop` de `legacy-application` NO tiene ruleset**
+  (`rules/branches/develop` → vacío). O sea que **este PR sí lo puede mergear Miguel** cuando esté
+  aprobado — al revés que el front, donde el ruleset «main» cubre también `staging` y deja el botón sólo
+  a quien tenga bypass. Vale la pena tenerlo separado en la cabeza: **no es que «no podemos mergear»; es
+  que cada repo tiene una regla distinta.**
+
+  **Queda un cabo suelto deliberado:** los PR viejos a `main` (#785 del front, #1061 del backend) siguen
+  abiertos y ya no son el camino. No se tocaron: cerrarlos es decisión de Miguel, y hacerlo sin avisar
+  borraría la discusión que tienen encima.
 
 ## Tarea (publicable)
 Hoy el onboarding asume un solo país en el código: el prefijo y la longitud del celular, los tipos de
