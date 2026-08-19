@@ -145,7 +145,7 @@
 
     /* Dot de sesión Cognito en cada botón de ambiente (esquina sup-der): verde = token válido (las corridas
        arrancan sin loguear) · gris = caducó / no existe / no verificable · ámbar pulsante = autenticando.
-       Gris es clickeable → dispara el pre-login headless para ese target. */
+       El dot es INDICADOR puro (no clickeable): el login lo orquesta el botón de lanzar. */
     #targets .pill { position: relative; }
     .sdot {
       position: absolute; top: -3px; right: -3px;
@@ -154,8 +154,6 @@
     }
     .sdot.ok { background: var(--acc); }
     .sdot.checking { background: var(--warn); animation: sdotpulse 1s ease-in-out infinite; }
-    .sdot.clickable { cursor: pointer; }
-    .sdot.clickable:hover { transform: scale(1.3); }
     @keyframes sdotpulse { 0%, 100% { opacity: 1 } 50% { opacity: .3 } }
 
     .warnbar {
@@ -1736,8 +1734,8 @@
         return;
       }
       if (sess === 'invalid' || sess === 'missing') {
-        // Antes bloqueaba y mandaba al punto gris. Ahora el propio launch LOGUEA primero (headless) y
-        // sigue, sin pasar por /solicitar — el login ocurre "en la corrida", antes de la solicitud.
+        // Antes bloqueaba y mandaba al punto gris (que era clickeable — perilla escondida, retirada el
+        // 2026-08-19). Ahora el botón loguea primero (fase "Logueando…") y recién lanza.
         $('go').disabled = !sel; $('go').textContent = 'Login + Lanzar ▶';
         $('sumry').innerHTML = sel
           ? `sin sesión en <b>${target}</b> — al lanzar te <b>logueo primero</b> (headless) y sigo, sin pasar por /solicitar`
@@ -1794,6 +1792,17 @@
         income: moneyNum('income'),
         score: +$('score').value, negatives: +$('negatives').value, consulted: +$('consulted').value,
       };
+      // Sin sesión en el target (canal asesor): loguear ACÁ, con el botón como loader, y recién lanzar.
+      // 'unreachable' no se intenta (el front del target no responde; la corrida loguea en el flujo).
+      if (canal === 'asesor' && ['invalid', 'missing', 'unknown'].includes(sessionState[target] || 'unknown')) {
+        $('go').disabled = true; $('go').textContent = 'Logueando…';
+        $('sumry').innerHTML = `logueando en <b>${target}</b> (headless) antes de lanzar…`;
+        await warmSession(target);
+        if (sessionState[target] !== 'valid' && sessionState[target] !== 'unreachable') {
+          alert(`no se pudo autenticar en ${target} — revisá las credenciales del .env.${target}`);
+          $('go').textContent = 'Preparar + Lanzar ▶'; updateGo(); return;
+        }
+      }
       $('go').disabled = true; $('go').textContent = 'Lanzando…';
       const r = await fetch('/api/launch', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
       const j = await r.json();
@@ -1915,28 +1924,28 @@
       ensureAssignUI();           // el permiso es POR TARGET (misma sucursal, otra base) → re-asignar acá
     });
 
-    // ── Sesión Cognito por ambiente: dot verde/gris + pre-login headless al click ────────────────────
+    // ── Sesión Cognito por ambiente: dot verde/gris (INDICADOR puro) ──────────────────────────────────
     // Verde = token válido → las corridas arrancan SIN loguear (y sin pasar por /solicitar). Gris (caducó /
-    // no existe / no verificable) es clickeable: dispara el pre-login headless con un loader. Ver F-66.
+    // no existe / no verificable) NO se clickea: el botón de lanzar loguea solo, con loader. Ver F-66.
     const sdotEl = (t) => document.querySelector(`.sdot[data-sd="${t}"]`);
     function renderSdot(t, r) {
       const el = sdotEl(t); if (!el) return;
       const s = (r && r.status) || 'unknown';
       sessionState[t] = s;
       if (t === target) updateGo();   // el gating del launch depende del token del target activo
-      el.classList.remove('ok', 'checking', 'clickable');
+      el.classList.remove('ok', 'checking');
       const TXT = {
         valid:       'sesión válida — las corridas arrancan sin loguear',
-        invalid:     'sesión caducada — clic para autenticar',
-        missing:     'sin sesión — clic para autenticar',
-        unreachable: 'no verificable (¿el front del target está arriba?) — clic para intentar',
+        invalid:     'sesión caducada — se autentica sola al lanzar',
+        missing:     'sin sesión — se autentica sola al lanzar',
+        unreachable: 'no verificable (¿el front del target está arriba?) — la corrida loguea en el flujo',
         checking:    'verificando…',
         warming:     'autenticando…',
         unknown:     'sin verificar',
       };
       if (s === 'valid') el.classList.add('ok');
       else if (s === 'checking' || s === 'warming') el.classList.add('checking');
-      else el.classList.add('clickable');   // gris (invalid/missing/unreachable/unknown) → autenticable
+      // gris (invalid/missing/unreachable/unknown) = sin sesión: el launch la resuelve, el dot solo informa
       el.title = `${t}: ${TXT[s] || TXT.unknown}${r && r.detail ? ` · ${r.detail}` : ''}`;
     }
     async function checkSession(t, force) {
@@ -1952,19 +1961,16 @@
         renderSdot(t, r.status || { status: r.ok ? 'valid' : 'invalid', detail: r.detail });
       } catch { renderSdot(t, { status: 'unreachable', detail: 'la autenticación falló' }); }
     }
-    // Click en el dot → autenticar SIN cambiar el target activo (stopPropagation: el dot vive dentro del pill).
-    document.querySelectorAll('.sdot').forEach(el => el.onclick = (e) => {
-      e.stopPropagation();
-      if (el.classList.contains('ok') || el.classList.contains('checking')) return;   // verde/en-curso: nada que hacer
-      warmSession(el.dataset.sd);
-    });
+    // El dot ya NO se clickea (2026-08-19): era una perilla escondida — había que saber que el gris se
+    // apretaba. Ahora el login vive donde está la intención: el botón de lanzar loguea solo si falta
+    // sesión (con loader), y al abrir el panel se precalientan los tokens igual que siempre.
     // Al abrir el panel: PRECARGAR los 3 tokens. Primero se chequean los 3 en paralelo (fetch real); después
     // se autentica —uno a la vez, el target activo primero— todo ambiente SIN token ('missing'/'invalid').
     // dev/local van headless; staging abre UNA ventana con el login (su Managed Login corta el headless).
     // 'unreachable' (front caído) no se intenta: no hay warm posible y la corrida loguea en el flujo. Así el
     // login de Cognito ocurre al ABRIR el panel, no en medio de una corrida — y el launch espera al token.
     (async () => {
-      const orden = [target, ...['local', 'dev', 'staging'].filter(t => t !== target)];
+      const orden = [target, ...['local', 'dev', 'staging', 'qa'].filter(t => t !== target)];
       await Promise.all(orden.map(t => checkSession(t, false)));
       for (const t of orden) {
         if (sessionState[t] === 'missing' || sessionState[t] === 'invalid') await warmSession(t);
