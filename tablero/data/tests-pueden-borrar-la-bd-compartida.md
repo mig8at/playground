@@ -55,7 +55,7 @@ jira_title: "Blindar la suite de pruebas para que no pueda borrar la base de dat
 >   fue el del `.env`. O sea: **el agujero tiene 14 meses**; lo nuevo es que alguien pasó por él.
 >
 > 📄 **Documento de arranque para el análisis del equipo**, corto y con las rutas exactas:
-> `data/artifacts/tests-pueden-borrar-la-bd-compartida.hipotesis.html`. Está escrito **como hipótesis,
+> `data/artifacts/tests-pueden-borrar-la-bd-compartida.hipotesis.md`. Está escrito **como hipótesis,
 > no como prueba reina** — describe el camino que existe y alcanza, con los 3 archivos, la cadena de 4
 > eslabones, qué encaja con lo observado y cómo confirmarlo o descartarlo. Deliberadamente **no nombra
 > a nadie**: el punto es el mecanismo, que lleva 14 meses abierto y es invisible para quien lo pisa.
