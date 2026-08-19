@@ -9,6 +9,37 @@ jira_title: "Blindar la suite de pruebas para que no pueda borrar la base de dat
 ---
 
 # La suite de tests puede borrar la BD compartida
+> 🔴🔴 **PASÓ DE VERDAD — 2026-08-19, 15:43:33 UTC (10:43 hora local): la BD compartida de dev+staging
+> quedó VACÍA.** Ya no es una vulnerabilidad teórica: es un incidente medido. La predicción de esta
+> tarea se cumplió al pie de la letra, incluida la parte de que **la re-migración falla a mitad**.
+>
+> **Evidencia (tomada en caliente, antes de cualquier restore):**
+> - `information_schema`: `allieds`, `users`, `user_requests` y `migrations` tienen `CREATE_TIME`
+>   **2026-08-19 15:43:33–15:43:42 UTC**. Fueron recreadas, no vaciadas.
+> - `migrations`: **19 filas, todas `batch = 1`** — un `migrate` desde cero que **murió en la 19**. La BD
+>   real llevaba ~385. Eso es exactamente «entrega la mitad destructiva y no la restaurativa».
+> - Sólo quedan **97 tablas** y `allied_branches` y `countries` **ya no existen**.
+> - `SELECT COUNT(*) FROM allieds` → **0**. `GET /api/loans/allied/{hash}` → **404** para hashes que
+>   20 minutos antes devolvían 200 con datos completos.
+>
+> **Qué NO fue** (descartado con medición, no por descarte lógico):
+> - **no fue un deploy**: el de `legacy-application` a dev (PR #68) usa `deploy-multi-service.yaml`, que
+>   no tiene paso de migraciones, y corrió **15:17:55 → 15:24:15 UTC**, 19 minutos ANTES;
+> - **no fue CI**: cero corridas de Actions en `legacy-backend` y `legacy-application` en la ventana
+>   15:35–15:50 UTC;
+> - **no fue el harness**: Playwright no tiene `globalSetup` ni `webServer` activos, y los specs que
+>   corrieron esa mañana (`warm-session`, una sonda de navegación) no importan nada de BD.
+>
+> Por descarte y por firma, **alguien corrió la suite PHPUnit desde su máquina contra el host
+> compartido** — el camino que esta tarea describe: `phpunit.xml` fija `DB_DATABASE=testing` sólo si la
+> variable no viene ya puesta, y **`DB_HOST` no lo fija nunca**.
+>
+> ✅ **Producción intacta** (verificado el mismo día: 326 comercios, 530.376 solicitudes, 426
+> migraciones). ⚠ **Staging cae con dev**, porque comparten esta misma base.
+>
+> 👉 **Esto reabre la prioridad**: la tarea estaba en backlog «hasta aterrizar bien la vulnerabilidad».
+> Ya se aterrizó sola, con un ambiente compartido caído.
+
 > **estado (2026-08-18):** ⏸ **CORE-431 creada y SACADA del sprint**, a pedido de Miguel: se queda en el
 > backlog hasta aterrizar bien la vulnerabilidad. El ticket conserva descripción y 3 puntos; no se borró
 > (borrar un issue de Jira es permanente y no hay papelera). Para volver a meterla al sprint, alcanza con
