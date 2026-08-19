@@ -26,20 +26,8 @@ const active = ref(null);     // tarea sobre la que se está registrando
 // ── ajustes del tablero ─────────────────────────────────────────────────────────────────────────
 // Flags de "campos de la empresa": tiempo y puntos. OFF por defecto — la empresa no los pide, así que
 // el tablero no los muestra. NO tocan el registro personal (bitácora, mapa de foco), que es el núcleo.
-// `trackPoints` ya no está: los puntos dejaron de ser opcionales el 2026-08-18. La clave puede
-// seguir en `settings.json` sin molestar — nadie la lee.
-const settings = ref({ trackTime: false });
-const showSettings = ref(false);
-async function loadSettings() {
-  try { const s = await (await fetch(`${SERVER}/api/settings`)).json(); if (!s.error) settings.value = s; }
-  catch { /* si falla, quedan los defaults (todo off) */ }
-}
-async function setSetting(key, val) {
-  settings.value = { ...settings.value, [key]: val };
-  try { await fetch(`${SERVER}/api/settings`, { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ [key]: val }) }); }
-  catch { /* offline: el cambio queda local hasta que vuelva el server */ }
-}
-
+// Ya no hay ajustes: puntos y tiempo son campos que la empresa PIDE, así que no se apagan desde acá.
+// El engranaje se retiró entero. `settings.json` puede conservar sus claves — nadie las lee.
 // ── bitácora ──────────────────────────────────────────────────────────────────────────────────
 // LA ESCRIBE EL ASISTENTE, no vos: al analizar una tarea hace POST /api/entries con la redacción ya
 // correcta (y el guard del server la valida). Acá solo se LEE — por eso no hay formulario de alta.
@@ -226,6 +214,20 @@ const ptsVarados = computed(() => {
 // Tareas sin estimar: la regla dice que TODAS deben tener puntos, incluidas las no planificadas. Una
 // sin puntos no baja la métrica — la deja incompleta, que es peor, porque no se nota.
 const sinPuntos = computed(() => issues.value.filter(i => !(i.Points > 0)).map(i => i.Key));
+
+// CAPACIDAD: cuántos puntos entran en un sprint, deducido de la tabla de referencia del equipo
+// (Oscar, 2026-08-18) y no inventado — ahí un **5 es «cerca de medio sprint»**, así que dos tareas de
+// 5 ya lo llenan. De ahí sale el 10.
+//
+// No es un límite que el tablero imponga: es la vara contra la que mirar lo que uno se comprometió.
+// Comprometer el doble no se nota mirando la lista de tareas —son cinco tarjetas, se ven pocas— y sí
+// se nota el viernes, cuando la mitad no alcanzó a contar.
+const CAPACIDAD = 10;
+const sobreCapacidad = computed(() => {
+  const c = ptsComprometidos.value;
+  if (c <= CAPACIDAD) return null;
+  return { pts: c, veces: +(c / CAPACIDAD).toFixed(1), exceso: c - CAPACIDAD };
+});
 // El desfase contra el CALENDARIO: qué fracción del sprint se consumió contra qué fracción ya cuenta.
 // Sólo con el sprint en curso: antes de arrancar o cerrado, comparar contra el calendario es ruido.
 const ritmo = computed(() => {
@@ -635,7 +637,6 @@ onMounted(async () => {
     if (!j.error) { sprints.value = j.sprints || []; site.value = j.site || ''; }
   } catch { /* si falla, el selector no aparece y se carga el activo igual */ }
 
-  await loadSettings();
   await loadEfforts();
   await loadPulse();
 
@@ -667,22 +668,6 @@ onMounted(async () => {
         <span v-else-if="sprintDays?.state === 'closed'" class="chip warn">cerrado hace {{ sprintDays.endedAgo }} día{{ sprintDays.endedAgo === 1 ? '' : 's' }}</span>
         <span v-else-if="sprintDays?.state === 'ongoing'" class="chip chip-bar">{{ sprintDays.remaining }} días restantes<i class="mini"><b :style="{ width: sprintDays.pct + '%' }"></b></i></span>
       </div>
-      <div class="settings" :class="{ pushed: !sprint }">
-        <button class="gear" :class="{ on: showSettings }" @click="showSettings = !showSettings" title="Ajustes">⚙</button>
-        <template v-if="showSettings">
-          <div class="backdrop" @click="showSettings = false"></div>
-          <div class="pop">
-            <div class="pop-h">Campos de la empresa</div>
-            <label>
-              <input type="checkbox" :checked="settings.trackTime" @change="setSetting('trackTime', $event.target.checked)" />
-              <span>Registrar tiempo <em>tiempo estipulado + tiempo en Jira</em></span>
-            </label>
-            <p class="hint">Los PUNTOS ya no se apagan: la empresa los pide desde el 2026-08-18 y se
-              miden los viernes. Tu registro personal de tiempo (bitácora y mapa de foco) no depende de
-              nada de esto.</p>
-          </div>
-        </template>
-      </div>
     </header>
 
     <p v-if="loading" class="msg">Cargando el sprint…</p>
@@ -713,7 +698,7 @@ onMounted(async () => {
           <div class="s" v-else-if="ritmo">al día con el calendario</div>
           <div class="s" v-else>sólo cuentan Terminado y En revisión</div>
         </div>
-        <div class="stat" :class="{ alert: jiraTime === 0 }" v-if="settings.trackTime">
+        <div class="stat" :class="{ alert: jiraTime === 0 }">
           <div class="k">Tiempo en Jira</div>
           <div class="v">{{ hhmm(jiraTime) }}</div>
           <div class="s">{{ jiraTime === 0 ? 'sin registrar: nadie ve el trabajo' : 'registrado' }}</div>
@@ -727,7 +712,11 @@ onMounted(async () => {
 
       <!-- Lo accionable: el número de arriba dice que vas atrás, esto dice QUÉ MOVER. Casi siempre son
            tareas a un solo estado de contar, y sin verlas se leen como trabajo que no existe. -->
-      <p v-if="ptsVarados.length || sinPuntos.length" class="pts-detalle">
+      <p v-if="sobreCapacidad || ptsVarados.length || sinPuntos.length" class="pts-detalle">
+        <!-- Lo primero, porque cambia cómo se lee todo lo demás: si te comprometiste al doble de lo
+             que entra, ir «atrás del calendario» no es un problema de ritmo. -->
+        <span v-if="sobreCapacidad" class="pd-i pd-mal"><b>{{ sobreCapacidad.pts }} pt comprometidos</b>
+          · {{ sobreCapacidad.veces }}× tu capacidad (≈{{ CAPACIDAD }}: un 5 es medio sprint)</span>
         <template v-if="ptsVarados.length">
           <span class="pd-k">no cuentan todavía:</span>
           <span v-for="([est, n]) in ptsVarados" :key="est" class="pd-i"><b>{{ n }} pt</b> en {{ est }}</span>
@@ -822,8 +811,8 @@ onMounted(async () => {
                   <i></i>{{ i.OriginSprint }}
                 </span>
                 <span v-if="i.HasPoints && i.Points">{{ i.Points }} pts</span>
-                <span v-if="settings.trackTime && taskLocals[i.Key]?.estimateMinutes">{{ minHhmm(taskLocals[i.Key].estimateMinutes) }} estimado</span>
-                <span v-if="settings.trackTime">{{ hhmm(i.SpentSecs) }} en Jira</span>
+                <span v-if="taskLocals[i.Key]?.estimateMinutes">{{ minHhmm(taskLocals[i.Key].estimateMinutes) }} estimado</span>
+                <span>{{ hhmm(i.SpentSecs) }} en Jira</span>
                 <span class="mine" v-if="minutesOf(i.Key)">{{ minHhmm(minutesOf(i.Key)) }} sin subir</span>
               </div>
 
@@ -1074,20 +1063,6 @@ h1 { font-size: 20px; margin: 0; letter-spacing: .2px }
 
 /* engranaje de ajustes: los checks de campos de la empresa. `pushed` lo empuja a la derecha cuando no
    hay barra de sprint que ya ocupe el margen automático */
-.settings { position: relative }
-.settings.pushed { margin-left: auto }
-.gear { border: 1px solid var(--line); background: var(--panel2); color: var(--mut); width: 32px; height: 32px;
-  border-radius: 9px; cursor: pointer; font-size: 15px; line-height: 1; transition: .12s }
-.gear:hover, .gear.on { color: var(--txt); border-color: var(--acc) }
-.backdrop { position: fixed; inset: 0; z-index: 9 }
-.pop { position: absolute; right: 0; top: 40px; z-index: 10; width: 258px; background: var(--panel);
-  border: 1px solid var(--line); border-radius: 12px; padding: 13px; box-shadow: 0 10px 30px #000a }
-.pop-h { font-size: 11px; text-transform: uppercase; letter-spacing: .6px; color: var(--mut); font-weight: 700; margin-bottom: 8px }
-.pop label { display: flex; gap: 9px; padding: 7px 0; cursor: pointer; align-items: flex-start }
-.pop label input { width: auto; margin-top: 1px; accent-color: var(--acc); cursor: pointer }
-.pop label span { font-size: 13px; color: var(--txt); line-height: 1.3 }
-.pop label em { display: block; font-style: normal; font-size: 11px; color: var(--mut); margin-top: 1px }
-.pop .hint { margin: 9px 0 0; padding-top: 9px; border-top: 1px solid var(--line); font-size: 11px; color: var(--mut); line-height: 1.45 }
 
 .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; margin-bottom: 16px }
 .stat { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 15px 16px;
