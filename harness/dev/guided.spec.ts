@@ -50,6 +50,12 @@ const ENTRY = process.env.E2E_ENTRY ?? 'cognito';               // 'cognito' (as
 const CHECKOUT_URL = process.env.E2E_CHECKOUT_URL ?? '';
 const STORE = process.env.E2E_STORE === '1';
 const AUTH = join(process.cwd(), '.auth');
+
+/** El loan_request_id en la URL del wizard. Anclado por el segmento SIGUIENTE porque el teléfono ocupa
+ *  la MISMA posición (`/merchant/{hash}/{phone}/otp`) y sin ancla se capturaba el celular como uReq. */
+const UREQ_EN_URL = new RegExp(
+    `\\/(?:merchant|ecommerce)\\/[^/]+\\/(\\d+)\\/(?:${'personal-info|employment-info|kyc-processing|kyc-status|lenders|confirmation|additional-info|sign-documents|otp-validation|first-payment-date|payment-schedule|payment-reminder|identity-validation|additional-identity-validation|retry-validation|request-canceled|loan-approved|request-sent|security-validation|abaco|validation-status|aws-validation-status|lender-results|identity-validation-providers|identity-validation-switch-provider|rate-limit-exceeded'})(?:[/?#]|$)`,
+);
 const MOCK_STORE = pathToFileURL(join(process.cwd(), 'mock-store', 'index.html')).href;
 const MOCK_BANK = pathToFileURL(join(process.cwd(), 'mock-bank', 'index.html')).href;
 // return_url del COMERCIO (lenders por redirect: la entidad devuelve ahí, no a CrediOp). E2E_RETURN_URL lo
@@ -956,7 +962,13 @@ test('guided (semiautomático)', async ({ browser }) => {
             // columna de BD muerta el guard de F-50 —pantalla de éxito con la solicitud sin sellar—
             // quedó mudo sin que nadie lo notara. El "1 passed" no significaba lo que parecía.
             const uReqOf = () => {
-                const id = page.url().match(/\/(?:merchant|ecommerce)\/[^/]+\/(\d+)\//)?.[1] ?? '';
+                // ⚠ El patrón NO puede ser `.../(\d+)/`: el wizard pone el TELÉFONO en la misma posición
+                // que el loan_request_id (`:phone_number/otp` vs `:loan_request_id/personal-info`), así que
+                // con el OTP en pantalla capturaba el teléfono como uReq. Visto el 2026-08-19: la traza
+                // anunció «uReq 3023234233» (era el celular) y synthFill murió con «no hay user_id para el
+                // request 3023234233», un error que apuntaba a la BD cuando el problema era el parseo. Se
+                // ancla por el segmento SIGUIENTE, que sí distingue.
+                const id = page.url().match(UREQ_EN_URL)?.[1] ?? '';
                 if (id) traza.trazarUReq(id);   // idempotente: se llama en cada paso, con el mismo id
                 return id;
             };
@@ -1093,7 +1105,7 @@ test('guided (semiautomático)', async ({ browser }) => {
 
     // ───────────────────────── PERSONAL-INFO (BYPASS invisible, auto) ─────────────────────────
     let url = page.url();
-    const uReqID = url.match(/\/(?:merchant|ecommerce)\/[^/]+\/(\d+)\//)?.[1] ?? '';
+    const uReqID = url.match(UREQ_EN_URL)?.[1] ?? '';
     if (uReqID) traza.trazarUReq(uReqID);   // entrada manual: recién acá aparece el id en la URL
     const base = url.replace(/\/(personal-info|employment-info|lenders).*$/, '');
     if (/personal-info|employment-info/.test(url) && uReqID) {
