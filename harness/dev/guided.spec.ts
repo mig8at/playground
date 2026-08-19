@@ -69,8 +69,15 @@ let SHOT = 0;
 async function shot(page: Page, label: string) {
     if (process.env.E2E_SHOTS === '0') return;   // fotos ON por defecto (trazo del flujo); apagar con E2E_SHOTS=0
     const name = `guided-${String(++SHOT).padStart(2, '0')}-${label}.png`;
-    await page.screenshot({ path: join(AUTH, name), fullPage: true }).catch(() => {});
-    console.log(`  📸 ${name}`);
+    // Si el screenshot falla, DECIRLO: imprimir `📸 name` igual hacía pasar una captura vieja (misma
+    // ruta, corrida anterior) por evidencia de ESTA corrida — nos costó la prueba del +1 el 2026-08-19.
+    // El panel pinta las líneas `📸 ✗` en rojo y no intenta miniatura.
+    try {
+        await page.screenshot({ path: join(AUTH, name), fullPage: true });
+        console.log(`  📸 ${name}`);
+    } catch (e) {
+        console.log(`  📸 ✗ ${name} — el screenshot falló (${(e as Error)?.message?.split('\n')[0] ?? 'sin detalle'})`);
+    }
 }
 const log = (s: string) => console.log(`  ▸ ${s}`);
 

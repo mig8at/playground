@@ -82,13 +82,13 @@ export function paso(ventana: string, ruta: string, foto?: (n: number) => Promis
         if (!uReq) {
             log(`${izq}${gray('│ BD  —  (sin solicitud todavía)')}`);
             linea.push({ n, ventana, ruta, st: null, estado: null, cambio: false });
-            if (foto) { const f = await foto(n).catch(() => null); if (f) log(`     📸 ${f}`); }
+            if (foto) { const f = await foto(n).catch(() => null); log(f ? `     📸 ${f}` : red(`     📸 ✗ (el screenshot del paso ${n} falló)`)); }
             return;
         }
         if (!s) {
             log(`${izq}${red('│ BD  ✗ la solicitud no está en la BD')}`);
             linea.push({ n, ventana, ruta, st: null, estado: null, cambio: false });
-            if (foto) { const f = await foto(n).catch(() => null); if (f) log(`     📸 ${f}`); }
+            if (foto) { const f = await foto(n).catch(() => null); log(f ? `     📸 ${f}` : red(`     📸 ✗ (el screenshot del paso ${n} falló)`)); }
             return;
         }
 
@@ -114,7 +114,7 @@ export function paso(ventana: string, ruta: string, foto?: (n: number) => Promis
         log(`${izq}${der}`);
         linea.push({ n, ventana, ruta, st: s.st, estado: s.estado, cambio });
         previo = s;
-        if (foto) { const f = await foto(n).catch(() => null); if (f) log(`     📸 ${f}`); }
+        if (foto) { const f = await foto(n).catch(() => null); log(f ? `     📸 ${f}` : red(`     📸 ✗ (el screenshot del paso ${n} falló)`)); }
     }).catch(() => { /* nunca romper la corrida por la traza */ });
 }
 

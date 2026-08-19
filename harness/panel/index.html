@@ -519,6 +519,7 @@
       border: 1px solid var(--line); border-radius: 8px; cursor: zoom-in; background: #fff;
     }
     pre#log img.shotmini:hover { border-color: var(--acc); }
+    pre#log span.shotfail { color: #f4776a; }   /* 📸 ✗ — el screenshot falló: que se vea, no que se infiera */
     pre#log {
       background: #0a0c10;
       border: 1px solid var(--line);
@@ -1838,6 +1839,10 @@
       lastLogRendered = txt;
       const frag = document.createDocumentFragment();
       for (const line of txt.split('\n')) {
+        if (line.includes('📸 ✗')) {   // screenshot fallido: línea roja, sin intento de miniatura
+          const sp = document.createElement('span'); sp.className = 'shotfail'; sp.textContent = line + '\n';
+          frag.appendChild(sp); continue;
+        }
         frag.appendChild(document.createTextNode(line + '\n'));
         const m = line.match(/📸\s+([\w][\w.-]*\.png)/);
         if (m) {
