@@ -116,15 +116,39 @@ se quedó a mitad.
 
 ---
 
+## 🔴 El agravante, medido el 19/08: las credenciales son las del usuario maestro
+
+Los archivos de configuración del harness (`playground/harness/.env.dev` y `.env.staging`) guardan las
+credenciales de la base compartida. Se midió **qué puede hacer ese usuario**, consultándolo contra el
+propio servidor:
+
+> Conectado como **`admin@%`** — el usuario maestro del RDS — con **27 privilegios**, entre ellos
+> **`DROP`**, `DELETE`, `ALTER`, `CREATE USER`, `DROP ROLE`, `RELOAD` y `SYSTEM_VARIABLES_ADMIN`.
+
+Dos conclusiones:
+
+1. **Esos archivos, por sí solos, no pueden disparar el borrado.** Sus variables se llaman `E2E_DB_*`, y
+   se verificó que el harness no las traduce a los nombres que lee Laravel (`DB_*`). Correr la suite de
+   pruebas no los mira.
+2. **Pero son la fuente de la que salen las credenciales.** El procedimiento de apuntar un contenedor
+   local a la base compartida —que se usó hace días para aplicar migraciones— toma la contraseña de
+   ahí. Y lo que se copia es una cuenta que **puede borrar el servidor entero**.
+
+Por eso la recomendación de abajo deja de ser una buena práctica y pasa a ser el arreglo concreto: hoy
+**cualquier camino que llegue a esa base llega con permiso para destruirla**.
+
 ## Qué se puede arreglar sin esperar el diagnóstico
 
 Son independientes de quién lo haya disparado, y ninguna es costosa. **En este orden**:
 
-1. **Quitar el permiso de borrar.** Que el usuario de base de datos que usan los desarrolladores en su
-   día a día **no pueda eliminar tablas** en la base compartida. Es el único arreglo que cubre *todas*
-   las vías a la vez —incluidas las tres de la sección anterior—, porque no depende de ninguna
-   configuración ni de que nadie se equivoque: el borrado simplemente no se puede ejecutar. Los cambios
-   de estructura los aplica la pipeline, que sí tiene ese permiso.
+1. **Sacar el usuario maestro de la configuración de todos los días.** Crear dos cuentas acotadas
+   —una de **sólo lectura** para consultar, y otra con permiso de **leer y escribir filas pero no de
+   eliminar tablas** para las pruebas que necesitan sembrar datos— y reemplazar con ellas al `admin`
+   en la configuración del harness. Es el único arreglo que cubre *todas* las vías a la vez, porque no
+   depende de ninguna configuración ni de que nadie se equivoque: el borrado simplemente **no se puede
+   ejecutar**. Los cambios de estructura los aplica la pipeline, que sí tiene ese permiso.
+   ⚠ Y conviene **rotar esa contraseña**: recordá que dev y staging comparten credenciales, así que hay
+   que actualizar los dos archivos.
 2. **Poner el candado que falta en la configuración de pruebas.** Fijar **cuál servidor**, además de
    cuál base, de forma que el entorno no lo pueda pisar. ⚠ Y hay que incluir **`DATABASE_URL`**: si se
    olvida, quien la tenga configurada se saltea el candado completo. Esto tapa el camino de las pruebas,
