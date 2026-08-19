@@ -1609,6 +1609,40 @@ dicen «COLOMBIANA». No falta funcionalidad: falta que el país sea un dato que
   Probar con ese target mediría la rama equivocada. El mapa completo quedó arriba en §«Dónde se prueba
   esto».
 
+- **2026-08-19 (7)** — **El front VALIDADO en LOCAL, con captura: `+1` para RD y `+57` para Colombia.**
+  Después del incidente de la BD compartida, las pruebas se movieron a local (y sin correr PHPUnit: los
+  PR de CORE-431 se mergearon a develop mientras tanto — #1140 y #70, por Oscar — y los checkouts locales
+  de los dos repos quedaron en `develop`, que ya trae países + el candado juntos).
+
+  **La corrida** (`dev/paises-local-probe.spec.ts`, nuevo): asesor logueado → `/merchant/{hash}/request-amount`
+  → equipo + monto → `request-phone`, y el prefijo preseleccionado se lee de la pantalla.
+  - **CeluRD Santo Domingo (país 60)** → selector en **+1**, placeholder de monto **RD$16.450** ✅
+  - **Dentix Chia (país 47)** → selector en **+57**, formato **$ 20.000** ✅ (regresión limpia)
+  Capturas en `harness/.auth/paises-local-{rd,co}.png`.
+
+  **La pila local que lo hace posible** (todo documentado ya en el harness, sólo hubo que conectarlo):
+  backend local en `develop` (sail, `:80`) + **`bin/mock-forms` (:8101)** para el schema del flujo
+  dinámico —su cabecera documenta EXACTAMENTE este caso, hasta nombra a CeluRD— + wizard `:5174` con dos
+  variables de entorno inyectadas por `launch.json`.
+
+  **Trampas que costaron intentos, para la próxima:**
+  - **`VITE_API_URL` va SIN `/api`**: `allied-theme.repository` y `product.repository` agregan `/api`
+    ellos mismos (así lo pasa el build de deploy — `loans-stg.yaml` lo confirma). Con el sufijo, todo da
+    404 en `/api/api/...`.
+  - **La cadena de precedencia de env es: `launch.json env` > `.env.local` > `.env`** — el wizard tiene
+    un `.env.local` que pisa al `.env`, así que editar `.env` no sirve; la perilla buena es el env del
+    proceso.
+  - **El mock de forms sirve bajo `/v1`**: `VITE_ONBOARDING_FORM_SERVICE=http://localhost:8101/v1`.
+  - **El comercio del asesor queda FIJADO en la cookie de sesión**: reasignar en BD no alcanza — hay que
+    renovar sesión (`make login local`) para que el wizard lea la asignación nueva.
+  - **El selector de equipo viene de `/api/partners/products/{hash}`, por comercio**: godentist no tiene
+    productos y el schema genérico exige elegir uno → para el caso CO sirve DENTIX (5 productos).
+
+  **Qué queda SIN probar del front:** la otra ruta tocada, `additional-info-form` (el árbol
+  departamento→ciudad por país), necesita el form-service y datos de formulario — se prueba en dev
+  cuando toque QA. Y el criterio del admin (selector de ciudad) sigue pendiente de mirarse en dev,
+  donde ya está desplegado.
+
 ## Tarea (publicable)
 Hoy el onboarding asume un solo país en el código: el prefijo y la longitud del celular, los tipos de
 documento válidos, los textos, la moneda y los formatos están escritos en el programa en vez de venir de

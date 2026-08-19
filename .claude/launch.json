@@ -129,7 +129,11 @@
         "/Users/miguelochoa/Desktop/CREDITOP/github/frontend-monorepo/apps/loan-request-wizard"
       ],
       "port": 5174,
-      "autoPort": false
+      "autoPort": false,
+      "env": {
+        "VITE_API_URL": "http://127.0.0.1:80",
+        "VITE_ONBOARDING_FORM_SERVICE": "http://localhost:8101/v1"
+      }
     }
   ]
 }
