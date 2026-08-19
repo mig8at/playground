@@ -513,6 +513,12 @@
     .logcard { margin-top: 16px }
     .logcard h2 { display: flex; align-items: center; margin-bottom: 12px }
     .logacts { margin-left: auto; display: flex; gap: 8px }
+    /* miniatura de screenshot en la consola: reemplaza a "andá a buscar el png". Click = tamaño real. */
+    pre#log img.shotmini {
+      display: block; max-height: 150px; max-width: 420px; margin: 5px 0 9px 20px;
+      border: 1px solid var(--line); border-radius: 8px; cursor: zoom-in; background: #fff;
+    }
+    pre#log img.shotmini:hover { border-color: var(--acc); }
     pre#log {
       background: #0a0c10;
       border: 1px solid var(--line);
@@ -1821,12 +1827,38 @@
       $('logToggle').textContent = on ? '▼ plegar' : '▲ desplegar';
     }
 
+    // La consola se pinta con NODOS DE TEXTO (nunca innerHTML del log: es salida de procesos) y, bajo
+    // cada línea 📸, la MINIATURA del screenshot en vez de solo su nombre. El <pre> conserva los \n en
+    // textContent, así el fallback de "copiar consola" sigue dando el texto completo. Se re-renderiza
+    // solo si el log cambió; el buster por corrida deja que el browser cachee la imagen entre ticks.
+    let lastLogRendered = null;
+    let runStamp = 0;
+    function renderLog(txt) {
+      if (txt === lastLogRendered) return;
+      lastLogRendered = txt;
+      const frag = document.createDocumentFragment();
+      for (const line of txt.split('\n')) {
+        frag.appendChild(document.createTextNode(line + '\n'));
+        const m = line.match(/📸\s+([\w][\w.-]*\.png)/);
+        if (m) {
+          const img = document.createElement('img');
+          img.className = 'shotmini'; img.loading = 'lazy'; img.alt = m[1];
+          img.src = `/shots/${encodeURIComponent(m[1])}?v=${runStamp}`;
+          img.onclick = () => window.open(img.src, '_blank');
+          img.onerror = () => img.remove();   // shot() imprime 📸 aunque el screenshot haya fallado (F-03): sin archivo, sin miniatura
+          frag.appendChild(img);
+        }
+      }
+      $('log').replaceChildren(frag);
+    }
+
     function startPoll() {
+      runStamp = Date.now();   // buster por corrida: mismo nombre de archivo, imagen nueva
       if (poll) clearInterval(poll);
       const tick = async () => {
         const j = await (await fetch('/api/status')).json();
         const atBottom = $('log').scrollTop + $('log').clientHeight >= $('log').scrollHeight - 30;
-        $('log').textContent = j.log || '';
+        renderLog(j.log || '');
         if (atBottom) $('log').scrollTop = $('log').scrollHeight;   // auto-scroll solo si ya estabas al final
         if (j.running) {
           corridaRunning = true;

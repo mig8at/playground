@@ -826,6 +826,17 @@ const server = createServer(async (req, res) => {
         return json(res, 200, { target: t, ambiente: await frontDelAmbiente(t), local: 'http://localhost:5174' });
     }
 
+    // Miniaturas de la consola: sirve los screenshots que shot() deja en .auth/. Basename estricto
+    // (sin rutas, solo .png) — la consola pide /shots/<archivo> y pinta la miniatura bajo la línea 📸.
+    if (path.startsWith('/shots/') && req.method === 'GET') {
+        const name = decodeURIComponent(path.slice('/shots/'.length));
+        if (!/^[\w][\w.-]*\.png$/.test(name)) { res.writeHead(400); return res.end(); }
+        const f = join(ROOT, '.auth', name);
+        if (!existsSync(f)) { res.writeHead(404); return res.end(); }
+        res.writeHead(200, { 'content-type': 'image/png', 'cache-control': 'private, max-age=300' });
+        return res.end(readFileSync(f));
+    }
+
     if (path === '/api/status') {
         return json(res, 200, {
             running: !!(current && !current.done),
