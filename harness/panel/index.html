@@ -746,7 +746,8 @@
       <div class="targets" id="targets">
         <button class="pill on" data-t="local">local<span class="sdot" data-sd="local" title="sesión: sin verificar"></span></button>
         <button class="pill" data-t="dev" title="Data COMPARTIDA — escribe datos sintéticos en dev">dev<span class="sdot" data-sd="dev" title="sesión: sin verificar"></span></button>
-        <button class="pill" data-t="staging" title="Frontend de staging contra la MISMA BD/API de dev — data COMPARTIDA">staging<span class="sdot" data-sd="staging" title="sesión: sin verificar"></span></button>
+        <button class="pill" data-t="staging" title="Front originaciones-stg + backend legacy-backend-stg (rama staging) — BD COMPARTIDA con dev">staging<span class="sdot" data-sd="staging" title="sesión: sin verificar"></span></button>
+        <button class="pill" data-t="qa" title="Front originaciones-qa + backend legacy-backend-qa (rama qa, Motai) — BD COMPARTIDA con dev">qa<span class="sdot" data-sd="qa" title="sesión: sin verificar"></span></button>
       </div>
     </header>
 
@@ -1023,7 +1024,7 @@
       { slug: 'sonria', name: 'Sonría' },           // 9 entidades (rt0/1/4): el más rico para mirar el LISTADO
     ];
     let sel = MERCHANTS[0];      // Motai por defecto
-    let target = 'local';        // local | dev | staging (staging = front propio, BD/API de dev)
+    let target = 'local';        // local | dev | staging | qa (staging y qa: front y backend propios, BD compartida con dev)
     // Sesión Cognito por ambiente (dot + gating del launch): checking | warming | valid | invalid | missing |
     // unreachable | unknown. El launch se BLOQUEA sin token listo (valid) — salvo 'unreachable' (front caído:
     // no se puede ni verificar ni warmear; la corrida levanta el front y loguea en el flujo). F-66.
@@ -1064,6 +1065,7 @@
       local:   { flotaLocal: true  },
       dev:     { flotaLocal: false },
       staging: { flotaLocal: false },
+      qa:      { flotaLocal: false },
     };
     const cap = (k) => (CAPS[target] || CAPS.staging)[k];
 

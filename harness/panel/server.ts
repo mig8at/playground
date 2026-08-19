@@ -19,11 +19,12 @@ const ROOT = resolve(HERE, '..');              // raíz de harness
 const PORT = Number(process.env.PANEL_PORT || 5195);
 const RUN_LOG = '/tmp/asesor-panel-run.log';
 const PA_STATUS_FILE = '/tmp/mock-pa-statuses.json'; // status por lender del mock de pre-aprobados (mismo path que lee server.mjs)
-const TARGETS = new Set(['local', 'dev', 'staging']);
+const TARGETS = new Set(['local', 'dev', 'staging', 'qa']);
 
-// env por target. `local` es seguro; **dev y staging comparten LA MISMA BD y API** (en legacy-backend
-// staging no es un entorno aparte: solo el frontend lo es), así que los dos son DATA COMPARTIDA y los dos
-// necesitan el guard de escritura de pkg/db. La condición va por "no es local", no por t === 'dev':
+// env por target. `local` es seguro; **dev, staging y qa comparten LA MISMA BD** (staging y qa sí tienen
+// backend propio: legacy-backend-stg sirve la rama `staging` y legacy-backend-qa la rama `qa` — corregido
+// el 2026-08-19, antes el target staging apuntaba a qa), así que los tres son DATA COMPARTIDA y todos
+// necesitan el guard de escritura de pkg/db. La condición va por "no es local", no por enumeración:
 // listar targets a mano fue lo que dejó a staging afuera cuando se agregó.
 function envFor(target: string): NodeJS.ProcessEnv {
     const t = TARGETS.has(target) ? target : 'local';

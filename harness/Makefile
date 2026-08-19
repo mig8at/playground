@@ -56,11 +56,11 @@ env: ## health del wizard (:5174) y del backend (:80)
 	@code=$$(curl -s -o /dev/null -w '%{http_code}' -H 'Host: legacy-backend.inertia-develop' --max-time 5 http://127.0.0.1:80/api 2>/dev/null); \
 	 case "$$code" in 2*|3*|4*) echo "backend :80 → HTTP $$code (arriba)";; *) echo "backend :80 → HTTP $${code:-000} (no responde — make up)";; esac
 
-login: ## [local|dev|staging] — SIN arg: VALIDA en consola qué logins están OK (read-only, los 3). CON arg: loguea ese target y cachea la sesión (.auth/cognito-state.<t>.json).
+login: ## [local|dev|staging|qa] — SIN arg: VALIDA en consola qué logins están OK (read-only, los 3). CON arg: loguea ese target y cachea la sesión (.auth/cognito-state.<t>.json).
 	@t="$(word 1,$(ARGS))"; \
 	if [ -z "$$t" ]; then \
 	  echo "▶ login por target (session-check · read-only):"; \
-	  for x in staging dev local; do \
+	  for x in staging qa dev local; do \
 	    out=$$(E2E_TARGET=$$x node bin/session-check.ts 2>/dev/null); \
 	    if echo "$$out" | grep -q '"status":"valid"'; then echo "  ✅ $$x — login OK"; else echo "  ⛔ $$x — sin sesión · $$out"; fi; \
 	  done; \
