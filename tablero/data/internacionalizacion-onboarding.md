@@ -1616,8 +1616,8 @@ dicen «COLOMBIANA». No falta funcionalidad: falta que el país sea un dato que
 
   **La corrida** (`dev/paises-local-probe.spec.ts`, nuevo): asesor logueado → `/merchant/{hash}/request-amount`
   → equipo + monto → `request-phone`, y el prefijo preseleccionado se lee de la pantalla.
-  - **CeluRD Santo Domingo (país 60)** → selector en **+1**, placeholder de monto **RD$16.450** ✅
-  - **Dentix Chia (país 47)** → selector en **+57**, formato **$ 20.000** ✅ (regresión limpia)
+  - **CeluRD Santo Domingo (país 60)** → selector en **+1** ✅ (el placeholder «RD$16.450» que se ve NO es del cambio: está QUEMADO en el front — ver hallazgo en la entrada 9)
+  - **Dentix Chia (país 47)** → selector en **+57** ✅ (regresión limpia)
   Capturas en `harness/.auth/paises-local-{rd,co}.png`.
 
   **La pila local que lo hace posible** (todo documentado ya en el harness, sólo hubo que conectarlo):
@@ -1665,6 +1665,27 @@ dicen «COLOMBIANA». No falta funcionalidad: falta que el país sea un dato que
 
   **Con esto, la evidencia del front cubre local Y dev.** Queda: `additional-info-form`
   (departamento→ciudad por país) y el criterio del admin en dev — y la decisión de QA formal.
+
+- **2026-08-19 (9)** — **Qué hace exactamente el cambio del front, y qué sigue quemado.** Revisado
+  archivo por archivo sobre la rama mergeada, para tenerlo claro antes de validar en staging:
+  - **Lo que hace:** el back agrega `country {id, name, iso_code, phone_code, currency, locale}` al
+    payload del comercio; el front lo guarda en el theme del aliado, y DOS pantallas lo consumen:
+    `request-phone` convierte `phone_code` («+1» → «1») y lo pasa como **prefijo preseleccionado**, y
+    `additional-info-form` usa `country.id` para pedir el **árbol departamento→ciudad del país** en vez
+    del `47` fijo. Todo *fail-open*: si el país no llega, se comporta como antes.
+  - **Lo que NO hace:** la **LISTA** de prefijos sigue quemada en `PhoneForm` (`options: [+1, +57]`) —
+    el cambio elige cuál viene preseleccionado, no de dónde sale la lista. Un tercer país exige tocar el
+    front de nuevo. Tampoco trae `cell_phone_lenght` (a propósito: semántica sin definir), ni toca el
+    flujo clásico (`/solicitar`), ni la mensajería.
+  - 🔴 **Hardcode NUEVO encontrado al revisar:** `AmountForm.tsx:147` tiene `placeholder="RD$16.450"`
+    **fijo** — el flujo dinámico le muestra «RD$» de placeholder a TODOS los comercios, incluidos los
+    colombianos (Dentix lo mostró; quedó tapado por el valor tecleado en la captura). Corrige además la
+    entrada (7): ese placeholder no era evidencia del cambio de países. Va a la fila del catálogo de
+    hardcodes.
+  - ⚠ **URL del front de staging:** Miguel dice `originaciones-staging.dev`; medido desde esta máquina,
+    ese nombre **no resuelve** y el que responde es **`originaciones-stg.dev.creditop.com`** (ALB de
+    `inertia-develop`, build DISTINTO de qa y de dev por hash de assets). `.env.staging` queda apuntando
+    a `-stg` hasta confirmar; si `-staging` existe en otro DNS, se corrige en una línea.
 
 ## Tarea (publicable)
 Hoy el onboarding asume un solo país en el código: el prefijo y la longitud del celular, los tipos de
