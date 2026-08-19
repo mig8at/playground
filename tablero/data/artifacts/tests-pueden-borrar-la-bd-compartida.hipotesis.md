@@ -1,57 +1,125 @@
-# Cómo la suite de tests *podría* borrar la base de datos de un ambiente
+# Cómo las pruebas automáticas *podrían* borrar la base de datos de un ambiente
 
-**19 de agosto de 2026 · punto de partida para el análisis, no conclusión**
+**19 de agosto de 2026 · punto de partida para el análisis, no una conclusión**
 
-> ⚠ **Léase como hipótesis.** Esto describe un camino que *existe* y que *alcanza* para borrar una base
-> real. No afirma que sea lo que pasó el 19/08: es la posibilidad más consistente con lo observado, y lo
-> que sigue es cómo confirmarla o descartarla.
+> ⚠ **Esto es una hipótesis.** Describe un camino que existe hoy en el código y que **alcanza** para
+> borrar una base real. No afirma que sea lo que pasó el 19/08 — es la explicación que mejor encaja con
+> lo que vimos, y abajo está cómo confirmarla o descartarla.
 
 ---
 
-## 1 · Los archivos
+## En una frase
 
-Todo esto vive en el repo **`legacy-backend`**. Son tres archivos:
+Hay dos pruebas automáticas que, para correr, **vacían la base de datos y la reconstruyen desde cero**.
+Eso es normal… siempre que apunten a una base descartable. El problema es que **lo único que asegura a
+qué base apuntan es un candado que no alcanza**.
 
-| ruta exacta | qué tiene |
+---
+
+## La idea, sin tecnicismos
+
+Cuando alguien corre esas dos pruebas, el sistema hace tres cosas en orden:
+
+1. **Borra todas las tablas** de la base a la que esté apuntando.
+2. **La reconstruye vacía**, paso por paso.
+3. Recién ahí corre la prueba.
+
+El paso 1 es a propósito: la prueba necesita empezar de cero. Nadie escribió eso por error, y en
+cualquier proyecto es una práctica normal.
+
+**Lo que falla es la puntería.** Para que esto sea seguro hacen falta dos candados:
+
+| candado | qué asegura | ¿está puesto? |
+|---|---|---|
+| **cuál base** | que se llame `testing` y no la real | 🟡 puesto, pero **se puede saltar** |
+| **cuál servidor** | que sea tu máquina y no el servidor compartido | 🔴 **nunca se puso** |
+
+El segundo candado **no existe en el proyecto** y nunca existió. Eso significa que las pruebas se conectan
+**al servidor que tenga configurado quien las corre** — y si esa persona tiene su configuración apuntando
+al ambiente compartido, ahí es donde borran.
+
+El primer candado tampoco es firme: sólo se aplica si esa configuración **no venía ya puesta de antes**.
+Si el nombre de la base ya viene definido en el entorno —cosa habitual cuando se trabaja con contenedores—
+el candado **se saltea en silencio**, sin avisar.
+
+> 🔴 **Y no se arregla solo.** El paso 2 —reconstruir la base— **falla a mitad de camino en este
+> proyecto**. Así que si esto se dispara, no queda «una base recién hecha»: queda **una base vacía y a
+> medio armar**. Se paga el destrozo completo y ni siquiera se obtiene una prueba que pase.
+
+**Lo más incómodo: quien lo dispara no se entera.** No hay confirmación, ni advertencia, ni mensaje que
+diga «vas a borrar el ambiente compartido». La prueba simplemente falla, y falla por un motivo que parece
+otro.
+
+---
+
+## Dónde está, exactamente
+
+Todo esto vive en el repositorio **`legacy-backend`**. Son tres archivos:
+
+| archivo | qué hay ahí |
 |---|---|
-| `Modules/Loans/tests/Unit/CreditopXDatacreditoAdjustmentServiceTest.php:16` | `use RefreshDatabase;` — desde el **2026-01-09**. Además está **mal ubicado**: es un test en `tests/Unit` que toca la base |
-| `Modules/Loans/tests/Feature/SafeCancelTest.php:26` | `use RefreshDatabase;` — desde el **2026-04-29** |
-| `phpunit.xml:30` | `<env name="DB_DATABASE" value="testing"/>` — **la única protección que hay**. Existe desde el init del repo (2025-06-25) |
+| `Modules/Loans/tests/Unit/CreditopXDatacreditoAdjustmentServiceTest.php` (línea 16) | una de las dos pruebas que borran. Está desde el **9 de enero de 2026** |
+| `Modules/Loans/tests/Feature/SafeCancelTest.php` (línea 26) | la otra. Está desde el **29 de abril de 2026** |
+| `phpunit.xml` (línea 30) | **el único candado que hay**, el de «cuál base». Está desde que nació el repositorio, en junio de 2025 |
 
-Son los **únicos dos** de 140 archivos de test que usan el trait.
+Son las **únicas dos** de 140 archivos de prueba. No es una plaga: son dos, y están identificadas.
 
-⚠ Al contarlos: buscar por nombre da **7 y es falso positivo**. Hay que grepear `^\s*use RefreshDatabase;`,
-porque los otros 5 sólo lo mencionan — en `tests/Feature/ExampleTest.php` está **comentado**, es el
-scaffold de Laravel, y en el resto son imports de modelos.
+Y conviene tener presente la antigüedad: las pruebas llevan **4 y 7 meses**, pero el hueco del candado
+del servidor lleva **14 meses**. O sea que el riesgo no es nuevo — lo nuevo es que alguien pasó por ahí.
 
 ---
 
-## 2 · Por qué puede borrar
+## Por qué creemos que fue esto
 
-La cadena tiene cuatro eslabones, y **ninguno es un bug**: cada uno hace lo que promete.
+Cuatro cosas que vimos, y lo que esta explicación predice para cada una:
 
-**1. El trait borra antes de construir.**
-`RefreshDatabase` ejecuta `migrate:fresh` — en
-`vendor/laravel/framework/src/Illuminate/Foundation/Testing/RefreshDatabase.php`, método
-`refreshTestDatabase()`:
+| lo que se vio en la base | qué dice esta hipótesis |
+|---|---|
+| Las tablas fueron **creadas de nuevo**, no vaciadas | ✅ el proceso borra y recrea, no limpia |
+| Todo el trabajo aparece como **una sola tanda desde cero** | ✅ es una reconstrucción completa, no un cambio incremental |
+| Quedó **a mitad de camino**, con tablas pero sin datos | ✅ la reconstrucción falla en este proyecto |
+| **No hubo despliegues ni procesos automáticos** a esa hora | ✅ el camino es alguien corriéndolo **desde su computador** |
 
-```php
-if (! RefreshDatabaseState::$migrated) {
-    $this->artisan('migrate:fresh', $this->migrateFreshUsing());
-    ...
-}
-```
+---
 
-`migrate:fresh` **primero elimina todas las tablas** y después migra desde cero. Es su comportamiento
-normal y documentado.
+## Cómo confirmarlo o descartarlo
 
-**2. La protección cubre el nombre, no el servidor.**
-`phpunit.xml` declara `DB_DATABASE=testing`, pero **no declara `DB_HOST`, `DB_USERNAME` ni
-`DB_PASSWORD`** — y nunca los declaró en toda la historia del repo (`git log -S 'DB_HOST' -- phpunit.xml`
-no devuelve ningún commit). El servidor al que se conecta es **siempre el del `.env`**.
+- **Mirar los registros del servidor de base de datos.** Este proceso deja una huella muy reconocible: una
+  ráfaga de borrados seguida de una ráfaga de creaciones. Y el registro dice **desde qué computador y con
+  qué usuario** entró la conexión. Eso es lo que separa «alguien desde su máquina» de «algo del servidor».
+- **Preguntar, sin señalar a nadie.** Alcanza con *«¿alguien corrió las pruebas hoy?»*. Vale insistir en
+  que quien lo haya hecho **no tenía forma de saberlo**: no hubo ninguna advertencia.
+- **Terminar de descartar lo demás.** Ya quedaron afuera los despliegues (no ejecutan este paso) y los
+  procesos automáticos (no corrió ninguno a esa hora). Falta revisar tareas programadas y accesos manuales.
 
-**3. Y el nombre se puede perder también.**
-PHPUnit no pisa una variable que ya venga del entorno
+---
+
+## Qué se puede arreglar sin esperar el diagnóstico
+
+Las tres son independientes de quién lo haya disparado, y ninguna es costosa:
+
+1. **Poner el candado que falta.** Fijar en la configuración de pruebas **cuál servidor** —además de cuál
+   base— y hacerlo de forma que el entorno no lo pueda pisar. Es el arreglo de raíz: si el servidor
+   compartido no es alcanzable desde las pruebas, esto no puede volver a pasar.
+2. **Quitarles a esas dos pruebas la parte que borra.** Hoy no están pasando en ningún ambiente —no
+   pueden, porque la reconstrucción falla—, así que sacarlo no pierde nada real.
+3. **Separar las credenciales.** Que la configuración de trabajo del día a día no tenga permiso de
+   escritura sobre la base compartida convierte un accidente en un simple error de permisos.
+
+---
+
+<details>
+<summary><b>Detalle técnico</b> (para quien vaya a hacer el arreglo)</summary>
+
+El mecanismo es el trait `RefreshDatabase` de Laravel, que ejecuta `migrate:fresh`
+(`vendor/laravel/framework/src/Illuminate/Foundation/Testing/RefreshDatabase.php`, en
+`refreshTestDatabase()`): elimina todas las tablas y luego migra desde cero.
+
+`phpunit.xml:30` declara `<env name="DB_DATABASE" value="testing"/>` pero **no declara `DB_HOST`,
+`DB_USERNAME` ni `DB_PASSWORD`** — `git log -S 'DB_HOST' -- phpunit.xml` no devuelve ningún commit en toda
+la historia del repositorio. El host es siempre el del `.env`.
+
+Y el override del nombre es condicional
 (`vendor/phpunit/phpunit/src/TextUI/Configuration/PhpHandler.php:112`):
 
 ```php
@@ -60,57 +128,18 @@ if ($force || getenv($name) === false) {
 }
 ```
 
-`phpunit.xml` **no usa `force`**. Si `DB_DATABASE` ya está exportada —un `docker exec -e DB_DATABASE=…`,
-un contenedor de ECS cuya task definition inyecta las variables, o una shell con el entorno cargado—
-PHPUnit la respeta y el override **no ocurre**.
+`phpunit.xml` no usa `force="true"`, así que un `DB_DATABASE` ya presente en el entorno —un
+`docker exec -e DB_DATABASE=…`, una task definition de ECS, o una shell con el entorno cargado— gana.
 
-**4. Con el `.env` apuntando a un ambiente, el destino es ese ambiente.**
-Si el `.env` tiene el host de `inertia-dev`, correr cualquiera de esos dos tests apunta ahí. Y como dev y
-staging **comparten la misma base**, caen los dos ambientes.
+⚠ Al censar los archivos afectados: `grep -l RefreshDatabase` da **7 y es falso positivo**. Hay que buscar
+`^\s*use RefreshDatabase;` — los otros 5 sólo lo mencionan (en `tests/Feature/ExampleTest.php` está
+comentado, es el scaffold de Laravel).
 
-> 🔴 **Y el daño no se revierte solo.** `migrate:fresh` borra y después migra — pero en este repo
-> **migrar desde cero falla**. Se entrega la mitad destructiva y no la restaurativa: la base queda vacía
-> y a medio armar, y encima el test tampoco pasa. Hay al menos **dos puntos de falla distintos** medidos
-> en la cadena de migraciones, así que *dónde* se planta no es predecible.
+Y dev y staging **comparten la misma base**, así que cae un ambiente y se llevan dos.
+
+</details>
 
 ---
 
-## 3 · Qué encaja con lo observado
-
-| lo que se vio | qué predice esta hipótesis |
-|---|---|
-| Las tablas fueron **recreadas**, no vaciadas (`CREATE_TIME` de golpe) | ✅ `migrate:fresh` hace drop + create, no delete |
-| Todas las migraciones en `batch = 1` | ✅ una corrida desde cero, no incremental |
-| Se detuvo a mitad, con tablas creadas y sin datos | ✅ migrar desde cero falla en este repo |
-| Sin corridas de CI ni deploys en la ventana | ✅ el camino es una corrida **local**, desde una máquina |
-
----
-
-## 4 · Cómo confirmarlo o descartarlo
-
-- **Logs del servidor de base de datos.** Un `migrate:fresh` deja una ráfaga de `DROP TABLE` seguida de
-  `CREATE TABLE`. El log dice desde qué host y con qué usuario entró la conexión — eso separa «una
-  máquina» de «un contenedor del cluster».
-- **Preguntar sin señalar.** Alcanza con *«¿alguien corrió la suite hoy?»*. El camino es **invisible para
-  quien lo toma**: no hay confirmación ni advertencia, y el test aparenta fallar por otra cosa.
-- **Descartar los otros caminos.** Ya se descartaron deploys (el workflow no tiene paso de migraciones) y
-  CI (cero corridas en la ventana). Falta descartar tareas programadas y accesos manuales.
-
----
-
-## 5 · Lo que se puede cerrar sin esperar el diagnóstico
-
-Estas tres son independientes de quién lo haya disparado, y ninguna cuesta trabajo:
-
-- **Fijar el host en `phpunit.xml`.** Agregar `DB_HOST`, `DB_USERNAME` y `DB_PASSWORD` apuntando a algo
-  local, con `force="true"` para que el entorno no los pueda pisar. Es el arreglo de raíz: **sin host
-  alcanzable, la suite no puede tocar un ambiente**.
-- **Sacar el trait de los dos tests.** No están pasando hoy en ningún ambiente —no pueden, porque migrar
-  desde cero falla—, así que quitarlo no pierde cobertura real.
-- **Separar credenciales.** Que el `.env` de trabajo no tenga alcance de escritura a la base compartida
-  convierte el accidente en un error de permisos.
-
----
-
-*Documento de arranque para el análisis. La bitácora completa —evidencia forense, tiempos y lo ya
-descartado— vive en la tarea del tablero.*
+*Documento de arranque para el análisis. La evidencia forense completa —tiempos, mediciones y lo ya
+descartado— está en la tarea del tablero.*
