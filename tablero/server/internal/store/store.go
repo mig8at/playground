@@ -66,7 +66,11 @@ type Store struct {
 	dir string
 	mu  sync.Mutex
 
-	efforts  []Effort             // ordenados por id ascendente
+	efforts []Effort // ordenados por id ascendente
+	// Firma de lo leído en disco, para saber si hay que releer: el mtime más nuevo y cuántos `.md`
+	// hay. Ver `relerSiCambio`.
+	mdMtime  time.Time
+	mdCount  int
 	slugs    map[int64]string     // id → nombre de archivo (renombrarlo a mano no rompe nada: el id va adentro)
 	archived map[int64]string     // id → fecha de archivado ("" = vivo)
 	entries  []Entry              // TODOS, incluidos los borrados: el borrado es suave
@@ -109,6 +113,9 @@ func (s *Store) cargar() error {
 	if err != nil {
 		return err
 	}
+	// Se parte de cero: esto ya no corre sólo al arrancar, también cuando un `.md` cambió en disco
+	// (ver `relerSiCambio`). Acumular sobre lo anterior duplicaría cada tarea en cada relectura.
+	s.efforts, s.slugs, s.archived = nil, map[int64]string{}, map[int64]string{}
 	for _, d := range archivos {
 		if d.IsDir() || !strings.HasSuffix(d.Name(), ".md") {
 			continue
@@ -217,6 +224,9 @@ func (s *Store) leerEffort(slug string) (Effort, string, error) {
 		e.Stage = "evaluation"
 	}
 	e.Artifacts = s.artefactosDe(slug)
+	// Del cuerpo PRIVADO: las anotaciones pueden nombrar repos y rutas, igual que el resto de
+	// `TechNotes`. No pasan por el guard porque no salen a Jira.
+	e.Anotaciones = Anotaciones(notas)
 	// el vínculo esfuerzo → tareas de Jira; las anotaciones (si las hay) se cargan aparte
 	for _, k := range listaYAML(fm["jira"]) {
 		tl := s.locals[k]
@@ -592,6 +602,10 @@ type Effort struct {
 	// derivada: "evaluando" y "trabajando" se distinguen por decisión, no por si ya hay tarea.
 	Stage     string `json:"stage"` // evaluation | work | tasks
 	CreatedAt string `json:"createdAt"`
+	// ANOTACIONES: los marcadores con fecha que el CUERPO declara (mediciones, decisiones, preguntas,
+	// riesgos). Igual que los prototipos, salen del contenido y no de una lista que haya que mantener.
+	// Ver `anotaciones.go` para la forma y el porqué.
+	Anotaciones []Anotacion `json:"anotaciones"`
 	// PROTOTIPOS de la tarea: los HTML autocontenidos de `data/artifacts/` que se abren desde el
 	// tablero. El vínculo es el NOMBRE, no una entrada en el frontmatter: una convención de nombre no
 	// se desincroniza, una lista escrita a mano sí.
@@ -617,10 +631,49 @@ func validStage(s string) bool {
 	return false
 }
 
+// relerSiCambio vuelve a leer las tareas si algún `.md` cambió en disco desde la última lectura.
+//
+// Hace falta porque los `.md` NO los escribe sólo este server: el asistente los edita directamente
+// —es el punto de que sean archivos— y antes esos cambios no se veían hasta reiniciar. Con las
+// anotaciones eso pasó de incómodo a inutilizante: escribís una medición en el cuerpo y el tablero
+// sigue mostrando la lista vieja, sin ninguna señal de por qué.
+//
+// Es mtime y no un watcher a propósito: son unas decenas de archivos y esto corre al listar, así que
+// un `os.Stat` por archivo es más barato que sostener un watcher y su cola de eventos.
+//
+// ⚠ Se llama con el lock TOMADO.
+func (s *Store) relerSiCambio() {
+	archivos, err := os.ReadDir(s.dir)
+	if err != nil {
+		return
+	}
+	var ultima time.Time
+	n := 0
+	for _, d := range archivos {
+		if d.IsDir() || !strings.HasSuffix(d.Name(), ".md") {
+			continue
+		}
+		n++
+		if fi, err := d.Info(); err == nil && fi.ModTime().After(ultima) {
+			ultima = fi.ModTime()
+		}
+	}
+	// El CONTEO entra en la firma además del mtime: borrar una tarea no adelanta el reloj de las
+	// otras, y sin esto una tarea borrada seguiría listada.
+	if n == s.mdCount && !ultima.After(s.mdMtime) {
+		return
+	}
+	if err := s.cargar(); err != nil {
+		return
+	}
+	s.mdCount, s.mdMtime = n, ultima
+}
+
 // Efforts lista los esfuerzos vivos (no archivados), del más nuevo al más viejo.
 func (s *Store) Efforts() ([]Effort, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	s.relerSiCambio()
 	out := []Effort{}
 	for i := len(s.efforts) - 1; i >= 0; i-- { // id DESC
 		if s.archived[s.efforts[i].ID] != "" {

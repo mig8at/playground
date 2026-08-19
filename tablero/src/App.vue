@@ -197,7 +197,7 @@ const protosDe = (key) => artifactsOf(taskLocals.value[key]?.effortId || 0);
 const protosAbiertos = ref(false);
 function verProtos(i) {
   if (protosAbiertos.value && active.value?.Key === i.Key) { protosAbiertos.value = false; return; }
-  active.value = i; protosAbiertos.value = true; bitacoraAbierta.value = false;
+  active.value = i; protosAbiertos.value = true; bitacoraAbierta.value = false; hallazgosAbiertos.value = false;
 }
 
 // ── derivados del sprint ────────────────────────────────────────────────────────────────────────
@@ -283,7 +283,37 @@ const entriesPorTarea = computed(() => {
 // Abrir la bitácora DE una tarjeta: el cajón lee la tarea activa, así que primero se activa. Sin esto,
 // tocar "Bitácora" en una tarjeta abriría la bitácora de otra.
 // los dos cajones son excluyentes: abrir uno cierra el otro, o quedan montados los dos encima
-const verBitacora = (i) => { active.value = i; bitacoraAbierta.value = true; protosAbiertos.value = false; };
+const verBitacora = (i) => { active.value = i; bitacoraAbierta.value = true; protosAbiertos.value = false; hallazgosAbiertos.value = false; };
+
+// ── hallazgos: los hechos con fecha que la tarea declara en su cuerpo ──────────────────────────
+// Vienen del ESFUERZO, igual que los prototipos, y salen del texto: el server los recoge de los
+// marcadores `> **MEDICIÓN · fecha** — …`. Ver `server/internal/store/anotaciones.go`.
+//
+// Lo que aportan sobre la prosa es la EDAD. Una medición de hace dos meses se lee igual de segura
+// que la de ayer, y una pregunta abierta hace una semana no le grita a nadie. Acá la edad se ve, y
+// eso es lo único que la prosa no puede hacer.
+const hallazgosDe = (key) => efforts.value.find(e => e.id === (taskLocals.value[key]?.effortId || 0))?.anotaciones || [];
+const hallazgosAbiertos = ref(false);
+const verHallazgos = (i) => {
+  if (hallazgosAbiertos.value && active.value?.Key === i.Key) { hallazgosAbiertos.value = false; return; }
+  active.value = i; hallazgosAbiertos.value = true; bitacoraAbierta.value = false; protosAbiertos.value = false;
+};
+const diasDe = (fecha) => Math.floor((Date.now() - new Date(fecha + 'T12:00:00')) / 86400000);
+// Cuándo un hallazgo pide atención. Los umbrales son distintos a propósito: una medición aguanta un
+// mes antes de sospechar, pero una pregunta sin responder a los 7 días ya está frenando algo.
+const vencido = (a) => a.tipo === 'medicion' ? diasDe(a.fecha) > 30
+                     : a.tipo === 'pregunta' ? diasDe(a.fecha) > 7 : false;
+const EDAD = { medicion: 'medido hace', pregunta: 'sin responder hace', decision: 'decidido hace', riesgo: 'asumido hace' };
+const edadTxt = (a) => { const d = diasDe(a.fecha); return `${EDAD[a.tipo] || 'hace'} ${d === 0 ? 'hoy' : d === 1 ? '1 día' : d + ' días'}`.replace(' hoy', ' hoy').replace(/hace hoy/, 'hoy'); };
+const TIPOS = [
+  { id: 'medicion', tit: 'Mediciones',  pie: 'Un número sin fecha ni forma de recomprobarlo envejece hasta volverse mentira.' },
+  { id: 'decision', tit: 'Decisiones',  pie: 'Con fecha y motivo, para no volver a discutirlas desde cero.' },
+  { id: 'pregunta', tit: 'Preguntas',   pie: 'Abiertas, con de quién se espera la respuesta.' },
+  { id: 'riesgo',   tit: 'Riesgos',     pie: 'Lo que se aceptó a sabiendas. Cuando muerda, acá está el momento en que se aceptó.' },
+];
+const hallazgosPorTipo = (key) => TIPOS
+  .map(t => ({ ...t, items: hallazgosDe(key).filter(a => a.tipo === t.id) }))
+  .filter(g => g.items.length);
 // La bitácora vive en un CAJÓN, no en una card del tablero: son notas largas que escribe el asistente y
 // que el humano consulta de vez en cuando (quien la lee seguido es un modelo, para retomar contexto).
 // Ocupando una columna fija era ruido permanente por algo que no se mira en cada carga. Se abre desde el
@@ -291,7 +321,7 @@ const verBitacora = (i) => { active.value = i; bitacoraAbierta.value = true; pro
 const bitacoraAbierta = ref(false);
 // Esc cierra. Va en `window` y no en el elemento: el cajón nace sin foco, así que un @keydown local sólo
 // respondería después de hacerle clic — que es justo cuando ya no hace falta el atajo.
-const cerrarConEsc = (e) => { if (e.key === 'Escape') { bitacoraAbierta.value = false; protosAbiertos.value = false; } };
+const cerrarConEsc = (e) => { if (e.key === 'Escape') { bitacoraAbierta.value = false; protosAbiertos.value = false; hallazgosAbiertos.value = false; } };
 onMounted(() => window.addEventListener('keydown', cerrarConEsc));
 onUnmounted(() => window.removeEventListener('keydown', cerrarConEsc));
 const when = (d) => new Date(d).toLocaleString('es-CO', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
@@ -763,6 +793,13 @@ onMounted(async () => {
                   @click="verProtos(i)">
                   Prototipos<span class="cnt">{{ protosDe(i.Key).length }}</span>
                 </button>
+                <!-- los hechos con fecha que declara el cuerpo. El punto rojo avisa que alguno venció
+                     sin abrir el cajón: es lo que hace que una pregunta de hace 10 días se note. -->
+                <button v-if="hallazgosDe(i.Key).length" class="tact" :class="{ act: hallazgosAbiertos && active?.Key === i.Key }"
+                  @click="verHallazgos(i)">
+                  Hallazgos<span class="cnt">{{ hallazgosDe(i.Key).length }}</span><span
+                    v-if="hallazgosDe(i.Key).some(vencido)" class="alerta" title="Hay algo que pide revisión">●</span>
+                </button>
                 <button v-if="!enPruebas(i) && qa?.key !== i.Key" class="tact go" :disabled="qaBusy" @click="openQA(i)">
                   🧪 A pruebas
                 </button>
@@ -880,6 +917,40 @@ onMounted(async () => {
          `transform` se ancla a la card en vez de a la ventana, y el cajón aparecería recortado. -->
     <!-- PROTOTIPOS de la tarea. Panel aparte y no botones sueltos: una tarea puede tener varias
          propuestas, y verlas listadas con su descripción es lo que permite elegir cuál abrir. -->
+    <!-- HALLAZGOS: lo mismo que el cuerpo ya dice, pero ordenado por tipo y con la EDAD a la vista.
+         No duplica el texto — lo lee de los marcadores del propio cuerpo, así que no se desincroniza. -->
+    <div v-if="hallazgosAbiertos" class="drawer">
+      <div class="drawer-bg" @click="hallazgosAbiertos = false"></div>
+      <aside class="drawer-p">
+        <header class="drawer-h">
+          <div>
+            <h3>Hallazgos</h3>
+            <p v-if="active">de {{ active.Key }} · {{ hallazgosDe(active.Key).length }}
+              {{ hallazgosDe(active.Key).length === 1 ? 'anotación' : 'anotaciones' }}</p>
+          </div>
+          <button class="drawer-x" title="Cerrar (Esc)" @click="hallazgosAbiertos = false">✕</button>
+        </header>
+        <div class="drawer-b">
+          <p class="empty">Salen del cuerpo de la tarea. Se escriben ahí, donde se argumentan.</p>
+          <section v-for="g in hallazgosPorTipo(active?.Key)" :key="g.id" class="hgrupo">
+            <h4>{{ g.tit }}<span class="hcnt">{{ g.items.length }}</span></h4>
+            <p class="hpie">{{ g.pie }}</p>
+            <article v-for="(a, n) in g.items" :key="n" class="hitem" :class="{ vencido: vencido(a) }">
+              <div class="hmeta">
+                <span class="hfecha">{{ a.fecha }}</span>
+                <span class="hedad">{{ edadTxt(a) }}</span>
+                <span v-if="a.quien" class="hquien">espera a {{ a.quien }}</span>
+              </div>
+              <p class="hque">{{ a.que }}</p>
+              <!-- el `como` es lo que separa una medición de una afirmación: sin esto nadie sabe
+                   cómo volver a comprobarla, y el número envejece sin que nadie se entere -->
+              <pre v-if="a.como" class="hcomo">{{ a.como }}</pre>
+            </article>
+          </section>
+        </div>
+      </aside>
+    </div>
+
     <div v-if="protosAbiertos" class="drawer">
       <div class="drawer-bg" @click="protosAbiertos = false"></div>
       <aside class="drawer-p">
@@ -1280,4 +1351,22 @@ h1 { font-size: 20px; margin: 0; letter-spacing: .2px }
   font-size: 12.5px; display: grid; gap: 5px }
 .sync-res .bad { color: var(--bad) }
 .sync-res .chip { margin-left: 6px; padding: 1px 8px; font-size: 10.5px }
+
+/* HALLAZGOS ------------------------------------------------------------------------------------ */
+.alerta { color: #e5534b; margin-left: 4px; font-size: 10px; line-height: 1; }
+.hgrupo { margin-bottom: 22px; }
+.hgrupo h4 { font-size: 13px; margin: 0 0 2px; display: flex; align-items: center; gap: 7px; }
+.hcnt { font: 11px/1 var(--mono, ui-monospace, monospace); opacity: .55; border: 1px solid currentColor;
+        border-radius: 99px; padding: 2px 6px; }
+.hpie { font-size: 11.5px; opacity: .5; margin: 0 0 10px; }
+.hitem { border-left: 2px solid currentColor; padding: 2px 0 2px 11px; margin-bottom: 12px; opacity: .85; }
+.hitem.vencido { border-left-color: #e5534b; opacity: 1; }
+.hmeta { display: flex; gap: 9px; flex-wrap: wrap; align-items: baseline;
+         font: 11px/1.4 var(--mono, ui-monospace, monospace); opacity: .6; margin-bottom: 3px; }
+.hitem.vencido .hedad { color: #e5534b; opacity: 1; font-weight: 600; }
+.hquien { opacity: .8; }
+.hque { margin: 0; font-size: 13.5px; line-height: 1.5; }
+.hcomo { margin: 7px 0 0; padding: 8px 10px; border-radius: 6px; background: rgba(127,127,127,.1);
+         font: 11.5px/1.6 var(--mono, ui-monospace, monospace); white-space: pre-wrap;
+         word-break: break-word; opacity: .8; }
 </style>

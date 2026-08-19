@@ -51,7 +51,13 @@ primero y estaba mal: la clase no garantizaba nada que el test no garantice.)
 `NameMatchPorEntornoTest` **se invirtió** en vez de borrarse: los mismos siete entornos, ahora
 fijando que ninguno deja pasar una identidad ajena.
 
-**La rama quedó en UN SOLO commit, `9012f289`** (21 archivos, +1442): se unificaron los tres que
+**La rama quedó en UN SOLO commit, `9012f289`** (21 archivos, +1442)
+
+> **DECISIÓN · 2026-08-18** — se elimina el relajo por entorno de la coincidencia de nombre; el lambda permite dictar el nombre por cédula y dejó de tener motivo.
+
+> **DECISIÓN · 2026-08-18** — no queda ninguna clase nueva: sin el relajo el criterio es `$a === $b` y el guardia contra que el atajo vuelva es el test, no dónde viva la línea.
+
+> **RIESGO · 2026-08-18** — el cliente que legítimamente tiene un solo apellido sigue pasando sin fricción. Es el riesgo del cambio y es lo que QA tiene que mirar con lupa.: se unificaron los tres que
 tenía, así el PR #1127 se lee como una unidad. ⚠ Eso reescribió el historial — para actualizar el PR
 hay que `push --force-with-lease`, y **no está pusheado**.
 
@@ -103,6 +109,8 @@ ejecutado— y coinciden con la matriz clase por clase.
   «returning true», y viceversa). Comportamiento correcto, log mentiroso — y es el helper que decide
   si la solicitud sigue o muere. **Arreglado** en este commit; son dos strings.
 
+> **RIESGO · 2026-08-18** — la regla de adopción sólo funciona en media cascada: el caso de las 127 personas lo completa Mareigua y Ágil lo rechaza. Se acepta a sabiendas mientras no se decida qué hacer con la rama de Ágil.
+
 ### Sobre los apellidos invertidos: se midió, y NO hay nada que quitar
 
 Se dudó de la regla `reordered` («deberíamos asumir que los nombres llegan en orden»). Medido en
@@ -127,6 +135,9 @@ Stack local, `APP_ENV=local`, burós **fuera** del `.env` (resuelven a `real`) y
 | identidad ajena en las tres | **RECHAZADO** · `ONB005` — antes del cambio esto **pasaba** |
 
 El A/B del bypass, en la traza de Loki local, mismo escenario:
+
+> **MEDICIÓN · 2026-08-18** — 500 combinaciones de nombres en frío y 20 recorridos por API: todo se comporta como se diseñó salvo el caso de la parte que sobra.
+> python3 corpus/generar.py 500 | php evaluar-nombres.php
 
 ```
 antes  (uReq 464959)   kyc.name_adoption → kyc.name_match_relaxed → «Mareigua OK, using returned
@@ -444,7 +455,11 @@ tres conversaciones pendientes (José, Joel, Duncan).
 ### Preguntas abiertas
 
 - ¿Qué hay detrás de los **74.206 códigos `99`** de Ágil? Ellos guardan la respuesta real.
+
+> **PREGUNTA · 2026-08-15 · Ágil Data** — ¿qué hay detrás de los 74.206 códigos 99? El proveedor guarda la respuesta real.
 - ¿Cuándo aterriza el **TusDatos nuevo**? Con eso se reescribe `TusDatosService`.
+
+> **PREGUNTA · 2026-08-15 · Joel** — ¿cuándo aterriza el TusDatos nuevo? Cambia el contrato: deja de devolver el nombre.
 - ¿El `random_int(0,1)` de pre-aprobados es deliberado? Hace staging irreproducible.
 - ¿Cuál es el **`APP_ENV` de staging**? Decide si el HACK de Wompi es código vivo o muerto.
 - Cuando la central devuelve **otra persona** (`different_person`), el mensaje dice «corregí el
@@ -609,6 +624,9 @@ apellido no coincide» — el `if` lo tira. **Arreglo: `=== null`.**
 **Medido en prod** sobre 4.874 chequeos de TusDatos desde 2026-07-23 (`kyc_name_checks`, 9.554 filas
 totales): **198 validaciones pasaron con un «no coincide» declarado** — 87 de segundo apellido, 87 de
 segundo nombre, 24 de segundo apellido sin segundo nombre.
+
+> **MEDICIÓN · 2026-07-23** — 198 validaciones pasaron con un «no coincide» declarado por TusDatos.
+> SELECT COUNT(*) FROM kyc_name_checks WHERE central='tusdatos' AND JSON_EXTRACT(detail,'$.match_codes.second_surname')=0
 
 ## Por qué nada lo agarró — dos razones estructurales
 
