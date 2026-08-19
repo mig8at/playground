@@ -24,8 +24,14 @@ jira_title: "Internacionalizacion. Flujo de onboarding otros paises. (celular, t
 >   conflicto (`MERGEABLE`) y frenado sólo por `REVIEW_REQUIRED`. PR **#785 → main**, abierto desde el
 >   10/8, sin tocar. Sin esto, el `country` que el backend ya publica **no lo consume nadie**: el wizard
 >   sigue asumiendo el prefijo.
-> - **admin (`legacy-application`)** — sólo PR **#50 → main**, abierto desde el 10/8 y **sin siquiera
->   revisor pedido**. No hay rama ni PR hacia `develop`, y el cherry-pick a `develop` entra **limpio**.
+> - **admin (`legacy-application`)** — sólo PR **#50 → main**, abierto desde el 10/8. No hay rama ni PR
+>   hacia `develop`, y el cherry-pick a `develop` entra **limpio**.
+>
+> ⚠ **Y la causa de fondo, medida el 19/8: a NINGUNO de los tres PR abiertos se le pidió revisor.**
+> `reviewRequests` viene **vacío** en los tres (#785, #834, #50); el `REVIEW_REQUIRED` de los del front
+> es la protección de rama exigiendo una revisión que nadie tiene asignada. No están «esperando a que
+> alguien conteste»: nunca se le preguntó a nadie. CI, en cambio, está **verde** (Sonar *Quality Gate
+> passed* en #785 y #834).
 >
 > ⚠ **El admin (`legacy-application`) no tiene ambiente de staging**: ese repo solo tiene `develop` (dev)
 > y `main` (prod) — ni rama ni workflow `stg`, ni referencia a un servicio `-stg`. Los dos criterios de
@@ -1355,8 +1361,14 @@ dicen «COLOMBIANA». No falta funcionalidad: falta que el país sea un dato que
   - `frontend-monorepo` **#785 → main**: OPEN, `REVIEW_REQUIRED`, sin tocar desde el 10/8.
   - `frontend-monorepo` **#834 → staging**: OPEN, abierto el 18/8. `mergeable: MERGEABLE` y
     `mergeStateStatus: BLOCKED` — o sea **bloqueado por la revisión obligatoria, no por conflicto**.
-  - `legacy-application` **#50 → main**: OPEN desde el 10/8 y **sin `reviewDecision`**: no se le pidió
-    revisor. Es el más olvidado de los tres.
+  - `legacy-application` **#50 → main**: OPEN desde el 10/8, `mergeable: CLEAN` y **sin
+    `reviewDecision`** — en ese repo no hay protección que exija revisión, así que se podría mergear.
+
+  🔴 **Y la causa de fondo: a ninguno de los tres se le pidió revisor.** `reviewRequests` está **vacío**
+  en #785, #834 y #50, y los tres tienen **0 reviews**. El `REVIEW_REQUIRED` del front no es «alguien lo
+  está mirando y no contesta»: es la protección de rama pidiendo una revisión que **nunca se asignó**.
+  Los únicos comentarios de los PR del front son del bot de Sonar, con **Quality Gate passed** (3 issues
+  nuevos en #785, 1 en #834, ninguno bloqueante). O sea: **CI verde, cero humanos convocados.**
   - Y los tres commits **siguen aplicando limpio sobre el `main` de hoy** (simulado con `git merge-tree`,
     que no escribe). El rebase que se temía por Motai no hace falta contra `main`.
 
@@ -1378,12 +1390,13 @@ dicen «COLOMBIANA». No falta funcionalidad: falta que el país sea un dato que
 
   **Y Jira está bien puesto**, para variar: **CORE-365** figura en **«👀 En revisión»** con sus 5 puntos
   (snapshot del 18/8 20:56). La bitácora del 09-08 lo había dejado en «🧪 En pruebas», pero el estado de
-  hoy describe mejor la realidad — lo que falta es que alguien mire los PR. No hace falta moverlo.
+  hoy describe mejor la realidad — lo que falta es que a alguien **le pidan** mirar los PR. No hace falta moverlo.
 
   **Lo que sigue, en orden:** (1) conseguir revisión de **#834** —es el único merge que hace que las
   pantallas de teléfono cambien en un ambiente—; (2) abrir `feature/pais-como-dato-onto-develop` en
   `legacy-application` (cherry-pick de `c81320b0` sobre `origin/develop`, limpio) para poder validar en
-  dev los dos criterios del selector de ciudad; (3) pedir revisor en **#50**, que no tiene ninguno; (4)
+  dev los dos criterios del selector de ciudad; (3) **asignar revisor a los tres** —es el paso que falta de verdad, ninguno tiene—, teniendo en cuenta
+  que #50 no tiene protección de rama y podría mergearse sin ella; (4)
   los tres a `main` cuando pasen revisión.
 
 ## Tarea (publicable)
