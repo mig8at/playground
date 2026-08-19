@@ -69,18 +69,26 @@ async function snap(): Promise<Snap | null> {
     }
 }
 
-/** Registra una navegación y la contrasta con la BD. Se llama desde `framenavigated`; no hay que await-earla. */
-export function paso(ventana: string, ruta: string): void {
+/** Registra una navegación y la contrasta con la BD. Se llama desde `framenavigated`; no hay que await-earla.
+ *  `foto` (opcional, solo el runner visual): saca el screenshot DENTRO de la cola —así la línea 📸 sale
+ *  pegada a SU navegación y no mezclada— y devuelve el nombre del archivo, o null si no pudo. */
+export function paso(ventana: string, ruta: string, foto?: (n: number) => Promise<string | null>): void {
     cola = cola.then(async () => {
         n += 1;
         const s = await snap();
         const idx = String(n).padStart(2, '0');
         const izq = `${idx} ${bold(ventana)} ${ruta}`.padEnd(useColor ? 62 : 54);
 
-        if (!uReq) { log(`${izq}${gray('│ BD  —  (sin solicitud todavía)')}`); linea.push({ n, ventana, ruta, st: null, estado: null, cambio: false }); return; }
+        if (!uReq) {
+            log(`${izq}${gray('│ BD  —  (sin solicitud todavía)')}`);
+            linea.push({ n, ventana, ruta, st: null, estado: null, cambio: false });
+            if (foto) { const f = await foto(n).catch(() => null); if (f) log(`     📸 ${f}`); }
+            return;
+        }
         if (!s) {
             log(`${izq}${red('│ BD  ✗ la solicitud no está en la BD')}`);
             linea.push({ n, ventana, ruta, st: null, estado: null, cambio: false });
+            if (foto) { const f = await foto(n).catch(() => null); if (f) log(`     📸 ${f}`); }
             return;
         }
 
@@ -106,6 +114,7 @@ export function paso(ventana: string, ruta: string): void {
         log(`${izq}${der}`);
         linea.push({ n, ventana, ruta, st: s.st, estado: s.estado, cambio });
         previo = s;
+        if (foto) { const f = await foto(n).catch(() => null); if (f) log(`     📸 ${f}`); }
     }).catch(() => { /* nunca romper la corrida por la traza */ });
 }
 

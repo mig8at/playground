@@ -206,11 +206,19 @@ test('guided (semiautomático)', async ({ browser }) => {
     // navegación a /lenders se despertaba B con la rama de redirect y el handoff real de CreditopX quedaba
     // ignorado. La regla vive en pkg/windows (misma familia que openA/openB) para poder probarla.
     const isExternal = (u: string) => isExternalUrl(u, config.feBaseUrl);
+    // Foto POR NAVEGACIÓN, para la consola del panel (que pinta la miniatura bajo cada línea 📸). Viewport,
+    // no fullPage: es "lo que se veía", y es más rápida. Corre dentro de la cola de la traza — si la página
+    // ya navegó de nuevo o el shot falla, devuelve null y la línea queda sin foto (mejor eso que romper).
+    const fotoNav = (pg: Page, ventana: string) => async (num: number): Promise<string | null> => {
+        const name = `nav-${String(num).padStart(2, '0')}-${ventana}.png`;
+        try { await pg.screenshot({ path: join(AUTH, name), timeout: 4000 }); return name; }
+        catch { return null; }
+    };
     page.on('framenavigated', (f) => {
         if (f !== page.mainFrame()) return;
         const u = f.url();
         let p = u; try { p = new URL(u).pathname; } catch { /* about:blank / data: */ }
-        traza.paso('A', p);
+        traza.paso('A', p, fotoNav(page, 'A'));
         if (isExternal(u)) externalUrl = u;
     });
     page.context().on('page', async (pp) => { const u = pp.url(); if (isExternal(u)) { externalUrl = u; log(`popup externo → ${u}`); } await pp.close().catch(() => {}); });
@@ -275,7 +283,7 @@ test('guided (semiautomático)', async ({ browser }) => {
     B.on('framenavigated', (f) => {
         if (f !== B.mainFrame()) return;
         let p = f.url(); try { p = new URL(f.url()).pathname; } catch { /* about:blank / data: */ }
-        if (p !== 'about:blank') traza.paso('B', p);
+        if (p !== 'about:blank') traza.paso('B', p, fotoNav(B, 'B'));
     });
     B.on('console', (m) => {
         const t = m.type();
