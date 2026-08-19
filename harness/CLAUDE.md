@@ -167,13 +167,18 @@ roto** (F-88). Si trabajás Bancolombia, cargá `harness-canal-qr` y corré `npm
 **La regla del harness: `local` mockea, `dev` y `staging` prueban contra lo real.** Si en dev algo sale
 por un mock, dev deja de ser representativo y la prueba no vale.
 
-| | `local` | `dev` | `staging` |
-|---|---|---|---|
-| pre-aprobaciones | mock `:8095` | **MS real** `pre-approvals-service…:8082` | MS real |
-| payvalida · mdm · lenders · forms · ábaco | mocks | reales | reales |
-| backend (rama que sirve) | local (sail/Docker) | `legacy-backend` → **develop** | `legacy-backend-qa` → **qa** |
-| BD | local (sail/Docker) | dev real (compartida) | **la misma de dev** (compartida) |
-| front | local `:5174` | local `:5174` | **desplegado** (`originaciones-qa`) — o local, con el switch |
+| | `local` | `dev` | `staging` | `qa` |
+|---|---|---|---|---|
+| pre-aprobaciones | mock `:8095` | **MS real** `pre-approvals-service…:8082` | MS real | MS real |
+| payvalida · mdm · lenders · forms · ábaco | mocks | reales | reales | reales |
+| backend (rama que sirve) | local (sail/Docker) | `legacy-backend` → **develop** | `legacy-backend-stg` → **staging** | `legacy-backend-qa` → **qa** |
+| BD | local (sail/Docker) | dev real (compartida) | **la misma de dev** | **la misma de dev** |
+| front | local `:5174` | local `:5174` | **desplegado** (`originaciones-stg`) | **desplegado** (`originaciones-qa`) |
+
+⚠ Hasta el 2026-08-19, `.env.staging` apuntaba a **qa** (backend `-qa` + `originaciones-qa`) y el
+target `staging` medía la rama equivocada. Se partió en dos: `.env.staging` (ahora sí `legacy-backend-stg`
++ `originaciones-stg`) y `.env.qa` (lo que el archivo viejo siempre fue). Para saber qué rama tenés
+enfrente sin adivinar: `allowed_document_types` en `GET /api/loans/allied/{hash}` **solo** lo trae `qa`.
 
 ⚠ **`dev` y `staging` NO son el mismo backend, aunque el cluster se llame igual.** En `inertia-develop`
 conviven **dos servicios**: `legacy-backend` (sirve la rama `develop`, workflow `main-dev.yaml`) y
