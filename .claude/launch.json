@@ -118,6 +118,18 @@
       ],
       "port": 8000,
       "url": "http://admin.localhost:8000"
+    },
+    {
+      "name": "wizard",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "run",
+        "dev",
+        "--prefix",
+        "/Users/miguelochoa/Desktop/CREDITOP/github/frontend-monorepo/apps/loan-request-wizard"
+      ],
+      "port": 5174,
+      "autoPort": false
     }
   ]
 }
