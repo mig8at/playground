@@ -82,6 +82,28 @@ Cuatro cosas que vimos, y lo que esta explicación predice para cada una:
 
 ---
 
+## Más caminos posibles (segunda opinión, 19/08)
+
+Se le pasó el caso completo —con el código— a un segundo analista. Aportó **tres vías que no estaban**,
+y las tres son plausibles:
+
+- **Correr una prueba suelta desde el editor.** PhpStorm y VS Code, al darle *Run* a un archivo de
+  prueba, **no siempre cargan la configuración de pruebas**. Sin ella no hay ningún candado: la prueba
+  usa directamente lo que diga el `.env`. Encaja bien con «no quedaron datos», porque estas pruebas
+  envuelven su trabajo en una transacción y la deshacen al terminar. **Quien lo hizo pudo haber visto
+  sólo un tick verde.**
+- **La variable `DATABASE_URL`.** Es una forma alternativa de escribir toda la conexión en una sola
+  línea, y **le gana a las variables sueltas**. Está soportada en cuatro lugares de
+  `config/database.php`. Si alguien la tiene puesta, un candado sobre «cuál servidor» o «cuál base»
+  **no sirve de nada**: se saltea entero.
+- **Configuración compilada.** Si alguien ejecutó el comando que compila la configuración
+  (`config:cache`), las pruebas obedecen a esa copia y **ignoran los candados** del archivo de pruebas.
+
+⚠ **Y una hipótesis suya se descartó midiendo.** Propuso que la reconstrucción no se detuvo, sino que
+el proyecto tiene sólo 19 migraciones porque las viejas estaban colapsadas en un volcado. Se verificó:
+hay **361 archivos** de migración en `main` y **no existe** esa carpeta de volcado. La reconstrucción sí
+se quedó a mitad.
+
 ## Cómo confirmarlo o descartarlo
 
 - **Mirar los registros del servidor de base de datos.** Este proceso deja una huella muy reconocible: una
@@ -96,15 +118,19 @@ Cuatro cosas que vimos, y lo que esta explicación predice para cada una:
 
 ## Qué se puede arreglar sin esperar el diagnóstico
 
-Las tres son independientes de quién lo haya disparado, y ninguna es costosa:
+Son independientes de quién lo haya disparado, y ninguna es costosa. **En este orden**:
 
-1. **Poner el candado que falta.** Fijar en la configuración de pruebas **cuál servidor** —además de cuál
-   base— y hacerlo de forma que el entorno no lo pueda pisar. Es el arreglo de raíz: si el servidor
-   compartido no es alcanzable desde las pruebas, esto no puede volver a pasar.
-2. **Quitarles a esas dos pruebas la parte que borra.** Hoy no están pasando en ningún ambiente —no
+1. **Quitar el permiso de borrar.** Que el usuario de base de datos que usan los desarrolladores en su
+   día a día **no pueda eliminar tablas** en la base compartida. Es el único arreglo que cubre *todas*
+   las vías a la vez —incluidas las tres de la sección anterior—, porque no depende de ninguna
+   configuración ni de que nadie se equivoque: el borrado simplemente no se puede ejecutar. Los cambios
+   de estructura los aplica la pipeline, que sí tiene ese permiso.
+2. **Poner el candado que falta en la configuración de pruebas.** Fijar **cuál servidor**, además de
+   cuál base, de forma que el entorno no lo pueda pisar. ⚠ Y hay que incluir **`DATABASE_URL`**: si se
+   olvida, quien la tenga configurada se saltea el candado completo. Esto tapa el camino de las pruebas,
+   pero **no** el de un comando destructivo escrito a mano.
+3. **Quitarles a esas dos pruebas la parte que borra.** Hoy no están pasando en ningún ambiente —no
    pueden, porque la reconstrucción falla—, así que sacarlo no pierde nada real.
-3. **Separar las credenciales.** Que la configuración de trabajo del día a día no tenga permiso de
-   escritura sobre la base compartida convierte un accidente en un simple error de permisos.
 
 ---
 
@@ -130,6 +156,16 @@ if ($force || getenv($name) === false) {
 
 `phpunit.xml` no usa `force="true"`, así que un `DB_DATABASE` ya presente en el entorno —un
 `docker exec -e DB_DATABASE=…`, una task definition de ECS, o una shell con el entorno cargado— gana.
+
+Si se endurece `phpunit.xml`, **`DATABASE_URL` tiene que ir en la lista** o el resto no sirve:
+
+```xml
+<env name="DATABASE_URL" value="" force="true"/>
+<env name="DB_HOST" value="127.0.0.1" force="true"/>
+<env name="DB_DATABASE" value="testing" force="true"/>
+<env name="DB_USERNAME" value="root" force="true"/>
+<env name="DB_PASSWORD" value="" force="true"/>
+```
 
 ⚠ Al censar los archivos afectados: `grep -l RefreshDatabase` da **7 y es falso positivo**. Hay que buscar
 `^\s*use RefreshDatabase;` — los otros 5 sólo lo mencionan (en `tests/Feature/ExampleTest.php` está
