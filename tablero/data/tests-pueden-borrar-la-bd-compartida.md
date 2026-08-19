@@ -16,11 +16,18 @@ jira_title: "Blindar la suite de pruebas para que no pueda borrar la base de dat
 > **Evidencia (tomada en caliente, antes de cualquier restore):**
 > - `information_schema`: `allieds`, `users`, `user_requests` y `migrations` tienen `CREATE_TIME`
 >   **2026-08-19 15:43:33–15:43:42 UTC**. Fueron recreadas, no vaciadas.
-> - `migrations`: **19 filas, todas `batch = 1`** — un `migrate` desde cero que **murió en la 19**. La BD
->   real llevaba ~385. Eso es exactamente «entrega la mitad destructiva y no la restaurativa».
-> - Sólo quedan **97 tablas** y `allied_branches` y `countries` **ya no existen**.
-> - `SELECT COUNT(*) FROM allieds` → **0**. `GET /api/loans/allied/{hash}` → **404** para hashes que
->   20 minutos antes devolvían 200 con datos completos.
+> - `migrations`: **todas `batch = 1`** — un `migrate` desde cero. Se lo vio **avanzar en vivo**: 19
+>   filas en la primera medición y **184** minutos después, y ahí **se detuvo** (tres muestras
+>   separadas 15s, sin moverse). Producción lleva **426**, así que quedó en el **43%**.
+> - La última aplicada es `2024_11_21_170930_create_colombian_holidays_table`: la migración **185** es
+>   donde se plantó.
+> - **147 tablas** creadas de las que debería haber, y **cero datos**: `SELECT COUNT(*) FROM allieds`
+>   → **0** con la tabla ya existiendo. `GET /api/loans/allied/{hash}` → **404** para hashes que 20
+>   minutos antes devolvían 200 con datos completos.
+> - Eso es exactamente «entrega la mitad destructiva y no la restaurativa», sólo que el punto de muerte
+>   **no** es el que midió esta tarea contra una base desechable (207 de 358, por
+>   `initial_fee_percentage`). Acá se plantó mucho antes, en la 185 — o sea que **hay más de un punto de
+>   falla** en la cadena de migraciones, y el diagnóstico previo se quedó corto.
 >
 > **Qué NO fue** (descartado con medición, no por descarte lógico):
 > - **no fue un deploy**: el de `legacy-application` a dev (PR #68) usa `deploy-multi-service.yaml`, que
@@ -36,6 +43,16 @@ jira_title: "Blindar la suite de pruebas para que no pueda borrar la base de dat
 >
 > ✅ **Producción intacta** (verificado el mismo día: 326 comercios, 530.376 solicitudes, 426
 > migraciones). ⚠ **Staging cae con dev**, porque comparten esta misma base.
+>
+> **Desde cuándo existe el agujero** (medido en `legacy-backend`, contra `origin/main`):
+> - `Modules/Loans/tests/Unit/CreditopXDatacreditoAdjustmentServiceTest.php` — el trait entró el
+>   **2026-01-09** (`c208156a`, Jose Escobar, «Develop (#244)»): **7 meses**.
+> - `Modules/Loans/tests/Feature/SafeCancelTest.php` — el **2026-04-29** (`d98bf553`, hans peter,
+>   «Evitar cancelar creditos en estado 11»): **4 meses**.
+> - Y lo que los deja llegar a una base real es más viejo que los dos: `phpunit.xml` trae
+>   `DB_DATABASE=testing` desde el **init del proyecto, 2025-06-25** (`47a50dca`), y **nunca tuvo
+>   `DB_HOST`** — `git log -S 'DB_HOST' -- phpunit.xml` no devuelve **ningún** commit. El host siempre
+>   fue el del `.env`. O sea: **el agujero tiene 14 meses**; lo nuevo es que alguien pasó por él.
 >
 > 👉 **Esto reabre la prioridad**: la tarea estaba en backlog «hasta aterrizar bien la vulnerabilidad».
 > Ya se aterrizó sola, con un ambiente compartido caído.
