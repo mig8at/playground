@@ -9,20 +9,35 @@ jira_title: "Internacionalizacion. Flujo de onboarding otros paises. (celular, t
 ---
 
 # Internacionalización del onboarding
-> **estado (2026-08-18):** 🚀 **el backend está MERGEADO a `staging`, desplegado y migrado.** Entró por
-> `feature/pais-como-dato-onto-staging` (cherry-pick del commit original sobre `origin/staging`, sin
-> conflictos), corre en `legacy-backend-stg` y sus **3 migraciones ya se aplicaron** a la BD compartida
-> dev+staging. Validado contra el ambiente — el detalle, en la bitácora del 2026-08-18.
+> **estado (2026-08-19):** 🚀 **el backend está en `develop` Y en `staging`** — desplegado en los dos y
+> con sus **3 migraciones aplicadas** (dev y staging comparten BD: se aplicaron una sola vez). A staging
+> entró por PR **#1121** (`feature/pais-como-dato-onto-staging`, 18/8 13:40) y a develop por PR **#1126**
+> (`feature/pais-como-dato-onto-develop`, 18/8 14:46), el **único de los cinco PR de esta tarea que
+> recibió revisión** (`APPROVED`); el deploy a dev corrió y quedó `success`. Detalle en las bitácoras
+> del 18 y del 19.
 >
-> ⚠ **El front NO está mergeado**, ni en `main` ni en `staging`. Verificado por patch-id, que detecta
-> squash: `git cherry -v origin/main origin/feature/pais-como-dato` devuelve `+`. O sea que el `country`
-> que el backend ya publica **no lo consume nadie**: el wizard sigue asumiendo el prefijo. Es el
-> siguiente paso, y sin él las pantallas de teléfono no cambian.
+> ⚠ **Faltan los otros dos repos, y ninguno está en NINGUNA rama de ambiente** — reverificado el
+> 2026-08-19 por patch-id (`git cherry`, que detecta squash) contra `main`, `develop`, `staging`, `qa` y
+> `new-main`. Lo que frena a los dos es **la revisión**, no un conflicto: los 3 PR a `main` siguen
+> aplicando limpio sobre el `main` de hoy.
+> - **front (`frontend-monorepo`)** — PR **#834** (`…-onto-staging` → `staging`) está **OPEN**, sin
+>   conflicto (`MERGEABLE`) y frenado sólo por `REVIEW_REQUIRED`. PR **#785 → main**, abierto desde el
+>   10/8, sin tocar. Sin esto, el `country` que el backend ya publica **no lo consume nadie**: el wizard
+>   sigue asumiendo el prefijo.
+> - **admin (`legacy-application`)** — sólo PR **#50 → main**, abierto desde el 10/8 y **sin siquiera
+>   revisor pedido**. No hay rama ni PR hacia `develop`, y el cherry-pick a `develop` entra **limpio**.
 >
 > ⚠ **El admin (`legacy-application`) no tiene ambiente de staging**: ese repo solo tiene `develop` (dev)
 > y `main` (prod) — ni rama ni workflow `stg`, ni referencia a un servicio `-stg`. Los dos criterios de
 > aceptación del selector de ciudad **no se validan en staging**; van en dev, y ya tienen con qué porque
-> dev y staging comparten la BD y las ciudades de RD quedaron sembradas.
+> dev y staging comparten la BD y las ciudades de RD quedaron sembradas. Su deploy de dev **sí está
+> vivo** (`main-dev.yaml` desde `develop`, última corrida `success` el 12/8).
+>
+> ⚠ **Pero el `develop` del front está CONGELADO** — último commit 2026-07-03, **267 commits detrás de
+> `main`**, y `loans-dev.yaml` no corre desde esa misma fecha. Mergear el wizard ahí desplegaría a dev un
+> build de hace mes y medio + el cambio de países. **Y no hace falta:** `harness/.env.dev` levanta el
+> wizard **local** (`E2E_BASE_URL=http://localhost:5174`) contra la API de dev, que ya trae el `country`.
+> El front se valida contra dev **sin mergear nada**; su merge de ambiente es `staging` (#834).
 >
 > ⚠ **`qa` y `staging` son DOS ramas divergentes y vivas**, y **Motai vive solo en `qa`**. Por eso el
 > cherry-pick a `staging` entró limpio y a `qa` choca en `AlliedInfoController` (Motai agregó
@@ -1317,6 +1332,59 @@ dicen «COLOMBIANA». No falta funcionalidad: falta que el país sea un dato que
   cuerpo privado** como publicables — por eso el guard fallaba con repos y rutas. Se movió la marca al
   final: ahora lo publicable son 1.222 chars y **pasa el guard**. ⚠ El mismo descuido está en
   `bcp-peru-estructurar-entidad.md`.
+
+- **2026-08-19** — **Medido el estado real de merge en los tres repos.** Confirmado que **el backend
+  también llegó a `develop`**: PR **#1126** (`feature/pais-como-dato-onto-develop` → `develop`), abierto
+  y mergeado el 18/8 (10:27 y 14:46 hora local), **`APPROVED`** — es el único de los cinco PR de esta
+  tarea que recibió revisión de alguien. El `Deploy Legacy Backend to Dev` corrió sobre ese merge y quedó
+  `success`. La bitácora del 18 sólo había registrado el tramo de staging (#1121), así que este dato
+  faltaba. Con eso el backend queda en **develop + staging**, desplegado en los dos, y **fuera de `main`
+  y de `qa`**.
+
+  **Verificación por patch-id (`git cherry`, detecta squash), no por nombre de rama**, de cada commit
+  contra todas las ramas de ambiente de su repo:
+
+  | repo | commit | main | develop | staging | qa | otras |
+  |---|---|---|---|---|---|---|
+  | `legacy-backend` | `7933352f` (+554/-1, 9 arch.) | ❌ | ✅ #1126 | ✅ #1121 | ❌ | — |
+  | `frontend-monorepo` | `410976d4` (+128/-11, 5 arch.) | ❌ | ❌ | ❌ | ❌ | ❌ `new-main` |
+  | `legacy-application` | `c81320b0` (+62/-5, 3 arch.) | ❌ | ❌ | *no existe* | *no existe* | ❌ `canary` |
+
+  **Los PR vivos, y por qué están parados.** Ninguno choca — **lo que frena es la revisión**:
+  - `legacy-backend` **#1061 → main**: OPEN, `REVIEW_REQUIRED`, sin un toque desde el 2026-08-10.
+  - `frontend-monorepo` **#785 → main**: OPEN, `REVIEW_REQUIRED`, sin tocar desde el 10/8.
+  - `frontend-monorepo` **#834 → staging**: OPEN, abierto el 18/8. `mergeable: MERGEABLE` y
+    `mergeStateStatus: BLOCKED` — o sea **bloqueado por la revisión obligatoria, no por conflicto**.
+  - `legacy-application` **#50 → main**: OPEN desde el 10/8 y **sin `reviewDecision`**: no se le pidió
+    revisor. Es el más olvidado de los tres.
+  - Y los tres commits **siguen aplicando limpio sobre el `main` de hoy** (simulado con `git merge-tree`,
+    que no escribe). El rebase que se temía por Motai no hace falta contra `main`.
+
+  **🔴 Hallazgo nuevo: el `develop` de `frontend-monorepo` está congelado.** Último commit **2026-07-03**,
+  **267 commits detrás de `main`** (y sólo 28 propios), y el workflow que despliega el wizard a dev
+  (`loans-dev.yaml`, que dispara con push a `develop`) **no corre desde ese mismo 2026-07-03**. Mergear
+  ahí no es «poner el cambio en dev»: es publicar a dev un wizard de hace mes y medio con el país encima.
+  **Y no hace falta hacerlo**, porque el harness ya prueba el front de otra forma: `harness/.env.dev`
+  tiene `E2E_BASE_URL=http://localhost:5174` — el wizard corre **local** contra
+  `legacy-backend.inertia-develop`, que desde ayer ya publica `country`. O sea que **el cambio del front
+  se puede validar contra dev hoy, sin mergear nada**. Su merge de ambiente es `staging` (#834).
+  Contraste: en `legacy-application` el `develop` **sí está vivo** (`main-dev.yaml`, última corrida
+  `success` el 12/8) y no tiene commits propios (61 detrás de `main`, subconjunto puro), así que ahí el
+  cherry-pick sí es el camino — y **entra limpio** (simulado).
+
+  **El conflicto con `qa` sigue igual** (reverificado hoy, no heredado): backend choca en
+  `AlliedInfoController.php`; front choca en `allied-theme.repository.ts` y `allied-theme.ts`. A
+  `develop` y a `new-main`, en cambio, el commit del front entra **limpio**.
+
+  **Y Jira está bien puesto**, para variar: **CORE-365** figura en **«👀 En revisión»** con sus 5 puntos
+  (snapshot del 18/8 20:56). La bitácora del 09-08 lo había dejado en «🧪 En pruebas», pero el estado de
+  hoy describe mejor la realidad — lo que falta es que alguien mire los PR. No hace falta moverlo.
+
+  **Lo que sigue, en orden:** (1) conseguir revisión de **#834** —es el único merge que hace que las
+  pantallas de teléfono cambien en un ambiente—; (2) abrir `feature/pais-como-dato-onto-develop` en
+  `legacy-application` (cherry-pick de `c81320b0` sobre `origin/develop`, limpio) para poder validar en
+  dev los dos criterios del selector de ciudad; (3) pedir revisor en **#50**, que no tiene ninguno; (4)
+  los tres a `main` cuando pasen revisión.
 
 ## Tarea (publicable)
 Hoy el onboarding asume un solo país en el código: el prefijo y la longitud del celular, los tipos de
