@@ -1643,6 +1643,29 @@ dicen «COLOMBIANA». No falta funcionalidad: falta que el país sea un dato que
   cuando toque QA. Y el criterio del admin (selector de ciudad) sigue pendiente de mirarse en dev,
   donde ya está desplegado.
 
+- **2026-08-19 (8)** — **Validado también contra DEV, con TODO real: +1 para RD, +57 para Colombia.**
+  Los checkouts locales pasaron a las ramas mergeadas (`develop` en backend y admin; **`staging` en el
+  front**, que trae los 2 commits de países) y la misma sonda corrió con el wizard local apuntado al
+  ambiente compartido — que es el modo de prueba documentado del harness para dev.
+
+  **Cero mocks esta vez:** backend real (`legacy-backend` → develop), **forms-service real** (tiene los
+  schemas de los dos comercios — sirvió el de Smartpay con su branding), productos reales, Cognito real.
+  - **CeluRD Santo Domingo** → `request-phone` con **+1** preseleccionado ✅
+  - **Dentix Chia** → **+57** ✅ (regresión limpia)
+  Capturas: `harness/.auth/paises-local-{rd-dev,co-dev}.png`.
+
+  **La escritura a la BD compartida fue una sola y quedó revertida:** la asignación del asesor
+  (`users.allied_branch_id`) para entrar a cada comercio, hecha con `E2E_TARGET=dev` +
+  `I_KNOW_THIS_TOUCHES_SHARED_DEV=1` exportado a mano (F-53), y **restaurada a Motai `f0548728`** al
+  terminar — verificado con SELECT. Las corridas no pasaron del prefijo: no se creó ninguna solicitud.
+
+  **Un dato de ruteo que salió gratis:** con la asignación a CeluRD, el wizard mandó al asesor
+  **directo a `/request-amount`** (el flujo dinámico) — en dev el comercio RD entra solo por ahí, sin
+  tocar `/solicitar`. La detección de flujo por comercio funciona.
+
+  **Con esto, la evidencia del front cubre local Y dev.** Queda: `additional-info-form`
+  (departamento→ciudad por país) y el criterio del admin en dev — y la decisión de QA formal.
+
 ## Tarea (publicable)
 Hoy el onboarding asume un solo país en el código: el prefijo y la longitud del celular, los tipos de
 documento válidos, los textos, la moneda y los formatos están escritos en el programa en vez de venir de

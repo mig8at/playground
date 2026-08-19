@@ -131,8 +131,8 @@
       "port": 5174,
       "autoPort": false,
       "env": {
-        "VITE_API_URL": "http://127.0.0.1:80",
-        "VITE_ONBOARDING_FORM_SERVICE": "http://localhost:8101/v1"
+        "VITE_API_URL": "http://legacy-backend.inertia-develop",
+        "VITE_ONBOARDING_FORM_SERVICE": "http://onboarding-forms-service.inertia-develop:8092/v1"
       }
     }
   ]
