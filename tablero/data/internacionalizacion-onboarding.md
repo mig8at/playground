@@ -9,29 +9,24 @@ jira_title: "Internacionalizacion. Flujo de onboarding otros paises. (celular, t
 ---
 
 # Internacionalización del onboarding
-> **estado (2026-08-19):** 🚀 **el backend está en `develop` Y en `staging`** — desplegado en los dos y
-> con sus **3 migraciones aplicadas** (dev y staging comparten BD: se aplicaron una sola vez). A staging
-> entró por PR **#1121** (`feature/pais-como-dato-onto-staging`, 18/8 13:40) y a develop por PR **#1126**
-> (`feature/pais-como-dato-onto-develop`, 18/8 14:46), el **único de los cinco PR de esta tarea que
-> recibió revisión** (`APPROVED`); el deploy a dev corrió y quedó `success`. Detalle en las bitácoras
-> del 18 y del 19.
+> **estado (2026-08-19, tarde):** el trabajo está hecho en los tres repos; lo que está desordenado es
+> **dónde quedó cada pieza**. Abajo, en §«Las ramas de esta tarea», está la única tabla que hay que
+> mirar. Resumen: **backend ✅ en `develop`** · **admin ⚠ se mergeó a `main` por afán, falta rehacerlo
+> contra `develop`** · **front 🟡 su PR a `staging` está bien planteado y NO se mergea todavía** (le
+> falta pasar Sonar).
 >
-> ⚠ **Faltan los otros dos repos, y ninguno está en NINGUNA rama de ambiente** — reverificado el
-> 2026-08-19 por patch-id (`git cherry`, que detecta squash) contra `main`, `develop`, `staging`, `qa` y
-> `new-main`. Lo que frena a los dos es **la revisión**, no un conflicto: los 3 PR a `main` siguen
-> aplicando limpio sobre el `main` de hoy.
-> - **front (`frontend-monorepo`)** — PR **#834** (`…-onto-staging` → `staging`) está **OPEN**, sin
->   conflicto (`MERGEABLE`) y frenado sólo por `REVIEW_REQUIRED`. PR **#785 → main**, abierto desde el
->   10/8, sin tocar. Sin esto, el `country` que el backend ya publica **no lo consume nadie**: el wizard
->   sigue asumiendo el prefijo.
-> - **admin (`legacy-application`)** — sólo PR **#50 → main**, abierto desde el 10/8. No hay rama ni PR
->   hacia `develop`, y el cherry-pick a `develop` entra **limpio**.
+> ⚠ **El percance del admin (19/8): `legacy-application` #50 se aprobó y mergeó a `main`.** Verificado
+> que **no rompe nada** —el detalle medido está en la bitácora del 19/8 (2)— y que **todavía no llegó a
+> producción**: ese repo despliega a prod **por TAG** (`main-prod.yaml`, `on: push: tags`), y ningún tag
+> contiene el commit; prod sigue en `v1.0.27`. Pero cuando alguien taguee, **sale**. Que el tag caiga
+> después de las pruebas es ahora una condición de la tarea, no un detalle.
 >
-> ⚠ **Y la causa de fondo, medida el 19/8: a NINGUNO de los tres PR abiertos se le pidió revisor.**
-> `reviewRequests` viene **vacío** en los tres (#785, #834, #50); el `REVIEW_REQUIRED` de los del front
-> es la protección de rama exigiendo una revisión que nadie tiene asignada. No están «esperando a que
-> alguien conteste»: nunca se le preguntó a nadie. CI, en cambio, está **verde** (Sonar *Quality Gate
-> passed* en #785 y #834).
+> ⚠ **Y el front tiene un bloqueante propio, no de revisión: Sonar.** `typescript:S6759` («marcá las
+> props del componente como read-only») pegó en la firma de `PhoneForm` al agregarle
+> `defaultCountryCode` — la regla sólo corre sobre código nuevo, por eso apareció recién ahora aunque la
+> firma ya era así antes. **Arreglado en local el 19/8 y sin pushear** (`Readonly<>`, la convención que
+> el repo ya usa en 112 componentes). El mismo arreglo hace falta en la rama de `main` (#785), si esa
+> rama sobrevive.
 >
 > ⚠ **El admin (`legacy-application`) no tiene ambiente de staging**: ese repo solo tiene `develop` (dev)
 > y `main` (prod) — ni rama ni workflow `stg`, ni referencia a un servicio `-stg`. Los dos criterios de
@@ -57,6 +52,47 @@ jira_title: "Internacionalizacion. Flujo de onboarding otros paises. (celular, t
 > Esta tarea es la **única** del tema: la que llevaba el detalle repo-por-repo se eliminó el 2026-08-09 y
 > lo que valía se absorbió acá (§Material de QA y backlog). Se recupera con
 > `git show d84bd0f:tablero/data/smartpay-multipais-country-pack.md`.
+
+## Las ramas de esta tarea
+
+**Esta es la lista buena.** A propósito **omite las ramas anteriores** (`feature/pais-como-dato` en los
+tres repos y `feature/pais-como-dato-onto-staging` del backend): existieron, algunas siguen abiertas
+como PR, pero **no son el camino** y tenerlas a la vista es lo que causó el desorden. Si un PR viejo
+estorba, se cierra; no se mergea.
+
+| repo | rama de trabajo | va contra | estado |
+|---|---|---|---|
+| `legacy-backend` | `feature/pais-como-dato-onto-develop` | **`develop`** | ✅ **mergeada** (PR #1126, 18/8) y desplegada a dev |
+| `legacy-application` | *(falta crearla)* `feature/pais-como-dato-onto-develop` | **`develop`** | ⛔ **por hacer** — cortar de `origin/develop`, cherry-pick de `c81320b0` (entra limpio), PR nuevo y **pedir revisor** |
+| `frontend-monorepo` | `feature/pais-como-dato-onto-staging` | **`staging`** | 🟡 **PR #834 abierto y bien planteado — NO mergear todavía** (falta Sonar; el fix está en local sin pushear) |
+
+**Por qué cada uno va a donde va:**
+- **backend → `develop`**: es el ambiente compartido donde el equipo prueba, y sus 3 migraciones ya
+  están aplicadas ahí (dev y staging comparten BD, así que sirvieron para los dos).
+- **admin → `develop`**: `legacy-application` **no tiene staging** —sólo `develop` (dev) y `main`
+  (prod)—, y su deploy de dev está vivo. `develop` no tiene commits propios (es subconjunto de `main`),
+  así que el cherry-pick entra limpio.
+- **front → `staging`**: su `develop` está **congelado** desde el 2026-07-03 (267 commits detrás de
+  `main`, `loans-dev.yaml` sin correr), así que mergear ahí no pondría el cambio «en dev»: publicaría un
+  build de hace mes y medio. Y no hace falta, porque el harness levanta el wizard **local** contra la
+  API de dev, que ya publica `country`.
+
+### El desorden, dicho sin adornos (retrospectiva del 19/8)
+
+Las tres ramas se cortaron **de `main`** y se apuntaron **a `main`**, que era lo cómodo pero no lo
+correcto: `main` es producción y esta tarea todavía no está probada. De ahí salió todo lo demás.
+
+1. **`legacy-backend`** debió nacer **en `develop`** desde el principio. En vez de eso salió contra
+   `main` y después se portó **también a `staging`** (#1121) — un ambiente de más, con su propio port y
+   su propia verificación. Trabajo duplicado por no haber elegido el destino al empezar.
+2. **`frontend-monorepo`** también salió contra `main`. Debió nacer **en `staging`**. Hoy ya está bien
+   parado ahí (#834) — pero llegó por un segundo port, no de entrada.
+3. **`legacy-application`** debió nacer **en `develop`**. Salió contra `main` y, por afán, **se aprobó y
+   mergeó ahí** el 19/8. Es el único de los tres que terminó en una rama de producción.
+
+**La lección, para que sirva la próxima:** *el destino de la rama se elige ANTES del primer commit, y el
+destino de una tarea sin probar nunca es `main`.* La convención `<rama>-onto-<ambiente>` que el repo ya
+usa es el parche, no el plan — sirve para portar algo que ya existe, no para decidir a dónde va.
 
 ## Contextos que usa
 - **onboarding** — el journey que hay que parametrizar: entrada por hash de sucursal → celular/OTP → nace la
@@ -1398,6 +1434,56 @@ dicen «COLOMBIANA». No falta funcionalidad: falta que el país sea un dato que
   dev los dos criterios del selector de ciudad; (3) **asignar revisor a los tres** —es el paso que falta de verdad, ninguno tiene—, teniendo en cuenta
   que #50 no tiene protección de rama y podría mergearse sin ella; (4)
   los tres a `main` cuando pasen revisión.
+
+- **2026-08-19 (2)** — **El admin se mergeó a `main` por afán, y el susto valía la pena medirlo.** PR
+  **#50** aprobado y mergeado (commit de merge `b766f619`). Miguel avisó con la duda correcta: *no puedo
+  correr las migraciones en prod, ¿esto rompe algo?* **No.** Tres verificaciones:
+
+  1. **El commit no trae migraciones** (`git show --name-only` → ninguna), y lo que el código lee **ya
+     existe en prod desde siempre**: `allieds.country_id`, `country_zones.country_id`,
+     `country_cities.status/name/id`. Las 3 migraciones del backend agregan `countries.nationality`,
+     pueblan `countries.phone_code` y siembran ciudades de RD — **ninguna de esas la toca este código**.
+     No hay dependencia de esquema, sólo de datos.
+  2. **Todavía no llegó a producción.** `main-prod.yaml` de `legacy-application` dispara **por TAG**
+     (`on: push: tags: - "*"`), **no** por push a `main`. `git tag --contains c81320b0` → ninguno; prod
+     sigue corriendo `87af70a8` (tag `v1.0.27`, del 14/8). El merge a `main` no desplegó nada. ⚠ Pero
+     **el próximo tag lo publica**, y ese tag lo va a empujar cualquiera por cualquier otra razón.
+  3. **Nada destructivo cuando salga**, que era el riesgo real y no tenía que ver con migraciones:
+     **editar una sucursal RD existente NO le borra la ciudad.** `form.city_id` se inicializa de
+     `alliedBranch.country_city_id`, independiente de `:items`; `AppAutocomplete` es un wrapper delgado
+     de `v-autocomplete`, que conserva el `v-model` aunque el valor no esté en la lista; y
+     `UpdateRequest` valida `city_id` sólo con `required`, **sin `exists`**. Guardar reenvía el id
+     intacto. Lo único es cosmético: el campo no puede pintar el nombre de una ciudad ausente de la
+     lista.
+
+  **El efecto que sí va a tener, medido contra prod hoy:** son **314 comercios de Colombia y 12 de
+  República Dominicana**, y RD tiene **32 provincias cargadas y CERO ciudades**. Así que para esos 12
+  los dos selectores quedan con **una sola opción, «TODAS LAS CIUDADES»** (el comodín se conserva
+  siempre, por diseño). Colombia intacto con sus 1.123. La mitad **preventiva** del fix funciona igual
+  —ya nadie puede elegir la «Santo Domingo» de Antioquia—; la **correctiva** no puede hasta que existan
+  las ciudades. **No es una regresión**: elegir la ciudad RD correcta en prod nunca fue posible.
+
+  **Y la salida al bloqueo de migraciones:** la de las ciudades de RD es **sólo datos, un INSERT de 8
+  municipios**, sin cambio de esquema. No tiene por qué ir atada a un deploy ni a `php artisan migrate`:
+  se puede aplicar cuando se pueda tocar prod, antes o después del tag, y el selector se llena solo. Las
+  otras dos (`nationality`, `phone_code`) son del wizard, no del admin.
+
+  **🔴 El front NO está aprobado: lo frena Sonar, no la revisión.** `typescript:S6759` («marcá las props
+  del componente como read-only») pega en la firma de `PhoneForm`, tocada para agregarle
+  `defaultCountryCode`. La regla corre **sólo sobre código nuevo**, por eso aparece ahora aunque esa
+  firma ya era así antes del cambio. Arreglado en local sobre
+  `feature/pais-como-dato-onto-staging` (`8bc9c909`, **sin pushear**): `Readonly<IPhoneFormProps>`, que
+  es la convención que el repo ya usa en **112** componentes, con la firma partida en varias líneas
+  porque Biome lo exige por longitud. Lint del módulo en verde; no hay tests ahí. ⚠ El mismo arreglo
+  falta en la rama de `main` (#785). Corrección a lo que escribí más temprano hoy: el `Quality Gate
+  passed` del bot es el **portón**, que pasa; los *issues* abiertos que reporta al lado son otra cosa y
+  son los que hay que limpiar.
+
+  **Y la retrospectiva, que es lo que Miguel pidió dejar por escrito:** las tres ramas se cortaron de
+  `main` y se apuntaron a `main`. Debieron nacer en `develop` (backend y admin) y en `staging` (front).
+  De ese error salieron el port extra del backend a staging, el port del front, y el merge del admin a
+  producción. Quedó escrito arriba, en **§«Las ramas de esta tarea»**, con la tabla de las **tres ramas
+  buenas** y la instrucción explícita de ignorar las anteriores — que es la parte que evita repetirlo.
 
 ## Tarea (publicable)
 Hoy el onboarding asume un solo país en el código: el prefijo y la longitud del celular, los tipos de
