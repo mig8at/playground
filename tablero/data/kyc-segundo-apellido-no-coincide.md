@@ -232,7 +232,7 @@ OIDC — pero eso se acuerda con Dani, y primero conviene que QA mire la forma.
   1058215730, 2522567332, 934336077 — las dos últimas rechazadas, sin fila). Las variables del
   lambda se purgaron.
 
-**Jira: [CORE-420]** · CORE Sprint 11 · 3 puntos · estado «🧪 En pruebas».
+**Jira: [CORE-420]** · CORE **Sprint 12** · 5 puntos · estado «🧪 En pruebas». *(Decía «Sprint 11 · 3 puntos»: la tarjeta se movió de sprint y le subieron los puntos, y el texto quedó viejo — corregido contra el snapshot del 2026-08-18.)*
 
 > ⚠ `stage: work` porque el tablero sólo tiene tres estados (`evaluation` · `work` · `tasks`) y
 > ninguno es «pruebas». No se inventa un valor que la UI no sabe pintar ni el guard conoce: el estado
