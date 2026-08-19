@@ -26,7 +26,9 @@ const active = ref(null);     // tarea sobre la que se está registrando
 // ── ajustes del tablero ─────────────────────────────────────────────────────────────────────────
 // Flags de "campos de la empresa": tiempo y puntos. OFF por defecto — la empresa no los pide, así que
 // el tablero no los muestra. NO tocan el registro personal (bitácora, mapa de foco), que es el núcleo.
-const settings = ref({ trackTime: false, trackPoints: false });
+// `trackPoints` ya no está: los puntos dejaron de ser opcionales el 2026-08-18. La clave puede
+// seguir en `settings.json` sin molestar — nadie la lee.
+const settings = ref({ trackTime: false });
 const showSettings = ref(false);
 async function loadSettings() {
   try { const s = await (await fetch(`${SERVER}/api/settings`)).json(); if (!s.error) settings.value = s; }
@@ -203,6 +205,35 @@ function verProtos(i) {
 // ── derivados del sprint ────────────────────────────────────────────────────────────────────────
 const done = computed(() => issues.value.filter(i => i.StatusCategory === 'done').length);
 const points = computed(() => issues.value.reduce((n, i) => n + (i.Points || 0), 0));
+
+// ── PUNTOS: cuánto de lo comprometido ya CUENTA ────────────────────────────────────────────────
+// La regla la fijó Oscar el 2026-08-18: los viernes se miden los puntos, y sólo cuentan las tareas
+// en «Terminado» o «En revisión». Todo lo demás vale cero para la métrica, por avanzado que esté.
+//
+// ⚠ «En pruebas» NO cuenta, y es donde más puntos se quedan varados —a un estado de contar—. Por eso
+// existe el desglose: el número solo dice que vas atrás; el desglose dice QUÉ MOVER.
+const cuentaParaMetrica = (i) => i.StatusCategory === 'done' || /revisi[oó]n/i.test(i.Status || '');
+const ptsComprometidos = computed(() => points.value);
+const ptsCuentan = computed(() => issues.value.filter(cuentaParaMetrica).reduce((n, i) => n + (i.Points || 0), 0));
+const ptsVarados = computed(() => {
+  const m = {};
+  for (const i of issues.value) {
+    if (cuentaParaMetrica(i) || !(i.Points > 0)) continue;
+    m[i.Status] = (m[i.Status] || 0) + i.Points;
+  }
+  return Object.entries(m).sort((a, b) => b[1] - a[1]);
+});
+// Tareas sin estimar: la regla dice que TODAS deben tener puntos, incluidas las no planificadas. Una
+// sin puntos no baja la métrica — la deja incompleta, que es peor, porque no se nota.
+const sinPuntos = computed(() => issues.value.filter(i => !(i.Points > 0)).map(i => i.Key));
+// El desfase contra el CALENDARIO: qué fracción del sprint se consumió contra qué fracción ya cuenta.
+// Sólo con el sprint en curso: antes de arrancar o cerrado, comparar contra el calendario es ruido.
+const ritmo = computed(() => {
+  const d = sprintDays.value;
+  if (d?.state !== 'ongoing' || !ptsComprometidos.value) return null;
+  const hecho = Math.round(100 * ptsCuentan.value / ptsComprometidos.value);
+  return { consumido: d.pct, hecho, atras: Math.max(0, d.pct - hecho), dias: d.remaining };
+});
 const jiraTime = computed(() => issues.value.reduce((n, i) => n + (i.SpentSecs || 0), 0));
 const ofSprint = computed(() => entries.value.filter(e => e.sprint === sprint.value?.id));
 const logTime = computed(() => ofSprint.value.reduce((n, e) => n + e.min, 0));
@@ -646,12 +677,9 @@ onMounted(async () => {
               <input type="checkbox" :checked="settings.trackTime" @change="setSetting('trackTime', $event.target.checked)" />
               <span>Registrar tiempo <em>tiempo estipulado + tiempo en Jira</em></span>
             </label>
-            <label>
-              <input type="checkbox" :checked="settings.trackPoints" @change="setSetting('trackPoints', $event.target.checked)" />
-              <span>Registrar puntos <em>story points de las tareas</em></span>
-            </label>
-            <p class="hint">Apagados, la empresa no los pide y el tablero no los muestra. Tu registro
-              personal de tiempo (bitácora y mapa de foco) no depende de esto.</p>
+            <p class="hint">Los PUNTOS ya no se apagan: la empresa los pide desde el 2026-08-18 y se
+              miden los viernes. Tu registro personal de tiempo (bitácora y mapa de foco) no depende de
+              nada de esto.</p>
           </div>
         </template>
       </div>
@@ -669,10 +697,21 @@ onMounted(async () => {
           <div class="bar" v-if="issues.length"><i :style="{ width: (100 * done / issues.length) + '%' }"></i></div>
           <div class="s">terminadas en el sprint</div>
         </div>
-        <div class="stat" v-if="settings.trackPoints">
-          <div class="k">Puntos</div>
-          <div class="v">{{ points }}</div>
-          <div class="s">estimados</div>
+        <!-- PUNTOS: ya no es opcional. La empresa los pide desde el 2026-08-18, así que el check que
+             los escondía se retiró. -->
+        <div class="stat" :class="{ alert: sinPuntos.length }">
+          <div class="k">Puntos que cuentan</div>
+          <div class="v">{{ ptsCuentan }}<span class="de">/{{ ptsComprometidos }}</span></div>
+          <!-- la barra es lo que ya cuenta; la marca, por dónde va el sprint. Relleno a la izquierda
+               de la marca = vas atrás, y cuánto se lee sin hacer la cuenta. -->
+          <div class="bar" v-if="ptsComprometidos">
+            <i :style="{ width: (100 * ptsCuentan / ptsComprometidos) + '%' }"></i>
+            <u v-if="ritmo" :style="{ left: ritmo.consumido + '%' }" :title="`el sprint va por el ${ritmo.consumido}%`"></u>
+          </div>
+          <div class="s" v-if="ritmo && ritmo.atras > 0">{{ ritmo.atras }}% atrás del calendario ·
+            quedan {{ ritmo.dias }} {{ ritmo.dias === 1 ? 'día' : 'días' }}</div>
+          <div class="s" v-else-if="ritmo">al día con el calendario</div>
+          <div class="s" v-else>sólo cuentan Terminado y En revisión</div>
         </div>
         <div class="stat" :class="{ alert: jiraTime === 0 }" v-if="settings.trackTime">
           <div class="k">Tiempo en Jira</div>
@@ -685,6 +724,16 @@ onMounted(async () => {
           <div class="s">listo para subir</div>
         </div>
       </div>
+
+      <!-- Lo accionable: el número de arriba dice que vas atrás, esto dice QUÉ MOVER. Casi siempre son
+           tareas a un solo estado de contar, y sin verlas se leen como trabajo que no existe. -->
+      <p v-if="ptsVarados.length || sinPuntos.length" class="pts-detalle">
+        <template v-if="ptsVarados.length">
+          <span class="pd-k">no cuentan todavía:</span>
+          <span v-for="([est, n]) in ptsVarados" :key="est" class="pd-i"><b>{{ n }} pt</b> en {{ est }}</span>
+        </template>
+        <span v-if="sinPuntos.length" class="pd-i pd-mal"><b>sin estimar:</b> {{ sinPuntos.join(' · ') }}</span>
+      </p>
 
       <section class="card">
         <h2>Mi jornada
@@ -772,7 +821,7 @@ onMounted(async () => {
                   :title="i.CarriedOver ? `Nació en ${i.OriginSprint} y se arrastró sin terminar` : `Nació en ${i.OriginSprint}`">
                   <i></i>{{ i.OriginSprint }}
                 </span>
-                <span v-if="settings.trackPoints && i.HasPoints && i.Points">{{ i.Points }} pts</span>
+                <span v-if="i.HasPoints && i.Points">{{ i.Points }} pts</span>
                 <span v-if="settings.trackTime && taskLocals[i.Key]?.estimateMinutes">{{ minHhmm(taskLocals[i.Key].estimateMinutes) }} estimado</span>
                 <span v-if="settings.trackTime">{{ hhmm(i.SpentSecs) }} en Jira</span>
                 <span class="mine" v-if="minutesOf(i.Key)">{{ minHhmm(minutesOf(i.Key)) }} sin subir</span>
@@ -1369,4 +1418,16 @@ h1 { font-size: 20px; margin: 0; letter-spacing: .2px }
 .hcomo { margin: 7px 0 0; padding: 8px 10px; border-radius: 6px; background: rgba(127,127,127,.1);
          font: 11.5px/1.6 var(--mono, ui-monospace, monospace); white-space: pre-wrap;
          word-break: break-word; opacity: .8; }
+
+/* PUNTOS ---------------------------------------------------------------------------------------- */
+.stat .v .de { opacity: .4; font-size: .62em; font-weight: 500; margin-left: 1px; }
+/* la marca de por dónde va el sprint, sobre la barra de lo entregado */
+.stat .bar { position: relative; }
+.stat .bar u { position: absolute; top: -2px; bottom: -2px; width: 2px; background: currentColor;
+               opacity: .55; border-radius: 1px; }
+.pts-detalle { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: baseline;
+               margin: -6px 0 18px; font-size: 12.5px; opacity: .75; }
+.pd-k { opacity: .6; }
+.pd-i b { font-weight: 600; }
+.pd-mal { color: #e5534b; opacity: 1; }
 </style>
