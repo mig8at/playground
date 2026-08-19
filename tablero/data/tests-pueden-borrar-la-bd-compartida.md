@@ -82,6 +82,26 @@ jira_title: "Blindar la suite de pruebas para que no pueda borrar la base de dat
 > ⚠ **Lo que el barrido NO puede arreglar y sigue en rojo:** las 6 entradas donde el usuario de BD es
 > `admin` (el maestro del RDS) o `root`. Eso es cambio de infraestructura, no de archivo.
 >
+> ✅ **Los DOS PR del arreglo están abiertos (2026-08-19), con revisor pedido (Joelsrh23):**
+> - `legacy-backend` **#1140** — borra los 2 tests destructivos **y** agrega la guarda
+>   (`fix/CORE-431-remove-destructive-db-tests`, 1 commit, +87/−534).
+> - `legacy-application` **#70** — la guarda + `phpunit.xml` endurecido, sin borrar nada
+>   (`fix/CORE-431-lock-test-database`, 1 commit, +92/−1).
+>
+> **La guarda quedó VALIDADA reproduciendo el incidente** sobre un schema local desechable
+> (`creditop_guardtest`, réplica de 244 tablas): sin guarda, el mismo ataque lo dejó en 160 tablas y 0
+> países — el incidente en miniatura; con guarda, **9 vectores bloqueados en los dos repos** (incluido
+> `docker exec -e DB_DATABASE=creditop` dentro del contenedor, el que derrota al `phpunit.xml`) y el
+> schema intacto. Los tests legítimos siguen pasando (SupportBot `OK` dentro del contenedor).
+> **Hallazgo de la validación: el `force="true"` de PHPUnit NO protege** — escribe `putenv()`/`$_ENV`
+> pero no `$_SERVER`, y el `env()` de Laravel lee `$_SERVER` primero. La única protección real es la
+> guarda, que lee la config ya resuelta.
+>
+> 🔴 **Lo que los PR NO cierran, y es de infra:** `make fresh` / `artisan migrate:fresh` a mano no pasan
+> por el bootstrap de tests. Se cierra con las cuentas acotadas sin `DROP` (+ rotar contraseña, separar
+> dev de staging, y arreglar `run-migrations.yml`). Las cuatro están enumeradas en la descripción de los
+> dos PR para que infra las lea ahí.
+>
 > 👉 **Esto reabre la prioridad**: la tarea estaba en backlog «hasta aterrizar bien la vulnerabilidad».
 > Ya se aterrizó sola, con un ambiente compartido caído.
 
