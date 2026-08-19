@@ -12,8 +12,8 @@ jira_title: "Internacionalizacion. Flujo de onboarding otros paises. (celular, t
 > **estado (2026-08-19, tarde):** el trabajo está hecho en los tres repos; lo que está desordenado es
 > **dónde quedó cada pieza**. Abajo, en §«Las ramas de esta tarea», está la única tabla que hay que
 > mirar. Resumen: **backend ✅ en `develop`** · **admin ⚠ se mergeó a `main` por afán, falta rehacerlo
-> contra `develop`** · **front 🟡 su PR a `staging` está bien planteado y NO se mergea todavía** (le
-> falta pasar Sonar).
+> contra `develop`** · **front ✅ aprobado y en verde, y NO se mergea todavía por decisión de Miguel**
+> (primero las pruebas).
 >
 > ⚠ **El percance del admin (19/8): `legacy-application` #50 se aprobó y mergeó a `main`.** Verificado
 > que **no rompe nada** —el detalle medido está en la bitácora del 19/8 (2)— y que **todavía no llegó a
@@ -21,12 +21,17 @@ jira_title: "Internacionalizacion. Flujo de onboarding otros paises. (celular, t
 > contiene el commit; prod sigue en `v1.0.27`. Pero cuando alguien taguee, **sale**. Que el tag caiga
 > después de las pruebas es ahora una condición de la tarea, no un detalle.
 >
-> ⚠ **Y el front tiene un bloqueante propio, no de revisión: Sonar.** `typescript:S6759` («marcá las
-> props del componente como read-only») pegó en la firma de `PhoneForm` al agregarle
-> `defaultCountryCode` — la regla sólo corre sobre código nuevo, por eso apareció recién ahora aunque la
-> firma ya era así antes. **Arreglado en local el 19/8 y sin pushear** (`Readonly<>`, la convención que
-> el repo ya usa en 112 componentes). El mismo arreglo hace falta en la rama de `main` (#785), si esa
-> rama sobrevive.
+> ✅ **El front ya está listo para mergear, y no se mergea por decisión, no por impedimento.**
+> El bloqueante era Sonar (`typescript:S6759` sobre la firma de `PhoneForm`), **arreglado y pusheado el
+> 19/8**: check en `SUCCESS`, `reviewDecision: APPROVED` (la aprobación **sobrevivió al push** porque el
+> ruleset tiene `dismiss_stale_reviews_on_push: false`) e hilo de revisión **resuelto**. El mismo arreglo
+> le falta a la rama de `main` (#785), si esa rama sobrevive.
+>
+> ⚠ **Pero el botón de merge no lo tiene Miguel.** #834 sigue en `BLOCKED` con todo satisfecho, y la
+> causa está medida: el ruleset **«main»** del repo cubre `~DEFAULT_BRANCH` **y `refs/heads/staging`**,
+> trae la regla `update` (restringe quién actualiza la rama) y tiene **cero `bypass_actors`**. La cuenta
+> `mig-creditop` tiene `push` pero no `maintain` ni `admin`. Histórico consistente: los últimos 6 merges
+> a `staging` los apretó **OscarRinc** (uno yamid). O sea que cuando toque mergear, **hay que pedirlo**.
 >
 > ⚠ **El admin (`legacy-application`) no tiene ambiente de staging**: ese repo solo tiene `develop` (dev)
 > y `main` (prod) — ni rama ni workflow `stg`, ni referencia a un servicio `-stg`. Los dos criterios de
@@ -1484,6 +1489,37 @@ dicen «COLOMBIANA». No falta funcionalidad: falta que el país sea un dato que
   De ese error salieron el port extra del backend a staging, el port del front, y el merge del admin a
   producción. Quedó escrito arriba, en **§«Las ramas de esta tarea»**, con la tabla de las **tres ramas
   buenas** y la instrucción explícita de ignorar las anteriores — que es la parte que evita repetirlo.
+
+- **2026-08-19 (3)** — **Front destrabado: Sonar arreglado, pusheado y en verde.** El arreglo
+  (`Readonly<IPhoneFormProps>` + la firma partida por Biome) se pusheó a
+  `feature/pais-como-dato-onto-staging` (`8bc9c909`), con refspec explícito y verificando que
+  `origin/staging` quedara intacto. Resultado en #834: `SonarCloud Code Analysis` → **SUCCESS**,
+  `reviewDecision` → **APPROVED**, hilo de revisión **resuelto**, `mergeable: MERGEABLE`.
+
+  **Dos cosas que aclara el episodio:**
+  - **La aprobación no se cayó con el push**, porque el ruleset tiene
+    `dismiss_stale_reviews_on_push: false`. En un repo con esa opción encendida, arreglar Sonar habría
+    tirado abajo la revisión de Joel y habría que pedirla de nuevo. Conviene saberlo antes de pushear
+    sobre un PR ya aprobado.
+  - **El comentario de Joel era exactamente esto**: «solo sugiero validar la corrección que sugiere
+    SonarQube». No era una objeción de diseño; era el mismo hallazgo. Y su review quedó como `APPROVED`
+    igual, con el `COMMENTED` al lado — leer sólo `reviewDecision` (que estaba vacío en ese momento)
+    hacía parecer que no había aprobado nadie.
+
+  🔴 **Y queda un impedimento que no es del PR: Miguel no puede apretar merge.** #834 sigue `BLOCKED`
+  con todo satisfecho. Medido: el ruleset **«main»** (id 6625180, `enforcement: active`) cubre
+  `~DEFAULT_BRANCH` **y `refs/heads/staging`**, incluye la regla `update` —restringe quién puede
+  actualizar esas ramas— y tiene la lista de **`bypass_actors` VACÍA**; y `mig-creditop` figura con
+  `push: true` pero `maintain: false`, `admin: false`. Consistente con el histórico: los últimos 6
+  merges a `staging` los apretó **OscarRinc** (uno, yamid). **Cuando toque mergear, hay que pedírselo a
+  alguien con permiso** — no es algo que se resuelva del lado del PR. Lo mismo va a pasar en `main`,
+  que el mismo ruleset cubre.
+
+  ⚠ **Y para el paso siguiente que Miguel nombró («pasar a qa»): a `qa` NO entra.** Reverificado hoy:
+  el commit del front choca en `allied-theme.repository.ts` y `allied-theme.ts`, y el del backend en
+  `AlliedInfoController.php` — es el rebase por Motai, que vive sólo en esa rama. Pasar a `qa` no es
+  mergear: es un tercer port con resolución de conflictos a mano. **Antes de prometer QA en `qa`,
+  decidir si las pruebas van ahí o en `staging`** (donde el backend ya está y el front ya está listo).
 
 ## Tarea (publicable)
 Hoy el onboarding asume un solo país en el código: el prefijo y la longitud del celular, los tipos de
