@@ -1682,10 +1682,16 @@ dicen «COLOMBIANA». No falta funcionalidad: falta que el país sea un dato que
     colombianos (Dentix lo mostró; quedó tapado por el valor tecleado en la captura). Corrige además la
     entrada (7): ese placeholder no era evidencia del cambio de países. Va a la fila del catálogo de
     hardcodes.
-  - ⚠ **URL del front de staging:** Miguel dice `originaciones-staging.dev`; medido desde esta máquina,
-    ese nombre **no resuelve** y el que responde es **`originaciones-stg.dev.creditop.com`** (ALB de
-    `inertia-develop`, build DISTINTO de qa y de dev por hash de assets). `.env.staging` queda apuntando
-    a `-stg` hasta confirmar; si `-staging` existe en otro DNS, se corrige en una línea.
+  - ✅ **URL del front de staging CONFIRMADA por Miguel: `originaciones-stg.dev.creditop.com`** (build
+    propio, distinto de qa y de dev). `.env.staging` ya apunta ahí. El mapa completo:
+    `originaciones.dev` = dev · `originaciones-qa.dev` = qa · `originaciones-stg.dev` = staging.
+  - 📌 **Dos decisiones de Miguel (2026-08-19), con su porqué:** la lista quemada `[+1, +57]` **se queda
+    así por ahora** — las pruebas se hacen con celulares COLOMBIANOS aun en comercios RD, y como el
+    cambio *preselecciona sin forzar*, el tester puede volver a +57 y seguir; reemplazar el código por
+    el del país rompería esa práctica. Y el placeholder `RD$16.450` de `AmountForm` **también se queda**:
+    inventariado en el catálogo de hardcodes, sin acción por ahora. Lo que la tarea venía a validar —
+    **el país sale del comercio, no del código** — quedó demostrado: mismo build, dos comercios, dos
+    comportamientos, y la única diferencia es una fila en la BD.
 
 ## Tarea (publicable)
 Hoy el onboarding asume un solo país en el código: el prefijo y la longitud del celular, los tipos de
