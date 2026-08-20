@@ -18,6 +18,27 @@ jira_title: "Agente de soporte: modificación de datos"
 > Los 9 criterios de aceptación de Jira están completos allá (4.406 caracteres). Acá no se repiten:
 > abajo está lo que se averiguó del sistema y lo que se decidió, que es lo que Jira no tiene.
 
+## Si retomás esto sin contexto, empezá acá  ·  actualizado 2026-08-20
+
+**Qué es:** canal de WhatsApp para que un asesor pida cambios de datos de un cliente y el cliente los
+autorice (más una autogestión del cliente para fecha de pago y plazo). Código en `Modules/SupportBot`
+de `legacy-backend`, mergeado a `develop` (PR #1128) y `staging` (PR #1095).
+
+**Dónde está de verdad (2026-08-20):** el código está desplegado en dev y el API Gateway ya expone las
+16 rutas — las dos mitades del bloqueo de infra que faltaban. Verificado pegándole al gateway público.
+Pero **el canal sigue devolviendo 503**: falta la tercera pieza, que es setear la variable de entorno
+`SUPPORT_BOT_TOKEN` en el backend de dev. Sin eso el middleware falla cerrado y ni mira el token.
+
+**El próximo paso es:** que infra setee `SUPPORT_BOT_TOKEN` en el backend de dev (ver «Lo que está
+bloqueado»). Con eso el mismo GET que hoy da 503 debería dar 200/404-de-negocio, y recién ahí se puede
+probar un flujo real con el equipo del bot.
+
+**Lo que ya NO hay que investigar:** el gateway (hecho, 16 rutas, prefijo `/legacy-api/support/*`, host
+`legacy-backend.develop.internal.creditop.com`), que el módulo esté desplegado (lo está: responde 503,
+no 404) y que el token que dieron tenga forma válida (la tiene: 64 hex). El OTP también está construido.
+
+---
+
 ## Estado del código — 2026-08-14 · **PRIMER TRAMO EN REVIEW**
 
 **PR [#1095](https://github.com/Creditop-SAS/legacy-backend/pull/1095) → `staging`, mergeable**, un
@@ -185,18 +206,31 @@ inexistente / `TEMPORAL USER` / perfil no-cliente, y 200 con documento enmascara
 real, en formato nacional y en formato Twilio. **Las 3 tablas del canal quedaron en 0 filas**: el
 canal lee y no escribe.
 
-### Para desplegar — lo único que falta de infraestructura
+### Para desplegar — el estado de infra (medido contra dev el 2026-08-20)
 
-1. **Una variable de entorno: `SUPPORT_BOT_TOKEN`.** Es la única que el commit introduce (verificado
-   contra el diff de `.env.example` y `config/services.php`). Aleatoria y distinta por ambiente
-   (`openssl rand -hex 32`). Sin ella el canal responde **503 a propósito** — falla cerrado.
-2. **Exponer `/api/support/*` en el API Gateway.** Con el comodín alcanza para las 16: no hay que
-   volver a tocarlo. Estas rutas **no pasan por Cognito**.
-3. ⚠ **Preguntar de paso**: ¿el gateway **descarta** las cabeceras `x-user-id` y
-   `x-cognito-identity-id` que manda el cliente antes de poner las suyas? `ResolveCognitoUser` las
-   acepta **sin verificar token** (son 20 líneas, leídas). Si el gateway las reenvía, cualquiera
-   podría hacerse pasar por cualquier usuario en las rutas ya expuestas. Es independiente de esta
-   tarea, pero conviene aprovechar que alguien va a tocar esa configuración.
+De los tres puntos, **dos ya están hechos** y queda uno:
+
+> **MEDICIÓN · 2026-08-20** — contra el API Gateway público de dev, el canal responde 503
+> `CHANNEL_NOT_CONFIGURED` con y sin token. Prueba que `SUPPORT_BOT_TOKEN` está VACÍO en el backend.
+> `curl -s https://api.dev.creditop.com/legacy-api/support/clients -H "Authorization: Bearer <token>"`
+> `# 503; ruta inventada → 404, así que el 503 viene del backend, no del gateway`
+
+1. ⛔ **`SUPPORT_BOT_TOKEN` — SIGUE SIN SETEAR en dev.** Es el único bloqueo que queda. El middleware
+   compara `config('services.support_bot.token') === ''` ANTES de mirar el token que llega, así que
+   mientras esté vacía las 16 rutas dan 503 pase lo que pase. El token que circuló (64 hex, forma
+   correcta) no puede autenticar contra una variable vacía del otro lado. **Acción: infra la setea en
+   el backend de dev.**
+2. ✅ **Gateway — HECHO.** Repo `infrastructure`, commit `67df336`, mergeado a `develop` (PR #65). Las
+   **16 rutas** están expuestas una por una (no por comodín) bajo el prefijo **`/legacy-api/support/*`**
+   → reescritas a `/api/support/*` contra el host `legacy-backend.develop.internal.creditop.com`, sin
+   authorizer de Cognito. ⚠ Ojo con el prefijo: es `/legacy-api`, no `/api` — y la URL pública es
+   `api.dev.creditop.com`, sin `/dev` de stage (con `/dev` da 404).
+3. ✅ **La pregunta de seguridad — CONTESTADA por la config.** El gateway NO reenvía `x-user-id`: cada
+   ruta declara `overwrite:header.host` y no copia cabeceras del cliente, y las rutas de support no
+   llevan authorizer, así que nadie inyecta identidad por ahí. El riesgo que se temía (que el gateway
+   pasara `x-user-id` a `ResolveCognitoUser`) no aplica a `/legacy-api/support/*`, que resuelve identidad
+   por OTP. **Sigue valiendo revisarlo para las rutas viejas `api/loans/consumer/credits/*`**, que sí
+   dependen de esa cabecera — pero eso es otra tarea.
 
 Un asesor no debería poder cambiar los datos de un cliente sin que el cliente se entere y lo apruebe.
 Hoy puede. La tarea pone al **dueño del dato** en el medio: el asesor pide el cambio desde WhatsApp,
@@ -1323,6 +1357,27 @@ recorta el límite de envío. Un mensaje de autorización que parezca phishing g
 castigo pega sobre el número que también se usa para cobrar.
 
 ---
+
+## Registro
+
+<!-- append-only, lo nuevo arriba. (Esta tarea no tenía sección de registro; se agrega siguiendo
+     PLANTILLA-TAREA.md. Lo de arriba es el ESTADO, que se reescribe; esto es qué pasó cada día.) -->
+
+### 2026-08-20 — validación contra dev: el gateway está, la variable no
+
+Se retomó el bloqueo de infra pegándole al ambiente de dev con el token que pasó infra. Resultado: el
+API Gateway ya expone las 16 rutas (bloqueo #2, hecho) y el módulo está desplegado, pero
+`SUPPORT_BOT_TOKEN` sigue vacío en el backend, así que todo da 503 (bloqueo #1, abierto). Camino
+recorrido, por si hay que rehacerlo:
+
+- El nombre real del módulo es `Modules/SupportBot`, no `SupportAgent` como decía la tarea.
+- Loki NO sirve acá: `legacy-backend` no empuja ninguna línea al stack de dev (deuda conocida del canal
+  de logs). El diagnóstico salió del código de infra, no de los logs.
+- La pista fue el repo `infrastructure`: la rama `feat/CORE-258-rutas-support-bot-dev` (commit `67df336`,
+  PR #65) expone las rutas. En el merge a `develop` alguien corrigió el host destino de
+  `legacy-api.develop…` a `legacy-backend.develop.internal.creditop.com`.
+- El gateway enumera las 16 (cero comodines) y no reenvía `x-user-id` → eso cierra la pregunta de
+  seguridad para estas rutas.
 
 ## Tarea (publicable)
 
