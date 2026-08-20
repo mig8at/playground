@@ -9,7 +9,7 @@
 // qué se está trabajando, que es la pregunta que el tablero contesta.
 //
 //	nombre del archivo      el slug de la tarea (renombralo a mano si querés: el id vive adentro)
-//	frontmatter             id · title · stage · created · archived? · context_nodes[] · jira[] · jira_title
+//	frontmatter             id · title · stage · created · archived? · context_nodes[] · jira[] · jira_title · ramas?
 //	cuerpo                  las notas técnicas: PRIVADO, puede nombrar repos y rutas
 //	## Tarea (publicable)   lo único que va a Jira, y pasa el guard
 //
@@ -219,6 +219,7 @@ func (s *Store) leerEffort(slug string) (Effort, string, error) {
 		// el struct expone los nodos como cadena separada por comas (así lo consume la UI);
 		// en el archivo son una lista YAML, que es lo legible
 		ContextNodes: strings.Join(listaYAML(fm["context_nodes"]), ","),
+		RamasPatron:  fm["ramas"],
 	}
 	if e.Stage == "" {
 		e.Stage = "evaluation"
@@ -617,6 +618,11 @@ type Effort struct {
 	// del playground. Y NO gradúa a `context/`: describe lo que se acordó un día, no cómo funciona
 	// CreditOp — muere con la tarea.
 	Artifacts []Artifact `json:"artifacts"`
+	// RAMAS: el PATRÓN de nombre de rama con el que se trabaja esta tarea (ej. `pais-como-dato`). Es lo
+	// ÚNICO que se escribe a mano; qué ramas existen y hasta dónde llegó cada una lo mide git —ver
+	// `ramas.go`—, porque una lista de ramas a mano miente en silencio en cuanto algo se mergea o se
+	// renombra. Vacío = la tarea no toca código (o todavía no se sabe).
+	RamasPatron string `json:"ramasPatron"`
 }
 
 // Stages son las etapas válidas, en orden.
@@ -923,6 +929,10 @@ func (s *Store) escribirEffort(id int64) error {
 	fmt.Fprintf(&b, "context_nodes: [%s]\n", strings.Join(listaYAML(e.ContextNodes), ", "))
 	fmt.Fprintf(&b, "jira: [%s]\n", strings.Join(claves, ", "))
 	fmt.Fprintf(&b, "jira_title: %s\n", escYAML(e.JiraTitle))
+	// Sólo si hay patrón: una tarea que no toca código no debería cargar una clave vacía.
+	if e.RamasPatron != "" {
+		fmt.Fprintf(&b, "ramas: %s\n", escYAML(e.RamasPatron))
+	}
 	b.WriteString("---\n\n")
 	b.WriteString(conSaltoFinal(e.TechNotes))
 	if e.JiraDescription != "" {

@@ -82,6 +82,12 @@ bitacora: ## @dia el tiempo registrado, agrupado por día. DAYS=7 · JSON=1 (la 
 	@cd tablero/server && go run ./cmd/tareas -bitacora $(or $(DAYS),7) $(if $(JSON),-json)
 
 # ⚠ Sale 1 si el texto NO puede salir: sirve para frenar antes de publicar, no sólo para informar.
+# Mide contra los repos LOCALES lo que el último `fetch` dejó: no habla con la red a propósito (un
+# comando de lectura que sale a internet sorprende, y en 13 repos nadie lo correría). Por patch-id, así
+# que detecta un cambio que llegó por SQUASH — donde el nombre de la rama ya no existe.
+tareas-ramas: ## @dia ¿en qué ramas vive cada tarea y hasta dónde llegó? mide git y guarda el snapshot. N=<id|título> · JSON=1
+	@cd tablero/server && go run ./cmd/ramas $(if $(N),-n "$(N)") $(if $(JSON),-json)
+
 tareas-guard: ## @dia ¿este texto puede salir a Jira? (el cuerpo de una tarea NO: nombra repos y rutas). F=<archivo>
 	@test -n "$(F)" || { echo "falta F=<archivo>  ·  ej: make tareas-guard F=tablero/data/x.md"; exit 2; }
 	@cd tablero/server && go run ./cmd/tareas -guard ../../$(F)

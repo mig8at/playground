@@ -7,8 +7,8 @@ Qué es y cómo se corre: `README.md`. Acá solo las reglas al trabajar con las 
   clasificaban por ningún eje; la clasificación es `context_nodes`, que es una lista). El nombre
   del archivo es el slug y se puede renombrar a mano: el `id` vive en el frontmatter.
 - **Frontmatter**: `id` · `title` · `stage` (`evaluation`|`work`|`tasks`) · `created` ·
-  `archived?` · `context_nodes[]` · `jira[]` · `jira_title`. Archivar = poner `archived`, no mover
-  el archivo.
+  `archived?` · `context_nodes[]` · `jira[]` · `jira_title` · `ramas?`. Archivar = poner `archived`, no
+  mover el archivo.
 - **La frontera del guard está DENTRO del archivo.** El cuerpo es privado y puede nombrar repos,
   rutas y F-xx. **Lo único que se publica** es `jira_title` + la sección `## Tarea (publicable)`,
   y pasa el guard del server (rechaza repos, rutas de archivo y F-xx). No muevas esa marca ni
@@ -24,6 +24,8 @@ Qué es y cómo se corre: `README.md`. Acá solo las reglas al trabajar con las 
       make tareas-guard F=<archivo>     ¿este texto puede salir a Jira? SALE 1 si no
       make sprint                       el sprint activo con puntos, del SNAPSHOT
       make bitacora DAYS=7              el tiempo registrado, por día
+      make tareas-ramas                 en qué ramas vive cada tarea y hasta dónde llegó (mide git)
+      make tareas-ramas N=43 JSON=1     una sola, en json
 
   El `-guard` reusa `internal/guard`, que es la fuente única (la UI compila esos mismos patrones y
   `issue-create` los aplica al publicar). Correlo ANTES de escribir lo publicable, no después: el
@@ -61,6 +63,24 @@ Qué es y cómo se corre: `README.md`. Acá solo las reglas al trabajar con las 
      se lee como lo que es — lo que se acordó ese día.
   3. **No gradúa a `context/`.** Describe lo propuesto, no cómo funciona CreditOp: muere con la
      tarea. Si algo de ahí resultó verdad perenne, se escribe en el nodo con palabras.
+- **RAMAS: se declara UN patrón, el resto lo mide git.** `ramas: pais-como-dato` en el frontmatter, y
+  `make tareas-ramas` responde en qué ramas de qué repos vive la tarea y **en qué ambientes ya está el
+  cambio**. Igual que los prototipos (el vínculo es el nombre) y las anotaciones (salen del cuerpo): una
+  lista de ramas escrita a mano **miente en silencio** en cuanto algo se mergea o se renombra — pasó tres
+  veces en un día con países (`-onto-develop`, `-onto-staging`, y un PR viejo a `main` que ya no era el
+  camino). Cuatro reglas:
+  1. **Se mide por PATCH-ID** (`git cherry`), no por nombre de rama: así se detecta un cambio que llegó
+     por **squash**, donde el hash cambia y la rama ya no existe. Es cómo se supo que el backend de
+     países estaba en `develop` y `staging` pero no en `main`.
+  2. **La señal es «¿está la PUNTA en el ambiente?»**, no «¿le queda algo propio?». Lo segundo engaña:
+     una rama cortada de `main` arrastra ~190 commits ajenos contra `develop` y decir «falta en
+     develop(190)» sugiere 190 pendientes cuando el pendiente es uno.
+  3. **No habla con la red**: lee lo que el último `git fetch` dejó. Si un dato se ve viejo, fetcheá — un
+     comando de lectura que sale a internet sorprende, y en 13 repos nadie lo correría.
+  4. **Es un SNAPSHOT con fecha** (`data/cache/ramas.json`, fuera de git), como el del sprint: un estado
+     de git sin fecha se lee como actual y no lo es. La clave es el **id** de la tarea, no el slug,
+     porque el nombre del archivo se puede renombrar a mano.
+
 - **El pulso NO se escribe a mano ni desde el tablero.** Lo anota `server/cmd/pulso` (un LaunchAgent,
   cada 5 min) leyendo git: es la fuente objetiva de *cuándo toqué código*, y editarla la volvería otra
   bitácora. Se lee con `make pulso` o `GET /api/pulse`. El porqué del diseño: `README.md` → «El pulso».

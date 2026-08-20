@@ -6,6 +6,7 @@ created: "2026-08-05T17:11:17-05:00"
 context_nodes: [onboarding, dynamic-forms, merchants, entities, smartpay, hardcodes-entidades]
 jira: [CORE-365]
 jira_title: "Internacionalizacion. Flujo de onboarding otros paises. (celular, tipo de documentos y mensajes)"
+ramas: pais-como-dato
 ---
 
 # Internacionalización del onboarding
