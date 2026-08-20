@@ -32,8 +32,10 @@ inexistentes contesta 404 `CLIENT_NOT_FOUND`, o sea que llega hasta la base.
 
 **El próximo paso es:** seguir validando el flujo del cliente **en local** hasta que esté completo, y
 recién entonces armar **un PR con todo** (decisión de Miguel). Lo acumulado está en la rama
-`feat/CORE-258-solicitud-operable`, sin commitear: **9 archivos, 8 bugs arreglados, 68 tests en verde**
-(+705/-19). Validado en local de punta a punta los DOS caminos —fecha y plazo— sobre créditos rt=2.
+**PR https://github.com/Creditop-SAS/legacy-backend/pull/1166** (`feat/CORE-258-solicitud-operable` →
+`develop`, abierto el 2026-08-20): 9 archivos, +705/-19, 6 defectos del canal + 1 latente, **68 tests en
+verde**. Validado en local de punta a punta los DOS caminos —fecha y plazo— sobre créditos rt=2. ⚠ El
+repo **no tiene checks de CI** en la rama: lo que valida es lo corrido a mano y la suite del módulo.
 
 🔴 **Lo más importante que salió del flujo del cliente** (Registro (18)): el canal permitía cambiarle la
 fecha y el plazo a créditos que **CreditOp no opera** — se le cambiaron a tres de Credifamilia (`rt=4`)
