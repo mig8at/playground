@@ -145,6 +145,28 @@ func imprimir(snap store.SnapshotRamas, titulos map[string]string) {
 			if len(falta) > 0 {
 				fmt.Printf("      ⧗ falta en:              %s\n", strings.Join(falta, ", "))
 			}
+			// El PR es la mitad que git no sabe: contesta «¿por qué esto no avanza?». Un OPEN con
+			// REVIEW_REQUIRED dice "nadie lo miró", que es distinto de "falta trabajo".
+			if pr := r.PR; pr != nil {
+				extra := ""
+				switch {
+				case pr.Draft:
+					extra = " · borrador"
+				case pr.Estado == "OPEN" && pr.Revision == "APPROVED":
+					extra = " · aprobado, listo para mergear"
+				case pr.Estado == "OPEN" && pr.Revision == "CHANGES_REQUESTED":
+					extra = " · piden cambios"
+				case pr.Estado == "OPEN" && pr.Revision == "REVIEW_REQUIRED":
+					extra = " · esperando revisión"
+				case pr.Estado == "OPEN":
+					extra = " · sin revisor pedido"
+				case pr.Estado == "MERGED" && pr.Mergeado != "":
+					extra = " · " + pr.Mergeado[:10]
+				}
+				fmt.Printf("      ⇢ PR #%d → %s   %s%s\n", pr.Numero, pr.Base, pr.Estado, extra)
+			} else {
+				fmt.Printf("      ⇢ sin PR\n")
+			}
 		}
 	}
 }

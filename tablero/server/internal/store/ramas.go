@@ -17,6 +17,12 @@ package store
 // POR QUÉ ES UN SNAPSHOT. Medir esto son varias invocaciones de git por repo. Hacerlo en cada render de
 // la card haría lenta la UI, así que se mide con `make tareas-ramas` y se guarda con la FECHA de la
 // medición — igual que el sprint. Un estado de git sin fecha se lee como actual y no lo es.
+//
+// LA PARTE QUE SÍ HABLA CON LA RED: los PRs. Git sólo sabe de commits, y "en qué PR va esto y quién lo
+// tiene que revisar" es la mitad que falta para responder «¿por qué esto no avanza?» — hoy hay que
+// reconstruirla a mano con `gh`. Se pide UNA vez por repo (no una por rama) y **degrada sin ruido**: sin
+// `gh`, sin sesión o sin red, las ramas salen igual y sólo faltan sus PRs. La parte de git sigue siendo
+// offline, que es lo que permite medir con la VPN caída.
 
 import (
 	"context"
@@ -50,6 +56,22 @@ type RamaTarea struct {
 	// Propios es cuántos commits de la rama NO están en cada ambiente: el contexto de cuánta deriva
 	// arrastra la rama. NO es "cuánto falta de esta tarea" — para eso está `En`.
 	Propios map[string]int `json:"propios"`
+	// PR de esta rama, si lo hay. Nil = no se pudo preguntar (sin `gh`/sin red) o la rama no tiene PR;
+	// los dos casos se ven igual en la card a propósito: "no hay PR" es la información útil, y
+	// distinguir "no pude preguntar" pediría un tercer estado que nadie va a mirar.
+	PR *PullRequest `json:"pr,omitempty"`
+}
+
+// PullRequest es lo mínimo para contestar «¿por qué esto no avanza?»: a dónde va, en qué estado está y
+// si alguien lo tiene que revisar.
+type PullRequest struct {
+	Numero   int    `json:"numero"`
+	Estado   string `json:"estado"` // OPEN | MERGED | CLOSED
+	Base     string `json:"base"`   // contra qué rama
+	URL      string `json:"url"`
+	Revision string `json:"revision"` // APPROVED | REVIEW_REQUIRED | CHANGES_REQUESTED | "" (sin revisor pedido)
+	Draft    bool   `json:"draft"`
+	Mergeado string `json:"mergeado,omitempty"` // fecha, si ya se mergeó
 }
 
 // RamasDeTarea es el resultado por tarea.
@@ -104,6 +126,9 @@ func MedirRamas(ctx context.Context, root string, patrones map[string]string, am
 	snap := SnapshotRamas{MedidoEn: time.Now().Format(time.RFC3339), Root: root, Tareas: map[string]RamasDeTarea{}}
 
 	repos := reposEn(root)
+	// Los PRs se piden UNA vez por repo y se reusan para todas las tareas: dos tareas que tocan el
+	// mismo repo no deben pagar dos llamadas a la red.
+	prsPorRepo := map[string]map[string]*PullRequest{}
 	for id, patron := range patrones {
 		if !reRamaPatron.MatchString(patron) {
 			continue
@@ -148,6 +173,12 @@ func MedirRamas(ctx context.Context, root string, patrones map[string]string, am
 					}
 					r.Propios[amb] = propios
 					r.En[amb] = puntaDentro
+				}
+				if _, visto := prsPorRepo[repo]; !visto {
+					prsPorRepo[repo] = prsDelRepo(ctx, repo)
+				}
+				if pr, ok := prsPorRepo[repo][rama]; ok {
+					r.PR = pr
 				}
 				res.Ramas = append(res.Ramas, r)
 			}
@@ -237,4 +268,79 @@ func LeerSnapshotRamas(dir string) SnapshotRamas {
 		return SnapshotRamas{Tareas: map[string]RamasDeTarea{}}
 	}
 	return s
+}
+
+// ── PRs: la mitad que git no sabe ────────────────────────────────────────────────────────────────
+
+var ghBin = func() string {
+	if p, err := exec.LookPath("gh"); err == nil {
+		return p
+	}
+	return ""
+}()
+
+// reRemoto saca `owner/repo` de la URL del remoto. Cubre las tres formas que aparecen en estos repos:
+// `git@github.com:o/r.git`, `https://github.com/o/r.git` y —la que casi se pasó— `git@github.com-alias:o/r.git`,
+// que es un host SSH con alias para usar otra llave.
+var reRemoto = regexp.MustCompile(`[:/]([\w.-]+)/([\w.-]+?)(?:\.git)?$`)
+
+func ownerRepo(ctx context.Context, dir string) string {
+	out, err := git(ctx, dir, "remote", "get-url", "origin")
+	if err != nil {
+		return ""
+	}
+	m := reRemoto.FindStringSubmatch(strings.TrimSpace(out))
+	if m == nil {
+		return ""
+	}
+	return m[1] + "/" + m[2]
+}
+
+// prsDelRepo pide los PRs de un repo en UNA llamada y los indexa por rama de origen. Devuelve nil si no
+// se puede preguntar (sin `gh`, sin sesión, sin red): las ramas se muestran igual, sólo sin sus PRs.
+//
+// `--state all` a propósito: un PR ya mergeado o cerrado es justamente lo que explica por qué una rama
+// que "falta en main" en realidad ya llegó, o por qué otra quedó abandonada.
+func prsDelRepo(ctx context.Context, dir string) map[string]*PullRequest {
+	if ghBin == "" {
+		return nil
+	}
+	slug := ownerRepo(ctx, dir)
+	if slug == "" {
+		return nil
+	}
+	cmd := exec.CommandContext(ctx, ghBin, "pr", "list", "--repo", slug, "--state", "all", "--limit", "200",
+		"--json", "number,state,headRefName,baseRefName,url,reviewDecision,mergedAt,isDraft")
+	cmd.Dir = dir
+	var sb strings.Builder
+	cmd.Stdout = &sb
+	if err := cmd.Run(); err != nil {
+		return nil
+	}
+	var crudos []struct {
+		Number         int    `json:"number"`
+		State          string `json:"state"`
+		HeadRefName    string `json:"headRefName"`
+		BaseRefName    string `json:"baseRefName"`
+		URL            string `json:"url"`
+		ReviewDecision string `json:"reviewDecision"`
+		MergedAt       string `json:"mergedAt"`
+		IsDraft        bool   `json:"isDraft"`
+	}
+	if err := json.Unmarshal([]byte(sb.String()), &crudos); err != nil {
+		return nil
+	}
+	out := map[string]*PullRequest{}
+	for _, p := range crudos {
+		// Si una rama tuvo VARIOS PRs, gana el de número más alto: es el intento vigente. Quedarse con
+		// el primero mostraría un PR viejo y cerrado como si fuera el estado de hoy.
+		if prev, ok := out[p.HeadRefName]; ok && prev.Numero > p.Number {
+			continue
+		}
+		out[p.HeadRefName] = &PullRequest{
+			Numero: p.Number, Estado: p.State, Base: p.BaseRefName, URL: p.URL,
+			Revision: p.ReviewDecision, Draft: p.IsDraft, Mergeado: p.MergedAt,
+		}
+	}
+	return out
 }

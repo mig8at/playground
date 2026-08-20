@@ -220,6 +220,18 @@ const ambientesDe = (key) => {
   for (const r of ramasDe(key)?.ramas || []) for (const a of Object.keys(r.propios || {})) vistos.add(a);
   return AMB_ORDEN.filter(a => vistos.has(a)).concat([...vistos].filter(a => !AMB_ORDEN.includes(a)).sort());
 };
+// Del PR interesa el DESENLACE, no el enum: "esperando revisión" y "aprobado" son dos situaciones que
+// el estado OPEN solo no distingue — y es justo la diferencia entre "falta trabajo" y "falta que alguien
+// lo mire".
+const etiquetaPR = (pr) => {
+  if (pr.draft) return 'borrador';
+  if (pr.estado === 'MERGED') return pr.mergeado ? `mergeado ${pr.mergeado.slice(0, 10)}` : 'mergeado';
+  if (pr.estado === 'CLOSED') return 'cerrado sin mergear';
+  if (pr.revision === 'APPROVED') return 'aprobado';
+  if (pr.revision === 'CHANGES_REQUESTED') return 'piden cambios';
+  if (pr.revision === 'REVIEW_REQUIRED') return 'esperando revisión';
+  return 'sin revisor pedido';
+};
 const ramasAbiertas = ref(false);
 function verRamas(i) {
   if (ramasAbiertas.value && active.value?.Key === i.Key) { ramasAbiertas.value = false; return; }
@@ -1135,7 +1147,7 @@ onMounted(async () => {
             <table class="ramas">
               <thead>
                 <tr>
-                  <th>repo</th><th>rama</th>
+                  <th>repo</th><th>rama</th><th>PR</th>
                   <th v-for="a in ambientesDe(active?.Key)" :key="a">{{ a }}</th>
                 </tr>
               </thead>
@@ -1143,6 +1155,14 @@ onMounted(async () => {
                 <tr v-for="r in ramasDe(active?.Key)?.ramas || []" :key="r.repo + r.rama">
                   <td>{{ r.repo }}</td>
                   <td><code :title="r.asunto">{{ r.rama }}</code> <span class="sha">{{ r.commit }}</span></td>
+                  <!-- El PR es lo que git no sabe: contesta «¿por qué esto no avanza?». Un OPEN sin
+                       revisión dice "nadie lo miró", que no es lo mismo que "falta trabajo". -->
+                  <td class="prcol">
+                    <a v-if="r.pr" class="link" :href="r.pr.url" target="_blank" rel="noopener"
+                      :title="`${r.pr.estado} → ${r.pr.base}${r.pr.revision ? ' · ' + r.pr.revision : ''}`">#{{ r.pr.numero }}</a>
+                    <span v-if="r.pr" class="prst" :class="'pr-' + r.pr.estado.toLowerCase()">{{ etiquetaPR(r.pr) }}</span>
+                    <span v-else class="na">sin PR</span>
+                  </td>
                   <!-- tres estados, no dos: `—` es "ese ambiente no existe en este repo", que no es lo
                        mismo que "no está mergeado". Confundirlos fue lo que hizo creer que faltaba
                        desplegar algo en un repo que no tiene ese ambiente. -->
@@ -1262,14 +1282,19 @@ h1 { font-size: 20px; margin: 0; letter-spacing: .2px }
 .card h2 .on { color: var(--acc); margin-left: 6px }
 .card h2 .mut { color: var(--mut); font-weight: 400; text-transform: none; letter-spacing: 0 }
 
-/* Las tareas fluyen en columnas: el ancho decide cuántas, con `auto-fill` y un mínimo por tarjeta. Es
-   preferible a breakpoints escritos a mano porque la card no siempre ocupa la ventana entera.
-   `align-items: start` para que una tarjeta alta no estire a sus vecinas hasta su alto. */
-.tgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 10px;
-  align-items: start; margin-bottom: 10px }
-/* La tarjeta DESPLEGADA (descripción completa o panel de QA) toma la fila entera: ese contenido son
-   párrafos y un textarea, y leerlos en una columna de 300px es peor que no tenerlos. */
-.task.wide { grid-column: 1 / -1 }
+/* MASONRY con `columns`, no con grid. El grid alineaba por FILA, así que una tarjeta corta al lado de una
+   larga dejaba un hueco vertical hasta la fila siguiente — bien visible con las que no tienen descripción.
+   `columns` las apila por columna y no queda aire.
+   Se usa `column-width` y no un número de columnas: el navegador decide cuántas caben, igual que hacía
+   `auto-fill` — el layout sigue siendo del ancho y no de un breakpoint escrito a mano.
+   ⚠ El costo: el orden de lectura pasa a ser por COLUMNA (arriba→abajo) en vez de por fila. Se acepta
+   porque acá se BUSCA una tarjeta, no se lee una secuencia. */
+.tgrid { columns: 320px; column-gap: 10px; margin-bottom: 10px }
+.tgrid > .task { break-inside: avoid; margin: 0 0 10px }
+/* El panel de QA no cabe en una columna: se saca del flujo y toma el ancho completo. */
+.tgrid > .task.wide { column-span: all }
+/* El panel de QA toma el ancho completo (ver `column-span: all` arriba): es un textarea y un par de
+   controles, y leerlos en una columna de 320px es peor que no tenerlos. */
 .task { border: 1px solid var(--line); border-radius: 11px; padding: 12px 13px; cursor: pointer; transition: .12s }
 .task:hover { border-color: #a78bfa66 }
 .task.sel { border-color: var(--acc); background: #a78bfa0f }

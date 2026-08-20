@@ -48,3 +48,8 @@ table.ramas td.amb { text-align: center; width: 1%; white-space: nowrap; }
 table.ramas .si { color: var(--acc); font-weight: 700; }
 table.ramas .no { color: var(--mut); }
 table.ramas .na { color: var(--line2); }
+table.ramas td.prcol { white-space: nowrap; }
+table.ramas .prst { margin-left: 6px; font-size: 10.5px; }
+table.ramas .pr-merged { color: var(--acc); }
+table.ramas .pr-open   { color: var(--warn); }
+table.ramas .pr-closed { color: var(--mut); text-decoration: line-through; }
