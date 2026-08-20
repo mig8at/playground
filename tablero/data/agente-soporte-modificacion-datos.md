@@ -30,10 +30,12 @@ dev.** Las tres piezas quedaron: el módulo desplegado, las 16 rutas expuestas e
 viva (sin token o con uno inválido da 401, con el correcto pasa al controlador) y una consulta con datos
 inexistentes contesta 404 `CLIENT_NOT_FOUND`, o sea que llega hasta la base.
 
-**El próximo paso es:** que producto decida sobre `POST /change-requests/{id}/otp`. Está
-**inalcanzable** y la causa está entendida (Registro (14)): recomendación **sacarlo** — `confirm` y los 10
-tests del flujo ya dan por hecho el camino sin él. Si igual se quiere un segundo factor por cambio, tiene
-que colgarse de la SOLICITUD y no de la sesión.
+**El próximo paso es:** seguir validando el flujo del cliente **en local** hasta que esté completo, y
+recién entonces armar **un PR con todo** (decisión de Miguel). Lo acumulado está en la rama
+`feat/CORE-258-solicitud-operable`, sin commitear: 5 archivos, 4 bugs arreglados, 62 tests en verde.
+
+Y pendiente de producto: `POST /change-requests/{id}/otp` está **inalcanzable** y la causa está entendida
+(Registro (14)) — recomendación **sacarlo**.
 
 ℹ La fila del asesor en dev (`users.id=1827130`) **se deja con el celular de Miguel a propósito**, para
 poder repetir pruebas con entrega real. No es olvido: es la decisión.
@@ -1412,6 +1414,56 @@ castigo pega sobre el número que también se usa para cobrar.
 
 <!-- append-only, lo nuevo arriba. (Esta tarea no tenía sección de registro; se agrega siguiendo
      PLANTILLA-TAREA.md. Lo de arriba es el ESTADO, que se reescribe; esto es qué pasó cada día.) -->
+
+### 2026-08-20 (17) — el flujo del cliente, en el orden correcto, y TRES bugs que salieron al correrlo
+
+Miguel fijó el orden: **la persona pone su cédula, se valida con el OTP, y ahí se le trae su solicitud;
+sobre esa solicitud puede hacer varias cosas.** El prototipo preguntaba la intención ANTES de saber quién
+era y si había algo que hacer — ofrecer «cambiá tu fecha» antes de mirar es prometer sin mirar.
+Reordenado: identidad → solicitud → **menú de acciones**.
+
+⚠ Y eso resuelve solo el debate del NLU: **si el menú viene después, no hay texto libre que
+interpretar.** La persona toca una opción de una lista cerrada.
+
+**Todo en una rama, `feat/CORE-258-solicitud-operable`, sin commitear** (decisión de Miguel: un PR con
+todo). Validado contra local, no contra dev.
+
+> **MEDICIÓN · 2026-08-20** — flujo completo en local, en el orden nuevo: `by-phone` 200 (JOSE FERNANDO)
+> · `self/otp` 200 · `verify` 200 con **6 solicitudes operables** de 166 · `can-change` `true` ·
+> opciones **28/08 y 05/09, las dos futuras** · `change-payment-date` 200 → el crédito 412380 pasó de
+> `2026-07-16` a `2026-08-28`, con `creditop_x_changes_log #45` y **`otp_id = 296489`**, no 0.
+
+**Los tres bugs, todos encontrados corriendo el flujo y ninguno visible leyendo el código:**
+
+1. 🔴 **n8n no tenía de dónde sacar el `user_request_id`.** `self/by-phone` no devolvía créditos y
+   ninguna ruta los listaba; en el prototipo yo llenaba el campo a mano y eso lo tapaba. Ahora `verify`
+   devuelve `operable_request_ids` — después de probar identidad, no antes: decirle a un número no
+   verificado qué créditos tiene sería contarle algo a quien no demostró ser su dueño.
+
+2. 🔴 **`operableRequestsFor` no filtraba por crédito activo**, así que devolvía todo el historial: un
+   cliente de prueba daba 40 ids cuando el operable era uno. Medido en dev: entre el 7% y el 54% de los
+   clientes de un comercio tiene más de una solicitud, pero sólo del 0% al 1,9% tiene más de un crédito
+   ACTIVO. La regla que Miguel describió es real, pero es sobre el crédito vivo, no sobre la solicitud.
+
+3. 🔴 **Un cliente ya verificado no podía volver a entrar.** `self/otp` daba **409 INVALID_STATE** porque
+   `emit()` intentaba bajar la sesión de `otp_verified` a `otp_sent`, que la máquina prohíbe con razón.
+   Pasa en el camino MÁS COMÚN: alguien hace un cambio y vuelve a los dos minutos, dentro de los 15 de
+   TTL. Ahora contesta 200 con `already_verified: true` y las solicitudes operables, para que el bot
+   siga. No debilita nada: para llegar ahí hay que acertar el número Y la cédula, igual que antes.
+
+4. 🔴 **Y el peor, porque el cliente lo veía:** `payment-date-options` ofrecía fechas que
+   `change-payment-date` rechaza. `getNextPaymentCycles` anclaba en la fecha del crédito y nunca en HOY,
+   así que con una fecha vencida ofrecía dos opciones pasadas — y la validación exige
+   `after_or_equal:today`. **Un menú donde TODAS las opciones fallan.** Corregido: el ancla es
+   `max(fecha del crédito, hoy)`. Con fecha futura —el caso sano— no cambia nada.
+
+   ⚠ Ese generador es COMPARTIDO: lo usan también las rutas viejas del crédito (Consumer y Customer),
+   que **NO validan `after_or_equal:today`** — o sea que hoy la app móvil deja poner una fecha de pago en
+   el pasado. Con este cambio dejan de OFRECERLA, pero validar su entrada es otra tarea.
+
+**62 tests en verde**, con cuatro nuevos que blindan lo encontrado: una solicitud sin crédito activo no es
+operable · la autogestión ve sus activos de cualquier comercio · no se ofrecen fechas pasadas aunque el
+crédito tenga la fecha vencida · con fecha futura el ancla sigue siendo la del crédito.
 
 ### 2026-08-20 (16) — los prototipos VALIDAN los límites de WhatsApp al pintar (y encontraron uno)
 

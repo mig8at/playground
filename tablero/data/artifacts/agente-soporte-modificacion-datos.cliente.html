@@ -121,6 +121,14 @@
   .ctl.amb.act { opacity: 1; border-color: #0b6bcb; color: #0b6bcb }
   .avisodev { flex: 1 1 100%; margin: 6px 0 0; padding: 8px 10px; border-radius: 7px; font-size: 11.5px;
     background: #fff7e6; border: 1px solid #f0d69a; color: #6b4708; line-height: 1.5 }
+
+  .sujs { display: flex; gap: 6px; flex-wrap: wrap; align-items: center }
+  .ctl.suj { padding: 4px 10px; font-size: 12px }
+  .trace li[data-full] { cursor: pointer }
+  .trace li[data-full]:hover .note { text-decoration: underline dotted }
+  .trace .full { margin-top: 6px; padding: 6px 8px; background: #0f172a; border-radius: 5px;
+    font-size: 10.5px; line-height: 1.5; white-space: pre-wrap; word-break: break-word;
+    max-height: 220px; overflow: auto; color: #cbd5e1 }
   .realestado { font-size: 12px; color: #94a3b8 }
   .realestado.ok { color: #0f7b3f } .realestado.bad { color: #b3261e }
   .realnota { flex: 1 1 100%; margin: 4px 0 0; font-size: 11.5px; color: #94a3b8; line-height: 1.5 }
@@ -1164,6 +1172,9 @@
             <button type="button" class="ctl amb" data-amb="dev">dev</button>
           </span>
         </label>
+        <label>Sujeto de prueba <em>· verificados corriendo el flujo</em>
+          <span class="sujs" id="sujetos"></span>
+        </label>
         <label>URL base <input id="r-base" value="http://localhost/api/support"></label>
         <label>SUPPORT_BOT_TOKEN <input id="r-token" type="password" placeholder="pegalo acá"></label>
         <label>Cliente · wa <input id="r-waCli" value="whatsapp:+573099000002"></label>
@@ -1317,7 +1328,7 @@
       // el crédito admite cambios. La segunda es la que decide si el menú siguiente existe.
       real: () => [
         { met: "POST", ruta: "/self/otp/verify", cuerpo: { wa: rc("waCli"), code: otpDe(rc("waCli")) } },
-        { met: "GET", ruta: `/credits/${rc("ureq")}/can-change?wa=${encodeURIComponent(rc("waCli"))}` },
+        { met: "GET", ruta: `/credits/${ureqActual()}/can-change?wa=${encodeURIComponent(rc("waCli"))}` },
       ],
       guarda: r => { VIVO.puedeCambiar = r?.json?.data?.can_change === true; },
       text: (r) => {
@@ -1327,7 +1338,7 @@
         const d = r.json.data || {};
         if (d.can_change === false) return `Verifiqué tu identidad, pero <b>este crédito no admite cambios ahora</b>.<span class="kv">${
           d.message || d.reason || "sin detalle"}</span><i>(respuesta real del backend)</i>`;
-        return `✅ Verificado <i>(de verdad)</i>. Tu crédito <b>#${rc("ureq")}</b> sí admite cambios.`;
+        return `✅ Verificado <i>(de verdad)</i>. Tu crédito <b>#${ureqActual()}</b> sí admite cambios.`;
       },
       api2: A.canChange,
       // En modo real la rama la decide el BACKEND, no el checkbox del prototipo.
@@ -1336,7 +1347,7 @@
     },
     {
       id: "s5", side: "a", from: "bot", api: A.dateOpts,
-      real: () => ({ met: "GET", ruta: `/credits/${rc("ureq")}/payment-date-options?wa=${encodeURIComponent(rc("waCli"))}` }),
+      real: () => ({ met: "GET", ruta: `/credits/${ureqActual()}/payment-date-options?wa=${encodeURIComponent(rc("waCli"))}` }),
       guarda: r => { VIVO.fechas = r?.json?.data?.options || []; },
       text: (r) => {
         if (!REAL()) return `Tu fecha de pago actual es el <b>${F.cli.fecha}</b>.<br><br>Estas son las opciones disponibles:`;
@@ -1368,7 +1379,7 @@
       // inventar una fecha la rechazaría la validación (`after_or_equal:today` y el ciclo de corte).
       real: () => {
         const o = (VIVO.fechas || []).find(x => !x.is_current) || (VIVO.fechas || [])[0];
-        return { met: "POST", ruta: `/credits/${rc("ureq")}/change-payment-date`,
+        return { met: "POST", ruta: `/credits/${ureqActual()}/change-payment-date`,
                  cuerpo: { wa: rc("waCli"), selected_payment_date: o ? o.value : null } };
       },
       text: (r) => {
@@ -1387,7 +1398,7 @@
     // ─── PLAZO, enganchado desde el final del anterior ───
     {
       id: "p1", side: "a", from: "bot", api: A.feeOpts,
-      real: () => ({ met: "GET", ruta: `/credits/${rc("ureq")}/fee-number-options?wa=${encodeURIComponent(rc("waCli"))}` }),
+      real: () => ({ met: "GET", ruta: `/credits/${ureqActual()}/fee-number-options?wa=${encodeURIComponent(rc("waCli"))}` }),
       guarda: r => { VIVO.cuotas = r?.json?.data?.options || []; },
       text: (r) => {
         if (!REAL()) return `Tu plazo actual es de <b>${F.cli.plazo}</b> y llevas <b>${F.cli.pagadas} pagadas</b>.<br><br>Puedes bajarlo o subirlo; el límite es que el total supere las cuotas que ya pagaste.`;
@@ -1425,7 +1436,7 @@
       real: () => {
         const o = (VIVO.cuotas || []).find(x => !x.is_current && x.is_available !== false)
                || (VIVO.cuotas || []).find(x => !x.is_current);
-        return { met: "POST", ruta: `/credits/${rc("ureq")}/change-fee-number`,
+        return { met: "POST", ruta: `/credits/${ureqActual()}/change-fee-number`,
                  cuerpo: { wa: rc("waCli"), selected_fee: { fee_number: o ? o.fee_number : null } } };
       },
       text: (r) => {
@@ -1614,6 +1625,11 @@
       fila.innerHTML = `<span class="m">${d.met}</span> ${d.ruta}<span class="note">${
         r.red ? "sin respuesta — ¿está levantado el backend local?"
               : "HTTP " + r.status + " · " + JSON.stringify(r.json).slice(0, 170)}</span>`;
+      // La respuesta ENTERA queda guardada: el resumen sirve para ver que algo falló, no
+
+      // para entender por qué. Un click en la línea la abre.
+
+      fila.dataset.full = JSON.stringify(r.json, null, 2);
       ol.scrollTop = ol.scrollHeight;
       if (!r.ok) break;   // las siguientes dependen de ésta: seguir daría 409 en cascada
     }
@@ -1761,6 +1777,11 @@
   // HTTP, así que la conversación es su propia memoria.
   // ═══════════════════════════════════════════════════════════════════════════════════════════════
   const CONV = { fase: "saludo", d: {} };
+
+  // De dónde sale el id de la solicitud. El despachador lo DESCUBRE (`operable_request_ids` de
+  // `verify`); el guion del demo no descubre nada, así que ahí sale del campo del formulario. Un solo
+  // lugar que lo decide, para que no haya dos verdades.
+  const ureqActual = () => CONV.d.ureq ?? rc("ureq");
   const IN = () => $("#in-a"), SND = () => $("#snd-a");
 
   function pedirTexto(ph) {
@@ -1802,25 +1823,34 @@
       }
       const d = r.json.data || {};
       CONV.d.nombre = d.first_name;
-      await dice(`¡Hola <b>${d.first_name}</b>! 👋 Soy el asistente de <b>CreditOp</b>.<br><br>¿Qué necesitás?`,
-        { list: "¿Qué necesitás?", buttons: [
-          { t: "📅 Cambiar mi fecha de pago", sub: "pide confirmar identidad" },
-          { t: "🗓️ Cambiar mi plazo", sub: "pide confirmar identidad" } ]});
-      CONV.fase = "intencion";
-    },
-
-    // Acá n8n enruta a un flujo CERRADO. No redacta: un asistente conversacional abierto está prohibido.
-    intencion: async (txt) => {
-      const t = (txt || "").toLowerCase();
-      CONV.d.quiere = /plazo|cuota/.test(t) ? "plazo" : /fecha|cobr|pag/.test(t) ? "fecha" : null;
-      if (!CONV.d.quiere) {
-        await dice("No entendí. ¿Querés cambiar la <b>fecha de pago</b> o el <b>plazo</b>?",
-          { buttons: [{ t: "📅 Cambiar mi fecha de pago" }, { t: "🗓️ Cambiar mi plazo" }] });
-        return;   // la fase NO cambia: se vuelve a preguntar lo mismo
-      }
-      await dice(`Entiendo, querés cambiar <b>${CONV.d.quiere === "fecha" ? "la fecha de pago" : "el plazo"}</b>.<br><br>Antes tengo que confirmar que sos vos. ¿Me confirmás tu número de cédula?`);
+      // El menú de acciones NO va acá. Va después de saber quién es y QUÉ CRÉDITO tiene: ofrecer
+      // «cambiá tu fecha» antes de saber si hay un crédito que lo admita es prometer sin mirar.
+      await dice(`¡Hola <b>${d.first_name}</b>! 👋 Soy el asistente de <b>CreditOp</b>.<br><br>Para ayudarte necesito confirmar que sos vos. ¿Me pasás tu número de cédula?`);
       pedirTexto("Tu número de cédula");
       CONV.fase = "cedula";
+    },
+
+    /**
+     * El MENÚ DE ACCIONES. Va acá, al final de la identificación, y no al principio — que es el cambio
+     * que pidió Miguel y que además resuelve el debate del NLU: si el menú viene después, no hay texto
+     * libre que interpretar. La persona toca una opción de una lista cerrada y no hay nada que adivinar.
+     *
+     * Y las acciones se ofrecen SOBRE una solicitud concreta que ya se sabe que admite cambios.
+     */
+    menuAcciones: async () => {
+      await dice(`Tu crédito <b>#${CONV.d.ureq}</b> admite cambios. ¿Qué querés hacer?`,
+        { list: "¿Qué querés hacer?", buttons: [
+          { t: "📅 Cambiar fecha de pago", sub: "el día en que te cobran" },
+          { t: "🗓️ Cambiar el plazo", sub: "cuántas cuotas te quedan" } ]});
+      CONV.fase = "elegiAccion";
+    },
+
+    elegiAccion: async (txt) => {
+      const t = (txt || "").toLowerCase();
+      CONV.d.quiere = /plazo|cuota/.test(t) ? "plazo" : /fecha|cobr|pag/.test(t) ? "fecha" : null;
+      if (!CONV.d.quiere) { await dice("No reconocí esa opción. Elegí una de la lista."); return; }
+      CONV.fase = CONV.d.quiere === "fecha" ? "opcFecha" : "opcPlazo";
+      await NODOS[CONV.fase]("");
     },
 
     cedula: async (txt) => {
@@ -1848,7 +1878,29 @@
         pedirTexto("El código"); return;
       }
       clearSms();
-      const c = await api("GET", `/credits/${rc("ureq")}/can-change?wa=${encodeURIComponent(rc("waCli"))}`);
+
+      // ⚠ ACÁ ESTABA EL HUECO. Antes el `user_request_id` salía de un campo que yo llenaba a mano, y
+      // eso tapaba la pregunta de fondo: ¿de dónde lo saca n8n? De ningún lado — `self/by-phone` no
+      // devolvía créditos y ninguna ruta los listaba. Ahora `verify` trae `operable_request_ids`, o sea
+      // las solicitudes con crédito ACTIVO, y el bot decide con eso:
+      //   0  → no hay nada que gestionar, y se dice ANTES de preguntar cualquier otra cosa
+      //   1  → se usa, sin preguntar (el caso normal: un crédito activo por comercio)
+      //   >1 → hay que PREGUNTAR cuál. Pasa cuando el cliente tiene créditos en varios comercios.
+      const ops = (v.json.data || {}).operable_request_ids || [];
+      if (!ops.length) {
+        await dice("Verifiqué tu identidad ✅<br><br>Pero <b>no tenés ningún crédito activo</b> que se pueda gestionar por acá.");
+        CONV.fase = "fin"; trabar(); return;
+      }
+      if (ops.length > 1) {
+        CONV.d.ops = ops;
+        await dice(`✅ Verificado. Tenés <b>${ops.length} créditos activos</b>. ¿Sobre cuál querés el cambio?`,
+          { list: "Elegir crédito", buttons: ops.slice(0, 10).map(id => ({ t: `Crédito #${id}` })) });
+        CONV.fase = "eligeCredito";
+        return;
+      }
+      CONV.d.ureq = ops[0];
+
+      const c = await api("GET", `/credits/${ureqActual()}/can-change?wa=${encodeURIComponent(rc("waCli"))}`);
       if (!c.ok) { await dice(problema(c)); CONV.fase = "fin"; trabar(); return; }
       const d = c.json.data || {};
       // La rama la decide el BACKEND. Esto es exactamente lo que un guion no puede simular.
@@ -1856,13 +1908,28 @@
         await dice(`Verifiqué tu identidad ✅<br><br>Pero <b>este crédito no admite cambios ahora</b>:<span class="kv">${d.message || d.reason}</span>`);
         CONV.fase = "fin"; trabar(); return;
       }
-      await dice("✅ Verificado. Dejame traer las opciones…");
-      CONV.fase = CONV.d.quiere === "fecha" ? "opcFecha" : "opcPlazo";
-      await NODOS[CONV.fase]("");   // las fases de opciones no esperan input: se disparan solas
+      CONV.fase = "menuAcciones";
+      await NODOS.menuAcciones("");   // no espera input: se dispara sola
+    },
+
+    // Sólo se llega acá si el cliente tiene créditos en varios comercios. Con uno, n8n no pregunta.
+    eligeCredito: async (txt) => {
+      const id = parseInt(String(txt).replace(/\D/g, ""), 10);
+      if (!CONV.d.ops.includes(id)) { await dice("No reconocí ese crédito. Elegí uno de la lista."); return; }
+      CONV.d.ureq = id;
+      const c = await api("GET", `/credits/${id}/can-change?wa=${encodeURIComponent(rc("waCli"))}`);
+      if (!c.ok) { await dice(problema(c)); CONV.fase = "fin"; trabar(); return; }
+      const d = c.json.data || {};
+      if (d.can_change === false) {
+        await dice(`Ese crédito <b>no admite cambios ahora</b>:<span class="kv">${d.message || d.reason}</span>`);
+        CONV.fase = "fin"; trabar(); return;
+      }
+      CONV.fase = "menuAcciones";
+      await NODOS.menuAcciones("");
     },
 
     opcFecha: async () => {
-      const r = await api("GET", `/credits/${rc("ureq")}/payment-date-options?wa=${encodeURIComponent(rc("waCli"))}`);
+      const r = await api("GET", `/credits/${ureqActual()}/payment-date-options?wa=${encodeURIComponent(rc("waCli"))}`);
       if (!r.ok) { await dice(problema(r)); CONV.fase = "fin"; trabar(); return; }
       const d = r.json.data || {};
       CONV.d.opciones = d.options || [];
@@ -1885,7 +1952,7 @@
 
     aplicaFecha: async (txt) => {
       if (!/confirmar|^s[ií]\b/i.test(txt || "")) { await dice("Listo, no cambié nada. Cualquier cosa me escribís."); CONV.fase = "fin"; trabar(); return; }
-      const r = await api("POST", `/credits/${rc("ureq")}/change-payment-date`,
+      const r = await api("POST", `/credits/${ureqActual()}/change-payment-date`,
                           { wa: rc("waCli"), selected_payment_date: CONV.d.elegida.value });
       if (!r.ok) { await dice(`${problema(r)}<br><br>No se cambió nada.`); CONV.fase = "fin"; trabar(); return; }
       await dice(`✅ Listo. Tu nueva fecha de pago es el <b>${CONV.d.elegida.label || CONV.d.elegida.value}</b>.`);
@@ -1895,7 +1962,7 @@
     },
 
     opcPlazo: async () => {
-      const r = await api("GET", `/credits/${rc("ureq")}/fee-number-options?wa=${encodeURIComponent(rc("waCli"))}`);
+      const r = await api("GET", `/credits/${ureqActual()}/fee-number-options?wa=${encodeURIComponent(rc("waCli"))}`);
       if (!r.ok) { await dice(problema(r)); CONV.fase = "fin"; trabar(); return; }
       CONV.d.opciones = (r.json.data || {}).options || [];
       if (!CONV.d.opciones.length) { await dice("No hay plazos disponibles ahora."); CONV.fase = "fin"; trabar(); return; }
@@ -1922,7 +1989,7 @@
 
     aplicaPlazo: async (txt) => {
       if (!/confirmar|^s[ií]\b/i.test(txt || "")) { await dice("Listo, no cambié nada."); CONV.fase = "fin"; trabar(); return; }
-      const r = await api("POST", `/credits/${rc("ureq")}/change-fee-number`,
+      const r = await api("POST", `/credits/${ureqActual()}/change-fee-number`,
                           { wa: rc("waCli"), selected_fee: { fee_number: CONV.d.elegida.fee_number } });
       if (!r.ok) { await dice(`${problema(r)}<br><br>No se cambió nada.`); CONV.fase = "fin"; trabar(); return; }
       await dice(`✅ Listo. Tu nuevo plazo es de <b>${CONV.d.elegida.fee_number} cuotas</b>.`);
@@ -1946,6 +2013,11 @@
     li.className = "new " + (r.ok ? "viva" : "murio");
     li.innerHTML = `<span class="m">${met}</span> ${ruta}<span class="note">${
       r.red ? "sin respuesta — ¿está levantado el backend?" : "HTTP " + r.status + " · " + JSON.stringify(r.json).slice(0, 150)}</span>`;
+    // La respuesta ENTERA queda guardada: el resumen sirve para ver que algo falló, no
+
+    // para entender por qué. Un click en la línea la abre.
+
+    li.dataset.full = JSON.stringify(r.json, null, 2);
     ol.scrollTop = ol.scrollHeight;
     return r;
   }
@@ -2016,4 +2088,71 @@
     $("#reset").click();
   }));
 
+  // ── SUJETOS DE PRUEBA, verificados ──────────────────────────────────────────────────────────────
+  // Cada uno se midió corriendo el flujo, y sirve para algo distinto: uno muestra el camino feliz y
+  // otro la rama de rechazo. Tenerlos a un click es lo que hace que ver el flujo sea barato — antes
+  // había que recordar tres valores y de dónde salieron.
+  const SUJETOS = [
+    { id: "dev-qa", amb: "dev", et: "dev · QA AUTOMATION",
+      wa: "whatsapp:+573109000004", doc: "37670195", ureq: "465030",
+      nota: "bypass + crédito activo → llega a aplicar el cambio" },
+    { id: "local-maria", amb: "local", et: "local · MARIA GOMEZ",
+      wa: "whatsapp:+573099000002", doc: "1099887704", ureq: "464729",
+      nota: "bypass, SIN crédito activo → muestra la rama NO_ACTIVE_CREDIT" },
+  ];
+
+  function pintarSujetos() {
+    const cont = $("#sujetos"); if (!cont) return;
+    cont.innerHTML = "";
+    SUJETOS.forEach(s => {
+      const b = document.createElement("button");
+      b.type = "button"; b.className = "ctl suj"; b.textContent = s.et; b.title = s.nota;
+      b.onclick = () => {
+        // El ambiente va primero: cambia la URL base y limpia el token, que es distinto por ambiente.
+        const amb = document.querySelector(`.ctl.amb[data-amb="${s.amb}"]`);
+        if (amb) amb.click();
+        $("#r-waCli").value = s.wa;
+        $("#r-docCli").value = s.doc;
+        if ($("#r-ureq")) $("#r-ureq").value = s.ureq;
+        guardarCfg();
+        $("#r-estado").className = "realestado";
+        $("#r-estado").textContent = `${s.et} — ${s.nota}`;
+      };
+      cont.appendChild(b);
+    });
+  }
+
+  // ── la configuración se RECUERDA (menos el token, que se pide siempre) ─────────────────────────
+  // Recargar y volver a tipear tres valores es la clase de fricción que hace que nadie pruebe. El
+  // token NO se guarda acá: ya vive aparte y se limpia al cambiar de ambiente a propósito.
+  const CFGK = "core258.cfg";
+  const CAMPOS = ["r-base", "r-waCli", "r-docCli", "r-ureq", "r-waAse", "r-docAse"];
+  function guardarCfg() {
+    const o = {};
+    CAMPOS.forEach(k => { const e = $("#" + k); if (e) o[k] = e.value; });
+    localStorage.setItem(CFGK, JSON.stringify(o));
+  }
+  function cargarCfg() {
+    try {
+      const o = JSON.parse(localStorage.getItem(CFGK) || "{}");
+      Object.entries(o).forEach(([k, v]) => { const e = $("#" + k); if (e && v) e.value = v; });
+    } catch { /* si el json quedó roto no se pierde nada: se usan los valores por defecto */ }
+  }
+  CAMPOS.forEach(k => { const e = $("#" + k); if (e) e.addEventListener("change", guardarCfg); });
+
+  // ── la traza se puede ABRIR ───────────────────────────────────────────────────────────────────
+  // El resumen de 150 caracteres alcanza para ver que algo falló, no para entender por qué. Un click
+  // en la línea muestra la respuesta completa — es lo que uno quiere justo cuando algo se rompe.
+  $("#trace").addEventListener("click", (e) => {
+    const li = e.target.closest("li"); if (!li || !li.dataset.full) return;
+    let d = li.querySelector(".full");
+    if (d) { d.remove(); return; }
+    d = document.createElement("div");
+    d.className = "full";
+    d.textContent = li.dataset.full;
+    li.appendChild(d);
+  });
+
+  pintarSujetos();
+  cargarCfg();
 </script>

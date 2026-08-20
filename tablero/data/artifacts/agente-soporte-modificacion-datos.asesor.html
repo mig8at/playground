@@ -122,6 +122,14 @@
   .ctl.amb.act { opacity: 1; border-color: #0b6bcb; color: #0b6bcb }
   .avisodev { flex: 1 1 100%; margin: 6px 0 0; padding: 8px 10px; border-radius: 7px; font-size: 11.5px;
     background: #fff7e6; border: 1px solid #f0d69a; color: #6b4708; line-height: 1.5 }
+
+  .sujs { display: flex; gap: 6px; flex-wrap: wrap; align-items: center }
+  .ctl.suj { padding: 4px 10px; font-size: 12px }
+  .trace li[data-full] { cursor: pointer }
+  .trace li[data-full]:hover .note { text-decoration: underline dotted }
+  .trace .full { margin-top: 6px; padding: 6px 8px; background: #0f172a; border-radius: 5px;
+    font-size: 10.5px; line-height: 1.5; white-space: pre-wrap; word-break: break-word;
+    max-height: 220px; overflow: auto; color: #cbd5e1 }
   .realestado { font-size: 12px; color: #94a3b8 }
   .realestado.ok { color: #0f7b3f } .realestado.bad { color: #b3261e }
   .realnota { flex: 1 1 100%; margin: 4px 0 0; font-size: 11.5px; color: #94a3b8; line-height: 1.5 }
@@ -1088,6 +1096,9 @@
             <button type="button" class="ctl amb" data-amb="dev">dev</button>
           </span>
         </label>
+        <label>Sujeto de prueba <em>· verificados corriendo el flujo</em>
+          <span class="sujs" id="sujetos"></span>
+        </label>
         <label>URL base <input id="r-base" value="http://localhost/api/support"></label>
         <label>SUPPORT_BOT_TOKEN <input id="r-token" type="password" placeholder="pegalo acá"></label>
         <label>Asesor · wa <input id="r-waAse" value="whatsapp:+573001112233"></label>
@@ -1774,6 +1785,11 @@
       fila.innerHTML = `<span class="m">${d.met}</span> ${d.ruta}<span class="note">${
         r.red ? "sin respuesta — ¿está levantado el backend local?"
               : "HTTP " + r.status + " · " + JSON.stringify(r.json).slice(0, 170)}</span>`;
+      // La respuesta ENTERA queda guardada: el resumen sirve para ver que algo falló, no
+
+      // para entender por qué. Un click en la línea la abre.
+
+      fila.dataset.full = JSON.stringify(r.json, null, 2);
       ol.scrollTop = ol.scrollHeight;
       // Se para en la primera que falla: las siguientes dependen de ella y sólo darían 409 en cascada.
       if (!r.ok) break;
@@ -1956,6 +1972,11 @@
     li.className = "new " + (r.ok ? "viva" : "murio");
     li.innerHTML = `<span class="m">${met}</span> ${ruta}<span class="note">${
       r.red ? "sin respuesta — ¿está levantado el backend?" : "HTTP " + r.status + " · " + JSON.stringify(r.json).slice(0, 150)}</span>`;
+    // La respuesta ENTERA queda guardada: el resumen sirve para ver que algo falló, no
+
+    // para entender por qué. Un click en la línea la abre.
+
+    li.dataset.full = JSON.stringify(r.json, null, 2);
     ol.scrollTop = ol.scrollHeight;
     return r;
   }
@@ -2233,4 +2254,71 @@
     $("#reset").click();
   }));
 
+  // ── SUJETOS DE PRUEBA, verificados ──────────────────────────────────────────────────────────────
+  // Cada uno se midió corriendo el flujo, y sirve para algo distinto: uno muestra el camino feliz y
+  // otro la rama de rechazo. Tenerlos a un click es lo que hace que ver el flujo sea barato — antes
+  // había que recordar tres valores y de dónde salieron.
+  const SUJETOS = [
+    { id: "dev-qa", amb: "dev", et: "dev · QA AUTOMATION",
+      wa: "whatsapp:+573109000004", doc: "37670195", ureq: "465030",
+      nota: "bypass + crédito activo → llega a aplicar el cambio" },
+    { id: "local-maria", amb: "local", et: "local · MARIA GOMEZ",
+      wa: "whatsapp:+573099000002", doc: "1099887704", ureq: "464729",
+      nota: "bypass, SIN crédito activo → muestra la rama NO_ACTIVE_CREDIT" },
+  ];
+
+  function pintarSujetos() {
+    const cont = $("#sujetos"); if (!cont) return;
+    cont.innerHTML = "";
+    SUJETOS.forEach(s => {
+      const b = document.createElement("button");
+      b.type = "button"; b.className = "ctl suj"; b.textContent = s.et; b.title = s.nota;
+      b.onclick = () => {
+        // El ambiente va primero: cambia la URL base y limpia el token, que es distinto por ambiente.
+        const amb = document.querySelector(`.ctl.amb[data-amb="${s.amb}"]`);
+        if (amb) amb.click();
+        $("#r-waCli").value = s.wa;
+        $("#r-docCli").value = s.doc;
+        if ($("#r-ureq")) $("#r-ureq").value = s.ureq;
+        guardarCfg();
+        $("#r-estado").className = "realestado";
+        $("#r-estado").textContent = `${s.et} — ${s.nota}`;
+      };
+      cont.appendChild(b);
+    });
+  }
+
+  // ── la configuración se RECUERDA (menos el token, que se pide siempre) ─────────────────────────
+  // Recargar y volver a tipear tres valores es la clase de fricción que hace que nadie pruebe. El
+  // token NO se guarda acá: ya vive aparte y se limpia al cambiar de ambiente a propósito.
+  const CFGK = "core258.cfg";
+  const CAMPOS = ["r-base", "r-waCli", "r-docCli", "r-ureq", "r-waAse", "r-docAse"];
+  function guardarCfg() {
+    const o = {};
+    CAMPOS.forEach(k => { const e = $("#" + k); if (e) o[k] = e.value; });
+    localStorage.setItem(CFGK, JSON.stringify(o));
+  }
+  function cargarCfg() {
+    try {
+      const o = JSON.parse(localStorage.getItem(CFGK) || "{}");
+      Object.entries(o).forEach(([k, v]) => { const e = $("#" + k); if (e && v) e.value = v; });
+    } catch { /* si el json quedó roto no se pierde nada: se usan los valores por defecto */ }
+  }
+  CAMPOS.forEach(k => { const e = $("#" + k); if (e) e.addEventListener("change", guardarCfg); });
+
+  // ── la traza se puede ABRIR ───────────────────────────────────────────────────────────────────
+  // El resumen de 150 caracteres alcanza para ver que algo falló, no para entender por qué. Un click
+  // en la línea muestra la respuesta completa — es lo que uno quiere justo cuando algo se rompe.
+  $("#trace").addEventListener("click", (e) => {
+    const li = e.target.closest("li"); if (!li || !li.dataset.full) return;
+    let d = li.querySelector(".full");
+    if (d) { d.remove(); return; }
+    d = document.createElement("div");
+    d.className = "full";
+    d.textContent = li.dataset.full;
+    li.appendChild(d);
+  });
+
+  pintarSujetos();
+  cargarCfg();
 </script>
