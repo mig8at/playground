@@ -32,7 +32,13 @@ inexistentes contesta 404 `CLIENT_NOT_FOUND`, o sea que llega hasta la base.
 
 **El próximo paso es:** seguir validando el flujo del cliente **en local** hasta que esté completo, y
 recién entonces armar **un PR con todo** (decisión de Miguel). Lo acumulado está en la rama
-`feat/CORE-258-solicitud-operable`, sin commitear: 5 archivos, 4 bugs arreglados, 62 tests en verde.
+`feat/CORE-258-solicitud-operable`, sin commitear: **9 archivos, 7 bugs arreglados, 66 tests en verde.**
+
+🔴 **Lo más importante que salió del flujo del cliente** (Registro (18)): el canal permitía cambiarle la
+fecha y el plazo a créditos que **CreditOp no opera** — se le cambiaron a tres de Credifamilia (`rt=4`)
+probando. Ahora sólo son gestionables los de `response_type = 2` («Creditop X»), y la comprobación está
+en **dos lugares** a propósito: el filtro de la lista y una guarda en la ruta, porque el id va en la URL
+y es enumerable. Pendiente de producto: confirmar el tope de **4** créditos por cliente.
 
 Y pendiente de producto: `POST /change-requests/{id}/otp` está **inalcanzable** y la causa está entendida
 (Registro (14)) — recomendación **sacarlo**.
@@ -1414,6 +1420,116 @@ castigo pega sobre el número que también se usa para cobrar.
 
 <!-- append-only, lo nuevo arriba. (Esta tarea no tenía sección de registro; se agrega siguiendo
      PLANTILLA-TAREA.md. Lo de arriba es el ESTADO, que se reescribe; esto es qué pasó cada día.) -->
+
+### 2026-08-20 (19) — el cliente elige entre SUS créditos, y sólo entre los que operamos nosotros
+
+Miguel: *«desde usuario sí puede tener más de un crédito… después de autenticarse debería enviarle los
+créditos activos con rt=2… que liste los créditos de diferentes comercios y que lo seleccione y pueda
+cambiar el plazo o la fecha»*. Y el tope: *«en producción un usuario con más de dos créditos es algo muy
+extraño, le pondría un filtro de los primeros 4 y eso después lo reboto con producto»*.
+
+Y antes preguntó lo que había que preguntar: *«¿no es simplemente buscar todas las solicitudes con el
+número de cédula?»*. **Sí lo es** — pero el resultado crudo no sirve para un menú:
+
+> **MEDICIÓN · 2026-08-20 (dev)** — para el cliente de prueba: **168 solicitudes → 6 con crédito activo
+> → 2 con `response_type = 2`**. Un menú de WhatsApp admite 10 filas, así que las 168 no caben; y de las
+> 6 activas, 4 no son nuestras para tocar.
+
+**🔴 EL HALLAZGO, y es de los caros:** los tres créditos a los que hoy les cambié fecha y plazo probando
+el canal —**412380, 412375, 412268**— son **todos de Credifamilia, `response_type = 4`**. Un lender cuyo
+ciclo de vida NO llevamos nosotros. La API aceptó los cambios y quedaron escritos en nuestras tablas
+mientras el lender que de verdad lleva el crédito no se enteró. **Eso es peor que un rechazo**, porque
+deja los dos lados creyendo cosas distintas del mismo crédito.
+
+    SELECT ur.id, l.name, l.response_type FROM user_requests ur
+      JOIN lenders l ON l.id = ur.lender_id WHERE ur.id IN (412380, 412375, 412268);
+    -- 412380 | Credifamilia | 4      412375 | Credifamilia | 4      412268 | Credifamilia | 4
+
+**Por qué rt=2 es la regla y no una preferencia.** En el catálogo `response_types` (0 UTM · 1 Integración
+· **2 Creditop X** · 3 Cupo Rotativo, y un 4 que usa Credifamilia), sólo en «Creditop X» el comercio pone
+el capital y **CreditOp lleva el crédito**: ahí la fecha de pago y el plazo son nuestros para cambiar. En
+los demás decide y gestiona el lender externo. Medido en dev: de los créditos activos, **1906 son rt=2 y
+78 no**.
+
+**Lo que se construyó, en tres piezas que se necesitan las tres:**
+
+1. **El filtro**, en `ClientLookupService::conCreditoActivo()` — se le sumó un `whereExists` sobre
+   `lenders.response_type = 2` al que ya miraba `creditop_x_requests_history.status IN (1,8)`. Vale para
+   las dos entradas: la del asesor y la autogestión.
+
+2. **La guarda**, en `CreditController::creditoDeLaSesion()` — y esta es la mitad que importa: **filtrar
+   la lista no alcanza**, porque el `user_request_id` va en la URL y es enumerable. Sin la guarda, pedir
+   directo un id que no estaba en el menú se salta el filtro entero. Responde **422
+   `CREDIT_NOT_SERVICED_BY_US`**, no 404: el crédito existe y es de quien pregunta, así que esconderlo lo
+   dejaría creyendo que se perdió; lo que hay que explicarle es que ese no se gestiona por acá.
+
+3. **El tope, que AVISA.** `MAX_OPERABLES = 4` con orden explícito (`ORDER BY id DESC` — sin orden, «los
+   primeros 4» es lo que devuelva MySQL, que puede cambiar entre corridas) y un `operable_truncated` que
+   dice cuándo se recortó. Recortar en silencio deja a alguien sin poder gestionar un crédito y sin
+   entender por qué; con el aviso, el bot lo manda con un asesor. ⚠ **El 4 es PROVISIONAL** — así quedó
+   marcado en el código, a confirmar con producto.
+
+**Y un cambio de contrato: `operable_request_ids` → `operable_credits`.** Una lista de ids no se puede
+elegir. «Crédito #223999 / Crédito #126135» le pide a la persona reconocer un número interno que nunca
+vio; con el comercio y la próxima fecha reconoce el suyo de una. Ahora cada fila trae
+`user_request_id`, `merchant`, `lender`, `next_payment_date`, `installment_value`, `installment_number`,
+`fee_number`. **Devuelve datos, no texto armado**: el título y el subtítulo los compone quien pinta el
+menú, porque los límites (24 y 72 caracteres por fila) son del canal y no del backend. La misma forma en
+las dos entradas —`self/otp`, `self/otp/verify` y la del asesor— para que el orquestador arme el menú
+igual venga de donde venga.
+
+> **MEDICIÓN · 2026-08-20 (local, flujo completo)** — `by-phone` 200 · `self/otp` 200 con
+> `already_verified` y **2 créditos descritos** (`223999 Mediarte 2025-07-16` · `126135 CeluRD Test
+> 2026-01-16`), `operable_truncated: false` · `can-change` de 126135 `true` · fechas ofrecidas **28/08 y
+> 05/09, las dos futuras** · `change-payment-date` 200 → en la BD la fila vieja quedó `status 0` y la
+> nueva activa con `2026-08-28`.
+>
+> La guarda, pedida a mano: `credits/412380/can-change` (Credifamilia rt=4) → **422
+> `CREDIT_NOT_SERVICED_BY_US`**; `credits/126135/can-change` (rt=2) → pasa.
+>
+> El segundo crédito del cliente está **174 días en mora** y el backend lo rechaza con
+> `HAS_PENDING_PAYMENT` — la rama que el prototipo tiene que saber contestar, y ahora la ejercitó.
+
+**El prototipo del cliente quedó al día con esto:** consume `operable_credits`, arma las filas con el
+comercio como título (recortado a 24, con desempate por número de crédito si dos filas quedaran iguales)
+y la cuota + la fecha como descripción, avisa cuando el backend recortó, y el matcheo de la respuesta va
+contra **el título que se mostró** y no re-parseando números del texto — sacar el número parecía más
+tolerante y era peor: un título con un número propio elegía otro crédito. Probado con un comercio de 47
+caracteres: **cero violaciones** de los límites de WhatsApp.
+
+⚠ **Y lo que faltaba, que Miguel vio de inmediato: la lista no aparecía.** El prototipo tiene DOS
+motores —el guion (demo, que no toca la red) y el despachador de fases (modo real)— y yo había agregado la
+lista sólo al segundo. En el modo por defecto el flujo iba de «verificado» derecho al menú de acciones,
+así que el listado de comercios no existía. Agregado al guion como un paso propio (`creditos`), con un
+interruptor **«Tiene créditos en 2 comercios»** encendido por defecto: con él prendido la persona elige
+entre *Mediarte* y *CeluRD Test* y después ve el menú; apagado va derecho al menú, que es lo que pasa con
+un solo crédito. Corrido en el navegador: **22 globos, cero violaciones de WhatsApp** en el camino con
+lista. Lección: agregar algo al despachador **no** lo agrega al demo, y el demo es lo que se mira primero.
+
+⚠ Y una tercera categoría de error que el prototipo no tenía: además de «culpa nuestra» (401/403/5xx/red)
+y «dato del cliente» (404), están los **rechazos de negocio**, donde el backend ya escribió un mensaje
+para que lo lea la persona. Ahí el ⚠ estorba: no hay nada roto ni nada que reintentar. Los códigos están
+tomados del backend, no inventados: `HAS_PENDING_PAYMENT`, `EXTERNALLY_SERVICED`, `NO_ACTIVE_CREDIT`,
+`RECENT_CHANGE_EXISTS`, `FEE_NOT_AVAILABLE` y el nuevo `CREDIT_NOT_SERVICED_BY_US`.
+
+**66 tests en verde** (+3): sólo son operables los créditos que operamos nosotros · el tope ofrece 4 y
+avisa cuando hay más · un crédito propio de un lender que no operamos se rechaza explicándolo. Los dos
+primeros son de servicio y el tercero **de ruta**, que es donde vive la guarda.
+
+⚠ **Trampa del fixture, medida:** `lenders` tiene FK a `paths` y `promissory_types` con default 1, y el
+esquema `testing` de local está **vacío de catálogos** — el insert falla por integridad referencial y no
+por la regla que se quiere probar. Hay que sembrar las dos filas. (`slug` también es obligatorio y sin
+default.)
+
+**Deuda chica encontrada de paso:** cuando el crédito está en mora, `payment-date-options` contesta *«No
+puedes cambiar el **plazo** de tu crédito si tienes una deuda pendiente»* — el mensaje nombra el plazo
+aunque se esté preguntando por la fecha. Es copy de `Modules/Loans` compartido por los dos caminos; lo ve
+el cliente, así que conviene arreglarlo, pero no es de esta tarea.
+
+⚠ **Nota de método:** el prototipo NO se pudo ejercitar desde el navegador del harness — sirve el archivo
+como `data:` (origen opaco) y `fetch` a `localhost` queda bloqueado por CORS. Abriéndolo con `file://`
+funciona. Lo verificado por API acá es curl contra local; lo verificado del prototipo es su lógica de
+armado de filas, corrida en la página con las formas reales.
 
 ### 2026-08-20 (18) — autenticar PRIMERO, y dos bugs más — uno con plata de por medio
 

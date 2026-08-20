@@ -142,12 +142,27 @@ func verGuard(ruta string, comoJSON bool) int {
 		fmt.Fprintln(os.Stderr, err)
 		return 2
 	}
-	v := guard.Violations(string(b))
+	// Se mide LO QUE SALE, no el archivo entero. Si el archivo tiene su sección publicable, el guard va
+	// sobre ESA: lo de arriba es privado y puede —debe— nombrar repos, rutas y F-xx.
+	//
+	// Medirlo todo daba falsos positivos con razón de sobra para ignorarlos: el 2026-08-20 marcó un
+	// comentario HTML del Registro, que es privado y está bien que exista. Un guard que se equivoca en lo
+	// legítimo entrena a saltear el que acierta.
+	texto := string(b)
+	alcance := "el archivo entero (no tiene sección publicable)"
+	if loc := rePublic.FindStringIndex(texto); loc != nil {
+		texto = strings.TrimSpace(texto[loc[1]:])
+		alcance = "la sección `## Tarea (publicable)`"
+	}
+
+	v := guard.Violations(texto)
 	if comoJSON {
-		_ = json.NewEncoder(os.Stdout).Encode(map[string]any{"archivo": ruta, "violaciones": v})
+		_ = json.NewEncoder(os.Stdout).Encode(map[string]any{
+			"archivo": ruta, "alcance": alcance, "violaciones": v})
 	} else if len(v) == 0 {
-		fmt.Printf("  ✓ %s puede salir a Jira: no matchea ningún patrón prohibido\n", ruta)
+		fmt.Printf("  ✓ %s puede salir a Jira: %s no matchea ningún patrón prohibido\n", ruta, alcance)
 	} else {
+		fmt.Printf("  (medido sobre %s)\n", alcance)
 		fmt.Printf("  ✗ %s NO puede salir — %d violación(es):\n", ruta, len(v))
 		for _, x := range v {
 			fmt.Printf("      %-46s encontró: %s\n", x["what"], x["found"])

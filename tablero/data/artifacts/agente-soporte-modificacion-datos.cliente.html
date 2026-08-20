@@ -1156,6 +1156,7 @@
     <div class="controls">
       <button class="ctl primary" id="reset">↺ Reiniciar</button>
       <button class="ctl" id="auto">▶ Correr solo</button>
+      <label class="tog"><input type="checkbox" id="varios" checked> Tiene créditos en 2 comercios</label>
       <label class="tog"><input type="checkbox" id="ineligible"> Crédito no elegible (regla de 6 meses)</label>
       <label class="tog"><input type="checkbox" id="fallo"> Falla la verificación de identidad</label>
     </div>
@@ -1332,7 +1333,11 @@
       ],
       guarda: r => { VIVO.puedeCambiar = r?.json?.data?.can_change === true; },
       text: (r) => {
-        if (!REAL()) return `✅ Verificado. Hola <b>María Fernanda</b>.<br><br>Estás en tu crédito #${F.cli.sol}. Déjame revisar si admite cambios…`;
+        // Con varios créditos NO se puede decir «estás en tu crédito #x»: todavía no se eligió cuál. El
+        // saludo y la lista van juntos en el paso `creditos`, así que acá el guion no dice nada de más.
+        if (!REAL()) return $("#varios").checked
+          ? `Verificando el código…`
+          : `✅ Verificado. Hola <b>María Fernanda</b>.<br><br>Estás en tu crédito #${F.cli.sol}. Déjame revisar si admite cambios…`;
         if (!r || !r.ok) return `⚠ <b>No se pudo continuar.</b><span class="kv">${
           r ? "HTTP " + r.status + "\n" + ((r.json.errors && r.json.errors.error_code) || "") : "sin respuesta"}</span>`;
         const d = r.json.data || {};
@@ -1344,8 +1349,30 @@
       // En modo real la rama la decide el BACKEND, no el checkbox del prototipo.
       // Rutea al MENÚ DE ACCIONES, no directo a las opciones de fecha: hasta acá no se sabe qué quiere
       // hacer la persona. Preguntar recién ahora es lo que hace innecesario interpretar texto libre.
+      // En modo REAL este `next` no manda: ahí decide el despachador (`NODOS`), que ya rutea por
+      // `operable_credits` — 0 corta, 1 sigue solo, más de 1 pregunta. Esto es el guion del demo.
       next: () => REAL() ? (VIVO.puedeCambiar ? "acciones" : "noeleg")
-                         : ($("#ineligible").checked ? "noeleg" : "acciones")
+                         : ($("#ineligible").checked ? "noeleg"
+                            : ($("#varios").checked ? "creditos" : "acciones"))
+    },
+    {
+      // ELEGIR EL CRÉDITO. Sólo aparece si la persona tiene más de uno — con uno, el bot no pregunta
+      // nada y va derecho al menú (lo decide el `next` de `s4`).
+      //
+      // Un cliente PUEDE tener créditos en varios comercios: son solicitudes distintas, cada una con su
+      // comercio y su entidad. Lo que no puede tener es dos créditos activos en el MISMO comercio.
+      //
+      // Las filas se ven así porque el backend manda DATOS (`operable_credits`: comercio, próxima fecha,
+      // cuota) y el texto se arma del lado del bot: el título es el COMERCIO —lo que la persona
+      // reconoce, compró ahí— y no la entidad prestadora, que muchas veces no le suena. Los ids
+      // internos (#223999) no van como identidad de la fila: nunca los vio.
+      id: "creditos", side: "a", from: "bot",
+      text: `✅ Verificado. Hola <b>María Fernanda</b>.<br><br>Tienes <b>2 créditos activos</b>. ¿Sobre cuál quieres el cambio?`,
+      list: "Elegir crédito",
+      buttons: [
+        { t: "Mediarte", sub: "cuota $71.266 · vence 16/07/2026", goto: "acciones" },
+        { t: "CeluRD Test", sub: "cuota $502.775 · vence 28/08/2026", goto: "acciones" },
+      ]
     },
     {
       // EL MENÚ DE ACCIONES. Va después de la identidad Y de saber que el crédito admite cambios: las
@@ -1791,10 +1818,45 @@
   // ═══════════════════════════════════════════════════════════════════════════════════════════════
   const CONV = { fase: "saludo", d: {} };
 
-  // De dónde sale el id de la solicitud. El despachador lo DESCUBRE (`operable_request_ids` de
+  // De dónde sale el id de la solicitud. El despachador lo DESCUBRE (`operable_credits` de
   // `verify`); el guion del demo no descubre nada, así que ahí sale del campo del formulario. Un solo
   // lugar que lo decide, para que no haya dos verdades.
   const ureqActual = () => CONV.d.ureq ?? rc("ureq");
+
+  // El backend manda DATOS (`operable_credits`: comercio, próxima fecha, cuota) y el texto de la fila se
+  // arma acá, porque los límites son del canal: 24 caracteres de título y 72 de descripción por fila.
+  // El título es el COMERCIO —lo que la persona reconoce, compró ahí— y no la entidad prestadora, que
+  // muchas veces no le suena.
+  const plata = (n) => "$" + Math.round(n || 0).toLocaleString("es-CO");
+  const fechaCorta = (f) => {
+    if (!f) return null;
+    const [a, m, d] = String(f).slice(0, 10).split("-");
+    return d && m ? `${d}/${m}/${a}` : f;
+  };
+  const recorta = (t, n) => (t = String(t || "").trim()).length > n ? t.slice(0, n - 1) + "…" : t;
+
+  /**
+   * Los créditos → filas de una lista de WhatsApp.
+   *
+   * Dos comercios distintos dan títulos distintos, pero no se puede CONFIAR en eso: si dos filas
+   * quedaran con el mismo título, la respuesta de la persona sería ambigua y el bot elegiría mal. Así
+   * que cuando hay choque se desempata con el número de crédito, y el mapeo título→id queda guardado en
+   * vez de re-parsearse del texto.
+   */
+  function filasDeCreditos(creditos) {
+    const veces = {};
+    creditos.forEach(c => { const k = c.merchant || "Crédito"; veces[k] = (veces[k] || 0) + 1; });
+    const usados = {};
+    return creditos.map(c => {
+      const base = c.merchant || "Crédito";
+      let titulo = base;
+      if (veces[base] > 1) { usados[base] = (usados[base] || 0) + 1; titulo = `${base} #${c.user_request_id}`; }
+      const partes = [];
+      if (c.installment_value) partes.push(`cuota ${plata(c.installment_value)}`);
+      if (c.next_payment_date) partes.push(`vence ${fechaCorta(c.next_payment_date)}`);
+      return { id: c.user_request_id, t: recorta(titulo, 24), sub: recorta(partes.join(" · "), 72) };
+    });
+  }
   const IN = () => $("#in-a"), SND = () => $("#snd-a");
 
   function pedirTexto(ph) {
@@ -1818,9 +1880,20 @@
   // manda a la persona a buscar el problema donde no está. Se detectó escribiéndole al bot con el token
   // vacío: contestaba «no estás registrado» ante un 401.
   const esNuestraCulpa = (r) => !r || r.red || r.status === 401 || r.status === 403 || r.status >= 500;
-  const problema = (r) => esNuestraCulpa(r)
-    ? "⚠ Tengo un problema técnico para consultar tu crédito. Intentá en un rato."
-    : `⚠ ${(r.json && (r.json.message || (r.json.errors || {}).error_code)) || "No pude completar la consulta"}`;
+  // Hay una tercera categoría además de «culpa nuestra» y «dato del cliente»: los rechazos de NEGOCIO,
+  // donde el backend ya escribió un mensaje para que lo lea la persona. Ahí el ⚠ estorba — no hay nada
+  // roto ni nada que reintentar. `CREDIT_NOT_SERVICED_BY_US` es el caso: el crédito existe y es suyo,
+  // pero lo administra la entidad que lo otorgó.
+  // Medidos, no inventados: son los que devuelven `CreditChangeValidationService` (los cuatro de
+  // estado del crédito) y la guarda del canal. Todos traen un mensaje ya escrito para el cliente.
+  const DE_NEGOCIO = ["CREDIT_NOT_SERVICED_BY_US", "HAS_PENDING_PAYMENT", "EXTERNALLY_SERVICED",
+                      "NO_ACTIVE_CREDIT", "RECENT_CHANGE_EXISTS", "FEE_NOT_AVAILABLE"];
+  const problema = (r) => {
+    if (esNuestraCulpa(r)) return "⚠ Tengo un problema técnico para consultar tu crédito. Intentá en un rato.";
+    const j = r.json || {}, cod = (j.errors || {}).error_code;
+    const msg = j.message || cod || "No pude completar la consulta";
+    return DE_NEGOCIO.includes(cod) ? msg : `⚠ ${msg}`;
+  };
 
   const NODOS = {
     // n8n ya sabe de qué número viene el mensaje, así que resuelve al cliente ANTES de preguntar nada.
@@ -1856,7 +1929,7 @@
      * Y las acciones se ofrecen SOBRE una solicitud concreta que ya se sabe que admite cambios.
      */
     menuAcciones: async () => {
-      await dice(`Tu crédito <b>#${CONV.d.ureq}</b> admite cambios. ¿Qué querés hacer?`,
+      await dice(`Tu crédito${CONV.d.comercio ? ` de <b>${CONV.d.comercio}</b>` : ` <b>#${CONV.d.ureq}</b>`} admite cambios. ¿Qué querés hacer?`,
         { list: "¿Qué querés hacer?", buttons: [
           { t: "📅 Cambiar fecha de pago", sub: "el día en que te cobran" },
           { t: "🗓️ Cambiar el plazo", sub: "cuántas cuotas te quedan" } ]});
@@ -1899,24 +1972,30 @@
 
       // ⚠ ACÁ ESTABA EL HUECO. Antes el `user_request_id` salía de un campo que yo llenaba a mano, y
       // eso tapaba la pregunta de fondo: ¿de dónde lo saca n8n? De ningún lado — `self/by-phone` no
-      // devolvía créditos y ninguna ruta los listaba. Ahora `verify` trae `operable_request_ids`, o sea
+      // devolvía créditos y ninguna ruta los listaba. Ahora `verify` trae `operable_credits`, o sea
       // las solicitudes con crédito ACTIVO, y el bot decide con eso:
       //   0  → no hay nada que gestionar, y se dice ANTES de preguntar cualquier otra cosa
       //   1  → se usa, sin preguntar (el caso normal: un crédito activo por comercio)
       //   >1 → hay que PREGUNTAR cuál. Pasa cuando el cliente tiene créditos en varios comercios.
-      const ops = (v.json.data || {}).operable_request_ids || [];
-      if (!ops.length) {
+      const dv = v.json.data || {};
+      const creditos = dv.operable_credits || [];
+      if (!creditos.length) {
         await dice("Verifiqué tu identidad ✅<br><br>Pero <b>no tenés ningún crédito activo</b> que se pueda gestionar por acá.");
         CONV.fase = "fin"; trabar(); return;
       }
-      if (ops.length > 1) {
-        CONV.d.ops = ops;
-        await dice(`✅ Verificado. Tenés <b>${ops.length} créditos activos</b>. ¿Sobre cuál querés el cambio?`,
-          { list: "Elegir crédito", buttons: ops.slice(0, 10).map(id => ({ t: `Crédito #${id}` })) });
+      // Se DICE cuando el backend recortó. Mostrar 4 de 7 sin avisar deja a alguien buscando un crédito
+      // que el menú simplemente no tiene, y sin forma de saber que existe otra vía.
+      CONV.d.recortado = !!dv.operable_truncated;
+      if (creditos.length > 1) {
+        CONV.d.filas = filasDeCreditos(creditos);
+        const extra = CONV.d.recortado ? " Te muestro los más recientes; si te falta uno, te paso con un asesor." : "";
+        await dice(`✅ Verificado. Tenés <b>${creditos.length} créditos activos</b>. ¿Sobre cuál querés el cambio?${extra}`,
+          { list: "Elegir crédito", buttons: CONV.d.filas.map(f => ({ t: f.t, sub: f.sub })) });
         CONV.fase = "eligeCredito";
         return;
       }
-      CONV.d.ureq = ops[0];
+      CONV.d.ureq = creditos[0].user_request_id;
+      CONV.d.comercio = creditos[0].merchant;
 
       const c = await api("GET", `/credits/${ureqActual()}/can-change?wa=${encodeURIComponent(rc("waCli"))}`);
       if (!c.ok) { await dice(problema(c)); CONV.fase = "fin"; trabar(); return; }
@@ -1934,9 +2013,15 @@
 
     // Sólo se llega acá si el cliente tiene créditos en varios comercios. Con uno, n8n no pregunta.
     eligeCredito: async (txt) => {
-      const id = parseInt(String(txt).replace(/\D/g, ""), 10);
-      if (!CONV.d.ops.includes(id)) { await dice("No reconocí ese crédito. Elegí uno de la lista."); return; }
+      const t = String(txt || "").trim().toLowerCase();
+      // Se compara contra el título QUE SE MOSTRÓ. Sacar el número del texto parecía más tolerante, pero
+      // era peor: un título con un número propio (una fecha, un «#2») elegía otro crédito.
+      const fila = (CONV.d.filas || []).find(f => f.t.toLowerCase() === t)
+                || (CONV.d.filas || []).find(f => t && f.t.toLowerCase().startsWith(t));
+      if (!fila) { await dice("No reconocí ese crédito. Elegí uno de la lista."); return; }
+      const id = fila.id;
       CONV.d.ureq = id;
+      CONV.d.comercio = fila.t;
       const c = await api("GET", `/credits/${id}/can-change?wa=${encodeURIComponent(rc("waCli"))}`);
       if (!c.ok) { await dice(problema(c)); CONV.fase = "fin"; trabar(); return; }
       const d = c.json.data || {};
