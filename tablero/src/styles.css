@@ -42,7 +42,10 @@ table.ramas th {
   white-space: nowrap;
 }
 table.ramas td { padding: 7px 9px; border-bottom: 1px solid var(--line); vertical-align: baseline; }
-table.ramas td code { font-size: 11.5px; word-break: break-all; }
+/* La rama NO se parte: es un identificador, y `break-all` la cortaba a mitad de palabra
+   ("feature/pais-com / o-dato"), que es ilegible. Si no cabe, rueda — `.tabla-wrap` ya tiene
+   `overflow-x: auto` para eso. */
+table.ramas td code { font-size: 11.5px; white-space: nowrap; }
 table.ramas .sha { color: var(--mut); font: 11px/1 ui-monospace, SFMono-Regular, Menlo, monospace; margin-left: 5px; }
 table.ramas td.amb { text-align: center; width: 1%; white-space: nowrap; }
 table.ramas .si { color: var(--acc); font-weight: 700; }

@@ -156,11 +156,19 @@ const groupedIssues = computed(() => {
   // El dato del grupo NO se pierde — viaja como chip en cada tarjeta (`_esfuerzo` / `_sprint`), que es
   // donde se lee sin partir la grilla. Es el mismo criterio que el chip del sprint en la vista ancha.
   if (vistaAncha.value) {
-    const todas = [];
+    // Una tarea ARRASTRADA entre sprints viene en el listado de cada sprint que la incluyó. Agrupada eso
+    // era correcto (una fila por grupo); suelta son tarjetas DUPLICADAS — CORE-365 salía tres veces, una
+    // por Sprint 12, 11 y 10. Se deduplica por `Key` quedándose con el sprint MÁS NUEVO (el listado viene
+    // nuevo→viejo) y el arrastre NO se pierde: se cuenta, porque una tarea en su 3.er sprint es una señal.
+    const porKey = new Map();
     for (const g of porSprint.value) {
-      for (const i of g.issues) todas.push({ ...i, _sprint: g.sprint.name.replace(/^.*?(Sprint)/i, '$1') });
+      for (const i of g.issues) {
+        const ya = porKey.get(i.Key);
+        if (ya) { ya._arrastres++; continue; }
+        porKey.set(i.Key, { ...i, _sprint: nombreCorto(g.sprint.name), _arrastres: 1 });
+      }
     }
-    return [{ id: 0, title: '', tasks: todas }];
+    return [{ id: 0, title: '', tasks: [...porKey.values()] }];
   }
   // `issues` ya viene ordenado nuevo → viejo desde el server y ese orden se preserva tal cual.
   const conEsfuerzo = issues.value.map((i) => {
@@ -303,6 +311,7 @@ const logTime = computed(() => ofSprint.value.reduce((n, e) => n + e.min, 0));
 // El chip del header, según el ESTADO del sprint. CORE vive entre sprints (uno cerró, el próximo no
 // arrancó), así que un sprint puede no haber empezado: "5 días restantes" sobre algo que aún no empieza
 // sería mentira. Tres casos: por arrancar · en curso · cerrado.
+const nombreCorto = (n) => (n || '').replace(/^.*?(Sprint)/i, '$1');
 const sprintTabs = computed(() => (sprints.value || []).slice(0, SPRINT_TABS));
 
 // ── VISTA «últimos 4 sprints»: todas MIS tareas de la ventana, a lo ancho ────────────────────────
@@ -312,7 +321,11 @@ const sprintTabs = computed(() => (sprints.value || []).slice(0, SPRINT_TABS));
 //
 // Los issues salen del MISMO endpoint del sprint, que ya filtra `assignee = currentUser()` en Jira: no
 // hay un segundo criterio de "mío" que pueda derivar del primero.
-const vistaAncha = ref(false);
+// Arranca en TRUE: el tablero muestra por defecto las tareas de los últimos sprints, no sólo el activo.
+// Las pestañas por sprint se quitaron (2026-08-19, decisión de Miguel): 4 botones en el header para ver
+// un sprint a la vez, cuando lo que se quiere es ver TODO lo propio de la ventana. El sprint ACTIVO sigue
+// siendo el de los indicadores (puntos, tiempo, días restantes) — eso no cambia con la vista.
+const vistaAncha = ref(true);
 const cargandoAncha = ref(false);
 const porSprint = ref([]);   // [{ sprint, issues }] en el orden de las pestañas
 
@@ -331,7 +344,9 @@ async function cargarUltimos4() {
 }
 
 // Total de tarjetas visibles: va en el encabezado porque "4 sprints" no dice cuánto trabajo es.
-const totalAncha = computed(() => porSprint.value.reduce((n, g) => n + g.issues.length, 0));
+// Cuenta TARJETAS, no filas de sprint: sumar `g.issues.length` daba 24 cuando en pantalla había 16,
+// porque las arrastradas venían repetidas. El contador y la grilla salen ahora de la misma lista.
+const totalAncha = computed(() => groupedIssues.value[0]?.tasks.length || 0);
 
 async function alternarVista() {
   vistaAncha.value = !vistaAncha.value;
@@ -357,7 +372,6 @@ const minHhmm = (m) => `${Math.floor(m / 60)}h ${String(m % 60).padStart(2, '0')
 // Link real a la tarea en Jira. Va como <a href> y no como window.open() a propósito: así funcionan
 // cmd-clic, clic del medio y "copiar dirección del enlace", que es como uno pega una tarea en Slack.
 const jiraLink = (key) => site.value ? `${site.value}/browse/${key}` : '';
-const shortDate = (d) => d ? new Date(d).toLocaleDateString('es-CO', { day: '2-digit', month: 'short' }) : '';
 const statusClass = (c) => c === 'done' ? 'e-ok' : c === 'indeterminate' ? 'e-doing' : 'e-todo';
 const minutesOf = (k) => ofSprint.value.filter(e => e.key === k).reduce((n, e) => n + e.min, 0);
 
@@ -744,6 +758,9 @@ onMounted(async () => {
   // Sin id: el server elige (activo, o el último cerrado, o el próximo). No lo re-derivamos acá para
   // no tener dos definiciones de "cuál es el sprint por defecto".
   await loadSprint();
+  // Los 4 sprints se traen al final: dependen de `sprintTabs`, que se llena con la lista de arriba.
+  // Sin await: la vista pinta el sprint activo primero y las otras tarjetas entran cuando llegan.
+  cargarUltimos4();
 });
 </script>
 
@@ -753,25 +770,20 @@ onMounted(async () => {
       <div class="logo">T</div>
       <div>
         <h1>Tablero</h1>
-        <p class="sub">Mi sprint · registro de tiempo y hallazgos</p>
+        <!-- Nombra el sprint ACTIVO: los indicadores de abajo son suyos, y sin las pestañas nada más
+             lo decía. Que la lista muestre 4 sprints no cambia a cuál miden las métricas. -->
+        <p class="sub">{{ sprint ? nombreCorto(sprint.name) : 'Mi sprint' }} · registro de tiempo y hallazgos</p>
       </div>
       <div class="sp" v-if="sprint">
-        <!-- `sprintTabs`, no `sprints`: se traen más para las bandas de la jornada, pero el selector
-             sigue mostrando los 4 recientes — 12 pestañas ahí serían un menú, no un selector. -->
-        <div class="tabs" v-if="sprintTabs.length > 1">
-          <button v-for="s in sprintTabs" :key="s.id" :class="{ act: s.id === sprint.id }"
-            :title="`${shortDate(s.startDate)} → ${shortDate(s.endDate)}`" @click="loadSprint(s.id)">
-            {{ s.name.replace(/^.*?(Sprint)/i, '$1') }}
-            <i v-if="s.state === 'active'" class="live" title="sprint activo"></i>
-          </button>
-        </div>
-        <button class="tact vista" :class="{ act: vistaAncha }" @click="alternarVista"
-          :title="vistaAncha ? 'volver al sprint' : 'ver mis tareas de los últimos 4 sprints, a lo ancho'">
-          {{ vistaAncha ? '← el sprint' : `últimos ${sprintTabs.length} sprints` }}
+        <!-- El único botón de vista que queda: enfocar SÓLO el sprint activo. El default es al revés
+             (todo lo de la ventana), que es lo que uno mira el 90% del tiempo. -->
+        <button class="tact vista" :class="{ act: !vistaAncha }" @click="alternarVista"
+          :title="vistaAncha ? `ver sólo ${sprint?.name || 'el sprint activo'}` : 'ver mis tareas de los últimos sprints'">
+          {{ vistaAncha ? 'sólo este sprint' : `últimos ${sprintTabs.length} sprints` }}
         </button>
         <span v-if="sprintDays?.state === 'upcoming'" class="chip">arranca en {{ sprintDays.startsIn }} día{{ sprintDays.startsIn === 1 ? '' : 's' }}</span>
         <span v-else-if="sprintDays?.state === 'closed'" class="chip warn">cerrado hace {{ sprintDays.endedAgo }} día{{ sprintDays.endedAgo === 1 ? '' : 's' }}</span>
-        <span v-else-if="sprintDays?.state === 'ongoing'" class="chip chip-bar">{{ sprintDays.remaining }} días restantes<i class="mini"><b :style="{ width: sprintDays.pct + '%' }"></b></i></span>
+        <span v-else-if="sprintDays?.state === 'ongoing'" class="chip chip-bar">{{ sprintDays.remaining }} día{{ sprintDays.remaining === 1 ? '' : 's' }} restante{{ sprintDays.remaining === 1 ? '' : 's' }}<i class="mini"><b :style="{ width: sprintDays.pct + '%' }"></b></i></span>
       </div>
     </header>
 
@@ -903,6 +915,10 @@ onMounted(async () => {
                   <i v-if="stageOf(i._esfuerzoId)" class="stg" :class="'s-' + stageOf(i._esfuerzoId)?.id">{{ stageOf(i._esfuerzoId)?.label }}</i>
                 </span>
                 <span v-if="i._sprint" class="spchip" :title="`del ${i._sprint}`">{{ i._sprint }}</span>
+                <!-- El arrastre no es decoración: una tarea que va por su 3.er sprint es lo que uno
+                     quiere ver sin abrir nada. Sólo aparece cuando hay más de uno. -->
+                <span v-if="i._arrastres > 1" class="spchip drag"
+                  :title="`aparece en ${i._arrastres} sprints — viene arrastrada`">{{ i._arrastres }}.º sprint</span>
               </div>
               <div class="tt">{{ i.Summary }}</div>
 
@@ -1130,7 +1146,7 @@ onMounted(async () => {
          wrapper: meterlo adentro del de prototipos lo dejaba invisible, porque manda el `v-if` del padre. -->
     <div v-if="ramasAbiertas" class="drawer">
       <div class="drawer-bg" @click="ramasAbiertas = false"></div>
-      <aside class="drawer-p">
+      <aside class="drawer-p ancho">
         <header class="drawer-h">
           <div>
             <h3>Ramas</h3>
@@ -1252,6 +1268,9 @@ onMounted(async () => {
 .spchip.esf { max-width: 46%; overflow: hidden; text-overflow: ellipsis; color: var(--acc);
   border-color: color-mix(in srgb, var(--acc) 35%, transparent); display: inline-flex; gap: 5px; align-items: center }
 .spchip.esf .stg { font-style: normal; font-size: 9.5px; opacity: .8 }
+/* Arrastre: va PEGADO al chip del sprint (el `margin-left:auto` es del primero, que ya empujó los dos
+   al borde) y en ámbar, porque es un aviso — no el mismo tono que el dato neutro de al lado. */
+.spchip.drag { margin-left: 4px; color: #fbbf24; border-color: #fbbf2455 }
 header { display: flex; align-items: center; gap: 14px; margin-bottom: 22px; flex-wrap: wrap; row-gap: 10px }
 .logo { width: 38px; height: 38px; border-radius: 11px; display: grid; place-items: center; font-weight: 800;
   color: #0b0713; font-size: 19px; background: linear-gradient(135deg, #a78bfa, #60a5fa) }
@@ -1361,6 +1380,9 @@ h1 { font-size: 20px; margin: 0; letter-spacing: .2px }
    `min(520px, 92vw)` — ancho fijo cómodo para párrafos largos, pero sin desbordar en pantalla chica. */
 .drawer { position: fixed; inset: 0; z-index: 60 }
 .drawer-bg { position: absolute; inset: 0; background: #000000a6 }
+/* El de RAMAS es el único con tabla —7 columnas— y a 520px el nombre de la rama quedaba en 76px.
+   No es un cajón distinto: es el mismo con más ancho, sólo donde el contenido lo pide. */
+.drawer-p.ancho { width: min(820px, 95vw) }
 .drawer-p { position: absolute; top: 0; right: 0; bottom: 0; width: min(520px, 92vw);
   background: var(--panel); border-left: 1px solid var(--line); box-shadow: -12px 0 32px #00000059;
   display: flex; flex-direction: column }
@@ -1450,14 +1472,6 @@ h1 { font-size: 20px; margin: 0; letter-spacing: .2px }
 .ext { opacity: 0; font-size: .82em; transition: .12s }
 .link:hover .ext { opacity: .75 }
 
-/* pestañas de sprint: el activo lleva un punto, para no depender solo de la posición */
-.tabs { display: flex; gap: 4px; background: var(--panel2); padding: 3px; border-radius: 10px }
-.tabs button { border: 0; background: none; color: var(--mut); font: inherit; font-size: 12.5px;
-  font-weight: 600; padding: 5px 11px; border-radius: 8px; cursor: pointer; display: flex;
-  align-items: center; gap: 6px }
-.tabs button:hover { color: var(--txt) }
-.tabs button.act { background: var(--panel); color: var(--txt); box-shadow: 0 1px 3px #0006 }
-.live { width: 6px; height: 6px; border-radius: 50%; background: #4ade80; display: inline-block }
 .empty { color: var(--mut); font-size: 12.5px; margin: 0 0 14px; max-width: 62ch }
 
 /* ── mapa de jornada ──────────────────────────────────────────────────────────────────────────

@@ -12,7 +12,7 @@ Un proyecto con **tres ejecutables Go y un frontend Vue**, todos apoyados en los
 | `cmd/web` | servidor WebSocket (`:8787`) que alimenta el dashboard | `npm run dev` |
 | `cmd/jira-mcp` | **conector MCP** de Jira Cloud (stdio) — 4 tools | registrarlo en Claude Code |
 | `cmd/slack-mcp` | **conector MCP** de Slack (stdio) — 3 tools | registrarlo en Claude Code |
-| `src/` (Vue) | "Mi sprint": dashboard de sprint activo + heatmap de actividad | `npm run dev` → `:5191` |
+| `src/` (Vue) | mis tareas de los **últimos 4 sprints** en una grilla masonry + indicadores del sprint activo + heatmap de actividad | `npm run dev` → `:5191` |
 
 ## Por qué existe
 
