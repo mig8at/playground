@@ -24,18 +24,20 @@ jira_title: "Agente de soporte: modificación de datos"
 autorice (más una autogestión del cliente para fecha de pago y plazo). Código en `Modules/SupportBot`
 de `legacy-backend`, mergeado a `develop` (PR #1128) y `staging` (PR #1095).
 
-**Dónde está de verdad (2026-08-20):** el código está desplegado en dev y el API Gateway ya expone las
-16 rutas — las dos mitades del bloqueo de infra que faltaban. Verificado pegándole al gateway público.
-Pero **el canal sigue devolviendo 503**, y la causa quedó localizada: el secreto
-`SUPPORT_BOT_TOKEN` **ya está** en `dev/legacy-backend`, pero la task definition que corre es de hace
-15 días y no lo enumera. Terraform lee las claves del secreto en tiempo de plan, así que la clave nueva
-no llega al contenedor hasta que se vuelva a aplicar.
+**Dónde está de verdad (2026-08-20):** ✅ **el bloqueo de infra está CERRADO y el canal responde en
+dev.** Las tres piezas quedaron: el módulo desplegado, las 16 rutas expuestas en el API Gateway, y
+`SUPPORT_BOT_TOKEN` seteado. Verificado de punta a punta contra el gateway público — la guarda quedó
+viva (sin token o con uno inválido da 401, con el correcto pasa al controlador) y una consulta con datos
+inexistentes contesta 404 `CLIENT_NOT_FOUND`, o sea que llega hasta la base.
 
-**El próximo paso es:** confirmar EN QUÉ CUENTA lee el secreto el servicio que atiende dev, y agregar
-`SUPPORT_BOT_TOKEN` ahí. La revisión 612 ya está desplegada y el canal sigue en 503, así que la clave no
-está llegando. ⚠ Ojo: hay **dos** despliegues con la misma familia `legacy-backend-develop` en cuentas
-distintas (697767917359 con rev 199 · y el real, con rev 612 y 2 tareas). Medir en la equivocada ya
-costó una vuelta — ver Registro 2026-08-20 (3).
+**El próximo paso es:** probar el flujo REAL con el equipo del bot — arranca por `POST /self/otp` con un
+número y una cédula de verdad. ⚠ Eso **manda un WhatsApp a una persona**, así que hay que acordar antes
+con quién se prueba; no se hace por curiosidad.
+
+⚠ **Para no repetir el error que costó dos vueltas:** hay **dos** despliegues con la misma familia
+`legacy-backend-develop` en cuentas AWS distintas. La cuenta `697767917359` corre la revisión 199 con 1
+tarea y **no es la que atiende**; la que atiende corre 2 tareas. Si vas a medir algo de infra, confirmá
+primero la cuenta — ver Registro 2026-08-20 (3).
 
 **Lo que ya NO hay que investigar:** el gateway (hecho, 16 rutas, prefijo `/legacy-api/support/*`, host
 `legacy-backend.develop.internal.creditop.com`), que el módulo esté desplegado (lo está: responde 503,
@@ -219,8 +221,21 @@ De los tres puntos, **dos ya están hechos** y queda uno:
 > `curl -s https://api.dev.creditop.com/legacy-api/support/clients -H "Authorization: Bearer <token>"`
 > `# 503; ruta inventada → 404, así que el 503 viene del backend, no del gateway`
 
-1. ⛔ **`SUPPORT_BOT_TOKEN` — el secreto está, la TASK DEFINITION quedó vieja.** Es el único bloqueo
-   que queda, y la causa está medida contra AWS, no supuesta:
+1. ✅ **`SUPPORT_BOT_TOKEN` — RESUELTO el 2026-08-20.** La clave estaba en el secreto de la cuenta
+   equivocada; se agregó en la que corre el servicio y con el redespliegue el canal empezó a responder.
+
+   > **MEDICIÓN · 2026-08-20** — el canal pasó de 503 a 422 a las 11:24:36, con la revisión nueva ya
+   > corriendo. Sin token y con token inválido da 401; con el correcto, 422 del controlador. Y
+   > `self/by-phone` con un número inexistente da 404 `CLIENT_NOT_FOUND`: la cadena llega a la BD.
+   > `curl -s -o /dev/null -w '%{http_code}' https://api.dev.creditop.com/legacy-api/support/clients -H "Authorization: Bearer <token>"`
+
+   **La lección, porque costó dos vueltas:** el 503 del middleware significa «el token esperado está
+   VACÍO», no «el token no coincide» —eso es 401—. Esa distinción es la que permitió saber, sin acceso a
+   la cuenta correcta, que la variable no llegaba al contenedor. Y el nombre de familia de la task
+   definition es el MISMO en las dos cuentas, que es lo que hizo fácil medir en la que no atiende.
+
+   *(Lo que decía antes acá — «el secreto está, la task definition quedó vieja» — estaba medido en la
+   cuenta 697767917359, que no es la que sirve dev. Ver Registro 2026-08-20 (3).)*
 
    > **MEDICIÓN · 2026-08-20** — el secreto `dev/legacy-backend` tiene 164 claves, incluida
    > `SUPPORT_BOT_TOKEN` (64 hex, correcta). La task definition `legacy-backend-develop:199` enumera
@@ -1384,6 +1399,26 @@ castigo pega sobre el número que también se usa para cobrar.
 
 <!-- append-only, lo nuevo arriba. (Esta tarea no tenía sección de registro; se agrega siguiendo
      PLANTILLA-TAREA.md. Lo de arriba es el ESTADO, que se reescribe; esto es qué pasó cada día.) -->
+
+### 2026-08-20 (4) — ✅ el canal responde en dev: bloqueo de infra cerrado
+
+Se agregó `SUPPORT_BOT_TOKEN` al secreto de la cuenta **correcta** (la que corre el servicio que atiende
+dev, no la 697767917359) y se redesplegó. A las **11:24:36** el canal pasó de 503 a 422.
+
+Validación completa contra el gateway público `api.dev.creditop.com/legacy-api/support/*`:
+
+| prueba | resultado | qué prueba |
+|---|---|---|
+| sin `Authorization` | 401 `UNAUTHORIZED` | la guarda quedó VIVA, no abierta |
+| token inválido | 401 `UNAUTHORIZED` | compara de verdad |
+| token correcto | 422 `VALIDATION_FAILED` | pasa al controlador |
+| `self/by-phone?wa=573000000000` | 404 `CLIENT_NOT_FOUND` | llega hasta la BD |
+| `clients` sin sesión | 409 `SESSION_NOT_FOUND` | la ruta del asesor exige OTP verificado, como se diseñó |
+| ruta inexistente | 404 del gateway | control |
+
+Las pruebas se hicieron con datos **inexistentes** a propósito: `wa=573000000000`, `document=0000000000`.
+Ejercitan toda la cadena sin consultar los datos de ninguna persona real. Lo que falta —el flujo con un
+cliente de verdad— arranca en `POST /self/otp`, que **manda un WhatsApp**: se acuerda antes con quién.
 
 ### 2026-08-20 (3) — CORRECCIÓN: la medición de (2) era de la cuenta equivocada
 
