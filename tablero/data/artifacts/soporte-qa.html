@@ -1,0 +1,579 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Canal de soporte · el chat del cliente contra la API real</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  /* El chat es el mismo de los prototipos (mismos colores y proporciones de WhatsApp) para que lo que
+     se ve acá sea lo que se va a ver allá. Lo nuevo es la columna derecha: la respuesta CRUDA de cada
+     llamada, en el mismo orden en que la conversación las produjo. */
+  :root {
+    --wa-green:#008069; --wa-chat-bg:#efeae2; --wa-mine:#d9fdd3; --wa-theirs:#fff;
+    --wa-bar:#f0f2f5; --wa-link:#027eb5; --wa-tick:#53bdeb;
+    --page:#f7f8fa; --panel:#fff; --line:#e4e7eb; --ink:#1a2027; --soft:#5d6b7a;
+    --ok:#067647; --okbg:#f0fdf4; --bad:#b42318; --badbg:#fef3f2; --warn:#b54708; --warnbg:#fffbeb;
+    --mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+  }
+  * { box-sizing:border-box }
+  body { margin:0; background:var(--page); color:var(--ink);
+         font:14px/1.5 -apple-system, "Segoe UI", system-ui, sans-serif }
+
+  header { background:var(--panel); border-bottom:1px solid var(--line); padding:16px 22px }
+  h1 { margin:0 0 3px; font-size:17px }
+  header p { margin:0; color:var(--soft); font-size:13px; max-width:78ch }
+
+  .cfg { display:flex; flex-wrap:wrap; gap:10px; align-items:flex-end;
+         background:var(--panel); border-bottom:1px solid var(--line); padding:13px 22px }
+  .cfg label { display:flex; flex-direction:column; gap:3px;
+               font-size:10.5px; text-transform:uppercase; letter-spacing:.05em; color:var(--soft) }
+  .cfg input, .cfg select { font:13px var(--mono); padding:7px 9px; border:1px solid var(--line);
+                            border-radius:6px; background:var(--page); color:var(--ink); min-width:145px }
+  .cfg .ancho { min-width:320px }
+  .cfg button { font:13px inherit; padding:7px 11px; border:1px solid var(--line); border-radius:6px;
+                background:var(--page); color:var(--ink); cursor:pointer }
+  .cfg button.p { background:var(--wa-green); border-color:var(--wa-green); color:#fff; font-weight:500 }
+
+  .aviso { margin:10px 22px 0; padding:9px 12px; border-radius:7px; font-size:12.5px;
+           background:var(--warnbg); border:1px solid #fde68a; color:var(--warn) }
+
+  .cols { display:grid; grid-template-columns: 380px minmax(0,1fr); gap:18px; padding:16px 22px; align-items:start }
+  @media (max-width:900px) { .cols { grid-template-columns:1fr } }
+
+  /* ── el teléfono ── */
+  .phone { border:1px solid var(--line); border-radius:12px; overflow:hidden;
+           background:var(--wa-chat-bg); box-shadow:0 1px 3px rgba(0,0,0,.07); position:relative }
+  .ph-head { background:var(--wa-green); color:#fff; padding:10px 14px; display:flex; align-items:center; gap:11px }
+  .avatar { width:34px; height:34px; border-radius:50%; background:rgba(255,255,255,.25);
+            display:grid; place-items:center; font-size:15px; flex:none }
+  .ph-who { font-weight:600; font-size:14.5px; line-height:1.2 }
+  .ph-sub { font-size:11.5px; opacity:.85 }
+  .ph-role { margin-left:auto; font-size:10.5px; text-transform:uppercase; letter-spacing:.06em;
+             background:rgba(255,255,255,.2); padding:3px 8px; border-radius:20px }
+  .chat { height:520px; overflow-y:auto; padding:14px 12px; display:flex; flex-direction:column; gap:7px;
+          background-color:var(--wa-chat-bg);
+          background-image:radial-gradient(rgba(0,0,0,.035) 1px, transparent 1px); background-size:18px 18px }
+  .msg { max-width:85%; padding:7px 10px 6px; border-radius:8px; font-size:14px; position:relative;
+         box-shadow:0 1px .5px rgba(0,0,0,.13); color:#111b21; word-wrap:break-word }
+  .msg.theirs { background:var(--wa-theirs); align-self:flex-start; border-top-left-radius:2px }
+  .msg.mine { background:var(--wa-mine); align-self:flex-end; border-top-right-radius:2px }
+  .msg .t { font-size:10.5px; color:#667781; float:right; margin:6px 0 -2px 8px }
+  .msg .t .tick { color:var(--wa-tick); font-size:11px }
+  .msg .kv { display:block; font-family:var(--mono); font-size:12.5px; background:rgba(0,0,0,.045);
+             border-radius:4px; padding:5px 7px; margin:5px 0 2px; white-space:pre-wrap }
+  .msg .warnline { color:#b54708; font-size:12.5px; display:block; margin-top:5px }
+  .qr { margin:6px -10px -6px; border-top:1px solid rgba(0,0,0,.09) }
+  .qr button { display:block; width:100%; background:none; border:none; border-top:1px solid rgba(0,0,0,.09);
+               color:var(--wa-link); font:inherit; font-size:13.5px; padding:8px 6px; cursor:pointer; text-align:center }
+  .qr button:first-child { border-top:none }
+  .qr button:hover:not(:disabled) { background:rgba(0,0,0,.03) }
+  .qr button:disabled { color:#b9c1c6; cursor:default }
+  .qr.list .hd { font-size:11px; text-transform:uppercase; letter-spacing:.05em; color:#667781;
+                 padding:7px 10px 3px; text-align:left }
+  .qr.list button { text-align:left; padding:8px 10px; color:#111b21; font-size:13.5px }
+  .qr.list button .sub { display:block; font-size:11.5px; color:#667781; margin-top:1px }
+  .typing { align-self:flex-start; background:#fff; border-radius:8px; padding:9px 12px;
+            box-shadow:0 1px .5px rgba(0,0,0,.13); display:flex; gap:3px }
+  .typing i { width:6px; height:6px; border-radius:50%; background:#9aa5ab; display:block; animation:bl 1.1s infinite }
+  .typing i:nth-child(2){ animation-delay:.18s } .typing i:nth-child(3){ animation-delay:.36s }
+  @keyframes bl { 0%,60%,100%{opacity:.25} 30%{opacity:1} }
+  .composer { background:var(--wa-bar); padding:8px 10px; display:flex; gap:8px; align-items:center;
+              border-top:1px solid rgba(0,0,0,.06) }
+  .composer input { flex:1; font:inherit; font-size:14px; border:none; border-radius:20px; padding:8px 14px;
+                    background:#fff; color:#111b21; min-width:0 }
+  .composer input:disabled { background:#e9edef; color:#9aa5ab }
+  .composer .send { width:34px; height:34px; border-radius:50%; border:none; background:var(--wa-green);
+                    color:#fff; cursor:pointer; font-size:15px; flex:none }
+  .composer .send:disabled { background:#c4ccd1; cursor:default }
+  /* El SMS con el código, para no tener que salir a buscarlo en el teléfono. */
+  .sms { margin:10px; padding:9px 11px; border-radius:8px; background:#fff; border:1px solid var(--line);
+         font-size:12.5px; color:#111b21 }
+  .sms .hd { color:var(--soft); font-size:11px; margin-bottom:3px }
+  .sms .code { font-family:var(--mono); font-weight:700; font-size:15px; letter-spacing:.06em }
+
+  /* ── la columna de respuestas ── */
+  .panel { background:var(--panel); border:1px solid var(--line); border-radius:10px; overflow:hidden }
+  .panel > h2 { margin:0; padding:11px 14px; font-size:12px; text-transform:uppercase; letter-spacing:.06em;
+                color:var(--soft); border-bottom:1px solid var(--line);
+                display:flex; align-items:center; gap:10px }
+  .panel > h2 button { margin-left:auto; font:12px inherit; padding:4px 9px; border:1px solid var(--line);
+                       border-radius:5px; background:var(--page); color:var(--ink); cursor:pointer }
+  .llamada { border-bottom:1px solid var(--line) }
+  .llamada:last-child { border-bottom:0 }
+  .llamada > summary { padding:9px 14px; cursor:pointer; display:flex; gap:9px; align-items:center; font-size:12.5px }
+  .cod { font:11px var(--mono); font-weight:700; padding:2px 6px; border-radius:4px; flex:none }
+  .cod.ok { background:var(--okbg); color:var(--ok) }
+  .cod.mal { background:var(--badbg); color:var(--bad) }
+  .ruta { font-family:var(--mono); font-size:12px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis }
+  .porque { color:var(--soft); font-size:11.5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis }
+  .ms { margin-left:auto; color:var(--soft); font-size:11px; font-family:var(--mono); flex:none }
+  pre { margin:0; padding:11px 14px; background:var(--page); border-top:1px solid var(--line);
+        overflow-x:auto; font:12px/1.55 var(--mono) }
+  pre .env { color:var(--soft) }
+  .vacio { padding:26px 14px; text-align:center; color:var(--soft); font-size:13px }
+  .nota { padding:10px 14px; border-top:1px solid var(--line); color:var(--soft); font-size:12px }
+  code { font-family:var(--mono); font-size:.92em; background:var(--page); padding:1px 4px; border-radius:3px }
+</style>
+
+<header>
+  <h1>Canal de soporte · el chat del cliente contra la API real</h1>
+  <p>Es la conversación tal como la va a ver el cliente en WhatsApp, pero cada paso llama la API de
+     verdad y no hay nada simulado: si el crédito no admite cambios, lo dice el backend. A la derecha
+     queda la respuesta cruda de cada llamada, en orden.</p>
+</header>
+
+<div class="cfg">
+  <label>Ambiente
+    <select id="amb"><option value="dev">dev</option><option value="local">local</option></select>
+  </label>
+  <label>Token del canal
+    <input id="token" type="password" class="ancho" placeholder="pegalo acá — queda en este navegador" autocomplete="off">
+  </label>
+  <label>Celular
+    <input id="tel" value="3109000004" placeholder="3001234567">
+  </label>
+  <label>Cédula
+    <input id="doc" value="37670195" placeholder="1023038445">
+  </label>
+  <button class="p" id="empezar">▶ Empezar la conversación</button>
+  <button id="reiniciar">↺ Reiniciar</button>
+</div>
+
+<div class="aviso" id="avisoAmb"></div>
+
+<div class="cols">
+  <div>
+    <div class="phone">
+      <div class="ph-head">
+        <div class="avatar">🤖</div>
+        <div><div class="ph-who">CreditOp</div><div class="ph-sub" id="estado">en línea</div></div>
+        <div class="ph-role">Cliente</div>
+      </div>
+      <div class="chat" id="chat"></div>
+      <div class="composer">
+        <input id="entrada" disabled placeholder="Escribe un mensaje">
+        <button class="send" id="enviar" disabled>➤</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>Respuestas del backend <button id="copiar">copiar reporte</button></h2>
+    <div id="log"><div class="vacio">Todavía no se llamó nada. Dale «Empezar la conversación».</div></div>
+    <div class="nota" id="nota"></div>
+  </div>
+</div>
+
+<script>
+"use strict";
+
+const BASES = { dev: "https://api.dev.creditop.com/legacy-api/support", local: "http://localhost/api/support" };
+const $ = (s) => document.querySelector(s);
+const base = () => BASES[$("#amb").value];
+const wa = () => "whatsapp:+57" + $("#tel").value.trim();
+const doc = () => $("#doc").value.trim();
+
+// ── el registro de llamadas ──────────────────────────────────────────────────────────────────────
+// TODA llamada pasa por acá. Si algo no aparece en la columna derecha es porque no se llamó — esa es
+// la única forma de que el panel sirva como evidencia para un ticket.
+const LOG = [];
+
+async function api(met, ruta, cuerpo) {
+  const t0 = performance.now();
+  let r = null, json = null, error = null;
+  try {
+    r = await fetch(base() + ruta, {
+      method: met,
+      headers: {
+        "Accept": "application/json",
+        "Authorization": "Bearer " + $("#token").value.trim(),
+        ...(cuerpo ? { "Content-Type": "application/json" } : {}),
+      },
+      ...(cuerpo ? { body: JSON.stringify(cuerpo) } : {}),
+    });
+    const txt = await r.text();
+    try { json = JSON.parse(txt); } catch { json = { "(no es JSON)": txt.slice(0, 600) }; }
+  } catch (e) { error = e.message; }
+
+  const p = { met, ruta, cuerpo, json, error, status: r ? r.status : 0,
+              ms: Math.round(performance.now() - t0), ok: !!r && r.ok };
+  LOG.unshift(p);
+  pintarLog();
+  return p;
+}
+
+const escapar = (s) => String(s).replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
+const codigoDe = (p) => ((p.json || {}).errors || {}).error_code || null;
+
+function pintarLog() {
+  if (!LOG.length) return;
+  $("#log").innerHTML = LOG.map((p, i) => {
+    const cod = codigoDe(p);
+    const resumen = p.error ? "no hubo respuesta" : (cod || (p.ok ? "" : p.status));
+    const cuerpo = (p.cuerpo ? `<span class="env">envió ${escapar(JSON.stringify(p.cuerpo))}</span>\n\n` : "") +
+      (p.error ? `⚠ ${escapar(p.error)}\n\n${escapar(pista())}` : escapar(JSON.stringify(p.json, null, 2)));
+    return `<details class="llamada" ${i === 0 ? "open" : ""}>
+      <summary>
+        <span class="cod ${p.ok ? "ok" : "mal"}">${p.error ? "—" : p.status}</span>
+        <span class="ruta">${p.met} ${escapar(p.ruta.split("?")[0])}</span>
+        <span class="porque">${escapar(resumen)}</span>
+        <span class="ms">${p.ms} ms</span>
+      </summary><pre>${cuerpo}</pre></details>`;
+  }).join("");
+}
+
+// «Failed to fetch» no dice nada, y acá es el error más probable. Se traduce a qué hacer.
+function pista() {
+  const esArchivo = location.protocol === "file:";
+  return [
+    "Las causas, en orden de probabilidad:",
+    esArchivo ? "· la página está abierta como archivo (file://) y el navegador bloquea la llamada — mirá la nota de abajo" : null,
+    base().includes("localhost") ? "· local no está levantado" : "· sin red o sin VPN",
+  ].filter(Boolean).join("\n");
+}
+
+// ── el chat ──────────────────────────────────────────────────────────────────────────────────────
+const hora = () => new Date().toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit" });
+
+function globo(de, html, opts = {}) {
+  const el = document.createElement("div");
+  el.className = "msg " + (de === "yo" ? "mine" : "theirs");
+  el.innerHTML = html + `<span class="t">${hora()}${de === "yo" ? ' <span class="tick">✓✓</span>' : ""}</span>`;
+
+  if (opts.buttons) {
+    const box = document.createElement("div");
+    box.className = "qr" + (opts.list ? " list" : "");
+    if (opts.list) {
+      const hd = document.createElement("div"); hd.className = "hd"; hd.textContent = opts.list;
+      box.appendChild(hd);
+    }
+    opts.buttons.forEach((b) => {
+      const btn = document.createElement("button");
+      btn.textContent = b.t;
+      if (b.sub) { const s = document.createElement("span"); s.className = "sub"; s.textContent = b.sub; btn.appendChild(s); }
+      btn.onclick = () => {
+        box.querySelectorAll("button").forEach((x) => (x.disabled = true));
+        globo("yo", escapar(b.t));
+        avanzar(b.t);
+      };
+      box.appendChild(btn);
+    });
+    el.appendChild(box);
+  }
+  $("#chat").appendChild(el);
+  $("#chat").scrollTop = $("#chat").scrollHeight;
+}
+
+async function escribiendo(ms = 520) {
+  const t = document.createElement("div");
+  t.className = "typing"; t.innerHTML = "<i></i><i></i><i></i>";
+  $("#chat").appendChild(t); $("#chat").scrollTop = $("#chat").scrollHeight;
+  $("#estado").textContent = "escribiendo…";
+  await new Promise((r) => setTimeout(r, ms));
+  t.remove(); $("#estado").textContent = "en línea";
+}
+async function dice(html, opts = {}) { await escribiendo(); globo("bot", html, opts); }
+
+function pedirTexto(ph) {
+  const i = $("#entrada"), b = $("#enviar");
+  i.disabled = false; b.disabled = false; i.value = ""; i.placeholder = ph; i.focus();
+}
+function trabar() {
+  const i = $("#entrada"), b = $("#enviar");
+  i.disabled = true; b.disabled = true; i.value = ""; i.placeholder = "Escribe un mensaje";
+}
+function sms(codigo) {
+  const v = document.getElementById("sms"); if (v) v.remove();
+  const n = document.createElement("div");
+  n.className = "sms"; n.id = "sms";
+  n.innerHTML = `<div class="hd">💬 Mensajes · ahora</div>CreditOp: tu código es
+    <span class="code">${codigo}</span>. No lo compartas con nadie.`;
+  $("#chat").parentElement.appendChild(n);
+}
+
+// ── de quién es la culpa ─────────────────────────────────────────────────────────────────────────
+// Tres categorías, y se tratan distinto porque quien prueba actúa distinto:
+//  · NUESTRA (401/403/5xx/red): está roto algo del canal. No se le echa la culpa al dato del cliente.
+//  · del CLIENTE (404): el número o la cédula no corresponden.
+//  · de NEGOCIO: el backend ya escribió un mensaje para que lo lea la persona. No hay nada roto.
+const NEGOCIO = ["HAS_PENDING_PAYMENT", "EXTERNALLY_SERVICED", "NO_ACTIVE_CREDIT", "RECENT_CHANGE_EXISTS",
+                 "FEE_NOT_AVAILABLE", "CREDIT_NOT_SERVICED_BY_US", "CHANGE_NOT_ALLOWED"];
+const esNuestra = (p) => !!p.error || p.status === 401 || p.status === 403 || p.status >= 500;
+
+function problema(p) {
+  if (esNuestra(p)) {
+    return `⚠ <b>Problema técnico del canal</b> (${p.error ? "sin respuesta" : p.status})` +
+      `<span class="warnline">Esto NO es culpa del dato de prueba. Mirá la respuesta a la derecha.</span>`;
+  }
+  const j = p.json || {}, cod = codigoDe(p);
+  const msg = escapar(j.message || cod || "No se pudo completar");
+  return NEGOCIO.includes(cod) ? msg : `⚠ ${msg}`;
+}
+
+// ── la conversación, que es una máquina de fases ─────────────────────────────────────────────────
+// Es lo que n8n va a ser: cada fase recibe lo que la persona escribió o tocó, llama la API, y **la
+// respuesta decide** qué se contesta y a qué fase se pasa. No hay camino escrito.
+const C = { fase: null, d: {} };
+
+const plata = (n) => "$" + Math.round(n || 0).toLocaleString("es-CO");
+const fecha = (f) => { if (!f) return "—"; const [a, m, d] = String(f).slice(0, 10).split("-"); return `${d}/${m}/${a}`; };
+const recorta = (t, n) => (t = String(t || "").trim()).length > n ? t.slice(0, n - 1) + "…" : t;
+
+const FASES = {
+  // n8n sabe de qué número llega el mensaje, así que resuelve al cliente ANTES de preguntar nada.
+  async saludo() {
+    const p = await api("GET", `/self/by-phone?wa=${encodeURIComponent(wa())}`);
+    if (!p.ok) {
+      await dice(esNuestra(p) ? problema(p) : "No encontré una cuenta asociada a este número, así que no puedo ayudarte por acá.");
+      return fin();
+    }
+    // No se saluda por NOMBRE todavía, a propósito: acá la persona no probó nada, sólo tiene el
+    // teléfono en la mano. El nombre se usa después del código.
+    C.d.nombre = (p.json.data || {}).first_name;
+    await dice("Hola 👋 Soy el asistente de <b>CreditOp</b>.<br><br>Antes de nada tengo que confirmar que eres tú. ¿Me pasas tu número de cédula?");
+    pedirTexto("Tu número de cédula");
+    C.fase = "cedula";
+  },
+
+  async cedula(txt) {
+    const p = await api("POST", "/self/otp", { wa: wa(), document: txt || doc() });
+    if (!p.ok) {
+      if (esNuestra(p)) { await dice(problema(p)); return fin(); }
+      await dice("No encontramos una cuenta con esos datos. Revisa la cédula e inténtalo de nuevo.");
+      return pedirTexto("Tu número de cédula");
+    }
+    const d = p.json.data || {};
+    // Volver dentro de los 15 minutos NO pide otro código: la sesión ya está probada.
+    if (d.already_verified) {
+      await dice("Ya te había confirmado hace un rato, así que sigamos.");
+      return conCreditos(d);
+    }
+    await dice(`Te envié un código a <b>${d.sent_to}</b>.<br><br>Escríbelo acá. Vence en ${d.expires_in_minutes} minutos y tienes ${d.attempts_allowed} intentos.`);
+    // El código sólo se puede mostrar cuando el celular está en la lista de QA: ahí no se llama al
+    // proveedor y el código es los últimos 4 dígitos. Con un número normal, el mensaje se manda de verdad.
+    sms($("#tel").value.trim().slice(-4) + "  (si este celular está en la lista de QA)");
+    pedirTexto("El código");
+    C.fase = "codigo";
+  },
+
+  async codigo(txt) {
+    const p = await api("POST", "/self/otp/verify", { wa: wa(), code: (txt || "").trim() });
+    if (!p.ok) {
+      if (esNuestra(p)) { await dice(problema(p)); return fin(); }
+      const q = ((p.json || {}).errors || {}).attempts_left;
+      await dice(`Ese código no coincide.${q !== undefined ? ` Te quedan <b>${q}</b> intentos.` : ""}`);
+      if (q === 0) { await dice("Se agotaron los intentos."); return fin(); }
+      return pedirTexto("El código");
+    }
+    const v = document.getElementById("sms"); if (v) v.remove();
+    await dice(`✅ Verificado. Hola <b>${C.d.nombre || "de nuevo"}</b>.`);
+    conCreditos(p.json.data || {});
+  },
+
+  async eligeCredito(txt) {
+    const t = String(txt || "").trim().toLowerCase();
+    const fila = (C.d.filas || []).find((f) => f.t.toLowerCase() === t);
+    if (!fila) { await dice("No reconocí ese crédito. Elige uno de la lista."); return; }
+    C.d.ureq = fila.id; C.d.comercio = fila.t;
+    await revisar();
+  },
+
+  async elegiAccion(txt) {
+    const t = (txt || "").toLowerCase();
+    C.d.quiere = /plazo|cuota/.test(t) ? "plazo" : /fecha|cobr|pag/.test(t) ? "fecha" : null;
+    if (!C.d.quiere) { await dice("No reconocí esa opción. Elige una de la lista."); return; }
+    await opciones(C.d.quiere);
+  },
+
+  async eligeOpcion(txt) {
+    const o = (C.d.opciones || []).find((x) => etiqueta(x) === txt);
+    if (!o) { await dice("No reconocí esa opción. Elige una de la lista."); return; }
+    C.d.elegida = o;
+    const detalle = C.d.quiere === "fecha"
+      ? `Fecha nueva: ${fecha(o.value)}`
+      : `Plazo nuevo: ${o.fee_number} cuotas de ${plata(o.fee_value)}`;
+    await dice(`Confirmemos:<span class="kv">${detalle}</span>¿Confirmas el cambio?`,
+      { buttons: [{ t: "✅ Sí, confirmar" }, { t: "Cancelar" }] });
+    C.fase = "aplica";
+  },
+
+  async aplica(txt) {
+    if (!/confirmar|^s[ií]\b/i.test(txt || "")) { await dice("Listo, no cambié nada."); return fin(); }
+    const o = C.d.elegida, id = C.d.ureq;
+    const p = C.d.quiere === "fecha"
+      ? await api("POST", `/credits/${id}/change-payment-date`, { wa: wa(), selected_payment_date: o.value })
+      : await api("POST", `/credits/${id}/change-fee-number`, { wa: wa(), selected_fee: { fee_number: o.fee_number } });
+
+    if (!p.ok) { await dice(`${problema(p)}<span class="warnline">No se cambió nada.</span>`); return fin(); }
+    const d = p.json.data || {};
+    await dice(C.d.quiere === "fecha"
+      ? `✅ Listo. Tu nueva fecha de pago es el <b>${fecha(d.new_date)}</b>.`
+      : `✅ Listo. Tu nuevo plazo es de <b>${d.new_fee_number} cuotas</b> de ${plata(d.new_fee_value)}.`);
+    await dice("¿Necesitas algo más?", { buttons: [{ t: "Hacer otro cambio" }, { t: "Nada más, gracias" }] });
+    C.fase = "otra";
+  },
+
+  async otra(txt) {
+    if (/otro/i.test(txt || "")) return revisar();
+    await dice("Con gusto 🙌 Cualquier cosa me escribes.");
+    fin();
+  },
+};
+
+// Las filas del menú de créditos. El backend manda DATOS (comercio, próxima fecha, cuota) y el texto se
+// arma acá, porque los límites son del canal: 24 caracteres de título y 72 de descripción por fila.
+function filasDe(creditos) {
+  const veces = {};
+  creditos.forEach((c) => { const k = c.merchant || "Crédito"; veces[k] = (veces[k] || 0) + 1; });
+  return creditos.map((c) => {
+    const base = c.merchant || "Crédito";
+    // Si dos filas quedaran con el mismo título la respuesta sería ambigua: se desempata con el número.
+    const titulo = veces[base] > 1 ? `${base} #${c.user_request_id}` : base;
+    const partes = [];
+    if (c.installment_value) partes.push(`cuota ${plata(c.installment_value)}`);
+    if (c.next_payment_date) partes.push(`vence ${fecha(c.next_payment_date)}`);
+    return { id: c.user_request_id, t: recorta(titulo, 24), sub: recorta(partes.join(" · "), 72) };
+  });
+}
+
+async function conCreditos(d) {
+  const creditos = d.operable_credits || [];
+  if (!creditos.length) {
+    await dice("Pero <b>no tienes ningún crédito activo</b> que se pueda gestionar por acá.");
+    return fin();
+  }
+  if (creditos.length === 1) {
+    C.d.ureq = creditos[0].user_request_id;
+    C.d.comercio = creditos[0].merchant;
+    return revisar();
+  }
+  C.d.filas = filasDe(creditos);
+  const extra = d.operable_truncated ? " Te muestro los más recientes; si te falta uno, te paso con un asesor." : "";
+  await dice(`Tienes <b>${creditos.length} créditos activos</b>. ¿Sobre cuál quieres el cambio?${extra}`,
+    { list: "Elegir crédito", buttons: C.d.filas.map((f) => ({ t: f.t, sub: f.sub })) });
+  C.fase = "eligeCredito";
+}
+
+// ¿Este crédito admite cambios? Lo decide el BACKEND, y de ahí sale si hay menú o no.
+async function revisar() {
+  const p = await api("GET", `/credits/${C.d.ureq}/can-change?wa=${encodeURIComponent(wa())}`);
+  if (!p.ok) { await dice(problema(p)); return fin(); }
+  const d = p.json.data || {};
+  if (d.can_change === false) {
+    await dice(`Tu crédito${C.d.comercio ? ` de <b>${escapar(C.d.comercio)}</b>` : ""} <b>no admite cambios ahora</b>:<span class="kv">${escapar(d.message || d.reason || "")}</span>`);
+    return fin();
+  }
+  await dice(`Tu crédito${C.d.comercio ? ` de <b>${escapar(C.d.comercio)}</b>` : ""} admite cambios. ¿Qué quieres hacer?`,
+    { list: "¿Qué quieres hacer?", buttons: [
+      { t: "📅 Cambiar fecha de pago", sub: "el día en que te cobran" },
+      { t: "🗓️ Cambiar el plazo", sub: "cuántas cuotas te quedan" } ]});
+  C.fase = "elegiAccion";
+}
+
+const etiqueta = (o) => o.fee_number !== undefined ? `${o.fee_number} cuotas` : (o.label || o.value);
+
+async function opciones(modo) {
+  const ruta = modo === "fecha" ? "payment-date-options" : "fee-number-options";
+  const p = await api("GET", `/credits/${C.d.ureq}/${ruta}?wa=${encodeURIComponent(wa())}`);
+  if (!p.ok) { await dice(problema(p)); return fin(); }
+
+  const d = p.json.data || {};
+  C.d.opciones = d.options || [];
+  if (!C.d.opciones.length) {
+    // No es un error: son dos preguntas distintas. Un crédito puede admitir cambios y no tener ninguna
+    // alternativa de plazo, y en ese caso la fecha sí se puede cambiar.
+    await dice(modo === "fecha"
+      ? "No hay fechas disponibles para ofrecerte ahora."
+      : "No hay plazos alternativos para este crédito.");
+    return revisar();
+  }
+  const enc = modo === "fecha"
+    ? `Tu fecha de pago actual es el <b>${fecha(d.current_payment_date)}</b>.<br><br>Estas son las opciones:`
+    : "Estos son los plazos que puedes elegir:";
+  await dice(enc, { list: modo === "fecha" ? "Elegir nueva fecha" : "Elegir plazo",
+    buttons: C.d.opciones.slice(0, 10).map((o) => ({
+      t: etiqueta(o),
+      sub: modo === "fecha" ? (o.is_current ? "es la actual" : "") : `${plata(o.fee_value)} c/u${o.is_current ? " · el actual" : ""}`,
+    })) });
+  C.fase = "eligeOpcion";
+}
+
+function fin() { C.fase = null; trabar(); $("#estado").textContent = "conversación terminada"; }
+
+async function avanzar(txt) {
+  const f = C.fase;
+  if (!f || !FASES[f]) return;
+  trabar();
+  await FASES[f](txt);
+}
+
+// ── cableado ─────────────────────────────────────────────────────────────────────────────────────
+$("#empezar").addEventListener("click", async () => {
+  if (!$("#token").value.trim()) { alert("Falta el token del canal."); return; }
+  reiniciar();
+  globo("yo", "Hola, buenas tardes");
+  C.fase = "saludo";
+  await FASES.saludo();
+});
+
+$("#enviar").addEventListener("click", () => {
+  const v = $("#entrada").value.trim();
+  if (!v) return;
+  globo("yo", escapar(v));
+  avanzar(v);
+});
+$("#entrada").addEventListener("keydown", (e) => { if (e.key === "Enter") $("#enviar").click(); });
+
+function reiniciar() {
+  $("#chat").innerHTML = ""; LOG.length = 0;
+  $("#log").innerHTML = '<div class="vacio">Todavía no se llamó nada. Dale «Empezar la conversación».</div>';
+  const v = document.getElementById("sms"); if (v) v.remove();
+  C.fase = null; C.d = {}; trabar(); $("#estado").textContent = "en línea";
+}
+$("#reiniciar").addEventListener("click", reiniciar);
+
+// El reporte para pegar en un ticket, con el token TAPADO: esto va a Jira o a Slack.
+$("#copiar").addEventListener("click", async () => {
+  const txt = [
+    `Canal de soporte · ${$("#amb").value} · ${new Date().toISOString()}`,
+    `celular ${$("#tel").value} · cédula ${$("#doc").value}`,
+    "",
+    ...LOG.slice().reverse().map((p) => [
+      `${p.error ? "sin respuesta" : p.status}  ${p.met} ${p.ruta}  (${p.ms} ms)`,
+      p.cuerpo ? `  envió: ${JSON.stringify(p.cuerpo)}` : null,
+      `  ${p.error || JSON.stringify(p.json)}`,
+      "",
+    ].filter(Boolean).join("\n")),
+  ].join("\n");
+  try {
+    await navigator.clipboard.writeText(txt);
+    $("#copiar").textContent = "copiado ✓";
+    setTimeout(() => ($("#copiar").textContent = "copiar reporte"), 1500);
+  } catch { alert(txt); }
+});
+
+// El token y los datos quedan en este navegador para no re-pegarlos en cada prueba.
+const guardar = () => localStorage.setItem("soporte-qa", JSON.stringify({
+  amb: $("#amb").value, token: $("#token").value, tel: $("#tel").value, doc: $("#doc").value }));
+["#amb", "#token", "#tel", "#doc"].forEach((s) =>
+  $(s).addEventListener("change", () => { guardar(); ambiente(); }));
+
+function ambiente() {
+  const dev = $("#amb").value === "dev";
+  $("#avisoAmb").innerHTML = dev
+    ? "Estás contra <b>dev</b>, que es <b>compartido con el equipo</b>: los cambios que apliques quedan escritos ahí. Y si el celular no está en la lista de pruebas de QA, el mensaje con el código <b>se manda de verdad</b>."
+    : "Estás contra <b>local</b> (tu Docker). No molesta a nadie.";
+  $("#nota").innerHTML = `Base: <code>${base()}</code>` + (location.protocol === "file:"
+    ? ' · ⚠ esta página está abierta como <b>archivo</b> y así el navegador bloquea las llamadas. Servila por http: <code>python3 -m http.server 5199</code> en su carpeta y abrí <code>http://localhost:5199/soporte-qa.html</code>.'
+    : "");
+}
+
+(function inicio() {
+  try {
+    const g = JSON.parse(localStorage.getItem("soporte-qa") || "{}");
+    if (g.amb) $("#amb").value = g.amb;
+    if (g.token) $("#token").value = g.token;
+    if (g.tel) $("#tel").value = g.tel;
+    if (g.doc) $("#doc").value = g.doc;
+  } catch {}
+  ambiente();
+})();
+</script>

@@ -134,6 +134,19 @@
         "VITE_API_URL": "http://legacy-backend.inertia-develop",
         "VITE_ONBOARDING_FORM_SERVICE": "http://onboarding-forms-service.inertia-develop:8092/v1"
       }
+    },
+    {
+      "name": "soporte-qa",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": [
+        "-m",
+        "http.server",
+        "5199"
+      ],
+      "cwd": "${workspaceFolder}/tablero/data/artifacts",
+      "port": 5199,
+      "autoPort": false,
+      "url": "http://localhost:5199"
     }
   ]
 }

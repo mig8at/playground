@@ -213,7 +213,7 @@ env-auditoria: ## @wrk ¿a qué apunta cada .env del playground? clave + 3 carac
 	@python3 workers/env_auditoria.py $(if $(RAIZ),$(RAIZ))
 
 # ── PRUEBAS (harness) ────────────────────────────────────────────────────────────────────────────
-.PHONY: harness-contract harness-sandbox harness-walk harness-qr harness-mocks harness-listado harness-caso harness-check
+.PHONY: harness-contract harness-sandbox harness-walk harness-qr harness-mocks harness-listado harness-caso harness-check soporte-qa
 harness-contract: ## @har ¿el mock de Bancolombia cumple los esquemas zod del front? (sin browser ni BD)
 	@cd harness && npm run --silent contrato:bancolombia
 
@@ -237,6 +237,10 @@ harness-listado: ## @har del COMERCIO al listado de entidades, por API y sin bro
 
 harness-caso: ## @har CASOS hipotéticos de punta a punta, en PARALELO. CASOS='pullman@meddipay=rechaza;pullman@income=900000' [PAR=1] [LAMBDA=1 buró y proveedores dictados] [PRE=1 simula la consulta de PRE-APROBADOS del front] [CERRAR=1 = cierra por el lender CreditopX hasta estado 11]
 	@cd harness && node dev/caso.ts $(if $(CASOS),--casos '$(CASOS)') $(if $(COMERCIO),--comercio $(COMERCIO)) $(if $(LENDER),--lender $(LENDER)) $(if $(MONTO),--amount $(MONTO)) $(if $(PAR),--paralelo) $(if $(LAMBDA),--lambda) $(if $(PRE),--preaprobados) $(if $(CERRAR),--cerrar)
+
+soporte-qa: ## @har el chat del cliente contra la API real, con cada respuesta al costado (:5199). Para QA
+	@echo "  → http://localhost:5199/soporte-qa.html    (Ctrl-C para cortar)"
+	@cd tablero/data/artifacts && python3 -m http.server 5199
 
 harness-check: ## @har typecheck del harness
 	@cd harness && npm run --silent typecheck
