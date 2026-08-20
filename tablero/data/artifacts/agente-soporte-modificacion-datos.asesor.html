@@ -1055,6 +1055,13 @@
       doble check.</p>
     <p class="stamp">Prototipo para acordar el flujo — <b>11 de agosto de 2026</b> · CORE-258. <b style="color:#c2410c">Rutas actualizadas el 14 de agosto de 2026</b>: los servicios del crédito ya no se llaman por su ruta actual sino a través del canal (<code>/api/support/credits/…</code>), para que la pertenencia del crédito la decida el backend y no el llamador.
       Es lo que se propuso ese día, no lo que el sistema hace hoy.</p>
+    <p class="stamp" style="border-left:3px solid #64748b;padding-left:10px;margin-top:10px">
+      <b>La frontera del entregable</b> — lo que este equipo entrega es la <b>API</b>: entregar datos y
+      confirmar acciones. La conversación —los textos, los menús, cuán charlada es— la arma quien
+      construya el bot en n8n. Acá se simula para poder ver el comportamiento, pero <b>no es parte de lo
+      que se entrega</b>: cuando un paso dice <code>n8n</code> en la traza, es una decisión suya y no una
+      llamada al backend. El recorrido del cliente debería ser, como el del asesor, una secuencia de
+      ACCIONES.</p>
     <div class="controls">
       <button class="ctl primary" id="reset">↺ Reiniciar</button>
       <button class="ctl" id="auto">▶ Correr solo</button>

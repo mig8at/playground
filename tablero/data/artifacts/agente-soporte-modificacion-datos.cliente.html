@@ -124,6 +124,11 @@
   .realestado { font-size: 12px; color: #94a3b8 }
   .realestado.ok { color: #0f7b3f } .realestado.bad { color: #b3261e }
   .realnota { flex: 1 1 100%; margin: 4px 0 0; font-size: 11.5px; color: #94a3b8; line-height: 1.5 }
+  /* Lo que decide n8n sin llamarnos se ve DISTINTO de una llamada al backend. La confusión que esto
+     evita es real: la maqueta mostraba la resolución del lenguaje como si fuera un endpoint nuestro. */
+  .trace li.propio .m { background: #64748b }
+  .trace li.propio { opacity: .82 }
+  .trace li.propio .note { font-style: italic }
   .trace li.viva .m { background: #0f7b3f }
   .trace li.viva .note { color: #0f7b3f }
   .trace li.murio .m { background: #b3261e }
@@ -1128,6 +1133,13 @@
     <p class="sub">El cliente escribe desde su celular, se identifica y cambia él mismo las condiciones de su crédito. Sin asesor de por medio.</p>
     <p class="stamp">Segunda propuesta de <b>CORE-258</b> — <b>13 de agosto de 2026</b>, tras la reunión con Manuela y Filipo. <b style="color:#c2410c">Rutas actualizadas el 14 de agosto de 2026</b>: los servicios del crédito ya no se llaman por su ruta actual sino a través del canal (<code>/api/support/credits/…</code>), para que la pertenencia del crédito la decida el backend y no el llamador.
       Es lo que se propuso ese día, no lo que el sistema hace hoy.</p>
+    <p class="stamp" style="border-left:3px solid #64748b;padding-left:10px;margin-top:10px">
+      <b>La frontera del entregable</b> — lo que este equipo entrega es la <b>API</b>: entregar datos y
+      confirmar acciones. La conversación —los textos, los menús, cuán charlada es— la arma quien
+      construya el bot en n8n. Acá se simula para poder ver el comportamiento, pero <b>no es parte de lo
+      que se entrega</b>: cuando un paso dice <code>n8n</code> en la traza, es una decisión suya y no una
+      llamada al backend. El recorrido del cliente debería ser, como el del asesor, una secuencia de
+      ACCIONES.</p>
     <div class="controls">
       <button class="ctl primary" id="reset">↺ Reiniciar</button>
       <button class="ctl" id="auto">▶ Correr solo</button>
@@ -1276,7 +1288,13 @@
     },
     {
       id: "s2", side: "a", from: "bot",
-      api: { m: "POST", p: "/api/support/nlu/interpretar", n: "Traduce lo que la clienta escribió a una de las intenciones que el bot sabe atender. Sólo ENRUTA a un flujo fijo — no redacta la respuesta: un asistente conversacional abierto está prohibido en la plataforma desde enero de 2026", nuevo: 1 },
+      // ⚠ ACÁ NO HAY LLAMADA AL BACKEND. Antes esto figuraba como `POST /api/support/nlu/interpretar`,
+      // que NO EXISTE: no está en el código ni entre las 16 rutas del gateway, y no hay ningún modelo en
+      // el módulo. Era una ficción de la maqueta, y hacía creer que el backend resolvía el lenguaje.
+      //
+      // Entender lo que la persona escribió es de n8n, no nuestro. Lo que entregamos es la API: datos y
+      // confirmaciones. Que la conversación sea más o menos charlada es de quien arme el bot.
+      api: { m: "n8n", p: "decide sin llamarnos", n: "Enruta lo que la persona escribió a uno de los flujos que el canal sabe atender. NO es una llamada al backend — con dos intenciones alcanzan palabras clave y el menú como respaldo; un clasificador se justifica sólo si se mide que el respaldo se dispara mucho", propio: 1 },
       text: `Entiendo, quieres <b>cambiar la fecha de pago</b> de tu crédito.<br><br>Antes necesito confirmar que eres tú. ¿Me confirmas tu número de cédula?`,
       input: { value: "1032456789", ph: "Número de cédula" }
     },
@@ -1506,6 +1524,8 @@
     if (!REAL() || !s?.real) {
       const li = document.createElement("li");
       if (a.nuevo) li.className = "new";
+      // `propio` = lo decide n8n por su cuenta. No es una llamada al backend y no debe parecerlo.
+      if (a.propio) li.className = "propio";
       li.innerHTML = `<span class="m">${a.m}</span> ${a.p}<span class="note">${a.n}${
         REAL() && !s?.real ? " · ⚠ este paso todavía no está cableado a la API" : ""}</span>`;
       ol.appendChild(li); ol.scrollTop = ol.scrollHeight;

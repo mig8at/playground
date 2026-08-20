@@ -1413,6 +1413,33 @@ castigo pega sobre el número que también se usa para cobrar.
 <!-- append-only, lo nuevo arriba. (Esta tarea no tenía sección de registro; se agrega siguiendo
      PLANTILLA-TAREA.md. Lo de arriba es el ESTADO, que se reescribe; esto es qué pasó cada día.) -->
 
+### 2026-08-20 (15) — la FRONTERA del entregable: la API, no la conversación
+
+Aclarado por Miguel: **lo que este equipo entrega es la API** —entregar datos y confirmar acciones—. Que
+la conversación del cliente sea más o menos charlada, estilo chatbot, es **gusto y no necesidad**: el
+recorrido del cliente debería ser, como el del asesor, una secuencia de ACCIONES. La conversación la arma
+quien construya el bot en n8n.
+
+Eso destapó una **ficción de la maqueta que hacía daño**: el prototipo del cliente dibujaba un paso como
+`POST /api/support/nlu/interpretar`, con nota técnica y todo, como si el backend resolviera el lenguaje.
+
+> **MEDICIÓN · 2026-08-20** — ese endpoint NO EXISTE: cero apariciones en `Modules/SupportBot`, cero entre
+> las 16 rutas del gateway, y cero integraciones de LLM en el módulo (los matches de «intent» eran
+> «intentos» e «intentar»).
+
+Quien leyera la maqueta iba a esperar que existiera. Corregido: ese paso ahora dice **`n8n · decide sin
+llamarnos`** y se pinta distinto en la traza (gris, itálica) para que no se confunda con una llamada al
+backend. Y los dos prototipos llevan arriba la frontera escrita.
+
+**Y sobre si hace falta un modelo para interpretar** — la respuesta que salió de implementarlo: hay **dos
+intenciones**. El despachador las resuelve con palabras clave y usa el menú como respaldo, que es más
+barato, determinista y **testeable** — con un modelo sólo se puede esperar que acierte, no garantizarlo.
+El criterio queda escrito: medir cuántas veces cae al menú, y recién ahí evaluar un clasificador. Si
+igual se pone uno, dos condiciones: que CLASIFIQUE y no redacte (la plataforma prohíbe el asistente
+abierto desde enero de 2026), y que el **catálogo de intenciones venga del backend** — es la única parte
+que sí es nuestra, porque si n8n tiene su propia lista va a rutear a capacidades que no existen (como el
+endpoint inalcanzable del Registro (14)).
+
 ### 2026-08-20 (14) — POR QUÉ el endpoint es inalcanzable: dos «segundos factores» en un solo objeto
 
 Antes (Registro (10)) quedó medido QUE `POST /change-requests/{id}/otp` no se puede llamar. Acá queda la
