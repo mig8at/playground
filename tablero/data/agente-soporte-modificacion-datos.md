@@ -1404,6 +1404,40 @@ castigo pega sobre el número que también se usa para cobrar.
 <!-- append-only, lo nuevo arriba. (Esta tarea no tenía sección de registro; se agrega siguiendo
      PLANTILLA-TAREA.md. Lo de arriba es el ESTADO, que se reescribe; esto es qué pasó cada día.) -->
 
+### 2026-08-20 (7) — el prototipo del ASESOR ahora corre contra la API local
+
+Pedido de Miguel: no un panel técnico aparte, sino **el mockup de WhatsApp manejado por la API**, para
+ver la conversación real. Se cableó el del asesor (el del cliente queda para después).
+
+**Cómo se hizo sin romper el mockup:** hay un interruptor **«Modo real»**. Apagado, el prototipo se
+comporta EXACTAMENTE como antes —sirve para mostrárselo a producto sin depender de que local esté
+levantado—; prendido, cada paso que declara una API la llama de verdad. El enganche ya existía en el
+archivo: cada paso declaraba su `api` (el objeto `A`) y el motor permitía que el texto del globo fuera
+una **función**. Sólo hubo que hacer `apiCall` asíncrono, llamarlo ANTES de armar el texto (antes el
+orden congelaba el globo) y darle a los pasos un descriptor `real()`.
+
+Lo que se ve: el error del backend aparece **dentro del globo de WhatsApp** («⚠ El backend rechazó la
+verificación», con el código), y la traza de la derecha pinta cada llamada en verde o rojo con su HTTP y
+su cuerpo. Cableados 6 pasos: login del asesor (otp + verify), buscar cliente, crear la solicitud de
+cambio, autorizar y confirmar. Los no cableados lo dicen en la traza en vez de fingir.
+
+Tres decisiones que costaron pensarlas:
+1. **Un paso puede hacer VARIAS llamadas, y se ven las tres.** `authorize` exige sesión de CLIENTE, y en
+   la conversación del asesor esa sesión no existe: n8n tiene que identificar al cliente en SU
+   conversación antes. Esconderlo haría creer que el asesor autoriza por él.
+2. **En modo real, una llamada que falla DETIENE el guion.** Sin eso la conversación seguía con globos
+   simulados después de un error real — mezclar lo que pasó con lo que está escrito es peor que no
+   correr, porque quien mira no puede distinguirlos.
+3. **El token va al `localStorage`, no al archivo** (los artefactos se versionan), y el código del OTP se
+   calcula como los últimos 4 dígitos del teléfono (bypass de local), así que el guion avanza solo.
+
+Un defecto propio, encontrado corriéndolo: `apiCall` creaba un `<li>` que en el camino real nunca
+agregaba y después intentaba quitar → `NotFoundError` en `removeChild`, que dejaba el guion trabado sin
+decir nada. Arreglado y verificado en los dos modos.
+
+⚠ **No se puede validar en la vista previa de archivo local**: envuelve el HTML en una URL `data:` que
+bloquea los scripts inline. Hay que servirlo por HTTP — el tablero lo hace en `/artifacts/<archivo>`.
+
 ### 2026-08-20 (6) — tercer prototipo: cómo consume n8n, pegando contra local
 
 Los dos prototipos que había muestran la **conversación** (lo que ve el cliente, lo que ve el asesor).
