@@ -1247,7 +1247,11 @@ onMounted(async () => {
               <tbody>
                 <tr v-for="r in ramasDe(active?.Key)?.ramas || []" :key="r.repo + r.rama">
                   <td>{{ r.repo }}</td>
-                  <td><code :title="r.asunto">{{ r.rama }}</code> <span class="sha">{{ r.commit }}</span></td>
+                  <td><code :title="r.asunto">{{ r.rama }}</code> <span class="sha">{{ r.commit }}</span>
+                    <!-- «local» no quiere decir "sin pushear": al aprobar un PR la remota se borra y queda
+                         la copia local. Las columnas de ambiente dicen cuál de las dos es. -->
+                    <span v-if="r.local" class="solo-local"
+                      title="la rama sólo existe en esta máquina — puede ser que nunca se pusheó, o que se borró al mergear el PR">local</span></td>
                   <!-- El PR es lo que git no sabe: contesta «¿por qué esto no avanza?». Un OPEN sin
                        revisión dice "nadie lo miró", que no es lo mismo que "falta trabajo". -->
                   <td class="prcol">

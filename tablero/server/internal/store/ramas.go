@@ -44,6 +44,9 @@ var AmbientesPorDefecto = []string{"develop", "staging", "qa", "main"}
 type RamaTarea struct {
 	Repo   string `json:"repo"`   // nombre corto del repo (no la ruta absoluta: la card muestra esto)
 	Rama   string `json:"rama"`   // sin el prefijo `origin/`
+	// Local: la rama sólo existe en esta máquina. Pasa sobre todo con las MERGEADAS —al aprobar el PR se
+	// borra la remota y queda la copia local—, así que no equivale a "sin pushear": mirá los ambientes.
+	Local bool `json:"local,omitempty"`
 	Commit string `json:"commit"` // punta de la rama, corto
 	Asunto string `json:"asunto"` // primera línea del commit de punta
 	// En dice si EL COMMIT DE PUNTA de la rama —el cambio de la tarea— ya está en cada ambiente,
@@ -111,9 +114,30 @@ func git(ctx context.Context, dir string, args ...string) (string, error) {
 	return sb.String(), nil
 }
 
-// reRamaPatron valida el patrón del frontmatter. Se acota a propósito: es una subcadena de nombre de
+// reRamaPatron valida CADA patrón del frontmatter. Se acota a propósito: es una subcadena de nombre de
 // rama, no una expresión — un patrón libre acabaría matcheando ramas ajenas y la card mentiría al revés.
 var reRamaPatron = regexp.MustCompile(`^[\w][\w./-]{2,}$`)
+
+// patronesDe parte el valor del frontmatter en la LISTA de subcadenas a buscar, separadas por coma.
+//
+// Hace falta una lista porque la relación rama↔tarea es muchos-a-muchos: acá se cortan las ramas unas
+// de otras, así que una rama carga trabajo de varias tareas y una tarea vive en varias ramas. Medido el
+// 2026-08-19 sobre 16 tareas: CORE-268 vive en `monto-actualizando-sin-banner` Y en `motai-v2`, que no
+// comparten ninguna subcadena — con un solo patrón había que elegir cuál de las dos mitades mostrar.
+//
+// La alternativa era ensanchar el patrón (`kyc` en vez de los dos slugs de CORE-420) y eso arrastra
+// ramas ajenas: `kyc` trae también `obs-kyc-03-codes`, que es observabilidad. Un patrón ancho no
+// falla — miente en silencio, que es lo que este campo existe para evitar.
+func patronesDe(v string) []string {
+	var out []string
+	for _, p := range strings.Split(v, ",") {
+		p = strings.TrimSpace(p)
+		if reRamaPatron.MatchString(p) {
+			out = append(out, p)
+		}
+	}
+	return out
+}
 
 // MedirRamas mide, para cada (id de tarea → patrón), las ramas que matchean en los repos bajo `root`.
 //
@@ -130,19 +154,39 @@ func MedirRamas(ctx context.Context, root string, patrones map[string]string, am
 	// mismo repo no deben pagar dos llamadas a la red.
 	prsPorRepo := map[string]map[string]*PullRequest{}
 	for id, patron := range patrones {
-		if !reRamaPatron.MatchString(patron) {
+		pats := patronesDe(patron)
+		if len(pats) == 0 {
 			continue
 		}
 		res := RamasDeTarea{Patron: patron}
 		for _, repo := range repos {
-			for _, rama := range ramasQueMatchean(ctx, repo, patron) {
+			// Dos patrones pueden traer la MISMA rama (`motai` y `motai-v2`): se mide una sola vez, o la
+			// card mostraría la rama repetida y el conteo del botón diría más de las que hay.
+			vistas := map[string]bool{}
+			var ramas []rama
+			for _, pat := range pats {
+				for _, rm := range ramasQueMatchean(ctx, repo, pat) {
+					if !vistas[rm.Nombre] {
+						vistas[rm.Nombre] = true
+						ramas = append(ramas, rm)
+					}
+				}
+			}
+			for _, rm := range ramas {
+				// Una rama local se referencia por su nombre pelado; una remota, con `origin/`. Todo lo
+				// que sigue —el log, el `cherry` contra cada ambiente— usa este ref, no el nombre.
+				ref := "origin/" + rm.Nombre
+				if rm.Local {
+					ref = rm.Nombre
+				}
 				r := RamaTarea{
 					Repo:    filepath.Base(repo),
-					Rama:    rama,
+					Rama:    rm.Nombre,
+					Local:   rm.Local,
 					En:      map[string]bool{},
 					Propios: map[string]int{},
 				}
-				if out, err := git(ctx, repo, "log", "-1", "--format=%h|%s", "origin/"+rama); err == nil {
+				if out, err := git(ctx, repo, "log", "-1", "--format=%h|%s", ref); err == nil {
 					if h, asunto, ok := strings.Cut(strings.TrimSpace(out), "|"); ok {
 						r.Commit, r.Asunto = h, asunto
 					}
@@ -154,7 +198,7 @@ func MedirRamas(ctx context.Context, root string, patrones map[string]string, am
 					if _, err := git(ctx, repo, "rev-parse", "--verify", "--quiet", "origin/"+amb); err != nil {
 						continue
 					}
-					out, err := git(ctx, repo, "cherry", "origin/"+amb, "origin/"+rama)
+					out, err := git(ctx, repo, "cherry", "origin/"+amb, ref)
 					if err != nil {
 						continue
 					}
@@ -177,7 +221,7 @@ func MedirRamas(ctx context.Context, root string, patrones map[string]string, am
 				if _, visto := prsPorRepo[repo]; !visto {
 					prsPorRepo[repo] = prsDelRepo(ctx, repo)
 				}
-				if pr, ok := prsPorRepo[repo][rama]; ok {
+				if pr, ok := prsPorRepo[repo][rm.Nombre]; ok {
 					r.PR = pr
 				}
 				res.Ramas = append(res.Ramas, r)
@@ -221,26 +265,49 @@ func reposEn(root string) []string {
 	return out
 }
 
-// ramasQueMatchean devuelve las ramas REMOTAS (sin el `origin/`) cuyo nombre contiene el patrón. Se usan
-// las remotas y no las locales a propósito: lo que importa es qué existe para el equipo, no qué quedó en
-// esta máquina — y una rama local sin pushear todavía no es un estado que la tarea deba anunciar.
-func ramasQueMatchean(ctx context.Context, repo, patron string) []string {
-	out, err := git(ctx, repo, "for-each-ref", "--format=%(refname:short)", "refs/remotes/origin")
-	if err != nil {
-		return nil
-	}
-	var ramas []string
-	for _, l := range strings.Split(out, "\n") {
-		l = strings.TrimSpace(l)
-		if l == "" || strings.HasSuffix(l, "/HEAD") || !strings.HasPrefix(l, "origin/") {
-			continue
+// ramasQueMatchean devuelve las ramas cuyo nombre contiene el patrón: primero las REMOTAS (sin el
+// `origin/`) y después las locales que no tengan remota con el mismo nombre, marcadas como locales.
+//
+// Al principio esto miraba SÓLO remotas —"lo que importa es qué existe para el equipo"— y eso tenía un
+// agujero sistemático: al mergear un PR la rama remota se borra, así que el campo dejaba de encontrar
+// nada justo para las tareas TERMINADAS, que es cuando más se quiere el historial. Medido el 2026-08-19:
+// `feat/credifamilia-add-ciudad-nacimiento-field` mergeó por el PR #1013, su remota ya no está y la única
+// copia viva es local. Con sólo remotas, esa tarea no tenía ramas y el hueco se leía como "nunca se
+// trabajó". Se marcan para no confundir "nadie la vio" con "ya está adentro": la columna del ambiente
+// dice cuál de las dos es.
+func ramasQueMatchean(ctx context.Context, repo, patron string) []rama {
+	var out []rama
+	vistas := map[string]bool{}
+	if txt, err := git(ctx, repo, "for-each-ref", "--format=%(refname:short)", "refs/remotes/origin"); err == nil {
+		for _, l := range strings.Split(txt, "\n") {
+			l = strings.TrimSpace(l)
+			if l == "" || strings.HasSuffix(l, "/HEAD") || !strings.HasPrefix(l, "origin/") {
+				continue
+			}
+			corta := strings.TrimPrefix(l, "origin/")
+			if strings.Contains(corta, patron) && !vistas[corta] {
+				vistas[corta] = true
+				out = append(out, rama{Nombre: corta})
+			}
 		}
-		corta := strings.TrimPrefix(l, "origin/")
-		if strings.Contains(corta, patron) {
-			ramas = append(ramas, corta)
+	}
+	if txt, err := git(ctx, repo, "for-each-ref", "--format=%(refname:short)", "refs/heads"); err == nil {
+		for _, l := range strings.Split(txt, "\n") {
+			l = strings.TrimSpace(l)
+			if l == "" || !strings.Contains(l, patron) || vistas[l] {
+				continue
+			}
+			vistas[l] = true
+			out = append(out, rama{Nombre: l, Local: true})
 		}
 	}
-	return ramas
+	return out
+}
+
+// rama es el resultado interno de la búsqueda: el nombre y si sólo existe en esta máquina.
+type rama struct {
+	Nombre string
+	Local  bool
 }
 
 // GuardarSnapshotRamas escribe el snapshot. Va a `data/cache/` porque es descartable: se regenera

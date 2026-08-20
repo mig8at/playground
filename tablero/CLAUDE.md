@@ -7,7 +7,8 @@ Qué es y cómo se corre: `README.md`. Acá solo las reglas al trabajar con las 
   clasificaban por ningún eje; la clasificación es `context_nodes`, que es una lista). El nombre
   del archivo es el slug y se puede renombrar a mano: el `id` vive en el frontmatter.
 - **Frontmatter**: `id` · `title` · `stage` (`evaluation`|`work`|`tasks`) · `created` ·
-  `archived?` · `context_nodes[]` · `jira[]` · `jira_title` · `ramas?`. Archivar = poner `archived`, no
+  `archived?` · `context_nodes[]` · `jira[]` · `jira_title` · `ramas?` (uno o varios patrones, por
+  coma). Archivar = poner `archived`, no
   mover el archivo.
 - **La frontera del guard está DENTRO del archivo.** El cuerpo es privado y puede nombrar repos,
   rutas y F-xx. **Lo único que se publica** es `jira_title` + la sección `## Tarea (publicable)`,
@@ -63,21 +64,33 @@ Qué es y cómo se corre: `README.md`. Acá solo las reglas al trabajar con las 
      se lee como lo que es — lo que se acordó ese día.
   3. **No gradúa a `context/`.** Describe lo propuesto, no cómo funciona CreditOp: muere con la
      tarea. Si algo de ahí resultó verdad perenne, se escribe en el nodo con palabras.
-- **RAMAS: se declara UN patrón, el resto lo mide git.** `ramas: pais-como-dato` en el frontmatter, y
-  `make tareas-ramas` responde en qué ramas de qué repos vive la tarea y **en qué ambientes ya está el
-  cambio**. Igual que los prototipos (el vínculo es el nombre) y las anotaciones (salen del cuerpo): una
-  lista de ramas escrita a mano **miente en silencio** en cuanto algo se mergea o se renombra — pasó tres
-  veces en un día con países (`-onto-develop`, `-onto-staging`, y un PR viejo a `main` que ya no era el
-  camino). Cuatro reglas:
+- **RAMAS: se declaran los PATRONES, el resto lo mide git.** `ramas: pais-como-dato` en el frontmatter
+  —o varios separados por coma— y `make tareas-ramas` responde en qué ramas de qué repos vive la tarea,
+  **en qué ambientes ya está el cambio** y **en qué estado está su PR**. Igual que los prototipos (el
+  vínculo es el nombre) y las anotaciones (salen del cuerpo): una lista de ramas escrita a mano **miente
+  en silencio** en cuanto algo se mergea o se renombra. Medido el 2026-08-19 grepeando las 16 tareas de
+  los últimos 4 sprints: de los nombres de rama que aparecen escritos en los cuerpos, **dos no resuelven
+  hoy** — uno porque la rama se renombró (`codebtor-` → `cosigner-`, el cuerpo lo aclara al lado, pero un
+  grep encuentra el viejo) y otro porque la remota se borró al mergear el PR. Seis reglas:
   1. **Se mide por PATCH-ID** (`git cherry`), no por nombre de rama: así se detecta un cambio que llegó
      por **squash**, donde el hash cambia y la rama ya no existe. Es cómo se supo que el backend de
      países estaba en `develop` y `staging` pero no en `main`.
   2. **La señal es «¿está la PUNTA en el ambiente?»**, no «¿le queda algo propio?». Lo segundo engaña:
      una rama cortada de `main` arrastra ~190 commits ajenos contra `develop` y decir «falta en
      develop(190)» sugiere 190 pendientes cuando el pendiente es uno.
-  3. **No habla con la red**: lee lo que el último `git fetch` dejó. Si un dato se ve viejo, fetcheá — un
-     comando de lectura que sale a internet sorprende, y en 13 repos nadie lo correría.
-  4. **Es un SNAPSHOT con fecha** (`data/cache/ramas.json`, fuera de git), como el del sprint: un estado
+  3. **El patrón puede ser una LISTA** porque la relación rama↔tarea es muchos-a-muchos: acá las ramas se
+     cortan unas de otras, así que una rama carga trabajo de varias tareas y una tarea vive en varias.
+     Medido: CORE-268 vive en `monto-actualizando-sin-banner` **y** en `motai-v2`, que no comparten
+     ninguna subcadena. Y **no ensanches el patrón** para cubrir dos: `kyc` trae también
+     `obs-kyc-03-codes`, que es observabilidad. Un patrón ancho no falla, miente.
+  4. **Incluye las ramas LOCALES, marcadas.** Antes sólo miraba remotas y eso tenía un agujero
+     sistemático: al aprobar un PR la remota se borra, así que dejaba de encontrar nada justo para las
+     tareas TERMINADAS. `local` **no** quiere decir «sin pushear» — los ambientes dicen cuál de las dos es
+     (la de Credifamilia sale «local» y a la vez «ya está en main»).
+  5. **La parte de git NO habla con la red; la de los PRs SÍ.** Git lee lo que el último `git fetch` dejó
+     —si un dato se ve viejo, fetcheá—. Los PRs son UNA llamada a `gh` por repo (no por rama) y **degradan
+     sin ruido**: sin `gh`, sin sesión o sin VPN, las ramas salen igual y sólo faltan los PRs.
+  6. **Es un SNAPSHOT con fecha** (`data/cache/ramas.json`, fuera de git), como el del sprint: un estado
      de git sin fecha se lee como actual y no lo es. La clave es el **id** de la tarea, no el slug,
      porque el nombre del archivo se puede renombrar a mano.
 

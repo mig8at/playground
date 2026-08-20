@@ -138,7 +138,13 @@ func imprimir(snap store.SnapshotRamas, titulos map[string]string) {
 					falta = append(falta, a)
 				}
 			}
-			fmt.Printf("    %-22s %-46s %s\n", r.Repo, r.Rama, r.Commit)
+			// «(local)» importa: en las MERGEADAS la remota se borra al aprobar el PR, así que una rama
+			// local no significa "sin pushear" — los ambientes de abajo dicen cuál de las dos es.
+			marca := ""
+			if r.Local {
+				marca = "  (local)"
+			}
+			fmt.Printf("    %-22s %-46s %s%s\n", r.Repo, r.Rama, r.Commit, marca)
 			if len(en) > 0 {
 				fmt.Printf("      ✅ el cambio ya está en: %s\n", strings.Join(en, ", "))
 			}

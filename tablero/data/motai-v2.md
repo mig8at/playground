@@ -1,6 +1,7 @@
 ---
 id: 5
 title: "Motai v2 — des-motaización y TyC por comercio"
+ramas: motai-v2
 stage: tasks
 created: "2026-07-21T10:30:30-05:00"
 context_nodes: [motai, creditopx, merchants, dynamic-forms, kyc]

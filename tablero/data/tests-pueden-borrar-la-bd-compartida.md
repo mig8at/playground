@@ -1,6 +1,7 @@
 ---
 id: 50
 title: "La suite de tests puede borrar la base de datos compartida, y el trait que lo hace ni siquiera funciona"
+ramas: CORE-431
 stage: evaluation
 created: "2026-08-18T18:30:00-05:00"
 context_nodes: [findings]

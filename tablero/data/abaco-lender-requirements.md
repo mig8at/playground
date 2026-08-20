@@ -1,6 +1,7 @@
 ---
 id: 13
 title: "Ábaco alineado a lender_requirements — se retiran los modos"
+ramas: abaco-cupo-sin-buro, abaco-fuente-unica
 stage: work
 created: "2026-07-29T20:23:53-05:00"
 context_nodes: [motai, kyc, ms-preapprovals]

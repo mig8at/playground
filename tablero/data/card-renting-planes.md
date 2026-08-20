@@ -1,6 +1,7 @@
 ---
 id: 14
 title: "Card de renting: planes, pago semanal y estados de carga"
+ramas: motai-renting-planes, monto-actualizando, renting-sin-chips
 stage: tasks
 created: "2026-07-30T12:30:19-05:00"
 context_nodes: [motai, creditopx]
