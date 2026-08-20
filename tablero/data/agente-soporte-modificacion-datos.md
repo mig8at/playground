@@ -31,9 +31,11 @@ Pero **el canal sigue devolviendo 503**, y la causa quedó localizada: el secret
 15 días y no lo enumera. Terraform lee las claves del secreto en tiempo de plan, así que la clave nueva
 no llega al contenedor hasta que se vuelva a aplicar.
 
-**El próximo paso es:** pedirle a infra que aplique `environments/dev/ecs-application` y redesplegue el
-servicio `legacy-backend` del cluster `creditop-develop`. Con eso el mismo GET que hoy da 503 debería
-responder, y recién ahí se puede probar un flujo real con el equipo del bot.
+**El próximo paso es:** confirmar EN QUÉ CUENTA lee el secreto el servicio que atiende dev, y agregar
+`SUPPORT_BOT_TOKEN` ahí. La revisión 612 ya está desplegada y el canal sigue en 503, así que la clave no
+está llegando. ⚠ Ojo: hay **dos** despliegues con la misma familia `legacy-backend-develop` en cuentas
+distintas (697767917359 con rev 199 · y el real, con rev 612 y 2 tareas). Medir en la equivocada ya
+costó una vuelta — ver Registro 2026-08-20 (3).
 
 **Lo que ya NO hay que investigar:** el gateway (hecho, 16 rutas, prefijo `/legacy-api/support/*`, host
 `legacy-backend.develop.internal.creditop.com`), que el módulo esté desplegado (lo está: responde 503,
@@ -1383,7 +1385,40 @@ castigo pega sobre el número que también se usa para cobrar.
 <!-- append-only, lo nuevo arriba. (Esta tarea no tenía sección de registro; se agrega siguiendo
      PLANTILLA-TAREA.md. Lo de arriba es el ESTADO, que se reescribe; esto es qué pasó cada día.) -->
 
-### 2026-08-20 (2) — la causa del 503: la task definition, no el secreto
+### 2026-08-20 (3) — CORRECCIÓN: la medición de (2) era de la cuenta equivocada
+
+La entrada anterior está mal y se deja para que no se repita el error. Medí la task definition
+`legacy-backend-develop:199` con las credenciales de la cuenta **697767917359** y concluí «falta aplicar
+Terraform». Dos pruebas de que ese NO es el servicio que atiende dev:
+
+- la imagen de esa revisión es `5b3c9f1` (2026-08-03) y tiene **cero** archivos de `Modules/SupportBot`,
+  así que no podría devolver `CHANNEL_NOT_CONFIGURED`, que es un mensaje de ese middleware;
+- las IPs no coinciden: esa tarea está en `10.0.37.188` y quien responde el 503 está en
+  `172.32.72.196`. VPC distintas.
+
+**Dónde vive el real:** el ALB interno de dev enruta `legacy-backend.develop.internal.creditop.com` a un
+target group de la cuenta **`299276669008`** (`environments/dev/internal-alb/terragrunt.hcl`). Dani
+mostró ese servicio: misma familia `legacy-backend-develop` pero **revisión 612**, con 2 tareas — que
+coincide con el `desired_count = 2` de la config, mientras el de 697…359 corría 1. Son dos despliegues
+distintos con el MISMO nombre de familia, y eso es lo que hizo fácil confundirse.
+
+> **MEDICIÓN · 2026-08-20** — con la revisión 612 ya desplegada, el canal sigue en 503
+> `CHANNEL_NOT_CONFIGURED`. El middleware devuelve 503 sólo cuando el token esperado está VACÍO (un
+> token que no coincide da 401), así que la variable no está llegando al contenedor nuevo.
+> `curl -s -o /dev/null -w '%{http_code}' https://api.dev.creditop.com/legacy-api/support/clients -H "Authorization: Bearer <token>"`
+
+**La hipótesis que queda** (no verificada: no hay acceso a `299276669008` desde acá): la clave se agregó
+al secreto `dev/legacy-backend` de la cuenta **697767917359**, y el servicio que atiende lee el
+`dev/legacy-backend` de **su propia** cuenta, donde la clave no está.
+
+**Cómo se confirma en un comando**, desde la cuenta donde corre el servicio:
+
+    aws ecs describe-task-definition --task-definition legacy-backend-develop:612 \
+      --query 'taskDefinition.containerDefinitions[].secrets[?name==`SUPPORT_BOT_TOKEN`]'
+
+Vacío = la clave no está en el secreto de esa cuenta (o Terraform se aplicó antes de agregarla).
+
+### 2026-08-20 (2) — ⚠ MEDICIÓN INVÁLIDA (ver la entrada de arriba): la causa del 503: la task definition, no el secreto
 
 Miguel había agregado `SUPPORT_BOT_TOKEN` al secreto `dev/legacy-backend` en la consola de AWS, así que
 el 503 no cerraba. Midiendo contra AWS: el secreto tiene **164 claves** y la task definition en uso
