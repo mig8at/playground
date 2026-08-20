@@ -1736,8 +1736,12 @@
     run();
   }
 
+  // `detenido` es un cerrojo, no un lujo: `reset()` y el auto-submit del input pueden llamar a `run()`
+    // otra vez sobre el mismo paso, y sin esto un fallo real pintaba el globo y el STOP DOS veces.
+    let detenido = false;
+
   async function run() {
-    if (running) return; running = true;
+    if (running || detenido) return; running = true;
     while (ptr < steps.length) {
       const s = steps[ptr];
       if (s.wake) { $("#in-b").placeholder = "Escribe un mensaje"; }
@@ -1755,8 +1759,13 @@
       // globos simulados después de un error real, y eso es peor que no correr: mezcla lo que pasó de
       // verdad con lo que está escrito, y quien mira no puede distinguirlos.
       if (REAL() && s.real && res && !res.ok) {
-        bubble(s.side, "bot", txt, { buttons: s.buttons, list: s.list });
-        auto = false; $("#auto").textContent = "▶ Correr solo"; running = false;
+        // IDEMPOTENTE: hay tres caminos que llaman a `run()` (reset, el auto-submit del input y la
+        // elección de un botón) y cualquiera puede re-entrar al mismo paso. El cerrojo `detenido` es
+        // la primera defensa; esto es la segunda, porque un STOP pintado dos veces se lee como dos
+        // fallos distintos.
+        if (detenido) { running = false; return; }
+        bubble(s.side, "bot", txt, { buttons: [], list: s.list });
+        auto = false; $("#auto").textContent = "▶ Correr solo"; running = false; detenido = true;
         $("#trace").insertAdjacentHTML("beforeend",
           '<li class="murio"><span class="m">STOP</span> el guion se detuvo acá<span class="note">' +
           'la llamada falló y los pasos siguientes son simulados: seguir mezclaría lo real con el guion</span></li>');
@@ -1797,7 +1806,7 @@
     run();
   }
 
-  $("#reset").onclick = () => { auto = false; $("#auto").textContent = "▶ Correr solo"; reset(); };
+  $("#reset").onclick = () => { auto = false; detenido = false; $("#auto").textContent = "▶ Correr solo"; reset(); };
   // al prender o apagar el canal de correo, la pantalla aparece/desaparece y el flujo vuelve a cero
   $("#usar-email").onchange = () => { $("#gmail").hidden = !usaEmail(); reset(); };
   $("#auto").onclick = () => {

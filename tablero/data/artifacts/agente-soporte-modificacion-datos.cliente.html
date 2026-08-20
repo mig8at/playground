@@ -107,6 +107,22 @@
   .stamp b {
     color: var(--page-ink)
   }
+  /* MODO REAL — distinto del resto de los controles a propósito: cambia lo que el prototipo ES. */
+  .real { margin-top: 12px; padding-top: 11px; border-top: 1px dashed var(--line) }
+  .tog.fuerte { font-size: 13px }
+  .realcfg { display: flex; flex-wrap: wrap; gap: 9px 14px; align-items: flex-end; margin-top: 11px }
+  .realcfg label { display: flex; flex-direction: column; gap: 3px; font-size: 11px; color: #64748b;
+    font-weight: 600 }
+  .realcfg input { padding: 5px 8px; border: 1px solid var(--line); border-radius: 6px; font: inherit;
+    font-size: 12.5px; min-width: 168px }
+  .realestado { font-size: 12px; color: #94a3b8 }
+  .realestado.ok { color: #0f7b3f } .realestado.bad { color: #b3261e }
+  .realnota { flex: 1 1 100%; margin: 4px 0 0; font-size: 11.5px; color: #94a3b8; line-height: 1.5 }
+  .trace li.viva .m { background: #0f7b3f }
+  .trace li.viva .note { color: #0f7b3f }
+  .trace li.murio .m { background: #b3261e }
+  .trace li.murio .note { color: #b3261e }
+
 
   .controls {
     display: flex;
@@ -1112,6 +1128,25 @@
       <label class="tog"><input type="checkbox" id="ineligible"> Crédito no elegible (regla de 6 meses)</label>
       <label class="tog"><input type="checkbox" id="fallo"> Falla la verificación de identidad</label>
     </div>
+
+    <!-- MODO REAL (2026-08-20) — el mismo guion, pero cada paso que declara una API la LLAMA contra el
+         backend local. Apagado funciona igual que antes, sin depender de que local esté levantado. -->
+    <div class="real">
+      <label class="tog fuerte"><input type="checkbox" id="modo-real"> <b>Modo real</b>
+        <span class="off">— llama la API local en vez de simular</span></label>
+      <div class="realcfg" id="realcfg" hidden>
+        <label>URL base <input id="r-base" value="http://localhost/api/support"></label>
+        <label>SUPPORT_BOT_TOKEN <input id="r-token" type="password" placeholder="pegalo acá"></label>
+        <label>Cliente · wa <input id="r-waCli" value="whatsapp:+573099000002"></label>
+        <label>Cliente · cédula <input id="r-docCli" value="1099887704"></label>
+        <label>Solicitud (user_request_id) <input id="r-ureq" value="464729"></label>
+        <button class="ctl" id="r-probar">Probar conexión</button>
+        <span class="realestado" id="r-estado">sin probar</span>
+        <p class="realnota">El token no se guarda en el archivo (los prototipos se versionan): queda en el
+          <code>localStorage</code>. En local el código del OTP son los últimos 4 dígitos del teléfono,
+          así que el guion avanza solo sin leer ningún mensaje.</p>
+      </div>
+    </div>
   </header>
 
   <div class="solo">
@@ -1214,7 +1249,14 @@
     { id: "s0", side: "a", from: "me", text: "Hola, buenas tardes" },
     {
       id: "s1", side: "a", from: "bot", api: A.quienEs,
-      text: `¡Hola! 👋 Soy el asistente de <b>CreditOp</b>.<br>Puedo ayudarte con tu crédito. ¿Qué necesitas?`,
+      real: () => ({ met: "GET", ruta: `/self/by-phone?wa=${encodeURIComponent(rc("waCli"))}` }),
+      text: (r) => {
+        if (!REAL()) return `¡Hola! 👋 Soy el asistente de <b>CreditOp</b>.<br>Puedo ayudarte con tu crédito. ¿Qué necesitas?`;
+        if (!r || !r.ok) return `⚠ <b>Este número no está registrado.</b><span class="kv">${
+          r ? "HTTP " + r.status + "\n" + ((r.json.errors && r.json.errors.error_code) || "") : "sin respuesta"}</span>El canal corta acá: el número ES el primer factor.`;
+        const d = r.json.data || {};
+        return `¡Hola <b>${d.first_name || "?"}</b>! 👋 Soy el asistente de <b>CreditOp</b>.<br><i>(nombre traído del backend · CC ${d.document_number || "?"})</i><br>¿Qué necesitas?`;
+      },
       input: { value: "quiero cambiar la fecha en que me cobran", ph: "Escribe lo que necesitas" }
     },
     {
@@ -1225,18 +1267,51 @@
     },
     {
       id: "s3", side: "a", from: "bot", api: A.pedirOtp, sms: "509318",
+      real: () => ({ met: "POST", ruta: "/self/otp",
+                     cuerpo: { wa: rc("waCli"), document: rc("docCli") } }),
       text: `Gracias. Te acabo de enviar un <b>código de 6 dígitos</b> por mensaje de texto a este mismo celular.<br><br>Escríbelo acá para confirmar que eres tú.`,
       input: { value: "509318", ph: "Código de 6 dígitos" },
       next: () => $("#fallo").checked ? "malos" : "s4"
     },
     {
       id: "s4", side: "a", from: "bot", api: A.verificar,
-      text: `✅ Verificado. Hola <b>María Fernanda</b>.<br><br>Estás en tu crédito #${F.cli.sol}. Déjame revisar si admite cambios…`,
-      api2: A.canChange, next: () => $("#ineligible").checked ? "noeleg" : "s5"
+      // Dos llamadas en un paso, que en el guion eran `api` y `api2`: verificar el código y preguntar si
+      // el crédito admite cambios. La segunda es la que decide si el menú siguiente existe.
+      real: () => [
+        { met: "POST", ruta: "/self/otp/verify", cuerpo: { wa: rc("waCli"), code: otpDe(rc("waCli")) } },
+        { met: "GET", ruta: `/credits/${rc("ureq")}/can-change?wa=${encodeURIComponent(rc("waCli"))}` },
+      ],
+      guarda: r => { VIVO.puedeCambiar = r?.json?.data?.can_change === true; },
+      text: (r) => {
+        if (!REAL()) return `✅ Verificado. Hola <b>María Fernanda</b>.<br><br>Estás en tu crédito #${F.cli.sol}. Déjame revisar si admite cambios…`;
+        if (!r || !r.ok) return `⚠ <b>No se pudo continuar.</b><span class="kv">${
+          r ? "HTTP " + r.status + "\n" + ((r.json.errors && r.json.errors.error_code) || "") : "sin respuesta"}</span>`;
+        const d = r.json.data || {};
+        if (d.can_change === false) return `Verifiqué tu identidad, pero <b>este crédito no admite cambios ahora</b>.<span class="kv">${
+          d.message || d.reason || "sin detalle"}</span><i>(respuesta real del backend)</i>`;
+        return `✅ Verificado <i>(de verdad)</i>. Tu crédito <b>#${rc("ureq")}</b> sí admite cambios.`;
+      },
+      api2: A.canChange,
+      // En modo real la rama la decide el BACKEND, no el checkbox del prototipo.
+      next: () => REAL() ? (VIVO.puedeCambiar ? "s5" : "noeleg")
+                         : ($("#ineligible").checked ? "noeleg" : "s5")
     },
     {
       id: "s5", side: "a", from: "bot", api: A.dateOpts,
-      text: `Tu fecha de pago actual es el <b>${F.cli.fecha}</b>.<br><br>Estas son las opciones disponibles:`,
+      real: () => ({ met: "GET", ruta: `/credits/${rc("ureq")}/payment-date-options?wa=${encodeURIComponent(rc("waCli"))}` }),
+      guarda: r => { VIVO.fechas = r?.json?.data?.options || []; },
+      text: (r) => {
+        if (!REAL()) return `Tu fecha de pago actual es el <b>${F.cli.fecha}</b>.<br><br>Estas son las opciones disponibles:`;
+        if (!r || !r.ok) return `⚠ <b>No pude traer las opciones.</b><span class="kv">${
+          r ? "HTTP " + r.status + "\n" + ((r.json.errors && r.json.errors.error_code) || "") : "sin respuesta"}</span>`;
+        const d = r.json.data || {};
+        return `Tu fecha de pago actual es el <b>${d.current_payment_date || "?"}</b> <i>(del backend)</i>.<br><br>Estas son las opciones disponibles:`;
+      },
+      // Acá es donde más se nota correr contra la API: las fechas del menú son las que devolvió el
+      // backend, no las tres de la maqueta. Si mañana cambian los ciclos de corte, el menú cambia solo.
+      botonesVivos: () => (VIVO.fechas || []).map(o => ({
+        t: o.label || o.value, sub: o.is_current ? "es la actual" : "", dis: !!o.is_current,
+      })),
       list: "Elegir nueva fecha",
       buttons: [
         { t: "28 de septiembre", sub: "próximo ciclo de corte" },
@@ -1251,7 +1326,20 @@
     },
     {
       id: "s7", side: "a", from: "bot", api: A.aplicaFecha,
-      text: `✅ Listo, tu nueva fecha de pago es el <b>${F.cli.fechaNue}</b>.<br><br>Te llegará la confirmación por este mismo chat.`,
+      // ⚠ ESTE PASO ESCRIBE. Se manda la PRIMERA opción que el backend ofreció y que no es la actual:
+      // inventar una fecha la rechazaría la validación (`after_or_equal:today` y el ciclo de corte).
+      real: () => {
+        const o = (VIVO.fechas || []).find(x => !x.is_current) || (VIVO.fechas || [])[0];
+        return { met: "POST", ruta: `/credits/${rc("ureq")}/change-payment-date`,
+                 cuerpo: { wa: rc("waCli"), selected_payment_date: o ? o.value : null } };
+      },
+      text: (r) => {
+        if (!REAL()) return `✅ Listo, tu nueva fecha de pago es el <b>${F.cli.fechaNue}</b>.<br><br>Te llegará la confirmación por este mismo chat.`;
+        if (!r || !r.ok) return `⚠ <b>No se aplicó el cambio.</b><span class="kv">${
+          r ? "HTTP " + r.status + "\n" + JSON.stringify(r.json.errors || r.json).slice(0, 160) : "sin respuesta"}</span>Nada se escribió: hasta acá no se había tocado el crédito.`;
+        const o = (VIVO.fechas || []).find(x => !x.is_current) || {};
+        return `✅ Listo, tu nueva fecha de pago es el <b>${o.label || o.value || "?"}</b> <i>(escrito de verdad en la base local)</i>.`;
+      },
       audit: { campo: "next_payment_date", ant: F.cli.fecha, nue: F.cli.fechaNue, estado: "aplicada", cls: "ok", otp: 88431, dest: T_CREDITO, quien: "la clienta" },
       buttons: [{ t: "Cambiar también el plazo", goto: "p1" }, { t: "Eso era todo", goto: "chau" }]
     },
@@ -1259,7 +1347,22 @@
     // ─── PLAZO, enganchado desde el final del anterior ───
     {
       id: "p1", side: "a", from: "bot", api: A.feeOpts,
-      text: `Tu plazo actual es de <b>${F.cli.plazo}</b> y llevas <b>${F.cli.pagadas} pagadas</b>.<br><br>Puedes bajarlo o subirlo; el límite es que el total supere las cuotas que ya pagaste.`,
+      real: () => ({ met: "GET", ruta: `/credits/${rc("ureq")}/fee-number-options?wa=${encodeURIComponent(rc("waCli"))}` }),
+      guarda: r => { VIVO.cuotas = r?.json?.data?.options || []; },
+      text: (r) => {
+        if (!REAL()) return `Tu plazo actual es de <b>${F.cli.plazo}</b> y llevas <b>${F.cli.pagadas} pagadas</b>.<br><br>Puedes bajarlo o subirlo; el límite es que el total supere las cuotas que ya pagaste.`;
+        if (!r || !r.ok) return `⚠ <b>No pude traer los plazos.</b><span class="kv">${
+          r ? "HTTP " + r.status + "\n" + ((r.json.errors && r.json.errors.error_code) || "") : "sin respuesta"}</span>`;
+        const act = (r.json.data?.options || []).find(o => o.is_current);
+        return `Tu plazo actual es de <b>${act ? act.fee_number + " cuotas" : "?"}</b> <i>(del backend)</i>.<br><br>Estos son los plazos que admite:`;
+      },
+      // `is_available` decide si la opción se puede elegir, y `is_current` marca la actual: elegirla no
+      // es un cambio. Las dos vienen del backend — la maqueta las tenía escritas a mano.
+      botonesVivos: () => (VIVO.cuotas || []).map(o => ({
+        t: `${o.fee_number} cuotas`,
+        sub: `$${Math.round(o.fee_value || 0).toLocaleString("es-CO")} c/u${o.is_current ? " · el actual" : ""}`,
+        dis: o.is_current || o.is_available === false,
+      })),
       list: "Elegir plazo",
       buttons: [
         { t: "6 cuotas", sub: "$577.000 c/u · quedan 4", dis: true },
@@ -1277,7 +1380,21 @@
     },
     {
       id: "p3", side: "a", from: "bot", api: A.aplicaPlazo,
-      text: `✅ Listo, tu nuevo plazo es de <b>18 cuotas de $161.000</b>.`,
+      // ⚠ ESTE PASO ESCRIBE. Se elige la primera opción DISPONIBLE que no sea la actual: el cuerpo va
+      // como `selected_fee: { fee_number }`, que es la forma que valida el request del backend.
+      real: () => {
+        const o = (VIVO.cuotas || []).find(x => !x.is_current && x.is_available !== false)
+               || (VIVO.cuotas || []).find(x => !x.is_current);
+        return { met: "POST", ruta: `/credits/${rc("ureq")}/change-fee-number`,
+                 cuerpo: { wa: rc("waCli"), selected_fee: { fee_number: o ? o.fee_number : null } } };
+      },
+      text: (r) => {
+        if (!REAL()) return `✅ Listo, tu nuevo plazo es de <b>18 cuotas de $161.000</b>.`;
+        if (!r || !r.ok) return `⚠ <b>No se aplicó el cambio de plazo.</b><span class="kv">${
+          r ? "HTTP " + r.status + "\n" + JSON.stringify(r.json.errors || r.json).slice(0, 160) : "sin respuesta"}</span>El crédito no se tocó.`;
+        const o = (VIVO.cuotas || []).find(x => !x.is_current && x.is_available !== false) || {};
+        return `✅ Listo, tu nuevo plazo es de <b>${o.fee_number || "?"} cuotas</b> <i>(escrito de verdad en la base local)</i>.`;
+      },
       audit: { campo: "fee_number", ant: F.cli.plazo, nue: F.cli.plazoNue, estado: "aplicada", cls: "ok", otp: 88431, dest: T_CREDITO, quien: "la clienta" }
     },
     { id: "chau", side: "a", from: "bot", text: "Con gusto 🙌 Cualquier cosa me escribes por acá.", end: true },
@@ -1345,12 +1462,62 @@
     $("#st-a").textContent = "en línea";
   }
 
-  function apiCall(a) {
+  // ── MODO REAL ────────────────────────────────────────────────────────────────────────────────────
+  // `VIVO` guarda lo que devolvió cada llamada, para que los globos y los MENÚES puedan mostrar datos
+  // reales en vez de los de `F`. Un paso lee de acá sólo si `REAL()` está prendido.
+  const VIVO = {};
+  const REAL = () => $("#modo-real").checked;
+  const rc = k => ($("#r-" + k)?.value || "").trim();
+  const TKCLI = "core258.support_bot_token";
+  const otpDe = wa => String(wa).replace(/\D/g, "").slice(-4);
+
+  async function pegar(metodo, ruta, cuerpo) {
+    const url = rc("base").replace(/\/$/, "") + ruta;
+    const opts = { method: metodo, headers: { Accept: "application/json", Authorization: "Bearer " + rc("token") } };
+    if (cuerpo) { opts.headers["Content-Type"] = "application/json"; opts.body = JSON.stringify(cuerpo); }
+    try {
+      const r = await fetch(url, opts);
+      let j; try { j = await r.json(); } catch { j = { _texto: await r.text() }; }
+      return { ok: r.ok, status: r.status, json: j, ruta, metodo };
+    } catch (e) {
+      return { ok: false, status: 0, json: { _red: String(e) }, ruta, metodo, red: true };
+    }
+  }
+
+  async function apiCall(a, s) {
     const ol = $("#trace"); if (ol.querySelector(".empty")) ol.innerHTML = "";
-    const li = document.createElement("li");
-    if (a.nuevo) li.className = "new";
-    li.innerHTML = `<span class="m">${a.m}</span> ${a.p}<span class="note">${a.n}</span>`;
-    ol.appendChild(li); ol.scrollTop = ol.scrollHeight;
+
+    // Sin modo real: exactamente lo de antes — la línea declarada, sin tocar la red.
+    if (!REAL() || !s?.real) {
+      const li = document.createElement("li");
+      if (a.nuevo) li.className = "new";
+      li.innerHTML = `<span class="m">${a.m}</span> ${a.p}<span class="note">${a.n}${
+        REAL() && !s?.real ? " · ⚠ este paso todavía no está cableado a la API" : ""}</span>`;
+      ol.appendChild(li); ol.scrollTop = ol.scrollHeight;
+      return null;
+    }
+
+    // `real()` puede devolver una llamada o varias: `s4` verifica el OTP Y consulta si el crédito
+    // admite cambios, que en el guion eran `api` y `api2`.
+    const lista = [].concat(s.real());
+    let r = null;
+    for (const d of lista) {
+      const fila = document.createElement("li");
+      if (a.nuevo) fila.className = "new";
+      fila.innerHTML = `<span class="m">${d.met}</span> ${d.ruta}<span class="note">llamando…</span>`;
+      ol.appendChild(fila); ol.scrollTop = ol.scrollHeight;
+
+      r = await pegar(d.met, d.ruta, d.cuerpo);
+      fila.className = (a.nuevo ? "new " : "") + (r.ok ? "viva" : "murio");
+      fila.innerHTML = `<span class="m">${d.met}</span> ${d.ruta}<span class="note">${
+        r.red ? "sin respuesta — ¿está levantado el backend local?"
+              : "HTTP " + r.status + " · " + JSON.stringify(r.json).slice(0, 170)}</span>`;
+      ol.scrollTop = ol.scrollHeight;
+      if (!r.ok) break;   // las siguientes dependen de ésta: seguir daría 409 en cascada
+    }
+
+    if (s.guarda) s.guarda(r);
+    return r;
   }
 
   let row = null, lastAudit = null;
@@ -1394,20 +1561,48 @@
     run();
   }
 
+  // `detenido` es un cerrojo, no un lujo: `reset()` y el auto-submit del input pueden llamar a `run()`
+    // otra vez sobre el mismo paso, y sin esto un fallo real pintaba el globo y el STOP DOS veces.
+    let detenido = false;
+
   async function run() {
-    if (running) return; running = true;
+    if (running || detenido) return; running = true;
     while (ptr < steps.length) {
       const s = steps[ptr];
       if (s.from === "me") { bubble(s.side, "me", s.text); ptr++; if (auto) await sleep(420); continue; }
 
-      await typing(s.side, s.text.length > 200 ? 880 : 640);
-      if (s.api) apiCall(s.api);
-      if (s.api2) apiCall(s.api2);
+      // La API se llama ANTES de armar el texto, para que el globo pueda mostrar lo que devolvió.
+      // `api2` sólo se pinta aparte en modo demo: en real, `real()` ya devuelve las dos llamadas.
+      const res = s.api ? await apiCall(s.api, s) : null;
+      if (s.api2 && !(REAL() && s.real)) await apiCall(s.api2, null);
+
+      const txt = typeof s.text === "function" ? s.text(res) : s.text;
+      await typing(s.side, txt.length > 200 ? 880 : 640);
       if (s.audit) audit(s.audit);
-      bubble(s.side, "bot", s.text, { buttons: s.buttons, list: s.list });
+
+      // En modo real, una llamada que falló DETIENE el guion: seguir con globos simulados después de
+      // un error real mezcla lo que pasó con lo que está escrito, y quien mira no los distingue.
+      if (REAL() && s.real && res && !res.ok) {
+        // IDEMPOTENTE: hay tres caminos que llaman a `run()` (reset, el auto-submit del input y la
+        // elección de un botón) y cualquiera puede re-entrar al mismo paso. El cerrojo `detenido` es
+        // la primera defensa; esto es la segunda, porque un STOP pintado dos veces se lee como dos
+        // fallos distintos.
+        if (detenido) { running = false; return; }
+        bubble(s.side, "bot", txt, { buttons: [], list: s.list });
+        auto = false; $("#auto").textContent = "▶ Correr solo"; running = false; detenido = true;
+        $("#trace").insertAdjacentHTML("beforeend",
+          '<li class="murio"><span class="m">STOP</span> el guion se detuvo acá<span class="note">' +
+          'la llamada falló y los pasos siguientes son simulados</span></li>');
+        return;
+      }
+
+      // Los botones del menú se reemplazan por las opciones REALES cuando el backend las devolvió: es
+      // el punto donde más se nota correr contra la API — las fechas y las cuotas son las de verdad.
+      const btns = (REAL() && s.botonesVivos) ? (s.botonesVivos(res) || s.buttons) : s.buttons;
+      bubble(s.side, "bot", txt, { buttons: btns, list: s.list });
       if (s.sms) { await sleep(450); smsNotif(s.sms); }
 
-      if (s.buttons && s.buttons.some(b => !b.dis)) {
+      if (btns && btns.some(b => !b.dis)) {
         running = false;
         if (auto) {
           await sleep(780);
@@ -1435,7 +1630,7 @@
     run();
   }
 
-  $("#reset").onclick = () => { auto = false; $("#auto").textContent = "▶ Correr solo"; reset(); };
+  $("#reset").onclick = () => { auto = false; detenido = false; $("#auto").textContent = "▶ Correr solo"; reset(); };
   $("#auto").onclick = () => {
     auto = !auto; $("#auto").textContent = auto ? "⏸ Pausar" : "▶ Correr solo";
     if (auto) reset();
@@ -1443,4 +1638,24 @@
   $("#ineligible").onchange = reset;
   $("#fallo").onchange = reset;
   reset();
+  // ── enganches del MODO REAL ─────────────────────────────────────────────────────────────────────
+  $("#r-token").value = localStorage.getItem(TKCLI) || "";
+  $("#r-token").addEventListener("change", e => localStorage.setItem(TKCLI, e.target.value.trim()));
+  $("#modo-real").addEventListener("change", e => {
+    $("#realcfg").hidden = !e.target.checked;
+    // Reiniciar al cambiar de modo: la conversación de arriba se armó con el otro, y dejarla mezclada
+    // haría creer que globos simulados salieron del backend.
+    $("#reset").click();
+  });
+  $("#r-probar").addEventListener("click", async () => {
+    const e = $("#r-estado");
+    e.className = "realestado"; e.textContent = "probando…";
+    const r = await pegar("GET", "/clients");
+    if (r.red) { e.className = "realestado bad"; e.textContent = "sin respuesta — ¿está levantado el backend local?"; return; }
+    if (r.status === 422) { e.className = "realestado ok"; e.textContent = "conectado y autenticado (422 = llegó al controlador)"; }
+    else if (r.status === 401) { e.className = "realestado bad"; e.textContent = "401 — el token no coincide"; }
+    else if (r.status === 503) { e.className = "realestado bad"; e.textContent = "503 — el backend no tiene SUPPORT_BOT_TOKEN"; }
+    else { e.className = "realestado"; e.textContent = `HTTP ${r.status}`; }
+  });
+
 </script>

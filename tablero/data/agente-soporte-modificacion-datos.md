@@ -1404,6 +1404,36 @@ castigo pega sobre el número que también se usa para cobrar.
 <!-- append-only, lo nuevo arriba. (Esta tarea no tenía sección de registro; se agrega siguiendo
      PLANTILLA-TAREA.md. Lo de arriba es el ESTADO, que se reescribe; esto es qué pasó cada día.) -->
 
+### 2026-08-20 (8) — el prototipo del CLIENTE también corre contra la API local
+
+Mismo tratamiento que el del asesor: interruptor **«Modo real»**, apagado idéntico a antes. Cableados
+**los 7 pasos** del recorrido, o sea el flujo completo de autogestión — incluidos **los dos que
+ESCRIBEN** (`change-payment-date` y `change-fee-number`).
+
+Lo que aporta más que en el del asesor, y no lo tenía pensado al empezar:
+
+1. **Los menús de WhatsApp se arman con lo que devuelve el backend.** Las fechas de corte y los plazos
+   con su valor de cuota salen de `payment-date-options` y `fee-number-options`, no de los botones
+   escritos en la maqueta. Si mañana cambian los ciclos, el menú cambia solo. `is_available` deshabilita
+   la opción y `is_current` marca la actual (elegirla no es un cambio).
+2. **Los pasos que escriben mandan una opción que el backend ofreció**, no una inventada: la primera
+   disponible que no sea la actual. Una fecha a mano la rechazaría la validación
+   (`after_or_equal:today` más el ciclo de corte), y el cuerpo del plazo va como
+   `selected_fee: { fee_number }`, que es la forma que valida el request.
+3. **La rama «no elegible» la decide el BACKEND, no el checkbox.** En modo real, `can_change` de la
+   respuesta manda; el checkbox del prototipo sigue mandando en modo demo. Y si el backend dice que no,
+   el globo muestra su `message` tal cual — que es lo que el cliente leería.
+
+Un defecto propio, encontrado corriéndolo (y que estaba también en el del asesor, ya arreglado allá):
+había **tres** caminos que llaman a `run()` —`reset()`, el auto-submit del input y la elección de un
+botón— y cualquiera podía re-entrar al mismo paso, así que un fallo real pintaba el globo de error y el
+STOP **dos veces**. Se lee como dos fallos distintos. Se arregló con dos defensas: un cerrojo `detenido`
+y el bloque de STOP hecho idempotente.
+
+Verificado en los dos modos, servido por HTTP: demo → 13 globos, 7 líneas declaradas, **cero
+duplicados**, sin tocar la red; real → la llamada pintada en rojo, el error dentro del globo de WhatsApp
+y un solo STOP.
+
 ### 2026-08-20 (7) — el prototipo del ASESOR ahora corre contra la API local
 
 Pedido de Miguel: no un panel técnico aparte, sino **el mockup de WhatsApp manejado por la API**, para
