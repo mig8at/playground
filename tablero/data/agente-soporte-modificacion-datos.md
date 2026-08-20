@@ -30,9 +30,9 @@ dev.** Las tres piezas quedaron: el módulo desplegado, las 16 rutas expuestas e
 viva (sin token o con uno inválido da 401, con el correcto pasa al controlador) y una consulta con datos
 inexistentes contesta 404 `CLIENT_NOT_FOUND`, o sea que llega hasta la base.
 
-**El próximo paso es:** probar el recorrido del **ASESOR** contra dev (`advisor/otp` → `clients` →
-`change-requests/*`). Hace falta un usuario con perfil de asesor y comercios asignados — es la mitad que
-no se tocó todavía. La de autogestión ya está validada de punta a punta contra dev.
+**El próximo paso es:** decidir qué hacer con `POST /change-requests/{id}/otp`, que quedó
+**inalcanzable** (ver Registro 2026-08-20 (10)): o se saca de los 16 endpoints, o se cambia la máquina de
+estados. Y probar el recorrido del asesor contra **dev**, que en local ya está verde de punta a punta.
 
 ✅ El defecto de `credits/*` (`find()` en vez de `findById()`) está **arreglado y desplegado en dev**.
 
@@ -1405,6 +1405,46 @@ castigo pega sobre el número que también se usa para cobrar.
 
 <!-- append-only, lo nuevo arriba. (Esta tarea no tenía sección de registro; se agrega siguiendo
      PLANTILLA-TAREA.md. Lo de arriba es el ESTADO, que se reescribe; esto es qué pasó cada día.) -->
+
+### 2026-08-20 (10) — el recorrido del ASESOR funciona, y uno de los 16 endpoints es inalcanzable
+
+Probado de punta a punta **en local**, por la ruta del canal y **sólo con el token** — cero Cognito en
+todos los pasos (las 16 rutas del gateway se expusieron con `authorizer_name = null`, verificado en el
+repo de infra).
+
+> **MEDICIÓN · 2026-08-20** — recorrido completo del asesor en local: `advisor/otp` 200 ·
+> `advisor/otp/verify` 200 (`allied_ids: [94]`) · `clients` 200 (MARIA GOMEZ, enmascarada) ·
+> `change-requests` **201** (`request_id`, estado `pendiente_autorizacion`) · el CLIENTE se identifica ·
+> `authorize` 200 (`autorizada`) · `confirm` 200 (**`aplicada`**, el dato escrito).
+> Asesor `TMIGADVISER` / cel `3133122615` / comercio 94 · cliente `1099887704` / cel `3099000002`.
+
+🔴 **`POST /change-requests/{id}/otp` no se puede llamar nunca.** La secuencia lo hace imposible:
+`authorize` exige que la sesión del cliente esté `otp_verified`, y desde ese estado el endpoint responde
+**409 «No se puede pasar de otp_verified a otp_sent»** — `AuthorizationState` prohíbe bajar el privilegio
+de una sesión que ya probó su identidad, que es una regla correcta y deliberada.
+
+Y **no hace falta**: `confirm` usa `$session->verifiedOtpId()`, o sea el OTP de la identificación, que es
+justamente el `otp_id` REAL que esta tarea vino a poner donde producción escribe 0. O sea que el segundo
+factor sobre el cambio ya está cubierto por el primero.
+
+**La decisión es de producto, no de código:** o el endpoint se saca (y los 16 pasan a 15, con una ruta
+menos en el gateway), o se acepta que un cambio pide su propio código y entonces hay que darle a la
+máquina de estados una transición para eso. Hoy es código muerto que además hace fallar a cualquiera que
+siga el diseño escrito.
+
+**Dos correcciones al prototipo del asesor**, las dos salidas de correrlo:
+- el id de la solicitud viene como **`request_id`**, no `id` — con `id` quedaba `undefined` y los pasos
+  siguientes pegaban a `/change-requests/undefined/…`;
+- el paso de confirmar ya no llama al OTP del cambio: era la llamada inalcanzable.
+
+⚠ Para poder correrlo se agregó `3133122615` a `settings.qa_otp_bypass_phones` **en LOCAL** (64 → 65
+números). Es una escritura local y descartable; la reversa quedó en `/tmp/bypass-local-antes.txt`.
+
+⚠ **Y un error propio que conviene no repetir:** antes de eso probé el mismo asesor contra **dev**, donde
+su teléfono NO está bypasseado, así que **salió un SMS real** a un número que no es mío
+(`otp_service: {success: true}`, 19:13:33). Verifiqué que el documento fuera sintético pero no de quién
+era el teléfono — un número en una fila de prueba puede ser el de una persona real. El OTP queda cifrado
+en la tabla `otps`, así que no se puede leer sin el `APP_KEY`, y no se intentó.
 
 ### 2026-08-20 (9) — el fix ya está en dev, y los prototipos apuntan a dev con un click
 
