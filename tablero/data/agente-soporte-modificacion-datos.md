@@ -32,7 +32,8 @@ inexistentes contesta 404 `CLIENT_NOT_FOUND`, o sea que llega hasta la base.
 
 **El próximo paso es:** seguir validando el flujo del cliente **en local** hasta que esté completo, y
 recién entonces armar **un PR con todo** (decisión de Miguel). Lo acumulado está en la rama
-`feat/CORE-258-solicitud-operable`, sin commitear: **9 archivos, 7 bugs arreglados, 66 tests en verde.**
+`feat/CORE-258-solicitud-operable`, sin commitear: **9 archivos, 8 bugs arreglados, 68 tests en verde**
+(+705/-19). Validado en local de punta a punta los DOS caminos —fecha y plazo— sobre créditos rt=2.
 
 🔴 **Lo más importante que salió del flujo del cliente** (Registro (18)): el canal permitía cambiarle la
 fecha y el plazo a créditos que **CreditOp no opera** — se le cambiaron a tres de Credifamilia (`rt=4`)
@@ -1420,6 +1421,49 @@ castigo pega sobre el número que también se usa para cobrar.
 
 <!-- append-only, lo nuevo arriba. (Esta tarea no tenía sección de registro; se agrega siguiendo
      PLANTILLA-TAREA.md. Lo de arriba es el ESTADO, que se reescribe; esto es qué pasó cada día.) -->
+
+### 2026-08-20 (20) — la pregunta «¿ya se puede subir?», contestada midiendo: dos huecos y un bug propio
+
+Miguel preguntó si se puede subir la rama. En vez de contestar de memoria se buscaron los agujeros, y
+había tres cosas.
+
+**1 · 🔴 Un bug MÍO, del mismo tipo que el `find()`/`findById()` de la semana.** `POST
+/credits/{id}/change-fee-number` con un plazo que el canal no ofreció devolvía **500**, no el 422 que yo
+había escrito: `escribir()` envolvía en `success()` **todo** lo que devolviera la acción —incluida la
+respuesta de error del rechazo— y `JsonResponse::toArray` no existe.
+
+Y lo que más importa de esto: **la regla YA tenía test y el test pasaba.** `CreditChangeServiceTest`
+prueba el servicio directamente, así que nunca ejecutó el controlador. Es exactamente la trampa que el
+docblock de `CreditEndpointsTest` describe desde la semana pasada, y volví a caer en ella. Arreglado
+(`escribir()` pasa tal cual la respuesta que le devuelva la acción) y con **test de RUTA**, comprobado a
+la manera de siempre: con el bug puesto de nuevo, **falla**; con el arreglo, pasa.
+
+**2 · El camino del PLAZO nunca había corrido contra un crédito rt=2.** El de la mañana era Credifamilia
+(rt=4), que la guarda nueva ahora bloquea — o sea que el único recorrido exitoso de `change-fee-number`
+era sobre un crédito que ya no se acepta. Se midió si en local hay con qué probarlo: **de 17 créditos rt=2
+sanos, 15 ofrecen plazos**. Corrido de punta a punta sobre el 412224 (Mediarte, rt=2):
+
+> **MEDICIÓN · 2026-08-20 (local)** — `can-change` `true` · `fee-number-options` → 3, 6 y 12 cuotas ·
+> `change-fee-number` a 12 **mandando `fee_value: 1` a propósito** → aplicado con **$210.000**, el valor
+> real de la opción ofrecida, y `creditop_x_changes_log #49` con **`otp_id = 294589`**, el de la sesión.
+> Con `fee_number: 99` → **422 `FEE_NOT_AVAILABLE`**.
+>
+> O sea que las dos cosas que este canal arregla quedaron demostradas en el camino del plazo: el monto no
+> lo pone quien llama, y el `otp_id` no es 0.
+
+**3 · La ruta del ASESOR había cambiado de forma sin test que la cuidara.** `GET /clients` pasó de
+`operable_request_ids` a `operable_credits`, y sus tests cubrían **sólo los rechazos**
+(`WRONG_ACTOR`, `CLIENT_NOT_FOUND`, `VALIDATION_FAILED`): la respuesta del camino feliz podía cambiar de
+forma sin que nada se quejara. Agregado `test_el_asesor_recibe_los_creditos_operables_descritos`, que
+afirma la forma completa de la fila y que el crédito de un lender que no operamos (rt=4) **no aparece**.
+
+**Estilo:** `pint` marcaba 5 archivos; **2 ya fallaban antes** de tocarlos (no se reformatean: inflaría el
+diff con código ajeno al cambio) y los 3 que yo ensucié quedaron formateados. ⚠ **CI no corre pint** —
+ningún workflow lo menciona—, así que esto no rompía el build; se hace por el diff, no por la guardia.
+
+**68 tests en verde. 9 archivos, +705/-19.** Lo que queda pendiente NO es validación: es decisión de
+producto (el tope de 4, sacar `POST /change-requests/{id}/otp`, y la ruta vieja de `Modules/Loans` que
+todavía acepta el monto de la cuota del llamador).
 
 ### 2026-08-20 (19) — el cliente elige entre SUS créditos, y sólo entre los que operamos nosotros
 
