@@ -31,8 +31,11 @@ viva (sin token o con uno inválido da 401, con el correcto pasa al controlador)
 inexistentes contesta 404 `CLIENT_NOT_FOUND`, o sea que llega hasta la base.
 
 **El próximo paso es:** decidir qué hacer con `POST /change-requests/{id}/otp`, que quedó
-**inalcanzable** (ver Registro 2026-08-20 (10)): o se saca de los 16 endpoints, o se cambia la máquina de
-estados. Y probar el recorrido del asesor contra **dev**, que en local ya está verde de punta a punta.
+**inalcanzable** (Registro (10)): o se saca de los 16 endpoints, o se le da a la máquina de estados una
+transición. Y limpiar la fila del asesor en dev, que quedó con el celular de Miguel (Registro (11)).
+
+✅ **El objetivo central de la tarea está DEMOSTRADO contra dev**: el cambio se escribió con un `otp_id`
+real y validado, no con el `0` de producción.
 
 ✅ El defecto de `credits/*` (`find()` en vez de `findById()`) está **arreglado y desplegado en dev**.
 
@@ -1405,6 +1408,43 @@ castigo pega sobre el número que también se usa para cobrar.
 
 <!-- append-only, lo nuevo arriba. (Esta tarea no tenía sección de registro; se agrega siguiendo
      PLANTILLA-TAREA.md. Lo de arriba es el ESTADO, que se reescribe; esto es qué pasó cada día.) -->
+
+### 2026-08-20 (11) — ✅ probado contra DEV con entrega REAL, y con el `otp_id` que la tarea buscaba
+
+Lo único que nunca se había validado era que **el proveedor entregue de verdad**: todo lo anterior fue
+por bypass, y el `success: true` que devuelve `otp-service` no prueba que el mensaje llegue. Miguel
+prestó su celular para cerrar eso.
+
+**Costó una sola línea, y era un arreglo.** Miguel ya tenía usuario asesor en dev (`id=1827130`, perfil 4
+Comercial, comercio 158, `miguel+motai@creditop.com`) pero su celular era `4-3015646544` — con el prefijo
+basura `4-` que arrastran muchas filas de esa tabla, o sea **un número al que el proveedor no puede
+entregar**. Ese asesor no podía recibir su OTP.
+
+> **MEDICIÓN · 2026-08-20** — recorrido del asesor contra dev con ENTREGA REAL. `advisor/otp` a
+> `whatsapp:+573016992677` → `qa_bypass=0`, el SMS llegó y el código (`184661`) verificó:
+> `otp_verified`, `allied_ids: [158]`. Luego `clients` 200 (QA AUTOMATION) · `change-requests` 201 ·
+> `authorize` 200 · `confirm` 200 **`aplicada`**.
+
+🎯 **Y acá está lo que la tarea vino a conseguir, verificado en la base:**
+
+> **MEDICIÓN · 2026-08-20** — el crédito 465030 quedó con `next_payment_date = 2026-10-05`, y el registro
+> `creditop_x_changes_log #36` tiene **`otp_id = 297011`** — una fila real de `otps`, del celular del
+> cliente, `validated = 1`, creada 25 segundos antes. **No es 0.**
+> `SELECT otp_id FROM creditop_x_changes_log WHERE user_request_id=465030 ORDER BY id DESC LIMIT 1`
+
+Eso es exactamente el defecto que el canal existía para cerrar: hoy producción escribe `otp_id = 0` y no
+hay prueba de que nadie autorizara nada. Ahora la hay, y es trazable hasta el código que la persona
+escribió.
+
+**Dos cuidados que se tomaron y conviene repetir:**
+- El cambio fue de **fecha de pago**, no de celular. Cambiarle el teléfono a un cliente bypasseado lo
+  saca de la lista utilizable y **le rompe las pruebas a otros**; la fecha no le estorba a nadie.
+- El cliente elegido es «QA AUTOMATION» (`3109000004`, doc `37670195`, solicitud `465030`), con teléfono
+  bypasseado y crédito activo. Sólo a Miguel le llegó un mensaje real; al cliente, ninguno.
+
+⚠ **Pendiente de limpieza:** la fila `users.id=1827130` quedó con `cell_phone='3016992677'`. El valor
+anterior (`4-3015646544`) estaba roto, así que volver a él no tiene sentido — conviene dejarlo con un
+número bypasseado o con el de Miguel a propósito, pero **decidido**, no por olvido.
 
 ### 2026-08-20 (10) — el recorrido del ASESOR funciona, y uno de los 16 endpoints es inalcanzable
 
