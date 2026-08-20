@@ -1293,35 +1293,35 @@
     {
       id: "s1", side: "a", from: "bot", api: A.quienEs,
       real: () => ({ met: "GET", ruta: `/self/by-phone?wa=${encodeURIComponent(rc("waCli"))}` }),
+      // ⚠ NO se saluda por NOMBRE acá, y es a propósito: en este punto la persona sólo tiene el
+      // teléfono en la mano, no probó nada. Con un celular robado, un «¡Hola María Fernanda!» ya
+      // entrega un dato. El nombre se usa recién después del OTP (s4).
       text: (r) => {
-        if (!REAL()) return `¡Hola! 👋 Soy el asistente de <b>CreditOp</b>.<br>Puedo ayudarte con tu crédito. ¿Qué necesitas?`;
+        if (!REAL()) return `Hola 👋 Soy el asistente de <b>CreditOp</b>.<br><br>Antes de nada tengo que confirmar que eres tú. ¿Me pasas tu número de cédula?`;
         if (!r || !r.ok) return `⚠ <b>Este número no está registrado.</b><span class="kv">${
           r ? "HTTP " + r.status + "\n" + ((r.json.errors && r.json.errors.error_code) || "") : "sin respuesta"}</span>El canal corta acá: el número ES el primer factor.`;
-        const d = r.json.data || {};
-        return `¡Hola <b>${d.first_name || "?"}</b>! 👋 Soy el asistente de <b>CreditOp</b>.<br><i>(nombre traído del backend · CC ${d.document_number || "?"})</i><br>¿Qué necesitas?`;
+        return `Hola 👋 Soy el asistente de <b>CreditOp</b>.<br><br>Antes de nada tengo que confirmar que eres tú. ¿Me pasas tu número de cédula?`;
       },
-      input: { value: "quiero cambiar la fecha en que me cobran", ph: "Escribe lo que necesitas" }
-    },
-    {
-      id: "s2", side: "a", from: "bot",
-      // ⚠ ACÁ NO HAY LLAMADA AL BACKEND. Antes esto figuraba como `POST /api/support/nlu/interpretar`,
-      // que NO EXISTE: no está en el código ni entre las 16 rutas del gateway, y no hay ningún modelo en
-      // el módulo. Era una ficción de la maqueta, y hacía creer que el backend resolvía el lenguaje.
-      //
-      // Entender lo que la persona escribió es de n8n, no nuestro. Lo que entregamos es la API: datos y
-      // confirmaciones. Que la conversación sea más o menos charlada es de quien arme el bot.
-      api: { m: "n8n", p: "decide sin llamarnos", n: "Enruta lo que la persona escribió a uno de los flujos que el canal sabe atender. NO es una llamada al backend — con dos intenciones alcanzan palabras clave y el menú como respaldo; un clasificador se justifica sólo si se mide que el respaldo se dispara mucho", propio: 1 },
-      text: `Entiendo, quieres <b>cambiar la fecha de pago</b> de tu crédito.<br><br>Antes necesito confirmar que eres tú. ¿Me confirmas tu número de cédula?`,
       input: { value: "1032456789", ph: "Número de cédula" }
     },
     {
-      id: "s3", side: "a", from: "bot", api: A.pedirOtp, sms: "509318",
+      id: "s2", side: "a", from: "bot", api: A.pedirOtp, sms: "509318",
       real: () => ({ met: "POST", ruta: "/self/otp",
                      cuerpo: { wa: rc("waCli"), document: rc("docCli") } }),
-      text: `Gracias. Te acabo de enviar un <b>código de 6 dígitos</b> por mensaje de texto a este mismo celular.<br><br>Escríbelo acá para confirmar que eres tú.`,
+      // El ORDEN es lo que cambió acá (2026-08-20, decisión de Miguel): primero autenticar, y recién
+      // después preguntar qué quiere hacer. Antes este paso interpretaba lenguaje libre —«quiero cambiar
+      // la fecha»— y ofrecía la gestión sin saber todavía quién era ni si había un crédito que la
+      // admitiera. Ofrecer antes de mirar es prometer sin mirar.
+      //
+      // Y el orden nuevo tiene un efecto que no era el objetivo: si el menú viene DESPUÉS, no hay texto
+      // libre que interpretar. La persona toca una opción de una lista cerrada, así que la capa que
+      // «entiende» lo que escribió deja de estar en el camino crítico.
+      text: `Gracias. Te acabo de enviar un <b>código de 6 dígitos</b> por mensaje de texto a este mismo celular.<br><br>Escríbelo acá.`,
       input: { value: "509318", ph: "Código de 6 dígitos" },
       next: () => $("#fallo").checked ? "malos" : "s4"
     },
+    // (Acá estaba `s3`, que mandaba el código. Se fusionó con `s2` al invertir el orden: ahora el
+    //  código se pide en el mismo paso, y la intención se pregunta DESPUÉS de verificar.)
     {
       id: "s4", side: "a", from: "bot", api: A.verificar,
       // Dos llamadas en un paso, que en el guion eran `api` y `api2`: verificar el código y preguntar si
@@ -1342,8 +1342,21 @@
       },
       api2: A.canChange,
       // En modo real la rama la decide el BACKEND, no el checkbox del prototipo.
-      next: () => REAL() ? (VIVO.puedeCambiar ? "s5" : "noeleg")
-                         : ($("#ineligible").checked ? "noeleg" : "s5")
+      // Rutea al MENÚ DE ACCIONES, no directo a las opciones de fecha: hasta acá no se sabe qué quiere
+      // hacer la persona. Preguntar recién ahora es lo que hace innecesario interpretar texto libre.
+      next: () => REAL() ? (VIVO.puedeCambiar ? "acciones" : "noeleg")
+                         : ($("#ineligible").checked ? "noeleg" : "acciones")
+    },
+    {
+      // EL MENÚ DE ACCIONES. Va después de la identidad Y de saber que el crédito admite cambios: las
+      // dos opciones se ofrecen sobre algo que ya se verificó que se puede tocar.
+      id: "acciones", side: "a", from: "bot",
+      text: `Tu crédito admite cambios. ¿Qué quieres hacer?`,
+      list: "¿Qué quieres hacer?",
+      buttons: [
+        { t: "📅 Cambiar fecha de pago", sub: "el día en que te cobran", goto: "s5" },
+        { t: "🗓️ Cambiar el plazo", sub: "cuántas cuotas te quedan", goto: "p1" },
+      ]
     },
     {
       id: "s5", side: "a", from: "bot", api: A.dateOpts,
@@ -1821,11 +1834,16 @@
           : "No encontré una cuenta asociada a este número, así que no puedo ayudarte por acá.");
         CONV.fase = "fin"; trabar(); return;
       }
-      const d = r.json.data || {};
-      CONV.d.nombre = d.first_name;
-      // El menú de acciones NO va acá. Va después de saber quién es y QUÉ CRÉDITO tiene: ofrecer
-      // «cambiá tu fecha» antes de saber si hay un crédito que lo admita es prometer sin mirar.
-      await dice(`¡Hola <b>${d.first_name}</b>! 👋 Soy el asistente de <b>CreditOp</b>.<br><br>Para ayudarte necesito confirmar que sos vos. ¿Me pasás tu número de cédula?`);
+      // ⚠ NO SE SALUDA POR NOMBRE TODAVÍA, y es a propósito. `by-phone` devuelve el nombre y el
+      // documento enmascarado, pero acá la persona **no probó nada**: sólo tiene el teléfono en la
+      // mano. Con un celular robado, un «¡Hola María Fernanda!» ya entrega un dato. El nombre se usa
+      // recién después del OTP.
+      //
+      // La llamada sí se hace, y sirve: si el número no está en ningún crédito se corta ahí, sin
+      // pedirle una cédula a alguien a quien no vamos a poder atender. Y decirle eso no filtra nada —
+      // es su propio número.
+      CONV.d.nombre = (r.json.data || {}).first_name;   // guardado, no mostrado
+      await dice("Hola 👋 Soy el asistente de <b>CreditOp</b>.<br><br>Antes de nada tengo que confirmar que sos vos. ¿Me pasás tu número de cédula?");
       pedirTexto("Tu número de cédula");
       CONV.fase = "cedula";
     },
@@ -1908,6 +1926,8 @@
         await dice(`Verifiqué tu identidad ✅<br><br>Pero <b>este crédito no admite cambios ahora</b>:<span class="kv">${d.message || d.reason}</span>`);
         CONV.fase = "fin"; trabar(); return;
       }
+      // Recién ACÁ se usa el nombre: la identidad ya está probada.
+      await dice(`✅ Verificado. Hola <b>${CONV.d.nombre || "de nuevo"}</b>.`);
       CONV.fase = "menuAcciones";
       await NODOS.menuAcciones("");   // no espera input: se dispara sola
     },

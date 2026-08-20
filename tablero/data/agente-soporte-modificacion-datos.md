@@ -1415,6 +1415,49 @@ castigo pega sobre el número que también se usa para cobrar.
 <!-- append-only, lo nuevo arriba. (Esta tarea no tenía sección de registro; se agrega siguiendo
      PLANTILLA-TAREA.md. Lo de arriba es el ESTADO, que se reescribe; esto es qué pasó cada día.) -->
 
+### 2026-08-20 (18) — autenticar PRIMERO, y dos bugs más — uno con plata de por medio
+
+Pedido de Miguel: que el prototipo sea coherente con que **primero se autentica**. Había una incoherencia
+real: `saludo` saludaba **por nombre** antes del OTP, y `by-phone` devuelve nombre y documento
+enmascarado. En ese punto la persona no probó nada — sólo tiene el teléfono en la mano. Con un celular
+robado, un «¡Hola María Fernanda!» ya entrega un dato. Corregido en los DOS modos: la llamada a
+`by-phone` se hace igual (sirve para cortar si el número no está en ningún crédito, y eso no filtra nada
+porque es su propio número) pero **el nombre se usa recién después de verificar**.
+
+El demo también se reordenó —antes preguntaba la intención primero— y se le agregó el paso «acciones»,
+que faltaba: verificar → **el crédito admite cambios** → recién ahí el menú. Corrido entero: 19 globos,
+los dos caminos (fecha y plazo) y **cero violaciones de los límites de WhatsApp**.
+
+> **MEDICIÓN · 2026-08-20** — camino del PLAZO cerrado contra local: `fee-number-options` 200 con 4
+> opciones (actual 12, elegibles 6/18/24) · `change-fee-number` con **sólo `fee_number`** → 200, y el
+> crédito 412375 quedó en 6 cuotas de **$177.442,87** con `otp_id = 296490`.
+
+🔴 **El bug con plata de por medio.** `change-fee-number` daba **500 `Undefined array key "fee_value"`** a
+quien siguiera el contrato, porque la validación sólo pide `fee_number` y `CreditChangeService` lee
+`fee_value`. Pero lo grave no es el 500: es lo que hace con ese valor —
+
+    'installment_value' => $selectedFee['fee_value'],
+
+**el monto de la cuota lo pone quien llama.** Y la ruta VIEJA del crédito (`Modules/Loans`) lo **exige**
+en el cuerpo validándolo sólo como `numeric, min:0`, sin compararlo contra lo que ofreció. O sea que por
+ahí se puede fijar la cuota en lo que se quiera, y eso está en producción hoy.
+
+Arreglado **en el canal**: el controlador busca la opción entre las que este canal ofreció y usa SU
+valor; lo que venga en `fee_value` se ignora. Probado mandando `fee_value: 1` a propósito — el crédito
+quedó en **$51.799,18**, el valor real. Y si el plazo pedido no está entre los ofrecidos, responde 422
+`FEE_NOT_AVAILABLE` en vez de escribir.
+
+⚠ **Arreglar la ruta vieja es otra tarea y no se toca acá**, pero conviene decidirlo: hoy acepta el monto
+del llamador.
+
+🔴 **Y un latente que salió escribiendo el test:** `simulatePossibleFees` hacía
+`->userRequest->lender->cutoff_type_id` **sin guarda de null**, mientras las tres líneas de arriba usan
+`?? 0`. Una solicitud sin lender —las incompletas no lo tienen— reventaba con 500 en vez de devolver «no
+hay opciones». Corregido con `?->`.
+
+**63 tests en verde.** La rama `feat/CORE-258-solicitud-operable` acumula **6 archivos, +257 líneas, seis
+bugs** — sigue sin commitear, esperando el PR único.
+
 ### 2026-08-20 (17) — el flujo del cliente, en el orden correcto, y TRES bugs que salieron al correrlo
 
 Miguel fijó el orden: **la persona pone su cédula, se valida con el OTP, y ahí se le trae su solicitud;
