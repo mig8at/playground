@@ -49,6 +49,11 @@ var (
 	reLista  = regexp.MustCompile(`\[(.*?)\]`)
 	reCita   = regexp.MustCompile(`^["']|["']$`)
 	rePublic = regexp.MustCompile(`(?m)^##\s+Tarea \(publicable\)\s*$`)
+	// La mitad de QA de lo publicable. Los nombres NO son inventados: son los que ya usan las tareas
+	// que la tienen bien (Ábaco, card de renting, codeudor, KYC del segundo apellido). Se buscan los
+	// tres, y basta uno — imponer la plantilla completa haría fallar a una tarea chica que con «Cómo
+	// validar» ya deja a QA sin preguntas.
+	reQA = regexp.MustCompile(`(?im)^#{2,4}\s*(C[óo]mo validar|D[óo]nde probar|Criterios de aceptaci[óo]n|C[óo]mo se prueba)`)
 )
 
 func valor(linea string) string {
@@ -199,6 +204,14 @@ func verUna(ref string, comoJSON bool) int {
 			fmt.Println("  ✓ pasa el guard")
 		} else {
 			fmt.Printf("  ✗ NO pasa el guard: %d violación(es) — corré -guard para el detalle\n", len(v))
+		}
+		// La OTRA mitad de lo publicable, que el guard no puede ver: la receta de prueba. El guard
+		// contesta "¿esto puede salir?"; esto contesta "¿alcanza para que QA lo pruebe sin preguntar?".
+		// Medido el 2026-08-19 sobre las 16 tareas de los últimos 4 sprints: ninguna publicable la tenía,
+		// y los archivos que sí explican cómo probar lo hacen en el cuerpo PRIVADO, donde QA no entra.
+		if !reQA.MatchString(publico) {
+			fmt.Println("  ⚠ le falta la mitad de QA (`## Cómo validar` / `## Dónde probar` /")
+			fmt.Println("    `## Criterios de aceptación`): así QA tiene que preguntar cómo verificarlo")
 		}
 	}
 	fmt.Println("\n  (el cuerpo entero es PRIVADO: leelo del archivo, puede nombrar repos, rutas y F-xx)")

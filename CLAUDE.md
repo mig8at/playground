@@ -172,6 +172,16 @@ nunca apunta a tareas, porque quedaría mintiendo al graduar. Y del `.md` de una
 privado y puede nombrar repos, rutas y F-xx. El error de enrutar mal se comete por **fricción**, no
 por no entender la regla — hoy los dos destinos cuestan lo mismo: un archivo markdown.
 
+⚠ **Y «privado» no es «lo mismo pero más largo».** Dentro de la tarea hay CINCO piezas con cinco
+públicos: el título es lo único compartido; el cuerpo explica *cómo se está atacando* (los caminos
+evaluados, incluidos los descartados); las anotaciones con fecha guardan los hechos que la prosa deja
+envejecer; la bitácora dice en qué se fue el tiempo; y la publicable tiene **dos mitades** —producto
+(*En una línea · Por qué · Qué cambia · Alcance*) y QA (*Dónde probar · Cómo validar · Criterios de
+aceptación · Dependencias*)— para que QA no tenga que preguntar. La plantilla ya existe en el repo; el
+detalle y lo medido que lo justifica: `tablero/CLAUDE.md` §«CINCO piezas». Ojo con el atajo de resumir
+el cuerpo y pegarlo en la publicable: son otra pregunta y otro lector, y sale detalle técnico que a
+producto no le sirve.
+
 ## El contexto se mide contra `main`, y lo que no está en main se marca
 
 `context/` describe **lo que corre**, y la vara es `main`. Lo que todavía no mergeó se marca inline con

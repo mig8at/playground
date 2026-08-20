@@ -14,6 +14,61 @@ Qué es y cómo se corre: `README.md`. Acá solo las reglas al trabajar con las 
   rutas y F-xx. **Lo único que se publica** es `jira_title` + la sección `## Tarea (publicable)`,
   y pasa el guard del server (rechaza repos, rutas de archivo y F-xx). No muevas esa marca ni
   metas detalle técnico debajo de ella.
+
+  ⚠ Y el guard **no** es la regla de qué escribir, sólo de qué no filtrar: son 4 regex (`F-\d+`,
+  `playground`, unos nombres de repo, rutas con extensión). Un texto lleno de nombres de tabla, SQL y
+  clases de Laravel **pasa el guard entero**. El registro de cada pieza lo define la lista de abajo, no
+  el guard.
+
+- **CINCO piezas, cinco preguntas distintas.** El título es lo único compartido; el resto no se repite
+  entre piezas. La prueba para saber dónde va algo es **quién lo lee y qué necesita**:
+
+  | pieza | contesta | la lee |
+  |---|---|---|
+  | `title` / `jira_title` | ¿cómo se llama esto? | todos — es el nombre compartido |
+  | **el cuerpo** (privado) | **¿cómo se está atacando?** los caminos evaluados, por qué se descartó cada uno, contra qué se comprobó | vos, y un modelo que retoma la tarea |
+  | **anotaciones** (`> **MEDICIÓN · fecha**`) | los HECHOS con fecha que la prosa no conserva | quien vuelve tres semanas después |
+  | **bitácora** (`data/entries/`) | ¿en qué se fue el tiempo y qué pasó ese día? | vos, y el worklog de Jira |
+  | **`## Tarea (publicable)`** | qué problema resuelve (**producto**) + **cómo se prueba** (**QA**) | el equipo, vía Jira |
+
+  1. **La publicable NO es un resumen del cuerpo.** Es otro público y otra pregunta. El cuerpo explica
+     *cómo se está resolviendo*; la publicable, *qué se logra y cómo se verifica*. Si al escribirla te
+     sale «migración idempotente que resuelve los campos por nombre», eso es cuerpo — a producto le
+     importa que el campo aparezca en cascada, no que el script se pueda correr dos veces.
+  2. **La publicable tiene DOS mitades, y la plantilla ya existe** — no la inventes. Es la que usan
+     Ábaco, la card de renting y el codeudor, y sale de medir, no de opinar:
+
+         ## En una línea      ── producto: qué se logra, en una oración
+         ## Por qué           ── producto: el motivo de negocio
+         ## Qué cambia        ── producto: el cambio que se ve
+         ## Alcance           ── producto: los límites (qué NO entra)
+         ## Dónde probar      ── QA: ambiente, comercio, entidad, usuario
+         ## Cómo validar      ── QA: los pasos, con los datos concretos
+         ## Criterios de aceptación   ── QA: cómo se sabe que pasó
+         ## Dependencias / contraparte ── QA: qué falta de afuera, y de quién
+
+     Basta con que esté la mitad de QA para que `make tareas N=<x>` no se queje: en una tarea chica,
+     «Cómo validar» sola ya deja a QA sin preguntas. Medido el 2026-08-19 sobre las 16 tareas de los
+     últimos 4 sprints: **4 de 9 publicables tienen esa mitad y 5 son prosa suelta**, y 3 tareas no
+     tienen sección publicable —así que de esas no sale nada a Jira—. La plantilla no es una propuesta:
+     es lo que hacen las que quedaron bien.
+  3. **Lo que se evaluó y se descartó va en el cuerpo, y va aunque no se haya elegido.** Es lo que
+     evita re-discutir el mismo camino en tres semanas, y es lo que un modelo necesita para no proponer
+     de nuevo lo que ya se probó y falló. Hoy lo registran 6 de 12 tareas: cuando está, se nota.
+  4. **Una decisión, una medición, una pregunta abierta o un riesgo NO son prosa: son anotaciones.**
+     El marcador con fecha (y con el `Como` que la vuelve a comprobar) existe porque la prosa se lee
+     bien el día que se escribe y miente tres semanas después. Está construido y **se usa en 1 de 12
+     archivos** — es la pieza más desaprovechada del tablero. Si escribiste «medimos que…» en prosa,
+     eso quería ser una anotación.
+  5. **La bitácora no repite el cuerpo**: dice *en qué se fue el tiempo*. El cuerpo dice **en qué** se
+     trabaja, la bitácora **cuándo y cuánto**, y el pulso —que nadie escribe a mano— **cuándo se tocó
+     código de verdad**. Tres cosas distintas: si la nota de la bitácora explica una decisión, esa
+     decisión va al cuerpo (o es una anotación) y la nota se queda con el hecho del día.
+  6. ⚠ **Al medir esto, cuidado con dónde termina la publicable: va del marcador hasta el FINAL del
+     archivo.** Sus subtítulos son `##`, del mismo nivel que el marcador, así que un lookahead al
+     próximo `##` la corta en la primera línea y da cero. Es exactamente el error que se cometió el
+     2026-08-19 midiéndola: dio «7 de 12 sin publicable» cuando eran 3. El server lo hace bien
+     (`cuerpo[loc[1]:]`); si escribís una medición aparte, copiá ese criterio.
 - **El test de enrutamiento**: *si esto se mergea mañana, ¿sigue siendo cierto?* Sí → es contexto,
   va a `context/`. Habla de decisiones, riesgos o preguntas de ESTA tarea → va acá. Al mergear,
   lo aprendido **gradúa** al nodo y la tarea se archiva.
