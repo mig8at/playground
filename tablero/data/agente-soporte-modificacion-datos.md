@@ -1409,6 +1409,32 @@ castigo pega sobre el número que también se usa para cobrar.
 <!-- append-only, lo nuevo arriba. (Esta tarea no tenía sección de registro; se agrega siguiendo
      PLANTILLA-TAREA.md. Lo de arriba es el ESTADO, que se reescribe; esto es qué pasó cada día.) -->
 
+### 2026-08-20 (13) — el del ASESOR también, y son DOS máquinas que se hablan
+
+Mismo tratamiento, pero acá está la parte difícil de todo el canal: **n8n sostiene dos conversaciones y
+lo único que las ata es el `request_id`**. No hay sesión compartida ni usuario común — el asesor tiene la
+suya, el cliente la suya, y el backend rechaza cruzarlas (`WRONG_ACTOR`).
+
+Se armaron **dos máquinas de fases** con un solo objeto compartido (`LINK`), que lleva el id de la
+solicitud y nada más. Y eso hace visible algo que el guion escondía:
+
+- la conversación del cliente **arranca DORMIDA, con el input trabado**. No existe hasta que el asesor
+  crea la solicitud: ese momento es el webhook que n8n dispara hacia el otro chat. Verificado — antes de
+  crear nada, `CB.fase = "dormida"` y el composer del cliente está deshabilitado;
+- la del asesor **termina en «esperando»** y se traba: no puede seguir sola, y eso es correcto;
+- para autorizar, **el cliente tiene que identificarse en SU conversación**. n8n no puede reusar la
+  sesión del asesor. En el guion esto no se veía porque el cliente sólo tocaba un botón.
+
+Y se aplicó lo aprendido en el del cliente: `POST /change-requests/{id}/otp` **no se llama**, porque es
+inalcanzable (Registro (10)) y `confirm` no lo necesita. El prototipo salta directo de `authorize` a
+`confirm`, que es lo que Filipo tiene que construir.
+
+También lleva la separación de culpas: ante un **401** el asesor lee «tengo un problema técnico», no «no
+encontré un asesor con esa cédula». Verificado con el token vacío.
+
+Verificado en los dos modos servido por HTTP: demo → 14 globos, cero duplicados, 3 líneas declaradas y
+**cero llamadas de red**; real → las dos fases arrancan como deben y el 401 se explica bien.
+
 ### 2026-08-20 (12) — el prototipo del cliente pasa de guion a MÁQUINA DE FASES (lo que n8n va a ser)
 
 Hasta acá el prototipo era un **demo reel**: un puntero recorriendo pasos escritos, con los inputs

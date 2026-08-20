@@ -1748,6 +1748,9 @@
   }
 
   function choose(b, side) {
+    // En modo real manda el DESPACHADOR: el guion no sabe a dónde ir porque el camino lo decide la
+    // respuesta de la API. En demo sigue el puntero de siempre.
+    if (typeof REAL === "function" && REAL()) { window.__vivoChoose(b, side); return; }
     if (side === "b") mailUsado();   // ya respondió por el chat: un solo desenlace
     bubble(side, "me", b.t);
     ptr = b.goto !== undefined ? idx[b.goto] : ptr + 1;
@@ -1821,7 +1824,8 @@
       i.placeholder = k === "a" ? "Escribe un mensaje" : "Este chat despierta cuando el asesor pide autorización";
       $("#snd-" + k).disabled = true;
     });
-    run();
+    // Dos motores, uno por modo: el guion (demo) o las dos máquinas de fases (real).
+    if (typeof REAL === "function" && REAL()) { arrancarVivo(); } else { run(); }
   }
 
   $("#reset").onclick = () => { auto = false; detenido = false; $("#auto").textContent = "▶ Correr solo"; reset(); };
@@ -1832,6 +1836,291 @@
     if (auto) reset();   // siempre desde cero: re-entrar a mitad reimprimiría el paso pendiente
   };
   reset();
+  
+  // ═══════════════════════════════════════════════════════════════════════════════════════════════
+  // EL DESPACHADOR DE n8n — DOS conversaciones — sólo en modo real
+  //
+  // Éste es más difícil que el del cliente y por una sola razón: **n8n sostiene dos conversaciones a
+  // la vez y lo único que las ata es el id de la solicitud de cambio**. No hay sesión compartida, no
+  // hay usuario común: el asesor tiene la suya, el cliente la suya, y el backend rechaza cruzarlas
+  // (`WRONG_ACTOR`). Todo lo que pase de una a otra tiene que viajar en `LINK`.
+  //
+  // Cada conversación es su propia máquina de fases. La del asesor termina en «esperando»; la del
+  // cliente arranca cuando la del asesor creó la solicitud — eso es el webhook que n8n dispara.
+  // ═══════════════════════════════════════════════════════════════════════════════════════════════
+  const CA = { fase: "saludo", d: {} };   // conversación del ASESOR
+  const CB = { fase: "dormida", d: {} };  // conversación del CLIENTE
+  const LINK = {};                        // lo único compartido: el id de la solicitud, y nada más
+
+  const EL = (side) => ({ inp: $(side === "a" ? "#in-a" : "#in-b"),
+                          snd: $(side === "a" ? "#snd-a" : "#snd-b") });
+
+  function pedir(side, ph) {
+    const { inp, snd } = EL(side);
+    inp.disabled = false; snd.disabled = false; inp.value = ""; inp.placeholder = ph; inp.focus();
+  }
+  function trabarLado(side) {
+    const { inp, snd } = EL(side);
+    inp.disabled = true; snd.disabled = true; inp.value = ""; inp.placeholder = "Escribe un mensaje";
+  }
+  async function diceEn(side, html, opts = {}) {
+    await typing(side, html.length > 200 ? 820 : 560);
+    bubble(side, "bot", html, opts);
+  }
+
+  // ⚠ De quién es la culpa. Un 404 es del dato; un 401, un 403, un 5xx o un fetch que no sale son
+  // NUESTROS, y no se le explican a la persona como si fueran su problema. (Se aprendió en el
+  // prototipo del cliente: ante un 401 el bot decía «tu número no está registrado».)
+  const esNuestra = (r) => !r || r.red || r.status === 401 || r.status === 403 || r.status >= 500;
+  const tecnico = "⚠ Tengo un problema técnico. Intentá en un rato.";
+
+  async function api2(met, ruta, cuerpo) {
+    const ol = $("#trace"); if (ol.querySelector(".empty")) ol.innerHTML = "";
+    const li = document.createElement("li");
+    li.className = "new";
+    li.innerHTML = `<span class="m">${met}</span> ${ruta}<span class="note">llamando…</span>`;
+    ol.appendChild(li); ol.scrollTop = ol.scrollHeight;
+    const r = await pegar(met, ruta, cuerpo);
+    li.className = "new " + (r.ok ? "viva" : "murio");
+    li.innerHTML = `<span class="m">${met}</span> ${ruta}<span class="note">${
+      r.red ? "sin respuesta — ¿está levantado el backend?" : "HTTP " + r.status + " · " + JSON.stringify(r.json).slice(0, 150)}</span>`;
+    ol.scrollTop = ol.scrollHeight;
+    return r;
+  }
+
+  // ── la conversación del ASESOR ────────────────────────────────────────────────────────────────
+  const NODOS_A = {
+    saludo: async () => {
+      await diceEn("a", "Bienvenido al canal de <b>gestión CreditOp</b> 🏢<br><br>Para continuar, mandá tu número de cédula.");
+      pedir("a", "Tu cédula");
+      CA.fase = "cedula";
+    },
+
+    cedula: async (txt) => {
+      // El código va al celular DEL PERFIL del asesor, nunca al número desde el que escribe: escribir
+      // desde un teléfono no prueba quién sos.
+      const r = await api2("POST", "/advisor/otp", { wa: rc("waAse"), document: txt });
+      if (!r.ok) {
+        if (esNuestra(r)) { await diceEn("a", tecnico); CA.fase = "fin"; trabarLado("a"); return; }
+        await diceEn("a", "No encontré un asesor con esa cédula, o no tiene comercios asignados.");
+        pedir("a", "Tu cédula"); return;
+      }
+      const d = r.json.data || {};
+      CA.d.doc = txt;
+      await diceEn("a", `Te mandé un código a <b>${d.sent_to}</b> — el celular de tu perfil.<br><br>Escribilo acá.`);
+      pedir("a", "Código de 6 dígitos");
+      CA.fase = "codigo";
+    },
+
+    codigo: async (txt) => {
+      const r = await api2("POST", "/advisor/otp/verify", { wa: rc("waAse"), code: txt });
+      if (!r.ok) {
+        if (esNuestra(r)) { await diceEn("a", tecnico); CA.fase = "fin"; trabarLado("a"); return; }
+        await diceEn("a", "El código no es correcto. Probá de nuevo.");
+        pedir("a", "Código de 6 dígitos"); return;
+      }
+      const d = r.json.data || {};
+      CA.d.allieds = d.allied_ids || [];
+      await diceEn("a", `✅ Sesión iniciada.<br><span class="kv">comercios: ${(d.allied_ids || []).join(", ") || "—"}\nexpira en ${d.expires_in_minutes} min</span>¿Qué querés hacer?`,
+        { buttons: [{ t: "🔎 Buscar un cliente" }] });
+      CA.fase = "menu";
+    },
+
+    menu: async () => {
+      await diceEn("a", "Mandame el número de documento del cliente.");
+      pedir("a", "Documento del cliente");
+      CA.fase = "docCliente";
+    },
+
+    docCliente: async (txt) => {
+      // Sólo clientes de SUS comercios. Uno que no le corresponde responde igual que uno inexistente,
+      // para que el buscador no sirva de oráculo de cédulas.
+      const r = await api2("GET", `/clients?wa=${encodeURIComponent(rc("waAse"))}&document=${encodeURIComponent(txt)}`);
+      if (!r.ok) {
+        if (esNuestra(r)) { await diceEn("a", tecnico); CA.fase = "fin"; trabarLado("a"); return; }
+        await diceEn("a", "No encontré a ese cliente entre los de tus comercios.");
+        pedir("a", "Documento del cliente"); return;
+      }
+      const d = r.json.data || {};
+      CA.d.cli = { doc: txt, nombre: `${d.first_name || ""} ${d.surname || ""}`.trim() };
+      await diceEn("a", `✅ Cliente encontrado y <b>verificado como tuyo</b>:<span class="kv">${CA.d.cli.nombre}\nCC ${d.document_number}</span>¿Qué querés gestionar?`,
+        { list: "¿Qué gestionás?", buttons: [
+          { t: "📱 Cambiar celular", sub: "dato de contacto" },
+          { t: "📅 Cambiar fecha de pago", sub: "condición del crédito" } ]});
+      CA.fase = "eligeCampo";
+    },
+
+    eligeCampo: async (txt) => {
+      const t = (txt || "").toLowerCase();
+      CA.d.campo = /celular|tel/.test(t) ? "cell_phone" : /fecha|pago/.test(t) ? "next_payment_date" : null;
+      if (!CA.d.campo) { await diceEn("a", "No entendí. Elegí una de las dos opciones."); return; }
+      if (CA.d.campo === "cell_phone") {
+        await diceEn("a", "Escribí el nuevo número de celular.");
+        pedir("a", "Nuevo celular");
+      } else {
+        await diceEn("a", `Escribí la nueva fecha de pago, en formato <b>AAAA-MM-DD</b>.<br><br><i>El backend valida que sea una fecha del ciclo de corte: si no, la rechaza.</i>`);
+        pedir("a", "AAAA-MM-DD");
+      }
+      CA.fase = "nuevoValor";
+    },
+
+    nuevoValor: async (txt) => {
+      CA.d.valor = txt;
+      await diceEn("a", `Voy a pedirle autorización a <b>${CA.d.cli.nombre}</b> por su WhatsApp.<span class="warnline">⚠ No podés continuar hasta que responda.</span>`,
+        { buttons: [{ t: "📨 Enviar solicitud" }] });
+      CA.fase = "envia";
+    },
+
+    envia: async () => {
+      const cuerpo = { wa: rc("waAse"), document: CA.d.cli.doc, field: CA.d.campo, new_value: CA.d.valor };
+      // `user_request_id` sólo va si el campo es del CRÉDITO: para un dato de contacto el backend lo
+      // rechaza como parámetro de más, y para el crédito lo exige.
+      if (CA.d.campo === "next_payment_date") cuerpo.user_request_id = parseInt(rc("ureq"), 10);
+      const r = await api2("POST", "/change-requests", cuerpo);
+      if (!r.ok) {
+        await diceEn("a", esNuestra(r) ? tecnico
+          : `⚠ El backend rechazó la solicitud:<span class="kv">${(r.json.errors && JSON.stringify(r.json.errors)) || r.json.message}</span>`);
+        CA.fase = "fin"; trabarLado("a"); return;
+      }
+      const d = r.json.data || {};
+      // ⚠ ACÁ CAMBIA DE CONVERSACIÓN. El `request_id` es lo ÚNICO que ata las dos.
+      LINK.cr = d.request_id;
+      LINK.campo = d.field; LINK.nuevo = d.new_value; LINK.anterior = d.old_value;
+      await diceEn("a", "⏳ Solicitud enviada. Esperando respuesta del cliente…");
+      trabarLado("a");
+      CA.fase = "esperando";
+      audit({ campo: d.field, ant: d.old_value || "—", nue: d.new_value, estado: "pendiente", cls: "wait",
+              dest: d.field === "cell_phone" ? T_CONTACTO : T_CREDITO });
+      // el webhook que n8n dispararía hacia la otra conversación
+      CB.fase = "avisar";
+      await NODOS_B.avisar();
+    },
+
+    esperando: async () => { await diceEn("a", "Sigo esperando la respuesta del cliente."); },
+    fin: async () => { await diceEn("a", "Esta conversación terminó. Reiniciá para empezar otra."); },
+  };
+
+  // ── la conversación del CLIENTE ───────────────────────────────────────────────────────────────
+  const NODOS_B = {
+    dormida: async () => { await diceEn("b", "No hay nada pendiente para vos."); },
+
+    avisar: async () => {
+      await diceEn("b", `Hola 👋 Tu asesor solicitó un cambio en tu crédito:<span class="kv">campo:    ${LINK.campo}\nanterior: ${LINK.anterior || "—"}\nnuevo:    ${LINK.nuevo}</span>¿Lo apruebas?`,
+        { buttons: [{ t: "✅ Apruebo el cambio" }, { t: "❌ No lo reconozco" }] });
+      CB.fase = "decide";
+    },
+
+    decide: async (txt) => {
+      if (/no lo reconozco|rechaz|❌/i.test(txt || "")) {
+        const r = await api2("PATCH", `/change-requests/${LINK.cr}/reject`,
+                             { wa: rc("waCli"), reason: "no_reconocido" });
+        await diceEn("b", r.ok ? "Listo, no se cambió nada y quedó registrado que no lo reconocés."
+                              : (esNuestra(r) ? tecnico : "⚠ No pude registrar el rechazo."));
+        if (r.ok) audit({ campo: LINK.campo, ant: LINK.anterior || "—", nue: LINK.nuevo, estado: "rechazada",
+                          cls: "bad", dest: LINK.campo === "cell_phone" ? T_CONTACTO : T_CREDITO });
+        await diceEn("a", "❌ El cliente <b>no reconoció</b> la solicitud. No se cambió nada.");
+        CB.fase = "fin"; CA.fase = "fin"; trabarLado("a"); trabarLado("b"); return;
+      }
+
+      // Para autorizar hace falta la sesión del CLIENTE, que en su conversación todavía no existe:
+      // n8n tiene que identificarlo acá, no puede reusar la del asesor (el backend da WRONG_ACTOR).
+      await diceEn("b", "Antes de aplicarlo tengo que confirmar que sos vos. Mandame tu cédula.");
+      pedir("b", "Tu cédula");
+      CB.fase = "cedula";
+    },
+
+    cedula: async (txt) => {
+      const r = await api2("POST", "/self/otp", { wa: rc("waCli"), document: txt });
+      if (!r.ok) {
+        if (esNuestra(r)) { await diceEn("b", tecnico); CB.fase = "fin"; trabarLado("b"); return; }
+        await diceEn("b", "Esos datos no coinciden. Revisá la cédula.");
+        pedir("b", "Tu cédula"); return;
+      }
+      const d = r.json.data || {};
+      await diceEn("b", `Te mandé un código a <b>${d.sent_to}</b>. Escribilo acá.`);
+      smsNotif(otpDe(rc("waCli")));
+      pedir("b", "El código");
+      CB.fase = "codigo";
+    },
+
+    codigo: async (txt) => {
+      const v = await api2("POST", "/self/otp/verify", { wa: rc("waCli"), code: txt });
+      if (!v.ok) {
+        if (esNuestra(v)) { await diceEn("b", tecnico); CB.fase = "fin"; trabarLado("b"); return; }
+        const q = (v.json.errors || {}).attempts_left;
+        await diceEn("b", `El código no es correcto.${q !== undefined ? ` Te quedan <b>${q}</b>.` : ""}`);
+        pedir("b", "El código"); return;
+      }
+      clearSms();
+
+      const a = await api2("PATCH", `/change-requests/${LINK.cr}/authorize`, { wa: rc("waCli") });
+      if (!a.ok) {
+        await diceEn("b", esNuestra(a) ? tecnico
+          : `⚠ No pude registrar tu autorización:<span class="kv">${(a.json.errors || {}).error_code || a.json.message}</span>`);
+        CB.fase = "fin"; trabarLado("b"); return;
+      }
+      audit({ campo: LINK.campo, ant: LINK.anterior || "—", nue: LINK.nuevo, estado: "autorizada",
+              cls: "wait", dest: LINK.campo === "cell_phone" ? T_CONTACTO : T_CREDITO });
+
+      // ⚠ NO se llama a `/change-requests/{id}/otp`. Medido el 2026-08-20: ese endpoint es INALCANZABLE
+      // —desde una sesión `otp_verified` responde 409 «No se puede pasar de otp_verified a otp_sent»,
+      // porque la máquina de estados no deja bajar el privilegio— y `confirm` no lo necesita: usa el
+      // `otp_id` de esta misma verificación, que es la prueba real que la tarea vino a poner.
+      const c = await api2("POST", `/change-requests/${LINK.cr}/confirm`,
+                           { wa: rc("waCli"), code: otpDe(rc("waCli")) });
+      if (!c.ok) {
+        await diceEn("b", esNuestra(c) ? tecnico
+          : `⚠ No se aplicó el cambio:<span class="kv">${(c.json.errors || {}).error_code || c.json.message}</span>`);
+        await diceEn("a", "⚠ El cliente autorizó pero el cambio no se pudo aplicar.");
+        CB.fase = "fin"; trabarLado("b"); return;
+      }
+      await diceEn("b", "✅ Listo. El cambio quedó aplicado.");
+      audit({ campo: LINK.campo, ant: LINK.anterior || "—", nue: LINK.nuevo, estado: "aplicada",
+              cls: "ok", otp: "real", dest: LINK.campo === "cell_phone" ? T_CONTACTO : T_CREDITO });
+      await diceEn("a", `✅ <b>El cliente autorizó y el cambio se aplicó.</b><span class="kv">${LINK.campo}: ${LINK.nuevo}</span>`);
+      CB.fase = "fin"; CA.fase = "fin"; trabarLado("a"); trabarLado("b");
+    },
+
+    fin: async () => { await diceEn("b", "Esta conversación terminó."); },
+  };
+
+  // ── el despachador ────────────────────────────────────────────────────────────────────────────
+  let despA = false, despB = false;
+  async function entrarA(txt) {
+    if (despA) return; despA = true; trabarLado("a");
+    try { await NODOS_A[CA.fase](txt); }
+    catch (e) { await diceEn("a", `⚠ El bot se rompió: ${e.message}`); }
+    finally { despA = false; }
+  }
+  async function entrarB(txt) {
+    if (despB) return; despB = true; trabarLado("b");
+    try { await NODOS_B[CB.fase](txt); }
+    catch (e) { await diceEn("b", `⚠ El bot se rompió: ${e.message}`); }
+    finally { despB = false; }
+  }
+  function mandar(side) {
+    const { inp } = EL(side);
+    const v = inp.value.trim(); if (!v) return;
+    bubble(side, "me", v);
+    (side === "a" ? entrarA : entrarB)(v);
+  }
+  function arrancarVivo() {
+    CA.fase = "saludo"; CA.d = {}; CB.fase = "dormida"; CB.d = {};
+    for (const k of Object.keys(LINK)) delete LINK[k];
+    for (const side of ["a", "b"]) {
+      const { inp, snd } = EL(side);
+      inp.onkeydown = e => { if (e.key === "Enter") mandar(side); };
+      snd.onclick = () => mandar(side);
+      trabarLado(side);
+    }
+    // El asesor arranca solo: en la vida real él escribe primero al canal de gestión.
+    entrarA("");
+  }
+  // Los botones entran por el MISMO camino que el texto: para n8n una respuesta de lista y un mensaje
+  // escrito llegan igual, y tratarlos distinto acá esconde bugs de allá.
+  window.__vivoChoose = (b, side) => { bubble(side, "me", b.t); (side === "a" ? entrarA : entrarB)(b.t); };
+
+
   // ── enganches del MODO REAL ─────────────────────────────────────────────────────────────────────
   $("#r-token").value = localStorage.getItem(TKASE) || "";
   $("#r-token").addEventListener("change", e => localStorage.setItem(TKASE, e.target.value.trim()));
