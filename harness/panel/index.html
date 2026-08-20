@@ -520,6 +520,20 @@
     }
     pre#log img.shotmini:hover { border-color: var(--acc); }
     pre#log span.shotfail { color: #f4776a; }   /* 📸 ✗ — el screenshot falló: que se vea, no que se infiera */
+
+    /* Tira de datos para TIPEAR durante la corrida. Nace de un fallo real: se tipeó un teléfono que no era
+       el del bypass y el OTP no llegaba nunca. El dato estaba en el log, pero enterrado. */
+    .tipear { display: none; gap: 7px; flex-wrap: wrap; align-items: center; margin: 0 0 10px; }
+    .tipear.on { display: flex; }
+    .tipear .lbl { font-size: 11px; color: var(--mut); text-transform: uppercase; letter-spacing: .06em; }
+    .tipear button {
+      font: 600 12px/1 ui-monospace, SFMono-Regular, Menlo, monospace;
+      background: #14161c; color: #cdd6e4; border: 1px solid var(--line);
+      border-radius: 7px; padding: 6px 9px; cursor: pointer; display: inline-flex; gap: 6px; align-items: center;
+    }
+    .tipear button:hover { border-color: var(--acc); color: #fff; }
+    .tipear button .k { color: var(--mut); font-weight: 400; }
+    .tipear button.copiado { border-color: var(--acc); color: var(--acc); }
     pre#log {
       background: #0a0c10;
       border: 1px solid var(--line);
@@ -981,6 +995,7 @@
     <!-- CONSOLA como card: es la salida de la corrida, no un accesorio del botón. Vive en el flujo de
          la página como todo lo demás, con su header y sus acciones a la derecha. -->
     <section class="card logcard" id="logcard" style="display:none">
+      <div class="tipear" id="tipear"></div>
       <h2><b>▸</b> Consola de la corrida
         <span class="logacts">
           <button class="copy" id="logToggle">▼ plegar</button>
@@ -1834,9 +1849,38 @@
     // solo si el log cambió; el buster por corrida deja que el browser cachee la imagen entre ticks.
     let lastLogRendered = null;
     let runStamp = 0;
+
+    // `⌨ DATOS telefono=… otp=…` lo emite bin/asesor (contrato: si cambia el prefijo allá, cambiá acá).
+    // El panel NO recalcula nada — ni el teléfono ni el OTP: los toma de quien los resolvió, que es el
+    // launcher. Duplicar ese cálculo en la UI es como las dos definiciones empiezan a derivar.
+    const ETIQ = { telefono: 'teléfono', otp: 'OTP', otpfirma: 'OTP firma', cedula: 'cédula', email: 'email' };
+    function renderTipear(txt) {
+      const m = txt.match(/⌨ DATOS\s+(.+)/);
+      const box = $('tipear');
+      if (!m) { box.classList.remove('on'); box.replaceChildren(); return; }
+      const pares = [...m[1].matchAll(/(\w+)=(\S+)/g)].filter(([, k]) => ETIQ[k]);
+      const frag = document.createDocumentFragment();
+      const lbl = document.createElement('span'); lbl.className = 'lbl'; lbl.textContent = 'para tipear';
+      frag.appendChild(lbl);
+      for (const [, k, v] of pares) {
+        if (v.startsWith('(')) continue;                 // (auto): el valor lo pone el flujo, no hay nada que copiar
+        const b = document.createElement('button');
+        b.title = `copiar ${ETIQ[k]}`;
+        const ks = document.createElement('span'); ks.className = 'k'; ks.textContent = ETIQ[k];
+        b.append(ks, document.createTextNode(v));
+        b.onclick = async () => {
+          try { await navigator.clipboard.writeText(v); b.classList.add('copiado'); setTimeout(() => b.classList.remove('copiado'), 1200); }
+          catch { /* sin permiso de portapapeles: el valor igual está a la vista */ }
+        };
+        frag.appendChild(b);
+      }
+      box.replaceChildren(frag);
+      box.classList.add('on');
+    }
     function renderLog(txt) {
       if (txt === lastLogRendered) return;
       lastLogRendered = txt;
+      renderTipear(txt);
       const frag = document.createDocumentFragment();
       for (const line of txt.split('\n')) {
         if (line.includes('📸 ✗')) {   // screenshot fallido: línea roja, sin intento de miniatura

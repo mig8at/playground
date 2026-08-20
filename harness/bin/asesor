@@ -193,6 +193,16 @@ step "scrub-cliente"
 DEL="$(I_KNOW_THIS_TOUCHES_SHARED_DEV=1 node bin/dbops.ts scrubphone "$BYPASS_PHONE" 2>/dev/null | json_pick '.users_deleted')"
 ok "scrub-cliente" "${DEL:-0} borrado(s) ($BYPASS_PHONE → temporal → personal-info)"
 
+# ── LO QUE HAY QUE TIPEAR, en una línea estable y machine-readable ────────────────────────────────
+# Nace de un fallo real (2026-08-19): la corrida murió en el OTP porque se tipeó un teléfono que NO era
+# el del bypass. El dato estaba en el log —en la línea del scrub— pero enterrado. Acá va explícito, con
+# el OTP ya calculado (el bypass hace que el código sean los ÚLTIMOS 4 del teléfono; la firma usa 6).
+# El prefijo `⌨ DATOS ` es CONTRATO con el panel, que lo parsea para armar los chips copiables: si lo
+# cambiás, actualizá `panel/index.html` (parseDatos). El resto de la línea es para leer en terminal.
+if [ "$ECOMMERCE" != 1 ]; then
+  echo "⌨ DATOS  telefono=$BYPASS_PHONE otp=${BYPASS_PHONE: -4} otpfirma=${BYPASS_PHONE: -6} cedula=${E2E_SYNTH_DOC:-(auto)} email=${E2E_SYNTH_EMAIL:-(auto)}"
+fi
+
 # ── wizard local (Vite) → DEV: reusar si está arriba; reiniciar solo si apuntaba a otro backend ──
 step "frontend"
 if [ "$REMOTE_FRONT" = 1 ]; then
