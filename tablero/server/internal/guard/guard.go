@@ -1,8 +1,10 @@
 // Package guard tiene los patrones de lo que NO puede salir del playground hacia Jira o Slack.
 //
-// Es la FUENTE ÚNICA: la UI los pide por `/api/guard` para bloquear el botón con feedback inmediato,
-// el POST del server los re-aplica antes de escribir, y `cmd/issue-create` los aplica antes de
-// publicar. Vive en `internal/` justamente porque tener el guard dentro de `cmd/web` obligaba a
+// Es la FUENTE ÚNICA: el POST del server los re-aplica antes de escribir, `cmd/issue-create` los aplica
+// antes de publicar y `cmd/tareas` los usa para decir si una tarea puede salir. `/api/guard` los expone
+// para que un cliente los compile y bloquee el botón sin ir al server — hoy **nadie lo consume**: la UI
+// manda el POST y muestra los `problems` que devuelve. Si algún día se usa, el patrón tiene que seguir
+// siendo válido en JS además de RE2. Vive en `internal/` justamente porque tener el guard dentro de `cmd/web` obligaba a
 // copiarlo para usarlo desde otro comando — y el comentario original ya advertía que dos copias
 // habrían derivado. Tres, peor.
 //
@@ -19,12 +21,17 @@ type Pattern struct {
 	What string `json:"what"`
 }
 
-// Patterns es la lista prohibida. Al agregar una regla, acordate de que la UI la compila también.
+// Patterns es la lista prohibida. Un patrón nuevo tiene que ser válido en RE2 y en JS a la vez (ver
+// arriba), pero NO hay que tocar el cliente: no existe una segunda copia de esta lista.
 var Patterns = []Pattern{
 	{`\bF-\d+\b`, "referencia a un hallazgo interno"},
 	{`playground`, "menciona el playground"},
 	{`harness|backend-e2e|legacy-backend|frontend-monorepo|creditop-woocommerce`, "nombra un repo interno"},
 	{`[\w/-]+\.(ts|tsx|php|go|vue|json|mjs)\b`, "incluye una ruta de archivo"},
+	// La trampa que trae `PLANTILLA-TAREA.md`: su guía va en comentarios HTML, y una tarea copiada y
+	// llenada sin borrarlos publicaría «<!-- Qué se logra. Una oración… -->» en Jira. Y en general un
+	// comentario es donde alguien deja la nota que NO quería que se vea.
+	{`<!--`, "quedaron comentarios de la plantilla (o notas ocultas)"},
 }
 
 var compiled = func() []*regexp.Regexp {

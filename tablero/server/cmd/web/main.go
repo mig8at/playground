@@ -33,7 +33,8 @@ import (
 // Los patrones se movieron a `internal/guard` para que sigan siendo UNA sola fuente ahora que
 // también los necesita `cmd/issue-create` (publicar por consola sin el guard sería un agujero en el
 // control, y copiarlos acá era la tercera copia que este comentario venía advirtiendo).
-// La UI los sigue pidiendo por `/api/guard` y el POST los sigue re-aplicando antes de escribir.
+// El POST los sigue re-aplicando antes de escribir. `/api/guard` queda expuesto pero sin consumidor:
+// la UI no los compila, manda el POST y muestra los `problems` que vuelven.
 
 // issueKeyRe valida una clave de issue antes de interpolarla en un JQL o en una URL de Jira.
 var issueKeyRe = regexp.MustCompile(`^[A-Z][A-Z0-9]+-\d+$`)

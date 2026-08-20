@@ -20,6 +20,43 @@ Qué es y cómo se corre: `README.md`. Acá solo las reglas al trabajar con las 
   clases de Laravel **pasa el guard entero**. El registro de cada pieza lo define la lista de abajo, no
   el guard.
 
+- **La forma del cuerpo está en `PLANTILLA-TAREA.md`** (en la raíz de `tablero/`, NO en `data/`: ahí
+  todo `.md` se lee como tarea). Copiala para una tarea nueva. No es decoración: existe para que
+  **retomar en frío sea rápido**, y su única regla estructural sale de medir por qué las tareas grandes
+  se vuelven ilegibles.
+
+  **Hay DOS clases de contenido y no se mezclan:**
+
+      ESTADO ACTUAL  (todo hasta «Registro»)  → se REESCRIBE. Siempre dice lo de HOY.
+      REGISTRO       (al final)               → se APILA. Nunca se edita lo viejo.
+
+  Medido el 2026-08-19 sobre las 41 tareas: las dos más grandes —130 KB con 60 secciones y 84 KB con
+  55— son ilegibles **no por largas, sino por mezclarlas**. Cada día se apiló una sección nueva al
+  final del estado, y hoy nadie sabe cuál de las tres «decisiones» sobre lo mismo sigue vigente. Las
+  que se retoman bien (`bancolombia-billing-code`, `motai-v2`) tienen el estado arriba y corto.
+
+  El orden de las secciones es el orden en que las necesita quien llega sin contexto:
+
+      Si retomás esto sin contexto, empezá acá   ← se reescribe SIEMPRE. Es la sección obligatoria.
+      El próximo paso es: …                      ← UNA acción, no una lista
+      Objetivo · Dónde se toca · Cómo se ataca
+      Lo que se evaluó y NO se eligió            ← lo que evita re-proponer lo que ya falló
+      Lo que está decidido · bloqueado · Riesgos ← ANOTACIONES con fecha, no prosa
+      Lo que NO entra · Cómo se comprueba
+      Registro                                   ← append-only, lo nuevo arriba
+      ## Tarea (publicable)                      ← de acá abajo, lo único que sale a Jira
+
+  Tres reglas de uso, que son las que un agente incumple si no están escritas:
+  1. **Al terminar de trabajar se reescribe la sección de arriba**, no se agrega una nueva abajo. Si
+     lo que cambió es *qué pasó*, eso va al Registro; si cambió *cuál es el estado*, va arriba.
+  2. **«Registro» no es «Bitácora».** Las tareas viejas llaman `## Bitácora` al registro del cuerpo y
+     el nombre choca: en el tablero *bitácora* es el registro de TIEMPO (`data/entries/`, el botón de
+     la card, lo que sube al worklog). El del cuerpo es el registro de **qué pasó**. Medido: el
+     esfuerzo #5 tiene 4 entradas en su `## Bitácora` del cuerpo y **0** en `data/entries/`.
+  3. **Las tareas ya publicadas NO se migran.** Decisión de Miguel (2026-08-20): hay demasiadas
+     terminadas y reescribirlas no aporta. La plantilla rige para las nuevas y para las que sigan
+     abiertas cuando se les vuelva a meter mano.
+
 - **CINCO piezas, cinco preguntas distintas.** El título es lo único compartido; el resto no se repite
   entre piezas. La prueba para saber dónde va algo es **quién lo lee y qué necesita**:
 

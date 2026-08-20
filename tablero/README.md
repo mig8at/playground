@@ -14,6 +14,12 @@ Un proyecto con **tres ejecutables Go y un frontend Vue**, todos apoyados en los
 | `cmd/slack-mcp` | **conector MCP** de Slack (stdio) — 3 tools | registrarlo en Claude Code |
 | `src/` (Vue) | mis tareas de los **últimos 4 sprints** en una grilla masonry + indicadores del sprint activo + heatmap de actividad | `npm run dev` → `:5191` |
 
+## La forma de una tarea
+
+`PLANTILLA-TAREA.md` (en esta carpeta, **no** en `data/`: ahí todo `.md` se lee como tarea) es el
+esqueleto canónico. Copialo para una tarea nueva. Su regla estructural, y el porqué de cada sección,
+en `CLAUDE.md` §«La forma del cuerpo».
+
 ## Por qué existe
 
 Dos motivos distintos que terminaron en el mismo repo:
@@ -375,7 +381,7 @@ Sigue pensada **para análisis de tiempo**, no sólo para que la UI recargue. La
 - `taskKey` puede ir vacío (`freeTitle` dice qué fue): reuniones y soporte no son tareas del sprint, y
   forzarlos a una envenena el análisis.
 - La `note` es **publicable por construcción**: el guard (fuente única en `cmd/web/main.go`, servido a la
-  UI por `/api/guard`) corre en el server **antes** de escribir.
+  UI por `/api/guard`, que hoy nadie consume) corre en el server **antes** de escribir.
 - Borrado **suave** (`deletedAt`): el ✕ de la UI marca, no elimina.
 
 Es JSONL, así que el análisis se hace con `jq` en vez de SQL:
