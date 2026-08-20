@@ -138,8 +138,7 @@ async function runImport() {
     if (j.error) { inboxError.value = j.error; return; }
     // Los tres estados que cambiaron: las tareas locales (hay archivos nuevos), los vínculos (el
     // listado del sprint se agrupa con ellos) y el cruce (lo traído ya no está pendiente).
-    await loadEfforts();
-  cargarRamas();   // el snapshot de ramas: sin él el botón «Ramas» simplemente no aparece await loadTaskLocals(); await loadInbox();
+    await loadEfforts(); await loadTaskLocals(); await loadInbox();
     // El resultado se pone DESPUÉS del refresco: loadInbox() lo limpia al arrancar —para que una
     // búsqueda nueva no muestre el resultado de la anterior— y ponerlo antes lo borraba justo acá,
     // dejando la importación sin decir qué archivo tocó.
@@ -193,7 +192,7 @@ const protosAbiertos = ref(false);
 function verProtos(i) {
   if (protosAbiertos.value && active.value?.Key === i.Key) { protosAbiertos.value = false; return; }
   active.value = i; protosAbiertos.value = true; bitacoraAbierta.value = false; hallazgosAbiertos.value = false;
-  ramasAbiertas.value = false;
+  ramasAbiertas.value = false; descAbierta.value = false;
 }
 
 // ── RAMAS: en qué ramas vive la tarea y hasta dónde llegó cada una ──────────────────────────────
@@ -225,7 +224,7 @@ const ramasAbiertas = ref(false);
 function verRamas(i) {
   if (ramasAbiertas.value && active.value?.Key === i.Key) { ramasAbiertas.value = false; return; }
   active.value = i; ramasAbiertas.value = true;
-  protosAbiertos.value = false; bitacoraAbierta.value = false; hallazgosAbiertos.value = false;
+  protosAbiertos.value = false; bitacoraAbierta.value = false; hallazgosAbiertos.value = false; descAbierta.value = false;
 }
 // "hace cuánto se midió", que es la mitad del dato. Sin esto, una medición de la semana pasada se lee
 // como el estado de ahora.
@@ -379,8 +378,15 @@ const alternar = (id) => { const s = new Set(abiertas.value); s.has(id) ? s.dele
 // Qué descripciones están desplegadas, POR TAREA (antes era un solo booleano, porque había una única
 // tarjeta de detalle). Colapsada por defecto: la descripción de Jira es material de referencia
 // —contexto, criterios, dependencias— y entera convierte la grilla de tarjetas en un muro.
-const descAbiertas = ref(new Set());
-const alternarDesc = (k) => { const s = new Set(descAbiertas.value); s.has(k) ? s.delete(k) : s.add(k); descAbiertas.value = s; };
+// La descripción completa vive en un CAJÓN, igual que Bitácora / Ramas / Prototipos / Hallazgos: es un
+// bloque de párrafos y leerlo en una columna de 300px era peor que no tenerlo. Antes se expandía la
+// tarjeta a la fila entera, lo que rompía la grilla — el mismo problema de los encabezados de grupo.
+const descAbierta = ref(false);
+function verDesc(i) {
+  if (descAbierta.value && active.value?.Key === i.Key) { descAbierta.value = false; return; }
+  active.value = i; descAbierta.value = true;
+  ramasAbiertas.value = false; protosAbiertos.value = false; bitacoraAbierta.value = false; hallazgosAbiertos.value = false;
+}
 
 // cuántas entradas de bitácora tiene cada tarea — el contador del botón, sin abrir el cajón
 const entriesPorTarea = computed(() => {
@@ -398,7 +404,7 @@ const entriesPorTarea = computed(() => {
 // Abrir la bitácora DE una tarjeta: el cajón lee la tarea activa, así que primero se activa. Sin esto,
 // tocar "Bitácora" en una tarjeta abriría la bitácora de otra.
 // los dos cajones son excluyentes: abrir uno cierra el otro, o quedan montados los dos encima
-const verBitacora = (i) => { active.value = i; bitacoraAbierta.value = true; protosAbiertos.value = false; hallazgosAbiertos.value = false; ramasAbiertas.value = false; };
+const verBitacora = (i) => { active.value = i; bitacoraAbierta.value = true; protosAbiertos.value = false; hallazgosAbiertos.value = false; ramasAbiertas.value = false; descAbierta.value = false; };
 
 // ── hallazgos: los hechos con fecha que la tarea declara en su cuerpo ──────────────────────────
 // Vienen del ESFUERZO, igual que los prototipos, y salen del texto: el server los recoge de los
@@ -411,7 +417,7 @@ const hallazgosDe = (key) => efforts.value.find(e => e.id === (taskLocals.value[
 const hallazgosAbiertos = ref(false);
 const verHallazgos = (i) => {
   if (hallazgosAbiertos.value && active.value?.Key === i.Key) { hallazgosAbiertos.value = false; return; }
-  active.value = i; hallazgosAbiertos.value = true; bitacoraAbierta.value = false; protosAbiertos.value = false; ramasAbiertas.value = false;
+  active.value = i; hallazgosAbiertos.value = true; bitacoraAbierta.value = false; protosAbiertos.value = false; ramasAbiertas.value = false; descAbierta.value = false;
 };
 const diasDe = (fecha) => Math.floor((Date.now() - new Date(fecha + 'T12:00:00')) / 86400000);
 // Cuándo un hallazgo pide atención. Los umbrales son distintos a propósito: una medición aguanta un
@@ -436,7 +442,7 @@ const hallazgosPorTipo = (key) => TIPOS
 const bitacoraAbierta = ref(false);
 // Esc cierra. Va en `window` y no en el elemento: el cajón nace sin foco, así que un @keydown local sólo
 // respondería después de hacerle clic — que es justo cuando ya no hace falta el atajo.
-const cerrarConEsc = (e) => { if (e.key === 'Escape') { bitacoraAbierta.value = false; protosAbiertos.value = false; hallazgosAbiertos.value = false; ramasAbiertas.value = false; } };
+const cerrarConEsc = (e) => { if (e.key === 'Escape') { bitacoraAbierta.value = false; protosAbiertos.value = false; hallazgosAbiertos.value = false; ramasAbiertas.value = false; descAbierta.value = false; } };
 onMounted(() => window.addEventListener('keydown', cerrarConEsc));
 onUnmounted(() => window.removeEventListener('keydown', cerrarConEsc));
 const when = (d) => new Date(d).toLocaleString('es-CO', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
@@ -720,6 +726,7 @@ onMounted(async () => {
   } catch { /* si falla, el selector no aparece y se carga el activo igual */ }
 
   await loadEfforts();
+  cargarRamas();   // el snapshot de ramas (sin await: si no está medido, el botón «Ramas» no aparece y listo)
   await loadPulse();
 
   // Sin id: el server elige (activo, o el último cerrado, o el próximo). No lo re-derivamos acá para
@@ -870,7 +877,7 @@ onMounted(async () => {
           <!-- varias columnas según el ancho: `auto-fill` con un mínimo, así el número de columnas lo
                decide la pantalla y no un breakpoint escrito a mano -->
           <div class="tgrid">
-            <div v-for="i in g.tasks" :key="i.Key" class="task" :class="{ sel: active?.Key === i.Key, wide: descAbiertas.has(i.Key) || qa?.key === i.Key }"
+            <div v-for="i in g.tasks" :key="i.Key" class="task" :class="{ sel: active?.Key === i.Key, wide: qa?.key === i.Key }"
               @click="active = i">
               <div class="tl">
                 <a v-if="site" class="key link" :href="jiraLink(i.Key)" target="_blank" rel="noopener"
@@ -887,14 +894,10 @@ onMounted(async () => {
               </div>
               <div class="tt">{{ i.Summary }}</div>
 
-              <!-- lo que HOY dice Jira: lo que el equipo lee. Si está vacía, se avisa (falta definirla).
-                   Desplegada se muestra el HTML que renderiza Jira; plegada, el texto recortado. -->
-              <template v-if="descAbiertas.has(i.Key)">
-                <div v-if="i.DescriptionHTML" class="desc jira-html" v-html="i.DescriptionHTML"></div>
-                <p v-else-if="i.Description" class="desc">{{ i.Description }}</p>
-                <p v-else class="desc none">Esta tarea todavía no tiene descripción en Jira.</p>
-              </template>
-              <p v-else-if="i.Description" class="jd" :title="i.Description">{{ i.Description }}</p>
+              <!-- lo que HOY dice Jira, recortado. La completa va al CAJÓN (botón «ver completa»): en la
+                   tarjeta ocupaba la fila entera y rompía la grilla, que es lo mismo que hacían los
+                   encabezados de grupo. Un cajón no le quita el ancho a nadie. -->
+              <p v-if="i.Description" class="jd" :title="i.Description">{{ i.Description }}</p>
               <p v-else class="jd none">sin descripción en Jira</p>
 
               <div class="tm">
@@ -912,8 +915,8 @@ onMounted(async () => {
               <!-- Las acciones de la tarea, donde está la tarea. `@click.stop` en todas: la tarjeta
                    entera selecciona, y un botón no puede además hacer eso por accidente. -->
               <div class="tacts" @click.stop>
-                <button class="tact" @click="alternarDesc(i.Key)">
-                  {{ descAbiertas.has(i.Key) ? 'contraer' : 'ver completa' }}
+                <button class="tact" :class="{ act: descAbierta && active?.Key === i.Key }" @click="verDesc(i)">
+                  ver completa
                 </button>
                 <button class="tact" :class="{ act: bitacoraAbierta && active?.Key === i.Key }" @click="verBitacora(i)">
                   Bitácora<span v-if="entriesPorTarea[i.Key]" class="cnt">{{ entriesPorTarea[i.Key] }}</span>
@@ -1084,6 +1087,29 @@ onMounted(async () => {
               <pre v-if="a.como" class="hcomo">{{ a.como }}</pre>
             </article>
           </section>
+        </div>
+      </aside>
+    </div>
+
+    <!-- DESCRIPCIÓN completa de Jira. Cajón y no expansión de la tarjeta: son párrafos, y ensanchar la
+         tarjeta a la fila entera rompía la grilla. Es SOLO LECTURA — lo que dice Jira hoy. -->
+    <div v-if="descAbierta" class="drawer">
+      <div class="drawer-bg" @click="descAbierta = false"></div>
+      <aside class="drawer-p">
+        <header class="drawer-h">
+          <div>
+            <h3>{{ active?.Key }}</h3>
+            <p v-if="active">{{ active.Summary }}</p>
+          </div>
+          <button class="drawer-x" title="Cerrar (Esc)" @click="descAbierta = false">✕</button>
+        </header>
+        <div class="drawer-b">
+          <p class="empty">Es lo que dice <b>Jira</b> hoy — lo que lee el equipo. Editarla es cosa de Jira.
+            <a v-if="site && active" class="link" :href="jiraLink(active.Key)" target="_blank" rel="noopener">abrir en Jira ↗</a>
+          </p>
+          <div v-if="active?.DescriptionHTML" class="desc jira-html" v-html="active.DescriptionHTML"></div>
+          <p v-else-if="active?.Description" class="desc">{{ active.Description }}</p>
+          <p v-else class="desc none">Esta tarea todavía no tiene descripción en Jira.</p>
         </div>
       </aside>
     </div>
