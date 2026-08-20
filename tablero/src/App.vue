@@ -150,41 +150,29 @@ async function runImport() {
 // listado agrupado por esfuerzo; las sin asignar van al final. El encabezado del grupo solo aparece si
 // hay al menos un esfuerzo en juego (si no, el listado va plano como antes).
 const groupedIssues = computed(() => {
-  // VISTA ANCHA: se agrupa por SPRINT en vez de por esfuerzo, y se reusa EXACTAMENTE la misma grilla y
-  // la misma tarjeta. Tener dos markups de tarjeta —uno por vista— es como empiezan a derivar: se
-  // arregla algo en una y la otra queda vieja. Acá lo único que cambia es de qué se agrupa.
+  // UNA sola grilla, sin agrupaciones. Antes se agrupaba por esfuerzo con un encabezado por grupo, y eso
+  // cortaba la grilla en bloques: con `auto-fill` cada bloque arranca en línea nueva, así que una fila de
+  // 4 columnas quedaba con 1 tarjeta y el resto vacío. Decisión de Miguel (2026-08-19): tarjetas SUELTAS.
+  //
+  // El dato del grupo NO se pierde — viaja como chip en cada tarjeta (`_esfuerzo` / `_sprint`), que es
+  // donde se lee sin partir la grilla. Es el mismo criterio que el chip del sprint en la vista ancha.
   if (vistaAncha.value) {
-    // UN solo grupo, sin encabezados: las tarjetas van sueltas y la grilla las reparte por el ancho.
-    // El sprint no se pierde — viaja como chip EN cada tarjeta (`_sprint`), que es donde se lee sin
-    // partir la grilla en bloques. Agrupar por sprint obligaba a un salto de línea por grupo y
-    // desperdiciaba justo el ancho que esta vista viene a ganar.
     const todas = [];
     for (const g of porSprint.value) {
       for (const i of g.issues) todas.push({ ...i, _sprint: g.sprint.name.replace(/^.*?(Sprint)/i, '$1') });
     }
     return [{ id: 0, title: '', tasks: todas }];
   }
-  // `issues` ya viene ordenado nuevo → viejo desde el server; acá se PRESERVA ese orden en los dos
-  // niveles: dentro de cada grupo, y entre grupos (manda el grupo cuya tarea más nueva aparece antes).
-  // Las sin esfuerzo van al final, para que lo agrupado se lea primero.
-  const byEffort = new Map();
-  const orden = [];
-  for (const i of issues.value) {
+  // `issues` ya viene ordenado nuevo → viejo desde el server y ese orden se preserva tal cual.
+  const conEsfuerzo = issues.value.map((i) => {
     const eid = taskLocals.value[i.Key]?.effortId || 0;
-    if (!byEffort.has(eid)) { byEffort.set(eid, []); if (eid) orden.push(eid); }
-    byEffort.get(eid).push(i);
-  }
-  const groups = orden.map(eid => ({
-    id: eid,
-    title: efforts.value.find(e => e.id === eid)?.title || 'Esfuerzo',
-    tasks: byEffort.get(eid),
-  }));
-  if (byEffort.has(0)) groups.push({ id: 0, title: 'Sin esfuerzo', tasks: byEffort.get(0) });
-  return groups;
+    const t = eid ? efforts.value.find(e => e.id === eid)?.title : '';
+    return t ? { ...i, _esfuerzo: t, _esfuerzoId: eid } : i;
+  });
+  return [{ id: 0, title: '', tasks: conEsfuerzo }];
 });
-// En la vista ancha NO hay encabezados: las tarjetas van sueltas (el sprint se lee en el chip de cada
-// una). Un encabezado por grupo cortaba la grilla en bloques y desperdiciaba el ancho que se vino a ganar.
-const showGroups = computed(() => !vistaAncha.value && groupedIssues.value.some(g => g.id !== 0));
+
+// Ya no hay encabezados de grupo: la grilla es una sola y el grupo se lee en el chip de la tarjeta.
 // El MÉTODO de trabajo, explícito: primero se evalúa, después se trabaja, y las tareas de Jira se
 // escriben AL FINAL — recién ahí hay contexto completo para definirlas bien.
 const STAGES = [
@@ -879,10 +867,6 @@ onMounted(async () => {
         </h2>
         <p v-if="vistaAncha && cargandoAncha" class="empty">trayendo los sprints…</p>
         <template v-for="g in groupedIssues" :key="g.id">
-          <div v-if="showGroups" class="grp" :class="{ none: !g.id }">
-            {{ g.title }}
-            <span v-if="g.id" class="stg" :class="'s-' + stageOf(g.id)?.id">{{ stageOf(g.id)?.label }}</span>
-          </div>
           <!-- varias columnas según el ancho: `auto-fill` con un mínimo, así el número de columnas lo
                decide la pantalla y no un breakpoint escrito a mano -->
           <div class="tgrid">
@@ -893,7 +877,12 @@ onMounted(async () => {
                   @click.stop :title="`Abrir ${i.Key} en Jira`">{{ i.Key }} <span class="ext">↗</span></a>
                 <span v-else class="key">{{ i.Key }}</span>
                 <span class="status" :class="statusClass(i.StatusCategory)">{{ i.Status }}</span>
-                <!-- de qué sprint es. Sólo en la vista ancha: en la del sprint sería repetir el título. -->
+                <!-- El grupo al que pertenece la tarjeta, como chip: reemplaza al encabezado que antes
+                     partía la grilla. `_esfuerzo` en la vista del sprint, `_sprint` en la ancha. -->
+                <span v-if="i._esfuerzo" class="spchip esf" :title="`esfuerzo: ${i._esfuerzo}`">
+                  {{ i._esfuerzo }}
+                  <i v-if="stageOf(i._esfuerzoId)" class="stg" :class="'s-' + stageOf(i._esfuerzoId)?.id">{{ stageOf(i._esfuerzoId)?.label }}</i>
+                </span>
                 <span v-if="i._sprint" class="spchip" :title="`del ${i._sprint}`">{{ i._sprint }}</span>
               </div>
               <div class="tt">{{ i.Summary }}</div>
@@ -1213,6 +1202,10 @@ onMounted(async () => {
 /* De qué sprint es la tarjeta. Va en la línea de la clave, chiquito: es contexto, no el dato principal. */
 .spchip { margin-left: auto; font-size: 10.5px; color: var(--mut); border: 1px solid var(--line);
   border-radius: 5px; padding: 1px 5px; white-space: nowrap }
+/* El chip del esfuerzo puede ser largo (es un título): se recorta en vez de empujar la línea. */
+.spchip.esf { max-width: 46%; overflow: hidden; text-overflow: ellipsis; color: var(--acc);
+  border-color: color-mix(in srgb, var(--acc) 35%, transparent); display: inline-flex; gap: 5px; align-items: center }
+.spchip.esf .stg { font-style: normal; font-size: 9.5px; opacity: .8 }
 header { display: flex; align-items: center; gap: 14px; margin-bottom: 22px; flex-wrap: wrap; row-gap: 10px }
 .logo { width: 38px; height: 38px; border-radius: 11px; display: grid; place-items: center; font-weight: 800;
   color: #0b0713; font-size: 19px; background: linear-gradient(135deg, #a78bfa, #60a5fa) }
@@ -1385,11 +1378,9 @@ h1 { font-size: 20px; margin: 0; letter-spacing: .2px }
 .qa-bad { margin: 9px 0 0; padding-left: 18px; font-size: 12px; color: var(--bad) }
 
 /* encabezado de grupo de esfuerzo en el listado */
-.grp { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: .6px; color: var(--acc);
-  margin: 14px 0 8px; display: flex; align-items: center; gap: 7px }
-.grp::before { content: '◆'; font-size: 9px }
-.grp:first-child { margin-top: 0 }
-.grp.none { color: var(--mut) } .grp.none::before { content: '○' }
+/* El encabezado de grupo (.grp) se eliminó el 2026-08-19: la grilla es una sola y el grupo se lee
+   en el chip de cada tarjeta. Un encabezado por grupo cortaba `auto-fill` en bloques y dejaba filas a
+   medias, desperdiciando el ancho. */
 /* etapa del esfuerzo: evaluar → trabajar → crear las tareas */
 .stg { font-size: 9.5px; font-weight: 700; letter-spacing: .3px; padding: 2px 7px; border-radius: 999px;
   border: 1px solid var(--line); color: var(--mut); text-transform: none; white-space: nowrap }
