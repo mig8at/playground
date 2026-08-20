@@ -1420,16 +1420,22 @@ la conversación del cliente sea más o menos charlada, estilo chatbot, es **gus
 recorrido del cliente debería ser, como el del asesor, una secuencia de ACCIONES. La conversación la arma
 quien construya el bot en n8n.
 
-Eso destapó una **ficción de la maqueta que hacía daño**: el prototipo del cliente dibujaba un paso como
-`POST /api/support/nlu/interpretar`, con nota técnica y todo, como si el backend resolviera el lenguaje.
+⚠ **CORRECCIÓN de lo que se escribió primero acá.** Se dijo que el paso `nlu/interpretar` era «una
+ficción de la maqueta que hacía daño». **Está mal**: esta misma tarea ya lo documentaba como ajeno, en la
+sección §«Lo que NO construimos nosotros» — *«aparece en la traza del prototipo del cliente, pero es de
+Filipo… se lista para que quede claro dónde encaja, no como entregable nuestro»*. La frontera estaba
+escrita desde el 13/8; el error fue no leer esa sección antes de opinar.
 
-> **MEDICIÓN · 2026-08-20** — ese endpoint NO EXISTE: cero apariciones en `Modules/SupportBot`, cero entre
-> las 16 rutas del gateway, y cero integraciones de LLM en el módulo (los matches de «intent» eran
-> «intentos» e «intentar»).
+> **MEDICIÓN · 2026-08-20** — el endpoint no existe ni existió: cero apariciones en `Modules/SupportBot`,
+> cero entre las 16 rutas del gateway, cero integraciones de LLM, y `git log --all -S` sobre TODAS las
+> ramas no encuentra ningún commit que lo haya creado. Está bien que no exista: no es nuestro.
+> `git grep -iE "nlu/interpretar" $(git for-each-ref refs/remotes/origin)`
 
-Quien leyera la maqueta iba a esperar que existiera. Corregido: ese paso ahora dice **`n8n · decide sin
-llamarnos`** y se pinta distinto en la traza (gris, itálica) para que no se confunda con una llamada al
-backend. Y los dos prototipos llevan arriba la frontera escrita.
+**Lo que sí era un problema, y es más chico:** el prototipo lo dibujaba bajo `/api/support/nlu/interpretar`
+— **nuestro namespace**. Eso es lo que lo hacía parecer del backend, aunque la tarea dijera lo contrario:
+quien mirara sólo la maqueta veía un endpoint del canal. Corregido: el paso dice ahora **`n8n · decide sin
+llamarnos`** y se pinta distinto en la traza (gris, itálica). Y los dos prototipos llevan arriba la
+frontera escrita, que antes sólo vivía en el cuerpo de la tarea.
 
 **Y sobre si hace falta un modelo para interpretar** — la respuesta que salió de implementarlo: hay **dos
 intenciones**. El despachador las resuelve con palabras clave y usa el menú como respaldo, que es más
