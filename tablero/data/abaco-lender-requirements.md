@@ -6,7 +6,7 @@ stage: work
 created: "2026-07-29T20:23:53-05:00"
 context_nodes: [motai, kyc, ms-preapprovals]
 jira: [CORE-321]
-jira_title: "Renting: el requisito de validar ingresos con Ábaco pasa a ser configuración de la entidad, y se retiran los \"modos\" de comercio"
+jira_title: "Ábaco: el requisito lo define la entidad, sin «modos»"
 ---
 
 ESTADO 2026-07-29: dos PRs MERGEADOS en `qa`. Falta llevarlo a `develop` y aplicar migraciones.

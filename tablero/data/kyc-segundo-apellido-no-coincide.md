@@ -6,7 +6,7 @@ stage: work
 created: "2026-08-13T09:16:27-05:00"
 context_nodes: [kyc, credifamilia, deceval]
 jira: [CORE-420]
-jira_title: "Identidad: un «no coincide» reportado ya no se ignora, y la fuente que consulta la cédula corrige el nombre"
+jira_title: "Identidad: el «no coincide» del nombre ya no se ignora"
 ---
 
 **ESTADO 2026-08-18 · LA RAMA QUE VA A `main` ES LA DE `develop`, y el bypass de nombre MURIÓ.**

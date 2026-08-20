@@ -6,7 +6,7 @@ stage: tasks
 created: "2026-07-30T12:30:19-05:00"
 context_nodes: [motai, creditopx]
 jira: [CORE-323]
-jira_title: "Renting: la tarjeta muestra plan y pago semanal, y el precio de la semana cambia según el plazo"
+jira_title: "Renting: la tarjeta muestra plan y pago semanal"
 ---
 
 ESTADO 2026-07-30: 3 cambios. Uno mergeado en `qa`, dos en ramas locales sin pushear.

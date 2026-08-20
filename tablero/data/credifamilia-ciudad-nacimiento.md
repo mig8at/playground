@@ -6,7 +6,7 @@ stage: tasks
 created: "2026-07-23T15:46:04-05:00"
 context_nodes: [form-service, dynamic-forms, credifamilia]
 jira: [CORE-301]
-jira_title: "Credifamilia: agregar campo 'Ciudad de nacimiento' en cascada al formulario"
+jira_title: "Credifamilia: campo Ciudad de nacimiento en cascada"
 ---
 
 JIRA: CORE-301 (https://creditop.atlassian.net/browse/CORE-301) · Sprint 8 · En pruebas

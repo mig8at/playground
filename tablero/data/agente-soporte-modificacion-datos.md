@@ -6,7 +6,7 @@ stage: work
 created: "2026-08-11T18:20:00-05:00"
 context_nodes: [actors, application, microservicios, servicing, backoffice]
 jira: [CORE-258]
-jira_title: "AGENTE SOPORTE- Modificacion de datos"
+jira_title: "Agente de soporte: modificación de datos"
 ---
 
 # Agente Soporte · modificación de datos

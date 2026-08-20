@@ -6,7 +6,7 @@ stage: evaluation
 created: "2026-08-18T18:30:00-05:00"
 context_nodes: [findings]
 jira: [CORE-431]
-jira_title: "Blindar la suite de pruebas para que no pueda borrar la base de datos de un ambiente"
+jira_title: "Los tests no pueden volver a borrar la BD de un ambiente"
 ---
 
 # La suite de tests puede borrar la BD compartida

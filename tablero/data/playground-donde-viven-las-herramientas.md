@@ -5,7 +5,7 @@ stage: work
 created: "2026-08-13T16:00:18-05:00"
 context_nodes: []
 jira: [CORE-421]
-jira_title: "Un lugar donde publicar las herramientas internas del equipo"
+jira_title: "Dónde publicar las herramientas internas del equipo"
 ---
 
 **ESTADO 2026-08-14 · EN PROGRESO** — el repo está armado y verificado de punta a punta. Lo que

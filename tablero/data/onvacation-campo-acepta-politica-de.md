@@ -6,7 +6,7 @@ created: "2026-08-03T18:38:47-05:00"
 archived: "2026-08-03T18:38:47-05:00"
 context_nodes: []
 jira: [CORE-309]
-jira_title: "OnVacation — campo \"Acepta política de Tratamiento de Datos Personales\" en el PDF de términos y condiciones"
+jira_title: "OnVacation: la aceptación de datos personales, en el PDF"
 ---
 
 # OnVacation — campo "Acepta política de Tratamiento de Datos Personales" en el PDF de términos y condiciones

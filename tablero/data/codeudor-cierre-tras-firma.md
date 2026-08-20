@@ -6,7 +6,7 @@ stage: work
 created: "2026-07-27T12:13:57-05:00"
 context_nodes: [formalization, creditopx]
 jira: [CORE-317]
-jira_title: "Codeudor: al terminar la firma ve una confirmación propia en lugar de la pantalla de monto aprobado"
+jira_title: "Codeudor: confirmación propia al terminar la firma"
 ---
 
 ESTADO 2026-07-28: CONTRATO CERRADO con Santi. Frontend LISTO y apagado; espera el deploy del campo.
