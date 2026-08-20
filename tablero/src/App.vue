@@ -526,7 +526,7 @@ const hallazgosPorTipo = (key) => TIPOS
 const bitacoraAbierta = ref(false);
 // Esc cierra. Va en `window` y no en el elemento: el cajón nace sin foco, así que un @keydown local sólo
 // respondería después de hacerle clic — que es justo cuando ya no hace falta el atajo.
-const cerrarConEsc = (e) => { if (e.key === 'Escape') { bitacoraAbierta.value = false; protosAbiertos.value = false; hallazgosAbiertos.value = false; ramasAbiertas.value = false; descAbierta.value = false; } };
+const cerrarConEsc = (e) => { if (e.key === 'Escape') { bitacoraAbierta.value = false; protosAbiertos.value = false; hallazgosAbiertos.value = false; ramasAbiertas.value = false; descAbierta.value = false; mover.value = null; } };
 onMounted(() => window.addEventListener('keydown', cerrarConEsc));
 onUnmounted(() => window.removeEventListener('keydown', cerrarConEsc));
 const when = (d) => new Date(d).toLocaleString('es-CO', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
@@ -740,11 +740,56 @@ const qaProblems = ref([]);
 // En pruebas ya no hay nada que avisar; el botón solo aparece antes de eso. Es por TAREA y no sobre la
 // activa: ahora cada tarjeta trae su propio botón.
 const enPruebas = (i) => /pruebas/i.test(i?.Status || '');
-// El botón es un movimiento HACIA ADELANTE, así que no tiene sentido en algo que ya pasó por ahí. Con
-// sólo `enPruebas()` salía en las TERMINADAS —9 de 16 tarjetas el 2026-08-19— y ese botón no es
-// inofensivo: mueve la tarjeta en Jira Y le manda un Slack a quien valida. Ofrecer "mandar a probar"
-// algo cerrado es pedir un aviso falso.
-const yaPasoPorQA = (i) => enPruebas(i) || i?.StatusCategory === 'done';
+// (Acá vivía `yaPasoPorQA`, que decidía cuándo esconder el viejo botón «A pruebas». Se fue con el botón:
+// ya no hace falta adivinar dónde tiene sentido un movimiento — la lista de destinos la da Jira, y si
+// desde este estado no se puede ir a pruebas, ese destino simplemente no aparece.)
+
+// ── mover de estado: los destinos los DEFINE JIRA, no una lista de acá ──────────────────────────
+// Medido el 2026-08-19 contra el workflow de CORE: el botón cableado a «pruebas» fallaba en todos los
+// estados salvo «Terminada», porque ninguna transición AVANZA a pruebas (la única que llega ahí sale de
+// Terminada y se llama «Se devuelve a pruebas»). Escribir los estados en el cliente garantiza volver a
+// equivocarse cuando alguien edite el workflow; preguntárselos a Jira, no.
+const mover = ref(null);   // null = menú cerrado; si no: { key, transitions:[{id,name,to}], testing }
+const moverBusy = ref(false);
+const moverError = ref('');
+
+async function abrirMover(i) {
+  if (mover.value?.key === i.Key) { mover.value = null; return; }
+  active.value = i; mover.value = null; moverError.value = ''; qa.value = null;
+  moverBusy.value = true;
+  try {
+    const j = await (await fetch(`${SERVER}/api/transitions?key=${i.Key}`)).json();
+    if (j.error) moverError.value = j.error;
+    // Sin transiciones no se abre un menú vacío: se dice por qué. Pasa de verdad — «Bloqueada» sólo
+    // sale a «En progreso» e «Invalidada», y un estado terminal no saldría a ninguna parte.
+    else if (!(j.transitions || []).length) moverError.value = `Jira no ofrece ninguna salida desde «${i.Status}»`;
+    else mover.value = { key: i.Key, transitions: j.transitions, testing: j.testing || 'pruebas' };
+  } catch { moverError.value = 'no se pudo hablar con el server'; }
+  finally { moverBusy.value = false; }
+}
+
+// El destino que coincide con el estado de pruebas NO se mueve directo: cae en el flujo de QA, donde
+// mover y avisarle a quien valida son un mismo acto (y el mensaje se previsualiza).
+const esHaciaPruebas = (t) => (t.to || '').toLowerCase().includes((mover.value?.testing || 'pruebas').toLowerCase());
+
+async function aplicarTransicion(t) {
+  const i = active.value;
+  if (esHaciaPruebas(t)) { mover.value = null; await openQA(i); return; }
+  moverBusy.value = true; moverError.value = '';
+  try {
+    const j = await (await fetch(`${SERVER}/api/transitions`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ key: i.Key, id: t.id }),
+    })).json();
+    if (j.error) { moverError.value = j.error; return; }
+    mover.value = null;
+    // Se recarga desde Jira en vez de simular el cambio acá: el estado nuevo puede traer otras cosas
+    // (el workflow puede tocar campos) y una copia local sería una segunda verdad.
+    await loadSprint(sprint.value?.id);
+    if (vistaAncha.value) await cargarUltimos4();
+  } catch { moverError.value = 'no se pudo hablar con el server'; }
+  finally { moverBusy.value = false; }
+}
 
 async function openQA(i) {
   active.value = i;   // el panel y el envío leen la activa: se fija antes de pedir nada
@@ -1045,13 +1090,31 @@ onMounted(async () => {
                   Hallazgos<span class="cnt">{{ hallazgosDe(i.Key).length }}</span><span
                     v-if="hallazgosDe(i.Key).some(vencido)" class="alerta" title="Hay algo que pide revisión">●</span>
                 </button>
-                <button v-if="!yaPasoPorQA(i) && qa?.key !== i.Key" class="tact go" :disabled="qaBusy" @click="openQA(i)">
-                  🧪 A pruebas
+                <!-- Un solo botón para mover de estado. No dice a dónde: eso lo contesta Jira al abrirlo,
+                     que es justamente el arreglo — el botón anterior anunciaba «A pruebas» y en 5 de los
+                     6 estados esa transición no existía. -->
+                <button class="tact go" :class="{ act: mover?.key === i.Key }"
+                  :disabled="moverBusy || qa?.key === i.Key" @click="abrirMover(i)">
+                  {{ moverBusy && active?.Key === i.Key ? 'Consultando Jira…' : '⇢ Mover' }}
                 </button>
               </div>
 
               <!-- Handoff a QA, dentro de SU tarjeta. El mensaje se previsualiza y se puede editar: nunca
                    sale algo que no se vio, y el server lo re-valida contra el guard antes de publicarlo. -->
+              <!-- Los destinos REALES, tal como los devolvió Jira. Si alguien edita el workflow, esto
+                   cambia solo: no hay ninguna lista de estados escrita en el cliente. -->
+              <div v-if="mover?.key === i.Key" class="mv" @click.stop>
+                <p class="mv-h">Desde <b>{{ i.Status }}</b>, Jira deja ir a:</p>
+                <div class="mv-opts">
+                  <button v-for="t in mover.transitions" :key="t.id" class="mv-o"
+                    :class="{ qa: esHaciaPruebas(t) }" :disabled="moverBusy"
+                    :title="`transición «${t.name}»`" @click="aplicarTransicion(t)">
+                    {{ t.to }}<span v-if="esHaciaPruebas(t)" class="mv-tag">+ aviso</span>
+                  </button>
+                </div>
+              </div>
+              <p v-if="moverError && active?.Key === i.Key" class="qa-err">{{ moverError }}</p>
+
               <template v-if="qa?.key === i.Key">
                 <p v-if="qaError" class="qa-err">{{ qaError }}</p>
                 <div class="qa-box" @click.stop>
@@ -1342,6 +1405,22 @@ onMounted(async () => {
 /* Vista ancha: la página se suelta. Los 1180px son para leer UNA columna de tarjetas; con cuatro sprints
    a la vez lo que se quiere es abarcar, y la grilla ya es `auto-fill` — sólo hay que dejarla crecer. */
 .wrap.ancha { max-width: none }
+/* Menú de estados. Las opciones son las que devolvió Jira, así que el ancho lo decide el contenido:
+   fijar columnas cortaría nombres como «Se devuelve a pruebas». */
+.mv { margin: 8px 0 0; padding: 9px 10px; background: var(--panel2); border: 1px solid var(--line);
+  border-radius: 9px }
+.mv-h { margin: 0 0 7px; font-size: 11.5px; color: var(--mut) }
+.mv-h b { color: var(--txt); font-weight: 600 }
+.mv-opts { display: flex; flex-wrap: wrap; gap: 5px }
+.mv-o { border: 1px solid var(--line2); background: var(--panel); color: var(--txt); font: inherit;
+  font-size: 12px; font-weight: 600; padding: 4px 9px; border-radius: 7px; cursor: pointer;
+  display: inline-flex; align-items: center; gap: 5px; transition: .12s }
+.mv-o:hover:not(:disabled) { border-color: color-mix(in srgb, var(--acc) 55%, transparent) }
+.mv-o:disabled { opacity: .5; cursor: default }
+/* El que dispara el aviso a QA se distingue: no es sólo un cambio de estado, además le escribe a alguien. */
+.mv-o.qa { border-color: #4ade8055 }
+.mv-tag { font-size: 9.5px; font-weight: 700; color: #4ade80; text-transform: uppercase; letter-spacing: .3px }
+
 /* Filtro por estado. Van arriba de la grilla y no dentro de las tarjetas: es una decisión sobre el
    CONJUNTO. La deshabilitada se ve —conserva su cero— porque un bucket vacío es un dato. */
 .filtros { display: flex; gap: 5px; flex-wrap: wrap; margin: 0 0 12px }

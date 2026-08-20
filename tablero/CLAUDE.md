@@ -42,9 +42,22 @@ Qué es y cómo se corre: `README.md`. Acá solo las reglas al trabajar con las 
       make jira-edit JSON=t.json
 
   ⚠ El `status` de `jira-create` es una lista **ORDENADA** de subcadenas, no un destino suelto: el
-  workflow de CORE no deja saltar estados — para «pruebas» hay que pasar por «progreso» primero.
+  workflow de CORE no deja saltar estados. *(Acá decía «para pruebas hay que pasar por progreso
+  primero». Está mal, medido el 2026-08-19 contra `GET /issue/{key}/transitions`: **a «En pruebas» no
+  se llega desde ningún estado salvo «Terminada»**, y esa transición se llama «Se devuelve a pruebas»
+  — es un retorno. El camino real es Por Hacer → En progreso → En revisión → Terminada.)*
   Y por consola es el único camino que **estima**: el del server crea y mete al sprint pero no tiene
   campo de puntos.
+- **Los estados NO se escriben en el código: se le preguntan a Jira.** La tarjeta tiene un botón
+  **⇢ Mover** que lista lo que `GET /api/transitions` devuelve para ESE issue en ESE estado, así que
+  nunca puede ofrecer un movimiento que Jira va a rechazar. Es la lección de haberlo hecho al revés: el
+  botón anterior estaba cableado a «A pruebas» y **fallaba en 5 de los 6 estados**, porque esa
+  transición sólo existe desde «Terminada». Dos detalles del diseño:
+  1. El destino que cae en el estado de pruebas **no se mueve directo**: entra al flujo de QA, donde
+     mover la tarjeta y avisarle a quien valida son un mismo acto y el mensaje se previsualiza (pasa el
+     mismo guard que la bitácora). Se marca «+ aviso» en el menú para que no sorprenda.
+  2. El POST **re-lee las transiciones antes de aplicar**: si alguien movió la tarjeta desde Jira con el
+     menú abierto, el id queda viejo y Jira devuelve un 400 ilegible. Así se contesta 409 con el porqué.
 
   Los tres necesitan `ATLASSIAN_*` en `tablero/.env`. Tareas nuevas van al **sprint activo del board
   384**, no al backlog. **Nada se publica sin que Miguel lo vea antes** — los tres escriben hacia

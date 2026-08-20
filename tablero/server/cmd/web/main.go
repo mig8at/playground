@@ -789,6 +789,108 @@ func main() {
 		}
 	})
 
+	// ── /api/transitions — el MECANISMO DE JIRA, no una lista escrita acá ────────────────────────
+	//
+	// Antes el tablero tenía un solo movimiento cableado ("a pruebas") y adivinaba que existía. Medido
+	// el 2026-08-19 contra el workflow real de CORE: NINGÚN estado avanza a «En pruebas» —la única
+	// transición que llega ahí sale de «Terminada» y se llama «Se devuelve a pruebas», o sea es un
+	// retorno—. El flujo real es En progreso → En revisión → Terminada. Así que el botón cableado
+	// fallaba en todos los estados salvo el que menos sentido tenía.
+	//
+	// La lección: los estados permitidos NO se escriben acá. Se le preguntan a Jira, que es quien los
+	// define y quien los va a cambiar sin avisarnos.
+	//
+	//   GET  /api/transitions?key=CORE-431 → las transiciones que Jira permite DESDE su estado actual
+	//   POST /api/transitions {key, id}    → aplica una. Sin Slack: el aviso a QA sigue en /api/qa-notice,
+	//                                        porque ahí mover y avisar son un mismo acto.
+	mux.HandleFunc("/api/transitions", func(w http.ResponseWriter, r *http.Request) {
+		cors(w)
+		if a.jira == nil {
+			w.WriteHeader(http.StatusServiceUnavailable)
+			json.NewEncoder(w).Encode(map[string]any{"error": "sin credenciales de Jira (.env)"})
+			return
+		}
+		switch r.Method {
+		case http.MethodOptions:
+			return
+
+		case http.MethodGet:
+			key := strings.ToUpper(strings.TrimSpace(r.URL.Query().Get("key")))
+			if !issueKeyRe.MatchString(key) {
+				w.WriteHeader(http.StatusBadRequest)
+				json.NewEncoder(w).Encode(map[string]any{"error": "falta key o no parece una clave de issue (ej CORE-321)"})
+				return
+			}
+			ctx, cancel := context.WithTimeout(r.Context(), 20*time.Second)
+			defer cancel()
+			trs, err := a.jira.IssueTransitions(ctx, key)
+			if err != nil {
+				w.WriteHeader(http.StatusBadGateway)
+				json.NewEncoder(w).Encode(map[string]any{"error": err.Error()})
+				return
+			}
+			out := make([]map[string]string, 0, len(trs))
+			for _, t := range trs {
+				out = append(out, map[string]string{"id": t.ID, "name": t.Name, "to": t.To})
+			}
+			// `testing` viaja para que la UI sepa CUÁL de estos destinos merece el aviso a QA, sin
+			// tener que repetir la subcadena en el cliente.
+			json.NewEncoder(w).Encode(map[string]any{"key": key, "transitions": out, "testing": a.testingStatus})
+
+		case http.MethodPost:
+			var in struct {
+				Key string `json:"key"`
+				ID  string `json:"id"`
+			}
+			if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
+				w.WriteHeader(http.StatusBadRequest)
+				json.NewEncoder(w).Encode(map[string]any{"error": "json inválido"})
+				return
+			}
+			in.Key = strings.ToUpper(strings.TrimSpace(in.Key))
+			if !issueKeyRe.MatchString(in.Key) || strings.TrimSpace(in.ID) == "" {
+				w.WriteHeader(http.StatusBadRequest)
+				json.NewEncoder(w).Encode(map[string]any{"error": "hacen falta key e id de la transición"})
+				return
+			}
+			ctx, cancel := context.WithTimeout(r.Context(), 20*time.Second)
+			defer cancel()
+			// Se re-lee la lista antes de aplicar: el id que mandó la UI pudo quedar viejo si alguien
+			// movió la tarjeta desde Jira mientras el menú estaba abierto, y un id que ya no aplica da
+			// un 400 de Jira difícil de leer. Acá se contesta con el estado real.
+			trs, err := a.jira.IssueTransitions(ctx, in.Key)
+			if err != nil {
+				w.WriteHeader(http.StatusBadGateway)
+				json.NewEncoder(w).Encode(map[string]any{"error": err.Error()})
+				return
+			}
+			var elegida *atlassian.Transition
+			for i := range trs {
+				if trs[i].ID == in.ID {
+					elegida = &trs[i]
+					break
+				}
+			}
+			if elegida == nil {
+				w.WriteHeader(http.StatusConflict)
+				json.NewEncoder(w).Encode(map[string]any{
+					"error": "esa transición ya no está disponible — alguien movió " + in.Key + " en Jira. Refrescá.",
+				})
+				return
+			}
+			if err := a.jira.TransitionIssue(ctx, in.Key, elegida.ID); err != nil {
+				w.WriteHeader(http.StatusBadGateway)
+				json.NewEncoder(w).Encode(map[string]any{"error": err.Error()})
+				return
+			}
+			log.Printf("transitions %s → %s (%s)", in.Key, elegida.To, elegida.Name)
+			json.NewEncoder(w).Encode(map[string]any{"ok": true, "to": elegida.To, "name": elegida.Name})
+
+		default:
+			w.WriteHeader(http.StatusMethodNotAllowed)
+		}
+	})
+
 	mux.HandleFunc("/api/entries", func(w http.ResponseWriter, r *http.Request) {
 		cors(w)
 		switch r.Method {
