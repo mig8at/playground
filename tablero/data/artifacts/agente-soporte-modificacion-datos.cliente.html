@@ -1571,6 +1571,9 @@
   }
 
   function choose(b, side) {
+    // En modo real manda el DESPACHADOR: el guion no sabe a dónde ir, porque el camino lo decide
+    // la respuesta de la API. En demo sigue el puntero de siempre.
+    if (typeof REAL === "function" && REAL()) { window.__vivoChoose(b); return; }
     bubble(side, "me", b.t);
     ptr = b.goto !== undefined ? idx[b.goto] : ptr + 1;
     run();
@@ -1642,7 +1645,8 @@
     $("#dest").className = "dest"; $("#dest").textContent = "— sin destino aún —";
     const i = $("#in-a"); i.disabled = true; i.value = ""; i.placeholder = "Escribe un mensaje";
     $("#snd-a").disabled = true;
-    run();
+    // Dos motores, uno por modo: el guion (demo) o el despachador de fases (real).
+      if (typeof REAL === "function" && REAL()) { arrancarVivo(); } else { run(); }
   }
 
   $("#reset").onclick = () => { auto = false; detenido = false; $("#auto").textContent = "▶ Correr solo"; reset(); };
@@ -1653,7 +1657,239 @@
   $("#ineligible").onchange = reset;
   $("#fallo").onchange = reset;
   reset();
-  // ── enganches del MODO REAL ─────────────────────────────────────────────────────────────────────
+  
+  // ═══════════════════════════════════════════════════════════════════════════════════════════════
+  // EL DESPACHADOR DE n8n — sólo en modo real
+  //
+  // El guion de arriba (`steps`) es un DEMO REEL: un puntero que avanza por pasos escritos, con los
+  // inputs pre-rellenos. Sirve para mostrarle el flujo a producto y no depende de que local esté
+  // levantado. Esto es otra cosa: una MÁQUINA DE FASES, que es lo que n8n va a ser de verdad.
+  //
+  // La diferencia que importa: acá no hay camino escrito. Cada fase recibe lo que la persona escribió
+  // o tocó, llama la API, y **la respuesta decide** qué se contesta y a qué fase se pasa. Si el
+  // backend dice que el crédito no admite cambios, la conversación cambia porque el backend lo dijo,
+  // no porque un `goto` lo tenga escrito.
+  //
+  // `CONV` es el estado que n8n tendría que guardar entre mensajes: del lado del bot no hay sesión
+  // HTTP, así que la conversación es su propia memoria.
+  // ═══════════════════════════════════════════════════════════════════════════════════════════════
+  const CONV = { fase: "saludo", d: {} };
+  const IN = () => $("#in-a"), SND = () => $("#snd-a");
+
+  function pedirTexto(ph) {
+    const i = IN(), b = SND();
+    i.disabled = false; b.disabled = false; i.value = ""; i.placeholder = ph; i.focus();
+  }
+  function trabar() {
+    const i = IN(), b = SND();
+    i.disabled = true; b.disabled = true; i.value = ""; i.placeholder = "Escribe un mensaje";
+  }
+  async function dice(html, opts = {}) {
+    await typing("a", html.length > 200 ? 820 : 560);
+    bubble("a", "bot", html, opts);
+  }
+  // Un nodo que falla no rompe la conversación: contesta lo que el cliente leería y deja la fase donde
+  // estaba, para que pueda reintentar. Es lo que n8n tiene que hacer con cada rama de error.
+  //
+  // ⚠ Y hay que SEPARAR de quién es la culpa, que es un error fácil de cometer: un 404 es del cliente
+  // («ese número no está registrado») pero un 401, un 500 o un fetch que no sale son NUESTROS. Decirle
+  // a alguien «tu número no está registrado» porque el token del bot está mal es mentirle, y además
+  // manda a la persona a buscar el problema donde no está. Se detectó escribiéndole al bot con el token
+  // vacío: contestaba «no estás registrado» ante un 401.
+  const esNuestraCulpa = (r) => !r || r.red || r.status === 401 || r.status === 403 || r.status >= 500;
+  const problema = (r) => esNuestraCulpa(r)
+    ? "⚠ Tengo un problema técnico para consultar tu crédito. Intentá en un rato."
+    : `⚠ ${(r.json && (r.json.message || (r.json.errors || {}).error_code)) || "No pude completar la consulta"}`;
+
+  const NODOS = {
+    // n8n ya sabe de qué número viene el mensaje, así que resuelve al cliente ANTES de preguntar nada.
+    saludo: async () => {
+      const r = await api("GET", `/self/by-phone?wa=${encodeURIComponent(rc("waCli"))}`);
+      if (!r.ok) {
+        // 404 = el número no está en ningún crédito (culpa del dato). Cualquier otra cosa es NUESTRA y
+        // no se le explica al cliente como si fuera su problema.
+        await dice(esNuestraCulpa(r)
+          ? problema(r)
+          : "No encontré una cuenta asociada a este número, así que no puedo ayudarte por acá.");
+        CONV.fase = "fin"; trabar(); return;
+      }
+      const d = r.json.data || {};
+      CONV.d.nombre = d.first_name;
+      await dice(`¡Hola <b>${d.first_name}</b>! 👋 Soy el asistente de <b>CreditOp</b>.<br><br>¿Qué necesitás?`,
+        { list: "¿Qué necesitás?", buttons: [
+          { t: "📅 Cambiar mi fecha de pago", sub: "pide confirmar identidad" },
+          { t: "🗓️ Cambiar mi plazo", sub: "pide confirmar identidad" } ]});
+      CONV.fase = "intencion";
+    },
+
+    // Acá n8n enruta a un flujo CERRADO. No redacta: un asistente conversacional abierto está prohibido.
+    intencion: async (txt) => {
+      const t = (txt || "").toLowerCase();
+      CONV.d.quiere = /plazo|cuota/.test(t) ? "plazo" : /fecha|cobr|pag/.test(t) ? "fecha" : null;
+      if (!CONV.d.quiere) {
+        await dice("No entendí. ¿Querés cambiar la <b>fecha de pago</b> o el <b>plazo</b>?",
+          { buttons: [{ t: "📅 Cambiar mi fecha de pago" }, { t: "🗓️ Cambiar mi plazo" }] });
+        return;   // la fase NO cambia: se vuelve a preguntar lo mismo
+      }
+      await dice(`Entiendo, querés cambiar <b>${CONV.d.quiere === "fecha" ? "la fecha de pago" : "el plazo"}</b>.<br><br>Antes tengo que confirmar que sos vos. ¿Me confirmás tu número de cédula?`);
+      pedirTexto("Tu número de cédula");
+      CONV.fase = "cedula";
+    },
+
+    cedula: async (txt) => {
+      const r = await api("POST", "/self/otp", { wa: rc("waCli"), document: txt });
+      if (!r.ok) {
+        if (esNuestraCulpa(r)) { await dice(problema(r)); CONV.fase = "fin"; trabar(); return; }
+        // Cuerpo IDÉNTICO si el número no está o si la cédula no coincide: el canal no es un oráculo.
+        await dice("No encontramos una cuenta con esos datos. Revisá la cédula e intentá de nuevo.");
+        pedirTexto("Tu número de cédula"); return;
+      }
+      const d = r.json.data || {};
+      await dice(`Te mandé un código a <b>${d.sent_to}</b>.<br><br>Escribilo acá. Vence en ${d.expires_in_minutes} minutos y tenés ${d.attempts_allowed} intentos.`);
+      smsNotif(otpDe(rc("waCli")));
+      pedirTexto("El código");
+      CONV.fase = "codigo";
+    },
+
+    codigo: async (txt) => {
+      const v = await api("POST", "/self/otp/verify", { wa: rc("waCli"), code: txt });
+      if (!v.ok) {
+        if (esNuestraCulpa(v)) { await dice(problema(v)); CONV.fase = "fin"; trabar(); return; }
+        const q = (v.json.errors || {}).attempts_left;
+        await dice(`El código no es correcto.${q !== undefined ? ` Te quedan <b>${q}</b> intentos.` : ""}`);
+        if (q === 0) { await dice("Se agotaron los intentos. Reiniciá para empezar de nuevo."); CONV.fase = "fin"; trabar(); return; }
+        pedirTexto("El código"); return;
+      }
+      clearSms();
+      const c = await api("GET", `/credits/${rc("ureq")}/can-change?wa=${encodeURIComponent(rc("waCli"))}`);
+      if (!c.ok) { await dice(problema(c)); CONV.fase = "fin"; trabar(); return; }
+      const d = c.json.data || {};
+      // La rama la decide el BACKEND. Esto es exactamente lo que un guion no puede simular.
+      if (d.can_change === false) {
+        await dice(`Verifiqué tu identidad ✅<br><br>Pero <b>este crédito no admite cambios ahora</b>:<span class="kv">${d.message || d.reason}</span>`);
+        CONV.fase = "fin"; trabar(); return;
+      }
+      await dice("✅ Verificado. Dejame traer las opciones…");
+      CONV.fase = CONV.d.quiere === "fecha" ? "opcFecha" : "opcPlazo";
+      await NODOS[CONV.fase]("");   // las fases de opciones no esperan input: se disparan solas
+    },
+
+    opcFecha: async () => {
+      const r = await api("GET", `/credits/${rc("ureq")}/payment-date-options?wa=${encodeURIComponent(rc("waCli"))}`);
+      if (!r.ok) { await dice(problema(r)); CONV.fase = "fin"; trabar(); return; }
+      const d = r.json.data || {};
+      CONV.d.opciones = d.options || [];
+      if (!CONV.d.opciones.length) { await dice("No hay fechas disponibles para cambiar ahora."); CONV.fase = "fin"; trabar(); return; }
+      await dice(`Tu fecha de pago actual es el <b>${d.current_payment_date}</b>.<br><br>Estas son las opciones:`,
+        { list: "Elegir nueva fecha",
+          buttons: CONV.d.opciones.map(o => ({ t: o.label || o.value, sub: o.is_current ? "es la actual" : "", dis: !!o.is_current })) });
+      CONV.fase = "eligeFecha";
+    },
+
+    eligeFecha: async (txt) => {
+      const o = CONV.d.opciones.find(x => (x.label || x.value) === txt);
+      if (!o) { await dice("No reconocí esa opción. Elegí una de la lista."); return; }
+      CONV.d.elegida = o;
+      const act = CONV.d.opciones.find(x => x.is_current);
+      await dice(`Confirmemos:<span class="kv">Fecha actual: ${act ? (act.label || act.value) : "—"}\nNueva fecha:  ${o.label || o.value}</span>¿Confirmás el cambio?`,
+        { buttons: [{ t: "✅ Sí, confirmar" }, { t: "Cancelar" }] });
+      CONV.fase = "aplicaFecha";
+    },
+
+    aplicaFecha: async (txt) => {
+      if (!/confirmar|^s[ií]\b/i.test(txt || "")) { await dice("Listo, no cambié nada. Cualquier cosa me escribís."); CONV.fase = "fin"; trabar(); return; }
+      const r = await api("POST", `/credits/${rc("ureq")}/change-payment-date`,
+                          { wa: rc("waCli"), selected_payment_date: CONV.d.elegida.value });
+      if (!r.ok) { await dice(`${problema(r)}<br><br>No se cambió nada.`); CONV.fase = "fin"; trabar(); return; }
+      await dice(`✅ Listo. Tu nueva fecha de pago es el <b>${CONV.d.elegida.label || CONV.d.elegida.value}</b>.`);
+      audit({ campo: "next_payment_date", ant: "—", nue: CONV.d.elegida.value, estado: "aplicada",
+              cls: "ok", otp: "real", dest: T_CREDITO, quien: "la clienta" });
+      CONV.fase = "fin"; trabar();
+    },
+
+    opcPlazo: async () => {
+      const r = await api("GET", `/credits/${rc("ureq")}/fee-number-options?wa=${encodeURIComponent(rc("waCli"))}`);
+      if (!r.ok) { await dice(problema(r)); CONV.fase = "fin"; trabar(); return; }
+      CONV.d.opciones = (r.json.data || {}).options || [];
+      if (!CONV.d.opciones.length) { await dice("No hay plazos disponibles ahora."); CONV.fase = "fin"; trabar(); return; }
+      const act = CONV.d.opciones.find(o => o.is_current);
+      await dice(`Tu plazo actual es de <b>${act ? act.fee_number + " cuotas" : "—"}</b>.<br><br>Estos son los que admite:`,
+        { list: "Elegir plazo",
+          buttons: CONV.d.opciones.map(o => ({
+            t: `${o.fee_number} cuotas`,
+            sub: `$${Math.round(o.fee_value || 0).toLocaleString("es-CO")} c/u${o.is_current ? " · el actual" : ""}`,
+            dis: o.is_current || o.is_available === false })) });
+      CONV.fase = "eligePlazo";
+    },
+
+    eligePlazo: async (txt) => {
+      const n = parseInt(txt, 10);
+      const o = CONV.d.opciones.find(x => x.fee_number === n);
+      if (!o) { await dice("No reconocí ese plazo. Elegí uno de la lista."); return; }
+      CONV.d.elegida = o;
+      const act = CONV.d.opciones.find(x => x.is_current);
+      await dice(`Confirmemos:<span class="kv">Plazo actual: ${act ? act.fee_number : "—"} cuotas\nNuevo plazo:  ${o.fee_number} cuotas de $${Math.round(o.fee_value||0).toLocaleString("es-CO")}</span>¿Confirmás?`,
+        { buttons: [{ t: "✅ Sí, confirmar" }, { t: "Cancelar" }] });
+      CONV.fase = "aplicaPlazo";
+    },
+
+    aplicaPlazo: async (txt) => {
+      if (!/confirmar|^s[ií]\b/i.test(txt || "")) { await dice("Listo, no cambié nada."); CONV.fase = "fin"; trabar(); return; }
+      const r = await api("POST", `/credits/${rc("ureq")}/change-fee-number`,
+                          { wa: rc("waCli"), selected_fee: { fee_number: CONV.d.elegida.fee_number } });
+      if (!r.ok) { await dice(`${problema(r)}<br><br>No se cambió nada.`); CONV.fase = "fin"; trabar(); return; }
+      await dice(`✅ Listo. Tu nuevo plazo es de <b>${CONV.d.elegida.fee_number} cuotas</b>.`);
+      audit({ campo: "fee_number", ant: "—", nue: CONV.d.elegida.fee_number + " cuotas", estado: "aplicada",
+              cls: "ok", otp: "real", dest: T_CREDITO, quien: "la clienta" });
+      CONV.fase = "fin"; trabar();
+    },
+
+    fin: async () => { await dice("Esta conversación ya terminó. Reiniciá para empezar otra."); },
+  };
+
+  // `api()` envuelve a `pegar()` para que TODA llamada del despachador quede en la traza: es lo que
+  // hace visible el trabajo de n8n — cada línea es un nodo que salió a la red.
+  async function api(met, ruta, cuerpo) {
+    const ol = $("#trace"); if (ol.querySelector(".empty")) ol.innerHTML = "";
+    const li = document.createElement("li");
+    li.className = "new";
+    li.innerHTML = `<span class="m">${met}</span> ${ruta}<span class="note">llamando…</span>`;
+    ol.appendChild(li); ol.scrollTop = ol.scrollHeight;
+    const r = await pegar(met, ruta, cuerpo);
+    li.className = "new " + (r.ok ? "viva" : "murio");
+    li.innerHTML = `<span class="m">${met}</span> ${ruta}<span class="note">${
+      r.red ? "sin respuesta — ¿está levantado el backend?" : "HTTP " + r.status + " · " + JSON.stringify(r.json).slice(0, 150)}</span>`;
+    ol.scrollTop = ol.scrollHeight;
+    return r;
+  }
+
+  let despachando = false;
+  async function entrar(txt) {
+    if (despachando) return;      // un nodo por vez: n8n tampoco procesa dos mensajes a la vez
+    despachando = true;
+    trabar();
+    try { await NODOS[CONV.fase](txt); }
+    catch (e) { await dice(`⚠ El bot se rompió: ${e.message}`); }
+    finally { despachando = false; }
+  }
+
+  function mandarVivo() {
+    const v = IN().value.trim(); if (!v || despachando) return;
+    bubble("a", "me", v);
+    entrar(v);
+  }
+  // Arranca la conversación viva. El primer mensaje lo manda la persona, como en WhatsApp de verdad.
+  function arrancarVivo() {
+    CONV.fase = "saludo"; CONV.d = {};
+    pedirTexto("Escribile al bot para empezar");
+    IN().onkeydown = e => { if (e.key === "Enter") mandarVivo(); };
+    SND().onclick = mandarVivo;
+  }
+  // Los botones de lista entran por el MISMO camino que el texto: para n8n una respuesta de lista y un
+  // mensaje escrito llegan igual, y tratarlos distinto acá esconde bugs de allá.
+  window.__vivoChoose = (b) => { bubble("a", "me", b.t); entrar(b.t); };
+
+// ── enganches del MODO REAL ─────────────────────────────────────────────────────────────────────
   $("#r-token").value = localStorage.getItem(TKCLI) || "";
   $("#r-token").addEventListener("change", e => localStorage.setItem(TKCLI, e.target.value.trim()));
   $("#modo-real").addEventListener("change", e => {

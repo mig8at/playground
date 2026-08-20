@@ -1409,6 +1409,37 @@ castigo pega sobre el número que también se usa para cobrar.
 <!-- append-only, lo nuevo arriba. (Esta tarea no tenía sección de registro; se agrega siguiendo
      PLANTILLA-TAREA.md. Lo de arriba es el ESTADO, que se reescribe; esto es qué pasó cada día.) -->
 
+### 2026-08-20 (12) — el prototipo del cliente pasa de guion a MÁQUINA DE FASES (lo que n8n va a ser)
+
+Hasta acá el prototipo era un **demo reel**: un puntero recorriendo pasos escritos, con los inputs
+pre-rellenos. Aunque llamara la API de verdad, el CAMINO estaba escrito. Pedido de Miguel: que se
+comporte como WhatsApp real, con las acciones que va a tomar n8n.
+
+Se agregó un **despachador de fases** que en modo real reemplaza al puntero. Once fases —`saludo`,
+`intencion`, `cedula`, `codigo`, `opcFecha`/`opcPlazo`, `elige…`, `aplica…`, `fin`— y cada una es un
+nodo: recibe lo que la persona escribió o tocó, llama la API, y **la respuesta decide** qué contesta y a
+qué fase pasa. El modo demo sigue con el guion, intacto, para mostrárselo a producto sin depender de
+que local esté levantado.
+
+Cuatro cosas del diseño que valen más que el código:
+1. **La conversación arranca vacía y espera que la persona escriba**, como WhatsApp de verdad. No hay
+   auto-avance ni inputs pre-rellenos: escribís tu cédula, tocás la opción.
+2. **Los botones de lista entran por el MISMO camino que el texto.** Para n8n una respuesta de lista y
+   un mensaje escrito llegan igual; tratarlos distinto en el prototipo esconde bugs de allá.
+3. **Una fase que no entiende NO avanza**: vuelve a preguntar lo mismo. Es lo que hace un bot real, y un
+   guion con puntero no lo puede representar.
+4. **La rama la decide el backend.** Si `can_change` viene `false`, la conversación cambia porque el
+   backend lo dijo — y el globo muestra su `message` tal cual, que es lo que el cliente leería.
+
+🔴 **Y encontró un error de diseño mío, del tipo que importa:** ante un **401** (token del bot mal) el
+bot le contestaba al cliente **«este número no está registrado en un crédito»**. Son culpas distintas y
+confundirlas es mentirle a la persona, además de mandarla a buscar el problema donde no está. Se separó
+con `esNuestraCulpa()`: 404 es del dato («no encontré una cuenta con ese número»), mientras 401, 403,
+5xx y un fetch que no sale son **nuestros** y se contestan «tengo un problema técnico, intentá en un
+rato». Verificado: con el token vacío ahora dice lo segundo.
+
+Eso es exactamente la clase de regla que Filipo necesita y que no estaba escrita en ningún lado.
+
 ### 2026-08-20 (11) — ✅ probado contra DEV con entrega REAL, y con el `otp_id` que la tarea buscaba
 
 Lo único que nunca se había validado era que **el proveedor entregue de verdad**: todo lo anterior fue
