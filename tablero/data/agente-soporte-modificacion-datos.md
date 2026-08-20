@@ -1404,6 +1404,45 @@ castigo pega sobre el número que también se usa para cobrar.
 <!-- append-only, lo nuevo arriba. (Esta tarea no tenía sección de registro; se agrega siguiendo
      PLANTILLA-TAREA.md. Lo de arriba es el ESTADO, que se reescribe; esto es qué pasó cada día.) -->
 
+### 2026-08-20 (6) — tercer prototipo: cómo consume n8n, pegando contra local
+
+Los dos prototipos que había muestran la **conversación** (lo que ve el cliente, lo que ve el asesor).
+Se agrega `…-modificacion-datos.n8n.html`, que muestra la otra mitad: **qué llamadas hace n8n, en qué
+orden y qué decide con cada respuesta** — y las respuestas son REALES, salen del backend local por
+`fetch`, no de un guion. Si un paso falla ahí, falla de verdad.
+
+**Por qué un tercer archivo y no cablear los dos que ya estaban:** son mockups pulidos de la
+conversación y su valor es mostrárselos a producto. Atarlos a la API los rompería cuando local no esté
+levantado, y además es otra pregunta y otro lector — el consumidor de esto es Filipo, que tiene que
+construir los nodos.
+
+Lo que aporta y no estaba escrito en ningún lado: **la especificación de las ramas**. Cada paso dice qué
+hacer con cada código, porque ahí está la parte difícil — que `404 CLIENT_NOT_FOUND` es el MISMO cuerpo
+si el número no existe o si la cédula no coincide (a propósito, para que el canal no sea un oráculo), y
+que `409` tiene dos sabores distintos (`SESSION_NOT_FOUND` = volvé a identificarte, `NOT_VERIFIED` = te
+falta el código). Si n8n los trata igual, el cliente queda en un callejón.
+
+Y deja visible lo que más cuesta del recorrido del asesor: **n8n sostiene DOS conversaciones** y la
+única cosa que las ata es el `id` de la solicitud de cambio. El asesor crea (sesión de asesor); el
+cliente autoriza, recibe el código y confirma (sesión de cliente). El backend rechaza cruzarlas con
+`WRONG_ACTOR`.
+
+Detalles de la implementación, por si hay que retomarla:
+- **El token NO está en el archivo.** Los artefactos se versionan, así que va en un campo y queda en el
+  `localStorage`. El aviso está arriba en la página.
+- El código del OTP se calcula solo como los últimos 4 dígitos del teléfono (el bypass de
+  `local`/`development`), así que el flujo corre sin que nadie lea un SMS.
+- **Se detiene en el primer paso que no dé 2xx**, a propósito: los pasos dependen del anterior y seguir
+  sólo produce una cascada de 409 que esconde el problema real.
+- Verificado servido por HTTP: el script corre (6 pasos cliente + 7 asesor), el CORS del backend local
+  lo permite (`allowed_origins: ['*']` sobre `api/*`, preflight 204 con `Allow-Headers: authorization`)
+  y sin token el diagnóstico dice «401 — el token no coincide», que es lo correcto.
+- ⚠ **No se puede validar en la vista previa de archivo local**: envuelve el HTML en una URL `data:`, que
+  bloquea los scripts inline. Hay que servirlo por HTTP — el tablero ya lo hace en `/artifacts/<archivo>`.
+- De paso se les agregó `<meta charset="utf-8">` a los TRES prototipos de la tarea: ninguno lo declaraba
+  y se veían con caracteres roídos en cualquier server que no manda el charset (se vio con
+  `python3 -m http.server`).
+
 ### 2026-08-20 (5) — 🔴 el flujo de OTP FUNCIONA, y aparecieron dos defectos
 
 Primera prueba funcional del canal en dev, con un cliente sintético cuyo teléfono está en la lista de

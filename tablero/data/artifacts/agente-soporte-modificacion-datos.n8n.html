@@ -1,0 +1,393 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cómo n8n consume el canal — contra la API local</title>
+<style>
+  :root {
+    --page: #f7f8fa; --panel: #ffffff; --line: #e4e7eb; --line2: #cfd6de;
+    --ink: #1a2027; --soft: #5d6b7a; --mut: #8a97a5;
+    --acc: #0b6bcb; --ok: #0f7b3f; --warn: #a5620a; --bad: #b3261e;
+    --cli: #0f7b3f; --ase: #7a3fb3;
+    --code: #f3f5f8;
+  }
+  * { box-sizing: border-box }
+  body { margin: 0; background: var(--page); color: var(--ink);
+    font: 14px/1.5 -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif }
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 22px 18px 60px }
+
+  header h1 { font-size: 20px; margin: 0 0 4px }
+  header .fecha { color: var(--mut); font-size: 12.5px }
+  header p { color: var(--soft); max-width: 78ch; margin: 12px 0 0 }
+
+  .aviso { margin: 16px 0 0; padding: 11px 13px; border-radius: 9px; font-size: 13px;
+    background: #fff7e6; border: 1px solid #f0d69a; color: #6b4708 }
+  .aviso b { color: #4a3105 }
+
+  /* ── configuración ── */
+  .cfg { margin: 18px 0 0; padding: 14px; background: var(--panel); border: 1px solid var(--line);
+    border-radius: 11px }
+  .cfg h2 { font-size: 12px; text-transform: uppercase; letter-spacing: .7px; color: var(--mut);
+    margin: 0 0 12px }
+  .campos { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 10px }
+  label { display: block; font-size: 11.5px; color: var(--soft); margin-bottom: 3px; font-weight: 600 }
+  label em { font-style: normal; color: var(--mut); font-weight: 400 }
+  input { width: 100%; padding: 7px 9px; border: 1px solid var(--line2); border-radius: 7px;
+    font: inherit; font-size: 13px; background: #fff; color: var(--ink) }
+  input:focus { outline: 2px solid color-mix(in srgb, var(--acc) 35%, transparent); outline-offset: -1px }
+  .cfg-pie { display: flex; align-items: center; gap: 10px; margin-top: 12px; flex-wrap: wrap }
+  .estado { font-size: 12.5px; color: var(--mut) }
+  .estado.ok { color: var(--ok) } .estado.bad { color: var(--bad) }
+
+  button { font: inherit; font-size: 13px; font-weight: 600; padding: 7px 13px; border-radius: 8px;
+    border: 1px solid var(--line2); background: #fff; color: var(--ink); cursor: pointer }
+  button:hover:not(:disabled) { border-color: var(--acc); color: var(--acc) }
+  button:disabled { opacity: .45; cursor: default }
+  button.primario { background: var(--acc); border-color: var(--acc); color: #fff }
+  button.primario:hover:not(:disabled) { background: #0a5ba8; color: #fff }
+
+  /* ── flujos ── */
+  .flujos { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 20px }
+  @media (max-width: 900px) { .flujos { grid-template-columns: 1fr } }
+  .flujo { background: var(--panel); border: 1px solid var(--line); border-radius: 11px; overflow: hidden }
+  .flujo > h2 { margin: 0; padding: 13px 15px; font-size: 14px; border-bottom: 1px solid var(--line);
+    display: flex; align-items: center; gap: 9px }
+  .flujo > h2 .quien { font-size: 10.5px; text-transform: uppercase; letter-spacing: .5px;
+    padding: 2px 7px; border-radius: 5px; color: #fff }
+  .flujo.cliente > h2 .quien { background: var(--cli) }
+  .flujo.asesor > h2 .quien { background: var(--ase) }
+  .flujo > h2 button { margin-left: auto }
+  .flujo > p { margin: 0; padding: 11px 15px; font-size: 12.5px; color: var(--soft);
+    border-bottom: 1px solid var(--line); background: #fbfcfd }
+
+  .paso { border-bottom: 1px solid var(--line); padding: 12px 15px }
+  .paso:last-child { border-bottom: 0 }
+  .paso-hd { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap }
+  .n { font: 700 11px/1 ui-monospace, Menlo, monospace; color: var(--mut);
+    border: 1px solid var(--line2); border-radius: 5px; padding: 3px 5px }
+  .nodo { font-weight: 600; font-size: 13px }
+  .actor { font-size: 10.5px; text-transform: uppercase; letter-spacing: .4px; font-weight: 700 }
+  .actor.cli { color: var(--cli) } .actor.ase { color: var(--ase) }
+  .paso-hd button { margin-left: auto; padding: 4px 10px; font-size: 12px }
+  .llamada { margin: 7px 0 0; font: 12px/1.45 ui-monospace, Menlo, monospace; color: var(--soft);
+    background: var(--code); border-radius: 7px; padding: 7px 9px; overflow-x: auto; white-space: pre }
+  .met { font-weight: 700; color: var(--acc) }
+  .decide { margin: 7px 0 0; font-size: 12.5px; color: var(--soft) }
+  .decide b { color: var(--ink) }
+  .res { margin: 8px 0 0; font: 12px/1.45 ui-monospace, Menlo, monospace; border-radius: 7px;
+    padding: 7px 9px; overflow-x: auto; white-space: pre-wrap; word-break: break-word;
+    max-height: 190px; overflow-y: auto }
+  .res.ok { background: #eef8f1; border: 1px solid #bfe3cb; color: #0d5c30 }
+  .res.warn { background: #fff7e6; border: 1px solid #f0d69a; color: #6b4708 }
+  .res.bad { background: #fdeeec; border: 1px solid #f2c2bd; color: #8c1d16 }
+  .cod { display: inline-block; font-weight: 700; margin-right: 8px }
+
+  .estadoflujo { padding: 11px 15px; font-size: 12.5px; color: var(--mut); background: #fbfcfd }
+  .estadoflujo b { color: var(--ink) }
+
+  footer { margin-top: 26px; color: var(--mut); font-size: 12.5px; max-width: 80ch }
+  footer code { background: var(--code); padding: 1px 5px; border-radius: 4px; font-size: 12px }
+</style>
+
+<div class="wrap">
+<header>
+  <h1>Cómo n8n consume el canal de soporte</h1>
+  <div class="fecha">Prototipo del 20 de agosto de 2026 · CORE-258 · pega contra la API <b>local</b>, no simula respuestas</div>
+  <p>
+    Los otros dos prototipos de esta tarea muestran la <b>conversación</b> — lo que ve el cliente y lo que
+    ve el asesor. Éste muestra la otra mitad: <b>qué llamadas hace n8n, en qué orden, y qué decide con
+    cada respuesta</b>. Las respuestas son reales: salen del backend local, no de un guion. Si un paso
+    falla acá, falla de verdad.
+  </p>
+  <div class="aviso">
+    <b>El token no se guarda en este archivo.</b> Los prototipos se versionan en git, así que el token va
+    en el campo de abajo y queda en el <code>localStorage</code> de tu navegador. Si abrís esto en otra
+    máquina, lo pegás de nuevo.
+  </div>
+</header>
+
+<section class="cfg">
+  <h2>Contra qué pega</h2>
+  <div class="campos">
+    <div>
+      <label>URL base <em>· el backend local</em></label>
+      <input id="base" value="http://localhost/api/support">
+    </div>
+    <div>
+      <label>SUPPORT_BOT_TOKEN <em>· del .env local</em></label>
+      <input id="token" type="password" placeholder="pegalo acá">
+    </div>
+    <div>
+      <label>Cliente · wa <em>· como lo manda la plataforma</em></label>
+      <input id="waCli" value="whatsapp:+573099000002">
+    </div>
+    <div>
+      <label>Cliente · cédula</label>
+      <input id="docCli" value="1099887704">
+    </div>
+    <div>
+      <label>Cliente · id de solicitud</label>
+      <input id="ureq" value="464729">
+    </div>
+    <div>
+      <label>Asesor · wa</label>
+      <input id="waAse" value="whatsapp:+573001112233">
+    </div>
+    <div>
+      <label>Asesor · cédula</label>
+      <input id="docAse" value="">
+    </div>
+  </div>
+  <div class="cfg-pie">
+    <button id="probar" class="primario">Probar la conexión</button>
+    <span id="conex" class="estado">sin probar</span>
+  </div>
+</section>
+
+<div class="flujos">
+  <section class="flujo cliente" id="f-cli">
+    <h2><span class="quien">Autogestión</span> El cliente se maneja solo
+      <button data-run="cli">Correr el flujo</button></h2>
+    <p>Una sola conversación. El <b>número es el primer factor</b> y la cédula el segundo: n8n no elige
+      de quién es el crédito, lo decide el backend.</p>
+    <div id="pasos-cli"></div>
+    <div class="estadoflujo" id="estado-cli">Sin correr.</div>
+  </section>
+
+  <section class="flujo asesor" id="f-ase">
+    <h2><span class="quien">Asesor</span> El asesor pide, el cliente autoriza
+      <button data-run="ase">Correr el flujo</button></h2>
+    <p><b>Acá n8n sostiene DOS conversaciones</b> y las correlaciona por el id de la solicitud de cambio.
+      El asesor crea; el cliente autoriza, recibe el código y confirma.</p>
+    <div id="pasos-ase"></div>
+    <div class="estadoflujo" id="estado-ase">Sin correr.</div>
+  </section>
+</div>
+
+<footer>
+  <p><b>Lo que este prototipo NO hace:</b> no habla con WhatsApp. n8n de verdad recibe el webhook de la
+  plataforma, arma los menús y manda los mensajes; acá eso se da por hecho y sólo se ejercita la parte
+  que le toca al backend. Los textos de los menús están en los otros dos prototipos.</p>
+  <p><b>Por qué los códigos de error importan más que los 200:</b> cada uno es una rama distinta en n8n.
+  Un <code>409 SESSION_NOT_FOUND</code> es «volvé a identificarte», un <code>409 NOT_VERIFIED</code> es
+  «te falta el código», y un <code>404 CLIENT_NOT_FOUND</code> es el <b>mismo cuerpo</b> tanto si el
+  número no existe como si la cédula no coincide — a propósito, para que el canal no sirva de oráculo.
+  Si n8n los trata todos igual, el cliente queda en un callejón sin salida.</p>
+</footer>
+</div>
+
+<script>
+// ── estado ─────────────────────────────────────────────────────────────────────────────────────────
+// `ctx` es lo que n8n tendría que llevar entre nodos: no hay cookies ni sesión HTTP, así que la
+// correlación es explícita — el `wa` identifica la conversación y el id de la solicitud de cambio ata
+// la del asesor con la del cliente.
+const ctx = { changeRequestId: null, otpCli: null, otpAse: null };
+
+const $ = s => document.querySelector(s);
+const cfg = k => $('#' + k).value.trim();
+
+// El token va al localStorage y NUNCA al archivo: los artefactos se versionan.
+const TK = 'core258.support_bot_token';
+$('#token').value = localStorage.getItem(TK) || '';
+$('#token').addEventListener('change', e => localStorage.setItem(TK, e.target.value.trim()));
+
+async function llamar(metodo, ruta, cuerpo) {
+  const url = cfg('base').replace(/\/$/, '') + ruta;
+  const opts = {
+    method: metodo,
+    headers: { 'Accept': 'application/json', 'Authorization': 'Bearer ' + cfg('token') },
+  };
+  if (cuerpo) { opts.headers['Content-Type'] = 'application/json'; opts.body = JSON.stringify(cuerpo); }
+  try {
+    const r = await fetch(url, opts);
+    let j = null;
+    try { j = await r.json(); } catch { j = { _sinJson: await r.text() }; }
+    return { ok: r.ok, status: r.status, json: j };
+  } catch (e) {
+    // Un fetch que ni sale se distingue de un error del backend: casi siempre es que local está caído
+    // o que el navegador cortó por CORS. Decirlo evita buscar el problema en el lugar equivocado.
+    return { ok: false, status: 0, json: { _red: String(e) }, red: true };
+  }
+}
+
+// ── los dos flujos, declarados ─────────────────────────────────────────────────────────────────────
+// Cada paso es un NODO de n8n: el nombre, la llamada, y qué decide con la respuesta. La `decide` no es
+// documentación decorativa — es la especificación de las ramas que Filipo tiene que construir.
+const FLUJOS = {
+  cli: [
+    { nodo: 'Identificar por número', actor: 'cli',
+      met: 'GET', ruta: () => `/self/by-phone?wa=${encodeURIComponent(cfg('waCli'))}`,
+      decide: '<b>200</b> → saludar con el nombre y pedir la cédula. <b>404</b> → «no encontramos una cuenta con ese número», y cortar: sin cliente no hay nada más.' },
+
+    { nodo: 'Pedir el código', actor: 'cli',
+      met: 'POST', ruta: () => '/self/otp',
+      cuerpo: () => ({ wa: cfg('waCli'), document: cfg('docCli') }),
+      decide: '<b>200</b> → «te mandamos un código», mostrar <code>sent_to</code> y armar un temporizador con <code>expires_in_minutes</code>. <b>404</b> → mismo texto que arriba: el backend NO dice si falló el número o la cédula.' },
+
+    { nodo: 'Verificar el código', actor: 'cli',
+      met: 'POST', ruta: () => '/self/otp/verify',
+      cuerpo: () => ({ wa: cfg('waCli'), code: ctx.otpCli || codigoBypass(cfg('waCli')) }),
+      decide: '<b>200</b> → sesión verificada, seguir. <b>422 OTP_INVALID</b> → reintentar mostrando <code>attempts_left</code>; al llegar a 0 hay que volver a pedir el código, no insistir.' },
+
+    { nodo: '¿Se puede cambiar?', actor: 'cli',
+      met: 'GET', ruta: () => `/credits/${cfg('ureq')}/can-change?wa=${encodeURIComponent(cfg('waCli'))}`,
+      decide: '<b>can_change: true</b> → ofrecer el menú de fecha o plazo. <b>false</b> → leerle el <code>message</code> tal cual y cerrar; el <code>reason</code> es para el log, no para el cliente. <b>404</b> → ese crédito no es suyo (y responde igual que uno inexistente, a propósito).' },
+
+    { nodo: 'Opciones de fecha', actor: 'cli',
+      met: 'GET', ruta: () => `/credits/${cfg('ureq')}/payment-date-options?wa=${encodeURIComponent(cfg('waCli'))}`,
+      decide: 'Las opciones van como <b>LISTA</b> de WhatsApp, no como botones: son más de tres. El <code>label</code> ya viene listo para mostrar y el <code>value</code> es lo que se manda de vuelta.' },
+
+    { nodo: 'Opciones de plazo', actor: 'cli',
+      met: 'GET', ruta: () => `/credits/${cfg('ureq')}/fee-number-options?wa=${encodeURIComponent(cfg('waCli'))}`,
+      decide: 'Ojo <code>is_available</code>: una opción no disponible se muestra pero no se ofrece. Y <code>is_current</code> marca la actual — elegirla no es un cambio.' },
+  ],
+
+  ase: [
+    { nodo: 'Pedir código al asesor', actor: 'ase',
+      met: 'POST', ruta: () => '/advisor/otp',
+      cuerpo: () => ({ wa: cfg('waAse'), document: cfg('docAse') }),
+      decide: 'El código va al celular <b>del perfil del asesor</b>, nunca al número desde el que escribe: escribir desde un teléfono no prueba quién sos. <b>404</b> → no es asesor, o no tiene comercios asignados.' },
+
+    { nodo: 'Verificar al asesor', actor: 'ase',
+      met: 'POST', ruta: () => '/advisor/otp/verify',
+      cuerpo: () => ({ wa: cfg('waAse'), code: ctx.otpAse || codigoBypass(cfg('waAse')) }),
+      decide: '<b>200</b> → sesión de asesor. Ojo: una sesión de asesor NO sirve para las rutas del cliente — el backend responde <code>WRONG_ACTOR</code>.' },
+
+    { nodo: 'Buscar al cliente', actor: 'ase',
+      met: 'GET', ruta: () => `/clients?wa=${encodeURIComponent(cfg('waAse'))}&document=${encodeURIComponent(cfg('docCli'))}`,
+      decide: 'Sólo devuelve clientes de <b>sus</b> comercios. Uno que no le corresponde responde igual que uno inexistente, para que el buscador no sirva de oráculo de cédulas.' },
+
+    { nodo: 'Crear la solicitud de cambio', actor: 'ase',
+      met: 'POST', ruta: () => '/change-requests',
+      cuerpo: () => ({ wa: cfg('waAse'), document: cfg('docCli'), field: 'cell_phone',
+                       new_value: '3001234567' }),
+      guarda: r => { ctx.changeRequestId = r?.json?.data?.id ?? null; },
+      decide: '<b>Acá cambia de conversación.</b> El <code>id</code> que devuelve es lo único que ata las dos: n8n lo guarda y con él le escribe al cliente. Si el campo es del crédito, hace falta también <code>user_request_id</code>.' },
+
+    { nodo: 'El CLIENTE autoriza', actor: 'cli',
+      met: 'PATCH', ruta: () => `/change-requests/${ctx.changeRequestId}/authorize`,
+      cuerpo: () => ({ wa: cfg('waCli') }),
+      decide: 'Pide sesión de <b>cliente</b>, no de asesor — es el dueño del dato el que autoriza. Sin sesión verificada del cliente, esto es <code>409</code>: n8n tiene que haberlo identificado antes.' },
+
+    { nodo: 'Código al cliente', actor: 'cli',
+      met: 'POST', ruta: () => `/change-requests/${ctx.changeRequestId}/otp`,
+      cuerpo: () => ({ wa: cfg('waCli') }),
+      decide: 'Segundo factor sobre la autorización, no sobre la identidad: el cliente ya está identificado, esto prueba que <b>este cambio</b> lo aprobó él.' },
+
+    { nodo: 'El cliente confirma', actor: 'cli',
+      met: 'POST', ruta: () => `/change-requests/${ctx.changeRequestId}/confirm`,
+      cuerpo: () => ({ wa: cfg('waCli'), code: ctx.otpCli || codigoBypass(cfg('waCli')) }),
+      decide: '<b>Recién acá se escribe el dato.</b> Todo lo anterior no cambió nada. Si esto falla, el cambio queda pendiente y se puede reintentar sin volver a empezar.' },
+  ],
+};
+
+// En local/development, un teléfono de la lista de bypass tiene como código sus últimos 4 dígitos.
+// Se calcula acá para que el flujo corra sin que nadie lea un SMS; con un número que no esté en la
+// lista hay que pegar el código a mano (y por eso el campo existe).
+function codigoBypass(wa) {
+  const d = String(wa).replace(/\D/g, '');
+  return d.slice(-4);
+}
+
+// ── pintar y correr ────────────────────────────────────────────────────────────────────────────────
+function pintar(cual) {
+  const cont = $('#pasos-' + cual);
+  cont.innerHTML = '';
+  FLUJOS[cual].forEach((p, i) => {
+    const el = document.createElement('div');
+    el.className = 'paso';
+    el.id = `${cual}-${i}`;
+    el.innerHTML = `
+      <div class="paso-hd">
+        <span class="n">${i + 1}</span>
+        <span class="nodo">${p.nodo}</span>
+        <span class="actor ${p.actor}">${p.actor === 'cli' ? 'cliente' : 'asesor'}</span>
+        <button data-paso="${cual}:${i}">Correr</button>
+      </div>
+      <div class="llamada"><span class="met">${p.met}</span> ${p.ruta().replace(/</g, '&lt;')}${
+        p.cuerpo ? '\n' + JSON.stringify(p.cuerpo(), null, 1) : ''}</div>
+      <div class="decide">${p.decide}</div>
+      <div class="res" hidden></div>`;
+    cont.appendChild(el);
+  });
+}
+
+function clase(status) {
+  if (status === 0) return 'bad';
+  if (status >= 200 && status < 300) return 'ok';
+  if (status >= 500) return 'bad';
+  return 'warn';   // 4xx = respuesta de negocio, que casi siempre es una rama esperada
+}
+
+async function correrPaso(cual, i) {
+  const p = FLUJOS[cual][i];
+  const el = $(`#${cual}-${i}`);
+  const res = el.querySelector('.res');
+  res.hidden = false;
+  res.className = 'res';
+  res.textContent = '…';
+
+  // La llamada se re-arma en el momento: los pasos posteriores dependen de lo que dejó el anterior
+  // (el id de la solicitud de cambio), así que congelarla al pintar mostraría `null`.
+  const ruta = p.ruta();
+  el.querySelector('.llamada').innerHTML =
+    `<span class="met">${p.met}</span> ${ruta.replace(/</g, '&lt;')}${
+      p.cuerpo ? '\n' + JSON.stringify(p.cuerpo(), null, 1) : ''}`;
+
+  const r = await llamar(p.met, ruta, p.cuerpo ? p.cuerpo() : null);
+  if (p.guarda) p.guarda(r);
+
+  res.className = 'res ' + clase(r.status);
+  const etiqueta = r.red ? 'sin red' : 'HTTP ' + r.status;
+  res.innerHTML = `<span class="cod">${etiqueta}</span>` +
+    (r.red
+      ? 'El fetch no salió. Casi siempre es que el backend local está caído — probá la conexión arriba.'
+      : escapar(JSON.stringify(r.json, null, 1)));
+  return r;
+}
+
+const escapar = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;');
+
+async function correrFlujo(cual) {
+  const est = $('#estado-' + cual);
+  ctx.changeRequestId = null;
+  for (let i = 0; i < FLUJOS[cual].length; i++) {
+    est.innerHTML = `Corriendo el paso <b>${i + 1}</b> de ${FLUJOS[cual].length}…`;
+    const r = await correrPaso(cual, i);
+    // Se PARA en el primer paso que no dé 2xx. No es rigidez: los pasos dependen del anterior, y
+    // seguir sólo produciría una cascada de 409 que esconde cuál fue el problema real.
+    if (!r.ok) {
+      est.innerHTML = `Se detuvo en el paso <b>${i + 1}</b> (${FLUJOS[cual][i].nodo}) con <b>${
+        r.red ? 'un error de red' : 'HTTP ' + r.status}</b>. Los siguientes no se corrieron: dependen de éste.`;
+      return;
+    }
+  }
+  est.innerHTML = `<b>Los ${FLUJOS[cual].length} pasos respondieron 2xx.</b> El recorrido completo funciona contra local.`;
+}
+
+// ── enganches ──────────────────────────────────────────────────────────────────────────────────────
+document.addEventListener('click', async e => {
+  const uno = e.target.closest('[data-paso]');
+  if (uno) { const [c, i] = uno.dataset.paso.split(':'); await correrPaso(c, +i); return; }
+  const todo = e.target.closest('[data-run]');
+  if (todo) {
+    todo.disabled = true;
+    try { await correrFlujo(todo.dataset.run); } finally { todo.disabled = false; }
+  }
+});
+
+$('#probar').addEventListener('click', async () => {
+  const s = $('#conex');
+  s.className = 'estado'; s.textContent = 'probando…';
+  // Se prueba con una ruta REAL y sin parámetros: un 422 es la mejor noticia posible — significa que
+  // el token pasó y llegamos al controlador. Un 401 es token mal, un 503 es token sin configurar.
+  const r = await llamar('GET', '/clients');
+  if (r.red) { s.className = 'estado bad'; s.textContent = 'no hay respuesta — ¿está levantado el backend local?'; return; }
+  const cod = r.json?.errors?.error_code || '';
+  if (r.status === 422) { s.className = 'estado ok'; s.textContent = 'conectado y autenticado (422 = llegó al controlador)'; }
+  else if (r.status === 401) { s.className = 'estado bad'; s.textContent = '401 — el token no coincide con el del backend'; }
+  else if (r.status === 503) { s.className = 'estado bad'; s.textContent = '503 — el backend no tiene SUPPORT_BOT_TOKEN configurado'; }
+  else { s.className = 'estado'; s.textContent = `HTTP ${r.status} ${cod}`; }
+});
+
+pintar('cli');
+pintar('ase');
+</script>
