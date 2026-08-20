@@ -371,7 +371,14 @@ else
   : > /tmp/asesor-wizard.log
   # < /dev/null + nohup: react-router dev lee stdin; sin esto crashea al cerrarse el pipe. STREAM_TIMEOUT_MS:
   # el loader de /lenders (pre-aprobación sincrónica del MS por VPN) suele pasar de los 45s default → lo subimos.
-  ( cd "$WIZARD" && nohup env VITE_API_URL="$WIZ_API" VITE_ONBOARDING_FORM_SERVICE="$FORMS" VITE_FORM_SERVICE_BASE_URL="$FORMSVC" VITE_PREAPPROVALS_ENDPOINT="$PREAPPROVALS" CALLBACK_URL="http://localhost:5174/auth/callback" STREAM_TIMEOUT_MS="${E2E_STREAM_TIMEOUT_MS:-180000}" pnpm dev < /dev/null > /tmp/asesor-wizard.log 2>&1 & )
+  # ⚠ El `> /dev/null 2>&1` del SUBSHELL (afuera del paréntesis) no es cosmética: sin él, el subshell
+  # que lanza el wizard HEREDA el stdout/stderr de la corrida y queda vivo mientras Vite corra. Como
+  # `child.on('close')` de Node espera a que los streams cierren —no sólo a que el proceso muera—, el
+  # panel nunca se enteraba de que la corrida terminó: decía "corriendo" para siempre y se perdía el
+  # post-mortem de BD. Medido el 2026-08-19 con `sample`: el proceso colgado era el subshell (cwd =
+  # apps/loan-request-wizard), no el script, que ya había salido. El redirect de adentro sigue siendo
+  # para el LOG del wizard; este de afuera es para soltar el pipe de la corrida.
+  ( cd "$WIZARD" && nohup env VITE_API_URL="$WIZ_API" VITE_ONBOARDING_FORM_SERVICE="$FORMS" VITE_FORM_SERVICE_BASE_URL="$FORMSVC" VITE_PREAPPROVALS_ENDPOINT="$PREAPPROVALS" CALLBACK_URL="http://localhost:5174/auth/callback" STREAM_TIMEOUT_MS="${E2E_STREAM_TIMEOUT_MS:-180000}" pnpm dev < /dev/null > /tmp/asesor-wizard.log 2>&1 & ) > /dev/null 2>&1
   echo "    cold-boot del wizard (pnpm dev/Vite, puede tardar 1-3 min la 1ª vez)…"
   boot=0
   for i in $(seq 1 240); do
