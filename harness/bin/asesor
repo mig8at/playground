@@ -77,9 +77,13 @@ fi
 
 MERCHANT="${1:-pullman}"
 GUIDED=0; [ "${2:-}" = "auto" ] && GUIDED=1
+# PREBOOT: precalienta el wizard y sale, SIN correr el spec y SIN tocar la BD (ni assign ni scrub). Existe
+# porque el cold-boot de Vite se pagaba DENTRO de la corrida: 304s medidos el 2026-08-19 contra los ~11s
+# que tarda cuando ya está tibio. El panel lo dispara al abrirse; por terminal es `bin/asesor <x> preboot`.
+PREBOOT=0; [ "${2:-}" = "preboot" ] && PREBOOT=1
 # el comercio va PRIMERO: `auto` solo es el 2º arg. `bin/ecommerce auto` (sin comercio) es un error típico.
 [ "$MERCHANT" = "auto" ] && { echo "✗ el comercio va PRIMERO. Ej: bin/asesor pullman auto · bin/ecommerce pullman auto"; exit 1; }
-[ -n "${2:-}" ] && [ "${2:-}" != "auto" ] && { echo "✗ 2º arg inválido: '${2}'. Usá: bin/asesor <comercio> [auto [success|rejected|pending]]"; exit 1; }
+[ -n "${2:-}" ] && [ "${2:-}" != "auto" ] && [ "${2:-}" != "preboot" ] && { echo "✗ 2º arg inválido: '${2}'. Usá: bin/asesor <comercio> [auto [success|rejected|pending] | preboot]"; exit 1; }
 # 3er posicional (SOLO con `auto`): cómo RESUELVE el crédito → success (default) | rejected | pending.
 RESULT="${3:-success}"
 case "$RESULT" in success|rejected|pending) ;; *) echo "✗ status inválido: '$RESULT'. Usá: success | rejected | pending"; exit 1;; esac
@@ -163,7 +167,9 @@ export E2E_ASESOR_HASH="$HASH"
 
 # ── permiso al asesor (un asesor = un comercio); ecommerce entra por checkout, sin asesor ──
 step "load-permiso"
-if [ "$ECOMMERCE" = 1 ]; then
+if [ "$PREBOOT" = 1 ]; then
+  ok "load-permiso" "n/a (preboot: no se toca la BD)"
+elif [ "$ECOMMERCE" = 1 ]; then
   ok "load-permiso" "n/a (ecommerce, sin asesor)"
 else
   CUR="$(node bin/dbops.ts whois "$SUB" 2>/dev/null | json_pick '.matches[0].allied_branch_hash')"
@@ -190,8 +196,12 @@ fi
 
 # ── scrub del cliente: borra el usuario del teléfono → register fresco → /personal-info ──
 step "scrub-cliente"
+if [ "$PREBOOT" = 1 ]; then
+  ok "scrub-cliente" "n/a (preboot: no se toca la BD)"
+else
 DEL="$(I_KNOW_THIS_TOUCHES_SHARED_DEV=1 node bin/dbops.ts scrubphone "$BYPASS_PHONE" 2>/dev/null | json_pick '.users_deleted')"
 ok "scrub-cliente" "${DEL:-0} borrado(s) ($BYPASS_PHONE → temporal → personal-info)"
+fi
 
 # ── LO QUE HAY QUE TIPEAR, en una línea estable y machine-readable ────────────────────────────────
 # Nace de un fallo real (2026-08-19): la corrida murió en el OTP porque se tipeó un teléfono que NO era
@@ -199,12 +209,17 @@ ok "scrub-cliente" "${DEL:-0} borrado(s) ($BYPASS_PHONE → temporal → persona
 # el OTP ya calculado (el bypass hace que el código sean los ÚLTIMOS 4 del teléfono; la firma usa 6).
 # El prefijo `⌨ DATOS ` es CONTRATO con el panel, que lo parsea para armar los chips copiables: si lo
 # cambiás, actualizá `panel/index.html` (parseDatos). El resto de la línea es para leer en terminal.
-if [ "$ECOMMERCE" != 1 ]; then
+if [ "$ECOMMERCE" != 1 ] && [ "$PREBOOT" != 1 ]; then
   echo "⌨ DATOS  telefono=$BYPASS_PHONE otp=${BYPASS_PHONE: -4} otpfirma=${BYPASS_PHONE: -6} cedula=${E2E_SYNTH_DOC:-(auto)} email=${E2E_SYNTH_EMAIL:-(auto)}"
 fi
 
 # ── wizard local (Vite) → DEV: reusar si está arriba; reiniciar solo si apuntaba a otro backend ──
 step "frontend"
+if [ "$REMOTE_FRONT" = 1 ] && [ "$PREBOOT" = 1 ]; then
+  # front desplegado: no hay Vite que precalentar, y el preboot no tiene nada que hacer.
+  ok "frontend" "n/a (preboot con front del ambiente: ${WIZ_BASE} no se levanta acá)"
+  exit 0
+fi
 if [ "$REMOTE_FRONT" = 1 ]; then
   # front YA DESPLEGADO (staging): no se levanta Vite, no se toca el .env.local del wizard, y las
   # variables VITE_* no aplican — vienen del build remoto. Solo se comprueba que responda.
@@ -370,6 +385,18 @@ else
   # NO restaurar el .env.local acá (Vite hot-reloadearía sus valores fake y rompe el flujo). El trap EXIT lo restaura al final.
   ok "frontend" "arriba (:5174 → ${TARGET} · ${WIZ_API} · forms ${FORMS##*//} · boot ~${boot}s)"
 fi
+fi
+
+# ── PREBOOT: el wizard ya está tibio; salir sin correr el spec ────────────────────────────────────
+if [ "$PREBOOT" = 1 ]; then
+  # ⚠ NO restaurar `.env.local` del wizard: Vite lo hot-recargaría y el wizard que acabamos de
+  # precalentar quedaría apuntando a los valores de ese archivo — o sea, desarmado. Se deja aparcado
+  # en `.env.local.asesor-bak`, que es EXACTAMENTE lo que ya pasa cuando una corrida reusa el wizard
+  # (el trap sólo vive en la rama que bootea). La corrida real que venga lo reusa por el marcador.
+  MOVED=0
+  echo "✅ wizard precalentado (:5174 → ${TARGET} · ${WIZ_API}) — la próxima corrida lo reusa"
+  [ -f "$WIZARD/.env.local.asesor-bak" ] && echo "    (.env.local del wizard aparcado como .env.local.asesor-bak — lo restaura la corrida que reinicie el wizard)"
+  exit 0
 fi
 
 # ── correr el spec (dev/guided.spec.ts: GUIADO si E2E_GUIDED=1, MANUAL si 0) ──

@@ -2042,6 +2042,27 @@
         renderSdot(t, r.status || { status: r.ok ? 'valid' : 'invalid', detail: r.detail });
       } catch { renderSdot(t, { status: 'unreachable', detail: 'la autenticación falló' }); }
     }
+    // ── Precalentar el WIZARD (Vite) al abrir, igual que los tokens ───────────────────────────────────
+    // El cold-boot de Vite se pagaba DENTRO de la corrida: 304s medidos el 2026-08-19 contra los ~11s que
+    // tarda con el wizard tibio. Lo hace `bin/asesor <slug> preboot` (sin spec y sin tocar la BD): el panel
+    // no sabe armar el env del wizard y no debe aprenderlo — el launcher es el dueño de eso.
+    // Sólo con front LOCAL: con el desplegado no hay Vite que levantar.
+    let prebootDone = false;
+    async function preboot() {
+      if (prebootDone || corridaRunning || frontMode !== 'local') return;
+      prebootDone = true;
+      const s = $('sumry'), previo = s.innerHTML;
+      s.innerHTML = 'precalentando el wizard (Vite) — la corrida no va a esperar el cold-boot…';
+      try {
+        const r = await (await fetch('/api/preboot', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ target, slug: sel?.slug || 'pullman' }) })).json();
+        if (!r.ok) prebootDone = false;   // no quedó tibio → que lo reintente el próximo cambio de front
+        s.innerHTML = r.ok
+          ? `wizard listo (${r.reused ? 'ya estaba arriba' : r.detail}) — ` + previo
+          : previo;
+      } catch { prebootDone = false; s.innerHTML = previo; }
+      updateGo();
+    }
+
     // El dot ya NO se clickea (2026-08-19): era una perilla escondida — había que saber que el gris se
     // apretaba. Ahora el login vive donde está la intención: el botón de lanzar loguea solo si falta
     // sesión (con loader), y al abrir el panel se precalientan los tokens igual que siempre.
@@ -2056,6 +2077,7 @@
       for (const t of orden) {
         if (sessionState[t] === 'missing' || sessionState[t] === 'invalid') await warmSession(t);
       }
+      preboot();   // y con las sesiones listas, el wizard: es el otro costo que se pagaba en la corrida
     })();
 
     // ── Re-chequeo suave: dev/local van a verde SOLOS cuando levantás su stack (make ready) ──────────
@@ -2151,6 +2173,7 @@
     document.querySelectorAll('#frontmode button').forEach(b => b.onclick = () => {
       if (b.disabled) return;
       frontMode = b.dataset.v;
+      if (frontMode === 'local') preboot();   // recién ahora aplica: con el desplegado no hay Vite que levantar
       applyFrontMode();
     });
 

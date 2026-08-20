@@ -237,6 +237,7 @@ function frontDelAmbiente(target: string): Promise<string> {
 const sessionStatusCache = new Map<string, { at: number; data: any }>();
 const SESSION_STATUS_TTL = 60_000;   // el chequeo real es una request de red → no repetir en cada render
 let warming: string | null = null;   // target del pre-login en curso (uno a la vez, y no durante una corrida)
+let prebooting = false;              // precalentado del wizard en curso (uno a la vez)
 
 function sessionCheck(target: string): Promise<any> {
     return new Promise((ok) => {
@@ -835,6 +836,35 @@ const server = createServer(async (req, res) => {
         if (!existsSync(f)) { res.writeHead(404); return res.end(); }
         res.writeHead(200, { 'content-type': 'image/png', 'cache-control': 'private, max-age=300' });
         return res.end(readFileSync(f));
+    }
+
+    // Precalienta el wizard local (Vite) sin correr el spec ni tocar la BD: `bin/asesor <slug> preboot`.
+    // Existe porque el cold-boot se pagaba DENTRO de la corrida (304s medidos el 2026-08-19 contra ~11s
+    // con el wizard tibio). NO escribe en RUN_LOG: no es una corrida, y ensuciaría la consola de la
+    // última. Uno a la vez, y nunca durante una corrida (reiniciaría el :5174 que la corrida usa).
+    if (path === '/api/preboot' && req.method === 'POST') {
+        const b = await readBody(req);
+        const t = TARGETS.has(String(b.target)) ? String(b.target) : 'local';
+        if (current && !current.done) return json(res, 200, { ok: false, detail: 'hay una corrida activa' });
+        if (prebooting) return json(res, 200, { ok: false, detail: 'ya se está precalentando' });
+        prebooting = true;
+        const slug = String(b.slug || 'pullman');
+        const child = spawn('/bin/bash', [join(ROOT, 'bin', 'asesor'), slug, 'preboot'],
+            { cwd: ROOT, env: { ...envFor(t), CFE_FRONT: 'local' }, detached: true });
+        let out = '';
+        child.stdout?.on('data', (d: Buffer) => { out += d.toString(); });
+        child.stderr?.on('data', (d: Buffer) => { out += d.toString(); });
+        return new Promise((resolve) => {
+            child.on('close', (code) => {
+                prebooting = false;
+                const reused = /reusado/.test(out);
+                const boot = out.match(/boot ~(\d+)s/)?.[1];
+                json(res, 200, code === 0
+                    ? { ok: true, reused, boot: boot ? Number(boot) : null, detail: reused ? 'ya estaba arriba' : `compiló en ~${boot ?? '?'}s` }
+                    : { ok: false, detail: out.trim().split('\n').slice(-1)[0] || `salió con código ${code}` });
+                resolve(undefined);
+            });
+        });
     }
 
     if (path === '/api/status') {
