@@ -26,12 +26,14 @@ de `legacy-backend`, mergeado a `develop` (PR #1128) y `staging` (PR #1095).
 
 **Dónde está de verdad (2026-08-20):** el código está desplegado en dev y el API Gateway ya expone las
 16 rutas — las dos mitades del bloqueo de infra que faltaban. Verificado pegándole al gateway público.
-Pero **el canal sigue devolviendo 503**: falta la tercera pieza, que es setear la variable de entorno
-`SUPPORT_BOT_TOKEN` en el backend de dev. Sin eso el middleware falla cerrado y ni mira el token.
+Pero **el canal sigue devolviendo 503**, y la causa quedó localizada: el secreto
+`SUPPORT_BOT_TOKEN` **ya está** en `dev/legacy-backend`, pero la task definition que corre es de hace
+15 días y no lo enumera. Terraform lee las claves del secreto en tiempo de plan, así que la clave nueva
+no llega al contenedor hasta que se vuelva a aplicar.
 
-**El próximo paso es:** que infra setee `SUPPORT_BOT_TOKEN` en el backend de dev (ver «Lo que está
-bloqueado»). Con eso el mismo GET que hoy da 503 debería dar 200/404-de-negocio, y recién ahí se puede
-probar un flujo real con el equipo del bot.
+**El próximo paso es:** pedirle a infra que aplique `environments/dev/ecs-application` y redesplegue el
+servicio `legacy-backend` del cluster `creditop-develop`. Con eso el mismo GET que hoy da 503 debería
+responder, y recién ahí se puede probar un flujo real con el equipo del bot.
 
 **Lo que ya NO hay que investigar:** el gateway (hecho, 16 rutas, prefijo `/legacy-api/support/*`, host
 `legacy-backend.develop.internal.creditop.com`), que el módulo esté desplegado (lo está: responde 503,
@@ -215,11 +217,29 @@ De los tres puntos, **dos ya están hechos** y queda uno:
 > `curl -s https://api.dev.creditop.com/legacy-api/support/clients -H "Authorization: Bearer <token>"`
 > `# 503; ruta inventada → 404, así que el 503 viene del backend, no del gateway`
 
-1. ⛔ **`SUPPORT_BOT_TOKEN` — SIGUE SIN SETEAR en dev.** Es el único bloqueo que queda. El middleware
-   compara `config('services.support_bot.token') === ''` ANTES de mirar el token que llega, así que
-   mientras esté vacía las 16 rutas dan 503 pase lo que pase. El token que circuló (64 hex, forma
-   correcta) no puede autenticar contra una variable vacía del otro lado. **Acción: infra la setea en
-   el backend de dev.**
+1. ⛔ **`SUPPORT_BOT_TOKEN` — el secreto está, la TASK DEFINITION quedó vieja.** Es el único bloqueo
+   que queda, y la causa está medida contra AWS, no supuesta:
+
+   > **MEDICIÓN · 2026-08-20** — el secreto `dev/legacy-backend` tiene 164 claves, incluida
+   > `SUPPORT_BOT_TOKEN` (64 hex, correcta). La task definition `legacy-backend-develop:199` enumera
+   > **163**. La diferencia es exactamente 1: la que se agregó.
+   > `aws ecs describe-task-definition --task-definition legacy-backend-develop --query 'taskDefinition.containerDefinitions[].secrets[].name'`
+
+   **Por qué agregar la clave al secreto NO alcanza.** El módulo de Terraform arma la lista de secretos
+   iterando las claves del JSON (`modules/ecs-application/task-definition.tf`, local
+   `service_secret_values`), pero la lee con un **data source, en tiempo de plan**. Así que la clave
+   nueva sólo entra a la task definition cuando alguien vuelve a aplicar Terraform. La revisión 199 se
+   registró el **2026-08-05** y el servicio sigue corriendo esa misma revisión: no se aplicó ni se
+   redesplegó desde entonces.
+
+   **Acción para infra, en dos pasos:** aplicar `environments/dev/ecs-application` (registra una
+   revisión nueva con la entrada 164) y redesplegar el servicio `legacy-backend` del cluster
+   `creditop-develop`. Con eso la variable llega al contenedor.
+
+   ✅ **Y NO hace falta tocar el cableado ni limpiar caches:** el servicio ya declara
+   `secret = "dev/legacy-backend"` (el lugar correcto), y `config:cache` no corre en el build ni en el
+   arranque —se verificó en `Dockerfile`, workflows y `bootstrap/cache/`—, así que no hay una segunda
+   pared esperando después del apply.
 2. ✅ **Gateway — HECHO.** Repo `infrastructure`, commit `67df336`, mergeado a `develop` (PR #65). Las
    **16 rutas** están expuestas una por una (no por comodín) bajo el prefijo **`/legacy-api/support/*`**
    → reescritas a `/api/support/*` contra el host `legacy-backend.develop.internal.creditop.com`, sin
@@ -1362,6 +1382,21 @@ castigo pega sobre el número que también se usa para cobrar.
 
 <!-- append-only, lo nuevo arriba. (Esta tarea no tenía sección de registro; se agrega siguiendo
      PLANTILLA-TAREA.md. Lo de arriba es el ESTADO, que se reescribe; esto es qué pasó cada día.) -->
+
+### 2026-08-20 (2) — la causa del 503: la task definition, no el secreto
+
+Miguel había agregado `SUPPORT_BOT_TOKEN` al secreto `dev/legacy-backend` en la consola de AWS, así que
+el 503 no cerraba. Midiendo contra AWS: el secreto tiene **164 claves** y la task definition en uso
+(`legacy-backend-develop:199`, del 2026-08-05) enumera **163** — falta exactamente la que se agregó.
+
+El módulo de Terraform sí auto-enumera las claves del secreto, pero con un **data source en tiempo de
+plan**: agregar la clave en la consola no cambia nada hasta que se aplique. El servicio además sigue
+corriendo la revisión 199, o sea que tampoco se redesplegó.
+
+Se descartaron dos causas alternativas antes de pedir el apply, para no perder otra vuelta: el servicio
+**sí** declara `secret = "dev/legacy-backend"` (cableado correcto), y **no** hay `config:cache` en el
+build ni en el arranque (`Dockerfile`, workflows y `bootstrap/cache/` revisados) — así que después del
+apply no hay una segunda pared.
 
 ### 2026-08-20 — validación contra dev: el gateway está, la variable no
 
