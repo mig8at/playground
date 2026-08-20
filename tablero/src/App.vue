@@ -150,6 +150,20 @@ async function runImport() {
 // listado agrupado por esfuerzo; las sin asignar van al final. El encabezado del grupo solo aparece si
 // hay al menos un esfuerzo en juego (si no, el listado va plano como antes).
 const groupedIssues = computed(() => {
+  // VISTA ANCHA: se agrupa por SPRINT en vez de por esfuerzo, y se reusa EXACTAMENTE la misma grilla y
+  // la misma tarjeta. Tener dos markups de tarjeta —uno por vista— es como empiezan a derivar: se
+  // arregla algo en una y la otra queda vieja. Acá lo único que cambia es de qué se agrupa.
+  if (vistaAncha.value) {
+    // UN solo grupo, sin encabezados: las tarjetas van sueltas y la grilla las reparte por el ancho.
+    // El sprint no se pierde — viaja como chip EN cada tarjeta (`_sprint`), que es donde se lee sin
+    // partir la grilla en bloques. Agrupar por sprint obligaba a un salto de línea por grupo y
+    // desperdiciaba justo el ancho que esta vista viene a ganar.
+    const todas = [];
+    for (const g of porSprint.value) {
+      for (const i of g.issues) todas.push({ ...i, _sprint: g.sprint.name.replace(/^.*?(Sprint)/i, '$1') });
+    }
+    return [{ id: 0, title: '', tasks: todas }];
+  }
   // `issues` ya viene ordenado nuevo → viejo desde el server; acá se PRESERVA ese orden en los dos
   // niveles: dentro de cada grupo, y entre grupos (manda el grupo cuya tarea más nueva aparece antes).
   // Las sin esfuerzo van al final, para que lo agrupado se lea primero.
@@ -168,7 +182,9 @@ const groupedIssues = computed(() => {
   if (byEffort.has(0)) groups.push({ id: 0, title: 'Sin esfuerzo', tasks: byEffort.get(0) });
   return groups;
 });
-const showGroups = computed(() => groupedIssues.value.some(g => g.id !== 0));
+// En la vista ancha NO hay encabezados: las tarjetas van sueltas (el sprint se lee en el chip de cada
+// una). Un encabezado por grupo cortaba la grilla en bloques y desperdiciaba el ancho que se vino a ganar.
+const showGroups = computed(() => !vistaAncha.value && groupedIssues.value.some(g => g.id !== 0));
 // El MÉTODO de trabajo, explícito: primero se evalúa, después se trabaja, y las tareas de Jira se
 // escriben AL FINAL — recién ahí hay contexto completo para definirlas bien.
 const STAGES = [
@@ -289,6 +305,39 @@ const logTime = computed(() => ofSprint.value.reduce((n, e) => n + e.min, 0));
 // arrancó), así que un sprint puede no haber empezado: "5 días restantes" sobre algo que aún no empieza
 // sería mentira. Tres casos: por arrancar · en curso · cerrado.
 const sprintTabs = computed(() => (sprints.value || []).slice(0, SPRINT_TABS));
+
+// ── VISTA «últimos 4 sprints»: todas MIS tareas de la ventana, a lo ancho ────────────────────────
+// El tablero mira UN sprint porque su trabajo diario es ese. Pero para ver de dónde viene algo —o qué
+// quedó a medias hace tres sprints— hace falta la ventana entera. Es otra VISTA, no otro filtro: cambia
+// el ancho de la página (el `.wrap` de 1180px es para leer una columna de tarjetas, no cuatro).
+//
+// Los issues salen del MISMO endpoint del sprint, que ya filtra `assignee = currentUser()` en Jira: no
+// hay un segundo criterio de "mío" que pueda derivar del primero.
+const vistaAncha = ref(false);
+const cargandoAncha = ref(false);
+const porSprint = ref([]);   // [{ sprint, issues }] en el orden de las pestañas
+
+async function cargarUltimos4() {
+  cargandoAncha.value = true;
+  try {
+    // En PARALELO: son 4 llamadas a Jira y en serie se notaba la espera.
+    const res = await Promise.all(sprintTabs.value.map(async (s) => {
+      try {
+        const j = await (await fetch(`${SERVER}/api/sprint?board=${BOARD}&id=${s.id}`)).json();
+        return { sprint: s, issues: j.error ? [] : (j.issues || []) };
+      } catch { return { sprint: s, issues: [] }; }
+    }));
+    porSprint.value = res;
+  } finally { cargandoAncha.value = false; }
+}
+
+// Total de tarjetas visibles: va en el encabezado porque "4 sprints" no dice cuánto trabajo es.
+const totalAncha = computed(() => porSprint.value.reduce((n, g) => n + g.issues.length, 0));
+
+async function alternarVista() {
+  vistaAncha.value = !vistaAncha.value;
+  if (vistaAncha.value && !porSprint.value.length) await cargarUltimos4();
+}
 
 const sprintDays = computed(() => {
   const s = sprint.value;
@@ -692,7 +741,7 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div class="wrap">
+  <div class="wrap" :class="{ ancha: vistaAncha }">
     <header>
       <div class="logo">T</div>
       <div>
@@ -709,6 +758,10 @@ onMounted(async () => {
             <i v-if="s.state === 'active'" class="live" title="sprint activo"></i>
           </button>
         </div>
+        <button class="tact vista" :class="{ act: vistaAncha }" @click="alternarVista"
+          :title="vistaAncha ? 'volver al sprint' : 'ver mis tareas de los últimos 4 sprints, a lo ancho'">
+          {{ vistaAncha ? '← el sprint' : `últimos ${sprintTabs.length} sprints` }}
+        </button>
         <span v-if="sprintDays?.state === 'upcoming'" class="chip">arranca en {{ sprintDays.startsIn }} día{{ sprintDays.startsIn === 1 ? '' : 's' }}</span>
         <span v-else-if="sprintDays?.state === 'closed'" class="chip warn">cerrado hace {{ sprintDays.endedAgo }} día{{ sprintDays.endedAgo === 1 ? '' : 's' }}</span>
         <span v-else-if="sprintDays?.state === 'ongoing'" class="chip chip-bar">{{ sprintDays.remaining }} días restantes<i class="mini"><b :style="{ width: sprintDays.pct + '%' }"></b></i></span>
@@ -820,7 +873,11 @@ onMounted(async () => {
            del asistente por la API. La única excepción es el handoff a QA — mover la tarjeta y avisarle
            a quien prueba es un mismo acto, y partirlo en dos es lo que hace que el aviso se olvide. -->
       <section class="card">
-        <h2>Mis tareas</h2>
+        <h2>
+          {{ vistaAncha ? `Mis tareas · últimos ${porSprint.length} sprints` : 'Mis tareas' }}
+          <span v-if="vistaAncha && !cargandoAncha" class="cnt">{{ totalAncha }}</span>
+        </h2>
+        <p v-if="vistaAncha && cargandoAncha" class="empty">trayendo los sprints…</p>
         <template v-for="g in groupedIssues" :key="g.id">
           <div v-if="showGroups" class="grp" :class="{ none: !g.id }">
             {{ g.title }}
@@ -836,6 +893,8 @@ onMounted(async () => {
                   @click.stop :title="`Abrir ${i.Key} en Jira`">{{ i.Key }} <span class="ext">↗</span></a>
                 <span v-else class="key">{{ i.Key }}</span>
                 <span class="status" :class="statusClass(i.StatusCategory)">{{ i.Status }}</span>
+                <!-- de qué sprint es. Sólo en la vista ancha: en la del sprint sería repetir el título. -->
+                <span v-if="i._sprint" class="spchip" :title="`del ${i._sprint}`">{{ i._sprint }}</span>
               </div>
               <div class="tt">{{ i.Summary }}</div>
 
@@ -1148,6 +1207,12 @@ onMounted(async () => {
 
 <style scoped>
 .wrap { max-width: 1180px; margin: 0 auto; padding: 26px 22px 60px }
+/* Vista ancha: la página se suelta. Los 1180px son para leer UNA columna de tarjetas; con cuatro sprints
+   a la vez lo que se quiere es abarcar, y la grilla ya es `auto-fill` — sólo hay que dejarla crecer. */
+.wrap.ancha { max-width: none }
+/* De qué sprint es la tarjeta. Va en la línea de la clave, chiquito: es contexto, no el dato principal. */
+.spchip { margin-left: auto; font-size: 10.5px; color: var(--mut); border: 1px solid var(--line);
+  border-radius: 5px; padding: 1px 5px; white-space: nowrap }
 header { display: flex; align-items: center; gap: 14px; margin-bottom: 22px; flex-wrap: wrap; row-gap: 10px }
 .logo { width: 38px; height: 38px; border-radius: 11px; display: grid; place-items: center; font-weight: 800;
   color: #0b0713; font-size: 19px; background: linear-gradient(135deg, #a78bfa, #60a5fa) }
