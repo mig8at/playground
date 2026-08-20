@@ -1424,6 +1424,57 @@ castigo pega sobre el número que también se usa para cobrar.
 <!-- append-only, lo nuevo arriba. (Esta tarea no tenía sección de registro; se agrega siguiendo
      PLANTILLA-TAREA.md. Lo de arriba es el ESTADO, que se reescribe; esto es qué pasó cada día.) -->
 
+### 2026-08-20 (21) — MERGEADO y probado en DEV · y ahí apareció por qué nunca se ven plazos
+
+PR **#1166** mergeado a `develop` (22:31 UTC) y desplegado. Probado contra el **gateway público de dev**
+(`api.dev.creditop.com/legacy-api/support/*`), o sea el camino real que va a usar n8n.
+
+**Cómo se probó sin mandarle un SMS a nadie:** se buscó un cliente cuyo teléfono esté en
+`settings.qa_otp_bypass_phones` **y** tenga crédito activo rt=2. En dev hay dos; el bueno es el **QA
+1827797** (`3109000004`, doc `37670195`), porque su crédito 465094 tiene `next_payment_amount = 0`. Con
+el bypass el proveedor no se llama y el código es los últimos 4 dígitos (`0004`).
+
+> **MEDICIÓN · 2026-08-20 (dev, gateway público)**
+> `by-phone` 200 (QA) · `self/otp` 200 · `verify` 200 con **`operable_credits` descrito** —o sea que el
+> deploy trae el código nuevo— `465094 · Amoblando Pullman · CrediPullman · 2026-09-28 · cuota
+> $106.410` · `can-change` **true** · `payment-date-options` → **05/10 y 16/10** ·
+> `change-payment-date` → **aplicado**: fila 252121 cerrada (`status 0`) y **252122** activa con
+> `2026-10-05`, más `creditop_x_changes_log #37` con **`otp_id = 297032`**, real.
+>
+> **Las dos guardas, contra dev:** el crédito 465095 —del MISMO cliente pero **sin lender**— da 422
+> `CREDIT_NOT_SERVICED_BY_US` en vez del 500 que daba antes al simular plazos; y el 223999, que es de
+> otra persona, da 404 `CREDIT_NOT_FOUND` sin confirmar que existe.
+>
+> Y el rechazo de negocio funciona: los dos créditos del otro cliente (45871) dan
+> `HAS_PENDING_PAYMENT`, porque la regla real es **`next_payment_amount > 0`** («tenés una cuota por
+> pagar»), no la mora — `days_past_due` de uno de ellos es 0 y aun así rechaza, con razón.
+
+**🔴 Y ACÁ EL HALLAZGO NUEVO, que no es de esta tarea pero la bloquea a medias: el cambio de PLAZO no se
+puede ofrecer a los clientes de la MEJOR categoría.**
+
+`fee-number-options` devolvía `[]` con `can_change: true`. No es falta de datos: la línea de crédito del
+lender ofrece `1,3,6,12`, el crédito va en la cuota 1 y su plazo es 12. El filtro por categoría es
+
+    $possibleFeeNumbers = array_filter($possibleFeeNumbers,
+        fn ($feeNum) => $feeNum <= $category->max_fee_number);
+
+y la categoría de ese cliente (`users_category_log` → **12 «Premium»**) tiene **`max_fee_number = NULL`**,
+o sea *sin tope*. Pero en PHP `3 <= null` es **false** —el null se convierte en 0— así que «sin tope» se
+comporta como «tope 0» y **se filtran TODOS los plazos**. Comprobado: `php -r 'var_dump(3 <= null);'` →
+`false`.
+
+El efecto está al revés de lo que quiere el negocio: «Segunda oportunidad» (tope 6) sí podría cambiar a 3
+o 6 cuotas, y «Premium» —sin tope— no puede cambiar a ninguno. **En dev, 58 de 144 categorías tienen el
+tope en NULL.**
+
+⚠ Es código de `Modules/Loans` **compartido con la app móvil**, así que el mismo agujero está en el cambio
+de plazo de la app, no sólo en el canal. El arreglo es una línea (`$category->max_fee_number === null ||
+$feeNum <= $category->max_fee_number`), pero **no se toca acá**: cambia el comportamiento de la app para
+58 categorías y eso lo decide producto. Queda como tarea aparte.
+
+Por eso el camino del plazo quedó validado **en local** (crédito 412224, con categoría que sí tiene tope)
+y **no** en dev: en dev no hay un crédito rt=2 con `next_payment_amount = 0` cuya categoría tenga tope.
+
 ### 2026-08-20 (20) — la pregunta «¿ya se puede subir?», contestada midiendo: dos huecos y un bug propio
 
 Miguel preguntó si se puede subir la rama. En vez de contestar de memoria se buscaron los agujeros, y
