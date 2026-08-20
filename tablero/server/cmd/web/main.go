@@ -156,6 +156,8 @@ type app struct {
 
 	qaEmail       string // email de quien valida: recibe el DM cuando la tarea pasa a pruebas
 	testingStatus string // subcadena del estado "listo para probar"; en CORE es "🧪 En pruebas"
+
+	dataDir string // raíz de `data/`: de ahí sale el snapshot de ramas (data/cache/ramas.json)
 }
 
 func main() {
@@ -196,6 +198,7 @@ func main() {
 		log.Fatalf("no se pudo abrir el directorio de datos: %v", err)
 	}
 	a.st = st
+	a.dataDir = dataDir
 
 	integrations := a.connectIntegrations()
 
@@ -317,6 +320,18 @@ func main() {
 		default:
 			w.WriteHeader(http.StatusMethodNotAllowed)
 		}
+	})
+
+	// RAMAS de las tareas: el SNAPSHOT que dejó `make tareas-ramas`, tal cual. No se mide acá a
+	// propósito — son varias invocaciones de git por repo y hacerlo en cada render haría lenta la
+	// card. Por eso viaja con `medidoEn`: la card muestra la antigüedad y el humano decide si re-medir.
+	// Si no hay snapshot devuelve vacío, que no es un error: no haber medido todavía es normal.
+	mux.HandleFunc("/api/ramas", func(w http.ResponseWriter, r *http.Request) {
+		cors(w)
+		if r.Method == http.MethodOptions {
+			return
+		}
+		json.NewEncoder(w).Encode(store.LeerSnapshotRamas(filepath.Join(a.dataDir, "cache")))
 	})
 
 	// esfuerzos privados (agrupan tareas). GET lista · POST crea {title}. El título es privado → sin guard.

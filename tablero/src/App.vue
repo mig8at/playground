@@ -138,7 +138,8 @@ async function runImport() {
     if (j.error) { inboxError.value = j.error; return; }
     // Los tres estados que cambiaron: las tareas locales (hay archivos nuevos), los vínculos (el
     // listado del sprint se agrupa con ellos) y el cruce (lo traído ya no está pendiente).
-    await loadEfforts(); await loadTaskLocals(); await loadInbox();
+    await loadEfforts();
+  cargarRamas();   // el snapshot de ramas: sin él el botón «Ramas» simplemente no aparece await loadTaskLocals(); await loadInbox();
     // El resultado se pone DESPUÉS del refresco: loadInbox() lo limpia al arrancar —para que una
     // búsqueda nueva no muestre el resultado de la anterior— y ponerlo antes lo borraba justo acá,
     // dejando la importación sin decir qué archivo tocó.
@@ -188,7 +189,51 @@ const protosAbiertos = ref(false);
 function verProtos(i) {
   if (protosAbiertos.value && active.value?.Key === i.Key) { protosAbiertos.value = false; return; }
   active.value = i; protosAbiertos.value = true; bitacoraAbierta.value = false; hallazgosAbiertos.value = false;
+  ramasAbiertas.value = false;
 }
+
+// ── RAMAS: en qué ramas vive la tarea y hasta dónde llegó cada una ──────────────────────────────
+// No se miden acá: el snapshot lo deja `make tareas-ramas` (varias invocaciones de git por repo, hacerlo
+// en cada render haría lenta la card). Por eso viene con `medidoEn` y la card muestra la antigüedad: un
+// estado de git sin fecha se lee como actual y no lo es.
+const ramasSnap = ref({ medidoEn: '', tareas: {} });
+async function cargarRamas() {
+  try { ramasSnap.value = await (await fetch(`${SERVER}/api/ramas`)).json() || { tareas: {} }; }
+  catch { /* sin snapshot todavía: la card lo dice, no es un error */ }
+}
+// Las ramas cuelgan del ESFUERZO (por id), pero se piden desde la tarjeta de una TAREA — mismo camino
+// que la bitácora y los prototipos.
+const ramasDe = (key) => {
+  const eid = taskLocals.value[key]?.effortId || 0;
+  return (ramasSnap.value.tareas || {})[String(eid)] || null;
+};
+const ramasCuenta = (key) => (ramasDe(key)?.ramas || []).length;
+// Los ambientes que aparecen en la medición, en orden de menor a mayor riesgo. Se derivan del dato y no
+// se fijan acá: un repo puede no tener `staging`, y listarlo vacío diría "no está mergeado" cuando la
+// verdad es "esa rama no existe en ese repo".
+const AMB_ORDEN = ['develop', 'staging', 'qa', 'main'];
+const ambientesDe = (key) => {
+  const vistos = new Set();
+  for (const r of ramasDe(key)?.ramas || []) for (const a of Object.keys(r.propios || {})) vistos.add(a);
+  return AMB_ORDEN.filter(a => vistos.has(a)).concat([...vistos].filter(a => !AMB_ORDEN.includes(a)).sort());
+};
+const ramasAbiertas = ref(false);
+function verRamas(i) {
+  if (ramasAbiertas.value && active.value?.Key === i.Key) { ramasAbiertas.value = false; return; }
+  active.value = i; ramasAbiertas.value = true;
+  protosAbiertos.value = false; bitacoraAbierta.value = false; hallazgosAbiertos.value = false;
+}
+// "hace cuánto se midió", que es la mitad del dato. Sin esto, una medición de la semana pasada se lee
+// como el estado de ahora.
+const haceCuanto = (iso) => {
+  if (!iso) return '';
+  const min = Math.round((Date.now() - new Date(iso).getTime()) / 60000);
+  if (min < 2) return 'recién';
+  if (min < 60) return `hace ${min} min`;
+  const h = Math.round(min / 60);
+  if (h < 24) return `hace ${h} h`;
+  return `hace ${Math.round(h / 24)} d`;
+};
 
 // ── derivados del sprint ────────────────────────────────────────────────────────────────────────
 const done = computed(() => issues.value.filter(i => i.StatusCategory === 'done').length);
@@ -316,7 +361,7 @@ const entriesPorTarea = computed(() => {
 // Abrir la bitácora DE una tarjeta: el cajón lee la tarea activa, así que primero se activa. Sin esto,
 // tocar "Bitácora" en una tarjeta abriría la bitácora de otra.
 // los dos cajones son excluyentes: abrir uno cierra el otro, o quedan montados los dos encima
-const verBitacora = (i) => { active.value = i; bitacoraAbierta.value = true; protosAbiertos.value = false; hallazgosAbiertos.value = false; };
+const verBitacora = (i) => { active.value = i; bitacoraAbierta.value = true; protosAbiertos.value = false; hallazgosAbiertos.value = false; ramasAbiertas.value = false; };
 
 // ── hallazgos: los hechos con fecha que la tarea declara en su cuerpo ──────────────────────────
 // Vienen del ESFUERZO, igual que los prototipos, y salen del texto: el server los recoge de los
@@ -329,7 +374,7 @@ const hallazgosDe = (key) => efforts.value.find(e => e.id === (taskLocals.value[
 const hallazgosAbiertos = ref(false);
 const verHallazgos = (i) => {
   if (hallazgosAbiertos.value && active.value?.Key === i.Key) { hallazgosAbiertos.value = false; return; }
-  active.value = i; hallazgosAbiertos.value = true; bitacoraAbierta.value = false; protosAbiertos.value = false;
+  active.value = i; hallazgosAbiertos.value = true; bitacoraAbierta.value = false; protosAbiertos.value = false; ramasAbiertas.value = false;
 };
 const diasDe = (fecha) => Math.floor((Date.now() - new Date(fecha + 'T12:00:00')) / 86400000);
 // Cuándo un hallazgo pide atención. Los umbrales son distintos a propósito: una medición aguanta un
@@ -354,7 +399,7 @@ const hallazgosPorTipo = (key) => TIPOS
 const bitacoraAbierta = ref(false);
 // Esc cierra. Va en `window` y no en el elemento: el cajón nace sin foco, así que un @keydown local sólo
 // respondería después de hacerle clic — que es justo cuando ya no hace falta el atajo.
-const cerrarConEsc = (e) => { if (e.key === 'Escape') { bitacoraAbierta.value = false; protosAbiertos.value = false; hallazgosAbiertos.value = false; } };
+const cerrarConEsc = (e) => { if (e.key === 'Escape') { bitacoraAbierta.value = false; protosAbiertos.value = false; hallazgosAbiertos.value = false; ramasAbiertas.value = false; } };
 onMounted(() => window.addEventListener('keydown', cerrarConEsc));
 onUnmounted(() => window.removeEventListener('keydown', cerrarConEsc));
 const when = (d) => new Date(d).toLocaleString('es-CO', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
@@ -831,6 +876,12 @@ onMounted(async () => {
                   @click="verProtos(i)">
                   Prototipos<span class="cnt">{{ protosDe(i.Key).length }}</span>
                 </button>
+                <!-- en qué ramas vive la tarea. Sólo si hay medición para ella: sin snapshot el botón no
+                     aparece, en vez de abrir un cajón vacío que parece un error. -->
+                <button v-if="ramasCuenta(i.Key)" class="tact" :class="{ act: ramasAbiertas && active?.Key === i.Key }"
+                  @click="verRamas(i)">
+                  Ramas<span class="cnt">{{ ramasCuenta(i.Key) }}</span>
+                </button>
                 <!-- los hechos con fecha que declara el cuerpo. El punto rojo avisa que alguno venció
                      sin abrir el cajón: es lo que hace que una pregunta de hace 10 días se note. -->
                 <button v-if="hallazgosDe(i.Key).length" class="tact" :class="{ act: hallazgosAbiertos && active?.Key === i.Key }"
@@ -985,6 +1036,51 @@ onMounted(async () => {
               <pre v-if="a.como" class="hcomo">{{ a.como }}</pre>
             </article>
           </section>
+        </div>
+      </aside>
+    </div>
+
+    <!-- RAMAS: cajón propio. Comparte el estilo del de prototipos (misma familia) pero con su propio
+         wrapper: meterlo adentro del de prototipos lo dejaba invisible, porque manda el `v-if` del padre. -->
+    <div v-if="ramasAbiertas" class="drawer">
+      <div class="drawer-bg" @click="ramasAbiertas = false"></div>
+      <aside class="drawer-p">
+        <header class="drawer-h">
+          <div>
+            <h3>Ramas</h3>
+            <p v-if="active">de {{ active.Key }} · patrón <code>{{ ramasDe(active.Key)?.patron }}</code>
+              · medido {{ haceCuanto(ramasSnap.medidoEn) }}</p>
+          </div>
+          <button class="drawer-x" title="Cerrar (Esc)" @click="ramasAbiertas = false">✕</button>
+        </header>
+        <div class="drawer-b">
+          <p class="empty">Medido por <b>patch-id</b>: un cambio que llegó por squash cuenta como
+            mergeado aunque la rama ya no exista. Se lee lo que el último <code>git fetch</code> dejó —
+            para refrescar: <code>make tareas-ramas</code>.</p>
+          <div class="tabla-wrap">
+            <table class="ramas">
+              <thead>
+                <tr>
+                  <th>repo</th><th>rama</th>
+                  <th v-for="a in ambientesDe(active?.Key)" :key="a">{{ a }}</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="r in ramasDe(active?.Key)?.ramas || []" :key="r.repo + r.rama">
+                  <td>{{ r.repo }}</td>
+                  <td><code :title="r.asunto">{{ r.rama }}</code> <span class="sha">{{ r.commit }}</span></td>
+                  <!-- tres estados, no dos: `—` es "ese ambiente no existe en este repo", que no es lo
+                       mismo que "no está mergeado". Confundirlos fue lo que hizo creer que faltaba
+                       desplegar algo en un repo que no tiene ese ambiente. -->
+                  <td v-for="a in ambientesDe(active?.Key)" :key="a" class="amb">
+                    <span v-if="!(a in (r.propios || {}))" class="na" title="ese ambiente no existe en este repo">—</span>
+                    <span v-else-if="r.en?.[a]" class="si" title="el cambio ya está acá">✓</span>
+                    <span v-else class="no" title="el cambio todavía no está acá">·</span>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
         </div>
       </aside>
     </div>
