@@ -125,6 +125,11 @@
   .realestado { font-size: 12px; color: #94a3b8 }
   .realestado.ok { color: #0f7b3f } .realestado.bad { color: #b3261e }
   .realnota { flex: 1 1 100%; margin: 4px 0 0; font-size: 11.5px; color: #94a3b8; line-height: 1.5 }
+
+  /* Aviso de límite de WhatsApp: va pegado al globo, en rojo, para que no se pueda ignorar. */
+  .wa-mal { margin-top: 7px; padding: 6px 8px; border-radius: 6px; background: #fdeeec;
+    border: 1px solid #f2c2bd; color: #8c1d16; font-size: 10.5px; line-height: 1.45;
+    font-family: ui-monospace, Menlo, monospace }
   .trace li.viva .m { background: #0f7b3f }
   .trace li.viva .note { color: #0f7b3f }
   .trace li.murio .m { background: #b3261e }
@@ -1546,6 +1551,63 @@
   const now = () => { const d = new Date(); return `${d.getHours()}:${String(d.getMinutes()).padStart(2, "0")}` };
   const sleep = ms => new Promise(r => setTimeout(r, ms));
 
+  // ── LOS LÍMITES DE WHATSAPP, verificados al pintar ──────────────────────────────────────────────
+  // El guion de arriba se auditó a mano contra estos límites (33 controles, tres textos hubo que
+  // acortar). Pero el DESPACHADOR arma los textos y los botones desde lo que devuelve la API, así que
+  // puede producir mensajes que WhatsApp rechazaría — y sin esto nadie se enteraría hasta que Meta
+  // rechace la plantilla, que cuesta días.
+  //
+  // No es que un texto largo se vea feo: es que NO SE PUEDE ENVIAR. Los límites de conversación
+  // abierta (los de plantilla son otros, más anchos en botones y más angostos en texto):
+  const WA = { cuerpo: 1024, botones: 3, botonTxt: 20, filas: 10, filaTitulo: 24, filaDesc: 72 };
+
+  // Se mide el TEXTO, no el HTML: `<b>` no viaja a WhatsApp, viaja `*negrita*`. Contar el markup daría
+  // falsos positivos y haría que nadie mire los avisos.
+  const soloTexto = (html) => {
+    const d = document.createElement("div");
+    d.innerHTML = String(html).replace(/<br\s*\/?>/gi, "\n");
+    return (d.textContent || "").trim();
+  };
+
+  function revisarWA(html, opts = {}) {
+    const malas = [];
+    const cuerpo = soloTexto(html);
+    if (cuerpo.length > WA.cuerpo) malas.push(`cuerpo ${cuerpo.length} > ${WA.cuerpo}`);
+
+    const bs = opts.buttons || [];
+    if (bs.length) {
+      const esLista = !!opts.list;
+      // Más de 3 opciones OBLIGA a usar lista. No es una preferencia: con 4 botones el mensaje se
+      // rechaza. Y la lista tiene su propio techo de 10 filas.
+      if (!esLista && bs.length > WA.botones) malas.push(`${bs.length} botones > ${WA.botones} — tiene que ir como LISTA`);
+      if (esLista && bs.length > WA.filas) malas.push(`${bs.length} filas > ${WA.filas}`);
+      const limT = esLista ? WA.filaTitulo : WA.botonTxt;
+      bs.forEach(b => {
+        const t = soloTexto(b.t);
+        if (t.length > limT) malas.push(`«${t}» ${t.length} > ${limT}`);
+        if (b.sub) {
+          const sd = soloTexto(b.sub);
+          if (!esLista) malas.push(`«${t}» lleva descripción y los BOTONES no la admiten`);
+          else if (sd.length > WA.filaDesc) malas.push(`descripción de «${t}» ${sd.length} > ${WA.filaDesc}`);
+        }
+      });
+      if (esLista && soloTexto(opts.list).length > WA.filaTitulo) {
+        malas.push(`encabezado de lista ${soloTexto(opts.list).length} > ${WA.filaTitulo}`);
+      }
+    }
+    return malas;
+  }
+
+  // El aviso va PEGADO al globo que lo produjo, no en un log aparte: así se ve qué mensaje concreto no
+  // se podría enviar, que es la única forma de arreglarlo.
+  function avisoWA(el, malas) {
+    if (!malas.length) return;
+    const w = document.createElement("div");
+    w.className = "wa-mal";
+    w.innerHTML = `⚠ <b>WhatsApp rechazaría este mensaje</b><br>${malas.map(m => "· " + m).join("<br>")}`;
+    el.appendChild(w);
+  }
+
   function bubble(side, from, html, opts = {}) {
     const el = document.createElement("div");
     el.className = "msg " + (from === "me" ? "mine" : "theirs");
@@ -1566,6 +1628,9 @@
       });
       el.appendChild(box);
     }
+    // Sólo se revisa lo que MANDA el bot: lo que escribe la persona no pasa por los límites de
+    // componentes de WhatsApp.
+    if (from !== "me") avisoWA(el, revisarWA(html, opts));
     chats[side].appendChild(el); chats[side].scrollTop = chats[side].scrollHeight;
   }
 

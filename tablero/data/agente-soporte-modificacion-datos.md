@@ -1413,6 +1413,36 @@ castigo pega sobre el número que también se usa para cobrar.
 <!-- append-only, lo nuevo arriba. (Esta tarea no tenía sección de registro; se agrega siguiendo
      PLANTILLA-TAREA.md. Lo de arriba es el ESTADO, que se reescribe; esto es qué pasó cada día.) -->
 
+### 2026-08-20 (16) — los prototipos VALIDAN los límites de WhatsApp al pintar (y encontraron uno)
+
+La sección §«Los componentes de WhatsApp y sus límites» ya tenía los números y el guion se auditó a mano
+contra ellos —33 controles—. Pero eso dejó un hueco que los despachadores nuevos abrieron: **arman los
+textos y los botones desde lo que devuelve la API**, así que pueden producir mensajes que WhatsApp
+rechazaría y nadie se enteraría hasta que Meta rechace la plantilla, que cuesta días.
+
+Se agregó un validador que corre **al pintar cada globo** y pega el aviso al globo que lo produjo — no en
+un log aparte, porque lo único que sirve es saber QUÉ mensaje concreto no se puede enviar. Chequea cuerpo
+≤ 1024, botones ≤ 3 con ≤ 20 caracteres, filas de lista ≤ 10 con título ≤ 24 y descripción ≤ 72, y avisa
+si más de 3 opciones van como botones en vez de lista.
+
+Dos decisiones de implementación que importan:
+- **Mide el TEXTO, no el HTML.** `<b>` no viaja a WhatsApp: viaja `*negrita*`. Contar el markup daría
+  falsos positivos y en dos días nadie miraría los avisos.
+- **Sólo revisa lo que manda el bot.** Lo que escribe la persona no pasa por límites de componentes.
+
+> **MEDICIÓN · 2026-08-20** — el validador encontró de entrada una violación que la auditoría a mano de
+> los 33 controles había dejado pasar: el botón **«Cambiar también el plazo» mide 24 y el límite de un
+> botón es 20**. Corregido a «Cambiar el plazo» (16). Recorriendo los dos caminos del cliente —fecha y
+> plazo— quedan 19 globos con **cero** violaciones, y el del asesor ya tenía cero.
+
+**Y lo que esto va a atrapar en vivo**, que es su verdadero valor: si `fee-number-options` devuelve más de
+10 plazos, la lista se pasa del techo de WhatsApp. Contra el dato de prueba no se ve; contra un crédito
+real con una línea larga, sí. Eso es un requisito para la API —o el backend acota, o n8n pagina— y ahora
+se descubre corriendo en vez de en la revisión de Meta.
+
+⚠ De paso, un error propio: al acortar el botón dejé un comentario `//` DENTRO del array, y se comió el
+resto de la línea. El prototipo quedó en blanco hasta que lo vi. Los `//` no van en medio de un literal.
+
 ### 2026-08-20 (15) — la FRONTERA del entregable: la API, no la conversación
 
 Aclarado por Miguel: **lo que este equipo entrega es la API** —entregar datos y confirmar acciones—. Que
