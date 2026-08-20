@@ -30,9 +30,13 @@ dev.** Las tres piezas quedaron: el módulo desplegado, las 16 rutas expuestas e
 viva (sin token o con uno inválido da 401, con el correcto pasa al controlador) y una consulta con datos
 inexistentes contesta 404 `CLIENT_NOT_FOUND`, o sea que llega hasta la base.
 
-**El próximo paso es:** decidir qué hacer con `POST /change-requests/{id}/otp`, que quedó
-**inalcanzable** (Registro (10)): o se saca de los 16 endpoints, o se le da a la máquina de estados una
-transición. Y limpiar la fila del asesor en dev, que quedó con el celular de Miguel (Registro (11)).
+**El próximo paso es:** que producto decida sobre `POST /change-requests/{id}/otp`. Está
+**inalcanzable** y la causa está entendida (Registro (14)): recomendación **sacarlo** — `confirm` y los 10
+tests del flujo ya dan por hecho el camino sin él. Si igual se quiere un segundo factor por cambio, tiene
+que colgarse de la SOLICITUD y no de la sesión.
+
+ℹ La fila del asesor en dev (`users.id=1827130`) **se deja con el celular de Miguel a propósito**, para
+poder repetir pruebas con entrega real. No es olvido: es la decisión.
 
 ✅ **El objetivo central de la tarea está DEMOSTRADO contra dev**: el cambio se escribió con un `otp_id`
 real y validado, no con el `0` de producción.
@@ -1408,6 +1412,40 @@ castigo pega sobre el número que también se usa para cobrar.
 
 <!-- append-only, lo nuevo arriba. (Esta tarea no tenía sección de registro; se agrega siguiendo
      PLANTILLA-TAREA.md. Lo de arriba es el ESTADO, que se reescribe; esto es qué pasó cada día.) -->
+
+### 2026-08-20 (14) — POR QUÉ el endpoint es inalcanzable: dos «segundos factores» en un solo objeto
+
+Antes (Registro (10)) quedó medido QUE `POST /change-requests/{id}/otp` no se puede llamar. Acá queda la
+causa, que es lo que decide el arreglo.
+
+**Es del CLIENTE.** Entra por `solicitudDelCliente` → `sesionVerificada(wa, 'client')`. El asesor no lo
+toca: él crea la solicitud y se queda esperando.
+
+**El choque, en dos líneas de código.** El endpoint necesita dos cosas al mismo tiempo: la solicitud en
+`Autorizada`, y la sesión pudiendo pasar a `OtpSent` para emitir un código nuevo. Pero `authorize` exige
+que la sesión esté `OtpVerified`, y en `AuthorizationState`:
+
+    self::OtpVerified => [self::Expired],
+
+Una sola salida, con el porqué escrito al lado: *«Una vez probada la identidad, la sesión sólo puede
+terminar — no se puede bajar a un estado con menos privilegio y seguir usándola.»* Las dos condiciones
+son **mutuamente excluyentes**. Ninguna máquina está mal; el error fue suponer que se componen.
+
+**La causa de fondo, y lo que hay que corregir si se quiere el segundo factor:** el diseño quería DOS
+pruebas distintas —el OTP de la sesión prueba *quién sos*, el OTP del cambio prueba *que aprobaste ESTE
+cambio*— y colgó las dos del MISMO objeto, la sesión. Así, probar la identidad consume el mecanismo que
+iba a probar la intención. Si producto quiere el segundo factor, tiene que vivir en la **solicitud de
+cambio**, no en la sesión: agregarle una transición a la sesión sería justo lo que la regla prohíbe.
+
+**Y la evidencia de que quedó de una versión anterior del diseño:** `ChangeRequestFlowTest` tiene 10
+tests, incluido `test_el_flujo_completo_escribe_el_dato_y_deja_la_prueba`, y **ninguno llama a `/otp`** —
+el «flujo completo» va `authorize → confirm` y salta ese paso. Los tests ya codifican el flujo correcto.
+Quien lo escribió incluso previó que la transición podía fallar (hay un `catch InvalidSessionTransition`)
+pero sin un test que llegara ahí, nunca se vio que falla SIEMPRE.
+
+**Recomendación:** sacarlo. Es lo que `confirm` y los tests ya dan por hecho, y la prueba que queda es el
+`otp_id` de la identificación — el mismo que verificamos escrito en `creditop_x_changes_log #36`, que era
+el objetivo de la tarea. Deja el gateway en 15 rutas.
 
 ### 2026-08-20 (13) — el del ASESOR también, y son DOS máquinas que se hablan
 
