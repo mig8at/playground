@@ -998,6 +998,7 @@
       <div class="tipear" id="tipear"></div>
       <h2><b>▸</b> Consola de la corrida
         <span class="logacts">
+          <button class="copy" id="logFiltro" title="mostrar sólo transiciones de BD, alertas y el cierre">☰ todo</button>
           <button class="copy" id="logToggle">▼ plegar</button>
           <button class="copy" id="copyLog">📋 copiar</button>
         </span>
@@ -1847,8 +1848,18 @@
     // cada línea 📸, la MINIATURA del screenshot en vez de solo su nombre. El <pre> conserva los \n en
     // textContent, así el fallback de "copiar consola" sigue dando el texto completo. Se re-renderiza
     // solo si el log cambió; el buster por corrida deja que el browser cachee la imagen entre ticks.
-    let lastLogRendered = null;
+    // La consola guarda sus líneas en un ARRAY y appendea sólo lo nuevo (el server las manda con cursor).
+    // Antes se re-renderizaba todo el <pre> cada 2s: con una miniatura por línea 📸, eso recreaba todas las
+    // <img> en cada tick. Guardar el array además permite el filtro (re-pinta desde memoria, sin ir al server).
+    let logLineas = [];      // todas las líneas recibidas, en orden
+    let logCursor = 0;       // cuántas ya pedimos al server
+    let soloImportante = false;
     let runStamp = 0;
+
+    // "Importante" = lo que cambia lo que harías: la BD se movió (▲), algo falló, o la corrida cerró.
+    // El resto (cada navegación, cada .data, cada 📸) es contexto — sigue en el log completo y en el copiar.
+    const IMPORTANTE = /▲|⚠|✗|📸 ✗|BD  ✗|DESENLACE MALO|ÉXITO SIN RESPALDO|passed|failed|corrida terminada|Comprobación de BD|✅|▶|●|traza:|uReq/;
+    const esImportante = (l) => IMPORTANTE.test(l);
 
     // `⌨ DATOS telefono=… otp=…` lo emite bin/asesor (contrato: si cambia el prefijo allá, cambiá acá).
     // El panel NO recalcula nada — ni el teléfono ni el OTP: los toma de quien los resolvió, que es el
@@ -1877,37 +1888,54 @@
       box.replaceChildren(frag);
       box.classList.add('on');
     }
-    function renderLog(txt) {
-      if (txt === lastLogRendered) return;
-      lastLogRendered = txt;
-      renderTipear(txt);
+    function nodosDeLinea(line) {
       const frag = document.createDocumentFragment();
-      for (const line of txt.split('\n')) {
-        if (line.includes('📸 ✗')) {   // screenshot fallido: línea roja, sin intento de miniatura
-          const sp = document.createElement('span'); sp.className = 'shotfail'; sp.textContent = line + '\n';
-          frag.appendChild(sp); continue;
-        }
-        frag.appendChild(document.createTextNode(line + '\n'));
-        const m = line.match(/📸\s+([\w][\w.-]*\.png)/);
-        if (m) {
-          const img = document.createElement('img');
-          img.className = 'shotmini'; img.loading = 'lazy'; img.alt = m[1];
-          img.src = `/shots/${encodeURIComponent(m[1])}?v=${runStamp}`;
-          img.onclick = () => window.open(img.src, '_blank');
-          img.onerror = () => img.remove();   // shot() imprime 📸 aunque el screenshot haya fallado (F-03): sin archivo, sin miniatura
-          frag.appendChild(img);
-        }
+      if (line.includes('📸 ✗')) {   // screenshot fallido: línea roja, sin intento de miniatura
+        const sp = document.createElement('span'); sp.className = 'shotfail'; sp.textContent = line + '\n';
+        frag.appendChild(sp); return frag;
       }
+      frag.appendChild(document.createTextNode(line + '\n'));
+      const m = line.match(/📸\s+([\w][\w.-]*\.png)/);
+      if (m) {
+        const img = document.createElement('img');
+        img.className = 'shotmini'; img.loading = 'lazy'; img.alt = m[1];
+        img.src = `/shots/${encodeURIComponent(m[1])}?v=${runStamp}`;
+        img.onclick = () => window.open(img.src, '_blank');
+        img.onerror = () => img.remove();   // shot() imprime 📸 aunque el screenshot haya fallado (F-03): sin archivo, sin miniatura
+        frag.appendChild(img);
+      }
+      return frag;
+    }
+
+    // Re-pinta TODO desde el array (para el toggle del filtro o cuando arranca una corrida nueva).
+    function repintarLog() {
+      const frag = document.createDocumentFragment();
+      for (const l of logLineas) if (!soloImportante || esImportante(l)) frag.appendChild(nodosDeLinea(l));
       $('log').replaceChildren(frag);
+    }
+
+    // Agrega sólo las líneas nuevas. El caso normal de una corrida en curso.
+    function appendLog(nuevas) {
+      if (!nuevas.length) return;
+      const frag = document.createDocumentFragment();
+      for (const l of nuevas) {
+        logLineas.push(l);
+        if (!soloImportante || esImportante(l)) frag.appendChild(nodosDeLinea(l));
+      }
+      $('log').appendChild(frag);
+      renderTipear(logLineas.join('\n'));
     }
 
     function startPoll() {
       runStamp = Date.now();   // buster por corrida: mismo nombre de archivo, imagen nueva
+      logLineas = []; logCursor = 0; $('log').replaceChildren();   // consola limpia: es OTRA corrida
       if (poll) clearInterval(poll);
       const tick = async () => {
-        const j = await (await fetch('/api/status')).json();
+        const j = await (await fetch(`/api/status?from=${logCursor}`)).json();
         const atBottom = $('log').scrollTop + $('log').clientHeight >= $('log').scrollHeight - 30;
-        renderLog(j.log || '');
+        // `total` baja ⇒ el RUN_LOG se reescribió (corrida nueva): reset y pedimos todo de nuevo.
+        if (typeof j.total === 'number' && j.total < logCursor) { logLineas = []; logCursor = 0; repintarLog(); }
+        else if (j.lines && j.lines.length) { appendLog(j.lines); logCursor = j.total; }
         if (atBottom) $('log').scrollTop = $('log').scrollHeight;   // auto-scroll solo si ya estabas al final
         if (j.running) {
           corridaRunning = true;
@@ -2191,6 +2219,15 @@
       .forEach(id => $(id).addEventListener('input', refresh));
     $('go').onclick = launch;    $('stopBtn').onclick = stop;
     $('logToggle').onclick = () => showLog(!logOpen);
+    // Filtro de la consola: re-pinta desde el array en memoria (no vuelve a pedir nada al server).
+    $('logFiltro').onclick = () => {
+      soloImportante = !soloImportante;
+      $('logFiltro').textContent = soloImportante ? '☰ sólo lo importante' : '☰ todo';
+      $('logFiltro').classList.toggle('on', soloImportante);
+      repintarLog();
+      $('log').scrollTop = $('log').scrollHeight;
+    };
+
     // copiar consola: trae el log COMPLETO de /api/log (incluye los ⚠ del navegador que el spec vuelca); fallback a lo visible.
     $('copyLog').onclick = async () => {
       let text = '';

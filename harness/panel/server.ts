@@ -541,6 +541,17 @@ function tailLog(): string {
     return raw.split('\n').slice(-120).join('\n');
 }
 
+// Log por LÍNEAS con cursor, para que la consola APPENDEE en vez de re-renderizar todo. No es por el
+// payload (tailLog ya recorta a 120 líneas y son ~7 KB): es porque el cliente pinta una MINIATURA por
+// cada línea 📸, y reconstruir ese DOM cada 2s recrea todas las <img>. Con cursor sólo se agrega lo nuevo.
+// `total` es el conteo absoluto: si baja, el RUN_LOG se reescribió (corrida nueva) → el cliente resetea.
+function logDesde(from: number): { total: number; from: number; lines: string[] } {
+    if (!existsSync(RUN_LOG)) return { total: 0, from: 0, lines: [] };
+    const todas = readFileSync(RUN_LOG, 'utf8').replace(/\x1b\[[0-9;]*[A-Za-z]/g, '').split('\n');
+    const desde = from > 0 && from <= todas.length ? from : 0;
+    return { total: todas.length, from: desde, lines: todas.slice(desde) };
+}
+
 // log COMPLETO (sin recorte) para el botón "copiar consola". Incluye los errores del navegador: el spec los
 // vuelca al stdout del hijo (page.on('console')/pageerror → líneas "⚠ …" / "⚠ FALLO EN PANTALLA …"), que va al RUN_LOG.
 function fullLog(): string {
@@ -887,12 +898,15 @@ const server = createServer(async (req, res) => {
     }
 
     if (path === '/api/status') {
-        return json(res, 200, {
+        const from = url.searchParams.get('from');
+        const base = {
             running: !!(current && !current.done),
             slug: current?.slug ?? null,
             code: current?.done ? current?.code : null,
-            log: tailLog(),
-        });
+        };
+        // Con `?from=N` va incremental (el cliente appendea). Sin él, el log recortado de siempre —
+        // así cualquier consumidor viejo sigue funcionando igual.
+        return json(res, 200, from === null ? { ...base, log: tailLog() } : { ...base, ...logDesde(Number(from) || 0) });
     }
 
     if (path === '/api/log') {
