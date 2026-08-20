@@ -116,6 +116,12 @@
     font-weight: 600 }
   .realcfg input { padding: 5px 8px; border: 1px solid var(--line); border-radius: 6px; font: inherit;
     font-size: 12.5px; min-width: 168px }
+
+  .ambsel { display: inline-flex; gap: 4px }
+  .ctl.amb { padding: 4px 10px; font-size: 12px; opacity: .55 }
+  .ctl.amb.act { opacity: 1; border-color: #0b6bcb; color: #0b6bcb }
+  .avisodev { flex: 1 1 100%; margin: 6px 0 0; padding: 8px 10px; border-radius: 7px; font-size: 11.5px;
+    background: #fff7e6; border: 1px solid #f0d69a; color: #6b4708; line-height: 1.5 }
   .realestado { font-size: 12px; color: #94a3b8 }
   .realestado.ok { color: #0f7b3f } .realestado.bad { color: #b3261e }
   .realnota { flex: 1 1 100%; margin: 4px 0 0; font-size: 11.5px; color: #94a3b8; line-height: 1.5 }
@@ -1064,6 +1070,12 @@
       <label class="tog fuerte"><input type="checkbox" id="modo-real"> <b>Modo real</b>
         <span class="off">— llama la API local en vez de simular</span></label>
       <div class="realcfg" id="realcfg" hidden>
+        <label>Ambiente
+          <span class="ambsel">
+            <button type="button" class="ctl amb act" data-amb="local">local</button>
+            <button type="button" class="ctl amb" data-amb="dev">dev</button>
+          </span>
+        </label>
         <label>URL base <input id="r-base" value="http://localhost/api/support"></label>
         <label>SUPPORT_BOT_TOKEN <input id="r-token" type="password" placeholder="pegalo acá"></label>
         <label>Asesor · wa <input id="r-waAse" value="whatsapp:+573001112233"></label>
@@ -1072,6 +1084,9 @@
         <label>Cliente · cédula <input id="r-docCli" value="1099887704"></label>
         <button class="ctl" id="r-probar">Probar conexión</button>
         <span class="realestado" id="r-estado">sin probar</span>
+        <p class="avisodev" id="avisodev" hidden>⚠ <b>dev es compartido con el equipo</b>, y los pasos
+          finales de este guion <b>escriben</b> (fecha de pago, plazo o datos de contacto) sobre clientes
+          que otros usan para probar. Usá un cliente de prueba, o quedate en local.</p>
         <p class="realnota">El token no se guarda en el archivo (los prototipos se versionan): queda en el
           <code>localStorage</code> de tu navegador. En local el código del OTP son los últimos 4 dígitos
           del teléfono, así que el flujo corre sin leer ningún SMS.</p>
@@ -1833,5 +1848,25 @@
     else if (r.status === 503) { e.className = "realestado bad"; e.textContent = "503 — el backend no tiene SUPPORT_BOT_TOKEN"; }
     else { e.className = "realestado"; e.textContent = `HTTP ${r.status}`; }
   });
+
+  // ── el ambiente, en un click ─────────────────────────────────────────────────────────────────────
+  // dev pega por el API Gateway con el prefijo `/legacy-api`, no `/api`: son dos superficies distintas
+  // y confundirlas da 404. Y el token de dev NO es el de local — cada uno vive en su propio secreto.
+  const BASES = {
+    local: "http://localhost/api/support",
+    dev: "https://api.dev.creditop.com/legacy-api/support",
+  };
+  document.querySelectorAll(".ctl.amb").forEach(b => b.addEventListener("click", () => {
+    document.querySelectorAll(".ctl.amb").forEach(x => x.classList.toggle("act", x === b));
+    $("#r-base").value = BASES[b.dataset.amb];
+    // El aviso sólo aparece en dev, y no es decorativo: dev es COMPARTIDO con el equipo y estos pasos
+    // escriben datos de clientes que otros usan para probar.
+    $("#avisodev").hidden = b.dataset.amb !== "dev";
+    $("#r-token").value = "";
+    localStorage.removeItem(TKASE);
+    $("#r-estado").className = "realestado";
+    $("#r-estado").textContent = "cambió el ambiente — probá la conexión y pegá el token de " + b.dataset.amb;
+    $("#reset").click();
+  }));
 
 </script>

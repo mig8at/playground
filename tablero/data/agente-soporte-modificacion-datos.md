@@ -30,9 +30,11 @@ dev.** Las tres piezas quedaron: el módulo desplegado, las 16 rutas expuestas e
 viva (sin token o con uno inválido da 401, con el correcto pasa al controlador) y una consulta con datos
 inexistentes contesta 404 `CLIENT_NOT_FOUND`, o sea que llega hasta la base.
 
-**El próximo paso es:** arreglar `CreditController.php:177` — llama `find()` y el repositorio expone
-`findById()`, lo que revienta con 500 los 5 endpoints de `credits/*` (toda la mitad de autogestión). Es
-un cambio de una palabra, pero pide rama y PR en `legacy-backend`. Después, el recorrido del asesor.
+**El próximo paso es:** probar el recorrido del **ASESOR** contra dev (`advisor/otp` → `clients` →
+`change-requests/*`). Hace falta un usuario con perfil de asesor y comercios asignados — es la mitad que
+no se tocó todavía. La de autogestión ya está validada de punta a punta contra dev.
+
+✅ El defecto de `credits/*` (`find()` en vez de `findById()`) está **arreglado y desplegado en dev**.
 
 ✅ **El OTP ya está probado y funciona** (ver Registro 2026-08-20 (5)). Y para probar **no hace falta
 mandarle un WhatsApp a nadie**: hay 34 teléfonos en `settings.qa_otp_bypass_phones` donde el bypass
@@ -1403,6 +1405,32 @@ castigo pega sobre el número que también se usa para cobrar.
 
 <!-- append-only, lo nuevo arriba. (Esta tarea no tenía sección de registro; se agrega siguiendo
      PLANTILLA-TAREA.md. Lo de arriba es el ESTADO, que se reescribe; esto es qué pasó cada día.) -->
+
+### 2026-08-20 (9) — el fix ya está en dev, y los prototipos apuntan a dev con un click
+
+Miguel mergeó `fix/CORE-258-credits-find-by-id` a `develop` y el deploy rodó. Verificado: el fix y el
+test nuevo están en `origin/develop`, y el ambiente ya lo corre.
+
+> **MEDICIÓN · 2026-08-20** — recorrido de autogestión COMPLETO contra dev, por el gateway público:
+> `self/by-phone` 200 · `self/otp` 200 · `verify` 200 · `can-change` **200 `can_change: true`** ·
+> `payment-date-options` 200 con opciones reales · `fee-number-options` 200 con cuotas y valores.
+> Sujeto: teléfono `3108000001`, cédula `79799966`, solicitud `463278` (bypasseado, crédito activo).
+
+⚠ **Un susto que NO era un bug, y conviene tenerlo escrito:** la primera corrida dio 500 con el mismo
+`::find()` en `fee-number-options`, y estuve buscando un segundo defecto. No lo había: dev corre **2
+tareas** y el rollout estaba a medias, así que las peticiones alternaban entre la imagen nueva y la
+vieja. Seis intentos seguidos después dieron 200 los seis. **Justo después de un deploy, dev sirve una
+mezcla** — un 500 aislado ahí no es un bug hasta que se repite.
+
+**Los tres prototipos ahora tienen selector de ambiente** (local / dev), un click. Tres cosas que el
+selector hace y que no son obvias:
+- dev pega por el **API Gateway con prefijo `/legacy-api`**, no `/api`: son dos superficies distintas y
+  confundirlas da 404.
+- **limpia el token** al cambiar, porque el de dev y el de local son distintos y viven en secretos
+  distintos. Dejarlo puesto daría un 401 confuso.
+- al elegir dev **aparece un aviso**: dev es compartido con el equipo y los pasos finales del guion del
+  cliente **escriben** (fecha de pago, plazo, datos de contacto) sobre clientes que otros usan para
+  probar. No es decorativo — es la diferencia entre probar y estorbar.
 
 ### 2026-08-20 (8) — el prototipo del CLIENTE también corre contra la API local
 

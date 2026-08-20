@@ -34,6 +34,9 @@
     font: inherit; font-size: 13px; background: #fff; color: var(--ink) }
   input:focus { outline: 2px solid color-mix(in srgb, var(--acc) 35%, transparent); outline-offset: -1px }
   .cfg-pie { display: flex; align-items: center; gap: 10px; margin-top: 12px; flex-wrap: wrap }
+  .ambsel { display: inline-flex; gap: 5px }
+  .amb { padding: 6px 12px; font-size: 12.5px; opacity: .5 }
+  .amb.act { opacity: 1; border-color: var(--acc); color: var(--acc) }
   .estado { font-size: 12.5px; color: var(--mut) }
   .estado.ok { color: var(--ok) } .estado.bad { color: var(--bad) }
 
@@ -108,7 +111,14 @@
   <h2>Contra qué pega</h2>
   <div class="campos">
     <div>
-      <label>URL base <em>· el backend local</em></label>
+      <label>Ambiente <em>· dev pega por el gateway, con prefijo /legacy-api</em></label>
+      <span class="ambsel">
+        <button type="button" class="amb act" data-amb="local">local</button>
+        <button type="button" class="amb" data-amb="dev">dev</button>
+      </span>
+    </div>
+    <div>
+      <label>URL base</label>
       <input id="base" value="http://localhost/api/support">
     </div>
     <div>
@@ -387,6 +397,20 @@ $('#probar').addEventListener('click', async () => {
   else if (r.status === 503) { s.className = 'estado bad'; s.textContent = '503 — el backend no tiene SUPPORT_BOT_TOKEN configurado'; }
   else { s.className = 'estado'; s.textContent = `HTTP ${r.status} ${cod}`; }
 });
+
+// El ambiente en un click. dev pega por el API Gateway con prefijo `/legacy-api`, no `/api`: son dos
+// superficies distintas y confundirlas da 404. El token tampoco es el mismo, así que se limpia.
+const BASES = {
+  local: 'http://localhost/api/support',
+  dev: 'https://api.dev.creditop.com/legacy-api/support',
+};
+document.querySelectorAll('.amb').forEach(b => b.addEventListener('click', () => {
+  document.querySelectorAll('.amb').forEach(x => x.classList.toggle('act', x === b));
+  $('#base').value = BASES[b.dataset.amb];
+  $('#token').value = ''; localStorage.removeItem(TK);
+  $('#conex').className = 'estado';
+  $('#conex').textContent = 'cambió el ambiente — pegá el token de ' + b.dataset.amb + ' y probá';
+}));
 
 pintar('cli');
 pintar('ase');
