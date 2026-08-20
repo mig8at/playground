@@ -30,9 +30,13 @@ dev.** Las tres piezas quedaron: el módulo desplegado, las 16 rutas expuestas e
 viva (sin token o con uno inválido da 401, con el correcto pasa al controlador) y una consulta con datos
 inexistentes contesta 404 `CLIENT_NOT_FOUND`, o sea que llega hasta la base.
 
-**El próximo paso es:** probar el flujo REAL con el equipo del bot — arranca por `POST /self/otp` con un
-número y una cédula de verdad. ⚠ Eso **manda un WhatsApp a una persona**, así que hay que acordar antes
-con quién se prueba; no se hace por curiosidad.
+**El próximo paso es:** arreglar `CreditController.php:177` — llama `find()` y el repositorio expone
+`findById()`, lo que revienta con 500 los 5 endpoints de `credits/*` (toda la mitad de autogestión). Es
+un cambio de una palabra, pero pide rama y PR en `legacy-backend`. Después, el recorrido del asesor.
+
+✅ **El OTP ya está probado y funciona** (ver Registro 2026-08-20 (5)). Y para probar **no hace falta
+mandarle un WhatsApp a nadie**: hay 34 teléfonos en `settings.qa_otp_bypass_phones` donde el bypass
+evita llamar al proveedor y el código es los últimos 4 dígitos del número.
 
 ⚠ **Para no repetir el error que costó dos vueltas:** hay **dos** despliegues con la misma familia
 `legacy-backend-develop` en cuentas AWS distintas. La cuenta `697767917359` corre la revisión 199 con 1
@@ -1399,6 +1403,40 @@ castigo pega sobre el número que también se usa para cobrar.
 
 <!-- append-only, lo nuevo arriba. (Esta tarea no tenía sección de registro; se agrega siguiendo
      PLANTILLA-TAREA.md. Lo de arriba es el ESTADO, que se reescribe; esto es qué pasó cada día.) -->
+
+### 2026-08-20 (5) — 🔴 el flujo de OTP FUNCIONA, y aparecieron dos defectos
+
+Primera prueba funcional del canal en dev, con un cliente sintético cuyo teléfono está en la lista de
+bypass de OTP (`settings.qa_otp_bypass_phones`, 34 números). **Elegir un número bypasseado fue a
+propósito**: en `local`/`development` el bypass hace que `sendOtpCode` NO llame al proveedor, así que no
+sale ningún WhatsApp a una persona real, y el código es los ÚLTIMOS 4 DÍGITOS del teléfono.
+
+> **MEDICIÓN · 2026-08-20** — el recorrido de autogestión funciona de punta a punta contra dev:
+> `self/by-phone` → 200 · `self/otp` → 200 `otp_sent` (destino enmascarado `313***4490`, 15 min, 3
+> intentos) · `self/otp/verify` con código malo → 422 `OTP_INVALID` con `attempts_left: 2` · con el
+> bypasseado → 200 `otp_verified`. Sujeto: teléfono `3132804490`, cédula `1004877929`, solicitud 464946.
+
+🔴 **DEFECTO 1 — los 5 endpoints de `credits/*` revientan con 500.** Es la mitad de autogestión
+completa, o sea lo que el cliente hace solo.
+
+> **MEDICIÓN · 2026-08-20** — `GET credits/{id}/can-change`, `payment-date-options` y
+> `fee-number-options` devuelven 500:
+> `Call to undefined method Modules\Loans\App\Repositories\UserRequestRepository::find()`
+
+La causa es de una palabra: `Modules/SupportBot/App/Http/Controllers/CreditController.php:177` llama
+`$this->solicitudes->find($userRequestId)`, y el repositorio expone **`findById()`** — no tiene `find()`.
+
+**Por qué nada lo agarró:** ningún test del módulo ejercita las rutas `credits/*`. Hay un
+`CreditChangeServiceTest` que prueba el SERVICIO directamente, así que la llamada del controlador nunca
+se ejecutó. Los 27 tests en verde no cubrían este camino.
+
+⚠ **DEFECTO 2 (menor) — la normalización del número es frágil.** `wa=573132804490` (indicativo SIN el
+`+`) da 404 `CLIENT_NOT_FOUND`, mientras `3132804490`, `+573132804490` y `whatsapp:+573132804490` dan
+200. Twilio siempre manda el `+`, así que en producción no dispara — pero cualquier otro cliente HTTP
+que arme el número a mano se come un «cliente no encontrado» que en realidad es un error de formato.
+
+**Lo que queda por probar:** el recorrido del ASESOR (`advisor/otp` → `clients` → `change-requests/*`).
+No se hizo en esta vuelta porque hace falta un usuario con perfil de asesor y comercios asignados.
 
 ### 2026-08-20 (4) — ✅ el canal responde en dev: bloqueo de infra cerrado
 
