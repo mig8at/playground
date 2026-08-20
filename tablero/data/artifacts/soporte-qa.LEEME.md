@@ -16,10 +16,11 @@ Y abrir **http://localhost:5199/soporte-qa.html**
 ## Antes de empezar
 
 1. **Token del canal** — pedilo al equipo. Queda guardado en tu navegador, no en el archivo.
-2. **Ambiente** — `dev` para probar de verdad. ⚠ dev es **compartido**: los cambios que apliques
-   quedan escritos ahí.
-3. **Celular y cédula** — tienen que ser de un cliente que exista en ese ambiente. El botón trae uno
-   de prueba ya cargado.
+2. **Celular y cédula** — de un cliente que exista en **develop**. Vienen cargados los de un cliente
+   de prueba que sirve para recorrer el flujo completo.
+
+Siempre corre contra **develop**: no hay nada que elegir. ⚠ develop es **compartido con el equipo**,
+así que los cambios que apliques quedan escritos ahí.
 
 ## El código que llega por mensaje
 
@@ -35,7 +36,8 @@ verdad** — usá sólo números propios.
 | «ya hiciste un cambio recientemente» | sólo se permite un cambio cada 6 meses. Correcto |
 | «este crédito lo administra la entidad que lo otorgó» | ese crédito no lo gestiona CreditOp. Correcto |
 | «no hay plazos alternativos» | puede pasar con la fecha sí disponible: son dos cosas distintas |
-| ⚠ «problema técnico del canal» | **eso sí es un bug.** Reportalo |
+| «el token del canal no sirve» | el token está mal pegado o venció. Pedí uno nuevo — no es un bug |
+| ⚠ «problema técnico del canal» | **eso sí es un bug.** Reportalo con «copiar reporte» |
 
 ## Para reportar
 

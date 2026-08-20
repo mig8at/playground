@@ -117,13 +117,10 @@
   <h1>Canal de soporte · el chat del cliente contra la API real</h1>
   <p>Es la conversación tal como la va a ver el cliente en WhatsApp, pero cada paso llama la API de
      verdad y no hay nada simulado: si el crédito no admite cambios, lo dice el backend. A la derecha
-     queda la respuesta cruda de cada llamada, en orden.</p>
+     queda la respuesta cruda de cada llamada, en orden. Corre contra <b>develop</b>.</p>
 </header>
 
 <div class="cfg">
-  <label>Ambiente
-    <select id="amb"><option value="dev">dev</option><option value="local">local</option></select>
-  </label>
   <label>Token del canal
     <input id="token" type="password" class="ancho" placeholder="pegalo acá — queda en este navegador" autocomplete="off">
   </label>
@@ -165,9 +162,12 @@
 <script>
 "use strict";
 
-const BASES = { dev: "https://api.dev.creditop.com/legacy-api/support", local: "http://localhost/api/support" };
+// UNA sola base y sin selector: QA prueba contra develop, que es el ambiente donde el equipo mira.
+// Tener «local» acá sólo servía para que alguien probara sin darse cuenta contra su propio Docker y
+// reportara un bug que en dev no existe.
+const BASE = "https://api.dev.creditop.com/legacy-api/support";
 const $ = (s) => document.querySelector(s);
-const base = () => BASES[$("#amb").value];
+const base = () => BASE;
 const wa = () => "whatsapp:+57" + $("#tel").value.trim();
 const doc = () => $("#doc").value.trim();
 
@@ -226,7 +226,8 @@ function pista() {
   return [
     "Las causas, en orden de probabilidad:",
     esArchivo ? "· la página está abierta como archivo (file://) y el navegador bloquea la llamada — mirá la nota de abajo" : null,
-    base().includes("localhost") ? "· local no está levantado" : "· sin red o sin VPN",
+    "· sin red o sin VPN",
+    "· dev está caído o desplegándose",
   ].filter(Boolean).join("\n");
 }
 
@@ -299,9 +300,15 @@ const NEGOCIO = ["HAS_PENDING_PAYMENT", "EXTERNALLY_SERVICED", "NO_ACTIVE_CREDIT
 const esNuestra = (p) => !!p.error || p.status === 401 || p.status === 403 || p.status >= 500;
 
 function problema(p) {
+  // El 401 es lo que va a pasar más seguido y NO es un bug: es el token mal pegado o vencido. Decirle
+  // «problema técnico del canal» mandaría a QA a abrir un ticket por su propia configuración.
+  if (p.status === 401 || p.status === 403) {
+    return "⚠ <b>El token del canal no sirve</b> (401)" +
+      '<span class="warnline">Revisá que esté completo y sin espacios. No es un bug del canal.</span>';
+  }
   if (esNuestra(p)) {
     return `⚠ <b>Problema técnico del canal</b> (${p.error ? "sin respuesta" : p.status})` +
-      `<span class="warnline">Esto NO es culpa del dato de prueba. Mirá la respuesta a la derecha.</span>`;
+      `<span class="warnline">Esto NO es culpa del dato de prueba: es algo roto de nuestro lado. Reportalo con el botón «copiar reporte».</span>`;
   }
   const j = p.json || {}, cod = codigoDe(p);
   const msg = escapar(j.message || cod || "No se pudo completar");
@@ -533,7 +540,7 @@ $("#reiniciar").addEventListener("click", reiniciar);
 // El reporte para pegar en un ticket, con el token TAPADO: esto va a Jira o a Slack.
 $("#copiar").addEventListener("click", async () => {
   const txt = [
-    `Canal de soporte · ${$("#amb").value} · ${new Date().toISOString()}`,
+    `Canal de soporte · develop · ${new Date().toISOString()}`,
     `celular ${$("#tel").value} · cédula ${$("#doc").value}`,
     "",
     ...LOG.slice().reverse().map((p) => [
@@ -552,15 +559,13 @@ $("#copiar").addEventListener("click", async () => {
 
 // El token y los datos quedan en este navegador para no re-pegarlos en cada prueba.
 const guardar = () => localStorage.setItem("soporte-qa", JSON.stringify({
-  amb: $("#amb").value, token: $("#token").value, tel: $("#tel").value, doc: $("#doc").value }));
-["#amb", "#token", "#tel", "#doc"].forEach((s) =>
-  $(s).addEventListener("change", () => { guardar(); ambiente(); }));
+  token: $("#token").value, tel: $("#tel").value, doc: $("#doc").value }));
+["#token", "#tel", "#doc"].forEach((s) => $(s).addEventListener("change", guardar));
 
 function ambiente() {
-  const dev = $("#amb").value === "dev";
-  $("#avisoAmb").innerHTML = dev
-    ? "Estás contra <b>dev</b>, que es <b>compartido con el equipo</b>: los cambios que apliques quedan escritos ahí. Y si el celular no está en la lista de pruebas de QA, el mensaje con el código <b>se manda de verdad</b>."
-    : "Estás contra <b>local</b> (tu Docker). No molesta a nadie.";
+  $("#avisoAmb").innerHTML = "Esto corre contra <b>develop</b>, que es <b>compartido con el equipo</b>: " +
+    "los cambios que apliques quedan escritos ahí. Y si el celular no está en la lista de pruebas de QA, " +
+    "el mensaje con el código <b>se manda de verdad</b> — usá sólo números propios.";
   $("#nota").innerHTML = `Base: <code>${base()}</code>` + (location.protocol === "file:"
     ? ' · ⚠ esta página está abierta como <b>archivo</b> y así el navegador bloquea las llamadas. Servila por http: <code>python3 -m http.server 5199</code> en su carpeta y abrí <code>http://localhost:5199/soporte-qa.html</code>.'
     : "");
@@ -569,7 +574,6 @@ function ambiente() {
 (function inicio() {
   try {
     const g = JSON.parse(localStorage.getItem("soporte-qa") || "{}");
-    if (g.amb) $("#amb").value = g.amb;
     if (g.token) $("#token").value = g.token;
     if (g.tel) $("#tel").value = g.tel;
     if (g.doc) $("#doc").value = g.doc;
