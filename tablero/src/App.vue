@@ -148,6 +148,42 @@ async function runImport() {
 }
 // listado agrupado por esfuerzo; las sin asignar van al final. El encabezado del grupo solo aparece si
 // hay al menos un esfuerzo en juego (si no, el listado va plano como antes).
+// ── filtro local por estado ──────────────────────────────────────────────────────────────────────
+// Los buckets se derivan de `StatusCategory` (`new` / `indeterminate` / `done`), que es lo ÚNICO que Jira
+// garantiza en todos los workflows — no de los nombres en español, que cambian con el board. Las dos
+// excepciones están justificadas abajo, en `bucketDe`.
+//
+// PARTICIONAN: toda tarea cae en exactamente uno. Un filtro cuyos buckets no cubren todo esconde tareas
+// en silencio, que es peor que no tener filtro. Medido el 2026-08-19 con 16 tarjetas: 1+3+1+2+9 = 16.
+const FILTROS = [
+  { id: 'todas', label: 'todas' },
+  { id: 'sin-iniciar', label: 'sin iniciar' },
+  { id: 'iniciada', label: 'iniciada' },
+  { id: 'bloqueada', label: 'bloqueada' },
+  { id: 'pruebas', label: 'en pruebas' },
+  { id: 'terminada', label: 'terminada' },
+];
+// ⚠ Los dos tests por NOMBRE están acá a propósito, y no por comodidad:
+//
+//   · «bloqueada» — el board de CORE la declara en la categoría `new`, así que sin este test una tarea
+//     bloqueada (CORE-19: 3 pt y trabajo encima) se lee como que nadie la tocó. Y es justo el estado que
+//     uno quiere ver: no se destraba trabajando, se destraba hablando con alguien.
+//   · «en pruebas» — es `indeterminate` como «en progreso», pero es donde más puntos se quedan varados,
+//     a un estado de contar. Mezclarla con «iniciada» esconde el atasco.
+//
+// El resto sale de `StatusCategory`, que es lo único que Jira garantiza en cualquier workflow.
+const bloqueada = (i) => /bloquead/i.test(i?.Status || '');
+const bucketDe = (i) => {
+  if (i.StatusCategory === 'done') return 'terminada';
+  if (enPruebas(i)) return 'pruebas';
+  if (bloqueada(i)) return 'bloqueada';
+  if (i.StatusCategory === 'new') return 'sin-iniciar';
+  return 'iniciada';   // `indeterminate` que no está en pruebas ni bloqueada: en progreso, en revisión
+};
+// NO se persiste a propósito: abrir el tablero y ver 2 tarjetas porque quedó un filtro de ayer se lee
+// como "perdí trabajo", no como "hay un filtro puesto". Arranca siempre en «todas».
+const filtro = ref('todas');
+
 const groupedIssues = computed(() => {
   // UNA sola grilla, sin agrupaciones. Antes se agrupaba por esfuerzo con un encabezado por grupo, y eso
   // cortaba la grilla en bloques: con `auto-fill` cada bloque arranca en línea nueva, así que una fila de
@@ -168,7 +204,7 @@ const groupedIssues = computed(() => {
         porKey.set(i.Key, { ...i, _sprint: nombreCorto(g.sprint.name), _arrastres: 1 });
       }
     }
-    return [{ id: 0, title: '', tasks: [...porKey.values()] }];
+    return [{ id: 0, title: '', tasks: conFiltro([...porKey.values()]) }];
   }
   // `issues` ya viene ordenado nuevo → viejo desde el server y ese orden se preserva tal cual.
   const conEsfuerzo = issues.value.map((i) => {
@@ -176,7 +212,29 @@ const groupedIssues = computed(() => {
     const t = eid ? efforts.value.find(e => e.id === eid)?.title : '';
     return t ? { ...i, _esfuerzo: t, _esfuerzoId: eid } : i;
   });
-  return [{ id: 0, title: '', tasks: conEsfuerzo }];
+  return [{ id: 0, title: '', tasks: conFiltro(conEsfuerzo) }];
+});
+// El filtro se aplica al FINAL de las dos ramas: es una vista sobre la lista, no otra lista.
+function conFiltro(ts) {
+  return filtro.value === 'todas' ? ts : ts.filter(i => bucketDe(i) === filtro.value);
+}
+// Los conteos salen de la lista SIN filtrar: si salieran de la filtrada, todos los buckets menos el
+// activo dirían 0 y las pastillas dejarían de servir para navegar.
+const sinFiltrar = computed(() => {
+  if (vistaAncha.value) {
+    const vistos = new Set(), out = [];
+    for (const g of porSprint.value) for (const i of g.issues) {
+      if (!vistos.has(i.Key)) { vistos.add(i.Key); out.push(i); }
+    }
+    return out;
+  }
+  return issues.value;
+});
+const conteoFiltro = computed(() => {
+  const n = { todas: sinFiltrar.value.length };
+  for (const f of FILTROS) if (f.id !== 'todas') n[f.id] = 0;
+  for (const i of sinFiltrar.value) n[bucketDe(i)]++;
+  return n;
 });
 
 // Ya no hay encabezados de grupo: la grilla es una sola y el grupo se lee en el chip de la tarjeta.
@@ -682,6 +740,11 @@ const qaProblems = ref([]);
 // En pruebas ya no hay nada que avisar; el botón solo aparece antes de eso. Es por TAREA y no sobre la
 // activa: ahora cada tarjeta trae su propio botón.
 const enPruebas = (i) => /pruebas/i.test(i?.Status || '');
+// El botón es un movimiento HACIA ADELANTE, así que no tiene sentido en algo que ya pasó por ahí. Con
+// sólo `enPruebas()` salía en las TERMINADAS —9 de 16 tarjetas el 2026-08-19— y ese botón no es
+// inofensivo: mueve la tarjeta en Jira Y le manda un Slack a quien valida. Ofrecer "mandar a probar"
+// algo cerrado es pedir un aviso falso.
+const yaPasoPorQA = (i) => enPruebas(i) || i?.StatusCategory === 'done';
 
 async function openQA(i) {
   active.value = i;   // el panel y el envío leen la activa: se fija antes de pedir nada
@@ -894,9 +957,23 @@ onMounted(async () => {
       <section class="card">
         <h2>
           {{ vistaAncha ? `Mis tareas · últimos ${porSprint.length} sprints` : 'Mis tareas' }}
-          <span v-if="vistaAncha && !cargandoAncha" class="cnt">{{ totalAncha }}</span>
+          <!-- Con filtro puesto dice las DOS mitades («9 / 16»): sólo el número filtrado hace pensar que
+               se perdieron tareas, y sólo el total contradice lo que se ve en la grilla. -->
+          <span v-if="vistaAncha && !cargandoAncha" class="cnt">{{ filtro === 'todas'
+            ? totalAncha : `${totalAncha} / ${sinFiltrar.length}` }}</span>
         </h2>
         <p v-if="vistaAncha && cargandoAncha" class="empty">trayendo los sprints…</p>
+        <!-- Filtro LOCAL: no vuelve a pedirle nada al server, sólo tapa lo que no corresponde. Cada
+             pastilla lleva su conteo porque un filtro sin conteo obliga a clickear para descubrir que
+             está vacío. Las que no tienen nada se deshabilitan en vez de esconderse: que «en pruebas 0»
+             se vea es información. -->
+        <div class="filtros" v-if="!cargandoAncha && sinFiltrar.length">
+          <button v-for="f in FILTROS" :key="f.id" class="fpill"
+            :class="{ act: filtro === f.id, bloq: f.id === 'bloqueada' }" :disabled="!conteoFiltro[f.id]"
+            @click="filtro = f.id">
+            {{ f.label }}<span class="cnt">{{ conteoFiltro[f.id] }}</span>
+          </button>
+        </div>
         <template v-for="g in groupedIssues" :key="g.id">
           <!-- varias columnas según el ancho: `auto-fill` con un mínimo, así el número de columnas lo
                decide la pantalla y no un breakpoint escrito a mano -->
@@ -968,7 +1045,7 @@ onMounted(async () => {
                   Hallazgos<span class="cnt">{{ hallazgosDe(i.Key).length }}</span><span
                     v-if="hallazgosDe(i.Key).some(vencido)" class="alerta" title="Hay algo que pide revisión">●</span>
                 </button>
-                <button v-if="!enPruebas(i) && qa?.key !== i.Key" class="tact go" :disabled="qaBusy" @click="openQA(i)">
+                <button v-if="!yaPasoPorQA(i) && qa?.key !== i.Key" class="tact go" :disabled="qaBusy" @click="openQA(i)">
                   🧪 A pruebas
                 </button>
               </div>
@@ -1261,6 +1338,20 @@ onMounted(async () => {
 /* Vista ancha: la página se suelta. Los 1180px son para leer UNA columna de tarjetas; con cuatro sprints
    a la vez lo que se quiere es abarcar, y la grilla ya es `auto-fill` — sólo hay que dejarla crecer. */
 .wrap.ancha { max-width: none }
+/* Filtro por estado. Van arriba de la grilla y no dentro de las tarjetas: es una decisión sobre el
+   CONJUNTO. La deshabilitada se ve —conserva su cero— porque un bucket vacío es un dato. */
+.filtros { display: flex; gap: 5px; flex-wrap: wrap; margin: 0 0 12px }
+.fpill { border: 1px solid var(--line); background: var(--panel2); color: var(--mut); font: inherit;
+  font-size: 12px; font-weight: 600; padding: 4px 10px; border-radius: 999px; cursor: pointer;
+  display: inline-flex; align-items: center; gap: 6px; transition: .12s }
+.fpill:hover:not(:disabled) { color: var(--txt); border-color: var(--line2) }
+.fpill.act { color: var(--txt); background: var(--panel); border-color: color-mix(in srgb, var(--acc) 45%, transparent) }
+/* Bloqueada en rojo aun sin estar activa: es la única del filtro que pide una acción de otra persona. */
+.fpill.bloq:not(:disabled) { color: #f87171; border-color: #f8717144 }
+.fpill.bloq.act { color: #fca5a5; border-color: #f87171aa }
+.fpill:disabled { opacity: .38; cursor: default }
+.fpill .cnt { font-size: 10.5px; opacity: .8; font-weight: 700 }
+
 /* De qué sprint es la tarjeta. Va en la línea de la clave, chiquito: es contexto, no el dato principal. */
 .spchip { margin-left: auto; font-size: 10.5px; color: var(--mut); border: 1px solid var(--line);
   border-radius: 5px; padding: 1px 5px; white-space: nowrap }
