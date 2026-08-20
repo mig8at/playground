@@ -489,9 +489,28 @@ async function launch(slug: string, profile: Profile, target: string, inject: bo
             try { writeFileSync(RUN_LOG, `  ⏱ listo para explorar en ${seg}s (desde que diste Lanzar)\n`, { flag: 'a' }); } catch {}
         }
     };
-    child.stdout?.on('data', append);
-    child.stderr?.on('data', append);
+    // ── RED DE SEGURIDAD: el spec terminó pero `bin/asesor` no murió ──────────────────────────────
+    // Visto el 2026-08-19: Playwright reportó `1 failed`, el trap restauró el .env.local, y el bash
+    // igual quedó vivo con el Vite del wizard colgando — el panel decía "corriendo" para siempre y la
+    // única salida era matar el proceso a mano. Cuando el log canta que el spec cerró, se le da un
+    // margen y se mata el grupo: el `close` posterior dispara el post-mortem normal, que es justo lo
+    // que se perdía al matarlo por fuera.
+    const FIN_DEL_SPEC = /^(?:\s*(?:\d+ (?:passed|failed)|✗ falló \(code|✅ '.*' OK contra|⏹  interrumpido))/m;
+    let cierreForzado: NodeJS.Timeout | null = null;
+    const vigilarFin = (txt: string) => {
+        if (cierreForzado || !FIN_DEL_SPEC.test(txt)) return;
+        cierreForzado = setTimeout(() => {
+            if (!current || current.done) return;
+            append(Buffer.from('\n  ⚠ el spec terminó pero el launcher sigue vivo — cierro el grupo de procesos\n'));
+            killRun('SIGTERM');
+            setTimeout(() => killRun('SIGKILL'), 2500);
+        }, 8000);   // margen: el launcher todavía imprime su resumen y restaura el .env.local
+    };
+
+    child.stdout?.on('data', (b: Buffer) => { append(b); vigilarFin(b.toString()); });
+    child.stderr?.on('data', (b: Buffer) => { append(b); vigilarFin(b.toString()); });
     child.on('close', async (code) => {
+        if (cierreForzado) { clearTimeout(cierreForzado); cierreForzado = null; }
         if (current) { current.done = true; current.code = code; }
         append(Buffer.from(`\n✓ corrida terminada (code ${code})\n`));
         // Comprobación de BD UNA sola vez, al FINAL (no polling durante la corrida): consulta qué persistió

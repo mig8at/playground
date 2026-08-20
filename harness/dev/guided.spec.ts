@@ -152,9 +152,14 @@ async function errorShot(page: Page, detail: string) {
 // matan el proceso y disparan la comprobación de BD del cierre. test.setTimeout(0): sin límite mientras
 // explorás, igual que hacía el pause (el timeout del test no corre). Los eventos CDP de la traza siguen
 // llegando mientras tanto (waitForEvent no bloquea el event loop).
-async function holdOpen(page: Page) {
+async function holdOpen(...pages: Page[]) {
     test.setTimeout(0);
-    await page.waitForEvent('close', { timeout: 0 }).catch(() => {});
+    // Espera a que se cierre CUALQUIERA de las ventanas, no sólo A. Antes miraba únicamente A, así que
+    // cerrar el celular (B) dejaba la corrida colgada sin nada que la termine — y cerrar «las ventanas»
+    // es el gesto natural para decir "terminé" (pasó el 2026-08-19). El spec no cierra A ni B por su
+    // cuenta (sólo popups externos), así que un close SIEMPRE es del humano.
+    const vivas = pages.filter(Boolean);
+    await Promise.race(vivas.map((p) => p.waitForEvent('close', { timeout: 0 }))).catch(() => {});
 }
 
 // fill robusto contra hidratación: el MoneyInput/SSR pierde fill() si React no ató el onChange → reintenta
@@ -787,7 +792,7 @@ test('guided (semiautomático)', async ({ browser }) => {
         await shot(page, 'qr-listo');
         tip('Recorré el flujo dando CONTINUAR: cada pantalla se autorrellena sola. '
             + '(para terminar: cerrá la ventana o «Detener» en el panel)');
-        await holdOpen(page);
+        await holdOpen(page, B);
         return;
     } else if (ENTRY === 'ecommerce') {
         // ── ENTRADA POR ECOMMERCE (URL base64) ────────────────────────────────────────────────────────
@@ -995,7 +1000,7 @@ test('guided (semiautomático)', async ({ browser }) => {
                     log('no pude leer el uReq en personal-info — seguí igual (sin buró inyectado)');
                 }
                 await shot(page, 'manual-personal-info');
-                await holdOpen(page);
+                await holdOpen(page, B);
                 return;
             }
 
@@ -1005,7 +1010,7 @@ test('guided (semiautomático)', async ({ browser }) => {
                 await page.getByText(/cargando las opciones/i).waitFor({ state: 'detached', timeout: 120_000 }).catch(() => {});
                 await shot(page, 'headless-lenders');
                 tip('Salto HEADLESS a /lenders (sin llenado visual, con el sintético inyectado). Explorá las cards. (para terminar: cerrá la ventana o «Detener» en el panel.)');
-                await holdOpen(page);
+                await holdOpen(page, B);
                 return;
             }
 
@@ -1022,7 +1027,7 @@ test('guided (semiautomático)', async ({ browser }) => {
             if (STEP === 'phone') {
                 await shot(page, 'auto-phone');
                 tip('Salté a Teléfono con el monto ya puesto. Seguí vos desde acá. (para terminar: cerrá la ventana o «Detener» en el panel.)');
-                await holdOpen(page);
+                await holdOpen(page, B);
                 return;
             }
 
@@ -1048,7 +1053,7 @@ test('guided (semiautomático)', async ({ browser }) => {
                 }
                 await shot(page, 'auto-personal-info');
                 tip('Salté a personal-info con el buró inyectado. Completá/seguí a /lenders. (para terminar: cerrá la ventana o «Detener» en el panel.)');
-                await holdOpen(page);
+                await holdOpen(page, B);
                 return;
             }
 
@@ -1065,12 +1070,12 @@ test('guided (semiautomático)', async ({ browser }) => {
             await page.getByText(/cargando las opciones/i).waitFor({ state: 'detached', timeout: 120_000 }).catch(() => {});
             await shot(page, 'auto-lenders');
             tip('Salté directo a /lenders con el usuario sintético inyectado. Explorá las cards. (para terminar: cerrá la ventana o «Detener» en el panel.)');
-            await holdOpen(page);
+            await holdOpen(page, B);
             return;
         }
         tip('MANUAL: el browser quedó en monto. Manejá vos todo el flujo a mano. (para terminar: cerrá la ventana o «Detener» en el panel.)');
         await shot(page, 'manual-monto');
-        await holdOpen(page);
+        await holdOpen(page, B);
         return;
     }
 
