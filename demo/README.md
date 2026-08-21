@@ -9,6 +9,7 @@ recibe `agente-lector`.
     make demo-medir                  # los números
     make demo-mapa   F=<alias/ruta>  # un archivo → su detalle · un PREFIJO → el mapa del módulo
     make demo-vecinos F=<alias/ruta> # quién lo llama y a quién llama, con la procedencia de cada arista
+    make demo-vecindario T=<término> # ⭐ LA ENTRADA ÚTIL: grep → semillas → vecindario a 1 salto
 
 ## La tesis, y el número que la sostiene
 
@@ -203,6 +204,49 @@ y hace falta tenerla para saber dónde está el borde.
 de referencia son «los archivos que nombran la cosa literalmente», un sesgo con el que ya me tropecé
 una vez —  la primera versión truncó el GT con un `head -4` y dejó afuera `app/Models/ProfilingReview.php`,
 que era la mejor respuesta posible.
+
+## La entrada útil: `vecindario` — el grep pone la intención, el grafo el vecindario
+
+    make demo-vecindario T=can_check_preapproval          # 1 salto, 25k tokens de presupuesto
+
+Es la conclusión de la prueba de fuego aplicada: el mapa **no va como contexto inicial**. La semilla la
+pone la pregunta —lo que matcheó un `git grep` contra `main`— y el grafo agrega sólo lo que está pegado
+a eso, renderizado con los tiers y con un presupuesto que **dice** cuándo cortó.
+
+**Lo que aporta sobre el grep solo**, que es la única razón para que exista: el archivo que **no
+matcheó** pero está a un salto. Grepeando `can_check_preapproval` (5 semillas) aparece a un salto
+`ProfilingRulesService` — que **no contiene el término** y es uno de los cuatro archivos que el
+experimento del triaje tuvo que rescatar a mano. También aparece `LenderRetrievalService`, el padre
+donde vive el pipeline.
+
+Y de arriba viene gratis la prosa de los tests. El vecindario de `can_check_preapproval` trae:
+
+    · no pisa un true ya asignado por RiskCentralValidationService
+    · marca false cuando el score está bajo el umbral
+    · marca false cuando no hay fila en lender_datacredito_rules
+
+La última nombra una tabla que ni el grep ni el esqueleto te habrían dado.
+
+### ⚠ El acantilado del segundo salto, medido
+
+| término grepeado | semillas | +1 salto | +2 saltos | +3 |
+|---|---|---|---|---|
+| `can_check_preapproval` | 5 | **7** | 198 | 399 |
+| `profiling_reviews` | 9 | **12** | 309 | 333 |
+| `stampCreditopXApproval` | 1 | **6** | 199 | 400 |
+| `createEnvelope` | 2 | **2** | 2 | 15 |
+| `lenders_by_allied_branches` | 17 | **39** | 342 | 311 |
+
+**Un salto: 2 a 39 archivos, todos del vecindario real. Dos saltos: 198 a 342.** A 2 saltos desde
+`stampCreditopXApproval` entran servicios de OTP, de ecommerce y contadores de consultas a Experian: el
+fan-out del padre arrastra el módulo entero. El default es 1 salto y `-saltos 2` avisa con estos
+números.
+
+⚠ **Resultado negativo del ranking**: a 1 salto la **co-activación no dispara**. Con las 5 semillas de
+`can_check_preapproval`, a cada uno de los 7 vecinos lo toca UNA sola semilla — el grafo es demasiado
+ralo (77,8% de los call sites sin resolver) para que compartan vecinos. Recién aparece a 2 saltos, que
+es donde el vecindario ya no sirve. El criterio quedó en el código con esa advertencia escrita, para
+que nadie crea que está rankeando algo.
 
 ## Por qué Go, y por qué no hay motor de grafos
 

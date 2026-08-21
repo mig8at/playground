@@ -363,6 +363,10 @@ demo-extraer: ## @expl PROTOTIPO: construye el mapa de cableado de un repo (~0,5
 demo-medir: ## @expl PROTOTIPO: los números del mapa — compresión y tasa de resolución. R=<alias>
 	@cd demo && go build -o demo . && ./demo medir $(or $(R),legacy-backend)
 
+demo-vecindario: ## @expl PROTOTIPO: grep → semillas → el vecindario a 1 salto, con los tiers. T=<término> [SALTOS=1] [TOKENS=25000]
+	@test -n "$(T)" || { echo "falta T=<término a grepear>  ·  ej: make demo-vecindario T=can_check_preapproval"; exit 2; }
+	@cd demo && go build -o demo . && ./demo vecindario $(or $(R),legacy-backend) '$(T)' -saltos $(or $(SALTOS),1) -tokens $(or $(TOKENS),25000)
+
 demo-mapa: ## @expl PROTOTIPO: el ESQUELETO de un archivo, sin cuerpos. F=<alias/ruta>
 	@test -n "$(F)" || { echo "falta F=<alias/ruta>"; exit 2; }
 	@cd demo && go build -o demo . && ./demo mapa $(F)

@@ -54,6 +54,8 @@ func main() {
   demo mapa <alias/ruta>        el ESQUELETO de un archivo: su interfaz, sin cuerpos
   demo vecinos <alias/ruta>     quién lo llama y a quién llama, con la procedencia de cada arista
   demo medir <alias>            los números: compresión y tasa de resolución
+  demo vecindario <alias> <término> [-saltos N] [-tokens N]
+                                el grep pone la intención, el grafo el vecindario. LA ENTRADA ÚTIL
   demo payload <alias> [rutas]  el mapa entero por stdout, para dárselo a un modelo. 'rutas' = sólo
                                 la lista de rutas, que es la CONDICIÓN A del experimento
 
@@ -71,6 +73,8 @@ func main() {
 		cmdMedir()
 	case "payload":
 		cmdPayload()
+	case "vecindario":
+		cmdVecindario()
 	default:
 		salir(fmt.Errorf("subcomando desconocido %q", os.Args[1]))
 	}
