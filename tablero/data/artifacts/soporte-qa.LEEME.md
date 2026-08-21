@@ -15,21 +15,23 @@ Y abrir **http://localhost:5199/soporte-qa.html**
 
 ## No hay nada que configurar
 
-Elegí uno de los tres casos de arriba y dale **Empezar**. El token ya viene puesto en el archivo y
-siempre corre contra **develop**.
+Dale **Empezar**. El token ya viene en el archivo, corre contra **develop**, y la cédula y el código del
+OTP se escriben solos: lo único que tocás son las decisiones —qué crédito, qué cambio, confirmar—, que
+es justo lo que hay que probar.
 
-| El caso | Qué muestra |
-|---|---|
-| **Cambio completo** | un cliente con un crédito y sin cuota pendiente: llega hasta aplicar el cambio |
-| **Dos comercios** | el cliente elige entre dos créditos, y después el rechazo por cuota pendiente |
-| **Número sin cuenta** | cómo se ve cuando el celular no está registrado |
+El cliente de prueba es **ANA QA**, con **dos créditos en dos comercios distintos**: así se ve el menú
+de elegir crédito, y quedan dos créditos para probar el cambio de fecha en uno y el de plazo en el otro.
 
-Los tres son clientes de prueba de develop **cuyo celular está en la lista de QA**, así que no se
-manda ningún mensaje. Para probar con otro cliente, abrí **«otro cliente»** a la derecha.
+## Para volver a probar: corré el script
 
-⚠ develop es **compartido con el equipo**: los cambios que apliques quedan escritos ahí. Y ojo con
-«Cambio completo»: si lo aplicás, **ese mismo crédito no admite otro cambio por 6 meses** — es la regla
-del negocio, no un error. Para volver a probarlo hay que usar otro crédito.
+Un crédito al que se le cambió algo **no admite otro cambio por 6 meses** — es la regla del negocio, no
+un error. Para volver al estado inicial:
+
+    mysql -h <host> -u <usuario> -p <base> < soporte-qa.casos.sql
+
+Eso borra los cambios de ANA QA y deja sus dos créditos como al principio. Correrlo las veces que
+quieras. **Es también lo que la crea la primera vez**: si el chat dice que el número no está registrado,
+es que falta correrlo en ese ambiente.
 
 ## El código que llega por mensaje
 

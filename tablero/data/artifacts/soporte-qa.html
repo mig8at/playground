@@ -32,18 +32,9 @@
                 background:var(--page); color:var(--ink); cursor:pointer }
   .cfg button.p { background:var(--wa-green); border-color:var(--wa-green); color:#fff; font-weight:500 }
 
-  .ejemplos { display:flex; gap:8px; flex-wrap:wrap }
-  .ejemplos button { text-align:left; line-height:1.25; padding:7px 12px }
-  .ejemplos button.sel { border-color:var(--wa-green); background:#eafaf4 }
-  .ejemplos button b { display:block; font-weight:600; font-size:13px }
-  .ejemplos button span { display:block; font-size:11px; color:var(--soft) }
-  .avz { margin-left:auto; font-size:12px; color:var(--soft) }
-  .avz > summary { cursor:pointer; padding:7px 4px }
-  .avzc { display:flex; gap:8px; padding-top:6px }
-  .avzc label { display:flex; flex-direction:column; gap:3px; font-size:10.5px;
-                text-transform:uppercase; letter-spacing:.05em }
-  .avzc input { font:13px var(--mono); padding:6px 8px; border:1px solid var(--line);
-                border-radius:6px; background:var(--page); color:var(--ink); width:150px }
+  .quien { font-size:13px; line-height:1.35 }
+  .quien b { font-weight:600 }
+  .quien span { color:var(--soft); font-family:var(--mono); font-size:12px }
 
   .aviso { margin:10px 22px 0; padding:9px 12px; border-radius:7px; font-size:12.5px;
            background:var(--warnbg); border:1px solid #fde68a; color:var(--warn) }
@@ -131,24 +122,15 @@
   <p>Es la conversación tal como la va a ver el cliente en WhatsApp, pero cada paso llama la API de
      verdad y no hay nada simulado: si el crédito no admite cambios, lo dice el backend. A la derecha
      queda la respuesta cruda de cada llamada, en orden. Corre contra <b>develop</b> y no hay nada que
-     configurar: elegí un caso y dale <b>Empezar</b>.</p>
+     configurar: dale <b>Empezar</b>.</p>
 </header>
 
 <div class="cfg">
-  <div class="ejemplos" id="ejemplos"></div>
+  <div class="quien" id="quien"></div>
   <button class="p" id="empezar">▶ Empezar</button>
   <button id="reiniciar">↺ Reiniciar</button>
-  <details class="avz">
-    <summary>otro cliente</summary>
-    <div class="avzc">
-      <label>Celular <input id="tel" value="3109000004" placeholder="3001234567"></label>
-      <label>Cédula <input id="doc" value="37670195" placeholder="1023038445"></label>
-      <label>Token <input id="token" type="password" placeholder="el del archivo" autocomplete="off"></label>
-    </div>
-  </details>
 </div>
 
-<div class="aviso" id="avisoAmb"></div>
 
 <div class="cols">
   <div>
@@ -190,18 +172,21 @@ const TOKEN_DEL_ARCHIVO = "b6fe69d4994504b09ef0ff21d5d60ab7c94b983d83e0055679c31
 
 const $ = (s) => document.querySelector(s);
 const base = () => BASE;
-const token = () => $("#token").value.trim() || TOKEN_DEL_ARCHIVO;
 
-// Los tres casos que se pueden probar HOY en develop. No son inventados: se midieron el 2026-08-20
-// contra la base de dev, y son los únicos clientes con crédito gestionable cuyo celular está en la
-// lista de QA — o sea, los únicos donde el código NO se manda por SMS a nadie.
-const EJEMPLOS = [
-  { t: "Cambio completo", sub: "un crédito, sin cuota pendiente", tel: "3109000004", doc: "37670195" },
-  { t: "Dos comercios", sub: "elige entre dos créditos", tel: "3243277267", doc: "1023038445-5" },
-  { t: "Número sin cuenta", sub: "cuando el celular no está", tel: "3001112233", doc: "1020304050" },
-];
-const wa = () => "whatsapp:+57" + $("#tel").value.trim();
-const doc = () => $("#doc").value.trim();
+// Quién se está probando. Sale del caso que se eligió, no de campos en pantalla: cada dato que hubiera
+// que tipear es un dato que se puede tipear mal, y el prototipo dejaría de parecerse a un WhatsApp.
+const QUIEN = { tel: "", doc: "" };
+
+// UN solo cliente de prueba, y con dos créditos en comercios distintos porque es el caso que más
+// cubre: se ve el menú de elegir crédito y después el cambio. Lo crea `soporte-qa.casos.sql`, y correr
+// ese script otra vez lo devuelve al estado inicial — que es lo que permite probar muchas veces, porque
+// un crédito al que se le cambió algo no admite otro cambio por 6 meses.
+//
+// Su celular está en la lista de bypass de QA: no se le manda ningún mensaje a nadie y el código del
+// OTP son los últimos 4 dígitos.
+const CLIENTE = { tel: "3131010100", doc: "900000001", nombre: "ANA QA", que: "dos créditos, en dos comercios" };
+const wa = () => "whatsapp:+57" + QUIEN.tel;
+const doc = () => QUIEN.doc;
 
 // ── el registro de llamadas ──────────────────────────────────────────────────────────────────────
 // TODA llamada pasa por acá. Si algo no aparece en la columna derecha es porque no se llamó — esa es
@@ -216,7 +201,7 @@ async function api(met, ruta, cuerpo) {
       method: met,
       headers: {
         "Accept": "application/json",
-        "Authorization": "Bearer " + token(),
+        "Authorization": "Bearer " + TOKEN_DEL_ARCHIVO,
         ...(cuerpo ? { "Content-Type": "application/json" } : {}),
       },
       ...(cuerpo ? { body: JSON.stringify(cuerpo) } : {}),
@@ -305,10 +290,31 @@ async function escribiendo(ms = 520) {
 }
 async function dice(html, opts = {}) { await escribiendo(); globo("bot", html, opts); }
 
-function pedirTexto(ph) {
+/**
+ * Pide texto — y si el dato ya se conoce, lo escribe solo.
+ *
+ * La distinción que importa: la cédula y el código del OTP son **datos** (los sabe el caso elegido, y
+ * tipearlos sólo agrega formas de equivocarse), mientras elegir el crédito, la acción o confirmar son
+ * **decisiones** y ésas se tocan. Así una prueba es un clic y sigue pareciendo una conversación.
+ *
+ * Se escribe con una pausa y pasando por el mismo camino que un dedo —`#enviar`— para que el globo
+ * salga en orden y no se salte ninguna llamada.
+ */
+function pedirTexto(ph, clave) {
   const i = $("#entrada"), b = $("#enviar");
   i.disabled = false; b.disabled = false; i.value = ""; i.placeholder = ph; i.focus();
+
+  const solo = clave && AUTO[clave];
+  if (solo) {
+    i.value = solo;
+    setTimeout(() => { if (!i.disabled) b.click(); }, 700);
+  }
 }
+
+// Lo que el caso elegido ya sabe. El código del OTP es los últimos 4 dígitos del celular: es la regla
+// del bypass de QA, y por eso estos casos no le mandan un mensaje a nadie.
+const AUTO = {};
+function autoDe(tel, doc) { AUTO.cedula = doc; AUTO.codigo = String(tel).slice(-4); }
 function trabar() {
   const i = $("#entrada"), b = $("#enviar");
   i.disabled = true; b.disabled = true; i.value = ""; i.placeholder = "Escribe un mensaje";
@@ -361,14 +367,19 @@ const FASES = {
   async saludo() {
     const p = await api("GET", `/self/by-phone?wa=${encodeURIComponent(wa())}`);
     if (!p.ok) {
-      await dice(esNuestra(p) ? problema(p) : "No encontré una cuenta asociada a este número, así que no puedo ayudarte por acá.");
+      // El 404 acá casi siempre significa una cosa concreta: el cliente de prueba no está sembrado en
+      // este ambiente. Decirlo ahorra la media hora de creer que el canal está roto.
+      await dice(esNuestra(p) ? problema(p)
+        : "No encontré una cuenta asociada a este número, así que no puedo ayudarte por acá." +
+          '<span class="warnline">Si es la primera vez: falta correr <b>soporte-qa.casos.sql</b> contra ' +
+          'este ambiente, que es el que crea al cliente de prueba.</span>');
       return fin();
     }
     // No se saluda por NOMBRE todavía, a propósito: acá la persona no probó nada, sólo tiene el
     // teléfono en la mano. El nombre se usa después del código.
     C.d.nombre = (p.json.data || {}).first_name;
     await dice("Hola 👋 Soy el asistente de <b>CreditOp</b>.<br><br>Antes de nada tengo que confirmar que eres tú. ¿Me pasas tu número de cédula?");
-    pedirTexto("Tu número de cédula");
+    pedirTexto("Tu número de cédula", "cedula");
     C.fase = "cedula";
   },
 
@@ -377,7 +388,7 @@ const FASES = {
     if (!p.ok) {
       if (esNuestra(p)) { await dice(problema(p)); return fin(); }
       await dice("No encontramos una cuenta con esos datos. Revisa la cédula e inténtalo de nuevo.");
-      return pedirTexto("Tu número de cédula");
+      return pedirTexto("Tu número de cédula", "cedula");
     }
     const d = p.json.data || {};
     // Volver dentro de los 15 minutos NO pide otro código: la sesión ya está probada.
@@ -388,8 +399,8 @@ const FASES = {
     await dice(`Te envié un código a <b>${d.sent_to}</b>.<br><br>Escríbelo acá. Vence en ${d.expires_in_minutes} minutos y tienes ${d.attempts_allowed} intentos.`);
     // El código sólo se puede mostrar cuando el celular está en la lista de QA: ahí no se llama al
     // proveedor y el código es los últimos 4 dígitos. Con un número normal, el mensaje se manda de verdad.
-    sms($("#tel").value.trim().slice(-4) + "  (si este celular está en la lista de QA)");
-    pedirTexto("El código");
+    sms(AUTO.codigo || "····");
+    pedirTexto("El código", "codigo");
     C.fase = "codigo";
   },
 
@@ -397,10 +408,16 @@ const FASES = {
     const p = await api("POST", "/self/otp/verify", { wa: wa(), code: (txt || "").trim() });
     if (!p.ok) {
       if (esNuestra(p)) { await dice(problema(p)); return fin(); }
+      // Un 409 NO es un código equivocado: es que la sesión no está esperando ninguno —venció, o ya
+      // estaba verificada—. Decir «no coincide» manda a revisar el mensaje cuando el problema es otro.
+      if (p.status === 409) {
+        await dice("Esta conversación ya no está esperando un código. Reiniciá y empezá de nuevo.");
+        return fin();
+      }
       const q = ((p.json || {}).errors || {}).attempts_left;
       await dice(`Ese código no coincide.${q !== undefined ? ` Te quedan <b>${q}</b> intentos.` : ""}`);
       if (q === 0) { await dice("Se agotaron los intentos."); return fin(); }
-      return pedirTexto("El código");
+      return pedirTexto("El código", "codigo");
     }
     const v = document.getElementById("sms"); if (v) v.remove();
     await dice(`✅ Verificado. Hola <b>${C.d.nombre || "de nuevo"}</b>.`);
@@ -572,7 +589,7 @@ $("#reiniciar").addEventListener("click", reiniciar);
 $("#copiar").addEventListener("click", async () => {
   const txt = [
     `Canal de soporte · develop · ${new Date().toISOString()}`,
-    `celular ${$("#tel").value} · cédula ${$("#doc").value}`,
+    `celular ${QUIEN.tel} · cédula ${QUIEN.doc}`,
     "",
     ...LOG.slice().reverse().map((p) => [
       `${p.error ? "sin respuesta" : p.status}  ${p.met} ${p.ruta}  (${p.ms} ms)`,
@@ -588,42 +605,20 @@ $("#copiar").addEventListener("click", async () => {
   } catch { alert(txt); }
 });
 
-// El token y los datos quedan en este navegador para no re-pegarlos en cada prueba.
-const guardar = () => localStorage.setItem("soporte-qa", JSON.stringify({
-  token: $("#token").value, tel: $("#tel").value, doc: $("#doc").value }));
-// (el token sólo se guarda si alguien pegó uno propio; vacío = se usa el del archivo)
-["#token", "#tel", "#doc"].forEach((s) => $(s).addEventListener("change", guardar));
-
-// Un clic pone el cliente y arranca la conversación: es el único paso que QA tiene que dar.
-function pintarEjemplos() {
-  const cont = $("#ejemplos");
-  cont.innerHTML = EJEMPLOS.map((e, i) =>
-    `<button data-i="${i}"><b>${e.t}</b><span>${e.sub}</span></button>`).join("");
-  cont.querySelectorAll("button").forEach((b) => b.addEventListener("click", () => {
-    const e = EJEMPLOS[+b.dataset.i];
-    $("#tel").value = e.tel; $("#doc").value = e.doc; guardar();
-    cont.querySelectorAll("button").forEach((x) => x.classList.toggle("sel", x === b));
-    $("#empezar").click();
-  }));
+function pintarQuien() {
+  QUIEN.tel = CLIENTE.tel; QUIEN.doc = CLIENTE.doc; autoDe(CLIENTE.tel, CLIENTE.doc);
+  $("#quien").innerHTML = `Cliente de prueba: <b>${CLIENTE.nombre}</b> — ${CLIENTE.que}` +
+    `<br><span>cel ${CLIENTE.tel} · cédula ${CLIENTE.doc} · código ${CLIENTE.tel.slice(-4)}</span>`;
 }
 
 function ambiente() {
-  $("#avisoAmb").innerHTML = "Esto corre contra <b>develop</b>, que es <b>compartido con el equipo</b>: " +
-    "los cambios que apliques quedan escritos ahí. Y si el celular no está en la lista de pruebas de QA, " +
-    "el mensaje con el código <b>se manda de verdad</b> — usá sólo números propios.";
   $("#nota").innerHTML = `Base: <code>${base()}</code>` + (location.protocol === "file:"
     ? ' · ⚠ esta página está abierta como <b>archivo</b> y así el navegador bloquea las llamadas. Servila por http: <code>python3 -m http.server 5199</code> en su carpeta y abrí <code>http://localhost:5199/soporte-qa.html</code>.'
     : "");
 }
 
 (function inicio() {
-  try {
-    const g = JSON.parse(localStorage.getItem("soporte-qa") || "{}");
-    if (g.token) $("#token").value = g.token;
-    if (g.tel) $("#tel").value = g.tel;
-    if (g.doc) $("#doc").value = g.doc;
-  } catch {}
   ambiente();
-  pintarEjemplos();
+  pintarQuien();
 })();
 </script>
