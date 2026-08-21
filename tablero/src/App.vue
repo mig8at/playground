@@ -156,7 +156,6 @@ async function runImport() {
 // PARTICIONAN: toda tarea cae en exactamente uno. Un filtro cuyos buckets no cubren todo esconde tareas
 // en silencio, que es peor que no tener filtro. Medido el 2026-08-19 con 16 tarjetas: 1+3+1+2+9 = 16.
 const FILTROS = [
-  { id: 'todas', label: 'todas' },
   { id: 'sin-iniciar', label: 'sin iniciar' },
   { id: 'iniciada', label: 'iniciada' },
   { id: 'bloqueada', label: 'bloqueada' },
@@ -180,9 +179,14 @@ const bucketDe = (i) => {
   if (i.StatusCategory === 'new') return 'sin-iniciar';
   return 'iniciada';   // `indeterminate` que no está en pruebas ni bloqueada: en progreso, en revisión
 };
+// Se guarda lo que está OCULTO, no lo visible: el conjunto vacío es "se ve todo", así que el estado
+// inicial no depende de conocer la lista de buckets y agregar uno nuevo no lo esconde por omisión.
+// Eso reemplaza a la pastilla «todas», que era el mismo default escrito como una opción más.
+//
 // NO se persiste a propósito: abrir el tablero y ver 2 tarjetas porque quedó un filtro de ayer se lee
-// como "perdí trabajo", no como "hay un filtro puesto". Arranca siempre en «todas».
-const filtro = ref('todas');
+// como "perdí trabajo", no como "hay un filtro puesto". Arranca siempre con todo visible.
+const ocultos = ref(new Set());
+const alternarFiltro = (id) => { ocultos.value.has(id) ? ocultos.value.delete(id) : ocultos.value.add(id) };
 
 const groupedIssues = computed(() => {
   // UNA sola grilla, sin agrupaciones. Antes se agrupaba por esfuerzo con un encabezado por grupo, y eso
@@ -216,10 +220,10 @@ const groupedIssues = computed(() => {
 });
 // El filtro se aplica al FINAL de las dos ramas: es una vista sobre la lista, no otra lista.
 function conFiltro(ts) {
-  return filtro.value === 'todas' ? ts : ts.filter(i => bucketDe(i) === filtro.value);
+  return ocultos.value.size ? ts.filter(i => !ocultos.value.has(bucketDe(i))) : ts;
 }
-// Los conteos salen de la lista SIN filtrar: si salieran de la filtrada, todos los buckets menos el
-// activo dirían 0 y las pastillas dejarían de servir para navegar.
+// Los conteos salen de la lista SIN filtrar: si salieran de la filtrada, un bucket destildado diría 0 y
+// dejaría de poder volver a tildarse con conocimiento de qué esconde.
 const sinFiltrar = computed(() => {
   if (vistaAncha.value) {
     const vistos = new Set(), out = [];
@@ -231,8 +235,8 @@ const sinFiltrar = computed(() => {
   return issues.value;
 });
 const conteoFiltro = computed(() => {
-  const n = { todas: sinFiltrar.value.length };
-  for (const f of FILTROS) if (f.id !== 'todas') n[f.id] = 0;
+  const n = {};
+  for (const f of FILTROS) n[f.id] = 0;
   for (const i of sinFiltrar.value) n[bucketDe(i)]++;
   return n;
 });
@@ -1004,20 +1008,26 @@ onMounted(async () => {
           {{ vistaAncha ? `Mis tareas · últimos ${porSprint.length} sprints` : 'Mis tareas' }}
           <!-- Con filtro puesto dice las DOS mitades («9 / 16»): sólo el número filtrado hace pensar que
                se perdieron tareas, y sólo el total contradice lo que se ve en la grilla. -->
-          <span v-if="vistaAncha && !cargandoAncha" class="cnt">{{ filtro === 'todas'
-            ? totalAncha : `${totalAncha} / ${sinFiltrar.length}` }}</span>
+          <span v-if="vistaAncha && !cargandoAncha" class="cnt">{{ ocultos.size
+            ? `${totalAncha} / ${sinFiltrar.length}` : totalAncha }}</span>
         </h2>
         <p v-if="vistaAncha && cargandoAncha" class="empty">trayendo los sprints…</p>
-        <!-- Filtro LOCAL: no vuelve a pedirle nada al server, sólo tapa lo que no corresponde. Cada
-             pastilla lleva su conteo porque un filtro sin conteo obliga a clickear para descubrir que
-             está vacío. Las que no tienen nada se deshabilitan en vez de esconderse: que «en pruebas 0»
-             se vea es información. -->
+        <!-- Filtro LOCAL: no vuelve a pedirle nada al server, sólo tapa lo que no corresponde.
+             CHECKBOXES y no una pastilla activa a la vez: la pregunta real no es «¿cuál quiero ver?»
+             sino «¿cuáles quiero sacar de la vista?», y esas dos se responden distinto — ocultar sólo
+             las terminadas era imposible con selección única. Tildado = se ve. Por eso ya no hay
+             «todas»: es el estado en que arranca, y como opción sólo repetía el default.
+             Cada casilla lleva su conteo porque un filtro sin conteo obliga a clickear para descubrir
+             que está vacío. Las que no tienen nada se deshabilitan en vez de esconderse: que «en
+             pruebas 0» se vea es información. -->
         <div class="filtros" v-if="!cargandoAncha && sinFiltrar.length">
-          <button v-for="f in FILTROS" :key="f.id" class="fpill"
-            :class="{ act: filtro === f.id, bloq: f.id === 'bloqueada' }" :disabled="!conteoFiltro[f.id]"
-            @click="filtro = f.id">
+          <label v-for="f in FILTROS" :key="f.id" class="fpill"
+            :class="{ off: ocultos.has(f.id), bloq: f.id === 'bloqueada', vacio: !conteoFiltro[f.id] }"
+            :title="ocultos.has(f.id) ? `mostrar ${f.label}` : `ocultar ${f.label}`">
+            <input type="checkbox" :checked="!ocultos.has(f.id)" :disabled="!conteoFiltro[f.id]"
+              @change="alternarFiltro(f.id)">
             {{ f.label }}<span class="cnt">{{ conteoFiltro[f.id] }}</span>
-          </button>
+          </label>
         </div>
         <template v-for="g in groupedIssues" :key="g.id">
           <!-- varias columnas según el ancho: `auto-fill` con un mínimo, así el número de columnas lo
@@ -1425,15 +1435,24 @@ onMounted(async () => {
 /* Filtro por estado. Van arriba de la grilla y no dentro de las tarjetas: es una decisión sobre el
    CONJUNTO. La deshabilitada se ve —conserva su cero— porque un bucket vacío es un dato. */
 .filtros { display: flex; gap: 5px; flex-wrap: wrap; margin: 0 0 12px }
-.fpill { border: 1px solid var(--line); background: var(--panel2); color: var(--mut); font: inherit;
-  font-size: 12px; font-weight: 600; padding: 4px 10px; border-radius: 999px; cursor: pointer;
-  display: inline-flex; align-items: center; gap: 6px; transition: .12s }
-.fpill:hover:not(:disabled) { color: var(--txt); border-color: var(--line2) }
-.fpill.act { color: var(--txt); background: var(--panel); border-color: color-mix(in srgb, var(--acc) 45%, transparent) }
-/* Bloqueada en rojo aun sin estar activa: es la única del filtro que pide una acción de otra persona. */
-.fpill.bloq:not(:disabled) { color: #f87171; border-color: #f8717144 }
-.fpill.bloq.act { color: #fca5a5; border-color: #f87171aa }
-.fpill:disabled { opacity: .38; cursor: default }
+/* Tildada = se ve, que es el estado normal: por eso la tildada va en tono fuerte y la destildada se
+   apaga. Al revés (resaltar la que está oculta) el tablero se leería como si el trabajo estuviera
+   apagado. */
+.fpill { border: 1px solid color-mix(in srgb, var(--acc) 45%, transparent); background: var(--panel);
+  color: var(--txt); font: inherit; font-size: 12px; font-weight: 600; padding: 4px 10px;
+  border-radius: 999px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px;
+  transition: .12s }
+.fpill:hover { border-color: var(--line2) }
+.fpill input { accent-color: var(--acc); margin: 0; cursor: inherit }
+/* Destildada = oculta: se apaga igual que una tarea terminada, y por lo mismo — sigue estando, pero
+   ya no participa de lo que se está mirando. */
+.fpill.off { color: var(--mut); background: var(--panel2); border-color: var(--line) }
+/* Bloqueada en rojo aunque esté destildada: es la única del filtro que pide una acción de OTRA persona,
+   así que tiene que verse incluso cuando se la sacó de la vista. */
+.fpill.bloq { color: #f87171; border-color: #f8717144 }
+.fpill.bloq:not(.off) { color: #fca5a5; border-color: #f87171aa }
+/* Sin tareas: la casilla no hace nada; el conteo en 0 se muestra igual, que es información. */
+.fpill.vacio { opacity: .38; cursor: default }
 .fpill .cnt { font-size: 10.5px; opacity: .8; font-weight: 700 }
 
 /* De qué sprint es la tarjeta. Va en la línea de la clave, chiquito: es contexto, no el dato principal. */
