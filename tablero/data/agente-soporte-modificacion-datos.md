@@ -142,6 +142,54 @@ corridas hoy:
 | **C** | `fee_number` con el plazo nuevo | buscar el plazo en el ledger y no encontrarlo hace creer que el cambio no se aplicó |
 | **D** | `user_id` = el dueño del crédito, y `created_at` **de la misma corrida** | un `otp_id` real pero **viejo** significa que la sesión se sembró a mano, no que alguien autorizó ahora. Medido: en una prueba de local el `otp_id` era de tres meses antes |
 
+### 3b · Si hace falta ADAPTAR un usuario de dev (ponerle otro celular o cédula)
+
+El `.sql` es un atajo: hace esto mismo empaquetado. Lo que importa es la receta, y son cuatro consultas.
+⚠ **Las tres últimas ESCRIBEN en dev, que es compartido.**
+
+**1 · Buscar a quién adaptar** (sólo lectura). Un cliente con crédito rt=2, sin cuota por pagar y sin
+cambios recientes — las tres condiciones que hacen que el flujo llegue hasta el final:
+
+    SELECT u.id AS uid, u.first_name, u.cell_phone, u.document_number,
+           ur.id AS ureq, l.name AS entidad, h.next_payment_amount AS cuota_pendiente,
+           (SELECT MAX(c.created_at) FROM creditop_x_changes_log c
+             WHERE c.user_request_id = ur.id) AS ultimo_cambio
+      FROM users u
+      JOIN user_requests ur ON ur.user_id = u.id
+      JOIN lenders l ON l.id = ur.lender_id AND l.response_type = 2
+      JOIN creditop_x_requests_history h ON h.user_request_id = ur.id AND h.status IN (1,8)
+     WHERE u.user_profile_id = 1 AND u.first_name <> 'TEMPORAL USER'
+       AND h.next_payment_amount = 0
+     ORDER BY ur.id DESC LIMIT 10;
+
+Sirven las filas con `ultimo_cambio` en `NULL`. Corrida contra dev el 2026-08-20: había varias.
+
+**2 · Comprobar que el celular que vas a poner NO sea de otro cliente.** Este paso existe porque el
+error ya se cometió: el celular elegido era de **JOHN SMITH** y el `UPDATE` le habría reescrito nombre y
+cédula sin que nada avisara. Y hay una razón técnica además de la cortesía —
+`findByWhatsApp` resuelve con un `first()`, así que con dos clientes en el mismo número el canal puede
+atender al otro y contestar «no encontramos la cuenta» aunque el tuyo exista:
+
+    SELECT id, first_name, document_number FROM users
+     WHERE cell_phone = '<el celular>' AND user_profile_id = 1;
+
+**3 · Adaptarlo, apuntando por `id`** (nunca por celular, por lo de arriba). La cédula es la que vas a
+tipear en el chat, así que puede ser cualquiera que no exista ya:
+
+    UPDATE users SET cell_phone = '<el celular>', document_number = '<la cédula>' WHERE id = <uid>;
+
+    -- y se libera la sesión anterior de ese número, para que la prueba pida el código
+    DELETE FROM support_bot_sessions WHERE wa_id = CONCAT('whatsapp:+57', '<el celular>');
+
+**4 · Si ese crédito ya se cambió alguna vez**, está bloqueado 6 meses. Se desbloquea borrando su
+auditoría — en dev y sabiendo que eso es lo que se está borrando:
+
+    DELETE FROM creditop_x_changes_log WHERE user_request_id = <ureq>;
+
+⚠ **Y lo que decide si sale un SMS es el celular, no el ambiente:** si el número **no** está en
+`settings.qa_otp_bypass_phones`, el proveedor se llama y el mensaje **llega de verdad** a ese teléfono.
+Con tu propio número eso es lo que querés (prueba real); con el de un compañero es spam que no pidió.
+
 ### 4 · Volver a probar
 
 Correr el `.sql` de nuevo. Hace falta porque **un crédito al que se le cambió algo no admite otro cambio
