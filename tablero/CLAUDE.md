@@ -199,6 +199,38 @@ Qué es y cómo se corre: `README.md`. Acá solo las reglas al trabajar con las 
      de git sin fecha se lee como actual y no lo es. La clave es el **id** de la tarea, no el slug,
      porque el nombre del archivo se puede renombrar a mano.
 
+- **AMBIENTES: cada uno tiene su propia ruta para probar, aunque compartan la BD.** Una tarea no
+  termina cuando mergea: termina cuando alguien la pudo *probar*, y para eso hay que decir **dónde**.
+
+  **Acá no hay lista de ambientes, a propósito: nacen por necesidad.** `qa` se creó para trabajar
+  Motai, y mañana puede haber otro para otra tarea. La fuente es el **workflow de cada repo**
+  (`.github/workflows/`): hay un archivo de deploy por ambiente y cada uno declara su rama y su
+  servicio. Si querés saber qué ambientes existen HOY, se leen ahí — no acá.
+
+  Lo que sí es estable, y es lo que hay que tener claro al escribir una tarea:
+
+  1. **Comparten la base de datos, no el código.** Medido el 2026-08-20: `dev`, `qa` y `staging`
+     apuntan los tres a la **misma** base (`inertia-dev`), pero a **backends distintos**
+     (`legacy-backend`, `legacy-backend-qa`, `legacy-backend-stg`) y **fronts distintos**. De ahí las
+     dos caras: sembrar un dato o correr una migración **una vez sirve para los tres** —por eso las
+     migraciones de Motai aparecen aplicadas en dev y en qa a la vez—, pero **la misma solicitud se
+     comporta distinto según a qué backend le pegues**. Probar contra el ambiente equivocado mide la
+     rama equivocada (**F-73**).
+  2. ⚠ **Nombrar el ambiente no alcanza: hay que saber a qué le habla.** El front desplegado de
+     `staging` llama al backend de **`develop`** (`loans-stg.yaml`), no al de staging. Así que «lo
+     probé en staging» desde el navegador **no** es lo mismo que apuntarle al backend de staging.
+  3. **Prod es otra base y otro disparador.** No se despliega al mergear a `main`: se despliega al
+     **taguear** (`on: push: tags` en los dos repos). «Está en `main`» y «está en producción» son dos
+     preguntas distintas — y las migraciones de prod hay que correrlas aparte, siempre.
+  4. **Mergear no aplica migraciones** en ningún ambiente: el pipeline solo actualiza el servicio y
+     las migraciones van por un workflow manual (**F-77**). Si tu tarea lleva una, «mergeada» no es
+     «terminada»: el 2026-08-20 eso dejó a producción con el código nuevo y la fila vieja, y el plan
+     de pagos salió con una cuota que no era la del contrato.
+
+  **Consecuencia para la publicable:** «Dónde probar» nombra **el ambiente concreto**, no «el ambiente
+  de pruebas». QA prueba en dev, en qa y en staging según la tarea, y los tres se ven iguales porque
+  muestran los mismos datos — si la sección no lo dice, tiene que adivinar entre tres.
+
 - **El pulso NO se escribe a mano ni desde el tablero.** Lo anota `server/cmd/pulso` (un LaunchAgent,
   cada 5 min) leyendo git: es la fuente objetiva de *cuándo toqué código*, y editarla la volvería otra
   bitácora. Se lee con `make pulso` o `GET /api/pulse`. El porqué del diseño: `README.md` → «El pulso».
