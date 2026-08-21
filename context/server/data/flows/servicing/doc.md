@@ -96,7 +96,7 @@ que ya tiene registro, el método hace `return` **sin excepción, sin log y sin 
 «que se perdió», descartá esto primero mirando `creditop_x_payment_register` por esa transacción.
 
 **3 · Reversar NO borra: reescribe cuál fila del ledger es la vigente.**
-`application/app/Http/Controllers/Admin/CreditopXPaymentController.php:1368` (`reversePayment`) marca la
+`application/app/Http/Controllers/Admin/CreditopXPaymentController.php:1377` (`reversePayment`) marca la
 fila actual `status=0`, la del pago `status=5`, **restaura la anterior a `status=1`** y arrastra el
 `next_register` a 5. Por eso el saldo de un crédito es siempre «la fila con `status=1`», nunca la
 última por fecha — y por eso una reversa mal cortada deja dos filas vigentes o ninguna.
@@ -104,6 +104,69 @@ fila actual `status=0`, la del pago `status=5`, **restaura la anterior a `status
 El catálogo que ordena todo esto es **`creditop_x_payment_types`** (verificado en BD local, 2026-08-08):
 **1** RETENIDO · **2** ABONO A CAPITAL · **3** PAGO A CUOTA · **4** PAGO TOTAL · **5** CONDONACIÓN
 INTERESES · **6** DESC. 5% SOBRE CAPITAL · **7** PAGO CUOTA INICIAL · **8** REVERSADO.
+
+### Cambiarle las condiciones a un crédito VIVO: fecha de pago y plazo
+
+El cliente puede mover **el día en que le cobran** y **el número de cuotas** de un crédito ya
+desembolsado. Vive en `legacy-backend`, no en `application` —es una de las pocas piezas de servicing que
+no—, y los dos caminos que existen hoy en `main` son de la app: `Modules/Loans/App/Http/Controllers/Customer/CreditChangeController.php`
+y su gemelo en `Consumer/`. Las reglas **no** están en el controlador: las decide
+`Modules/Loans/App/Services/CreditChangeValidationService.php:41`, y cada cambio aplicado deja fila en
+**`creditop_x_changes_log`**.
+
+**Los cinco portones, EN ORDEN** (corta en el primero que falla, así que el código de error dice cuál
+cayó, no todos los que habrían caído):
+
+| # | Condición | Código si falla |
+|---|---|---|
+| 1 | la solicitud existe | `USER_REQUEST_NOT_FOUND` |
+| 2 | el lender **no** gestiona el crédito por su cuenta (`lenders.externally_serviced`) | `EXTERNALLY_SERVICED` |
+| 3 | hay fila viva en el ledger (`status IN (1,8)`) | `NO_ACTIVE_CREDIT` |
+| 4 | **no hay cuota por pagar** | `HAS_PENDING_PAYMENT` |
+| 5 | **ningún cambio en los últimos 6 meses** (`creditop_x_changes_log`) | `RECENT_CHANGE_EXISTS` |
+
+⚠ **El portón 4 NO es mora, y confundirlos hace diagnosticar al revés.** La condición es
+`next_payment_amount > 0` (`legacy-backend/Modules/Loans/App/Services/CreditChangeValidationService.php:57`) — «tenés una cuota liquidada por pagar»—, no `days_past_due`. Medido
+en dev el 2026-08-20: un crédito con **`days_past_due = 0`** y la próxima cuota liquidada responde
+`HAS_PENDING_PAYMENT`; y al revés, uno con 174 días de mora responde **el mismo** código, así que el
+código de error no distingue «te falta pagar» de «estás en mora».
+
+⚠ Y el mensaje de ese rechazo dice literalmente «no puedes cambiar **el plazo**» aunque se esté pidiendo
+la **fecha**: el texto es uno solo para los dos caminos, y lo lee el cliente.
+
+**Las opciones que se ofrecen, cada una con su regla propia:**
+
+- **Fechas** (`getNextPaymentCycles`): sólo los días **5, 16 y 28**, y se ofrecen las **dos** siguientes
+  al punto de partida. Los tres días están escritos en el código (`legacy-backend/Modules/Loans/App/Services/CreditChangeValidationService.php:96`), no en configuración: nadie
+  fuera de ingeniería puede cambiarlos ni consultarlos. ⚠ En `main` el punto de partida es la fecha del
+  crédito **sin comparar con hoy**, así que a un crédito con la fecha vencida le ofrece fechas pasadas
+  que el propio endpoint de guardado rechaza → **F-148**.
+- **Plazos** (`simulatePossibleFees`): los de la línea de crédito del lender
+  (`credit_line_by_lenders.fee_numbers`, una lista tipo `1,3,6,12`), filtrados a los **mayores a las
+  cuotas ya pagadas** y a los que **no superan el tope de la categoría** del cliente. ⚠ Cuando la
+  categoría **no tiene tope** el filtro los descarta TODOS, así que al mejor cliente no se le puede
+  cambiar el plazo → **F-147**.
+- Que un crédito **admita cambios** y que **tenga opciones** son dos preguntas distintas: la lista de
+  plazos puede venir vacía con `can_change = true`, y en ese caso la fecha sí se puede cambiar.
+
+🔴 **El monto de la cuota lo pone QUIEN LLAMA.** La ruta de la app exige `fee_value` en el cuerpo y lo
+valida sólo como `numeric, min:0`, sin compararlo con lo que ofreció: el llamador fija cuánto va a pagar
+la persona. Verificado en `main` el 2026-08-20. Sigue así.
+
+⚠ **De dónde salen estas reglas, que importa para no tratarlas como política confirmada.** Están sólo en
+el código: lo escribió otra persona en **diciembre de 2025** («Se agregaron servicios para cambio de
+fecha de pago y cambio de plazo») para la app, y se ajustó en marzo y abril de 2026. Buscadas el
+2026-08-20 en Confluence (no se pudo: credencial vencida), en este árbol, en el cerebro de producto y en
+Slack: **ninguna las enuncia**. Lo más cercano es una lista de preguntas frecuentes de producto de
+septiembre de 2025 que pregunta *«¿Puedo cambiar la fecha de pago?»* y *«¿Puedo cambiar el plazo?»* — las
+preguntas, sin la respuesta. O sea: los 6 meses y los días 5/16/28 son **decisiones de implementación sin
+política escrita detrás**. Y F-147 es la prueba de que el código no es una copia fiel de la intención.
+
+> ⏳ **PENDIENTE DE MERGE** — un tercer llamador, el canal de soporte por WhatsApp
+> (`Modules/SupportBot`), reusa este mismo servicio en vez de reimplementarlo, y le agrega dos cosas que
+> la ruta de la app no tiene: sólo créditos de `response_type = 2` y el monto de la cuota resuelto en el
+> backend. Vive en `develop`/`staging`, **no en `main`**. La tarea:
+> `tablero/data/agente-soporte-modificacion-datos.md`. Al mergear: re-verificar y **borrar esta marca**.
 
 ## Estados y códigos
 **DOS máquinas de estado independientes que se confunden** (el Estado 11 es el puente):

@@ -72,12 +72,16 @@
     "application/app/Repositories/PullmanRepository.php",
     "application/app/Services/PullmanService.php",
     "application/app/Services/lenders/LenderCollectionChargeService.php",
+    "legacy-backend/Modules/Loans/App/Http/Controllers/Consumer/CreditChangeController.php",
+    "legacy-backend/Modules/Loans/App/Http/Controllers/Customer/CreditChangeController.php",
+    "legacy-backend/Modules/Loans/App/Services/CreditChangeValidationService.php",
     "legacy-backend/Modules/Loans/App/Services/CreditopXPaymentService.php",
     "legacy-backend/Modules/Onboarding/App/Services/EcommerceRequestService.php",
     "legacy-backend/Modules/Payments/App/Services/CustomerPaymentService.php",
     "legacy-backend/Modules/Payments/App/Services/PaymentLinkService.php",
     "legacy-backend/Modules/System/App/Http/Controllers/Admin/EndOfMonthReportController.php",
     "legacy-backend/app/Console/Kernel.php",
+    "legacy-backend/app/Models/CreditopXChangesLog.php",
     "legacy-backend/app/Repositories/PullmanRepository.php",
     "legacy-backend/app/Services/PullmanService.php"
   ]

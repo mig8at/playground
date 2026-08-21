@@ -36,7 +36,9 @@ orden de archivo — el ancla `### F-xx` es la única dirección.)
 | **«me llegó el SMS pero dice que no hay OTP» / `NO_PREVIOUS_OTP` en staging** | **F-135** |
 | **«está autorizada pero no puedo sacar el voucher»** | **F-136** |
 | **«sembré las credenciales y el SOAP sigue sin encontrarlas»** | **F-137** |
-| **«le salen menos cuotas de las parametrizadas»** | F-110 |
+| **«le salen menos cuotas de las parametrizadas»** | F-110 · **F-147** |
+| **«no le puedo cambiar el plazo y el crédito sí admite cambios»** | **F-147** |
+| **«elige una fecha de pago y el cambio la rechaza»** | **F-148** |
 | **«le aprobaron cupo a alguien que no debía»** | F-112 |
 | **«no sale la opción de una entidad, sin error»** | F-113 |
 | **«esto anda en local y no en dev/qa» / «probé contra el ambiente equivocado»** | F-06 · F-18 · F-61 · F-62 · F-65 · F-73 · F-74 · F-76 · F-77 · F-95 |
@@ -239,6 +241,8 @@ distinto según con qué pregunta llegues.
 | F-144 | El `status` de TusDatos tiene que ser `success` o el rechazo se lee como inconcluyente | TRAMPA |
 | F-145 | Con CC, TusDatos no compara el nombre: el veto sale del `match_code` | TRAMPA |
 | F-146 | El límite de intentos está INVERTIDO entre los dos monolitos, y el viejo no veta | ABIERTO |
+| F-147 | Una categoría sin tope de cuotas = «tope cero»: al mejor cliente no se le cambia el plazo | ABIERTO |
+| F-148 | El menú de fechas de un crédito vencido ofrece sólo fechas que el guardado rechaza | develop |
 
 ---
 
@@ -1169,7 +1173,7 @@ control al front está en esta situación. El referrer sirve para *loguear*, no 
 
 **Causa raíz (verificada):** el recorrido sale al banco **dos veces** (autenticación al empezar, clave
 dinámica al firmar) y el wizard tiene una ruta dedicada para el regreso:
-`routes/bancolombia/bnpl/redirect.tsx` y su gemela `loan/redirect.tsx` (`routes.ts:190` y `:220`). Su
+`routes/bancolombia/bnpl/redirect.tsx` y su gemela `loan/redirect.tsx` (`routes.ts:197` y `:220`). Su
 `clientLoader` lee la sesión del cliente y decide solo:
 
 ```
@@ -1483,7 +1487,7 @@ en producción — el webhook no deja registro cuando `firstOrFail()` lanza, as�
 
 - **Síntoma:** desde el admin de cartera, reversar un pago tira **500** (`Attempt to read property "id"
   on null`). Reversar otros pagos del mismo crédito funciona, así que se lee como intermitente.
-- **Causa raíz (verificada 2026-08-08):** `application/app/Http/Controllers/Admin/CreditopXPaymentController.php:1378`
+- **Causa raíz (verificada 2026-08-08):** `application/app/Http/Controllers/Admin/CreditopXPaymentController.php:1387`
   resuelve el tipo con `CreditopXPaymentType::where('name', 'PAGO REVERSADO')->first()->id`, pero en
   `creditop_x_payment_types` **la fila se llama `REVERSADO`** (id 8). `first()` devuelve `null` y el
   `->id` es fatal. No hay `try` que lo cubra: el `catch` del método envuelve más abajo.
@@ -1619,7 +1623,7 @@ en producción — el webhook no deja registro cuando `firstOrFail()` lanza, as�
 - **Síntoma:** un cliente queda guardado con el segundo apellido mal escrito y **no hay ningún error**.
   El crédito avanza, los documentos se firman con ese nombre y la entidad lo acepta. Desde soporte llega
   como «se guardó un usuario solo con un nombre y con un apellido».
-- **Causa raíz (verificada 2026-08-13):** `TusDatosService.php:189` decide si un no-match cuenta como
+- **Causa raíz (verificada 2026-08-13):** `TusDatosService.php:195` decide si un no-match cuenta como
   error. La tolerancia es correcta y deliberada —un cliente puede **no tener** segundo nombre o segundo
   apellido, y entonces el campo no se envía y TusDatos devuelve `match_code = null`— pero estaba escrita
   con comparación laxa: `$matchCode == null`. En PHP **`0 == null` es `true`**, y `0` es el código de
@@ -1979,6 +1983,48 @@ en producción — el webhook no deja registro cuando `firstOrFail()` lanza, as�
   comparación de nombre estaba relajada por entorno.
 - **Arreglo:** para forzar un rechazo con CC hay que poner `match_code: 0`; dictar un nombre distinto
   no alcanza. **Estado:** vigente.
+
+### F-147 · Una categoría SIN tope de cuotas se comporta como «tope cero»: al mejor cliente no se le puede cambiar el plazo
+
+- **Síntoma:** `fee-number-options` devuelve **lista vacía** con `can_change: true`, y parece que el
+  crédito no tiene plazos parametrizados. Del lado del cliente: «puedo cambiar la fecha pero el plazo no
+  me ofrece nada».
+- **Causa raíz (verificada 2026-08-20 contra `main`):** el filtro por categoría de
+  `legacy-backend/Modules/Loans/App/Services/CreditChangeValidationService.php:175` compara
+  `$feeNum <= $category->max_fee_number` **sin contemplar el NULL**. Una categoría sin tope tiene
+  `max_fee_number = NULL`, y en PHP `3 <= null` es **false** —el null se convierte en 0—, así que el
+  filtro descarta **todos** los plazos. El efecto queda al revés de la intención: «Segunda oportunidad»
+  (tope 6) puede cambiar a 3 o 6 cuotas, y «Premium» —sin tope— no puede cambiar a ninguno.
+- **Evidencia:** crédito 465094 en dev (CrediPullman): la línea ofrece `1,3,6,12`, va en la cuota 1 y
+  `can_change` es `true`, pero `options` vuelve vacío. `users_category_log` dice que ese cliente resuelve
+  a la categoría **12 «Premium»**, cuyo `max_fee_number` es NULL. Comprobado el comportamiento del
+  lenguaje aparte: `php -r 'var_dump(3 <= null);'` → `false`. En dev, **58 de 144** categorías tienen el
+  tope en NULL.
+- **⚠ Cómo NO diagnosticarlo:** buscando datos faltantes. La línea de crédito **sí** tiene los plazos
+  parametrizados y el crédito **sí** admite cambios; nada en la respuesta apunta a la categoría.
+- **Alcance:** es código compartido, así que afecta **también el cambio de plazo de la app móvil**, no
+  sólo al canal de soporte.
+- **Arreglo:** tratar el NULL como «sin tope» (`max_fee_number === null || $feeNum <= …`). Una línea,
+  pero cambia el comportamiento para 58 categorías: **decisión de producto**. **Estado:** abierto.
+
+### F-148 · A un crédito con la fecha vencida, el menú de fechas ofrece SÓLO opciones que el guardado rechaza
+
+- **Síntoma:** el cliente elige una de las dos fechas ofrecidas y el cambio falla con «la fecha tiene que
+  ser de hoy en adelante». Con las dos opciones pasa lo mismo: un menú donde **todo** falla.
+- **Causa raíz (verificada 2026-08-20 contra `main`):** `getNextPaymentCycles`
+  (`legacy-backend/Modules/Loans/App/Services/CreditChangeValidationService.php:96`) toma como punto de partida la fecha
+  de pago **del crédito** y nunca la compara con hoy, así que calcula «los próximos 5/16/28» a partir de
+  una fecha que ya pasó. El guardado, en cambio, exige `after_or_equal:today`.
+- **Evidencia:** crédito 412380 en local, con `next_payment_date` en 2026-07-16 (más de un mes viejo):
+  ofrecía 2026-07-28 y 2026-08-05, las dos en el pasado. Con el punto de partida anclado en
+  `max(fecha del crédito, hoy)` ofrece 2026-08-28 y 2026-09-05; y con fecha futura —el caso sano— el
+  resultado no cambia.
+- **⚠ La otra mitad, que sigue abierta:** las rutas de la app (`Consumer` y `Customer`) **no** validan
+  `after_or_equal:today` al guardar, o sea que por ahí hoy se puede dejar una fecha de pago **en el
+  pasado**. Dejar de ofrecerla no es lo mismo que rechazarla.
+- **Arreglo:** el ancla ya está corregida en `develop` (PR #1166 del canal de soporte). **Estado:**
+  arreglado en `develop`, **pendiente de llegar a `main`**; la validación de entrada de las rutas viejas,
+  abierta.
 
 ### F-146 · El mismo cliente con el nombre mal se comporta AL REVÉS según por qué monolito entre
 

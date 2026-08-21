@@ -79,6 +79,31 @@ CALCULADO** (por eso negocio parametriza 1/3/6 cuotas y al cliente le aparece so
 config). El motor completo, sus dos implementaciones divergentes y por qué no se puede auditar por
 Redash: **→ nodo `rotativo`** (el dueño). Acá solo importa la frontera: lo de este nodo describe rt=2.
 
+## Un crédito activo BLOQUEA el cupo — y el corte es por ENTIDAD, no por comercio
+
+Antes de calcular cupo, `POST lender/available-quota` corre **tres evaluadores en orden**
+(`legacy-backend/Modules/Loans/App/Http/Controllers/Customer/CreditopXQuotaController.php:189` · `:214` · `:239`): crédito activo → reglas del lender → datacrédito. El primero que falla
+corta, así que el motivo que se ve es el primero, no todos.
+
+**El primero es el que sorprende.** `ActiveCreditRuleEvaluator` rechaza con `active_credit_exists`
+cuando la persona **ya tiene un crédito CreditopX vivo con ESA MISMA ENTIDAD** y le queda saldo de
+capital. Tres precisiones que cambian el diagnóstico:
+
+- **Es por `lender_id`, no por comercio ni por sucursal.** La consulta filtra
+  `ur.user_id` + `ur.lender_id` + `l.response_type = 2` (`legacy-backend/Modules/Loans/App/Repositories/ActiveCreditRepository.php:11-19`). La creencia común —«un cliente no
+  puede tener más de una solicitud por comercio»— no es lo que hace el código: **una persona puede tener
+  créditos vivos en dos comercios a la vez** si los otorgó una entidad distinta, y **no** puede tener dos
+  con la misma entidad aunque sean comercios diferentes.
+- **«Activo» es la ÚLTIMA fila del ledger con `status = 1`**, una por solicitud
+  (`MAX(rh.id)` agrupado por `user_request_id`) → ver `servicing` § El ledger.
+- **Hay una tolerancia de $1.000**, escrita en el código y no en configuración
+  (`legacy-backend/Modules/Loans/App/Services/ActiveCreditRuleEvaluator.php:12`): con saldo de capital **menor** a mil pesos el crédito no bloquea. Es la que evita que un
+  crédito prácticamente pagado deje a alguien sin poder comprar de nuevo.
+
+⚠ **Y sólo aplica a rt=2.** El rotativo (rt=3) sale antes por otro camino (`RevolvingCreditsService`,
+`legacy-backend/Modules/Loans/App/Http/Controllers/Customer/CreditopXQuotaController.php:159`) y los rt≠2 salen del método antes de llegar a los evaluadores (`:170`): en esos, «ya tiene un
+crédito» lo decide —o no— la API del lender.
+
 ## Contenido
 La consolidación rt=2 corre en el orquestador `getLenders`. **Clave: la categoría NO va primero** — `group_rules`+datacrédito corren antes; la **categoría corre AL FINAL** y es la que fija enganche/cupo/plazo (y excluye si no hay categoría o el cupo no alcanza).
 
