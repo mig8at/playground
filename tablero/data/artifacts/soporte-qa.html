@@ -32,6 +32,19 @@
                 background:var(--page); color:var(--ink); cursor:pointer }
   .cfg button.p { background:var(--wa-green); border-color:var(--wa-green); color:#fff; font-weight:500 }
 
+  .ejemplos { display:flex; gap:8px; flex-wrap:wrap }
+  .ejemplos button { text-align:left; line-height:1.25; padding:7px 12px }
+  .ejemplos button.sel { border-color:var(--wa-green); background:#eafaf4 }
+  .ejemplos button b { display:block; font-weight:600; font-size:13px }
+  .ejemplos button span { display:block; font-size:11px; color:var(--soft) }
+  .avz { margin-left:auto; font-size:12px; color:var(--soft) }
+  .avz > summary { cursor:pointer; padding:7px 4px }
+  .avzc { display:flex; gap:8px; padding-top:6px }
+  .avzc label { display:flex; flex-direction:column; gap:3px; font-size:10.5px;
+                text-transform:uppercase; letter-spacing:.05em }
+  .avzc input { font:13px var(--mono); padding:6px 8px; border:1px solid var(--line);
+                border-radius:6px; background:var(--page); color:var(--ink); width:150px }
+
   .aviso { margin:10px 22px 0; padding:9px 12px; border-radius:7px; font-size:12.5px;
            background:var(--warnbg); border:1px solid #fde68a; color:var(--warn) }
 
@@ -117,21 +130,22 @@
   <h1>Canal de soporte · el chat del cliente contra la API real</h1>
   <p>Es la conversación tal como la va a ver el cliente en WhatsApp, pero cada paso llama la API de
      verdad y no hay nada simulado: si el crédito no admite cambios, lo dice el backend. A la derecha
-     queda la respuesta cruda de cada llamada, en orden. Corre contra <b>develop</b>.</p>
+     queda la respuesta cruda de cada llamada, en orden. Corre contra <b>develop</b> y no hay nada que
+     configurar: elegí un caso y dale <b>Empezar</b>.</p>
 </header>
 
 <div class="cfg">
-  <label>Token del canal
-    <input id="token" type="password" class="ancho" placeholder="pegalo acá — queda en este navegador" autocomplete="off">
-  </label>
-  <label>Celular
-    <input id="tel" value="3109000004" placeholder="3001234567">
-  </label>
-  <label>Cédula
-    <input id="doc" value="37670195" placeholder="1023038445">
-  </label>
-  <button class="p" id="empezar">▶ Empezar la conversación</button>
+  <div class="ejemplos" id="ejemplos"></div>
+  <button class="p" id="empezar">▶ Empezar</button>
   <button id="reiniciar">↺ Reiniciar</button>
+  <details class="avz">
+    <summary>otro cliente</summary>
+    <div class="avzc">
+      <label>Celular <input id="tel" value="3109000004" placeholder="3001234567"></label>
+      <label>Cédula <input id="doc" value="37670195" placeholder="1023038445"></label>
+      <label>Token <input id="token" type="password" placeholder="el del archivo" autocomplete="off"></label>
+    </div>
+  </details>
 </div>
 
 <div class="aviso" id="avisoAmb"></div>
@@ -166,8 +180,26 @@
 // Tener «local» acá sólo servía para que alguien probara sin darse cuenta contra su propio Docker y
 // reportara un bug que en dev no existe.
 const BASE = "https://api.dev.creditop.com/legacy-api/support";
+
+// El token del canal viene PUESTO para que QA no tenga que configurar nada: abrir y usar.
+//
+// ⚠ Es el de DEVELOP y este archivo está versionado, así que el token queda en la historia de git
+// aunque después se borre de acá. Cuando se rote, se cambia esta línea — y el que tenga uno nuevo lo
+// puede pegar en «otro cliente» sin editar el archivo (lo pegado gana).
+const TOKEN_DEL_ARCHIVO = "b6fe69d4994504b09ef0ff21d5d60ab7c94b983d83e0055679c31788821e8230";
+
 const $ = (s) => document.querySelector(s);
 const base = () => BASE;
+const token = () => $("#token").value.trim() || TOKEN_DEL_ARCHIVO;
+
+// Los tres casos que se pueden probar HOY en develop. No son inventados: se midieron el 2026-08-20
+// contra la base de dev, y son los únicos clientes con crédito gestionable cuyo celular está en la
+// lista de QA — o sea, los únicos donde el código NO se manda por SMS a nadie.
+const EJEMPLOS = [
+  { t: "Cambio completo", sub: "un crédito, sin cuota pendiente", tel: "3109000004", doc: "37670195" },
+  { t: "Dos comercios", sub: "elige entre dos créditos", tel: "3243277267", doc: "1023038445-5" },
+  { t: "Número sin cuenta", sub: "cuando el celular no está", tel: "3001112233", doc: "1020304050" },
+];
 const wa = () => "whatsapp:+57" + $("#tel").value.trim();
 const doc = () => $("#doc").value.trim();
 
@@ -184,7 +216,7 @@ async function api(met, ruta, cuerpo) {
       method: met,
       headers: {
         "Accept": "application/json",
-        "Authorization": "Bearer " + $("#token").value.trim(),
+        "Authorization": "Bearer " + token(),
         ...(cuerpo ? { "Content-Type": "application/json" } : {}),
       },
       ...(cuerpo ? { body: JSON.stringify(cuerpo) } : {}),
@@ -514,7 +546,6 @@ async function avanzar(txt) {
 
 // ── cableado ─────────────────────────────────────────────────────────────────────────────────────
 $("#empezar").addEventListener("click", async () => {
-  if (!$("#token").value.trim()) { alert("Falta el token del canal."); return; }
   reiniciar();
   globo("yo", "Hola, buenas tardes");
   C.fase = "saludo";
@@ -560,7 +591,21 @@ $("#copiar").addEventListener("click", async () => {
 // El token y los datos quedan en este navegador para no re-pegarlos en cada prueba.
 const guardar = () => localStorage.setItem("soporte-qa", JSON.stringify({
   token: $("#token").value, tel: $("#tel").value, doc: $("#doc").value }));
+// (el token sólo se guarda si alguien pegó uno propio; vacío = se usa el del archivo)
 ["#token", "#tel", "#doc"].forEach((s) => $(s).addEventListener("change", guardar));
+
+// Un clic pone el cliente y arranca la conversación: es el único paso que QA tiene que dar.
+function pintarEjemplos() {
+  const cont = $("#ejemplos");
+  cont.innerHTML = EJEMPLOS.map((e, i) =>
+    `<button data-i="${i}"><b>${e.t}</b><span>${e.sub}</span></button>`).join("");
+  cont.querySelectorAll("button").forEach((b) => b.addEventListener("click", () => {
+    const e = EJEMPLOS[+b.dataset.i];
+    $("#tel").value = e.tel; $("#doc").value = e.doc; guardar();
+    cont.querySelectorAll("button").forEach((x) => x.classList.toggle("sel", x === b));
+    $("#empezar").click();
+  }));
+}
 
 function ambiente() {
   $("#avisoAmb").innerHTML = "Esto corre contra <b>develop</b>, que es <b>compartido con el equipo</b>: " +
@@ -579,5 +624,6 @@ function ambiente() {
     if (g.doc) $("#doc").value = g.doc;
   } catch {}
   ambiente();
+  pintarEjemplos();
 })();
 </script>

@@ -13,14 +13,23 @@ página se abre como archivo (`file://`). Hay que servirla, y es un comando:
 
 Y abrir **http://localhost:5199/soporte-qa.html**
 
-## Antes de empezar
+## No hay nada que configurar
 
-1. **Token del canal** — pedilo al equipo. Queda guardado en tu navegador, no en el archivo.
-2. **Celular y cédula** — de un cliente que exista en **develop**. Vienen cargados los de un cliente
-   de prueba que sirve para recorrer el flujo completo.
+Elegí uno de los tres casos de arriba y dale **Empezar**. El token ya viene puesto en el archivo y
+siempre corre contra **develop**.
 
-Siempre corre contra **develop**: no hay nada que elegir. ⚠ develop es **compartido con el equipo**,
-así que los cambios que apliques quedan escritos ahí.
+| El caso | Qué muestra |
+|---|---|
+| **Cambio completo** | un cliente con un crédito y sin cuota pendiente: llega hasta aplicar el cambio |
+| **Dos comercios** | el cliente elige entre dos créditos, y después el rechazo por cuota pendiente |
+| **Número sin cuenta** | cómo se ve cuando el celular no está registrado |
+
+Los tres son clientes de prueba de develop **cuyo celular está en la lista de QA**, así que no se
+manda ningún mensaje. Para probar con otro cliente, abrí **«otro cliente»** a la derecha.
+
+⚠ develop es **compartido con el equipo**: los cambios que apliques quedan escritos ahí. Y ojo con
+«Cambio completo»: si lo aplicás, **ese mismo crédito no admite otro cambio por 6 meses** — es la regla
+del negocio, no un error. Para volver a probarlo hay que usar otro crédito.
 
 ## El código que llega por mensaje
 
