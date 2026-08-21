@@ -228,6 +228,9 @@ func (s *Store) leerEffort(slug string) (Effort, string, error) {
 	// Del cuerpo PRIVADO: las anotaciones pueden nombrar repos y rutas, igual que el resto de
 	// `TechNotes`. No pasan por el guard porque no salen a Jira.
 	e.Anotaciones = Anotaciones(notas)
+	// Del mismo cuerpo privado, y por la misma razón: las casillas de la publicable son criterios de
+	// aceptación de QA, no pendientes.
+	e.Pendientes = Pendientes(notas)
 	// el vínculo esfuerzo → tareas de Jira; las anotaciones (si las hay) se cargan aparte
 	for _, k := range listaYAML(fm["jira"]) {
 		tl := s.locals[k]
@@ -607,6 +610,12 @@ type Effort struct {
 	// riesgos). Igual que los prototipos, salen del contenido y no de una lista que haya que mantener.
 	// Ver `anotaciones.go` para la forma y el porqué.
 	Anotaciones []Anotacion `json:"anotaciones"`
+	// PENDIENTES: lo que queda por hacer, en casillas de markdown dentro del CUERPO. Mismo criterio que
+	// las anotaciones —el dato vive donde se argumenta y la UI lo deriva—, y por el mismo motivo: una
+	// lista aparte se desincroniza en cuanto alguien resuelve el pendiente sin tocar el archivo.
+	// Sólo del cuerpo privado: las casillas de la publicable son los criterios de aceptación de QA, que
+	// no son pendientes de nadie. Ver `pendientes.go`.
+	Pendientes []Pendiente `json:"pendientes"`
 	// PROTOTIPOS de la tarea: los HTML autocontenidos de `data/artifacts/` que se abren desde el
 	// tablero. El vínculo es el NOMBRE, no una entrada en el frontmatter: una convención de nombre no
 	// se desincroniza, una lista escrita a mano sí.

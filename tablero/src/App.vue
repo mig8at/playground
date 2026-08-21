@@ -275,7 +275,7 @@ const protosDe = (key) => artifactsOf(taskLocals.value[key]?.effortId || 0);
 const protosAbiertos = ref(false);
 function verProtos(i) {
   if (protosAbiertos.value && active.value?.Key === i.Key) { protosAbiertos.value = false; return; }
-  active.value = i; protosAbiertos.value = true; bitacoraAbierta.value = false; hallazgosAbiertos.value = false;
+  active.value = i; protosAbiertos.value = true; bitacoraAbierta.value = false; hallazgosAbiertos.value = false; pendientesAbiertos.value = false;
   ramasAbiertas.value = false; descAbierta.value = false;
 }
 
@@ -320,7 +320,7 @@ const ramasAbiertas = ref(false);
 function verRamas(i) {
   if (ramasAbiertas.value && active.value?.Key === i.Key) { ramasAbiertas.value = false; return; }
   active.value = i; ramasAbiertas.value = true;
-  protosAbiertos.value = false; bitacoraAbierta.value = false; hallazgosAbiertos.value = false; descAbierta.value = false;
+  protosAbiertos.value = false; bitacoraAbierta.value = false; hallazgosAbiertos.value = false; pendientesAbiertos.value = false; descAbierta.value = false;
 }
 // "hace cuánto se midió", que es la mitad del dato. Sin esto, una medición de la semana pasada se lee
 // como el estado de ahora.
@@ -487,7 +487,7 @@ const descAbierta = ref(false);
 function verDesc(i) {
   if (descAbierta.value && active.value?.Key === i.Key) { descAbierta.value = false; return; }
   active.value = i; descAbierta.value = true;
-  ramasAbiertas.value = false; protosAbiertos.value = false; bitacoraAbierta.value = false; hallazgosAbiertos.value = false;
+  ramasAbiertas.value = false; protosAbiertos.value = false; bitacoraAbierta.value = false; hallazgosAbiertos.value = false; pendientesAbiertos.value = false;
 }
 
 // cuántas entradas de bitácora tiene cada tarea — el contador del botón, sin abrir el cajón
@@ -506,7 +506,7 @@ const entriesPorTarea = computed(() => {
 // Abrir la bitácora DE una tarjeta: el cajón lee la tarea activa, así que primero se activa. Sin esto,
 // tocar "Bitácora" en una tarjeta abriría la bitácora de otra.
 // los dos cajones son excluyentes: abrir uno cierra el otro, o quedan montados los dos encima
-const verBitacora = (i) => { active.value = i; bitacoraAbierta.value = true; protosAbiertos.value = false; hallazgosAbiertos.value = false; ramasAbiertas.value = false; descAbierta.value = false; };
+const verBitacora = (i) => { active.value = i; bitacoraAbierta.value = true; protosAbiertos.value = false; hallazgosAbiertos.value = false; pendientesAbiertos.value = false; ramasAbiertas.value = false; descAbierta.value = false; };
 
 // ── hallazgos: los hechos con fecha que la tarea declara en su cuerpo ──────────────────────────
 // Vienen del ESFUERZO, igual que los prototipos, y salen del texto: el server los recoge de los
@@ -519,7 +519,7 @@ const hallazgosDe = (key) => efforts.value.find(e => e.id === (taskLocals.value[
 const hallazgosAbiertos = ref(false);
 const verHallazgos = (i) => {
   if (hallazgosAbiertos.value && active.value?.Key === i.Key) { hallazgosAbiertos.value = false; return; }
-  active.value = i; hallazgosAbiertos.value = true; bitacoraAbierta.value = false; protosAbiertos.value = false; ramasAbiertas.value = false; descAbierta.value = false;
+  active.value = i; hallazgosAbiertos.value = true; pendientesAbiertos.value = false; bitacoraAbierta.value = false; protosAbiertos.value = false; ramasAbiertas.value = false; descAbierta.value = false;
 };
 const diasDe = (fecha) => Math.floor((Date.now() - new Date(fecha + 'T12:00:00')) / 86400000);
 // Cuándo un hallazgo pide atención. Los umbrales son distintos a propósito: una medición aguanta un
@@ -537,6 +537,34 @@ const TIPOS = [
 const hallazgosPorTipo = (key) => TIPOS
   .map(t => ({ ...t, items: hallazgosDe(key).filter(a => a.tipo === t.id) }))
   .filter(g => g.items.length);
+
+// ── PENDIENTES ───────────────────────────────────────────────────────────────────────────────────
+// Lo que queda por hacer, sacado de las casillas del CUERPO (ver `pendientes.go` para el parser y el
+// porqué del corte antes de la publicable). No se escriben ni se tildan desde acá a propósito: el
+// cuerpo es el archivo, y editarlo por dos caminos es cómo se desincronizan las cosas.
+const pendientesDe = (key) => efforts.value.find(e => e.id === (taskLocals.value[key]?.effortId || 0))?.pendientes || [];
+// Lo que se cuenta son los ABIERTOS. Medido sobre las 41 tareas: 37 casillas escritas y 1 tildada —
+// nadie vuelve a marcarlas—, así que el total diría "hay deuda" incluso cuando ya no queda nada.
+const quedan = (key) => pendientesDe(key).filter(p => !p.hecho).length;
+const pendientesAbiertos = ref(false);
+const verPendientes = (i) => {
+  if (pendientesAbiertos.value && active.value?.Key === i.Key) { pendientesAbiertos.value = false; return; }
+  active.value = i; pendientesAbiertos.value = true;
+  hallazgosAbiertos.value = false; bitacoraAbierta.value = false; protosAbiertos.value = false;
+  ramasAbiertas.value = false; descAbierta.value = false;
+};
+// Agrupados por el encabezado bajo el que se escribieron: en una tarea larga los pendientes vienen de
+// frentes distintos («Pendientes», «Cerrar con negocio», «Al retomar»), y en una lista plana se leen
+// todos como si fueran lo mismo.
+const pendientesPorSeccion = (key) => {
+  const grupos = [];
+  for (const p of pendientesDe(key)) {
+    const tit = p.seccion || 'Sin sección';
+    const g = grupos.find(x => x.tit === tit);
+    (g || grupos[grupos.push({ tit, items: [] }) - 1]).items.push(p);
+  }
+  return grupos;
+};
 // La bitácora vive en un CAJÓN, no en una card del tablero: son notas largas que escribe el asistente y
 // que el humano consulta de vez en cuando (quien la lee seguido es un modelo, para retomar contexto).
 // Ocupando una columna fija era ruido permanente por algo que no se mira en cada carga. Se abre desde el
@@ -544,7 +572,7 @@ const hallazgosPorTipo = (key) => TIPOS
 const bitacoraAbierta = ref(false);
 // Esc cierra. Va en `window` y no en el elemento: el cajón nace sin foco, así que un @keydown local sólo
 // respondería después de hacerle clic — que es justo cuando ya no hace falta el atajo.
-const cerrarConEsc = (e) => { if (e.key === 'Escape') { bitacoraAbierta.value = false; protosAbiertos.value = false; hallazgosAbiertos.value = false; ramasAbiertas.value = false; descAbierta.value = false; mover.value = null; } };
+const cerrarConEsc = (e) => { if (e.key === 'Escape') { bitacoraAbierta.value = false; protosAbiertos.value = false; hallazgosAbiertos.value = false; pendientesAbiertos.value = false; ramasAbiertas.value = false; descAbierta.value = false; mover.value = null; } };
 onMounted(() => window.addEventListener('keydown', cerrarConEsc));
 onUnmounted(() => window.removeEventListener('keydown', cerrarConEsc));
 const when = (d) => new Date(d).toLocaleString('es-CO', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
@@ -1131,6 +1159,15 @@ onMounted(async () => {
                   Hallazgos<span class="cnt">{{ hallazgosDe(i.Key).length }}</span><span
                     v-if="hallazgosDe(i.Key).some(vencido)" class="alerta" title="Hay algo que pide revisión">●</span>
                 </button>
+                <!-- lo que queda por hacer, de las casillas del cuerpo. El conteo son los ABIERTOS: los
+                     tildados ya no son trabajo. El punto rojo es la señal que hoy no existe en ningún
+                     lado — la tarea se dio por terminada y sus pendientes quedaron sin dueño. -->
+                <button v-if="pendientesDe(i.Key).length" class="tact" :class="{ act: pendientesAbiertos && active?.Key === i.Key }"
+                  @click="verPendientes(i)">
+                  Pendientes<span class="cnt">{{ quedan(i.Key) }}</span><span
+                    v-if="i.StatusCategory === 'done' && quedan(i.Key)" class="alerta"
+                    title="La tarea está terminada y todavía quedan pendientes">●</span>
+                </button>
                 <!-- Un solo botón para mover de estado. No dice a dónde: eso lo contesta Jira al abrirlo,
                      que es justamente el arreglo — el botón anterior anunciaba «A pruebas» y en 5 de los
                      6 estados esa transición no existía. -->
@@ -1268,6 +1305,34 @@ onMounted(async () => {
          propuestas, y verlas listadas con su descripción es lo que permite elegir cuál abrir. -->
     <!-- HALLAZGOS: lo mismo que el cuerpo ya dice, pero ordenado por tipo y con la EDAD a la vista.
          No duplica el texto — lo lee de los marcadores del propio cuerpo, así que no se desincroniza. -->
+    <!-- PENDIENTES: se LEEN acá, se escriben en el `.md`. No hay checkbox para tildar a propósito —
+         el cuerpo es el archivo, y dejarlo editable por dos caminos es cómo se desincronizan las cosas
+         (mismo criterio que la bitácora y los hallazgos). -->
+    <div v-if="pendientesAbiertos" class="drawer">
+      <div class="drawer-bg" @click="pendientesAbiertos = false"></div>
+      <aside class="drawer-p">
+        <header class="drawer-h">
+          <div>
+            <h3>Pendientes</h3>
+            <p v-if="active">de {{ active.Key }} · {{ quedan(active.Key) }} sin cerrar
+              <span v-if="pendientesDe(active.Key).length - quedan(active.Key)">·
+                {{ pendientesDe(active.Key).length - quedan(active.Key) }} ya hecho</span></p>
+          </div>
+          <button class="drawer-x" title="Cerrar (Esc)" @click="pendientesAbiertos = false">✕</button>
+        </header>
+        <div class="drawer-b">
+          <p class="empty">Salen de las casillas del cuerpo de la tarea. Se escriben y se tildan ahí.</p>
+          <section v-for="(g, n) in pendientesPorSeccion(active?.Key)" :key="n" class="hgrupo">
+            <h4>{{ g.tit }}<span class="hcnt">{{ g.items.filter(p => !p.hecho).length }}</span></h4>
+            <article v-for="(p, m) in g.items" :key="m" class="pitem" :class="{ hecho: p.hecho }">
+              <span class="pmark" aria-hidden="true">{{ p.hecho ? '✓' : '○' }}</span>
+              <p class="pque">{{ p.que }}</p>
+            </article>
+          </section>
+        </div>
+      </aside>
+    </div>
+
     <div v-if="hallazgosAbiertos" class="drawer">
       <div class="drawer-bg" @click="hallazgosAbiertos = false"></div>
       <aside class="drawer-p">
@@ -1860,6 +1925,14 @@ h1 { font-size: 20px; margin: 0; letter-spacing: .2px }
 .hitem.vencido .hedad { color: #e5534b; opacity: 1; font-weight: 600; }
 .hquien { opacity: .8; }
 .hque { margin: 0; font-size: 13.5px; line-height: 1.5; }
+/* Pendientes: la marca a la izquierda y el texto al lado. Un ítem hecho se apaga y se tacha —el mismo
+   gesto que las tarjetas terminadas—: sigue estando (dice qué se resolvió) pero ya no es trabajo. */
+.pitem { display: flex; gap: 9px; align-items: baseline; padding: 3px 0; }
+.pmark { font-size: 12px; color: var(--acc); line-height: 1.5; }
+.pque { margin: 0; font-size: 13.5px; line-height: 1.5; }
+.pitem.hecho { opacity: .45; }
+.pitem.hecho .pmark { color: var(--mut); }
+.pitem.hecho .pque { text-decoration: line-through; }
 .hcomo { margin: 7px 0 0; padding: 8px 10px; border-radius: 6px; background: rgba(127,127,127,.1);
          font: 11.5px/1.6 var(--mono, ui-monospace, monospace); white-space: pre-wrap;
          word-break: break-word; opacity: .8; }
