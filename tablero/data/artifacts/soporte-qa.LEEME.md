@@ -32,8 +32,17 @@ elegir crédito, y quedan dos créditos para probar el cambio de fecha en uno y 
 
 ## Probar con otro cliente: la columna de la derecha
 
-Cambiá el **celular** —y la cédula que le corresponda— y dale **Usar este número**. Cambiar el celular
-es cambiar de persona: es lo primero que mira el bot, antes de preguntar nada.
+Arriba están los clientes que **existen**, con lo que cada uno sirve para probar. Un clic y quedan
+puestos su celular y su cédula. Cambiar el celular es cambiar de persona: es lo primero que mira el bot.
+
+| Cliente | Para qué sirve |
+|---|---|
+| **QA** | un crédito gestionable: el camino completo hasta aplicar el cambio |
+| **JOSE FERNANDO** | dos créditos en dos comercios: se ve el menú de elegir, y después el rechazo por cuota pendiente |
+| **ANA QA** | dos créditos gestionables — **hay que correr `soporte-qa.casos.sql`** para que exista |
+
+⚠ **El celular y la cédula van juntos.** Cambiar sólo uno da «no encontramos una cuenta con esos datos»,
+que parece un bug y no lo es. Si tipeás un celular de la lista, su cédula se completa sola.
 
 ⚠ Y mirá el aviso de color que aparece ahí:
 

@@ -1023,7 +1023,8 @@ onMounted(async () => {
           <!-- varias columnas según el ancho: `auto-fill` con un mínimo, así el número de columnas lo
                decide la pantalla y no un breakpoint escrito a mano -->
           <div class="tgrid">
-            <div v-for="i in g.tasks" :key="i.Key" class="task" :class="{ sel: active?.Key === i.Key, wide: qa?.key === i.Key }"
+            <div v-for="i in g.tasks" :key="i.Key" class="task"
+              :class="{ sel: active?.Key === i.Key, wide: qa?.key === i.Key, done: i.StatusCategory === 'done' }"
               @click="active = i">
               <div class="tl">
                 <a v-if="site" class="key link" :href="jiraLink(i.Key)" target="_blank" rel="noopener"
@@ -1491,6 +1492,15 @@ h1 { font-size: 20px; margin: 0; letter-spacing: .2px }
 .task { border: 1px solid var(--line); border-radius: 11px; padding: 12px 13px; cursor: pointer; transition: .12s }
 .task:hover { border-color: #a78bfa66 }
 .task.sel { border-color: var(--acc); background: #a78bfa0f }
+/* Terminada = sigue en la grilla, pero deja de competir por la atención: en gris y apagada, como algo
+   que ya no está vivo. Se apaga la tarjeta ENTERA (`filter`) y no cada color a mano — así el chip verde
+   de estado, el punto del sprint de origen y los chips de esfuerzo se van juntos, sin mantener una lista
+   de excepciones que se desactualiza cuando se agrega un elemento nuevo a la card.
+   ⚠ Vuelve a color al pasarle por encima, al abrirla y con el panel de QA desplegado: revisar lo que ya
+   se hizo es una tarea normal, y hacerla leyendo texto atenuado sería cambiar ruido por fricción.
+   `filter` es seguro acá porque la card no tiene descendientes `fixed` — el cajón vive FUERA, por eso. */
+.task.done { filter: grayscale(1); opacity: .55 }
+.task.done:hover, .task.done.sel, .task.done.wide { filter: none; opacity: 1 }
 .tl { display: flex; align-items: center; gap: 9px; margin-bottom: 5px }
 .key { font-weight: 800; font-size: 12.5px; font-variant-numeric: tabular-nums }
 .status { font-size: 10.5px; padding: 2px 8px; border-radius: 999px; border: 1px solid }

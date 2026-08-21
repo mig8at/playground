@@ -42,6 +42,11 @@
   .quien button.p { background:var(--wa-green); border-color:var(--wa-green); color:#fff; font-weight:500 }
   .quien button.lnk { border:0; background:none; color:var(--wa-link); padding:0; text-align:left; font-size:12px }
   .quien .ayuda { margin:2px 0 0; font-size:11.5px; color:var(--soft); line-height:1.4 }
+  .conocidos { display:flex; flex-direction:column; gap:5px }
+  .conocidos button { text-align:left; line-height:1.3; padding:7px 10px }
+  .conocidos button.sel { border-color:var(--wa-green); background:#eafaf4 }
+  .conocidos button b { display:block; font-size:12.5px; font-weight:600 }
+  .conocidos button span { display:block; font-size:11px; color:var(--soft) }
   .marca { font-size:12px; padding:7px 9px; border-radius:6px; line-height:1.35 }
   .marca.ok  { background:var(--okbg);  color:var(--ok) }
   .marca.mal { background:var(--warnbg); color:var(--warn) }
@@ -158,13 +163,13 @@
   <div class="panel">
     <h2>Quién escribe</h2>
     <div class="quien">
+      <div class="conocidos" id="conocidos"></div>
       <label>Celular <input id="tel" maxlength="10" placeholder="3001234567"></label>
       <label>Cédula <input id="doc" placeholder="1023038445"></label>
       <div id="bypass"></div>
       <button class="p" id="usar">Usar este número</button>
-      <button class="lnk" id="preset">volver al cliente de prueba</button>
-      <p class="ayuda">Cambiar el celular es cambiar de persona: es lo que el bot mira primero. La
-        cédula se pre-escribe en el chat, pero se puede pisar ahí mismo.</p>
+      <p class="ayuda">El celular y la cédula van juntos: cambiar uno solo da «no encontramos la
+        cuenta». Elegí uno de arriba y se llenan los dos.</p>
     </div>
   </div>
 </div>
@@ -198,7 +203,16 @@ const QUIEN = { tel: "", doc: "" };
 //
 // Su celular está en la lista de bypass de QA: no se le manda ningún mensaje a nadie y el código del
 // OTP son los últimos 4 dígitos.
-const CLIENTE = { tel: "3108000011", doc: "900000001", nombre: "ANA QA", que: "dos créditos, en dos comercios" };
+// Los clientes que EXISTEN, con su cédula al lado. Van juntos a propósito: el celular sin su cédula da
+// 404 y parece un bug del canal — el error más fácil de cometer acá es cambiar uno y no el otro.
+//
+// Medidos contra dev el 2026-08-20. Los dos primeros existen hoy; ANA QA la crea `soporte-qa.casos.sql`.
+const CONOCIDOS = [
+  { tel: "3109000004", doc: "37670195",     nombre: "QA",            que: "1 crédito gestionable" },
+  { tel: "3243277267", doc: "1023038445-5", nombre: "JOSE FERNANDO", que: "2 créditos, con cuota pendiente" },
+  { tel: "3108000011", doc: "900000001",    nombre: "ANA QA",        que: "2 gestionables · pide correr el .sql" },
+];
+const CLIENTE = CONOCIDOS[0];
 
 // Los celulares de `settings.qa_otp_bypass_phones` en dev, copiados el 2026-08-20.
 //
@@ -649,7 +663,7 @@ function usar(tel, doc) {
   $("#tel").value = QUIEN.tel; $("#doc").value = QUIEN.doc;
   autoDe(QUIEN.tel, QUIEN.doc);
   $("#quien-num").textContent = "+57 " + QUIEN.tel;
-  marcarBypass();
+  marcarBypass(); marcarConocido();
   reiniciar();
 }
 
@@ -662,9 +676,31 @@ function marcarBypass() {
     : "⚠ <b>No está en la lista de pruebas de QA</b>: a este número le va a llegar un mensaje de verdad. Usá sólo números propios.";
 }
 
+function pintarConocidos() {
+  const cont = $("#conocidos");
+  cont.innerHTML = CONOCIDOS.map((c, i) =>
+    `<button data-i="${i}"><b>${c.nombre}</b><span>${c.que}</span></button>`).join("");
+  cont.querySelectorAll("button").forEach((b) => b.addEventListener("click", () => {
+    const c = CONOCIDOS[+b.dataset.i];
+    usar(c.tel, c.doc);
+  }));
+}
+
+// Marca el que está en uso, para que se vea a quién se le está escribiendo.
+function marcarConocido() {
+  const tel = $("#tel").value.trim();
+  $("#conocidos").querySelectorAll("button").forEach((b, i) =>
+    b.classList.toggle("sel", CONOCIDOS[i].tel === tel));
+}
+
 $("#usar").addEventListener("click", () => usar($("#tel").value, $("#doc").value));
-$("#preset").addEventListener("click", () => usar(CLIENTE.tel, CLIENTE.doc));
-$("#tel").addEventListener("input", marcarBypass);
+
+// Si el celular tipeado es uno conocido, su cédula se completa sola: es el error que más se comete.
+$("#tel").addEventListener("input", () => {
+  const c = CONOCIDOS.find((x) => x.tel === $("#tel").value.trim());
+  if (c) $("#doc").value = c.doc;
+  marcarBypass(); marcarConocido();
+});
 $("#tel").addEventListener("keydown", (e) => { if (e.key === "Enter") $("#usar").click(); });
 $("#doc").addEventListener("keydown", (e) => { if (e.key === "Enter") $("#usar").click(); });
 
@@ -676,6 +712,7 @@ function ambiente() {
 
 (function inicio() {
   ambiente();
+  pintarConocidos();
   usar(CLIENTE.tel, CLIENTE.doc);
 })();
 </script>
