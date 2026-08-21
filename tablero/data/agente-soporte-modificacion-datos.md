@@ -1618,7 +1618,7 @@ castigo pega sobre el número que también se usa para cobrar.
 
 Pedido de Miguel: **un documento simple de uso de endpoints** para que Filipo arranque el n8n — sólo las
 rutas con su descripción, su respuesta y los curls; el token se lo pasa él por separado. Quedó en
-`tablero/data/artifacts/agente-soporte-endpoints-n8n.html` (una página, sin token adentro): las 16 rutas
+`tablero/data/artifacts/agente-soporte-endpoints-n8n.md` (un markdown, sin token adentro): las 16 rutas
 en el orden de los dos flujos, con request, respuesta de ejemplo, la tabla de los 21 `error_code`, los
 gotchas (menú de plazos vacío, rt=2, tope de 4, bloqueo de 6 meses, `already_verified`) y los dos
 usuarios de QA de dev con su código de bypass. La ruta inalcanzable va listada como **«no la llames»**,
