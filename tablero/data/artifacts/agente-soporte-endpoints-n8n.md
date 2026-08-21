@@ -50,8 +50,23 @@ segundo y el código el tercero.
 3. `POST /self/otp/verify` — abre la sesión y **devuelve los créditos gestionables**, con su comercio
 4. ↯ **el cliente elige cuál — sin llamada.** El menú lo armás vos con `operable_credits`; de acá sale el `user_request_id` de los pasos que siguen. Si viene uno solo, no preguntes nada
 5. `GET /credits/{id}/can-change` — ¿este crédito admite cambios hoy?
-6. `GET /credits/{id}/payment-date-options` o `/fee-number-options` — las opciones
-7. `POST /credits/{id}/change-payment-date` o `/change-fee-number` — escribe
+
+Y acá **se bifurca**, según qué quiera cambiar. Son dos caminos con la misma forma —pedir las opciones,
+mostrarlas, escribir la elegida— y cada uno tiene su par de rutas:
+
+|  | **A · cambiar la FECHA DE PAGO** | **B · cambiar el PLAZO** (número de cuotas) |
+|---|---|---|
+| 6 · pedir las opciones | `GET /credits/{id}/payment-date-options` | `GET /credits/{id}/fee-number-options` |
+| ↯ · elegir — **sin llamada** | el cliente elige una fecha | el cliente elige un plazo |
+| 7 · escribir | `POST /credits/{id}/change-payment-date` | `POST /credits/{id}/change-fee-number` |
+
+Lo que devolvió el `GET` del paso 6 es exactamente lo que va en el `POST` del paso 7: la fecha es el
+`value` de la opción, el plazo es su `fee_number`. **No inventes valores** — un plazo que el canal no
+ofreció se rechaza con `422 FEE_NOT_AVAILABLE`.
+
+> ⚠ **Es UN cambio por crédito, no uno de cada tipo.** Apenas se escribe cualquiera de los dos, ese
+> crédito queda bloqueado **6 meses** y `can-change` pasa a `false` con `RECENT_CHANGE_EXISTS`. Así que
+> no ofrezcas «¿querés cambiar algo más?» sobre el mismo crédito: el segundo cambio se va a rechazar.
 
 > **No hay un endpoint que liste comercios.** El comercio es un **campo de cada crédito**, no una entidad
 > aparte: se elige el crédito, y el comercio es lo que lo hace reconocible. Ver el paso 3.
@@ -202,7 +217,7 @@ CeluRD   · vence el 16 de enero
 Ojo: acá el «no» viene con `200` y `can_change: false`. Los motivos posibles están en la tabla de
 códigos, más abajo.
 
-### 6a · `GET /credits/{user_request_id}/payment-date-options?wa=`
+### 6a · `GET /credits/{user_request_id}/payment-date-options?wa=` · rama A
 
 Las **dos** próximas fechas de los ciclos fijos (5, 16 y 28). Vienen con la etiqueta ya escrita en
 español.
@@ -223,7 +238,7 @@ español.
 Si el crédito no admite cambios devuelve **422** con el mismo `error_code` que `can-change` — no un 200
 con lista vacía.
 
-### 6b · `GET /credits/{user_request_id}/fee-number-options?wa=`
+### 6b · `GET /credits/{user_request_id}/fee-number-options?wa=` · rama B
 
 Los plazos alternativos con su cuota simulada.
 
@@ -247,7 +262,7 @@ Los plazos alternativos con su cuota simulada.
 > cambiar** — no digas «no se puede», ofrecé la fecha. Filtrá siempre por `is_available: true` antes de
 > pintar el menú.
 
-### 7a · `POST /credits/{user_request_id}/change-payment-date`
+### 7a · `POST /credits/{user_request_id}/change-payment-date` · rama A
 
 Escribe. Exige sesión `otp_verified` y que el crédito sea de esa persona.
 
@@ -274,7 +289,7 @@ adelante.
 }
 ```
 
-### 7b · `POST /credits/{user_request_id}/change-fee-number`
+### 7b · `POST /credits/{user_request_id}/change-fee-number` · rama B
 
 ```json
 {
