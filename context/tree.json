@@ -214,6 +214,19 @@
       "updated": "2026-07-17T19:11:00Z"
     },
     {
+      "id": "codeudor",
+      "name": "Codeudor",
+      "parent": "creditop",
+      "targets": {
+        "application": "main",
+        "frontend-monorepo": "main",
+        "legacy-backend": "main"
+      },
+      "baseline": {},
+      "created": "2026-08-20T20:40:00Z",
+      "updated": "2026-08-20T20:40:00Z"
+    },
+    {
       "id": "kyc",
       "name": "KYC",
       "targets": {

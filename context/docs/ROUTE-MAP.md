@@ -28,7 +28,10 @@ Si la tarea llega con una de estas frases, empezá por esos nodos. Si ninguna ma
 | «el botón Descargar Solicitudes trae mal» | `application` |
 | «el celular no se bloquea» / IMEI | `smartpay` |
 | «el cliente no puede firmar el pagaré» | `deceval` |
+| «el codeudor no recibió el link» | `codeudor` |
+| «el codeudor ve la pantalla del comprador» | `codeudor` |
 | «el código de compra en caja no sirve» | `corbeta` |
+| «el documento salió sin la firma del codeudor» | `codeudor` |
 | «el endpoint devuelve un código raro» (ONB0xx) | `legacy-backend` |
 | «el listado tardó minutos» | `profiling` |
 | «el monolito no tiene este endpoint» | `microservicios` |
@@ -52,6 +55,7 @@ Si la tarea llega con una de estas frases, empezá por esos nodos. Si ninguna ma
 | «falló el renting / Ábaco» | `motai` |
 | «falló en Pullman / CrediPullman» | `pullman` |
 | «falló firmando documentos» | `findings` · `formalization` |
+| «firmó y la solicitud no pasó a Autorizada» | `codeudor` |
 | «firmó y no se desembolsó» | `deceval` |
 | «formulario no encontrado» | `dynamic-forms` · `form-service` |
 | «¿hay dónde ver qué regla falló y con qué valor?» | `backoffice` |
@@ -59,6 +63,7 @@ Si la tarea llega con una de estas frases, empezá por esos nodos. Si ninguna ma
 | «hay que integrar una entidad nueva» | `hardcodes-entidades` |
 | «hay que rehacer el panel de configuración» | `merchants` |
 | «la comisión del reporte salió en cero» | `negocio` |
+| «la cuota del plan de pagos no coincide con el contrato» | `motai` |
 | «la fecha de esa tabla no coincide con nada» | `db-routines` |
 | «la pantalla del wizard se ve/comporta mal» | `frontend-monorepo` |
 | «las condiciones que vio no son las del cupo que quedó» | `rotativo` |
@@ -66,6 +71,7 @@ Si la tarea llega con una de estas frases, empezá por esos nodos. Si ninguna ma
 | «los datos del cliente no coinciden con el registro» | `deceval` |
 | «necesito decirle al comercio POR QUÉ no le salió esa entidad» | `backoffice` |
 | «necesito reproducir/probar un flujo entero» | `findings` · `harness` |
+| «no aparece el tipo de documento PEP» | `motai` |
 | «no le apareció ninguna entidad» | `creditopx` · `findings` · `kyc` · `merchants` · `profiling` |
 | «no le consultaron el buró» | `kyc` |
 | «no le llega el OTP del registro» | `onboarding` |
@@ -74,6 +80,7 @@ Si la tarea llega con una de estas frases, empezá por esos nodos. Si ninguna ma
 | «no sé por dónde empezar» | `creditop` |
 | «no tiene permisos» / «ve un panel mutilado» | `actors` |
 | «pagó y no se refleja» / cuota inicial | `payments` |
+| «pide codeudor y no debería» / «no lo pide y debería» | `codeudor` |
 | «pidió X y le ofrecieron menos plazo» | `amount-tiers` |
 | «¿por qué a este cliente no le salió esta entidad?» | `trazador` |
 | «¿por qué el listado salió en ese orden?» | `profiling` |
@@ -112,6 +119,7 @@ Si la tarea llega con una de estas frases, empezá por esos nodos. Si ninguna ma
     - ms-preapprovals [ref]
     - trazador [ref]
   - backoffice [ref]
+  - codeudor [ref]
   - db-routines [ref]
   - ecommerce [ref]
   - entities [ref]
@@ -175,15 +183,19 @@ Doc: `server/data/flows/backoffice/doc.md` · Archivos: `server/data/flows/backo
 **Cuándo:** Cuando la tarea toca Bancolombia (BNPL lender 68 / Consumo lender 100): su onboarding propio en el wizard, la secuencia multi-step de originación (login→cuota→cuenta→términos→clave dinámica→origination; consumo: validate→ofertas→simulación→seguro→e-sign), el código de compra en punto de venta (PIN de Corbeta / In Store Billing Code), los escenarios sandbox por cédula y por celular, JWT RS256 + mTLS, o el webhook de estado que sigue en application. Es el único rt=1 con originación completa DENTRO de CreditOp.
 Doc: `server/data/flows/bancolombia/doc.md` · Archivos: `server/data/flows/bancolombia/map.json` · Padre: `aggregator`
 
+### codeudor — Codeudor  ·  _reference_ · 69 archivos
+**Cuándo:** Cuando en la tarea aparece un SEGUNDO firmante: codeudor, cosigner, deudor solidario, «necesita codeudor», «el codeudor no puede firmar», la invitación por WhatsApp o su deep link, el estado «Solicita codeudor», la pantalla de espera del titular mientras el codeudor valida, la firma cruzada (titular y codeudor firmando el MISMO documento), o el catálogo de documentos que cambia según haya codeudor o no (`lender_signing_documents`). También cuando una solicitud queda aprobada por OTP y NO llega al estado 11: puede estar diferida esperando la firma del codeudor.
+Doc: `server/data/flows/codeudor/doc.md` · Archivos: `server/data/flows/codeudor/map.json` · Padre: `creditop`
+
 ### corbeta — Corbeta  ·  _reference_ · 28 archivos
 **Cuándo:** Cuando la tarea es del GRUPO DE COMERCIOS Corbeta (retail físico: Alkosto 209 / K-TRONIX 210 / Alkomprar 211; el allied 24 del gate es 'Creditop', la cuenta propia de la casa) y la venta se cierra en CAJA: checkout ecommerce base64 → PIN de la API Fondos → factura en tienda → conciliación batch por PIN → estado 26 Facturado → confirmación diferida al lender. Sus tres retail tienen SÓLO Bancolombia habilitado (68 BNPL / 100 Consumo): la decisión de crédito y los endpoints de originación son del nodo `bancolombia`.
 Doc: `server/data/flows/corbeta/doc.md` · Archivos: `server/data/flows/corbeta/map.json` · Padre: `merchants`
 
-### credifamilia — Credifamilia  ·  _reference_ · 137 archivos
+### credifamilia — Credifamilia  ·  _reference_ · 142 archivos
 **Cuándo:** Cuando la tarea toca Credifamilia (lender 24, el único response_type=4): radicación por SOAP, KYC V2 (Evidente/CrossCore/Jumio), plan de cuotas dinámico, o el gate local que hace que no aparezca en pruebas.
 Doc: `server/data/flows/credifamilia/doc.md` · Archivos: `server/data/flows/credifamilia/map.json` · Padre: `entities`
 
-### creditopx — CreditopX  ·  _reference_ · 15 archivos
+### creditopx — CreditopX  ·  _reference_ · 19 archivos
 **Cuándo:** Cuando la pregunta es por qué una entidad aparece o NO aparece en el listado, y con qué enganche, cupo y plazo. La cascada in-platform rt=2/3: reglas de grupo (`group_rules`), datacrédito, categoría y cupo disponible. La calculadora vive en `lenders_by_allieds` y la visibilidad por sucursal en `lenders_by_allied_branches`. ⚠ La conducta la decide el PAR (comercio, entidad), no la entidad — ver F-34 antes de concluir «esta entidad está rota».
 Doc: `server/data/flows/creditopx/doc.md` · Archivos: `server/data/flows/creditopx/map.json` · Padre: `entities`
 
@@ -207,7 +219,7 @@ Doc: `server/data/flows/ecommerce/doc.md` · Archivos: `server/data/flows/ecomme
 **Cuándo:** Cuando la pregunta es qué ES un prestamista como dato: la fila `lenders`, sus tablas de configuración, y sobre todo el `response_type` (0 redirect/UTM · 1 agregador por API · 2 y 3 CreditopX in-platform · 4 Credifamilia SOAP) que despacha toda la plataforma. Alta de una entidad nueva. También `lender_identity_validation_types` (qué camino de identidad le toca). ⚠ El `response_type` CAMBIA según el ambiente: verificarlo contra local miente (F-95).
 Doc: `server/data/flows/entities/doc.md` · Archivos: `server/data/flows/entities/map.json` · Padre: `creditop`
 
-### findings — Findings  ·  _reference_ · 44 archivos
+### findings — Findings  ·  _reference_ · 45 archivos
 **Cuándo:** Cuando algo NO funciona en el entorno LOCAL y querés saber si ya lo diagnosticamos — pantallas rotas sin mensaje, flujos que se traban, errores que el front se traga, o "esto que veo, ¿es real o es un mock?". También ANTES de invertir tiempo depurando un muro del harness: cada hallazgo trae síntoma, causa raíz verificada, evidencia y arreglo. Es un registro VIVO: al descubrir algo nuevo, se agrega una entrada acá.
 Doc: `server/data/flows/findings/doc.md` · Archivos: `server/data/flows/findings/map.json` · Padre: `creditop`
 
@@ -247,8 +259,8 @@ Doc: `server/data/flows/merchants/doc.md` · Archivos: `server/data/flows/mercha
 **Cuándo:** Cuando la tarea toca algo que NO está en `legacy-backend` ni en `legacy-application` y no se sabe dónde vive: «¿quién sirve este endpoint?», «¿qué es este `service_name` que aparece en los logs?», «¿hay un servicio nuevo que hace esto?», «el monolito no tiene este código, ¿dónde está?». Acá está el CENSO de los 14 servicios que emiten logs en producción —medido en Loki, no supuesto—, cuáles están clonados, cuáles indexa el árbol y cuánto pesa cada uno. También la receta para volver a medirlo. Es el nodo que contesta la pregunta previa a cualquier otra: en qué repositorio buscar. Y el que avisa que la app MÓVIL (`financial-health-service`, `MOBA*`) es un producto entero fuera del alcance de este árbol.
 Doc: `server/data/flows/microservicios/doc.md` · Archivos: `server/data/flows/microservicios/map.json` · Padre: `architecture`
 
-### motai — Motai  ·  _reference_ · 48 archivos
-**Cuándo:** ⏳ OJO: este nodo describe la v2, que vive en `qa` y NO en `main` (ver la marca PENDIENTE DE MERGE en el doc.md). Cuando la tarea es del comercio Motai (allied 158): sus productos renting / rent-to-own / compra (`lenders.product`), Ábaco (validación de ingresos de apps gig) y cómo se prende por lender en `lender_requirements`, el flujo self-service dirigido por `next_step`, o la calculadora del renting (precio vs interés, y por qué toca el techo de usura). OJO si buscás `modos`, `isMotaiRenting`, `merchant_mode` o `partner_modes`: se borraron en la des-motaización (v2) — acá está el modelo nuevo.
+### motai — Motai  ·  _reference_ · 88 archivos
+**Cuándo:** Cuando la tarea es del comercio Motai (allied 158): sus productos renting / rent-to-own / compra (`lenders.product`), Ábaco (validación de ingresos de apps gig) y cómo se prende por lender en `lender_requirements`, el flujo self-service dirigido por `next_step`, la calculadora del renting y del rent-to-own (precio vs interés, y por qué toca el techo de usura), o por qué el selector de tipo de documento no ofrece PEP en una sucursal. OJO si buscás `modos`, `isMotaiRenting`, `merchant_mode` o `partner_modes`: se borraron en la des-motaización (v2) — acá está el modelo nuevo, que es el que corre en producción desde el 2026-08-19. Si la tarea es del SEGUNDO firmante, el nodo es `codeudor`.
 Doc: `server/data/flows/motai/doc.md` · Archivos: `server/data/flows/motai/map.json` · Padre: `merchants`
 
 ### ms-preapprovals — MS Pre-approvals  ·  _reference_ · 72 archivos
@@ -283,7 +295,7 @@ Doc: `server/data/flows/redirect/doc.md` · Archivos: `server/data/flows/redirec
 **Cuándo:** Cuando la pregunta es sobre el OTORGAMIENTO del cupo rotativo (response_type=3): «¿por qué a este cliente el rotativo le dio cupo 0?», «¿de dónde sale el multiplicador?», «¿por qué la cuota inicial / el FGA de este cliente es esa?», «¿por qué las condiciones que vio en pantalla no son las del cupo que quedó?». Acá viven el multiplicador de riesgo 1-5 (promedio ponderado de 6 variables de Experian + continuidad laboral), el corte duro `multiplier <= 3`, las tablas `creditop_x_profiling_multiplier_risk_vars`/`_rangs`, la cuota inicial y el FGA por nivel (`creditop_x_profiling_down_payment_FGA`), el tope general `lenders.max_rev_credit`, y las DOS implementaciones que divergen (PHP en legacy-application otorga; el SP en SQL alimenta la pantalla de condiciones). NO es para lo que pasa DESPUÉS del desembolso —cartera, causación, cupo que se libera al pagar—: eso es `servicing`. Y NO es la categorización de consumo por tiers: eso es `profiling`.
 Doc: `server/data/flows/rotativo/doc.md` · Archivos: `server/data/flows/rotativo/map.json` · Padre: `creditopx`
 
-### servicing — Servicing  ·  _reference_ · 65 archivos
+### servicing — Servicing  ·  _reference_ · 69 archivos
 **Cuándo:** Cuando el problema es DESPUÉS del desembolso (Estado 11): cartera, causación de interés, fecha de corte, mora, cobranza, pagos y cupo rotativo. Los 6 crons diarios `UpdateCreditopX*` y el ledger `creditop_x_requests_history`. Ojo: corre 100% en `application`, no en legacy-backend.
 Doc: `server/data/flows/servicing/doc.md` · Archivos: `server/data/flows/servicing/map.json` · Padre: `creditop`
 
