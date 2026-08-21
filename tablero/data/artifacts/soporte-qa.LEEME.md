@@ -27,6 +27,9 @@ El cliente de prueba es **ANA QA**, con **dos créditos en dos comercios distint
 elegir crédito, y quedan dos créditos para probar el cambio de fecha en uno y el de plazo en el otro. El
 ↺ del cabezal del chat empieza de nuevo.
 
+⚠ **Si el chat dice «no encontramos una cuenta con esos datos»**, no es un bug: falta correr
+`soporte-qa.casos.sql` contra ese ambiente. Es lo que crea a ANA QA.
+
 ## Para volver a probar: corré el script
 
 Un crédito al que se le cambió algo **no admite otro cambio por 6 meses** — es la regla del negocio, no
