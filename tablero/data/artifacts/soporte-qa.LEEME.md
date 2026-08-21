@@ -30,6 +30,21 @@ elegir crédito, y quedan dos créditos para probar el cambio de fecha en uno y 
 ⚠ **Si el chat dice «no encontramos una cuenta con esos datos»**, no es un bug: falta correr
 `soporte-qa.casos.sql` contra ese ambiente. Es lo que crea a ANA QA.
 
+## Probar con otro cliente: la columna de la derecha
+
+Cambiá el **celular** —y la cédula que le corresponda— y dale **Usar este número**. Cambiar el celular
+es cambiar de persona: es lo primero que mira el bot, antes de preguntar nada.
+
+⚠ Y mirá el aviso de color que aparece ahí:
+
+| Lo que dice | Qué significa |
+|---|---|
+| verde · *está en la lista de pruebas de QA* | no se manda ningún mensaje y el código son los últimos 4 dígitos del celular |
+| ámbar · *no está en la lista* | **a ese número le va a llegar un SMS de verdad.** Usá sólo números propios |
+
+Cuando el número no está en la lista, el código **no** viene pre-escrito: llega por mensaje y hay que
+escribir el que llegó.
+
 ## Para volver a probar: corré el script
 
 Un crédito al que se le cambió algo **no admite otro cambio por 6 meses** — es la regla del negocio, no

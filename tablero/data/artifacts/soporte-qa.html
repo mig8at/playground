@@ -32,15 +32,28 @@
                 background:var(--page); color:var(--ink); cursor:pointer }
   .cfg button.p { background:var(--wa-green); border-color:var(--wa-green); color:#fff; font-weight:500 }
 
-  .quien { font-size:13px; line-height:1.35 }
-  .quien b { font-weight:600 }
-  .quien span { color:var(--soft); font-family:var(--mono); font-size:12px }
+  .quien { padding:13px 14px; display:flex; flex-direction:column; gap:9px }
+  .quien label { display:flex; flex-direction:column; gap:3px; font-size:10.5px; color:var(--soft);
+                 text-transform:uppercase; letter-spacing:.05em }
+  .quien input { font:13px var(--mono); padding:7px 9px; border:1px solid var(--line);
+                 border-radius:6px; background:var(--page); color:var(--ink) }
+  .quien button { font:13px inherit; padding:7px 11px; border:1px solid var(--line); border-radius:6px;
+                  background:var(--page); color:var(--ink); cursor:pointer }
+  .quien button.p { background:var(--wa-green); border-color:var(--wa-green); color:#fff; font-weight:500 }
+  .quien button.lnk { border:0; background:none; color:var(--wa-link); padding:0; text-align:left; font-size:12px }
+  .quien .ayuda { margin:2px 0 0; font-size:11.5px; color:var(--soft); line-height:1.4 }
+  .marca { font-size:12px; padding:7px 9px; border-radius:6px; line-height:1.35 }
+  .marca.ok  { background:var(--okbg);  color:var(--ok) }
+  .marca.mal { background:var(--warnbg); color:var(--warn) }
+  .marca b { font-family:var(--mono) }
 
   .aviso { margin:10px 22px 0; padding:9px 12px; border-radius:7px; font-size:12.5px;
            background:var(--warnbg); border:1px solid #fde68a; color:var(--warn) }
 
-  .cols { display:grid; grid-template-columns: 380px minmax(0,1fr); gap:18px; padding:16px 22px; align-items:start }
-  @media (max-width:900px) { .cols { grid-template-columns:1fr } }
+  .cols { display:grid; grid-template-columns: 360px minmax(0,1fr) 280px; gap:18px;
+           padding:16px 22px; align-items:start }
+  @media (max-width:1200px) { .cols { grid-template-columns: 360px minmax(0,1fr) } }
+  @media (max-width:900px)  { .cols { grid-template-columns:1fr } }
 
   /* ── el teléfono ── */
   .phone { border:1px solid var(--line); border-radius:12px; overflow:hidden;
@@ -136,10 +149,23 @@
     </div>
   </div>
 
-  <div class="panel">
+  <div class="panel" id="colB">
     <h2>Respuestas del backend <button id="copiar">copiar reporte</button></h2>
     <div id="log"><div class="vacio">Todavía no se llamó nada. Dale «Empezar la conversación».</div></div>
     <div class="nota" id="nota"></div>
+  </div>
+
+  <div class="panel">
+    <h2>Quién escribe</h2>
+    <div class="quien">
+      <label>Celular <input id="tel" maxlength="10" placeholder="3001234567"></label>
+      <label>Cédula <input id="doc" placeholder="1023038445"></label>
+      <div id="bypass"></div>
+      <button class="p" id="usar">Usar este número</button>
+      <button class="lnk" id="preset">volver al cliente de prueba</button>
+      <p class="ayuda">Cambiar el celular es cambiar de persona: es lo que el bot mira primero. La
+        cédula se pre-escribe en el chat, pero se puede pisar ahí mismo.</p>
+    </div>
   </div>
 </div>
 
@@ -173,6 +199,21 @@ const QUIEN = { tel: "", doc: "" };
 // Su celular está en la lista de bypass de QA: no se le manda ningún mensaje a nadie y el código del
 // OTP son los últimos 4 dígitos.
 const CLIENTE = { tel: "3108000011", doc: "900000001", nombre: "ANA QA", que: "dos créditos, en dos comercios" };
+
+// Los celulares de `settings.qa_otp_bypass_phones` en dev, copiados el 2026-08-20.
+//
+// Está acá para poder AVISAR: con un número de esta lista el proveedor no se llama y el código es los
+// últimos 4 dígitos; con cualquier otro, **el mensaje se manda de verdad**. Ese aviso existe porque el
+// error ya se cometió en esta tarea: se le mandó un SMS a un número que no era de nadie del equipo.
+//
+// ⚠ Es una COPIA, así que puede quedar vieja: si alguien agrega un número a la lista en la base, acá no
+// aparece y el aviso dirá que manda SMS cuando ya no lo manda. La verdad está en la BD.
+const BYPASS = ["3132804490","3023398616","3134567788","3156684893","3188905815","3023398617",
+  "3243277267","3108000007","3108000009","3131010101","3131010100","3108000010","3108000011",
+  "3108000012","3108000013","3108000014","3108000015","3108000001","3108000002","3108000003",
+  "3108000004","3108000005","3108000006","3109000001","3109000002","3109000003","3109000004",
+  "3109000005","3109000006","3000000000","3099000000","3102500120","3214112174","3150645046"];
+const esDeQA = (tel) => BYPASS.includes(String(tel).trim());
 const wa = () => "whatsapp:+57" + QUIEN.tel;
 const doc = () => QUIEN.doc;
 
@@ -302,7 +343,9 @@ const AUTO = {};
 function autoDe(tel, doc) {
   AUTO.saludo = "Hola, buenas tardes";
   AUTO.cedula = doc;
-  AUTO.codigo = String(tel).slice(-4);
+  // Con un número que NO está en la lista de QA el código llega por SMS y nadie acá lo sabe: dejar
+  // pre-escritos los últimos 4 dígitos sería mentirle a quien prueba.
+  AUTO.codigo = esDeQA(tel) ? String(tel).slice(-4) : "";
 }
 function trabar() {
   const i = $("#entrada"), b = $("#enviar");
@@ -599,13 +642,31 @@ $("#copiar").addEventListener("click", async () => {
   } catch { alert(txt); }
 });
 
-// Quién está del otro lado se ve en el propio chat, no en una ficha: el número va en el cabezal del
-// teléfono, igual que en WhatsApp.
-function pintarQuien() {
-  QUIEN.tel = CLIENTE.tel; QUIEN.doc = CLIENTE.doc; autoDe(CLIENTE.tel, CLIENTE.doc);
-  $("#estado").textContent = "en línea";
-  $("#quien-num").textContent = "+57 " + CLIENTE.tel;
+// Quién está del otro lado se ve en el cabezal del teléfono, igual que en WhatsApp, y se cambia en la
+// tercera columna: cambiar el celular ES cambiar de persona, porque es el primer factor del canal.
+function usar(tel, doc) {
+  QUIEN.tel = String(tel).trim(); QUIEN.doc = String(doc).trim();
+  $("#tel").value = QUIEN.tel; $("#doc").value = QUIEN.doc;
+  autoDe(QUIEN.tel, QUIEN.doc);
+  $("#quien-num").textContent = "+57 " + QUIEN.tel;
+  marcarBypass();
+  reiniciar();
 }
+
+function marcarBypass() {
+  const tel = $("#tel").value.trim();
+  const ok = esDeQA(tel);
+  $("#bypass").className = "marca " + (ok ? "ok" : "mal");
+  $("#bypass").innerHTML = ok
+    ? `Está en la lista de pruebas de QA: <b>no se manda ningún mensaje</b> y el código es <b>${tel.slice(-4)}</b>.`
+    : "⚠ <b>No está en la lista de pruebas de QA</b>: a este número le va a llegar un mensaje de verdad. Usá sólo números propios.";
+}
+
+$("#usar").addEventListener("click", () => usar($("#tel").value, $("#doc").value));
+$("#preset").addEventListener("click", () => usar(CLIENTE.tel, CLIENTE.doc));
+$("#tel").addEventListener("input", marcarBypass);
+$("#tel").addEventListener("keydown", (e) => { if (e.key === "Enter") $("#usar").click(); });
+$("#doc").addEventListener("keydown", (e) => { if (e.key === "Enter") $("#usar").click(); });
 
 function ambiente() {
   $("#nota").innerHTML = `Base: <code>${base()}</code>` + (location.protocol === "file:"
@@ -615,7 +676,6 @@ function ambiente() {
 
 (function inicio() {
   ambiente();
-  pintarQuien();
-  reiniciar();
+  usar(CLIENTE.tel, CLIENTE.doc);
 })();
 </script>
