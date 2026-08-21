@@ -204,7 +204,10 @@ Lo que sigue son cuatro cosas y ninguna es escribir endpoints:
 1. **El flujo del ASESOR** — Miguel: *«eso lo vemos mañana»*. Las 8 rutas existen y están probadas; lo
    que falta es recorrerlo como se recorrió el del cliente y decidir si su prototipo también pasa a
    pegar contra la API. Ojo con lo que ya se sabe: `POST /change-requests/{id}/otp` es **inalcanzable
-   por diseño** (Registro (14)) y la recomendación es sacarlo, 16 → 15 rutas.
+   por diseño** (Registro (14)) y la recomendación es sacarlo, 16 → 15 rutas. Y 🔴 **antes de recorrerlo:
+   `field = fee_number` probablemente da 500 en `confirm`** — `json_decode("9")` devuelve `9`, no `null`,
+   así que el fallback no actúa y se le pasa un `int` donde `changeFeeNumber` espera un `array` (leído en
+   el código el 2026-08-21, sin medir; ver el Registro de ese día).
 2. **Correr el `.sql` en dev**, para tener un cliente reseteable (§1). Sin eso, cada crédito que se
    toque queda bloqueado 6 meses.
 3. **Tres decisiones de producto**, todas medidas y ninguna urgente:
@@ -1610,6 +1613,33 @@ castigo pega sobre el número que también se usa para cobrar.
 
 <!-- append-only, lo nuevo arriba. (Esta tarea no tenía sección de registro; se agrega siguiendo
      PLANTILLA-TAREA.md. Lo de arriba es el ESTADO, que se reescribe; esto es qué pasó cada día.) -->
+
+### 2026-08-21 — la especificación para Filipo, y un defecto del asesor que salió al escribirla
+
+Pedido de Miguel: **un documento simple de uso de endpoints** para que Filipo arranque el n8n — sólo las
+rutas con su descripción, su respuesta y los curls; el token se lo pasa él por separado. Quedó en
+`tablero/data/artifacts/agente-soporte-endpoints-n8n.html` (una página, sin token adentro): las 16 rutas
+en el orden de los dos flujos, con request, respuesta de ejemplo, la tabla de los 21 `error_code`, los
+gotchas (menú de plazos vacío, rt=2, tope de 4, bloqueo de 6 meses, `already_verified`) y los dos
+usuarios de QA de dev con su código de bypass. La ruta inalcanzable va listada como **«no la llames»**,
+para que nadie la busque al ver 16 y usar 15.
+
+**Verificado contra el gateway de dev al escribirlo** (21/8): `self/by-phone` con el número de QA da 200
+con el cuerpo esperado; sin token, 401; y las cuatro familias de ruta —`credits/{id}/*`, `/clients`,
+`/change-requests/{id}/*` con PATCH, `POST /self/otp`— contestan del backend (409 `SESSION_NOT_FOUND` /
+404 `CLIENT_NOT_FOUND`), o sea que el gateway rutea también los path-params y los verbos que no son GET.
+
+🔴 **Y un defecto encontrado LEYENDO el código, no corriéndolo** (queda como hipótesis fuerte, sin
+medir): en el flujo del asesor, `field = fee_number` **debería reventar en `confirm`**.
+`CreateChangeRequestRequest` valida `new_value` como `integer` cuando el campo es `fee_number`, y
+`ChangeRequestService::aplicarAlCredito()` hace `json_decode((string) $new_value, true) ?: [...]` — con
+`"9"`, `json_decode` devuelve el **entero 9**, que es truthy, así que el `?:` no cae al fallback y se le
+pasa un `int` a `CreditChangeService::changeFeeNumber(int, array $selectedFee, …)`: **TypeError → 500**.
+El fallback sólo actuaría si `json_decode` diera `null`/`false`. Y aunque llegara como array, faltaría
+`fee_value`, que es lo que `cloneHistory` escribe. El camino del CLIENTE no lo toca: ahí
+`CreditController::changeFeeNumber` arma la opción completa desde `simulatePossibleFees`. Encaja con que
+el flujo del asesor todavía no se recorrió (§«Lo que queda pendiente», punto 1). **Comprobarlo antes de
+prometerle a Filipo el cambio de plazo por ese flujo.**
 
 ### 2026-08-20 (23) — cómo se prueba esto, escrito para volver mañana sin contexto
 
