@@ -47,8 +47,12 @@ type archivo struct {
 	Ctor      map[string]string `json:"ctor,omitempty"`  // $prop -> tipo, INFERIDO del parámetro del constructor
 	Metodos   []metodo          `json:"metodos,omitempty"`
 	Llamadas  []llamada         `json:"llamadas,omitempty"`
+	Casos     []string          `json:"casos,omitempty"`  // Pest: la descripción de cada it()/test()
+	Tablas    []string          `json:"tablas,omitempty"` // sólo migraciones: Schema::create/table('x')
+	Tier      string            `json:"tier"`
 	Bytes     int               `json:"bytes"`
-	BytesEsq  int               `json:"bytes_esq"`
+	BytesEsq  int               `json:"bytes_esq"`   // lo que el mapa manda DE VERDAD, según su tier
+	BytesPle  int               `json:"bytes_pleno"` // el esqueleto completo, para poder medir el ahorro
 }
 
 type extractor struct{ p *ts.Parser }
@@ -79,7 +83,8 @@ func corto(fqcn string) string {
 func (e *extractor) extraer(ruta string, src []byte) *archivo {
 	tree := e.p.Parse(src, nil)
 	defer tree.Close()
-	a := &archivo{Ruta: ruta, Usa: map[string]string{}, Props: map[string]string{}, Ctor: map[string]string{}, Bytes: len(src)}
+	a := &archivo{Ruta: ruta, Usa: map[string]string{}, Props: map[string]string{}, Ctor: map[string]string{},
+		Tier: clasificar(ruta), Bytes: len(src)}
 	var esq strings.Builder
 
 	var caminar func(n *ts.Node)
@@ -151,7 +156,7 @@ func (e *extractor) extraer(ruta string, src []byte) *archivo {
 					}
 				}
 			}
-		case "method_declaration":
+		case "method_declaration", "function_definition":
 			nom := txt(src, n.ChildByFieldName("name"))
 			firma := txt(src, n)
 			if i := strings.Index(firma, "{"); i > 0 {
@@ -193,11 +198,44 @@ func (e *extractor) extraer(ruta string, src []byte) *archivo {
 			default:
 				a.Llamadas = append(a.Llamadas, llamada{Metodo: nom, Linea: ln, Forma: "libre"})
 			}
+		case "function_call_expression":
+			fn := txt(src, n.ChildByFieldName("function"))
+			if fn != "it" && fn != "test" && fn != "describe" {
+				break
+			}
+			if args := n.ChildByFieldName("arguments"); args != nil && args.NamedChildCount() > 0 {
+				d := strings.Trim(strings.TrimSpace(txt(src, args.NamedChild(0))), "'\"")
+				if d != "" && !strings.ContainsAny(d, "$(){}") {
+					a.Casos = append(a.Casos, d)
+				}
+			}
+
 		case "scoped_call_expression":
 			// Foo::bar() — resoluble por el mapa de `use`.
 			esc := txt(src, n.ChildByFieldName("scope"))
 			nom := txt(src, n.ChildByFieldName("name"))
 			ln := int(n.StartPosition().Row) + 1
+			if esc == "Schema" && (nom == "create" || nom == "table" || nom == "drop" || nom == "dropIfExists" || nom == "rename") {
+				// La migración se representa por LAS TABLAS QUE TOCA, no por las firmas de up()/down().
+				// Sacarlo acá y no en un pase aparte es gratis: el nodo ya está en la mano.
+				if args := n.ChildByFieldName("arguments"); args != nil {
+					for k := uint(0); k < args.NamedChildCount(); k++ {
+						t := strings.Trim(txt(src, args.NamedChild(k)), "'\"")
+						if t != "" && !strings.ContainsAny(t, "$(){} ") {
+							ya := false
+							for _, x := range a.Tablas {
+								if x == t {
+									ya = true
+								}
+							}
+							if !ya {
+								a.Tablas = append(a.Tablas, t)
+							}
+							break
+						}
+					}
+				}
+			}
 			if esc != "" && !strings.HasPrefix(esc, "$") {
 				a.Llamadas = append(a.Llamadas, llamada{Objeto: corto(strings.TrimLeft(esc, "\\")), Metodo: nom, Linea: ln, Forma: "estatico"})
 			} else {
@@ -209,6 +247,7 @@ func (e *extractor) extraer(ruta string, src []byte) *archivo {
 		}
 	}
 	caminar(tree.RootNode())
-	a.BytesEsq = esq.Len()
+	a.BytesPle = esq.Len()
+	a.BytesEsq = len(renderizar(a))
 	return a
 }

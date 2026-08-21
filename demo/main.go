@@ -200,11 +200,39 @@ func contarMetodos(g *grafo) int {
 func cmdMapa() {
 	alias, rel := partir(arg(2, "alias/ruta"))
 	g := cargarGrafo(alias)
-	a := g.Archivos[rel]
-	if a == nil {
-		salir(fmt.Errorf("%s no está en el mapa de %s", rel, alias))
+
+	// Un archivo exacto → la vista detallada. Un prefijo → EL MAPA DEL MÓDULO, que es la unidad que
+	// de verdad se le entrega a un seleccionador: el repo entero nunca fue la unidad correcta.
+	if a := g.Archivos[rel]; a != nil {
+		detalle(a)
+		return
 	}
-	fmt.Printf("%s\n", a.Ruta)
+	pref := strings.TrimSuffix(rel, "/") + "/"
+	var rutas []string
+	for r := range g.Archivos {
+		if strings.HasPrefix(r, pref) {
+			rutas = append(rutas, r)
+		}
+	}
+	if len(rutas) == 0 {
+		salir(fmt.Errorf("%s no es un archivo ni un prefijo con archivos en el mapa de %s", rel, alias))
+	}
+	sort.Strings(rutas)
+	porTier := map[string]int{}
+	total := 0
+	for _, r := range rutas {
+		a := g.Archivos[r]
+		txt := renderizar(a)
+		fmt.Print(txt)
+		total += len(txt)
+		porTier[a.Tier]++
+	}
+	fmt.Printf("\n  %s — %d archivos (codigo %d · test %d · migracion %d) · ~%d tokens de mapa\n",
+		pref, len(rutas), porTier[tierCodigo], porTier[tierTest], porTier[tierMigracion], total/4)
+}
+
+func detalle(a *archivo) {
+	fmt.Printf("%s   [%s]\n", a.Ruta, a.Tier)
 	if a.Clase != "" {
 		fmt.Printf("  clase   %s", a.Clase)
 		if a.Extiende != "" {
@@ -212,23 +240,44 @@ func cmdMapa() {
 		}
 		fmt.Println()
 	}
-	if len(a.Props) > 0 {
+	if len(a.Tablas) > 0 {
+		fmt.Printf("  tablas  %s\n", strings.Join(a.Tablas, ", "))
+	}
+	if n := len(a.Props) + len(a.Ctor); n > 0 {
 		fmt.Println("  inyecta:")
-		claves := make([]string, 0, len(a.Props))
-		for k := range a.Props {
+		claves := make([]string, 0, n)
+		tipo := map[string]string{}
+		for k, v := range a.Ctor {
 			claves = append(claves, k)
+			tipo[k] = v + "   (inferido del constructor)"
+		}
+		for k, v := range a.Props {
+			if _, ya := tipo[k]; !ya {
+				claves = append(claves, k)
+			}
+			tipo[k] = v
 		}
 		sort.Strings(claves)
 		for _, k := range claves {
-			fmt.Printf("    $%-26s %s\n", k, a.Props[k])
+			fmt.Printf("    $%-30s %s\n", k, tipo[k])
+		}
+	}
+	if len(a.Casos) > 0 {
+		fmt.Printf("  %d casos:\n", len(a.Casos))
+		for _, c := range a.Casos {
+			fmt.Printf("    · %s\n", c)
 		}
 	}
 	fmt.Printf("  %d métodos:\n", len(a.Metodos))
 	for _, m := range a.Metodos {
+		if a.Tier == tierTest {
+			fmt.Printf("    %4d  %s\n", m.Linea, m.Nombre)
+			continue
+		}
 		fmt.Printf("    %4d  %s\n", m.Linea, m.Firma)
 	}
-	fmt.Printf("\n  %d bytes → %d de esqueleto (%.1fx) · ~%d tokens → ~%d\n",
-		a.Bytes, a.BytesEsq, float64(a.Bytes)/float64(max(a.BytesEsq, 1)), a.Bytes/4, a.BytesEsq/4)
+	fmt.Printf("\n  %d bytes · esqueleto pleno %d · lo que manda su tier %d  →  %.1fx contra el archivo\n",
+		a.Bytes, a.BytesPle, a.BytesEsq, float64(a.Bytes)/float64(max(a.BytesEsq, 1)))
 }
 
 func cmdVecinos() {
@@ -258,17 +307,39 @@ func acortar(s string) string {
 func cmdMedir() {
 	alias := arg(2, "el alias del repo")
 	g := cargarGrafo(alias)
-	var full, esq int
+	type acc struct{ n, full, pleno, tier int }
+	por := map[string]*acc{}
+	t := &acc{}
 	for _, a := range g.Archivos {
-		full += a.Bytes
-		esq += a.BytesEsq
+		p := por[a.Tier]
+		if p == nil {
+			p = &acc{}
+			por[a.Tier] = p
+		}
+		p.n++
+		p.full += a.Bytes
+		p.pleno += a.BytesPle
+		p.tier += a.BytesEsq
+		t.n++
+		t.full += a.Bytes
+		t.pleno += a.BytesPle
+		t.tier += a.BytesEsq
 	}
 	fmt.Printf("%s:%s\n\n", g.Repo, g.Rama)
-	fmt.Printf("  COMPRESIÓN (todo el repo)\n")
-	fmt.Printf("    archivos completos  %8.1f MB  ~%8d tokens\n", float64(full)/1e6, full/4)
-	fmt.Printf("    esqueletos          %8.1f MB  ~%8d tokens   → %.1fx más chico\n",
-		float64(esq)/1e6, esq/4, float64(full)/float64(max(esq, 1)))
-	fmt.Printf("    en la ventana de 300k del lector caben %d archivos enteros vs TODO el repo en esqueleto\n",
-		300000/max((full/4)/max(len(g.Archivos), 1), 1))
+	fmt.Printf("  %-11s %6s %14s %14s %14s\n", "tier", "arch", "completos", "esq. pleno", "SU TIER")
+	fmt.Println("  " + strings.Repeat("-", 62))
+	for _, k := range []string{tierCodigo, tierTest, tierMigracion} {
+		p := por[k]
+		if p == nil {
+			continue
+		}
+		fmt.Printf("  %-11s %6d %14d %14d %14d\n", k, p.n, p.full/4, p.pleno/4, p.tier/4)
+	}
+	fmt.Println("  " + strings.Repeat("-", 62))
+	fmt.Printf("  %-11s %6d %14d %14d %14d\n", "TOTAL", t.n, t.full/4, t.pleno/4, t.tier/4)
+	fmt.Printf("\n  el repo completo:      ~%d tokens\n", t.full/4)
+	fmt.Printf("  esqueleto pleno:       ~%d tokens   (%.1fx)\n", t.pleno/4, float64(t.full)/float64(max(t.pleno, 1)))
+	fmt.Printf("  ESCALONADO:            ~%d tokens   (%.1fx)  — %d menos que el pleno\n",
+		t.tier/4, float64(t.full)/float64(max(t.tier, 1)), (t.pleno-t.tier)/4)
 	imprimirStats(g)
 }
