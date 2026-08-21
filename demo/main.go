@@ -178,15 +178,17 @@ func imprimirStats(g *grafo) {
 	pct := func(n int) string { return fmt.Sprintf("%5.1f%%", 100*float64(n)/float64(llam)) }
 	fmt.Printf("  call sites: %d\n", llam)
 	fmt.Printf("    RESUELTAS       %6d  %s\n", s["resueltas"], pct(s["resueltas"]))
-	fmt.Printf("      interno       %6d\n", s["interno"]-s["interno_heredado"])
-	fmt.Printf("      por propiedad %6d\n", s["prop"]-s["prop_sin_tipo"]-s["prop_fuera"]-s["prop_metodo_heredado"])
-	fmt.Printf("      estático      %6d\n", s["estatico"]-s["estatico_fuera"]-s["estatico_metodo_heredado"])
+	fmt.Printf("      interno       %6d   $this->x()\n", s["como_interno"])
+	fmt.Printf("      prop          %6d   $this->repo->x() con la propiedad TIPADA\n", s["como_prop"])
+	fmt.Printf("      ctor          %6d   …tipada sólo en el parámetro del constructor (inferido)\n", s["como_ctor"])
+	fmt.Printf("      estatico      %6d   Foo::x()\n", s["como_estatico"])
+	fmt.Printf("      ├ de esas, halladas SUBIENDO la jerarquía: %d  (%.0f%% de las resueltas)\n",
+		s["por_jerarquia"], 100*float64(s["por_jerarquia"])/float64(max(s["resueltas"], 1)))
 	fmt.Printf("    sin resolver    %6d  %s\n", llam-s["resueltas"], pct(llam-s["resueltas"]))
 	fmt.Printf("      libre ($var->x())        %6d   sobre una variable local: haría falta inferir tipos\n", s["libre"])
-	fmt.Printf("      heredado/trait           %6d   el método está en el padre — NO se inventa la arista\n",
-		s["interno_heredado"]+s["prop_metodo_heredado"]+s["estatico_metodo_heredado"])
-	fmt.Printf("      fuera del repo (vendor)  %6d\n", s["prop_fuera"]+s["estatico_fuera"])
-	fmt.Printf("      propiedad sin type hint  %6d\n", s["prop_sin_tipo"])
+	fmt.Printf("      método no hallado        %6d   no está en la clase ni en su jerarquía INDEXADA\n", s["no_hallado"])
+	fmt.Printf("      fuera del repo (vendor)  %6d\n", s["fuera_del_repo"])
+	fmt.Printf("      propiedad sin type hint  %6d\n", s["sin_tipo"])
 }
 
 func contarMetodos(g *grafo) int {
@@ -289,12 +291,22 @@ func cmdVecinos() {
 	entran, salen := g.vecinos(rel)
 	fmt.Printf("%s\n\n  LO LLAMAN (%d):\n", rel, len(entran))
 	for _, e := range entran {
-		fmt.Printf("    %-70s :%-5d ::%s  [%s]\n", acortar(e.De), e.Linea, e.Met, e.Como)
+		fmt.Printf("    %-70s :%-5d ::%s  %s\n", acortar(e.De), e.Linea, e.Met, etiqueta(e))
 	}
 	fmt.Printf("\n  LLAMA A (%d):\n", len(salen))
 	for _, e := range salen {
-		fmt.Printf("    %-70s :%-5d ::%s  [%s]\n", acortar(e.A), e.Linea, e.Met, e.Como)
+		fmt.Printf("    %-70s :%-5d ::%s  %s\n", acortar(e.A), e.Linea, e.Met, etiqueta(e))
 	}
+}
+
+// etiqueta — el mecanismo, y por qué ancestro se llegó si no fue la clase misma. Sin el `via`, una
+// arista hallada subiendo dos niveles se lee igual que una declarada al lado, y el lector no puede
+// saber que el método no está donde lo buscó.
+func etiqueta(e arista) string {
+	if e.Via != "" {
+		return "[" + e.Como + " ↑" + e.Via + "]"
+	}
+	return "[" + e.Como + "]"
 }
 
 func acortar(s string) string {

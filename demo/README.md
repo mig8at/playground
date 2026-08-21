@@ -93,28 +93,62 @@ cablea el gemelo muerto con total confianza. Por eso cada arista lleva su **proc
 | `estatico` | `Foo::x()` + `use App\Foo` | declarada (import explícito) |
 | `ctor` | `$this->tracer->x()` + `__construct(TracerService $tracer)` | **inferida** — se asume que el parámetro y la propiedad se llaman igual |
 
+Y si el método no está en la clase, se sube por `extends` y por los traits (en el orden de PHP: la
+clase, sus traits, el padre). La arista apunta al archivo que **define** el método, no a la clase por
+la que se entró — si no, el mapa manda a leer un archivo donde el método no está —, y lleva `via` con
+el ancestro donde apareció. Sin ese campo, una arista hallada subiendo dos niveles se lee igual que una
+declarada al lado.
+
 Lo que no entra en ninguna forma **no se inventa**: se cuenta y se reporta. Es el mismo patrón de las
 relaciones de tablas (44 FK declaradas contra 388 reconstruidas, cada una diciendo de dónde salió).
 
-## Estado medido (legacy-backend, 2.529 archivos)
+## Estado medido (legacy-backend, 2.529 archivos, 442 ms)
 
-    10.277 métodos · 9.931 aristas · 779 casos de Pest · 362 de 397 migraciones con su tabla
-    49.700 call sites → 20,0% resueltos
-
-El 80% sin resolver, desglosado:
+    10.400 métodos · 11.020 aristas · 779 casos de Pest · 362 de 397 migraciones con su tabla
+    49.700 call sites → 22,2% resueltos · 1.089 de las aristas se hallaron SUBIENDO la jerarquía
 
 | | | qué haría falta |
 |---|---|---|
 | `libre` — `$var->x()` sobre una local | 26.666 | inferencia de tipos. La mayoría son cadenas de Eloquent: framework, no cableado propio |
-| **heredado/trait** | 6.552 | **seguir `extends`. LA PALANCA: 1.002 de 2.529 archivos (40%) heredan** |
 | fuera del repo (vendor) | 5.682 | nada: está bien que no sean aristas nuestras |
+| método no hallado | 5.463 | la jerarquía llega a una clase base de Laravel: fuera del índice |
 | propiedad sin type hint | 869 | nada barato |
 
-⚠ **El caso que valida el diseño**: `LenderListingService` inyecta 10 servicios y el mapa le resuelve 12
-aristas, ninguna a `ProfilingRulesService` ni a `RiskCentralValidationService`. Verificado a mano, el
-mapa **tiene razón**: la clase no los llama, los pasa a `parent::__construct` — viven en
-`LenderRetrievalService`, que tiene los 21. El bucket honesto de «no resolví» apuntó exacto al
-mecanismo que falta, en vez de inventar una arista.
+### La jerarquía: el conteo es modesto, el alcance no
+
+Subir por `extends` y traits agregó **1.089 aristas (+11%)** y 33 archivos que antes no tenían ningún
+vecino saliente. El número no impresiona. Lo que cambia es la **alcanzabilidad**, que es lo único que
+le importa a un enrutador:
+
+| desde `LenderListingController` | sin jerarquía | con jerarquía |
+|---|---|---|
+| 2 saltos | 14 archivos | 16 |
+| 3 saltos | 27 | 35 |
+| **4 saltos** | **27** (saturó) | **41** |
+
+Sin jerarquía el grafo **se queda sin camino** en el salto 3. Y los 14 archivos que sólo aparecen con
+ella son el núcleo de negocio del listado:
+
+    ProfilingRulesService · RiskCentralValidationService · LenderValidationService
+    PreApprovedLenderService · LenderSpecialGrantingService · RevolvingCreditsService
+    CreditopXNotificationService · CreditopXRequestHistoryService · LenderRetrievalService …
+
+⚠ **Dos de esos cuatro archivos son los que el experimento del triaje tuvo que rescatar a mano**
+(`ProfilingRulesService`, `LenderSpecialGrantingService`). Eran inalcanzables desde el controller y hoy
+están a cuatro saltos. Eso es lo que se estaba comprando con la herencia.
+
+El caso que la motivó, ya resuelto: `LenderListingService` pasó de 12 a **20** aristas salientes, y las
+8 nuevas van al padre con los nombres del pipeline real — `validateAndProcessLenders`,
+`getProfilingData`, `applyProfiling`, `applySpecialConditions`, `shouldRecommendLender`. El padre tiene
+28 salientes, entre ellas `ProfilingRulesService::applyProfilingAndRiskCentralRules`.
+
+⚠ Y un efecto lateral que vale como control: el tier `ctor` —la única procedencia **inferida**— cayó de
+3.926 a **16**. No se perdió nada: esas propiedades ahora se resuelven por la declaración real en el
+padre. La inferencia era un parche por no tener jerarquía.
+
+⚠ Los dos que más aportaron son plomería, no negocio: el trait `ApiResponse` (699 aristas) y
+`BaseService` (274). Un conteo de aristas sin mirar QUÉ conecta habría dicho que la herencia sirve para
+las respuestas HTTP.
 
 ## Por qué Go, y por qué no hay motor de grafos
 
@@ -136,11 +170,9 @@ archivo) — y cambiar significa tocar sólo `grafo.go`.
 
 ## Lo que falta, en orden de rendimiento
 
-1. **Herencia** — seguir `extends` para métodos y props. Toca el 40% de los archivos y 6.552 call sites.
-2. **Traits** — `use X;` dentro de la clase (hoy se confunde con el import).
-3. **Las columnas de las migraciones**, no sólo la tabla: `$table->string('x')` está a un nodo de distancia.
-4. **`new Foo()` y `app(Foo::class)`** en locales: parte del bucket `libre`.
-5. **El otro monolito y el front.** En `.tsx` la compresión medida es sólo 3,9x: el esqueleto no captura
+1. **Las columnas de las migraciones**, no sólo la tabla: `$table->string('x')` está a un nodo de distancia.
+2. **`new Foo()` y `app(Foo::class)`** en locales: es el bucket más grande (26.666).
+3. **El otro monolito y el front.** En `.tsx` la compresión medida es sólo 3,9x: el esqueleto no captura
    JSX ni hooks, así que el front necesita otra estrategia.
-6. **La prueba de fuego**: darle a `seleccion.py` el mapa en vez del índice y correr el control negativo
+4. **La prueba de fuego**: darle a `seleccion.py` el mapa en vez del índice y correr el control negativo
    del triaje — sacar a propósito el archivo que contesta y ver si el mapa lo rescata.

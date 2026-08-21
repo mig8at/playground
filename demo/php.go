@@ -38,21 +38,23 @@ type llamada struct {
 }
 
 type archivo struct {
-	Ruta      string            `json:"ruta"`
-	Namespace string            `json:"ns,omitempty"`
-	Clase     string            `json:"clase,omitempty"`
-	Extiende  string            `json:"extiende,omitempty"`
-	Usa       map[string]string `json:"usa,omitempty"`   // nombre corto -> FQCN
-	Props     map[string]string `json:"props,omitempty"` // $prop -> tipo, DECLARADO (promoción o property)
-	Ctor      map[string]string `json:"ctor,omitempty"`  // $prop -> tipo, INFERIDO del parámetro del constructor
-	Metodos   []metodo          `json:"metodos,omitempty"`
-	Llamadas  []llamada         `json:"llamadas,omitempty"`
-	Casos     []string          `json:"casos,omitempty"`  // Pest: la descripción de cada it()/test()
-	Tablas    []string          `json:"tablas,omitempty"` // sólo migraciones: Schema::create/table('x')
-	Tier      string            `json:"tier"`
-	Bytes     int               `json:"bytes"`
-	BytesEsq  int               `json:"bytes_esq"`   // lo que el mapa manda DE VERDAD, según su tier
-	BytesPle  int               `json:"bytes_pleno"` // el esqueleto completo, para poder medir el ahorro
+	Ruta       string            `json:"ruta"`
+	Namespace  string            `json:"ns,omitempty"`
+	Clase      string            `json:"clase,omitempty"`
+	Extiende   string            `json:"extiende,omitempty"`
+	Traits     []string          `json:"traits,omitempty"` // `use X;` DENTRO de la clase
+	Implementa []string          `json:"implementa,omitempty"`
+	Usa        map[string]string `json:"usa,omitempty"`   // nombre corto -> FQCN
+	Props      map[string]string `json:"props,omitempty"` // $prop -> tipo, DECLARADO (promoción o property)
+	Ctor       map[string]string `json:"ctor,omitempty"`  // $prop -> tipo, INFERIDO del parámetro del constructor
+	Metodos    []metodo          `json:"metodos,omitempty"`
+	Llamadas   []llamada         `json:"llamadas,omitempty"`
+	Casos      []string          `json:"casos,omitempty"`  // Pest: la descripción de cada it()/test()
+	Tablas     []string          `json:"tablas,omitempty"` // sólo migraciones: Schema::create/table('x')
+	Tier       string            `json:"tier"`
+	Bytes      int               `json:"bytes"`
+	BytesEsq   int               `json:"bytes_esq"`   // lo que el mapa manda DE VERDAD, según su tier
+	BytesPle   int               `json:"bytes_pleno"` // el esqueleto completo, para poder medir el ahorro
 }
 
 type extractor struct{ p *ts.Parser }
@@ -114,6 +116,17 @@ func (e *extractor) extraer(ruta string, src []byte) *archivo {
 				a.Usa[alias] = fq
 				esq.WriteString("use " + fq + ";\n")
 			}
+		case "use_declaration":
+			// ⚠ `use X;` DENTRO del cuerpo de la clase es un TRAIT, y su nodo es `use_declaration` —
+			// distinto de `namespace_use_declaration`, que es el import del archivo. Tratarlos igual
+			// metía los imports como traits y la jerarquía quedaba inventada.
+			for i := uint(0); i < n.NamedChildCount(); i++ {
+				c := n.NamedChild(i)
+				if k := c.Kind(); k == "name" || k == "qualified_name" {
+					a.Traits = append(a.Traits, corto(strings.TrimLeft(txt(src, c), "\\")))
+				}
+			}
+
 		case "class_declaration", "interface_declaration", "trait_declaration":
 			if c := n.ChildByFieldName("name"); c != nil && a.Clase == "" {
 				a.Clase = txt(src, c)
@@ -125,8 +138,14 @@ func (e *extractor) extraer(ruta string, src []byte) *archivo {
 			// ChildByFieldName devolvía nil siempre y el campo quedaba vacío en los 2.529 archivos, sin
 			// que nada fallara — el modo exacto en que un índice miente.
 			for i := uint(0); i < n.NamedChildCount(); i++ {
-				if c := n.NamedChild(i); c.Kind() == "base_clause" {
+				c := n.NamedChild(i)
+				switch c.Kind() {
+				case "base_clause":
 					a.Extiende = corto(strings.TrimLeft(strings.TrimSpace(strings.TrimPrefix(txt(src, c), "extends")), "\\"))
+				case "class_interface_clause":
+					for j := uint(0); j < c.NamedChildCount(); j++ {
+						a.Implementa = append(a.Implementa, corto(strings.TrimLeft(txt(src, c.NamedChild(j)), "\\")))
+					}
 				}
 			}
 			decl := txt(src, n) // la declaración, sin el cuerpo

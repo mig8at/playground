@@ -25,6 +25,7 @@ type arista struct {
 	Met   string `json:"met"`
 	Linea int    `json:"linea"`
 	Como  string `json:"como"`
+	Via   string `json:"via,omitempty"` // el ancestro donde apareció el método, si no era la clase misma
 }
 
 type grafo struct {
@@ -39,26 +40,22 @@ type grafo struct {
 // están todos los archivos, un nombre no se puede descartar como inexistente.
 func (g *grafo) resolver() {
 	porFQCN := map[string]*archivo{} // App\Services\Foo -> archivo
-	porCorto := map[string][]*archivo{}
 	for _, a := range g.Archivos {
-		if a.Clase == "" {
-			continue
+		if a.Clase != "" {
+			porFQCN[a.Clase] = a
 		}
-		porFQCN[a.Clase] = a
-		c := corto(a.Clase)
-		porCorto[c] = append(porCorto[c], a)
 	}
 
 	st := map[string]int{}
 	// destino — de un nombre corto de clase al archivo que la define, usando el mapa de `use` del
-	// archivo que llama. Si el `use` no lo tiene, se prueba el mismo namespace. Nada más: adivinar por
-	// nombre corto global es exactamente el error que este archivo existe para no cometer.
+	// archivo que la NOMBRA. Si el `use` no lo tiene, se prueba el mismo namespace. Nada más: adivinar
+	// por nombre corto global es exactamente el error que este archivo existe para no cometer.
 	destino := func(desde *archivo, nombreCorto string) *archivo {
 		if fq, ok := desde.Usa[nombreCorto]; ok {
 			if d := porFQCN[fq]; d != nil {
 				return d
 			}
-			return nil // importado de vendor o de un repo que no indexamos: no es una arista nuestra
+			return nil // vendor, o un repo que no indexamos: no es una arista nuestra
 		}
 		if desde.Namespace != "" {
 			if d := porFQCN[desde.Namespace+"\\"+nombreCorto]; d != nil {
@@ -67,6 +64,50 @@ func (g *grafo) resolver() {
 		}
 		return nil
 	}
+
+	// ── LA JERARQUÍA ────────────────────────────────────────────────────────────────────────────
+	// Sin esto, `$this->getLenders()` en una subclase no resuelve a nada y el bucket honesto de «no
+	// resolví» se comía 6.552 call sites. Medido: 1.045 de 2.529 archivos heredan o usan un trait.
+	//
+	// El caso que lo motivó: LenderListingService inyecta 10 servicios y no llama a ninguno — los pasa
+	// a parent::__construct, y viven en LenderRetrievalService. Sin subir, el mapa del archivo más
+	// importante del listado mostraba 12 aristas y ninguna al motor de riesgo.
+	//
+	// ⚠ El orden es PHP: la clase primero, después sus traits, después el padre. Y la arista apunta al
+	// archivo que DEFINE el método, no a la clase por la que se entró — si no, el mapa manda a leer un
+	// archivo donde el método no está.
+	anc := map[string][]*archivo{}
+	var ancestros func(a *archivo) []*archivo
+	ancestros = func(a *archivo) []*archivo {
+		if v, ok := anc[a.Ruta]; ok {
+			return v
+		}
+		var out []*archivo
+		visto := map[string]bool{}
+		cola := []*archivo{a}
+		for len(cola) > 0 && len(out) < 24 { // el tope corta jerarquías absurdas, no las normales
+			cur := cola[0]
+			cola = cola[1:]
+			if cur == nil || visto[cur.Ruta] {
+				continue
+			}
+			visto[cur.Ruta] = true
+			out = append(out, cur)
+			for _, t := range cur.Traits {
+				if d := destino(cur, t); d != nil {
+					cola = append(cola, d)
+				}
+			}
+			if cur.Extiende != "" {
+				if d := destino(cur, cur.Extiende); d != nil {
+					cola = append(cola, d)
+				}
+			}
+		}
+		anc[a.Ruta] = out
+		return out
+	}
+
 	tiene := func(a *archivo, met string) bool {
 		for _, m := range a.Metodos {
 			if m.Nombre == met {
@@ -75,58 +116,89 @@ func (g *grafo) resolver() {
 		}
 		return false
 	}
+	// metodoEn — el primer ancestro que DEFINE el método. El bool dice si hubo que subir.
+	metodoEn := func(a *archivo, met string) (*archivo, bool) {
+		for i, x := range ancestros(a) {
+			if tiene(x, met) {
+				return x, i > 0
+			}
+		}
+		return nil, false
+	}
+	// propEn — quién declara la propiedad, con qué tipo y de qué forma. Devuelve el DUEÑO porque el
+	// tipo hay que resolverlo con SU mapa de `use`, no con el del que llama: la propiedad heredada se
+	// declara en el padre, que es el que importó la clase.
+	propEn := func(a *archivo, prop string) (*archivo, string, string) {
+		for _, x := range ancestros(a) {
+			if t, ok := x.Props[prop]; ok {
+				return x, t, "prop"
+			}
+			if t, ok := x.Ctor[prop]; ok {
+				return x, t, "ctor"
+			}
+		}
+		return nil, "", ""
+	}
+	// arista hacia el archivo que define el método, marcando por dónde se llegó.
+	agregar := func(desde *archivo, def *archivo, subio bool, met string, ln int, como string) {
+		via := ""
+		if subio {
+			via = corto(def.Clase)
+		}
+		g.Aristas = append(g.Aristas, arista{De: desde.Ruta, A: def.Ruta, Clase: def.Clase, Met: met, Linea: ln, Como: como, Via: via})
+		st["resueltas"]++
+		st["como_"+como]++
+		if subio {
+			st["por_jerarquia"]++
+		}
+	}
 
 	for _, a := range g.Archivos {
 		for _, ll := range a.Llamadas {
 			st["llamadas"]++
 			switch ll.Forma {
 			case "interno":
-				st["interno"]++
-				if tiene(a, ll.Metodo) {
-					g.Aristas = append(g.Aristas, arista{De: a.Ruta, A: a.Ruta, Clase: a.Clase, Met: ll.Metodo, Linea: ll.Linea, Como: "interno"})
-					st["resueltas"]++
-				} else {
-					st["interno_heredado"]++ // está en la clase padre o en un trait: no se inventa
+				st["f_interno"]++
+				d, subio := metodoEn(a, ll.Metodo)
+				if d == nil {
+					st["no_hallado"]++ // ni en la clase ni en su jerarquía indexada: no se inventa
+					continue
 				}
+				agregar(a, d, subio, ll.Metodo, ll.Linea, "interno")
+
 			case "prop":
-				st["prop"]++
-				como := "prop"
-				tipo, ok := a.Props[ll.Objeto]
-				if !ok {
-					// Fallback: el parámetro del constructor con el mismo nombre. Inferido, no declarado.
-					if tipo, ok = a.Ctor[ll.Objeto]; ok {
-						como = "ctor"
-					}
-				}
-				if !ok {
-					st["prop_sin_tipo"]++ // ni promovida, ni declarada, ni parámetro: no hay de dónde
+				st["f_prop"]++
+				dueno, tipo, forma := propEn(a, ll.Objeto)
+				if dueno == nil {
+					st["sin_tipo"]++ // ni promovida, ni declarada, ni parámetro, ni heredada
 					continue
 				}
-				d := destino(a, tipo)
+				clase := destino(dueno, tipo)
+				if clase == nil {
+					st["fuera_del_repo"]++
+					continue
+				}
+				d, subio := metodoEn(clase, ll.Metodo)
 				if d == nil {
-					st["prop_fuera"]++
+					st["no_hallado"]++
 					continue
 				}
-				if !tiene(d, ll.Metodo) {
-					st["prop_metodo_heredado"]++
-					continue
-				}
-				g.Aristas = append(g.Aristas, arista{De: a.Ruta, A: d.Ruta, Clase: d.Clase, Met: ll.Metodo, Linea: ll.Linea, Como: como})
-				st["resueltas"]++
-				st["como_"+como]++
+				agregar(a, d, subio || clase != d, ll.Metodo, ll.Linea, forma)
+
 			case "estatico":
-				st["estatico"]++
-				d := destino(a, ll.Objeto)
+				st["f_estatico"]++
+				clase := destino(a, ll.Objeto)
+				if clase == nil {
+					st["fuera_del_repo"]++
+					continue
+				}
+				d, subio := metodoEn(clase, ll.Metodo)
 				if d == nil {
-					st["estatico_fuera"]++
+					st["no_hallado"]++
 					continue
 				}
-				if !tiene(d, ll.Metodo) {
-					st["estatico_metodo_heredado"]++
-					continue
-				}
-				g.Aristas = append(g.Aristas, arista{De: a.Ruta, A: d.Ruta, Clase: d.Clase, Met: ll.Metodo, Linea: ll.Linea, Como: "estatico"})
-				st["resueltas"]++
+				agregar(a, d, subio || clase != d, ll.Metodo, ll.Linea, "estatico")
+
 			default:
 				st["libre"]++ // $var->x() sobre una local. Honesto: no se resuelve
 			}
