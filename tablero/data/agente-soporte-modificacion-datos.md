@@ -45,8 +45,8 @@ probando. Ahora sólo son gestionables los de `response_type = 2` («Creditop X�
 en **dos lugares** a propósito: el filtro de la lista y una guarda en la ruta, porque el id va en la URL
 y es enumerable. Pendiente de producto: confirmar el tope de **4** créditos por cliente.
 
-Y pendiente de producto: `POST /change-requests/{id}/otp` está **inalcanzable** y la causa está entendida
-(Registro (14)) — recomendación **sacarlo**.
+`POST /change-requests/{id}/otp` **ya no existe**: era inalcanzable por diseño y se sacó el 2026-08-21
+(Registro (4)). El canal tiene **15 rutas**; falta bajarla del API Gateway.
 
 ℹ La fila del asesor en dev (`users.id=1827130`) **se deja con el celular de Miguel a propósito**, para
 poder repetir pruebas con entrega real. No es olvido: es la decisión.
@@ -205,8 +205,8 @@ Lo que sigue son cuatro cosas y ninguna es escribir endpoints:
 
 1. **El flujo del ASESOR** — Miguel: *«eso lo vemos mañana»*. Las 8 rutas existen y están probadas; lo
    que falta es recorrerlo como se recorrió el del cliente y decidir si su prototipo también pasa a
-   pegar contra la API. Ojo con lo que ya se sabe: `POST /change-requests/{id}/otp` es **inalcanzable
-   por diseño** (Registro (14)) y la recomendación es sacarlo, 16 → 15 rutas. Y 🔴 **antes de recorrerlo:
+   pegar contra la API. ✅ Lo de `POST /change-requests/{id}/otp` ya está hecho: se sacó el 2026-08-21 y
+   el canal quedó en 15 rutas. Y 🔴 **antes de recorrerlo:
    `field = fee_number` probablemente da 500 en `confirm`** — `json_decode("9")` devuelve `9`, no `null`,
    así que el fallback no actúa y se le pasa un `int` donde `changeFeeNumber` espera un `array` (leído en
    el código el 2026-08-21, sin medir; ver el Registro de ese día).
@@ -1615,6 +1615,32 @@ castigo pega sobre el número que también se usa para cobrar.
 
 <!-- append-only, lo nuevo arriba. (Esta tarea no tenía sección de registro; se agrega siguiendo
      PLANTILLA-TAREA.md. Lo de arriba es el ESTADO, que se reescribe; esto es qué pasó cada día.) -->
+
+### 2026-08-21 (4) — se saca la ruta inalcanzable: el canal queda en 15
+
+Lo recordó Miguel al cerrar: *«había quedado pendiente la eliminación de un endpoint que ya no íbamos a
+usar»*. Era `POST /change-requests/{id}/otp`, recomendado sacar desde el Registro (14) y confirmado hoy
+por HTTP (409 `INVALID_STATE`, entrada (3)).
+
+**Alcance real, medido antes de tocar:** tres lugares —la ruta, `ChangeRequestController::sendOtp()` y
+`SendChangeRequestOtpRequest`— más tres imports que quedaban colgando y la dependencia
+`ChannelOtpService` del controller, que ya no usa nadie ahí. **Ningún test lo llamaba**, que es
+justamente por qué nunca se vio que fallaba siempre.
+
+> **MEDICIÓN · 2026-08-21 (local)** — la ruta borrada da **404** («route … could not be found») y las
+> **15 restantes se verificaron una por una por HTTP**, todas con la respuesta esperada. 69 tests del
+> módulo en verde. Commit `f4d303d4` en `fix/CORE-258-sesion-por-telefono-canonico`.
+
+**El porqué quedó escrito DONDE ESTABA la ruta**, no en un commit que nadie va a buscar: si producto
+pide el segundo factor, tiene que vivir en la **solicitud de cambio**, no en la sesión — colgar las dos
+pruebas del mismo objeto es lo que hacía que probar la identidad consumiera el mecanismo que iba a
+probar la intención.
+
+⚠ **Falta bajarla del API Gateway** (repo `infrastructure`, 16 → 15 rutas). No es urgente —expuesta
+devuelve 404— pero deja la superficie mintiendo. Es la única parte de esto que queda abierta.
+
+⚠ Y ojo al leer las secciones de arriba: varias hablan de **«los 16 endpoints»**. Era cierto cuando se
+escribieron; hoy son 15. No se reescriben las entradas del registro, pero el estado sí quedó corregido.
 
 ### 2026-08-21 (3) — los 16 endpoints, corridos contra local con el fix puesto
 
