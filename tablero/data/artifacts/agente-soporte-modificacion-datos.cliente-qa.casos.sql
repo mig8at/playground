@@ -121,7 +121,9 @@ DELETE h FROM creditop_x_requests_history h
 DELETE FROM user_requests WHERE user_id = @U AND lender_id = @LENDER;
 
 -- Y la sesión del canal, para que la prueba arranque pidiendo el código y no «ya estabas verificado».
-DELETE FROM support_bot_sessions WHERE wa_id = CONCAT('whatsapp:+57', @CEL);
+-- Las dos formas: `+57…` es la llave canónica desde el fix del 21/8 y `whatsapp:+57…` es la que
+-- quedó en las filas anteriores. Borrar sólo una deja viva la otra y la prueba no pide el código.
+DELETE FROM support_bot_sessions WHERE wa_id IN (CONCAT('+57', @CEL), CONCAT('whatsapp:+57', @CEL));
 
 -- ── 3 · sus dos créditos, en comercios distintos ──────────────────────────────────────────────────
 -- `user_request_status_id = 11` es «Autorizada»: ya se desembolsó, que es la condición para que haya

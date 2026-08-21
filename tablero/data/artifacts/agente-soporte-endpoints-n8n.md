@@ -28,7 +28,7 @@ Estado al 21 de agosto de 2026. El módulo (`Modules/SupportBot` en `legacy-back
 | Regla | Detalle |
 |---|---|
 | **Dos cabeceras, siempre** | `Authorization: Bearer <token>` y `Accept: application/json`. Sin `Accept`, algunos errores de validación salen como HTML en vez de JSON. |
-| **El `wa` va en TODAS** | Es el número de WhatsApp de quien está hablando, con el formato de Twilio: `whatsapp:+573001234567`. En los `GET` va como query (url-encoded), en los `POST` va en el cuerpo. Es lo que resuelve la sesión: sin él no hay identidad. |
+| **El `wa` va en TODAS** | Es el número de WhatsApp de quien está hablando. En los `GET` va como query (url-encoded), en los `POST` va en el cuerpo. Es lo que resuelve la sesión: sin él no hay identidad. Ver abajo qué formatos acepta. |
 | **Respuesta OK** | `{ "success": true, "message": "…", "data": { … } }` |
 | **Respuesta con error** | `{ "success": false, "message": "…", "errors": { "error_code": "…" } }` — **ramificá por `errors.error_code`**, nunca por el texto: el texto cambia. |
 | **La sesión** | Dura **15 minutos** desde la última actividad y admite **3 intentos** de código. Estados: `anonymous → identified → otp_sent → otp_verified → expired`. No se puede volver atrás desde `otp_verified`. |
@@ -37,6 +37,35 @@ Estado al 21 de agosto de 2026. El módulo (`Modules/SupportBot` en `legacy-back
 > ⚠ **401 vs 503.** `401 UNAUTHORIZED` = el token está mal o falta. `503 CHANNEL_NOT_CONFIGURED` = el
 > canal no tiene token configurado del lado nuestro (problema de despliegue, no tuyo). Los dos merecen el
 > mismo mensaje al usuario —«tengo un problema técnico»— y una alerta distinta para nosotros.
+
+### El formato del `wa`
+
+Sirven las tres, y las tres resuelven a la misma persona:
+
+```
+whatsapp:+573016992677     ← lo que entrega el proveedor, tal cual
++573016992677
+3016992677                 ← el más cómodo: no hay nada que encodear
+```
+
+**Elegí una y usala en toda la conversación.** No hace falta que sea la que te da el webhook:
+normalizá una vez en el primer nodo y guardá esa variable.
+
+⚠ **Hoy en dev, mezclarlas rompe la sesión.** Si pedís el código con `whatsapp:+57…` y lo validás con
+`3016992677`, el `verify` te da `409 SESSION_NOT_FOUND` aunque la sesión exista: la sesión se guarda con
+la cadena exacta. Hay un arreglo hecho, pendiente de desplegar, que vuelve las tres indistintas — te
+aviso cuando esté. Hasta entonces la regla de una sola forma no es un consejo, es un requisito.
+
+**Dos que NO sirven, y las dos fallan con un 404 que parece «el cliente no existe»:**
+
+- `573016992677` — con indicativo pero **sin `+`**. Se lee como número nacional y termina buscando
+  `+5757…`. Es la forma que entrega la API de Meta si algún día se cambia de proveedor.
+- `?wa=whatsapp:+57…` **sin encodear** en un `GET`. En un query string el `+` significa *espacio*: tiene
+  que ir como `%2B` (`whatsapp%3A%2B573016992677`). Cualquier cliente HTTP lo hace solo si usás sus
+  campos de query en vez de escribir la URL a mano — es la razón práctica para preferir `3016992677`.
+
+⚠ **Sin `+`, el backend asume Colombia.** Hoy da igual porque toda la operación lo es; el día que entren
+números de otro país habrá que exigir el `+`.
 
 ---
 

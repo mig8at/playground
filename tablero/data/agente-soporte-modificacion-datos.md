@@ -179,7 +179,9 @@ tipear en el chat, así que puede ser cualquiera que no exista ya:
     UPDATE users SET cell_phone = '<el celular>', document_number = '<la cédula>' WHERE id = <uid>;
 
     -- y se libera la sesión anterior de ese número, para que la prueba pida el código
-    DELETE FROM support_bot_sessions WHERE wa_id = CONCAT('whatsapp:+57', '<el celular>');
+    DELETE FROM support_bot_sessions
+     WHERE wa_id IN (CONCAT('+57', '<el celular>'), CONCAT('whatsapp:+57', '<el celular>'));
+    -- las DOS formas: `+57…` es la llave canónica desde el fix del 21/8, `whatsapp:+57…` la vieja
 
 **4 · Si ese crédito ya se cambió alguna vez**, está bloqueado 6 meses. Se desbloquea borrando su
 auditoría — en dev y sabiendo que eso es lo que se está borrando:
@@ -1613,6 +1615,43 @@ castigo pega sobre el número que también se usa para cobrar.
 
 <!-- append-only, lo nuevo arriba. (Esta tarea no tenía sección de registro; se agrega siguiendo
      PLANTILLA-TAREA.md. Lo de arriba es el ESTADO, que se reescribe; esto es qué pasó cada día.) -->
+
+### 2026-08-21 (2) — la sesión se llaveaba con la CADENA, no con el teléfono
+
+Salió de una pregunta de Miguel probando en Postman: la documentación dice `wa=whatsapp:+573109000004`
+pero `wa=3109000004` también funciona — *«¿lo puedo usar así para todo?»*. La respuesta corta era sí; la
+larga destapó un defecto.
+
+**Las dos puntas usaban criterios distintos sobre el mismo dato.** `ClientLookupService::findByWhatsApp`
+saca el `whatsapp:` y pasa por `toNational()`, así que las tres formas encuentran al mismo cliente. Pero
+`SessionService` guardaba y buscaba `wa_id` con la **cadena cruda** (`->where('wa_id', $waId)`): pedir el
+código con una forma y validarlo con otra daba **409 `SESSION_NOT_FOUND`** con la sesión ahí, viva, bajo
+otra llave. Nadie lo había visto porque los prototipos y los tests usaban una sola forma de punta a
+punta — y un test lo tenía **documentado como comportamiento deseado** (el docblock de
+`CreditEndpointsTest::WA` decía «la identidad de la sesión es la cadena, no el teléfono»).
+
+**Arreglado** en la rama local `fix/CORE-258-sesion-por-telefono-canonico` de `legacy-backend`
+(`e1b10668`, sin pushear): `PhoneService::toE164()` —el complemento de `toNational()`, para cuando el
+número se usa como identidad— y `SessionService::canonicalWaId()`, aplicado en las tres puertas
+(`liveFor`, `openOrResume`, `closeStale`). Sin migración: las sesiones viven 15 minutos.
+
+> **MEDICIÓN · 2026-08-21 (local)** — `whatsapp:+573016992677`, `+573016992677`, `3016992677` y
+> `301 699 2677` canonizan los cuatro a `+573016992677`. **69 tests del módulo en verde**, incluido uno
+> nuevo que pide el código con una forma y lo valida con otra.
+> `./vendor/bin/sail artisan test Modules/SupportBot/Tests`
+
+**Lo que NO arregla, y quedó escrito en el docblock:** sin `+` se asume `+57`. Es un default, no una
+deducción. Y hay una forma que falla en silencio — **`573016992677`** (indicativo sin `+`) se lee como
+nacional y termina buscando `+5757…`; es justo la que entrega la API de Meta, así que importa si algún
+día se cambia de proveedor. Soportar varios países de verdad pide tocar la BD: `users.cell_phone` guarda
+el nacional **sin país**, así que un `code=57` en el request se validaría y se descartaría.
+
+⚠ **Dos recetas quedaron viejas y se corrigieron acá mismo**: el `DELETE FROM support_bot_sessions` del
+`.sql` de QA y el de §3b buscaban `CONCAT('whatsapp:+57', …)`. Ahora borran las dos formas — con la
+canónica desplegada, la vieja no matchea y la prueba no vuelve a pedir el código.
+
+**Pendiente: desplegarlo.** Hasta entonces, en dev sigue valiendo la regla de una sola forma por
+conversación, y así está escrito en el documento de Filipo.
 
 ### 2026-08-21 — la especificación para Filipo, y un defecto del asesor que salió al escribirla
 
