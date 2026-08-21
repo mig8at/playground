@@ -24,6 +24,11 @@ jira_title: "Agente de soporte: modificación de datos"
 autorice (más una autogestión del cliente para fecha de pago y plazo). Código en `Modules/SupportBot`
 de `legacy-backend`, mergeado a `develop` (PR #1128) y `staging` (PR #1095).
 
+**Al 2026-08-21 hay un PR abierto:** [#1175](https://github.com/Creditop-SAS/legacy-backend/pull/1175)
+→ `develop` — la sesión se llavea por teléfono canónico (E.164) en vez de por la cadena cruda, y se saca
+`POST /change-requests/{id}/otp`, que era inalcanzable. El canal queda en **15 rutas**. Falta bajarla
+también del API Gateway.
+
 **Dónde está de verdad (2026-08-20):** ✅ **el bloqueo de infra está CERRADO y el canal responde en
 dev.** Las tres piezas quedaron: el módulo desplegado, las 16 rutas expuestas en el API Gateway, y
 `SUPPORT_BOT_TOKEN` seteado. Verificado de punta a punta contra el gateway público — la guarda quedó
@@ -1629,7 +1634,7 @@ justamente por qué nunca se vio que fallaba siempre.
 
 > **MEDICIÓN · 2026-08-21 (local)** — la ruta borrada da **404** («route … could not be found») y las
 > **15 restantes se verificaron una por una por HTTP**, todas con la respuesta esperada. 69 tests del
-> módulo en verde. Commit `f4d303d4` en `fix/CORE-258-sesion-por-telefono-canonico`.
+> módulo en verde. Commit `f4d303d4`, en el **PR #1175**.
 
 **El porqué quedó escrito DONDE ESTABA la ruta**, no en un commit que nadie va a buscar: si producto
 pide el segundo factor, tiene que vivir en la **solicitud de cambio**, no en la sesión — colgar las dos
@@ -1706,8 +1711,9 @@ otra llave. Nadie lo había visto porque los prototipos y los tests usaban una s
 punta — y un test lo tenía **documentado como comportamiento deseado** (el docblock de
 `CreditEndpointsTest::WA` decía «la identidad de la sesión es la cadena, no el teléfono»).
 
-**Arreglado** en la rama local `fix/CORE-258-sesion-por-telefono-canonico` de `legacy-backend`
-(`e1b10668`, sin pushear): `PhoneService::toE164()` —el complemento de `toNational()`, para cuando el
+**Arreglado** en `fix/CORE-258-sesion-por-telefono-canonico` de `legacy-backend` (`e1b10668`),
+hoy en **[PR #1175](https://github.com/Creditop-SAS/legacy-backend/pull/1175) → `develop`** junto con la
+poda de la ruta inalcanzable: `PhoneService::toE164()` —el complemento de `toNational()`, para cuando el
 número se usa como identidad— y `SessionService::canonicalWaId()`, aplicado en las tres puertas
 (`liveFor`, `openOrResume`, `closeStale`). Sin migración: las sesiones viven 15 minutos.
 
