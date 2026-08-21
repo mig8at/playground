@@ -47,10 +47,14 @@ segundo y el código el tercero.
 
 1. `GET /self/by-phone` — ¿de quién es este número? (opcional, sirve para saludar por el nombre)
 2. `POST /self/otp` — número + cédula, y sale el código
-3. `POST /self/otp/verify` — abre la sesión y **devuelve los créditos gestionables**
-4. `GET /credits/{id}/can-change` — ¿este crédito admite cambios hoy?
-5. `GET /credits/{id}/payment-date-options` o `/fee-number-options` — el menú
-6. `POST /credits/{id}/change-payment-date` o `/change-fee-number` — escribe
+3. `POST /self/otp/verify` — abre la sesión y **devuelve los créditos gestionables**, con su comercio
+4. ↯ **el cliente elige cuál — sin llamada.** El menú lo armás vos con `operable_credits`; de acá sale el `user_request_id` de los pasos que siguen. Si viene uno solo, no preguntes nada
+5. `GET /credits/{id}/can-change` — ¿este crédito admite cambios hoy?
+6. `GET /credits/{id}/payment-date-options` o `/fee-number-options` — las opciones
+7. `POST /credits/{id}/change-payment-date` o `/change-fee-number` — escribe
+
+> **No hay un endpoint que liste comercios.** El comercio es un **campo de cada crédito**, no una entidad
+> aparte: se elige el crédito, y el comercio es lo que lo hace reconocible. Ver el paso 3.
 
 ### 1 · `GET /self/by-phone?wa=`
 
@@ -148,16 +152,38 @@ operar**. Es la única forma de saber qué `user_request_id` usar después.
 }
 ```
 
+#### Una fila por CRÉDITO, y el comercio va adentro
+
+`operable_credits` es la lista completa de lo que esa persona puede gestionar. **No hay una llamada
+previa que liste comercios**: el `merchant` es un campo del crédito.
+
+| campo | qué es |
+|---|---|
+| `user_request_id` | el id que va en la URL de los pasos 5, 6 y 7. **Nunca lo armes vos** |
+| `merchant` | el comercio donde adquirió el crédito — Mediarte, CeluRD… Es lo que la persona reconoce, porque compró ahí. Puede venir `null` si la solicitud no tiene comercio: ahí caé al `lender` |
+| `lender` | la entidad que puso la plata. Va como dato de apoyo: muchas veces no le suena |
+| `next_payment_date` · `installment_value` · `installment_number` · `fee_number` | cómo va el crédito hoy |
+
+**Se ve como una lista de comercios porque normalmente lo es**: medido en dev, entre 0% y 1,9% de los
+clientes tiene **dos créditos activos en el mismo comercio**. Es raro, pero pasa — por eso la fila se
+identifica con comercio **y** fecha, no solo con el comercio:
+
+```
+Mediarte · vence el 16 de julio
+CeluRD   · vence el 16 de enero
+```
+
 - **Vienen *datos*, no texto armado.** El título y el subtítulo de cada fila los componés vos, porque los
-  límites de la lista de WhatsApp (24 y 72 caracteres) son del canal. Lo que la persona reconoce es el
-  **comercio** y la **fecha**, no el id.
-- **Normalmente viene uno solo** → no preguntes nada. Si vienen varios, ahí sí hay menú.
+  límites de la lista de WhatsApp (24 y 72 caracteres) son del canal.
+- **Normalmente viene uno solo** → no preguntes nada, seguí directo al paso 5 con ese id.
 - `operable_truncated: true` significa que hay más de 4 y se recortaron: mandá a la persona con un asesor
   en vez de esconderle un crédito.
+- **Ya vienen filtrados**: solo créditos activos y solo de los que operamos nosotros. Los que no salen en
+  esta lista no se pueden tocar, y pedirlos igual da `422 CREDIT_NOT_SERVICED_BY_US`.
 - **422 `OTP_INVALID`** trae `attempts_left` — decíselo. En 0 pasa a `OTP_ATTEMPTS_EXCEEDED` y hay que
   pedir un código nuevo (volver al paso 2).
 
-### 4 · `GET /credits/{user_request_id}/can-change?wa=`
+### 5 · `GET /credits/{user_request_id}/can-change?wa=`
 
 ¿Este crédito admite cambios hoy? Preguntalo antes de ofrecer el menú.
 
@@ -176,7 +202,7 @@ operar**. Es la única forma de saber qué `user_request_id` usar después.
 Ojo: acá el «no» viene con `200` y `can_change: false`. Los motivos posibles están en la tabla de
 códigos, más abajo.
 
-### 5a · `GET /credits/{user_request_id}/payment-date-options?wa=`
+### 6a · `GET /credits/{user_request_id}/payment-date-options?wa=`
 
 Las **dos** próximas fechas de los ciclos fijos (5, 16 y 28). Vienen con la etiqueta ya escrita en
 español.
@@ -197,7 +223,7 @@ español.
 Si el crédito no admite cambios devuelve **422** con el mismo `error_code` que `can-change` — no un 200
 con lista vacía.
 
-### 5b · `GET /credits/{user_request_id}/fee-number-options?wa=`
+### 6b · `GET /credits/{user_request_id}/fee-number-options?wa=`
 
 Los plazos alternativos con su cuota simulada.
 
@@ -221,7 +247,7 @@ Los plazos alternativos con su cuota simulada.
 > cambiar** — no digas «no se puede», ofrecé la fecha. Filtrá siempre por `is_available: true` antes de
 > pintar el menú.
 
-### 6a · `POST /credits/{user_request_id}/change-payment-date`
+### 7a · `POST /credits/{user_request_id}/change-payment-date`
 
 Escribe. Exige sesión `otp_verified` y que el crédito sea de esa persona.
 
@@ -248,7 +274,7 @@ adelante.
 }
 ```
 
-### 6b · `POST /credits/{user_request_id}/change-fee-number`
+### 7b · `POST /credits/{user_request_id}/change-fee-number`
 
 ```json
 {
