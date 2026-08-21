@@ -50,8 +50,9 @@
             display:grid; place-items:center; font-size:15px; flex:none }
   .ph-who { font-weight:600; font-size:14.5px; line-height:1.2 }
   .ph-sub { font-size:11.5px; opacity:.85 }
-  .ph-role { margin-left:auto; font-size:10.5px; text-transform:uppercase; letter-spacing:.06em;
-             background:rgba(255,255,255,.2); padding:3px 8px; border-radius:20px }
+  .ph-reset { margin-left:auto; background:rgba(255,255,255,.18); border:0; color:#fff; cursor:pointer;
+               width:28px; height:28px; border-radius:50%; font-size:14px; line-height:1; flex:none }
+  .ph-reset:hover { background:rgba(255,255,255,.3) }
   .chat { height:520px; overflow-y:auto; padding:14px 12px; display:flex; flex-direction:column; gap:7px;
           background-color:var(--wa-chat-bg);
           background-image:radial-gradient(rgba(0,0,0,.035) 1px, transparent 1px); background-size:18px 18px }
@@ -117,33 +118,20 @@
   code { font-family:var(--mono); font-size:.92em; background:var(--page); padding:1px 4px; border-radius:3px }
 </style>
 
-<header>
-  <h1>Canal de soporte · el chat del cliente contra la API real</h1>
-  <p>Es la conversación tal como la va a ver el cliente en WhatsApp, pero cada paso llama la API de
-     verdad y no hay nada simulado: si el crédito no admite cambios, lo dice el backend. A la derecha
-     queda la respuesta cruda de cada llamada, en orden. Corre contra <b>develop</b> y no hay nada que
-     configurar: dale <b>Empezar</b>.</p>
-</header>
-
-<div class="cfg">
-  <div class="quien" id="quien"></div>
-  <button class="p" id="empezar">▶ Empezar</button>
-  <button id="reiniciar">↺ Reiniciar</button>
-</div>
-
 
 <div class="cols">
   <div>
     <div class="phone">
       <div class="ph-head">
         <div class="avatar">🤖</div>
-        <div><div class="ph-who">CreditOp</div><div class="ph-sub" id="estado">en línea</div></div>
-        <div class="ph-role">Cliente</div>
+        <div><div class="ph-who">CreditOp</div>
+          <div class="ph-sub"><span id="estado">en línea</span> · <span id="quien-num"></span></div></div>
+        <button class="ph-reset" id="reiniciar" title="Empezar la conversación de nuevo">↺</button>
       </div>
       <div class="chat" id="chat"></div>
       <div class="composer">
-        <input id="entrada" disabled placeholder="Escribe un mensaje">
-        <button class="send" id="enviar" disabled>➤</button>
+        <input id="entrada" placeholder="Escribe un mensaje">
+        <button class="send" id="enviar">➤</button>
       </div>
     </div>
   </div>
@@ -291,30 +279,31 @@ async function escribiendo(ms = 520) {
 async function dice(html, opts = {}) { await escribiendo(); globo("bot", html, opts); }
 
 /**
- * Pide texto — y si el dato ya se conoce, lo escribe solo.
+ * Pide texto, y deja el dato PRE-ESCRITO — pero no lo manda.
  *
- * La distinción que importa: la cédula y el código del OTP son **datos** (los sabe el caso elegido, y
- * tipearlos sólo agrega formas de equivocarse), mientras elegir el crédito, la acción o confirmar son
- * **decisiones** y ésas se tocan. Así una prueba es un clic y sigue pareciendo una conversación.
+ * La diferencia con mandarlo solo es la que pidió Miguel, y es la correcta: así probar es clic, clic,
+ * clic —sin tipear una cédula de diez dígitos ni ir a buscar el código— y al mismo tiempo **el campo
+ * sigue siendo un campo**: se puede borrar y escribir otra cédula, y entonces el canal se comporta como
+ * con cualquier persona real (si no coincide con el número, contesta que no encontró la cuenta).
  *
- * Se escribe con una pausa y pasando por el mismo camino que un dedo —`#enviar`— para que el globo
- * salga en orden y no se salte ninguna llamada.
+ * Lo que se pre-escribe son sólo DATOS. Las decisiones —qué crédito, qué cambio, confirmar— no se
+ * pre-eligen nunca: son lo que se está probando.
  */
 function pedirTexto(ph, clave) {
   const i = $("#entrada"), b = $("#enviar");
-  i.disabled = false; b.disabled = false; i.value = ""; i.placeholder = ph; i.focus();
-
-  const solo = clave && AUTO[clave];
-  if (solo) {
-    i.value = solo;
-    setTimeout(() => { if (!i.disabled) b.click(); }, 700);
-  }
+  i.disabled = false; b.disabled = false; i.placeholder = ph;
+  i.value = (clave && AUTO[clave]) || "";
+  i.focus(); i.select();
 }
 
 // Lo que el caso elegido ya sabe. El código del OTP es los últimos 4 dígitos del celular: es la regla
 // del bypass de QA, y por eso estos casos no le mandan un mensaje a nadie.
 const AUTO = {};
-function autoDe(tel, doc) { AUTO.cedula = doc; AUTO.codigo = String(tel).slice(-4); }
+function autoDe(tel, doc) {
+  AUTO.saludo = "Hola, buenas tardes";
+  AUTO.cedula = doc;
+  AUTO.codigo = String(tel).slice(-4);
+}
 function trabar() {
   const i = $("#entrada"), b = $("#enviar");
   i.disabled = true; b.disabled = true; i.value = ""; i.placeholder = "Escribe un mensaje";
@@ -562,26 +551,31 @@ async function avanzar(txt) {
 }
 
 // ── cableado ─────────────────────────────────────────────────────────────────────────────────────
-$("#empezar").addEventListener("click", async () => {
-  reiniciar();
-  globo("yo", "Hola, buenas tardes");
-  C.fase = "saludo";
-  await FASES.saludo();
-});
-
-$("#enviar").addEventListener("click", () => {
+// No hay botón de «empezar»: el primer mensaje enviado ES el comienzo, como en WhatsApp de verdad.
+// Da igual qué diga —el bot no interpreta texto libre—; lo que hace es despertar la conversación.
+$("#enviar").addEventListener("click", async () => {
   const v = $("#entrada").value.trim();
   if (!v) return;
   globo("yo", escapar(v));
+
+  if (!C.fase) {                       // conversación nueva
+    trabar();
+    C.fase = "saludo";
+    await FASES.saludo();
+    return;
+  }
   avanzar(v);
 });
 $("#entrada").addEventListener("keydown", (e) => { if (e.key === "Enter") $("#enviar").click(); });
 
 function reiniciar() {
   $("#chat").innerHTML = ""; LOG.length = 0;
-  $("#log").innerHTML = '<div class="vacio">Todavía no se llamó nada. Dale «Empezar la conversación».</div>';
+  $("#log").innerHTML = '<div class="vacio">Todavía no se llamó nada. Mandá el primer mensaje.</div>';
   const v = document.getElementById("sms"); if (v) v.remove();
-  C.fase = null; C.d = {}; trabar(); $("#estado").textContent = "en línea";
+  C.fase = null; C.d = {};
+  $("#estado").textContent = "en línea";
+  // El saludo queda pre-escrito: el primer clic en ➤ arranca todo.
+  pedirTexto("Escribe un mensaje", "saludo");
 }
 $("#reiniciar").addEventListener("click", reiniciar);
 
@@ -605,10 +599,12 @@ $("#copiar").addEventListener("click", async () => {
   } catch { alert(txt); }
 });
 
+// Quién está del otro lado se ve en el propio chat, no en una ficha: el número va en el cabezal del
+// teléfono, igual que en WhatsApp.
 function pintarQuien() {
   QUIEN.tel = CLIENTE.tel; QUIEN.doc = CLIENTE.doc; autoDe(CLIENTE.tel, CLIENTE.doc);
-  $("#quien").innerHTML = `Cliente de prueba: <b>${CLIENTE.nombre}</b> — ${CLIENTE.que}` +
-    `<br><span>cel ${CLIENTE.tel} · cédula ${CLIENTE.doc} · código ${CLIENTE.tel.slice(-4)}</span>`;
+  $("#estado").textContent = "en línea";
+  $("#quien-num").textContent = "+57 " + CLIENTE.tel;
 }
 
 function ambiente() {
@@ -620,5 +616,6 @@ function ambiente() {
 (function inicio() {
   ambiente();
   pintarQuien();
+  reiniciar();
 })();
 </script>

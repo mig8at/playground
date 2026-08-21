@@ -13,14 +13,19 @@ página se abre como archivo (`file://`). Hay que servirla, y es un comando:
 
 Y abrir **http://localhost:5199/soporte-qa.html**
 
-## No hay nada que configurar
+## Se usa como un WhatsApp: sólo hay que dar clic en ➤
 
-Dale **Empezar**. El token ya viene en el archivo, corre contra **develop**, y la cédula y el código del
-OTP se escriben solos: lo único que tocás son las decisiones —qué crédito, qué cambio, confirmar—, que
-es justo lo que hay que probar.
+No hay nada que configurar. El campo del mensaje viene **pre-escrito** en cada paso —el saludo, la
+cédula, el código— así que probar es clic, clic, clic sin tipear nada. Pero **sigue siendo un campo**: si
+borrás la cédula y escribís otra, el canal se comporta como con cualquier persona real (te va a decir que
+no encontró la cuenta).
 
-El cliente de prueba es **ANA QA**, con **dos créditos en dos comercios distintos**: así se ve el menú
-de elegir crédito, y quedan dos créditos para probar el cambio de fecha en uno y el de plazo en el otro.
+Lo que **nunca** viene pre-elegido son las decisiones —qué crédito, qué cambio, confirmar—: eso es
+justamente lo que se está probando.
+
+El cliente de prueba es **ANA QA**, con **dos créditos en dos comercios distintos**: así se ve el menú de
+elegir crédito, y quedan dos créditos para probar el cambio de fecha en uno y el de plazo en el otro. El
+↺ del cabezal del chat empieza de nuevo.
 
 ## Para volver a probar: corré el script
 
