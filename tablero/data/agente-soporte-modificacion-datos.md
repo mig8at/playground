@@ -1618,11 +1618,15 @@ castigo pega sobre el número que también se usa para cobrar.
 
 Pedido de Miguel: **un documento simple de uso de endpoints** para que Filipo arranque el n8n — sólo las
 rutas con su descripción, su respuesta y los curls; el token se lo pasa él por separado. Quedó en
-`tablero/data/artifacts/agente-soporte-endpoints-n8n.md` (un markdown, sin token adentro): las 16 rutas
-en el orden de los dos flujos, con request, respuesta de ejemplo, la tabla de los 21 `error_code`, los
-gotchas (menú de plazos vacío, rt=2, tope de 4, bloqueo de 6 meses, `already_verified`) y los dos
-usuarios de QA de dev con su código de bypass. La ruta inalcanzable va listada como **«no la llames»**,
-para que nadie la busque al ver 16 y usar 15.
+`tablero/data/artifacts/agente-soporte-endpoints-n8n.md` (un markdown, sin token adentro): con request,
+respuesta de ejemplo, la tabla de `error_code`, los gotchas (menú de plazos vacío, rt=2, tope de 4,
+bloqueo de 6 meses, `already_verified`) y los dos usuarios de QA de dev con su código de bypass.
+
+⚠ **Sólo el flujo del CLIENTE — 8 rutas.** Decisión de Miguel el 21/8: *«el asesor se lo paso luego, por
+ahora es solo lo del usuario»*. Encaja con que el del asesor todavía no se recorrió y con que las
+plantillas de Meta sólo bloquean ese lado. El documento lo dice arriba, para que Filipo sepa que viene
+una segunda tanda y no diseñe algo que no la aguante. La primera versión, con los dos flujos y la ruta
+inalcanzable marcada como «no la llames», queda en `git show 6c97e99`.
 
 **Verificado contra el gateway de dev al escribirlo** (21/8): `self/by-phone` con el número de QA da 200
 con el cuerpo esperado; sin token, 401; y las cuatro familias de ruta —`credits/{id}/*`, `/clients`,

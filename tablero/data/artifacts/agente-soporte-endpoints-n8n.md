@@ -1,8 +1,9 @@
-# Canal de soporte por WhatsApp — endpoints
+# Canal de soporte por WhatsApp — endpoints del flujo del cliente
 
-Todo lo que el bot necesita llamar, ya desplegado y andando en **develop**. Son 16 rutas: 8 para que el
-cliente se autogestione y 8 para el flujo del asesor (5 se comparten). La conversación es tuya; el
-estado de autorización y la escritura del dato son del backend.
+Todo lo que el bot necesita llamar para que **el cliente se autogestione**: cambiar su fecha de pago o su
+plazo, sin asesor de por medio. Son 8 rutas, ya desplegadas y andando en **develop**.
+
+La conversación es tuya; el estado de autorización y la escritura del dato son del backend.
 
 | | |
 |---|---|
@@ -12,7 +13,13 @@ estado de autorización y la escritura del dato son del backend.
 | **Formato** | JSON · `Accept: application/json` |
 
 Estado al 21 de agosto de 2026. El módulo (`Modules/SupportBot` en `legacy-backend`) está mergeado a
-`develop` y a `staging`, y las 16 rutas están expuestas en el API Gateway de dev.
+`develop` y a `staging`, y las rutas están expuestas en el API Gateway de dev.
+
+> **Alcance de este documento: solo el flujo del cliente.** Existe además el flujo del **asesor** —el
+> asesor pide un cambio y el cliente lo autoriza desde su propio WhatsApp—, que son 8 rutas más y una
+> segunda conversación. Ese te lo paso después: arrancá con este, que es el que está probado punta a
+> punta y no depende de plantillas aprobadas por Meta (acá el cliente escribe primero, así que la ventana
+> de 24 h está abierta).
 
 ---
 
@@ -21,12 +28,11 @@ Estado al 21 de agosto de 2026. El módulo (`Modules/SupportBot` en `legacy-back
 | Regla | Detalle |
 |---|---|
 | **Dos cabeceras, siempre** | `Authorization: Bearer <token>` y `Accept: application/json`. Sin `Accept`, algunos errores de validación salen como HTML en vez de JSON. |
-| **El `wa` va en TODAS** | Es el número de WhatsApp de quien está hablando, con el formato de Twilio: `whatsapp:+573001234567`. En los `GET` va como query (url-encoded), en los `POST`/`PATCH` va en el cuerpo. Es lo que resuelve la sesión: sin él no hay identidad. |
+| **El `wa` va en TODAS** | Es el número de WhatsApp de quien está hablando, con el formato de Twilio: `whatsapp:+573001234567`. En los `GET` va como query (url-encoded), en los `POST` va en el cuerpo. Es lo que resuelve la sesión: sin él no hay identidad. |
 | **Respuesta OK** | `{ "success": true, "message": "…", "data": { … } }` |
 | **Respuesta con error** | `{ "success": false, "message": "…", "errors": { "error_code": "…" } }` — **ramificá por `errors.error_code`**, nunca por el texto: el texto cambia. |
 | **La sesión** | Dura **15 minutos** desde la última actividad y admite **3 intentos** de código. Estados: `anonymous → identified → otp_sent → otp_verified → expired`. No se puede volver atrás desde `otp_verified`. |
-| **Una sesión por número** | Y por actor. La sesión del asesor no sirve para las rutas del cliente ni al revés: da `409 WRONG_ACTOR`. |
-| **El `otp_id` nunca sale** | No lo pidas ni lo mandes. El backend lo guarda en la sesión y lo usa solo al escribir: es la prueba de que el dueño del dato autorizó. |
+| **El `otp_id` nunca sale** | No lo pidas ni lo mandes. El backend lo guarda en la sesión y lo usa solo al escribir: es la prueba de que el dueño del crédito autorizó. |
 
 > ⚠ **401 vs 503.** `401 UNAUTHORIZED` = el token está mal o falta. `503 CHANNEL_NOT_CONFIGURED` = el
 > canal no tiene token configurado del lado nuestro (problema de despliegue, no tuyo). Los dos merecen el
@@ -34,11 +40,10 @@ Estado al 21 de agosto de 2026. El módulo (`Modules/SupportBot` en `legacy-back
 
 ---
 
-## 2 · Flujo del cliente — se autogestiona solo
+## 2 · El flujo, en orden
 
-El cliente escribe desde su celular y cambia **fecha de pago** o **plazo**. No hay tercero: el número
-desde el que escribe es el primer factor, la cédula el segundo y el código el tercero. Es el flujo más
-corto y el que ya está probado punta a punta contra dev.
+El cliente escribe desde su celular. El número desde el que escribe es el primer factor, la cédula el
+segundo y el código el tercero.
 
 1. `GET /self/by-phone` — ¿de quién es este número? (opcional, sirve para saludar por el nombre)
 2. `POST /self/otp` — número + cédula, y sale el código
@@ -273,159 +278,7 @@ adelante.
 
 ---
 
-## 3 · Flujo del asesor — pide uno, autoriza otro
-
-El asesor pide el cambio y **el dato no se toca**. Después el cliente, en *su propia* conversación, se
-identifica y autoriza. Recién ahí se escribe.
-
-> 🔴 **Son dos conversaciones y lo único que las ata es el `request_id`.** No hay sesión compartida: el
-> asesor tiene la suya, el cliente la suya, y el backend rechaza cruzarlas (`409 WRONG_ACTOR`). El chat
-> del cliente **no existe hasta que el asesor crea la solicitud** —ese momento es el disparo hacia el
-> otro chat— y el chat del asesor **termina esperando**: no puede seguir solo.
-
-1. `POST /advisor/otp` — cédula del asesor; el código va al celular de **su perfil**
-2. `POST /advisor/otp/verify` — abre su sesión
-3. `GET /clients?document=` — busca al cliente, ya filtrado por sus comercios
-4. `POST /change-requests` — crea la solicitud → **guardate el `request_id`**
-5. ↯ **cambia de conversación** — el cliente se identifica con `/self/otp` + `/self/otp/verify` desde SU número
-6. `PATCH /change-requests/{id}/authorize` — el cliente acepta la gestión
-7. `POST /change-requests/{id}/confirm` — **acá se escribe**
-
-### 1 · `POST /advisor/otp`
-
-Cuerpo `{ wa, document }`, igual que el del cliente. La diferencia que importa: **el código va al celular
-del perfil del asesor**, no al número desde el que escribe (un asesor puede escribir desde cualquier
-teléfono).
-
-```json
-{ "success": true, "message": "Código enviado al celular de tu perfil.",
-  "data": { "state": "otp_sent", "sent_to": "320***4567",
-            "expires_in_minutes": 15, "attempts_allowed": 3 } }
-```
-
-**404 `ADVISOR_NOT_FOUND`** si la cédula no es de un asesor con comercios asignados ·
-**409 `ADVISOR_WITHOUT_PHONE`** si su perfil no tiene celular (no hay a dónde mandar la prueba; que hable
-con soporte).
-
-### 2 · `POST /advisor/otp/verify`
-
-Cuerpo `{ wa, code }`. Devuelve los comercios que maneja.
-
-```json
-{ "success": true, "message": "Identidad verificada.",
-  "data": { "state": "otp_verified", "user_id": 40122,
-            "allied_ids": [158, 204], "expires_in_minutes": 15 } }
-```
-
-### 3 · `GET /clients?wa=&document=`
-
-Busca al cliente **solo dentro de los comercios del asesor**. Si el cliente existe pero no es suyo,
-responde **exactamente lo mismo** que si no existiera (`404 CLIENT_NOT_FOUND`) — es deliberado, para que
-el buscador no sirva para averiguar qué cédulas están en la base.
-
-```json
-{
-  "success": true, "message": "success",
-  "data": {
-    "user_id": 1827797,
-    "first_name": "ANA", "surname": "QA",
-    "document_number": "9000****001",
-    "cell_phone": "310***0011",
-    "operable_credits": [ { "user_request_id": 223999, "merchant": "Mediarte", "…": "…" } ]
-  }
-}
-```
-
-`operable_credits` tiene **la misma forma** que en autogestión: armás el menú igual venga de donde venga.
-
-### 4 · `POST /change-requests`
-
-Crea la solicitud en `pendiente_autorizacion`. **No escribe el dato.** Devuelve `201`.
-
-| campo | | qué es |
-|---|---|---|
-| `wa` | obligatorio | el del **asesor** |
-| `document` | obligatorio | la cédula del cliente (se vuelve a filtrar por comercio acá) |
-| `field` | obligatorio | `cell_phone` · `next_payment_date` · `fee_number`. Nada más |
-| `new_value` | obligatorio | según el campo: 10 dígitos · `AAAA-MM-DD` de hoy en adelante · entero ≥ 1 |
-| `user_request_id` | condicional | **obligatorio si `field` es del crédito** (`next_payment_date` o `fee_number`); no va para `cell_phone` |
-| `old_value` | opcional | el valor anterior, para mostrárselo al cliente |
-
-```json
-{
-  "wa": "whatsapp:+573201234567",
-  "document": "900000001",
-  "field": "next_payment_date",
-  "new_value": "2026-02-05",
-  "user_request_id": 223999
-}
-```
-
-```json
-{
-  "success": true,
-  "message": "Solicitud creada. Falta que el cliente la autorice.",
-  "data": {
-    "request_id": 184,
-    "field": "next_payment_date",
-    "status": "pendiente_autorizacion",
-    "old_value": "2026-01-16",
-    "new_value": "2026-02-05",
-    "requested_by": "Carolina"
-  }
-}
-```
-
-**Guardá `request_id`**: es lo único que ata las dos conversaciones. Si se pierde, el cambio queda
-colgado sin forma de retomarlo.
-
-### 5 · `PATCH /change-requests/{id}/authorize`
-
-Cuerpo `{ wa }` — el del **cliente**, con su sesión ya verificada (pasos `/self/otp` +
-`/self/otp/verify` en su propio chat). Pasa la solicitud a `autorizada`. Todavía no escribe nada.
-
-```json
-{ "success": true, "message": "Autorizada. Te enviamos un código para confirmar.",
-  "data": { "request_id": 184, "field": "next_payment_date", "status": "autorizada",
-            "old_value": "2026-01-16", "new_value": "2026-02-05", "requested_by": "Carolina" } }
-```
-
-Si la solicitud no es de esa persona: **404 `CHANGE_REQUEST_NOT_FOUND`** (no 403, para no confirmar que
-el id existe).
-
-### 6 · `POST /change-requests/{id}/confirm`
-
-Cuerpo `{ wa }` — el del cliente. **Acá sí escribe**, en la misma transacción que el registro de
-auditoría, usando el `otp_id` de la verificación de identidad. Pasa a `aplicada`.
-
-```json
-{ "success": true, "message": "Cambio aplicado.",
-  "data": { "request_id": 184, "status": "aplicada", "…": "…" } }
-```
-
-**409 `OTP_NOT_VERIFIED`** si la sesión del cliente no está verificada · **409 `INVALID_REQUEST_STATE`**
-si la solicitud no está en `autorizada` (trae el `status` real).
-
-### 7 · `PATCH /change-requests/{id}/reject`
-
-Cuerpo `{ wa, reason }`. `reason` admite exactamente dos valores, y la diferencia importa:
-
-| `reason` | qué pasa |
-|---|---|
-| `rechazado_por_cliente` | queda `rechazada`. Cambió de opinión, nada más |
-| `no_reconocido` | queda **`bloqueada`** y marcada para escalar. Es «no fui yo»: alguien pidió un cambio que el cliente no reconoce |
-
-Dale una salida visible al «no fui yo» en la conversación — es la señal que hoy nadie puede ver.
-
-### ✗ `POST /change-requests/{id}/otp` — existe pero no la llames
-
-Es inalcanzable por diseño: para llegar ahí la sesión ya está en `otp_verified`, y la máquina de estados
-no permite volver a `otp_sent`. Siempre responde `409 INVALID_STATE`. `confirm` no la necesita — va
-directo de `authorize` a `confirm`. Queda listada para que no la busques cuando veas 16 rutas y uses 15.
-
----
-
-## 4 · Códigos de error
+## 3 · Códigos de error
 
 Todos vienen en `errors.error_code`. Ramificá por acá.
 
@@ -435,11 +288,8 @@ Todos vienen en `errors.error_code`. Ramificá por acá.
 | `CHANNEL_NOT_CONFIGURED` | 503 | el canal quedó sin token del lado nuestro. Avisanos |
 | `VALIDATION_FAILED` | 422 | falta un campo o viene mal. El detalle por campo va en el mismo `errors` |
 | `CLIENT_NOT_FOUND` | 404 | número o cédula que no resuelven a un cliente (mismo cuerpo para los dos casos) |
-| `ADVISOR_NOT_FOUND` | 404 | la cédula no es de un asesor con comercios |
-| `ADVISOR_WITHOUT_PHONE` | 409 | su perfil no tiene celular: no hay a dónde mandar el código |
 | `SESSION_NOT_FOUND` | 409 | la sesión venció (15 min). Volvé a empezar desde el OTP |
 | `NOT_VERIFIED` | 409 | hay sesión pero sin código verificado. Trae el `state` |
-| `WRONG_ACTOR` | 409 | usaste una sesión de asesor en una ruta de cliente o al revés |
 | `NO_OTP_PENDING` | 409 | no hay código para validar. Pedí uno nuevo |
 | `INVALID_STATE` | 409 | transición de sesión no permitida. Trae el `state` de origen |
 | `OTP_INVALID` | 422 | código errado. Trae `attempts_left` |
@@ -450,8 +300,7 @@ Todos vienen en `errors.error_code`. Ramificá por acá.
 | `CREDIT_NOT_SERVICED_BY_US` | 422 | ese crédito lo administra la entidad que lo otorgó. No se toca desde acá |
 | `CHANGE_NOT_ALLOWED` | 422 | dejó de ser elegible entre el menú y la confirmación |
 | `FEE_NOT_AVAILABLE` | 422 | ese plazo no estaba entre los ofrecidos |
-| `CHANGE_REQUEST_NOT_FOUND` | 404 | la solicitud no existe o no es de esa persona |
-| `INVALID_REQUEST_STATE` | 409 | la solicitud no está en el estado que ese paso pide. Trae el `status` |
+| `WRONG_ACTOR` | 409 | ese número tiene una sesión abierta como asesor. No debería pasarte en este flujo |
 
 Y los que salen dentro de `can-change` (con `200` y `can_change: false`, o como `422` en los endpoints de
 opciones):
@@ -470,7 +319,7 @@ opciones):
 
 ---
 
-## 5 · Cinco cosas que te van a morder
+## 4 · Cinco cosas que te van a morder
 
 - **Solo créditos que operamos nosotros.** Los que vienen en `operable_credits` están filtrados, pero el
   `user_request_id` va en la URL: si mandás uno que no estaba en la lista, responde
@@ -488,7 +337,7 @@ opciones):
 
 ---
 
-## 6 · Para probar hoy mismo
+## 5 · Para probar hoy mismo
 
 El canal está vivo en dev. Con el token puesto, esto tiene que devolverte `200`:
 
@@ -517,9 +366,8 @@ de bypass de QA en dev, así que el proveedor no se llama. Para `+573109000004` 
 créditos al estado inicial, que es lo que te deja probar muchas veces pese al bloqueo de 6 meses):
 `agente-soporte-modificacion-datos.cliente-qa.casos.sql` — pedímelo.
 
-Y hay un **prototipo navegable** que recorre el flujo del cliente pegándole a esta misma API, con la
-respuesta de cada llamada al costado. Sirve para ver el orden real de las llamadas antes de escribir el
-primer nodo.
+Y hay un **prototipo navegable** que recorre este mismo flujo pegándole a esta API, con la respuesta de
+cada llamada al costado. Sirve para ver el orden real de las llamadas antes de escribir el primer nodo.
 
 ---
 
