@@ -239,7 +239,7 @@ harness-caso: ## @har CASOS hipotéticos de punta a punta, en PARALELO. CASOS='p
 	@cd harness && node dev/caso.ts $(if $(CASOS),--casos '$(CASOS)') $(if $(COMERCIO),--comercio $(COMERCIO)) $(if $(LENDER),--lender $(LENDER)) $(if $(MONTO),--amount $(MONTO)) $(if $(PAR),--paralelo) $(if $(LAMBDA),--lambda) $(if $(PRE),--preaprobados) $(if $(CERRAR),--cerrar)
 
 soporte-qa: ## @har el chat del cliente contra la API real, con cada respuesta al costado (:5199). Para QA
-	@echo "  → http://localhost:5199/soporte-qa.html    (Ctrl-C para cortar)"
+	@echo "  → http://localhost:5199/agente-soporte-modificacion-datos.cliente-qa.html    (Ctrl-C para cortar)"
 	@cd tablero/data/artifacts && python3 -m http.server 5199
 
 harness-check: ## @har typecheck del harness

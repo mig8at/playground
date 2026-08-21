@@ -711,7 +711,34 @@ creada en dev sigue idéntica.
 
 ## Los prototipos
 
-Dos propuestas, cada una con su botón en el tablero: **`▶ asesor`** y **`▶ cliente`**.
+Tres, cada uno con su botón en el tablero: **`▶ asesor`**, **`▶ cliente`** y **`▶ cliente qa`**. Los dos
+primeros son maquetas de la CONVERSACIÓN, para mostrarle el flujo a producto. El tercero es una
+herramienta: pega contra la API de verdad.
+
+### `…-modificacion-datos.cliente-qa.html` — **el que se le pasa a QA**
+
+El mismo chat, pero **sin nada simulado**: cada paso llama la API de `develop` y la columna del medio
+muestra la respuesta cruda de cada llamada, con su código de error y sus milisegundos. Tres cosas que lo
+hacen usable por alguien que no es del equipo:
+
+- **Cero configuración.** El token va en el archivo y el campo del mensaje viene **pre-escrito** en cada
+  paso —saludo, cédula, código—, así que probar es clic, clic, clic. Pero sigue siendo un campo: se pisa
+  y el canal responde como con cualquier persona.
+- **La tercera columna cambia de persona.** Celular + cédula **van juntos** (cambiar uno solo da
+  `CLIENT_NOT_FOUND`, que parece un bug y no lo es) y hay una lista de los clientes que existen. Avisa si
+  el número **no** está en `qa_otp_bypass_phones`, porque entonces el SMS **sale de verdad** — el error
+  que ya se cometió una vez en esta tarea.
+- **Separa el rechazo de negocio del bug.** `HAS_PENDING_PAYMENT` o `RECENT_CHANGE_EXISTS` se muestran
+  como lo que son —respuestas correctas—; sólo un 401/5xx/red se presenta como algo que hay que
+  reportar. Y trae `copiar reporte`, que pega todas las llamadas en el ticket **con el token tapado**.
+
+⚠ **Tiene que servirse por HTTP** (el botón del tablero ya lo hace, y `make soporte-qa` levanta :5199):
+el gateway de dev sólo manda cabeceras CORS cuando el `Origin` es real, y un archivo abierto con
+`file://` manda `Origin: null`. Medido contra el preflight el 2026-08-20.
+
+Al lado viven sus dos compañeros, que no son prototipos sino su andamiaje:
+`…cliente-qa.casos.sql` —crea el cliente de prueba, y **correrlo otra vez es el reset**— y
+`…cliente-qa.LEEME.md`, las instrucciones para QA.
 
 ### `…-modificacion-datos.cliente.html` — la autogestión
 
@@ -1423,6 +1450,48 @@ castigo pega sobre el número que también se usa para cobrar.
 
 <!-- append-only, lo nuevo arriba. (Esta tarea no tenía sección de registro; se agrega siguiendo
      PLANTILLA-TAREA.md. Lo de arriba es el ESTADO, que se reescribe; esto es qué pasó cada día.) -->
+
+### 2026-08-20 (22) — el prototipo para QA, y se borra el tercero (el de n8n)
+
+Se entrega **`…-modificacion-datos.cliente-qa.html`**: el mismo chat de WhatsApp, contra la API real de
+`develop`, con la respuesta cruda de cada llamada al costado. El detalle de qué hace y por qué está en
+§«Los prototipos»; acá van sólo las decisiones y lo que costó.
+
+**Se BORRA `…-modificacion-datos.n8n.html`** (decisión de Miguel). Antes de borrarlo se comprobó que no
+se perdía nada: su valor declarado era «la especificación de las ramas por código de error», y menciona
+**tres** (`CLIENT_NOT_FOUND`, `SESSION_NOT_FOUND`, `NOT_VERIFIED`) que este documento ya cubre. Además el
+prototipo nuevo las implementa en código —qué se le dice al cliente ante cada código— así que la
+especificación pasó de una maqueta a algo que se ejecuta. Y sigue en la historia de git.
+
+**Lo que se aprendió construyéndolo**, que es más útil que el archivo:
+
+1. 🔴 **El script de datos identificaba al cliente por el CELULAR.** Miguel lo corrió contra dev y salió
+   404; el 404 era el síntoma. En dev `3131010100` es de **JOHN SMITH**, así que el `UPDATE` le habría
+   reescrito el nombre y la cédula a un usuario de prueba de otra persona, **sin que nada avisara**.
+   Corregido: la identidad es la **cédula** (un valor inventado para esto, así que sólo puede existir el
+   usuario que el script creó) y el celular pasó a `3108000011`, que está en la lista de bypass y no lo
+   usa nadie. Y quedó un chequeo: si dos clientes comparten el celular lo dice, porque
+   `findByWhatsApp` resuelve con un `first()` y el canal atendería al otro.
+
+2. **El celular y la cédula tienen que ir juntos en la UI.** Cambiar uno solo da `CLIENT_NOT_FOUND` y
+   parece un bug del canal. La columna lista los clientes que existen con su cédula al lado.
+
+3. **Un archivo abierto con `file://` no puede llamar a dev.** El gateway sólo manda `Access-Control-Allow-Origin`
+   cuando el `Origin` es real; con `file://` viaja `Origin: null` y el preflight vuelve sin cabeceras.
+   Verificado con `curl -X OPTIONS` desde los dos orígenes. De ahí que se sirva por HTTP.
+
+4. **Con un número que no está en el bypass, el código NO se pre-escribe.** Poner los últimos 4 dígitos
+   ahí sería mentir: en ese caso el código llega por SMS y la página no lo sabe. Es la misma trampa que
+   ya costó un SMS a un número ajeno.
+
+> **MEDICIÓN · 2026-08-20** — probado contra **dev** tal cual se entrega: abrir → tres clics → `QA`
+> verificado y «tu crédito de Amoblando Pullman admite cambios»; un clic en `JOSE FERNANDO` → sus dos
+> créditos con comercio, cuota y vencimiento. Y contra local, el ciclo completo del reset: cambio
+> aplicado → correr el `.sql` → cero cambios que bloqueen, listo para probar otra vez.
+
+⚠ **Deuda del propio prototipo:** la lista de teléfonos de QA es una **copia** de
+`settings.qa_otp_bypass_phones` tomada hoy. Si alguien agrega un número en la base, el aviso va a decir
+que manda SMS cuando ya no lo manda. Está anotado en el código; la verdad está en la BD.
 
 ### 2026-08-20 (21) — MERGEADO y probado en DEV · y ahí apareció por qué nunca se ven plazos
 

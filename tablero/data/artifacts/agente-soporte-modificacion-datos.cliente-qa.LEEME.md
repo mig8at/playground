@@ -11,7 +11,7 @@ página se abre como archivo (`file://`). Hay que servirla, y es un comando:
     cd <carpeta donde está este archivo>
     python3 -m http.server 5199
 
-Y abrir **http://localhost:5199/soporte-qa.html**
+Y abrir **http://localhost:5199/agente-soporte-modificacion-datos.cliente-qa.html**
 
 ## Se usa como un WhatsApp: sólo hay que dar clic en ➤
 
@@ -28,7 +28,7 @@ elegir crédito, y quedan dos créditos para probar el cambio de fecha en uno y 
 ↺ del cabezal del chat empieza de nuevo.
 
 ⚠ **Si el chat dice «no encontramos una cuenta con esos datos»**, no es un bug: falta correr
-`soporte-qa.casos.sql` contra ese ambiente. Es lo que crea a ANA QA.
+`agente-soporte-modificacion-datos.cliente-qa.casos.sql` contra ese ambiente. Es lo que crea a ANA QA.
 
 ## Probar con otro cliente: la columna de la derecha
 
@@ -39,7 +39,7 @@ puestos su celular y su cédula. Cambiar el celular es cambiar de persona: es lo
 |---|---|
 | **QA** | un crédito gestionable: el camino completo hasta aplicar el cambio |
 | **JOSE FERNANDO** | dos créditos en dos comercios: se ve el menú de elegir, y después el rechazo por cuota pendiente |
-| **ANA QA** | dos créditos gestionables — **hay que correr `soporte-qa.casos.sql`** para que exista |
+| **ANA QA** | dos créditos gestionables — **hay que correr `agente-soporte-modificacion-datos.cliente-qa.casos.sql`** para que exista |
 
 ⚠ **El celular y la cédula van juntos.** Cambiar sólo uno da «no encontramos una cuenta con esos datos»,
 que parece un bug y no lo es. Si tipeás un celular de la lista, su cédula se completa sola.
@@ -59,7 +59,7 @@ escribir el que llegó.
 Un crédito al que se le cambió algo **no admite otro cambio por 6 meses** — es la regla del negocio, no
 un error. Para volver al estado inicial:
 
-    mysql -h <host> -u <usuario> -p <base> < soporte-qa.casos.sql
+    mysql -h <host> -u <usuario> -p <base> < agente-soporte-modificacion-datos.cliente-qa.casos.sql
 
 Eso borra los cambios de ANA QA y deja sus dos créditos como al principio. Correrlo las veces que
 quieras. **Es también lo que la crea la primera vez**: si el chat dice que el número no está registrado,

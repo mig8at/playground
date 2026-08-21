@@ -1,7 +1,7 @@
 -- ─────────────────────────────────────────────────────────────────────────────────────────────────
 -- El cliente de prueba del canal de soporte — UNO solo, con dos comercios
 --
--- Deja al cliente que usa `soporte-qa.html` en su estado inicial: **dos créditos gestionables en
+-- Deja al cliente que usa `agente-soporte-modificacion-datos.cliente-qa.html` en su estado inicial: **dos créditos gestionables en
 -- comercios distintos**. Con dos alcanza para todo lo que hay que probar —el menú de elegir crédito, el
 -- cambio de fecha y el de plazo— y con uno solo no se vería el menú.
 --
@@ -12,10 +12,10 @@
 -- ⚠ ESCRIBE. Contra local o dev; **nunca contra producción**.
 --
 --     # local
---     docker exec -i -e MYSQL_PWD=password legacy-backend-mysql-1 mysql -uroot creditop < soporte-qa.casos.sql
+--     docker exec -i -e MYSQL_PWD=password legacy-backend-mysql-1 mysql -uroot creditop < agente-soporte-modificacion-datos.cliente-qa.casos.sql
 --
 --     # dev — host, usuario y base salen de trazador/.env.dev
---     mysql -h <E2E_DB_HOST> -u <E2E_DB_USER> -p <E2E_DB_NAME> < soporte-qa.casos.sql
+--     mysql -h <E2E_DB_HOST> -u <E2E_DB_USER> -p <E2E_DB_NAME> < agente-soporte-modificacion-datos.cliente-qa.casos.sql
 --
 -- Lo que solo toca de la base es este cliente y sus solicitudes con el lender `qa-soporte-lender`.
 -- No hay ningún DELETE sin filtrar.

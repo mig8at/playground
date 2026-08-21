@@ -197,7 +197,7 @@ const base = () => BASE;
 const QUIEN = { tel: "", doc: "" };
 
 // UN solo cliente de prueba, y con dos créditos en comercios distintos porque es el caso que más
-// cubre: se ve el menú de elegir crédito y después el cambio. Lo crea `soporte-qa.casos.sql`, y correr
+// cubre: se ve el menú de elegir crédito y después el cambio. Lo crea `agente-soporte-modificacion-datos.cliente-qa.casos.sql`, y correr
 // ese script otra vez lo devuelve al estado inicial — que es lo que permite probar muchas veces, porque
 // un crédito al que se le cambió algo no admite otro cambio por 6 meses.
 //
@@ -206,7 +206,7 @@ const QUIEN = { tel: "", doc: "" };
 // Los clientes que EXISTEN, con su cédula al lado. Van juntos a propósito: el celular sin su cédula da
 // 404 y parece un bug del canal — el error más fácil de cometer acá es cambiar uno y no el otro.
 //
-// Medidos contra dev el 2026-08-20. Los dos primeros existen hoy; ANA QA la crea `soporte-qa.casos.sql`.
+// Medidos contra dev el 2026-08-20. Los dos primeros existen hoy; ANA QA la crea `agente-soporte-modificacion-datos.cliente-qa.casos.sql`.
 const CONOCIDOS = [
   { tel: "3109000004", doc: "37670195",     nombre: "QA",            que: "1 crédito gestionable" },
   { tel: "3243277267", doc: "1023038445-5", nombre: "JOSE FERNANDO", que: "2 créditos, con cuota pendiente" },
@@ -417,7 +417,7 @@ const FASES = {
       // este ambiente. Decirlo ahorra la media hora de creer que el canal está roto.
       await dice(esNuestra(p) ? problema(p)
         : "No encontré una cuenta asociada a este número, así que no puedo ayudarte por acá." +
-          '<span class="warnline">Si es la primera vez: falta correr <b>soporte-qa.casos.sql</b> contra ' +
+          '<span class="warnline">Si es la primera vez: falta correr <b>agente-soporte-modificacion-datos.cliente-qa.casos.sql</b> contra ' +
           'este ambiente, que es el que crea al cliente de prueba.</span>');
       return fin();
     }
