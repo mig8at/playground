@@ -188,6 +188,16 @@ const bucketDe = (i) => {
 const ocultos = ref(new Set());
 const alternarFiltro = (id) => { ocultos.value.has(id) ? ocultos.value.delete(id) : ocultos.value.add(id) };
 
+// ── buscador por título ──────────────────────────────────────────────────────────────────────────
+// Se le quitan los ACENTOS a los dos lados: los títulos vienen de Jira con tildes y nadie las escribe
+// al buscar, así que sin esto «validacion» no encuentra «Validación» y el buscador parece roto justo
+// con las tareas en español, que son casi todas.
+// Busca también por CLAVE porque pegar «CORE-431» es la otra forma natural de buscar una tarea, y no
+// puede colisionar con un título: ningún título tiene esa forma.
+const busca = ref('');
+const sinTildes = (s) => (s || '').normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase();
+const buscaNorm = computed(() => sinTildes(busca.value).trim());
+
 const groupedIssues = computed(() => {
   // UNA sola grilla, sin agrupaciones. Antes se agrupaba por esfuerzo con un encabezado por grupo, y eso
   // cortaba la grilla en bloques: con `auto-fill` cada bloque arranca en línea nueva, así que una fila de
@@ -219,8 +229,12 @@ const groupedIssues = computed(() => {
   return [{ id: 0, title: '', tasks: conFiltro(conEsfuerzo) }];
 });
 // El filtro se aplica al FINAL de las dos ramas: es una vista sobre la lista, no otra lista.
+// Las casillas y el buscador se combinan con Y, que es lo que uno espera: buscar dentro de lo que
+// quedó visible, no que escribir en la caja reviva lo que se destildó.
 function conFiltro(ts) {
-  return ocultos.value.size ? ts.filter(i => !ocultos.value.has(bucketDe(i))) : ts;
+  const q = buscaNorm.value;
+  const porEstado = ocultos.value.size ? ts.filter(i => !ocultos.value.has(bucketDe(i))) : ts;
+  return q ? porEstado.filter(i => sinTildes(i.Summary).includes(q) || sinTildes(i.Key).includes(q)) : porEstado;
 }
 // Los conteos salen de la lista SIN filtrar: si salieran de la filtrada, un bucket destildado diría 0 y
 // dejaría de poder volver a tildarse con conocimiento de qué esconde.
@@ -408,7 +422,7 @@ async function cargarUltimos4() {
 // Total de tarjetas visibles: va en el encabezado porque "4 sprints" no dice cuánto trabajo es.
 // Cuenta TARJETAS, no filas de sprint: sumar `g.issues.length` daba 24 cuando en pantalla había 16,
 // porque las arrastradas venían repetidas. El contador y la grilla salen ahora de la misma lista.
-const totalAncha = computed(() => groupedIssues.value[0]?.tasks.length || 0);
+const visibles = computed(() => groupedIssues.value[0]?.tasks.length || 0);
 
 async function alternarVista() {
   vistaAncha.value = !vistaAncha.value;
@@ -1008,8 +1022,8 @@ onMounted(async () => {
           {{ vistaAncha ? `Mis tareas · últimos ${porSprint.length} sprints` : 'Mis tareas' }}
           <!-- Con filtro puesto dice las DOS mitades («9 / 16»): sólo el número filtrado hace pensar que
                se perdieron tareas, y sólo el total contradice lo que se ve en la grilla. -->
-          <span v-if="vistaAncha && !cargandoAncha" class="cnt">{{ ocultos.size
-            ? `${totalAncha} / ${sinFiltrar.length}` : totalAncha }}</span>
+          <span v-if="vistaAncha && !cargandoAncha" class="cnt">{{ ocultos.size || buscaNorm
+            ? `${visibles} / ${sinFiltrar.length}` : visibles }}</span>
         </h2>
         <p v-if="vistaAncha && cargandoAncha" class="empty">trayendo los sprints…</p>
         <!-- Filtro LOCAL: no vuelve a pedirle nada al server, sólo tapa lo que no corresponde.
@@ -1028,7 +1042,23 @@ onMounted(async () => {
               @change="alternarFiltro(f.id)">
             {{ f.label }}<span class="cnt">{{ conteoFiltro[f.id] }}</span>
           </label>
+          <!-- Buscador por título (y por clave: pegar «CORE-431» es la otra forma de buscar una tarea).
+               Va en la MISMA fila que las casillas porque es lo mismo —una vista sobre la lista— y
+               separarlo haría pensar que son dos filtros independientes cuando se combinan con Y. -->
+          <label class="fbusca" :class="{ act: !!buscaNorm }">
+            <span class="lupa" aria-hidden="true">⌕</span>
+            <input v-model="busca" type="search" placeholder="buscar por título…"
+              aria-label="Buscar tarea por título o clave">
+            <button v-if="busca" class="fx" type="button" title="limpiar" @click="busca = ''">×</button>
+          </label>
         </div>
+        <!-- Sin resultados NO puede ser una grilla vacía a secas: se lee como «no tengo tareas», que es
+             otra cosa. Dice qué se buscó y ofrece deshacerlo. -->
+        <p v-if="!cargandoAncha && sinFiltrar.length && !visibles" class="empty">
+          Ninguna tarea coincide<span v-if="buscaNorm"> con «<b>{{ busca.trim() }}</b>»</span><span
+            v-if="ocultos.size"> entre los estados que dejaste visibles</span>.
+          <button class="lnk" type="button" @click="busca = ''; ocultos.clear()">ver todas</button>
+        </p>
         <template v-for="g in groupedIssues" :key="g.id">
           <!-- varias columnas según el ancho: `auto-fill` con un mínimo, así el número de columnas lo
                decide la pantalla y no un breakpoint escrito a mano -->
@@ -1454,6 +1484,26 @@ onMounted(async () => {
 /* Sin tareas: la casilla no hace nada; el conteo en 0 se muestra igual, que es información. */
 .fpill.vacio { opacity: .38; cursor: default }
 .fpill .cnt { font-size: 10.5px; opacity: .8; font-weight: 700 }
+/* El buscador vive en la fila de las casillas y con la misma pastilla: es el mismo tipo de cosa —una
+   vista sobre la lista—, no un control aparte. `margin-left: auto` lo empuja al final para que las
+   casillas queden juntas y se lean como un grupo. */
+.fbusca { display: inline-flex; align-items: center; gap: 5px; margin-left: auto;
+  border: 1px solid var(--line); background: var(--panel2); border-radius: 999px;
+  padding: 3px 6px 3px 10px; transition: .12s }
+.fbusca:focus-within, .fbusca.act { border-color: color-mix(in srgb, var(--acc) 45%, transparent);
+  background: var(--panel) }
+.fbusca .lupa { color: var(--mut); font-size: 13px; line-height: 1 }
+.fbusca input { border: 0; background: transparent; color: var(--txt); font: inherit; font-size: 12px;
+  width: 190px; outline: none; padding: 1px 0 }
+.fbusca input::placeholder { color: var(--mut) }
+/* La X nativa de `type=search` no existe en todos los navegadores: se pone una propia y se esconde. */
+.fbusca input::-webkit-search-cancel-button { display: none }
+.fx { border: 0; background: transparent; color: var(--mut); font: inherit; font-size: 15px;
+  line-height: 1; cursor: pointer; padding: 0 4px; border-radius: 999px }
+.fx:hover { color: var(--txt) }
+/* «ver todas» del estado vacío: un enlace, no un botón — deshacer un filtro no compite con nada. */
+.lnk { border: 0; background: transparent; color: var(--acc); font: inherit; font-size: inherit;
+  cursor: pointer; padding: 0; margin-left: 6px; text-decoration: underline }
 
 /* De qué sprint es la tarjeta. Va en la línea de la clave, chiquito: es contexto, no el dato principal. */
 .spchip { margin-left: auto; font-size: 10.5px; color: var(--mut); border: 1px solid var(--line);
