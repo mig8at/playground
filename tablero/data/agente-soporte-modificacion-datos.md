@@ -30,12 +30,14 @@ dev.** Las tres piezas quedaron: el módulo desplegado, las 16 rutas expuestas e
 viva (sin token o con uno inválido da 401, con el correcto pasa al controlador) y una consulta con datos
 inexistentes contesta 404 `CLIENT_NOT_FOUND`, o sea que llega hasta la base.
 
-**El próximo paso es:** seguir validando el flujo del cliente **en local** hasta que esté completo, y
-recién entonces armar **un PR con todo** (decisión de Miguel). Lo acumulado está en la rama
-**PR https://github.com/Creditop-SAS/legacy-backend/pull/1166** (`feat/CORE-258-solicitud-operable` →
-`develop`, abierto el 2026-08-20): 9 archivos, +705/-19, 6 defectos del canal + 1 latente, **68 tests en
-verde**. Validado en local de punta a punta los DOS caminos —fecha y plazo— sobre créditos rt=2. ⚠ El
-repo **no tiene checks de CI** en la rama: lo que valida es lo corrido a mano y la suite del módulo.
+**El próximo paso es:** el flujo del **ASESOR** (mañana). El del cliente está cerrado y probado contra
+dev; cómo volver a probarlo en cinco minutos está en §«Cómo se prueba, de cero», y qué queda abierto en
+§«Lo que queda pendiente».
+
+**Lo del cliente ya está MERGEADO:** PR https://github.com/Creditop-SAS/legacy-backend/pull/1166
+(`feat/CORE-258-solicitud-operable` → `develop`, 2026-08-20) — 9 archivos, +705/-19, 6 defectos del canal
+más 1 latente, **68 tests en verde**, y desplegado y verificado contra dev. ⚠ El repo **no tiene checks
+de CI**: lo que valida es la suite del módulo y lo corrido a mano.
 
 🔴 **Lo más importante que salió del flujo del cliente** (Registro (18)): el canal permitía cambiarle la
 fecha y el plazo a créditos que **CreditOp no opera** — se le cambiaron a tres de Credifamilia (`rt=4`)
@@ -62,6 +64,111 @@ evita llamar al proveedor y el código es los últimos 4 dígitos del número.
 `legacy-backend-develop` en cuentas AWS distintas. La cuenta `697767917359` corre la revisión 199 con 1
 tarea y **no es la que atiende**; la que atiende corre 2 tareas. Si vas a medir algo de infra, confirmá
 primero la cuenta — ver Registro 2026-08-20 (3).
+
+## Cómo se prueba, de cero  ·  la receta completa (2026-08-20)
+
+Todo esto está probado hoy. Si volvés sin contexto, empezá acá y en cinco minutos tenés el flujo
+corriendo contra dev.
+
+### 1 · Sembrar el caso
+
+`tablero/data/artifacts/agente-soporte-modificacion-datos.cliente-qa.casos.sql` crea **un** cliente de
+prueba (`ANA QA`) con **dos créditos gestionables en dos comercios**. Correrlo **otra vez es el reset**:
+borra sus cambios y deja los créditos como al principio.
+
+    # local
+    docker exec -i -e MYSQL_PWD=password legacy-backend-mysql-1 mysql -uroot creditop < <el .sql>
+    # dev — host, usuario y base salen de `trazador/.env.dev`
+    mysql -h <E2E_DB_HOST> -u <E2E_DB_USER> -p <E2E_DB_NAME> < <el .sql>
+
+⚠ **Correrlo es lo que falta en dev** (al 2026-08-20 sólo se corrió en local). Sin eso el chat dice «no
+encontramos una cuenta con esos datos», que parece un bug y no lo es.
+
+Las cinco condiciones que el script cumple, y que son las que hay que reproducir si algún día se siembra
+a mano: el celular en `settings.qa_otp_bypass_phones` · `first_name` distinto de `TEMPORAL USER` ·
+lender con `response_type = 2` · `next_payment_amount = 0` · **cero filas** en `creditop_x_changes_log`.
+El porqué de cada una está comentado dentro del propio `.sql`.
+
+### 2 · Abrir el prototipo y recorrerlo
+
+El botón **`▶ cliente qa`** de esta tarea en el tablero (o `make soporte-qa`, que sirve :5199).
+⚠ **Tiene que ser por HTTP**: con `file://` el navegador manda `Origin: null` y el gateway de dev no
+devuelve cabeceras CORS — medido contra el preflight.
+
+Tres clics en el ➤ y llegás al menú: el saludo, la cédula y el código vienen **pre-escritos** (el código
+son los últimos 4 dígitos del celular porque está en la lista de bypass). De ahí en adelante se toca:
+qué crédito, qué cambio, confirmar.
+
+**Para una prueba con SMS de verdad:** cambiá `@CEL` en el `.sql` por tu celular y **NO** lo agregues a
+la lista de bypass — así el proveedor se llama y el código te llega al teléfono. El prototipo lo detecta:
+avisa en ámbar y **no** pre-escribe el código, porque no puede saberlo.
+
+### 3 · Verificar que quedó guardado donde debe
+
+El `user_request_id` sale de la propia columna de respuestas (`operable_credits`). Las cuatro consultas,
+corridas hoy:
+
+    -- A · EL VEREDICTO de la tarea: ¿con qué se autorizó el cambio?
+    SELECT ch.id AS cambio,
+           CASE ch.change_type_id WHEN 1 THEN 'fecha de pago' WHEN 2 THEN 'plazo'
+                ELSE CONCAT('tipo ', ch.change_type_id) END AS que_cambio,
+           ch.otp_id,
+           CASE WHEN ch.otp_id = 0 THEN 'SIN prueba' ELSE 'con OTP real' END AS autorizacion,
+           ch.created_at
+      FROM creditop_x_changes_log ch
+     WHERE ch.user_request_id = :UREQ ORDER BY ch.id DESC;
+
+    -- B · el LEDGER: la fila nueva vigente y la anterior cerrada
+    SELECT h.id,
+           CASE h.status WHEN 1 THEN 'vigente' WHEN 0 THEN 'historica'
+                ELSE CONCAT('status ', h.status) END AS fila,
+           DATE(h.next_payment_date) AS proxima_fecha,
+           h.installment_number AS cuota_n, h.installment_value AS valor_cuota
+      FROM creditop_x_requests_history h
+     WHERE h.user_request_id = :UREQ ORDER BY h.id DESC LIMIT 3;
+
+    -- C · el PLAZO no vive en el ledger: vive en la solicitud
+    SELECT id, fee_number AS plazo_actual, updated_at FROM user_requests WHERE id = :UREQ;
+
+    -- D · ¿el OTP era de ESA persona y de ESE momento?
+    SELECT o.id, o.user_id, o.created_at FROM otps o WHERE o.id = <el otp_id de A>;
+
+**Qué es «bien» en cada una:**
+
+| Consulta | Bien | Mal, y qué significa |
+|---|---|---|
+| **A** | `otp_id` distinto de 0 | **`otp_id = 0`** = se guardó **sin prueba de autorización**. Es exactamente el defecto que esta tarea existe para cerrar: las 31 filas que había en dev al 2026-08-14 lo tenían |
+| **B** | **dos** filas: la nueva en `vigente` con el dato cambiado, la anterior en `historica` | una sola fila, o dos vigentes → la reversa quedó mal cortada. El saldo de un crédito es siempre la fila `status = 1`, **nunca la última por fecha** |
+| **C** | `fee_number` con el plazo nuevo | buscar el plazo en el ledger y no encontrarlo hace creer que el cambio no se aplicó |
+| **D** | `user_id` = el dueño del crédito, y `created_at` **de la misma corrida** | un `otp_id` real pero **viejo** significa que la sesión se sembró a mano, no que alguien autorizó ahora. Medido: en una prueba de local el `otp_id` era de tres meses antes |
+
+### 4 · Volver a probar
+
+Correr el `.sql` de nuevo. Hace falta porque **un crédito al que se le cambió algo no admite otro cambio
+por 6 meses** (`RECENT_CHANGE_EXISTS`) — es regla de negocio, no un error. Sin el reset, la segunda
+prueba parece que el canal se rompió.
+
+## Lo que queda pendiente — al cierre del 2026-08-20
+
+**Del lado nuestro, código: nada.** El PR **#1166** está mergeado a `develop` y verificado contra dev.
+Lo que sigue son cuatro cosas y ninguna es escribir endpoints:
+
+1. **El flujo del ASESOR** — Miguel: *«eso lo vemos mañana»*. Las 8 rutas existen y están probadas; lo
+   que falta es recorrerlo como se recorrió el del cliente y decidir si su prototipo también pasa a
+   pegar contra la API. Ojo con lo que ya se sabe: `POST /change-requests/{id}/otp` es **inalcanzable
+   por diseño** (Registro (14)) y la recomendación es sacarlo, 16 → 15 rutas.
+2. **Correr el `.sql` en dev**, para tener un cliente reseteable (§1). Sin eso, cada crédito que se
+   toque queda bloqueado 6 meses.
+3. **Tres decisiones de producto**, todas medidas y ninguna urgente:
+   - el tope de **4 créditos** por cliente (marcado como provisional en el código);
+   - **F-147** — una categoría sin tope de cuotas se comporta como «tope cero», así que **al mejor
+     cliente no se le puede cambiar el plazo**. 58 de 144 categorías en dev, y afecta también a la app;
+   - la **ruta vieja de `Modules/Loans`** que sigue aceptando el monto de la cuota del llamador. Está en
+     producción hoy; este canal ya no lo hereda.
+4. **Dos verrugas chicas, del texto que ve el cliente:** el rechazo por cuota pendiente dice «no puedes
+   cambiar **el plazo**» aunque se esté pidiendo la fecha (copy compartido de `Modules/Loans`), y la
+   lista de teléfonos de QA del prototipo es una **copia** de `settings.qa_otp_bypass_phones`: si alguien
+   agrega un número en la base, el aviso va a decir que manda SMS cuando ya no lo manda.
 
 **Lo que ya NO hay que investigar:** el gateway (hecho, 16 rutas, prefijo `/legacy-api/support/*`, host
 `legacy-backend.develop.internal.creditop.com`), que el módulo esté desplegado (lo está: responde 503,
@@ -928,6 +1035,11 @@ cambio más chico de los 16 — un parámetro y una escritura.
 
 ## Lo que falta para que el canal funcione — 2026-08-14
 
+> ⚠ **Esta sección es del 14/8 y varias de sus filas ya cambiaron** — lo vigente está arriba, en
+> §«Lo que queda pendiente». Se conserva porque el razonamiento sigue valiendo: por qué la autogestión
+> no espera a Meta y qué puede avanzar Filipo en paralelo. Lo que YA no es cierto: las 2 rutas de cambio
+> existen, están mergeadas y hay filas con `otp_id` real en dev.
+
 Suponiendo el PR mergeado, desplegado, con la variable puesta y la ruta en el gateway: **funciona una
 sola cosa** — resolver de quién es un número de WhatsApp. Después de identificar a la persona no hay
 siguiente paso.
@@ -1450,6 +1562,27 @@ castigo pega sobre el número que también se usa para cobrar.
 
 <!-- append-only, lo nuevo arriba. (Esta tarea no tenía sección de registro; se agrega siguiendo
      PLANTILLA-TAREA.md. Lo de arriba es el ESTADO, que se reescribe; esto es qué pasó cada día.) -->
+
+### 2026-08-20 (23) — cómo se prueba esto, escrito para volver mañana sin contexto
+
+Pedido de Miguel al cerrar: dejar en la tarea **cómo probar, qué queries recrean el caso y cómo verificar
+que quedó guardado en las tablas correctas**, para retomar rápido. Quedó en dos secciones nuevas arriba
+—§«Cómo se prueba, de cero» y §«Lo que queda pendiente»— más la mitad de QA de la publicable, que el
+guard venía marcando como faltante desde el 19/8.
+
+**Las cuatro consultas de verificación están corridas, no escritas de memoria**, y cada una tiene su
+«qué es bien / qué es mal». Dos cosas que sólo se ven haciéndolo:
+
+- **El plazo no vive en el ledger, vive en `user_requests.fee_number`.** Buscarlo en
+  `creditop_x_requests_history` y no encontrarlo hace concluir que el cambio no se aplicó.
+- **`otp_id` distinto de 0 no alcanza.** Hay que mirar de quién es y de cuándo: en una prueba de local
+  el `otp_id` era real pero **de tres meses antes**, porque la sesión se había sembrado a mano. Un
+  `otp_id` viejo prueba que alguien tenía acceso a la base, no que el cliente autorizó.
+
+**Y el arranque en frío ahora apunta a lo de mañana:** el flujo del CLIENTE está cerrado —mergeado,
+desplegado y probado contra dev—, así que el próximo paso es el del **ASESOR**. Sus 8 rutas ya existen y
+tienen tests; lo que falta es recorrerlo como se recorrió el del cliente. Con una decisión ya sobre la
+mesa: `POST /change-requests/{id}/otp` es inalcanzable por diseño y la recomendación es sacarlo.
 
 ### 2026-08-20 (22) — el prototipo para QA, y se borra el tercero (el de n8n)
 
@@ -2348,4 +2481,57 @@ reenvío de códigos, quién envía el mensaje de confirmación posterior al cam
 el canal de entrada de WhatsApp.
 
 Se construyeron dos simulaciones navegables —una por entrada— para acordar el detalle antes de
-implementar.
+implementar, y una tercera que **no es una maqueta**: recorre el mismo chat pegando contra el ambiente
+de pruebas de verdad y muestra al lado la respuesta de cada consulta. Es la que se le entrega a QA.
+
+## Dónde probar
+
+En el **ambiente de pruebas**, con la simulación navegable del cliente (la tercera). No hace falta
+configurar nada ni tener acceso al backend: se abre, se elige el cliente de prueba y se recorre el chat.
+El cliente y su cédula vienen puestos; el código de un solo uso también, porque el número de prueba está
+en la lista que no dispara el envío real del mensaje.
+
+⚠ **Si se prueba con un celular propio en vez del de prueba, el mensaje se manda de verdad.** La
+simulación avisa en pantalla cuál de los dos casos es y, cuando el mensaje sale de verdad, no rellena el
+código: hay que escribir el que llegó.
+
+## Cómo validar
+
+1. **Identificación.** El chat pide la cédula y manda el código. Con una cédula que no corresponde al
+   celular, la respuesta tiene que ser la misma que si el celular no existiera — el canal no confirma
+   qué datos son reales.
+2. **Los créditos del cliente.** Después del código, el chat lista **sólo los créditos activos que
+   administra CreditOp**, cada uno con su comercio, su cuota y su próxima fecha. Un crédito de una
+   entidad que se administra por fuera no debe aparecer, y pedirlo por su número tiene que ser
+   rechazado con una explicación, no escondido.
+3. **Las opciones.** La fecha de pago sólo puede caer los días 5, 16 y 28, y **ninguna opción ofrecida
+   puede ser una fecha ya pasada**. El plazo puede venir vacío aunque el crédito admita cambios: son dos
+   cosas distintas y no es un error.
+4. **El cambio.** Al confirmar, el chat dice el valor nuevo. El monto de la cuota lo calcula el backend:
+   no puede quedar en un valor que el canal no haya ofrecido.
+5. **Los rechazos son parte de la prueba** y tienen que leerse como respuestas, no como fallas: crédito
+   con una cuota por pagar, crédito con un cambio hecho en los últimos 6 meses, y crédito de una entidad
+   que CreditOp no administra.
+
+## Criterios de aceptación
+
+- Ningún cambio queda guardado sin el código que lo autorizó. **Este es el criterio central**: hasta
+  hoy los cambios se guardaban sin ninguna prueba de autorización.
+- El código tiene que ser del mismo cliente y del mismo momento del cambio.
+- Queda registro del cambio con el valor anterior y el nuevo, y el crédito refleja el valor nuevo.
+- Un cliente sólo ve y sólo puede tocar **sus** créditos. Pedir el de otra persona por su número
+  responde igual que si no existiera.
+- Sólo se pueden cambiar los créditos que administra CreditOp.
+- Ninguna opción ofrecida puede fallar al elegirla.
+- Un cliente que vuelve dentro de los 15 minutos siguientes no tiene que pedir otro código.
+
+## Dependencias
+
+- El canal de entrada de WhatsApp y la conversación misma **no son parte de esta entrega**: lo que se
+  entrega son los servicios y su autorización. La simulación existe para poder probarlos sin esperar ese
+  canal.
+- Para repetir una prueba sobre el mismo crédito hay que reponer los datos: un crédito ya cambiado no
+  admite otro cambio por 6 meses, por regla de negocio. Se entrega el guion que repone el caso.
+- Queda una decisión de producto que **hoy impide ofrecer el cambio de plazo a los mejores clientes**:
+  cuando una categoría no tiene tope de cuotas, el sistema lo interpreta como tope cero y no ofrece
+  ninguna opción. Afecta también a la aplicación móvil.
