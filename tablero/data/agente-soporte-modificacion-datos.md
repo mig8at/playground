@@ -1616,6 +1616,56 @@ castigo pega sobre el número que también se usa para cobrar.
 <!-- append-only, lo nuevo arriba. (Esta tarea no tenía sección de registro; se agrega siguiendo
      PLANTILLA-TAREA.md. Lo de arriba es el ESTADO, que se reescribe; esto es qué pasó cada día.) -->
 
+### 2026-08-21 (3) — los 16 endpoints, corridos contra local con el fix puesto
+
+Miguel, antes de subir: *«prueba todos los endpoints del agente de whatsapp con el nuevo cambio… así te
+toque hacer update de los usuarios y solicitudes»*. Se barrieron **los 16 por HTTP** contra el local
+(`http://localhost/api/support`), no con tests: curl, y verificando la BD después de cada escritura.
+
+> **MEDICIÓN · 2026-08-21 (local, 16/16)** — cliente: `by-phone` 200 · `self/otp` 200 · `verify` 200 ·
+> `can-change` 200 · `payment-date-options` 200 (2 fechas) · `fee-number-options` 200 (5 plazos) ·
+> `change-payment-date` 200 · `change-fee-number` 200. Asesor: `advisor/otp` 200 · `verify` 200 con
+> `allied_ids [278,277]` · `clients` 200 · `change-requests` 201 · `authorize` 200 · `confirm` 200 ·
+> `reject` 200 (`rechazada` y `bloqueada`) · `change-requests/{id}/otp` **409 INVALID_STATE**.
+> Bordes: 401 sin token y con token malo · 422 de validación (campo prohibido, código con letras,
+> `fee_number` sin `user_request_id`, motivo de rechazo inventado) · `FEE_NOT_AVAILABLE` ·
+> `CHANGE_NOT_ALLOWED` en el segundo cambio · `CREDIT_NOT_FOUND` con crédito ajeno · `WRONG_ACTOR` ·
+> `CREDIT_NOT_SERVICED_BY_US` en las dos capas (no aparece en `operable_credits` **y** se rechaza por id).
+
+**Lo que el fix hizo visible, y es la prueba que faltaba:** se pidió el código con
+`whatsapp:+573108000011` y se validó con `3108000011` → **200**. En la tabla queda una fila con
+`wa_id = +573108000011`; las de las corridas de ayer, `whatsapp:+57…`. La misma comprobación pasó del
+lado del asesor (`clients` con el `wa` pelado sobre una sesión abierta con el formato de Twilio).
+
+**Y el objetivo de la tarea, medido dos veces:** los cambios por autogestión quedaron con
+`creditop_x_changes_log.otp_id = 296499` y el del asesor con `296501` — **reales, emitidos en la misma
+corrida** (`otps.user_id` = el dueño del crédito). El ledger dejó las dos filas —nueva `vigente`,
+anterior `historica`— y el plazo se escribió en `user_requests.fee_number`, no en el ledger.
+
+🔴 **CONFIRMADO el defecto que en (1) era hipótesis: `field = fee_number` por el flujo del asesor da 500.**
+
+> **MEDICIÓN · 2026-08-21 (local)** — `confirm` de una solicitud `fee_number`: *«Argument #2
+> ($selectedFee) must be of type array, int given, called in …/ChangeRequestService.php on line 108»*.
+> `json_decode("9")` devuelve el entero 9, que es truthy, así que el `?:` no cae al fallback.
+> **La transacción SÍ revierte**: la solicitud queda `autorizada` con `otp_id` NULL, cero filas en
+> `creditop_x_changes_log` y el `fee_number` sin tocar. Es un 500 sin daño, y la solicitud es retomable.
+
+Las otras tres ramas del asesor (`next_payment_date`, `cell_phone`, y los dos rechazos) funcionan. O sea
+que **de las tres cosas que el asesor puede pedir, dos andan y una revienta** — y es la única que no
+tiene test propio.
+
+⚠ **Un efecto del diseño que conviene mirar con producto:** dentro de una misma sesión de 15 minutos,
+**varios cambios comparten el mismo `otp_id`**. El del celular quedó con `296501`, el mismo del cambio de
+fecha de un rato antes. No es un bug —`verifiedOtpId()` lee el de la sesión, y la sesión prueba
+IDENTIDAD, no intención (Registro (14))— pero significa que la fila de auditoría dice «autorizado con el
+OTP X» donde X se emitió para identificarse, no para ese cambio.
+
+**Andamiaje, ahora reproducible:** `…asesor-qa.casos.sql` — el celular de ANA QA en el bypass (el .sql
+del cliente lo da por hecho y **en local no estaba**), un asesor con sus dos comercios, la línea de
+crédito del lender de QA (sin ella la rama del plazo devuelve menú vacío) y un crédito rt=4 para la
+guarda. ⚠ Y algo que el .sql del cliente no dice: **correrlo de nuevo no restaura las solicitudes, las
+RECREA con ids nuevos** — los ids de una corrida anterior dejan de existir.
+
 ### 2026-08-21 (2) — la sesión se llaveaba con la CADENA, no con el teléfono
 
 Salió de una pregunta de Miguel probando en Postman: la documentación dice `wa=whatsapp:+573109000004`
