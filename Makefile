@@ -349,6 +349,28 @@ plantillas: ## @expl PROTOTIPO: onboarding compuesto por el backend, realtime po
 plantillas-check: ## @expl compila el server del prototipo (go vet + build)
 	@cd plantillas/server && go vet ./... && go build -o /dev/null ./... && echo "plantillas: ok"
 
+# ── DEMO · el mapa de cableado ───────────────────────────────────────────────────────────────────
+#
+# ⚠ `demo-roots` DERIVA roots.json de `context/tools/roots.py`, que es la fuente única. No se escribe
+# a mano: un repo agregado de un solo lado no falla, da un mapa sobre otro universo.
+.PHONY: demo-roots demo-extraer demo-medir demo-mapa demo-vecinos
+demo-roots: ## @expl PROTOTIPO: deriva demo/roots.json de context/tools/roots.py (correr una vez)
+	@cd demo && python3 -c "import sys,json; sys.path.insert(0,'../context/tools'); from roots import ROOTS; open('roots.json','w').write(json.dumps(ROOTS,indent=2,sort_keys=True))" && echo "roots.json escrito"
+
+demo-extraer: ## @expl PROTOTIPO: construye el mapa de cableado de un repo (~0,5s). R=<alias>
+	@cd demo && go build -o demo . && ./demo extraer $(or $(R),legacy-backend)
+
+demo-medir: ## @expl PROTOTIPO: los números del mapa — compresión y tasa de resolución. R=<alias>
+	@cd demo && go build -o demo . && ./demo medir $(or $(R),legacy-backend)
+
+demo-mapa: ## @expl PROTOTIPO: el ESQUELETO de un archivo, sin cuerpos. F=<alias/ruta>
+	@test -n "$(F)" || { echo "falta F=<alias/ruta>"; exit 2; }
+	@cd demo && go build -o demo . && ./demo mapa $(F)
+
+demo-vecinos: ## @expl PROTOTIPO: quién llama a este archivo y a quién llama. F=<alias/ruta>
+	@test -n "$(F)" || { echo "falta F=<alias/ruta>"; exit 2; }
+	@cd demo && go build -o demo . && ./demo vecinos $(F)
+
 .PHONY: cuadrilla
 cuadrilla: ## @expl PROTOTIPO: las épicas del equipo — ramas y PRs por persona (:5197)
 	@cd cuadrilla && npm run dev

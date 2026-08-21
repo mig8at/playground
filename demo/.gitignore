@@ -1,0 +1,5 @@
+# El binario y los mapas son DERIVADOS: se reconstruyen en medio segundo con `make demo-extraer`.
+# Versionarlos sería versionar un caché de 7 MB que envejece en silencio.
+demo
+grafo-*.json
+roots.json
