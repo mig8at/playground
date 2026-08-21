@@ -1640,6 +1640,19 @@ número se usa como identidad— y `SessionService::canonicalWaId()`, aplicado e
 > nuevo que pide el código con una forma y lo valida con otra.
 > `./vendor/bin/sail artisan test Modules/SupportBot/Tests`
 
+> **MEDICIÓN · 2026-08-21 (local, DIFERENCIAL)** — el test nuevo **falla sin el fix**: desactivando las
+> tres puertas de `SessionService` y dejando todo lo demás igual, da `Expected response status code
+> [200] but received 409`. Con el fix, verde. Es la única forma de saber que un test de regresión
+> prueba algo: uno que pasa antes y después no prueba nada, y el error de darlo por bueno ya se cometió
+> en esta tarea (Registro (14): había un `catch` para una transición que fallaba SIEMPRE, y ningún test
+> llegaba ahí).
+> `sail artisan test --filter=test_el_mismo_numero_escrito_distinto_es_la_misma_sesion …`
+
+**Alcance de lo validado, para no leerlo de más:** los tests atraviesan router, middleware, controlador
+y MySQL local de verdad (esquema `testing`, con `DatabaseTransactions`); **`OtpService` está simulado a
+propósito** —el real manda SMS por Twilio— así que lo probado es el canal alrededor del OTP, no el OTP.
+Contra **dev no se probó nada**: el fix está en una rama local, sin desplegar.
+
 **Lo que NO arregla, y quedó escrito en el docblock:** sin `+` se asume `+57`. Es un default, no una
 deducción. Y hay una forma que falla en silencio — **`573016992677`** (indicativo sin `+`) se lee como
 nacional y termina buscando `+5757…`; es justo la que entrega la API de Meta, así que importa si algún
