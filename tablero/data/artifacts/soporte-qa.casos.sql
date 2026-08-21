@@ -24,8 +24,8 @@
 --
 --  1. **El celular tiene que estar en `settings.qa_otp_bypass_phones`.** Con el bypass el proveedor no
 --     se llama y el código del OTP son los **últimos 4 dígitos** del celular. Sin eso, cada prueba le
---     manda un SMS de verdad a quien sea dueño de ese número. `3131010100` ya está en la lista
---     (verificado en dev el 2026-08-20). Si lo cambiás, agregá el nuevo a esa lista.
+--     manda un SMS de verdad a quien sea dueño de ese número. Si cambiás el celular, agregá el nuevo
+--     a esa lista — y comprobá que no sea ya de otro cliente (ver el punto 6).
 --
 --  2. **`first_name` no puede ser `TEMPORAL USER`.** La búsqueda por WhatsApp excluye ese nombre —es
 --     el placeholder de los registros a medio hacer—, así que un cliente sembrado así da 404 y parece
@@ -49,7 +49,14 @@
 -- «Illegal mix of collations».
 SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci;
 
-SET @CEL         = '3131010100';          -- en la lista de bypass de QA → no se manda ningún SMS
+-- El celular tiene que estar en la lista de bypass Y NO ESTAR USADO por otro cliente. `3108000011`
+-- cumple las dos cosas en local y en dev (medido el 2026-08-20).
+--
+-- ⚠ Esto se aprendió por las malas: la primera versión usaba `3131010100`, que en dev es de **JOHN
+-- SMITH** — y como el script identificaba al cliente por el celular, le habría pisado el nombre y la
+-- cédula a un usuario de prueba de otra persona. Por eso ahora la identidad es la CÉDULA (ver más
+-- abajo): es un valor inventado para esto, así que no puede chocar con nadie.
+SET @CEL         = '3108000011';          -- bypass de QA → no se manda ningún SMS. Código: 0011
 SET @DOC         = '900000001';
 SET @LENDER_SLUG = 'qa-soporte-lender';
 
@@ -83,17 +90,23 @@ WHERE NOT EXISTS (SELECT 1 FROM allieds WHERE name = 'Tecno QA');
 SET @ALLIED_A = (SELECT id FROM allieds WHERE name = 'Mueblería QA' LIMIT 1);
 SET @ALLIED_B = (SELECT id FROM allieds WHERE name = 'Tecno QA'     LIMIT 1);
 
--- ── 1 · el cliente ────────────────────────────────────────────────────────────────────────────────
+-- ── 1 · el cliente, identificado por su CÉDULA ────────────────────────────────────────────────────
+-- La identidad es `document_number`, no el celular, y es lo que hace que este script sea seguro de
+-- correr: `@DOC` es un valor inventado para estas pruebas, así que sólo puede existir el usuario que
+-- este mismo script creó. Buscando por celular, en cambio, un número que ya sea de otro cliente de QA
+-- terminaría con su nombre y su cédula reescritos sin que nadie se enterara.
+--
 -- `user_profile_id = 1` es cliente. El password es un hash cualquiera: este usuario no inicia sesión,
 -- entra por su número de WhatsApp.
 INSERT INTO users (first_name, surname, document_number, document_type, cell_phone, user_profile_id, password, created_at, updated_at)
 SELECT 'ANA QA', 'PRUEBAS', @DOC, 1, @CEL, 1, '$2y$10$qaqaqaqaqaqaqaqaqaqaqa', NOW(), NOW()
-WHERE NOT EXISTS (SELECT 1 FROM users WHERE cell_phone = @CEL AND user_profile_id = 1);
+WHERE NOT EXISTS (SELECT 1 FROM users WHERE document_number = @DOC);
 
-SET @U = (SELECT id FROM users WHERE cell_phone = @CEL AND user_profile_id = 1 ORDER BY id DESC LIMIT 1);
+SET @U = (SELECT id FROM users WHERE document_number = @DOC ORDER BY id DESC LIMIT 1);
 
--- Por si ya existía con otro nombre o sin documento: se normaliza a lo que el caso necesita.
-UPDATE users SET first_name = 'ANA QA', surname = 'PRUEBAS', document_number = @DOC WHERE id = @U;
+-- Se normaliza sólo ESE usuario (el de la cédula de pruebas), nunca uno ajeno.
+UPDATE users SET first_name = 'ANA QA', surname = 'PRUEBAS', cell_phone = @CEL, user_profile_id = 1
+ WHERE id = @U;
 
 -- ── 2 · el RESET: se borra lo que dejaron las corridas anteriores ─────────────────────────────────
 -- El orden importa por las llaves: primero el log de cambios y el ledger, después las solicitudes.
@@ -159,3 +172,13 @@ SELECT u.cell_phone                AS celular,
   LEFT JOIN allieds a ON a.id = ur.allied_id
  WHERE u.id = @U
  ORDER BY ur.id;
+
+-- ── 6 · el chequeo que evita una tarde perdida ─────────────────────────────────────────────────────
+-- `findByWhatsApp` resuelve el cliente con un `first()`: si dos clientes comparten el celular, el canal
+-- puede atender al OTRO y el chat contestaría «no encontramos una cuenta con esos datos» aunque el
+-- cliente de prueba exista. Si esta consulta devuelve algo, hay que liberar el número o cambiar @CEL.
+SELECT CONCAT('⚠ el celular ', @CEL, ' lo comparten ', COUNT(*), ' clientes: ',
+              GROUP_CONCAT(CONCAT(first_name, ' / ', document_number) SEPARATOR ' · ')) AS conflicto
+  FROM users
+ WHERE cell_phone = @CEL AND user_profile_id = 1
+HAVING COUNT(*) > 1;
