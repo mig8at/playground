@@ -150,6 +150,60 @@ padre. La inferencia era un parche por no tener jerarquía.
 `BaseService` (274). Un conteo de aristas sin mirar QUÉ conecta habría dicho que la herencia sirve para
 las respuestas HTTP.
 
+## LA PRUEBA DE FUEGO — y la tesis salió corregida
+
+    python3 prueba.py A B D        # 7 preguntas × 3 condiciones. B cuesta 7 × 265k tokens de entrada
+
+El mapa se vendía como enrutador: le da a un seleccionador lo suficiente para decidir qué leer, más
+barato que los archivos. Para poder refutarlo hace falta la condición de control que casi nadie corre:
+**la lista pelada de rutas**. Si con 2.529 nombres de archivo alcanza, el esqueleto no se gana sus
+266.000 tokens.
+
+Las 7 preguntas tienen verdad de referencia sacada con `git grep` contra `main` — **no** elegida por lo
+que el mapa sabe contestar. Tres discriminantes (el nombre no delata), dos de **nivel método**, una de
+**techo** (el dato está en el cuerpo, ninguna condición lo tiene) y un **control negativo** (Nequi no
+existe en el repo: la respuesta correcta es «no está»).
+
+| | A · sólo rutas | B · mapa escalonado | D · rutas + esqueleto a demanda |
+|---|---|---|---|
+| payload | ~39.000 tok | ~265.000 tok | ~39.000 + ~4.000 |
+| `can_check_preapproval` | ✓ 2/3 | ✓ 2/3 | ✓ 2/3 |
+| `profiling_reviews` | ✓ 2/9 | ✓ 3/9 | ✓ 1/9 |
+| **`recalculate` (método)** | **✗** | ✓ | ✓ |
+| **`getLenderUserCategory` (método)** | **✗** | ✓ | ✓ |
+| `ambiente_identidad` (techo) | 3/4 en #4 | 3/4 en #5 | 3/4 en **#1** |
+| `soap_envelope` (control fácil) | ✓ | ✓ | ✓ |
+| `nequi` (control negativo) | ✓ no inventó | ✓ | ✓ |
+| **total** | **5/7** | **7/7** | **7/7** |
+| archivos elegidos (promedio) | 6,5 | 4,8 | 4,7 |
+
+### Lo que esto dice, y no es lo que yo esperaba
+
+**1 · La lista de rutas es una línea base brutal.** Acierta 5 de 7 con 39k tokens, y en las
+discriminantes empata con el mapa completo. La razón es que **las convenciones de nombres de Laravel
+llevan casi toda la señal de ruteo**: `RiskCentralValidationService.php` ya dice qué hace. ⚠ Eso
+también marca el límite de generalizar esto: en un repo con nombres pobres el orden podría invertirse.
+
+**2 · El esqueleto gana en un eje, y es nítido: las preguntas de nivel MÉTODO.** A encontró el archivo
+correcto en el puesto #1 las dos veces y **devolvió la lista de métodos vacía en vez de inventar** —
+no tenía el dato. Con esqueleto, las dos con el nombre exacto. Y se ve que lo leyó: en `soap_envelope`
+citó `createEnvelope`, `buildSignedEnvelope`, `renderUnsignedEnvelope`, `BinarySecurityToken`.
+
+**3 · La conclusión de diseño: el mapa no va como PAYLOAD, va como HERRAMIENTA.** B no necesitaba los
+esqueletos de los 2.529 archivos: necesitaba los de los pocos candidatos que estaba mirando. D pide en
+promedio 7 archivos (~4.000 tokens) y empata con B a **1/6 del costo**. El payload de 265k que este
+proyecto construyó primero es la forma equivocada de entregar lo mismo.
+
+**4 · El techo se confirmó.** `ambiente_identidad` da 3/4 en las tres condiciones, porque
+`app()->environment([...])` vive en el cuerpo de los métodos y ninguna representación de firmas lo
+tiene. Las tres aciertan por inferencia de nombre. Esa pregunta midió suerte de nomenclatura, no mapa —
+y hace falta tenerla para saber dónde está el borde.
+
+⚠ **Los límites de este experimento**: 7 preguntas, un modelo, un repo. No es un benchmark. Y la verdad
+de referencia son «los archivos que nombran la cosa literalmente», un sesgo con el que ya me tropecé
+una vez —  la primera versión truncó el GT con un `head -4` y dejó afuera `app/Models/ProfilingReview.php`,
+que era la mejor respuesta posible.
+
 ## Por qué Go, y por qué no hay motor de grafos
 
 Los 2.529 archivos se leen de `main` con **un** `git cat-file --batch` (no 2.529 `git show`) y se
@@ -174,5 +228,7 @@ archivo) — y cambiar significa tocar sólo `grafo.go`.
 2. **`new Foo()` y `app(Foo::class)`** en locales: es el bucket más grande (26.666).
 3. **El otro monolito y el front.** En `.tsx` la compresión medida es sólo 3,9x: el esqueleto no captura
    JSX ni hooks, así que el front necesita otra estrategia.
-4. **La prueba de fuego**: darle a `seleccion.py` el mapa en vez del índice y correr el control negativo
-   del triaje — sacar a propósito el archivo que contesta y ver si el mapa lo rescata.
+4. **Cablear la condición D en `seleccion.py`**: la herramienta `esqueleto(rutas)` al lado del índice
+   que ya tiene, en vez del payload. Es lo que la prueba de fuego dejó demostrado.
+5. **Más preguntas de nivel método**, que es el único eje donde el esqueleto ganó. Siete no alcanzan
+   para afirmar una tasa.

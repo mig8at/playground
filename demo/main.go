@@ -54,6 +54,8 @@ func main() {
   demo mapa <alias/ruta>        el ESQUELETO de un archivo: su interfaz, sin cuerpos
   demo vecinos <alias/ruta>     quién lo llama y a quién llama, con la procedencia de cada arista
   demo medir <alias>            los números: compresión y tasa de resolución
+  demo payload <alias> [rutas]  el mapa entero por stdout, para dárselo a un modelo. 'rutas' = sólo
+                                la lista de rutas, que es la CONDICIÓN A del experimento
 
   Los alias salen de roots.json (derivado de context/tools/roots.py con  make demo-roots).`)
 		return
@@ -67,6 +69,8 @@ func main() {
 		cmdVecinos()
 	case "medir":
 		cmdMedir()
+	case "payload":
+		cmdPayload()
 	default:
 		salir(fmt.Errorf("subcomando desconocido %q", os.Args[1]))
 	}
@@ -314,6 +318,27 @@ func acortar(s string) string {
 		return s
 	}
 	return "…" + s[len(s)-69:]
+}
+
+// cmdPayload — el mapa entero por stdout. Existe para que el experimento mande EXACTAMENTE lo que
+// `medir` cuenta: si el payload se armara aparte, el número y el envío podrían divergir y la medición
+// dejaría de ser sobre lo que se usa.
+func cmdPayload() {
+	alias := arg(2, "el alias del repo")
+	soloRutas := len(os.Args) > 3 && os.Args[3] == "rutas"
+	g := cargarGrafo(alias)
+	rutas := make([]string, 0, len(g.Archivos))
+	for r := range g.Archivos {
+		rutas = append(rutas, r)
+	}
+	sort.Strings(rutas)
+	for _, r := range rutas {
+		if soloRutas {
+			fmt.Println(r)
+			continue
+		}
+		fmt.Print(renderizar(g.Archivos[r]))
+	}
 }
 
 func cmdMedir() {
