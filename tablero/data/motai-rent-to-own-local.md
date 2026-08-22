@@ -190,3 +190,35 @@ queda ahí — que es la conducta correcta, no un fallo.
 ⚠ **Y la config del 173 es de PRUEBA, no de negocio:** categorías y reglas copiadas del 170 sin
 revisar, que es exactamente lo que la migración del clon desaconseja. Sirve para ejercitar el flujo;
 no para concluir nada sobre conducta.
+
+
+## 2026-08-22 · el sub-flujo del codeudor, recorrido: 4 de 6 pasos
+
+Rutas reales (prefijo `api/v1/user-request`, de `Modules/UserRequestV1/routes/api.php`):
+
+| paso | endpoint | resultado |
+|---|---|---|
+| 1 · arrancar | `POST /{ur}/cosigner-flow/start` | ✅ `statusId: 17` |
+| 2 · invitar | `POST /{ur}/cosigner` `{"cellPhone":"…"}` | ✅ `cosignerId 1` · `pending` · **`invitationSent: false`** |
+| 3 · entrar | `GET /cosigner/invitation/{token}` | ✅ `actor: cosigner` · `partnerHash` |
+| 4 · onboardear | `phone/register` + `otp-validate` con `X-Cosigner-Token` | ✅ devuelve **la MISMA `user_request`** |
+| 5 · identidad | `personal-info` con el token | ❌ **se traba** (abajo) |
+| 6 · firmar | `POST /cosigner/signature/otp` + `/otp/verify` | sin llegar |
+
+**Confirmado en vivo lo que el nodo decía:** el `invitationSent: false` con la fila creada igual (el
+WhatsApp es best-effort), y que el codeudor entra a la **misma solicitud** — el `otp-validate` devolvió
+`user_request_id: 465276`, el del titular.
+
+⚠ **Faltaba sembrar el catálogo `cosigner_statuses`.** Sin él, registrar al codeudor devuelve
+`URV15003 Internal server error` y el traceback apunta a `CosignerRepository::statusIdByCode` →
+`firstOrFail()`. Lo siembra `database/seeders/CosignerStatusesSeeder` (9 estados: pending, validating,
+not_eligible, approved, waiting_applicant_signature, waiting_cosigner_signature, formalized,
+cancelled, replaced). La migración crea la tabla pero NO la llena.
+
+**Dónde se traba (paso 5):** `personal-info` del codeudor revienta con
+`ValueError: max(): Argument #1 must contain at least one element` en
+`Modules/Identity/App/Services/AgildataService.php:159` — el `max(array_keys($periods))` sin guarda
+cuando la respuesta del buró no trae pagos. Y ocurre **aunque el mock devolvió 8 pagos con períodos
+actuales** (verificado en su log: `→ agildata default (doc 1099444002)`), así que el dato bueno no
+está llegando al extractor por ese camino. Es lo próximo a mirar: por qué la consulta del CODEUDOR no
+consume la misma respuesta que la del titular.
