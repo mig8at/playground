@@ -32,20 +32,44 @@ Resultado medido en `legacy-backend` (2.529 archivos .php):
 
 | | archivos parseados | tiempo |
 |---|---|---|
-| `demo show <archivo>` | 1 | **54 ms** |
-| `demo hierarchy <clase>` | 3 | **243 ms** |
-| `demo neighbors <archivo>` | 29 | ~1 s |
-| `demo <término>` | ~51 | ~2 s |
-| `demo files` / `measure` / `edges` / `cases` (repo entero) | 2.529 | ~500 ms |
+| `demo show <archivo>` | 1 | **30 ms** |
+| `demo hierarchy <clase>` | 3 | **150 ms** |
+| `demo <término>` | 2.529 | **1,1 s** |
+| `demo neighbors` / `files` / `measure` / `edges` / `cases` | 2.529 | **~550 ms** |
 
 Y no hay archivo de índice, así que **no hay nada que pueda envejecer sin avisar** — el problema que
 tenía la versión anterior de esto.
+
+⚠ **La carga a demanda se probó y salió perdiendo, así que se sacó.** La idea era cargar sólo las
+semillas, sus dependencias y sus llamadores para no parsear el repo entero. Medido:
+
+| | a demanda | repo entero |
+|---|---|---|
+| `find <término>` | 2,01 s | **1,13 s** |
+| `neighbors <hub>` | 1,23 s | **0,56 s** |
+
+El cuello nunca fue el parseo —2.529 archivos son 0,55 s con un parser por goroutine— sino el `git grep`
+que busca quién nombra a cada semilla: pagaba ese grep para ahorrar un parseo más barato que el grep. Y
+encima obligaba a un `--max-callers`: `neighbors app/Otel/TracerService.php` tiene **1.675** llamadores,
+y la respuesta venía topeada al 18% con una nota al pie. Lo que sí quedó a demanda es lo que rinde:
+`show` (un archivo) y `hierarchy` (la cadena, con greps puntuales).
 
 ⚠ **Por defecto lee el WORKING TREE**, no `main`. Es un cambio deliberado: para un modelo que está
 editando este checkout, lo que hay en disco es lo correcto. `--rev main` lee esa rama, y **la salida
 siempre dice cuál de las dos usó** — la ambigüedad era el problema, no la elección. El primer test lo
 mostró solo: en la rama `fix/CORE-258` el término no existe, y decir «no matcheó nada en working tree»
 es la respuesta correcta.
+
+## Sólo PHP, y es una decisión
+
+Había un `--ext` que aceptaba cualquier extensión y sólo funcionaba con `.php`. Un flag con un solo
+valor válido no es una opción, es una trampa: parsear un `.go` con la gramática de PHP devuelve un
+esqueleto **vacío sin fallar** — el mismo modo de falla que ya costó dos bugs acá (`base_clause`, los
+tests de Pest). El flag se sacó y quedó una constante.
+
+**Agregar un lenguaje son dos cosas, no una**: su gramática de tree-sitter *y* su forma de declarar un
+tipo, porque el resolvedor pregunta por `class X` con un grep y en Go eso no existe. Cuando haga falta,
+se agrega entero o no se agrega.
 
 ## Los comandos
 
@@ -72,7 +96,7 @@ devolvería otra cosa.
     --with-cases   --orphan   --leaf   --min-methods N   --max-methods N
     --sort path|tokens|methods|in|out   --limit N
 
-Más `-C <dir>`, `--rev <ref>`, `--ext .php` y `--json` en todos.
+Más `-C <dir>`, `--rev <ref>` y `--json` en todos.
 
 ```bash
 demo can_check_preapproval --new-only     # SÓLO lo que el grep no encontró: el aporte del grafo
@@ -343,13 +367,11 @@ archivo) — y cambiar significa tocar sólo `grafo.go`.
 
 ## Lo que falta, en orden de rendimiento
 
-1. **Otros lenguajes.** Hoy sólo PHP. La forma es la misma para TS y Go —tree-sitter tiene gramáticas—
-   pero el resolvedor por grep cambia por lenguaje (`class X` no es cómo se declara en Go).
-2. **Las columnas de las migraciones**, no sólo la tabla: `$table->string('x')` está a un nodo de distancia.
-3. **`new Foo()` y `app(Foo::class)`** en locales: es el bucket más grande (26.666).
-4. **El front.** En `.tsx` la compresión medida es sólo 3,9x: el esqueleto no captura
+1. **Las columnas de las migraciones**, no sólo la tabla: `$table->string('x')` está a un nodo de distancia.
+2. **`new Foo()` y `app(Foo::class)`** en locales: es el bucket más grande (26.666).
+3. **El front.** En `.tsx` la compresión medida es sólo 3,9x: el esqueleto no captura
    JSX ni hooks, así que el front necesita otra estrategia.
-5. **Cablear esto en `seleccion.py`** de `workers`: la herramienta `esqueleto(rutas)` al lado del índice
+4. **Cablear esto en `seleccion.py`** de `workers`: la herramienta `esqueleto(rutas)` al lado del índice
    que ya tiene, en vez del payload. Es lo que la prueba de fuego dejó demostrado.
-6. **Más preguntas de nivel método**, que es el único eje donde el esqueleto ganó. Siete no alcanzan
+5. **Más preguntas de nivel método**, que es el único eje donde el esqueleto ganó. Siete no alcanzan
    para afirmar una tasa.

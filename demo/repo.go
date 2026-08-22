@@ -14,11 +14,15 @@
 package main
 
 import (
+	"bufio"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
+	"sync"
 )
 
 type repo struct {
@@ -63,6 +67,83 @@ func (r *repo) read(path string) ([]byte, error) {
 		return nil, fmt.Errorf("no pude leer %s de %s: %w", path, r.rev, err)
 	}
 	return out, nil
+}
+
+// readMany — el contenido de MUCHOS archivos de una vez.
+//
+// ⚠ POR QUÉ EXISTE, medido: leyendo de un ref con un `git show` por archivo, `measure` sobre 2.529
+// archivos tardaba 29,9 s. Con un solo `cat-file --batch` —un proceso que recibe `<rev>:<ruta>` por
+// stdin y devuelve los blobs por stdout— baja a segundos. La versión anterior de esta herramienta ya
+// tenía esta optimización y la perdí al reescribir; el síntoma fue una batería de pruebas que se
+// colgaba. Del working tree no hay proceso que ahorrar: se lee en paralelo y listo.
+func (r *repo) readMany(paths []string) map[string][]byte {
+	out := make(map[string][]byte, len(paths))
+	if r.rev == "" {
+		var mu sync.Mutex
+		var wg sync.WaitGroup
+		sem := make(chan struct{}, 32)
+		for _, p := range paths {
+			wg.Add(1)
+			go func(p string) {
+				defer wg.Done()
+				sem <- struct{}{}
+				defer func() { <-sem }()
+				if b, err := os.ReadFile(filepath.Join(r.root, p)); err == nil {
+					mu.Lock()
+					out[p] = b
+					mu.Unlock()
+				}
+			}(p)
+		}
+		wg.Wait()
+		return out
+	}
+
+	cmd := exec.Command("git", "-C", r.root, "cat-file", "--batch")
+	in, err := cmd.StdinPipe()
+	if err != nil {
+		return out
+	}
+	stdout, err := cmd.StdoutPipe()
+	if err != nil {
+		return out
+	}
+	if err := cmd.Start(); err != nil {
+		return out
+	}
+	// stdin en su propia goroutine: hacerlo en línea se deadlockea en cuanto el pipe de salida se llena.
+	go func() {
+		w := bufio.NewWriter(in)
+		for _, p := range paths {
+			fmt.Fprintf(w, "%s:%s\n", r.rev, p)
+		}
+		w.Flush()
+		in.Close()
+	}()
+	br := bufio.NewReaderSize(stdout, 1<<20)
+	for _, p := range paths {
+		header, err := br.ReadString('\n')
+		if err != nil {
+			break
+		}
+		f := strings.Fields(header)
+		// «<algo> missing» cuando la ruta no existe en ese ref: se saltea, no se inventa.
+		if len(f) != 3 {
+			continue
+		}
+		n, err := strconv.Atoi(f[2])
+		if err != nil {
+			continue
+		}
+		buf := make([]byte, n)
+		if _, err := io.ReadFull(br, buf); err != nil {
+			break
+		}
+		br.ReadByte() // el \n que cierra el blob
+		out[p] = buf
+	}
+	cmd.Wait()
+	return out
 }
 
 // paths — todos los archivos con la extensión pedida.

@@ -31,20 +31,17 @@ func truncate(s string, n int) string {
 func cmdNeighbors(args []string) {
 	c := newCtx("neighbors", "de UN archivo: quién lo llama y a quién llama", false)
 	var kind string
-	var maxCallers int
 	c.fs.StringVar(&kind, "kind", "", "sólo aristas de esta procedencia: self|prop|ctor|static")
-	c.fs.IntVar(&maxCallers, "max-callers", 300, "tope de archivos a parsear buscando quién llama")
 	rest := c.parse(args)
 	if len(rest) != 1 {
 		die(fmt.Errorf("pasá una ruta:  demo neighbors Modules/.../Foo.php"))
 	}
-	x := c.explorer()
+	x, g := c.whole()
 	defer x.close()
-	seed := x.parse(rest[0])
+	seed := g.Files[rest[0]]
 	if seed == nil {
-		die(fmt.Errorf("no pude leer %q en %s @ %s", rest[0], x.r.name(), x.r.fuente()))
+		die(fmt.Errorf("%q no está en %s @ %s", rest[0], x.r.name(), x.r.fuente()))
 	}
-	g, dropped := x.expand([]*sourceFile{seed}, maxCallers)
 	in, out := g.neighbors(seed.Path)
 	keep := func(es []edge) []edge {
 		if kind == "" {
@@ -59,15 +56,10 @@ func cmdNeighbors(args []string) {
 		return kept
 	}
 	in, out = keep(in), keep(out)
-	if c.emit(map[string]any{"file": seed.Path, "parsed": x.parsed,
-		"called_by": in, "calls": out, "callers_not_parsed": dropped}) {
+	if c.emit(map[string]any{"file": seed.Path, "called_by": in, "calls": out}) {
 		return
 	}
-	fmt.Printf("%s   [%s @ %s · %d archivos parseados]\n", seed.Path, x.r.name(), x.r.fuente(), x.parsed)
-	if dropped > 0 {
-		fmt.Printf("  ⚠ %d candidatos a llamador quedaron sin parsear (--max-callers): la lista de\n"+
-			"    «lo llaman» está INCOMPLETA\n", dropped)
-	}
+	fmt.Printf("%s   [%s @ %s]\n", seed.Path, x.r.name(), x.r.fuente())
 	fmt.Printf("\n  LO LLAMAN (%d):\n", len(in))
 	for _, e := range in {
 		fmt.Printf("    %-68s :%-5d ::%s  %s\n", truncate(e.From, 68), e.Line, e.Method, label(e))

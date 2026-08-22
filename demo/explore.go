@@ -20,7 +20,8 @@ package main
 import (
 	"fmt"
 	"regexp"
-	"strings"
+	"runtime"
+	"sync"
 )
 
 type explorer struct {
@@ -58,14 +59,59 @@ func (x *explorer) parse(path string) *sourceFile {
 	return s
 }
 
-func (x *explorer) parseAll(paths []string) []*sourceFile {
-	var out []*sourceFile
+// parseMany — muchos archivos: se leen en UN lote y se parsean en paralelo, un parser de tree-sitter
+// por goroutine (el parser no es seguro para compartir). Sobre 2.529 archivos la diferencia contra
+// hacerlo de a uno es de 30 s a segundos.
+func (x *explorer) parseMany(paths []string) {
+	var pending []string
 	for _, p := range paths {
-		if s := x.parse(p); s != nil {
-			out = append(out, s)
+		if _, ok := x.files[p]; !ok {
+			pending = append(pending, p)
 		}
 	}
-	return out
+	if len(pending) == 0 {
+		return
+	}
+	blobs := x.r.readMany(pending)
+
+	type result struct {
+		path string
+		file *sourceFile
+	}
+	jobs := make(chan string, len(pending))
+	for _, p := range pending {
+		jobs <- p
+	}
+	close(jobs)
+	results := make(chan result, len(pending))
+	var wg sync.WaitGroup
+	for i := 0; i < runtime.NumCPU(); i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			ex := newExtractor()
+			defer ex.close()
+			for p := range jobs {
+				src, ok := blobs[p]
+				if !ok {
+					results <- result{p, nil}
+					continue
+				}
+				results <- result{p, ex.extract(p, src)}
+			}
+		}()
+	}
+	wg.Wait()
+	close(results)
+	for r := range results {
+		x.files[r.path] = r.file
+		if r.file != nil {
+			x.parsed++
+			if r.file.Class != "" {
+				x.classAt[shortName(r.file.Class)] = r.path
+			}
+		}
+	}
 }
 
 var reDecl = regexp.MustCompile(`(?:class|interface|trait)\s+([A-Za-z_][A-Za-z0-9_]*)`)
@@ -148,71 +194,22 @@ func refs(s *sourceFile) []string {
 	return out
 }
 
-// expand — desde las semillas, carga sus dependencias (hacia adelante) y quién las nombra (hacia
-// atrás), y devuelve el grafo resuelto sobre ESE subconjunto.
+// ⚠ ACÁ VIVÍA `expand`, Y SE FUE POR MEDICIÓN. Cargaba sólo las semillas, sus dependencias y sus
+// llamadores: la idea era no parsear el repo entero. Medido en legacy-backend (2.529 archivos):
 //
-// El límite de `maxCallers` existe porque un nombre muy usado —un trait de respuestas HTTP, un
-// TracerService— puede matchear cientos de archivos. Cuando corta, lo DICE: un vecindario truncado en
-// silencio se lee como completo.
-func (x *explorer) expand(seeds []*sourceFile, maxCallers int) (*graph, int) {
-	// hacia adelante: de quién dependen las semillas
-	var names []string
-	for _, s := range seeds {
-		names = append(names, refs(s)...)
-	}
-	x.locate(names)
-	for _, n := range names {
-		if p := x.classAt[n]; p != "" {
-			x.parse(p)
-		}
-	}
-
-	// hacia atrás: quién nombra a las semillas. Se busca el nombre corto de la clase, literal.
-	var seedNames []string
-	for _, s := range seeds {
-		if s.Class != "" {
-			seedNames = append(seedNames, shortName(s.Class))
-		}
-	}
-	cands, _ := x.r.grep(seedNames, true)
-	dropped := 0
-	for i, p := range cands {
-		if maxCallers > 0 && i >= maxCallers {
-			dropped = len(cands) - i
-			break
-		}
-		x.parse(p)
-	}
-
-	// Los ancestros de lo cargado importan para resolver: un método puede estar en el padre del padre.
-	// Se hace una segunda vuelta y se para ahí — más profundidad casi nunca cambia el vecindario y sí
-	// multiplica los greps.
-	var second []string
-	for _, s := range x.files {
-		if s != nil {
-			second = append(second, s.Extends)
-			second = append(second, s.Traits...)
-		}
-	}
-	x.locate(second)
-	for _, n := range second {
-		if p := x.classAt[n]; p != "" {
-			x.parse(p)
-		}
-	}
-
-	g := &graph{Repo: x.r.name(), Branch: x.r.fuente(), Files: map[string]*sourceFile{},
-		Stats: map[string]int{}}
-	for p, s := range x.files {
-		if s != nil {
-			g.Files[p] = s
-		}
-	}
-	g.resolve()
-	g.Stats["files"] = len(g.Files)
-	g.Stats["edges"] = len(g.Edges)
-	return g, dropped
-}
+//	find <término>       con expand 2,01 s  →  con fullGraph 1,13 s
+//	neighbors <hub>      con expand 1,23 s  →  con fullGraph 0,56 s
+//
+// Y no sólo más rápido: COMPLETO. `neighbors app/Otel/TracerService.php` devuelve 1.675 llamadores;
+// con `--max-callers 300` la respuesta venía topeada al 18% y con una nota al pie.
+//
+// El cuello nunca fue el parseo —2.529 archivos son 0,55 s con un parser por goroutine— sino el
+// `git grep` que busca quién nombra a cada semilla. La maquinaria a demanda pagaba ese grep para
+// ahorrar un parseo que resultaba más barato que el grep.
+//
+// Lo que SÍ quedó a demanda es lo que de verdad rinde: `show <archivo>` (0,05 s, un archivo) y
+// `hierarchy` (0,15 s, la cadena resuelta con greps puntuales). Si algún día aparece un repo donde
+// 0,55 s se vuelvan 30 s, esto se reconstruye — con la medición que lo justifique, no antes.
 
 // fullGraph — el repo entero. Sin archivo de índice: parsear 2.529 archivos son ~0,5 s con un parser
 // por goroutine, así que cachearlo en disco era resolver un problema que no existe — y traía el que sí
@@ -222,7 +219,7 @@ func (x *explorer) fullGraph(ext string) *graph {
 	if err != nil {
 		die(err)
 	}
-	x.parseAll(paths)
+	x.parseMany(paths)
 	g := &graph{Repo: x.r.name(), Branch: x.r.fuente(), Files: map[string]*sourceFile{},
 		Stats: map[string]int{}}
 	for p, s := range x.files {
@@ -242,5 +239,3 @@ func plural(n int, sing, plu string) string {
 	}
 	return plu
 }
-
-var _ = strings.TrimSpace

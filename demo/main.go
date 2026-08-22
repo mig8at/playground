@@ -31,13 +31,23 @@ import (
 	"strings"
 )
 
+// ext — SÓLO PHP, y es una decisión, no una limitación temporal disfrazada de flag.
+//
+// Había un `--ext` que aceptaba cualquier extensión y sólo funcionaba con `.php`, porque el único
+// extractor usa la gramática de PHP de tree-sitter. Un flag con un solo valor válido no es una opción:
+// es una trampa — parsear un `.go` con esa gramática devuelve un esqueleto VACÍO sin fallar, que es el
+// modo exacto en que un índice miente. Se saca el flag y se deja la constante.
+//
+// AGREGAR UN LENGUAJE son dos cosas, no una: su gramática de tree-sitter Y su forma de declarar un
+// tipo, porque el resolvedor pregunta por `class X` con un grep y en Go eso no existe.
+const ext = ".php"
+
 // ── plomería común ───────────────────────────────────────────────────────────────────────────────
 
 type ctx struct {
 	fs     *flag.FlagSet
 	dir    string
 	rev    string
-	ext    string
 	asJSON bool
 	f      filter
 }
@@ -48,7 +58,6 @@ func newCtx(name, about string, withFilters bool) *ctx {
 	c := &ctx{fs: flag.NewFlagSet(name, flag.ExitOnError)}
 	c.fs.StringVar(&c.dir, "C", "", "correr como si estuvieras en este directorio (default: el actual)")
 	c.fs.StringVar(&c.rev, "rev", "", "leer de este ref de git en vez del working tree (ej: main)")
-	c.fs.StringVar(&c.ext, "ext", ".php", "extensión a parsear (hoy SÓLO .php: es el único extractor)")
 	c.fs.BoolVar(&c.asJSON, "json", false, "salida en JSON")
 	if withFilters {
 		c.f.register(c.fs)
@@ -62,15 +71,6 @@ func newCtx(name, about string, withFilters bool) *ctx {
 
 func (c *ctx) parse(args []string) []string {
 	_ = c.fs.Parse(reorderArgs(c.fs, args))
-	// ⚠ El único extractor es PHP (tree-sitter con la gramática de PHP). Aceptar `--ext .go` y parsear
-	// con esa gramática devolvería un esqueleto vacío o inventado SIN FALLAR, que es exactamente el
-	// modo en que un índice miente. Se corta acá, con el motivo.
-	if c.ext != ".php" {
-		die(fmt.Errorf("--ext %s: hoy el único extractor es PHP, y parsear otro lenguaje con la\n"+
-			"gramática de PHP devuelve un esqueleto vacío sin fallar. Agregar un lenguaje es agregar\n"+
-			"su gramática de tree-sitter Y su forma de declarar una clase (el resolvedor por grep\n"+
-			"busca `class X`, que no es cómo se declara en Go)", c.ext))
-	}
 	return c.fs.Args()
 }
 
@@ -128,7 +128,7 @@ func (c *ctx) explorer() *explorer {
 // vecindario a demanda.
 func (c *ctx) whole() (*explorer, *graph) {
 	x := c.explorer()
-	g := x.fullGraph(c.ext)
+	g := x.fullGraph(ext)
 	if !c.asJSON {
 		fmt.Fprintf(os.Stderr, "  (%s @ %s · %d archivos parseados)\n", g.Repo, g.Branch, x.parsed)
 	}
@@ -198,7 +198,10 @@ func usage() {
     --with-cases   --orphan   --leaf   --min-methods N   --max-methods N
     --sort path|tokens|methods|in|out   --limit N
 
-  Y en todos:  -C <dir>   --rev <ref>   --ext .php   --json`)
+  Y en todos:  -C <dir>   --rev <ref>   --json
+
+  Sólo PHP. Agregar un lenguaje son dos cosas: su gramática de tree-sitter y su forma de declarar
+  un tipo — el resolvedor pregunta por "class X" con un grep, y en Go eso no existe.`)
 }
 
 func main() {

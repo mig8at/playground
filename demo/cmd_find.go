@@ -13,8 +13,8 @@ package main
 
 import (
 	"fmt"
-	"os"
 	"sort"
+	"strings"
 )
 
 type nearby struct {
@@ -27,11 +27,10 @@ type nearby struct {
 
 func cmdFind(args []string) {
 	c := newCtx("find", "un término → los archivos que lo contienen + sus vecinos", true)
-	var hops, budget, maxCallers int
+	var hops, budget int
 	var asRegex, newOnly, pathsOnly bool
 	c.fs.IntVar(&hops, "hops", 1, "cuántos saltos expandir (⚠ 2 explota: ver la advertencia)")
 	c.fs.IntVar(&budget, "tokens", 25000, "presupuesto de salida; al cortar lo DICE")
-	c.fs.IntVar(&maxCallers, "max-callers", 300, "tope de archivos a parsear buscando quién llama")
 	c.fs.BoolVar(&asRegex, "regex", false, "tratar el término como regex en vez de texto literal")
 	c.fs.BoolVar(&newOnly, "new-only", false, "sólo lo que el grep NO encontró: el aporte del grafo")
 	c.fs.BoolVar(&pathsOnly, "paths-only", false, "sólo las rutas, sin esqueletos")
@@ -41,24 +40,27 @@ func cmdFind(args []string) {
 	}
 	term := rest[0]
 
-	x := c.explorer()
+	// El repo entero: 0,55 s, y a cambio la lista de llamadores es COMPLETA. Ver la nota en
+	// explore.go sobre por qué la carga a demanda salió perdiendo acá.
+	x, g := c.whole()
 	defer x.close()
 
-	// ── LA SEMILLA: lo que matcheó el grep.
+	// ── LA SEMILLA: lo que matcheó el grep. El grep sigue poniendo la INTENCIÓN; lo que cambió es de
+	// dónde sale el vecindario.
 	hits, err := x.r.grep([]string{term}, !asRegex)
 	if err != nil {
 		die(err)
 	}
 	var seeds []*sourceFile
 	for _, p := range hits {
-		if len(p) >= len(c.ext) && p[len(p)-len(c.ext):] == c.ext {
-			if s := x.parse(p); s != nil {
+		if strings.HasSuffix(p, ext) {
+			if s := g.Files[p]; s != nil {
 				seeds = append(seeds, s)
 			}
 		}
 	}
 	if len(seeds) == 0 {
-		fmt.Printf("«%s» no matcheó ningún %s en %s @ %s\n", term, c.ext, x.r.name(), x.r.fuente())
+		fmt.Printf("«%s» no matcheó ningún %s en %s @ %s\n", term, ext, x.r.name(), x.r.fuente())
 		if len(hits) > 0 {
 			fmt.Printf("  (sí matcheó %d archivo(s) de otra extensión: %v)\n",
 				len(hits), hits[:min(len(hits), 5)])
@@ -66,8 +68,7 @@ func cmdFind(args []string) {
 		return
 	}
 
-	// ── LA EXPANSIÓN: dependencias y llamadores, resueltos sobre el subconjunto cargado.
-	g, dropped := x.expand(seeds, maxCallers)
+	// ── LA EXPANSIÓN sobre el grafo del repo.
 	in, out := g.degrees()
 
 	adj := map[string][]edge{}
@@ -149,11 +150,6 @@ func cmdFind(args []string) {
 	if hops > 1 {
 		fmt.Printf("  ⚠ MEDIDO: a 1 salto son 2-39 archivos; a 2 saltos, 198-342. El segundo salto\n" +
 			"    arrastra el fan-out del padre y deja de ser un vecindario.\n")
-	}
-	if dropped > 0 {
-		// El corte se DICE: si no, «éstos son los que lo llaman» sería una afirmación falsa.
-		fmt.Fprintf(os.Stderr, "  ⚠ %d candidatos a llamador quedaron sin parsear (--max-callers)\n",
-			dropped)
 	}
 	fmt.Println()
 	spent, cut := 0, 0
