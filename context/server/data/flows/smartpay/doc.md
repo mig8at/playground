@@ -3,7 +3,7 @@
 
 > ⚠ **HALLAZGOS 2026-07-18/19 (detalle en el nodo findings, F-21..F-24, F-32, F-39):**
 > - **⚠ ESTO CAMBIÓ EL 2026-08-19 — ver F-155, que supera a F-21.** Ya NO es cierto que la originación esté muerta fuera de producción: `isSmartPay()` pasó a resolver por entorno. Pero lo hizo con **152**, mientras la config sigue diciendo **153**, así que ahora la identidad del canal se decide en **cuatro sitios que no coinciden**: fuera de producción una entidad se queda con la originación (skip-AML, acuerdo de bloqueo, desembolso diferido) y **otra** con el branding del mailer. Ninguna de las dos es SmartPay entera — comprobado corriéndolo en local.
-> - Con el 152 local, el cierre queda en 28: `device/disburse` muere en un null — inferencia: mezcla docs del path IMEI (solo consent+payment-schedule, sin pagaré) con expectativas de la autorización estándar (F-32). OJO además: en el path IMEI `authorize` NO se llama — la secuencia es `device/register` → `device/{ur}/disburse`, y llamar a authorize rompe el flujo.
+> - **⚠ TAMBIÉN CAMBIÓ: el canal CIERRA ENTERO EN LOCAL.** Lo de «el cierre queda en 28 y `device/disburse` muere en un null» era consecuencia del hardcode viejo —`isSmartPay()` daba falso, así que `disburse` se bifurcaba al `authorize` estándar—. Con el arreglo del 19-ago, la bifurcación es la correcta: **recorrido completo en local hasta estado 11** el 2026-08-22, con el mock del MDM. La secuencia sigue siendo `device/register` → `device/{ur}/disburse`, **sin llamar a `authorize`** — y ojo, la respuesta del `verify-otp` devuelve `next_step: "authorize"`, que en este path es la instrucción equivocada.
 > - `requires_imei` **nunca se guarda**: no está en `Product::$fillable` y Eloquent lo descarta en silencio (F-24).
 > - El escaneo de IMEI y el ciclo lock/unlock/release SÍ corren en local contra `mock-mdm` (:8098) — enroll verificado (F-23) y el cron de mora persistiendo `device_locks=locked` (F-39).
 
@@ -25,6 +25,20 @@ Como subcontexto de **Merchants**, hereda el tronco rt=2 CreditopX del hermano *
   - **En producción el canal es de RD**, no de Colombia: lo dice el país de la entidad. Y ⚠ **los ids 152 y 153 en producción son OTRAS entidades vivas y con desembolsos** (Refurbicredit y Crediemo), ninguna con path IMEI — o sea que los literales del condicional por entorno no son números libres.
   - **`user_request_device_info` no la puebla nadie:** su único escritor es `ImeiValidationService::associate`, y ese servicio **está registrado en el contenedor y tiene tests, pero no lo invoca ninguna ruta ni servicio**. En producción la tabla está vacía. El `enroll` real escribe sólo `user_request_products.imei`, tal como decía la sospecha.
 - *Abierta:* ¿la divergencia de los cuatro sitios es intencional, o todos deberían leer `config('lenders.smartpay_lender_id')`? El TODO del propio código dice que la salida correcta es la config.
+
+## Lo distintivo del canal SÍ se puede ejercitar en local (medido, no inferido)
+Este nodo afirmaba lo contrario, y era cierto hasta el 2026-08-19. **Comprobado corriéndolo el 2026-08-22**, con la entidad de path IMEI que el condicional por entorno elige fuera de producción y un comercio del dump que la tiene activa en una sucursal. Cada afirmación se verificó **contra un control**: la misma llamada, con los mismos mocks y segundos de diferencia, sobre un comercio sin path IMEI.
+
+| comportamiento distintivo | cómo se comprobó | resultado |
+|---|---|---|
+| **salta el AML** | el `confirm` loguea «Ejecutando proceso de Tusdatos en segundo plano» sólo cuando NO salta | en el control **corrió**; en el canal **no** |
+| **firma el acuerdo de bloqueo** | la previsualización de firma devuelve el documento | canal → `device_lock_agreement`; control → `consent` |
+| **difiere el desembolso** | estado tras validar el OTP de firma | canal → **«Autorizado pendiente desembolso»**; el estándar va a 11 |
+| **cierra por hardware** | `device/register` (mock MDM) → `device/{ur}/disburse` | equipo `ENROLLED`, **estado 11**, `final_amount` e IMEI persistido |
+
+⚠ **La inscripción NO crea fila en `device_locks`** — y eso es correcto, no un fallo del mock: el enum no tiene estado `enrolled` y las filas las crea el cron de mora. Si buscás la evidencia del enrolamiento ahí, no está: está en `user_request_products.imei`.
+
+⚠ **Un comercio con la entidad asignada no alcanza**: tiene que estar **activa en una sucursal** y con categorías propias, que es la misma regla del tronco rt=2. Sin eso el listado sale vacío y parece que el canal no existe.
 
 ## Contenido
 
