@@ -1,4 +1,0 @@
-# El binario es derivado. Y ya no hay archivo de índice: el grep decide qué parsear y se parsea a
-# demanda, así que no queda nada que cachear —ni que envejezca sin avisar.
-demo
-_prueba.json
