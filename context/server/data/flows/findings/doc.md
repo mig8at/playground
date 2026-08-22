@@ -93,6 +93,7 @@ orden de archivo — el ancla `### F-xx` es la única dirección.)
 | **«dice que no tiene cupo pero el error es una clave que falta»** | F-153 |
 | **«el canal SmartPay no se puede probar entero fuera de producción»** | F-155 |
 | **«el equipo está en mora y no se bloqueó»** | F-156 |
+| **«se desembolsó sin garantía / sin IMEI»** | **F-157** |
 | **«hay muchísimas filas de un estado y no cuadra con los equipos»** | F-156 |
 | **«salta el AML / no salta el AML y debería»** | F-155 |
 | **«lo arreglé y por el otro camino sigue distinto» / «ese flujo ya no se usa»** | F-146 |
@@ -262,6 +263,7 @@ distinto según con qué pregunta llegues.
 | F-154 | El rastro del documento firmado apunta a la fila equivocada: la busca de nuevo, sin la rama | ABIERTO |
 | F-155 | Quién es SmartPay se decide en 4 lugares y fuera de prod no coinciden (supera a F-21) | ABIERTO |
 | F-156 | Un lock fallido se reintenta sin tope y escribe una fila por intento: 28 equipos sin bloquear | ABIERTO |
+| F-157 | `path = IMEI` no es el canal: 4 entidades lo tienen y desembolsan sin inscribir el equipo | ABIERTO |
 
 ---
 
@@ -2391,3 +2393,35 @@ en producción — el webhook no deja registro cuando `firstOrFail()` lanza, as�
   equipos igual de desprotegidos, sólo que con menos filas** — y encima les quita la única señal
   visible de que algo pasa. Código y config de la empresa. **Estado:** vivo en `main`, con **28 equipos
   reales** sin bloquear en producción.
+
+### F-157 · `path = IMEI` NO significa «el celular es la garantía»: cuatro entidades lo tienen y desembolsan sin inscribir el equipo
+
+- **Síntoma:** se lee que el canal IMEI existe porque el celular financiado ES la garantía, se mide
+  cuántos créditos desembolsados tienen equipo inscrito, y sale que **casi la mitad no lo tiene**. La
+  conclusión fácil —«se está desembolsando sin garantía»— es **falsa**, y por qué lo es importa más que
+  el número.
+- **Causa raíz (verificada 2026-08-22 contra `main` y medida en producción):** hay **dos**
+  discriminadores y gatean cosas distintas. `UserRequest::isImeiPath()` (el `path` de la entidad) gatea
+  el **servicing** —los crons de bloqueo—; `UserRequest::isSmartPay()` (path IMEI **y** el id del
+  canal) gatea la **originación distintiva**: el salto de AML, el acuerdo de bloqueo, el desembolso
+  diferido y el `device/register`. Una entidad puede tener `path = IMEI` **sin ser SmartPay**, y
+  entonces origina como un CreditopX cualquiera: autoriza derecho, **sin inscribir ningún equipo**.
+- **Evidencia (producción):** de las cinco entidades con `path = IMEI` que tienen desembolsos, **la del
+  canal SmartPay tiene el equipo inscrito en el 100 % de los casos**. Las otras cuatro no: una acumula
+  **596 desembolsos sin equipo contra 6 con equipo**, otra 158 sin contra 966 con. O sea que el grueso
+  de los créditos con `path = IMEI` **nunca pasó por el enrolamiento**, y no por un fallo: porque ese
+  camino no se les aplica.
+- **⚠ Qué NO concluir.** Que esos créditos «perdieron la garantía» — no puede perderse algo que su
+  originación nunca constituyó. Si esas entidades se venden como cobranza por hardware es una pregunta
+  de negocio; el código sólo dice que no la ejercen. **Y al revés: para medir la salud del canal, filtrá
+  por la entidad del canal, no por `path = IMEI`** — el path incluye entidades que juegan otro juego.
+- **⚠ Y un riesgo latente que sí es del código:** `LoanAuthorizationService::authorize()` **no tiene
+  ninguna guarda para el path IMEI**. Tiene la del codeudor (`deferred_for_cosigner`) pero no ésta, así
+  que llamar al `authorize` estándar sobre una solicitud del canal la lleva a **estado 11 sin equipo
+  inscrito**. Reproducido en local: la misma entidad cerrada por el camino correcto queda con IMEI, y
+  cerrada por `authorize` queda con `NULL`. En producción **no está ocurriendo** (0 casos en la entidad
+  del canal) porque el wizard sigue la secuencia buena — pero ⚠ **la respuesta del `verify-otp` devuelve
+  `next_step: "authorize"`**, o sea que la API le está indicando al cliente justo el camino que la
+  saltearía. Dos guardas simétricas, una sola implementada.
+- **Arreglo:** para el riesgo latente, la misma guarda que ya existe para el codeudor. Para la lectura,
+  no usar `path = IMEI` como sinónimo del canal. Código de la empresa. **Estado:** vivo en `main`.
