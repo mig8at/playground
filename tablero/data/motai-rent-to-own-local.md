@@ -42,6 +42,16 @@ Ningún rt=2 del comercio Motai aparece en el listado local — ni el 173 ni el 
 listado devuelve entidades que **no** están cableadas a esa sucursal, así que la base del `getLenders`
 para este comercio no es la que yo suponía.
 
+**CONFIRMADO — el modelo de asignación (Miguel, 2026-08-22).** Los lenders se **asignan por COMERCIO**
+(`lenders_by_allieds`) y se **activan por SUCURSAL** (`lenders_by_allied_branches`), y la base del
+listado es la ACTIVACIÓN. Medido: la sucursal 867 tiene activados `5, 6, 8, 9, 11, 62` y el listado
+devolvió exactamente `[6, 9, 11, 8, 5]` — los mismos menos el 62. Esto **no estaba dicho así en el
+nodo**, y es lo que explica por qué mirar sólo una de las dos tablas confunde.
+
+⚠ Y mi confusión anterior era otra cosa: yo consultaba una sucursal y el caso corría en OTRA. Los
+`#hash` resuelven bien; lo que fallaba era mi consulta. Verificar SIEMPRE por el `allied_branch_id` de
+la solicitud, no por el hash que uno creyó pasar.
+
 **Descartado, con medición:**
 
 | hipótesis | medido |
@@ -51,10 +61,16 @@ para este comercio no es la que yo suponía.
 | falta a nivel comercio | `lenders_by_allieds` tiene los diez |
 | sin `group_rules` en la sucursal | la 682 tiene **11** |
 | sin tramo por monto | los 158/168/169/170/173 no tienen, **pero el 62 sí y tampoco lista** |
-| `have_ctopx` | el comercio lo tiene en **0** |
+| `have_ctopx` | el comercio lo tiene en **0** — y Pullman, que SÍ lista su rt=2, también |
+| sin `lender_rules` en la sucursal (F-75) | era cierto para el 173 y el 158 · **se copiaron las 6 del 170 y sigue sin listar** |
+| falta el dato de buró | está: Agildata + Experian Acierta+Quanto (127 KB), lo mismo que la solicitud de Pullman que sí lista |
 
 Tampoco hay bucket `false_lenders` en la respuesta: los rt=2 se caen sin dejar rastro en los logs, o
 sea que el corte es **antes** de evaluar reglas.
 
-**Por dónde seguir:** leer `LenderRetrievalService::getLenders` en `main` para ver cuál es la base real
-de la consulta en este comercio — que es lo que ninguna de las seis hipótesis de arriba explica.
+**El corte es sistemático por `response_type`:** en las DOS sucursales probadas, todos los rt=2 de
+Motai quedan fuera y los rt≠2 salen. Y no es config del lender — el 62 tiene 4 categorías, 4 tramos y
+config CreditopX, y no lista; el 77 (CrediPullman) lista **sin un solo tramo**.
+
+**Por dónde seguir:** leer `LenderRetrievalService::getLenders` en `main` siguiendo el camino rt=2
+hasta el `unset`, con un `uReq` de Motai a mano. Todo lo de arriba ya está descartado con medición.
