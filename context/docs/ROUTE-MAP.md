@@ -27,6 +27,7 @@ Si la tarea llega con una de estas frases, empezá por esos nodos. Si ninguna ma
 | «¿dónde se trabó?» | `aggregator` · `formalization` · `trazador` |
 | «el botón Descargar Solicitudes trae mal» | `application` |
 | «el celular no se bloquea» / IMEI | `smartpay` |
+| «el cliente del rent to own firmó un contrato de renting» | `motai` |
 | «el cliente no puede firmar el pagaré» | `deceval` |
 | «el codeudor no recibió el link» | `codeudor` |
 | «el codeudor ve la pantalla del comprador» | `codeudor` |
@@ -77,6 +78,7 @@ Si la tarea llega con una de estas frases, empezá por esos nodos. Si ninguna ma
 | «no le llega el OTP del registro» | `onboarding` |
 | «no le llegó el OTP de la firma» | `formalization` |
 | «no puede pasar del formulario» | `onboarding` |
+| «no se generó ningún documento y no hay error» | `motai` |
 | «no sé por dónde empezar» | `creditop` |
 | «no tiene permisos» / «ve un panel mutilado» | `actors` |
 | «pagó y no se refleja» / cuota inicial | `payments` |
@@ -183,7 +185,7 @@ Doc: `server/data/flows/backoffice/doc.md` · Archivos: `server/data/flows/backo
 **Cuándo:** Cuando la tarea toca Bancolombia (BNPL lender 68 / Consumo lender 100): su onboarding propio en el wizard, la secuencia multi-step de originación (login→cuota→cuenta→términos→clave dinámica→origination; consumo: validate→ofertas→simulación→seguro→e-sign), el código de compra en punto de venta (PIN de Corbeta / In Store Billing Code), los escenarios sandbox por cédula y por celular, JWT RS256 + mTLS, o el webhook de estado que sigue en application. Es el único rt=1 con originación completa DENTRO de CreditOp.
 Doc: `server/data/flows/bancolombia/doc.md` · Archivos: `server/data/flows/bancolombia/map.json` · Padre: `aggregator`
 
-### codeudor — Codeudor  ·  _reference_ · 69 archivos
+### codeudor — Codeudor  ·  _reference_ · 70 archivos
 **Cuándo:** Cuando en la tarea aparece un SEGUNDO firmante: codeudor, cosigner, deudor solidario, «necesita codeudor», «el codeudor no puede firmar», la invitación por WhatsApp o su deep link, el estado «Solicita codeudor», la pantalla de espera del titular mientras el codeudor valida, la firma cruzada (titular y codeudor firmando el MISMO documento), o el catálogo de documentos que cambia según haya codeudor o no (`lender_signing_documents`). También cuando una solicitud queda aprobada por OTP y NO llega al estado 11: puede estar diferida esperando la firma del codeudor.
 Doc: `server/data/flows/codeudor/doc.md` · Archivos: `server/data/flows/codeudor/map.json` · Padre: `creditop`
 
@@ -259,7 +261,7 @@ Doc: `server/data/flows/merchants/doc.md` · Archivos: `server/data/flows/mercha
 **Cuándo:** Cuando la tarea toca algo que NO está en `legacy-backend` ni en `legacy-application` y no se sabe dónde vive: «¿quién sirve este endpoint?», «¿qué es este `service_name` que aparece en los logs?», «¿hay un servicio nuevo que hace esto?», «el monolito no tiene este código, ¿dónde está?». Acá está el CENSO de los 14 servicios que emiten logs en producción —medido en Loki, no supuesto—, cuáles están clonados, cuáles indexa el árbol y cuánto pesa cada uno. También la receta para volver a medirlo. Es el nodo que contesta la pregunta previa a cualquier otra: en qué repositorio buscar. Y el que avisa que la app MÓVIL (`financial-health-service`, `MOBA*`) es un producto entero fuera del alcance de este árbol.
 Doc: `server/data/flows/microservicios/doc.md` · Archivos: `server/data/flows/microservicios/map.json` · Padre: `architecture`
 
-### motai — Motai  ·  _reference_ · 88 archivos
+### motai — Motai  ·  _reference_ · 91 archivos
 **Cuándo:** Cuando la tarea es del comercio Motai (allied 158): sus productos renting / rent-to-own / compra (`lenders.product`), Ábaco (validación de ingresos de apps gig) y cómo se prende por lender en `lender_requirements`, el flujo self-service dirigido por `next_step`, la calculadora del renting y del rent-to-own (precio vs interés, y por qué toca el techo de usura), o por qué el selector de tipo de documento no ofrece PEP en una sucursal. OJO si buscás `modos`, `isMotaiRenting`, `merchant_mode` o `partner_modes`: se borraron en la des-motaización (v2) — acá está el modelo nuevo, que es el que corre en producción desde el 2026-08-19. Si la tarea es del SEGUNDO firmante, el nodo es `codeudor`.
 Doc: `server/data/flows/motai/doc.md` · Archivos: `server/data/flows/motai/map.json` · Padre: `merchants`
 
