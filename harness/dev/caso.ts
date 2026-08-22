@@ -124,8 +124,13 @@ const claveDeProducto = (rt: number, id: number, slug: string) =>
  *  reporta «sin CreditopX» y el caso cierra bien. Contarlo como error haría que la mitad del catálogo
  *  se viera rota. */
 async function cerrarCreditopX(arr: any[], ur: number, tel: string, amount: number,
-                               post: any, get: any) {
-    const ctopx = arr.find((l) => Number(l.response_type) === 2);
+                               post: any, get: any, pedido: number | null = null) {
+    // Si el caso pidió una entidad concreta (`#hash:173`), se cierra por ÉSA. Sin pedido, el primer
+    // rt=2 — que con varios CreditopX en el mismo comercio es arbitrario y llevaría a cerrar por otro.
+    const ctopx = pedido
+        ? arr.find((l) => Number(l.id) === pedido)
+        : arr.find((l) => Number(l.response_type) === 2);
+    if (pedido && !ctopx) return { cerro: false, motivo: `la entidad ${pedido} no salió en el listado`, estado: null };
     if (!ctopx) return { cerro: false, motivo: 'sin CreditopX', estado: null as number | null };
 
     const sel = await post(`/api/onboarding/loan-application/update-user-request/${ur}`, {
@@ -558,7 +563,7 @@ async function correrLambda(c: Caso, i: number): Promise<Res> {
 
     let cierre = '';
     if (flag('cerrar')) {
-        const r = await cerrarCreditopX(arr, ur, tel, c.amount!, post, get);
+        const r = await cerrarCreditopX(arr, ur, tel, c.amount!, post, get, c.lender);
         base.cierre = r;
         cierre = r.cerro ? ` · CERRÓ en estado ${r.estado} (${r.motivo})`
                          : ` · NO cerró: ${r.motivo}${r.estado ? ` (quedó en estado ${r.estado})` : ''}`;

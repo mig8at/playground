@@ -148,3 +148,45 @@ sale de la solicitud. El runner no lo mandaba, así que **todo lo medido hasta h
 **no cambia quiénes salen, sólo el orden** — consistente con «el monto clasifica, no excluye» —, así
 que el censo se sostiene en su conclusión gruesa. Pero cualquier medición fina de tramos por monto
 hecha antes de este arreglo hay que rehacerla.
+
+
+## 2026-08-22 · RESUELTO: el RTO lista y su política de codeudor bloquea la firma
+
+Miguel tenía razón en el razonamiento: **si corre en producción con `main`, el código está bien y lo
+que falta es dato local.** Lo era, y eran DOS cosas.
+
+**1 · Faltaban los TIPOS de categoría.** `main` consolidó los dos motores de categorías en uno
+(`729eb963`), y el que sobrevive —el de `Modules/Loans`— pide un `typeId`:
+`getLenderUserCategory($user_id, $lender_id, $typeId = LenderUsersCategoryType::TITULAR_INITIAL)`, con
+tipos **titular_initial (1) · titular_extended (2) · cosigner (3)**. La tabla
+`lender_users_category_types` y la columna `lender_users_category_type_id` (en las tablas de REGLAS,
+no en la categoría) no existían en local: faltaban dos migraciones del **30 de julio**. Corridas:
+
+    2026_07_30_120000_create_lender_users_category_types_table
+    2026_07_30_120100_add_lender_users_category_type_id_to_policy_tables
+
+Con eso **volvieron TODOS los rt=2**, no sólo los de Motai: `pullman` recuperó CrediPullman (77) y en
+Motai aparecieron 168, 169 y 170.
+
+**2 · Al RTO le faltaban sus categorías.** El clon no las copia (a propósito). Se copiaron las **cuatro**
+del hermano Motai RB (170), todas con `requires_cosigner = 1`. ⚠ Con UNA sola —la «Premium», la más
+estricta— seguía sin listar: un cliente que no pasa ese tier se queda sin categoría y la card
+desaparece. Los que listan tienen los cuatro tiers, de Premium a Malos.
+
+Resultado: `#f0548728` → `[170, 169, 168, 6, **173**, 8]`.
+
+**Y la política de codeudor bloquea, como debe.** Cerrando por el 173:
+
+    applicant_signature_blocked_missing_cosigner  {"user_request_id": 465276, "lender_id": 173}
+    «Tu solicitud requiere un codeudor aprobado antes de firmar los documentos.»
+
+El bloqueo ocurre **al generar el pagaré**, antes de autorizar. O sea que la rama de codeudor del RTO
+está ejercitada de punta a punta en local.
+
+⚠ **Lo que queda para cerrar de verdad:** el runner no implementa el sub-flujo del codeudor
+(invitación → token → onboarding → OTP → firma). Sin eso no hay codeudor aprobado y la solicitud se
+queda ahí — que es la conducta correcta, no un fallo.
+
+⚠ **Y la config del 173 es de PRUEBA, no de negocio:** categorías y reglas copiadas del 170 sin
+revisar, que es exactamente lo que la migración del clon desaconseja. Sirve para ejercitar el flujo;
+no para concluir nada sobre conducta.
