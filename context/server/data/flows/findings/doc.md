@@ -2325,12 +2325,24 @@ en producción — el webhook no deja registro cuando `firstOrFail()` lanza, as�
   termina bien. No hay error, ni alerta, ni estado que quede en rojo — sólo una fila más en
   `device_locks`. Del lado del negocio, un equipo en mora que el sistema cree estar bloqueando y no
   bloquea.
-- **Causa raíz (verificada 2026-08-22 contra `main`):** `failed` no está en **ninguna** de las dos
-  listas que deciden si hay que actuar. El cron excluye los productos que ya tienen un lock
-  `['locked','pending']` (`LockDevicesPastDueCommand`), y `activeDeviceLock`
-  (`app/Models/UserRequestProduct.php:63`) considera activo sólo `['locked','unlock_failed']`. Un lock
-  que terminó en `failed` no aparece en ninguna, así que **mañana el producto vuelve a ser elegible** —
-  y el job **crea** una fila nueva (`DeviceLock::create`) en vez de reintentar sobre la existente.
+- **Lo que SÍ está verificado contra `main`:** `failed` no está en **ninguna** de las dos listas que
+  deciden si hay que actuar. El cron excluye los productos con un lock `['locked','pending']`
+  (`LockDevicesPastDueCommand`), y `activeDeviceLock` (`app/Models/UserRequestProduct.php:63`)
+  considera activo sólo `['locked','unlock_failed']`. Un lock en `failed` no aparece en ninguna, así
+  que **el producto vuelve a ser elegible al día siguiente**. Y el job **crea** la fila
+  (`DeviceLock::create`), no la reutiliza.
+- **⚠ PERO EL MECANISMO DE LA MULTIPLICACIÓN NO ESTÁ CONFIRMADO, y conviene saberlo antes de
+  «arreglarlo».** Se intentó reproducir en local y **no se reproduce**: partiendo de cero, tres
+  corridas del cron dejan **una** fila, no tres — con la cola en `sync` y también montando una cola
+  asíncrona de verdad. Un intento fallido quema ~10 ids de auto-incremento (= `MAX_TRANSIENT_RETRIES`),
+  o sea que los reintentos **sí** crean filas, pero se revierten y sobrevive una sola. En producción
+  sobreviven todas, y **por qué difieren sigue abierto**. **Medido en producción, y NO es una carrera:** las filas
+  de un mismo equipo salen **2 por día, separadas ~12 segundos, a la misma hora, todos los días** —
+  secuenciales, no concurrentes. O sea que hay **dos multiplicadores encadenados**: el cron despacha
+  **un job por fila del histórico de mora, no por solicitud** (medido: con 3 filas imprime
+  `Dispatched 3`), así que un atraso de N días dispara N jobs; y como `failed` no excluye, **eso se
+  repite cada día**. Lo que queda sin explicar es por qué en local esos N jobs dejan **una** fila y en
+  producción dejan N.
 - **Evidencia (medido en producción el 2026-08-22):** las proporciones lo delatan solas —
   `locked` va 1 fila por producto y `unlock_failed` también, pero `failed` va **323 filas sobre 41
   productos**, casi 8 por equipo. Repartidas por día: un producto acumuló **18 filas en 9 días
@@ -2343,10 +2355,14 @@ en producción — el webhook no deja registro cuando `firstOrFail()` lanza, as�
 - **⚠ Y contamina cualquier conteo sobre `device_locks`.** Contar filas por estado no cuenta
   dispositivos: hay que contar `DISTINCT user_request_product_id`. Con filas, `failed` parece el
   estado más común del sistema; con dispositivos, es una minoría chica y atascada.
-- **Reproducido en local** sembrando a mano una fila del ledger de mora (`creditop_x_requests_history`,
-  que en producción escribe **`application`**, no legacy) y corriendo los tres comandos: el bloqueo y el
-  desbloqueo funcionan y dejan **una** fila, y el unroll fallido dejó **11 filas** para un solo
-  producto en un mismo segundo — el mismo patrón, comprimido por los reintentos del job.
+- **Lo que local SÍ permite** (sembrando a mano el ledger de mora `creditop_x_requests_history` —que en
+  producción escribe **`application`**, no legacy— y con el mock del MDM al que se le puede **dictar el
+  fallo**): ejercitar los tres comandos de punta a punta. El bloqueo y el desbloqueo funcionan y dejan
+  **una** fila. Lo que no se puede reproducir ahí es la multiplicación.
+- ⚠ **Un intento de arreglo que NO prosperó, anotado para que nadie lo repita:** reutilizar la fila
+  `failed` en vez de crear una nueva. Medido en local con el A/B completo, **no cambia nada** —las dos
+  ramas dejan una fila— porque local no reproduce el problema. **Arreglar esto a ciegas es escribir
+  código que no se puede validar**; primero hay que entender por qué producción difiere.
 - **⚠ POR QUÉ FALLAN — y la respuesta NO estaba en los logs, estaba en la base.** El job persiste la
   respuesta del proveedor en `device_locks.api_response`, así que la causa de cada fallo se consulta
   con SQL en vez de rastrear Loki. Las 323 filas la tienen. **Antes de ir a los logs por un job que
@@ -2366,8 +2382,11 @@ en producción — el webhook no deja registro cuando `firstOrFail()` lanza, as�
 
   El grueso es **un solo cluster**: un comercio con 18 equipos que el MDM se niega a accionar. Eso es
   una conversación con el proveedor, no un arreglo de código — y es donde está el 64% del daño real.
-- **Arreglo:** son dos, y separarlos importa. **(a)** el reintento sin tope y la fila por intento —
-  decidir qué significa `failed` (¿cuántos reintentos, con qué espera?) y actualizar en vez de crear.
+- **Arreglo:** son dos, y separarlos importa. **(a)** la multiplicación de filas — pero **primero hay
+  que entender el mecanismo**, porque no se reproduce en local y el arreglo obvio (reutilizar la fila)
+  no se puede validar ahí. Descartada la carrera, lo que queda por entender es
+  por qué los N jobs de un mismo día dejan N filas en producción y una sola en local — y ahí el
+  candidato es la diferencia de entorno de cola, no el código.
   **(b)** las causas de arriba, cada una en su dueño. ⚠ **Arreglar (a) sin (b) deja a los mismos
   equipos igual de desprotegidos, sólo que con menos filas** — y encima les quita la única señal
   visible de que algo pasa. Código y config de la empresa. **Estado:** vivo en `main`, con **28 equipos
