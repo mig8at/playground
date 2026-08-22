@@ -261,7 +261,7 @@ distinto según con qué pregunta llegues.
 | F-153 | Una regla con tarjetas revienta leyendo el buró; el mismo archivo sí se protege en otros 3 puntos | ABIERTO |
 | F-154 | El rastro del documento firmado apunta a la fila equivocada: la busca de nuevo, sin la rama | ABIERTO |
 | F-155 | Quién es SmartPay se decide en 4 lugares y fuera de prod no coinciden (supera a F-21) | ABIERTO |
-| F-156 | Un lock fallido se reintenta sin tope y escribe una fila por intento: 40 equipos sin bloquear | ABIERTO |
+| F-156 | Un lock fallido se reintenta sin tope y escribe una fila por intento: 28 equipos sin bloquear | ABIERTO |
 
 ---
 
@@ -2347,6 +2347,28 @@ en producción — el webhook no deja registro cuando `firstOrFail()` lanza, as�
   que en producción escribe **`application`**, no legacy) y corriendo los tres comandos: el bloqueo y el
   desbloqueo funcionan y dejan **una** fila, y el unroll fallido dejó **11 filas** para un solo
   producto en un mismo segundo — el mismo patrón, comprimido por los reintentos del job.
-- **Arreglo:** decidir qué significa `failed` —¿se reintenta, cuántas veces, con qué espera?— y que el
-  reintento actualice la fila en vez de crear otra. Hoy no hay tope. Código de la empresa.
-  **Estado:** vivo en `main`, con 40 equipos afectados en producción.
+- **⚠ POR QUÉ FALLAN — y la respuesta NO estaba en los logs, estaba en la base.** El job persiste la
+  respuesta del proveedor en `device_locks.api_response`, así que la causa de cada fallo se consulta
+  con SQL en vez de rastrear Loki. Las 323 filas la tienen. **Antes de ir a los logs por un job que
+  falla, mirá si el job guardó la respuesta.**
+- **⚠ El «40 equipos» necesita triaje: 13 son de un comercio de PRUEBA.** El comercio 292 «Comercio
+  Prueba» aporta 13 equipos y 60 filas, y **no tiene `trustonic_tenant_key`** — el proveedor contesta
+  «X-Lb-Tenant-Id header is required». O sea que hay datos de prueba en producción generando carga
+  diaria y ensuciando cualquier métrica del canal. **Los equipos reales son 28, en 6 comercios.**
+- **Y de esos 28, la causa NO es una sola** — son dos familias que se arreglan en lugares distintos:
+
+  | causa | de quién es | equipos reales |
+  |---|---|---|
+  | el equipo está en otro estado (`DEVICE_INVALID_STATE` / *State transition*) | del proveedor / del equipo | **18, todos de un mismo comercio** |
+  | el equipo no existe en el MDM (`device_not_found`) | inscripción que no cuajó | 5 |
+  | `external_service` | transitorio del proveedor | 6 |
+  | tenant inválido o ausente | **config nuestra** | 2 reales (+13 del comercio de prueba) |
+
+  El grueso es **un solo cluster**: un comercio con 18 equipos que el MDM se niega a accionar. Eso es
+  una conversación con el proveedor, no un arreglo de código — y es donde está el 64% del daño real.
+- **Arreglo:** son dos, y separarlos importa. **(a)** el reintento sin tope y la fila por intento —
+  decidir qué significa `failed` (¿cuántos reintentos, con qué espera?) y actualizar en vez de crear.
+  **(b)** las causas de arriba, cada una en su dueño. ⚠ **Arreglar (a) sin (b) deja a los mismos
+  equipos igual de desprotegidos, sólo que con menos filas** — y encima les quita la única señal
+  visible de que algo pasa. Código y config de la empresa. **Estado:** vivo en `main`, con **28 equipos
+  reales** sin bloquear en producción.
