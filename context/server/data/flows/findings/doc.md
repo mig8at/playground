@@ -2046,3 +2046,29 @@ en producción — el webhook no deja registro cuando `firstOrFail()` lanza, as�
   ninguno**, así que buscar en Loki una frase del flujo nuevo da cero y parece que ese camino está
   muerto. No lo está.
 - **Arreglo:** pendiente, con la decisión de cuál de las dos políticas es la correcta. **Estado:** abierto.
+
+### F-144 · El lambda de mocks cambió y dejó de honrar lo dictado: acepta el POST y sirve datos aleatorios
+
+- **Síntoma:** se le dicta al lambda qué debe contestar una central para una cédula, el POST responde
+  `Global variable ... has been set to ...`, y la consulta devuelve **otra cosa**. Aguas abajo el
+  síntoma no se parece a la causa: `personal-info` corta con `ONB004 laboral information is required`,
+  y uno sale a buscar por qué ese comercio pide información laboral.
+- **Causa raíz (medido el 2026-08-18, el mismo día que funcionaba):** el lambda fue **redesplegado
+  con otra plantilla** y la nueva ignora las global-vars en la ruta de Agildata. Tres señales, todas
+  comprobables en una petición:
+  - el `type` de la respuesta pasó de `aorg.asofondos.agildata.domain.AfiliadoDetalladoa` a
+    `xorg.asofondos.agildata.domain.AfiliadoDetalladox`;
+  - el nombre dejó de ser fijo y ahora es **aleatorio por petición** — la MISMA cédula devolvió
+    `Marcellus Dooley` y `Neha Douglas` en dos lecturas seguidas;
+  - `GET /mockoon-admin/global-vars` responde `Cannot GET` (el POST sigue aceptando).
+- **Por qué además rompe el flujo:** la plantilla nueva trae períodos de cotización viejos (`202510`,
+  diez meses), así que el backend calcula `employed: false` y la solicitud no llega al listado.
+- **⚠ Lo que hace visible el problema:** confirmar el dictado LEYENDO después de escribir. Sin esa
+  comprobación el runner seguía adelante con datos que nadie pidió y el resultado se leía como un
+  hecho de negocio. Con ella dice «la respuesta del buró no quedó dictada» y no corre.
+- **Arreglo:** no es nuestro — hay que preguntarle al dueño del lambda si el redespliegue fue
+  intencional y si las global-vars siguen soportadas en esa ruta. Mientras tanto, `--lambda` no sirve
+  para dictar y hay que volver a inyectar (`synthFill`) si se necesita variar el buró.
+- **Estado:** vivo. La regla general: **un mock compartido es infraestructura de otro** — puede cambiar
+  bajo los pies en mitad de una sesión, y sin read-after-write eso se convierte en resultados
+  plausibles y falsos en vez de un error.

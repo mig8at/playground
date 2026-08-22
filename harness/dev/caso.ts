@@ -224,6 +224,7 @@ function parseCaso(spec: string, dflt: { amount: number; income: number; score: 
 type Res = {
     caso: Caso; ok: boolean; ur?: number; phone: string; nombre?: string;
     enListado?: boolean; listado?: number[]; conducta?: string; detalle?: string;
+    com?: string;
     preaprobados?: { id: number; estado: string; cupo?: unknown }[];
     cierre?: { cerro: boolean; motivo: string; estado: number | null };
 };
@@ -257,6 +258,24 @@ function conductaDe(d: any): string {
 // corrida pisa a la anterior.
 const BASE_DOC = 1090000000 + ((Date.now() / 100) % 9_000_000 | 0);
 
+/** La sucursal de un caso. Acepta `#hash` —la sucursal EXACTA— o un nombre.
+ *
+ *  ⚠ Para un CENSO hay que usar hash. Con nombre resuelve por `LIKE %x%` y se queda con la sucursal
+ *  de más entidades, así que dos comercios que comparten prefijo se pisan y uno de los dos NUNCA se
+ *  prueba: el barrido quedaría corto sin que nada avise. */
+async function buscarSucursal(ref: string) {
+    const porHash = ref.startsWith('#');
+    return one<{ id: number; hash: string; com: string; allied: number }>(
+        porHash
+            ? `SELECT b.id, b.hash, x.name AS com, x.id AS allied FROM allied_branches b
+                 JOIN allieds x ON x.id = b.allied_id WHERE b.hash = ? LIMIT 1`
+            : `SELECT b.id, b.hash, x.name AS com, x.id AS allied FROM allied_branches b
+                 JOIN allieds x ON x.id = b.allied_id WHERE x.name LIKE ?
+                ORDER BY (SELECT COUNT(*) FROM lenders_by_allied_branches l
+                           WHERE l.allied_branch_id = b.id) DESC LIMIT 1`,
+        [porHash ? ref.slice(1) : `%${ref}%`]).catch(() => null);
+}
+
 /** El teléfono de un caso. DERIVADO, como la cédula — no sale de una lista.
  *
  *  Hasta el 2026-08-18 esto elegía uno de los 64 de `settings.qa_otp_bypass_phones`, los reciclaba
@@ -278,6 +297,26 @@ const telefonoDe = (i: number) => `31${String(BASE_DOC).slice(-6)}${String(i % 1
 
 /** Le dicta a la lambda qué contesta cada central PARA ESA CÉDULA. Es el paso que vuelve el caso
  *  hipotético: se pide de antemano la respuesta que se quiere recibir. */
+/** ⚠ LEE DESPUÉS DE ESCRIBIR, y reintenta. La lambda es serverless y sus global-vars viven en la
+ *  MEMORIA DEL CONTENEDOR: el POST puede caer en un contenedor y la lectura del backend en otro, y
+ *  entonces se sirve la respuesta POR DEFECTO como si nada. No es sólo un problema de concurrencia
+ *  —medido el 2026-08-18 con UN caso solo— y el síntoma no se parece a la causa: la default trae
+ *  períodos de hace diez meses, así que el backend calcula `employed: false` y `personal-info`
+ *  responde `ONB004 laboral information is required`. Uno sale a buscar por qué el comercio pide
+ *  información laboral y el problema es que el buró nunca contestó lo que se le pidió.
+ *
+ *  Confirmar cuesta una petición y convierte un fallo intermitente en uno que no ocurre. */
+async function confirmarDictado(doc: string, central: string, esperado: string): Promise<boolean> {
+    const rutas: Record<string, string> = {
+        agildata: `/agildata/agildata-services/rest/afiliado/historicoDetalladoEmpleo/1/${doc}`,
+    };
+    const ruta = rutas[central];
+    if (!ruta) return true;                       // sin ruta conocida no se puede confirmar: no se bloquea
+    const r = await fetch(`${LAMBDA}${ruta}`, { signal: AbortSignal.timeout(15_000) }).catch(() => null);
+    if (!r?.ok) return false;
+    return (await r.text()).includes(esperado);
+}
+
 async function dictar(doc: string, central: string, valor: unknown): Promise<boolean> {
     // ⚠ Mockoon NO valida el JSON que se le dicta: lo emite tal cual con 200, y un JSON roto se lee
     // después como «respuesta inválida del proveedor». Se serializa acá y se falla acá si no es válido.
@@ -368,7 +407,13 @@ async function dictarTodos(casos: Caso[]): Promise<string[]> {
             }).catch(() => null);
             if (!r?.ok) fallos.push(`${lender}=${modo}`);
         }
-        const ok = await dictar(doc, 'agildata', respuestaAgildata(doc, casos[i].income!));
+        // hasta 4 intentos: cada POST puede caer en un contenedor distinto, así que reintentar
+        // NO es supersticioso — es lo que hace que alguno pegue en el que después atiende la lectura
+        let ok = false;
+        for (let intento = 0; intento < 4 && !ok; intento++) {
+            await dictar(doc, 'agildata', respuestaAgildata(doc, casos[i].income!));
+            ok = await confirmarDictado(doc, 'agildata', String(casos[i].income!));
+        }
         if (ok) dictados.add(doc); else fallos.push(doc);
     }
     return fallos;
@@ -381,12 +426,13 @@ async function correrLambda(c: Caso, i: number): Promise<Res> {
     const tel = telefonoDe(i);
     base.phone = tel;
 
-    const br = await one<{ hash: string; com: string }>(
-        `SELECT b.hash, x.name AS com FROM allied_branches b JOIN allieds x ON x.id=b.allied_id
-          WHERE x.name LIKE ?
-          ORDER BY (SELECT COUNT(*) FROM lenders_by_allied_branches l WHERE l.allied_branch_id=b.id) DESC
-          LIMIT 1`, [`%${c.comercio}%`]).catch(() => null);
+    // ⚠ `x.id AS allied` NO es cosmético: `preAprobar` lo manda como `merchant_id` y este lookup no
+    // lo seleccionaba, así que viajaba `undefined`. El mock no valida ese campo y por eso el bug
+    // sobrevivió — contra el microservicio real habría fallado. Los mocks permisivos esconden
+    // exactamente esta clase de error (misma lección que F-140).
+    const br = await buscarSucursal(c.comercio);
     if (!br) return { ...base, detalle: `no encontré el comercio «${c.comercio}»` };
+    base.com = br.com;
 
     if (!dictados.has(doc)) return { ...base, detalle: 'la respuesta del buró no quedó dictada' };
 
@@ -480,13 +526,9 @@ async function correr(c: Caso, i: number): Promise<Res> {
     const phone = telefono(i);
     const base: Res = { caso: c, ok: false, phone };
 
-    const br = await one<{ b: number; a: number; hash: string; com: string }>(
-        `SELECT b.id AS b, b.allied_id AS a, b.hash, x.name AS com
-           FROM allied_branches b JOIN allieds x ON x.id=b.allied_id
-          WHERE x.name LIKE ?
-          ORDER BY (SELECT COUNT(*) FROM lenders_by_allied_branches l WHERE l.allied_branch_id=b.id) DESC
-          LIMIT 1`, [`%${c.comercio}%`]).catch(() => null);
+    const br = await buscarSucursal(c.comercio);
     if (!br) return { ...base, detalle: `no encontré el comercio «${c.comercio}»` };
+    base.com = br.com;
 
     if (c.lender !== null) {
         const len = await one<{ name: string }>('SELECT name FROM lenders WHERE id=?', [c.lender]).catch(() => null);
@@ -508,7 +550,7 @@ async function correr(c: Caso, i: number): Promise<Res> {
         `INSERT INTO user_requests (user_id, allied_id, allied_branch_id, lender_id, amount,
            original_amount, user_request_status_id, corporate_user_id, credit_line_id, fee_number,
            fee_value, rate, created_at, updated_at) VALUES (?,?,?,NULL,?,?,1,?,1,0,0,0,NOW(),NOW())`,
-        [uid, br.a, br.b, amount, amount, asesor]).catch(() => null);
+        [uid, br.allied, br.id, amount, amount, asesor]).catch(() => null);
     if (!ins?.insertId) return { ...base, detalle: 'no se pudo crear la solicitud' };
     base.ur = ins.insertId;
 
