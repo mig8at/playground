@@ -1,43 +1,123 @@
-// demo — EL MAPA DE CABLEADO: esqueletos en vez de archivos, y aristas resueltas por el código.
+// demo — el mapa de cableado de un repo, como CLI.
 //
-// LA TESIS QUE PRUEBA. Hoy el lector de `workers` recibe archivos ENTEROS y el techo real está en
-// 35-40 antes de que recorte. Medido sobre 4 archivos reales, el esqueleto (sólo firmas) es 7,3x más
-// chico —15x en los services de PHP, 3,9x en un .tsx—. Si el esqueleto alcanza para ELEGIR, el mismo
-// presupuesto de tokens cubre un orden de magnitud más de código.
+// QUÉ ES. Dos cosas sobre el código de un repo: el ESQUELETO de cada archivo (su clase, qué inyecta y
+// la firma de cada método, sin los cuerpos) y el GRAFO de quién llama a quién, siguiendo la herencia.
+// Todo derivado de `main` con AST, no del working tree y no con regex.
 //
-// LO QUE ESTE MAPA NO CONTESTA, y hay que decirlo antes de que alguien lo use mal: el cableado no es
-// el negocio. El grafo dice que `getLenders()` llama a `applyProfilingRules()`; NO dice que
-// perfilamiento sólo CLASIFICA mientras el status de la sucursal EXCLUYE — y esa diferencia, que es un
-// `continue` contra una asignación dentro de un loop, es la respuesta a casi toda pregunta de soporte.
-// El significado vive en `context/`, y este mapa apunta ahí; no lo reemplaza.
+// QUÉ NO ES. El cableado no es el negocio: el grafo dice que `getLenders()` llama a
+// `applyProfilingRules()`, no dice que perfilamiento sólo CLASIFICA mientras el status de la sucursal
+// EXCLUYE. Eso vive en `context/`. Es un enrutador, no un contestador.
 //
-// Es un ENRUTADOR, no un contestador.
+// CÓMO SE USA. El mapa NO se manda como contexto: se consulta. Está medido — mandarlo entero costaba
+// 265.000 tokens y empataba con darle la lista de rutas y dejar que pida detalle de los pocos que le
+// interesan. Por eso la entrada útil es `vecindario`: la pregunta pone la semilla, el grafo el resto.
+//
+// ⚠ PROTOTIPO. No está en el `make` a propósito, y no es fuente de contexto.
 package main
 
 import (
 	"encoding/json"
+	"flag"
 	"fmt"
 	"os"
 	"path/filepath"
-	"runtime"
 	"sort"
 	"strings"
-	"sync"
-	"time"
 )
 
 const rama = "main"
+
+// ── plomería común ───────────────────────────────────────────────────────────────────────────────
+
+type ctx struct {
+	fs    *flag.FlagSet
+	alias string
+	json  bool
+	f     filtro
+}
+
+// nuevoCtx — un FlagSet por subcomando, para que `<sub> --help` liste SUS opciones con sus valores
+// válidos. La ayuda sale del código que corre, así que no se puede desincronizar.
+func nuevoCtx(nombre, uso string, conFiltros bool) *ctx {
+	c := &ctx{fs: flag.NewFlagSet(nombre, flag.ExitOnError)}
+	c.fs.StringVar(&c.alias, "r", "legacy-backend", "el repo (alias de roots.json)")
+	c.fs.BoolVar(&c.json, "json", false, "salida en JSON")
+	if conFiltros {
+		c.f.registrar(c.fs)
+	}
+	c.fs.Usage = func() {
+		fmt.Fprintf(os.Stderr, "demo %s — %s\n\nopciones:\n", nombre, uso)
+		c.fs.PrintDefaults()
+	}
+	return c
+}
+
+func (c *ctx) parsear(args []string) []string {
+	_ = c.fs.Parse(reordenar(c.fs, args))
+	return c.fs.Args()
+}
+
+// reordenar — mueve las banderas adelante para que el orden NO importe.
+//
+// ⚠ El `flag` de Go deja de parsear en el primer argumento suelto, así que
+// `demo vecindario can_check_preapproval --solo-nuevos` trataba la bandera como un segundo positional
+// y el comando fallaba con «pasá un término» teniendo el término delante. Nadie escribe las banderas
+// primero, y un CLI que exige un orden que no anunció es un CLI que se siente roto.
+//
+// Para saber si una bandera consume el argumento siguiente se le pregunta al propio FlagSet: las
+// booleanas exponen IsBoolFlag(). Hacerlo con una lista a mano sería una segunda fuente de verdad
+// sobre las banderas, desincronizándose en el primer flag nuevo.
+func reordenar(fs *flag.FlagSet, args []string) []string {
+	var banderas, sueltos []string
+	for i := 0; i < len(args); i++ {
+		a := args[i]
+		if a == "--" {
+			sueltos = append(sueltos, args[i+1:]...)
+			break
+		}
+		if len(a) > 1 && strings.HasPrefix(a, "-") {
+			banderas = append(banderas, a)
+			nombre := strings.TrimLeft(a, "-")
+			if !strings.Contains(nombre, "=") {
+				if f := fs.Lookup(nombre); f != nil {
+					esBool := false
+					if bf, ok := f.Value.(interface{ IsBoolFlag() bool }); ok {
+						esBool = bf.IsBoolFlag()
+					}
+					if !esBool && i+1 < len(args) {
+						i++
+						banderas = append(banderas, args[i])
+					}
+				}
+			}
+			continue
+		}
+		sueltos = append(sueltos, a)
+	}
+	return append(banderas, sueltos...)
+}
+
+func (c *ctx) grafo() *grafo { return cargarGrafo(c.alias) }
+
+func (c *ctx) emitir(v any) bool {
+	if !c.json {
+		return false
+	}
+	b, err := json.MarshalIndent(v, "", " ")
+	if err != nil {
+		salir(err)
+	}
+	fmt.Println(string(b))
+	return true
+}
 
 func salir(err error) {
 	fmt.Fprintln(os.Stderr, "error:", err)
 	os.Exit(1)
 }
 
-func rutaGrafo(alias string) string { return filepath.Join(dirBase(), "grafo-"+alias+".json") }
-
 func dirBase() string {
-	d, err := os.Executable()
-	if err == nil {
+	if d, err := os.Executable(); err == nil {
 		if p := filepath.Dir(d); strings.Contains(p, "demo") {
 			return p
 		}
@@ -46,51 +126,12 @@ func dirBase() string {
 	return wd
 }
 
-func main() {
-	if len(os.Args) < 2 {
-		fmt.Println(`demo — mapa de cableado (esqueletos + aristas resueltas)
-
-  demo extraer <alias>          construye el mapa de un repo y lo guarda en grafo-<alias>.json
-  demo mapa <alias/ruta>        el ESQUELETO de un archivo: su interfaz, sin cuerpos
-  demo vecinos <alias/ruta>     quién lo llama y a quién llama, con la procedencia de cada arista
-  demo medir <alias>            los números: compresión y tasa de resolución
-  demo vecindario <alias> <término> [-saltos N] [-tokens N]
-                                el grep pone la intención, el grafo el vecindario. LA ENTRADA ÚTIL
-  demo payload <alias> [rutas]  el mapa entero por stdout, para dárselo a un modelo. 'rutas' = sólo
-                                la lista de rutas, que es la CONDICIÓN A del experimento
-
-  Los alias salen de roots.json (derivado de context/tools/roots.py con  make demo-roots).`)
-		return
-	}
-	switch os.Args[1] {
-	case "extraer":
-		cmdExtraer()
-	case "mapa":
-		cmdMapa()
-	case "vecinos":
-		cmdVecinos()
-	case "medir":
-		cmdMedir()
-	case "payload":
-		cmdPayload()
-	case "vecindario":
-		cmdVecindario()
-	default:
-		salir(fmt.Errorf("subcomando desconocido %q", os.Args[1]))
-	}
-}
-
-func arg(i int, que string) string {
-	if len(os.Args) <= i {
-		salir(fmt.Errorf("falta %s", que))
-	}
-	return os.Args[i]
-}
+func rutaGrafo(alias string) string { return filepath.Join(dirBase(), "grafo-"+alias+".json") }
 
 func cargarGrafo(alias string) *grafo {
 	b, err := os.ReadFile(rutaGrafo(alias))
 	if err != nil {
-		salir(fmt.Errorf("no hay mapa de %s todavía — corré:  demo extraer %s", alias, alias))
+		salir(fmt.Errorf("no hay mapa de %q todavía — corré:  demo extraer -r %s", alias, alias))
 	}
 	var g grafo
 	if err := json.Unmarshal(b, &g); err != nil {
@@ -99,17 +140,7 @@ func cargarGrafo(alias string) *grafo {
 	return &g
 }
 
-// partir — "alias/relpath" → (alias, relpath). Es la misma llave que usan los map.json de context/.
-func partir(s string) (string, string) {
-	i := strings.IndexByte(s, '/')
-	if i < 0 {
-		salir(fmt.Errorf("esperaba alias/ruta, recibí %q", s))
-	}
-	return s[:i], s[i+1:]
-}
-
-func cmdExtraer() {
-	alias := arg(2, "el alias del repo")
+func repoDe(alias string) string {
 	raices, err := cargarRaices(filepath.Join(dirBase(), "roots.json"))
 	if err != nil {
 		salir(err)
@@ -123,264 +154,70 @@ func cmdExtraer() {
 		sort.Strings(claves)
 		salir(fmt.Errorf("alias desconocido %q. Los válidos: %s", alias, strings.Join(claves, ", ")))
 	}
-
-	t0 := time.Now()
-	archivos, err := listar(repo, rama, ".php")
-	if err != nil {
-		salir(err)
-	}
-	fmt.Printf("%d archivos .php en %s:%s\n", len(archivos), alias, rama)
-
-	blobs := make(chan blob, 256)
-	go func() {
-		if err := leer(repo, archivos, blobs); err != nil {
-			fmt.Fprintln(os.Stderr, "aviso al leer blobs:", err)
-		}
-	}()
-
-	// Un extractor por goroutine: el parser de tree-sitter no es seguro para compartir.
-	g := &grafo{Repo: alias, Rama: rama, Archivos: map[string]*archivo{}, Stats: map[string]int{}}
-	var mu sync.Mutex
-	var wg sync.WaitGroup
-	n := runtime.NumCPU()
-	for i := 0; i < n; i++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			e := nuevoExtractor()
-			defer e.cerrar()
-			for b := range blobs {
-				a := e.extraer(b.Ruta, b.Src)
-				mu.Lock()
-				g.Archivos[a.Ruta] = a
-				mu.Unlock()
-			}
-		}()
-	}
-	wg.Wait()
-	tParseo := time.Since(t0)
-
-	g.resolver()
-	g.Stats["archivos"] = len(g.Archivos)
-	g.Stats["aristas"] = len(g.Aristas)
-
-	b, err := json.Marshal(g)
-	if err != nil {
-		salir(err)
-	}
-	if err := os.WriteFile(rutaGrafo(alias), b, 0o644); err != nil {
-		salir(err)
-	}
-	fmt.Printf("parseado en %s · resuelto y guardado en %s (%.1f MB) · total %s\n",
-		tParseo.Round(time.Millisecond), filepath.Base(rutaGrafo(alias)), float64(len(b))/1e6, time.Since(t0).Round(time.Millisecond))
-	imprimirStats(g)
+	return repo
 }
 
-func imprimirStats(g *grafo) {
-	s := g.Stats
-	fmt.Printf("\n  archivos %d · métodos %d · aristas %d\n", s["archivos"], contarMetodos(g), s["aristas"])
-	llam := s["llamadas"]
-	if llam == 0 {
+// ── el despachador ───────────────────────────────────────────────────────────────────────────────
+
+type subcomando struct {
+	nombre string
+	que    string
+	correr func([]string)
+}
+
+var subcomandos = []subcomando{
+	{"extraer", "construye el mapa del repo leyendo `main` (~0,5 s)", cmdExtraer},
+	{"medir", "los números del mapa: compresión y qué tanto del cableado se resolvió", cmdMedir},
+	{"", "", nil},
+	{"vecindario", "⭐ un término → los archivos que lo contienen + sus vecinos a 1 salto", cmdVecindario},
+	{"buscar", "métodos por nombre, en todo el repo. Lo que una lista de rutas no puede dar", cmdBuscar},
+	{"casos", "las reglas de negocio en prosa, sacadas de las descripciones de los tests", cmdCasos},
+	{"", "", nil},
+	{"archivos", "listar y FILTRAR archivos. La puerta a todos los filtros", cmdArchivos},
+	{"mapa", "el esqueleto de lo que pase el filtro (un archivo, un módulo, un tier)", cmdMapa},
+	{"", "", nil},
+	{"vecinos", "de UN archivo: quién lo llama y a quién llama, con la procedencia", cmdVecinos},
+	{"aristas", "las conexiones, filtrables por cómo se resolvieron", cmdAristas},
+	{"jerarquia", "la cadena de herencia de una clase, y quién hereda de ella", cmdJerarquia},
+}
+
+func ayuda() {
+	fmt.Println(`demo — el mapa de cableado de un repo
+
+  demo <subcomando> [opciones]        ·  demo <subcomando> --help  para sus opciones`)
+	for _, s := range subcomandos {
+		if s.nombre == "" {
+			fmt.Println()
+			continue
+		}
+		fmt.Printf("    %-12s %s\n", s.nombre, s.que)
+	}
+	fmt.Println(`
+  Casi todo acepta los MISMOS filtros y se pueden combinar:
+    --prefijo Modules/Risk   --tier test|codigo|migracion   --clase X   --extiende X
+    --trait X   --implementa X   --usa X   --metodo X   --tabla X   --caso "texto"
+    --con-casos   --huerfano   --hoja   --min-metodos N   --max-metodos N
+    --ordenar ruta|tokens|metodos|entradas|salidas   --tope N
+
+  Y todos aceptan  -r <repo>  (default legacy-backend)  y  --json.
+
+  Los repos salen de roots.json, DERIVADO de context/tools/roots.py:
+    python3 -c "import sys,json; sys.path.insert(0,'../context/tools'); from roots import ROOTS; \
+print(json.dumps(ROOTS,indent=2))" > roots.json`)
+}
+
+func main() {
+	if len(os.Args) < 2 || os.Args[1] == "-h" || os.Args[1] == "--help" || os.Args[1] == "help" {
+		ayuda()
 		return
 	}
-	pct := func(n int) string { return fmt.Sprintf("%5.1f%%", 100*float64(n)/float64(llam)) }
-	fmt.Printf("  call sites: %d\n", llam)
-	fmt.Printf("    RESUELTAS       %6d  %s\n", s["resueltas"], pct(s["resueltas"]))
-	fmt.Printf("      interno       %6d   $this->x()\n", s["como_interno"])
-	fmt.Printf("      prop          %6d   $this->repo->x() con la propiedad TIPADA\n", s["como_prop"])
-	fmt.Printf("      ctor          %6d   …tipada sólo en el parámetro del constructor (inferido)\n", s["como_ctor"])
-	fmt.Printf("      estatico      %6d   Foo::x()\n", s["como_estatico"])
-	fmt.Printf("      ├ de esas, halladas SUBIENDO la jerarquía: %d  (%.0f%% de las resueltas)\n",
-		s["por_jerarquia"], 100*float64(s["por_jerarquia"])/float64(max(s["resueltas"], 1)))
-	fmt.Printf("    sin resolver    %6d  %s\n", llam-s["resueltas"], pct(llam-s["resueltas"]))
-	fmt.Printf("      libre ($var->x())        %6d   sobre una variable local: haría falta inferir tipos\n", s["libre"])
-	fmt.Printf("      método no hallado        %6d   no está en la clase ni en su jerarquía INDEXADA\n", s["no_hallado"])
-	fmt.Printf("      fuera del repo (vendor)  %6d\n", s["fuera_del_repo"])
-	fmt.Printf("      propiedad sin type hint  %6d\n", s["sin_tipo"])
-}
-
-func contarMetodos(g *grafo) int {
-	n := 0
-	for _, a := range g.Archivos {
-		n += len(a.Metodos)
-	}
-	return n
-}
-
-func cmdMapa() {
-	alias, rel := partir(arg(2, "alias/ruta"))
-	g := cargarGrafo(alias)
-
-	// Un archivo exacto → la vista detallada. Un prefijo → EL MAPA DEL MÓDULO, que es la unidad que
-	// de verdad se le entrega a un seleccionador: el repo entero nunca fue la unidad correcta.
-	if a := g.Archivos[rel]; a != nil {
-		detalle(a)
-		return
-	}
-	pref := strings.TrimSuffix(rel, "/") + "/"
-	var rutas []string
-	for r := range g.Archivos {
-		if strings.HasPrefix(r, pref) {
-			rutas = append(rutas, r)
+	for _, s := range subcomandos {
+		if s.nombre != "" && s.nombre == os.Args[1] {
+			s.correr(os.Args[2:])
+			return
 		}
 	}
-	if len(rutas) == 0 {
-		salir(fmt.Errorf("%s no es un archivo ni un prefijo con archivos en el mapa de %s", rel, alias))
-	}
-	sort.Strings(rutas)
-	porTier := map[string]int{}
-	total := 0
-	for _, r := range rutas {
-		a := g.Archivos[r]
-		txt := renderizar(a)
-		fmt.Print(txt)
-		total += len(txt)
-		porTier[a.Tier]++
-	}
-	fmt.Printf("\n  %s — %d archivos (codigo %d · test %d · migracion %d) · ~%d tokens de mapa\n",
-		pref, len(rutas), porTier[tierCodigo], porTier[tierTest], porTier[tierMigracion], total/4)
-}
-
-func detalle(a *archivo) {
-	fmt.Printf("%s   [%s]\n", a.Ruta, a.Tier)
-	if a.Clase != "" {
-		fmt.Printf("  clase   %s", a.Clase)
-		if a.Extiende != "" {
-			fmt.Printf("  extiende %s", a.Extiende)
-		}
-		fmt.Println()
-	}
-	if len(a.Tablas) > 0 {
-		fmt.Printf("  tablas  %s\n", strings.Join(a.Tablas, ", "))
-	}
-	if n := len(a.Props) + len(a.Ctor); n > 0 {
-		fmt.Println("  inyecta:")
-		claves := make([]string, 0, n)
-		tipo := map[string]string{}
-		for k, v := range a.Ctor {
-			claves = append(claves, k)
-			tipo[k] = v + "   (inferido del constructor)"
-		}
-		for k, v := range a.Props {
-			if _, ya := tipo[k]; !ya {
-				claves = append(claves, k)
-			}
-			tipo[k] = v
-		}
-		sort.Strings(claves)
-		for _, k := range claves {
-			fmt.Printf("    $%-30s %s\n", k, tipo[k])
-		}
-	}
-	if len(a.Casos) > 0 {
-		fmt.Printf("  %d casos:\n", len(a.Casos))
-		for _, c := range a.Casos {
-			fmt.Printf("    · %s\n", c)
-		}
-	}
-	fmt.Printf("  %d métodos:\n", len(a.Metodos))
-	for _, m := range a.Metodos {
-		if a.Tier == tierTest {
-			fmt.Printf("    %4d  %s\n", m.Linea, m.Nombre)
-			continue
-		}
-		fmt.Printf("    %4d  %s\n", m.Linea, m.Firma)
-	}
-	fmt.Printf("\n  %d bytes · esqueleto pleno %d · lo que manda su tier %d  →  %.1fx contra el archivo\n",
-		a.Bytes, a.BytesPle, a.BytesEsq, float64(a.Bytes)/float64(max(a.BytesEsq, 1)))
-}
-
-func cmdVecinos() {
-	alias, rel := partir(arg(2, "alias/ruta"))
-	g := cargarGrafo(alias)
-	if g.Archivos[rel] == nil {
-		salir(fmt.Errorf("%s no está en el mapa de %s", rel, alias))
-	}
-	entran, salen := g.vecinos(rel)
-	fmt.Printf("%s\n\n  LO LLAMAN (%d):\n", rel, len(entran))
-	for _, e := range entran {
-		fmt.Printf("    %-70s :%-5d ::%s  %s\n", acortar(e.De), e.Linea, e.Met, etiqueta(e))
-	}
-	fmt.Printf("\n  LLAMA A (%d):\n", len(salen))
-	for _, e := range salen {
-		fmt.Printf("    %-70s :%-5d ::%s  %s\n", acortar(e.A), e.Linea, e.Met, etiqueta(e))
-	}
-}
-
-// etiqueta — el mecanismo, y por qué ancestro se llegó si no fue la clase misma. Sin el `via`, una
-// arista hallada subiendo dos niveles se lee igual que una declarada al lado, y el lector no puede
-// saber que el método no está donde lo buscó.
-func etiqueta(e arista) string {
-	if e.Via != "" {
-		return "[" + e.Como + " ↑" + e.Via + "]"
-	}
-	return "[" + e.Como + "]"
-}
-
-func acortar(s string) string {
-	if len(s) <= 70 {
-		return s
-	}
-	return "…" + s[len(s)-69:]
-}
-
-// cmdPayload — el mapa entero por stdout. Existe para que el experimento mande EXACTAMENTE lo que
-// `medir` cuenta: si el payload se armara aparte, el número y el envío podrían divergir y la medición
-// dejaría de ser sobre lo que se usa.
-func cmdPayload() {
-	alias := arg(2, "el alias del repo")
-	soloRutas := len(os.Args) > 3 && os.Args[3] == "rutas"
-	g := cargarGrafo(alias)
-	rutas := make([]string, 0, len(g.Archivos))
-	for r := range g.Archivos {
-		rutas = append(rutas, r)
-	}
-	sort.Strings(rutas)
-	for _, r := range rutas {
-		if soloRutas {
-			fmt.Println(r)
-			continue
-		}
-		fmt.Print(renderizar(g.Archivos[r]))
-	}
-}
-
-func cmdMedir() {
-	alias := arg(2, "el alias del repo")
-	g := cargarGrafo(alias)
-	type acc struct{ n, full, pleno, tier int }
-	por := map[string]*acc{}
-	t := &acc{}
-	for _, a := range g.Archivos {
-		p := por[a.Tier]
-		if p == nil {
-			p = &acc{}
-			por[a.Tier] = p
-		}
-		p.n++
-		p.full += a.Bytes
-		p.pleno += a.BytesPle
-		p.tier += a.BytesEsq
-		t.n++
-		t.full += a.Bytes
-		t.pleno += a.BytesPle
-		t.tier += a.BytesEsq
-	}
-	fmt.Printf("%s:%s\n\n", g.Repo, g.Rama)
-	fmt.Printf("  %-11s %6s %14s %14s %14s\n", "tier", "arch", "completos", "esq. pleno", "SU TIER")
-	fmt.Println("  " + strings.Repeat("-", 62))
-	for _, k := range []string{tierCodigo, tierTest, tierMigracion} {
-		p := por[k]
-		if p == nil {
-			continue
-		}
-		fmt.Printf("  %-11s %6d %14d %14d %14d\n", k, p.n, p.full/4, p.pleno/4, p.tier/4)
-	}
-	fmt.Println("  " + strings.Repeat("-", 62))
-	fmt.Printf("  %-11s %6d %14d %14d %14d\n", "TOTAL", t.n, t.full/4, t.pleno/4, t.tier/4)
-	fmt.Printf("\n  el repo completo:      ~%d tokens\n", t.full/4)
-	fmt.Printf("  esqueleto pleno:       ~%d tokens   (%.1fx)\n", t.pleno/4, float64(t.full)/float64(max(t.pleno, 1)))
-	fmt.Printf("  ESCALONADO:            ~%d tokens   (%.1fx)  — %d menos que el pleno\n",
-		t.tier/4, float64(t.full)/float64(max(t.tier, 1)), (t.pleno-t.tier)/4)
-	imprimirStats(g)
+	fmt.Fprintf(os.Stderr, "subcomando desconocido %q\n\n", os.Args[1])
+	ayuda()
+	os.Exit(2)
 }

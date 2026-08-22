@@ -141,8 +141,11 @@ ENTREGAR = ({
 
 
 def payload(cond):
-    args = ["./demo", "payload", "legacy-backend"] + (["rutas"] if cond in ("A", "D") else [])
-    return subprocess.run(args, cwd=AQUI, capture_output=True, text=True, check=True).stdout
+    args = ["./demo", "mapa"] + (["--solo-rutas"] if cond in ("A", "D") else [])
+    salida = subprocess.run(args, cwd=AQUI, capture_output=True, text=True, check=True).stdout
+    # `mapa` cierra con un resumen de cuántos archivos y tokens: informativo en consola, ruido en un
+    # payload que se está midiendo. Se corta acá y no se le saca al comando: el resumen es correcto.
+    return salida.rsplit("\n\n  ", 1)[0]
 
 
 # ── CONDICIÓN D · la que el experimento sugirió ──────────────────────────────────────────────────
@@ -159,8 +162,7 @@ def _esqueleto(rutas=None):
     _PEDIDOS.append(rutas)
     salida = {}
     for r in rutas:
-        cp = subprocess.run(["./demo", "mapa", f"legacy-backend/{r}"], cwd=AQUI,
-                            capture_output=True, text=True)
+        cp = subprocess.run(["./demo", "mapa", r], cwd=AQUI, capture_output=True, text=True)
         salida[r] = cp.stdout.strip() if cp.returncode == 0 else "(no está en el mapa)"
     return salida
 
