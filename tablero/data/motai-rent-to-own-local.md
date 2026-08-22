@@ -68,6 +68,29 @@ la solicitud, no por el hash que uno creyó pasar.
 Tampoco hay bucket `false_lenders` en la respuesta: los rt=2 se caen sin dejar rastro en los logs, o
 sea que el corte es **antes** de evaluar reglas.
 
+## RESUELTO: no lista porque su configuración de negocio NUNCA se hizo — y es a propósito
+
+La respuesta está en el docblock de `2026_08_15_140000_clone_motai_renting_lender_as_rent_to_own`:
+clona **sólo tres tablas hijas** —`credit_line_by_lenders`, `lenders_by_allied_branches` (visibilidad)
+y `lenders_by_allieds` (costos)— y dice explícito qué **NO** clona: «categorías de usuario y sus
+reglas —ojo, ahí vive `min_initial_fee`—, credenciales por aliado, ciudades, métodos de pago,
+requisitos y reglas. Clonar ese árbol entero crearía un gemelo a medias con reglas de riesgo copiadas
+sin revisar, **que es peor que no tenerlas**».
+
+Eso explica TODO lo que medí: 0 categorías, 0 reglas de categoría, 0 requisitos, 0 tramos. No son
+huecos: es la decisión de la migración. El RTO no lista porque **su configuración de negocio no está
+hecha**, y no lo está porque el lender todavía no tiene una sola solicitud.
+
+⚠ **Y ojo con lo que hice yo:** sembré una categoría y copié 6 `lender_rules` del Motai RB para
+intentar que listara. Eso es exactamente lo que la migración desaconseja — reglas de riesgo copiadas
+sin revisar. **Sirve para probar el flujo, NO para concluir nada sobre conducta de negocio**, y hay
+que borrarlo antes de medir cualquier otra cosa en esta base.
+
+**No era el tipo de producto** (hipótesis de Miguel, verificada y descartada): `product` define si el
+front muestra la calculadora y qué calcula (`app/Models/Lender.php:65`), no filtra el listado. Para
+Ábaco ya lo reemplazó `lender_requirements`. Pero la pregunta destapó una inconsistencia real: el
+clon quedó con **`product = renting`** cuando el valor `rto` existe y lo usa Motai RB (170).
+
 **El corte es sistemático por `response_type`:** en las DOS sucursales probadas, todos los rt=2 de
 Motai quedan fuera y los rt≠2 salen. Y no es config del lender — el 62 tiene 4 categorías, 4 tramos y
 config CreditopX, y no lista; el 77 (CrediPullman) lista **sin un solo tramo**.
