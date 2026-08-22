@@ -252,3 +252,39 @@ historial laboral tumba el `personal-info` con un 500**, venga de un mock o de u
 **Por dónde seguir:** o se dispara el AML desde el flujo (ver qué paso del wizard lo llama para el
 titular, que ahí sí corre) o se resuelve la autenticación de ese endpoint. Es lo único que separa de
 llegar a la firma con las dos partes.
+
+
+## 2026-08-22 (cierre) · LA FORMA CORRECTA no es esta, y está documentada en el repo
+
+Todo lo de arriba se hizo tanteando endpoints y adivinando qué config falta. **El repo ya tiene la
+respuesta y hay que usarla antes de seguir:**
+
+**1 · `docs/cosigner/` — nueve documentos.** `eligibility-and-polling.md` explica el contrato exacto
+que me costó tres horas reconstruir: «**Leer, no disparar**: la evaluación SOLO LEE resultados ya
+persistidos (AML, DataCrédito), nunca invoca», y sobre todo — «**Sin override.** No existe config ni
+env que puentee la política: el veredicto SIEMPRE sale del motor de cupo». También están
+`cross-signature.md`, `backend-endpoints.md`, `data-model.md`, `ado-cosigner.md`,
+`whatsapp-invitation.md`. ⚠ El nodo `codeudor` avisa que van ATRASADOS respecto del código, pero para
+el CONTRATO y el orden sirven.
+
+**2 · La suite de tests del codeudor existe y está DESACTIVADA a propósito.**
+`Modules/UserRequestV1/tests/Feature/` tiene seis archivos —incluido
+`CosignerCrossSignatureOrderTest`, que cubre justo el final— **envueltos en un comentario de bloque**
+para que `RefreshDatabase` no tenga a qué engancharse. Es la misma trampa de CORE-431: `phpunit.xml`
+fija `DB_DATABASE=testing` pero NO `DB_CONNECTION`, así que la conexión hereda host y driver del
+`.env` — y con las credenciales que circulan, `migrate:fresh` borraría la BD compartida.
+
+`docs/cosigner/testing.md` §3 dice cómo reactivarlos **con seguridad**: un `.env.testing` con
+`DB_CONNECTION=sqlite` en memoria (o una MySQL local dedicada, nunca el host de develop), más
+verificar el casing de la testsuite en `phpunit.xml`.
+
+**Eso es lo que hay que hacer.** Un test que pasa conoce la secuencia exacta, las fixtures exactas y
+el estado final esperado — en segundos, y sin inventar config de riesgo. Todo lo que yo sembré a mano
+es una aproximación al 170 que no prueba al RTO.
+
+**Dónde quedó el tanteo, por si sirve de pista:** con AML + datacrédito inyectados al codeudor,
+`is_active = 1` restaurado y reglas de tipo 3 duplicadas, `evaluate-eligibility` pasa la compuerta y
+llega al motor de cupo — que responde algo inesperado y da **URV18003** («sin veredicto», no
+transiciona). Faltarían las otras tres tablas de política con tipo 3:
+`lender_payment_capacity_scoring_policy`, `lender_user_fields_scoring_policy` y
+`lender_user_category_scoring_policy_rules`, que también llevan `lender_users_category_type_id`.
