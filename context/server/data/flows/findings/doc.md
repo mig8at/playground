@@ -92,6 +92,8 @@ orden de archivo — el ancla `### F-xx` es la única dirección.)
 | **«no se generó ningún documento y no hay error»** | F-152 |
 | **«dice que no tiene cupo pero el error es una clave que falta»** | F-153 |
 | **«el canal SmartPay no se puede probar entero fuera de producción»** | F-155 |
+| **«el equipo está en mora y no se bloqueó»** | F-156 |
+| **«hay muchísimas filas de un estado y no cuadra con los equipos»** | F-156 |
 | **«salta el AML / no salta el AML y debería»** | F-155 |
 | **«lo arreglé y por el otro camino sigue distinto» / «ese flujo ya no se usa»** | F-146 |
 
@@ -259,6 +261,7 @@ distinto según con qué pregunta llegues.
 | F-153 | Una regla con tarjetas revienta leyendo el buró; el mismo archivo sí se protege en otros 3 puntos | ABIERTO |
 | F-154 | El rastro del documento firmado apunta a la fila equivocada: la busca de nuevo, sin la rama | ABIERTO |
 | F-155 | Quién es SmartPay se decide en 4 lugares y fuera de prod no coinciden (supera a F-21) | ABIERTO |
+| F-156 | Un lock fallido se reintenta sin tope y escribe una fila por intento: 40 equipos sin bloquear | ABIERTO |
 
 ---
 
@@ -2315,3 +2318,35 @@ en producción — el webhook no deja registro cuando `firstOrFail()` lanza, as�
   divergencia. El TODO ya nombra la salida correcta: sacar el id a configuración en vez de repetirlo.
 - **Arreglo:** una sola fuente —la config que ya existe— y que los cuatro sitios la lean. Código de la
   empresa. **Estado:** vivo en `main`.
+
+### F-156 · Un bloqueo de dispositivo que falla se reintenta para siempre y escribe una fila por intento: la garantía por hardware no se ejerce y nadie se entera
+
+- **Síntoma:** ninguno. El cron de mora informa «Dispatched N device locking jobs» todos los días y
+  termina bien. No hay error, ni alerta, ni estado que quede en rojo — sólo una fila más en
+  `device_locks`. Del lado del negocio, un equipo en mora que el sistema cree estar bloqueando y no
+  bloquea.
+- **Causa raíz (verificada 2026-08-22 contra `main`):** `failed` no está en **ninguna** de las dos
+  listas que deciden si hay que actuar. El cron excluye los productos que ya tienen un lock
+  `['locked','pending']` (`LockDevicesPastDueCommand`), y `activeDeviceLock`
+  (`app/Models/UserRequestProduct.php:63`) considera activo sólo `['locked','unlock_failed']`. Un lock
+  que terminó en `failed` no aparece en ninguna, así que **mañana el producto vuelve a ser elegible** —
+  y el job **crea** una fila nueva (`DeviceLock::create`) en vez de reintentar sobre la existente.
+- **Evidencia (medido en producción el 2026-08-22):** las proporciones lo delatan solas —
+  `locked` va 1 fila por producto y `unlock_failed` también, pero `failed` va **323 filas sobre 41
+  productos**, casi 8 por equipo. Repartidas por día: un producto acumuló **18 filas en 9 días
+  seguidos** y otros dos vienen fallando **desde el 24 de junio**. Y lo que importa: **40 de esos 41
+  equipos NUNCA llegaron a bloquearse** — ni una sola fila `locked` en toda su historia.
+- **⚠ La consecuencia no es la tabla, es el producto.** El canal existe porque el celular ES la
+  garantía y la cobranza se ejerce por hardware. Para esos 40 equipos —todos en mora, porque el cron
+  sólo mira `days_past_due >= 8`— esa garantía **no se está ejerciendo**, y el reintento diario da la
+  apariencia contraria: el sistema hace algo todos los días.
+- **⚠ Y contamina cualquier conteo sobre `device_locks`.** Contar filas por estado no cuenta
+  dispositivos: hay que contar `DISTINCT user_request_product_id`. Con filas, `failed` parece el
+  estado más común del sistema; con dispositivos, es una minoría chica y atascada.
+- **Reproducido en local** sembrando a mano una fila del ledger de mora (`creditop_x_requests_history`,
+  que en producción escribe **`application`**, no legacy) y corriendo los tres comandos: el bloqueo y el
+  desbloqueo funcionan y dejan **una** fila, y el unroll fallido dejó **11 filas** para un solo
+  producto en un mismo segundo — el mismo patrón, comprimido por los reintentos del job.
+- **Arreglo:** decidir qué significa `failed` —¿se reintenta, cuántas veces, con qué espera?— y que el
+  reintento actualice la fila en vez de crear otra. Hoy no hay tope. Código de la empresa.
+  **Estado:** vivo en `main`, con 40 equipos afectados en producción.

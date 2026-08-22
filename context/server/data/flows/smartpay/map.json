@@ -6,7 +6,8 @@
   "when": "Cuando la tarea es de SmartPay: el celular financiado como garantía, IMEI, bloqueo de dispositivo y MDM, salto de AML, desembolso diferido y crons de bloqueo por mora.",
   "sintomas": [
     "«el celular no se bloquea» / IMEI",
-    "«el canal smartpay no se comporta igual en local que en produccion»"
+    "«el canal smartpay no se comporta igual en local que en produccion»",
+    "«el equipo esta en mora y no se bloqueo»"
   ],
   "verified": {
     "ref": "main",

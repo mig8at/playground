@@ -36,6 +36,8 @@ Este nodo afirmaba lo contrario, y era cierto hasta el 2026-08-19. **Comprobado 
 | **difiere el desembolso** | estado tras validar el OTP de firma | canal → **«Autorizado pendiente desembolso»**; el estándar va a 11 |
 | **cierra por hardware** | `device/register` (mock MDM) → `device/{ur}/disburse` | equipo `ENROLLED`, **estado 11**, `final_amount` e IMEI persistido |
 
+**El ciclo de mora también se ejercita**, sembrando a mano una fila del ledger `creditop_x_requests_history` —que en producción escribe **`application`**— y corriendo los tres comandos: bloqueo y desbloqueo funcionan y dejan **una** fila cada uno. ⚠ Pero el intento fallido **crea una fila nueva por cada intento** en vez de reintentar sobre la existente, y `failed` no cuenta como lock activo, así que el cron vuelve a elegir el producto al día siguiente, sin tope: **F-156**, con 40 equipos en producción que nunca llegaron a bloquearse. Corolario para cualquier consulta sobre `device_locks`: **contá `DISTINCT user_request_product_id`, no filas.**
+
 ⚠ **La inscripción NO crea fila en `device_locks`** — y eso es correcto, no un fallo del mock: el enum no tiene estado `enrolled` y las filas las crea el cron de mora. Si buscás la evidencia del enrolamiento ahí, no está: está en `user_request_products.imei`.
 
 ⚠ **Un comercio con la entidad asignada no alcanza**: tiene que estar **activa en una sucursal** y con categorías propias, que es la misma regla del tronco rt=2. Sin eso el listado sale vacío y parece que el canal no existe.

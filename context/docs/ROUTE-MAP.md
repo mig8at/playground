@@ -35,6 +35,7 @@ Si la tarea llega con una de estas frases, empezá por esos nodos. Si ninguna ma
 | «el código de compra en caja no sirve» | `corbeta` |
 | «el documento salió sin la firma del codeudor» | `codeudor` |
 | «el endpoint devuelve un código raro» (ONB0xx) | `legacy-backend` |
+| «el equipo esta en mora y no se bloqueo» | `smartpay` |
 | «el listado tardó minutos» | `profiling` |
 | «el monolito no tiene este endpoint» | `microservicios` |
 | «el número no cuadra y no encuentro dónde se calcula» | `db-routines` |

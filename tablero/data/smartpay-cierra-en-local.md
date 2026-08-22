@@ -56,11 +56,29 @@ segundos de diferencia y los mismos mocks — porque «no apareció el log» a s
 Y el cierre dejó `final_amount`, el IMEI en `user_request_products` y **cero filas en `device_locks`** —
 que es lo correcto: el enum no tiene estado `enrolled`, las filas las crea el cron de mora.
 
+## El ciclo de mora TAMBIÉN se puede correr (y salió un hallazgo)
+
+El ledger `creditop_x_requests_history` lo escribe `application`, no legacy — pero se puede sembrar a
+mano clonando una fila existente y apuntándola a la solicitud, con `creditop_x_requests_status_id = 2`
+y `days_past_due >= 8`. Después los tres comandos corren sueltos:
+
+    artisan app:lock-devices-past-due     # con status 2 y mora >= 8  → device_locks queda 'locked'
+    artisan app:unlock-devices-paid       # pasando el ledger a 1 o 3 → 'unlocked'
+    artisan app:unroll-devices-paid       # status 3 + saldo 0
+
+Los dos primeros funcionan y dejan **una** fila. El tercero dejó **11 filas** para un mismo producto:
+cada intento **crea** una fila en vez de reintentar sobre la existente. Eso es **F-156**, y en
+producción son **40 equipos que nunca llegaron a bloquearse** mientras el cron los reintenta todos los
+días desde hace hasta dos meses.
+
+⚠ **Al medir `device_locks`, contá `DISTINCT user_request_product_id`.** Contando filas, `failed`
+parece el estado dominante del sistema; contando equipos, es una minoría chica y atascada.
+
 ## Lo que sigue sin poder probarse acá
 
-- **El ciclo de mora completo** (lock 04:00 → unlock 05:00 → unroll 06:00) depende de que alguien
-  escriba el ledger `creditop_x_requests_history`, y eso lo hace **`application`**, no legacy. Con
-  legacy solo, nada se bloquea.
+- **El ciclo de mora en condiciones reales**: acá el ledger se siembra a mano. Quién lo escribe de
+  verdad es `application`, así que la cadena completa —causación de mora → bloqueo— sigue sin
+  ejercitarse con legacy solo.
 - **`user_request_device_info` sigue vacía** y no es del mock: su único escritor
   (`ImeiValidationService`) está registrado en el contenedor y tiene tests, pero **ninguna ruta lo
   invoca**. En producción la tabla también está vacía.
