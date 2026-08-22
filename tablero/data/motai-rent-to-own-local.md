@@ -288,3 +288,40 @@ llega al motor de cupo — que responde algo inesperado y da **URV18003** («sin
 transiciona). Faltarían las otras tres tablas de política con tipo 3:
 `lender_payment_capacity_scoring_policy`, `lender_user_fields_scoring_policy` y
 `lender_user_category_scoring_policy_rules`, que también llevan `lender_users_category_type_id`.
+
+
+## 2026-08-22 · el entorno de pruebas AISLADO, montado (y por qué sqlite no sirvió)
+
+Siguiendo `docs/cosigner/testing.md` §3. **El test corre y ya no puede borrar nada.** Falla por datos
+de catálogo faltantes, no por seguridad — que es un punto de corte completamente distinto.
+
+**La receta, verificada:**
+
+1. **`.env.testing` en la raíz de `legacy-backend`** (gitignoreado) con un schema DESECHABLE del
+   contenedor local: `DB_DATABASE=creditop_testing`, `DB_HOST=mysql`. Nunca `creditop`, nunca remoto.
+2. **Verificar ANTES de correr** a qué se conectaría — es el paso que convierte esto en seguro:
+   `docker exec -e APP_ENV=testing … php -r '… config("database.connections.…")'`
+   Debe decir `host mysql · database creditop_testing`.
+3. **Crear el schema y copiarle la estructura** del local:
+   `CREATE DATABASE creditop_testing;` + `mysqldump --no-data creditop | mysql creditop_testing`
+4. **Copiar el test a un archivo temporal SIN el bloque de comentario** (el original queda intacto),
+   con el binding inline —`uses(Tests\TestCase::class, DatabaseTransactions::class)`— porque el
+   `Pest.php` del módulo no se carga al invocar por ruta directa.
+5. Correr **con la ruta explícita**, nunca la suite.
+
+**⚠ SQLITE EN MEMORIA NO SIRVE, aunque sería inmune por construcción.** Se probó primero: la migración
+`2024_10_01_144533_reorder_creditop_x_requests_history_table` altera columnas y sqlite exige
+`doctrine/dbal`. Por eso va MySQL local desechable.
+
+**⚠ Y `RefreshDatabase` tampoco corre**: el historial de migraciones no se aplica limpio desde cero —
+muere en `2025_02_12_212827_add_insurance_per_million_to_lenders_by_allieds`. Va
+`DatabaseTransactions` (sólo rollback, no recrea esquema) sobre el esquema copiado.
+
+**Un hallazgo de paso:** el dump local **diverge de lo que producen las migraciones**. `countries` no
+tiene `cell_phone_length`, que está en la migración ORIGINAL de 2023 (`create_countries_table`). O sea
+que la base local no es reproducible desde las migraciones — hay que saberlo antes de confiar en que
+«local es como prod».
+
+**Dónde quedó:** 6 tests corren y fallan por FK sobre `lenders` — al esquema copiado le faltan los
+datos de catálogo que los factories asumen sembrados. Lo siguiente es sembrar esos catálogos en
+`creditop_testing`, y ahí los tests dirían la secuencia correcta del cierre con codeudor.
