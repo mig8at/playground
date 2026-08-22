@@ -2072,3 +2072,30 @@ en producción — el webhook no deja registro cuando `firstOrFail()` lanza, as�
 - **Estado:** vivo. La regla general: **un mock compartido es infraestructura de otro** — puede cambiar
   bajo los pies en mitad de una sesión, y sin read-after-write eso se convierte en resultados
   plausibles y falsos en vez de un error.
+
+### F-145 · El builder de documentos del Rent to Own se elige por id QUEMADO, así que sólo funciona donde el clon quedó con ese id
+
+- **Síntoma:** la entidad Rent to Own firma sus documentos con el payload equivocado y el render muere
+  con «Undefined variable» — una firma caída, no un documento con huecos. No se ve venir: el catálogo
+  está bien sembrado y las plantillas existen.
+- **Causa raíz (verificada 2026-08-22 contra `main`, reproducida en local):**
+  `Modules/Loans/App/Services/DocumentGeneration/CatalogDocumentPayloadResolver.php:42-46` mapea
+  `lender_id => builder` con ids **literales** (`158 => MotaiRentingPayloadBuilder`,
+  `205 => MotaiRentToOwnPayloadBuilder`) y cae en silencio al genérico:
+  `self::BUILDERS_BY_LENDER[$lenderId] ?? OnboardingPayloadBuilder::class` (`:65`).
+  Pero **el id del clon NO es estable entre ambientes** — y no es una hipótesis: las migraciones del
+  Rent to Own resuelven por `lenders.slug` **justamente por eso**, y su comentario lo dice («en qa el
+  clon es el 205»). Medido: al correr esas migraciones en local, el clon quedó con **id 173**.
+- **Evidencia:** con `slug = 'rent-to-own'` en id 173, `builderFor(173)` no encuentra entrada y usa
+  `OnboardingPayloadBuilder`, que emite claves como `linea_de_credito` / `credit_line`, mientras
+  `resources/views/creditopxpdf/lenders/motai/rto/contrato_rto_con_codeudor.blade.php` pide
+  `$documento_cliente`, `$documento_codeudor`, `$celular_cliente`. Ninguna coincide.
+- **⚠ Lo sabe el propio archivo.** Su docblock (`:34-36`) trae el TODO: «cambiar 158 y 205 por los ids
+  de PRODUCCIÓN antes de desplegar… Mejor aún: resolver por `lenders.slug`, que sí es estable entre
+  ambientes — es lo que ya hacen las migraciones del Rent to Own». O sea: **la mitad del sistema
+  resuelve por slug y la otra por id literal**, y el desacople es el bug.
+- **Arreglo:** resolver por slug, como ya hacen las migraciones. **No aplicado** — es código de la
+  empresa y la decisión no es nuestra.
+- **Estado:** vivo en `main`. La regla general: **cuando una parte del sistema resuelve por una clave
+  estable y otra por una inestable, la que manda es la inestable** — y el modo de falla es silencioso,
+  porque el fallback devuelve un builder válido en vez de fallar.
