@@ -119,9 +119,27 @@ momento en que lo vi fue el `checkout main`, y lo anoté al pasar como «una ent
 porque el código difiere» sin verificarlo — que es justo el tipo de observación que hay que parar a
 medir.
 
-**Lo que sigue:** comparar qué tiene esa rama que `main` no, acotado al camino rt=2 del listado
-(`git diff main..fix/CORE-258-… -- Modules/Onboarding/App/Services/lenders/`). Son 59 commits, pero el
-diff de esa carpeta debería ser corto.
+**RESUELTO.** El diff de esa carpeta da 4 archivos, y el que manda es
+`LenderUserCategoryService.php`: **+417 líneas en la rama**, o sea que `main` lo ELIMINÓ. El commit es
+`729eb963` «refactor(policy): one category engine, and the hardcoded lender 160 fork goes with it»:
+
+> *«The listing had its own copy of LenderUserCategoryService — a literal port of the one in
+> legacy-application plus two criteria — while available-quota, extended and cosigner ran a separate
+> rewrite in Loans. Two engines answering the same question, and a user could see one cupo on the
+> marketplace card and another when the quota endpoint was asked… It is removed and both of its call
+> sites now go through the surviving engine.»*
+
+Así que **no es regresión ni bug: es una consolidación deliberada**, y en esta base local el motor
+sobreviviente (el de `Modules/Loans`) no resuelve categoría para esos rt=2. La rama todavía tiene el
+motor viejo, que sí la resolvía — de ahí que ahí listen.
+
+Y de paso el mismo commit se llevó el `if ($ctopx_lender_id == 160)` que el mapa de lo quemado había
+encontrado: era SmartPay y sólo en producción (`production ? 160 : 152`), «which meant the listing's
+behaviour for that lender was not reproducible outside it».
+
+**Lo que sigue para el RTO:** averiguar qué le pide el motor de `Loans` a la categoría que la base
+local no tiene. Con eso listan todos los rt=2 —no sólo el Rent to Own— y recién ahí se puede ejercitar
+la firma con codeudor.
 
 ⚠ **Y un defecto del runner corregido acá que cambia cómo leer TODO lo medido antes.** El monto del
 listado viaja por QUERY (`ListLenderController::index:39` → `$request->query('amount', 180000)`), no
