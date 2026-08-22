@@ -48,7 +48,7 @@ func newCtx(name, about string, withFilters bool) *ctx {
 	c := &ctx{fs: flag.NewFlagSet(name, flag.ExitOnError)}
 	c.fs.StringVar(&c.dir, "C", "", "correr como si estuvieras en este directorio (default: el actual)")
 	c.fs.StringVar(&c.rev, "rev", "", "leer de este ref de git en vez del working tree (ej: main)")
-	c.fs.StringVar(&c.ext, "ext", ".php", "extensión a parsear")
+	c.fs.StringVar(&c.ext, "ext", ".php", "extensión a parsear (hoy SÓLO .php: es el único extractor)")
 	c.fs.BoolVar(&c.asJSON, "json", false, "salida en JSON")
 	if withFilters {
 		c.f.register(c.fs)
@@ -62,6 +62,15 @@ func newCtx(name, about string, withFilters bool) *ctx {
 
 func (c *ctx) parse(args []string) []string {
 	_ = c.fs.Parse(reorderArgs(c.fs, args))
+	// ⚠ El único extractor es PHP (tree-sitter con la gramática de PHP). Aceptar `--ext .go` y parsear
+	// con esa gramática devolvería un esqueleto vacío o inventado SIN FALLAR, que es exactamente el
+	// modo en que un índice miente. Se corta acá, con el motivo.
+	if c.ext != ".php" {
+		die(fmt.Errorf("--ext %s: hoy el único extractor es PHP, y parsear otro lenguaje con la\n"+
+			"gramática de PHP devuelve un esqueleto vacío sin fallar. Agregar un lenguaje es agregar\n"+
+			"su gramática de tree-sitter Y su forma de declarar una clase (el resolvedor por grep\n"+
+			"busca `class X`, que no es cómo se declara en Go)", c.ext))
+	}
 	return c.fs.Args()
 }
 
@@ -203,14 +212,12 @@ func main() {
 			return
 		}
 	}
-	// Un primer argumento que no es un comando conocido y no es una bandera se toma como TÉRMINO. Es
-	// la razón de ser de la herramienta: `demo can_check_preapproval` tiene que funcionar sin que nadie
-	// lea la ayuda antes.
-	if !strings.HasPrefix(os.Args[1], "-") {
-		cmdFind(os.Args[1:])
-		return
-	}
-	fmt.Fprintf(os.Stderr, "comando desconocido %q\n\n", os.Args[1])
-	usage()
-	os.Exit(2)
+	// Lo que no es un comando conocido va a `find`. Es la razón de ser de la herramienta:
+	// `demo can_check_preapproval` tiene que funcionar sin que nadie lea la ayuda antes.
+	//
+	// ⚠ Y eso incluye cuando el primer argumento es una BANDERA: `demo --ext .go TracerService` es una
+	// forma perfectamente razonable de escribirlo, y antes caía en «comando desconocido "--ext"» e
+	// imprimía la ayuda, que se lee como si el término estuviera mal. Si la bandera no existe, el
+	// FlagSet de `find` lo dice con precisión.
+	cmdFind(os.Args[1:])
 }
