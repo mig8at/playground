@@ -215,10 +215,40 @@ WhatsApp es best-effort), y que el codeudor entra a la **misma solicitud** — e
 not_eligible, approved, waiting_applicant_signature, waiting_cosigner_signature, formalized,
 cancelled, replaced). La migración crea la tabla pero NO la llena.
 
-**Dónde se traba (paso 5):** `personal-info` del codeudor revienta con
+**[SUPERADO — ver abajo] Dónde se traba (paso 5):** `personal-info` del codeudor revienta con
 `ValueError: max(): Argument #1 must contain at least one element` en
 `Modules/Identity/App/Services/AgildataService.php:159` — el `max(array_keys($periods))` sin guarda
 cuando la respuesta del buró no trae pagos. Y ocurre **aunque el mock devolvió 8 pagos con períodos
 actuales** (verificado en su log: `→ agildata default (doc 1099444002)`), así que el dato bueno no
 está llegando al extractor por ese camino. Es lo próximo a mirar: por qué la consulta del CODEUDOR no
 consume la misma respuesta que la del titular.
+
+
+## 2026-08-22 (cont.) · 5 de 6 pasos, y el bloqueo final identificado
+
+**El paso 5 se resolvió, y la causa era la CACHÉ DE UN MES.** El usuario del codeudor ya tenía una
+fila de Agildata de 200 bytes —la respuesta mínima que se había dictado en un primer intento— y el
+backend la reusó sin llamar al mock. Con `DELETE FROM risk_central_user_data WHERE user_id=…`,
+`personal-info` pasó: `actor: cosigner`, `next_step: identity_validation`.
+
+⚠ Es la trampa 1 de la tarea 49, y muerde distinto acá: el síntoma no fue «datos viejos» sino
+`ValueError: max(): Argument #1 must contain at least one element` en `AgildataService.php:159` — el
+`max(array_keys($periods))` no tiene guarda para una respuesta sin pagos. **Un buró que responde sin
+historial laboral tumba el `personal-info` con un 500**, venga de un mock o de un proveedor real.
+
+**El paso 6 no se alcanzó, y la compuerta está identificada.** `evaluate-eligibility` devuelve
+`evaluated: false` a propósito: `EvaluateCosignerEligibilityService` sólo evalúa cuando
+`hasCompletedValidations()` es cierto, y eso pide **AML + identidad**:
+
+    return $aml['completed'] && (!$identity['applies'] || $identity['completed']);
+
+- **Identidad: NO aplica.** Copiado `lender_identity_validation_types` del 170 al 173 (otra tabla que
+  el clon no clona), `providers` responde `primary_provider: "none"`.
+- **AML: falta.** El codeudor no tiene fila de `TusDatos - AML` (central id 4). La crea
+  `TusDatosService::getOrCreateBackground`, expuesta en `POST /api/identity/aml/launch`
+  (`Modules/Identity/routes/api.php:76`) — pero ese endpoint está **detrás de autenticación de
+  sesión**: con el `X-Cosigner-Token` responde un redirect 302 a `/`, no un 401.
+
+**Por dónde seguir:** o se dispara el AML desde el flujo (ver qué paso del wizard lo llama para el
+titular, que ahí sí corre) o se resuelve la autenticación de ese endpoint. Es lo único que separa de
+llegar a la firma con las dos partes.
