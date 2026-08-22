@@ -68,6 +68,10 @@ for f in sorted(d.glob('*Test.php')):
 print(f"  {n} archivos reactivados en copias temporales")
 PY
 
-docker exec "${ENVS[@]}" $APP ./vendor/bin/pest Modules/UserRequestV1/tests/Feature/ 2>&1 | tail -12
-rm -f "$REPO"/Modules/UserRequestV1/tests/Feature/*TmpTest.php
-echo "  (copias temporales borradas · los originales quedaron intactos)"
+# ⚠ El borrado va en un TRAP, no al final: con `set -e`, un test en rojo aborta el script antes de
+# limpiar y deja copias temporales sueltas en el repo de la empresa. Pasó en la primera versión.
+limpiar() { rm -f "$REPO"/Modules/UserRequestV1/tests/Feature/*TmpTest.php; }
+trap limpiar EXIT
+
+docker exec "${ENVS[@]}" $APP ./vendor/bin/pest Modules/UserRequestV1/tests/Feature/ 2>&1 | tail -12 || true
+echo "  (copias temporales borradas al salir · los originales quedaron intactos)"
