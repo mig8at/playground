@@ -325,3 +325,25 @@ que la base local no es reproducible desde las migraciones — hay que saberlo a
 **Dónde quedó:** 6 tests corren y fallan por FK sobre `lenders` — al esquema copiado le faltan los
 datos de catálogo que los factories asumen sembrados. Lo siguiente es sembrar esos catálogos en
 `creditop_testing`, y ahí los tests dirían la secuencia correcta del cierre con codeudor.
+
+
+## 2026-08-22 · LA SUITE DEL CODEUDOR CORRE — 51 tests en verde
+
+    make tests-codeudor PREPARAR=1     (la primera vez: crea el schema y le copia catálogos)
+    make tests-codeudor
+
+    Tests: 5 failed, 6 todos, 51 passed (194 assertions) · 11s
+
+Los seis archivos de `Modules/UserRequestV1/tests/Feature/` llevaban desactivados desde CORE-431. Se
+reactivan en COPIAS TEMPORALES —los originales nunca se tocan— y corren contra `creditop_testing`, un
+schema desechable del contenedor local.
+
+**El paso que lo vuelve seguro no es el `.env.testing`: es COMPROBAR ANTES DE CORRER.** El script pide
+al backend a qué se conectaría y **aborta** si no es `mysql/creditop_testing`. Un archivo de entorno se
+puede pisar por variables de shell o por el `<php>` de `phpunit.xml`; una comprobación no.
+
+**Y ya aporta:** los 5 fallos son TODOS del área de elegibilidad
+(`CosignerEligibilityAndStatusTest`), que es exactamente donde el recorrido manual se trabó con
+`URV18003`. Son aserciones que no cuadran —«Failed asserting that null is identical to true»—, así que
+o los tests quedaron viejos o hay una divergencia real. **Ahí está la respuesta a por qué no pude
+cerrar a mano**, y ahora se puede leer en segundos en vez de tantear endpoints.

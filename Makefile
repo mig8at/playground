@@ -213,7 +213,7 @@ env-auditoria: ## @wrk ¿a qué apunta cada .env del playground? clave + 3 carac
 	@python3 workers/env_auditoria.py $(if $(RAIZ),$(RAIZ))
 
 # ── PRUEBAS (harness) ────────────────────────────────────────────────────────────────────────────
-.PHONY: harness-contract harness-sandbox harness-walk harness-qr harness-mocks harness-centrales harness-rto harness-listado harness-caso harness-check soporte-qa
+.PHONY: harness-contract harness-sandbox harness-walk harness-qr harness-mocks harness-centrales harness-rto tests-codeudor harness-listado harness-caso harness-check soporte-qa
 harness-contract: ## @har ¿el mock de Bancolombia cumple los esquemas zod del front? (sin browser ni BD)
 	@cd harness && npm run --silent contrato:bancolombia
 
@@ -244,6 +244,9 @@ harness-caso: ## @har CASOS hipotéticos de punta a punta, en PARALELO. CASOS='p
 soporte-qa: ## @har el chat del cliente contra la API real, con cada respuesta al costado (:5199). Para QA
 	@echo "  → http://localhost:5199/agente-soporte-modificacion-datos.cliente-qa.html    (Ctrl-C para cortar)"
 	@cd tablero/data/artifacts && python3 -m http.server 5199
+
+tests-codeudor: ## @har corre la suite del CODEUDOR (desactivada en el repo por CORE-431) en un schema DESECHABLE. PREPARAR=1 la primera vez
+	@cd harness && bash bin/tests-codeudor.sh $(if $(PREPARAR),--preparar)
 
 harness-rto: ## @har deja el lender Rent to Own usable en LOCAL (categorías, reglas, identidad) — config de PRUEBA, no de negocio
 	@cd harness && node dev/montar-rto.ts
