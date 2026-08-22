@@ -1,5 +1,4 @@
-# El binario y los mapas son DERIVADOS: se reconstruyen en medio segundo con `./demo index`.
-# Versionarlos sería versionar un caché de 7 MB que envejece en silencio.
+# El binario es derivado. Y ya no hay archivo de índice: el grep decide qué parsear y se parsea a
+# demanda, así que no queda nada que cachear —ni que envejezca sin avisar.
 demo
-graph-*.json
-roots.json
+_prueba.json

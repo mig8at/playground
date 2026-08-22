@@ -1,38 +1,69 @@
-# demo · el mapa de cableado
+# demo · buscá en el código de este repo, y llevate el vecindario
 
-Prototipo. **NO es fuente de contexto** (ver el `CLAUDE.md` de la raíz): es un experimento para medir
-si un mapa de *esqueletos + aristas resueltas* puede reemplazar al payload de archivos enteros que hoy
-recibe `agente-lector`.
-
-```bash
-go build -o demo .            # una vez
-./demo                        # el catálogo · ./demo <sub> --help para sus opciones
-./demo index                # construye el mapa de legacy-backend (~0,5 s)
-```
-
-⚠ **A propósito no está en el `make`**: es un prototipo. Cuando esté listo cambia de nombre y ahí entra.
-
-Antes de la primera corrida, `roots.json` se **deriva** de `context/tools/roots.py` (la fuente única
-de qué repos existen y dónde):
+Prototipo. **NO es fuente de contexto** (ver el `CLAUDE.md` de la raíz), y a propósito **no está en el
+`make`**: cuando esté listo cambia de nombre y ahí entra.
 
 ```bash
-python3 -c "import sys,json; sys.path.insert(0,'../context/tools'); from roots import ROOTS; print(json.dumps(ROOTS,indent=2,sort_keys=True))" > roots.json
+cd <cualquier repo> && demo can_check_preapproval
 ```
 
-### Los subcomandos
+Eso es todo. No hay que configurar nada, no hay índice que construir, no hay alias que registrar: el
+repo se **descubre** del directorio actual con git.
+
+## Para qué existe
+
+Un modelo parado en un repo necesita contestar «¿qué archivos toco para esto?» en la **primera
+iteración**. `grep` le da los archivos que contienen el término y nada más. Lo que le falta es lo de al
+lado: de quién dependen esos archivos, quién los llama, y qué saben hacer.
+
+Eso es lo que agrega. Buscando `can_check_preapproval` devuelve los 5 archivos que lo contienen **más 7
+que no** — entre ellos `ProfilingRulesService` (que no tiene el término en ninguna línea) y
+`LenderRetrievalService`, la clase padre donde vive el pipeline. Un grep no puede verlos por
+construcción.
+
+## Cómo funciona, y por qué no hay paso de índice
+
+**El grep no es sólo la semilla: es el resolvedor.** Una semilla dice `private LenderRepo $repo`; para
+saber qué archivo es `LenderRepo` no hace falta composer ni PSR-4 — se le pregunta al repo con
+`git grep "class LenderRepo"`, y todos los nombres que hagan falta van en UNA invocación con varios
+`-e` (de a uno costaba ~80 ms cada uno).
+
+Resultado medido en `legacy-backend` (2.529 archivos .php):
+
+| | archivos parseados | tiempo |
+|---|---|---|
+| `demo show <archivo>` | 1 | **54 ms** |
+| `demo hierarchy <clase>` | 3 | **243 ms** |
+| `demo neighbors <archivo>` | 29 | ~1 s |
+| `demo <término>` | ~51 | ~2 s |
+| `demo files` / `measure` / `edges` / `cases` (repo entero) | 2.529 | ~500 ms |
+
+Y no hay archivo de índice, así que **no hay nada que pueda envejecer sin avisar** — el problema que
+tenía la versión anterior de esto.
+
+⚠ **Por defecto lee el WORKING TREE**, no `main`. Es un cambio deliberado: para un modelo que está
+editando este checkout, lo que hay en disco es lo correcto. `--rev main` lee esa rama, y **la salida
+siempre dice cuál de las dos usó** — la ambigüedad era el problema, no la elección. El primer test lo
+mostró solo: en la rama `fix/CORE-258` el término no existe, y decir «no matcheó nada en working tree»
+es la respuesta correcta.
+
+## Los comandos
 
 | | |
 |---|---|
-| `index` · `measure` | construir el mapa y ver sus números |
-| **`neighborhood <término>`** | ⭐ la entrada útil: grep → semillas → vecinos a 1 salto |
+| **`demo <término>`** (= `find`) | ⭐ grep + los vecinos a un salto. El 90% del uso |
 | `methods <nombre>` | métodos por nombre. **Lo único que una lista de rutas no puede dar** |
 | `cases [texto]` | las reglas de negocio en prosa, de las descripciones de los tests |
-| `files` · `map` | listar/filtrar, y el esqueleto de lo que pase el filtro |
-| `neighbors` · `edges` · `hierarchy` | recorrer el grafo, con la procedencia de cada conexión |
+| `show <archivo>` | el detalle de uno · o el esqueleto de lo que pase el filtro |
+| `files` | listar y filtrar |
+| `neighbors <archivo>` | quién lo llama y a quién llama, con la procedencia de cada arista |
+| `hierarchy <clase>` | la cadena de herencia, hacia arriba y hacia abajo |
+| `edges` | las conexiones del repo, filtrables por cómo se resolvieron |
+| `measure` | compresión y qué tanto del cableado se pudo resolver |
 
 ### Los filtros se comparten y se combinan
 
-Un solo predicado ([filters.go](filters.go)) lo usan casi todos los subcomandos, así que `--tier test`
+Un solo predicado ([filters.go](filters.go)) lo usan casi todos los comandos, así que `--tier test`
 significa lo mismo en todos lados. Si cada comando armara el suyo, una discrepancia no fallaría:
 devolvería otra cosa.
 
@@ -41,19 +72,20 @@ devolvería otra cosa.
     --with-cases   --orphan   --leaf   --min-methods N   --max-methods N
     --sort path|tokens|methods|in|out   --limit N
 
-Más `-r <repo>` y `--json` en todos. Ejemplos de lo que habilita combinarlos:
+Más `-C <dir>`, `--rev <ref>`, `--ext .php` y `--json` en todos.
 
 ```bash
-./demo files --prefix Modules/Risk --tier code --sort in --limit 10
-./demo edges --inherited --to LenderRetrieval      # auditar: qué salió de subir por extends
-./demo edges --kind ctor                          # auditar: lo único resuelto por INFERENCIA
-./demo cases --prefix Modules/Onboarding           # las reglas escritas de un módulo
-./demo map --tier migration --table profiling      # qué migraciones tocan esa tabla
-./demo neighborhood can_check_preapproval --new-only   # SÓLO lo que el grep no encontró
+demo can_check_preapproval --new-only     # SÓLO lo que el grep no encontró: el aporte del grafo
+demo cases cupo                           # las reglas escritas sobre cupo
+demo methods recalcul                     # ¿cómo se llama el método que recalcula?
+demo edges --kind ctor                    # auditar: lo único resuelto por INFERENCIA
+demo edges --inherited --to LenderRetrieval   # auditar: lo hallado subiendo por extends
+demo files --prefix Modules/Risk --sort in --limit 10
 ```
 
-⚠ `--orphan` quiere decir «nadie lo llama **según este mapa**», no «código muerto». Con el 77,8% de
-los call sites sin resolver no alcanza para afirmar lo segundo, y `measure` lo imprime cada vez.
+⚠ `--orphan` quiere decir «nadie lo llama **según lo que se cargó**», no «código muerto». En los
+comandos a demanda el grafo es parcial por diseño; en los que cargan el repo entero, el 77,8% de los
+call sites sin resolver tampoco alcanza para afirmar lo segundo. `measure` lo imprime cada vez.
 
 ## La tesis, y el número que la sostiene
 
@@ -249,13 +281,13 @@ de referencia son «los archivos que nombran la cosa literalmente», un sesgo co
 una vez —  la primera versión truncó el GT con un `head -4` y dejó afuera `app/Models/ProfilingReview.php`,
 que era la mejor respuesta posible.
 
-## La entrada útil: `neighborhood` — el grep pone la intención, el grafo el vecindario
+## El grep pone la intención, el grafo el vecindario
 
-    ./demo neighborhood can_check_preapproval        # 1 salto, 25k tokens de presupuesto
+    demo can_check_preapproval        # 1 salto, 25k tokens de presupuesto
 
-Es la conclusión de la prueba de fuego aplicada: el mapa **no va como contexto inicial**. La semilla la
-pone la pregunta —lo que matcheó un `git grep` contra `main`— y el grafo agrega sólo lo que está pegado
-a eso, renderizado con los tiers y con un presupuesto que **dice** cuándo cortó.
+La conclusión de la prueba de fuego, aplicada: el mapa **no va como contexto inicial**. La semilla la
+pone la pregunta —lo que matcheó un `git grep`— y el grafo agrega sólo lo que está pegado a eso,
+renderizado con los tiers y con un presupuesto que **dice** cuándo cortó.
 
 **Lo que aporta sobre el grep solo**, que es la única razón para que exista: el archivo que **no
 matcheó** pero está a un salto. Grepeando `can_check_preapproval` (5 semillas) aparece a un salto
@@ -294,12 +326,11 @@ que nadie crea que está rankeando algo.
 
 ## Por qué Go, y por qué no hay motor de grafos
 
-Los 2.529 archivos se leen de `main` con **un** `git cat-file --batch` (no 2.529 `git show`) y se
-parsean en paralelo, un parser de tree-sitter por goroutine: **458 ms**. Se reconstruye entero en vez de
-mantener un caché que envejece.
+Cuando hace falta el repo entero, los 2.529 archivos se parsean en paralelo —un parser de tree-sitter
+por goroutine— en **~500 ms**. Eso es lo que hace que **no exista archivo de índice**: cachear en disco
+resolvía un problema que no existe, y traía el que sí existe —un caché que envejece sin avisar.
 
-⚠ **Se lee `main`, no el working tree.** Los repos viven en ramas: un indexador que caminara el disco
-habría borrado `Modules/Backoffice` del mapa sin que nada avisara.
+Para el caso normal ni eso: el grep decide qué parsear y son decenas de archivos.
 
 **AST, no regex.** El techo del extractor de `workers` está medido: 11 archivos contra los 22 de `git
 grep`. La mitad de las aristas se pierde, y en silencio. Este mapa ya pagó esa lección dos veces:
@@ -312,11 +343,13 @@ archivo) — y cambiar significa tocar sólo `grafo.go`.
 
 ## Lo que falta, en orden de rendimiento
 
-1. **Las columnas de las migraciones**, no sólo la tabla: `$table->string('x')` está a un nodo de distancia.
-2. **`new Foo()` y `app(Foo::class)`** en locales: es el bucket más grande (26.666).
-3. **El otro monolito y el front.** En `.tsx` la compresión medida es sólo 3,9x: el esqueleto no captura
+1. **Otros lenguajes.** Hoy sólo PHP. La forma es la misma para TS y Go —tree-sitter tiene gramáticas—
+   pero el resolvedor por grep cambia por lenguaje (`class X` no es cómo se declara en Go).
+2. **Las columnas de las migraciones**, no sólo la tabla: `$table->string('x')` está a un nodo de distancia.
+3. **`new Foo()` y `app(Foo::class)`** en locales: es el bucket más grande (26.666).
+4. **El front.** En `.tsx` la compresión medida es sólo 3,9x: el esqueleto no captura
    JSX ni hooks, así que el front necesita otra estrategia.
-4. **Cablear la condición D en `seleccion.py`** de `workers`: la herramienta `esqueleto(rutas)` al lado del índice
+5. **Cablear esto en `seleccion.py`** de `workers`: la herramienta `esqueleto(rutas)` al lado del índice
    que ya tiene, en vez del payload. Es lo que la prueba de fuego dejó demostrado.
-5. **Más preguntas de nivel método**, que es el único eje donde el esqueleto ganó. Siete no alcanzan
+6. **Más preguntas de nivel método**, que es el único eje donde el esqueleto ganó. Siete no alcanzan
    para afirmar una tasa.

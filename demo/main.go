@@ -1,18 +1,26 @@
-// demo — el mapa de cableado de un repo, como CLI.
+// demo — buscá en el código de ESTE repo, y llevate el vecindario.
 //
-// QUÉ ES. Dos cosas sobre el código de un repo: el ESQUELETO de cada archivo (su clase, qué inyecta y
-// la firma de cada método, sin los cuerpos) y el GRAFO de quién llama a quién, siguiendo la herencia.
-// Todo derivado de `main` con AST, no del working tree y no con regex.
+// PARA QUÉ EXISTE. Un modelo parado en un repo cualquiera necesita contestar «¿qué archivos toco para
+// esto?» en la PRIMERA iteración, sin construir nada antes. `grep` le da los archivos que contienen el
+// término y nada más; lo que le falta es lo de al lado: de quién dependen esos archivos, quién los
+// llama, y qué saben hacer. Eso es lo que agrega esta herramienta.
 //
-// QUÉ NO ES. El cableado no es el negocio: el grafo dice que `getLenders()` llama a
+//	demo can_check_preapproval
+//
+// Un término suelto y listo: descubre el repo del directorio actual, grepea, y devuelve los archivos
+// que matchearon MÁS sus vecinos a un salto, cada uno con su clase, qué inyecta, sus métodos y —si es
+// un test— las reglas de negocio que describe en prosa.
+//
+// CÓMO FUNCIONA, y por qué no hay paso de índice. El grep no es sólo la semilla: es el RESOLVEDOR. Una
+// semilla dice `private LenderRepo $repo`; para saber qué archivo es se le pregunta al repo con
+// `git grep "class LenderRepo"`, todos los nombres en una sola invocación. Se parsean decenas de
+// archivos, no miles. No hay archivo de índice, así que no hay nada que pueda envejecer sin avisar.
+//
+// QUÉ NO CONTESTA. El cableado no es el negocio: el grafo dice que `getLenders()` llama a
 // `applyProfilingRules()`, no dice que perfilamiento sólo CLASIFICA mientras el status de la sucursal
-// EXCLUYE. Eso vive en `context/`. Es un enrutador, no un contestador.
+// EXCLUYE. Es un enrutador, no un contestador.
 //
-// CÓMO SE USA. El mapa NO se manda como contexto: se consulta. Está medido — mandarlo entero costaba
-// 265.000 tokens y empataba con darle la lista de rutas y dejarlo pedir detalle de los pocos que le
-// importan. Por eso la entrada útil es `neighborhood`: la pregunta pone la semilla, el grafo el resto.
-//
-// ⚠ PROTOTIPO. No está en el `make` a propósito, y no es fuente de contexto.
+// ⚠ PROTOTIPO. No está en el `make` a propósito.
 package main
 
 import (
@@ -20,18 +28,16 @@ import (
 	"flag"
 	"fmt"
 	"os"
-	"path/filepath"
-	"sort"
 	"strings"
 )
-
-const branch = "main"
 
 // ── plomería común ───────────────────────────────────────────────────────────────────────────────
 
 type ctx struct {
 	fs     *flag.FlagSet
-	alias  string
+	dir    string
+	rev    string
+	ext    string
 	asJSON bool
 	f      filter
 }
@@ -40,7 +46,9 @@ type ctx struct {
 // válidos. La ayuda sale del código que corre, así que no se puede desincronizar.
 func newCtx(name, about string, withFilters bool) *ctx {
 	c := &ctx{fs: flag.NewFlagSet(name, flag.ExitOnError)}
-	c.fs.StringVar(&c.alias, "r", "legacy-backend", "el repo (alias de roots.json)")
+	c.fs.StringVar(&c.dir, "C", "", "correr como si estuvieras en este directorio (default: el actual)")
+	c.fs.StringVar(&c.rev, "rev", "", "leer de este ref de git en vez del working tree (ej: main)")
+	c.fs.StringVar(&c.ext, "ext", ".php", "extensión a parsear")
 	c.fs.BoolVar(&c.asJSON, "json", false, "salida en JSON")
 	if withFilters {
 		c.f.register(c.fs)
@@ -59,14 +67,14 @@ func (c *ctx) parse(args []string) []string {
 
 // reorderArgs — mueve las banderas adelante para que el orden NO importe.
 //
-// ⚠ El `flag` de Go deja de parsear en el primer argumento suelto, así que
-// `demo neighborhood can_check_preapproval --new-only` trataba la bandera como un segundo positional y
-// el comando fallaba con «pasá un término» teniendo el término delante. Nadie escribe las banderas
-// primero, y un CLI que exige un orden que no anunció es un CLI que se siente roto.
+// ⚠ El `flag` de Go deja de parsear en el primer argumento suelto, así que `demo foo --new-only`
+// trataba la bandera como un segundo positional y el comando fallaba con «pasá un término» teniendo el
+// término delante. Nadie escribe las banderas primero, y un CLI que exige un orden que no anunció es un
+// CLI que se siente roto.
 //
 // Para saber si una bandera consume el argumento siguiente se le pregunta al propio FlagSet: las
-// booleanas exponen IsBoolFlag(). Hacerlo con una lista a mano sería una segunda fuente de verdad
-// sobre las banderas, desincronizándose en el primer flag nuevo.
+// booleanas exponen IsBoolFlag(). Una lista a mano sería una segunda fuente de verdad sobre las
+// banderas, desincronizándose en el primer flag nuevo.
 func reorderArgs(fs *flag.FlagSet, args []string) []string {
 	var flags, positional []string
 	for i := 0; i < len(args); i++ {
@@ -97,7 +105,26 @@ func reorderArgs(fs *flag.FlagSet, args []string) []string {
 	return append(flags, positional...)
 }
 
-func (c *ctx) graph() *graph { return loadGraph(c.alias) }
+// explorer — abre el repo del directorio actual. Todo comando empieza por acá: no hay estado previo.
+func (c *ctx) explorer() *explorer {
+	r, err := openRepo(c.dir, c.rev)
+	if err != nil {
+		die(err)
+	}
+	return newExplorer(r)
+}
+
+// whole — el repo entero parseado. Lo usan los comandos que necesitan afirmar algo sobre TODO (contar,
+// decir «nadie lo llama»). Cuesta ~0,5 s y lo dice, para que quede claro que no es lo mismo que el
+// vecindario a demanda.
+func (c *ctx) whole() (*explorer, *graph) {
+	x := c.explorer()
+	g := x.fullGraph(c.ext)
+	if !c.asJSON {
+		fmt.Fprintf(os.Stderr, "  (%s @ %s · %d archivos parseados)\n", g.Repo, g.Branch, x.parsed)
+	}
+	return x, g
+}
 
 func (c *ctx) emit(v any) bool {
 	if !c.asJSON {
@@ -116,47 +143,6 @@ func die(err error) {
 	os.Exit(1)
 }
 
-func baseDir() string {
-	if d, err := os.Executable(); err == nil {
-		if p := filepath.Dir(d); strings.Contains(p, "demo") {
-			return p
-		}
-	}
-	wd, _ := os.Getwd()
-	return wd
-}
-
-func graphPath(alias string) string { return filepath.Join(baseDir(), "graph-"+alias+".json") }
-
-func loadGraph(alias string) *graph {
-	b, err := os.ReadFile(graphPath(alias))
-	if err != nil {
-		die(fmt.Errorf("no hay mapa de %q todavía — corré:  demo index -r %s", alias, alias))
-	}
-	var g graph
-	if err := json.Unmarshal(b, &g); err != nil {
-		die(err)
-	}
-	return &g
-}
-
-func repoFor(alias string) string {
-	all, err := loadRoots(filepath.Join(baseDir(), "roots.json"))
-	if err != nil {
-		die(err)
-	}
-	repo, ok := all[alias]
-	if !ok {
-		keys := make([]string, 0, len(all))
-		for k := range all {
-			keys = append(keys, k)
-		}
-		sort.Strings(keys)
-		die(fmt.Errorf("alias desconocido %q. Los válidos: %s", alias, strings.Join(keys, ", ")))
-	}
-	return repo
-}
-
 // ── el despachador ───────────────────────────────────────────────────────────────────────────────
 
 type command struct {
@@ -166,44 +152,44 @@ type command struct {
 }
 
 var commands = []command{
-	{"index", "construye el mapa del repo leyendo `main` (~0,5 s)", cmdIndex},
-	{"measure", "los números del mapa: compresión y qué tanto del cableado se resolvió", cmdMeasure},
+	{"find", "⭐ un término → los archivos que lo contienen + sus vecinos. El default", cmdFind},
+	{"methods", "métodos por nombre. Lo que una lista de rutas no puede dar", cmdMethods},
+	{"cases", "las reglas de negocio en prosa, de las descripciones de los tests", cmdCases},
 	{"", "", nil},
-	{"neighborhood", "⭐ un término → los archivos que lo contienen + sus vecinos a 1 salto", cmdNeighborhood},
-	{"methods", "métodos por nombre, en todo el repo. Lo que una lista de rutas no puede dar", cmdMethods},
-	{"cases", "las reglas de negocio en prosa, sacadas de las descripciones de los tests", cmdCases},
-	{"", "", nil},
-	{"files", "listar y FILTRAR archivos. La puerta a todos los filtros", cmdFiles},
-	{"map", "el esqueleto de lo que pase el filtro (un archivo, un módulo, un tier)", cmdMap},
+	{"show", "el detalle de UN archivo, o el esqueleto de lo que pase el filtro", cmdShow},
+	{"files", "listar y FILTRAR archivos del repo", cmdFiles},
 	{"", "", nil},
 	{"neighbors", "de UN archivo: quién lo llama y a quién llama, con la procedencia", cmdNeighbors},
-	{"edges", "las conexiones, filtrables por cómo se resolvieron", cmdEdges},
 	{"hierarchy", "la cadena de herencia de una clase, y quién hereda de ella", cmdHierarchy},
+	{"edges", "las conexiones del repo, filtrables por cómo se resolvieron", cmdEdges},
+	{"measure", "los números: compresión y qué tanto del cableado se pudo resolver", cmdMeasure},
 }
 
 func usage() {
-	fmt.Println(`demo — el mapa de cableado de un repo
+	fmt.Println(`demo — buscá en el código de ESTE repo, y llevate el vecindario
 
-  demo <command> [options]        ·  demo <command> --help  para sus opciones`)
+  demo <término>                    lo más usado: grep + los vecinos a un salto
+  demo <command> [options]          demo <command> --help para sus opciones
+`)
 	for _, c := range commands {
 		if c.name == "" {
 			fmt.Println()
 			continue
 		}
-		fmt.Printf("    %-13s %s\n", c.name, c.about)
+		fmt.Printf("    %-11s %s\n", c.name, c.about)
 	}
 	fmt.Println(`
-  Casi todo acepta los MISMOS filtros y se pueden combinar:
+  El repo se DESCUBRE del directorio actual: no hay que configurar nada ni construir un índice.
+  Por defecto lee el WORKING TREE (lo que hay en disco). --rev main lee esa rama; la salida
+  siempre dice cuál de las dos usó.
+
+  Filtros, combinables, en casi todos los comandos:
     --prefix Modules/Risk   --tier code|test|migration   --class X   --extends X
     --trait X   --implements X   --uses X   --method X   --table X   --case "texto"
     --with-cases   --orphan   --leaf   --min-methods N   --max-methods N
     --sort path|tokens|methods|in|out   --limit N
 
-  Y todos aceptan  -r <repo>  (default legacy-backend)  y  --json.
-
-  Los repos salen de roots.json, DERIVADO de context/tools/roots.py:
-    python3 -c "import sys,json; sys.path.insert(0,'../context/tools'); from roots import ROOTS; \
-print(json.dumps(ROOTS,indent=2,sort_keys=True))" > roots.json`)
+  Y en todos:  -C <dir>   --rev <ref>   --ext .php   --json`)
 }
 
 func main() {
@@ -216,6 +202,13 @@ func main() {
 			c.run(os.Args[2:])
 			return
 		}
+	}
+	// Un primer argumento que no es un comando conocido y no es una bandera se toma como TÉRMINO. Es
+	// la razón de ser de la herramienta: `demo can_check_preapproval` tiene que funcionar sin que nadie
+	// lea la ayuda antes.
+	if !strings.HasPrefix(os.Args[1], "-") {
+		cmdFind(os.Args[1:])
+		return
 	}
 	fmt.Fprintf(os.Stderr, "comando desconocido %q\n\n", os.Args[1])
 	usage()
