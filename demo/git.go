@@ -19,50 +19,50 @@ import (
 )
 
 type blob struct {
-	Ruta string
+	Path string
 	Src  []byte
 }
 
-// listar — los archivos de `rama` con la extensión pedida, como (sha, ruta).
-func listar(repo, rama, ext string) ([][2]string, error) {
-	out, err := exec.Command("git", "-C", repo, "ls-tree", "-r", rama).Output()
+// listFiles — los archivos de `branch` con la extensión pedida, como (sha, path).
+func listFiles(repo, branch, ext string) ([][2]string, error) {
+	out, err := exec.Command("git", "-C", repo, "ls-tree", "-r", branch).Output()
 	if err != nil {
 		return nil, fmt.Errorf("git ls-tree en %s: %w", repo, err)
 	}
-	var res [][2]string
-	for _, l := range strings.Split(string(out), "\n") {
-		// <mode> <type> <sha>\t<ruta>
-		tab := strings.IndexByte(l, '\t')
+	var found [][2]string
+	for _, line := range strings.Split(string(out), "\n") {
+		// <mode> <type> <sha>\t<path>
+		tab := strings.IndexByte(line, '\t')
 		if tab < 0 {
 			continue
 		}
-		ruta := l[tab+1:]
-		if !strings.HasSuffix(ruta, ext) {
+		path := line[tab+1:]
+		if !strings.HasSuffix(path, ext) {
 			continue
 		}
 		// Lo que no es código propio no aporta aristas y sí distorsiona los conteos.
-		if strings.Contains(ruta, "vendor/") || strings.Contains(ruta, "node_modules/") {
+		if strings.Contains(path, "vendor/") || strings.Contains(path, "node_modules/") {
 			continue
 		}
-		campos := strings.Fields(l[:tab])
-		if len(campos) < 3 {
+		fields := strings.Fields(line[:tab])
+		if len(fields) < 3 {
 			continue
 		}
-		res = append(res, [2]string{campos[2], ruta})
+		found = append(found, [2]string{fields[2], path})
 	}
-	return res, nil
+	return found, nil
 }
 
-// leer — dispara un `cat-file --batch` y manda cada blob al canal. Escribe stdin en su propia
+// readBlobs — dispara un `cat-file --batch` y manda cada blob al canal. Escribe stdin en su propia
 // goroutine: hacerlo en línea se deadlockea en cuanto el pipe de salida se llena.
-func leer(repo string, archivos [][2]string, out chan<- blob) error {
+func readBlobs(repo string, files [][2]string, out chan<- blob) error {
 	defer close(out)
 	cmd := exec.Command("git", "-C", repo, "cat-file", "--batch")
 	in, err := cmd.StdinPipe()
 	if err != nil {
 		return err
 	}
-	sal, err := cmd.StdoutPipe()
+	stdout, err := cmd.StdoutPipe()
 	if err != nil {
 		return err
 	}
@@ -71,33 +71,33 @@ func leer(repo string, archivos [][2]string, out chan<- blob) error {
 	}
 	go func() {
 		w := bufio.NewWriter(in)
-		for _, a := range archivos {
-			fmt.Fprintln(w, a[0])
+		for _, f := range files {
+			fmt.Fprintln(w, f[0])
 		}
 		w.Flush()
 		in.Close()
 	}()
 
-	r := bufio.NewReaderSize(sal, 1<<20)
-	for _, a := range archivos {
-		cab, err := r.ReadString('\n') // <sha> blob <tamaño>
+	r := bufio.NewReaderSize(stdout, 1<<20)
+	for _, f := range files {
+		header, err := r.ReadString('\n') // <sha> blob <size>
 		if err != nil {
 			return err
 		}
-		campos := strings.Fields(cab)
-		if len(campos) != 3 {
-			return fmt.Errorf("cabecera inesperada de cat-file: %q", strings.TrimSpace(cab))
+		fields := strings.Fields(header)
+		if len(fields) != 3 {
+			return fmt.Errorf("cabecera inesperada de cat-file: %q", strings.TrimSpace(header))
 		}
-		n, err := strconv.Atoi(campos[2])
+		size, err := strconv.Atoi(fields[2])
 		if err != nil {
 			return err
 		}
-		buf := make([]byte, n)
+		buf := make([]byte, size)
 		if _, err := io.ReadFull(r, buf); err != nil {
 			return err
 		}
 		r.ReadByte() // el \n que cierra el blob
-		out <- blob{Ruta: a[1], Src: buf}
+		out <- blob{Path: f[1], Src: buf}
 	}
 	return cmd.Wait()
 }

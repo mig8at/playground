@@ -7,7 +7,7 @@ recibe `agente-lector`.
 ```bash
 go build -o demo .            # una vez
 ./demo                        # el catálogo · ./demo <sub> --help para sus opciones
-./demo extraer                # construye el mapa de legacy-backend (~0,5 s)
+./demo index                # construye el mapa de legacy-backend (~0,5 s)
 ```
 
 ⚠ **A propósito no está en el `make`**: es un prototipo. Cuando esté listo cambia de nombre y ahí entra.
@@ -23,37 +23,37 @@ python3 -c "import sys,json; sys.path.insert(0,'../context/tools'); from roots i
 
 | | |
 |---|---|
-| `extraer` · `medir` | construir el mapa y ver sus números |
-| **`vecindario <término>`** | ⭐ la entrada útil: grep → semillas → vecinos a 1 salto |
-| `buscar <método>` | métodos por nombre. **Lo único que una lista de rutas no puede dar** |
-| `casos [texto]` | las reglas de negocio en prosa, de las descripciones de los tests |
-| `archivos` · `mapa` | listar/filtrar, y el esqueleto de lo que pase el filtro |
-| `vecinos` · `aristas` · `jerarquia` | recorrer el grafo, con la procedencia de cada conexión |
+| `index` · `measure` | construir el mapa y ver sus números |
+| **`neighborhood <término>`** | ⭐ la entrada útil: grep → semillas → vecinos a 1 salto |
+| `methods <nombre>` | métodos por nombre. **Lo único que una lista de rutas no puede dar** |
+| `cases [texto]` | las reglas de negocio en prosa, de las descripciones de los tests |
+| `files` · `map` | listar/filtrar, y el esqueleto de lo que pase el filtro |
+| `neighbors` · `edges` · `hierarchy` | recorrer el grafo, con la procedencia de cada conexión |
 
 ### Los filtros se comparten y se combinan
 
-Un solo predicado ([filtros.go](filtros.go)) lo usan casi todos los subcomandos, así que `--tier test`
+Un solo predicado ([filters.go](filters.go)) lo usan casi todos los subcomandos, así que `--tier test`
 significa lo mismo en todos lados. Si cada comando armara el suyo, una discrepancia no fallaría:
 devolvería otra cosa.
 
-    --prefijo Modules/Risk   --tier codigo|test|migracion   --clase X   --extiende X
-    --trait X   --implementa X   --usa X   --metodo X   --tabla X   --caso "texto"
-    --con-casos   --huerfano   --hoja   --min-metodos N   --max-metodos N
-    --ordenar ruta|tokens|metodos|entradas|salidas   --tope N
+    --prefix Modules/Risk   --tier code|test|migration   --class X   --extends X
+    --trait X   --implements X   --uses X   --method X   --table X   --case "texto"
+    --with-cases   --orphan   --leaf   --min-methods N   --max-methods N
+    --sort path|tokens|methods|in|out   --limit N
 
 Más `-r <repo>` y `--json` en todos. Ejemplos de lo que habilita combinarlos:
 
 ```bash
-./demo archivos --prefijo Modules/Risk --tier codigo --ordenar entradas --tope 10
-./demo aristas --jerarquia --a LenderRetrieval      # auditar: qué salió de subir por extends
-./demo aristas --como ctor                          # auditar: lo único resuelto por INFERENCIA
-./demo casos --prefijo Modules/Onboarding           # las reglas escritas de un módulo
-./demo mapa --tier migracion --tabla profiling      # qué migraciones tocan esa tabla
-./demo vecindario can_check_preapproval --solo-nuevos   # SÓLO lo que el grep no encontró
+./demo files --prefix Modules/Risk --tier code --sort in --limit 10
+./demo edges --inherited --to LenderRetrieval      # auditar: qué salió de subir por extends
+./demo edges --kind ctor                          # auditar: lo único resuelto por INFERENCIA
+./demo cases --prefix Modules/Onboarding           # las reglas escritas de un módulo
+./demo map --tier migration --table profiling      # qué migraciones tocan esa tabla
+./demo neighborhood can_check_preapproval --new-only   # SÓLO lo que el grep no encontró
 ```
 
-⚠ `--huerfano` quiere decir «nadie lo llama **según este mapa**», no «código muerto». Con el 77,8% de
-los call sites sin resolver no alcanza para afirmar lo segundo, y `medir` lo imprime cada vez.
+⚠ `--orphan` quiere decir «nadie lo llama **según este mapa**», no «código muerto». Con el 77,8% de
+los call sites sin resolver no alcanza para afirmar lo segundo, y `measure` lo imprime cada vez.
 
 ## La tesis, y el número que la sostiene
 
@@ -72,7 +72,7 @@ un nombre de método — incluido `stampCreditopXApproval:405`, el que el experi
 rescatar a mano.
 
 ⚠ Pero el repo entero **nunca fue la unidad correcta**. Por módulo el problema se disuelve:
-`Modules/Risk` son 45 archivos y **8.390 tokens**; `Modules/Onboarding`, ~38.700. `./demo mapa`
+`Modules/Risk` son 45 archivos y **8.390 tokens**; `Modules/Onboarding`, ~38.700. `./demo map`
 acepta un prefijo justamente para eso.
 
 ## Escalonar, no filtrar
@@ -90,9 +90,9 @@ Así que cada archivo recibe la representación que sí informa:
 
 | tier | qué manda | |
 |---|---|---|
-| `codigo` | la firma completa de cada método + qué inyecta | el default |
+| `code` | la firma completa de cada método + qué inyecta | el default |
 | `test` | los nombres de método **y las descripciones de Pest** | 1,5x más barato que su esqueleto |
-| `migracion` | el archivo + **las tablas que toca** | las firmas `up()`/`down()` son ~19.000 tokens de cero información |
+| `migration` | el archivo + **las tablas que toca** | las firmas `up()`/`down()` son ~19.000 tokens de cero información |
 
 Escalonado da **265.865** tokens: menos que borrar tests y migraciones (262.722 era el número de
 borrarlos) al mismo orden, y con todo el repo todavía ruteable.
@@ -133,9 +133,9 @@ cablea el gemelo muerto con total confianza. Por eso cada arista lleva su **proc
 
 | `como` | mecanismo | seguridad |
 |---|---|---|
-| `interno` | `$this->x()` en la misma clase | declarada |
+| `self` | `$this->x()` en la misma clase | declarada |
 | `prop` | `$this->repo->x()` + `private LenderRepo $repo` | declarada (tipo explícito) |
-| `estatico` | `Foo::x()` + `use App\Foo` | declarada (import explícito) |
+| `static` | `Foo::x()` + `use App\Foo` | declarada (import explícito) |
 | `ctor` | `$this->tracer->x()` + `__construct(TracerService $tracer)` | **inferida** — se asume que el parámetro y la propiedad se llaman igual |
 
 Y si el método no está en la clase, se sube por `extends` y por los traits (en el orden de PHP: la
@@ -249,9 +249,9 @@ de referencia son «los archivos que nombran la cosa literalmente», un sesgo co
 una vez —  la primera versión truncó el GT con un `head -4` y dejó afuera `app/Models/ProfilingReview.php`,
 que era la mejor respuesta posible.
 
-## La entrada útil: `vecindario` — el grep pone la intención, el grafo el vecindario
+## La entrada útil: `neighborhood` — el grep pone la intención, el grafo el vecindario
 
-    ./demo vecindario can_check_preapproval        # 1 salto, 25k tokens de presupuesto
+    ./demo neighborhood can_check_preapproval        # 1 salto, 25k tokens de presupuesto
 
 Es la conclusión de la prueba de fuego aplicada: el mapa **no va como contexto inicial**. La semilla la
 pone la pregunta —lo que matcheó un `git grep` contra `main`— y el grafo agrega sólo lo que está pegado
@@ -283,7 +283,7 @@ La última nombra una tabla que ni el grep ni el esqueleto te habrían dado.
 
 **Un salto: 2 a 39 archivos, todos del vecindario real. Dos saltos: 198 a 342.** A 2 saltos desde
 `stampCreditopXApproval` entran servicios de OTP, de ecommerce y contadores de consultas a Experian: el
-fan-out del padre arrastra el módulo entero. El default es 1 salto y `--saltos 2` avisa con estos
+fan-out del padre arrastra el módulo entero. El default es 1 salto y `--hops 2` avisa con estos
 números.
 
 ⚠ **Resultado negativo del ranking**: a 1 salto la **co-activación no dispara**. Con las 5 semillas de

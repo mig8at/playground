@@ -10,9 +10,9 @@
 // rutear a ellos. Y el nombre de un test es la mejor declaración de intención del repo —
 // `test_it_excludes_lender_when_branch_inactive` dice la regla que el service no dice.
 //
-//	codigo     firma completa de cada método            el default
-//	test       clase + NOMBRES de los métodos           3x más barato; el nombre es lo informativo
-//	migracion  el archivo + las TABLAS que toca         las firmas up()/down() son 18.697 tokens de
+//	code       firma completa de cada método            el default
+//	test       clase + NOMBRES de métodos + casos       el nombre es lo informativo, no la firma
+//	migration  el archivo + las TABLAS que toca         las firmas up()/down() son 19.000 tokens de
 //	                                                    cero información: el nombre ya dice la acción
 package main
 
@@ -22,84 +22,87 @@ import (
 )
 
 const (
-	tierCodigo    = "codigo"
+	tierCode      = "code"
 	tierTest      = "test"
-	tierMigracion = "migracion"
+	tierMigration = "migration"
 )
 
-func clasificar(ruta string) string {
-	r := strings.ToLower(ruta)
+func classify(path string) string {
+	p := strings.ToLower(path)
 	switch {
-	case strings.Contains(r, "/migrations/"):
-		return tierMigracion
-	case strings.Contains(r, "/tests/") || strings.HasSuffix(r, "test.php"):
+	case strings.Contains(p, "/migrations/"):
+		return tierMigration
+	case strings.Contains(p, "/tests/") || strings.HasSuffix(p, "test.php"):
 		return tierTest
 	default:
-		return tierCodigo
+		return tierCode
 	}
 }
 
-// renderizar — el texto que el mapa entrega de este archivo. Es la MISMA función que mide `bytes_esq`,
+// render — el texto que el mapa entrega de este archivo. Es la MISMA función que mide `bytes_tier`,
 // a propósito: un número que no es lo que se manda de verdad es una mentira con formato de medición.
-func renderizar(a *archivo) string {
+//
+// ⚠ El tier `code` NO emite los `use`: las aristas resueltas ya llevan esa información, con
+// procedencia. Es deliberado, no un olvido.
+func render(f *sourceFile) string {
 	var b strings.Builder
-	switch a.Tier {
-	case tierMigracion:
-		b.WriteString(a.Ruta)
-		if len(a.Tablas) > 0 {
-			b.WriteString("  tablas: " + strings.Join(a.Tablas, ", "))
+	switch f.Tier {
+	case tierMigration:
+		b.WriteString(f.Path)
+		if len(f.Tables) > 0 {
+			b.WriteString("  tables: " + strings.Join(f.Tables, ", "))
 		}
 		b.WriteByte('\n')
 
 	case tierTest:
-		b.WriteString(a.Ruta)
-		if a.Clase != "" {
-			b.WriteString("  " + corto(a.Clase))
+		b.WriteString(f.Path)
+		if f.Class != "" {
+			b.WriteString("  " + shortName(f.Class))
 		}
 		b.WriteByte('\n')
-		var nombres []string
-		for _, m := range a.Metodos {
-			if m.Nombre == "setUp" || m.Nombre == "tearDown" || m.Nombre == "__construct" {
+		var names []string
+		for _, m := range f.Methods {
+			if m.Name == "setUp" || m.Name == "tearDown" || m.Name == "__construct" {
 				continue
 			}
-			nombres = append(nombres, m.Nombre)
+			names = append(names, m.Name)
 		}
-		if len(nombres) > 0 {
-			b.WriteString("  " + strings.Join(nombres, " · ") + "\n")
+		if len(names) > 0 {
+			b.WriteString("  " + strings.Join(names, " · ") + "\n")
 		}
 		// Pest no declara métodos: declara casos con una descripción en prosa, que dice la regla de
-		// negocio mejor que cualquier nombre. Un test tier que sólo mirara métodos los perdería
-		// enteros — y en este repo conviven los dos estilos.
-		for _, c := range a.Casos {
+		// negocio mejor que cualquier nombre. Un tier que sólo mirara métodos los perdería enteros — y
+		// en este repo conviven los dos estilos.
+		for _, c := range f.Cases {
 			b.WriteString("  · " + c + "\n")
 		}
 
 	default:
-		b.WriteString(a.Ruta + "\n")
-		if a.Clase != "" {
-			b.WriteString("  class " + a.Clase)
-			if a.Extiende != "" {
-				b.WriteString(" extends " + a.Extiende)
+		b.WriteString(f.Path + "\n")
+		if f.Class != "" {
+			b.WriteString("  class " + f.Class)
+			if f.Extends != "" {
+				b.WriteString(" extends " + f.Extends)
 			}
 			b.WriteByte('\n')
 		}
-		if n := len(a.Props) + len(a.Ctor); n > 0 {
-			claves := make([]string, 0, n)
-			vistos := map[string]bool{}
-			for k := range a.Props {
-				claves = append(claves, k+":"+a.Props[k])
-				vistos[k] = true
+		if n := len(f.Props) + len(f.CtorProps); n > 0 {
+			pairs := make([]string, 0, n)
+			seen := map[string]bool{}
+			for k, v := range f.Props {
+				pairs = append(pairs, k+":"+v)
+				seen[k] = true
 			}
-			for k, v := range a.Ctor {
-				if !vistos[k] {
-					claves = append(claves, k+":"+v)
+			for k, v := range f.CtorProps {
+				if !seen[k] {
+					pairs = append(pairs, k+":"+v)
 				}
 			}
-			sort.Strings(claves)
-			b.WriteString("  inyecta " + strings.Join(claves, " ") + "\n")
+			sort.Strings(pairs)
+			b.WriteString("  injects " + strings.Join(pairs, " ") + "\n")
 		}
-		for _, m := range a.Metodos {
-			b.WriteString("  " + m.Firma + "\n")
+		for _, m := range f.Methods {
+			b.WriteString("  " + m.Signature + "\n")
 		}
 	}
 	return b.String()
