@@ -5,7 +5,7 @@
 // central. Pero es **infraestructura de otro**, y a mitad de sesión lo redesplegaron con otra
 // plantilla: dejó de honrar lo dictado, empezó a devolver nombres ALEATORIOS por petición, y sus
 // períodos de cotización quedaron diez meses viejos —así que el backend calculaba `employed: false` y
-// las solicitudes morían con `ONB004` (F-144). Encima es serverless: sus global-vars viven en la
+// las solicitudes morían con `ONB004` (F-149). Encima es serverless: sus global-vars viven en la
 // memoria del contenedor, de modo que dictar en paralelo pierde escrituras (F-139).
 //
 // Este server no tiene ninguno de los dos problemas: es UN proceso, el estado es compartido, dictar
@@ -147,6 +147,16 @@ const RUTAS = [
       def: () => structuredClone(TUSDATOS) },
     { central: 'experian', test: (u, m) => m === 'POST' && /oauth2\/v1\/token$/.test(u.pathname),
       def: () => ({ access_token: 'MOCK-EXPERIAN-TOKEN', token_type: 'Bearer', expires_in: 3600 }) },
+
+    // El microservicio de OTP (`OTP_SERVICE_HOST`), que la firma del CODEUDOR usa y en local no existe.
+    // El contrato es mínimo: 2xx con `success: true` — el id del OTP lo crea ESTE backend, no el proveedor
+    // (`SendOtpService.php`, `$otp->id`), y los tiempos caen al fallback de config si no los mandamos.
+    // El código en sí nunca se compara acá: lo valida `ValidateOtpService`, que en local/development
+    // aplica el bypass de QA por teléfono (`qa_otp_bypass_phones`).
+    { central: 'otp', test: (u, m) => m === 'POST' && /\/api\/otp\/generate$/.test(u.pathname),
+      def: () => ({ success: true }) },
+    { central: 'otp', test: (u, m) => m === 'POST' && /\/api\/otp\/validate$/.test(u.pathname),
+      def: () => ({ success: true }) },
 ];
 
 const server = http.createServer((req, res) => {

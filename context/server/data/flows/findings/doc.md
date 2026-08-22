@@ -84,6 +84,9 @@ orden de archivo — el ancla `### F-xx` es la única dirección.)
 | **«el comercio no ofrece ninguna entidad, y una está sólo en la sucursal»** | F-143 |
 | **«le dicté un rechazo al mock y la solicitud pasó igual»** | F-144 |
 | **«cambié el nombre que devuelve la central y no rechaza»** | F-145 |
+| **«el mock acepta lo que le dicto pero contesta otra cosa»** | F-149 |
+| **«el documento no se genera y el render se queja de una variable»** | F-150 |
+| **«la firma del codeudor devuelve 500 y todo lo anterior anduvo»** | F-151 |
 | **«lo arreglé y por el otro camino sigue distinto» / «ese flujo ya no se usa»** | F-146 |
 
 Un `F-xx` puede estar en varias filas a propósito: se entra por el síntoma, y el mismo hallazgo se ve
@@ -243,6 +246,9 @@ distinto según con qué pregunta llegues.
 | F-146 | El límite de intentos está INVERTIDO entre los dos monolitos, y el viejo no veta | ABIERTO |
 | F-147 | Una categoría sin tope de cuotas = «tope cero»: al mejor cliente no se le cambia el plazo | ABIERTO |
 | F-148 | El menú de fechas de un crédito vencido ofrece sólo fechas que el guardado rechaza | develop |
+| F-149 | El lambda de mocks dejó de honrar lo dictado: acepta el POST y sirve datos aleatorios | TRAMPA |
+| F-150 | El builder de documentos del Rent to Own se elige por id quemado, no por slug | ABIERTO |
+| F-151 | `OTP_SERVICE_HOST` no está en ningún `.env.example`: la firma del codeudor cae con un 500 | ABIERTO |
 
 ---
 
@@ -2047,7 +2053,7 @@ en producción — el webhook no deja registro cuando `firstOrFail()` lanza, as�
   muerto. No lo está.
 - **Arreglo:** pendiente, con la decisión de cuál de las dos políticas es la correcta. **Estado:** abierto.
 
-### F-144 · El lambda de mocks cambió y dejó de honrar lo dictado: acepta el POST y sirve datos aleatorios
+### F-149 · El lambda de mocks cambió y dejó de honrar lo dictado: acepta el POST y sirve datos aleatorios
 
 - **Síntoma:** se le dicta al lambda qué debe contestar una central para una cédula, el POST responde
   `Global variable ... has been set to ...`, y la consulta devuelve **otra cosa**. Aguas abajo el
@@ -2073,7 +2079,7 @@ en producción — el webhook no deja registro cuando `firstOrFail()` lanza, as�
   bajo los pies en mitad de una sesión, y sin read-after-write eso se convierte en resultados
   plausibles y falsos en vez de un error.
 
-### F-145 · El builder de documentos del Rent to Own se elige por id QUEMADO, así que sólo funciona donde el clon quedó con ese id
+### F-150 · El builder de documentos del Rent to Own se elige por id QUEMADO, así que sólo funciona donde el clon quedó con ese id
 
 - **Síntoma:** la entidad Rent to Own firma sus documentos con el payload equivocado y el render muere
   con «Undefined variable» — una firma caída, no un documento con huecos. No se ve venir: el catálogo
@@ -2101,8 +2107,40 @@ en producción — el webhook no deja registro cuando `firstOrFail()` lanza, as�
   de precio y SIN las variables de la prenda. Y el arreglo fue cambiar `205 =>` por `193 =>` — **el
   mismo mapa quemado con otro número**, así que el próximo ambiente vuelve a romperlo. Medido en
   local, donde el clon quedó con id **173**, ninguno de los dos números aplica.
+- **Reproducido de punta a punta (2026-08-22, local, solicitud 465276).** Con el clon en id 173 la
+  firma del titular devuelve **500** con `Undefined variable $nombre_cliente` sobre
+  `…/motai/rto/contrato_rto_con_codeudor.blade.php`. Agregando **una sola línea** al mapa
+  (`173 => MotaiRentToOwnPayloadBuilder::class`) y sin tocar nada más, la misma llamada devuelve
+  **200** y el flujo cierra en estado **11 · Autorizada** con el codeudor `formalized`. El id es la
+  única variable: eso descarta plantilla, catálogo y datos del cliente como causa.
 - **Arreglo:** resolver por slug, como ya hacen las migraciones. **No aplicado** — es código de la
-  empresa y la decisión no es nuestra.
+  empresa y la decisión no es nuestra; el parche de la prueba se revirtió.
 - **Estado:** vivo en `main`. La regla general: **cuando una parte del sistema resuelve por una clave
   estable y otra por una inestable, la que manda es la inestable** — y el modo de falla es silencioso,
   porque el fallback devuelve un builder válido en vez de fallar.
+
+### F-151 · La firma del codeudor muere con un 500 opaco porque `OTP_SERVICE_HOST` no está en ningún `.env.example`
+
+- **Síntoma:** `POST /cosigner/signature/otp` devuelve `URV25003 · «Error interno del servidor.»`. Todo
+  lo anterior funcionó —el codeudor ve el contrato y sus documentos—, así que parece un problema del
+  documento o del token, no de configuración.
+- **Causa raíz (verificada 2026-08-22 contra `main`):** la firma del codeudor no usa el OTP viejo del
+  monolito sino el **microservicio** (`Modules/AuthV1/App/Http/Clients/OtpClient.php:40`, que hace
+  `Http::baseUrl(config('services.otp_service.host'))`). Esa variable la leen cinco archivos y **no
+  está en `.env.example`**, así que en un local recién armado es `null`: el cliente queda con base
+  vacía, el POST no llega a ningún lado y el error de transporte sube convertido en 500.
+- **Evidencia:** en Loki, `Error in OtpClient::post` → `SendOtpService::sendOtpOrchestrator` con el
+  stack de `PendingRequest->send()`. `grep -n "^OTP_SERVICE" .env.example` no devuelve nada, y el
+  cliente entró a `main` el 2026-08-03 (`feature new services`).
+- **⚠ Es la misma clase que F-142, y por eso vale como regla:** una variable de entorno que nadie
+  declara no falla al arrancar — falla en el punto más profundo del flujo, con el mensaje menos
+  parecido a su causa. Antes de depurar un 500 en un camino que estrena microservicio, comprobá que su
+  host esté definido.
+- **Arreglo:** en local, apuntarla al mock de centrales (`harness/mock-centrales/server.mjs` sirve
+  `/api/otp/generate` y `/api/otp/validate`); el contrato es mínimo — **2xx con `success: true`**, ya
+  que el id del OTP lo crea este backend (`SendOtpService.php`, `$otp->id`) y los tiempos caen al
+  fallback de config. En el repo de la empresa faltaría declararla en `.env.example`. **Estado:** vivo
+  en `main`.
+- ⚠ **El código ya no se puede leer de la BD:** la fila de `otps` guarda el literal
+  `delegated-to-otp-service` en vez del código. Quien valide en local depende del mock o del bypass de
+  QA por teléfono de `ValidateOtpService`.

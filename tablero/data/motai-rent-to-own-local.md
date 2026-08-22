@@ -8,9 +8,11 @@ jira: []
 jira_title: "Rent to Own: validar la firma con codeudor fuera de qa"
 ---
 
-**ESTADO 2026-08-22.** El comercio está montado en local y el hallazgo grande ya salió (F-145). Lo
-que falta es hacerlo LISTAR, y ahí me quedé sin explicación — lo dejo escrito para no volver a
-recorrer lo descartado.
+**ESTADO 2026-08-22 (cerrado).** El flujo completo del Rent to Own con codeudor **corre de punta a
+punta en local** y termina en estado **11 · Autorizada**. Salieron tres hallazgos —F-150 (el builder
+por id quemado), F-151 (`OTP_SERVICE_HOST` sin declarar) y la política de codeudor del RTO— y ninguno
+era el que parecía al empezar. El recorrido de abajo queda por lo que descarta, no sólo por lo que
+encontró.
 
 ## Qué es el Rent to Own
 
@@ -347,3 +349,45 @@ puede pisar por variables de shell o por el `<php>` de `phpunit.xml`; una compro
 `URV18003`. Son aserciones que no cuadran —«Failed asserting that null is identical to true»—, así que
 o los tests quedaron viejos o hay una divergencia real. **Ahí está la respuesta a por qué no pude
 cerrar a mano**, y ahora se puede leer en segundos en vez de tantear endpoints.
+
+## 2026-08-22 (FIN) · el crédito cierra: estado 11, codeudor formalizado
+
+Los dos últimos bloqueos no estaban en la lógica del codeudor sino **antes y después** de ella, y los
+dos se ven igual desde afuera: un 500 sin pista.
+
+**1 · El cupo del codeudor moría leyendo el buró, no evaluándolo.** `QUOTA_CHECK_ERROR` con
+`Undefined array key "status"` en `LenderUserCategoryService.php:827`: la línea lee
+`$creditCard['status']['account']['businessAccountStatus']` **sin `isset`**, así que un datacrédito
+inyectado con la forma corta (`creditCard: [{quotaAvailable: …}]`) lo tumba. Con la forma que usa el
+propio harness (`pkg/inject.ts` — `status.account` + `status.payment` + el vector de comportamiento)
+devuelve `{"cosignerStatus":"approved","eligible":true}`. **Lo que fallaba no era la elegibilidad: era
+la lectura.** Por eso los tests de elegibilidad no lo veían — mockean el motor de cupo
+(`shouldReceive('getCosignerQuota')`), así que prueban la máquina de estados y no el camino real.
+
+**2 · La firma del titular caía en el render del PDF.** 500 con `Undefined variable $nombre_cliente`
+sobre `contrato_rto_con_codeudor.blade.php`. Es **F-150** reproducido en vivo: agregando `173 =>
+MotaiRentToOwnPayloadBuilder::class` al mapa —una línea, nada más— la misma llamada devuelve 200. El
+parche era de diagnóstico y **está revertido**; el arreglo de verdad (resolver por `lenders.slug`) es
+decisión de la empresa.
+
+**3 · La firma del codeudor no tenía a quién pedirle el OTP.** `URV25003`, y la causa es **F-151**:
+el paso usa el microservicio de OTP y `OTP_SERVICE_HOST` no está declarado en ningún `.env.example`.
+Se resolvió sirviéndolo desde el mock local, cuyo contrato es mínimo: 2xx con `success: true`.
+
+**La secuencia que cierra** (solicitud 465276, comercio Motai, lender Rent to Own id 173):
+
+    codeudor:  start → register → token → onboard → identity → evaluate-eligibility (approved)
+               → enter-signature-stage → waiting_applicant_signature
+    titular:   continue → confirm → confirm-payment-date → confirm-schedule → promissory
+               → send-otp → verify-otp → authorize → «pendiente firma codeudor» (estado 29)
+    codeudor:  signature/context → signature/documents → signature/otp → otp/verify
+               → «Firma registrada» · formalized · 2 documentos · userRequestAuthorized
+
+⚠ **Dos detalles que cuestan un intento cada uno.** El verify de la firma del codeudor espera el campo
+**`otp`**, no `code` (con `code` responde `URV27002 · datos de entrada`). Y el OTP nuevo **no se puede
+leer de la BD**: la fila de `otps` guarda el literal `delegated-to-otp-service`, porque el código vive
+en el microservicio.
+
+**Lo que queda abierto:** F-150 y F-151 son código de la empresa y no se tocan desde acá. Los 5 tests
+de elegibilidad que fallan siguen fallando, y ahora se sabe por qué no importaba: mockean el motor de
+cupo, así que su rojo no dice nada del camino que acabamos de recorrer.

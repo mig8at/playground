@@ -90,7 +90,7 @@ const UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_5 like Mac OS X) AppleWebKit/6
 // flujo corre normal. No hace falta ningún fixture: la respuesta se pide, no se inyecta.
 // ⚠ POR DEFECTO, EL MOCK LOCAL — no el lambda de la empresa. El lambda hace lo mismo pero es
 // infraestructura de OTRO: a mitad de sesión lo redesplegaron, dejó de honrar lo dictado y empezó a
-// devolver datos aleatorios con períodos viejos (F-144). Y además es serverless, así que dictar en
+// devolver datos aleatorios con períodos viejos (F-149). Y además es serverless, así que dictar en
 // paralelo pierde escrituras (F-139). El local es un proceso, responde en milisegundos y el estado es
 // compartido. Mismo contrato: para volver al lambda alcanza con `RISK_LAMBDA_URL=<su url>`.
 const LAMBDA = process.env.RISK_LAMBDA_URL ?? 'http://localhost:8105';
