@@ -97,3 +97,29 @@ config CreditopX, y no lista; el 77 (CrediPullman) lista **sin un solo tramo**.
 
 **Por dónde seguir:** leer `LenderRetrievalService::getLenders` en `main` siguiendo el camino rt=2
 hasta el `unset`, con un `uReq` de Motai a mano. Todo lo de arriba ya está descartado con medición.
+
+
+## 2026-08-22 · main al día: los rt=2 dejaron de listar EN TODAS PARTES
+
+Se actualizó `legacy-backend` a `origin/main` (30 commits) y se corrieron las 11 migraciones de agosto
+que faltaban. Antes y después, con el mismo comercio y el mismo caso:
+
+    ANTES   pullman → [77, 100, 39, 68, 6, 9, 32]     ← 77 es CrediPullman, rt=2
+    AHORA   pullman → [100, 39, 68, 6, 9, 32]         ← sin ningún rt=2
+
+Y no es sólo Pullman: en kreditkasa, dormiluna y godentist tampoco aparece un solo rt=2. **O sea que
+lo del Rent to Own NO era un caso particular** — es que después de actualizar, ningún CreditopX lista
+en esta base. Hay que resolver ESO primero; el RTO viene después.
+
+Sospechosos, sin verificar: las migraciones de calculadora
+(`add_initial_fee_formula_to_calculator_lenders`, `store_calculator_formulas_as_an_ordered_list`) o
+`disable_payment_date_selection_for_renting_and_rto`, todas de la tanda nueva. O un cambio de código
+entre los 30 commits.
+
+⚠ **Y un defecto del runner corregido acá que cambia cómo leer TODO lo medido antes.** El monto del
+listado viaja por QUERY (`ListLenderController::index:39` → `$request->query('amount', 180000)`), no
+sale de la solicitud. El runner no lo mandaba, así que **todo lo medido hasta hoy se calculó con
+180.000**, incluido el censo de 223 comercios. Medido después de arreglarlo: para Pullman el monto
+**no cambia quiénes salen, sólo el orden** — consistente con «el monto clasifica, no excluye» —, así
+que el censo se sostiene en su conclusión gruesa. Pero cualquier medición fina de tramos por monto
+hecha antes de este arreglo hay que rehacerla.

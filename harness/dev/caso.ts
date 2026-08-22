@@ -527,7 +527,12 @@ async function correrLambda(c: Caso, i: number): Promise<Res> {
                  detalle: `${pi.json?.errors?.error_subcode ?? ''} ${JSON.stringify(pi.json?.errors?.payload ?? pi.json?.message ?? '').slice(0, 90)}` };
     }
 
-    const lis = await fetch(`${API}/api/onboarding/loan-application/lenders/${ur}`, { headers: H })
+    // ⚠ EL MONTO VA EN LA QUERY, y sin él el backend usa 180.000 por default
+    // (`ListLenderController::index:39` — `$request->query('amount', 180000)`), NO el monto de la
+    // solicitud. Todo lo medido hasta el 2026-08-22 se calculó con 180 mil sin que nada avisara: los
+    // tramos y las categorías se evalúan contra ESE número, así que un lender cuyo mínimo es más alto
+    // desaparece del listado por una razón que no tiene que ver con el caso planteado.
+    const lis = await fetch(`${API}/api/onboarding/loan-application/lenders/${ur}?amount=${c.amount}`, { headers: H })
         .then((r) => r.json()).catch(() => null);
     // ⚠ «CERO ENTIDADES» Y «LA LLAMADA FALLÓ» NO SON LO MISMO, y hasta el 2026-08-18 esto los
     // reportaba igual: un comercio cuyo listado reventaba salía como «0 entidades», que se lee como
