@@ -162,7 +162,34 @@ async function cerrarCreditopX(arr: any[], ur: number, tel: string, amount: numb
     await post('/api/loans/requests/promissory-note/validate/send-otp', { user_request_id: ur });
     await post('/api/loans/requests/promissory-note/validate/verify-otp',
                { user_request_id: ur, otp: tel.slice(-6) });
-    const aut = await post('/api/loans/requests/promissory-note/validate/authorize', { user_request_id: ur });
+
+    // EL CIERRE DEPENDE DEL PATH DE LA ENTIDAD, y no da lo mismo llamar al de al lado.
+    //
+    // En el canal IMEI la firma NO autoriza: deja la solicitud en «Autorizado pendiente desembolso» y
+    // el crédito se desembolsa recién cuando el equipo —que ES la garantía— queda inscrito en el MDM:
+    // `device/register` → `device/{ur}/disburse`.
+    //
+    // ⚠ Llamar al `authorize` estándar acá TAMBIÉN devuelve 200 y TAMBIÉN deja estado 11, pero sin
+    // equipo inscrito (medido: la misma entidad cerrada por un camino queda con imei y por el otro con
+    // NULL). O sea que el runner reportaba «cerró en 11» sobre un crédito que se saltó la garantía —un
+    // verde falso, que es peor que un rojo—. `authorize` no tiene guarda para este path: la tiene para
+    // el codeudor y no para esto (F-157).
+    const esImei = await one<{ p: string }>(
+        `SELECT pa.name p FROM lenders l JOIN paths pa ON pa.id = l.path_id WHERE l.id = ?`,
+        [Number(ctopx.id)]).catch(() => null);
+
+    let aut;
+    if (esImei?.p === 'IMEI') {
+        // IMEI derivado del uReq: 15 dígitos, estable por caso y distinto entre casos paralelos.
+        const imei = String(35000000000000 + (ur % 1_000_000_000)).slice(0, 15).padEnd(15, '0');
+        const reg = await post('/api/loans/requests/device/register', { user_request_id: ur, imei });
+        if (reg.status !== 200) {
+            return { cerro: false, motivo: `${ctopx.name}: device/register HTTP ${reg.status}`, estado: null };
+        }
+        aut = await post(`/api/loans/requests/device/${ur}/disburse`, { user_request_id: ur });
+    } else {
+        aut = await post('/api/loans/requests/promissory-note/validate/authorize', { user_request_id: ur });
+    }
 
     const fin = await one<{ e: number }>(
         'SELECT user_request_status_id e FROM user_requests WHERE id=?', [ur]).catch(() => null);
