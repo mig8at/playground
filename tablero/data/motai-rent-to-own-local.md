@@ -99,22 +99,29 @@ config CreditopX, y no lista; el 77 (CrediPullman) lista **sin un solo tramo**.
 hasta el `unset`, con un `uReq` de Motai a mano. Todo lo de arriba ya está descartado con medición.
 
 
-## 2026-08-22 · main al día: los rt=2 dejaron de listar EN TODAS PARTES
+## 2026-08-22 · en `main` NO lista ningún rt=2 — y en la rama de trabajo SÍ
 
-Se actualizó `legacy-backend` a `origin/main` (30 commits) y se corrieron las 11 migraciones de agosto
-que faltaban. Antes y después, con el mismo comercio y el mismo caso:
+`legacy-backend` quedó en `origin/main` al día (`a2484149`, 30 commits traídos) con las 11 migraciones
+de agosto corridas. Y ahí ningún CreditopX lista, en ningún comercio: pullman, kreditkasa, dormiluna y
+godentist, todos sin un solo rt=2.
 
-    ANTES   pullman → [77, 100, 39, 68, 6, 9, 32]     ← 77 es CrediPullman, rt=2
-    AHORA   pullman → [100, 39, 68, 6, 9, 32]         ← sin ningún rt=2
+⚠ **Corrección de una atribución mía.** Primero lo escribí como «regresión de la actualización», y no
+lo es. La diferencia aparece antes:
 
-Y no es sólo Pullman: en kreditkasa, dormiluna y godentist tampoco aparece un solo rt=2. **O sea que
-lo del Rent to Own NO era un caso particular** — es que después de actualizar, ningún CreditopX lista
-en esta base. Hay que resolver ESO primero; el RTO viene después.
+| dónde | ¿lista CrediPullman (77)? |
+|---|---|
+| rama `fix/CORE-258-sesion-por-telefono-canonico` | **sí** — es donde corrió todo el barrido de hoy |
+| `main` viejo (`e52c4570`, 20-ago) | no |
+| `main` al día (`a2484149`, 22-ago) | no |
 
-Sospechosos, sin verificar: las migraciones de calculadora
-(`add_initial_fee_formula_to_calculator_lenders`, `store_calculator_formulas_as_an_ordered_list`) o
-`disable_payment_date_selection_for_renting_and_rto`, todas de la tanda nueva. O un cambio de código
-entre los 30 commits.
+O sea que **es una diferencia entre esa rama y `main`**, no algo que trajeron los 30 commits. El
+momento en que lo vi fue el `checkout main`, y lo anoté al pasar como «una entidad menos, esperable
+porque el código difiere» sin verificarlo — que es justo el tipo de observación que hay que parar a
+medir.
+
+**Lo que sigue:** comparar qué tiene esa rama que `main` no, acotado al camino rt=2 del listado
+(`git diff main..fix/CORE-258-… -- Modules/Onboarding/App/Services/lenders/`). Son 59 commits, pero el
+diff de esa carpeta debería ser corto.
 
 ⚠ **Y un defecto del runner corregido acá que cambia cómo leer TODO lo medido antes.** El monto del
 listado viaja por QUERY (`ListLenderController::index:39` → `$request->query('amount', 180000)`), no
