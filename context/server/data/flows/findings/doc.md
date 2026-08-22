@@ -87,6 +87,9 @@ orden de archivo — el ancla `### F-xx` es la única dirección.)
 | **«el mock acepta lo que le dicto pero contesta otra cosa»** | F-149 |
 | **«el documento no se genera y el render se queja de una variable»** | F-150 |
 | **«la firma del codeudor devuelve 500 y todo lo anterior anduvo»** | F-151 |
+| **«firmó un contrato que no es el del producto que compró»** | F-152 |
+| **«no se generó ningún documento y no hay error»** | F-152 |
+| **«dice que no tiene cupo pero el error es una clave que falta»** | F-153 |
 | **«lo arreglé y por el otro camino sigue distinto» / «ese flujo ya no se usa»** | F-146 |
 
 Un `F-xx` puede estar en varias filas a propósito: se entra por el síntoma, y el mismo hallazgo se ve
@@ -249,6 +252,8 @@ distinto según con qué pregunta llegues.
 | F-149 | El lambda de mocks dejó de honrar lo dictado: acepta el POST y sirve datos aleatorios | TRAMPA |
 | F-150 | El builder de documentos del Rent to Own se elige por id quemado, no por slug | ABIERTO |
 | F-151 | `OTP_SERVICE_HOST` no está en ningún `.env.example`: la firma del codeudor cae con un 500 | ABIERTO |
+| F-152 | El Rent to Own no tiene documentos sin codeudor: firma el contrato equivocado, o ninguno | ABIERTO |
+| F-153 | Una regla con tarjetas revienta leyendo el buró; el mismo archivo sí se protege en otros 3 puntos | ABIERTO |
 
 ---
 
@@ -2144,3 +2149,58 @@ en producción — el webhook no deja registro cuando `firstOrFail()` lanza, as�
 - ⚠ **El código ya no se puede leer de la BD:** la fila de `otps` guarda el literal
   `delegated-to-otp-service` en vez del código. Quien valide en local depende del mock o del bypass de
   QA por teléfono de `ValidateOtpService`.
+
+### F-152 · El Rent to Own no tiene documentos para quien NO necesita codeudor, y el síntoma cambia según el ambiente
+
+- **Síntoma:** dos caras de la misma causa, y ninguna falla con error. En qa/prod, el cliente del Rent
+  to Own **firma un contrato de renting** —arrendamiento sin opción de compra, lo contrario del
+  producto que compró—. En un local armado sólo con las migraciones del repo, **no se genera ningún
+  documento** y el flujo sigue como si la entidad no tuviera catálogo.
+- **Causa raíz (verificada 2026-08-22 contra `main`):** `lender_signing_documents` se consulta por
+  rama —`SigningDocumentResolver::resolveForPolicy()` hace `where('requires_cosigner', $requiresCosigner)`—
+  y del Rent to Own **sólo existe la rama `true`**. La migración que la siembra
+  (`2026_08_20_120000_seed_rent_to_own_cosigner_documents`) lo declara en su cabecera: *«legal entregó
+  únicamente las versiones con deudor solidario… ES UN HUECO CONOCIDO»*, y agrega que **no todas las
+  categorías del RTO piden codeudor** — la que se llama justamente «Codeudor» está en
+  `requires_cosigner = 0`.
+- **Evidencia:** medido en local, el catálogo del clon tiene cinco filas y **todas** en la rama con
+  codeudor (`lease_agreement`, `cosigner_agreement`, `promissory_note`, `chattel_mortgage`,
+  `payment_schedule`), mientras el renting del 158 tiene las **dos** ramas pobladas. Y el nodo
+  `codeudor` ya dice qué pasa con una rama vacía: `SigningDocumentResolver` devuelve vacío, no se
+  difiere, no se re-renderiza — **la ausencia de configuración ES el fallback**.
+- **⚠ Por qué los dos ambientes difieren:** la rama falsa de qa/prod la pobló
+  `2026_08_18_120000_copy_renting_config_to_rent_to_own_lender`, que **no existe en ninguna rama ni
+  commit** del repositorio. Es la segunda pieza de la config del RTO que puso una migración fantasma
+  (la otra es la calculadora). **Consecuencia práctica: lo que valides en un ambiente no predice el
+  otro, y ninguno se reconstruye desde el código.**
+- **Arreglo:** definir las versiones sin codeudor de los documentos, o cerrar la categoría que no lo
+  pide. Es decisión de negocio y legal, no de código. **Estado:** vivo en `main`, declarado por la
+  propia migración.
+
+### F-153 · Una regla de categoría con tarjetas revienta LEYENDO el buró, no evaluándolo — y el mismo archivo sí se protege en otros tres lugares
+
+- **Síntoma:** la evaluación de categoría muere con `Undefined array key "status"` y el flujo reporta
+  un error de cupo (`QUOTA_CHECK_ERROR`). Parece que el usuario no califica, o que el motor de cupo
+  está roto; en realidad nunca llegó a decidir nada.
+- **Causa raíz (verificada 2026-08-22 contra `main`):**
+  `legacy-backend/Modules/Loans/App/Services/LenderUserCategoryService.php:827` y `:830` leen
+  `$creditCard['status']['account']['businessAccountStatus']` y
+  `$creditCard['status']['payment']['businessBureauEvent']` con **acceso directo**, sin `isset`. El
+  guard existe sólo para la clave externa (`:817` chequea `creditCard`), y el comentario declara la
+  intención: *«Lógica de producción: acceso directo»* — se asume que el buró real siempre trae esa
+  forma. Un datacrédito con la forma corta (sólo `quotaAvailable`, o un payload recortado) tumba la
+  regla antes de evaluarla.
+- **⚠ Lo que lo vuelve un hallazgo y no una preferencia de estilo:** el **mismo archivo** lee ese
+  payload **defensivamente en tres lugares** (`:725-726` con `?? []`, `:891` con `isset`) y directo en
+  uno solo — y el directo es el que corre para las reglas de categoría (`:565`,
+  `$criteria['credit_cards']`). O sea que la robustez del archivo depende de por qué camino entraste.
+- **Evidencia:** inyectando `creditCard: [{quotaAvailable: 5000000}]` el cupo del codeudor falla con
+  ese error; inyectando la forma larga que usa el propio harness (`status.account` + `status.payment`
+  + el vector de comportamiento) devuelve `{"cosignerStatus":"approved","eligible":true}` sin tocar
+  ninguna otra cosa.
+- **⚠ Y los tests no lo cubren:** los de elegibilidad del codeudor **mockean el motor de cupo**
+  (`shouldReceive('getCosignerQuota')`), así que prueban la máquina de estados y este camino nunca se
+  ejercita. Su rojo o su verde no dicen nada de esto.
+- **Arreglo:** para PROBAR, inyectar el buró con la forma completa. Para arreglar de verdad haría
+  falta que la lectura sea tan defensiva como los otros tres puntos del archivo — código de la empresa.
+  **Estado:** vivo en `main`.

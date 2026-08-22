@@ -33,6 +33,7 @@
 - **PEP migratorio ≠ PEP AML**: aquí PEP = Permiso Especial de Permanencia (migrante gig); el literal `'PEP'` no dispara consulta a centrales. En el AML de TusDatos "PEP" = Persona Expuesta Políticamente.
 - **Terminología invertida** (C1): el `renting` del código = el *rent-to-own* del PRD (se queda el bien). Fijar diccionario (memoria `nomenclatura-negocio`).
 - **Que el lender esté asociado a la sucursal NO alcanza para que liste**: si no tiene `group_rules` propias en esa sucursal, el listado sale **vacío** (ver `findings` **F-75**). Es config de datos, no código.
+- ⚠ **Renting y Rent to Own NO se diferencian por `product` ni por la calculadora: se diferencian por el CATÁLOGO DE DOCUMENTOS.** Los dos corren como `product = 'renting'` con matriz `plans`, mismo `response_type`, mismo wizard y mismo `next_step`. Si vas a buscar la diferencia en el código del flujo, no está ahí — está en `lender_signing_documents` y en la política de codeudor de las categorías. → § «Renting y Rent to Own».
 - **IMEI / device-lock (MDM)** es el cierre de la **compra de celulares** del allied Motai, árbol separado sin cruce con Ábaco — fuera de este nodo (patrón afín en **SmartPay**).
 
 ## El padrón de entidades y su config difieren POR AMBIENTE — y no solo los ids
@@ -122,6 +123,29 @@ Alquilar una sola semana sale **25% más caro** y comprometer un trimestre trae 
 
 > ⚠ **La terminología del código está invertida respecto del PRD** (gotcha C1): el `renting` **del código** es el *rent-to-own* del PRD (**es crédito**), y lo que el PRD llama *renting operativo* (**no es crédito**) es el alquiler puro. O sea que **Ábaco aplica al producto que legalmente SÍ es un crédito**.
 
+## Renting y Rent to Own: en qué se diferencian de verdad
+**Legalmente son productos distintos** (§ «Por qué la distinción legal importa»): sin opción de compra el cliente devuelve el bien; con opción, termina siendo dueño. **Técnicamente comparten casi todo**: el mismo `response_type`, el mismo wizard, el mismo motor de pasos, y —porque el RTO es un clon— el mismo `product = 'renting'` y la misma matriz `plans`. La diferencia operativa vive en **dos lugares de configuración**, no en el flujo:
+
+| | Motai Renting | Rent to Own |
+|---|---|---|
+| qué firma | contrato de **renting**, pagaré + carta, plan de pagos | contrato **con opción de adquisición** (cláusula Vigésima Cuarta), acuerdo de codeudoría, pagaré + carta, **garantía mobiliaria**, plan de pagos |
+| ramas del catálogo | **las dos** (`requires_cosigner` true y false) | **sólo la rama con codeudor** — ver el hueco abajo |
+| tipo de documento propio | — | **`chattel_mortgage`** (prenda sin tenencia) |
+| de dónde sale la config | migraciones del repo | migraciones del repo **+ una que no está en el repo** |
+
+**`chattel_mortgage` es un tipo nuevo y no podía llamarse `guarantee`.** Ese nombre ya lo usa la garantía del **FGA**, que tiene su propia tabla (`guarantees`), su plantilla genérica y un guard de runtime que decide por score de centrales. Reusarlo haría que la prenda del vehículo escribiera en la tabla del FGA y que un score bajo impidiera constituirla. **Y el orden de las filas no es cosmético:** la prenda va después del pagaré porque su cláusula Segunda referencia el número del título, que sólo existe una vez que el pagaré se generó.
+
+⚠ **El hueco: el Rent to Own no tiene documentos para el cliente que NO necesita codeudor** — y lo declara la propia migración que lo siembra: *«legal entregó únicamente las versiones con deudor solidario… ES UN HUECO CONOCIDO»*. Como `SigningDocumentResolver::resolveForPolicy()` filtra `where('requires_cosigner', $requiresCosigner)`, la rama sin filas devuelve vacío. **Y el síntoma cambia según el ambiente**, que es lo que lo vuelve traicionero:
+
+- donde corrió la migración que copió la config del 158 (qa/prod), la rama falsa quedó apuntando a las plantillas de **renting** → el cliente firma un arrendamiento **sin opción de compra**, que es lo contrario del producto que compró. La migración avisa que la categoría llamada «Codeudor» está justamente en `requires_cosigner = 0`;
+- en un ambiente armado **sólo con las migraciones del repo** (un local nuevo), esa rama no existe → **no se genera ningún documento**, y el flujo sigue como si no hubiera catálogo.
+
+Ninguno de los dos falla con error. **Antes de concluir nada sobre los documentos del RTO, mirá qué filas tiene su catálogo en ESE ambiente.**
+
+⚠ **Y la config del RTO no es reproducible desde el código.** `2026_08_20_120000_seed_rent_to_own_cosigner_documents` nombra como antecesora a `2026_08_18_120000_copy_renting_config_to_rent_to_own_lender`, que **no existe en ninguna rama ni commit** — mismo patrón que la calculadora (§ «El padrón de entidades»). O sea: **dos** piezas de la configuración del Rent to Own las puso una migración fantasma, y por eso lo que valga en un ambiente no predice el otro.
+
+**Lo que sí quedó comprobado corriéndolo** (local, 2026-08-22): con el catálogo de la rama con codeudor sembrado por la migración de `main`, el Rent to Own **cierra de punta a punta** — el codeudor entra por su token, resuelve elegibilidad, el titular firma y la solicitud se difiere, y al firmar el codeudor la autorización termina en **estado 11**. El detalle del recorrido está en `codeudor`; los tropiezos del camino, en `findings` **F-150**, **F-151**, **F-152** y **F-153**.
+
 ## Decisión manual + cierre
 La decisión del renting **sigue siendo manual**: el asesor la toma en la pantalla de perfil financiero (`financial-profile.repository.ts` → `POST motai/update-status`, `approve` booleano; el ingreso que muestra viene de `FINANCIAL_HEALTH_API_URL`, **≠** Ábaco) → `BackDoorUserService`: aprobado ⇒ `targetStatus=11` + voucher; rechazado ⇒ `9`.
 
@@ -141,4 +165,5 @@ La decisión del renting **sigue siendo manual**: el asesor la toma en la pantal
 
 ## Lo que NO está verificado
 - **Qué migración dejó la calculadora que corre hoy en cada ambiente.** Las que aparecen en el ledger de prod y de dev/qa para el Rent to Own **no existen en el repositorio**: la config actual no es reproducible desde el código, y reconstruirla es trabajo pendiente, no un dato que este nodo pueda afirmar.
-- **Si el `product = 'rto'` funciona de punta a punta.** Ningún ambiente lo usa (el Rent to Own va como `'renting'`), así que la rama `terms` de la calculadora y la card propia del RTO **nunca se ejercitaron**.
+- **Si el `product = 'rto'` funciona de punta a punta.** Sigue sin verificarse, y conviene no confundirlo con lo que sí se probó: el recorrido completo del Rent to Own se ejercitó **con el clon tal como está configurado**, o sea `product = 'renting'` y matriz `plans` (medido en el propio lender antes de correrlo). La rama `terms` de la calculadora y la card propia del RTO **siguen sin ejercitarse en ningún ambiente**.
+- **Las versiones sin codeudor de los documentos del RTO.** No existen: legal no las entregó. Que la solución sea escribirlas o cerrar la categoría que no pide codeudor es decisión de negocio, no algo que este nodo pueda afirmar.

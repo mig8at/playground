@@ -7,7 +7,9 @@
   "sintomas": [
     "«falló el renting / Ábaco»",
     "«no aparece el tipo de documento PEP»",
-    "«la cuota del plan de pagos no coincide con el contrato»"
+    "«la cuota del plan de pagos no coincide con el contrato»",
+    "«el cliente del rent to own firmó un contrato de renting»",
+    "«no se generó ningún documento y no hay error»"
   ],
   "verified": {
     "ref": "main",
@@ -102,6 +104,9 @@
     "legacy-backend/database/migrations/2026_07_30_120000_seed_motai_renting_plans_calculator.php",
     "legacy-backend/database/migrations/2026_08_15_130000_add_initial_fee_formula_to_calculator_lenders.php",
     "legacy-backend/database/migrations/2026_08_15_140000_clone_motai_renting_lender_as_rent_to_own.php",
-    "legacy-backend/database/migrations/2026_08_15_150000_store_calculator_formulas_as_an_ordered_list.php"
+    "legacy-backend/database/migrations/2026_08_15_150000_store_calculator_formulas_as_an_ordered_list.php",
+    "legacy-backend/Modules/Loans/App/Services/Signing/SigningDocumentResolver.php",
+    "legacy-backend/database/migrations/2026_08_20_120000_seed_rent_to_own_cosigner_documents.php",
+    "legacy-backend/app/Models/LenderSigningDocument.php"
   ]
 }

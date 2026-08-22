@@ -9,7 +9,11 @@
     "«pide codeudor y no debería» / «no lo pide y debería»",
     "«el documento salió sin la firma del codeudor»"
   ],
-  "verified": { "ref": "main", "date": "2026-08-20", "source": "cabecera" },
+  "verified": {
+    "ref": "main",
+    "date": "2026-08-20",
+    "source": "cabecera"
+  },
   "files": [
     "legacy-backend/app/Models/Cosigner.php",
     "legacy-backend/app/Models/CosignerStatus.php",
@@ -79,6 +83,7 @@
     "frontend-monorepo/apps/loan-request-wizard/app/routes/cosigner/signature/documents.tsx",
     "frontend-monorepo/apps/loan-request-wizard/app/routes/cosigner/signature/otp.tsx",
     "frontend-monorepo/apps/loan-request-wizard/app/routes/cosigner/signature/success.tsx",
-    "frontend-monorepo/apps/loan-request-wizard/app/utils/signer-role.server.ts"
+    "frontend-monorepo/apps/loan-request-wizard/app/utils/signer-role.server.ts",
+    "legacy-backend/Modules/AuthV1/App/Http/Clients/OtpClient.php"
   ]
 }
