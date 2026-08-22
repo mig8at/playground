@@ -31,6 +31,21 @@
 // ⚠ Cerrar cuesta: ~90s por caso contra ~6s hasta el listado. Para barrer muchos comercios conviene
 // no pedirlo, y reservarlo para los que se quieren probar de punta a punta.
 //
+// EL CATÁLOGO ENTERO, medido el 2026-08-22 — 223 comercios (una sucursal por comercio, la de más
+// entidades, direccionada por `#hash`), en 8 tandas de 30 en paralelo, ~12 minutos:
+//
+//     214  ofrecen al menos una entidad     (mediana 3 · máximo 12)
+//       6  ofrecen CERO — y no todos por lo mismo:
+//            · Crediteame  → su ÚNICA entidad tiene `status=0`. Cero legítimo.
+//            · CeluRD Test → una de sus dos entidades es `country_id=60`. Filtro de país.
+//            · Vtex, TIENDAS JOSH, Credicesar, Smart Academia → SIN explicar todavía.
+//       2  rotos por F-143 (`sort on null`): Creditop y PARQUE SALITRE MÁGICO
+//       1  pide ESTRATO (`STRATUM_REQUIRED`) en personal-info, que este runner no manda
+//
+// ⚠ «Cero entidades» NO es lo mismo que «falló», y el runner los mezcla: marca ✗ cuando la lista
+// viene vacía. Seis de los nueve «fallos» de arriba son listados que CORRIERON BIEN. Vale la pena
+// separarlos si esto se usa para vigilar el catálogo.
+//
 // ESCALA MEDIDA (2026-08-18, contra el backend local en Docker):
 //     10 casos → 29s     20 → 60s     30 → 90s
 // Crece LINEAL, así que el cuello es el backend y no el runner: no hay paralelismo real del lado del
