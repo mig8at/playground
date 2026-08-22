@@ -2094,6 +2094,13 @@ en producción — el webhook no deja registro cuando `firstOrFail()` lanza, as�
   de PRODUCCIÓN antes de desplegar… Mejor aún: resolver por `lenders.slug`, que sí es estable entre
   ambientes — es lo que ya hacen las migraciones del Rent to Own». O sea: **la mitad del sistema
   resuelve por slug y la otra por id literal**, y el desacople es el bug.
+- **⚠ YA OCURRIÓ EN PRODUCCIÓN, un día después de que se agregara el mapa.** `28b2d436` (21-ago):
+  «The rent-to-own entry was mapped to 205, the QA id of the lender. Production uses **193**, so the
+  resolver fell back to the onboarding builder there and the RTO documents were generated without the
+  price breakdown and the non-possessory pledge variables». O sea: documentos emitidos SIN el desglose
+  de precio y SIN las variables de la prenda. Y el arreglo fue cambiar `205 =>` por `193 =>` — **el
+  mismo mapa quemado con otro número**, así que el próximo ambiente vuelve a romperlo. Medido en
+  local, donde el clon quedó con id **173**, ninguno de los dos números aplica.
 - **Arreglo:** resolver por slug, como ya hacen las migraciones. **No aplicado** — es código de la
   empresa y la decisión no es nuestra.
 - **Estado:** vivo en `main`. La regla general: **cuando una parte del sistema resuelve por una clave
