@@ -2259,5 +2259,10 @@ en producción — el webhook no deja registro cuando `firstOrFail()` lanza, as�
 - **⚠ Modo de falla silencioso y con sesgo:** no hay error, y como gana el id más bajo, **siempre**
   pierde la rama que se sembró después. Toda entidad cuyo catálogo haya crecido en dos tandas tiene el
   mismo sesgo.
-- **Arreglo:** pasarle al recorder la fila ya resuelta, o agregar `requires_cosigner` al filtro. Código
-  de la empresa. **Estado:** vivo en `main`.
+- **Aislado con un A/B local (transacción revertida, catálogo sembrado en las dos ramas como lo tiene
+  prod):** con `main`, el rastro sale de la rama sin codeudor (`contrato_renting_sin_codeudor`); con el
+  filtro agregado, sale de la correcta (`contrato_rto_con_codeudor`). Mismos datos y misma solicitud —
+  **lo único que cambia es el código**, lo que descarta config y datos como causa.
+- **Arreglo:** pasarle al recorder la fila ya resuelta, o agregar `requires_cosigner` al filtro. Ojo con
+  el atajo de recalcular la política dentro del recorder: **evaluarla es caro** (corre reglas y consulta
+  centrales) y la generación ya la paga una vez. Código de la empresa. **Estado:** vivo en `main`.
