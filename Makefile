@@ -213,7 +213,7 @@ env-auditoria: ## @wrk ¿a qué apunta cada .env del playground? clave + 3 carac
 	@python3 workers/env_auditoria.py $(if $(RAIZ),$(RAIZ))
 
 # ── PRUEBAS (harness) ────────────────────────────────────────────────────────────────────────────
-.PHONY: harness-contract harness-sandbox harness-walk harness-qr harness-mocks harness-listado harness-caso harness-check soporte-qa
+.PHONY: harness-contract harness-sandbox harness-walk harness-qr harness-mocks harness-centrales harness-listado harness-caso harness-check soporte-qa
 harness-contract: ## @har ¿el mock de Bancolombia cumple los esquemas zod del front? (sin browser ni BD)
 	@cd harness && npm run --silent contrato:bancolombia
 
@@ -225,6 +225,9 @@ harness-walk: ## @har recorre las pantallas del canal QR clickeando. PRODUCT=bnp
 
 harness-qr: ## @har el canal QR por API, sin browser: ¿cierra en estado 25 con código? PRODUCT=bnpl|consumo
 	@cd harness && E2E_TARGET=local npx tsx dev/qr-corbeta.ts --producto $(or $(PRODUCT),bnpl)
+
+harness-centrales: ## @har levanta el mock LOCAL de centrales de riesgo (:8105) — reemplaza el lambda de la empresa
+	@cd harness && node mock-centrales/server.mjs
 
 harness-mocks: ## @har levanta los mocks del canal QR (Bancolombia :8104 + Corbeta :8103)
 	@cd harness && bin/mock-bancolombia start && bin/mock-corbeta start

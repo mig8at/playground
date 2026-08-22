@@ -73,8 +73,12 @@ const UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_5 like Mac OS X) AppleWebKit/6
 // La lambda de mocks de la empresa. Su `enableAdminApi: true` es TODO el mecanismo: se le PIDE de
 // antemano qué tiene que contestar para una cédula (`POST /mockoon-admin/global-vars`) y después el
 // flujo corre normal. No hace falta ningún fixture: la respuesta se pide, no se inyecta.
-const LAMBDA = process.env.RISK_LAMBDA_URL
-    ?? 'https://ub79ck0htd.execute-api.us-east-2.amazonaws.com/development';
+// ⚠ POR DEFECTO, EL MOCK LOCAL — no el lambda de la empresa. El lambda hace lo mismo pero es
+// infraestructura de OTRO: a mitad de sesión lo redesplegaron, dejó de honrar lo dictado y empezó a
+// devolver datos aleatorios con períodos viejos (F-144). Y además es serverless, así que dictar en
+// paralelo pierde escrituras (F-139). El local es un proceso, responde en milisegundos y el estado es
+// compartido. Mismo contrato: para volver al lambda alcanza con `RISK_LAMBDA_URL=<su url>`.
+const LAMBDA = process.env.RISK_LAMBDA_URL ?? 'http://localhost:8105';
 
 
 // El mock de integraciones de entidades (`mock-lenders`), donde se dicta qué contesta cada proveedor.
@@ -142,9 +146,15 @@ async function cerrarCreditopX(arr: any[], ur: number, tel: string, amount: numb
 
     const fin = await one<{ e: number }>(
         'SELECT user_request_status_id e FROM user_requests WHERE id=?', [ur]).catch(() => null);
+    // ⚠ El MOTIVO, no sólo el status. Un `HTTP 422` a secas manda a adivinar: puede ser el pagaré, el
+    // OTP, el cupo o el cronograma. El cuerpo lo dice, y sin él el diagnóstico cuesta una sesión.
+    const porQue = aut.status === 200 ? '' :
+        ' · ' + String(aut.json?.errors?.payload
+            ? JSON.stringify(aut.json.errors.payload)
+            : aut.json?.message ?? aut.json?.raw ?? '').split('\n')[0].slice(0, 90);
     return {
         cerro: fin?.e === 11,
-        motivo: `${ctopx.name} · HTTP ${aut.status}`,
+        motivo: `${ctopx.name} · HTTP ${aut.status}${porQue}`,
         estado: fin?.e ?? null,
     };
 }
@@ -295,6 +305,21 @@ async function buscarSucursal(ref: string) {
 //  teléfonos, y tres de ellos pelean por el mismo usuario. Así soporta 100 casos por corrida.
 const telefonoDe = (i: number) => `31${String(BASE_DOC).slice(-6)}${String(i % 100).padStart(2, '0')}`;
 
+/** ⚠ PARA CERRAR hace falta un teléfono de `qa_otp_bypass_phones`, y no es capricho: son DOS
+ *  mecanismos de OTP distintos y sólo uno acepta cualquier teléfono.
+ *    · el OTP del ONBOARDING va por el driver fake (`FakeOtpServiceRepository`), que ignora el código
+ *      y no mira el teléfono → cualquiera sirve, y por eso el listado se prueba con derivados.
+ *    · el OTP de la FIRMA DEL PAGARÉ va por `Modules/Loans/App/Services/OtpService.php:47`, que
+ *      honra `qa_otp_bypass_phones` → un teléfono fuera de esa lista hace que `authorize` responda
+ *      422 «No se encontró un OTP validado para esta solicitud» y la solicitud quede en estado 10.
+ *  Se toma por ÍNDICE, sin buscar ni reservar: cada caso tiene el suyo y no hay carrera posible. */
+async function telefonoParaCerrar(i: number): Promise<string | null> {
+    const row = await one<{ value: string }>(
+        "SELECT value FROM settings WHERE `key`='qa_otp_bypass_phones'").catch(() => null);
+    const tels: string[] = JSON.parse(row?.value ?? '[]').map(String);
+    return tels.length ? tels[i % tels.length] : null;
+}
+
 /** Le dicta a la lambda qué contesta cada central PARA ESA CÉDULA. Es el paso que vuelve el caso
  *  hipotético: se pide de antemano la respuesta que se quiere recibir. */
 /** ⚠ LEE DESPUÉS DE ESCRIBIR, y reintenta. La lambda es serverless y sus global-vars viven en la
@@ -423,7 +448,9 @@ async function correrLambda(c: Caso, i: number): Promise<Res> {
     const doc = cedulaDe(i);
     const base: Res = { caso: c, ok: false, phone: '' };
 
-    const tel = telefonoDe(i);
+    // cerrar exige un teléfono de la lista de bypass (ver `telefonoParaCerrar`); el resto del flujo
+    // anda con uno derivado
+    const tel = (flag('cerrar') ? await telefonoParaCerrar(i) : null) ?? telefonoDe(i);
     base.phone = tel;
 
     // ⚠ `x.id AS allied` NO es cosmético: `preAprobar` lo manda como `merchant_id` y este lookup no
