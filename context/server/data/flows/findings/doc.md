@@ -88,7 +88,7 @@ orden de archivo — el ancla `### F-xx` es la única dirección.)
 | **«el documento no se genera y el render se queja de una variable»** | F-150 |
 | **«la firma del codeudor devuelve 500 y todo lo anterior anduvo»** | F-151 |
 | **«firmó un contrato que no es el del producto que compró»** | F-152 |
-| **«el cliente firmó documentos que se contradicen entre sí»** | F-152 |
+| **«el cliente firmó documentos que se contradicen entre sí»** | **F-154** · F-152 |
 | **«no se generó ningún documento y no hay error»** | F-152 |
 | **«dice que no tiene cupo pero el error es una clave que falta»** | F-153 |
 | **«lo arreglé y por el otro camino sigue distinto» / «ese flujo ya no se usa»** | F-146 |
@@ -255,6 +255,7 @@ distinto según con qué pregunta llegues.
 | F-151 | `OTP_SERVICE_HOST` no está en ningún `.env.example`: la firma del codeudor cae con un 500 | ABIERTO |
 | F-152 | El Rent to Own no tiene documentos sin codeudor: firma el contrato equivocado, o ninguno | ABIERTO |
 | F-153 | Una regla con tarjetas revienta leyendo el buró; el mismo archivo sí se protege en otros 3 puntos | ABIERTO |
+| F-154 | El rastro del documento firmado apunta a la fila equivocada: la busca de nuevo, sin la rama | ABIERTO |
 
 ---
 
@@ -2183,16 +2184,17 @@ en producción — el webhook no deja registro cuando `firstOrFail()` lanza, as�
   codeudor **existen igual**, escritas el 20-08 16:39. O sea que la configuración del Rent to Own en
   producción **no la produjeron las migraciones del repositorio**, y leer `main` para predecir prod
   lleva a la conclusión equivocada con toda la confianza.
-- **⚠ Y ya hay una solicitud real con documentos de las DOS ramas mezcladas.** La `533540` (estado
-  «Solicita codeudor», categoría con `requires_cosigner = 1`, tres intentos de codeudor) tiene sus
-  cinco documentos **firmados**, y sus filas de catálogo salen de ramas distintas: `cosigner_agreement`
-  y `chattel_mortgage` de la rama con codeudor; `lease_agreement`, `promissory_note` y
-  `payment_schedule` de la rama **sin** codeudor —es decir, el contrato de **renting sin opción de
-  compra** y el pagaré sin deudor solidario—. Los equivalentes correctos de la rama con codeudor **ya
-  existían** al generarse (creados el 20-08 16:39; los documentos, el 21-08 15:07). **Si el resolver
-  filtra por rama, esa mezcla no debería poder ocurrir**: qué la produjo está sin explicar y es lo
-  primero a investigar. Dos personas más cayeron en la categoría 235 —la que se llama «Codeudor» y
-  tiene `requires_cosigner = 0`— de 21 que pasaron por la entidad.
+- **⚠ Lo que en prod PARECE este hallazgo y NO lo es.** La solicitud `533540` tiene sus cinco
+  documentos firmados y sus filas de catálogo salen de ramas distintas —el contrato y el pagaré
+  apuntan a la rama SIN codeudor—, lo que se lee como «firmó el documento equivocado». **No lo es:**
+  ese vínculo es sólo rastro (**F-154**), y el conjunto generado prueba lo contrario — incluye
+  `chattel_mortgage`, que existe **únicamente** en la rama con codeudor, así que el resolver devolvió
+  la rama correcta. Antes de escalar un caso así, mirá **qué tipos** se generaron, no a qué fila
+  apuntan.
+- **Dos personas ya cayeron en la categoría del hueco** (la 235, que se llama «Codeudor» y tiene
+  `requires_cosigner = 0`) de 21 que pasaron por la entidad, y ninguna solicitud del Rent to Own llegó
+  todavía al estado 11. O sea: **la trampa está armada y aún no cobró** — que es la ventana para
+  cerrarla.
 - **Arreglo:** definir las versiones sin codeudor de los documentos, o cerrar la categoría que no lo
   pide. Es decisión de negocio y legal, no de código. **Estado:** vivo en `main`, declarado por la
   propia migración, **y con evidencia en producción**.
@@ -2224,3 +2226,38 @@ en producción — el webhook no deja registro cuando `firstOrFail()` lanza, as�
 - **Arreglo:** para PROBAR, inyectar el buró con la forma completa. Para arreglar de verdad haría
   falta que la lectura sea tan defensiva como los otros tres puntos del archivo — código de la empresa.
   **Estado:** vivo en `main`.
+
+### F-154 · El rastro de un documento firmado apunta a la fila de catálogo equivocada: la busca de nuevo, y sin la rama
+
+- **Síntoma:** en `user_request_signing_documents`, los documentos de una misma solicitud referencian
+  filas de `lender_signing_documents` de **ramas distintas** —unas con codeudor y otras sin—, lo que
+  se lee como que el cliente firmó un juego mezclado. En una entidad cuyas dos ramas tienen plantillas
+  de productos distintos, se lee como que firmó el contrato equivocado.
+- **Causa raíz (verificada 2026-08-22 contra `main`):** la generación y el registro resuelven la fila
+  **dos veces y con criterios distintos**. `DocumentSigningService` pide
+  `SigningDocumentResolver::resolveForSigner()`, que sí filtra por rama, y genera cada documento con el
+  `template` de la fila resuelta. Pero después `SigningDocumentRecorder::record()` **no recibe esa
+  fila**: la vuelve a buscar en `catalogEntryId()` por `(lender_id, signer_role, document_type)`
+  —**sin `requires_cosigner`**— y cierra con `->value('id')` sin `orderBy`. Cuando un `document_type`
+  existe en las dos ramas, esa consulta es ambigua y se queda con el id más bajo.
+- **Evidencia:** solicitud `533540` en producción. Los tres tipos que existen en **ambas** ramas
+  (`lease_agreement`, `promissory_note`, `payment_schedule`) quedaron apuntando a las filas de la rama
+  sin codeudor —ids 12, 13 y 14, más bajos— y los dos que existen **sólo** en la rama con codeudor
+  (`cosigner_agreement`, `chattel_mortgage`) apuntan bien. Que `chattel_mortgage` se haya generado
+  **prueba que el resolver devolvió la rama con codeudor**: no existe en la otra.
+- **⚠ Qué está mal y qué no.** El documento entregado es el correcto —lo elige la fila resuelta, no
+  esta consulta—. Lo que queda mal es la **evidencia**: en un flujo de firma electrónica, la fila que
+  dice de qué configuración salió cada documento firmado apunta a otra. El propio docblock declara el
+  alcance («el vínculo sirve para trazar, no para decidir»), así que el defecto no es de diseño sino de
+  que la búsqueda quedó por debajo de lo que el catálogo pasó a poder expresar cuando se le agregó la
+  rama.
+- **Reproducido en local y medido en prod (2026-08-22).** Corriendo la consulta **tal cual** contra
+  Motai Renting —que tiene las dos ramas— devuelve dos filas y el `LIMIT 1` implícito se queda con la
+  de la rama sin codeudor. En producción, **18 documentos firmados** de solicitudes **que sí tienen
+  codeudor** apuntan a filas de la rama sin codeudor: 15 de Motai Renting y 3 del Rent to Own. O sea
+  que no es un caso raro del producto nuevo — **es todo el que tenga catálogo con las dos ramas**.
+- **⚠ Modo de falla silencioso y con sesgo:** no hay error, y como gana el id más bajo, **siempre**
+  pierde la rama que se sembró después. Toda entidad cuyo catálogo haya crecido en dos tandas tiene el
+  mismo sesgo.
+- **Arreglo:** pasarle al recorder la fila ya resuelta, o agregar `requires_cosigner` al filtro. Código
+  de la empresa. **Estado:** vivo en `main`.
