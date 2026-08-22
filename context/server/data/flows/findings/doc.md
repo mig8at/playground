@@ -88,6 +88,7 @@ orden de archivo — el ancla `### F-xx` es la única dirección.)
 | **«el documento no se genera y el render se queja de una variable»** | F-150 |
 | **«la firma del codeudor devuelve 500 y todo lo anterior anduvo»** | F-151 |
 | **«firmó un contrato que no es el del producto que compró»** | F-152 |
+| **«el cliente firmó documentos que se contradicen entre sí»** | F-152 |
 | **«no se generó ningún documento y no hay error»** | F-152 |
 | **«dice que no tiene cupo pero el error es una clave que falta»** | F-153 |
 | **«lo arreglé y por el otro camino sigue distinto» / «ese flujo ya no se usa»** | F-146 |
@@ -2173,9 +2174,28 @@ en producción — el webhook no deja registro cuando `firstOrFail()` lanza, as�
   commit** del repositorio. Es la segunda pieza de la config del RTO que puso una migración fantasma
   (la otra es la calculadora). **Consecuencia práctica: lo que valides en un ambiente no predice el
   otro, y ninguno se reconstruye desde el código.**
+- **⚠ MEDIDO EN PRODUCCIÓN el 2026-08-22, y es peor que el hueco: `main` no describe lo que corre.**
+  El ledger de migraciones de prod para esta entidad **diverge del repo en las dos direcciones**.
+  Corrieron dos que no existen en ninguna rama ni commit (`..._copy_renting_config_to_rent_to_own_lender`
+  del 18-08 y `..._set_rent_to_own_calculator_to_weekly_terms` del 19-08) y **no corrió ninguna de las
+  dos que sí están en `main`** (`..._seed_rent_to_own_cosigner_documents` y
+  `..._set_motai_payment_schedule_template`, ambas del 20-08) — aunque las filas de la rama con
+  codeudor **existen igual**, escritas el 20-08 16:39. O sea que la configuración del Rent to Own en
+  producción **no la produjeron las migraciones del repositorio**, y leer `main` para predecir prod
+  lleva a la conclusión equivocada con toda la confianza.
+- **⚠ Y ya hay una solicitud real con documentos de las DOS ramas mezcladas.** La `533540` (estado
+  «Solicita codeudor», categoría con `requires_cosigner = 1`, tres intentos de codeudor) tiene sus
+  cinco documentos **firmados**, y sus filas de catálogo salen de ramas distintas: `cosigner_agreement`
+  y `chattel_mortgage` de la rama con codeudor; `lease_agreement`, `promissory_note` y
+  `payment_schedule` de la rama **sin** codeudor —es decir, el contrato de **renting sin opción de
+  compra** y el pagaré sin deudor solidario—. Los equivalentes correctos de la rama con codeudor **ya
+  existían** al generarse (creados el 20-08 16:39; los documentos, el 21-08 15:07). **Si el resolver
+  filtra por rama, esa mezcla no debería poder ocurrir**: qué la produjo está sin explicar y es lo
+  primero a investigar. Dos personas más cayeron en la categoría 235 —la que se llama «Codeudor» y
+  tiene `requires_cosigner = 0`— de 21 que pasaron por la entidad.
 - **Arreglo:** definir las versiones sin codeudor de los documentos, o cerrar la categoría que no lo
   pide. Es decisión de negocio y legal, no de código. **Estado:** vivo en `main`, declarado por la
-  propia migración.
+  propia migración, **y con evidencia en producción**.
 
 ### F-153 · Una regla de categoría con tarjetas revienta LEYENDO el buró, no evaluándolo — y el mismo archivo sí se protege en otros tres lugares
 
