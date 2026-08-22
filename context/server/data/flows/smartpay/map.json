@@ -5,7 +5,8 @@
   "kind": "reference",
   "when": "Cuando la tarea es de SmartPay: el celular financiado como garantía, IMEI, bloqueo de dispositivo y MDM, salto de AML, desembolso diferido y crons de bloqueo por mora.",
   "sintomas": [
-    "«el celular no se bloquea» / IMEI"
+    "«el celular no se bloquea» / IMEI",
+    "«el canal smartpay no se comporta igual en local que en produccion»"
   ],
   "verified": {
     "ref": "main",
@@ -86,6 +87,7 @@
     "frontend-monorepo/modules/loan-request-wizard/loan-origination/src/lib/utils/imei.ts",
     "frontend-monorepo/apps/storybook/src/stories/routes/imei/imei.stories.tsx",
     "frontend-monorepo/apps/storybook/src/stories/routes/imei/imei-scan.stories.tsx",
-    "frontend-monorepo/apps/storybook/src/stories/routes/imei/imei-scan-success.stories.tsx"
+    "frontend-monorepo/apps/storybook/src/stories/routes/imei/imei-scan-success.stories.tsx",
+    "legacy-backend/Modules/Onboarding/App/Services/BackDoorUserService.php"
   ]
 }

@@ -91,6 +91,8 @@ orden de archivo — el ancla `### F-xx` es la única dirección.)
 | **«el cliente firmó documentos que se contradicen entre sí»** | **F-154** · F-152 |
 | **«no se generó ningún documento y no hay error»** | F-152 |
 | **«dice que no tiene cupo pero el error es una clave que falta»** | F-153 |
+| **«el canal SmartPay no se puede probar entero fuera de producción»** | F-155 |
+| **«salta el AML / no salta el AML y debería»** | F-155 |
 | **«lo arreglé y por el otro camino sigue distinto» / «ese flujo ya no se usa»** | F-146 |
 
 Un `F-xx` puede estar en varias filas a propósito: se entra por el síntoma, y el mismo hallazgo se ve
@@ -122,7 +124,7 @@ distinto según con qué pregunta llegues.
 | F-18 | `E2E_TARGET` default es `dev`, no `local` | TRAMPA |
 | F-19 | La tabla de credenciales es POLIMÓRFICA | TRAMPA |
 | F-20 | El `laravel.log` local está tapado de ruido | TRAMPA |
-| F-21 | La originación distintiva de SmartPay NO puede dispararse fuera de producción | TRAMPA |
+| F-21 | La originación distintiva de SmartPay no se dispara fuera de prod — **superado por F-155** | VIEJO |
 | F-22 | CeluRD es el comercio del canal, y es RD (no Colombia) | TRAMPA |
 | F-23 | El escaneo de IMEI no funciona en local (MDM con host falso) | TRAMPA |
 | F-24 | `requires_imei` nunca se guarda (mass assignment silencioso) | TRAMPA |
@@ -256,6 +258,7 @@ distinto según con qué pregunta llegues.
 | F-152 | El Rent to Own no tiene documentos sin codeudor: firma el contrato equivocado, o ninguno | ABIERTO |
 | F-153 | Una regla con tarjetas revienta leyendo el buró; el mismo archivo sí se protege en otros 3 puntos | ABIERTO |
 | F-154 | El rastro del documento firmado apunta a la fila equivocada: la busca de nuevo, sin la rama | ABIERTO |
+| F-155 | Quién es SmartPay se decide en 4 lugares y fuera de prod no coinciden (supera a F-21) | ABIERTO |
 
 ---
 
@@ -409,6 +412,12 @@ Llegó a **1,2 GB** de `Driver [loki] is not supported`: `GRAFANA_LOKI_ENABLED=f
 ---
 
 ### F-21 · La originación distintiva de SmartPay NO puede dispararse fuera de producción
+
+> ⚠ **SUPERADO POR [F-155] — este cuerpo describe el estado ANTERIOR al 2026-08-19.** El hardcode se
+> corrigió (hoy es `production ? 160 : 152`), así que **fuera de producción `isSmartPay()` ya NO es
+> siempre falso**. Pero el arreglo replicó el condicional con un número distinto al de la config, y la
+> inconsistencia cambió de forma en vez de desaparecer. Lo que corre hoy está en **F-155**; lo de abajo
+> se conserva porque explica de dónde viene.
 
 **Síntoma:** se prueba el canal SmartPay en local (o dev) y el flujo se comporta como un CreditopX rt=2 común: no salta el AML, no aparece el "Acuerdo de bloqueo de dispositivo", no hay desembolso diferido.
 
@@ -2266,3 +2275,43 @@ en producción — el webhook no deja registro cuando `firstOrFail()` lanza, as�
 - **Arreglo:** pasarle al recorder la fila ya resuelta, o agregar `requires_cosigner` al filtro. Ojo con
   el atajo de recalcular la política dentro del recorder: **evaluarla es caro** (corre reglas y consulta
   centrales) y la generación ya la paga una vez. Código de la empresa. **Estado:** vivo en `main`.
+
+### F-155 · Quién es SmartPay se decide en CUATRO lugares y fuera de producción no coinciden: una entidad tiene la originación y otra el branding
+
+- **Síntoma:** el canal SmartPay no se puede probar entero fuera de producción y no se ve por qué. La
+  entidad que salta el AML y firma el acuerdo de bloqueo **no es** la que manda el correo con la marca
+  SmartPay. Cada mitad funciona, así que ninguna prueba falla — simplemente nunca coinciden.
+- **Causa raíz (verificada 2026-08-22 contra `main`):** la identidad del canal está resuelta con un
+  literal por entorno, repetido en cuatro sitios, y **dos de ellos no dicen lo mismo**:
+
+  | dónde | producción | fuera de producción |
+  |---|---|---|
+  | `config/lenders.php` (`smartpay_lender_id`) | 160 | **153** |
+  | `app/Models/UserRequest.php` (`isSmartPay()`) | 160 | **152** |
+  | `Modules/Onboarding/App/Services/BackDoorService.php` | 160 | **152** |
+  | `Modules/Onboarding/App/Services/BackDoorUserService.php` | 160 | **152** |
+
+  `Lender::isSmartpayChannel()` lee la config (**153**) y gatea el branding del mailer; `isSmartPay()`
+  usa **152** y gatea la originación distintiva —salto de AML, acuerdo de bloqueo, desembolso
+  diferido—. En producción los cuatro dicen 160 y el problema no se ve.
+- **Evidencia (corrido en local, no deducido):** con `APP_ENV=local` y las dos entidades de path IMEI
+  que trae el dump, `isImeiPath` es verdadero para las dos, pero `isSmartPay` sale **sí para la 152 y
+  no para la 153**, mientras `isSmartpayChannel` sale **al revés**. O sea que **ninguna de las dos es
+  SmartPay entera** fuera de producción.
+- **⚠ Los números no son inocuos: en producción nombran entidades VIVAS y ajenas.** Medido el
+  2026-08-22 en prod: la **152 es Refurbicredit** y la **153 es Crediemo**, las dos con desembolsos, y
+  ninguna con path IMEI. La seguridad de todo esto descansa en que `app()->environment()` no se
+  equivoque nunca, y **eso no está afirmado en ningún lado**. Lo que cuelga de esa identidad no es
+  cosmético: `ContinueUserFlowController::confirm` **se salta el AML de TusDatos** cuando
+  `isSmartPay()` es verdadero.
+- **⚠ Y el comentario del código dice otra cosa que el código.** Junto al guard se lee «IMEI path skips
+  AML validation», pero el guard es `isSmartPay()`, que exige **path IMEI *y* el id mágico**. Una
+  entidad con path IMEI que no sea ese id **sí** corre el AML. Quien lea el comentario y no la función
+  concluye al revés.
+- **⚠ Esto SUPERA a F-21, que quedó viejo.** F-21 decía que fuera de producción `isSmartPay()` era
+  siempre falso y que la originación distintiva estaba muerta. Se arregló el 2026-08-19 (el propio TODO
+  del código cuenta que reventaba `confirm` al leer `expedition_date` en usuarios temporales), pero el
+  arreglo **replicó el condicional con un número distinto al de la config**, que es como nació esta
+  divergencia. El TODO ya nombra la salida correcta: sacar el id a configuración en vez de repetirlo.
+- **Arreglo:** una sola fuente —la config que ya existe— y que los cuatro sitios la lean. Código de la
+  empresa. **Estado:** vivo en `main`.

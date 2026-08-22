@@ -26,6 +26,7 @@ Si la tarea llega con una de estas frases, empezá por esos nodos. Si ninguna ma
 | «¿dónde se cae la gente en el embudo?» | `negocio` |
 | «¿dónde se trabó?» | `aggregator` · `formalization` · `trazador` |
 | «el botón Descargar Solicitudes trae mal» | `application` |
+| «el canal smartpay no se comporta igual en local que en produccion» | `smartpay` |
 | «el celular no se bloquea» / IMEI | `smartpay` |
 | «el cliente del rent to own firmó un contrato de renting» | `motai` |
 | «el cliente no puede firmar el pagaré» | `deceval` |
@@ -301,7 +302,7 @@ Doc: `server/data/flows/rotativo/doc.md` · Archivos: `server/data/flows/rotativ
 **Cuándo:** Cuando el problema es DESPUÉS del desembolso (Estado 11): cartera, causación de interés, fecha de corte, mora, cobranza, pagos y cupo rotativo. Los 6 crons diarios `UpdateCreditopX*` y el ledger `creditop_x_requests_history`. Ojo: corre 100% en `application`, no en legacy-backend.
 Doc: `server/data/flows/servicing/doc.md` · Archivos: `server/data/flows/servicing/map.json` · Padre: `creditop`
 
-### smartpay — SmartPay  ·  _reference_ · 74 archivos
+### smartpay — SmartPay  ·  _reference_ · 75 archivos
 **Cuándo:** Cuando la tarea es de SmartPay: el celular financiado como garantía, IMEI, bloqueo de dispositivo y MDM, salto de AML, desembolso diferido y crons de bloqueo por mora.
 Doc: `server/data/flows/smartpay/doc.md` · Archivos: `server/data/flows/smartpay/map.json` · Padre: `merchants`
 
