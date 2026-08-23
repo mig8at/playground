@@ -2134,8 +2134,12 @@ en producción — el webhook no deja registro cuando `firstOrFail()` lanza, as�
   (`173 => MotaiRentToOwnPayloadBuilder::class`) y sin tocar nada más, la misma llamada devuelve
   **200** y el flujo cierra en estado **11 · Autorizada** con el codeudor `formalized`. El id es la
   única variable: eso descarta plantilla, catálogo y datos del cliente como causa.
-- **Arreglo:** resolver por slug, como ya hacen las migraciones. **No aplicado** — es código de la
-  empresa y la decisión no es nuestra; el parche de la prueba se revirtió.
+- **Arreglo: resolver por `lenders.slug`, y está PROBADO** (2026-08-22, en una rama local sin
+  commitear). El slug se verificó **idéntico en producción y en local** —`motai-renting`,
+  `rent-to-own`—, así que el mapa deja de depender del ambiente. El fallback no cambia: un slug no
+  mapeado sigue cayendo al builder de onboarding. Con eso, el flujo completo con codeudor cierra en
+  **estado 11** y las tres suites de firma siguen en 19 verdes. La decisión de llevarlo al repo es de
+  la empresa; lo que ya no hace falta es discutir si funciona.
 - **Estado:** vivo en `main`. La regla general: **cuando una parte del sistema resuelve por una clave
   estable y otra por una inestable, la que manda es la inestable** — y el modo de falla es silencioso,
   porque el fallback devuelve un builder válido en vez de fallar.

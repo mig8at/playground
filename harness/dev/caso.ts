@@ -227,7 +227,11 @@ async function cerrarCreditopX(arr: any[], ur: number, tel: string, amount: numb
     // EL CIERRE DE VERDAD CUANDO HAY CODEUDOR. `authorize` no autoriza: difiere (HTTP 200 con
     // `deferred_for_cosigner`), y la solicitud queda esperando la segunda firma. Leer sólo el 200 acá
     // es exactamente la trampa que el nodo `codeudor` documenta.
-    if (tokenCodeudor && aut.json?.data?.deferred_for_cosigner) {
+    // ⚠ La marca viene DENTRO de `data.user_request`, no en `data`. Mirar sólo el nivel de arriba deja
+    // la solicitud en 29 y el runner reporta «no cerró · HTTP 200» — un mensaje que se contradice solo.
+    const difirio = aut.json?.data?.user_request?.deferred_for_cosigner
+        ?? aut.json?.data?.deferred_for_cosigner;
+    if (tokenCodeudor && difirio) {
         const f = await firmaDelCodeudor(tokenCodeudor, post, get);
         if (!f.ok) {
             const e = await one<{ e: number }>('SELECT user_request_status_id e FROM user_requests WHERE id=?', [ur])
