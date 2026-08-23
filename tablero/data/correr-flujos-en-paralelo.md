@@ -395,6 +395,22 @@ un mock que contesta al instante. Lo que el número dice es dónde está el trab
 3. **El límite de espera de 90 s del runner cae justo encima de la peor**, así que bajo paralelismo la
    lentitud se disfrazaba de caída. Ya se distingue, pero el margen es de segundos.
 
+### Y con los PDF ya rápidos, la contabilidad FINAL de un caso (27 s, spans de Tempo)
+
+No hay esperas artificiales en el runner. Lo que queda, medido con el trace de un `authorize` real:
+
+| qué | cuánto | naturaleza |
+|---|---:|---|
+| `getLenderUserCategory` **× 6 en el mismo request** | ~380 ms c/u = **2,3 s** | la misma consulta repetida — trabajo evitable |
+| subidas a **S3 REAL** (~6 sitios en el camino de firma) | ~0,5 s c/u ≈ **3 s** | las corridas locales suben documentos a un bucket real |
+| `document.generate` × 5 (ya por mock) | ~200 ms c/u = **1 s** | resuelto |
+| lectura del OTP en Redis (`OtpService:133`) | hasta **1 s** | espera DELIBERADA: 3 intentos con `usleep(500ms)` |
+| listados × 2 + espejo del buró (runner) | ~4 s | trabajo de negocio legítimo |
+
+O sea: **ya no hay un culpable único**. Los dos evitables son la consulta de categoría repetida seis
+veces y el S3 real (apuntarlo a un MinIO local lo bajaría a milisegundos, al costo de más
+infraestructura). El resto es el negocio corriendo de verdad.
+
 ## Tarea (publicable)
 
 **En una línea.** Poder ejercitar varios flujos de comercios distintos a la vez, para comparar qué le
