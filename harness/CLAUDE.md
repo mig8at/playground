@@ -45,6 +45,35 @@ que ya costaron tiempo** — y el mapa mínimo para no perderse.
 | `dev/loki-trace.ts` | ¿POR QUÉ terminó así? forense en los logs (`make harness-loki UREQ=…`) |
 | `dev/pantallas.ts` | **¿por qué PANTALLAS habría pasado el cliente?** el recorrido del wizard derivado del router en `main`, y al revés: `ENDPOINT=confirm-payment-schedule` → qué pantalla es (`make harness-pantallas`) |
 
+### Corridas 3× más rápidas — y qué se deja de probar a cambio
+
+**El 86 % del tiempo de una corrida se va en fabricar PDF**, y es un costo **fijo de ~16 s por
+documento**: un PDF de 14 KB tarda lo mismo que uno de 142 KB. No son los mocks (contestan en 1 ms) ni
+dompdf en sí (28 ms con HTML simple).
+
+El enrutado del generador **ya es configurable por `.env`**, sin tocar código
+(`config/documents.php`: `DOC_GEN_{TIPO}` y `DOC_GEN_{TIPO}_LENDER_{ID}`). En el `.env` de
+`legacy-backend`:
+
+    DOC_GEN_PAGARE=microservice
+    DOC_GEN_CONSENT=microservice
+    DOC_GEN_FGA=microservice
+
+Con eso los documentos salen del mock del pdf-mapper (:8100) en vez de renderizarse con dompdf.
+**Medido: la suite de Motai baja de 95 s a 32 s; un caso suelto, de 93 s a 27 s.**
+
+⚠ **Pide un dato:** la entidad necesita `lenders.pdf_mapper_project_slug`; sin él el flujo corta con
+`Lender N is not configured for pdf-mapper-service`. En local se le pone cualquier valor —el mock acepta
+todos—; en producción **sólo Credifamilia lo tiene**, y por eso es la única que hoy va por microservicio
+(y por eso es 10× más rápida que Motai en local: su PDF lo hace un mock de 1 ms).
+
+⚠⚠ **QUÉ SE PIERDE, Y NO ES POCO.** Con los documentos saliendo del mock, la corrida **deja de ejercitar
+las plantillas Blade**. O sea que deja de atrapar exactamente la clase de bug de **F-150**: un builder
+que produce claves que la plantilla no espera revienta con «Undefined variable» **en pleno render**, que
+no es un documento con huecos sino **una firma caída** — y ya ocurrió en producción. Prenderlo mientras
+se itera sobre reglas de negocio es razonable; **dejarlo prendido para validar documentos convierte el
+verde en mentira**.
+
 ### El desenlace de un rt=1: el webhook, y el monolito viejo corriendo en local
 
 Un rt=1 (Welli, Meddipay, Bancolombia, Prami) **no cierra en plataforma**: la entidad decide afuera y
