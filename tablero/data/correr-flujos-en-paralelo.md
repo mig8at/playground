@@ -84,28 +84,6 @@ vas a correr una tanda grande de cierres, **no leas el listado de esa misma tand
   al `authorize` estándar y reportaba «cerró en estado 11» **sobre un crédito sin equipo inscrito** — un
   verde falso. Corregido; el detalle de por qué `authorize` lo permite está en **F-157**.
 
-## Tarea (publicable)
-
-**En una línea.** Poder ejercitar varios flujos de comercios distintos a la vez, para comparar qué le
-ofrece el sistema a cada uno.
-
-**Por qué.** Comparar comercios de a uno esconde las diferencias; verlos juntos las muestra.
-
-**Qué cambia.** La herramienta de pruebas corre los casos en paralelo y cierra cada uno por el camino
-que le corresponde a su producto.
-
-**Alcance.** Sólo el entorno de pruebas. No cambia nada del producto.
-
-**Dónde probar.** Local.
-
-**Cómo validar.** Correr varios casos de comercios distintos a la vez y comprobar que cada uno termina
-por el camino de su producto, no por uno genérico.
-
-**Criterios de aceptación.** Cada caso reporta el resultado de su propio camino; ninguno se reporta como
-exitoso si se salteó un paso obligatorio de su producto.
-
-**Dependencias.** Ninguna.
-
 ## Suites en JSON: casos que DECLARAN qué esperan
 
     make harness-suite SUITE=harness/suites/motai-creditopx.json
@@ -171,3 +149,25 @@ mirar la respuesta y seguía derecho al OTP y al `authorize`, así que el fallo 
 después con otro mensaje y en otro componente. Ya corta ahí. **Lo que queda sin diagnosticar** es por
 qué el pagaré no estaba visible en ese momento: los casos que fallaron **sí tenían pagaré en la base**
 al revisarlos después. La hipótesis es que la generación no había terminado, pero **no está medido**.
+
+## Tarea (publicable)
+
+**En una línea.** Poder ejercitar varios flujos de comercios distintos a la vez, para comparar qué le
+ofrece el sistema a cada uno.
+
+**Por qué.** Comparar comercios de a uno esconde las diferencias; verlos juntos las muestra.
+
+**Qué cambia.** La herramienta de pruebas corre los casos en paralelo y cierra cada uno por el camino
+que le corresponde a su producto.
+
+**Alcance.** Sólo el entorno de pruebas. No cambia nada del producto.
+
+**Dónde probar.** Local.
+
+**Cómo validar.** Correr varios casos de comercios distintos a la vez y comprobar que cada uno termina
+por el camino de su producto, no por uno genérico.
+
+**Criterios de aceptación.** Cada caso reporta el resultado de su propio camino; ninguno se reporta como
+exitoso si se salteó un paso obligatorio de su producto.
+
+**Dependencias.** Ninguna.
