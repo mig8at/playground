@@ -121,6 +121,8 @@ orden de archivo — el ancla `### F-xx` es la única dirección.)
 | **«Attempt to assign property "already_used_loan" on null»** | **F-172** |
 | **«firmó todo y el último paso dio 500»** | **F-172** · F-166 |
 | **«esta entidad rt=2 nunca cierra y las otras sí»** | **F-172** |
+| **«probé Bancolombia y no cerró»** | **F-173** |
+| **«la entidad lista en local y no existe en prod»** | **F-173** |
 | **«instrumenté el servicio y no imprime nada»** | **F-161** |
 | **«esta entidad no sale del listado y ninguna regla lo explica»** | **F-161** · F-113 |
 | **«en el wizard sí aparece pero por API no»** (o al revés) | **F-161** |
@@ -2961,3 +2963,33 @@ en producción — el webhook no deja registro cuando `firstOrFail()` lanza, as�
 - **Arreglo (propuesto, NO aplicado):** dos cosas — guardar el null como hacen los otros lugares que
   leen categorías, y **no dejar habilitar una rt=2 sin al menos una categoría**, que es donde el error
   se evita de verdad. **Estado:** vigente, y con seis entidades expuestas hoy.
+
+### F-173 · Bancolombia NO entra por el onboarding — y la entidad que sí aparece ahí está muerta
+
+- **Síntoma:** se prueba «Bancolombia» pidiéndola en el listado del onboarding, sale prolijo, y el
+  resultado no dice nada del negocio real. Nada avisa.
+- **Lo que en realidad pasa (medido el 2026-08-23, 90 días de producción):** hay **tres** entidades con
+  ese nombre y sólo dos vivas:
+
+  | id | nombre en producción | rt | solicitudes |
+  |---|---|---|---|
+  | 100 | Bancolombia - Crédito de consumo | 1 | **2.812** |
+  | 68 | Bancolombia - Compra y paga después (BNPL) | 1 | **1.687** |
+  | 8 | **Bancolombia (No activo)** | 1 | **0** |
+
+  Las dos vivas entran **por el canal QR (Corbeta)**, no por el onboarding. La que aparece en el
+  listado del onboarding es la **8**, que está apagada.
+- **⚠ Y el nombre no la delata donde se prueba:** el sufijo «(No activo)» existe en **producción**; el
+  dump **local** guarda «Bancolombia» a secas. O sea que la única marca que distinguiría a la entidad
+  muerta **no viaja al ambiente donde se corre**.
+- **Su desenlace tampoco es el 11.** El canal QR cierra en **estado 25 «Pendiente de facturación»** con
+  un código de compra emitido; el desembolso ocurre después y por afuera. Medir Bancolombia con la vara
+  del estado 11 da cero por construcción.
+- **Sí está cubierto, con otra herramienta:** `make harness-qr PRODUCT=bnpl|consumo` (por API) y
+  `make harness-walk` (clickeando). Verificado el 2026-08-23: los dos productos cierran en 25 con
+  código. Necesita `bin/mock-bancolombia` (:8104) y `bin/mock-corbeta` (:8103).
+- **Por qué importa:** un barrido por el onboarding **parece** cubrir Bancolombia y no lo hace, en los
+  dos sentidos — ejercita una entidad apagada y usa un estado terminal que no es el suyo. Es la forma
+  más fácil de creer que un canal está probado cuando no se lo tocó.
+- **Arreglo:** ninguno de código. El runner de casos avisa si el nombre trae la marca, pero **no se
+  puede confiar en su silencio** por lo del dump. **Estado:** vigente.

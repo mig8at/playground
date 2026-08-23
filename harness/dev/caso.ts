@@ -167,6 +167,20 @@ async function cerrarCreditopX(arr: any[], ur: number, tel: string, amount: numb
     const ctopx = pedido
         ? arr.find((l) => Number(l.id) === pedido)
         : arr.find((l) => Number(l.response_type) === 2);
+
+    // ⚠ ENTIDADES MUERTAS QUE IGUAL LISTAN. El dump local conserva lenders que en producción están
+    // apagados, y el listado los muestra igual: pedir uno da un resultado prolijo y sin sentido. Pasó
+    // el 2026-08-23 con «Bancolombia (No activo)» (id 8, CERO solicitudes en prod en 90 días): la
+    // corrida informó «decide fuera de la plataforma» como si eso dijera algo de Bancolombia, cuando
+    // los productos vivos son otros dos y entran por el canal QR, no por el onboarding.
+    // ⚠ Y ESTE AVISO NO ALCANZA PARA ESE CASO, aunque parezca: el sufijo «(No activo)» está en el
+    // nombre de PRODUCCIÓN y el dump local guarda «Bancolombia» a secas. O sea que lo único que
+    // delataría a la entidad muerta no viaja al ambiente donde se prueba. Se deja igual porque cuesta
+    // cero y sí atrapa a las que traen la marca, pero no se puede confiar en su silencio (F-173).
+    if (ctopx && /no\s*activ|inactiv|deprecad|\(baja\)/i.test(String(ctopx.name ?? ''))) {
+        console.log(`      ⚠ «${ctopx.name}» está marcada como INACTIVA en su propio nombre —`
+            + ' el dump local la lista igual. Lo que salga de acá probablemente no dice nada del negocio.');
+    }
     if (pedido && !ctopx) return { cerro: false, motivo: `la entidad ${pedido} no salió en el listado`, estado: null };
     if (!ctopx) return { cerro: false, motivo: 'sin CreditopX', estado: null as number | null };
 

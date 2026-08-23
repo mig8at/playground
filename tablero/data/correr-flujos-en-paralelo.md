@@ -331,6 +331,23 @@ comportamiento **correcto**: deciden afuera.
 - **El encabezado decía «CIERRE rt=2» siempre**, incluso corriendo rt=3 y rt=4 — un rótulo que
   contradecía a la línea de abajo.
 
+### ⚠ Bancolombia NO estaba cubierto, y la corrida lo hacía parecer que sí
+
+Lo señaló Miguel: Bancolombia **no entra por el onboarding**. La corrida paralela pedía el lender 8 y
+devolvía un resultado prolijo — pero ese lender se llama, en producción, **«Bancolombia (No activo)»** y
+tiene **cero solicitudes en 90 días**. Los dos productos vivos son el **100** (crédito de consumo, 2.812)
+y el **68** (BNPL, 1.687), y **entran por el canal QR de Corbeta**.
+
+Peor: el sufijo «(No activo)» **sólo está en producción**; el dump local guarda «Bancolombia» a secas,
+así que la única marca que delataría a la entidad muerta no llega al ambiente donde se prueba (**F-173**).
+
+**Sí está cubierto, con otra herramienta y otro desenlace:** `make harness-qr PRODUCT=bnpl|consumo`
+cierra los dos productos en **estado 25 «Pendiente de facturación»** con código de compra —no en 11, que
+para este canal no aplica—. Verificado el 2026-08-23. Pide `bin/mock-bancolombia` y `bin/mock-corbeta`.
+
+La lección para el barrido: **un canal que entra por otra puerta no se cubre agregando un caso más**, y
+medirlo con la vara del estado 11 da cero por construcción.
+
 ### Y un hallazgo del producto: **F-169**
 
 El rotativo (rt=3) muere generando documentos con `Attempt to read property "fga" on null`. Es un
