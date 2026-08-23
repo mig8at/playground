@@ -188,6 +188,9 @@ context-check: ## @ctx ¿las rutas de TODOS los nodos existen en main? (el hook 
 	  case "$$out" in *"DROPPED 0"*) ;; *) echo "  ⚠ $$(basename $$(dirname $$m)): $$out";; esac; \
 	done; echo "  (sin líneas arriba = los $$(ls -d server/data/flows/*/ | wc -l | tr -d ' ') nodos sin rutas muertas)"
 
+context-entidades: ## @ctx regenera docs/ENTIDADES.md — la ficha de NEGOCIO de cada entidad, medida contra PROD (alcance, ticket, plazo, aprobación, embudo, ocupación declarada vs real). [DIAS=90] [MIN=200]
+	@cd context && python3 tools/build-entidades.py
+
 context-map: ## @ctx regenera docs/ROUTE-MAP.md (el hook ya lo hace al editar un map.json)
 	@cd context && python3 tools/build-route-map.py
 
