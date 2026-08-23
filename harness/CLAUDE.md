@@ -43,6 +43,21 @@ que ya costaron tiempo** — y el mapa mínimo para no perderse.
 | `dev/sandbox-bancolombia.ts` | **¿el BANCO DE VERDAD acepta lo que mandamos?** el único que pega contra el gateway real (`make harness-sandbox`) |
 | `dev/experian-check.ts` · `experian-api.ts` | ¿esta solicitud omitió el buró, y se puede *afirmar*? |
 | `dev/loki-trace.ts` | ¿POR QUÉ terminó así? forense en los logs (`make harness-loki UREQ=…`) |
+| `dev/pantallas.ts` | **¿por qué PANTALLAS habría pasado el cliente?** el recorrido del wizard derivado del router en `main`, y al revés: `ENDPOINT=confirm-payment-schedule` → qué pantalla es (`make harness-pantallas`) |
+
+### El eje que las corridas por API no cubren: qué VEÍA el cliente
+
+`caso.ts` va por API y no abre el navegador — por eso es rápido y paralelizable. Lo que pierde es la
+pantalla: una corrida dice «HTTP 500 en `confirm-payment-schedule`» y nadie sabe dónde habría estado
+parado el cliente, que es lo que preguntan producto, soporte y QA.
+
+`make harness-pantallas ENDPOINT=<endpoint>` contesta eso **sin integrar nada**: no maneja el navegador,
+no corre nada, no valida. Deriva el recorrido de `apps/loan-request-wizard/app/routes.ts` en `main` —el
+router mismo—, así que una pantalla nueva aparece sola y una borrada desaparece sola.
+
+⚠ **Es un techo, no una traza.** Dice qué PUEDE llamar cada pantalla, no qué llamó en tu corrida: sale
+de lo que la pantalla importa. La salida distingue los dos niveles —`→` lo llama esa pantalla, `·` está
+en un paquete que importa— y no hay que leerlos igual.
 
 ## Cuándo cargar una skill
 

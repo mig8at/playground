@@ -254,6 +254,9 @@ tests-codeudor: ## @har corre la suite del CODEUDOR (desactivada en el repo por 
 harness-rto: ## @har deja el lender Rent to Own usable en LOCAL (categorías, reglas, identidad) — config de PRUEBA, no de negocio
 	@cd harness && node dev/montar-rto.ts
 
+harness-pantallas: ## @har ¿por qué PANTALLAS habría pasado el cliente? el recorrido del wizard derivado del router en main. AL REVÉS con ENDPOINT=confirm-payment-schedule. [FILTRO=texto] [JSON=1]
+	@cd harness && node dev/pantallas.ts $(if $(FILTRO),--filtro '$(FILTRO)') $(if $(ENDPOINT),--endpoint '$(ENDPOINT)') $(if $(JSON),--json) $(if $(SIN_ENDPOINTS),--sin-endpoints)
+
 harness-check: ## @har typecheck del harness
 	@cd harness && npm run --silent typecheck
 
