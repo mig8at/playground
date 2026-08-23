@@ -49,6 +49,30 @@ function txData(key, amount) {
             for (const t of TERMS) plan[t] = { resultado: true, cuota_asignacion: cuota(amount, t) };
             return { plan_de_cuotas: plan }; // extractWelliInstallments
       }
+      if (k === "credifamilia" || k.includes("credifamilia")) {
+            // CredifamiliaPayloadBuilder lee EXACTAMENTE estas cinco claves y revienta sin ellas:
+            // sin `transaction_data` lanza RuntimeException, y con un `guarantee_type` fuera del par
+            // esperado también. El síntoma que se ve desde afuera es `CP050 · error durante el cálculo
+            // del plan de pagos` — un mensaje que no nombra ninguno de estos campos.
+            //
+            // MEDIDO en producción (2026-08-23):
+            //   · la tasa dominante de sus créditos cerrados es 1,82 % MENSUAL (950 de ~1.700),
+            //     y acá va el EFECTIVO ANUAL porque el builder lo divide entre 100:
+            //     (1,0182^12 − 1) × 100 ≈ 24,18
+            //   · `max_amount` = 12.000.000, el tope de su línea de crédito
+            //
+            // ⚠ NO MEDIDO — valores plausibles, no reales: `guarantee_percentage`,
+            // `life_insurance_percentage` y `guarantee_type`. Vienen del microservicio externo y no
+            // quedan guardados en nuestra base, así que no hay contra qué compararlos. Si algún día
+            // importan para lo que se está probando, sacalos de una respuesta real y actualizá esto.
+            return {
+                  annual_effective_rate: 24.18,      // medido (derivado del 1,82 % mensual)
+                  max_amount: 12000000,              // medido (tope de la línea de crédito)
+                  guarantee_type: "2",               // NO medido — '2' = FIANZA_ANTICIPADA
+                  guarantee_percentage: 3,           // NO medido
+                  life_insurance_percentage: 0.1,    // NO medido
+            };
+      }
       if (k === "meddipay") {
             // extractMeddipayTermOptions: [{term:minTerm, installment:maxInstallment}, {term:maxTerm, installment:minInstallment}]
             return {

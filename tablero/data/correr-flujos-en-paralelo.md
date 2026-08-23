@@ -252,6 +252,34 @@ correr **o cuando no cumplió lo que declara** — porque «la entidad no salió
 más común y una regla que excluye una entidad **no mueve ningún estado ni cambia ningún status HTTP**.
 La bitácora no puede explicarlo; el log de reglas sí.
 
+## rt=4 (Credifamilia): hasta dónde llega hoy, etapa por etapa
+
+Perseguir el estado 11 con esta entidad destapó que el bloqueo **no era uno sino una fila**, y cada uno
+tapaba al siguiente. Estado al 2026-08-23:
+
+| etapa | estado | qué hizo falta |
+|---|---|---|
+| listar | ✅ | llamar **`lenders-v2`**, no `lenders` — son dos listados distintos (**F-161**) |
+| seleccionar | ✅ | — |
+| pre-aprobación | ✅ | apuntar `PRE_APPROVALS_BASE_URL` al mock (su default `:8086` no lo atiende nadie) |
+| plan de pagos | ✅ | el mock no armaba `transaction_data` para esta entidad — cinco claves exactas |
+| documentos legales | ✅ | levantar `mock-pdf-mapper`, **que no lo levanta nadie** |
+| **pagaré (Deceval)** | ❌ | **no tiene mock** |
+| firma (Netco) | ❌ | no tiene mock |
+| radicación (SOAP) | ❌ | no tiene mock |
+
+⚠ **Cada bloqueo escondía al siguiente**, y ninguno se veía desde afuera: todos llegaban como
+`HTTP 500` en la generación de documentos. El código de error real —`CP050` para el plan de pagos—
+sólo aparece leyendo el contexto del log, nunca en la respuesta.
+
+⚠ **El número de cuotas no es libre**: pedir uno que la entidad no ofrece corta con el mismo `CP050`,
+sin nombrar las cuotas. Medido en producción, Credifamilia va en 24, 36, 48, 12, 6, 18 y 9 — **nunca en
+4**, que era el default quemado del runner. Ahora va por caso (`@cuotas=24`).
+
+**Lo que falta son los tres proveedores externos de firma y formalización.** Y ahí conviene decidir con
+los ojos abiertos: un Deceval o un Netco falsos prueban **nuestra orquestación**, no la firma — que es
+precisamente aquello cuyo valor es no poder simularse.
+
 ## Tarea (publicable)
 
 **En una línea.** Poder ejercitar varios flujos de comercios distintos a la vez, para comparar qué le
