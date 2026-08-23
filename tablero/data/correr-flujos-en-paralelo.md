@@ -106,6 +106,23 @@ exitoso si se salteó un paso obligatorio de su producto.
 
 **Dependencias.** Ninguna.
 
+## Cuántos workers: la regla, medida
+
+`workers >= casos en paralelo`, porque **cada caso tiene UNA petición en vuelo a la vez** (el runner
+espera cada paso). Más que eso no acelera nada, y los números lo dicen solos:
+
+| | reloj |
+|---|---|
+| 1 caso solo | **89,5 s** |
+| 8 casos en paralelo | **113,0 s** |
+
+Ocho cuestan **26 % más que uno**. Y muestreando durante la tanda: **22 procesos PHP, ~0,3 de un core
+y 12 conexiones de MySQL de las 151** disponibles. La máquina está ociosa — **el piso lo pone la cadena
+secuencial de cada caso (~90 s), no el servidor**.
+
+⚠ Corolario: **subir los workers no va a hacer nada** mientras se corran menos casos que workers. Lo
+que sí acortaría el reloj es recortar la cadena de cada caso, que es otra conversación.
+
 ## Lo que aparece cuando de verdad corre en paralelo
 
 Con 20 workers, **12 casos tardan lo mismo que 7** (~134 s): escala. Pero a esa concurrencia salieron
