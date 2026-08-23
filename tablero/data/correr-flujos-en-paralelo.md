@@ -106,6 +106,43 @@ exitoso si se salteó un paso obligatorio de su producto.
 
 **Dependencias.** Ninguna.
 
+## Suites en JSON: casos que DECLARAN qué esperan
+
+    make harness-suite SUITE=harness/suites/motai-creditopx.json
+
+La cadena `CASOS='pullman:77@score=300'` alcanza para preguntar «¿qué pasa?». No alcanza para **«¿esto
+sigue valiendo después de mi cambio?»**, que es la pregunta de después de tocar código. Para eso el
+caso tiene que decir qué espera, y eso tiene que vivir en un archivo versionado.
+
+    {
+      "nombre": "Motai · los tres productos de CreditopX",
+      "requiere": ["cerrar", "lambda", "paralelo"],
+      "porDefecto": { "amount": 2000000, "income": 2500000, "score": 700 },
+      "casos": [
+        { "nombre": "renting — la calculadora infla el precio",
+          "comercio": "motai", "lender": 169,
+          "espera": { "enListado": true, "cierra": true, "estado": 11 } }
+      ]
+    }
+
+Cuatro expectativas: `enListado` · `entidades` (subconjunto del listado, no igualdad) · `cierra` ·
+`estado`. La corrida **sale con código distinto de cero** si alguna no se cumple, y dice caso por caso
+qué esperaba y qué obtuvo.
+
+⚠ **Falla cerrado**: una expectativa que **no se pudo evaluar** cuenta como desvío, no como éxito. Si
+un caso declara un cierre y la corrida no cerró, lo dice con esas palabras —«sin eso, esto NO está
+verificado»— en vez de pasar en verde. Es la diferencia entre «lo verifiqué» y «no lo verifiqué», y
+confundirlas es el verde falso que este harness ya se comió una vez.
+
+⚠ **`requiere` hace que la suite se baste sola.** Sin ese campo, olvidarse de `CERRAR=1` no da un
+resultado falso pero sí una corrida perdida de dos minutos. Con él, `make harness-suite SUITE=…` sin
+un solo flag corre lo que el archivo necesita — que es lo que hace falta para que alguien (o un LLM)
+genere una suite y la corra sin saber cómo se invoca este runner.
+
+⚠ **Flake conocido**: una corrida falló con `DOCUMENT_DUPLICATE "document number already in use"` y la
+siguiente pasó sin tocar nada. La cédula se deriva del reloj (`Date.now()`), así que dos tandas muy
+juntas pueden pisarse. **No está diagnosticado**; si aparece, repetir.
+
 ## Cuántos workers: la regla, medida
 
 `workers >= casos en paralelo`, porque **cada caso tiene UNA petición en vuelo a la vez** (el runner

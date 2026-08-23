@@ -257,14 +257,33 @@ const arg = (n: string, d = ''): string => {
     const i = process.argv.indexOf(`--${n}`);
     return i > 0 && process.argv[i + 1] && !process.argv[i + 1].startsWith('--') ? process.argv[i + 1] : d;
 };
-const flag = (n: string) => process.argv.includes(`--${n}`);
+/** Banderas que una SUITE prende por su cuenta (su campo `requiere`). Existe para que una suite se
+ *  baste sola: quien la corre —una persona apurada o un LLM— no tiene que saber que este archivo
+ *  necesita `--cerrar` para significar algo. Sin esto, olvidarse del flag no da un resultado falso
+ *  (el verificador lo marca como no verificado) pero sí una corrida perdida de dos minutos. */
+const implicitos = new Set<string>();
+const flag = (n: string) => process.argv.includes(`--${n}`) || implicitos.has(n);
 
 // Base 313 + 7 dígitos. El índice del caso va al final para que dos casos NUNCA compartan usuario;
 // se imprime en el reporte porque es lo que hace falta para ir a mirar la solicitud después.
 const telefono = (i: number) => `313${String(2_000_000 + i).slice(0, 7)}`;
 
+/** Lo que un caso DECLARA que debería pasar. Sin esto el runner sólo narra; con esto contesta
+ *  «¿sigue valiendo?», que es la pregunta que se hace después de tocar código.
+ *
+ *  ⚠ UNA EXPECTATIVA QUE NO SE PUDO EVALUAR CUENTA COMO FALLA, no como éxito. Si un caso espera un
+ *  cierre y la corrida no lleva `--cerrar`, eso es un error de la suite: darlo por bueno sería
+ *  exactamente el verde falso que este harness ya se comió una vez. */
+type Espera = {
+    enListado?: boolean;      // ¿la entidad pedida salió en el listado?
+    cierra?: boolean;         // ¿la solicitud llegó a cerrar?
+    estado?: number;          // estado final exacto (11 autorizada, 28 pendiente desembolso, …)
+    entidades?: number[];     // estas entidades TIENEN que estar en el listado (subconjunto, no igualdad)
+};
+
 type Caso = {
     comercio: string; lender: number | null;
+    nombre?: string; espera?: Espera;
     amount?: number; income?: number; score?: number;
     // qué debe contestar cada integración PARA ESTE CASO: `pullman@meddipay=rechaza`
     escenarios?: Record<string, string>;
@@ -290,6 +309,57 @@ function parseCaso(spec: string, dflt: { amount: number; income: number; score: 
     }
     return c;
 }
+/** Una SUITE en JSON: los mismos casos que la cadena `CASOS`, pero con nombre y expectativa.
+ *
+ *  POR QUÉ EXISTE. La cadena `pullman:77@score=300` alcanza para preguntar «¿qué pasa?». No alcanza
+ *  para «¿esto sigue valiendo después de mi cambio?», que es la pregunta de después de tocar código —
+ *  y es la que un archivo versionado puede contestar, porque queda como el registro de lo que se
+ *  esperaba y de por qué.
+ *
+ *  Forma:
+ *    {
+ *      "nombre": "rt=2 de Motai",
+ *      "requiere": ["cerrar", "lambda", "paralelo"],
+ *      "porDefecto": { "amount": 2000000, "income": 2500000, "score": 700 },
+ *      "casos": [
+ *        { "nombre": "el RTO exige codeudor",
+ *          "comercio": "motai", "lender": 173,
+ *          "espera": { "enListado": true, "estado": 17 } }
+ *      ]
+ *    }
+ *
+ *  `porDefecto` de la suite pisa a los flags de la corrida, y lo de cada caso pisa a `porDefecto`:
+ *  así una suite es reproducible sin depender de con qué flags la invocaron. */
+async function cargarSuite(ruta: string, dflt: { amount: number; income: number; score: number }): Promise<Caso[]> {
+    const { readFile } = await import('node:fs/promises');
+    let json: any;
+    try {
+        json = JSON.parse(await readFile(ruta, 'utf8'));
+    } catch (e) {
+        throw new Error(`no pude leer la suite ${ruta}: ${e}`);
+    }
+    if (!Array.isArray(json?.casos) || json.casos.length === 0) {
+        throw new Error(`la suite ${ruta} no tiene un array \`casos\` con al menos un caso`);
+    }
+    // `requiere` deja que la suite prenda lo que necesita: `["cerrar", "lambda"]`.
+    for (const f of (Array.isArray(json.requiere) ? json.requiere : [])) implicitos.add(String(f));
+
+    const base = { ...dflt, ...(json.porDefecto ?? {}) };
+    return json.casos.map((c: any, i: number) => {
+        if (!c?.comercio) throw new Error(`caso ${i} de la suite: falta \`comercio\``);
+        return {
+            comercio: String(c.comercio),
+            lender: c.lender == null ? null : Number(c.lender),
+            nombre: c.nombre ? String(c.nombre) : undefined,
+            espera: c.espera,
+            escenarios: c.escenarios,
+            amount: Number(c.amount ?? base.amount),
+            income: Number(c.income ?? base.income),
+            score: Number(c.score ?? base.score),
+        } as Caso;
+    });
+}
+
 type Res = {
     caso: Caso; ok: boolean; ur?: number; phone: string; nombre?: string;
     enListado?: boolean; listado?: number[]; conducta?: string; detalle?: string;
@@ -719,6 +789,62 @@ async function correr(c: Caso, i: number): Promise<Res> {
     return { ...base, ok: true, conducta: conductaDe(sel.json?.data) };
 }
 
+/** Contrasta lo que cada caso DECLARA contra lo que pasó.
+ *
+ *  ⚠ FALLA CERRADO. Una expectativa que no se pudo evaluar —porque la corrida no llegó hasta ahí, o
+ *  porque le faltó un flag— cuenta como desvío, no como éxito. Es la diferencia entre «lo verifiqué»
+ *  y «no lo verifiqué», y confundirlas es lo que produce un verde que no significa nada.
+ *
+ *  Devuelve una línea por desvío, nombrando el caso y diciendo esperado vs obtenido — porque un
+ *  «falló» pelado manda a reproducir a mano lo que el runner ya sabe. */
+function verificarEsperas(res: Res[]): string[] {
+    const out: string[] = [];
+    for (const r of res) {
+        const e = r.caso.espera;
+        if (!e) continue;
+        const quien = r.caso.nombre ?? `${r.caso.comercio}${r.caso.lender ? ':' + r.caso.lender : ''}`;
+
+        if (e.enListado !== undefined) {
+            if (r.caso.lender === null) {
+                out.push(`${quien}: espera \`enListado\` pero el caso no pide ninguna entidad`);
+            } else if (r.listado === undefined) {
+                out.push(`${quien}: espera \`enListado\` y el listado ni se obtuvo (${r.detalle ?? 'sin detalle'})`);
+            } else if (!!r.enListado !== e.enListado) {
+                out.push(`${quien}: esperaba que la entidad ${r.caso.lender} ${e.enListado ? 'SÍ' : 'NO'}`
+                    + ` estuviera en el listado, y ${r.enListado ? 'sí' : 'no'} estaba — listado: [${(r.listado ?? []).join(', ')}]`);
+            }
+        }
+
+        if (e.entidades?.length) {
+            if (r.listado === undefined) {
+                out.push(`${quien}: espera entidades en el listado y el listado ni se obtuvo`);
+            } else {
+                const faltan = e.entidades.filter((x) => !r.listado!.includes(x));
+                if (faltan.length) {
+                    out.push(`${quien}: faltaron en el listado [${faltan.join(', ')}] — vino [${r.listado.join(', ')}]`);
+                }
+            }
+        }
+
+        if (e.cierra !== undefined || e.estado !== undefined) {
+            if (!r.cierre) {
+                out.push(`${quien}: declara algo del cierre pero la corrida no cerró nada`
+                    + ' — ¿faltó `CERRAR=1`? (sin eso, esto NO está verificado)');
+            } else {
+                if (e.cierra !== undefined && r.cierre.cerro !== e.cierra) {
+                    out.push(`${quien}: esperaba que ${e.cierra ? 'CERRARA' : 'NO cerrara'} y ${r.cierre.cerro ? 'cerró' : 'no cerró'}`
+                        + ` — ${r.cierre.motivo}`);
+                }
+                if (e.estado !== undefined && r.cierre.estado !== e.estado) {
+                    out.push(`${quien}: esperaba estado ${e.estado} y quedó en ${r.cierre.estado ?? '—'}`
+                        + ` — ${r.cierre.motivo}`);
+                }
+            }
+        }
+    }
+    return out;
+}
+
 /** PREVUELO. Todo lo que este runner necesita vive FUERA del repo —el `.env` del backend y dos mocks
  *  levantados a mano— y cuando falta algo, el flujo NO se rompe: devuelve un resultado plausible y
  *  equivocado. Las tres formas ya documentadas:
@@ -775,9 +901,11 @@ async function main(): Promise<number> {
         income: Number(arg('income', '2500000')),
         score: Number(arg('score', '700')),
     };
-    const casos: Caso[] = arg('casos')
-        ? arg('casos').split(';').map((x) => parseCaso(x, dflt))
-        : [parseCaso(`${arg('comercio', 'pullman')}${arg('lender') ? ':' + arg('lender') : ''}`, dflt)];
+    const casos: Caso[] = arg('suite')
+        ? await cargarSuite(arg('suite'), dflt)
+        : arg('casos')
+            ? arg('casos').split(';').map((x) => parseCaso(x, dflt))
+            : [parseCaso(`${arg('comercio', 'pullman')}${arg('lender') ? ':' + arg('lender') : ''}`, dflt)];
     const par = flag('paralelo');
 
     console.log(`\n  CASOS · ${casos.length} · ${par ? 'EN PARALELO' : 'en serie'} · ${API}\n`);
@@ -879,6 +1007,18 @@ async function main(): Promise<number> {
 
     const malos = res.filter((r) => !r.ok).length;
     console.log(`\n  ${res.length - malos}/${res.length} cerraron · ${((Date.now() - t0) / 1000).toFixed(1)}s`);
+
+    const desvios = verificarEsperas(res);
+    if (desvios.length) {
+        console.log('\n  ⚠ NO CUMPLIERON LO QUE DECLARAN:\n');
+        for (const d of desvios) console.log(`      · ${d}`);
+        console.log('');
+        return 1;
+    }
+    if (res.some((r) => r.caso.espera)) {
+        const conEspera = res.filter((r) => r.caso.espera).length;
+        console.log(`  ✓ ${conEspera} ${conEspera === 1 ? 'caso cumplió' : 'casos cumplieron'} lo que declaran\n`);
+    }
     // ⚠ uReq REPETIDO entre casos sería la señal de que se pisaron. Con teléfono por caso no debería
     // pasar nunca; si pasa, hay un recurso compartido de verdad y hay que ir a buscarlo.
     const urs = res.map((r) => r.ur).filter(Boolean);

@@ -239,7 +239,10 @@ harness-listado: ## @har del COMERCIO al listado de entidades, por API y sin bro
 	@cd harness && node dev/listado.ts $(if $(COMERCIO),--comercio $(COMERCIO)) $(if $(MONTO),--amount $(MONTO)) $(if $(BRANCH),--branch $(BRANCH)) $(if $(V2),--v2)
 
 harness-caso: ## @har CASOS hipotéticos de punta a punta, en PARALELO. CASOS='pullman@meddipay=rechaza;pullman@income=900000' [PAR=1] [LAMBDA=1 buró y proveedores dictados] [PRE=1 simula la consulta de PRE-APROBADOS del front] [CERRAR=1 = cierra por el lender CreditopX hasta estado 11]
-	@cd harness && node dev/caso.ts $(if $(CASOS),--casos '$(CASOS)') $(if $(COMERCIO),--comercio $(COMERCIO)) $(if $(LENDER),--lender $(LENDER)) $(if $(MONTO),--amount $(MONTO)) $(if $(PAR),--paralelo) $(if $(LAMBDA),--lambda) $(if $(PRE),--preaprobados) $(if $(CERRAR),--cerrar)
+	@cd harness && node dev/caso.ts $(if $(SUITE),--suite '$(SUITE)') $(if $(CASOS),--casos '$(CASOS)') $(if $(COMERCIO),--comercio $(COMERCIO)) $(if $(LENDER),--lender $(LENDER)) $(if $(MONTO),--amount $(MONTO)) $(if $(PAR),--paralelo) $(if $(LAMBDA),--lambda) $(if $(PRE),--preaprobados) $(if $(CERRAR),--cerrar)
+
+harness-suite: ## @har corre una SUITE de casos declarada en JSON y falla si alguno no cumple lo que declara. SUITE=harness/suites/x.json [PAR=1] [CERRAR=1] [LAMBDA=1]
+	@cd harness && node dev/caso.ts --suite '$(patsubst harness/%,%,$(SUITE))' $(if $(PAR),--paralelo) $(if $(CERRAR),--cerrar) $(if $(LAMBDA),--lambda) $(if $(PRE),--preaprobados)
 
 soporte-qa: ## @har el chat del cliente contra la API real, con cada respuesta al costado (:5199). Para QA
 	@echo "  → http://localhost:5199/agente-soporte-modificacion-datos.cliente-qa.html    (Ctrl-C para cortar)"

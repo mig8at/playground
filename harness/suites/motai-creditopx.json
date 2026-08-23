@@ -1,0 +1,57 @@
+{
+  "nombre": "Motai · los tres productos de CreditopX",
+  "requiere": [
+    "cerrar",
+    "lambda",
+    "paralelo"
+  ],
+  "porDefecto": {
+    "amount": 2000000,
+    "income": 2500000,
+    "score": 700
+  },
+  "casos": [
+    {
+      "nombre": "credit — el producto sin calculadora",
+      "comercio": "motai",
+      "lender": 168,
+      "espera": {
+        "enListado": true,
+        "cierra": true,
+        "estado": 11
+      }
+    },
+    {
+      "nombre": "renting — la calculadora infla el precio",
+      "comercio": "motai",
+      "lender": 169,
+      "espera": {
+        "enListado": true,
+        "cierra": true,
+        "estado": 11
+      }
+    },
+    {
+      "nombre": "rto — product 'rto' pero sin matriz en la calculadora",
+      "comercio": "motai",
+      "lender": 170,
+      "espera": {
+        "enListado": true,
+        "cierra": true,
+        "estado": 11
+      }
+    },
+    {
+      "nombre": "el comercio ofrece los tres, y no sólo uno",
+      "comercio": "motai",
+      "lender": null,
+      "espera": {
+        "entidades": [
+          168,
+          169,
+          170
+        ]
+      }
+    }
+  ]
+}
