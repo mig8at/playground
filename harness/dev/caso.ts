@@ -772,7 +772,11 @@ async function correrLambdaMotor(c: Caso, i: number): Promise<Res> {
             document_type: 'CC', document_number: doc, name: 'CARLOS', surname: 'RUIZ',
             email: `qa${doc}@gmail.com`,
             expedition_day: 10, expedition_month: 5, expedition_year: 2019,
-            birth_day: 10, birth_month: 5, birth_year: 2001 });
+            birth_day: 10, birth_month: 5, birth_year: 2001,
+            // ⚠ El ESTRATO no lo pide todo comercio, pero cuando lo pide corta el flujo con
+            // `STRATUM_REQUIRED` en el tercer paso — y sin él quedaban fuera del barrido comercios
+            // enteros, entre ellos los de Credifamilia. Va siempre: los que no lo piden lo ignoran.
+            stratum: 3 });
         if (pi.json?.success !== true) {
             return { ...base, conducta: 'personal-info rechazó',
                      detalle: `${pi.json?.errors?.error_subcode ?? ''} ${JSON.stringify(pi.json?.errors?.payload ?? pi.json?.message ?? '').slice(0, 90)}` };
