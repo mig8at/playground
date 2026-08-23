@@ -814,8 +814,16 @@ async function correrLambdaMotor(c: Caso, i: number): Promise<Res> {
     // solicitud. Todo lo medido hasta el 2026-08-22 se calculó con 180 mil sin que nada avisara: los
     // tramos y las categorías se evalúan contra ESE número, así que un lender cuyo mínimo es más alto
     // desaparece del listado por una razón que no tiene que ver con el caso planteado.
-    const lis = await fetch(`${API}/api/onboarding/loan-application/lenders/${ur}?amount=${c.amount}`, { headers: H })
-        .then((r) => r.json()).catch(() => null);
+    // ⚠ EL BURÓ SE CONSULTA DURANTE EL LISTADO, no antes — así que la fila que el perfilamiento
+    // necesita (F-159) recién existe DESPUÉS de la primera llamada. Se espeja y se vuelve a pedir: la
+    // primera crea el buró, la segunda es la que corre la etapa completa. Cuesta una petición y es la
+    // diferencia entre simular el listado y simularlo entero.
+    const pedirListado = () =>
+        fetch(`${API}/api/onboarding/loan-application/lenders/${ur}?amount=${c.amount}`, { headers: H })
+            .then((r) => r.json()).catch(() => null);
+
+    let lis = await pedirListado();
+    if (await espejarBuroParaPerfilamiento(ur)) lis = (await pedirListado()) ?? lis;
     // ⚠ «CERO ENTIDADES» Y «LA LLAMADA FALLÓ» NO SON LO MISMO, y hasta el 2026-08-18 esto los
     // reportaba igual: un comercio cuyo listado reventaba salía como «0 entidades», que se lee como
     // un hecho de negocio («no ofrece nada») cuando es una excepción de PHP. Pasó de verdad — un
@@ -1030,6 +1038,53 @@ async function volcarBitacora(res: Res, llamadas: Llamada[]): Promise<void> {
             llamadas,
         }, null, 2) + '\n', 'utf8');
     } catch { /* la bitácora nunca puede tumbar la corrida que vino a explicar */ }
+}
+
+/** ESPEJA LA FILA DE BURÓ QUE EL PERFILAMIENTO BUSCA, y que en local nadie escribe (F-159).
+ *
+ *  `ProfilingRulesService` busca la central por **nombre exacto** —`Experian - Acierta`— y sólo si
+ *  encuentra una fila con score para ese usuario corre `validateRulesByRiskCentral`. El recorrido de
+ *  este runner persiste bajo `Experian - Acierta+Quanto`, que es OTRA fila del catálogo. Sin
+ *  coincidencia, **una etapa entera de validación se saltea sin un solo log**, y uno razona sobre
+ *  reglas de datacrédito que nunca llegaron a correr.
+ *
+ *  ⚠ Esto NO inventa datos: en **producción existen las dos filas** —medido: ~117 mil de una y ~35 mil
+ *  de la otra, las dos vigentes—. Espejar la que falta hace que local se parezca a producción, que es
+ *  justamente lo que un ambiente de pruebas tiene que hacer.
+ *
+ *  Se copia la fila tal cual (mismo score, mismo `data`, mismo `additional_info`) porque el objetivo es
+ *  que la etapa CORRA con los datos del caso, no cambiar lo que la etapa vería. */
+async function espejarBuroParaPerfilamiento(ur: number): Promise<boolean> {
+    try {
+        const orig = await one<{ id: number; user_id: number; score: number; data: string; info: string }>(
+            `SELECT d.id, d.user_id, d.score, d.data, d.additional_info info
+               FROM risk_central_user_data d
+               JOIN risk_centrals rc ON rc.id = d.risk_central_id
+               JOIN user_requests r ON r.user_id = d.user_id
+              WHERE r.id = ? AND rc.name = 'Experian - Acierta+Quanto'
+              ORDER BY d.id DESC LIMIT 1`, [ur]);
+        if (!orig) return false;
+
+        const destino = await one<{ id: number }>(
+            "SELECT id FROM risk_centrals WHERE name = 'Experian - Acierta' LIMIT 1");
+        if (!destino) return false;
+
+        await exec('DELETE FROM risk_central_user_data WHERE user_id=? AND risk_central_id=?',
+                   [orig.user_id, destino.id]);
+        await exec(
+            'INSERT INTO risk_central_user_data (uuid, user_id, risk_central_id, score, data, additional_info, created_at, updated_at) '
+            + 'VALUES (UUID(), ?, ?, ?, ?, ?, NOW(), NOW())',
+            // ⚠ `additional_info` es una columna JSON y el driver la devuelve YA parseada como objeto.
+            // Reinsertarla tal cual da «Invalid JSON text» — hay que volver a serializarla.
+            [orig.user_id, destino.id, orig.score, orig.data,
+             typeof orig.info === 'string' ? orig.info : JSON.stringify(orig.info ?? {})]);
+        return true;
+    } catch (e) {
+        // ⚠ NO se traga el error en silencio: un espejo que no ocurre deja el perfilamiento sin correr
+        // y la corrida sale plausible e incompleta — exactamente lo que F-159 describe.
+        console.log(`      ⚠ no se pudo espejar el buró para el perfilamiento: ${String(e).slice(0, 120)}`);
+    }
+    return false;
 }
 
 /** EL SUB-FLUJO DEL CODEUDOR, de punta a punta.

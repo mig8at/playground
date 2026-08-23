@@ -208,8 +208,8 @@ puede regenerar — y ése es el único freno real que hay.
   | límites de monto del comercio | iguales a los de una entidad que SÍ aparece ✓ |
 
   ⚠ **Y las dos etapas siguientes tampoco la sacan:** la validación devuelve aprobadas **y** rechazadas
-  juntas (sólo borra las rt=2 rechazadas), y el perfilamiento por datacrédito **ni siquiera corre** en
-  local (**F-159**). O sea que la caída de 5 entidades a 3 pasa **después** de todo eso, en
+  juntas (sólo borra las rt=2 rechazadas), y el perfilamiento por datacrédito **tampoco la saca**:
+  se lo hizo correr en local sembrando la fila que le faltaba (**F-159**) y la entidad sigue igual. O sea que la caída de 5 entidades a 3 pasa **después** de todo eso, en
   `LenderListingService` — quedan sin revisar su `array_filter` final y `attachAmountConditions`.
 
   ⚠ **El motor de datacrédito de rt≠2 NO excluye**: `RiskCentralValidationService` calcula
