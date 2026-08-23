@@ -2874,6 +2874,14 @@ en producción — el webhook no deja registro cuando `firstOrFail()` lanza, as�
   está en `api.localhost`, y pegarle al host pelado da **405 «Supported methods: GET, HEAD»** por la ruta
   fallback, no 404); **`fetch` de Node descarta el header `Host`** sin avisar, así que el subdominio va en
   la URL; y sin `WELLI_WEBHOOK_TOKEN` en el `.env` de application el guard rechaza con 401.
+- **⚠ Y rt=0 TAMBIÉN avisa por webhook — es la familia MÁS GRANDE y se pasa por alto.** Medido en
+  producción (90 días): rt=0 lleva **15.339 solicitudes (46 % del total) y 4.196 autorizadas**, o sea
+  que «redirige y nadie decide en plataforma» describe la ida, no la vuelta. Vuelven por un webhook
+  **genérico**, no uno por entidad: `POST api.localhost/self-manager/webhook`
+  (`SelfManagerController@webhook`), con
+  `{lender_id, order_id, code_id, available_amount, purchase_amount, invoice_number, status}`. Lo
+  domina **Addi** (3.529 de las 4.196); después PayJoy (224), Brilla (192), Sistecrédito (108). Mismo
+  receptor real, misma técnica que el de rt=1 — sólo cambia el payload.
 - **⚠ Los ids de la familia Welli están QUEMADOS en el handler** (`whereIn('lender_id', [23,141,142,166])`)
   y en el runner. Una quinta variante dada de alta por configuración **no la encuentra el webhook**.
 - **Arreglo:** ninguno acá; es trabajo de la migración. Lo que este hallazgo aporta es **dónde mirar**,
