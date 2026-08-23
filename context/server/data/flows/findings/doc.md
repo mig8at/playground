@@ -115,6 +115,9 @@ orden de archivo — el ancla `### F-xx` es la única dirección.)
 | **«¿cómo avisa una entidad rt=1 el resultado?»** | **F-170** |
 | **«el webhook devuelve Unauthorized con el token correcto»** | **F-170** |
 | **«no puedo cerrar un rt=1 en pruebas»** | **F-170** |
+| **«el código de compra se reutilizó y no se bloqueó»** | **F-171** |
+| **«Undefined variable $transaction»** | **F-171** |
+| **«el webhook de rt=0 da 404 y el pedido existe»** | **F-171** |
 | **«instrumenté el servicio y no imprime nada»** | **F-161** |
 | **«esta entidad no sale del listado y ninguna regla lo explica»** | **F-161** · F-113 |
 | **«en el wizard sí aparece pero por API no»** (o al revés) | **F-161** |
@@ -2886,3 +2889,35 @@ en producción — el webhook no deja registro cuando `firstOrFail()` lanza, as�
   y en el runner. Una quinta variante dada de alta por configuración **no la encuentra el webhook**.
 - **Arreglo:** ninguno acá; es trabajo de la migración. Lo que este hallazgo aporta es **dónde mirar**,
   **qué falta** y **cómo probarlo hoy**. **Estado:** vigente.
+
+### F-171 · El webhook de rt=0: dos guardas rotas, y una que no puede dispararse nunca
+
+- **Contexto:** `self-manager/webhook` (en `legacy-application`) es el que cierra a **rt=0**, la familia
+  con más volumen —15.339 solicitudes en 90 días, 46 % del total—. Al recorrerlo de punta a punta
+  aparecieron tres cosas en el mismo bloque, y ninguna se ve desde afuera.
+- **1 · Una condición que es imposible por construcción:**
+
+      if ($purchaseCode->barcode_checked && ($lender->id == 68 && $lender->id == 133))
+
+  `$lender->id` no puede valer 68 **y** 133 a la vez: el `&&` de adentro tendría que ser `||`. La
+  guarda que existe para rechazar un **código de compra ya usado** es, hoy, código muerto: nunca
+  devuelve «El código ya fue utilizado». Para esas dos entidades el mismo código podría reutilizarse.
+- **2 · `$purchaseCode` se lee sin comprobar que exista.** Una solicitud sin fila en `purchase_codes`
+  tira `Attempt to read property "barcode_checked" on null` — un 500 de PHP en vez de un rechazo
+  legible. Es el mismo modo de falla que F-169, en otro archivo.
+- **3 · El `catch` referencia una variable que puede no estar definida.** Con un `order_id` inexistente
+  el `firstOrFail()` corta antes de asignar `$transaction`, y el manejador de error revienta con
+  `Undefined variable $transaction` — así que un webhook con un pedido desconocido no da un 404 claro
+  sino otro 500, y el mensaje habla de una variable, no del pedido.
+- **⚠ El `lender_id` del payload es el SLUG, no el número — y el slug NO es estable entre ambientes.**
+  El lender 6 es `addi` en producción y **`credifamilia-addi`** en el dump local. Un runner que lo queme
+  funciona en un lado y falla en el otro con un 404 que parece del webhook.
+- **Cómo se recorre en local (los dos pasos, porque el webhook no crea nada):** primero la
+  `LenderTransaction` y el código de compra —que en producción los deja el navegador del cliente al
+  finalizar la compra (`FinalizePurchaseQrController`)—, y después el webhook, que los encuentra por
+  `order_id`. En el harness: `@webhook=completed`, con `SELFMANAGER_TOKEN`.
+- **El mapeo, comprobado corriendo:** `completed` → **11 Autorizada** (por el caso especial de los
+  lenders 6 y 9; para el resto sería **26 Facturado**), `failed` → **6 Negada**, `cancelled` → **7 No
+  terminó proceso**.
+- **Arreglo:** los tres son de una línea cada uno, y los tres viven en `legacy-application`.
+  **Estado:** vigente.

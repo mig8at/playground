@@ -73,6 +73,28 @@ desenlace automático se leería como si lo fuera.
 difieren. Medido: `pendiente_desembolso` da **28** (application) y está escrito como **11** en
 legacy-backend. El runner lo demuestra corriendo, no leyendo.
 
+#### rt=0 también tiene desenlace, y es la familia más grande
+
+«Redirige a la web de la entidad» describe la ida. La vuelta es un webhook **genérico** —uno solo para
+Addi, PayJoy, Brilla, Sistecrédito—, no uno por entidad como en rt=1:
+
+    export SELFMANAGER_TOKEN=<token de Sanctum con habilidad selfManager>
+    make harness-caso CASOS='#0b3fef6a:6@webhook=completed' LAMBDA=1 CERRAR=1
+
+El token se emite **una vez** en `legacy-application` —Sanctum guarda el hash, no el texto, así que el
+que ya está en la base no sirve—:
+
+    php artisan tinker --execute="echo \App\Models\User::find(<id>)->createToken('harness-local', ['selfManager'])->plainTextToken;"
+
+⚠ **El `lender_id` del payload es el SLUG y no es estable entre ambientes** (el lender 6 es `addi` en
+producción y `credifamilia-addi` en el dump local), por eso el runner lo lee de la base.
+
+⚠ **Son DOS pasos**: el webhook no crea nada, busca lo que el flujo real ya dejó. El runner prepara la
+transacción invocando `selfManager()` de la entidad por `artisan tinker` —su código real, no un INSERT
+nuestro— y recién después dispara el webhook. Ver F-171 para las tres guardas rotas que hay ahí.
+
+**Mapeo comprobado:** `completed`→11 · `failed`→6 · `cancelled`→7.
+
 ### El eje que las corridas por API no cubren: qué VEÍA el cliente
 
 `caso.ts` va por API y no abre el navegador — por eso es rápido y paralelizable. Lo que pierde es la

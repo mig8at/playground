@@ -77,6 +77,7 @@ export {};
 process.env.E2E_TARGET ||= 'local';
 process.env.CFE_TARGET ||= 'local';
 
+const { execFile } = await import('node:child_process');
 const { one, query, exec, close } = await import('../pkg/db.ts');
 const { synthFill } = await import('../pkg/inject.ts');
 const { config: e2eConfig } = await import('../pkg/config.ts');
@@ -120,6 +121,12 @@ const CREDIFAMILIA = process.env.MOCK_CREDIFAMILIA_URL || 'http://localhost:8108
  *  `api.localhost` resuelve solo a 127.0.0.1, así no hace falta tocar `/etc/hosts`. */
 const APP_VIEJA = process.env.LEGACY_APPLICATION_URL || 'http://api.localhost:8000';
 const WELLI_TOKEN = process.env.WELLI_WEBHOOK_TOKEN || 'token-de-pruebas-solo-local';
+/** Token de Sanctum con habilidad `selfManager`, para el webhook GENÉRICO de rt=0. Se emite a mano una
+ *  vez: en `legacy-application`, `$user->createToken('harness-local', ['selfManager'])`. No se puede
+ *  reusar el que ya existe en la base porque Sanctum guarda el hash, no el texto. */
+const SELFMANAGER_TOKEN = process.env.SELFMANAGER_TOKEN || '';
+const APP_VIEJA_DIR = process.env.LEGACY_APPLICATION_DIR
+    || `${process.env.HOME}/Desktop/CREDITOP/github/legacy-application`;
 
 // El microservicio de PRE-APROBADOS. Lo llama el FRONT, no el backend (F-141), así que una corrida
 // por API lo saltea sin fallar: el listado se ve completo y la etapa no ocurrió. Acá se REPLICA esa
@@ -996,7 +1003,17 @@ async function correrLambdaMotor(c: Caso, i: number): Promise<Res> {
         // El desenlace de un rt=1 llega DESPUÉS y por otro lado: la entidad avisa por webhook. Sólo se
         // dispara si el caso lo pidió, y sólo tiene sentido cuando el cierre en plataforma no aplica.
         if (c.webhook) {
-            const w = await webhookIntegracion(ur, c.webhook);
+            // CADA FAMILIA AVISA POR SU LADO, y no son intercambiables: rt=1 tiene un webhook POR
+            // ENTIDAD (`welli/webhook`, `prami/webhook`, …) y rt=0 uno GENÉRICO para todas
+            // (`self-manager/webhook`). Mandar el payload de una al endpoint de la otra da 404 o 422,
+            // que se lee como «el webhook no funciona» y no como «te equivocaste de familia».
+            const fam = await one<{ rt: number }>(
+                'SELECT response_type rt FROM lenders WHERE id=?', [c.lender]).catch(() => null);
+            const w = fam?.rt === 0 ? await webhookSelfManager(ur, c.lender!, c.webhook)
+                : fam?.rt === 1 && WELLI_IDS.includes(c.lender!) ? await webhookIntegracion(ur, c.webhook)
+                : { ok: false, detalle: fam?.rt === 1
+                        ? `rt=1 fuera de la familia Welli: su webhook existe pero este runner sólo maneja el de Welli`
+                        : `\`@webhook=\` no aplica a rt=${fam?.rt ?? '?'}: esa familia cierra en plataforma` };
             base.cierre = { ...r, webhook: w.detalle };
             cierre += `\n        ${w.ok ? '↩' : '⚠'} ${w.detalle}`;
         }
@@ -1499,6 +1516,69 @@ async function webhookIntegracion(ur: number, estado: string): Promise<{ ok: boo
     return { ok: true, detalle: `webhook \`${estado}\` → estado ${fin?.e ?? '?'} (lo aplicó legacy-application, no legacy-backend)` };
 }
 
+/** EL DESENLACE DE UN rt=0 — la familia MÁS GRANDE, y la que parecía no tener vuelta.
+ *
+ *  «Redirige a la web de la entidad y nadie decide en plataforma» describe la IDA. La vuelta existe y es
+ *  un webhook **genérico** —uno solo para todas: Addi, PayJoy, Brilla, Sistecrédito—, no uno por
+ *  entidad como en rt=1. Medido en producción: rt=0 son 15.339 solicitudes en 90 días (46 % del total)
+ *  y 4.196 autorizadas, con Addi llevándose 3.529. Ver F-170.
+ *
+ *  DOS PASOS, porque el webhook no crea nada: busca lo que el flujo real ya dejó.
+ *    1. la `LenderTransaction` y el código de compra, que en producción los crea el navegador del
+ *       cliente al finalizar la compra (`FinalizePurchaseQrController`, en el monolito viejo);
+ *    2. el webhook, que los encuentra por `order_id` y cierra.
+ *
+ *  ⚠ EL PASO 1 SE INVOCA POR `artisan tinker`, no por SQL a mano. Cuesta un segundo más y vale la pena:
+ *  la transacción la crea `selfManager()` de la entidad —su código real, con su propio estado
+ *  `Pending`— en vez de un INSERT nuestro que quedaría viejo en cuanto ese método cambie. El código de
+ *  compra sí es un insert, porque el controlador lo hace inline y no hay método que llamar.
+ *
+ *  ⚠ `lender_id` EN EL PAYLOAD ES EL SLUG, no el número. Y el slug NO es estable entre ambientes: el
+ *  lender 6 es `addi` en producción y `credifamilia-addi` en el dump local. Por eso se lee de la base.
+ */
+async function webhookSelfManager(ur: number, lender: number, estado: string): Promise<{ ok: boolean; detalle: string }> {
+    if (!SELFMANAGER_TOKEN) {
+        return { ok: false, detalle: 'falta SELFMANAGER_TOKEN (Sanctum con habilidad `selfManager`) — ver harness/CLAUDE.md' };
+    }
+    const l = await one<{ s: string }>('SELECT slug s FROM lenders WHERE id=?', [lender]).catch(() => null);
+    if (!l?.s) return { ok: false, detalle: `la entidad ${lender} no tiene slug: el webhook busca por slug` };
+
+    const orderId = `SYNTH-${ur}-${Date.now().toString(36)}`;
+    const php = `
+        $l = \\App\\Models\\Lender::find(${lender});
+        $r = new \\Illuminate\\Http\\Request();
+        $r->merge(['user_request_id' => ${ur}, 'order_id' => '${orderId}']);
+        $r->lender = $l;
+        (new $l->action())->selfManager($r);
+        \\App\\Models\\PurchaseCode::firstOrCreate(['user_request_id' => ${ur}],
+            ['barcode_url' => 'https://mock-s3.local/barcodes/synth-${ur}.png']);
+        echo 'listo';`;
+    const prep = await new Promise<string>((res) => {
+        execFile('php', ['artisan', 'tinker', '--execute', php], { cwd: APP_VIEJA_DIR, timeout: 60_000 },
+            (e, out) => res(e ? `ERROR ${String(e).slice(0, 90)}` : String(out)));
+    });
+    if (!prep.includes('listo')) return { ok: false, detalle: `no se pudo preparar la transacción: ${prep.slice(0, 110)}` };
+
+    const r = await fetch(`${APP_VIEJA}/self-manager/webhook`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', accept: 'application/json',
+                   authorization: `Bearer ${SELFMANAGER_TOKEN}` },
+        body: JSON.stringify({
+            lender_id: l.s, order_id: orderId, code_id: `COD-${ur}`,
+            available_amount: 2_000_000, purchase_amount: 2_000_000,
+            invoice_number: `FAC-${ur}`, status: estado,
+        }),
+        signal: AbortSignal.timeout(30_000),
+    }).catch((e) => ({ status: 0, text: async () => String(e) } as any));
+
+    const cuerpo = (await r.text().catch(() => '')).slice(0, 110);
+    if (r.status === 401) return { ok: false, detalle: 'el webhook devolvió 401 — el token de Sanctum no sirve o le falta la habilidad' };
+    if (r.status !== 200) return { ok: false, detalle: `el webhook devolvió HTTP ${r.status}: ${cuerpo}` };
+
+    const fin = await one<{ e: number }>('SELECT user_request_status_id e FROM user_requests WHERE id=?', [ur]).catch(() => null);
+    return { ok: true, detalle: `webhook self-manager \`${estado}\` → estado ${fin?.e ?? '?'} (lo aplicó legacy-application)` };
+}
+
 /** POSTVUELO del buró: ¿el ingreso que se DICTÓ llegó de verdad? Es la única comprobación que
  *  distingue «el parámetro no influye» de «el parámetro nunca llegó», y las dos se ven igual en el
  *  listado. Si los drivers KYC están en `fake`, acá salta. */
@@ -1629,8 +1709,13 @@ async function main(): Promise<number> {
         const trabados = conCierre.length - cerraron - sinCtopx - afuera;
         // El encabezado decía «CIERRE rt=2» siempre, incluso corriendo rt=3 y rt=4 — un rótulo que
         // contradice a la línea de abajo y hace dudar de cuál de las dos es la cierta.
+        // Un caso que cerró POR WEBHOOK no cerró «en plataforma», pero tampoco se quedó sin desenlace:
+        // contarlo sólo como «decide afuera» lo esconde, que es el error contrario al que se arregló
+        // antes. Se cuenta aparte, con su propia palabra.
+        const porWebhook = conCierre.filter((r) => r.cierre!.webhook?.startsWith('webhook')).length;
         console.log(`\n  CIERRE — ${cerraron} cerraron en estado 11 · ${sinCtopx} sin CreditopX`
             + (afuera ? ` · ${afuera} deciden afuera (rt=0/1)` : '')
+            + (porWebhook ? ` · ${porWebhook} con desenlace por webhook` : '')
             + (trabados ? ` · ⚠ ${trabados} se trabaron` : ''));
         for (const r of conCierre.filter((x) => !x.cierre!.cerro && x.cierre!.motivo !== 'sin CreditopX'
                                                && !x.cierre!.fueraDePlataforma)) {
