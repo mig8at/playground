@@ -95,6 +95,7 @@ orden de archivo — el ancla `### F-xx` es la única dirección.)
 | **«el equipo está en mora y no se bloqueó»** | F-156 |
 | **«se desembolsó sin garantía / sin IMEI»** | **F-157** |
 | **«dicté el buró para cumplir la regla y la entidad sigue sin salir»** | **F-158** |
+| **«el perfilamiento no excluye nada» / «las reglas de datacrédito no aplican»** | F-159 |
 | **«esta entidad nunca aparece en pruebas»** | F-158 · F-140 |
 | **«hay muchísimas filas de un estado y no cuadra con los equipos»** | F-156 |
 | **«salta el AML / no salta el AML y debería»** | F-155 |
@@ -267,6 +268,7 @@ distinto según con qué pregunta llegues.
 | F-156 | Un lock fallido se reintenta sin tope y escribe una fila por intento: 28 equipos sin bloquear | ABIERTO |
 | F-157 | `path = IMEI` no es el canal: 4 entidades lo tienen y desembolsan sin inscribir el equipo | ABIERTO |
 | F-158 | Escribir el ingreso de Experian pisa la ocupación con «Empleado» quemado | ABIERTO |
+| F-159 | El perfilamiento lee `Experian - Acierta` y el flujo sintético escribe `Acierta+Quanto` | ABIERTO |
 
 ---
 
@@ -2470,3 +2472,27 @@ en producción — el webhook no deja registro cuando `firstOrFail()` lanza, as�
   para no volver a recorrerlos.
 - **Arreglo:** que escribir el ingreso no escriba la ocupación. Código de la empresa. **Estado:** vivo
   en `main`.
+
+### F-159 · El perfilamiento por datacrédito lee OTRA central que la que escribe el flujo sintético: en local esa etapa entera no corre, y no avisa
+
+- **Síntoma:** ninguno. El listado sale, las reglas se evalúan, la corrida termina bien — y una etapa
+  completa de validación **nunca se ejecutó**. Al depurar por qué una entidad aparece o no, se razona
+  sobre reglas que en local no llegaron a correr.
+- **Causa raíz (verificada 2026-08-23 contra `main`):**
+  `ProfilingRulesService::applyProfilingAndRiskCentralRules` busca la central por **nombre exacto**:
+  `RiskCentral::firstWhere('name', 'Experian - Acierta')` (id **1**), y sólo si encuentra una fila con
+  score para ese usuario llama a `validateRulesByRiskCentral`. El recorrido sintético del harness
+  persiste bajo **`Experian - Acierta+Quanto`** (id **9**), que es otra fila. Sin coincidencia, el
+  bloque entero se saltea **sin log de que se salteó**.
+- **Evidencia:** las dos centrales existen como filas distintas en el catálogo. En **producción se
+  escriben las dos** —la id 1 con ~117 mil filas y la id 9 con ~35 mil, ambas vigentes—, así que allá
+  el perfilamiento sí encuentra su fila. En local, el usuario sintético queda sólo con la id 9.
+- **⚠ Por qué importa más de lo que parece:** el comercio también tiene que estar en
+  `datacredito_frequencies` para que el bloque corra. Son **dos condiciones**, y cualquiera de las dos
+  que falte produce el mismo silencio. Antes de concluir que «el perfilamiento no excluye», comprobá
+  que corrió.
+- **⚠ Misma familia que F-139 y F-140:** en local, lo que falta no falla — se saltea. El resultado es
+  plausible y está incompleto.
+- **Arreglo:** para PROBAR el perfilamiento en local hay que sembrar también la fila de
+  `Experian - Acierta`. Para el producto, que la búsqueda por nombre exacto sea una decisión explícita
+  y no una coincidencia de catálogo. **Estado:** vivo en `main`.

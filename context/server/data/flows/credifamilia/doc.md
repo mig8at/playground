@@ -203,7 +203,16 @@ puede regenerar — y ése es el único freno real que hay.
   | score mínimo de `lender_datacredito_rules` (710) | cliente con 760 ✓ |
   | antigüedad en el sector (12 meses) | `maturationSince` de 2006 → ~240 meses ✓ |
 
-  ⚠ **Y el motor de datacrédito de rt≠2 NO excluye**: `RiskCentralValidationService` calcula
+  | validación por reglas (el log de la etapa) | **5 evaluadas, 5 aprobadas, 0 rechazadas** ✓ |
+  | asignada al comercio (`lenders_by_allieds`) | sí ✓ |
+  | límites de monto del comercio | iguales a los de una entidad que SÍ aparece ✓ |
+
+  ⚠ **Y las dos etapas siguientes tampoco la sacan:** la validación devuelve aprobadas **y** rechazadas
+  juntas (sólo borra las rt=2 rechazadas), y el perfilamiento por datacrédito **ni siquiera corre** en
+  local (**F-159**). O sea que la caída de 5 entidades a 3 pasa **después** de todo eso, en
+  `LenderListingService` — quedan sin revisar su `array_filter` final y `attachAmountConditions`.
+
+  ⚠ **El motor de datacrédito de rt≠2 NO excluye**: `RiskCentralValidationService` calcula
   `can_check_preapproval` —un FLAG— en vez de sacar la entidad del listado. Así que la exclusión pasa en
   otro lado y **no deja rastro en la forense de reglas**.
 
