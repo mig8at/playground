@@ -219,6 +219,39 @@ falla es la firma del titular, con HTTP 500 en la generación de documentos: eso
 elegido por id quemado. La suite `codeudor.json` **es su prueba de regresión** — falla hoy a propósito y
 va a pasar sola el día que se arregle. Antes había que reproducirlo a mano; ahora tarda 12 segundos.
 
+## La bitácora de una corrida, y por qué no alcanzaba con los logs del backend
+
+Cada caso deja ahora un archivo en `harness/.runs/` con **todo lo que hizo el runner**: ruta, método,
+status y milisegundos de cada llamada, con la línea de tiempo. Una corrida del codeudor son **26
+llamadas**, del registro del teléfono a la firma cruzada — y ahí se ve, por ejemplo, que el verify del
+codeudor tarda 8,3 s porque re-renderiza el documento con las dos firmas.
+
+**Por qué hacía falta, si ya existe la forense de Loki.** Son dos mitades distintas y ninguna reemplaza
+a la otra:
+
+| | qué contesta | confiabilidad |
+|---|---|---|
+| **bitácora** (nueva) | qué se le **pidió** al backend | total: la escribimos nosotros, cubre cada llamada |
+| **forense de Loki** (ya existía) | qué **decidió** el backend | parcial y con techos declarados |
+
+La forense tiene límites que están escritos en su propio código: sólo ve `legacy-backend`, apenas una
+fracción de las líneas trae el `user_request_id`, y **una ausencia tiene cuatro causas
+indistinguibles**. Sirve para entender una decisión; no para saber qué se pidió. Y esa mitad —la
+nuestra— no quedaba en ningún lado: cuando un caso fallaba, la única forma de ver la secuencia era
+**volver a correrlo**, que con 90 s por caso y fallos intermitentes es justo lo que no se puede hacer.
+
+⚠ **Del cuerpo se guarda un extracto, y completo SÓLO cuando la respuesta no fue 2xx** — que es cuando
+hace falta. Guardar todos los cuerpos multiplicaría el archivo y metería datos personales en disco sin
+necesidad.
+
+⚠ **Los milisegundos son de la LLAMADA, no del backend**: incluyen red y cola. Con un solo worker, un
+número alto puede ser espera y no trabajo.
+
+**Y las dos se disparan solas al fallar**: la bitácora siempre, y la forense cuando el caso no pudo
+correr **o cuando no cumplió lo que declara** — porque «la entidad no salió en el listado» es el desvío
+más común y una regla que excluye una entidad **no mueve ningún estado ni cambia ningún status HTTP**.
+La bitácora no puede explicarlo; el log de reglas sí.
+
 ## Tarea (publicable)
 
 **En una línea.** Poder ejercitar varios flujos de comercios distintos a la vez, para comparar qué le

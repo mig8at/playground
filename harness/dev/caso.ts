@@ -82,6 +82,7 @@ const { synthFill } = await import('../pkg/inject.ts');
 const { config: e2eConfig } = await import('../pkg/config.ts');
 const { appKey } = await import('../pkg/db.ts');
 const { encryptLaravelString } = await import('../pkg/laravel-crypt.ts');
+const { forenseAlCerrar } = await import('../pkg/loki.ts');
 
 const API = e2eConfig.mockUrl;
 const UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_5 like Mac OS X) AppleWebKit/605.1.15 '
@@ -659,7 +660,28 @@ async function dictarTodos(casos: Caso[]): Promise<string[]> {
     return fallos;
 }
 
+/** Envoltorio: corre el caso y SIEMPRE deja su bitácora, salga como salga. Está separado del motor
+ *  porque el motor tiene una docena de salidas tempranas —cada una es un diagnóstico distinto— y
+ *  envolverlas de a una era la forma de que alguna quedara sin volcar. */
 async function correrLambda(c: Caso, i: number): Promise<Res> {
+    const r = await correrLambdaMotor(c, i);
+    await volcarBitacora(r, bitacoras.get(r.phone) ?? []);
+    bitacoras.delete(r.phone);
+
+    // LAS DOS MITADES DE UNA CORRIDA FALLIDA. La bitácora dice qué SE PIDIÓ —es nuestra y no tiene
+    // ambigüedad—; la forense de Loki dice qué DECIDIÓ el backend, que es lo que la bitácora no puede
+    // saber: una regla que excluyó una entidad no mueve ningún estado ni cambia ningún status HTTP.
+    //
+    // ⚠ Se dispara SÓLO si el caso salió mal, y eso no es tacañería: `forenseAlCerrar` paga un settle
+    // más una consulta, y explicar un éxito no le sirve a nadie. Se traga cualquier error a propósito.
+    if (!r.ok && r.ur) {
+        await forenseAlCerrar(r.ur, { existe: true, ok: false, malo: false, miente: [] })
+            .catch(() => { /* un forense que tumba la corrida que vino a explicar es peor que no tenerlo */ });
+    }
+    return r;
+}
+
+async function correrLambdaMotor(c: Caso, i: number): Promise<Res> {
     const doc = cedulaDe(i);
     const base: Res = { caso: c, ok: false, phone: '' };
 
@@ -677,19 +699,38 @@ async function correrLambda(c: Caso, i: number): Promise<Res> {
     if (!dictados.has(doc)) return { ...base, detalle: 'la respuesta del buró no quedó dictada' };
 
     const H = { 'content-type': 'application/json', accept: 'application/json', 'user-agent': UA };
+    // Cada llamada queda anotada (ver `volcarBitacora`). El costo es un push a un array; el beneficio
+    // es no tener que repetir una corrida de 90 s para ver qué se pidió.
+    const bitacora: Llamada[] = [];
+    bitacoras.set(tel, bitacora);
+    const t0Caso = Date.now();
+    const anotar = (metodo: string, ruta: string, status: number, ms: number, cuerpo?: string) => {
+        bitacora.push({ t: Date.now() - t0Caso, metodo, ruta, status, ms,
+            // El cuerpo entero SÓLO cuando falló: es cuando hace falta, y evita volcar datos
+            // personales de las respuestas buenas.
+            ...(status >= 200 && status < 300 ? {} : { cuerpo: (cuerpo ?? '').slice(0, 600) }) });
+    };
+
     // `extra` existe para el CODEUDOR: su credencial es un header (`X-Cosigner-Token`), no una sesión.
     const get = async (ruta: string, extra: Record<string, string> = {}) => {
+        const t0 = Date.now();
         const r = await fetch(`${API}${ruta}`, { headers: { ...H, ...extra }, signal: AbortSignal.timeout(90_000) })
             .catch((e) => e as Error);
-        if (r instanceof Error) return { status: 0, json: {} as any };
+        if (r instanceof Error) { anotar('GET', ruta, 0, Date.now() - t0, String(r).slice(0, 200)); return { status: 0, json: {} as any }; }
         const t = await r.text();
+        anotar('GET', ruta, r.status, Date.now() - t0, t);
         try { return { status: r.status, json: JSON.parse(t) }; } catch { return { status: r.status, json: {} as any }; }
     };
     const post = async (ruta: string, body: unknown, extra: Record<string, string> = {}) => {
+        const t0 = Date.now();
         const r = await fetch(`${API}${ruta}`, { method: 'POST', headers: { ...H, ...extra },
             body: JSON.stringify(body), signal: AbortSignal.timeout(150_000) }).catch((e) => e as Error);
-        if (r instanceof Error) return { status: 0, json: { message: String(r.message).slice(0, 120) } };
+        if (r instanceof Error) {
+            anotar('POST', ruta, 0, Date.now() - t0, String(r).slice(0, 200));
+            return { status: 0, json: { message: String(r.message).slice(0, 120) } };
+        }
         const t = await r.text();
+        anotar('POST', ruta, r.status, Date.now() - t0, t);
         try { return { status: r.status, json: JSON.parse(t) }; } catch { return { status: r.status, json: { raw: t.slice(0, 200) } }; }
     };
 
@@ -856,8 +897,8 @@ async function correr(c: Caso, i: number): Promise<Res> {
  *
  *  Devuelve una línea por desvío, nombrando el caso y diciendo esperado vs obtenido — porque un
  *  «falló» pelado manda a reproducir a mano lo que el runner ya sabe. */
-function verificarEsperas(res: Res[]): string[] {
-    const out: string[] = [];
+function verificarEsperas(res: Res[]): Array<{ res: Res; linea: string }> {
+    const out: Array<{ res: Res; linea: string }> = [];
     for (const r of res) {
         const e = r.caso.espera;
         if (!e) continue;
@@ -865,55 +906,100 @@ function verificarEsperas(res: Res[]): string[] {
 
         if (e.enListado !== undefined) {
             if (r.caso.lender === null) {
-                out.push(`${quien}: espera \`enListado\` pero el caso no pide ninguna entidad`);
+                out.push({ res: r, linea: `${quien}: espera \`enListado\` pero el caso no pide ninguna entidad` });
             } else if (r.listado === undefined) {
-                out.push(`${quien}: espera \`enListado\` y el listado ni se obtuvo (${r.detalle ?? 'sin detalle'})`);
+                out.push({ res: r, linea: `${quien}: espera \`enListado\` y el listado ni se obtuvo (${r.detalle ?? 'sin detalle'})` });
             } else if (!!r.enListado !== e.enListado) {
-                out.push(`${quien}: esperaba que la entidad ${r.caso.lender} ${e.enListado ? 'SÍ' : 'NO'}`
-                    + ` estuviera en el listado, y ${r.enListado ? 'sí' : 'no'} estaba — listado: [${(r.listado ?? []).join(', ')}]`);
+                out.push({ res: r, linea: `${quien}: esperaba que la entidad ${r.caso.lender} ${e.enListado ? 'SÍ' : 'NO'}`
+                    + ` estuviera en el listado, y ${r.enListado ? 'sí' : 'no'} estaba — listado: [${(r.listado ?? []).join(', ')}]` });
             }
         }
 
         if (e.entidades?.length) {
             if (r.listado === undefined) {
-                out.push(`${quien}: espera entidades en el listado y el listado ni se obtuvo`);
+                out.push({ res: r, linea: `${quien}: espera entidades en el listado y el listado ni se obtuvo` });
             } else {
                 const faltan = e.entidades.filter((x) => !r.listado!.includes(x));
                 if (faltan.length) {
-                    out.push(`${quien}: faltaron en el listado [${faltan.join(', ')}] — vino [${r.listado.join(', ')}]`);
+                    out.push({ res: r, linea: `${quien}: faltaron en el listado [${faltan.join(', ')}] — vino [${r.listado.join(', ')}]` });
                 }
             }
         }
 
         if (e.noEntidades?.length) {
             if (r.listado === undefined) {
-                out.push(`${quien}: espera entidades AUSENTES y el listado ni se obtuvo`);
+                out.push({ res: r, linea: `${quien}: espera entidades AUSENTES y el listado ni se obtuvo` });
             } else {
                 const colados = e.noEntidades.filter((x) => r.listado!.includes(x));
                 if (colados.length) {
-                    out.push(`${quien}: no debían estar [${colados.join(', ')}] y aparecieron`
-                        + ` — vino [${r.listado.join(', ')}]`);
+                    out.push({ res: r, linea: `${quien}: no debían estar [${colados.join(', ')}] y aparecieron`
+                        + ` — vino [${r.listado.join(', ')}]` });
                 }
             }
         }
 
         if (e.cierra !== undefined || e.estado !== undefined) {
             if (!r.cierre) {
-                out.push(`${quien}: declara algo del cierre pero la corrida no cerró nada`
-                    + ' — ¿faltó `CERRAR=1`? (sin eso, esto NO está verificado)');
+                out.push({ res: r, linea: `${quien}: declara algo del cierre pero la corrida no cerró nada`
+                    + ' — ¿faltó `CERRAR=1`? (sin eso, esto NO está verificado)' });
             } else {
                 if (e.cierra !== undefined && r.cierre.cerro !== e.cierra) {
-                    out.push(`${quien}: esperaba que ${e.cierra ? 'CERRARA' : 'NO cerrara'} y ${r.cierre.cerro ? 'cerró' : 'no cerró'}`
-                        + ` — ${r.cierre.motivo}`);
+                    out.push({ res: r, linea: `${quien}: esperaba que ${e.cierra ? 'CERRARA' : 'NO cerrara'} y ${r.cierre.cerro ? 'cerró' : 'no cerró'}`
+                        + ` — ${r.cierre.motivo}` });
                 }
                 if (e.estado !== undefined && r.cierre.estado !== e.estado) {
-                    out.push(`${quien}: esperaba estado ${e.estado} y quedó en ${r.cierre.estado ?? '—'}`
-                        + ` — ${r.cierre.motivo}`);
+                    out.push({ res: r, linea: `${quien}: esperaba estado ${e.estado} y quedó en ${r.cierre.estado ?? '—'}`
+                        + ` — ${r.cierre.motivo}` });
                 }
             }
         }
     }
     return out;
+}
+
+/** LA BITÁCORA DE UNA CORRIDA: qué hizo el runner, paso por paso.
+ *
+ *  POR QUÉ NO ALCANZA CON LOS LOGS DEL BACKEND. Ya existe una forense de Loki muy buena
+ *  (`pkg/loki.ts`) y este runner ahora la dispara — pero tiene techos declarados: sólo ve
+ *  `legacy-backend`, apenas una fracción de las líneas trae el `user_request_id` en su contexto, y la
+ *  ausencia de una línea tiene cuatro causas indistinguibles. Sirve para entender **por qué el backend
+ *  decidió algo**; no para saber **qué se le pidió**.
+ *
+ *  Y esa mitad —la nuestra— hoy no quedaba en ningún lado. Cuando un caso falla, la única forma de ver
+ *  la secuencia era volver a correrlo, que con 90 s por caso y fallos intermitentes es exactamente lo
+ *  que no se puede hacer. Esta bitácora es la mitad **sin ambigüedad**: la escribimos nosotros, cubre
+ *  cada llamada, y no depende de que nadie haya logueado nada.
+ *
+ *  QUÉ GUARDA Y QUÉ NO. Ruta, método, status y milisegundos de cada llamada, siempre. Del cuerpo, sólo
+ *  un extracto — y **completo únicamente cuando la respuesta no fue 2xx**, que es cuando hace falta.
+ *  Guardar todos los cuerpos multiplicaría el archivo por veinte y metería datos personales en disco
+ *  sin necesidad.
+ *
+ *  ⚠ Los milisegundos son de la LLAMADA, no del backend: incluyen la red y la cola del servidor de
+ *  desarrollo. Con un solo worker, un número alto puede ser espera y no trabajo. */
+type Llamada = { t: number; metodo: string; ruta: string; status: number; ms: number; cuerpo?: string };
+
+/** Bitácora por caso. La clave es el TELÉFONO porque es lo único único por caso desde el primer
+ *  instante — el `uReq` recién existe a la tercera llamada, y para entonces ya hay cosas que anotar. */
+const bitacoras = new Map<string, Llamada[]>();
+
+async function volcarBitacora(res: Res, llamadas: Llamada[]): Promise<void> {
+    if (!llamadas.length) return;
+    try {
+        const { mkdir, writeFile } = await import('node:fs/promises');
+        const dir = new URL('../.runs/', import.meta.url);
+        await mkdir(dir, { recursive: true });
+        const nombre = `caso-${res.ur ?? 'sin-ureq'}-${res.phone}.json`;
+        await writeFile(new URL(nombre, dir), JSON.stringify({
+            caso: res.caso.nombre ?? `${res.caso.comercio}${res.caso.lender ? ':' + res.caso.lender : ''}`,
+            comercio: res.caso.comercio, lender: res.caso.lender,
+            parametros: { amount: res.caso.amount, income: res.caso.income, score: res.caso.score },
+            uReq: res.ur ?? null, telefono: res.phone,
+            resultado: { ok: res.ok, conducta: res.conducta ?? null, detalle: res.detalle ?? null,
+                         listado: res.listado ?? null, cierre: res.cierre ?? null },
+            llamadas,
+        }, null, 2) + '\n', 'utf8');
+    } catch { /* la bitácora nunca puede tumbar la corrida que vino a explicar */ }
 }
 
 /** EL SUB-FLUJO DEL CODEUDOR, de punta a punta.
@@ -1244,8 +1330,16 @@ async function main(): Promise<number> {
     const desvios = verificarEsperas(res);
     if (desvios.length) {
         console.log('\n  ⚠ NO CUMPLIERON LO QUE DECLARAN:\n');
-        for (const d of desvios) console.log(`      · ${d}`);
+        for (const d of desvios) console.log(`      · ${d.linea}`);
         console.log('');
+
+        // Y para los que se desviaron, la otra mitad: qué DECIDIÓ el backend. «La entidad no salió en
+        // el listado» es el desvío más común, y una regla que excluye una entidad **no mueve ningún
+        // estado ni cambia ningún status HTTP** — así que la bitácora no puede explicarlo y el log de
+        // reglas sí. Se pide una sola vez por solicitud aunque haya varios desvíos del mismo caso.
+        for (const ur of new Set(desvios.map((d) => d.res.ur).filter(Boolean))) {
+            await forenseAlCerrar(ur!, { existe: true, ok: false, malo: false, miente: [] }).catch(() => {});
+        }
         return 1;
     }
     if (res.some((r) => r.caso.espera)) {
