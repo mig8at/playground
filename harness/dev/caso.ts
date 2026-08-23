@@ -158,7 +158,19 @@ async function cerrarCreditopX(arr: any[], ur: number, tel: string, amount: numb
         user_request_id: ur, amount, lender_id: Number(ctopx.id), allied_id: urRow?.a,
         fee_number: cyc?.fee_number ?? cyc?.feeNumber ?? 4, selected_cycle: cyc ?? {} });
 
-    await get(`${PN}/${ur}`);                       // genera los documentos
+    // GENERA LOS DOCUMENTOS — y hay que MIRAR si salió bien.
+    //
+    // Sin este chequeo el runner seguía derecho al OTP y a `authorize`, y el fallo aparecía tres
+    // llamadas después como `HTTP 500 · PromissoryNote no encontrado`, que se lee como un bug de la
+    // aplicación. Medido en una tanda de 12 en paralelo: los casos que fallaron **sí tenían pagaré**
+    // en la base al revisarlos —o sea que se generó— pero no cuando `authorize` fue a buscarlo. El
+    // paso siguiente sólo tiene sentido si éste terminó.
+    const docs = await get(`${PN}/${ur}`);
+    if (docs.status !== 200) {
+        return { cerro: false, estado: null,
+                 motivo: `${ctopx.name}: la generación de documentos devolvió HTTP ${docs.status}`
+                       + ' — sin esto el pagaré no existe y `authorize` falla con otro mensaje' };
+    }
     await post('/api/loans/requests/promissory-note/validate/send-otp', { user_request_id: ur });
     await post('/api/loans/requests/promissory-note/validate/verify-otp',
                { user_request_id: ur, otp: tel.slice(-6) });
