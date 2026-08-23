@@ -125,6 +125,23 @@ const WELLI_TOKEN = process.env.WELLI_WEBHOOK_TOKEN || 'token-de-pruebas-solo-lo
  *  vez: en `legacy-application`, `$user->createToken('harness-local', ['selfManager'])`. No se puede
  *  reusar el que ya existe en la base porque Sanctum guarda el hash, no el texto. */
 const SELFMANAGER_TOKEN = process.env.SELFMANAGER_TOKEN || '';
+
+/** LOS ARRANQUES DE LARAVEL VAN DE A UNO, Y NO ES PRUDENCIA: ESTÁ MEDIDO.
+ *
+ *  La preparación del webhook de rt=0 corre `artisan tinker`, que bootea el monolito viejo ENTERO. Con
+ *  nueve casos en paralelo, esos arranques le comieron la CPU al servidor local y **tres casos que
+ *  cierran siempre —CrediPullman y los dos Motai— fallaron con `HTTP 0`** en la generación de
+ *  documentos: ni siquiera un 500, la petición no completó. En aislamiento los tres cerraban 3/3, y
+ *  quitando el paso de tinker los mismos nueve corrían limpio. O sea que el runner se estaba
+ *  saboteando a sí mismo y el síntoma aparecía en OTROS casos, que es lo que lo vuelve difícil de leer.
+ *
+ *  Serializar cuesta ~1 s por caso rt=0 y no afecta al resto: lo único que espera es el siguiente boot. */
+let fila: Promise<unknown> = Promise.resolve();
+function enFila<T>(tarea: () => Promise<T>): Promise<T> {
+    const proximo = fila.then(tarea, tarea);
+    fila = proximo.catch(() => {});
+    return proximo;
+}
 const APP_VIEJA_DIR = process.env.LEGACY_APPLICATION_DIR
     || `${process.env.HOME}/Desktop/CREDITOP/github/legacy-application`;
 
@@ -271,7 +288,10 @@ async function cerrarCreditopX(arr: any[], ur: number, tel: string, amount: numb
     const docs = await get(`${PN}/${ur}`);
     if (docs.status !== 200) {
         return { cerro: false, estado: null,
-                 motivo: `${ctopx.name}: la generación de documentos devolvió HTTP ${docs.status}`
+                 motivo: `${ctopx.name}: la generación de documentos `
+                     + (docs.status === 0 && (docs as any).motivo
+                         ? String((docs as any).motivo)
+                         : `devolvió HTTP ${docs.status}`)
                        + ' — sin esto el pagaré no existe y `authorize` falla con otro mensaje' };
     }
     await post('/api/loans/requests/promissory-note/validate/send-otp', { user_request_id: ur });
@@ -869,8 +889,20 @@ async function correrLambdaMotor(c: Caso, i: number): Promise<Res> {
         const t0 = Date.now();
         const r = await fetch(`${API}${ruta}`, { headers: { ...H, ...extra }, signal: AbortSignal.timeout(90_000) })
             .catch((e) => e as Error);
-        if (r instanceof Error) { anotar('GET', ruta, 0, Date.now() - t0, String(r).slice(0, 200)); return { status: 0, json: {} as any }; }
-        const t = await r.text();
+        // ⚠ UN TIMEOUT NO ES UNA CAÍDA, Y `HTTP 0` LOS CONFUNDE. Medido el 2026-08-23: con nueve casos
+        // en paralelo, la generación de documentos de Motai y Pullman tardó **90.002 ms** —clavó el
+        // límite— y el runner reportó «devolvió HTTP 0», que se lee como que el backend se murió. No se
+        // murió: tardó, por la misma razón de F-166 (llamadas remotas dentro de una transacción
+        // abierta, que bajo concurrencia se serializan). Decir cuál de las dos cosas fue cambia dónde
+        // se busca la causa.
+        if (r instanceof Error) {
+            const expiro = /timeout|abort/i.test(String(r));
+            const ms = Date.now() - t0;
+            anotar('GET', ruta, 0, ms, String(r).slice(0, 200));
+            return { status: 0, json: {} as any,
+                     motivo: expiro ? `se pasó de los ${Math.round(ms / 1000)} s de espera (no falló: tardó)`
+                                    : String(r.message).slice(0, 120) };
+        }        const t = await r.text();
         anotar('GET', ruta, r.status, Date.now() - t0, t);
         try { return { status: r.status, json: JSON.parse(t) }; } catch { return { status: r.status, json: {} as any }; }
     };
@@ -1576,10 +1608,10 @@ async function webhookSelfManager(ur: number, lender: number, estado: string): P
         \\App\\Models\\PurchaseCode::firstOrCreate(['user_request_id' => ${ur}],
             ['barcode_url' => 'https://mock-s3.local/barcodes/synth-${ur}.png']);
         echo 'listo';`;
-    const prep = await new Promise<string>((res) => {
+    const prep = await enFila(() => new Promise<string>((res) => {
         execFile('php', ['artisan', 'tinker', '--execute', php], { cwd: APP_VIEJA_DIR, timeout: 60_000 },
             (e, out, err) => res(e ? `ERROR ${String(err || e).slice(0, 130)}` : String(out)));
-    });
+    }));
     if (!prep.includes('listo')) return { ok: false, detalle: `no se pudo preparar la transacción: ${prep.slice(0, 110)}` };
 
     const r = await fetch(`${APP_VIEJA}/self-manager/webhook`, {

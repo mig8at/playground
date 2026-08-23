@@ -1,22 +1,50 @@
 {
-  "nombre": "El cliente que vuelve: ¿qué le ofrecen la segunda vez?",
-  "requiere": ["cerrar", "lambda", "paralelo"],
-  "porDefecto": { "amount": 2000000, "income": 2500000, "score": 700 },
+  "nombre": "El cliente que vuelve: la entidad SIGUE ahí — lo que se gasta es el cupo, no la elegibilidad",
+  "requiere": [
+    "cerrar",
+    "lambda",
+    "paralelo"
+  ],
+  "porDefecto": {
+    "amount": 2000000,
+    "income": 2500000,
+    "score": 700
+  },
   "casos": [
     {
       "nombre": "cierra en Motai R y vuelve a pedir",
       "comercio": "motai",
       "pasos": [
-        { "nombre": "primera solicitud", "lender": 169,
-          "espera": { "enListado": true, "cierra": true, "estado": 11 } },
-        { "nombre": "segunda, ya con el crédito activo", "lender": null,
-          "espera": { "noEntidades": [169] } }
+        {
+          "nombre": "primera solicitud",
+          "lender": 169,
+          "espera": {
+            "enListado": true,
+            "cierra": true,
+            "estado": 11
+          }
+        },
+        {
+          "nombre": "segunda, ya con el crédito activo — SIGUE apareciendo (no la excluye tener uno)",
+          "lender": null,
+          "espera": {
+            "entidades": [
+              169
+            ]
+          }
+        }
       ]
     },
     {
       "nombre": "control: cliente nuevo, misma entidad",
-      "comercio": "motai", "lender": null,
-      "espera": { "entidades": [169] }
+      "comercio": "motai",
+      "lender": null,
+      "espera": {
+        "entidades": [
+          169
+        ]
+      }
     }
-  ]
+  ],
+  "nota": "⚠ Esta suite declaraba lo contrario y estaba MAL. Suponía que tener un crédito activo excluye a esa entidad del listado, y no: la lista de exclusión por crédito previo es [12, 23, 141, 142, 166] —`LenderRetrievalService:264`— y Motai R (169) no está. Para rt=2 el filtro duro es el CUPO: la categoría tiene `loan_limit` de 100 M y un crédito de 2 M apenas lo mueve, así que la entidad sigue ofreciéndose. Una expectativa inventada convierte a la suite en una fuente de alarmas falsas."
 }

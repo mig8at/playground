@@ -2717,6 +2717,14 @@ en producción — el webhook no deja registro cuando `firstOrFail()` lanza, as�
   **sólo rt=4 firma con Netco**. Los rt=2 no tocan esa tabla, así que no compiten.
 - **Regla práctica mientras no se arregle:** en una corrida paralela, **una sola solicitud de
   Credifamilia a la vez**; el resto de los comercios y entidades pueden ir en paralelo sin problema.
+- **⚠ Y EN rt=2 EL MISMO DISEÑO SE MANIFIESTA COMO LENTITUD, NO COMO DEADLOCK — medido.** Con nueve
+  casos en paralelo, la generación de documentos de **CrediPullman y Motai tardó 90.002 ms**: clavó el
+  límite de espera del runner. En aislamiento los mismos casos cierran, y el paso tarda **3 s**
+  (Credifamilia), **18 s** (DHI X) o **35 s** (Motai). No es saturación de máquina —medido con load 2,29
+  sobre 12 CPUs y el contenedor al 0,14 %—: es la transacción abierta serializando el trabajo.
+- **⚠ Y eso se leía como una caída.** El runner reportaba «devolvió HTTP 0», que manda a buscar un
+  backend muerto. Ahora distingue: «se pasó de los 90 s de espera (no falló: tardó)». La diferencia
+  cambia dónde se busca la causa.
 - **Lo que en realidad pasa, y son tres capas de enmascaramiento encadenadas:**
   1. **`LoanAuthorizationService` abre `DB::beginTransaction()` y llama a `generateAllDocuments()`
      dentro.** Ahí adentro se firman los seis documentos, y firmar significa **una llamada HTTP a Netco
