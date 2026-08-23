@@ -107,6 +107,20 @@ const DECEVAL = process.env.MOCK_DECEVAL_URL || 'http://localhost:8106/';
 const NETCO = process.env.MOCK_NETCO_URL || 'http://localhost:8107/';
 const CREDIFAMILIA = process.env.MOCK_CREDIFAMILIA_URL || 'http://localhost:8108/';
 
+/** EL MONOLITO VIEJO. No es un mock: es `legacy-application` de verdad, corriendo contra LA MISMA BASE
+ *  —por eso el parallel-run funciona— y es el ÚNICO que recibe los webhooks de las entidades rt=1
+ *  (F-170: en `legacy-backend` no hay ninguna ruta que los reciba). Se levanta a mano:
+ *      cd ~/Desktop/CREDITOP/github/legacy-application && php artisan serve --port=8000
+ *  ⚠ Rutea por SUBDOMINIO: el webhook vive en `api.localhost` y las de cliente en `aliados.localhost`.
+ *  Pegarle al host pelado NO da 404 sino **405 con «Supported methods: GET, HEAD»**, porque cae en la
+ *  ruta fallback — un mensaje que manda a revisar el verbo cuando el problema es el Host. */
+/** ⚠ VA CON EL SUBDOMINIO EN LA URL, no con un header `Host`. `fetch` de Node **descarta** ese header
+ *  —es forbidden en el estándar— sin decir nada, así que la petición llega al host pelado, cae en la
+ *  ruta fallback y vuelve un **405 «Supported methods: GET, HEAD»** que manda a revisar el verbo.
+ *  `api.localhost` resuelve solo a 127.0.0.1, así no hace falta tocar `/etc/hosts`. */
+const APP_VIEJA = process.env.LEGACY_APPLICATION_URL || 'http://api.localhost:8000';
+const WELLI_TOKEN = process.env.WELLI_WEBHOOK_TOKEN || 'token-de-pruebas-solo-local';
+
 // El microservicio de PRE-APROBADOS. Lo llama el FRONT, no el backend (F-141), así que una corrida
 // por API lo saltea sin fallar: el listado se ve completo y la etapa no ocurrió. Acá se REPLICA esa
 // llamada para poder validarla sin levantar el wizard.
@@ -119,6 +133,10 @@ const PREAPPROVALS = process.env.PREAPPROVALS_URL ?? 'http://localhost:8095/v1/p
 // `fetch-lender-preapproval.ts:148-153` del monorepo, y son tres casos:
 const CREDITOP_X_PRODUCT_KEY = 'creditop_x';   // rt 2 y 3 comparten UN producto
 const WELLI_IDS = [23, 141, 142, 166];         // las cuatro variantes comparten `welli`
+// ⚠ Esos MISMOS cuatro ids están quemados en el handler del webhook de Welli
+// (`legacy-application`, `WelliController::webhook`: `whereIn('lender_id', [23,141,142,166])`).
+// No es coincidencia y conviene saberlo: si aparece una quinta variante de Welli, no basta con
+// darla de alta — hay que tocar código en los dos lados o su webhook no encuentra la transacción.
 const claveDeProducto = (rt: number, id: number, slug: string) =>
     (rt === 2 || rt === 3) ? CREDITOP_X_PRODUCT_KEY : WELLI_IDS.includes(id) ? 'welli' : slug;
 
@@ -388,6 +406,10 @@ type Caso = {
     ocupacion?: string;
     /** Cuántas cuotas pedir. ⚠ NO todas las entidades aceptan cualquier número — ver `cerrarCreditopX`. */
     cuotas?: number;
+    /** `@webhook=fulfilled` — dispara el webhook REAL de la entidad en `legacy-application` para darle
+     *  desenlace a un rt=1. Es OPT-IN a propósito: nunca debe pasar solo, porque el código que corre no
+     *  es el de `legacy-backend` (F-170) y un desenlace automático se leería como si lo fuera. */
+    webhook?: string;
     /** Este caso es una vuelta POSTERIOR del mismo cliente: ya está registrado. Ver `correrPasos`. */
     recurrente?: boolean;
     /** Solicitudes SUCESIVAS del mismo cliente. Ver `correrPasos`. */
@@ -412,6 +434,7 @@ function parseCaso(spec: string, dflt: { amount: number; income: number; score: 
         if (k === 'amount' || k === 'income' || k === 'score') { c[k] = Number(v); continue; }
         if (k === 'ocupacion') { c.ocupacion = v; continue; }
         if (k === 'cuotas') { c.cuotas = Number(v); continue; }
+        if (k === 'webhook') { c.webhook = v; continue; }
         // cualquier otra clave es el ESCENARIO de una entidad: `pullman@meddipay=rechaza`.
         // Se dicta al mock de integraciones POR CÉDULA, así que dos casos en paralelo pueden pedir
         // cosas distintas de la misma entidad sin pisarse.
@@ -470,6 +493,7 @@ async function cargarSuite(ruta: string, dflt: { amount: number; income: number;
         const lender = 'lender' in (c ?? {}) ? c.lender : (base as any).lender;
         const ocupacion = c.ocupacion ?? (base as any).ocupacion;
         const cuotas = c.cuotas ?? (base as any).cuotas;
+        const webhook = c.webhook ?? (base as any).webhook;
         return {
             comercio: String(comercio),
             lender: lender == null ? null : Number(lender),
@@ -477,6 +501,7 @@ async function cargarSuite(ruta: string, dflt: { amount: number; income: number;
             espera: c.espera,
             ocupacion: ocupacion ? String(ocupacion) : undefined,
             cuotas: cuotas ? Number(cuotas) : undefined,
+            webhook: webhook ? String(webhook) : undefined,
             pasos: Array.isArray(c.pasos) ? c.pasos : undefined,
             escenarios: c.escenarios,
             amount: Number(c.amount ?? base.amount),
@@ -495,7 +520,9 @@ type Res = {
      *  en los cortes tempranos no hay fila que consultar. */
     cierre?: { cerro: boolean; motivo: string; estado: number | null; radicacion?: string | null;
                /** rt=0/1: la decisión la toma alguien afuera. NO es un fallo del caso. */
-               fueraDePlataforma?: boolean };
+               fueraDePlataforma?: boolean;
+               /** Resultado del webhook de la entidad, si el caso lo pidió con `@webhook=`. */
+               webhook?: string };
 };
 
 async function http(method: string, path: string, body: unknown, phone: string) {
@@ -965,6 +992,14 @@ async function correrLambdaMotor(c: Caso, i: number): Promise<Res> {
         base.cierre = r;
         cierre = r.cerro ? ` · CERRÓ en estado ${r.estado} (${r.motivo})`
                          : ` · NO cerró: ${r.motivo}${r.estado ? ` (quedó en estado ${r.estado})` : ''}`;
+
+        // El desenlace de un rt=1 llega DESPUÉS y por otro lado: la entidad avisa por webhook. Sólo se
+        // dispara si el caso lo pidió, y sólo tiene sentido cuando el cierre en plataforma no aplica.
+        if (c.webhook) {
+            const w = await webhookIntegracion(ur, c.webhook);
+            base.cierre = { ...r, webhook: w.detalle };
+            cierre += `\n        ${w.ok ? '↩' : '⚠'} ${w.detalle}`;
+        }
     }
 
     return { ...base, ok: arr.length > 0, nombre: `doc ${doc}`,
@@ -1367,7 +1402,7 @@ async function correrPasos(c: Caso, i: number): Promise<Res[]> {
  *    · `CREDIFAMILIA_HOST_OAUTH` ausente → el listado revienta → «el comercio no ofrece nada» (F-142)
  *  Las tres se leen como hechos del negocio. Por eso esto avisa ANTES, en vez de dejar que el próximo
  *  las descubra una por una como pasó el 2026-08-18. */
-async function prevuelo(): Promise<string[]> {
+async function prevuelo(casos: Caso[] = []): Promise<string[]> {
     const faltan: string[] = [];
     const vivo = async (url: string) =>
         !!(await fetch(url, { signal: AbortSignal.timeout(5_000) }).catch(() => null));
@@ -1405,7 +1440,63 @@ async function prevuelo(): Promise<string[]> {
                 + ' estado 11. Levantalo: bin/mock-credifamilia start');
         }
     }
+    // El monolito viejo, y SÓLO si algún caso pidió el webhook: es una dependencia pesada (otro Laravel
+    // entero) y exigirla siempre volvería obligatorio levantarla para correr cualquier cosa.
+    if (casos.some((c) => c.webhook)) {
+        if (!(await vivo(`${APP_VIEJA}/`))) {
+            faltan.push(`un caso pidió \`@webhook=\` y \`legacy-application\` no responde en ${APP_VIEJA}.`
+                + ' Es el ÚNICO que recibe los webhooks de rt=1 (F-170). Levantalo:'
+                + ' cd ~/Desktop/CREDITOP/github/legacy-application && php artisan serve --port=8000');
+        }
+    }
     return faltan;
+}
+
+/** DISPARA EL WEBHOOK DE LA ENTIDAD — el desenlace de un rt=1, que `legacy-backend` no puede dar.
+ *
+ *  QUÉ ES REAL ACÁ Y QUÉ NO, porque la diferencia es todo el valor de esto. **El receptor es real**: se
+ *  llama al webhook de verdad en `legacy-application`, que resuelve la transacción, aplica su propio
+ *  `STATUS_MAP` y escribe en la base compartida. Lo único simulado es **la entidad que llama** — que es
+ *  exactamente lo que un mock debe simular. No se toca ningún estado a mano.
+ *
+ *  ⚠ POR ESO NO PRUEBA `legacy-backend`. El código que corre acá vive en el monolito viejo; en el nuevo
+ *  la mitad receptora está escrita (el `STATUS_MAP` de `Welli`, su `authorize()`) pero **sin ruta que la
+ *  reciba y con la clave del token sin declarar**, así que su guard rechaza siempre (F-170). Un verde
+ *  acá dice «el flujo del cliente llega a su desenlace», nunca «legacy-backend recibe webhooks».
+ *
+ *  ⚠ Y LOS DOS `STATUS_MAP` NO COINCIDEN. Medido el 2026-08-23: `pendiente_desembolso` es **28** en
+ *  application y **11** en legacy-backend, y `fraud`/`risk_in_process` sólo existen en el nuevo. O sea
+ *  que el desenlace que se observe acá es el de HOY; cuando el webhook migre, uno de esos tres cambia.
+ */
+async function webhookIntegracion(ur: number, estado: string): Promise<{ ok: boolean; detalle: string }> {
+    const tx = await one<{ o: string }>(
+        `SELECT order_id o FROM lender_transactions
+          WHERE user_request_id = ? AND lender_id IN (${WELLI_IDS.join(',')})
+          ORDER BY id DESC LIMIT 1`, [ur]).catch(() => null);
+    if (!tx?.o) {
+        return { ok: false, detalle: 'sin transacción de la entidad: el webhook no tendría a qué apuntar' };
+    }
+
+    const r = await fetch(`${APP_VIEJA}/welli/webhook`, {
+        method: 'POST',
+        headers: {
+            'content-type': 'application/json',
+            accept: 'application/json',
+            authorization: `Bearer ${WELLI_TOKEN}`,
+        },
+        body: JSON.stringify({ timestamp: new Date().toISOString(), application_id: tx.o, status: estado }),
+        signal: AbortSignal.timeout(20_000),
+    }).catch((e) => ({ ok: false, status: 0, text: async () => String(e) } as any));
+
+    const cuerpo = (await r.text().catch(() => '')).slice(0, 120);
+    if (r.status === 401) {
+        return { ok: false, detalle: 'el webhook devolvió 401 — falta WELLI_WEBHOOK_TOKEN en el .env de legacy-application' };
+    }
+    if (r.status !== 200) return { ok: false, detalle: `el webhook devolvió HTTP ${r.status}: ${cuerpo}` };
+
+    const fin = await one<{ e: number }>(
+        'SELECT user_request_status_id e FROM user_requests WHERE id=?', [ur]).catch(() => null);
+    return { ok: true, detalle: `webhook \`${estado}\` → estado ${fin?.e ?? '?'} (lo aplicó legacy-application, no legacy-backend)` };
 }
 
 /** POSTVUELO del buró: ¿el ingreso que se DICTÓ llegó de verdad? Es la única comprobación que
@@ -1445,7 +1536,7 @@ async function main(): Promise<number> {
     const par = flag('paralelo');
 
     console.log(`\n  CASOS · ${casos.length} · ${par ? 'EN PARALELO' : 'en serie'} · ${API}\n`);
-    const faltan = await prevuelo();
+    const faltan = await prevuelo(casos);
     if (faltan.length) {
         console.log('  ⚠ PREVUELO — falta algo, y sin esto el resultado MIENTE:\n');
         for (const f of faltan) console.log(`      · ${f}`);

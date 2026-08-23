@@ -45,6 +45,34 @@ que ya costaron tiempo** — y el mapa mínimo para no perderse.
 | `dev/loki-trace.ts` | ¿POR QUÉ terminó así? forense en los logs (`make harness-loki UREQ=…`) |
 | `dev/pantallas.ts` | **¿por qué PANTALLAS habría pasado el cliente?** el recorrido del wizard derivado del router en `main`, y al revés: `ENDPOINT=confirm-payment-schedule` → qué pantalla es (`make harness-pantallas`) |
 
+### El desenlace de un rt=1: el webhook, y el monolito viejo corriendo en local
+
+Un rt=1 (Welli, Meddipay, Bancolombia, Prami) **no cierra en plataforma**: la entidad decide afuera y
+avisa después. `legacy-backend` **no tiene ninguna ruta que reciba ese aviso** (F-170) — el receptor vive
+en `legacy-application`. Y eso **se puede correr en local**, contra la MISMA base:
+
+    cd ~/Desktop/CREDITOP/github/legacy-application && php artisan serve --port=8000
+
+Con eso, un caso pide su desenlace y **el receptor es real**; lo único simulado es la entidad que llama:
+
+    make harness-caso CASOS='#ddc769bd:23@webhook=fulfilled' LAMBDA=1 CERRAR=1
+
+⚠ **Es OPT-IN a propósito.** Nunca pasa solo: el código que corre no es el de `legacy-backend`, y un
+desenlace automático se leería como si lo fuera.
+
+⚠ **Tres trampas que ya costaron y no se ven venir:**
+- **Rutea por SUBDOMINIO** — el webhook vive en `api.localhost`, las de cliente en `aliados.localhost`.
+  Pegarle al host pelado no da 404 sino **405 «Supported methods: GET, HEAD»** (cae en la ruta fallback),
+  que manda a revisar el verbo cuando el problema es el Host.
+- **`fetch` de Node DESCARTA el header `Host`** —es forbidden en el estándar— sin avisar, así que hay que
+  poner el subdominio en la URL. `api.localhost` resuelve solo, sin tocar `/etc/hosts`.
+- **Sin `WELLI_WEBHOOK_TOKEN` en el `.env` de application** el guard rechaza con 401 aunque el llamante
+  traiga token.
+
+⚠ **Y el desenlace que observes es el de HOY, no el de mañana**: los `STATUS_MAP` de los dos repos
+difieren. Medido: `pendiente_desembolso` da **28** (application) y está escrito como **11** en
+legacy-backend. El runner lo demuestra corriendo, no leyendo.
+
 ### El eje que las corridas por API no cubren: qué VEÍA el cliente
 
 `caso.ts` va por API y no abre el navegador — por eso es rápido y paralelizable. Lo que pierde es la

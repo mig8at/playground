@@ -2859,5 +2859,22 @@ en producción — el webhook no deja registro cuando `firstOrFail()` lanza, as�
 - **⚠ Y no confundirlo con `simulator/aggregator-result`**, que existe en `legacy-backend` y parece la
   solución: exige que la solicitud esté ligada a un `ecommerce_request` y devuelve 422 si no. Sirve para
   el canal ecommerce, **no** para el flujo de asesor — que es justo donde rt=1 cierra el 95% de las veces.
-- **Arreglo:** ninguno acá; es trabajo de la migración. Lo que este hallazgo aporta es **dónde mirar** y
-  **qué falta** cuando le toque el turno a rt=1. **Estado:** vigente.
+- **⚠ PERO SÍ SE PUEDE PROBAR, y sin simular el receptor.** `legacy-application` **corre en local**
+  (`php artisan serve --port=8000`) contra la MISMA base, así que se le puede disparar el webhook de
+  verdad: `POST api.localhost:8000/welli/webhook` con `{timestamp, application_id, status}` y bearer
+  token. Comprobado el 2026-08-23 de punta a punta — el handler real resuelve la transacción, aplica su
+  `STATUS_MAP` y mueve la solicitud en la base que ve `legacy-backend`. Lo único simulado es **la entidad
+  que llama**. En el harness: `@webhook=fulfilled`, opt-in.
+- **⚠ Y LOS DOS `STATUS_MAP` DIFIEREN — demostrado corriendo, no leyendo.** `pendiente_desembolso` da
+  **28** (el de application) y está escrito como **11** en `legacy-backend`; además `fraud` y
+  `risk_in_process` sólo existen en el nuevo. Son 12 estados iguales y 3 distintos. Cuando el webhook
+  migre, **uno de esos tres cambia de desenlace** — y el TODO que lo marca (`[PARIDAD]`) ya está en el
+  código, pero sin decir cuál gana.
+- **Tres trampas del camino, todas silenciosas:** el monolito viejo **rutea por subdominio** (el webhook
+  está en `api.localhost`, y pegarle al host pelado da **405 «Supported methods: GET, HEAD»** por la ruta
+  fallback, no 404); **`fetch` de Node descarta el header `Host`** sin avisar, así que el subdominio va en
+  la URL; y sin `WELLI_WEBHOOK_TOKEN` en el `.env` de application el guard rechaza con 401.
+- **⚠ Los ids de la familia Welli están QUEMADOS en el handler** (`whereIn('lender_id', [23,141,142,166])`)
+  y en el runner. Una quinta variante dada de alta por configuración **no la encuentra el webhook**.
+- **Arreglo:** ninguno acá; es trabajo de la migración. Lo que este hallazgo aporta es **dónde mirar**,
+  **qué falta** y **cómo probarlo hoy**. **Estado:** vigente.
