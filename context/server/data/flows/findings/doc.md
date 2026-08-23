@@ -123,6 +123,8 @@ orden de archivo — el ancla `### F-xx` es la única dirección.)
 | **«esta entidad rt=2 nunca cierra y las otras sí»** | **F-172** |
 | **«probé Bancolombia y no cerró»** | **F-173** |
 | **«la entidad lista en local y no existe en prod»** | **F-173** |
+| **«el documento figura firmado y la URL da 404»** | **F-174** |
+| **«no puedo abrir el PDF que produjo una corrida»** | **F-174** |
 | **«instrumenté el servicio y no imprime nada»** | **F-161** |
 | **«esta entidad no sale del listado y ninguna regla lo explica»** | **F-161** · F-113 |
 | **«en el wizard sí aparece pero por API no»** (o al revés) | **F-161** |
@@ -3001,3 +3003,45 @@ en producción — el webhook no deja registro cuando `firstOrFail()` lanza, as�
   más fácil de creer que un canal está probado cuando no se lo tocó.
 - **Arreglo:** ninguno de código. El runner de casos avisa si el nombre trae la marca, pero **no se
   puede confiar en su silencio** por lo del dump. **Estado:** vigente.
+
+### F-174 · En local los documentos NO se guardan: cada subida a S3 falla en silencio y la URL igual se escribe
+
+- **Síntoma:** ninguno. La corrida informa «7 documentos firmados», las filas existen en
+  `netco_signing_documents` / `user_request_signing_documents` con su `signed_at` y su
+  `signed_pdf_url`, y todo se ve bien. **Los archivos no existen.**
+- **Medido el 2026-08-23 en local:**
+
+      Storage::disk('s3')->put(...)   → devuelve **false**, en **509 ms**
+      Storage::disk('s3')->url(...)   → devuelve la URL igual
+      GET de esa URL                  → **HTTP 404**
+
+- **Por qué falla:** el disco `s3` apunta a **AWS real** (`endpoint = NULL`) con
+  `AWS_BUCKET=local-mock`, un bucket que no existe. Y **por qué no se nota**:
+  `filesystems.disks.s3.throw` está en **`false`**, así que Flysystem devuelve `false` en vez de
+  lanzar — y **casi nadie mira ese booleano**. La URL no se consulta al bucket: se **construye** a
+  partir del nombre, así que sale bien formada apunte a donde apunte.
+- **El costo doble:** medio segundo por documento **gastado en fallar** (viaje a AWS y vuelta), unas
+  seis veces en el camino de firma ≈ **3 s por caso**, y encima el artefacto no queda.
+- **Lo que esto le quita al harness:** no se puede **abrir el PDF que produjo una corrida**. Se puede
+  afirmar que el flujo llegó a firmar, no que el documento salió bien — que es justamente la mitad que
+  las plantillas Blade deciden (ver F-150).
+- **⚠ Y hay una excepción que lo demuestra:** el proveedor de firma **sí** mira el resultado y tiene
+  plan B — `NetcoSignerProvider` captura el fallo y persiste el base64 en `signed_base64` «para
+  recovery sin re-firma». O sea que en el único lugar donde alguien comprobó, el fallo estaba previsto.
+  En los otros cinco puntos de subida, no.
+- **Arreglo (local), APLICADO y medido el 2026-08-23:** un MinIO en `:9000` con el bucket `local-mock`
+  y tres líneas en el `.env` de `legacy-backend`:
+
+      AWS_ENDPOINT=http://host.docker.internal:9000     # lo consume el CONTENEDOR
+      AWS_USE_PATH_STYLE_ENDPOINT=true
+      AWS_URL=http://localhost:9000/local-mock          # lo consume el NAVEGADOR
+
+  ⚠ **Las tres hacen falta y no son intercambiables.** `AWS_ENDPOINT` es a dónde escribe el backend;
+  **`AWS_URL` es lo que se GUARDA en la base**, porque `url()` arma la dirección a partir del nombre del
+  bucket y **no** del endpoint — sin él el archivo se guarda bien y la URL sigue apuntando a AWS, o sea
+  que el 404 no se va. Y llevan hosts distintos a propósito: `host.docker.internal` para el contenedor,
+  `localhost` para quien abra el link.
+  **Resultado:** `put` pasó de **`false` en 509 ms** a **`true` en 25 ms**, los documentos se descargan
+  (`%PDF-`, 14 archivos tras dos corridas) y un caso de Motai bajó de 27 s a **19,6 s**.
+  **Estado:** resuelto en local; el hueco de diseño —`throw => false` y una URL que se construye sin
+  consultar— sigue ahí.

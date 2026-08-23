@@ -45,6 +45,28 @@ que ya costaron tiempo** — y el mapa mínimo para no perderse.
 | `dev/loki-trace.ts` | ¿POR QUÉ terminó así? forense en los logs (`make harness-loki UREQ=…`) |
 | `dev/pantallas.ts` | **¿por qué PANTALLAS habría pasado el cliente?** el recorrido del wizard derivado del router en `main`, y al revés: `ENDPOINT=confirm-payment-schedule` → qué pantalla es (`make harness-pantallas`) |
 
+### S3 en local: MinIO, o los documentos no existen
+
+Sin esto, **cada subida de documento falla en silencio** y la URL que queda en la base da 404 (F-174).
+No es sólo velocidad: es que **no se puede abrir el PDF que produjo una corrida**.
+
+    docker run -d --name creditop-minio --network creditop-network -p 9000:9000 -p 9001:9001 \
+      -e MINIO_ROOT_USER=creditop -e MINIO_ROOT_PASSWORD=creditop123 \
+      -v creditop-minio-data:/data quay.io/minio/minio server /data --console-address ":9001"
+
+Y en el `.env` de `legacy-backend` — **las tres, no dos**:
+
+    AWS_ENDPOINT=http://host.docker.internal:9000     # a dónde ESCRIBE el contenedor
+    AWS_USE_PATH_STYLE_ENDPOINT=true
+    AWS_URL=http://localhost:9000/local-mock          # lo que se GUARDA en la base
+
+⚠ `AWS_URL` es la que se olvida: `url()` arma la dirección con el nombre del bucket, **no** con el
+endpoint, así que sin ella el archivo se guarda pero el link sigue dando 404. Los hosts son distintos a
+propósito — el contenedor no resuelve `localhost` y el navegador no resuelve `host.docker.internal`.
+
+Consola web en `:9001` (usuario y clave `creditop` / `creditop123`) para mirar los documentos.
+**Para LocalStack en vez de MinIO: cambia sólo `AWS_ENDPOINT`.**
+
 ### Corridas 3× más rápidas — y qué se deja de probar a cambio
 
 **El 86 % del tiempo de una corrida se va en fabricar PDF**, y es un costo **fijo de ~16 s por

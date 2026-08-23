@@ -402,14 +402,14 @@ No hay esperas artificiales en el runner. Lo que queda, medido con el trace de u
 | qué | cuánto | naturaleza |
 |---|---:|---|
 | `getLenderUserCategory` **× 6 en el mismo request** | ~380 ms c/u = **2,3 s** | la misma consulta repetida — trabajo evitable |
-| subidas a **S3 REAL** (~6 sitios en el camino de firma) | ~0,5 s c/u ≈ **3 s** | las corridas locales suben documentos a un bucket real |
+| subidas a S3 que **FALLAN** (~6 en el camino de firma) | ~0,5 s c/u ≈ **3 s** | ⚠ corregido: no suben nada — el bucket no existe y el fallo es mudo (**F-174**) |
 | `document.generate` × 5 (ya por mock) | ~200 ms c/u = **1 s** | resuelto |
 | lectura del OTP en Redis (`OtpService:133`) | hasta **1 s** | espera DELIBERADA: 3 intentos con `usleep(500ms)` |
 | listados × 2 + espejo del buró (runner) | ~4 s | trabajo de negocio legítimo |
 
-O sea: **ya no hay un culpable único**. Los dos evitables son la consulta de categoría repetida seis
-veces y el S3 real (apuntarlo a un MinIO local lo bajaría a milisegundos, al costo de más
-infraestructura). El resto es el negocio corriendo de verdad.
+O sea: **ya no hay un culpable único**. Los dos evitables son la consulta de categoría repetida seis veces y el S3, **que además no está
+guardando nada**: cada subida falla en silencio y la URL que queda en la base da 404 (**F-174**). O sea
+que esos 3 s se gastan en fallar. El resto es el negocio corriendo de verdad.
 
 ## Tarea (publicable)
 
