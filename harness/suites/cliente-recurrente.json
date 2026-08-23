@@ -1,0 +1,22 @@
+{
+  "nombre": "El cliente que vuelve: ¿qué le ofrecen la segunda vez?",
+  "requiere": ["cerrar", "lambda", "paralelo"],
+  "porDefecto": { "amount": 2000000, "income": 2500000, "score": 700 },
+  "casos": [
+    {
+      "nombre": "cierra en Motai R y vuelve a pedir",
+      "comercio": "motai",
+      "pasos": [
+        { "nombre": "primera solicitud", "lender": 169,
+          "espera": { "enListado": true, "cierra": true, "estado": 11 } },
+        { "nombre": "segunda, ya con el crédito activo", "lender": null,
+          "espera": { "noEntidades": [169] } }
+      ]
+    },
+    {
+      "nombre": "control: cliente nuevo, misma entidad",
+      "comercio": "motai", "lender": null,
+      "espera": { "entidades": [169] }
+    }
+  ]
+}

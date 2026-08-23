@@ -168,14 +168,31 @@ Y la expectativa `noEntidades` existe justo para esto: afirmar que una entidad *
 listado. Es la forma declarada de lo que descubrimos por accidente con los teléfonos sucios —**un
 crédito activo bloquea el cupo rt=2, y el corte es por entidad**—.
 
-⚠ **PERO HOY EL SEGUNDO PASO FALLA, y la razón importa.** El runner arranca cada caso por el
-onboarding completo, y en la segunda vuelta el backend responde *«El correo electrónico ya se
-encuentra registrado»*. **No es un bug del harness**: es que un cliente que vuelve **no se registra de
-nuevo** — entra con su teléfono ya conocido y abre una solicitud sobre el usuario que existe.
+**Funciona, y el camino del cliente recurrente hubo que construirlo.** El runner arrancaba cada caso
+por el onboarding completo, y en la segunda vuelta el backend contestaba —bien— *«El correo electrónico
+ya se encuentra registrado»*: `personal-info` es el paso que CREA la persona. Los pasos posteriores al
+primero lo saltean; la solicitud no se pierde, la crea `otp-validate` dos llamadas antes. **Es la
+diferencia real entre un cliente nuevo y uno que vuelve, y hasta ahora este harness sólo sabía probar
+el primero.**
 
-O sea que falta **el camino del cliente RECURRENTE**, que hoy este runner no sabe recorrer. El motor de
-pasos quedó porque es correcto y el modelo es el que hace falta; lo que falta es un arranque que sepa
-entrar sin registrar. **Hasta entonces, `pasos` corre el primer paso y se cae en el segundo.**
+Medido con la suite `cliente-recurrente.json`: el cliente que cerró un crédito **pierde las CreditopX
+en su segunda solicitud**, y el control —un cliente nuevo, mismo comercio, mismo momento— las sigue
+viendo. Lo que antes salía como un síntoma raro ahora es una afirmación que se verifica sola.
+
+## ⚠ Una suite que CIERRA degrada el ambiente, y el síntoma parece de negocio
+
+Corriendo la suite varias veces, la entidad 169 **desapareció del listado para todos** — incluido un
+cliente nuevo. No era el cupo por usuario: es **`lender_users_categories.already_used_loan`**, el
+acumulado del tope de colocación mensual, que **nada reinicia** (es **F-119**). Cada cierre lo
+incrementa y la categoría se agota.
+
+⚠ **Y el renting lo agota cuatro veces más rápido**, porque la calculadora infla el monto: cada crédito
+consume ~8,3M de tope por 2M pedidos. La cadena entera —calculadora infla → tope se consume → nada
+reinicia → la entidad deja de ofrecerse— no se ve en ninguna parte del código.
+
+**En producción no está mordiendo**: ninguna categoría agotada, una sola por encima del 80 %. El que se
+degrada es el ambiente de pruebas. Si una entidad «deja de aparecer» después de una tanda de cierres,
+mirá `already_used_loan` antes de buscar una regla.
 
 ## Tarea (publicable)
 

@@ -285,6 +285,8 @@ type Espera = {
 type Caso = {
     comercio: string; lender: number | null;
     nombre?: string; espera?: Espera;
+    /** Este caso es una vuelta POSTERIOR del mismo cliente: ya está registrado. Ver `correrPasos`. */
+    recurrente?: boolean;
     /** Solicitudes SUCESIVAS del mismo cliente. Ver `correrPasos`. */
     pasos?: Array<{ nombre?: string; lender?: number | null; amount?: number; espera?: Espera }>;
     amount?: number; income?: number; score?: number;
@@ -676,14 +678,26 @@ async function correrLambda(c: Caso, i: number): Promise<Res> {
     if (!ur) return { ...base, detalle: `otp-validate sin uReq (HTTP ${otp.status})` };
     base.ur = ur;
 
-    const pi = await post(`/api/onboarding/loan-application/personal-info/${br.hash}/${ur}`, {
-        document_type: 'CC', document_number: doc, name: 'CARLOS', surname: 'RUIZ',
-        email: `qa${doc}@gmail.com`,
-        expedition_day: 10, expedition_month: 5, expedition_year: 2019,
-        birth_day: 10, birth_month: 5, birth_year: 2001 });
-    if (pi.json?.success !== true) {
-        return { ...base, conducta: 'personal-info rechazó',
-                 detalle: `${pi.json?.errors?.error_subcode ?? ''} ${JSON.stringify(pi.json?.errors?.payload ?? pi.json?.message ?? '').slice(0, 90)}` };
+    // EL CLIENTE QUE VUELVE NO SE REGISTRA DE NUEVO.
+    //
+    // `personal-info` es el paso que CREA la persona: cédula, nombre, correo, fechas. En la segunda
+    // solicitud del mismo cliente esos datos ya existen, y mandarlos otra vez hace que el backend
+    // conteste «El correo electrónico ya se encuentra registrado» — correctamente. La solicitud NO se
+    // pierde por saltearlo: la crea `otp-validate`, dos llamadas antes.
+    //
+    // ⚠ Que sea un `if` y no un camino aparte es a propósito: el resto del recorrido —listado,
+    // selección, cierre— es EL MISMO. Si un cliente recurrente viera un listado distinto, eso es
+    // justamente lo que se quiere medir, y sólo se puede medir si lo demás no cambia.
+    if (!c.recurrente) {
+        const pi = await post(`/api/onboarding/loan-application/personal-info/${br.hash}/${ur}`, {
+            document_type: 'CC', document_number: doc, name: 'CARLOS', surname: 'RUIZ',
+            email: `qa${doc}@gmail.com`,
+            expedition_day: 10, expedition_month: 5, expedition_year: 2019,
+            birth_day: 10, birth_month: 5, birth_year: 2001 });
+        if (pi.json?.success !== true) {
+            return { ...base, conducta: 'personal-info rechazó',
+                     detalle: `${pi.json?.errors?.error_subcode ?? ''} ${JSON.stringify(pi.json?.errors?.payload ?? pi.json?.message ?? '').slice(0, 90)}` };
+        }
     }
 
     // ⚠ EL MONTO VA EN LA QUERY, y sin él el backend usa 180.000 por default
@@ -882,17 +896,12 @@ function verificarEsperas(res: Res[]): string[] {
  *  ⚠ Los pasos NO se paralelizan entre sí, y no es una limitación: el segundo paso sólo significa algo
  *  si el primero YA terminó. Paralelizarlos probaría una carrera, no un cliente recurrente.
  *
- *  ⚠⚠ INCOMPLETO — LEER ANTES DE USAR. Hoy el segundo paso **falla**, y por una razón que vale la pena:
- *  este runner arranca cada caso por el ONBOARDING completo (registro de teléfono → OTP →
- *  `personal-info`), y en la segunda vuelta el backend responde *«El correo electrónico ya se
- *  encuentra registrado»*. No es un bug del harness: es que **un cliente que vuelve no se registra de
- *  nuevo** — entra por otro camino, con su teléfono ya conocido, y arranca una solicitud sobre el
- *  usuario que ya existe.
- *
- *  O sea que falta la mitad que de verdad importa: **el camino del cliente RECURRENTE**. Mientras no
- *  esté, `pasos` corre el primer paso bien y el segundo se cae en el registro. Se deja el motor porque
- *  es correcto y porque el modelo —paralelo entre clientes, secuencial adentro— es el que hace falta;
- *  lo que falta es un `correr` que sepa entrar sin registrar. */
+ *  ⚠ EL SEGUNDO PASO NO SE REGISTRA. Este runner arranca cada caso por el onboarding, y `personal-info`
+ *  es el paso que CREA la persona; en la segunda vuelta el backend contesta —bien— «El correo
+ *  electrónico ya se encuentra registrado». Por eso los pasos posteriores al primero viajan con
+ *  `recurrente`, que saltea ese paso: la solicitud la crea `otp-validate`, antes. Es la diferencia
+ *  real entre un cliente nuevo y uno que vuelve, y hasta hoy este harness sólo sabía probar el
+ *  primero. */
 async function correrPasos(c: Caso, i: number): Promise<Res[]> {
     const out: Res[] = [];
     for (let k = 0; k < c.pasos!.length; k++) {
@@ -902,6 +911,7 @@ async function correrPasos(c: Caso, i: number): Promise<Res[]> {
             ...c,
             pasos: undefined,
             nombre: `${nombreBase} · paso ${k + 1}${paso.nombre ? ` (${paso.nombre})` : ''}`,
+            recurrente: k > 0,
             lender: paso.lender === undefined ? c.lender : paso.lender,
             amount: paso.amount ?? c.amount,
             espera: paso.espera,
