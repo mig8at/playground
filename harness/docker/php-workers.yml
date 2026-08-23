@@ -1,0 +1,22 @@
+# Concurrencia del servidor de desarrollo del backend — SÓLO LOCAL.
+#
+# POR QUÉ EXISTE. El contenedor del backend corre `php artisan serve`, que sin
+# `PHP_CLI_SERVER_WORKERS` atiende UNA petición a la vez. Con eso, correr flujos en paralelo no
+# falla: se degrada de un modo que parece del negocio. Medido el 2026-08-22 con siete cierres
+# simultáneos: 522 s y cuatro solicitudes trabadas en estado 28 por timeout. Con workers: 130 s y
+# ninguna. Y no es falta de recursos —el contenedor estaba al 0,11 % de CPU, con 12 CPUs y 151
+# conexiones de MySQL libres—: el trabajo estaba serializado, no saturado.
+#
+# POR QUÉ ACÁ Y NO EN EL REPO DE LA COMPAÑÍA. Un `docker-compose.override.yml` en la raíz de
+# `legacy-backend` funcionaría, pero ese repo **no lo tiene gitignoreado**: queda un archivo suelto
+# fácil de commitear sin querer. Viviendo en playground, el repo de la compañía no se toca.
+#
+# ⚠ `artisan serve` es el servidor de DESARROLLO. Esto no aplica a ningún ambiente desplegado, que
+# sirven con otra cosa: es una perilla de la máquina de uno.
+#
+# Uso:  make harness-workers        (levanta el backend con concurrencia)
+#       make harness-workers-off    (lo devuelve a como estaba)
+services:
+    laravel.test:
+        environment:
+            PHP_CLI_SERVER_WORKERS: '20'

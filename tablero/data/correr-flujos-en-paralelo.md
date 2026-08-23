@@ -28,16 +28,19 @@ estado 28. No es del flujo: el contenedor corre el servidor de desarrollo de PHP
 `PHP_CLI_SERVER_WORKERS` es de un solo proceso. Con diez workers, los mismos siete corrieron en **19 s
 sin un solo timeout**.
 
-Se activa con un `docker-compose.override.yml` en la raíz de `legacy-backend` (no está versionado ni
-gitignoreado — por eso acá va la receta y no el archivo):
+**Ya está resuelto y es un comando**, sin tocar el repo de la compañía:
 
-    services:
-        laravel.test:
-            environment:
-                PHP_CLI_SERVER_WORKERS: '10'
+    make harness-workers        # el backend atiende varias peticiones a la vez
+    make harness-workers-off    # lo devuelve a como viene por defecto
 
-…y `docker compose up -d laravel.test`. ⚠ **Borralo cuando termines**: deja un archivo suelto en el
-repo de la compañía, que es fácil de commitear sin querer.
+El override vive en **playground** (`harness/docker/php-workers.yml`) y se aplica desde afuera con
+`docker compose -f … -f …`. Se hizo así a propósito: un `docker-compose.override.yml` en la raíz de
+`legacy-backend` también funciona, pero ese repo **no lo tiene gitignoreado** y queda un archivo suelto
+fácil de commitear sin querer.
+
+⚠ **No es falta de recursos.** Medido el 2026-08-22: 12 CPUs, 151 conexiones de MySQL libres y el
+contenedor al **0,11 % de CPU**. El trabajo estaba serializado, no saturado — por eso la palanca es la
+concurrencia del servidor y no darle más máquina.
 
 ## Fijar la entidad por caso: `comercio:id`
 
@@ -101,3 +104,15 @@ por el camino de su producto, no por uno genérico.
 exitoso si se salteó un paso obligatorio de su producto.
 
 **Dependencias.** Ninguna.
+
+## Lo que aparece cuando de verdad corre en paralelo
+
+Con 20 workers, **12 casos tardan lo mismo que 7** (~134 s): escala. Pero a esa concurrencia salieron
+**tres fallos con `HTTP 500 · PromissoryNote no encontrado`**, y ahí está el valor de correr en
+paralelo: son cosas que en serie no se ven.
+
+⚠ **La causa próxima era del runner, no de la aplicación**: llamaba a la generación de documentos sin
+mirar la respuesta y seguía derecho al OTP y al `authorize`, así que el fallo reaparecía tres llamadas
+después con otro mensaje y en otro componente. Ya corta ahí. **Lo que queda sin diagnosticar** es por
+qué el pagaré no estaba visible en ese momento: los casos que fallaron **sí tenían pagaré en la base**
+al revisarlos después. La hipótesis es que la generación no había terminado, pero **no está medido**.
