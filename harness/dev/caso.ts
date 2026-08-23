@@ -666,6 +666,14 @@ async function dictarTodos(casos: Caso[]): Promise<string[]> {
             }).catch(() => null);
             if (!r?.ok) fallos.push(`${lender}=${modo}`);
         }
+        // ⚠ EL `score` DEL CASO NO LLEGABA A NINGÚN LADO en este camino: el buró lo sirve el mock y
+        // devolvía siempre el del fixture (707). O sea que `score=750` era un **no-op silencioso** —el
+        // caso corría, terminaba bien, y uno concluía «el score no mueve el listado» cuando el score
+        // nunca cambió. Es la misma familia que F-139. El mock ya sabe pisarlo por cédula.
+        if (casos[i].score) {
+            await dictar(doc, 'experian_score', String(casos[i].score)).catch(() => {});
+        }
+
         // hasta 4 intentos: cada POST puede caer en un contenedor distinto, así que reintentar
         // NO es supersticioso — es lo que hace que alguno pegue en el que después atiende la lectura
         let ok = false;

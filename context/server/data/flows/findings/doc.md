@@ -2461,5 +2461,12 @@ en producción — el webhook no deja registro cuando `firstOrFail()` lanza, as�
 - **⚠ Al depurar esto NO alcanza con verificar que el buró llegó.** Llegó, se interpretó bien, y el
   resultado correcto quedó escrito — y después se perdió. Un chequeo de «¿el dato llegó?» pasa en verde
   (es la trampa de F-139 con otra cara): hay que mirar el valor FINAL del campo, no el del buró.
+- **⚠ Y arreglarlo NO alcanza para que Credifamilia liste** — medido el 2026-08-23 en una rama local
+  con el pisado desactivado. Con la ocupación en `Independiente`, edad 25, ingreso 3.000.000, sin
+  reportes y score 760, la regla de grupo pasa a **`aprobado`** en la forense… y la entidad **sigue sin
+  aparecer en el listado**. O sea que hay **al menos un filtro más abajo, y ese no loguea nada**: la
+  forense de reglas no lo ve. Los tres gates ya descartados (ocupación, la regla de grupo 7751 y el
+  score mínimo de `lender_datacredito_rules`, que para esa sucursal es **710**) quedan documentados
+  para no volver a recorrerlos.
 - **Arreglo:** que escribir el ingreso no escriba la ocupación. Código de la empresa. **Estado:** vivo
   en `main`.

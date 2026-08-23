@@ -45,8 +45,19 @@ const cedulaDe = (url, body) => {
     try {
         const b = JSON.parse(body || '{}');
         return String(b.numero_documento ?? b.documentNumber ?? b.document_number
-            ?? b?.consumers?.[0]?.identityId ?? b.identification ?? '') || null;
+            ?? b?.consumers?.[0]?.identityId ?? b.identification
+            // Experian la manda ACÁ, anidada. Sin esta rama, un dictado por cédula para Experian
+            // nunca se aplicaba: el mock servía el default y el flujo terminaba bien con un score
+            // que nadie pidió — la misma clase de mentira silenciosa que F-139.
+            ?? b?.identifyingUser?.person?.personId?.personIdNumber ?? '') || null;
     } catch { return null; }
+};
+
+/** ⚠ Diagnóstico de por qué NO se encontró la cédula. Sin esto, un dictado por cédula que no aplica es
+ *  invisible: el mock sirve el default, el flujo termina bien, y uno concluye que el dato «no influye»
+ *  cuando en realidad nunca se aplicó. Imprime las claves del cuerpo para poder ampliar `cedulaDe`. */
+const claves = (body) => {
+    try { return Object.keys(JSON.parse(body || '{}')).slice(0, 12).join(','); } catch { return '(no es json)'; }
 };
 
 /** ⚠ LOS PERÍODOS VAN RELATIVOS A HOY, y es la razón principal de que este archivo exista. El
@@ -201,7 +212,10 @@ const server = http.createServer((req, res) => {
             log(`${req.method} ${url.pathname} → ${hit.central} DICTADO (doc ${doc})`);
             return json(res, 200, dictado.get(clave));
         }
-        log(`${req.method} ${url.pathname} → ${hit.central} default${doc ? ` (doc ${doc})` : ''}`);
+        log(`${req.method} ${url.pathname} → ${hit.central} default`
+            + (doc ? ` (doc ${doc}, sin dictado para esa cédula)`
+                   : ` ⚠ SIN CÉDULA — un dictado por cédula NO se le puede aplicar.`
+                     + ` Claves del cuerpo: ${claves(body)}`));
         return json(res, 200, hit.def(doc, url));
     });
 });
