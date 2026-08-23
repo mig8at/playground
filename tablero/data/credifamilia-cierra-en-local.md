@@ -77,6 +77,20 @@ número de cuotas define la cuota, el plan de pagos y lo que dice el pagaré. **
 pasado en producción** —la cola de plazos raros son diez filas en 180 días y no se sabe qué ofrecía el
 catálogo entonces—, así que queda como pregunta abierta.
 
+## ⚠ Llega a estado 11, pero NO radica — y el runner igual dice «cerró»
+
+Corriendo tres en paralelo apareció que las que cierran traen un `HTTP 422` en su motivo:
+**`faltan documentos obligatorios: Cédula frontal, Cédula reverso`**. O sea que el crédito queda
+**autorizado** (estado 11) pero el paquete **nunca se le manda a Credifamilia**.
+
+De los nueve documentos que exige la formalización, siete los produce el flujo. Los dos que faltan son
+las **fotos de la cédula** —`users.front_url` y `users.back_url`—, que las deja la validación de
+identidad y el usuario sintético no tiene. El chequeo es sólo que la URL no esté vacía, así que
+llenarlas destraba este muro y **descubre el siguiente**: el SOAP de radicación, aún sin mock.
+
+Mientras tanto, cuidado con leer «CERRÓ en estado 11» como «el flujo terminó»: terminó la parte
+nuestra, no el envío al lender.
+
 ## Lo que NO prueba
 
 Ni el pagaré ni la firma son reales. Un pagaré desmaterializado vale justamente **porque** no se puede

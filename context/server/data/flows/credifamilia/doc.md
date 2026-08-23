@@ -240,6 +240,23 @@ Con eso, un caso cierra por consola en ~16 s:
 
     make harness-caso CASOS='#<hash-del-comercio>:24@ocupacion=Empleado,score=760,cuotas=24' LAMBDA=1 CERRAR=1
 
+### ⚠ Hasta el estado 11, no hasta el final: la RADICACIÓN no corre
+
+El estado 11 es «Autorizada», y se alcanza. Pero el paso siguiente —**formalizar**, o sea mandarle a
+Credifamilia el paquete de documentos— **falla**, y conviene saberlo porque el runner igual reporta
+«CERRÓ en estado 11»:
+
+    HTTP 422 · No se puede formalizar el crédito Credifamilia:
+               faltan documentos obligatorios: Cédula frontal, Cédula reverso.
+
+La formalización exige **nueve** documentos. Siete los produce el flujo (consentimiento, términos,
+autorización de desembolso, reglamento, FGA, pagaré, plan de pagos). Los **dos que faltan son las fotos
+de la cédula**, que en un flujo real las deja la validación de identidad y que el usuario sintético no
+tiene: son las columnas `users.front_url` y `users.back_url`, y en local quedan en `NULL`.
+
+El chequeo es sólo que la URL no esté vacía (`isUsableUrl`), así que llenar esas dos columnas destraba
+este muro — **y descubre el siguiente**, que es el SOAP de radicación de Credifamilia, todavía sin mock.
+
 ⚠ **Qué prueba y qué no.** Prueba la **orquestación**: que el backend arme el SOAP, lea las respuestas,
 guarde los documentos y mueva la solicitud. **No prueba la firma ni el título**: el pagaré no se puede
 simular, y el «PDF firmado» que devuelve el mock de Netco es idéntico al que entró. Un verde acá
