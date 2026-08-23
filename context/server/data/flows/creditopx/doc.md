@@ -104,6 +104,32 @@ capital. Tres precisiones que cambian el diagnóstico:
 `legacy-backend/Modules/Loans/App/Http/Controllers/Customer/CreditopXQuotaController.php:159`) y los rt≠2 salen del método antes de llegar a los evaluadores (`:170`): en esos, «ya tiene un
 crédito» lo decide —o no— la API del lender.
 
+## Dónde se SACA una entidad del listado — el mapa completo
+
+Una entidad puede desaparecer del listado en **nueve puntos distintos**, y ninguno deja un rechazo
+visible. Este mapa se armó con el índice de código (2026-08-23) después de que catorce descartes
+leyendo a mano no dieran con uno de ellos: **el problema no es que el corte esté escondido, es que hay
+nueve.**
+
+⚠ **Y antes de leer cualquiera de ellos, mirá qué inyecta el controlador de la ruta** — hay dos
+`getLenders` y el que se lee no siempre es el que corre (**F-161**).
+
+| dónde | qué saca |
+|---|---|
+| consulta base | `status != 1`, o fuera de las entidades de la sucursal |
+| validación de reglas | **sólo** las rt=2 rechazadas; las demás siguen con «Probabilidad muy baja» |
+| lista quemada | `[12, 23, 141, 142, 166]` — Prami y Welli, marcada *TEMPORAL* |
+| pre-aprobación | **nueve `unset()` distintos**: aprobado, rechazado, en validación, fallo de radicación, ocupación inválida, timeout, excepción general, falta de credencial, error al consultar credencial |
+| cupo rotativo (rt=3) | límite aprobado nulo o ≤ 0 |
+| cupo CreditopX (rt=2) | cupo menor al mínimo financiable · categoría que no resuelve |
+| otorgación especial | monto especial en 0 |
+| ecommerce | Sistecrédito (id 9) sin `available` — por id literal |
+| flujo de cupo confirmado | con `flow_id = 2` **sólo sobreviven las rt=0** |
+
+⚠ **La pre-aprobación es el punto más denso y el menos visible:** varias de sus salidas ocurren
+**antes de cualquier llamada HTTP** —falta de credencial, ocupación fuera del enum—, así que mirar si
+el proveedor recibió la petición **no descarta** que la entidad haya muerto ahí.
+
 ## Contenido
 La consolidación rt=2 corre en el orquestador `getLenders`. **Clave: la categoría NO va primero** — `group_rules`+datacrédito corren antes; la **categoría corre AL FINAL** y es la que fija enganche/cupo/plazo (y excluye si no hay categoría o el cupo no alcanza).
 
