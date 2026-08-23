@@ -98,6 +98,16 @@ orden de archivo — el ancla `### F-xx` es la única dirección.)
 | **«el perfilamiento no excluye nada» / «las reglas de datacrédito no aplican»** | F-159 |
 | **«no cumple la regla X y por eso no sale»** (probado en local) | **F-160** |
 | **«la regla de esta entidad está mal configurada»** | **F-162** |
+| **«Undefined array key "deceval_username"»** (o cualquier `deceval_*`) | **F-163** |
+| **«el mock contesta pero el backend dice que no hubo respuesta»** | **F-164** |
+| **«el pagaré se firmó y el log dice que no fue exitoso»** | **F-164** |
+| **«Credifamilia queda trabada en estado 28»** | **F-165** · F-163 · F-164 |
+| **«resuelvo un proveedor y aparece otro muro distinto»** | **F-165** |
+| **«There is no active transaction» al autorizar** | **F-166** |
+| **«falló el S3 después de firmar»** (`s3_put_failed_after_sign`) | **F-166** |
+| **«en serie pasa y en paralelo no»** | **F-166** |
+| **«el crédito quedó con un plazo que no ofrecemos»** | **F-167** |
+| **«se valida un campo y se usa otro»** | **F-167** |
 | **«instrumenté el servicio y no imprime nada»** | **F-161** |
 | **«esta entidad no sale del listado y ninguna regla lo explica»** | **F-161** · F-113 |
 | **«en el wizard sí aparece pero por API no»** (o al revés) | **F-161** |
@@ -2599,3 +2609,144 @@ en producción — el webhook no deja registro cuando `firstOrFail()` lanza, as�
   sola.
 - **Arreglo:** ninguno de código. Lo que hay que arreglar es **dónde se busca la causa de una
   ausencia** → ver el mapa de exclusiones en el nodo `creditopx`. **Estado:** vigente.
+
+### F-163 · La credencial de Deceval del dump LOCAL trae claves de Experian — y el error no lo dice
+
+- **Síntoma:** cerrar una solicitud de Credifamilia en local muere con `Undefined array key
+  "deceval_username"` → `DecevalIntegrationException` → HTTP 502, y la solicitud queda en **estado 28**.
+  El mensaje señala una clave ausente, así que se lee como código que olvidó un campo.
+- **Lo que en realidad pasa (medido el 2026-08-23):** `DecevalSoap` pide la credencial con
+  `RiskCentralCredential::findForUserRequest($decevalCentral, $userRequest, $userRequest->lender_id)`,
+  que **prefiere la fila del LENDER sobre la del comercio**. En local esa fila (id 6, `Lender#24`)
+  contiene `experian_username` / `experian_password` — **claves de otra central** — donde deberían ir
+  `deceval_username` / `deceval_password`. Las filas del comercio (ids 4 y 5) sí las traen, pero nunca
+  se consultan.
+- **⚠ NO es un bug de producción, y eso se midió antes de escribirlo:** en prod, Credifamilia lleva
+  **550 solicitudes en 90 días, 296 en estado 11 y CERO trabadas en 28** (la última del 2026-08-22).
+  Además las filas **no son las mismas**: prod tiene `Lender#24` en el **id 7** —otra fila— y una
+  `Lender#181` que en local no existe. O sea, la de local es deriva del dump, no una copia de prod.
+- **Por qué importa:** es una trampa de las caras. El síntoma apunta al código, el código está bien, y
+  el dato malo vive en una tabla cifrada que no se puede leer con un `SELECT` —hay que decodificarla
+  desde la aplicación—. Sin este hallazgo, el camino natural es depurar `DecevalSoap` durante horas.
+- **Arreglo (sólo local):** completarle a la fila las dos claves copiándolas de la del comercio:
+
+      $src = json_decode(json_encode(RiskCentralCredential::find(5)->credential), true);
+      $dst = RiskCentralCredential::find(6);
+      $cur = json_decode(json_encode($dst->credential), true);
+      $cur['deceval_username'] = $src['deceval_username'];
+      $cur['deceval_password'] = $src['deceval_password'];
+      $dst->credential = $cur; $dst->save();
+
+  **Estado:** vigente en local. En producción no aplica.
+
+### F-164 · Deceval: cuatro operaciones, cuatro contenedores y TRES criterios de éxito distintos
+
+- **Síntoma:** un mock de Deceval que devuelve un sobre con todos los nodos que el parser lee —y con
+  `exitoso=true`— falla igual, con **«sin respuesta»** o con **«no exitoso»**. Los dos mensajes se leen
+  como que el proveedor no contestó o rechazó, cuando contestó y aceptó.
+- **Lo que en realidad pasa:** `DecevalSoap.php` entra por el **contenedor**, con
+  `getElementsByTagNameNS('http://deceval.com/sdl/services/', …)`, y el contenedor **tiene otro nombre
+  en cada operación**. Un sobre con los hijos correctos pero el contenedor equivocado da
+  `count() === 0`, que el código traduce a «sin respuesta» — indistinguible de «no llegó nada».
+
+  | petición | contenedor de la respuesta | cómo juzga el éxito |
+  |---|---|---|
+  | `CreacionGiradoresCodificados` | `RespuestaCrearGiradorDaneServiceDTO` | `exitoso === 'true'` |
+  | `CreacionPagaresCodificado` | `RespuestaDocumentoPagareDaneServiceDTO` | `exitoso === 'true'` |
+  | `consultarPagares` | `RespuestaConsultarPagaresDTO` | `exitoso`, y además lee `estadoPagare` |
+  | `firmarPagares` | `RespuestaFirmarPagaresDTO` | **ignora `exitoso`**: pide `descripcion` empezando con `SDL.SE.0000` |
+- **⚠ La cuarta es la que muerde.** `signPagare` no mira `exitoso` en absoluto: exige que `descripcion`
+  arranque con el código `SDL.SE.0000`. Un sobre con `exitoso=true` y una descripción en prosa se
+  rechaza, y el log dice **«signPagare no exitoso»** — apuntando al nodo que sí estaba bien.
+- **El namespace es obligatorio** en el contenedor (la búsqueda es NS-aware) y **no** en los hijos, que
+  se leen con `getElementsByTagName`, por nombre calificado.
+- **Arreglo:** ninguno de código — es cómo habla el proveedor. Lo que se arregla es **saberlo antes**:
+  el mock local (`harness/mock-deceval/`) ya ramifica por operación y lo documenta. **Estado:** vigente.
+
+### F-165 · Credifamilia (rt=4) necesita SEIS externos, y cada uno faltante se ve igual: estado 28
+
+- **Síntoma:** una solicitud de Credifamilia no llega a estado 11 y queda en **28**, con un mensaje que
+  habla del proveedor. Cada muro tapa al siguiente: se resuelve uno y aparece otro, con otro mensaje.
+- **La fila completa, medida el 2026-08-23 arrancando desde «no lista» hasta estado 11:**
+
+  | # | muro | qué se ve | qué faltaba |
+  |---|---|---|---|
+  | 1 | el listado | la entidad no aparece | se consultaba `lenders` (v1) y el wizard usa **`lenders-v2`** (F-161) |
+  | 2 | pre-aprobación | HTTP 500 | `PRE_APPROVALS_BASE_URL` sin apuntar al mock |
+  | 3 | plan de pagos | falta `transaction_data` | el mock no devolvía las cinco claves del builder |
+  | 4 | documentos legales | `vinculacion` sin generar | `mock-pdf-mapper` (:8100) no lo levanta nadie |
+  | 5 | pagaré | `Error al generar pagaré Deceval` | Deceval: credencial (F-163) + mock (:8106, F-164) |
+  | 6 | firma | `NETCO_PASSWORD_DERIVATION_SECRET is missing` | Netco: cinco variables + mock (:8107) |
+- **Por qué importa:** ninguno de los seis mensajes nombra al mock que falta. Los seis se leen como
+  hechos del negocio —«el proveedor rechazó», «falta un dato de la solicitud»— y llevan a depurar el
+  código. Es el mismo modo de falla de F-139, F-140 y F-142, ahora con seis piezas en fila.
+- **Arreglo:** el prevuelo de `harness/dev/caso.ts` ya comprueba Deceval y Netco cuando el caso va a
+  cerrar, y los dos mocks tienen launcher (`bin/mock-deceval`, `bin/mock-netco`). La receta completa
+  vive en el nodo `credifamilia`. **Estado:** resuelto para local.
+- **⚠ Y lo que esto NO prueba:** ni el pagaré ni la firma son reales. Un pagaré desmaterializado vale
+  justamente porque no se puede simular, y el «PDF firmado» que devuelve el mock de Netco es el mismo
+  que entró. Un verde acá dice «la orquestación corre», nunca «el título es válido».
+
+### F-166 · La firma de Credifamilia corre DENTRO de una transacción abierta — y cuando se traba, tres capas borran la causa
+
+- **Síntoma:** dos autorizaciones simultáneas de Credifamilia y el cliente recibe
+  `HTTP 500 · Error al procesar la autorización del crédito: There is no active transaction`. La
+  solicitud queda en **estado 28**. El mensaje habla de transacciones, así que se lee como un bug del
+  framework o de un `commit` mal puesto.
+- **Reproducido el 2026-08-23 en local:** la misma suite de tres casos cierra **3/3 en serie** y
+  **1/3 en paralelo**. No es aleatorio: es concurrencia.
+- **Lo que en realidad pasa, y son tres capas de enmascaramiento encadenadas:**
+  1. **`LoanAuthorizationService` abre `DB::beginTransaction()` y llama a `generateAllDocuments()`
+     dentro.** Ahí adentro se firman los seis documentos, y firmar significa **una llamada HTTP a Netco
+     y un `put` a S3 por documento** (`DocumentSigningService:453` → `NetcoSignerProvider`). O sea que
+     los locks de fila se sostienen durante **doce viajes de red**. Con dos solicitudes a la vez,
+     `update netco_signing_documents` se traba: `SQLSTATE[40001] · 1213 Deadlock found`.
+  2. **El `catch` que lo atrapa se llama `$s3Error`, pero su `try` NO envuelve sólo el S3**: encierra
+     también el `$row->update([...])` que va después. Un deadlock de base de datos sale por ahí y se
+     registra como **`netco.s3_put_failed_after_sign`**, con `s3_error_class` y `s3_error_message` — y
+     se **persiste** en `netco_signing_documents.last_error_code` con el prefijo `S3_FAILED:`. La
+     etiqueta equivocada queda guardada en la base, no sólo en el log.
+  3. **La recuperación de ese `catch` repite el mismo `update` que acaba de fallar** — MySQL ya abortó
+     la transacción entera al detectar el deadlock, así que vuelve a fallar. Cuando el `catch` de
+     arriba hace `DB::rollBack()`, ya no hay nada que revertir: **`There is no active transaction`**, y
+     esa excepción **reemplaza** a la original. Eso es lo único que ve el cliente.
+- **Por qué importa:** quien depure esto entra por «no hay transacción activa» (capa 3), y si consigue
+  llegar al log encuentra «falló el S3» (capa 2). **Ninguna de las dos nombra el deadlock**, que es la
+  causa. Y el dato que quedó guardado en la fila miente igual.
+- **⚠ HOY NO PASA EN PRODUCCIÓN, y se midió antes de escribirlo:** cero líneas con `Deadlock` en
+  `legacy-backend` en 24 h (control: `Exception` da 120 en la misma ventana, así que la consulta
+  funciona), cero solicitudes de Credifamilia trabadas en 28, y 296 de 550 en estado 11 en 90 días. **Lo
+  que lo tapa es el volumen**: son ~6 solicitudes de Credifamilia por día, y dos rara vez se solapan.
+  Es un defecto **latente**, no uno activo — pero el que lo despierte va a ser el crecimiento, y para
+  entonces el diagnóstico ya viene con dos etiquetas falsas puestas.
+- **Arreglo (propuesto, NO aplicado):** tres cosas, en orden de valor —
+  **(a)** sacar las llamadas remotas de adentro de la transacción, o acotar la transacción a la
+  escritura final; **(b)** angostar el `try` para que el `catch` de S3 atrape sólo el S3, y que un
+  `QueryException` se propague con su nombre; **(c)** no reintentar dentro del `catch` el mismo
+  `update` que falló. **Estado:** vigente, sin tarea abierta.
+
+### F-167 · El plazo del crédito lo dicta el cliente: `confirm-payment-schedule` no valida contra los plazos simulados
+
+- **Síntoma:** no hay síntoma. Ése es el punto — el crédito queda con un número de cuotas que la
+  entidad nunca ofreció y todo lo demás se ve normal: cierra en estado 11, con sus documentos y su
+  pagaré.
+- **Lo que en realidad pasa (verificado en el código y reproducido el 2026-08-23):**
+  `ConfirmPaymentScheduleRequest::rules()` valida `selected_cycle.fee_number` con
+  **`required|integer|min:1`** — cualquier entero positivo, no uno de los plazos simulados. Y el campo
+  que el controlador **usa de verdad** es el `fee_number` de primer nivel
+  (`PaymentScheduleController:138` → `feeNumber: $request->fee_number`), que **no aparece en las reglas
+  en absoluto**: no lo valida nada.
+- **Reproducido:** con la entidad simulando **6, 12, 18 y 24**, se confirmó con **36** y la solicitud
+  cerró en estado 11 con `user_requests.fee_number = 36`. El plazo no estaba en la simulación y nadie
+  lo objetó.
+- **Por qué importa:** el número de cuotas no es un dato cosmético — determina la cuota, el plan de
+  pagos y lo que dice el pagaré. Si el cliente lo elige libremente, el título puede quedar emitido por
+  un plazo que la entidad no aprobó.
+- **⚠ Lo que NO se puede afirmar:** que esto haya pasado en producción. En 180 días, Credifamilia
+  muestra 36 (409), 24 (321), 6 (123), 12 (52), 18 (43), 9 (12) y una cola de **4 (6) y 3 (4)**, más
+  35 en `0` —que son solicitudes que nunca eligieron plazo, no un plazo raro—. Esa cola de diez filas
+  **podría** ser el hueco ejercido o podría ser un catálogo que en su momento las ofrecía: no se sabe
+  qué plazos estaban vigentes cuando se crearon, así que **queda como pregunta abierta, no como hecho**.
+- **Arreglo (propuesto, NO aplicado):** validar el plazo contra los términos que devolvió la simulación
+  para esa solicitud, y usar un solo campo en vez de dos —hoy se valida uno y se usa el otro—.
+  **Estado:** vigente, sin tarea abierta.

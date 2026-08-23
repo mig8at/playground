@@ -158,7 +158,7 @@ la opción», que no se parece en nada a la causa.
 > respuesta). Se registra porque el síntoma es recurrente y la causa no se deduce de los logs.
 
 Sobre el correo hay un cambio en `main` que conviene no malinterpretar:
-`Modules/Onboarding/App/Services/DynamicFormsService.php:1446-1461` reemplazó la regex casera
+`Modules/Onboarding/App/Services/DynamicFormsService.php:1499-1514` reemplazó la regex casera
 `[A-Za-z0-9._%+-]` por la regla `email` de Laravel (RFCValidation). Va en **dirección contraria** a
 «bloquear caracteres especiales»: acepta todos los que el RFC permite en la parte local y rechaza los que
 no. ⚠ No está confirmado que sea el cambio que cerró este incidente — vive en la ruta del **formulario
@@ -205,6 +205,49 @@ grupo y hereda la misma falta de autenticación.
 No exige ningún `user_request_status_id`. Lo que sí exige de hecho: que la solicitud tenga configurado
 el proveedor **Netco** y que el usuario tenga un OTP previo en la base. Una solicitud sin OTP no se
 puede regenerar — y ése es el único freno real que hay.
+
+## Correrlo entero en LOCAL: los seis externos, en orden
+
+Credifamilia es la entidad con más piezas fuera del backend, y hasta el 2026-08-23 no había constancia
+de que cerrara en local. Ahora sí: **estado 11 con 7 documentos firmados**. Lo que costó no fue el
+negocio sino la fila de dependencias — cada una tapaba a la siguiente y **ninguna nombraba lo que
+faltaba** (el detalle de los seis muros y sus síntomas: F-165).
+
+**El orden importa** porque cada muro sólo se ve cuando cae el anterior:
+
+1. **El listado va por `lenders-v2`**, no por `lenders`. Los dos endpoints existen, devuelven conjuntos
+   distintos y el wizard usa el segundo (F-161). Con el v1 la entidad simplemente no está, y eso se lee
+   como una regla que la excluye.
+2. **`PRE_APPROVALS_BASE_URL`** apuntando al mock (`:8095`), o la pre-aprobación devuelve 500.
+3. **El mock de pre-aprobados tiene que traer las cinco claves** que el builder del plan de pagos exige
+   (`annual_effective_rate`, `max_amount`, `guarantee_type`, `guarantee_percentage`,
+   `life_insurance_percentage`). Sin ellas falta `transaction_data` y no hay plan de pagos.
+   ⚠ De esas cinco, **sólo las dos primeras están medidas**; las otras tres son valores de prueba y así
+   están marcadas en el mock.
+4. **`bin/mock-pdf-mapper start`** (`:8100`). El documento `vinculacion` se genera por microservicio
+   **por diseño**, sin respaldo en plantilla Blade: sin ese mock no hay documentos legales.
+5. **Deceval** — el pagaré desmaterializado. Pide dos cosas: que la credencial del lender tenga las
+   claves `deceval_*` (en el dump local trae las de Experian, F-163) y `bin/mock-deceval start`
+   (`:8106`) con `DECEVAL_SOAP_HOST` y `DECEVAL_NOTE_HOST` apuntados ahí. Son **cuatro operaciones SOAP
+   con tres criterios de éxito distintos** (F-164).
+6. **Netco** — la firma electrónica. `bin/mock-netco start` (`:8107`) y cinco variables:
+   `NETCO_BASE_URL` (que ya incluye `/credifamilia/rest`), `NETCO_ADMIN_USERNAME`,
+   `NETCO_ADMIN_PASSWORD`, `NETCO_PROFILE_ID` y `NETCO_PASSWORD_DERIVATION_SECRET`. Firma los seis
+   documentos uno por uno: vinculación, fondo de garantías, plan de pagos, reglamento, términos y
+   condiciones, autorización de desembolso.
+
+Con eso, un caso cierra por consola en ~16 s:
+
+    make harness-caso CASOS='#<hash-del-comercio>:24@ocupacion=Empleado,score=760,cuotas=24' LAMBDA=1 CERRAR=1
+
+⚠ **Qué prueba y qué no.** Prueba la **orquestación**: que el backend arme el SOAP, lea las respuestas,
+guarde los documentos y mueva la solicitud. **No prueba la firma ni el título**: el pagaré no se puede
+simular, y el «PDF firmado» que devuelve el mock de Netco es idéntico al que entró. Un verde acá
+significa «el flujo corre», nunca «el documento tiene validez».
+
+⚠ **Y nada de esto es un bug de producción.** Medido el 2026-08-23: prod lleva **550 solicitudes de
+Credifamilia en 90 días, 296 en estado 11 y ninguna trabada en 28**. Lo que se arregló es el ambiente
+local, no el producto.
 
 ## Lo que NO está verificado
 

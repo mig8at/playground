@@ -101,6 +101,10 @@ const LAMBDA = process.env.RISK_LAMBDA_URL ?? 'http://localhost:8105';
 
 // El mock de integraciones de entidades (`mock-lenders`), donde se dicta qué contesta cada proveedor.
 const MOCK_LENDERS = process.env.MOCK_LENDERS_URL ?? 'http://localhost:8099';
+/** Los dos externos de Credifamilia (rt=4). El backend los ve por `host.docker.internal`; este runner
+ *  corre fuera de Docker, así que acá van por `localhost` — misma caja, otra puerta. */
+const DECEVAL = process.env.MOCK_DECEVAL_URL || 'http://localhost:8106/';
+const NETCO = process.env.MOCK_NETCO_URL || 'http://localhost:8107/';
 
 // El microservicio de PRE-APROBADOS. Lo llama el FRONT, no el backend (F-141), así que una corrida
 // por API lo saltea sin fallar: el listado se ve completo y la etapa no ocurrió. Acá se REPLICA esa
@@ -177,12 +181,32 @@ async function cerrarCreditopX(arr: any[], ur: number, tel: string, amount: numb
     await post(`${PN}/${ur}/confirm-payment-date`, { user_request_id: ur, payment_date: firstDate, date: firstDate });
 
     const sim = await get(`${PN}/${ur}/simulate-payment-schedule`);
-    const cycles = sim.json?.data?.cycles ?? sim.json?.data?.simulations ?? sim.json?.data ?? [];
-    const cyc = Array.isArray(cycles) ? cycles[0] : cycles;
+    // La clave es `paymentSchedule` (`PaymentScheduleController::simulatePaymentSchedule`). Antes se
+    // probaba `cycles` y `simulations` —que no existen— y se caía a `data`, que es el sobre entero y no
+    // un arreglo: el runner terminaba con UN objeto sin `fee_number` y creía que la entidad no ofrecía
+    // plazos. Nunca leyó los que ofrece.
+    const cycles = sim.json?.data?.paymentSchedule ?? sim.json?.data?.payment_schedule ?? [];
+    const lista: any[] = Array.isArray(cycles) ? cycles : [cycles].filter(Boolean);
+    const plazoDe = (x: any) => Number(x?.fee_number ?? x?.feeNumber ?? 0);
+
+    // ⚠ EL PLAZO QUE QUEDA GUARDADO SALE DE ACÁ, NO DE LA SELECCIÓN DE ENTIDAD. Antes se tomaba
+    // `cycles[0]` siempre, así que `@cuotas=36` viajaba en el update de arriba —donde sí decide si el
+    // plazo se ofrece— y después este confirm lo PISABA con el primer ciclo de la lista. Medido el
+    // 2026-08-23: pedir 12, 24 o 36 dejaba `user_requests.fee_number` en **4** en los tres casos, y el
+    // caso igual daba verde. Un runner que informa un plazo que no corrió miente en la dirección más
+    // cara: la de creer que se probó algo que no se probó.
+    const elegido = lista.find((x) => plazoDe(x) === cuotas);
+    const cyc = elegido ?? lista[0];
+    if (!elegido && lista.length) {
+        const ofrecidos = lista.map(plazoDe).filter(Boolean).join(', ') || '(la simulación no trae plazos)';
+        console.log(`      ⚠ el plazo pedido (${cuotas}) NO está entre los que simula la entidad: ${ofrecidos}`);
+        console.log(`        se cierra con ${plazoDe(cyc) || '?'} — el resultado NO prueba el plazo pedido`);
+    }
+
     const urRow = await one<{ a: number }>('SELECT allied_id a FROM user_requests WHERE id=?', [ur]).catch(() => null);
     await post(`${PN}/${ur}/confirm-payment-schedule`, {
         user_request_id: ur, amount, lender_id: Number(ctopx.id), allied_id: urRow?.a,
-        fee_number: cyc?.fee_number ?? cyc?.feeNumber ?? 4, selected_cycle: cyc ?? {} });
+        fee_number: plazoDe(cyc) || cuotas, selected_cycle: cyc ?? {} });
 
     // GENERA LOS DOCUMENTOS — y hay que MIRAR si salió bien.
     //
@@ -397,19 +421,29 @@ async function cargarSuite(ruta: string, dflt: { amount: number; income: number;
     // `requiere` deja que la suite prenda lo que necesita: `["cerrar", "lambda"]`.
     for (const f of (Array.isArray(json.requiere) ? json.requiere : [])) implicitos.add(String(f));
 
+    // `porDefecto` alimenta TODOS los campos del caso, no sólo los tres numéricos. Al principio sólo
+    // cubría `amount`/`income`/`score` y nadie lo notó porque las suites repetían comercio y entidad en
+    // cada caso; una suite que los declaraba una vez arriba fallaba con «falta comercio», que suena a
+    // suite mal escrita y no a un defecto por defecto que no se aplica.
     const base = { ...dflt, ...(json.porDefecto ?? {}) };
     return json.casos.map((c: any, i: number) => {
-        if (!c?.comercio) throw new Error(`caso ${i} de la suite: falta \`comercio\``);
+        const comercio = c?.comercio ?? (base as any).comercio;
+        if (!comercio) throw new Error(`caso ${i} de la suite: falta \`comercio\` (ni en el caso ni en \`porDefecto\`)`);
         if (Array.isArray(c.pasos) && c.pasos.length === 0) {
             throw new Error(`caso ${i} de la suite: \`pasos\` está vacío — un cliente sin solicitudes no prueba nada`);
         }
+        // `lender` acepta `null` explícito en el caso —«terminá en el listado»— y eso NO es lo mismo que
+        // omitirlo, que sí hereda del default. Por eso se mira la CLAVE, no el valor.
+        const lender = 'lender' in (c ?? {}) ? c.lender : (base as any).lender;
+        const ocupacion = c.ocupacion ?? (base as any).ocupacion;
+        const cuotas = c.cuotas ?? (base as any).cuotas;
         return {
-            comercio: String(c.comercio),
-            lender: c.lender == null ? null : Number(c.lender),
+            comercio: String(comercio),
+            lender: lender == null ? null : Number(lender),
             nombre: c.nombre ? String(c.nombre) : undefined,
             espera: c.espera,
-            ocupacion: c.ocupacion ? String(c.ocupacion) : undefined,
-            cuotas: c.cuotas ? Number(c.cuotas) : undefined,
+            ocupacion: ocupacion ? String(ocupacion) : undefined,
+            cuotas: cuotas ? Number(cuotas) : undefined,
             pasos: Array.isArray(c.pasos) ? c.pasos : undefined,
             escenarios: c.escenarios,
             amount: Number(c.amount ?? base.amount),
@@ -906,7 +940,7 @@ async function correr(c: Caso, i: number): Promise<Res> {
     if (!uid) return { ...base, detalle: `register HTTP ${reg.status}` };
 
     const asesor = (await one<{ id: number }>(
-        'SELECT id FROM users WHERE allied_branch_id=? AND cognito_id IS NOT NULL LIMIT 1', [br.b])
+        'SELECT id FROM users WHERE allied_branch_id=? AND cognito_id IS NOT NULL LIMIT 1', [br.id])
         .catch(() => null))?.id ?? null;
     const amount = c.amount!;
     const ins = await exec(
@@ -915,15 +949,16 @@ async function correr(c: Caso, i: number): Promise<Res> {
            fee_value, rate, created_at, updated_at) VALUES (?,?,?,NULL,?,?,1,?,1,0,0,0,NOW(),NOW())`,
         [uid, br.allied, br.id, amount, amount, asesor]).catch(() => null);
     if (!ins?.insertId) return { ...base, detalle: 'no se pudo crear la solicitud' };
-    base.ur = ins.insertId;
+    const ur = ins.insertId;
+    base.ur = ur;
 
-    await synthFill(ins.insertId, { income: c.income!, score: c.score! });
+    await synthFill(ur, { income: c.income!, score: c.score! });
 
-    const lis = await http('GET', `/api/onboarding/loan-application/lenders/${ins.insertId}`, undefined, phone);
+    const lis = await http('GET', `/api/onboarding/loan-application/lenders/${ur}`, undefined, phone);
     const crudo = lis.json?.data ?? lis.json;
     const arr: any[] = Array.isArray(crudo) ? crudo : Array.isArray(crudo?.lenders) ? crudo.lenders : [];
     base.listado = arr.map((x) => Number(x.id ?? x.lender_id)).filter(Boolean);
-    base.enListado = base.listado.includes(c.lender);
+    base.enListado = c.lender !== null && base.listado.includes(c.lender);
 
     // Sin entidad pedida, el caso TERMINA en el listado. Es el recorrido más corto que ya prueba
     // algo real —monto → solicitud → datos de riesgo → qué se le ofrece— y no arrastra la bifurcación
@@ -935,7 +970,7 @@ async function correr(c: Caso, i: number): Promise<Res> {
 
     // Se selecciona AUNQUE no esté en el listado: que el backend acepte una entidad que no ofreció
     // es en sí un resultado, y callarlo lo escondería.
-    const sel = await http('POST', `/api/onboarding/loan-application/update-user-request/${ins.insertId}`, {
+    const sel = await http('POST', `/api/onboarding/loan-application/update-user-request/${ur}`, {
         lender_id: c.lender, fee_number: 4, original_amount: amount, amount,
         initial_fee: 0, rate: '0', transaction_data: null,
     }, phone);
@@ -1287,6 +1322,20 @@ async function prevuelo(): Promise<string[]> {
     }
     if (flag('lambda') && !(await vivo(`${LAMBDA}/agildata/agildata-services/rest/afiliado/historicoDetalladoEmpleo/1/1`))) {
         faltan.push(`la lambda de centrales no responde (${LAMBDA})`);
+    }
+    // Los dos de Credifamilia (rt=4). No se piden siempre porque sólo su cierre los toca, pero cuando
+    // faltan el síntoma es el MISMO que un rechazo del negocio: la solicitud queda en estado 28 con
+    // «Error de comunicación con Deceval» o con un secreto ausente, y ninguno de los dos mensajes
+    // nombra al mock. Ver F-165.
+    if (flag('cerrar')) {
+        if (!(await vivo(DECEVAL))) {
+            faltan.push(`mock de Deceval caído (${DECEVAL}) → Credifamilia se traba en estado 28 y parece`
+                + ' un rechazo del pagaré (F-165). Levantalo: bin/mock-deceval start');
+        }
+        if (!(await vivo(NETCO))) {
+            faltan.push(`mock de Netco caído (${NETCO}) → la firma de Credifamilia falla en estado 28`
+                + ' (F-165). Levantalo: bin/mock-netco start');
+        }
     }
     return faltan;
 }

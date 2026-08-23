@@ -69,6 +69,9 @@ if (!ur) {
     await close();
     process.exit(2);
 }
+// El id, ya sin `null`. `process.exit` no estrecha el tipo dentro de una función declarada más abajo:
+// para TypeScript ese cuerpo podría correr en cualquier momento, así que el guard de arriba no lo alcanza.
+const urIdNum: number = Number(ur.id);
 
 console.log(`\n▶ EXPERIAN por API · solicitud ${ur.id} (${TARGET})`);
 console.log(`  ${ur.allied} (allied ${ur.allied_id}) · sucursal ${ur.allied_branch_id} (${ur.branch_hash}) · flow_id actual = ${ur.flow_id ?? 'NULL'}`);
@@ -84,7 +87,7 @@ if (!puede) console.log(`      ${able.message}`);
 // ── 2 · medición ANTES de firmar ─────────────────────────────────────────────────────────────────
 async function medir(): Promise<Record<string, Res>> {
     const out: Record<string, Res> = {};
-    for (const c of CENTRALES) out[c] = await call('GET', `/api/v2/risk/check-hard-rules-trigger/${c}/${ur.id}`);
+    for (const c of CENTRALES) out[c] = await call('GET', `/api/v2/risk/check-hard-rules-trigger/${c}/${urIdNum}`);
     return out;
 }
 const glosa = (code: string) =>

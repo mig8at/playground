@@ -30,6 +30,8 @@
 // anterior, así que el recorder falla en silencio (está en try/catch). Lo que sí se puede
 // afirmar acá es lo que quedó en `users`, que es justamente el daño.
 
+export {}; // sin imports ni exports, TypeScript lo trata como script y prohíbe el `await` de arriba
+
 process.env.E2E_TARGET ||= 'local';
 process.env.CFE_TARGET ||= 'local';
 

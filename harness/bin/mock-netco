@@ -1,0 +1,43 @@
+#!/usr/bin/env bash
+# Mock de NETCO — el proveedor de FIRMA ELECTRÓNICA de Credifamilia (rt=4).
+# Sin él la autorización muere en «NETCO_PASSWORD_DERIVATION_SECRET is missing» y queda en estado 28.
+#
+# Apuntá el backend en legacy-backend/.env (host.docker.internal, NO localhost — corre en Docker):
+#   NETCO_BASE_URL=http://host.docker.internal:8107/credifamilia/rest
+#   NETCO_ADMIN_USERNAME · NETCO_ADMIN_PASSWORD · NETCO_PROFILE_ID · NETCO_PASSWORD_DERIVATION_SECRET
+#
+# ⚠ NO prueba nada criptográfico: el «PDF firmado» es el mismo que entró.
+#
+# uso: bin/mock-netco [start|stop|status|logs]
+#   env: MOCK_NETCO_PORT (8107) · MOCK_NETCO_FAIL=1 → camino de rechazo
+set -euo pipefail
+DIR="$(cd "$(dirname "$0")/.." && pwd)"
+PORT="${MOCK_NETCO_PORT:-8107}"
+LOG=/tmp/mock-netco.log
+
+up() { curl -s -o /dev/null --max-time 2 "http://localhost:$PORT" 2>/dev/null; }
+
+case "${1:-start}" in
+  start)
+    WANT_FAIL="${MOCK_NETCO_FAIL:-0}"
+    if up; then
+      CUR="$(curl -s --max-time 2 "http://localhost:$PORT" 2>/dev/null | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{try{process.stdout.write(JSON.parse(s).fail?"1":"0")}catch{process.stdout.write("0")}})')"
+      if [ "${CUR:-0}" = "$WANT_FAIL" ]; then echo "✓ mock-netco ya arriba (:$PORT)"; exit 0; fi
+      echo "↻ reinicio mock-netco (modo fallo: ${CUR:-0} → $WANT_FAIL)"
+      lsof -ti:"$PORT" 2>/dev/null | xargs kill -9 2>/dev/null || true
+      for _ in $(seq 1 10); do up || break; sleep 0.2; done
+    fi
+    rm -f "$LOG"
+    nohup env MOCK_NETCO_PORT="$PORT" MOCK_NETCO_FAIL="$WANT_FAIL" \
+      node "$DIR/mock-netco/server.mjs" < /dev/null > "$LOG" 2>&1 &
+    for _ in $(seq 1 25); do up && { echo "✓ mock-netco :$PORT"; exit 0; }; sleep 0.3; done
+    echo "✗ no levantó"; tail -8 "$LOG" 2>/dev/null; exit 1;;
+  stop)
+    lsof -ti:"$PORT" 2>/dev/null | xargs kill -9 2>/dev/null && echo "⏹ detenido (:$PORT)" || echo "no estaba corriendo";;
+  status)
+    if up; then curl -s --max-time 2 "http://localhost:$PORT" 2>/dev/null; echo ""; else echo "○ off (:$PORT)"; fi;;
+  logs)
+    tail -n "${2:-40}" "$LOG" 2>/dev/null || echo "(sin log)";;
+  *)
+    echo "uso: bin/mock-netco [start|stop|status|logs]";;
+esac

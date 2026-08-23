@@ -264,9 +264,9 @@ tapaba al siguiente. Estado al 2026-08-23:
 | pre-aprobación | ✅ | apuntar `PRE_APPROVALS_BASE_URL` al mock (su default `:8086` no lo atiende nadie) |
 | plan de pagos | ✅ | el mock no armaba `transaction_data` para esta entidad — cinco claves exactas |
 | documentos legales | ✅ | levantar `mock-pdf-mapper`, **que no lo levanta nadie** |
-| **pagaré (Deceval)** | ❌ | **no tiene mock** |
-| firma (Netco) | ❌ | no tiene mock |
-| radicación (SOAP) | ❌ | no tiene mock |
+| **pagaré (Deceval)** | ✅ | `bin/mock-deceval` (:8106) + la credencial del dump local, que trae claves de Experian (**F-163**) |
+| **firma (Netco)** | ✅ | `bin/mock-netco` (:8107) + cinco variables de entorno |
+| radicación (SOAP) | — | no hizo falta: la solicitud llega a **estado 11** sin pasar por ahí |
 
 ⚠ **Cada bloqueo escondía al siguiente**, y ninguno se veía desde afuera: todos llegaban como
 `HTTP 500` en la generación de documentos. El código de error real —`CP050` para el plan de pagos—
@@ -276,9 +276,26 @@ sólo aparece leyendo el contexto del log, nunca en la respuesta.
 sin nombrar las cuotas. Medido en producción, Credifamilia va en 24, 36, 48, 12, 6, 18 y 9 — **nunca en
 4**, que era el default quemado del runner. Ahora va por caso (`@cuotas=24`).
 
-**Lo que falta son los tres proveedores externos de firma y formalización.** Y ahí conviene decidir con
-los ojos abiertos: un Deceval o un Netco falsos prueban **nuestra orquestación**, no la firma — que es
-precisamente aquello cuyo valor es no poder simularse.
+**ACTUALIZADO 2026-08-23 — rt=4 CIERRA.** Estado 11 con siete documentos firmados. Se construyeron los
+dos mocks que faltaban y la radicación SOAP resultó no estar en el camino al 11. La receta completa vive
+en el nodo `credifamilia`; los seis muros y sus síntomas, en **F-165**. La tarea propia es la 65.
+
+Y se decidió con los ojos abiertos, que era la duda de arriba: un Deceval y un Netco falsos prueban
+**nuestra orquestación**, no la firma — que es precisamente aquello cuyo valor es no poder simularse. Lo
+que se ganó es poder recorrer entera la única familia de `response_type` que no se podía recorrer.
+
+### ⚠ Y el paralelo destapó un TOPE 4, que es el hallazgo más caro de esta tarea
+
+La suite de Credifamilia cierra **3/3 en serie** y **1/3 en paralelo**. Los dos que fallan dicen
+`There is no active transaction`, que suena a bug del framework y no lo es: la autorización **firma los
+seis documentos dentro de una transacción abierta**, o sea sosteniendo locks durante doce viajes de red,
+y dos autorizaciones simultáneas se traban en un deadlock. Encima el error se registra como falla de S3
+y el mensaje final lo reemplaza por el de la transacción — **tres capas y ninguna nombra la causa**
+(**F-166**).
+
+**Hoy no pasa en producción** —medido: cero deadlocks en 24 h, cero solicitudes trabadas—, y lo que lo
+tapa es el volumen, no el diseño. Es el primero de los topes del paralelo que **no** es del entorno
+local: es del producto.
 
 ## Tarea (publicable)
 
