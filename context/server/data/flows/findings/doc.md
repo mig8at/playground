@@ -112,6 +112,9 @@ orden de archivo — el ancla `### F-xx` es la única dirección.)
 | **«el runner dice que cerró y el crédito no se radicó»** | **F-168** |
 | **«Attempt to read property "fga" on null»** | **F-169** |
 | **«el rotativo falla generando documentos»** | **F-169** |
+| **«¿cómo avisa una entidad rt=1 el resultado?»** | **F-170** |
+| **«el webhook devuelve Unauthorized con el token correcto»** | **F-170** |
+| **«no puedo cerrar un rt=1 en pruebas»** | **F-170** |
 | **«instrumenté el servicio y no imprime nada»** | **F-161** |
 | **«esta entidad no sale del listado y ninguna regla lo explica»** | **F-161** · F-113 |
 | **«en el wizard sí aparece pero por API no»** (o al revés) | **F-161** |
@@ -2819,3 +2822,42 @@ en producción — el webhook no deja registro cuando `firstOrFail()` lanza, as�
   autorización, en la generación de documentos.
 - **Arreglo (propuesto, NO aplicado):** la misma guarda que tienen los otros tres.
   **Estado:** vigente.
+
+### F-170 · El webhook de las entidades rt=1 NO vive en `legacy-backend` — y la mitad que sí está, rechaza siempre
+
+- **La pregunta que contesta:** «las rt=1 avisan el resultado por webhook, ¿se puede simular?». Sí
+  avisan, pero **no por donde uno buscaría**, y por eso conviene tener el mapa antes de intentarlo.
+- **Lo medido en producción (90 días, `response_type = 1`):** llegan a estado final **6.146**
+  solicitudes, y **el asesor es el canal principal, no el ecommerce**: 4.690 autorizadas por asesor
+  contra 240 por ecommerce. Las que autorizan son **Welli (2.631), Meddipay (1.538), Bancolombia (534)
+  y Prami (227)**.
+- **⚠ Y ninguna de ésas la cierra `legacy-backend`.** El único cierre de rt=1 que hay en este repo es el
+  `switch ($lender->name)` de `ValidateOtpController::validateLenderOtp`, y sólo tiene casos para
+  **`Compensar`** y **`Sistecrédito`** — que suman **cero** autorizaciones en esos 90 días. O sea que el
+  camino que existe acá no es el que se usa.
+- **Dónde está el que se usa: en `legacy-application`**, el monolito viejo, y con **dos mecanismos
+  distintos** que no conviene confundir:
+  - **webhook server→server** — Bancolombia: `bnpl/webhook`, `consumer-loan/webhook` y sus variantes
+    `-by-user-request`;
+  - **URL de retorno** (vuelve el navegador del cliente, no el lender) — Meddipay
+    `/meddipay/respuesta-exitosa/{userRequest}`, Bancolombia consumo
+    `/consumo/respuesta-en-proceso/{userRequest}`.
+- **La mitad receptora ya está escrita en `legacy-backend`, pero desconectada:** `Welli` tiene su
+  `STATUS_MAP` completo (`fulfilled`→11, `pendiente_desembolso`→11, `dismissed`→8, `fraud`→6, …) y un
+  `authorize()` que valida un bearer token. Le faltan **dos cosas**:
+  1. **no hay ninguna ruta** que reciba el webhook — `webhooks.php` tiene ocho rutas y ninguna es de una
+     entidad;
+  2. **`authorize()` lee `services.welli.webhook_token`, que NO está declarado en `config/services.php`**
+     (sólo está `host`). Con la clave ausente el token esperado es `null` y el guard **lanza
+     `Unauthorized` siempre**, aunque el llamante traiga el token correcto.
+
+  El propio código lo dice: `// Not used yet, uncomment when Welli webhook is migrated`.
+- **Consecuencia para probar:** **no se puede dar desenlace a un rt=1 contra `legacy-backend` hoy**, ni
+  con mocks. El mock tendría a quién llamar sólo en el monolito viejo, que el harness no maneja. Lo que
+  sí se puede es **listar** y comprobar que la solicitud queda en estado 3, que es su comportamiento
+  correcto.
+- **⚠ Y no confundirlo con `simulator/aggregator-result`**, que existe en `legacy-backend` y parece la
+  solución: exige que la solicitud esté ligada a un `ecommerce_request` y devuelve 422 si no. Sirve para
+  el canal ecommerce, **no** para el flujo de asesor — que es justo donde rt=1 cierra el 95% de las veces.
+- **Arreglo:** ninguno acá; es trabajo de la migración. Lo que este hallazgo aporta es **dónde mirar** y
+  **qué falta** cuando le toque el turno a rt=1. **Estado:** vigente.
