@@ -107,6 +107,17 @@ protocolo **VTEX** (`/vtex/init`, `/vtex/settel`).
 - **Todavía en application:** **todos los webhooks de agregadores rt=1** — Bancolombia (BNPL y consumo), Payvalida, Prami, Meddipay, Sistecrédito, Approbe, Banco de Bogotá, Welli, Corbeta, SelfManager, Pash. Son el bloqueo duro del cutover: mientras los lenders externos posteen a application, no se puede apagar.
 - **Duplicado:** el OTP de **firma de pagaré** sigue en application aunque el de onboarding ya migró.
 
+⚠ **La BD compartida NO es un detalle de los webhooks: es lo que sostiene el parallel-run entero.** Un
+webhook que llega al viejo actualiza una solicitud que pudo haber creado el nuevo, y funciona porque los
+dos escriben la misma tabla. Sin eso no se podrían mover comercios de a uno.
+
+⚠ **Y cuidado con el atajo «migramos los webhooks de rt=1 y apagamos el viejo».** Es falso, y por un
+orden de magnitud. Medido el 2026-08-23 sobre `legacy-application`: de sus **435 rutas**, las de webhook
+y URL de retorno son unas **26** (≈6 %); las de cartera, pagos y desembolso rondan las 32 y las de
+onboarding las 62. Lo que de verdad lo ancla es el **servicing**, y ahí la asimetría es la que manda:
+**24 crons en application contra 5 en legacy-backend**. Los webhooks son una estaca de varias, no la
+principal. Por qué rt=1 tampoco se puede *probar* hoy: **F-170**.
+
 ### El eje que decide todo: `response_type` (+ `path_id`)
 
 **No existe columna `product_type`** en ninguna migración de ninguno de los dos repos. El "tipo de producto" se modela con dos columnas de `lenders`:
