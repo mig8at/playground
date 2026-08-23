@@ -39,7 +39,32 @@ gitignoreado — por eso acá va la receta y no el archivo):
 …y `docker compose up -d laravel.test`. ⚠ **Borralo cuando termines**: deja un archivo suelto en el
 repo de la compañía, que es fácil de commitear sin querer.
 
-## Tope 2 · con cierres pesados en paralelo, los rt=2 dejaron de listar un rato
+## Fijar la entidad por caso: `comercio:id`
+
+    make harness-caso CASOS='motai:168;motai:169;motai:170' PAR=1 LAMBDA=1 CERRAR=1
+
+Los tres productos de CreditopX de Motai son **tres entidades**, y el `product` de cada una es lo que
+las distingue: `credit`, `renting` y `rto`. Cerrando las tres en paralelo se ve la diferencia que
+importa — mismo monto pedido, **el renting cierra con un monto final muy superior** a los otros dos,
+que es la calculadora inflando el precio (el mecanismo está explicado en el nodo `motai`).
+
+⚠ **`product = 'rto'` SÍ existe en el dump local** (la entidad Motai RB), pero su calculadora **no
+tiene matriz**: ni `plans` ni `terms`. Así que el producto y la matriz son cosas independientes, y la
+rama `terms` sigue sin ejercitarse en ningún lado.
+
+## Tope 2 · el teléfono para cerrar tiene que estar LIMPIO — RESUELTO
+
+Este era el que hacía ver el problema como si fuera de negocio. Para firmar el pagaré hace falta un
+teléfono de `qa_otp_bypass_phones`, y el runner lo tomaba **por índice, sin mirar si servía**. Un
+teléfono cuyo usuario ya tiene un crédito en estado 11 arrastra ese crédito al caso nuevo, y el **cupo
+rt=2 se bloquea por entidad**: el listado devuelve las rt=1 y ninguna CreditopX. El síntoma era «la
+entidad 169 no salió en el listado», que se lee como una regla y era un teléfono sucio.
+
+⚠ Medido en el dump local: **todos** los teléfonos de la lista tienen usuario —así que el criterio
+«sin usuario» no dejaba ninguno— pero **la gran mayoría no tiene crédito activo**, que es la condición
+que de verdad importa. Ya está corregido: el filtro es «sin crédito en estado 11».
+
+## Tope 3 · con cierres pesados en paralelo, los rt=2 dejaron de listar un rato
 
 En la corrida de siete cierres, el listado de motai bajó de seis entidades a dos —desaparecieron todos
 los CreditopX— y volvió solo en la corrida siguiente. **Transitorio, y no es cupo agotado**: la entidad
