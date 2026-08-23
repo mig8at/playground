@@ -188,3 +188,24 @@ grupo y hereda la misma falta de autenticación.
 No exige ningún `user_request_status_id`. Lo que sí exige de hecho: que la solicitud tenga configurado
 el proveedor **Netco** y que el usuario tenga un OTP previo en la base. Una solicitud sin OTP no se
 puede regenerar — y ése es el único freno real que hay.
+
+## Lo que NO está verificado
+- ⚠ **POR QUÉ NO APARECE EN EL LISTADO SIGUE SIN EXPLICARSE — pero hay mucho descartado (2026-08-23).**
+  Con un cliente sintético que cumple todo lo conocido, la entidad **no aparece igual**. Queda medido y
+  descartado, para que nadie lo vuelva a recorrer:
+
+  | se comprobó | resultado |
+  |---|---|
+  | `lenders.status` | 1 ✓ |
+  | activa en esa sucursal (`lenders_by_allied_branches.status`) | 1 ✓ |
+  | está en el conjunto base de la sucursal | sí ✓ |
+  | regla de grupo 7751 (ocupación, edad, ingreso, reportes) | **aprobado** en la forense ✓ |
+  | score mínimo de `lender_datacredito_rules` (710) | cliente con 760 ✓ |
+  | antigüedad en el sector (12 meses) | `maturationSince` de 2006 → ~240 meses ✓ |
+
+  ⚠ **Y el motor de datacrédito de rt≠2 NO excluye**: `RiskCentralValidationService` calcula
+  `can_check_preapproval` —un FLAG— en vez de sacar la entidad del listado. Así que la exclusión pasa en
+  otro lado y **no deja rastro en la forense de reglas**.
+
+  **La pista más fuerte:** *Welli* (rt=1) desaparece con ella, mientras Sistecrédito y Bancolombia
+  (también rt=1) aparecen. Lo que excluye a las dos es compartido, y **no es el `response_type`**.
