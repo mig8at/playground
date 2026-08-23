@@ -24,6 +24,10 @@ Credifamilia (lender **24**) es el único `response_type = 4` (un valor sin fila
   (`[12, 23, 141, 142, 166]`, marcada *TEMPORAL*) y las nueve salidas de la pre-aprobación. En v2 no
   están.
 
+  ⚠ **Y NO es la ocupación**, aunque su regla lo sugiera: medido en producción, las sucursales que
+  exigen sólo `Independiente` cerraron **1.923 créditos de empleados**. Esa regla **clasifica, no
+  excluye** (**F-162**) — la entidad presta mayoritariamente a empleados y eso no la contradice.
+
   ⚠ **Y con v2 el flujo corre**: la entidad lista, se puede seleccionar, y el polling de pre-aprobación
   llega al proveedor. El corte pasa a estar más adelante, en el **plan de pagos** (*«Extra details
   payment plan returned error»*), que es otro problema y con nombre propio.

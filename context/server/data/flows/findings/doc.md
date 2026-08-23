@@ -97,6 +97,7 @@ orden de archivo — el ancla `### F-xx` es la única dirección.)
 | **«dicté el buró para cumplir la regla y la entidad sigue sin salir»** | **F-158** |
 | **«el perfilamiento no excluye nada» / «las reglas de datacrédito no aplican»** | F-159 |
 | **«no cumple la regla X y por eso no sale»** (probado en local) | **F-160** |
+| **«la regla de esta entidad está mal configurada»** | **F-162** |
 | **«instrumenté el servicio y no imprime nada»** | **F-161** |
 | **«esta entidad no sale del listado y ninguna regla lo explica»** | **F-161** · F-113 |
 | **«en el wizard sí aparece pero por API no»** (o al revés) | **F-161** |
@@ -275,6 +276,7 @@ distinto según con qué pregunta llegues.
 | F-159 | El perfilamiento lee `Experian - Acierta` y el flujo sintético escribe `Acierta+Quanto` | ABIERTO |
 | F-160 | Las reglas del dump local difieren de producción: se depura contra umbrales inexistentes | VIGENTE |
 | F-161 | Hay DOS listados (`lenders` y `lenders-v2`) con clases distintas: v1 devuelve menos | ABIERTO |
+| F-162 | Las reglas de grupo clasifican, no excluyen: 1.923 créditos las violan y se otorgaron | VIGENTE |
 
 ---
 
@@ -2574,3 +2576,26 @@ en producción — el webhook no deja registro cuando `firstOrFail()` lanza, as�
 - **Arreglo:** para el diagnóstico, entrar por el controlador. Para el código, que dos clases de la
   misma jerarquía no definan el mismo método público con implementaciones distintas. **Estado:** vivo
   en `main`.
+
+### F-162 · Las reglas de grupo CLASIFICAN, no excluyen — y confundirlas hace ver «mala configuración» donde no la hay
+
+- **Síntoma:** se abre la configuración de una entidad, se ve que su regla exige una ocupación
+  concreta, se compara con los clientes reales y **no coincide**. Parece un error de parametrización
+  que estaría dejando gente afuera.
+- **Lo que en realidad pasa (medido en producción el 2026-08-23):** en las sucursales cuya regla exige
+  **sólo `Independiente`**, la misma entidad cerró **1.923 créditos de clientes `Empleado`** —más que
+  de independientes (755)—, además de 294 pensionados y hasta un desempleado. **La regla no impide
+  nada**: la entidad sigue apareciendo y el crédito se otorga igual.
+- **Por qué importa:** la conclusión «esta entidad no aparece porque el cliente no cumple la regla de
+  grupo» es **falsa por construcción**. Esas reglas mueven la *clasificación* —la probabilidad y el
+  orden—, no la presencia en el listado. Quien busque una ausencia ahí va a encontrar una
+  discrepancia real y **una explicación equivocada**.
+- **⚠ La configuración además es dispar, y eso confunde más:** la misma entidad tiene **cinco formas
+  distintas** de esa regla repartidas entre sus sucursales —desde `Independiente` sola hasta las cuatro
+  ocupaciones juntas—. La dispersión invita a leerla como intencional; los números dicen que da lo
+  mismo.
+- **Cómo se descartó, que es el método:** en vez de discutir si la regla estaba bien puesta, se contó
+  **cuántos créditos reales la violan y se otorgaron igual**. Con 1.923 casos, la pregunta se contesta
+  sola.
+- **Arreglo:** ninguno de código. Lo que hay que arreglar es **dónde se busca la causa de una
+  ausencia** → ver el mapa de exclusiones en el nodo `creditopx`. **Estado:** vigente.
