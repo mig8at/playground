@@ -14,6 +14,19 @@ Credifamilia (lender **24**) es el único `response_type = 4` (un valor sin fila
 | ¿Simulable E2E? | ⚠ **Parcial**: el gate local sí es inyectable; KYC V2 (Evidente/CrossCore/Jumio) y la radicación SOAP son externos |
 
 ## Antes de concluir
+- ✅ **POR QUÉ NO APARECE EN EL LISTADO — RESUELTO el 2026-08-23.** La saca
+  `PreApprovedLenderService::validatePreApproveLender`, que hace `unset()` de las entidades cuya
+  pre-aprobación no vuelve. En local el microservicio de pre-aprobados no sirve su respuesta, así que
+  la entidad desaparece **sin error y sin log de rechazo** — que es exactamente el síntoma de **F-113**.
+
+  ⚠ **Costó catorce descartes por leer el archivo equivocado.** El listado NO lo sirve
+  `LenderListingService::getLenders` sino el `getLenders` de su clase PADRE, que es la que inyecta el
+  controlador (**F-161**). Las dos existen, tienen la misma firma y **no hacen lo mismo**. Antes de
+  depurar el listado, mirá qué inyecta `ListLenderController`.
+
+  ⚠ **Y en el mismo lugar hay una exclusión por id quemado** —`[12, 23, 141, 142, 166]`, marcada
+  *TEMPORAL*— que saca a Welli y a Prami. Si alguna de esas «no aparece», ésa es la razón y no hay
+  regla de negocio que buscar.
 - ⚠ **Un «APROBADO» de Credifamilia NO garantiza que venga el cupo.** Ante entrada inválida —el caso
   medido fue un correo con tilde— responde `Aprobado` con el payload **vacío**, y
   `PreApprovedLenderService.php:325-333` lo marca `pre_approved_lender = true` con
@@ -190,38 +203,4 @@ el proveedor **Netco** y que el usuario tenga un OTP previo en la base. Una soli
 puede regenerar — y ése es el único freno real que hay.
 
 ## Lo que NO está verificado
-- ⚠ **POR QUÉ NO APARECE EN EL LISTADO SIGUE SIN EXPLICARSE — pero hay mucho descartado (2026-08-23).**
-  Con un cliente sintético que cumple todo lo conocido, la entidad **no aparece igual**. Queda medido y
-  descartado, para que nadie lo vuelva a recorrer:
 
-  | se comprobó | resultado |
-  |---|---|
-  | `lenders.status` | 1 ✓ |
-  | activa en esa sucursal (`lenders_by_allied_branches.status`) | 1 ✓ |
-  | está en el conjunto base de la sucursal | sí ✓ |
-  | regla de grupo 7751 (ocupación, edad, ingreso, reportes) | **aprobado** en la forense ✓ |
-  | score mínimo de `lender_datacredito_rules` (710) | cliente con 760 ✓ |
-  | antigüedad en el sector (12 meses) | `maturationSince` de 2006 → ~240 meses ✓ |
-
-  | validación por reglas (el log de la etapa) | **5 evaluadas, 5 aprobadas, 0 rechazadas** ✓ |
-  | asignada al comercio (`lenders_by_allieds`) | sí ✓ |
-  | límites de monto del comercio | iguales a los de una entidad que SÍ aparece ✓ |
-
-  ⚠ **Y las dos etapas siguientes tampoco la sacan:** la validación devuelve aprobadas **y** rechazadas
-  juntas (sólo borra las rt=2 rechazadas), y el perfilamiento por datacrédito **tampoco la saca**:
-  se lo hizo correr en local sembrando la fila que le faltaba (**F-159**) y la entidad sigue igual. O sea que la caída de 5 entidades a 3 pasa **después** de todo eso, en
-  `LenderListingService` — quedan sin revisar su `array_filter` final y `attachAmountConditions`.
-
-  ⚠ **El motor de datacrédito de rt≠2 NO excluye**: `RiskCentralValidationService` calcula
-  `can_check_preapproval` —un FLAG— en vez de sacar la entidad del listado. Así que la exclusión pasa en
-  otro lado y **no deja rastro en la forense de reglas**.
-
-  ⚠ **Y comparando contra PRODUCCIÓN (2026-08-23), dos hechos que cambian cómo leer todo esto:** la
-  sucursal donde se probó **nunca originó un crédito con esta entidad en producción tampoco** (0 de 126
-  solicitudes), mientras otra sucursal del mismo comercio tiene 9 de 741 — así que la ausencia **no es
-  un artefacto local**. Y la regla de datacrédito **difiere drásticamente entre los dos ambientes**
-  (**F-160**): en producción está prácticamente desactivada y en el dump local exige score 710 y doce
-  meses. Alinearla con la de producción **no la hace listar**, así que tampoco es la causa.
-
-  **La pista más fuerte:** *Welli* (rt=1) desaparece con ella, mientras Sistecrédito y Bancolombia
-  (también rt=1) aparecen. Lo que excluye a las dos es compartido, y **no es el `response_type`**.
