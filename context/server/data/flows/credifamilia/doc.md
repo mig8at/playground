@@ -240,22 +240,30 @@ Con eso, un caso cierra por consola en ~16 s:
 
     make harness-caso CASOS='#<hash-del-comercio>:24@ocupacion=Empleado,score=760,cuotas=24' LAMBDA=1 CERRAR=1
 
-### ⚠ Hasta el estado 11, no hasta el final: la RADICACIÓN no corre
+### La RADICACIÓN — el tramo posterior al estado 11, que también corre
 
-El estado 11 es «Autorizada», y se alcanza. Pero el paso siguiente —**formalizar**, o sea mandarle a
-Credifamilia el paquete de documentos— **falla**, y conviene saberlo porque el runner igual reporta
-«CERRÓ en estado 11»:
+**El ciclo cierra entero: estado 11 y `CREDIT_COMPLETED`.** Pero hay que entender que son **dos cosas
+distintas**, porque el producto no las distingue en ningún lado visible (F-168): «Autorizada» es el
+final del lado nuestro, y mandarle el paquete al lender es un paso posterior que **puede fallar sin
+mover el estado y sin cambiar el código HTTP**.
 
-    HTTP 422 · No se puede formalizar el crédito Credifamilia:
-               faltan documentos obligatorios: Cédula frontal, Cédula reverso.
+Tres piezas hicieron falta, y las tres se ven distinto:
 
-La formalización exige **nueve** documentos. Siete los produce el flujo (consentimiento, términos,
-autorización de desembolso, reglamento, FGA, pagaré, plan de pagos). Los **dos que faltan son las fotos
-de la cédula**, que en un flujo real las deja la validación de identidad y que el usuario sintético no
-tiene: son las columnas `users.front_url` y `users.back_url`, y en local quedan en `NULL`.
+1. **Las dos fotos de la cédula.** La formalización exige **nueve** documentos: siete los produce el
+   flujo (consentimiento, términos, autorización de desembolso, reglamento, FGA, pagaré, plan de pagos)
+   y los otros dos son las fotos, que en un flujo real las deja la validación de identidad. En el
+   sintético quedan en `NULL` y sale `HTTP 422 · faltan documentos obligatorios: Cédula frontal, Cédula
+   reverso`. Son `users.front_url` y `users.back_url`, y el chequeo es sólo que no estén vacías.
+2. **El catálogo de estados de la transacción.** Si falta, el intento de registrar un error tira
+   `RuntimeException` y **tapa la causa real**. El mensaje nombra el seeder, que es idempotente.
+3. **El SOAP de radicación.** Dos operaciones —`transaccionConsumo` (registra) y
+   `guardarDocumentoOpenKm` (manda el PDF unificado)— y **sólo `CREDIT_COMPLETED` significa radicado**;
+   `CREDIT_REGISTERED` es a mitad de camino. El cliente está hecho a mano y manda un POST crudo, así
+   que el mock no necesita publicar un WSDL.
 
-El chequeo es sólo que la URL no esté vacía (`isUsableUrl`), así que llenar esas dos columnas destraba
-este muro — **y descubre el siguiente**, que es el SOAP de radicación de Credifamilia, todavía sin mock.
+⚠ **Sin `bin/mock-credifamilia` el backend local sale al sandbox REAL del lender** —da 504 y deja la
+transacción en `CREDIT_ERROR` con la solicitud igual en estado 11—. O sea que cada corrida mandaba una
+solicitud sintética al ambiente de pruebas de Credifamilia.
 
 ⚠ **Qué prueba y qué no.** Prueba la **orquestación**: que el backend arme el SOAP, lea las respuestas,
 guarde los documentos y mueva la solicitud. **No prueba la firma ni el título**: el pagaré no se puede

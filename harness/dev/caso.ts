@@ -105,6 +105,7 @@ const MOCK_LENDERS = process.env.MOCK_LENDERS_URL ?? 'http://localhost:8099';
  *  corre fuera de Docker, así que acá van por `localhost` — misma caja, otra puerta. */
 const DECEVAL = process.env.MOCK_DECEVAL_URL || 'http://localhost:8106/';
 const NETCO = process.env.MOCK_NETCO_URL || 'http://localhost:8107/';
+const CREDIFAMILIA = process.env.MOCK_CREDIFAMILIA_URL || 'http://localhost:8108/';
 
 // El microservicio de PRE-APROBADOS. Lo llama el FRONT, no el backend (F-141), así que una corrida
 // por API lo saltea sin fallar: el listado se ve completo y la etapa no ocurrió. Acá se REPLICA esa
@@ -277,10 +278,25 @@ async function cerrarCreditopX(arr: any[], ur: number, tel: string, amount: numb
         ' · ' + String(aut.json?.errors?.payload
             ? JSON.stringify(aut.json.errors.payload)
             : aut.json?.message ?? aut.json?.raw ?? '').split('\n')[0].slice(0, 90);
+    // ⚠ LA RADICACIÓN NO SE VE EN EL ESTADO, y por eso hay que ir a buscarla. «Autorizada» (11) es el
+    // final del lado NUESTRO; mandarle el paquete al lender es un paso aparte que puede fallar SIN
+    // mover el estado y SIN cambiar el HTTP: el endpoint de autorización devuelve 200 igual. Medido el
+    // 2026-08-23: con el SOAP saliendo al sandbox real de Credifamilia y dando 504, la transacción
+    // quedaba en `CREDIT_ERROR` y el runner reportaba «CERRÓ en estado 11». El crédito no se radicó y
+    // nada lo decía.
+    //
+    // Sólo lo tienen las entidades que radican por transacción; para el resto no hay fila y se omite.
+    const rad = await one<{ n: string }>(
+        `SELECT s.name n FROM lender_transactions t
+           LEFT JOIN lender_transaction_statuses s ON s.id = t.status_id
+          WHERE t.user_request_id = ? ORDER BY t.id DESC LIMIT 1`, [ur]).catch(() => null);
+
     return {
         cerro: fin?.e === 11,
-        motivo: `${ctopx.name} · HTTP ${aut.status}${porQue}`,
+        motivo: `${ctopx.name} · HTTP ${aut.status}${porQue}`
+            + (rad?.n ? ` · radicación ${rad.n}${rad.n === 'CREDIT_COMPLETED' ? '' : ' ⚠'}` : ''),
         estado: fin?.e ?? null,
+        radicacion: rad?.n ?? null,
     };
 }
 
@@ -346,6 +362,10 @@ type Espera = {
     estado?: number;          // estado final exacto (11 autorizada, 28 pendiente desembolso, …)
     entidades?: number[];     // estas entidades TIENEN que estar en el listado (subconjunto, no igualdad)
     noEntidades?: number[];   // estas entidades NO pueden estar — para «ya tiene un crédito acá»
+    /** Estado de la RADICACIÓN al lender (`CREDIT_COMPLETED`, `CREDIT_ERROR`, …). Es un paso posterior
+     *  al estado 11 y puede fallar sin moverlo: exigirlo acá es la única forma de que una suite note
+     *  que el crédito quedó autorizado pero nunca se radicó. */
+    radicacion?: string;
 };
 
 type Caso = {
@@ -458,7 +478,9 @@ type Res = {
     enListado?: boolean; listado?: number[]; conducta?: string; detalle?: string;
     com?: string;
     preaprobados?: { id: number; estado: string; cupo?: unknown }[];
-    cierre?: { cerro: boolean; motivo: string; estado: number | null };
+    /** `radicacion` sólo existe cuando la entidad radica por transacción y el caso llegó hasta ahí;
+     *  en los cortes tempranos no hay fila que consultar. */
+    cierre?: { cerro: boolean; motivo: string; estado: number | null; radicacion?: string | null };
 };
 
 async function http(method: string, path: string, body: unknown, phone: string) {
@@ -851,6 +873,22 @@ async function correrLambdaMotor(c: Caso, i: number): Promise<Res> {
         }
     }
 
+    // LAS DOS FOTOS DE LA CÉDULA, que este camino nunca deja. En un flujo real las escribe la
+    // validación de identidad; acá se saltea, así que quedan en NULL — y el hueco NO se ve hasta el
+    // final: la solicitud llega igual a estado 11 y recién la FORMALIZACIÓN muere con «faltan
+    // documentos obligatorios: Cédula frontal, Cédula reverso». Como el runner ya reportó «CERRÓ en
+    // 11», se lee como si el flujo hubiera terminado entero, y no terminó: el paquete nunca se radicó.
+    //
+    // Un string cualquiera alcanza —la validación es sólo que la URL no esté vacía
+    // (`CredifamiliaLegalizationDocumentService::isUsableUrl`) y el merge lo resuelve el pdf-mapper, que
+    // en local es un mock y no descarga nada—. Se les da forma de URL de S3 para reconocerlas como
+    // sintéticas al mirar la base.
+    await exec(
+        'UPDATE users SET front_url=?, back_url=?, updated_at=NOW() WHERE id=?',
+        [`https://mock-s3.local/front-web/users/documents/synth/${doc}/frontal.jpg`,
+         `https://mock-s3.local/front-web/users/documents/synth/${doc}/reverso.jpg`, uid],
+    ).catch(() => null);
+
     // ⚠ EL MONTO VA EN LA QUERY, y sin él el backend usa 180.000 por default
     // (`ListLenderController::index:39` — `$request->query('amount', 180000)`), NO el monto de la
     // solicitud. Todo lo medido hasta el 2026-08-22 se calculó con 180 mil sin que nada avisara: los
@@ -1030,7 +1068,7 @@ function verificarEsperas(res: Res[]): Array<{ res: Res; linea: string }> {
             }
         }
 
-        if (e.cierra !== undefined || e.estado !== undefined) {
+        if (e.cierra !== undefined || e.estado !== undefined || e.radicacion !== undefined) {
             if (!r.cierre) {
                 out.push({ res: r, linea: `${quien}: declara algo del cierre pero la corrida no cerró nada`
                     + ' — ¿faltó `CERRAR=1`? (sin eso, esto NO está verificado)' });
@@ -1041,6 +1079,13 @@ function verificarEsperas(res: Res[]): Array<{ res: Res; linea: string }> {
                 }
                 if (e.estado !== undefined && r.cierre.estado !== e.estado) {
                     out.push({ res: r, linea: `${quien}: esperaba estado ${e.estado} y quedó en ${r.cierre.estado ?? '—'}`
+                        + ` — ${r.cierre.motivo}` });
+                }
+                // La radicación se exige aparte del estado a propósito: son dos preguntas y la
+                // segunda puede fallar con la primera en verde (ver el comentario en `cerrarCreditopX`).
+                if (e.radicacion !== undefined && r.cierre.radicacion !== e.radicacion) {
+                    out.push({ res: r, linea: `${quien}: esperaba radicación \`${e.radicacion}\` y quedó en `
+                        + `\`${r.cierre.radicacion ?? 'sin transacción'}\` — el crédito puede estar autorizado y NO radicado`
                         + ` — ${r.cierre.motivo}` });
                 }
             }
@@ -1335,6 +1380,14 @@ async function prevuelo(): Promise<string[]> {
         if (!(await vivo(NETCO))) {
             faltan.push(`mock de Netco caído (${NETCO}) → la firma de Credifamilia falla en estado 28`
                 + ' (F-165). Levantalo: bin/mock-netco start');
+        }
+        // Éste NO traba la solicitud: sin él el backend sale al sandbox REAL del lender, la
+        // solicitud llega igual a estado 11 y sólo la RADICACIÓN queda en CREDIT_ERROR. O sea que
+        // faltando este mock el runner dice «cerró» y el crédito nunca se radicó.
+        if (!(await vivo(CREDIFAMILIA))) {
+            faltan.push(`mock de radicación de Credifamilia caído (${CREDIFAMILIA}) → el backend sale al`
+                + ' sandbox REAL del lender y la radicación queda en CREDIT_ERROR con la solicitud igual en'
+                + ' estado 11. Levantalo: bin/mock-credifamilia start');
         }
     }
     return faltan;

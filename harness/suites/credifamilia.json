@@ -1,5 +1,5 @@
 {
-  "nombre": "Credifamilia (rt=4) · de punta a punta — pagaré en Deceval y firma en Netco (F-163, F-164, F-165)",
+  "nombre": "Credifamilia (rt=4) · el ciclo COMPLETO — autorización, pagaré, firma y radicación (F-163, F-164, F-165)",
   "nota": "⚠ Corré esta suite EN SERIE. Con PAR=1 cierra 1 de 3 y los otros dos mueren con «There is no active transaction»: no es un fallo de la suite, es F-166 — la firma corre dentro de una transacción abierta y dos autorizaciones simultáneas se traban en un deadlock. Sirve como reproductor de ese defecto, no como regresión.",
   "requiere": [
     "cerrar",
@@ -22,11 +22,12 @@
       }
     },
     {
-      "nombre": "cierra en 11 a 24 cuotas — falla si Deceval o Netco no contestan (F-165)",
+      "nombre": "cierra en 11 Y RADICA — falla si Deceval, Netco o el SOAP no contestan (F-165)",
       "cuotas": 24,
       "espera": {
         "cierra": true,
-        "estado": 11
+        "estado": 11,
+        "radicacion": "CREDIT_COMPLETED"
       }
     },
     {
@@ -34,7 +35,8 @@
       "cuotas": 12,
       "espera": {
         "cierra": true,
-        "estado": 11
+        "estado": 11,
+        "radicacion": "CREDIT_COMPLETED"
       }
     }
   ]

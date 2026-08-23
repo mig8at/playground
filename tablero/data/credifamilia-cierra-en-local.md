@@ -77,19 +77,31 @@ número de cuotas define la cuota, el plan de pagos y lo que dice el pagaré. **
 pasado en producción** —la cola de plazos raros son diez filas en 180 días y no se sabe qué ofrecía el
 catálogo entonces—, así que queda como pregunta abierta.
 
-## ⚠ Llega a estado 11, pero NO radica — y el runner igual dice «cerró»
+## El ciclo COMPLETO: estado 11 **y** radicación
 
-Corriendo tres en paralelo apareció que las que cierran traen un `HTTP 422` en su motivo:
-**`faltan documentos obligatorios: Cédula frontal, Cédula reverso`**. O sea que el crédito queda
-**autorizado** (estado 11) pero el paquete **nunca se le manda a Credifamilia**.
+Lo que faltaba después del estado 11 era la **radicación** —mandarle a Credifamilia el paquete de
+documentos—, y ya corre: la suite cierra 3/3 en `CREDIT_COMPLETED`. Hicieron falta tres cosas:
 
-De los nueve documentos que exige la formalización, siete los produce el flujo. Los dos que faltan son
-las **fotos de la cédula** —`users.front_url` y `users.back_url`—, que las deja la validación de
-identidad y el usuario sintético no tiene. El chequeo es sólo que la URL no esté vacía, así que
-llenarlas destraba este muro y **descubre el siguiente**: el SOAP de radicación, aún sin mock.
+- **Las dos fotos de la cédula** (`users.front_url` / `users.back_url`), que las deja la validación de
+  identidad y el camino sintético saltea. De los nueve documentos que exige la formalización, siete los
+  produce el flujo y estos dos no.
+- **El catálogo de estados de la transacción**, sin sembrar en local. Su ausencia **tapa la causa real**:
+  al intentar registrar el error se tira otra excepción encima.
+- **El SOAP de radicación** — dos operaciones, mock nuevo en `:8108`.
 
-Mientras tanto, cuidado con leer «CERRÓ en estado 11» como «el flujo terminó»: terminó la parte
-nuestra, no el envío al lender.
+### ⚠ Y de acá salió F-168, que es lo más importante de este tramo
+
+**«Autorizada» no es «radicada», y nada lo distingue afuera de una tabla.** La radicación es posterior
+al estado 11 y **no lo mueve**: si falla, la solicitud queda igual en 11, el endpoint devuelve **200** y
+el runner dice «cerró». Sólo `lender_transactions` lo sabe.
+
+Se descubrió porque el backend local salía al **sandbox real del lender**, que da 504 — o sea que
+además, hasta hoy, **cada corrida mandaba una solicitud sintética al ambiente de pruebas de
+Credifamilia**.
+
+El runner ahora **lee y reporta** ese estado en cada cierre, y las suites pueden exigirlo. Está
+comprobado que la guarda atrapa: con el mock en modo rechazo, las tres corridas llegan a estado 11 y la
+suite **falla**.
 
 ## Lo que NO prueba
 

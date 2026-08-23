@@ -142,11 +142,23 @@ async function setSynthIdentity(userID: number, doc: string, email: string, gend
     const parts = (name ?? '').trim().split(/\s+/).filter(Boolean);
     const first = parts[0] ?? 'SYNTH';
     const surname = parts.slice(1).join(' ') || 'TEST USER';
+    // LAS DOS FOTOS DE LA CÉDULA. En un flujo real las deja la validación de identidad; el sintético la
+    // saltea, así que quedan en NULL — y eso NO se ve hasta el final: la solicitud llega igual a estado
+    // 11 y recién la FORMALIZACIÓN (mandarle el paquete al lender) muere con «faltan documentos
+    // obligatorios: Cédula frontal, Cédula reverso». El runner mientras tanto reporta «CERRÓ en 11»,
+    // así que el hueco se lee como si el flujo hubiera terminado entero.
+    //
+    // Un string cualquiera alcanza: la validación es sólo que la URL no esté vacía
+    // (`CredifamiliaLegalizationDocumentService::isUsableUrl`) y el merge lo hace el pdf-mapper, que en
+    // local es un mock y no descarga nada. Se les pone forma de URL de S3 para que se reconozcan como
+    // sintéticas al mirarlas en la base.
+    const cedula = (cara: string) => `https://mock-s3.local/front-web/users/documents/synth/${doc}/${cara}.jpg`;
     await exec(
         `UPDATE users SET document_type=?, document_number=?, first_name=?, surname=?,
          full_name=?, email=?, date_of_birth=?, expedition_date=?,
-         age=?, gender=?, updated_at=NOW() WHERE id=?`,
-        [documentType, doc, first, surname, `${first} ${surname}`, email, dob, expeditionDate, age, gender, userID],
+         age=?, gender=?, front_url=?, back_url=?, updated_at=NOW() WHERE id=?`,
+        [documentType, doc, first, surname, `${first} ${surname}`, email, dob, expeditionDate, age, gender,
+         cedula('frontal'), cedula('reverso'), userID],
     );
 }
 

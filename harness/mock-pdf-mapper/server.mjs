@@ -38,6 +38,26 @@ const server = http.createServer((req, res) => {
     let body = '';
     req.on('data', (c) => (body += c));
     req.on('end', () => {
+        // `/api/merge-urls` es la RADICACIÓN de Credifamilia, no la generación de un documento: recibe
+        // las nueve URLs del paquete legalizado y devuelve UN pdf con todo pegado.
+        //
+        // ⚠ NO DESCARGA NADA, y eso importa saberlo: el servicio real sí baja cada URL, así que una
+        // rota allá revienta y acá pasa. Lo que se prueba con este mock es que el backend arme la lista
+        // y siga; que las nueve URLs sean alcanzables es otra pregunta, y ésta no la contesta.
+        if (url.pathname === '/api/merge-urls') {
+            let urls = [];
+            try { urls = JSON.parse(body || '{}').urls ?? []; } catch { /* se loguea abajo */ }
+            if (FAIL) {
+                log(`merge-urls ${urls.length} urls → 503 (modo fallo)`);
+                res.writeHead(503, { 'content-type': 'application/json' });
+                return res.end(JSON.stringify({ error: 'merge no disponible' }));
+            }
+            const pdf = minimalPdf(`DEMO paquete legalizado - ${urls.length} documentos unidos por el mock`);
+            log(`merge-urls ${urls.length} urls → PDF ${pdf.length}b`);
+            res.writeHead(200, { 'content-type': 'application/pdf', 'content-length': pdf.length });
+            return res.end(pdf);
+        }
+
         const m = RUTA.exec(url.pathname);
         if (!m) {
             log(`⚠ RUTA NO MAPEADA ← ${req.method} ${url.pathname}${body ? ' body=' + body.slice(0, 200) : ''}`);

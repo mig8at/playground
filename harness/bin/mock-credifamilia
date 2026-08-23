@@ -1,0 +1,44 @@
+#!/usr/bin/env bash
+# Mock del SOAP de CONSUMO de Credifamilia — la RADICACIÓN, el último paso del crédito (rt=4).
+# Sin él el backend local sale al sandbox REAL del lender (pruebas.credifamilia.com.mx), que da 504 y
+# deja la transacción en CREDIT_ERROR — con la solicitud ya en estado 11 y el endpoint devolviendo 200,
+# así que el fallo es invisible salvo mirando `lender_transactions`.
+#
+# Apuntá el backend en legacy-backend/.env (host.docker.internal, NO localhost — corre en Docker):
+#   CREDIFAMILIA_CONSUMO_WSDL=http://host.docker.internal:8108/proptech-ws-sec/services/consumoEndPoint
+#
+# ⚠ NO prueba la radicación: prueba que el backend arme el sobre, lea la respuesta y cierre el ciclo.
+#
+# uso: bin/mock-credifamilia [start|stop|status|logs]
+#   env: MOCK_CREDIFAMILIA_PORT (8106) · MOCK_CREDIFAMILIA_FAIL=1 → camino de rechazo
+set -euo pipefail
+DIR="$(cd "$(dirname "$0")/.." && pwd)"
+PORT="${MOCK_CREDIFAMILIA_PORT:-8108}"
+LOG=/tmp/mock-credifamilia.log
+
+up() { curl -s -o /dev/null --max-time 2 "http://localhost:$PORT" 2>/dev/null; }
+
+case "${1:-start}" in
+  start)
+    WANT_FAIL="${MOCK_CREDIFAMILIA_FAIL:-0}"
+    if up; then
+      CUR="$(curl -s --max-time 2 "http://localhost:$PORT" 2>/dev/null | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{try{process.stdout.write(JSON.parse(s).fail?"1":"0")}catch{process.stdout.write("0")}})')"
+      if [ "${CUR:-0}" = "$WANT_FAIL" ]; then echo "✓ mock-credifamilia ya arriba (:$PORT)"; exit 0; fi
+      echo "↻ reinicio mock-credifamilia (modo fallo: ${CUR:-0} → $WANT_FAIL)"
+      lsof -ti:"$PORT" 2>/dev/null | xargs kill -9 2>/dev/null || true
+      for _ in $(seq 1 10); do up || break; sleep 0.2; done
+    fi
+    rm -f "$LOG"
+    nohup env MOCK_CREDIFAMILIA_PORT="$PORT" MOCK_CREDIFAMILIA_FAIL="$WANT_FAIL" \
+      node "$DIR/mock-credifamilia/server.mjs" < /dev/null > "$LOG" 2>&1 &
+    for _ in $(seq 1 25); do up && { echo "✓ mock-credifamilia :$PORT"; exit 0; }; sleep 0.3; done
+    echo "✗ no levantó"; tail -8 "$LOG" 2>/dev/null; exit 1;;
+  stop)
+    lsof -ti:"$PORT" 2>/dev/null | xargs kill -9 2>/dev/null && echo "⏹ detenido (:$PORT)" || echo "no estaba corriendo";;
+  status)
+    if up; then curl -s --max-time 2 "http://localhost:$PORT" 2>/dev/null; echo ""; else echo "○ off (:$PORT)"; fi;;
+  logs)
+    tail -n "${2:-40}" "$LOG" 2>/dev/null || echo "(sin log)";;
+  *)
+    echo "uso: bin/mock-credifamilia [start|stop|status|logs]";;
+esac

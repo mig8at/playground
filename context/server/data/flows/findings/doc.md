@@ -108,6 +108,8 @@ orden de archivo — el ancla `### F-xx` es la única dirección.)
 | **«en serie pasa y en paralelo no»** | **F-166** |
 | **«el crédito quedó con un plazo que no ofrecemos»** | **F-167** |
 | **«se valida un campo y se usa otro»** | **F-167** |
+| **«llegó a estado 11 pero el lender no lo tiene»** | **F-168** |
+| **«el runner dice que cerró y el crédito no se radicó»** | **F-168** |
 | **«instrumenté el servicio y no imprime nada»** | **F-161** |
 | **«esta entidad no sale del listado y ninguna regla lo explica»** | **F-161** · F-113 |
 | **«en el wizard sí aparece pero por API no»** (o al revés) | **F-161** |
@@ -2757,3 +2759,35 @@ en producción — el webhook no deja registro cuando `firstOrFail()` lanza, as�
 - **Arreglo (propuesto, NO aplicado):** validar el plazo contra los términos que devolvió la simulación
   para esa solicitud, y usar un solo campo en vez de dos —hoy se valida uno y se usa el otro—.
   **Estado:** vigente, sin tarea abierta.
+
+### F-168 · «Autorizada» no es «radicada»: el crédito puede quedar en estado 11 sin haberse enviado al lender
+
+- **Síntoma:** no hay síntoma. La solicitud queda en **estado 11**, el endpoint de autorización
+  responde **HTTP 200** y cualquier runner reporta que cerró. El crédito **nunca llegó al lender**.
+- **Lo que en realidad pasa (medido el 2026-08-23):** la radicación —mandarle a Credifamilia el
+  paquete de documentos por SOAP (`transaccionConsumo` + `guardarDocumentoOpenKm`)— es un paso
+  **posterior** al estado 11 y **no lo mueve**. Si falla, se registra en `lender_transactions` con
+  estado `CREDIT_ERROR` y nada más cambia: ni el estado de la solicitud, ni el código HTTP.
+- **Cómo se destapó:** en local el backend salía al **sandbox real del lender**
+  (`pruebas.credifamilia.com.mx`), que desde acá da **504**. La transacción quedaba en `CREDIT_ERROR` y
+  la corrida decía «CERRÓ en estado 11». Se vio sólo yendo a mirar la tabla.
+- **⚠ Y hay un segundo problema en eso mismo:** hasta que se apuntó al mock, **cada corrida local
+  mandaba una solicitud sintética al ambiente de pruebas de Credifamilia**. No es sólo lentitud.
+- **Por qué importa:** «llegó a 11» es la vara con la que se mide si un flujo funciona, y **no alcanza**
+  para esta familia. Un tablero, una prueba o un reporte que cuente estados 11 puede estar contando
+  créditos que el lender nunca recibió.
+- **Cómo se comprueba:**
+
+      SELECT s.name FROM lender_transactions t
+        LEFT JOIN lender_transaction_statuses s ON s.id = t.status_id
+       WHERE t.user_request_id = ? ORDER BY t.id DESC LIMIT 1;
+
+  `CREDIT_COMPLETED` es lo único que significa radicado. `CREDIT_REGISTERED` es a mitad de camino: la
+  operación se registró pero el documento no se envió.
+- **⚠ Un catálogo sin sembrar lo empeora:** si faltan los `lender_transaction_statuses` del lender, el
+  intento de registrar el error tira `RuntimeException` y **tapa la causa real**. El mensaje al menos
+  nombra el seeder (`Database\Seeders\Lenders\CredifamiliaConsumoSeeder`, idempotente).
+- **Arreglo:** en el harness, `dev/caso.ts` ahora **lee y reporta** el estado de la radicación en cada
+  cierre, y las suites pueden exigirlo con `"radicacion": "CREDIT_COMPLETED"`. Comprobado que la guarda
+  atrapa: con el mock en modo rechazo, las tres corridas llegan a estado 11 y la suite **falla**.
+  **Estado:** vigente — el producto sigue sin distinguir las dos cosas fuera de esa tabla.

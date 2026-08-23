@@ -30,7 +30,7 @@ que ya costaron tiempo** — y el mapa mínimo para no perderse.
 | `mock-preapprovals` :8095 | `mock-redirect` :8096 | `mock-payvalida` :8097 | `mock-mdm` :8098 |
 | `mock-lenders` :8099 | `mock-pdf-mapper` :8100 | `mock-forms` :8101 | `mock-abaco` :8102 |
 | `mock-corbeta` :8103 | `mock-bancolombia` :8104 | `mock-financial-health` :4000 | `mock-centrales` :8105 |
-| `mock-deceval` :8106 | `mock-netco` :8107 | | |
+| `mock-deceval` :8106 | `mock-netco` :8107 | `mock-credifamilia` :8108 | |
 
 **Las herramientas de consola, por la pregunta que contestan:**
 
@@ -169,11 +169,15 @@ roto** (F-88). Si trabajás Bancolombia, cargá `harness-canal-qr` y corré `npm
   `mock-redirect` lo levanta `bin/ecommerce` (`bin/asesor:56`). Contra `dev` no se levanta ninguno de
   esos seis. `mock-financial-health` es distinto al resto: **no inventa datos** — lee el usuario
   sintético REAL de la BD local (por eso ocupa el `:4000` que el `.env` del wizard ya apunta). Ver F-70.
-- **Los tres de Credifamilia no los levanta nadie.** Si tu flujo toca rt=4, corré vos
-  `bin/mock-pdf-mapper start` (:8100, la vinculación), `bin/mock-deceval start` (:8106, el pagaré) y
-  `bin/mock-netco start` (:8107, la firma). Faltando cualquiera, la solicitud queda en **estado 28** con
-  un mensaje que habla del proveedor y no del mock (F-165). `dev/caso.ts` ya avisa en el prevuelo cuando
-  el caso va a cerrar; el resto de los runners todavía no.
+- **Los cuatro de Credifamilia no los levanta nadie.** Si tu flujo toca rt=4, corré vos
+  `bin/mock-pdf-mapper start` (:8100, la vinculación **y el merge del paquete**), `bin/mock-deceval start`
+  (:8106, el pagaré), `bin/mock-netco start` (:8107, la firma) y `bin/mock-credifamilia start` (:8108, la
+  **radicación**). Faltando uno de los tres primeros, la solicitud queda en **estado 28** con un mensaje
+  que habla del proveedor y no del mock (F-165).
+  ⚠ **El cuarto es distinto y peor**: sin él la solicitud llega igual a **estado 11**, el endpoint
+  devuelve **200** y el runner dice «cerró» — pero el backend salió al **sandbox real del lender**, dio
+  504, y el crédito **nunca se radicó** (F-168). `dev/caso.ts` ya avisa los cuatro en el prevuelo cuando
+  el caso va a cerrar, y ahora reporta el estado de la radicación en cada cierre.
 - **Si editás un mock, asegurate de que el proceso que corre sea ese código** (F-87). Node no recarga el
   módulo: `start` veía el puerto respondiendo y salía con `✓ ya arriba`, sirviendo la versión anterior — el
   arreglo no se aplicaba y **nada lo avisaba**. `mock-bancolombia` y `mock-corbeta` ya lo resuelven solos:
