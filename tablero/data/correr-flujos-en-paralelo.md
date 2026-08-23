@@ -150,6 +150,33 @@ después con otro mensaje y en otro componente. Ya corta ahí. **Lo que queda si
 qué el pagaré no estaba visible en ese momento: los casos que fallaron **sí tenían pagaré en la base**
 al revisarlos después. La hipótesis es que la generación no había terminado, pero **no está medido**.
 
+## Paralelo Y secuencial: `pasos`, el cliente que vuelve
+
+El modelo es **paralelo entre clientes, secuencial dentro de un cliente**. Un `caso` es una persona;
+sus `pasos` son sus solicitudes en orden. Los casos siguen corriendo todos a la vez.
+
+    { "nombre": "cierra y vuelve a pedir", "comercio": "motai",
+      "pasos": [
+        { "lender": 169, "espera": { "cierra": true, "estado": 11 } },
+        { "lender": null, "espera": { "noEntidades": [169] } }
+      ] }
+
+Sale casi gratis porque **el teléfono y la cédula se derivan del índice del caso, no de la solicitud**:
+correr el mismo índice dos veces es, para el backend, la misma persona pidiendo de nuevo.
+
+Y la expectativa `noEntidades` existe justo para esto: afirmar que una entidad **desapareció** del
+listado. Es la forma declarada de lo que descubrimos por accidente con los teléfonos sucios —**un
+crédito activo bloquea el cupo rt=2, y el corte es por entidad**—.
+
+⚠ **PERO HOY EL SEGUNDO PASO FALLA, y la razón importa.** El runner arranca cada caso por el
+onboarding completo, y en la segunda vuelta el backend responde *«El correo electrónico ya se
+encuentra registrado»*. **No es un bug del harness**: es que un cliente que vuelve **no se registra de
+nuevo** — entra con su teléfono ya conocido y abre una solicitud sobre el usuario que existe.
+
+O sea que falta **el camino del cliente RECURRENTE**, que hoy este runner no sabe recorrer. El motor de
+pasos quedó porque es correcto y el modelo es el que hace falta; lo que falta es un arranque que sepa
+entrar sin registrar. **Hasta entonces, `pasos` corre el primer paso y se cae en el segundo.**
+
 ## Tarea (publicable)
 
 **En una línea.** Poder ejercitar varios flujos de comercios distintos a la vez, para comparar qué le

@@ -279,11 +279,14 @@ type Espera = {
     cierra?: boolean;         // ¿la solicitud llegó a cerrar?
     estado?: number;          // estado final exacto (11 autorizada, 28 pendiente desembolso, …)
     entidades?: number[];     // estas entidades TIENEN que estar en el listado (subconjunto, no igualdad)
+    noEntidades?: number[];   // estas entidades NO pueden estar — para «ya tiene un crédito acá»
 };
 
 type Caso = {
     comercio: string; lender: number | null;
     nombre?: string; espera?: Espera;
+    /** Solicitudes SUCESIVAS del mismo cliente. Ver `correrPasos`. */
+    pasos?: Array<{ nombre?: string; lender?: number | null; amount?: number; espera?: Espera }>;
     amount?: number; income?: number; score?: number;
     // qué debe contestar cada integración PARA ESTE CASO: `pullman@meddipay=rechaza`
     escenarios?: Record<string, string>;
@@ -347,11 +350,15 @@ async function cargarSuite(ruta: string, dflt: { amount: number; income: number;
     const base = { ...dflt, ...(json.porDefecto ?? {}) };
     return json.casos.map((c: any, i: number) => {
         if (!c?.comercio) throw new Error(`caso ${i} de la suite: falta \`comercio\``);
+        if (Array.isArray(c.pasos) && c.pasos.length === 0) {
+            throw new Error(`caso ${i} de la suite: \`pasos\` está vacío — un cliente sin solicitudes no prueba nada`);
+        }
         return {
             comercio: String(c.comercio),
             lender: c.lender == null ? null : Number(c.lender),
             nombre: c.nombre ? String(c.nombre) : undefined,
             espera: c.espera,
+            pasos: Array.isArray(c.pasos) ? c.pasos : undefined,
             escenarios: c.escenarios,
             amount: Number(c.amount ?? base.amount),
             income: Number(c.income ?? base.income),
@@ -826,6 +833,18 @@ function verificarEsperas(res: Res[]): string[] {
             }
         }
 
+        if (e.noEntidades?.length) {
+            if (r.listado === undefined) {
+                out.push(`${quien}: espera entidades AUSENTES y el listado ni se obtuvo`);
+            } else {
+                const colados = e.noEntidades.filter((x) => r.listado!.includes(x));
+                if (colados.length) {
+                    out.push(`${quien}: no debían estar [${colados.join(', ')}] y aparecieron`
+                        + ` — vino [${r.listado.join(', ')}]`);
+                }
+            }
+        }
+
         if (e.cierra !== undefined || e.estado !== undefined) {
             if (!r.cierre) {
                 out.push(`${quien}: declara algo del cierre pero la corrida no cerró nada`
@@ -841,6 +860,53 @@ function verificarEsperas(res: Res[]): string[] {
                 }
             }
         }
+    }
+    return out;
+}
+
+/** PASOS: varias solicitudes SUCESIVAS del MISMO cliente.
+ *
+ *  POR QUÉ. El caso más interesante que este harness no podía expresar es el cliente que **vuelve**:
+ *  ya tiene un crédito y pide otro. Y no es hipotético — es lo que descubrimos por accidente cuando el
+ *  runner reciclaba teléfonos: **un crédito activo bloquea el cupo rt=2, y el corte es por entidad**,
+ *  así que la segunda solicitud del mismo cliente ve un listado distinto. Eso se leía como una regla
+ *  de negocio rara; declarado como pasos, es una afirmación que se verifica sola.
+ *
+ *  EL MODELO: **paralelo entre clientes, secuencial dentro de un cliente.** Un `caso` es una persona;
+ *  sus `pasos` son sus solicitudes en orden. Los casos siguen corriendo todos a la vez.
+ *
+ *  Cómo funciona, y por qué es tan poco código: el teléfono y la cédula se derivan del ÍNDICE del
+ *  caso, no de la solicitud. Correr el mismo índice dos veces es, para el backend, la misma persona
+ *  pidiendo de nuevo — que es exactamente lo que se quiere simular.
+ *
+ *  ⚠ Los pasos NO se paralelizan entre sí, y no es una limitación: el segundo paso sólo significa algo
+ *  si el primero YA terminó. Paralelizarlos probaría una carrera, no un cliente recurrente.
+ *
+ *  ⚠⚠ INCOMPLETO — LEER ANTES DE USAR. Hoy el segundo paso **falla**, y por una razón que vale la pena:
+ *  este runner arranca cada caso por el ONBOARDING completo (registro de teléfono → OTP →
+ *  `personal-info`), y en la segunda vuelta el backend responde *«El correo electrónico ya se
+ *  encuentra registrado»*. No es un bug del harness: es que **un cliente que vuelve no se registra de
+ *  nuevo** — entra por otro camino, con su teléfono ya conocido, y arranca una solicitud sobre el
+ *  usuario que ya existe.
+ *
+ *  O sea que falta la mitad que de verdad importa: **el camino del cliente RECURRENTE**. Mientras no
+ *  esté, `pasos` corre el primer paso bien y el segundo se cae en el registro. Se deja el motor porque
+ *  es correcto y porque el modelo —paralelo entre clientes, secuencial adentro— es el que hace falta;
+ *  lo que falta es un `correr` que sepa entrar sin registrar. */
+async function correrPasos(c: Caso, i: number): Promise<Res[]> {
+    const out: Res[] = [];
+    for (let k = 0; k < c.pasos!.length; k++) {
+        const paso = c.pasos![k];
+        const nombreBase = c.nombre ?? c.comercio;
+        const sub: Caso = {
+            ...c,
+            pasos: undefined,
+            nombre: `${nombreBase} · paso ${k + 1}${paso.nombre ? ` (${paso.nombre})` : ''}`,
+            lender: paso.lender === undefined ? c.lender : paso.lender,
+            amount: paso.amount ?? c.amount,
+            espera: paso.espera,
+        };
+        out.push(await correr(sub, i));
     }
     return out;
 }
@@ -934,14 +1000,18 @@ async function main(): Promise<number> {
     }
 
     const t0 = Date.now();
+    // Un caso con `pasos` devuelve VARIOS resultados; uno normal, uno. Se aplana para que el resto del
+    // reporte —y el verificador— no tengan que saber de la diferencia.
+    const unCaso = (c: Caso, i: number): Promise<Res[]> =>
+        (c.pasos?.length ? correrPasos(c, i) : correr(c, i).then((r) => [r]))
+            .catch((e) => [{ caso: c, ok: false, phone: telefono(i), detalle: String(e).slice(0, 90) } as Res]);
+
     const res = par
-        ? await Promise.all(casos.map((c, i) => correr(c, i).catch((e) => (
-            { caso: c, ok: false, phone: telefono(i), detalle: String(e).slice(0, 90) } as Res))))
+        ? (await Promise.all(casos.map((c, i) => unCaso(c, i)))).flat()
         : await (async () => {
             const out: Res[] = [];
             for (let i = 0; i < casos.length; i++) {
-                out.push(await correr(casos[i], i).catch((e) => (
-                    { caso: casos[i], ok: false, phone: telefono(i), detalle: String(e).slice(0, 90) } as Res)));
+                out.push(...await unCaso(casos[i], i));
             }
             return out;
         })();
