@@ -126,8 +126,12 @@ const claveDeProducto = (rt: number, id: number, slug: string) =>
  *  ⚠ Si el comercio NO tiene una entidad rt=2, esto NO es un fallo: es un hecho del comercio. Se
  *  reporta «sin CreditopX» y el caso cierra bien. Contarlo como error haría que la mitad del catálogo
  *  se viera rota. */
+/** ⚠ EL NÚMERO DE CUOTAS NO ES LIBRE: cada entidad acepta los suyos, y pedir uno que no ofrece corta
+ *  el cierre con `CP050` («error durante el cálculo del plan de pagos») — un mensaje que no menciona
+ *  las cuotas por ningún lado. Medido en producción: Credifamilia va en 24, 36, 48, 12, 6, 18 y 9 —
+ *  **nunca en 4**, que es el default histórico de este runner. Se pasa por caso: `@cuotas=24`. */
 async function cerrarCreditopX(arr: any[], ur: number, tel: string, amount: number,
-                               post: any, get: any, pedido: number | null = null) {
+                               post: any, get: any, pedido: number | null = null, cuotas = 4) {
     // Si el caso pidió una entidad concreta (`#hash:173`), se cierra por ÉSA. Sin pedido, el primer
     // rt=2 — que con varios CreditopX en el mismo comercio es arbitrario y llevaría a cerrar por otro.
     const ctopx = pedido
@@ -137,7 +141,7 @@ async function cerrarCreditopX(arr: any[], ur: number, tel: string, amount: numb
     if (!ctopx) return { cerro: false, motivo: 'sin CreditopX', estado: null as number | null };
 
     const sel = await post(`/api/onboarding/loan-application/update-user-request/${ur}`, {
-        lender_id: Number(ctopx.id), fee_number: 4, original_amount: amount, amount,
+        lender_id: Number(ctopx.id), fee_number: cuotas, original_amount: amount, amount,
         initial_fee: 0, rate: '0', transaction_data: null });
     // `standBy` es la marca de in-platform: sin eso el flujo se va por otro lado y el cierre no aplica
     if (!sel.json?.data?.standBy) {
@@ -325,6 +329,8 @@ type Caso = {
     nombre?: string; espera?: Espera;
     /** `Empleado` (default) | `Independiente`. Se DEDUCE del buró, no se inyecta — ver `respuestaAgildata`. */
     ocupacion?: string;
+    /** Cuántas cuotas pedir. ⚠ NO todas las entidades aceptan cualquier número — ver `cerrarCreditopX`. */
+    cuotas?: number;
     /** Este caso es una vuelta POSTERIOR del mismo cliente: ya está registrado. Ver `correrPasos`. */
     recurrente?: boolean;
     /** Solicitudes SUCESIVAS del mismo cliente. Ver `correrPasos`. */
@@ -348,6 +354,7 @@ function parseCaso(spec: string, dflt: { amount: number; income: number; score: 
         const [k, v] = kv.split('=');
         if (k === 'amount' || k === 'income' || k === 'score') { c[k] = Number(v); continue; }
         if (k === 'ocupacion') { c.ocupacion = v; continue; }
+        if (k === 'cuotas') { c.cuotas = Number(v); continue; }
         // cualquier otra clave es el ESCENARIO de una entidad: `pullman@meddipay=rechaza`.
         // Se dicta al mock de integraciones POR CÉDULA, así que dos casos en paralelo pueden pedir
         // cosas distintas de la misma entidad sin pisarse.
@@ -402,6 +409,7 @@ async function cargarSuite(ruta: string, dflt: { amount: number; income: number;
             nombre: c.nombre ? String(c.nombre) : undefined,
             espera: c.espera,
             ocupacion: c.ocupacion ? String(c.ocupacion) : undefined,
+            cuotas: c.cuotas ? Number(c.cuotas) : undefined,
             pasos: Array.isArray(c.pasos) ? c.pasos : undefined,
             escenarios: c.escenarios,
             amount: Number(c.amount ?? base.amount),
@@ -866,7 +874,7 @@ async function correrLambdaMotor(c: Caso, i: number): Promise<Res> {
 
     let cierre = '';
     if (flag('cerrar')) {
-        const r = await cerrarCreditopX(arr, ur, tel, c.amount!, post, get, c.lender);
+        const r = await cerrarCreditopX(arr, ur, tel, c.amount!, post, get, c.lender, c.cuotas ?? 4);
         base.cierre = r;
         cierre = r.cerro ? ` · CERRÓ en estado ${r.estado} (${r.motivo})`
                          : ` · NO cerró: ${r.motivo}${r.estado ? ` (quedó en estado ${r.estado})` : ''}`;
