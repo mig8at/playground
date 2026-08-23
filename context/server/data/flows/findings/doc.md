@@ -2695,6 +2695,13 @@ en producción — el webhook no deja registro cuando `firstOrFail()` lanza, as�
   framework o de un `commit` mal puesto.
 - **Reproducido el 2026-08-23 en local:** la misma suite de tres casos cierra **3/3 en serie** y
   **1/3 en paralelo**. No es aleatorio: es concurrencia.
+- **⚠ Y el borde es más angosto de lo que parece — se midió:** lo que choca son **dos autorizaciones
+  de la MISMA entidad rt=4**, no el paralelo en general. `pullman + motai + una Credifamilia` cierra
+  **3/3 en estado 11**; agregándole una **segunda** Credifamilia, esa segunda es la única que cae —las
+  otras tres siguen cerrando—. Tiene sentido con la causa: el lock está en `netco_signing_documents`, y
+  **sólo rt=4 firma con Netco**. Los rt=2 no tocan esa tabla, así que no compiten.
+- **Regla práctica mientras no se arregle:** en una corrida paralela, **una sola solicitud de
+  Credifamilia a la vez**; el resto de los comercios y entidades pueden ir en paralelo sin problema.
 - **Lo que en realidad pasa, y son tres capas de enmascaramiento encadenadas:**
   1. **`LoanAuthorizationService` abre `DB::beginTransaction()` y llama a `generateAllDocuments()`
      dentro.** Ahí adentro se firman los seis documentos, y firmar significa **una llamada HTTP a Netco

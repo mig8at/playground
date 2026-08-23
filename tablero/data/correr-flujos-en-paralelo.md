@@ -297,6 +297,15 @@ y el mensaje final lo reemplaza por el de la transacción — **tres capas y nin
 tapa es el volumen, no el diseño. Es el primero de los topes del paralelo que **no** es del entorno
 local: es del producto.
 
+**El borde exacto, medido:** lo que choca son **dos rt=4 a la vez**, no el paralelo en general —el lock
+está en `netco_signing_documents` y sólo Credifamilia firma con Netco—.
+
+    pullman + motai + UNA credifamilia   → 3/3 en estado 11
+    ...más una SEGUNDA credifamilia      → cae sólo esa; las otras tres cierran igual
+
+O sea que **la mezcla de comercios sigue siendo libre**: el único cupo es una solicitud de Credifamilia
+por corrida paralela.
+
 ## Tarea (publicable)
 
 **En una línea.** Poder ejercitar varios flujos de comercios distintos a la vez, para comparar qué le
