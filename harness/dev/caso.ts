@@ -359,12 +359,37 @@ const telefonoDe = (i: number) => `31${String(BASE_DOC).slice(-6)}${String(i % 1
  *    · el OTP de la FIRMA DEL PAGARÉ va por `Modules/Loans/App/Services/OtpService.php:47`, que
  *      honra `qa_otp_bypass_phones` → un teléfono fuera de esa lista hace que `authorize` responda
  *      422 «No se encontró un OTP validado para esta solicitud» y la solicitud quede en estado 10.
- *  Se toma por ÍNDICE, sin buscar ni reservar: cada caso tiene el suyo y no hay carrera posible. */
+ *  Se toma por ÍNDICE, sin buscar ni reservar: cada caso tiene el suyo y no hay carrera posible.
+ *
+ *  ⚠ PERO NO CUALQUIERA DE LA LISTA SIRVE, y el modo de falla no se parece a la causa. Un teléfono
+ *  cuyo usuario ya tiene un crédito en estado 11 arrastra ese crédito al caso nuevo, y **el cupo rt=2
+ *  se bloquea por entidad**: el listado devuelve las rt=1 y ninguna CreditopX. El runner reportaba
+ *  entonces «la entidad 169 no salió en el listado», que se lee como una regla de negocio y es un
+ *  teléfono sucio. Medido el 2026-08-22 en el dump local: de los teléfonos de la lista, **todos**
+ *  tienen usuario —así que exigir «sin usuario» no deja ninguno— pero la gran mayoría **no** tiene
+ *  crédito activo, que es la condición que de verdad importa.
+ *
+ *  Por eso el filtro es «sin crédito en estado 11», no «sin usuario»: se hace en SQL, ordenado, y el
+ *  índice del caso sigue eligiendo dentro de esa lista — así se conserva que no haya carrera. */
 async function telefonoParaCerrar(i: number): Promise<string | null> {
     const row = await one<{ value: string }>(
         "SELECT value FROM settings WHERE `key`='qa_otp_bypass_phones'").catch(() => null);
     const tels: string[] = JSON.parse(row?.value ?? '[]').map(String);
-    return tels.length ? tels[i % tels.length] : null;
+    if (!tels.length) return null;
+
+    const sucios = await query<{ tel: string }>(
+        `SELECT u.cell_phone AS tel FROM users u
+          WHERE u.cell_phone IN (${tels.map(() => '?').join(',')})
+            AND EXISTS (SELECT 1 FROM user_requests r
+                         WHERE r.user_id = u.id AND r.user_request_status_id = 11)`,
+        tels).catch(() => [] as { tel: string }[]);
+
+    const sucio = new Set(sucios.map((x) => String(x.tel)));
+    const limpios = tels.filter((t) => !sucio.has(t));
+    // Sin ninguno limpio se usa la lista entera: es mejor correr y que el listado salga corto —con el
+    // aviso de arriba para interpretarlo— que no correr.
+    const pool = limpios.length ? limpios : tels;
+    return pool[i % pool.length];
 }
 
 /** Le dicta a la lambda qué contesta cada central PARA ESA CÉDULA. Es el paso que vuelve el caso
@@ -587,6 +612,13 @@ async function correrLambda(c: Caso, i: number): Promise<Res> {
         base.preaprobados = await Promise.all(elegibles.map((l) =>
             preAprobar(l, ur, uid, br.allied, br.hash, c.amount!, c.escenarios?.preaprobado)));
     }
+
+    // ⚠ El camino con lambda NO calculaba esto y el reporte decía SIEMPRE «la pedida NO estaba»,
+    // incluso cuando la entidad estaba en el listado impreso dos palabras antes. Un runner que se
+    // contradice a sí mismo en la misma línea es peor que uno que calla: manda a buscar una causa de
+    // negocio para un bug del reporte. (El otro camino sí lo calculaba — quedaron dos implementaciones
+    // y sólo una completa.)
+    if (c.lender !== null) base.enListado = base.listado!.includes(c.lender);
 
     let cierre = '';
     if (flag('cerrar')) {
