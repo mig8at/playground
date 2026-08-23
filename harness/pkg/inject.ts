@@ -210,6 +210,12 @@ async function injectDatacredito(userID: number, income: number, score: number, 
 }
 
 export interface SynthFillOpts {
+    /** A QUÉ USUARIO inyectarle, si NO es el dueño de la solicitud.
+     *
+     *  Existe por el CODEUDOR: comparte la `user_request` del titular, así que derivar el usuario de
+     *  la solicitud —lo que se hace por defecto— le inyectaría los datos al titular y dejaría al
+     *  codeudor sin buró. Y sin buró su elegibilidad no evalúa: falla LEYENDO, no decidiendo (F-153). */
+    userId?: number;
     lender?: string; income?: number; score?: number; name?: string;
     documentType?: string;   // 'CC' | 'CE' | 'PEP' — PEP (Permiso Especial de Permanencia) = migrante SIN buró
     document?: string;       // cédula; default = auto (2.9B + ur)
@@ -237,7 +243,9 @@ export async function synthFill(uReqID: number, opts: SynthFillOpts = {}): Promi
 
     // Los dos SELECT de contexto son independientes → en paralelo (round-trips remotos, ver injectIncomeFields).
     const [userID, branchHash] = await Promise.all([
-        scalar<number>('SELECT user_id FROM user_requests WHERE id = ?', [uReqID]).then((v) => v ?? 0),
+        opts.userId
+            ? Promise.resolve(opts.userId)
+            : scalar<number>('SELECT user_id FROM user_requests WHERE id = ?', [uReqID]).then((v) => v ?? 0),
         scalar<string>(
             `SELECT COALESCE(ab.hash,'') AS h FROM user_requests ur JOIN allied_branches ab ON ab.id = ur.allied_branch_id WHERE ur.id = ? LIMIT 1`,
             [uReqID],

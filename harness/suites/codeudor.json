@@ -1,0 +1,17 @@
+{
+  "nombre": "Rent to Own · el crédito con codeudor — ES LA REGRESIÓN DE F-150, hoy FALLA a propósito",
+  "requiere": ["cerrar", "lambda"],
+  "porDefecto": { "amount": 2000000, "income": 2500000, "score": 700 },
+  "casos": [
+    {
+      "nombre": "el codeudor llega a etapa de firma (esto SÍ pasa)",
+      "comercio": "motai", "lender": 173,
+      "espera": { "enListado": true }
+    },
+    {
+      "nombre": "y las dos firmas cierran en 11 (esto FALLA hasta que se arregle F-150)",
+      "comercio": "motai", "lender": 173,
+      "espera": { "cierra": true, "estado": 11 }
+    }
+  ]
+}

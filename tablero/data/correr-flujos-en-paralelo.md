@@ -194,6 +194,31 @@ reinicia → la entidad deja de ofrecerse— no se ve en ninguna parte del códi
 degrada es el ambiente de pruebas. Si una entidad «deja de aparecer» después de una tanda de cierres,
 mirá `already_used_loan` antes de buscar una regla.
 
+## El codeudor, automatizado — y por qué su suite falla a propósito
+
+El sub-flujo del codeudor era **lo último de rt=2 que pedía manos**: ocho endpoints, dos actores y un
+token que no viaja por la respuesta. Ya está en el runner y se dispara solo cuando la política de la
+categoría lo exige — se pregunta a la BD, no se deduce del estado (arrancar el flujo «para ver» mandaría
+al estado 17 una solicitud que no lo necesita).
+
+**El orden no es negociable:** el codeudor tiene que quedar aprobado y en etapa de firma **antes** de que
+el titular firme, porque el juego de documentos depende de la política.
+
+⚠ **Dos cosas que sólo pasan en local, y por eso están en el runner y no en el producto:**
+- **El token de invitación no vuelve en la respuesta** — viaja por WhatsApp, que en local no sale. Se
+  lee de la tabla.
+- **El AML no corre para nadie en local** (cero filas en toda la base), y sin esa fila la elegibilidad
+  devuelve `evaluated: false` **para siempre**. Se forja, cifrada como el cast de Laravel.
+
+Y el buró del codeudor se inyecta **apuntando a su usuario**, no derivándolo de la solicitud: comparte
+la `user_request` del titular, así que sin eso los datos irían al titular y el codeudor quedaría sin
+buró — fallando al **leer** en vez de al decidir (F-153).
+
+**Medido:** el codeudor queda `approved` y en `waiting_applicant_signature` sin intervención. **Lo que
+falla es la firma del titular, con HTTP 500 en la generación de documentos: eso es F-150**, el builder
+elegido por id quemado. La suite `codeudor.json` **es su prueba de regresión** — falla hoy a propósito y
+va a pasar sola el día que se arregle. Antes había que reproducirlo a mano; ahora tarda 12 segundos.
+
 ## Tarea (publicable)
 
 **En una línea.** Poder ejercitar varios flujos de comercios distintos a la vez, para comparar qué le

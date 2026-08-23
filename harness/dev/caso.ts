@@ -80,6 +80,8 @@ process.env.CFE_TARGET ||= 'local';
 const { one, query, exec, close } = await import('../pkg/db.ts');
 const { synthFill } = await import('../pkg/inject.ts');
 const { config: e2eConfig } = await import('../pkg/config.ts');
+const { appKey } = await import('../pkg/db.ts');
+const { encryptLaravelString } = await import('../pkg/laravel-crypt.ts');
 
 const API = e2eConfig.mockUrl;
 const UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_5 like Mac OS X) AppleWebKit/605.1.15 '
@@ -145,6 +147,25 @@ async function cerrarCreditopX(arr: any[], ur: number, tel: string, amount: numb
     await get(`/api/loans/requests/${ur}`);
     await post('/api/loans/requests/confirm', { user_request_id: ur });
 
+    // ¿ESTA SOLICITUD EXIGE CODEUDOR? Lo decide la POLÍTICA de la categoría en la que cayó el usuario,
+    // no que exista un codeudor. Se pregunta a la BD en vez de deducirlo del estado porque el estado
+    // recién se mueve cuando el flujo arranca — y arrancarlo «para ver» sobre una solicitud que no lo
+    // necesita la mandaría al estado 17 sin motivo.
+    const pol = await one<{ rc: number; hash: string }>(
+        `SELECT c.requires_cosigner rc, ab.hash
+           FROM user_requests r
+           JOIN allied_branches ab ON ab.id = r.allied_branch_id
+           JOIN users_category_log g ON g.user_id = r.user_id AND g.lender_id = r.lender_id
+           JOIN lender_users_categories c ON c.id = g.lender_users_category_id
+          WHERE r.id = ? ORDER BY g.id DESC LIMIT 1`, [ur]).catch(() => null);
+
+    let tokenCodeudor: string | undefined;
+    if (pol?.rc) {
+        const cod = await resolverCodeudor(ur, pol.hash, tel, amount, post, get);
+        if (!cod.ok) return { cerro: false, motivo: `${ctopx.name}: ${cod.motivo}`, estado: null };
+        tokenCodeudor = cod.token;
+    }
+
     const dates = await get(`${PN}/${ur}/select-payment-date`);
     const dOpts = dates.json?.data?.nextPaymentDates ?? dates.json?.data?.dates ?? [];
     const firstDate = Array.isArray(dOpts) ? (dOpts[0]?.date ?? dOpts[0]) : null;
@@ -201,6 +222,18 @@ async function cerrarCreditopX(arr: any[], ur: number, tel: string, amount: numb
         aut = await post(`/api/loans/requests/device/${ur}/disburse`, { user_request_id: ur });
     } else {
         aut = await post('/api/loans/requests/promissory-note/validate/authorize', { user_request_id: ur });
+    }
+
+    // EL CIERRE DE VERDAD CUANDO HAY CODEUDOR. `authorize` no autoriza: difiere (HTTP 200 con
+    // `deferred_for_cosigner`), y la solicitud queda esperando la segunda firma. Leer sólo el 200 acá
+    // es exactamente la trampa que el nodo `codeudor` documenta.
+    if (tokenCodeudor && aut.json?.data?.deferred_for_cosigner) {
+        const f = await firmaDelCodeudor(tokenCodeudor, post, get);
+        if (!f.ok) {
+            const e = await one<{ e: number }>('SELECT user_request_status_id e FROM user_requests WHERE id=?', [ur])
+                .catch(() => null);
+            return { cerro: false, motivo: `${ctopx.name}: ${f.motivo}`, estado: e?.e ?? null };
+        }
     }
 
     const fin = await one<{ e: number }>(
@@ -640,15 +673,16 @@ async function correrLambda(c: Caso, i: number): Promise<Res> {
     if (!dictados.has(doc)) return { ...base, detalle: 'la respuesta del buró no quedó dictada' };
 
     const H = { 'content-type': 'application/json', accept: 'application/json', 'user-agent': UA };
-    const get = async (ruta: string) => {
-        const r = await fetch(`${API}${ruta}`, { headers: H, signal: AbortSignal.timeout(90_000) })
+    // `extra` existe para el CODEUDOR: su credencial es un header (`X-Cosigner-Token`), no una sesión.
+    const get = async (ruta: string, extra: Record<string, string> = {}) => {
+        const r = await fetch(`${API}${ruta}`, { headers: { ...H, ...extra }, signal: AbortSignal.timeout(90_000) })
             .catch((e) => e as Error);
         if (r instanceof Error) return { status: 0, json: {} as any };
         const t = await r.text();
         try { return { status: r.status, json: JSON.parse(t) }; } catch { return { status: r.status, json: {} as any }; }
     };
-    const post = async (ruta: string, body: unknown) => {
-        const r = await fetch(`${API}${ruta}`, { method: 'POST', headers: H,
+    const post = async (ruta: string, body: unknown, extra: Record<string, string> = {}) => {
+        const r = await fetch(`${API}${ruta}`, { method: 'POST', headers: { ...H, ...extra },
             body: JSON.stringify(body), signal: AbortSignal.timeout(150_000) }).catch((e) => e as Error);
         if (r instanceof Error) return { status: 0, json: { message: String(r.message).slice(0, 120) } };
         const t = await r.text();
@@ -876,6 +910,121 @@ function verificarEsperas(res: Res[]): string[] {
         }
     }
     return out;
+}
+
+/** EL SUB-FLUJO DEL CODEUDOR, de punta a punta.
+ *
+ *  POR QUÉ ESTÁ ACÁ Y NO SE HACE A MANO. Es el camino más frágil de rt=2 —de acá salieron F-150, F-151
+ *  y F-153— y hasta hoy era el único que pedía manos: ocho endpoints, dos actores y un token que no
+ *  viaja por la respuesta. Un camino que sólo se prueba a mano se prueba una vez.
+ *
+ *  EL ORDEN NO ES NEGOCIABLE: el codeudor tiene que quedar `approved` y en etapa de firma ANTES de que
+ *  el titular firme, porque el juego de documentos que se genera depende de la política. Firmar primero
+ *  y registrar después produce documentos de la rama equivocada.
+ *
+ *  DOS COSAS QUE SÓLO PASAN EN LOCAL, y por eso están acá y no en el producto:
+ *   · **El token de invitación no vuelve en la respuesta** — viaja por WhatsApp, que en local no sale
+ *     (`invitationSent: false`). Se lee de `cosigners.invitation_token`.
+ *   · **El AML no corre para nadie en local** (cero filas de `TusDatos - AML` en toda la base), y sin
+ *     esa fila `evaluate-eligibility` devuelve `evaluated: false` para siempre. Se forja igual que en
+ *     `dev/inyectar-aml.ts`; el `data` va CIFRADO como el cast de Laravel o el backend no lo lee.
+ *
+ *  ⚠ Y el buró del codeudor se inyecta con `userId`, no derivándolo de la solicitud: **comparte la
+ *  `user_request` del titular**, así que sin eso los datos irían al titular y el codeudor quedaría sin
+ *  buró — con su elegibilidad fallando al LEER en vez de al decidir (F-153). */
+async function resolverCodeudor(
+    ur: number, hash: string, telTitular: string, amount: number, post: any, get: any,
+): Promise<{ ok: boolean; motivo: string; token?: string; tel?: string }> {
+
+    const tel = `${telTitular.slice(0, -2)}99`;          // derivado del titular: distinto y reproducible
+    const doc = String(2_900_000_000 + ur);
+
+    const ini = await post(`/api/v1/user-request/${ur}/cosigner-flow/start`, {});
+    if (ini.status !== 200) return { ok: false, motivo: `cosigner-flow/start HTTP ${ini.status}` };
+
+    const reg = await post(`/api/v1/user-request/${ur}/cosigner`, { cellPhone: tel });
+    if (reg.status !== 200) return { ok: false, motivo: `registrar codeudor HTTP ${reg.status}` };
+
+    const fila = await one<{ t: string }>(
+        'SELECT invitation_token t FROM cosigners WHERE user_request_id=? AND is_active=1 ORDER BY id DESC LIMIT 1',
+        [ur]).catch(() => null);
+    if (!fila?.t) return { ok: false, motivo: 'el codeudor no quedó con token de invitación' };
+    const token = fila.t;
+
+    // A partir de acá TODO va con el token: es la credencial del codeudor, no hay sesión.
+    const conToken = (extra: Record<string, string> = {}) => ({ 'X-Cosigner-Token': token, ...extra });
+
+    const inv = await get(`/api/v1/user-request/cosigner/invitation/${token}`, conToken());
+    if (inv.status !== 200) return { ok: false, motivo: `el token de invitación no resolvió (HTTP ${inv.status})` };
+
+    await post('/api/onboarding/phone/register', {
+        phone_number: tel, phoneNumber: tel, terms: true, policies: true,
+        otp_length: 4, otpLength: 4, partner_branch_hash: hash, partnerBranchHash: hash }, conToken());
+
+    // ⚠ Esto NO crea una solicitud nueva: con el token, el backend devuelve la del TITULAR. Es la
+    // señal de que el codeudor se está uniendo y no abriendo su propio crédito.
+    const otp = await post(`/api/onboarding/loan-application/otp-validate/${hash}`, {
+        cell_phone: tel, otp_code: tel.slice(-4), original_amount: amount, amount }, conToken());
+    const urCod = otp.json?.errors?.payload?.user_request_id ?? otp.json?.data?.payload?.user_request_id;
+    if (Number(urCod) !== ur) {
+        return { ok: false, motivo: `el codeudor abrió otra solicitud (${urCod ?? '—'}) en vez de unirse a ${ur}` };
+    }
+
+    const pi = await post(`/api/onboarding/loan-application/personal-info/${hash}/${ur}`, {
+        document_type: 'CC', document_number: doc, name: 'ANA', surname: 'GOMEZ',
+        email: `qa${doc}@gmail.com`,
+        expedition_day: 10, expedition_month: 5, expedition_year: 2019,
+        birth_day: 10, birth_month: 5, birth_year: 2001 }, conToken());
+    if (pi.json?.success !== true) {
+        return { ok: false, motivo: `personal-info del codeudor: ${String(pi.json?.message ?? '').slice(0, 60)}` };
+    }
+
+    const uid = await one<{ u: number }>(
+        'SELECT cosigner_user_id u FROM cosigners WHERE user_request_id=? AND is_active=1', [ur]).catch(() => null);
+    if (!uid?.u) return { ok: false, motivo: 'el codeudor no quedó linkeado a un usuario' };
+
+    // Las dos inyecciones que local exige (ver la cabecera).
+    const rc = await one<{ id: number }>("SELECT id FROM risk_centrals WHERE name='TusDatos - AML' LIMIT 1").catch(() => null);
+    if (rc) {
+        await exec('DELETE FROM risk_central_user_data WHERE user_id=? AND risk_central_id=?', [uid.u, rc.id]);
+        await exec('INSERT INTO risk_central_user_data (uuid, user_id, risk_central_id, score, data, created_at, updated_at) '
+            + 'VALUES (UUID(), ?, ?, 0, ?, NOW(), NOW())',
+            [uid.u, rc.id, encryptLaravelString(JSON.stringify({ estado: 'finalizado', hallazgos: [] }), appKey())]);
+    }
+    await synthFill(ur, { userId: uid.u, income: 4_000_000, score: 780 });
+
+    const ele = await post(`/api/v1/user-request/${ur}/cosigner/evaluate-eligibility`, {}, conToken());
+    const est = ele.json?.data ?? {};
+    if (est.cosignerStatus !== 'approved') {
+        return { ok: false, motivo: `el codeudor quedó ${est.cosignerStatus ?? '—'}`
+            + (est.evaluated === false ? ' y NO se evaluó (¿le falta AML o identidad?)' : '') };
+    }
+
+    const etapa = await post(`/api/v1/user-request/${ur}/cosigner/enter-signature-stage`, {}, conToken());
+    if (etapa.status !== 200) return { ok: false, motivo: `enter-signature-stage HTTP ${etapa.status}` };
+
+    return { ok: true, motivo: 'codeudor aprobado y en etapa de firma', token, tel };
+}
+
+/** La firma del codeudor, DESPUÉS de la del titular. Cierra el crédito de verdad. */
+async function firmaDelCodeudor(token: string, post: any, get: any): Promise<{ ok: boolean; motivo: string }> {
+    const conToken = { 'X-Cosigner-Token': token };
+    const V = '/api/v1/user-request/cosigner/signature';
+
+    await get(`${V}/context`, conToken);
+    await get(`${V}/documents`, conToken);
+
+    const env = await post(`${V}/otp`, {}, conToken);
+    if (env.status !== 200) {
+        return { ok: false, motivo: `el OTP de firma del codeudor falló (${env.json?.code ?? env.status})`
+            + ' — si es URV25003, mirá `OTP_SERVICE_HOST` (F-151)' };
+    }
+    // ⚠ El campo se llama `otp`, no `code`: con `code` responde URV27002 «datos de entrada».
+    const ver = await post(`${V}/otp/verify`, { otp: '123456' }, conToken);
+    if (ver.json?.code !== 'URV27000') {
+        return { ok: false, motivo: `verify del codeudor: ${ver.json?.code ?? ver.status} ${String(ver.json?.message ?? '').slice(0, 50)}` };
+    }
+    return { ok: true, motivo: `firmado · ${ver.json?.data?.cosignerStatus ?? ''}` };
 }
 
 /** PASOS: varias solicitudes SUCESIVAS del MISMO cliente.
