@@ -118,6 +118,9 @@ orden de archivo — el ancla `### F-xx` es la única dirección.)
 | **«el código de compra se reutilizó y no se bloqueó»** | **F-171** |
 | **«Undefined variable $transaction»** | **F-171** |
 | **«el webhook de rt=0 da 404 y el pedido existe»** | **F-171** |
+| **«Attempt to assign property "already_used_loan" on null»** | **F-172** |
+| **«firmó todo y el último paso dio 500»** | **F-172** · F-166 |
+| **«esta entidad rt=2 nunca cierra y las otras sí»** | **F-172** |
 | **«instrumenté el servicio y no imprime nada»** | **F-161** |
 | **«esta entidad no sale del listado y ninguna regla lo explica»** | **F-161** · F-113 |
 | **«en el wizard sí aparece pero por API no»** (o al revés) | **F-161** |
@@ -2885,6 +2888,12 @@ en producción — el webhook no deja registro cuando `firstOrFail()` lanza, as�
   `{lender_id, order_id, code_id, available_amount, purchase_amount, invoice_number, status}`. Lo
   domina **Addi** (3.529 de las 4.196); después PayJoy (224), Brilla (192), Sistecrédito (108). Mismo
   receptor real, misma técnica que el de rt=1 — sólo cambia el payload.
+
+  ⚠ **Pero NO toda la familia lo recibe, y la partición importa:** de las 20 entidades rt=0 con
+  solicitudes en 90 días, **sólo 3 tienen clase `action`** —y se llevan **13.471 de las 15.339
+  solicitudes (88 %)**—; las otras **17 tienen `action` en NULL**: son redirección pura, sin webhook.
+  Esas 17 igual acumulan **559 autorizadas**, así que cierran por otro camino que **no está
+  identificado** (probablemente a mano, desde el panel). Queda como pregunta abierta.
 - **⚠ Los ids de la familia Welli están QUEMADOS en el handler** (`whereIn('lender_id', [23,141,142,166])`)
   y en el runner. Una quinta variante dada de alta por configuración **no la encuentra el webhook**.
 - **Arreglo:** ninguno acá; es trabajo de la migración. Lo que este hallazgo aporta es **dónde mirar**,
@@ -2921,3 +2930,34 @@ en producción — el webhook no deja registro cuando `firstOrFail()` lanza, as�
   terminó proceso**.
 - **Arreglo:** los tres son de una línea cada uno, y los tres viven en `legacy-application`.
   **Estado:** vigente.
+
+### F-172 · Un lender rt=2 sin categorías revienta al AUTORIZAR — y hay 6 así, activos, en producción
+
+- **Síntoma:** el cliente recorre todo el flujo, firma, y en el último paso recibe
+  `HTTP 500 · Attempt to assign property "already_used_loan" on null`. La solicitud queda en **estado
+  28**. No hay nada en el mensaje que hable de configuración.
+- **Dónde:** `Modules/Loans/App/Services/CreditopXRequestHistoryService.php:421`
+
+      if ($userRequest->lender->response_type == 2) {
+          $category = $this->promotionsByLenderRepository->getUserCategory(...);
+          $category->already_used_loan += $userRequest->final_amount;   // ← sin guarda
+          $this->promotionsByLenderRepository->saveCategory($category);
+      }
+
+  `getUserCategory` devuelve **null** cuando la entidad no tiene ninguna categoría configurada, y el
+  `+=` lo asume presente.
+- **Qué lo dispara, medido el 2026-08-23:** una entidad **rt=2 con cero filas en
+  `lender_users_categories`**. Reproducido en local con **UOF credit** y **Osani X** (0 categorías,
+  revientan) contra **DHI X** (1) y **Motai C** (4), que cierran bien. La diferencia es exactamente esa.
+- **⚠ EN PRODUCCIÓN HAY SEIS ENTIDADES ASÍ, Y ESTÁN ACTIVAS.** Seis lenders rt=2 tienen cero categorías
+  **y al menos una sucursal habilitada**; **Osani X está en 6 sucursales**. No han disparado porque
+  ninguna registró tráfico en 90 días —de las 38 rt=2 con solicitudes, todas tienen categorías y hay
+  **cero** trabadas en 28—, pero **están ofrecibles**: alcanza con que un cliente elija una.
+- **Por qué importa más de lo que parece:** el crash NO es al listar ni al elegir, sino **al autorizar**
+  — o sea después de que el cliente completó datos, pasó el buró, aceptó condiciones y firmó. Es el peor
+  lugar posible para descubrir un dato de configuración faltante.
+- **Y el mensaje no ayuda:** «Attempt to assign property on null» manda a leer código. La causa es una
+  entidad dada de alta sin terminar de configurar, que es un problema de operación, no de desarrollo.
+- **Arreglo (propuesto, NO aplicado):** dos cosas — guardar el null como hacen los otros lugares que
+  leen categorías, y **no dejar habilitar una rt=2 sin al menos una categoría**, que es donde el error
+  se evita de verdad. **Estado:** vigente, y con seis entidades expuestas hoy.

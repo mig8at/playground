@@ -1540,8 +1540,17 @@ async function webhookSelfManager(ur: number, lender: number, estado: string): P
     if (!SELFMANAGER_TOKEN) {
         return { ok: false, detalle: 'falta SELFMANAGER_TOKEN (Sanctum con habilidad `selfManager`) — ver harness/CLAUDE.md' };
     }
-    const l = await one<{ s: string }>('SELECT slug s FROM lenders WHERE id=?', [lender]).catch(() => null);
+    const l = await one<{ s: string; a: string | null }>(
+        'SELECT slug s, action a FROM lenders WHERE id=?', [lender]).catch(() => null);
     if (!l?.s) return { ok: false, detalle: `la entidad ${lender} no tiene slug: el webhook busca por slug` };
+    // ⚠ LA MAYORÍA DE LOS rt=0 NO TIENEN INTEGRACIÓN. Medido en producción: de 20 entidades rt=0 con
+    // solicitudes en 90 días, sólo **3** tienen clase `action` —y se llevan el 88 % del volumen—; las
+    // otras 17 son redirección pura y **no reciben webhook**. Sin este aviso, pedirle `@webhook=` a una
+    // de ésas fallaba con un mensaje vacío, que se lee como que el webhook está roto.
+    if (!l.a) {
+        return { ok: false, detalle: `la entidad ${lender} no tiene clase de integración (\`action\` en NULL):`
+            + ' es redirección pura y NO recibe webhook. Sólo 3 de las rt=0 lo reciben (F-170)' };
+    }
 
     const orderId = `SYNTH-${ur}-${Date.now().toString(36)}`;
     const php = `
@@ -1555,7 +1564,7 @@ async function webhookSelfManager(ur: number, lender: number, estado: string): P
         echo 'listo';`;
     const prep = await new Promise<string>((res) => {
         execFile('php', ['artisan', 'tinker', '--execute', php], { cwd: APP_VIEJA_DIR, timeout: 60_000 },
-            (e, out) => res(e ? `ERROR ${String(e).slice(0, 90)}` : String(out)));
+            (e, out, err) => res(e ? `ERROR ${String(err || e).slice(0, 130)}` : String(out)));
     });
     if (!prep.includes('listo')) return { ok: false, detalle: `no se pudo preparar la transacción: ${prep.slice(0, 110)}` };
 
