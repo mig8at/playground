@@ -386,6 +386,9 @@ async function registrarBypass(tels: string[]): Promise<string | null> {
     if (!row) return null;                       // sin la fila no hay bypass que ampliar: se avisa arriba
     const original = row.value;
     const actuales: string[] = JSON.parse(original ?? '[]').map(String);
+    // Con el comodín puesto no hay nada que ampliar: cualquier teléfono pasa. Tocar la lista igual
+    // sería escribir en la BD sin motivo, y dejaría la corrida creyendo que hizo algo que no hizo.
+    if (actuales.includes('*')) return original;
     const faltan = tels.filter((t) => !actuales.includes(t));
     if (!faltan.length) return original;
     await exec("UPDATE settings SET value=? WHERE `key`='qa_otp_bypass_phones'",
