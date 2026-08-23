@@ -99,6 +99,7 @@ orden de archivo — el ancla `### F-xx` es la única dirección.)
 | **«no cumple la regla X y por eso no sale»** (probado en local) | **F-160** |
 | **«instrumenté el servicio y no imprime nada»** | **F-161** |
 | **«esta entidad no sale del listado y ninguna regla lo explica»** | **F-161** · F-113 |
+| **«en el wizard sí aparece pero por API no»** (o al revés) | **F-161** |
 | **«esta entidad nunca aparece en pruebas»** | F-158 · F-140 |
 | **«hay muchísimas filas de un estado y no cuadra con los equipos»** | F-156 |
 | **«salta el AML / no salta el AML y debería»** | F-155 |
@@ -273,7 +274,7 @@ distinto según con qué pregunta llegues.
 | F-158 | Escribir el ingreso de Experian pisa la ocupación con «Empleado» quemado | ABIERTO |
 | F-159 | El perfilamiento lee `Experian - Acierta` y el flujo sintético escribe `Acierta+Quanto` | ABIERTO |
 | F-160 | Las reglas del dump local difieren de producción: se depura contra umbrales inexistentes | VIGENTE |
-| F-161 | Hay dos `getLenders` y el que se lee no es el que corre — tapaba dos exclusiones | ABIERTO |
+| F-161 | Hay DOS listados (`lenders` y `lenders-v2`) con clases distintas: v1 devuelve menos | ABIERTO |
 
 ---
 
@@ -2538,27 +2539,38 @@ en producción — el webhook no deja registro cuando `firstOrFail()` lanza, as�
 - **Síntoma:** se depura el listado leyendo `LenderListingService::getLenders`, se descartan cortes uno
   por uno, y ninguno explica la ausencia de una entidad. Instrumentar ese método **no imprime nada**,
   aunque el código esté en el contenedor y los logs de esa solicitud sí lleguen.
-- **Causa raíz (verificada 2026-08-23 contra `main`):** `LenderListingService` **extiende**
-  `LenderRetrievalService`, y **las dos definen `getLenders` con la misma firma**. Pero la ruta
-  `lenders/{user_request_id}` va a `ListLenderController@index`, que inyecta
-  **`LenderRetrievalService`** — la clase PADRE. No hay binding en ningún provider que lo resuelva a la
-  hija, así que **el `getLenders` de `LenderListingService` no corre nunca por esa ruta**, y leerlo es
-  leer código muerto.
+- **Causa raíz (verificada 2026-08-23 contra `main`):** hay **DOS RUTAS DE LISTADO Y DOS CLASES**, y
+  cada ruta usa la suya:
+
+  | ruta | controlador | servicio |
+  |---|---|---|
+  | `lenders/{ur}` (v1) | `ListLenderController` | `LenderRetrievalService::getLenders` (**el padre**) |
+  | `lenders-v2/{ur}` | `LenderListingController` | `LenderListingService::getLenders` (**la hija**) |
+
+  `LenderListingService` **extiende** `LenderRetrievalService` y las dos definen `getLenders` con la
+  misma firma. Ninguna está muerta — pero **leer una para explicar el comportamiento de la otra es
+  leer código que no corre en ese camino**, y eso fue exactamente lo que pasó.
 - **⚠ Y las dos implementaciones NO son iguales**, que es lo que vuelve el error caro: la del padre
   tiene lógica que la hija no —una compuerta por créditos previos del cliente en ese comercio, y una
   **exclusión de entidades por id quemado** que la hija no tiene—. O sea que las conclusiones sacadas
   leyendo la hija no sólo no aplican: pueden ser lo contrario de lo que pasa.
-- **Evidencia:** instrumentar cada etapa de la hija con logs no produjo **una sola línea**, con el
-  archivo verificado dentro del contenedor y con Loki recibiendo otras líneas de la misma solicitud.
-  Esa ausencia total —no «faltan algunas»— es la firma de un método que no se ejecuta.
+- **Evidencia, y es contundente porque las dos rutas responden a la MISMA solicitud:** v1 devuelve
+  **3 entidades** y v2 devuelve **5**. Las dos que faltaban en v1 son justo las que se estaban
+  persiguiendo. Además, instrumentar la hija mientras se llamaba a v1 no produjo **una sola línea** —
+  ausencia total, no parcial, que es la firma de un método que no corre por ese camino.
+- **⚠ Y NO devuelven lo mismo porque v1 arrastra cortes que v2 no tiene**, entre ellos la lista de ids
+  quemada `[12, 23, 141, 142, 166]` y las salidas de la pre-aprobación. **El wizard usa v2**, así que
+  medir contra v1 es medir un listado que ningún cliente ve — y una ausencia ahí se lee como regla de
+  negocio cuando es el endpoint equivocado.
 - **⚠ Cómo detectarlo rápido la próxima vez:** antes de leer un servicio, **mirá qué inyecta el
   controlador de la ruta**. Un `extends` con el mismo nombre de método es invisible desde adentro del
   archivo; sólo se ve en el punto de inyección.
-- **Lo que estaba tapando:** dos ausencias del listado que costaron catorce descartes. **Welli** la saca
-  una lista de ids quemada —`[12, 23, 141, 142, 166]`, marcada *TEMPORAL* con un TODO que explica que
-  esos lenders «erroran por falta de datos previos»—, y **Credifamilia** la saca
-  `PreApprovedLenderService::validatePreApproveLender`, que hace `unset()` de las entidades cuya
-  pre-aprobación no vuelve (→ **F-113**). Ninguna de las dos está en el archivo que se estaba leyendo.
+- **Lo que estaba tapando:** dos ausencias que costaron catorce descartes. **Welli y Credifamilia no
+  aparecían… en v1.** En v2 aparecen las dos, sin tocar nada más. Los cortes que las sacaban —la lista
+  quemada y las salidas de la pre-aprobación— viven en el camino viejo.
+- **⚠ Cómo detectarlo rápido la próxima vez:** antes de concluir de una ausencia, **pedí las DOS rutas
+  para la misma solicitud y compará**. Son dos `curl` y descarta de un saque todo lo que acá costó
+  horas.
 - **Arreglo:** para el diagnóstico, entrar por el controlador. Para el código, que dos clases de la
   misma jerarquía no definan el mismo método público con implementaciones distintas. **Estado:** vivo
   en `main`.

@@ -818,8 +818,19 @@ async function correrLambdaMotor(c: Caso, i: number): Promise<Res> {
     // necesita (F-159) recién existe DESPUÉS de la primera llamada. Se espeja y se vuelve a pedir: la
     // primera crea el buró, la segunda es la que corre la etapa completa. Cuesta una petición y es la
     // diferencia entre simular el listado y simularlo entero.
+    // ⚠ `lenders-v2`, NO `lenders`. SON DOS LISTADOS DISTINTOS Y NO DEVUELVEN LO MISMO.
+    //
+    // La ruta vieja (`lenders`) va a `ListLenderController` → `LenderRetrievalService::getLenders`; la
+    // v2 va a `LenderListingController` → `LenderListingService::getLenders`. Las dos clases existen,
+    // están emparentadas y definen el MISMO método — pero la v1 arrastra cortes que la v2 no tiene,
+    // entre ellos una lista de ids quemada (`[12, 23, 141, 142, 166]`) y las salidas de la
+    // pre-aprobación.
+    //
+    // Medido sobre la MISMA solicitud: v1 devuelve 3 entidades y v2 devuelve 5 — las dos que faltaban
+    // eran Welli y Credifamilia. **El wizard usa v2**, así que pegarle a v1 mide un listado que ningún
+    // cliente ve, y una ausencia ahí se lee como regla de negocio cuando es el endpoint equivocado.
     const pedirListado = () =>
-        fetch(`${API}/api/onboarding/loan-application/lenders/${ur}?amount=${c.amount}`, { headers: H })
+        fetch(`${API}/api/onboarding/loan-application/lenders-v2/${ur}?amount=${c.amount}`, { headers: H })
             .then((r) => r.json()).catch(() => null);
 
     let lis = await pedirListado();

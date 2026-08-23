@@ -14,19 +14,19 @@ Credifamilia (lender **24**) es el único `response_type = 4` (un valor sin fila
 | ¿Simulable E2E? | ⚠ **Parcial**: el gate local sí es inyectable; KYC V2 (Evidente/CrossCore/Jumio) y la radicación SOAP son externos |
 
 ## Antes de concluir
-- ✅ **POR QUÉ NO APARECE EN EL LISTADO — RESUELTO el 2026-08-23.** La saca
-  `PreApprovedLenderService::validatePreApproveLender`, que hace `unset()` de las entidades cuya
-  pre-aprobación no vuelve. En local el microservicio de pre-aprobados no sirve su respuesta, así que
-  la entidad desaparece **sin error y sin log de rechazo** — que es exactamente el síntoma de **F-113**.
+- ✅ **«NO APARECE EN EL LISTADO» — RESUELTO el 2026-08-23, y la causa es el ENDPOINT.** Hay dos rutas
+  de listado y **no devuelven lo mismo**: `lenders/{ur}` (v1) y `lenders-v2/{ur}`. Medido sobre la misma
+  solicitud: **v1 devuelve 3 entidades y v2 devuelve 5** — y las dos que faltan en v1 son Credifamilia y
+  Welli. **El wizard usa v2.** Probar contra v1 mide un listado que ningún cliente ve. Detalle en
+  **F-161**.
 
-  ⚠ **Costó catorce descartes por leer el archivo equivocado.** El listado NO lo sirve
-  `LenderListingService::getLenders` sino el `getLenders` de su clase PADRE, que es la que inyecta el
-  controlador (**F-161**). Las dos existen, tienen la misma firma y **no hacen lo mismo**. Antes de
-  depurar el listado, mirá qué inyecta `ListLenderController`.
+  ⚠ Los cortes que las sacan viven en el camino viejo: una **lista de ids quemada**
+  (`[12, 23, 141, 142, 166]`, marcada *TEMPORAL*) y las nueve salidas de la pre-aprobación. En v2 no
+  están.
 
-  ⚠ **Y en el mismo lugar hay una exclusión por id quemado** —`[12, 23, 141, 142, 166]`, marcada
-  *TEMPORAL*— que saca a Welli y a Prami. Si alguna de esas «no aparece», ésa es la razón y no hay
-  regla de negocio que buscar.
+  ⚠ **Y con v2 el flujo corre**: la entidad lista, se puede seleccionar, y el polling de pre-aprobación
+  llega al proveedor. El corte pasa a estar más adelante, en el **plan de pagos** (*«Extra details
+  payment plan returned error»*), que es otro problema y con nombre propio.
 - ⚠ **Un «APROBADO» de Credifamilia NO garantiza que venga el cupo.** Ante entrada inválida —el caso
   medido fue un correo con tilde— responde `Aprobado` con el payload **vacío**, y
   `PreApprovedLenderService.php:325-333` lo marca `pre_approved_lender = true` con
