@@ -356,6 +356,45 @@ acceso **sin guarda** donde los otros tres lugares que leen lo mismo sí pregunt
 cupo previo—, pero **por qué** no ocurre no está establecido: en local la entidad **sí aparece** en el
 listado de un cliente sin cupo.
 
+## Dónde se va el tiempo: DOS operaciones, el 86 %
+
+Medido el 2026-08-23 sobre **60 corridas y 775 llamadas** de las bitácoras:
+
+| operación | n | mediana | peor |
+|---|---:|---:|---:|
+| `POST …/promissory-note/validate/authorize` | 46 | **42,9 s** | 86,2 s |
+| `GET …/promissory-note/{ur}` (documentos) | 54 | **35,6 s** | 90,0 s |
+| todo lo demás (12 operaciones) | — | **< 1,2 s** | 3,7 s |
+
+**Las dos suman 3.362 s de 3.899 s: el 86 %.** Todo el resto del flujo —registro, OTP, datos
+personales, listado, fechas, plan de pagos— es ruido en comparación.
+
+### Y el reparto por entidad es contraintuitivo
+
+| entidad | documentos | autorizar |
+|---|---:|---:|
+| Motai (168/169/170) | **35–36 s** | **43 s** |
+| DHI X (63) | 18,7 s | **85,7 s** |
+| Motai RTO (173) | 6,2 s | 8,5 s |
+| **Credifamilia (24)** | **3,2 s** | **5,2 s** |
+
+**Credifamilia es 10× más rápida que Motai aunque hace más** —Deceval, Netco, siete documentos—. La
+causa está medida: sus documentos los produce un **microservicio** (`pdf-mapper`), y el log del mock
+muestra que **sólo atiende `proyecto=credifamilia`**: nadie más lo usa. Los CreditopX renderizan los PDF
+**dentro del backend** con `dompdf` (`FacadePdf::loadView`), que es CPU pura y no se paraleliza.
+
+⚠ **Eso NO significa que Credifamilia sea rápida en producción**: allá el microservicio es real y acá es
+un mock que contesta al instante. Lo que el número dice es dónde está el trabajo, no cuánto cuesta.
+
+### Tres consecuencias prácticas
+
+1. **El PDF se renderiza dos veces**: el `GET` arma el *preview* y `authorize` genera los definitivos.
+   Son cosas distintas —uno no está firmado— pero el costo se paga completo las dos veces.
+2. **Las dos operaciones lentas son exactamente las dos que corren dentro de la transacción abierta**
+   (F-166). Por eso degradan bajo concurrencia en vez de escalar.
+3. **El límite de espera de 90 s del runner cae justo encima de la peor**, así que bajo paralelismo la
+   lentitud se disfrazaba de caída. Ya se distingue, pero el margen es de segundos.
+
 ## Tarea (publicable)
 
 **En una línea.** Poder ejercitar varios flujos de comercios distintos a la vez, para comparar qué le
