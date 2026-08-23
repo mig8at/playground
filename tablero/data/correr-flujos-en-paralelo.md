@@ -28,15 +28,16 @@ estado 28. No es del flujo: el contenedor corre el servidor de desarrollo de PHP
 `PHP_CLI_SERVER_WORKERS` es de un solo proceso. Con diez workers, los mismos siete corrieron en **19 s
 sin un solo timeout**.
 
-**Ya está resuelto y es un comando**, sin tocar el repo de la compañía:
+**Ya está resuelto y no hay que acordarse de nada**: vive en la rama local
+`local/ajustes-de-pruebas` de `legacy-backend`, en el propio `docker-compose.yml`, junto al comodín del
+OTP. Con esa rama puesta, un `sail up` normal ya levanta el backend concurrente.
 
-    make harness-workers        # el backend atiende varias peticiones a la vez
-    make harness-workers-off    # lo devuelve a como viene por defecto
+    PHP_CLI_SERVER_WORKERS: '${PHP_CLI_SERVER_WORKERS:-20}'
 
-El override vive en **playground** (`harness/docker/php-workers.yml`) y se aplica desde afuera con
-`docker compose -f … -f …`. Se hizo así a propósito: un `docker-compose.override.yml` en la raíz de
-`legacy-backend` también funciona, pero ese repo **no lo tiene gitignoreado** y queda un archivo suelto
-fácil de commitear sin querer.
+⚠ **Esa rama no se commitea.** Son dos ajustes que sólo tienen sentido en la máquina de uno: la
+concurrencia del servidor de desarrollo y el comodín del bypass de OTP. Si alguna vez se quiere
+proponer al repo, es otra conversación — y el comodín **no** debería ir (ver su comentario: staging
+corre con `APP_ENV=development` y comparte base con dev).
 
 ⚠ **No es falta de recursos.** Medido el 2026-08-22: 12 CPUs, 151 conexiones de MySQL libres y el
 contenedor al **0,11 % de CPU**. El trabajo estaba serializado, no saturado — por eso la palanca es la

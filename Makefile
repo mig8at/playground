@@ -229,19 +229,6 @@ harness-qr: ## @har el canal QR por API, sin browser: ¿cierra en estado 25 con 
 harness-centrales: ## @har levanta el mock LOCAL de centrales de riesgo (:8105) — reemplaza el lambda de la empresa
 	@cd harness && node mock-centrales/server.mjs
 
-# ⚠ WWWUSER/WWWGROUP los exporta `sail` y compose los necesita: sin ellos el contenedor se recrea
-# con usuario en blanco (= root) y cambia de dueño los archivos que escribe en el volumen montado.
-harness-workers: ## @har el backend local atiende varias peticiones a la vez (para correr flujos en PARALELO). Sin esto, los cierres simultáneos se traban en estado 28
-	@cd ~/Desktop/CREDITOP/github/legacy-backend && \
-	 WWWUSER=$$(id -u) WWWGROUP=$$(id -g) \
-	 docker compose -f docker-compose.yml -f $(CURDIR)/harness/docker/php-workers.yml up -d laravel.test >/dev/null 2>&1 && \
-	 sleep 6 && WWWUSER=$$(id -u) WWWGROUP=$$(id -g) docker compose exec -T laravel.test sh -c 'echo "  workers: $${PHP_CLI_SERVER_WORKERS:-(no seteado)}"' 2>/dev/null
-
-harness-workers-off: ## @har devuelve el backend local a un solo proceso (como viene por defecto)
-	@cd ~/Desktop/CREDITOP/github/legacy-backend && \
-	 WWWUSER=$$(id -u) WWWGROUP=$$(id -g) docker compose up -d laravel.test >/dev/null 2>&1 && \
-	 sleep 6 && WWWUSER=$$(id -u) WWWGROUP=$$(id -g) docker compose exec -T laravel.test sh -c 'echo "  workers: $${PHP_CLI_SERVER_WORKERS:-(no seteado, por defecto)}"' 2>/dev/null
-
 harness-mocks: ## @har levanta los mocks del canal QR (Bancolombia :8104 + Corbeta :8103)
 	@cd harness && bin/mock-bancolombia start && bin/mock-corbeta start
 
