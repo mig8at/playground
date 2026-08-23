@@ -323,6 +323,8 @@ type Espera = {
 type Caso = {
     comercio: string; lender: number | null;
     nombre?: string; espera?: Espera;
+    /** `Empleado` (default) | `Independiente`. Se DEDUCE del buró, no se inyecta — ver `respuestaAgildata`. */
+    ocupacion?: string;
     /** Este caso es una vuelta POSTERIOR del mismo cliente: ya está registrado. Ver `correrPasos`. */
     recurrente?: boolean;
     /** Solicitudes SUCESIVAS del mismo cliente. Ver `correrPasos`. */
@@ -345,6 +347,7 @@ function parseCaso(spec: string, dflt: { amount: number; income: number; score: 
     for (const kv of (params ?? '').split(',').filter(Boolean)) {
         const [k, v] = kv.split('=');
         if (k === 'amount' || k === 'income' || k === 'score') { c[k] = Number(v); continue; }
+        if (k === 'ocupacion') { c.ocupacion = v; continue; }
         // cualquier otra clave es el ESCENARIO de una entidad: `pullman@meddipay=rechaza`.
         // Se dicta al mock de integraciones POR CÉDULA, así que dos casos en paralelo pueden pedir
         // cosas distintas de la misma entidad sin pisarse.
@@ -398,6 +401,7 @@ async function cargarSuite(ruta: string, dflt: { amount: number; income: number;
             lender: c.lender == null ? null : Number(c.lender),
             nombre: c.nombre ? String(c.nombre) : undefined,
             espera: c.espera,
+            ocupacion: c.ocupacion ? String(c.ocupacion) : undefined,
             pasos: Array.isArray(c.pasos) ? c.pasos : undefined,
             escenarios: c.escenarios,
             amount: Number(c.amount ?? base.amount),
@@ -585,7 +589,16 @@ const cedulaDe = (i: number) => String(BASE_DOC + i);
  *  (Ingreso Base de Cotización) de los pagos: el backend NO lo recibe inyectado, lo descubre
  *  consultando. Se emiten 8 períodos para que las reglas de continuidad (3/6/12 meses) tengan de
  *  dónde calcular — con menos, «no continuo» sería un artefacto del mock y no del caso planteado. */
-function respuestaAgildata(doc: string, ibc: number) {
+/** ⚠ LA OCUPACIÓN NO SE INYECTA: SE DEDUCE DE ESTE PAYLOAD, y de una comparación de nombres.
+ *
+ *  `AgildataService::validateContractType` compara el nombre del EMPLEADOR contra el de la persona —los
+ *  dos salen de esta misma respuesta— y si coinciden devuelve `2` (**Independiente**); si no, `1`
+ *  (**Empleado**). Tiene sentido de negocio: quien se cotiza a sí mismo es independiente.
+ *
+ *  Y esto NO es un detalle de laboratorio: la regla de Credifamilia exige `ocupación = Independiente`,
+ *  así que con el empleador por defecto esa entidad **nunca sale en el listado** — y el síntoma es una
+ *  ausencia silenciosa, no un rechazo visible. */
+function respuestaAgildata(doc: string, ibc: number, ocupacion?: string) {
     // ⚠ EL PERÍODO ES `YYYYMM` Y NO SE PUEDE RESTAR COMO ENTERO. `202603 - k` parece razonable y a
     // partir del cuarto pago da 202599, 202598… meses que no existen. El backend calcula la
     // continuidad (3/6/12 meses) contando períodos, así que con basura ahí devuelve `employed: false`,
@@ -616,7 +629,12 @@ function respuestaAgildata(doc: string, ibc: number) {
                             genero: 'M', nombre: 'CARLOS RUIZ MENDOZA', tipoId: 'CC',
                             numeroId: doc, viabilidad: null },
             detalladoEmpleos: [{
-                id: 1, pagos, nombreEmpleador: 'STANGERSON SAS', telefonoEmpleador: null,
+                id: 1, pagos,
+                // Empleador = la persona → Independiente. Distinto → Empleado. Ver la cabecera.
+                nombreEmpleador: String(ocupacion ?? '').toLowerCase() === 'independiente'
+                    ? 'CARLOS RUIZ MENDOZA'
+                    : 'STANGERSON SAS',
+                telefonoEmpleador: null,
                 direccionEmpleador: null, identifiacionEmpleador: '900101010',
                 tipoIdentifiacionEmpleador: 'NI' }],
         },
@@ -652,7 +670,7 @@ async function dictarTodos(casos: Caso[]): Promise<string[]> {
         // NO es supersticioso — es lo que hace que alguno pegue en el que después atiende la lectura
         let ok = false;
         for (let intento = 0; intento < 4 && !ok; intento++) {
-            await dictar(doc, 'agildata', respuestaAgildata(doc, casos[i].income!));
+            await dictar(doc, 'agildata', respuestaAgildata(doc, casos[i].income!, casos[i].ocupacion));
             ok = await confirmarDictado(doc, 'agildata', String(casos[i].income!));
         }
         if (ok) dictados.add(doc); else fallos.push(doc);

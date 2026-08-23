@@ -94,6 +94,8 @@ orden de archivo — el ancla `### F-xx` es la única dirección.)
 | **«el canal SmartPay no se puede probar entero fuera de producción»** | F-155 |
 | **«el equipo está en mora y no se bloqueó»** | F-156 |
 | **«se desembolsó sin garantía / sin IMEI»** | **F-157** |
+| **«dicté el buró para cumplir la regla y la entidad sigue sin salir»** | **F-158** |
+| **«esta entidad nunca aparece en pruebas»** | F-158 · F-140 |
 | **«hay muchísimas filas de un estado y no cuadra con los equipos»** | F-156 |
 | **«salta el AML / no salta el AML y debería»** | F-155 |
 | **«lo arreglé y por el otro camino sigue distinto» / «ese flujo ya no se usa»** | F-146 |
@@ -264,6 +266,7 @@ distinto según con qué pregunta llegues.
 | F-155 | Quién es SmartPay se decide en 4 lugares y fuera de prod no coinciden (supera a F-21) | ABIERTO |
 | F-156 | Un lock fallido se reintenta sin tope y escribe una fila por intento: 28 equipos sin bloquear | ABIERTO |
 | F-157 | `path = IMEI` no es el canal: 4 entidades lo tienen y desembolsan sin inscribir el equipo | ABIERTO |
+| F-158 | Escribir el ingreso de Experian pisa la ocupación con «Empleado» quemado | ABIERTO |
 
 ---
 
@@ -2429,3 +2432,34 @@ en producción — el webhook no deja registro cuando `firstOrFail()` lanza, as�
   saltearía. Dos guardas simétricas, una sola implementada.
 - **Arreglo:** para el riesgo latente, la misma guarda que ya existe para el codeudor. Para la lectura,
   no usar `path = IMEI` como sinónimo del canal. Código de la empresa. **Estado:** vivo en `main`.
+
+### F-158 · Escribir el INGRESO de Experian pisa la OCUPACIÓN con «Empleado» quemado, y con eso ninguna regla que exija «Independiente» puede cumplirse
+
+- **Síntoma:** una entidad no aparece en el listado y su regla se lee razonable. Se dicta el buró para
+  cumplirla, se confirma que el buró llegó bien, y la entidad **sigue sin salir**. Del lado del
+  usuario: «esta entidad nunca sale en pruebas».
+- **Causa raíz (verificada 2026-08-23 contra `main`, en logs y en BD):** al persistir el ingreso
+  promedio de *quanto*, `app/Actions/RiskCentrals/Experian.php:735` **también escribe el campo 29
+  (ocupación) con el literal `'Empleado'`**. No es una decisión sobre la persona: es un efecto
+  secundario de escribir el campo 87. Y pisa lo que **sí** se dedujo del historial laboral —
+  `AgildataService` compara el nombre del empleador contra el de la persona y devuelve `Independiente`
+  cuando coinciden (quien se cotiza a sí mismo).
+- **Evidencia:** en una misma solicitud, los logs muestran `Storing labor info (flow A)` con
+  **`Independiente`** una vez —el resultado correcto de Agildata— y después
+  `UserFieldValue field 87 updated, writing field 29 (employment_situation = Empleado)`. En la base
+  queda **una sola fila** del campo 29, con `Empleado`, mientras `user_summaries.agildata` conserva
+  `self_employed: true`. **Los dos datos conviven contradiciéndose**, y el que leen las reglas es el
+  pisado.
+- **⚠ La consecuencia no es cosmética:** la regla de Credifamilia (`lender_rules` del `group_rule`
+  7751) exige `ocupación = Independiente`. Con este pisado, **esa condición es inalcanzable por este
+  camino** — la entidad queda excluida siempre, sin error, sin log de rechazo por regla y sin que nada
+  lo señale.
+- **⚠ Y hay TRES implementaciones de `storeLaboralInformation`** —`AgildataService`, `MareiguaService` y
+  `OnboardingService`—; el propio código lo marca con un *«TODO: refactor this duplicated method»*.
+  Con tres escritores del mismo campo, **el resultado depende del orden**, y el orden no está declarado
+  en ninguna parte. Antes de concluir de dónde salió una ocupación, mirá cuál escribió última.
+- **⚠ Al depurar esto NO alcanza con verificar que el buró llegó.** Llegó, se interpretó bien, y el
+  resultado correcto quedó escrito — y después se perdió. Un chequeo de «¿el dato llegó?» pasa en verde
+  (es la trampa de F-139 con otra cara): hay que mirar el valor FINAL del campo, no el del buró.
+- **Arreglo:** que escribir el ingreso no escriba la ocupación. Código de la empresa. **Estado:** vivo
+  en `main`.
