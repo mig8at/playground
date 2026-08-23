@@ -110,6 +110,8 @@ orden de archivo — el ancla `### F-xx` es la única dirección.)
 | **«se valida un campo y se usa otro»** | **F-167** |
 | **«llegó a estado 11 pero el lender no lo tiene»** | **F-168** |
 | **«el runner dice que cerró y el crédito no se radicó»** | **F-168** |
+| **«Attempt to read property "fga" on null»** | **F-169** |
+| **«el rotativo falla generando documentos»** | **F-169** |
 | **«instrumenté el servicio y no imprime nada»** | **F-161** |
 | **«esta entidad no sale del listado y ninguna regla lo explica»** | **F-161** · F-113 |
 | **«en el wizard sí aparece pero por API no»** (o al revés) | **F-161** |
@@ -2791,3 +2793,29 @@ en producción — el webhook no deja registro cuando `firstOrFail()` lanza, as�
   cierre, y las suites pueden exigirlo con `"radicacion": "CREDIT_COMPLETED"`. Comprobado que la guarda
   atrapa: con el mock en modo rechazo, las tres corridas llegan a estado 11 y la suite **falla**.
   **Estado:** vigente — el producto sigue sin distinguir las dos cosas fuera de esa tabla.
+
+### F-169 · El rotativo (rt=3) revienta si el cliente NO tiene cupo previo — un acceso sin guarda entre tres que sí la tienen
+
+- **Síntoma:** una solicitud de una entidad rotativa muere generando documentos con
+  `HTTP 500 · Attempt to read property "fga" on null`. No es una regla de negocio: es un crash de PHP.
+- **Dónde:** `Modules/Loans/App/Services/GuaranteeService.php:227`
+
+      $revolvingCredit = $this->revolvingCreditRepository->getByUserAndLender(...);
+      $guarantee = !$alreadyHasGuaranteeAcceptance && $revolvingCredit->fga > 0;   // ← sin guarda
+
+  **Los otros tres lugares que leen lo mismo sí preguntan primero** (`if ($revolvingCredit)`):
+  `ConsentService:271`, `GuaranteeService:255` y `PaymentCalculationService:223`. O sea que la asimetría
+  es de este renglón, no del diseño.
+- **Qué lo dispara:** una solicitud rt=3 de un cliente **sin fila en `creditop_x_revolving_credits`**
+  para esa entidad. Reproducido en local el 2026-08-23 con un cliente nuevo.
+- **⚠ En producción NO ocurre hoy, y se midió:** de **122 solicitudes rt=3 en 90 días, las 122 tenían
+  cupo previo** — ninguna excepción. El rotativo se le ofrece a quien ya tiene la línea.
+- **⚠ Y lo que NO está establecido:** **por qué** no ocurre. En local la entidad rotativa **sí aparece
+  en el listado** de un cliente sin cupo —el runner la eligió de ahí—, así que el camino existe. Si en
+  producción no aparece, es por algo que no se identificó; si aparece, el crash está a un clic. Esa
+  pregunta queda abierta y es la que decide si esto es una corrección menor o un 500 esperando.
+- **Dónde queda la solicitud:** en **estado 10 «Pendiente de autorización»** — no en 3 como las que
+  deciden afuera, ni en 28. O sea que el rotativo **avanza más** que rt=0/1 y muere justo antes de la
+  autorización, en la generación de documentos.
+- **Arreglo (propuesto, NO aplicado):** la misma guarda que tienen los otros tres.
+  **Estado:** vigente.

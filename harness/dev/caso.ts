@@ -148,9 +148,22 @@ async function cerrarCreditopX(arr: any[], ur: number, tel: string, amount: numb
     const sel = await post(`/api/onboarding/loan-application/update-user-request/${ur}`, {
         lender_id: Number(ctopx.id), fee_number: cuotas, original_amount: amount, amount,
         initial_fee: 0, rate: '0', transaction_data: null });
-    // `standBy` es la marca de in-platform: sin eso el flujo se va por otro lado y el cierre no aplica
+    // `standBy` es la marca de in-platform: sin eso el flujo se va por otro lado y el cierre no aplica.
+    //
+    // ⚠ Y NO ES LO MISMO QUE UN FALLO. En rt=0 (UTM) y rt=1 (integración) la decisión la toma alguien
+    // AFUERA —una redirección o la API del banco—, así que la ausencia de `standBy` es el comportamiento
+    // CORRECTO, no un tropiezo. Medido el 2026-08-23 corriendo los cinco response_type juntos: el
+    // resumen contaba a Sufi (rt=0) y Banco de Bogotá (rt=1) entre los que «se trabaron», y eso manda a
+    // buscar una causa donde no hay nada roto. Se marca aparte, con el rt que lo explica.
     if (!sel.json?.data?.standBy) {
-        return { cerro: false, motivo: `${ctopx.name}: no devolvió standBy`, estado: null };
+        const rt = Number(ctopx.response_type);
+        const afuera = rt === 0 || rt === 1;
+        return {
+            cerro: false, estado: null, fueraDePlataforma: afuera,
+            motivo: afuera
+                ? `${ctopx.name}: decide FUERA de la plataforma (rt=${rt}) — no hay cierre que probar acá`
+                : `${ctopx.name}: no devolvió standBy`,
+        };
     }
 
     const PN = '/api/loans/requests/promissory-note';
@@ -480,7 +493,9 @@ type Res = {
     preaprobados?: { id: number; estado: string; cupo?: unknown }[];
     /** `radicacion` sólo existe cuando la entidad radica por transacción y el caso llegó hasta ahí;
      *  en los cortes tempranos no hay fila que consultar. */
-    cierre?: { cerro: boolean; motivo: string; estado: number | null; radicacion?: string | null };
+    cierre?: { cerro: boolean; motivo: string; estado: number | null; radicacion?: string | null;
+               /** rt=0/1: la decisión la toma alguien afuera. NO es un fallo del caso. */
+               fueraDePlataforma?: boolean };
 };
 
 async function http(method: string, path: string, body: unknown, phone: string) {
@@ -1518,10 +1533,16 @@ async function main(): Promise<number> {
     if (conCierre.length) {
         const cerraron = conCierre.filter((r) => r.cierre!.cerro).length;
         const sinCtopx = conCierre.filter((r) => r.cierre!.motivo === 'sin CreditopX').length;
-        const trabados = conCierre.length - cerraron - sinCtopx;
-        console.log(`\n  CIERRE rt=2 — ${cerraron} cerraron en estado 11 · ${sinCtopx} sin CreditopX`
+        // Los que deciden AFUERA (rt=0/1) no se cuentan como trabados: no hay cierre que probar acá.
+        const afuera = conCierre.filter((r) => r.cierre!.fueraDePlataforma).length;
+        const trabados = conCierre.length - cerraron - sinCtopx - afuera;
+        // El encabezado decía «CIERRE rt=2» siempre, incluso corriendo rt=3 y rt=4 — un rótulo que
+        // contradice a la línea de abajo y hace dudar de cuál de las dos es la cierta.
+        console.log(`\n  CIERRE — ${cerraron} cerraron en estado 11 · ${sinCtopx} sin CreditopX`
+            + (afuera ? ` · ${afuera} deciden afuera (rt=0/1)` : '')
             + (trabados ? ` · ⚠ ${trabados} se trabaron` : ''));
-        for (const r of conCierre.filter((x) => !x.cierre!.cerro && x.cierre!.motivo !== 'sin CreditopX')) {
+        for (const r of conCierre.filter((x) => !x.cierre!.cerro && x.cierre!.motivo !== 'sin CreditopX'
+                                               && !x.cierre!.fueraDePlataforma)) {
             console.log(`      ⚠ ${r.caso.comercio}: ${r.cierre!.motivo}`
                 + (r.cierre!.estado ? ` · quedó en estado ${r.cierre!.estado}` : ''));
         }

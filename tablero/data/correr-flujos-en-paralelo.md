@@ -306,6 +306,39 @@ está en `netco_signing_documents` y sólo Credifamilia firma con Netco—.
 O sea que **la mezcla de comercios sigue siendo libre**: el único cupo es una solicitud de Credifamilia
 por corrida paralela.
 
+## Los CINCO response_type corriendo juntos — la prueba de la herramienta (2026-08-23)
+
+Nueve casos, **cuatro comercios y cinco `response_type` en una sola corrida paralela**, en **96,8 s**.
+Verificado contra la base, no contra el reporte:
+
+| rt | entidad | comercio | estado | cuotas | radicación |
+|---|---|---|---|---|---|
+| 0 | Sufi · Crediwonder | Refrigeración Wonder | 3 «Seleccionó entidad» | 6 · 6 | — |
+| 1 | Banco de Bogotá · Sistecrédito | Refrigeración Wonder · Prodens | 3 | 3 · 6 | — |
+| 2 | CrediPullman | Amoblando Pullman | **11** | 3 | — |
+| 2 | Motai C · Motai R | Motai | **11** · **11** | 12 · 24 | — |
+| 3 | Dentalpay X Rotativo | Dentalix | 10 «Pendiente de autorización» | 6 | — |
+| 4 | Credifamilia | DENTIX | **11** | 24 | **CREDIT_COMPLETED** |
+
+**El plazo pedido aterrizó en los nueve**, cada uno el suyo. Y los rt=0/1 quedando en estado 3 es el
+comportamiento **correcto**: deciden afuera.
+
+### Lo que la corrida destapó del propio reporte, y ya está arreglado
+
+- **Contaba a rt=0 y rt=1 entre los que «se trabaron».** No lo están: la decisión la toma una
+  redirección o la API del banco, así que la ausencia de `standBy` es lo esperado. Contarlos como fallo
+  manda a buscar una causa donde no hay nada roto. Ahora salen aparte: «N deciden afuera (rt=0/1)».
+- **El encabezado decía «CIERRE rt=2» siempre**, incluso corriendo rt=3 y rt=4 — un rótulo que
+  contradecía a la línea de abajo.
+
+### Y un hallazgo del producto: **F-169**
+
+El rotativo (rt=3) muere generando documentos con `Attempt to read property "fga" on null`. Es un
+acceso **sin guarda** donde los otros tres lugares que leen lo mismo sí preguntan. Lo dispara un cliente
+**sin cupo rotativo previo**. En producción no ocurre —las 122 solicitudes rt=3 de 90 días tenían todas
+cupo previo—, pero **por qué** no ocurre no está establecido: en local la entidad **sí aparece** en el
+listado de un cliente sin cupo.
+
 ## Tarea (publicable)
 
 **En una línea.** Poder ejercitar varios flujos de comercios distintos a la vez, para comparar qué le
