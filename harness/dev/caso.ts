@@ -352,44 +352,56 @@ async function buscarSucursal(ref: string) {
 //  teléfonos, y tres de ellos pelean por el mismo usuario. Así soporta 100 casos por corrida.
 const telefonoDe = (i: number) => `31${String(BASE_DOC).slice(-6)}${String(i % 100).padStart(2, '0')}`;
 
-/** ⚠ PARA CERRAR hace falta un teléfono de `qa_otp_bypass_phones`, y no es capricho: son DOS
+/** ⚠ PARA CERRAR hace falta que el teléfono esté en `qa_otp_bypass_phones`, y no es capricho: son DOS
  *  mecanismos de OTP distintos y sólo uno acepta cualquier teléfono.
  *    · el OTP del ONBOARDING va por el driver fake (`FakeOtpServiceRepository`), que ignora el código
  *      y no mira el teléfono → cualquiera sirve, y por eso el listado se prueba con derivados.
- *    · el OTP de la FIRMA DEL PAGARÉ va por `Modules/Loans/App/Services/OtpService.php:47`, que
- *      honra `qa_otp_bypass_phones` → un teléfono fuera de esa lista hace que `authorize` responda
- *      422 «No se encontró un OTP validado para esta solicitud» y la solicitud quede en estado 10.
- *  Se toma por ÍNDICE, sin buscar ni reservar: cada caso tiene el suyo y no hay carrera posible.
+ *    · el OTP de la FIRMA DEL PAGARÉ va por `OtpBypassService`, que consulta esa lista → un teléfono
+ *      fuera de ella hace que `authorize` responda 422 «No se encontró un OTP validado para esta
+ *      solicitud» y la solicitud quede en estado 10.
  *
- *  ⚠ PERO NO CUALQUIERA DE LA LISTA SIRVE, y el modo de falla no se parece a la causa. Un teléfono
- *  cuyo usuario ya tiene un crédito en estado 11 arrastra ese crédito al caso nuevo, y **el cupo rt=2
- *  se bloquea por entidad**: el listado devuelve las rt=1 y ninguna CreditopX. El runner reportaba
- *  entonces «la entidad 169 no salió en el listado», que se lee como una regla de negocio y es un
- *  teléfono sucio. Medido el 2026-08-22 en el dump local: de los teléfonos de la lista, **todos**
- *  tienen usuario —así que exigir «sin usuario» no deja ninguno— pero la gran mayoría **no** tiene
- *  crédito activo, que es la condición que de verdad importa.
+ *  POR QUÉ SE AMPLÍA LA LISTA EN VEZ DE RECICLAR LA QUE HAY. La lista trae ~68 teléfonos fijos, y
+ *  reusarlos tiene dos problemas que se ven recién al correr en paralelo:
  *
- *  Por eso el filtro es «sin crédito en estado 11», no «sin usuario»: se hace en SQL, ordenado, y el
- *  índice del caso sigue eligiendo dentro de esa lista — así se conserva que no haya carrera. */
-async function telefonoParaCerrar(i: number): Promise<string | null> {
+ *    · **arrastran su historia**. Un teléfono cuyo usuario ya cerró un crédito bloquea el cupo rt=2
+ *      —el corte es por entidad— y entonces el listado devuelve las rt=1 y ninguna CreditopX. El
+ *      síntoma es «la entidad 169 no salió en el listado», que se lee como una regla de negocio.
+ *    · **ponen un techo**: 68 es el máximo de cierres simultáneos, hagas lo que hagas.
+ *
+ *  La alternativa evidente —borrar los usuarios al arrancar, como hace el spec del canal QR con SU
+ *  teléfono— se descartó a propósito: `scrubphone` es una cascada de DELETE sobre `users` y
+ *  `user_requests`, y correrla en lote al principio de cada tanda es exactamente la clase de operación
+ *  que ya vació una base compartida (CORE-431). Para un teléfono conocido está bien; para una tanda, no.
+ *
+ *  Acá no hace falta borrar nada: **cada caso ya deriva su propio teléfono** (`telefonoDe`), así que
+ *  alcanza con decirle al backend que esos derivados están bypasseados. Usuario virgen por caso, sin
+ *  historia que arrastrar, sin techo y sin un solo DELETE.
+ *
+ *  ⚠ SE REGISTRAN TODOS DE UNA Y EN SERIE, ANTES del paralelo. La lista es UN valor JSON: N escrituras
+ *  concurrentes de «leé, agregá el mío, guardá» se pisan y sobreviven unas pocas — la misma trampa que
+ *  el dictado a la lambda. Y se restaura al terminar para no dejar la lista creciendo sola. */
+async function registrarBypass(tels: string[]): Promise<string | null> {
     const row = await one<{ value: string }>(
         "SELECT value FROM settings WHERE `key`='qa_otp_bypass_phones'").catch(() => null);
-    const tels: string[] = JSON.parse(row?.value ?? '[]').map(String);
-    if (!tels.length) return null;
+    if (!row) return null;                       // sin la fila no hay bypass que ampliar: se avisa arriba
+    const original = row.value;
+    const actuales: string[] = JSON.parse(original ?? '[]').map(String);
+    const faltan = tels.filter((t) => !actuales.includes(t));
+    if (!faltan.length) return original;
+    await exec("UPDATE settings SET value=? WHERE `key`='qa_otp_bypass_phones'",
+               [JSON.stringify([...actuales, ...faltan])]);
+    return original;
+}
 
-    const sucios = await query<{ tel: string }>(
-        `SELECT u.cell_phone AS tel FROM users u
-          WHERE u.cell_phone IN (${tels.map(() => '?').join(',')})
-            AND EXISTS (SELECT 1 FROM user_requests r
-                         WHERE r.user_id = u.id AND r.user_request_status_id = 11)`,
-        tels).catch(() => [] as { tel: string }[]);
+/** Lo que había en la lista antes de que esta corrida la ampliara. De módulo y no local a `main()`
+ *  para poder restaurarla aunque la corrida termine mal: una lista que crece sola con teléfonos de
+ *  tandas viejas es basura que después nadie sabe de dónde salió. */
+let bypassOriginal: string | null = null;
 
-    const sucio = new Set(sucios.map((x) => String(x.tel)));
-    const limpios = tels.filter((t) => !sucio.has(t));
-    // Sin ninguno limpio se usa la lista entera: es mejor correr y que el listado salga corto —con el
-    // aviso de arriba para interpretarlo— que no correr.
-    const pool = limpios.length ? limpios : tels;
-    return pool[i % pool.length];
+async function restaurarBypass(original: string | null): Promise<void> {
+    if (original === null) return;
+    await exec("UPDATE settings SET value=? WHERE `key`='qa_otp_bypass_phones'", [original])
+        .catch(() => { /* restaurar es higiene, no puede tumbar la corrida */ });
 }
 
 /** Le dicta a la lambda qué contesta cada central PARA ESA CÉDULA. Es el paso que vuelve el caso
@@ -520,9 +532,7 @@ async function correrLambda(c: Caso, i: number): Promise<Res> {
     const doc = cedulaDe(i);
     const base: Res = { caso: c, ok: false, phone: '' };
 
-    // cerrar exige un teléfono de la lista de bypass (ver `telefonoParaCerrar`); el resto del flujo
-    // anda con uno derivado
-    const tel = (flag('cerrar') ? await telefonoParaCerrar(i) : null) ?? telefonoDe(i);
+    const tel = telefonoDe(i);   // el mismo para listar y para cerrar (ver `registrarBypass`)
     base.phone = tel;
 
     // ⚠ `x.id AS allied` NO es cosmético: `preAprobar` lo manda como `merchant_id` y este lookup no
@@ -768,6 +778,18 @@ async function main(): Promise<number> {
         console.log(`  respuestas del buró pedidas a la lambda: ${casos.length - fallos.length}/${casos.length}`
             + (fallos.length ? `  ⚠ fallaron ${fallos.join(', ')}` : '') + '\n');
     }
+    // Los teléfonos de esta tanda entran a la lista de bypass ANTES de arrancar, de una y en serie
+    // (ver `registrarBypass`). Sólo si se va a cerrar: para el listado el driver fake no mira el
+    // teléfono, así que ampliar la lista sería tocar la BD sin necesidad.
+    if (flag('cerrar')) {
+        const tels = casos.map((_, i) => telefonoDe(i));
+        bypassOriginal = await registrarBypass(tels).catch(() => null);
+        if (bypassOriginal === null) {
+            console.log('  ⚠ no se pudo ampliar `qa_otp_bypass_phones`: la firma del pagaré va a fallar'
+                + ' con 422 y la solicitud va a quedar en estado 10, que no se parece a la causa.\n');
+        }
+    }
+
     const t0 = Date.now();
     const res = par
         ? await Promise.all(casos.map((c, i) => correr(c, i).catch((e) => (
@@ -851,5 +873,6 @@ async function main(): Promise<number> {
 }
 
 const code = await main().catch((e) => { console.error('\n  ✗', e); return 1; });
+await restaurarBypass(bypassOriginal);
 await close().catch(() => {});
 process.exit(code);
