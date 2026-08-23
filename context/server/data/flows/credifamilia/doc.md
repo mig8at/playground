@@ -216,5 +216,12 @@ puede regenerar — y ése es el único freno real que hay.
   `can_check_preapproval` —un FLAG— en vez de sacar la entidad del listado. Así que la exclusión pasa en
   otro lado y **no deja rastro en la forense de reglas**.
 
+  ⚠ **Y comparando contra PRODUCCIÓN (2026-08-23), dos hechos que cambian cómo leer todo esto:** la
+  sucursal donde se probó **nunca originó un crédito con esta entidad en producción tampoco** (0 de 126
+  solicitudes), mientras otra sucursal del mismo comercio tiene 9 de 741 — así que la ausencia **no es
+  un artefacto local**. Y la regla de datacrédito **difiere drásticamente entre los dos ambientes**
+  (**F-160**): en producción está prácticamente desactivada y en el dump local exige score 710 y doce
+  meses. Alinearla con la de producción **no la hace listar**, así que tampoco es la causa.
+
   **La pista más fuerte:** *Welli* (rt=1) desaparece con ella, mientras Sistecrédito y Bancolombia
   (también rt=1) aparecen. Lo que excluye a las dos es compartido, y **no es el `response_type`**.

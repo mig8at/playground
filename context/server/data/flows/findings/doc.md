@@ -96,6 +96,7 @@ orden de archivo — el ancla `### F-xx` es la única dirección.)
 | **«se desembolsó sin garantía / sin IMEI»** | **F-157** |
 | **«dicté el buró para cumplir la regla y la entidad sigue sin salir»** | **F-158** |
 | **«el perfilamiento no excluye nada» / «las reglas de datacrédito no aplican»** | F-159 |
+| **«no cumple la regla X y por eso no sale»** (probado en local) | **F-160** |
 | **«esta entidad nunca aparece en pruebas»** | F-158 · F-140 |
 | **«hay muchísimas filas de un estado y no cuadra con los equipos»** | F-156 |
 | **«salta el AML / no salta el AML y debería»** | F-155 |
@@ -269,6 +270,7 @@ distinto según con qué pregunta llegues.
 | F-157 | `path = IMEI` no es el canal: 4 entidades lo tienen y desembolsan sin inscribir el equipo | ABIERTO |
 | F-158 | Escribir el ingreso de Experian pisa la ocupación con «Empleado» quemado | ABIERTO |
 | F-159 | El perfilamiento lee `Experian - Acierta` y el flujo sintético escribe `Acierta+Quanto` | ABIERTO |
+| F-160 | Las reglas del dump local difieren de producción: se depura contra umbrales inexistentes | VIGENTE |
 
 ---
 
@@ -2496,3 +2498,34 @@ en producción — el webhook no deja registro cuando `firstOrFail()` lanza, as�
 - **Arreglo:** para PROBAR el perfilamiento en local hay que sembrar también la fila de
   `Experian - Acierta`. Para el producto, que la búsqueda por nombre exacto sea una decisión explícita
   y no una coincidencia de catálogo. **Estado:** vivo en `main`.
+
+### F-160 · La configuración de reglas del dump local NO es la de producción: se depura contra umbrales que allá no existen
+
+- **Síntoma:** una entidad no aparece en el listado local, se encuentra la regla que la excluye, se
+  ajusta el caso para cumplirla… y en producción esa regla **ni siquiera está activa**. Se depuró
+  contra una condición inventada por el dump.
+- **Causa raíz (medido el 2026-08-23, la misma entidad y la misma sucursal en los dos lados):** la
+  regla de datacrédito de Credifamilia difiere de forma drástica.
+
+  | | score mínimo | antigüedad en el sector | moras permitidas |
+  |---|---|---|---|
+  | **producción** | **0** | **0** | 1000 |
+  | **dump local** | **710** | **12** | 10 |
+
+  En producción la regla está prácticamente desactivada; en local exige score 710 y doce meses de
+  historia. **Ninguna de las dos es «la» configuración** — pero sólo una es la que corre para clientes
+  reales.
+- **⚠ Lo que esto invalida:** cualquier conclusión de la forma «esta entidad no sale porque no cumple
+  X» sacada en local, **si X es un umbral de reglas**. Antes de escribir esa frase, comparalo con
+  producción: `lender_datacredito_rules` y `lender_rules` son dos consultas.
+- **⚠ Y no es sólo el umbral: el padrón también difiere.** La misma sucursal tiene **8 entidades
+  activas en producción y 5 en local**. Un listado local puede omitir entidades que allá se ofrecen, y
+  eso se lee como una regla de negocio.
+- **⚠ Lo que NO explica:** alineando la regla local con la de producción, la entidad **sigue sin
+  listar**. O sea que esta divergencia es real e importante, pero **no es la causa** de esa ausencia —
+  la causa sigue abierta (→ ver el nodo `credifamilia`).
+- **Cómo se encontró, que vale como método:** en vez de seguir preguntando «por qué no sale acá», se
+  buscó en producción **una solicitud donde sí salió** y se compararon las dos configuraciones. Contra
+  catorce cortes descartados leyendo código, la comparación con producción dio dos hechos en minutos.
+- **Arreglo:** para depurar reglas, comparar siempre local contra producción antes de concluir. Para el
+  dump, sería refrescar esa configuración. **Estado:** vigente.
