@@ -168,6 +168,10 @@ Lo profundo por canal vive en skills, y se carga solo cuando hace falta:
 |---|---|
 | `harness-canal-qr` | trabajés el canal QR / Corbeta / Bancolombia (el más grande: mocks del banco, contrato zod, las 9–10 pantallas) |
 | `harness-panel` | toques el panel: el mapa del recorrido, `CAPS`, el selector de comercio, el switch de front/Cognito, `dbops activity` |
+
+> Propuestas para el panel salidas de las corridas de las cinco familias (semáforo de mocks,
+> desenlace por familia, webhook de la entidad, entidades que van a reventar, plazos, documentos):
+> `panel/MEJORAS-DESDE-LAS-CORRIDAS.md` (2026-08-24). Respetan la regla: el panel corre, no valida.
 | `harness-canal-ecommerce` | trabajés la entrada por tienda (URL base64) y su techo actual |
 
 ## Cada corrida destruye la anterior — hacé la forense ANTES
