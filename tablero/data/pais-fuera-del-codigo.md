@@ -319,9 +319,118 @@ volver atrás.
 > que no es el MySQL local. Levantarlo a ciegas podría escribir contra la BD compartida. La validación de
 > este repo quedó en lint + revisión + paridad con el gemelo ya validado por corrida.
 
+## El paso a paso por ambiente
+
+**Cuatro ramas, dos repos, y un orden que no es negociable.** Todas locales y sin push al 2026-08-24:
+
+| # | repo | rama | commit | qué hace |
+|---|---|---|---|---|
+| **P1** | `legacy-backend` | `feature/pais-desde-el-comercio` | `7f5c2301` | 5 consultas: el país sale del comercio |
+| **P1** | `legacy-application` | `feature/pais-desde-el-comercio` | `6ed5a649` | las 5 gemelas |
+| **P2** | `legacy-backend` | `feature/catalogo-de-paises` | `3d9369d9` | 3 migraciones: `is_operating`, Perú, locales |
+| **P2** | `legacy-application` | `feature/catalogo-de-paises` | `e9c4d4ce` | validar país contra `is_operating` |
+
+### El orden, y por qué
+
+1. **P1 primero, en los dos repos.** Es lo único que se puede desplegar sin coordinar con nada: acepta
+   el país viejo y el nuevo a la vez, así que no importa en qué estado esté el dato.
+2. **P2 después.** ⚠ **Nunca antes que P1**: P2 es justamente lo que habilita crear el comercio y la
+   entidad peruanos, y si se crean con P1 sin desplegar, **nacen invisibles** para las consultas del
+   listado.
+3. **Dentro de P2, la migración va antes que la validación** — y son repos distintos. La regla de
+   `legacy-application` consulta `countries.is_operating`; sin esa columna **rechaza todos los países**
+   y no se puede dar de alta nada.
+4. **P3 (el backfill) sólo con P1 en producción**, no mergeada: desplegada.
+
+### Por ambiente
+
+**local** — ya validado acá. `application` corre en `:8000` con el PHP del host y su `.env` **ya apunta
+al MySQL local** (`DB_HOST=127.0.0.1`, schema `creditop`, `APP_ENV=local`); `legacy-backend` va por
+Docker con `DB_HOST=mysql`. Los dos pegan al mismo MySQL, así que la migración se corre **una sola vez**.
+
+    docker exec legacy-backend-laravel.test-1 php artisan migrate --force \
+        --path=database/migrations/2026_08_24_100000_add_is_operating_to_countries_table.php
+
+⚠ **Siempre con `--path` explícito, una por vez.** Un `artisan migrate` pelado en local corre **17
+migraciones pendientes** —14 son de `develop`, ajenas a esta tarea— y deja la base en un estado que
+nadie pidió. Es la misma regla que ya rige para los tests.
+
+**dev** — la rama `develop`. ⚠ **Comparte la BD con `staging`**: la migración se corre **una vez y sirve
+para los dos**. Si las credenciales rotan, se actualizan las dos.
+
+**staging** — sólo `legacy-backend`; **`legacy-application` no tiene staging** (sólo `develop` y `main`).
+Los criterios que tocan el admin se validan en dev.
+
+**producción** — ⚠ **`legacy-application` despliega por TAG**, no por push a `main`: el cambio no sale
+hasta que alguien taguee. Y ⚠ el strangler tiene a **`application` como default**, con allowlist por
+comercio hacia legacy — o sea que el repo "viejo" es el que atiende a la mayoría.
+
+### Cómo se verifica cada paso
+
+Después de **P2-migración** (los tres países operando, y ningún locale inválido):
+
+    make trazador-sql TARGET=<amb> SQL='SELECT iso_code_2, dial_code, phone_code, cell_phone_lenght, locale, currency, is_operating FROM countries WHERE is_operating = 1'
+    make trazador-sql TARGET=<amb> SQL='SELECT COUNT(*) invalidos FROM countries WHERE locale LIKE "%\_%"'
+
+Después de **P2-validación** (acepta los que operan, rechaza el resto):
+
+    cd <legacy-application> && php artisan tinker --execute='...Rule::exists("countries","id")->where("is_operating", true)...'
+
+Después de **P1** — el A/B del listado, que es el que importa:
+
+    E2E_TARGET=local make harness-listado COMERCIO=<comercio>     # antes y después, se diffea
+
+### Cómo se revierte
+
+⚠ **`migrate:rollback --path=<archivo>` NO filtra por archivo** — medido acá: Laravel revierte el
+**último batch** y busca los archivos en el path que le pasás, así que pasarle otro archivo devuelve
+«Migration not found» y **no revierte nada**. Para revertir de verdad hay que ir por batch
+(`--step=1`), y eso puede arrastrar migraciones de otra gente si compartieron batch.
+
+Las tres migraciones tienen `down()`, con una excepción deliberada: la de locales **no se revierte**
+—volver a escribir un separador inválido rompe a quien ya lo lea—. P1 se revierte con un revert del
+commit: no tiene estado.
+
+> **MEDICIÓN · 2026-08-24** — 🔴 **el alta y la edición de ENTIDADES no validaban el país en absoluto**:
+> `Admin/Lender/StoreRequest.php:45` y `Admin/Lender/UpdateRequest.php:45` tenían `country_id` como
+> `'required'` a secas — cualquier número pasaba. Es la otra mitad de por qué 191 entidades quedaron en
+> Afganistán: la columna tiene `DEFAULT 1` **y** el formulario nunca preguntó qué país es. El censo sólo
+> había visto el `Rule::in([47, 60])` del alta de comercio, que al menos validaba algo.
+
+> **MEDICIÓN · 2026-08-24** — **P2 validado en local**. Tras las tres migraciones: Perú (167) queda
+> `51` / `+51` / `9` / `es-PE` / `PEN` con `is_operating = 1`, junto a CO(47) y DO(60); **cero locales con
+> guion bajo** (se normalizaron AR, MX, PR). Y la regla nueva, probada contra la BD: **acepta** 47, 60 y
+> **167**; **rechaza** 1 (Afganistán) y 138 (México, que existe en la tabla pero no opera).
+
+> **DECISIÓN · 2026-08-24** — **quitar el `DEFAULT 1` de las 9 tablas se mueve de P2 a P3.** Mientras las
+> entidades sigan registradas en el país 1, ese default es coherente con el dato; quitarlo antes sólo
+> hace fallar `INSERT`s sin arreglar nada. Va con el backfill, que es cuando deja de ser cierto.
+
+> **DECISIÓN · 2026-08-24** — el **seed de LatAm no entra todavía**, y no por falta de tiempo: cargar
+> prefijos y longitudes de celular de 20 países sería escribir datos que no verifiqué contra ninguna
+> fuente. Y no hace falta: **un país apagado no necesita prefijo ni moneda** — esos datos se cargan cuando
+> va a abrir. `is_operating` ya da el gate sin necesidad de precargar nada. Queda pendiente sólo la
+> pregunta de negocio de qué países listar.
+
 ## Registro
 
 ### 2026-08-24
+
+- **P2 hecho y validado en local.** Tres migraciones aditivas en `legacy-backend`
+  (`feature/catalogo-de-paises`, `3d9369d9`) y la validación por `is_operating` en `legacy-application`
+  (`feature/catalogo-de-paises`, `e9c4d4ce`). **Con esto ya se puede crear el comercio y la entidad
+  peruanos** — que era el bloqueo duro.
+
+- **El `.env` de `legacy-application` ya apuntaba a local** (`DB_HOST=127.0.0.1`, schema `creditop`,
+  `APP_ENV=local`, `APP_URL=localhost:8000`) y la app **ya está corriendo en `:8000`** con el PHP del
+  host. No hubo que tocar nada: se puede probar sin rozar la BD compartida. La auditoría
+  (`make env-auditoria RAIZ=…/github`) marca un solo 🔴 en todo el árbol, y es ajeno a esta tarea:
+  `legacy-backend/.env.testing` con `DB_USERNAME=root` — la causa raíz de CORE-431.
+
+- **Queda escrito el runbook por ambiente**, arriba, con el orden entre las cuatro ramas y las dos
+  trampas medidas: `migrate --path` obligatorio (un `migrate` pelado corre 17 pendientes en local) y
+  `migrate:rollback --path` que **no filtra por archivo**.
+
 
 - **P1 hecho también en `legacy-application`.** Rama **`feature/pais-desde-el-comercio`** (commit
   `6ed5a649`, **local, sin push**) desde `develop` (`640a5c90`). Cuatro archivos, cinco consultas: el
