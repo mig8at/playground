@@ -151,9 +151,47 @@ Y apuntar `legacy-backend` a ella (⚠ **también hay que poner `ONBOARDING_DRIV
 > pagaré** genera y valida dentro de legacy: hasta que los dos sistemas se unifiquen, sacar la lista
 > dejaría a QA sin poder firmar.
 
+> **MEDICIÓN · 2026-08-24** — 🔴 **`$isDoLogic` no decide «es RD»: decide «manda SMS además de
+> WhatsApp», y el nombre miente.** El bloque real (`Loans\OtpService`):
+>
+>     $country   = $this->phoneService->resolveCountry($phoneCode, $user->cell_phone);
+>     $isDoLogic = $country === 'DO' || str_contains($user->cell_phone, '+');
+>     if ($isDoLogic) { /* SMS por el microservicio de mensajería */ }
+>     else            { 'SMS skipped for Colombia' }   // ← no manda SMS
+>
+> **Con Perú, `resolveCountry` devuelve `PE`, no entra al `if`, y el cliente NO recibe SMS** — sólo
+> WhatsApp, con un log que dice «for Colombia». Es el patrón P3 del censo: el mundo binario CO/DO.
+
+> **MEDICIÓN · 2026-08-24** — y **`resolveCountry` no lee de la base**: usa `libphonenumber` para
+> **adivinar el país del número**, con fallback `'CO'` si el parseo falla (`System\PhoneService:29`).
+> El país verdadero ya lo sabe la solicitud —el controller hace
+> `$userRequest->allied?->country?->phone_code ?? '+57'`, que **sí** va por la BD— y después el servicio
+> lo tira y lo vuelve a adivinar del teléfono.
+
+> **MEDICIÓN · 2026-08-24** — **el bypass inline de AuthV1 ya está fuera**: 34 líneas, más la dependencia
+> de `SettingsService` que no tenía otro uso. Los tests que cubren OTP dan **el mismo resultado que la
+> rama base** (11 failed, 4 passed; preexistentes). PR **legacy-backend #1195** contra `qa`.
+
 ## Registro
 
 ### 2026-08-24
+
+- **La lambda mergeó, y con eso salió el primer bypass.** PR **#1195**: `AuthV1\ValidateOtpService` deja
+  de tener su copia inline. **Los otros dos usos siguen** (`Loans\OtpService` y `Loans\OtpValidationService`),
+  porque cubren la firma.
+
+- **Lo siguiente, ya medido y listo para decidir: que el canal salga de la base.** El controller ya lee
+  el país correctamente; el problema es que `Loans\OtpService` lo descarta y lo re-adivina del teléfono,
+  y decide el canal con un ternario binario. El arreglo limpio es **pasarle el país** (el modelo, no el
+  prefijo) en vez de que lo deduzca — así el servicio tiene `phone_code`, `iso` y lo que se agregue.
+
+  ⚠ Falta un dato que **hoy no existe en ninguna tabla**: «¿este país recibe SMS además de WhatsApp?».
+  Sería una columna nueva en `countries`. Y ⚠ **el cambio no es neutro**: hoy `str_contains($cell_phone, '+')`
+  también activa el SMS, así que un teléfono guardado con `+` lo recibe aunque su país sea Colombia —
+  son **5.276 usuarios en prod** con el teléfono guardado con caracteres no numéricos. Al pasar a leer
+  de la base, esos dejan de recibirlo. Es un heurístico accidental que conviene perder, pero **es un
+  cambio de comportamiento y hay que decirlo**, no descubrirlo.
+
 
 - **Fase A cerrada: la lambda queda lista para QA.** PR **#29** en `risk-services-mockery-lambda`
   (`feature/otp-mock`, desde `main`). Falta desplegarla y apuntar `OTP_SERVICE_HOST` en el ambiente.
