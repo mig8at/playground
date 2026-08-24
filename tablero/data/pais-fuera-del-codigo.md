@@ -534,6 +534,28 @@ conclusión sale al revés. Para consultas con varias columnas parecidas, armar 
 
 ### 2026-08-24
 
+- **CONSOLIDADO (decisión de Miguel): una sola rama y un solo commit por repo, y el paso a paso en la
+  descripción del PR.** Quedan **dos PRs**, no cuatro:
+
+  | repo | rama | base | PR | contenido |
+  |---|---|---|---|---|
+  | `legacy-backend` | `feature/pais-configuracion` | **`qa`** | **#1193** | listado + 3 migraciones |
+  | `legacy-application` | `feature/pais-configuracion` | **`develop`** | **#80** | listado + validación + selectores |
+
+  Cerrados #1192 y #79 con nota. **#1191 queda mergeado en `develop` de backend** (P1 solo): no se
+  deshace, y no molesta — `develop` y `qa` son ambientes distintos.
+
+- ⚠ **Y el dato que ordena el despliegue: las migraciones NO las corre el deploy.** `main-dev.yaml` y
+  `main-qa.yaml` no mencionan `migrate`; van por **`run-migrations.yml`, que es `workflow_dispatch`** —
+  manual, con las credenciales de BD tipeadas a mano. Por eso el orden es **migrar primero, mergear
+  después**: las migraciones son aditivas y nadie las usa hasta que el código esté, así que correrlas
+  antes es seguro. Al revés, `legacy-application` queda con la validación pidiendo una columna que no
+  existe y **el alta deja de funcionar**.
+
+- **El squash se verificó corriendo**, no asumiendo: sobre el commit único, los tres casos dan idéntico
+  al baseline (celurd 1/1 · kreditkasa 12 y 3 pre-aprobados · godentist 9 y 5).
+
+
 - **(a) entró en P2, y encontró la causa raíz.** `Country::operating()` es ahora la fuente única de
   «dónde operamos» y la consumen las tres pantallas: alta de entidad, edición de entidad y alta de
   comercio. Commit `133c70dc` en `legacy-application` (`feature/catalogo-de-paises`, local). Con esto
