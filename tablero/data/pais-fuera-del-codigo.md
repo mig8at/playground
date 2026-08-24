@@ -506,9 +506,43 @@ El invariante, como consulta que se puede correr en cualquier ambiente:
 no en el del `SELECT`. Con dos columnas de país (`pais_comercio`, `pais_ciudad`) se leen invertidas y la
 conclusión sale al revés. Para consultas con varias columnas parecidas, armar un solo `CONCAT`.
 
+> **MEDICIÓN · 2026-08-24** — 🔴 **la causa raíz de las 191 entidades en Afganistán no era el `DEFAULT 1`
+> de la columna: era el formulario.** `LenderCreate.vue` y `LenderEdit.vue` tenían la lista de países
+> escrita adentro, con **una sola opción**:
+>
+>     countries: [ { value: 1, title: 'Colombia' } ]
+>
+> El id 1 es **Afganistán**, rotulado «Colombia». El operador no podía elegir otra cosa ni darse cuenta.
+> En cambio el alta de **comercios** (`AlliedInfoCreate.vue:120`) siempre leyó la lista del backend
+> (`$page.props.settings.countries`) — **por eso los comercios sí tienen 47 y 60 bien**. Un formulario
+> leía configuración y el otro la tenía escrita: esa es toda la diferencia entre los dos estados.
+
+> **MEDICIÓN · 2026-08-24 · validado contra el admin corriendo, con sesión real** (`bin/admin-sesion`
+> emite la cookie sin contraseña; el admin en `:8000` con el código de la rama). Las tres pantallas
+> reciben ahora los tres países operativos, y Afganistán queda fuera:
+>
+> | ruta | `countries` que recibe |
+> |---|---|
+> | `/entidades/crear` | 47 Colombia · 60 Dominican Republic · **167 Peru** |
+> | `/entidades/{id}/editar` | 47 · 60 · **167** |
+> | `/aliados/crear` | 47 · 60 · **167** |
+>
+> ⚠ El bundle del admin **no se recompiló**: lo verificado es que el backend manda los datos correctos y
+> que llegan a la página. El selector en pantalla toma el prop nuevo recién después del build.
+
 ## Registro
 
 ### 2026-08-24
+
+- **(a) entró en P2, y encontró la causa raíz.** `Country::operating()` es ahora la fuente única de
+  «dónde operamos» y la consumen las tres pantallas: alta de entidad, edición de entidad y alta de
+  comercio. Commit `133c70dc` en `legacy-application` (`feature/catalogo-de-paises`, local). Con esto
+  P2 cierra: la migración crea la columna, las validaciones la exigen y los selectores la ofrecen.
+
+- **(b) queda como tarea aparte**: poder corregir el país de un comercio mientras no tenga sucursales ni
+  solicitudes. Es funcionalidad nueva y tiene una decisión de negocio detrás (bajo qué condición, y
+  quién puede hacerlo). No bloquea nada.
+
 
 - **La regla del modelo, enunciada por Miguel y medida contra prod**: un comercio = un país, una entidad
   = un país; marca en varios países = varias filas. Los datos la respaldan (cero entidades multi-país,
