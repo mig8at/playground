@@ -451,9 +451,41 @@ commit: no tiene estado.
 > es el admin de `legacy-application` (el merge del 19/8). Producción quedó a medias: el admin filtra
 > ciudades por país, pero el backend no manda el país y el front no lo consume.
 
+> **MEDICIÓN · 2026-08-24 · A/B sobre `qa`, en local, con los dos países que SÍ operan** — baseline
+> tomado sobre `origin/qa` limpio y repetido con el cambio, con el buró dictado (`LAMBDA=1`) para que
+> sea determinista y con `PRE=1` para disparar la consulta de pre-aprobados:
+>
+> | caso | listado antes→después | pre-aprobados antes→después |
+> |---|---|---|
+> | **celurd** (RD, SmartPay 152) | 1 → 1 **idéntico** | 1 → 1 **idéntico** |
+> | **kreditkasa** (CO) | 12 → 12 **idéntico** | 3 → 3 **idéntico** |
+> | **godentist** (CO) | 9 → 9 **idéntico** | 5 → 5 **idéntico** |
+>
+> Con esto queda ejercitado el **preaprobado** (`OnboardingService`), que era uno de los dos sitios que
+> el listado por API no tocaba.
+
+> **MEDICIÓN · 2026-08-24** — ⚠ **el fallback NO se pudo ejercitar, y la razón es un hallazgo**:
+> `processFallbackLenders` sólo corre cuando `count($format_lenders) == 0`
+> (`LenderRetrievalService:223`), y **no hay forma de vaciar el listado desde el harness**. Probado:
+> ingreso **100.000**, score **250**, monto **99.000.000** y monto **60.000** — en todos los casos el
+> listado sale **completo** (12 entidades en Kreditkasa, 1 en CeluRD). Es **F-162 medido de la forma más
+> contundente**: las reglas clasifican, no excluyen. Consecuencia práctica: el fallback es un camino que
+> casi no se ejecuta, y por eso el criterio 1 daba verde incluso con el cambio incompleto.
+> **Queda cubierto sólo por lectura y paridad** con el camino principal (mismo patrón, misma fuente del
+> país; la única diferencia es que el valor entra al closure por `use`).
+
 ## Registro
 
 ### 2026-08-24
+
+- **Alcance acotado por Miguel (2026-08-24)**: el comercio peruano **no** se corre de punta a punta —
+  falta demasiado del censo (teléfono, documento, buró). **Perú entra sólo como país nuevo en el
+  catálogo**; la validación se hace con los dos países que sí operan: **SmartPay/CeluRD (RD)** y un
+  comercio **colombiano**. Cómo se crea el comercio peruano se ve después.
+
+- **A/B hecho sobre `qa` con esos dos países: sin diferencias.** Ver las mediciones. Y el fallback quedó
+  sin ejercitar por una razón que vale registrar: **no se puede vaciar el listado**.
+
 
 - **Censo terminado, y reordena el trabajo.** Seis PATRONES, no 140 lugares: (P1) el teléfono como
   identidad nacional implícita —~50 sitios y ~120 gemelos, y corrompe identidad aguas abajo: Cognito,
