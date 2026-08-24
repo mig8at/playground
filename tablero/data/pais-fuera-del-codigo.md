@@ -412,9 +412,33 @@ commit: no tiene estado.
 > va a abrir. `is_operating` ya da el gate sin necesidad de precargar nada. Queda pendiente sólo la
 > pregunta de negocio de qué países listar.
 
+> **MEDICIÓN · 2026-08-24 · DEV, con el PR #1191 ya desplegado** — ✅ **el comercio peruano ve su
+> entidad.** `Comercio pruebas BCP` (allied **337**, país **167**) tiene cableada `BCP Consumo`
+> (lender **206**, país **167**, rt=1): el listado devuelve **1 de 1**. **Antes del cambio ese listado
+> era 0 de 1** — el filtro pedía país 1 y la entidad está en 167. La entidad peruana ya estaba
+> invisible en dev; no era un escenario hipotético.
+
+> **MEDICIÓN · 2026-08-24 · DEV** — **sin regresiones**: Kreditkasa **10/10** · godentist **8/8** —
+> todas las cableadas salen, cero exclusiones por país. CeluRD (DO) sigue en **0/2** con las mismas
+> causas de siempre (sin ciudades de cobertura, sin reglas de datacrédito, sin condiciones por monto):
+> ninguna es de país.
+
+> **MEDICIÓN · 2026-08-24 · DEV** — el forense de Loki de la solicitud **465147**: **sin fallas**, y
+> `206 BCP Consumo · regla 9867 · aprobado`. La entidad peruana no sólo aparece en el listado: **se
+> evalúa y aprueba**.
+
 ## Registro
 
 ### 2026-08-24
+
+- **PR #1191 de `legacy-backend` MERGEADO y DESPLEGADO a dev** (merge 16:53Z, deploy `success` 16:59Z,
+  `main-dev.yaml` → ECS `inertia-develop`). Validado ahí mismo: el comercio peruano pasa de ver **0
+  entidades a ver 1**, los dos comercios colombianos sin cambios, y los logs limpios.
+
+  **Con esto, `legacy-application` #79 queda habilitado para merge.** Lo único que aún no se ejercitó
+  son el **fallback** y el **preaprobado** —dos de los cinco sitios— porque el listado por API no pasa
+  por ahí; eso lo ejercita el uso real del equipo contra dev.
+
 
 - **P1 PUSHEADO y con PR abierto en los dos repos** (2026-08-24). `legacy-backend` **#1191** y
   `legacy-application` **#79**, los dos contra `develop`, `MERGEABLE` y sin conflictos. ⚠ Los dos quedan
