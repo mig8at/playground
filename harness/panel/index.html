@@ -484,6 +484,20 @@
       flex-wrap: wrap
     }
 
+    /* El control del webhook: aparece SOLO si la corrida quedó esperando a la entidad. No es un
+       control más del dock — es la continuación de una corrida que quedó a medias, así que va pegado
+       a la tira de estado y desaparece cuando no aplica. */
+    .wh { border: 1px solid var(--bd, #2a3444); border-left: 3px solid #d8a657; border-radius: 8px;
+          padding: .7rem .85rem; margin: .6rem 0; background: rgba(216,166,87,.06); }
+    .wh .wh-t { font-size: .9rem; margin-bottom: .5rem; }
+    .wh .wh-b { display: flex; gap: .4rem; flex-wrap: wrap; }
+    .wh .wh-b button { padding: .3rem .7rem; border-radius: 6px; cursor: pointer;
+                       border: 1px solid var(--bd, #2a3444); background: transparent; color: inherit; }
+    .wh .wh-b button:hover { background: rgba(216,166,87,.16); }
+    .wh .wh-n { font-size: .74rem; opacity: .62; margin-top: .45rem; }
+    .wh .wh-r { font-size: .84rem; margin-top: .45rem; min-height: 1.1em; }
+    .wh .wh-r.ok  { color: #89b482; }
+    .wh .wh-r.mal { color: #ea6962; }
     /* estado de la corrida, SIEMPRE visible (antes solo existía al fondo del panel) */
     .dot {
       width: 8px;
@@ -776,6 +790,9 @@
     </div>
 
     <div class="stats" id="stats"></div>
+      <!-- El desenlace que llega de AFUERA: rt=0 y rt=1 no terminan solos. Aparece sólo cuando la
+           corrida quedó en estado 3 esperando a la entidad. -->
+      <section id="webhookZona" class="wh" style="display:none"></section>
 
     <!-- Recorrido del wizard, arriba de todo: es el mapa del territorio antes de elegir nada. Tronco
          común hasta /lenders y un ramal por response_type; se dibujan SOLO los ramales que el comercio
@@ -1457,6 +1474,44 @@
           + (rad ? `\nradicación: ${rad}`
                + (radMal ? '\n⚠ el crédito quedó autorizado pero el paquete NO llegó a la entidad (F-168)'
                          : '\nsólo CREDIT_COMPLETED significa que el lender lo recibió') : '')));
+      }
+
+      // ── EL DESENLACE QUE FALTA: rt=0 y rt=1 no terminan solos ────────────────────────────────
+      // Su crédito NO se decide en el flujo: la solicitud queda en 3 y el resultado llega DESPUÉS,
+      // por webhook, a `legacy-application`. Sin este control el panel corre media familia y deja
+      // una solicitud colgada que parece un fallo — y son el 46 % y el 34 % del volumen de prod.
+      // El receptor es REAL; lo único simulado es la entidad que llama (F-170/F-171).
+      const esperando = e?.ultima && Number(e.ultima.estadoId) === 3 && e.ultima.lenderId;
+      const zona = $('webhookZona');
+      if (zona) {
+        if (!esperando) { zona.style.display = 'none'; zona.innerHTML = ''; }
+        else {
+          const rt = Number(e.ultima.lenderRt);
+          const ops = rt === 0
+            ? [['completed', 'aprueba'], ['failed', 'niega'], ['cancelled', 'no terminó']]
+            : [['fulfilled', 'aprueba'], ['pendiente_desembolso', 'aprueba, sin desembolsar'],
+               ['rejected', 'niega'], ['dismissed', 'descarta']];
+          zona.style.display = '';
+          zona.innerHTML = `<div class="wh-t">La solicitud <b>#${e.ultima.uReq}</b> quedó en <b>3 · esperando a `
+            + `${e.ultima.lender || 'la entidad'}</b>. Su desenlace llega por webhook — respondelo:</div>`
+            + `<div class="wh-b">` + ops.map(([v, t]) =>
+                `<button data-wh="${v}" title="la entidad responde «${v}»">${t}</button>`).join('') + `</div>`
+            + `<div class="wh-n">⚠ lo aplica <b>legacy-application</b>, no legacy-backend — acá el receptor `
+            + `es real y lo simulado es la entidad que llama</div><div class="wh-r"></div>`;
+          zona.querySelectorAll('[data-wh]').forEach(b => b.onclick = async () => {
+            const out = zona.querySelector('.wh-r');
+            out.textContent = '⏳ disparando…';
+            try {
+              const r = await (await fetch('/api/webhook-entidad', {
+                method: 'POST', headers: { 'content-type': 'application/json' },
+                body: JSON.stringify({ uReq: e.ultima.uReq, lender: e.ultima.lenderId, estado: b.dataset.wh }),
+              })).json();
+              out.innerHTML = r.ok ? `↩ ${r.detalle}` : `⚠ ${r.detalle}`;
+              out.className = 'wh-r ' + (r.ok ? 'ok' : 'mal');
+              if (r.ok) loadEstado();
+            } catch (err) { out.textContent = '⚠ ' + err.message; out.className = 'wh-r mal'; }
+          });
+        }
       }
 
       // 5 · el mapa de pasos: si una ruta dejó de existir, el conteo del recorrido miente

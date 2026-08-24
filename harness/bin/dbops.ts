@@ -132,6 +132,18 @@ try {
         // La RADICACIÓN de una solicitud: el paso POSTERIOR al estado 11 que no lo mueve. Existe como
         // subcomando propio porque el panel lo pide por uReq —no por usuario— y porque sin él una corrida
         // «Autorizada» es indistinguible de una donde el paquete nunca llegó a la entidad (F-168).
+        // La entidad de una solicitud, con su `response_type`: el panel lo necesita para saber si la
+        // corrida quedó esperando un webhook y de cuál de las dos formas (rt=0 genérico vs rt=1 por entidad).
+        case 'lender-de': {
+            const ur = Number(a[0] || 0);
+            if (!ur) { r = { id: null, rt: null }; break; }
+            const f = await one<{ id: number; rt: number; name: string }>(
+                `SELECT l.id, l.response_type rt, l.name
+                   FROM user_requests u JOIN lenders l ON l.id = u.lender_id WHERE u.id = ?`, [ur])
+                .catch(() => null);
+            r = f ?? { id: null, rt: null };
+            break;
+        }
         case 'radicacion': {
             const ur = Number(a[0] || 0);
             if (!ur) { r = { estado: null }; break; }

@@ -632,6 +632,38 @@ const server = createServer(async (req, res) => {
     // se muestra en la UI: un conteo de archivos que ya no resuelven es peor que no mostrar nada.
     // Estado del harness para las tarjetas de arriba. TODO sale de algo real: puertos que responden,
     // el volcado forense de la última corrida y el validador del mapa. Sin números decorativos.
+    // EL DESENLACE QUE LLEGA DE AFUERA. Para rt=0 y rt=1 el crédito NO se decide en el flujo: la
+    // solicitud queda en 3 y el resultado llega después, por webhook, a `legacy-application`. Sin esto
+    // el panel sólo puede correr MEDIA familia — y son el 46 % y el 34 % del volumen de producción.
+    //
+    // ⚠ Es opt-in y por eso vive detrás de un botón: el código que corre NO es el de `legacy-backend`
+    // (F-170), y un desenlace automático se leería como si lo fuera.
+    if (path === '/api/webhook-entidad' && req.method === 'POST') {
+        const body = await readBody(req);
+        const uReq = Number(body.uReq || 0);
+        const lender = Number(body.lender || 0);
+        const estado = String(body.estado || '');
+        if (!uReq || !lender || !estado) return json(res, 400, { error: 'faltan uReq, lender o estado' });
+        // ⚠ EL TARGET SE FIJA A `local` A MANO, Y NO ES DEFENSIVO: `pkg/db.ts` toma `E2E_TARGET` y su
+        // default es **dev** (harness/CLAUDE.md lo advierte para `bin/dbops.ts`, y acá pasa igual). Sin
+        // esto el módulo buscaba la transacción de la entidad en la base de DEV, no la encontraba y
+        // respondía «sin transacción: el webhook no tendría a qué apuntar» — un mensaje que suena a que
+        // la corrida quedó mal armada cuando lo que estaba mal era la base a la que se preguntó.
+        // Y va fijo, no configurable: el receptor del webhook es el monolito viejo en localhost, así
+        // que este botón sólo tiene sentido contra local.
+        process.env.E2E_TARGET = 'local';
+        const { familiaWebhook, webhookIntegracion, webhookSelfManager } =
+            await import('../pkg/webhook-entidad.ts');
+        const fam = await familiaWebhook(lender);
+        if (!fam) {
+            return json(res, 200, { ok: false, detalle: 'esta entidad no recibe webhook: es redirección '
+                + 'pura o su familia no está cubierta (F-170)' });
+        }
+        const r = fam === 'rt0' ? await webhookSelfManager(uReq, lender, estado)
+                                : await webhookIntegracion(uReq, estado);
+        return json(res, 200, { ...r, familia: fam });
+    }
+
     if (path === '/api/estado') {
         // `para` dice QUIÉN lo necesita, y existe porque un contador «n/n» no sirve para decidir: lo
         // que importa no es cuántos faltan sino si falta ALGUNO DE LOS QUE ESTA CORRIDA VA A USAR.
@@ -678,6 +710,15 @@ const server = createServer(async (req, res) => {
         // La RADICACIÓN no está en el volcado —lo escribe el scrub antes de borrar y no la incluye—,
         // así que se pide aparte. Es lo que evita el peor falso verde del panel: «Autorizada ✓» con el
         // paquete nunca enviado a la entidad (F-168). `null` = esa entidad no radica por transacción.
+        // El id y el `response_type` de la entidad: sin ellos la UI no sabe si esta corrida quedó
+        // esperando un webhook ni cuál de las dos formas usar (rt=0 genérico vs rt=1 por entidad).
+        if (ultima?.uReq) {
+            const l = await dbopsJson(['lender-de', String(ultima.uReq)], 'local');
+            if (l && typeof l === 'object') {
+                ultima.lenderId = (l as any).id ?? null;
+                ultima.lenderRt = (l as any).rt ?? null;
+            }
+        }
         if (ultima?.uReq) {
             const r = await dbopsJson(['radicacion', String(ultima.uReq)], 'local');
             ultima.radicacion = (r && typeof r === 'object' ? (r as any).estado : null) ?? null;

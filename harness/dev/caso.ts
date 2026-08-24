@@ -78,6 +78,10 @@ process.env.E2E_TARGET ||= 'local';
 process.env.CFE_TARGET ||= 'local';
 
 const { execFile } = await import('node:child_process');
+// El desenlace que llega de afuera (rt=0 y rt=1) vive en `pkg/`: lo usan este runner y el panel, y dos
+// definiciones de «cómo contesta una entidad» derivarían hacia estados distintos.
+const { webhookIntegracion, webhookSelfManager, WELLI_IDS, ESTADOS_WEBHOOK, APP_VIEJA } =
+    await import('../pkg/webhook-entidad.ts');
 const { one, query, exec, close } = await import('../pkg/db.ts');
 const { synthFill } = await import('../pkg/inject.ts');
 const { config: e2eConfig } = await import('../pkg/config.ts');
@@ -108,42 +112,7 @@ const DECEVAL = process.env.MOCK_DECEVAL_URL || 'http://localhost:8106/';
 const NETCO = process.env.MOCK_NETCO_URL || 'http://localhost:8107/';
 const CREDIFAMILIA = process.env.MOCK_CREDIFAMILIA_URL || 'http://localhost:8108/';
 
-/** EL MONOLITO VIEJO. No es un mock: es `legacy-application` de verdad, corriendo contra LA MISMA BASE
- *  —por eso el parallel-run funciona— y es el ÚNICO que recibe los webhooks de las entidades rt=1
- *  (F-170: en `legacy-backend` no hay ninguna ruta que los reciba). Se levanta a mano:
- *      cd ~/Desktop/CREDITOP/github/legacy-application && php artisan serve --port=8000
- *  ⚠ Rutea por SUBDOMINIO: el webhook vive en `api.localhost` y las de cliente en `aliados.localhost`.
- *  Pegarle al host pelado NO da 404 sino **405 con «Supported methods: GET, HEAD»**, porque cae en la
- *  ruta fallback — un mensaje que manda a revisar el verbo cuando el problema es el Host. */
-/** ⚠ VA CON EL SUBDOMINIO EN LA URL, no con un header `Host`. `fetch` de Node **descarta** ese header
- *  —es forbidden en el estándar— sin decir nada, así que la petición llega al host pelado, cae en la
- *  ruta fallback y vuelve un **405 «Supported methods: GET, HEAD»** que manda a revisar el verbo.
- *  `api.localhost` resuelve solo a 127.0.0.1, así no hace falta tocar `/etc/hosts`. */
-const APP_VIEJA = process.env.LEGACY_APPLICATION_URL || 'http://api.localhost:8000';
-const WELLI_TOKEN = process.env.WELLI_WEBHOOK_TOKEN || 'token-de-pruebas-solo-local';
-/** Token de Sanctum con habilidad `selfManager`, para el webhook GENÉRICO de rt=0. Se emite a mano una
- *  vez: en `legacy-application`, `$user->createToken('harness-local', ['selfManager'])`. No se puede
- *  reusar el que ya existe en la base porque Sanctum guarda el hash, no el texto. */
-const SELFMANAGER_TOKEN = process.env.SELFMANAGER_TOKEN || '';
 
-/** LOS ARRANQUES DE LARAVEL VAN DE A UNO, Y NO ES PRUDENCIA: ESTÁ MEDIDO.
- *
- *  La preparación del webhook de rt=0 corre `artisan tinker`, que bootea el monolito viejo ENTERO. Con
- *  nueve casos en paralelo, esos arranques le comieron la CPU al servidor local y **tres casos que
- *  cierran siempre —CrediPullman y los dos Motai— fallaron con `HTTP 0`** en la generación de
- *  documentos: ni siquiera un 500, la petición no completó. En aislamiento los tres cerraban 3/3, y
- *  quitando el paso de tinker los mismos nueve corrían limpio. O sea que el runner se estaba
- *  saboteando a sí mismo y el síntoma aparecía en OTROS casos, que es lo que lo vuelve difícil de leer.
- *
- *  Serializar cuesta ~1 s por caso rt=0 y no afecta al resto: lo único que espera es el siguiente boot. */
-let fila: Promise<unknown> = Promise.resolve();
-function enFila<T>(tarea: () => Promise<T>): Promise<T> {
-    const proximo = fila.then(tarea, tarea);
-    fila = proximo.catch(() => {});
-    return proximo;
-}
-const APP_VIEJA_DIR = process.env.LEGACY_APPLICATION_DIR
-    || `${process.env.HOME}/Desktop/CREDITOP/github/legacy-application`;
 
 // El microservicio de PRE-APROBADOS. Lo llama el FRONT, no el backend (F-141), así que una corrida
 // por API lo saltea sin fallar: el listado se ve completo y la etapa no ocurrió. Acá se REPLICA esa
@@ -156,11 +125,6 @@ const PREAPPROVALS = process.env.PREAPPROVALS_URL ?? 'http://localhost:8095/v1/p
 // El `lending_product_key` NO es el slug siempre — el contrato lo arma
 // `fetch-lender-preapproval.ts:148-153` del monorepo, y son tres casos:
 const CREDITOP_X_PRODUCT_KEY = 'creditop_x';   // rt 2 y 3 comparten UN producto
-const WELLI_IDS = [23, 141, 142, 166];         // las cuatro variantes comparten `welli`
-// ⚠ Esos MISMOS cuatro ids están quemados en el handler del webhook de Welli
-// (`legacy-application`, `WelliController::webhook`: `whereIn('lender_id', [23,141,142,166])`).
-// No es coincidencia y conviene saberlo: si aparece una quinta variante de Welli, no basta con
-// darla de alta — hay que tocar código en los dos lados o su webhook no encuentra la transacción.
 const claveDeProducto = (rt: number, id: number, slug: string) =>
     (rt === 2 || rt === 3) ? CREDITOP_X_PRODUCT_KEY : WELLI_IDS.includes(id) ? 'welli' : slug;
 
@@ -1515,124 +1479,7 @@ async function prevuelo(casos: Caso[] = []): Promise<string[]> {
     return faltan;
 }
 
-/** DISPARA EL WEBHOOK DE LA ENTIDAD — el desenlace de un rt=1, que `legacy-backend` no puede dar.
- *
- *  QUÉ ES REAL ACÁ Y QUÉ NO, porque la diferencia es todo el valor de esto. **El receptor es real**: se
- *  llama al webhook de verdad en `legacy-application`, que resuelve la transacción, aplica su propio
- *  `STATUS_MAP` y escribe en la base compartida. Lo único simulado es **la entidad que llama** — que es
- *  exactamente lo que un mock debe simular. No se toca ningún estado a mano.
- *
- *  ⚠ POR ESO NO PRUEBA `legacy-backend`. El código que corre acá vive en el monolito viejo; en el nuevo
- *  la mitad receptora está escrita (el `STATUS_MAP` de `Welli`, su `authorize()`) pero **sin ruta que la
- *  reciba y con la clave del token sin declarar**, así que su guard rechaza siempre (F-170). Un verde
- *  acá dice «el flujo del cliente llega a su desenlace», nunca «legacy-backend recibe webhooks».
- *
- *  ⚠ Y LOS DOS `STATUS_MAP` NO COINCIDEN. Medido el 2026-08-23: `pendiente_desembolso` es **28** en
- *  application y **11** en legacy-backend, y `fraud`/`risk_in_process` sólo existen en el nuevo. O sea
- *  que el desenlace que se observe acá es el de HOY; cuando el webhook migre, uno de esos tres cambia.
- */
-async function webhookIntegracion(ur: number, estado: string): Promise<{ ok: boolean; detalle: string }> {
-    const tx = await one<{ o: string }>(
-        `SELECT order_id o FROM lender_transactions
-          WHERE user_request_id = ? AND lender_id IN (${WELLI_IDS.join(',')})
-          ORDER BY id DESC LIMIT 1`, [ur]).catch(() => null);
-    if (!tx?.o) {
-        return { ok: false, detalle: 'sin transacción de la entidad: el webhook no tendría a qué apuntar' };
-    }
 
-    const r = await fetch(`${APP_VIEJA}/welli/webhook`, {
-        method: 'POST',
-        headers: {
-            'content-type': 'application/json',
-            accept: 'application/json',
-            authorization: `Bearer ${WELLI_TOKEN}`,
-        },
-        body: JSON.stringify({ timestamp: new Date().toISOString(), application_id: tx.o, status: estado }),
-        signal: AbortSignal.timeout(20_000),
-    }).catch((e) => ({ ok: false, status: 0, text: async () => String(e) } as any));
-
-    const cuerpo = (await r.text().catch(() => '')).slice(0, 120);
-    if (r.status === 401) {
-        return { ok: false, detalle: 'el webhook devolvió 401 — falta WELLI_WEBHOOK_TOKEN en el .env de legacy-application' };
-    }
-    if (r.status !== 200) return { ok: false, detalle: `el webhook devolvió HTTP ${r.status}: ${cuerpo}` };
-
-    const fin = await one<{ e: number }>(
-        'SELECT user_request_status_id e FROM user_requests WHERE id=?', [ur]).catch(() => null);
-    return { ok: true, detalle: `webhook \`${estado}\` → estado ${fin?.e ?? '?'} (lo aplicó legacy-application, no legacy-backend)` };
-}
-
-/** EL DESENLACE DE UN rt=0 — la familia MÁS GRANDE, y la que parecía no tener vuelta.
- *
- *  «Redirige a la web de la entidad y nadie decide en plataforma» describe la IDA. La vuelta existe y es
- *  un webhook **genérico** —uno solo para todas: Addi, PayJoy, Brilla, Sistecrédito—, no uno por
- *  entidad como en rt=1. Medido en producción: rt=0 son 15.339 solicitudes en 90 días (46 % del total)
- *  y 4.196 autorizadas, con Addi llevándose 3.529. Ver F-170.
- *
- *  DOS PASOS, porque el webhook no crea nada: busca lo que el flujo real ya dejó.
- *    1. la `LenderTransaction` y el código de compra, que en producción los crea el navegador del
- *       cliente al finalizar la compra (`FinalizePurchaseQrController`, en el monolito viejo);
- *    2. el webhook, que los encuentra por `order_id` y cierra.
- *
- *  ⚠ EL PASO 1 SE INVOCA POR `artisan tinker`, no por SQL a mano. Cuesta un segundo más y vale la pena:
- *  la transacción la crea `selfManager()` de la entidad —su código real, con su propio estado
- *  `Pending`— en vez de un INSERT nuestro que quedaría viejo en cuanto ese método cambie. El código de
- *  compra sí es un insert, porque el controlador lo hace inline y no hay método que llamar.
- *
- *  ⚠ `lender_id` EN EL PAYLOAD ES EL SLUG, no el número. Y el slug NO es estable entre ambientes: el
- *  lender 6 es `addi` en producción y `credifamilia-addi` en el dump local. Por eso se lee de la base.
- */
-async function webhookSelfManager(ur: number, lender: number, estado: string): Promise<{ ok: boolean; detalle: string }> {
-    if (!SELFMANAGER_TOKEN) {
-        return { ok: false, detalle: 'falta SELFMANAGER_TOKEN (Sanctum con habilidad `selfManager`) — ver harness/CLAUDE.md' };
-    }
-    const l = await one<{ s: string; a: string | null }>(
-        'SELECT slug s, action a FROM lenders WHERE id=?', [lender]).catch(() => null);
-    if (!l?.s) return { ok: false, detalle: `la entidad ${lender} no tiene slug: el webhook busca por slug` };
-    // ⚠ LA MAYORÍA DE LOS rt=0 NO TIENEN INTEGRACIÓN. Medido en producción: de 20 entidades rt=0 con
-    // solicitudes en 90 días, sólo **3** tienen clase `action` —y se llevan el 88 % del volumen—; las
-    // otras 17 son redirección pura y **no reciben webhook**. Sin este aviso, pedirle `@webhook=` a una
-    // de ésas fallaba con un mensaje vacío, que se lee como que el webhook está roto.
-    if (!l.a) {
-        return { ok: false, detalle: `la entidad ${lender} no tiene clase de integración (\`action\` en NULL):`
-            + ' es redirección pura y NO recibe webhook. Sólo 3 de las rt=0 lo reciben (F-170)' };
-    }
-
-    const orderId = `SYNTH-${ur}-${Date.now().toString(36)}`;
-    const php = `
-        $l = \\App\\Models\\Lender::find(${lender});
-        $r = new \\Illuminate\\Http\\Request();
-        $r->merge(['user_request_id' => ${ur}, 'order_id' => '${orderId}']);
-        $r->lender = $l;
-        (new $l->action())->selfManager($r);
-        \\App\\Models\\PurchaseCode::firstOrCreate(['user_request_id' => ${ur}],
-            ['barcode_url' => 'https://mock-s3.local/barcodes/synth-${ur}.png']);
-        echo 'listo';`;
-    const prep = await enFila(() => new Promise<string>((res) => {
-        execFile('php', ['artisan', 'tinker', '--execute', php], { cwd: APP_VIEJA_DIR, timeout: 60_000 },
-            (e, out, err) => res(e ? `ERROR ${String(err || e).slice(0, 130)}` : String(out)));
-    }));
-    if (!prep.includes('listo')) return { ok: false, detalle: `no se pudo preparar la transacción: ${prep.slice(0, 110)}` };
-
-    const r = await fetch(`${APP_VIEJA}/self-manager/webhook`, {
-        method: 'POST',
-        headers: { 'content-type': 'application/json', accept: 'application/json',
-                   authorization: `Bearer ${SELFMANAGER_TOKEN}` },
-        body: JSON.stringify({
-            lender_id: l.s, order_id: orderId, code_id: `COD-${ur}`,
-            available_amount: 2_000_000, purchase_amount: 2_000_000,
-            invoice_number: `FAC-${ur}`, status: estado,
-        }),
-        signal: AbortSignal.timeout(30_000),
-    }).catch((e) => ({ status: 0, text: async () => String(e) } as any));
-
-    const cuerpo = (await r.text().catch(() => '')).slice(0, 110);
-    if (r.status === 401) return { ok: false, detalle: 'el webhook devolvió 401 — el token de Sanctum no sirve o le falta la habilidad' };
-    if (r.status !== 200) return { ok: false, detalle: `el webhook devolvió HTTP ${r.status}: ${cuerpo}` };
-
-    const fin = await one<{ e: number }>('SELECT user_request_status_id e FROM user_requests WHERE id=?', [ur]).catch(() => null);
-    return { ok: true, detalle: `webhook self-manager \`${estado}\` → estado ${fin?.e ?? '?'} (lo aplicó legacy-application)` };
-}
 
 /** POSTVUELO del buró: ¿el ingreso que se DICTÓ llegó de verdad? Es la única comprobación que
  *  distingue «el parámetro no influye» de «el parámetro nunca llegó», y las dos se ven igual en el

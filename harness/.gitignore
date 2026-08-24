@@ -9,3 +9,6 @@ playwright-report/
 .flows.json
 .asesor-snapshot.json
 .auth/
+
+# Token de Sanctum para el webhook de rt=0 (se emite a mano, es local)
+.selfmanager-token

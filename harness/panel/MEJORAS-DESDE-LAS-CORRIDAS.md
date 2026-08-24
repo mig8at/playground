@@ -67,7 +67,7 @@ vez de un final ambiguo. Eso depende de la mejora 3 (el botón de webhook) y va 
 
 ---
 
-## 3. Botón «la entidad responde» (rt=0 y rt=1)
+## 3. ✅ Botón «la entidad responde» (rt=0 y rt=1) — *hecho 2026-08-24*
 
 **El problema medido:** para la familia con más volumen (rt=0: 46 % de las solicitudes de prod) y
 para rt=1, el flujo del panel termina en un estado 3 que no va a moverse nunca — la vuelta llega por
@@ -81,6 +81,22 @@ resueltas que el panel hereda gratis: el subdominio `api.localhost` y el token.
 
 **Por qué es «correr»:** es la definición exacta de inyectar+bypass — completa el flujo que el panel
 mismo lanzó. Sin esto, el panel sólo puede correr media familia.
+
+**Cómo quedó.** El control aparece **sólo** cuando la corrida quedó en estado 3 esperando, con los
+estados que esa familia puede responder (rt=0: aprueba/niega/no terminó · rt=1: los cuatro de Welli), y
+dispara el webhook **real**. Verificado en las dos familias: `fulfilled`→11 y `completed`→11.
+
+La capacidad se extrajo a **`pkg/webhook-entidad.ts`** en vez de copiarla: la usan el runner de casos y
+el panel, y dos definiciones de «cómo contesta una entidad» derivarían hacia estados distintos — es la
+regla del repo para `pkg/`.
+
+⚠ **Dos trampas que aparecieron al conectarlo, y las dos daban mensajes que culpaban a otra cosa:**
+- `pkg/db.ts` toma `E2E_TARGET` y su **default es `dev`**, así que el módulo buscaba la transacción de
+  la entidad en la base equivocada y respondía «sin transacción: el webhook no tendría a qué apuntar» —
+  que suena a corrida mal armada. Se fija a `local` a mano, y va fijo porque el receptor es el monolito
+  viejo en localhost.
+- el token de Sanctum se leía **sólo** del entorno; un panel que se usa a botones no puede pedir un
+  `export`. Ahora cae a `harness/.selfmanager-token` (gitignoreado, mismo trato que `.cognito.json`).
 
 ---
 
