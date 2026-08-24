@@ -546,9 +546,49 @@ conclusión sale al revés. Para consultas con varias columnas parecidas, armar 
 > obligaba a tocar los seis controladores. Se resuelven **sólo si la ruta trae un comercio**, así los
 > listados no pagan la consulta.
 
+> **MEDICIÓN · 2026-08-24** — ✅ **`dev`, `qa` y `staging` son UNA SOLA base de datos**: mismo host
+> (`inertia-dev…`) y mismo schema (`creditop`) en `harness/.env.dev`, `.env.qa` y `.env.staging`. La
+> migración se corre **una vez** y sirve para las tres. (El CLAUDE.md sólo decía que dev y staging la
+> compartían; qa también.)
+
+> **MEDICIÓN · 2026-08-24** — **la migración YA ESTÁ APLICADA en la base compartida.** Antes: 7 países
+> con moneda · 4 con prefijo · **4 locales inválidos** · `is_operating` no existía. Después:
+> **20 con moneda · 19 con prefijo · 0 locales inválidos · 3 operando** (COL, DOM, PER) y la fila 1
+> (Afganistán) **apagada**. Verificado corriendo: Kreditkasa 10/10 y el comercio peruano 1/1, igual que
+> antes.
+
+> **MEDICIÓN · 2026-08-24** — ⚠ **`--pretend` SUBESTIMA lo que va a pasar** cuando la migración lee datos:
+> mostró 3 sentencias (el `ALTER`, el `REPLACE` de locales y el `UPDATE` de `is_operating`) y **no** los
+> 18 `UPDATE` del catálogo, porque en modo simulado los `SELECT` no se ejecutan y el bucle no encuentra
+> filas. Sirve para ver el DDL, no como prueba completa.
+
+> **MEDICIÓN · 2026-08-24** — en la base compartida había **una sola migración pendiente**: la nuestra.
+> Las 402 restantes ya habían corrido. Aun así se aplicó con `--path` explícito.
+
+> **DECISIÓN · 2026-08-24 (Miguel)** — **no se agrega un regex de celular por país; queda en la
+> longitud**, que además ya tiene columna (`cell_phone_lenght`). Los rangos de prefijos móviles cambian
+> cuando el regulador asigna bloques nuevos y un regex viejo **rechaza clientes reales** — falla cerrado.
+> Y el patrón NO se deriva de los usuarios que ya tenemos: es un dato del país, como el `+57`.
+
+> **DECISIÓN · 2026-08-24 (Miguel)** — **se cargan los 18 países de Latinoamérica**, apagados, con lo que
+> es estándar y estable: código telefónico (E.164), moneda (ISO 4217), idioma (BCP-47) y longitud de
+> celular **sin código de país ni cero troncal**. ⚠ Las longitudes de los que no operan quedan
+> **pendientes de confirmar con negocio** antes de abrir cada país: varios planes de numeración son
+> ambiguos sobre el cero troncal — la misma duda que hoy tenemos con RD (11 contra 10).
+
 ## Registro
 
 ### 2026-08-24
+
+- **Todo consolidado en UNA migración** (`2026_08_24_100000_paises_como_configuracion`) y **un commit por
+  repo**: `legacy-backend` `75fe0585` (#1193 → `qa`) y `legacy-application` `8665218d` (#80 → `develop`).
+  Las tres migraciones anteriores se revirtieron en local y se borraron.
+
+- **Y ya corrió en la base compartida**, con protocolo: credenciales por entorno **sin tocar ningún
+  `.env`** (el de `legacy-backend` lo usan los tests — es la trampa de CORE-431), `migrate:status` para
+  confirmar contra qué base apuntaba, `--pretend`, SELECT antes, `--path` explícito, SELECT después y una
+  corrida del harness para comprobar que no rompió nada.
+
 
 - **La tarea (b) entró al PR consolidado** (`legacy-application` #80, commit único `8665218d`): el país
   del comercio se puede corregir mientras esté vacío. Ya no queda como tarea aparte.
