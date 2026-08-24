@@ -576,6 +576,22 @@ conclusión sale al revés. Para consultas con varias columnas parecidas, armar 
 > **pendientes de confirmar con negocio** antes de abrir cada país: varios planes de numeración son
 > ambiguos sobre el cero troncal — la misma duda que hoy tenemos con RD (11 contra 10).
 
+> **DECISIÓN · 2026-08-24 (Miguel)** — **los 18 países de Latinoamérica quedan HABILITADOS**, no sólo los
+> tres que operan. El argumento que cambió la decisión: **dar de alta un comercio es configuración, no
+> operación** — no origina crédito, así que no hay razón para impedirlo mientras el país se prepara. Que
+> el flujo se caiga después por falta de buró, documentos o geografía es **otro problema** (el del censo),
+> y confundirlos hacía que esta columna bloqueara trabajo legítimo de configuración.
+>
+> Con eso `is_operating` cambia de significado: ya no es «dónde operamos» sino **«dónde se puede dar de
+> alta»**. Lo que sigue protegiendo es lo importante: que nadie elija un país del que no sabemos ni el
+> prefijo telefónico. **Los otros 235 de la tabla siguen apagados.**
+
+> **MEDICIÓN · 2026-08-24 · aplicado en local y en la compartida** — **18 habilitados** · 20 con moneda ·
+> 19 con prefijo · **0 locales inválidos** · **Afganistán apagado**. El selector del admin ya ofrece los
+> 18 (Argentina, Bolivia, Brasil, Chile, Colombia, Costa Rica, Rep. Dominicana, Ecuador, El Salvador,
+> Guatemala, Honduras, México, Nicaragua, Panamá, Paraguay, Perú, Uruguay, Venezuela) y la validación
+> acompaña: **Bolivia (26) acepta · Afganistán (1) rechaza · Vietnam (233) rechaza**.
+
 ## Registro
 
 ### 2026-08-24
