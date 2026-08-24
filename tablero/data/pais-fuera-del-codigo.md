@@ -416,6 +416,26 @@ commit: no tiene estado.
 
 ### 2026-08-24
 
+- **P1 PUSHEADO y con PR abierto en los dos repos** (2026-08-24). `legacy-backend` **#1191** y
+  `legacy-application` **#79**, los dos contra `develop`, `MERGEABLE` y sin conflictos. ⚠ Los dos quedan
+  en `BLOCKED` por **`REVIEW_REQUIRED`**: hay que pedir aprobación. Ninguno tiene checks de CI
+  configurados, así que la única red es la revisión humana y la evidencia del PR.
+
+  **Orden de merge decidido: `legacy-backend` #1191 PRIMERO.** Dos razones: es el único validado por
+  corrida (el A/B se hizo contra él), y tiene **menos tráfico** — con el strangler, `application` es el
+  **default** y backend atiende sólo la allowlist. El de más riesgo va segundo y con la validación del
+  primero ya hecha.
+
+  **Lo que hay que validar en dev entre uno y otro** (después de que #1191 despliegue):
+
+      E2E_TARGET=dev I_KNOW_THIS_TOUCHES_SHARED_DEV=1 make harness-listado COMERCIO=<uno CO>
+      E2E_TARGET=dev I_KNOW_THIS_TOUCHES_SHARED_DEV=1 make harness-listado COMERCIO=<uno DO>
+      make harness-loki UREQ=<la que quede> SINCE=1h
+
+  ⚠ `harness-listado` **escribe** (crea una solicitud), de ahí el flag de F-53 a mano. Y ⚠ **`develop`
+  del front está congelado**, así que el wizard de dev no sirve para esto: la prueba es por API.
+
+
 - **P2 hecho y validado en local.** Tres migraciones aditivas en `legacy-backend`
   (`feature/catalogo-de-paises`, `3d9369d9`) y la validación por `is_operating` en `legacy-application`
   (`feature/catalogo-de-paises`, `e9c4d4ce`). **Con esto ya se puede crear el comercio y la entidad
