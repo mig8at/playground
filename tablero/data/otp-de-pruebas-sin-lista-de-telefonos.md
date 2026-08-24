@@ -130,9 +130,45 @@ Y apuntar `legacy-backend` a ella (⚠ **también hay que poner `ONBOARDING_DRIV
 > **DECISIÓN · 2026-08-24 (Miguel)** — el comportamiento por defecto es **cualquier teléfono y cualquier
 > OTP**. Dictar un código concreto queda como la excepción, vía el admin API de la lambda.
 
+> **MEDICIÓN · 2026-08-24 · las rutas están escritas, probadas y con PR.** Rama `feature/otp-mock` desde
+> `main` de `risk-services-mockery-lambda`, **PR #29**. Contra el **cliente real** de `legacy-backend`
+> (no el doble in-process):
+>
+>     --- teléfono SIN dictar ---
+>     generate       → {"success":true,"message":"ok"}
+>     validate(777)  → {"success":true,"valid":true,"message":"ok"}
+>     --- teléfono CON 4321 dictado por el admin API ---
+>     validate(4321) → {"success":true,"valid":true,"message":"ok"}
+>     validate(0000) → {"success":true,"valid":false,"message":"invalid code"}
+>
+> Y el control que importa: **otro teléfono, sin dictar, sigue aceptando cualquiera** — el dictado es por
+> identificador, no global, así que dos pruebas en paralelo no se pisan.
+>
+> **No toca ninguna ruta existente**: 130 líneas, todas insertadas, en una carpeta `OTP` nueva.
+
+> **DECISIÓN · 2026-08-24** — **este PR no permite borrar todavía el bypass por lista.** Lo vuelve
+> innecesario para **identidad**, que es donde está la mayor parte de la fricción, pero la **firma del
+> pagaré** genera y valida dentro de legacy: hasta que los dos sistemas se unifiquen, sacar la lista
+> dejaría a QA sin poder firmar.
+
 ## Registro
 
 ### 2026-08-24
+
+- **Fase A cerrada: la lambda queda lista para QA.** PR **#29** en `risk-services-mockery-lambda`
+  (`feature/otp-mock`, desde `main`). Falta desplegarla y apuntar `OTP_SERVICE_HOST` en el ambiente.
+
+- **El argumento que ordena la fase B**, y que apareció comparando las dos firmas: el microservicio ya es
+  **multi-país por diseño** —`generateOtp(string $country, …)`— mientras el camino de la firma tiene
+  `$phoneCode = '+57'` de default y un `$isDoLogic` binario que elige entre SNS y Twilio. Migrar la firma
+  al microservicio **no arregla ese hardcode: lo hace desaparecer**. O sea que unificar el OTP y avanzar
+  la internacionalización son el mismo trabajo.
+
+  ⚠ Pero es un **cambio de producción** —toca el flujo que emite un título valor— así que va con su
+  propia validación, no junto con la fase A. Y la firma necesita seguir guardando el registro local de
+  `Otp`: su `id` viaja como `otp_id` a la autorización y al documento, o sea es **evidencia**. Eso no se
+  toca; lo que se delega es la generación y la validación del código.
+
 
 - **Análisis y spike, en la misma sesión.** Salió de querer sacar la lista de teléfonos de pruebas. El
   análisis encontró que son **dos sistemas de OTP** y **tres mecanismos de prueba**, y que el camino de
