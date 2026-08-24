@@ -284,9 +284,45 @@ volver atrás.
 > comercios del A/B; y `cell_phone_lenght` de DO es **10** en local y **11** en prod. Para el listado de
 > entidades ninguna de las tres molesta, pero sí para cualquier prueba que toque prefijo o moneda.
 
+> **MEDICIÓN · 2026-08-24** — 🔴 **el camino PRINCIPAL del listado no filtraba por país en absoluto.**
+> `LenderRetrievalService::getLenders()` (la consulta de la línea 160 en `develop`) sólo filtraba por
+> `status` y por las entidades cableadas a la sucursal. No estaba en el censo de literales porque **no hay
+> ningún número que grepear**: la ausencia de filtro no se ve con un grep. Los 8 literales son el
+> *fallback* (`processFallbackLenders`), el preaprobado (`OnboardingService`) y dos repositorios — ninguno
+> es el camino que arma el listado real. **Lo destapó la corrida, no la lectura**: con el cambio aplicado
+> sólo a los literales, una entidad movida a Perú **seguía apareciendo** en un comercio colombiano.
+
+> **MEDICIÓN · 2026-08-24** — **A/B en local, criterio 1 (no romper): ✅ los 5 comercios idénticos**
+> entidad por entidad — Kreditkasa 12/12 · godentist 9/9 · Motai 6/7 · Sonría 6/10 · CeluRD 0/2.
+> Baseline tomado sobre `develop` limpio antes de ramificar.
+
+> **MEDICIÓN · 2026-08-24** — **A/B en local, criterio 2 (que sirva): ✅** con el comercio Kreditkasa
+> (Colombia, 47) y la entidad PayJoy (17) movida de país: **1 → sale** (compatibilidad con el default
+> histórico) · **47 → sale** (el mecanismo nuevo) · **60 → no sale** · **167 → no sale**. El dato quedó
+> restaurado a 1.
+
+> **MEDICIÓN · 2026-08-24** — dos comercios de local que **no sirven** para el A/B: **Creditop (24)**
+> devuelve HTTP 500 antes de llegar al listado (`Attempt to read property "sort" on null` en el servicio
+> de probabilidad, ajeno a esto) y **CeluRD (270)** da **0 de 2** — sus entidades de SmartPay no tienen
+> ciudades de cobertura ni reglas ni condiciones por monto en el dump local. **En local no hay ningún
+> comercio no-colombiano funcional**, así que el caso multi-país sólo se puede probar moviendo una entidad
+> de país a mano, como en el criterio 2.
+
 ## Registro
 
 ### 2026-08-24
+
+- **P1 hecho y validado en `legacy-backend`.** Rama **`feature/pais-desde-el-comercio`** (commit
+  `7f5c2301`, **local, sin push**), sacada de `develop` actualizado (`750793bf`). Toca 6 archivos: los 3
+  filtros literales, los 2 repositorios gemelos con su interfaz, y **el camino principal de `getLenders`**,
+  que no estaba en el plan porque no estaba en el censo. Falta `legacy-application` (5 filtros + el
+  `Rule::in([47,60])` del alta de comercio), que va en su propia rama.
+
+- **El A/B funcionó como control, no como trámite**: el criterio 1 (nada cambia) dio verde **también con
+  el cambio incompleto**, porque el fallback y el preaprobado no se ejercitan en una corrida normal. Fue
+  el criterio 2 —mover la entidad de país— el que mostró que faltaba el camino principal. Sin ese segundo
+  test, esto se habría mergeado creyendo que estaba completo.
+
 
 - **De dónde sale esta tarea.** Salió de una pregunta sobre **moneda por país** en CORE-365: la respuesta
   fue que la moneda viaja en el payload (`country {…, currency, locale}`) pero **nadie la consume** en el
