@@ -1,15 +1,15 @@
 ---
 id: 43
-title: "Internacionalización del onboarding — celular, tipos de documento y mensajes por país"
+title: "Internacionalización de CreditOp"
 stage: tasks
 created: "2026-08-05T17:11:17-05:00"
 context_nodes: [onboarding, dynamic-forms, merchants, entities, smartpay, hardcodes-entidades]
 jira: [CORE-365]
-jira_title: "Onboarding por país: celular, documentos y mensajes"
-ramas: pais-como-dato
+jira_title: "Internacionalización de CreditOp"
+ramas: pais-como-dato, pais-configuracion
 ---
 
-# Internacionalización del onboarding
+# Internacionalización de CreditOp
 > **estado (2026-08-19, tarde):** el trabajo está hecho en los tres repos; lo que está desordenado es
 > **dónde quedó cada pieza**. Abajo, en §«Las ramas de esta tarea», está la única tabla que hay que
 > mirar. Resumen: **las TRES piezas mergeadas y desplegadas** — backend y admin en `develop`, front en
@@ -72,6 +72,33 @@ estorba, se cierra; no se mergea.
 | `legacy-backend` | `feature/pais-como-dato-onto-develop` | **`develop`** | ✅ **mergeada** (PR #1126, 18/8) y desplegada a dev |
 | `legacy-application` | `feature/pais-como-dato-onto-develop` | **`develop`** | ✅ **mergeada** (PR #68, 19/8, la mergeó Miguel sin revisión: `develop` no tiene ruleset) |
 | `frontend-monorepo` | `feature/pais-como-dato-onto-staging` | **`staging`** | ✅ **mergeada** (PR #834, 19/8 15:22, la apretó sanvipi-ctop) y desplegada a `loan-request-wizard-stg` |
+
+**Segunda tanda — «el país es configuración» (2026-08-24).** El detalle vive en la tarea
+`pais-fuera-del-codigo.md`; acá queda el estado de las ramas para que esta tabla no mienta.
+
+| repo | rama de trabajo | va contra | estado |
+|---|---|---|---|
+| `legacy-backend` | `feature/pais-desde-el-comercio` | `develop` | ✅ **mergeada** (PR #1191, 24/8) y desplegada a dev |
+| `legacy-backend` | **`feature/pais-configuracion`** | **`qa`** | 🟡 **PR #1193 abierto**, un commit, esperando aprobación |
+| `legacy-application` | **`feature/pais-configuracion`** | **`develop`** | 🟡 **PR #80 abierto**, un commit, esperando aprobación |
+
+⚠ **La corrección de rumbo del 24/8: `develop` NO es el camino.** Medido: en `legacy-backend`,
+`develop` está **332 commits detrás de `main`** mientras `qa` está a **11/8** — o sea al día. En
+`frontend-monorepo` es peor: `develop` a 433. Y el historial muestra que **`main` se alimenta de ramas
+de feature directamente**, no de qa ni de develop: `qa`, `develop` y `staging` son **ambientes**, no
+etapas de un flujo. Por eso la segunda tanda va desde **`qa`**.
+
+⚠ **Excepción: `legacy-application` NO TIENE rama `qa`.** Sólo `develop` y `main`. Ahí la base sigue
+siendo `develop`.
+
+⚠ **Y `dev`, `qa` y `staging` son UNA SOLA base de datos** (mismo host, mismo schema): una migración se
+corre una vez y sirve para las tres. Prod tiene la suya, y **sus ids de entidad NO coinciden** — 12 ids
+son entidades distintas en cada base (el 152 es Refurbicredit en prod y smartpay en dev), así que
+ninguna corrección de datos se copia de una a la otra.
+
+**Ramas anteriores que quedaron sin camino** (no se mergean; si un PR viejo estorba, se cierra):
+`feature/pais-desde-el-comercio-onto-qa` (reemplazada por la consolidada, PR #1192 cerrado) y el
+PR #79 de `legacy-application` (cerrado, reemplazado por el #80).
 
 **Por qué cada uno va a donde va:**
 - **backend → `develop`**: es el ambiente compartido donde el equipo prueba, y sus 3 migraciones ya
@@ -1693,6 +1720,90 @@ dicen «COLOMBIANA». No falta funcionalidad: falta que el país sea un dato que
     inventariado en el catálogo de hardcodes, sin acción por ahora. Lo que la tarea venía a validar —
     **el país sale del comercio, no del código** — quedó demostrado: mismo build, dos comercios, dos
     comportamientos, y la única diferencia es una fila en la BD.
+
+- **2026-08-24** — **La tarea se cerró y se volvió a abrir el mismo día, con el alcance ampliado**: pasa
+  de «onboarding por país» a **Internacionalización de CreditOp**. El detalle de la ejecución vive en la
+  tarea `pais-fuera-del-codigo.md`; acá queda el hilo para que ésta no envejezca.
+
+  **De dónde salió.** De una pregunta sobre **moneda por país**. La respuesta fue que la moneda ya viaja
+  en el payload del comercio (`country {…, currency, locale}`, que puso esta misma tarea) pero **nadie la
+  consume** en el front. Al tirar del hilo por la entidad peruana que viene, apareció el fondo del asunto.
+
+- **2026-08-24 (2)** — **El problema del país 1, y su causa raíz, que no era la que parecía.** En
+  producción **191 de 192 entidades tienen `country_id = 1`, que es Afganistán**, y el sistema funciona
+  porque esa fila fue editada con los datos de Colombia (`es-CO`, `COP`, 10 dígitos, y en dev también
+  `dial_code 57`).
+
+  Se creyó que la causa era el `DEFAULT 1` de la columna. **No lo era**: los comercios están bien (317 en
+  47, 14 en 60, cero en 1). La diferencia estaba en el formulario — el alta de **comercios** siempre leyó
+  la lista de países del backend, y la de **entidades** la tenía escrita en el Vue con **una sola opción,
+  `{ value: 1, title: 'Colombia' }`**: el id de Afganistán rotulado Colombia. El operador no podía elegir
+  otra cosa ni darse cuenta. **Un formulario leía configuración y el otro la tenía escrita.**
+
+- **2026-08-24 (3)** — **Lo que se hizo, en dos partes.** (a) Diez consultas —cinco por monolito— dejan de
+  preguntar por el país 1 y toman el del **comercio** de la solicitud, comparándolo contra el de la
+  entidad. Durante la transición se acepta también el `1`, porque sin ese puente hay una ventana donde
+  **139 entidades activas desaparecen del listado sin lanzar ningún error**. (b) El país pasa a ser dato:
+  `is_operating`, los 18 países de Latinoamérica cargados con prefijo, longitud de celular, idioma y
+  moneda, los `locale` normalizados a BCP-47, las tres validaciones del admin contra la columna, los
+  selectores leyendo `Country::operating()`, y el país del comercio **corregible mientras esté vacío**.
+
+  ⚠ **Sin regex de celular por país, y a propósito**: los rangos de prefijos móviles cambian cuando el
+  regulador asigna bloques, y un regex viejo **rechaza clientes reales** — falla cerrado. Queda en la
+  longitud, que además ya tenía columna.
+
+- **2026-08-24 (4)** — **Dos cosas que sólo aparecieron corriéndolo, no leyendo.** `getLenders()` —el
+  camino **principal** del listado de `legacy-backend`— **no filtraba por país en absoluto**: no estaba en
+  ningún censo porque **una ausencia de filtro no se puede grepear**. Su gemelo de `legacy-application` sí
+  filtra ahí; se perdió al portar el código. Y el repositorio de Onboarding ya tenía el parámetro
+  `$countryId`… con `default = 1`, o sea que sin pasárselo se comporta igual que el literal.
+
+  Lo destapó el segundo criterio del A/B: con los diez literales ya corregidos, una entidad movida a Perú
+  **seguía apareciendo** en un comercio colombiano. El primer criterio —«que no cambie nada»— daba verde
+  igual, porque el fallback y el preaprobado no se ejercitan en una corrida normal.
+
+- **2026-08-24 (5)** — **Censo exhaustivo de supuestos de país** (13 agentes, 6 barridos, verificación
+  adversarial de cada hallazgo sobre los 4 repos): **186 confirmados**, ~140 sitios, más de 400 líneas.
+  Informe completo en `tablero/data/artifacts/censo-hardcodes-pais-2026-08-24.md`. La conclusión que
+  reordena el trabajo: **no falta configuración por país — el código no la lee**. `countries` ya tiene
+  `locale`, `currency`, `nationality`, `phone_code`, `cell_phone_length` y `address_format`, y esta última
+  **está declarada y muerta**. Dos tercios de los hallazgos son **teléfono** y **plata**.
+
+- **2026-08-24 (6)** — **Corrección de rumbo en las ramas, y es la parte que más conviene recordar.** Se
+  venía trabajando contra `develop` y **`develop` no es el camino**: en `legacy-backend` está **332
+  commits detrás de `main`** y `qa` está a 11/8. Los merges a `main` vienen de **ramas de feature
+  directamente**, así que `qa`, `develop` y `staging` son **ambientes, no etapas**. La segunda tanda pasó
+  a salir de `qa` —salvo `legacy-application`, que no tiene esa rama—, y todo quedó **consolidado en una
+  rama y un commit por repo**, con el paso a paso del despliegue escrito en la descripción del PR. La
+  tabla de §«Las ramas de esta tarea» tiene el estado.
+
+- **2026-08-24 (7)** — **La migración ya corrió en la base compartida.** `dev`, `qa` y `staging` son **una
+  sola base**: se corre una vez. Antes: 7 países con moneda, 4 con prefijo, **4 locales inválidos**, sin
+  `is_operating`. Después: **20 con moneda · 19 con prefijo · 0 inválidos · 18 habilitados** y Afganistán
+  apagado. Se hizo con protocolo —credenciales por entorno **sin tocar ningún `.env`**, que es la trampa
+  de CORE-431— y verificando con el harness que no rompió nada.
+
+  ⚠ Y un detalle del método: **`--pretend` subestima** cuando la migración lee datos. Mostró 3 sentencias
+  y no los 18 `UPDATE` del catálogo, porque en modo simulado los `SELECT` no se ejecutan.
+
+- **2026-08-24 (8)** — **Lo que queda para después, con su razón.** El **backfill** de las 191 entidades
+  se posterga: sólo es seguro con el código **desplegado**, y hoy `develop` lo tiene pero `qa` y `staging`
+  no, así que moverlas ahora los dejaría con listados vacíos. Se hará con **un comando** que **infiera en
+  cada base**, nunca copiando ids: están medidos **12 ids que son entidades distintas** en prod y en la
+  compartida —el 152 es Refurbicredit en una y smartpay en la otra—, lo que explica de paso el
+  `production ? 160 : 152` de `isSmartPay()`.
+
+  **Y el estado final se validó entero en local**: con el backfill aplicado **y** el puente sacado, los
+  tres casos dan idéntico al baseline. El plan cierra antes de tocar nada compartido.
+
+- **2026-08-24 (9)** — **Lo próximo, y por qué el cimiento ya está.** El front ya recibe `phoneCode`,
+  `currency` y `locale` del comercio y los guarda en el theme; `formatCurrencyWithSymbol` ya acepta locale
+  y moneda. **Ningún llamador se los pasa**, así que todos caen en el default colombiano — y
+  `maximumFractionDigits: 0` le borra los centavos a DOP, PEN, BRL y USD. La receta: **quitar los
+  defaults** para que el llamador que no pasa el país falle al compilar, en vez de perseguirlos con grep.
+  Para el celular, el prefijo ya se preselecciona; lo que queda quemado es la **lista** `[+1, +57]`, que
+  ahora puede salir de `countries`.
+
 
 ## Tarea (publicable)
 Hoy el onboarding asume un solo país en el código: el prefijo y la longitud del celular, los tipos de

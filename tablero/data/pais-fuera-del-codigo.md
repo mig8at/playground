@@ -21,10 +21,11 @@ tarea desarma eso en el orden que **no** rompe producción.
 los 8 filtros, cuántas tablas tienen el `DEFAULT 1`, qué le falta a la fila de Perú, y por qué el backfill
 no puede ser una migración de Laravel.
 
-Esta tarea nace del cierre de **CORE-365** (internacionalización del onboarding), que quedó
-`✅ Terminada` el 2026-08-24: lo que se mergeó ahí —el prefijo de celular por país y el árbol de ciudades—
-está desplegado. Lo que sigue vivo es su **diagnóstico**, y hasta que gradúe a un nodo de `context/` la
-fuente es `git show <sha>:tablero/data/internacionalizacion-onboarding.md`.
+Esta tarea es la **ejecución** de **CORE-365**, que el 2026-08-24 se reabrió y pasó a llamarse
+**«Internacionalización de CreditOp»** (`tablero/data/internacionalizacion-onboarding.md`). Allá vive el
+diagnóstico y la bitácora del hilo completo —incluida la corrección de rumbo en las ramas—; acá, el
+detalle de lo que se está tocando. Antes de investigar de cero, leé la bitácora de esa tarea: casi todo
+lo que parece una pregunta nueva ya está medido ahí.
 
 **El próximo paso es:** abrir la rama en `legacy-backend` y cambiar los 3 filtros a
 `whereIn('country_id', [1, $paisResuelto])`.
