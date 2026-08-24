@@ -37,8 +37,23 @@ herramienta: es suponer que no está y contestar de memoria.
 | **¿qué le pasó a ESTA solicitud?** | `make harness-loki UREQ=…` · `make trazador-acceso` |
 | **leí un error, ¿de qué archivo salió?** | `workers/cli.py logs "<mensaje>"` — el mapa va del mensaje al archivo y su línea. Para una corrida entera, la herramienta `archivos_de_la_traza` del agente que mide |
 | **¿qué VIO el cliente en pantalla?** | `make trazador-posthog` |
-| **¿funciona, corriéndolo?** | `harness` (`make panel`) — se comprueba corriendo, no leyendo |
+| **¿qué entidades le salen a ESTE comercio, y por qué no las otras?** | `make harness-listado COMERCIO=…` — **3 s**, por API y sin browser. `context/` explica la CASCADA; esto contesta el CASO |
+| **¿qué pasa si el cliente es así?** (ingreso, score, ocupación, plazo, entidad) | `make harness-caso CASOS='…'` — el flujo entero por API, en paralelo. `CERRAR=1` llega hasta el desenlace |
+| **¿esta regla de verdad excluye, o sólo reordena?** | corré el caso con y sin el dato. Una regla que «debería» excluir y no excluye es el error más caro del dominio (F-162) |
+| **¿funciona, corriéndolo?** | `harness` (`make panel`) es el camino VISUAL, de Miguel. **El tuyo es por consola**: `harness-caso` · `harness-listado` · `harness-suite` |
 | **¿en qué anda el equipo?** | Slack (MCP) · `make cuadrilla` · `make tablero` |
+
+⚠ **Y hay preguntas que NO se contestan leyendo — se contestan corriendo.** `context/` describe el
+**mecanismo**, que generaliza; una corrida describe **el caso**, que no. Los dos hacen falta: la corrida
+sin el mecanismo no se sabe interpretar, y el mecanismo sin la corrida no dice qué pasa con este
+comercio. Medido el 2026-08-23 con la misma pregunta por los dos caminos: correrlo tardó **3 s** y dio
+las 7 entidades con su `response_type`; leerlo eran **4 nodos y ~9.000 palabras**, y **ninguno nombra
+ese comercio** — porque no es su trabajo.
+⚠ **Y lo más importante: correr ENCUENTRA lo que leer no puede.** De los **12 hallazgos** agregados el
+2026-08-23 (F-163…F-174), **11 salieron de una corrida** — el único que salió de leer código fue F-170,
+y lo disparó una pregunta. Un flujo que se rompe con la entidad ya elegida, un webhook que rechaza
+siempre, una subida que falla en silencio: nada de eso está escrito en ningún lado hasta que alguien lo
+corre.
 
 ⚠ **El silencio de `context/` NO es «no existe».** El árbol sólo sabe lo que alguien escribió, y su
 hueco se lee igual que una ausencia real. Medido el 2026-08-16: dos funcionalidades mergeadas —el
