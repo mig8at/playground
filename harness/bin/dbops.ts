@@ -129,6 +129,19 @@ try {
                 [a.length ? a : ['']],
             );
             break;
+        // La RADICACIÓN de una solicitud: el paso POSTERIOR al estado 11 que no lo mueve. Existe como
+        // subcomando propio porque el panel lo pide por uReq —no por usuario— y porque sin él una corrida
+        // «Autorizada» es indistinguible de una donde el paquete nunca llegó a la entidad (F-168).
+        case 'radicacion': {
+            const ur = Number(a[0] || 0);
+            if (!ur) { r = { estado: null }; break; }
+            const f = await one<{ n: string }>(
+                `SELECT s.name n FROM lender_transactions t
+                   LEFT JOIN lender_transaction_statuses s ON s.id = t.status_id
+                  WHERE t.user_request_id = ? ORDER BY t.id DESC LIMIT 1`, [ur]).catch(() => null);
+            r = { estado: f?.n ?? null };   // null = esta entidad no radica por transacción
+            break;
+        }
         case 'activity': { // qué escribió ESTA corrida en la BD, por tabla. → {user, tablas:[{tabla, eventos:[…]}]}
             //
             // La ventana se calcula con el reloj de la BD (`NOW() - INTERVAL n SECOND`), NO con el de
@@ -154,6 +167,12 @@ try {
                 { t: 'user_summaries', where: 'user_id = ?' },
                 { t: 'user_field_values', where: 'user_id = ?' },
                 { t: 'creditop_x_user_requests_records', where: 'user_id = ?' },
+                // LA RADICACIÓN al lender: un paso POSTERIOR al estado 11 que NO lo mueve. Sin esta
+                // fila, una corrida que quedó en «Autorizada» es indistinguible de una donde el
+                // paquete nunca llegó a la entidad (F-168). Sólo `CREDIT_COMPLETED` significa llegó.
+                { t: 'lender_transactions',
+                  where: 'user_request_id IN (SELECT id FROM user_requests WHERE user_id = ?)',
+                  extra: "CONCAT('estado ', COALESCE((SELECT s.name FROM lender_transaction_statuses s WHERE s.id = status_id), 'SIN_ESTADO'))" },
                 { t: 'logs', where: 'user_id = ?', extra: 'name' },
             ];
             // Las 9 tablas EN PARALELO: son SELECT independientes (cada uno con su try) y contra dev cada

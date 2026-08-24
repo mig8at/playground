@@ -73,7 +73,23 @@ function volcarBitacora(): { veredicto: Record<string, unknown>; resumen: Record
     const ESTADOS: Record<string, string> = {
         '1': 'Validación OTP', '3': 'Seleccionó entidad', '9': 'Formulario de perfil',
         '10': 'Pendiente de autorización', '11': 'Autorizada',
+        // Faltaban los tres desenlaces que NO son el 11, y sin ellos el panel decía «?» justo donde
+        // más importa: el 25 es el final legítimo del canal QR de Bancolombia (medirlo con la vara del
+        // 11 da cero por construcción, F-173), y el 6 y el 8 son desenlaces que sí ocurren.
+        '6': 'Negada', '7': 'No terminó proceso', '8': 'Cancelado',
+        '25': 'Pendiente de facturación', '28': 'Autorizado pendiente desembolso',
     };
+    /** Estado de la RADICACIÓN al lender, que es un paso POSTERIOR al 11 y no lo mueve.
+     *
+     *  ⚠ SIN ESTO EL PANEL MIENTE. Si la radicación falla, la solicitud queda igual en 11, el endpoint
+     *  devuelve 200 y el panel muestra «Autorizada ✓» — con el crédito jamás enviado al lender (F-168).
+     *  Sólo `lender_transactions` lo sabe, y sólo `CREDIT_COMPLETED` significa que llegó. */
+    const radicacion = (() => {
+        const t = eventos.filter((e) => e.tabla === 'lender_transactions');
+        if (!t.length) return null;                       // la entidad no radica por transacción
+        const m = /estado ([A-Z_]+)/.exec(t[t.length - 1].detalle);
+        return m ? m[1] : null;
+    })();
     const EXPERIAN = ['1', '8', '9'];   // Acierta · Quanto · Acierta+Quanto (`risk_centrals`)
     const ur = eventos.filter((e) => e.tabla === 'user_requests');
     const ultimo = ur.length ? ur[ur.length - 1] : null;
@@ -85,6 +101,10 @@ function volcarBitacora(): { veredicto: Record<string, unknown>; resumen: Record
     const veredicto = {
         solicitud: ultimo ? `#${ultimo.id}` : null,
         estadoFinal: mEstado ? `${mEstado[1]} «${ESTADOS[mEstado[1]] ?? '?'}»` : 'sin transiciones registradas',
+        radicacion,
+        // El 11 es el final del lado NUESTRO. Cuando la entidad radica, el final de verdad es que el
+        // paquete haya llegado — y son dos cosas distintas que nada más distingue.
+        radicoBien: radicacion === null ? null : radicacion === 'CREDIT_COMPLETED',
         flujo: mFlujo ? (firmado ? '2 · already-confirmed-pre-approval (omite buró)' : `${mFlujo[1]} · estándar`) : 'sin firmar',
         // En modo SINTÉTICO la fila de Experian la escribe `synthFill`, NO la consulta el backend.
         // Contarla como consulta daba un falso negativo: "flujo firmado pero se consultó Experian",
@@ -613,18 +633,35 @@ const server = createServer(async (req, res) => {
     // Estado del harness para las tarjetas de arriba. TODO sale de algo real: puertos que responden,
     // el volcado forense de la última corrida y el validador del mapa. Sin números decorativos.
     if (path === '/api/estado') {
-        const MOCKS: Array<[string, number]> = [
-            ['pre-aprobaciones', 8095], ['redirect', 8096], ['payvalida', 8097], ['mdm/IMEI', 8098],
-            ['entidades', 8099], ['pdf-mapper', 8100], ['forms', 8101], ['ábaco', 8102],
-            ['corbeta/fondos', 8103], ['bancolombia', 8104],
-            ['fin-health', Number(process.env.MOCK_FINHEALTH_PORT) || 4000],
+        // `para` dice QUIÉN lo necesita, y existe porque un contador «n/n» no sirve para decidir: lo
+        // que importa no es cuántos faltan sino si falta ALGUNO DE LOS QUE ESTA CORRIDA VA A USAR.
+        // Faltando uno, el flujo no da un error de infraestructura: da un estado 28 con un mensaje que
+        // culpa al proveedor (F-165), y eso se depura como si fuera del negocio.
+        const MOCKS: Array<[string, number, string]> = [
+            ['pre-aprobaciones', 8095, 'todos'], ['redirect', 8096, 'ecommerce'],
+            ['payvalida', 8097, 'todos'], ['mdm/IMEI', 8098, 'smartpay'],
+            ['entidades', 8099, 'rt1'], ['pdf-mapper', 8100, 'rt4'],
+            ['forms', 8101, 'todos'], ['ábaco', 8102, 'motai'],
+            ['corbeta/fondos', 8103, 'qr'], ['bancolombia', 8104, 'qr'],
+            ['centrales', 8105, 'todos'],
+            // Los tres que separan a Credifamilia del estado 11, y que NO los levanta `bin/asesor`.
+            ['deceval/pagaré', 8106, 'rt4'], ['netco/firma', 8107, 'rt4'],
+            ['credifamilia/radicación', 8108, 'rt4'],
+            // No son mocks pero sin ellos la corrida miente igual: MinIO guarda los documentos (sin él
+            // cada subida falla en silencio y la URL da 404 — F-174) y el monolito viejo es el ÚNICO
+            // que recibe los webhooks con los que rt=0 y rt=1 llegan a un desenlace (F-170).
+            ['minio/documentos', 9000, 'documentos'],
+            ['app-vieja/webhooks', 8000, 'rt0-rt1'],
+            ['fin-health', Number(process.env.MOCK_FINHEALTH_PORT) || 4000, 'todos'],
         ];
         const vivo = (p: number) => new Promise<boolean>((ok) => {
             const req = get({ host: '127.0.0.1', port: p, path: '/', timeout: 400 }, (r) => { r.destroy(); ok(true); });
             req.on('error', () => ok(false));
             req.on('timeout', () => { req.destroy(); ok(false); });
         });
-        const estados = await Promise.all(MOCKS.map(async ([n, p]) => ({ nombre: n, puerto: p, arriba: await vivo(p) })));
+        const estados = await Promise.all(MOCKS.map(async ([n, p, para]) => ({
+            nombre: n, puerto: p, para, arriba: await vivo(p),
+        })));
 
         // última corrida: el volcado que hace el scrub ANTES de borrar (F-52)
         let ultima: any = null;
@@ -638,6 +675,13 @@ const server = createServer(async (req, res) => {
                 if (s) ultima = { uReq: s.id, estado: s.estado, estadoId: s.user_request_status_id, lender: s.lender, cuando: j.borrado_en };
             }
         } catch { /* sin corridas todavía */ }
+        // La RADICACIÓN no está en el volcado —lo escribe el scrub antes de borrar y no la incluye—,
+        // así que se pide aparte. Es lo que evita el peor falso verde del panel: «Autorizada ✓» con el
+        // paquete nunca enviado a la entidad (F-168). `null` = esa entidad no radica por transacción.
+        if (ultima?.uReq) {
+            const r = await dbopsJson(['radicacion', String(ultima.uReq)], 'local');
+            ultima.radicacion = (r && typeof r === 'object' ? (r as any).estado : null) ?? null;
+        }
 
         const mapa = await new Promise<any>((ok) => {
             execFile('node', ['bin/steps-check.ts', '--json'], { cwd: ROOT, timeout: 15000 }, (_e, out) => {

@@ -9,7 +9,7 @@
 
 ---
 
-## 1. Semáforo de dependencias ANTES del botón «Lanzar»
+## 1. ✅ Semáforo de dependencias ANTES del botón «Lanzar» — *hecho 2026-08-24*
 
 **El problema medido:** a Credifamilia la separan del estado 11 **seis externos**, y cuando falta uno
 la solicitud muere en estado 28 con un mensaje que culpa al proveedor, no al mock ausente (**F-165**).
@@ -25,9 +25,15 @@ que es plumbing, no validación.
 **Por qué es «correr»:** es el estado del ambiente, no del negocio. Una corrida lanzada sin sus mocks
 no es una corrida: es media hora de diagnóstico de un error que no existe.
 
+**Cómo quedó.** De **11 dependencias vigiladas a 17** —faltaban centrales, los tres de Credifamilia,
+MinIO y el monolito viejo—, cada una con un campo `para` que dice **quién la necesita**. La tarjeta ya
+no cuenta: cruza lo que está caído contra los `response_type` del comercio elegido y el canal, y sólo
+se pone **roja si falta algo que ESTA corrida usa** —si falta un mock que no hace falta acá, lo dice en
+gris—. El tooltip marca cuáles va a usar y trae **el comando exacto** para levantar los que faltan.
+
 ---
 
-## 2. El desenlace por FAMILIA en la tira de estado — y la radicación al lado del 11
+## 2. ✅ La radicación al lado del 11, y los desenlaces que faltaban — *hecho 2026-08-24*
 
 **El problema medido:** «llegó a 11» no es el final para todas las familias, y para dos de ellas ni
 siquiera es la vara correcta:
@@ -49,6 +55,15 @@ esperando a la entidad» en vez de un final ambiguo.
 
 **Por qué es «correr»:** no juzga nada — muestra **dónde quedó de verdad** la corrida. El juicio
 (¿debía radicar?) sigue en la CLI.
+
+**Cómo quedó.** La tarjeta de última corrida muestra `· radicada ✓` o `· ⚠ radicación CREDIT_ERROR`, y
+**se pone roja aunque el estado sea 11** cuando el paquete no llegó. El dato sale de un subcomando
+nuevo (`dbops radicacion <uReq>`) y `lender_transactions` pasó a estar entre las tablas que la bitácora
+observa. Además se agregaron a la tabla de estados los que faltaban —**25 «Pendiente de facturación»**
+(el final legítimo del canal QR), 6, 7, 8 y 28—: antes el panel mostraba `?` justo ahí.
+
+⚠ **Falta la otra mitad de esta propuesta:** que para rt=0/rt=1 diga «3 — esperando a la entidad» en
+vez de un final ambiguo. Eso depende de la mejora 3 (el botón de webhook) y va junto con ella.
 
 ---
 

@@ -1370,6 +1370,20 @@
     // cambiar de comercio y al terminar una corrida.
     async function loadEstado() {
       let e = null;
+      // Puerto → cómo se levanta. Va acá porque el momento en que hace falta el comando es
+      // EXACTAMENTE éste: viendo que falta, sin ir a buscarlo a otro lado.
+      const COMANDO = {
+        8095: 'bin/mock-preapprovals start', 8096: 'bin/mock-redirect start',
+        8097: 'bin/mock-payvalida start',    8098: 'bin/mock-mdm start',
+        8099: 'bin/mock-lenders start',      8100: 'bin/mock-pdf-mapper start',
+        8101: 'bin/mock-forms start',        8102: 'bin/mock-abaco start',
+        8103: 'bin/mock-corbeta start',      8104: 'bin/mock-bancolombia start',
+        8105: 'bin/mock-centrales start',    8106: 'bin/mock-deceval start',
+        8107: 'bin/mock-netco start',        8108: 'bin/mock-credifamilia start',
+        9000: 'docker start creditop-minio',
+        8000: 'cd ~/Desktop/CREDITOP/github/legacy-application && php artisan serve --port=8000',
+        4000: 'bin/mock-financial-health start',
+      };
       try { e = await (await fetch('/api/estado')).json(); } catch { /* el panel sigue sin esto */ }
       const box = $('stats'); if (!box) return;
       const card = (cls, ico, k, v, sub, tip) =>
@@ -1391,11 +1405,30 @@
       // 2 · mocks arriba: sin ellos el flujo muere en un muro externo. Solo con la flota local: contra
       // dev/staging se usan los proveedores REALES, así que un contador "n/n" ahí no dice nada útil.
       if (e?.mocks && cap('flotaLocal')) {
-        const up = e.mocks.filter(m => m.arriba), down = e.mocks.filter(m => !m.arriba);
-        out.push(card(down.length ? 'st-warn' : 'st-ok', '🔌', 'Mocks',
+        // ⚠ NO ALCANZA CON CONTAR. Un «9/17» no dice si la corrida que estás por lanzar va a morir:
+        // lo que importa es si falta alguno de los que ESTE comercio necesita. Y faltando uno, el
+        // flujo no avisa que falta un mock — devuelve un estado 28 con un mensaje que culpa al
+        // proveedor (F-165), y eso se depura como si fuera del negocio.
+        const rts = new Set(lendersDelComercio.filter(l => Number(l.lender_status) === 1).map(l => Number(l.rt)));
+        const nom = (sel?.name || '');
+        const necesita = (para) => para === 'todos' || para === 'documentos'
+          || (para === 'rt4' && rts.has(4)) || (para === 'rt1' && rts.has(1))
+          || (para === 'rt0-rt1' && (rts.has(0) || rts.has(1)))
+          || (para === 'motai' && /motai/i.test(nom))
+          || (para === 'smartpay' && /celurd|smartpay/i.test(nom));
+        const up = e.mocks.filter(m => m.arriba);
+        const down = e.mocks.filter(m => !m.arriba);
+        const criticos = down.filter(m => necesita(m.para));
+        out.push(card(criticos.length ? 'st-bad' : down.length ? 'st-warn' : 'st-ok', '🔌', 'Mocks',
           `${up.length}/${e.mocks.length}`,
-          down.length ? `abajo: <b>${down.map(m => m.nombre).join(', ')}</b>` : 'todos respondiendo',
-          e.mocks.map(m => `${m.arriba ? '●' : '○'} ${m.nombre} :${m.puerto}`).join('\n')));
+          criticos.length
+            ? `⚠ falta <b>${criticos.map(m => m.nombre).join(', ')}</b> — esta corrida lo <b>necesita</b>`
+            : down.length ? `abajo, pero no hacen falta acá: ${down.map(m => m.nombre).join(', ')}`
+                          : 'todos respondiendo',
+          e.mocks.map(m => `${m.arriba ? '●' : '○'} ${m.nombre} :${m.puerto}`
+            + (necesita(m.para) ? '  ← esta corrida lo usa' : '')).join('\n')
+          + (criticos.length ? '\n\nLevantalos:\n'
+              + criticos.map(m => '  ' + (COMANDO[m.puerto] || `(puerto ${m.puerto})`)).join('\n') : '')));
       }
 
       // 3 · entidades del comercio elegido: cuántas van a listar de verdad
@@ -1410,11 +1443,20 @@
       // 4 · última corrida: el veredicto contra la BD, no "1 passed"
       if (e?.ultima) {
         const malo = [6, 8].includes(Number(e.ultima.estadoId));
-        const cerro = [11, 28].includes(Number(e.ultima.estadoId));
-        out.push(card(malo ? 'st-bad' : cerro ? 'st-ok' : 'st-mut', '🧾', 'Última corrida',
+        const cerro = [11, 28, 25].includes(Number(e.ultima.estadoId));
+        // ⚠ EL 11 NO ES SIEMPRE EL FINAL, Y A VECES MIENTE. La radicación —mandarle el paquete a la
+        // entidad— es un paso POSTERIOR que no mueve el estado: si falla, esto queda en «Autorizada»
+        // con el crédito jamás enviado (F-168). Cuando la entidad radica, el verde depende de las DOS.
+        const rad = e.ultima.radicacion;
+        const radMal = rad && rad !== 'CREDIT_COMPLETED';
+        out.push(card(malo || radMal ? 'st-bad' : cerro ? 'st-ok' : 'st-mut', '🧾', 'Última corrida',
           `#${e.ultima.uReq}`,
-          `${e.ultima.estado}${e.ultima.lender ? ` · <b>${e.ultima.lender}</b>` : ''}`,
-          `Del volcado forense que hace el scrub antes de borrar (F-52).\nuReq ${e.ultima.uReq} · estado ${e.ultima.estadoId} ${e.ultima.estado}`));
+          `${e.ultima.estado}${e.ultima.lender ? ` · <b>${e.ultima.lender}</b>` : ''}`
+          + (rad ? (radMal ? ` · ⚠ radicación <b>${rad}</b>` : ' · radicada ✓') : ''),
+          `Del volcado forense que hace el scrub antes de borrar (F-52).\nuReq ${e.ultima.uReq} · estado ${e.ultima.estado}`
+          + (rad ? `\nradicación: ${rad}`
+               + (radMal ? '\n⚠ el crédito quedó autorizado pero el paquete NO llegó a la entidad (F-168)'
+                         : '\nsólo CREDIT_COMPLETED significa que el lender lo recibió') : '')));
       }
 
       // 5 · el mapa de pasos: si una ruta dejó de existir, el conteo del recorrido miente
