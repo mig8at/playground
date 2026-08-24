@@ -530,9 +530,34 @@ conclusión sale al revés. Para consultas con varias columnas parecidas, armar 
 > ⚠ El bundle del admin **no se recompiló**: lo verificado es que el backend manda los datos correctos y
 > que llegan a la página. El selector en pantalla toma el prop nuevo recién después del build.
 
+> **MEDICIÓN · 2026-08-24** — **corregir el país de un comercio ENTRÓ al PR** (era la tarea (b), que
+> quedaba afuera). Se puede mientras el comercio **no tenga sucursales ni solicitudes**; con operación
+> encima el campo ni se muestra, y si llega igual el `UpdateRequest` lo rechaza. Probado en los cuatro
+> casos: vacío + país operativo **acepta** · con operación **rechaza** (aunque el país sea válido) ·
+> vacío + Afganistán **rechaza** · sin el campo **no rompe**. Y el flag llega a la pantalla:
+> `alliedCountryEditable=true` en un comercio vacío, `false` en Kreditkasa.
+
+> **MEDICIÓN · 2026-08-24** — dos cosas que costaron entender el admin y conviene tener escritas:
+> **`AlliedEdit.vue` no es una página, es el LAYOUT** de las seis pestañas de edición del comercio (lo
+> importan como `layout: AlliedEdit`), y por eso `AlliedInfoEdit.vue` sí está vivo aunque ningún
+> controlador lo renderice. Y **`AlliedController::edit()` no muestra un formulario**: redirige a
+> `admin.allieds.branches`. Los datos del país van por el **share de Inertia**
+> (`HandleInertiaRequests`) justamente porque el formulario vive en ese layout: pasarlos por props
+> obligaba a tocar los seis controladores. Se resuelven **sólo si la ruta trae un comercio**, así los
+> listados no pagan la consulta.
+
 ## Registro
 
 ### 2026-08-24
+
+- **La tarea (b) entró al PR consolidado** (`legacy-application` #80, commit único `8665218d`): el país
+  del comercio se puede corregir mientras esté vacío. Ya no queda como tarea aparte.
+
+- **Lo que sigue afuera de este PR, y por qué**: el **backfill** de las 191 entidades —no por tamaño
+  sino por orden: sólo es seguro con el código ya desplegado, y en el mismo PR se despliegan juntos—;
+  y el **teléfono** del censo (~50 sitios en tres repos), que es otro enunciado y volvería el PR
+  irrevisable.
+
 
 - **CONSOLIDADO (decisión de Miguel): una sola rama y un solo commit por repo, y el paso a paso en la
   descripción del PR.** Quedan **dos PRs**, no cuatro:
