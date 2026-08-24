@@ -474,9 +474,52 @@ commit: no tiene estado.
 > **Queda cubierto sólo por lectura y paridad** con el camino principal (mismo patrón, misma fuente del
 > país; la única diferencia es que el valor entra al closure por `use`).
 
+> **DECISIÓN · 2026-08-24 (Miguel)** — **un comercio pertenece a UN país, igual que una entidad.** Si una
+> marca opera en varios países, se crea **una fila por país** (comercio y entidad), no una fila
+> multi-país. El motivo es la herencia: la sucursal no tiene país propio y lo hereda del comercio — con
+> un comercio de dos países, la sucursal no sabría cuál heredar y toda la cadena queda indefinida.
+
+> **MEDICIÓN · 2026-08-24 · prod** — **la regla ya se cumple casi al 100%**: **cero entidades** con la
+> misma marca en dos países, y **un solo comercio**: «Alan comunicaciones», con dos filas creadas **el
+> mismo día**. `SELECT name, COUNT(DISTINCT country_id) FROM allieds GROUP BY name HAVING … > 1`
+
+> **MEDICIÓN · 2026-08-24 · prod** — y ese caso **no es el patrón aplicado a propósito, es un intento
+> fallido**: `allied 336` (país **47**, **0 sucursales, ninguna entidad**) y `allied 337` (país **60**,
+> 1 sucursal, entidad 160), ambos del 2026-08-21. Alguien creó el comercio con el país por defecto,
+> se dio cuenta, y creó otro: **el país no se puede corregir después**, así que equivocarse cuesta un
+> comercio duplicado y huérfano. Es la evidencia de que `allieds.country_id` **ya es inmutable de
+> hecho** (no está en el `->only([...])` de `AlliedController::update`), sin que nadie lo haya decidido.
+
+> **MEDICIÓN · 2026-08-24 · prod** — ⚠ **el invariante ciudad↔país se viola en 12 comercios**, y **no es
+> un problema de país sino de ciudades**: los 12 tienen `comercio = 60` y `entidad = 60` (SmartPay 160),
+> correctos, pero sus **18 sucursales apuntan a ciudades colombianas** (`country_zones.country_id = 47`)
+> — se dieron de alta cuando las ciudades de RD no estaban cargadas. La cadena real es
+> `allied_branches.country_city_id → country_cities.country_zone_id → country_zones.country_id`.
+> **✅ Nuestro cambio NO los rompe**, y por una razón de diseño: el filtro toma el país del **comercio**,
+> no el de la ciudad. Si lo hubiéramos sacado de la ciudad de la sucursal, estos 12 comercios se caían.
+
+El invariante, como consulta que se puede correr en cualquier ambiente:
+
+    make trazador-sql TARGET=<amb> SQL='SELECT CONCAT(a.name, " · comercio=", a.country_id, " · ciudad=", cz.country_id) x FROM allied_branches ab JOIN allieds a ON a.id=ab.allied_id JOIN country_cities cc ON cc.id=ab.country_city_id JOIN country_zones cz ON cz.id=cc.country_zone_id WHERE a.country_id <> cz.country_id GROUP BY a.id, a.name, a.country_id, cz.country_id'
+
+⚠ **Y una trampa del trazador al leer estos resultados**: imprime las columnas **en orden alfabético**,
+no en el del `SELECT`. Con dos columnas de país (`pais_comercio`, `pais_ciudad`) se leen invertidas y la
+conclusión sale al revés. Para consultas con varias columnas parecidas, armar un solo `CONCAT`.
+
 ## Registro
 
 ### 2026-08-24
+
+- **La regla del modelo, enunciada por Miguel y medida contra prod**: un comercio = un país, una entidad
+  = un país; marca en varios países = varias filas. Los datos la respaldan (cero entidades multi-país,
+  un solo comercio con marca duplicada y es un error). Ver decisión y mediciones.
+
+- **Derivado, y es trabajo nuevo**: como el país **no se puede corregir** después de crear el comercio,
+  equivocarse deja una fila huérfana. Dos arreglos que salen de acá y hoy no están en ninguna etapa:
+  (a) que el alta **no traiga Colombia por defecto** —el censo señala `LenderCreate.vue:233`, que además
+  rotula «Colombia» al id 1, que es Afganistán—, y (b) permitir **corregir el país mientras el comercio
+  no tenga sucursales ni solicitudes**, que es exactamente el caso del `allied 336`.
+
 
 - **Alcance acotado por Miguel (2026-08-24)**: el comercio peruano **no** se corre de punta a punta —
   falta demasiado del censo (teléfono, documento, buró). **Perú entra sólo como país nuevo en el
