@@ -427,9 +427,56 @@ commit: no tiene estado.
 > `206 BCP Consumo · regla 9867 · aprobado`. La entidad peruana no sólo aparece en el listado: **se
 > evalúa y aprueba**.
 
+> **MEDICIÓN · 2026-08-24** — **censo exhaustivo de supuestos de país** (13 agentes, 6 barridos por
+> dimensión + verificación adversarial de cada hallazgo, sobre `develop` de los 4 repos):
+> **186 confirmados, 2 descartados**, ~140 sitios distintos, **más de 400 líneas** contando gemelos.
+> Informe completo: `tablero/data/artifacts/censo-hardcodes-pais-2026-08-24.md`.
+> ⚠ La tasa de descarte (2 de 188) es muy baja: leer los hallazgos con criterio propio antes de
+> convertirlos en tickets.
+
+> **MEDICIÓN · 2026-08-24** — la conclusión del censo que reordena la tarea: **el problema no es que
+> falte configuración por país.** `countries` ya tiene `locale`, `currency`, `nationality`, `phone_code`,
+> `cell_phone_length` y `address_format`, y el backend ya arma `currency_format` en 4 controladores —
+> **el código no las lee**. `countries.address_format` está declarada y **muerta**: nadie la lee en todo
+> el repo. Y dos tercios de los hallazgos se concentran en dos familias: **el teléfono y la plata**.
+
+> **MEDICIÓN · 2026-08-24** — ⚠ **trampa de nombres que va a costar tiempo**: `countries.iso_code_2`
+> guarda el código de **TRES** letras (`COL`/`DOM`/`PER`), no el de dos. Un `where('iso_code_2','PE')`
+> no matchea nada. Ya pasó: la migración `2026_02_20_100000_add_phone_code_to_countries_table.php:17`
+> buscaba `'CO'` y no encontró Colombia. (Las migraciones de P2 usan las tres letras: correcto.)
+
+> **MEDICIÓN · 2026-08-24** — **CORE-365 nunca llegó a producción.** Las 3 migraciones de países y el
+> `AlliedInfoController` que expone `country` están en `develop`, `qa` y `staging` de `legacy-backend`
+> y en `qa`/`staging` del front — **y en `main` de ninguno de los dos**. Lo único que sí está en `main`
+> es el admin de `legacy-application` (el merge del 19/8). Producción quedó a medias: el admin filtra
+> ciudades por país, pero el backend no manda el país y el front no lo consume.
+
 ## Registro
 
 ### 2026-08-24
+
+- **Censo terminado, y reordena el trabajo.** Seis PATRONES, no 140 lugares: (P1) el teléfono como
+  identidad nacional implícita —~50 sitios y ~120 gemelos, y corrompe identidad aguas abajo: Cognito,
+  lookup de usuario, bypass de OTP, PostHog—; (P2) el documento como proxy del país, que además decide
+  **si se consulta buró y si se valida identidad**; (P3) el país como `if` contra un id literal, con el
+  mundo binario CO/DO; (P4) **el default silencioso hacia Colombia**, el más caro porque *no falla:
+  produce un dato colombiano plausible*; (P5) la magnitud del dinero como constante sin moneda adjunta;
+  (P6) la configuración ya viaja y cada módulo hornea igual su propio país — el más barato de arreglar.
+
+- **Lo que el censo confirma de nuestro trabajo**: P2 (la validación por `is_operating`) desbloquea el
+  `AlliedController.php:86` que el censo señala como bloqueante, y la fila 167 con `phone_code = '+51'`
+  resuelve el `OPERAN = ['COL','DOM']` de la migración de agosto que dejaba a Perú en NULL.
+
+- **Y la recomendación #1 del censo coincide con lo que propuso Miguel**: correr un comercio peruano de
+  punta a punta en local **antes de repartir un solo ticket**, porque el censo entero es lectura y en
+  este dominio eso no alcanza. Preparación: hay que sembrar por SQL, y con `harness-listado` +
+  `harness-caso` sobre un comercio `country_id=167` se obtiene el **orden real de los muros y su
+  frecuencia** — que ningún grep da.
+
+- **Rama contra `qa` armada**: `legacy-backend` **#1192** (`feature/pais-desde-el-comercio-onto-qa`,
+  cherry-pick limpio sobre `qa`, sin literales restantes, lint ok). `legacy-application` se queda en
+  `develop` con el PR **#79**, porque ese repo **no tiene rama `qa`**.
+
 
 - **PR #1191 de `legacy-backend` MERGEADO y DESPLEGADO a dev** (merge 16:53Z, deploy `success` 16:59Z,
   `main-dev.yaml` → ECS `inertia-develop`). Validado ahí mismo: el comercio peruano pasa de ver **0
