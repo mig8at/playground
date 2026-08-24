@@ -308,9 +308,34 @@ volver atrás.
 > comercio no-colombiano funcional**, así que el caso multi-país sólo se puede probar moviendo una entidad
 > de país a mano, como en el criterio 2.
 
+> **MEDICIÓN · 2026-08-24** — **los dos monolitos divergen justo en el camino principal**: en
+> `legacy-application` la consulta que arma el listado (`LenderRetrievalService:174`) **sí** filtraba por
+> país; su gemelo de `legacy-backend` (`getLenders`, línea 160) **no**. El filtro se perdió al portar el
+> código. Por eso el censo de literales daba 5 en application y 3 en backend: en backend el del camino
+> principal no había quedado quemado, había quedado **ausente**.
+
+> **MEDICIÓN · 2026-08-24** — **`legacy-application` no se puede validar corriéndolo en local**: tiene
+> `docker-compose.yml` y sail, pero **cero contenedores levantados**, y su `.env` apunta a un `DB_HOST`
+> que no es el MySQL local. Levantarlo a ciegas podría escribir contra la BD compartida. La validación de
+> este repo quedó en lint + revisión + paridad con el gemelo ya validado por corrida.
+
 ## Registro
 
 ### 2026-08-24
+
+- **P1 hecho también en `legacy-application`.** Rama **`feature/pais-desde-el-comercio`** (commit
+  `6ed5a649`, **local, sin push**) desde `develop` (`640a5c90`). Cuatro archivos, cinco consultas: el
+  listado, el preaprobado, el simulador y el fallback. En el simulador el contexto **no** es la solicitud
+  sino la sucursal, que viene de un `find()` — se protege la cadena entera (`$alliedBranch?->allied?->`).
+  ⚠ Este repo importa más de lo que parece: el strangler tiene a **application como default** en
+  producción, con allowlist por comercio hacia legacy.
+
+- **El `Rule::in([47, 60])` NO entró, y por una razón, no por olvido.** Es el alta de comercio y hoy
+  impide crear el comercio peruano, pero para arreglarlo bien hace falta saber *en qué países operamos* —
+  y esa columna (`countries.is_operating`) la crea **P2**. Cambiarlo a `[47, 60, 167]` sería mover el
+  literal de lugar: el mismo error que ya descartamos con el `1 → 47`. **Va en P2, junto con la
+  migración.** Corrige lo que decía la entrada anterior («lo metería en el mismo PR que P1»).
+
 
 - **P1 hecho y validado en `legacy-backend`.** Rama **`feature/pais-desde-el-comercio`** (commit
   `7f5c2301`, **local, sin push**), sacada de `develop` actualizado (`750793bf`). Toca 6 archivos: los 3
