@@ -78,6 +78,31 @@ Y el bloqueo duro que **no** es un filtro:
 Está en el **alta de comercio**: con los 8 filtros arreglados y el catálogo cargado, seguís sin poder
 crear el comercio peruano. Debe pasar a «los países con `is_operating = 1`».
 
+## El modelo de país — decidido
+
+Tres tablas, tres preguntas distintas. **No son intercambiables**, y el filtro necesita dos de ellas:
+
+| quién | contesta | estado en prod |
+|---|---|---|
+| **comercio** (`allieds.country_id`) | *«¿en qué país estoy parado?»* — el **contexto**: de ahí salen prefijo, moneda, burós, documentos | ✅ **ya está bien**: 317 en CO(47) · 14 en DO(60) · cero en 1 |
+| **sucursal** (`allied_branches`) | nada: **hereda del comercio** | ✅ no tiene columna de país, y es deliberado |
+| **entidad** (`lenders.country_id`) | *«¿en qué país opero yo?»* — un **atributo** de la fila, pegado a su economía (montos, tasas y cuotas están denominados en una moneda) | ❌ 191 en Afganistán · 1 en DO |
+
+El filtro correcto es la **comparación** entre los dos extremos: *«de las entidades cableadas a esta
+sucursal, dame las del mismo país que el comercio»*. Hoy, en lugar de esa comparación, hay un número
+escrito a mano en el medio.
+
+> **DECISIÓN · 2026-08-24** — el país **sale del comercio** (vía la sucursal que atiende) y se **compara**
+> contra el de la entidad. No es «uno u otro»: el comercio da el contexto, la entidad es el atributo.
+
+> **DECISIÓN · 2026-08-24** — la sucursal **no lleva país propio**. Sería una tercera copia del mismo dato
+> y las copias se desincronizan (ya pasa con las reglas, copiadas 37.284 veces por sucursal). La cadena es
+> sucursal → comercio → país.
+
+> **DECISIÓN · 2026-08-24** — **una entidad pertenece a un solo país.** Si una entidad opera en dos, son
+> dos filas de entidad, no una con dos países: la economía (`credit_line_by_lenders`) cuelga de
+> `lender_id` y está denominada en moneda. Es lo que ya hace SmartPay en RD.
+
 ## Cómo se ataca
 
 Tres pasos entregables por separado. **El orden es lo que evita la ventana rota.**
@@ -217,6 +242,47 @@ Y que la entidad peruana **liste** en un comercio peruano, que es la prueba real
 > **MEDICIÓN · 2026-08-24** — sucursales con el país del comercio en conflicto con el de su ciudad (dev):
 > **2** con comercio DO(60) vs ciudad CO(47), **3** con comercio en default 1 vs ciudad CO(47), y **10** sin
 > ciudad (el país sólo se sabe por el comercio).
+
+### El A/B de regresión — se toma ANTES de tocar el código
+
+La validación es una comparación **antes/después** del listado de entidades, y hay dos criterios
+distintos que no hay que confundir:
+
+**Criterio 1 — que no se rompa nada (fase P1).** Para los comercios que hoy funcionan, el listado tiene
+que quedar **idéntico**, entidad por entidad y en el mismo orden. Que *no cambie nada* ES el éxito: en
+esta fase el `whereIn` sigue aceptando el país 1, así que las entidades que todavía dicen Afganistán
+siguen apareciendo.
+
+**Criterio 2 — que el cambio sirva de algo.** Con una entidad movida a su país real, tiene que seguir
+apareciendo en un comercio de ese país, y **no** aparecer en uno de otro. Sin este segundo test, el
+criterio 1 se cumple también si el cambio no hace nada.
+
+⚠ **Va en `local`, no en dev**, por dos razones independientes: (1) en dev está desplegado `develop`, no
+la rama — no se estaría probando el código nuevo; (2) `harness-listado` **escribe**: hace
+`POST /api/onboarding/phone/register` y un `INSERT INTO user_requests` por corrida
+(`harness/dev/listado.ts:111,123`), así que contra dev ensucia la BD compartida y pide el flag de F-53.
+
+    E2E_TARGET=local make harness-listado COMERCIO=<comercio-co>   # baseline, con develop limpio
+    E2E_TARGET=local make harness-listado COMERCIO=<comercio-do>
+
+Se guardan las salidas, se aplica el cambio, se vuelve a correr y se diffea. **El baseline hay que
+tomarlo con la rama sin tocar**: una vez cambiado el código, el «antes» ya no se puede reproducir sin
+volver atrás.
+
+> **MEDICIÓN · 2026-08-24** — **prod, la mitad del trabajo ya está hecha**: los **comercios ya tienen el
+> país bien** (317 en 47 · 14 en 60 · **cero en el país 1**). Lo único roto es el lado de las entidades.
+> `SELECT country_id, COUNT(*) n FROM allieds GROUP BY country_id`
+
+> **MEDICIÓN · 2026-08-24** — **prod: las 146 entidades del país 1 que están cableadas sirven
+> exclusivamente a comercios de CO(47)**. Cero dominicanas. Por eso el disfraz nunca dio problemas — y por
+> eso cambiar el literal `1` por `47` «funcionaría igual»: igual de trabado, porque Perú seguiría afuera.
+> Las otras 45 de las 191 no están cableadas a ningún comercio (son las que necesitan decisión).
+
+> **MEDICIÓN · 2026-08-24** — ⚠ **local NO reproduce el disfraz de prod**, y puede engañar en un A/B:
+> la fila 1 en local está **vacía** (`locale` y `currency` en NULL) mientras en prod tiene `es-CO`/`COP`;
+> local tiene **2 comercios en el país 1** (prod no tiene ninguno) — hay que evitarlos al elegir los
+> comercios del A/B; y `cell_phone_lenght` de DO es **10** en local y **11** en prod. Para el listado de
+> entidades ninguna de las tres molesta, pero sí para cualquier prueba que toque prefijo o moneda.
 
 ## Registro
 
