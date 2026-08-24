@@ -592,6 +592,26 @@ conclusión sale al revés. Para consultas con varias columnas parecidas, armar 
 > Guatemala, Honduras, México, Nicaragua, Panamá, Paraguay, Perú, Uruguay, Venezuela) y la validación
 > acompaña: **Bolivia (26) acepta · Afganistán (1) rechaza · Vietnam (233) rechaza**.
 
+> **MEDICIÓN · 2026-08-24 · el front está a UN PASO, no a un proyecto** (verificado sobre `origin/qa` de
+> `frontend-monorepo`). El dato **ya viaja**: `allied-theme.repository.ts:114-120` guarda `phoneCode`,
+> `currency` y `locale` del comercio en el theme, y `allied-theme.ts` los tipa. Y el helper
+> `formatCurrencyWithSymbol(amount, locale = "es-CO", currency = "COP")` **ya acepta los parámetros**.
+> Lo que falta es que alguien se los pase: **ningún llamador lo hace** — `formatCurrencyWithSymbol(cupo)`,
+> `(lender.available_amount)`, `(accountsData.balance)`… todos caen en el default colombiano.
+>
+> La receta, cuando toque: **quitar los defaults** en vez de corregir llamador por llamador —así el que
+> no pasa el país falla al compilar y aparece solo— y ⚠ **`maximumFractionDigits: 0`**, que está fijo en
+> el helper y le borra los centavos a DOP, PEN, BRL y USD. Con COP no se nota, y por eso lleva años ahí.
+>
+> Para el celular: el prefijo **ya se preselecciona** desde `phone_code`; lo que sigue quemado es la
+> **lista** de opciones (`[+1, +57]`), que ahora puede salir de `countries`.
+
+> **MEDICIÓN · 2026-08-24** — **por qué el backfill necesita el DESPLIEGUE y no sólo el merge**, medido:
+> `develop` ya tiene el cambio, pero **`qa` y `staging` NO** —siguen preguntando por el país 1— y **los
+> tres pegan a la misma base**. Mover las 191 entidades hoy dejaría a dev andando y a qa y staging con
+> **listados vacíos**. Por eso la migración sí se pudo correr antes: agregar una columna y llenar campos
+> vacíos no le quita nada a nadie. En cuanto #1193 mergee a `qa`, el bloqueo desaparece.
+
 ## Registro
 
 ### 2026-08-24
