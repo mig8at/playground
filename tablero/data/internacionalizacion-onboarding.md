@@ -1806,19 +1806,74 @@ dicen «COLOMBIANA». No falta funcionalidad: falta que el país sea un dato que
 
 
 ## Tarea (publicable)
-Hoy el onboarding asume un solo país en el código: el prefijo y la longitud del celular, los tipos de
-documento válidos, los textos, la moneda y los formatos están escritos en el programa en vez de venir de
-configuración. Por eso el segundo país se resolvió con una copia paralela de las pantallas de solicitud, y un
-tercero costaría otra copia.
 
-El objetivo es que el país sea **configuración**: una sola definición de país (prefijo telefónico, longitud
-del celular, tipos de documento admitidos, idioma, moneda y formato de fecha) que el flujo consulte una vez
-por solicitud, y una sola pantalla de solicitud que se adapte a esa configuración. Con eso, habilitar un país
-nuevo pasa a ser cargar datos, no publicar una versión.
+## En una línea
+Que el país sea configuración y no algo escrito en el programa, para poder habilitar un país nuevo
+cargando datos en vez de publicando una versión.
 
-Incluye: definir dónde vive esa configuración y con qué precedencia cuando comercio, sucursal y entidad no
-coinciden; unificar la captura y validación del celular; convertir los tipos de documento en catálogo
-configurable por país y por sucursal; y separar los textos del programa para poder tenerlos por país.
+## Por qué
+El sistema asume un solo país en el código: el prefijo y la longitud del celular, los tipos de documento
+válidos, los textos, la moneda y los formatos. Por eso el segundo país se resolvió con una copia paralela
+de las pantallas de solicitud, y un tercero costaría otra copia.
 
-Queda fuera de esta tarea el resto del recorrido posterior a la solicitud (firma, desembolso y cobranza), y
-la traducción a un idioma distinto del español.
+Y hay un problema de fondo que salió al abrir esto: **casi todas las entidades financieras están
+registradas en un país que no es el suyo**. La pantalla que las da de alta ofrecía una sola opción, mal
+etiquetada, así que quien las cargó no podía elegir otra cosa ni darse cuenta. El sistema funciona porque
+a ese país equivocado le copiaron encima los datos de Colombia. Mientras eso siga así, una entidad de otro
+país no le aparece a nadie aunque esté bien configurada — que es exactamente lo que bloquea la operación
+de Perú.
+
+## Qué cambia
+1. **El listado de entidades usa el país del comercio que está atendiendo**, en vez de asumir uno fijo.
+   Para un comercio colombiano o dominicano no cambia nada; para uno de otro país, empieza a funcionar.
+2. **El administrador ofrece los países donde se puede dar de alta**, leídos de una tabla y no de una
+   lista escrita en el programa. Habilitar un país nuevo pasa a ser un cambio de dato.
+3. **Se puede corregir el país de un comercio** mientras no tenga puntos de venta ni solicitudes. Hasta
+   ahora era imposible: equivocarse al crearlo obligaba a crear otro y dejaba uno huérfano.
+4. **Queda cargado el catálogo de los 18 países de Latinoamérica** con prefijo telefónico, longitud de
+   celular, idioma y moneda — la base sobre la que después las pantallas pueden mostrar la moneda y el
+   prefijo correctos.
+
+## Alcance
+**Entra**: el listado de entidades, el alta y edición de comercios y entidades, y el registro de países.
+
+**No entra** (son pasos siguientes, con su propio trabajo): que las pantallas muestren la moneda y el
+prefijo del país en el formulario de solicitud; los tipos de documento por país; el catálogo de ciudades
+de países nuevos; y **corregir el registro de las entidades mal cargadas**, que se hace después y sólo una
+vez que este cambio esté en el aire — al revés, desaparecen de los listados.
+
+Habilitar un país **no** significa que el crédito funcione de punta a punta ahí: eso depende además de que
+el país tenga central de riesgo, documentos y geografía cargados. La separación es deliberada — configurar
+un comercio no origina crédito, así que no hay razón para impedir el alta mientras el país se prepara.
+
+## Dónde probar
+Ambiente de desarrollo y QA, que **comparten la misma base de datos**: lo que se carga en uno se ve en el
+otro. Comercios de referencia: uno colombiano (**Kreditkasa** o **Dentix**), uno dominicano (**CeluRD**) y
+el comercio de prueba de Perú.
+
+## Cómo validar
+1. **Que no se rompió nada**: entrar con un comercio colombiano y con uno dominicano y confirmar que el
+   listado muestra **exactamente las mismas** entidades que antes del cambio, en el mismo orden.
+2. **Que el país nuevo funciona**: con el comercio de Perú, confirmar que su entidad aparece en el
+   listado. Antes de este cambio ese listado salía **vacío**.
+3. **Que el administrador acompaña**: al crear un comercio o una entidad, el selector de país ofrece los
+   18 países de Latinoamérica y **no** ofrece ningún otro.
+4. **Que el país se puede corregir**: en un comercio recién creado, sin puntos de venta ni solicitudes, el
+   campo de país es editable. En uno con operación, no aparece.
+
+## Criterios de aceptación
+- El listado de entidades de un comercio colombiano y de uno dominicano es idéntico antes y después.
+- La entidad peruana aparece en el listado de un comercio peruano, y **no** aparece en uno colombiano.
+- Se puede crear un comercio y una entidad en cualquiera de los 18 países de Latinoamérica.
+- Ningún país fuera de esa lista se puede elegir al crear un comercio o una entidad.
+- El país de un comercio se puede corregir sólo mientras no tenga puntos de venta ni solicitudes.
+- Ninguna entidad activa deja de aparecer en un listado donde antes aparecía.
+
+## Dependencias / contraparte
+- **Orden obligatorio**: el cambio del registro de países se aplica **antes** de publicar el cambio de
+  código. Ya está aplicado en el ambiente compartido por desarrollo y QA.
+- **Negocio**: confirmar la longitud del celular de los países que todavía no operan antes de abrir cada
+  uno — varios planes de numeración son ambiguos, y la duda ya existe con República Dominicana, que hoy
+  figura con una longitud distinta a la de Colombia.
+- **Negocio**: decidir a qué país corresponden las entidades que hoy no tienen forma de deducirlo, o
+  confirmar que están inactivas y se apagan. Hace falta para el paso siguiente, no para éste.
