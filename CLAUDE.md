@@ -47,9 +47,9 @@ herramienta: es suponer que no está y contestar de memoria.
 **mecanismo**, que generaliza; una corrida describe **el caso**, que no. Los dos hacen falta: la corrida
 sin el mecanismo no se sabe interpretar, y el mecanismo sin la corrida no dice qué pasa con este
 comercio. Medido el 2026-08-23 con la misma pregunta por los dos caminos: correrlo tardó **3 s** y dio
-las 7 entidades con su `response_type`; leerlo eran **4 nodos y ~9.000 palabras**, y **ninguno nombra
+las 7 entidades con su `response_type`; leerlo eran **4 nodos y ~9.000 palabras**, y **ninguno nombra <!-- lint:ok -->
 ese comercio** — porque no es su trabajo.
-⚠ **Y lo más importante: correr ENCUENTRA lo que leer no puede.** De los **12 hallazgos** agregados el
+⚠ **Y lo más importante: correr ENCUENTRA lo que leer no puede.** De los **12 hallazgos** agregados el <!-- lint:ok -->
 2026-08-23 (F-163…F-174), **11 salieron de una corrida** — el único que salió de leer código fue F-170,
 y lo disparó una pregunta. Un flujo que se rompe con la entidad ya elegida, un webhook que rechaza
 siempre, una subida que falla en silencio: nada de eso está escrito en ningún lado hasta que alguien lo
