@@ -632,9 +632,37 @@ conclusión sale al revés. Para consultas con varias columnas parecidas, armar 
 > cada base desde el cableado, y la lista de una NUNCA se copia a la otra.** `harness-paises` ya trabaja
 > así (infiere, no usa lista fija): hay que correrlo contra cada base y revisar su salida por separado.
 
+> **MEDICIÓN · 2026-08-24 · EL ESTADO FINAL SIMULADO EN LOCAL, y funciona.** Se ejecutó el escenario
+> completo —backfill aplicado **más** el `1` sacado del `whereIn` en los 5 sitios— para ver cómo queda
+> todo cuando el hardcode desaparezca del todo:
+>
+> - backfill en local: 158 entidades en el país 1 → **129 a Colombia · 2 a RD · 28 quedan en el país 1**
+>   (las que no están cableadas a ningún comercio, o sea las que necesitan decisión de negocio);
+> - con el puente sacado, los tres casos dan **idéntico al baseline**: celurd 1 · kreditkasa 12 ·
+>   godentist 9.
+>
+> **El plan cierra**: cuando se corrija el dato y se saque el `1`, nada cambia para quien ya funciona.
+> Todo restaurado después —código con `git checkout`, datos desde un CSV de respaldo de las 159 filas— y
+> verificado que los tres casos volvieron a dar lo mismo.
+
+> **MEDICIÓN · 2026-08-24** — y **el «índice» que buscaba Miguel existe, pero recién en el ÚLTIMO paso**:
+> con el puente sacado, una entidad que quedó en el país 1 **desaparece del listado de su comercio**
+> (probado: PayJoy en 47 → el comercio la ve; en 1 → no la ve). Eso sirve para detectar entidades sin
+> corregir **después** del backfill. ⚠ **Antes del backfill significaría lo contrario**: que las 139
+> activas se cayeron del listado, que es precisamente el bug que el puente evita.
+
 ## Registro
 
 ### 2026-08-24
+
+- **Estrategia acordada con Miguel**: **el backfill se posterga** y las entidades se quedan en el país 1
+  por ahora. Cuando todo esté integrado se corrige con **un comando** que sirva para la base compartida
+  y para producción — y que **infiera en cada una**, porque los ids divergen. Mientras tanto, todo se
+  valida en local.
+
+- **Y se validó el estado final entero en local** (backfill + sin el puente): da idéntico al baseline.
+  Ver mediciones. El plan cierra antes de tocar nada compartido.
+
 
 - **Riesgo nuevo detectado antes de tocar nada** (pregunta de Miguel: «¿son los mismos comercios?»):
   los **ids de entidad divergen entre bases**, con 12 casos donde el mismo id es otra entidad. El
