@@ -17,6 +17,16 @@ listado se recalculan con el motivo del rechazo escrito encima. Es **documentaci
 (la frase es de [BALANCE-Y-PROXIMOS-NODOS.md](docs/BALANCE-Y-PROXIMOS-NODOS.md), que lo explica en criollo
 para negocio).
 
+## Lo que las corridas de punta a punta le enseñaron a este simulador
+
+`docs/LO-QUE-LAS-CORRIDAS-ENSENARON.md` (2026-08-23) — siete brechas entre lo que `flow` modela y lo
+que se vio **corriendo** las cinco familias de `response_type` en local, cada una con su evidencia. La
+más importante: **el grafo termina en la firma y el flujo real no**, porque para rt=0/rt=1 el desenlace
+llega **después y por webhook**, y para Credifamilia la radicación puede fallar **sin mover el estado**.
+
+⚠ Incluye una **duda sobre `store.js:836`** —`rt === 2 ? 'exclude' : 'classify'`— que conviene medir
+antes de tocar: es la línea que decide qué entidad se cae, y hay dos mediciones que no coinciden.
+
 ## Arranque rápido
 
 ```bash
