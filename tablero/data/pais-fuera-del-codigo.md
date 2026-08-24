@@ -612,9 +612,35 @@ conclusión sale al revés. Para consultas con varias columnas parecidas, armar 
 > **listados vacíos**. Por eso la migración sí se pudo correr antes: agregar una columna y llenar campos
 > vacíos no le quita nada a nadie. En cuanto #1193 mergee a `qa`, el bloqueo desaparece.
 
+> **MEDICIÓN · 2026-08-24** — 🔴 **los ids de `lenders` NO significan lo mismo en prod y en la base
+> compartida**, y eso cambia el plan del backfill. 165 ids en común, 27 sólo en prod, 4 sólo en dev — y
+> **12 ids comunes son entidades DISTINTAS**:
+>
+> | id | producción | compartida |
+> |---|---|---|
+> | **152** | Refurbicredit | **smartpay** |
+> | **153** | Crediemo | **SmartPay** |
+> | **160** | **SmartPay** | credifree |
+> | 159 | Tu descuento credit | CREDIMOVIL |
+> | 169 | HEALTH & FITNESS COMPANY | Crédito Directo X |
+> | 170 | CrediGanga | My Tech YA |
+>
+> Explica el hardcode `production ? 160 : 152` de `isSmartPay()`: no era un capricho, el id **es** otro.
+>
+> **Consecuencia dura: un `UPDATE … WHERE id = 152` sería correcto en la compartida y CATASTRÓFICO en
+> producción** —movería Refurbicredit, colombiana, a República Dominicana—. **El backfill se calcula en
+> cada base desde el cableado, y la lista de una NUNCA se copia a la otra.** `harness-paises` ya trabaja
+> así (infiere, no usa lista fija): hay que correrlo contra cada base y revisar su salida por separado.
+
 ## Registro
 
 ### 2026-08-24
+
+- **Riesgo nuevo detectado antes de tocar nada** (pregunta de Miguel: «¿son los mismos comercios?»):
+  los **ids de entidad divergen entre bases**, con 12 casos donde el mismo id es otra entidad. El
+  backfill deja de ser «una lista de UPDATEs» y pasa a ser **dos operaciones separadas**, cada una
+  calculada contra su propia base. Ver la medición.
+
 
 - **Todo consolidado en UNA migración** (`2026_08_24_100000_paises_como_configuracion`) y **un commit por
   repo**: `legacy-backend` `75fe0585` (#1193 → `qa`) y `legacy-application` `8665218d` (#80 → `develop`).
