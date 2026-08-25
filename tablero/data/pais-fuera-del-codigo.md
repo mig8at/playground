@@ -998,6 +998,53 @@ conclusión sale al revés. Para consultas con varias columnas parecidas, armar 
 > cree sin país vuelve a Afganistán y el problema renace. Poner `DEFAULT 47` sería re-quemar Colombia
 > en el esquema — justo lo que esto vino a sacar.
 
+> **MEDICIÓN · 2026-08-25 · el backfill CORRIDO en local** — se aplicó y se revirtió con reversa exacta
+> (`harness/dev/backfill-pais-local.sh`, que guarda **los ids** que movió: revertir «todo lo que esté en
+> 47» se llevaría puestas las que mañana estén bien). Dos cosas salieron de correrlo:
+>
+> **1. El riesgo de secuencia, medido.** Con el backfill aplicado, lo que ve el **código viejo** —que
+> filtra `where('country_id', 1)` a mano en los 5 listados— pasa de **154 entidades a 0**. O sea: si se
+> corre antes de que qa y staging tengan P1, esos ambientes dejan de listar. El código nuevo no se
+> inmuta: kreditkasa 12, pullman 7, Motai cierra en **estado 11**, idénticos al baseline.
+>
+> **2. El `UPDATE` en bloque NO es seguro en toda base.** En **prod** sí (verificado: las 154 con
+> comercios son todas colombianas), pero en el dump **local** hay una entidad —`smartpay`, id 152—
+> cableada al comercio **dominicano** y parada en el país 1. El UPDATE la manda a Colombia y **deja de
+> pasar el filtro de su propio comercio**:
+>
+>     con el backfill    smartpay pais=47  ✗ NO pasa el filtro [1, 60] del comercio dominicano
+>     revertido          smartpay pais=1   ✓ pasa
+>
+> La base compartida de dev/qa/staging **no es la de prod**, así que esto puede estar ahí también.
+>
+> **El arreglo mantiene lo bueno de la propuesta** —no nombra ninguna entidad, así que esquiva la
+> divergencia de ids entre bases— y sólo le agrega una guarda:
+>
+>     UPDATE lenders SET country_id = 47
+>      WHERE country_id = 1
+>        AND NOT EXISTS (SELECT 1 FROM lenders_by_allieds la
+>                          JOIN allieds a ON a.id = la.allied_id
+>                         WHERE la.lender_id = lenders.id AND a.country_id <> 47)
+>
+> Simulado en local: mueve **157** y **deja 1 en el país 1** para revisión manual — que además sigue
+> funcionando, porque el puente `[1, país]` la acepta.
+
+> **MEDICIÓN · 2026-08-25 · el censo de lo que podría romperse** — se grepearon los dos repos buscando
+> quién lee el país de una entidad. **Todos comparan contra 60 (Rep. Dominicana), ninguno contra 1 ni
+> 47**: `TwilioController` · `NotificationService` (×3) · `PaymentCalculationService` ·
+> `HolidayCalendarService` · dos comandos de cron · `LenderController` de application. La forma es
+> siempre `=== 60 ? dominicano : colombiano`, así que mover una entidad de 1 a 47 **no cambia nada** en
+> ninguno: los dos son «no 60».
+>
+> ⚠ Y ahí está el hallazgo que importa para Perú: esa forma binaria **trata «no dominicana» como
+> colombiana**. Una entidad peruana recibiría festivos colombianos, la lógica colombiana de
+> notificaciones y las reglas colombianas del plan de pagos. No lo rompe el backfill — está roto para
+> Perú desde antes, y es lo próximo que se va a chocar.
+>
+> Y una pista que confirma el diagnóstico: en `LenderDatacreditoRulesController` hay un check del país
+> **de la entidad** escrito y **comentado** (el del comercio sí corre). Con las entidades en Afganistán
+> ese check habría bloqueado la creación de todas las reglas. Después del backfill se puede descomentar.
+
 ## Registro
 
 ### 2026-08-25
