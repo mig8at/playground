@@ -1184,6 +1184,25 @@ conclusión sale al revés. Para consultas con varias columnas parecidas, armar 
 > completar los tipos del país, y el dato de las sucursales al final —o nunca, porque el resolvedor ya
 > lo cubre—.
 
+> **HALLAZGO · 2026-08-25 · el formulario dinámico NO usa el país, y eso cambia dónde va el arreglo de
+> RD** — sus opciones de documento salen de `data.fields.documentType.options`
+> (`dynamic-form/src/ui/components/PersonalInfoForm.tsx`), o sea **del esquema que le manda el
+> backend**. Y ese esquema lo sirve **`onboarding-forms-service`** —otro repo, ninguno de los tres que
+> tocamos— leyendo **archivos JSON de un bucket de S3** (`dynamic_forms_s3.bucket`), no la base ni la
+> tabla `countries`.
+>
+> Así que hay **DOS formularios con DOS fuentes**, y ninguna es el país:
+>
+>     clásico    catálogo QUEMADO de 3 (CC/CE/PEP) en el front, recortado por `allowed_document_types`
+>     dinámico   JSON en S3, por formulario, servido por onboarding-forms-service
+>
+> **Consecuencia: esto NO entra en los PRs de países.** Es otro repo y otro mecanismo. Meterlo sería
+> pretender que el país gobierna algo que hoy vive en un archivo de S3.
+>
+> ⚠ Y los 8 comercios dominicanos de prod tienen `new_screens = 1`, o sea que van por el flujo nuevo. Lo
+> que queda por confirmar —y no se puede desde acá— es **cuál de los dos formularios** les toca, porque
+> de eso depende si el arreglo es el JSON de S3 o el catálogo del front.
+
 ## Registro
 
 ### 2026-08-25
