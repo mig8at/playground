@@ -176,6 +176,21 @@ escrito en vocabulario de pregunta «sesga la navegación». **La conclusión es
 - **Y salió una regla nueva**: el título de sección ES el identificador, así que renombrarlo rompe los
   enlaces (el lint cazó 3 al hacerlo). Se escribe bien la primera vez y NO se toca para afinar búsqueda.
 
+## Defecto encontrado por una pregunta de Miguel: el total mentía
+
+`total` reportaba **cuántos resultados devolvía**, no cuántos había encontrado. Con el límite en 10
+decía 10; con 50 decía 50. Un agente no podía distinguir «hay tres secciones sobre esto» de «hay 114 y
+estás viendo diez» — que es justo la señal para decidir si afinar la pregunta.
+
+Arreglado: ahora devuelve `matches_found` y `returned` por separado, más un aviso cuando hay más.
+Medido: la consulta ancha «entidad comercio cliente solicitud» matchea **114 de 177 secciones** (64 % del
+corpus) y con límite 50 devuelve 6.701 palabras — casi media biblioteca. El aviso dice explícitamente
+que subir el límite no es la respuesta: más resultados de una pregunta vaga son más ruido.
+
+Y quedó documentado qué devuelve por acierto: **el párrafo completo**, no la línea. Unos 600 caracteres
+con sus vecinos. Eso solo es viable porque las secciones tienen techo de 350 palabras — segunda razón,
+independiente de la primera, por la que ese techo no es estilo.
+
 ## Decisiones abiertas
 
 - **La frontera con credibrain** (herramienta de Oscar en el mismo catálogo, «la memoria de la
