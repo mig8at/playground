@@ -971,6 +971,33 @@ conclusión sale al revés. Para consultas con varias columnas parecidas, armar 
 > tiene su línea de crédito, editar cualquier campo revienta. No se disparó en las tres probadas; queda
 > anotado junto al crash de `additional_data`.
 
+> **MEDICIÓN · 2026-08-25 · PROD · la causa raíz, y qué puede el backfill** — se descartó la hipótesis
+> de que alguien hubiera **duplicado** Colombia: `countries` es la lista ISO completa en orden
+> alfabético (1 Afghanistan · 2 Albania · 3 Algeria … 47 Colombia) y **hay una sola Colombia**. Colombia
+> está donde le toca.
+>
+> Son **dos causas que se suman**, y por eso los comercios se salvaron y las entidades no:
+>
+>     lenders.country_id  int NOT NULL DEFAULT 1     ← quien no diga nada queda en Afganistán
+>     allieds.country_id  int NOT NULL DEFAULT 1
+>
+> …y el Vue de entidades tenía la lista **escrita adentro**: `[{value: 1, title: 'Colombia'}]`, una sola
+> opción con el id de Afganistán rotulado Colombia. El formulario del comercio siempre leyó del backend,
+> así que decir algo servía. **En prod: 0 comercios en Afganistán · 191 entidades sí.**
+>
+> **Y el backfill NO es «los que apuntan a 1 pasan a Colombia»**, medido:
+>
+>     154  inferibles → Colombia            (por el país de sus comercios)
+>       1  inferible  → Rep. Dominicana     (SmartPay, que YA está bien declarada)
+>      37  sin comercios: no hay de dónde inferir   ← 34 activas, 12 con solicitudes alguna vez
+>
+> Las 37 necesitan una decisión, no un `UPDATE`. Y **ninguna entidad es ambigua** (cero en dos países),
+> que es lo que hace segura la inferencia.
+>
+> ⚠ Y el backfill debería **quitar el `DEFAULT 1`** de las dos columnas: si no, la próxima fila que se
+> cree sin país vuelve a Afganistán y el problema renace. Poner `DEFAULT 47` sería re-quemar Colombia
+> en el esquema — justo lo que esto vino a sacar.
+
 ## Registro
 
 ### 2026-08-25
