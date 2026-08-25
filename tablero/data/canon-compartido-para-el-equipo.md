@@ -158,6 +158,24 @@ soporte dice **logs**, «documento» donde dice **cédula**, «ambientes de prue
 entre la calibración máxima y la mínima. En la misma corrida, la prosa movió seis. **Proporción 6 a 1 —
 escribí mejor, no calibres.** Anotado en el código y en `preguntas.txt` para no repetirlo una cuarta vez.
 
+## Sobre meter «preguntas» en el índice: no, pero por otro motivo
+
+Llegó la sugerencia de que el índice describa conocimiento y NO anticipe preguntas, y que un summary
+escrito en vocabulario de pregunta «sesga la navegación». **La conclusión es correcta (nada de un campo
+`questions:`) y el motivo no.**
+
+- **El summary NO se indexa** — verificado: la búsqueda solo mira título de nodo, título de sección y
+  cuerpo. Un resumen en vocabulario del lector no puede sesgar el ranking; solo ayuda a ELEGIR.
+- **Usar las palabras del negocio no es anticipar preguntas.** Medido en esta misma sesión: escribir
+  «logs» en vez de «registros de ejecución», «cédula» en vez de «documento» y «local» en vez de
+  «ambientes de prueba» movió el banco de 30/39 a 36/39. Ninguna de esas es una pregunta.
+- **`topics` se descarta**: sería una tercera copia, escrita a mano y sin validación, de lo que ya dan
+  el índice invertido (validado por el banco) y `connects_to` (validado por el lint).
+- **Lo que sí señalaba un hueco real**: títulos que cuentan cosas en vez de decir qué hay. Se
+  reescribieron 5 — mejor prosa, **cero cambio en el banco**. Es legibilidad, no recuperación.
+- **Y salió una regla nueva**: el título de sección ES el identificador, así que renombrarlo rompe los
+  enlaces (el lint cazó 3 al hacerlo). Se escribe bien la primera vez y NO se toca para afinar búsqueda.
+
 ## Decisiones abiertas
 
 - **La frontera con credibrain** (herramienta de Oscar en el mismo catálogo, «la memoria de la
