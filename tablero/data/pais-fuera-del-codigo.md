@@ -829,6 +829,18 @@ conclusión sale al revés. Para consultas con varias columnas parecidas, armar 
 > porque nadie eligió, o sea todos los del país» se veían igual. Ahora el hint distingue los dos casos y
 > el placeholder muestra cuáles son esos «todos».
 
+> **DECISIÓN · 2026-08-25 (Miguel)** — **los tipos de documento arrancan MARCADOS** con todos los del
+> país, y de ahí se destildan los que la entidad no acepte. Se descartó la regla «vacío = todos»: es
+> justo lo que nadie adivina mirando un campo en blanco.
+>
+> Y el argumento de fondo, que dio vuelta mi objeción: **si mañana el país suma un tipo, NO es deseable
+> que todas las entidades empiecen a aceptarlo solas** — eso lo decide cada entidad. La herencia
+> automática sonaba elegante y es peor. Además **explícito se audita leyendo la fila**, sin resolver el
+> país al vuelo, y es lo que el dato ya hacía: las 7.164 filas tienen `["CC","CE"]` escrito, no `null`.
+>
+> ✅ Seguro de hacer: el guardado filtra `is_active == 1`, así que preseleccionar en todas **no activa
+> ninguna** — las inactivas no crean fila.
+
 ## Registro
 
 ### 2026-08-25
