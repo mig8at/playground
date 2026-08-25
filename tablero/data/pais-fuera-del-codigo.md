@@ -678,9 +678,47 @@ conclusión sale al revés. Para consultas con varias columnas parecidas, armar 
 > `merchant/:partner_hash/`, o sea es la pantalla del **asesor**, y redirige al login de Cognito. La
 > verificación quedó en typecheck + revisión del diff.
 
+> **MEDICIÓN · 2026-08-25** — **el registro dejaba de lado un dato que ya recibía.**
+> `Onboarding\Http\Requests\CreateAndAuthUser` acepta `country_code` en el request —el front lo manda
+> desde el país del comercio— y validaba el teléfono con `digits:10` sin mirarlo. Ahora el largo sale de
+> ese prefijo, buscado en `countries` y **acotado a los países habilitados** (el `57` lo tienen Colombia
+> **y** la fila 1, y el `1` lo comparte toda la numeración de Norteamérica). Probado por país:
+>
+> | país | 9 dígitos | 10 dígitos |
+> |---|---|---|
+> | Colombia (57) | rechaza | **acepta** |
+> | **Perú (51)** | **acepta** | rechaza |
+> | Rep. Dominicana (1) | — | **acepta** |
+> | sin prefijo / desconocido | — | **acepta** (degrada a 10) |
+>
+> ⚠ **Degrada a 10** cuando falta el dato: una validación de formato no puede volverse más estricta por
+> algo que no está cargado — dejaría gente afuera sin que nadie lo note.
+
+> **MEDICIÓN · 2026-08-25** — quedan **4 sitios más** con `digits:10` que no entraron:
+> `BackDoorCreateUserRequest:144`, `CreditStudyRequest:99`, `OnboardingV2\ValidateOtpAuthRequest:38` y
+> `TestMarketingMessagesRequest:26`. Y dos casos que **no se deben tocar**: el regex de
+> `ManualValidationService:100` y el de `EvidenteOtpGenerateRequest:33`, que responde al contrato de
+> Credifamilia con su proveedor.
+
 ## Registro
 
 ### 2026-08-25
+
+- **CONSOLIDADO como pidió Miguel: una rama y un commit por repo.** Tres PRs, ni uno más:
+
+  | repo | rama | PR | base |
+  |---|---|---|---|
+  | `legacy-backend` | `feature/pais-configuracion` | **#1193** | `qa` |
+  | `legacy-application` | `feature/pais-configuracion` | **#80** | `develop` |
+  | `frontend-monorepo` | `feature/telefono-prefijo-del-comercio` | **#879** | `qa` |
+
+  Cerrados y borrados: #1192, #1195 y las ramas sueltas (`otp-sin-bypass-por-lista`,
+  `largo-celular-por-pais`, `pais-desde-el-comercio-onto-qa`). El commit de `legacy-backend` junta las
+  cuatro partes —listado, catálogo, teléfono y OTP— y el de front junta prefijo y largo.
+
+  Verificado después de consolidar, no antes: cero literales de país, lint ok, y los tres casos del
+  harness dan idéntico al baseline (1 · 12 · 9).
+
 
 - **El teléfono del wizard, aterrizado.** El prefijo se muestra en vez de elegirse, y el largo sale del
   país. Dos ramas listas para PR (front y backend). Ver mediciones.
