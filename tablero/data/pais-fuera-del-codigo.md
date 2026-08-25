@@ -652,7 +652,44 @@ conclusión sale al revés. Para consultas con varias columnas parecidas, armar 
 > corregir **después** del backfill. ⚠ **Antes del backfill significaría lo contrario**: que las 139
 > activas se cayeron del listado, que es precisamente el bug que el puente evita.
 
+> **MEDICIÓN · 2026-08-25** — **el teléfono del wizard pasa a salir del país del comercio.** Dos ramas,
+> desde `qa` en cada repo:
+>
+> - `frontend-monorepo` **`feature/telefono-prefijo-del-comercio`** (`30dd9124` + `c9dcfb3f`): el prefijo
+>   deja de ser un desplegable con `[+1, +57]` escritos adentro y pasa a **mostrarse** como texto a la
+>   izquierda del campo; y el largo del campo sale del país en vez de asumir 10.
+> - `legacy-backend` **`feature/largo-celular-por-pais`** (`dcab6f50`): el payload del comercio expone
+>   `cell_phone_length`, que no viajaba.
+>
+> **El componente `Input` ya soportaba `prefix`** —un prefijo no seleccionable— además de `prefixSelect`:
+> el cambio fue usar el que corresponde, no construir nada. Typecheck idéntico a la base en los dos
+> repos (11 errores preexistentes, **cero** en los archivos tocados).
+
+> **DECISIÓN · 2026-08-25 (Miguel)** — **el prefijo se muestra, no se elige.** El teléfono tiene que ser
+> del país donde opera el comercio. La razón por la que se dejaba elegir era de pruebas —usar un celular
+> colombiano en un comercio de otro país— y **eso se resuelve del lado del envío**: en ambientes no
+> productivos los mensajes van a un destino de pruebas sin importar el número.
+
+> **DECISIÓN · 2026-08-25** — si el país no se puede resolver, el campo se muestra **sin prefijo** y el
+> cliente escribe igual, en vez de caer a un `+57` de reserva. El backend no depende de eso: resuelve el
+> país por el comercio de la solicitud, que es la fuente de verdad.
+
+> **MEDICIÓN · 2026-08-25** — ⚠ **no se pudo mostrar en pantalla**: `request-phone` existe sólo bajo
+> `merchant/:partner_hash/`, o sea es la pantalla del **asesor**, y redirige al login de Cognito. La
+> verificación quedó en typecheck + revisión del diff.
+
 ## Registro
+
+### 2026-08-25
+
+- **El teléfono del wizard, aterrizado.** El prefijo se muestra en vez de elegirse, y el largo sale del
+  país. Dos ramas listas para PR (front y backend). Ver mediciones.
+
+- **Lo que queda del teléfono, y no entró a propósito**: otros **dos formularios** usan el mismo
+  desplegable con las opciones escritas —`ConsumerHubLogin` y el ingreso por **IMEI**—, y **la validación
+  de largo del backend** sigue en `digits:10` en unos nueve sitios según el censo. El campo ya no deja
+  escribir de más, pero el servidor todavía rechazaría un número de otro largo.
+
 
 ### 2026-08-24
 
