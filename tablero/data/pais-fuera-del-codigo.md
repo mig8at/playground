@@ -778,6 +778,25 @@ conclusión sale al revés. Para consultas con varias columnas parecidas, armar 
 > ISO, un estándar— la fuente es la norma, no lo que el sistema haya acumulado.** Que la conclusión
 > resultara la misma no valida el método.
 
+> **MEDICIÓN · 2026-08-25 · el modelo de documentos ya era el correcto, y Miguel lo dijo antes que los
+> datos.** Quien decide es la **entidad**, no el comercio ni la sucursal: `Motai Renting` y `Rent to Own`
+> son **las dos únicas** filas de `lenders_by_allied_branches` con `PEP`; las otras 7.154 dicen
+> `["CC","CE"]`. `resolveAllowedDocumentTypes` ya hacía la unión de las entidades de la sucursal — o sea
+> el comportamiento estaba implementado y sólo faltaba el techo del país.
+>
+> Se cayó así todo el diseño de tres niveles (país → comercio → sucursal) que se estaba armando: **no
+> hacían falta ni la columna en `allieds` ni las dos pantallas del admin.**
+
+> **MEDICIÓN · 2026-08-25** — 🔴 **y había un piso quemado que nadie había visto**:
+> `resolveAllowedDocumentTypes` agregaba **`['CC','CE']` SIEMPRE**, sin mirar el país ni las entidades.
+> O sea **cualquier comercio del mundo ofrecía documentos colombianos** sin que nadie lo hubiera
+> decidido. Ahora el país es piso y techo.
+
+> **MEDICIÓN · 2026-08-25 · probado en los tres casos**: Kreditkasa (CO) muestra `CC/CE` —no se le cuela
+> el PEP aunque el país lo tenga—, Motai muestra `CC/CE/PEP` —la excepción se respeta— y **CeluRD pasa a
+> mostrar `CED/NUI`**, que es lo correcto para RD, **sin haber tocado el dato mal cargado de sus
+> sucursales**: cuando el cruce queda vacío manda el país.
+
 ## Registro
 
 ### 2026-08-25
