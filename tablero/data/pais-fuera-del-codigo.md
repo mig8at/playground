@@ -1045,6 +1045,40 @@ conclusión sale al revés. Para consultas con varias columnas parecidas, armar 
 > **de la entidad** escrito y **comentado** (el del comercio sí corre). Con las entidades en Afganistán
 > ese check habría bloqueado la creación de todas las reglas. Después del backfill se puede descomentar.
 
+> **MEDICIÓN · 2026-08-25 · el mapa de ramas, corregido** — se había dicho «qa y staging dejarían de
+> listar con el backfill». **Está mal.** Rama por rama de `legacy-backend`:
+>
+>     develop   sin hardcodes   ← 7f5c2301 ya mergeado el 24-ago
+>     staging   3 hardcodes     ← PR #1204 (cherry-pick del mismo commit)
+>     qa        3 hardcodes     ← PR #1193
+>     main      3 hardcodes     ← espera el despliegue por tag
+>
+> Y **ninguno de los 3 está en el camino principal del listado**: `getLenders()` no filtra por país en
+> esas ramas. Son el **fallback** (`LenderRetrievalService:458/470`), `validatePreApproveLender`
+> (`OnboardingService:1782`) y `getActiveLendersByIds` (`Identity`, sin llamadas visibles). Las corridas
+> normales no se rompen — se rompe la red de rescate y un camino secundario.
+>
+> ⚠ Y de los tres, **dos son casi inertes**: `validatePreApproveLender` lo **stubea el controlador con
+> `random_int(0,1)`** en `local` y `development` (`OnboardingController:401`), y staging corre con
+> `APP_ENV=development` — o sea que ahí ni se llama. Eso explica por qué el harness no lo vio caerse: en
+> local **nunca se ejecuta**. El único vivo en staging es el fallback.
+>
+> El grave de verdad es **`legacy-application`**, que sí tiene el quemado en los 5 listados principales
+> — y sólo corre en **dev** y **prod** (no hay qa ni staging de application), así que el PR #80 lo cierra
+> entero para dev.
+
+> **MEDICIÓN · 2026-08-25 · PROD · Cuotéalo ya existe, y está en Colombia** — `PRUEBAS_CUOTEALO` (331) y
+> `PRUEBAS_CUOTEALO_VEHICULAR` (332), **una sucursal cada uno en Bogotá D.C., 0 solicitudes**. No son
+> comercios de Perú: son comercios de prueba colombianos, porque no había otra opción.
+>
+> Dos cosas que se ven desde acá:
+> 1. **Hoy no se podrían pasar a Perú** — `Allied::canChangeCountry()` los bloquea por tener sucursal,
+>    aunque tengan **cero** solicitudes. La guarda del comercio es más estricta que la de la entidad
+>    (que sí deja corregir un país sin operación). Queda como decisión abierta: si «operación» debería
+>    significar *solicitudes* y no *sucursales*.
+> 2. **Aunque se pudiera, no habría dónde ponerlos**: Perú tiene **25 zonas y 0 ciudades** (Colombia
+>    1.123 · Rep. Dom. 8). Y **0 festivos** (Colombia 53 · Rep. Dom. 24).
+
 ## Registro
 
 ### 2026-08-25
