@@ -10,9 +10,8 @@ jira_title: "Documentación de negocio compartida para el equipo"
 
 **ESTADO 2026-08-25.** La herramienta existe y pasa el CI del repo compartido: `Creditop-SAS/playground`
 → `tools/canon` (Go, cero dependencias, corpus embebido en el binario, lint que bloquea el deploy).
-**Sin commitear** — el PR lo abre Miguel. Hay **7 nodos escritos de ~20**: `canon.money`,
-`canon.invariants`, `canon.entity-families`, `canon.lifecycle`, `flows.entity-listing`,
-`flows.origination`, `map.database`. Este archivo lleva EL MAPEO: qué nodo del `context/`
+**Sin commitear** — el PR lo abre Miguel. **F1 (canon) COMPLETA: 10 nodos escritos de ~20.** canon: money · invariants · entity-families ·
+lifecycle · actors · risk-assessment · glossary. flows: entity-listing · origination. map: database. Este archivo lleva EL MAPEO: qué nodo del `context/`
 local alimenta qué nodo del corpus compartido.
 
 ## Las reglas de la migración
@@ -38,8 +37,8 @@ local alimenta qué nodo del corpus compartido.
 | creditop (raíz) | **canon.invariants** ✅ + canon.lifecycle + canon.glossary | 7 de 8 invariantes migraron; el fail-open de filtros por rol → pitfalls.access (es temporal, no invariante); la arista con archivo:línea queda |
 | entities | **canon.entity-families** ✅ | el rt 0-4 como modelo de negocio; censo técnico queda |
 | creditopx | **canon.entity-families** ✅ + **flows.entity-listing** ✅ | |
-| kyc | canon.risk-assessment + flows.origination | fixtures/mocks quedan (laboratorio) |
-| actors | canon.actors | Cognito detalle queda |
+| kyc | **canon.risk-assessment** ✅ + **flows.origination** ✅ | fixtures/mocks quedan (laboratorio) |
+| actors | **canon.actors** ✅ | Cognito detalle queda |
 | profiling | flows.entity-listing + canon.risk-assessment | features del ML quedan |
 | amount-tiers | flows.entity-listing | se funde |
 | rotativo | flows.post-disbursement + canon.entity-families | rt=3 no comparte motor: eso es canon |
@@ -76,7 +75,7 @@ local alimenta qué nodo del corpus compartido.
 
 ## Fases
 
-- **F1 · canon:** entity-families ✅ · lifecycle ✅ · **restan** actors → risk-assessment → glossary.
+- **F1 · canon: COMPLETA** ✅ (7 nodos).
   Es el vocabulario: sin esto, el resto se lee mal.
 - **F2 · flows:** origination ✅ · **restan** formalization → payments → post-disbursement → channels →
   external-lenders.
@@ -93,6 +92,22 @@ en el mismo nodo. Una copia dentro del corpus es peor que una ausencia — las d
 devuelve la más débil. Corolario implementado: **«Cómo lo sabemos» no entra al índice de búsqueda**
 (es procedencia, no respuesta); medido, salía SEGUNDA en una consulta de contenido.
 
+## Lo que se aprendió calibrando la búsqueda (2026-08-25)
+
+Se probaron dos arreglos sobre una consulta que fallaba y **los dos se revirtieron**, cada uno por su
+motivo. Vale dejarlo escrito para no repetirlo:
+
+- **Rellenar títulos de sección con las palabras de la consulta: NO.** Hundió otra búsqueda que sí
+  andaba (el alcance del asesor pasó a devolver el glosario). El glosario nombra TODOS los conceptos,
+  así que con peso alto en el título gana cualquier consulta. Es sobreajustar el contenido al ranker.
+- **Bajar el peso de los títulos: no cambia nada.** Medido con 4:6, 2:3 y 1:2 sobre el mismo barrido de
+  6 consultas — resultado idéntico en las tres. Se restauró 4:6.
+- **Lo que SÍ funcionó:** plegar plurales (`solicitudes`→`solicitud`), simétrico al indexar y consultar;
+  y sacar «Cómo lo sabemos» del índice de búsqueda (es procedencia, no respuesta).
+- **Queda un fallo conocido y documentado**: «cómo se llama la tabla de solicitudes» no llega al
+  glosario porque esa sección no usa la palabra «tabla». Es el límite de la búsqueda léxica, está en
+  `/api/tools` y en el README, y la salida es el índice.
+
 ## Decisiones abiertas
 
 - **La frontera con credibrain** (herramienta de Oscar en el mismo catálogo, «la memoria de la
@@ -105,6 +120,9 @@ devuelve la más débil. Corolario implementado: **«Cómo lo sabemos» no entra
 
 ## Bitácora
 
+- 2026-08-25 · F1 completa: +3 nodos (actors, risk-assessment, glossary — este último derivado de
+  `workers negocio --zoom 3`, que ya trae el par concepto ↔ nombre-en-datos). Calibración de búsqueda:
+  ver sección arriba. CI verde.
 - 2026-08-25 · +4 nodos (entity-families, lifecycle, origination, database) usando `workers negocio`
   (la espina de 23 conceptos) y `workers relaciones` (13 vecindarios medidos contra prod) como
   esqueleto derivado del código. Stopwords + procedencia fuera del ranking. CI verde.
