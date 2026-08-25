@@ -841,6 +841,32 @@ conclusión sale al revés. Para consultas con varias columnas parecidas, armar 
 > ✅ Seguro de hacer: el guardado filtra `is_active == 1`, así que preseleccionar en todas **no activa
 > ninguna** — las inactivas no crean fila.
 
+> **DECISIÓN · 2026-08-25 (Miguel)** — **los tipos los define la ENTIDAD**, no el comercio: «Motai acepta
+> PEP y Pullman no» es política de la entidad, no de quién vende. Y **el nivel sucursal×entidad se
+> conserva** —una entidad puede no ofrecer algún tipo en un local puntual—, así que el modelo final tiene
+> tres niveles y el más específico gana:
+>
+>     país                 el universo (techo)
+>     entidad              lo que acepta por ser esa entidad     ← faltaba, se agrega
+>     sucursal × entidad   el recorte de ese punto de venta      ← ya existía
+>
+> Se descartó por el camino el nivel **comercio**, que se había llegado a diseñar con dos pantallas: no
+> aporta nada que la entidad no cubra.
+
+> **MEDICIÓN · 2026-08-25** — **el dato estaba en el nivel equivocado, copiado**: sólo vivía en
+> `lenders_by_allied_branches`, o sea **7.211 combinaciones** de sucursal×entidad cuando alcanza con
+> **147** filas, una por entidad. Es el mismo patrón que las reglas de datacrédito (37.284 copias).
+>
+> Y hoy **nadie usa el override**: las únicas dos variantes que existen son `["CC","CE"]` y `null`, y los
+> `null` son el bug del borrado, no una decisión. O sea el nivel de la sucursal está vacío de intención —
+> lo que hay es el default colombiano copiado.
+
+> **MEDICIÓN · 2026-08-25 · probado** — con Motai declarando `["CC","CE","PEP"]` como **política de la
+> entidad** y sus filas de sucursal en `null`, el resolvedor devuelve `CC/CE/PEP`; Kreditkasa, cuyas
+> entidades sí tienen el override, sigue devolviendo `CC/CE`. Los datos de prueba quedaron restaurados.
+> Y la pantalla de crear entidad recibe el mapa país→tipos: `47 → CC/CE/PEP · 60 → CED/NUI ·
+> 167 → DNI/CE`, con el selector oculto para los países sin tipos cargados.
+
 ## Registro
 
 ### 2026-08-25
