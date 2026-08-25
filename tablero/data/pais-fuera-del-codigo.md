@@ -1104,6 +1104,29 @@ conclusión sale al revés. Para consultas con varias columnas parecidas, armar 
 > `main-dev.yaml` → develop y `main-prod.yaml` → tag). Vale saberlo antes de suponer que arreglar
 > develop cubre todo el repo.
 
+> **HALLAZGO · 2026-08-25 · la causa raíz sigue VIVA, y por eso el backfill no quita el default** —
+> `AlliedManagementService::storeAllied()` (módulo Partner, expuesto por `POST` de comercios y presente
+> en las cuatro ramas, incluida `main`) arma el payload **sin `country_id`** y depende del `DEFAULT 1`.
+> De ahí salen los comercios en Afganistán que hay hoy en la base compartida (Asyco, Free Spirit —con 19
+> solicitudes— y crédito directo). O sea el bug **no es histórico: sigue produciendo filas**.
+>
+> Quitar el `DEFAULT 1` sin arreglar antes ese creador cambia un bug silencioso por un **500 en una ruta
+> viva**. Y el arreglo no es obvio: el request de ese endpoint **no tiene** campo de país, así que
+> agregarlo es tocar un contrato público. Queda como tarea aparte.
+>
+> ⚠ Los dos `store()` del admin (comercio y entidad, en application) **sí** mandan `country_id`. El
+> único creador que no lo hace es ese endpoint del Partner.
+
+> **ESTADO · 2026-08-25 · el backfill está escrito y probado** — `legacy-backend` PR #1205 → `qa`,
+> migración `2026_08_25_120000_paises_backfill_del_default_historico.php`. Corrida en local:
+>
+>     comercios movidos 2 · entidades movidas 157 · entidades sin mover 1
+>     ⚠ las que no se movieron atienden comercios de otro país
+>
+> La que no se movió es la atada al comercio dominicano — la guarda funcionó. Es **idempotente** (la
+> segunda corrida mueve `0 · 0`), los listados no se mueven (12 · 7 · Motai a 11) y BCP no se toca.
+> El `down()` **no revierte datos** a propósito. Los datos locales quedaron restaurados.
+
 ## Registro
 
 ### 2026-08-25
