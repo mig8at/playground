@@ -700,9 +700,27 @@ conclusión sale al revés. Para consultas con varias columnas parecidas, armar 
 > `ManualValidationService:100` y el de `EvidenteOtpGenerateRequest:33`, que responde al contrato de
 > Credifamilia con su proveedor.
 
+> **MEDICIÓN · 2026-08-25** — **la validación de OTP también dejaba fuera al peruano**, y era el segundo
+> muro: `OnboardingV2\ValidateOtpAuthRequest:38` pedía `digits:10`, así que un cliente peruano no podía
+> validar su código **aunque lo hubiera recibido**. Ahora el largo sale del país de la sucursal de la
+> ruta (`partnerBranchId` → sucursal → comercio → país). Probado: sucursal colombiana → `57`, dominicana
+> → `1`, y hash nulo, vacío o inexistente → `NULL`, que degrada al largo de siempre.
+
+> **DECISIÓN · 2026-08-25** — **los otros cuatro `digits:10` se quedan como están, y por dos razones
+> distintas**: `BackDoorCreateUserRequest`, `CreditStudyRequest` y `TestMarketingMessagesRequest` **no
+> tienen de dónde sacar el país** —aplicar la regla ahí degradaría a 10 igual, o sea sería ruido—; y
+> `EvidenteOtpGenerateRequest:33` responde al **contrato de Credifamilia con su proveedor**, donde el
+> formato colombiano es parte del acuerdo. Tampoco se toca el regex de `ManualValidationService:100`.
+
 ## Registro
 
 ### 2026-08-25
+
+- **Cerrado el frente del teléfono en backend**, dentro del mismo commit consolidado (`d45caa44`): dos
+  validaciones dejan de pedir 10 dígitos fijos —el registro y la validación de OTP— y las dos degradan al
+  largo de siempre cuando el país no resuelve. Con eso **un cliente peruano ya puede escribir su número
+  y validar su código**; el resto del muro son el documento y el buró.
+
 
 - **CONSOLIDADO como pidió Miguel: una rama y un commit por repo.** Tres PRs, ni uno más:
 
