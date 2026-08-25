@@ -1079,6 +1079,31 @@ conclusión sale al revés. Para consultas con varias columnas parecidas, armar 
 > 2. **Aunque se pudiera, no habría dónde ponerlos**: Perú tiene **25 zonas y 0 ciudades** (Colombia
 >    1.123 · Rep. Dom. 8). Y **0 festivos** (Colombia 53 · Rep. Dom. 24).
 
+> **MEDICIÓN · 2026-08-25 · validado contra las ramas reales, ya mergeadas** — con `origin/staging` y
+> `origin/develop` servidos en local, en los dos mundos de datos:
+>
+>     origin/staging  datos de hoy (país 1)   kreditkasa 12 · pullman 7
+>     origin/staging  con el backfill         kreditkasa 12 · pullman 7 · Motai estado 11
+>     origin/develop  con el backfill         kreditkasa 12 · pullman 7
+>
+> Y el **contraste con `origin/qa`**, que todavía no tiene el puente, con el backfill puesto:
+>
+>     el listado principal          12 · 7      ← NO se rompe
+>     lo que ve su filtro quemado   0 entidades ← el fallback y los secundarios quedan secos
+>
+> Las dos mitades confirmadas de una vez: `getLenders()` no filtra por país en esa rama, así que las
+> corridas normales sobreviven; lo que muere es la red de rescate. El backfill local se revirtió.
+
+> **ESTADO · 2026-08-25 · el censo de ramas, tras los merges**
+>
+>     legacy-backend      develop ✓  staging ✓  qa ⚠ (PR #1193)  main ⚠ (espera tag)
+>     legacy-application  develop ⚠ (PR #80)  ·  staging ⚠  ·  main ⚠      ← 4 quemados cada una
+>     frontend-monorepo   sin filtro de país en ninguna rama (es front)
+>
+> ⚠ `legacy-application` **tiene rama `staging`** aunque ningún workflow la despliegue (sólo hay
+> `main-dev.yaml` → develop y `main-prod.yaml` → tag). Vale saberlo antes de suponer que arreglar
+> develop cubre todo el repo.
+
 ## Registro
 
 ### 2026-08-25
