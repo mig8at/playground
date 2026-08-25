@@ -820,6 +820,15 @@ conclusión sale al revés. Para consultas con varias columnas parecidas, armar 
 > Los tres son el mismo defecto: **un JSON que viaja como string porque el modelo no lo declara**. Y los
 > tres existían sólo en `legacy-application`; sus gemelos de `legacy-backend` sí lo tenían.
 
+> **MEDICIÓN · 2026-08-25** — **por qué algunas entidades muestran el campo de documentos vacío**: la
+> pantalla lista las entidades del **comercio** (12 en la sucursal de prueba) pero sólo las asignadas a
+> **esa sucursal** tienen fila en `lenders_by_allied_branches` (11). Las que figuran «Inactivo» no tienen
+> configuración ahí todavía — y al habilitarlas arrancan con los tipos del país.
+>
+> No era un defecto, pero **la pantalla no lo explicaba**: «vacío porque no está asignada» y «vacío
+> porque nadie eligió, o sea todos los del país» se veían igual. Ahora el hint distingue los dos casos y
+> el placeholder muestra cuáles son esos «todos».
+
 ## Registro
 
 ### 2026-08-25
