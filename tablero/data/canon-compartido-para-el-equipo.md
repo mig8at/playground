@@ -10,10 +10,10 @@ jira_title: "Documentación de negocio compartida para el equipo"
 
 **ESTADO 2026-08-25.** La herramienta existe y pasa el CI del repo compartido: `Creditop-SAS/playground`
 → `tools/canon` (Go, cero dependencias, corpus embebido en el binario, lint que bloquea el deploy).
-**Sin commitear** — el PR lo abre Miguel. **F1, F2 y F3 COMPLETAS: 18 nodos.** canon (7): money · invariants · entity-families · lifecycle ·
+**Sin commitear** — el PR lo abre Miguel. **F1–F4 (parcial): 22 nodos.** canon (7): money · invariants · entity-families · lifecycle ·
 actors · risk-assessment · glossary. flows (8): origination · entity-listing · formalization · cosigner ·
 payments · post-disbursement · channels · external-lenders. map (3): repos · services · database.
-**Resta F4 (`pitfalls`) y F5 (`field`).** Este archivo lleva EL MAPEO: qué nodo del `context/`
+pitfalls (4): identity · reports · quota · data-reading. **`field` sin empezar (F5), a propósito.** Este archivo lleva EL MAPEO: qué nodo del `context/`
 local alimenta qué nodo del corpus compartido.
 
 ## Las reglas de la migración
@@ -81,8 +81,9 @@ local alimenta qué nodo del corpus compartido.
   Es el vocabulario: sin esto, el resto se lee mal.
 - **F2 · flows: COMPLETA** ✅ (7 nodos).
 - **F3 · map: COMPLETA** ✅ (3 nodos).
-- **F4 · pitfalls temáticos**, empezando por lo que soporte pregunta: states → webhooks →
-  entity-listing → access.
+- **F4 · pitfalls: 4 de ~8** ✅ identity · reports · quota · data-reading. **Restan** los de
+  observabilidad (logs que no atan a una solicitud), los de ambiente (lo que solo pasa fuera de
+  producción) y los de webhooks — este último parcialmente cubierto por `flows.external-lenders`.
 - **F5 · field** — DESPUÉS de decidir la sensibilidad (abajo).
 
 ## Regla editorial que salió de escribir los primeros nodos
@@ -125,6 +126,25 @@ codeudor», «en qué REPO vive», «qué comercios están MIGRADOS»).
 **Y no se arregla metiendo la consulta en un título de sección** — se probó y hundió otra búsqueda: los
 títulos pesan, y un nodo que nombra muchos conceptos (el glosario) empieza a ganar cualquier cosa.
 
+## La medición cambió, y es lo más importante del tramo
+
+Miguel señaló que un LLM **no acierta a la primera**: busca, lee, reformula, sigue enlaces. Mi banco
+medía precisión en el primer resultado — la métrica equivocada.
+
+**Ahora mide alcanzabilidad:** ¿se llega al nodo correcto en ≤2 pasos? Y lo único que rompe la corrida
+es **sin camino** (ni los 3 primeros resultados ni sus `nodes_hit` llevan al nodo esperado). Eso sí es
+un defecto del corpus, y frena el despliegue — comprobado metiendo una pregunta imposible: exit 1.
+
+Dos cambios que salieron de ahí:
+
+1. **`/api/search` devuelve `nodes_hit`**: por cada nodo que apareció, sus OTRAS secciones y con qué se
+   conecta. Antes, un acierto parcial costaba dos llamadas más para saber a dónde ir; ahora una sola
+   búsqueda deja al agente listo para el paso siguiente.
+2. **El banco es una modalidad del binario** (`-bench`), corre en proceso sin servidor, y el Dockerfile
+   lo ejecuta junto al lint antes de armar la imagen.
+
+Estado con 22 nodos: **1er resultado 29/31 · alcanzable ≤2 pasos 31/31**.
+
 ## Decisiones abiertas
 
 - **La frontera con credibrain** (herramienta de Oscar en el mismo catálogo, «la memoria de la
@@ -137,6 +157,9 @@ títulos pesan, y un nodo que nombra muchos conceptos (el glosario) empieza a ga
 
 ## Bitácora
 
+- 2026-08-25 · F4 arrancada: +4 pitfalls temáticos (identity, reports, quota, data-reading), sin F-xx
+  —el registro numerado sigue siendo fuente acá—. Banco ampliado a 31 preguntas. Y la métrica cambió de
+  precisión@1 a alcanzabilidad, ver sección arriba. CI verde.
 - 2026-08-25 · F3 completa: +3 nodos (map.repos, map.services, flows.cosigner — el codeudor merecía
   nodo propio: cambia la FORMA del cierre, no le agrega un párrafo). Banco de preguntas congelado en
   `preguntas.txt`. Corpus: 18 nodos, 123 secciones. CI verde.
