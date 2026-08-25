@@ -883,11 +883,23 @@ conclusión sale al revés. Para consultas con varias columnas parecidas, armar 
 > los habría borrado. Comprobado sembrando `["CC","PEP"]` en la 168 — ahora los muestra como chips, con
 > `CE` disponible sin marcar. Los datos quedaron restaurados.
 
-> **HALLAZGO AJENO · 2026-08-25** — **3 de 159 entidades no se pueden editar** y no es de este cambio:
-> la pantalla hace `JSON.parse(lender.additional_data).amount_text` y con `additional_data` en `NULL`
-> eso revienta (`Cannot read properties of null`) dejando la página **en blanco**. Está igual en
-> `develop` (misma línea, sin tocar). Va como tarea aparte: meterlo acá ensancha un PR que ya está en
-> el límite de lo revisable.
+> **DECISIÓN · 2026-08-25 (Miguel)** — **las 3 entidades que no se podían ni abrir SÍ entran a este PR.**
+> Estaba anotado como «tarea aparte, no ensanchar el PR», y se revisó al medirlo: son **exactamente las
+> 3 a las que el resto del PR no llega**. Esto le agrega un campo a una pantalla que para ellas no abría,
+> así que arreglarlas es terminar lo de acá, no ampliarlo. Y las dos guardas viven en archivos que el PR
+> ya toca.
+>
+> Eran **dos** anexos que pueden faltar, no uno: `additional_data` en `NULL` (3 entidades) y la línea de
+> crédito inexistente (1, `QA Externo`, creada por fuera del admin). El primero deja la pantalla **en
+> blanco** —`JSON.parse(null)` devuelve null y leerle un campo tira TypeError antes de montar—; el
+> segundo revienta al **guardar**, así que a esa entidad no se le podía editar ni el nombre.
+>
+> La línea ahora se crea si falta: `store()` siempre la crea, o sea que **no tenerla es la anomalía**.
+> Probado: las tres devuelven 200 y guardar `QA Externo` pasa de **500 a 302** dejando la fila creada.
+> El estado del dump se restauró (se le borró la línea y se le volvió a poner `additional_data` en null).
+>
+> ⚠ El mismo patrón sin guarda sigue en la pantalla del CLIENTE (`ListLenders.vue`, 6 sitios). No entra
+> acá: otra pantalla, otro riesgo.
 
 > **MEDICIÓN · 2026-08-25 · el viejo contra el nuevo, en las 1.689 sucursales** — se corrió el
 > resolvedor de antes y el de ahora sobre TODAS y se compararon las respuestas:
