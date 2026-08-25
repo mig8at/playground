@@ -797,9 +797,29 @@ conclusión sale al revés. Para consultas con varias columnas parecidas, armar 
 > mostrar `CED/NUI`**, que es lo correcto para RD, **sin haber tocado el dato mal cargado de sus
 > sucursales**: cuando el cruce queda vacío manda el país.
 
+> **MEDICIÓN · 2026-08-25** — 🔴 **guardar una sucursal en el admin BORRABA los tipos de documento.**
+> `AlliedAlliedBranchController::update` hace `delete()` de las filas de `lenders_by_allied_branches` y
+> las recrea **sin `document_types`**. O sea el PEP de Motai desaparecía si alguien editaba esa sucursal,
+> y nadie lo notaba porque el selector del cliente simplemente dejaba de ofrecerlo. Probablemente explica
+> las **47 filas** que hoy están en `null`. Arreglado: se conservan, y una entidad nueva arranca con los
+> tipos del país.
+
+> **MEDICIÓN · 2026-08-25** — **dos divergencias más entre los modelos gemelos**, encontradas al hacer
+> el selector: `document_types` **no estaba en el `fillable`** de `LendersByAlliedBranch` de
+> `legacy-application` —un `create()` lo descartaba en silencio— y **ni ese modelo ni `Country`
+> casteaban el JSON**, a diferencia de sus gemelos de `legacy-backend`. Se vio en la respuesta real: el
+> selector recibía `["CC", "CE", "PEP"]` como **una sola opción**. Con el cast, un comercio colombiano
+> recibe `CC/CE/PEP` y uno dominicano `CED/NUI`.
+
 ## Registro
 
 ### 2026-08-25
+
+- **El admin ya puede editar los tipos de documento por entidad**, que era lo que obligaba a tocar SQL.
+  Cada entidad de la sucursal tiene su selector y las opciones salen del país del comercio. Y de paso
+  salieron **tres bugs**: el guardado que borraba la config, el `fillable` que faltaba y el cast ausente
+  en dos modelos. Ver mediciones.
+
 
 - **Cerrado el frente del teléfono en backend**, dentro del mismo commit consolidado (`d45caa44`): dos
   validaciones dejan de pedir 10 dígitos fijos —el registro y la validación de OTP— y las dos degradan al
