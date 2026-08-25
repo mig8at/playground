@@ -915,6 +915,21 @@ conclusión sale al revés. Para consultas con varias columnas parecidas, armar 
 >
 > El front los lee anidados bajo `country` (`allied-theme.repository.ts`), que es donde la API los pone.
 
+> **DECISIÓN · 2026-08-25 (Miguel)** — **el país de una entidad, con operación encima, no se mueve.**
+> Simétrico a lo que ya hacía el comercio, pero importa más: el listado filtra las entidades por el país
+> **del comercio**, así que moverle el país a una entidad **la saca del listado de todos los comercios
+> del país viejo de un saque** — Credifamilia-addi está en **136 comercios** con **130.167 solicitudes**.
+>
+> ⚠ Con la salvedad que hace falta ahora: si está parada en un país donde **no** operamos, corregirla
+> siempre se puede. Si no, arreglar el default histórico sólo saldría por SQL, que es lo que esto vino a
+> sacar. Probado: hoy Credifamilia-addi (país 1) se deja mover; puesta en Colombia, **rechaza** irse a
+> Perú. La guarda está **dormida hasta el backfill** y se activa sola.
+>
+> ⚠ Y el efecto que uno supone NO es el que pasa: cambiarle el país a una entidad **no** mueve los
+> documentos de ninguna sucursal — ese filtro usa el país del COMERCIO. Lo que hace es desaparecerla.
+>
+> Hoy **9 entidades** se podrían mover libremente y **150** ya tienen operación encima.
+
 ## Registro
 
 ### 2026-08-25
