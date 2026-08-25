@@ -10,9 +10,10 @@ jira_title: "Documentación de negocio compartida para el equipo"
 
 **ESTADO 2026-08-25.** La herramienta existe y pasa el CI del repo compartido: `Creditop-SAS/playground`
 → `tools/canon` (Go, cero dependencias, corpus embebido en el binario, lint que bloquea el deploy).
-**Sin commitear** — el PR lo abre Miguel. **F1 y F2 COMPLETAS: 15 nodos de ~20.** canon (7): money · invariants · entity-families · lifecycle ·
-actors · risk-assessment · glossary. flows (7): origination · entity-listing · formalization · payments ·
-post-disbursement · channels · external-lenders. map (1): database. Este archivo lleva EL MAPEO: qué nodo del `context/`
+**Sin commitear** — el PR lo abre Miguel. **F1, F2 y F3 COMPLETAS: 18 nodos.** canon (7): money · invariants · entity-families · lifecycle ·
+actors · risk-assessment · glossary. flows (8): origination · entity-listing · formalization · cosigner ·
+payments · post-disbursement · channels · external-lenders. map (3): repos · services · database.
+**Resta F4 (`pitfalls`) y F5 (`field`).** Este archivo lleva EL MAPEO: qué nodo del `context/`
 local alimenta qué nodo del corpus compartido.
 
 ## Las reglas de la migración
@@ -46,7 +47,7 @@ local alimenta qué nodo del corpus compartido.
 | onboarding | **flows.origination** ✅ | |
 | formalization | **flows.formalization** ✅ | |
 | deceval | **flows.formalization** ✅ (el pagaré como camino propio; el detalle del proveedor queda) | el detalle SOAP/WS-Security queda |
-| codeudor | flows.formalization — **pendiente**: el segundo firmante no entró todavía | |
+| codeudor | **flows.cosigner** ✅ (nodo propio: cambia la forma del cierre) | |
 | payments | **flows.payments** ✅ | el bug vivo del gateway → pitfalls.payments |
 | servicing | **flows.post-disbursement** ✅ | |
 | ecommerce | **flows.channels** ✅ | |
@@ -60,12 +61,12 @@ local alimenta qué nodo del corpus compartido.
 | motai | field.merchant-motai | |
 | pullman | field.merchant-pullman | chico |
 | merchants | field.merchants | par/copia ya graduó a canon.invariants |
-| architecture | map.repos | las costuras: lo conceptual migra |
-| application | map.repos | casi todo queda (denso en direcciones) |
-| legacy-backend | map.repos | ídem |
-| frontend-monorepo | map.repos | ídem |
-| microservicios | map.services | service_name es vocabulario, migra |
-| form-service | map.services | |
+| architecture | **map.repos** ✅ | las costuras: lo conceptual migra |
+| application | **map.repos** ✅ | casi todo queda (denso en direcciones) |
+| legacy-backend | **map.repos** ✅ | ídem |
+| frontend-monorepo | **map.repos** ✅ | ídem |
+| microservicios | **map.services** ✅ | service_name es vocabulario, migró |
+| form-service | **map.services** ✅ (nombrado, sin nodo propio) | |
 | backoffice | map.services + canon.actors | |
 | dynamic-forms | map.services (+ flows.forms candidato) | |
 | db-routines | **map.database** ✅ (parcial: falta la lógica en rutinas) | el HECHO de la lógica en BD; 4 rutinas sin fuente |
@@ -79,7 +80,7 @@ local alimenta qué nodo del corpus compartido.
 - **F1 · canon: COMPLETA** ✅ (7 nodos).
   Es el vocabulario: sin esto, el resto se lee mal.
 - **F2 · flows: COMPLETA** ✅ (7 nodos).
-- **F3 · map:** database ✅ · **restan** repos → services.
+- **F3 · map: COMPLETA** ✅ (3 nodos).
 - **F4 · pitfalls temáticos**, empezando por lo que soporte pregunta: states → webhooks →
   entity-listing → access.
 - **F5 · field** — DESPUÉS de decidir la sensibilidad (abajo).
@@ -108,6 +109,22 @@ motivo. Vale dejarlo escrito para no repetirlo:
   glosario porque esa sección no usa la palabra «tabla». Es el límite de la búsqueda léxica, está en
   `/api/tools` y en el README, y la salida es el índice.
 
+## El banco de preguntas, y lo que NO hay que volver a probar
+
+`tools/canon/preguntas.txt` congela 21 consultas de soporte con el nodo que debería contestarlas.
+**20/21 con 18 nodos.** Corrélo después de cada tanda: un nodo nuevo puede robarle una consulta a otro —
+pasó dos veces (`flows.channels` le robó la del asesor a `canon.actors`; `flows.payments` le robó
+«no le sale esta entidad» a `flows.entity-listing`).
+
+**Los pesos de campo NO son el problema — medido dos veces.** Cinco calibraciones (4:6, 3:4, 2:3, 2:2,
+1:2), primero con 10 nodos/6 consultas y después con 18/21: resultado **idéntico** en todas. Está
+anotado en el código para que nadie lo re-litigue. Cuando una búsqueda falla, el arreglo es de PROSA: la
+sección no usaba la palabra con la que llega la pregunta («no le SALE la entidad», «el LINK del
+codeudor», «en qué REPO vive», «qué comercios están MIGRADOS»).
+
+**Y no se arregla metiendo la consulta en un título de sección** — se probó y hundió otra búsqueda: los
+títulos pesan, y un nodo que nombra muchos conceptos (el glosario) empieza a ganar cualquier cosa.
+
 ## Decisiones abiertas
 
 - **La frontera con credibrain** (herramienta de Oscar en el mismo catálogo, «la memoria de la
@@ -120,6 +137,9 @@ motivo. Vale dejarlo escrito para no repetirlo:
 
 ## Bitácora
 
+- 2026-08-25 · F3 completa: +3 nodos (map.repos, map.services, flows.cosigner — el codeudor merecía
+  nodo propio: cambia la FORMA del cierre, no le agrega un párrafo). Banco de preguntas congelado en
+  `preguntas.txt`. Corpus: 18 nodos, 123 secciones. CI verde.
 - 2026-08-25 · F2 completa: +5 nodos de flujo (formalization, payments, post-disbursement, channels,
   external-lenders). El lint atajó una referencia adelantada (`related` a un nodo aún no escrito), que
   es exactamente para lo que está. Corpus: 15 nodos, 102 secciones, 8.595 palabras; el índice cuesta
