@@ -889,6 +889,32 @@ conclusión sale al revés. Para consultas con varias columnas parecidas, armar 
 > `develop` (misma línea, sin tocar). Va como tarea aparte: meterlo acá ensancha un PR que ya está en
 > el límite de lo revisable.
 
+> **MEDICIÓN · 2026-08-25 · el viejo contra el nuevo, en las 1.689 sucursales** — se corrió el
+> resolvedor de antes y el de ahora sobre TODAS y se compararon las respuestas:
+>
+>     1.515  idénticas
+>       173  Colombia   CC/CE  →  CC/CE/PEP
+>         1  Rep. Dom.  CC/CE  →  CED/NUI
+>
+> **Las 173 son las sucursales sin NINGUNA entidad cargada** (`filas=0`). Antes contestaba el piso
+> quemado `['CC','CE']`; ahora, como ninguna entidad opina, contesta el país — que en Colombia incluye
+> PEP. **27 de ellas tienen tráfico** (510 solicitudes), pero sin entidades no se origina nada ahí: el
+> listado sale vacío igual. No es una regresión, es el quemado reemplazado por el país en el único
+> lugar donde nadie tenía una opinión. Si se prefiere conservador, el cambio es una línea.
+>
+> La de RD es el arreglo buscado: deja de ofrecer cédula colombiana en República Dominicana.
+>
+> ⚠ Y una trampa al medir esto: `SUM(lbab.status=1)` sobre un LEFT JOIN sin filas da **NULL**, no 0, así
+> que `HAVING activas = 0` **no las encuentra**. Con `NOT EXISTS` aparecen las 173.
+
+> **MEDICIÓN · 2026-08-25 · corriendo** — el flujo sigue cerrando: `motai` llega a **estado 11**, y los
+> listados dan 12 (kreditkasa) y 7 (pullman). La API devuelve por país lo que corresponde:
+>
+>     GET /api/loans/allied/f0548728   Motai        CC/CE/PEP   +57  10  COP  es-CO
+>     GET /api/loans/allied/1bfb8cd0   CeluRD Test  CED/NUI     +1   10  DOP  es-DO
+>
+> El front los lee anidados bajo `country` (`allied-theme.repository.ts`), que es donde la API los pone.
+
 ## Registro
 
 ### 2026-08-25
