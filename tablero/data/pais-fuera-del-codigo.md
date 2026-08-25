@@ -867,6 +867,28 @@ conclusión sale al revés. Para consultas con varias columnas parecidas, armar 
 > Y la pantalla de crear entidad recibe el mapa país→tipos: `47 → CC/CE/PEP · 60 → CED/NUI ·
 > 167 → DNI/CE`, con el selector oculto para los países sin tipos cargados.
 
+> **MEDICIÓN · 2026-08-25 · en pantalla** — abrir una entidad en el admin mostraba el campo de **país
+> vacío**: su valor (el 1) no está entre las opciones, que son los países con operación. Y como el
+> `UpdateRequest` exige un país con operación, **guardar habría fallado en un campo que nadie tocó**, en
+> **158 de las 159** entidades. Es el mismo puente que ya tenían los listados, que faltaba en el admin:
+> el selector ofrece los habilitados **más** el heredado (rotulado) y la validación acepta ese valor.
+> El trinquete gira para un solo lado — probado con los cuatro casos:
+>
+>     entidad en el país 1  →  guarda con el país 1        acepta   (si no, no se puede editar nada)
+>     entidad en el país 1  →  se mueve a Colombia         acepta   (es lo que se quiere)
+>     entidad en el país 1  →  se mueve a otro sin operar  rechaza
+>     entidad en RD (60)    →  vuelve al país 1            rechaza
+>
+> Y el formulario **nunca cargaba** los tipos guardados (arrancaba en `[]`): editar cualquier otro campo
+> los habría borrado. Comprobado sembrando `["CC","PEP"]` en la 168 — ahora los muestra como chips, con
+> `CE` disponible sin marcar. Los datos quedaron restaurados.
+
+> **HALLAZGO AJENO · 2026-08-25** — **3 de 159 entidades no se pueden editar** y no es de este cambio:
+> la pantalla hace `JSON.parse(lender.additional_data).amount_text` y con `additional_data` en `NULL`
+> eso revienta (`Cannot read properties of null`) dejando la página **en blanco**. Está igual en
+> `develop` (misma línea, sin tocar). Va como tarea aparte: meterlo acá ensancha un PR que ya está en
+> el límite de lo revisable.
+
 ## Registro
 
 ### 2026-08-25
