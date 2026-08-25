@@ -712,6 +712,24 @@ conclusión sale al revés. Para consultas con varias columnas parecidas, armar 
 > `EvidenteOtpGenerateRequest:33` responde al **contrato de Credifamilia con su proveedor**, donde el
 > formato colombiano es parte del acuerdo. Tampoco se toca el regex de `ManualValidationService:100`.
 
+> **MEDICIÓN · 2026-08-25 · los 18 largos, verificados contra los planes de numeración.** No contra los
+> datos cargados ni contra los teléfonos guardados: **esos están contaminados** por la práctica de probar
+> con celulares colombianos en comercios de otros países, así que muestran el síntoma y no la regla.
+> Los 18 valores coincidieron con lo que se había cargado.
+>
+> **El caso que importaba, República Dominicana**: pertenece al **NANP**, su número nacional es 3 dígitos
+> de área (809/829/849) + 3 + 4 = **10**, y el `1` es el **código de país** — el mismo lugar que ocupa el
+> `57` en Colombia, que tampoco se cuenta. El **11** de producción mezcla las dos cosas, y validar con él
+> **rechazaría a los dominicanos reales**. La migración lo corrige.
+
+> **LECCIÓN · 2026-08-25 (corrección de Miguel)** — casi justifico ese cambio con **un comentario del
+> propio código** (`AlliedInfoController` decía «el móvil dominicano también es de 10 dígitos») y con la
+> forma de los teléfonos guardados. Las dos son **fuentes contaminadas**: el comentario se escribió
+> cuando se recibían números colombianos y dominicanos a la vez —por las pruebas— y los datos guardados
+> reflejan esa misma práctica. **Para un dato que es una regla externa —un plan de numeración, una norma
+> ISO, un estándar— la fuente es la norma, no lo que el sistema haya acumulado.** Que la conclusión
+> resultara la misma no valida el método.
+
 ## Registro
 
 ### 2026-08-25
