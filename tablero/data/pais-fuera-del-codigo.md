@@ -104,6 +104,54 @@ escrito a mano en el medio.
 > dos filas de entidad, no una con dos países: la economía (`credit_line_by_lenders`) cuelga de
 > `lender_id` y está denominada en moneda. Es lo que ya hace SmartPay en RD.
 
+## Los tipos de documento — el dato ahora, la herencia después
+
+**El modelo acordado**, y es el mismo que el del país: el **país define el universo** y la **sucursal
+elige de ahí**. Ninguno de los dos manda solo — lo que se le ofrece al cliente es la intersección.
+
+    países.document_types              ["CC", "CE", "PEP"]      ← qué EXISTE en el país
+    lenders_by_allied_branches.        ["CC", "CE"]             ← qué ACEPTA esta sucursal
+      document_types
+    ────────────────────────────────────────────────────────
+    lo que ve el cliente               ["CC", "CE"]             ← la intersección
+
+**Lo que ya existe** (2026-08-25): la mitad de la sucursal está poblada —**7.164 de 7.211 filas**— y
+**tiene lector**: `Loans\AlliedInfoController::resolveAllowedDocumentTypes` hace la unión de los
+`document_types` de las entidades de esa sucursal y los expone como `allowed_document_types` en el
+payload del comercio; el front los usa para el selector de `personal-info`. Y ahora la mitad del país
+también está cargada, para los tres países que operan.
+
+**Lo que falta es sólo el cruce.** Y es una línea — pero ⚠ **NO se puede hacer todavía**:
+
+> **MEDICIÓN · 2026-08-25** — 🔴 **las sucursales de República Dominicana tienen cargados códigos
+> COLOMBIANOS.** Las **17** filas de `lenders_by_allied_branches` de comercios del país 60 dicen
+> `["CC","CE"]`; ninguna tiene `CED` ni `NUI`, que son los que sus propios clientes usan (medidos en
+> `users`: CED 249, NUI 6). Es el mismo default ciego que puso 191 entidades en Afganistán.
+>
+> **Cruzar las dos listas hoy dejaría a RD sin ningún tipo de documento disponible** — intersección
+> vacía. Primero hay que corregir ese lado.
+
+**El orden, entonces:**
+
+1. ✅ El país declara su universo (hecho: COL `CC/CE/PEP` · DOM `CED/NUI` · PER `DNI/CE`).
+2. **Corregir las sucursales de RD** para que declaren los tipos de su país. Sin esto, nada más se puede
+   hacer.
+3. **Cruzar**: `resolveAllowedDocumentTypes` interseca contra el país del comercio. Una línea.
+4. **La pantalla del admin** para elegir, por sucursal, cuáles de los tipos del país acepta. Es lo único
+   que es trabajo de verdad, y lo que hoy obliga a editar la tabla a mano.
+5. Y recién ahí, **quitar el `in:cc,ce`** de `CreditStudyRequest` y los enums quemados que el censo
+   marcó en cuatro capas.
+
+⚠ **Y el vocabulario es lo primero que hay que fijar**, antes del paso 2: hoy conviven `CC`, `CE`, `CED`,
+`NUI`, `PEP`, `PAS` y `CI_VE` en `users` **sin catálogo** — nadie sabe qué es `NUI`, cómo se valida, cómo
+se llama en pantalla ni qué se le manda a cada buró. Si el paso 2 se hace con códigos inventados, quedan
+dos vocabularios para lo mismo, que es exactamente lo que pasó con `dial_code` y `phone_code`.
+
+> **DECISIÓN · 2026-08-25 (Miguel)** — se carga **el dato ahora** y se cablea el comportamiento después.
+> La objeción de que un dato sin lector se vuelve otra `address_format` es válida, pero acá el cruce **no
+> se puede hacer todavía** por el estado del otro lado: cargarlo ahora es preparar el terreno, no
+> abandonar una columna.
+
 ## Cómo se ataca
 
 Tres pasos entregables por separado. **El orden es lo que evita la ventana rota.**
