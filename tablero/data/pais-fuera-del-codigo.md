@@ -1127,6 +1127,30 @@ conclusión sale al revés. Para consultas con varias columnas parecidas, armar 
 > segunda corrida mueve `0 · 0`), los listados no se mueven (12 · 7 · Motai a 11) y BCP no se toca.
 > El `down()` **no revierte datos** a propósito. Los datos locales quedaron restaurados.
 
+> **MEDICIÓN · 2026-08-25 · el ensayo general en local** — se corrió **la migración de verdad** (la del
+> PR #1205, no el script) sobre el código completo de las tres ramas, y se comparó la MISMA tanda de
+> **14 comercios en paralelo** antes y después:
+>
+>     ✓ IDÉNTICO — los 14 dan el mismo listado, ENTIDAD POR ENTIDAD
+>
+> No «el mismo número»: la misma lista de ids. Y el flujo entero: Motai cierra en **estado 11** y la
+> suite `motai-creditopx` pasa sus **4 casos**. El comercio dominicano conserva sus dos entidades,
+> porque la que la guarda dejó en el país 1 sigue pasando el puente `[1, 60]`.
+>
+> **Y el candado se activó solo, que era la promesa.** Abriendo Motai C en el admin después de migrar:
+>
+>     Pais: Colombia                      (antes: «Afghanistan — sin operación, pendiente de corregir»)
+>     puedeCambiarPais: false             «Ya opera con comercios: cambiarle el país la sacaría…»
+>     tipos que ofrece: CC · CE · PEP     (antes: deshabilitado, «el país no tiene tipos cargados»)
+>
+> Local quedó revertido: 158 en el país 1, la migración desmarcada y el archivo fuera del árbol.
+
+> **HALLAZGO AJENO · 2026-08-25** — **el listado de `Creditop` (comercio 24) revienta con HTTP 500**:
+> `Attempt to read property "sort" on null` en `LenderProbabilityService`. La causa es de datos y el
+> código no la contempla: **Wompi (52) está cableada a su SUCURSAL pero no al COMERCIO**, y ese servicio
+> lee el orden de `lenders_by_allieds` sin comprobar que la fila exista. El archivo no está tocado por
+> ninguno de los PRs y falla **idéntico antes y después** del backfill — sirvió de control.
+
 ## Registro
 
 ### 2026-08-25
