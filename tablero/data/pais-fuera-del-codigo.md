@@ -930,6 +930,35 @@ conclusión sale al revés. Para consultas con varias columnas parecidas, armar 
 >
 > Hoy **9 entidades** se podrían mover libremente y **150** ya tienen operación encima.
 
+> **MEDICIÓN · 2026-08-25 · la guarda, POR HTTP** — se probó pegándole a `PUT /entidades/{id}` con la
+> sesión real del admin, no contra el validador aislado. Los siete escenarios dan lo esperado:
+>
+>     HOY (arrastran el país 1, que no opera)
+>       Banco de Bogotá (136 comercios) · 1 → Colombia          pasa
+>       Banco de Bogotá · 1 → Perú                              pasa   ← el hueco de la ventana
+>     DESPUÉS del backfill (ya en su país)
+>       Banco de Bogotá (con comercios) · Colombia → Perú       frena
+>       Banco de Bogotá · Colombia → Colombia                   pasa   ← editar otros campos
+>       Lagobo (sin comercios, CON solicitudes) · Col → Perú    frena
+>       AV Villas (sin comercios ni solicitudes) · Col → Perú   pasa
+>       AV Villas · Colombia → Afganistán (no opera)            frena  ← el techo de siempre
+>
+> El script queda en `harness/dev/probar-guarda-pais.sh`. Los datos se restauraron.
+>
+> ⚠ **Tres trampas del método, que costaron tres vueltas** y por eso el script las lleva escritas:
+> 1. **Laravel redirige (302) tanto al guardar como al rechazar** — el código HTTP no distingue nada.
+>    Lo único que distingue es **si la fila se movió**. Leer el status daba «todo acepta».
+> 2. **curl NO manda cookies de dominio `.localhost` guardadas en un tarro** (`localhost` cuenta como
+>    sufijo público), así que con `-c/-b jar` las peticiones salen **anónimas** y da «todo rechaza» —
+>    el espejo exacto del error anterior, igual de convincente. Va a mano: `-b "nombre=valor"`.
+> 3. **El payload incompleto da 500, no 422**: faltaban `complementary_form` y `status`, y la columna
+>    es `NOT NULL`. Sin `Referer` eso se veía como un 302 más.
+
+> **HALLAZGO AJENO · 2026-08-25** — al editar una entidad, `LenderController@update` hace
+> `CreditLineByLender::where(...)->first()->update(...)` **sin comprobar que exista**. Si una entidad no
+> tiene su línea de crédito, editar cualquier campo revienta. No se disparó en las tres probadas; queda
+> anotado junto al crash de `additional_data`.
+
 ## Registro
 
 ### 2026-08-25
