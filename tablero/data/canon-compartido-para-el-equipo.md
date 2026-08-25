@@ -10,10 +10,12 @@ jira_title: "Documentación de negocio compartida para el equipo"
 
 **ESTADO 2026-08-25.** La herramienta existe y pasa el CI del repo compartido: `Creditop-SAS/playground`
 → `tools/canon` (Go, cero dependencias, corpus embebido en el binario, lint que bloquea el deploy).
-**Sin commitear** — el PR lo abre Miguel. **F1–F4 (parcial): 22 nodos.** canon (7): money · invariants · entity-families · lifecycle ·
+**Sin commitear** — el PR lo abre Miguel. **F1–F4 COMPLETAS + molde de F5: 26 nodos.** canon (7): money · invariants · entity-families · lifecycle ·
 actors · risk-assessment · glossary. flows (8): origination · entity-listing · formalization · cosigner ·
 payments · post-disbursement · channels · external-lenders. map (3): repos · services · database.
-pitfalls (4): identity · reports · quota · data-reading. **`field` sin empezar (F5), a propósito.** Este archivo lleva EL MAPEO: qué nodo del `context/`
+pitfalls (7): identity · reports · quota · data-reading · observability · environments · callbacks.
+field (1): entity-credifamilia — **el molde, escrito SIN números comerciales**, para que la capa exista
+mientras se decide qué se publica. Este archivo lleva EL MAPEO: qué nodo del `context/`
 local alimenta qué nodo del corpus compartido.
 
 ## Las reglas de la migración
@@ -81,9 +83,9 @@ local alimenta qué nodo del corpus compartido.
   Es el vocabulario: sin esto, el resto se lee mal.
 - **F2 · flows: COMPLETA** ✅ (7 nodos).
 - **F3 · map: COMPLETA** ✅ (3 nodos).
-- **F4 · pitfalls: 4 de ~8** ✅ identity · reports · quota · data-reading. **Restan** los de
-  observabilidad (logs que no atan a una solicitud), los de ambiente (lo que solo pasa fuera de
-  producción) y los de webhooks — este último parcialmente cubierto por `flows.external-lenders`.
+- **F4 · pitfalls: COMPLETA** ✅ (7 nodos).
+- **F5 · field: molde puesto** (`field.entity-credifamilia`, sin cifras comerciales). El resto sigue
+  esperando la decisión de qué se publica.
 - **F5 · field** — DESPUÉS de decidir la sensibilidad (abajo).
 
 ## Regla editorial que salió de escribir los primeros nodos
@@ -143,7 +145,18 @@ Dos cambios que salieron de ahí:
 2. **El banco es una modalidad del binario** (`-bench`), corre en proceso sin servidor, y el Dockerfile
    lo ejecuta junto al lint antes de armar la imagen.
 
-Estado con 22 nodos: **1er resultado 29/31 · alcanzable ≤2 pasos 31/31**.
+Estado con 26 nodos: **1er resultado 36/39 · en los 3 primeros 38/39 · alcanzable ≤2 pasos 39/39**.
+
+**Y la métrica se ganó el sueldo en la última tanda.** Al sumar 4 nodos el primer acierto se desplomó a
+30/39 — pero alcanzable siguió en 39/39, así que no había nada roto. Al diagnosticar, los 9 fallos
+salieron de TRES causas distintas: 2 eran expectativas MÍAS mal puestas (el resultado era mejor que lo
+que yo esperaba), 4 eran huecos de vocabulario en mi prosa (escribí «registros de ejecución» donde
+soporte dice **logs**, «documento» donde dice **cédula**, «ambientes de prueba» donde dice **local**) y
+2 eran títulos con sustantivos comunes. Cerrar los 4 de vocabulario movió el número de 30 a 36.
+
+**Tercera medición de los pesos, ahora con 26 nodos y 39 preguntas:** una sola pregunta de diferencia
+entre la calibración máxima y la mínima. En la misma corrida, la prosa movió seis. **Proporción 6 a 1 —
+escribí mejor, no calibres.** Anotado en el código y en `preguntas.txt` para no repetirlo una cuarta vez.
 
 ## Decisiones abiertas
 
@@ -157,6 +170,8 @@ Estado con 22 nodos: **1er resultado 29/31 · alcanzable ≤2 pasos 31/31**.
 
 ## Bitácora
 
+- 2026-08-25 · F4 completa (+3: observability, environments, callbacks) y molde de F5
+  (`field.entity-credifamilia`, sin cifras). Banco a 39 preguntas. Ver la sección de la métrica.
 - 2026-08-25 · F4 arrancada: +4 pitfalls temáticos (identity, reports, quota, data-reading), sin F-xx
   —el registro numerado sigue siendo fuente acá—. Banco ampliado a 31 preguntas. Y la métrica cambió de
   precisión@1 a alcanzabilidad, ver sección arriba. CI verde.
