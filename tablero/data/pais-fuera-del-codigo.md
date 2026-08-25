@@ -1151,6 +1151,39 @@ conclusión sale al revés. Para consultas con varias columnas parecidas, armar 
 > lee el orden de `lenders_by_allieds` sin comprobar que la fila exista. El archivo no está tocado por
 > ninguno de los PRs y falla **idéntico antes y después** del backfill — sirvió de control.
 
+> **MEDICIÓN · 2026-08-25 · PROD · qué está mal en República Dominicana** — cuatro cosas, y la más
+> grave NO la arregla el backend:
+>
+> **1. El catálogo del front tiene TRES opciones y `CED` no está entre ellas.**
+> `documentTypeOptions` del formulario clásico es `["CC", "CE", "PEP"]`. El filtro cruza lo que manda el
+> backend contra esa lista; si no matchea nada cae a `FALLBACK_OPTIONS` = **CC/CE**. O sea que aunque el
+> backend ya devuelva `["CED","NUI"]` —verificado en local—, **el cliente dominicano ve CC/CE igual**.
+> Los cambios del backend son necesarios pero **no suficientes** para RD.
+>
+> **2. Lo que la gente usa, medido sobre 571 personas de comercios dominicanos:**
+>
+>     CED    437   76,5%      ← la cédula dominicana, la que NO se puede elegir
+>     CC     115   20,1%
+>     PAS      9    1,6%
+>     NUI      7    1,2%
+>     CI_VE    3    0,5%
+>
+> Y el patrón de agosto es la firma del bug: **19 CC y CERO CED**.
+>
+> **3. Los datos declaran documentos colombianos**: 17 filas de sucursal en 11 comercios dicen
+> `["CC","CE"]`. El resolvedor ya lo neutraliza (el cruce con el país da vacío y manda el país), pero el
+> dato sigue mintiendo.
+>
+> **4. El catálogo de país que cargué para RD está incompleto**: `CED, NUI` cubre el 77,7%. **Faltan
+> `PAS` y `CI_VE`**, que suman 12 personas reales.
+>
+> ⚠ Y dos datos del país, en prod: **`phone_code` vacío** y **0 ciudades** (tiene 32 zonas). El
+> `cell_phone_lenght` dice **11**, que incluye el código de país — la migración lo corrige a 10.
+>
+> **El orden para arreglar RD**: primero el catálogo del front (si no, nada de lo demás se ve), después
+> completar los tipos del país, y el dato de las sucursales al final —o nunca, porque el resolvedor ya
+> lo cubre—.
+
 ## Registro
 
 ### 2026-08-25
