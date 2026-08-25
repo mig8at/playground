@@ -811,6 +811,15 @@ conclusión sale al revés. Para consultas con varias columnas parecidas, armar 
 > selector recibía `["CC", "CE", "PEP"]` como **una sola opción**. Con el cast, un comercio colombiano
 > recibe `CC/CE/PEP` y uno dominicano `CED/NUI`.
 
+> **MEDICIÓN · 2026-08-25** — **el cast faltaba en TRES modelos, no en dos**, y el tercero se vio en
+> pantalla: el selector mostraba un chip que decía literalmente `["CC", "CE"]` al lado de los chips
+> reales. La causa: en el listado de entidades del punto de venta, `document_types` llega como **alias de
+> una subconsulta** sobre `LendersByAllied` —otro modelo— y ése tampoco casteaba. El cast aplica igual a
+> un alias que a una columna propia.
+>
+> Los tres son el mismo defecto: **un JSON que viaja como string porque el modelo no lo declara**. Y los
+> tres existían sólo en `legacy-application`; sus gemelos de `legacy-backend` sí lo tenían.
+
 ## Registro
 
 ### 2026-08-25
