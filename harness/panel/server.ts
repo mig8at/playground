@@ -915,6 +915,25 @@ const server = createServer(async (req, res) => {
         try { return json(res, 200, JSON.parse(readFileSync(PA_STATUS_FILE, 'utf8'))); } catch { return json(res, 200, {}); }
     }
 
+    // Abre el ADMIN de legacy-application ya logueado, en su propia ventana. Para ver con los ojos lo
+    // que un cambio hizo en las pantallas de configuración —comercios, entidades, puntos de venta—, que
+    // es donde vive la mitad de la config que el flujo después lee.
+    //
+    // Levanta `php artisan serve` si no está arriba, y entra SIN contraseña: `bin/admin-sesion` emite la
+    // sesión con el guard real de Laravel. El proceso se lanza suelto y vive mientras la ventana esté
+    // abierta, así que no bloquea al panel ni compite con una corrida.
+    if (path === '/api/abrir-admin' && req.method === 'POST') {
+        const b = await readBody(req);
+        const ruta = typeof b.ruta === 'string' && b.ruta.startsWith('/') ? b.ruta : '/aliados';
+        try {
+            const hijo = spawn('node', ['dev/abrir-admin.ts', ruta], { cwd: ROOT, stdio: 'ignore', detached: true });
+            hijo.unref();
+            return json(res, 200, { ok: true, msg: `abriendo el admin en ${ruta} — la ventana tarda unos segundos` });
+        } catch (e) {
+            return json(res, 500, { ok: false, msg: `no se pudo abrir el admin: ${String(e).slice(0, 160)}` });
+        }
+    }
+
     if (path === '/api/launch' && req.method === 'POST') {
         const b = await readBody(req);
         if (!b.slug) return json(res, 400, { ok: false, msg: 'falta slug del comercio' });

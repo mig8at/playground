@@ -334,6 +334,11 @@
       overflow: hidden
     }
 
+    /* El botón del admin NO es un ambiente: se separa y se pinta distinto para que no parezca uno más
+       de la fila de targets, que sí cambian contra qué corre el flujo. */
+    .admin-btn { margin-right: .9rem; border-style: dashed; opacity: .85; }
+    .admin-btn:hover { opacity: 1; }
+
     .seg button {
       background: var(--panel2);
       color: var(--mut);
@@ -776,6 +781,10 @@
         <h1>Panel del harness</h1>
         <p class="sub">Elegí comercio → definí el usuario (y el buró) → abre el wizard en monto.</p>
       </div>
+      <!-- Atajo al ADMIN: la mitad de la config que el flujo lee (comercios, entidades, puntos de venta)
+           se toca ahí, y llegar costaba levantar el servidor y buscar una contraseña. Entra sin
+           contraseña con la sesión que emite `bin/admin-sesion`, y levanta `artisan serve` si hace falta. -->
+      <button class="pill admin-btn" id="btn-admin" title="Abre el admin de legacy-application ya logueado, en su propia ventana (local)">admin ↗</button>
       <div class="targets" id="targets">
         <button class="pill on" data-t="local">local<span class="sdot" data-sd="local" title="sesión: sin verificar"></span></button>
         <button class="pill" data-t="dev" title="Data COMPARTIDA — escribe datos sintéticos en dev">dev<span class="sdot" data-sd="dev" title="sesión: sin verificar"></span></button>
@@ -2356,7 +2365,28 @@
     applyCanal();               // canal por defecto: asesor
     refresh();           // Motai preseleccionado → botón habilitado
     startPoll();         // engancharse si había una corrida activa
-  </script>
+  
+    // El botón del admin: abre `legacy-application` ya logueado en su propia ventana. Es un atajo para
+    // MIRAR —la config de comercios, entidades y puntos de venta vive ahí—, no parte de una corrida: no
+    // toca el estado del panel ni compite con el flujo que esté andando.
+    const btnAdmin = document.getElementById('btn-admin');
+    if (btnAdmin) btnAdmin.onclick = async () => {
+      const textoOriginal = btnAdmin.textContent;
+      btnAdmin.disabled = true; btnAdmin.textContent = 'abriendo…';
+      try {
+        const r = await (await fetch('/api/abrir-admin', {
+          method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ ruta: '/aliados' })
+        })).json();
+        btnAdmin.title = r.msg || '';
+        if (!r.ok) alert(r.msg || 'no se pudo abrir el admin');
+      } catch (e) {
+        alert('no se pudo abrir el admin: ' + e);
+      }
+      // La ventana tarda en aparecer (levanta el server si hace falta): se deja un rato antes de rehabilitar
+      // para que nadie apriete dos veces y termine con dos navegadores.
+      setTimeout(() => { btnAdmin.disabled = false; btnAdmin.textContent = textoOriginal; }, 6000);
+    };
+</script>
 </body>
 
 </html>
