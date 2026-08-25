@@ -10,8 +10,9 @@ jira_title: "Documentación de negocio compartida para el equipo"
 
 **ESTADO 2026-08-25.** La herramienta existe y pasa el CI del repo compartido: `Creditop-SAS/playground`
 → `tools/canon` (Go, cero dependencias, corpus embebido en el binario, lint que bloquea el deploy).
-**Sin commitear** — el PR lo abre Miguel. Hay **3 nodos escritos de 20**: `canon.money`,
-`canon.invariants`, `flows.entity-listing`. Este archivo lleva EL MAPEO: qué nodo del `context/`
+**Sin commitear** — el PR lo abre Miguel. Hay **7 nodos escritos de ~20**: `canon.money`,
+`canon.invariants`, `canon.entity-families`, `canon.lifecycle`, `flows.entity-listing`,
+`flows.origination`, `map.database`. Este archivo lleva EL MAPEO: qué nodo del `context/`
 local alimenta qué nodo del corpus compartido.
 
 ## Las reglas de la migración
@@ -35,14 +36,14 @@ local alimenta qué nodo del corpus compartido.
 |---|---|---|
 | negocio | **canon.money** ✅ | hecho; el detalle de vistas con línea queda |
 | creditop (raíz) | **canon.invariants** ✅ + canon.lifecycle + canon.glossary | 7 de 8 invariantes migraron; el fail-open de filtros por rol → pitfalls.access (es temporal, no invariante); la arista con archivo:línea queda |
-| entities | canon.entity-families | el rt 0-4 como modelo de negocio; censo técnico queda |
-| creditopx | canon.entity-families + **flows.entity-listing** ✅ | |
+| entities | **canon.entity-families** ✅ | el rt 0-4 como modelo de negocio; censo técnico queda |
+| creditopx | **canon.entity-families** ✅ + **flows.entity-listing** ✅ | |
 | kyc | canon.risk-assessment + flows.origination | fixtures/mocks quedan (laboratorio) |
 | actors | canon.actors | Cognito detalle queda |
 | profiling | flows.entity-listing + canon.risk-assessment | features del ML quedan |
 | amount-tiers | flows.entity-listing | se funde |
 | rotativo | flows.post-disbursement + canon.entity-families | rt=3 no comparte motor: eso es canon |
-| onboarding | flows.origination | |
+| onboarding | **flows.origination** ✅ | |
 | formalization | flows.formalization | |
 | deceval | flows.formalization | el detalle SOAP/WS-Security queda |
 | codeudor | flows.formalization | |
@@ -67,7 +68,7 @@ local alimenta qué nodo del corpus compartido.
 | form-service | map.services | |
 | backoffice | map.services + canon.actors | |
 | dynamic-forms | map.services (+ flows.forms candidato) | |
-| db-routines | map.database | el HECHO de la lógica en BD; 4 rutinas sin fuente |
+| db-routines | **map.database** ✅ (parcial: falta la lógica en rutinas) | el HECHO de la lógica en BD; 4 rutinas sin fuente |
 | hardcodes-entidades | queda personal | censo con archivo:línea; el agregado medido → field candidato |
 | findings (174) | pitfalls.\* temáticos | ~139 candidatas; ~35 de laboratorio quedan; ver regla 2 |
 | harness | NO migra | herramienta personal |
@@ -75,14 +76,22 @@ local alimenta qué nodo del corpus compartido.
 
 ## Fases
 
-- **F1 · canon (5 restantes):** entity-families → lifecycle → actors → risk-assessment → glossary.
+- **F1 · canon:** entity-families ✅ · lifecycle ✅ · **restan** actors → risk-assessment → glossary.
   Es el vocabulario: sin esto, el resto se lee mal.
-- **F2 · flows (6):** origination → formalization → payments → post-disbursement → channels →
+- **F2 · flows:** origination ✅ · **restan** formalization → payments → post-disbursement → channels →
   external-lenders.
-- **F3 · map (3):** repos → services → database.
+- **F3 · map:** database ✅ · **restan** repos → services.
 - **F4 · pitfalls temáticos**, empezando por lo que soporte pregunta: states → webhooks →
   entity-listing → access.
 - **F5 · field** — DESPUÉS de decidir la sensibilidad (abajo).
+
+## Regla editorial que salió de escribir los primeros nodos
+
+**Cada sección aporta un hecho que no está en otra sección.** Se sacó de `flows.entity-listing` la
+sección «Qué preguntar cuando el listado sale mal»: era una checklist que restataba reglas ya escritas
+en el mismo nodo. Una copia dentro del corpus es peor que una ausencia — las dos derivan y la búsqueda
+devuelve la más débil. Corolario implementado: **«Cómo lo sabemos» no entra al índice de búsqueda**
+(es procedencia, no respuesta); medido, salía SEGUNDA en una consulta de contenido.
 
 ## Decisiones abiertas
 
@@ -96,6 +105,9 @@ local alimenta qué nodo del corpus compartido.
 
 ## Bitácora
 
+- 2026-08-25 · +4 nodos (entity-families, lifecycle, origination, database) usando `workers negocio`
+  (la espina de 23 conceptos) y `workers relaciones` (13 vecindarios medidos contra prod) como
+  esqueleto derivado del código. Stopwords + procedencia fuera del ranking. CI verde.
 - 2026-08-25 · armada la herramienta completa (API index/search/read/relations/policy/tools, lint,
   stopwords, índice-como-documento) + 3 nodos + este mapeo. CI del repo compartido verde.
 
