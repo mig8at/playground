@@ -10,8 +10,9 @@ jira_title: "Documentación de negocio compartida para el equipo"
 
 **ESTADO 2026-08-25.** La herramienta existe y pasa el CI del repo compartido: `Creditop-SAS/playground`
 → `tools/canon` (Go, cero dependencias, corpus embebido en el binario, lint que bloquea el deploy).
-**Sin commitear** — el PR lo abre Miguel. **F1 (canon) COMPLETA: 10 nodos escritos de ~20.** canon: money · invariants · entity-families ·
-lifecycle · actors · risk-assessment · glossary. flows: entity-listing · origination. map: database. Este archivo lleva EL MAPEO: qué nodo del `context/`
+**Sin commitear** — el PR lo abre Miguel. **F1 y F2 COMPLETAS: 15 nodos de ~20.** canon (7): money · invariants · entity-families · lifecycle ·
+actors · risk-assessment · glossary. flows (7): origination · entity-listing · formalization · payments ·
+post-disbursement · channels · external-lenders. map (1): database. Este archivo lleva EL MAPEO: qué nodo del `context/`
 local alimenta qué nodo del corpus compartido.
 
 ## Las reglas de la migración
@@ -43,18 +44,18 @@ local alimenta qué nodo del corpus compartido.
 | amount-tiers | flows.entity-listing | se funde |
 | rotativo | flows.post-disbursement + canon.entity-families | rt=3 no comparte motor: eso es canon |
 | onboarding | **flows.origination** ✅ | |
-| formalization | flows.formalization | |
-| deceval | flows.formalization | el detalle SOAP/WS-Security queda |
-| codeudor | flows.formalization | |
-| payments | flows.payments | el bug vivo del gateway → pitfalls.payments |
-| servicing | flows.post-disbursement | |
-| ecommerce | flows.channels | |
-| redirect | flows.channels | |
-| aggregator | flows.external-lenders | webhook de ida y vuelta, pre-aprobación |
+| formalization | **flows.formalization** ✅ | |
+| deceval | **flows.formalization** ✅ (el pagaré como camino propio; el detalle del proveedor queda) | el detalle SOAP/WS-Security queda |
+| codeudor | flows.formalization — **pendiente**: el segundo firmante no entró todavía | |
+| payments | **flows.payments** ✅ | el bug vivo del gateway → pitfalls.payments |
+| servicing | **flows.post-disbursement** ✅ | |
+| ecommerce | **flows.channels** ✅ | |
+| redirect | **flows.channels** ✅ | |
+| aggregator | **flows.external-lenders** ✅ | webhook de ida y vuelta, pre-aprobación |
 | ms-preapprovals | map.services + flows.external-lenders | |
 | bancolombia | field.entity-bancolombia | específico y cambiante → field con fecha |
 | credifamilia | field.entity-credifamilia | |
-| corbeta | flows.channels + field.merchant-corbeta | venta en caja es flujo; el grupo es field |
+| corbeta | **flows.channels** ✅ (venta en caja) + field.merchant-corbeta | venta en caja es flujo; el grupo es field |
 | smartpay | field.merchant-smartpay | |
 | motai | field.merchant-motai | |
 | pullman | field.merchant-pullman | chico |
@@ -77,8 +78,7 @@ local alimenta qué nodo del corpus compartido.
 
 - **F1 · canon: COMPLETA** ✅ (7 nodos).
   Es el vocabulario: sin esto, el resto se lee mal.
-- **F2 · flows:** origination ✅ · **restan** formalization → payments → post-disbursement → channels →
-  external-lenders.
+- **F2 · flows: COMPLETA** ✅ (7 nodos).
 - **F3 · map:** database ✅ · **restan** repos → services.
 - **F4 · pitfalls temáticos**, empezando por lo que soporte pregunta: states → webhooks →
   entity-listing → access.
@@ -120,6 +120,10 @@ motivo. Vale dejarlo escrito para no repetirlo:
 
 ## Bitácora
 
+- 2026-08-25 · F2 completa: +5 nodos de flujo (formalization, payments, post-disbursement, channels,
+  external-lenders). El lint atajó una referencia adelantada (`related` a un nodo aún no escrito), que
+  es exactamente para lo que está. Corpus: 15 nodos, 102 secciones, 8.595 palabras; el índice cuesta
+  1.203 (14 %). CI verde.
 - 2026-08-25 · F1 completa: +3 nodos (actors, risk-assessment, glossary — este último derivado de
   `workers negocio --zoom 3`, que ya trae el par concepto ↔ nombre-en-datos). Calibración de búsqueda:
   ver sección arriba. CI verde.
