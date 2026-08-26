@@ -219,12 +219,26 @@ puntos de venta— se toca ahí.
 **Local entra sin contraseña** porque `bin/admin-sesion` emite la sesión con el guard real de Laravel — hay
 `artisan` a mano, y el PHP aborta si `APP_ENV` no es `local`.
 
-**Los remotos no, y no es una limitación a resolver:** no hay shell en esos contenedores, y meter una
-contraseña de admin en un script del harness sería peor que la molestia que ahorra. Lo que sí se hace es
-darle a cada target su perfil de navegador, así te logueás **una vez** y las siguientes ya entra. Son
-cookies en disco, el mismo mecanismo con el que un navegador te recuerda.
+**Los remotos no pueden entrar así**: no hay shell en esos contenedores, y `SESSION_DRIVER=file` — la
+sesión vive en un archivo del servidor, así que una emitida en local no existe allá. Tampoco hay un bypass
+de login por ambiente, como sí lo hay para el OTP.
 
-⚠ **`.auth/` está gitignoreado** y ahí queda una sesión de admin viva. No lo commitees ni lo compartas.
+Lo que hacen en cambio, en este orden:
+
+1. **El perfil recuerda.** Cada target tiene el suyo en `.auth/admin-<target>`: te logueás una vez y las
+   siguientes entra solo. Son cookies en disco, el mismo mecanismo con el que un navegador te recuerda.
+2. **Y si hay credencial, completa el formulario.** El de siempre — no hay puerta trasera. Lee
+   `E2E_ADMIN_USER_<TARGET>`/`E2E_ADMIN_PASS_<TARGET>`, si no los genéricos `E2E_ADMIN_USER`/`PASS`, y si
+   no el `.admin.json` **gitignoreado** que ya usaba `dev/admin-ciudades.spec.ts`. Acepta la forma plana
+   `{user, pass}` que ya existía y, opcionalmente, una por target —`{"dev": {…}, "staging": {…}}`— porque
+   los dos admin son despliegues distintos y pueden tener usuarios distintos. La plantilla:
+   `.admin.json.example`.
+
+⚠ Si el `fill` falla porque el formulario cambió, **no rompe nada**: avisa y la ventana queda en el login
+para entrar a mano.
+
+⚠ **`.auth/` y `.admin.json` están gitignoreados**, y ahí quedan una sesión de admin viva y una
+contraseña. No los commitees ni los compartas.
 
 ⚠ **Producción queda afuera a propósito.** Esto es el panel con el que se corren flujos de prueba; un click
 al admin de producción al lado del botón de correr un caso es un accidente esperando. Si hace falta entrar,

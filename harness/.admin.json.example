@@ -1,5 +1,14 @@
 {
-  "_comentario": "Credenciales del ADMIN de legacy-application (Fortify: correo + contraseña contra `users`, NO Cognito). Copiar a `.admin.json` (gitignoreado) y completar. La contraseña tiene que corresponder al hash de la BASE contra la que apuntás: una cuenta de staging sólo entra en la copia local si el dump vino de staging.",
-  "user": "correo@creditop.com",
-  "pass": ""
+  "_note": "Credenciales del admin de legacy-application. GITIGNOREADO: nunca commitear. Copiá a .admin.json.",
+
+  "_forma_plana": "sirve para todos los targets — es la que ya usaba dev/admin-ciudades.spec.ts",
+  "user": "tu.usuario@creditop.com",
+  "pass": "",
+
+  "_forma_por_target": "opcional, y manda sobre la plana. dev y staging son DOS despliegues del admin y pueden tener usuarios distintos",
+  "dev": { "user": "", "pass": "" },
+  "staging": { "user": "", "pass": "" },
+
+  "_tambien_por_env": "E2E_ADMIN_USER_DEV / E2E_ADMIN_PASS_DEV, o los genéricos E2E_ADMIN_USER / E2E_ADMIN_PASS",
+  "_sin_credencial": "no rompe nada: la ventana se abre en el login, entrás a mano, y el perfil de .auth/admin-<target> lo recuerda para la próxima"
 }

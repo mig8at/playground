@@ -30,7 +30,7 @@
 // dominio de la ruta con `getHost()`, que excluye el puerto, así que con `localhost` todo da 404.
 
 import { execFileSync, spawn } from 'node:child_process';
-import { mkdirSync } from 'node:fs';
+import { mkdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 const ROOT = process.cwd();
@@ -50,6 +50,36 @@ const ADMINES: Record<string, string> = {
     dev: 'https://admin.dev.creditop.com',
     staging: 'https://admin.staging.creditop.com',
 };
+
+/**
+ * Credenciales del admin de un ambiente remoto. **No inventa formato**: reusa el que ya existe en el
+ * harness —`E2E_ADMIN_USER/PASS` o el `.admin.json` gitignoreado que usa `dev/admin-ciudades.spec.ts`—
+ * y le agrega la variante por target, porque el admin de dev y el de staging son dos despliegues y
+ * pueden tener usuarios distintos.
+ *
+ *   .admin.json plano (el de hoy)   {"user": "…", "pass": "…"}
+ *   por target (opcional)           {"dev": {"user": "…", "pass": "…"}, "staging": {…}}
+ *
+ * ⚠ Esto NO es una puerta trasera: es el formulario de login de siempre, completado con una credencial
+ * que ponés vos. Sin credencial, la ventana se abre en el login y entrás a mano. Nunca se commitea nada:
+ * `.admin.json` y `.auth/` están en el `.gitignore`.
+ */
+function credencialesDe(target: string): { user?: string; pass?: string } {
+    const T = target.toUpperCase();
+    const porEnv = process.env[`E2E_ADMIN_USER_${T}`] || process.env.E2E_ADMIN_USER;
+    if (porEnv) {
+        return { user: porEnv, pass: process.env[`E2E_ADMIN_PASS_${T}`] || process.env.E2E_ADMIN_PASS };
+    }
+
+    try {
+        const raw = JSON.parse(readFileSync(join(ROOT, '.admin.json'), 'utf8'));
+        // Lo del target manda; si no hay, la forma plana, que es la que ya está en uso.
+        const c = raw?.[target] ?? raw ?? {};
+        return { user: c.user, pass: c.pass };
+    } catch {
+        return {};
+    }
+}
 
 const RUTA = process.argv[2] || '/aliados';
 const TARGET = (process.argv[3] || process.env.E2E_TARGET || 'local').trim();
@@ -136,9 +166,39 @@ async function levantarSiHaceFalta(): Promise<boolean> {
         const pagina = ctx.pages()[0] ?? await ctx.newPage();
         await pagina.goto(BASE + RUTA, { waitUntil: 'domcontentloaded' });
 
+        // Si el perfil todavía tenía sesión, ya estamos adentro y no hay nada que completar.
+        if (pagina.url().includes('/login')) {
+            const { user, pass } = credencialesDe(TARGET);
+
+            if (user && pass) {
+                console.log(`  · completando el login con la credencial de ${TARGET} (${user})`);
+                try {
+                    // Los selectores son los del formulario de Laravel/Inertia del admin. Si cambian, esto
+                    // NO rompe nada: falla el fill, se avisa, y la ventana queda en el login para entrar
+                    // a mano — que es exactamente lo de antes.
+                    await pagina.fill('input[type="email"], input[name="email"]', user);
+                    await pagina.fill('input[type="password"], input[name="password"]', pass);
+                    await Promise.all([
+                        pagina.waitForURL((u) => !u.pathname.includes('/login'), { timeout: 20000 }),
+                        pagina.click('button[type="submit"]'),
+                    ]);
+                    if (RUTA !== '/login') {
+                        await pagina.goto(BASE + RUTA, { waitUntil: 'domcontentloaded' });
+                    }
+                } catch (e) {
+                    console.warn(`  ⚠ no pude completar el login (${String(e).split('\n')[0].slice(0, 120)})`);
+                    console.warn('    la ventana queda en el login: entrá a mano.');
+                }
+            } else {
+                console.log('  · sin credencial guardada para este target: entrá a mano (queda en el perfil).');
+                console.log(`    Para que entre solo: E2E_ADMIN_USER_${TARGET.toUpperCase()}/E2E_ADMIN_PASS_${TARGET.toUpperCase()},`);
+                console.log('    o un `.admin.json` gitignoreado: {"' + TARGET + '": {"user": "…", "pass": "…"}}');
+            }
+        }
+
         console.log(pagina.url().includes('/login')
-            ? '  · te pide credenciales: es la primera vez con este perfil (o caducó la sesión)'
-            : `  ✓ abierto en ${pagina.url()} — la sesión del perfil seguía viva`);
+            ? '  · quedó en el login'
+            : `  ✓ abierto en ${pagina.url()}`);
 
         await new Promise<void>((resolve) => {
             pagina.on('close', () => resolve());
