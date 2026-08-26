@@ -1241,6 +1241,24 @@ conclusión sale al revés. Para consultas con varias columnas parecidas, armar 
 > logs que puede corromper la respuesta de la API no es sólo un problema de observabilidad**.
 > (Se arregla levantando el Loki local: `make harness-obs-up`.)
 
+> **MEDICIÓN · 2026-08-26 · la entidad manda, probado por API** — Motai tiene **tres sucursales** y sólo
+> una lleva las entidades que declaran PEP. Eso ya valida por qué el nivel de la sucursal no hacía falta:
+> **las sucursales de un mismo comercio SÍ dan distinto, pero por qué entidades tienen cableadas.**
+>
+>     A · punto de partida        682 → CC/CE/PEP   ·   867 → CC/CE   ·   1062 → CC/CE
+>     B · «Motai X» = CC/CE/PEP   682 → CC/CE/PEP   ·   867 → CC/CE/PEP · 1062 → CC/CE/PEP
+>     C · las 4 con PEP = CC/CE   682 → CC/CE       ·   867 → CC/CE/PEP · 1062 → CC/CE/PEP
+>
+> **B** es el valor de la pantalla nueva: **una sola edición** de la entidad y las dos sucursales que la
+> llevan cambian. Antes había que tocar cada fila —y una entidad como Credifamilia-addi tiene **1.051**—.
+>
+> **C** prueba la precedencia: la 682 pierde PEP **aunque sus filas de sucursal siguen diciendo
+> `["CC","CE","PEP"]`**. La entidad gana sobre la sucursal, que es lo que se buscaba.
+>
+> Restaurado a cero entidades con `document_types`. Y el flujo entero: Motai cierra en **estado 11**, la
+> suite `motai-creditopx` pasa sus **4 casos**, y la tanda de 14 comercios da los mismos listados de la
+> línea base (Creditop sigue fallando por el bug ajeno de Wompi, idéntico a antes).
+
 ## Registro
 
 ### 2026-08-25
