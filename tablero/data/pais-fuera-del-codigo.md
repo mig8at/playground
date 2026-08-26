@@ -1259,6 +1259,17 @@ conclusión sale al revés. Para consultas con varias columnas parecidas, armar 
 > suite `motai-creditopx` pasa sus **4 casos**, y la tanda de 14 comercios da los mismos listados de la
 > línea base (Creditop sigue fallando por el bug ajeno de Wompi, idéntico a antes).
 
+> **ESTADO · 2026-08-27 · esta tarea entregó, y lo que falta se mudó** — la infraestructura está hecha,
+> mergeada y probada. Lo que sigue asumiendo Colombia se censó aparte y vive en
+> `tablero/data/lo-que-queda-de-pais-quemado.md`, con sus mediciones contra producción — **no hace falta
+> volver a investigarlo**.
+>
+> Lo más filoso que salió de ahí, porque cambia la prioridad: **el bloqueo de Perú no está en el backend
+> que arreglamos, está en el front del flujo dinámico** —el catálogo de `dynamic-step-one.ts` conoce
+> CED/CI_VE/PAS/PAS_VE y `return false` para todo lo demás, así que un `DNI` se cae en la primera
+> pantalla—. Y ése es justamente el flujo que le toca a BCP: es el único comercio con
+> `show_alternate_flow = 1`.
+
 ## Registro
 
 ### 2026-08-25
