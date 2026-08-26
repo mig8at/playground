@@ -268,7 +268,7 @@ modelo**, así que a ese tamaño la búsqueda no se gana el sueldo — se podrí
 |---|---:|---:|
 | árbol local `context/` | **135.703** | 39 |
 | canon compartido (antes) | 16.040 | 26 |
-| canon compartido (ahora) | **19.897** | **32** |
+| canon compartido (ahora) | **21.442** | **35** |
 
 Y de lo local, `findings` solo son 39.516 palabras con 174 entradas, de las que se destilaron ~30.
 
@@ -287,7 +287,18 @@ falla abierto, el rango de ingreso que se aplasta a un número) y `field.entity-
 entidad externa cuya originación corre acá adentro; sin tiempos límite y dentro de la petición del
 cliente, así que un banco lento se ve como una pantalla colgada nuestra).
 
-Banco ampliado a 53 preguntas: **1er resultado 45/53 · en los 3 primeros 50/53 · alcanzable 53/53**.
+Tercera tanda (+3), la que faltaba: **cómo navegar cada repositorio por dentro**. `map.repos` contaba la
+RELACIÓN entre los dos sistemas, no la forma de cada uno. Ahora hay `map.repo-aliados` (el histórico se
+divide por AUDIENCIA —administración, cliente, máquinas— no por tema), `map.repo-refactor` (módulos por
+dominio con una cadena uniforme, y cuatro trampas: los modelos y el esquema NO viven en los módulos, en
+un módulo los «controladores» son servicios, y hay módulos sin consumidor) y `map.repo-wizard` (un solo
+producto real, no toca la base, y los módulos viven en TRES sitios distintos).
+
+**Y el lint ya trazaba la línea correcta sin que nadie lo notara: una CARPETA es un lugar, un ARCHIVO es
+una dirección.** `Modules/Onboarding` pasa; `LenderListingService.php` no. Por eso estos tres nodos
+explican cómo navegar los repositorios **sin nombrar un solo archivo**.
+
+Banco ampliado a 59 preguntas: **1er resultado 49/59 · en los 3 primeros 56/59 · alcanzable 59/59**.
 
 **Dónde está el resto**, por tamaño del nodo local: kyc (5.655 — ⚠ parcialmente cubierto ya por
 `canon.risk-assessment`; lo que falta es la verificación de identidad post-selección y las reglas de
