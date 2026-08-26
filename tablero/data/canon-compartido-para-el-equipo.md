@@ -215,6 +215,30 @@ La expansión automática esconde exactamente la señal que hace mejorar el corp
 
 Quien reformula es el modelo, con lo que el sistema le informa. El servidor sugiere; no adivina.
 
+## Destilar la pregunta: sí, y está medido
+
+Miguel preguntó si conviene que el modelo lea el índice y reformule antes de buscar, y qué pasa con un
+mensaje largo o con una consulta en inglés. Medido con un relato de soporte real de 300 palabras:
+
+| consulta | secciones que matchean | dónde cae |
+|---|---:|---|
+| el relato entero, tal cual | **150** de 177 | secciones relevantes, pero vecinas |
+| destilada a 10 palabras | **17** | la sección con la respuesta exacta |
+
+**El párrafo largo NO colapsa** —esperaba que se fuera al glosario y no pasó: el ranking aguantó y
+devolvió secciones pertinentes—. Pero toca el 85 % del corpus, así que la respuesta correcta y la vecina
+quedan a un pelo. Destilar da diez veces menos ruido **y la sección exacta**.
+
+**Inglés: no funciona, y está bien así.** `cosigner signature deferred` devuelve cero y lo dice. Los
+identificadores de nodo sí son en inglés y el índice se entiende, así que la traducción la hace quien
+pregunta. Duplicar el corpus en dos idiomas duplicaría el mantenimiento y garantizaría que una mitad
+quede vieja — es el mismo argumento que descarta cualquier segunda copia.
+
+Las dos cosas quedaron escritas en `/api/tools`, que es lo que un modelo lee para saber cómo usar esto.
+
+**Defecto encontrado de paso:** sin resultados devolvía `null` en vez de lista vacía. Un cliente no
+debería manejar dos formas del mismo campo según si hubo suerte. Arreglado.
+
 ## Decisiones abiertas
 
 - **La frontera con credibrain** (herramienta de Oscar en el mismo catálogo, «la memoria de la
