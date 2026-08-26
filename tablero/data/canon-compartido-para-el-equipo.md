@@ -387,7 +387,17 @@ Lo más valioso de cada uno:
   encontrarla no es un error del módulo.
 - Más el índice de los once módulos con qué resuelve cada uno, y la librería marcada como «no leer».
 
-Banco ampliado a 87 preguntas: **1er resultado 69/87 · en los 3 primeros 79/87 · alcanzable 87/87**.
+**Control de cobertura, y encontró tres huecos.** Se probó si el corpus contesta «¿qué es CreditopX?» y
+«¿qué es rt2?»: el segundo daba **CERO RESULTADOS**. La abreviatura que usa toda la empresa —rt, rt=2,
+rt1— **no estaba escrita en ningún lado**, y «response type» con espacio tampoco matcheaba porque el
+corpus sólo tenía el nombre del campo con guion bajo, que tokeniza como un término solo.
+
+Y faltaba la definición explícita de CreditopX: se usaba el término dando por sentado que se conoce.
+Ahora tiene sección propia, con la colisión que importa: **CreditopX puede ser la familia in-platform, el
+modelo de negocio, o una entidad concreta que se llama así** — cuando alguien lo diga, hay que preguntar
+cuál de las tres.
+
+Banco ampliado a 91 preguntas: **1er resultado 71/91 · en los 3 primeros 81/91 · alcanzable 91/91**.
 
 **El ritmo cambió y conviene registrarlo:** de acá en adelante el rendimiento por tanda de trampas baja —
 las ~85 que quedan son mayormente de laboratorio o muy específicas de un caso. El esfuerzo rinde más en
