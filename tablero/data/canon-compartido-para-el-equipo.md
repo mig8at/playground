@@ -268,7 +268,7 @@ modelo**, así que a ese tamaño la búsqueda no se gana el sueldo — se podrí
 |---|---:|---:|
 | árbol local `context/` | **135.703** | 39 |
 | canon compartido (antes) | 16.040 | 26 |
-| canon compartido (ahora) | **31.165** | **48** |
+| canon compartido (ahora) | **30.819** | **49** |
 
 Y de lo local, `findings` solo son 39.516 palabras con 174 entradas, de las que se destilaron ~30.
 
@@ -495,6 +495,57 @@ si alguno de sus externos no contesta.
 ⚠ **Y una cosa NO se dio por buena:** que SmartPay use formulario dinámico. Miguel lo mencionó y encaja
 —es un canal de RD y el formulario dinámico es el recorrido de RD— pero el árbol local no lo confirma, así
 que quedó escrito como **inferencia sin verificar**, no como hecho.
+
+## Auditoría de exactitud: tres afirmaciones más mal enmarcadas
+
+Buscando lo mismo que Miguel encontró en Credifamilia —local escrito como si fuera producción— salieron
+tres más, ya corregidas:
+
+- `pitfalls.empty-listing` decía «Medido: afectaba a **17 comercios**». Salía de una copia LOCAL. Ahora
+  dice que la cifra da **la escala del efecto**, no cuántos comercios lo sufren hoy.
+- `flows.post-disbursement` decía «vacía en el **90 %** de las filas» sin decir que se contó sobre una
+  copia.
+- Dos nodos decían «Hecho, **medido**» sobre una **ausencia de registro** — eso no se mide, se lee en el
+  código. Bajado a «verificado».
+
+Lo declarado como no verificado está todo marcado y es poco: una inferencia (el formulario dinámico de
+SmartPay), un testimonio (el cambio manual a autorizada) y dos inferencias sobre causas que encajan con
+el mecanismo pero no se rastrearon caso por caso.
+
+## «Cómo lo sabemos»: se poda el relleno, se conserva la señal
+
+Miguel propuso quitarla entera. Medido antes de decidir: **11 % del corpus**, y **30 de 48 nodos
+distinguían fuentes** (producción / local / testimonio / inferencia) mientras **17 sólo repetían
+«verificado contra el código»**.
+
+El argumento decisivo es de esta misma sesión: **esa sección es lo que permitió cazar los cuatro errores
+de arriba**. Sin ella, «necesita seis servicios externos» se lee como hecho de producción y nadie lo
+cuestiona.
+
+Solución aplicada: **el valor por defecto es «verificado contra el código» y ya no se escribe** — la
+sección se podó de 17 nodos. Y el lint la exige **sólo cuando hay algo que distinguir**: si el nodo
+declara `measured:`, o si su prosa contiene una inferencia, un testimonio o una reproducción local.
+⚠ La regla nueva atajó de inmediato dos nodos que se habían podado de más.
+
+## Tech vs negocio: no se parte el corpus, se agrega la pregunta que faltaba
+
+Miguel propuso dividir la documentación en una parte para tech y otra para negocio, con ejemplos como
+«¿cuánto facturó Pullman hoy?» o «¿cuántas solicitudes se cancelaron?».
+
+**Esas no son preguntas de documentación: son preguntas de datos.** Ningún documento las contesta y uno
+que lo intentara estaría viejo mañana. Y partir el corpus en dos sería duplicar — el error que se viene
+evitando toda la sesión: dos copias derivan y la búsqueda devuelve la peor.
+
+Pero adentro había una pregunta que la documentación **sí** contesta y que faltaba: **¿con qué se cuenta
+cada cosa y qué trampa tiene?** De ahí sale `canon.counting`, escrito como **índice por métrica** —
+punteros, no copias, para no duplicar lo que ya explican otros nodos.
+
+Doce métricas con su trampa: los desembolsos no se cuentan con el estado · «lo que recibe el comercio»
+tiene dos bases que difieren en 38 % · la comisión da cero fuera de rango · el país por defecto arrastra
+cientos de miles · **no hay columna de canal**, así que todo reporte por canal está reconstruido · el
+medio de pago dice quién registró · contar consultas a un buró subestima los intentos.
+
+Y el corte tech/negocio a nivel de párrafo ya existía: la sección `## Tech`, opcional y salteable.
 
 ## Decisiones abiertas
 
