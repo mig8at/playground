@@ -268,7 +268,7 @@ modelo**, así que a ese tamaño la búsqueda no se gana el sueldo — se podrí
 |---|---:|---:|
 | árbol local `context/` | **135.703** | 39 |
 | canon compartido (antes) | 16.040 | 26 |
-| canon compartido (ahora) | **30.819** | **49** |
+| canon compartido (ahora) | **~31.500** | **50** |
 
 Y de lo local, `findings` solo son 39.516 palabras con 174 entradas, de las que se destilaron ~30.
 
@@ -577,6 +577,32 @@ punta a punta · el buró en pruebas es real).
 
 Dos imperfectas, las dos por **colisión de palabras**, no por falta de cobertura: «dónde están los
 modelos» choca con «modelo de negocio», y «por dónde empiezo a leer» choca con «no leer».
+
+## La escritura por API, probada de punta a punta — y los tres bugs que encontró
+
+Miguel pidió que fuera orgánico: que la herramienta detecte en la conversación la intención de corregir o
+agregar, y sepa ubicarlo sola. Y propuso una prueba concreta: leer los repos de PDF, subir información por
+la API, meter algo mal a propósito y corregirlo.
+
+**Reconsiderada una postura.** Se venía diciendo «la API no escribe, el destino es un PR». La objeción era
+a un ALMACÉN PROPIO — pero escribir los `.md` **es** la fuente única, así que no hay contradicción. Ahora
+`/api/propose` acepta `apply`, valida el corpus ENTERO con el cambio adentro **antes** de tocar el disco, y
+recarga en vivo. Sigue sin haber segunda fuente de verdad, y el commit sigue siendo del humano.
+
+**La prueba corrió entera y encontró tres cosas:**
+
+1. **No se puede crear un nodo huérfano** — la regla del grafo actuó como guarda de ESCRITURA, no sólo de
+   despliegue: el primer intento fue rechazado. Se agregó `linked_from`, que escribe la bajada **en la misma
+   operación**. No se puede crear un huérfano, y tampoco hay que arreglarlo a mano.
+2. **Al reiniciar, el servidor servía el corpus del último build y no el del disco** — el embebido pisaba
+   lo recién escrito, así que un nodo nuevo se veía huérfano contra un estado viejo. Corregido: **si hay
+   `content/` en disco, ése manda**; el embebido queda de respaldo para la imagen desplegada.
+3. **Corregir el contenido de una sección NO corrige su título** — y el título es el identificador. La
+   corrección invirtió el sentido del texto y el encabezado siguió diciendo lo contrario. **Renombrarlo es
+   una migración** (rompe los enlaces), así que la API no lo hace sola: hay que decidirlo.
+
+Resultado: `map.pdf-documents` creado, colgado de `flows.formalization`, con un dato falso insertado y
+corregido por la misma API — y el corpus devolviendo la respuesta correcta al final, sin reiniciar.
 
 ## Decisiones abiertas
 
