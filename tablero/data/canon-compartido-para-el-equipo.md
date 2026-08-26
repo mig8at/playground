@@ -397,7 +397,11 @@ Ahora tiene sección propia, con la colisión que importa: **CreditopX puede ser
 modelo de negocio, o una entidad concreta que se llama así** — cuando alguien lo diga, hay que preguntar
 cuál de las tres.
 
-Banco ampliado a 91 preguntas: **1er resultado 71/91 · en los 3 primeros 81/91 · alcanzable 91/91**.
+Y un cuarto hueco del mismo tipo: **«response type» escrito con espacio no matcheaba**, porque el corpus
+sólo tenía el nombre del campo con guion bajo — y el guion bajo cuenta como letra, así que tokeniza como
+UN término. Escribirlo también separado en la prosa subió el banco dos puntos.
+
+Banco ampliado a 91 preguntas: **1er resultado 73/91 · en los 3 primeros 83/91 · alcanzable 91/91**.
 
 **El ritmo cambió y conviene registrarlo:** de acá en adelante el rendimiento por tanda de trampas baja —
 las ~85 que quedan son mayormente de laboratorio o muy específicas de un caso. El esfuerzo rinde más en
