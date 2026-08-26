@@ -259,6 +259,39 @@ Costo del índice: ~2.400 palabras, +90 por nodo nuevo. Reparto medido: 55 % res
 20 % anclas (permiten saltar sin buscar), 13 % contrato. **No se agregó un modo reducido**: el reparto es
 sano y no hay evidencia de que haga falta — sería un segundo formato que mantener.
 
+## El corpus está flaco, y está medido
+
+Miguel señaló lo correcto: con 16.000 palabras **todo el corpus entra en el contexto de cualquier
+modelo**, así que a ese tamaño la búsqueda no se gana el sueldo — se podría pegar entero. Medido:
+
+| | palabras | nodos |
+|---|---:|---:|
+| árbol local `context/` | **135.703** | 39 |
+| canon compartido (antes) | 16.040 | 26 |
+| canon compartido (ahora) | **18.565** | **30** |
+
+Y de lo local, `findings` solo son 39.516 palabras con 174 entradas, de las que se destilaron ~30.
+
+**La salida NO es nodos más largos**: los techos (1500 por nodo, 350 por sección) son justo lo que los
+vuelve recuperables — una sección que no entra en un resultado obliga a bajarse el nodo entero. La salida
+son **más nodos donde llegan las preguntas**.
+
+Primera tanda de profundidad (+4): `flows.profiling` (de dónde salen cupo y enganche — el escalón que
+deja pasar no es el que pone el precio), `field.merchant-smartpay` (el celular como garantía, y el canal
+partido en dos fuera de producción), `field.merchant-motai` (el ingreso de plataformas ya decide desde
+agosto; arrendar y quedárselo solo difieren en los papeles), `field.merchant-corbeta` (crédito y compra
+en momentos distintos; «¿es Corbeta?» tiene cuatro respuestas).
+
+Banco ampliado a 47 preguntas: **1er resultado 40/47 · alcanzable 47/47**.
+
+**Dónde está el resto**, por tamaño del nodo local: kyc (5.655) · bancolombia (3.780) · servicing (3.241)
+· merchants (3.234) · ms-preapprovals (3.120) · dynamic-forms (3.027) · entities (2.553) · db-routines
+(2.410) · ecommerce (2.287). Más las ~110 trampas sin destilar.
+
+⚠ **Y no todo debe graduar**: buena parte de esas 135.703 palabras son direcciones de código, hallazgos
+de laboratorio y detalle por repositorio, que el lint rechaza por diseño. El objetivo realista es del
+orden de 60-80 nodos de conocimiento durable — hoy hay 30.
+
 ## Decisiones abiertas
 
 - **La frontera con credibrain** (herramienta de Oscar en el mismo catálogo, «la memoria de la
