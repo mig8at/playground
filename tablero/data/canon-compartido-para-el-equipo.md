@@ -239,6 +239,26 @@ Las dos cosas quedaron escritas en `/api/tools`, que es lo que un modelo lee par
 **Defecto encontrado de paso:** sin resultados devolvía `null` en vez de lista vacía. Un cliente no
 debería manejar dos formas del mismo campo según si hubo suerte. Arreglado.
 
+## El índice es también el manual de uso
+
+Miguel señaló que las reglas de uso deberían vivir en el índice, no en una ruta aparte. Tiene razón y
+había un problema de descubrimiento que no se había visto: **el índice es la primera llamada natural**,
+así que un modelo que arranca por ahí nunca vería el contrato si viviera solo en `/api/tools`.
+
+Ahora el índice abre con el contrato —español, destilar, usar el vocabulario del índice, afinar en vez
+de subir el límite, no completar lo que el corpus no dice— y sigue con los nodos. El texto se escribe
+**una sola vez en el código** y se sirve en los dos lugares: duplicarlo garantizaría que una copia quede
+vieja, que es el error que este proyecto evita en todos lados.
+
+**Distingue protocolo de estrategia a propósito.** El protocolo es fijo (idioma, destilar, no inventar);
+la estrategia —cuántos pasos, qué nodo, cuándo parar— es del modelo. Forzar una secuencia rígida
+rompería el recorrido iterativo, que es justamente lo que hace que esto funcione sin acertar a la
+primera.
+
+Costo del índice: ~2.400 palabras, +90 por nodo nuevo. Reparto medido: 55 % resúmenes (lo que rutea),
+20 % anclas (permiten saltar sin buscar), 13 % contrato. **No se agregó un modo reducido**: el reparto es
+sano y no hay evidencia de que haga falta — sería un segundo formato que mantener.
+
 ## Decisiones abiertas
 
 - **La frontera con credibrain** (herramienta de Oscar en el mismo catálogo, «la memoria de la
