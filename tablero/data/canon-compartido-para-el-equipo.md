@@ -268,7 +268,7 @@ modelo**, así que a ese tamaño la búsqueda no se gana el sueldo — se podrí
 |---|---:|---:|
 | árbol local `context/` | **135.703** | 39 |
 | canon compartido (antes) | 16.040 | 26 |
-| canon compartido (ahora) | **23.275** | **38** |
+| canon compartido (ahora) | **25.128** | **40** |
 
 Y de lo local, `findings` solo son 39.516 palabras con 174 entradas, de las que se destilaron ~30.
 
@@ -306,7 +306,18 @@ conviviendo y ya divergidas en producción; tres diferencias en el costo de la g
 hacia el mismo lado**: el sistema cobra de más) y `pitfalls.missing-config` («no pasa nada» es síntoma de
 configuración, no de código — con una tabla para distinguirlo de un error real).
 
-Banco ampliado a 66 preguntas: **1er resultado 55/66 · en los 3 primeros 62/66 · alcanzable 66/66**.
+Quinta tanda (+2): `pitfalls.empty-listing` (**la pregunta de soporte más frecuente** — «a este cliente
+no le salió nada» — y su causa menos intuitiva: **una sola entidad rota tumba el listado ENTERO**, medido
+en 17 comercios a la vez; más la pregunta que parte el diagnóstico en dos: ¿le pasa a un cliente o a
+todos los de ese comercio?) y `pitfalls.terms-and-dates` (**al mejor cliente es al que no se le puede
+cambiar el plazo**, porque la ausencia de tope se trata como tope cero; y a un crédito atrasado se le
+ofrecen sólo fechas que el guardado rechaza).
+
+Las dos comparten un patrón que conviene tener presente: **una lista se calcula con una regla y la
+validación al guardar usa otra, y nadie comprueba que coincidan.** Cuando un cliente dice «elijo lo que
+me ofrece y me lo rechaza», es eso.
+
+Banco ampliado a 70 preguntas: **1er resultado 59/70 · en los 3 primeros 65/70 · alcanzable 70/70**.
 
 ⚠ **Y la guarda se ganó el sueldo otra vez**: «el valor a financiar sale distinto» quedó SIN CAMINO y
 frenó el build. El nodo decía «el costo de la garantía» y el negocio dice «el valor a financiar». Mismo
