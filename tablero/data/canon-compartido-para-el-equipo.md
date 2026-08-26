@@ -604,6 +604,27 @@ recarga en vivo. Sigue sin haber segunda fuente de verdad, y el commit sigue sie
 Resultado: `map.pdf-documents` creado, colgado de `flows.formalization`, con un dato falso insertado y
 corregido por la misma API — y el corpus devolviendo la respuesta correcta al final, sin reiniciar.
 
+## Las dos llaves: lo que protege no es el 403
+
+Miguel propuso dos llaves: una de lectura para los bots y otra de escritura para una persona, y que **la
+de lectura ni siquiera muestre que existe la escritura**.
+
+Esa segunda parte es la buena, y es más que cosmética: **un modelo no intenta lo que no sabe que existe**.
+Un 403 llega tarde; la omisión llega antes. Implementado así — `/api/tools` se adapta a la llave y con la
+de lectura `/api/propose` no aparece ni en los pasos ni en la lista. El 403 queda igual para quien conozca
+la ruta, y su mensaje **deriva a una persona** en vez de sólo negar.
+
+Tres decisiones que lo hacen encajar con el repo:
+
+- **Sin llaves configuradas, todo abierto** — es `task dev`. Pedir configuración para levantar la
+  herramienta en la propia máquina sería fricción sin ganancia.
+- **`/health` y `/api/yo` quedan siempre abiertos**: son el contrato del repositorio y `task conforme` los
+  prueba sin llave. Cerrarlos rompería el despliegue, no lo aseguraría.
+- **Los nombres van a `.env.example`**, con el nombre y nunca el valor, como manda ese archivo.
+
+Probados los tres niveles: sin llave → 401 · con la de lectura → 5 herramientas, sin `propose`, y el
+intento de escribir deriva a una persona · con la de escritura → 6 herramientas.
+
 ## Decisiones abiertas
 
 - **La frontera con credibrain** (herramienta de Oscar en el mismo catálogo, «la memoria de la
