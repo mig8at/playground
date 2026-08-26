@@ -191,6 +191,30 @@ Y quedó documentado qué devuelve por acierto: **el párrafo completo**, no la 
 con sus vecinos. Eso solo es viable porque las secciones tienen techo de 350 palabras — segunda razón,
 independiente de la primera, por la que ese techo no es estilo.
 
+## Reformular la consulta: sí para tipeos, no para sinónimos
+
+Miguel propuso que el modelo reformule la pregunta —corregir ortografía, agregar sinónimos— antes de
+buscar. Medido, la idea se parte en dos mitades con respuestas opuestas.
+
+**Tipeos: era un defecto real y está arreglado.** Las sugerencias salían por prefijo y orden alfabético,
+así que «desembolzo» no llegaba a sugerir «desembolso» (seis palabras con `des` antes). Cambiado a
+distancia de edición con tolerancia proporcional al largo: **7 de 7 tipeos recuperados, la palabra
+correcta siempre primera**.
+
+**Sinónimos: no hace falta tabla.** Medido — «prestamista», «aliado» y «buró» ni siquiera aparecen como
+no encontradas: están en el corpus, porque la prosa usa el vocabulario del negocio y **el glosario mapea
+concepto ↔ nombre en los datos**. El glosario ES el diccionario de sinónimos, escrito como prosa y
+validado por el mismo banco. Una tabla de sinónimos sería otra copia a mano sin validación — el mismo
+argumento que descartó `topics`.
+
+**Y la expansión automática se descarta por un motivo más fuerte que el ruido.** Hoy, cuando una palabra
+no existe, el sistema lo DICE. Esa señal es la que encontró los cuatro huecos de vocabulario que movieron
+el banco de 30 a 36 sobre 39. Un buscador que sustituye en silencio habría contestado algo razonable las
+cuatro veces **y nunca habríamos sabido que el corpus estaba escrito con las palabras equivocadas**.
+La expansión automática esconde exactamente la señal que hace mejorar el corpus.
+
+Quien reformula es el modelo, con lo que el sistema le informa. El servidor sugiere; no adivina.
+
 ## Decisiones abiertas
 
 - **La frontera con credibrain** (herramienta de Oscar en el mismo catálogo, «la memoria de la
