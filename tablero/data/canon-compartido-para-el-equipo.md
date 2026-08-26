@@ -268,7 +268,7 @@ modelo**, así que a ese tamaño la búsqueda no se gana el sueldo — se podrí
 |---|---:|---:|
 | árbol local `context/` | **135.703** | 39 |
 | canon compartido (antes) | 16.040 | 26 |
-| canon compartido (ahora) | **28.645** | **46** |
+| canon compartido (ahora) | **29.925** | **48** |
 
 Y de lo local, `findings` solo son 39.516 palabras con 174 entradas, de las que se destilaron ~30.
 
@@ -444,6 +444,30 @@ avisó** —el parche buscaba un nombre de variable que no era y `replace` devol
 que el lint dijo «todo en orden» sobre código que no existía. Es exactamente el patrón de
 `pitfalls.silent-success` cometido en el andamiaje. Se rehízo con una aserción que aborta si el ancla no
 matchea.
+
+## El vocabulario financiero y los proveedores: el hueco más grande que quedaba
+
+Miguel propuso enriquecer el corpus con lenguaje financiero y con quién es cada proveedor. Al medirlo,
+el hueco era mayor de lo esperado: **el corpus no nombraba a UN SOLO proveedor**. Ni Experian, ni
+Mareigua, ni TusDatos, ni Deceval. Todo estaba escrito en genérico —«el proveedor de identidad», «el
+depositario»—, que fue **sobreaplicar la regla de nombre-vs-dirección**: el nombre de un proveedor es
+vocabulario del negocio igual que el de una tabla. Soporte dice «falló Experian».
+
+Dos nodos nuevos:
+
+- **`canon.providers`** — quién aporta qué, con nombre propio. Y el falso negativo caro: **Experian
+  aparece en VARIAS entradas porque son productos distintos**, y consultar uno no es consultar otro, así
+  que mirar una sola para decidir «¿se consultó el buró?» puede dar que no cuando sí. Más: contar filas
+  vivas subestima los intentos, porque cada reintento borra lógicamente el anterior.
+- **`canon.loan-mechanics`** — cuota fija con amortización francesa, los CUATRO componentes de la cuota
+  (capital, interés, seguro de vida y fondo de garantía — los dos últimos no son intereses), los tres
+  montos que se confunden, y el resultado más contraintuitivo del motor: **poner más cuota inicial SUBE
+  el cupo, no lo baja** — subir el mínimo de una categoría no la vuelve más restrictiva.
+
+⚠ **Y la guarda volvió a ganarse el sueldo**: al agregar los dos nodos, «cómo se cobra si el cliente no
+paga el celular» quedó SIN CAMINO. Causa fina: el nodo decía «al pagar» y la pregunta dice «no paga» —
+**el plegado maneja plurales, no conjugaciones**. Es la tercera vez que un hueco de vocabulario lo
+atrapa la máquina en vez de un lector.
 
 ## Decisiones abiertas
 
