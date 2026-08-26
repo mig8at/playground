@@ -202,3 +202,33 @@ de la URL base64, así podés correr la misma identidad entrando por asesor y po
 - `asesor` → `bin/asesor`, login Cognito, wizard en `/merchant`.
 - `ecommerce` → `bin/ecommerce` + `E2E_ENTRY=ecommerce` (ver skill `harness-canal-ecommerce`).
 - `qr` → `bin/qr` + `E2E_ENTRY=qr` (ver skill `harness-canal-qr`).
+
+## El botón `admin ↗` — y por qué local es distinto de los remotos
+
+Abre el admin de `legacy-application` **del target que esté elegido** (`dev/abrir-admin.ts <ruta> <target>`),
+en su propia ventana. Es un atajo de MIRAR: la mitad de la config que el flujo lee —comercios, entidades,
+puntos de venta— se toca ahí.
+
+| target | qué hace |
+|---|---|
+| `local` | levanta `artisan serve` y `vite` si hacen falta, y **entra sin contraseña** |
+| `dev` · `staging` | abre la URL con un **perfil persistente** en `.auth/admin-<target>` |
+| `qa` | no tiene admin propio (`admin.qa.creditop.com` no resuelve) — usá `dev`, comparten base |
+| producción | **no está, a propósito** |
+
+**Local entra sin contraseña** porque `bin/admin-sesion` emite la sesión con el guard real de Laravel — hay
+`artisan` a mano, y el PHP aborta si `APP_ENV` no es `local`.
+
+**Los remotos no, y no es una limitación a resolver:** no hay shell en esos contenedores, y meter una
+contraseña de admin en un script del harness sería peor que la molestia que ahorra. Lo que sí se hace es
+darle a cada target su perfil de navegador, así te logueás **una vez** y las siguientes ya entra. Son
+cookies en disco, el mismo mecanismo con el que un navegador te recuerda.
+
+⚠ **`.auth/` está gitignoreado** y ahí queda una sesión de admin viva. No lo commitees ni lo compartas.
+
+⚠ **Producción queda afuera a propósito.** Esto es el panel con el que se corren flujos de prueba; un click
+al admin de producción al lado del botón de correr un caso es un accidente esperando. Si hace falta entrar,
+se entra por el navegador de siempre.
+
+⚠ Y **`vite` sólo se levanta en local**: sin él Laravel sirve el bundle COMPILADO, que puede tener meses, y
+verías la pantalla vieja pensando que tu cambio no funcionó.

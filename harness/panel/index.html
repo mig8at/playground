@@ -781,10 +781,10 @@
         <h1>Panel del harness</h1>
         <p class="sub">Elegí comercio → definí el usuario (y el buró) → abre el wizard en monto.</p>
       </div>
-      <!-- Atajo al ADMIN: la mitad de la config que el flujo lee (comercios, entidades, puntos de venta)
-           se toca ahí, y llegar costaba levantar el servidor y buscar una contraseña. Entra sin
-           contraseña con la sesión que emite `bin/admin-sesion`, y levanta `artisan serve` si hace falta. -->
-      <button class="pill admin-btn" id="btn-admin" title="Abre el admin de legacy-application ya logueado, en su propia ventana (local)">admin ↗</button>
+      <!-- Atajo al ADMIN del TARGET elegido: la mitad de la config que el flujo lee (comercios, entidades,
+           puntos de venta) se toca ahí. En local entra sin contraseña y levanta `artisan serve` si hace
+           falta; en dev y staging abre la URL con un perfil que recuerda la sesión. Producción no está. -->
+      <button class="pill admin-btn" id="btn-admin" title="Abre el admin de legacy-application del target elegido, en su propia ventana">admin ↗</button>
       <div class="targets" id="targets">
         <button class="pill on" data-t="local">local<span class="sdot" data-sd="local" title="sesión: sin verificar"></span></button>
         <button class="pill" data-t="dev" title="Data COMPARTIDA — escribe datos sintéticos en dev">dev<span class="sdot" data-sd="dev" title="sesión: sin verificar"></span></button>
@@ -2375,7 +2375,7 @@
       btnAdmin.disabled = true; btnAdmin.textContent = 'abriendo…';
       try {
         const r = await (await fetch('/api/abrir-admin', {
-          method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ ruta: '/aliados' })
+          method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ ruta: '/aliados', target })
         })).json();
         btnAdmin.title = r.msg || '';
         if (!r.ok) alert(r.msg || 'no se pudo abrir el admin');

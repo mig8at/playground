@@ -919,16 +919,28 @@ const server = createServer(async (req, res) => {
     // que un cambio hizo en las pantallas de configuración —comercios, entidades, puntos de venta—, que
     // es donde vive la mitad de la config que el flujo después lee.
     //
-    // Levanta `php artisan serve` si no está arriba, y entra SIN contraseña: `bin/admin-sesion` emite la
-    // sesión con el guard real de Laravel. El proceso se lanza suelto y vive mientras la ventana esté
-    // abierta, así que no bloquea al panel ni compite con una corrida.
+    // Abre el admin del target elegido. En LOCAL entra sin contraseña (`bin/admin-sesion` emite la sesión
+    // con el guard real de Laravel); en dev y staging abre la URL con un perfil de navegador persistente,
+    // así que te logueás una vez. Producción no está: es el panel con el que se corren pruebas.
+    // El proceso se lanza suelto y vive mientras la ventana esté abierta: no bloquea ni compite.
     if (path === '/api/abrir-admin' && req.method === 'POST') {
         const b = await readBody(req);
         const ruta = typeof b.ruta === 'string' && b.ruta.startsWith('/') ? b.ruta : '/aliados';
+        const target = TARGETS.has(String(b.target)) ? String(b.target) : 'local';
+
+        // `qa` no tiene admin propio: comprobado el 2026-08-26, `admin.qa.creditop.com` no resuelve.
+        // Se avisa en vez de abrir una ventana en blanco.
+        if (target === 'qa') {
+            return json(res, 400, { ok: false, msg: 'qa no tiene admin propio — usá dev, que comparte la misma base' });
+        }
+
         try {
-            const hijo = spawn('node', ['dev/abrir-admin.ts', ruta], { cwd: ROOT, stdio: 'ignore', detached: true });
+            const hijo = spawn('node', ['dev/abrir-admin.ts', ruta, target], { cwd: ROOT, stdio: 'ignore', detached: true });
             hijo.unref();
-            return json(res, 200, { ok: true, msg: `abriendo el admin en ${ruta} — la ventana tarda unos segundos` });
+            const nota = target === 'local'
+                ? 'ya logueado'
+                : 'te logueás vos la primera vez; después el perfil recuerda';
+            return json(res, 200, { ok: true, msg: `abriendo el admin de ${target} en ${ruta} — ${nota}` });
         } catch (e) {
             return json(res, 500, { ok: false, msg: `no se pudo abrir el admin: ${String(e).slice(0, 160)}` });
         }
