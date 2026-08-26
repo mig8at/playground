@@ -422,6 +422,29 @@ Más las **~110 trampas sin destilar**, que son la veta más grande y la más pe
 de laboratorio y detalle por repositorio, que el lint rechaza por diseño. El objetivo realista es del
 orden de 60-80 nodos de conocimiento durable — hoy hay 30.
 
+## Auditoría del corpus: una debilidad estructural, ya cerrada
+
+Con 46 nodos se auditó el corpus en vez de seguir agregando. Dos cosas salieron limpias —**ninguna
+sección al límite** de palabras, y los nodos más flacos (383-441p) están enfocados, no sobra ninguno— y
+una salió mal:
+
+**15 de 46 nodos eran huérfanos del grafo: nadie los enlazaba.** A un tercio del corpus sólo se llegaba
+buscando, nunca siguiendo un enlace — y el segundo paso del recorrido (`nodes_hit`) se apoya en el grafo.
+
+La causa es estructural y vale registrarla porque se va a repetir: **la tendencia natural es escribir
+enlaces de lo específico hacia lo general** (el nodo de una entidad apunta al canon) **y olvidar la
+bajada**. Todos los enlaces subían; ninguno bajaba.
+
+Arreglado agregando bajadas en 12 nodos generales → **0 huérfanos**. Y convertido en regla del lint, para
+que no se degrade otra vez: un nodo que nadie enlaza ahora **bloquea el despliegue**, igual que un enlace
+muerto. Comprobado con un nodo de prueba: exit 1.
+
+⚠ **Y un error propio que vale anotar:** el primer intento de agregar esa regla **no se aplicó y no
+avisó** —el parche buscaba un nombre de variable que no era y `replace` devolvió el texto intacto—, así
+que el lint dijo «todo en orden» sobre código que no existía. Es exactamente el patrón de
+`pitfalls.silent-success` cometido en el andamiaje. Se rehízo con una aserción que aborta si el ancla no
+matchea.
+
 ## Decisiones abiertas
 
 - **La frontera con credibrain** (herramienta de Oscar en el mismo catálogo, «la memoria de la
