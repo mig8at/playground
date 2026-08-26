@@ -268,7 +268,7 @@ modelo**, así que a ese tamaño la búsqueda no se gana el sueldo — se podrí
 |---|---:|---:|
 | árbol local `context/` | **135.703** | 39 |
 | canon compartido (antes) | 16.040 | 26 |
-| canon compartido (ahora) | **21.442** | **35** |
+| canon compartido (ahora) | **23.275** | **38** |
 
 Y de lo local, `findings` solo son 39.516 palabras con 174 entradas, de las que se destilaron ~30.
 
@@ -298,7 +298,19 @@ producto real, no toca la base, y los módulos viven en TRES sitios distintos).
 una dirección.** `Modules/Onboarding` pasa; `LenderListingService.php` no. Por eso estos tres nodos
 explican cómo navegar los repositorios **sin nombrar un solo archivo**.
 
-Banco ampliado a 59 preguntas: **1er resultado 49/59 · en los 3 primeros 56/59 · alcanzable 59/59**.
+Cuarta tanda (+3), las trampas: `pitfalls.silent-success` (**el mecanismo que más créditos cancela sin
+que nadie se entere**: el backend emite 7 formas de validar identidad, las pantallas contemplan 5, y lo
+no contemplado cae en un camino por defecto que CANCELA — así que cada entidad nueva con otra forma de
+validar puede empezar a cancelar en silencio), `pitfalls.money-math` (dos convenciones de tasa
+conviviendo y ya divergidas en producción; tres diferencias en el costo de la garantía que van **todas
+hacia el mismo lado**: el sistema cobra de más) y `pitfalls.missing-config` («no pasa nada» es síntoma de
+configuración, no de código — con una tabla para distinguirlo de un error real).
+
+Banco ampliado a 66 preguntas: **1er resultado 55/66 · en los 3 primeros 62/66 · alcanzable 66/66**.
+
+⚠ **Y la guarda se ganó el sueldo otra vez**: «el valor a financiar sale distinto» quedó SIN CAMINO y
+frenó el build. El nodo decía «el costo de la garantía» y el negocio dice «el valor a financiar». Mismo
+error de siempre, atrapado por la máquina en vez de por un lector meses después.
 
 **Dónde está el resto**, por tamaño del nodo local: kyc (5.655 — ⚠ parcialmente cubierto ya por
 `canon.risk-assessment`; lo que falta es la verificación de identidad post-selección y las reglas de
