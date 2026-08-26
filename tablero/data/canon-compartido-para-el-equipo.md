@@ -330,7 +330,20 @@ ordena el listado nunca corre en producción, hay módulos sin consumidor y avis
 defecto. La regla que resume: **cuando algo no aparece, la primera pregunta no es «¿por qué falla?» sino
 «¿está corriendo?»** — se ven igual desde afuera y la segunda se contesta mucho más rápido.
 
-Banco ampliado a 74 preguntas: **1er resultado 62/74 · en los 3 primeros 69/74 · alcanzable 74/74**.
+Séptima tanda: `pitfalls.admin-config` — **la causa real de «se le cambió sola la configuración de una
+entidad»**, que es un reporte recurrente y suena imposible. No se cambió sola: **la cambió otro
+comercio**. La pantalla se abre por comercio y en el título dice «este comercio, esta entidad», pero
+parte de lo que guarda se almacena **por entidad y punto**, o sea compartido por todos los comercios que
+la usan. Y guardarla en el tipo de entidad equivocado **borra** la configuración de todos.
+
+El nodo incluye la pregunta que separa este síntoma del de la copia por sucursal, que se parece mucho:
+**¿la configuración quedó VIEJA o quedó DISTINTA de lo que puse?** Vieja es copia; distinta es pisada.
+
+Y se amplió `pitfalls.silent-success` con un caso del mismo mecanismo: **se puede elegir una entidad que
+nunca se le ofreció al cliente** — el sistema no distingue «no es de este comercio», «no existe» y «no se
+la ofrecí»: las dos primeras fallan con el mismo error genérico y la tercera **se acepta sin chistar**.
+
+Banco ampliado a 77 preguntas: **1er resultado 64/77 · en los 3 primeros 72/77 · alcanzable 77/77**.
 
 ⚠ **Y la guarda se ganó el sueldo otra vez**: «el valor a financiar sale distinto» quedó SIN CAMINO y
 frenó el build. El nodo decía «el costo de la garantía» y el negocio dice «el valor a financiar». Mismo
