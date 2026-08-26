@@ -268,7 +268,7 @@ modelo**, así que a ese tamaño la búsqueda no se gana el sueldo — se podrí
 |---|---:|---:|
 | árbol local `context/` | **135.703** | 39 |
 | canon compartido (antes) | 16.040 | 26 |
-| canon compartido (ahora) | **25250** | **41** |
+| canon compartido (ahora) | **28.645** | **46** |
 
 Y de lo local, `findings` solo son 39.516 palabras con 174 entradas, de las que se destilaron ~30.
 
