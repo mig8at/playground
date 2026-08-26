@@ -268,7 +268,7 @@ modelo**, así que a ese tamaño la búsqueda no se gana el sueldo — se podrí
 |---|---:|---:|
 | árbol local `context/` | **135.703** | 39 |
 | canon compartido (antes) | 16.040 | 26 |
-| canon compartido (ahora) | **29.925** | **48** |
+| canon compartido (ahora) | **31.165** | **48** |
 
 Y de lo local, `findings` solo son 39.516 palabras con 174 entradas, de las que se destilaron ~30.
 
@@ -468,6 +468,33 @@ Dos nodos nuevos:
 paga el celular» quedó SIN CAMINO. Causa fina: el nodo decía «al pagar» y la pregunta dice «no paga» —
 **el plegado maneja plurales, no conjugaciones**. Es la tercera vez que un hueco de vocabulario lo
 atrapa la máquina en vez de un lector.
+
+## Un error de exactitud que encontró Miguel, y la forma nueva de las fichas
+
+**El problema.** `field.entity-credifamilia` decía «necesita seis servicios externos, y todos fallan
+igual». Eso salió de **reproducirlo en LOCAL**, donde hay que tener los seis simulados y la ausencia de
+cualquiera produce el mismo síntoma. Escrito así se lee como si describiera producción — donde los seis
+están y responden. La frase correcta es otra: **cuando uno falla, el síntoma no señala cuál.**
+
+Es un error de framing, no de dato, y es el que más fácil se comete en la capa `field`. Quedó como regla
+en el README: **en `field`, cada afirmación dice DÓNDE se observó**; producción y local no son lo mismo.
+
+**La forma nueva de las fichas de entidad y comercio**, que pidió Miguel:
+
+1. **`## En qué se diferencia de las demás`** — una tabla comparativa contra el resto. Es lo que aterriza
+   una pregunta rápido: Credifamilia radica y usa formulario dinámico; Motai arrienda, exige codeudor y
+   ofrece **tres productos**; SmartPay garantiza con el equipo y opera en otro país; Corbeta cierra en
+   caja con **una sola entidad**; Bancolombia corre su originación **entera acá adentro**.
+2. **`## Tech`, opcional y salteable** — carpetas y módulos clave, **nunca archivos**, marcada
+   explícitamente para que una consulta de negocio la ignore. Incluye qué suite del harness la ejercita.
+
+Las diferencias salieron del harness, que es donde están simuladas: sus suites declaran los tres
+productos de Motai, el codeudor cerrando con dos firmas, y Credifamilia cerrando **en serie** porque falla
+si alguno de sus externos no contesta.
+
+⚠ **Y una cosa NO se dio por buena:** que SmartPay use formulario dinámico. Miguel lo mencionó y encaja
+—es un canal de RD y el formulario dinámico es el recorrido de RD— pero el árbol local no lo confirma, así
+que quedó escrito como **inferencia sin verificar**, no como hecho.
 
 ## Decisiones abiertas
 
