@@ -372,7 +372,22 @@ que **vive por completo en el sistema viejo** —el nuevo no puede decirte si un
 que **no la crea ninguna semilla**, así que un ambiente recién levantado nace con todo apagado y eso no
 es una falla.
 
-Banco ampliado a 83 preguntas: **1er resultado 66/83 · en los 3 primeros 76/83 · alcanzable 83/83**.
+Décima tanda (+2): **cómo LEER cada repo**, que es distinto de dónde están las cosas.
+`map.reading-backend` y `map.reading-wizard` recogen las convenciones que, si no se reconocen, hacen
+sacar conclusiones equivocadas del mismo código.
+
+Lo más valioso de cada uno:
+
+- **El sufijo V1/V2 no significa versión: significa GENERACIÓN de arquitectura.** Un módulo con sufijo y
+  otro sin él no son dos versiones compitiendo — pueden resolver cosas distintas y los dos están vivos.
+  Y ⚠ **la guía que trae el propio repositorio aplica sólo a una de las dos generaciones**, lo dice en su
+  primera página: leerla y aplicarla a un módulo portado es un error fácil.
+- **En el wizard hay DOS organizaciones internas de módulo conviviendo**, y el propio repositorio
+  advierte: «no asumas la forma, leela del módulo». Abrir uno esperando la estructura del anterior y no
+  encontrarla no es un error del módulo.
+- Más el índice de los once módulos con qué resuelve cada uno, y la librería marcada como «no leer».
+
+Banco ampliado a 87 preguntas: **1er resultado 69/87 · en los 3 primeros 79/87 · alcanzable 87/87**.
 
 **El ritmo cambió y conviene registrarlo:** de acá en adelante el rendimiento por tanda de trampas baja —
 las ~85 que quedan son mayormente de laboratorio o muy específicas de un caso. El esfuerzo rinde más en
