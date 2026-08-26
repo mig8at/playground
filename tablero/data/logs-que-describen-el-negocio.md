@@ -143,6 +143,13 @@ Resucitarlo obliga a anotar cada método: el mismo trabajo que el contexto comú
 > **RIESGO · 2026-08-25** — el paso 4 sube líneas a `info`. Con `LOG_LEVEL` mal puesto en algún ambiente,
 > o se pierden o se multiplican. Confirmar `LOG_LEVEL` y `LOG_CHANNEL` por ambiente antes de empezar.
 
+> **RIESGO · 2026-08-26** — **el handler de logs puede corromper la respuesta HTTP.**
+> `LokiHandler::__destruct()` llama a `flush()`, y si Loki no responde la excepción se renderiza
+> **después del cuerpo** de la respuesta: el endpoint devuelve 200 con JSON válido seguido de un volcado,
+> y cualquier cliente que parsee revienta. Visto en local con el Loki local caído: el harness reportó
+> «register HTTP 200» y parecía un fallo del endpoint. Cualquier trabajo que aumente el volumen de logs
+> aumenta la superficie de esto — va antes que el resto.
+
 ## Lo que NO entra
 
 - `legacy-application`: tiene el mismo stack pero su `OpenTelemetryMiddleware` **nunca se registró en el

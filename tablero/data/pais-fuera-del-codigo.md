@@ -1203,6 +1203,44 @@ conclusión sale al revés. Para consultas con varias columnas parecidas, armar 
 > que queda por confirmar —y no se puede desde acá— es **cuál de los dos formularios** les toca, porque
 > de eso depende si el arreglo es el JSON de S3 o el catálogo del front.
 
+> **DECISIÓN · 2026-08-26 (Miguel, tras reunión)** — **se saca el nivel sucursal × entidad.** Los tipos
+> los declara la entidad y nada más. Revierte la decisión del 25-ago de conservarlo, que se había tomado
+> sobre un caso hipotético —«una entidad puede no ofrecer un tipo en un local puntual»— que **los datos
+> dicen que nunca ocurrió**:
+>
+>     ¿alguna entidad declara DISTINTO en distintas sucursales?   ninguna
+>     6.232 filas de sucursal  →  131 valores  (127 × CC/CE · 4 × CC/CE/PEP)
+>
+> El colapso es **sin pérdida**: el mismo dato en el 2 % de las filas. Y de negocio tampoco cierra: qué
+> documento de identidad se acepta es una decisión de riesgo y cumplimiento de la **entidad**; un punto de
+> venta no tiene política de documentos, y «esta entidad no opera acá» ya se dice con `status`.
+>
+> Se hizo **dentro de los PRs abiertos**, que es una resta: `AlliedBranchEdit.vue` vuelve a `develop` y el
+> PR de application baja de 21 a 20 archivos.
+
+> **DECISIÓN · 2026-08-26** — **la precedencia se invierte: se lee `entidad ?: sucursal`.** Es el detalle
+> que hace que la pantalla nueva sirva. Hoy la columna de la entidad está en NULL para todas, así que el
+> resultado es **idéntico** al de antes; pero en cuanto alguien configure una entidad, eso manda. Con la
+> precedencia al revés, editarla no habría hecho nada. La fila de sucursal queda como **respaldo de
+> transición**, no como override, y se puede borrar cuando el backfill suba el dato.
+>
+> Probado en una sucursal de una sola entidad (Sistecrédito, cuya fila dice `CC/CE`):
+>
+>     entidad en NULL          → CC/CE       (idéntico a antes)
+>     entidad = CC/CE/PEP      → CC/CE/PEP   (la entidad amplía)
+>     entidad = sólo CC        → CC          (la entidad RECORTA)
+>
+> Y el arreglo del borrado **se conserva**: simulado el guardado completo de la sucursal de Motai, sus 4
+> filas con PEP siguen ahí. Los listados dan 12 · 6 · 9, la línea base.
+
+> **HALLAZGO AJENO · 2026-08-26** — **`LokiHandler::__destruct()` escribe su error ENCIMA de la respuesta
+> HTTP.** Con el Loki local caído, `/api/onboarding/phone/register` devuelve 200 y un JSON válido… seguido
+> de un volcado de excepción, así que `JSON.parse` revienta y el harness reporta «register HTTP 200» sin
+> más. Diagnóstico caro: parece un fallo del endpoint y es el logger. El handler hace `flush()` en el
+> destructor y la excepción se renderiza después del body. Vale para la tarea de logs: **un handler de
+> logs que puede corromper la respuesta de la API no es sólo un problema de observabilidad**.
+> (Se arregla levantando el Loki local: `make harness-obs-up`.)
+
 ## Registro
 
 ### 2026-08-25
