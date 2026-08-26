@@ -547,6 +547,37 @@ medio de pago dice quién registró · contar consultas a un buró subestima los
 
 Y el corte tech/negocio a nivel de párrafo ya existía: la sección `## Tech`, opcional y salteable.
 
+## La retroalimentación: `/api/propose`, y la pregunta que la hace funcionar
+
+Miguel propuso que la herramienta permita corregir y agregar, haciendo «preguntas clave para ubicar el
+aporte en el contexto», con un modelo detectando si la respuesta del usuario confirma o refina.
+
+Construido como `/api/propose`. Recibe una corrección en palabras de quien la aporta y devuelve **dónde
+podría ir** (con la misma búsqueda del corpus), **qué le rechazaría el lint** dicho por adelantado, y
+**las preguntas que faltan**. Probado: un aporte con `LenderListingService.php` y `getLenders()` recibe
+los tres rechazos explicados antes de que nadie abra un PR.
+
+**Las preguntas no son un cuestionario inventado: son las que el lint va a hacer igual.** Preguntarlas
+antes convierte un rechazo en una conversación. Y la cuarta es la que no se me había ocurrido y sale de
+todo lo medido en esta sesión: **«¿con qué palabras preguntarías vos por esto?»** — la respuesta va al
+TEXTO, no a un campo aparte, porque la búsqueda es léxica y sólo encuentra lo escrito. **Quien aporta el
+hecho es quien sabe cómo se pregunta por él**, y eso resuelve de raíz el hueco de vocabulario que apareció
+cuatro veces acá.
+
+⚠ **No escribe nada, a propósito.** El destino sigue siendo una rama y un pedido de revisión: git ya es el
+registro, la comparación, la aprobación y la auditoría.
+
+## Qué contesta hoy el corpus (medido por público)
+
+22 preguntas reales de cinco públicos, **22 aterrizan**: soporte (no le salió nada · pagué y no se ve ·
+el codeudor no recibió el link) · producto y comercial (de qué vive CreditOp · quién pone el capital · si
+pone más cuota inicial le baja el cupo) · operaciones (cómo cuento los desembolsos · el reporte no me
+cuadra) · dev nuevo (por qué hay dos sistemas · qué significa el sufijo V2) · QA (qué puedo probar de
+punta a punta · el buró en pruebas es real).
+
+Dos imperfectas, las dos por **colisión de palabras**, no por falta de cobertura: «dónde están los
+modelos» choca con «modelo de negocio», y «por dónde empiezo a leer» choca con «no leer».
+
 ## Decisiones abiertas
 
 - **La frontera con credibrain** (herramienta de Oscar en el mismo catálogo, «la memoria de la
