@@ -354,7 +354,25 @@ de la configuración está muerta y desde el panel se ve activa) · **no tener d
 dato** (sin fuente de continuidad laboral se puntúa cero, peor que el peor cliente) · y **dos motores dan
 resultados distintos para el mismo cliente**, tratando su deuda previa al revés uno del otro.
 
-Banco ampliado a 80 preguntas: **1er resultado 66/80 · en los 3 primeros 75/80 · alcanzable 80/80**.
+Novena tanda: `map.migration` — **por qué hay dos sistemas y qué falta para apagar uno**. Es el nodo que
+más explica del corpus: casi todas las rarezas (esquemas duplicados, piezas gemelas divergidas, código
+que nadie llama) **se leen como descuido si no se sabe esto**, y dejan de parecerlo cuando se sabe.
+
+La tesis que lo ordena: **no se le quitó el renderizado al sistema viejo para ponerle una interfaz
+encima — se construyó casi una copia en otro repositorio**, y desde entonces hay que mantener los dos. De
+ahí salen, de una sola vez, las definiciones de esquema copiadas a mano, los gemelos que divergieron y el
+código construido antes de conectarse.
+
+Y la frase que cambia cómo se estima cualquier tarea de migración: **el objetivo no es terminar una
+reescritura, es apagar un sistema que nunca dejó de recibir cambios**. No hay línea de llegada estática:
+hay un blanco que se mueve.
+
+Incluye la compuerta real (dos parámetros de operación, por sucursal y por comercio, evaluados con O),
+que **vive por completo en el sistema viejo** —el nuevo no puede decirte si un comercio está migrado— y
+que **no la crea ninguna semilla**, así que un ambiente recién levantado nace con todo apagado y eso no
+es una falla.
+
+Banco ampliado a 83 preguntas: **1er resultado 66/83 · en los 3 primeros 76/83 · alcanzable 83/83**.
 
 **El ritmo cambió y conviene registrarlo:** de acá en adelante el rendimiento por tanda de trampas baja —
 las ~85 que quedan son mayormente de laboratorio o muy específicas de un caso. El esfuerzo rinde más en
