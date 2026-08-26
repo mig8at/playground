@@ -343,7 +343,23 @@ Y se amplió `pitfalls.silent-success` con un caso del mismo mecanismo: **se pue
 nunca se le ofreció al cliente** — el sistema no distingue «no es de este comercio», «no existe» y «no se
 la ofrecí»: las dos primeras fallan con el mismo error genérico y la tercera **se acepta sin chistar**.
 
-Banco ampliado a 77 preguntas: **1er resultado 64/77 · en los 3 primeros 72/77 · alcanzable 77/77**.
+Octava tanda — **y acá el pozo de las trampas se secó**: las que quedaban ya estaban cubiertas o
+graduaron a nodos locales, y las sueltas apuntaban todas al mismo hueco. Así que en vez de forzar más
+trampas se escribió el nodo al que apuntaban: `flows.revolving`, el cupo rotativo, que no tenía nodo
+propio pese a ser una de las dos familias in-platform.
+
+Lo que trae: el cupo sale de **un multiplicador de seis variables**, no de escalones · **dos de los cinco
+niveles no se pueden alcanzar nunca** (el corte rechaza antes de leer la tabla, así que cerca de la mitad
+de la configuración está muerta y desde el panel se ve activa) · **no tener dato es peor que tener mal
+dato** (sin fuente de continuidad laboral se puntúa cero, peor que el peor cliente) · y **dos motores dan
+resultados distintos para el mismo cliente**, tratando su deuda previa al revés uno del otro.
+
+Banco ampliado a 80 preguntas: **1er resultado 66/80 · en los 3 primeros 75/80 · alcanzable 80/80**.
+
+**El ritmo cambió y conviene registrarlo:** de acá en adelante el rendimiento por tanda de trampas baja —
+las ~85 que quedan son mayormente de laboratorio o muy específicas de un caso. El esfuerzo rinde más en
+los nodos de `flows` y `field` que faltan: servicing, ecommerce, los comercios restantes, y las
+entidades agregadoras.
 
 ⚠ **Y la guarda se ganó el sueldo otra vez**: «el valor a financiar sale distinto» quedó SIN CAMINO y
 frenó el build. El nodo decía «el costo de la garantía» y el negocio dice «el valor a financiar». Mismo
