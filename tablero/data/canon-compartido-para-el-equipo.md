@@ -268,7 +268,7 @@ modelo**, así que a ese tamaño la búsqueda no se gana el sueldo — se podrí
 |---|---:|---:|
 | árbol local `context/` | **135.703** | 39 |
 | canon compartido (antes) | 16.040 | 26 |
-| canon compartido (ahora) | **24.361** | **40** |
+| canon compartido (ahora) | **25250** | **41** |
 
 Y de lo local, `findings` solo son 39.516 palabras con 174 entradas, de las que se destilaron ~30.
 
@@ -317,7 +317,20 @@ Las dos comparten un patrón que conviene tener presente: **una lista se calcula
 validación al guardar usa otra, y nadie comprueba que coincidan.** Cuando un cliente dice «elijo lo que
 me ofrece y me lo rechaza», es eso.
 
-Banco ampliado a 70 preguntas: **1er resultado 59/70 · en los 3 primeros 65/70 · alcanzable 70/70**.
+Sexta tanda: **una ampliación y un nodo nuevo.** En vez de crear un nodo casi igual, se ampliaron dos
+secciones a `pitfalls.identity` (con cédula colombiana **el nombre no se compara como texto** —el
+veredicto sale de códigos de coincidencia, así que pasar con el nombre de otra persona NO es un error
+sino cómo funciona para ese documento—; y **el mismo cliente se comporta al revés según por qué sistema
+entre**, porque la misma función devuelve valores opuestos en los dos). Es la regla de «cada sección
+aporta un hecho que no está en otra» aplicada al revés: si el nodo ya existe y tiene lugar, se amplía.
+
+Nodo nuevo: `field.what-is-off` — **lo que existe en el código y hoy no corre**. El canal del código de
+compra dejó de emitir (de miles mensuales a fines de 2025 a **cero desde abril de 2026**), el modelo que
+ordena el listado nunca corre en producción, hay módulos sin consumidor y avisos desactivados por
+defecto. La regla que resume: **cuando algo no aparece, la primera pregunta no es «¿por qué falla?» sino
+«¿está corriendo?»** — se ven igual desde afuera y la segunda se contesta mucho más rápido.
+
+Banco ampliado a 74 preguntas: **1er resultado 62/74 · en los 3 primeros 69/74 · alcanzable 74/74**.
 
 ⚠ **Y la guarda se ganó el sueldo otra vez**: «el valor a financiar sale distinto» quedó SIN CAMINO y
 frenó el build. El nodo decía «el costo de la garantía» y el negocio dice «el valor a financiar». Mismo
