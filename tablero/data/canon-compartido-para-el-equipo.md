@@ -268,7 +268,7 @@ modelo**, así que a ese tamaño la búsqueda no se gana el sueldo — se podrí
 |---|---:|---:|
 | árbol local `context/` | **135.703** | 39 |
 | canon compartido (antes) | 16.040 | 26 |
-| canon compartido (ahora) | **18.565** | **30** |
+| canon compartido (ahora) | **19.897** | **32** |
 
 Y de lo local, `findings` solo son 39.516 palabras con 174 entradas, de las que se destilaron ~30.
 
@@ -282,11 +282,18 @@ partido en dos fuera de producción), `field.merchant-motai` (el ingreso de plat
 agosto; arrendar y quedárselo solo difieren en los papeles), `field.merchant-corbeta` (crédito y compra
 en momentos distintos; «¿es Corbeta?» tiene cuatro respuestas).
 
-Banco ampliado a 47 preguntas: **1er resultado 40/47 · alcanzable 47/47**.
+Segunda tanda (+2): `flows.forms` (las tres generaciones de formulario configurable, «obligatorio» que
+falla abierto, el rango de ingreso que se aplasta a un número) y `field.entity-bancolombia` (la única
+entidad externa cuya originación corre acá adentro; sin tiempos límite y dentro de la petición del
+cliente, así que un banco lento se ve como una pantalla colgada nuestra).
 
-**Dónde está el resto**, por tamaño del nodo local: kyc (5.655) · bancolombia (3.780) · servicing (3.241)
-· merchants (3.234) · ms-preapprovals (3.120) · dynamic-forms (3.027) · entities (2.553) · db-routines
-(2.410) · ecommerce (2.287). Más las ~110 trampas sin destilar.
+Banco ampliado a 53 preguntas: **1er resultado 45/53 · en los 3 primeros 50/53 · alcanzable 53/53**.
+
+**Dónde está el resto**, por tamaño del nodo local: kyc (5.655 — ⚠ parcialmente cubierto ya por
+`canon.risk-assessment`; lo que falta es la verificación de identidad post-selección y las reglas de
+cuándo NO se consulta) · servicing (3.241) · merchants (3.234) · ms-preapprovals (3.120) · entities
+(2.553) · db-routines (2.410) · ecommerce (2.287) · redirect · rotativo · amount-tiers · backoffice.
+Más las **~110 trampas sin destilar**, que son la veta más grande y la más pedida por soporte.
 
 ⚠ **Y no todo debe graduar**: buena parte de esas 135.703 palabras son direcciones de código, hallazgos
 de laboratorio y detalle por repositorio, que el lint rechaza por diseño. El objetivo realista es del
