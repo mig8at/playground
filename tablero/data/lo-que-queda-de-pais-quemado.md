@@ -22,8 +22,9 @@ están abajo con su consulta.
 verificara la identidad. Eso es una decisión de negocio con dueño, y tiene plazo real.
 
 **El próximo paso es:** desplegar a producción lo que ya está mergeado (punto 2 de §«Cómo se ataca»).
-El catálogo del formulario dinámico —que era el punto 1— **ya está hecho**: entró en el PR del front el
-2026-08-27, ver el registro.
+
+⚠ **Y antes de tocar el «formulario dinámico», leé §«Tres cosas se llaman formulario dinámico».** El
+censo original las confundía y de ahí salió una prioridad equivocada.
 
 ## Objetivo
 
@@ -56,6 +57,31 @@ RD ya está probado.
 **4 · Un solo resolvedor de «sucursal → país»**, y elegir entre `phone_code` y `dial_code`.
 
 **5 · `banks.country_id`.** Es de los pocos casos donde hace falta una columna nueva: no se deriva de nada.
+
+## Tres cosas se llaman «formulario dinámico»
+
+Medido el 2026-08-27, después de que el censo confundiera dos de ellas. **Antes de tocar cualquiera,
+identificá cuál es.**
+
+| | quién lo usa hoy | de dónde sale el formulario | quién lo sirve |
+|---|---|---|---|
+| **El wizard clásico** `/solicitar` | todos los comercios colombianos, y **BCP Perú** | código del front | legacy-backend |
+| **El flujo dinámico** `/request-amount` → `/request-phone` → … | **los 12 comercios de SmartPay**, todos de RD | un **JSON en S3**, uno por comercio | `onboarding-forms-service` (Go) |
+| **El paso `additional-info` / `dynamic-form/:form_type_id`**, dentro del clásico | **Motai Renting (158)** y **Rent to Own (193)** en prod, `dynamic_form_type_id = 7` | **5 tablas** de legacy | `form-service` (Go) |
+
+Los dos servicios Go son de José y **no son el mismo**: `VITE_ONBOARDING_FORM_SERVICE` contra
+`VITE_FORM_SERVICE_BASE_URL`. Sus repos están clonados en `~/Desktop/CREDITOP/github/`.
+
+**Cómo se entra al flujo dinámico:** `phone-number.tsx:68`, `if (alliedCountry === 60) redirect(...)`.
+El 60 es República Dominicana, quemado. Es el hardcode de país más grande que queda en el front y no
+consulta nada de `countries`.
+
+**Y el catálogo de tipos de documento de ese flujo vive en el JSON de S3**, por comercio. O sea que es un
+**segundo catálogo**, paralelo a `countries.document_types`, que nadie cruza con el nuestro. Unificarlos
+es una conversación con José, no un PR: hoy no le hace falta a nadie, porque el único país ahí es RD.
+
+⚠ **No confundir `show_alternate_flow` con esto.** Esa bandera manda el final del wizard **clásico** al
+simulador de Cuotéalo, no al formulario dinámico.
 
 ## Lo que se evaluó y NO se eligió
 
@@ -209,14 +235,23 @@ pero el daño de hoy es una persona.
 
 ### 2026-08-27 · el catálogo del formulario dinámico, hecho
 
-Lo que bloqueaba a Perú **no eran las opciones del selector**: ésas ya salían del backend
-(`data.fields.documentType.options`, que sirve `onboarding-forms-service` por `partner_hash`). Era la
-**validación** — `dynamic-step-one.ts` conocía cuatro tipos (`CED`, `CI_VE`, `PAS`, `PAS_VE`, los de
-República Dominicana y Venezuela, porque el flujo se construyó para RD) y devolvía `false` para
-cualquier otro. Un peruano que eligiera `DNI` no pasaba de la primera pantalla. **Tampoco `CC`.**
+⚠ **CORREGIDO el mismo día, después de una pregunta de Miguel.** Yo había escrito que este catálogo
+«bloqueaba a Perú en la primera pantalla». **Es falso, y la premisa estaba mal en dos puntos.**
 
-Es el espejo exacto del techo colombiano del flujo clásico, y por eso importa: **cada pantalla dio por
-universal el país de su primer cliente.** Vale la pena buscar el patrón antes que el archivo.
+**Uno: a este flujo NO entra Perú.** La puerta es `phone-number.tsx:68` — `if (alliedCountry === 60)
+redirect(.../request-amount)`. El 60 es **República Dominicana**. Perú (167) hace el flujo clásico.
+
+**Dos: `allieds.show_alternate_flow` no abre el flujo dinámico.** Manda el FINAL del clásico al
+simulador de Cuotéalo (`resolve-onboarding-destination.uc.ts:32`), que es otra cosa. Lo agregó Oscar
+Rincón el 2026-08-22 y sólo está en `origin/qa` de legacy-backend.
+
+Así que los cuatro tipos que conocía —`CED`, `CI_VE`, `PAS`, `PAS_VE`— son **los correctos** para quien
+usa hoy esa pantalla: los 12 comercios dominicanos de SmartPay, más los venezolanos, que son la migración
+de ahí. **No era un bug para nadie que exista hoy.**
+
+**Lo que el cambio sí vale**, dicho sin inflarlo: el techo estaba en el lugar equivocado —una lista
+escrita a mano rechazando lo que el esquema ofrezca— y los largos estaban duplicados
+(`slice(0, 11)` por un lado, `maxLength: 11` por otro). Es limpieza, no un desbloqueo.
 
 **Cómo quedó:** un catálogo `FORMATOS` que dice lo que sabemos de la FORMA de cada documento, no cuáles
 existen. Un tipo sin entrada se acepta con una guarda de sanidad (alfanumérico, 3–20). El mismo catálogo
