@@ -784,6 +784,41 @@ que exige sesión de asesor. Se verificaron por código y tipos. La tabla sí se
 ⚠ **Lo que NO entra:** la pantalla del codeudor sigue con el ejemplo y el largo fijos — es la única que no
 carga el tema del comercio, así que no tiene de dónde sacar el país.
 
+### 2026-08-27 · el monto no admitía centavos, y además los leía mal
+
+Miguel preguntó si tenía sentido llevar lo de Laura al monto **por país**, y apuntó lo concreto: el sol
+admite céntimos, así que el campo tiene que dejar escribirlos. **Al mirarlo, el problema no era que
+faltara: era que el campo leía mal lo que la persona escribía.**
+
+`parseCurrency` era `replace(/\D/g, "")` + `parseInt`: **tiraba el separador decimal y pegaba los
+dígitos.** Medido en pantalla con el comercio peruano:
+
+| se escribe | quedaba | o sea |
+|---|---|---|
+| `1500.75` | `150,075` | una solicitud de **S/ 150.075** en vez de S/ 1.500,75 |
+| `2000000,99` (Colombia) | `200.000.099` | **cien veces más**, y ahí la coma es su separador decimal |
+
+**Cien veces más, en silencio.** El sol y el peso dominicano usan su unidad menor y la cuota ya se guarda
+con decimales (`fee_value` es `decimal(15,4)`): el campo era la única pieza que no los admitía.
+
+**Y el que de verdad bloqueaba, que sólo se ve tecleando:** el campo se re-pintaba desde el valor en cada
+tecla, así que con 2 decimales escribir `1500` lo dejaba en `1,500.00` — y con el `.00` ya puesto, teclear
+el separador daba `1,500.00.`, que se lee como 150.000. **No había forma de llegar a los centavos.**
+
+**Lo que se hizo:** el lector respeta los decimales de la moneda (la tabla de Laura ya los declaraba,
+faltaba mirarla); con 0 decimales se **corta** en el separador en vez de concatenar; el campo formatea con
+su moneda; y mientras se escribe manda lo tecleado, no el re-pintado.
+
+⚠ **El separador decimal se le pregunta a `Intl`, no se quema:** `es-CO` usa la coma y `es-PE`/`es-DO` el
+punto, así que cualquier tabla escrita a mano se equivoca en la mitad de los países.
+
+**Verificado tecleando:** Perú `1500`→`1,500`, `+.75`→`1,500.75` · Colombia `2000000`→`2.000.000`,
+`2000000,99`→`2.000.000`. Cierre sin cambio.
+
+⚠ **Método:** este bug **no se veía leyendo ni con una prueba de la función** — el `1500.75` entra y sale
+como número; lo que fallaba era la interacción entre el parser, el formateador y el efecto de React que
+re-pinta. Sólo aparece tecleando en la pantalla, letra por letra.
+
 <!-- ─────────────────────────────────────────────────────────────────────────────────────────────
      DE ACÁ PARA ABAJO ES LO ÚNICO QUE SALE A JIRA.
      ───────────────────────────────────────────────────────────────────────────────────────────── -->
