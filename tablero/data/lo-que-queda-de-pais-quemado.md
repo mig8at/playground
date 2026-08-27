@@ -297,6 +297,29 @@ Colombia*.
 
 ## Riesgos
 
+> **MEDICIÓN · 2026-08-27** — **El texto de los botones se pinta del mismo color que el botón cuando al
+> comercio le falta un color.** No está oculto: está ahí, invisible.
+>
+> `AlliedInfoController` rellena el color del TEXTO con el color del FONDO:
+> `'quaternary_color' => $allied->quaternary_color ?? $allied->primary_color`. Ese respaldo no puede ser
+> correcto nunca — pinta letras del color de su propio fondo.
+>
+> **En producción hay 4 comercios activos sin ese color**, los cuatro con fondo `4c39ff`:
+> Almacenes La Ganga (**449 solicitudes en 90 días**), Joyería Sofi (104), REVIB (8) y
+> HEALTH & FITNESS COMPANY (8) — **569 solicitudes**.
+>
+> **Y no es sólo el OTP: son 15 componentes** los que pintan el texto de su botón con ese color —el OTP,
+> las tarjetas de entidad, la confirmación del crédito, la validación de identidad, la firma de
+> documentos, el plan de pagos—. Para esos comercios, el wizard entero tiene los botones en blanco.
+>
+> **Cómo:** `SELECT id, name, primary_color, quaternary_color FROM allieds WHERE quaternary_color IS NULL
+> OR TRIM(quaternary_color) = ''` contra prod.
+>
+> **El arreglo es una línea**, y el dato dice cuál: **329 de los 330** comercios que sí tienen el color
+> usan `FFFFFF`. El respaldo debería ser blanco, no el fondo. (Sigue abierto: no se tocó, es de otra
+> tanda.)
+
+
 > **RIESGO · 2026-08-27** — **el orden de despliegue entre repos.** `legacy-application/develop` lee
 > `countries.is_operating` en 7 archivos, y esa columna la crea una migración de **legacy-backend**. Si
 > `develop` sale primero, se caen las pantallas de alta de comercio y de entidad. Hoy **nada fuerza ese

@@ -52,12 +52,18 @@ console.log(`\n  Perú (${PERU}) · ${pais.currency} · ${pais.phone_code} · ${
 let comercio = await one<{ id: number }>(`SELECT id FROM allieds WHERE slug = '${SLUG}' LIMIT 1`);
 if (comercio) {
     paso('comercio', `ya existía (${comercio.id})`);
-    await exec(`UPDATE allieds SET country_id = ${PERU} WHERE id = ${comercio.id}`);
+    await exec(`UPDATE allieds SET country_id = ${PERU},
+                       quaternary_color = COALESCE(NULLIF(TRIM(quaternary_color), ''), 'FFFFFF')
+                WHERE id = ${comercio.id}`);
 } else {
     // La categoría se toma de un comercio que ya exista: es una FK y su catálogo varía entre dumps.
     const cat = await one<{ c: number }>('SELECT allied_caterogy_id AS c FROM allieds WHERE allied_caterogy_id IS NOT NULL LIMIT 1');
-    await exec(`INSERT INTO allieds (name, slug, allied_caterogy_id, country_id, status, created_at, updated_at)
-                VALUES ('${NOMBRE}', '${SLUG}', ${cat?.c ?? 1}, ${PERU}, 1, NOW(), NOW())`);
+    // ⚠ `quaternary_color` va SIEMPRE, y no es cosmético: es el color del TEXTO de los botones, y el
+    // backend rellena el que falte con el color de FONDO (`AlliedInfoController`:
+    // `$allied->quaternary_color ?? $allied->primary_color`). Sin él, los botones salen con el texto
+    // invisible en 15 pantallas del wizard. Blanco es lo que usan 329 de los 330 comercios de prod.
+    await exec(`INSERT INTO allieds (name, slug, allied_caterogy_id, country_id, status, primary_color, quaternary_color, created_at, updated_at)
+                VALUES ('${NOMBRE}', '${SLUG}', ${cat?.c ?? 1}, ${PERU}, 1, '4c39ff', 'FFFFFF', NOW(), NOW())`);
     comercio = await one<{ id: number }>(`SELECT id FROM allieds WHERE slug = '${SLUG}' LIMIT 1`);
     paso('comercio', `creado (${comercio!.id})`);
 }
