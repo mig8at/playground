@@ -1,6 +1,7 @@
 ---
 id: 0
 title: "Lo que queda de país quemado, después de la tanda de internacionalización"
+ramas: pais/documentos-que-acepta-el-backend, pais/monto-y-telefono-en-solicitar, pais/borrar-documentos-de-sucursal
 stage: evaluation
 created: "2026-08-27T09:00:00-05:00"
 context_nodes: [architecture, onboarding, kyc, entities, merchants]

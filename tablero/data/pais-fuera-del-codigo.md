@@ -1,6 +1,7 @@
 ---
 id: 0
 title: "Sacar el país del código y corregir el default Afganistán"
+ramas: pais/el-pais-es-configuracion, pais/backfill-del-default-historico, pais/reparar-columnas-de-documentos, pais/documentos-que-acepta-el-backend, pais/borrar-documentos-de-sucursal, pais/monto-y-telefono-en-solicitar
 stage: work
 created: "2026-08-24T10:00:00-05:00"
 context_nodes: [entities, merchants, onboarding, hardcodes-entidades, smartpay]
@@ -11,6 +12,11 @@ jira_title: ""
 # Sacar el país del código y corregir el default Afganistán
 
 ## Si retomás esto sin contexto, empezá acá
+
+**ESTADO 2026-08-27 · tres PRs abiertos esperando revisión, uno bloqueado a propósito, y la base ya
+mergeada a `qa`/`develop`/`staging` con las migraciones corridas contra la BD compartida. Producción
+todavía no tiene NADA de esto.** El detalle, en el §«Registro» de abajo; las ramas y sus PRs, con
+`make tareas-ramas N="país"`.
 
 Ocho consultas del producto preguntan literalmente `->where('country_id', 1)`, y **191 de las 192
 entidades de prod tienen `country_id = 1`** — que es **Afganistán**. Funciona porque alguien editó esa
@@ -1271,6 +1277,79 @@ conclusión sale al revés. Para consultas con varias columnas parecidas, armar 
 > `show_alternate_flow = 1`.
 
 ## Registro
+
+### 2026-08-27
+
+**Los tres cambios quedaron listos para revisión, y uno bloqueado a propósito.**
+
+| | | |
+|---|---|---|
+| `legacy-backend` [#1220](https://github.com/Creditop-SAS/legacy-backend/pull/1220) → `qa` | 8 archivos, +278 −52 | el documento lo dicta la ENTIDAD; selector y validador leen lo mismo |
+| `legacy-application` [#83](https://github.com/Creditop-SAS/legacy-application/pull/83) → `develop` | 2 archivos, +119 −1 | el gemelo |
+| `frontend-monorepo` [#889](https://github.com/Creditop-SAS/frontend-monorepo/pull/889) → `qa` | 5 archivos, +85 −37 | resolvedor de país compartido, moneda del monto, largo del documento |
+| `legacy-backend` [#1225](https://github.com/Creditop-SAS/legacy-backend/pull/1225) → `qa` | 1 archivo, +103 | ⛔ **BLOQUEADA**: borra la columna de la sucursal, y tres ramas desplegadas todavía la leen |
+
+**La prueba de que la tanda sirve**, corriendo el flujo entero por comercio: el comercio dominicano
+**cierra en estado 11 con `CED`** y el colombiano con `CC`. **Antes los dos cerraban con `CC`.**
+
+**Lo que se decidió hoy:**
+
+- **La internacionalización NO toca los mecanismos de formularios dinámicos** mientras no se defina cómo
+  se estandarizan el JSON de S3 y las tablas. Se llegó a arreglar el catálogo de documentos del flujo
+  dinámico y **se revirtió del PR**: no era internacionalización —esa pantalla es sólo de RD y sus cuatro
+  tipos son los correctos— y toca el mecanismo en discusión.
+- **La ficha en blanco del registro dice `'-'`, no `'CC'`** (idea de Miguel). Medido: 8.935 personas en 90
+  días abandonan antes de llenar sus datos y quedaban afirmadas como colombianas.
+
+**Tres hallazgos que sólo aparecieron CORRIENDO el flujo, no leyéndolo:**
+
+1. **El respaldo escrito a mano escondía un bug.** La ruta se llama `{partner_branch_id}` pero el front
+   manda el HASH, así que el `(int)` valía `0` y **la sucursal nunca se resolvía**: la validación caía
+   siempre en la lista colombiana. En esa ruta el 422 de `CED` **seguía pasando**.
+2. **El puente de arrastre perdonaba a todo el mundo.** El registro sembraba `CC` y el validador acepta
+   «lo que la persona ya tiene guardado»: `CC` pasaba en cualquier país.
+3. **El documento es único en TODA la tabla, sin mirar tipo ni país** — `idx_users_document_number_unique`,
+   una sola columna. **84.656 DNI peruanos ya están ocupados** por documentos colombianos de 8 dígitos. Es
+   un bloqueante de Perú y no cabe en estos PRs: el detalle está en la tarea del censo.
+
+⚠ **Producción sigue sin nada de esto.** Verificado en `main` de los tres repos: no están
+`countries.document_types`, ni `is_operating`, ni `CellPhoneLengthForCountry`, ni `DocumentTypesService`.
+Allá siguen las 191 entidades en Afganistán.
+
+### 2026-08-26
+
+**Se mergeó la base y se corrieron las migraciones contra la BD compartida.**
+
+| PR | destino | qué |
+|---|---|---|
+| [legacy-backend#1193](https://github.com/Creditop-SAS/legacy-backend/pull/1193) | `qa` | el país es configuración, no un literal |
+| [legacy-backend#1191](https://github.com/Creditop-SAS/legacy-backend/pull/1191) | `develop` | idem |
+| [legacy-backend#1204](https://github.com/Creditop-SAS/legacy-backend/pull/1204) | `staging` | idem |
+| [legacy-backend#1205](https://github.com/Creditop-SAS/legacy-backend/pull/1205) | `qa` | las migraciones de datos: sacar las entidades de Afganistán y subirles los documentos |
+| [legacy-application#80](https://github.com/Creditop-SAS/legacy-application/pull/80) | `develop` | el selector de país editable en el panel |
+| [frontend-monorepo#879](https://github.com/Creditop-SAS/frontend-monorepo/pull/879) | `qa` | el país del comercio decide el teléfono y los tipos de documento |
+
+**Las migraciones corrieron contra `dev`/`staging`**, con verificación antes y después. Predije que se
+moverían 163 entidades y se movieron **166**: mi simulación midió antes de que se movieran los comercios,
+y la migración mueve `allieds` primero **por diseño**.
+
+⚠ **Y se descubrió que la BD compartida tenía la migración registrada con sólo la mitad de su efecto** —
+una versión parcial corrió entre el 24 y el 25. Se arregló con una migración de reparación idempotente,
+corrida a mano.
+
+**La reconciliación con Laura.** Ese mismo día, siete horas después, mergeó
+[frontend-monorepo#891](https://github.com/Creditop-SAS/frontend-monorepo/pull/891) y
+[legacy-backend#1221](https://github.com/Creditop-SAS/legacy-backend/pull/1221): la moneda y el largo del
+celular, y el OTP. **Ninguno reparaba daño nuestro** —los tres hardcodes que arregló ya estaban—, y dos de
+los tres sólo eran posibles porque nosotros hicimos que el país llegara al wizard.
+
+⚠ **Pero uno señaló una incompletitud mía:** creé `CellPhoneLengthForCountry` y la apliqué a
+`CreateAndAuthUser` y `OnboardingV2\ValidateOtpAuthRequest` — **y el wizard no pega a ninguno de los
+dos**. Pega a `phone/register`, `otp-validate` y `otp/resend-via-email`, que seguían con `digits:10`.
+Nada dejó de funcionar; simplemente no alcanzó. El detalle completo, en la tarea del censo.
+
+Como su PR resolvió mejor la moneda y el teléfono, **nuestro PR del front se rehízo desde `qa`** y quedó
+sólo con lo que faltaba.
 
 ### 2026-08-25
 
