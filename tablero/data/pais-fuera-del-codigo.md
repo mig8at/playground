@@ -6,16 +6,19 @@ created: "2026-08-24T10:00:00-05:00"
 context_nodes: [entities, merchants, onboarding, hardcodes-entidades, smartpay]
 jira: []
 jira_title: ""
-ramas: "pais/el-pais-es-configuracion, pais/backfill-del-default-historico, pais/reparar-columnas-de-documentos, pais/documentos-que-acepta-el-backend, pais/borrar-documentos-de-sucursal, pais/monto-y-telefono-en-solicitar"
+ramas: "pais/el-pais-es-configuracion, pais/backfill-del-default-historico, pais/reparar-columnas-de-documentos, pais/documentos-que-acepta-el-backend, pais/borrar-documentos-de-sucursal, pais/monto-y-telefono-en-solicitar, pais/el-largo-del-celular-en-el-flujo-dinamico"
 ---
 
 # Sacar el país del código y corregir el default Afganistán
 
 ## Si retomás esto sin contexto, empezá acá
 
-**ESTADO 2026-08-27 · tres PRs abiertos esperando revisión, uno bloqueado a propósito, y la base ya
-mergeada a `qa`/`develop`/`staging` con las migraciones corridas contra la BD compartida. Producción
-todavía no tiene NADA de esto.** El detalle, en el §«Registro» de abajo; las ramas y sus PRs, con
+**ESTADO 2026-08-27 · los tres PRs del documento MERGEARON hoy (#1220 → `qa`, #83 → `develop`,
+#889 → `qa`), y quedan DOS abiertos: #1225 —bloqueado a propósito— y #900, nuevo. Producción todavía no
+tiene NADA de esto.** El #900 salió de probar BCP y **es un bloqueo de Perú que estaba vivo en `qa`**:
+en el flujo dinámico el campo del celular se recortaba a 9 y el validador seguía pidiendo 10, así que el
+cliente peruano no pasaba la primera pantalla. Los estados de PR de acá salen de
+`make tareas-ramas N=71`, que los mide; no los escribas a mano. El detalle, en el §«Registro» de abajo; las ramas y sus PRs, con
 `make tareas-ramas N="país"`.
 
 Ocho consultas del producto preguntan literalmente `->where('country_id', 1)`, y **191 de las 192
@@ -1279,6 +1282,50 @@ conclusión sale al revés. Para consultas con varias columnas parecidas, armar 
 ## Registro
 
 ### 2026-08-27
+
+**Tarde — probar BCP encontró un bloqueo de Perú que estaba vivo en `qa`.**
+[frontend-monorepo #900](https://github.com/Creditop-SAS/frontend-monorepo/pull/900) → `qa`, 5 archivos,
++120 −9. Salió de un `NO_PREVIOUS_OTP` que Miguel vio corriendo el wizard contra el comercio de pruebas
+de BCP, y de la sospecha de que «estaba llegando +51».
+
+> **MEDICIÓN · 2026-08-27** — **el `+51` NO se le suma al número en el flujo clásico.** El comercio
+> `a8221e67` es *Comercio pruebas BCP* (allied 337, sucursal 2173) y su país es **167 Perú**
+> (`dial_code 51` · `phone_code +51` · `cell_phone_lenght 9`), así que el prefijo y el largo del campo
+> son los correctos. En dev, `users.cell_phone`, `otps.cell_phone` y `otps.identifier` de esa corrida
+> quedaron en **`321411217`** — 9 dígitos, sin prefijo: el `+51` es el `<span>` del campo, no parte del
+> valor. Donde SÍ se concatena es en el flujo **dinámico**, que manda `"+51 321411217"` al
+> onboarding-form-service y lo guarda así en la sesión.
+> **Cómo se vuelve a comprobar:** `make trazador-sql TARGET=dev SQL="SELECT cell_phone, identifier FROM
+> otps WHERE cell_phone LIKE '%321411217%' ORDER BY id DESC LIMIT 5"`.
+
+> **MEDICIÓN · 2026-08-27** — **el `NO_PREVIOUS_OTP` era rate limit, cuatro pasos antes.** En
+> `otp_logs` de dev hay ocho `Error Send OTP` entre 20:09 y 20:36 UTC con
+> `"error":"rate limit exceeded, please try again later"` (mensaje del otp-service: no existe en
+> legacy-backend). Sin fila en `otps`, y **`POST /api/onboarding/phone/register` devolvió 200 igual** —
+> `RegisterCellPhoneService` mira `$otpGenerationResponse['status']` sólo para la rama Credifamilia y
+> retorna el usuario pase lo que pase—, así que el front avanzó a la pantalla del OTP sin código
+> emitido. A las 20:41 entró el QA bypass (`321411217` está primero en el setting
+> `qa_otp_bypass_phones`) con el código `1217` y validó. **Queda abierto** por qué el bypass no disparó
+> en esos ocho intentos: el Loki de dev no tiene **ni una** línea de `OtpBypassService` en 24 h, lo que
+> apunta a que esas llamadas las sirvió un backend que no loguea a ese stream.
+
+> **MEDICIÓN · 2026-08-27** — **la trampa del largo, y por qué nadie la ve.** Un celular colombiano de
+> 10 dígitos escrito en el comercio peruano queda en **9** —`maxLength` recorta en silencio— y 9 es un
+> largo **válido** en Perú, así que pasa el front, pasa `CellPhoneLengthForCountry` y **se registra un
+> colombiano como peruano**. El OTP real se va a `+51 321411217`, que no existe; sólo el QA bypass lo
+> deja seguir. El PR cambia el recorte al `onChange` para poder avisarlo.
+
+**Lo que NO entró, y queda marcado:** `update-user-phone.schema.ts` sigue con
+`^(\+(1|57))?\d{10}$` (rechaza a Perú por largo **y** por prefijo, es otra pantalla), y en backend
+`CreditStudyRequest` y `BackDoorCreateUserRequest` siguen con `digits:10`. La familia del OTP en `qa`
+**ya** resuelve el largo por país.
+
+**Verificación del PR:** `tsc` del wizard da **218 errores, los mismos que `qa`** (comparados línea por
+línea con y sin la rama, cero en los archivos tocados); `biome` limpio; y la lógica nueva se corrió con
+`tsx` sobre el módulo real, 15 casos. ⚠ El test queda escrito pero **no corre**: el runner del repo
+falla con `__vite_ssr_exportName__ is not defined` también en `qa`, en archivos que la rama no toca.
+
+---
 
 **Los tres cambios quedaron listos para revisión, y uno bloqueado a propósito.**
 

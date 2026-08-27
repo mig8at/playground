@@ -6,7 +6,7 @@ created: "2026-08-05T17:11:17-05:00"
 context_nodes: [onboarding, dynamic-forms, merchants, entities, smartpay, hardcodes-entidades]
 jira: [CORE-365]
 jira_title: "Internacionalización de CreditOp"
-ramas: pais-como-dato, pais-configuracion, pais/el-pais-es-configuracion, pais/backfill-del-default-historico, pais/reparar-columnas-de-documentos, pais/documentos-que-acepta-el-backend, pais/borrar-documentos-de-sucursal, pais/monto-y-telefono-en-solicitar
+ramas: pais-como-dato, pais-configuracion, pais/el-pais-es-configuracion, pais/backfill-del-default-historico, pais/reparar-columnas-de-documentos, pais/documentos-que-acepta-el-backend, pais/borrar-documentos-de-sucursal, pais/monto-y-telefono-en-solicitar, pais/el-largo-del-celular-en-el-flujo-dinamico
 ---
 
 # Internacionalización de CreditOp
@@ -14,16 +14,17 @@ ramas: pais-como-dato, pais-configuracion, pais/el-pais-es-configuracion, pais/b
 > **ESTADO (2026-08-27) — segunda tanda: el país sale del código.** Lo de abajo, del 19/8, es la PRIMERA
 > tanda y sigue siendo cierto. Esto es lo que pasó después.
 >
-> **Tres PRs esperando revisión, uno bloqueado a propósito, y la base ya mergeada** a `qa`/`develop`/`staging`
-> con las migraciones corridas contra la BD compartida. ⚠ **Producción todavía no tiene NADA de esta
-> segunda tanda** — verificado en `main` de los tres repos.
+> **Los tres PRs del documento ya MERGEARON hoy** (medido con `make tareas-ramas N=71`), y quedan **dos
+> abiertos**: el que se bloqueó a propósito y uno nuevo que salió de probar BCP. ⚠ **Producción todavía
+> no tiene NADA de esta segunda tanda** — verificado en `main` de los tres repos.
 >
-> | PR | destino | qué |
-> |---|---|---|
-> | `legacy-backend` #1220 | `qa` | el documento lo dicta la ENTIDAD; selector y validador leen lo mismo |
-> | `legacy-application` #83 | `develop` | el gemelo |
-> | `frontend-monorepo` #889 | `qa` | resolvedor de país compartido, moneda del monto, largo del documento |
-> | `legacy-backend` #1225 | `qa` | ⛔ **BLOQUEADA**: borra la columna de la sucursal, y tres ramas desplegadas todavía la leen |
+> | PR | destino | estado | qué |
+> |---|---|---|---|
+> | `legacy-backend` #1220 | `qa` | ✅ mergeado 27/8 | el documento lo dicta la ENTIDAD; selector y validador leen lo mismo |
+> | `legacy-application` #83 | `develop` | ✅ mergeado 27/8 | el gemelo |
+> | `frontend-monorepo` #889 | `qa` | ✅ mergeado 27/8 | resolvedor de país compartido, moneda del monto, largo del documento |
+> | `frontend-monorepo` #900 | `qa` | 🔵 abierto | el largo del celular manda también en el flujo dinámico (**bloqueo de Perú que estaba vivo en `qa`**), y el campo avisa cuando recorta |
+> | `legacy-backend` #1225 | `qa` | ⛔ **BLOQUEADO a propósito** | borra la columna de la sucursal, y tres ramas desplegadas todavía la leen |
 >
 > **La prueba de que sirve:** el comercio dominicano **cierra una solicitud entera con `CED`** y el
 > colombiano con `CC`. Antes los dos terminaban marcados como colombianos.
@@ -32,6 +33,13 @@ ramas: pais-como-dato, pais-configuracion, pais/el-pais-es-configuracion, pais/b
 > `tablero/data/pais-fuera-del-codigo.md` (la ejecución: el modelo de país, el orden por ambiente, el
 > registro día por día) y `tablero/data/lo-que-queda-de-pais-quemado.md` (el censo de lo que todavía
 > asume Colombia, con sus mediciones contra producción). Los dos tienen su §«Registro» al día.
+>
+>
+> 📐 **Prototipo del documento genérico** (2026-08-27): `tablero/data/artifacts/internacionalizacion-onboarding.tarjeta-identidad.html`
+> — la tarjeta de identidad **sin país** que reemplaza a `IdBack` (reverso de la cédula colombiana) y
+> `PepCard` (PEP). Un archivo, sin dependencias, editable en vivo; se ve con `make soporte-qa`, que sirve
+> esa carpeta. Estructura tomada de ICAO 9303 TD1. La ficha de los dos componentes que reemplaza y el
+> hallazgo de la MRZ están en `tablero/data/lo-que-queda-de-pais-quemado.md`.
 >
 > ⚠ **Y un bloqueante de Perú que no cabe en estos PRs:** el número de documento es único en TODA la
 > tabla, sin mirar tipo ni país. **84.656 DNI peruanos ya están ocupados** por documentos colombianos de
