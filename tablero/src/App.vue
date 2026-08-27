@@ -10,6 +10,7 @@
 //
 // CONVENCIÓN: identificadores y clases CSS en inglés; solo el texto visible y los comentarios en español.
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
+import { marked } from 'marked';
 
 const SERVER = 'http://localhost:8787';
 const BOARD = 384;            // CORE — el proyecto donde están MIS tareas (no LO / Loans Origination)
@@ -484,6 +485,89 @@ const alternar = (id) => { const s = new Set(abiertas.value); s.has(id) ? s.dele
 // bloque de párrafos y leerlo en una columna de 300px era peor que no tenerlo. Antes se expandía la
 // tarjeta a la fila entera, lo que rompía la grilla — el mismo problema de los encabezados de grupo.
 const descAbierta = ref(false);
+
+// ── el CUERPO TÉCNICO de la tarea, que es lo que de verdad se quiere leer ──────────────────────────
+//
+// Antes acá se mostraba la descripción de JIRA. Es la información equivocada para este tablero: Jira
+// dice qué hay que hacer, en el lenguaje del equipo, y ya se lee en Jira. Lo que no está en ningún otro
+// lado es el CUERPO del archivo de la tarea — qué se hizo, cómo se llegó a cada conclusión, con qué se
+// midió, en qué ramas vive y cómo se integra en cada repo. El server ya lo expone como `techNotes`
+// (el cuerpo privado, sin la sección publicable); sólo faltaba mirarlo.
+//
+// La de Jira sigue a un clic, en el enlace del encabezado: no se pierde, se despriorizó.
+const cuerpoDe = (key) => efforts.value.find(e => e.id === (taskLocals.value[key]?.effortId || 0))?.techNotes || '';
+
+// Markdown de verdad y no una regex a mano: estos cuerpos usan tablas, citas, bloques de código y
+// enlaces, y una tabla mal renderizada es peor que no mostrarla. El contenido es un archivo local
+// escrito por nosotros, así que `v-html` acá no toma nada de afuera.
+// EN QUÉ ESTÁ la tarea, en una línea, para la tarjeta.
+//
+// La convención de estos cuerpos es `# Título` y enseguida el estado, y el estado se escribe como CITA
+// (`> **ESTADO (fecha)** — …`) justamente porque es lo que envejece. Saltear las citas —que fue lo
+// primero que hice— deja pescando una frase cualquiera de mil líneas más abajo, que es peor que no
+// mostrar nada: parece un resumen y no lo es.
+//
+// Así que se toma la PRIMERA prosa después del título, venga como cita o como párrafo, y se para ahí.
+const estadoDe = (key) => {
+  const md = cuerpoDe(key);
+  if (!md) return '';
+  let enBloque = false, pasoElTitulo = false;
+  for (const cruda of md.split('\n')) {
+    const l = cruda.trim();
+    if (l.startsWith('```')) { enBloque = !enBloque; continue; }
+    if (enBloque || !l) continue;
+    if (l.startsWith('#')) { pasoElTitulo = true; continue; }
+    if (l.startsWith('|') || l.startsWith('<!--') || l.startsWith('---')) continue;
+    const texto = l.replace(/^>\s?/, '').trim();
+    if (!texto || texto.startsWith('|')) continue;
+    // Sin título arriba no hay convención que valga: se cae a la primera prosa, como antes.
+    if (!pasoElTitulo && cruda.startsWith('>')) continue;
+    return texto.replace(/[*`]/g, '').replace(/\[([^\]]+)\]\([^)]+\)/g, '$1').slice(0, 240);
+  }
+  return '';
+};
+
+const cuerpoHTML = computed(() => {
+  const md = active.value ? cuerpoDe(active.value.Key) : '';
+  if (!md) return '';
+  // `marked` no pone ids en los encabezados, y sin ids el índice no enlaza a nada. Se los ponemos con
+  // el MISMO slug que calcula el índice, para que los dos lados no puedan divergir.
+  const renderer = new marked.Renderer();
+  renderer.heading = function ({ tokens, depth }) {
+    const texto = this.parser.parseInline(tokens);
+    const plano = tokens.map(t => t.raw ?? '').join('');
+    return `<h${depth} id="sec-${slugTitulo(plano)}">${texto}</h${depth}>`;
+  };
+  return marked.parse(md, { gfm: true, breaks: false, renderer });
+});
+
+// El índice de secciones. Estos cuerpos pasan de las mil líneas: sin un índice, el cajón es un muro y
+// se deja de abrir. Sale de los propios `##`/`###`, así que no se desincroniza con el texto.
+const indiceCuerpo = computed(() => {
+  const md = active.value ? cuerpoDe(active.value.Key) : '';
+  if (!md) return [];
+  const out = [];
+  let enBloque = false;
+  for (const linea of md.split('\n')) {
+    if (linea.trimStart().startsWith('```')) { enBloque = !enBloque; continue; }
+    if (enBloque) continue;
+    const m = /^(#{2,3})\s+(.+?)\s*$/.exec(linea);
+    if (m) out.push({ nivel: m[1].length, texto: m[2], id: slugTitulo(m[2]) });
+  }
+  return out;
+});
+
+// El mismo id que le pone `marked` a los encabezados, para que el índice enlace de verdad.
+function slugTitulo(t) {
+  return t.toLowerCase().trim()
+    .replace(/[`*_~\[\]()]/g, '')
+    .replace(/[^\p{L}\p{N}\s-]/gu, '')
+    .replace(/\s+/g, '-');
+}
+
+function irASeccion(id) {
+  document.getElementById('sec-' + id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
 function verDesc(i) {
   if (descAbierta.value && active.value?.Key === i.Key) { descAbierta.value = false; return; }
   active.value = i; descAbierta.value = true;
@@ -1113,11 +1197,13 @@ onMounted(async () => {
               </div>
               <div class="tt">{{ i.Summary }}</div>
 
-              <!-- lo que HOY dice Jira, recortado. La completa va al CAJÓN (botón «ver completa»): en la
-                   tarjeta ocupaba la fila entera y rompía la grilla, que es lo mismo que hacían los
-                   encabezados de grupo. Un cajón no le quita el ancho a nadie. -->
-              <p v-if="i.Description" class="jd" :title="i.Description">{{ i.Description }}</p>
-              <p v-else class="jd none">sin descripción en Jira</p>
+              <!-- EN QUÉ ESTÁ la tarea, en una línea, sacado de su propio cuerpo. Antes acá iba la
+                   descripción de Jira recortada, que es la información equivocada para este tablero:
+                   dice qué HAY que hacer, no en qué se está — y además ya se lee en Jira. El cuerpo
+                   completo va al cajón; acá sólo su primera frase, que es donde se escribe el estado. -->
+              <p v-if="estadoDe(i.Key)" class="jd" :title="estadoDe(i.Key)">{{ estadoDe(i.Key) }}</p>
+              <p v-else-if="i.Description" class="jd" :title="i.Description">{{ i.Description }}</p>
+              <p v-else class="jd none">sin cuerpo técnico todavía</p>
 
               <div class="tm">
                 <!-- de qué sprint viene: verde = nació en su sprint · rojo = la arrastraron sin terminar -->
@@ -1135,7 +1221,7 @@ onMounted(async () => {
                    entera selecciona, y un botón no puede además hacer eso por accidente. -->
               <div class="tacts" @click.stop>
                 <button class="tact" :class="{ act: descAbierta && active?.Key === i.Key }" @click="verDesc(i)">
-                  ver completa
+                  Cuerpo técnico
                 </button>
                 <button class="tact" :class="{ act: bitacoraAbierta && active?.Key === i.Key }" @click="verBitacora(i)">
                   Bitácora<span v-if="entriesPorTarea[i.Key]" class="cnt">{{ entriesPorTarea[i.Key] }}</span>
@@ -1369,7 +1455,7 @@ onMounted(async () => {
          tarjeta a la fila entera rompía la grilla. Es SOLO LECTURA — lo que dice Jira hoy. -->
     <div v-if="descAbierta" class="drawer">
       <div class="drawer-bg" @click="descAbierta = false"></div>
-      <aside class="drawer-p">
+      <aside class="drawer-p ancho">
         <header class="drawer-h">
           <div>
             <h3>{{ active?.Key }}</h3>
@@ -1378,12 +1464,21 @@ onMounted(async () => {
           <button class="drawer-x" title="Cerrar (Esc)" @click="descAbierta = false">✕</button>
         </header>
         <div class="drawer-b">
-          <p class="empty">Es lo que dice <b>Jira</b> hoy — lo que lee el equipo. Editarla es cosa de Jira.
-            <a v-if="site && active" class="link" :href="jiraLink(active.Key)" target="_blank" rel="noopener">abrir en Jira ↗</a>
+          <p class="empty">El <b>cuerpo técnico</b> de la tarea: qué se hizo, cómo se llegó a cada
+            conclusión, en qué ramas vive y cómo se integra en cada repo. Es privado — nombra repos,
+            rutas y hallazgos, y no sale a Jira.
+            <a v-if="site && active" class="link" :href="jiraLink(active.Key)" target="_blank" rel="noopener">lo que ve el equipo, en Jira ↗</a>
           </p>
-          <div v-if="active?.DescriptionHTML" class="desc jira-html" v-html="active.DescriptionHTML"></div>
-          <p v-else-if="active?.Description" class="desc">{{ active.Description }}</p>
-          <p v-else class="desc none">Esta tarea todavía no tiene descripción en Jira.</p>
+
+          <!-- el índice: estos cuerpos pasan de las mil líneas y sin él el cajón no se abre dos veces -->
+          <nav v-if="indiceCuerpo.length > 2" class="toc">
+            <button v-for="h in indiceCuerpo" :key="h.id" class="toc-i" :class="{ sub: h.nivel === 3 }"
+                    @click="irASeccion(h.id)">{{ h.texto }}</button>
+          </nav>
+
+          <div v-if="cuerpoHTML" class="desc cuerpo-md" v-html="cuerpoHTML"></div>
+          <p v-else class="desc none">Esta tarea no tiene cuerpo técnico todavía — se escribe en su
+            archivo <code>tablero/data/&lt;slug&gt;.md</code>.</p>
         </div>
       </aside>
     </div>
@@ -1948,4 +2043,37 @@ h1 { font-size: 20px; margin: 0; letter-spacing: .2px }
 .pd-k { opacity: .6; }
 .pd-i b { font-weight: 600; }
 .pd-mal { color: #e5534b; opacity: 1; }
+
+/* ── el CUERPO TÉCNICO en el cajón ───────────────────────────────────────────────────────────────
+   Son documentos largos con tablas, citas y bloques de código: sin estilo propio `marked` los deja
+   como un muro gris y el cajón deja de abrirse. Lo que se busca acá es ESCANEO, no lectura lineal.
+   Va con `:deep()` porque el HTML lo inyecta `v-html` y el estilo del componente es `scoped`. */
+.toc { display: flex; flex-wrap: wrap; gap: 4px; margin: 0 0 14px; padding: 10px; border-radius: 8px;
+       background: var(--panel2); border: 1px solid var(--line); max-height: 132px; overflow: auto }
+.toc-i { font: inherit; font-size: 11px; line-height: 1.3; padding: 3px 8px; border-radius: 999px; cursor: pointer;
+         background: transparent; border: 1px solid var(--line); color: var(--txt); white-space: nowrap }
+.toc-i:hover { background: var(--line) }
+.toc-i.sub { opacity: .62; font-size: 10px }
+/* ⚠ el `pre-wrap` de `.desc` respeta los saltos del markdown crudo y deja el HTML lleno de huecos */
+.desc.cuerpo-md { white-space: normal; line-height: 1.55 }
+.cuerpo-md :deep(h2) { font-size: 15px; margin: 22px 0 8px; padding-top: 12px; border-top: 1px solid var(--line) }
+.cuerpo-md :deep(h3) { font-size: 13px; margin: 16px 0 6px; opacity: .9 }
+.cuerpo-md :deep(h2:first-child), .cuerpo-md :deep(h3:first-child) { margin-top: 0; padding-top: 0; border-top: 0 }
+.cuerpo-md :deep(p) { margin: 0 0 10px }
+.cuerpo-md :deep(ul), .cuerpo-md :deep(ol) { margin: 0 0 10px; padding-left: 20px }
+.cuerpo-md :deep(li) { margin: 3px 0 }
+.cuerpo-md :deep(code) { font-size: 11.5px; padding: 1px 4px; border-radius: 4px; background: var(--panel2) }
+.cuerpo-md :deep(pre) { overflow-x: auto; padding: 10px 12px; border-radius: 8px; background: var(--panel2);
+                        border: 1px solid var(--line); margin: 0 0 12px }
+.cuerpo-md :deep(pre code) { padding: 0; background: none }
+/* la cita es el marcador de MEDICIÓN / RIESGO / PREGUNTA: se resalta porque es lo que envejece */
+.cuerpo-md :deep(blockquote) { margin: 0 0 12px; padding: 8px 12px; border-left: 3px solid var(--acc);
+                               background: var(--panel2); border-radius: 0 8px 8px 0 }
+.cuerpo-md :deep(blockquote p:last-child) { margin-bottom: 0 }
+/* las tablas son la mitad del valor de estos cuerpos: scrollean solas antes que romper el cajón */
+.cuerpo-md :deep(table) { border-collapse: collapse; margin: 0 0 12px; font-size: 11.5px; display: block;
+                          overflow-x: auto; max-width: 100% }
+.cuerpo-md :deep(th), .cuerpo-md :deep(td) { border: 1px solid var(--line); padding: 5px 9px; text-align: left; vertical-align: top }
+.cuerpo-md :deep(th) { background: var(--panel2); font-weight: 600; white-space: nowrap }
+.cuerpo-md :deep(hr) { border: 0; border-top: 1px solid var(--line); margin: 18px 0 }
 </style>

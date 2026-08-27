@@ -6,10 +6,37 @@ created: "2026-08-05T17:11:17-05:00"
 context_nodes: [onboarding, dynamic-forms, merchants, entities, smartpay, hardcodes-entidades]
 jira: [CORE-365]
 jira_title: "Internacionalización de CreditOp"
-ramas: pais-como-dato, pais-configuracion
+ramas: pais-como-dato, pais-configuracion, pais/el-pais-es-configuracion, pais/backfill-del-default-historico, pais/reparar-columnas-de-documentos, pais/documentos-que-acepta-el-backend, pais/borrar-documentos-de-sucursal, pais/monto-y-telefono-en-solicitar
 ---
 
 # Internacionalización de CreditOp
+
+> **ESTADO (2026-08-27) — segunda tanda: el país sale del código.** Lo de abajo, del 19/8, es la PRIMERA
+> tanda y sigue siendo cierto. Esto es lo que pasó después.
+>
+> **Tres PRs esperando revisión, uno bloqueado a propósito, y la base ya mergeada** a `qa`/`develop`/`staging`
+> con las migraciones corridas contra la BD compartida. ⚠ **Producción todavía no tiene NADA de esta
+> segunda tanda** — verificado en `main` de los tres repos.
+>
+> | PR | destino | qué |
+> |---|---|---|
+> | `legacy-backend` #1220 | `qa` | el documento lo dicta la ENTIDAD; selector y validador leen lo mismo |
+> | `legacy-application` #83 | `develop` | el gemelo |
+> | `frontend-monorepo` #889 | `qa` | resolvedor de país compartido, moneda del monto, largo del documento |
+> | `legacy-backend` #1225 | `qa` | ⛔ **BLOQUEADA**: borra la columna de la sucursal, y tres ramas desplegadas todavía la leen |
+>
+> **La prueba de que sirve:** el comercio dominicano **cierra una solicitud entera con `CED`** y el
+> colombiano con `CC`. Antes los dos terminaban marcados como colombianos.
+>
+> 📄 **El detalle vive en dos archivos hermanos, y no se copia acá para que no se desincronice:**
+> `tablero/data/pais-fuera-del-codigo.md` (la ejecución: el modelo de país, el orden por ambiente, el
+> registro día por día) y `tablero/data/lo-que-queda-de-pais-quemado.md` (el censo de lo que todavía
+> asume Colombia, con sus mediciones contra producción). Los dos tienen su §«Registro» al día.
+>
+> ⚠ **Y un bloqueante de Perú que no cabe en estos PRs:** el número de documento es único en TODA la
+> tabla, sin mirar tipo ni país. **84.656 DNI peruanos ya están ocupados** por documentos colombianos de
+> 8 dígitos. Está medido en el archivo del censo.
+
 > **estado (2026-08-19, tarde):** el trabajo está hecho en los tres repos; lo que está desordenado es
 > **dónde quedó cada pieza**. Abajo, en §«Las ramas de esta tarea», está la única tabla que hay que
 > mirar. Resumen: **las TRES piezas mergeadas y desplegadas** — backend y admin en `develop`, front en
