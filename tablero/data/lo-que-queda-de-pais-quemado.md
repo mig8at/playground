@@ -65,12 +65,34 @@ identificá cuál es.**
 
 | | quién lo usa hoy | de dónde sale el formulario | quién lo sirve |
 |---|---|---|---|
-| **El wizard clásico** `/solicitar` | todos los comercios colombianos, y **BCP Perú** | código del front | legacy-backend |
+| **El wizard clásico** `/solicitar` | los comercios colombianos, y **BCP Perú** | código del front | legacy-backend |
 | **El flujo dinámico** `/request-amount` → `/request-phone` → … | **los 12 comercios de SmartPay**, todos de RD | un **JSON en S3**, uno por comercio | `onboarding-forms-service` (Go) |
-| **El paso `additional-info` / `dynamic-form/:form_type_id`**, dentro del clásico | **Motai Renting (158)** y **Rent to Own (193)** en prod, `dynamic_form_type_id = 7` | **5 tablas** de legacy | `form-service` (Go) |
+| **El paso `additional-info` / `dynamic-form/:form_type_id`**, dentro del clásico | ver la tabla de `form_types` abajo | **tablas de legacy** | `form-service` (Go) |
 
 Los dos servicios Go son de José y **no son el mismo**: `VITE_ONBOARDING_FORM_SERVICE` contra
 `VITE_FORM_SERVICE_BASE_URL`. Sus repos están clonados en `~/Desktop/CREDITOP/github/`.
+
+**Los 9 `form_types` de prod, que es quién usa de verdad `form-service`** (campos = filas en `forms`):
+
+| id | nombre | campos |
+|---|---|---|
+| 1 · 3 | Formulario generico | 8 · 7 |
+| 2 | BBVA | 80 |
+| 4 | Formulario perfilamiento | 3 |
+| 5 | Formulario complementario | 0 |
+| 6 | credifamilia | 46 |
+| **7** | **motai-renting** | 15 |
+| **8 · 9** | **bcp-vehiculo-paso-1 · paso-2** | 8 · 4 |
+
+⚠ **BCP está en las DOS familias.** Su formulario de vehículo son los tipos 8 y 9, en **tablas** — no en
+el JSON de S3. Y `form-service` ya lee `country_zones` y `country_cities`, o sea que tiene noción de país.
+
+**Y el repo `github/dynamic-form` NO es ninguno de los tres.** Es un prototipo en React Router de Miguel
+(219 commits, último el 2026-03-04): **sin workflow de despliegue**, sin `service_name` en Loki, y **cero
+referencias** desde los cinco repos reales. Lo único que sobrevivió es su paquete `form-engine`, que
+graduó al monorepo como `@creditop/form-engine` — pero su ruta
+(`apps/loan-request-wizard/app/routes/dynamic/dynamic.tsx`) **no está registrada en `routes.ts`**: sólo la
+consume una historia de storybook. **Motai no pasa por ahí.**
 
 **Cómo se entra al flujo dinámico:** `phone-number.tsx:68`, `if (alliedCountry === 60) redirect(...)`.
 El 60 es República Dominicana, quemado. Es el hardcode de país más grande que queda en el front y no
