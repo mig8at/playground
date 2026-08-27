@@ -487,6 +487,53 @@ desde la entidad.
 borrado dejó el resolvedor dando **1.525 sucursales con 0 diferencias**; el rollback devolvió la columna y
 repobló las **6.232** filas.
 
+### 2026-08-27 · la corrida por comercio, y el agujero que destapó
+
+Miguel pidió correr el harness en los comercios afectados para ver el país en todos y confirmar que
+siguen llegando a estado 11. **Encontró un bug que leer no encontraba.**
+
+**El país, por API** (`GET /api/loans/allied/{hash}`), en los 7 comercios del dump local:
+
+| comercio | país | documentos | moneda | tel | largo |
+|---|---|---|---|---|---|
+| Prodens · Sonría · Kreditkasa · AHL · DENTIX · Motai | Colombia | `CC,CE` | COP | +57 | 10 |
+| **CeluRD Test** | **Dominican Republic** | **`CED,NUI`** | **DOP** | **+1** | 10 |
+
+**Cierre a estado 11** (los tres con entidad CreditopX):
+
+- **Motai (CO)** → cierra, `Motai RB`
+- **CeluRD Test (RD)** → cierra, **`smartpay`** — el flujo dominicano cierra entero en local
+- **DENTIX** → NO cierra, HTTP 500 generando documentos. **A/B contra `origin/qa`: falla idéntico.
+  Preexistente, no nuestro.**
+
+Los otros cuatro dan listado sin cambio: Kreditkasa 12 · AHL 8 · Sonría 9 · Prodens 1.
+⚠ `Pullman-pruebas` da **0 de 0 cableadas**: no tiene entidades en el dump local, no es un bug.
+
+⚠ **El harness NO prueba el validador.** Inyecta la identidad directo en la BD
+(`pkg/inject.ts:157`, `UPDATE users SET document_type=?`, por defecto `'CC'`) y nunca llama a
+`personal-info`. Por eso el dominicano cerró con `document_type = CC`, que su país no ofrece. Eso NO era
+el bug — pero al ir a buscarlo, apareció el bug de verdad.
+
+**EL BUG · el puente perdonaba a todo el mundo.** `RegisterCellPhoneService` crea el usuario temporal con
+`document_type = 'CC'` **quemado**, y el puente acepta «lo que la persona ya tiene guardado». Combinados:
+**`CC` pasaba en cualquier país** — el techo del país no rechazaba nunca el documento colombiano. Y la
+columna es `NOT NULL`, así que no hay usuario sin tipo previo: el puente aplicaba siempre.
+
+**El arreglo:** el puente **no perdona al usuario temporal**, que se reconoce por `first_name = 'TEMPORAL
+USER'` (lo único que el alta escribe para marcarlo). En los dos monolitos.
+
+**Probado por API contra el comercio dominicano** (catálogo `CED,NUI`):
+
+| | `CC` | `CED` · `NUI` | `CE` · `PEP` · `DNI` |
+|---|---|---|---|
+| usuario temporal, `CC` sembrado por el alta | **422** | pasa | 422 |
+| persona real que ya había elegido `CC` | **pasa** — el puente perdona, como debe | pasa | 422 |
+
+⚠ **Y un dato de la sucursal 1676 que confirma el diseño:** tiene **dos** entidades SmartPay —`153
+SmartPay` con `["CED","NUI"]` y `152 smartpay` con `["CC","CE"]`, documentos colombianos en una entidad
+dominicana—. El resolvedor devuelve `CED,NUI` porque el catálogo del país recorta la unión. **El país como
+TECHO arregla el dato mal cargado sin tocarlo.**
+
 <!-- ─────────────────────────────────────────────────────────────────────────────────────────────
      DE ACÁ PARA ABAJO ES LO ÚNICO QUE SALE A JIRA.
      ───────────────────────────────────────────────────────────────────────────────────────────── -->
