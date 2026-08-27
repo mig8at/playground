@@ -136,6 +136,16 @@ no cubre) y **harness** (la prueba) — y el circuito es fijo:
 
 1. **La TAREA vive en `tablero/data/<tarea>.md`** (una tarea = un archivo): en qué se trabaja, por
    qué y para qué — estado, decisiones, riesgos, preguntas abiertas.
+
+   ⚠ **Buscá el archivo que YA cubre esto antes de crear uno: `make tareas TODAS=1`.** El `id` del
+   frontmatter es lo que hace visible una tarea en el tablero: **`id: 0` no tiene tarjeta**, ni botón de
+   bitácora, ni cajón de ramas. Escribir el avance ahí es escribirlo donde nadie lo mira — pasó el
+   2026-08-27 y el tablero mintió ocho días mientras se mergeaban PRs.
+
+   ⚠ **Y al cerrar la sesión son CUATRO cosas, no una:** reescribir el estado de arriba · apilar la
+   entrada del Registro · declarar `ramas:` y volver a medir con `make tareas-ramas` · escribir la
+   bitácora en `tablero/data/entries/` **con minutos medidos** (`make pulso`, o el lapso de commits), no
+   estimados. El detalle y lo medido que lo justifica: `tablero/CLAUDE.md`.
 2. **El CONTEXTO se lee ANTES de investigar.** `context/docs/ROUTE-MAP.md` es el índice (generado,
    validado contra `main`); abrí los que matcheen: `context/server/data/flows/<id>/doc.md` (el
    análisis) + `map.json` (las rutas fuente exactas). El código real vive **fuera**, en

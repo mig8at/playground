@@ -6,6 +6,21 @@ Qué es y cómo se corre: `README.md`. Acá solo las reglas al trabajar con las 
   trabajando?* — no crees carpetas por tarea ni por categoría (los 11 esfuerzos reales no
   clasificaban por ningún eje; la clasificación es `context_nodes`, que es una lista). El nombre
   del archivo es el slug y se puede renombrar a mano: el `id` vive en el frontmatter.
+- ⚠ **ANTES de crear un archivo de tarea, buscá el que ya la cubre: `make tareas TODAS=1`.** Y si el
+  trabajo es la continuación de algo, escribí EN ESE archivo — no en uno nuevo «de esta tanda».
+
+  **Medido el 2026-08-27, y costó ocho días de invisibilidad.** La campaña de país terminó repartida en
+  **tres** archivos: `internacionalizacion-onboarding.md` (id 43, ligado a CORE-365 — **el único que el
+  tablero muestra**) y dos nuevos con `id: 0`. Todo el avance se escribió en los de id 0, así que la
+  tarjeta del tablero siguió mostrando el estado del **19/8** mientras se mergeaban PRs y se corrían
+  migraciones. Nadie lo notó hasta que Miguel preguntó por qué no veía el avance.
+
+  **La regla, en una línea: el `id` es lo que hace visible una tarea.** `id: 0` = local, sin tarjeta, sin
+  botón de bitácora, sin cajón de ramas — sólo se ve con `make tareas`. Un archivo de id 0 sirve para un
+  documento auxiliar (un censo, una investigación), **nunca para el registro de avance de una tarea que
+  ya tiene tarjeta**. Si de verdad hace falta uno aparte, el archivo con `id` **apunta a él** desde su
+  estado de arriba, y el avance se resume ahí.
+
 - **Frontmatter**: `id` · `title` · `stage` (`evaluation`|`work`|`tasks`) · `created` ·
   `archived?` · `context_nodes[]` · `jira[]` · `jira_title` · `ramas?` (uno o varios patrones, por
   coma). Archivar = poner `archived`, no
@@ -106,6 +121,26 @@ Qué es y cómo se corre: `README.md`. Acá solo las reglas al trabajar con las 
      próximo `##` la corta en la primera línea y da cero. Es exactamente el error que se cometió el
      2026-08-19 midiéndola: dio «7 de 12 sin publicable» cuando eran 3. El server lo hace bien
      (`cuerpo[loc[1]:]`); si escribís una medición aparte, copiá ese criterio.
+- ⚠ **AL CERRAR UNA SESIÓN DE TRABAJO, cuatro cosas — y las cuatro se olvidaron el 26/8.** No es una
+  lista de buenas intenciones: es lo que quedó sin hacer mientras se mergeaban PRs y se corrían
+  migraciones, y lo que hizo que el tablero mintiera durante ocho días.
+
+  1. **Reescribí el estado de arriba** del archivo **con `id`** (el que el tablero muestra). Si cambió
+     *qué pasó*, va al Registro; si cambió *cuál es el estado*, va arriba. La sección «Si retomás esto
+     sin contexto» tiene que decir lo de HOY, no lo de la semana pasada.
+  2. **Apilá la entrada del Registro** con fecha: qué se hizo, **contra qué se midió** y a qué conclusión
+     se llegó. Lo que se descartó va también, y va aunque no se haya elegido.
+  3. **Declará `ramas:`** apenas exista la primera rama, y volvé a medir con `make tareas-ramas`. El
+     patrón es lo ÚNICO que se escribe a mano; dónde vive cada rama y su PR lo mide git. Sin esa línea el
+     cajón de ramas de la tarjeta no existe — no está vacío: no aparece.
+  4. **Escribí la bitácora** (`data/entries/<YYYY-MM>.jsonl`, una entrada JSON por línea; el `effort` es
+     el nombre del archivo de la tarea). ⚠ **Los minutos se MIDEN, no se estiman**: `make pulso` da la
+     jornada real en tramos de 5′, y para una sesión que el pulso no cubrió, el lapso entre el primer y
+     el último commit. Inventar un número ahí es peor que dejarlo vacío, porque después se sube a Jira.
+
+  ⚠ **Y decilo cuando no puedas medirlo.** Si el pulso no tiene datos de ese día, la entrada sale del
+  lapso de commits y eso se avisa: quien lee la bitácora tiene que poder saber de dónde salió el número.
+
 - **El test de enrutamiento**: *si esto se mergea mañana, ¿sigue siendo cierto?* Sí → es contexto,
   va a `context/`. Habla de decisiones, riesgos o preguntas de ESTA tarea → va acá. Al mergear,
   lo aprendido **gradúa** al nodo y la tarea se archiva.
