@@ -534,6 +534,39 @@ SmartPay` con `["CED","NUI"]` y `152 smartpay` con `["CC","CE"]`, documentos col
 dominicana—. El resolvedor devuelve `CED,NUI` porque el catálogo del país recorta la unión. **El país como
 TECHO arregla el dato mal cargado sin tocarlo.**
 
+### 2026-08-27 · la ficha en blanco ya no dice «colombiano» (idea de Miguel)
+
+Al registrarse —antes de que la persona diga su nombre— se le crea una ficha `TEMPORAL USER`. La casilla
+de tipo de documento es `NOT NULL` y el código escribía **`'CC'`**. Miguel propuso poner **`'-'`** en vez
+de eso, y es lo correcto: `CC` no es un valor por defecto, es afirmar «colombiano» sobre alguien de quien
+no se sabe nada.
+
+**Medido en prod, 90 días:** **8.935 personas** abandonan antes de llenar sus datos y quedan con esa
+afirmación. Las 55.595 que sí completan quedan bien (`CC` 55.195 · `CE` 274 · `CED` 125 · `PAS` 1), porque
+al llenar los datos el relleno se pisa. Así que el daño es de datos, no de cliente — pero ensucia todo
+conteo por documento y por país.
+
+**Se verificó antes de tocarlo, porque `-` podía romper algo:**
+
+- lo que compara `users.document_type` contra un valor —TusDatos, las reglas de Datacrédito, la categoría
+  del lender, los PDF de consentimiento, el PEP del backoffice— corre **después** de los datos personales,
+  o sea que ve el tipo real, nunca el relleno;
+- `legacy-application` **no crea la ficha**: delega el registro a la API de legacy-backend
+  (`RegisterCellPhoneController:218`) y sólo hidrata el modelo. **Un solo lugar que arreglar.**
+
+⚠ **Lo que sí se habría roto, y se arregló junto:** los dos chequeos de duplicados buscaban al dueño de un
+documento con `findByDocumentAndType($doc, 'CC')`. Con el relleno en `-` habrían dejado de encontrar al
+dueño y el mensaje habría degradado al genérico. **Pero el filtro por tipo ya estaba mal de antes:**
+`users.document_number` tiene índice UNIQUE, así que el número ya identifica a la persona, y filtrar
+además por tipo sólo podía dejar de encontrar a quien eligió `CE` —o `CED` si es dominicano—. Ahora es
+`findByDocument($doc)`, un método nuevo del repositorio del módulo.
+
+**Probado corriéndolo:** un registro real contra la sucursal dominicana deja `document_type = '-'`; los 13
+tests del *freeze* de `RegisterCellPhoneService` pasan (actualizados los 7 mocks); y la regresión de cierre
+no se movió — Motai (CO) y CeluRD/SmartPay (RD) cierran en estado 11.
+
+**No se tocan las 8.935 fichas viejas.** Son historia y reescribirlas no cambia nada operativo.
+
 <!-- ─────────────────────────────────────────────────────────────────────────────────────────────
      DE ACÁ PARA ABAJO ES LO ÚNICO QUE SALE A JIRA.
      ───────────────────────────────────────────────────────────────────────────────────────────── -->
