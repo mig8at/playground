@@ -126,6 +126,55 @@ difieren en el sobre de la respuesta (`…FullResponseWriter` / `…SimpleRespon
 `kyc-gateway-service`, `onboarding-forms-service`, `otp-service`, y al menos uno más que la sonda cortó
 en pantalla.
 
+### ¿Vale la pena el microservicio? (medido 2026-08-27)
+
+**Está subutilizado, y la idea buena que tiene adentro no es la que está ejecutando.**
+
+**De qué es dueño:** dos consultas de LECTURA (`FindUserByEmail`, `FindUserByDocumentNumber`) y S3. **Cero
+escrituras a MySQL.** Todo lo que cambia estado lo delega.
+
+**Qué negocio sostiene**, en prod a 90 días:
+
+| | comercios | solicitudes/día |
+|---|---|---|
+| País 60 (RD) — **todo lo que pasa por él** | 12 | **2,8** |
+| Colombia — por el monolito | 293 | 812,3 |
+
+O sea **0,34% del tráfico**. Está vivo en producción (1.107 líneas de log en 24h; `otp-service` 3.818,
+`form-service` 422).
+
+**Qué cuesta:**
+
+- el monolito creció **12 archivos «backdoor»** para sostenerlo (`Jose Escobar`, desde 2025-11-19). El
+  acoplamiento **subió**, no bajó.
+- **se llaman entre sí**: legacy le pide el esquema, él le pide a legacy que cree el usuario.
+- `validate-otp` = **cuatro llamadas encadenadas** sin transacción. Si falla la tercera, queda el OTP
+  validado y los términos sin aceptar. Es un modo de falla que antes no existía.
+- **5 de 7 handlers están duplicados** en `full`/`simple`, que sólo cambian el sobre de la respuesta:
+  1.797 de las 2.199 líneas de handlers son las dos versiones de lo mismo.
+
+**La pregunta puntual de Miguel — ¿podría legacy traer el JSON y funcionar igual?** Para el JSON, **sí, y
+el rodeo ya existe**: legacy-backend hoy le pide el esquema al microservicio, que lo lee de S3, y
+legacy-backend **ya tiene S3 configurado** (disco `s3`, usado en 6+ servicios). Hoy es
+`legacy → microservicio → S3` pudiendo ser `legacy → S3`.
+
+**Pero antes de borrar nada hay que decidir para qué es.** Tres caminos:
+
+1. **Es el motor de formularios** → encogerlo a eso: esquema, subidas y validación de forma. Que el front
+   hable directo con legacy para OTP, submit y disponibilidad. Se va la cadena de cuatro y se va el ciclo.
+   **Es lo que yo haría.**
+2. **Es la cabeza de playa para sacar el onboarding del monolito** → entonces tiene que empezar a ser
+   dueño de estado. Hoy escribe por «backdoors»: eso no es un strangler, es una fachada — y el strangler
+   que no avanza se queda para siempre.
+3. **Ninguna** → legacy leyendo S3 directo funciona igual: ~5.800 líneas y un despliegue menos.
+
+⚠ **No es una decisión nuestra: es el servicio de José.** Lo que sí está medido es que **no hay decisión
+escrita**: Credibrain —donde vive el conocimiento de producto— **no lo nombra ni una vez** (sí nombra el
+microservicio de OTP, con sus endpoints y que usa Twilio por dentro).
+
+**La pregunta para José**, que decide entre el camino 1 y el 2: *¿este servicio va a ser dueño de datos
+alguna vez, o va a seguir escribiendo por los backdoors del monolito?*
+
 ## Lo que se evaluó y NO se eligió
 
 **Meter el país en el esquema del formulario dinámico** (lo sirve `onboarding-forms-service` desde JSON en
