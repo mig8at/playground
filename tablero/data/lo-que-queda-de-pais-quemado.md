@@ -83,6 +83,49 @@ es una conversación con José, no un PR: hoy no le hace falta a nadie, porque e
 ⚠ **No confundir `show_alternate_flow` con esto.** Esa bandera manda el final del wizard **clásico** al
 simulador de Cuotéalo, no al formulario dinámico.
 
+### Qué hace de verdad `onboarding-forms-service` (medido 2026-08-27)
+
+**No es «traer un JSON»: es un orquestador delgado** —68 archivos Go, 5.792 líneas— que hace tres cosas
+propias y **delega todo lo que cambia estado**.
+
+**Lo suyo:**
+
+| endpoint | qué hace | contra qué |
+|---|---|---|
+| `GET /v1/dynamic/:form_id/schema` | trae la definición del formulario | **S3**, `{prefix}/{form_id}.json` |
+| `POST find-user-by-email` · `find-user-by-document-number` | ¿está libre? | **MySQL directo**, su propio `user_repository` |
+| `POST /:form_id/upload` | guarda el soporte | **S3** |
+| — | normalizar el teléfono a E164, validar el correo | código propio (`phone_utils`, `email_utils`) |
+
+**Lo que delega** (`internal/infra/client/http/services/`):
+
+| endpoint del servicio | en qué se convierte, en orden |
+|---|---|
+| `send-otp` | `otp-service` `api/otp/generate` → `legacy` `backdoor/create-temporary-user` |
+| `validate-otp` | `otp-service` `api/otp/validate` → `legacy` `backdoor/check-user-exists` → `backdoor/accept-terms` → `backdoor/resolve-lenders-redirect` |
+| `submit` | `legacy` `api/onboarding/dynamic-forms/create-user` |
+
+⚠ **El OTP NO lo manda este servicio.** Lo manda **`otp-service`** (`config.yaml` → `otp_service.base_url`,
+`:8083`), un microservicio aparte. Confirmado en los logs de dev: `channels=["sms","whatsapp"]`,
+«Message sent successfully via messaging service».
+
+⚠ **Una llamada del front a `validate-otp` son CUATRO llamadas encadenadas hacia afuera.** Si una falla a
+mitad, queda el OTP validado y los términos sin aceptar. Eso es lo que hay que mirar antes de tocar nada
+de ese flujo, no el JSON.
+
+⚠ **Y se llaman entre sí:** legacy-backend le pide el esquema a `onboarding-forms-service`
+(`DynamicFormsRepository` → `/v1/dynamic/full/{formId}/schema`) y `onboarding-forms-service` le pide a
+legacy-backend que cree el usuario. El ciclo está ahí y nadie lo dibujó.
+
+**`full` vs `simple` no cambian comportamiento**: comparten `handler_base` y el mismo caso de uso, y
+difieren en el sobre de la respuesta (`…FullResponseWriter` / `…SimpleResponseWriter`). El front usa
+`simple`; legacy-backend usa `full`.
+
+**El ecosistema es más grande de lo que dice `CLAUDE.md`.** Emitiendo logs en dev hoy: `legacy-backend`,
+`CreditopDev`, `customer-profiling-service`, `financial-health-service`, `form-service`,
+`kyc-gateway-service`, `onboarding-forms-service`, `otp-service`, y al menos uno más que la sonda cortó
+en pantalla.
+
 ## Lo que se evaluó y NO se eligió
 
 **Meter el país en el esquema del formulario dinámico** (lo sirve `onboarding-forms-service` desde JSON en
