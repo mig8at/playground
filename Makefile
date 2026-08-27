@@ -216,7 +216,7 @@ env-auditoria: ## @wrk ¿a qué apunta cada .env del playground? clave + 3 carac
 	@python3 workers/env_auditoria.py $(if $(RAIZ),$(RAIZ))
 
 # ── PRUEBAS (harness) ────────────────────────────────────────────────────────────────────────────
-.PHONY: harness-contract harness-sandbox harness-walk harness-qr harness-mocks harness-centrales harness-rto tests-codeudor harness-listado harness-caso harness-check soporte-qa
+.PHONY: harness-contract harness-sandbox harness-walk harness-qr harness-mocks harness-centrales harness-rto harness-peru tests-codeudor harness-listado harness-caso harness-check soporte-qa
 harness-contract: ## @har ¿el mock de Bancolombia cumple los esquemas zod del front? (sin browser ni BD)
 	@cd harness && npm run --silent contrato:bancolombia
 
@@ -256,6 +256,9 @@ tests-codeudor: ## @har corre la suite del CODEUDOR (desactivada en el repo por 
 
 harness-rto: ## @har deja el lender Rent to Own usable en LOCAL (categorías, reglas, identidad) — config de PRUEBA, no de negocio
 	@cd harness && node dev/montar-rto.ts
+
+harness-peru: ## @har deja un COMERCIO PERUANO usable en LOCAL para mirar el wizard con su país (S/, +51, 9 dígitos). Sólo local, idempotente
+	@cd harness && node dev/montar-peru.ts
 
 harness-pantallas: ## @har ¿por qué PANTALLAS habría pasado el cliente? el recorrido del wizard derivado del router en main. AL REVÉS con ENDPOINT=confirm-payment-schedule. [FILTRO=texto] [JSON=1]
 	@cd harness && node dev/pantallas.ts $(if $(FILTRO),--filtro '$(FILTRO)') $(if $(ENDPOINT),--endpoint '$(ENDPOINT)') $(if $(JSON),--json) $(if $(SIN_ENDPOINTS),--sin-endpoints)
