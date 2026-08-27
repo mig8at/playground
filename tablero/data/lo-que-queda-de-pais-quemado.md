@@ -21,9 +21,9 @@ están abajo con su consulta.
 ⚠ **Y hay una cosa que NO es un PR**: 62 créditos dominicanos autorizados sin que ninguna central
 verificara la identidad. Eso es una decisión de negocio con dueño, y tiene plazo real.
 
-**El próximo paso es:** el catálogo de tipos de documento del formulario dinámico
-(§«Lo que bloquea a Perú», punto 1). Bloquea a BCP en la primera pantalla y es una lista de cuatro
-valores en un archivo.
+**El próximo paso es:** desplegar a producción lo que ya está mergeado (punto 2 de §«Cómo se ataca»).
+El catálogo del formulario dinámico —que era el punto 1— **ya está hecho**: entró en el PR del front el
+2026-08-27, ver el registro.
 
 ## Objetivo
 
@@ -35,7 +35,7 @@ lo lee.
 
 | | |
 |---|---|
-| `frontend-monorepo` | `modules/loan-request-wizard/dynamic-form/src/lib/utils/dynamic-step-one.ts` — el catálogo de documentos del flujo dinámico |
+| `frontend-monorepo` | ~~`modules/loan-request-wizard/dynamic-form/src/lib/utils/dynamic-step-one.ts`~~ — hecho |
 | `legacy-backend` | `Modules/Onboarding/App/Services/RegisterCellPhoneService.php:18` — el `'CC'` del alta |
 | `legacy-backend` · `legacy-application` | `app/Http/Controllers/Customer/TwilioController.php` — **duplicado**, recorta a 10 dígitos y pega `whatsapp:+57` |
 | `legacy-backend` | `PayloadFormatters::currency()` — castea a `(int)` y quema separadores colombianos |
@@ -44,8 +44,8 @@ lo lee.
 
 ## Cómo se ataca
 
-**1 · El catálogo del formulario dinámico.** Que las opciones y su validación salgan de
-`allowed_document_types`, igual que ya se hizo en el clásico. Es el mismo arreglo, en el otro flujo.
+**1 · El catálogo del formulario dinámico.** ✅ **HECHO** el 2026-08-27, dentro del PR del front. Las
+opciones ya salían del backend; lo que bloqueaba era la **validación**. Detalle en el registro.
 
 **2 · Desplegar a producción lo que ya está mergeado.** Nada de esto sirve mientras prod no tenga las
 columnas. Ver la medición de abajo: allá sólo existe `lenders_by_allied_branches.document_types`.
@@ -185,6 +185,41 @@ re-medidos a mano contra producción.
 detector de «internacional» (`str_contains($cell_phone, '+')`) hacía que **81 colombianos** recibieran
 plantillas dominicanas. Medido: son **180 dominicanos y 1 colombiano**. El mecanismo sigue siendo frágil,
 pero el daño de hoy es una persona.
+
+### 2026-08-27 · el catálogo del formulario dinámico, hecho
+
+Lo que bloqueaba a Perú **no eran las opciones del selector**: ésas ya salían del backend
+(`data.fields.documentType.options`, que sirve `onboarding-forms-service` por `partner_hash`). Era la
+**validación** — `dynamic-step-one.ts` conocía cuatro tipos (`CED`, `CI_VE`, `PAS`, `PAS_VE`, los de
+República Dominicana y Venezuela, porque el flujo se construyó para RD) y devolvía `false` para
+cualquier otro. Un peruano que eligiera `DNI` no pasaba de la primera pantalla. **Tampoco `CC`.**
+
+Es el espejo exacto del techo colombiano del flujo clásico, y por eso importa: **cada pantalla dio por
+universal el país de su primer cliente.** Vale la pena buscar el patrón antes que el archivo.
+
+**Cómo quedó:** un catálogo `FORMATOS` que dice lo que sabemos de la FORMA de cada documento, no cuáles
+existen. Un tipo sin entrada se acepta con una guarda de sanidad (alfanumérico, 3–20). El mismo catálogo
+alimenta las tres cosas que antes estaban repetidas: la validación, el `maxLength`/`inputMode` del campo
+y el saneado al escribir — que tenía los largos sueltos (`slice(0, 11)`) y podía desincronizarse.
+
+**Medido**, con los tres tipos del catálogo de países (`CC/CE/PEP` · `CED/NUI` · `DNI/CE`):
+
+| | antes | ahora |
+|---|---|---|
+| `CED` 11 dígitos · `CI_VE` · `PAS` | pasan | pasan igual |
+| `CED` de 10 · `PAS` de 4 | rechazan | rechazan igual |
+| `DNI` · `CC` · `CE` · `NUI` · `PEP` | **imposible** | pasan |
+| `DNI` de 2 caracteres · con símbolos | rechazan | rechazan |
+
+Regresión del flujo clásico sin cambio: Motai 6 · Kreditkasa 12 · Sonr 9 · AHL 8. Typecheck en 218, el
+mismo de `qa`.
+
+⚠ **Y un hallazgo que no buscaba: los tests del monorepo NO corren.** Los 34 archivos `*.test.ts` fallan
+igual con `ReferenceError: __vite_ssr_exportName__` — los workspaces declaran `vite ^6.3.3` pero el
+hoisting resuelve **7.3.3**, y `vitest 1.6.1` no sabe leer su transform de SSR. **Y ningún workflow de
+`.github/workflows/` corre tests**, así que nadie se enteró. Medido en tres workspaces (14 archivos):
+cero tests ejecutados. El test nuevo queda escrito igual —protege en cuanto se destrabe—, pero **hoy la
+prueba de que esto funciona es el runner de consola**, no vitest. Destrabarlo es subir vitest a ^3.
 
 <!-- ─────────────────────────────────────────────────────────────────────────────────────────────
      DE ACÁ PARA ABAJO ES LO ÚNICO QUE SALE A JIRA.
