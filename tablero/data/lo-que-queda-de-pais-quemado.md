@@ -23,6 +23,9 @@ están abajo con su consulta.
 verificara la identidad. Eso es una decisión de negocio con dueño, y tiene plazo real.
 
 **El próximo paso es:** desplegar a producción lo que ya está mergeado (punto 2 de §«Cómo se ataca»).
+Los tres PRs de la segunda tanda **se mergearon el 2026-08-27**: `legacy-backend#1220` y
+`frontend-monorepo#889` a `qa`, `legacy-application#83` a `develop`. Quedan abiertos
+`frontend-monorepo#894` (el ejemplo del celular por país) y `legacy-backend#1225` (⛔ bloqueada).
 
 ⛔ **REGLA VIGENTE, de Miguel, 2026-08-27: la internacionalización NO toca los mecanismos de formularios
 dinámicos** —ni el JSON de S3 ni las tablas de José— **mientras no se defina cómo se estandarizan.** Todo
@@ -689,6 +692,40 @@ pantalla con el país puesto.
 
 ⚠ **Perú tiene 0 ciudades cargadas**, así que ese comercio llega hasta el celular y datos personales se
 corta. Es lo esperado —está en el censo como pendiente—, no un bug del wizard.
+
+### 2026-08-27 · el ejemplo del celular, y por qué va en la misma tabla
+
+Los tres PRs de la tanda quedaron **mergeados**. Encima de eso salió uno más, chico y con una decisión de
+diseño que vale registrar.
+
+**El problema:** el campo del celular elegía su número de ejemplo con
+`placeholder={largo === 10 ? "3001234567" : undefined}`, o sea **«si mide 10 dígitos, es Colombia»**.
+República Dominicana también mide 10, así que al cliente dominicano se le mostraba un número colombiano;
+al peruano —9 dígitos— ninguno. Un ejemplo equivocado le dice al cliente que su número está mal cuando
+está bien.
+
+**Los formatos, verificados contra el plan de numeración de cada país y no de memoria:**
+
+| | ejemplo | regla real |
+|---|---|---|
+| Colombia | `3001234567` | 10 dígitos, móviles empiezan en 3 |
+| Perú | `987654321` | todo móvil es nacional, 9 dígitos, **siempre** empieza en 9 |
+| Rep. Dominicana | `8091234567` | 10 dígitos: área 809/829/849 + 7 locales |
+
+⚠ **Y la decisión que importa: el ejemplo vive en la MISMA tabla que la regla de validación**
+(`REGLAS_DE_PREFIJO`, por ISO), no en una nueva. Tenerlo aparte sería una segunda lista de *«qué sabemos
+del móvil de este país»*, y este wizard ya pagó ese precio **dos veces en dos semanas**: el selector de
+documentos contra su validador, y el esquema del celular contra su campo. Las dos veces el síntoma fue el
+mismo —una mitad arreglada parecía arreglar las dos— y las dos veces sólo se vio corriendo o mirando.
+
+La tabla queda **asimétrica** a propósito: Colombia con patrón y ejemplo, Perú y RD sólo con ejemplo. El
+ejemplo apenas tiene que parecerse a un número de allá; un patrón decide **a quién se rechaza**, y para
+eso sigue valiendo el criterio de Laura de no inventar prefijos sin verificar.
+
+**Un país sin entrada no recibe ejemplo.** Inventar uno sería peor que dejar el campo vacío.
+
+**Verificado en pantalla con un comercio de cada país:** `+57`/10/`3001234567` · `+51`/9/`987654321` ·
+`+1`/10/`8091234567`. Los ISO que entrega el backend (`COL`, `PER`, `DOM`) coinciden con los de la tabla.
 
 <!-- ─────────────────────────────────────────────────────────────────────────────────────────────
      DE ACÁ PARA ABAJO ES LO ÚNICO QUE SALE A JIRA.
