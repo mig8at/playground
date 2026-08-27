@@ -686,6 +686,33 @@ async function dictar(doc: string, central: string, valor: unknown): Promise<boo
     return !!r?.ok;
 }
 
+/**
+ * Qué tipo de documento aceptar en `personal-info`, preguntándoselo al comercio.
+ *
+ * El backend ya publica `allowed_document_types` en el payload del comercio, resuelto por sus entidades
+ * y recortado por el país. Pedirlo acá es lo que hace que este runner sirva para un comercio que no sea
+ * colombiano: con `'CC'` quemado, contra el dominicano el backend contesta —bien— «El tipo de documento
+ * no está habilitado en este punto de venta», y el caso moría por culpa del runner, no del código.
+ *
+ * Se cachea por hash porque un barrido corre el mismo comercio muchas veces.
+ */
+const tiposPorComercio = new Map<string, string>();
+async function tipoDeDocumentoDelComercio(hash: string): Promise<string> {
+    const cacheado = tiposPorComercio.get(hash);
+    if (cacheado) return cacheado;
+
+    let tipo = 'CC';   // lo que había: si el backend no publica la lista, no se cambia el comportamiento
+    try {
+        const r = await fetch(`${API}/api/loans/allied/${hash}`, { signal: AbortSignal.timeout(20_000) });
+        const j = await r.json() as { data?: { allowed_document_types?: string[] } };
+        const lista = j?.data?.allowed_document_types;
+        if (Array.isArray(lista) && lista.length > 0 && typeof lista[0] === 'string') tipo = lista[0];
+    } catch { /* sin payload, queda 'CC' */ }
+
+    tiposPorComercio.set(hash, tipo);
+    return tipo;
+}
+
 /** El camino REAL: register → otp-validate → personal-info. No usa `synthFill` — justamente porque
  *  synthFill escribe la fila de `risk_central_user_data` y entonces el backend la reusa (caché de un
  *  mes) y NO llama a la central. Es la trampa 1 del documento de la tarea. */
@@ -917,8 +944,16 @@ async function correrLambdaMotor(c: Caso, i: number): Promise<Res> {
     // selección, cierre— es EL MISMO. Si un cliente recurrente viera un listado distinto, eso es
     // justamente lo que se quiere medir, y sólo se puede medir si lo demás no cambia.
     if (!c.recurrente) {
+        // EL TIPO DE DOCUMENTO SALE DEL COMERCIO, no de acá.
+        //
+        // ⚠ Estaba quemado en `'CC'`, y por eso este runner no podía probar un comercio que no fuera
+        // colombiano: contra el dominicano el backend contesta —bien— «El tipo de documento no está
+        // habilitado en este punto de venta». El backend ya publica la lista en el payload del comercio,
+        // así que se pide y se usa la primera. Si no la publica (backend viejo), se cae a `CC`, que es lo
+        // que había.
+        const tipoDoc = await tipoDeDocumentoDelComercio(br.hash);
         const pi = await post(`/api/onboarding/loan-application/personal-info/${br.hash}/${ur}`, {
-            document_type: 'CC', document_number: doc, name: 'CARLOS', surname: 'RUIZ',
+            document_type: tipoDoc, document_number: doc, name: 'CARLOS', surname: 'RUIZ',
             email: `qa${doc}@gmail.com`,
             expedition_day: 10, expedition_month: 5, expedition_year: 2019,
             birth_day: 10, birth_month: 5, birth_year: 2001,
