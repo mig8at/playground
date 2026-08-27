@@ -1,12 +1,12 @@
 ---
-id: 0
+id: 71
 title: "Sacar el país del código y corregir el default Afganistán"
-ramas: pais/el-pais-es-configuracion, pais/backfill-del-default-historico, pais/reparar-columnas-de-documentos, pais/documentos-que-acepta-el-backend, pais/borrar-documentos-de-sucursal, pais/monto-y-telefono-en-solicitar
 stage: work
 created: "2026-08-24T10:00:00-05:00"
 context_nodes: [entities, merchants, onboarding, hardcodes-entidades, smartpay]
 jira: []
 jira_title: ""
+ramas: "pais/el-pais-es-configuracion, pais/backfill-del-default-historico, pais/reparar-columnas-de-documentos, pais/documentos-que-acepta-el-backend, pais/borrar-documentos-de-sucursal, pais/monto-y-telefono-en-solicitar"
 ---
 
 # Sacar el país del código y corregir el default Afganistán
@@ -1582,6 +1582,7 @@ sólo con lo que faltaba.
   explosión con el dry-run contra dev, y el `RangeError` de `Intl` corrido en node.
 
 - **Pendiente de decidir:** si esta tarea lleva P1+P2+P3 o se parte. Se resuelve después de adelantar P1.
+
 
 ## Tarea (publicable)
 

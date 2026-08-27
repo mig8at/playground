@@ -30,7 +30,7 @@ jira_title: ""
   El frontmatter va SIN comentarios en la línea: el parser toma todo lo que sigue a los dos puntos y
   no los quita, así que un `# nota` al lado quedaría DENTRO del valor. La guía de cada campo:
 
-    id            lo reasigna el tablero al cargar — poné 0 y no lo peleés
+    id            lo reasigna el tablero al cargar (de verdad, desde 2026-08-27) — poné 0
     title         el NOMBRE COMPARTIDO con Jira. Corto y concreto: apuntá a ≤56 caracteres
     ramas         patrón de rama, o varios por coma. Se omite hasta que la rama exista
     stage         evaluation → work → tasks

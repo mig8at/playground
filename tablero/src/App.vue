@@ -199,6 +199,32 @@ const busca = ref('');
 const sinTildes = (s) => (s || '').normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase();
 const buscaNorm = computed(() => sinTildes(busca.value).trim());
 
+// ── las tareas LOCALES, las que todavía no tienen Jira ────────────────────────────────────────────
+//
+// El tablero mostraba sólo issues de Jira, así que una tarea que vive únicamente en `data/<slug>.md`
+// era INVISIBLE: sin tarjeta, sin bitácora, sin cajón de ramas. Se veía nada más con `make tareas`, y
+// por eso el avance escrito ahí no lo miraba nadie (medido el 2026-08-27: ocho días).
+//
+// ⚠ Que aparezcan NO las publica. Publicar a Jira sigue siendo una decisión que se PIDE —hoy
+// `make jira-create JSON=…`— y a propósito no hay botón acá: una tarea local es material de trabajo, y
+// el día que valga la pena compartirla se decide, no se filtra por estar en pantalla.
+const localesSueltas = computed(() => {
+  const ligados = new Set(Object.values(taskLocals.value).map(v => v?.effortId).filter(Boolean));
+  return efforts.value
+    .filter(e => e.id && !ligados.has(e.id) && !e.archived)
+    .map(e => ({
+      // La clave imita la forma de Jira para que todo lo que indexa por `Key` —selección, cajones,
+      // contador de bitácora— siga funcionando sin ramas especiales.
+      Key: `LOCAL-${e.id}`,
+      Summary: e.title,
+      Status: 'local',
+      StatusCategory: 'new',
+      Points: 0,
+      _local: true,
+      _esfuerzoId: e.id,
+    }));
+});
+
 const groupedIssues = computed(() => {
   // UNA sola grilla, sin agrupaciones. Antes se agrupaba por esfuerzo con un encabezado por grupo, y eso
   // cortaba la grilla en bloques: con `auto-fill` cada bloque arranca en línea nueva, así que una fila de
@@ -219,7 +245,7 @@ const groupedIssues = computed(() => {
         porKey.set(i.Key, { ...i, _sprint: nombreCorto(g.sprint.name), _arrastres: 1 });
       }
     }
-    return [{ id: 0, title: '', tasks: conFiltro([...porKey.values()]) }];
+    return [{ id: 0, title: '', tasks: conFiltro([...porKey.values(), ...localesSueltas.value]) }];
   }
   // `issues` ya viene ordenado nuevo → viejo desde el server y ese orden se preserva tal cual.
   const conEsfuerzo = issues.value.map((i) => {
@@ -227,7 +253,7 @@ const groupedIssues = computed(() => {
     const t = eid ? efforts.value.find(e => e.id === eid)?.title : '';
     return t ? { ...i, _esfuerzo: t, _esfuerzoId: eid } : i;
   });
-  return [{ id: 0, title: '', tasks: conFiltro(conEsfuerzo) }];
+  return [{ id: 0, title: '', tasks: conFiltro([...conEsfuerzo, ...localesSueltas.value]) }];
 });
 // El filtro se aplica al FINAL de las dos ramas: es una vista sobre la lista, no otra lista.
 // Las casillas y el buscador se combinan con Y, que es lo que uno espera: buscar dentro de lo que
@@ -272,7 +298,7 @@ const artifactsOf = (id) => efforts.value.find(e => e.id === id)?.artifacts || [
 const openArtifact = (file) => window.open(`${SERVER}/artifacts/${file}`, '_blank', 'noopener');
 // los prototipos cuelgan del ESFUERZO, pero se piden desde la tarjeta de una TAREA: se resuelve el
 // esfuerzo por su clave, igual que la bitácora
-const protosDe = (key) => artifactsOf(taskLocals.value[key]?.effortId || 0);
+const protosDe = (key) => artifactsOf(esfuerzoDe(key));
 const protosAbiertos = ref(false);
 function verProtos(i) {
   if (protosAbiertos.value && active.value?.Key === i.Key) { protosAbiertos.value = false; return; }
@@ -292,7 +318,7 @@ async function cargarRamas() {
 // Las ramas cuelgan del ESFUERZO (por id), pero se piden desde la tarjeta de una TAREA — mismo camino
 // que la bitácora y los prototipos.
 const ramasDe = (key) => {
-  const eid = taskLocals.value[key]?.effortId || 0;
+  const eid = esfuerzoDe(key);
   return (ramasSnap.value.tareas || {})[String(eid)] || null;
 };
 const ramasCuenta = (key) => (ramasDe(key)?.ramas || []).length;
@@ -467,7 +493,16 @@ async function deleteEntry(id) {
 //
 // Se resuelve por esfuerzo además de por clave, igual que `protosDe`: es lo que rescata las entradas
 // que no tienen `taskKey`.
-const esfuerzoDe = (key) => taskLocals.value[key]?.effortId || 0;
+// De la clave de una tarjeta al esfuerzo local. Es la ÚNICA forma de resolverlo, y todo lo que abre un
+// cajón —cuerpo, hallazgos, pendientes, prototipos, ramas, bitácora— pasa por acá.
+//
+// ⚠ Contempla las tarjetas LOCALES (`LOCAL-<id>`), que no están en el mapa de Jira porque no están en
+// Jira. Cuando cada cajón resolvía el esfuerzo por su cuenta contra `taskLocals`, las locales salían
+// todas vacías —«sin cuerpo técnico»— con el cuerpo ahí al lado.
+const esfuerzoDe = (key) => {
+  if (typeof key === 'string' && key.startsWith('LOCAL-')) return Number(key.slice(6)) || 0;
+  return taskLocals.value[key]?.effortId || 0;
+};
 const ofActive = computed(() => {
   if (!active.value) return [];
   const k = active.value.Key, ef = esfuerzoDe(k);
@@ -495,7 +530,7 @@ const descAbierta = ref(false);
 // (el cuerpo privado, sin la sección publicable); sólo faltaba mirarlo.
 //
 // La de Jira sigue a un clic, en el enlace del encabezado: no se pierde, se despriorizó.
-const cuerpoDe = (key) => efforts.value.find(e => e.id === (taskLocals.value[key]?.effortId || 0))?.techNotes || '';
+const cuerpoDe = (key) => efforts.value.find(e => e.id === esfuerzoDe(key))?.techNotes || '';
 
 // Markdown de verdad y no una regex a mano: estos cuerpos usan tablas, citas, bloques de código y
 // enlaces, y una tabla mal renderizada es peor que no mostrarla. El contenido es un archivo local
@@ -599,7 +634,7 @@ const verBitacora = (i) => { active.value = i; bitacoraAbierta.value = true; pro
 // Lo que aportan sobre la prosa es la EDAD. Una medición de hace dos meses se lee igual de segura
 // que la de ayer, y una pregunta abierta hace una semana no le grita a nadie. Acá la edad se ve, y
 // eso es lo único que la prosa no puede hacer.
-const hallazgosDe = (key) => efforts.value.find(e => e.id === (taskLocals.value[key]?.effortId || 0))?.anotaciones || [];
+const hallazgosDe = (key) => efforts.value.find(e => e.id === esfuerzoDe(key))?.anotaciones || [];
 const hallazgosAbiertos = ref(false);
 const verHallazgos = (i) => {
   if (hallazgosAbiertos.value && active.value?.Key === i.Key) { hallazgosAbiertos.value = false; return; }
@@ -626,7 +661,7 @@ const hallazgosPorTipo = (key) => TIPOS
 // Lo que queda por hacer, sacado de las casillas del CUERPO (ver `pendientes.go` para el parser y el
 // porqué del corte antes de la publicable). No se escriben ni se tildan desde acá a propósito: el
 // cuerpo es el archivo, y editarlo por dos caminos es cómo se desincronizan las cosas.
-const pendientesDe = (key) => efforts.value.find(e => e.id === (taskLocals.value[key]?.effortId || 0))?.pendientes || [];
+const pendientesDe = (key) => efforts.value.find(e => e.id === esfuerzoDe(key))?.pendientes || [];
 // Lo que se cuenta son los ABIERTOS. Medido sobre las 41 tareas: 37 casillas escritas y 1 tildada —
 // nadie vuelve a marcarlas—, así que el total diría "hay deuda" incluso cuando ya no queda nada.
 const quedan = (key) => pendientesDe(key).filter(p => !p.hecho).length;
@@ -1179,10 +1214,14 @@ onMounted(async () => {
               :class="{ sel: active?.Key === i.Key, wide: qa?.key === i.Key, done: i.StatusCategory === 'done' }"
               @click="active = i">
               <div class="tl">
-                <a v-if="site" class="key link" :href="jiraLink(i.Key)" target="_blank" rel="noopener"
+                <!-- Una tarea LOCAL no tiene enlace a Jira porque no está en Jira: se marca como tal
+                     en vez de dar un enlace roto. Publicarla es una decisión que se pide aparte. -->
+                <span v-if="i._local" class="key local" title="tarea local — todavía no está en Jira">local · {{ i._esfuerzoId }}</span>
+                <a v-else-if="site" class="key link" :href="jiraLink(i.Key)" target="_blank" rel="noopener"
                   @click.stop :title="`Abrir ${i.Key} en Jira`">{{ i.Key }} <span class="ext">↗</span></a>
                 <span v-else class="key">{{ i.Key }}</span>
-                <span class="status" :class="statusClass(i.StatusCategory)">{{ i.Status }}</span>
+                <span v-if="!i._local" class="status" :class="statusClass(i.StatusCategory)">{{ i.Status }}</span>
+                <span v-else class="status sin-jira" title="no sale a Jira hasta que se decida">sin publicar</span>
                 <!-- El grupo al que pertenece la tarjeta, como chip: reemplaza al encabezado que antes
                      partía la grilla. `_esfuerzo` en la vista del sprint, `_sprint` en la ancha. -->
                 <span v-if="i._esfuerzo" class="spchip esf" :title="`esfuerzo: ${i._esfuerzo}`">
@@ -1257,7 +1296,11 @@ onMounted(async () => {
                 <!-- Un solo botón para mover de estado. No dice a dónde: eso lo contesta Jira al abrirlo,
                      que es justamente el arreglo — el botón anterior anunciaba «A pruebas» y en 5 de los
                      6 estados esa transición no existía. -->
-                <button class="tact go" :class="{ act: mover?.key === i.Key }"
+                <!-- ⚠ NO va en una tarjeta local: «Mover» le pide las transiciones a Jira y después
+                     ESCRIBE. Con una clave `LOCAL-…` eso sólo puede dar un error confuso, y es además
+                     el único botón de la tarjeta que toca Jira. Una tarea local no toca Jira: cuando
+                     valga la pena publicarla, se pide. -->
+                <button v-if="!i._local" class="tact go" :class="{ act: mover?.key === i.Key }"
                   :disabled="moverBusy || qa?.key === i.Key" @click="abrirMover(i)">
                   {{ moverBusy && active?.Key === i.Key ? 'Consultando Jira…' : '⇢ Mover' }}
                 </button>
@@ -2076,4 +2119,8 @@ h1 { font-size: 20px; margin: 0; letter-spacing: .2px }
 .cuerpo-md :deep(th), .cuerpo-md :deep(td) { border: 1px solid var(--line); padding: 5px 9px; text-align: left; vertical-align: top }
 .cuerpo-md :deep(th) { background: var(--panel2); font-weight: 600; white-space: nowrap }
 .cuerpo-md :deep(hr) { border: 0; border-top: 1px solid var(--line); margin: 18px 0 }
+
+/* una tarea LOCAL se distingue de una de Jira, pero no grita: es material de trabajo, no un problema */
+.key.local { color: var(--mut); font-style: normal; letter-spacing: .02em }
+.status.sin-jira { background: transparent; border: 1px dashed var(--line); color: var(--mut) }
 </style>

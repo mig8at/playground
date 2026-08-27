@@ -116,6 +116,13 @@ func (s *Store) cargar() error {
 	// Se parte de cero: esto ya no corre sólo al arrancar, también cuando un `.md` cambió en disco
 	// (ver `relerSiCambio`). Acumular sobre lo anterior duplicaría cada tarea en cada relectura.
 	s.efforts, s.slugs, s.archived = nil, map[int64]string{}, map[int64]string{}
+	type leida struct {
+		e       Effort
+		arch    string
+		archivo string
+	}
+	var leidas []leida
+	var max int64
 	for _, d := range archivos {
 		if d.IsDir() || !strings.HasSuffix(d.Name(), ".md") {
 			continue
@@ -124,9 +131,41 @@ func (s *Store) cargar() error {
 		if err != nil {
 			return fmt.Errorf("leyendo %s: %w", d.Name(), err)
 		}
-		s.efforts = append(s.efforts, e)
-		s.slugs[e.ID] = d.Name()
-		s.archived[e.ID] = arch
+		if e.ID > max {
+			max = e.ID
+		}
+		leidas = append(leidas, leida{e, arch, d.Name()})
+	}
+
+	// LOS `id: 0` RECIBEN UN ID DE VERDAD, ACÁ Y AHORA.
+	//
+	// La plantilla dice «lo reasigna el tablero al cargar — poné 0 y no lo peleés», y era mentira: nadie
+	// lo reasignaba. `nuevoEffort` numera sólo lo que se crea DESDE la UI, y una tarea escrita a mano —que
+	// es como las escribe el asistente— se quedaba en 0 para siempre.
+	//
+	// No es cosmético, rompe el store: abajo se indexa `s.slugs[e.ID]`, así que **varias tareas en 0 se
+	// pisan entre sí en ese mapa y sólo sobrevive la última**. Medido el 2026-08-27: cuatro archivos en
+	// 0, y por eso ninguno tenía tarjeta en el tablero ni podía ser blanco de un enlace con Jira.
+	//
+	// Se persiste en el archivo (no sólo en memoria) porque un id que cambia en cada arranque no sirve
+	// para enlazar nada: la bitácora y el vínculo con Jira lo guardan.
+	var renumeradas []int64
+	for i := range leidas {
+		if leidas[i].e.ID == 0 {
+			max++
+			leidas[i].e.ID = max
+			renumeradas = append(renumeradas, max)
+		}
+	}
+	for _, l := range leidas {
+		s.efforts = append(s.efforts, l.e)
+		s.slugs[l.e.ID] = l.archivo
+		s.archived[l.e.ID] = l.arch
+	}
+	for _, id := range renumeradas {
+		if err := s.escribirEffort(id); err != nil {
+			return fmt.Errorf("asignando id a %s: %w", s.slugs[id], err)
+		}
 	}
 	sort.Slice(s.efforts, func(i, j int) bool { return s.efforts[i].ID < s.efforts[j].ID })
 

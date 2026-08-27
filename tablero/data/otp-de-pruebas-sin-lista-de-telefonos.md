@@ -1,5 +1,5 @@
 ---
-id: 0
+id: 70
 title: "El OTP de pruebas, sin lista de teléfonos"
 stage: work
 created: "2026-08-24T15:30:00-05:00"
@@ -215,6 +215,7 @@ Y apuntar `legacy-backend` a ella (⚠ **también hay que poner `ONBOARDING_DRIV
 
 - **El spike está probado en local** y las tres rutas quedaron escritas en el `riskservices.json` del repo
   de la lambda, **sin commitear**. Falta decidir si entran así.
+
 
 ## Tarea (publicable)
 

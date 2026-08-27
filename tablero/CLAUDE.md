@@ -15,11 +15,20 @@ Qué es y cómo se corre: `README.md`. Acá solo las reglas al trabajar con las 
   tarjeta del tablero siguió mostrando el estado del **19/8** mientras se mergeaban PRs y se corrían
   migraciones. Nadie lo notó hasta que Miguel preguntó por qué no veía el avance.
 
-  **La regla, en una línea: el `id` es lo que hace visible una tarea.** `id: 0` = local, sin tarjeta, sin
-  botón de bitácora, sin cajón de ramas — sólo se ve con `make tareas`. Un archivo de id 0 sirve para un
-  documento auxiliar (un censo, una investigación), **nunca para el registro de avance de una tarea que
-  ya tiene tarjeta**. Si de verdad hace falta uno aparte, el archivo con `id` **apunta a él** desde su
-  estado de arriba, y el avance se resume ahí.
+  **Y la causa de fondo ya está arreglada (2026-08-27):** la plantilla decía «`id` — lo reasigna el
+  tablero al cargar» y era mentira, nadie lo reasignaba. Peor: el store indexa `slugs[e.ID]`, así que
+  **varios archivos en 0 se pisaban entre sí y sólo sobrevivía el último**. Ahora `cargar()` les asigna un
+  id de verdad y **lo persiste en el archivo**, así que poner `id: 0` en una tarea nueva vuelve a ser
+  correcto — lo que NO es correcto es escribir el avance de una tarea en un archivo distinto del suyo.
+
+  **Las tareas locales ya tienen tarjeta**, con su cuerpo, su bitácora, sus ramas y sus hallazgos. Se
+  distinguen con `local · <id>` y el estado **«sin publicar»**.
+
+  ⚠ **Que tengan tarjeta NO las publica, y eso es a propósito.** Publicar a Jira es una decisión que se
+  **PIDE** —`make jira-create JSON=…`, o pedírselo al asistente—; no hay ni habrá un botón que lo haga
+  desde la tarjeta. Por la misma razón, «⇢ Mover» **no aparece** en una tarjeta local: es el único botón
+  que escribe en Jira. Una tarea local es material de trabajo; el día que valga la pena compartirla se
+  decide, no se filtra por estar en pantalla.
 
 - **Frontmatter**: `id` · `title` · `stage` (`evaluation`|`work`|`tasks`) · `created` ·
   `archived?` · `context_nodes[]` · `jira[]` · `jira_title` · `ramas?` (uno o varios patrones, por

@@ -1,12 +1,12 @@
 ---
-id: 0
+id: 68
 title: "Lo que queda de país quemado, después de la tanda de internacionalización"
-ramas: pais/documentos-que-acepta-el-backend, pais/monto-y-telefono-en-solicitar, pais/borrar-documentos-de-sucursal
 stage: evaluation
 created: "2026-08-27T09:00:00-05:00"
 context_nodes: [architecture, onboarding, kyc, entities, merchants]
 jira: []
 jira_title: ""
+ramas: "pais/documentos-que-acepta-el-backend, pais/monto-y-telefono-en-solicitar, pais/borrar-documentos-de-sucursal"
 ---
 
 ## Si retomás esto sin contexto, empezá acá
@@ -660,6 +660,7 @@ punto el suyo es estrictamente mejor: su esquema valida **por ISO** y conserva e
 <!-- ─────────────────────────────────────────────────────────────────────────────────────────────
      DE ACÁ PARA ABAJO ES LO ÚNICO QUE SALE A JIRA.
      ───────────────────────────────────────────────────────────────────────────────────────────── -->
+
 
 ## Tarea (publicable)
 

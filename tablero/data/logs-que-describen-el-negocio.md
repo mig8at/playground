@@ -1,5 +1,5 @@
 ---
-id: 0
+id: 69
 title: "Logs que describen el negocio, no sólo el paso"
 stage: evaluation
 created: "2026-08-25T17:00:00-05:00"
@@ -235,6 +235,7 @@ Tres cosas que salieron de paso y son deuda de otro lado, anotadas para no perde
 <!-- ─────────────────────────────────────────────────────────────────────────────────────────────
      DE ACÁ PARA ABAJO ES LO ÚNICO QUE SALE A JIRA.
      ───────────────────────────────────────────────────────────────────────────────────────────── -->
+
 
 ## Tarea (publicable)
 
