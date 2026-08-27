@@ -433,6 +433,33 @@ hoisting resuelve **7.3.3**, y `vitest 1.6.1` no sabe leer su transform de SSR. 
 cero tests ejecutados. El test nuevo queda escrito igual —protege en cuanto se destrabe—, pero **hoy la
 prueba de que esto funciona es el runner de consola**, no vitest. Destrabarlo es subir vitest a ^3.
 
+### 2026-08-27 · la sucursal ya no decide (lo cazó Miguel)
+
+El `DocumentTypesService` de los dos monolitos traía un respaldo: *«si la entidad no declara nada, mirá la
+fila de sucursal»*. Estaba puesto como **puente hasta que corriera el backfill**. Miguel lo vio al leer el
+título del PR —que decía «los documentos que ese punto de venta ofrece»— y preguntó por qué estábamos
+volviendo a meter el nivel que la reunión había decidido quitar.
+
+**Tenía razón, y además ya era código muerto:** el backfill corrió el 2026-08-26.
+
+**Medido antes de tocar nada:**
+
+- en dev, **4.082** filas activas y **las 4.082** con la entidad declarando → el respaldo dispara **0** veces
+- en local, de **6.163** filas con dato en la sucursal, **0** tienen su entidad sin dato
+- corriendo el resolvedor sobre **las 1.525 sucursales**, con y sin el cambio: **0 diferencias**
+
+Lo devuelto, para que quede el retrato: 1.523 sucursales dan `CC,CE`, una da `CED,NUI` (RD) y una da
+`CC,CE,PEP`.
+
+**Con esto `lenders_by_allied_branches.document_types` se queda sin lectores** —el único que quedaba en
+`main` era `AlliedInfoController`, que este PR reemplaza por el servicio— y puede borrarse en una
+migración aparte.
+
+⚠ **La lección es del título, no del código.** El PR se llamaba «los documentos que ese punto de venta
+ofrece» y el código hacía otra cosa; el título es lo que se lee en la lista de PRs y es lo que disparó la
+duda. Renombrados los dos a **«Los documentos los dicta la ENTIDAD, y el validador lee lo mismo que el
+selector»**.
+
 <!-- ─────────────────────────────────────────────────────────────────────────────────────────────
      DE ACÁ PARA ABAJO ES LO ÚNICO QUE SALE A JIRA.
      ───────────────────────────────────────────────────────────────────────────────────────────── -->
