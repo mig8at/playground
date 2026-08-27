@@ -657,6 +657,39 @@ punto el suyo es estrictamente mejor: su esquema valida **por ISO** y conserva e
   móviles envejece: cuando el regulador asigna un bloque nuevo **rechaza clientes reales**, que es fallar
   cerrado. Los demás países se validan por largo, que es estable; Colombia no se afloja.
 
+### 2026-08-27 · mirar la pantalla encontró lo que ninguna prueba veía
+
+Se montó un **comercio peruano en local** (`make harness-peru`, idempotente y sólo local) porque el dump
+no tenía ninguno: 266 colombianos y 2 dominicanos. Perú ya estaba entero como PAÍS —`PEN`, `+51`, 9
+dígitos, `["DNI","CE"]`, `es-PE`, `is_operating`—; lo que faltaba era un comercio que lo usara, y sin
+comercio no hay hash, y sin hash no hay pantalla.
+
+**Y al abrirla apareció el hueco.** El país llegaba al **esquema** de validación pero **no al CAMPO**: al
+renderizar `PhoneNumberStepForm` no se le pasaban `cellPhoneLength` ni `phoneCode`, y el componente los
+acepta desde el PR de Laura. Medido en el DOM:
+
+| | antes | ahora |
+|---|---|---|
+| `maxLength` | **10** | **9** |
+| placeholder | `3001234567` | vacío |
+| prefijo | ninguno | **`+51`** |
+
+O sea: el validador ya aceptaba el móvil peruano de 9 dígitos, pero **el campo seguía anunciando 10 y un
+ejemplo colombiano**. Eran dos props en el sitio de la llamada.
+
+**Colombia no se movió** —10 dígitos y su placeholder— y de paso ganó su `+57`, que nunca se había pasado.
+
+⚠ **La lección, que es más útil que el arreglo:** el esquema y el campo se configuraban por caminos
+distintos, así que **arreglar uno se veía como arreglar los dos**. Ninguna prueba de esta tanda lo habría
+encontrado: la validación estaba bien y era lo único que se estaba probando. Sólo se vio abriendo la
+pantalla con el país puesto.
+
+**De paso, el formato de moneda por país, en pantalla:** `S/ 1,500` con coma (es-PE) contra
+`$ 2.000.000` con punto (es-CO).
+
+⚠ **Perú tiene 0 ciudades cargadas**, así que ese comercio llega hasta el celular y datos personales se
+corta. Es lo esperado —está en el censo como pendiente—, no un bug del wizard.
+
 <!-- ─────────────────────────────────────────────────────────────────────────────────────────────
      DE ACÁ PARA ABAJO ES LO ÚNICO QUE SALE A JIRA.
      ───────────────────────────────────────────────────────────────────────────────────────────── -->
