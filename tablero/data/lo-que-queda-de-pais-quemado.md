@@ -567,6 +567,45 @@ no se movió — Motai (CO) y CeluRD/SmartPay (RD) cierran en estado 11.
 
 **No se tocan las 8.935 fichas viejas.** Son historia y reescribirlas no cambia nada operativo.
 
+### 2026-08-27 · el último respaldo quemado, y el bug que escondía (lo cazó Miguel)
+
+Miguel señaló el `$permitidos = ['CC', 'CE', 'PEP'];` del validador: *«no es mejor confiar en lo que
+estipula el country o la entidad?»*. Tenía razón, y quitarlo destapó algo mucho más grande.
+
+**Los dos respaldos, medidos antes de tocarlos:**
+
+- el del `FormRequest` (`['CC','CE','PEP']`) era **inalcanzable**: el servicio nunca devolvía vacío porque
+  tenía su propio respaldo colombiano adentro;
+- el del servicio (`['CC','CE']`): de **1.941 sucursales activas en prod, 1.915 resuelven por entidad y 26
+  por país — ninguna llegaba al respaldo**. No protegía a nadie; esperaba para hacer daño el día que se
+  cablee un país nuevo sin catálogo.
+
+Ahora el servicio devuelve **vacío** cuando no sabe, y el validador lo trata como configuración
+incompleta. ⚠ **El mensaje también mentía**: decía «este punto de venta no tiene tipos configurados»
+cuando quien los declara es **la entidad**; mandaba a soporte a la pantalla equivocada.
+
+**EL BUG QUE EL RESPALDO ESCONDÍA.** La ruta se llama `{partner_branch_id}` **pero el front manda el
+HASH** (`personal-info.repository.ts:40`, `partnerBranchHash`). Con el `(int)` que había, eso valía `0`,
+la sucursal **nunca se resolvía**, y la validación caía siempre en la lista colombiana. **En esa ruta el
+422 de `CED` seguía pasando y el PR no arreglaba nada.** Sólo se vio al quitar el respaldo: mientras
+estuvo, el bug era invisible porque el resultado se parecía a lo correcto.
+
+**Y un segundo error, mío, en el propio arreglo:** resolví con «si parece número es un id». **63 de las
+2.244 sucursales de producción tienen un hash de puros dígitos** (`30306926` es una) — la heurística los
+tomaba por id y volvía a dejarlas sin resolver. Ahora se busca **por hash primero**; el orden es seguro
+mientras los ids sean de 4 dígitos y los hashes de 8.
+
+⚠ **También se arregló el harness**, que mandaba `document_type: 'CC'` quemado y por eso no podía probar
+un comercio que no fuera colombiano. Ahora pide `allowed_document_types` al payload del comercio y usa el
+primero.
+
+**La prueba de que la tanda entera sirve**, corriendo el flujo completo: el comercio dominicano **cierra
+en estado 11 con `CED`**, y el colombiano con `CC`. Antes los dos cerraban con `CC`.
+
+⚠ **Lección de método, para la próxima:** un respaldo escrito a mano no sólo mete un país quemado —
+**esconde el error que lo hace disparar**. Cada vez que veas un `?: ['algo','razonable']`, la pregunta no
+es «¿es razonable?» sino «¿cuándo dispara, y por qué?».
+
 <!-- ─────────────────────────────────────────────────────────────────────────────────────────────
      DE ACÁ PARA ABAJO ES LO ÚNICO QUE SALE A JIRA.
      ───────────────────────────────────────────────────────────────────────────────────────────── -->
