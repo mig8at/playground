@@ -1,0 +1,186 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tarjeta de identidad genérica · MUESTRA</title>
+<style>
+  :root{
+    --fondo:#eef1f5;
+    --texto:#16181d;
+    --tenue:#6b7280;
+    --linea:#d8dde5;
+    --tarjeta:#fbfcfd;
+    --banda:#1f3a5f;
+    --banda-texto:#f3f6fa;
+    --radio:14px;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0;padding:40px 24px;
+    background:var(--fondo);color:var(--texto);
+    font:15px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+  }
+  header{max-width:860px;margin:0 auto 28px}
+  h1{margin:0 0 6px;font-size:20px;font-weight:650;letter-spacing:-.01em}
+  header p{margin:0;color:var(--tenue);font-size:13.5px}
+
+  .mesa{
+    max-width:860px;margin:0 auto;
+    display:flex;flex-wrap:wrap;gap:28px;
+  }
+
+  /* 85,6 × 54 mm — la proporción real de una ID tamaño tarjeta (ICAO 9303 TD1) */
+  .tarjeta{
+    width:400px;aspect-ratio:85.6/54;
+    background:var(--tarjeta);
+    border:1px solid var(--linea);border-radius:var(--radio);
+    box-shadow:0 1px 2px rgba(16,24,40,.06),0 8px 20px rgba(16,24,40,.07);
+    display:flex;flex-direction:column;overflow:hidden;
+  }
+
+  .banda{
+    background:var(--banda);color:var(--banda-texto);
+    padding:7px 12px;
+    display:flex;align-items:baseline;justify-content:space-between;gap:10px;
+  }
+  .emisor{font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase}
+  .tipo{font-size:9px;letter-spacing:.06em;opacity:.85;text-transform:uppercase}
+
+  .cuerpo{flex:1;padding:12px;display:flex;gap:12px;min-height:0}
+
+  .foto{
+    width:74px;flex:none;
+    border:1px dashed var(--linea);border-radius:6px;
+    background:#f1f3f7;
+    display:flex;align-items:center;justify-content:center;
+    color:var(--tenue);font-size:9px;letter-spacing:.06em;text-transform:uppercase;
+  }
+
+  .campos{flex:1;display:grid;gap:8px 12px;align-content:start;grid-template-columns:1fr 1fr;min-width:0}
+  .campos .ancho{grid-column:1 / -1}
+
+  .campo .et{
+    display:block;font-size:8px;letter-spacing:.07em;text-transform:uppercase;
+    color:var(--tenue);margin-bottom:1px;
+  }
+  .campo .va{
+    font-size:12.5px;font-weight:600;letter-spacing:.01em;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  }
+  .campo .va.grande{font-size:15px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:.04em}
+
+  /* ---- reverso ---- */
+  .reverso .cuerpo{flex-direction:column;gap:10px}
+  .reverso .campos{grid-template-columns:1fr 1fr}
+  .firmas{display:flex;gap:10px;align-items:flex-end}
+  .caja{
+    flex:1;height:38px;
+    border:1px dashed var(--linea);border-radius:6px;background:#f1f3f7;
+    display:flex;align-items:center;justify-content:center;
+    color:var(--tenue);font-size:8.5px;letter-spacing:.06em;text-transform:uppercase;
+  }
+  .caja.huella{width:46px;flex:none}
+
+  .mrz{
+    margin-top:auto;
+    background:#f5f6f9;border-top:1px solid var(--linea);
+    padding:7px 12px;
+    font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
+    font-size:10px;line-height:1.5;letter-spacing:.05em;
+    white-space:pre;overflow-x:auto;
+  }
+
+  .sello{
+    max-width:860px;margin:22px auto 0;
+    color:var(--tenue);font-size:12px;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Tarjeta de identidad genérica</h1>
+  <p>Maqueta neutral de país. Estructura tomada de ICAO 9303 TD1 (85,6 × 54 mm + MRZ de 3 × 30). Datos ficticios.</p>
+</header>
+
+<div class="mesa">
+
+  <!-- ============ FRENTE ============ -->
+  <article class="tarjeta frente">
+    <div class="banda">
+      <span class="emisor">País emisor</span>
+      <span class="tipo">Documento de identidad · Muestra</span>
+    </div>
+
+    <div class="cuerpo">
+      <div class="foto">Foto</div>
+      <div class="campos">
+        <div class="campo ancho">
+          <span class="et">Número de documento</span>
+          <span class="va grande">1234567890</span>
+        </div>
+        <div class="campo ancho">
+          <span class="et">Apellidos</span>
+          <span class="va">APELLIDO UNO APELLIDO DOS</span>
+        </div>
+        <div class="campo ancho">
+          <span class="et">Nombres</span>
+          <span class="va">NOMBRE SEGUNDO</span>
+        </div>
+        <div class="campo">
+          <span class="et">Fecha de nacimiento</span>
+          <span class="va">1990-01-01</span>
+        </div>
+        <div class="campo">
+          <span class="et">Sexo</span>
+          <span class="va">M</span>
+        </div>
+      </div>
+    </div>
+  </article>
+
+  <!-- ============ REVERSO ============ -->
+  <article class="tarjeta reverso">
+    <div class="banda">
+      <span class="emisor">País emisor</span>
+      <span class="tipo">Autoridad emisora · Muestra</span>
+    </div>
+
+    <div class="cuerpo">
+      <div class="campos">
+        <div class="campo">
+          <span class="et">Nacionalidad</span>
+          <span class="va">XXX</span>
+        </div>
+        <div class="campo">
+          <span class="et">Lugar de nacimiento</span>
+          <span class="va">CIUDAD</span>
+        </div>
+        <div class="campo">
+          <span class="et">Fecha de expedición</span>
+          <span class="va">2020-01-01</span>
+        </div>
+        <div class="campo">
+          <span class="et">Fecha de vencimiento</span>
+          <span class="va">2030-01-01</span>
+        </div>
+      </div>
+
+      <div class="firmas">
+        <div class="caja">Firma del titular</div>
+        <div class="caja huella">Huella</div>
+      </div>
+    </div>
+
+    <div class="mrz">I&lt;XXX1234567890&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;
+9001011M3001017XXX&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;8
+APELLIDO&lt;&lt;NOMBRE&lt;SEGUNDO&lt;&lt;&lt;&lt;&lt;&lt;</div>
+  </article>
+
+</div>
+
+<p class="sello">Frente: los 5 campos que trae toda ID tamaño tarjeta. Reverso: procedencia, vigencia y la MRZ legible por máquina.</p>
+
+</body>
+</html>

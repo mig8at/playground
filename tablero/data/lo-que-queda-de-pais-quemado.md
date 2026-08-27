@@ -750,6 +750,40 @@ eso sigue valiendo el criterio de Laura de no inventar prefijos sin verificar.
 **Verificado en pantalla con un comercio de cada país:** `+57`/10/`3001234567` · `+51`/9/`987654321` ·
 `+1`/10/`8091234567`. Los ISO que entrega el backend (`COL`, `PER`, `DOM`) coinciden con los de la tabla.
 
+### 2026-08-27 · la tercera vez que el mismo dato estaba en dos lados
+
+Miguel lo vio en pantalla: un comercio **dominicano** mostraba su `+1` correcto y al lado `3178622287`,
+un celular colombiano. **#894 arregló el flujo clásico; el dinámico —el de RD— tenía su propio ejemplo
+escrito a mano.**
+
+Buscando aparecieron **cinco pantallas** que piden el celular, cada una resolviendo el ejemplo por su
+cuenta: el clásico, el dinámico, el del IMEI, el de autogestión y el del codeudor.
+
+**Ahora la tabla vive en `shared-utils`**, junto a la de monedas que ya estaba ahí por lo mismo. Los dos
+flujos la leen y ninguno depende del otro.
+
+⚠ **Y al centralizar, el compilador delató una CUARTA copia** del patrón colombiano: estaba definido dos
+veces dentro del mismo paquete (`schemas/common.ts` y la tabla nueva), más las de los módulos.
+
+**El patrón que ya es imposible ignorar — tres veces en dos semanas, siempre igual:**
+
+| | las dos mitades | cómo se vio |
+|---|---|---|
+| tipos de documento | el selector contra su validador | corriendo el flujo |
+| largo del celular | el esquema contra su campo | mirando la pantalla |
+| ejemplo del celular | el clásico contra el dinámico | mirando la pantalla |
+
+**Las tres veces el síntoma fue idéntico: arreglar una mitad parecía arreglar las dos.** Y ninguna prueba
+las habría encontrado, porque cada mitad estaba bien por separado. Es el argumento más fuerte que tenemos
+para que un dato de país no se escriba dos veces, y para no confiar en que la prueba unitaria lo cubra.
+
+⚠ **Lo que quedó sin verificar en pantalla:** el flujo dinámico y el del IMEI viven bajo `/merchant/*`,
+que exige sesión de asesor. Se verificaron por código y tipos. La tabla sí se probó aislada
+(`COL/PER/DOM` + minúsculas + país desconocido) y el flujo clásico en los tres países.
+
+⚠ **Lo que NO entra:** la pantalla del codeudor sigue con el ejemplo y el largo fijos — es la única que no
+carga el tema del comercio, así que no tiene de dónde sacar el país.
+
 <!-- ─────────────────────────────────────────────────────────────────────────────────────────────
      DE ACÁ PARA ABAJO ES LO ÚNICO QUE SALE A JIRA.
      ───────────────────────────────────────────────────────────────────────────────────────────── -->
