@@ -23,8 +23,10 @@ verificara la identidad. Eso es una decisión de negocio con dueño, y tiene pla
 
 **El próximo paso es:** desplegar a producción lo que ya está mergeado (punto 2 de §«Cómo se ataca»).
 
-⚠ **Y antes de tocar el «formulario dinámico», leé §«Tres cosas se llaman formulario dinámico».** El
-censo original las confundía y de ahí salió una prioridad equivocada.
+⛔ **REGLA VIGENTE, de Miguel, 2026-08-27: la internacionalización NO toca los mecanismos de formularios
+dinámicos** —ni el JSON de S3 ni las tablas de José— **mientras no se defina cómo se estandarizan.** Todo
+lo demás del censo sigue en pie. Antes de tocar algo que se llame «formulario dinámico», leé §«Tres cosas
+se llaman formulario dinámico»: el censo original las confundía y de ahí salió una prioridad equivocada.
 
 ## Objetivo
 
@@ -36,7 +38,7 @@ lo lee.
 
 | | |
 |---|---|
-| `frontend-monorepo` | ~~`modules/loan-request-wizard/dynamic-form/src/lib/utils/dynamic-step-one.ts`~~ — hecho |
+| ~~`frontend-monorepo`~~ | ~~`…/dynamic-form/src/lib/utils/dynamic-step-one.ts`~~ — **congelado**: es mecanismo, no internacionalización |
 | `legacy-backend` | `Modules/Onboarding/App/Services/RegisterCellPhoneService.php:18` — el `'CC'` del alta |
 | `legacy-backend` · `legacy-application` | `app/Http/Controllers/Customer/TwilioController.php` — **duplicado**, recorta a 10 dígitos y pega `whatsapp:+57` |
 | `legacy-backend` | `PayloadFormatters::currency()` — castea a `(int)` y quema separadores colombianos |
@@ -45,8 +47,11 @@ lo lee.
 
 ## Cómo se ataca
 
-**1 · El catálogo del formulario dinámico.** ✅ **HECHO** el 2026-08-27, dentro del PR del front. Las
-opciones ya salían del backend; lo que bloqueaba era la **validación**. Detalle en el registro.
+**1 · El catálogo del formulario dinámico.** ⏸ **CONGELADO por decisión de Miguel el 2026-08-27.** Se
+llegó a hacer y **se revirtió del PR**: no era internacionalización (esa pantalla es sólo de RD y sus
+cuatro tipos son los correctos) y toca el **mecanismo** del formulario dinámico, que está en discusión.
+**No se toca hasta que se defina cómo se estandarizan el JSON de S3 y las tablas** — ver §«¿Se pasa el
+JSON de S3 a las tablas de José?».
 
 **2 · Desplegar a producción lo que ya está mergeado.** Nada de esto sirve mientras prod no tenga las
 columnas. Ver la medición de abajo: allá sólo existe `lenders_by_allied_branches.document_types`.
