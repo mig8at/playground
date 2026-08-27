@@ -197,6 +197,43 @@ microservicio de OTP, con sus endpoints y que usa Twilio por dentro).
 **La pregunta para José**, que decide entre el camino 1 y el 2: *¿este servicio va a ser dueño de datos
 alguna vez, o va a seguir escribiendo por los backdoors del monolito?*
 
+### ¿Se pasa el JSON de S3 a las tablas de José? (medido 2026-08-27)
+
+**No como está planteado: no son la misma clase de cosa.** El JSON describe **un wizard**; las tablas
+describen **un formulario**.
+
+| lo que expresa | JSON de S3 | tablas de `form-service` |
+|---|---|---|
+| **pasos con navegación** (`next: {label, step, post, clear}`) | ✅ | ❌ lista plana ordenada por `sort` |
+| **layout en grilla** (`grid: string[][]`) | ✅ | ❌ |
+| **contenido presentacional** (`components` → `boxs` imagen/texto con links) | ✅ | ❌ (sólo imagen por sección) |
+| **a qué endpoint postea cada paso** | ✅ | ❌ |
+| **tipo `otp`** con su endpoint de envío | ✅ | ❌ |
+| **`showIf` con operadores** `== != > <` | ✅ | ⚠ sólo igualdad (`parentId`/`parentValue`) |
+| **`theme`**, `accept`/`maxSize` de archivos | ✅ | ❌ |
+| **variación por comercio y entidad** | ❌ un archivo por hash: hay que duplicarlo | ✅ `alliedId` · `lenderId` · `flowTypeId` |
+| **validación estructurada** | ⚠ `allowed` como string | ✅ `regex`, `min`/`max`, `minLength`/`maxLength`, `dataType` |
+| **`dataSource`** (catálogos que sirve el backend) | ❌ | ✅ |
+| **persistencia** | ❌ delega el submit | ✅ EAV en `user_field_values` |
+| **país** | ❌ | ✅ lee `dial_code`, `phone_code`, `cell_phone_lenght`, `locale`, `currency`, `address_format`, `iso_code_*` |
+
+**La recomendación, en tres partes:**
+
+1. **La mitad de CAMPOS sí debería converger a las tablas.** Ahí las tablas son estrictamente mejores, y
+   son lo que esta campaña necesita: `form-service` **ya es la pieza más internacionalizada del sistema**.
+2. **La mitad de WIZARD no cabe hoy**, y meterla sería reinventar el JSON dentro de SQL — peor que el JSON.
+   Si algún día converge, es agregando `steps` y layout al modelo de tablas, no traduciendo a mano.
+3. **No ahora.** El negocio que lo sostiene son **2,8 solicitudes/día**, y migrar rompe el único flujo que
+   RD tiene funcionando.
+
+⚠ **Y ojo con el argumento de «las tablas son configuración».** Hoy **ninguno de los dos** se edita desde
+el admin: no hay rutas de `form_type` ni en `legacy-application/routes/web.php` ni en
+`Modules/Backoffice`. Uno se cambia editando un JSON en S3 y el otro escribiendo un seeder. Los dos piden
+un desarrollador. La diferencia real no es configurabilidad, es **expresividad y reúso**.
+
+**Relación con los tres PRs abiertos: ninguna.** Son cambios del flujo clásico más una limpieza del
+dinámico; nada depende de dónde viva el esquema. **Esta decisión no bloquea el merge.**
+
 ## Lo que se evaluó y NO se eligió
 
 **Meter el país en el esquema del formulario dinámico** (lo sirve `onboarding-forms-service` desde JSON en
