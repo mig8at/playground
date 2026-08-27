@@ -83,6 +83,27 @@ Colombia*.
 
 ## Lo que está bloqueado
 
+> **BLOQUEANTE · 2026-08-27 · Perú** — **el número de documento es único en TODA la tabla, sin mirar el
+> tipo ni el país.** El índice se llama `idx_users_document_number_unique` y es sobre una sola columna
+> (medido en prod). El DNI peruano tiene 8 dígitos y la cédula colombiana también los tiene en ese rango:
+> en producción hay **117.919 documentos de 8 dígitos ya ocupados**, y **84.656 caen en las series que
+> RENIEC de verdad emite** (0-3 heredadas de la libreta electoral, más 4, 6 y 7). Cada uno de esos es un
+> DNI que **no se va a poder registrar**: el alta responde «documento ya en uso» y no hay salida.
+>
+> Peor: `RegisterCellPhoneService` busca el duplicado con `findByDocumentAndType($doc, 'CC')` — el tipo
+> **quemado**. Así que a un peruano lo choca contra colombianos, y un DNI repetido de verdad no lo
+> detecta: se cae en el `unique` de la BD y entra por el `catch`.
+>
+> **No cabe en los PRs abiertos.** El arreglo es cambiar el índice a `(document_type, document_number)`
+> —relajar un `unique` nunca falla por datos— pero hay que auditar **72 usos de `document_number`** en los
+> dos monolitos (51 en `legacy-backend` / 29 archivos · 21 en `legacy-application` / 18), y varios buscan
+> por número solo: `Modules/Loans/App/Repositories/UserRepository.php:23` y
+> `Modules/Onboarding/App/Repositories/UserRepository.php:16`. Es su propia tarea, y va **antes** de que
+> BCP reciba tráfico real.
+>
+> Series tocadas, de los 117.919: `1`→13.174 · `2`→12.734 · `3`→19.166 · `4`→15.894 · `6`→5.829 ·
+> `7`→17.858. Las series `5`, `8` y `9` (38.846 más) no las emite RENIEC hoy, por eso no cuentan.
+
 > **PREGUNTA · 2026-08-27 · negocio** — **¿originamos en República Dominicana sin verificación de
 > identidad de terceros, sí o no?** No es una pregunta técnica y no la podemos contestar nosotros. Con
 > «sí», el entregable es dejar rastro explícito por solicitud más un tablero: una tarde. Con «no», el
