@@ -606,6 +606,56 @@ en estado 11 con `CED`**, y el colombiano con `CC`. Antes los dos cerraban con `
 **esconde el error que lo hace disparar**. Cada vez que veas un `?: ['algo','razonable']`, la pregunta no
 es «¿es razonable?» sino «¿cuándo dispara, y por qué?».
 
+### Qué hizo Laura, y por qué hacía falta
+
+Dos PRs gemelos, mergeados el **2026-08-26 a las 22:38**, siete horas después de los míos de las 15:41.
+Es la misma campaña: ella construyó **encima** de la base y siguió.
+
+| | |
+|---|---|
+| [frontend-monorepo#891](https://github.com/Creditop-SAS/frontend-monorepo/pull/891) | la moneda y el largo del celular · 13 archivos, +467 −55 |
+| [legacy-backend#1221](https://github.com/Creditop-SAS/legacy-backend/pull/1221) | el OTP: validación **y** entrega con el país · 5 archivos, +80 −4 |
+
+**1 · La moneda.** `AMOUNT_CONFIG_BY_CURRENCY` conocía COP y DOP y caía a Colombia para todo lo demás.
+Corriendo el módulo real, un comercio peruano veía `"El monto mínimo es PEN 50.000"`: el piso colombiano
+—**50.000 soles**, ~25 veces un préstamo de consumo— y `PEN` en vez de `S/`, porque `Intl` sólo conoce el
+símbolo dentro de un locale que use esa moneda y estaba formateando con `es-CO`.
+
+**2 · El teléfono.** `COLOMBIAN_PHONE_REGEX = /^3[0-5][0-9]{8}$/` era el validador de **todos** los países.
+El móvil peruano son 9 dígitos y empieza en 9: el cliente no pasaba de la segunda pantalla. Y
+`otp-verification` devolvía `INVALID_PHONE` **aunque el cliente ya hubiera recibido su código**.
+
+**3 · El OTP — y esto corrige un error MÍO.** Dos partes:
+
+- **Mi regla estaba en las rutas equivocadas.** [#1193](https://github.com/Creditop-SAS/legacy-backend/pull/1193)
+  creó `CellPhoneLengthForCountry` y la aplicó a `CreateAndAuthUser` y a `OnboardingV2\ValidateOtpAuthRequest`
+  — **pero el wizard no pega a ninguno de los dos.** Pega a `phone/register`, `otp-validate/{...}` y
+  `otp/resend-via-email/{...}`, y los tres seguían con `digits:10`. Verificado: `SendOtpCodeRequest` y
+  `ValidateOtpCodeRequest` tenían **0** referencias a la regla antes de su PR y 2 después.
+- **El país nunca llegaba al proveedor.** `OtpService::buildOtpDeliveryContext` resolvía el prefijo con
+  `$sendOtpCodeRequest->dialCode ?? null`, y **`dialCode` no es una clave que el request declare**
+  (verificado: 0 apariciones en `SendOtpCodeRequest`). O sea `normalizeDialCode(null)` → `'+57'`, el país
+  se resolvía como Colombia **siempre**, y el identificador que se le entrega al microservicio de OTP se
+  rearmaba con el prefijo colombiano. Para un número peruano eso construye un número que no existe: **el
+  código se da por enviado y nunca llega.**
+
+⚠ **Y su decisión de meter los dos en un solo PR es la parte instructiva:** aflojar la validación sin
+arreglar la resolución del país **cambia un bloqueo visible por una falla silenciosa**, que es peor.
+
+**Qué le tocó a lo nuestro.** Su #891 reemplazó la mitad de moneda y teléfono de nuestro PR abierto — por
+eso se rehízo desde `qa` y quedó sólo con el resolvedor compartido y el `maxLength` del documento. Y en un
+punto el suyo es estrictamente mejor: su esquema valida **por ISO** y conserva el patrón colombiano como
+*regla de Colombia*; con el nuestro, `1234567890` pasaba a ser un celular válido.
+
+**Dos criterios suyos que conviene copiar:**
+
+- **Los decimales NO se derivan de `Intl`.** La ISO 4217 le asigna 2 decimales al peso colombiano, y en
+  Colombia no se opera con centavos. Ese `maximumFractionDigits: 0` escrito a mano **era una decisión de
+  negocio, no un descuido** — derivarlo del estándar habría metido centavos en toda la operación viva.
+- **El regex colombiano se conserva, pero como mapa por ISO con UNA entrada.** Un patrón de prefijos
+  móviles envejece: cuando el regulador asigna un bloque nuevo **rechaza clientes reales**, que es fallar
+  cerrado. Los demás países se validan por largo, que es estable; Colombia no se afloja.
+
 <!-- ─────────────────────────────────────────────────────────────────────────────────────────────
      DE ACÁ PARA ABAJO ES LO ÚNICO QUE SALE A JIRA.
      ───────────────────────────────────────────────────────────────────────────────────────────── -->
