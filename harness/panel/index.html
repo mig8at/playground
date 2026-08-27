@@ -1069,6 +1069,12 @@
       { slug: 'mediarte', name: 'Mediarte' },       // rt=2 con 0% interés + Credifamilia rt4 al lado
       { slug: 'dentix', name: 'Dentix' },           // CreditopX de marca propia
       { slug: 'sonria', name: 'Sonría' },           // 9 entidades (rt0/1/4): el más rico para mirar el LISTADO
+      // PERÚ. No está en el dump: lo monta `make harness-peru` (idempotente, sólo local). Es el único
+      // de la lista SIN entidades, y es a propósito — el país todavía no tiene ninguna cableada, así
+      // que lo que ejercita son las DOS PRIMERAS pantallas con su país puesto: `S/` con coma de miles
+      // (es-PE) y el celular en `+51` con 9 dígitos, contra `$`/punto y 10 de Colombia.
+      // ⚠ Perú tiene 0 ciudades cargadas: datos personales se corta ahí, y es lo esperado.
+      { slug: 'comercio-pruebas-peru', name: 'Perú (pruebas)' },
     ];
     let sel = MERCHANTS[0];      // Motai por defecto
     let target = 'local';        // local | dev | staging | qa (staging y qa: front y backend propios, BD compartida con dev)

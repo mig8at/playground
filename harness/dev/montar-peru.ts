@@ -22,6 +22,10 @@ if ((process.env.E2E_TARGET || '').toLowerCase() !== 'local') {
 }
 
 const { one, query, exec, close } = await import('../pkg/db.ts');
+const { readFileSync, writeFileSync, existsSync } = await import('node:fs');
+const { join, dirname } = await import('node:path');
+const { fileURLToPath } = await import('node:url');
+const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 
 const PERU = 167;
 const NOMBRE = 'Comercio pruebas Perú';
@@ -74,6 +78,26 @@ if (suc) {
         suc!.hash = h;
     }
     paso('sucursal', `creada (${suc!.id}, hash ${suc!.hash})`);
+}
+
+// ── que el PANEL lo encuentre, sin depender de que alguien lo abra primero ─────────────────────────
+//
+// El panel lista los comercios de `MERCHANTS` pero saca el hash de `.flows.json`, y ese archivo está
+// gitignoreado —trae el sub del asesor—. En una máquina limpia la tarjeta sale con «sin branch_hash en
+// .flows.json», que se lee como que el montaje falló cuando en realidad falta el índice. Se escribe acá.
+const flows = join(ROOT, '.flows.json');
+try {
+    const j = existsSync(flows) ? JSON.parse(readFileSync(flows, 'utf8')) : {};
+    j.merchants ??= {};
+    if (j.merchants[SLUG]?.branch_hash !== suc!.hash) {
+        j.merchants[SLUG] = { ...(j.merchants[SLUG] ?? {}), branch_hash: suc!.hash };
+        writeFileSync(flows, JSON.stringify(j, null, 2) + '\n');
+        paso('.flows.json', `${SLUG} → ${suc!.hash}`);
+    } else {
+        paso('.flows.json', 'ya apuntaba bien');
+    }
+} catch (e) {
+    paso('.flows.json', `no se pudo escribir (${(e as Error).message}) — la tarjeta del panel dirá «sin branch_hash»`);
 }
 
 console.log('');
