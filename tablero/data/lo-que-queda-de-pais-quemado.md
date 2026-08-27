@@ -460,6 +460,33 @@ ofrece» y el código hacía otra cosa; el título es lo que se lee en la lista 
 duda. Renombrados los dos a **«Los documentos los dicta la ENTIDAD, y el validador lee lo mismo que el
 selector»**.
 
+### 2026-08-27 · la migración que borra la columna, escrita pero BLOQUEADA
+
+Se pidió meterla en el PR. **No puede ir ahí**, y la razón es la BD compartida: `dev` y `staging` son la
+misma base, y **tres ramas desplegadas todavía leen** `lenders_by_allied_branches.document_types`:
+
+| lector | rama |
+|---|---|
+| `AlliedInfoController` (versión vieja, `pluck('document_types')`) | `legacy-backend/main` |
+| `AlliedInfoController` (versión vieja) | `legacy-backend/develop` |
+| `AlliedAlliedBranchController:136` — la **conserva** al guardar una sucursal | `legacy-application/develop` |
+
+Con **4.053 filas con dato en dev**, borrarla hoy es un `Unknown column` que tumba el listado de entidades
+y el guardado de sucursales en los dos ambientes a la vez.
+
+**Queda escrita y probada, en su propio PR marcado ⛔ BLOQUEADA.** El orden: mergear el PR del servicio →
+que `qa` llegue a `main` y a `develop` → sacar la línea que conserva el dato en el admin de
+`legacy-application` → recién ahí borrar.
+
+**La migración no confía en que alguien lea eso:** `up()` **se niega a borrar** si `lenders.document_types`
+no existe (el estado de **producción hoy**, donde la columna de la sucursal es la única fuente) o si alguna
+entidad activa tiene documentos en la sucursal y ninguno propio. `down()` recrea la columna y la repuebla
+desde la entidad.
+
+**Probada corriéndola contra la BD local:** la guarda abortó nombrando la entidad sembrada (`Ids: 7`); el
+borrado dejó el resolvedor dando **1.525 sucursales con 0 diferencias**; el rollback devolvió la columna y
+repobló las **6.232** filas.
+
 <!-- ─────────────────────────────────────────────────────────────────────────────────────────────
      DE ACÁ PARA ABAJO ES LO ÚNICO QUE SALE A JIRA.
      ───────────────────────────────────────────────────────────────────────────────────────────── -->
