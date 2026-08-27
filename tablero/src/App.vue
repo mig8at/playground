@@ -208,7 +208,13 @@ const buscaNorm = computed(() => sinTildes(busca.value).trim());
 // ⚠ Que aparezcan NO las publica. Publicar a Jira sigue siendo una decisión que se PIDE —hoy
 // `make jira-create JSON=…`— y a propósito no hay botón acá: una tarea local es material de trabajo, y
 // el día que valga la pena compartirla se decide, no se filtra por estar en pantalla.
+// APAGADO por defecto: el tablero es, antes que nada, el sprint — lo que el equipo ve. Las locales son
+// material propio y son MUCHAS (16 contra 7 del sprint el 2026-08-27): encendidas por defecto ahogaban
+// justo lo que uno viene a mirar. Se prenden cuando se las está trabajando.
+const verLocales = ref(false);
+
 const localesSueltas = computed(() => {
+  if (!verLocales.value) return [];
   const ligados = new Set(Object.values(taskLocals.value).map(v => v?.effortId).filter(Boolean));
   return efforts.value
     .filter(e => e.id && !ligados.has(e.id) && !e.archived)
@@ -223,6 +229,13 @@ const localesSueltas = computed(() => {
       _local: true,
       _esfuerzoId: e.id,
     }));
+});
+
+// Cuántas locales hay, se estén viendo o no: una píldora sin número obliga a prenderla para descubrir
+// si tiene algo, que es exactamente lo que las otras casillas ya evitan.
+const cuantasLocales = computed(() => {
+  const ligados = new Set(Object.values(taskLocals.value).map(v => v?.effortId).filter(Boolean));
+  return efforts.value.filter(e => e.id && !ligados.has(e.id) && !e.archived).length;
 });
 
 const groupedIssues = computed(() => {
@@ -1189,6 +1202,13 @@ onMounted(async () => {
               @change="alternarFiltro(f.id)">
             {{ f.label }}<span class="cnt">{{ conteoFiltro[f.id] }}</span>
           </label>
+          <!-- LAS LOCALES son otro eje: las casillas de arriba filtran por ESTADO, esto por ORIGEN.
+               Va separada por eso, y arranca APAGADA — el tablero es el sprint primero. -->
+          <label class="fpill origen" :class="{ off: !verLocales, vacio: !cuantasLocales }"
+            :title="verLocales ? 'ocultar las tareas locales' : 'mostrar también las tareas locales (no están en Jira)'">
+            <input type="checkbox" v-model="verLocales" :disabled="!cuantasLocales">
+            locales<span class="cnt">{{ cuantasLocales }}</span>
+          </label>
           <!-- Buscador por título (y por clave: pegar «CORE-431» es la otra forma de buscar una tarea).
                Va en la MISMA fila que las casillas porque es lo mismo —una vista sobre la lista— y
                separarlo haría pensar que son dos filtros independientes cuando se combinan con Y. -->
@@ -1216,12 +1236,17 @@ onMounted(async () => {
               <div class="tl">
                 <!-- Una tarea LOCAL no tiene enlace a Jira porque no está en Jira: se marca como tal
                      en vez de dar un enlace roto. Publicarla es una decisión que se pide aparte. -->
+                <!-- La ETAPA. En una tarjeta de Jira viaja dentro del chip del esfuerzo; en una local no
+                     había dónde, y es de los pocos datos estructurados que tiene una tarea —dice si esto
+                     se está evaluando, trabajando o ya es una tarea armada—. Sin ella las 16 locales se
+                     leían todas iguales. -->
                 <span v-if="i._local" class="key local" title="tarea local — todavía no está en Jira">local · {{ i._esfuerzoId }}</span>
                 <a v-else-if="site" class="key link" :href="jiraLink(i.Key)" target="_blank" rel="noopener"
                   @click.stop :title="`Abrir ${i.Key} en Jira`">{{ i.Key }} <span class="ext">↗</span></a>
                 <span v-else class="key">{{ i.Key }}</span>
                 <span v-if="!i._local" class="status" :class="statusClass(i.StatusCategory)">{{ i.Status }}</span>
                 <span v-else class="status sin-jira" title="no sale a Jira hasta que se decida">sin publicar</span>
+                <i v-if="i._local && stageOf(i._esfuerzoId)" class="stg suelto" :class="'s-' + stageOf(i._esfuerzoId)?.id">{{ stageOf(i._esfuerzoId)?.label }}</i>
                 <!-- El grupo al que pertenece la tarjeta, como chip: reemplaza al encabezado que antes
                      partía la grilla. `_esfuerzo` en la vista del sprint, `_sprint` en la ancha. -->
                 <span v-if="i._esfuerzo" class="spchip esf" :title="`esfuerzo: ${i._esfuerzo}`">
@@ -2123,4 +2148,6 @@ h1 { font-size: 20px; margin: 0; letter-spacing: .2px }
 /* una tarea LOCAL se distingue de una de Jira, pero no grita: es material de trabajo, no un problema */
 .key.local { color: var(--mut); font-style: normal; letter-spacing: .02em }
 .status.sin-jira { background: transparent; border: 1px dashed var(--line); color: var(--mut) }
+/* la etapa suelta (tarjeta local): mismo chip que dentro del esfuerzo, sin el contenedor */
+.stg.suelto { font-style: normal }
 </style>

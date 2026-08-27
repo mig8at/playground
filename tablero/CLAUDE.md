@@ -22,7 +22,12 @@ Qué es y cómo se corre: `README.md`. Acá solo las reglas al trabajar con las 
   correcto — lo que NO es correcto es escribir el avance de una tarea en un archivo distinto del suyo.
 
   **Las tareas locales ya tienen tarjeta**, con su cuerpo, su bitácora, sus ramas y sus hallazgos. Se
-  distinguen con `local · <id>` y el estado **«sin publicar»**.
+  distinguen con `local · <id>`, el estado **«sin publicar»** y su **etapa** (evaluando / trabajando /
+  tarea) — que en una tarjeta de Jira viaja dentro del chip del esfuerzo y en una local no tenía dónde.
+
+  ⚠ **La píldora «locales» del filtro arranca APAGADA.** El tablero es, antes que nada, el sprint: son
+  16 locales contra 7 del sprint (2026-08-27), y encendidas por defecto ahogaban justo lo que uno viene
+  a mirar. Filtra por ORIGEN, que es otro eje que las casillas de estado — por eso va separada.
 
   ⚠ **Que tengan tarjeta NO las publica, y eso es a propósito.** Publicar a Jira es una decisión que se
   **PIDE** —`make jira-create JSON=…`, o pedírselo al asistente—; no hay ni habrá un botón que lo haga
