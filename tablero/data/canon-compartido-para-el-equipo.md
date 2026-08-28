@@ -975,6 +975,31 @@ negativo deja una afirmación sin verificar viviendo como cierta.
 Banco: **35 preguntas, 32 al primero, 35/35 alcanzables**. Corpus: 3 temas · 313 archivos · 0
 derivados. CI verde desde worktree limpio. Sin mergear.
 
+## Cuarto tema: credifamilia — y el grafo conectó tres temas (2026-08-28)
+
+**22 archivos en 5 áreas** — la compuerta local · el sondeo de pre-aprobación (única entidad con
+polling) · el plan dinámico · la radicación SOAP al autorizar · la regeneración de documentos — y
+**714 palabras**. Cuarto repo en el corpus: **`pre-approvals-service`** (el microservicio Go).
+
+Verificado hoy contra origin/main antes de escribir: el aprobado sin guarda (`valor_disponible ?? null`
+con `pre_approved=true`), la compuerta `totalNs<12 || !debtCapacity`, y la ruta de regeneración sin
+middleware en su archivo de rutas.
+
+**La prosa** — el híbrido y sus dos errores (tipo de entidad equivocado rompe el cierre sin romper nada
+visible; la colisión del 24 entidad/comercio) · las dos puertas del listado (v1: 3, v2: 5, medido
+2026-08-23) · el aprobado sin cupo (F-113) · el límite de intentos del proveedor que tapa diagnósticos ·
+**la regla que clasifica y no excluye** (1.923 créditos de empleados en sucursales «sólo
+independientes», F-162) · el sondeo como comportamiento normal · las dos ausencias del endpoint de
+regeneración.
+
+⚠ **El grafo conectó TRES temas sin que nadie lo declarara**: el área del sondeo de credifamilia salió
+con 4 vecinas — bancolombia («decidir cuál producto», via `PreApprovedLenderService`) y tres áreas del
+listado (via los constants, la entity del status y el fetch del front). Es la topología real del
+sistema, derivada de los mapas.
+
+Banco: **43 preguntas, 40 al primero, 43/43 alcanzables**. Corpus: **4 temas · 335 archivos · 0
+derivados · 4 repos**. CI verde desde worktree limpio. Sin mergear.
+
 ## Decisiones abiertas
 
 - **La frontera con credibrain** (herramienta de Oscar en el mismo catálogo, «la memoria de la
