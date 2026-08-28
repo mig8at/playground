@@ -1624,6 +1624,28 @@ Prueba ciega tras la carga: **6 de 7 en primer lugar**, la restante en 2–3 con
 Estado: 14 temas · banco 95/112 y 112/112 top-3 · soporte 86/86 · ronda ✓ al día · `task ci` 0.
 Rama `feat/canon-tema-motai` lista.
 
+## Afinamiento del PR de motai: el PR viaja entero (2026-08-28)
+
+Miguel pidió consolidar todo en un PR. La rama `feat/canon-tema-motai` ahora lleva: el tema motai
+(cargado entero por la API), las **dos guías** (CREDIBOT.md para Duncan, CLAUDE-CODE.md para
+desarrolladores), y esta tanda de afinamiento:
+
+- **El área «pantallas» de motai estaba delgada** — prometía rutas del asistente y declaraba dos
+  documentos (defecto de la carga de hoy). Ahora tiene los 7 archivos reales del front.
+- **Sonría y Prami al glosario** — las dos palabras más frecuentes del canal sin puente. Sonría es
+  **comercio** (26), no entidad: medido contra prod, su volumen de 90 días va casi entero por
+  Credifamilia (11.392 transacciones) — sus reclamos casi siempre se resuelven en el tema de esa
+  entidad.
+- **Dos huecos convertidos en respuestas verificadas**: el embargo **no participa de ninguna decisión**
+  (sólo existe en cláusulas legales de pagarés y una columna de reporte; si negocio quisiera filtrarlo
+  sería desarrollo, no parametrización) · comprobantes **de a uno** — no hay camino masivo, y el
+  endpoint viejo de regeneración está marcado a extinguir en su propio código.
+- **Un hueco que se queda declarado con honestidad**: «reiniciar los 5 intentos de validación» apunta
+  al límite del PROVEEDOR, no a nuestro código — verificarlo a fondo es otra sesión.
+
+Estado: 14 temas · 147 secciones · soporte **88/88** con 21 huecos (eran 23) · banco 95/112 y 112/112
+top-3 · ronda ✓ al día · `task ci` 0.
+
 ## Decisiones abiertas
 
 - **La frontera con credibrain** (herramienta de Oscar en el mismo catálogo, «la memoria de la
