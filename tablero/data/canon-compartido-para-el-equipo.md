@@ -1453,6 +1453,20 @@ nueva. Verificado en el navegador, en claro/oscuro y en móvil.
 llaves de la API y la alternativa del clon local. **Y con la nota que importa: si no hay ninguna, canon
 igual funciona con el token del `gh` — que sirve para desarrollar y NO para el servidor.**
 
+## Repaso pre-PR: una afirmación envejeció dentro del propio PR (2026-08-28)
+
+Miguel preguntó si había algo que afinar antes de subir el PR #12. El repaso encontró **una
+inconsistencia real**: la sección nueva de `arquitectura` decía «el corpus mapea **cuatro**
+repositorios» — y el mismo PR lo sube a **seis**. La afirmación quedó vieja sin salir del diff.
+
+Arreglo: la sección ya **no hornea el número** («declara archivos de unos pocos repositorios; la lista
+viva la da el propio índice, no este párrafo»). Es la misma regla de los conteos horneados del árbol
+local, que canon todavía no lintea — anotado como candidato a regla.
+
+Además: los 3 commits se aplastaron a UNO (la convención del PR 10), verificación completa desde
+worktree limpio (vet · test · lint · bench 109/109 · soporte 64/64 · -github 4/4), y la descripción del
+PR reescrita para cubrir las tres cosas que lleva. CI verde en los dos checks.
+
 ## Decisiones abiertas
 
 - **La frontera con credibrain** (herramienta de Oscar en el mismo catálogo, «la memoria de la
