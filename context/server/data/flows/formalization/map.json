@@ -4,6 +4,11 @@
   "group": "formalization",
   "kind": "reference",
   "when": "Cuando el problema está DESPUÉS de elegir entidad: plan de pagos, fecha de primer pago, documentos, pagaré, firma con OTP, autorización hasta el Estado 11 y desembolso. Las pantallas del wizard de este tramo son `confirmation`, `payment-schedule`, `first-payment-date`, `payment-reminder`, `additional-info`, `sign-documents`, `otp-validation` y `loan-approved`. Acá caen «falló firmando documentos», «no le llegó el OTP de la firma», «quedó en Pendiente de autorización (estado 10)», «Aprobada no desembolsada (estado 20)», Deceval (pagaré SOAP) y Netco (firma).",
+  "verified": {
+    "ref": "main",
+    "date": "2026-08-28",
+    "source": "manual"
+  },
   "sintomas": [
     "«el pagaré dice una persona y la BD dice otra»",
     "«falló firmando documentos»",
@@ -11,11 +16,6 @@
     "«quedó aprobada y no se desembolsó»",
     "«¿dónde se trabó?»"
   ],
-  "verified": {
-    "ref": "main",
-    "date": "2026-07-31",
-    "source": "manual"
-  },
   "files": [
     "application/app/Http/Controllers/Customer/InitialFeePaymentController.php",
     "application/app/Http/Controllers/Customer/PromissoryNoteController.php",

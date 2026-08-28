@@ -47,7 +47,7 @@ cambió es el comentario en `OtpService`, que dejó de decirlo; el guard está i
 - **Bug real: argumento descartado en el envío de OTP.** `ValidateOtpPromissoryNoteController.php:178-183` llama `sendOtpPromissoryNote($user, $action, $phoneCode, $isImei ? 'service' : null)` con **4 argumentos** contra una firma de **3** (`OtpService.php:42`). PHP descarta el extra en silencio → la selección de canal para IMEI nunca llega al servicio.
 - **`eval()` sobre datos de BD**: `GuaranteeService::shouldRequestGuarantee:214-217` construye `"$score $y $w"` desde `lender_guarantee_criteria` (variable/condition/value) y lo ejecuta con `eval`. Un valor mal cargado en la tabla es ejecución de código.
 - **Idempotencia de la radicación rt=4 está comentada**: el docblock de `formalizeExternalManagedIfApplicable` promete "Idempotente: si ya existe una LenderTransaction se reutiliza", pero el bloque que la implementaba está comentado (`LoanAuthorizationService.php:211-222`) → un `authorize()` reintentado puede radicar dos veces. El mismo docblock dice `response_type 5` mientras la constante es **4** (`:43`).
-- **Hardcodes de lender**: `PromissoryNoteController::show:96` (`lender_id === 24` → camino Credifamilia), `CredifamiliaDocumentsBuilder::build` (`lenderId: 24` literal), `UserRequest::isSmartPay:191` (`lender->id === 160`). Consecuencia práctica: en dev/staging SmartPay es el lender **153**, así que `isSmartPay()` da false y el flujo IMEI cae en la rama `authorize()` en vez de `disburseImeiRequest()` (`DeviceController.php:102-106`).
+- **Hardcodes de lender**: `PromissoryNoteController::show:96` (`lender_id === 24` → camino Credifamilia), `CredifamiliaDocumentsBuilder::build` (`lenderId: 24` literal), `UserRequest::isSmartPay` ~~(`lender->id === 160`; en dev/staging da false y el flujo IMEI cae en `authorize()`)~~ **Corregido el 2026-08-28**: el método ya resuelve el id **por entorno** (producción 160, cualquier otro 152) — el mismo condicional que `BackDoorUserService`, replicado ahora en cuatro sitios; el propio código pide sacarlo a configuración. La falla que motivó el arreglo: fuera de producción `isSmartPay()` era false, no se saltaba el AML de Tusdatos, y `ContinueUserFlowController::confirm` reventaba leyendo `expedition_date` (null en usuarios temporales).
 - **Controllers importados pero sin ruta**: `ConsentController`, `GuaranteeController` y `CustomerDocumentController` se importan en `Modules/Loans/routes/api.php:7-10` y **no tienen ninguna ruta** → los PDFs de consentimiento y FGA solo se producen como efecto colateral del preview y del `authorize`. El acuerdo de bloqueo de dispositivo también está comentado en el listado de documentos (`UserRequestDocumentService.php:53-57`).
 - **Estados que se pisan**: originación (3 → 10 → intermedio → 11/6/7/8) ≠ préstamo vivo (1 al día / 2 mora / 3 paz y salvo / 4 cancelado) ≠ `creditop_x_user_requests_process_statuses` (ids 8 y 9 usados como números mágicos, sin seeder en el repo). El 11 es el puente; la cartera post-11 es otro grafo.
 - **Todo el cierre es desktop-hostil por diseño**: `RedirectIdValidationIfDesktop` responde 403 antes que el controller. Cualquier prueba automatizada del cierre tiene que fingir user-agent móvil o entrar por `/self-service`.
@@ -93,7 +93,7 @@ La entrada la fabrica el backend al seleccionar entidad: para rt ∈ {2,3,4} arm
 `PromissoryNoteService::calculateAmounts:106` fija `final_amount = total_amount_no_fee_no_guarantee`, es decir **capital + admin, SIN el fondo de garantía** — distinto de `user_requests.amount`, que sí lo incluye porque es la base de las cuotas.
 
 ### Estados: el cierre tiene DOS saltos, no uno
-- `verify-otp` → `LoanAuthorizationService::transitionToIntermediate:424` mueve a **"Autorizado pendiente desembolso"**. El id se resuelve **por nombre** (`UserRequestStatus::where('name', …)`) porque la migración lo inserta sin id fijo (`2026_02_20_110000_add_authorized_pending_disbursement_status.php:10-16`). Aplica a **todos** los flujos, no solo IMEI.
+- `verify-otp` → `LoanAuthorizationService::transitionToIntermediate:424` mueve a **"Autorizado pendiente desembolso"**. El id se resuelve **por nombre** (`UserRequestStatus::where('name', …)`) porque la migración lo inserta sin id fijo (`2026_02_20_110000_add_authorized_pending_disbursement_status.php:10-16`). Aplica a **todos** los flujos, no solo IMEI. **(2026-08-28)** Y ganó una bifurcación previa: **con codeudor activo pendiente de firma, `authorize()` NO avanza** — numera la solicitud, genera los documentos del titular y se detiene en el estado **«Pendiente firma codeudor»**; llegar a 11 sigue exigiendo las dos firmas (`LoanAuthorizationService:151,167,272`).
 - `authorize` → `authorizeRequest:384` escribe `user_request_status_id = 11` (`resolveAuthorizationStatusId:471` es literalmente `return 11;`), `final_amount` y `request_number` (`{id}` + 6 caracteres aleatorios, `:379-382`), más una fila en `user_request_records`.
 
 ### Qué corre dentro de `authorize()` (`LoanAuthorizationService.php:84-165`)
@@ -138,6 +138,14 @@ Las mismas etapas en Inertia (`application/routes/customer.php:78-96`): `/acepta
 
 ## Subcontextos
 - **dynamic-forms** — los formularios backend-driven (`additional-info`, `form-type`); el backend define qué campos pide el wizard y se persisten como EAV en `user_field_values`.
+
+**(2026-08-28) Re-verificación asistida de los 34 archivos derivados** (worker → 8 funcionalidades; las
+3 que invalidaban, verificadas a mano — las tres ciertas, corregidas arriba). Lo demás que entró: el
+plan de pagos ganó **periodicidad semanal** con la calculadora como primer evaluador del factory
+(`Calculator → Revolving → ExternallyManaged → Regular` — el más específico primero:
+`PaymentScheduleServiceFactory:22-32`); el catálogo configurable de documentos de firma con sus
+compuertas de política (detalle en el nodo codeudor); la relación Eloquent `promissoryNote` de
+`UserRequest` corregida; y un endpoint post-Ábaco con consulta a Datacrédito para Credifamilia.
 
 ## Dónde mirar
 - **Autorización / Estado 11** (legacy-backend): `Modules/Loans/App/Services/LoanAuthorizationService.php:84` `authorize`, `:384` `authorizeRequest`, `:424` `transitionToIntermediate`, `:471` `resolveAuthorizationStatusId` (`return 11`), `:252` `disburseImeiRequest`, `:194` formalización rt=4.
