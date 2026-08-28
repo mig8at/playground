@@ -36,6 +36,17 @@ pregunta que va antes de todas las demás.
 Volumen = líneas de log en 24 h. No mide importancia, mide **actividad**: sirve para separar el servicio
 que atiende tráfico del que apenas late.
 
+> ⚠ **CORREGIDO el 2026-08-28: ni siquiera mide actividad. En dos casos medía el LATIDO.**
+> `self-manager-api` (el #4 de esta tabla) hace **34.564 líneas en 24 h y cero errores**, y la mitad
+> exacta dice «http request started» y la otra «http request completed»: **dos líneas por cada chequeo
+> de `/health` del balanceador**, en nivel debug. Su volumen entero es el latido.
+> Y `merchant-api` (el #3) pasó de **35.840 a 242** líneas en tres semanas sin que nada indique que se
+> apagó — el volumen se mueve por **cómo** loguea un servicio, no por cuánto se usa.
+> Para decidir si un servicio importa hay que contar **peticiones de negocio o errores**, no líneas.
+> Los cuatro que faltaban clonar (`merchant-api`, `self-manager-api`, `otp-service`,
+> `reportery-service`) **ya están clonados**; el quinto se llama `merchant-gateways`, no
+> `merchant-gateways-service`.
+
 | servicio | líneas / 24 h | clonado | lo indexa el árbol |
 |---|---:|---|---|
 | **`financial-health-service`** | **86.350** | ✓ `microservices/` | ✓ *(desde hoy)* |
