@@ -1500,6 +1500,42 @@ número de orden **el sistema le inventa uno**.
 Estado: banco 96/109 primero y 109/109 en top-3 (no se movió) · soporte **69/69** con 20 huecos
 declarados · **490** archivos declarados, 0 derivados · `task ci` 0. Rama lista para subir.
 
+## Tanda del 29 de julio al 1 de agosto: el mismo código con dos explicaciones opuestas (2026-08-28)
+
+Prueba ciega: **4 de 15**, y **9 de 15** después de cargar lo que faltaba. Lo más caro que faltaba era la
+confusión entre **clasificar y excluir**: soporte reporta *«perfilamos probabilidad alta y el cliente está
+súper mal reportado, según la política dura no debería»*, y la premisa es falsa. Canon lo tenía para una
+entidad (credifamilia) pero **no en el tema donde cae la pregunta**, que es el listado. Es la familia de
+F-162, medida en producción: en las sucursales cuya regla exige sólo independientes, la misma entidad
+cerró **1.923 créditos de empleados**.
+
+**El hallazgo que no venía buscando.** Cuatro entidades están excluidas del preaprobado **por número de
+identidad**, y la lista está copiada en los dos monolitos con **explicaciones opuestas**: el nuevo dice
+que es *temporal* y que hay que quitarla «cuando funcionen»; el viejo dice que es *por diseño* porque
+Prami necesita la central de riesgo. El código es idéntico; la historia que cuenta cada archivo, no. Y la
+lista **no coincide con su propio comentario**: nombra la variante base de Welli entre las excluidas y esa
+variante **no está en la lista**, así que sigue entrando al preaprobado mientras sus tres hermanas quedan
+afuera — y las cuatro comparten backend y credencial. Verificado contra `origin/main`.
+
+**Dos reclamos que parecían de áreas distintas son una línea.** El comprobante imprime el monto
+desembolsado de la solicitud, y el aviso de Prami **copia ese campo del cuerpo crudo** sin contrastarlo
+contra lo pedido. De ahí *«en el voucher quedó por 2 millones y el correcto es 1.746.000»* y *«en el
+webhook llega otro valor»*. Y la **firma no es una de las tres guardas del comprobante**: una solicitud
+movida a mano al estado autorizado con el pagaré sin firmar **genera comprobante igual**. Soporte supone
+lo contrario, y el comercio factura contra eso.
+
+**El banco hizo su trabajo dos veces.** Bloqueó el despliegue porque una sección nueva le robó el tercer
+puesto a otra con tres palabras de relleno —«dice», «nada», «útil»—; y después mostró que «queda
+guardada» y «monto final», escritos **al pasar**, le ganaban a las secciones que tratan de esas cosas. Los
+tres arreglos fueron **de prosa**, no de ranking. Queda un desplazamiento deliberado: en «pasó el buró
+pero la entidad no apareció» la sección nueva quedó primera y la esperada segunda, y las dos contestan.
+
+Y un dato de encuadre que salió de prod: **Prami y las cuatro Welli son todas `response_type` 1**, y
+**Sonria no es entidad sino comercio** — cosa que los reclamos no distinguen.
+
+Estado: banco **95/109** primero y 109/109 en top-3 · soporte **80/80** con 23 huecos declarados ·
+**492** archivos declarados, 0 derivados · `task ci` 0.
+
 ## Decisiones abiertas
 
 - **La frontera con credibrain** (herramienta de Oscar en el mismo catálogo, «la memoria de la
