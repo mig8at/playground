@@ -1048,6 +1048,33 @@ SimulatorController) y ↔ donde nace la solicitud (via UserRequestController).
 Banco: **62 preguntas, 55 al primero, 62/62 alcanzables**. Corpus: **6 temas · 376 archivos · 0
 derivados**. CI verde desde worktree limpio. Sin mergear.
 
+## Séptimo tema: kyc — los burós (2026-08-28)
+
+**22 archivos en 5 áreas** — el disparo y las omisiones · los clientes de cada central · dónde queda el
+reporte · los impostores del entorno de pruebas · la identidad del cierre — y **832 palabras**. Fuente:
+el nodo local `kyc` (el más gordo del árbol, 5.655 palabras, sello 2026-08-15), destilado a lo no
+deducible.
+
+**La prosa** — sólo Experian trae score (0 de 202 filas de Agildata, 2026-08-15) · la tabla de
+centrales NO es la lista de burós: dos momentos del recorrido escriben ahí (91% de la biometría
+DESPUÉS de seleccionar, medido 2026-08-05) · la ausencia de fila casi nunca es un fallo (el proveedor
+lo elige la entidad y casi la mitad no deja fila; los reintentos quedan soft-deleted) · **el primer
+apellido es parte de la llave** del reporte (verificado en código hoy) · el reuso de un mes que muerde
+en pruebas · el impostor de los entornos (siempre la misma persona, y el match de nombres apagado justo
+ahí) · la ocupación forzada «Empleado» (segunda fuente de sesgo, se suma al autofill retail) · la llave
+de cifrado como punto único de falla (listado que cae en silencio).
+
+⚠ El lint me atajó por segunda vez en el día — «202 filas medidas» sin fecha. La regla de la fecha
+inline funciona contra su propio autor, que es la prueba de que sirve.
+
+⚠ El nodo local tiene un ⏳ PENDIENTE DE MERGE (la cascada pasa de vetar a corregir el nombre, PR
+#1098/#1103): el corpus describe main, así que la prosa dice «hoy nadie corrige» — cuando mergee, el
+expediente lo va a marcar (los clientes de las centrales están declarados) y habrá que actualizar esa
+frase.
+
+Banco: **72 preguntas, 63 al primero, 72/72 alcanzables**. Corpus: **7 temas · 398 archivos · 0
+derivados**. CI verde desde worktree limpio. Sin mergear.
+
 ## Decisiones abiertas
 
 - **La frontera con credibrain** (herramienta de Oscar en el mismo catálogo, «la memoria de la
