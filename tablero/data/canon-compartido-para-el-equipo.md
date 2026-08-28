@@ -926,6 +926,29 @@ pero leía **un solo archivo** — así que en los hechos **obligaba a que toda 
 `main.go`**. Ahora lee todos los archivos del mismo lenguaje que estén al lado, sin recursión
 (`node_modules` está justo abajo). `task lint` verde en las 5 herramientas.
 
+## El mapa navegable: masticado, grafo derivado, y por qué PageRank todavía no (2026-08-28)
+
+Miguel pidió tres cosas: entregar **fragmentos masticados**, poder **navegar de un json a otro** como
+grafo, y evaluar **PageRank** para las relaciones. Las tres tienen respuesta, y una es «todavía no».
+
+**Masticado:** un hit de `in_the_map` ya no es una referencia — trae la llamada siguiente **ya armada**
+(`code: /api/code?area=listado/context&n=2`), los archivos recortados a 8 por repo con `files_omitted`,
+y sus vecinas. El modelo no arma URLs: las sigue.
+
+**El grafo NO se declara: se deriva.** Dos áreas que citan el mismo archivo están conectadas por
+construcción, y la arista viene con `via` — los archivos compartidos que la prueban. Medido al
+construirlo (286 archivos declarados): existían **2 aristas** y las dos eran semánticamente correctas
+sin que nadie las declarara — la decisión de producto de bancolombia ↔ la consulta de pre-aprobación
+del listado (comparten `PreApprovedLenderService`), y el backend ↔ las dos puertas (comparten las
+rutas). Derivada = no puede quedar vieja: sale de los mapas que ya se verifican contra origin/main.
+
+**PageRank: la estructura ya es esa, el algoritmo todavía no.** Aristas con peso (cuántos archivos
+comparten) es exactamente lo que PageRank consume — si el corpus crece a decenas de temas se enchufa
+sin rediseñar. Pero con 17 áreas y 2 aristas sería teatro: el grado del nodo da el mismo orden y se
+explica mirándolo. Quedó escrito en `graph.go` para que no se re-litigue sin datos nuevos.
+
+Banco sin cambios: 23/26 primero, 26/26 alcanzable. CI verde, worktree limpio, sin mergear.
+
 ## Decisiones abiertas
 
 - **La frontera con credibrain** (herramienta de Oscar en el mismo catálogo, «la memoria de la
