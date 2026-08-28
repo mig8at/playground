@@ -162,6 +162,11 @@ Ninguno de los dos falla con error. **Antes de concluir nada sobre los documento
 
 **Lo que sí quedó comprobado corriéndolo** (local, 2026-08-22): con el catálogo de la rama con codeudor sembrado por la migración de `main`, el Rent to Own **cierra de punta a punta** — el codeudor entra por su token, resuelve elegibilidad, el titular firma y la solicitud se difiere, y al firmar el codeudor la autorización termina en **estado 11**. El detalle del recorrido está en `codeudor`; los tropiezos del camino, en `findings` **F-150**, **F-151**, **F-152** y **F-153**.
 
+**(2026-08-28)** El ciclo de la solicitud de este comercio **se espeja hacia `merchant-api-service`**:
+legacy reporta seis hitos del funnel para que el proveedor mantenga su copia de las solicitudes de su
+lender, sin que el flujo dependa de que su servicio esté arriba. El detalle (hitos y compuerta por
+marcador de workflow) está en el nodo codeudor, porque cinco de los seis hitos son de ese recorrido.
+
 ## Decisión manual + cierre
 La decisión del renting **sigue siendo manual**: el asesor la toma en la pantalla de perfil financiero (`financial-profile.repository.ts` → `POST motai/update-status`, `approve` booleano; el ingreso que muestra viene de `FINANCIAL_HEALTH_API_URL`, **≠** Ábaco) → `BackDoorUserService`: aprobado ⇒ `targetStatus=11` + voucher; rechazado ⇒ `9`.
 

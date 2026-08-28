@@ -182,7 +182,12 @@ una vez por utilización con el MISMO id, la primera creaba el registro y bloque
 recaudada sin aplicar. Hoy esa validación sólo corre en el camino directo (consumo). Verificado contra `main` leyendo los
 tres cuerpos. Y del mismo tramo: el summary del consumer (CRED-148) ahora trata una sobra ≤ el umbral
 `creditop_x_lender_residual_balances` de la entidad (default 5.000) como **resto residual, no cuota
-impaga** — el «debe 300 pesos y le sale una cuota» dejó de ser un reclamo válido.
+impaga** — el «debe 300 pesos y le sale una cuota» dejó de ser un reclamo válido. Y el ciclo ganó **corte
+SEMANAL** (`lenders.cutoff_type_id = 3`: paga los viernes, factura los miércoles) con las reglas de
+fechas centralizadas en `CutoffCalendar` — el devengo semanal usa la conversión **efectiva** de la
+tasa mensual (`((1+i)^(7/30)-1)/7`): devengar proporcional sobrecobraría interés cada ciclo. Mensual y
+quincenal no cambian de comportamiento (leído el 2026-08-28 en el commit y su helper, con suite
+propia).
 
 ## Estados y códigos
 **DOS máquinas de estado independientes que se confunden** (el Estado 11 es el puente):

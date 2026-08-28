@@ -48,6 +48,23 @@ Están separados a propósito: si el juego se dedujera de los booleanos de firma
 
 ⚠ **Una fila sin `template` se genera con el servicio de siempre, sobre una plantilla genérica cuyo bloque de evidencia solo contempla al titular.** El cierre del codeudor la **omite** (y lo traza), porque re-generarla no agregaría la segunda firma: llevarla a dos firmas es darle su plantilla, no escribir código.
 
+**(2026-08-28) Cuatro hilos nuevos en `main`, leídos y verificados:**
+
+1. **El ciclo se espeja hacia `merchant-api-service`**: legacy le reporta seis hitos (solicitud,
+   codeudor registrado, invitación abierta, cupo validado, firma del titular, cierre) para que el
+   proveedor tenga su copia **sin que el embudo dependa de que esté arriba**. La compuerta ya no es el
+   lender 158 quemado (estaba en cinco lugares): es un **marcador de workflow** en el almacén tipado
+   por solicitud (`UserRequestAdditionalInformation`), escrito al crearse la aplicación.
+2. **El codeudor ahora recibe lo que firmó**: antes el cierre notificaba sólo al titular (el único
+   destinatario del `sendAuthorizationNotifications` compartido); hoy el cierre le manda al codeudor
+   su propio correo con las filas del catálogo de SU rol, re-renderizadas con las dos firmas.
+3. **El título valor salía con el codeudor EN BLANCO**: `formalized` es terminal y apaga `is_active`,
+   y los payload builders resolvían con `findActiveByUserRequestId` — en el render final no había
+   codeudor «activo» y el pagaré salía sin su nombre, documento y teléfono. Hoy los builders resuelven
+   con `findSignatoryByUserRequestId`.
+4. **La compuerta de firma del titular**: si la política exige codeudor y no hay uno aprobado, el
+   titular no ve ningún documento (cubre el salto por URL). Sólo en el repo nuevo.
+
 ## Dónde mirar
 - `legacy-backend/Modules/Loans/App/Services/LoanAuthorizationService.php` — la rama que **difiere**: numera, genera los documentos del titular y devuelve `deferred_for_cosigner`. Es el punto donde «firmó» deja de significar «quedó autorizada».
 - `legacy-backend/Modules/Loans/App/Services/Signing/CosignerRequirementService.php` — la política re-evaluada al firmar, y el corte que impide que el titular firme el juego equivocado. Explica en su cabecera por qué es la política y no el hecho.

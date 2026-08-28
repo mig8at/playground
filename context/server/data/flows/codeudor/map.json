@@ -2,6 +2,11 @@
   "name": "Codeudor",
   "kind": "reference",
   "when": "Cuando en la tarea aparece un SEGUNDO firmante: codeudor, cosigner, deudor solidario, «necesita codeudor», «el codeudor no puede firmar», la invitación por WhatsApp o su deep link, el estado «Solicita codeudor», la pantalla de espera del titular mientras el codeudor valida, la firma cruzada (titular y codeudor firmando el MISMO documento), o el catálogo de documentos que cambia según haya codeudor o no (`lender_signing_documents`). También cuando una solicitud queda aprobada por OTP y NO llega al estado 11: puede estar diferida esperando la firma del codeudor.",
+  "verified": {
+    "ref": "main",
+    "date": "2026-08-28",
+    "source": "manual"
+  },
   "sintomas": [
     "«firmó y la solicitud no pasó a Autorizada»",
     "«el codeudor no recibió el link»",
@@ -9,11 +14,6 @@
     "«pide codeudor y no debería» / «no lo pide y debería»",
     "«el documento salió sin la firma del codeudor»"
   ],
-  "verified": {
-    "ref": "main",
-    "date": "2026-08-20",
-    "source": "cabecera"
-  },
   "files": [
     "legacy-backend/app/Models/Cosigner.php",
     "legacy-backend/app/Models/CosignerStatus.php",

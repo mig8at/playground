@@ -153,6 +153,13 @@ Orden real del cascade (application, la ruta **viva por defecto** en parallel-ru
 - **Profiling** — perfilamiento rt=2: la **categoría** (`lender_users_categories` + `lender_users_category_rules`) en la que cae el usuario fija enganche/cupo/plazo (el corte final del cascade) + el perfilador datacrédito rt≠2 (solo reordena).
 - **Amount tiers** — **tramos por monto** (`creditop_x_conditions_by_amount_by_lender`): según el monto pedido recortan plazos (`max_fee_number`/`mandatory_fee_number`) y **topean el cupo** (`max_amount−1`). NO tocan el enganche.
 
+**(2026-08-28)** El gate de `available-quota` (y sus variantes extended y cosigner-quota, que comparten
+`resolveQuota`) **ya no exige tipo 2**: rechaza sólo los tipos **sin producto financiado por la casa**
+(0 y 1). Consecuencia: Credifamilia (tipo 4) puede pedir cupo — incluido el de codeudor. ⚠ El commit
+menciona además un **tipo 5** que el catálogo de producción no muestra todavía; si aparece un lender
+tipo 5, este gate ya lo deja pasar. Y `getExtendedQuota` acepta `user_request_id` (deriva user y lender
+de la solicitud) — la mitad backend del «próximo paso tras identidad» que espera el front.
+
 ## Dónde mirar
 - **Orquestador rt=2 — ruta viva** (application): `app/Services/lenders/LenderRetrievalService.php:73 getLenders` · `:121 have_ctopx/no_more` · `:650 processRevolvingAndCreditopXLenders` · `:716` enganche=`category->min_initial_fee` · `:718` cupo=`min(min(available,loan_limit−used),max_amount)` · `:727` exclusión por cupo.
 - **Reglas duras + datacrédito rt=2** (application): `app/Services/lenders/LenderValidationService.php:27 validateRulesByLender` · `:176` gate rt=2 · `:206/219/232/249` score/negativos/consultas/maduración · `:308-327` `have_ctopx` sobrevive · `:376` `unset` del rt=2 fallido.
