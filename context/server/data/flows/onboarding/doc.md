@@ -10,7 +10,7 @@ Lo que hay que entender antes de tocar nada: **esta fase está implementada TRES
 |---|---|---|
 | **G1 · Inertia** | `application/app/Http/Controllers/Customer/*` | Viva y por defecto. Delega a G2 **paso por paso**, con allowlist y fallback local. |
 | **G2 · módulo Onboarding** | `legacy-backend/Modules/Onboarding` (198 archivos: 38 controllers, 63 services, 18 repositories, 29 form-requests, 14 tests) | Viva. Es la que consume **el wizard React** y a la que G1 delega. Prefijo `api/onboarding`. |
-| **G3 · nueva arquitectura** | `Modules/OnboardingV2` + `Modules/UserRequestV1` (`api/v2/onboarding`) | Registrada y activa, **sin ningún consumidor en los 3 repos**. `otp-auth/validate` está implementada; `personal-info` es un stub que responde **501 (OBV21000)**. |
+| **G3 · nueva arquitectura** | `Modules/OnboardingV2` + `Modules/UserRequestV1` (`api/v2/onboarding`) | Registrada y activa, **sin ningún consumidor en los 3 repos**. `otp-auth/validate` está implementada; `personal-info` **sigue respondiendo 501 (OBV21000)** — ⚠ pero desde 2026-08 la lógica completa YA está implementada detrás de la fachada apagada (validación de fechas calendario, usuarios temporales, dirección y estrato a `user_field_values`): es un interruptor, no un hueco (verificado el 2026-08-28). |
 
 Y hay **dos frentes**: el Inertia de `application` y el wizard React (`frontend-monorepo/apps/loan-request-wizard`). El corte entre uno y otro NO es por repo ni por deploy: es un **allowlist en BD** que se lee en `SimulatorController::indexV2` y decide si redirige al wizard nuevo o renderiza la pantalla vieja.
 
@@ -38,7 +38,7 @@ Y hay **dos frentes**: el Inertia de `application` y el wizard React (`frontend-
 - Rate limit de personal-info: por **número de documento**, `4/hora` por defecto, TTL 3600 s, clave `CTOP_LO_STORE_PERSONAL_INFO_RTL_CTRL::{documento}`, configurable en el Setting `personal_info_settings.rate_limit_rules`. La lectura chequea **primero la clave con typo** `store_personal_info_max_requests_per_houre` y después la correcta.
 
 **Contrato y datos**
-- `normalizeOtpErrorCode` (wizard) mapea `ONB003 → expired`, `ONB006 → max_attempts` y `ONB007 → rate_limit`. En el backend `ONB003` es *personal info no validada*, `ONB006` es *onboarding Bancolombia* y **`ONB007` no existe**. Sólo afecta etiquetas de analítica, pero la tabla del front no es el catálogo del back.
+- ~~`normalizeOtpErrorCode` (wizard) mapea `ONB003 → expired`, `ONB006 → max_attempts` y `ONB007 → rate_limit`~~ **Corregido el 2026-08-28**: hoy mapea SÓLO códigos canónicos `OBV22xxx` (`22001 → validation_error`, `22003 → invalid_code`, `22009 → expired`, `22010 → rate_limit`); los `ONB*` viejos salieron del mapa y **el caso `max_attempts` ya no existe como etiqueta** — cae en `api_error` genérico. La confusión front-vs-catálogo que este punto describía quedó resuelta por los códigos canónicos.
 - `lenders-v2` **no es SSE**: el "streaming" lo hace el loader de React Router devolviendo promesas sin `await`.
 - El default `180000` de `lenders-v2` enmascara el monto real si el front no lo manda; es el mínimo de Welli reciclado como constante.
 - `env('INTERNAL_LEGACY_API_URL')` se llama **crudo** (no vía `config()`) en `ValidateOtpController:120` y `PersonalInfoController:1042` — con `config:cache` en producción devuelven `null` (hay un tercer uso en `ListLenderController:259`, pero está dentro del bloque comentado). El mismo valor está expuesto correctamente como `config('services.api.legacy_host')` y así lo usan `RegisterCellPhoneController:185` y `OtpController:371`.
@@ -157,6 +157,15 @@ En G2 **el body gana**: `request()->input('amount') ?? session('amount') ?? 0`. 
 
 ## Subcontextos
 - **KYC** — el estudio del cliente (burós): Experian/Datacrédito da el único score; TusDatos identidad+AML; Ágil Data/Mareigua ingreso; Quanto ingreso estimado. Se dispara desde `personal-info` y desde el orquestador de OTP (`userViability`).
+
+**(2026-08-28) Re-verificación asistida de los 37 archivos derivados** (worker digirió el diff en 8
+funcionalidades; las 2 que invalidaban se verificaron a mano — una cierta y corregida arriba, y una
+SOBRE-afirmada por el worker: el stub de personal-info sigue 501, lo implementado está detrás de la
+fachada apagada). Lo nuevo que este nodo hereda de otros: el ruteo del codeudor (nodo codeudor), la
+des-motaización con TyC por comercio (nodo motai), la resolución de checkout de
+Bancolombia/Corbeta y el ruteo a Cuotéalo BCP al finalizar, `onboarding_channel` propagado desde el
+registro del teléfono (con `onboarding_backend = 'application'` fijado en G1), y caché de datos de
+referencia + ajuste de timeouts en los loaders del wizard.
 
 ## Dónde mirar
 

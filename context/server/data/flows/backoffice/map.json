@@ -2,6 +2,11 @@
   "name": "Backoffice",
   "kind": "reference",
   "when": "Cuando la tarea toca el PANEL NUEVO de back-office (React/Refine, /api/backoffice) o el login de staff por Cognito: buscar un usuario o una solicitud desde operaciones, ver su perfilamiento/Experian/OTPs, validar identidad a mano, o el módulo Auth y sus dos pools (staff | comercios). NO es el admin viejo de Inertia — ese vive en `actors`/`application`.",
+  "verified": {
+    "ref": "main",
+    "date": "2026-08-28",
+    "source": "manual"
+  },
   "sintomas": [
     "«desde operaciones no puedo ver/validar al usuario»",
     "«necesito decirle al comercio POR QUÉ no le salió esa entidad»",
@@ -127,10 +132,5 @@
     "legacy-backend/Modules/Backoffice/App/Services/UsersService.php",
     "legacy-backend/Modules/Backoffice/routes/backoffice.php",
     "legacy-backend/config/app.php"
-  ],
-  "verified": {
-    "ref": "main",
-    "date": "2026-07-31",
-    "source": "cabecera"
-  }
+  ]
 }

@@ -14,9 +14,18 @@ Para sumar una entidad/comercio con un flujo distinto **hay que editar código e
 
 ## Los 3 anti-patrones raíz (los 24 bloqueadores colapsan acá)
 1. **God-method `PreApprovedLenderService` con `if ($lender->id == N)`** — un if-chain con una rama por cada lender rt=1 (68, 100, 39, 12, 9, 6, 5, 133, 154/155, 84, 11…). Raíz de ~9 clusters. Sumar un agregador = editar este método. Irónico: `lender->action` YA existe como clase polimórfica — la solución está a medio construir y no se usa acá.
-2. **Arrays de ids quemados por comercio/lender** — `[24,209,210,211,311]` Corbeta, `[218,219,221,222]` Pash, `MOTAI_LENDER_IDS=[158]`, Welli `[23,141,142,166]`, allieds sueltos `26/153/225/277/250/67/95/24`. Raíz de ~11 clusters.
+2. **Arrays de ids quemados por comercio/lender** — `[24,209,210,211,311]` Corbeta, `[218,219,221,222]` Pash, ~~`MOTAI_LENDER_IDS=[158]`~~ (retirado 2026-08-28), Welli `[23,141,142,166]`, allieds sueltos `26/153/225/277/250/67/95/24`. Raíz de ~11 clusters.
 3. **Branch por nombre (`lender.name ==`) + assets por-id** — `LenderTabBehaviorResolver` por string, y peor: **archivos nombrados por id** (`consent_{id}.blade`, `payment_schedules/lender_{id}`, URLs S3 de T&C por id). Cada lender con doc propio = un archivo con su número.
-> Espejo en el front: `MOTAI_LENDER_IDS` forka la card, la fórmula de precio (duplicada), el routing y el tipo de documento PEP — todo por `id === 158`.
+> ~~Espejo en el front: `MOTAI_LENDER_IDS` forka la card, la fórmula de precio (duplicada), el routing y el tipo de documento PEP — todo por `id === 158`.~~ **Corregido el 2026-08-28**: la des-motaización retiró el fork — `MOTAI_LENDER_IDS` da **cero** resultados en `main` (front y backend); la card se decide por `lenders.product` y el precio viene calculado del backend (`calculated`).
+
+**(2026-08-28) Re-verificación asistida de los 41 archivos derivados** (worker digirió el diff contra
+este doc en 10 funcionalidades; las 3 que invalidaban afirmaciones se verificaron a mano — las tres
+ciertas, corregidas arriba en su lugar). De lo nuevo que este censo hereda: el pipeline de codeudor y
+su cupo (nodo codeudor), el corte semanal (nodo servicing), el reprice en vivo de Meddipay con
+tooltips de FGA en la card, y la parametrización que reemplaza hardcodes — tipos de documento
+permitidos por sucursal (`allowedDocumentTypes`) en vez de excluir PEP incondicional, y el país del
+tema del comercio en vez de asumir Colombia. La dirección del censo es la esperada: **los hardcodes se
+retiran hacia configuración**, y este doc registra los que quedan.
 
 ## Dónde mirar
 
@@ -53,9 +62,9 @@ archivos del mapa.
 | **Bancolombia** | 68 BNPL, 100 Consumo | dispatch por id en PreApprovedLenderService (`if id==68 → BancolombiaBnpl`; `id==100 → amount=1000000 + ConsumerLoan`); secuencia multi-step propia | 12 | P1 |
 | **Corbeta** | allied 209/210/211 | onboarding entero: rama self-management (salta confirmación de desembolso) + datos laborales DUMMY | 11 | P1 |
 | **Credifamilia** | lender 24 (+ OnVacation 179 co-listado) | radicación SOAP `register()` + response_type por accessor, solo si `id==24` | 7 | P1 |
-| **Magnocell + CE** | lender 84 + doc `CE` | ⚠ **salta el MOTOR DE REGLAS ENTERO, no sólo el gate datacrédito**: si `document_type==='CE' && id===84` asigna la **categoría 22 quemada** (`find(22)`) y retorna sin evaluar un solo tier — las políticas configuradas de esa entidad no se aplican. El gemelo de `Modules/Loans` tiene el bloque **comentado**, así que los dos motores tratan distinto al mismo cliente. Ver **F-120** | 2 | P1 |
+| **Magnocell + CE** | lender 84 + doc `CE` | ⚠ **salta el MOTOR DE REGLAS ENTERO, no sólo el gate datacrédito**: si `document_type==='CE' && id===84` asigna la **categoría 22 quemada** (`find(22)`) y retorna sin evaluar un solo tier — las políticas configuradas de esa entidad no se aplican. ~~El gemelo de `Modules/Loans` tiene el bloque comentado, así que los dos motores tratan distinto al mismo cliente~~ **(corregido 2026-08-28: la copia de Onboarding se RETIRÓ — el motor quedó uno solo, en Loans, y el bypass corre activo ahí (`findById(22)`), ahora consistente)**. Ver **F-120** | 2 | P1 |
 | **Meddipay** | lender 39 | toda la integración Meddipay detrás de `id==39` (`new Meddipay->consult`) | 4 | P1 |
-| **Motai (Renting)** | lender 158 · allied_mode 2 · `motai-renting` | TODO el pipeline: confirmación auto-gestión, precio inflado (1.5M+100%+IVA, duplicado), PEP, T&C, salta OTP+cuota inicial | 15 | P1 |
+| **Motai (Renting)** | lender 158 · ~~allied_mode 2~~ · `motai-renting` | ~~TODO el pipeline (15 hardcodes)~~ **la v2 los retiró casi todos** (2026-08-28): producto por `lenders.product`, precio por `lenders.calculator`, modos borrados. Queda lo del canal del formulario dinámico (id por ambiente) | ~2 | P2 |
 | **Pash** | allied 218/219/221/222 | `[218,219,221,222]` → `session('isPash')` → pantalla de bienvenida distinta + fork de onboarding | 4 | P1 |
 | **Pullman / CrediPullman (+ DFS)** | allied 94, 189; lender 77 | fuerza `hadPreApproveLender=false` (ignora pre-aprobado, obliga datacrédito) + selección de método Quanto por id | 11 | P1 |
 | **Sistecrédito / Addi** | lender 6, 9 | pre-aprobación + voucher + colisión semántica del par `[6,9]` | 5 | P1 |

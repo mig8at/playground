@@ -100,6 +100,20 @@ llave.** Esa tabla **no tiene `user_request_id`**: se ata por `(user_id, lender_
 en `trazador/server/fuentes.go`). Un cliente con varias solicitudes cercanas ensucia la atribución: es
 correlación, no prueba.
 
+**(2026-08-28) Re-verificación asistida de los 83 archivos derivados.** Método: un worker digirió el
+diff completo contra este doc (agrupado en 6 funcionalidades) y las afirmaciones clave se verificaron a
+mano contra `main` — muestreo de 3/6 confirmado exacto. El resultado:
+
+- **Cinco de las seis son el panel alcanzando lo que este doc ya describía** (shell + layout protegido,
+  auth de staff por BFF, proxy y data-providers, pantallas de usuarios/solicitudes, y el visor de
+  perfilamiento que ganó **simulación interactiva en el Paso 3** — `Paso3Simulation.tsx` +
+  `simulate-calc.ts`, con la tarjeta del usuario al lado). El doc queda CONFIRMADO, no viejo.
+- **Una es nueva**: el **rechazo de la validación manual ahora se propaga al codeudor** —
+  `UsersService` (rama legacy del backoffice) llama al orquestador de
+  `RecordCosignerIdentityRejectionService` con usuario y solicitud: si el usuario evaluado es el
+  codeudor activo, su participación queda no-elegible y no reintenta la pantalla de identidad en bucle.
+  Cierra el circuito con el flujo de codeudor (ver ese nodo).
+
 ## Dónde mirar
 
 - **API** (legacy-backend): `Modules/Backoffice/routes/backoffice.php` — el mapa completo de endpoints ·
