@@ -134,6 +134,12 @@ Observabilidad: `withRouteLogging(routeId, lifecycle, handler)` (`route-logging.
 
 Scaffolding: `plop/generators/module.js` genera **sólo** `package.json` + `tsconfig` + `vite.config` + `biome.json` + `src/index.ts` — **no impone ningún sabor DDD**, por eso divergen. Commits vía Commitizen (`.cz-config.js`). **No hay `data-testid` en ningún archivo del monorepo** (ni `data-test`, `testId`, `data-cy`): la automatización E2E externa no tiene ganchos estables y depende de texto/roles.
 
+**(2026-08-28) Re-verificación asistida de los 39 archivos derivados** (worker → 8; nada invalida): la
+reestructuración del codeudor completa, el simulador y la decisión manual de Cuotéalo BCP, el producto
+RTO formal con re-pricing de Meddipay, caché de referencia + SSR, **PDF.js compatible con Safari 15 y
+el CDN unpkg FUERA del CSP** (los PDFs dejan de depender de un tercero), y la limpieza de rutas
+obsoletas con los endpoints de checkout y la saga Temporal registrados.
+
 ## Dónde mirar
 **Entrada y ruteo** (`apps/loan-request-wizard/`): `app/routes.ts:3` (gate del form-preview) · `:8` (`:flow` público) · `:70` (`merchant`) · `:148` (bancolombia self-service) · `:258` (consumer-hub) · `:291` (health) · `app/entry.server.tsx:15-18` (streamTimeout, `init()`, `global.ENV`, observed-fetch) · `app/root.tsx:48` (`window.ENV`) · `app/utils/route-helpers.ts:4/11/17/132/189` · `vite.config.ts:60` (`noExternal @creditop/*`) · `react-router.config.ts`.
 

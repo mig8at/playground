@@ -138,6 +138,13 @@ principal. Por qué rt=1 tampoco se puede *probar* hoy: **F-170**.
 - **frontend-monorepo** — el wizard (React Router SSR). No toca la BD; cliente HTTP puro.
 - **ms-preapprovals** — microservicio Go de pre-aprobación (rt≠0) para el wizard nuevo.
 
+**(2026-08-28) Re-verificación asistida de los 30 archivos derivados** (worker → 7; la única
+invalidación, verificada — cierta): el segundo salto del checkout de Corbeta **ya no está quemado**:
+`NewFrontendUrlService::ecommerceResolveCheckout` redirige a `/resolve-checkout` del front React cuando
+`NEW_FRONTEND_BASE_URL` está configurada — el gate por env var, no el hardcode que este doc describía.
+Más: la propagación del Bearer de Cognito por middleware en el front, la infraestructura del actor
+codeudor, y el primer cron del nuevo (RD 09:30, ver nodo application/servicing).
+
 ## Dónde mirar
 
 **Cutover al frontend nuevo (S1)**

@@ -297,6 +297,11 @@ BNPL** (multiproducto ⇒ lender 68), así que las pantallas de Consumo no se al
 BNPL. El `?multiproduct=true` de la URL del wizard es exactamente el `PLS003`; en multiproducto el
 cambio a Consumo ocurre **en el `authenticate`**, que reescribe `lender_id` y `amount`.
 
+**(2026-08-28) Re-verificación asistida de los 23 archivos derivados** (worker → 7; nada invalida):
+la autenticación del BNPL **reenvía los 4xx/5xx del banco** en vez de tragarlos, el ecommerce de
+Corbeta manda **NIT con dígito de verificación**, y el resto es transversal ya verificado (checkout
+nuevo, rutas de onboarding, observabilidad).
+
 ## Dónde mirar
 - **Actions** (legacy-backend `app/Actions/Lenders/`): `Bancolombia.php` (base: `:52` cert, `:63` JWT, `:141` authorize, **`:223` `register()` vacío**) · `BancolombiaBnpl.php` (§3 + `:671-690` **el patrón robusto de error a replicar**: `data_get(…,'errors.0.code')` + `$isBankHttpError` + reenvía el body crudo) · `BancolombiaConsumerLoan.php` (§4) · `BancolombiaConsumerLoanOfferEvaluation.php`.
 - **Controllers + rutas** (legacy-backend): `Modules/Onboarding/App/Http/Controllers/Bancolombia{,Bnpl,Loan}Controller.php` · `Modules/Onboarding/App/Traits/BancolombiaAcceptTermsTrait.php` · `Modules/Onboarding/routes/api.php:59-90` (los 3 prefijos) · `Modules/Onboarding/App/Services/lenders/Bancolombia/BancolombiaService.php` (`:69` rama `lender_id === 68`).

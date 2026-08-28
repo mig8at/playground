@@ -4,14 +4,14 @@
   "group": "architecture",
   "kind": "reference",
   "when": "Cuando trabajás en el backend nuevo modular: módulos Onboarding/Loans/Identity/Partner/Risk, rutas /api/*, arquitectura V1 y V2, envelope code/message/data, o dónde poner un endpoint nuevo. También cuando el síntoma llega como un CÓDIGO de error del onboarding (ONB002 usuario temporal sin Corbeta, ONB005 TusDatos, ONB040 rate limit) o como un endpoint concreto: `lenders-v2`, `storePersonalInfo`, `validateOtpCodeAndRedirect`, `lender-result`.",
+  "verified": {
+    "ref": "main",
+    "date": "2026-08-28",
+    "source": "manual"
+  },
   "sintomas": [
     "«el endpoint devuelve un código raro» (ONB0xx)"
   ],
-  "verified": {
-    "ref": "main",
-    "date": "2026-07-31",
-    "source": "manual"
-  },
   "files": [
     "application/app/Console/Kernel.php",
     "application/app/Http/Controllers/Customer/ListLenderController.php",

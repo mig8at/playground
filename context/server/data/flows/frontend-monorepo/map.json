@@ -4,14 +4,14 @@
   "group": "architecture",
   "kind": "reference",
   "when": "Cuando trabajás en el wizard React (`loan-request-wizard`): pantallas y rutas (`app/routes.ts` declara 134 rutas; el registro canónico es `ROUTE_PATHS` en `route-helpers.ts`), SSR, repositories, paquetes `@creditop`, `data-testid` para pruebas e2e, o a qué backend le pega cada pantalla (`VITE_API_URL`). ⚠ El wizard NO manda logs a Loki: sus logs de ruta salen por OTLP hacia PostHog, así que una pantalla que no llama al backend es invisible para el trazador.",
+  "verified": {
+    "ref": "main",
+    "date": "2026-08-28",
+    "source": "manual"
+  },
   "sintomas": [
     "«la pantalla del wizard se ve/comporta mal»"
   ],
-  "verified": {
-    "ref": "main",
-    "date": "2026-07-31",
-    "source": "manual"
-  },
   "files": [
     "frontend-monorepo/.cz-config.js",
     "frontend-monorepo/apps/loan-request-wizard/app/entry.client.tsx",

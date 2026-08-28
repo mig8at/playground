@@ -4,6 +4,11 @@
   "group": "creditop",
   "kind": "reference",
   "when": "Cuando algo NO funciona en el entorno LOCAL y querés saber si ya lo diagnosticamos — pantallas rotas sin mensaje, flujos que se traban, errores que el front se traga, o \"esto que veo, ¿es real o es un mock?\". También ANTES de invertir tiempo depurando un muro del harness: cada hallazgo trae síntoma, causa raíz verificada, evidencia y arreglo. Es un registro VIVO: al descubrir algo nuevo, se agrega una entrada acá.",
+  "verified": {
+    "ref": "main",
+    "date": "2026-08-28",
+    "source": "manual"
+  },
   "sintomas": [
     "«esto anda en local y no en dev/qa»",
     "«falló firmando documentos»",
@@ -11,11 +16,6 @@
     "«no le apareció ninguna entidad»",
     "«ya nos pasó esto antes?»"
   ],
-  "verified": {
-    "ref": "main",
-    "date": "2026-07-31",
-    "source": "manual"
-  },
   "files": [
     "frontend-monorepo/apps/loan-request-wizard/app/layouts/default-layout.tsx",
     "frontend-monorepo/apps/loan-request-wizard/app/layouts/public-layout.tsx",

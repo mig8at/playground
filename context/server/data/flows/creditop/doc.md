@@ -49,6 +49,12 @@ a afirmar algo que los contradice, medilo primero.
    `160`/`152`/`153` = SmartPay según el ambiente. Y el `response_type` de un lender **cambia entre
    ambientes**: verificarlo contra local miente (**F-95**).
 
+**(2026-08-28) Re-verificación asistida de los 25 archivos derivados** (worker → 7; nada invalida): los
+hilos del día vistos desde el mapa maestro — formularios dinámicos + Ábaco, saldo residual y
+calendarios de corte, checkout Corbeta al front nuevo, SmartPay multi-ambiente, vouchers/segmentos/
+ciudades en admin, y en el front el middleware de auth con token Cognito, cacheo SSR y las rutas de
+saga/Cuotéalo.
+
 ## Dónde mirar · LA ARISTA (comercio × lender)
 
 CreditOp es un **muchos-a-muchos**: un comercio ofrece varios lenders y un lender está en varios

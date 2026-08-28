@@ -122,6 +122,15 @@ Dos apps Laravel sobre la **misma base de datos**. Números duros del diff:
 - 64 tests en `tests/` (incluye `tests/Feature/E2E/`) + 76 en `Modules/*/tests/`.
 - **CI = solo deploy, sin job de tests**: 7 workflows que empujan a ECR/ECS (`develop`→dev, `staging`→stg, tags→producción) + un `run-migrations.yml` manual.
 
+**(2026-08-28) Re-verificación asistida de los 30 archivos derivados** (worker → 8; las invalidaciones,
+verificadas — ciertas): el Kernel HTTP ganó **dos middlewares más de módulos** (`cosigner.token` y
+`cosigner.token.required`, de UserRequestV1 — ya no son dos alias de módulo sino cuatro); el Kernel de
+consola **agenda el quinto cron** (recordatorios RD a las 09:30 de Santo Domingo); `LenderListingService`
+**ya no inyecta los dos motores de categorías** — el fork de Onboarding se eliminó del listado v1 y v2;
+y `StorePersonalInfoService` de OnboardingV2 **está VIVO** (el early-return de 501 se retiró; el código
+OBV21000 queda sin referencias como interruptor). Más: bypass de mocks admin para centrales, endpoints
+nuevos en RiskV2, y el método de generación de OTP en AuthV1.
+
 ## Dónde mirar
 **Arranque y registro** (`legacy-backend`):
 - `bootstrap/app.php` · `routes/api.php` (solo ping) · `config/app.php:178-185` (providers) · `config/modules.php:74,225` (paths + statuses)

@@ -3045,3 +3045,8 @@ en producción — el webhook no deja registro cuando `firstOrFail()` lanza, as�
   (`%PDF-`, 14 archivos tras dos corridas) y un caso de Motai bajó de 27 s a **19,6 s**.
   **Estado:** resuelto en local; el hueco de diseño —`throw => false` y una URL que se construye sin
   consultar— sigue ahí.
+**(2026-08-28) Re-verificación asistida de los 22 archivos derivados** (worker → 7; CERO
+invalidaciones: los cambios CONFIRMAN los findings — el corte semanal cierra F-147/F-148 desde el
+backend, los mocks locales cubren F-140/F-156/F-165, y el panel ganó radicación/webhooks/debug). Los
+F-xx citados siguen vigentes salvo los que sus propias entradas ya marcan cerrados.
+
