@@ -1263,6 +1263,28 @@ código de salida explícitamente.
 Corpus: **11 temas · 464 archivos** · banco propio **109/109 alcanzables** · banco real **7/7 cubiertas,
 6 sin cobertura**.
 
+## Tema 12: `vocabulario` — el puente, idea de Miguel (2026-08-28)
+
+Su lectura tras la prueba de fuego: la columna vertebral técnica está, pero el texto se queda corto
+frente a la prosa de negocio → **un nodo de puro vocabulario de negocio aterrizado a lo técnico**.
+
+**El diseño, con la lección del día incorporada:** cada entrada **traduce y apunta, nunca contesta
+largo** — un glosario matchea todo y una entrada que contesta se roba las búsquedas (el modo de fallo
+del preámbulo, ya conocido). 13 términos tomados de los canales reales: salud financiera · mis créditos
+· preaprobado · viable · política · punto de venta · colilla · llamadas de cobro · **refactor/aliados**
+· **LB** · **CTX** · entidad · registro de la app. Su mapa **no declara archivos a propósito** (las
+palabras no viven en archivos; los destinos son los enlaces, que el lint valida).
+
+**Lo que más vale: las preguntas SIN COBERTURA ahora aterrizan con honestidad.** «No le carga salud
+financiera» ya no devuelve una respuesta confiada y equivocada: cae en la entrada que dice qué es, de
+dónde salen los datos (la fila cifrada y su espejo `user_summaries`) y **que la app no está cubierta**.
+
+**Medido con las frases crudas de Slack: 15/15 cubiertas, 1 sin cobertura** (la lentitud de la BD, que
+no es un término sino un problema). Ayer a esta hora: 1/8.
+
+Banco propio: 109/109 alcanzables. Corpus: **12 temas · 464 archivos**. CI verificado con código de
+salida explícito (la lección del `tail -1`).
+
 ## Decisiones abiertas
 
 - **La frontera con credibrain** (herramienta de Oscar en el mismo catálogo, «la memoria de la
