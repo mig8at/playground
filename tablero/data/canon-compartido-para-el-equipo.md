@@ -1075,6 +1075,27 @@ frase.
 Banco: **72 preguntas, 63 al primero, 72/72 alcanzables**. Corpus: **7 temas · 398 archivos · 0
 derivados**. CI verde desde worktree limpio. Sin mergear.
 
+## Octavo tema: formalización — el cierre (2026-08-28)
+
+**19 archivos en 5 áreas** — plan de pagos · documentos y firma (el tramo más frágil, con sus timeouts
+de 120/180 s) · la autorización y sus efectos al mejor esfuerzo · el OTP de firma que ya no manda esta
+app · garantía y enganche — y **866 palabras**.
+
+**La prosa** — el estado final no prueba todo lo que parece (efectos best-effort: autorizada sin
+voucher ni correo, sin señal) · el estado intermedio que no es desenlace («pendiente desembolso» =
+OTP verificado, autorización a medias) · **el pagaré con puntero vivo** (corregir el nombre después de
+la firma desincroniza el documento legal, sin alerta, y no hay auditoría de users — F-121) · «quién
+desembolsó» escrito por tres caminos (leerlo como webhook manda a revisar integraciones inexistentes,
+F-100) · el cierre hostil al escritorio · el hardcode de identidad que rompe flujos especiales en dev
+· la garantía evaluada con una expresión ejecutada desde la BD.
+
+⚠ **Una afirmación del nodo local NO entró**: «un asesor puede mover a Autorizada a mano sin pagaré».
+Fui a verificarla y el controlador del asesor **sólo lee** — el nodo mismo la marca como testimonio.
+La regla «lo no verificado no entra» aplicada contra material tentador.
+
+Banco: **82 preguntas, 73 al primero, 82/82 alcanzables**. Corpus: **8 temas · 417 archivos · 0
+derivados**. CI verde desde worktree limpio. Sin mergear.
+
 ## Decisiones abiertas
 
 - **La frontera con credibrain** (herramienta de Oscar en el mismo catálogo, «la memoria de la
