@@ -175,7 +175,11 @@ las utilizaciones; tolera diferencias de 1 peso como redondeo), `revolving:fix-u
 de tocar) y `revolving:repair-stranded-utilizations` (alinea la fecha de pago de utilizaciones que
 quedaron atrás de su cupo). Importan por lo que confiesan: **esos tres modos de falla existen en
 producción y ya tienen herramienta oficial** — ante un rotativo con plata recaudada sin aplicar o cupo
-liberado de más, el arreglo es el comando, no un UPDATE a mano. Verificado contra `main` leyendo los
+liberado de más, el arreglo es el comando, no un UPDATE a mano. **La causa raíz del primero también
+está arreglada en `main`** (leída el 2026-08-28 en `CreditopXPaymentController`): la idempotencia por
+transacción de pasarela se evaluaba POR utilización, y como el reparto de un pago de rotativo llama
+una vez por utilización con el MISMO id, la primera creaba el registro y bloqueaba al resto — plata
+recaudada sin aplicar. Hoy esa validación sólo corre en el camino directo (consumo). Verificado contra `main` leyendo los
 tres cuerpos. Y del mismo tramo: el summary del consumer (CRED-148) ahora trata una sobra ≤ el umbral
 `creditop_x_lender_residual_balances` de la entidad (default 5.000) como **resto residual, no cuota
 impaga** — el «debe 300 pesos y le sale una cuota» dejó de ser un reclamo válido.

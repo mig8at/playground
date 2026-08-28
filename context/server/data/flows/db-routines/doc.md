@@ -47,6 +47,12 @@ adentro de la base.
   que aparecen en dev son de RDS y de MySQL (`sys`, `mysql`), ninguno de la aplicación. **Nada dispara
   en cada escritura**, y eso vale saberlo: descarta de entrada toda una familia de hipótesis.
 
+**(2026-08-28)** Dos cambios leídos enteros: `MareiguaService` ganó un `bypassMocks` **marcado
+TEMPORAL** (existe sólo para `IdentityCentralRebuildService`, el backfill — borrar juntos) y un
+**monitoreo no bloqueante de nombres** (`KycNameCheckRecorder`: lo ingresado vs lo devuelto, para ver
+el porqué de los `wrong_document`). Y `Prami.php` ahora resuelve el cupo desde
+`transaction_data.quotas` (CORE-319). Verificado contra `main`.
+
 ## Dónde mirar
 
 **La fuente** es `legacy-backend/migrate.sql` (113 KB, único `.sql` de los dos repos; no va en `files[]`

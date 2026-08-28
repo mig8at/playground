@@ -2,11 +2,11 @@
   "generado": "2026-08-28",
   "ref": "main",
   "resumen": {
-    "deriva": 22,
-    "deriva-alta": 14,
+    "deriva": 20,
+    "deriva-alta": 13,
+    "al-dia": 4,
     "rama-sin-mergear": 1,
-    "solo-hubs": 1,
-    "al-dia": 1
+    "solo-hubs": 1
   },
   "nodos": [
     {
@@ -3545,85 +3545,6 @@
       "pendiente_merge": null
     },
     {
-      "id": "db-routines",
-      "estado": "deriva-alta",
-      "verificado": {
-        "ref": "main",
-        "date": "2026-08-07",
-        "source": "cabecera"
-      },
-      "archivos": 7,
-      "deriva": {
-        "cambiados": 2,
-        "pct": 29,
-        "hubs": 0,
-        "archivos": [
-          {
-            "ruta": "legacy-backend/Modules/Identity/App/Services/MareiguaService.php",
-            "ultimo_cambio": "2026-08-15",
-            "hub": false
-          },
-          {
-            "ruta": "legacy-backend/app/Actions/Lenders/Prami.php",
-            "ultimo_cambio": "2026-07-29",
-            "hub": false
-          }
-        ]
-      },
-      "commits": {
-        "total": 5,
-        "autores": {
-          "Oscar Rincon": 3,
-          "Joel": 2
-        },
-        "lista": [
-          {
-            "sha": "69fd051b",
-            "fecha": "2026-08-15",
-            "autor": "Oscar Rincon",
-            "asunto": "chore(identity): restore the temporary risk-central rebuild tool, password-gated",
-            "repo": "legacy-backend"
-          },
-          {
-            "sha": "26c4a78a",
-            "fecha": "2026-08-15",
-            "autor": "Oscar Rincon",
-            "asunto": "Revert \"chore(identity): add temporary tool to rebuild risk-central data with real queries\"",
-            "repo": "legacy-backend"
-          },
-          {
-            "sha": "4a868f54",
-            "fecha": "2026-08-14",
-            "autor": "Oscar Rincon",
-            "asunto": "chore(identity): add temporary tool to rebuild risk-central data with real queries",
-            "repo": "legacy-backend"
-          },
-          {
-            "sha": "cf266eb7",
-            "fecha": "2026-07-29",
-            "autor": "Joel",
-            "asunto": "fix(CORE-319): resolve Prami quota from transaction_data.quotas",
-            "repo": "legacy-backend"
-          },
-          {
-            "sha": "28b57abc",
-            "fecha": "2026-07-23",
-            "autor": "Joel",
-            "asunto": "feat(CORE-XXX): monitoreo de comparación de nombres KYC y socket de validación manual",
-            "repo": "legacy-backend"
-          }
-        ]
-      },
-      "huerfanos": [
-        "legacy-backend/Modules/Identity/App/Services/AdoDocumentImageBackfillService.php",
-        "legacy-backend/Modules/Identity/App/Services/IdentityCentralRebuildService.php",
-        "legacy-backend/Modules/Onboarding/App/Services/AbacoConsultStateResolver.php",
-        "legacy-backend/Modules/Onboarding/App/Services/OtpComplementService.php"
-      ],
-      "rutas_muertas": [],
-      "pendiente_merge": null
-    },
-    {
       "id": "legacy-backend",
       "estado": "deriva-alta",
       "verificado": {
@@ -5787,88 +5708,6 @@
       "pendiente_merge": null
     },
     {
-      "id": "microservicios",
-      "estado": "deriva",
-      "verificado": {
-        "ref": "main",
-        "date": "2026-08-07",
-        "source": "cabecera"
-      },
-      "archivos": 13,
-      "deriva": {
-        "cambiados": 2,
-        "pct": 17,
-        "hubs": 1,
-        "archivos": [
-          {
-            "ruta": "legacy-backend/Modules/Onboarding/App/Http/Controllers/OnboardingController.php",
-            "ultimo_cambio": "2026-08-25",
-            "hub": true
-          },
-          {
-            "ruta": "customer-profiling-service/internal/core/workflows/legacykycpipeline/walk.go",
-            "ultimo_cambio": "2026-08-20",
-            "hub": false
-          },
-          {
-            "ruta": "customer-profiling-service/internal/core/workflows/legacykycpipeline/workflow.go",
-            "ultimo_cambio": "2026-08-19",
-            "hub": false
-          }
-        ]
-      },
-      "commits": {
-        "total": 5,
-        "autores": {
-          "Oscar Rincon": 2,
-          "Yamid Viloria": 2,
-          "jose guzman": 1
-        },
-        "lista": [
-          {
-            "sha": "93d59765",
-            "fecha": "2026-08-25",
-            "autor": "Oscar Rincon",
-            "asunto": "feat(onboarding): enable the legal document flow for Motai Renting",
-            "repo": "legacy-backend"
-          },
-          {
-            "sha": "802fff3",
-            "fecha": "2026-08-20",
-            "autor": "Yamid Viloria",
-            "asunto": "feat(kyc-pipeline): que el legacy decida, en vez de reimplementar sus reglas",
-            "repo": "customer-profiling-service"
-          },
-          {
-            "sha": "2810a9ac",
-            "fecha": "2026-08-20",
-            "autor": "jose guzman",
-            "asunto": "validations bugs",
-            "repo": "legacy-backend"
-          },
-          {
-            "sha": "5bfb143",
-            "fecha": "2026-08-19",
-            "autor": "Yamid Viloria",
-            "asunto": "Introduce human in the loop. Now the workflow waits until the user confirmation",
-            "repo": "customer-profiling-service"
-          },
-          {
-            "sha": "b2d110a9",
-            "fecha": "2026-07-24",
-            "autor": "Oscar Rincon",
-            "asunto": "Change document",
-            "repo": "legacy-backend"
-          }
-        ]
-      },
-      "huerfanos": [
-        "customer-profiling-service/internal/core/workflows/legacykycpipeline/graph_files_test.go"
-      ],
-      "rutas_muertas": [],
-      "pendiente_merge": null
-    },
-    {
       "id": "dynamic-forms",
       "estado": "deriva",
       "verificado": {
@@ -6795,67 +6634,6 @@
         "legacy-backend/app/Models/LenderUsersCategoryType.php",
         "legacy-backend/app/Services/HolidayCalendar.php",
         "legacy-backend/app/Services/HolidayCalendarService.php"
-      ],
-      "rutas_muertas": [],
-      "pendiente_merge": null
-    },
-    {
-      "id": "negocio",
-      "estado": "deriva",
-      "verificado": {
-        "ref": "main",
-        "date": "2026-08-09",
-        "source": "cabecera"
-      },
-      "archivos": 11,
-      "deriva": {
-        "cambiados": 1,
-        "pct": 14,
-        "hubs": 1,
-        "archivos": [
-          {
-            "ruta": "application/app/Http/Controllers/Admin/CreditopXPaymentController.php",
-            "ultimo_cambio": "2026-08-26",
-            "hub": false
-          },
-          {
-            "ruta": "application/app/Models/Lender.php",
-            "ultimo_cambio": "2026-08-26",
-            "hub": true
-          }
-        ]
-      },
-      "commits": {
-        "total": 3,
-        "autores": {
-          "lhCabra-creditop": 3
-        },
-        "lista": [
-          {
-            "sha": "fac66507",
-            "fecha": "2026-08-26",
-            "autor": "lhCabra-creditop",
-            "asunto": "fix(creditopx): respetar el saldo residual del lender en todo el flujo",
-            "repo": "application"
-          },
-          {
-            "sha": "59a61d60",
-            "fecha": "2026-08-14",
-            "autor": "lhCabra-creditop",
-            "asunto": "fix(creditopx): aplicar el pago de rotativo a todas las utilizaciones",
-            "repo": "application"
-          },
-          {
-            "sha": "0ad75a51",
-            "fecha": "2026-08-11",
-            "autor": "lhCabra-creditop",
-            "asunto": "feat(creditopx): add weekly cutoff support to the credit lifecycle",
-            "repo": "application"
-          }
-        ]
-      },
-      "huerfanos": [
-        "application/app/Http/Controllers/Admin/UserRequestVoucherController.php"
       ],
       "rutas_muertas": [],
       "pendiente_merge": null
@@ -8755,6 +8533,66 @@
         "legacy-backend/app/Models/CreditopXLenderResidualBalance.php",
         "legacy-backend/app/Models/LenderUsersCategoryType.php"
       ],
+      "rutas_muertas": [],
+      "pendiente_merge": null
+    },
+    {
+      "id": "db-routines",
+      "estado": "al-dia",
+      "verificado": {
+        "ref": "main",
+        "date": "2026-08-28",
+        "source": "manual"
+      },
+      "archivos": 7,
+      "deriva": {
+        "cambiados": 0,
+        "pct": 0,
+        "hubs": 0,
+        "archivos": []
+      },
+      "commits": null,
+      "huerfanos": [],
+      "rutas_muertas": [],
+      "pendiente_merge": null
+    },
+    {
+      "id": "microservicios",
+      "estado": "al-dia",
+      "verificado": {
+        "ref": "main",
+        "date": "2026-08-28",
+        "source": "manual"
+      },
+      "archivos": 13,
+      "deriva": {
+        "cambiados": 0,
+        "pct": 0,
+        "hubs": 0,
+        "archivos": []
+      },
+      "commits": null,
+      "huerfanos": [],
+      "rutas_muertas": [],
+      "pendiente_merge": null
+    },
+    {
+      "id": "negocio",
+      "estado": "al-dia",
+      "verificado": {
+        "ref": "main",
+        "date": "2026-08-28",
+        "source": "manual"
+      },
+      "archivos": 11,
+      "deriva": {
+        "cambiados": 0,
+        "pct": 0,
+        "hubs": 0,
+        "archivos": []
+      },
+      "commits": null,
+      "huerfanos": [],
       "rutas_muertas": [],
       "pendiente_merge": null
     },

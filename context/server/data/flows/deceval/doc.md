@@ -52,6 +52,16 @@ programando. En producción hoy: **Credifamilia y Dentix**.
 - ⚠ **El guard de `createGirador` está bien en `legacy-backend` y ROTO en `legacy-application`**, que
   sigue sirviendo el flujo. Ver **F-122** — es la diferencia entre `||` y `&&`.
 
+**(2026-08-28)** Los controladores del pagaré (OTP incluido) ahora pasan por la compuerta del
+codeudor antes de firmar: si la política de la categoría exige codeudor y no hay uno aprobado, **no se
+muestra ningún documento** — firmar ahí entregaría el juego sin cláusulas de codeudor, y eso no se
+corrige sin rehacer la firma. El flujo normal ya no llega hasta ahí; la guarda cubre a quien se salte
+el paso con la URL. ⚠ Verificado contra `main`: la compuerta existe **sólo en `legacy-backend`** — el
+controlador del viejo NO la tiene (su cambio reciente es otro: el corte semanal del ciclo). Mismo
+patrón que la guarda del girador (F-122): el gemelo que sirve el flujo, sin la protección. El juego de
+documentos del nuevo además se resuelve por catálogo (`SigningDocumentResolver`/`Recorder` +
+`CatalogDocumentGenerator`).
+
 ## El flujo, y dónde está en el embudo
 
 ```

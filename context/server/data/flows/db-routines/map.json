@@ -2,6 +2,11 @@
   "name": "Rutinas de BD",
   "kind": "reference",
   "when": "Cuando el cálculo que buscás NO aparece en el código PHP: hay 42 procedimientos y funciones almacenados en MySQL con lógica de negocio, invocados como string dentro de `DB::scalar` / `DB::select` / `CALL`, así que grepear el nombre del campo nunca llega a la fórmula. Acá viven el ingreso promedio y la ocupación que deciden la categoría (`FN_User_Income_Average`, `FN_User_Occupation`), las 23 `FN_Experian_*` que arman los features del perfilador ML (`SP_Experian_Extract_Data`), el parseo de Mareigua y AgilData, el revolvente rt=3, el descifrado del reporte (`FN_Decrypt_Data`) y el SP que ata el buró a la solicitud (F-107). ⚠ 4 de las 42 NO tienen fuente en ningún repositorio y dos de ellas se llaman desde producción. ⚠ Y no son sólo rutinas: hay un EVENT nocturno que reconstruye entera `user_request_risk_central_user_data` (sin fuente en ningún repo), 28 vistas que calculan, y CERO triggers (medido).",
+  "verified": {
+    "ref": "main",
+    "date": "2026-08-28",
+    "source": "manual"
+  },
   "sintomas": [
     "«el número no cuadra y no encuentro dónde se calcula»",
     "«¿de dónde sale el ingreso / la ocupación del cliente?»",
@@ -9,11 +14,6 @@
     "«la fecha de esa tabla no coincide con nada»",
     "«cambió el resultado y no hubo deploy ni cambió el dato»"
   ],
-  "verified": {
-    "ref": "main",
-    "date": "2026-08-07",
-    "source": "cabecera"
-  },
   "files": [
     "legacy-backend/Modules/Risk/App/Http/Controllers/ProfilerML/ProfilerMLController.php",
     "legacy-backend/Modules/Onboarding/App/Services/ExperianProfileService.php",

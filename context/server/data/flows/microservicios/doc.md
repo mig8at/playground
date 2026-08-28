@@ -101,6 +101,12 @@ delante de `main` con commits del 2026-08-04 («Now legacy backend decides wheth
 o sea que la integración se sigue moviendo. **Para una tarea de burós HOY, la verdad sigue estando en el
 monolito**; este servicio es hacia dónde va, no dónde está.
 
+**(2026-08-28)** El pipeline de KYC del perfilamiento ganó **timeout por compuerta de datos: 2
+horas** — la respuesta de negocio a «el cliente fue a buscar el desprendible»: suficiente para volver,
+corto para que una solicitud abandonada no deje una corrida abierta indefinidamente
+(`legacykycpipeline/workflow.go`). Y el monolito le sumó la ruta `abaco/sync-results` que empuja el
+scraping pendiente (ver nodo motai). Verificado contra `main`.
+
 ## Dónde mirar
 
 - **El pipeline de KYC** — `customer-profiling-service/internal/core/workflows/legacykycpipeline/workflow.go`
