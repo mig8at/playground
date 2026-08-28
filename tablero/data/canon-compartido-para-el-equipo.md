@@ -1410,6 +1410,37 @@ levantarla como tarea aparte: si es cierto, es fuga de datos entre comercios.**
 
 Banco de soporte: **47 cubiertas (47/47) · 17 huecos declarados**. Banco propio 109/109. CI verificado.
 
+## Leer `main` sin clon: funciona ya, con el token de `gh` (2026-08-28)
+
+Miguel ofreció sus credenciales de app OAuth para no depender de la app que dejó Dani. **No sirven, y
+conviene que quede escrito:** `GITHUB_CLIENT_ID` + `GITHUB_CLIENT_SECRET` sólo habilitan pedirle
+autorización a un usuario en el navegador — **no existe en GitHub un modo «la app sola lee repos»**. Es
+la primera idea de cualquiera y se pierde una tarde en descubrirlo.
+
+**Pero había algo más simple que ya estaba ahí: el token del `gh` autenticado en la máquina.** Se venía
+usando toda la sesión para pushear. Medido: **lee los cuatro repos por la contents API, y el hash que
+devuelve coincide EXACTO con el que guarda el map.json** — git y GitHub calculan el blob igual.
+
+**Tres fuentes, con su porqué** (y la respuesta dice cuál usó, en `source`):
+
+| fuente | para | por qué |
+|---|---|---|
+| app de GitHub | el **servidor** | no es de nadie, se concede repo por repo, rota sola |
+| token de `gh` | la máquina de quien **desarrolla** | cero configuración |
+| clon local | offline | no necesita red |
+
+⚠ El token de `gh` **nunca** en el servidor: es de una persona, con todo lo que esa persona puede hacer.
+
+**Verificado sin un solo archivo en disco** (binario solo en una carpeta vacía): `/api/code` trajo los
+archivos del área desde GitHub, marcó los hashes contra lo declarado, y la búsqueda de la región del
+`unset` en 2.100 líneas devolvió las mismas ocho líneas de siempre.
+
+**Y quedó `-github-configurar <app-id> <ruta.pem>`** para cuando se use la app de verdad: escribe el
+`.env` en base64 con permisos 600 y verifica en el acto. Existe porque meter un PEM multilínea en un
+`.env` falla más veces de las que funciona — pegado en varias líneas sólo llega la primera, y el error
+que produce no se parece a su causa. También se mejoró el 401 de GitHub, que dice «no se pudo decodificar
+el JWT» tanto si la firma está mal como si el App ID no existe.
+
 ## Decisiones abiertas
 
 - **La frontera con credibrain** (herramienta de Oscar en el mismo catálogo, «la memoria de la
