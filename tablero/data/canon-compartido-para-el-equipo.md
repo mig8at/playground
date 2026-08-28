@@ -949,6 +949,32 @@ explica mirándolo. Quedó escrito en `graph.go` para que no se re-litigue sin d
 
 Banco sin cambios: 23/26 primero, 26/26 alcanzable. CI verde, worktree limpio, sin mergear.
 
+## Tercer tema: creditopx — y el grafo probó su tesis (2026-08-28)
+
+**25 archivos en 5 áreas** (cupo y sus tres evaluadores · categorías · ajuste de buró propio ·
+exclusión silenciosa · frontera del rotativo), **863 palabras** de prosa. Todo salió del nodo local
+`creditopx` (sello 2026-08-17) **re-verificado contra origin/main hoy**: la tolerancia de $1.000, el
+corte por entidad (`user_id+lender_id+rt=2`), los tres evaluadores, y el `unset` silencioso en
+`application` (:376).
+
+**La prosa que quedó** — sólo lo no deducible: de quién es la plata (el comercio, y eso explica todas
+las reglas) · el rechazo silencioso como comportamiento normal · el bloqueo por crédito activo con sus
+tres precisiones · el ingreso no decide presencia (medido 2026-08-17) · la categoría corre al final ·
+el rotativo con motor propio («sólo 6 cuotas» no es bug) · los dos gemelos corriendo.
+
+⚠ **La arista con el listado apareció SOLA**: la área de exclusión de creditopx comparte
+`LenderValidationService` y `LenderSpecialGrantingService` con el área «decidir qué entidades ve el
+cliente» del listado, y el grafo la derivó sin que nadie la declarara. Primera prueba real de la tesis
+del grafo derivado, un día después de construirlo.
+
+⚠ Y **mi propio lint me atajó**: escribí «es la primera hipótesis de todo el mundo» y la regla
+anti-lenguaje-de-duda (que no distingue uso y mención) lo rechazó. Se reescribió «es lo primero que
+todo el mundo supone». La regla es tosca a propósito: un falso positivo cuesta una frase; un falso
+negativo deja una afirmación sin verificar viviendo como cierta.
+
+Banco: **35 preguntas, 32 al primero, 35/35 alcanzables**. Corpus: 3 temas · 313 archivos · 0
+derivados. CI verde desde worktree limpio. Sin mergear.
+
 ## Decisiones abiertas
 
 - **La frontera con credibrain** (herramienta de Oscar en el mismo catálogo, «la memoria de la
