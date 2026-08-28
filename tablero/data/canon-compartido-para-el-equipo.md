@@ -1096,6 +1096,39 @@ La regla «lo no verificado no entra» aplicada contra material tentador.
 Banco: **82 preguntas, 73 al primero, 82/82 alcanzables**. Corpus: **8 temas · 417 archivos · 0
 derivados**. CI verde desde worktree limpio. Sin mergear.
 
+## Noveno tema: altas — y usar la herramienta encontró tres defectos (2026-08-28)
+
+Idea de Miguel: **validar la API usándola** — tomar algo que el corpus no cubre (las altas de comercio,
+entidad, sucursal, asesor en el sistema viejo) e intentar cargarlo **por la API**, para ver qué falta.
+Funcionó como prueba: los tres hallazgos son del diseño, no del contenido.
+
+**1 · La búsqueda nunca dice «no sé».** Las 4 preguntas sobre altas devolvían respuestas **plausibles y
+equivocadas** antes de que el tema existiera. Confianza sobre lo no cubierto es más caro que el
+silencio. ⏳ Sigue abierto — no hay umbral honesto sin inventar un número; la vía prometedora es
+contrastar contra el mapa, no contra un score.
+
+**2 · Se podía escribir prosa que ningún archivo respalda.** Se agregó por API una afirmación sobre el
+alta de sucursales a `listado`, cuyo mapa **no declara ni un archivo de administración**. Quedó escrita
+y **fuera del alcance de la deriva**. Arreglado: `/api/propose` devuelve `would_be_backed_by`.
+⚠ El primer intento fue un **booleano** «¿matchea alguna área?» y NO SIRVIÓ — matcheaba por vocabulario
+genérico («entidad», «sucursal») sin que el área cubriera el tema. Se cambió a **informar en vez de
+decidir**: mismo principio que quitar los pesos entre prosa y mapa.
+
+**3 · Con el tema cargado: el MAPA acertó 4/4 y la prosa 2/4** — y no es defecto de la prosa. «Cómo se
+crea una entidad» es mecanismo derivable: el mapa **debe** contestarlo. La medición confirma la tesis.
+
+**El tema:** 13 archivos en 5 áreas, 531 palabras. Lo no deducible: la jerarquía de tres niveles con
+cosas distintas en cada uno (la economía está dos niveles arriba de donde se aplica) · **no hay herencia
+viva: las reglas se COPIAN al crear la sucursal** (verificado en `AlliedAlliedBranchController` →
+`addNewRule`/`addNewLenderRule`) · el orden de las altas importa y nada lo advierte · la configuración
+comercial sigue en el viejo · los asesores se deshabilitan, no se borran.
+
+⚠ **Y un error mío de proceso: pusheé con `task ci` en rojo.** El banco quedó en 89/90 porque al
+renombrar una sección la expectativa quedó vieja, y subí sin mirar. Corregido en el commit siguiente —
+pero la lección es que el «verificar desde worktree limpio» sólo sirve si se mira la salida.
+
+Banco: **90 preguntas, 82 al primero, 90/90 alcanzables**. Corpus: **9 temas · 430 archivos**.
+
 ## Decisiones abiertas
 
 - **La frontera con credibrain** (herramienta de Oscar en el mismo catálogo, «la memoria de la
