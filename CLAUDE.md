@@ -76,9 +76,10 @@ Elegí **el más chico que conteste la pregunta**. Subir de ambiente agrega ries
 | `staging` | rama `staging`, backend propio | ⚠ **comparte la BD con `dev`** (es la misma) y corre con `APP_ENV=development` |
 | `prod` | lo real | **SOLO LECTURA, siempre.** Las herramientas del trazador no escriben en ningún ambiente |
 
-⚠ Y no asumas que el código está en los cuatro: **`Modules/Backoffice` existe sólo en `main`** — no
-está en `develop` ni en `staging`, así que `/api/backoffice` da 404 en dev y en staging **y no es un
-bug**. Antes de depurar un 404 de un módulo nuevo: `git -C <repo> ls-tree -r --name-only <rama> <ruta>`.
+⚠ Y no asumas que el código está en los cuatro ambientes: un módulo nuevo puede faltar en `develop` o
+`staging` y su 404 no ser un bug. Antes de depurar un 404 de un módulo nuevo:
+`git -C <repo> ls-tree -r --name-only <rama> <ruta>`. *(Acá decía que `Modules/Backoffice` existía sólo
+en `main`; verificado el 2026-08-28: ya está en `develop`. La regla general queda; el ejemplo caducó.)*
 
 El detalle de cada `.env.<target>`, la partición de credenciales y por qué los permisos no van en
 archivo: §«Variables de entorno», al final.

@@ -1025,6 +1025,29 @@ derivados**. CI verde desde worktree limpio. Sin mergear.
 (listado) → decide la casa (creditopx) o un externo (bancolombia) o el híbrido (credifamilia). Cada
 tema enlazado con sus vecinos por aristas derivadas.
 
+## Sexto tema: arquitectura — el que explica a los otros cinco (2026-08-28)
+
+Miguel pidió el tema de cómo están construidos los repos y la migración application→legacy-backend.
+**14 archivos en 6 áreas** — las cuatro costuras de código · la compuerta del cutover (dos filas de
+settings, OR, sólo el viejo las conoce) · los webhooks que anclan · el grupo público del nuevo · los
+relojes (24 crons vs 5) · el eje response_type/path_id — y **765 palabras**.
+
+**La prosa** — los nombres engañan (legacy-backend es el NUEVO) · la historia contrastada contra git
+(118/123 commits del mismo arquitecto, solapados) · la BD que ningún repo tiene completa (286
+migraciones byte-idénticas + 47/67 exclusivas → migrar un repo da una base parcial) · **el atajo de los
+webhooks falso por un orden de magnitud** (26 rutas de avisos vs 24 crons de servicing) · los gemelos
+que divergen en efectos secundarios.
+
+⚠ **El chequeo me atajó una afirmación vieja del CLAUDE.md:** «Modules/Backoffice existe sólo en main»
+**ya no es cierto** — está en develop. No entró al corpus. (Pendiente: corregir el CLAUDE.md del
+playground.)
+
+Las aristas aparecieron solas otra vez: la compuerta del cutover ↔ las entradas del onboarding (via
+SimulatorController) y ↔ donde nace la solicitud (via UserRequestController).
+
+Banco: **62 preguntas, 55 al primero, 62/62 alcanzables**. Corpus: **6 temas · 376 archivos · 0
+derivados**. CI verde desde worktree limpio. Sin mergear.
+
 ## Decisiones abiertas
 
 - **La frontera con credibrain** (herramienta de Oscar en el mismo catálogo, «la memoria de la
