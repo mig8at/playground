@@ -1000,6 +1000,31 @@ sistema, derivada de los mapas.
 Banco: **43 preguntas, 40 al primero, 43/43 alcanzables**. Corpus: **4 temas · 335 archivos · 0
 derivados · 4 repos**. CI verde desde worktree limpio. Sin mergear.
 
+## Quinto tema: onboarding — con el dato que nadie tenía (2026-08-28)
+
+**27 archivos en 6 áreas** — las entradas y el corte entre frentes · celular y código · dónde nace la
+solicitud · el formulario · el contrato de códigos ONB0xx · la confirmación de cupo — y **801
+palabras**. Fuente: el nodo local `onboarding` (fresco, verificado bug por bug).
+
+⚠ **El dato nuevo, medido contra prod hoy:** de las solicitudes de 90 días que nunca llegaron al
+listado, **5.337 murieron llenando el FORMULARIO y 1.748 en el OTP** (946 canceladas). **Dos de cada
+tres en el formulario** — la intuición general apunta al OTP como la gran barrera, y el número dice
+otra cosa. Cualquier esfuerzo de recuperación rinde el doble ahí.
+
+**La prosa** — las tres implementaciones vivas sobre la misma BD (y confirmar cuál atendió antes de
+concluir) · el corte viejo/nuevo como lista en BD, no despliegue · la solicitud nace al validar el
+código (la vieja recicla por cliente, las nuevas crean por monto → las métricas difieren) · el
+veredicto viaja en ONB0xx con HTTP 200 (un monitor de status no ve nada) · el monto por defecto que es
+el mínimo de Welli reciclado · el autocompletado del canal retail (ingreso fijo → concentraciones
+falsas en los datos) · el local no determinístico · el límite de 4 envíos/hora por documento.
+
+Banco: **53 preguntas, 48 al primero, 53/53 alcanzables**. Corpus: **5 temas · 362 archivos · 0
+derivados**. CI verde desde worktree limpio. Sin mergear.
+
+**El corpus ya cubre el recorrido entero de una solicitud:** entra (onboarding) → se le arma el listado
+(listado) → decide la casa (creditopx) o un externo (bancolombia) o el híbrido (credifamilia). Cada
+tema enlazado con sus vecinos por aristas derivadas.
+
 ## Decisiones abiertas
 
 - **La frontera con credibrain** (herramienta de Oscar en el mismo catálogo, «la memoria de la
