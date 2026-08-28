@@ -4,14 +4,14 @@
   "group": "entities",
   "kind": "reference",
   "when": "Cuando el prestamista es solo un enlace (`response_type` 0, UTM): se arma la `url_utm`, se redirige al sitio del lender y se pierde visibilidad — nadie decide el crédito adentro de CreditOp, así que el desenlace NO se puede trazar. Sistecrédito es el caso típico. Su ramal declara que no espera webhook ni Estado 11.",
+  "verified": {
+    "ref": "main",
+    "date": "2026-08-28",
+    "source": "manual"
+  },
   "sintomas": [
     "«lo mandó al sitio del lender y no volvió»"
   ],
-  "verified": {
-    "ref": "main",
-    "date": "2026-07-31",
-    "source": "manual"
-  },
   "files": [
     "application/app/Models/LendersByAllied.php",
     "application/app/Models/LendersByAlliedBranch.php",

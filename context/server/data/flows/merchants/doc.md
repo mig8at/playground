@@ -146,6 +146,12 @@ presentarlas por comercio (y volverse pantalla de entidad, como dice el esquema)
 - **Pullman** — flujo CrediPullman/Pullman (rt=2 in-platform "vanilla"): el caso base de la familia CreditopX (hardcode `allied_id == 94`).
 - **Corbeta** — **grupo de comercios** de retail físico (Alkosto 209, K-TRONIX 210, Alkomprar 211; el allied 24 del gate es "Creditop", la cuenta propia de la casa, **no** un retail Corbeta). Único con **cierre en caja**: PIN → factura en tienda → conciliación batch → estado 26 Facturado. Los tres retail tienen **sólo 2 lenders habilitados** (Bancolombia 68 y 100) — su decisión de crédito es del nodo `bancolombia`, no de acá. *(Estaba bajo `aggregator` hasta el 2026-07-31; se re-parentó acá porque es un eje comercio, no una familia de prestamistas.)*
 
+**(2026-08-28) Deriva releída entera**: el comercio ganó dos decisiones de configuración — **si el
+funnel termina en el listado o en Cuotéalo** (columna propia, leída por el layout) y **el país como
+dato del tema** (el form de sucursales filtra ciudades por el país del comercio). El filtro por modo
+murió con la des-motaización (ver nodo motai) y el botón manual de comprobantes es ruta admin con
+permiso (CORE-380). Verificado contra `main`.
+
 ## Dónde mirar
 **Admin vivo — 3 capas** (`application`):
 - `app/Http/Controllers/Admin/AlliedController.php:101` alta de comercio (quemados) · `:157` update (usa `collect($request)`, no `validated()`) · `:246` `changeStatus` (churn/activación) · `:86` países [47, 60].

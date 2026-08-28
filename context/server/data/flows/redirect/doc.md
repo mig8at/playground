@@ -32,6 +32,12 @@ El dato clave: **rt=0 comparte código con rt=1-sin-credencial** (`case 0: case 
 
 **Sin retorno.** No hay Estado 11, ni webhook, ni polling, ni cron post-desembolso. "El cliente sale a una URL del prestamista y la responsabilidad de Creditop termina" (git `159906a:docs/codigo/MAPA-FLUJOS.md`, §Ciclo E2E). Contraste: rt=1 al menos radica por API y vuelve por webhook/`StatusCheck`; rt=2/3 cierran in-platform.
 
+**(2026-08-28) Deriva releída entera**: los archivos derivados son los hilos ya verificados en otros
+nodos cruzando por compartidos (marketplace v2, constantes de lenders, retrieval unificado,
+des-motaización en el modelo de sucursal, espejo merchant-api en `UserRequestService`). Nada invalida
+lo escrito: las tarjetas de redirección siguen sin consultar preaprobación — y ahora además el viejo
+bloquea a los crawlers que las disparaban. Verificado contra `main`.
+
 ## Dónde mirar
 - **Definición rt=0 = UTM** (legacy-backend): `database/seeders/ResponseTypesTableSeeder.php` (id=0 `'UTM'`, id=1 `'Integración'`, id=2 `'Creditop X'`; rt=3/4 NO se siembran) · `database/migrations/2023_04_20_202610_create_lenders_table.php:21` (`response_type default(1)`, comentario `url UTM => 0`).
 - **url_utm — storage + herencia** (application): `app/Models/LendersByAllied.php:22`, `app/Models/LendersByAlliedBranch.php:17` (fillable) · `app/Http/Controllers/Admin/AlliedAlliedBranchController.php:77` (COALESCE branch→allied), `:129/:135` (dedup write: NULL si == allied) · `app/Http/Controllers/Admin/AlliedLenderController.php:143,225` (write por comercio). Gemelo legacy: `Modules/Partner/App/Http/Controllers/AlliedLenderController.php:60,115` · `Modules/Partner/App/Services/AlliedManagementService.php:134` (COALESCE) + `:243-251` · `app/Models/LendersByAllied.php:22`, `app/Models/LendersByAlliedBranch.php:17`.

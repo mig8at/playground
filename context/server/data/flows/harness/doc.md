@@ -106,6 +106,10 @@ score pasa, qué regla datacrédito aplica) es turf de `profiling` / `kyc` — a
 - **El panel** (:5195) elige comercio, define el sintético y lanza `bin/asesor` con `E2E_INJECT=1`
   (buró invisible) o sin él (buró real). Solo local por diseño (fuerza el target).
 
+**(2026-08-28)** Deriva = commits propios (el codeudor entró al runner — rt=2 ya no pide manos —, la
+radicación de Credifamilia cierra con F-168, y config/inyección acompañando). Autodocumentado en los
+commits del propio playground.
+
 ## Dónde mirar
 
 - `harness/dev/guided.spec.ts` — el demo guiado de 2 ventanas; detección del cierre **por conducta**

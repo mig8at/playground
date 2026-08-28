@@ -99,6 +99,10 @@ corrió (con el `?` ya resuelto, para pegar en Redash) y las filas que produjero
 renderiza aparte de los logs a propósito: una fila de BD es un ESTADO, no un evento — pintarla como log
 invita a armar una línea de tiempo con lo que no es una.
 
+**(2026-08-28)** Deriva = commits propios de este playground (el árbol de 39 pasos «DÓNDE QUEDÓ» dentro
+de la traza, y las etapas nuevas). El doc describe la herramienta; su evolución es autodocumentada en
+los commits.
+
 ## Fronteras (qué cede este nodo)
 
 - **Qué significa cada tabla/columna** del dominio → `profiling`, `entities`, `actors`.

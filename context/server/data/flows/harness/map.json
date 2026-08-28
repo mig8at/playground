@@ -4,14 +4,14 @@
   "group": "architecture",
   "kind": "reference",
   "when": "Cuando la tarea es «necesito probar / ejercitar / mockear un flujo de originación E2E» — correr un triplete canal→comercio→lender de punta a punta, sembrar/inyectar un perfil aprobado, decidir qué se puede sellar localmente vs. qué lo decide una API externa, o levantar el demo del wizard (2 ventanas / panel). ⚠ `E2E_TARGET` por defecto es `dev`, NO `local` (F-18), y escribir a la BD compartida exige exportar `I_KNOW_THIS_TOUCHES_SHARED_DEV` a mano (F-53). El gemelo que LEE lo que ya pasó es `trazador`.",
+  "verified": {
+    "ref": "main",
+    "date": "2026-08-28",
+    "source": "manual"
+  },
   "sintomas": [
     "«necesito reproducir/probar un flujo entero»"
   ],
-  "verified": {
-    "ref": "main",
-    "date": "2026-07-31",
-    "source": "manual"
-  },
   "files": [
     "harness/dev/guided.spec.ts",
     "harness/e2e/triplet.ts",

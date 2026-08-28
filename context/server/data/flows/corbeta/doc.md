@@ -31,6 +31,12 @@ Dos sub-variantes conviven:
 
 ---
 
+**(2026-08-28) Deriva releída entera**: la resolución del checkout se expuso como **endpoint JSON**
+(#1190 quitó la redirección — el front decide), el BNPL de ecommerce manda el **NIT con dígito de
+verificación**, y el desvío del checkout hacia el wizard nuevo quedó confirmado. Además el monolito
+viejo **bloquea crawlers en las consultas de preaprobado** — los bots ejecutaban consultas que se
+pagan. Verificado contra `main`.
+
 ## Dónde mirar
 
 Las secciones de abajo cuentan cada tramo en detalle; esto es el atajo: por responsabilidad, con la

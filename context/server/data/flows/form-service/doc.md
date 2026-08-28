@@ -77,6 +77,11 @@ Usado por la ruta `additional-info` (`additional-info.tsx` → gate, `additional
 
 `additional-info-form.tsx` fetchea los 4 (schema+country-tree+countries+supp) en el **loader (SSR)** — lo pega el Node del wizard, no el browser; si `supp` falla igual renderiza (solo se pierde el pre-llenado). El submit manda el **nombre** (label) de zona/ciudad, no el id (`resolve-submit-answer-value.ts`).
 
+**(2026-08-28)** Los formularios dinámicos **aceptan decimales**: el validador rechazaba todo número no
+entero (booleans, decimales, arrays seguían rechazados por la forma de la columna legacy) y ahora
+acepta entero o decimal. Un *«no me deja guardar el valor»* con un número con coma era esto. Y
+`FormTypeService` recibió un fix de forms (16/8, chico). Verificado contra `main`.
+
 ## Dónde mirar
 - **Wiring / entrada** (form-service): `cmd/http-server/main.go`, `internal/infra/storage/module.go` (repos), `internal/core/usecases/module.go`.
 - **Schema (armado + cache-aside)**: `internal/core/usecases/dynamic_forms/get_schema/usecase.go` y `create_schema/usecase.go` (reorg 2026-08: ya no hay `schema_builder.go`/`schema_persistence.go`), `internal/core/mappers/dynamic_form_schema_mapper.go`.

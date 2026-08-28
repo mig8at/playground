@@ -2,17 +2,17 @@
   "name": "Trazador",
   "kind": "reference",
   "when": "Cuando la tarea es «¿qué le pasó a ESTA solicitud y por qué?» y hay que leer o tocar el trazador (playground/trazador): la herramienta de soporte que cruza BD (Redash) con logs (Loki) y arma el recorrido por etapas. Acá viven el mapa de etapas y sub-pasos (mapa/etapas.json, mapa/substeps.json, mapa/ramales.json), la semántica de los estados de user_requests (cierran vs detienen), la evidencia SQL que acompaña cada paso, y los diagnósticos -anclas/-campos/-spans/-validar. También cuando hay que agregar un hito nuevo porque un mensaje de log cae en «eventos sin nombre de negocio». NO es para ejercitar flujos: eso es harness.",
+  "verified": {
+    "ref": "main",
+    "date": "2026-08-28",
+    "source": "manual"
+  },
   "sintomas": [
     "«esto anda en local y no en dev/qa»",
     "«¿dónde se trabó?»",
     "«¿por qué a este cliente no le salió esta entidad?»",
     "«¿qué le pasó a ESTA solicitud?»"
   ],
-  "verified": {
-    "ref": "main",
-    "date": "2026-08-07",
-    "source": "cabecera"
-  },
   "files": [
     "trazador/server/etapas.go",
     "trazador/server/fuentes.go",
