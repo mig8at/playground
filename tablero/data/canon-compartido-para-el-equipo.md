@@ -1223,6 +1223,46 @@ de 7 temas a 6: la señal se apaga sola cuando se la atiende.
 
 Banco: **109 preguntas, 98 al primero, 109/109 alcanzables**. Corpus: **11 temas · 464 archivos**.
 
+## LA PRUEBA DE FUEGO: preguntas reales de soporte — 1 de 8 (2026-08-28)
+
+Idea de Miguel: probar el canon contra los mensajes reales de soporte en Slack. Es la medición más
+importante del proyecto, y la peor.
+
+**Resultado: 1 de 8.** El banco propio daba **98 de 109** el mismo día. La diferencia es que **el banco
+propio lo escribí yo, juez y parte**. Ésta es la vara real.
+
+**El diagnóstico NO fue el ranking: fue el vocabulario.** De diez palabras que soporte usa a diario
+—«salud financiera», «colilla», «llamada de cobro», «punto de venta», «preaprobado», «no sale viable»,
+«mis créditos», «restablecer»— **NUEVE no aparecían en ningún documento del corpus**. Las respuestas
+estaban escritas; estaban escritas en el idioma del código.
+
+Agregando ese vocabulario a las secciones **que ya tenían la respuesta** —cero conocimiento nuevo— la
+medición pasó de **1/8 a 7/7** de las cubiertas. Misma lección que ya estaba medida (el vocabulario
+mueve 6× más que los pesos), ahora con la vara puesta afuera.
+
+**Lo más reportado, de los canales `#soporte--app` y `#soporte-producto-`:**
+
+1. **«Le sale preaprobado en la app y en el punto de venta no le sale»** — el más repetido. Causas que
+   el propio soporte identifica: crédito activo, no pasa filtros de política, probabilidad baja. El
+   corpus lo cubre (creditopx) y ahora se encuentra.
+2. **«Está al día y le llegan llamadas de cobro»** / «la colilla no se condona y el estado no se
+   actualiza» — cubierto por `cartera`, y se agregó que **si un proceso nocturno no corre, el crédito
+   queda como estaba**: al día en la realidad, en mora para el sistema.
+3. **Salud financiera / Mis créditos / registro de la app** — ⏳ **SIN COBERTURA**: es la **app móvil
+   del cliente**, una superficie entera que el corpus no toca.
+
+**Quedó como herramienta: `-soporte`** con `preguntas-soporte.txt` (frases copiadas sin reescribir).
+⚠ **No bloquea el despliegue, a propósito**: `-bench` mide una regresión, esto mide una **deuda de
+cobertura**. Si bloqueara, la salida fácil sería borrar la pregunta incómoda. Y las `SIN COBERTURA` son
+el inventario honesto de lo que la gente pregunta y no sabemos contestar — hoy **seis**.
+
+⚠ **Error mío, por segunda vez: pusheé con CI en rojo.** Y encontré por qué se repite: `task ci | tail -1`
+hace que el `&&` mire el código de `tail`, no el de `ci`. Corregido el hábito — ahora se captura el
+código de salida explícitamente.
+
+Corpus: **11 temas · 464 archivos** · banco propio **109/109 alcanzables** · banco real **7/7 cubiertas,
+6 sin cobertura**.
+
 ## Decisiones abiertas
 
 - **La frontera con credibrain** (herramienta de Oscar en el mismo catálogo, «la memoria de la
