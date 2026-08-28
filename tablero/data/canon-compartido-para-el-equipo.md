@@ -805,6 +805,44 @@ no está verificada.
 De paso salieron del README tres reglas que describían el corpus retirado (cabecera con frontmatter,
 `## Tech`, la capa `field`): decían cómo se escribía un nodo que ya no existe.
 
+## La forma de `content/`, y un error de medición que llevaba todo el día (2026-08-27)
+
+Miguel preguntó lo obvio —*«¿cómo sabemos cuándo quedó desactualizada? por obvias razones siempre se
+compara contra main»*— y ahí apareció el error.
+
+⚠ **`-deriva` comparaba contra el `main` LOCAL.** Medido: el `main` local estaba **46, 76 y 5 commits
+atrás** de `origin/main` en los tres repos. Con esa referencia el tema daba **«0 archivos cambiaron»** —
+que es lo que reporté toda la tarde—; contra `origin/main` daban **2**, y no eran archivos cualquiera:
+las **rutas del backend** y las **rutas del front**, justo los que cambian cuando al tema se le suman
+pantallas o endpoints.
+
+**Un clon viejo no da un error: da un «todo al día» tranquilizador y falso.** Arreglado: se compara
+siempre contra `origin/main`, y `-temas` avisa cuánto está atrás la copia local (la medición es correcta
+igual, pero lo que ves en el editor no es lo que se comparó).
+
+**Y el bucle funcionó apenas se arregló la referencia.** El expediente de esos dos archivos llevó a:
+
+- una **pantalla nueva del canal** (`resolve-checkout`, del 2026-08-25) que el mapa no declaraba;
+- y de paso a que **el controlador del checkout del canal retail tampoco estaba declarado** — y es una
+  de las dos puertas por donde el comercio mete al cliente a este canal.
+
+**147 → 149 archivos.** ⚠ Y **la prosa no se tocó**: lo que cambió es mecanismo, y el mecanismo se
+deduce leyendo. Es el caso que ilustra la regla «cambiar NO es dejar de ser cierto».
+
+### La forma, ahora escrita
+
+Un tema es **una carpeta con dos archivos** (`map.json` + `context.md`) y no hay más formas — el lint ya
+rechazaba un archivo que exista y el mapa no declare. Tres comandos nuevos para que el ciclo sea
+mecánico:
+
+| comando | para qué |
+|---|---|
+| `-temas <repos>` | ¿cuál de mis temas quedó viejo? una fila por tema: archivos, derivados, palabras |
+| `-nuevo <tema>` | deja la carpeta con la forma correcta, para que el arranque no invente variantes |
+| `-expediente <tema> <repos>` | de «qué cambió» a qué hay que hacer |
+
+**Un tema no envejece por tiempo: envejece cuando cambia alguno de los archivos que declara.**
+
 ## Decisiones abiertas
 
 - **La frontera con credibrain** (herramienta de Oscar en el mismo catálogo, «la memoria de la
