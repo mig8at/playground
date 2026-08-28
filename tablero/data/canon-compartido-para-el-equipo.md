@@ -1804,6 +1804,28 @@ worker-propone / verificación-decide no es burocracia: es la tasa de error real
 Canon quedó en **166 secciones · soporte 109/109 · 21 huecos declarados · banco 112/112 top-3 ·
 task ci 0**. Los dos árboles trabajan sobre main y quedaron alineados el mismo día.
 
+## El entrenamiento con corridas: la idea de Miguel, validada (2026-08-28)
+
+Propuesta: usar el harness con paralelismo para que canon aprenda COMPORTAMIENTOS, no sólo mecanismos.
+Resultado en una hora — 4 corridas paralelas (14s) + 1 cierre a estado 11 (78s), todo local con el buró
+dictado:
+
+- **El orden es la parte viva**: score 300 → la entidad de la casa 1ª y el banco último. El set no se
+  movió en ningún perfil.
+- **`meddipay=rechaza` no movió el listado del backend** — confirmación EN VIVO de la secuencia
+  listado→consulta-por-tarjeta que canon documenta.
+- **Las dos puertas, segunda medición**: los dos corredores, perfil idéntico, 5/7 vs 7/7 (antes 3 vs 5
+  en credifamilia).
+- **Mecanismo sin documentar encontrado por el cierre**: el ruteo de documentos POR TIPO con canary por
+  entidad (`DOC_GEN_*` + `pdf_mapper_project_slug`; en prod sólo Credifamilia tiene slug). El 500 local
+  era el `.env` de Miguel ejercitando la ruta microservicio — restaurado tal cual tras la corrida.
+- De paso: el autoload/caches del contenedor local quedaron viejos tras los merges (BroadcastV1) —
+  `composer dump-autoload` + `optimize:clear` y siguió.
+
+El patrón para repetir: matriz de CASOS en paralelo (perfiles × comercios) + un CERRAR por familia, y
+las diferencias van a canon como secciones medidas. Candidatos siguientes: sonría/credifamilia (rt=4
+con sondeo), el canal QR de corbeta, y el RTO local con codeudor.
+
 ## Decisiones abiertas
 
 - **La frontera con credibrain** (herramienta de Oscar en el mismo catálogo, «la memoria de la
