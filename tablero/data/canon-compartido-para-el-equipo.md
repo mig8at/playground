@@ -1776,6 +1776,34 @@ worker → 3 invalidaciones verificadas a mano, las tres ciertas):
 
 Marcador: **10 al día · 19 deriva · 9 alta** (la mañana: 1 · 22 · 14). El día deja 10 nodos sellados.
 
+## CONTEXT VERDE TOTAL — 38/38 al día, y canon creció con cada sello (2026-08-28)
+
+El día terminó con lo que la mañana parecía imposible: **38 nodos al día · 0 con deriva · 0 rutas
+muertas** (la mañana: 1 · 36 · 6). Lo único no-verde es la marca ⏳ de payments (migraciones sin correr
+en dev/qa) — honestidad, no deuda. El método que lo hizo posible fue el bucle combinado: worker digiere
+(doc + diff → funcionalidades con veredicto), verificación manual de las invalidaciones, y escritura a
+los DOS árboles — cada verificación valió doble.
+
+**Los hallazgos grandes de la tarde** (todos verificados contra main, todos en los dos árboles):
+- **La fuga del reporte de originados está ARREGLADA** — filtra por rol al lender autenticado. El hueco
+  del banco de soporte quedó convertido y la tarea espejo retirada.
+- **El wizard volvió a OTP v1 y desconectó el pipeline de KYC** — duplicaba consultas PAGAS (dos
+  Experian con 41s de diferencia, medido en prod por el equipo).
+- **El bug NO-OP de min_income murió** — el piso de ingreso filtra por primera vez: «antes entraba y
+  ahora no» no es un bug.
+- **El override de Sonría en Welli**: sus no-elegibles se muestran como APROBADO, por diseño.
+- **StorePersonalInfoService de G3 está VIVO** — el docblock del controlador miente; me corregí dos
+  veces en el mismo punto (leí el comentario viejo primero). El método atrapó al worker una vez y a mí
+  dos.
+- El primer cron del sistema nuevo (RD 09:30 Santo Domingo) rompió la exclusividad del servicing.
+- BNPL reenvía los errores del banco; NIT con DV; PDF.js sin unpkg en el CSP.
+
+**El worker sobre-afirmó 1 vez en ~60 veredictos verificados; yo me equivoqué 2.** La división
+worker-propone / verificación-decide no es burocracia: es la tasa de error real de las dos partes.
+
+Canon quedó en **166 secciones · soporte 109/109 · 21 huecos declarados · banco 112/112 top-3 ·
+task ci 0**. Los dos árboles trabajan sobre main y quedaron alineados el mismo día.
+
 ## Decisiones abiertas
 
 - **La frontera con credibrain** (herramienta de Oscar en el mismo catálogo, «la memoria de la
