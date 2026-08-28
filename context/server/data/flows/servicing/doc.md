@@ -168,6 +168,18 @@ política escrita detrás**. Y F-147 es la prueba de que el código no es una co
 > backend. Vive en `develop`/`staging`, **no en `main`**. La tarea:
 > `tablero/data/agente-soporte-modificacion-datos.md`. Al mergear: re-verificar y **borrar esta marca**.
 
+**(2026-08-28)** `main` sumó **tres comandos de REPARACIÓN del rotativo** (en `application`, que es
+donde corre el servicing): `revolving:apply-unapplied-payments` (aplica dinero recaudado que no llegó a
+las utilizaciones; tolera diferencias de 1 peso como redondeo), `revolving:fix-used-limit` (corrige
+`used_limit`/`billing_used_limit` cuando se liberó cupo de más; verifica que reproduce el estado antes
+de tocar) y `revolving:repair-stranded-utilizations` (alinea la fecha de pago de utilizaciones que
+quedaron atrás de su cupo). Importan por lo que confiesan: **esos tres modos de falla existen en
+producción y ya tienen herramienta oficial** — ante un rotativo con plata recaudada sin aplicar o cupo
+liberado de más, el arreglo es el comando, no un UPDATE a mano. Verificado contra `main` leyendo los
+tres cuerpos. Y del mismo tramo: el summary del consumer (CRED-148) ahora trata una sobra ≤ el umbral
+`creditop_x_lender_residual_balances` de la entidad (default 5.000) como **resto residual, no cuota
+impaga** — el «debe 300 pesos y le sale una cuota» dejó de ser un reclamo válido.
+
 ## Estados y códigos
 **DOS máquinas de estado independientes que se confunden** (el Estado 11 es el puente):
 - **Catálogo A — `user_request_statuses`** (la SOLICITUD/originación): el catálogo completo verificado contra BD vive en la raíz → **`creditop` §Estados** (⚠ corrige nombres que este nodo tenía de código: 1 es «Validación OTP», no «Nueva»; 21 es «En aprobación del médico», no «stand-by»; 25 es «Pendiente de facturación»). Los que le importan a servicing: **11 Autorizada (la frontera)** · 26 Facturado · **27 Paz y salvo — de la SOLICITUD, no confundir con el 3 del catálogo B**.

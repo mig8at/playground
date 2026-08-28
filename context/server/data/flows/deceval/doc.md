@@ -157,7 +157,8 @@ saber en qué estado quedó el título.
 
 ## ⏳ Lo que el documento describe y NO está en `main`
 
-> ⏳ **PENDIENTE DE MERGE** — verificado el 2026-08-07 con el clon al día (fetch del mismo día) y
+> ⏳ **PENDIENTE DE MERGE** — re-verificado el **2026-08-28** (main sigue con sólo `LNDV001` en el
+> enum); verificado primero el 2026-08-07 con el clon al día (fetch del mismo día) y
 > buscando en `main`, en **todas las ramas remotas** y en el working tree: **no está en ninguna parte de
 > este clon**. Es trabajo en curso sin pushear (CRED-69, «merge blockers pendientes» del council del
 > 2026-07-28). Al mergear: re-verificar y **borrar esta marca**.

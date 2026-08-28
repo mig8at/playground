@@ -67,6 +67,13 @@ Cada paso se **prende/apaga por lender** (`dynamic_form_is_enabled` + `dynamic_f
 
 **Qué hace con el ingreso.** Al cerrar `results` OK, `AbacoService` llama a `IncomeBreakdownService`, que escribe el **informal** (campo 235) **siempre, incluso en 0** — «pasó por Ábaco y no aportó ingreso» es información distinta de «nunca pasó» — y el **formal** desde la primera central con monto real (agildata → mareigua → quanto). Esa escritura corre en un `try/catch` propio a propósito: fallar registrando el desglose no debe convertir un `ABAC5001` en un `ABAC5004` cuando el scraping ya se guardó.
 
+**(2026-08-28)** Ábaco ganó una **tercera ruta hermana**: `POST abaco/sync-results`
+(`AbacoSyncResultsController`, commits `04e0f8ea`/`1a8277d4`). Existe porque el polling del front no
+tiene el `customerId` que exige el `scraping/results` del proveedor: esta ruta se direcciona por
+`userRequestId` como sus hermanas, **resuelve el customer por dentro y empuja el scraping pendiente**.
+El front la consume desde `sync-abaco-results.uc.ts`. Verificado contra `main` (ruta + controller +
+compuerta cubierta por test).
+
 ## La calculadora vive en la base de datos, y es UNA sola
 `lenders.calculator` (json, nullable) guarda la fórmula **de cada lender**. `App\Support\FormulaCalculator` la evalúa con **symfony/expression-language** — sin `eval`, pasando solo escalares y con un `guard()` que prohíbe llamadas a función y limita la expresión a aritmética. `null` = **identidad** (el default de `credit`: devuelve el monto tal cual).
 
@@ -85,6 +92,15 @@ Encima vive **`App\Support\LenderCalculator`**, que es lo que hay que conocer pa
 **La cuota inicial se aplica sobre el PRECIO, no sobre el costo** — asimetría deliberada respecto del crédito, donde se descuenta del original. En renting el cliente no financia el costo del equipo: alquila a un precio, y la inicial es un abono contra ese precio. El porcentaje sale de `lender_users_categories.min_initial_fee` y **los inputs le ganan a los `params`**, así que la config es el piso y la categoría manda cuando existe.
 
 > **Dependencia con versión atada:** `symfony/expression-language` está fijado en **`^7.4`** y el `composer.json` declara `config.platform.php = 8.3`. La v8.1 exige PHP ≥ 8.4 y rompía el build de los ambientes: se subió por error y lo corrigió Joel (PR #1026). No lo vuelvas a subir sin mirar el PHP de los ambientes.
+
+**(2026-08-28)** El eslabón que faltaba entre la calculadora y lo PERSISTIDO ya está en `main`:
+`CalculatorAuthorizationAmounts` (commits `118566d2`/`fcbac492`). Antes, autorizar amortizaba con
+tasa como cualquier crédito y un renting real quedaba con `final_amount` = el COSTO (1.500.000) en vez
+del precio calculado (7.140.000) y `fee_value` = 0 — el contrato imprimía «Valor del plan: $0» y **el
+cupo consumido era el costo, no el precio**. Decisión de negocio del 16-08: `final_amount` = el precio
+de la calculadora (consume cupo, es el «pago total» del contrato) y `fee_value` = el pago PERIÓDICO
+del plan. Sólo aplica a lenders **con matriz de planes** en su `calculator`; sin ella devuelve `null`
+y el llamador sigue amortizando como siempre. Verificado contra `main` leyendo el servicio entero.
 
 ## Por qué la distinción legal importa (y no es cosmética)
 El techo de **usura** aplica al crédito, no al arrendamiento. Sin opción de compra el cliente **nunca es dueño**: paga por *usar* la moto y la devuelve, así que no hay capital que amortizar → **no hay interés** → no es crédito → no le aplica el techo. Con opción de compra sí hay saldo, sí hay interés, y el PRD lo dice con sus palabras: *"esencialmente **un crédito disfrazado de arriendo**"*.

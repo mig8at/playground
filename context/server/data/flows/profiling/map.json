@@ -39,7 +39,6 @@
     "legacy-backend/Modules/Onboarding/App/Services/ProfilerML/NewProfilerMLService.php",
     "legacy-backend/Modules/Onboarding/App/Services/lenders/LenderRetrievalService.php",
     "legacy-backend/Modules/Onboarding/App/Services/lenders/LenderSpecialGrantingService.php",
-    "legacy-backend/Modules/Onboarding/App/Services/lenders/LenderUserCategoryService.php",
     "legacy-backend/Modules/Onboarding/App/Services/lenders/ProfilingRulesService.php",
     "legacy-backend/Modules/Onboarding/App/Services/lenders/RiskCentralValidationService.php",
     "legacy-backend/Modules/Risk/App/Http/Controllers/ProfilerML/ProfilerMLController.php",

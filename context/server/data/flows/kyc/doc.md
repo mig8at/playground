@@ -34,7 +34,9 @@ Todo aterriza en tres lugares: el **reporte crudo** en `risk_central_user_data.d
   > ⏳ **PENDIENTE DE MERGE** — esto se INVIERTE en `staging` (PR #1098, #1103): la central que
   > resuelve la cédula pasa a corregir la ortografía del nombre tecleado, con un techo de distancia
   > para no escribir encima el nombre de otra persona. Sigue siendo cierto en `main`.
-  > Al mergear: re-verificar con el oráculo, reescribir este punto y **borrar esta marca**.
+  > **Re-verificado el 2026-08-28**: los dos PRs mergearon el 15/8 **a `staging`**, no a `main` —
+  > `NameSimilarity.php` no existe en `main`. La marca sigue vigente.
+  > Al mergear a `main`: re-verificar con el oráculo, reescribir este punto y **borrar esta marca**.
 
   ⚠ No asumas simetría
   con el flujo viejo: `[application] PersonalInfoController.php:208-209` **sí** sobreescribía con el

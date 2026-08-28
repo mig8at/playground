@@ -61,7 +61,6 @@
     "legacy-backend/Modules/Partner/routes/api.php",
     "legacy-backend/Modules/Risk/App/Http/Controllers/DatacreditoQueryByAlliedController.php",
     "legacy-backend/app/Models/Allied.php",
-    "legacy-backend/app/Models/AlliedMode.php",
     "legacy-backend/database/migrations/2023_04_20_193419_create_allieds_table.php",
     "legacy-backend/database/migrations/2023_07_17_161110_create_allied_branches_table.php",
     "legacy-backend/database/migrations/2023_07_17_171700_create_lenders_by_allied_branches_table.php",

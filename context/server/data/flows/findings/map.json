@@ -55,7 +55,6 @@
     "legacy-backend/Modules/Loans/App/Services/GuaranteeService.php",
     "legacy-backend/Modules/Loans/App/Services/OtpService.php",
     "legacy-backend/Modules/Loans/App/Services/PaymentSchedule/PaymentCalculationService.php",
-    "legacy-backend/Modules/Onboarding/App/Services/MotaiValidationService.php",
     "legacy-backend/Modules/Risk/App/Http/Controllers/ProfilerML/ProfilerMLController.php",
     "legacy-backend/app/Actions/Lenders/Payvalida.php",
     "legacy-backend/app/Services/PdfMapperClient.php",

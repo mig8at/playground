@@ -1,7 +1,8 @@
 # Ecommerce · contexto
 > **estado:** al día con main · **Canal / storefront** (eje 4 del negocio: response_type × producto × modo × **canal**). Cubre cómo la tienda del comercio (VTEX, WooCommerce, desarrollo propio) hace **handoff del carrito** a CreditOp y cómo CreditOp **vuelve al comercio** con el resultado. NO decide crédito ni cobra: solo transporta la orden y notifica el veredicto.
 
-> ⏳ **PENDIENTE DE MERGE — la entrada del front.** La ruta unificada `app/routes/ecommerce/checkout.tsx`
+> ⏳ **PENDIENTE DE MERGE — la entrada del front.** (Re-verificado el 2026-08-28: sigue sin estar en
+> `main`.) La ruta unificada `app/routes/ecommerce/checkout.tsx`
 > (enfoque **stateless**, task `ecommerce-web-stateless`) existe pero vive en **develop** (PR frontend
 > [#551](https://github.com/Creditop-SAS/frontend-monorepo/pull/551)), no en `main`: en prod
 > `GET /ecommerce/{hash}/checkout` del wizard da **404** y el entry de los comercios no-Corbeta lo sigue

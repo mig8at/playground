@@ -41,7 +41,13 @@ Repos MySQL wired en `module.go:20-30`: FormType/Form/Field/FieldOption/FieldCat
 - `GET|PUT /v1/field-options/country-tree[/{country_id}]` · `GET|PUT /v1/field-options/countries` — opciones de los selects grandes.
 - `GET /v1/suplementary-info/user-info/{user_request_id}` — valores previos para pre-llenar (typo `suplementary` a propósito, el front lo replica).
 
-### Cómo se ARMA el schema (`schema_builder.go` → `get_schema/usecase.go`)
+### Cómo se ARMA el schema (`get_schema/usecase.go`)
+
+> **(2026-08-28)** `schema_builder.go` y `schema_persistence.go` **ya no existen**: la reorganización
+> de `main` repartió los usecases en carpetas por operación (`create_schema/`, `get_schema/`,
+> `get_responses/`, …) y el armado vive en el `usecase.go` de cada una más el mapper
+> (`dynamic_form_schema_mapper.go`). Lo descrito abajo sigue siendo el mecanismo; las rutas de
+> archivo son las que cambiaron.
 `build(formID)` lee **las 5 tablas legacy en paralelo** (`errgroup`): `form_types.GetByID(formID)` + `forms.ListByFormTypeID(formID)` → `fields.ListByIDs` + `field_options.ListByFieldIDs` → `field_categories.ListByIDs`. El mapper (`dynamic_form_schema_mapper.go`) agrupa **campos en secciones por categoría** con el `sort`, y valida ≥1 sección (si no → `SchemaNotFound`). `GET /schema` es **cache-aside**: Redis → S3 → rebuild MySQL (`get_schema/usecase.go`). `PUT /schema` fuerza `BuildAndReplace` (rebuild + pisar cache).
 
 ### Cómo se GUARDAN las respuestas (`store_response/usecase.go`) — 11 pasos
@@ -73,7 +79,7 @@ Usado por la ruta `additional-info` (`additional-info.tsx` → gate, `additional
 
 ## Dónde mirar
 - **Wiring / entrada** (form-service): `cmd/http-server/main.go`, `internal/infra/storage/module.go` (repos), `internal/core/usecases/module.go`.
-- **Schema (armado + cache-aside)**: `internal/core/usecases/dynamic_forms/schema_builder.go`, `schema_persistence.go`, `get_schema/usecase.go`, `internal/core/mappers/dynamic_form_schema_mapper.go`.
+- **Schema (armado + cache-aside)**: `internal/core/usecases/dynamic_forms/get_schema/usecase.go` y `create_schema/usecase.go` (reorg 2026-08: ya no hay `schema_builder.go`/`schema_persistence.go`), `internal/core/mappers/dynamic_form_schema_mapper.go`.
 - **Response (persistencia)**: `internal/core/usecases/dynamic_forms/store_response/usecase.go`, `internal/core/mappers/dynamic_form_response_mapper.go`, `internal/infra/storage/mysql/repositories/user_field_value_repository.go` (+ `user_field_value_queries.sql`, .sql, no indexado), `user_request_repository.go` (el round-trip).
 - **Validación (solo estructural)**: `internal/infra/handlers/http/dynamic_form_response/validators.go`, `http_handler.go`.
 - **Country-tree (cascada)**: `internal/core/usecases/field_options/country_tree_builder.go`, `internal/infra/storage/mysql/repositories/country_zone_repository.go`, `country_city_repository.go`.

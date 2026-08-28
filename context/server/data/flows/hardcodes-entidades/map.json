@@ -89,7 +89,6 @@
     "legacy-backend/Modules/Onboarding/App/Services/BackDoorService.php",
     "legacy-backend/Modules/Onboarding/App/Services/BackDoorUserService.php",
     "legacy-backend/Modules/Onboarding/App/Services/LegalService.php",
-    "legacy-backend/Modules/Onboarding/App/Services/MotaiValidationService.php",
     "legacy-backend/Modules/Onboarding/App/Services/OnboardingService.php",
     "legacy-backend/Modules/Onboarding/App/Services/UserRequestService.php",
     "legacy-backend/Modules/Onboarding/App/Services/UserService.php",
