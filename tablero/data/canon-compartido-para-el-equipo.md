@@ -1315,6 +1315,38 @@ superficie no está cubierta** en vez de devolver una causa plausible y falsa.
 
 Banco propio 109/109 · soporte 15/15 con 1 sin cobertura · CI verde con código de salida verificado.
 
+## #tech-ops: el canal donde está el jugo — 2 de 11 (2026-08-28)
+
+Miguel señaló el canal correcto: **`#tech-ops` (C08UCU5E90S)**, decenas de casos concretos por semana.
+(Y descartó bien las alertas de Grafana: repiten el mismo texto cada 4 h y aportan poco.)
+
+**Prueba con 11 frases copiadas del canal: 2 aciertos.** Muy por debajo del 24/24 que da hoy el banco de
+soporte — porque ese banco ya está afinado con las frases que probé antes. **Cada tanda nueva de frases
+reales vuelve a bajar el número**, y eso es la señal de que la medición sirve.
+
+**Lo más pedido en el canal, por frecuencia:**
+
+1. **Voucher** — «me ayudas con el voucher de este cliente», ~5 veces por semana. ⚠ **Y tiene respuesta
+   sin escalar**: el sistema **ya devuelve el motivo del bloqueo** (no autorizada · sin número de
+   solicitud · monto en cero), verificado en `UserRequestVoucherController::blockingReason`. Cargado, con
+   el cuarto caso que el código no cubre: cumple todo y el archivo no existe, porque el comprobante se
+   genera al mejor esfuerzo.
+2. **«Solicitud cancelada» con validación de identidad exitosa** — ~5 casos. Cargado: son **dos cosas
+   separadas** y el orden de diagnóstico es al revés del reflejo.
+3. **«Paz y salvo» con saldo / pagan y no se desbloquea** — ~4 casos, mismo mecanismo: **el pago no
+   cambia el estado, lo cambia un proceso posterior**. Cargado.
+4. **Integración no prendida en una sucursal** — cae en `altas`, que ya cubre que la visibilidad es por
+   sucursal.
+
+**Nuevos huecos DECLARADOS (5 sin cobertura):** los 5 intentos de validación agotados · cupo que sale
+«n/a» · cuota desfasada en el perfilador · créditos autorizados que no llegan al core bancario · y lo de
+la app móvil de antes.
+
+**Y una pieza nueva del mapa**: el área del voucher en `formalizacion` (el controlador con los motivos).
+
+Banco propio 109/109 · soporte **24/24 con 5 declarados** · CI y banco verificados por código de salida
+antes de subir.
+
 ## Decisiones abiertas
 
 - **La frontera con credibrain** (herramienta de Oscar en el mismo catálogo, «la memoria de la
