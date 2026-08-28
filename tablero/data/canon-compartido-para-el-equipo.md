@@ -1679,6 +1679,33 @@ Las 161 preguntas quedaron en `tablero/data/artifacts/canon-preguntas-generadas-
 para las próximas tandas. Estado: soporte **100/100** con 22 huecos · banco 93/112 y 112/112 top-3 ·
 `task ci` 0.
 
+## context/ re-alineado tras los merges — y dos hallazgos que también son para canon (2026-08-28)
+
+Bajamos a `context/` como pidió Miguel. Primero los main locales (estaban atrás los tres grandes —
+la trampa del clon viejo, otra vez); después `make context-align`: **30 nodos con deriva, 6 rutas
+muertas, 3 marcas ⏳**.
+
+**Hecho hoy:**
+- **motai**: dos anotaciones verificadas — la ruta `sync-results` de Ábaco (empuja el scraping
+  pendiente resolviendo el customer por dentro) y `CalculatorAuthorizationAmounts` (antes un renting
+  quedaba con `final_amount` = el COSTO y `fee_value` = 0: contrato con «Valor del plan: $0» y el cupo
+  consumido era el costo, no el precio — decisión del 16-08 lo arregló).
+- **servicing**: los TRES comandos de reparación del rotativo + el umbral residual por entidad
+  (CRED-148, default 5.000: sobra ≤ umbral = resto residual, no cuota impaga).
+- **6 rutas muertas → 0**: `LenderUserCategoryService` se mudó a Loans; **`MotaiValidationService` y
+  `AlliedMode` murieron en la des-motaización** — ⚠ el filtro por MODO del listado quedó deprecado
+  («Sin filtro, quedan todos»); form-service reorganizó usecases en carpetas por operación.
+- **Las 3 marcas ⏳ re-verificadas**: deceval y ecommerce siguen sin mergear (quedan); la de kyc quedó
+  precisa — **#1098/#1103 mergearon el 15/8 A STAGING, no a main**. La marca sigue vigente.
+
+**Backlog para canon que salió de acá**: (1) el filtro por modo deprecado toca la descripción de
+compuertas del listado en canon; (2) el umbral residual y los comandos de reparación son material de
+`cartera` en canon; (3) el fix de `final_amount` explica reclamos de cupo consumido — va con la sección
+de la calculadora de motai que canon ya tiene.
+
+La deriva restante (22 nodos + 14 en alta) quedó **medida** en `alineacion.json` — relectura para
+próximas sesiones, no se selló nada.
+
 ## Decisiones abiertas
 
 - **La frontera con credibrain** (herramienta de Oscar en el mismo catálogo, «la memoria de la
