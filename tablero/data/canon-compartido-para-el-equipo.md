@@ -740,6 +740,45 @@ solicitud quedaba viva y sin captura».
   contesto al comercio cuando no le sale Bancolombia». Se sacó del índice, igual que «Cómo lo sabemos»:
   es tapa, no respuesta.
 
+## La prosa se reescribió contra el nodo real, y dos afirmaciones se cayeron (2026-08-27)
+
+Miguel: *«creo que el context de bancolombia no se ajusta con la realidad»*. Tenía razón — la escribí
+**antes** de leer `context/server/data/flows/bancolombia/doc.md`, así que varias cosas las inferí.
+
+**Lo que no resistió la verificación:**
+
+| lo que decía | qué pasó al verificarlo |
+|---|---|
+| «una guarda del código de compra imposible de cumplir» | **no existe**; la busqué en los dos servicios que generan el código y la comprobación real es normal |
+| «aprobado y sin factura es normal en tienda física» | no está respaldado en ningún nodo ni en el código |
+
+**Lo que apareció al leer el nodo real, y es mejor:**
+
+- **Es el único agregador sin handoff.** El banco decide y se queda el crédito, pero la experiencia
+  entera la renderiza CreditOp. El reflejo de «es del banco, que lo vean ellos» está mal acá.
+- **No es «el lender del canal retail»: es transversal** (109 de 230 comercios).
+- **Con los dos aprobados arranca siempre en BNPL** → las pantallas del otro no se alcanzan sin apagar
+  esa compuerta. Es lo primero que hay que saber para probarlo.
+- **El canal de ecommerce no escribe el identificador del trámite** — ahí la ausencia es real, no un
+  artefacto de medir sobre el histórico. Ese matiz no lo tenía.
+- Y la trampa de las **dos fuentes de verdad** del canal retail: un comercio en la dinámica y no en la
+  lista fija pasa la comprobación y **falla en silencio** con un código que en caja no sirve.
+
+⚠ **Y salió un hecho que no estaba en NINGÚN lado, ni en el nodo local.** Persiguiendo la única pregunta
+que quedaba sin contestar («¿por qué no le sale Bancolombia?») apareció en el código una **hora de corte
+diaria**: pasada esa hora el producto se quita del listado **sin siquiera consultar al banco**. Medido
+contra **prod** el 2026-08-27: **20:30**, y son los **únicos dos** productos de la plataforma que la
+tienen. El mismo cliente ve una lista distinta según la hora, y desde afuera se ve igual que un rechazo.
+
+Eso también arregló el mapa: el área de la decisión ahora promete «la hora de corte y qué pasa al
+pasarla» en su `se_deduce_leyendo`.
+
+**Método que quedó claro:** la pregunta sin respuesta del banco de preguntas **no era ruido de la
+búsqueda, era un hueco del contenido**. Perseguirla hasta el código encontró el hallazgo. Y el ajuste
+final fue de **vocabulario, no de pesos** — coherente con lo medido en agosto.
+
+**Banco de preguntas: 14/14 alcanzables, 11/14 al primer resultado**, exigiendo la sección.
+
 ## Decisiones abiertas
 
 - **La frontera con credibrain** (herramienta de Oscar en el mismo catálogo, «la memoria de la
@@ -759,7 +798,9 @@ solicitud quedaba viva y sin captura».
   Miguel): `context.md` en prosa corrida, con la regla de envejecer escrita en su encabezado. Y se armó
   el **expediente**, que cierra el bucle de recontextualización y encontró un defecto real en su primera
   corrida. Dos bugs propios encontrados y arreglados: `/api/read` no devolvía el mapa, y el preámbulo se
-  robaba el primer resultado de la búsqueda. PR #10, un commit, CI verde.
+  robaba el primer resultado de la búsqueda. Y la prosa se **reescribió contra el nodo real**: dos
+  afirmaciones inventadas fuera, y apareció la **hora de corte de las 20:30** —medida en prod, y que no
+  estaba escrita en ningún lado—. PR #10, un commit, CI verde.
 - 2026-08-25 · F4 completa (+3: observability, environments, callbacks) y molde de F5
   (`field.entity-credifamilia`, sin cifras). Banco a 39 preguntas. Ver la sección de la métrica.
 - 2026-08-25 · F4 arrancada: +4 pitfalls temáticos (identity, reports, quota, data-reading), sin F-xx
