@@ -9,30 +9,24 @@ ramas: feat/canon-limpieza-y-contexto-rico
 jira_title: "Documentación de negocio compartida para el equipo"
 ---
 
-**ESTADO 2026-08-27.** El corpus **se reinició por profundidad** y el artefacto principal cambió: ya no
-es la prosa, es **`map.json`**. Un tema (`bancolombia`) con **147 archivos de 3 repos en 7 áreas**, cada
-uno con su hash de blob de git, contra **un solo `context.md`** de ~1.400 palabras. PR abierto:
-`Creditop-SAS/playground#10`, un solo commit, CI verde.
+**ESTADO 2026-08-28 · LISTO PARA MERGEAR.** PR `Creditop-SAS/playground#10`, un solo commit, CI verde
+verificado desde worktree limpio.
 
-Y ya está el **bucle de recontextualización**: `-expediente` va de «qué cambió» a «qué hay que hacer»
-—los PRs que movieron cada archivo, sus descripciones, el diff, candidatos a sumar y a quitar, y la
-prosa contra la que contrastar—. **Probado rebobinando el mapa tres meses, encontró un defecto real
-en su primera corrida.**
+**12 temas · 468 archivos declarados · 0 derivados · 4 repos.** El corpus cubre el recorrido completo de
+una solicitud (onboarding → listado → creditopx/bancolombia/credifamilia → formalización → cartera) más
+el plano (arquitectura), los burós (kyc), la configuración (altas), la forma de los datos (datos) y el
+puente de vocabulario.
 
-El giro salió de una medición: casi todo lo que había escrito a mano **se podía grepear del código**
-(el monto fijo, los pisos de cada producto, hasta el pendiente en un comentario). Escribir eso es
-copiar el código a un lugar donde envejece solo. Y al revés, lo que de verdad hace falta —que nadie
-revisa el vencimiento del certificado con que se firma cada llamada al banco— **no se puede grepear
-porque no está**. De ahí la regla: **el mapa dice dónde está lo que se deduce; la prosa guarda sólo lo
-que no.**
+**Validado contra soporte real**, que es lo que más cambió el resultado: banco de `#tech-ops` y
+`#soporte--app` con frases copiadas sin reescribir. **Primera corrida: 1 de 8** (el banco propio daba
+98/109 — juez y parte). La causa era el **idioma**, no el ranking: nueve de diez palabras que usa
+soporte no existían en el corpus. Hoy: **47 cubiertas · 17 huecos declarados**.
 
-**Bloqueado por infra para probarlo publicado:** falta el repo ECR `creditop/canon` y, sobre todo, el
-**wildcard DNS `*.playground.creditop.com`** (hoy da NXDOMAIN, así que ninguna de las cuatro
-herramientas del repo compartido es alcanzable). El handoff a Dani y Santi está en
-`github/playground/PENDIENTE-PUBLICAR.md`.
+**Lee `main` sin clon**: app de GitHub para el servidor, token de `gh` para local, clon si hay. La
+portada comprueba el despliegue sin entrar a un log.
 
-**Lo de antes (F1–F5, 26 nodos temáticos) queda como historia de esta tarea**, no como corpus: cubría
-mucho y poco a la vez. El mapeo de abajo sigue sirviendo de inventario de qué hay que cubrir.
+**Falta sólo mergear.** Y del lado de infra, para que el servidor use la app en vez de un token de
+persona: las tres variables de `GITHUB_APP_*` desde la bóveda (ya documentadas en `.env.example`).
 
 ## Las reglas de la migración
 
@@ -1440,6 +1434,24 @@ archivos del área desde GitHub, marcó los hashes contra lo declarado, y la bú
 `.env` falla más veces de las que funciona — pegado en varias líneas sólo llega la primera, y el error
 que produce no se parece a su causa. También se mejoró el 401 de GitHub, que dice «no se pudo decodificar
 el JWT» tanto si la firma está mal como si el App ID no existe.
+
+## La portada comprueba el despliegue, y queda todo listo para las variables de Dani (2026-08-28)
+
+Idea de Miguel: aprovechar el HTML del despliegue para ver si la conexión con GitHub está bien.
+
+**Hecho, con una restricción que no era obvia:** la portada **no está detrás de llave** (el contrato del
+repo la sirve abierta) y los repos son privados — publicar sus nombres ahí sería contarle a cualquiera
+cómo se llama cada pieza. Así que dos niveles: **sin llave**, cuántos repos se leen y con qué fuente;
+**con llave**, los nombres, sus hashes y un fragmento real. Y el fragmento es de **este** repositorio de
+herramientas, no de uno de negocio.
+
+⚠ **La prueba de que lee `main` y no el disco**: el fragmento muestra la descripción del manifiesto
+**como está en main**, que todavía no tiene los cambios de esta rama. Si leyera local, mostraría la
+nueva. Verificado en el navegador, en claro/oscuro y en móvil.
+
+`.env.example` quedó como el del repo —nombres, nunca valores— con las tres de `GITHUB_APP_*`, las dos
+llaves de la API y la alternativa del clon local. **Y con la nota que importa: si no hay ninguna, canon
+igual funciona con el token del `gh` — que sirve para desarrollar y NO para el servidor.**
 
 ## Decisiones abiertas
 
