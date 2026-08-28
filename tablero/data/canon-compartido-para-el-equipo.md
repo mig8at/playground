@@ -1129,6 +1129,39 @@ pero la lección es que el «verificar desde worktree limpio» sólo sirve si se
 
 Banco: **90 preguntas, 82 al primero, 90/90 alcanzables**. Corpus: **9 temas · 430 archivos**.
 
+## Décimo tema: cartera — cargado ENTERO por la API (2026-08-28)
+
+Miguel: el historial de pagos de los deudores en el sistema viejo. Se hizo como segunda prueba de la
+API: **mapa por CLI, y los cinco párrafos por `/api/propose`, sin tocar un archivo a mano**.
+
+**16 archivos en 4 áreas** · **504 palabras**. Lo no deducible: el **medio de pago describe quién
+registró, no cómo se pagó** (no sirve para conciliar) · los pagos sin sucursal se imputan a una
+**sucursal fija del código** (reportes por sucursal sesgados) · **reversar un pago retenido revienta**
+· el tipo de movimiento vacío en ~90% (reconstruir el historial filtrando por él pierde casi todo) ·
+**apagar el viejo detiene la cartera** (las copias del nuevo tienen imports rotos).
+
+⚠ **VERIFICADO CONTRA PROD hoy, y es lo más fuerte del día:** la tabla de tipos de pago tiene
+`REVERSADO` (id 8) y el código busca `'PAGO REVERSADO'` → `first()` da null → fatal. **545 pagos en
+RETENIDO en producción, el último de esta mañana** — o sea que la rama es alcanzable a diario. Y **no
+hay ningún reversado desde el 2026-06-30**. ⚠ Busqué commits de esa fecha y no hay: la coincidencia
+queda anotada **sin afirmar causa**. (Es F-126 del registro local, ahora medido en prod y no en dump.)
+
+**Dos defectos más del diseño, encontrados usándolo:**
+
+**4 · Huevo y gallina: un tema nuevo no arranca hasta que otro lo enlaza, y el lint bloquea el
+arranque.** No se puede usar la API para llenar un tema que la API no puede servir. Arreglado: el
+mensaje dice qué agregar y dónde, y `-nuevo` lo advierte al crear la carpeta.
+
+**5 · El lint rechazó un párrafo por API con el motivo exacto** («medido» sin fecha) y con la fecha
+entró. ⚠ Acá me equivoqué yo: leí el campo equivocado de la respuesta y reporté que el rechazo no
+explicaba nada. La API sí lo explicaba — corregido en el README.
+
+**Lo que valida:** el ciclo entero —crear tema, cargar conocimiento, ser rechazado por una regla,
+corregir, entrar— funciona por API, con el lint como revisor **en el momento de escribir**, no días
+después en un PR.
+
+Banco: **97 preguntas, 88 al primero, 97/97 alcanzables**. Corpus: **10 temas · 446 archivos**.
+
 ## Decisiones abiertas
 
 - **La frontera con credibrain** (herramienta de Oscar en el mismo catálogo, «la memoria de la
