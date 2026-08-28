@@ -1593,6 +1593,37 @@ detalle que importa para la próxima vez: mientras la app no pudo mirar, la rond
 con `cambiados: 0` — **se negó a decir «al día» sin haber mirado**, que es la doctrina de esta
 herramienta aplicada a sí misma.
 
+## Motai: el primer tema cargado ENTERO por la API (2026-08-28)
+
+La prueba ciega había dicho «no conozco motai», honesto — y `main` tenía 77 archivos del backend y 27
+del front (el QA de motai ya mergeó). Miguel pidió cargarlo **usando la API local como si fuera la
+expuesta**, para ver cómo se comporta el ingreso de conocimiento nuevo. Se hizo así, y el veredicto:
+
+**Lo que entró por la API (todo el contenido):** las 5 secciones del tema + 2 entradas del glosario
+(Motai, Codeudor), una por una con `POST /api/propose`, cada una validada contra el corpus entero al
+entrar. Cero ediciones a mano del `context.md`.
+
+**Lo que fue a archivo (y es correcto que así sea):** el `map.json` con sus 24 fuentes hasheadas de
+`origin/main`, el andamiaje de `-nuevo` (que ya avisa del huevo-y-gallina: un tema sin enlace no
+arranca), y el `related` desde `formalizacion` y `listado`.
+
+**El corte del tema** — todo verificado contra `origin/main`, con los nueve documentos del codeudor
+del propio repo APUNTADOS desde el mapa (no copiados):
+- dos productos que se separan en los papeles; la tasa se convierte a la periodicidad del plan
+  (semanal/quincenal) — comparar el papel contra la config engaña;
+- el codeudor lo exige **la política** (`requires_cosigner` de la categoría), no el hecho, re-evaluada
+  al firmar — saltarse el paso con la URL no deja nada que bloquear, la política sí lo ve;
+- el codeudor entra a la **misma** solicitud; su elegibilidad **lee sin disparar** (el buró es
+  facturable) y el veredicto es el cupo type 3 sin perilla que lo puentee; un fallo de infra NO cierra
+  en no-apto;
+- la sesión del codeudor la manda el token (`X-Cosigner-Token`), las rutas no llevan id, y los
+  rechazos son del guard — el reenvío de una invitación vieja es la causa típica;
+- la consulta de ingresos de plataformas es un requisito por entidad.
+
+Prueba ciega tras la carga: **6 de 7 en primer lugar**, la restante en 2–3 con el glosario primero.
+Estado: 14 temas · banco 95/112 y 112/112 top-3 · soporte 86/86 · ronda ✓ al día · `task ci` 0.
+Rama `feat/canon-tema-motai` lista.
+
 ## Decisiones abiertas
 
 - **La frontera con credibrain** (herramienta de Oscar en el mismo catálogo, «la memoria de la
