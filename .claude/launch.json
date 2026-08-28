@@ -147,6 +147,18 @@
       "port": 5199,
       "autoPort": false,
       "url": "http://localhost:5199"
+    },
+    {
+      "name": "storybook",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "run",
+        "dev",
+        "--prefix",
+        "/Users/miguelochoa/Desktop/CREDITOP/github/frontend-monorepo/apps/storybook"
+      ],
+      "port": 6006,
+      "autoPort": false
     }
   ]
 }

@@ -5,18 +5,29 @@ stage: work
 created: "2026-08-25T12:00:00-05:00"
 context_nodes: [creditop, negocio, findings, architecture]
 jira: []
+ramas: feat/canon-limpieza-y-contexto-rico
 jira_title: "Documentación de negocio compartida para el equipo"
 ---
 
-**ESTADO 2026-08-25.** La herramienta existe y pasa el CI del repo compartido: `Creditop-SAS/playground`
-→ `tools/canon` (Go, cero dependencias, corpus embebido en el binario, lint que bloquea el deploy).
-**Sin commitear** — el PR lo abre Miguel. **F1–F4 COMPLETAS + molde de F5: 26 nodos.** canon (7): money · invariants · entity-families · lifecycle ·
-actors · risk-assessment · glossary. flows (8): origination · entity-listing · formalization · cosigner ·
-payments · post-disbursement · channels · external-lenders. map (3): repos · services · database.
-pitfalls (7): identity · reports · quota · data-reading · observability · environments · callbacks.
-field (1): entity-credifamilia — **el molde, escrito SIN números comerciales**, para que la capa exista
-mientras se decide qué se publica. Este archivo lleva EL MAPEO: qué nodo del `context/`
-local alimenta qué nodo del corpus compartido.
+**ESTADO 2026-08-27.** El corpus **se reinició por profundidad** y el artefacto principal cambió: ya no
+es la prosa, es **`map.json`**. Un tema (`bancolombia`) con **145 archivos de 3 repos en 7 áreas**, cada
+uno con su hash de blob de git, contra **1.043 palabras** de prosa. PR abierto:
+`Creditop-SAS/playground#10`, un solo commit, CI verde.
+
+El giro salió de una medición: casi todo lo que había escrito a mano **se podía grepear del código**
+(el monto fijo, los pisos de cada producto, hasta el pendiente en un comentario). Escribir eso es
+copiar el código a un lugar donde envejece solo. Y al revés, lo que de verdad hace falta —que nadie
+revisa el vencimiento del certificado con que se firma cada llamada al banco— **no se puede grepear
+porque no está**. De ahí la regla: **el mapa dice dónde está lo que se deduce; la prosa guarda sólo lo
+que no.**
+
+**Bloqueado por infra para probarlo publicado:** falta el repo ECR `creditop/canon` y, sobre todo, el
+**wildcard DNS `*.playground.creditop.com`** (hoy da NXDOMAIN, así que ninguna de las cuatro
+herramientas del repo compartido es alcanzable). El handoff a Dani y Santi está en
+`github/playground/PENDIENTE-PUBLICAR.md`.
+
+**Lo de antes (F1–F5, 26 nodos temáticos) queda como historia de esta tarea**, no como corpus: cubría
+mucho y poco a la vez. El mapeo de abajo sigue sirviendo de inventario de qué hay que cubrir.
 
 ## Las reglas de la migración
 
@@ -625,6 +636,57 @@ Tres decisiones que lo hacen encajar con el repo:
 Probados los tres niveles: sin llave → 401 · con la de lectura → 5 herramientas, sin `propose`, y el
 intento de escribir deriva a una persona · con la de escritura → 6 herramientas.
 
+## El giro: el mapa es el artefacto, la prosa es el resto (2026-08-27)
+
+El corpus de 26 nodos **cubría mucho y poco a la vez** — así que se reinició por profundidad: un tema
+bien hecho antes que veinte por encima. Y al rehacerlo cambió qué es lo importante.
+
+**La medición que lo decidió.** Antes de reescribir la prosa, grepeé el código a ver cuánto de ella
+salía de ahí:
+
+| lo que había escrito a mano | en el código |
+|---|---|
+| «la consulta va con un monto fijo» | `$request->amount = 1000000` |
+| «el producto chico arranca en $100.000» | `$hasBnpl => 100000` |
+| «se muestra sin cupo confirmado» | `// ToDo: solo se muestran preaprobados` |
+
+**~70 % era transcripción.** Al revés, `git grep -licE 'validTo|notAfter|certificate.*expir'` en los
+tres repos devolvió **0**: nadie revisa el vencimiento del certificado con que se firma cada llamada al
+banco. **Eso no se puede grepear porque no está** — y el día que venza, el canal deja de responder sin
+que nada avise.
+
+**La forma que salió de ahí.** Cada área del mapa declara dos cosas: su `objetivo` (qué resuelve, en
+palabras de negocio) y `se_deduce_leyendo` (qué va a encontrar el agente si abre esos archivos). No se
+lo escribo: le digo dónde mirar. Los archivos van **separados por repositorio** —la misma ruta existe
+en más de uno— y cada uno con su **hash de blob de git**, el mismo que usa git, así que cambia
+exactamente cuando cambia el contenido.
+
+Las 7 áreas del tema, con sus archivos: decidir el producto (2) · hablar con el banco (6) · el paso a
+paso en el backend (28) · el código de compra de la caja (3) · las pantallas del banco (48) · las rutas
+del recorrido (46) · el aviso de estado ⚠ que vive en el sistema histórico (12).
+
+⚠ **Y un área que se llama «el resto» no le sirve a nadie.** El primer reparto dejó dos bultos con 77
+de los 145; se rehizo hasta que cada área declara un objetivo real. Vale la pena mirarlo al agregar el
+próximo tema: es el error fácil.
+
+**Dos documentos, no cuatro.** `business.md` (qué reclamo produce cada comportamiento y qué se le
+contesta a un comercio) y `pitfalls.md` (ausencias y consecuencias). Las otras dos clases se caían
+solas: describían lo que el mapa ya dice dónde está.
+
+**Y `business.md` no explica qué es Bancolombia** — un modelo ya lo sabe. Guarda lo que sólo se sabe
+midiendo nuestro sistema: que el crédito grande se muestra sin cupo confirmado, que un «no habilitado»
+se trata como sin cupo y **no deja rastro de fallo en ningún lado**, que el aviso del banco lo atiende
+el sistema viejo aunque el flujo corra en el nuevo.
+
+**El puente para el futuro.** Con el hash, `-deriva` contesta qué cambió desde que se escribió el tema
+y `-afectados <rutas…>` lo inverso: qué documentos dejó viejos un merge. Un webhook de GitHub trae
+justo esa lista de rutas. `/api/propose` ya valida y, en una instancia sin disco, devuelve el archivo
+listo y la rama sugerida en vez de fallar — que es lo que necesita un agente para abrir el PR él mismo.
+
+**Verificado hoy:** los 145 existen en `main` de sus repos y 0 derivaron · `task ci` verde · y
+`/api/read` **ahora sí entrega el mapa junto al documento** (no lo hacía: el agente recibía la mitad
+cara sin saber dónde buscar la otra).
+
 ## Decisiones abiertas
 
 - **La frontera con credibrain** (herramienta de Oscar en el mismo catálogo, «la memoria de la
@@ -637,6 +699,11 @@ intento de escribir deriva a una persona · con la de escritura → 6 herramient
 
 ## Bitácora
 
+- 2026-08-27 · **1h00 medido** (`make pulso`; el grueso del día fue frontend). El corpus se reinició
+  por profundidad y **`map.json` pasó a ser el artefacto principal**: 145 archivos de 3 repos en 7
+  áreas con hash de blob, contra 1.043 palabras de prosa. Lo decidió una medición (~70 % de lo escrito
+  a mano era grepeable; el certificado sin vigilar, no). De 4 clases de documento a 2. Bug propio
+  encontrado y arreglado: `/api/read` no devolvía el mapa. PR #10, un commit, CI verde.
 - 2026-08-25 · F4 completa (+3: observability, environments, callbacks) y molde de F5
   (`field.entity-credifamilia`, sin cifras). Banco a 39 preguntas. Ver la sección de la métrica.
 - 2026-08-25 · F4 arrancada: +4 pitfalls temáticos (identity, reports, quota, data-reading), sin F-xx

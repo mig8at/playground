@@ -6,7 +6,7 @@ created: "2026-08-27T09:00:00-05:00"
 context_nodes: [architecture, onboarding, kyc, entities, merchants]
 jira: []
 jira_title: ""
-ramas: "pais/documentos-que-acepta-el-backend, pais/monto-y-telefono-en-solicitar, pais/borrar-documentos-de-sucursal"
+ramas: "pais/documentos-que-acepta-el-backend, pais/monto-y-telefono-en-solicitar, pais/borrar-documentos-de-sucursal, pais/la-tarjeta-de-identidad-es-generica"
 ---
 
 ## Si retomás esto sin contexto, empezá acá
@@ -47,6 +47,7 @@ lo lee.
 | `legacy-backend` · `legacy-application` | `app/Http/Controllers/Customer/TwilioController.php` — **duplicado**, recorta a 10 dígitos y pega `whatsapp:+57` |
 | `legacy-backend` | `PayloadFormatters::currency()` — castea a `(int)` y quema separadores colombianos |
 | ambos | cuatro resolvedores distintos de «sucursal → país» (ver §«Lo que borra proceso») |
+| `frontend-monorepo` | `…/loan-application-form/src/components/IdBack.tsx` (173 líneas) y `PepCard.tsx` (84 + `apps/loan-request-wizard/public/assets/pep-background.png`) — la ilustración del documento en el paso de fecha de expedición. Los elige `init-loan-request.tsx:274` con `formData.documentType === "PEP"` |
 | BD | `banks` (sin `country_id`) · `country_cities` (sólo Colombia) · `countries` (sin zona horaria) |
 
 ## Cómo se ataca
@@ -513,6 +514,71 @@ desde la entidad.
 **Probada corriéndola contra la BD local:** la guarda abortó nombrando la entidad sembrada (`Ids: 7`); el
 borrado dejó el resolvedor dando **1.525 sucursales con 0 diferencias**; el rollback devolvió la columna y
 repobló las **6.232** filas.
+
+### 2026-08-27 · dos componentes de país quemado que el censo no tenía, y su prototipo
+
+**El censo no los tenía.** `grep -rln "IdBack\|PepCard" tablero/data/*.md context/` no devuelve **nada**:
+los dos componentes que le dibujan al solicitante su documento en el paso de fecha de expedición no
+estaban fichados en ninguna tarea ni en ningún nodo. Son país quemado a la vista del cliente, no en una
+consulta.
+
+**Qué son.** En `frontend-monorepo`, módulo `loan-application-form`:
+
+| | |
+|---|---|
+| `IdBack.tsx` | 173 líneas. El **reverso de la cédula colombiana**: estatura, G.S RH, departamento, código de barras. Todo con `opacity-30` salvo el recuadro de la fecha de expedición, que resalta en `#f79008` con los números animados por spring (`motion/react`) |
+| `PepCard.tsx` | 84 líneas + un PNG de 1 archivo (`pep-background.png`). El **Permiso Especial de Permanencia**, posicionando spans sobre la imagen con `--px: 0.2cqw` |
+| la elección | `init-loan-request.tsx:274` — `formData.documentType === "PEP" ? <PepCard/> : <IdBack/>` |
+
+**Por qué no escala:** el `documentType` decide cuál de las DOS ilustraciones colombianas se muestra. Un
+comercio dominicano (`CED`, `NUI`) o peruano (`DNI`) cae al `else` y ve el reverso de una cédula
+colombiana. No hay una tercera opción que agregar: hay que salir del patrón.
+
+**El prototipo: `tablero/data/artifacts/internacionalizacion-onboarding.tarjeta-identidad.html`.** Un archivo, sin dependencias, editable en
+vivo (apellidos, nombres, documento, nacimiento, sexo, lugares, autoridad, vencimiento + los tres
+selectores de la fecha de expedición). Lo que resuelve:
+
+- **La estructura sale de ICAO 9303 TD1**, el estándar de las ID tamaño tarjeta: proporción 85,6 × 54 mm,
+  los campos que existen en TODA identificación, y la MRZ de 3 × 30 caracteres. Lo que se dejó afuera
+  —estatura, grupo sanguíneo, departamento, código de barras— es exactamente lo que no generaliza.
+- **El país es dato, no estructura**: un objeto por país define nombre, ISO3, nombre local del documento,
+  cómo se llama su número y la autoridad. Instanciar un país es una entrada más, no una rama de código.
+- **Dos caras con giro**: el frente muestra lo que el solicitante ya escribió; al tocar la fecha de
+  expedición gira y el reverso resalta ese campo, que es donde vive el dato en el documento real.
+- Los SVG de silueta, huella y guilloché son los del diseño; el guilloché ya venía en `#F0BE00`.
+
+⚠ **Y un hallazgo del dominio que salió de implementar la MRZ: la cédula colombiana NO cabe en ella.**
+El campo del número de documento en TD1 tiene **9 posiciones** y la cédula tiene **10 dígitos**. El
+estándar lo previó: los primeros 9 van en su lugar, un `<` reemplaza al dígito de verificación, y el
+resto **más el dígito del número completo** se mueven al campo de datos opcionales. Con `1020304050` eso
+da `01` en opcionales. El DNI peruano (8) entra completo; la CURP mexicana (18) también resuelve por el
+mismo mecanismo. **Si algún día se compara un número de cédula contra el que devuelve un lector de MRZ,
+ahí está el motivo por el que no coinciden de forma directa.**
+
+El algoritmo del módulo 7-3-1 está verificado contra el caso canónico del apéndice de 9303 parte 3
+(Utopía / ERIKSSON): reproduce las tres líneas carácter por carácter, incluido el dígito compuesto —que
+no cubre toda la MRZ, sino las posiciones 6-30 de la línea 1 y las 1-7, 9-15 y 19-29 de la línea 2.
+
+**Estado: PR abierto — `frontend-monorepo` #903 → `qa`** (2026-08-27). Rama `pais/la-tarjeta-de-identidad-es-generica`, sacada de `origin/qa` (no de `main`:
+`personal-info-form.tsx` ya difiere entre las dos y `qa` es la versión nueva). El componente
+`IdentityCard.tsx` está escrito con el diseño del prototipo, `IdBack`/`PepCard`/el PNG borrados, la
+bifurcación de `init-loan-request.tsx` reemplazada y la story de storybook migrada. **Pasa `biome check`
+y `tsc --noEmit`** (los 9 errores de tsc son preexistentes de `packages/ui`); los 3 tests que fallan del
+módulo **fallan idéntico en `qa` limpio** — comprobado con stash.
+
+Dos commits separados a propósito: la tarjeta, y el autocompletado del navegador (que sólo se activa en
+self-service, porque en `/merchant` el navegador es del asesor). El segundo se puede revertir solo.
+
+**Lo que falta:** el componente todavía no recibe el país — el default quedó **quemado en Colombia**
+(`COLOMBIA_MIENTRAS_TANTO`, con Bogotá en los campos de lugar) mientras se parametriza desde la BD. El
+resolvedor de país del front ya existe —entró por el PR #889—, así que es cablearlo, no construirlo.
+Y falta correr el flujo entero en un navegador con sesión: lo verificado es build, lint, tipos y las dos
+caras en Storybook.
+
+⚠ Y una que apareció al portarlo, por si reaparece en otro componente con 3D: **`container-type` en la
+cara que rota rompe el giro.** Aplica `contain: layout`, y un elemento con containment no participa del
+contexto 3D de su padre: con `backface-visibility: hidden` las dos caras quedan invisibles. Va en un
+contenedor de afuera.
 
 ### 2026-08-27 · la corrida por comercio, y el agujero que destapó
 
