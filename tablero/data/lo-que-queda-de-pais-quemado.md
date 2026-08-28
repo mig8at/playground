@@ -6,7 +6,7 @@ created: "2026-08-27T09:00:00-05:00"
 context_nodes: [architecture, onboarding, kyc, entities, merchants]
 jira: []
 jira_title: ""
-ramas: "pais/documentos-que-acepta-el-backend, pais/monto-y-telefono-en-solicitar, pais/borrar-documentos-de-sucursal, pais/la-tarjeta-de-identidad-es-generica"
+ramas: "pais/documentos-que-acepta-el-backend, pais/monto-y-telefono-en-solicitar, pais/borrar-documentos-de-sucursal, pais/la-tarjeta-de-identidad-es-generica, pais/el-pais-trae-bandera-y-gentilicio, pais/la-tarjeta-lee-el-pais-de-la-bd"
 ---
 
 ## Si retomás esto sin contexto, empezá acá
@@ -514,6 +514,46 @@ desde la entidad.
 **Probada corriéndola contra la BD local:** la guarda abortó nombrando la entidad sembrada (`Ids: 7`); el
 borrado dejó el resolvedor dando **1.525 sucursales con 0 diferencias**; el rollback devolvió la columna y
 repobló las **6.232** filas.
+
+### 2026-08-28 · el documento deja de asumir Colombia, y lo que la tabla `countries` ya tenía
+
+**#903 mergeado** (la tarjeta genérica). Encima, dos PRs para que el país salga de la BD:
+
+| PR | repo | qué |
+|---|---|---|
+| #1250 | `legacy-backend` | el objeto `country` del endpoint suma `nationality` y `flag` |
+| #910 | `frontend-monorepo` | la tarjeta los consume; el default quemado deja de ser lo único que se ve |
+
+**El hallazgo que cambió el plan.** La idea inicial era agregarle una columna `metadata` (JSON) a
+`countries` para bandera, gentilicio y capital. Al mirar el esquema, **casi todo ya tenía columna**:
+
+| lo que se quería guardar | columna que ya existe | cómo está |
+|---|---|---|
+| bandera | `image` varchar | **vacía en TODOS los países** |
+| gentilicio | `nationality` varchar | **sólo Colombia** (`COLOMBIANA`) |
+| tipo de documento | `document_types` **json** | **sólo Colombia** (`["CC","CE","PEP"]`) |
+| capital | — | no existe (lo único que falta) |
+
+Más `iso_code_2/3`, `locale`, `currency`, `dial_code`, `phone_code`, `cell_phone_lenght`,
+`address_format`. **El problema no es de esquema: es que nadie llena lo que ya está.** Un `metadata`
+JSON encima habría sido la quinta columna que miente.
+
+⚠ **Y dos cosas que el esquema esconde:**
+
+- **`iso_code_2` guarda el código de TRES letras** (`AFG`, `COL`) y `iso_code_3` está vacía. El
+  controller ya lo expone bien —`'iso_code' => $country->iso_code_2`—, así que el front recibe el
+  valor correcto bajo el nombre correcto, pero la columna de origen miente.
+- **`document_types` existe en TRES tablas**: `countries`, `lenders` y `lenders_by_allied_branches`.
+  El formulario hoy usa la de la sucursal y el PR #1220 estableció que lo dicta la entidad. Meter una
+  cuarta fuente en un metadata de país habría empeorado justo lo que esta tarea desarma.
+
+**Decisión sobre los datos que faltan:** lo que no se le pide al solicitante y no se puede deducir se
+muestra como `XXXX`, no vacío ni inventado. Un guion se lee como error de carga; un `Bogotá` de relleno
+es indistinguible de un dato real. Mismo criterio que el `<` de la MRZ. La tarjeta ahora distingue tres
+cosas: lo escrito, lo deducido del país, y lo que no se sabe.
+
+**Lo que sigue sin salir de la BD:** el nombre local del documento y la autoridad emisora — no hay
+columna para ninguno.
 
 ### 2026-08-27 · dos componentes de país quemado que el censo no tenía, y su prototipo
 
