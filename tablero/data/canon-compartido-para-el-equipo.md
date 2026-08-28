@@ -1536,6 +1536,41 @@ Y un dato de encuadre que salió de prod: **Prami y las cuatro Welli son todas `
 Estado: banco **95/109** primero y 109/109 en top-3 · soporte **80/80** con 23 huecos declarados ·
 **492** archivos declarados, 0 derivados · `task ci` 0.
 
+## La ronda: el andamiaje del bucle de vigilancia, sin agentes (2026-08-28)
+
+Miguel planteó el diseño a futuro: eventos de merge a `main` → agentes con labor específica que
+deciden qué actualizar. Lo acordado y construido hoy es **el andamiaje que paga solo**, sin agentes:
+
+- **`canon -ronda`** — el barrido de TODO lo declarado contra `main`, agrupado por tema y área (la
+  unidad de trabajo del bucle futuro). Dos fuentes con el mismo contrato: clones locales o **GitHub por
+  árbol de main** (un pedido por repo — eso lo hace viable en la instancia desplegada, sin clon).
+- **`GET /api/ronda`** — servida, dos niveles como `/api/estado`, caché de 10 min. La portada ahora
+  muestra **«¿al día con main?»**.
+- **`skills/vigilar.md`** — la labor de cada agente futuro escrita ANTES de que exista: triaje y
+  expediente (deterministas, ya existen), lector (¿sigue cierta? — «no alcanza para saberlo» es
+  respuesta válida), escritor (sólo por `/api/propose`, la misma puerta que las personas), verificador
+  (su pregunta es «¿bajó el banco?»). Y los tres niveles de cambio con su permiso: mover rutas es
+  mecánico; **subir un hash es afirmar «releí y sigue cierto»** y sólo va con esa relectura; la prosa
+  casi nunca sin ojos.
+- **`.github/workflows/canon-ronda.yaml`** — el evento: corre cada día hábil, verde en silencio, rojo
+  con residuo, y **aviso explícito cuando la mirada fue parcial** («no miré» jamás se lee «al día»).
+  Es el enchufe donde mañana se conectan los agentes.
+
+**La primera corrida real pagó sola, con cuatro hallazgos:**
+1. `servicios/map.json` declaraba `Creditop-SAS/microservices`, que **no existe en GitHub** — el clon
+   local con ese nombre es `pdf-mapper-service`. Sólo la fuente GitHub podía verlo.
+2. `messaging-service` había cambiado en main (SES + template de OTP, 16/7) y el «al día» de la mañana
+   era contra un **clon atrasado** — la trampa del clon viejo, en vivo. Releído: la prosa sigue cierta.
+3. El alias `legacy-application` que agregué hoy a `listado` no tenía traducción a repo de GitHub — la
+   ronda ahora lo dice con nombre en vez de un 404 confuso.
+4. `pdf-mapper` sumó el candado de borrado y compresión; la prosa sigue cierta, hashes releídos.
+
+`-deriva` quedó como sinónimo de `-ronda` y `Drift` se retiró (un solo camino de comparación). Estado:
+ronda **✓ al día por las dos fuentes** · banco 95/109 y 109/109 top-3 · `task ci` 0.
+
+Decisión pendiente que esto deja lista: cuando Dani ponga `GITHUB_APP_ID`/`GITHUB_PRIVATE_KEY` en
+`prod/canon`, la ronda desplegada y el workflow empiezan a andar sin tocar nada más.
+
 ## Decisiones abiertas
 
 - **La frontera con credibrain** (herramienta de Oscar en el mismo catálogo, «la memoria de la
