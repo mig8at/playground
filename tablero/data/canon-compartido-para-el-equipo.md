@@ -1162,6 +1162,34 @@ después en un PR.
 
 Banco: **97 preguntas, 88 al primero, 97/97 alcanzables**. Corpus: **10 temas · 446 archivos**.
 
+## Credenciales y activación: se AMPLIÓ `altas` en vez de crear tema (2026-08-28)
+
+Miguel: las credenciales para activar/configurar entidades en el admin. Decisión: **ampliar `altas`**
+—misma superficie, mismo público, y un tema de 6 archivos habría fragmentado el grafo—. De 5 a **8
+áreas**, de 13 a **20 archivos**, de 531 a **950 palabras**. La prosa, otra vez **entera por API**.
+
+**Lo verificado hoy contra origin/main:**
+
+- **Cascada de credenciales**: se cuelgan del comercio o de una sucursal, y al usarlas se busca
+  **primero la de la sucursal, si no hay la del comercio** (`findOrFailByLenderAndAlly`). Una sucursal
+  puede estar hablando con llaves distintas al resto sin que nada lo indique.
+- **Catálogo cerrado de 33 llaves con nombre de proveedor, escrito en el código.** Sumar un proveedor
+  nuevo **es editar esa constante y desplegar** — no es configuración. Mismo patrón que los productos
+  que se eligen por identidad.
+- **Van cifradas con la misma llave de la app** que cifra el reporte de crédito → si fallan a la vez el
+  listado y las integraciones, sospechar de la llave antes que de los proveedores. (Enlaza con `kyc`.)
+- ⚠ **Dar de baja un comercio por «Churn» o «No implementado» desactiva a TODOS sus asesores**; con
+  otro motivo, no. Y hay **tres usuarios exentos por identidad** escritos en el código. El resultado de
+  una baja depende del motivo elegido, no de la baja.
+- Las credenciales de centrales se administran aparte y **se pueden restaurar** tras borrarlas (la
+  lista incluye las borradas).
+
+⚠ **El aviso `would_be_backed_by` funcionó en las 4**: apuntó al área correcta recién creada. Con el
+mapa declarando los archivos, la señal deja de ser ruido — que era la duda que quedaba de la ronda
+anterior.
+
+Banco: **103 preguntas, 93 al primero, 103/103 alcanzables**. Corpus: **10 temas · 450 archivos**.
+
 ## Decisiones abiertas
 
 - **La frontera con credibrain** (herramienta de Oscar en el mismo catálogo, «la memoria de la
