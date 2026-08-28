@@ -779,6 +779,32 @@ final fue de **vocabulario, no de pesos** — coherente con lo medido en agosto.
 
 **Banco de preguntas: 14/14 alcanzables, 11/14 al primer resultado**, exigiendo la sección.
 
+## «Cómo lo sabemos» se retiró, y la premisa endureció el lint (2026-08-27)
+
+Miguel: *«yo veo innecesario Cómo lo sabemos, porque asumimos que es verídico lo que agregamos»*. De
+acuerdo, y con dos razones más que refuerzan la suya:
+
+- **ya estaba fuera del índice de búsqueda** por contaminar el ranking — un texto que no puede ser
+  respuesta y que nadie lee es peso muerto;
+- **quedó redundante por diseño**: en el corpus viejo la procedencia era la ÚNICA señal de si algo había
+  envejecido; hoy eso lo hacen los **hashes del `map.json`**, exactos y revisables por una máquina.
+
+**Y la premisa lleva a algo más fuerte que la sección:** si se asume que lo que entra es verídico,
+entonces **lo no verificado no debe entrar**. Así que el lenguaje de duda pasó de «declaralo aparte» a
+**rechazarse**.
+
+| regla nueva del lint | por qué |
+|---|---|
+| se rechaza `inferencia`, `hipótesis`, `sin verificar`, `testimonio` | se verifica antes de escribirlo, o no se escribe |
+| «medido»/«verificado» **exige una fecha en la misma sección** | es lo único que la sección cubría y el mapa no: **un número medido contra un sistema vivo decae sin que cambie ningún archivo** —nadie toca el código cuando cambia una fila de la BD—, así que la fecha va pegada al número |
+| una sección `## Cómo lo sabemos` **falla** | para que no vuelva por costumbre |
+
+⚠ **Las tres se probaron rompiéndolas a propósito, y las tres fallan.** Una regla que nunca se vio fallar
+no está verificada.
+
+De paso salieron del README tres reglas que describían el corpus retirado (cabecera con frontmatter,
+`## Tech`, la capa `field`): decían cómo se escribía un nodo que ya no existe.
+
 ## Decisiones abiertas
 
 - **La frontera con credibrain** (herramienta de Oscar en el mismo catálogo, «la memoria de la
@@ -800,7 +826,8 @@ final fue de **vocabulario, no de pesos** — coherente con lo medido en agosto.
   corrida. Dos bugs propios encontrados y arreglados: `/api/read` no devolvía el mapa, y el preámbulo se
   robaba el primer resultado de la búsqueda. Y la prosa se **reescribió contra el nodo real**: dos
   afirmaciones inventadas fuera, y apareció la **hora de corte de las 20:30** —medida en prod, y que no
-  estaba escrita en ningún lado—. PR #10, un commit, CI verde.
+  estaba escrita en ningún lado—. Y se retiró **«Cómo lo sabemos»**, con el lint endurecido en su lugar.
+  PR #10, un commit, CI verde.
 - 2026-08-25 · F4 completa (+3: observability, environments, callbacks) y molde de F5
   (`field.entity-credifamilia`, sin cifras). Banco a 39 preguntas. Ver la sección de la métrica.
 - 2026-08-25 · F4 arrancada: +4 pitfalls temáticos (identity, reports, quota, data-reading), sin F-xx
