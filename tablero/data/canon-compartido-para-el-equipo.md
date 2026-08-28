@@ -1732,6 +1732,27 @@ db-routines, microservicios, codeudor, payments, pullman.
 **Backlog canon** que dejó la ola: el mirror (tema motai), el corte semanal (cartera), el gate del cupo
 (creditopx), y el «tipo 5» como pregunta abierta para el eje.
 
+## Los monstruos cayeron con digestión asistida (2026-08-28)
+
+La propuesta de Miguel — darle a los workers el doc actual + el diff entero para digerir la deriva
+grande — funcionó con el reparto de `vigilar.md`: **el worker propone, sella quien verifica.**
+
+- **backoffice (83 archivos → 6 funcionalidades)**: 5 eran el panel alcanzando lo que el doc ya
+  describía (CONFIRMADO, no viejo); 1 nueva — el rechazo de validación manual se **propaga al
+  codeudor**. Muestreo 3/6 a mano: exacto. Sellado.
+- **hardcodes-entidades (41 → 10)**: tres afirmaciones invalidadas, las tres ciertas —
+  `MOTAI_LENDER_IDS` da **cero** en main; el motor de categorías quedó **uno** (la copia de Onboarding
+  se retiró, el bypass Magnocell ahora es consistente); Motai pasó de 15 hardcodes a ~2. Corregidas con
+  tachado y fecha. Sellado.
+- **onboarding (37 → 8)**: los códigos OTP del wizard ya son `OBV22xxx` canónicos (¡y `max_attempts`
+  ya no existe como etiqueta!); y **el worker sobre-afirmó una** — dijo que personal-info de G3 estaba
+  implementado y el stub sigue 501 (lo implementado está detrás de la fachada apagada). La verificación
+  manual lo atrapó — exactamente para eso es el reparto. Sellado.
+
+**El día completo del marcador: 1 → 9 al día · 22+14 → 19+10 con deriva · 6 → 0 rutas muertas.**
+Quedan los medianos (frontend-monorepo 39, formalization 34, ecommerce, kyc…) — mismo método, otra
+sesión. El script del digestor quedó en el scratchpad y vale convertirlo en target del Makefile.
+
 ## Decisiones abiertas
 
 - **La frontera con credibrain** (herramienta de Oscar en el mismo catálogo, «la memoria de la
