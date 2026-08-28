@@ -10,9 +10,14 @@ jira_title: "Documentación de negocio compartida para el equipo"
 ---
 
 **ESTADO 2026-08-27.** El corpus **se reinició por profundidad** y el artefacto principal cambió: ya no
-es la prosa, es **`map.json`**. Un tema (`bancolombia`) con **145 archivos de 3 repos en 7 áreas**, cada
-uno con su hash de blob de git, contra **1.043 palabras** de prosa. PR abierto:
+es la prosa, es **`map.json`**. Un tema (`bancolombia`) con **147 archivos de 3 repos en 7 áreas**, cada
+uno con su hash de blob de git, contra **un solo `context.md`** de ~1.400 palabras. PR abierto:
 `Creditop-SAS/playground#10`, un solo commit, CI verde.
+
+Y ya está el **bucle de recontextualización**: `-expediente` va de «qué cambió» a «qué hay que hacer»
+—los PRs que movieron cada archivo, sus descripciones, el diff, candidatos a sumar y a quitar, y la
+prosa contra la que contrastar—. **Probado rebobinando el mapa tres meses, encontró un defecto real
+en su primera corrida.**
 
 El giro salió de una medición: casi todo lo que había escrito a mano **se podía grepear del código**
 (el monto fijo, los pisos de cada producto, hasta el pendiente en un comentario). Escribir eso es
@@ -683,9 +688,57 @@ y `-afectados <rutas…>` lo inverso: qué documentos dejó viejos un merge. Un 
 justo esa lista de rutas. `/api/propose` ya valida y, en una instancia sin disco, devuelve el archivo
 listo y la rama sugerida en vez de fallar — que es lo que necesita un agente para abrir el PR él mismo.
 
-**Verificado hoy:** los 145 existen en `main` de sus repos y 0 derivaron · `task ci` verde · y
-`/api/read` **ahora sí entrega el mapa junto al documento** (no lo hacía: el agente recibía la mitad
-cara sin saber dónde buscar la otra).
+**Verificado:** los archivos existen en `main` de sus repos y 0 derivaron · `task ci` verde (desde un
+worktree limpio, no desde el árbol de trabajo) · y `/api/read` **ahora sí entrega el mapa junto al
+documento** (no lo hacía: el agente recibía la mitad cara sin saber dónde buscar la otra).
+
+## El expediente: de «qué cambió» a «qué hay que hacer» (2026-08-27)
+
+`-deriva` decía qué archivos se movieron. Eso solo no alcanza: una lista de rutas no dice si el texto
+quedó mintiendo, ni si faltan archivos, ni si alguno sobra. **`-expediente <tema> <repos>`** arma todo
+lo que hace falta para decidirlo, en un documento, y **no decide él** —no vive ningún modelo en el
+binario—: junta la evidencia y hace las preguntas.
+
+**Lo que lo hace exacto: el hash ubica el punto en la historia.** El blob guardado *es* el estado del
+archivo cuando se documentó, así que se camina hacia atrás por los commits del archivo hasta encontrar
+ese blob y todo lo posterior es lo que hay que revisar. Ni un commit de más, y sin guardar ninguna
+fecha aparte.
+
+**Dos mediciones cambiaron el diseño:**
+
+| medido | qué cambió |
+|---|---|
+| **35 % de los PRs mergeados de `legacy-backend` no tiene descripción** (60 mirados; los que sí, promedian 2.000 caracteres) | el expediente nunca se apoya sólo en la descripción: diff y mensajes de commit van siempre, y la ausencia se marca |
+| de **75 candidatos a sumar**, los **9** en una carpeta ya declarada eran todos plausibles; los 66 restantes eran `Dockerfile` y workflows | se ordenan por **cercanía de carpeta**, no por cuántos PRs los tocaron |
+
+⚠ **Y encontró un defecto real en su primera corrida.** Rebobinando el mapa al 2026-05-27, marcó 61 de
+145 archivos movidos. Leyéndolo: la prosa decía que una caída del banco *«no deja rastro de error en
+ningún lado»*, y desde junio de 2026 existe una tabla de capturas de error del aliado que guarda justo
+eso — **la prosa la mencionaba cero veces**, y de los 5 archivos que la nombran el mapa ya declaraba 3.
+Se corrigió el texto y se sumaron los 2 que faltaban.
+
+## Un solo archivo de prosa, decidido por Miguel (2026-08-27)
+
+De 5 capas → 4 clases → 2 → **1**. El motivo fue siempre el mismo: las categorías describían lo que el
+mapa ya dice dónde encontrar. Y con más de un archivo quedaba una **decisión de enrutado en cada
+edición**, que es exactamente donde un agente se equivoca —por fricción, no por no entender la regla—.
+
+`context.md` no es un documento estructurado: **párrafos, en prosa, estilo historia**. Se amplía sin
+reorganizarlo, que es la operación que un agente hace bien.
+
+⚠ **La reserva, y su arreglo:** una bitácora sin regla para lo que dejó de ser cierto se pudre. La regla
+va escrita en el propio encabezado del archivo — *cuando algo deja de ser cierto no se borra, se corrige
+y se dice desde cuándo* — y el ejemplo vivo quedó en el texto de Bancolombia: «hasta agosto de 2026 la
+solicitud quedaba viva y sin captura».
+
+**Dos consecuencias que aparecieron al hacerlo:**
+
+- **El banco de preguntas tuvo que subir la vara a la SECCIÓN.** Con un archivo por tema, acertar el
+  documento es gratis. A nivel sección: 11/11 alcanzables, 9/11 al primer resultado.
+- **El preámbulo competía con las secciones.** Como describe de qué trata el archivo entero, matcheaba
+  cualquier pregunta del tema y se robaba el primer puesto sin contestar nada — medido con «qué le
+  contesto al comercio cuando no le sale Bancolombia». Se sacó del índice, igual que «Cómo lo sabemos»:
+  es tapa, no respuesta.
 
 ## Decisiones abiertas
 
@@ -702,8 +755,11 @@ cara sin saber dónde buscar la otra).
 - 2026-08-27 · **1h00 medido** (`make pulso`; el grueso del día fue frontend). El corpus se reinició
   por profundidad y **`map.json` pasó a ser el artefacto principal**: 145 archivos de 3 repos en 7
   áreas con hash de blob, contra 1.043 palabras de prosa. Lo decidió una medición (~70 % de lo escrito
-  a mano era grepeable; el certificado sin vigilar, no). De 4 clases de documento a 2. Bug propio
-  encontrado y arreglado: `/api/read` no devolvía el mapa. PR #10, un commit, CI verde.
+  a mano era grepeable; el certificado sin vigilar, no). **De 4 clases de documento a 1** (decisión de
+  Miguel): `context.md` en prosa corrida, con la regla de envejecer escrita en su encabezado. Y se armó
+  el **expediente**, que cierra el bucle de recontextualización y encontró un defecto real en su primera
+  corrida. Dos bugs propios encontrados y arreglados: `/api/read` no devolvía el mapa, y el preámbulo se
+  robaba el primer resultado de la búsqueda. PR #10, un commit, CI verde.
 - 2026-08-25 · F4 completa (+3: observability, environments, callbacks) y molde de F5
   (`field.entity-credifamilia`, sin cifras). Banco a 39 preguntas. Ver la sección de la métrica.
 - 2026-08-25 · F4 arrancada: +4 pitfalls temáticos (identity, reports, quota, data-reading), sin F-xx
